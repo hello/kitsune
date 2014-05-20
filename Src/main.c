@@ -52,10 +52,6 @@
 
 #include "uartstdio.h"
 
-extern const unsigned char g_image1[];
-extern const unsigned char g_image2[];
-extern const unsigned char g_image3[];
-
 //*****************************************************************************
 //
 //! <h1>START APPLICATION with FreeRTOS for Texas Instruments/Luminary Micro
@@ -150,41 +146,9 @@ void vDisplayTask( void *pvParameters )
 	taskParams_t*	pTaskParams = (taskParams_t *) pvParameters;    
 	tRectangle		rect;
 	int 			x, y, c;
-	unsigned long	width, height;
 
 	/* Default to checker-board pattern */
 	pTaskParams->color = -3;
-
-	/* Draw the FreeRTOS logo on the OLED */
-	width = g_image2[0];
-	height = g_image2[1];
-	for (y = 0; y < height; y++)
-	{
-		g_sCFAL96x64x16.pfnPixelDrawMultiple(NULL, 0, height-y-1, 0, width, 656, &g_image2[2+y*(width*2)], NULL);
-	}
-	vTaskDelay(configTICK_RATE_HZ * 5);
-
-	/* Draw the Stellaris Port BMP on the OLED */
-	width = g_image3[0];
-	height = g_image3[1];
-	for (x = 0; x < height; x++)
-	{
-		for (y = 0; y <= x; y++)
-		{
-			g_sCFAL96x64x16.pfnPixelDrawMultiple(NULL, 0, x-y, 0, width, 656, &g_image3[2+y*(width*2)], NULL);
-		}
-		vTaskDelay(configTICK_RATE_HZ/100);
-	}
-	vTaskDelay(configTICK_RATE_HZ * 5);
-
-	/* Draw the Fuel7 logo on the OLED */
-	width = g_image1[0];
-	height = g_image1[1];
-	for (y = 0; y < height; y++)
-	{
-		g_sCFAL96x64x16.pfnPixelDrawMultiple(NULL, 0, height-y-1, 0, width, 656, &g_image1[2+y*(width*2)], NULL);
-	}
-	vTaskDelay(configTICK_RATE_HZ * 7);
 		
     /* As per most tasks, this task is implemented in an infinite loop. */
     for( ;; )
