@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launchConfiguration type="com.ti.ccstudio.debug.core.CCELaunchType">
+<stringAttribute key="org.eclipse.debug.core.source_locator_memento" value="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;&#13;&#10;&lt;sourceLookupDirector&gt;&#13;&#10;&lt;sourceContainers duplicates=&quot;false&quot;&gt;&#13;&#10;&lt;container memento=&quot;&amp;lt;?xml version=&amp;quot;1.0&amp;quot; encoding=&amp;quot;UTF-8&amp;quot;?&amp;gt;&amp;#13;&amp;#10;&amp;lt;default/&amp;gt;&amp;#13;&amp;#10;&quot; typeId=&quot;org.eclipse.debug.core.containerType.default&quot;/&gt;&#13;&#10;&lt;/sourceContainers&gt;&#13;&#10;&lt;/sourceLookupDirector&gt;&#13;&#10;"/>
+<booleanAttribute key="org.eclipse.debug.ui.ATTR_LAUNCH_IN_BACKGROUND" value="false"/>
+<booleanAttribute key="com.ti.ccstudio.debug.core.MRU_PROGRAM_S_ONLY" value="false"/>
+<stringAttribute key="CCEDebugOptions.CPU_RESOLVE_OPTION" value="first_compatible"/>
+<stringAttribute key="org.eclipse.debug.ui.DISPLAY_NAME" value="Prj [Release] - Stellaris In-Circuit Debug Interface_0/CORTEX_M4_0"/>
+<stringAttribute key="CCEDebugOptions.LOADING_OPTION" value="program"/>
+<stringAttribute key="org.eclipse.cdt.launch.DEBUGGER_REGISTER_GROUPS" value=""/>
+<stringAttribute key="CCEDebugOptions.DEBUG_PROPERTIES.Stellaris In-Circuit Debug Interface_0/CORTEX_M3_0" value="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot; standalone=&quot;no&quot; ?&gt;&#10;&lt;PropertyValues&gt;&#10;&#10;  &lt;property id=&quot;ConnectOnStartup&quot;&gt;&#10;    &lt;curValue&gt;1&lt;/curValue&gt;&#10;  &lt;/property&gt;&#10;&#10;&lt;/PropertyValues&gt;&#10;"/>
+<stringAttribute key="CCEDebugOptions.CPU_ISA" value="CORTEX_M4"/>
+<stringAttribute key="org.eclipse.debug.core.source_locator_id" value="com.ti.ccstudio.debug.core.sourceLocator"/>
+<stringAttribute key="org.eclipse.cdt.launch.DEBUGGER_ID" value="com.ti.ccstudio.debug.core.CCEDebugger"/>
+<mapAttribute key="com.ti.ccstudio.debug.core.VARIABLE_STATE"/>
+<mapAttribute key="com.ti.ccstudio.memory.ui.displayFormats">
+<mapEntry key="Stellaris In-Circuit Debug Interface_0/CORTEX_M4_0@##separator##@0" value="C_STYLE_HEX_32"/>
+</mapAttribute>
+<stringAttribute key="org.eclipse.cdt.launch.DEBUGGER_START_MODE" value="run"/>
+<stringAttribute key="com.ti.ccstudio.debug.core.DISPLAY_NAME_FORMAT" value="Prj [Release] - {0}"/>
+<stringAttribute key="CCEDebugOptions.TARGET_CONFIGURATION_OPTION" value="full"/>
+<stringAttribute key="org.eclipse.cdt.launch.MEMORY_BLOCKS" value="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;&#13;&#10;&lt;memoryBlockExpressionList/&gt;&#13;&#10;"/>
+<stringAttribute key="com.ti.ccstudio.debug.core.MRU_PROGRAM_NAME" value="E:\Projects\FreeRtosLm4f v7\Release\Prj.out"/>
+<stringAttribute key="org.eclipse.cdt.launch.PROJECT_ATTR" value="Prj"/>
+<stringAttribute key="com.ti.ccstudio.debug.core.MRU_MODULES" value="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;&#13;&#10;&lt;modules&gt;&#13;&#10;&lt;module name=&quot;D:\Users\DAM1\My Documents\MyWorkspaces\FreeRTOS\Prj\Debug\Prj.out&quot; time=&quot;Mon May 31 01:40:44 PDT 2010&quot; time_long=&quot;1275295244561&quot;/&gt;&#13;&#10;&lt;module name=&quot;D:\Users\DAM1\My Documents\MyWorkspaces\FreeRTOS_CCS4_Start\Prj\Debug\Prj.out&quot; time=&quot;Tue Jun 01 06:24:15 PDT 2010&quot; time_long=&quot;1275398655440&quot;/&gt;&#13;&#10;&lt;module name=&quot;E:\Projects\FreeRtosLm4f\Debug\Prj.out&quot; time=&quot;Sun May 20 09:17:48 PDT 2012&quot; time_long=&quot;1337530668673&quot;/&gt;&#13;&#10;&lt;module name=&quot;E:\Projects\FreeRtosLm4f\Release\Prj.out&quot; time=&quot;Mon May 21 08:12:30 PDT 2012&quot; time_long=&quot;1337613150956&quot;/&gt;&#13;&#10;&lt;module name=&quot;E:\Projects\FreeRtosLm4f v7\Debug\Prj.out&quot; time=&quot;Thu May 24 11:46:56 PDT 2012&quot; time_long=&quot;1337885216664&quot;/&gt;&#13;&#10;&lt;module name=&quot;E:\Projects\FreeRtosLm4f v7\Release\Prj.out&quot; time=&quot;Thu May 24 14:26:20 PDT 2012&quot; time_long=&quot;1337894780927&quot;/&gt;&#13;&#10;&lt;/modules&gt;&#13;&#10;"/>
+<stringAttribute key="CCEDebugOptions.CPU_NAME" value="Stellaris In-Circuit Debug Interface_0/CORTEX_M4_0"/>
+<stringAttribute key="org.eclipse.cdt.launch.GLOBAL_VARIABLES" value="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;&#13;&#10;&lt;globalVariableList/&gt;&#13;&#10;"/>
+<stringAttribute key="org.eclipse.cdt.launch.PROGRAM_NAME" value="Release/Prj.out"/>
+<stringAttribute key="com.ti.ccstudio.debug.core.BUILD_CONFIGURATION" value="Release"/>
+<stringAttribute key="CCEDebugOptions.DEBUG_PROPERTIES.Stellaris In-Circuit Debug Interface_0/CORTEX_M4_0" value="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot; standalone=&quot;no&quot; ?&gt;&#10;&lt;PropertyValues&gt;&#10;&#10;  &lt;property id=&quot;ConnectOnStartup&quot;&gt;&#10;    &lt;curValue&gt;1&lt;/curValue&gt;&#10;  &lt;/property&gt;&#10;&#10;&lt;/PropertyValues&gt;&#10;"/>
+<stringAttribute key="CCEDebugOptions.TARGET_CONFIGURATION_FILE" value="E:\Projects\FreeRtosLm4f v7\LM4F232H5QD.ccxml"/>
+</launchConfiguration>

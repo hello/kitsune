@@ -1,0 +1,487 @@
+//*****************************************************************************
+//
+// main.c - FreeRTOS porting example on CCS4
+//
+// Copyright (c) 2006-2010 Texas Instruments Incorporated.  All rights reserved.
+// Software License Agreement
+//
+// Texas Instruments (TI) is supplying this software for use solely and
+// exclusively on TI's microcontroller products. The software is owned by
+// TI and/or its suppliers, and is protected under applicable copyright
+// laws. You may not combine this software with "viral" open-source
+// software in order to form a larger program.
+//
+// THIS SOFTWARE IS PROVIDED "AS IS" AND WITH ALL FAULTS.
+// NO WARRANTIES, WHETHER EXPRESS, IMPLIED OR STATUTORY, INCLUDING, BUT
+// NOT LIMITED TO, IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+// A PARTICULAR PURPOSE APPLY TO THIS SOFTWARE. TI SHALL NOT, UNDER ANY
+// CIRCUMSTANCES, BE LIABLE FOR SPECIAL, INCIDENTAL, OR CONSEQUENTIAL
+// DAMAGES, FOR ANY REASON WHATSOEVER.
+//
+// Modified to work with TI ED-LM4F232 on 5/18/2012 by:
+//
+//    Ken Pettit
+//    Fuel7, Inc.
+//
+//*****************************************************************************
+
+#include <stdlib.h>
+#include <assert.h>
+
+/* FreeRTOS includes */
+#include "FreeRTOS.h"
+#include "task.h"
+#include "queue.h"
+#include "semphr.h"
+
+/* Standard Stellaris includes */
+#include "inc/hw_ints.h"
+#include "inc/hw_memmap.h"
+#include "inc/hw_types.h"
+
+#include "driverlib/gpio.h"
+#include "driverlib/interrupt.h"
+#include "driverlib/sysctl.h"
+#include "driverlib/systick.h"
+#include "driverlib/timer.h"
+
+/* Other Stellaris include */
+#include "grlib/grlib.h"
+#include "drivers/cfal96x64x16.h"
+#include "utils/cpu_usage.h"
+
+#include "uartstdio.h"
+
+extern const unsigned char g_image1[];
+extern const unsigned char g_image2[];
+extern const unsigned char g_image3[];
+
+//*****************************************************************************
+//
+//! <h1>START APPLICATION with FreeRTOS for Texas Instruments/Luminary Micro
+//!     EK-LM4F232 evauation-board </h1>
+//!
+//! - It creates two simple tasks, one writes on the OLED, the other toggles a LED
+//! - It uses Stellaris libraries
+//
+//*****************************************************************************
+
+//*****************************************************************************
+// Set mainCREATE_FPU_CONTEXT_SAVE_TEST to 1 to create a test to validate the
+// context saving of the FPU registers.
+//
+// NOTE:  This will cause long context switch times as it performs a nexted
+//        interrupt test at each SysTick, saving/restoring FPU registers with
+//        each nested ISR.  It should only be enabled for testing purposes. 
+//*****************************************************************************
+#define mainCREATE_FPU_CONTEXT_SAVE_TEST		1
+
+extern void vRegTestClearFlopRegistersToParameterValue( unsigned long ulValue );
+extern unsigned long ulRegTestCheckFlopRegistersContainParameterValue( unsigned long ulValue );
+
+/* The following variables are used to verify that the interrupt nesting depth
+is as intended.  ulFPUInterruptNesting is incremented on entry to an interrupt
+that uses the FPU, and decremented on exit of the same interrupt.
+ulMaxFPUInterruptNesting latches the highest value reached by
+ulFPUInterruptNesting.  These variables have no other purpose. */
+volatile unsigned long ulFPUInterruptNesting = 0UL, ulMaxFPUInterruptNesting = 0UL;
+
+void TIM0A_IRQHandler( void );
+void TIM0B_IRQHandler( void );
+
+//*****************************************************************************
+//
+// The speed of the processor clock, which is therefore the speed of the clock
+// that is fed to the peripherals.
+//
+//*****************************************************************************
+unsigned long g_ulSystemClock;
+
+// ==============================================================================
+// The CPU usage in percent, in 16.16 fixed point format.
+// ==============================================================================
+unsigned long g_ulCPUUsage;
+
+//*****************************************************************************
+//
+// The error routine that is called if the driver library encounters an error.
+//
+//*****************************************************************************
+#ifdef DEBUG
+void
+__error__(char *pcFilename, unsigned long ulLine)
+{
+}
+#endif
+
+/*
+ * Hook functions that can get called by the kernel.
+ */
+void vApplicationIdleHook( void );
+void vApplicationTickHook( void );
+void vApplicationStackOverflowHook( xTaskHandle *pxTask, signed portCHAR *pcTaskName );
+void vUARTTask( void *pvParameters );
+
+typedef struct taskParams
+{
+	xSemaphoreHandle	blinkSema;
+	xSemaphoreHandle	displaySema;
+	signed short		color;
+} taskParams_t;
+
+taskParams_t* g_pTaskParams = NULL;
+
+//*****************************************************************************
+// Table of colors for the OLED to cycle through
+//*****************************************************************************
+typedef struct
+{
+	const char* pName;
+	unsigned long	value;
+} colorTable_t;
+
+extern const colorTable_t g_colors[];
+
+/*-----------------------------------------------------------*/
+void vDisplayTask( void *pvParameters )
+{
+    unsigned long 	ulCounter = 0;
+    unsigned long 	color = 0;
+	taskParams_t*	pTaskParams = (taskParams_t *) pvParameters;    
+	tRectangle		rect;
+	int 			x, y, c;
+	unsigned long	width, height;
+
+	/* Default to checker-board pattern */
+	pTaskParams->color = -3;
+
+	/* Draw the FreeRTOS logo on the OLED */
+	width = g_image2[0];
+	height = g_image2[1];
+	for (y = 0; y < height; y++)
+	{
+		g_sCFAL96x64x16.pfnPixelDrawMultiple(NULL, 0, height-y-1, 0, width, 656, &g_image2[2+y*(width*2)], NULL);
+	}
+	vTaskDelay(configTICK_RATE_HZ * 5);
+
+	/* Draw the Stellaris Port BMP on the OLED */
+	width = g_image3[0];
+	height = g_image3[1];
+	for (x = 0; x < height; x++)
+	{
+		for (y = 0; y <= x; y++)
+		{
+			g_sCFAL96x64x16.pfnPixelDrawMultiple(NULL, 0, x-y, 0, width, 656, &g_image3[2+y*(width*2)], NULL);
+		}
+		vTaskDelay(configTICK_RATE_HZ/100);
+	}
+	vTaskDelay(configTICK_RATE_HZ * 5);
+
+	/* Draw the Fuel7 logo on the OLED */
+	width = g_image1[0];
+	height = g_image1[1];
+	for (y = 0; y < height; y++)
+	{
+		g_sCFAL96x64x16.pfnPixelDrawMultiple(NULL, 0, height-y-1, 0, width, 656, &g_image1[2+y*(width*2)], NULL);
+	}
+	vTaskDelay(configTICK_RATE_HZ * 7);
+		
+    /* As per most tasks, this task is implemented in an infinite loop. */
+    for( ;; )
+    {
+		if (pTaskParams->color == -3)
+		{
+			x = rand() %12;
+			y = rand() %8;
+		    rect.sXMin = x*8;
+		    rect.sYMin = y*8;
+		    rect.sXMax = (x+1)*8-1;
+		    rect.sYMax = (y+1)*8-1;
+		    c = rand() & 0xFF | ((rand() & 0xFF) << 8) | ((rand() & 0xFF) << 16);
+	 		g_sCFAL96x64x16.pfnRectFill(NULL, &rect,
+	 			CFAL96x64x16ColorTranslate(NULL,c));
+		}
+		else
+		{
+	    	/* Draw a colored line at ulCounter */
+	 		g_sCFAL96x64x16.pfnLineDrawH(NULL, 0, g_sCFAL96x64x16.usWidth-1, ulCounter, 
+	 			CFAL96x64x16ColorTranslate(NULL,g_colors[color].value));
+	        ulCounter++;
+	 		if (ulCounter >= g_sCFAL96x64x16.usHeight)
+	 		{
+	 			ulCounter = 0;
+	 			
+	 			/* Only update the pTaskParams->color value with interrupts off */
+				vPortEnterCritical();
+	 			if (pTaskParams->color < 0)
+	 			{
+	 				/* Cycle to next color */
+	 				++color;
+	 				if (g_colors[color].pName == NULL)
+	 					color = 0;
+	 				
+	 				/* Test for a request for "next" color */
+	 				if (pTaskParams->color == -2)
+	 				{
+	 					/* Set the next color so we don't continue cycling */
+	 					pTaskParams->color = color;
+	 				}
+				} 
+	 			else
+	 				color = pTaskParams->color;
+	 			vPortExitCritical();
+	 		}
+		}
+ 		       
+ 		/* Block until the TimingTask signals us */
+ 		xSemaphoreTake(pTaskParams->displaySema, portMAX_DELAY);
+    }
+}
+
+/*-----------------------------------------------------------*/
+void vBlinkTask( void *pvParameters )
+{
+    volatile unsigned long ul;
+    static long toggle = 0x00;
+	taskParams_t*	pTaskParams = (taskParams_t *) pvParameters;    
+
+    /* As per most tasks, this task is implemented in an infinite loop. */
+    for( ;; )
+    {
+        toggle ^= 0x01;
+        if (toggle)
+        {
+            GPIOPinWrite(GPIO_PORTG_BASE, GPIO_PIN_2, GPIO_PIN_2);
+        }
+        else
+        {
+            GPIOPinWrite(GPIO_PORTG_BASE, GPIO_PIN_2, 0);
+        }
+
+		/* Wait for a signal from the timing task */
+ 		xSemaphoreTake(pTaskParams->blinkSema, portMAX_DELAY);
+    }
+}
+
+/*-----------------------------------------------------------*/
+void vTimingTask( void *pvParameters )
+{
+	taskParams_t*	pTaskParams = (taskParams_t *) pvParameters;
+	unsigned short	usCount = 0;    
+
+	while (1)
+	{
+		// Sleep for 5ms
+		vTaskDelay(10 / portTICK_RATE_MS);
+		
+		// Signal the displayTask to update
+		xSemaphoreGive(pTaskParams->displaySema);
+		
+		// Every 500ms, signal the FlashTask
+		if (++usCount >= 50)
+		{
+			usCount = 0;
+			xSemaphoreGive(pTaskParams->blinkSema);
+		}
+	}
+}
+
+
+/*-----------------------------------------------------------*/
+int main(void)
+{
+    //
+    // Set the clocking to run at 66.66MHz from the PLL.
+    //
+    SysCtlClockSet(SYSCTL_SYSDIV_3 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN |
+                   SYSCTL_XTAL_16MHZ);
+
+    // Get the system clock speed.
+    g_ulSystemClock = SysCtlClockGet();
+
+    //
+    // Initialize the OLED display.
+    //
+    CFAL96x64x16Init();
+
+    // Initialize the CPU usage measurement routine.
+    CPUUsageInit(g_ulSystemClock, configTICK_RATE_HZ/10, 1);
+    
+    //
+    // Configure GPIO Pin used for the LED.
+    //
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOG);
+    GPIOPinTypeGPIOOutput(GPIO_PORTG_BASE, GPIO_PIN_2);
+
+    // Turn off the LED.
+    GPIOPinWrite(GPIO_PORTG_BASE, GPIO_PIN_2, 0);
+
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPION);
+    GPIOPinTypeGPIOOutput(GPIO_PORTN_BASE, GPIO_PIN_0 | GPIO_PIN_1);
+
+	#if ( mainCREATE_FPU_CONTEXT_SAVE_TEST == 1 )
+	{
+		SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
+		TimerIntRegister(TIMER0_BASE, TIMER_A, TIM0A_IRQHandler);
+		TimerIntRegister(TIMER0_BASE, TIMER_B, TIM0B_IRQHandler);
+		TimerIntEnable(TIMER0_BASE, 0);
+	}
+	#endif
+	
+	/*-------------------------------------------
+	     Create semaphores for inter-task
+	     signaling
+	-------------------------------------------*/
+	g_pTaskParams = pvPortMalloc(sizeof(taskParams_t));
+	vSemaphoreCreateBinary(g_pTaskParams->blinkSema);
+	vSemaphoreCreateBinary(g_pTaskParams->displaySema);
+
+    /*-------------------------------------------
+         Create task and start scheduler
+    -------------------------------------------*/
+
+    /* Create the display update task. */
+    xTaskCreate(    vDisplayTask, /* Pointer to the function that implements the task. */
+                    "DisplayTask",/* Text name for the task.  This is to facilitate debugging only. */
+                    80,          /* Stack depth in words. */
+                    g_pTaskParams,/* Pass in our parameter pointer */
+                    3,            /* This task will run at priority 1. */
+                    NULL );       /* We are not using the task handle. */
+
+    /* Create the user LED blink task. */
+    xTaskCreate( vBlinkTask, "BlinkTask", configMINIMAL_STACK_SIZE, g_pTaskParams, 3, NULL );
+   
+    /* Create the timing conrol task. */
+    xTaskCreate( vTimingTask, "TimingTask", configMINIMAL_STACK_SIZE, g_pTaskParams, 2, NULL );
+
+    /* Create the UART processing task. */
+    xTaskCreate( vUARTTask, "UARTTask", 100, g_pTaskParams, 2, NULL );
+
+    /* Start the scheduler so our tasks start executing. */
+    vTaskStartScheduler();
+
+    /* If all is well we will never reach here as the scheduler will now be
+    running.  If we do reach here then it is likely that there was insufficient
+    heap available for the idle task to be created. */
+    while (1)
+    {
+    }
+}
+
+/*-----------------------------------------------------------*/
+
+void vApplicationIdleHook( void )
+{
+	SysCtlSleep();
+}
+
+/*-----------------------------------------------------------*/
+
+void vApplicationTickHook( void )
+{
+	static unsigned char count = 0;
+	
+    GPIOPinWrite(GPIO_PORTN_BASE, GPIO_PIN_0, GPIO_PIN_0);
+    
+	if (++count == 10)
+	{
+    	g_ulCPUUsage = CPUUsageTick();
+    	count = 0;
+	}
+
+	#if ( mainCREATE_FPU_CONTEXT_SAVE_TEST == 1 )
+	{
+		/* Just to verify that the interrupt nesting behaves as expected,
+		increment ulFPUInterruptNesting on entry, and decrement it on exit. */
+		ulFPUInterruptNesting++;
+
+		/* Fill the FPU registers with 0. */
+		vRegTestClearFlopRegistersToParameterValue( 0UL );
+		
+		/* Trigger a timer 2 interrupt, which will fill the registers with a
+		different value and itself trigger a timer 3 interrupt.  Note that the
+		timers are not actually used.  The timer 2 and 3 interrupt vectors are
+		just used for convenience. */
+		IntPendSet( INT_TIMER0A );
+	
+		/* Ensure that, after returning from the nested interrupts, all the FPU
+		registers contain the value to which they were set by the tick hook
+		function. */
+		assert( ulRegTestCheckFlopRegistersContainParameterValue( 0UL ) );
+		
+		ulFPUInterruptNesting--;
+	}
+	#endif
+	
+    GPIOPinWrite(GPIO_PORTN_BASE, GPIO_PIN_1 | GPIO_PIN_0, 0);
+}
+
+/*-----------------------------------------------------------*/
+
+void TIM0B_IRQHandler( void )
+{
+	/* Just to verify that the interrupt nesting behaves as expected, increment
+	ulFPUInterruptNesting on entry, and decrement it on exit. */
+	ulFPUInterruptNesting++;
+	
+	/* This is the highest priority interrupt in the chain of forced nesting
+	interrupts, so latch the maximum value reached by ulFPUInterruptNesting.
+	This is done purely to allow verification that the nesting depth reaches
+	that intended. */
+	if( ulFPUInterruptNesting > ulMaxFPUInterruptNesting )
+	{
+		ulMaxFPUInterruptNesting = ulFPUInterruptNesting;
+	}
+
+	/* Fill the FPU registers with 99 to overwrite the values written by
+	TIM0A_IRQHandler(). */
+	vRegTestClearFlopRegistersToParameterValue( 99UL );
+	
+	ulFPUInterruptNesting--;
+}
+/*-----------------------------------------------------------*/
+
+void TIM0A_IRQHandler( void )
+{
+	/* Just to verify that the interrupt nesting behaves as expected, increment
+	ulFPUInterruptNesting on entry, and decrement it on exit. */
+	ulFPUInterruptNesting++;
+	
+	/* Fill the FPU registers with 1. */
+	vRegTestClearFlopRegistersToParameterValue( 1UL );
+	
+	/* Trigger a timer 3 interrupt, which will fill the registers with a
+	different value. */
+	IntPendSet( INT_TIMER0B );
+
+	/* Ensure that, after returning from the nesting interrupt, all the FPU
+	registers contain the value to which they were set by this interrupt
+	function. */
+	assert( ulRegTestCheckFlopRegistersContainParameterValue( 1UL ) );
+	
+	ulFPUInterruptNesting--;
+}
+
+/*-----------------------------------------------------------*/
+
+void vApplicationMallocFailedHook( void )
+{
+    /* This function will only be called if an API call to create a task, queue
+    or semaphore fails because there is too little heap RAM remaining. */
+    for( ;; );
+}
+
+/*-----------------------------------------------------------*/
+
+void vApplicationStackOverflowHook( xTaskHandle *pxTask, signed portCHAR *pcTaskName )
+{
+    /* This function will only be called if a task overflows its stack.  Note
+    that stack overflow checking does slow down the context switch
+    implementation. */
+    UARTprintf("FATAL!  Stack overflow in task %s\n", pcTaskName);
+    
+    for( ;; );
+}
+
+
+
