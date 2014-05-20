@@ -319,7 +319,7 @@ int main(void)
     xTaskCreate( vTimingTask, "TimingTask", configMINIMAL_STACK_SIZE, g_pTaskParams, 2, NULL );
 
     /* Create the UART processing task. */
-    xTaskCreate( vUARTTask, "UARTTask", 100, g_pTaskParams, 2, NULL );
+    xTaskCreate( vUARTTask, "UARTTask", 200, g_pTaskParams, 2, NULL );
 
     /* Start the scheduler so our tasks start executing. */
     vTaskStartScheduler();
