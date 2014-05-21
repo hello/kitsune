@@ -34,6 +34,9 @@
 #include "queue.h"
 #include "semphr.h"
 
+/* FatFS for timer */
+#include "fatfs/src/diskio.h"
+
 /* Standard Stellaris includes */
 #include "inc/hw_ints.h"
 #include "inc/hw_memmap.h"
@@ -70,7 +73,7 @@
 //        interrupt test at each SysTick, saving/restoring FPU registers with
 //        each nested ISR.  It should only be enabled for testing purposes. 
 //*****************************************************************************
-#define mainCREATE_FPU_CONTEXT_SAVE_TEST		1
+#define mainCREATE_FPU_CONTEXT_SAVE_TEST		0
 
 extern void vRegTestClearFlopRegistersToParameterValue( unsigned long ulValue );
 extern unsigned long ulRegTestCheckFlopRegistersContainParameterValue( unsigned long ulValue );
@@ -121,86 +124,9 @@ void vUARTTask( void *pvParameters );
 typedef struct taskParams
 {
 	xSemaphoreHandle	blinkSema;
-	xSemaphoreHandle	displaySema;
-	signed short		color;
 } taskParams_t;
 
 taskParams_t* g_pTaskParams = NULL;
-
-//*****************************************************************************
-// Table of colors for the OLED to cycle through
-//*****************************************************************************
-typedef struct
-{
-	const char* pName;
-	unsigned long	value;
-} colorTable_t;
-
-extern const colorTable_t g_colors[];
-
-/*-----------------------------------------------------------*/
-void vDisplayTask( void *pvParameters )
-{
-    unsigned long 	ulCounter = 0;
-    unsigned long 	color = 0;
-	taskParams_t*	pTaskParams = (taskParams_t *) pvParameters;    
-	tRectangle		rect;
-	int 			x, y, c;
-
-	/* Default to checker-board pattern */
-	pTaskParams->color = -3;
-		
-    /* As per most tasks, this task is implemented in an infinite loop. */
-    for( ;; )
-    {
-		if (pTaskParams->color == -3)
-		{
-			x = rand() %12;
-			y = rand() %8;
-		    rect.sXMin = x*8;
-		    rect.sYMin = y*8;
-		    rect.sXMax = (x+1)*8-1;
-		    rect.sYMax = (y+1)*8-1;
-		    c = rand() & 0xFF | ((rand() & 0xFF) << 8) | ((rand() & 0xFF) << 16);
-	 		g_sCFAL96x64x16.pfnRectFill(NULL, &rect,
-	 			CFAL96x64x16ColorTranslate(NULL,c));
-		}
-		else
-		{
-	    	/* Draw a colored line at ulCounter */
-	 		g_sCFAL96x64x16.pfnLineDrawH(NULL, 0, g_sCFAL96x64x16.usWidth-1, ulCounter, 
-	 			CFAL96x64x16ColorTranslate(NULL,g_colors[color].value));
-	        ulCounter++;
-	 		if (ulCounter >= g_sCFAL96x64x16.usHeight)
-	 		{
-	 			ulCounter = 0;
-	 			
-	 			/* Only update the pTaskParams->color value with interrupts off */
-				vPortEnterCritical();
-	 			if (pTaskParams->color < 0)
-	 			{
-	 				/* Cycle to next color */
-	 				++color;
-	 				if (g_colors[color].pName == NULL)
-	 					color = 0;
-	 				
-	 				/* Test for a request for "next" color */
-	 				if (pTaskParams->color == -2)
-	 				{
-	 					/* Set the next color so we don't continue cycling */
-	 					pTaskParams->color = color;
-	 				}
-				} 
-	 			else
-	 				color = pTaskParams->color;
-	 			vPortExitCritical();
-	 		}
-		}
- 		       
- 		/* Block until the TimingTask signals us */
- 		xSemaphoreTake(pTaskParams->displaySema, portMAX_DELAY);
-    }
-}
 
 /*-----------------------------------------------------------*/
 void vBlinkTask( void *pvParameters )
@@ -231,15 +157,12 @@ void vBlinkTask( void *pvParameters )
 void vTimingTask( void *pvParameters )
 {
 	taskParams_t*	pTaskParams = (taskParams_t *) pvParameters;
-	unsigned short	usCount = 0;    
+	unsigned short	usCount = 0;
 
 	while (1)
 	{
-		// Sleep for 5ms
+		// Sleep for 10ms
 		vTaskDelay(10 / portTICK_RATE_MS);
-		
-		// Signal the displayTask to update
-		xSemaphoreGive(pTaskParams->displaySema);
 		
 		// Every 500ms, signal the FlashTask
 		if (++usCount >= 50)
@@ -247,6 +170,10 @@ void vTimingTask( void *pvParameters )
 			usCount = 0;
 			xSemaphoreGive(pTaskParams->blinkSema);
 		}
+		//
+		// Call the FatFs tick timer every 10ms.
+		//
+		disk_timerproc();
 	}
 }
 
@@ -263,13 +190,11 @@ int main(void)
     // Get the system clock speed.
     g_ulSystemClock = SysCtlClockGet();
 
-    //
-    // Initialize the OLED display.
-    //
-    CFAL96x64x16Init();
-
     // Initialize the CPU usage measurement routine.
     CPUUsageInit(g_ulSystemClock, configTICK_RATE_HZ/10, 1);
+
+    // Enable SSI0 for sdcard
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI0);
     
     //
     // Configure GPIO Pin used for the LED.
@@ -298,22 +223,18 @@ int main(void)
 	-------------------------------------------*/
 	g_pTaskParams = pvPortMalloc(sizeof(taskParams_t));
 	vSemaphoreCreateBinary(g_pTaskParams->blinkSema);
-	vSemaphoreCreateBinary(g_pTaskParams->displaySema);
 
     /*-------------------------------------------
          Create task and start scheduler
     -------------------------------------------*/
 
-    /* Create the display update task. */
-    xTaskCreate(    vDisplayTask, /* Pointer to the function that implements the task. */
-                    "DisplayTask",/* Text name for the task.  This is to facilitate debugging only. */
-                    80,          /* Stack depth in words. */
+    /* Create the LED blink task. */
+    xTaskCreate(    vBlinkTask, /* Pointer to the function that implements the task. */
+                    "vBlinkTask",/* Text name for the task.  This is to facilitate debugging only. */
+                    configMINIMAL_STACK_SIZE,          /* Stack depth in words. */
                     g_pTaskParams,/* Pass in our parameter pointer */
                     3,            /* This task will run at priority 1. */
                     NULL );       /* We are not using the task handle. */
-
-    /* Create the user LED blink task. */
-    xTaskCreate( vBlinkTask, "BlinkTask", configMINIMAL_STACK_SIZE, g_pTaskParams, 3, NULL );
    
     /* Create the timing conrol task. */
     xTaskCreate( vTimingTask, "TimingTask", configMINIMAL_STACK_SIZE, g_pTaskParams, 2, NULL );

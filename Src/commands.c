@@ -10,6 +10,11 @@
 #include <string.h>
 #include <assert.h>
 
+
+/* FatFS include */
+#include "fatfs/src/tff.h"
+#include "fatfs/src/diskio.h"
+
 /* protobuf includes */
 #include <pb_encode.h>
 #include <pb_decode.h>
@@ -39,8 +44,31 @@
 
 #include "uartstdio.h"
 
-void vMath1( void *pvParameters );
-void vMath2( void *pvParameters );
+//*****************************************************************************
+//
+// Defines the size of the buffers that hold the path, or temporary data from
+// the SD card.  There are two buffers allocated of this size.  The buffer size
+// must be large enough to hold the longest expected full path name, including
+// the file name, and a trailing null character.
+//
+//*****************************************************************************
+#define PATH_BUF_SIZE           80
+
+//*****************************************************************************
+//
+// This buffer holds the full path to the current working directory.  Initially
+// it is root ("/").
+//
+//*****************************************************************************
+static char g_pcCwdBuf[PATH_BUF_SIZE] = "/";
+
+//*****************************************************************************
+//
+// A temporary data buffer used when manipulating file paths, or reading data
+// from the SD card.
+//
+//*****************************************************************************
+static char g_pcTmpBuf[PATH_BUF_SIZE];
 
 // ==============================================================================
 // The CPU usage in percent, in 16.16 fixed point format.
@@ -56,156 +84,15 @@ typedef struct taskParams
 
 extern taskParams_t* g_pTaskParams;
 
-// ==============================================================================
-// Define colors for the OLED to cycle through */
-// ==============================================================================
-typedef struct
-{
-	const char* pName;
-	unsigned long	value;
-} colorTable_t;
-
-#define	COLOR_TABLE_ENTRY(c) { #c, c }
-
-const colorTable_t g_colors[] =
-{
-	COLOR_TABLE_ENTRY(ClrAntiqueWhite),  
-	COLOR_TABLE_ENTRY(ClrAqua),  
-	COLOR_TABLE_ENTRY(ClrBisque),  
-	COLOR_TABLE_ENTRY(ClrBlack),  
-	COLOR_TABLE_ENTRY(ClrBlue),  
-	COLOR_TABLE_ENTRY(ClrBlueViolet),  
-	COLOR_TABLE_ENTRY(ClrBrown),  
-	COLOR_TABLE_ENTRY(ClrBurlyWood),  
-	COLOR_TABLE_ENTRY(ClrCadetBlue),  
-	COLOR_TABLE_ENTRY(ClrChartreuse),  
-	COLOR_TABLE_ENTRY(ClrChocolate),  
-	COLOR_TABLE_ENTRY(ClrCoral),  
-	COLOR_TABLE_ENTRY(ClrCornflowerBlue),  
-	COLOR_TABLE_ENTRY(ClrCornsilk),  
-	COLOR_TABLE_ENTRY(ClrCrimson),  
-	COLOR_TABLE_ENTRY(ClrCyan),  
-	COLOR_TABLE_ENTRY(ClrDarkBlue),  
-	COLOR_TABLE_ENTRY(ClrDarkCyan),  
-	COLOR_TABLE_ENTRY(ClrDarkGoldenrod),  
-	COLOR_TABLE_ENTRY(ClrDarkGray),  
-	COLOR_TABLE_ENTRY(ClrDarkGreen),  
-	COLOR_TABLE_ENTRY(ClrDarkKhaki),  
-	COLOR_TABLE_ENTRY(ClrDarkMagenta),  
-	COLOR_TABLE_ENTRY(ClrDarkOliveGreen),  
-	COLOR_TABLE_ENTRY(ClrDarkOrange),  
-	COLOR_TABLE_ENTRY(ClrDarkOrchid),  
-	COLOR_TABLE_ENTRY(ClrDarkRed),  
-	COLOR_TABLE_ENTRY(ClrDarkSalmon),  
-	COLOR_TABLE_ENTRY(ClrDarkSeaGreen),  
-	COLOR_TABLE_ENTRY(ClrDarkSlateBlue),  
-	COLOR_TABLE_ENTRY(ClrDarkSlateGray),  
-	COLOR_TABLE_ENTRY(ClrDarkTurquoise),  
-	COLOR_TABLE_ENTRY(ClrDarkViolet),  
-	COLOR_TABLE_ENTRY(ClrDeepPink),  
-	COLOR_TABLE_ENTRY(ClrDeepSkyBlue),  
-	COLOR_TABLE_ENTRY(ClrDimGray),  
-	COLOR_TABLE_ENTRY(ClrDodgerBlue),  
-	COLOR_TABLE_ENTRY(ClrFireBrick),  
-	COLOR_TABLE_ENTRY(ClrFloralWhite),  
-	COLOR_TABLE_ENTRY(ClrForestGreen),  
-	COLOR_TABLE_ENTRY(ClrFuchsia),  
-	COLOR_TABLE_ENTRY(ClrGainsboro),  
-	COLOR_TABLE_ENTRY(ClrGhostWhite),  
-	COLOR_TABLE_ENTRY(ClrGold),  
-	COLOR_TABLE_ENTRY(ClrGoldenrod),  
-	COLOR_TABLE_ENTRY(ClrGray),  
-	COLOR_TABLE_ENTRY(ClrGreen),  
-	COLOR_TABLE_ENTRY(ClrGreenYellow),  
-	COLOR_TABLE_ENTRY(ClrHoneydew),  
-	COLOR_TABLE_ENTRY(ClrHotPink),  
-	COLOR_TABLE_ENTRY(ClrIndianRed),  
-	COLOR_TABLE_ENTRY(ClrIndigo),  
-	COLOR_TABLE_ENTRY(ClrIvory),  
-	COLOR_TABLE_ENTRY(ClrKhaki),  
-	COLOR_TABLE_ENTRY(ClrLavender),  
-	COLOR_TABLE_ENTRY(ClrLavenderBlush),  
-	COLOR_TABLE_ENTRY(ClrLawnGreen),  
-	COLOR_TABLE_ENTRY(ClrLemonChiffon),  
-	COLOR_TABLE_ENTRY(ClrLightBlue),  
-	COLOR_TABLE_ENTRY(ClrLightCoral),  
-	COLOR_TABLE_ENTRY(ClrLightCyan),  
-	COLOR_TABLE_ENTRY(ClrLightGoldenrodYellow), 
-	COLOR_TABLE_ENTRY(ClrLightGreen),  
-	COLOR_TABLE_ENTRY(ClrLightGrey),  
-	COLOR_TABLE_ENTRY(ClrLightPink),  
-	COLOR_TABLE_ENTRY(ClrLightSalmon),  
-	COLOR_TABLE_ENTRY(ClrLightSeaGreen),  
-	COLOR_TABLE_ENTRY(ClrLightSkyBlue),  
-	COLOR_TABLE_ENTRY(ClrLightSlateGray),  
-	COLOR_TABLE_ENTRY(ClrLightSteelBlue),  
-	COLOR_TABLE_ENTRY(ClrLightYellow),  
-	COLOR_TABLE_ENTRY(ClrLime),  
-	COLOR_TABLE_ENTRY(ClrLimeGreen),  
-	COLOR_TABLE_ENTRY(ClrLinen),  
-	COLOR_TABLE_ENTRY(ClrMagenta),  
-	COLOR_TABLE_ENTRY(ClrMaroon),  
-	COLOR_TABLE_ENTRY(ClrMediumAquamarine),  
-	COLOR_TABLE_ENTRY(ClrMediumBlue),  
-	COLOR_TABLE_ENTRY(ClrMediumOrchid),  
-	COLOR_TABLE_ENTRY(ClrMediumPurple),  
-	COLOR_TABLE_ENTRY(ClrMediumSeaGreen),  
-	COLOR_TABLE_ENTRY(ClrMediumSlateBlue),  
-	COLOR_TABLE_ENTRY(ClrMediumSpringGreen),  
-	COLOR_TABLE_ENTRY(ClrMediumTurquoise),  
-	COLOR_TABLE_ENTRY(ClrMediumVioletRed),  
-	COLOR_TABLE_ENTRY(ClrMidnightBlue),  
-	COLOR_TABLE_ENTRY(ClrMintCream),  
-	COLOR_TABLE_ENTRY(ClrMistyRose),  
-	COLOR_TABLE_ENTRY(ClrMoccasin),  
-	COLOR_TABLE_ENTRY(ClrNavajoWhite),  
-	COLOR_TABLE_ENTRY(ClrNavy),  
-	COLOR_TABLE_ENTRY(ClrOldLace),  
-	COLOR_TABLE_ENTRY(ClrOlive),  
-	COLOR_TABLE_ENTRY(ClrOliveDrab),  
-	COLOR_TABLE_ENTRY(ClrOrange),  
-	COLOR_TABLE_ENTRY(ClrOrangeRed),  
-	COLOR_TABLE_ENTRY(ClrOrchid),  
-	COLOR_TABLE_ENTRY(ClrPaleGoldenrod),  
-	COLOR_TABLE_ENTRY(ClrPaleGreen),  
-	COLOR_TABLE_ENTRY(ClrPaleTurquoise),  
-	COLOR_TABLE_ENTRY(ClrPaleVioletRed),  
-	COLOR_TABLE_ENTRY(ClrPapayaWhip),  
-	COLOR_TABLE_ENTRY(ClrPeachPuff),  
-	COLOR_TABLE_ENTRY(ClrPeru),  
-	COLOR_TABLE_ENTRY(ClrPink),  
-	COLOR_TABLE_ENTRY(ClrPlum),  
-	COLOR_TABLE_ENTRY(ClrPowderBlue),  
-	COLOR_TABLE_ENTRY(ClrPurple),  
-	COLOR_TABLE_ENTRY(ClrRed),  
-	COLOR_TABLE_ENTRY(ClrRosyBrown),  
-	COLOR_TABLE_ENTRY(ClrRoyalBlue),  
-	COLOR_TABLE_ENTRY(ClrSaddleBrown),  
-	COLOR_TABLE_ENTRY(ClrSalmon),  
-	COLOR_TABLE_ENTRY(ClrSandyBrown),  
-	COLOR_TABLE_ENTRY(ClrSeaGreen),  
-	COLOR_TABLE_ENTRY(ClrSeashell),  
-	COLOR_TABLE_ENTRY(ClrSienna),  
-	COLOR_TABLE_ENTRY(ClrSilver),  
-	COLOR_TABLE_ENTRY(ClrSkyBlue),  
-	COLOR_TABLE_ENTRY(ClrSlateBlue),  
-	COLOR_TABLE_ENTRY(ClrSlateGray),  
-	COLOR_TABLE_ENTRY(ClrSnow),  
-	COLOR_TABLE_ENTRY(ClrSpringGreen),  
-	COLOR_TABLE_ENTRY(ClrSteelBlue),  
-	COLOR_TABLE_ENTRY(ClrTan),  
-	COLOR_TABLE_ENTRY(ClrTeal),  
-	COLOR_TABLE_ENTRY(ClrThistle),  
-	COLOR_TABLE_ENTRY(ClrTomato),  
-	COLOR_TABLE_ENTRY(ClrTurquoise),  
-	COLOR_TABLE_ENTRY(ClrViolet),  
-	COLOR_TABLE_ENTRY(ClrWheat),  
-	COLOR_TABLE_ENTRY(ClrWhite),  
-	COLOR_TABLE_ENTRY(ClrWhiteSmoke),  
-	COLOR_TABLE_ENTRY(ClrYellow),  
-	COLOR_TABLE_ENTRY(ClrYellowGreen),
-	{ NULL, 0 } 
-};  
+//*****************************************************************************
+//
+// The following are data structures used by FatFs.
+//
+//*****************************************************************************
+static FATFS g_sFatFs;
+static DIR g_sDirObject;
+static FILINFO g_sFileInfo;
+static FIL g_sFileObject;
 
 // ==============================================================================
 // This function implements the "cpu" command.  It prints the CPU type, speed
@@ -223,107 +110,6 @@ int Cmd_cpu(int argc, char *argv[])
     return(0);
 }
 
-// ==============================================================================
-// This function implements the "color" command.  It controls the color on the
-// OLED (including cycling) and can display a list of known colors.
-// ==============================================================================
-int Cmd_color(int argc, char *argv[])
-{
-	int		c;
-	
-    //
-    // Test if an argument was given
-    //
-    if (argc == 1)
-    {
-    	UARTprintf("Set the OLED color mode.  You can specify:\n");
-    	UARTprintf("   color colorName - set specific color\n");
-    	UARTprintf("   color checker - display random checker board\n");
-    	UARTprintf("   color cycle - cycle through all colors\n");
-    	UARTprintf("   color list - list names of known colors\n");
-    	UARTprintf("   color next - cycle to next color in table\n");
-    	
-    	return 0;
-    }
-    else
-    {
-    	if (ustrcmp(argv[1], "cycle") == 0)
-    	{
-    		g_pTaskParams->color = -1;
-    		return 0;
-    	}
-    	else if (ustrcmp(argv[1], "checker") == 0)
-    	{
-    		g_pTaskParams->color = -3;
-    		return 0;
-    	}
-    	else if (ustrcmp(argv[1], "next") == 0)
-    	{
-    		c = g_pTaskParams->color;
-    		g_pTaskParams->color = -2;
-    		
-    		/* Print the name of the next color */
-    		if (c >= 0)
-    		{
-    			/* Increment to next color name */
-    			c++;
-    			if (g_colors[c].pName == NULL)
-    				c = 0;
-    			UARTprintf("%s\n", &g_colors[c].pName[3]);
-    		}
-    		return 0;
-    	}
-    	else if (ustrcmp(argv[1], "list") == 0)
-    	{
-    		/* Print a list of colors */
-    		for (c = 0; g_colors[c].pName != NULL; c++)
-    		{
-    			UARTprintf("%s, ", &g_colors[c].pName[3]);
-    			if (((c-3) % 4) == 0)
-    				UARTprintf("\n");
-    			if (c == (4 * 20)-1)
-    			{
-    				UARTprintf("\nspace or CTRL-C ...");
-    				while (UARTPeek(' ') == -1)
-    				{
-    					if (UARTPeek('\x03') != -1)
-    					{
-    						// CTRL-C detected
-    						UARTFlushRx();
-    						UARTprintf("^C\n");
-    						return 0;
-    					}
-    				}
-    				UARTprintf("\n");
-    				UARTFlushRx();
-    			}
-    		}
-   			UARTprintf("\n");
-    		return 0;
-    	}
-    	else
-    	{
-    		unsigned char len1 = ustrlen(argv[1]);
-    		unsigned char maxLen, refLen;
-    		
-    		/* Find the color in the table */
-    		for (c = 0; g_colors[c].pName != NULL; c++)
-    		{
-    			refLen = ustrlen(g_colors[c].pName)-3;
-    			maxLen = len1 > refLen ? len1 : refLen;
-    			if (ustrnicmp(argv[1], &g_colors[c].pName[3], maxLen) == 0)
-    			{
-    				/* Set the color to this color and return */
-					g_pTaskParams->color = c;
-					return 0;    				
-    			}
-    		}
-    		
-    		UARTprintf("Unknown color - use 'color list'\n");
-    		return 0;
-    	}
-    }
-}
 
 // ==============================================================================
 // This function implements the "free" command.  It prints the free memory.
@@ -403,7 +189,7 @@ int Cmd_help(int argc, char *argv[])
         //
         // Print the command name and the brief description.
         //
-        UARTprintf("%s%s\n", pEntry->pcCmd, pEntry->pcHelp);
+        UARTprintf("%s: %s\n", pEntry->pcCmd, pEntry->pcHelp);
 
         //
         // Advance to the next entry in the table.
@@ -415,33 +201,6 @@ int Cmd_help(int argc, char *argv[])
     // Return success.
     //
     return(0);
-}
-
-// ==============================================================================
-// This is the 'fputest' command.  It creates 2 new tasks that perform floating
-// point math using the hardware FPU.  It is used to validate the FPU context
-// switch logic.
-// ==============================================================================
-int Cmd_fputest(int argc, char *argv[])
-{
-	portBASE_TYPE	seconds;
-		
-	if (argc == 1)
-	{
-		UARTprintf("Running for 5 seconds (specify seconds on command line)\n");
-		seconds = 5;
-	}
-	else
-	{
-		seconds = ustrtoul(argv[1], NULL, 10);
-		UARTprintf("Running for %d seconds\n", seconds);
-	}
-	
-	/* Start the two math tasks */
-    xTaskCreate( vMath1, "Math1Task", 90, (void *) seconds, 1, NULL );
-    xTaskCreate( vMath2, "Math2Task", 90, (void *) seconds, 1, NULL );
-    
-    return 0;
 }
 
 int Cmd_protobuftest(int argc, char *argv[])
@@ -506,6 +265,458 @@ int Cmd_protobuftest(int argc, char *argv[])
 
     return 0;
 }
+int Cmd_mnt(int argc, char *argv[])
+{
+    FRESULT iFResult;
+	//
+	// Print hello message to user.
+	//
+	UARTprintf("\n\nSD Card Mounting...\n");
+
+	//
+	// Mount the file system, using logical disk 0.
+	//
+	iFResult = f_mount(0, &g_sFatFs);
+	if(iFResult != FR_OK)
+	{
+		UARTprintf("f_mount error: %i\n", (iFResult));
+		return(1);
+	}
+	UARTprintf("f_mount success %i\n", iFResult);
+	return 0;
+}
+
+#if _USE_MKFS
+int Cmd_mkfs(int argc, char *argv[])
+{
+    FRESULT iFResult;
+	//
+	// Print hello message to user.
+	//
+	UARTprintf("\n\nMaking FS...\n");
+
+	//
+	// Mount the file system, using logical disk 0.
+	//
+	iFResult = f_mkfs(0, 1, 16);
+	if(iFResult != FR_OK)
+	{
+		UARTprintf("f_mkfs error: %i\n", (iFResult));
+		return(1);
+	}
+	UARTprintf("f_mkfs success %i\n", iFResult);
+	return 0;
+}
+#endif
+
+//*****************************************************************************
+//
+// This function implements the "ls" command.  It opens the current directory
+// and enumerates through the contents, and prints a line for each item it
+// finds.  It shows details such as file attributes, time and date, and the
+// file size, along with the name.  It shows a summary of file sizes at the end
+// along with free space.
+//
+//*****************************************************************************
+int
+Cmd_ls(int argc, char *argv[])
+{
+    uint32_t ui32TotalSize;
+    uint32_t ui32FileCount;
+    uint32_t ui32DirCount;
+    FRESULT iFResult;
+    FATFS *psFatFs;
+
+    //
+    // Open the current directory for access.
+    //
+    iFResult = f_opendir(&g_sDirObject, g_pcCwdBuf);
+
+    //
+    // Check for error and return if there is a problem.
+    //
+    if(iFResult != FR_OK)
+    {
+        return((int)iFResult);
+    }
+
+    ui32TotalSize = 0;
+    ui32FileCount = 0;
+    ui32DirCount = 0;
+
+    //
+    // Give an extra blank line before the listing.
+    //
+    UARTprintf("\n");
+
+    //
+    // Enter loop to enumerate through all directory entries.
+    //
+    for(;;)
+    {
+        //
+        // Read an entry from the directory.
+        //
+        iFResult = f_readdir(&g_sDirObject, &g_sFileInfo);
+
+        //
+        // Check for error and return if there is a problem.
+        //
+        if(iFResult != FR_OK)
+        {
+            return((int)iFResult);
+        }
+
+        //
+        // If the file name is blank, then this is the end of the listing.
+        //
+        if(!g_sFileInfo.fname[0])
+        {
+            break;
+        }
+
+        //
+        // If the attribue is directory, then increment the directory count.
+        //
+        if(g_sFileInfo.fattrib & AM_DIR)
+        {
+            ui32DirCount++;
+        }
+
+        //
+        // Otherwise, it is a file.  Increment the file count, and add in the
+        // file size to the total.
+        //
+        else
+        {
+            ui32FileCount++;
+            ui32TotalSize += g_sFileInfo.fsize;
+        }
+
+        //
+        // Print the entry information on a single line with formatting to show
+        // the attributes, date, time, size, and name.
+        //
+        UARTprintf("%c%c%c%c%c %u/%02u/%02u %02u:%02u %9u  %s\n",
+                   (g_sFileInfo.fattrib & AM_DIR) ? 'D' : '-',
+                   (g_sFileInfo.fattrib & AM_RDO) ? 'R' : '-',
+                   (g_sFileInfo.fattrib & AM_HID) ? 'H' : '-',
+                   (g_sFileInfo.fattrib & AM_SYS) ? 'S' : '-',
+                   (g_sFileInfo.fattrib & AM_ARC) ? 'A' : '-',
+                   (g_sFileInfo.fdate >> 9) + 1980,
+                   (g_sFileInfo.fdate >> 5) & 15,
+                   g_sFileInfo.fdate & 31,
+                   (g_sFileInfo.ftime >> 11),
+                   (g_sFileInfo.ftime >> 5) & 63,
+                   g_sFileInfo.fsize,
+                   g_sFileInfo.fname);
+    }
+
+    //
+    // Print summary lines showing the file, dir, and size totals.
+    //
+    UARTprintf("\n%4u File(s),%10u bytes total\n%4u Dir(s)",
+                ui32FileCount, ui32TotalSize, ui32DirCount);
+
+    //
+    // Get the free space.
+    //
+    iFResult = f_getfree("/", (DWORD *)&ui32TotalSize, &psFatFs);
+
+    //
+    // Check for error and return if there is a problem.
+    //
+    if(iFResult != FR_OK)
+    {
+        return((int)iFResult);
+    }
+
+    //
+    // Display the amount of free space that was calculated.
+    //
+    UARTprintf(", %10uK bytes free\n", (ui32TotalSize *
+                                        psFatFs->sects_clust / 2));
+
+    //
+    // Made it to here, return with no errors.
+    //
+    return(0);
+}
+
+//*****************************************************************************
+//
+// This function implements the "cd" command.  It takes an argument that
+// specifies the directory to make the current working directory.  Path
+// separators must use a forward slash "/".  The argument to cd can be one of
+// the following:
+//
+// * root ("/")
+// * a fully specified path ("/my/path/to/mydir")
+// * a single directory name that is in the current directory ("mydir")
+// * parent directory ("..")
+//
+// It does not understand relative paths, so dont try something like this:
+// ("../my/new/path")
+//
+// Once the new directory is specified, it attempts to open the directory to
+// make sure it exists.  If the new path is opened successfully, then the
+// current working directory (cwd) is changed to the new path.
+//
+//*****************************************************************************
+int
+Cmd_cd(int argc, char *argv[])
+{
+    uint_fast8_t ui8Idx;
+    FRESULT iFResult;
+
+    //
+    // Copy the current working path into a temporary buffer so it can be
+    // manipulated.
+    //
+    strcpy(g_pcTmpBuf, g_pcCwdBuf);
+
+    //
+    // If the first character is /, then this is a fully specified path, and it
+    // should just be used as-is.
+    //
+    if(argv[1][0] == '/')
+    {
+        //
+        // Make sure the new path is not bigger than the cwd buffer.
+        //
+        if(strlen(argv[1]) + 1 > sizeof(g_pcCwdBuf))
+        {
+            UARTprintf("Resulting path name is too long\n");
+            return(0);
+        }
+
+        //
+        // If the new path name (in argv[1])  is not too long, then copy it
+        // into the temporary buffer so it can be checked.
+        //
+        else
+        {
+            strncpy(g_pcTmpBuf, argv[1], sizeof(g_pcTmpBuf));
+        }
+    }
+
+    //
+    // If the argument is .. then attempt to remove the lowest level on the
+    // CWD.
+    //
+    else if(!strcmp(argv[1], ".."))
+    {
+        //
+        // Get the index to the last character in the current path.
+        //
+        ui8Idx = strlen(g_pcTmpBuf) - 1;
+
+        //
+        // Back up from the end of the path name until a separator (/) is
+        // found, or until we bump up to the start of the path.
+        //
+        while((g_pcTmpBuf[ui8Idx] != '/') && (ui8Idx > 1))
+        {
+            //
+            // Back up one character.
+            //
+            ui8Idx--;
+        }
+
+        //
+        // Now we are either at the lowest level separator in the current path,
+        // or at the beginning of the string (root).  So set the new end of
+        // string here, effectively removing that last part of the path.
+        //
+        g_pcTmpBuf[ui8Idx] = 0;
+    }
+
+    //
+    // Otherwise this is just a normal path name from the current directory,
+    // and it needs to be appended to the current path.
+    //
+    else
+    {
+        //
+        // Test to make sure that when the new additional path is added on to
+        // the current path, there is room in the buffer for the full new path.
+        // It needs to include a new separator, and a trailing null character.
+        //
+        if(strlen(g_pcTmpBuf) + strlen(argv[1]) + 1 + 1 > sizeof(g_pcCwdBuf))
+        {
+            UARTprintf("Resulting path name is too long\n");
+            return(0);
+        }
+
+        //
+        // The new path is okay, so add the separator and then append the new
+        // directory to the path.
+        //
+        else
+        {
+            //
+            // If not already at the root level, then append a /
+            //
+            if(strcmp(g_pcTmpBuf, "/"))
+            {
+                strcat(g_pcTmpBuf, "/");
+            }
+
+            //
+            // Append the new directory to the path.
+            //
+            strcat(g_pcTmpBuf, argv[1]);
+        }
+    }
+
+    //
+    // At this point, a candidate new directory path is in chTmpBuf.  Try to
+    // open it to make sure it is valid.
+    //
+    iFResult = f_opendir(&g_sDirObject, g_pcTmpBuf);
+
+    //
+    // If it can't be opened, then it is a bad path.  Inform the user and
+    // return.
+    //
+    if(iFResult != FR_OK)
+    {
+        UARTprintf("cd: %s\n", g_pcTmpBuf);
+        return((int)iFResult);
+    }
+
+    //
+    // Otherwise, it is a valid new path, so copy it into the CWD.
+    //
+    else
+    {
+        strncpy(g_pcCwdBuf, g_pcTmpBuf, sizeof(g_pcCwdBuf));
+    }
+
+    //
+    // Return success.
+    //
+    return(0);
+}
+
+//*****************************************************************************
+//
+// This function implements the "pwd" command.  It simply prints the current
+// working directory.
+//
+//*****************************************************************************
+int
+Cmd_pwd(int argc, char *argv[])
+{
+    //
+    // Print the CWD to the console.
+    //
+    UARTprintf("%s\n", g_pcCwdBuf);
+
+    //
+    // Return success.
+    //
+    return(0);
+}
+
+//*****************************************************************************
+//
+// This function implements the "cat" command.  It reads the contents of a file
+// and prints it to the console.  This should only be used on text files.  If
+// it is used on a binary file, then a bunch of garbage is likely to printed on
+// the console.
+//
+//*****************************************************************************
+int
+Cmd_cat(int argc, char *argv[])
+{
+    FRESULT iFResult;
+    uint16_t ui16BytesRead;
+
+    //
+    // First, check to make sure that the current path (CWD), plus the file
+    // name, plus a separator and trailing null, will all fit in the temporary
+    // buffer that will be used to hold the file name.  The file name must be
+    // fully specified, with path, to FatFs.
+    //
+    if(strlen(g_pcCwdBuf) + strlen(argv[1]) + 1 + 1 > sizeof(g_pcTmpBuf))
+    {
+        UARTprintf("Resulting path name is too long\n");
+        return(0);
+    }
+
+    //
+    // Copy the current path to the temporary buffer so it can be manipulated.
+    //
+    strcpy(g_pcTmpBuf, g_pcCwdBuf);
+
+    //
+    // If not already at the root level, then append a separator.
+    //
+    if(strcmp("/", g_pcCwdBuf))
+    {
+        strcat(g_pcTmpBuf, "/");
+    }
+
+    //
+    // Now finally, append the file name to result in a fully specified file.
+    //
+    strcat(g_pcTmpBuf, argv[1]);
+
+    //
+    // Open the file for reading.
+    //
+    iFResult = f_open(&g_sFileObject, g_pcTmpBuf, FA_READ);
+
+    //
+    // If there was some problem opening the file, then return an error.
+    //
+    if(iFResult != FR_OK)
+    {
+        return((int)iFResult);
+    }
+
+    //
+    // Enter a loop to repeatedly read data from the file and display it, until
+    // the end of the file is reached.
+    //
+    do
+    {
+        //
+        // Read a block of data from the file.  Read as much as can fit in the
+        // temporary buffer, including a space for the trailing null.
+        //
+        iFResult = f_read(&g_sFileObject, g_pcTmpBuf, sizeof(g_pcTmpBuf) - 1,
+                         &ui16BytesRead);
+
+        //
+        // If there was an error reading, then print a newline and return the
+        // error to the user.
+        //
+        if(iFResult != FR_OK)
+        {
+            UARTprintf("\n");
+            return((int)iFResult);
+        }
+
+        //
+        // Null terminate the last block that was read to make it a null
+        // terminated string that can be used with printf.
+        //
+        g_pcTmpBuf[ui16BytesRead] = 0;
+
+        //
+        // Print the last chunk of the file that was received.
+        //
+        UARTprintf("%s", g_pcTmpBuf);
+    }
+    while(ui16BytesRead == sizeof(g_pcTmpBuf) - 1);
+
+    //
+    // Return success.
+    //
+    return(0);
+}
 
 // ==============================================================================
 // This is the table that holds the command names, implementing functions, and
@@ -513,16 +724,24 @@ int Cmd_protobuftest(int argc, char *argv[])
 // ==============================================================================
 tCmdLineEntry g_sCmdTable[] =
 {
-    { "help",     Cmd_help,      "     : Display list of commands" },
-    { "?",        Cmd_help,      "        : alias for help" },
-    { "cpu",      Cmd_cpu,       "      : Show CPU utilization" },
-    { "color",    Cmd_color,     "    : Paint the OLED a specific color" },
-    { "fputest",  Cmd_fputest,   "  : Execute FPU context switch test" },
-    { "free",     Cmd_free,      "     : Report free memory" },
-#if ( configUSE_TRACE_FACILITY == 1 )
-	{ "tasks",    Cmd_tasks,     "    : Report stats of all tasks" },
+    { "help",     Cmd_help,      "Display list of commands" },
+    { "?",        Cmd_help,      "alias for help" },
+    { "cpu",      Cmd_cpu,       "Show CPU utilization" },
+    { "free",     Cmd_free,      "Report free memory" },
+    { "mnt",      Cmd_mnt,      "Mount the SD card" },
+    { "ls",       Cmd_ls,       "Display list of files" },
+    { "chdir",    Cmd_cd,       "Change directory" },
+    { "cd",       Cmd_cd,       "alias for chdir" },
+#if _USE_MKFS
+    { "mkfs",     Cmd_mkfs,       "Make filesystem" },
 #endif
-	{ "pb",    Cmd_protobuftest,     "    : Test simple protobuf" },
+    { "pwd",      Cmd_pwd,      "Show current working directory" },
+    { "cat",      Cmd_cat,      "Show contents of a text file" },
+
+#if ( configUSE_TRACE_FACILITY == 1 )
+	{ "tasks",    Cmd_tasks,     "Report stats of all tasks" },
+#endif
+	{ "pb",    Cmd_protobuftest,     "Test simple protobuf" },
 
     { 0, 0, 0 }
 };
@@ -619,86 +838,4 @@ void vUARTTask( void *pvParameters )
 	        UARTprintf("> ");
 	    }
     }
-}
-
-// ==============================================================================
-// Perform some floating point math to test FPU context switch operation.
-// ==============================================================================
-void vMath1( void *pvParameters )
-{
-	portBASE_TYPE	startTick = xTaskGetTickCount();
-	portBASE_TYPE	endTick = startTick + (portBASE_TYPE) pvParameters * configTICK_RATE_HZ;
-	volatile float		f1, f2, f3;
-	volatile int		match;
-	portBASE_TYPE		x;
-	
-	while (xTaskGetTickCount() < endTick)	
-	{
-		for (x = 0; x < 1000; x++)
-		{
-			f1 = 2079.1;
-			f2 = 17.0;
-			
-			// Force a context switch to validate FPU registers are preserved
-			portYIELD();
-			f3 = f1 / f2 - 122.3;
-			match = (f3 < 10e-5);
-			if (!match)
-			{
-				UARTprintf("ASSERT: vMath1 float mismatch!\n");
-				vTaskDelay(configTICK_RATE_HZ/4);
-			}
-			assert(match);
-		}
-		vTaskDelay(5 / portTICK_RATE_MS);	// Give the idle task some priority
-	}
-	
-	/* Exit from our task.  Our port provides a return hook that will
-	 * delete our task and wait for the OS to terminate us.
-	 * 
-	 * NOTE:  This is unique to THIS port only!  Normally you would never
-	 *        want to return from a task function, as there would be 
-	 *        nowhere to return to.
-	 */
-}
-
-// ==============================================================================
-// Perform some floating point math to test FPU context switch operation.
-// ==============================================================================
-void vMath2( void *pvParameters )
-{
-	portBASE_TYPE	startTick = xTaskGetTickCount();
-	portBASE_TYPE	endTick = startTick + (portBASE_TYPE) pvParameters * configTICK_RATE_HZ;
-	volatile float	f1, f2, f3;
-	volatile int	match;
-	portBASE_TYPE	x;
-	
-	while (xTaskGetTickCount() < endTick)	
-	{
-		for (x = 0; x < 1000; x++)
-		{
-			f1 = 2.1;
-			f2 = 6.93;
-			
-			// Force a context switch to validate FPU registers are preserved
-			portYIELD();
-			f3 = f2 / f1 - 3.3;
-			match = (f3 < 10e-5);
-			if (!match)
-			{
-				UARTprintf("ASSERT: vMath2 float mismatch!\n");
-				vTaskDelay(configTICK_RATE_HZ/4);
-			}
-			assert(match);
-		}
-		vTaskDelay(5 / portTICK_RATE_MS);	// Give the idle task some priority
-	}
-	
-	/* Exit from our task.  Our port provides a return hook that will
-	 * delete our task and wait for the OS to terminate us.
-	 * 
-	 * NOTE:  This is unique to THIS port only!  Normally you would never
-	 *        want to return from a task function, as there would be 
-	 *        nowhere to return to.
-	 */
 }
