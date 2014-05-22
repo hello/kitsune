@@ -14,5 +14,6 @@ typedef struct {
 } faultInfo;
 
 void faultPrinter( faultInfo* f );
+void FaultISR(void);
 
 #endif
