@@ -16,10 +16,6 @@
 
 #ifndef _FATFS
 
-/* Use the SD card driver for disk 0 and the usb one for disk 1 */
-#define DISK0_EK_LM4F232H5QD
-#define DISK1_USB_MSC
-
 #define _MCU_ENDIAN		1
 /* The _MCU_ENDIAN defines which access method is used to the FAT structure.
 /  1: Enable word access.

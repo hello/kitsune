@@ -12,7 +12,7 @@
 
 
 /* FatFS include */
-#include "fatfs/src/tff.h"
+#include "fatfs/src/ff.h"
 #include "fatfs/src/diskio.h"
 
 /* protobuf includes */
@@ -91,8 +91,8 @@ extern taskParams_t* g_pTaskParams;
 //*****************************************************************************
 static FATFS g_sFatFs;
 static DIR g_sDirObject;
-static FILINFO g_sFileInfo;
-static FIL g_sFileObject;
+static FILINFO file_info;
+static FIL file_obj;
 
 // ==============================================================================
 // This function implements the "cpu" command.  It prints the CPU type, speed
@@ -267,7 +267,7 @@ int Cmd_protobuftest(int argc, char *argv[])
 }
 int Cmd_mnt(int argc, char *argv[])
 {
-    FRESULT iFResult;
+    FRESULT res;
 	//
 	// Print hello message to user.
 	//
@@ -276,20 +276,39 @@ int Cmd_mnt(int argc, char *argv[])
 	//
 	// Mount the file system, using logical disk 0.
 	//
-	iFResult = f_mount(0, &g_sFatFs);
-	if(iFResult != FR_OK)
+	res = f_mount(0, &g_sFatFs);
+	if(res != FR_OK)
 	{
-		UARTprintf("f_mount error: %i\n", (iFResult));
+		UARTprintf("f_mount error: %i\n", (res));
 		return(1);
 	}
-	UARTprintf("f_mount success %i\n", iFResult);
+	UARTprintf("f_mount success\n");
+	return 0;
+}
+int Cmd_umnt(int argc, char *argv[])
+{
+    FRESULT res;
+	//
+	// Print hello message to user.
+	//
+	UARTprintf("\n\nSD Card Unmounting...\n");
+
+	//
+	// Mount the file system, using logical disk 0.
+	//
+	res = f_mount(0, NULL);
+	if(res != FR_OK)
+	{
+		UARTprintf("f_mount error: %i\n", (res));
+		return(1);
+	}
+	UARTprintf("f_mount success\n");
 	return 0;
 }
 
-#if _USE_MKFS
 int Cmd_mkfs(int argc, char *argv[])
 {
-    FRESULT iFResult;
+    FRESULT res;
 	//
 	// Print hello message to user.
 	//
@@ -298,16 +317,15 @@ int Cmd_mkfs(int argc, char *argv[])
 	//
 	// Mount the file system, using logical disk 0.
 	//
-	iFResult = f_mkfs(0, 1, 16);
-	if(iFResult != FR_OK)
+	res = f_mkfs(0, 1, 16);
+	if(res != FR_OK)
 	{
-		UARTprintf("f_mkfs error: %i\n", (iFResult));
+		UARTprintf("f_mkfs error: %i\n", (res));
 		return(1);
 	}
-	UARTprintf("f_mkfs success %i\n", iFResult);
+	UARTprintf("f_mkfs success\n");
 	return 0;
 }
-#endif
 
 //*****************************************************************************
 //
@@ -324,20 +342,20 @@ Cmd_ls(int argc, char *argv[])
     uint32_t ui32TotalSize;
     uint32_t ui32FileCount;
     uint32_t ui32DirCount;
-    FRESULT iFResult;
+    FRESULT res;
     FATFS *psFatFs;
 
     //
     // Open the current directory for access.
     //
-    iFResult = f_opendir(&g_sDirObject, g_pcCwdBuf);
+    res = f_opendir(&g_sDirObject, g_pcCwdBuf);
 
     //
     // Check for error and return if there is a problem.
     //
-    if(iFResult != FR_OK)
+    if(res != FR_OK)
     {
-        return((int)iFResult);
+        return((int)res);
     }
 
     ui32TotalSize = 0;
@@ -357,20 +375,20 @@ Cmd_ls(int argc, char *argv[])
         //
         // Read an entry from the directory.
         //
-        iFResult = f_readdir(&g_sDirObject, &g_sFileInfo);
+        res = f_readdir(&g_sDirObject, &file_info);
 
         //
         // Check for error and return if there is a problem.
         //
-        if(iFResult != FR_OK)
+        if(res != FR_OK)
         {
-            return((int)iFResult);
+            return((int)res);
         }
 
         //
         // If the file name is blank, then this is the end of the listing.
         //
-        if(!g_sFileInfo.fname[0])
+        if(!file_info.fname[0])
         {
             break;
         }
@@ -378,7 +396,7 @@ Cmd_ls(int argc, char *argv[])
         //
         // If the attribue is directory, then increment the directory count.
         //
-        if(g_sFileInfo.fattrib & AM_DIR)
+        if(file_info.fattrib & AM_DIR)
         {
             ui32DirCount++;
         }
@@ -390,7 +408,7 @@ Cmd_ls(int argc, char *argv[])
         else
         {
             ui32FileCount++;
-            ui32TotalSize += g_sFileInfo.fsize;
+            ui32TotalSize += file_info.fsize;
         }
 
         //
@@ -398,18 +416,18 @@ Cmd_ls(int argc, char *argv[])
         // the attributes, date, time, size, and name.
         //
         UARTprintf("%c%c%c%c%c %u/%02u/%02u %02u:%02u %9u  %s\n",
-                   (g_sFileInfo.fattrib & AM_DIR) ? 'D' : '-',
-                   (g_sFileInfo.fattrib & AM_RDO) ? 'R' : '-',
-                   (g_sFileInfo.fattrib & AM_HID) ? 'H' : '-',
-                   (g_sFileInfo.fattrib & AM_SYS) ? 'S' : '-',
-                   (g_sFileInfo.fattrib & AM_ARC) ? 'A' : '-',
-                   (g_sFileInfo.fdate >> 9) + 1980,
-                   (g_sFileInfo.fdate >> 5) & 15,
-                   g_sFileInfo.fdate & 31,
-                   (g_sFileInfo.ftime >> 11),
-                   (g_sFileInfo.ftime >> 5) & 63,
-                   g_sFileInfo.fsize,
-                   g_sFileInfo.fname);
+                   (file_info.fattrib & AM_DIR) ? 'D' : '-',
+                   (file_info.fattrib & AM_RDO) ? 'R' : '-',
+                   (file_info.fattrib & AM_HID) ? 'H' : '-',
+                   (file_info.fattrib & AM_SYS) ? 'S' : '-',
+                   (file_info.fattrib & AM_ARC) ? 'A' : '-',
+                   (file_info.fdate >> 9) + 1980,
+                   (file_info.fdate >> 5) & 15,
+                   file_info.fdate & 31,
+                   (file_info.ftime >> 11),
+                   (file_info.ftime >> 5) & 63,
+                   file_info.fsize,
+                   file_info.fname);
     }
 
     //
@@ -421,14 +439,14 @@ Cmd_ls(int argc, char *argv[])
     //
     // Get the free space.
     //
-    iFResult = f_getfree("/", (DWORD *)&ui32TotalSize, &psFatFs);
+    res = f_getfree("/", (DWORD *)&ui32TotalSize, &psFatFs);
 
     //
     // Check for error and return if there is a problem.
     //
-    if(iFResult != FR_OK)
+    if(res != FR_OK)
     {
-        return((int)iFResult);
+        return((int)res);
     }
 
     //
@@ -467,7 +485,7 @@ int
 Cmd_cd(int argc, char *argv[])
 {
     uint_fast8_t ui8Idx;
-    FRESULT iFResult;
+    FRESULT res;
 
     //
     // Copy the current working path into a temporary buffer so it can be
@@ -573,16 +591,16 @@ Cmd_cd(int argc, char *argv[])
     // At this point, a candidate new directory path is in chTmpBuf.  Try to
     // open it to make sure it is valid.
     //
-    iFResult = f_opendir(&g_sDirObject, g_pcTmpBuf);
+    res = f_opendir(&g_sDirObject, g_pcTmpBuf);
 
     //
     // If it can't be opened, then it is a bad path.  Inform the user and
     // return.
     //
-    if(iFResult != FR_OK)
+    if(res != FR_OK)
     {
         UARTprintf("cd: %s\n", g_pcTmpBuf);
-        return((int)iFResult);
+        return((int)res);
     }
 
     //
@@ -618,28 +636,15 @@ Cmd_pwd(int argc, char *argv[])
     //
     return(0);
 }
-
-//*****************************************************************************
-//
-// This function implements the "cat" command.  It reads the contents of a file
-// and prints it to the console.  This should only be used on text files.  If
-// it is used on a binary file, then a bunch of garbage is likely to printed on
-// the console.
-//
-//*****************************************************************************
-int
-Cmd_cat(int argc, char *argv[])
+int global_filename(char * local_fn)
 {
-    FRESULT iFResult;
-    uint16_t ui16BytesRead;
-
     //
     // First, check to make sure that the current path (CWD), plus the file
     // name, plus a separator and trailing null, will all fit in the temporary
     // buffer that will be used to hold the file name.  The file name must be
     // fully specified, with path, to FatFs.
     //
-    if(strlen(g_pcCwdBuf) + strlen(argv[1]) + 1 + 1 > sizeof(g_pcTmpBuf))
+    if(strlen(g_pcCwdBuf) + strlen(local_fn) + 1 + 1 > sizeof(g_pcTmpBuf))
     {
         UARTprintf("Resulting path name is too long\n");
         return(0);
@@ -661,19 +666,40 @@ Cmd_cat(int argc, char *argv[])
     //
     // Now finally, append the file name to result in a fully specified file.
     //
-    strcat(g_pcTmpBuf, argv[1]);
+    strcat(g_pcTmpBuf, local_fn);
+
+    return 0;
+}
+//*****************************************************************************
+//
+// This function implements the "cat" command.  It reads the contents of a file
+// and prints it to the console.  This should only be used on text files.  If
+// it is used on a binary file, then a bunch of garbage is likely to printed on
+// the console.
+//
+//*****************************************************************************
+int
+Cmd_cat(int argc, char *argv[])
+{
+    FRESULT res;
+    uint16_t ui16BytesRead;
+
+    if(global_filename( argv[1] ))
+    {
+    	return 1;
+    }
 
     //
     // Open the file for reading.
     //
-    iFResult = f_open(&g_sFileObject, g_pcTmpBuf, FA_READ);
+    res = f_open(&file_obj, g_pcTmpBuf, FA_READ);
 
     //
     // If there was some problem opening the file, then return an error.
     //
-    if(iFResult != FR_OK)
+    if(res != FR_OK)
     {
-        return((int)iFResult);
+        return((int)res);
     }
 
     //
@@ -686,17 +712,17 @@ Cmd_cat(int argc, char *argv[])
         // Read a block of data from the file.  Read as much as can fit in the
         // temporary buffer, including a space for the trailing null.
         //
-        iFResult = f_read(&g_sFileObject, g_pcTmpBuf, sizeof(g_pcTmpBuf) - 1,
+        res = f_read(&file_obj, g_pcTmpBuf, 4,
                          &ui16BytesRead);
 
         //
         // If there was an error reading, then print a newline and return the
         // error to the user.
         //
-        if(iFResult != FR_OK)
+        if(res != FR_OK)
         {
             UARTprintf("\n");
-            return((int)iFResult);
+            return((int)res);
         }
 
         //
@@ -710,11 +736,105 @@ Cmd_cat(int argc, char *argv[])
         //
         UARTprintf("%s", g_pcTmpBuf);
     }
-    while(ui16BytesRead == sizeof(g_pcTmpBuf) - 1);
+    while(ui16BytesRead == 4);
+
+    f_close( &file_obj );
+
+    UARTprintf("\n");
+    //
+    // Return success.
+    //
+    return(0);
+}
+int
+Cmd_write(int argc, char *argv[])
+{
+    FRESULT res;
+
+	WORD bytes = 0;
+	WORD bytes_written = 0;
+	WORD bytes_to_write = strlen(argv[2])+1;
+
+    if(global_filename( argv[1] ))
+    {
+    	return 1;
+    }
+
+    //
+    // Open the file for reading.
+    //
+    res = f_open(&file_obj, g_pcTmpBuf, FA_CREATE_NEW|FA_WRITE);
+
+    f_stat( g_pcTmpBuf, &file_info );
+
+    if( file_info.fsize != 0 )
+        res = f_lseek(&file_obj, file_info.fsize );
+
+    do {
+		res = f_write( &file_obj, argv[2]+bytes_written, bytes_to_write-bytes_written, &bytes );
+		bytes_written+=bytes;
+    } while( bytes_written < bytes_to_write );
+
+    res = f_close( &file_obj );
+
+    //
+    // If there was some problem opening the file, then return an error.
+    //
+    if(res != FR_OK)
+    {
+        return((int)res);
+    }
 
     //
     // Return success.
     //
+    return(0);
+}
+
+int
+Cmd_rm(int argc, char *argv[])
+{
+    FRESULT res;
+
+    if(global_filename( argv[1] ))
+    {
+    	return 1;
+    }
+
+    //
+    // Remove file.
+    //
+    res = f_unlink( g_pcTmpBuf);
+
+    //
+    // If there was some problem opening the file, then return an error.
+    //
+    if(res != FR_OK)
+    {
+        return((int)res);
+    }
+
+    //
+    // Return success.
+    //
+    return(0);
+}
+
+int
+Cmd_mkdir(int argc, char *argv[])
+{
+    FRESULT res;
+
+    if(global_filename( argv[1] ))
+    {
+    	return 1;
+    }
+
+    res = f_mkdir( g_pcTmpBuf);
+    if(res != FR_OK)
+    {
+        return((int)res);
+    }
     return(0);
 }
 
@@ -724,17 +844,19 @@ Cmd_cat(int argc, char *argv[])
 // ==============================================================================
 tCmdLineEntry g_sCmdTable[] =
 {
-    { "help",     Cmd_help,      "Display list of commands" },
-    { "?",        Cmd_help,      "alias for help" },
-    { "cpu",      Cmd_cpu,       "Show CPU utilization" },
-    { "free",     Cmd_free,      "Report free memory" },
+    { "help",     Cmd_help,     "Display list of commands" },
+    { "?",        Cmd_help,     "alias for help" },
+    { "cpu",      Cmd_cpu,      "Show CPU utilization" },
+    { "free",     Cmd_free,     "Report free memory" },
     { "mnt",      Cmd_mnt,      "Mount the SD card" },
+    { "umnt",     Cmd_umnt,     "Unount the SD card" },
     { "ls",       Cmd_ls,       "Display list of files" },
     { "chdir",    Cmd_cd,       "Change directory" },
     { "cd",       Cmd_cd,       "alias for chdir" },
-#if _USE_MKFS
-    { "mkfs",     Cmd_mkfs,       "Make filesystem" },
-#endif
+    { "mkdir",    Cmd_mkdir,    "make a directory" },
+    { "rm",       Cmd_rm,       "Remove file" },
+    { "write",    Cmd_write,    "Write some text to a file" },
+    { "mkfs",     Cmd_mkfs,     "Make filesystem" },
     { "pwd",      Cmd_pwd,      "Show current working directory" },
     { "cat",      Cmd_cat,      "Show contents of a text file" },
 

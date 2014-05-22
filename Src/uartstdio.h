@@ -36,6 +36,9 @@ extern "C"
 {
 #endif
 
+#define  WANT_CMDLINE_HISTORY
+#define  UART_BUFFERED
+
 //*****************************************************************************
 //
 // If built for buffered operation, the following labels define the sizes of

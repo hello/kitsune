@@ -36,7 +36,7 @@
 /  2: f_opendir and f_readdir are removed in addition to level 1.
 /  3: f_lseek is removed in addition to level 2. */
 
-#define _DRIVES        2
+#define _DRIVES        1
 /* Number of logical drives to be used. This affects the size of internal table. */
 
 #define    _USE_MKFS    1

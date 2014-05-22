@@ -1856,65 +1856,36 @@ UARTStdioIntHandler(void)
 						                  	                    
                     #endif /* WANT_FREERTOS_SUPPORT */
                     	
-                    
+
+#ifdef WANT_CMDLINE_HISTORY
                     //
                     // Add command to the command history
                     //
                     if (RX_BUFFER_USED > 0)
                     {
-                    	int y, duplicateCmd;
-                    	
-                    	// Test if this command matches the last command
-                    	duplicateCmd = false;
-                    	if (g_bUARTRxHistoryCnt > 0)
-                    	{
-                       		prev = g_bUARTRxHistoryNext-1;
-                       		if (prev < 0)
-                       			prev = UART_RX_HISTORY_DEPTH-1;
-	                    	x = g_ulUARTRxReadIndex;
-	                    	count = GetBufferCount(&x, &g_ulUARTRxWriteIndex, UART_RX_BUFFER_SIZE);
-                       		y = g_usUARTRxHistoryOffset[prev];
-                       		for (; count > 0; count--)
-                       		{
-                       			if (g_pcUARTRxHistoryBuffer[y++] != g_pcUARTRxBuffer[x++])
-                       				break;
-                       			if (y >= UART_RX_HISTORY_BUF_SIZE)
-                       				y = 0;
-                       			if (x >= UART_RX_BUFFER_SIZE)
-                       				x = 0;
-                       		}
-                       		
-                       		// Test if the command matches the last
-                       		if ((count == 0) && (g_pcUARTRxHistoryBuffer[y] == 0))
-                       			duplicateCmd = true; 
-                    	}
-                       		
-                       	// Now save the command in the history buffer
-                       	if (!duplicateCmd)
-                       	{	
-		                    next = g_bUARTRxHistoryNext++;
-		                    if (g_bUARTRxHistoryNext == UART_RX_HISTORY_DEPTH)
-		                    	g_bUARTRxHistoryNext = 0;
-		                    if (g_bUARTRxHistoryCnt != UART_RX_HISTORY_DEPTH)
-		                    	g_bUARTRxHistoryCnt++;
-		                    g_usUARTRxHistoryOffset[next] = g_usUARTRxHistoryBufIndex;
-		                    x = g_ulUARTRxReadIndex;
-		                    count = GetBufferCount(&x, &g_ulUARTRxWriteIndex, UART_RX_BUFFER_SIZE);
-		                    for (; count >= 0 ; count--)
-		                   	{
-		                   		if (x == g_ulUARTRxWriteIndex)
-		                   			g_pcUARTRxHistoryBuffer[g_usUARTRxHistoryBufIndex++] = '\0';
-		                   		else
-		                   			g_pcUARTRxHistoryBuffer[g_usUARTRxHistoryBufIndex++] = 
-		                   				g_pcUARTRxBuffer[x++];
-		                   		if (x >= UART_RX_BUFFER_SIZE)
-		                   			x = 0;
-		                   		if (g_usUARTRxHistoryBufIndex >= UART_RX_HISTORY_BUF_SIZE)
-		                   			g_usUARTRxHistoryBufIndex = 0;
-		                   	}
-                       	}
+						next = g_bUARTRxHistoryNext++;
+						if (g_bUARTRxHistoryNext == UART_RX_HISTORY_DEPTH)
+							g_bUARTRxHistoryNext = 0;
+						if (g_bUARTRxHistoryCnt != UART_RX_HISTORY_DEPTH)
+							g_bUARTRxHistoryCnt++;
+						g_usUARTRxHistoryOffset[next] = g_usUARTRxHistoryBufIndex;
+						x = g_ulUARTRxReadIndex;
+						count = GetBufferCount(&x, &g_ulUARTRxWriteIndex, UART_RX_BUFFER_SIZE);
+						for (; count >= 0 ; count--)
+						{
+							if (x == g_ulUARTRxWriteIndex)
+								g_pcUARTRxHistoryBuffer[g_usUARTRxHistoryBufIndex++] = '\0';
+							else
+								g_pcUARTRxHistoryBuffer[g_usUARTRxHistoryBufIndex++] =
+									g_pcUARTRxBuffer[x++];
+							if (x >= UART_RX_BUFFER_SIZE)
+								x = 0;
+							if (g_usUARTRxHistoryBufIndex >= UART_RX_HISTORY_BUF_SIZE)
+								g_usUARTRxHistoryBufIndex = 0;
+						}
                     }
                     g_bUARTRxHistoryCur = -1;
+#endif
                 }
             }
 
