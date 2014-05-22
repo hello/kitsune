@@ -838,6 +838,14 @@ Cmd_mkdir(int argc, char *argv[])
     return(0);
 }
 
+int
+Cmd_fault(int argc, char *argv[])
+{
+	*(int*)(0x40001) = 1; /* error logging test... */
+
+    return(0);
+}
+
 // ==============================================================================
 // This is the table that holds the command names, implementing functions, and
 // brief description.
@@ -859,6 +867,7 @@ tCmdLineEntry g_sCmdTable[] =
     { "mkfs",     Cmd_mkfs,     "Make filesystem" },
     { "pwd",      Cmd_pwd,      "Show current working directory" },
     { "cat",      Cmd_cat,      "Show contents of a text file" },
+    { "fault",    Cmd_fault,    "Trigger a hard fault" },
 
 #if ( configUSE_TRACE_FACILITY == 1 )
 	{ "tasks",    Cmd_tasks,     "Report stats of all tasks" },
@@ -867,6 +876,15 @@ tCmdLineEntry g_sCmdTable[] =
 
     { 0, 0, 0 }
 };
+
+#include "fault.h"
+static void checkFaults() {
+	faultInfo f;
+	memcpy( (void*)&f, SHUTDOWN_MEM, sizeof(f) );
+	if( f.magic == SHUTDOWN_MAGIC ) {
+		faultPrinter(&f);
+	}
+}
 
 // ==============================================================================
 // This is the UARTTask.  It handles command lines received from the RX IRQ.
@@ -908,7 +926,9 @@ void vUARTTask( void *pvParameters )
 	UARTprintf("\n\nFreeRTOS %s Demo for EK-LM4F232 Eval Board\n",
 		tskKERNEL_VERSION_NUMBER);
 	UARTprintf("\n? for help\n");
-	UARTprintf("> ");    
+	UARTprintf("> ");
+
+	checkFaults();
 
 	/* Loop forever */
     while (1)

@@ -27,7 +27,10 @@
 
 #include "inc/hw_nvic.h"
 #include "inc/hw_types.h"
+#include "driverlib/sysctl.h"
+#include "driverlib/flash.h"
 #include "uartstdio.h"
+#include "fault.h"
 
 
 //*****************************************************************************
@@ -326,34 +329,20 @@ static const tFaultMap sMemFaultMap[4] =
 // for the bits that are set.  Also dumps the exception frame.
 //
 //*****************************************************************************
-void
-FaultDecoder(unsigned long *pulExceptionFrame)
-{
-    unsigned long ulFaultStatus;
-    unsigned int uIdx;
-
-    //
-    // Read the fault status register.
-    //
-    ulFaultStatus = HWREG(NVIC_FAULT_STAT);
-
-    //
-    // The uart stdio output may not yet be initted ...
-    //
-    UARTStdioInit(0);
-
+void faultPrinter( faultInfo* f ) {
+	int i;
     //
     // Check for any bits set in the usage fault field.  Print a human
     // readable string for any bits that are set.
     //
-    if(ulFaultStatus & 0xffff0000)
+    if(f->faultStatus & 0xffff0000)
     {
         UARTprintf("\nUSAGE FAULT:\n");
-        for(uIdx = 0; uIdx < 6; uIdx++)
+        for(i = 0; i < 6; i++)
         {
-            if(ulFaultStatus & sUsageFaultMap[uIdx].ulFaultBits)
+            if(f->faultStatus & sUsageFaultMap[i].ulFaultBits)
             {
-                UARTprintf(" %s\n", sUsageFaultMap[uIdx].cFaultText);
+                UARTprintf(" %s\n", sUsageFaultMap[i].cFaultText);
             }
         }
     }
@@ -362,23 +351,23 @@ FaultDecoder(unsigned long *pulExceptionFrame)
     // Check for any bits set in the bus fault field.  Print a human
     // readable string for any bits that are set.
     //
-    if(ulFaultStatus & 0x0000ff00)
+    if(f->faultStatus & 0x0000ff00)
     {
         UARTprintf("\nBUS FAULT:\n");
-        for(uIdx = 0; uIdx < 5; uIdx++)
+        for(i = 0; i < 5; i++)
         {
-            if(ulFaultStatus & sBusFaultMap[uIdx].ulFaultBits)
+            if(f->faultStatus & sBusFaultMap[i].ulFaultBits)
             {
-                UARTprintf(" %s\n", sBusFaultMap[uIdx].cFaultText);
+                UARTprintf(" %s\n", sBusFaultMap[i].cFaultText);
             }
         }
 
         //
         // Also print the faulting address if it is available.
         //
-        if(ulFaultStatus & NVIC_FAULT_STAT_BFARV)
+        if(f->faultStatus & NVIC_FAULT_STAT_BFARV)
         {
-            UARTprintf("BFAR = %08X\n", HWREG(NVIC_FAULT_ADDR));
+            UARTprintf("BFAR = %08X\n", f->busFaultAddr);
         }
     }
 
@@ -386,23 +375,23 @@ FaultDecoder(unsigned long *pulExceptionFrame)
     // Check for any bits set in the memory fault field.  Print a human
     // readable string for any bits that are set.
     //
-    if(ulFaultStatus & 0x000000ff)
+    if(f->faultStatus & 0x000000ff)
     {
         UARTprintf("\nMEMORY MANAGE FAULT:\n");
-        for(uIdx = 0; uIdx < 4; uIdx++)
+        for(i = 0; i < 4; i++)
         {
-            if(ulFaultStatus & sMemFaultMap[uIdx].ulFaultBits)
+            if(f->faultStatus & sMemFaultMap[i].ulFaultBits)
             {
-                UARTprintf(" %s\n", sMemFaultMap[uIdx].cFaultText);
+                UARTprintf(" %s\n", sMemFaultMap[i].cFaultText);
             }
         }
 
         //
         // Also print the faulting address if it is available.
         //
-        if(ulFaultStatus & NVIC_FAULT_STAT_MMARV)
+        if(f->faultStatus & NVIC_FAULT_STAT_MMARV)
         {
-            UARTprintf("MMAR = %08X\n", HWREG(NVIC_MM_ADDR));
+            UARTprintf("MMAR = %08X\n", f->mmuAddr);
         }
     }
 
@@ -410,21 +399,61 @@ FaultDecoder(unsigned long *pulExceptionFrame)
     // Print the context of the exception stack frame.
     //
     UARTprintf("\nException Frame\n---------------\n");
-    UARTprintf("R0   = %08X\n", pulExceptionFrame[0]);
-    UARTprintf("R1   = %08X\n", pulExceptionFrame[1]);
-    UARTprintf("R2   = %08X\n", pulExceptionFrame[2]);
-    UARTprintf("R3   = %08X\n", pulExceptionFrame[3]);
-    UARTprintf("R12  = %08X\n", pulExceptionFrame[4]);
-    UARTprintf("LR   = %08X\n", pulExceptionFrame[5]);
-    UARTprintf("PC   = %08X\n", pulExceptionFrame[6]);
-    UARTprintf("xPSR = %08X\n", pulExceptionFrame[7]);
+    UARTprintf("R0   = %08X\n", f->exceptionFrame[0]);
+    UARTprintf("R1   = %08X\n", f->exceptionFrame[1]);
+    UARTprintf("R2   = %08X\n", f->exceptionFrame[2]);
+    UARTprintf("R3   = %08X\n", f->exceptionFrame[3]);
+    UARTprintf("R12  = %08X\n", f->exceptionFrame[4]);
+    UARTprintf("LR   = %08X\n", f->exceptionFrame[5]);
+    UARTprintf("PC   = %08X\n", f->exceptionFrame[6]);
+    UARTprintf("xPSR = %08X\n", f->exceptionFrame[7]);
+
+}
+
+void
+FaultDecoder(unsigned long *pulExceptionFrame)
+{
+    unsigned int i;
+
+    static faultInfo f;
 
     //
-    // Hang forever.
+    // Read the fault status register.
     //
-    while(1)
+    f.faultStatus = HWREG(NVIC_FAULT_STAT);
+
+    //
+    // Check for any bits set in the bus fault field.  Print a human
+    // readable string for any bits that are set.
+    //
+    if(f.faultStatus & 0x0000ff00)
     {
+        if(f.faultStatus & NVIC_FAULT_STAT_BFARV)
+        {
+        	f.busFaultAddr = HWREG(NVIC_FAULT_ADDR);
+        }
     }
+
+    //
+    // Check for any bits set in the memory fault field.  Print a human
+    // readable string for any bits that are set.
+    //
+    if(f.faultStatus & 0x000000ff)
+    {
+        if(f.faultStatus & NVIC_FAULT_STAT_MMARV)
+        {
+        	f.mmuAddr = HWREG(NVIC_MM_ADDR);
+        }
+    }
+
+    for( i=0;i<8;++i )
+    	f.exceptionFrame[i] = pulExceptionFrame[i];
+
+    f.magic = SHUTDOWN_MAGIC;
+
+    FlashProgram((void*)&f, SHUTDOWN_MEM, sizeof(f));
+
+    SysCtlReset();
 }
 
 //*****************************************************************************
