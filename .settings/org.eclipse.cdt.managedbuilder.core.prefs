@@ -1,9 +1,0 @@
-#Fri May 18 21:27:43 PDT 2012
-com.ti.ccstudio.buildDefinitions.TMS470.Debug.1773501802/internalBuilder/enabled=false
-com.ti.ccstudio.buildDefinitions.TMS470.Debug.1773501802/internalBuilder/ignoreErr=true
-com.ti.ccstudio.buildDefinitions.TMS470.Release.949486382/internalBuilder/enabled=false
-com.ti.ccstudio.buildDefinitions.TMS470.Release.949486382/internalBuilder/ignoreErr=true
-eclipse.preferences.version=1
-environment/project=<?xml version\="1.0" encoding\="UTF-8"?>\r\n<environment/>\r\n
-environment/project/com.ti.ccstudio.buildDefinitions.TMS470.Debug.1773501802=<?xml version\="1.0" encoding\="UTF-8"?>\r\n<environment/>\r\n
-environment/project/com.ti.ccstudio.buildDefinitions.TMS470.Release.949486382=<?xml version\="1.0" encoding\="UTF-8"?>\r\n<environment/>\r\n
