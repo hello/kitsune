@@ -7,10 +7,8 @@
 #include "hw_nvic.h"
 #include "hw_types.h"
 
-#include "uart_logger.h"
+#include "uartstdio.h"
 #include "fault.h"
-
-#define UARTprintf(...) Report(__VA_ARGS__)
 
 //*****************************************************************************
 //
@@ -186,7 +184,7 @@ FaultDecoder(unsigned long *pulExceptionFrame)
     //till then just print it out.
     faultPrinter(&f);
 
-    while(1) {};
+    while(1) {UARTprintf("");};
 }
 
 //*****************************************************************************

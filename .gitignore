@@ -1,1 +1,2 @@
-/Debug
+kitsune/ccs/Debug/**/*.obj
+kitsune/ccs/exe/

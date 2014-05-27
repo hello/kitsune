@@ -26,6 +26,11 @@
 	</natures>
 	<linkedResources>
 		<link>
+			<name>commands.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/commands.c</locationURI>
+		</link>
+		<link>
 			<name>fault.c</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/fault.c</locationURI>
@@ -41,9 +46,19 @@
 			<locationURI>PARENT-1-PROJECT_LOC/main.c</locationURI>
 		</link>
 		<link>
+			<name>nanopb</name>
+			<type>2</type>
+			<locationURI>virtual:/virtual</locationURI>
+		</link>
+		<link>
 			<name>pinmux.c</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/pinmux.c</locationURI>
+		</link>
+		<link>
+			<name>protobuf</name>
+			<type>2</type>
+			<locationURI>virtual:/virtual</locationURI>
 		</link>
 		<link>
 			<name>startup_ccs.c</name>
@@ -51,9 +66,84 @@
 			<locationURI>PARENT-1-PROJECT_LOC/startup_ccs.c</locationURI>
 		</link>
 		<link>
-			<name>uart_logger.c</name>
+			<name>uartstdio.c</name>
 			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/uart_logger.c</locationURI>
+			<locationURI>PARENT-1-PROJECT_LOC/uartstdio.c</locationURI>
+		</link>
+		<link>
+			<name>uartstdio.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/uartstdio.h</locationURI>
+		</link>
+		<link>
+			<name>utils</name>
+			<type>2</type>
+			<locationURI>virtual:/virtual</locationURI>
+		</link>
+		<link>
+			<name>nanopb/pb.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/third_party/nanopb/pb.h</locationURI>
+		</link>
+		<link>
+			<name>nanopb/pb_decode.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/third_party/nanopb/pb_decode.c</locationURI>
+		</link>
+		<link>
+			<name>nanopb/pb_decode.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/third_party/nanopb/pb_decode.h</locationURI>
+		</link>
+		<link>
+			<name>nanopb/pb_encode.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/third_party/nanopb/pb_encode.c</locationURI>
+		</link>
+		<link>
+			<name>nanopb/pb_encode.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/third_party/nanopb/pb_encode.h</locationURI>
+		</link>
+		<link>
+			<name>protobuf/simple.pb</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/protobuf/simple.pb</locationURI>
+		</link>
+		<link>
+			<name>protobuf/simple.pb.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/protobuf/simple.pb.c</locationURI>
+		</link>
+		<link>
+			<name>protobuf/simple.pb.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/protobuf/simple.pb.h</locationURI>
+		</link>
+		<link>
+			<name>protobuf/simple.proto</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/protobuf/simple.proto</locationURI>
+		</link>
+		<link>
+			<name>utils/cmdline.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/utils/cmdline.c</locationURI>
+		</link>
+		<link>
+			<name>utils/cmdline.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/utils/cmdline.h</locationURI>
+		</link>
+		<link>
+			<name>utils/ustdlib.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/utils/ustdlib.c</locationURI>
+		</link>
+		<link>
+			<name>utils/ustdlib.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/utils/ustdlib.h</locationURI>
 		</link>
 	</linkedResources>
 </projectDescription>

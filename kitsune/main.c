@@ -49,12 +49,12 @@
 #include <utils.h>
 #include "pinmux.h"
 #include "portmacro.h"
-#include "uart_logger.h"
 
 /*Simple Link inlcudes */
 #include <datatypes.h>
 #include <simplelink.h>
 
+#include "uartstdio.h"
 
 //*****************************************************************************
 //                      MACRO DEFINITIONS
@@ -72,15 +72,9 @@
 	extern uVectorEntry __vector_table;
 #endif
 
-/* The queue used to send strings to the task1. */
-xQueueHandle xPrintQueue;
-
 //*****************************************************************************
 //                      LOCAL FUNCTION DEFINITIONS
 //*****************************************************************************
-static void vTestTask1( void *pvParameters );
-static void vTestTask2( void *pvParameters );
-
 /*
  * Hook functions that can get called by the kernel.
  */
@@ -90,6 +84,8 @@ void vApplicationTickHook( void );
 void vAssertCalled( const char *pcFile, unsigned long ulLine );
 void vApplicationIdleHook( void );
 void Display31xxBanner();
+
+extern void vUARTTask( void *pvParameters );
 
 //*****************************************************************************
 //
@@ -103,65 +99,10 @@ void Display31xxBanner();
 void
 Display31xxBanner()
 {
-    Report("\n\n\n\r");
-    Report("\t\tkitsune launch...\n\r");
-    Report("\n\n\n\r");
+    UARTprintf("\n\n\n\r");
+    UARTprintf("\t\tkitsune launch...\n\r");
+    UARTprintf("\n\n\n\r");
 
-}
-
-//******************************************************************************
-//
-//! First test task
-//!
-//! \param pvParameters is the parameter passed to the task while creating it.
-//!
-//!	This Function
-//!		1. Receive message from the Queue and display it on the terminal.
-//!
-//! \return none
-//
-//******************************************************************************
-void vTestTask1( void *pvParameters )
-{
-   portCHAR *pcMessage;
-    for( ;; )
-    {
-      /* Wait for a message to arrive. */
-      xQueueReceive( xPrintQueue, &pcMessage, portMAX_DELAY );
-
-      UART_PRINT("message = ");
-      UART_PRINT(pcMessage);
-      UART_PRINT("\n\r");
-      UtilsDelay(2000000);
-    }
-}
-
-//******************************************************************************
-//
-//! Second test task
-//!
-//! \param pvParameters is the parameter passed to the task while creating it.
-//!
-//!	This Function
-//!		1. Creates a message and send it to the queue.
-//!
-//! \return none
-//
-//******************************************************************************
-void vTestTask2( void *pvParameters )
-{
-   unsigned long ul_2;
-   const portCHAR *pcInterruptMessage[4] = {"Welcome","to","CC31xx" 
-		   ,"development !\n"};
-   ul_2 =0;
-      
-   for( ;; )
-     {
-       /* Queue a message for the print task to display on the UART CONSOLE. */
-      xQueueSend( xPrintQueue, &pcInterruptMessage[ul_2 % 4], portMAX_DELAY );
-      ul_2++;
-      UtilsDelay(2000000);
-     }
 }
 
 //*****************************************************************************
@@ -352,39 +293,11 @@ int main( void )
     IntEnable(FAULT_SYSTICK);
 
     PinMuxConfig();
-    //
-    // Initializing the terminal
-    //
-    InitTerm();
-    //
-    // Clearing the terminal
-    //
-    ClearTerm();
-    //
-    // Diasplay Banner
-    //
-    Display31xxBanner();
-    //
-    // Creating a queue for 10 elements.
-    //
-    xPrintQueue =xQueueCreate( 10, sizeof( unsigned portLONG ) );
 
-    if( xPrintQueue == 0 )
-    {
-      // Queue was not created and must not be used.
-      return 0;
-    }
     VStartSimpleLinkSpawnTask(SPAWN_TASK_PRIORITY);
-    //
-    // Create the Queue Receive task
-    //
-    osi_TaskCreate( vTestTask1, ( signed portCHAR * ) "TASK1",
-                512, NULL, tskIDLE_PRIORITY+1, NULL );
-    //
-    // Create the Queue Send task
-    //
-    osi_TaskCreate( vTestTask2, ( signed portCHAR * ) "TASK2",
-                512,NULL, tskIDLE_PRIORITY+1, NULL );
+
+    /* Create the UART processing task. */
+    xTaskCreate( vUARTTask, "UARTTask", 200, NULL, 2, NULL );
 
     //
     // Start the task scheduler
