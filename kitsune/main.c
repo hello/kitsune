@@ -56,6 +56,8 @@
 
 #include "uartstdio.h"
 
+#include "cc3101.h"
+
 //*****************************************************************************
 //                      MACRO DEFINITIONS
 //*****************************************************************************
@@ -71,6 +73,7 @@
 #if defined(ewarm)
 	extern uVectorEntry __vector_table;
 #endif
+/*unsigned long g_ulCPUUsage;*/
 
 //*****************************************************************************
 //                      LOCAL FUNCTION DEFINITIONS
@@ -132,6 +135,9 @@ vApplicationTickHook( void )
 void
 vAssertCalled( const char *pcFile, unsigned long ulLine )
 {
+
+    UARTprintf( "%s %u ASSERT", pcFile, ulLine );
+
   	while(1)
     {
 
@@ -167,6 +173,8 @@ vApplicationStackOverflowHook( xTaskHandle *pxTask, signed portCHAR *pcTaskName 
 {
     ( void ) pxTask;
     ( void ) pcTaskName;
+
+    UARTprintf( "%s STACK OVERFLOW", pcTaskName );
 
     for( ;; );
 }
@@ -296,13 +304,15 @@ int main( void )
 
     VStartSimpleLinkSpawnTask(SPAWN_TASK_PRIORITY);
 
+	InitDriver();
+
     /* Create the UART processing task. */
     xTaskCreate( vUARTTask, "UARTTask", 200, NULL, 2, NULL );
 
     //
     // Start the task scheduler
     //
-    osi_start();
+    vTaskStartScheduler();
 
     return 0;
 }

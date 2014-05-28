@@ -88,6 +88,8 @@ task.h is included from an application file. */
 #include "timers.h"
 #include "StackMacros.h"
 
+#include "portmacro.h"
+
 #undef MPU_WRAPPERS_INCLUDED_FROM_API_FILE
 
 /* Sanity check the configuration. */

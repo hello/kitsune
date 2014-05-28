@@ -128,14 +128,14 @@ void faultPrinter( faultInfo* f ) {
     // Print the context of the exception stack frame.
     //
     UARTprintf("\nException Frame\n---------------\n");
-    UARTprintf("R0   = %08X\n", f->exceptionFrame[0]);
-    UARTprintf("R1   = %08X\n", f->exceptionFrame[1]);
-    UARTprintf("R2   = %08X\n", f->exceptionFrame[2]);
-    UARTprintf("R3   = %08X\n", f->exceptionFrame[3]);
-    UARTprintf("R12  = %08X\n", f->exceptionFrame[4]);
-    UARTprintf("LR   = %08X\n", f->exceptionFrame[5]);
-    UARTprintf("PC   = %08X\n", f->exceptionFrame[6]);
-    UARTprintf("xPSR = %08X\n", f->exceptionFrame[7]);
+    UARTprintf("R0   = 0x%08X\n", f->exceptionFrame[0]);
+    UARTprintf("R1   = 0x%08X\n", f->exceptionFrame[1]);
+    UARTprintf("R2   = 0x%08X\n", f->exceptionFrame[2]);
+    UARTprintf("R3   = 0x%08X\n", f->exceptionFrame[3]);
+    UARTprintf("R12  = 0x%08X\n", f->exceptionFrame[4]);
+    UARTprintf("LR   = 0x%08X\n", f->exceptionFrame[5]);
+    UARTprintf("PC   = 0x%08X\n", f->exceptionFrame[6]);
+    UARTprintf("xPSR = 0x%08X\n", f->exceptionFrame[7]);
 
 }
 
@@ -184,7 +184,7 @@ FaultDecoder(unsigned long *pulExceptionFrame)
     //till then just print it out.
     faultPrinter(&f);
 
-    while(1) {UARTprintf("");};
+    while(1) {faultPrinter(&f);};
 }
 
 //*****************************************************************************

@@ -35,6 +35,8 @@
 #include "ustdlib.h"
 #include "uartstdio.h"
 
+#include "wifi_cmd.h"
+
 //// ==============================================================================
 //// The CPU usage in percent, in 16.16 fixed point format.
 //// ==============================================================================
@@ -49,27 +51,27 @@
 //    //
 //    // Print some header text.
 //    //
-//    UARTprintf("ARM Cortex-M4F %u MHz - ",SysCtlClockGet() / 1000000);
+//    UARTprintf("ARM Cortex-M4F %u MHz - ",configCPU_CLOCK_HZ / 1000000);
 //    UARTprintf("%2u%% utilization\n", (g_ulCPUUsage+32768) >> 16);
 //
 //    // Return success.
 //    return(0);
 //}
 
-//
-//// ==============================================================================
-//// This function implements the "free" command.  It prints the free memory.
-//// ==============================================================================
-//int Cmd_free(int argc, char *argv[])
-//{
-//    //
-//    // Print some header text.
-//    //
-//    UARTprintf("%d bytes free\n", xPortGetFreeHeapSize());
-//
-//    // Return success.
-//    return(0);
-//}
+
+// ==============================================================================
+// This function implements the "free" command.  It prints the free memory.
+// ==============================================================================
+int Cmd_free(int argc, char *argv[])
+{
+    //
+    // Print some header text.
+    //
+    UARTprintf("%d bytes free\n", xPortGetFreeHeapSize());
+
+    // Return success.
+    return(0);
+}
 
 // ==============================================================================
 // This function implements the "tasks" command.  It prints a list of the
@@ -229,7 +231,12 @@ tCmdLineEntry g_sCmdTable[] =
     { "help",     Cmd_help,     "Display list of commands" },
     { "?",        Cmd_help,     "alias for help" },
 //    { "cpu",      Cmd_cpu,      "Show CPU utilization" },
-//    { "free",     Cmd_free,     "Report free memory" },
+    { "free",     Cmd_free,     "Report free memory" },
+    { "connect",  Cmd_connect,  "Connect to an AP" },
+    { "ping",  Cmd_ping,  "Ping a server" },
+    { "initsl",   Cmd_initsl,   "init simple link" },
+    { "deinitsl", Cmd_deinitsl, "deinit simple link" },
+    { "status",   Cmd_status,   "status of simple link" },
 //    { "mnt",      Cmd_mnt,      "Mount the SD card" },
 //    { "umnt",     Cmd_umnt,     "Unount the SD card" },
 //    { "ls",       Cmd_ls,       "Display list of files" },

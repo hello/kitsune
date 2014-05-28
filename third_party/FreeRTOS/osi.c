@@ -468,34 +468,6 @@ OsiReturnVal_e osi_MsgQRead(OsiMsgQ_t* pMsgQ, void* pMsg , OsiTime_t Timeout)
   }
 }
 
-/*!
-	\brief 	This function call the memory allcoation fuction of the FREERTOS
-
-	\param	Size		-	size of the memory which needs to be allocated
-	
-	\return memory upon successful 
-	\note
-	\warning
-*/
-
-void * pvPortMalloc(size_t Size)
-{
-    return ( void * )malloc( Size );
-}
-
-/*!
-	\brief 	This function to call the memory de-allcoation fuction of the FREERTOS
-
-	\param	pMem		-	pointor to the memory which needs to be freeied
-	
-	\return - void 
-	\note
-	\warning
-*/
-void vPortFree(void *pMem)
-{
-    free( pMem );
-}
 void * mem_Malloc(unsigned long Size)
 {
   
