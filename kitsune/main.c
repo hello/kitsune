@@ -40,6 +40,7 @@
 #include <hw_common_reg.h>
 #include <hw_types.h>
 #include <hw_ints.h>
+#include <systick.h>
 #include <interrupt.h>
 #include <rom.h>
 #include <rom_map.h>
@@ -299,6 +300,10 @@ int main( void )
     // tasks.
     //
     IntEnable(FAULT_SYSTICK);
+
+    //systick at 1 HZ
+    SysTickPeriodSet(configCPU_CLOCK_HZ/configSYSTICK_CLOCK_HZ);
+    SysTickEnable();
 
     PinMuxConfig();
 
