@@ -182,8 +182,6 @@ FaultDecoder(unsigned long *pulExceptionFrame)
 
     //todo flash it FlashProgram((void*)&f, SHUTDOWN_MEM, sizeof(f));
     //till then just print it out.
-    faultPrinter(&f);
-
     while(1) {faultPrinter(&f);};
 }
 

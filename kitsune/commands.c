@@ -36,6 +36,7 @@
 #include "uartstdio.h"
 
 #include "wifi_cmd.h"
+#include "i2c_cmd.h"
 
 //// ==============================================================================
 //// The CPU usage in percent, in 16.16 fixed point format.
@@ -248,8 +249,13 @@ tCmdLineEntry g_sCmdTable[] =
 //    { "mkfs",     Cmd_mkfs,     "Make filesystem" },
 //    { "pwd",      Cmd_pwd,      "Show current working directory" },
 //    { "cat",      Cmd_cat,      "Show contents of a text file" },
-    { "fault",    Cmd_fault,    "Trigger a hard fault" },
+    { "fault",    Cmd_fault,      "Trigger a hard fault" },
+    { "i2crd",    Cmd_i2c_read,   "i2c read" },
+    { "i2cwr",   Cmd_i2c_write,   "i2c write" },
+    { "i2crdrg", Cmd_i2c_readreg, "i2c readreg" },
+    { "i2cwrrg",Cmd_i2c_writereg, "i2c_writereg" },
 
+    { "temp",      Cmd_readtemp,  "i2 read temp" },
 #if ( configUSE_TRACE_FACILITY == 1 )
 	{ "tasks",    Cmd_tasks,     "Report stats of all tasks" },
 #endif

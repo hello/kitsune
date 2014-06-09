@@ -57,6 +57,8 @@
 
 #include "uartstdio.h"
 
+#include "i2c_if.h"
+
 #include "cc3101.h"
 
 //*****************************************************************************
@@ -295,6 +297,8 @@ int main( void )
     #endif
 
     MCUInit();
+
+
     //
     // Enables the clock ticking for scheduler to switch between different
     // tasks.
@@ -306,11 +310,30 @@ int main( void )
     //setup i2c clock
     MAP_PRCMPeripheralClkEnable(PRCM_I2CA0, PRCM_RUN_MODE_CLK);
 
-    //systick at 1 HZ
-    SysTickPeriodSet(configCPU_CLOCK_HZ/configSYSTICK_CLOCK_HZ);
-    SysTickEnable();
+    //setup i2c clock
+    MAP_PRCMPeripheralClkEnable(PRCM_I2CA0, PRCM_RUN_MODE_CLK);
+
+    //
+    // Configure PIN_01 for I2C0 I2C_SCL
+    //
+    MAP_PinTypeI2C(PIN_01, PIN_MODE_1);
+
+    //
+    // Configure PIN_02 for I2C0 I2C_SDA
+    //
+    MAP_PinTypeI2C(PIN_02, PIN_MODE_1);
+
+    //
+    // Enable Processor Interrupts
+    //
+    MAP_IntMasterEnable();
+    //
+    // I2C Init
+    //
+    I2COpen(I2C_MASTER_MODE_FST);
 
     PinMuxConfig();
+
 
     VStartSimpleLinkSpawnTask(SPAWN_TASK_PRIORITY);
 

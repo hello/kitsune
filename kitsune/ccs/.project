@@ -51,6 +51,26 @@
 			<locationURI>PARENT-1-PROJECT_LOC/fault.c</locationURI>
 		</link>
 		<link>
+			<name>i2c_cmd.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/i2c_cmd.c</locationURI>
+		</link>
+		<link>
+			<name>i2c_cmd.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/i2c_cmd.h</locationURI>
+		</link>
+		<link>
+			<name>i2c_if.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/i2c_if.c</locationURI>
+		</link>
+		<link>
+			<name>i2c_if.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/i2c_if.h</locationURI>
+		</link>
+		<link>
 			<name>kitsune.cmd</name>
 			<type>1</type>
 			<locationURI>PROJECT_LOC/kitsune.cmd</locationURI>
