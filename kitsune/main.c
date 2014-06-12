@@ -299,7 +299,12 @@ int main( void )
     // Enables the clock ticking for scheduler to switch between different
     // tasks.
     //
-    IntEnable(FAULT_SYSTICK);
+    SysTickPeriodSet(configCPU_CLOCK_HZ/configSYSTICK_CLOCK_HZ);
+    SysTickEnable();
+    SysTickIntEnable();
+
+    //setup i2c clock
+    MAP_PRCMPeripheralClkEnable(PRCM_I2CA0, PRCM_RUN_MODE_CLK);
 
     //systick at 1 HZ
     SysTickPeriodSet(configCPU_CLOCK_HZ/configSYSTICK_CLOCK_HZ);
