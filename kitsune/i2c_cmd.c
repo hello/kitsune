@@ -70,11 +70,11 @@ int Cmd_i2c_read(int argc, char *argv[]) {
 
     // Read the specified length of data
     //
-    iRetVal = I2CRead(ucDevAddr, aucDataBuf, ucLen);
+    iRetVal = I2C_IF_Read(ucDevAddr, aucDataBuf, ucLen);
 
     if(iRetVal == SUCCESS)
     {
-        UARTprintf("I2C Read complete\n\r");
+        UARTprintf("I2C_IF_ Read complete\n\r");
         //
         // Display the buffer over UART on successful write
         //
@@ -82,7 +82,7 @@ int Cmd_i2c_read(int argc, char *argv[]) {
     }
     else
     {
-        UARTprintf("I2C Read failed\n\r");
+        UARTprintf("I2C_IF_ Read failed\n\r");
         return FAILURE;
     }
 
@@ -128,9 +128,9 @@ int Cmd_i2c_writereg(int argc, char *argv[]) {
     //
     // Write the data values.
     //
-    RET_IF_ERR(I2CWrite(ucDevAddr,&aucDataBuf[0],ucWrLen+1,1));
+    RET_IF_ERR(I2C_IF_Write(ucDevAddr,&aucDataBuf[0],ucWrLen+1,1));
 
-    UARTprintf("I2C Write To address complete\n\r");
+    UARTprintf("I2C_IF_ Write To address complete\n\r");
 
     return SUCCESS;
 }
@@ -161,15 +161,15 @@ int Cmd_i2c_readreg(int argc, char *argv[]) {
     // Write the register address to be read from.
     // Stop bit implicitly assumed to be 0.
     //
-    RET_IF_ERR(I2CWrite(ucDevAddr,&ucRegOffset,1,0));
+    RET_IF_ERR(I2C_IF_Write(ucDevAddr,&ucRegOffset,1,0));
 
     vTaskDelay(0);
     //
     // Read the specified length of data
     //
-    RET_IF_ERR(I2CRead(ucDevAddr, &aucRdDataBuf[0], ucRdLen));
+    RET_IF_ERR(I2C_IF_Read(ucDevAddr, &aucRdDataBuf[0], ucRdLen));
 
-    UARTprintf("I2C Read From address complete\n\r");
+    UARTprintf("I2C_IF_ Read From address complete\n\r");
     //
     // Display the buffer over UART on successful readreg
     //
@@ -214,14 +214,14 @@ int Cmd_i2c_write(int argc, char *argv[]) {
     //
     // Write the data to the specified address
     //
-    iRetVal = I2CWrite(ucDevAddr, aucDataBuf, ucLen, ucStopBit);
+    iRetVal = I2C_IF_Write(ucDevAddr, aucDataBuf, ucLen, ucStopBit);
     if(iRetVal == SUCCESS)
     {
-        UARTprintf("I2C Write complete\n\r");
+        UARTprintf("I2C_IF_ Write complete\n\r");
     }
     else
     {
-        UARTprintf("I2C Write failed\n\r");
+        UARTprintf("I2C_IF_ Write failed\n\r");
         return FAILURE;
     }
 
@@ -236,15 +236,15 @@ int Cmd_readtemp(int argc, char *argv[]) {
 	int temp_raw;
 	float temp;
 
-	TRY_OR_GOTOFAIL( I2CWrite(0x40, &cmd, 1, 1)  );// reset
+	TRY_OR_GOTOFAIL( I2C_IF_Write(0x40, &cmd, 1, 1)  );// reset
 
     vTaskDelay(10);
 
     cmd = 0xe3;
-    TRY_OR_GOTOFAIL( I2CWrite(0x40, &cmd, 1, 1) );
+    TRY_OR_GOTOFAIL( I2C_IF_Write(0x40, &cmd, 1, 1) );
 
     vTaskDelay(50);
-    TRY_OR_GOTOFAIL( I2CRead(0x40, aucDataBuf, 4) );
+    TRY_OR_GOTOFAIL( I2C_IF_Read(0x40, aucDataBuf, 4) );
     temp_raw = (aucDataBuf[0]<<8) | aucDataBuf[1];
     temp = temp_raw;
 

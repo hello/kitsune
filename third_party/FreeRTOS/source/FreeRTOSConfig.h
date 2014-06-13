@@ -91,6 +91,7 @@
 #define configUSE_IDLE_HOOK	                1
 #define configUSE_TICK_HOOK				0 // 1
 #define configCPU_CLOCK_HZ				( ( unsigned long ) 80000000 )
+#define configSYSTICK_CLOCK_HZ			( ( portTickType ) 1000 )
 #define configTICK_RATE_HZ				( ( portTickType ) 1000 )
 #define configMINIMAL_STACK_SIZE		( ( unsigned short ) 70 )
 #define configTOTAL_HEAP_SIZE			( ( size_t ) ( 5000) )
@@ -101,7 +102,7 @@
 #define configUSE_CO_ROUTINES 			0
 #define configUSE_MUTEXES				1
 #define configUSE_RECURSIVE_MUTEXES		0
-#define configCHECK_FOR_STACK_OVERFLOW	0
+#define configCHECK_FOR_STACK_OVERFLOW	1
 #define configUSE_QUEUE_SETS			1
 #define configUSE_COUNTING_SEMAPHORES	1
 #define configUSE_ALTERNATIVE_API		1

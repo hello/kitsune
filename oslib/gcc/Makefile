@@ -78,7 +78,7 @@ OBJS= ${OBJDIR}/croutine.o    \
       ${OBJDIR}/tasks.o       \
       ${OBJDIR}/port.o        \
       ${OBJDIR}/timers.o      \
-      ${OBJDIR}/heap_3.o      \
+      ${OBJDIR}/heap_4.o      \
       ${OBJDIR}/osi_freertos.o
 
 #

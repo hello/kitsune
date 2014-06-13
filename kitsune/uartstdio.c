@@ -1834,7 +1834,7 @@ UARTStdioIntHandler(void)
 						
 						if (xHigherPriorityTaskWoken == pdTRUE)
 						{
-							vPortYield();
+							vTaskDelay(0);
 						}
 						                  	                    
                     #endif /* WANT_FREERTOS_SUPPORT */

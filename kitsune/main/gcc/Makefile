@@ -109,12 +109,8 @@ ${BINDIR}:
 # Rules for building the kitsune example.
 #
 ${BINDIR}/kitsune.axf: ${OBJDIR}/main.o
-${BINDIR}/kitsune.axf: ${OBJDIR}/pinmux.o
-${BINDIR}/kitsune.axf: ${OBJDIR}/gpio_if.o
-${BINDIR}/kitsune.axf: ${OBJDIR}/startup_${COMPILER}.o
-${BINDIR}/kitsune.axf: ${ROOT}/simplelink/${COMPILER}/${BINDIR}/simplelink.a
-${BINDIR}/kitsune.axf: ${ROOT}/driverlib/${COMPILER}/${BINDIR}/libdriver.a
-${BINDIR}/kitsune.axf: ${ROOT}/oslib/${COMPILER}/${BINDIR}/FreeRTOS.a
+
+${BINDIR}/kitsune.axf: ${OBJDIR}/uartstdio.o
 
 ${BINDIR}/kitsune.axf: ${OBJDIR}/simple.pb.o
 ${BINDIR}/kitsune.axf: ${OBJDIR}/pb_encode.o
@@ -123,10 +119,16 @@ ${BINDIR}/kitsune.axf: ${OBJDIR}/pb_decode.o
 ${BINDIR}/kitsune.axf: ${OBJDIR}/cmdline.o
 ${BINDIR}/kitsune.axf: ${OBJDIR}/commands.o
 ${BINDIR}/kitsune.axf: ${OBJDIR}/i2c_cmd.o
-${BINDIR}/kitsune.axf: ${OBJDIR}/i2c_if.o
-${BINDIR}/kitsune.axf: ${OBJDIR}/uartstdio.o
-${BINDIR}/kitsune.axf: ${OBJDIR}/wifi_cmd.o
 ${BINDIR}/kitsune.axf: ${OBJDIR}/ustdlib.o
+
+${BINDIR}/kitsune.axf: ${OBJDIR}/pinmux.o
+${BINDIR}/kitsune.axf: ${OBJDIR}/gpio_if.o
+${BINDIR}/kitsune.axf: ${OBJDIR}/i2c_if.o
+${BINDIR}/kitsune.axf: ${OBJDIR}/startup_${COMPILER}.o
+${BINDIR}/kitsune.axf: ${ROOT}/simplelink/${COMPILER}/${BINDIR}/simplelink.a
+${BINDIR}/kitsune.axf: ${ROOT}/driverlib/${COMPILER}/${BINDIR}/libdriver.a
+${BINDIR}/kitsune.axf: ${ROOT}/oslib/${COMPILER}/${BINDIR}/FreeRTOS.a
+${BINDIR}/kitsune.axf: ${OBJDIR}/wifi_cmd.o
 
 SCATTERgcc_kitsune=kitsune.ld
 ENTRY_kitsune=ResetISR

@@ -80,7 +80,6 @@ int Cmd_free(int argc, char *argv[])
 // ==============================================================================
 #if ( configUSE_TRACE_FACILITY == 1 )
 
-extern char *__stack;
 int Cmd_tasks(int argc, char *argv[])
 {
 	signed char*	pBuffer;
@@ -93,17 +92,7 @@ int Cmd_tasks(int argc, char *argv[])
 	UARTprintf("=======================================================");
 	UARTprintf("%s", pBuffer);
 	
-	// Calculate kernel stack usage
-	x = 0;
-	pStack = (unsigned char *) &__stack;
-	while (*pStack++ == 0xA5)
-	{
-		x++;
-	}
-	usprintf((char *) pBuffer, "%%%us", configMAX_TASK_NAME_LEN);
-	usprintf((char *) &pBuffer[10], (const char *) pBuffer, "kernel");
-	UARTprintf("%s\t\tR\t%u\t%u\t-\n", &pBuffer[10], configKERNEL_INTERRUPT_PRIORITY,
-		x / sizeof(portBASE_TYPE));
+
 	vPortFree(pBuffer);
 	return 0;
 }
