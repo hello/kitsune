@@ -1,17 +1,38 @@
-/******************************************************************************
-*
-*   Copyright (C) 2013 Texas Instruments Incorporated
-*
-*   All rights reserved. Property of Texas Instruments Incorporated.
-*   Restricted rights to use, duplicate or disclose this code are
-*   granted through contract.
-*
-*   The program may not be used without the written permission of
-*   Texas Instruments Incorporated or against the terms and conditions
-*   stipulated in the agreement under which this program has been supplied,
-*   and under no circumstances can it be used with non-TI connectivity device.
-*
-******************************************************************************/
+/*
+ * device.c - CC31xx/CC32xx Host Driver Implementation
+ *
+ * Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com/ 
+ * 
+ * 
+ *  Redistribution and use in source and binary forms, with or without 
+ *  modification, are permitted provided that the following conditions 
+ *  are met:
+ *
+ *    Redistributions of source code must retain the above copyright 
+ *    notice, this list of conditions and the following disclaimer.
+ *
+ *    Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the 
+ *    documentation and/or other materials provided with the   
+ *    distribution.
+ *
+ *    Neither the name of Texas Instruments Incorporated nor the names of
+ *    its contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT 
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ *  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT 
+ *  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
+ *  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT 
+ *  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ *  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ *  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
+ *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
+ *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+*/
 
 /*****************************************************************************
 
@@ -25,9 +46,8 @@
 #include "driver.h"
 
 
-//*****************************************************************************
-//
-//*****************************************************************************
+/*****************************************************************************
+******************************************************************************/
 #if _SL_INCLUDE_FUNC(sl_Task)
 void sl_Task()
 {
@@ -37,34 +57,57 @@ void sl_Task()
 }
 #endif
 
-//*****************************************************************************
-//
-//*****************************************************************************
-#if _SL_INCLUDE_FUNC(sl_Start)
-int sl_Start(const void* pIfHdl, const char* pDevName, const P_SL_DEV_START_STOP_CALLBACK pInitCallBack)
+int GetStartResponseConvert(unsigned long Status)
 {
-	int	pObjIdx = MAX_CONCURRENT_ACTIONS;
-	InitComplete_t  AsyncRsp;
+    switch(Status)
+    {
+    case INIT_STA_OK:
+        return ROLE_STA;
+    case INIT_STA_ERR:
+        return ROLE_STA_ERR;
+    case INIT_AP_OK:
+        return ROLE_AP;
+    case INIT_AP_ERR:
+        return ROLE_AP_ERR;
+    case INIT_P2P_OK:
+        return ROLE_P2P;
+    case INIT_P2P_ERR:
+        return ROLE_P2P_ERR;
+    default:
+        return (int)Status;
+    }
+}
 
-    // callback init
+
+/*****************************************************************************
+******************************************************************************/
+#if _SL_INCLUDE_FUNC(sl_Start)
+int sl_Start(const void* pIfHdl, char* pDevName, const P_INIT_CALLBACK pInitCallBack)
+{
+    int pObjIdx = MAX_CONCURRENT_ACTIONS;
+    InitComplete_t  AsyncRsp;
+  
+    /* callback init */
     _SlDrvDriverCBInit();
 
-    // open the interface: usually SPI or UART
+    /* open the interface: usually SPI or UART */
     if (NULL == pIfHdl)
     {
-        g_pCB->FD = sl_IfOpen((char *)pDevName, 0);
+        g_pCB->FD = sl_IfOpen(pDevName, 0);
     }
     else
     {
-        g_pCB->FD = *(_SlFd_t *)pIfHdl;
+        g_pCB->FD = (_SlFd_t)pIfHdl;
     }
-	//Use Obj to issue the command, if not available try later
-	pObjIdx = _SlDrvWaitForPoolObj(START_STOP_ID,SL_MAX_SOCKETS);
-	if (MAX_CONCURRENT_ACTIONS == pObjIdx)
- 	{
-		return POOL_IS_EMPTY;
-	}
-	g_pCB->ObjPool[pObjIdx].pRespArgs = (UINT8 *)&AsyncRsp;
+    /* Use Obj to issue the command, if not available try later */
+    pObjIdx = _SlDrvWaitForPoolObj(START_STOP_ID,SL_MAX_SOCKETS);
+    if (MAX_CONCURRENT_ACTIONS == pObjIdx)
+    {
+         return SL_POOL_IS_EMPTY;
+    }
+    OSI_RET_OK_CHECK(sl_LockObjLock(&g_pCB->ProtectionLockObj, SL_OS_WAIT_FOREVER));
+    g_pCB->ObjPool[pObjIdx].pRespArgs = (UINT8 *)&AsyncRsp;
+    OSI_RET_OK_CHECK(sl_LockObjUnlock(&g_pCB->ProtectionLockObj));
 
     if( g_pCB->FD >= 0)
     {
@@ -81,30 +124,9 @@ int sl_Start(const void* pIfHdl, const char* pDevName, const P_SL_DEV_START_STOP
         else
         {
 			OSI_RET_OK_CHECK(sl_SyncObjWait(&g_pCB->ObjPool[pObjIdx].SyncObj, SL_OS_WAIT_FOREVER));
-			if (INIT_STA_OK == AsyncRsp.Status)
-			{
-				return ROLE_STA;
-			}
-			else if (INIT_STA_ERR == AsyncRsp.Status)
-			{
-				return ROLE_STA_ERR;
-			}
-			else if (INIT_AP_OK == AsyncRsp.Status)
-			{
-				return ROLE_AP;
-			}
-			else if (INIT_AP_ERR == AsyncRsp.Status)
-			{
-				return ROLE_AP_ERR;
-			}
-			else if (INIT_P2P_OK == AsyncRsp.Status)
-			{
-				return ROLE_P2P;
-			}
-			else if (INIT_P2P_ERR == AsyncRsp.Status)
-			{
-				return ROLE_P2P_ERR;
-			}
+	        /*release Pool Object*/
+            _SlDrvReleasePoolObj(g_pCB->FunctionParams.AsyncExt.ActionIndex);
+			return GetStartResponseConvert(AsyncRsp.Status);
 		}
     }
 
@@ -113,26 +135,31 @@ int sl_Start(const void* pIfHdl, const char* pDevName, const P_SL_DEV_START_STOP
 }
 #endif
 
-//*****************************************************************************
-// _sl_HandleAsync_InitComplete - handles init complete signalling to 
-//                                a waiting object
-//*****************************************************************************
+/*****************************************************************************
+ _sl_HandleAsync_InitComplete - handles init complete signalling to 
+                                a waiting object
+****************************************************************************/
 void _sl_HandleAsync_InitComplete(void *pVoidBuf)
 {
-	InitComplete_t     *pMsgArgs   = (InitComplete_t *)_SL_RESP_ARGS_START(pVoidBuf);
+    InitComplete_t     *pMsgArgs   = (InitComplete_t *)_SL_RESP_ARGS_START(pVoidBuf);
 
-	 memcpy(g_pCB->ObjPool[g_pCB->FunctionParams.AsyncExt.ActionIndex].pRespArgs, pMsgArgs, sizeof(InitComplete_t));
+    OSI_RET_OK_CHECK(sl_LockObjLock(&g_pCB->ProtectionLockObj, SL_OS_WAIT_FOREVER));
 
     if(g_pCB->pInitCallback)
     {
-		g_pCB->pInitCallback(pMsgArgs->Status);
+		g_pCB->pInitCallback(GetStartResponseConvert(pMsgArgs->Status));
     }
     else
     {
+		memcpy(g_pCB->ObjPool[g_pCB->FunctionParams.AsyncExt.ActionIndex].pRespArgs, pMsgArgs, sizeof(InitComplete_t));
         OSI_RET_OK_CHECK(sl_SyncObjSignal(&g_pCB->ObjPool[g_pCB->FunctionParams.AsyncExt.ActionIndex].SyncObj));
     }
-	//release Pool Object
-	_SlDrvReleasePoolObj(g_pCB->FunctionParams.AsyncExt.ActionIndex);
+   OSI_RET_OK_CHECK(sl_LockObjUnlock(&g_pCB->ProtectionLockObj));
+
+   if(g_pCB->pInitCallback)
+   {
+     _SlDrvReleasePoolObj(g_pCB->FunctionParams.AsyncExt.ActionIndex);
+   }
 }
 
 void _sl_HandleAsync_Stop(void *pVoidBuf)
@@ -141,19 +168,18 @@ void _sl_HandleAsync_Stop(void *pVoidBuf)
 
     VERIFY_SOCKET_CB(NULL != g_pCB->StopCB.pAsyncRsp);
 
+    OSI_RET_OK_CHECK(sl_LockObjLock(&g_pCB->ProtectionLockObj, SL_OS_WAIT_FOREVER));
+
     memcpy(g_pCB->ObjPool[g_pCB->FunctionParams.AsyncExt.ActionIndex].pRespArgs, pMsgArgs, sizeof(_BasicResponse_t));
-
-	OSI_RET_OK_CHECK(sl_SyncObjSignal(&g_pCB->ObjPool[g_pCB->FunctionParams.AsyncExt.ActionIndex].SyncObj));
-	//release Pool Object
-	_SlDrvReleasePoolObj(g_pCB->FunctionParams.AsyncExt.ActionIndex);
-
+    OSI_RET_OK_CHECK(sl_SyncObjSignal(&g_pCB->ObjPool[g_pCB->FunctionParams.AsyncExt.ActionIndex].SyncObj));
+    OSI_RET_OK_CHECK(sl_LockObjUnlock(&g_pCB->ProtectionLockObj));
     return;
 }
 
 
-//*****************************************************************************
-// sl_stop
-//*****************************************************************************
+/*****************************************************************************
+ sl_stop
+******************************************************************************/
 typedef union
 {
 	_DevStopCommand_t  Cmd;
@@ -170,11 +196,11 @@ const _SlCmdCtrl_t _SlStopCmdCtrl =
 #if _SL_INCLUDE_FUNC(sl_Stop)
 int sl_Stop(unsigned short timeout)
 {
-    int RetVal;
+    int RetVal=0;
     _SlStopMsg_u      Msg;
     _BasicResponse_t  AsyncRsp;
 	int				  pObjIdx = MAX_CONCURRENT_ACTIONS;
-    // if timeout is 0 the shutdown is forced immediately
+    /* if timeout is 0 the shutdown is forced immediately */
     if( 0 == timeout ) 
     {
       sl_IfRegIntHdlr(NULL, NULL);
@@ -184,15 +210,19 @@ int sl_Stop(unsigned short timeout)
     }
     else
     {
-      // let the device make the shutdown using the defined timeout
+      /* let the device make the shutdown using the defined timeout */
       Msg.Cmd.Timeout = timeout;
-	  //Use Obj to issue the command, if not available try later
+	  /* Use Obj to issue the command, if not available try later */
 	  pObjIdx = _SlDrvWaitForPoolObj(START_STOP_ID,SL_MAX_SOCKETS);
 	  if (MAX_CONCURRENT_ACTIONS == pObjIdx)
  	  {
-		return POOL_IS_EMPTY;
+		return SL_POOL_IS_EMPTY;
 	  }
-	  g_pCB->ObjPool[pObjIdx].pRespArgs = (UINT8 *)&AsyncRsp;
+      OSI_RET_OK_CHECK(sl_LockObjLock(&g_pCB->ProtectionLockObj, SL_OS_WAIT_FOREVER));
+
+      g_pCB->ObjPool[pObjIdx].pRespArgs = (UINT8 *)&AsyncRsp;
+
+      OSI_RET_OK_CHECK(sl_LockObjUnlock(&g_pCB->ProtectionLockObj));
 
       VERIFY_RET_OK(_SlDrvCmdOp((_SlCmdCtrl_t *)&_SlStopCmdCtrl, &Msg, NULL));
 
@@ -202,10 +232,8 @@ int sl_Stop(unsigned short timeout)
          Msg.Rsp.status = AsyncRsp.status;
          RetVal = Msg.Rsp.status;
       }
-	  else
-	  {
-	  	_SlDrvReleasePoolObj(pObjIdx);
-	  }
+
+      _SlDrvReleasePoolObj(pObjIdx);
 
       sl_IfRegIntHdlr(NULL, NULL);
       sl_DeviceDisable();
@@ -218,9 +246,9 @@ int sl_Stop(unsigned short timeout)
 #endif
 
 
-//*****************************************************************************
-// sl_EventMaskSet/sl_EventMaskGet
-//*****************************************************************************
+/*****************************************************************************
+ sl_EventMaskSet/sl_EventMaskGet
+*****************************************************************************/
 typedef union
 {
 	_DevMaskEventSetCommand_t	    Cmd;
@@ -248,9 +276,9 @@ int sl_EventMaskSet(unsigned char EventClass , unsigned long Mask)
 }
 #endif
 
-//*****************************************************************************
-//
-//*****************************************************************************
+/******************************************************************************
+
+******************************************************************************/
 typedef union
 {
 	_DevMaskEventGetCommand_t	    Cmd;
@@ -280,9 +308,9 @@ int sl_EventMaskGet(unsigned char EventClass, unsigned long *pMask)
 
 
 
-//*****************************************************************************
-// sl_DeviceGet
-//*****************************************************************************
+/******************************************************************************
+ sl_DevGet
+******************************************************************************/
 
 typedef union
 {
@@ -299,18 +327,24 @@ const _SlCmdCtrl_t _SlDeviceGetCmdCtrl =
 
 
 
-#if _SL_INCLUDE_FUNC(sl_DeviceGet)
-long sl_DeviceGet(unsigned char DeviceGetId, unsigned char *pOption,unsigned char *pConfigLen, unsigned char *pValues)
+#if _SL_INCLUDE_FUNC(sl_DevGet)
+long sl_DevGet(unsigned char DeviceGetId, unsigned char *pOption,unsigned char *pConfigLen, unsigned char *pValues)
 {
 	_SlDeviceMsgGet_u         Msg;
 	_SlCmdExt_t               CmdExt;
 
+	if (*pConfigLen == 0)
+	{
+		return SL_EZEROLEN;
+	}
+
 	if( pOption )
 	{
 	  CmdExt.TxPayloadLen = 0;
-	  CmdExt.RxPayloadLen = (*pConfigLen+3) & (~3);
+	  CmdExt.RxPayloadLen = *pConfigLen;
 	  CmdExt.pTxPayload = NULL;
 	  CmdExt.pRxPayload = (UINT8 *)pValues;
+	  CmdExt.ActualRxPayloadLen = 0;
   
 	  Msg.Cmd.DeviceSetId = DeviceGetId;
 
@@ -318,11 +352,19 @@ long sl_DeviceGet(unsigned char DeviceGetId, unsigned char *pOption,unsigned cha
 	  
 	  VERIFY_RET_OK(_SlDrvCmdOp((_SlCmdCtrl_t *)&_SlDeviceGetCmdCtrl, &Msg, &CmdExt));
 	  
-	  *pConfigLen = (UINT8)CmdExt.RxPayloadLen;
-  
 	  if( pOption )
 	  {
 		  *pOption = (UINT8)Msg.Rsp.Option;
+	  }
+	 
+	  if (CmdExt.RxPayloadLen < CmdExt.ActualRxPayloadLen) 
+	  {
+		  *pConfigLen = (UINT8)CmdExt.RxPayloadLen;
+		  return SL_ESMALLBUF;
+	  }
+	  else
+	  {
+		  *pConfigLen = (UINT8)CmdExt.ActualRxPayloadLen;
 	  }
   
 	  return (int)Msg.Rsp.Status;
@@ -334,9 +376,9 @@ long sl_DeviceGet(unsigned char DeviceGetId, unsigned char *pOption,unsigned cha
 }
 #endif
 
-//*****************************************************************************
-// sl_DeviceSet
-//*****************************************************************************
+/******************************************************************************
+ sl_DevSet
+******************************************************************************/
 typedef union
 {
     _DeviceSetGet_t    Cmd;
@@ -350,8 +392,8 @@ const _SlCmdCtrl_t _SlDeviceSetCmdCtrl =
     sizeof(_BasicResponse_t)
 };
 
-#if _SL_INCLUDE_FUNC(sl_DeviceSet)
-long sl_DeviceSet(unsigned char DeviceSetId ,unsigned char Option,unsigned char ConfigLen, unsigned char *pValues)
+#if _SL_INCLUDE_FUNC(sl_DevSet)
+long sl_DevSet(unsigned char DeviceSetId ,unsigned char Option,unsigned char ConfigLen, unsigned char *pValues)
 {
 	_SlDeviceMsgSet_u         Msg;
 	_SlCmdExt_t               CmdExt;
@@ -373,11 +415,9 @@ long sl_DeviceSet(unsigned char DeviceSetId ,unsigned char Option,unsigned char 
 #endif
 
 
-
-
-//*****************************************************************************
-//  _SlDrvDeviceEventHandler - handles internally device async events
-//*****************************************************************************
+/******************************************************************************
+ _SlDrvDeviceEventHandler - handles internally device async events
+******************************************************************************/
 void _SlDrvDeviceEventHandler(void *pArgs)
 {
     _SlResponseHeader_t      *pHdr       = (_SlResponseHeader_t *)pArgs;
@@ -397,7 +437,7 @@ void _SlDrvDeviceEventHandler(void *pArgs)
               SlDeviceEvent_t      devHandler;
               devHandler.EventData.deviceEvent.status = pMsgArgs->status & 0xFF;
               devHandler.EventData.deviceEvent.sender = (pMsgArgs->status >> 8) & 0xFF;
-              sl_GeneralEvtHdlr((void*)&devHandler);
+              sl_GeneralEvtHdlr(&devHandler);
             }
 #endif
             break;
@@ -406,5 +446,73 @@ void _SlDrvDeviceEventHandler(void *pArgs)
             VERIFY_PROTOCOL(0);
     }
 }
+
+
+/******************************************************************************
+ sl_UartSetMode 
+******************************************************************************/
+#ifdef SL_IF_TYPE_UART
+typedef union
+{
+	_DevUartSetModeCommand_t	  Cmd;
+	_DevUartSetModeResponse_t     Rsp;
+}_SlUartSetModeMsg_u;
+
+const _SlCmdCtrl_t _SlUartSetModeCmdCtrl =
+{
+    SL_OPCODE_DEVICE_SETUARTMODECOMMAND,
+    sizeof(_DevUartSetModeCommand_t),
+    sizeof(_DevUartSetModeResponse_t)
+};
+
+
+#if _SL_INCLUDE_FUNC(sl_UartSetMode)
+int sl_UartSetMode(const SlUartIfParams_t* pUartParams)
+{
+	_SlUartSetModeMsg_u Msg;
+        UINT32 magicCode = 0xFFFFFFFF;
+        
+	Msg.Cmd.BaudRate = pUartParams->BaudRate;
+	Msg.Cmd.FlowControlEnable = pUartParams->FlowControlEnable;
+
+    
+    VERIFY_RET_OK(_SlDrvCmdOp((_SlCmdCtrl_t *)&_SlUartSetModeCmdCtrl, &Msg, NULL));
+        
+	/* cmd response OK, we can continue with the handshake */
+	if (SL_RET_CODE_OK == Msg.Rsp.status)
+	{
+            sl_IfMaskIntHdlr();
+
+            /* Close the comm port */
+            sl_IfClose(g_pCB->FD);
+              
+              /* Re-open the comm port */
+            sl_IfOpen((char*)pUartParams, UART_IF_OPEN_FLAG_RE_OPEN);
+
+            sl_IfUnMaskIntHdlr();
+              
+            /* send the magic code and wait for the response */
+            sl_IfWrite(g_pCB->FD, (unsigned char*)&magicCode, 4);
+            
+            magicCode = UART_SET_MODE_MAGIC_CODE;
+            sl_IfWrite(g_pCB->FD, (unsigned char*)&magicCode, 4);
+            
+            /* clear magic code */
+            magicCode = 0;
+            
+            /* wait (blocking) till the magic code to be returned from device */
+            sl_IfRead(g_pCB->FD, (unsigned char*)&magicCode, 4);
+            
+            /* check for the received magic code matching */
+            if (UART_SET_MODE_MAGIC_CODE != magicCode)
+            {
+                _SL_ASSERT(0);
+            }
+	}
+       
+	return (int)Msg.Rsp.status;
+}
+#endif
+#endif
 
 

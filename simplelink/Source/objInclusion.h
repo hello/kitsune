@@ -1,17 +1,39 @@
-/******************************************************************************
-*
-*   Copyright (C) 2013 Texas Instruments Incorporated
-*
-*   All rights reserved. Property of Texas Instruments Incorporated.
-*   Restricted rights to use, duplicate or disclose this code are
-*   granted through contract.
-*
-*   The program may not be used without the written permission of
-*   Texas Instruments Incorporated or against the terms and conditions
-*   stipulated in the agreement under which this program has been supplied,
-*   and under no circumstances can it be used with non-TI connectivity device.
-*
-******************************************************************************/
+/*
+ * objInclusion.h - CC31xx/CC32xx Host Driver Implementation
+ *
+ * Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com/ 
+ * 
+ * 
+ *  Redistribution and use in source and binary forms, with or without 
+ *  modification, are permitted provided that the following conditions 
+ *  are met:
+ *
+ *    Redistributions of source code must retain the above copyright 
+ *    notice, this list of conditions and the following disclaimer.
+ *
+ *    Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the 
+ *    documentation and/or other materials provided with the   
+ *    distribution.
+ *
+ *    Neither the name of Texas Instruments Incorporated nor the names of
+ *    its contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT 
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ *  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT 
+ *  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
+ *  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT 
+ *  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ *  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ *  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
+ *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
+ *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+*/
+
 #include <simplelink.h>
 
 #ifndef OBJINCLUSION_H_
@@ -157,6 +179,7 @@ extern "C" {
 #define _SL_INC_sl_NetAppMDNSRegisterService		__nap__clt
 #define _SL_INC_sl_NetAppMDNSUnRegisterService		__nap__clt
 #define _SL_INC_sl_NetAppMDNSRegisterUnregisterService	__nap__clt
+#define _SL_INC_sl_NetAppGetServiceList	                __nap__clt
 	
 
 #define _SL_INC_sl_DnsGetHostByAddr     __nap__ext
@@ -258,9 +281,9 @@ extern "C" {
 
 #define _SL_INC_sl_WlanSetMode			 __wln
 
-#define _SL_INC_sl_WlanCfgSet			 __wln
+#define _SL_INC_sl_WlanSet			 __wln
 
-#define _SL_INC_sl_WlanCfgGet			 __wln
+#define _SL_INC_sl_WlanGet			 __wln
 
 #define _SL_INC_sl_SmartConfigOptSet    __wln__ext
 
@@ -282,17 +305,21 @@ extern "C" {
 
 #define _SL_INC_sl_StatusGet            __dev
 
+#ifdef SL_IF_TYPE_UART  
+#define _SL_INC_sl_UartSetMode			__dev
+#endif
+
 #define _SL_INC_sl_EventMaskGet         __dev__ext
 
 #define _SL_INC_sl_EventMaskSet         __dev__ext
 
-#define _SL_INC_sl_DeviceGet			__dev__ext
+#define _SL_INC_sl_DevGet			    __dev__ext
 
-#define _SL_INC_sl_DeviceSet			__dev__ext
+#define _SL_INC_sl_DevSet			    __dev__ext
 
 
 #ifdef  __cplusplus
 }
-#endif // __cplusplus
+#endif /* __cplusplus */
 
 #endif /*OBJINCLUSION_H_  */

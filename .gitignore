@@ -1,3 +1,4 @@
-kitsune/ccs/Debug/
-kitsune/ccs/exe/
-kitsune/ccs/.settings/org.eclipse.core.resources.prefs
+/**/*.o
+/**/*.d
+/**/*.axf
+/**/*.bin

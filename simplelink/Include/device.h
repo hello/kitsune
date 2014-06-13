@@ -1,17 +1,38 @@
-/******************************************************************************
-*
-*   Copyright (C) 2013 Texas Instruments Incorporated
-*
-*   All rights reserved. Property of Texas Instruments Incorporated.
-*   Restricted rights to use, duplicate or disclose this code are
-*   granted through contract.
-*
-*   The program may not be used without the written permission of
-*   Texas Instruments Incorporated or against the terms and conditions
-*   stipulated in the agreement under which this program has been supplied,
-*   and under no circumstances can it be used with non-TI connectivity device.
-*
-******************************************************************************/
+/*
+ * device.h - CC31xx/CC32xx Host Driver Implementation
+ *
+ * Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com/ 
+ * 
+ * 
+ *  Redistribution and use in source and binary forms, with or without 
+ *  modification, are permitted provided that the following conditions 
+ *  are met:
+ *
+ *    Redistributions of source code must retain the above copyright 
+ *    notice, this list of conditions and the following disclaimer.
+ *
+ *    Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the 
+ *    documentation and/or other materials provided with the   
+ *    distribution.
+ *
+ *    Neither the name of Texas Instruments Incorporated nor the names of
+ *    its contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT 
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ *  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT 
+ *  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
+ *  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT 
+ *  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ *  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ *  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
+ *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
+ *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+*/
 
 #ifndef __DEVICE_H__
 #define	__DEVICE_H__
@@ -22,8 +43,7 @@
 extern "C" {
 #endif
 
-typedef void (*P_SL_DEV_START_STOP_CALLBACK)(UINT32 Status);
-
+typedef void (*P_INIT_CALLBACK)(unsigned long Status);
 
 
 /*****************************************************************************
@@ -31,21 +51,19 @@ typedef void (*P_SL_DEV_START_STOP_CALLBACK)(UINT32 Status);
     API Prototypes
 
  *****************************************************************************/
+
+
 /*!
-    \brief      define for the device get set commands
 
-    The device set get defines are arranged like this - 1 digit is 
-	device set get ID, two digits start with the device set get id and it's option.
-	for example 
-	#define SL_DEVICE_SET_GENERAL_CONFIGURATION (1) - device set id
-	#define SL_DEVICE_SET_GENERAL_CONFIGURATION_DATE_TIME (11) - configure option
+    \addtogroup device
+    @{
 
-    \sa         sl_DeviceGet , sl_DeviceSet
 */
+
 #define SL_DEVICE_GENERAL_CONFIGURATION (1)
 #define SL_DEVICE_GENERAL_CONFIGURATION_DATE_TIME (11)
-#define SL_DEVICE_GET_GENERAL_VERSION (12)
-#define SL_DEVICE_GET_STATUS (2)
+#define SL_DEVICE_GENERAL_VERSION                 (12)
+#define SL_DEVICE_STATUS                          (2)
 
 
 
@@ -64,9 +82,24 @@ typedef void (*P_SL_DEV_START_STOP_CALLBACK)(UINT32 Status);
     \sa         
     \note 
     \warning     
+    \par
+    \code
+         Setting device time and date example:
+
+         SlDateTime_t dateTime= {0};
+         dateTime.sl_tm_day =   (unsigned long)23;          // Day of month (DD format) range 1-13
+         dateTime.sl_tm_mon =   (unsigned long)6;           // Month (MM format) in the range of 1-12 
+         dateTime.sl_tm_year =  (unsigned long)2014;        // Year (YYYY format) 
+         dateTime.sl_tm_hour =  (unsigned long)17;          // Hours in the range of 0-23
+         dateTime.sl_tm_min =   (unsigned long)55;          // Minutes in the range of 0-59
+         dateTime.sl_tm_sec =   (unsigned long)22;          // Seconds in the range of  0-59
+         sl_DevSet(SL_DEVICE_GENERAL_CONFIGURATION,SL_DEVICE_GENERAL_CONFIGURATION_DATE_TIME,sizeof(SlDateTime_t),(unsigned char *)(&dateTime));
+
+
+    \endcode   
 */
-#if _SL_INCLUDE_FUNC(sl_DeviceSet)
-long sl_DeviceSet(unsigned char DeviceSetId ,unsigned char Option,unsigned char ConfigLen, unsigned char *pValues);
+#if _SL_INCLUDE_FUNC(sl_DevSet)
+long sl_DevSet(unsigned char DeviceSetId ,unsigned char Option,unsigned char ConfigLen, unsigned char *pValues);
 #endif
 
 
@@ -78,75 +111,78 @@ long sl_DeviceSet(unsigned char DeviceSetId ,unsigned char Option,unsigned char 
     \return    On success, zero is returned. On error, -1 is 
                returned
    
-    \param[in] DeviceGetId   configuration id - example SL_DEVICE_GET_STATUS							 
+    \param[in] DeviceGetId   configuration id - example SL_DEVICE_STATUS							 
 
     \param[out] pOption   Get configurations option, example for get status options
-							* SL_EVENT_CLASS_GLOBAL
-							* SL_EVENT_CLASS_DEVICE
-							* SL_EVENT_CLASS_WLAN  
-							* SL_EVENT_CLASS_BSD   
-							* SL_EVENT_CLASS_NETAPP
-							* SL_EVENT_CLASS_NETCFG
-							* SL_EVENT_CLASS_NVMEM 
-							* SL_EVENT_CLASS_VERSION
+							- SL_EVENT_CLASS_GLOBAL
+							- SL_EVENT_CLASS_DEVICE
+							- SL_EVENT_CLASS_WLAN  
+							- SL_EVENT_CLASS_BSD   
+							- SL_EVENT_CLASS_NETAPP
+							- SL_EVENT_CLASS_NETCFG
+							- SL_EVENT_CLASS_NVMEM 
+							- SL_EVENT_CLASS_VERSION
 
     \param[out] pConfigLen   The length of the allocated memory as input, when the
                                         function complete, the value of this parameter would be
                              the len that actually read from the device.\n 
                                         If the device return length that is longer from the input 
                                         value, the function will cut the end of the returned structure
-                                        and will return 1
-
-    \param[out] pValues - get configurations values
-
+                                        and will return SL_ESMALLBUF
+    \param[out] pValues     Get configurations values
     \sa         
-
     \note 
-
     \warning  
-
-	\par           Example:
-	\code          
-
-	Example for getting WLAN class status:
-	unsigned long statusWlan;
-    unsigned char pConfigOpt;
-	pConfigOpt = SL_EVENT_CLASS_WLAN;
-	sl_DeviceGet(SL_DEVICE_GET_STATUS,&pConfigOpt,&pConfigLen,(unsigned char *)(&statusWlan));
-
-	Example for getting version:
-
-	SlVersionFull ver;
-	pConfigOpt = SL_DEVICE_GET_GENERAL_VERSION;
-    sl_DeviceGet(SL_DEVICE_GENERAL_CONFIGURATION,&pConfigOpt,&pConfigLen,(unsigned char *)(&ver));
-
-    printf("CHIP %d\nMAC 31.%d.%d.%d.%d\nPHY %d.%d.%d.%d\nNWP %d.%d.%d.%d\nROM %d\nHOST %d.%d.%d.%d\n",
-	        ver.ChipFwAndPhyVersion.ChipId,
-            ver.ChipFwAndPhyVersion.FwVersion[0],ver.ChipFwAndPhyVersion.FwVersion[1],
-            ver.ChipFwAndPhyVersion.FwVersion[2],ver.ChipFwAndPhyVersion.FwVersion[3],
-	        ver.ChipFwAndPhyVersion.PhyVersion[0],ver.ChipFwAndPhyVersion.PhyVersion[1],
-            ver.ChipFwAndPhyVersion.PhyVersion[2],ver.ChipFwAndPhyVersion.PhyVersion[3],
-	        ver.NwpVersion[0],ver.NwpVersion[1],ver.NwpVersion[2],ver.NwpVersion[3],
-	        ver.RomVersion,
-	        SL_MAJOR_VERSION_NUM,SL_MINOR_VERSION_NUM,SL_VERSION_NUM,SL_SUB_VERSION_NUM);
-
-	\endcode
+    \par  Examples:
+    \code
+     
+     Example for getting WLAN class status:
+     unsigned long statusWlan;
+     unsigned char pConfigOpt;
+     pConfigOpt = SL_EVENT_CLASS_WLAN;
+     sl_DevGet(SL_DEVICE_GET_STATUS,&pConfigOpt,&pConfigLen,(unsigned char *)(&statusWlan));
+     
+     Example for getting version:
+     
+      SlVersionFull ver;
+      pConfigOpt = SL_DEVICE_GENERAL_VERSION;
+      sl_DevGet(SL_DEVICE_GENERAL_CONFIGURATION,&pConfigOpt,&pConfigLen,(unsigned char *)(&ver));
+     
+     printf("CHIP %d\nMAC 31.%d.%d.%d.%d\nPHY %d.%d.%d.%d\nNWP %d.%d.%d.%d\nROM %d\nHOST %d.%d.%d.%d\n",
+             ver.ChipFwAndPhyVersion.ChipId,
+             ver.ChipFwAndPhyVersion.FwVersion[0],ver.ChipFwAndPhyVersion.FwVersion[1],
+             ver.ChipFwAndPhyVersion.FwVersion[2],ver.ChipFwAndPhyVersion.FwVersion[3],
+             ver.ChipFwAndPhyVersion.PhyVersion[0],ver.ChipFwAndPhyVersion.PhyVersion[1],
+             ver.ChipFwAndPhyVersion.PhyVersion[2],ver.ChipFwAndPhyVersion.PhyVersion[3],
+             ver.NwpVersion[0],ver.NwpVersion[1],ver.NwpVersion[2],ver.NwpVersion[3],
+             ver.RomVersion,
+             SL_MAJOR_VERSION_NUM,SL_MINOR_VERSION_NUM,SL_VERSION_NUM,SL_SUB_VERSION_NUM);
+     
+     \endcode
+     \code
+         Getting Device time and date example:
+         
+         SlDateTime_t dateTime =  {0};  
+         char configLen = sizeof(SlDateTime_t); 
+         char configOpt = SL_DEVICE_GENERAL_CONFIGURATION_DATE_TIME;
+         sl_DevGet(SL_DEVICE_GENERAL_CONFIGURATION,&configOpt, &configLen,(unsigned char *)(&dateTime)); 
+         
+         printf("Day %d,Mon %d,Year %d,Hour %,Min %d,Sec %d\n",dateTime.sl_tm_day,dateTime.sl_tm_mon,dateTime.sl_tm_year
+                 dateTime.sl_tm_hour,dateTime.sl_tm_min,dateTime.sl_tm_sec);
+     \endcode
 */
-#if _SL_INCLUDE_FUNC(sl_DeviceGet)
-long sl_DeviceGet(unsigned char DeviceGetId, unsigned char *pOption,unsigned char *pConfigLen, unsigned char *pValues);
+#if _SL_INCLUDE_FUNC(sl_DevGet)
+long sl_DevGet(unsigned char DeviceGetId, unsigned char *pOption,unsigned char *pConfigLen, unsigned char *pValues);
 #endif
 
 
 
 
 
-/*!
-    \brief      declare the different event group classifications
-
+/*
+    Declare the different event group classifications
     The SimpleLink device send asynchronous events. Each event has a group 
     classification according to its nature.
-
-    \sa         sl_EventMaskGet , sl_EventMaskSet, sl_StatusGet
 */
 #define SL_EVENT_CLASS_GLOBAL   (0)
 #define SL_EVENT_CLASS_DEVICE   (1)
@@ -168,6 +204,10 @@ long sl_DeviceGet(unsigned char DeviceGetId, unsigned char *pOption,unsigned cha
 #define SL_WLAN_STA_CONNECTED_EVENT               (5)
 #define SL_WLAN_STA_DISCONNECTED_EVENT            (6)
 
+#define SL_WLAN_P2P_DEV_FOUND_EVENT			      (7)
+#define	SL_WLAN_P2P_NEG_REQ_RECEIVED_EVENT		  (8)
+#define SL_WLAN_CONNECTION_FAILED_EVENT		      (9)
+
 /* SL_EVENT_CLASS_DEVICE user events */
 #define SL_DEVICE_FATAL_ERROR_EVENT               (1)
 /* SL_EVENT_CLASS_BSD user events */               
@@ -177,17 +217,28 @@ long sl_DeviceGet(unsigned char DeviceGetId, unsigned char *pOption,unsigned cha
 #define	SL_NETAPP_IPACQUIRED_EVENT                (1)
 #define	SL_NETAPP_IPACQUIRED_V6_EVENT             (2)
 
-// Receive this error in case there are no resources to issue the command
-//If possible, increase the number of MAX_CUNCURENT_ACTIONS (result in memory increase)
-//If not, try again later 
-#define POOL_IS_EMPTY -2000
-/*!
-    \brief      declare the different event group classifications
+/* Receive this error in case there are no resources to issue the command
+   If possible, increase the number of MAX_CUNCURENT_ACTIONS (result in memory increase)
+   If not, try again later */
+#define SL_POOL_IS_EMPTY -2000
 
-    \sa         sl_StatusGet 
-*/
+/* Receive this error in case a given length for RX buffer was too small. 
+   Receive payload was bigger than the given buffer size. therefore payload is cut according to receive size 
+   Recommend to increase buffer size */
+#define SL_ESMALLBUF -2001
+
+/* Receive this error in case zero length is supplied to a get API
+   Recommend to supply length according to requested information (view options defines for help) */
+#define SL_EZEROLEN -2002
+
+/* User supplied invalid parameter */
+#define SL_INVALPARAM -2003
+/*!
+    Declare the different event group classifications for sl_DevGet
+ */
 
 /******************  DEVICE CLASS  ****************/
+#define EVENT_DROPPED_DEVICE_ASYNC_GENERAL_ERROR          0x00000001L
 #define STATUS_DEVICE_SMART_CONFIG_ACTIVE                 0x80000000L
 
 /******************  WLAN CLASS  ****************/
@@ -207,26 +258,31 @@ long sl_DeviceGet(unsigned char DeviceGetId, unsigned char *pOption,unsigned cha
 /******************  BSD CLASS  ****************/
 #define EVENT_DROPPED_SOCKET_TXFAILEDASYNCRESPONSE        0x00000001L
   
-/******************  NVMEM CLASS  ****************/
+/******************  FS CLASS  ****************/
   
-/* error codes */
-#define ROLE_STA_ERR                          (-2)  /* Failure to load MAC\PHY in STA role */
-#define ROLE_AP_ERR                           (-3)  /* Failure to load MAC\PHY in AP role */
-#define ROLE_P2P_ERR                          (-4)  /* Failure to load MAC\PHY in P2P role */
+
+#ifdef SL_IF_TYPE_UART
+typedef struct  
+{
+      unsigned long BaudRate;
+      unsigned char  FlowControlEnable;
+      unsigned char  CommPort;
+} SlUartIfParams_t;
+#endif
 
 typedef struct
 {
-	UINT32	ChipId;
-	UINT32  FwVersion[4];
-	UINT8   PhyVersion[4];
+	unsigned long	ChipId;
+	unsigned long   FwVersion[4];
+	unsigned char   PhyVersion[4];
 }_SlPartialVersion;
 
 typedef struct
 {
 	_SlPartialVersion ChipFwAndPhyVersion;
-	UINT32  NwpVersion[4];
-	UINT16  RomVersion;
-	UINT16  Padding;
+	unsigned long  NwpVersion[4];
+	unsigned short  RomVersion;
+	unsigned short  Padding;
 }SlVersionFull;
 
 typedef enum
@@ -242,8 +298,8 @@ typedef enum
 
 typedef struct
 {
-    unsigned long      status;
-    SlErrorSender_e    sender;
+    signed char 		status;
+    SlErrorSender_e		sender;
 }sl_DeviceReport;
 
 typedef union
@@ -259,12 +315,20 @@ typedef struct
 } SlDeviceEvent_t;
 
 
-/*!
-
-    \addtogroup device
-    @{
-
-*/
+typedef struct  
+{
+       /* time */
+       unsigned long sl_tm_sec;
+       unsigned long sl_tm_min;
+       unsigned long sl_tm_hour;
+       /* date */
+       unsigned long sl_tm_day; /* 1-31 */
+       unsigned long sl_tm_mon; /* 1-12 */
+       unsigned long sl_tm_year; /*  YYYY 4 digits  */
+       unsigned long sl_tm_week_day; /* not required */
+       unsigned long sl_tm_year_day; /* not required */ 
+       unsigned long reserved[3];  
+}SlDateTime_t;
 
 
 
@@ -292,14 +356,15 @@ typedef struct
                                         is completed, otherwise the function returns 
                                         immediately.
 
-    \return         Role - ROLE_STA, ROLE_AP, ROLE_P2P in case of success, 
-						   otherwise in failure one of the following is return:
-								  ROLE_STA_ERR  (Failure to load MAC\PHY in STA role)
-								  ROLE_AP_ERR  (Failure to load MAC\PHY in AP role)
-								  ROLE_P2P_ERR  (Failure to load MAC\PHY in P2P role)
-				  
+    \return         Roles 
+                    - ROLE_STA, ROLE_AP, ROLE_P2P in case of success, 
+                      otherwise in failure one of the following is return:
+                    - ROLE_STA_ERR  (Failure to load MAC\PHY in STA role)
+                    - ROLE_AP_ERR  (Failure to load MAC\PHY in AP role)
+                    - ROLE_P2P_ERR  (Failure to load MAC\PHY in P2P role)
+
     
-    \sa             sl_Stop
+     \sa             sl_Stop
 
     \note           belongs to \ref basic_api
 
@@ -316,7 +381,7 @@ typedef struct
     \endcode
 */
 #if _SL_INCLUDE_FUNC(sl_Start)
-int sl_Start(const void* pIfHdl, const char* pDevName, const P_SL_DEV_START_STOP_CALLBACK pInitCallBack);
+int sl_Start(const void* pIfHdl, char* pDevName, const P_INIT_CALLBACK pInitCallBack);
 #endif
 
 /*!
@@ -333,8 +398,8 @@ int sl_Start(const void* pIfHdl, const char* pDevName, const P_SL_DEV_START_STOP
                                                     hibernating, without timeout protection \n      
                     - 0 < Timeout[msec] < 0xFFFF    Host waits for device's response before \n
                                                     hibernating, with a defined timeout protection \n
-												    This timeout defines the max time to wait. The NWP \n
-												    response can be sent earlier than this timeout.
+                                                    This timeout defines the max time to wait. The NWP \n
+                                                    response can be sent earlier than this timeout.
 
     \return         On success, zero is returned. On error, -1 is returned     
  
@@ -454,8 +519,8 @@ int sl_EventMaskGet(unsigned char EventClass, unsigned long *pMask);
     This function must be called from the main loop or from dedicated thread in
     the following cases:
         - Non-Os Platform - should be called from the mail loop
-        - Multi Threaded Platform when the user does not implement the extern spawn functions - 
-           should be called from dedicated theard allocated to the simplelink driver.
+        - Multi Threaded Platform when the user does not implement the external spawn functions - 
+           should be called from dedicated thread allocated to the simplelink driver.
            In this mode the function never return.
     
     \return         None
@@ -471,6 +536,29 @@ int sl_EventMaskGet(unsigned char EventClass, unsigned long *pMask);
 void sl_Task();
 #endif
 
+
+/*!
+    \brief Setting the internal uart mode 
+
+    \param[in]      pUartParams          Pointer to the uart configuration parameter set: 
+                                         baudrate     - up to 711 Kbps
+                                         flow control - enable/disbale 
+                                         comm port    - the comm port number
+    
+    \return         On success zero is returned, otherwise - Failed.   
+    
+    \sa             sl_Stop
+
+    \note           belongs to \ref basic_api
+
+    \warning        This function must consider the host uart capability
+*/
+#ifdef SL_IF_TYPE_UART
+#if _SL_INCLUDE_FUNC(sl_UartSetMode)
+int sl_UartSetMode(const SlUartIfParams_t* pUartParams);
+#endif
+#endif
+
 /*!
 
  Close the Doxygen group.
@@ -481,7 +569,8 @@ void sl_Task();
 
 #ifdef  __cplusplus
 }
-#endif // __cplusplus
+#endif /*  __cplusplus */
 
 
-#endif	// __DEVICE_H__
+#endif  /*  __DEVICE_H__ */
+

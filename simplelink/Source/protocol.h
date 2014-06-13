@@ -1,17 +1,38 @@
-/******************************************************************************
-*
-*   Copyright (C) 2013 Texas Instruments Incorporated
-*
-*   All rights reserved. Property of Texas Instruments Incorporated.
-*   Restricted rights to use, duplicate or disclose this code are
-*   granted through contract.
-*
-*   The program may not be used without the written permission of
-*   Texas Instruments Incorporated or against the terms and conditions
-*   stipulated in the agreement under which this program has been supplied,
-*   and under no circumstances can it be used with non-TI connectivity device.
-*
-******************************************************************************/
+/*
+ * protocol.h - CC31xx/CC32xx Host Driver Implementation
+ *
+ * Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com/ 
+ * 
+ * 
+ *  Redistribution and use in source and binary forms, with or without 
+ *  modification, are permitted provided that the following conditions 
+ *  are met:
+ *
+ *    Redistributions of source code must retain the above copyright 
+ *    notice, this list of conditions and the following disclaimer.
+ *
+ *    Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the 
+ *    documentation and/or other materials provided with the   
+ *    distribution.
+ *
+ *    Neither the name of Texas Instruments Incorporated nor the names of
+ *    its contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT 
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ *  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT 
+ *  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
+ *  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT 
+ *  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ *  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ *  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
+ *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
+ *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+*/
 
 /*******************************************************************************\
 *
@@ -48,9 +69,11 @@
 #define H2N_DUMMY_PATTERN    (UINT32)0xFFFFFFFF
 #define N2H_SYNC_PATTERN     (UINT32)0xABCDDCBA
 #define SYNC_PATTERN_LEN     (UINT32)sizeof(UINT32)
-#define UART_SYNC_PATTERN    (UINT32)0xCEFAADDE
-#define SPI_16BITS_BUG(pattern) (UINT32)((UINT32)pattern & (UINT32)0xFFFF7FFF)
-#define SPI_8BITS_BUG(pattern)  (UINT32)((UINT32)pattern & (UINT32)0xFFFFFF7F)
+#define UART_SET_MODE_MAGIC_CODE    (UINT32)0xAA55AA55
+#define SPI_16BITS_BUG(pattern)     (UINT32)((UINT32)pattern & (UINT32)0xFFFF7FFF)
+#define SPI_8BITS_BUG(pattern)      (UINT32)((UINT32)pattern & (UINT32)0xFFFFFF7F)
+
+
 
 typedef struct
 {
@@ -74,7 +97,7 @@ typedef struct
     _SlGenericHeader_t  GenHeader;
     UINT8               TxPoolCnt;
     UINT8               DevStatus;
-    UINT8               TBD;
+    UINT8               SocketTXFailure;
     UINT8               SocketNonBlocking;
 }_SlResponseHeader_t;
 
@@ -84,7 +107,7 @@ typedef struct
 
 #define _SL_RESP_ARGS_START(_pMsg) (((_SlResponseHeader_t *)(_pMsg)) + 1)
 
-//Used only in NWP!
+/* Used only in NWP! */
 typedef struct
 {
     _SlCommandHeader_t  sl_hdr;
@@ -137,6 +160,10 @@ typedef struct
 #define SL_OPCODE_WLAN_WLANCONNECTCOMMAND                           	0x8C80
 #define SL_OPCODE_WLAN_WLANCONNECTRESPONSE                          	0x0C80
 #define SL_OPCODE_WLAN_WLANASYNCCONNECTEDRESPONSE                   	0x0880
+#define SL_OPCODE_WLAN_P2P_DEV_FOUND                                    0x0830
+#define SL_OPCODE_WLAN_CONNECTION_FAILED                                0x0831
+#define SL_OPCODE_WLAN_P2P_NEG_REQ_RECEIVED                             0x0832
+
 #define SL_OPCODE_WLAN_WLANDISCONNECTCOMMAND                        	0x8C81
 #define SL_OPCODE_WLAN_WLANDISCONNECTRESPONSE                       	0x0C81
 #define SL_OPCODE_WLAN_WLANASYNCDISCONNECTEDRESPONSE                	0x0881
@@ -239,6 +266,8 @@ typedef struct
 #define SL_OPCODE_NETAPP_DNSGETHOSTBYNAMERESPONSE                   	0x1C20
 #define SL_OPCODE_NETAPP_DNSGETHOSTBYNAMEASYNCRESPONSE              	0x1820
 #define SL_OPCODE_NETAPP_DNSGETHOSTBYNAMEASYNCRESPONSE_V6           	0x1A20
+#define SL_OPCODE_NETAPP_NETAPP_MDNS_LOOKUP_SERVICE                     0x9C71
+#define SL_OPCODE_NETAPP_NETAPP_MDNS_LOOKUP_SERVICE_RESPONSE            0x1C72
 #define SL_OPCODE_NETAPP_MDNSREGISTERSERVICE                            0x9C34
 #define SL_OPCODE_NETAPP_MDNSREGISTERSERVICERESPONSE                    0x1C34
 #define SL_OPCODE_NETAPP_MDNSGETHOSTBYSERVICE                           0x9C35
@@ -296,13 +325,13 @@ typedef struct
 #define SL_OPCODE_DEVICE_NETCFG_SET_RESPONSE                	        0x0432
 #define SL_OPCODE_DEVICE_NETCFG_GET_COMMAND                 	        0x8433
 #define SL_OPCODE_DEVICE_NETCFG_GET_RESPONSE                	        0x0433
-//
+/*  */
 #define SL_OPCODE_DEVICE_SETUARTMODECOMMAND                         	0x846B
 #define SL_OPCODE_DEVICE_SETUARTMODERESPONSE                        	0x046B
 #define SL_OPCODE_DEVICE_SSISIZESETCOMMAND	                            0x846B
 #define SL_OPCODE_DEVICE_SSISIZESETRESPONSE	                            0x046B
 
-//
+/*  */
 #define SL_OPCODE_DEVICE_EVENTMASKSET                               	0x8464
 #define SL_OPCODE_DEVICE_EVENTMASKSETRESPONSE                       	0x0464
 #define SL_OPCODE_DEVICE_EVENTMASKGET                               	0x8465
@@ -324,7 +353,7 @@ typedef struct
 #define SL_OPCODE_FREE_NON_BSD_READ_BUFFER                              0xCCCD
 
 
-//Rx Filters opcodes
+/* Rx Filters opcodes */
 #define SL_OPCODE_WLAN_WLANRXFILTERADDCOMMAND                           0x8C6C
 #define SL_OPCODE_WLAN_WLANRXFILTERADDRESPONSE                          0x0C6C
 #define SL_OPCODE_WLAN_WLANRXFILTERSETCOMMAND                           0x8C6D
@@ -337,21 +366,15 @@ typedef struct
 #define SL_OPCODE_WLAN_WLANRXFILTERGETINFORESPONSE                      0x0C70
 
 
-/*****************************************************************************************
-*   Device structs
-******************************************************************************************/
-#define INIT_STA_OK   0x11111111
-#define INIT_STA_ERR  0x22222222
-#define INIT_AP_OK    0x33333333
-#define INIT_AP_ERR   0x44444444
-#define INIT_P2P_OK   0x55555555
-#define INIT_P2P_ERR  0x66666666
+/******************************************************************************************/
+/*   Device structs  */
+/******************************************************************************************/
 typedef UINT32 InitStatus_t;
 
 
 typedef struct
 {
-    UINT32 Status;
+    INT32 Status;
 }InitComplete_t;
 
 typedef struct
@@ -419,13 +442,23 @@ typedef struct
 
 typedef struct
 {
+	UINT32 BaudRate;
+	UINT8  FlowControlEnable;
+}_DevUartSetModeCommand_t;
+
+typedef _BasicResponse_t _DevUartSetModeResponse_t;
+
+/******************************************************/
+
+typedef struct
+{
     UINT8 SsiSizeInBytes;
     UINT8 Padding[3];
 }_StellarisSsiSizeSet_t;
 
-/*****************************************************************************************
-*   WLAN structs
-******************************************************************************************/
+/*****************************************************************************************/
+/*   WLAN structs */
+/*****************************************************************************************/
 #define MAXIMAL_PASSWORD_LENGTH					(64)
 
 typedef struct{
@@ -474,7 +507,7 @@ typedef struct{
 
 
 typedef struct{
-	UINT8	SecType;
+	INT8	SecType;
 	UINT8	SsidLen;
 	UINT8	Priority;
 	UINT8	Bssid[6];
@@ -556,63 +589,51 @@ typedef struct
 }_WlanCfgSetGet_t;
 
 
-//*****************************************************************************
-//    RX filters - Start
-//*****************************************************************************
-// -- 80 bytes
+/* ******************************************************************************/
+/*     RX filters - Start  */
+/* ******************************************************************************/
+/*  -- 80 bytes */
 typedef struct _WlanRxFilterAddCommand_t
 {
-	// -- 1 byte
+	/*  -- 1 byte */
 	SlrxFilterRuleType_t RuleType;
-	// -- 1 byte
+	/*  -- 1 byte */
 	SlrxFilterFlags_t FilterFlags;
-	// --  1 byte
+	/*  --  1 byte */
 	SlrxFilterID_t FilterId;
-	// --  1 byte
+	/*  --  1 byte */
 	UINT8 Padding;
-	// -- 56 byte
+	/*  -- 56 byte */
 	SlrxFilterRule_t Rule;
-	// --  12 byte ( 3 padding )
+	/*  --  12 byte ( 3 padding ) */
 	SlrxFilterTrigger_t Trigger;
-	// --  8 byte
+	/*  --  8 byte */
 	SlrxFilterAction_t Action;
 }_WlanRxFilterAddCommand_t;
 
 
 
-//-- 4 bytes
+/* -- 4 bytes */
 typedef struct l_WlanRxFilterAddCommandReponse_t
 {
-	// -- 1 byte
+	/*  -- 1 byte */
 	SlrxFilterID_t FilterId;
-	//-- 1 Byte
+	/* -- 1 Byte */
 	UINT8          Status;
-	// -- 2 byte
+	/*  -- 2 byte */
 	UINT8  Padding[2];
 
 }_WlanRxFilterAddCommandReponse_t;
 
+
+
 /*
-// 20 bytes
-typedef struct _WlanRxFilterOperationCommand_t
-{
-	// -- 16 bytes
-	SlrxFilterIdMask_t FilterIdMask;
-	// 1 byte
-	SlrxFilterOperationType1Id_t FilterOperation;
-	// 3 bytes
-	UINT8 Padding[3];
-}_WlanRxFilterOperationCommand_t;
-
-*/
-
-/**
  * \struct _WlanRxFilterSetCommand_t
  */
 typedef struct _WlanRxFilterSetCommand_t
 {
 	UINT16 InputBufferLength;
-	//1 byte
+	/* 1 byte */
 	SLrxFilterOperation_t RxFilterOperation;
 	unsigned char Padding[1];
 }_WlanRxFilterSetCommand_t;
@@ -622,9 +643,9 @@ typedef struct _WlanRxFilterSetCommand_t
  */
 typedef struct _WlanRxFilterSetCommandReponse_t
 {
-	//1 byte
+	/* 1 byte */
 	UINT8  Status;
-	//3 bytes
+	/* 3 bytes  */
 	unsigned char Padding[3];
 
 }_WlanRxFilterSetCommandReponse_t;
@@ -635,7 +656,7 @@ typedef struct _WlanRxFilterSetCommandReponse_t
 typedef struct _WlanRxFilterGetCommand_t
 {
 	UINT16 OutputBufferLength;
-	//1 byte
+	/* 1 byte  */
 	SLrxFilterOperation_t RxFilterOperation;
 	unsigned char Padding[1];
 }_WlanRxFilterGetCommand_t;
@@ -645,20 +666,20 @@ typedef struct _WlanRxFilterGetCommand_t
  */
 typedef struct _WlanRxFilterGetCommandReponse_t
 {
-	//1 byte
+	/* 1 byte  */
 	UINT8  Status;
-	//1 bytes
+	/* 1 bytes  */
 	unsigned char Padding;
-	//2 byte
+	/* 2 byte  */
 	UINT16 OutputBufferLength;
 
 }_WlanRxFilterGetCommandReponse_t;
 
 
 
-//*****************************************************************************
-//    RX filters -- End
-//*****************************************************************************
+/* ******************************************************************************/
+/*     RX filters -- End  */
+/* ******************************************************************************/
 
 typedef struct
 {
@@ -713,9 +734,9 @@ typedef struct
 
 
 
-/*****************************************************************************************
-*   Socket structs
-******************************************************************************************/
+/******************************************************************************************/
+/*   Socket structs  */
+/******************************************************************************************/
 
 typedef struct
 {
@@ -924,8 +945,9 @@ typedef struct _sl_NetAppHttpServerGetToken_t
 typedef struct _sl_NetAppHttpServerSendToken_t
 {
 	UINT8	token_value_len;
-	UINT8	padd1;
-	UINT16	padd2;
+	UINT8	token_name_len;
+	UINT8   token_name[MAX_TOKEN_NAME_LEN];
+	UINT16	padd;
 }sl_NetAppHttpServerSendToken_t;
 
 typedef struct _sl_NetAppHttpServerPostToken_t
@@ -974,44 +996,40 @@ typedef enum
     CTST_BSD_TCP_SERVER_BI_DIR,
     CTST_BSD_TCP_CLIENT_BI_DIR,
     CTST_BSD_UDP_BI_DIR,
-    CTST_BSD_UDP_TX_IPV6,
-    CTST_BSD_UDP_RX_IPV6,
-    CTST_BSD_TCP_TX_IPV6,
-    CTST_BSD_TCP_RX_IPV6,
-    CTST_BSD_TCP_RX_TX_FULL_DUPLEX_IPV6,
-    CTST_BSD_UDP_RX_TX_FULL_DUPLEX_IPV6,
-    CTST_BSD_RAW_TX_IPV6,
-    CTST_BSD_RAW_RX_IPV6,
     CTST_BSD_RAW_TX,
     CTST_BSD_RAW_RX,
-/*  add here new tests */
-
-#ifndef DISABLE_BSD_UNIT_TESTs  /*  BSD unit tests */
-    CTST_BSD_UNITTEST_IPV4 = 100,   // run unitest bsd ipv6
-    CTST_BSD_UNITTEST_IPV6 = 101    // run unitest bsd ipv4
-#endif
+    CTST_BSD_RAW_BI_DIR,
+    CTST_BSD_SECURED_TCP_TX,
+    CTST_BSD_SECURED_TCP_RX,
+    CTST_BSD_SECURED_TCP_SERVER_BI_DIR,
+    CTST_BSD_SECURED_TCP_CLIENT_BI_DIR
  }CommTest_e;
 
-
-typedef struct
+typedef struct _sl_protocol_CtestStartCommand_t
 {
     UINT32 Test;
     UINT16 DestPort;
     UINT16 SrcPort;
     UINT32 DestAddr[4];
     UINT32 PayloadSize;
-    UINT32 SecureMethod;
-    UINT32 SecureMask;
-    UINT8  SecureFiles[4];
+    UINT32 timeout;
+    UINT32 csEnabled;
+    UINT32 secure;
+    UINT32 rawProtocol;
+    UINT8  reserved1[4];
 }_CtestStartCommand_t;
 
 typedef struct
 {
-  UINT16 status;
-  UINT8 padding1;
-  UINT8 padding2;
-  UINT32 kbitsSec;
-  UINT32 testTime;
+  UINT8  test;
+  UINT8  socket;
+  INT16  status;
+  UINT32 startTime;
+  UINT32 endTime;
+  UINT16 txKbitsSec;
+  UINT16 rxKbitsSec;
+  UINT32 outOfOrderPackets;
+  UINT32 missedPackets;
 }_CtestAsyncResponse_t;
 
 typedef struct
@@ -1097,11 +1115,10 @@ typedef struct
 typedef struct
 {
   UINT32 FileHandle;
-  UINT8  padding [2];
-  UINT8  certificateFileId;
-  UINT8  SignatureLen;
-  UINT8  Signature;
+  UINT32 CertificFileNameLength;
+  UINT32 SignatureLen;
 }_FsCloseCommand_t;
+
 
 typedef _BasicResponse_t _FsReadResponse_t;
 typedef _BasicResponse_t _FsDeleteResponse_t;
@@ -1113,7 +1130,7 @@ typedef struct
     UINT16 flags;
     UINT32 FileLen;
     UINT32 AllocatedLen;
-    UINT32 Token[3];
+    UINT32 Token[4];
 }_FsGetInfoResponse_t;
 
 typedef struct
@@ -1143,8 +1160,8 @@ typedef _BasicResponse_t _FsWriteResponse_t;
 
 
 
-// TODO: Set MAx Async Payload length depending on flavor (Tiny, Small, etc.)
-#define SL_ASYNC_MAX_PAYLOAD_LEN        160
+/*  Set Max Async Payload length depending on flavor (Tiny, Small, etc.)  */
+#define SL_ASYNC_MAX_PAYLOAD_LEN        160  /* size must be aligned to 4  */
 #define SL_ASYNC_MAX_MSG_LEN            (_SL_RESP_HDR_SIZE + SL_ASYNC_MAX_PAYLOAD_LEN)
 
 #define RECV_ARGS_SIZE                  (sizeof(_SocketResponse_t))
@@ -1154,4 +1171,4 @@ typedef _BasicResponse_t _FsWriteResponse_t;
 #define SL_IPV4_ADDRESS_SIZE 			(sizeof(UINT32))
 #define SL_IPV6_ADDRESS_SIZE 			(4 * sizeof(UINT32))
 
-#endif // _SL_PROTOCOL_TYPES_H_
+#endif /*  _SL_PROTOCOL_TYPES_H_  */

@@ -254,5 +254,4 @@ int Cmd_readtemp(int argc, char *argv[]) {
 
     UARTprintf( "temp is %f\n\rç", temp );
     return SUCCESS;
-    fail:
 }

@@ -88,8 +88,6 @@ task.h is included from an application file. */
 #include "timers.h"
 #include "StackMacros.h"
 
-#include "portmacro.h"
-
 #undef MPU_WRAPPERS_INCLUDED_FROM_API_FILE
 
 /* Sanity check the configuration. */
@@ -2458,7 +2456,7 @@ tskTCB *pxNewTCB;
 			}
 			#endif
 
-			usnprintf( pcStatusString, sizeof(pcStatusString), "%s\t\t%c\t%u\t%u\t%u\r\n", pxNextTCB->pcTaskName, cStatus, ( unsigned int ) pxNextTCB->uxPriority, ( unsigned int ) usStackRemaining, ( unsigned int ) pxNextTCB->uxTCBNumber );
+			sprintf( pcStatusString, ( char * ) "%s\t\t%c\t%u\t%u\t%u\r\n", pxNextTCB->pcTaskName, cStatus, ( unsigned int ) pxNextTCB->uxPriority, ( unsigned int ) usStackRemaining, ( unsigned int ) pxNextTCB->uxTCBNumber );
 			strcat( ( char * ) pcWriteBuffer, ( char * ) pcStatusString );
 
 		} while( pxNextTCB != pxFirstTCB );

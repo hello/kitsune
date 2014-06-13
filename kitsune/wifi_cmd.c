@@ -6,7 +6,6 @@
 
 #include <simplelink.h>
 
-#include "cc3101.h"
 #include "netapp.h"
 #include "uartstdio.h"
 
