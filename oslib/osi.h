@@ -47,13 +47,12 @@ extern "C" {
 
 #define OSI_NO_WAIT        			(0)
 
-//#define OSI_OK					(0)
+#define OSI_OK					(0)
   
 #define OSI_FAILURE      			-1
   
 typedef enum
 {
-  OSI_OK,
   OSI_OPERATION_FAILED = 1,
   OSI_ABORTED,
   OSI_INVALID_PARAMS,

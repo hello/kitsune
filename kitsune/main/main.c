@@ -43,18 +43,39 @@
 //
 //****************************************************************************
 
+
+/* Standard includes. */
+#include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include "hw_types.h"
-#include "hw_ints.h"
-#include "rom.h"
-#include "rom_map.h"
+
+/* Scheduler includes. */
+#include "FreeRTOS.h"
+#include "task.h"
+#include "queue.h"
+#include "semphr.h"
+#include "osi.h"
+
+/* Hardware library includes. */
 #include "hw_memmap.h"
 #include "hw_common_reg.h"
-#include "simplelink.h"
+#include "hw_types.h"
+#include "hw_ints.h"
+#include "interrupt.h"
+#include "rom.h"
+#include "rom_map.h"
+#include "uart.h"
+#include "prcm.h"
+#include "pin.h"
+#include "utils.h"
+#include "pinmux.h"
+#include "portmacro.h"
+#include "uart_if.h"
 #include "systick.h"
-#include "protocol.h"
 
+/*Simple Link inlcudes */
+#include "datatypes.h"
+#include "simplelink.h"
+#include "protocol.h"
 
 /* Scheduler includes. */
 #include "FreeRTOS.h"
@@ -62,17 +83,9 @@
 #include "queue.h"
 #include "semphr.h"
 
-
-#include "interrupt.h"
-#include "pin.h"
-#include "prcm.h"
-#include "utils.h"
-#include "pinmux.h"
+/* HW interfaces */
 #include "gpio_if.h"
-
-
 #include "uartstdio.h"
-
 #include "i2c_if.h"
 
 extern void vUARTTask( void *pvParameters );

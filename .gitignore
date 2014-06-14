@@ -2,3 +2,11 @@
 /**/*.d
 /**/*.axf
 /**/*.bin
+/**/*.obj
+/**/*.pp
+/**/*.prefs
+/**/*.mk
+/**/*.opt
+/**/Release
+/**/Debug
+/**/exe

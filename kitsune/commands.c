@@ -83,8 +83,6 @@ int Cmd_free(int argc, char *argv[])
 int Cmd_tasks(int argc, char *argv[])
 {
 	signed char*	pBuffer;
-	unsigned char*	pStack;
-	portBASE_TYPE	x;
 	
 	pBuffer = pvPortMalloc(1024);
 	vTaskList(pBuffer);
