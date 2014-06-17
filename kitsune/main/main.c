@@ -211,8 +211,9 @@ BoardInit(void)
     // Enables the clock ticking for scheduler to switch between different
     // tasks.
     //
-    SysTickPeriodSet(configCPU_CLOCK_HZ/configSYSTICK_CLOCK_HZ);
-    SysTickEnable();
+    // todo figure out why this breaks under sdk 0p5
+    //SysTickPeriodSet(configCPU_CLOCK_HZ/configSYSTICK_CLOCK_HZ);
+    //SysTickEnable();
 
     //setup i2c clock
     MAP_PRCMPeripheralClkEnable(PRCM_I2CA0, PRCM_RUN_MODE_CLK);
@@ -258,22 +259,18 @@ void main()
   //
   PinMuxConfig();
   //
-  // Configure all 3 LEDs
-  //
-  GPIO_IF_LedConfigure(LED1|LED2|LED3);
-  //
   // Start the SimpleLink Host
   //
   VStartSimpleLinkSpawnTask(SPAWN_TASK_PRIORITY);
 
-    /* Create the UART processing task. */
-    xTaskCreate( vUARTTask, "UARTTask", 200, NULL, 2, NULL );
+  /* Create the UART processing task. */
+  xTaskCreate( vUARTTask, "UARTTask", 200, NULL, 2, NULL );
+
 
   //
   // Start the task scheduler
   //
-
-    vTaskStartScheduler();
+  vTaskStartScheduler();
 
 }
 

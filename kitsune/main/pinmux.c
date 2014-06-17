@@ -55,26 +55,21 @@
 void
 PinMuxConfig(void)
 {
-    //
-    // Enable Peripheral Clocks 
-    //
-    MAP_PRCMPeripheralClkEnable(PRCM_GPIOA1, PRCM_RUN_MODE_CLK);
+
+    //setup i2c clock
+    MAP_PRCMPeripheralClkEnable(PRCM_I2CA0, PRCM_RUN_MODE_CLK);
+
+    //setup i2c clock
+    MAP_PRCMPeripheralClkEnable(PRCM_I2CA0, PRCM_RUN_MODE_CLK);
 
     //
-    // Configure PIN_64 for GPIOOutput
+    // Configure PIN_01 for I2C0 I2C_SCL
     //
-    MAP_PinTypeGPIO(PIN_64, PIN_MODE_0, false);
-    MAP_GPIODirModeSet(GPIOA1_BASE, 0x2, GPIO_DIR_MODE_OUT);
+    MAP_PinTypeI2C(PIN_01, PIN_MODE_1);
 
     //
-    // Configure PIN_01 for GPIOOutput
+    // Configure PIN_02 for I2C0 I2C_SDA
     //
-    MAP_PinTypeGPIO(PIN_01, PIN_MODE_0, false);
-    MAP_GPIODirModeSet(GPIOA1_BASE, 0x4, GPIO_DIR_MODE_OUT);
+    MAP_PinTypeI2C(PIN_02, PIN_MODE_1);
 
-    //
-    // Configure PIN_02 for GPIOOutput
-    //
-    MAP_PinTypeGPIO(PIN_02, PIN_MODE_0, false);
-    MAP_GPIODirModeSet(GPIOA1_BASE, 0x8, GPIO_DIR_MODE_OUT);
 }
