@@ -62,6 +62,9 @@ PinMuxConfig(void)
     //setup i2c clock
     MAP_PRCMPeripheralClkEnable(PRCM_I2CA0, PRCM_RUN_MODE_CLK);
 
+    //setup debug uart clock
+    MAP_PRCMPeripheralClkEnable(PRCM_UARTA0, PRCM_RUN_MODE_CLK);
+
     //
     // Configure PIN_01 for I2C0 I2C_SCL
     //
@@ -71,5 +74,15 @@ PinMuxConfig(void)
     // Configure PIN_02 for I2C0 I2C_SDA
     //
     MAP_PinTypeI2C(PIN_02, PIN_MODE_1);
+
+    //
+    // Configure PIN_55 for UART0 UART0_TX
+    //
+    MAP_PinTypeUART(PIN_55, PIN_MODE_3);
+
+    //
+    // Configure PIN_57 for UART0 UART0_RX
+    //
+    MAP_PinTypeUART(PIN_57, PIN_MODE_3);
 
 }
