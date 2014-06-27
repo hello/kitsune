@@ -7,5 +7,7 @@ int Cmd_i2c_readreg(int argc, char *argv[]);
 int Cmd_i2c_writereg(int argc, char *argv[]);
 
 int Cmd_readtemp(int argc, char *argv[]);
+int Cmd_readlight(int argc, char *argv[]);
+int Cmd_readproximity(int argc, char *argv[]);
 
 #endif

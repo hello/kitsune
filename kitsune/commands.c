@@ -243,6 +243,8 @@ tCmdLineEntry g_sCmdTable[] =
     { "i2cwrrg",Cmd_i2c_writereg, "i2c_writereg" },
 
     { "temp",      Cmd_readtemp,  "i2 read temp" },
+    { "light",      Cmd_readlight,  "i2 read light" },
+    { "proximity",      Cmd_readproximity,  "i2 read proximity" },
 #if ( configUSE_TRACE_FACILITY == 1 )
 	{ "tasks",    Cmd_tasks,     "Report stats of all tasks" },
 #endif

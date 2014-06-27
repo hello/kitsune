@@ -255,3 +255,77 @@ int Cmd_readtemp(int argc, char *argv[]) {
     UARTprintf( "temp is %f\n\rç", temp );
     return SUCCESS;
 }
+
+int Cmd_readlight(int argc, char *argv[]) {
+    #define TRY_OR_GOTOFAIL(a) if(a!=SUCCESS) { UARTprintf( "fail at %s %s\n\r", __FILE__, __LINE__ ); return FAILURE;}
+    while(1){
+	unsigned char aucDataBuf_LOW[2];
+    unsigned char aucDataBuf_HIGH[2];
+	unsigned char cmd_init[2];
+	int light_raw;
+
+	cmd_init[0] = 0x80; // Command register - 8'b1000_0000
+	cmd_init[1] = 0x0F; // Control register - 8'b0000_1111
+	//RET_IF_ERR(
+	I2C_IF_Write(0x39, cmd_init, 2, 1);//  );// reset
+    //RET_IF_ERR( I2C_IF_Write(ucDevAddr,&aucDataBuf[0],ucWrLen+1,1));
+    //vTaskDelay(10);
+
+    unsigned char cmd = 0x84; // Command register - 0x04
+	I2C_IF_Write(0x39, &cmd, 1, 1);// );
+    //vTaskDelay(50);
+	I2C_IF_Read(0x39, aucDataBuf_LOW, 2);// );
+
+    cmd = 0x85; // Command register - 0x05
+	I2C_IF_Write(0x39, &cmd, 1, 1);// );
+    //vTaskDelay(50);
+	I2C_IF_Read(0x39, aucDataBuf_HIGH, 2);// );
+
+    //light_raw = aucDataBuf[0];
+    light_raw = ((aucDataBuf_HIGH[0]<<8) | aucDataBuf_LOW[0])<<1;
+
+    UARTprintf( " light is %d\n\r", light_raw );
+    vTaskDelay(500);
+}
+    return SUCCESS;
+}
+
+
+int Cmd_readproximity(int argc, char *argv[]) {
+    #define TRY_OR_GOTOFAIL(a) if(a!=SUCCESS) { UARTprintf( "fail at %s %s\n\r", __FILE__, __LINE__ ); return FAILURE;}
+    while(1){
+	unsigned char prx_aucDataBuf_LOW[2];
+    unsigned char prx_aucDataBuf_HIGH[2];
+	unsigned char prx_cmd_init[2];
+	int proximity_raw;
+	//int proximity;
+	prx_cmd_init[0] = 0x80; // Command register - 8'b1000_0000
+	prx_cmd_init[1] = 0x08; // Control register - 8'b0000_1000
+	//RET_IF_ERR(
+	I2C_IF_Write(0x13, prx_cmd_init, 2, 1);//  );// reset
+    //RET_IF_ERR( I2C_IF_Write(ucDevAddr,&aucDataBuf[0],ucWrLen+1,1));
+    //vTaskDelay(10);
+
+    unsigned char prx_cmd = 0x88; // Command register - 0x88
+	I2C_IF_Write(0x13, &prx_cmd, 1, 1);// );
+    //vTaskDelay(50);
+	I2C_IF_Read(0x13, prx_aucDataBuf_LOW, 2);// );
+
+	prx_cmd = 0x87; // Command register - 0x87
+	I2C_IF_Write(0x13, &prx_cmd, 1, 1);// );
+    //vTaskDelay(50);
+	I2C_IF_Read(0x13, prx_aucDataBuf_HIGH, 2);// );
+
+    //light_raw = aucDataBuf[0];
+    proximity_raw = (prx_aucDataBuf_HIGH[0]<<8) | prx_aucDataBuf_LOW[0];
+    //proximity = proximity_raw;
+
+    //proximity *= 1;
+    //proximity /= 65536;
+   // light -= 46.85;
+
+    UARTprintf( " proximity is %d\n\rÃ§", proximity_raw );
+    vTaskDelay(500);
+}
+    return SUCCESS;
+}
