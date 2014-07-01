@@ -25,7 +25,7 @@
 #define UART_PRINT               UARTprintf
 
 #define TIMER_INTERVAL_RELOAD   65535
-#define PULSE_WIDTH				2097
+#define PULSE_WIDTH             2097
 
 #define BUFFER_SZ 4096
 unsigned long pulAdcSamples[BUFFER_SZ];
@@ -69,14 +69,14 @@ void SetupTimerPWMMode(unsigned long ulBase, unsigned long ulTimer,
 int
 Cmd_adctest(int argc, char *argv[])
 {
-	unsigned long  uiAdcInputPin;
-	unsigned int  uiChannel;
+    unsigned long  uiAdcInputPin;
+    unsigned int  uiChannel;
     unsigned int  uiIndex=0;
     unsigned long ulSample;
     int i = 0;
 
-	uiAdcInputPin = 0x3b;
-	uiChannel = ADC_CH_3;
+    uiAdcInputPin = 0x3b;
+    uiChannel = ADC_CH_3;
 
     //
     // Pinmux for the selected ADC input pin
@@ -94,7 +94,7 @@ Cmd_adctest(int argc, char *argv[])
     SetupTimerPWMMode(TIMERA2_BASE, TIMER_B,
             (TIMER_CFG_SPLIT_PAIR | TIMER_CFG_B_PWM), 1);
 
-    MAP_TimerPrescaleSet(PRCM_TIMERA2, TIMER_B, 82); //prescale to 100hz
+    MAP_TimerPrescaleSet(PRCM_TIMERA2, TIMER_B, 8); //prescale to 10ms
 
     MAP_TimerEnable(TIMERA2_BASE,TIMER_B);
 
