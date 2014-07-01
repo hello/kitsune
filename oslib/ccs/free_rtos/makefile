@@ -114,20 +114,20 @@ endif
 
 # Add inputs and outputs from these tool invocations to the build variables 
 LIB_OUTPUTS += \
-//BEN_HELLO_PC/Users/Ben/Documents/GitHub/kitsune/oslib/ccs/exe/FreeRTOS.a \
+C:/Users/Ben/Documents/GitHub/kitsune/oslib/ccs/exe/FreeRTOS.a \
 
 LIB_OUTPUTS__QUOTED += \
-"\\BEN_HELLO_PC\Users\Ben\Documents\GitHub\kitsune\oslib\ccs\exe\FreeRTOS.a" \
+"C:\Users\Ben\Documents\GitHub\kitsune\oslib\ccs\exe\FreeRTOS.a" \
 
 
 # All Target
-all: //BEN_HELLO_PC/Users/Ben/Documents/GitHub/kitsune/oslib/ccs/exe/FreeRTOS.a
+all: C:/Users/Ben/Documents/GitHub/kitsune/oslib/ccs/exe/FreeRTOS.a
 
 # Tool invocations
-//BEN_HELLO_PC/Users/Ben/Documents/GitHub/kitsune/oslib/ccs/exe/FreeRTOS.a: $(OBJS)
+C:/Users/Ben/Documents/GitHub/kitsune/oslib/ccs/exe/FreeRTOS.a: $(OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: ARM Archiver'
-	"c:/ti/ccsv6/tools/compiler/arm_5.1.5/bin/armar" r "//BEN_HELLO_PC/Users/Ben/Documents/GitHub/kitsune/oslib/ccs/exe/FreeRTOS.a" $(ORDERED_OBJS)
+	"c:/ti/ccsv6/tools/compiler/arm_5.1.5/bin/armar" r "C:/Users/Ben/Documents/GitHub/kitsune/oslib/ccs/exe/FreeRTOS.a" $(ORDERED_OBJS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 

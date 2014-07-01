@@ -231,10 +231,12 @@ int Cmd_i2c_write(int argc, char *argv[]) {
 
 int Cmd_readtemp(int argc, char *argv[]) {
     #define TRY_OR_GOTOFAIL(a) if(a!=SUCCESS) { UARTprintf( "fail at %s %s\n\r", __FILE__, __LINE__ ); return FAILURE;}
-    unsigned char aucDataBuf[4];
+	   while(1){
+	unsigned char aucDataBuf[2];
+
 	unsigned char cmd = 0xfe;
 	int temp_raw;
-	float temp;
+	int temp;
 
 	TRY_OR_GOTOFAIL( I2C_IF_Write(0x40, &cmd, 1, 1)  );// reset
 
@@ -244,15 +246,48 @@ int Cmd_readtemp(int argc, char *argv[]) {
     TRY_OR_GOTOFAIL( I2C_IF_Write(0x40, &cmd, 1, 1) );
 
     vTaskDelay(50);
-    TRY_OR_GOTOFAIL( I2C_IF_Read(0x40, aucDataBuf, 4) );
-    temp_raw = (aucDataBuf[0]<<8) | aucDataBuf[1];
+    TRY_OR_GOTOFAIL( I2C_IF_Read(0x40, aucDataBuf, 2) );
+    temp_raw = (aucDataBuf[0]<<8) | ((aucDataBuf[1] & 0xfc));
     temp = temp_raw;
 
-    temp *= 175.72;
+    temp *= 175;
     temp /= 65536;
-    temp -= 46.85;
+    temp -= 47;
 
-    UARTprintf( "temp is %f\n\rç", temp );
+    UARTprintf( "temp is %d\n\rç", temp );
+    vTaskDelay(500);
+	   }
+    return SUCCESS;
+}
+
+int Cmd_readhumid(int argc, char *argv[]) {
+    #define TRY_OR_GOTOFAIL(a) if(a!=SUCCESS) { UARTprintf( "fail at %s %s\n\r", __FILE__, __LINE__ ); return FAILURE;}
+	   while(1){
+	unsigned char aucDataBuf[2];
+
+	unsigned char cmd = 0xfe;
+	int humid_raw;
+	int humid;
+
+	TRY_OR_GOTOFAIL( I2C_IF_Write(0x40, &cmd, 1, 1)  );// reset
+
+    vTaskDelay(10);
+
+    cmd = 0xe5;
+    TRY_OR_GOTOFAIL( I2C_IF_Write(0x40, &cmd, 1, 1) );
+
+    vTaskDelay(50);
+    TRY_OR_GOTOFAIL( I2C_IF_Read(0x40, aucDataBuf, 2) );
+    humid_raw = (aucDataBuf[0]<<8) | ((aucDataBuf[1] & 0xfc));
+    humid = humid_raw;
+
+    humid *= 125;
+    humid /= 65536;
+    humid -= 6;
+
+    UARTprintf( "humid is %d\n\rç", humid );
+    vTaskDelay(500);
+	   }
     return SUCCESS;
 }
 
