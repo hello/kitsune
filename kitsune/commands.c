@@ -37,6 +37,7 @@
 
 #include "wifi_cmd.h"
 #include "i2c_cmd.h"
+#include "adc_cmd.h"
 
 //// ==============================================================================
 //// The CPU usage in percent, in 16.16 fixed point format.
@@ -210,6 +211,7 @@ Cmd_fault(int argc, char *argv[])
     return(0);
 }
 
+
 // ==============================================================================
 // This is the table that holds the command names, implementing functions, and
 // brief description.
@@ -249,6 +251,8 @@ tCmdLineEntry g_sCmdTable[] =
 	{ "tasks",    Cmd_tasks,     "Report stats of all tasks" },
 #endif
 	{ "pb",    Cmd_protobuftest,     "Test simple protobuf" },
+
+    { "adc",Cmd_adctest, "adc test" },
 
     { 0, 0, 0 }
 };
