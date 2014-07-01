@@ -260,6 +260,11 @@ int Cmd_readtemp(int argc, char *argv[]) {
     return SUCCESS;
 }
 
+void Cmd_james() {
+	UARTprintf("Is amazing");
+	return SUCCESS;
+}
+
 int Cmd_readhumid(int argc, char *argv[]) {
     #define TRY_OR_GOTOFAIL(a) if(a!=SUCCESS) { UARTprintf( "fail at %s %s\n\r", __FILE__, __LINE__ ); return FAILURE;}
 	   while(1){
@@ -296,6 +301,7 @@ int Cmd_readlight(int argc, char *argv[]) {
     while(1){
 	unsigned char aucDataBuf_LOW[2];
     unsigned char aucDataBuf_HIGH[2];
+    unsigned char setup_config;
 	unsigned char cmd_init[2];
 	int light_raw;
 
@@ -306,7 +312,19 @@ int Cmd_readlight(int argc, char *argv[]) {
     //RET_IF_ERR( I2C_IF_Write(ucDevAddr,&aucDataBuf[0],ucWrLen+1,1));
     //vTaskDelay(10);
 
-    unsigned char cmd = 0x84; // Command register - 0x04
+
+	cmd_init[0] = 0x81; // Command register - 8'b1000_0000
+	cmd_init[1] = 0x00; // Control register - 8'b0000_0000 // 400ms
+	//RET_IF_ERR(
+	I2C_IF_Write(0x39, cmd_init, 2, 1);//  );// change integration
+    vTaskDelay(50);
+
+    unsigned char cmd = 0x81; // Command register - 0x01
+	I2C_IF_Write(0x39, &cmd, 1, 1);// );
+    vTaskDelay(50);
+	I2C_IF_Read(0x39, &setup_config, 1);// ); // configure
+
+    cmd = 0x84; // Command register - 0x04
 	I2C_IF_Write(0x39, &cmd, 1, 1);// );
     //vTaskDelay(50);
 	I2C_IF_Read(0x39, aucDataBuf_LOW, 2);// );
@@ -317,8 +335,9 @@ int Cmd_readlight(int argc, char *argv[]) {
 	I2C_IF_Read(0x39, aucDataBuf_HIGH, 2);// );
 
     //light_raw = aucDataBuf[0];
-    light_raw = ((aucDataBuf_HIGH[0]<<8) | aucDataBuf_LOW[0])<<1;
+    light_raw = ((aucDataBuf_HIGH[0]<<8) | aucDataBuf_LOW[0])<<0;
 
+    UARTprintf( " configure is %d\n\r", setup_config );
     UARTprintf( " light is %d\n\r", light_raw );
     vTaskDelay(500);
 }

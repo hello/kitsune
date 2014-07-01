@@ -243,6 +243,7 @@ tCmdLineEntry g_sCmdTable[] =
     { "i2cwrrg",Cmd_i2c_writereg, "i2c_writereg" },
 
     { "humid",      Cmd_readhumid,  "i2 read humid" },
+    { "james", Cmd_james, "James" }, // Super important
     { "temp",      Cmd_readtemp,  "i2 read temp" },
     { "light",      Cmd_readlight,  "i2 read light" },
     { "proximity",      Cmd_readproximity,  "i2 read proximity" },
