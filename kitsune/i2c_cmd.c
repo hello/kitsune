@@ -20,7 +20,7 @@
 #define RET_IF_ERR(Func)          {int iRetVal = (Func); \
                                    if (SUCCESS != iRetVal) \
                                      return  iRetVal;}
-
+#define BUF_SIZE 10
 //*****************************************************************************
 //
 //! Display the buffer contents over I2C
@@ -231,7 +231,8 @@ int Cmd_i2c_write(int argc, char *argv[]) {
 
 int Cmd_readtemp(int argc, char *argv[]) {
     #define TRY_OR_GOTOFAIL(a) if(a!=SUCCESS) { UARTprintf( "fail at %s %s\n\r", __FILE__, __LINE__ ); return FAILURE;}
-	   while(1){
+	int i = 0;
+	while(i<BUF_SIZE){
 	unsigned char aucDataBuf[2];
 
 	unsigned char cmd = 0xfe;
@@ -256,6 +257,7 @@ int Cmd_readtemp(int argc, char *argv[]) {
 
     UARTprintf( "temp is %d\n\rç", temp );
     vTaskDelay(500);
+    ++i;
 	   }
     return SUCCESS;
 }
@@ -267,7 +269,8 @@ void Cmd_james() {
 
 int Cmd_readhumid(int argc, char *argv[]) {
     #define TRY_OR_GOTOFAIL(a) if(a!=SUCCESS) { UARTprintf( "fail at %s %s\n\r", __FILE__, __LINE__ ); return FAILURE;}
-	   while(1){
+	int i = 0;
+	while(i<BUF_SIZE){
 	unsigned char aucDataBuf[2];
 
 	unsigned char cmd = 0xfe;
@@ -292,13 +295,15 @@ int Cmd_readhumid(int argc, char *argv[]) {
 
     UARTprintf( "humid is %d\n\rç", humid );
     vTaskDelay(500);
+    ++i;
 	   }
     return SUCCESS;
 }
 
 int Cmd_readlight(int argc, char *argv[]) {
     #define TRY_OR_GOTOFAIL(a) if(a!=SUCCESS) { UARTprintf( "fail at %s %s\n\r", __FILE__, __LINE__ ); return FAILURE;}
-    while(1){
+	int i = 0;
+	while(i<BUF_SIZE){
 	unsigned char aucDataBuf_LOW[2];
     unsigned char aucDataBuf_HIGH[2];
     unsigned char setup_config;
@@ -324,6 +329,7 @@ int Cmd_readlight(int argc, char *argv[]) {
     vTaskDelay(50);
 	I2C_IF_Read(0x39, &setup_config, 1);// ); // configure
 
+
     cmd = 0x84; // Command register - 0x04
 	I2C_IF_Write(0x39, &cmd, 1, 1);// );
     //vTaskDelay(50);
@@ -337,17 +343,21 @@ int Cmd_readlight(int argc, char *argv[]) {
     //light_raw = aucDataBuf[0];
     light_raw = ((aucDataBuf_HIGH[0]<<8) | aucDataBuf_LOW[0])<<0;
 
+
     UARTprintf( " configure is %d\n\r", setup_config );
     UARTprintf( " light is %d\n\r", light_raw );
     vTaskDelay(500);
-}
+    ++i;
+    }
+//}
     return SUCCESS;
 }
 
 
 int Cmd_readproximity(int argc, char *argv[]) {
     #define TRY_OR_GOTOFAIL(a) if(a!=SUCCESS) { UARTprintf( "fail at %s %s\n\r", __FILE__, __LINE__ ); return FAILURE;}
-    while(1){
+	int i = 0;
+	while(i<BUF_SIZE){
 	unsigned char prx_aucDataBuf_LOW[2];
     unsigned char prx_aucDataBuf_HIGH[2];
 	unsigned char prx_cmd_init[2];
@@ -380,6 +390,7 @@ int Cmd_readproximity(int argc, char *argv[]) {
 
     UARTprintf( " proximity is %d\n\rÃ§", proximity_raw );
     vTaskDelay(500);
+    ++i;
 }
     return SUCCESS;
 }
