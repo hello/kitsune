@@ -37,7 +37,7 @@
 
 #include "wifi_cmd.h"
 #include "i2c_cmd.h"
-#include "adc_cmd.h"
+#include "dust_cmd.h"
 
 //// ==============================================================================
 //// The CPU usage in percent, in 16.16 fixed point format.
@@ -245,7 +245,6 @@ tCmdLineEntry g_sCmdTable[] =
     { "i2cwrrg",Cmd_i2c_writereg, "i2c_writereg" },
 
     { "humid",      Cmd_readhumid,  "i2 read humid" },
-    { "james", Cmd_james, "James" }, // Super important
     { "temp",      Cmd_readtemp,  "i2 read temp" },
     { "light",      Cmd_readlight,  "i2 read light" },
     { "proximity",      Cmd_readproximity,  "i2 read proximity" },
@@ -254,7 +253,7 @@ tCmdLineEntry g_sCmdTable[] =
 #endif
 	{ "pb",    Cmd_protobuftest,     "Test simple protobuf" },
 
-    { "adc",Cmd_adctest, "adc test" },
+    { "dust",Cmd_dusttest, "dust sensor test" },
 
     { 0, 0, 0 }
 };

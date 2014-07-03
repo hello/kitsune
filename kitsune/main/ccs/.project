@@ -29,16 +29,6 @@
 	</natures>
 	<linkedResources>
 		<link>
-			<name>adc_cmd.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/adc_cmd.c</locationURI>
-		</link>
-		<link>
-			<name>adc_cmd.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/adc_cmd.h</locationURI>
-		</link>
-		<link>
 			<name>cmdline.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/cmdline.c</locationURI>
@@ -57,6 +47,16 @@
 			<name>common</name>
 			<type>2</type>
 			<locationURI>virtual:/virtual</locationURI>
+		</link>
+		<link>
+			<name>dust_cmd.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/dust_cmd.c</locationURI>
+		</link>
+		<link>
+			<name>dust_cmd.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/dust_cmd.h</locationURI>
 		</link>
 		<link>
 			<name>fault.c</name>

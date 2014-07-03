@@ -262,11 +262,6 @@ int Cmd_readtemp(int argc, char *argv[]) {
     return SUCCESS;
 }
 
-void Cmd_james() {
-	UARTprintf("Is amazing");
-	return SUCCESS;
-}
-
 int Cmd_readhumid(int argc, char *argv[]) {
     #define TRY_OR_GOTOFAIL(a) if(a!=SUCCESS) { UARTprintf( "fail at %s %s\n\r", __FILE__, __LINE__ ); return FAILURE;}
 	int i = 0;

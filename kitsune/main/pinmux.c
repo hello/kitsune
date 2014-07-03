@@ -65,9 +65,6 @@ PinMuxConfig(void)
     //setup debug uart clock
     MAP_PRCMPeripheralClkEnable(PRCM_UARTA0, PRCM_RUN_MODE_CLK);
 
-    //pwm clock
-    MAP_PRCMPeripheralClkEnable(PRCM_TIMERA1, PRCM_RUN_MODE_CLK);
-
     // Configure PIN_64 for TIMERPWM5 GT_PWM05
     //
     MAP_PinTypeTimer(PIN_64, PIN_MODE_3);
