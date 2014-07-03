@@ -51,6 +51,8 @@ extern "C"
 {
 #endif
 
+#include <hw_types.h>
+
 //*****************************************************************************
 //
 // A union that describes the entries of the vector table.  The union is needed

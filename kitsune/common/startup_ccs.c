@@ -36,6 +36,17 @@
 //
 //*****************************************************************************
 
+#include "hw_ints.h"
+#include "hw_memmap.h"
+#include "hw_types.h"
+#include "hw_uart.h"
+#include "debug.h"
+#include "interrupt.h"
+#include "rom.h"
+#include "rom_map.h"
+#include "uart.h"
+#include "prcm.h"
+#include "pin.h"
 #include "fault.h"
 
 //*****************************************************************************
@@ -228,10 +239,14 @@ BusFaultHandler(void)
 static void
 IntDefaultHandler(void)
 {
+    unsigned long ulInts;
+    unsigned long g_ulBase = 0;
+
     //
-    // Go into an infinite loop.
+    // Get and clear the current interrupt source(s)
     //
-    while(1)
-    {
-    }
+    ulInts = MAP_UARTIntStatus(g_ulBase, 1);
+    MAP_UARTIntClear(g_ulBase, ulInts);
+
+    UARTprintf("got interrupt %x %x", g_ulBase, ulInts);
 }
