@@ -20,7 +20,7 @@
 #define RET_IF_ERR(Func)          {int iRetVal = (Func); \
                                    if (SUCCESS != iRetVal) \
                                      return  iRetVal;}
-#define BUF_SIZE 10
+#define BUF_SIZE 100
 //*****************************************************************************
 //
 //! Display the buffer contents over I2C
@@ -304,6 +304,7 @@ int Cmd_readlight(int argc, char *argv[]) {
     #define TRY_OR_GOTOFAIL(a) if(a!=SUCCESS) { UARTprintf( "fail at %s %s\n\r", __FILE__, __LINE__ ); return FAILURE;}
 	int i = 0;
 	while(i<BUF_SIZE){
+	//while(1){
 	unsigned char aucDataBuf_LOW[2];
     unsigned char aucDataBuf_HIGH[2];
     unsigned char setup_config;
@@ -367,8 +368,13 @@ int Cmd_readproximity(int argc, char *argv[]) {
 	prx_cmd_init[1] = 0x08; // Control register - 8'b0000_1000
 	//RET_IF_ERR(
 	I2C_IF_Write(0x13, prx_cmd_init, 2, 1);//  );// reset
-    //RET_IF_ERR( I2C_IF_Write(ucDevAddr,&aucDataBuf[0],ucWrLen+1,1));
-    //vTaskDelay(10);
+
+	unsigned char prx_cmd_current[2];
+	//int proximity;
+	prx_cmd_current[0] = 0x83; // Current setting register
+	prx_cmd_current[1] = 0x14; // Value * 10mA
+	//RET_IF_ERR(
+	I2C_IF_Write(0x13, prx_cmd_current, 2, 1);
 
     unsigned char prx_cmd = 0x88; // Command register - 0x88
 	I2C_IF_Write(0x13, &prx_cmd, 1, 1);// );
