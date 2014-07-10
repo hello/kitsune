@@ -3,9 +3,6 @@
 	<name>kitsune</name>
 	<comment></comment>
 	<projects>
-		<project>driverlib</project>
-		<project>oslib</project>
-		<project>simplelink</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>

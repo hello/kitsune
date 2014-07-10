@@ -5,7 +5,6 @@
  *      Author: chrisjohnson
  */
 
-
 #include <stdio.h>
 #include <string.h>
 
@@ -52,107 +51,106 @@
 //
 //****************************************************************************
 void SetupTimerPWMMode(unsigned long ulBase, unsigned long ulTimer,
-                       unsigned long ulConfig, unsigned char ucInvert)
-{
-    //
-    // Set GPT - Configured Timer in PWM mode.
-    //
-    MAP_TimerConfigure(ulBase,ulConfig);
-    //
-    // Inverting the timer output if required
-    //
-    MAP_TimerControlLevel(ulBase,ulTimer,ucInvert);
-    //
-    // Load value set to ~10 ms time period
-    //
-    MAP_TimerLoadSet(ulBase,ulTimer,TIMER_INTERVAL_RELOAD);
-    //
-    // Match value set so as to output level 0
-    //
-    MAP_TimerMatchSet(ulBase,ulTimer,TIMER_INTERVAL_RELOAD);
+		unsigned long ulConfig, unsigned char ucInvert) {
+	//
+	// Set GPT - Configured Timer in PWM mode.
+	//
+	MAP_TimerConfigure(ulBase, ulConfig);
+	//
+	// Inverting the timer output if required
+	//
+	MAP_TimerControlLevel(ulBase, ulTimer, ucInvert);
+	//
+	// Load value set to ~10 ms time period
+	//
+	MAP_TimerLoadSet(ulBase, ulTimer, TIMER_INTERVAL_RELOAD);
+	//
+	// Match value set so as to output level 0
+	//
+	MAP_TimerMatchSet(ulBase, ulTimer, TIMER_INTERVAL_RELOAD);
 
 }
-int
-Cmd_dusttest(int argc, char *argv[])
-{
-    unsigned long  uiAdcInputPin;
-    unsigned int  uiChannel;
-    unsigned int  uiIndex=0;
-    unsigned long ulSample;
 
-    uiAdcInputPin = 0x3b;
-    uiChannel = ADC_CH_3;
+int get_dust() {
+	unsigned long uiAdcInputPin;
+	unsigned int uiChannel;
+	unsigned int uiIndex = 0;
+	unsigned long ulSample;
 
-    //
-    // Pinmux for the selected ADC input pin
-    //
-    PinTypeADC(uiAdcInputPin,0xFF);
+	unsigned long max, min;
 
-    //PWM stuff...
-    //
-    // Initialization of timers to generate PWM output
-    //
-    MAP_PRCMPeripheralClkEnable(PRCM_TIMERA2, PRCM_RUN_MODE_CLK);
-    //
-    // TIMERA2 (TIMER B) (red led on launchpad) GPIO 9 --> PWM_5
-    //
-    SetupTimerPWMMode(TIMERA2_BASE, TIMER_B,
-            (TIMER_CFG_SPLIT_PAIR | TIMER_CFG_B_PWM), 0);
+	uiAdcInputPin = 0x3b;
+	uiChannel = ADC_CH_3;
 
-    MAP_TimerPrescaleSet(TIMERA2_BASE, TIMER_B, 11); //prescale to 10ms
+//
+// Pinmux for the selected ADC input pin
+//
+	PinTypeADC(uiAdcInputPin, 0xFF);
 
-    MAP_TimerEnable(TIMERA2_BASE,TIMER_B);
+//PWM stuff...
+//
+// Initialization of timers to generate PWM output
+//
+	MAP_PRCMPeripheralClkEnable(PRCM_TIMERA2, PRCM_RUN_MODE_CLK);
+//
+// TIMERA2 (TIMER B) (red led on launchpad) GPIO 9 --> PWM_5
+//
+	SetupTimerPWMMode(TIMERA2_BASE, TIMER_B,
+			(TIMER_CFG_SPLIT_PAIR | TIMER_CFG_B_PWM), 0);
 
-    MAP_TimerMatchSet(TIMERA2_BASE, TIMER_B, PULSE_WIDTH);
-    //end pwm
+	MAP_TimerPrescaleSet(TIMERA2_BASE, TIMER_B, 11); //prescale to 10ms
 
-    //
-    // Enable ADC channel
-    //
-    ADCChannelEnable(ADC_BASE, uiChannel);
+	MAP_TimerEnable(TIMERA2_BASE, TIMER_B);
 
-    //
-    // Configure ADC timer which is used to timestamp the ADC data samples
-    //
-    ADCTimerConfig(ADC_BASE,2^17);
+	MAP_TimerMatchSet(TIMERA2_BASE, TIMER_B, PULSE_WIDTH);
+//end pwm
 
-    //
-    // Enable ADC timer which is used to timestamp the ADC data samples
-    //
-    ADCTimerEnable(ADC_BASE);
+//
+// Enable ADC channel
+//
+	ADCChannelEnable(ADC_BASE, uiChannel);
 
-    //
-    // Enable ADC module
-    //
-    ADCEnable(ADC_BASE);
+//
+// Configure ADC timer which is used to timestamp the ADC data samples
+//
+	ADCTimerConfig(ADC_BASE, 2 ^ 17);
 
-    vTaskDelay(100);
+//
+// Enable ADC timer which is used to timestamp the ADC data samples
+//
+	ADCTimerEnable(ADC_BASE);
 
-    {
-        unsigned long max, min;
+//
+// Enable ADC module
+//
+	ADCEnable(ADC_BASE);
 
-        max = 0;
-        min =  99999;
-    //
-    // Read BUFFER_SZ ADC samples
-    //
-    while(++uiIndex < SAMPLES)
-    {
-        if(ADCFIFOLvlGet(ADC_BASE, uiChannel))
-        {
-            ulSample = ADCFIFORead(ADC_BASE, uiChannel) & 0x1FFE;
-            if( ulSample > max ) { max = ulSample; }
-            if( ulSample < min ) { min = ulSample; }
-        }
-    }
+	vTaskDelay(100);
+	max = 0;
+	min = 99999;
+//
+// Read BUFFER_SZ ADC samples
+//
+	while (++uiIndex < SAMPLES) {
+		if (ADCFIFOLvlGet(ADC_BASE, uiChannel)) {
+			ulSample = ADCFIFORead(ADC_BASE, uiChannel) & 0x1FFE;
+			if (ulSample > max) {
+				max = ulSample;
+			}
+			if (ulSample < min) {
+				min = ulSample;
+			}
+		}
+	}
 
-    uiIndex = 0;
+	uiIndex = 0;
 
-    UARTprintf( "%d %d\r\n", max, min );
-    }
-    MAP_TimerDisable(TIMERA2_BASE, TIMER_B);
-
-    return(0);
+	MAP_TimerDisable(TIMERA2_BASE, TIMER_B);
+	return max - min;
 }
 
+int Cmd_dusttest(int argc, char *argv[]) {
+	UARTprintf("%d", get_dust());
+	return (0);
+}
 

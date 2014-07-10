@@ -89,22 +89,6 @@ int Cmd_connect(int argc, char *argv[])
    return(0);
 }
 
-void InitCallback(unsigned long Status) {
-	UARTprintf( "sl_Start returns status %u\n\r", Status );
-}
-
-int Cmd_initsl(int argc, char *argv[])
-{
-    sl_Start(NULL,NULL,InitCallback);
-	return 0;
-}
-
-int Cmd_deinitsl(int argc, char *argv[])
-{
-	sl_Stop(0);
-	return 0;
-}
-
 int Cmd_status(int argc, char *argv[])
 {
     unsigned char ucDHCP = 0;

@@ -89,6 +89,7 @@
 #include "i2c_if.h"
 
 extern void vUARTTask( void *pvParameters );
+extern void thead_sensor_poll( void * Data);
 	
 //*****************************************************************************
 //                      MACRO DEFINITIONS
@@ -250,6 +251,9 @@ BoardInit(void)
 //*****************************************************************************
 void main()
 {
+
+    unsigned char policyVal;
+
   //
   // Board Initialization
   //
@@ -258,13 +262,15 @@ void main()
   // configure the GPIO pins for LEDs
   //
   PinMuxConfig();
+
   //
   // Start the SimpleLink Host
   //
   VStartSimpleLinkSpawnTask(SPAWN_TASK_PRIORITY);
 
   /* Create the UART processing task. */
-  xTaskCreate( vUARTTask, "UARTTask", 500, NULL, 2, NULL );
+  xTaskCreate( vUARTTask, "UARTTask", 20*1024/4, NULL, 2, NULL );
+  xTaskCreate( thead_sensor_poll, "pollTask", 20*1024/4, NULL, 2, NULL );
 
 
   //
