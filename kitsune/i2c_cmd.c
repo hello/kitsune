@@ -21,6 +21,7 @@
                                    if (SUCCESS != iRetVal) \
                                      return  iRetVal;}
 #define BUF_SIZE 2
+
 //*****************************************************************************
 //
 //! Display the buffer contents over I2C
@@ -281,7 +282,7 @@ int Cmd_readhumid(int argc, char *argv[]) {
 }
 
 int get_light() {
-#define TRY_OR_GOTOFAIL(a) if(a!=SUCCESS) { UARTprintf( "fail at %s %s\n\r", __FILE__, __LINE__ ); return FAILURE;}
+	#define TRY_OR_GOTOFAIL(a) if(a!=SUCCESS) { UARTprintf( "fail at %s %s\n\r", __FILE__, __LINE__ ); return FAILURE;}
 	unsigned char aucDataBuf_LOW[2];
 	unsigned char aucDataBuf_HIGH[2];
 	unsigned char setup_config;
@@ -341,9 +342,17 @@ int get_prox() {
 	prx_cmd_init[0] = 0x80; // Command register - 8'b1000_0000
 	prx_cmd_init[1] = 0x08; // Control register - 8'b0000_1000
 	//RET_IF_ERR(
+
 	I2C_IF_Write(0x13, prx_cmd_init, 2, 1);	//  );// reset
 	//RET_IF_ERR( I2C_IF_Write(ucDevAddr,&aucDataBuf[0],ucWrLen+1,1));
 	//vTaskDelay(10);
+
+	unsigned char prx_cmd_current[2];
+	//int proximity;
+	prx_cmd_current[0] = 0x83; // Current setting register
+	prx_cmd_current[1] = 0x14; // Value * 10mA
+	//RET_IF_ERR(
+	I2C_IF_Write(0x13, prx_cmd_current, 2, 1);
 
 	I2C_IF_Write(0x13, &prx_cmd, 1, 1);    // );
 	//vTaskDelay(50);
