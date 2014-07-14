@@ -31,7 +31,7 @@
 #define UART_PRINT               UARTprintf
 
 #define TIMER_INTERVAL_RELOAD   65535
-#define PULSE_WIDTH             2097
+#define PULSE_WIDTH             20000//8192//2097
 
 #define SAMPLES 4096
 
@@ -133,20 +133,21 @@ int get_dust() {
 //
 	while (++uiIndex < SAMPLES) {
 		if (ADCFIFOLvlGet(ADC_BASE, uiChannel)) {
-			ulSample = ADCFIFORead(ADC_BASE, uiChannel) & 0x1FFE;
+			ulSample = ADCFIFORead(ADC_BASE, uiChannel) & 0x3FFF;
 			if (ulSample > max) {
 				max = ulSample;
 			}
 			if (ulSample < min) {
 				min = ulSample;
 			}
+			//UARTprintf("%d\n", ulSample);
 		}
 	}
 
 	uiIndex = 0;
 
 	MAP_TimerDisable(TIMERA2_BASE, TIMER_B);
-	return max - min;
+	return max;
 }
 
 int Cmd_dusttest(int argc, char *argv[]) {
