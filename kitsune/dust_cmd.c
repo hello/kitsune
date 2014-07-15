@@ -151,7 +151,12 @@ int get_dust() {
 }
 
 int Cmd_dusttest(int argc, char *argv[]) {
-	UARTprintf("%d", get_dust());
+	int cnt = atoi(argv[1]);
+	if( argv == 1 ) {cnt=2;}
+	while( --cnt ) {
+		UARTprintf("%d\n", get_dust());
+		vTaskDelay(200);
+	}
 	return (0);
 }
 

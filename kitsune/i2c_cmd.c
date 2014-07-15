@@ -371,6 +371,6 @@ int get_prox() {
 
 int Cmd_readproximity(int argc, char *argv[]) {
 
-	UARTprintf(" proximity is %d\n\r", get_prox);
+	UARTprintf(" proximity is %d\n\r", get_prox());
 	return SUCCESS;
 }
