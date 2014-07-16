@@ -269,9 +269,7 @@ void main()
   VStartSimpleLinkSpawnTask(SPAWN_TASK_PRIORITY);
 
   /* Create the UART processing task. */
-  xTaskCreate( vUARTTask, "UARTTask", 20*1024/4, NULL, 2, NULL );
-  xTaskCreate( thead_sensor_poll, "pollTask", 20*1024/4, NULL, 2, NULL );
-
+  xTaskCreate( vUARTTask, "UARTTask", 20*1024/(sizeof(portSTACK_TYPE)), NULL, 2, NULL );
 
   //
   // Start the task scheduler

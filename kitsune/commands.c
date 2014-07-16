@@ -39,6 +39,8 @@
 #include "i2c_cmd.h"
 #include "dust_cmd.h"
 
+#define NUM_LOGS 24
+
 //// ==============================================================================
 //// The CPU usage in percent, in 16.16 fixed point format.
 //// ==============================================================================
@@ -153,7 +155,7 @@ int Cmd_fs_delete(int argc, char *argv[]) {
 }
 
 int Cmd_readout_data(int argc, char *argv[]) {
-	long hndl, err, bytes, i;
+	long hndl, err, bytes, i,j;
     #define BUF_SZ 30
 
 	typedef struct {
@@ -161,24 +163,27 @@ int Cmd_readout_data(int argc, char *argv[]) {
 	} data_t;
 
 	data_t data[BUF_SZ];
+	char buf[10];
 
-	if (err = sl_FsOpen(argv[1], FS_MODE_OPEN_READ, NULL, &hndl)) {
-		UARTprintf("error opening for read %d\n", err);
-		return -1;
+	for( j=0;j<NUM_LOGS;++j) {
+		snprintf( buf, 10, "%d", j);
+		if (err = sl_FsOpen(buf, FS_MODE_OPEN_READ, NULL, &hndl)) {
+			UARTprintf("error opening for read %d\n", err);
+			return -1;
+		}
+
+		if (bytes = sl_FsRead(hndl, 0, data, sizeof(data))) {
+			//UARTprintf("read %d bytes\n", bytes);
+		}
+
+		sl_FsClose(hndl, 0, 0, 0);
+
+		//UARTprintf("cnt,time,light,temp,humid,dust\n", i, data[i].time, data[i].light, data[i].temp, data[i].humid, data[i].dust );
+		for( i=0; i!=BUF_SZ;++i ) {
+			UARTprintf("%d\t%d\t%d\t%d\t%d\t%d\n", i, data[i].time, data[i].light, data[i].temp, data[i].humid, data[i].dust );
+			vTaskDelay(10);
+		}
 	}
-
-	if (bytes = sl_FsRead(hndl, 0, data, sizeof(data))) {
-		//UARTprintf("read %d bytes\n", bytes);
-	}
-
-	sl_FsClose(hndl, 0, 0, 0);
-
-	//UARTprintf("cnt,time,light,temp,humid,dust\n", i, data[i].time, data[i].light, data[i].temp, data[i].humid, data[i].dust );
-	for( i=0; i!=BUF_SZ;++i ) {
-		UARTprintf("%d\t%d\t%d\t%d\t%d\t%d\n", i, data[i].time/10000, data[i].light, data[i].temp, data[i].humid, data[i].dust );
-		vTaskDelay(10);
-	}
-
 	return 0;
 }
 
@@ -219,7 +224,7 @@ int Cmd_sensor_poll(int argc, char *argv[]) {
 
 		if (++i == BUF_SZ) {
 			char fn_str[10];
-			++fn;
+
 			snprintf(fn_str, 10, "%d", fn);
 			sl_FsOpen(fn_str, FS_MODE_OPEN_CREATE(1024, _FS_FILE_OPEN_FLAG_COMMIT), &tok, &hndl);
 
@@ -234,6 +239,11 @@ int Cmd_sensor_poll(int argc, char *argv[]) {
 
 			sl_FsClose(hndl, 0, 0, 0);
 
+			if( ++fn > NUM_LOGS ) {
+				fn = 0;
+			}
+
+			i=0;
 		}
 
 		UARTprintf("delay...\n");
@@ -449,6 +459,8 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("> ");
 
 	sl_Start(NULL, NULL, NULL);
+
+	xTaskCreate( thead_sensor_poll, "pollTask", 20*1024/4, NULL, 2, NULL );
 
 	//checkFaults();
 
