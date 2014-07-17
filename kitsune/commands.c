@@ -39,7 +39,7 @@
 #include "i2c_cmd.h"
 #include "dust_cmd.h"
 
-#define NUM_LOGS 24
+#define NUM_LOGS 72
 
 //// ==============================================================================
 //// The CPU usage in percent, in 16.16 fixed point format.
@@ -195,7 +195,7 @@ int Cmd_sensor_poll(int argc, char *argv[]) {
 	//
 	// Print some header text.
 	//
-	#define BUF_SZ 30
+	#define BUF_SZ 10
 
 	typedef struct {
 		int time,light,temp,humid,dust;
@@ -442,6 +442,8 @@ tCmdLineEntry g_sCmdTable[] = {
 extern xSemaphoreHandle g_xRxLineSemaphore;
 void UARTStdioIntHandler(void);
 
+#define KIT_VER "1"
+
 void vUARTTask(void *pvParameters) {
 	char cCmdBuf[64];
 	int nStatus;
@@ -453,8 +455,8 @@ void vUARTTask(void *pvParameters) {
 
 	UARTIntRegister(UARTA0_BASE, UARTStdioIntHandler);
 
-	UARTprintf("\n\nFreeRTOS %s\n",
-	tskKERNEL_VERSION_NUMBER);
+	UARTprintf("\n\nFreeRTOS %s, %s\n",
+	tskKERNEL_VERSION_NUMBER, KIT_VER);
 	UARTprintf("\n? for help\n");
 	UARTprintf("> ");
 
@@ -466,6 +468,7 @@ void vUARTTask(void *pvParameters) {
 
 	/* Loop forever */
 	while (1) {
+
 		/* Wait for a signal indicating we have an RX line to process */
 		xSemaphoreTake(g_xRxLineSemaphore, portMAX_DELAY);
 
