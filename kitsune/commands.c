@@ -154,9 +154,9 @@ int Cmd_fs_delete(int argc, char *argv[]) {
 	return (0);
 }
 
+#define BUF_SZ 10
 int Cmd_readout_data(int argc, char *argv[]) {
 	long hndl, err, bytes, i,j;
-    #define BUF_SZ 30
 
 	typedef struct {
 		int time, light, temp, humid, dust;
@@ -195,7 +195,6 @@ int Cmd_sensor_poll(int argc, char *argv[]) {
 	//
 	// Print some header text.
 	//
-	#define BUF_SZ 10
 
 	typedef struct {
 		int time,light,temp,humid,dust;
@@ -214,8 +213,9 @@ int Cmd_sensor_poll(int argc, char *argv[]) {
 
 	while (1) {
 		portTickType now = xTaskGetTickCount();
+		unsigned long ntp = unix_time();
 
-		data[i].time = now;
+		data[i].time = ntp != -1 ? ntp : now;
 		data[i].dust = get_dust();
 		data[i].light = get_light();
 		data[i].humid = get_humid();
@@ -390,7 +390,8 @@ tCmdLineEntry g_sCmdTable[] = {
 				"alias for help" },
 //    { "cpu",      Cmd_cpu,      "Show CPU utilization" },
 		{ "free", Cmd_free, "Report free memory" }, { "connect", Cmd_connect,
-				"Connect to an AP" }, { "ping", Cmd_ping, "Ping a server" }, {
+				"Connect to an AP" }, { "ping", Cmd_ping, "Ping a server" },
+				{ "time", Cmd_time, "get ntp time" },{
 				"status", Cmd_status, "status of simple link" },
 //    { "mnt",      Cmd_mnt,      "Mount the SD card" },
 //    { "umnt",     Cmd_umnt,     "Unount the SD card" },
@@ -422,8 +423,8 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "fsrd", Cmd_fs_read, "fs read" },
 		{ "fsdl", Cmd_fs_delete, "fs delete" },
 
-		{ "poll", Cmd_sensor_poll, "poll sensors" },
-		{ "readout", Cmd_readout_data, "read out sensor data log" },
+		{ "poll", Cmd_sensor_poll, "poll sensors" }, { "readout",
+				Cmd_readout_data, "read out sensor data log" },
 
 		{ 0, 0, 0 } };
 
