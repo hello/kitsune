@@ -196,10 +196,6 @@ int Cmd_sensor_poll(int argc, char *argv[]) {
 	// Print some header text.
 	//
 
-	typedef struct {
-		int time,light,temp,humid,dust;
-	} data_t;
-
 	data_t data[BUF_SZ];
 
 	int i=0;
@@ -213,14 +209,25 @@ int Cmd_sensor_poll(int argc, char *argv[]) {
 
 	while (1) {
 		portTickType now = xTaskGetTickCount();
-		unsigned long ntp = unix_time();
+		unsigned long ntp=-1;
+		static unsigned long last_ntp = -1;
 
-		data[i].time = ntp != -1 ? ntp : now;
+		if( last_ntp == -1 ) {
+			ntp = last_ntp = unix_time();
+		} else if( last_ntp != -1) {
+			ntp = last_ntp+60;
+			last_ntp = ntp;
+		}
+
+		data[i].time = ntp != -1 ? ntp : now/1000;
 		data[i].dust = get_dust();
 		data[i].light = get_light();
 		data[i].humid = get_humid();
 		data[i].temp = get_temp();
 		UARTprintf("cnt %d\ttime %d\tlight %d\ttemp %d\thumid %d\tdust %d\n", i, data[i].time, data[i].light, data[i].temp, data[i].humid, data[i].dust );
+
+		send_data( &data[i] );
+		send_data_pb( &data[i] );
 
 		if (++i == BUF_SZ) {
 			char fn_str[10];
@@ -423,8 +430,9 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "fsrd", Cmd_fs_read, "fs read" },
 		{ "fsdl", Cmd_fs_delete, "fs delete" },
 
-		{ "poll", Cmd_sensor_poll, "poll sensors" }, { "readout",
-				Cmd_readout_data, "read out sensor data log" },
+		{ "poll", Cmd_sensor_poll, "poll sensors" },
+		{ "readout", Cmd_readout_data, "read out sensor data log" },
+		{ "skeletor", Cmd_skeletor, "send some data" },
 
 		{ 0, 0, 0 } };
 

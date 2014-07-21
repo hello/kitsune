@@ -8,6 +8,7 @@
 
 #include "simplelink.h"
 #include "protocol.h"
+#include "wifi_cmd.h"
 
 //*****************************************************************************
 //
@@ -140,21 +141,21 @@ int Cmd_ping(int argc, char *argv[]) {
 }
 
 unsigned long unix_time() {
-	char cDataBuf[48];
-	int iRet = 0;
+	char buffer[48];
+	int rv = 0;
 	SlSockAddr_t sAddr;
 	SlSockAddrIn_t sLocalAddr;
 	int iAddrSize;
-	unsigned long ntp;
-	unsigned long ntp_ip;
+	unsigned long long ntp;
+	unsigned long ipaddr;
 	int sock;
 
 	SlTimeval_t tv;
 
-	sock = sl_Socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	tv.tv_sec = 2;             // Seconds
 	tv.tv_usec = 0;             // Microseconds. 10000 microseconds resolution
-	sl_SetSockOpt(sock, SOL_SOCKET, SL_SO_RCVTIMEO, &tv, sizeof(tv)); // Enable receive timeout
+	setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)); // Enable receive timeout
 
 	if (sock < 0) {
 		UARTprintf("Socket create failed\n\r");
@@ -165,43 +166,46 @@ unsigned long unix_time() {
 //
 	// Send a query ? to the NTP server to get the NTP time
 	//
-	memset(cDataBuf, 0, sizeof(cDataBuf));
+	memset(buffer, 0, sizeof(buffer));
 
 #define NTP_SERVER "pool.ntp.org"
-	if (!(iRet = sl_NetAppDnsGetHostByName(NTP_SERVER, strlen(NTP_SERVER),
-			&ntp_ip, SL_AF_INET))) {
+	if (!(rv = gethostbyname(NTP_SERVER, strlen(NTP_SERVER),
+			&ipaddr, AF_INET))) {
 		UARTprintf(
 				"Get Host IP succeeded.\n\rHost: %s IP: %d.%d.%d.%d \n\r\n\r",
-				NTP_SERVER, SL_IPV4_BYTE(ntp_ip, 3), SL_IPV4_BYTE(ntp_ip, 2),
-				SL_IPV4_BYTE(ntp_ip, 1), SL_IPV4_BYTE(ntp_ip, 0));
+				NTP_SERVER, SL_IPV4_BYTE(ipaddr, 3), SL_IPV4_BYTE(ipaddr, 2),
+				SL_IPV4_BYTE(ipaddr, 1), SL_IPV4_BYTE(ipaddr, 0));
 	} else {
-		UARTprintf("failed to resolve ntp addr iRet %d\n");
+		UARTprintf("failed to resolve ntp addr rv %d\n", rv);
+		close(sock);
+		return -1;
 	}
 
 	sAddr.sa_family = AF_INET;
 	// the source port
 	sAddr.sa_data[0] = 0x00;
 	sAddr.sa_data[1] = 0x7B;    // UDP port number for NTP is 123
-	sAddr.sa_data[2] = (char) ((ntp_ip >> 24) & 0xff);
-	sAddr.sa_data[3] = (char) ((ntp_ip >> 16) & 0xff);
-	sAddr.sa_data[4] = (char) ((ntp_ip >> 8) & 0xff);
-	sAddr.sa_data[5] = (char) (ntp_ip & 0xff);
+	sAddr.sa_data[2] = (char) ((ipaddr >> 24) & 0xff);
+	sAddr.sa_data[3] = (char) ((ipaddr >> 16) & 0xff);
+	sAddr.sa_data[4] = (char) ((ipaddr >> 8) & 0xff);
+	sAddr.sa_data[5] = (char) (ipaddr & 0xff);
 
-	cDataBuf[0] = 0b11100011;   // LI, Version, Mode
-	cDataBuf[1] = 0;     // Stratum, or type of clock
-	cDataBuf[2] = 6;     // Polling Interval
-	cDataBuf[3] = 0xEC;  // Peer Clock Precision
+	buffer[0] = 0b11100011;   // LI, Version, Mode
+	buffer[1] = 0;     // Stratum, or type of clock
+	buffer[2] = 6;     // Polling Interval
+	buffer[3] = 0xEC;  // Peer Clock Precision
 	// 8 bytes of zero for Root Delay & Root Dispersion
-	cDataBuf[12] = 49;
-	cDataBuf[13] = 0x4E;
-	cDataBuf[14] = 49;
-	cDataBuf[15] = 52;
+	buffer[12] = 49;
+	buffer[13] = 0x4E;
+	buffer[14] = 49;
+	buffer[15] = 52;
 
 	UARTprintf("Sending request\n\r\n\r");
-	iRet = sl_SendTo(sock, cDataBuf, sizeof(cDataBuf), 0, &sAddr,
+	rv = sendto(sock, buffer, sizeof(buffer), 0, &sAddr,
 			sizeof(sAddr));
-	if (iRet != sizeof(cDataBuf)) {
+	if (rv != sizeof(buffer)) {
 		UARTprintf("Could not send SNTP request\n\r\n\r");
+		close(sock);
 		return -1;    // could not send SNTP request
 	}
 
@@ -212,22 +216,24 @@ unsigned long unix_time() {
 	sLocalAddr.sin_family = SL_AF_INET;
 	sLocalAddr.sin_port = 0;
 	sLocalAddr.sin_addr.s_addr = 0;
-	sl_Bind(sock, (SlSockAddr_t *) &sLocalAddr, iAddrSize);
+	bind(sock, (SlSockAddr_t *) &sLocalAddr, iAddrSize);
 
 	UARTprintf("receiving reply\n\r\n\r");
 
-	iRet = sl_RecvFrom(sock, cDataBuf, sizeof(cDataBuf), 0,
+	rv = recvfrom(sock, buffer, sizeof(buffer), 0,
 			(SlSockAddr_t *) &sLocalAddr, (SlSocklen_t*) &iAddrSize);
-	if (iRet <= 0) {
+	if (rv <= 0) {
 		UARTprintf("Did not receive\n\r");
+		close(sock);
 		return -1;
 	}
 
 	//
 	// Confirm that the MODE is 4 --> server
-	if ((cDataBuf[0] & 0x7) != 4)    // expect only server response
+	if ((buffer[0] & 0x7) != 4)    // expect only server response
 			{
 		UARTprintf("Expecting response from Server Only!\n\r");
+		close(sock);
 		return -1;    // MODE is not server, abort
 	} else {
 		char iIndex;
@@ -237,19 +243,19 @@ unsigned long unix_time() {
 		// This is the time at which the reply departed the
 		// server for the client
 		//
-		ntp = cDataBuf[40];
+		ntp = buffer[40];
 		ntp <<= 8;
-		ntp += cDataBuf[41];
+		ntp += buffer[41];
 		ntp <<= 8;
-		ntp += cDataBuf[42];
+		ntp += buffer[42];
 		ntp <<= 8;
-		ntp += cDataBuf[43];
+		ntp += buffer[43];
 
 		ntp -= 2208988800UL;
 
 		close(sock);
 	}
-	return ntp;
+	return (unsigned long)ntp;
 }
 
 int Cmd_time(int argc, char*argv[]) {
@@ -259,9 +265,328 @@ int Cmd_time(int argc, char*argv[]) {
 	return 0;
 }
 
-int Cmd_skeletor(int argc, char*argv[]) {
+/* protobuf includes */
+#include <pb.h>
+#include <pb_encode.h>
+#include <pb_decode.h>
+#include "periodic.pb.h"
+#define MORPH_NAME "Chris's morpheus"
 
+bool encode_name(pb_ostream_t *stream, const pb_field_t *field, void * const *arg)
+{
+    return pb_encode_string(stream, (uint8_t*)MORPH_NAME, strlen(MORPH_NAME));
+}
+
+int send_data_pb ( data_t * data) {
+	/* This is the buffer where we will store our message. */
+	uint8_t buffer[128];
+	size_t message_length;
+	bool status;
+
+	periodic_data msg;
+
+	/* Create a stream that will write to our buffer. */
+	pb_ostream_t stream = pb_ostream_from_buffer(buffer, sizeof(buffer));
+
+	msg.dust = data->dust;
+	msg.humidity = data->humid;
+	msg.light = data->light;
+	msg.temperature = data->temp;
+	msg.unix_time = data->time;
+	msg.name.funcs.encode = encode_name;
+
+	msg.has_dust = 1;
+	msg.has_humidity = 1;
+	msg.has_light = 1;
+	msg.has_temperature = 1;
+	msg.has_unix_time = 1;
+
+	/* Now we are ready to encode the message! */
+	status = pb_encode(&stream, periodic_data_fields, &msg);
+	message_length = stream.bytes_written;
+
+	/* Then just check for any errors.. */
+	if (!status) {
+		UARTprintf("Encoding failed: %s\n", PB_GET_ERROR(&stream));
+		return 1;
+	}
+
+	int rv = 0;
+	sockaddr sAddr;
+	sockaddr_in sLocalAddr;
+	int iAddrSize;
+	unsigned long ipaddr;
+	int sock;
+	int numbytes = 0;
+
+	timeval tv;
+
+	sock = socket(AF_INET, SOCK_STREAM, 0);
+	tv.tv_sec = 2;             // Seconds
+	tv.tv_usec = 0;             // Microseconds. 10000 microseconds resolution
+	setsockopt(sock, SOL_SOCKET, SL_SO_RCVTIMEO, &tv, sizeof(tv)); // Enable receive timeout
+
+	if (sock < 0) {
+		UARTprintf("Socket create failed\n\r");
+		return -1;
+	}
+	UARTprintf("Socket created\n\r");
+
+    #define DATA_SERVER "in.skeletor.com"
+	if (!(rv = gethostbyname(DATA_SERVER, strlen(DATA_SERVER),
+			&ipaddr, SL_AF_INET))) {
+		UARTprintf(
+				"Get Host IP succeeded.\n\rHost: %s IP: %d.%d.%d.%d \n\r\n\r",
+				DATA_SERVER, SL_IPV4_BYTE(ipaddr, 3), SL_IPV4_BYTE(ipaddr, 2),
+				SL_IPV4_BYTE(ipaddr, 1), SL_IPV4_BYTE(ipaddr, 0));
+	} else {
+		UARTprintf("failed to resolve ntp addr rv %d\n");
+		return -1;
+	}
+
+	sAddr.sa_family = AF_INET;
+	// the source port
+	sAddr.sa_data[0] = 0x00;
+	sAddr.sa_data[1] = 4000;
+	sAddr.sa_data[2] = (char) ((ipaddr >> 24) & 0xff);
+	sAddr.sa_data[3] = (char) ((ipaddr >> 16) & 0xff);
+	sAddr.sa_data[4] = (char) ((ipaddr >> 8) & 0xff);
+	sAddr.sa_data[5] = (char) (ipaddr & 0xff);
+
+	UARTprintf("Connecting \n\r\n\r");
+	if(rv = connect(sock, &sAddr, sizeof(sAddr))) {
+		UARTprintf("Could not connect %d\n\r\n\r", rv);
+		return -1;    // could not send SNTP request
+	}
+
+	UARTprintf("Sending request\n\r%s\n\r", buffer);
+	numbytes = 0;
+//	while( numbytes < strlen(buffer) ) {
+		rv = send(sock, buffer, message_length, 0);
+		numbytes += rv;
+		UARTprintf("sent %d\n\r\n\r", rv);
+		if (rv < 0) {
+			return -1;
+		}
+//	}
+	memset(buffer, 0, sizeof(buffer));
+
+	UARTprintf("Waiting for reply\n\r\n\r");
+	numbytes = 0;
+//	while (numbytes < sizeof(buffer)) {
+		rv = recv(sock, buffer, sizeof(buffer), 0);
+		numbytes += rv;
+		UARTprintf("recv %d\n\r\n\r", rv);
+		if (rv <= 0) {
+			return -1;
+		}
+//	}
+
+
+	UARTprintf("Reply is:\n\r\n\r");
+	buffer[127] = 0; //make sure it terminates..
+	UARTprintf( "%s", buffer );
+
+	close( sock );
+
+	return 0;
+}
+
+#define MSG_VER 1
+int send_data( data_t * data ) {
+
+	char buffer[256];
+	char datastr[256];
+
+	snprintf( datastr, sizeof(datastr),
+				"%d,%d,%d,%d,%d,%d,%s",
+				MSG_VER,
+				data->time,
+				data->light,
+				data->temp,
+				data->humid,
+				data->dust,
+				MORPH_NAME
+				);
+
+	snprintf( buffer, sizeof(buffer),
+			"POST /in/morpheus HTTP/1.1\r\n"
+			"Host: in.skeletor.com\r\n"
+			"Content-type: text/plain\r\n"
+			"Content-length: %d\r\n"
+			"\r\n"
+			"%s\r\n",
+			strlen(datastr), datastr
+			);
+
+	int rv = 0;
+	sockaddr sAddr;
+	sockaddr_in sLocalAddr;
+	int iAddrSize;
+	unsigned long ipaddr;
+	int sock;
+	int numbytes = 0;
+
+	timeval tv;
+
+	sock = socket(AF_INET, SOCK_STREAM, 0);
+	tv.tv_sec = 2;             // Seconds
+	tv.tv_usec = 0;             // Microseconds. 10000 microseconds resolution
+	setsockopt(sock, SOL_SOCKET, SL_SO_RCVTIMEO, &tv, sizeof(tv)); // Enable receive timeout
+
+	if (sock < 0) {
+		UARTprintf("Socket create failed\n\r");
+		return -1;
+	}
+	UARTprintf("Socket created\n\r");
+
+    #define DATA_SERVER "in.skeletor.com"
+	if (!(rv = gethostbyname(DATA_SERVER, strlen(DATA_SERVER),
+			&ipaddr, SL_AF_INET))) {
+		UARTprintf(
+				"Get Host IP succeeded.\n\rHost: %s IP: %d.%d.%d.%d \n\r\n\r",
+				DATA_SERVER, SL_IPV4_BYTE(ipaddr, 3), SL_IPV4_BYTE(ipaddr, 2),
+				SL_IPV4_BYTE(ipaddr, 1), SL_IPV4_BYTE(ipaddr, 0));
+	} else {
+		UARTprintf("failed to resolve ntp addr rv %d\n");
+		return -1;
+	}
+
+	sAddr.sa_family = AF_INET;
+	// the source port
+	sAddr.sa_data[0] = 0x00;
+	sAddr.sa_data[1] = 80;
+	sAddr.sa_data[2] = (char) ((ipaddr >> 24) & 0xff);
+	sAddr.sa_data[3] = (char) ((ipaddr >> 16) & 0xff);
+	sAddr.sa_data[4] = (char) ((ipaddr >> 8) & 0xff);
+	sAddr.sa_data[5] = (char) (ipaddr & 0xff);
+
+	UARTprintf("Connecting \n\r\n\r");
+	if(rv = connect(sock, &sAddr, sizeof(sAddr))) {
+		UARTprintf("Could not connect %d\n\r\n\r", rv);
+		return -1;    // could not send SNTP request
+	}
+
+	UARTprintf("Sending request\n\r%s\n\r", buffer);
+	numbytes = 0;
+//	while( numbytes < strlen(buffer) ) {
+		rv = send(sock, buffer, strlen(buffer), 0);
+		numbytes += rv;
+		UARTprintf("sent %d\n\r\n\r", rv);
+		if (rv < 0) {
+			return -1;
+		}
+//	}
+	memset(buffer, 0, sizeof(buffer));
+
+	UARTprintf("Waiting for reply\n\r\n\r");
+	numbytes = 0;
+//	while (numbytes < sizeof(buffer)) {
+		rv = recv(sock, buffer, sizeof(buffer), 0);
+		numbytes += rv;
+		UARTprintf("recv %d\n\r\n\r", rv);
+		if (rv <= 0) {
+			return -1;
+		}
+//	}
+
+
+	UARTprintf("Reply is:\n\r\n\r");
+	buffer[127] = 0; //make sure it terminates..
+	UARTprintf( "%s", buffer );
+
+	close( sock );
+
+	return 0;
+}
+
+int Cmd_skeletor(int argc, char*argv[]) {
 	//send a test command to skeletor!
+	char buffer[128] =
+"POST /in/morpheus HTTP/1.1\r\n"
+"Host: in.skeletor.com\r\n"
+"Content-type: text/plain\r\n"
+"Content-length: 9\r\n"
+"\r\n"
+"10,11,abc\r\n";
+
+	int rv = 0;
+	sockaddr sAddr;
+	sockaddr_in sLocalAddr;
+	int iAddrSize;
+	unsigned long ipaddr;
+	int sock;
+	int numbytes = 0;
+
+	timeval tv;
+
+	sock = socket(AF_INET, SOCK_STREAM, 0);
+	tv.tv_sec = 2;             // Seconds
+	tv.tv_usec = 0;             // Microseconds. 10000 microseconds resolution
+	setsockopt(sock, SOL_SOCKET, SL_SO_RCVTIMEO, &tv, sizeof(tv)); // Enable receive timeout
+
+	if (sock < 0) {
+		UARTprintf("Socket create failed\n\r");
+		return -1;
+	}
+	UARTprintf("Socket created\n\r");
+
+    #define DATA_SERVER "in.skeletor.com"
+	if (!(rv = gethostbyname(DATA_SERVER, strlen(DATA_SERVER),
+			&ipaddr, SL_AF_INET))) {
+		UARTprintf(
+				"Get Host IP succeeded.\n\rHost: %s IP: %d.%d.%d.%d \n\r\n\r",
+				DATA_SERVER, SL_IPV4_BYTE(ipaddr, 3), SL_IPV4_BYTE(ipaddr, 2),
+				SL_IPV4_BYTE(ipaddr, 1), SL_IPV4_BYTE(ipaddr, 0));
+	} else {
+		UARTprintf("failed to resolve ntp addr rv %d\n");
+		return -1;
+	}
+
+	sAddr.sa_family = AF_INET;
+	// the source port
+	sAddr.sa_data[0] = 0x00;
+	sAddr.sa_data[1] = 80;
+	sAddr.sa_data[2] = (char) ((ipaddr >> 24) & 0xff);
+	sAddr.sa_data[3] = (char) ((ipaddr >> 16) & 0xff);
+	sAddr.sa_data[4] = (char) ((ipaddr >> 8) & 0xff);
+	sAddr.sa_data[5] = (char) (ipaddr & 0xff);
+
+	UARTprintf("Connecting \n\r\n\r");
+	if(rv = connect(sock, &sAddr, sizeof(sAddr))) {
+		UARTprintf("Could not connect %d\n\r\n\r", rv);
+		return -1;    // could not send SNTP request
+	}
+
+	UARTprintf("Sending request\n\r%s\n\r", buffer);
+	numbytes = 0;
+//	while( numbytes < strlen(buffer) ) {
+		rv = send(sock, buffer, strlen(buffer), 0);
+		numbytes += rv;
+		UARTprintf("sent %d\n\r\n\r", rv);
+		if (rv < 0) {
+			return -1;
+		}
+//	}
+	memset(buffer, 0, sizeof(buffer));
+
+	UARTprintf("Waiting for reply\n\r\n\r");
+	numbytes = 0;
+//	while (numbytes < sizeof(buffer)) {
+		rv = recv(sock, buffer, sizeof(buffer), 0);
+		numbytes += rv;
+		UARTprintf("recv %d\n\r\n\r", rv);
+		if (rv <= 0) {
+			return -1;
+		}
+//	}
+
+
+	UARTprintf("Reply is:\n\r\n\r");
+	buffer[127] = 0; //make sure it terminates..
+	UARTprintf( "%s", buffer );
+
+	close( sock );
 
 	return 0;
 }

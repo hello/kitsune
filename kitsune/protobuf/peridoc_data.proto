@@ -1,0 +1,10 @@
+message periodic_data {
+    optional int32 version=7;
+    optional int32 unix_time=1;
+    optional int32 light=2;
+    optional int32 temperature=3;
+    optional int32 humidity=4;
+    optional int32 dust=5;
+    optional string name=6;
+    }
+
