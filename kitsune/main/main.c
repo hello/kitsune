@@ -88,6 +88,8 @@
 #include "uartstdio.h"
 #include "i2c_if.h"
 
+#include "wifi_cmd.h"
+
 extern void vUARTTask( void *pvParameters );
 extern void thead_sensor_poll( void * Data);
 	
@@ -269,7 +271,8 @@ void main()
   VStartSimpleLinkSpawnTask(SPAWN_TASK_PRIORITY);
 
   /* Create the UART processing task. */
-  xTaskCreate( vUARTTask, "UARTTask", 20*1024/(sizeof(portSTACK_TYPE)), NULL, 2, NULL );
+  xTaskCreate( vUARTTask, "UARTTask", 10*1024/(sizeof(portSTACK_TYPE)), NULL, 2, NULL );
+//  xTaskCreate( vWifiTask, "wifi", 2*1024/(sizeof(portSTACK_TYPE)), NULL, 2, NULL );
 
   //
   // Start the task scheduler

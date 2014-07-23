@@ -187,11 +187,8 @@ int Cmd_readout_data(int argc, char *argv[]) {
 	return 0;
 }
 
-int thead_sensor_poll(void* data) {
-	Cmd_sensor_poll( 0, NULL );
-}
+int thead_sensor_poll(void* unused) {
 
-int Cmd_sensor_poll(int argc, char *argv[]) {
 	//
 	// Print some header text.
 	//
@@ -205,34 +202,12 @@ int Cmd_sensor_poll(int argc, char *argv[]) {
 	long hndl;
 	int bytes, written;
 
+	while( !(sl_status&HAS_IP ) ) {vTaskDelay(100);}
+
 	get_light(); //first reading is always buggy
 
-	{
-#define KINGSHY 0
-#define MIFI 0
-
-#if KINGSHY
-#define SSID "junketh"
-#define PASS "2b1a67kltn64e05c9ffks8dib387le5"
-#define SEC 2
-#elif MIFI
-#define SSID "plastic"
-#define PASS "00cfcf73"
-#define SEC 2
-#else
-#define SSID "Hello"
-#define PASS "godsavethequeen"
-#define SEC 2
-#endif
-	SlSecParams_t secParams;
-	secParams.Key = PASS;
-	secParams.KeyLen = strlen(PASS);
-	secParams.Type = SEC;
-
-	sl_WlanConnect(SSID, strlen(SSID), 0, &secParams, 0);
-	}
-
 	while (1) {
+#define SENSOR_RATE 1 ///60
 		portTickType now = xTaskGetTickCount();
 		unsigned long ntp=-1;
 		static unsigned long last_ntp = -1;
@@ -240,7 +215,7 @@ int Cmd_sensor_poll(int argc, char *argv[]) {
 		if( last_ntp == -1 ) {
 			ntp = last_ntp = unix_time();
 		} else if( last_ntp != -1) {
-			ntp = last_ntp+60;
+			ntp = last_ntp+SENSOR_RATE;
 			last_ntp = ntp;
 		}
 
@@ -252,11 +227,10 @@ int Cmd_sensor_poll(int argc, char *argv[]) {
 		UARTprintf("cnt %d\ttime %d\tlight %d\ttemp %d\thumid %d\tdust %d\n", i, data[i].time, data[i].light, data[i].temp, data[i].humid, data[i].dust );
 
 		send_data( &data[i] );
-#if ! KINGSHY
-		send_data_pb( &data[i] );
-#endif
+//		send_data_pb( &data[i] );
 
 		if (++i == BUF_SZ) {
+#if 0
 			char fn_str[10];
 
 			snprintf(fn_str, 10, "%d", fn);
@@ -272,7 +246,7 @@ int Cmd_sensor_poll(int argc, char *argv[]) {
 			UARTprintf("finished, wrote %d bytes\n", written);
 
 			sl_FsClose(hndl, 0, 0, 0);
-
+#endif
 			if( ++fn > NUM_LOGS ) {
 				fn = 0;
 			}
@@ -281,10 +255,14 @@ int Cmd_sensor_poll(int argc, char *argv[]) {
 		}
 
 		UARTprintf("delay...\n");
-		vTaskDelayUntil(&now, 60 * configTICK_RATE_HZ);
+		vTaskDelayUntil(&now, SENSOR_RATE * configTICK_RATE_HZ);
 	}
 
-	// Return success.
+}
+
+int Cmd_sensor_poll(int argc, char *argv[]) {
+	xTaskCreate( thead_sensor_poll, "pollTask", 10*1024/4, NULL, 2, NULL );
+// Return success.
 	return (0);
 }
 
@@ -459,7 +437,8 @@ tCmdLineEntry g_sCmdTable[] = {
 
 		{ "poll", Cmd_sensor_poll, "poll sensors" },
 		{ "readout", Cmd_readout_data, "read out sensor data log" },
-		{ "skeletor", Cmd_skeletor, "send some data" },
+		{ "sl", Cmd_sl, "start smart config" },
+		{ "mode", Cmd_mode, "set the ap/station mode" },
 
 		{ 0, 0, 0 } };
 
@@ -498,7 +477,12 @@ void vUARTTask(void *pvParameters) {
 
 	sl_mode = sl_Start(NULL, NULL, NULL);
 
-	xTaskCreate( thead_sensor_poll, "pollTask", 20*1024/4, NULL, 2, NULL );
+	vTaskDelay(1000);
+	if(sl_mode == ROLE_AP || !sl_status) {
+		Cmd_sl(0,0);
+	}
+
+	xTaskCreate( thead_sensor_poll, "pollTask", 10*1024/4, NULL, 2, NULL );
 
 	//checkFaults();
 
