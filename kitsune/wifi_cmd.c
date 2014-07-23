@@ -10,6 +10,14 @@
 #include "protocol.h"
 #include "wifi_cmd.h"
 
+#define ROLE_INVALID (-5)
+
+int sl_mode = ROLE_INVALID;
+
+#define CONNECT  0x00000001
+#define HAS_IP   0x00000002
+unsigned int sl_status = 0;
+
 //*****************************************************************************
 //
 //! This function gets triggered when HTTP Server receives Application
@@ -50,9 +58,12 @@ void sl_WlanEvtHdlr(SlWlanEvent_t *pSlWlanEvent) {
 		break;
 	case SL_WLAN_CONNECT_EVENT:
 		UARTprintf("SL_WLAN_CONNECT_EVENT\n\r");
+		sl_status |= CONNECT;
 		break;
 	case SL_WLAN_DISCONNECT_EVENT:
 		UARTprintf("SL_WLAN_DISCONNECT_EVENT\n\r");
+		sl_status &= ~CONNECT;
+		sl_status &= ~HAS_IP;
 		break;
 	default:
 		break;
@@ -75,6 +86,7 @@ void sl_NetAppEvtHdlr(SlNetAppEvent_t *pNetAppEvent) {
 	case SL_NETAPP_IPV4_ACQUIRED:
 	case SL_NETAPP_IPV6_ACQUIRED:
 		UARTprintf("SL_NETAPP_IPV4_ACQUIRED\n\r");
+		sl_status |= HAS_IP;
 		break;
 	default:
 		break;
@@ -93,7 +105,7 @@ int Cmd_connect(int argc, char *argv[]) {
 	secParams.KeyLen = strlen(argv[2]);
 	secParams.Type = atoi(argv[3]);
 
-	sl_WlanConnect(argv[1], strlen(argv[1]), 0, &secParams, 0);
+	sl_WlanConnect(argv[1], strlen(argv[1]), "123456", &secParams, 0);
 	return (0);
 }
 
@@ -110,7 +122,7 @@ int Cmd_status(int argc, char *argv[]) {
 	//
 	// Send the information
 	//
-	UARTprintf("ip 0x%x submask 0x%x gateway 0x%x dns 0x%x\n\r", ipv4.ipV4,
+	UARTprintf("%x ip 0x%x submask 0x%x gateway 0x%x dns 0x%x\n\r", sl_status, ipv4.ipV4,
 			ipv4.ipV4Mask, ipv4.ipV4Gateway, ipv4.ipV4DnsServer);
 	return 0;
 }
@@ -265,11 +277,35 @@ int Cmd_time(int argc, char*argv[]) {
 	return 0;
 }
 
+int Cmd_mode(int argc, char*argv[]) {
+    #define SL_STOP_TIMEOUT                 (30)
+	int ap = 0;
+	if(argc != 2 ) {
+		UARTprintf("mode <1=ap 0=station>\n");
+	}
+	ap = atoi(argv[1]);
+	if( ap && sl_mode != ROLE_AP ) {
+        //Switch to AP Mode
+    	sl_WlanSetMode(ROLE_AP);
+        sl_Stop(SL_STOP_TIMEOUT);
+        sl_mode =  sl_Start(NULL,NULL,NULL);
+	}
+	if( !ap && sl_mode != ROLE_STA ) {
+        //Switch to STA Mode
+    	sl_WlanSetMode(ROLE_STA);
+        sl_Stop(SL_STOP_TIMEOUT);
+        sl_mode =  sl_Start(NULL,NULL,NULL);
+	}
+
+	return 0;
+}
+
 /* protobuf includes */
 #include <pb.h>
 #include <pb_encode.h>
 #include <pb_decode.h>
 #include "periodic.pb.h"
+
 #define MORPH_NAME "Chris's morpheus"
 
 bool encode_name(pb_ostream_t *stream, const pb_field_t *field, void * const *arg)
@@ -278,21 +314,35 @@ bool encode_name(pb_ostream_t *stream, const pb_field_t *field, void * const *ar
 }
 
 int send_data_pb ( data_t * data) {
+	char buffer[256];
+
+	int rv = 0;
+	sockaddr sAddr;
+	sockaddr_in sLocalAddr;
+	int iAddrSize;
+	unsigned long ipaddr;
+	int sock;
+	int numbytes = 0;
+
+	timeval tv;
+
 	/* This is the buffer where we will store our message. */
-	uint8_t buffer[128];
+	uint8_t pb_buffer[128];
 	size_t message_length;
 	bool status;
 
 	periodic_data msg;
 
-	/* Create a stream that will write to our buffer. */
-	pb_ostream_t stream = pb_ostream_from_buffer(buffer, sizeof(buffer));
+	int send_length;
 
-	msg.dust = data->dust;
-	msg.humidity = data->humid;
-	msg.light = data->light;
-	msg.temperature = data->temp;
-	msg.unix_time = data->time;
+	/* Create a stream that will write to our buffer. */
+	pb_ostream_t stream = pb_ostream_from_buffer(pb_buffer, sizeof(pb_buffer));
+
+	msg.dust = 1011;// data->dust;
+	msg.humidity = 789;// data->humid;
+	msg.light = 456;//data->light;
+	msg.temperature = 123;//data->temp;
+	msg.unix_time = 1406060608;//data->time;
 	msg.name.funcs.encode = encode_name;
 
 	msg.has_dust = 1;
@@ -305,21 +355,23 @@ int send_data_pb ( data_t * data) {
 	status = pb_encode(&stream, periodic_data_fields, &msg);
 	message_length = stream.bytes_written;
 
+	snprintf( buffer, sizeof(buffer),
+			"POST /in/morpheus/pb HTTP/1.1\r\n"
+			"Host: in.skeletor.com\r\n"
+			"Content-type: application/x-protobuf\r\n"
+			"Content-length: %d\r\n"
+			"\r\n",
+			message_length
+			);
+	send_length = message_length + strlen(buffer);
+
+	memmove( buffer+strlen(buffer), pb_buffer, message_length );
+
 	/* Then just check for any errors.. */
 	if (!status) {
 		UARTprintf("Encoding failed: %s\n", PB_GET_ERROR(&stream));
 		return 1;
 	}
-
-	int rv = 0;
-	sockaddr sAddr;
-	sockaddr_in sLocalAddr;
-	int iAddrSize;
-	unsigned long ipaddr;
-	int sock;
-	int numbytes = 0;
-
-	timeval tv;
 
 	sock = socket(AF_INET, SOCK_STREAM, 0);
 	tv.tv_sec = 2;             // Seconds
@@ -333,6 +385,7 @@ int send_data_pb ( data_t * data) {
 	UARTprintf("Socket created\n\r");
 
     #define DATA_SERVER "in.skeletor.com"
+#if !LOCAL_TEST
 	if (!(rv = gethostbyname(DATA_SERVER, strlen(DATA_SERVER),
 			&ipaddr, SL_AF_INET))) {
 		UARTprintf(
@@ -346,12 +399,24 @@ int send_data_pb ( data_t * data) {
 
 	sAddr.sa_family = AF_INET;
 	// the source port
-	sAddr.sa_data[0] = 0x00;
-	sAddr.sa_data[1] = 4000;
+	sAddr.sa_data[0] = 0;//0xf;
+	sAddr.sa_data[1] = 80;//0xa0; //4k
 	sAddr.sa_data[2] = (char) ((ipaddr >> 24) & 0xff);
 	sAddr.sa_data[3] = (char) ((ipaddr >> 16) & 0xff);
 	sAddr.sa_data[4] = (char) ((ipaddr >> 8) & 0xff);
 	sAddr.sa_data[5] = (char) (ipaddr & 0xff);
+#else
+
+	sAddr.sa_family = AF_INET;
+	// the source port
+	sAddr.sa_data[0] = 0;//0xf;
+	sAddr.sa_data[1] = 80;//0xa0; //4k
+	sAddr.sa_data[2] = (char) () & 0xff);
+	sAddr.sa_data[3] = (char) () & 0xff);
+	sAddr.sa_data[4] = (char) () & 0xff);
+	sAddr.sa_data[5] = (char) () & 0xff);
+
+#endif
 
 	UARTprintf("Connecting \n\r\n\r");
 	if(rv = connect(sock, &sAddr, sizeof(sAddr))) {
@@ -359,10 +424,11 @@ int send_data_pb ( data_t * data) {
 		return -1;    // could not send SNTP request
 	}
 
+
 	UARTprintf("Sending request\n\r%s\n\r", buffer);
 	numbytes = 0;
 //	while( numbytes < strlen(buffer) ) {
-		rv = send(sock, buffer, message_length, 0);
+		rv = send(sock, buffer, send_length, 0);
 		numbytes += rv;
 		UARTprintf("sent %d\n\r\n\r", rv);
 		if (rv < 0) {
