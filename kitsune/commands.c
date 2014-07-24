@@ -156,7 +156,7 @@ int Cmd_fs_delete(int argc, char *argv[]) {
 
 #define BUF_SZ 10
 int Cmd_readout_data(int argc, char *argv[]) {
-	long hndl, err, bytes, i,j;
+	long hndl, err, bytes, i,j,fail;
 
 	typedef struct {
 		int time, light, temp, humid, dust;
@@ -169,19 +169,28 @@ int Cmd_readout_data(int argc, char *argv[]) {
 		snprintf( buf, 10, "%d", j);
 		if (err = sl_FsOpen(buf, FS_MODE_OPEN_READ, NULL, &hndl)) {
 			UARTprintf("error opening for read %d\n", err);
-			return -1;
 		}
 
 		if (bytes = sl_FsRead(hndl, 0, data, sizeof(data))) {
 			//UARTprintf("read %d bytes\n", bytes);
 		}
-
 		sl_FsClose(hndl, 0, 0, 0);
 
+		if( bytes != sizeof(data) ) {
+			continue;
+		}
+
+		fail = 0;
 		//UARTprintf("cnt,time,light,temp,humid,dust\n", i, data[i].time, data[i].light, data[i].temp, data[i].humid, data[i].dust );
 		for( i=0; i!=BUF_SZ;++i ) {
 			UARTprintf("%d\t%d\t%d\t%d\t%d\t%d\n", i, data[i].time, data[i].light, data[i].temp, data[i].humid, data[i].dust );
+			if( !send_data( &data[i] ) ) {
+				fail=1;
+			}
 			vTaskDelay(10);
+		}
+		if( !fail ) {
+			sl_FsDel( buf, NULL );
 		}
 	}
 	return 0;
@@ -207,7 +216,7 @@ int thead_sensor_poll(void* unused) {
 	get_light(); //first reading is always buggy
 
 	while (1) {
-#define SENSOR_RATE 1 ///60
+#define SENSOR_RATE 60
 		portTickType now = xTaskGetTickCount();
 		unsigned long ntp=-1;
 		static unsigned long last_ntp = -1;
@@ -226,11 +235,17 @@ int thead_sensor_poll(void* unused) {
 		data[i].temp = get_temp();
 		UARTprintf("cnt %d\ttime %d\tlight %d\ttemp %d\thumid %d\tdust %d\n", i, data[i].time, data[i].light, data[i].temp, data[i].humid, data[i].dust );
 
-		send_data( &data[i] );
+		while(i >= 0) {
+		    if( send_data( &data[i] ) != 0 ) {
+		    	--i;
+		    } else {
+		    	break;
+		    }
+		}
 //		send_data_pb( &data[i] );
 
+#if 1
 		if (++i == BUF_SZ) {
-#if 0
 			char fn_str[10];
 
 			snprintf(fn_str, 10, "%d", fn);
@@ -240,19 +255,18 @@ int thead_sensor_poll(void* unused) {
 			while (written != sizeof(data)) {
 				bytes = sl_FsWrite(hndl, 0, ((char*)data)+written, sizeof(data));
 				written += bytes;
-
 				UARTprintf("wrote to the file %d bytes\n", bytes);
 			}
 			UARTprintf("finished, wrote %d bytes\n", written);
 
 			sl_FsClose(hndl, 0, 0, 0);
-#endif
 			if( ++fn > NUM_LOGS ) {
 				fn = 0;
 			}
 
 			i=0;
 		}
+#endif
 
 		UARTprintf("delay...\n");
 		vTaskDelayUntil(&now, SENSOR_RATE * configTICK_RATE_HZ);

@@ -581,7 +581,7 @@ int Cmd_sl(int argc, char*argv[]) {
         sl_mode = sl_Start(NULL, NULL, NULL);
     }
 
-    sl_WlanProfileDel(WLAN_DEL_ALL_PROFILES);
+    //sl_WlanProfileDel(WLAN_DEL_ALL_PROFILES);
 
     //set AUTO policy
     sl_WlanPolicySet( SL_POLICY_CONNECTION,
