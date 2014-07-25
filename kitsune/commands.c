@@ -184,7 +184,7 @@ int Cmd_readout_data(int argc, char *argv[]) {
 		//UARTprintf("cnt,time,light,temp,humid,dust\n", i, data[i].time, data[i].light, data[i].temp, data[i].humid, data[i].dust );
 		for( i=0; i!=BUF_SZ;++i ) {
 			UARTprintf("%d\t%d\t%d\t%d\t%d\t%d\n", i, data[i].time, data[i].light, data[i].temp, data[i].humid, data[i].dust );
-			if( !send_data( &data[i] ) ) {
+			if( !send_data_pb( &data[i] ) ) {
 				fail=1;
 			}
 			vTaskDelay(10);
@@ -236,13 +236,12 @@ int thead_sensor_poll(void* unused) {
 		UARTprintf("cnt %d\ttime %d\tlight %d\ttemp %d\thumid %d\tdust %d\n", i, data[i].time, data[i].light, data[i].temp, data[i].humid, data[i].dust );
 
 		while(i >= 0) {
-		    if( send_data( &data[i] ) != 0 ) {
+		    if( send_data_pb( &data[i] ) != 0 ) {
 		    	--i;
 		    } else {
 		    	break;
 		    }
 		}
-//		send_data_pb( &data[i] );
 
 #if 1
 		if (++i == BUF_SZ) {
@@ -484,12 +483,16 @@ void vUARTTask(void *pvParameters) {
 
 	UARTIntRegister(UARTA0_BASE, UARTStdioIntHandler);
 
-	UARTprintf("\n\nFreeRTOS %s, %s, %s\n",
-	tskKERNEL_VERSION_NUMBER, KIT_VER, MORPH_NAME);
-	UARTprintf("\n? for help\n");
-	UARTprintf("> ");
 
 	sl_mode = sl_Start(NULL, NULL, NULL);
+    unsigned char mac[6];
+    unsigned char mac_len;
+    sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL,&mac_len, mac);
+
+	UARTprintf("\n\nFreeRTOS %s, %s, %s %x%x%x%x%x%x\n",
+	tskKERNEL_VERSION_NUMBER, KIT_VER, MORPH_NAME, mac[0],mac[1],mac[2],mac[3],mac[4],mac[5]);
+	UARTprintf("\n? for help\n");
+	UARTprintf("> ");
 
 	vTaskDelay(1000);
 	if(sl_mode == ROLE_AP || !sl_status) {
