@@ -484,8 +484,8 @@ void vUARTTask(void *pvParameters) {
 
 	UARTIntRegister(UARTA0_BASE, UARTStdioIntHandler);
 
-	UARTprintf("\n\nFreeRTOS %s, %s\n",
-	tskKERNEL_VERSION_NUMBER, KIT_VER);
+	UARTprintf("\n\nFreeRTOS %s, %s, %s\n",
+	tskKERNEL_VERSION_NUMBER, KIT_VER, MORPH_NAME);
 	UARTprintf("\n? for help\n");
 	UARTprintf("> ");
 

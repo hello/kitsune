@@ -308,11 +308,10 @@ int Cmd_mode(int argc, char*argv[]) {
 #include <pb_decode.h>
 #include "periodic.pb.h"
 
-#define MORPH_NAME "Chris's morpheus"
 
 bool encode_name(pb_ostream_t *stream, const pb_field_t *field, void * const *arg)
 {
-    return pb_encode_string(stream, (uint8_t*)MORPH_NAME, strlen(MORPH_NAME));
+    return pb_write(stream, (uint8_t*)MORPH_NAME, strlen(MORPH_NAME));
 }
 
 int send_data_pb ( data_t * data) {
@@ -460,12 +459,27 @@ int send_data_pb ( data_t * data) {
     return 0;
 }
 
-#define MSG_VER 1
+#define MSG_VER 2
 int send_data( data_t * data ) {
 
     char buffer[256];
     char datastr[256];
-
+#if 1
+    unsigned char mac[6];
+    unsigned char mac_len;
+    sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL,&mac_len, mac);
+    snprintf( datastr, sizeof(datastr),
+                "%d,%d,%d,%d,%d,%d,%x%x%x%x%x%x,%s",
+                MSG_VER,
+                data->time,
+                data->light,
+                data->temp,
+                data->humid,
+                data->dust,
+                mac[0],mac[1],mac[2],mac[3],mac[4],mac[5],
+                MORPH_NAME
+                );
+#else
     snprintf( datastr, sizeof(datastr),
                 "%d,%d,%d,%d,%d,%d,%s",
                 MSG_VER,
@@ -476,6 +490,7 @@ int send_data( data_t * data ) {
                 data->dust,
                 MORPH_NAME
                 );
+#endif
 
     snprintf( buffer, sizeof(buffer),
             "POST /in/morpheus HTTP/1.1\r\n"
@@ -503,7 +518,7 @@ int send_data( data_t * data ) {
     setsockopt(sock, SOL_SOCKET, SL_SO_RCVTIMEO, &tv, sizeof(tv)); // Enable receive timeout
 
     if (sock < 0) {
-        UARTprintf("Socket create failed\n\r");
+        UARTprintf("Socket create failed %d\n\r", sock);
         return -1;
     }
     UARTprintf("Socket created\n\r");

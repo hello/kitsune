@@ -23,4 +23,10 @@ int Cmd_time(int argc, char*argv[]);
 int Cmd_sl(int argc, char*argv[]);
 int Cmd_mode(int argc, char*argv[]);
 
+//#define MORPH_NAME "KingShy's morpheus"
+
+#define MORPH_NAME "Chris's morpheus"
+//#define MORPH_NAME "test morpheus 30"
+//#define MORPH_NAME "test morpheus 80"
+
 #endif

@@ -238,8 +238,8 @@ int get_temp() {
 	temp = temp_raw;
 
 	temp *= 175;
-	temp /= 65536;
-	temp -= 47;
+	temp /= (65536/100);
+	temp -= 47*100;
 
 	return temp;
 }
@@ -269,8 +269,8 @@ int get_humid() {
 	humid = humid_raw;
 
 	humid *= 125;
-	humid /= 65536;
-	humid -= 6;
+	humid /= 65536/100;
+	humid -= 6*100;
 
 	return humid;
 }
