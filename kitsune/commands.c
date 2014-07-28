@@ -218,17 +218,20 @@ int thead_sensor_poll(void* unused) {
 	while (1) {
 #define SENSOR_RATE 60
 		portTickType now = xTaskGetTickCount();
-		unsigned long ntp=-1;
-		static unsigned long last_ntp = -1;
+		static portTickType unix_now = 0;
+		unsigned long ntp=0;
+		static unsigned long last_ntp = 0;
 
-		if( last_ntp == -1 ) {
+		if( last_ntp == 0 ) {
 			ntp = last_ntp = unix_time();
-		} else if( last_ntp != -1) {
-			ntp = last_ntp+SENSOR_RATE;
+			unix_now = now;
+		} else if( last_ntp != 0 ) {
+			ntp = last_ntp + (now - unix_now) / 1000;
 			last_ntp = ntp;
+			unix_now = now;
 		}
 
-		data[i].time = ntp != -1 ? ntp : now/1000;
+		data[i].time = ntp;
 		data[i].dust = get_dust();
 		data[i].light = get_light();
 		data[i].humid = get_humid();
@@ -236,7 +239,7 @@ int thead_sensor_poll(void* unused) {
 		UARTprintf("cnt %d\ttime %d\tlight %d\ttemp %d\thumid %d\tdust %d\n", i, data[i].time, data[i].light, data[i].temp, data[i].humid, data[i].dust );
 
 		while(i >= 0) {
-		    if( send_data_pb( &data[i] ) != 0 ) {
+		    if( send_data_pb( &data[i] ) == 0 ) {
 		    	--i;
 		    } else {
 		    	break;
