@@ -483,7 +483,7 @@ int send_data_pb(data_t * data) {
 		/* Then just check for any errors.. */
 		if (!status) {
 			UARTprintf("Encoding failed: %s\n", PB_GET_ERROR(&stream));
-			return 1;
+			return -1;
 		}
 
 	}

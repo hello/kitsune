@@ -132,7 +132,7 @@ int Cmd_fs_read(int argc, char *argv[]) {
 
 	sl_FsClose(hndl, 0, 0, 0);
 
-	for(i=0;i<bytes;++i) {
+	for (i = 0; i < bytes; ++i) {
 		UARTprintf("%x", buffer[i]);
 	}
 
@@ -154,132 +154,89 @@ int Cmd_fs_delete(int argc, char *argv[]) {
 	return (0);
 }
 
-#define BUF_SZ 10
-int Cmd_readout_data(int argc, char *argv[]) {
-	long hndl, err, bytes, i,j,fail;
+unsigned long get_time() {
+	portTickType now = xTaskGetTickCount();
+	static portTickType unix_now = 0;
+	unsigned long ntp = 0;
+	static unsigned long last_ntp = 0;
 
-	typedef struct {
-		int time, light, temp, humid, dust;
-	} data_t;
+	if (last_ntp == 0) {
 
-	data_t data[BUF_SZ];
-	char buf[10];
+		while (ntp == 0) {
+			while (!(sl_status & HAS_IP)) {
+				vTaskDelay(100);
+			} //wait for a connection the first time...
 
-	for( j=0;j<NUM_LOGS;++j) {
-		snprintf( buf, 10, "%d", j);
-		if (err = sl_FsOpen(buf, FS_MODE_OPEN_READ, NULL, &hndl)) {
-			UARTprintf("error opening for read %d\n", err);
+			ntp = last_ntp = unix_time();
 		}
 
-		if (bytes = sl_FsRead(hndl, 0, data, sizeof(data))) {
-			//UARTprintf("read %d bytes\n", bytes);
-		}
-		sl_FsClose(hndl, 0, 0, 0);
+		unix_now = now;
+	} else if (last_ntp != 0) {
+		ntp = last_ntp + (now - unix_now) / 1000;
+		last_ntp = ntp;
+		unix_now = now;
+	}
+	return ntp;
+}
 
-		if( bytes != sizeof(data) ) {
+/* Scheduler includes. */
+#include "FreeRTOS.h"
+#include "task.h"
+#include "queue.h"
+#include "semphr.h"
+
+xQueueHandle data_queue = 0;
+
+int thread_tx(void* unused) {
+	data_t data;
+
+	while (1) {
+		if( data_queue != 0 && !xQueueReceive( data_queue, &( data ), portMAX_DELAY ) ) {
 			continue;
 		}
 
-		fail = 0;
-		//UARTprintf("cnt,time,light,temp,humid,dust\n", i, data[i].time, data[i].light, data[i].temp, data[i].humid, data[i].dust );
-		for( i=0; i!=BUF_SZ;++i ) {
-			UARTprintf("%d\t%d\t%d\t%d\t%d\t%d\n", i, data[i].time, data[i].light, data[i].temp, data[i].humid, data[i].dust );
-			if( !send_data_pb( &data[i] ) ) {
-				fail=1;
-			}
-			vTaskDelay(10);
-		}
-		if( !fail ) {
-			sl_FsDel( buf, NULL );
-		}
+		UARTprintf("sending time %d\tlight %d\ttemp %d\thumid %d\tdust %d\n",
+				data.time, data.light, data.temp, data.humid,
+				data.dust);
+
+		while (!send_data_pb(&data) == 0) {
+			do {vTaskDelay(100);} //wait for a connection the first time...
+			while( !(sl_status&HAS_IP ) );
+		}//try every little bit
 	}
-	return 0;
 }
 
-int thead_sensor_poll(void* unused) {
+int thread_sensor_poll(void* unused) {
 
 	//
 	// Print some header text.
 	//
 
-	data_t data[BUF_SZ];
-
-	int i=0;
-	int fn=0;
-
-	unsigned long tok;
-	long hndl;
-	int bytes, written;
-
-	while( !(sl_status&HAS_IP ) ) {vTaskDelay(100);}
+	data_t data;
 
 	get_light(); //first reading is always buggy
 
 	while (1) {
-#define SENSOR_RATE 60
+#define SENSOR_RATE 10
 		portTickType now = xTaskGetTickCount();
-		static portTickType unix_now = 0;
-		unsigned long ntp=0;
-		static unsigned long last_ntp = 0;
 
-		if( last_ntp == 0 ) {
-			ntp = last_ntp = unix_time();
-			unix_now = now;
-		} else if( last_ntp != 0 ) {
-			ntp = last_ntp + (now - unix_now) / 1000;
-			last_ntp = ntp;
-			unix_now = now;
-		}
+		data.time = get_time();
+		data.dust = get_dust();
+		data.light = get_light();
+		data.humid = get_humid();
+		data.temp = get_temp();
+		UARTprintf("collecting time %d\tlight %d\ttemp %d\thumid %d\tdust %d\n",
+				data.time, data.light, data.temp, data.humid,
+				data.dust);
 
-		data[i].time = ntp;
-		data[i].dust = get_dust();
-		data[i].light = get_light();
-		data[i].humid = get_humid();
-		data[i].temp = get_temp();
-		UARTprintf("cnt %d\ttime %d\tlight %d\ttemp %d\thumid %d\tdust %d\n", i, data[i].time, data[i].light, data[i].temp, data[i].humid, data[i].dust );
+		    // ...
 
-		while(i >= 0) {
-		    if( send_data_pb( &data[i] ) == 0 ) {
-		    	--i;
-		    } else {
-		    	break;
-		    }
-		}
-
-#if 1
-		if (++i == BUF_SZ) {
-			char fn_str[10];
-
-			snprintf(fn_str, 10, "%d", fn);
-			sl_FsOpen(fn_str, FS_MODE_OPEN_CREATE(1024, _FS_FILE_OPEN_FLAG_COMMIT), &tok, &hndl);
-
-			written = 0;
-			while (written != sizeof(data)) {
-				bytes = sl_FsWrite(hndl, 0, ((char*)data)+written, sizeof(data));
-				written += bytes;
-				UARTprintf("wrote to the file %d bytes\n", bytes);
-			}
-			UARTprintf("finished, wrote %d bytes\n", written);
-
-			sl_FsClose(hndl, 0, 0, 0);
-			if( ++fn > NUM_LOGS ) {
-				fn = 0;
-			}
-
-			i=0;
-		}
-#endif
+        xQueueSend( data_queue, ( void * ) &data, 10 );
 
 		UARTprintf("delay...\n");
 		vTaskDelayUntil(&now, SENSOR_RATE * configTICK_RATE_HZ);
 	}
 
-}
-
-int Cmd_sensor_poll(int argc, char *argv[]) {
-	xTaskCreate( thead_sensor_poll, "pollTask", 10*1024/4, NULL, 2, NULL );
-// Return success.
-	return (0);
 }
 
 // ==============================================================================
@@ -418,9 +375,9 @@ tCmdLineEntry g_sCmdTable[] = {
 				"alias for help" },
 //    { "cpu",      Cmd_cpu,      "Show CPU utilization" },
 		{ "free", Cmd_free, "Report free memory" }, { "connect", Cmd_connect,
-				"Connect to an AP" }, { "ping", Cmd_ping, "Ping a server" },
-				{ "time", Cmd_time, "get ntp time" },{
-				"status", Cmd_status, "status of simple link" },
+				"Connect to an AP" }, { "ping", Cmd_ping, "Ping a server" }, {
+				"time", Cmd_time, "get ntp time" }, { "status", Cmd_status,
+				"status of simple link" },
 //    { "mnt",      Cmd_mnt,      "Mount the SD card" },
 //    { "umnt",     Cmd_umnt,     "Unount the SD card" },
 //    { "ls",       Cmd_ls,       "Display list of files" },
@@ -450,9 +407,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "fswr", Cmd_fs_write, "fs write" },
 		{ "fsrd", Cmd_fs_read, "fs read" },
 		{ "fsdl", Cmd_fs_delete, "fs delete" },
-
-		{ "poll", Cmd_sensor_poll, "poll sensors" },
-		{ "readout", Cmd_readout_data, "read out sensor data log" },
+		//{ "readout", Cmd_readout_data, "read out sensor data log" },
 		{ "sl", Cmd_sl, "start smart config" },
 		{ "mode", Cmd_mode, "set the ap/station mode" },
 
@@ -486,23 +441,30 @@ void vUARTTask(void *pvParameters) {
 
 	UARTIntRegister(UARTA0_BASE, UARTStdioIntHandler);
 
-
 	sl_mode = sl_Start(NULL, NULL, NULL);
-    unsigned char mac[6];
-    unsigned char mac_len;
-    sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL,&mac_len, mac);
+	unsigned char mac[6];
+	unsigned char mac_len;
+	sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
 
 	UARTprintf("\n\nFreeRTOS %s, %s, %s %x%x%x%x%x%x\n",
-	tskKERNEL_VERSION_NUMBER, KIT_VER, MORPH_NAME, mac[0],mac[1],mac[2],mac[3],mac[4],mac[5]);
+	tskKERNEL_VERSION_NUMBER, KIT_VER, MORPH_NAME, mac[0], mac[1], mac[2],
+			mac[3], mac[4], mac[5]);
 	UARTprintf("\n? for help\n");
 	UARTprintf("> ");
 
 	vTaskDelay(1000);
-	if(sl_mode == ROLE_AP || !sl_status) {
-		Cmd_sl(0,0);
+	if (sl_mode == ROLE_AP || !sl_status) {
+		Cmd_sl(0, 0);
 	}
 
-	xTaskCreate( thead_sensor_poll, "pollTask", 10*1024/4, NULL, 2, NULL );
+	 data_queue = xQueueCreate( 60, sizeof( data_t ) );
+
+	if (data_queue == 0) {
+		UARTprintf("Failed to create the data_queue.\n");
+	}
+
+	xTaskCreate(thread_sensor_poll, "pollTask", 2 * 1024 / 4, NULL, 3, NULL);
+	xTaskCreate(thread_tx, "txTask", 8 * 1024 / 4, NULL, 2, NULL);
 
 	//checkFaults();
 

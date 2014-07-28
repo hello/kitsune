@@ -2,7 +2,8 @@
 #define __WIFI_CMD_H__
 
 typedef struct {
-	int time, light, temp, humid, dust;
+	unsigned int time;
+	int light, temp, humid, dust;
 } data_t;
 
 extern
