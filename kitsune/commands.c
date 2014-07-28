@@ -19,15 +19,11 @@
 #include <stdlib.h>
 #include "rom_map.h"
 
-/* protobuf includes */
-#include <pb_encode.h>
-#include <pb_decode.h>
-#include "simple.pb.h"
-
 /* FreeRTOS includes */
 #include "FreeRTOS.h"
 #include "task.h"
 #include "semphr.h"
+#include "queue.h"
 
 #include "fault.h"
 
@@ -179,11 +175,34 @@ unsigned long get_time() {
 	return ntp;
 }
 
-/* Scheduler includes. */
-#include "FreeRTOS.h"
-#include "task.h"
-#include "queue.h"
-#include "semphr.h"
+int thread_prox(void* unused) {
+	while (1) {
+		int prox = get_prox();
+
+		UARTprintf("%d\n", prox);
+
+		vTaskDelay( 100 );
+	} //try every little bit
+}
+
+#define SENSOR_RATE 60
+
+static unsigned int dust_val=0;
+static unsigned int dust_cnt=0;
+xSemaphoreHandle dust_smphr;
+
+int thread_dust(void* unused) {
+    #define maxval( a, b ) a>b ? a : b
+	while (1) {
+		if (xSemaphoreTake(dust_smphr, portMAX_DELAY)) {
+			++dust_cnt;
+			dust_val += get_dust();
+			xSemaphoreGive(dust_smphr);
+		}
+
+		vTaskDelay( 100 );
+	}
+}
 
 xQueueHandle data_queue = 0;
 
@@ -200,7 +219,7 @@ int thread_tx(void* unused) {
 				data.dust);
 
 		while (!send_data_pb(&data) == 0) {
-			do {vTaskDelay(100);} //wait for a connection the first time...
+			do {vTaskDelay(100);} //wait for a connection...
 			while( !(sl_status&HAS_IP ) );
 		}//try every little bit
 	}
@@ -217,11 +236,22 @@ int thread_sensor_poll(void* unused) {
 	get_light(); //first reading is always buggy
 
 	while (1) {
-#define SENSOR_RATE 10
 		portTickType now = xTaskGetTickCount();
 
 		data.time = get_time();
-		data.dust = get_dust();
+
+		if( xSemaphoreTake( dust_smphr, portMAX_DELAY ) ) {
+			if( dust_cnt != 0 ) {
+				data.dust = dust_val / dust_cnt;
+			} else {
+				data.dust = get_dust();
+			}
+			dust_val = dust_cnt = 0;
+			xSemaphoreGive( dust_smphr );
+		} else {
+			data.dust = get_dust();
+		}
+
 		data.light = get_light();
 		data.humid = get_humid();
 		data.temp = get_temp();
@@ -300,65 +330,6 @@ int Cmd_help(int argc, char *argv[]) {
 	return (0);
 }
 
-int Cmd_protobuftest(int argc, char *argv[]) {
-	/* This is the buffer where we will store our message. */
-	uint8_t buffer[128];
-	size_t message_length;
-	bool status;
-
-	/* Encode our message */
-	{
-		/* Allocate space on the stack to store the message data.
-		 *
-		 * Nanopb generates simple struct definitions for all the messages.
-		 * - check out the contents of simple.pb.h! */
-		SimpleMessage message;
-
-		/* Create a stream that will write to our buffer. */
-		pb_ostream_t stream = pb_ostream_from_buffer(buffer, sizeof(buffer));
-
-		/* Fill in the lucky number */
-		message.lucky_number = 13;
-
-		/* Now we are ready to encode the message! */
-		status = pb_encode(&stream, SimpleMessage_fields, &message);
-		message_length = stream.bytes_written;
-
-		/* Then just check for any errors.. */
-		if (!status) {
-			UARTprintf("Encoding failed: %s\n", PB_GET_ERROR(&stream));
-			return 1;
-		}
-	}
-
-	/* Now we could transmit the message over network, store it in a file or
-	 * wrap it to a pigeon's leg.
-	 */
-
-	/* But because we are lazy, we will just decode it immediately. */
-
-	{
-		/* Allocate space for the decoded message. */
-		SimpleMessage message;
-
-		/* Create a stream that reads from the buffer. */
-		pb_istream_t stream = pb_istream_from_buffer(buffer, message_length);
-
-		/* Now we are ready to decode the message. */
-		status = pb_decode(&stream, SimpleMessage_fields, &message);
-
-		/* Check for errors... */
-		if (!status) {
-			UARTprintf("Decoding failed: %s\n", PB_GET_ERROR(&stream));
-			return 1;
-		}
-
-		/* Print the data contained in the message. */
-		UARTprintf("lucky number %d!\n", message.lucky_number);
-	}
-
-	return 0;
-}
 
 int Cmd_fault(int argc, char *argv[]) {
 	*(int*) (0x40001) = 1; /* error logging test... */
@@ -371,13 +342,14 @@ int Cmd_fault(int argc, char *argv[]) {
 // brief description.
 // ==============================================================================
 tCmdLineEntry g_sCmdTable[] = {
-		{ "help", Cmd_help, "Display list of commands" }, { "?", Cmd_help,
-				"alias for help" },
+		{ "help", Cmd_help, "Display list of commands" },
+		{ "?", Cmd_help,"alias for help" },
 //    { "cpu",      Cmd_cpu,      "Show CPU utilization" },
-		{ "free", Cmd_free, "Report free memory" }, { "connect", Cmd_connect,
-				"Connect to an AP" }, { "ping", Cmd_ping, "Ping a server" }, {
-				"time", Cmd_time, "get ntp time" }, { "status", Cmd_status,
-				"status of simple link" },
+		{ "free", Cmd_free, "Report free memory" },
+		{ "connect", Cmd_connect, "Connect to an AP" },
+		{ "ping", Cmd_ping, "Ping a server" },
+		{ "time", Cmd_time, "get ntp time" },
+		{ "status", Cmd_status, "status of simple link" },
 //    { "mnt",      Cmd_mnt,      "Mount the SD card" },
 //    { "umnt",     Cmd_umnt,     "Unount the SD card" },
 //    { "ls",       Cmd_ls,       "Display list of files" },
@@ -389,18 +361,19 @@ tCmdLineEntry g_sCmdTable[] = {
 //    { "mkfs",     Cmd_mkfs,     "Make filesystem" },
 //    { "pwd",      Cmd_pwd,      "Show current working directory" },
 //    { "cat",      Cmd_cat,      "Show contents of a text file" },
-		{ "fault", Cmd_fault, "Trigger a hard fault" }, { "i2crd", Cmd_i2c_read,
-				"i2c read" }, { "i2cwr", Cmd_i2c_write, "i2c write" }, {
-				"i2crdrg", Cmd_i2c_readreg, "i2c readreg" }, { "i2cwrrg",
-				Cmd_i2c_writereg, "i2c_writereg" },
+		{ "fault", Cmd_fault, "Trigger a hard fault" },
+		{ "i2crd", Cmd_i2c_read,"i2c read" },
+		{ "i2cwr", Cmd_i2c_write, "i2c write" },
+		{ "i2crdrg", Cmd_i2c_readreg, "i2c readreg" },
+        { "i2cwrrg", Cmd_i2c_writereg, "i2c_writereg" },
 
-		{ "humid", Cmd_readhumid, "i2 read humid" }, { "temp", Cmd_readtemp,
-				"i2 read temp" }, { "light", Cmd_readlight, "i2 read light" }, {
-				"proximity", Cmd_readproximity, "i2 read proximity" },
+		{ "humid", Cmd_readhumid, "i2 read humid" },
+		{ "temp", Cmd_readtemp,	"i2 read temp" },
+		{ "light", Cmd_readlight, "i2 read light" },
+		{"proximity", Cmd_readproximity, "i2 read proximity" },
 #if ( configUSE_TRACE_FACILITY == 1 )
 		{ "tasks", Cmd_tasks, "Report stats of all tasks" },
 #endif
-		{ "pb", Cmd_protobuftest, "Test simple protobuf" },
 
 		{ "dust", Cmd_dusttest, "dust sensor test" },
 
@@ -458,13 +431,15 @@ void vUARTTask(void *pvParameters) {
 	}
 
 	 data_queue = xQueueCreate( 60, sizeof( data_t ) );
+	 vSemaphoreCreateBinary( dust_smphr );
 
 	if (data_queue == 0) {
 		UARTprintf("Failed to create the data_queue.\n");
 	}
 
-	xTaskCreate(thread_sensor_poll, "pollTask", 2 * 1024 / 4, NULL, 3, NULL);
-	xTaskCreate(thread_tx, "txTask", 8 * 1024 / 4, NULL, 2, NULL);
+	xTaskCreate(thread_dust, "dustTask", 256 / 4, NULL, 3, NULL);
+	xTaskCreate(thread_sensor_poll, "pollTask", 1 * 1024 / 4, NULL, 3, NULL);
+	xTaskCreate(thread_tx, "txTask", 7 * 1024 / 4, NULL, 2, NULL);
 
 	//checkFaults();
 
