@@ -150,6 +150,60 @@ int Cmd_fs_delete(int argc, char *argv[]) {
 	return (0);
 }
 
+/* Bitlog function
+ * Invented by Tom Lehman at Invivo Research, Inc.,
+ * ca. 1990
+ *
+ * Gives an integer analog of the log function
+ * For large x,
+ *
+ * B(x) = 8*(log(base 2)(x) - 1)
+ */
+
+short bitlog(unsigned long n)
+{
+   short b;
+
+   // shorten computation for small numbers
+   if(n <= 8)
+      return (short)(2 * n);
+
+   // find the highest non-zero bit
+   b=31;
+   while((b > 2) && ((long)n > 0))
+   {
+      --b;
+      n <<= 1;
+   }
+   n &= 0x70000000;
+   n >>= 28;
+   return (short)n + 8 * (b - 1);
+}
+
+
+/* Bitexp function
+ * returns an integer value equivalent to the exponential. For numbers > 16,
+bitexp(x) approx = 2^(x/8 + 1) */
+
+unsigned long bitexp(unsigned short n)
+{
+   unsigned short b = n/8;
+   unsigned long retval;
+
+   // make sure no overflow
+   if(n > 247)
+      return 0xf0000000;
+
+   // shorten computation for small numbers
+   if(n <= 16)
+      return (unsigned long)(n / 2);
+
+   retval = n & 7;
+   retval |= 8;
+
+   return (retval << (b - 2));
+}
+
 unsigned long get_time() {
 	portTickType now = xTaskGetTickCount();
 	static portTickType unix_now = 0;
@@ -185,7 +239,7 @@ int thread_prox(void* unused) {
 	} //try every little bit
 }
 
-#define SENSOR_RATE 60
+#define SENSOR_RATE 10
 
 static unsigned int dust_val=0;
 static unsigned int dust_cnt=0;
@@ -204,6 +258,49 @@ int thread_dust(void* unused) {
 	}
 }
 
+static int light_m2,light_mean, light_cnt,light_log_sum,light_sf;
+static xSemaphoreHandle light_smphr;
+
+static xSemaphoreHandle i2c_smphr;
+
+int thread_light(void* unused) {
+    #define maxval( a, b ) a>b ? a : b
+	#define LIGHT_BUFSZ 10
+	unsigned char buf[LIGHT_BUFSZ];
+	unsigned int idx,i;
+
+	while (1) {
+		portTickType now = xTaskGetTickCount();
+		int light;
+
+		if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
+			light = get_light();
+			xSemaphoreGive(i2c_smphr);
+
+			if (xSemaphoreTake(light_smphr, portMAX_DELAY)) {
+				light_log_sum += bitlog(light);
+				++light_cnt;
+
+				int delta = light - light_mean;
+				light_mean = light_mean + delta/light_cnt;
+				light_m2 = light_m2 + delta * ( light - light_mean);
+				if( light_m2 < 0 ) {
+					light_m2 = 0x7FFFFFFF;
+				}
+
+				//UARTprintf( "%d %d %d %d\n", delta, light_mean, light_m2, light_cnt);
+
+				xSemaphoreGive(light_smphr);
+			}
+		} else {
+			vTaskDelay(100);
+			continue;
+		}
+
+		vTaskDelayUntil(&now, 100 );
+	}
+}
+
 xQueueHandle data_queue = 0;
 
 int thread_tx(void* unused) {
@@ -211,11 +308,12 @@ int thread_tx(void* unused) {
 
 	while (1) {
 		if( data_queue != 0 && !xQueueReceive( data_queue, &( data ), portMAX_DELAY ) ) {
+			vTaskDelay(100);
 			continue;
 		}
 
-		UARTprintf("sending time %d\tlight %d\ttemp %d\thumid %d\tdust %d\n",
-				data.time, data.light, data.temp, data.humid,
+		UARTprintf("sending time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d\n",
+				data.time, data.light, data.light_variability, data.light_tonality, data.temp, data.humid,
 				data.dust);
 
 		while (!send_data_pb(&data) == 0) {
@@ -233,10 +331,9 @@ int thread_sensor_poll(void* unused) {
 
 	data_t data;
 
-	get_light(); //first reading is always buggy
-
 	while (1) {
 		portTickType now = xTaskGetTickCount();
+		int light;
 
 		data.time = get_time();
 
@@ -251,10 +348,27 @@ int thread_sensor_poll(void* unused) {
 		} else {
 			data.dust = get_dust();
 		}
+		if (xSemaphoreTake(light_smphr, portMAX_DELAY)) {
+			light_log_sum /= light_cnt;
+			light_sf = (light_mean<<8) / bitexp( light_log_sum );
 
-		data.light = get_light();
-		data.humid = get_humid();
-		data.temp = get_temp();
+			int light_var = light_m2 / (light_cnt-1);
+
+			//UARTprintf( "%d lightsf %d var %d cnt\n", light_sf, light_var, light_cnt );
+
+			data.light_variability = light_var;
+			data.light_tonality = light_sf;
+			data.light = light_mean;
+			light_m2 = light_mean = light_cnt = light_log_sum = light_sf = 0;
+			xSemaphoreGive(light_smphr);
+		}
+		if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
+			data.humid = get_humid();
+			data.temp = get_temp();
+			xSemaphoreGive(i2c_smphr);
+		} else {
+			continue;
+		}
 		UARTprintf("collecting time %d\tlight %d\ttemp %d\thumid %d\tdust %d\n",
 				data.time, data.light, data.temp, data.humid,
 				data.dust);
@@ -432,11 +546,14 @@ void vUARTTask(void *pvParameters) {
 
 	 data_queue = xQueueCreate( 60, sizeof( data_t ) );
 	 vSemaphoreCreateBinary( dust_smphr );
+	 vSemaphoreCreateBinary( light_smphr );
+	 vSemaphoreCreateBinary( i2c_smphr );
 
 	if (data_queue == 0) {
 		UARTprintf("Failed to create the data_queue.\n");
 	}
 
+	xTaskCreate(thread_light, "lightTask", 5 * 1024 / 4, NULL, 3, NULL);
 	xTaskCreate(thread_dust, "dustTask", 256 / 4, NULL, 3, NULL);
 	xTaskCreate(thread_sensor_poll, "pollTask", 1 * 1024 / 4, NULL, 3, NULL);
 	xTaskCreate(thread_tx, "txTask", 7 * 1024 / 4, NULL, 2, NULL);

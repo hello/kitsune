@@ -265,26 +265,6 @@
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/protobuf/periodic.pb.h</locationURI>
 		</link>
-		<link>
-			<name>protobuf/simple.pb</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/protobuf/simple.pb</locationURI>
-		</link>
-		<link>
-			<name>protobuf/simple.pb.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/protobuf/simple.pb.c</locationURI>
-		</link>
-		<link>
-			<name>protobuf/simple.pb.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/protobuf/simple.pb.h</locationURI>
-		</link>
-		<link>
-			<name>protobuf/simple.proto</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/protobuf/simple.proto</locationURI>
-		</link>
 	</linkedResources>
 	<variableList>
 		<variable>

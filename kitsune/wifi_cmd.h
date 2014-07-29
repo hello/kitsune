@@ -3,7 +3,7 @@
 
 typedef struct {
 	unsigned int time;
-	int light, temp, humid, dust;
+	int light, light_variability, light_tonality, temp, humid, dust;
 } data_t;
 
 extern

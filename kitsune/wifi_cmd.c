@@ -362,7 +362,7 @@ int send_data_pb(data_t * data) {
 	sockaddr sAddr;
 	sockaddr_in sLocalAddr;
 	int iAddrSize;
-	unsigned long ipaddr;
+	static unsigned long ipaddr = 0;
 	int numbytes = 0;
 
 	timeval tv;
@@ -375,6 +375,8 @@ int send_data_pb(data_t * data) {
 	msg.dust = data->dust;
 	msg.humidity = data->humid;
 	msg.light = data->light;
+	msg.light_variability = data->light_variability;
+	msg.light_tonality = data->light_tonality;
 	msg.temperature = data->temp;
 	msg.unix_time = data->time;
 	msg.name.funcs.encode = encode_name;
@@ -416,16 +418,18 @@ int send_data_pb(data_t * data) {
 
 #define DATA_SERVER "in.skeletor.com"
 #if !LOCAL_TEST
-	if (!(rv = gethostbyname(DATA_SERVER, strlen(DATA_SERVER), &ipaddr,
-			SL_AF_INET))) {
-	/*	UARTprintf(
-				"Get Host IP succeeded.\n\rHost: %s IP: %d.%d.%d.%d \n\r\n\r",
-				DATA_SERVER, SL_IPV4_BYTE(ipaddr, 3), SL_IPV4_BYTE(ipaddr, 2),
-				SL_IPV4_BYTE(ipaddr, 1), SL_IPV4_BYTE(ipaddr, 0));
-				*/
-	} else {
-		UARTprintf("failed to resolve ntp addr rv %d\n");
-		return -1;
+	if (ipaddr == 0) {
+		if (!(rv = gethostbyname(DATA_SERVER, strlen(DATA_SERVER), &ipaddr,
+		SL_AF_INET))) {
+			/*	UARTprintf(
+			 "Get Host IP succeeded.\n\rHost: %s IP: %d.%d.%d.%d \n\r\n\r",
+			 DATA_SERVER, SL_IPV4_BYTE(ipaddr, 3), SL_IPV4_BYTE(ipaddr, 2),
+			 SL_IPV4_BYTE(ipaddr, 1), SL_IPV4_BYTE(ipaddr, 0));
+			 */
+		} else {
+			UARTprintf("failed to resolve ntp addr rv %d\n");
+			return -1;
+		}
 	}
 
 	sAddr.sa_family = AF_INET;
