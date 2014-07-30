@@ -323,6 +323,7 @@ int thread_tx(void* unused) {
 	}
 }
 
+
 int thread_sensor_poll(void* unused) {
 
 	//
@@ -369,8 +370,8 @@ int thread_sensor_poll(void* unused) {
 		} else {
 			continue;
 		}
-		UARTprintf("collecting time %d\tlight %d\ttemp %d\thumid %d\tdust %d\n",
-				data.time, data.light, data.temp, data.humid,
+		UARTprintf("collecting time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d\n",
+				data.time, data.light, data.light_variability, data.light_tonality, data.temp, data.humid,
 				data.dust);
 
 		    // ...
@@ -515,8 +516,6 @@ tCmdLineEntry g_sCmdTable[] = {
 extern xSemaphoreHandle g_xRxLineSemaphore;
 void UARTStdioIntHandler(void);
 
-#define KIT_VER "1"
-
 void vUARTTask(void *pvParameters) {
 	char cCmdBuf[64];
 	int nStatus;
@@ -533,7 +532,7 @@ void vUARTTask(void *pvParameters) {
 	unsigned char mac_len;
 	sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
 
-	UARTprintf("\n\nFreeRTOS %s, %s, %s %x%x%x%x%x%x\n",
+	UARTprintf("\n\nFreeRTOS %s, %d, %s %x%x%x%x%x%x\n",
 	tskKERNEL_VERSION_NUMBER, KIT_VER, MORPH_NAME, mac[0], mac[1], mac[2],
 			mac[3], mac[4], mac[5]);
 	UARTprintf("\n? for help\n");

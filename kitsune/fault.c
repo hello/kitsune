@@ -7,6 +7,7 @@
 #include "hw_nvic.h"
 #include "hw_types.h"
 
+#include "wifi_cmd.h"
 #include "uartstdio.h"
 #include "fault.h"
 
@@ -59,7 +60,7 @@ static const tFaultMap sMemFaultMap[4] =
 //
 //*****************************************************************************
 void faultPrinter( faultInfo* f ) {
-	int i;
+    int i;
     //
     // Check for any bits set in the usage fault field.  Print a human
     // readable string for any bits that are set.
@@ -144,22 +145,23 @@ FaultDecoder(unsigned long *pulExceptionFrame)
 {
     unsigned int i;
 
-    static faultInfo f;
+    faultInfo * f = (faultInfo*)SHUTDOWN_MEM;
+
+    f->version = KIT_VER;
 
     //
     // Read the fault status register.
     //
-    f.faultStatus = HWREG(NVIC_FAULT_STAT);
-
+    f->faultStatus = HWREG(NVIC_FAULT_STAT);
     //
     // Check for any bits set in the bus fault field.  Print a human
     // readable string for any bits that are set.
     //
-    if(f.faultStatus & 0x0000ff00)
+    if(f->faultStatus & 0x0000ff00)
     {
-        if(f.faultStatus & NVIC_FAULT_STAT_BFARV)
+        if(f->faultStatus & NVIC_FAULT_STAT_BFARV)
         {
-        	f.busFaultAddr = HWREG(NVIC_FAULT_ADDR);
+            f->busFaultAddr = HWREG(NVIC_FAULT_ADDR);
         }
     }
 
@@ -167,22 +169,21 @@ FaultDecoder(unsigned long *pulExceptionFrame)
     // Check for any bits set in the memory fault field.  Print a human
     // readable string for any bits that are set.
     //
-    if(f.faultStatus & 0x000000ff)
+    if(f->faultStatus & 0x000000ff)
     {
-        if(f.faultStatus & NVIC_FAULT_STAT_MMARV)
+        if(f->faultStatus & NVIC_FAULT_STAT_MMARV)
         {
-        	f.mmuAddr = HWREG(NVIC_MM_ADDR);
+            f->mmuAddr = HWREG(NVIC_MM_ADDR);
         }
     }
 
     for( i=0;i<8;++i )
-    	f.exceptionFrame[i] = pulExceptionFrame[i];
+        f->exceptionFrame[i] = pulExceptionFrame[i];
 
-    f.magic = SHUTDOWN_MAGIC;
+    f->magic = SHUTDOWN_MAGIC;
 
-    //todo flash it FlashProgram((void*)&f, SHUTDOWN_MEM, sizeof(f));
-    //till then just print it out.
-    while(1) {faultPrinter(&f);};
+//    faultPrinter(&f);
+    PRCMMCUReset(1);
 }
 
 //*****************************************************************************
