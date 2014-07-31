@@ -133,7 +133,8 @@ int get_dust() {
 //
 	while (++uiIndex < SAMPLES) {
 		if (ADCFIFOLvlGet(ADC_BASE, uiChannel)) {
-			ulSample = ADCFIFORead(ADC_BASE, uiChannel) & 0x3FFF;
+			ulSample = ADCFIFORead(ADC_BASE, uiChannel) & 0x3FFC;
+			ulSample >>= 2;
 			if (ulSample > max) {
 				max = ulSample;
 			}

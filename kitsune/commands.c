@@ -239,7 +239,7 @@ int thread_prox(void* unused) {
 	} //try every little bit
 }
 
-#define SENSOR_RATE 10
+#define SENSOR_RATE 60
 
 static unsigned int dust_val=0;
 static unsigned int dust_cnt=0;
