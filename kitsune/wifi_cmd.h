@@ -26,8 +26,8 @@ int Cmd_mode(int argc, char*argv[]);
 
 //#define MORPH_NAME "KingShy's morpheus"
 
-#define MORPH_NAME "Chris's morpheus"
-//#define MORPH_NAME "test morpheus"
+//#define MORPH_NAME "Chris's morpheus"
+#define MORPH_NAME "test morpheus"
 //#define MORPH_NAME "test morpheus 80"
 #define KIT_VER 2
 

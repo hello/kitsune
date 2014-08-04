@@ -407,6 +407,7 @@ int send_data_pb(data_t * data) {
     int send_length;
 
     //build the message
+    msg.firmware_version = 2;
     msg.dust = data->dust;
     msg.humidity = data->humid;
     msg.light = data->light;
