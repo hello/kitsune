@@ -266,6 +266,11 @@ void main()
   PinMuxConfig();
 
   //
+  // Set the SD card clock as output pin
+  //
+  MAP_PinDirModeSet(PIN_07,PIN_DIR_MODE_OUT);
+
+  //
   // Start the SimpleLink Host
   //
   VStartSimpleLinkSpawnTask(SPAWN_TASK_PRIORITY);
