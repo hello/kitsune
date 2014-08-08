@@ -254,17 +254,20 @@ void mel_freq(short f[], int n, int b ) {
 	short mel_scale[16] = {0,20,160,394,670,1000,1420,1900,2450,3120,4000,5100,6600,9000,14000,32000};
 	int i;
 	int m=0;
+	int num=0;
 	
 	for( i=0; i<n/4; ++i ) {
 		f[m] += f[i+1];
+		++num;
 		if( (i+1)*b > mel_scale[m] ) {
 			if( m+1 == sizeof(mel_scale) / sizeof(short) )
 				break;
-			f[m] = bitlog( f[m] );
+			f[m] = bitlog( f[m]/num );
 			++m;
+			num = 0;
 		}
 	}
-    f[m] = bitlog( f[m] );
+    f[m] = bitlog( f[m] / num );
 }
 
 #if 0

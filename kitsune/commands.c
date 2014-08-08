@@ -396,6 +396,40 @@ int Cmd_help(int argc, char *argv[]) {
 
 int Cmd_fault(int argc, char *argv[]) {
 	*(int*) (0x40001) = 1; /* error logging test... */
+int Cmd_mel(int argc, char *argv[]) {
+//	*(int*) (0x40001) = 1; /* error logging test... */
+
+int i;
+	unsigned int mel,fpmel,freq;
+
+	freq = 250;
+
+#if 0
+	for( int i=0; i<50; ++i ) {
+		mel = 1127 * log( 1.0 + (double)freq / 700.0 );
+		printf( "%d,", mel );
+		freq+=250;
+	}
+#endif // 0
+
+	short s[1024];
+
+    for(  i=0; i<1024; ++i ) {
+		s[i] = fxd_sin( i*10 )/4 + fxd_sin( i*20 )/4
+			 + fxd_sin( i*100 )/4;
+	}
+
+//	norm(s, 1024);
+	fix_window( s, 1024 );
+	fftr( s, 10 );
+	psd( s, 1024 );
+	mel_freq( s, 1024, 44100/512 );
+
+    for(  i=0; i<16; ++i ) {
+    	UARTprintf( "%d ", s[i]);
+	}
+	UARTprintf( "\n");
+
 
 	return (0);
 }
@@ -446,6 +480,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		//{ "readout", Cmd_readout_data, "read out sensor data log" },
 		{ "sl", Cmd_sl, "start smart config" },
 		{ "mode", Cmd_mode, "set the ap/station mode" },
+		{ "mel", Cmd_mel, "test the mel calculation" },
 
 		{ 0, 0, 0 } };
 
