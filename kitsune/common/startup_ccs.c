@@ -47,7 +47,9 @@
 #include "uart.h"
 #include "prcm.h"
 #include "pin.h"
+
 #include "fault.h"
+#include "uartstdio.h"
 
 //*****************************************************************************
 //

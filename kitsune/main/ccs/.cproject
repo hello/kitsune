@@ -32,6 +32,7 @@
 							<tool id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.770902276" name="ARM Compiler" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug">
 								<option id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.DEFINE.1000657986" name="Pre-define NAME (--define, -D)" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.DEFINE" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="ccs"/>
+									<listOptionValue builtIn="false" value="ARM"/>
 									<listOptionValue builtIn="false" value="CC3200_ES_1_2_1"/>
 									<listOptionValue builtIn="false" value="NON_NETWORK"/>
 									<listOptionValue builtIn="false" value="USE_FREERTOS"/>

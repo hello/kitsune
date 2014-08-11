@@ -24,6 +24,9 @@ int Cmd_time(int argc, char*argv[]);
 int Cmd_sl(int argc, char*argv[]);
 int Cmd_mode(int argc, char*argv[]);
 
+unsigned long unix_time();
+int send_data_pb(data_t * data);
+
 //#define MORPH_NAME "KingShy's morpheus"
 
 //#define MORPH_NAME "Chris's morpheus"

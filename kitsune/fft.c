@@ -1,5 +1,6 @@
 
 #include "fft.h"
+#include "stdlib.h" //for abs
 
 /* Bitlog function
  * Invented by Tom Lehman at Invivo Research, Inc.,
@@ -111,6 +112,7 @@ short fxd_sin( unsigned short x ) {
 	if( x <= N_WAVE/4 ) {
 		return sin_lut[x];
 	}
+	return 0;
 }
 
 
@@ -239,14 +241,11 @@ void fix_window(short fr[], int n)
 
 void psd(short f[], int n)
 {
-    int i,n2, x;
-
-	n2 = n/2;
+    int i;
+	int n2 = n/2;
     for (i=0; i<n/2; ++i) {
 		//f[i] = fxd_sqrt( fix_mpy(f[i],f[i]) + fix_mpy(f[i+n2],f[i+n2]) );
-		f[i] = f[i] < 0 ? -f[i] : f[i];
-		f[i+n2] = f[i+n2] < 0 ? -f[i+n2] : f[i+n2];
-		f[i] = f[i] + f[i+n2];
+		f[i] = abs(f[i]) + abs(f[i+n2]);
     }
 }
 
@@ -255,6 +254,14 @@ void mel_freq(short f[], int n, int b ) {
 	int i;
 	int m=0;
 	int num=0;
+
+#if 0 //For generating mel scales
+	for( int i=0; i<50; ++i ) {
+		mel = 1127 * log( 1.0 + (double)freq / 700.0 );
+		printf( "%d,", mel );
+		freq+=250;
+	}
+#endif // 0
 	
 	for( i=0; i<n/4; ++i ) {
 		f[m] += f[i+1];

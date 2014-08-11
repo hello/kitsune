@@ -50,7 +50,6 @@ extern "C" {
 
 #define NONOS_RET_OK                            (0)
 #define NONOS_RET_ERR                           (0xFF)
-#define OSI_OK  NONOS_RET_OK
 
 
 #define __NON_OS_SYNC_OBJ_CLEAR_VALUE				0x11

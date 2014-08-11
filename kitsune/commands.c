@@ -17,6 +17,7 @@
 #include <uart.h>
 #include <stdarg.h>
 #include <stdlib.h>
+#include "sdhost.h"
 #include "rom_map.h"
 
 #include "wlan.h"
@@ -118,7 +119,7 @@ static unsigned int dust_val=0;
 static unsigned int dust_cnt=0;
 xSemaphoreHandle dust_smphr;
 
-int thread_dust(void* unused) {
+void thread_dust(void* unused) {
     #define maxval( a, b ) a>b ? a : b
 	while (1) {
 		if (xSemaphoreTake(dust_smphr, portMAX_DELAY)) {
@@ -136,12 +137,7 @@ static xSemaphoreHandle light_smphr;
 
 static xSemaphoreHandle i2c_smphr;
 
-int thread_light(void* unused) {
-    #define maxval( a, b ) a>b ? a : b
-	#define LIGHT_BUFSZ 10
-	unsigned char buf[LIGHT_BUFSZ];
-	unsigned int idx,i;
-
+void thread_light(void* unused) {
 	while (1) {
 		portTickType now = xTaskGetTickCount();
 		int light;
@@ -176,7 +172,7 @@ int thread_light(void* unused) {
 
 xQueueHandle data_queue = 0;
 
-int thread_tx(void* unused) {
+void thread_tx(void* unused) {
 	data_t data;
 
 	while (1) {
@@ -197,7 +193,7 @@ int thread_tx(void* unused) {
 }
 
 
-int thread_sensor_poll(void* unused) {
+void thread_sensor_poll(void* unused) {
 
 	//
 	// Print some header text.
@@ -207,7 +203,6 @@ int thread_sensor_poll(void* unused) {
 
 	while (1) {
 		portTickType now = xTaskGetTickCount();
-		int light;
 
 		data.time = get_time();
 
@@ -320,21 +315,11 @@ int Cmd_help(int argc, char *argv[]) {
 
 int Cmd_fault(int argc, char *argv[]) {
 	*(int*) (0x40001) = 1; /* error logging test... */
+	return 0;
 }
 int Cmd_mel(int argc, char *argv[]) {
 
 	int i;
-	unsigned int mel, fpmel, freq;
-
-	freq = 250;
-
-#if 0
-	for( int i=0; i<50; ++i ) {
-		mel = 1127 * log( 1.0 + (double)freq / 700.0 );
-		printf( "%d,", mel );
-		freq+=250;
-	}
-#endif // 0
 	short s[1024];
 
 	for (i = 0; i < 1024; ++i) {
@@ -448,7 +433,7 @@ void vUARTTask(void *pvParameters) {
     MAP_SDHostSetExpClk(SDHOST_BASE,MAP_PRCMPeripheralClockGet(PRCM_SDHOST),15000000);
     Cmd_mnt(0,0);
 
-	vTaskDelayUntil(now, 1000);
+	vTaskDelayUntil(&now, 1000);
 	if (sl_mode == ROLE_AP || !sl_status) {
 		Cmd_sl(0, 0);
 	}

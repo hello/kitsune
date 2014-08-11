@@ -248,8 +248,6 @@ unsigned long unix_time() {
         close(sock);
         return 0;    // MODE is not server, abort
     } else {
-        char iIndex;
-
         //
         // Getting the data from the Transmit Timestamp (seconds) field
         // This is the time at which the reply departed the
@@ -308,7 +306,7 @@ int Cmd_mode(int argc, char*argv[]) {
 
 bool encode_mac(pb_ostream_t *stream, const pb_field_t *field,
         void * const *arg) {
-    unsigned int tagtype = (7 << 3) | 0x2; // field_number << 3 | 2 (length deliminated)
+    unsigned char tagtype = (7 << 3) | 0x2; // field_number << 3 | 2 (length deliminated)
     unsigned char mac[6];
     unsigned char mac_len;
     sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
@@ -318,7 +316,7 @@ bool encode_mac(pb_ostream_t *stream, const pb_field_t *field,
 
 bool encode_name(pb_ostream_t *stream, const pb_field_t *field,
         void * const *arg) {
-    unsigned int tagtype = (6 << 3) | 0x2; // field_number << 3 | 2 (length deliminated)
+    unsigned char tagtype = (6 << 3) | 0x2; // field_number << 3 | 2 (length deliminated)
     return pb_write(stream, &tagtype, 1)
             && pb_encode_string(stream, (uint8_t*) MORPH_NAME,
                     strlen(MORPH_NAME));
@@ -358,7 +356,7 @@ static bool connected = false;
 
 #include "fault.h"
 
-int reportFaults() {
+void reportFaults() {
 #define minval( a,b ) a < b ? a : b
 #define BUF_SZ 600
     size_t message_length;
@@ -396,8 +394,6 @@ int send_data_pb(data_t * data) {
 
     int rv = 0;
     sockaddr sAddr;
-    sockaddr_in sLocalAddr;
-    int iAddrSize;
     int numbytes = 0;
 
     timeval tv;

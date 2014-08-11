@@ -6,6 +6,7 @@
 
 #include "hw_nvic.h"
 #include "hw_types.h"
+#include "prcm.h"
 
 #include "wifi_cmd.h"
 #include "uartstdio.h"
@@ -219,7 +220,7 @@ FaultISR(void)
     bx      lr
 }
 #endif
-#if defined(ccs)
+#if 1//defined(ccs)
 void
 FaultISR(void)
 {

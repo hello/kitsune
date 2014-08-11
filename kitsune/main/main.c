@@ -253,9 +253,6 @@ BoardInit(void)
 //*****************************************************************************
 void main()
 {
-
-    unsigned char policyVal;
-
   //
   // Board Initialization
   //
