@@ -46,6 +46,11 @@
 			<locationURI>virtual:/virtual</locationURI>
 		</link>
 		<link>
+			<name>diskio.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/diskio.c</locationURI>
+		</link>
+		<link>
 			<name>dust_cmd.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/dust_cmd.c</locationURI>
@@ -54,6 +59,16 @@
 			<name>dust_cmd.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/dust_cmd.h</locationURI>
+		</link>
+		<link>
+			<name>fatfs_cmd.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/fatfs_cmd.c</locationURI>
+		</link>
+		<link>
+			<name>fatfs_cmd.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/fatfs_cmd.h</locationURI>
 		</link>
 		<link>
 			<name>fault.c</name>

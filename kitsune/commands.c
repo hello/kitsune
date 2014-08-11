@@ -19,6 +19,8 @@
 #include <stdlib.h>
 #include "rom_map.h"
 
+#include "wlan.h"
+
 /* FreeRTOS includes */
 #include "FreeRTOS.h"
 #include "task.h"
@@ -34,6 +36,7 @@
 #include "wifi_cmd.h"
 #include "i2c_cmd.h"
 #include "dust_cmd.h"
+#include "fatfs_cmd.h"
 
 #include "fft.h"
 
@@ -73,84 +76,6 @@ int Cmd_free(int argc, char *argv[]) {
 	return (0);
 }
 
-#include "fs.h"
-
-int Cmd_fs_write(int argc, char *argv[]) {
-	//
-	// Print some header text.
-	//
-	unsigned long tok;
-	int err;
-	long hndl, bytes;
-	SlFsFileInfo_t info;
-
-	sl_FsGetInfo(argv[1], tok, &info);
-
-	if (sl_FsOpen(argv[1],
-	FS_MODE_OPEN_WRITE, &tok, &hndl)) {
-		UARTprintf("error opening file, trying to create\n");
-
-		if (sl_FsOpen(argv[1],
-				FS_MODE_OPEN_CREATE(65535, _FS_FILE_OPEN_FLAG_COMMIT), &tok,
-				&hndl)) {
-			UARTprintf("error opening for write\n");
-			return -1;
-		}
-	}
-
-	bytes = sl_FsWrite(hndl, info.FileLen, argv[2], strlen(argv[2]));
-	UARTprintf("wrote to the file %d bytes\n", bytes);
-
-	sl_FsClose(hndl, 0, 0, 0);
-
-	// Return success.
-	return (0);
-}
-int Cmd_fs_read(int argc, char *argv[]) {
-	//
-	// Print some header text.
-	//
-#define minval( a,b ) a < b ? a : b
-#define BUF_SZ 600
-	unsigned long tok;
-	long hndl, err, bytes, i;
-	SlFsFileInfo_t info;
-	char buffer[BUF_SZ];
-
-	sl_FsGetInfo(argv[1], tok, &info);
-
-	if (err = sl_FsOpen(argv[1], FS_MODE_OPEN_READ, &tok, &hndl)) {
-		UARTprintf("error opening for read %d\n", err);
-		return -1;
-	}
-
-	if (bytes = sl_FsRead(hndl, 0, buffer, minval(info.FileLen, BUF_SZ))) {
-		UARTprintf("read %d bytes\n", bytes);
-	}
-
-	sl_FsClose(hndl, 0, 0, 0);
-
-	for (i = 0; i < bytes; ++i) {
-		UARTprintf("%x", buffer[i]);
-	}
-
-	// Return success.
-	return (0);
-}
-int Cmd_fs_delete(int argc, char *argv[]) {
-	//
-	// Print some header text.
-	//
-	int err;
-
-	if (err = sl_FsDel(argv[1], 0)) {
-		UARTprintf("error %d\n", err);
-		return -1;
-	}
-
-	// Return success.
-	return (0);
-}
 
 unsigned long get_time() {
 	portTickType now = xTaskGetTickCount();
@@ -393,14 +318,13 @@ int Cmd_help(int argc, char *argv[]) {
 	return (0);
 }
 
-
 int Cmd_fault(int argc, char *argv[]) {
 	*(int*) (0x40001) = 1; /* error logging test... */
+}
 int Cmd_mel(int argc, char *argv[]) {
-//	*(int*) (0x40001) = 1; /* error logging test... */
 
-int i;
-	unsigned int mel,fpmel,freq;
+	int i;
+	unsigned int mel, fpmel, freq;
 
 	freq = 250;
 
@@ -410,26 +334,23 @@ int i;
 		printf( "%d,", mel );
 		freq+=250;
 	}
-#endif // 0
-
+#endif // 0
 	short s[1024];
 
-    for(  i=0; i<1024; ++i ) {
-		s[i] = fxd_sin( i*10 )/4 + fxd_sin( i*20 )/4
-			 + fxd_sin( i*100 )/4;
+	for (i = 0; i < 1024; ++i) {
+		s[i] = fxd_sin(i * 10) / 4 + fxd_sin(i * 20) / 4 + fxd_sin(i * 100) / 4;
 	}
 
 //	norm(s, 1024);
-	fix_window( s, 1024 );
-	fftr( s, 10 );
-	psd( s, 1024 );
-	mel_freq( s, 1024, 44100/512 );
+	fix_window(s, 1024);
+	fftr(s, 10);
+	psd(s, 1024);
+	mel_freq(s, 1024, 44100 / 512);
 
-    for(  i=0; i<16; ++i ) {
-    	UARTprintf( "%d ", s[i]);
+	for (i = 0; i < 16; ++i) {
+		UARTprintf("%d ", s[i]);
 	}
-	UARTprintf( "\n");
-
+	UARTprintf("\n");
 
 	return (0);
 }
@@ -447,17 +368,17 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "ping", Cmd_ping, "Ping a server" },
 		{ "time", Cmd_time, "get ntp time" },
 		{ "status", Cmd_status, "status of simple link" },
-//    { "mnt",      Cmd_mnt,      "Mount the SD card" },
-//    { "umnt",     Cmd_umnt,     "Unount the SD card" },
-//    { "ls",       Cmd_ls,       "Display list of files" },
-//    { "chdir",    Cmd_cd,       "Change directory" },
-//    { "cd",       Cmd_cd,       "alias for chdir" },
-//    { "mkdir",    Cmd_mkdir,    "make a directory" },
-//    { "rm",       Cmd_rm,       "Remove file" },
-//    { "write",    Cmd_write,    "Write some text to a file" },
-//    { "mkfs",     Cmd_mkfs,     "Make filesystem" },
-//    { "pwd",      Cmd_pwd,      "Show current working directory" },
-//    { "cat",      Cmd_cat,      "Show contents of a text file" },
+    { "mnt",      Cmd_mnt,      "Mount the SD card" },
+    { "umnt",     Cmd_umnt,     "Unount the SD card" },
+    { "ls",       Cmd_ls,       "Display list of files" },
+    { "chdir",    Cmd_cd,       "Change directory" },
+    { "cd",       Cmd_cd,       "alias for chdir" },
+    { "mkdir",    Cmd_mkdir,    "make a directory" },
+    { "rm",       Cmd_rm,       "Remove file" },
+    { "write",    Cmd_write,    "Write some text to a file" },
+    { "mkfs",     Cmd_mkfs,     "Make filesystem" },
+    { "pwd",      Cmd_pwd,      "Show current working directory" },
+    { "cat",      Cmd_cat,      "Show contents of a text file" },
 		{ "fault", Cmd_fault, "Trigger a hard fault" },
 		{ "i2crd", Cmd_i2c_read,"i2c read" },
 		{ "i2cwr", Cmd_i2c_write, "i2c write" },
@@ -474,10 +395,6 @@ tCmdLineEntry g_sCmdTable[] = {
 
 		{ "dust", Cmd_dusttest, "dust sensor test" },
 
-		{ "fswr", Cmd_fs_write, "fs write" },
-		{ "fsrd", Cmd_fs_read, "fs read" },
-		{ "fsdl", Cmd_fs_delete, "fs delete" },
-		//{ "readout", Cmd_readout_data, "read out sensor data log" },
 		{ "sl", Cmd_sl, "start smart config" },
 		{ "mode", Cmd_mode, "set the ap/station mode" },
 		{ "mel", Cmd_mel, "test the mel calculation" },
@@ -502,6 +419,7 @@ void UARTStdioIntHandler(void);
 void vUARTTask(void *pvParameters) {
 	char cCmdBuf[64];
 	int nStatus;
+	portTickType now;
 
 	//
 	// Initialize the UART for console I/O.
@@ -510,6 +428,7 @@ void vUARTTask(void *pvParameters) {
 
 	UARTIntRegister(UARTA0_BASE, UARTStdioIntHandler);
 
+	now = xTaskGetTickCount();
 	sl_mode = sl_Start(NULL, NULL, NULL);
 	unsigned char mac[6];
 	unsigned char mac_len;
@@ -521,7 +440,15 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("\n? for help\n");
 	UARTprintf("> ");
 
-	vTaskDelay(1000);
+    // SDCARD INITIALIZATION
+    // Enable MMCHS, Reset MMCHS, Configure MMCHS, Configure card clock, mount
+    MAP_PRCMPeripheralClkEnable(PRCM_SDHOST,PRCM_RUN_MODE_CLK);
+    MAP_PRCMPeripheralReset(PRCM_SDHOST);
+    MAP_SDHostInit(SDHOST_BASE);
+    MAP_SDHostSetExpClk(SDHOST_BASE,MAP_PRCMPeripheralClockGet(PRCM_SDHOST),15000000);
+    Cmd_mnt(0,0);
+
+	vTaskDelayUntil(now, 1000);
 	if (sl_mode == ROLE_AP || !sl_status) {
 		Cmd_sl(0, 0);
 	}
