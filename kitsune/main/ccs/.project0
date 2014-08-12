@@ -46,11 +46,6 @@
 			<locationURI>virtual:/virtual</locationURI>
 		</link>
 		<link>
-			<name>diskio.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/diskio.c</locationURI>
-		</link>
-		<link>
 			<name>dust_cmd.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/dust_cmd.c</locationURI>
@@ -61,16 +56,6 @@
 			<locationURI>PARENT-2-PROJECT_LOC/dust_cmd.h</locationURI>
 		</link>
 		<link>
-			<name>fatfs_cmd.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/fatfs_cmd.c</locationURI>
-		</link>
-		<link>
-			<name>fatfs_cmd.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/fatfs_cmd.h</locationURI>
-		</link>
-		<link>
 			<name>fault.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/fault.c</locationURI>
@@ -79,16 +64,6 @@
 			<name>fault.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/fault.h</locationURI>
-		</link>
-		<link>
-			<name>fft.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/fft.c</locationURI>
-		</link>
-		<link>
-			<name>fft.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/fft.h</locationURI>
 		</link>
 		<link>
 			<name>i2c_cmd.c</name>
@@ -129,16 +104,6 @@
 			<name>readme.txt</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/readme.txt</locationURI>
-		</link>
-		<link>
-			<name>spi_cmd.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/spi_cmd.c</locationURI>
-		</link>
-		<link>
-			<name>spi_cmd.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/spi_cmd.h</locationURI>
 		</link>
 		<link>
 			<name>uartstdio.c</name>
@@ -291,14 +256,24 @@
 			<locationURI>PARENT-2-PROJECT_LOC/nanopb/pb_encode.h</locationURI>
 		</link>
 		<link>
-			<name>protobuf/periodic.pb.c</name>
+			<name>protobuf/simple.pb</name>
 			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/protobuf/periodic.pb.c</locationURI>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/simple.pb</locationURI>
 		</link>
 		<link>
-			<name>protobuf/periodic.pb.h</name>
+			<name>protobuf/simple.pb.c</name>
 			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/protobuf/periodic.pb.h</locationURI>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/simple.pb.c</locationURI>
+		</link>
+		<link>
+			<name>protobuf/simple.pb.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/simple.pb.h</locationURI>
+		</link>
+		<link>
+			<name>protobuf/simple.proto</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/simple.proto</locationURI>
 		</link>
 	</linkedResources>
 	<variableList>

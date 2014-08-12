@@ -38,6 +38,7 @@
 #include "i2c_cmd.h"
 #include "dust_cmd.h"
 #include "fatfs_cmd.h"
+#include "spi_cmd.h"
 
 #include "fft.h"
 
@@ -384,6 +385,10 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "mode", Cmd_mode, "set the ap/station mode" },
 		{ "mel", Cmd_mel, "test the mel calculation" },
 
+		{ "spird", Cmd_spi_read,"spi read" },
+		{ "spiwr", Cmd_spi_write, "spi write" },
+		{ "spirst", Cmd_spi_reset, "spi reset" },
+
 		{ 0, 0, 0 } };
 
 //#include "fault.h"
@@ -432,6 +437,9 @@ void vUARTTask(void *pvParameters) {
     MAP_SDHostInit(SDHOST_BASE);
     MAP_SDHostSetExpClk(SDHOST_BASE,MAP_PRCMPeripheralClockGet(PRCM_SDHOST),15000000);
     Cmd_mnt(0,0);
+
+    //INIT SPI
+    spi_init();
 
 	vTaskDelayUntil(&now, 1000);
 	if (sl_mode == ROLE_AP || !sl_status) {
