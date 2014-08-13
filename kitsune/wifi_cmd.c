@@ -6,6 +6,8 @@
 
 #include "uartstdio.h"
 
+#include "wlan.h"
+#include "socket.h"
 #include "simplelink.h"
 #include "protocol.h"
 #include "wifi_cmd.h"
@@ -42,6 +44,7 @@ void sl_HttpServerCallback(SlHttpServerEvent_t *pSlHttpServerEvent,
 //****************************************************************************
 void sl_WlanEvtHdlr(SlWlanEvent_t *pSlWlanEvent) {
     switch (pSlWlanEvent->Event) {
+#if 0 //todo bring this back after ti realises they've mucked it up
     case SL_WLAN_SMART_CONFIG_START_EVENT:
         /* SmartConfig operation finished */
         /*The new SSID that was acquired is: pWlanEventHandler->EventData.smartConfigStartResponse.ssid */
@@ -51,6 +54,7 @@ void sl_WlanEvtHdlr(SlWlanEvent_t *pSlWlanEvent) {
          */
         UARTprintf("SL_WLAN_SMART_CONFIG_START_EVENT\n\r");
         break;
+#endif
     case SL_WLAN_SMART_CONFIG_STOP_EVENT:
         UARTprintf("SL_WLAN_SMART_CONFIG_STOP_EVENT\n\r");
         break;
@@ -81,13 +85,13 @@ void sl_WlanEvtHdlr(SlWlanEvent_t *pSlWlanEvent) {
 void sl_NetAppEvtHdlr(SlNetAppEvent_t *pNetAppEvent) {
 
     switch (pNetAppEvent->Event) {
-    case SL_NETAPP_IPV4_ACQUIRED:
-    case SL_NETAPP_IPV6_ACQUIRED:
+    case SL_NETAPP_IPV4_IPACQUIRED_EVENT:
+    case SL_NETAPP_IPV6_IPACQUIRED_EVENT:
         UARTprintf("SL_NETAPP_IPV4_ACQUIRED\n\r");
         sl_status |= HAS_IP;
         break;
 
-    case SL_NETAPP_IP_LEASED:
+    case SL_NETAPP_IP_LEASED_EVENT:
         sl_status |= IP_LEASED;
         break;
     default:
@@ -113,11 +117,11 @@ int Cmd_connect(int argc, char *argv[]) {
 
 int Cmd_status(int argc, char *argv[]) {
     unsigned char ucDHCP = 0;
-    unsigned char len = sizeof(_NetCfgIpV4Args_t);
+    unsigned char len = sizeof(SlNetCfgIpV4Args_t);
     //
     // Get IP address
     //    unsigned char len = sizeof(_NetCfgIpV4Args_t);
-    _NetCfgIpV4Args_t ipv4 = { 0 };
+    SlNetCfgIpV4Args_t ipv4 = { 0 };
 
     sl_NetCfgGet(SL_IPV4_STA_P2P_CL_GET_INFO, &ucDHCP, &len,
             (unsigned char *) &ipv4);

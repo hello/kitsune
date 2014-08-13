@@ -51,8 +51,6 @@ extern "C"
 {
 #endif
 
-#include <hw_types.h>
-
 //*****************************************************************************
 //
 // A union that describes the entries of the vector table.  The union is needed
@@ -75,6 +73,18 @@ uVectorEntry;
 //
 //*****************************************************************************
 #define INT_PRIORITY_MASK       ((0xFF << (8 - NUM_PRIORITY_BITS)) & 0xFF)
+
+//*****************************************************************************
+// Interrupt priority levels
+//*****************************************************************************
+#define INT_PRIORITY_LVL_0      0x00
+#define INT_PRIORITY_LVL_1      0x20
+#define INT_PRIORITY_LVL_2      0x40
+#define INT_PRIORITY_LVL_3      0x60
+#define INT_PRIORITY_LVL_4      0x80
+#define INT_PRIORITY_LVL_5      0xA0
+#define INT_PRIORITY_LVL_6      0xC0
+#define INT_PRIORITY_LVL_7      0xE0
 
 //*****************************************************************************
 //

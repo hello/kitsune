@@ -36,10 +36,11 @@
 //
 //****************************************************************************
 
-
-#include <datatypes.h>
+//Simplelink includes
 #include <simplelink.h>
 #include <cc_pal.h>
+
+//Driverlib Includes
 #include <hw_types.h>
 #include <pin.h>
 #include <hw_memmap.h>
@@ -53,26 +54,34 @@
 #include <interrupt.h>
 #include <udma.h>
 #include <utils.h>
+
+//Middleware Includes
 #include <spi_drv.h>
 
-P_EVENT_HANDLER g_pHostIntHdl  = NULL;
+//OSLib Includes
+#include <osi.h>
 
-#define REG_INT_MASK_SET 0x400F7088
-#define REG_INT_MASK_CLR 0x400F708C
-
+#define REG_INT_MASK_SET                0x400F7088
+#define REG_INT_MASK_CLR                0x400F708C
 #define APPS_SOFT_RESET_REG             0x4402D000
 #define OCP_SHARED_MAC_RESET_REG        0x4402E168
 
-#include <osi.h>
-
-//******************************************************************************
-// This defines the system Clock in Hz
-//******************************************************************************
-
-#define SYS_CLK 80000000
-
-
 #define MAX_DMA_RECV_TRANSACTION_SIZE 4000
+
+//
+// GLOBAL VARIABLES -- Start
+//
+P_EVENT_HANDLER g_pHostIntHdl  = NULL;
+//
+// GLOBAL VARIABLES -- End
+//
+
+//****************************************************************************
+//                      LOCAL FUNCTION PROTOTYPES
+//****************************************************************************
+
+
+
 /*!
     \brief open spi communication port to be used for communicating with a SimpleLink device
 
@@ -198,7 +207,16 @@ int spi_Write(Fd_t fd, unsigned char *pBuff, int len)
     return write_size;
 }
 
+/*!
+    \brief NWP Interrupt Handler
 
+	\param	 		none
+
+	\return			none
+
+	\note
+    \warning
+*/
 
 void HostIntHanlder()
 {
@@ -236,20 +254,27 @@ int NwpRegisterInterruptHandler(P_EVENT_HANDLER InterruptHdl , void* pValue)    
     if(InterruptHdl == NULL)
     {
         //De-register Interprocessor communication interrupt between App and NWP
-        IntDisable(INT_NWPIC);
-        IntUnregister(INT_NWPIC);
-        IntPendClear(INT_NWPIC);
-        g_pHostIntHdl = NULL;
+		#ifdef SL_PLATFORM_MULTI_THREADED
+         osi_InterruptDeRegister(INT_NWPIC);
+       	#else
+         MAP_IntDisable(INT_NWPIC);
+         MAP_IntUnregister(INT_NWPIC);
+         MAP_IntPendClear(INT_NWPIC);
+         g_pHostIntHdl = NULL;
+		#endif
     }
     else
     {
           g_pHostIntHdl = InterruptHdl;
           #ifdef SL_PLATFORM_MULTI_THREADED
-             osi_InterruptRegister(INT_NWPIC, (P_OSI_INTR_ENTRY)HostIntHanlder,
-                                   (1<<5));
+          	  MAP_IntPendClear(INT_NWPIC);
+             osi_InterruptRegister(INT_NWPIC, (P_OSI_INTR_ENTRY)InterruptHdl,
+            		 	 	 	   INT_PRIORITY_LVL_1);
           #else             
-              IntRegister(INT_NWPIC, HostIntHanlder);
-              IntEnable(INT_NWPIC);
+             MAP_IntRegister(INT_NWPIC, InterruptHdl);
+             MAP_IntPrioritySet(INT_NWPIC, INT_PRIORITY_LVL_1);
+             MAP_IntPendClear(INT_NWPIC);
+             MAP_IntEnable(INT_NWPIC);
           #endif
     }
 
@@ -284,18 +309,67 @@ void NwpUnMaskInterrupt()
 	(*(unsigned long *)REG_INT_MASK_CLR) = 0x1;
 }
 
+/*!
+    \brief		Preamble to the enabling the Network Processor.
+                        Placeholder to implement any pre-process operations
+                        before enabling networking operations.
 
+    \sa			sl_DeviceEnable
+
+    \note       belongs to \ref ported_sec
+
+*/
+void NwpPowerOnPreamble(void)
+{
+#define MAX_RETRY_COUNT         1000
+    unsigned int sl_stop_ind, apps_int_sts_raw, nwp_lpds_wake_cfg;
+    unsigned int retry_count;
+    /* Perform the sl_stop equivalent to ensure network services 
+       are turned off if active */
+    HWREG(0x400F70B8) = 1;   /* APPs to NWP interrupt */
+    UtilsDelay(800000/5);
+
+    retry_count = 0;
+    nwp_lpds_wake_cfg = HWREG(0x4402D404);
+    sl_stop_ind = HWREG(0x4402E16C);
+    
+    if((nwp_lpds_wake_cfg != 0x20) && /* Check for NWP POR condition */
+            !(sl_stop_ind & 0x2))     /* Check if sl_stop was executed */
+    {
+        /* Loop until APPs->NWP interrupt is cleared or timeout */
+        while(retry_count < MAX_RETRY_COUNT)
+        {
+            apps_int_sts_raw = HWREG(0x400F70C0);
+            if(apps_int_sts_raw & 0x1)
+            {
+                UtilsDelay(800000/5);
+                retry_count++;
+            }
+            else
+            {
+                break;
+            }
+        }
+    }
+    HWREG(0x400F70B0) = 1;   /* Clear APPs to NWP interrupt */
+    UtilsDelay(800000/5);
+
+    /* Stop the networking services */
+    NwpPowerOff();
+}
+
+/*!
+    \brief		Enable the Network Processor
+
+    \sa			sl_DeviceDisable
+
+    \note       belongs to \ref ported_sec
+
+*/
 void NwpPowerOn(void)
 {
 
-    PinModeSet(PIN_11,PIN_MODE_1);
-    PinModeSet(PIN_12,PIN_MODE_1);
-    PinModeSet(PIN_13,PIN_MODE_1);
-    PinModeSet(PIN_14,PIN_MODE_1);
-
-    MAP_PRCMPeripheralClkEnable(PRCM_SSPI, PRCM_RUN_MODE_CLK|PRCM_SLP_MODE_CLK);
-
-#if CC3200_ES_1_2_1
+ #if CC3200_ES_1_2_1
     //SPI CLK GATING
     HWREG(0x440250C8) = 0;
 
@@ -308,15 +382,21 @@ void NwpPowerOn(void)
     //bring the 1.32 eco out of reset
     HWREG(0x4402E16C) &= 0xFFFFFFFD;
 #endif
-    //UnMask Host Interrupt
-    NwpUnMaskInterrupt();   
-    
-    //NWP Wakeup
-    //PRCMNWPEnable();     
+
     HWREG(0x44025118) = 1;
+    UtilsDelay(8000000);
+    //UnMask Host Interrupt
+    NwpUnMaskInterrupt();
 
 }
 
+/*!
+    \brief		Disable the Network Processor
+
+    \sa			sl_DeviceEnable
+
+    \note       belongs to \ref ported_sec
+*/
 void NwpPowerOff(void)
 {
 	//Must delay 300 usec to enable the NWP to finish all sl_stop activities

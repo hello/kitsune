@@ -30,7 +30,7 @@ int send_data_pb(data_t * data);
 //#define MORPH_NAME "KingShy's morpheus"
 
 //#define MORPH_NAME "Chris's morpheus"
-#define MORPH_NAME "test morpheus"
+#define MORPH_NAME "test morpheus 10"
 //#define MORPH_NAME "test morpheus 80"
 #define KIT_VER 2
 

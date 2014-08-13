@@ -56,6 +56,8 @@ CPUcpsid(void)
     //
     __asm("    mrs     r0, PRIMASK\n"
           "    cpsid   i\n"
+          "    dsb      \n"
+          "    isb      \n"
           "    bx      lr\n"
           : "=r" (ulRet));
 
@@ -76,7 +78,9 @@ CPUcpsid(void)
     // Read PRIMASK and disable interrupts.
     //
     __asm("    mrs     r0, PRIMASK\n"
-          "    cpsid   i\n");
+          "    cpsid   i\n"
+          "    dsb      \n"
+          "    isb      \n");
 
     //
     // "Warning[Pe940]: missing return statement at end of non-void function"
@@ -96,6 +100,8 @@ CPUcpsid(void)
     //
     __asm("    mrs     r0, PRIMASK\n"
           "    cpsid   i\n"
+          "    dsb      \n"
+          "    isb      \n"
           "    bx      lr\n");
 
     //
@@ -193,6 +199,8 @@ CPUcpsie(void)
     //
     __asm("    mrs     r0, PRIMASK\n"
           "    cpsie   i\n"
+          "    dsb      \n"
+          "    isb      \n"
           "    bx      lr\n"
           : "=r" (ulRet));
 
@@ -213,7 +221,9 @@ CPUcpsie(void)
     // Read PRIMASK and enable interrupts.
     //
     __asm("    mrs     r0, PRIMASK\n"
-          "    cpsie   i\n");
+          "    cpsie   i\n"
+          "    dsb      \n"
+          "    isb      \n");
 
     //
     // "Warning[Pe940]: missing return statement at end of non-void function"
@@ -233,6 +243,8 @@ CPUcpsie(void)
     //
     __asm("    mrs     r0, PRIMASK\n"
           "    cpsie   i\n"
+          "    dsb      \n"
+          "    isb      \n"
           "    bx      lr\n");
 
     //
@@ -258,7 +270,9 @@ CPUwfi(void)
     //
     // Wait for the next interrupt.
     //
-    __asm("    wfi\n"
+    __asm("    dsb      \n"
+          "    isb      \n"
+          "    wfi      \n"
           "    bx      lr\n");
 }
 #endif
@@ -269,7 +283,9 @@ CPUwfi(void)
     //
     // Wait for the next interrupt.
     //
-    __asm("    wfi\n");
+    __asm("    dsb      \n"
+          "    isb      \n"
+          "    wfi      \n");
 }
 #endif
 #if defined(ccs)
@@ -279,7 +295,9 @@ CPUwfi(void)
     //
     // Wait for the next interrupt.
     //
-    __asm("    wfi\n");
+    __asm("    dsb      \n"
+          "    isb      \n"
+          "    wfi      \n");
 }
 #endif
 
@@ -297,6 +315,8 @@ CPUbasepriSet(unsigned long ulNewBasepri)
     // Set the BASEPRI register
     //
     __asm("    msr     BASEPRI, r0\n"
+          "    dsb      \n"
+          "    isb      \n"
           "    bx      lr\n");
 }
 #endif
@@ -307,7 +327,9 @@ CPUbasepriSet(unsigned long ulNewBasepri)
     //
     // Set the BASEPRI register
     //
-    __asm("    msr     BASEPRI, r0\n");
+    __asm("    msr     BASEPRI, r0\n"
+          "    dsb      \n"
+          "    isb      \n");
 }
 #endif
 #if defined(ccs)
@@ -317,7 +339,9 @@ CPUbasepriSet(unsigned long ulNewBasepri)
     //
     // Set the BASEPRI register
     //
-    __asm("    msr     BASEPRI, r0\n");
+    __asm("    msr     BASEPRI, r0\n"
+          "    dsb      \n"
+          "    isb      \n");
 }
 #endif
 

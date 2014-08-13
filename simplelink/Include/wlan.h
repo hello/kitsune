@@ -33,8 +33,6 @@
  *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
 */
-    
-#include "simplelink.h"
 
 #ifndef __WLAN_H__
 #define	__WLAN_H__
@@ -382,8 +380,8 @@ typedef union
 {
   slSmartConfigStartAsyncResponse_t    smartConfigStartResponse; /*SL_WLAN_SMART_CONFIG_START_EVENT*/
   slSmartConfigStopAsyncResponse_t     smartConfigStopResponse;  /*SL_WLAN_SMART_CONFIG_STOP_EVENT */
-  slPeerInfoAsyncResponse_t			       APModeStaConnected;       /* SL_OPCODE_WLAN_STA_CONNECTED - relevant only in AP mode - holds information regarding a new STA connection */   
-  slPeerInfoAsyncResponse_t                APModestaDisconnected;    /* SL_OPCODE_WLAN_STA_DISCONNECTED - relevant only in AP mode - holds information regarding a STA disconnection */ 
+  slPeerInfoAsyncResponse_t			       APModeStaConnected;       /* SL_OPCODE_WLAN_STA_CONNECTED - relevant only in AP mode - holds information regarding a new STA connection */
+  slPeerInfoAsyncResponse_t                APModestaDisconnected;    /* SL_OPCODE_WLAN_STA_DISCONNECTED - relevant only in AP mode - holds information regarding a STA disconnection */
   sl_protocol_wlanConnectAsyncResponse_t   STAandP2PModeWlanConnected;   /* SL_OPCODE_WLAN_WLANASYNCCONNECTEDRESPONSE - relevant only in STA and P2P mode - holds information regarding a new connection */
   sl_protocol_wlanConnectAsyncResponse_t   STAandP2PModeDisconnected;   /* SL_OPCODE_WLAN_WLANASYNCCONNECTEDRESPONSE - relevant only in STA and P2P mode - holds information regarding a disconnection */
   slPeerInfoAsyncResponse_t                P2PModeDevFound;             /* SL_OPCODE_WLAN_P2P_DEV_FOUND - relevant only in P2P mode */
@@ -402,7 +400,7 @@ typedef struct
 typedef struct 
 {
     unsigned long  ReceivedValidPacketsNumber;                     /* sum of the packets that been received OK (include filtered) */
-    unsigned long  ReceivedFcsErrorPacketsNumber;                  /* sum of the packets that been dropped due to FCS error */ 
+    unsigned long  ReceivedFcsErrorPacketsNumber;                  /* sum of the packets that been dropped due to FCS error */
     unsigned long  ReceivedPlcpErrorPacketsNumber;                 /* sum of the packets that been dropped due to PLCP error */
     signed short   AvarageDataCtrlRssi;                            /* average RSSI for all valid data packets received */
     signed short   AvarageMgMntRssi;                               /* average RSSI for all valid management packets received */
@@ -482,6 +480,9 @@ typedef struct {
 } sl_protocol_WlanSetInfoElement_t;
 
 
+
+#include "simplelink.h"
+
 /*********************************************************************************************/
 /* Function prototypes                                                                       */
 /*********************************************************************************************/
@@ -551,12 +552,12 @@ int sl_WlanDisconnect(void);
                                    in case of P2P the name is the remote device name
     \param[in]      NameLen     name length
     \param[in]      pMacAddr    6 bytes for MAC address
-    \param[in]      pSecParams     security parameters - security type 
+    \param[in]      pSecParams     security parameters - security type
                                    (SL_SEC_TYPE_OPEN,SL_SEC_TYPE_WEP,SL_SEC_TYPE_WPA,
                                     SL_SEC_TYPE_P2P_PBC,SL_SEC_TYPE_P2P_PIN_KEYPAD,SL_SEC_TYPE_P2P_PIN_DISPLAY, SL_SEC_TYPE_WPA_ENT), key, and key length
                                    SL_SEC_TYPE_WPA_ENT), key, and key length
                                    in case of p2p security type pin the key refers to pin code
-    \param[in]      pSecExtParams  enterprise parameters - identity, identity length, 
+    \param[in]      pSecExtParams  enterprise parameters - identity, identity length,
                                    Anonymous, Anonymous length, CertIndex (not supported,
                                    certificates need to be placed in a specific file ID),
                                    EapMethod.Use NULL in case Enterprise parameters is not in use
@@ -564,7 +565,7 @@ int sl_WlanDisconnect(void);
     \param[in]      Priority    profile priority. Lowest priority: 0
     \param[in]      Options     Not supported
      
-    \return         On success, profile stored index is returned. On error, -1 is returned 
+    \return         On success, profile stored index is returned. On error, -1 is returned
 
 
     \sa             sl_WlanProfileGet , sl_WlanProfileDel       
@@ -600,9 +601,9 @@ int sl_WlanProfileAdd(char* pName, int NameLen, unsigned char *pMacAddr, SlSecPa
                                    CertIndex (not supported), EapMethod.
     \param[out]     Priority       profile priority
 
-    
-    
-     
+
+
+
     \return         On success, Profile security type is returned (0 or positive number). On error, -1 is 
                     returned      
     
@@ -619,7 +620,7 @@ int sl_WlanProfileGet(int Index,char* pName, int *pNameLen, unsigned char *pMacA
     
     Delete WLAN profile  
      
-    \param[in]   index  number of profile to delete   
+    \param[in]   index  number of profile to delete
      
     \return  On success, zero is returned. On error, -1 is 
                returned
@@ -648,17 +649,17 @@ int sl_WlanProfileDel(int Index);
     \sa             sl_WlanPolicyGet
     \note           belongs to \ref ext_api
     \warning        
-    \par            Example: 
+    \par            Example:
     \code
-    
+
     SL_POLICY_CONNECTION type defines three options available to connect the CC31xx device to the AP: \n
     -  If Auto Connect is set, the CC31xx device tries to automatically reconnect to one of its stored profiles, each time the connection fails or the device is rebooted.\n
        To set this option, use sl_WlanPolicySet(SL_POLICY_CONNECTION,SL_CONNECTION_POLICY(1,0,0,0,0),NULL,0)\n
     -  If Fast Connect is set, the CC31xx device tries to establish a fast connection to AP. \n
        To set this option, use sl_WlanPolicySet(SL_POLICY_CONNECTION,SL_CONNECTION_POLICY(0,1,0,0,0),NULL,0)
-    -  (relevant for P2P mode only) - If Any P2P is set,  CC31xx device tries to automatically connect to the first P2P device avialable, supporting push button only 
+    -  (relevant for P2P mode only) - If Any P2P is set,  CC31xx device tries to automatically connect to the first P2P device avialable, supporting push button only
        To set this option, use sl_WlanPolicySet(SL_POLICY_CONNECTION,SL_CONNECTION_POLICY(0,0,0,1,0),NULL,0)
-    -  For auto smart config upon restart (any command from Host will end this state) use 
+    -  For auto smart config upon restart (any command from Host will end this state) use
         use sl_WlanPolicySet(SL_POLICY_CONNECTION,SL_CONNECTION_POLICY(0,0,0,0,1),NULL,0)
 
     SL_POLICY_SCAN defines system scan time interval in case there is no connection. Default interval is 10 minutes. \n
@@ -671,7 +672,7 @@ int sl_WlanProfileDel(int Index);
                     -  For example, disable scan:
                #define SL_SCAN_DISABLE  0
                        sl_WlanPolicySet(SL_POLICY_SCAN,SL_SCAN_DISABLE,0,0);
-     
+
     SL_POLICY_PM defines a power management policy for Station mode only:
                     -  For setting normal power management policy use sl_WlanPolicySet(SL_POLICY_PM , SL_NORMAL_POLICY, NULL,0)
                     -  For setting low latency power management policy use sl_WlanPolicySet(SL_POLICY_PM , SL_LOW_LATENCY_POLICY, NULL,0)
@@ -692,7 +693,7 @@ int sl_WlanProfileDel(int Index);
                         SL_P2P_NEG_INITIATOR_RAND_BACKOFF
 
                     For example: set sl_WlanPolicySet(SL_POLICY_P2P, SL_P2P_POLICY(SL_P2P_ROLE_NEGOTIATE,SL_P2P_NEG_INITIATOR_RAND_BACKOFF),NULL,0);
-    \endcode 
+    \endcode
 */
 
 #if _SL_INCLUDE_FUNC(sl_WlanPolicySet)
@@ -773,7 +774,7 @@ int sl_WlanGetNetworkList(unsigned char Index, unsigned char Count, Sl_WlanNetwo
 
         sl_WlanRxStatStart();  // set statistics mode
 
-		rawSocket = sl_Socket(SL_AF_RF, SL_SOCK_RAW, eChannel); 
+		rawSocket = sl_Socket(SL_AF_RF, SL_SOCK_RAW, eChannel);
 		// set timeout - in case we have no activity for the sepcified channel
         sl_SetSockOpt(rawSocket,SL_SOL_SOCKET,SL_SO_RCVTIMEO, &timeval, sizeof(timeval));    // Enable receive timeout 
         status = sl_Recv(rawSocket, DataFrame, sizeof(DataFrame), 0);
@@ -906,7 +907,7 @@ int sl_WlanSmartConfigStart(const unsigned long    groupIdBitmask,
     \param[in] mode - WLAN mode to start the CC31xx device. Possible options are:
                     - ROLE_STA - for WLAN station mode
                     - ROLE_AP  - for WLAN AP mode
-    
+
     \return   0 - if mode was set correctly   
     \sa        sl_Start sl_Stop
     \note           belongs to \ref ext_api        
@@ -918,15 +919,15 @@ int sl_WlanSmartConfigStart(const unsigned long    groupIdBitmask,
                 sl_Stop(0);
                 sl_Start(NULL,NULL,NULL);
     \endcode
-    
-    \code       
+
+    \code
                 //Switch from any role to AP:
-                 sl_WlanSetMode(ROLE_AP);                
+                 sl_WlanSetMode(ROLE_AP);
                  sl_Stop(0);
                  sl_Start(NULL,NULL,NULL);
     \endcode
-                 
-    \code       
+
+    \code
                 //Switch from any role to P2P:
                 sl_WlanSetMode(ROLE_P2P);
                 sl_Stop(0);
@@ -972,14 +973,14 @@ int sl_WlanSetMode(const unsigned char    mode);
            Set Country Code for AP mode example:
 
            unsigned char* str = (unsigned char *) country;  // string of 2 characters. i.e. - "US"
-           sl_WlanSet(SL_WLAN_CFG_GENERAL_PARAM_ID, WLAN_GENERAL_PARAM_OPT_COUNTRY_CODE, 2, str); 
+           sl_WlanSet(SL_WLAN_CFG_GENERAL_PARAM_ID, WLAN_GENERAL_PARAM_OPT_COUNTRY_CODE, 2, str);
     \endcode
     \code
            Set Beacon Interval for AP mode example:
            Beacon interval - should be in the range of [15 - 65535]
 
            unsigned short  val = interval;
-           sl_WlanSet(SL_WLAN_CFG_AP_ID, WLAN_AP_OPT_BEACON_INT, 2, (unsigned char *)&val); 
+           sl_WlanSet(SL_WLAN_CFG_AP_ID, WLAN_AP_OPT_BEACON_INT, 2, (unsigned char *)&val);
     \endcode
     \code
            Set channel for AP mode example:
@@ -993,7 +994,7 @@ int sl_WlanSetMode(const unsigned char    mode);
            hidden options:
                0: disabled
                1: Send empty (length=0) SSID in beacon and ignore probe request for broadcast SSID
-               2: Clear SSID (ASCII 0), but keep the original length (this may be required with some 
+               2: Clear SSID (ASCII 0), but keep the original length (this may be required with some
                   clients that do not support empty SSID) and ignore probe requests for broadcast SSID
 
                unsigned char  val = hidden;
@@ -1002,36 +1003,36 @@ int sl_WlanSetMode(const unsigned char    mode);
     \code
            Set DTIM Period for AP mode example:
            DTIM - should be in the range of [1 - 255]
-		   
+
            unsigned char  val = dtim;
-           sl_WlanSet(SL_WLAN_CFG_AP_ID, WLAN_AP_OPT_DTIM_PERIOD, 1, (unsigned char *)&val); 
+           sl_WlanSet(SL_WLAN_CFG_AP_ID, WLAN_AP_OPT_DTIM_PERIOD, 1, (unsigned char *)&val);
     \endcode
     \code
           Set Security type for AP mode example:
-          
+
           Security options are:
           Open security: SL_SEC_TYPE_OPEN
           WEP security:  SL_SEC_TYPE_WEP
           WPA security:  SL_SEC_TYPE_WPA
- 
-          unsigned char  val = SL_SEC_TYPE_WPA; 
+
+          unsigned char  val = SL_SEC_TYPE_WPA;
           sl_WlanSet(SL_WLAN_CFG_AP_ID, WLAN_AP_OPT_SECURITY_TYPE, 1, (unsigned char *)&val);
     \endcode
     \code
          Set Password for for AP mode (for WEP or for WPA) example:
-         
+
          Password - for WPA: 8 - 63 characters
                     for WEP: 5 / 13 characters (ascii)
 
-         unsigned char  str[65]; 
-         unsigned short  len = strlen(password); 
+         unsigned char  str[65];
+         unsigned short  len = strlen(password);
          memset(str, 0, 65);
          memcpy(str, password, len);
          sl_WlanSet(SL_WLAN_CFG_AP_ID, WLAN_AP_OPT_PASSWORD, len, (unsigned char *)str);
     \endcode
     \code
          Set STA mode Tx power level example:
-          
+
          Number between 0-15, as dB offset from max power (0 will set MAX power)
 
          unsigned char  stapower=(unsigned char)power;
@@ -1039,7 +1040,7 @@ int sl_WlanSetMode(const unsigned char    mode);
     \endcode
     \code
          Set AP mode Tx power level example:
-          
+
          Number between 0-15, as dB offset from max power (0 will set MAX power)
 
          unsigned char  appower=(unsigned char)power;
@@ -1047,11 +1048,11 @@ int sl_WlanSetMode(const unsigned char    mode);
     \endcode
     \code
          Set P2P Device type example:
-         
-         Device type, maximum length of 17 characters. Device type is published under P2P I.E, allows to make devices easier to recognize.
-         In case no device type is set, the default type is "1-0050F204-1" 
 
-         unsigned char   str[17]; 
+         Device type, maximum length of 17 characters. Device type is published under P2P I.E, allows to make devices easier to recognize.
+         In case no device type is set, the default type is "1-0050F204-1"
+
+         unsigned char   str[17];
          unsigned short  len = strlen(device_type);
          memset(str, 0, 17); 
          memcpy(str, device_type, len);
@@ -1059,7 +1060,7 @@ int sl_WlanSetMode(const unsigned char    mode);
     \endcode
     \code
         Set P2P Channels example:
-        
+
         listen channel (either 1/6/11 for 2.4GHz)
         listen regulatory class (81 for 2.4GHz)
         oper channel (either 1/6/11 for 2.4GHz)
@@ -1078,13 +1079,13 @@ int sl_WlanSetMode(const unsigned char    mode);
     \endcode
     \code
         Set Info Element for AP mode example:
-        
-        The Application can set up to MAX_PRIVATE_INFO_ELEMENTS_SUPPROTED info elements per Role (AP / P2P GO). 
+
+        The Application can set up to MAX_PRIVATE_INFO_ELEMENTS_SUPPROTED info elements per Role (AP / P2P GO).
         To delete an info element use the relevant index and length = 0.
         The Application can set up to MAX_PRIVATE_INFO_ELEMENTS_SUPPROTED to the same role.
         However, for AP - no more than INFO_ELEMENT_MAX_TOTAL_LENGTH_AP bytes can be stored for all info elements.
         For P2P GO - no more than INFO_ELEMENT_MAX_TOTAL_LENGTH_P2P_GO bytes can be stored for all info elements.
-           
+
         sl_protocol_WlanSetInfoElement_t    infoele;                
         infoele.index     = Index;                  // Index of the info element. range: 0 - MAX_PRIVATE_INFO_ELEMENTS_SUPPROTED
         infoele.role      = Role;                   // INFO_ELEMENT_AP_ROLE (0) or INFO_ELEMENT_P2P_GO_ROLE (1)
@@ -1100,7 +1101,7 @@ int sl_WlanSetMode(const unsigned char    mode);
             memcpy(infoele.ie.data, IE, Len);           // Info element. length of the info element is [0-252]
             sl_WlanSet(SL_WLAN_CFG_GENERAL_PARAM_ID,WLAN_GENERAL_PARAM_OPT_INFO_ELEMENT,sizeof(sl_protocol_WlanSetInfoElement_t),(unsigned char*) &infoele);
         }
-        sl_WlanSet(SL_WLAN_CFG_GENERAL_PARAM_ID,WLAN_GENERAL_PARAM_OPT_INFO_ELEMENT,sizeof(sl_protocol_WlanSetInfoElement_t),(unsigned char*) &infoele);                 
+        sl_WlanSet(SL_WLAN_CFG_GENERAL_PARAM_ID,WLAN_GENERAL_PARAM_OPT_INFO_ELEMENT,sizeof(sl_protocol_WlanSetInfoElement_t),(unsigned char*) &infoele);
     \endcode
 
 */
@@ -1128,7 +1129,7 @@ int sl_WlanSet(unsigned short ConfigId ,unsigned short ConfigOpt,unsigned short 
 
     \param[out] pValues - get configurations values
 
-    \sa         
+    \sa
 
     \note 
 
@@ -1137,7 +1138,7 @@ int sl_WlanSet(unsigned short ConfigId ,unsigned short ConfigOpt,unsigned short 
 	\par    Examples:
     \code
           Scan params example:
-       
+
           slWlanScanParamCommand_t ScanParamConfig;
           unsigned short Option = WLAN_GENERAL_PARAM_OPT_SCAN_PARAMS;
           unsigned short OptionLen = sizeof(slWlanScanParamCommand_t);
@@ -1153,7 +1154,7 @@ int sl_WlanSet(unsigned short ConfigId ,unsigned short ConfigOpt,unsigned short 
     \endcode
     \code
 		   STA tx power example:
-		   
+
 		   int TXPower = 0;
            unsigned short Option = WLAN_GENERAL_PARAM_OPT_STA_TX_POWER;
            unsigned short OptionLen = sizeof(int);
@@ -1162,16 +1163,16 @@ int sl_WlanSet(unsigned short ConfigId ,unsigned short ConfigOpt,unsigned short 
     \endcode
     \code
 		   Get Device Type example:
-		   
+
            char device_type[18];
            unsigned short len = 18;
-           unsigned short config_opt = WLAN_P2P_OPT_DEV_TYPE; 
+           unsigned short config_opt = WLAN_P2P_OPT_DEV_TYPE;
            sl_WlanGet(SL_WLAN_CFG_P2P_PARAM_ID, &config_opt , &len, (unsigned char*)device_type);
     \endcode
     \code
            Get SSID for AP mode example:
            Get up to 32 characters of SSID
-          
+
            char ssid[32];
            unsigned short len = 32;
            unsigned short  config_opt = WLAN_AP_OPT_SSID;
@@ -1206,34 +1207,34 @@ int sl_WlanSet(unsigned short ConfigId ,unsigned short ConfigOpt,unsigned short 
     \endcode
     \code
            Get Hidden SSID Mode for AP mode example:
-           
+
            Possible values:
               0: disabled
               1: send empty (length=0) SSID in beacon and ignore probe request for broadcast SSID
-              2: Clear SSID (ASCII 0), but keep the original length (this may be required with some 
+              2: Clear SSID (ASCII 0), but keep the original length (this may be required with some
                  clients that do not support empty SSID) and ignore probe requests for broadcast SSID
 
           unsigned char hidden;
           unsigned short len = 1;
           unsigned short  config_opt = WLAN_AP_OPT_HIDDEN_SSID;
-          sl_WlanGet(SL_WLAN_CFG_AP_ID, &config_opt, &len, (unsigned char*)&hidden); 
+          sl_WlanGet(SL_WLAN_CFG_AP_ID, &config_opt, &len, (unsigned char*)&hidden);
     \endcode
     \code
           Get DTIM Period for AP mode example:
 
           unsigned char dtim;
           unsigned short len = 1;
-          unsigned short  config_opt = WLAN_AP_OPT_DTIM_PERIOD; 
+          unsigned short  config_opt = WLAN_AP_OPT_DTIM_PERIOD;
           sl_WlanGet(SL_WLAN_CFG_AP_ID, &config_opt, &len, (unsigned char*)&dtim);
     \endcode
     \code
          Get Security Type for AP mode example:
-         
+
          The return type is mapped by
          0: OPEN
          1: WEP
          2: WPA
-         
+
          unsigned char sec_type;
          unsigned short len = 1;
          unsigned short  config_opt = WLAN_AP_OPT_SECURITY_TYPE;
@@ -1260,7 +1261,7 @@ int sl_WlanSet(unsigned short ConfigId ,unsigned short ConfigOpt,unsigned short 
         unsigned char state;
         unsigned short len = 1;
         unsigned short  config_opt = WLAN_AP_OPT_WPS_STATE;
-        sl_WlanGet(SL_WLAN_CFG_AP_ID, &config_opt, &len, (unsigned char*)&state); 
+        sl_WlanGet(SL_WLAN_CFG_AP_ID, &config_opt, &len, (unsigned char*)&state);
 
     \endcode
     \code

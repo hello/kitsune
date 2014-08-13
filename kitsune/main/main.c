@@ -73,7 +73,6 @@
 #include "systick.h"
 
 /*Simple Link inlcudes */
-#include "datatypes.h"
 #include "simplelink.h"
 #include "protocol.h"
 

@@ -34,22 +34,33 @@
  *
 */
  
-
-#include "simplelink.h"
-
 #ifndef __SL_SOCKET_H__
 #define __SL_SOCKET_H__
+
+/*****************************************************************************/
+/* Include files                                                             */
+/*****************************************************************************/
+#include "simplelink.h"
+
 
 #ifdef    __cplusplus
 extern "C" {
 #endif
 
-/* For compatibility undefine the fd_set.  Then define the FD set size.  */
+/*!
+
+    \addtogroup socket
+    @{
+
+*/
+
+/*****************************************************************************/
+/* Macro declarations                                                        */
+/*****************************************************************************/
 
 #define SL_FD_SETSIZE                         SL_MAX_SOCKETS         /* Number of sockets to select on - same is max sockets!               */
-#define BSD_SOCKET_ID_MASK                    0x0F                   /* Index using the LBS 4 bits for socket id 0-7 */
+#define BSD_SOCKET_ID_MASK                     (0x0F)                 /* Index using the LBS 4 bits for socket id 0-7 */
 /* Define some BSD protocol constants.  */
-
 #define SL_SOCK_STREAM                         (1)                       /* TCP Socket                                                          */
 #define SL_SOCK_DGRAM                          (2)                       /* UDP Socket                                                          */
 #define SL_SOCK_RAW                            (3)                       /* Raw socket                                                          */
@@ -59,7 +70,6 @@ extern "C" {
 #define SL_SEC_SOCKET                          (100)                     /* Secured Socket Layer (SSL,TLS)                                      */
 
 /* Address families.  */
-
 #define     SL_AF_INET                         (2)                       /* IPv4 socket (UDP, TCP, etc)                                          */
 #define     SL_AF_INET6                        (3)                       /* IPv6 socket (UDP, TCP, etc)                                          */
 #define     SL_AF_INET6_EUI_48                 (9)
@@ -68,7 +78,6 @@ extern "C" {
 /* Protocol families, same as address families.  */
 #define     SL_PF_INET                         AF_INET
 #define     SL_PF_INET6                        AF_INET6
-
 #define     SL_INADDR_ANY                      (0)                       /*  bind any address  */
 
 /* error codes */
@@ -86,6 +95,7 @@ extern "C" {
 #define SL_EALREADY_ENABLED                   (-21)  /* Transceiver - Transceiver already ON. there could be only one */
 #define SL_EINVAL                             (-22)  /* Invalid argument */
 #define SL_EAUTO_CONNECT_OR_CONNECTING        (-69)  /* Transceiver - During connection, connected or auto mode started */
+#define SL_CONNECTION_PENDING                  (-72)  /* Transceiver - Device is connected, disconnect first to open transceiver */
 #define SL_EUNSUPPORTED_ROLE                  (-86)  /* Transceiver - Trying to start when WLAN role is AP or P2P GO */
 #define SL_EDESTADDRREQ                       (-89)  /* Destination address required */
 #define SL_EPROTOTYPE                         (-91)  /* Protocol wrong type for socket */
@@ -117,7 +127,7 @@ extern "C" {
 #define SL_ESEC_EXTENSIONS_E                  (-139)  /* setting extensions error */
 #define SL_ESEC_ASN_PARSE_E                   (-140)  /* ASN parsing error, invalid input */
 #define SL_ESEC_ASN_VERSION_E                 (-141)  /* ASN version error, invalid number */
-#define SL_ESEC_ASN_GETINT_E                  (-142)  /* ASN get big int error, invalid data */
+#define SL_ESEC_ASN_GETINT_E                  (-142)  /* ASN get big _i16 error, invalid data */
 #define SL_ESEC_ASN_RSA_KEY_E                 (-143)  /* ASN key init error, invalid input */
 #define SL_ESEC_ASN_OBJECT_ID_E               (-144)  /* ASN object id error, invalid id */
 #define SL_ESEC_ASN_TAG_NULL_E                (-145)  /* ASN tag error, not null */
@@ -145,7 +155,6 @@ extern "C" {
 #define SL_ESEC_ALT_NAME_E                    (-177)  /* alt name size problem, too big */
 #define SL_ESEC_AES_GCM_AUTH_E                (-180)  /* AES-GCM Authentication check failure */
 #define SL_ESEC_AES_CCM_AUTH_E                (-181)  /* AES-CCM Authentication check failure */
-
 /* ssl tls security start with -300 offset */
 #define SL_ESEC_CLOSE_NOTIFY                  (-300) /* ssl/tls alerts */   
 #define SL_ESEC_UNEXPECTED_MESSAGE            (-310) /* ssl/tls alerts */   
@@ -187,9 +196,9 @@ extern "C" {
 #define SL_ESECBADCERTFILE                    (-457)  /* error secure level bad Certificate file */
 #define SL_ESECBADPRIVATEFILE                 (-458)  /* error secure level bad private file */
 #define SL_ESECBADDHFILE                      (-459)  /* error secure level bad DH file */
-#define SL_ESECT00MANYSSLOPENED	              (-460)	 /* MAX SSL Sockets are opened */
-#define SL_ESECDATEERROR                      (-461)	 /* connected with certificate date verification error */
-#define SL_ESECHANDSHAKETIMEDOUT              (-462)	/* connection timed out due to handshake time */
+#define SL_ESECT00MANYSSLOPENED               (-460)  /* MAX SSL Sockets are opened */
+#define SL_ESECDATEERROR                      (-461)  /* connected with certificate date verification error */
+#define SL_ESECHANDSHAKETIMEDOUT              (-462)  /* connection timed out due to handshake time */
 
 /* end error codes */
 
@@ -224,7 +233,7 @@ extern "C" {
 #define SL_SO_CHANGE_CHANNEL   (28)  /* This option is available only when transceiver started */
 #define SL_SO_SECURE_FILES_PRIVATE_KEY_FILE_NAME (30) /* This option used to configue secure file */
 #define SL_SO_SECURE_FILES_CERTIFICATE_FILE_NAME (31) /* This option used to configue secure file */
-#define SL_SO_SECURE_FILES_CA_FILE_NAME 		 (32) /* This option used to configue secure file */
+#define SL_SO_SECURE_FILES_CA_FILE_NAME          (32) /* This option used to configue secure file */
 #define SL_SO_SECURE_FILES_DH_KEY_FILE_NAME      (33) /* This option used to configue secure file */
 
 #define SL_IP_MULTICAST_IF     (60) /* Specify outgoing multicast interface */
@@ -255,18 +264,19 @@ extern "C" {
 #define SL_SEC_MASK_TLS_ECDHE_RSA_WITH_RC4_128_SHA         (1 << 5)
 #define SL_SEC_MASK_SECURE_DEFAULT                         ((SEC_MASK_TLS_ECDHE_RSA_WITH_RC4_128_SHA  <<  1)  -  1)
 
-#define SL_MSG_DONTWAIT         0x00000008  /* Nonblocking IO */
-
-#define SL_NETAPP_IPV4_ACQUIRED    1
-#define SL_NETAPP_IPV6_ACQUIRED    2
-#define SL_NETAPP_SOCKET_TX_FAILED 3
-#define SL_NETAPP_IP_LEASED        4
-#define SL_NETAPP_IP_RELEASED      5
+#define SL_MSG_DONTWAIT                                   (0x00000008)  /* Nonblocking IO */
 
 /* AP DHCP Server - IP Release reason code */
-#define SL_IP_LEASE_PEER_RELEASE  0
-#define SL_IP_LEASE_PEER_DECLINE  1
-#define SL_IP_LEASE_EXPIRED       2
+#define SL_IP_LEASE_PEER_RELEASE     (0)
+#define SL_IP_LEASE_PEER_DECLINE     (1)
+#define SL_IP_LEASE_EXPIRED          (2)
+
+/* possible types when receiving SL_SOCKET_ASYNC_EVENT*/
+#define SSL_ACCEPT                                (1) /* accept failed due to ssl issue ( tcp pass) */
+#define RX_FRAGMENTATION_TOO_BIG                  (2) /* connection less mode, rx packet fragmentation > 16K, packet is being released */
+#define OTHER_SIDE_CLOSE_SSL_DATA_NOT_ENCRYPTED   (3) /* remote side down from secure to unsecure */
+
+
 
 #ifdef SL_INC_STD_BSD_API_NAMING
 
@@ -344,87 +354,97 @@ extern "C" {
 #define FD_ZERO                             SL_FD_ZERO 
 #define fd_set                              SlFdSet_t    
 
-#define socket						        sl_Socket
-#define close						        sl_Close
-#define accept						        sl_Accept
-#define bind						        sl_Bind
-#define listen						        sl_Listen
-#define connect						        sl_Connect
-#define select						        sl_Select
-#define setsockopt					        sl_SetSockOpt
-#define getsockopt					        sl_GetSockOpt
-#define recv						        sl_Recv
-#define recvfrom					        sl_RecvFrom
-#define write						        sl_Write
-#define send						        sl_Send
-#define sendto						        sl_SendTo
-#define gethostbyname				        sl_NetAppDnsGetHostByName
+#define socket                              sl_Socket
+#define close                               sl_Close
+#define accept                              sl_Accept
+#define bind                                sl_Bind
+#define listen                              sl_Listen
+#define connect                             sl_Connect
+#define select                              sl_Select
+#define setsockopt                          sl_SetSockOpt
+#define getsockopt                          sl_GetSockOpt
+#define recv                                sl_Recv
+#define recvfrom                            sl_RecvFrom
+#define write                               sl_Write
+#define send                                sl_Send
+#define sendto                              sl_SendTo
+#define gethostbyname                       sl_NetAppDnsGetHostByName
 #define htonl                               sl_Htonl
 #define ntohl                               sl_Ntohl
 #define htons                               sl_Htons
 #define ntohs                               sl_Ntohs
 #endif
 
+/*****************************************************************************/
+/* Structure/Enum declarations                                               */
+/*****************************************************************************/
 
 /* Internet address   */
-
 typedef struct SlInAddr_t
 {
 #ifndef s_addr 
-    unsigned long           s_addr;             /* Internet address (32 bits).                         */        
+    _u32           s_addr;             /* Internet address 32 bits */
 #else
     union S_un {
-       struct { unsigned char s_b1,s_b2,s_b3,s_b4; } S_un_b;
-       struct { unsigned char s_w1,s_w2; } S_un_w;
-        unsigned long S_addr;
+       struct { _u8 s_b1,s_b2,s_b3,s_b4; } S_un_b;
+       struct { _u8 s_w1,s_w2; } S_un_w;
+        _u32 S_addr;
     } S_un;
 #endif
 }SlInAddr_t;
 
 
 /* sockopt */
-
 typedef struct 
 {
-    unsigned long KeepaliveEnabled;                   /* 0 = disabled; 1 = enabled; default = 0;*/
+    _u32 KeepaliveEnabled; /* 0 = disabled;1 = enabled; default = 1*/
 }SlSockKeepalive_t;
 
 typedef struct 
 {
-    unsigned long ReuseaddrEnabled;                  /* 0 = disabled; 1 = enabled; default = 1; */
+    _u32 ReuseaddrEnabled; /* 0 = disabled; 1 = enabled; default = 1*/
 }SlSockReuseaddr_t;
 
 typedef struct 
 {
-    unsigned long Winsize;                            /* receive window size for tcp sockets   ; */
+    _u32 Winsize;          /* receive window size for tcp sockets  */
 }SlSockWinsize_t;
 
 typedef struct 
 {
-    unsigned long NonblockingEnabled;        /* 0 = disabled; 1 = enabled; default = 1; */
+    _u32 NonblockingEnabled;/* 0 = disabled;1 = enabled;default = 1*/
 }SlSockNonblocking_t;
 
 typedef struct
 {
-   signed short     status;
-   unsigned short     sd;
-} SlSockEventData_t;
+    _u8   sd;
+    _u8   type;
+    _u16  val;
+} SlSocketAsyncEvent_t;
 
 typedef struct
 {
-   unsigned long     Event;
+   _i16          status;
+   _u16        sd;
+   SlSocketAsyncEvent_t socketAsyncEvent;
+} SlSockEventData_t;
+
+
+typedef struct
+{
+   _u32                    Event;
    SlSockEventData_t       EventData;
 } SlSockEvent_t;
 
 
 typedef struct
 {
-    unsigned long secureMask;
+    _u32    secureMask;
 } SlSockSecureMask;
 
 typedef struct
 {
-    unsigned char secureMethod;
+    _u8     secureMethod;
 } SlSockSecureMethod;
 
 typedef enum
@@ -435,18 +455,16 @@ typedef enum
   SL_BSD_SECURED_DH_IDX
 }slBsd_secureSocketFilesIndex_e;
 
-
 typedef struct 
 {
-    SlInAddr_t imr_multiaddr;     /* The IPv4 multicast address to join. */
-    SlInAddr_t imr_interface;     /* The interface to use for this group. */
+    SlInAddr_t   imr_multiaddr;     /* The IPv4 multicast address to join */
+    SlInAddr_t   imr_interface;     /* The interface to use for this group */
 } SlSockIpMreq;
 
 
 /* sockopt */
-
-typedef unsigned long SlTime_t;
-typedef unsigned long SlSuseconds_t;
+typedef _u32   SlTime_t;
+typedef _u32   SlSuseconds_t;
 
 typedef struct SlTimeval_t
 {
@@ -454,13 +472,13 @@ typedef struct SlTimeval_t
     SlSuseconds_t     tv_usec;            /* Microseconds */
 }SlTimeval_t;
 
-typedef unsigned int SlSocklen_t;
+typedef _u16 SlSocklen_t;
 
 /* IpV4 socket address */
 typedef struct SlSockAddr_t
 {
-    unsigned short          sa_family;              /* Address family (e.g. , AF_INET).                 */
-    unsigned char           sa_data[14];            /* Protocol- specific address information.          */
+    _u16          sa_family;     /* Address family (e.g. , AF_INET)     */
+    _u8           sa_data[14];  /* Protocol- specific address information*/
 }SlSockAddr_t;
 
 
@@ -469,103 +487,102 @@ typedef struct SlIn6Addr_t
 {
     union 
     {
-        unsigned char _S6_u8[16];
-        unsigned long _S6_u32[4];
+        _u8   _S6_u8[16];
+        _u32  _S6_u32[4];
     } _S6_un;
 }SlIn6Addr_t;
 
-
 typedef struct SlSockAddrIn6_t
 {
-    unsigned short          sin6_family;                 /* AF_INET6 || AF_INET6_EUI_48*/
-    unsigned short          sin6_port;                   /* Transport layer port.  */
-    unsigned long           sin6_flowinfo;               /* IPv6 flow information. */
+    _u16           sin6_family;                 /* AF_INET6 || AF_INET6_EUI_48*/
+    _u16           sin6_port;                   /* Transport layer port.  */
+    _u32           sin6_flowinfo;               /* IPv6 flow information. */
     SlIn6Addr_t             sin6_addr;                   /* IPv6 address. */
-    unsigned long           sin6_scope_id;               /* set of interfaces for a scope. */
+    _u32           sin6_scope_id;               /* set of interfaces for a scope. */
 }SlSockAddrIn6_t;
 
 /* Socket address, Internet style. */
 
 typedef struct SlSockAddrIn_t
 {
-    unsigned short              sin_family;         /* Internet Protocol (AF_INET).                    */
-    unsigned short              sin_port;           /* Address port (16 bits).                         */
+    _u16              sin_family;         /* Internet Protocol (AF_INET).                    */
+    _u16              sin_port;           /* Address port (16 bits).                         */
     SlInAddr_t                  sin_addr;           /* Internet address (32 bits).                     */
-    char                        sin_zero[8];        /* Not used.                                       */
+    _i8               sin_zero[8];        /* Not used.                                       */
 }SlSockAddrIn_t;
 
 typedef struct
 {
-    unsigned long ip;
-    unsigned long gateway;
-    unsigned long dns;
+    _u32 ip;
+    _u32 gateway;
+    _u32 dns;
 }SlIpV4AcquiredAsync_t;
 
 typedef struct  
 {
-    unsigned long type;
-    unsigned long ip[4];
-    unsigned long gateway[4];
-    unsigned long dns[4];
+    _u32 type;
+    _u32 ip[4];
+    _u32 gateway[4];
+    _u32 dns[4];
 }SlIpV6AcquiredAsync_t;
 
 typedef struct
 {
-  unsigned long    ip_address;
-  unsigned long    lease_time;
-  unsigned char     mac[6];
-  unsigned short    padding;
+   _u32    ip_address;
+   _u32    lease_time;
+   _u8     mac[6];
+   _u16    padding;
 }SlIpLeasedAsync_t;
 
 typedef struct
 {
-  unsigned long    ip_address;
-  unsigned char     mac[6];
-  unsigned short    reason;
+  _u32    ip_address;
+  _u8     mac[6];
+  _u16    reason;
 }SlIpReleasedAsync_t;
+
 
 typedef union
 {
-  SlIpV4AcquiredAsync_t    ipAcquiredV4; /*SL_NETAPP_IPV4_ACQUIRED*/
-  SlIpV6AcquiredAsync_t    ipAcquiredV6; /*SL_NETAPP_IPV6_ACQUIRED*/
-  int                      sd;           /*SL_NETAPP_SOCKET_TX_FAILED*/ 
-  SlIpLeasedAsync_t        ipLeased;     /* SL_OPCODE_NETAPP_IP_LEASED   */
-  SlIpReleasedAsync_t      ipReleased;   /* SL_OPCODE_NETAPP_IP_RELEASED */
+  SlIpV4AcquiredAsync_t    ipAcquiredV4; /*SL_NETAPP_IPV4_IPACQUIRED_EVENT*/
+  SlIpV6AcquiredAsync_t    ipAcquiredV6; /*SL_NETAPP_IPV6_IPACQUIRED_EVENT*/
+  _u32                      sd;           /*SL_SOCKET_TX_FAILED_EVENT*/ 
+  SlIpLeasedAsync_t        ipLeased;     /* SL_NETAPP_IP_LEASED_EVENT   */
+  SlIpReleasedAsync_t      ipReleased;   /* SL_NETAPP_IP_RELEASED_EVENT */
 } SlNetAppEventData_u;
 
 typedef struct
 {
-   unsigned long             Event;
+   _u32                     Event;
    SlNetAppEventData_u       EventData;
 }SlNetAppEvent_t;
 
 
 typedef struct sock_secureFiles
 {
-    unsigned char secureFiles[4];
+    _u8                     secureFiles[4];
 }SlSockSecureFiles_t;
 
 
-typedef struct SlFdSet_t                    /* The select socket array manager.                                                             */
+typedef struct SlFdSet_t                    /* The select socket array manager */
 { 
-   unsigned long        fd_array[(SL_FD_SETSIZE + 31)/32]; /* Bit map of SOCKET Descriptors.                                                   */
+   _u32        fd_array[(SL_FD_SETSIZE + 31)/32]; /* Bit map of SOCKET Descriptors */
 } SlFdSet_t;
 
+typedef struct
+{
+    _u8   rate;               /* Recevied Rate  */
+    _u8   channel;            /* The received channel*/
+    _i8    rssi;               /* The computed RSSI value in db of current frame */
+    _u8   padding;                                           /* pad to align to 32 bits */
+    _u32  timestamp;          /* Timestamp in microseconds,     */
+}SlTransceiverRxOverHead_t;
 
 
-/*****************************************************************************
 
-    API Prototypes
-
- *****************************************************************************/
-
-/*!
-
-    \addtogroup socket
-    @{
-
-*/
-
+/*****************************************************************************/
+/* Function prototypes                                                       */
+/*****************************************************************************/
 
 /*!
 
@@ -588,7 +605,6 @@ typedef struct SlFdSet_t                    /* The select socket array manager. 
     \param[in] type              specifies the communication semantic, one of:
                                    SOCK_STREAM (reliable stream-oriented service or Stream Sockets)
                                    SOCK_DGRAM (datagram service or Datagram Sockets)
-                                   SOCK_SEQPACKET (reliable sequenced packet service)
                                    SOCK_RAW (raw protocols atop the network layer)
                                    when used with AF_RF:
                                                                      SOCK_DGRAM - L2 socket
@@ -605,15 +621,14 @@ typedef struct SlFdSet_t                    /* The select socket array manager. 
     \return                     On success, socket handle that is used for consequent socket operations. 
                                 A successful return code should be a positive number (int16)
                                 On error, a negative (int16) value will be returned specifying the error code.
-                                   SL_EAFNOSUPPORT (-97) - illegal domain parameter
-                                   SL_EPROTOTYPE (-91) - illegal type parameter
-                                   SL_EACCES  (-13) - permission denied
-                                   SL_ENSOCK (-10) - exceeded maximal number of socket 
-                                   SL_ENOMEM (-12) - memory allocation error
-                                   SL_NX_SOC_ERROR - resources allocation error
-                                   SL_EINVAL (-22) - error in socket configuration
-                                   SL_EPROTONOSUPPORT (-93) - illegal protocol parameter
-                                   SL_EOPNOTSUPP (-95) - illegal combination of protocol and type parameters
+                           SL_EAFNOSUPPORT  - illegal domain parameter
+                           SL_EPROTOTYPE  - illegal type parameter
+                           SL_EACCES   - permission denied
+                           SL_ENSOCK  - exceeded maximal number of socket 
+                           SL_ENOMEM  - memory allocation error
+                           SL_EINVAL  - error in socket configuration
+                           SL_EPROTONOSUPPORT  - illegal protocol parameter
+                           SL_EOPNOTSUPP  - illegal combination of protocol and type parameters
  
  
     \sa                         sl_Close
@@ -621,7 +636,7 @@ typedef struct SlFdSet_t                    /* The select socket array manager. 
     \warning
 */
 #if _SL_INCLUDE_FUNC(sl_Socket)
-int sl_Socket(int Domain, int Type, int Protocol);
+_i16 sl_Socket(_i16 Domain, _i16 Type, _i16 Protocol);
 #endif
 
 /*!
@@ -640,7 +655,7 @@ int sl_Socket(int Domain, int Type, int Protocol);
     \warning
 */
 #if _SL_INCLUDE_FUNC(sl_Close)
-int sl_Close(int sd);
+_i16 sl_Close(_i16 sd);
 #endif
 
 /*!
@@ -694,7 +709,7 @@ int sl_Close(int sd);
     \warning
 */
 #if _SL_INCLUDE_FUNC(sl_Accept)
-int sl_Accept(int sd, SlSockAddr_t *addr, SlSocklen_t *addrlen);
+_i16 sl_Accept(_i16 sd, SlSockAddr_t *addr, SlSocklen_t *addrlen);
 #endif
 
 /*!
@@ -715,8 +730,7 @@ int sl_Accept(int sd, SlSockAddr_t *addr, SlSocklen_t *addrlen);
                                 supported.\n - socket address,
                                 the length depends on the code
                                 format
-    \param[in] addrlen           contains the size of the 
-        structure pointed to by addr
+    \param[in] addrlen          contains the size of the structure pointed to by addr
  
     \return                        On success, zero is returned. On error, a negative error code is returned.
  
@@ -725,7 +739,7 @@ int sl_Accept(int sd, SlSockAddr_t *addr, SlSocklen_t *addrlen);
     \warning
 */
 #if _SL_INCLUDE_FUNC(sl_Bind)
-int sl_Bind(int sd, const SlSockAddr_t *addr, int addrlen);
+_i16 sl_Bind(_i16 sd, const SlSockAddr_t *addr, _i16 addrlen);
 #endif
 
 /*!
@@ -749,7 +763,7 @@ int sl_Bind(int sd, const SlSockAddr_t *addr, int addrlen);
     \warning
 */
 #if _SL_INCLUDE_FUNC(sl_Listen)
-int sl_Listen(int sd, int backlog);
+_i16 sl_Listen(_i16 sd, _i16 backlog);
 #endif
 
 /*!
@@ -791,7 +805,7 @@ int sl_Listen(int sd, int backlog);
     \warning
 */
 #if _SL_INCLUDE_FUNC(sl_Connect)
-int sl_Connect(int sd, const SlSockAddr_t *addr, int addrlen);
+_i16 sl_Connect(_i16 sd, const SlSockAddr_t *addr, _i16 addrlen);
 #endif
 
 /*!
@@ -843,7 +857,7 @@ int sl_Connect(int sd, const SlSockAddr_t *addr, int addrlen);
     \warning
 */
 #if _SL_INCLUDE_FUNC(sl_Select)
-int sl_Select(int nfds, SlFdSet_t *readsds, SlFdSet_t *writesds, SlFdSet_t *exceptsds, struct SlTimeval_t *timeout);
+_i16 sl_Select(_i16 nfds, SlFdSet_t *readsds, SlFdSet_t *writesds, SlFdSet_t *exceptsds, struct SlTimeval_t *timeout);
 
 
 /*!
@@ -851,14 +865,14 @@ int sl_Select(int nfds, SlFdSet_t *readsds, SlFdSet_t *writesds, SlFdSet_t *exce
    
     Sets current socket descriptor on SlFdSet_t container
 */
-void SL_FD_SET(int fd, SlFdSet_t *fdset);
+void SL_FD_SET(_i16 fd, SlFdSet_t *fdset);
 
 /*!
     \brief Select's SlFdSet_t CLR function
    
     Clears current socket descriptor on SlFdSet_t container
 */
-void SL_FD_CLR(int fd, SlFdSet_t *fdset);
+void SL_FD_CLR(_i16 fd, SlFdSet_t *fdset);
 
 
 /*!
@@ -869,7 +883,7 @@ void SL_FD_CLR(int fd, SlFdSet_t *fdset);
     \return            Returns TRUE if set, FALSE if unset
 
 */
-int  SL_FD_ISSET(int fd, SlFdSet_t *fdset);
+_i16  SL_FD_ISSET(_i16 fd, SlFdSet_t *fdset);
 
 /*!
     \brief Select's SlFdSet_t ZERO function
@@ -909,7 +923,93 @@ void SL_FD_ZERO(SlFdSet_t *fdset);
    
     \param[in] sd               socket handle
     \param[in] level            defines the protocol level for this option
+                                - <b>SL_SOL_SOCKET</b>   Socket level configurations (L4, transport layer)
+                                - <b>SL_IPPROTO_IP</b>   IP level configurations (L3, network layer)
+                                - <b>SL_SOL_PHY_OPT</b>  Link level configurations (L2, link layer)
     \param[in] optname          defines the option name to interrogate
+                                - <b>SL_SOL_SOCKET</b>
+                                  - <b>SL_SO_KEEPALIVE</b>  \n
+                                                 Enable/Disable periodic keep alive.
+                                                 Keeps TCP connections active by enabling the periodic transmission of messages \n
+                                                 Timeout is 5 minutes.\n
+                                                 Default: Enabled \n
+                                                 This options takes SlSockKeepalive_t struct as parameter
+                                  - <b>SL_SO_RCVTIMEO</b>  \n
+                                                 Sets the timeout value that specifies the maximum amount of time an input function waits until it completes. \n
+                                                 Default: No timeout \n
+                                                 This options takes SlTimeval_t struct as parameter
+                                  - <b>SL_SO_RCVBUF</b>  \n
+                                                 Sets tcp max recv window size. \n
+                                                 This options takes SlSockWinsize_t struct as parameter
+                                  - <b>SL_SO_NONBLOCKING</b> \n
+                                                 Sets socket to non-blocking operation Impacts: connect, accept, send, sendto, recv and recvfrom. \n
+                                                 Default: Blocking.
+                                                 This options takes SlSockNonblocking_t struct as parameter
+                                  - <b>SL_SO_SECMETHOD</b> \n
+                                                 Sets method to tcp secured socket (SL_SEC_SOCKET) \n
+                                                 Default: SL_SO_SEC_METHOD_SSLv3_TLSV1_2 \n
+                                                 This options takes SlSockSecureMethod struct as parameter
+                                  - <b>SL_SO_SEC_MASK</b> \n
+                                                 Sets specific cipher to tcp secured socket (SL_SEC_SOCKET) \n
+                                                 Default: "Best" cipher suitable to method \n
+                                                 This options takes SlSockSecureMask struct as parameter
+                                  - <b>SL_SO_SECURE_FILES_CA_FILE_NAME</b> \n
+                                                 Map secured socket to CA file by name \n
+                                                 This options takes <b>_u8</b> buffer as parameter 
+                                  - <b>SL_SO_SECURE_FILES_PRIVATE_KEY_FILE_NAME</b> \n
+                                                 Map secured socket to private key by name \n
+                                                 This options takes <b>_u8</b> buffer as parameter 
+                                  - <b>SL_SO_SECURE_FILES_CERTIFICATE_FILE_NAME</b> \n
+                                                 Map secured socket to certificate file by name \n
+                                                 This options takes <b>_u8</b> buffer as parameter 
+                                  - <b>SL_SO_SECURE_FILES_DH_KEY_FILE_NAME</b> \n
+                                                 Map secured socket to Diffie Hellman file by name \n
+                                                 This options takes <b>_u8</b> buffer as parameter 
+                                  - <b>SL_SO_CHANGE_CHANNEL</b> \n
+                                                 Sets channel in transceiver mode.
+                                                 This options takes <b>_u32</b> as channel number parameter
+                                - <b>SL_IPPROTO_IP</b> 
+                                  - <b>SL_IP_MULTICAST_TTL</b> \n
+                                                 Set the time-to-live value of outgoing multicast packets for this socket. \n
+                                                 This options takes <b>_u8</b> as parameter 
+                                  - <b>SL_IP_ADD_MEMBERSHIP</b> \n
+                                                 UDP socket, Join a multicast group. \n
+                                                 This options takes SlSockIpMreq struct as parameter
+                                  - <b>SL_IP_DROP_MEMBERSHIP</b> \n
+                                                 UDP socket, Leave a multicast group \n
+                                                 This options takes SlSockIpMreq struct as parameter
+                                  - <b>SL_IP_RAW_RX_NO_HEADER</b> \n                 
+                                                 Raw socket remove IP header from received data. \n
+                                                 Default: data includes ip header \n
+                                                 This options takes <b>_u32</b> as parameter
+                                  - <b>SL_IP_HDRINCL</b> \n
+                                                 RAW socket only, the IPv4 layer generates an IP header when sending a packet unless \n
+                                                 the IP_HDRINCL socket option is enabled on the socket.    \n
+                                                 When it is enabled, the packet must contain an IP header. \n
+                                                 Default: disabled, IPv4 header generated by Network Stack \n
+                                                 This options takes <b>_u32</b> as parameter
+                                  - <b>SL_IP_RAW_IPV6_HDRINCL</b> (inactive) \n
+                                                 RAW socket only, the IPv6 layer generates an IP header when sending a packet unless \n
+                                                 the IP_HDRINCL socket option is enabled on the socket. When it is enabled, the packet must contain an IP header \n
+                                                 Default: disabled, IPv4 header generated by Network Stack \n
+                                                 This options takes <b>_u32</b> as parameter
+                                - <b>SL_SOL_PHY_OPT</b>
+                                  - <b>SL_SO_PHY_RATE</b> \n
+                                                 RAW socket, set WLAN PHY transmit rate \n
+                                                 The values are based on RateIndex_e    \n
+                                                 This options takes <b>_u32</b> as parameter
+                                  - <b>SL_SO_PHY_TX_POWER</b> \n
+                                                 RAW socket, set WLAN PHY TX power \n
+                                                 Valid rage is 1-15 \n
+                                                 This options takes <b>_u32</b> as parameter
+                                  - <b>SL_SO_PHY_NUM_FRAMES_TO_TX</b> \n
+                                                 RAW socket, set number of frames to transmit in transceiver mode.
+                                                 Default: 1 packet
+                                                 This options takes <b>_u32</b> as parameter
+                                  - <b>SL_SO_PHY_PREAMBLE</b> \n
+                                                 RAW socket, set WLAN PHY preamble for Long/Short\n
+                                                 This options takes <b>_u32</b> as parameter
+  
     \param[in] optval           specifies a value for the option
     \param[in] optlen           specifies the length of the 
         option value
@@ -920,176 +1020,154 @@ void SL_FD_ZERO(SlFdSet_t *fdset);
     \note   belongs to \ref basic_api  
     \warning
     \par   Examples:
-    \code
-
-        SL_SO_KEEPALIVE:
-           Keeps TCP connections active by enabling the periodic transmission of messages
-           Enable/Disable periodic keep alive.  
-           Default: Enabled, keep alive timeout 300 seconds.
-            
-           SlSockKeepalive_t enableOption = 1;
-           sl_SetSockOpt(sd,SOL_SOCKET,SL_SO_KEEPALIVE, &enableOption,sizeof(enableOption));  // Keeps connections active by enabling the periodic transmission of messages
+    \par   
+    <b> SL_SO_KEEPALIVE: </b>(disable Keepalive)
+    \code		
+           SlSockKeepalive_t enableOption;
+           enableOption.KeepaliveEnabled = 0;
+           sl_SetSockOpt(SockID,SL_SOL_SOCKET,SL_SO_KEEPALIVE, (_u8 *)&enableOption,sizeof(enableOption));  
     \endcode
+    \par   
+    <b> SL_SO_RCVTIMEO: </b>
     \code
-
-        SL_SO_RCVTIMEO:
-           Sets the timeout value that specifies the maximum amount of time an input function waits until it completes.
-           Default: No timeout
-
-           struct SlTimeval_t timeval;
+           struct SlTimeval_t timeVal;
            timeVal.tv_sec =  1;             // Seconds
            timeVal.tv_usec = 0;             // Microseconds. 10000 microseconds resolution
-           sl_SetSockOpt(sd,SOL_SOCKET,SL_SO_RCVTIMEO, &timeVal, sizeof(timeVal));    // Enable receive timeout 
+           sl_SetSockOpt(SockID,SL_SOL_SOCKET,SL_SO_RCVTIMEO, (_u8 *)&timeVal, sizeof(timeVal));    // Enable receive timeout 
     \endcode
+    \par   
+    <b>    SL_SO_RCVBUF: </b>
     \code
-
-    SL_SO_RCVBUF:
-           Sets tcp max recv window
-
            SlSockWinsize_t size;
-           size = 3000;  // bytes
-           sl_SetSockOpt(sd,SOL_SOCKET,SL_SO_RCVBUF, &size, sizeof(size));
+           size.Winsize = 3000;  // bytes
+           sl_SetSockOpt(SockID,SL_SOL_SOCKET,SL_SO_RCVBUF, (_u8 *)&size, sizeof(size));
     \endcode
+    \par   
+    <b>    SL_SO_NONBLOCKING: </b>
     \code
-          
-        SL_SO_NONBLOCKING:
-           Sets socket to non-blocking operation
-           Impact on: connect, accept, send, sendto, recv and recvfrom.
-           Default: Blocking.
-
-           SlSockNonblocking_t enableOption = 1;
-           sl_SetSockOpt(sd,SOL_SOCKET,SL_SO_NONBLOCKING, &enableOption,sizeof(enableOption)); // Enable/disable nonblocking mode
+           SlSockNonblocking_t enableOption;
+           enableOption.NonblockingEnabled = 1;
+           sl_SetSockOpt(SockID,SL_SOL_SOCKET,SL_SO_NONBLOCKING, (_u8 *)&enableOption,sizeof(enableOption)); // Enable/disable nonblocking mode
     \endcode
+    \par   
+    <b>    SL_SO_SECMETHOD:</b>
     \code
-
-        SL_SO_SECMETHOD + SL_SO_SECURE_MASK:
-           Sets method to tcp secured socket (SL_SEC_SOCKET)
-           Default: SL_SO_SEC_METHOD_SSLv3_TLSV1_2
-
            SlSockSecureMethod method;
            method.secureMethod = SL_SO_SEC_METHOD_SSLV3;                                 // security method we want to use
            SockID = sl_Socket(SL_AF_INET,SL_SOCK_STREAM, SL_SEC_SOCKET);
-           sl_SetSockOpt(SockID, SL_SOL_SOCKET, SL_SO_SEC_METHOD, &method, sizeof(method));
+           sl_SetSockOpt(SockID, SL_SOL_SOCKET, SL_SO_SECMETHOD, (_u8 *)&method, sizeof(method));
     \endcode
-    \code
-
-    SL_SO_SECURE_MASK:
-           Sets specific cipher to tcp secured socket (SL_SEC_SOCKET)
-           Default: "Best" cipher suitable to method
+    \par   
+    <b>   SL_SO_SECURE_MASK:</b>
+    \code 
            SlSockSecureMask cipher;
            cipher.secureMask = SL_SEC_MASK_SSL_RSA_WITH_RC4_128_SHA;                   // cipher type
            SockID = sl_Socket(SL_AF_INET,SL_SOCK_STREAM, SL_SEC_SOCKET);
-           sl_SetSockOpt(SockID, SL_SOL_SOCKET, SL_SO_SEC_MASK, &cipher, sizeof(cipher));
+           sl_SetSockOpt(SockID, SL_SOL_SOCKET, SL_SO_SEC_MASK,(_u8 *)&cipher, sizeof(cipher));
     \endcode
-    \code
+    \par   
+    <b>   SL_SO_SECURE_FILES_CA_FILE_NAME:</b>
+    \code           
+           sl_SetSockOpt(SockID,SL_SOL_SOCKET,SL_SO_SECURE_FILES_CA_FILE_NAME,"exuifaxCaCert.der",strlen("exuifaxCaCert.der"));
+     \endcode
 
-       SL_SO_SECURE_FILES:
-              Map programmed files TCP secured socket (SL_SEC_SOCKET)
+   \par   
+    <b>   SL_SO_SECURE_FILES_PRIVATE_KEY_FILE_NAME:</b>
+     \code           
+           sl_SetSockOpt(SockID,SL_SOL_SOCKET,SL_SO_SECURE_FILES_PRIVATE_KEY_FILE_NAME,"myPrivateKey.der",strlen("myPrivateKey.der"));
+     \endcode
 
-           SlSockSecureFiles_t   securedFiles;
-           securedFiles[SL_BSD_SECURED_PRIVATE_KEY_IDX] = [private key file index]
-           securedFiles[SL_BSD_SECURED_CERTIFICATE_IDX] = [secured certificate file index]
-           securedFiles[SL_BSD_SECURED_CA_IDX] = [secured CA file index]
-           securedFiles[SL_BSD_SECURED_DH_IDX] = [secured DH file index]
-           sl_SetSockOpt(SockID, SL_SOL_SOCKET, SL_SO_SECURE_FILES, &securedFiles[0], sizeof(SlSockSecureFiles_t));
+   \par   
+    <b>   SL_SO_SECURE_FILES_CERTIFICATE_FILE_NAME:</b>
+     \code
+           sl_SetSockOpt(SockID,SL_SOL_SOCKET,SL_SO_SECURE_FILES_CERTIFICATE_FILE_NAME,"myCertificate.der",strlen("myCertificate.der"));
+     \endcode
+
+   \par   
+    <b>   SL_SO_SECURE_FILES_DH_KEY_FILE_NAME:</b>
+     \code
+           sl_SetSockOpt(SockID,SL_SOL_SOCKET,SL_SO_SECURE_FILES_DH_KEY_FILE_NAME,"myDHinServerMode.der",strlen("myDHinServerMode.der"));
+     \endcode
+
+   \par   
+    <b>   SL_IP_MULTICAST_TTL:</b>
+     \code
+           _u8 ttl = 20;
+           sl_SetSockOpt(SockID, SL_IPPROTO_IP, SL_IP_MULTICAST_TTL, &ttl, sizeof(ttl));
+     \endcode
+
+   \par   
+    <b>   SL_IP_ADD_MEMBERSHIP:</b>
+     \code
+           SlSockIpMreq mreq;
+           sl_SetSockOpt(SockID, SL_IPPROTO_IP, SL_IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq));
     \endcode
-    \code
 
-       SL_SO_CHANGE_CHANNEL:
-          sets channel in transceiver mode
-          unsigned long newChannel = 6; // range is 1-13
+   \par   
+    <b>   SL_IP_DROP_MEMBERSHIP:</b>
+    \code
+           SlSockIpMreq mreq;
+           sl_SetSockOpt(SockID, SL_IPPROTO_IP, SL_IP_DROP_MEMBERSHIP, &mreq, sizeof(mreq));
+    \endcode
+
+   \par   
+    <b>   SL_SO_CHANGE_CHANNEL:</b>
+    \code
+          _u32 newChannel = 6; // range is 1-13
           sl_SetSockOpt(SockID, SL_SOL_SOCKET, SL_SO_CHANGE_CHANNEL, &newChannel, sizeof(newChannel));  
     \endcode
+
+    \par   
+    <b>   SL_IP_RAW_RX_NO_HEADER:</b>
     \code
-
-    SL_IP_MULTICAST_TTL:
-          Set the time-to-live value of outgoing multicast packets for this socket
-
-          sets channel in transceiver mode
-          unsigned char ttl = 20;
-          sl_SetSockOpt(SockID, SL_IPPROTO_IP, SL_IP_MULTICAST_TTL, &ttl, sizeof(ttl));
-    \endcode
-    \code
-
-       SL_IP_RAW_RX_NO_HEADER:
-          Raw socket remove IP header from received data.
-          Default: data includes ip header
-
-          unsigned long header = 1;  // remove ip header
+          _u32 header = 1;  // remove ip header
           sl_SetSockOpt(SockID, SL_IPPROTO_IP, SL_IP_RAW_RX_NO_HEADER, &header, sizeof(header));
     \endcode
+
+   \par   
+    <b>   SL_IP_HDRINCL:</b>
     \code
-
-    SL_IP_HDRINCL:
-             RAW socket only, the IPv4 layer generates an IP header when sending a packet unless
-          the IP_HDRINCL socket option is enabled on the socket. When it is enabled, the packet must contain an IP header
-          Default: disabled, IPv4 header generated by Network Stack
-
-         unsigned long header = 1;
+         _u32 header = 1;
          sl_SetSockOpt(SockID, SL_IPPROTO_IP, SL_IP_HDRINCL, &header, sizeof(header));
     \endcode
+   \par   
+    <b>   SL_IP_RAW_IPV6_HDRINCL:</b>
     \code
-
-    SL_IP_RAW_IPV6_HDRINCL:
-            RAW socket only, the IPv6 layer generates an IP header when sending a packet unless
-         the IP_HDRINCL socket option is enabled on the socket. When it is enabled, the packet must contain an IP header
-         Default: disabled, IPv4 header generated by Network Stack
-
-         unsigned long header = 1;
-         sl_SetSockOpt(SockID, SL_IPPROTO_IP, SL_IP_RAW_IPV6_HDRINCL, &header, sizeof(header));
+          _u32 header = 1;
+          sl_SetSockOpt(SockID, SL_IPPROTO_IP, SL_IP_RAW_IPV6_HDRINCL, &header, sizeof(header));
     \endcode
+
+   \par   
+    <b>   SL_SO_PHY_RATE:</b>
     \code
-
-    SL_IP_ADD_MEMBERSHIP:
-        UDP socket, Join a multicast group
-
-        SlSockIpMreq mreq;
-        sl_SetSockOpt(SockID, SL_IPPROTO_IP, SL_IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq));
+          _u32 rate = 6; // see wlan.h RateIndex_e for values
+          sl_SetSockOpt(SockID, SL_SOL_PHY_OPT, SL_SO_PHY_RATE, &rate, sizeof(rate));  
     \endcode
+
+   \par   
+    <b>   SL_SO_PHY_TX_POWER:</b>
     \code
-
-    SL_IP_DROP_MEMBERSHIP:
-        UDP socket, Leave a multicast group
-
-       SlSockIpMreq mreq;
-       sl_SetSockOpt(SockID, SL_IPPROTO_IP, SL_IP_DROP_MEMBERSHIP, &mreq, sizeof(mreq));
+          _u32 txpower = 1; // valid range is 1-15
+          sl_SetSockOpt(SockID, SL_SOL_PHY_OPT, SL_SO_PHY_TX_POWER, &txpower, sizeof(txpower));
     \endcode
+
+   \par   
+    <b>   SL_SO_PHY_NUM_FRAMES_TO_TX:</b>
     \code
-
-    SL_SO_PHY_RATE:
-        RAW socket, set WLAN PHY transmit rate
-
-       unsigned long rate = 6; // see wlan.h RateIndex_e for values
-       sl_SetSockOpt(SockID, SL_SOL_PHY_OPT, SL_SO_PHY_RATE, &rate, sizeof(rate));  
+     	  _u32 numframes = 1;
+          sl_SetSockOpt(SockID, SL_SOL_PHY_OPT, SL_SO_PHY_NUM_FRAMES_TO_TX, &numframes, sizeof(numframes));
     \endcode
+
+   \par   
+    <b>   SL_SO_PHY_PREAMBLE:</b>
     \code
-
-    SL_SO_PHY_TX_POWER:
-        RAW socket, set WLAN PHY TX power
-
-       unsigned long txpower = 1; // valid range is 1-15
-       sl_SetSockOpt(SockID, SL_SOL_PHY_OPT, SL_SO_PHY_TX_POWER, &txpower, sizeof(txpower));
-    \endcode
-    \code
-
-    SL_SO_PHY_NUM_FRAMES_TO_TX:
-        RAW socket, set number of frames to transmit in transceiver mode
-
-       unsigned long numframes = 1;
-       sl_SetSockOpt(SockID, SL_SOL_PHY_OPT, SL_SO_PHY_NUM_FRAMES_TO_TX, &numframes, sizeof(numframes));
-    \endcode
-    \code
-
-    SL_SO_PHY_PREAMBLE:
-        RAW socket, set WLAN PHY preamble
-
-       unsigned long preamble = 1;
-       sl_SetSockOpt(SockID, SL_SOL_PHY_OPT, SL_SO_PHY_PREAMBLE, &preamble, sizeof(preamble));
+          _u32 preamble = 1;
+          sl_SetSockOpt(SockID, SL_SOL_PHY_OPT, SL_SO_PHY_PREAMBLE, &preamble, sizeof(preamble));
     \endcode
 
 */
 #if _SL_INCLUDE_FUNC(sl_SetSockOpt)
-int sl_SetSockOpt(int sd, int level, int optname, const void *optval, SlSocklen_t optlen);
+_i16 sl_SetSockOpt(_i16 sd, _i16 level, _i16 optname, const void *optval, SlSocklen_t optlen);
 #endif
 
 /*!
@@ -1133,7 +1211,7 @@ int sl_SetSockOpt(int sd, int level, int optname, const void *optval, SlSocklen_
     \warning
 */
 #if _SL_INCLUDE_FUNC(sl_GetSockOpt)
-int sl_GetSockOpt(int sd, int level, int optname, void *optval, SlSocklen_t *optlen);
+_i16 sl_GetSockOpt(_i16 sd, _i16 level, _i16 optname, void *optval, SlSocklen_t *optlen);
 #endif
 
 /*!
@@ -1160,15 +1238,15 @@ int sl_GetSockOpt(int sd, int level, int optname, void *optval, SlSocklen_t *opt
     \sa     sl_RecvFrom
     \note                       belongs to \ref recv_api
     \warning
-    \par        Example:
-    \code       An example of receiving data:
+    \par        Examples:
+    \code       An example of receiving data using TCP socket:
     
                 SlSockAddrIn_t  Addr;
                 SlSockAddrIn_t  LocalAddr;
-                int AddrSize = sizeof(SlSockAddrIn_t);
-                int SockID, newSockID;
-                int Status;
-                char Buf[RECV_BUF_LEN];
+                _i16 AddrSize = sizeof(SlSockAddrIn_t);
+                _i16 SockID, newSockID;
+                _i16 Status;
+                _i8 Buf[RECV_BUF_LEN];
 
                 LocalAddr.sin_family = SL_AF_INET;
                 LocalAddr.sin_port = sl_Htons(5001);
@@ -1183,11 +1261,23 @@ int sl_GetSockOpt(int sd, int level, int optname, void *optval, SlSocklen_t *opt
                 Status = sl_Listen(SockID, 0);
                 newSockID = sl_Accept(SockID, (SlSockAddr_t*)&Addr, (SlSocklen_t*) &AddrSize);
                 Status = sl_Recv(newSockID, Buf, 1460, 0);
-
+    \endcode
+    \code      Example code for Rx transceiver mode using a raw socket
+               _i8 buffer[1536];
+               _i16 sd;
+               _u16 size;
+               SlTransceiverRxOverHead_t *transHeader;
+               sd = sl_Socket(SL_AF_RF,SL_SOCK_RAW,11); // channel 11
+               while(1)
+               {
+                  size = sl_Recv(sd,buffer,1536,0);
+                  transHeader = (SlTransceiverRxOverHead_t *)buffer;
+                  printf("RSSI is %d frame type is 0x%x size %d\n",transHeader->rssi,buffer[sizeof(SlTransceiverRxOverHead_t)],size);
+               }      
     \endcode
 */
 #if _SL_INCLUDE_FUNC(sl_Recv)
-int sl_Recv(int sd, void *buf, int Len, int flags);
+_i16 sl_Recv(_i16 sd, void *buf, _i16 Len, _i16 flags);
 #endif
 
 /*!
@@ -1230,10 +1320,10 @@ int sl_Recv(int sd, void *buf, int Len, int flags);
     
                 SlSockAddrIn_t  Addr;
                 SlSockAddrIn_t  LocalAddr;
-                int AddrSize = sizeof(SlSockAddrIn_t);
-                int SockID;
-                int Status;
-                char Buf[RECV_BUF_LEN];
+                _i16 AddrSize = sizeof(SlSockAddrIn_t);
+                _i16 SockID;
+                _i16 Status;
+                _i8 Buf[RECV_BUF_LEN];
 
                 LocalAddr.sin_family = SL_AF_INET;
                 LocalAddr.sin_port = sl_Htons(5001);
@@ -1246,7 +1336,7 @@ int sl_Recv(int sd, void *buf, int Len, int flags);
     \endcode
 */
 #if _SL_INCLUDE_FUNC(sl_RecvFrom)
-int sl_RecvFrom(int sd, void *buf, int Len, int flags, SlSockAddr_t *from, SlSocklen_t *fromlen);
+_i16 sl_RecvFrom(_i16 sd, void *buf, _i16 Len, _i16 flags, SlSockAddr_t *from, SlSocklen_t *fromlen);
 #endif
 
 /*!
@@ -1254,7 +1344,7 @@ int sl_RecvFrom(int sd, void *buf, int Len, int flags, SlSockAddr_t *from, SlSoc
     
     This function is used to transmit a message to another socket.
     Returns immediately after sending data to device.
-    In case of TCP failure an async event SL_NETAPP_SOCKET_TX_FAILED is going to
+    In case of TCP failure an async event SL_SOCKET_TX_FAILED_EVENT is going to
     be received.
     In case of a RAW socket (transceiver mode), extra 4 bytes should be reserved at the end of the 
     frame data buffer for WLAN FCS 
@@ -1280,10 +1370,10 @@ int sl_RecvFrom(int sd, void *buf, int Len, int flags, SlSockAddr_t *from, SlSoc
     \code       An example of sending data:
     
                 SlSockAddrIn_t  Addr;
-                int AddrSize = sizeof(SlSockAddrIn_t);
-                int SockID;
-                int Status;
-                char Buf[SEND_BUF_LEN];
+                _i16 AddrSize = sizeof(SlSockAddrIn_t);
+                _i16 SockID;
+                _i16 Status;
+                _i8 Buf[SEND_BUF_LEN];
 
                 Addr.sin_family = SL_AF_INET;
                 Addr.sin_port = sl_Htons(5001);
@@ -1296,7 +1386,7 @@ int sl_RecvFrom(int sd, void *buf, int Len, int flags, SlSockAddr_t *from, SlSoc
     \endcode
  */ 
 #if _SL_INCLUDE_FUNC(sl_Send )
-int sl_Send(int sd, const void *buf, int Len, int flags);
+_i16 sl_Send(_i16 sd, const void *buf, _i16 Len, _i16 flags);
 #endif
 
 /*!
@@ -1305,7 +1395,7 @@ int sl_Send(int sd, const void *buf, int Len, int flags);
     This function is used to transmit a message to another socket
     (connection less socket SOCK_DGRAM,  SOCK_RAW).
     Returns immediately after sending data to device.
-    In case of transmission failure an async event SL_NETAPP_SOCKET_TX_FAILED is going to
+    In case of transmission failure an async event SL_SOCKET_TX_FAILED_EVENT is going to
     be received.
     
     \param[in] sd               socket handle
@@ -1335,10 +1425,10 @@ int sl_Send(int sd, const void *buf, int Len, int flags);
     \code       An example of sending data:
     
                 SlSockAddrIn_t  Addr;
-                int AddrSize = sizeof(SlSockAddrIn_t);
-                int SockID;
-                int Status;
-                char Buf[SEND_BUF_LEN];
+                _i16 AddrSize = sizeof(SlSockAddrIn_t);
+                _i16 SockID;
+                _i16 Status;
+                _i8 Buf[SEND_BUF_LEN];
 
                 Addr.sin_family = SL_AF_INET;
                 Addr.sin_port = sl_Htons(5001);
@@ -1350,7 +1440,7 @@ int sl_Send(int sd, const void *buf, int Len, int flags);
     \endcode
 */
 #if _SL_INCLUDE_FUNC(sl_SendTo)
-int sl_SendTo(int sd, const void *buf, int Len, int flags, const SlSockAddr_t *to, SlSocklen_t tolen);
+_i16 sl_SendTo(_i16 sd, const void *buf, _i16 Len, _i16 flags, const SlSockAddr_t *to, SlSocklen_t tolen);
 #endif
 
 /*!
@@ -1367,10 +1457,9 @@ int sl_SendTo(int sd, const void *buf, int Len, int flags, const SlSockAddr_t *t
     \warning   
 */
 #if _SL_INCLUDE_FUNC(sl_Htonl )
-unsigned long sl_Htonl( unsigned long val );
+_u32 sl_Htonl( _u32 val );
 
 #define sl_Ntohl sl_Htonl  /* Reorder the bytes of a 16-bit unsigned value from network order to processor orde. */
-
 #endif
 
 /*!
@@ -1387,13 +1476,10 @@ unsigned long sl_Htonl( unsigned long val );
     \warning   
 */
 #if _SL_INCLUDE_FUNC(sl_Htons )
-unsigned short sl_Htons( unsigned short val );
+_u16 sl_Htons( _u16 val );
 
 #define sl_Ntohs sl_Htons   /* Reorder the bytes of a 16-bit unsigned value from network order to processor orde. */
 #endif
-
-
-
 
 /*!
 
@@ -1408,3 +1494,5 @@ unsigned short sl_Htons( unsigned short val );
 #endif /* __cplusplus */
 
 #endif /* __SOCKET_H__ */
+
+
