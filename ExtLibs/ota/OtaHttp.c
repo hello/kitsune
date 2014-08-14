@@ -97,7 +97,7 @@ _i32 http_extract_domain_by_url(char *url_name, char *domain_name, char *req_uri
 
     if (url_name == NULL)
     {
-        Report("http_extract_domain_by_url: Error url name\n");
+        UARTprintf("http_extract_domain_by_url: Error url name\n");
         return OTA_STATUS_ERROR;
     }
 
@@ -151,7 +151,7 @@ _i32 http_skip_headers(_i16 sockId)
     len = sl_Recv_eagain(sockId, pHeader_string, HTTP_HEADER_SIZE, 0, MAX_EAGAIN_RETRIES); /*Get beginning of server response http header */
     if (len < 0)
     {
-        Report("http_skip_headers: ERROR sl_Recv_eagain, status=%d\n", len);
+        UARTprintf("http_skip_headers: ERROR sl_Recv_eagain, status=%d\n", len);
         return OTA_STATUS_ERROR;
     }
 
@@ -162,12 +162,12 @@ _i32 http_skip_headers(_i16 sockId)
         len += sl_Recv_eagain(sockId, &pHeader_string[len], HTTP_HEADER_SIZE-len, 0, MAX_EAGAIN_RETRIES); /*Get beginning of server response http header */
         if (len < 0)
         {
-            Report("http_skip_headers: ERROR sl_Recv_eagain, status=%d\n", len);
+            UARTprintf("http_skip_headers: ERROR sl_Recv_eagain, status=%d\n", len);
             return OTA_STATUS_ERROR;
         }
         if (len != HTTP_HEADER_SIZE)
         {
-            Report("http_skip_headers: fail on retry #2, len=%d\n", len);
+            UARTprintf("http_skip_headers: fail on retry #2, len=%d\n", len);
             return OTA_STATUS_ERROR;
         }
     }
@@ -175,7 +175,7 @@ _i32 http_skip_headers(_i16 sockId)
     if (strncmp (HTTP_HEADER_OK, &pHeader_string[9], 3)) /* search for HTTP/x.x 200 */
     {
         pHeader_string[HTTP_HEADER_SIZE]=0; /* just for printing */
-        Report("http_skip_headers: http error code %s\n", pHeader_string);
+        UARTprintf("http_skip_headers: http error code %s\n", pHeader_string);
         return OTA_STATUS_ERROR;
     }
 
@@ -185,7 +185,7 @@ _i32 http_skip_headers(_i16 sockId)
         len = sl_Recv_eagain(sockId, &header_string[0], 2, 0, MAX_EAGAIN_RETRIES); 
         if (len < 0)
         {
-            Report("http_skip_headers: ERROR sl_Recv_eagain, status=%d\n", len);
+            UARTprintf("http_skip_headers: ERROR sl_Recv_eagain, status=%d\n", len);
             return OTA_STATUS_ERROR;
         }
         if (!(strncmp (header_string, "\r\n", 2))) /*if an entire carriage return is found, search for another */
@@ -206,7 +206,7 @@ _i32 http_skip_headers(_i16 sockId)
         }
         if (retry++ > HTTP_MAX_RETRIES) 
         {
-            Report("http_skip_headers: search end of headeer mac retries\n");
+            UARTprintf("http_skip_headers: search end of headeer mac retries\n");
             return OTA_STATUS_ERROR;
         }
     }  
@@ -333,7 +333,7 @@ _i32 json_parse_dropbox_metadata(_i16 sockId, RsrcData_t *pRsrcData, char *read_
 
         currentFile.size = atoi(size_str);
         pRsrcData[fileNumber++] = currentFile;
-        Report("    metadata file=%s, size=%d\n", currentFile.filename, currentFile.size);
+        UARTprintf("    metadata file=%s, size=%d\n", currentFile.filename, currentFile.size);
 
         /* end of file - last file doesn't have a , */
         if (pBuf[0] != ',')
@@ -446,7 +446,7 @@ _i32 json_parse_update_check_resp(_i16 sockId, RsrcData_t *pRsrcData, char *read
         /* copy resource data to the list */
         rsrcData.size = atoi(size_str);
         pRsrcData[rsrcNum++] = rsrcData;
-        Report("resource file=%s, size=%d\n", rsrcData.filename, rsrcData.size);
+        UARTprintf("resource file=%s, size=%d\n", rsrcData.filename, rsrcData.size);
 
         /* end of file - last file doesn't have a , */
         if (pBuf[0] != ',')
@@ -505,7 +505,7 @@ _i16 http_connect_server(char *ServerName, _i32 IpAddr, _i32 port, _i32 secured,
         Status = sl_NetAppDnsGetHostByName((_i8 *)ServerName, strlen(ServerName), &ServerIP, SL_AF_INET);
         if(0 > Status )
         {
-            Report("http_connect_server: ERROR sl_NetAppDnsGetHostByName, status=%d\n", Status);
+            UARTprintf("http_connect_server: ERROR sl_NetAppDnsGetHostByName, status=%d\n", Status);
             if (g_ConsecutiveNetAccessNetErrors++ >= MAX_CONSECUTIVE_NET_ACCESS_ERRORS)
             {
                 g_ConsecutiveNetAccessNetErrors = 0;
@@ -536,7 +536,7 @@ _i16 http_connect_server(char *ServerName, _i32 IpAddr, _i32 port, _i32 secured,
     SockID = sl_Socket(SL_AF_INET,SL_SOCK_STREAM, (secured? SL_SEC_SOCKET : 0));
     if( SockID < 0 )
     {
-        Report("http_connect_server: ERROR Socket Open, status=%d\n", SockID);
+        UARTprintf("http_connect_server: ERROR Socket Open, status=%d\n", SockID);
         return OTA_STATUS_ERROR;
     }
 
@@ -547,7 +547,7 @@ _i16 http_connect_server(char *ServerName, _i32 IpAddr, _i32 port, _i32 secured,
     if( Status < 0 )
     {
         sl_Close(SockID);
-        Report("http_connect_server: ERROR sl_SetSockOpt, status=%d\n", SockID);
+        UARTprintf("http_connect_server: ERROR sl_SetSockOpt, status=%d\n", SockID);
         return OTA_STATUS_ERROR;
     }
 
@@ -556,7 +556,7 @@ _i16 http_connect_server(char *ServerName, _i32 IpAddr, _i32 port, _i32 secured,
     if(( Status < 0 ) && (Status != (-453))) /*-453 - connected secure socket without server authentication */
     {
         sl_Close(SockID);
-        Report("http_connect_server: ERROR Socket Connect, status=%d\n", Status);
+        UARTprintf("http_connect_server: ERROR Socket Connect, status=%d\n", Status);
         return OTA_STATUS_ERROR;
     }
 

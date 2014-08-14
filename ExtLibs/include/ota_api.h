@@ -36,6 +36,9 @@
 #ifndef __OTA_APP_EXT_H__
 #define __OTA_APP_EXT_H__
 
+void
+UARTprintf(const char *pcString, ...);
+
 #ifdef    __cplusplus
 extern "C" {
 #endif

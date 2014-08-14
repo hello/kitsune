@@ -76,7 +76,7 @@ _i32 CdnClient_ConnectByUrl(void *pvCdnClient, OtaFileMetadata_t *pResourceMetad
     status = http_extract_domain_by_url((char *)cdn_url, domain_name, req_uri);
     if (status < 0)
     {
-        Report("CdnClient_ConnectByUrl: ERROR, http_extract_domain_by_url, status=%d\n", status);
+        UARTprintf("CdnClient_ConnectByUrl: ERROR, http_extract_domain_by_url, status=%d\n", status);
         return OTA_STATUS_ERROR;
     }
 
@@ -91,7 +91,7 @@ _i32 CdnClient_ConnectByUrl(void *pvCdnClient, OtaFileMetadata_t *pResourceMetad
         pCdnClient->fileSockId = http_connect_server(pCdnClient->cdn_server_name, 0, pCdnClient->port_num, SOCKET_SECURED, SOCKET_BLOCKING);
         if (pCdnClient->fileSockId < 0)
         {
-            Report("CdnClient_ConnectByUrl: ERROR on http_connect_server, status=%d\n", pCdnClient->fileSockId);
+            UARTprintf("CdnClient_ConnectByUrl: ERROR on http_connect_server, status=%d\n", pCdnClient->fileSockId);
             CdnClient_CloseServer(pvCdnClient);
             if (pCdnClient->fileSockId == OTA_STATUS_ERROR_CONTINUOUS_ACCESS)
             {
@@ -105,7 +105,7 @@ _i32 CdnClient_ConnectByUrl(void *pvCdnClient, OtaFileMetadata_t *pResourceMetad
     status = _ReadFileHeaders(pCdnClient->fileSockId, pCdnClient->cdn_server_name, req_uri); 
     if (status < 0)
     {
-        Report("CdnClient_ConnectByUrl: ERROR, _ReadFileHeaders, status=%d\n", status);
+        UARTprintf("CdnClient_ConnectByUrl: ERROR, _ReadFileHeaders, status=%d\n", status);
         CdnClient_CloseServer(pvCdnClient);
         return CDN_STATUS_ERROR_READ_HDRS;
     }
@@ -136,21 +136,21 @@ _i32 _ReadFileHeaders(_i16 fileSockId, char *domian_name, char *file_name)
     _i32 len;
     char *send_buf = http_send_buf();
 
-    Report("_ReadFileHeaders: domain=%s, file=%s\n", domian_name, file_name);
+    UARTprintf("_ReadFileHeaders: domain=%s, file=%s\n", domian_name, file_name);
     http_build_request (send_buf, "GET ", domian_name, NULL, file_name, NULL, NULL);  
 
     len = sl_Send(fileSockId, send_buf, (_i16)strlen(send_buf), 0);
     if (len <= 0)
     {
-        Report("_ReadFileHeaders: ERROR, sl_Send, status=%d\n", len);
+        UARTprintf("_ReadFileHeaders: ERROR, sl_Send, status=%d\n", len);
         return OTA_STATUS_ERROR;
     }
 
-    Report("_ReadFileHeaders: skip http headers\n");
+    UARTprintf("_ReadFileHeaders: skip http headers\n");
     status = http_skip_headers(fileSockId);
     if (status < 0)
     {
-        Report("_ReadFileHeaders: ERROR, http_skip_headers, status=%d\n", status);
+        UARTprintf("_ReadFileHeaders: ERROR, http_skip_headers, status=%d\n", status);
         return OTA_STATUS_ERROR;
     }
 
@@ -177,14 +177,14 @@ _i32 _readSignature(CdnClient_t *pCdnClient, char *signature_filename, OtaFileMe
     status = pFlcCb->pOpenFile((_u8 *)signature_filename , 0, NULL, &lFileHandle, _FS_MODE_OPEN_READ);
     if(status < 0)
     {
-        Report("_readSignature: Error pOpenFile\n");
+        UARTprintf("_readSignature: Error pOpenFile\n");
         return OTA_STATUS_ERROR;
     }
 
     len = pFlcCb->pReadFile(lFileHandle , 0, pMetadata->signature, sizeof(pMetadata->signature));
     if(len < 0)
     {
-        Report("_readSignature: Error pReadFile\n");
+        UARTprintf("_readSignature: Error pReadFile\n");
         return OTA_STATUS_ERROR;
     }
     pMetadata->p_signature = pMetadata->signature;
@@ -193,7 +193,7 @@ _i32 _readSignature(CdnClient_t *pCdnClient, char *signature_filename, OtaFileMe
     status = pFlcCb->pCloseFile(lFileHandle, NULL, NULL, 0);
     if(status < 0)
     {
-        Report("_readSignature: Error pCloseFile\n");
+        UARTprintf("_readSignature: Error pCloseFile\n");
         return OTA_STATUS_ERROR;
     }
     return OTA_STATUS_OK;
@@ -209,7 +209,7 @@ _i32 _OpenStorageFile(CdnClient_t *pCdnClient, char *file_name, _i32 file_size, 
     if((int)(pCdnClient->pFlcCb) == 0)
     {
         pCdnClient->state = CDN_STATE_IDLE;
-        Report("_OpenStorageFile: pCdnClient->pFlcCb is NULL !!!!\n");
+        UARTprintf("_OpenStorageFile: pCdnClient->pFlcCb is NULL !!!!\n");
         return OTA_STATUS_ERROR;
     }
     /*  create a user file with mirror */
@@ -229,7 +229,7 @@ _i32 _OpenStorageFile(CdnClient_t *pCdnClient, char *file_name, _i32 file_size, 
             status = _readSignature(pCdnClient, pMetadata->signature_filename, pMetadata);
             if (status < 0)
             {
-                Report( "_OpenStorageFile: error in _readSignature, status=%d\n", status);
+                UARTprintf( "_OpenStorageFile: error in _readSignature, status=%d\n", status);
                 return OTA_STATUS_ERROR;
             }
         }
@@ -238,7 +238,7 @@ _i32 _OpenStorageFile(CdnClient_t *pCdnClient, char *file_name, _i32 file_size, 
     status = pCdnClient->pFlcCb->pOpenFile((_u8 *)file_name, file_size, ulToken, lFileHandle, fs_open_flags);
     if(status < 0)
     {
-        Report( "_OpenStorageFile: error in pOpenFile, status=%d\n", status);
+        UARTprintf( "_OpenStorageFile: error in pOpenFile, status=%d\n", status);
         return OTA_STATUS_ERROR;
     }
     return OTA_STATUS_OK;
@@ -264,24 +264,24 @@ _i32 CdnClient_Run(void *pvCdnClient)
     _i32 bytesReceived;
     char *endBuf;
 
-    /*Report("sl_extLib_CdnRun: entry, state=%d, totalBytesReceived=%d\n", pCdnClient->state, pCdnClient->totalBytesReceived); */
+    /*UARTprintf("sl_extLib_CdnRun: entry, state=%d, totalBytesReceived=%d\n", pCdnClient->state, pCdnClient->totalBytesReceived); */
 
     switch (pCdnClient->state)
     {
         case CDN_STATE_CDN_SERVER_CONNECTED:
-            Report( "CdnClient_Run: Create/Open for write file %s\n", pCdnClient->p_file_name);
+            UARTprintf( "CdnClient_Run: Create/Open for write file %s\n", pCdnClient->p_file_name);
     
             /*  create a user file */
             status = _OpenStorageFile(pCdnClient, pCdnClient->p_file_name, pCdnClient->file_size, &pCdnClient->ulToken, &pCdnClient->lFileHandle);
             if(status < 0)
             {
                 pCdnClient->state = CDN_STATE_IDLE;
-                Report("CdnClient_Run ERROR: pCdnClient->pOpenFileCB\n");
+                UARTprintf("CdnClient_Run ERROR: pCdnClient->pOpenFileCB\n");
                 return CDN_STATUS_ERROR_OPEN_FILE;
             }
 
             pCdnClient->state = CDN_STATE_FILE_DOWNLOAD_AND_SAVE;
-            Report( "CdnClient_Run: file opened\n");
+            UARTprintf( "CdnClient_Run: file opened\n");
             pCdnClient->recv_buf = http_recv_buf();
             memset(pCdnClient->recv_buf, 0, sizeof(HTTP_RECV_BUF_LEN));
             break;
@@ -291,7 +291,7 @@ _i32 CdnClient_Run(void *pvCdnClient)
             bytesReceived = _RecvFileChunk(pCdnClient->fileSockId, &pCdnClient->recv_buf[0], HTTP_RECV_BUF_LEN, 0);
             if (0 >= bytesReceived)
             {
-                Report("CdnClient_Run: ERROR sl_Recv status=%d\n", bytesReceived);
+                UARTprintf("CdnClient_Run: ERROR sl_Recv status=%d\n", bytesReceived);
                 /*!!!!Don't close the file do Abort or just reset without close */
                 /*!!!!pFlcCb->pCloseFile(pCdnClient->lFileHandle, NULL, NULL, 0); */
                 pFlcCb->pAbortFile(pCdnClient->lFileHandle);
@@ -318,7 +318,7 @@ _i32 CdnClient_Run(void *pvCdnClient)
                                           (ALIGNMENT_READ_MASK + 1) - (bytesReceived & ALIGNMENT_READ_MASK), 0);
                     if (0 >= status)
                     {
-                        Report("CdnClient_Run: ERROR sl_Recv on force align recv status=%d\n", status);
+                        UARTprintf("CdnClient_Run: ERROR sl_Recv on force align recv status=%d\n", status);
                         /*!!!!Don't close the file do Abort or just reset without close */
                         /*!!!!pFlcCb->pCloseFile(pCdnClient->lFileHandle, NULL, NULL, 0); */
                         pFlcCb->pAbortFile(pCdnClient->lFileHandle);
@@ -334,11 +334,11 @@ _i32 CdnClient_Run(void *pvCdnClient)
 
 
             /* Write the packet to the file */
-            Report( "CdnClient_Run: Write size %d to file %s total %d.\n", bytesReceived, pCdnClient->p_file_name, pCdnClient->totalBytesReceived );
+            UARTprintf( "CdnClient_Run: Write size %d to file %s total %d.\n", bytesReceived, pCdnClient->p_file_name, pCdnClient->totalBytesReceived );
             status = pFlcCb->pWriteFile((_i32)pCdnClient->lFileHandle, pCdnClient->totalBytesReceived, pCdnClient->recv_buf, bytesReceived); 
             if (status < 0)
             {
-                Report("CdnClient_Run: Error - SaveFileChunk - (%d)\n", status);
+                UARTprintf("CdnClient_Run: Error - SaveFileChunk - (%d)\n", status);
                 /*!!!!Don't close the file do Abort or just reset without close */
                 /*!!!!pFlcCb->pCloseFile(pCdnClient->lFileHandle, NULL, NULL, 0); */
                 pFlcCb->pAbortFile(pCdnClient->lFileHandle);
@@ -351,11 +351,11 @@ _i32 CdnClient_Run(void *pvCdnClient)
             /* check EOF */
             if (endBuf > pCdnClient->recv_buf)
             {
-                Report("CdnClient_Run: End of file\n");
+                UARTprintf("CdnClient_Run: End of file\n");
                 status = pFlcCb->pCloseFile(pCdnClient->lFileHandle, (_u8 *)pCdnClient->pResourceMetadata->p_cert_filename , (_u8 *)pCdnClient->pResourceMetadata->p_signature, pCdnClient->pResourceMetadata->signature_len);
                 if (status < 0)
                 {
-                    Report( "CdnClient_Run: error on pCloseFile, status=%d\n", status);
+                    UARTprintf( "CdnClient_Run: error on pCloseFile, status=%d\n", status);
                     /*!!!!Don't close the file do Abort or just reset without close */
                     /*!!!!pFlcCb->pCloseFile(pCdnClient->lFileHandle, NULL, NULL, 0); */
                     pFlcCb->pAbortFile(pCdnClient->lFileHandle);
@@ -364,7 +364,7 @@ _i32 CdnClient_Run(void *pvCdnClient)
                 }
 
                
-                Report("CdnClient_Run: Downloading File Completed - Size=%d\n", pCdnClient->totalBytesReceived);
+                UARTprintf("CdnClient_Run: Downloading File Completed - Size=%d\n", pCdnClient->totalBytesReceived);
                 pCdnClient->state = CDN_STATE_IDLE;
                 return CDN_STATUS_DOWNLOAD_DONE;
 
@@ -373,7 +373,7 @@ _i32 CdnClient_Run(void *pvCdnClient)
             break;
         
         default:
-            Report("CdnClient_Run ERROR: unexpected state %d\n", pCdnClient->state);
+            UARTprintf("CdnClient_Run ERROR: unexpected state %d\n", pCdnClient->state);
             pCdnClient->state = CDN_STATE_IDLE;
             return CDN_STATUS_ERROR;
 

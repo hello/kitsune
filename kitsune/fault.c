@@ -221,6 +221,9 @@ FaultISR(void)
 }
 #endif
 #if 1//defined(ccs)
+#endif // #if defined (CCS)
+
+
 void
 FaultISR(void)
 {
@@ -228,6 +231,3 @@ FaultISR(void)
           "    bl      FaultDecoder\n"
           "    bx      lr");
 }
-#endif // #if defined (CCS)
-
-

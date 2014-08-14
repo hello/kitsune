@@ -65,6 +65,12 @@ PinMuxConfig(void)
     //setup debug uart clock
     MAP_PRCMPeripheralClkEnable(PRCM_UARTA0, PRCM_RUN_MODE_CLK);
 
+    //gspi clock
+    MAP_PRCMPeripheralClkEnable(PRCM_GSPI, PRCM_RUN_MODE_CLK);
+
+    //gpio clock
+    MAP_PRCMPeripheralClkEnable(PRCM_GPIOA1, PRCM_RUN_MODE_CLK);
+
     // Configure PIN_64 for TIMERPWM5 GT_PWM05
     //
     MAP_PinTypeTimer(PIN_64, PIN_MODE_3);
@@ -89,7 +95,6 @@ PinMuxConfig(void)
     //
     MAP_PinTypeUART(PIN_57, PIN_MODE_3);
 
-
     //
     // Configure PIN_06 for SDHOST0 SDHost_D0
     //
@@ -104,4 +109,24 @@ PinMuxConfig(void)
     // Configure PIN_08 for SDHOST0 SDHost_CMD
     //
     MAP_PinTypeSDHost(PIN_08, PIN_MODE_8);
+
+    //
+    // Configure PIN_04 for GPIOOutputOD (GSPI CS)
+    //
+    MAP_PinTypeGPIO(PIN_04, PIN_MODE_0, true);
+
+    //
+    // Configure PIN_05 for SPI0 GSPI_CLK
+    //
+    MAP_PinTypeSPI(PIN_05, PIN_MODE_7);
+
+    //
+    // Configure PIN_53 for SPI0 GSPI_MISO
+    //
+    MAP_PinTypeSPI(PIN_53, PIN_MODE_7);
+
+    //
+    // Configure PIN_52 for SPI0 GSPI_MOSI
+    //
+    MAP_PinTypeSPI(PIN_52, PIN_MODE_8);
 }

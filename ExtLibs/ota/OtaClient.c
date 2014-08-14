@@ -66,11 +66,11 @@ _i32 OtaClient_ConnectServer(void *pvOtaClient, OtaOptServerInfo_t *pOtaServerIn
     pOtaClient->pOtaServerInfo = pOtaServerInfo;
 
     /* Connect to the OTA server */
-    Report("OtaClient_ConnectServer: http_connect_server %s\n", pOtaServerInfo->server_domain);
+    UARTprintf("OtaClient_ConnectServer: http_connect_server %s\n", pOtaServerInfo->server_domain);
     pOtaClient->serverSockId = http_connect_server(pOtaServerInfo->server_domain, pOtaServerInfo->ip_address, SOCKET_PORT_DEFAULT, pOtaServerInfo->secured_connection, SOCKET_BLOCKING);
     if (pOtaClient->serverSockId < 0)
     {
-        Report("OtaClient_ConnectServer: ERROR http_connect_server, status=%d\n", pOtaClient->serverSockId);
+        UARTprintf("OtaClient_ConnectServer: ERROR http_connect_server, status=%d\n", pOtaClient->serverSockId);
         if (pOtaClient->serverSockId == OTA_STATUS_ERROR_CONTINUOUS_ACCESS)
         {
             return OTA_STATUS_ERROR_CONTINUOUS_ACCESS;
@@ -92,7 +92,7 @@ _i32 OtaClient_UpdateCheck(void *pvOtaClient, char *pVendorStr)
     char *response_buf = http_recv_buf();
 
     pOtaClient->pVendorStr = pVendorStr;
-    Report("OtaClient_UpdateCheck: call http_build_request %s\n", pOtaServerInfo->rest_update_chk);
+    UARTprintf("OtaClient_UpdateCheck: call http_build_request %s\n", pOtaServerInfo->rest_update_chk);
 
 #ifdef TI_OTA_SERVER
     http_build_request (send_buf, "GET ", pOtaServerInfo->server_domain, pOtaServerInfo->rest_update_chk, NULL, NULL, NULL);  
@@ -103,14 +103,14 @@ _i32 OtaClient_UpdateCheck(void *pvOtaClient, char *pVendorStr)
     len = sl_Send(pOtaClient->serverSockId, send_buf, (_i16)strlen(send_buf), 0);
     if (len <= 0)
     {
-        Report("OtaClient_UpdateCheck: ERROR metadata sl_Send status=%d\n", len);
+        UARTprintf("OtaClient_UpdateCheck: ERROR metadata sl_Send status=%d\n", len);
         return OTA_STATUS_ERROR;
     }
 
     len = sl_Recv_eagain(pOtaClient->serverSockId, response_buf, HTTP_RECV_BUF_LEN, 0, MAX_EAGAIN_RETRIES);
     if (len <= 0)
     {
-        Report("OtaClient_UpdateCheck: ERROR metadata sl_Recv status=%d\n", len);
+        UARTprintf("OtaClient_UpdateCheck: ERROR metadata sl_Recv status=%d\n", len);
         return OTA_STATUS_ERROR;
     }
 
@@ -119,7 +119,7 @@ _i32 OtaClient_UpdateCheck(void *pvOtaClient, char *pVendorStr)
         status = sl_Recv_eagain(pOtaClient->serverSockId, &response_buf[len], HTTP_RECV_BUF_LEN, 0, MAX_EAGAIN_RETRIES);
         if (status <= 0)
         {
-            Report("OtaClient_UpdateCheck: ERROR metadata sl_Recv status=%d\n", status);
+            UARTprintf("OtaClient_UpdateCheck: ERROR metadata sl_Recv status=%d\n", status);
             return OTA_STATUS_ERROR;
         }
         len += status;
@@ -180,14 +180,14 @@ _i32 OtaClient_ResourceMetadata(void *pvOtaClient, char *resource_file_name, Ota
 
     memset(pMetadata, 0, sizeof(OtaFileMetadata_t));
     *paramResourceMetadata = pMetadata;
-    Report("OtaClient_ResourceMetadata: call http_build_request %s\n", pOtaServerInfo->rest_rsrc_metadata);
+    UARTprintf("OtaClient_ResourceMetadata: call http_build_request %s\n", pOtaServerInfo->rest_rsrc_metadata);
     memset(response_buf,0,HTTP_RECV_BUF_LEN);
 
     /* first check and covert file name: faa_sys_filename.ext */
     status = OtaClient_ResourceNameConvert(pvOtaClient, resource_file_name, pMetadata);
     if (status < 0)
     {
-        Report("OtaClient_ResourceMetadata: Error on OtaClient_ResourceNameConvert, status=%d\n", status);
+        UARTprintf("OtaClient_ResourceMetadata: Error on OtaClient_ResourceNameConvert, status=%d\n", status);
         return OTA_STATUS_ERROR;
     }
 
@@ -200,14 +200,14 @@ _i32 OtaClient_ResourceMetadata(void *pvOtaClient, char *resource_file_name, Ota
     len = sl_Send(pOtaClient->serverSockId, send_buf, (_i16)strlen(send_buf), 0);
     if (len <= 0)
     {
-        Report("OtaClient_ResourceMetadata: Error media sl_Send status=%d\n", len);
+        UARTprintf("OtaClient_ResourceMetadata: Error media sl_Send status=%d\n", len);
         return OTA_STATUS_ERROR;
     }
 
     len = sl_Recv_eagain(pOtaClient->serverSockId, response_buf, HTTP_RECV_BUF_LEN, 0, MAX_EAGAIN_RETRIES);
     if (len <= 0)
     {
-        Report("OtaClient_ResourceMetadata: Error media sl_Recv_eagain status=%d\n", len);
+        UARTprintf("OtaClient_ResourceMetadata: Error media sl_Recv_eagain status=%d\n", len);
         return OTA_STATUS_ERROR;
     }
 
@@ -216,7 +216,7 @@ _i32 OtaClient_ResourceMetadata(void *pvOtaClient, char *resource_file_name, Ota
         status = sl_Recv_eagain(pOtaClient->serverSockId, &response_buf[len], HTTP_RECV_BUF_LEN, 0, MAX_EAGAIN_RETRIES);
         if (status <= 0)
         {
-            Report("OtaClient_ResourceMetadata: ERROR metadata sl_Recv status=%d\n", status);
+            UARTprintf("OtaClient_ResourceMetadata: ERROR metadata sl_Recv status=%d\n", status);
             return OTA_STATUS_ERROR;
         }
         len += status;
@@ -229,7 +229,7 @@ _i32 OtaClient_ResourceMetadata(void *pvOtaClient, char *resource_file_name, Ota
 #endif
     if (status)
     {
-        Report("OtaClient_ResourceMetadata: Error media json_parse_media status=%d\n", status);
+        UARTprintf("OtaClient_ResourceMetadata: Error media json_parse_media status=%d\n", status);
         return OTA_STATUS_ERROR;
     }
 
@@ -257,7 +257,7 @@ _i32 OtaClient_ResourceNameConvert(void *pvOtaClient, char *resource_file_name, 
  
     if (pMetadata->p_file_name[1] != 'f') /* must start with 'f' flags */
     {
-        Report("OtaClient_ResourceMetadata: ignore file name: %s, without f prefix\n", pMetadata->p_file_name);
+        UARTprintf("OtaClient_ResourceMetadata: ignore file name: %s, without f prefix\n", pMetadata->p_file_name);
         return OTA_STATUS_ERROR;
     }
 
@@ -280,7 +280,7 @@ _i32 OtaClient_ResourceNameConvert(void *pvOtaClient, char *resource_file_name, 
     if (file_flags & 0x20) pMetadata->flags |= METADATA_FLAGS_RESEREVED_1;
     if (file_flags & 0x40) pMetadata->flags |= METADATA_FLAGS_RESET_NWP;
     if (file_flags & 0x80) pMetadata->flags |= METADATA_FLAGS_RESET_MCU;
-    Report("OtaClient_ResourceMetadata: file flags=%x, metadata flags=%x\n", file_flags, file_flags, pMetadata->flags);
+    UARTprintf("OtaClient_ResourceMetadata: file flags=%x, metadata flags=%x\n", file_flags, file_flags, pMetadata->flags);
     /* skip file flags */
     pMetadata->p_file_name += 4;        /* skip "/f00" of /f00_sys_file.ext" */
     pMetadata->p_file_name[0] = '/';    /* convert "_sys" to "/sys_file.ext" */
@@ -299,7 +299,7 @@ _i32 OtaClient_ResourceNameConvert(void *pvOtaClient, char *resource_file_name, 
     {
         if (pOtaClient->pFlcHostCb == NULL)
         {
-            Report("OtaClient_ResourceMetadata: METADATA_FLAGS_NOT_SFLASH_STORAGE is set but no host storage function installed!!!!\n");
+            UARTprintf("OtaClient_ResourceMetadata: METADATA_FLAGS_NOT_SFLASH_STORAGE is set but no host storage function installed!!!!\n");
             return OTA_STATUS_ERROR;
         }
     }
@@ -307,7 +307,7 @@ _i32 OtaClient_ResourceNameConvert(void *pvOtaClient, char *resource_file_name, 
     /* set signature file */
     if (pMetadata->flags & METADATA_FLAGS_SIGNATURE)
     {
-        Report("OtaClient_ResourceMetadata: file=%s is secured with signature\n", pMetadata->p_file_name);
+        UARTprintf("OtaClient_ResourceMetadata: file=%s is secured with signature\n", pMetadata->p_file_name);
         /* signature will be extracted from "file.sig" file */
         pMetadata->flags |= METADATA_FLAGS_SIGNATURE;
         strcpy(pMetadata->signature_filename, pMetadata->p_file_name);
@@ -317,7 +317,7 @@ _i32 OtaClient_ResourceNameConvert(void *pvOtaClient, char *resource_file_name, 
     /* set certificate file */
     if (pMetadata->flags & METADATA_FLAGS_CERTIFICATE)
     {
-        Report("OtaClient_ResourceMetadata: file=%s is secured with certificate\n", pMetadata->p_file_name);
+        UARTprintf("OtaClient_ResourceMetadata: file=%s is secured with certificate\n", pMetadata->p_file_name);
         /* signature will be extracted from "file.cer" file */
         strcpy(pMetadata->cert2_filename, pMetadata->p_file_name);
         strcpy(&pMetadata->cert2_filename[strlen(pMetadata->signature_filename)-4], ".cer");
@@ -326,7 +326,7 @@ _i32 OtaClient_ResourceNameConvert(void *pvOtaClient, char *resource_file_name, 
 
     if (strstr(pMetadata->p_file_name, ".sig") != NULL)
     {
-        Report("OtaClient_ResourceMetadata: remove old signature file %s\n", pMetadata->p_file_name);
+        UARTprintf("OtaClient_ResourceMetadata: remove old signature file %s\n", pMetadata->p_file_name);
         /* remove old sig file, must download new file */
         sl_FsDel((_u8 *)pMetadata->p_file_name, (_u32)0);
     }

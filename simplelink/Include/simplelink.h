@@ -489,9 +489,7 @@ extern void sl_GeneralEvtHdlr(SlDeviceEvent_t *pSlDeviceEvent);
                        - pSlWlanEvent->EventData.P2PModewlanConnectionFailure fields:
                            - status                  
 */
-#if (defined(sl_WlanEvtHdlr))
-extern void sl_WlanEvtHdlr(SlWlanEvent_t *pSlWlanEvent);
-#endif
+
 
 
 /*!

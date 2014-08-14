@@ -59,11 +59,11 @@ _i32 LogClient_ConnectServer(void *pvLogClient, OtaOptServerInfo_t *pOtaServerIn
 
     pLogClient->pOtaServerInfo = pOtaServerInfo;
     /* Connect to the OTA server */
-    Report("LogClient_ConnectServer: http_connect_server %s\n", pOtaServerInfo->log_server_name);
+    UARTprintf("LogClient_ConnectServer: http_connect_server %s\n", pOtaServerInfo->log_server_name);
     pLogClient->serverSockId = http_connect_server(pOtaServerInfo->log_server_name, 0, SOCKET_PORT_DEFAULT, SOCKET_SECURED, SOCKET_BLOCKING);
     if (pLogClient->serverSockId < 0)
     {
-        Report("LogClient_ConnectServer: ERROR http_connect_server, status=%d\n", pLogClient->serverSockId);
+        UARTprintf("LogClient_ConnectServer: ERROR http_connect_server, status=%d\n", pLogClient->serverSockId);
         if (pLogClient->serverSockId == OTA_STATUS_ERROR_CONTINUOUS_ACCESS)
         {
             return OTA_STATUS_ERROR_CONTINUOUS_ACCESS;
@@ -108,14 +108,14 @@ _i32 LogClient_Print(void *pvLogClient, char *pFilename, OtaApp_statistics_t *pS
     len = sl_Send(pLogClient->serverSockId, send_buf, (_i16)strlen(send_buf), 0);
     if (len <= 0)
     {
-        Report("LogClient_UpdateCheck: ERROR metadata sl_Send status=%d\n", len);
+        UARTprintf("LogClient_UpdateCheck: ERROR metadata sl_Send status=%d\n", len);
         return OTA_STATUS_ERROR;
     }
 
     len = sl_Send(pLogClient->serverSockId, log_buf, (_i16)strlen(log_buf), 0);
     if (len <= 0)
     {
-        Report("LogClient_UpdateCheck: ERROR metadata sl_Send status=%d\n", len);
+        UARTprintf("LogClient_UpdateCheck: ERROR metadata sl_Send status=%d\n", len);
         return OTA_STATUS_ERROR;
     }
 
@@ -123,7 +123,7 @@ _i32 LogClient_Print(void *pvLogClient, char *pFilename, OtaApp_statistics_t *pS
     len = sl_Recv_eagain(pLogClient->serverSockId, response_buf, HTTP_RECV_BUF_LEN, 0, MAX_EAGAIN_RETRIES);
     if (len <= 0)
     {
-            Report("LogClient_UpdateCheck: ERROR metadata sl_Recv status=%d\n", status);
+            UARTprintf("LogClient_UpdateCheck: ERROR metadata sl_Recv status=%d\n", status);
             return OTA_STATUS_ERROR;
     }
 
@@ -151,7 +151,7 @@ _i32 LogClient_ConnectAndPrint(void *pvLogClient, OtaOptServerInfo_t *pOtaServer
     status = LogClient_ConnectServer(pvLogClient, pOtaServerInfo);
     if( status < 0)
     {
-        Report("LogClient_ConnectAndPrint: LogClient_ConnectServer, status=%d\n", status);
+        UARTprintf("LogClient_ConnectAndPrint: LogClient_ConnectServer, status=%d\n", status);
         return status;
     }
 

@@ -38,6 +38,10 @@
 #include "flc_api.h"
 #include "bootmgr.h"
 
+
+void
+UARTprintf(const char *pcString, ...);
+
 /* Internal functions */
 static _i32 _McuImageGetNewIndex(void);
 static _i32 _WriteBootInfo(sBootInfo_t *psBootInfo);
@@ -62,7 +66,7 @@ _i32 sl_extlib_FlcCommit(_i32 CommitFlag)
         /* commit TRUE: set status IMG_STATUS_NOTEST and switch to new image */
         if (CommitFlag == FLC_COMMITED)
         {
-            Report("sl_extlib_FlcCommit: Booted in testing mode.\n\r");
+            UARTprintf("sl_extlib_FlcCommit: Booted in testing mode.\n\r");
             sBootInfo.ulImgStatus = IMG_STATUS_NOTEST;
             sBootInfo.ucActiveImg = (sBootInfo.ucActiveImg == IMG_ACT_USER1)?
                                     IMG_ACT_USER2:
@@ -94,7 +98,7 @@ _i32 sl_extlib_FlcTest(_i32 flags)
     if (flags & FLC_TEST_RESET_MCU)
     {
         /* set status IMG_STATUS_TESTREADY to test the new image */
-        Report("sl_extlib_FlcTest: change image status to IMG_STATUS_TESTREADY\n\r");
+        UARTprintf("sl_extlib_FlcTest: change image status to IMG_STATUS_TESTREADY\n\r");
         _ReadBootInfo(&sBootInfo);
         sBootInfo.ulImgStatus = IMG_STATUS_TESTREADY;
         _WriteBootInfo(&sBootInfo);
@@ -135,7 +139,7 @@ _i32 _McuImageGetNewIndex(void)
             newImageIndex = IMG_ACT_USER1;
             break;
     }
-    Report("_McuImageGetNewIndex: active image is %d, return new image %d \n\r", sBootInfo.ucActiveImg, newImageIndex);
+    UARTprintf("_McuImageGetNewIndex: active image is %d, return new image %d \n\r", sBootInfo.ucActiveImg, newImageIndex);
     
     return newImageIndex;
 }
@@ -150,7 +154,7 @@ static _i32 _WriteBootInfo(sBootInfo_t *psBootInfo)
     {
         if( 0 < sl_FsWrite(lFileHandle, 0, (_u8 *)psBootInfo, sizeof(sBootInfo_t)) )
         {
-            Report("WriteBootInfo: ucActiveImg=%d, ulImgStatus=0x%x\n\r", psBootInfo->ucActiveImg, psBootInfo->ulImgStatus); 
+            UARTprintf("WriteBootInfo: ucActiveImg=%d, ulImgStatus=0x%x\n\r", psBootInfo->ucActiveImg, psBootInfo->ulImgStatus);
             status = 0;
         }
         sl_FsClose(lFileHandle, 0, 0, 0);
@@ -170,7 +174,7 @@ static _i32 _ReadBootInfo(sBootInfo_t *psBootInfo)
         if( 0 < sl_FsRead(lFileHandle, 0, (_u8 *)psBootInfo, sizeof(sBootInfo_t)) )
         {
             status = 0;
-            Report("ReadBootInfo: ucActiveImg=%d, ulImgStatus=0x%x\n\r", psBootInfo->ucActiveImg, psBootInfo->ulImgStatus); 
+            UARTprintf("ReadBootInfo: ucActiveImg=%d, ulImgStatus=0x%x\n\r", psBootInfo->ucActiveImg, psBootInfo->ulImgStatus);
         }
         sl_FsClose(lFileHandle, 0, 0, 0);
     }
@@ -184,7 +188,7 @@ _i32 sl_extlib_FlcOpenFile(_u8 *file_name, _i32 file_size, _u32 *ulToken, _i32 *
     if (strstr((char *)file_name, "/sys/mcuimgA") != NULL)
     {
         file_name[11] = (_u8)_McuImageGetNewIndex() + '1'; /* mcuimg1 is for factory default, mcuimg2,3 are for OTA updates */
-        Report("sl_extlib_FlcOpenFile: MCU image name converted to %s \n", file_name);
+        UARTprintf("sl_extlib_FlcOpenFile: MCU image name converted to %s \n", file_name);
     }
     
     if (open_flags == _FS_MODE_OPEN_READ)

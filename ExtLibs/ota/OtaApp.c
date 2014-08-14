@@ -60,7 +60,7 @@ void *sl_extLib_OtaInit(_i32 runMode, FlcCb_t *pFlcHostCb)
     memset(pOtaApp, 0, sizeof(OtaApp_t));
     pOtaApp->state = OTA_STATE_IDLE;
     pOtaApp->runMode = runMode;
-    Report("sl_extLib_OtaInit: OTA lib version = %s\n", OTA_LIB_VERSION);
+    UARTprintf("sl_extLib_OtaInit: OTA lib version = %s\n", OTA_LIB_VERSION);
     
     /* init SFLASH file access callbacks */
     pFlcSflashCb->pOpenFile = sl_extlib_FlcOpenFile;
@@ -150,7 +150,7 @@ _i32 sl_extLib_OtaSet(void *pvOtaApp, _i32 Option, _i32  OptionLen, char *pOptio
             break;
         
         default:
-            Report("sl_extLib_OtaSet: option %d is not implemented\n", Option);
+            UARTprintf("sl_extLib_OtaSet: option %d is not implemented\n", Option);
             break;
     }
 
@@ -175,14 +175,14 @@ _i32 sl_extLib_OtaGet(void *pvOtaApp, _i32 Option, _i32 *OptionLen, char *pOptio
             break;
         
         case EXTLIB_OTA_GET_OPT_PRINT_STAT:
-            Report("OtaApp stat: start counter=%d, access errors=%d ---------------\n", pStatistics->startCount, pStatistics->continuousAccessErrorCount);
-            Report("OtaApp stat: connect server done=%d, error=%d, update=%d, metadata=%d\n", pStatistics->ota_connect_done, pStatistics->ota_connect_error, pStatistics->ota_error_updatecheck, pStatistics->ota_error_metadata);
-            Report("OtaApp stat: connect cdn    done=%d, error=%d\n", pStatistics->cdn_connect_done, pStatistics->cdn_connect_error);
-            Report("OtaApp stat: download file  done=%d, error=%d, save_chunk=%d, max_eagain=%d\n", pStatistics->download_done, pStatistics->download_error, pStatistics->download_error_save_chunk, pStatistics->download_error_max_eagain);
+            UARTprintf("OtaApp stat: start counter=%d, access errors=%d ---------------\n", pStatistics->startCount, pStatistics->continuousAccessErrorCount);
+            UARTprintf("OtaApp stat: connect server done=%d, error=%d, update=%d, metadata=%d\n", pStatistics->ota_connect_done, pStatistics->ota_connect_error, pStatistics->ota_error_updatecheck, pStatistics->ota_error_metadata);
+            UARTprintf("OtaApp stat: connect cdn    done=%d, error=%d\n", pStatistics->cdn_connect_done, pStatistics->cdn_connect_error);
+            UARTprintf("OtaApp stat: download file  done=%d, error=%d, save_chunk=%d, max_eagain=%d\n", pStatistics->download_done, pStatistics->download_error, pStatistics->download_error_save_chunk, pStatistics->download_error_max_eagain);
             break;
 
         default:
-            Report("sl_extLib_OtaGet: option %d is not implemented\n", Option);
+            UARTprintf("sl_extLib_OtaGet: option %d is not implemented\n", Option);
             break;
     }
     return OTA_STATUS_OK;
@@ -195,7 +195,7 @@ _i32 sl_extLib_OtaRun(void *pvOtaApp)
     OtaApp_statistics_t  *pStatistics = pOtaApp->pStatistics;
     _i32 status;
 
-    /*Report("sl_extLib_OtaRun: entry, state=%d\n", pOtaApp->state); */
+    /*UARTprintf("sl_extLib_OtaRun: entry, state=%d\n", pOtaApp->state); */
 
     switch (pOtaApp->state)
     {
@@ -211,12 +211,12 @@ _i32 sl_extLib_OtaRun(void *pvOtaApp)
 
             pOtaApp->state = OTA_STATE_CONNECT_SERVER;
             pStatistics->startCount++;
-            Report("sl_extLib_OtaRun: call OtaClient_ConnectServer OTA server=%s\n", pOtaApp->pOtaServerInfo->server_domain);
+            UARTprintf("sl_extLib_OtaRun: call OtaClient_ConnectServer OTA server=%s\n", pOtaApp->pOtaServerInfo->server_domain);
             status = OtaClient_ConnectServer(pOtaClient, pOtaApp->pOtaServerInfo);
             if( status < 0)
             {
                 _OtaCleanToIdle(pOtaApp);
-                Report("sl_extLib_OtaRunERROR: OtaClient_ConnectServer, status=%d\n", status);
+                UARTprintf("sl_extLib_OtaRunERROR: OtaClient_ConnectServer, status=%d\n", status);
                 if (status == OTA_STATUS_ERROR_CONTINUOUS_ACCESS)
                 {
                     pStatistics->continuousAccessErrorCount++;
@@ -230,22 +230,22 @@ _i32 sl_extLib_OtaRun(void *pvOtaApp)
 
         case OTA_STATE_CONNECT_SERVER:
             pOtaApp->state = OTA_STATE_RESOURCE_LIST;
-            Report("sl_extLib_OtaRun: OtaClient_UpdateCheck, vendorStr=%s\n", pOtaApp->vendorStr);
+            UARTprintf("sl_extLib_OtaRun: OtaClient_UpdateCheck, vendorStr=%s\n", pOtaApp->vendorStr);
             pOtaApp->numUpdates = OtaClient_UpdateCheck(pOtaClient, pOtaApp->vendorStr);
             if( pOtaApp->numUpdates < 0)
             {
                 _OtaCleanToIdle(pOtaApp);
                 pStatistics->ota_error_updatecheck++;
-                Report("sl_extLib_OtaRun ERROR: OtaClient_UpdateCheck\n");
+                UARTprintf("sl_extLib_OtaRun ERROR: OtaClient_UpdateCheck\n");
                 return RUN_STAT_ERROR_RESOURCE_LIST;
             }
             if( pOtaApp->numUpdates == 0)
             {
                 _OtaCleanToIdle(pOtaApp);
-                Report("sl_extLib_OtaRunERROR: OtaClient_UpdateCheck - no updates\n");
+                UARTprintf("sl_extLib_OtaRunERROR: OtaClient_UpdateCheck - no updates\n");
                 return RUN_STAT_NO_UPDATES;
             }
-            Report("sl_extLib_OtaRun: OtaClient_UpdateCheck, numUpdates=%d\n", pOtaApp->numUpdates);
+            UARTprintf("sl_extLib_OtaRun: OtaClient_UpdateCheck, numUpdates=%d\n", pOtaApp->numUpdates);
             break;
 
         case OTA_STATE_RESOURCE_LIST:
@@ -257,7 +257,7 @@ _i32 sl_extLib_OtaRun(void *pvOtaApp)
                 /* for reuse: close CDN server connection only after last update */
                 CdnClient_CloseServer(pOtaApp->pvCdnClient);
                 pOtaApp->state = OTA_STATE_WAIT_CONFIRM;
-                Report("sl_extLib_OtaRun: -------- end of updates\n");
+                UARTprintf("sl_extLib_OtaRun: -------- end of updates\n");
 
                 _WriteStatFile((char *)pOtaApp->pStatistics, sizeof(g_OtaApp_statistics));
                 LogClient_ConnectAndPrint(pOtaApp->pvLogClient, pOtaApp->pOtaServerInfo, pOtaApp->vendorStr, pOtaApp->pStatistics);
@@ -268,12 +268,12 @@ _i32 sl_extLib_OtaRun(void *pvOtaApp)
             }
 
             pOtaApp->state = OTA_STATE_METADATA;
-            Report("sl_extLib_OtaRun: OtaClient_GetNextUpdate: file=%s, size=%d\n", pOtaApp->file_path, pOtaApp->file_size);
+            UARTprintf("sl_extLib_OtaRun: OtaClient_GetNextUpdate: file=%s, size=%d\n", pOtaApp->file_path, pOtaApp->file_size);
 
             status = local_filter(pOtaApp, pOtaApp->file_path);
             if (status == FALSE)
             {
-                Report("sl_extLib_OtaRun: OTA App - local_filter=REJECT\n");
+                UARTprintf("sl_extLib_OtaRun: OTA App - local_filter=REJECT\n");
                 pOtaApp->state = OTA_STATE_RESOURCE_LIST; /* skip to next resource */
                 break;
             }
@@ -282,7 +282,7 @@ _i32 sl_extLib_OtaRun(void *pvOtaApp)
             if( status < 0)
             {
                 pStatistics->ota_error_metadata++;
-                Report("sl_extLib_OtaRun ERROR: OtaClient_ResourceMetadata\n");
+                UARTprintf("sl_extLib_OtaRun ERROR: OtaClient_ResourceMetadata\n");
                 pOtaApp->state = OTA_STATE_RESOURCE_LIST; /* skip to next resource */
                 return RUN_STAT_ERROR_METADATA;
             }
@@ -292,12 +292,12 @@ _i32 sl_extLib_OtaRun(void *pvOtaApp)
 
         case OTA_STATE_METADATA:
             pOtaApp->state = OTA_STATE_CONNECT_CDN;
-            Report("sl_extLib_OtaRun: ResourceMetadata CDN file URL = %s\n", pOtaApp->pResourceMetadata->cdn_url);
+            UARTprintf("sl_extLib_OtaRun: ResourceMetadata CDN file URL = %s\n", pOtaApp->pResourceMetadata->cdn_url);
             status = CdnClient_ConnectByUrl(pOtaApp->pvCdnClient, pOtaApp->pResourceMetadata);
             if( status < 0)
             {
                 pOtaApp->state = OTA_STATE_RESOURCE_LIST;  /*skip this resource, ToDo - set another retry, use same cdnSockId !!! */
-                Report("sl_extLib_OtaRun ERROR: Failed on CdnClient_ConnectByUrl\n");
+                UARTprintf("sl_extLib_OtaRun ERROR: Failed on CdnClient_ConnectByUrl\n");
                 if (status == OTA_STATUS_ERROR_CONTINUOUS_ACCESS)
                 {
                     pStatistics->continuousAccessErrorCount++;
@@ -317,13 +317,13 @@ _i32 sl_extLib_OtaRun(void *pvOtaApp)
             {
                 pOtaApp->state = OTA_STATE_RESOURCE_LIST;  
                 pStatistics->download_error++;
-                Report("sl_extLib_OtaRun ERROR: Failed on CdnClient_Run\n");
+                UARTprintf("sl_extLib_OtaRun ERROR: Failed on CdnClient_Run\n");
                 return RUN_STAT_ERROR_DOWNLOAD_SAVE;
             }
             break;
         
         case OTA_STATE_DOWNLOADING:
-            /*Report("sl_extLib_OtaRun: call CDN to continue download the file %s\n", pOtaApp->pResourceMetadata->p_file_name); */
+            /*UARTprintf("sl_extLib_OtaRun: call CDN to continue download the file %s\n", pOtaApp->pResourceMetadata->p_file_name); */
 
             /* set mcu number and reset flag (even in error) */
             if (pOtaApp->pResourceMetadata->flags & METADATA_FLAGS_RESET_NWP)
@@ -352,13 +352,13 @@ _i32 sl_extLib_OtaRun(void *pvOtaApp)
                 else 
                     pStatistics->download_error++;
 
-                Report("sl_extLib_OtaRun ERROR: Failed on CdnClient_Run\n");
+                UARTprintf("sl_extLib_OtaRun ERROR: Failed on CdnClient_Run\n");
                 return RUN_STAT_ERROR_DOWNLOAD_SAVE;
             }
             else if (status == CDN_STATUS_DOWNLOAD_DONE)
             {
                 pStatistics->download_done++;
-                Report("sl_extLib_OtaRun: ---- Download file completed %s\n", pOtaApp->pResourceMetadata->p_file_name);
+                UARTprintf("sl_extLib_OtaRun: ---- Download file completed %s\n", pOtaApp->pResourceMetadata->p_file_name);
                 pOtaApp->state = OTA_STATE_RESOURCE_LIST; /* handle next resource */
             }
             
@@ -366,7 +366,7 @@ _i32 sl_extLib_OtaRun(void *pvOtaApp)
             break;
 
         default:
-            Report("sl_extLib_OtaRun ERROR: unexpected state %d\n", pOtaApp->state);
+            UARTprintf("sl_extLib_OtaRun ERROR: unexpected state %d\n", pOtaApp->state);
             return RUN_STAT_ERROR;
 
     }
@@ -388,7 +388,7 @@ _i32 local_filter(OtaApp_t *pOtaApp, char *file_path)
 
 _i32 _OtaCleanToIdle(OtaApp_t *pOtaApp)
 {
-    Report("_OtaCleanToIdle: close OTA client and CDN client and back to IDLE\n");
+    UARTprintf("_OtaCleanToIdle: close OTA client and CDN client and back to IDLE\n");
     OtaClient_CloseServer(pOtaApp->pvOtaClient);  
     CdnClient_CloseServer(pOtaApp->pvCdnClient);
     
@@ -410,7 +410,7 @@ _i32 _WriteStatFile(char *buf, _i32 buf_len)
     status = sl_FsOpen((unsigned char *)OTASTAT_FILENAME, FS_MODE_OPEN_CREATE(buf_len, 0), &ulToken, &lFileHandle);
     if (status < 0)
     {
-        Report("_WriteStatFile: ERROR in sl_FsOpen, status=%d\n", status);
+        UARTprintf("_WriteStatFile: ERROR in sl_FsOpen, status=%d\n", status);
         return OTA_STATUS_ERROR;
     }
       
@@ -418,12 +418,12 @@ _i32 _WriteStatFile(char *buf, _i32 buf_len)
     if (status < 0)
     {
         sl_FsClose(lFileHandle, 0, 0, 0);
-        Report("_WriteStatFile: ERROR in sl_FsRead, status=%d\n", status);
+        UARTprintf("_WriteStatFile: ERROR in sl_FsRead, status=%d\n", status);
         return OTA_STATUS_ERROR;
     }
 
     sl_FsClose(lFileHandle, 0, 0, 0);
-    /*Report("--------_WriteStatFile: success\n"); */
+    /*UARTprintf("--------_WriteStatFile: success\n"); */
     return OTA_STATUS_OK;
 }
 
@@ -436,7 +436,7 @@ _i32 _ReadStatFile(char *buf, _i32 buf_len)
     status = sl_FsOpen((unsigned char *)OTASTAT_FILENAME, FS_MODE_OPEN_READ, &ulToken, &lFileHandle);
     if (status < 0)
     {
-        Report("_ReadStatFile: ERROR in sl_FsOpen, status=%d\n", status);
+        UARTprintf("_ReadStatFile: ERROR in sl_FsOpen, status=%d\n", status);
         return OTA_STATUS_ERROR;
     }
     
@@ -444,12 +444,12 @@ _i32 _ReadStatFile(char *buf, _i32 buf_len)
     if (status < 0)
     {
         sl_FsClose(lFileHandle, 0, 0, 0);
-        Report("_ReadStatFile: ERROR in sl_FsRead, status=%d\n", status);
+        UARTprintf("_ReadStatFile: ERROR in sl_FsRead, status=%d\n", status);
         return OTA_STATUS_ERROR;
     }
 
     sl_FsClose(lFileHandle, 0, 0, 0);
-    /*Report("_ReadStatFile: success\n"); */
+    /*UARTprintf("_ReadStatFile: success\n"); */
     return OTA_STATUS_OK;
 }
 

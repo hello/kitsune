@@ -459,6 +459,7 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(thread_dust, "dustTask", 256 / 4, NULL, 3, NULL);
 	xTaskCreate(thread_sensor_poll, "pollTask", 1 * 1024 / 4, NULL, 3, NULL);
 	xTaskCreate(thread_tx, "txTask", 7 * 1024 / 4, NULL, 2, NULL);
+	xTaskCreate(thread_ota, "otaTask", 15 * 1024 / 4, NULL, 1, NULL);
 
 	//checkFaults();
 
