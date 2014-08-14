@@ -455,11 +455,11 @@ void vUARTTask(void *pvParameters) {
 		UARTprintf("Failed to create the data_queue.\n");
 	}
 
-	xTaskCreate(thread_light, "lightTask", 5 * 1024 / 4, NULL, 3, NULL);
+	xTaskCreate(thread_light, "lightTask", 1 * 1024 / 4, NULL, 3, NULL);
 	xTaskCreate(thread_dust, "dustTask", 256 / 4, NULL, 3, NULL);
 	xTaskCreate(thread_sensor_poll, "pollTask", 1 * 1024 / 4, NULL, 3, NULL);
-	xTaskCreate(thread_tx, "txTask", 7 * 1024 / 4, NULL, 2, NULL);
-	xTaskCreate(thread_ota, "otaTask", 15 * 1024 / 4, NULL, 1, NULL);
+	xTaskCreate(thread_tx, "txTask", 2 * 1024 / 4, NULL, 2, NULL);
+	xTaskCreate(thread_ota, "otaTask", 1 * 1024 / 4, NULL, 1, NULL);
 
 	//checkFaults();
 
