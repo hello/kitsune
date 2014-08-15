@@ -60,6 +60,9 @@
 #include "hw_common_reg.h"
 #include "hw_types.h"
 #include "hw_ints.h"
+#include "hw_wdt.h"
+#include "wdt.h"
+#include "wdt_if.h"
 #include "interrupt.h"
 #include "rom.h"
 #include "rom_map.h"
@@ -246,7 +249,56 @@ BoardInit(void)
     PRCMCC3200MCUInit();
 }
 
+static int wdt_cleared;
+void WatchdogIntHandler(void)
+{
+	//
+	// watchdog interrupt - if it fires when the interrupt has not been cleared then the device will reset...
+	//
+	UARTprintf( "WDT: %u\r\n", wdt_cleared );
+	if (wdt_cleared) {
+		MAP_WatchdogIntClear(WDT_BASE); //clear wdt
+	}
+	wdt_cleared = 0;
+}
 
+
+void start_wdt() {
+#define WD_PERIOD_MS 				30000
+#define MAP_SysCtlClockGet 			80000000
+#define LED_GPIO             		MCU_RED_LED_GPIO	/* RED LED */
+#define MILLISECONDS_TO_TICKS(ms) 	((MAP_SysCtlClockGet / 1000) * (ms))
+    //
+    // Enable the peripherals used by this example.
+    //
+    MAP_PRCMPeripheralClkEnable(PRCM_WDT, PRCM_RUN_MODE_CLK);
+
+	wdt_cleared = 1;
+
+    //
+    // Set up the watchdog interrupt handler.
+    //
+    WDT_IF_Init(WatchdogIntHandler, MILLISECONDS_TO_TICKS(WD_PERIOD_MS));
+
+    //
+    // Start the timer. Once the timer is started, it cannot be disable.
+    //
+    MAP_WatchdogEnable(WDT_BASE);
+    if(!MAP_WatchdogRunning(WDT_BASE))
+    {
+       WDT_IF_DeInit();
+    }
+}
+void watchdog_thread(void* unused){
+	while(1)
+	{
+	MAP_WatchdogIntClear(WDT_BASE); //clear wdt
+	wdt_cleared = 1;
+
+	UARTprintf( "w\r\n" );
+	vTaskDelay(10000);
+	}
+}
 //*****************************************************************************
 //							MAIN FUNCTION
 //*****************************************************************************
@@ -256,6 +308,8 @@ void main()
   // Board Initialization
   //
   BoardInit();
+
+  start_wdt();
   //
   // configure the GPIO pins for LEDs
   //
@@ -273,7 +327,7 @@ void main()
 
   /* Create the UART processing task. */
   xTaskCreate( vUARTTask, "UARTTask", 10*1024/(sizeof(portSTACK_TYPE)), NULL, 2, NULL );
-//  xTaskCreate( vWifiTask, "wifi", 2*1024/(sizeof(portSTACK_TYPE)), NULL, 2, NULL );
+  xTaskCreate( watchdog_thread, "wdtTask", configMINIMAL_STACK_SIZE, NULL, 1, NULL );
 
   //
   // Start the task scheduler

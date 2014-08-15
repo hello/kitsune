@@ -248,6 +248,9 @@ void thread_sensor_poll(void* unused) {
         xQueueSend( data_queue, ( void * ) &data, 10 );
 
 		UARTprintf("delay...\n");
+
+	    MAP_WatchdogIntClear(WDT_BASE); //clear wdt
+
 		vTaskDelayUntil(&now, SENSOR_RATE * configTICK_RATE_HZ);
 	}
 
