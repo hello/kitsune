@@ -255,7 +255,7 @@ void WatchdogIntHandler(void)
 	//
 	// watchdog interrupt - if it fires when the interrupt has not been cleared then the device will reset...
 	//
-	UARTprintf( "WDT: %u\r\n", wdt_cleared );
+	UARTprintf( "WDT: %u, %u\r\n", wdt_cleared, xTaskGetTickCount() );
 	if (wdt_cleared) {
 		MAP_WatchdogIntClear(WDT_BASE); //clear wdt
 	}
@@ -264,7 +264,7 @@ void WatchdogIntHandler(void)
 
 
 void start_wdt() {
-#define WD_PERIOD_MS 				30000
+#define WD_PERIOD_MS 				20000
 #define MAP_SysCtlClockGet 			80000000
 #define LED_GPIO             		MCU_RED_LED_GPIO	/* RED LED */
 #define MILLISECONDS_TO_TICKS(ms) 	((MAP_SysCtlClockGet / 1000) * (ms))
@@ -295,8 +295,8 @@ void watchdog_thread(void* unused){
 	MAP_WatchdogIntClear(WDT_BASE); //clear wdt
 	wdt_cleared = 1;
 
-	UARTprintf( "w\r\n" );
-	vTaskDelay(10000);
+	UARTprintf( "w %u\r\n", xTaskGetTickCount() );
+	vTaskDelay(5000);
 	}
 }
 //*****************************************************************************
