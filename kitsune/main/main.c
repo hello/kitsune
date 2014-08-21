@@ -73,6 +73,7 @@
 #include "pinmux.h"
 #include "portmacro.h"
 #include "uart_if.h"
+#include "gpio.h"
 #include "systick.h"
 
 /*Simple Link inlcudes */
@@ -187,6 +188,37 @@ vApplicationStackOverflowHook( xTaskHandle *pxTask, signed portCHAR *pcTaskName 
     for( ;; );
 }
 
+#define GPIO_PORT 0x40004000
+#define NORDIC_PIN 0x40
+#define PROX_PIN   0x80
+#define NORDIC_INT_GPIO 6
+#define PROX_INT_GPIO 7
+
+void nordic_prox_int() {
+    unsigned int status;
+
+    //check for which pin triggered
+    status = GPIOIntStatus(GPIO_PORT, FALSE);
+	//clear all interrupts
+    MAP_GPIOIntClear(GPIO_PORT, status);
+
+	if (status & NORDIC_PIN) {
+		UARTprintf("nordic interrupt\r\n");
+	}
+	if (status & PROX_PIN) {
+		UARTprintf("prox interrupt\r\n");
+	}
+}
+
+void SetupGPIOInterrupts() {
+    unsigned char pin;
+    unsigned int port;
+
+    port = GPIO_PORT;
+    pin = NORDIC_PIN | PROX_PIN;
+	GPIO_IF_ConfigureNIntEnable( port, pin, GPIO_RISING_EDGE, nordic_prox_int );
+	//only one interrupt per port...
+}
 
 //*****************************************************************************
 //
@@ -219,22 +251,6 @@ BoardInit(void)
     // todo figure out why this breaks under sdk 0p5
     //SysTickPeriodSet(configCPU_CLOCK_HZ/configSYSTICK_CLOCK_HZ);
     //SysTickEnable();
-
-    //setup i2c clock
-    MAP_PRCMPeripheralClkEnable(PRCM_I2CA0, PRCM_RUN_MODE_CLK);
-
-    //setup i2c clock
-    MAP_PRCMPeripheralClkEnable(PRCM_I2CA0, PRCM_RUN_MODE_CLK);
-
-    //
-    // Configure PIN_01 for I2C0 I2C_SCL
-    //
-    MAP_PinTypeI2C(PIN_01, PIN_MODE_1);
-
-    //
-    // Configure PIN_02 for I2C0 I2C_SDA
-    //
-    MAP_PinTypeI2C(PIN_02, PIN_MODE_1);
 
     // I2C Init
     //
@@ -304,6 +320,8 @@ void main()
   // configure the GPIO pins for LEDs
   //
   PinMuxConfig();
+
+  SetupGPIOInterrupts();
 
   //
   // Set the SD card clock as output pin
