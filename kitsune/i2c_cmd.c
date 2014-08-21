@@ -218,7 +218,7 @@ int Cmd_i2c_write(int argc, char *argv[]) {
 }
 
 int get_temp() {
-#define TRY_OR_GOTOFAIL(a) if(a!=SUCCESS) { UARTprintf( "fail at %s %s\n\r", __FILE__, __LINE__ ); return FAILURE;}
+#define TRY_OR_GOTOFAIL(a) if(a!=SUCCESS) { UARTprintf( "fail at %s %d\n\r", __FILE__, __LINE__ ); return FAILURE;}
 	unsigned char aucDataBuf[2];
 
 	unsigned char cmd = 0xfe;
@@ -250,7 +250,7 @@ int Cmd_readtemp(int argc, char *argv[]) {
 }
 
 int get_humid() {
-#define TRY_OR_GOTOFAIL(a) if(a!=SUCCESS) { UARTprintf( "fail at %s %s\n\r", __FILE__, __LINE__ ); return FAILURE;}
+#define TRY_OR_GOTOFAIL(a) if(a!=SUCCESS) { UARTprintf( "fail at %s %d\n\r", __FILE__, __LINE__ ); return FAILURE;}
 	unsigned char aucDataBuf[2];
 	unsigned char cmd = 0xfe;
 	int humid_raw;
@@ -282,7 +282,7 @@ int Cmd_readhumid(int argc, char *argv[]) {
 }
 
 int get_light() {
-	#define TRY_OR_GOTOFAIL(a) if(a!=SUCCESS) { UARTprintf( "fail at %s %s\n\r", __FILE__, __LINE__ ); return FAILURE;}
+	#define TRY_OR_GOTOFAIL(a) if(a!=SUCCESS) { UARTprintf( "fail at %s %d\n\r", __FILE__, __LINE__ ); return FAILURE;}
 	unsigned char aucDataBuf_LOW[2];
 	unsigned char aucDataBuf_HIGH[2];
 	unsigned char setup_config;

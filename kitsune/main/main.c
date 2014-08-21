@@ -249,17 +249,12 @@ BoardInit(void)
     PRCMCC3200MCUInit();
 }
 
-static int wdt_cleared;
 void WatchdogIntHandler(void)
 {
 	//
 	// watchdog interrupt - if it fires when the interrupt has not been cleared then the device will reset...
 	//
-	UARTprintf( "WDT: %u, %u\r\n", wdt_cleared, xTaskGetTickCount() );
-	if (wdt_cleared) {
-		MAP_WatchdogIntClear(WDT_BASE); //clear wdt
-	}
-	wdt_cleared = 0;
+		UARTprintf( "oh no WDT: %u, %u\r\n", xTaskGetTickCount() );
 }
 
 
@@ -272,8 +267,6 @@ void start_wdt() {
     // Enable the peripherals used by this example.
     //
     MAP_PRCMPeripheralClkEnable(PRCM_WDT, PRCM_RUN_MODE_CLK);
-
-	wdt_cleared = 1;
 
     //
     // Set up the watchdog interrupt handler.
@@ -293,10 +286,7 @@ void watchdog_thread(void* unused){
 	while(1)
 	{
 	MAP_WatchdogIntClear(WDT_BASE); //clear wdt
-	wdt_cleared = 1;
-
-	UARTprintf( "w %u\r\n", xTaskGetTickCount() );
-	vTaskDelay(5000);
+	vTaskDelay(1000);
 	}
 }
 //*****************************************************************************
@@ -326,7 +316,7 @@ void main()
   VStartSimpleLinkSpawnTask(SPAWN_TASK_PRIORITY);
 
   /* Create the UART processing task. */
-  xTaskCreate( vUARTTask, "UARTTask", 10*1024/(sizeof(portSTACK_TYPE)), NULL, 2, NULL );
+  xTaskCreate( vUARTTask, "UARTTask", 10*1024/(sizeof(portSTACK_TYPE)), NULL, 10, NULL );
   xTaskCreate( watchdog_thread, "wdtTask", configMINIMAL_STACK_SIZE, NULL, 1, NULL );
 
   //
