@@ -88,54 +88,84 @@ static int I2CTransact(unsigned long ulCmd);
 //! \return 0: Success, < 0: Failure.
 //
 //****************************************************************************
-static int 
-I2CTransact(unsigned long ulCmd)
-{
-    //
-    // Clear all interrupts
-    //
-    MAP_I2CMasterIntClearEx(I2C_BASE,MAP_I2CMasterIntStatusEx(I2C_BASE,false));
-    //
-    // Set the time-out. Not to be used with breakpoints.
-    //
-    MAP_I2CMasterTimeoutSet(I2C_BASE, I2C_TIMEOUT_VAL);
-    //
-    // Initiate the transfer.
-    //
-    MAP_I2CMasterControl(I2C_BASE, ulCmd);
-    //
-    // Wait until the current byte has been transferred.
-    // Poll on the raw interrupt status.
-    //
-    while((MAP_I2CMasterIntStatusEx(I2C_BASE, false) 
-                & (I2C_INT_MASTER | I2C_MRIS_CLKTOUT)) == 0)
-    {
-    }
-    //
-    // Check for any errors in transfer
-    //
-    if(MAP_I2CMasterErr(I2C_BASE) != I2C_MASTER_ERR_NONE)
-    {
-        switch(ulCmd)
-        {
-        case I2C_MASTER_CMD_BURST_SEND_START:
-        case I2C_MASTER_CMD_BURST_SEND_CONT:
-        case I2C_MASTER_CMD_BURST_SEND_STOP:
-            MAP_I2CMasterControl(I2C_BASE,
-                         I2C_MASTER_CMD_BURST_SEND_ERROR_STOP);
-            break;
-        case I2C_MASTER_CMD_BURST_RECEIVE_START:
-        case I2C_MASTER_CMD_BURST_RECEIVE_CONT:
-        case I2C_MASTER_CMD_BURST_RECEIVE_FINISH:
-            MAP_I2CMasterControl(I2C_BASE,
-                         I2C_MASTER_CMD_BURST_RECEIVE_ERROR_STOP);
-            break;
-        default:
-            break;
-        }
-        return FAILURE;
-    }
+#include "FreeRTOS.h"
+#include "task.h"
+#include "uartstdio.h"
+#include "interrupt.h"
 
+#include "hw_gpio.h"
+#include "hw_types.h"
+#include "gpio.h"
+
+#include "hw_memmap.h"
+#include "pin.h"
+#include "rom.h"
+#include "rom_map.h"
+#include "prcm.h"
+
+void recoveri2c() {
+#define GPIO_PORT 0x40005000
+
+	UARTprintf("i2c recovery...\r\n");
+	//
+	// Configure PIN_01 for GPIOOutput 10
+	//
+	MAP_PinTypeGPIO(PIN_01, PIN_MODE_0, false);
+	MAP_GPIODirModeSet(GPIOA1_BASE, 0x4, GPIO_DIR_MODE_OUT);
+
+	//
+	// Configure PIN_02 for GPIOOutput 11
+	//
+	MAP_PinTypeGPIO(PIN_02, PIN_MODE_0, false);
+	MAP_GPIODirModeSet(GPIOA1_BASE, 0x8, GPIO_DIR_MODE_IN);
+
+	while ( MAP_GPIOPinRead(GPIO_PORT, 0x8) == 0) {
+		MAP_GPIOPinWrite(GPIO_PORT, 0x4, 0); //pulse the clock line...
+		vTaskDelay(2);
+		MAP_GPIOPinWrite(GPIO_PORT, 0x4, 1);
+		vTaskDelay(2);
+	}
+
+	//SDA is now high again, go back to i2c controller...
+	MAP_PinTypeI2C(PIN_01, PIN_MODE_1);
+	MAP_PinTypeI2C(PIN_02, PIN_MODE_1);
+	I2CMasterControl(I2C_BASE, 0x00000004); //send a stop...
+	vTaskDelay(2);
+}
+
+static int I2CTransact(unsigned long ulCmd) {
+	//
+	// Clear all interrupts
+	//
+	MAP_I2CMasterIntClearEx(I2C_BASE,
+	MAP_I2CMasterIntStatusEx(I2C_BASE, false));
+	//
+	// Set the time-out. Not to be used with breakpoints.
+	//
+	MAP_I2CMasterTimeoutSet(I2C_BASE, I2C_TIMEOUT_VAL);
+	//
+	// Initiate the transfer.
+	//
+	MAP_I2CMasterControl(I2C_BASE, ulCmd);
+	//
+	// Wait until the current byte has been transferred.
+	// Poll on the raw interrupt status.
+	//
+	int attempts = 0;
+	while ((MAP_I2CMasterIntStatusEx(I2C_BASE, false)
+			& (I2C_INT_MASTER | I2C_MRIS_CLKTOUT)) == 0) {
+		if (++attempts == 10000) {
+			recoveri2c();
+			return FAILURE;
+		}
+	}
+	//
+	// Check for any errors in transfer
+	//
+	if (MAP_I2CMasterErr(I2C_BASE) != I2C_MASTER_ERR_NONE) {
+		recoveri2c();
+		return FAILURE;
+    }
     return SUCCESS;
 }
 
