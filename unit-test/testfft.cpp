@@ -38,6 +38,14 @@ static void PrintShortVecToFile(const std::string & filename,const short * x,siz
     fileout.close();
 }
 
+static void PrintUint8VecToFile(const std::string & filename,const uint8_t * x,size_t n) {
+    std::ofstream fileout(filename.c_str());
+    for (int j = 0; j < n; j++) {
+        fileout << (int)x[j] << std::endl;
+    }
+    fileout.close();
+}
+
 static short CompareShortVec(const short * v1, const short * v2, size_t n) {
     short maxerr = 0;
     for (size_t j = 0; j < n; j++) {
@@ -64,13 +72,10 @@ TEST_F(TestFrequencyFeatures,TestFFT1) {
     
     //2^10 = 1024
     fft(vecr,veci,10);
-    /*
-    std::ofstream fileout("out1.txt");
-    for (int j = 0; j < 1024; j++) {
-        fileout << vecr[j] << "," << veci[j] << std::endl;
-    }
-    fileout.close();
-    */
+    
+    PrintShortVecToFile("fftcomplexr.txt",vecr,1024);
+    PrintShortVecToFile("fftcomplexi.txt",veci,1024);
+
     
     short err1 = CompareShortVec(refvec1[0],vecr,1024);
     short err2 = CompareShortVec(refvec1[1],veci,1024);
@@ -97,13 +102,8 @@ TEST_F(TestFrequencyFeatures,TestFFTR1) {
     
     
     fftr(vec, 10);
-    /*
-    std::ofstream fileout("out2.txt");
-    for (int j = 0; j < 1024; j++) {
-        fileout << vec[j] << std::endl;
-    }
-    fileout.close();
-     */
+ 
+    PrintShortVecToFile("fftr.txt",vec,1024);
     
     vecr = &vec[0];
     veci = &vec[512];
@@ -121,7 +121,7 @@ TEST_F(TestFrequencyFeatures,TestMel) {
     short veci[1024];
     short mypsd[512];
     short b = 44100 / 1024;
-    short mel[MEL_SCALE_SIZE];
+    uint8_t mel[MEL_SCALE_SIZE];
     int n = sizeof(testvec1) / sizeof(short);
     
     
@@ -139,7 +139,7 @@ TEST_F(TestFrequencyFeatures,TestMel) {
     
     mel_freq(mel,mypsd, 10, b);
     
-    PrintShortVecToFile("mel.txt",mel,MEL_SCALE_SIZE);
+    PrintUint8VecToFile("mel.txt",mel,MEL_SCALE_SIZE);
 
     
 }
@@ -162,7 +162,32 @@ TEST_F(TestFrequencyFeatures,TestCountMsb) {
     
 }
 
+TEST_F(TestFrequencyFeatures,TestBitLog) {
+    
+//    short bitlog(unsigned long n)
+    uint32_t x;
+    uint32_t prevx;
 
+    uint8_t y;
+    float ypred;
+    x = 1;
+    
+//    ASSERT_TRUE(bitlog(0) == 0);
+//    y = bitlog(0x7FFFFFFF);
+//    ASSERT_TRUE(bitlog(0xFFFFFFFF) == 255);
+    x = 16;
+    prevx = 16;
+    while (x + prevx > x) {
+        //std:: cout << x << std::endl;
+        y = bitlog(x);
+        ypred = 8*log2( (float)x + 1);
+        ASSERT_NEAR(ypred,y,10.0f);
+        prevx = x;
+        x = x + prevx; //fibonacci!
+    }
+    
+    
+}
 TEST_F(TestFrequencyFeatures,TestLog2Q8) {
     short x;
     short y;

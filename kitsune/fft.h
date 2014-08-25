@@ -1,6 +1,9 @@
 #ifndef FFT_H
 #define FFT_H
 
+#include <stdint.h>
+
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -8,18 +11,20 @@ extern "C" {
 #define MEL_SCALE_SIZE (15)
 
     
-int fft(short fr[], short fi[], int m);
-int fftr(short f[], int m); //this does not work, do not use it.
+int32_t fft(int16_t fr[], int16_t fi[], int32_t m);
+int32_t fftr(int16_t f[], int32_t m); //this does not work, do not use it.
 
-void mel_freq(short mel[],const short f[], int n, int b );
+void mel_freq(uint8_t mel[],const int16_t f[], int32_t n, int32_t b );
 
-short fxd_sin( unsigned short x );
-unsigned int fxd_sqrt (unsigned int n); //untested
+uint8_t bitlog(uint32_t n);
 
-void abs_fft(short psd[], const short fr[],const short fi[], short nfft);
+int16_t fxd_sin( uint16_t x );
+uint32_t fxd_sqrt (uint32_t n); //untested
 
-short FixedPointLog2Q8(unsigned int x);
-short CountHighestMsb(unsigned int x);
+void abs_fft(int16_t psd[], const int16_t fr[],const int16_t fi[], int16_t nfft);
+
+int16_t FixedPointLog2Q8(unsigned int x);
+int16_t CountHighestMsb(unsigned int x);
 
 
 #ifdef __cplusplus

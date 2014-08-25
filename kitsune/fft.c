@@ -2,14 +2,13 @@
 #include "fft.h"
 #include "stdlib.h" //for abs
 
-
-#define FIX_MPY(DEST,A,B) (DEST) = ((long int)(A) * (long int)(B))>>15
+#define FIX_MPY(DEST,A,B) (DEST) = ((int32_t)(A) * (int32_t)(B))>>15
 //#define fix_mpy(A, B) (FIX_MPY(a,a,b))
 
 #define N_WAVE          1024        /* dimension of Sinewave[] */
 #define LOG2_N_WAVE     10            /* log2(N_WAVE) */
 
-static const unsigned short sin_lut[N_WAVE/4+1] = {
+static const uint16_t sin_lut[N_WAVE/4+1] = {
   0, 201, 402, 603, 804, 1005, 1206, 1406,
   1607, 1808, 2009, 2209, 2410, 2610, 2811, 3011,
   3211, 3411, 3611, 3811, 4011, 4210, 4409, 4608,
@@ -44,7 +43,31 @@ static const unsigned short sin_lut[N_WAVE/4+1] = {
   32609, 32628, 32646, 32662, 32678, 32692, 32705, 32717,
   32727, 32736, 32744, 32751, 32757, 32761, 32764, 32766, 32767
 };
-short fxd_sin( unsigned short x ) {
+
+
+
+uint8_t bitlog(uint32_t n) {
+    int16_t b;
+    
+    // shorten computation for small numbers
+    if(n <= 8)
+        return (int16_t)(2 * n);
+    
+    // find the highest non-zero bit
+    b=31;
+    while((b > 2) && ((int32_t)n > 0))
+    {
+        --b;
+        n <<= 1;
+    }
+    n &= 0x70000000;
+    n >>= 28; // keep top 4 bits, of course we're only using 3 of those
+    
+    b = (int16_t)n + 8 * (b - 1);
+    return (uint8_t) b;
+}
+
+short fxd_sin( uint16_t x ) {
 	x &= 0x3FF;
 	if( x > 3*N_WAVE/4 ) {
 		return -sin_lut[N_WAVE - x];
@@ -91,10 +114,10 @@ static short fix_mpy(short a, short b)
   return a;
 }
 
-int fft(short fr[], short fi[], int m)
+int fft(int16_t fr[], int16_t fi[], int32_t m)
 {
-  int mr, nn, i, j, l, k, istep, n;
-  short qr, qi, wr, wi;
+  int32_t mr, nn, i, j, l, k, istep, n;
+  int16_t qr, qi, wr, wi;
 
   n = 1 << m;
 
@@ -159,10 +182,10 @@ int fft(short fr[], short fi[], int m)
   return 0;
 }
 
-int fftr(short f[], int m)
+int fftr(int16_t f[], int32_t m)
 {
-    int i, N = 1<<(m-1);
-    short tt, *fr=f, *fi=&f[N];
+    int32_t i, N = 1<<(m-1);
+    int16_t tt, *fr=f, *fi=&f[N];
 
     for (i=1; i<N; i+=2) {
         tt = f[N+i-1];
@@ -172,7 +195,7 @@ int fftr(short f[], int m)
     return fft(fi, fr, m-1);
 }
 
-void fix_window(short fr[], int n)
+void fix_window(int16_t fr[], int32_t n)
 {
   int i, j, k;
 
@@ -186,7 +209,7 @@ void fix_window(short fr[], int n)
 }
 
 
-void abs_fft(short psd[], const short fr[],const short fi[], short nfft)
+void abs_fft(int16_t psd[], const int16_t fr[],const int16_t fi[], int16_t nfft)
 {
     int i;
 	short n2 = 1 << (nfft - 1);
@@ -215,11 +238,11 @@ void abs_fft(short psd[], const short fr[],const short fi[], short nfft)
  1111 - 4
  */
 #define BIT_COUNT_LOOKUP_SIZE (16)
-static const char k_bit_count_lookup[BIT_COUNT_LOOKUP_SIZE] =
+static const uint8_t k_bit_count_lookup[BIT_COUNT_LOOKUP_SIZE] =
 {0,1,2,2,3,3,3,3,4,4,4,4,4,4,4,4};
 
 
-short CountHighestMsb(unsigned int x) {
+short CountHighestMsb(uint32_t x) {
     short j;
     short count = 0;
     for (j = 0; j < 8; j++) {
@@ -237,12 +260,12 @@ short CountHighestMsb(unsigned int x) {
 #define LOG2_LOOKUP_SIZE_2N (5)
 #define LOG2_LOOKUP_SIZE ((1 << LOG2_LOOKUP_SIZE_2N) + 1)
 
-static const short k_log2_lookup_q8[LOG2_LOOKUP_SIZE] =
+static const int16_t k_log2_lookup_q8[LOG2_LOOKUP_SIZE] =
 {-32768,-2048,-1792,-1642,-1536,-1454,-1386,-1329,-1280,-1236,-1198,-1162,-1130,-1101,-1073,-1048,-1024,-1002,-980,-961,-942,-924,-906,-890,-874,-859,-845,-831,-817,-804,-792,-780,-768};
 
-short FixedPointLog2Q8(unsigned int x) {
-    short msb;
-    short shift = 0;
+int16_t FixedPointLog2Q8(unsigned int x) {
+    int16_t msb;
+    int16_t shift = 0;
     if (x <= 0) {
         return k_log2_lookup_q8[0];
     }
@@ -267,18 +290,18 @@ short FixedPointLog2Q8(unsigned int x) {
 // f as input is the PSD bin, and is always positive
 // f as output is the mel bins
 
-void mel_freq(short mel[],const short f[], int nfft, int b ) {
+void mel_freq(uint8_t mel[],const short f[], int nfft, int b ) {
 	
     // in Hz
-    static const unsigned int mel_scale[MEL_SCALE_SIZE] = {20,160,394,670,1000,1420,1900,2450,3120,4000,5100,6600,9000,14000,22050};
-	static const short mel_log2_normalization_q8[MEL_SCALE_SIZE] = {0,-719,-908,-969,-1035,-1124,-1174,-1224,-1297,-1398,-1480,-1595,-1768,-2039,-2215};
-    int iBin;
-	int iMel;
-    int nbins = 1 << (nfft - 1);
-    unsigned int accumulator;
-    unsigned int test;
-    int log2mel;
-    unsigned int freq;
+    static const uint16_t mel_scale[MEL_SCALE_SIZE] = {20,160,394,670,1000,1420,1900,2450,3120,4000,5100,6600,9000,14000,22050};
+	static const uint8_t mel_log2_normalization[MEL_SCALE_SIZE] = {8,24,29,31,33,35,37,38,40,43,46,49,55,63,69};
+    int32_t iBin;
+	int32_t iMel;
+    const int32_t nbins = 1 << (nfft - 1);
+    uint32_t accumulator;
+    uint32_t test;
+    int32_t log2mel;
+    uint32_t freq;
 
 
 #if 0 //For generating mel scales
@@ -308,18 +331,18 @@ void mel_freq(short mel[],const short f[], int nfft, int b ) {
         
 		if( freq > mel_scale[iMel] || iBin == nbins - 1 ) {
 			         
-            log2mel = FixedPointLog2Q8(accumulator);
-            log2mel += mel_log2_normalization_q8[iMel];
+            log2mel = bitlog(accumulator);
+            log2mel -= mel_log2_normalization[iMel];
             
-            if (log2mel < -32768) {
-                log2mel = -32768;
+            if (log2mel < 0) {
+                log2mel = 0;
             }
             
-            if (log2mel > 32767) {
-                log2mel = 32767;
+            if (log2mel > 0xFF) {
+                log2mel = 0xFF;
             }
             
-            mel[iMel] = (short) log2mel;
+            mel[iMel] = (uint8_t) log2mel;
 			
             accumulator = 0;
             
