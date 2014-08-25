@@ -454,11 +454,26 @@ int send_data_pb(data_t * data) {
 
     //setup the connection
     if (sock < 0) {
-        sock = socket(AF_INET, SOCK_STREAM, 0);
+        sock = socket(AF_INET, SOCK_STREAM, SL_SEC_SOCKET);
         tv.tv_sec = 2;             // Seconds
         tv.tv_usec = 0;           // Microseconds. 10000 microseconds resolution
         setsockopt(sock, SOL_SOCKET, SL_SO_RCVTIMEO, &tv, sizeof(tv)); // Enable receive timeout
-        //set SL_SO_KEEPALIVE ?
+
+		#define SL_SSL_CA_CERT_FILE_NAME "/cert/hello.der"
+        // configure the socket as SSLV3.0
+        // configure the socket as RSA with RC4 128 SHA
+        // setup certificate
+        unsigned char method = SL_SO_SEC_METHOD_SSLV3;
+        unsigned int cipher = SL_SEC_MASK_SSL_RSA_WITH_RC4_128_SHA;
+        if( sl_SetSockOpt(sock, SL_SOL_SOCKET, SL_SO_SECMETHOD, &method, sizeof(method) ) < 0 ||
+            sl_SetSockOpt(sock, SL_SOL_SOCKET, SL_SO_SECURE_MASK, &cipher, sizeof(cipher)) < 0 /*||
+            sl_SetSockOpt(sock, SL_SOL_SOCKET, \
+                                   SL_SO_SECURE_FILES_CA_FILE_NAME, \
+                                   SL_SSL_CA_CERT_FILE_NAME, \
+                                   strlen(SL_SSL_CA_CERT_FILE_NAME))  < 0 */ )
+        {
+        UARTprintf( "error setting ssl options\r\n" );
+        }
     }
 
     if (sock < 0) {
@@ -467,7 +482,7 @@ int send_data_pb(data_t * data) {
     }
     UARTprintf("Socket created\n\r");
 
-#define DATA_SERVER "in.skeletor.com"
+#define DATA_SERVER "dev-in.hello.is"
 #if !LOCAL_TEST
     if (ipaddr == 0) {
         if (!(rv = gethostbyname(DATA_SERVER, strlen(DATA_SERVER), &ipaddr,
@@ -485,8 +500,8 @@ int send_data_pb(data_t * data) {
 
     sAddr.sa_family = AF_INET;
     // the source port
-    sAddr.sa_data[0] = 0;        //0xf;
-    sAddr.sa_data[1] = 80;        //0xa0; //4k
+    sAddr.sa_data[0] = 1;    //port 443, ssl
+    sAddr.sa_data[1] = 0xbb; //port 443, ssl
     sAddr.sa_data[2] = (char) ((ipaddr >> 24) & 0xff);
     sAddr.sa_data[3] = (char) ((ipaddr >> 16) & 0xff);
     sAddr.sa_data[4] = (char) ((ipaddr >> 8) & 0xff);
@@ -504,16 +519,18 @@ int send_data_pb(data_t * data) {
 
 #endif
 
-    //connect it up
-    //UARTprintf("Connecting \n\r\n\r");
-    if (!connected && (rv = connect(sock, &sAddr, sizeof(sAddr)))) {
-        close(sock);
-        sock = -1;
-        connected = false;
-        UARTprintf("Could not connect %d\n\r\n\r", rv);
-        return -1;    // could not send SNTP request
-    }
-    connected = true;
+	//connect it up
+	//UARTprintf("Connecting \n\r\n\r");
+	if (!connected && (rv = connect(sock, &sAddr, sizeof(sAddr)))) {
+		if (rv != SL_ESECSNOVERIFY) {
+			close(sock);
+			sock = -1;
+			connected = false;
+			UARTprintf("Could not connect %d\n\r\n\r", rv);
+			return -1;    // could not send SNTP request
+		}
+	}
+	connected = true;
 
     //UARTprintf("Sending request\n\r%s\n\r", buffer);
     numbytes = 0;
