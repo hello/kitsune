@@ -5,16 +5,22 @@
 extern "C" {
 #endif
 
-int fft(short fr[], short fi[], int m);
-int fftr(short f[], int m);
-void fix_window(short fr[], int n);
-void psd(short f[], int m);
-void mel_freq(short f[], int n, int b );
+#define MEL_SCALE_SIZE (15)
 
-short bitlog(unsigned long n);
-unsigned long bitexp(unsigned short n);
+    
+int fft(short fr[], short fi[], int m);
+int fftr(short f[], int m); //this does not work, do not use it.
+
+void mel_freq(short mel[],const short f[], int n, int b );
+
 short fxd_sin( unsigned short x );
-unsigned int fxd_sqrt (unsigned int n);
+unsigned int fxd_sqrt (unsigned int n); //untested
+
+void abs_fft(short psd[], const short fr[],const short fi[], short nfft);
+
+short FixedPointLog2Q8(unsigned int x);
+short CountHighestMsb(unsigned int x);
+
 
 #ifdef __cplusplus
 }
