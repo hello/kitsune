@@ -2,6 +2,60 @@
 #include "fft.h"
 #include "stdlib.h" //for abs
 
+/* Bitlog function
+ * Invented by Tom Lehman at Invivo Research, Inc.,
+ * ca. 1990
+ *
+ * Gives an integer analog of the log function
+ * For large x,
+ *
+ * B(x) = 8*(log(base 2)(x) - 1)
+ */
+
+short bitlog(unsigned long n)
+{
+   short b;
+
+   // shorten computation for small numbers
+   if(n <= 8)
+      return (short)(2 * n);
+
+   // find the highest non-zero bit
+   b=31;
+   while((b > 2) && ((long)n > 0))
+   {
+      --b;
+      n <<= 1;
+   }
+   n &= 0x70000000;
+   n >>= 28;
+   return (short)n + 8 * (b - 1);
+}
+
+
+/* Bitexp function
+ * returns an integer value equivalent to the exponential. For numbers > 16,
+bitexp(x) approx = 2^(x/8 + 1) */
+
+unsigned long bitexp(unsigned short n)
+{
+   unsigned short b = n/8;
+   unsigned long retval;
+
+   // make sure no overflow
+   if(n > 247)
+      return 0xf0000000;
+
+   // shorten computation for small numbers
+   if(n <= 16)
+      return (unsigned long)(n / 2);
+
+   retval = n & 7;
+   retval |= 8;
+
+   return (retval << (b - 2));
+}
+
 
 #define FIX_MPY(DEST,A,B) (DEST) = ((long int)(A) * (long int)(B))>>15
 //#define fix_mpy(A, B) (FIX_MPY(a,a,b))
@@ -185,101 +239,35 @@ void fix_window(short fr[], int n)
     FIX_MPY(fr[i], fr[i], 16384 - (fxd_sin(k) >> 1));
 }
 
-
-void abs_fft(short psd[], const short fr[],const short fi[], short nfft)
+/*  
+    f as input is output from the fft or fftr funciton, and is length N
+    f as output is PSD, and is length N/2
+ */
+void psd(short f[], int n)
 {
     int i;
-	short n2 = 1 << (nfft - 1);
-    
-    for (i=0; i < n2 ; ++i) {
-		psd[i] = abs(fr[i]) + abs(fi[i]);
+	int n2 = n/2;
+    for (i=0; i<n/2; ++i) {
+		//f[i] = fxd_sqrt( fix_mpy(f[i],f[i]) + fix_mpy(f[i+n2],f[i+n2]) );
+		f[i] = abs(f[i]) + abs(f[i+n2]);
     }
 }
 
-/*
- 0000 - 0
- 0001 - 1
- 0010 - 2
- 0011 - 2
- 0100 - 3
- 0101 - 3
- 0110 - 3
- 0111 - 3
- 1000 - 4
- 1001 - 4
- 1010 - 4
- 1011 - 4
- 1100 - 4
- 1101 - 4
- 1110 - 4
- 1111 - 4
- */
-#define BIT_COUNT_LOOKUP_SIZE (16)
-static const char k_bit_count_lookup[BIT_COUNT_LOOKUP_SIZE] =
-{0,1,2,2,3,3,3,3,4,4,4,4,4,4,4,4};
-
-
-short CountHighestMsb(unsigned int x) {
-    short j;
-    short count = 0;
-    for (j = 0; j < 8; j++) {
-        if (x < 16) {
-            count += k_bit_count_lookup[x];
-            break;
-        }
-        count += 4;
-        x >>= 4;
-    }
-    return count;
-}
-
-/*  Not super high precision, but oh wells! */
-#define LOG2_LOOKUP_SIZE_2N (5)
-#define LOG2_LOOKUP_SIZE ((1 << LOG2_LOOKUP_SIZE_2N) + 1)
-
-static const short k_log2_lookup_q8[LOG2_LOOKUP_SIZE] =
-{-32768,-2048,-1792,-1642,-1536,-1454,-1386,-1329,-1280,-1236,-1198,-1162,-1130,-1101,-1073,-1048,-1024,-1002,-980,-961,-942,-924,-906,-890,-874,-859,-845,-831,-817,-804,-792,-780,-768};
-
-short FixedPointLog2Q8(unsigned int x) {
-    short msb;
-    short shift = 0;
-    if (x <= 0) {
-        return k_log2_lookup_q8[0];
-    }
-    
-    msb = CountHighestMsb(x);
-    
-    if (msb > LOG2_LOOKUP_SIZE_2N) {
-        shift = msb - LOG2_LOOKUP_SIZE_2N;
-        x >>= shift;
-    }
-    
-    x = k_log2_lookup_q8[x];
-    x += shift * 256;
-    
-    return x;
-}
 
 // b - size of the bin in the fft in hz
 // ergo, b = Fs / 2 / (n/2) or if you prefer, Nyquist freq divided by half of the FFT
 // n is the PSD size (nfft / 2)
 // f is both input and output
-// f as input is the PSD bin, and is always positive
+// f as input is the PSD bin
 // f as output is the mel bins
-
-void mel_freq(short mel[],const short f[], int nfft, int b ) {
+void mel_freq(short f[], int n, int b ) {
 	
     // in Hz
-    static const unsigned int mel_scale[MEL_SCALE_SIZE] = {20,160,394,670,1000,1420,1900,2450,3120,4000,5100,6600,9000,14000,22050};
-	static const short mel_log2_normalization_q8[MEL_SCALE_SIZE] = {0,-719,-908,-969,-1035,-1124,-1174,-1224,-1297,-1398,-1480,-1595,-1768,-2039,-2215};
-    int iBin;
-	int iMel;
-    int nbins = 1 << (nfft - 1);
-    unsigned int accumulator;
-    unsigned int test;
-    int log2mel;
-    unsigned int freq;
-
+    static const short mel_scale[16] = {0,20,160,394,670,1000,1420,1900,2450,3120,4000,5100,6600,9000,14000,32000};
+	
+    int i;
+	int iMel=0;
+	int numInCurrentMelBin=0;
 
 #if 0 //For generating mel scales
 	for( int i=0; i<50; ++i ) {
@@ -289,51 +277,24 @@ void mel_freq(short mel[],const short f[], int nfft, int b ) {
 	}
 #endif // 0
 
-	accumulator = 0;
-    iMel = 0;
-    freq = 0;
 	
-    /* skip dc, start at 1 */
-    for(iBin = 1; iBin < nbins; iBin++ ) {
-        test = accumulator + f[iBin];
-        
-        //check for saturation
-		if (test < accumulator) {
-            accumulator = 0xFFFFFFFF;
-        }
-        else {
-            accumulator = test;
-        }
+	for( i = 0; i < (n >> 1); ++i ) {
+		f[iMel] += f[i+1];
+		++numInCurrentMelBin;
         
         
-		if( freq > mel_scale[iMel] || iBin == nbins - 1 ) {
-			         
-            log2mel = FixedPointLog2Q8(accumulator);
-            log2mel += mel_log2_normalization_q8[iMel];
-            
-            if (log2mel < -32768) {
-                log2mel = -32768;
-            }
-            
-            if (log2mel > 32767) {
-                log2mel = 32767;
-            }
-            
-            mel[iMel] = (short) log2mel;
+		if( (i+1)*b > mel_scale[iMel] ) {
 			
-            accumulator = 0;
-            
-            iMel++;
-            
-            if( iMel == MEL_SCALE_SIZE ) {
+            if( iMel+1 == sizeof(mel_scale) / sizeof(short) ) {
 				break;
             }
-
+            
+			f[iMel] = bitlog( f[iMel]/numInCurrentMelBin );
+			++iMel;
+			numInCurrentMelBin = 0;
 		}
-        
-        freq += b;
-
 	}
+    f[iMel] = bitlog( f[iMel] / numInCurrentMelBin );
 }
 
 #if 0

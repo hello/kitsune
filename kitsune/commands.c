@@ -320,8 +320,8 @@ int Cmd_fault(int argc, char *argv[]) {
 	return 0;
 }
 int Cmd_mel(int argc, char *argv[]) {
-/*
-	int i;
+
+    int i;
 	short s[1024];
 
 	for (i = 0; i < 1024; ++i) {
@@ -338,7 +338,6 @@ int Cmd_mel(int argc, char *argv[]) {
 		UARTprintf("%d ", s[i]);
 	}
 	UARTprintf("\n");
-*/
 	return (0);
 }
 
