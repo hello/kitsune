@@ -604,7 +604,7 @@ int Cmd_sl(int argc, char*argv[]) {
 
 
 
-#define MCU_VERSION    "MCU_20"
+#define MCU_VERSION    "MCU_01"
 #ifdef _WIN32
 #define VERSION_FROM_NWP_VER
 #define OTA_VENDOR_STR "Vid01_Pid31_VerAA"  /* vendor id = 01, product id = 31, version will be filled online */
