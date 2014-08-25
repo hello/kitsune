@@ -163,7 +163,7 @@ static int I2CTransact(unsigned long ulCmd) {
 	// Check for any errors in transfer
 	//
 	if (MAP_I2CMasterErr(I2C_BASE) != I2C_MASTER_ERR_NONE) {
-		recoveri2c();
+		I2CMasterControl(I2C_BASE, 0x00000004); //send a stop...
 		return FAILURE;
     }
     return SUCCESS;
