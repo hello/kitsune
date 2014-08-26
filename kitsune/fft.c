@@ -5,8 +5,9 @@
 #define FIX_MPY(DEST,A,B) (DEST) = ((int32_t)(A) * (int32_t)(B))>>15
 //#define fix_mpy(A, B) (FIX_MPY(a,a,b))
 
-#define N_WAVE          1024        /* dimension of Sinewave[] */
-#define LOG2_N_WAVE     10            /* log2(N_WAVE) */
+#define LOG2_N_WAVE     (10)
+#define N_WAVE          (1 << LOG2_N_WAVE)        /* dimension of Sinewave[] */
+
 
 static const uint16_t sin_lut[N_WAVE/4+1] = {
   0, 201, 402, 603, 804, 1005, 1206, 1406,
@@ -209,12 +210,11 @@ void fix_window(int16_t fr[], int32_t n)
 }
 
 
-void abs_fft(int16_t psd[], const int16_t fr[],const int16_t fi[], int16_t nfft)
+void abs_fft(int16_t psd[], const int16_t fr[],const int16_t fi[],const int16_t len)
 {
     int i;
-	short n2 = 1 << (nfft - 1);
     
-    for (i=0; i < n2 ; ++i) {
+    for (i=0; i < len ; ++i) {
 		psd[i] = abs(fr[i]) + abs(fi[i]);
     }
 }

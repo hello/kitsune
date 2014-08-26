@@ -9,7 +9,6 @@ extern "C" {
 #endif
 
 #define MEL_SCALE_SIZE (15)
-
     
 int32_t fft(int16_t fr[], int16_t fi[], int32_t m);
 int32_t fftr(int16_t f[], int32_t m); //this does not work, do not use it.
@@ -21,7 +20,7 @@ uint8_t bitlog(uint32_t n);
 int16_t fxd_sin( uint16_t x );
 uint32_t fxd_sqrt (uint32_t n); //untested
 
-void abs_fft(int16_t psd[], const int16_t fr[],const int16_t fi[], int16_t nfft);
+void abs_fft(int16_t psd[], const int16_t fr[],const int16_t fi[],const int16_t len);
 
 int16_t FixedPointLog2Q8(unsigned int x);
 int16_t CountHighestMsb(unsigned int x);

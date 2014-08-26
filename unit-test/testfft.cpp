@@ -133,7 +133,7 @@ TEST_F(TestFrequencyFeatures,TestMel) {
     //2^10 = 1024
     fft(vecr,veci,10);
 
-    abs_fft(mypsd, vecr, veci, 10);
+    abs_fft(mypsd, vecr, veci, (1 << 9));
     
     PrintShortVecToFile("mypsd.txt",mypsd,1<<9);
     
