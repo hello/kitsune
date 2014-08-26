@@ -323,23 +323,10 @@ int Cmd_mode(int argc, char*argv[]) {
 #include <pb.h>
 #include <pb_encode.h>
 #include <pb_decode.h>
+#include "envelope.pb.h"
 #include "periodic.pb.h"
+#include "audio_data.pb.h"
 
-bool encode_mac(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
-    unsigned char tagtype = (7 << 3) | 0x2; // field_number << 3 | 2 (length deliminated)
-    unsigned char mac[6];
-    unsigned char mac_len;
-    sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
-    return pb_write(stream, &tagtype, 1) && pb_encode_string(stream, (uint8_t*) mac, mac_len);
-}
-
-bool encode_name(pb_ostream_t *stream, const pb_field_t *field,
-        void * const *arg) {
-    unsigned char tagtype = (6 << 3) | 0x2; // field_number << 3 | 2 (length deliminated)
-    return pb_write(stream, &tagtype, 1)
-            && pb_encode_string(stream, (uint8_t*) MORPH_NAME,
-                    strlen(MORPH_NAME));
-}
 static bool write_callback(pb_ostream_t *stream, const uint8_t *buf,
         size_t count) {
     int fd = (intptr_t) stream->state;
@@ -371,7 +358,6 @@ pb_istream_t pb_istream_from_socket(int fd) {
 
 static int sock = -1;
 static unsigned long ipaddr = 0;
-static bool connected = false;
 
 #include "fault.h"
 
@@ -384,7 +370,7 @@ void UARTprintfFaults() {
 
     if (info->magic == SHUTDOWN_MAGIC) {
         char buffer[BUF_SZ];
-        if (connected) {
+        if (sock > 0) {
             message_length = sizeof(faultInfo);
             snprintf(buffer, sizeof(buffer), "POST /in/morpheus/fault HTTP/1.1\r\n"
                     "Host: in.skeletor.com\r\n"
@@ -408,51 +394,15 @@ void UARTprintfFaults() {
     }
 }
 
-int send_data_pb(data_t * data) {
-    char buffer[256];
-
-    int rv = 0;
+int stop_connection() {
+	close(sock);
+	return sock;
+}
+int start_connection() {
     sockaddr sAddr;
-    int numbytes = 0;
-
     timeval tv;
-    size_t message_length;
-    bool status;
-    periodic_data msg;
-    int send_length;
+    int rv;
 
-    //build the message
-    msg.firmware_version = 2;
-    msg.dust = data->dust;
-    msg.humidity = data->humid;
-    msg.light = data->light;
-    msg.light_variability = data->light_variability;
-    msg.light_tonality = data->light_tonality;
-    msg.temperature = data->temp;
-    msg.unix_time = data->time;
-    msg.name.funcs.encode = encode_name;
-    msg.mac.funcs.encode = encode_mac;
-
-    msg.has_dust = 1;
-    msg.has_humidity = 1;
-    msg.has_light = 1;
-    msg.has_temperature = 1;
-    msg.has_unix_time = 1;
-
-    {
-        pb_ostream_t stream = {0};
-        status = pb_encode(&stream, periodic_data_fields, &msg);
-        message_length = stream.bytes_written;
-    }
-
-    snprintf(buffer, sizeof(buffer), "POST /in/morpheus/pb HTTP/1.1\r\n"
-            "Host: in.skeletor.com\r\n"
-            "Content-type: application/x-protobuf\r\n"
-            "Content-length: %d\r\n"
-            "\r\n", message_length);
-    send_length = strlen(buffer);
-
-    //setup the connection
     if (sock < 0) {
         sock = socket(AF_INET, SOCK_STREAM, SL_SEC_SOCKET);
         tv.tv_sec = 2;             // Seconds
@@ -476,11 +426,11 @@ int send_data_pb(data_t * data) {
         }
     }
 
-    if (sock < 0) {
-        UARTprintf("Socket create failed %d\n\r", sock);
-        return -1;
-    }
-    UARTprintf("Socket created\n\r");
+	if (sock < 0) {
+		UARTprintf("Socket create failed %d\n\r", sock);
+		return -1;
+	}
+	UARTprintf("Socket created\n\r");
 
 #define DATA_SERVER "dev-in.hello.is"
 #if !LOCAL_TEST
@@ -521,35 +471,55 @@ int send_data_pb(data_t * data) {
 
 	//connect it up
 	//UARTprintf("Connecting \n\r\n\r");
-	if (!connected && (rv = connect(sock, &sAddr, sizeof(sAddr)))) {
+	if (sock > 0 && (rv = connect(sock, &sAddr, sizeof(sAddr)))) {
+		UARTprintf("connect returned %d\n\r\n\r", rv);
 		if (rv != SL_ESECSNOVERIFY) {
-			close(sock);
-			sock = -1;
-			connected = false;
 			UARTprintf("Could not connect %d\n\r\n\r", rv);
-			return -1;    // could not send SNTP request
+			return stop_connection();    // could not send SNTP request
 		}
 	}
-	connected = true;
+	return 0;
+}
 
-    //UARTprintf("Sending request\n\r%s\n\r", buffer);
-    numbytes = 0;
-//    while( numbytes < strlen(buffer) ) {
-    rv = send(sock, buffer, send_length, 0);
-    numbytes += rv;
-    UARTprintf("sent %d\n\r\n\r", rv);
-    if (rv < 0) {
-        close(sock);
-        sock = -1;
-        connected = false;
-        return -1;
+//buffer needs to be at least 128 bytes...
+int send_data_pb(char * buffer, int buffer_size, const pb_field_t fields[], const void *src_struct) {
+    int send_length;
+    int rv = 0;
+
+    size_t message_length;
+    bool status;
+
+    {
+        pb_ostream_t stream = {0};
+        status = pb_encode(&stream, fields, src_struct);
+        message_length = stream.bytes_written;
     }
-//    }
+
+    snprintf(buffer, buffer_size, "POST /in/morpheus/pb HTTP/1.1\r\n"
+            "Host: in.skeletor.com\r\n"
+            "Content-type: application/x-protobuf\r\n"
+            "Content-length: %d\r\n"
+            "\r\n", message_length);
+    send_length = strlen(buffer);
+
+    //setup the connection
+    if( start_connection() < 0 ) {
+		UARTprintf("failed to start connection\n\r\n\r");
+		return -1;
+	}
+
+	//UARTprintf("Sending request\n\r%s\n\r", buffer);
+    if (rv = send(sock, buffer, send_length, 0) < 0) {
+        UARTprintf("send error %d\n\r\n\r", rv);
+        return stop_connection();
+    }
+    UARTprintf("sent %d\n\r\n\r", rv);
+
     {
         /* Create a stream that will write to our buffer. */
         pb_ostream_t stream = pb_ostream_from_socket(sock);
         /* Now we are ready to encode the message! */
-        status = pb_encode(&stream, periodic_data_fields, &msg);
+        status = pb_encode(&stream, fields, src_struct);
         message_length = stream.bytes_written;
 
         /* Then just check for any errors.. */
@@ -559,31 +529,111 @@ int send_data_pb(data_t * data) {
         }
 
     }
-    memset(buffer, 0, sizeof(buffer));
+    memset(buffer, 0, buffer_size);
 
     //UARTprintf("Waiting for reply\n\r\n\r");
-    numbytes = 0;
-//    while (numbytes < sizeof(buffer)) {
-    rv = recv(sock, buffer, sizeof(buffer), 0);
-    numbytes += rv;
-    UARTprintf("recv %d\n\r\n\r", rv);
-    if (rv <= 0) {
-        close(sock);
-        sock = -1;
-        connected = false;
-        return -1;
-    }
-//    }
+	if (rv = recv(sock, buffer, buffer_size, 0) <= 0) {
+		UARTprintf("recv error %d\n\r\n\r", rv);
+        return stop_connection();
+	}
+	UARTprintf("recv %d\n\r\n\r", rv);
 
-    UARTprintf("Reply is:\n\r\n\r");
+	UARTprintf("Reply is:\n\r\n\r");
     buffer[127] = 0; //make sure it terminates..
     UARTprintf("%s", buffer);
 
-    UARTprintfFaults();
+    //todo check for http response code 2xx
+
+    //UARTprintfFaults();
     //close( sock ); //never close our precious socket
 
     return 0;
 }
+
+
+bool encode_audio_chunk(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
+    unsigned char tagtype = (6 << 3) | 0x2; // field_number << 3 | 2 (length deliminated)
+    short audio[1024] = { 0xabcd };
+    int audio_len = sizeof(audio);
+
+    return pb_write(stream, &tagtype, 1) && pb_encode_string(stream, (uint8_t*) audio, audio_len);
+}
+bool encode_features(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
+    unsigned char tagtype = (1 << 3) | 0x2; // field_number << 3 | 2 (length deliminated)
+    char features[16] = { 0xabcd };
+    int len = sizeof(features);
+
+    return pb_write(stream, &tagtype, 1) && pb_encode_string(stream, (uint8_t*) features, len);
+}
+int send_audio_chunk( int16_t * audio_chunk, int samples ) {
+
+    char buffer[256];
+    audio_data msg;
+
+    //build the message
+    msg.audio.funcs.encode = encode_audio_chunk;
+    msg.audio_version = 1;
+    msg.feature_version = 1;
+    msg.features.funcs.encode = encode_features;
+    msg.rate = 44100;
+    msg.samples = 1024;
+
+    msg.has_audio_version = 1;
+    msg.has_feature_version = 1;
+    msg.has_rate = 1;
+    msg.has_samples = 1;
+
+    return send_data_pb(buffer, sizeof(buffer), audio_data_fields, &msg);
+}
+
+bool encode_mac(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
+    unsigned char tagtype = (7 << 3) | 0x2; // field_number << 3 | 2 (length deliminated)
+    unsigned char mac[6];
+    unsigned char mac_len = 6;
+    sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
+#if 0
+    mac[0] = 0xab;
+    mac[1] = 0xcd;
+    mac[2] = 0xab;
+    mac[3] = 0xcd;
+    mac[4] = 0xab;
+    mac[5] = 0xcd;
+#endif
+    return pb_write(stream, &tagtype, 1) && pb_encode_string(stream, (uint8_t*) mac, mac_len);
+}
+
+bool encode_name(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
+    unsigned char tagtype = (6 << 3) | 0x2; // field_number << 3 | 2 (length deliminated)
+    return pb_write(stream, &tagtype, 1)
+            && pb_encode_string(stream, (uint8_t*) MORPH_NAME,
+                    strlen(MORPH_NAME));
+}
+
+int send_periodic_data( data_t * data ) {
+    char buffer[256];
+    periodic_data msg;
+
+    //build the message
+    msg.firmware_version = 2;
+    msg.dust = data->dust;
+    msg.humidity = data->humid;
+    msg.light = data->light;
+    msg.light_variability = data->light_variability;
+    msg.light_tonality = data->light_tonality;
+    msg.temperature = data->temp;
+    msg.unix_time = data->time;
+    msg.name.funcs.encode = encode_name;
+    msg.mac.funcs.encode = encode_mac;
+
+    msg.has_dust = 1;
+    msg.has_humidity = 1;
+    msg.has_light = 1;
+    msg.has_temperature = 1;
+    msg.has_unix_time = 1;
+
+    return send_data_pb(buffer, sizeof(buffer), periodic_data_fields, &msg);
+}
+
 
 int Cmd_sl(int argc, char*argv[]) {
 #define WLAN_DEL_ALL_PROFILES 0xff
