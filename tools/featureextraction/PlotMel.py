@@ -6,7 +6,7 @@ from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 from matplotlib import cm
 
-mel_size = 15
+mel_size = 16
 
 
 def FileToMatrix(filename,N):
@@ -14,10 +14,11 @@ def FileToMatrix(filename,N):
     with open(filename,'rb') as f:
         exit = False
         while (not exit):
-            data = f.read(1);
+            data = f.read(2);
 
             try:
-                num = unpack('B',data);
+                #num = unpack('B',data);
+                num = unpack('h',data);
                 myints.append(float(num[0]));
             except Exception:
                 exit = True
@@ -36,5 +37,5 @@ if __name__ == '__main__':
     fig = plt.figure()
     ax = fig.gca(projection='3d')
     surf = ax.plot_surface(X,Y,mat,cmap=cm.coolwarm)
-    ax.view_init(90,0)
+    ax.view_init(45,45)
     plt.show()

@@ -8,6 +8,7 @@ set(CMAKE_INCLUDE_PATH ${PROJECT_SOURCE_DIR}/)
 #compile our alg code
 add_library(EmbeddedAlg STATIC
 ../../kitsune/fft.c
+../../kitsune/audiofeatures.c
 )
 
 

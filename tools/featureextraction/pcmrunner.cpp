@@ -1,5 +1,6 @@
 #include <iostream>
 #include <fstream>
+#include "../../kitsune/audiofeatures.h"
 #include "../../kitsune/fft.h"
 
 using namespace std;
@@ -19,29 +20,19 @@ int main(int argc, char * argv[]) {
     char buf[2 * FFT_SIZE ];
     const short * samples = (const short *) buf;
     
-    short fr[FFT_SIZE];
-    short fi[FFT_SIZE];
-    short psd[FFT_SIZE >> 1];
-    uint8_t mel[MEL_SCALE_SIZE];
+  
+    int16_t logmfcc[MEL_SCALE_ROUNDED_UP];
     
+    AudioFeatures_Init();
+
     do {
         //read
         inFile.read(buf,sizeof(buf));
 
-        memcpy(fr,samples,sizeof(fr));
-        memset(fi,0,sizeof(fi));
-        
-        //get fft
-        fft(fr,fi,FFT_SIZE_2N);
-        
-        //take sum abs of complex and reals on one half of the PSD
-        abs_fft(psd,fr,fi, FFT_SIZE_2N);
-        
-        memset(mel,0,sizeof(mel));
-        mel_freq(mel, psd, FFT_SIZE_2N, SAMPLE_RATE / FFT_SIZE);
-        
-        //output to file
-        outFile.write((const char *)mel,sizeof(mel));
+        if (AudioFeatures_Extract(logmfcc, samples, AUDIO_FFT_SIZE)) {
+            //output to file
+            outFile.write((const char *)logmfcc,sizeof(logmfcc));
+        }
         
         
     } while (inFile);
