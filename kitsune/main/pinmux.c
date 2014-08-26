@@ -65,6 +65,9 @@ PinMuxConfig(void)
     //setup debug uart clock
     MAP_PRCMPeripheralClkEnable(PRCM_UARTA0, PRCM_RUN_MODE_CLK);
 
+    //setup i2S clock
+    MAP_PRCMPeripheralClkEnable(PRCM_I2S, PRCM_RUN_MODE_CLK);
+
     // Configure PIN_64 for TIMERPWM5 GT_PWM05
     //
     MAP_PinTypeTimer(PIN_64, PIN_MODE_3);
@@ -113,4 +116,14 @@ PinMuxConfig(void)
      // Configure PIN_08 for SPI0 GSPI_CS
      //
      MAP_PinTypeSPI(PIN_08, PIN_MODE_7);
+
+     //
+     // Configure PIN_63 for MCASP0 McAFSX
+     MAP_PinTypeI2S(PIN_63, PIN_MODE_7);
+     // Configure PIN_53 for MCASP0 McACLK
+     MAP_PinTypeI2S(PIN_53, PIN_MODE_2);
+     // Configure PIN_64 for MCASP0 McAXR0
+     MAP_PinTypeI2S(PIN_64, PIN_MODE_7);
+     // Configure PIN_50 for MCASP0 McAXR1
+     MAP_PinTypeI2S(PIN_50, PIN_MODE_6);
 }

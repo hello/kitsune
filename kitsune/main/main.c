@@ -236,7 +236,7 @@ BoardInit(void)
 
     // I2C Init
     //
-    I2C_IF_Open(I2C_MASTER_MODE_FST);
+    I2C_IF_Open(I2C_MASTER_MODE_STD);
 	
     //
     // Enable Processor

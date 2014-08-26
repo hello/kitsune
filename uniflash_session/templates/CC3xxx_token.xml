@@ -41,4 +41,14 @@
       <RW>0x0</RW>
       <RO>0x0</RO>
    </Filename>
+   <Filename name="Yo">
+      <MAX>0x0</MAX>
+      <RW>0x0</RW>
+      <RO>0x0</RO>
+   </Filename>
+   <Filename name="Ringtone_hello_leftchannel_16PCM">
+      <MAX>0x0</MAX>
+      <RW>0x0</RW>
+      <RO>0x0</RO>
+   </Filename>
 </CC3xxx>

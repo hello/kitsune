@@ -37,8 +37,72 @@
 
 #include "fft.h"
 
+/* I2S module*/
+#include "i2s.h"
+#include "mcasp_if.h"
+#include "udma.h"
+#include "udma_if.h"
+#include "pcm_handler.h"
+#include "circ_buff.h"
+//#include "circ_buff.h"
+//#include "pcm_handler.h"
+#include "osi.h"
+
+#include "control.h"
+//#include "mcasp_if.h" // add by Ben
+
 #define NUM_LOGS 72
 
+//*****************************************************************************
+//
+// Define Packet Size, Rx and Tx Buffer
+//
+//*****************************************************************************
+#define PACKET_SIZE             100
+#define PLAY_WATERMARK		30*256
+#define TX_BUFFER_SIZE          10*PACKET_SIZE
+#define RX_BUFFER_SIZE          10*PACKET_SIZE
+
+extern void Speaker( void *pvParameters );
+extern tCircularBuffer *pTxBuffer;
+extern tCircularBuffer *pRxBuffer;
+
+unsigned long tone;
+//*****************************************************************************
+//                      GLOBAL VARIABLES
+//*****************************************************************************
+P_AUDIO_HANDLER g_pAudioInControlHdl;
+P_AUDIO_HANDLER g_pAudioOutControlHdl;
+//******************************************************************************
+//			    GLOBAL VARIABLES
+//******************************************************************************
+#if defined(ccs)
+extern void (* const g_pfnVectors[])(void);
+#endif
+#if defined(ewarm)
+extern uVectorEntry __vector_table;
+#endif
+
+unsigned int clientIP;
+tCircularBuffer *pTxBuffer;
+tCircularBuffer *pRxBuffer;
+//tUDPSocket g_UdpSock;
+unsigned long g_ulMcASPStatus = 0;
+unsigned long g_ulRxCounter = 0;
+unsigned long g_ulTxCounter = 0;
+unsigned long g_ulZeroCounter = 0;
+unsigned long g_ulValue = 0;
+int iCounter,i = 0;
+//extern unsigned char iDone;
+//OsiTaskHandle g_SpeakerTask = NULL ;
+//OsiTaskHandle g_MicTask = NULL ;
+//*****************************************************************************
+//                          LOCAL DEFINES
+//*****************************************************************************
+#define OSI_STACK_SIZE          256
+OsiTaskHandle g_SpeakerTask = NULL ;
+
+//unsigned char speaker_data[16*1024];
 //// ==============================================================================
 //// The CPU usage in percent, in 16.16 fixed point format.
 //// ==============================================================================
@@ -136,6 +200,112 @@ int Cmd_fs_read(int argc, char *argv[]) {
 
 	// Return success.
 	return (0);
+}
+extern
+unsigned short * audio_buf;
+int Cmd_code_playbuff(int argc, char *argv[]) {
+
+#define minval( a,b ) a < b ? a : b
+	unsigned long tok;
+	long hndl, err, bytes, i,j;
+	SlFsFileInfo_t info;
+
+	audio_buf = (char*)pvPortMalloc(AUDIO_BUF_SZ);
+
+	if (err = sl_FsOpen("Ringtone_hello_leftchannel_16PCM", FS_MODE_OPEN_READ, &tok, &hndl)) {
+		UARTprintf("error opening for read %d\n", err);
+		return -1;
+	}
+	if (bytes = sl_FsRead(hndl, 0, audio_buf, AUDIO_BUF_SZ)) {
+		UARTprintf("read %d bytes\n", bytes);
+	}
+	sl_FsClose(hndl, 0, 0, 0);
+	// Create RX and TX Buffer
+    //
+   // pTxBuffer = CreateCircularBuffer(TX_BUFFER_SIZE);
+	//UARTprintf("Done for CreateCircularBuffer TX\n ");
+    //pRxBuffer = CreateCircularBuffer(RX_BUFFER_SIZE);
+	//UARTprintf("Done for CreateCircularBuffer RX\n ");
+# if 0
+	for (i = 0; i < bytes; ++i) {
+		UARTprintf("%x", buffer[i]);
+		//buffer[i] = CreateCircularBuffer(TX_BUFFER_SIZE);
+		//pTxBuffer->pucWritePtr = buffer[i+1]<<8 + buffer[i];
+		//speaker_data = buffer[i];
+		//UARTprintf("%x\d\n\r", pRxBuffer->pucReadPtr);
+	    //unsigned char *pucReadPtr;
+	    //unsigned char *pucWritePtr;
+	    //unsigned char *pucBufferStartPtr;
+	    //unsigned long ulBufferSize;
+	    //unsigned char *pucBufferEndPtr;
+		//UARTprintf("%x\n", pRxBuffer->pucWritePtr);
+	    // put data in the buffer
+	}
+# endif
+	get_codec_NAU();
+	UARTprintf(" Done for get_codec_NAU\n ");
+	//UARTprintf(" Done for ControlTaskCreate\n ");
+
+	    // Initialize the DMA Module
+	    //
+/*
+	    UDMAInit(); UARTprintf(" Done for UDMAInit\n ");
+	    UDMAChannelSelect(UDMA_CH4_I2S_RX, NULL); UARTprintf(" Done for UDMA_CH4_I2S_RX\n ");
+	    UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL); UARTprintf(" Done for UDMA_CH5_I2S_TX\n ");
+	    //
+	    // Setup the DMA Mode
+	    //
+	    SetupPingPongDMATransferTx(); UARTprintf(" Done for SetupPingPongDMATransferTx\n ");
+	    SetupPingPongDMATransferRx(); UARTprintf(" Done for SetupPingPongDMATransferRx\n ");
+	    //
+	    // Setup the Audio In/Out
+	    //
+	    AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
+	    UARTprintf(" Done for AudioCapturerSetupDMAMode\n ");
+*/
+	    AudioCaptureRendererConfigure();
+	    UARTprintf(" Done for AudioCaptureRendererConfigure\n ");
+
+//#	if 0
+		 //I2SDataPutNonBlocking(I2S_BASE,I2S_DATA_LINE_0,sin[i%16]);
+		 //McASPLoad(tmp, BUF_SZ/sizeof(unsigned long));
+
+//		 unsigned short *tmp = (unsigned short*)buffer;
+		 AudioCapturerInit(); //UARTprintf(" Done for AudioCapturerInit\n ");
+		 Audio_Start(); //UARTprintf(" Done for Audio_Start\n ");
+
+//#endif
+		// while(1){
+
+		 //I2SDataPutNonBlocking(I2S_BASE, I2S_DATA_LINE_0, tmp[i]);
+
+		 //pTxBuffer->pucWritePtr = tmp[i];
+		 //UARTprintf("%x\n\r",pTxBuffer->pucWritePtr);
+		 //I2SDataPutNonBlocking(I2S_BASE, I2S_DATA_LINE_0, sin[i%16]);
+		// UARTprintf("%x\n\r",sin[i%16]);
+
+	    //I2SDataPut(I2S_BASE, I2S_DATA_LINE_0, ((unsigned long*)buffer)[0]);
+	    //I2SDataPutNonBlocking(I2S_BASE, I2S_DATA_LINE_0, ((unsigned long*)buffer)[0]); UARTprintf("Done for I2SDataPutNonBlocking\n");
+		 //};
+		    // Start Audio Tx/Rx
+	    //UARTprintf(" Audio is starting %d\n\r");
+	//ControlTaskCreate(); UARTprintf(" Done for ControlTaskCreate\n");
+
+    // Start the Speaker Task
+    //
+    //osi_TaskCreate( Speaker, (signed char*)"Speaker",OSI_STACK_SIZE, NULL, 1, &g_SpeakerTask );
+    //osi_TaskCreate( Speaker, (signed char*)"Speaker",OSI_STACK_SIZE, NULL, 1, &g_pAudioOutControlHdl );
+    //UARTprintf(" Done for osi_TaskCreate\n");
+	//UARTprintf("%x", pRxBuffer->pucReadPtr);
+	//UARTprintf("%x", i);
+	//UARTprintf("%x", buffer[i]);
+	//UARTprintf("%x", pRxBuffer->pucWritePtr);
+	//UARTprintf("%x", pRxBuffer->pucBufferStartPtr);
+	//UARTprintf("%x", pRxBuffer->pucBufferEndPtr);
+	//UARTprintf("%x", pRxBuffer->)
+    //osi_start();
+    //UARTprintf(" Done for osi_start\n");
+	 return 0;
 }
 int Cmd_fs_delete(int argc, char *argv[]) {
 	//
@@ -434,6 +604,8 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "temp", Cmd_readtemp,	"i2 read temp" },
 		{ "light", Cmd_readlight, "i2 read light" },
 		{"proximity", Cmd_readproximity, "i2 read proximity" },
+		{"codec_NAU8814", get_codec_NAU, "i2 nuvoton_codec" },
+		//{"codec_Mic", get_codec_mic_NAU, "i2s mic_codec" },
 #if ( configUSE_TRACE_FACILITY == 1 )
 		{ "tasks", Cmd_tasks, "Report stats of all tasks" },
 #endif
@@ -442,6 +614,7 @@ tCmdLineEntry g_sCmdTable[] = {
 
 		{ "fswr", Cmd_fs_write, "fs write" },
 		{ "fsrd", Cmd_fs_read, "fs read" },
+		{ "play_ringtone", Cmd_code_playbuff, "play selected ringtone" },
 		{ "fsdl", Cmd_fs_delete, "fs delete" },
 		//{ "readout", Cmd_readout_data, "read out sensor data log" },
 		{ "sl", Cmd_sl, "start smart config" },
