@@ -68,6 +68,24 @@ uint8_t bitlog(uint32_t n) {
     return (uint8_t) b;
 }
 
+uint32_t bitexp(uint16_t n) {
+    uint16_t b = n/8;
+    uint32_t retval;
+    
+    // make sure no overflow
+    if(n > 247)
+        return 0xf0000000;
+    
+    // shorten computation for small numbers
+    if(n <= 16)
+        return (uint32_t)(n / 2);
+    
+    retval = n & 7;
+    retval |= 8;
+    
+    return (retval << (b - 2));
+}
+
 short fxd_sin( uint16_t x ) {
 	x &= 0x3FF;
 	if( x > 3*N_WAVE/4 ) {

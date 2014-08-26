@@ -16,6 +16,7 @@ int32_t fftr(int16_t f[], int32_t m); //this does not work, do not use it.
 void mel_freq(uint8_t mel[],const int16_t f[], int32_t n, int32_t b );
 
 uint8_t bitlog(uint32_t n);
+uint32_t bitexp(uint16_t n);
 
 int16_t fxd_sin( uint16_t x );
 uint32_t fxd_sqrt (uint32_t n); //untested
