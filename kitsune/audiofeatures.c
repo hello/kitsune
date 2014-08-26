@@ -73,10 +73,12 @@ uint8_t AudioFeatures_Extract(int16_t * logmfcc, const int16_t samples[],int16_t
     /* Get Mel */
     mel_freq(mel, psd,AUDIO_FFT_SIZE_2N,EXPECTED_AUDIO_SAMPLE_RATE_HZ / AUDIO_FFT_SIZE);
     
-    /*  get dct of mel */
-    for (i = 0; i < MEL_SCALE_ROUNDED_UP; i++) {
-        fr[i] = mel[i];
-        fi[i] = 0;
+    /*  get dct of mel,zero padded */
+    memset(fr,0,MEL_SCALE_ROUNDED_UP*sizeof(int16_t));
+    memset(fi,0,MEL_SCALE_ROUNDED_UP*sizeof(int16_t));
+
+    for (i = 0; i < MEL_SCALE_SIZE; i++) {
+        fr[i] = (int16_t)mel[i];
     }
     
     /* fr will contain the dct */
