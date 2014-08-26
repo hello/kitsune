@@ -377,7 +377,7 @@ void AudioControlTask(void *pvParameters)
 
 void ControlTaskCreate()
 {
-    InitControl(MICStartStopControl,SpeakerStartStopControl);
+    //InitControl(MICStartStopControl,SpeakerStartStopControl);
     
     osi_MsgQCreate(&g_ControlMsgQueue,"g_ControlMsgQueue",sizeof(tTxMsg),1);
     osi_TaskCreate(AudioControlTask, (signed char*)"AudioControlTask",2048, NULL, 1, &g_AudioControlTask );

@@ -113,6 +113,8 @@ extern unsigned int BitClockConfigure(int iSamplingFrequency,
                                       short sBitsPerSample);
 extern void AudioCaptureRendererConfigure();
 extern void Audio_Start();
+extern void I2SIntHandler();
+void McASPLoad(unsigned long * b, unsigned long size);
 //*****************************************************************************
 //
 // Mark the end of the C bindings section for C++ compilers.

@@ -91,6 +91,11 @@
 			<locationURI>PARENT-1-PROJECT_LOC/main.c</locationURI>
 		</link>
 		<link>
+			<name>mcasp_if.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/mcasp_if.c</locationURI>
+		</link>
+		<link>
 			<name>nanopb</name>
 			<type>2</type>
 			<locationURI>virtual:/virtual</locationURI>

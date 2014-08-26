@@ -74,11 +74,11 @@
 #include "i2c_if.h"
 #include "uart_if.h"
 
-#ifndef TI_CODEC
-#include "wolfson.h"
-#else
-#include "ti_codec.h"
-#endif
+//#ifndef TI_CODEC
+//#include "wolfson.h"
+//#else
+//#include "ti_codec.h"
+//#endif
 //*****************************************************************************
 //                          LOCAL DEFINES
 //*****************************************************************************

@@ -63,9 +63,14 @@
 
 /* Demo app includes. */
 #include "mcasp_if.h"
-#include "gpio_if.h"
-#include "network.h"
+//#include "gpio_if.h"
+//#include "network.h"
 
+//unsigned long tone;
+unsigned short * audio_buf;
+unsigned long * playback_buffer;
+unsigned long playback_buffer_size;
+unsigned long playback_buffer_index;
 //*****************************************************************************
 //
 //! Returns the pointer to transfer Audio samples to be rendered
@@ -137,9 +142,48 @@ void McASPInit()
 {
 
     MAP_PRCMPeripheralClkEnable(PRCM_I2S,PRCM_RUN_MODE_CLK); 
-    MAP_PRCMI2SClockFreqSet(512000);   
+    MAP_PRCMI2SClockFreqSet(512000*3);
+    MAP_I2SIntRegister(I2S_BASE,I2SIntHandler); // add by ben
+    MAP_I2SIntEnable(I2S_BASE,I2S_INT_XDATA); // add by ben
       //512000 = 16*2*16000Khz(Num of bytes * STEREO * 16000 sampling)
  
+}
+void McASPLoad(unsigned long * b, unsigned long size){
+	playback_buffer = b;
+	playback_buffer_size = size;
+	playback_buffer_index = 0;
+}
+
+//*****************************************************************************
+//add interrupt handeler
+//**************************************
+void I2SIntHandler(){
+	//static unsigned long sin[32]={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+	//						 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa};
+	//static int i;
+   unsigned long ulStatus;
+   unsigned long ulDummy;
+   static int i=0;
+   // Get the interrupt status
+   ulStatus = I2SIntStatus(I2S_BASE);
+   // Check if there was a Transmit interrupt; if so write next data into the tx buffer and acknowledge the interrupt
+   if(ulStatus & I2S_STS_XDATA)
+   {
+	   //I2SDataPutNonBlocking(I2S_BASE,I2S_DATA_LINE_0,sin[(i++)%32]);
+	    I2SDataPut(I2S_BASE,I2S_DATA_LINE_0, (unsigned long) (audio_buf[i/2]));
+		I2SDataPutNonBlocking(I2S_BASE,I2S_DATA_LINE_0, (unsigned long) (audio_buf[i/2]));
+	    if( ++i > 2*AUDIO_BUF_SZ/sizeof(unsigned short) ) {
+	    	i=0;
+	    }
+        I2SIntClear(I2S_BASE,I2S_STS_XDATA);
+   }
+   // Check if there was a receive interrupt; if so read the data from the rx buffer and acknowledge
+   // the interrupt
+   if(ulStatus & I2S_STS_RDATA)
+   {
+        I2SDataGetNonBlocking(I2S_BASE, I2S_DATA_LINE_1, ulDummy);
+        I2SIntClear(I2S_BASE,I2S_STS_RDATA);
+   }
 }
 
 //*****************************************************************************
@@ -193,8 +237,8 @@ void AudioCapturerSetupDMAMode(void (*pfnAppCbHndlr)(void),
 void AudioCaptureRendererConfigure()
 {
 
-    MAP_I2SConfigSetExpClk(I2S_BASE,512000,512000,I2S_SLOT_SIZE_16|
-                                       I2S_PORT_DMA);
+    MAP_I2SConfigSetExpClk(I2S_BASE,512000*3,512000*3,I2S_SLOT_SIZE_16|
+    										I2S_PORT_CPU );// I2S_PORT_DMA
     MAP_I2SSerializerConfig(I2S_BASE,I2S_DATA_LINE_1,I2S_SER_MODE_RX,
                                             I2S_INACT_LOW_LEVEL);
     MAP_I2SSerializerConfig(I2S_BASE,I2S_DATA_LINE_0,I2S_SER_MODE_TX,
@@ -216,7 +260,7 @@ void AudioCaptureRendererConfigure()
 
 void Audio_Start()
 {
-    MAP_I2SEnable(I2S_BASE,I2S_MODE_TX_RX_SYNC);
+    MAP_I2SEnable(I2S_BASE,I2S_MODE_TX_RX_SYNC); //I2S_MODE_TX_ONLY// I2S_MODE_TX_RX_SYNC
 
 }
 

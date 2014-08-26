@@ -46,7 +46,7 @@
 //******************************************************************************
 extern unsigned int clientIP;
 extern tCircularBuffer *pRxBuffer;
-extern tUDPSocket g_UdpSock;
+//extern tUDPSocket g_UdpSock;
 int g_iReceiveCount =0;
 int g_iRetVal =0;
 int iCount =0;
@@ -67,17 +67,17 @@ unsigned char speaker_data[16*1024];
 
 void Speaker( void *pvParameters )
 {
-#ifdef NETWORK
+/*#ifdef NETWORK
     while(g_uiIpObtained == 0)
     {
     }   
     
-#endif
+#endif */
     while(1)
     {
       while(g_ucSpkrStartFlag)
       {     
-#if NETWORK
+/*#if NETWORK
           fd_set readfds,writefds;
           struct SlTimeval_t tv;
           FD_ZERO(&readfds);
@@ -97,7 +97,7 @@ void Speaker( void *pvParameters )
                    (struct sockaddr *)&(g_UdpSock.Client),
                    (SlSocklen_t*)&(g_UdpSock.iClientLength));
           }
-#endif    
+#endif    */
           if(g_iRetVal>0)
           {
              FillBuffer(pRxBuffer,(unsigned char*)speaker_data, g_iRetVal);
