@@ -270,7 +270,7 @@ int Cmd_code_playbuff(int argc, char *argv[]) {
 	    UARTprintf(" Done for AudioCapturerSetupDMAMode\n ");
 */
 	    AudioCaptureRendererConfigure();
-	    UARTprintf(" Done for AudioCaptureRendererConfigure\n ");
+	    //UARTprintf(" Done for AudioCaptureRendererConfigure\n ");
 
 //#	if 0
 		 //I2SDataPutNonBlocking(I2S_BASE,I2S_DATA_LINE_0,sin[i%16]);
@@ -311,6 +311,7 @@ int Cmd_code_playbuff(int argc, char *argv[]) {
 	//UARTprintf("%x", pRxBuffer->)
     //osi_start();
     //UARTprintf(" Done for osi_start\n");
+		 vPortFree(audio_buf); //UARTprintf(" audio_buf\n ");
 	 return 0;
 }
 int Cmd_fs_delete(int argc, char *argv[]) {
@@ -721,11 +722,11 @@ void vUARTTask(void *pvParameters) {
 	//xTaskCreate(thread_tx, "txTask", 2 * 1024 / 4, NULL, 2, NULL);
 	//xTaskCreate(thread_ota, "otaTask", 1 * 1024 / 4, NULL, 1, NULL);
 
-	xTaskCreate(thread_light, "lightTask", 1 * 1024 / 4, NULL, 3, NULL);
-	xTaskCreate(thread_dust, "dustTask", 256 / 4, NULL, 3, NULL);
-	xTaskCreate(thread_sensor_poll, "pollTask", 1 * 1024 / 4, NULL, 3, NULL);
-	xTaskCreate(thread_tx, "txTask", 2 * 1024 / 4, NULL, 2, NULL);
-	xTaskCreate(thread_ota, "otaTask", 1 * 1024 / 4, NULL, 1, NULL);
+	//xTaskCreate(thread_light, "lightTask", 1 * 1024 / 4, NULL, 3, NULL);
+	//xTaskCreate(thread_dust, "dustTask", 256 / 4, NULL, 3, NULL);
+	//xTaskCreate(thread_sensor_poll, "pollTask", 1 * 1024 / 4, NULL, 3, NULL);
+	//xTaskCreate(thread_tx, "txTask", 2 * 1024 / 4, NULL, 2, NULL);
+	//xTaskCreate(thread_ota, "otaTask", 1 * 1024 / 4, NULL, 1, NULL);
 
 
 	//checkFaults();
