@@ -26,9 +26,34 @@
 	</natures>
 	<linkedResources>
 		<link>
+			<name>diskio.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/src/diskio.h</locationURI>
+		</link>
+		<link>
 			<name>ff.c</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/src/ff.c</locationURI>
+		</link>
+		<link>
+			<name>ff.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/src/ff.h</locationURI>
+		</link>
+		<link>
+			<name>integer.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/src/integer.h</locationURI>
+		</link>
+		<link>
+			<name>tff.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/src/tff.c</locationURI>
+		</link>
+		<link>
+			<name>tff.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/src/tff.h</locationURI>
 		</link>
 	</linkedResources>
 </projectDescription>
