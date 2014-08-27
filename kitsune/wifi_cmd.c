@@ -396,12 +396,14 @@ void UARTprintfFaults() {
 
 int stop_connection() {
 	close(sock);
+	sock = -1;
 	return sock;
 }
 int start_connection() {
     sockaddr sAddr;
     timeval tv;
     int rv;
+    int sock_begin = sock;
 
     if (sock < 0) {
         sock = socket(AF_INET, SOCK_STREAM, SL_SEC_SOCKET);
@@ -471,7 +473,7 @@ int start_connection() {
 
 	//connect it up
 	//UARTprintf("Connecting \n\r\n\r");
-	if (sock > 0 && (rv = connect(sock, &sAddr, sizeof(sAddr)))) {
+	if (sock > 0 && sock_begin < 0 && (rv = connect(sock, &sAddr, sizeof(sAddr)))) {
 		UARTprintf("connect returned %d\n\r\n\r", rv);
 		if (rv != SL_ESECSNOVERIFY) {
 			UARTprintf("Could not connect %d\n\r\n\r", rv);
@@ -509,7 +511,8 @@ int send_data_pb(char * buffer, int buffer_size, const pb_field_t fields[], cons
 	}
 
 	//UARTprintf("Sending request\n\r%s\n\r", buffer);
-    if (rv = send(sock, buffer, send_length, 0) < 0) {
+    rv = send(sock, buffer, send_length, 0);
+    if ( rv <= 0) {
         UARTprintf("send error %d\n\r\n\r", rv);
         return stop_connection();
     }
@@ -532,7 +535,8 @@ int send_data_pb(char * buffer, int buffer_size, const pb_field_t fields[], cons
     memset(buffer, 0, buffer_size);
 
     //UARTprintf("Waiting for reply\n\r\n\r");
-	if (rv = recv(sock, buffer, buffer_size, 0) <= 0) {
+    rv = recv(sock, buffer, buffer_size, 0);
+	if (rv <= 0) {
 		UARTprintf("recv error %d\n\r\n\r", rv);
         return stop_connection();
 	}
@@ -590,14 +594,15 @@ bool encode_mac(pb_ostream_t *stream, const pb_field_t *field, void * const *arg
     unsigned char tagtype = (7 << 3) | 0x2; // field_number << 3 | 2 (length deliminated)
     unsigned char mac[6];
     unsigned char mac_len = 6;
-    sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
-#if 0
+#if 1
     mac[0] = 0xab;
     mac[1] = 0xcd;
     mac[2] = 0xab;
     mac[3] = 0xcd;
     mac[4] = 0xab;
     mac[5] = 0xcd;
+#else
+    sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
 #endif
     return pb_write(stream, &tagtype, 1) && pb_encode_string(stream, (uint8_t*) mac, mac_len);
 }
