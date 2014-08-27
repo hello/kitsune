@@ -131,7 +131,7 @@ PinMuxConfig(void)
     //
     // Configure PIN_04 for GPIOOutputOD
     //
-    MAP_PinTypeGPIO(PIN_04, PIN_MODE_0, true);
+    //MAP_PinTypeGPIO(PIN_04, PIN_MODE_0, true);
 
     //
     // Configure PIN_05 for SPI0 GSPI_CLK
@@ -157,15 +157,14 @@ PinMuxConfig(void)
     // Configure PIN_53 for SPI0 GSPI_MISO
     //
     MAP_PinTypeSPI(PIN_53, PIN_MODE_7);
-
+    // Configure PIN_08 for SPI0 GSPI_CS
+    //
+    MAP_PinTypeSPI(PIN_04, PIN_MODE_7);
     //
     // Configure PIN_45 for MCASP0 McAXR0
     //
     MAP_PinTypeI2S(PIN_45, PIN_MODE_6);
      //
-     // Configure PIN_08 for SPI0 GSPI_CS
-     //
-     MAP_PinTypeSPI(PIN_08, PIN_MODE_7);
      // Configure PIN_63 for MCASP0 McAFSX
      MAP_PinTypeI2S(PIN_63, PIN_MODE_7);
      // Configure PIN_53 for MCASP0 McACLK
