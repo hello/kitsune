@@ -13,4 +13,14 @@ int Cmd_mkdir(int argc, char *argv[]);
 int Cmd_pwd(int argc, char *argv[]);
 int Cmd_cat(int argc, char *argv[]);
 
+/* FatFS include */
+#include "ff.h"
+#include "diskio.h"
+
+extern FATFS fsobj;
+extern DIR fsdirobj;
+extern FILINFO file_info;
+extern FIL file_obj;
+
+
 #endif

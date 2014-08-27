@@ -483,6 +483,77 @@ int start_connection() {
 	return 0;
 }
 
+//takes the buffer and reads <return value> bytes, up to buffer size
+typedef int(*audio_read_cb)(char * buffer, int buffer_size);
+
+//buffer needs to be at least 128 bytes...
+int send_audio_wifi(char * buffer, int buffer_size, audio_read_cb arcb, int time) {
+    int send_length;
+    int rv = 0;
+    int message_length;
+
+    message_length = 110000;
+
+    snprintf(buffer, buffer_size, "POST /in/morpheus/audio HTTP/1.1\r\n"
+            "Host: in.skeletor.com\r\n"
+            "Content-type: application/x-pcm16\r\n"
+            "Content-length: %d\r\n"
+            "\r\n", message_length);
+    send_length = strlen(buffer);
+
+    //setup the connection
+    if( start_connection() < 0 ) {
+		UARTprintf("failed to start connection\n\r\n\r");
+		return -1;
+	}
+
+	//UARTprintf("Sending request\n\r%s\n\r", buffer);
+    rv = send(sock, buffer, send_length, 0);
+    if ( rv <= 0) {
+        UARTprintf("send error %d\n\r\n\r", rv);
+        return stop_connection();
+    }
+    UARTprintf("sent %d\n\r\n\r", rv);
+
+	while( message_length > 0 ) {
+		int buffer_sent, buffer_read;
+	    buffer_sent = buffer_read = arcb( buffer, buffer_size );
+		UARTprintf("read %d\n\r", buffer_read);
+
+	    while( buffer_read > 0 ) {
+	    	send_length = minval(buffer_size, buffer_read);
+			UARTprintf("attempting to send %d\n\r", send_length );
+
+			rv = send(sock, buffer, send_length, 0);
+			if (rv <= 0) {
+				UARTprintf("send error %d\n\r", rv);
+				return stop_connection();
+			}
+			UARTprintf("sent %d, %d left in buffer\n\r", rv, buffer_read);
+			buffer_read -= rv;
+		}
+	    message_length -= buffer_sent;
+		UARTprintf("sent buffer, %d left\n\r\n\r", message_length);
+	}
+
+    memset(buffer, 0, buffer_size);
+
+    //UARTprintf("Waiting for reply\n\r\n\r");
+    rv = recv(sock, buffer, buffer_size, 0);
+	if (rv <= 0) {
+		UARTprintf("recv error %d\n\r\n\r", rv);
+        return stop_connection();
+	}
+	UARTprintf("recv %d\n\r\n\r", rv);
+
+	UARTprintf("Reply is:\n\r\n\r");
+    buffer[127] = 0; //make sure it terminates..
+    UARTprintf("%s", buffer);
+
+
+    return 0;
+}
+
 //buffer needs to be at least 128 bytes...
 int send_data_pb(char * buffer, int buffer_size, const pb_field_t fields[], const void *src_struct) {
     int send_length;
@@ -564,7 +635,7 @@ bool encode_audio_chunk(pb_ostream_t *stream, const pb_field_t *field, void * co
 }
 bool encode_features(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
     unsigned char tagtype = (1 << 3) | 0x2; // field_number << 3 | 2 (length deliminated)
-    char features[16] = { 0xabcd };
+    unsigned char features[16] = { 0xabcd };
     int len = sizeof(features);
 
     return pb_write(stream, &tagtype, 1) && pb_encode_string(stream, (uint8_t*) features, len);
@@ -938,5 +1009,137 @@ void thread_ota(void * unused)
     	}
     }
 #endif
+}
+#include "fatfs_cmd.h"
+
+int audio_read_fn (char * buffer, int buffer_size) {
+	//read audio file from fs
+	WORD read;
+	FRESULT res;
+
+    res = f_read(&file_obj,buffer, buffer_size, &read);
+    if( res != FR_OK ) {
+    	UARTprintf( "f_read error %d", res);
+    }
+    UARTprintf( "read %d bytes", read);
+
+	return read;
+}
+
+//*****************************************************************************
+//
+//! itoa
+//!
+//!    @brief  Convert integer to ASCII in decimal base
+//!
+//!     @param  cNum is input integer number to convert
+//!     @param  cString is output string
+//!
+//!     @return number of ASCII parameters
+//!
+//!
+//
+//*****************************************************************************
+const char pcDigits[] = "0123456789";
+unsigned short itoa(char cNum, char *cString)
+{
+    char* ptr;
+    char uTemp = cNum;
+    unsigned short length;
+
+    // value 0 is a special case
+    if (cNum == 0)
+    {
+        length = 1;
+        *cString = '0';
+
+        return length;
+    }
+
+    // Find out the length of the number, in decimal base
+    length = 0;
+    while (uTemp > 0)
+    {
+        uTemp /= 10;
+        length++;
+    }
+
+    // Do the actual formatting, right to left
+    uTemp = cNum;
+    ptr = cString + length;
+    while (uTemp > 0)
+    {
+        --ptr;
+        *ptr = pcDigits[uTemp % 10];
+        uTemp /= 10;
+    }
+
+    return length;
+}
+
+unsigned long get_time();
+
+int Cmd_audio_test(int argc, char *argv[]) {
+#define AUDIO_WINDOW_LEN 1024
+#define AUDIO_DIR "/audio/"
+#define FULL_FN_LEN 48
+#define FN_LEN 32
+
+	//get the data
+	short audio[AUDIO_WINDOW_LEN];
+	char fn[FN_LEN];
+	char full_fn[FULL_FN_LEN];
+	//int fn_len;
+	FRESULT res;
+	int time = get_time();
+
+	/*fn_len =*/ itoa(time, fn);
+	strncat( full_fn, AUDIO_DIR, FULL_FN_LEN );
+	strncat( full_fn, fn, FULL_FN_LEN );
+
+    #define AUDIO_DIR "/audio/"
+	res = f_open(&file_obj, full_fn, FA_CREATE_NEW|FA_WRITE);
+    if( res != FR_OK ) {
+    	UARTprintf( "f_open error %s %d", full_fn, res);
+    }
+
+    //record 10 seconds to file
+	while( get_time() - time < 10 ) {
+		WORD bytes_written = 0;
+		WORD bytes_to_write = AUDIO_WINDOW_LEN;
+		WORD bytes = 0;
+		get_audio( audio, AUDIO_WINDOW_LEN );
+		//todo pass windows to preclassifier
+
+		do {
+			res = f_write( &file_obj, audio+bytes_written, bytes_to_write-bytes_written, &bytes );
+			bytes_written+=bytes;
+		} while( bytes_written < bytes_to_write );
+	}
+    //todo check result of preclassifier
+
+	//was it interesting?
+    //seek back to beginning and transmit
+    res = f_lseek(&file_obj, 0);
+    send_audio_wifi( (char*)audio, sizeof(audio), audio_read_fn, time );
+	//if not, delete it
+	//else send
+	//then delete
+
+    res = f_close( &file_obj );
+    if( res != FR_OK ) {
+    	UARTprintf( "f_close error %s %d", full_fn, res);
+    }
+    res = f_unlink( full_fn );
+    if( res != FR_OK ) {
+    	UARTprintf( "f_unlink error %s %d", full_fn, res);
+    }
+
+//	send_audio_wifi( (char*)audio, sizeof(audio), audio_read_fn, time );
+	//TODO: send through filesystem....
+	//send_audio_wifi( (char*)audio, sizeof(audio), audio_input_fn, time );
+
+	//read it from the file and send it to the server in chunks
+	return (0);
 }
 
