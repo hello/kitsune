@@ -23,7 +23,7 @@ uint8_t AudioFeatures_UpdateChangeSignals(const int16_t * logmfcc, uint32_t coun
 
 /*  exported for your enjoyment -- use these! */
 void AudioFeatures_Init();
-uint8_t AudioFeatures_Extract(int16_t * logmfcc, const int16_t buf[],int16_t nfftsize);
+uint8_t AudioFeatures_Extract(int16_t * logmfcc,  uint8_t * pIsStable, const int16_t buf[],int16_t nfftsize);
 
 
 #ifdef __cplusplus

@@ -19,7 +19,7 @@ int main(int argc, char * argv[]) {
     ofstream outFile(argv[2], ios::out | ios::binary);
     char buf[2 * FFT_SIZE ];
     const short * samples = (const short *) buf;
-    
+    uint8_t isStable;
   
     int16_t logmfcc[MEL_SCALE_ROUNDED_UP];
     
@@ -29,9 +29,11 @@ int main(int argc, char * argv[]) {
         //read
         inFile.read(buf,sizeof(buf));
 
-        if (AudioFeatures_Extract(logmfcc, samples, AUDIO_FFT_SIZE)) {
+        if (AudioFeatures_Extract(logmfcc,&isStable,samples, AUDIO_FFT_SIZE)) {
             //output to file
-            outFile.write((const char *)logmfcc,sizeof(logmfcc));
+           // if (isStable) {
+               outFile.write((const char *)logmfcc,sizeof(logmfcc));
+           // }
         }
         
         

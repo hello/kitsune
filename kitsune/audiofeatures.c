@@ -4,6 +4,28 @@
 #include <stdlib.h>     /* abs */
 
 
+
+/*
+   How is this all going to work? 
+   -Extract features, one of which is total energy
+   -If average energy over some period is stable, then
+    
+    1) See if this frame of features is similar to others.
+    2) If not similar, store feature vector in memory
+    3) Report this frame as being 
+       a. interesting, 
+       b. interesting but already observed (i.e. similar)
+       c. totally fucking uninteresting (ah, blissful silence)
+    4) Some other piece of code will later
+ 
+ 
+    -Potential pitfalls as is:
+     
+       impulse noises may not register at all, but will certainly be noticed by a human
+       well we'll deal with that later, I can already think of a processing scheme to incorporate this.
+ */
+ 
+
 /*--------------------------------
  *   Memory sizes, constants, macros, and related items
  *--------------------------------*/
@@ -19,7 +41,7 @@
   ((int16_t)((((int32_t)(a)) * ((int32_t)(b))) >> q))
 
 #define TOFIX(x,q)\
-  ((int32_t)(x) * (float)(1 << q))
+  ((int32_t) ((x) * (float)(1 << (q))))
 
 #define QFIXEDPOINT (12)
 #define TRUE (1)
@@ -37,20 +59,36 @@ typedef struct {
     
     int16_t changebuf[CHANGE_SIGNAL_BUF_SIZE];
     int32_t logLikelihoodOfProbabilityRatio;
+    uint8_t isStable;
+    int16_t energyStable;
+    uint32_t stableCount;
     
 } MelFeatures_t;
+
+
+typedef enum {
+    eAudioSignalIsNotInteresting,
+    eAudioSignalIsDiverse,
+    eAudioSignalIsSimilar
+} EAudioSignalSimilarity_t;
 
 /*--------------------------------
  *   Static Memory Declarations
  *--------------------------------*/
 static MelFeatures_t _data;
 
-/* Have fun tuning these parameters! */
-static const int16_t k_nochange_likelihood_coefficient = TOFIX(0.25f,QFIXEDPOINT);
-static const int16_t k_change_log_likelihood = TOFIX(-2.0f,QFIXEDPOINT);
+/* Have fun tuning these magic numbers! 
+   Perhaps eventually we will have some pre-canned
+   data to show you how?  */
+static const int16_t k_nochange_likelihood_coefficient = TOFIX(4.0f,QFIXEDPOINT);
+static const int16_t k_change_log_likelihood = TOFIX(-0.2f,QFIXEDPOINT);
 static const int32_t k_max_log_likelihood_difference = TOFIX(10.0f,QFIXEDPOINT);
 static const int32_t k_min_log_likelihood_difference = TOFIX(-10.0f,QFIXEDPOINT);
 static const int32_t k_log_decision_threshold_of_change = TOFIX(0.0f,QFIXEDPOINT);
+
+static const uint32_t k_stable_counts_to_be_considered_stable = 3;
+
+static const int16_t k_energy_floor = 100;
 
 /*--------------------------------
  *   Functions
@@ -78,6 +116,56 @@ uint8_t AudioFeatures_MelAveraging(uint32_t counter, int8_t x,int8_t * buf, int1
     return (uint8_t) (a >> MEL_BUF_SIZE_2N);
 }
 
+
+/* 
+ 
+    */
+
+static EAudioSignalSimilarity_t CheckForSignalDiversity(const int16_t * logmfcc) {
+    /*
+     Now welcome to the curse of dimensionality!!!!
+      Our "volume" of space will go with the the power of the dimension!
+      
+     So very similar feature vectors might not look similar in high dimensional
+     space, but if we will apply a linear transform that we learned from the data
+     to reduce the dimensionality we can then do a better job at identifiying similar 
+     feature vectors
+     */
+    
+    return eAudioSignalIsNotInteresting;
+}
+
+static void SegmentSteadyState(uint8_t isStable,const int16_t * logmfcc) {
+    int16_t energySignal = logmfcc[0];
+    
+    if (isStable && !_data.isStable) {
+        //rising edge
+        _data.energyStable = energySignal;
+    }
+    
+    
+    if (!isStable && _data.isStable) {
+        //falling edge
+        _data.stableCount = 0;
+    }
+    
+    if (_data.stableCount >= k_stable_counts_to_be_considered_stable) {
+        
+        CheckForSignalDiversity(logmfcc);
+    }
+    
+    
+    
+    
+    
+    //increment stable count
+    //just say no to rollovers.
+    if ((++_data.stableCount) == 0) {
+        _data.stableCount = 0xFFFFFFFF;
+    };
+}
+
+
 uint8_t AudioFeatures_UpdateChangeSignals(const int16_t * logmfcc, uint32_t counter) {
     const uint16_t idx = counter & CHANGE_SIGNAL_BUF_MASK;
     int16_t newestenergy = logmfcc[0];
@@ -85,6 +173,14 @@ uint8_t AudioFeatures_UpdateChangeSignals(const int16_t * logmfcc, uint32_t coun
     int16_t change;
     int16_t logliknochange;
     uint8_t isStable;
+    
+    if (newestenergy > 0) {
+        short foo =TOFIX(0.5f,15);
+        short foo2 = TOFIX(0.25f,15);
+        foo = MUL(foo,foo2,15);
+        foo++;
+        
+    }
     
     /* update buffer */
     _data.changebuf[idx] = newestenergy;
@@ -100,11 +196,12 @@ uint8_t AudioFeatures_UpdateChangeSignals(const int16_t * logmfcc, uint32_t coun
       
      Hypothesis 1 - No change
      
+               p(x)
             /|\
            / | \
           /  |  \
          /   |   \
-     --------0----------->  change signal (x)
+    <--------0----------->  change signal (x)
      
      
      Hypothesis 2 - change  
@@ -113,14 +210,14 @@ uint8_t AudioFeatures_UpdateChangeSignals(const int16_t * logmfcc, uint32_t coun
      
              |
              |
-             |
-     --------|--------------->
-     --------0----------->   change signal
+             |   p(x)
+    <--------|--------------->
+    <--------0----------->   change signal
 
      
      */
-    
-    logliknochange = MUL(-abs(change),k_nochange_likelihood_coefficient,QFIXEDPOINT);
+    change = -abs(change);
+    logliknochange = MUL(change,k_nochange_likelihood_coefficient,QFIXEDPOINT);
     
     
     
@@ -171,10 +268,10 @@ uint8_t AudioFeatures_UpdateChangeSignals(const int16_t * logmfcc, uint32_t coun
     }
     
     if (_data.logLikelihoodOfProbabilityRatio > k_log_decision_threshold_of_change) {
-        isStable = FALSE;
+        isStable = TRUE;
     }
     else {
-        isStable = TRUE;
+        isStable = FALSE;
     }
     
     return isStable;
@@ -189,7 +286,7 @@ uint8_t AudioFeatures_UpdateChangeSignals(const int16_t * logmfcc, uint32_t coun
  *  TODO: Put in delta MFCC features, and maybe average those too.
  *
  */
-uint8_t AudioFeatures_Extract(int16_t * logmfcc, const int16_t samples[],int16_t nfftsize) {
+uint8_t AudioFeatures_Extract(int16_t * logmfcc, uint8_t * pIsStable,const int16_t samples[],int16_t nfftsize) {
     //enjoy this nice large stack.
     //this can all go away if we get fftr to work, and do the
     int16_t fr[AUDIO_FFT_SIZE]; //2K
@@ -198,6 +295,7 @@ uint8_t AudioFeatures_Extract(int16_t * logmfcc, const int16_t samples[],int16_t
     uint8_t mel[MEL_SCALE_SIZE]; //inconsiquential
     uint16_t i;
     int16_t temp16;
+    uint8_t isStable;
     
     
     memcpy(fr,samples,sizeof(fr));
@@ -251,8 +349,9 @@ uint8_t AudioFeatures_Extract(int16_t * logmfcc, const int16_t samples[],int16_t
     }
     
     
-    AudioFeatures_UpdateChangeSignals(logmfcc, _data.callcounter);
+    isStable = AudioFeatures_UpdateChangeSignals(logmfcc, _data.callcounter);
     
+    SegmentSteadyState(isStable,logmfcc);
     
     /* Update counter */
     
@@ -262,6 +361,6 @@ uint8_t AudioFeatures_Extract(int16_t * logmfcc, const int16_t samples[],int16_t
         _data.isBufferFull = 1;
     }
     
-    
+    *pIsStable = isStable;
     return _data.isBufferFull;
 }
