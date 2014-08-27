@@ -16,10 +16,13 @@ extern "C" {
 #endif
 
 
-void AudioFeatures_Init();
 
+/*  exported for debug and test purposes */
 uint8_t AudioFeatures_MelAveraging(uint32_t idx, int8_t x,int8_t * buf, int16_t * accumulator);
+uint8_t AudioFeatures_UpdateChangeSignals(const int16_t * logmfcc, uint32_t counter);
 
+/*  exported for your enjoyment -- use these! */
+void AudioFeatures_Init();
 uint8_t AudioFeatures_Extract(int16_t * logmfcc, const int16_t buf[],int16_t nfftsize);
 
 
