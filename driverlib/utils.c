@@ -66,8 +66,7 @@ void
 UtilsDelay(unsigned long ulCount)
 {
     __asm("    subs    r0, #1\n"
-          "    bne.n   UtilsDelay\n"
-          "    bx      lr");
+          "    bne.n   UtilsDelay\n");
 }
 #endif
 

@@ -88,6 +88,19 @@ extern "C" {
 */
 #define MAX_CONCURRENT_ACTIONS 10
 /*!
+	\def		CPU_FREQ_IN_MHZ
+    \brief      Defines CPU frequency for Host side, for better accuracy of busy loops, if any
+    \sa             
+    \note       
+
+    \warning    If not set the default CPU frequency is set to 200MHz
+                This option will be deprecated in future release
+*/
+
+#define CPU_FREQ_IN_MHZ        80
+
+
+/*!
  ******************************************************************************
 
     \defgroup       porting_capabilities        Porting - Capabilities Set
@@ -324,6 +337,18 @@ extern "C" {
 
  ******************************************************************************
  */
+
+/*!
+    \brief		Preamble to the enabling the Network Processor.
+                        Placeholder to implement any pre-process operations
+                        before enabling networking operations.
+
+    \sa			sl_DeviceEnable
+
+    \note       belongs to \ref ported_sec
+
+*/
+#define sl_DeviceEnablePreamble()		NwpPowerOnPreamble()
 
 /*!
     \brief		Enable the Network Processor
@@ -989,8 +1014,9 @@ typedef OsiLockObj_t                            _SlLockObj_t;
 
     \warning
 */
-
+/*
 #define sl_HttpServerCallback   SimpleLinkHttpServerCallback
+*/
 /*!
     \brief
 
@@ -1001,9 +1027,7 @@ typedef OsiLockObj_t                            _SlLockObj_t;
     \warning
 */
 
-/*
-#define sl_SockEvtHdlr
-*/
+#define sl_SockEvtHdlr         SimpleLinkSockEventHandler
 
 
 /*!

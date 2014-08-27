@@ -34,20 +34,63 @@
  *
 */
 
-/*****************************************************************************
 
-    API Prototypes
 
- *****************************************************************************/
-#include "datatypes.h"
+/*****************************************************************************/
+/* Include files                                                             */
+/*****************************************************************************/
 #include "simplelink.h"
 #include "protocol.h"
 #include "driver.h"
 
-
+/*****************************************************************************/
+/* Macro declarations                                                        */
+/*****************************************************************************/
 #define sl_min(a,b) (((a) < (b)) ? (a) : (b))
 #define MAX_NVMEM_CHUNK_SIZE  1460
 
+/*****************************************************************************/
+/* Internal functions                                                        */
+/*****************************************************************************/
+
+
+/*****************************************************************************/
+/* _sl_Strlen                                                                */
+/*****************************************************************************/
+_u16 _sl_Strlen(const _u8 *buffer)
+{
+    _u16 len = 0;
+    if( buffer != NULL )
+    {
+      while(*buffer++) len++;
+    }
+    return len;
+}
+
+/*****************************************************************************/
+/* _sl_GetCreateFsMode                                                       */
+/*****************************************************************************/
+_u32 _sl_GetCreateFsMode(_u32 maxSizeInBytes,_u32 accessFlags)
+{
+   _u32 granIdx = 0;
+   _u32 granNum = 0;
+   _u32 granTable[_FS_MAX_MODE_SIZE_GRAN] = {256,1024,4096,16384,65536}; 
+   for(granIdx= _FS_MODE_SIZE_GRAN_256B ;granIdx< _FS_MAX_MODE_SIZE_GRAN;granIdx++) 
+   {                                                       
+       if( granTable[granIdx]*255 >= maxSizeInBytes ) 
+            break;                                                      
+   }                                                                 
+   granNum = maxSizeInBytes/granTable[granIdx];
+   if( maxSizeInBytes % granTable[granIdx] != 0 )
+         granNum++;
+
+   return _FS_MODE(_FS_MODE_OPEN_WRITE_CREATE_IF_NOT_EXIST,  granIdx, granNum, accessFlags);
+}
+
+
+/*****************************************************************************/
+/* API functions                                                        */
+/*****************************************************************************/
 
 /*****************************************************************************/
 /*  sl_FsOpen */ 
@@ -65,43 +108,14 @@ const _SlCmdCtrl_t _SlFsOpenCmdCtrl =
     sizeof(_FsOpenResponse_t)
 };
 
-unsigned short sl_Strlen(const unsigned char *buffer)
-{
-    unsigned short len = 0;
-    if( buffer != NULL )
-    {
-      while(*buffer++) len++;
-    }
-    return len;
-}
-
-
-unsigned long _GetCreateFsMode(unsigned long maxSizeInBytes,unsigned long accessFlags)
-{
-   unsigned long granIdx = 0;
-   unsigned long granNum = 0;
-   unsigned long granTable[_FS_MAX_MODE_SIZE_GRAN] = {256,1024,4096,16384,65536}; 
-   for(granIdx= _FS_MODE_SIZE_GRAN_256B ;granIdx< _FS_MAX_MODE_SIZE_GRAN;granIdx++) 
-   {                                                       
-       if( granTable[granIdx]*255 >= maxSizeInBytes ) 
-            break;                                                      
-   }                                                                 
-   granNum = maxSizeInBytes/granTable[granIdx];
-   if( maxSizeInBytes % granTable[granIdx] != 0 )
-         granNum++;
-
-   return _FS_MODE(_FS_MODE_OPEN_WRITE_CREATE_IF_NOT_EXIST,  granIdx, granNum, accessFlags);
-}
-
-
 #if _SL_INCLUDE_FUNC(sl_FsOpen)
-long sl_FsOpen(unsigned char *pFileName,unsigned long AccessModeAndMaxSize, unsigned long *pToken,long *pFileHandle)
+_i32 sl_FsOpen(_u8 *pFileName,_u32 AccessModeAndMaxSize, _u32 *pToken,_i32 *pFileHandle)
 {
     _SlReturnVal_t        RetVal;
     _SlFsOpenMsg_u        Msg;
     _SlCmdExt_t           CmdExt;
 
-    CmdExt.TxPayloadLen = (sl_Strlen(pFileName)+4) & (~3); // add 4: 1 for NULL and the 3 for align 
+    CmdExt.TxPayloadLen = (_sl_Strlen(pFileName)+4) & (~3); // add 4: 1 for NULL and the 3 for align 
     CmdExt.RxPayloadLen = 0;
     CmdExt.pTxPayload = pFileName;
     CmdExt.pRxPayload = NULL;
@@ -117,8 +131,6 @@ long sl_FsOpen(unsigned char *pFileName,unsigned long AccessModeAndMaxSize, unsi
        Msg.Cmd.Token         = 0;
 	}
 
-
-
     RetVal = _SlDrvCmdOp((_SlCmdCtrl_t *)&_SlFsOpenCmdCtrl, &Msg, &CmdExt);
     *pFileHandle = Msg.Rsp.FileHandle;
 	if (pToken != NULL)
@@ -131,7 +143,7 @@ long sl_FsOpen(unsigned char *pFileName,unsigned long AccessModeAndMaxSize, unsi
 	{
 	   return *pFileHandle;
 	}
-    return (long)RetVal;
+    return (_i32)RetVal;
 }
 #endif
 
@@ -152,7 +164,7 @@ const _SlCmdCtrl_t _SlFsCloseCmdCtrl =
 };
 
 #if _SL_INCLUDE_FUNC(sl_FsClose)
-int sl_FsClose(long FileHdl, unsigned char* pCeritificateFileName,unsigned char* pSignature ,unsigned long SignatureLen)
+_i16 sl_FsClose(_i32 FileHdl, _u8*  pCeritificateFileName,_u8*  pSignature ,_u32 SignatureLen)
 {
     _SlFsCloseMsg_u Msg = {0};
     _SlCmdExt_t         ExtCtrl;
@@ -160,13 +172,13 @@ int sl_FsClose(long FileHdl, unsigned char* pCeritificateFileName,unsigned char*
     Msg.Cmd.FileHandle             = FileHdl;
     if( pCeritificateFileName != NULL )
     {
-        Msg.Cmd.CertificFileNameLength = (sl_Strlen(pCeritificateFileName)+4) & (~3); /* add 4: 1 for NULL and the 3 for align */
+        Msg.Cmd.CertificFileNameLength = (_sl_Strlen(pCeritificateFileName)+4) & (~3); /* add 4: 1 for NULL and the 3 for align */
     }
     Msg.Cmd.SignatureLen           = SignatureLen;
     
     ExtCtrl.TxPayloadLen = ((SignatureLen+3) & (~3)); /* align */
     ExtCtrl.pTxPayload   = pSignature;
-    ExtCtrl.RxPayloadLen = Msg.Cmd.CertificFileNameLength;
+    ExtCtrl.RxPayloadLen = (_u16)Msg.Cmd.CertificFileNameLength;
     ExtCtrl.pRxPayload   = pCeritificateFileName; /* Add signature */
     
     if(ExtCtrl.pRxPayload != NULL &&  ExtCtrl.RxPayloadLen != 0)
@@ -176,7 +188,7 @@ int sl_FsClose(long FileHdl, unsigned char* pCeritificateFileName,unsigned char*
 
     VERIFY_RET_OK(_SlDrvCmdOp((_SlCmdCtrl_t *)&_SlFsCloseCmdCtrl, &Msg, &ExtCtrl));
 
-    return (int)((short)Msg.Rsp.status);
+    return (_i16)((_i16)Msg.Rsp.status);
 }
 #endif
 
@@ -199,20 +211,20 @@ const _SlCmdCtrl_t _SlFsReadCmdCtrl =
 
  
 #if _SL_INCLUDE_FUNC(sl_FsRead)
-long sl_FsRead(long FileHdl, unsigned long Offset, unsigned char* pData, unsigned long Len)
+_i32 sl_FsRead(_i32 FileHdl, _u32 Offset, _u8*  pData, _u32 Len)
 {
     _SlFsReadMsg_u      Msg;
     _SlCmdExt_t         ExtCtrl;
-    unsigned short      ChunkLen;
+    _u16      ChunkLen;
     _SlReturnVal_t      RetVal =0;
-    long                RetCount = 0;
+    _i32                RetCount = 0;
 
     ExtCtrl.TxPayloadLen = 0;
     ExtCtrl.pTxPayload   = NULL;
 
-    ChunkLen = (unsigned short)sl_min(MAX_NVMEM_CHUNK_SIZE,Len);
+    ChunkLen = (_u16)sl_min(MAX_NVMEM_CHUNK_SIZE,Len);
     ExtCtrl.RxPayloadLen = ChunkLen;
-    ExtCtrl.pRxPayload   = (UINT8 *)(pData);
+    ExtCtrl.pRxPayload   = (_u8 *)(pData);
     Msg.Cmd.Offset       = Offset;
     Msg.Cmd.Len          = ChunkLen;
     Msg.Cmd.FileHandle   = FileHdl;
@@ -232,12 +244,12 @@ long sl_FsRead(long FileHdl, unsigned long Offset, unsigned char* pData, unsigne
                    return Msg.Rsp.status;
                 }
             }
-            RetCount += (long)Msg.Rsp.status;
+            RetCount += (_i32)Msg.Rsp.status;
             Len -= ChunkLen;
             Offset += ChunkLen;
             Msg.Cmd.Offset      = Offset;
             ExtCtrl.pRxPayload   += ChunkLen;
-            ChunkLen = (unsigned short)sl_min(MAX_NVMEM_CHUNK_SIZE,Len);
+            ChunkLen = (_u16)sl_min(MAX_NVMEM_CHUNK_SIZE,Len);
             ExtCtrl.RxPayloadLen  = ChunkLen;
             Msg.Cmd.Len           = ChunkLen;
             Msg.Cmd.FileHandle  = FileHdl;
@@ -248,7 +260,7 @@ long sl_FsRead(long FileHdl, unsigned long Offset, unsigned char* pData, unsigne
         }
     }while(ChunkLen > 0);
 
-    return (long)RetCount;
+    return (_i32)RetCount;
 }
 #endif
 
@@ -269,22 +281,21 @@ const _SlCmdCtrl_t _SlFsWriteCmdCtrl =
 };
 
 
-
 #if _SL_INCLUDE_FUNC(sl_FsWrite)
-long sl_FsWrite(long FileHdl, unsigned long Offset, unsigned char* pData, unsigned long Len)
+_i32 sl_FsWrite(_i32 FileHdl, _u32 Offset, _u8*  pData, _u32 Len)
 {
     _SlFsWriteMsg_u     Msg;
     _SlCmdExt_t         ExtCtrl;
-    unsigned short      ChunkLen;
+    _u16      ChunkLen;
     _SlReturnVal_t      RetVal;
-    long                RetCount = 0;
+    _i32                RetCount = 0;
 
     ExtCtrl.RxPayloadLen = 0;
     ExtCtrl.pRxPayload   = NULL;
 
-    ChunkLen = (unsigned short)sl_min(MAX_NVMEM_CHUNK_SIZE,Len);
+    ChunkLen = (_u16)sl_min(MAX_NVMEM_CHUNK_SIZE,Len);
     ExtCtrl.TxPayloadLen = ChunkLen;
-    ExtCtrl.pTxPayload   = (UINT8 *)(pData);
+    ExtCtrl.pTxPayload   = (_u8 *)(pData);
     Msg.Cmd.Offset      = Offset;
     Msg.Cmd.Len          = ChunkLen;
     Msg.Cmd.FileHandle  = FileHdl;
@@ -307,12 +318,12 @@ long sl_FsWrite(long FileHdl, unsigned long Offset, unsigned char* pData, unsign
                 }
             }
 
-            RetCount += (long)Msg.Rsp.status;
+            RetCount += (_i32)Msg.Rsp.status;
             Len -= ChunkLen;
             Offset += ChunkLen;
             Msg.Cmd.Offset        = Offset;
             ExtCtrl.pTxPayload   += ChunkLen;
-            ChunkLen = (unsigned short)sl_min(MAX_NVMEM_CHUNK_SIZE,Len);
+            ChunkLen = (_u16)sl_min(MAX_NVMEM_CHUNK_SIZE,Len);
             ExtCtrl.TxPayloadLen  = ChunkLen;
             Msg.Cmd.Len           = ChunkLen;
             Msg.Cmd.FileHandle  = FileHdl;
@@ -323,7 +334,7 @@ long sl_FsWrite(long FileHdl, unsigned long Offset, unsigned char* pData, unsign
         }
     }while(ChunkLen > 0);
 
-    return (long)RetCount;
+    return (_i32)RetCount;
 }
 #endif
 
@@ -344,12 +355,12 @@ const _SlCmdCtrl_t _SlFsGetInfoCmdCtrl =
 };
 
 #if _SL_INCLUDE_FUNC(sl_FsGetInfo)
-int sl_FsGetInfo(unsigned char *pFileName,unsigned long Token,SlFsFileInfo_t* pFsFileInfo)
+_i16 sl_FsGetInfo(_u8 *pFileName,_u32 Token,SlFsFileInfo_t* pFsFileInfo)
 {
     _SlFsGetInfoMsg_u    Msg;
     _SlCmdExt_t          CmdExt;
 
-    CmdExt.TxPayloadLen = (sl_Strlen(pFileName)+4) & (~3); /* add 4: 1 for NULL and the 3 for align  */
+    CmdExt.TxPayloadLen = (_sl_Strlen(pFileName)+4) & (~3); /* add 4: 1 for NULL and the 3 for align  */
     CmdExt.RxPayloadLen = 0;
     CmdExt.pTxPayload   = pFileName;
     CmdExt.pRxPayload   = NULL;
@@ -364,7 +375,7 @@ int sl_FsGetInfo(unsigned char *pFileName,unsigned long Token,SlFsFileInfo_t* pF
     pFsFileInfo->Token[1]     = Msg.Rsp.Token[1];
     pFsFileInfo->Token[2]     = Msg.Rsp.Token[2];
     pFsFileInfo->Token[3]     = Msg.Rsp.Token[3];
-    return  (int)((short)Msg.Rsp.Status);
+    return  (_i16)((_i16)Msg.Rsp.Status);
 }
 #endif
 
@@ -385,12 +396,12 @@ const _SlCmdCtrl_t _SlFsDeleteCmdCtrl =
 };
 
 #if _SL_INCLUDE_FUNC(sl_FsDel)
-int sl_FsDel(unsigned char *pFileName,unsigned long Token)
+_i16 sl_FsDel(_u8 *pFileName,_u32 Token)
 {
     _SlFsDeleteMsg_u Msg;
     _SlCmdExt_t          CmdExt;
 
-    CmdExt.TxPayloadLen = (sl_Strlen(pFileName)+4) & (~3); /* add 4: 1 for NULL and the 3 for align */
+    CmdExt.TxPayloadLen = (_sl_Strlen(pFileName)+4) & (~3); /* add 4: 1 for NULL and the 3 for align */
     CmdExt.RxPayloadLen = 0;
     CmdExt.pTxPayload   = pFileName;
     CmdExt.pRxPayload   = NULL;
@@ -399,6 +410,6 @@ int sl_FsDel(unsigned char *pFileName,unsigned long Token)
 
     VERIFY_RET_OK(_SlDrvCmdOp((_SlCmdCtrl_t *)&_SlFsDeleteCmdCtrl, &Msg, &CmdExt));
 
-    return  (int)((short)Msg.Rsp.status);
+    return  (_i16)((_i16)Msg.Rsp.status);
 }
 #endif

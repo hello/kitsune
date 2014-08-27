@@ -71,15 +71,15 @@ CFLAGS+=-DSL_FULL
 # Where to find source files that do not live in this directory.
 #
 VPATH=..
-VPATH+=../Source
+VPATH+=../source
 
 #
 # Where to find header files that do not live in the source directory.
 #
 IPATH=..
 IPATH+=../..
-IPATH+=../Include
-IPATH+=../Source
+IPATH+=../include
+IPATH+=../source
 IPATH+=../../oslib
 IPATH+=../../driverlib
 IPATH+=../../inc

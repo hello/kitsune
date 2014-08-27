@@ -34,8 +34,13 @@
  *
 */
 
-#include "datatypes.h"
+
+
+/*****************************************************************************/
+/* Include files                                                             */
+/*****************************************************************************/
 #include "simplelink.h"
+
 
 #if (defined (SL_PLATFORM_MULTI_THREADED)) && (!defined (SL_PLATFORM_EXTERNAL_SPAWN))
 
@@ -63,9 +68,9 @@ _SlInternalSpawnCB_t g_SlInternalSpawnCB;
 
 void _SlInternalSpawnTaskEntry() 
 {
-    int                         i;
+    _i16                         i;
     _SlInternalSpawnEntry_t*    pEntry;
-    BOOLEAN                     LastEntry;
+    _u8                         LastEntry;
 
     /* create and lock the locking object. lock in order to avoid race condition 
         on the first creation */
@@ -146,9 +151,9 @@ void _SlInternalSpawnTaskEntry()
 }
 
 
-int _SlInternalSpawn(_SlSpawnEntryFunc_t pEntry , void* pValue , unsigned long flags)
+_i16 _SlInternalSpawn(_SlSpawnEntryFunc_t pEntry , void* pValue , _u32 flags)
 {
-    int                         Res = 0;
+    _i16                         Res = 0;
     _SlInternalSpawnEntry_t*    pSpawnEntry;
 
     if (NULL == pEntry)

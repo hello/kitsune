@@ -17,7 +17,10 @@
 #include <uart.h>
 #include <stdarg.h>
 #include <stdlib.h>
+#include "sdhost.h"
 #include "rom_map.h"
+
+#include "wlan.h"
 
 /* FreeRTOS includes */
 #include "FreeRTOS.h"
@@ -34,6 +37,8 @@
 #include "wifi_cmd.h"
 #include "i2c_cmd.h"
 #include "dust_cmd.h"
+#include "fatfs_cmd.h"
+#include "spi_cmd.h"
 
 #include "fft.h"
 
@@ -136,6 +141,7 @@ int Cmd_free(int argc, char *argv[]) {
 	// Return success.
 	return (0);
 }
+
 
 #include "fs.h"
 
@@ -322,6 +328,7 @@ int Cmd_fs_delete(int argc, char *argv[]) {
 	return (0);
 }
 
+
 unsigned long get_time() {
 	portTickType now = xTaskGetTickCount();
 	static portTickType unix_now = 0;
@@ -363,7 +370,7 @@ static unsigned int dust_val=0;
 static unsigned int dust_cnt=0;
 xSemaphoreHandle dust_smphr;
 
-int thread_dust(void* unused) {
+void thread_dust(void* unused) {
     #define maxval( a, b ) a>b ? a : b
 	while (1) {
 		if (xSemaphoreTake(dust_smphr, portMAX_DELAY)) {
@@ -381,12 +388,7 @@ static xSemaphoreHandle light_smphr;
 
 static xSemaphoreHandle i2c_smphr;
 
-int thread_light(void* unused) {
-    #define maxval( a, b ) a>b ? a : b
-	#define LIGHT_BUFSZ 10
-	unsigned char buf[LIGHT_BUFSZ];
-	unsigned int idx,i;
-
+void thread_light(void* unused) {
 	while (1) {
 		portTickType now = xTaskGetTickCount();
 		int light;
@@ -421,7 +423,7 @@ int thread_light(void* unused) {
 
 xQueueHandle data_queue = 0;
 
-int thread_tx(void* unused) {
+void thread_tx(void* unused) {
 	data_t data;
 
 	while (1) {
@@ -442,7 +444,7 @@ int thread_tx(void* unused) {
 }
 
 
-int thread_sensor_poll(void* unused) {
+void thread_sensor_poll(void* unused) {
 
 	//
 	// Print some header text.
@@ -452,7 +454,6 @@ int thread_sensor_poll(void* unused) {
 
 	while (1) {
 		portTickType now = xTaskGetTickCount();
-		int light;
 
 		data.time = get_time();
 
@@ -497,6 +498,7 @@ int thread_sensor_poll(void* unused) {
         xQueueSend( data_queue, ( void * ) &data, 10 );
 
 		UARTprintf("delay...\n");
+
 		vTaskDelayUntil(&now, SENSOR_RATE * configTICK_RATE_HZ);
 	}
 
@@ -563,10 +565,29 @@ int Cmd_help(int argc, char *argv[]) {
 	return (0);
 }
 
-
 int Cmd_fault(int argc, char *argv[]) {
 	*(int*) (0x40001) = 1; /* error logging test... */
+	return 0;
+}
+int Cmd_mel(int argc, char *argv[]) {
 
+    int i;
+	short s[1024];
+
+	for (i = 0; i < 1024; ++i) {
+		s[i] = fxd_sin(i * 10) / 4 + fxd_sin(i * 20) / 4 + fxd_sin(i * 100) / 4;
+	}
+
+//	norm(s, 1024);
+	fix_window(s, 1024);
+	fftr(s, 10);
+	psd(s, 1024);
+	mel_freq(s, 1024, 44100 / 512);
+
+	for (i = 0; i < 16; ++i) {
+		UARTprintf("%d ", s[i]);
+	}
+	UARTprintf("\n");
 	return (0);
 }
 
@@ -583,17 +604,17 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "ping", Cmd_ping, "Ping a server" },
 		{ "time", Cmd_time, "get ntp time" },
 		{ "status", Cmd_status, "status of simple link" },
-//    { "mnt",      Cmd_mnt,      "Mount the SD card" },
-//    { "umnt",     Cmd_umnt,     "Unount the SD card" },
-//    { "ls",       Cmd_ls,       "Display list of files" },
-//    { "chdir",    Cmd_cd,       "Change directory" },
-//    { "cd",       Cmd_cd,       "alias for chdir" },
-//    { "mkdir",    Cmd_mkdir,    "make a directory" },
-//    { "rm",       Cmd_rm,       "Remove file" },
-//    { "write",    Cmd_write,    "Write some text to a file" },
-//    { "mkfs",     Cmd_mkfs,     "Make filesystem" },
-//    { "pwd",      Cmd_pwd,      "Show current working directory" },
-//    { "cat",      Cmd_cat,      "Show contents of a text file" },
+    { "mnt",      Cmd_mnt,      "Mount the SD card" },
+    { "umnt",     Cmd_umnt,     "Unount the SD card" },
+    { "ls",       Cmd_ls,       "Display list of files" },
+    { "chdir",    Cmd_cd,       "Change directory" },
+    { "cd",       Cmd_cd,       "alias for chdir" },
+    { "mkdir",    Cmd_mkdir,    "make a directory" },
+    { "rm",       Cmd_rm,       "Remove file" },
+    { "write",    Cmd_write,    "Write some text to a file" },
+    { "mkfs",     Cmd_mkfs,     "Make filesystem" },
+    { "pwd",      Cmd_pwd,      "Show current working directory" },
+    { "cat",      Cmd_cat,      "Show contents of a text file" },
 		{ "fault", Cmd_fault, "Trigger a hard fault" },
 		{ "i2crd", Cmd_i2c_read,"i2c read" },
 		{ "i2cwr", Cmd_i2c_write, "i2c write" },
@@ -612,13 +633,20 @@ tCmdLineEntry g_sCmdTable[] = {
 
 		{ "dust", Cmd_dusttest, "dust sensor test" },
 
+
 		{ "fswr", Cmd_fs_write, "fs write" },
 		{ "fsrd", Cmd_fs_read, "fs read" },
 		{ "play_ringtone", Cmd_code_playbuff, "play selected ringtone" },
 		{ "fsdl", Cmd_fs_delete, "fs delete" },
 		//{ "readout", Cmd_readout_data, "read out sensor data log" },
+
 		{ "sl", Cmd_sl, "start smart config" },
 		{ "mode", Cmd_mode, "set the ap/station mode" },
+		{ "mel", Cmd_mel, "test the mel calculation" },
+
+		{ "spird", Cmd_spi_read,"spi read" },
+		{ "spiwr", Cmd_spi_write, "spi write" },
+		{ "spirst", Cmd_spi_reset, "spi reset" },
 
 		{ 0, 0, 0 } };
 
@@ -640,6 +668,7 @@ void UARTStdioIntHandler(void);
 void vUARTTask(void *pvParameters) {
 	char cCmdBuf[64];
 	int nStatus;
+	portTickType now;
 
 	//
 	// Initialize the UART for console I/O.
@@ -648,6 +677,7 @@ void vUARTTask(void *pvParameters) {
 
 	UARTIntRegister(UARTA0_BASE, UARTStdioIntHandler);
 
+	now = xTaskGetTickCount();
 	sl_mode = sl_Start(NULL, NULL, NULL);
 	unsigned char mac[6];
 	unsigned char mac_len;
@@ -659,7 +689,18 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("\n? for help\n");
 	UARTprintf("> ");
 
-	vTaskDelay(1000);
+    // SDCARD INITIALIZATION
+    // Enable MMCHS, Reset MMCHS, Configure MMCHS, Configure card clock, mount
+    MAP_PRCMPeripheralClkEnable(PRCM_SDHOST,PRCM_RUN_MODE_CLK);
+    MAP_PRCMPeripheralReset(PRCM_SDHOST);
+    MAP_SDHostInit(SDHOST_BASE);
+    MAP_SDHostSetExpClk(SDHOST_BASE,MAP_PRCMPeripheralClockGet(PRCM_SDHOST),15000000);
+    Cmd_mnt(0,0);
+
+    //INIT SPI
+    spi_init();
+
+	vTaskDelayUntil(&now, 1000);
 	if (sl_mode == ROLE_AP || !sl_status) {
 		Cmd_sl(0, 0);
 	}
@@ -679,6 +720,13 @@ void vUARTTask(void *pvParameters) {
 	//xTaskCreate(thread_sensor_poll, "pollTask", 1 * 1024 / 4, NULL, 3, NULL);
 	//xTaskCreate(thread_tx, "txTask", 2 * 1024 / 4, NULL, 2, NULL);
 	//xTaskCreate(thread_ota, "otaTask", 1 * 1024 / 4, NULL, 1, NULL);
+
+	xTaskCreate(thread_light, "lightTask", 1 * 1024 / 4, NULL, 3, NULL);
+	xTaskCreate(thread_dust, "dustTask", 256 / 4, NULL, 3, NULL);
+	xTaskCreate(thread_sensor_poll, "pollTask", 1 * 1024 / 4, NULL, 3, NULL);
+	xTaskCreate(thread_tx, "txTask", 2 * 1024 / 4, NULL, 2, NULL);
+	xTaskCreate(thread_ota, "otaTask", 1 * 1024 / 4, NULL, 1, NULL);
+
 
 	//checkFaults();
 

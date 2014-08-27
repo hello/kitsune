@@ -60,6 +60,9 @@
 #include "hw_common_reg.h"
 #include "hw_types.h"
 #include "hw_ints.h"
+#include "hw_wdt.h"
+#include "wdt.h"
+#include "wdt_if.h"
 #include "interrupt.h"
 #include "rom.h"
 #include "rom_map.h"
@@ -70,10 +73,10 @@
 #include "pinmux.h"
 #include "portmacro.h"
 #include "uart_if.h"
+#include "gpio.h"
 #include "systick.h"
 
 /*Simple Link inlcudes */
-#include "datatypes.h"
 #include "simplelink.h"
 #include "protocol.h"
 
@@ -185,6 +188,37 @@ vApplicationStackOverflowHook( xTaskHandle *pxTask, signed portCHAR *pcTaskName 
     for( ;; );
 }
 
+#define GPIO_PORT 0x40004000
+#define NORDIC_PIN 0x40
+#define PROX_PIN   0x80
+#define NORDIC_INT_GPIO 6
+#define PROX_INT_GPIO 7
+
+void nordic_prox_int() {
+    unsigned int status;
+
+    //check for which pin triggered
+    status = GPIOIntStatus(GPIO_PORT, FALSE);
+	//clear all interrupts
+    MAP_GPIOIntClear(GPIO_PORT, status);
+
+	if (status & NORDIC_PIN) {
+		UARTprintf("nordic interrupt\r\n");
+	}
+	if (status & PROX_PIN) {
+		UARTprintf("prox interrupt\r\n");
+	}
+}
+
+void SetupGPIOInterrupts() {
+    unsigned char pin;
+    unsigned int port;
+
+    port = GPIO_PORT;
+    pin = NORDIC_PIN | PROX_PIN;
+	GPIO_IF_ConfigureNIntEnable( port, pin, GPIO_RISING_EDGE, nordic_prox_int );
+	//only one interrupt per port...
+}
 
 //*****************************************************************************
 //
@@ -218,22 +252,6 @@ BoardInit(void)
     //SysTickPeriodSet(configCPU_CLOCK_HZ/configSYSTICK_CLOCK_HZ);
     //SysTickEnable();
 
-    //setup i2c clock
-    MAP_PRCMPeripheralClkEnable(PRCM_I2CA0, PRCM_RUN_MODE_CLK);
-
-    //setup i2c clock
-    MAP_PRCMPeripheralClkEnable(PRCM_I2CA0, PRCM_RUN_MODE_CLK);
-
-    //
-    // Configure PIN_01 for I2C0 I2C_SCL
-    //
-    MAP_PinTypeI2C(PIN_01, PIN_MODE_1);
-
-    //
-    // Configure PIN_02 for I2C0 I2C_SDA
-    //
-    MAP_PinTypeI2C(PIN_02, PIN_MODE_1);
-
     // I2C Init
     //
     I2C_IF_Open(I2C_MASTER_MODE_STD);
@@ -247,23 +265,68 @@ BoardInit(void)
     PRCMCC3200MCUInit();
 }
 
+void WatchdogIntHandler(void)
+{
+	//
+	// watchdog interrupt - if it fires when the interrupt has not been cleared then the device will reset...
+	//
+		UARTprintf( "oh no WDT: %u, %u\r\n", xTaskGetTickCount() );
+}
 
+
+void start_wdt() {
+#define WD_PERIOD_MS 				20000
+#define MAP_SysCtlClockGet 			80000000
+#define LED_GPIO             		MCU_RED_LED_GPIO	/* RED LED */
+#define MILLISECONDS_TO_TICKS(ms) 	((MAP_SysCtlClockGet / 1000) * (ms))
+    //
+    // Enable the peripherals used by this example.
+    //
+    MAP_PRCMPeripheralClkEnable(PRCM_WDT, PRCM_RUN_MODE_CLK);
+
+    //
+    // Set up the watchdog interrupt handler.
+    //
+    WDT_IF_Init(WatchdogIntHandler, MILLISECONDS_TO_TICKS(WD_PERIOD_MS));
+
+    //
+    // Start the timer. Once the timer is started, it cannot be disable.
+    //
+    MAP_WatchdogEnable(WDT_BASE);
+    if(!MAP_WatchdogRunning(WDT_BASE))
+    {
+       WDT_IF_DeInit();
+    }
+}
+void watchdog_thread(void* unused){
+	while(1)
+	{
+	MAP_WatchdogIntClear(WDT_BASE); //clear wdt
+	vTaskDelay(1000);
+	}
+}
 //*****************************************************************************
 //							MAIN FUNCTION
 //*****************************************************************************
 void main()
 {
-
-    unsigned char policyVal;
-
   //
   // Board Initialization
   //
   BoardInit();
+
+  start_wdt();
   //
   // configure the GPIO pins for LEDs
   //
   PinMuxConfig();
+
+  SetupGPIOInterrupts();
+
+  //
+  // Set the SD card clock as output pin
+  //
+  MAP_PinDirModeSet(PIN_07,PIN_DIR_MODE_OUT);
 
   //
   // Start the SimpleLink Host
@@ -271,8 +334,8 @@ void main()
   VStartSimpleLinkSpawnTask(SPAWN_TASK_PRIORITY);
 
   /* Create the UART processing task. */
-  xTaskCreate( vUARTTask, "UARTTask", 10*1024/(sizeof(portSTACK_TYPE)), NULL, 2, NULL );
-//  xTaskCreate( vWifiTask, "wifi", 2*1024/(sizeof(portSTACK_TYPE)), NULL, 2, NULL );
+  xTaskCreate( vUARTTask, "UARTTask", 10*1024/(sizeof(portSTACK_TYPE)), NULL, 10, NULL );
+  xTaskCreate( watchdog_thread, "wdtTask", configMINIMAL_STACK_SIZE, NULL, 1, NULL );
 
   //
   // Start the task scheduler

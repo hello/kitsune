@@ -1,5 +1,6 @@
 
 #include "fft.h"
+#include "stdlib.h" //for abs
 
 /* Bitlog function
  * Invented by Tom Lehman at Invivo Research, Inc.,
@@ -62,7 +63,7 @@ unsigned long bitexp(unsigned short n)
 #define N_WAVE          1024        /* dimension of Sinewave[] */
 #define LOG2_N_WAVE     10            /* log2(N_WAVE) */
 
-const unsigned short sin_lut[N_WAVE/4+1] = {
+static const unsigned short sin_lut[N_WAVE/4+1] = {
   0, 201, 402, 603, 804, 1005, 1206, 1406,
   1607, 1808, 2009, 2209, 2410, 2610, 2811, 3011,
   3211, 3411, 3611, 3811, 4011, 4210, 4409, 4608,
@@ -111,6 +112,7 @@ short fxd_sin( unsigned short x ) {
 	if( x <= N_WAVE/4 ) {
 		return sin_lut[x];
 	}
+	return 0;
 }
 
 
@@ -237,34 +239,62 @@ void fix_window(short fr[], int n)
     FIX_MPY(fr[i], fr[i], 16384 - (fxd_sin(k) >> 1));
 }
 
+/*  
+    f as input is output from the fft or fftr funciton, and is length N
+    f as output is PSD, and is length N/2
+ */
 void psd(short f[], int n)
 {
-    int i,n2, x;
-
-	n2 = n/2;
+    int i;
+	int n2 = n/2;
     for (i=0; i<n/2; ++i) {
 		//f[i] = fxd_sqrt( fix_mpy(f[i],f[i]) + fix_mpy(f[i+n2],f[i+n2]) );
-		f[i] = f[i] < 0 ? -f[i] : f[i];
-		f[i+n2] = f[i+n2] < 0 ? -f[i+n2] : f[i+n2];
-		f[i] = f[i] + f[i+n2];
+		f[i] = abs(f[i]) + abs(f[i+n2]);
     }
 }
 
+
+// b - size of the bin in the fft in hz
+// ergo, b = Fs / 2 / (n/2) or if you prefer, Nyquist freq divided by half of the FFT
+// n is the PSD size (nfft / 2)
+// f is both input and output
+// f as input is the PSD bin
+// f as output is the mel bins
 void mel_freq(short f[], int n, int b ) {
-	short mel_scale[16] = {0,20,160,394,670,1000,1420,1900,2450,3120,4000,5100,6600,9000,14000,32000};
-	int i;
-	int m=0;
 	
-	for( i=0; i<n/4; ++i ) {
-		f[m] += f[i+1];
-		if( (i+1)*b > mel_scale[m] ) {
-			if( m+1 == sizeof(mel_scale) / sizeof(short) )
+    // in Hz
+    static const short mel_scale[16] = {0,20,160,394,670,1000,1420,1900,2450,3120,4000,5100,6600,9000,14000,32000};
+	
+    int i;
+	int iMel=0;
+	int numInCurrentMelBin=0;
+
+#if 0 //For generating mel scales
+	for( int i=0; i<50; ++i ) {
+		mel = 1127 * log( 1.0 + (double)freq / 700.0 );
+		printf( "%d,", mel );
+		freq+=250;
+	}
+#endif // 0
+
+	
+	for( i = 0; i < (n >> 1); ++i ) {
+		f[iMel] += f[i+1];
+		++numInCurrentMelBin;
+        
+        
+		if( (i+1)*b > mel_scale[iMel] ) {
+			
+            if( iMel+1 == sizeof(mel_scale) / sizeof(short) ) {
 				break;
-			f[m] = bitlog( f[m] );
-			++m;
+            }
+            
+			f[iMel] = bitlog( f[iMel]/numInCurrentMelBin );
+			++iMel;
+			numInCurrentMelBin = 0;
 		}
 	}
-    f[m] = bitlog( f[m] );
+    f[iMel] = bitlog( f[iMel] / numInCurrentMelBin );
 }
 
 #if 0

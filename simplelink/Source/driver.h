@@ -37,6 +37,20 @@
 #ifndef __DRIVER_INT_H__
 #define __DRIVER_INT_H__
 
+
+/*****************************************************************************/
+/* Macro declarations                                                        */
+/*****************************************************************************/
+
+#ifndef CPU_FREQ_IN_MHZ
+ #define CPU_FREQ_IN_MHZ         (200)
+#endif
+#define USEC_DELAY              (50)
+
+/*****************************************************************************/
+/* Structure/Enum declarations                                               */
+/*****************************************************************************/
+
 typedef struct
 {
     _SlOpcode_t      Opcode;
@@ -46,28 +60,28 @@ typedef struct
 
 typedef struct
 {
-    UINT16  TxPayloadLen;
-    UINT16  RxPayloadLen;
-	UINT16  ActualRxPayloadLen;
-    UINT8   *pTxPayload;
-    UINT8   *pRxPayload;
+    _u16  TxPayloadLen;
+    _u16  RxPayloadLen;
+	_u16  ActualRxPayloadLen;
+    _u8   *pTxPayload;
+    _u8   *pRxPayload;
 }_SlCmdExt_t;
 
 
 typedef struct _SlArgsData_t
 {
-    UINT8	 *pArgs;
-	UINT8    *pData;
+    _u8	 *pArgs;
+	_u8    *pData;
 } _SlArgsData_t;
 
 
 typedef struct _SlPoolObj_t
 {
     _SlSyncObj_t	      SyncObj;
-	 UINT8                *pRespArgs;
-	UINT8			      ActionID; 
-	UINT8			      AdditionalData; /* use for socketID and one bit which indicate supprt IPV6 or not (1=support, 0 otherwise) */
-    UINT8				  NextIndex;  
+	 _u8                *pRespArgs;
+	_u8			      ActionID; 
+	_u8			      AdditionalData; /* use for socketID and one bit which indicate supprt IPV6 or not (1=support, 0 otherwise) */
+    _u8				  NextIndex;  
 
 } _SlPoolObj_t;
 
@@ -95,8 +109,8 @@ typedef enum
 
 typedef struct _SlActionLookup_t
 {
-    UINT8					ActionID;
-    UINT16				    ActionAsyncOpcode;
+    _u8					    ActionID;
+    _u16				    ActionAsyncOpcode;
 	_SlSpawnEntryFunc_t		AsyncEventHandler; 
 
 } _SlActionLookup_t;
@@ -104,7 +118,7 @@ typedef struct _SlActionLookup_t
 
 typedef struct
 {
-    UINT8           TxPoolCnt;
+    _u8             TxPoolCnt;
     _SlLockObj_t    TxLockObj;
     _SlSyncObj_t    TxSyncObj;
 }_SlFlowContCB_t;
@@ -119,18 +133,18 @@ typedef enum
 
 typedef struct
 {
-    UINT8                   *pAsyncBuf;         /* place to write pointer to buffer with CmdResp's Header + Arguments */
-	UINT8					ActionIndex; 
+    _u8                     *pAsyncBuf;         /* place to write pointer to buffer with CmdResp's Header + Arguments */
+	_u8					    ActionIndex; 
     _SlSpawnEntryFunc_t     AsyncEvtHandler;    /* place to write pointer to AsyncEvent handler (calc-ed by Opcode)   */
     _SlRxMsgClass_e         RxMsgClass;         /* type of Rx message                                                 */
 } AsyncExt_t;
 
-typedef UINT8 _SlSd_t;
+typedef _u8 _SlSd_t;
 
 typedef struct
 {
 	_SlCmdCtrl_t         *pCmdCtrl;
-	UINT8                *pTxRxDescBuff;
+	_u8                  *pTxRxDescBuff;
 	_SlCmdExt_t          *pCmdExt;
     AsyncExt_t            AsyncExt;
 }_SlFunctionParams_t;
@@ -144,30 +158,36 @@ typedef struct
     P_INIT_CALLBACK                  pInitCallback;
 
     _SlPoolObj_t                    ObjPool[MAX_CONCURRENT_ACTIONS];
-	UINT8							FreePoolIdx;
-	UINT8							PendingPoolIdx;
-	UINT8							ActivePoolIdx;
-	UINT32							ActiveActionsBitmap;
+	_u8					    FreePoolIdx;
+	_u8					    PendingPoolIdx;
+	_u8					    ActivePoolIdx;
+	_u32					ActiveActionsBitmap;
 	_SlLockObj_t                    ProtectionLockObj;
 
     _SlSyncObj_t                     CmdSyncObj;  
-    UINT8                            IsCmdRespWaited;
+    _u8                     IsCmdRespWaited;
 
     _SlFlowContCB_t                  FlowContCB;
 
-    UINT8                            TxSeqNum;
-    UINT8                            RxIrqCnt;
-    UINT8                            RxDoneCnt;
-    UINT8                            SocketNonBlocking;
-	UINT8                            SocketTXFailure;
-    UINT8                            RelayFlagsViaRxPayload;
+    _u8                     TxSeqNum;
+    _volatile _u8           RxIrqCnt;
+    _u8                     RxDoneCnt;
+    _u8                     SocketNonBlocking;
+	_u8                     SocketTXFailure;
+    _u8                     RelayFlagsViaRxPayload;
     /* for stack reduction the parameters are globals */
     _SlFunctionParams_t              FunctionParams;
 
 }_SlDriverCb_t;
 
+
+
 extern _SlDriverCb_t* g_pCB;
 extern P_SL_DEV_PING_CALLBACK  pPingCallBackFunc;
+
+/*****************************************************************************/
+/* Function prototypes                                                       */
+/*****************************************************************************/
 extern void _SlDrvDriverCBInit(void);
 extern void _SlDrvDriverCBDeinit(void);
 extern void _SlDrvRxIrqHandler(void *pValue);
@@ -175,7 +195,7 @@ extern _SlReturnVal_t  _SlDrvCmdOp(_SlCmdCtrl_t *pCmdCtrl , void* pTxRxDescBuff 
 extern _SlReturnVal_t  _SlDrvCmdSend(_SlCmdCtrl_t *pCmdCtrl , void* pTxRxDescBuff , _SlCmdExt_t* pCmdExt);
 extern _SlReturnVal_t  _SlDrvDataReadOp(_SlSd_t Sd, _SlCmdCtrl_t *pCmdCtrl , void* pTxRxDescBuff , _SlCmdExt_t* pCmdExt);
 extern _SlReturnVal_t  _SlDrvDataWriteOp(_SlSd_t Sd, _SlCmdCtrl_t *pCmdCtrl , void* pTxRxDescBuff , _SlCmdExt_t* pCmdExt);
-extern int  _SlDrvBasicCmd(_SlOpcode_t Opcode);
+extern _i16  _SlDrvBasicCmd(_SlOpcode_t Opcode);
 
 extern void _sl_HandleAsync_InitComplete(void *pVoidBuf);
 extern void _sl_HandleAsync_Connect(void *pVoidBuf);
@@ -188,8 +208,8 @@ extern void _sl_HandleAsync_PingResponse(void *pVoidBuf);
 extern void _SlDrvNetAppEventHandler(void *pArgs);
 extern void _SlDrvDeviceEventHandler(void *pArgs);
 extern void _sl_HandleAsync_Stop(void *pVoidBuf);
-extern int _SlDrvWaitForPoolObj(UINT32 ActionID, UINT8 SocketID);
-extern void _SlDrvReleasePoolObj(UINT8 pObj);
+extern _i16 _SlDrvWaitForPoolObj(_u32 ActionID, _u8 SocketID);
+extern void _SlDrvReleasePoolObj(_u8 pObj);
 extern void _SlDrvObjInit(void);  
 
 #define _SL_PROTOCOL_ALIGN_SIZE(msgLen)             (((msgLen)+3) & (~3))

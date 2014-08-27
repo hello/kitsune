@@ -24,10 +24,17 @@ int Cmd_time(int argc, char*argv[]);
 int Cmd_sl(int argc, char*argv[]);
 int Cmd_mode(int argc, char*argv[]);
 
+unsigned long unix_time();
+
+int send_periodic_data( data_t * data );
+int send_audio_data( data_t * data );
+
+void thread_ota( void * unused );
+
 //#define MORPH_NAME "KingShy's morpheus"
 
 //#define MORPH_NAME "Chris's morpheus"
-#define MORPH_NAME "test morpheus"
+#define MORPH_NAME "test morpheus 10"
 //#define MORPH_NAME "test morpheus 80"
 #define KIT_VER 2
 
