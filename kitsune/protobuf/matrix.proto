@@ -1,0 +1,15 @@
+message Matrix {
+  enum DataType {
+    FLOAT = 0;
+    INT = 1;
+  }
+
+  required int32 id = 1;
+  required int32 rows = 2;
+  required int32 cols = 3;
+  required DataType datatype = 4;
+  repeated sint32 idata = 5;
+  repeated float fdata = 6;
+  optional int64 time = 7;
+
+}
