@@ -44,7 +44,7 @@ int main(int argc, char * argv[]) {
             
             output = pb_ostream_from_buffer(buf2, 16384);
 
-            len = SetInt16Matrix(&output,logmfcc,1,MEL_SCALE_ROUNDED_UP,0);
+            len = SetInt16Matrix(&output,logmfcc,1,MEL_SCALE_ROUNDED_UP,0,0);
 
             outFile << "logmfcc\t" << base64_encode(buf2,len) <<std::endl;
             

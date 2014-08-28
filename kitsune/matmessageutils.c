@@ -11,14 +11,13 @@ typedef struct {
 static bool write_int16_mat(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
     
     uint32_t j;
-    const int16_t * data;
     Int16Array_t * pdesc = (Int16Array_t *) (*arg);
-    
-    
-    if (!pb_encode_tag_for_field(stream, field))
-        return false;
-    
-    data = pdesc->data;
+    const int16_t * data = pdesc->data;
+
+    pb_encode_tag(stream, PB_WT_STRING, field->tag);
+        
+    //write length
+    pb_encode_svarint(stream, pdesc->len);
     
     for(j = 0; j < pdesc->len; j++ ) {
         pb_encode_svarint(stream, data[j]);
@@ -28,7 +27,7 @@ static bool write_int16_mat(pb_ostream_t *stream, const pb_field_t *field, void 
     
 }
 
-size_t SetInt16Matrix(pb_ostream_t * stream,const int16_t * data, int32_t rows, int32_t cols, uint32_t id) {
+size_t SetInt16Matrix(pb_ostream_t * stream,const int16_t * data, int32_t rows, int32_t cols, uint32_t id, int64_t time) {
     
     Matrix mat;
     Int16Array_t desc;
@@ -42,6 +41,8 @@ size_t SetInt16Matrix(pb_ostream_t * stream,const int16_t * data, int32_t rows, 
     mat.datatype = Matrix_DataType_INT;
     mat.idata.funcs.encode = write_int16_mat;
     mat.idata.arg = &desc;
+    mat.has_time = 1;
+    mat.time = time;
     
     pb_get_encoded_size(&size,Matrix_fields,&mat);
     pb_encode(stream,Matrix_fields,&mat);
