@@ -487,19 +487,33 @@ int start_connection() {
 typedef int(*audio_read_cb)(char * buffer, int buffer_size);
 
 //buffer needs to be at least 128 bytes...
-int send_audio_wifi(char * buffer, int buffer_size, audio_read_cb arcb, int time) {
+int send_audio_wifi(char * buffer, int buffer_size, audio_read_cb arcb) {
     int send_length;
     int rv = 0;
     int message_length;
+    unsigned char mac[6];
+    unsigned char mac_len = 6;
+#if 1
+    mac[0] = 0xab;
+    mac[1] = 0xcd;
+    mac[2] = 0xab;
+    mac[3] = 0xcd;
+    mac[4] = 0xab;
+    mac[5] = 0xcd;
+#else
+    sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
+#endif
 
     message_length = 110000;
 
-    snprintf(buffer, buffer_size, "POST /in/morpheus/audio HTTP/1.1\r\n"
+    snprintf(buffer, buffer_size, "POST /audio/%x%x%x%x%x%x HTTP/1.1\r\n"
             "Host: in.skeletor.com\r\n"
-            "Content-type: application/x-pcm16\r\n"
+            "Content-type: application/octet-stream\r\n"
             "Content-length: %d\r\n"
-            "\r\n", message_length);
+            "\r\n", mac[0],mac[1],mac[2],mac[3],mac[4],mac[5], message_length);
     send_length = strlen(buffer);
+
+    UARTprintf("%s\n\r\n\r", buffer);
 
     //setup the connection
     if( start_connection() < 0 ) {
@@ -1013,133 +1027,14 @@ void thread_ota(void * unused)
 #include "fatfs_cmd.h"
 
 int audio_read_fn (char * buffer, int buffer_size) {
-	//read audio file from fs
-	WORD read;
-	FRESULT res;
+	memset(buffer, 0xabcd, buffer_size);
 
-    res = f_read(&file_obj,buffer, buffer_size, &read);
-    if( res != FR_OK ) {
-    	UARTprintf( "f_read error %d", res);
-    }
-    UARTprintf( "read %d bytes", read);
-
-	return read;
+	return buffer_size;
 }
-
-//*****************************************************************************
-//
-//! itoa
-//!
-//!    @brief  Convert integer to ASCII in decimal base
-//!
-//!     @param  cNum is input integer number to convert
-//!     @param  cString is output string
-//!
-//!     @return number of ASCII parameters
-//!
-//!
-//
-//*****************************************************************************
-const char pcDigits[] = "0123456789";
-unsigned short itoa(char cNum, char *cString)
-{
-    char* ptr;
-    char uTemp = cNum;
-    unsigned short length;
-
-    // value 0 is a special case
-    if (cNum == 0)
-    {
-        length = 1;
-        *cString = '0';
-
-        return length;
-    }
-
-    // Find out the length of the number, in decimal base
-    length = 0;
-    while (uTemp > 0)
-    {
-        uTemp /= 10;
-        length++;
-    }
-
-    // Do the actual formatting, right to left
-    uTemp = cNum;
-    ptr = cString + length;
-    while (uTemp > 0)
-    {
-        --ptr;
-        *ptr = pcDigits[uTemp % 10];
-        uTemp /= 10;
-    }
-
-    return length;
-}
-
-unsigned long get_time();
 
 int Cmd_audio_test(int argc, char *argv[]) {
-#define AUDIO_WINDOW_LEN 1024
-#define AUDIO_DIR "/audio/"
-#define FULL_FN_LEN 48
-#define FN_LEN 32
-
-	//get the data
-	short audio[AUDIO_WINDOW_LEN];
-	char fn[FN_LEN];
-	char full_fn[FULL_FN_LEN];
-	//int fn_len;
-	FRESULT res;
-	int time = get_time();
-
-	/*fn_len =*/ itoa(time, fn);
-	strncat( full_fn, AUDIO_DIR, FULL_FN_LEN );
-	strncat( full_fn, fn, FULL_FN_LEN );
-
-    #define AUDIO_DIR "/audio/"
-	res = f_open(&file_obj, full_fn, FA_CREATE_NEW|FA_WRITE);
-    if( res != FR_OK ) {
-    	UARTprintf( "f_open error %s %d", full_fn, res);
-    }
-
-    //record 10 seconds to file
-	while( get_time() - time < 10 ) {
-		WORD bytes_written = 0;
-		WORD bytes_to_write = AUDIO_WINDOW_LEN;
-		WORD bytes = 0;
-		get_audio( audio, AUDIO_WINDOW_LEN );
-		//todo pass windows to preclassifier
-
-		do {
-			res = f_write( &file_obj, audio+bytes_written, bytes_to_write-bytes_written, &bytes );
-			bytes_written+=bytes;
-		} while( bytes_written < bytes_to_write );
-	}
-    //todo check result of preclassifier
-
-	//was it interesting?
-    //seek back to beginning and transmit
-    res = f_lseek(&file_obj, 0);
-    send_audio_wifi( (char*)audio, sizeof(audio), audio_read_fn, time );
-	//if not, delete it
-	//else send
-	//then delete
-
-    res = f_close( &file_obj );
-    if( res != FR_OK ) {
-    	UARTprintf( "f_close error %s %d", full_fn, res);
-    }
-    res = f_unlink( full_fn );
-    if( res != FR_OK ) {
-    	UARTprintf( "f_unlink error %s %d", full_fn, res);
-    }
-
-//	send_audio_wifi( (char*)audio, sizeof(audio), audio_read_fn, time );
-	//TODO: send through filesystem....
-	//send_audio_wifi( (char*)audio, sizeof(audio), audio_input_fn, time );
-
-	//read it from the file and send it to the server in chunks
+	short audio[1024];
+	send_audio_wifi( (char*)audio, sizeof(audio), audio_read_fn );
 	return (0);
 }
 
