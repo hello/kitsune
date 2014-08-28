@@ -13,7 +13,6 @@
 
 #include "ota_api.h"
 
-
 #include "wifi_cmd.h"
 
 #define ROLE_INVALID (-5)
@@ -313,7 +312,7 @@ int Cmd_mode(int argc, char*argv[]) {
     }
     if (!ap && sl_mode != ROLE_STA) {
         //Switch to STA Mode
-    	nwp_reset();
+        nwp_reset();
     }
 
     return 0;
@@ -327,9 +326,20 @@ int Cmd_mode(int argc, char*argv[]) {
 #include "periodic.pb.h"
 #include "audio_data.pb.h"
 
-static bool write_callback(pb_ostream_t *stream, const uint8_t *buf,
+#include "crypto.h"
+
+static SHA1_CTX sha1ctx;
+
+static bool write_callback_sha(pb_ostream_t *stream, const uint8_t *buf,
         size_t count) {
     int fd = (intptr_t) stream->state;
+    int i;
+
+    SHA1_Update(&sha1ctx, buf, count);
+
+    for (i = 0; i < count; ++i) {
+        UARTprintf("%x", buf);
+    }
     return send(fd, buf, count, 0) == count;
 }
 
@@ -345,9 +355,9 @@ static bool read_callback(pb_istream_t *stream, uint8_t *buf, size_t count) {
     return result == count;
 }
 
-pb_ostream_t pb_ostream_from_socket(int fd) {
+pb_ostream_t pb_ostream_from_sha_socket(int fd) {
     pb_ostream_t stream =
-            { &write_callback, (void*) (intptr_t) fd, SIZE_MAX, 0 };
+            { &write_callback_sha, (void*) (intptr_t) fd, SIZE_MAX, 0 };
     return stream;
 }
 
@@ -395,9 +405,9 @@ void UARTprintfFaults() {
 }
 
 int stop_connection() {
-	close(sock);
-	sock = -1;
-	return sock;
+    close(sock);
+    sock = -1;
+    return sock;
 }
 int start_connection() {
     sockaddr sAddr;
@@ -411,7 +421,7 @@ int start_connection() {
         tv.tv_usec = 0;           // Microseconds. 10000 microseconds resolution
         setsockopt(sock, SOL_SOCKET, SL_SO_RCVTIMEO, &tv, sizeof(tv)); // Enable receive timeout
 
-		#define SL_SSL_CA_CERT_FILE_NAME "/cert/ca.der"
+        #define SL_SSL_CA_CERT_FILE_NAME "/cert/ca.der"
         // configure the socket as SSLV3.0
         // configure the socket as RSA with RC4 128 SHA
         // setup certificate
@@ -428,11 +438,11 @@ int start_connection() {
         }
     }
 
-	if (sock < 0) {
-		UARTprintf("Socket create failed %d\n\r", sock);
-		return -1;
-	}
-	UARTprintf("Socket created\n\r");
+    if (sock < 0) {
+        UARTprintf("Socket create failed %d\n\r", sock);
+        return -1;
+    }
+    UARTprintf("Socket created\n\r");
 
 #define DATA_SERVER "dev-in.hello.is"
 #if !LOCAL_TEST
@@ -471,16 +481,16 @@ int start_connection() {
 
 #endif
 
-	//connect it up
-	//UARTprintf("Connecting \n\r\n\r");
-	if (sock > 0 && sock_begin < 0 && (rv = connect(sock, &sAddr, sizeof(sAddr)))) {
-		UARTprintf("connect returned %d\n\r\n\r", rv);
-		if (rv != SL_ESECSNOVERIFY) {
-			UARTprintf("Could not connect %d\n\r\n\r", rv);
-			return stop_connection();    // could not send SNTP request
-		}
-	}
-	return 0;
+    //connect it up
+    //UARTprintf("Connecting \n\r\n\r");
+    if (sock > 0 && sock_begin < 0 && (rv = connect(sock, &sAddr, sizeof(sAddr)))) {
+        UARTprintf("connect returned %d\n\r\n\r", rv);
+        if (rv != SL_ESECSNOVERIFY) {
+            UARTprintf("Could not connect %d\n\r\n\r", rv);
+            return stop_connection();    // could not send SNTP request
+        }
+    }
+    return 0;
 }
 
 //takes the buffer and reads <return value> bytes, up to buffer size
@@ -516,11 +526,11 @@ int send_audio_wifi(char * buffer, int buffer_size, audio_read_cb arcb) {
 
     //setup the connection
     if( start_connection() < 0 ) {
-		UARTprintf("failed to start connection\n\r\n\r");
-		return -1;
-	}
+        UARTprintf("failed to start connection\n\r\n\r");
+        return -1;
+    }
 
-	//UARTprintf("Sending request\n\r%s\n\r", buffer);
+    //UARTprintf("Sending request\n\r%s\n\r", buffer);
     rv = send(sock, buffer, send_length, 0);
     if ( rv <= 0) {
         UARTprintf("send error %d\n\r\n\r", rv);
@@ -528,38 +538,38 @@ int send_audio_wifi(char * buffer, int buffer_size, audio_read_cb arcb) {
     }
     UARTprintf("sent %d\n\r\n\r", rv);
 
-	while( message_length > 0 ) {
-		int buffer_sent, buffer_read;
-	    buffer_sent = buffer_read = arcb( buffer, buffer_size );
-		UARTprintf("read %d\n\r", buffer_read);
+    while( message_length > 0 ) {
+        int buffer_sent, buffer_read;
+        buffer_sent = buffer_read = arcb( buffer, buffer_size );
+        UARTprintf("read %d\n\r", buffer_read);
 
-	    while( buffer_read > 0 ) {
-	    	send_length = minval(buffer_size, buffer_read);
-			UARTprintf("attempting to send %d\n\r", send_length );
+        while( buffer_read > 0 ) {
+            send_length = minval(buffer_size, buffer_read);
+            UARTprintf("attempting to send %d\n\r", send_length );
 
-			rv = send(sock, buffer, send_length, 0);
-			if (rv <= 0) {
-				UARTprintf("send error %d\n\r", rv);
-				return stop_connection();
-			}
-			UARTprintf("sent %d, %d left in buffer\n\r", rv, buffer_read);
-			buffer_read -= rv;
-		}
-	    message_length -= buffer_sent;
-		UARTprintf("sent buffer, %d left\n\r\n\r", message_length);
-	}
+            rv = send(sock, buffer, send_length, 0);
+            if (rv <= 0) {
+                UARTprintf("send error %d\n\r", rv);
+                return stop_connection();
+            }
+            UARTprintf("sent %d, %d left in buffer\n\r", rv, buffer_read);
+            buffer_read -= rv;
+        }
+        message_length -= buffer_sent;
+        UARTprintf("sent buffer, %d left\n\r\n\r", message_length);
+    }
 
     memset(buffer, 0, buffer_size);
 
     //UARTprintf("Waiting for reply\n\r\n\r");
     rv = recv(sock, buffer, buffer_size, 0);
-	if (rv <= 0) {
-		UARTprintf("recv error %d\n\r\n\r", rv);
+    if (rv <= 0) {
+        UARTprintf("recv error %d\n\r\n\r", rv);
         return stop_connection();
-	}
-	UARTprintf("recv %d\n\r\n\r", rv);
+    }
+    UARTprintf("recv %d\n\r\n\r", rv);
 
-	UARTprintf("Reply is:\n\r\n\r");
+    UARTprintf("Reply is:\n\r\n\r");
     buffer[127] = 0; //make sure it terminates..
     UARTprintf("%s", buffer);
 
@@ -571,6 +581,7 @@ int send_audio_wifi(char * buffer, int buffer_size, audio_read_cb arcb) {
 int send_data_pb(char * buffer, int buffer_size, const pb_field_t fields[], const void *src_struct) {
     int send_length;
     int rv = 0;
+    uint8_t sig[32]={0};
 
     size_t message_length;
     bool status;
@@ -578,7 +589,8 @@ int send_data_pb(char * buffer, int buffer_size, const pb_field_t fields[], cons
     {
         pb_ostream_t stream = {0};
         status = pb_encode(&stream, fields, src_struct);
-        message_length = stream.bytes_written;
+        message_length = stream.bytes_written + sizeof(sig);
+        UARTprintf("message len %d sig len %d\n\r\n\r", stream.bytes_written, sizeof(sig));
     }
 
     snprintf(buffer, buffer_size, "POST /in/morpheus/pb HTTP/1.1\r\n"
@@ -590,24 +602,31 @@ int send_data_pb(char * buffer, int buffer_size, const pb_field_t fields[], cons
 
     //setup the connection
     if( start_connection() < 0 ) {
-		UARTprintf("failed to start connection\n\r\n\r");
-		return -1;
-	}
+        UARTprintf("failed to start connection\n\r\n\r");
+        return -1;
+    }
 
-	//UARTprintf("Sending request\n\r%s\n\r", buffer);
+    //UARTprintf("Sending request\n\r%s\n\r", buffer);
     rv = send(sock, buffer, send_length, 0);
-    if ( rv <= 0) {
+    if (rv <= 0) {
         UARTprintf("send error %d\n\r\n\r", rv);
         return stop_connection();
     }
-    UARTprintf("sent %d\n\r\n\r", rv);
+    UARTprintf("sent %d\n\r%s\n\r", rv, buffer);
 
     {
+        pb_ostream_t stream;
+        int i;
+
+        SHA1_Init(&sha1ctx);
+
         /* Create a stream that will write to our buffer. */
-        pb_ostream_t stream = pb_ostream_from_socket(sock);
+        stream = pb_ostream_from_sha_socket(sock);
         /* Now we are ready to encode the message! */
+
+        UARTprintf("data ");
         status = pb_encode(&stream, fields, src_struct);
-        message_length = stream.bytes_written;
+        UARTprintf("\n");
 
         /* Then just check for any errors.. */
         if (!status) {
@@ -615,19 +634,43 @@ int send_data_pb(char * buffer, int buffer_size, const pb_field_t fields[], cons
             return -1;
         }
 
+        //now sign it
+        SHA1_Final(sig, &sha1ctx);
+
+        UARTprintf("SHA ");
+        for (i = 0; i < sizeof(sig); ++i) {
+            UARTprintf("%x", sig[i]);
+        }
+        UARTprintf("\n");
+
+        AES_CTX aesctx;
+        AES_set_key(&aesctx, "1234567891234567", aesctx.iv, AES_MODE_128); //todo real key
+        AES_cbc_encrypt(&aesctx, sig, sig, sizeof(sig));
+
+        rv = send(sock, sig, sizeof(sig), 0);
+        if (rv != sizeof(sig)) {
+            UARTprintf("Sending SHA failed: %s\n", rv);
+            return -1;
+        }
+
+        UARTprintf("sig ");
+        for (i = 0; i < sizeof(sig); ++i) {
+            UARTprintf("%x", sig[i]);
+        }
+        UARTprintf("\n");
     }
     memset(buffer, 0, buffer_size);
 
     //UARTprintf("Waiting for reply\n\r\n\r");
     rv = recv(sock, buffer, buffer_size, 0);
-	if (rv <= 0) {
-		UARTprintf("recv error %d\n\r\n\r", rv);
+    if (rv <= 0) {
+        UARTprintf("recv error %d\n\r\n\r", rv);
         return stop_connection();
-	}
-	UARTprintf("recv %d\n\r\n\r", rv);
+    }
+    UARTprintf("recv %d\n\r\n\r", rv);
 
-	UARTprintf("Reply is:\n\r\n\r");
-    buffer[127] = 0; //make sure it terminates..
+    UARTprintf("Reply is:\n\r\n\r");
+    buffer[buffer_size-2] = 0; //make sure it terminates..
     UARTprintf("%s", buffer);
 
     //todo check for http response code 2xx
@@ -984,19 +1027,19 @@ void thread_ota(void * unused)
     int status, imageCommitFlag;
 
     /* Init OTA process */
-	proc_ota_init();
+    proc_ota_init();
 
-	if (sl_mode != ROLE_STA) {
-		/* If the MCU image is under test, the ImageCommit process will commit the new image and might reset the MCU */
-		/* NWP commit process is not implemented yet */
-		imageCommitFlag = OTA_ACTION_IMAGE_COMMITED;
-		status = sl_extLib_OtaSet(pvOtaApp, EXTLIB_OTA_SET_OPT_IMAGE_COMMIT, sizeof(imageCommitFlag), (char *) &imageCommitFlag);
-		if (status == OTA_ACTION_RESET_MCU) {
-			UARTprintf("main: OTA_ACTION_RESET_MCU reset the platform to commit the new image\n");
-			UARTprintf("main: Rebooting...\n\n");
-			mcu_reset();
-		}
-	}
+    if (sl_mode != ROLE_STA) {
+        /* If the MCU image is under test, the ImageCommit process will commit the new image and might reset the MCU */
+        /* NWP commit process is not implemented yet */
+        imageCommitFlag = OTA_ACTION_IMAGE_COMMITED;
+        status = sl_extLib_OtaSet(pvOtaApp, EXTLIB_OTA_SET_OPT_IMAGE_COMMIT, sizeof(imageCommitFlag), (char *) &imageCommitFlag);
+        if (status == OTA_ACTION_RESET_MCU) {
+            UARTprintf("main: OTA_ACTION_RESET_MCU reset the platform to commit the new image\n");
+            UARTprintf("main: Rebooting...\n\n");
+            mcu_reset();
+        }
+    }
 
     /* Config OTA process - after net connection */
     proc_ota_config();
@@ -1006,34 +1049,34 @@ void thread_ota(void * unused)
     while(1)
     {
 
-    	if( sl_status & HAS_IP ) {
-			/* Run OTA process */
-			status = proc_ota_run_step();
+        if( sl_status & HAS_IP ) {
+            /* Run OTA process */
+            status = proc_ota_run_step();
 
-			/* Check if to sleep or to continue serve the processes */
-			if (!proc_ota_is_active())
-			{
-				UARTprintf("\r\nOTA task sleeping, MCU version=%s\r\n", MCU_VERSION);
-				vTaskDelay(60*60*1000);
-			}
-    	} else {
-			UARTprintf("\r\nOTA task sleeping waiting for wifi, MCU version=%s\r\n", MCU_VERSION);
-			vTaskDelay(60*60*1000);
-    	}
+            /* Check if to sleep or to continue serve the processes */
+            if (!proc_ota_is_active())
+            {
+                UARTprintf("\r\nOTA task sleeping, MCU version=%s\r\n", MCU_VERSION);
+                vTaskDelay(60*60*1000);
+            }
+        } else {
+            UARTprintf("\r\nOTA task sleeping waiting for wifi, MCU version=%s\r\n", MCU_VERSION);
+            vTaskDelay(60*60*1000);
+        }
     }
 #endif
 }
 #include "fatfs_cmd.h"
 
 int audio_read_fn (char * buffer, int buffer_size) {
-	memset(buffer, 0xabcd, buffer_size);
+    memset(buffer, 0xabcd, buffer_size);
 
-	return buffer_size;
+    return buffer_size;
 }
 
 int Cmd_audio_test(int argc, char *argv[]) {
-	short audio[1024];
-	send_audio_wifi( (char*)audio, sizeof(audio), audio_read_fn );
-	return (0);
+    short audio[1024];
+    send_audio_wifi( (char*)audio, sizeof(audio), audio_read_fn );
+    return (0);
 }
 

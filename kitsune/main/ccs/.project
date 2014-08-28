@@ -266,6 +266,21 @@
 			<locationURI>PARENT-2-PROJECT_LOC/common/wdt_if.h</locationURI>
 		</link>
 		<link>
+			<name>crypto/aes.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/aes.c</locationURI>
+		</link>
+		<link>
+			<name>crypto/crypto.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/crypto.h</locationURI>
+		</link>
+		<link>
+			<name>crypto/sha1.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/sha1.c</locationURI>
+		</link>
+		<link>
 			<name>nanopb/pb.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/nanopb/pb.h</locationURI>
