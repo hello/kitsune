@@ -411,18 +411,18 @@ int start_connection() {
         tv.tv_usec = 0;           // Microseconds. 10000 microseconds resolution
         setsockopt(sock, SOL_SOCKET, SL_SO_RCVTIMEO, &tv, sizeof(tv)); // Enable receive timeout
 
-		#define SL_SSL_CA_CERT_FILE_NAME "/cert/hello.der"
+		#define SL_SSL_CA_CERT_FILE_NAME "/cert/ca.der"
         // configure the socket as SSLV3.0
         // configure the socket as RSA with RC4 128 SHA
         // setup certificate
         unsigned char method = SL_SO_SEC_METHOD_SSLV3;
         unsigned int cipher = SL_SEC_MASK_SSL_RSA_WITH_RC4_128_SHA;
         if( sl_SetSockOpt(sock, SL_SOL_SOCKET, SL_SO_SECMETHOD, &method, sizeof(method) ) < 0 ||
-            sl_SetSockOpt(sock, SL_SOL_SOCKET, SL_SO_SECURE_MASK, &cipher, sizeof(cipher)) < 0 /*||
+            sl_SetSockOpt(sock, SL_SOL_SOCKET, SL_SO_SECURE_MASK, &cipher, sizeof(cipher)) < 0 ||
             sl_SetSockOpt(sock, SL_SOL_SOCKET, \
                                    SL_SO_SECURE_FILES_CA_FILE_NAME, \
                                    SL_SSL_CA_CERT_FILE_NAME, \
-                                   strlen(SL_SSL_CA_CERT_FILE_NAME))  < 0 */ )
+                                   strlen(SL_SSL_CA_CERT_FILE_NAME))  < 0  )
         {
         UARTprintf( "error setting ssl options\r\n" );
         }
