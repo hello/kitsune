@@ -79,6 +79,60 @@ int Cmd_free(int argc, char *argv[]) {
 }
 
 
+#define YEAR_TO_DAYS(y) ((y)*365 + (y)/4 - (y)/100 + (y)/400)
+
+void untime(unsigned long unixtime, SlDateTime_t *tm)
+{
+    /* First take out the hour/minutes/seconds - this part is easy. */
+
+    tm->sl_tm_sec = unixtime % 60;
+    unixtime /= 60;
+
+    tm->sl_tm_min = unixtime % 60;
+    unixtime /= 60;
+
+    tm->sl_tm_hour = unixtime % 24;
+    unixtime /= 24;
+
+    /* unixtime is now days since 01/01/1970 UTC
+     * Rebaseline to the Common Era */
+
+    unixtime += 719499;
+
+    /* Roll forward looking for the year.  This could be done more efficiently
+     * but this will do.  We have to start at 1969 because the year we calculate here
+     * runs from March - so January and February 1970 will come out as 1969 here.
+     */
+    for (tm->sl_tm_year = 1969; unixtime > YEAR_TO_DAYS(tm->sl_tm_year + 1) + 30; tm->sl_tm_year++)
+        ;
+
+    /* OK we have our "year", so subtract off the days accounted for by full years. */
+    unixtime -= YEAR_TO_DAYS(tm->sl_tm_year);
+
+    /* unixtime is now number of days we are into the year (remembering that March 1
+     * is the first day of the "year" still). */
+
+    /* Roll forward looking for the month.  1 = March through to 12 = February. */
+    for (tm->sl_tm_mon = 1; tm->sl_tm_mon < 12 && unixtime > 367*(tm->sl_tm_mon+1)/12; tm->sl_tm_mon++)
+        ;
+
+    /* Subtract off the days accounted for by full months */
+    unixtime -= 367*tm->sl_tm_mon/12;
+
+    /* unixtime is now number of days we are into the month */
+
+    /* Adjust the month/year so that 1 = January, and years start where we
+     * usually expect them to. */
+    tm->sl_tm_mon += 2;
+    if (tm->sl_tm_mon > 12)
+    {
+        tm->sl_tm_mon -= 12;
+        tm->sl_tm_year++;
+    }
+
+    tm->sl_tm_day = unixtime;
+}
+
 unsigned long get_time() {
 	portTickType now = xTaskGetTickCount();
 	static portTickType unix_now = 0;
@@ -93,6 +147,16 @@ unsigned long get_time() {
 			} //wait for a connection the first time...
 
 			ntp = last_ntp = unix_time();
+
+			if( ntp != 0 ) {
+				SlDateTime_t tm;
+				untime( ntp, &tm );
+				UARTprintf( "setting sl time %d:%d:%d day %d mon %d yr %d", tm.sl_tm_hour,tm.sl_tm_min,tm.sl_tm_sec,tm.sl_tm_day,tm.sl_tm_mon,tm.sl_tm_year);
+
+				sl_DevSet(SL_DEVICE_GENERAL_CONFIGURATION,
+						  SL_DEVICE_GENERAL_CONFIGURATION_DATE_TIME,
+						  sizeof(SlDateTime_t),(unsigned char *)(&tm));
+			}
 		}
 
 		unix_now = now;
@@ -136,7 +200,7 @@ void thread_dust(void* unused) {
 static int light_m2,light_mean, light_cnt,light_log_sum,light_sf;
 static xSemaphoreHandle light_smphr;
 
-static xSemaphoreHandle i2c_smphr;
+ xSemaphoreHandle i2c_smphr;
 
 void thread_light(void* unused) {
 	while (1) {
@@ -159,14 +223,9 @@ void thread_light(void* unused) {
 				}
 
 				//UARTprintf( "%d %d %d %d\n", delta, light_mean, light_m2, light_cnt);
-
 				xSemaphoreGive(light_smphr);
 			}
-		} else {
-			vTaskDelay(100);
-			continue;
 		}
-
 		vTaskDelayUntil(&now, 100 );
 	}
 }
@@ -186,7 +245,7 @@ void thread_tx(void* unused) {
 				data.time, data.light, data.light_variability, data.light_tonality, data.temp, data.humid,
 				data.dust);
 
-		while (!send_data_pb(&data) == 0) {
+		while (!send_periodic_data(&data) == 0) {
 			do {vTaskDelay(100);} //wait for a connection...
 			while( !(sl_status&HAS_IP ) );
 		}//try every little bit
@@ -249,7 +308,7 @@ void thread_sensor_poll(void* unused) {
 
 		UARTprintf("delay...\n");
 
-		vTaskDelayUntil(&now, SENSOR_RATE * configTICK_RATE_HZ);
+		vTaskDelayUntil(&now, 60 * configTICK_RATE_HZ);
 	}
 
 }
@@ -320,8 +379,8 @@ int Cmd_fault(int argc, char *argv[]) {
 	return 0;
 }
 int Cmd_mel(int argc, char *argv[]) {
-/*
-	int i;
+    /*
+    int i;
 	short s[1024];
 
 	for (i = 0; i < 1024; ++i) {
@@ -338,7 +397,7 @@ int Cmd_mel(int argc, char *argv[]) {
 		UARTprintf("%d ", s[i]);
 	}
 	UARTprintf("\n");
-*/
+	*/
 	return (0);
 }
 
@@ -355,6 +414,8 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "ping", Cmd_ping, "Ping a server" },
 		{ "time", Cmd_time, "get ntp time" },
 		{ "status", Cmd_status, "status of simple link" },
+		{ "audio", Cmd_audio_test, "audio upload test" },
+
     { "mnt",      Cmd_mnt,      "Mount the SD card" },
     { "umnt",     Cmd_umnt,     "Unount the SD card" },
     { "ls",       Cmd_ls,       "Display list of files" },
@@ -456,11 +517,11 @@ void vUARTTask(void *pvParameters) {
 		UARTprintf("Failed to create the data_queue.\n");
 	}
 
-	xTaskCreate(thread_light, "lightTask", 1 * 1024 / 4, NULL, 3, NULL);
+	xTaskCreate(thread_light, "lightTask", 2 * 1024 / 4, NULL, 3, NULL);
 	xTaskCreate(thread_dust, "dustTask", 256 / 4, NULL, 3, NULL);
-	xTaskCreate(thread_sensor_poll, "pollTask", 1 * 1024 / 4, NULL, 3, NULL);
-	xTaskCreate(thread_tx, "txTask", 2 * 1024 / 4, NULL, 2, NULL);
-	xTaskCreate(thread_ota, "otaTask", 1 * 1024 / 4, NULL, 1, NULL);
+	xTaskCreate(thread_sensor_poll, "pollTask", 2 * 1024 / 4, NULL, 4, NULL);
+	xTaskCreate(thread_tx, "txTask", 3 * 1024 / 4, NULL, 2, NULL);
+	xTaskCreate(thread_ota, "otaTask", 2 * 1024 / 4, NULL, 1, NULL);
 
 	//checkFaults();
 

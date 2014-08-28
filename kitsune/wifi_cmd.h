@@ -20,12 +20,15 @@ unsigned int sl_status;
 int Cmd_connect(int argc, char *argv[]);
 int Cmd_ping(int argc, char *argv[]);
 int Cmd_status(int argc, char *argv[]);
+int Cmd_audio_test(int argc, char *argv[]);
 int Cmd_time(int argc, char*argv[]);
 int Cmd_sl(int argc, char*argv[]);
 int Cmd_mode(int argc, char*argv[]);
 
 unsigned long unix_time();
-int send_data_pb(data_t * data);
+
+int send_periodic_data( data_t * data );
+int send_audio_data( data_t * data );
 
 void thread_ota( void * unused );
 

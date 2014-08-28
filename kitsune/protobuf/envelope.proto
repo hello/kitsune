@@ -1,0 +1,8 @@
+message envelope {
+enum type {
+	PERIODIC_DATA = 1;
+	AUDIO_DATA = 2;
+	}
+required type message_type = 1;
+required bytes message_bytes = 2;
+}
