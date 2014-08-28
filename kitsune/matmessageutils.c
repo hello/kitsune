@@ -28,10 +28,11 @@ static bool write_int16_mat(pb_ostream_t *stream, const pb_field_t *field, void 
     
 }
 
-void SetInt16Matrix(pb_ostream_t * stream,const int16_t * data, int32_t rows, int32_t cols, uint32_t id) {
+size_t SetInt16Matrix(pb_ostream_t * stream,const int16_t * data, int32_t rows, int32_t cols, uint32_t id) {
     
     Matrix mat;
     Int16Array_t desc;
+    size_t size;
     
     memset(&mat,0,sizeof(Matrix));
     desc.data = data;
@@ -42,6 +43,9 @@ void SetInt16Matrix(pb_ostream_t * stream,const int16_t * data, int32_t rows, in
     mat.idata.funcs.encode = write_int16_mat;
     mat.idata.arg = &desc;
     
+    pb_get_encoded_size(&size,Matrix_fields,&mat);
     pb_encode(stream,Matrix_fields,&mat);
+    
+    return size;
 }
 
