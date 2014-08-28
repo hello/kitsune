@@ -4,6 +4,8 @@
 #include "../../kitsune/fft.h"
 #include "../../kitsune/matmessageutils.h"
 #include "../../kitsune/nanopb/pb_encode.h"
+#include "base64.h"
+#include <string.h>
 using namespace std;
 
 #define FFT_SIZE_2N (10)
@@ -18,8 +20,8 @@ int main(int argc, char * argv[]) {
     }
     
     uint8_t buf2[16384];
-
-    pb_ostream_t output = pb_ostream_from_buffer(buf2, 16384);
+    size_t len;
+    pb_ostream_t output;
     
     ifstream inFile (argv[1], ios::in | ios::binary);
     ofstream outFile(argv[2], ios::out | ios::binary);
@@ -32,17 +34,20 @@ int main(int argc, char * argv[]) {
     AudioFeatures_Init();
 
     
-    //pb_encode()
     
     do {
         //read
         inFile.read(buf,sizeof(buf));
 
         if (AudioFeatures_Extract(logmfcc,&isStable,samples, AUDIO_FFT_SIZE)) {
+            memset(buf2,0,sizeof(buf2));
             
-            SetInt16Matrix(&output,logmfcc,1,MEL_SCALE_ROUNDED_UP,0);
+            output = pb_ostream_from_buffer(buf2, 16384);
+
+            len = SetInt16Matrix(&output,logmfcc,1,MEL_SCALE_ROUNDED_UP,0);
+
+            outFile << "logmfcc\t" << base64_encode(buf2,len) <<std::endl;
             
-               outFile.write((const char *)logmfcc,sizeof(logmfcc));
            
         }
         

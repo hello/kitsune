@@ -16,7 +16,8 @@ add_library(EmbeddedAlg STATIC
 
 
 add_executable(pcmrunner
-               pcmrunner.cpp)
+               pcmrunner.cpp
+               base64.cpp)
 
 target_link_libraries(pcmrunner EmbeddedAlg)
 
