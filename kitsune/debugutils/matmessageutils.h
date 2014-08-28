@@ -2,7 +2,7 @@
 #ifndef _MATMESSAGEUTILS_H_
 #define _MATMESSAGEUTILS_H_
 
-#include "nanopb/pb.h"
+#include "../nanopb/pb.h"
 
 #ifdef __cplusplus
 extern "C" {

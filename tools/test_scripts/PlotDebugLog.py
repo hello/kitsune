@@ -19,6 +19,7 @@ def plotData(key,data,fignum):
     if len(data) == 0:
         return
 
+    print 'fig %03d has %d entries' % (fignum,len(data))
     arr = data[0]
     
     #aggregate
@@ -44,10 +45,12 @@ for line in sys.stdin:
     try:
         mydict[key].append(GetMatrixFromData(data))
     except Exception:
-        foo = 3
+        print 'exception for key %s' % key
+        GetMatrixFromData(data)
 
 fignum = 1
 for key in mydict.keys():
+    print key
     plotData(key,mydict[key],fignum)
     fignum = fignum + 1
 

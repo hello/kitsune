@@ -4,6 +4,9 @@ PROJECT (PcmRunner)
 
 set(CMAKE_INCLUDE_PATH ${PROJECT_SOURCE_DIR}/)
 
+add_definitions(-DUSE_CPP_DEBUG_LOGGING)
+
+
 #compile our alg code
 add_library(EmbeddedAlg STATIC
 ../../kitsune/fft.c
@@ -11,13 +14,16 @@ add_library(EmbeddedAlg STATIC
 ../../kitsune/nanopb/pb_decode.c
 ../../kitsune/nanopb/pb_encode.c
 ../../kitsune/protobuf/matrix.pb.c
-../../kitsune/matmessageutils.c
+../../kitsune/debugutils/matmessageutils.c
+../../kitsune/debugutils/DebugLog.cpp
+../../kitsune/debugutils/base64.cpp
 )
 
 
+
+
 add_executable(pcmrunner
-               pcmrunner.cpp
-               base64.cpp)
+               pcmrunner.cpp)
 
 target_link_libraries(pcmrunner EmbeddedAlg)
 
