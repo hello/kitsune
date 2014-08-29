@@ -3,16 +3,55 @@
 #include "../nanopb/pb_encode.h"
 #include "../protobuf/matrix.pb.h"
 
-typedef struct {
-    const int16_t * data;
-    uint32_t len;
-} Int16Array_t;
 
-static bool write_int16_mat(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
-    
+
+static void encode_int_array(pb_ostream_t *stream,IntArray_t * pdesc) {
     uint32_t i;
-    Int16Array_t * pdesc = (Int16Array_t *) (*arg);
-    const int16_t * data = pdesc->data;
+    
+    for(i=0; i < pdesc->len; i++){
+        switch (pdesc->type) {
+                
+            case esint8:
+            {
+                pb_encode_svarint(stream, pdesc->data.sint8[i]);
+                break;
+            }
+            case euint8:
+            {
+                pb_encode_svarint(stream, pdesc->data.uint8[i]);
+                break;
+            }
+            case esint16:
+            {
+                pb_encode_svarint(stream, pdesc->data.sint16[i]);
+                break;
+            }
+            case euint16:
+            {
+                pb_encode_svarint(stream, pdesc->data.uint16[i]);
+                break;
+            }
+            case esint32:
+            {
+                pb_encode_svarint(stream, pdesc->data.sint32[i]);
+                break;
+            }
+            case euint32:
+            {
+                pb_encode_svarint(stream, pdesc->data.uint32[i]);
+                break;
+            }
+                
+            default:
+                //log an error eventually
+                break;
+        }
+    }
+}
+
+static bool write_int_mat(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
+    
+    IntArray_t * pdesc = (IntArray_t *) (*arg);
     pb_ostream_t sizestream = {0};
 
     //write tag
@@ -21,38 +60,32 @@ static bool write_int16_mat(pb_ostream_t *stream, const pb_field_t *field, void 
     }
     
     //find total size of this bad boy
-    for(i=0; i < pdesc->len; i++){
-        pb_encode_svarint(&sizestream, data[i]);
-    }
+    encode_int_array(&sizestream,pdesc);
     
     //write size
     if (!pb_encode_varint(stream, sizestream.bytes_written))
         return 0;
     
     //write payload
-    for(i=0; i < pdesc->len; i++){
-        pb_encode_svarint(stream, data[i]);
-    }
+    encode_int_array(stream,pdesc);
     
     
     return 1;
     
 }
 
-size_t SetInt16Matrix(pb_ostream_t * stream,const int16_t * data, int32_t rows, int32_t cols, uint32_t id, int64_t time) {
+size_t SetIntMatrix(pb_ostream_t * stream,IntArray_t data, int32_t rows, int32_t cols, uint32_t id,int64_t time) {
     
     Matrix mat;
-    Int16Array_t desc;
     size_t size;
     
     memset(&mat,0,sizeof(Matrix));
-    desc.data = data;
-    desc.len = rows*cols;
+    data.len = rows*cols;
     
     mat.id = id;
     mat.datatype = Matrix_DataType_INT;
-    mat.idata.funcs.encode = write_int16_mat;
-    mat.idata.arg = &desc;
+    mat.idata.funcs.encode = write_int_mat;
+    mat.idata.arg = &data;
     mat.time = time;
     mat.rows = rows;
     mat.cols = cols;

@@ -12,7 +12,11 @@ public:
     static void Deinitialize();
     static DebugLogSingleton * Instance();
     
+    void SetDebugVectorS32(const char * name, const int32_t * pdata, uint32_t len);
+    
     void SetDebugVectorS16(const char * name, const int16_t * pdata, uint32_t len);
+    void SetDebugVectorU16(const char * name, const uint16_t * pdata, uint32_t len);
+
     void SetDebugVectorU8(const char * name, const uint8_t * pdata, uint32_t len);
     void SetDebugVectorS8(const char * name, const int8_t * pdata, uint32_t len);
 
