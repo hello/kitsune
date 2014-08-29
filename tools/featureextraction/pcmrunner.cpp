@@ -1,10 +1,8 @@
 #include <iostream>
 #include <fstream>
+
 #include "../../kitsune/audiofeatures.h"
-#include "../../kitsune/fft.h"
-#include "../../kitsune/matmessageutils.h"
-#include "../../kitsune/nanopb/pb_encode.h"
-#include "base64.h"
+#include "../../kitsune/debugutils/DebugLogSingleton.h"
 #include <string.h>
 using namespace std;
 
@@ -19,17 +17,20 @@ int main(int argc, char * argv[]) {
         cerr << "It is assumed that the input is mono, 16 bits per sample, in PCM format (i.e as raw as you can get)" << endl;
     }
     
-    uint8_t buf2[16384];
-    size_t len;
-    pb_ostream_t output;
+    
     
     ifstream inFile (argv[1], ios::in | ios::binary);
-    ofstream outFile(argv[2], ios::out | ios::binary);
+    
+    //init output logging
+    DebugLogSingleton::Initialize(argv[2]);
+
+    
     char buf[2 * FFT_SIZE ];
     const short * samples = (const short *) buf;
     uint8_t isStable;
-  
     int16_t logmfcc[MEL_SCALE_ROUNDED_UP];
+    
+    
     
     AudioFeatures_Init();
 
@@ -39,17 +40,7 @@ int main(int argc, char * argv[]) {
         //read
         inFile.read(buf,sizeof(buf));
 
-        if (AudioFeatures_Extract(logmfcc,&isStable,samples, AUDIO_FFT_SIZE)) {
-            memset(buf2,0,sizeof(buf2));
-            
-            output = pb_ostream_from_buffer(buf2, 16384);
-
-            len = SetInt16Matrix(&output,logmfcc,1,MEL_SCALE_ROUNDED_UP,0);
-
-            outFile << "logmfcc\t" << base64_encode(buf2,len) <<std::endl;
-            
-           
-        }
+        AudioFeatures_Extract(logmfcc,&isStable,samples, AUDIO_FFT_SIZE);
         
         
     } while (inFile);

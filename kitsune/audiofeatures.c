@@ -2,6 +2,7 @@
 #include "fft.h"
 #include <string.h>
 #include <stdlib.h>     /* abs */
+#include "debugutils/debuglog.h"
 
 
 
@@ -88,7 +89,6 @@ static const int32_t k_log_decision_threshold_of_change = TOFIX(0.0f,QFIXEDPOINT
 
 static const uint32_t k_stable_counts_to_be_considered_stable = 3;
 
-static const int16_t k_energy_floor = 100;
 
 /*--------------------------------
  *   Functions
@@ -173,14 +173,7 @@ uint8_t AudioFeatures_UpdateChangeSignals(const int16_t * logmfcc, uint32_t coun
     int16_t change;
     int16_t logliknochange;
     uint8_t isStable;
-    
-    if (newestenergy > 0) {
-        short foo =TOFIX(0.5f,15);
-        short foo2 = TOFIX(0.25f,15);
-        foo = MUL(foo,foo2,15);
-        foo++;
-        
-    }
+   
     
     /* update buffer */
     _data.changebuf[idx] = newestenergy;
@@ -296,6 +289,7 @@ uint8_t AudioFeatures_Extract(int16_t * logmfcc, uint8_t * pIsStable,const int16
     uint16_t i;
     int16_t temp16;
     uint8_t isStable;
+    int8_t mfcc[MEL_SCALE_ROUNDED_UP];
     
     
     memcpy(fr,samples,sizeof(fr));
@@ -342,12 +336,16 @@ uint8_t AudioFeatures_Extract(int16_t * logmfcc, uint8_t * pIsStable,const int16
             temp16 = -128;
         }
         
+        mfcc[i] = (int8_t)temp16;
+        
         
         AudioFeatures_MelAveraging(_data.callcounter,(int8_t)temp16,_data.melbuf[i],&_data.melaccumulator[i]);
         
         logmfcc[i] = _data.melaccumulator[i];
     }
     
+    DEBUG_LOG_S16("logmfcc_avg",logmfcc,MEL_SCALE_ROUNDED_UP);
+    DEBUG_LOG_S8("logmfcc",mfcc,MEL_SCALE_ROUNDED_UP);
     
     isStable = AudioFeatures_UpdateChangeSignals(logmfcc, _data.callcounter);
     
