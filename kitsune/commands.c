@@ -278,6 +278,7 @@ int Cmd_code_playbuff(int argc, char *argv[]) {
 
 //		 unsigned short *tmp = (unsigned short*)buffer;
 		 AudioCapturerInit(); //UARTprintf(" Done for AudioCapturerInit\n ");
+		 //McASPTXINT();
 		 Audio_Start(); //UARTprintf(" Done for Audio_Start\n ");
 
 //#endif
@@ -314,6 +315,93 @@ int Cmd_code_playbuff(int argc, char *argv[]) {
 		 vPortFree(audio_buf); //UARTprintf(" audio_buf\n ");
 	 return 0;
 }
+
+//extern
+
+//unsigned short * record_buf;
+
+int Cmd_record_buff(int argc, char *argv[]) {
+
+#define RECORD_SIZE 2
+
+#define minval( a,b ) a < b ? a : b
+
+unsigned long tok;
+
+int err, i ;
+
+long hndl , bytes;
+
+SlFsFileInfo_t info;
+
+unsigned char content[RECORD_SIZE];
+
+			content[0] = 0xAA;
+			content[1] = 0x78;
+
+//record_buf = (char*)pvPortMalloc(AUDIO_BUF_SZ);
+
+argv[1] = "TONE";
+
+sl_FsDel(argv[1], 0); UARTprintf("delete such a file\n");
+
+sl_FsGetInfo(argv[1], tok, &info);
+
+
+
+//tok = "this is testing this is testing";
+
+if (sl_FsOpen(argv[1], FS_MODE_OPEN_WRITE, &tok, &hndl)) {
+
+UARTprintf("no such a file, trying to create\n");
+
+if (sl_FsOpen(argv[1], FS_MODE_OPEN_CREATE(65535, _FS_FILE_OPEN_FLAG_COMMIT), &tok, &hndl)) {
+
+UARTprintf("error opening for write\n");
+
+return -1;
+														 	 	 	 	 	 	 	 	 	 }
+}
+
+UARTprintf(" Done for testing\n ");
+
+get_codec_mic_NAU(); UARTprintf(" Done for get_codec_NAU\n ");
+
+AudioCaptureRendererConfigure(); //UARTprintf(" Done for AudioCaptureRendererConfigure\n ");
+
+//McASPINTRX(); UARTprintf(" Done for McASPINTRX\n ");
+
+AudioCapturerInit(); UARTprintf(" Done for AudioCapturerInit\n ");
+
+#if 0
+
+Audio_Start(); //UARTprintf(" Done for Audio_Start\n ");
+
+#endif
+
+//content = "this is testing this is testing";
+
+//bytes = sl_FsWrite(hndl, info.FileLen, argv[2], strlen(argv[2]));
+
+//UARTprintf("content is shown here: %d  \n", "this is testing this is testing");
+
+//for (i=0; i < sizeof(content); i++){
+
+bytes = sl_FsWrite(hndl, info.FileLen, content, strlen(content));
+
+//}
+
+UARTprintf("wrote to the file %d bytes\n", bytes);
+
+sl_FsClose(hndl, 0, 0, 0);
+
+//vPortFree(record_buf); //UARTprintf(" audio_buf\n ");
+
+return 0;
+
+}
+
+
 int Cmd_fs_delete(int argc, char *argv[]) {
 	//
 	// Print some header text.
@@ -627,7 +715,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "light", Cmd_readlight, "i2 read light" },
 		{"proximity", Cmd_readproximity, "i2 read proximity" },
 		{"codec_NAU8814", get_codec_NAU, "i2 nuvoton_codec" },
-		//{"codec_Mic", get_codec_mic_NAU, "i2s mic_codec" },
+		{"codec_Mic", get_codec_mic_NAU, "i2s mic_codec" },
 #if ( configUSE_TRACE_FACILITY == 1 )
 		{ "tasks", Cmd_tasks, "Report stats of all tasks" },
 #endif
@@ -638,6 +726,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "fswr", Cmd_fs_write, "fs write" },
 		{ "fsrd", Cmd_fs_read, "fs read" },
 		{ "play_ringtone", Cmd_code_playbuff, "play selected ringtone" },
+		//{ "record_sounds", Cmd_record_buff,"record sounds"},
 		{ "fsdl", Cmd_fs_delete, "fs delete" },
 		//{ "readout", Cmd_readout_data, "read out sensor data log" },
 

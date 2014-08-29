@@ -143,11 +143,17 @@ void McASPInit()
 
     MAP_PRCMPeripheralClkEnable(PRCM_I2S,PRCM_RUN_MODE_CLK); 
     MAP_PRCMI2SClockFreqSet(512000*3);
+      //512000 = 16*2*16000Khz(Num of bytes * STEREO * 16000 sampling)
     MAP_I2SIntRegister(I2S_BASE,I2SIntHandler); // add by ben
     MAP_I2SIntEnable(I2S_BASE,I2S_INT_XDATA); // add by ben
-      //512000 = 16*2*16000Khz(Num of bytes * STEREO * 16000 sampling)
- 
 }
+# if 0
+void McASPTXINT()
+{
+    MAP_I2SIntRegister(I2S_BASE,I2SIntHandler); // add by ben
+    MAP_I2SIntEnable(I2S_BASE,I2S_INT_XDATA); // add by ben
+}
+#endif
 void McASPLoad(unsigned long * b, unsigned long size){
 	playback_buffer = b;
 	playback_buffer_size = size;

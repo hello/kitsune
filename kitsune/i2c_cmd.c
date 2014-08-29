@@ -379,7 +379,7 @@ int Cmd_readproximity(int argc, char *argv[]) {
 	UARTprintf(" proximity is %d\n\r", get_prox());
 	return SUCCESS;
 }
-/*
+
 int get_codec_mic_NAU(int argc, char *argv[]) {
 	#define TRY_OR_GOTOFAIL(a) if(a!=SUCCESS) { UARTprintf( "fail at %s %s\n\r", __FILE__, __LINE__ ); return FAILURE;}
 	unsigned char cmd_init[2];
@@ -439,7 +439,7 @@ int get_codec_mic_NAU(int argc, char *argv[]) {
 
 	return SUCCESS;
 }
-*/
+
 
 int get_codec_NAU(int argc, char *argv[]) {
 	#define TRY_OR_GOTOFAIL(a) if(a!=SUCCESS) { UARTprintf( "fail at %s %s\n\r", __FILE__, __LINE__ ); return FAILURE;}
