@@ -104,14 +104,20 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
 void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent) {
 
     switch (pNetAppEvent->Event) {
-    case SL_NETAPP_IPV4_IPACQUIRED_EVENT:
-    case SL_NETAPP_IPV6_IPACQUIRED_EVENT:
-        UARTprintf("SL_NETAPP_IPV4_ACQUIRED\n\r");
-        sl_status |= HAS_IP;
-        break;
+	case SL_NETAPP_IPV4_IPACQUIRED_EVENT:
+	case SL_NETAPP_IPV6_IPACQUIRED_EVENT:
+		UARTprintf("SL_NETAPP_IPV4_ACQUIRED\n\r");
+		{
+			int seed = (unsigned) PRCMSlowClkCtrGet();
+			UARTprintf("seeding %d\r\n", seed);
+			srand(seed); //seed with low bits of lf clock when connecting(not sure when it happens, gives some more entropy).
+		}
 
-    case SL_NETAPP_IP_LEASED_EVENT:
-        sl_status |= IP_LEASED;
+		sl_status |= HAS_IP;
+		break;
+
+	case SL_NETAPP_IP_LEASED_EVENT:
+		sl_status |= IP_LEASED;
         break;
     default:
         break;
@@ -338,7 +344,7 @@ static bool write_callback_sha(pb_ostream_t *stream, const uint8_t *buf,
     SHA1_Update(&sha1ctx, buf, count);
 
     for (i = 0; i < count; ++i) {
-        UARTprintf("%x", buf);
+        UARTprintf("%c", buf);
     }
     return send(fd, buf, count, 0) == count;
 }
@@ -355,6 +361,8 @@ static bool read_callback(pb_istream_t *stream, uint8_t *buf, size_t count) {
     return result == count;
 }
 
+
+//WARNING not re-entrant! Only 1 of these can be going at a time!
 pb_ostream_t pb_ostream_from_sha_socket(int fd) {
     pb_ostream_t stream =
             { &write_callback_sha, (void*) (intptr_t) fd, SIZE_MAX, 0 };
@@ -589,7 +597,7 @@ int send_data_pb(char * buffer, int buffer_size, const pb_field_t fields[], cons
     {
         pb_ostream_t stream = {0};
         status = pb_encode(&stream, fields, src_struct);
-        message_length = stream.bytes_written + sizeof(sig);
+        message_length = stream.bytes_written + sizeof(sig) + AES_IV_SIZE;
         UARTprintf("message len %d sig len %d\n\r\n\r", stream.bytes_written, sizeof(sig));
     }
 
@@ -618,6 +626,7 @@ int send_data_pb(char * buffer, int buffer_size, const pb_field_t fields[], cons
         pb_ostream_t stream;
         int i;
 
+        //todo guard sha1ctx with semaphore...
         SHA1_Init(&sha1ctx);
 
         /* Create a stream that will write to our buffer. */
@@ -644,12 +653,26 @@ int send_data_pb(char * buffer, int buffer_size, const pb_field_t fields[], cons
         UARTprintf("\n");
 
         AES_CTX aesctx;
+        //memset( aesctx.iv, 0, sizeof( aesctx.iv ) );
+
+        UARTprintf("iv ");
+        for (i = 0; i < sizeof(aesctx.iv); ++i) {
+            aesctx.iv[i] = (uint8_t)rand();
+            UARTprintf("%x", aesctx.iv[i]);
+        }
+        UARTprintf("\n");
+        rv = send(sock, aesctx.iv, AES_IV_SIZE, 0);
+        if (rv != AES_IV_SIZE) {
+            UARTprintf("Sending IV failed: %d\n", rv);
+            return -1;
+        }
+
         AES_set_key(&aesctx, "1234567891234567", aesctx.iv, AES_MODE_128); //todo real key
         AES_cbc_encrypt(&aesctx, sig, sig, sizeof(sig));
 
         rv = send(sock, sig, sizeof(sig), 0);
         if (rv != sizeof(sig)) {
-            UARTprintf("Sending SHA failed: %s\n", rv);
+            UARTprintf("Sending SHA failed: %d\n", rv);
             return -1;
         }
 
@@ -671,7 +694,7 @@ int send_data_pb(char * buffer, int buffer_size, const pb_field_t fields[], cons
 
     UARTprintf("Reply is:\n\r\n\r");
     buffer[buffer_size-2] = 0; //make sure it terminates..
-    UARTprintf("%s", buffer);
+    UARTprintf("%s\n\n", buffer);
 
     //todo check for http response code 2xx
 
@@ -708,11 +731,6 @@ int send_audio_chunk( int16_t * audio_chunk, int samples ) {
     msg.features.funcs.encode = encode_features;
     msg.rate = 44100;
     msg.samples = 1024;
-
-    msg.has_audio_version = 1;
-    msg.has_feature_version = 1;
-    msg.has_rate = 1;
-    msg.has_samples = 1;
 
     return send_data_pb(buffer, sizeof(buffer), audio_data_fields, &msg);
 }
@@ -756,12 +774,6 @@ int send_periodic_data( data_t * data ) {
     msg.unix_time = data->time;
     msg.name.funcs.encode = encode_name;
     msg.mac.funcs.encode = encode_mac;
-
-    msg.has_dust = 1;
-    msg.has_humidity = 1;
-    msg.has_light = 1;
-    msg.has_temperature = 1;
-    msg.has_unix_time = 1;
 
     return send_data_pb(buffer, sizeof(buffer), periodic_data_fields, &msg);
 }
