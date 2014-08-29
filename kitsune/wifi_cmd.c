@@ -646,6 +646,10 @@ int send_data_pb(char * buffer, int buffer_size, const pb_field_t fields[], cons
         //now sign it
         SHA1_Final(sig, &sha1ctx);
 
+        for (i = SHA1_SIZE; i < sizeof(sig); ++i) {
+            sig[i] = (uint8_t)rand();
+        }
+
         UARTprintf("SHA ");
         for (i = 0; i < sizeof(sig); ++i) {
             UARTprintf("%x", sig[i]);
