@@ -321,7 +321,7 @@ void main()
   //
   PinMuxConfig();
 
-  SetupGPIOInterrupts();
+  //SetupGPIOInterrupts();
 
   //
   // Set the SD card clock as output pin

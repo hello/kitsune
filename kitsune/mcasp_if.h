@@ -89,7 +89,9 @@ typedef enum {
 //
 extern void AudioRendererInit();
 extern void AudioCapturerInit();
+extern void AudioCapturerInit_mic();
 extern void McASPInit();
+extern void McASPInit_RX();
 //extern void McASPTXINT();
 extern void AudioRendererSetupCPUMode(void (*pfnAppCbHndlr)(void));
 extern void AudioRendererSetupDMAMode(void (*pfnAppCbHndlr)(void), 

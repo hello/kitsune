@@ -371,7 +371,7 @@ AudioCaptureRendererConfigure(); //UARTprintf(" Done for AudioCaptureRendererCon
 
 //McASPINTRX(); UARTprintf(" Done for McASPINTRX\n ");
 
-AudioCapturerInit(); UARTprintf(" Done for AudioCapturerInit\n ");
+AudioCapturerInit_mic(); UARTprintf(" Done for AudioCapturerInit_mic\n ");
 
 #if 0
 
@@ -726,7 +726,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "fswr", Cmd_fs_write, "fs write" },
 		{ "fsrd", Cmd_fs_read, "fs read" },
 		{ "play_ringtone", Cmd_code_playbuff, "play selected ringtone" },
-		//{ "record_sounds", Cmd_record_buff,"record sounds"},
+		{ "record_sounds", Cmd_record_buff,"record sounds"},
 		{ "fsdl", Cmd_fs_delete, "fs delete" },
 		//{ "readout", Cmd_readout_data, "read out sensor data log" },
 
