@@ -1,3 +1,4 @@
+#define MIN_ENERGY (4)
 
 #include "fft.h"
 #include "stdlib.h" //for abs
@@ -7,6 +8,8 @@
 
 #define LOG2_N_WAVE     (10)
 #define N_WAVE          (1 << LOG2_N_WAVE)        /* dimension of Sinewave[] */
+
+#define MIN_LOG2_Q10_ENERGY (1 << 10)
 
 
 static const uint16_t sin_lut[N_WAVE/4+1] = {
@@ -228,12 +231,22 @@ void fix_window(int16_t fr[], int32_t n)
 }
 
 
-void abs_fft(int16_t psd[], const int16_t fr[],const int16_t fi[],const int16_t len)
+void abs_fft(uint16_t psd[], const int16_t fr[],const int16_t fi[],const int16_t len)
 {
     int i;
+    uint32_t temp;
+    uint16_t x,y;
     
     for (i=0; i < len ; ++i) {
-		psd[i] = abs(fr[i]) + abs(fi[i]);
+        x = abs(fr[i]);
+        y = abs(fi[i]);
+        
+        temp = ((uint32_t)x * (uint32_t)x) + ((uint32_t)y * (uint32_t)y);
+        temp >>= 16;
+    //    if (temp > 0xFFFF) {
+     //       temp = 0xFFFF;
+     //   }
+		psd[i] = (uint16_t) temp;
     }
 }
 
@@ -260,10 +273,10 @@ static const uint8_t k_bit_count_lookup[BIT_COUNT_LOOKUP_SIZE] =
 {0,1,2,2,3,3,3,3,4,4,4,4,4,4,4,4};
 
 
-short CountHighestMsb(uint32_t x) {
+uint8_t CountHighestMsb(uint64_t x) {
     short j;
-    short count = 0;
-    for (j = 0; j < 8; j++) {
+    uint8_t count = 0;
+    for (j = 0; j < 16; j++) {
         if (x < 16) {
             count += k_bit_count_lookup[x];
             break;
@@ -276,29 +289,35 @@ short CountHighestMsb(uint32_t x) {
 
 /*  Not super high precision, but oh wells! */
 #define LOG2_LOOKUP_SIZE_2N (5)
-#define LOG2_LOOKUP_SIZE ((1 << LOG2_LOOKUP_SIZE_2N) + 1)
+#define LOG2_LOOKUP_SIZE ((1 << LOG2_LOOKUP_SIZE_2N))
 
-static const int16_t k_log2_lookup_q8[LOG2_LOOKUP_SIZE] =
-{-32768,-2048,-1792,-1642,-1536,-1454,-1386,-1329,-1280,-1236,-1198,-1162,-1130,-1101,-1073,-1048,-1024,-1002,-980,-961,-942,-924,-906,-890,-874,-859,-845,-831,-817,-804,-792,-780,-768};
+static const int16_t k_log2_lookup_q10[LOG2_LOOKUP_SIZE] =
+{-32768,-5120,-4096,-3497,-3072,-2742,-2473,-2245,-2048,-1874,-1718,-1578,-1449,-1331,-1221,-1119,-1024,-934,-850,-770,-694,-622,-554,-488,-425,-365,-307,-251,-197,-145,-95,-47};
 
-int16_t FixedPointLog2Q8(unsigned int x) {
+/* so if I have .11111000
+   it's 31*2^-5
+
+*/
+
+int16_t FixedPointLog2Q10(uint64_t x) {
+    int16_t ret;
     int16_t msb;
     int16_t shift = 0;
     if (x <= 0) {
-        return k_log2_lookup_q8[0];
+        return k_log2_lookup_q10[0];
     }
     
     msb = CountHighestMsb(x);
     
     if (msb > LOG2_LOOKUP_SIZE_2N) {
-        shift = msb - LOG2_LOOKUP_SIZE_2N;
-        x >>= shift;
+        shift = msb - 10;
+        x >>= (msb - LOG2_LOOKUP_SIZE_2N);
     }
     
-    x = k_log2_lookup_q8[x];
-    x += shift * 256;
+    ret = k_log2_lookup_q10[(uint16_t)x];
+    ret += shift * 1024;
     
-    return x;
+    return ret;
 }
 
 // b - size of the bin in the fft in hz
@@ -308,18 +327,20 @@ int16_t FixedPointLog2Q8(unsigned int x) {
 // f as input is the PSD bin, and is always positive
 // f as output is the mel bins
 
-void mel_freq(uint8_t mel[],const short f[], int nfft, int b ) {
+void mel_freq(int16_t mel[],const int16_t fr[],const int16_t fi[], uint8_t nfft, uint16_t b,uint8_t log2scaleOfRawSignal) {
 	
     // in Hz
     static const uint16_t mel_scale[MEL_SCALE_SIZE] = {20,160,394,670,1000,1420,1900,2450,3120,4000,5100,6600,9000,14000,22050};
-	static const uint8_t mel_log2_normalization[MEL_SCALE_SIZE] = {8,24,29,31,33,35,37,38,40,43,46,49,55,63,69};
+	static const int16_t mel_log2_normalization[MEL_SCALE_SIZE] = {8,5,4,4,4,4,3,3,3,3,2,2,1,0,0};
     int32_t iBin;
 	int32_t iMel;
     const int32_t nbins = 1 << (nfft - 1);
-    uint32_t accumulator;
-    uint32_t test;
+    uint64_t accumulator64;
+    
     int32_t log2mel;
     uint32_t freq;
+    uint16_t ufr;
+    uint16_t ufi;
 
 
 #if 0 //For generating mel scales
@@ -329,40 +350,41 @@ void mel_freq(uint8_t mel[],const short f[], int nfft, int b ) {
 		freq+=250;
 	}
 #endif // 0
-
-	accumulator = 0;
+    
+	accumulator64 = 0;
     iMel = 0;
     freq = 0;
 	
     /* skip dc, start at 1 */
     for(iBin = 1; iBin < nbins; iBin++ ) {
-        test = accumulator + f[iBin];
         
-        //check for saturation
-		if (test < accumulator) {
-            accumulator = 0xFFFFFFFF;
-        }
-        else {
-            accumulator = test;
-        }
+        //take PSD here
+        ufr = abs(fr[iBin]);
+        ufi = abs(fi[iBin]);
         
+        accumulator64 += (uint32_t)ufr*(uint32_t)ufr;
+        accumulator64 += (uint32_t)ufi*(uint32_t)ufi;
         
 		if( freq > mel_scale[iMel] || iBin == nbins - 1 ) {
-			         
-            log2mel = bitlog(accumulator);
-            log2mel -= mel_log2_normalization[iMel];
-            
-            if (log2mel < 0) {
-                log2mel = 0;
+            int8_t scale = -2*log2scaleOfRawSignal + mel_log2_normalization[iMel];
+            if (scale > 0) {
+                accumulator64 <<= scale;
+            }
+            else {
+                accumulator64 >>= -scale;
             }
             
-            if (log2mel > 0xFF) {
-                log2mel = 0xFF;
+            accumulator64 += MIN_LOG2_Q10_ENERGY;
+            log2mel = FixedPointLog2Q10(accumulator64);
+            //log2mel += mel_log2_normalization_q10[iMel];
+            
+            if (log2mel < -32768) {
+                log2mel = -32768;
             }
             
-            mel[iMel] = (uint8_t) log2mel;
+            mel[iMel] =log2mel;
 			
-            accumulator = 0;
+            accumulator64 = 0;
             
             iMel++;
             

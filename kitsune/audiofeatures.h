@@ -10,6 +10,8 @@
 
 #define MEL_SCALE_ROUNDED_UP_2N (4)
 #define MEL_SCALE_ROUNDED_UP (1 << MEL_SCALE_ROUNDED_UP_2N)
+#define NUM_MFCC_FEATURES_2N (3)
+#define NUM_MFCC_FEATURES (1 << NUM_MFCC_FEATURES_2N)
 
 #ifdef __cplusplus
 extern "C" {
@@ -18,7 +20,6 @@ extern "C" {
 
 
 /*  exported for debug and test purposes */
-uint8_t AudioFeatures_MelAveraging(uint32_t idx, int8_t x,int8_t * buf, int16_t * accumulator);
 uint8_t AudioFeatures_UpdateChangeSignals(const int16_t * logmfcc, uint32_t counter);
 
 /*  exported for your enjoyment -- use these! */

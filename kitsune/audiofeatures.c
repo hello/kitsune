@@ -5,7 +5,6 @@
 #include "debugutils/debuglog.h"
 
 
-
 /*
    How is this all going to work? 
    -Extract features, one of which is total energy
@@ -30,7 +29,7 @@
 /*--------------------------------
  *   Memory sizes, constants, macros, and related items
  *--------------------------------*/
-#define MEL_BUF_SIZE_2N (8)
+#define MEL_BUF_SIZE_2N (6)
 #define MEL_BUF_SIZE (1 << MEL_BUF_SIZE_2N)
 #define MEL_BUF_MASK (MEL_BUF_SIZE - 1)
 
@@ -53,8 +52,8 @@
  *--------------------------------*/
 
 typedef struct {
-    int8_t melbuf[MEL_SCALE_ROUNDED_UP][MEL_BUF_SIZE]; //8 x 256 --> 2K
-    int16_t melaccumulator[MEL_SCALE_ROUNDED_UP];
+    int16_t melbuf[MEL_SCALE_ROUNDED_UP][MEL_BUF_SIZE]; //8 * 128 * 2 = 2K
+    int32_t melaccumulator[MEL_SCALE_ROUNDED_UP];
     uint16_t callcounter;
     uint8_t isBufferFull;
     
@@ -97,11 +96,11 @@ void AudioFeatures_Init() {
     memset(&_data,0,sizeof(_data));
 }
 
-uint8_t AudioFeatures_MelAveraging(uint32_t counter, int8_t x,int8_t * buf, int16_t * accumulator) {
+static int16_t MovingAverage16(uint32_t counter, int16_t x,int16_t * buf, int32_t * accumulator) {
     const uint16_t idx = counter & MEL_BUF_MASK;
     
     /* accumulate */
-    uint16_t a = *accumulator;
+    uint32_t a = *accumulator;
     /* add new measurement to accumulator */
     a += x;
     
@@ -271,6 +270,38 @@ uint8_t AudioFeatures_UpdateChangeSignals(const int16_t * logmfcc, uint32_t coun
     
 }
 
+static void ScaleInt16Vector(int16_t * vec, uint8_t * scaling, uint16_t len,uint8_t desiredscaling) {
+    uint16_t utemp16;
+    uint16_t max;
+    uint16_t i;
+    uint8_t log2scale;
+    
+    /* Normalize signal  */
+    max = 0;
+    
+    for (i = 0; i < len; i++) {
+        utemp16 = abs(vec[i]);
+        
+        if (utemp16 > max) {
+            max = utemp16;
+        }
+    }
+    
+    log2scale = desiredscaling - CountHighestMsb(max);
+    
+    if (log2scale > 0) {
+        for (i = 0; i < len; i++) {
+            vec[i] = vec[i] << log2scale;
+        }
+    }
+    else {
+        log2scale = 0;
+    }
+    
+    *scaling = log2scale;
+    
+}
+
 /* 
  *  Given AUDIO_FFT_SIZE of samples, it will return the time averaged MFCC coefficients.
  *
@@ -279,30 +310,35 @@ uint8_t AudioFeatures_UpdateChangeSignals(const int16_t * logmfcc, uint32_t coun
  *  TODO: Put in delta MFCC features, and maybe average those too.
  *
  */
+#define RAW_SAMPLES_SCALE (14)
+
 uint8_t AudioFeatures_Extract(int16_t * logmfcc, uint8_t * pIsStable,const int16_t samples[],int16_t nfftsize) {
     //enjoy this nice large stack.
     //this can all go away if we get fftr to work, and do the
     int16_t fr[AUDIO_FFT_SIZE]; //2K
-    int16_t fi[AUDIO_FFT_SIZE] = {0}; //2K
-    int16_t psd[AUDIO_FFT_SIZE >> 1]; //1K
-    uint8_t mel[MEL_SCALE_SIZE]; //inconsiquential
+    int16_t fi[AUDIO_FFT_SIZE]; //2K
+    int16_t mel[MEL_SCALE_SIZE]; //inconsiquential
     uint16_t i;
-    int16_t temp16;
+    uint8_t log2scaleOfRawSignal;
     uint8_t isStable;
-    int8_t mfcc[MEL_SCALE_ROUNDED_UP];
+    int16_t mfcc[NUM_MFCC_FEATURES];
+    int32_t mfccavg[NUM_MFCC_FEATURES];
     
+    /* Copy in raw samples, zero out complex part of fft input*/
+    memcpy(fr,samples,AUDIO_FFT_SIZE*sizeof(int16_t));
+    memset(fi,0,sizeof(fi));
     
-    memcpy(fr,samples,sizeof(fr));
-    
+    /* Normalize time series signal  */
+    ScaleInt16Vector(fr,&log2scaleOfRawSignal,AUDIO_FFT_SIZE,RAW_SAMPLES_SCALE);
+
     /* Get FFT */
     fft(fr,fi, AUDIO_FFT_SIZE_2N);
     
-    /* Get "PSD" */
-    abs_fft(psd, samples, fi, AUDIO_FFT_SIZE >> 1);
+    /* Get Log Mel */
+    mel_freq(mel,fr,fi,AUDIO_FFT_SIZE_2N,EXPECTED_AUDIO_SAMPLE_RATE_HZ / AUDIO_FFT_SIZE,log2scaleOfRawSignal);
     
-    /* Get Mel */
-    mel_freq(mel, psd,AUDIO_FFT_SIZE_2N,EXPECTED_AUDIO_SAMPLE_RATE_HZ / AUDIO_FFT_SIZE);
-    
+    DEBUG_LOG_S16("logmel",mel,MEL_SCALE_SIZE);
+
     /*  get dct of mel,zero padded */
     memset(fr,0,MEL_SCALE_ROUNDED_UP*sizeof(int16_t));
     memset(fi,0,MEL_SCALE_ROUNDED_UP*sizeof(int16_t));
@@ -311,45 +347,25 @@ uint8_t AudioFeatures_Extract(int16_t * logmfcc, uint8_t * pIsStable,const int16
         fr[i] = (int16_t)mel[i];
     }
     
+    
     /* fr will contain the dct */
-    fft(fr,fi,MEL_SCALE_ROUNDED_UP_2N);
-    
-    for (i = 0; i < MEL_SCALE_ROUNDED_UP; i++) {
-        //signed bitlog!
-        temp16 = bitlog(abs(fr[i]));
-        if (fr[i] < 0) {
-            temp16 = -temp16;
-        }
-        
-        fr[i] = temp16;
-    }
-    
+    fft(fr,fi,NUM_MFCC_FEATURES_2N + 1);
+    DEBUG_LOG_S16("mfcc",fr,NUM_MFCC_FEATURES);
+
+
     /* Moving Average */
-    for (i = 0; i < MEL_SCALE_ROUNDED_UP; i++) {
-        temp16 = fr[i];
+    for (i = 0; i < NUM_MFCC_FEATURES; i++) {
+        mfcc[i] = MovingAverage16(_data.callcounter,fr[i],_data.melbuf[i],&_data.melaccumulator[i]);
         
-        if (temp16 > 127) {
-            temp16 = 127;
-        }
-        
-        if (temp16 <= -128) {
-            temp16 = -128;
-        }
-        
-        mfcc[i] = (int8_t)temp16;
-        
-        
-        AudioFeatures_MelAveraging(_data.callcounter,(int8_t)temp16,_data.melbuf[i],&_data.melaccumulator[i]);
-        
-        logmfcc[i] = _data.melaccumulator[i];
+        mfccavg[i] = _data.melaccumulator[i];
     }
-    
-    DEBUG_LOG_S16("logmfcc_avg",logmfcc,MEL_SCALE_ROUNDED_UP);
-    DEBUG_LOG_S8("logmfcc",mfcc,MEL_SCALE_ROUNDED_UP);
+
+
+    DEBUG_LOG_S32("mfcc_avg",mfccavg,NUM_MFCC_FEATURES);
     
     isStable = AudioFeatures_UpdateChangeSignals(logmfcc, _data.callcounter);
     
-    SegmentSteadyState(isStable,logmfcc);
+    SegmentSteadyState(isStable,mfcc);
     
     /* Update counter */
     
@@ -360,5 +376,8 @@ uint8_t AudioFeatures_Extract(int16_t * logmfcc, uint8_t * pIsStable,const int16
     }
     
     *pIsStable = isStable;
+    
+    memcpy(logmfcc, mfcc, MEL_SCALE_ROUNDED_UP*sizeof(int16_t));
+    
     return _data.isBufferFull;
 }
