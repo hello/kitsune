@@ -5,6 +5,7 @@ import sys
 import numpy as np
 import matplotlib.pyplot as plt
 
+max_num_plot_lines = 50
 
 def GetMatrixFromData(data):
     binarydata = base64.b64decode(data)
@@ -19,16 +20,21 @@ def plotData(key,data,fignum):
     if len(data) == 0:
         return
 
-    print 'fig %03d has %d entries' % (fignum,len(data))
-    arr = data[0]
+    arr = np.array(data[0])
     
     #aggregate
-    for j in range(1,len(data)):
-        arr = np.concatenate((arr,data[j]),axis=0)
+    if arr.shape[1] <= max_num_plot_lines:
+        for j in range(1,len(data)):
+            arr = np.concatenate((arr,data[j]),axis=0)
+	x = np.array(range(len(data)))
+    else:
+        for j in range(1,len(data)):
+            arr = np.concatenate((arr,data[j]),axis=1)
+        x = np.array(range(arr.shape[1]))
+        arr = arr[0,:]
 
+    print 'fig %03d,%s, has %d entries' % (fignum,key,len(x))
 
-    x = np.array(range(len(data)))
-    
     plt.figure(fignum)
     plt.plot(x,arr)
     plt.title(key)
@@ -50,7 +56,6 @@ for line in sys.stdin:
 
 fignum = 1
 for key in mydict.keys():
-    print key
     plotData(key,mydict[key],fignum)
     fignum = fignum + 1
 
