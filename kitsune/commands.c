@@ -235,6 +235,8 @@ xQueueHandle data_queue = 0;
 void thread_tx(void* unused) {
 	data_t data;
 
+	load_aes();
+
 	while (1) {
 		if( data_queue != 0 && !xQueueReceive( data_queue, &( data ), portMAX_DELAY ) ) {
 			vTaskDelay(100);

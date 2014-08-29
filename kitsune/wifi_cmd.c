@@ -324,6 +324,32 @@ int Cmd_mode(int argc, char*argv[]) {
     return 0;
 }
 
+#include "crypto.h"
+static uint8_t aes_key[AES_BLOCKSIZE + 1];
+
+void load_aes() {
+	long DeviceFileHandle = -1;
+	int RetVal, Offset;
+
+	// read in aes key
+	RetVal = sl_FsOpen("/cert/key.aes", FS_MODE_OPEN_READ, NULL,
+			&DeviceFileHandle);
+	if (RetVal != 0) {
+		UARTprintf("failed to open aes key file\n");
+	}
+
+	Offset = 0;
+	RetVal = sl_FsRead(DeviceFileHandle, Offset, (unsigned char *) aes_key,
+			AES_BLOCKSIZE);
+	if (RetVal != AES_BLOCKSIZE) {
+		UARTprintf("failed to read aes key file\n");
+	}
+	aes_key[AES_BLOCKSIZE] = 0;
+	UARTprintf("read key %s\n", aes_key);
+
+	RetVal = sl_FsClose(DeviceFileHandle, NULL, NULL, 0);
+}
+
 /* protobuf includes */
 #include <pb.h>
 #include <pb_encode.h>
@@ -349,11 +375,17 @@ static bool write_callback_sha(pb_ostream_t *stream, const uint8_t *buf,
     return send(fd, buf, count, 0) == count;
 }
 
-static bool read_callback(pb_istream_t *stream, uint8_t *buf, size_t count) {
+static bool read_callback_sha(pb_istream_t *stream, uint8_t *buf, size_t count) {
     int fd = (intptr_t) stream->state;
-    int result;
+    int result,i;
 
     result = recv(fd, buf, count, 0);
+
+    SHA1_Update(&sha1ctx, buf, count);
+
+    for (i = 0; i < count; ++i) {
+        UARTprintf("%c", buf);
+    }
 
     if (result == 0)
         stream->bytes_left = 0; /* EOF */
@@ -369,8 +401,8 @@ pb_ostream_t pb_ostream_from_sha_socket(int fd) {
     return stream;
 }
 
-pb_istream_t pb_istream_from_socket(int fd) {
-    pb_istream_t stream = { &read_callback, (void*) (intptr_t) fd, SIZE_MAX };
+pb_istream_t pb_istream_from_sha_socket(int fd) {
+    pb_istream_t stream = { &read_callback_sha, (void*) (intptr_t) fd, SIZE_MAX };
     return stream;
 }
 
@@ -601,7 +633,7 @@ int send_data_pb(char * buffer, int buffer_size, const pb_field_t fields[], cons
         UARTprintf("message len %d sig len %d\n\r\n\r", stream.bytes_written, sizeof(sig));
     }
 
-    snprintf(buffer, buffer_size, "POST /in/morpheus/pb HTTP/1.1\r\n"
+    snprintf(buffer, buffer_size, "POST /in/morpheus/pb2 HTTP/1.1\r\n"
             "Host: in.skeletor.com\r\n"
             "Content-type: application/x-protobuf\r\n"
             "Content-length: %d\r\n"
@@ -671,7 +703,7 @@ int send_data_pb(char * buffer, int buffer_size, const pb_field_t fields[], cons
             return -1;
         }
 
-        AES_set_key(&aesctx, "1234567891234567", aesctx.iv, AES_MODE_128); //todo real key
+        AES_set_key(&aesctx, aes_key, aesctx.iv, AES_MODE_128); //todo real key
         AES_cbc_encrypt(&aesctx, sig, sig, sizeof(sig));
 
         rv = send(sock, sig, sizeof(sig), 0);
@@ -707,6 +739,69 @@ int send_data_pb(char * buffer, int buffer_size, const pb_field_t fields[], cons
 
     return 0;
 }
+
+#if 0
+int rx_data_pb(unsigned char * buffer, int buffer_size ) {
+	AES_CTX aesctx;
+	unsigned char * buf_pos = buffer;
+	unsigned char sig[32];
+	unsigned char sig_test[32];
+
+	//memset( aesctx.iv, 0, sizeof( aesctx.iv ) );
+
+	UARTprintf("iv ");
+	for (i = 0; i < sizeof(aesctx.iv); ++i) {
+		aesctx.iv[i] = *buf_pos++;
+		UARTprintf("%x", aesctx.iv[i]);
+		if( buf_pos > (buffer+buffer_size)) {return -1;}
+	}
+	UARTprintf("\n");
+	UARTprintf("sig");
+	for (i = 0; i < sizeof(sig); ++i) {
+		sig[i] = *buf_pos++;
+		UARTprintf("%x", sig[i]);
+		if( buf_pos > (buffer+buffer_size)) {return -1;}
+	}
+	UARTprintf("\n");
+
+	AES_set_key(&aesctx, aes_key, aesctx.iv, AES_MODE_128); //todo real key
+	AES_cbc_decrypt(&aesctx, sig, sig, sizeof(sig));
+
+	SHA1_Init(&sha1ctx);
+
+	/* Create a stream that will read from our buffer. */
+	stream = pb_istream_from_sha_socket(sock);
+	/* Now we are ready to decode the message! */
+
+	UARTprintf("data ");
+	status = pb_decode(&stream, downlink_data_fields, downlink_data );
+	UARTprintf("\n");
+
+	/* Then just check for any errors.. */
+	if (!status) {
+		UARTprintf("Decoding failed: %s\n", PB_GET_ERROR(&stream));
+		return -1;
+	}
+
+	//now verify sig
+	SHA1_Final(sig_test, &sha1ctx);
+	if( memcmp( sig, sig_test, SHA1_SIZE ) != 0 ) {
+		UARTprintf("signatures do not match\n");
+		for(i=0;i<SHA1_SIZE;++i) {
+			UARTprintf("%x", sig[i] );
+		}
+		UARTprintf("\nvs\n");
+		for(i=0;i<SHA1_SIZE;++i) {
+			UARTprintf("%x", sig_test[i] );
+		}
+		UARTprintf("\n");
+		return -1;
+	}
+
+	//now act on incoming data!
+	return 0;
+}
+#endif
 
 
 bool encode_audio_chunk(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
