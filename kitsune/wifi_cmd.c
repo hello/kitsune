@@ -510,7 +510,7 @@ int send_audio_wifi(char * buffer, int buffer_size, audio_read_cb arcb) {
     int rv = 0;
     int message_length;
     unsigned char mac[6];
-#if 1
+#if 0
     mac[0] = 0xab;
     mac[1] = 0xcd;
     mac[2] = 0xab;
@@ -739,7 +739,7 @@ bool encode_mac(pb_ostream_t *stream, const pb_field_t *field, void * const *arg
     unsigned char tagtype = (7 << 3) | 0x2; // field_number << 3 | 2 (length deliminated)
     unsigned char mac[6];
     unsigned char mac_len = 6;
-#if 1
+#if 0
     mac[0] = 0xab;
     mac[1] = 0xcd;
     mac[2] = 0xab;
