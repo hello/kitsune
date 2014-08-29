@@ -39,6 +39,9 @@ int main(int argc, char * argv[]) {
     do {
         //read
         inFile.read(buf,sizeof(buf));
+        
+        //DebugLogSingleton::Instance()->SetDebugVectorS16("signalx", samples, FFT_SIZE);
+        
 
         AudioFeatures_Extract(logmfcc,&isStable,samples, AUDIO_FFT_SIZE);
         
