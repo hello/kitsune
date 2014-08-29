@@ -33,7 +33,7 @@ def plotData(key,data,fignum):
         x = np.array(range(arr.shape[1]))
         arr = arr[0,:]
 
-    print 'fig %03d,%s, has %d entries' % (fignum,key,len(x))
+    print 'fig %03d,%s, has is %d x %d' % (fignum,key,arr.shape[0],arr.shape[1])
 
     plt.figure(fignum)
     plt.plot(x,arr)
