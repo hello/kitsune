@@ -72,7 +72,7 @@ PinMuxConfig(void)
     //
     // Configure PIN_50 for MCASP0 McAXR1
     //
-    MAP_PinTypeI2S(PIN_50, PIN_MODE_6);
+   // MAP_PinTypeI2S(PIN_50, PIN_MODE_6);
 
     //
     // Configure PIN_55 for UART0 UART0_TX
@@ -126,7 +126,7 @@ PinMuxConfig(void)
     //
     // Configure PIN_03 for MCASP0 McACLK
     //
-    MAP_PinTypeI2S(PIN_03, PIN_MODE_3);
+   // MAP_PinTypeI2S(PIN_03, PIN_MODE_3);
 
     //
     // Configure PIN_04 for GPIOOutputOD
@@ -163,14 +163,14 @@ PinMuxConfig(void)
     //
     // Configure PIN_45 for MCASP0 McAXR0
     //
-    MAP_PinTypeI2S(PIN_45, PIN_MODE_6);
+   // MAP_PinTypeI2S(PIN_45, PIN_MODE_6);
      //
      // Configure PIN_63 for MCASP0 McAFSX
      MAP_PinTypeI2S(PIN_63, PIN_MODE_7);
      // Configure PIN_53 for MCASP0 McACLK
-     MAP_PinTypeI2S(PIN_53, PIN_MODE_2);
+     MAP_PinTypeI2S(PIN_03, PIN_MODE_3);
      // Configure PIN_64 for MCASP0 McAXR0
-     MAP_PinTypeI2S(PIN_64, PIN_MODE_7);
+     MAP_PinTypeI2S(PIN_45, PIN_MODE_6);
      // Configure PIN_50 for MCASP0 McAXR1
      MAP_PinTypeI2S(PIN_50, PIN_MODE_6);
     //
