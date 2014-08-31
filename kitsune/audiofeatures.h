@@ -20,7 +20,7 @@ extern "C" {
 
 
 /*  exported for debug and test purposes */
-uint8_t AudioFeatures_UpdateChangeSignals(const int16_t * logmfcc, uint32_t counter);
+uint8_t AudioFeatures_UpdateChangeSignals(const int32_t * mfccavg, uint32_t counter);
 
 /*  exported for your enjoyment -- use these! */
 void AudioFeatures_Init();

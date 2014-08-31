@@ -40,6 +40,9 @@
 #define MUL(a,b,q)\
   ((int16_t)((((int32_t)(a)) * ((int32_t)(b))) >> q))
 
+#define MUL_PRECISE_RESULT(a,b,q)\
+((int32_t)((((int32_t)(a)) * ((int32_t)(b))) >> q))
+
 #define TOFIX(x,q)\
   ((int32_t) ((x) * (float)(1 << (q))))
 
@@ -47,9 +50,36 @@
 #define TRUE (1)
 #define FALSE (0)
 
+#define MAX_INT_16 (32767)
+
+//purposely DO NOT MAKE THIS -32768
+// abs(-32768) is 32768.  I can't represent this number with an int16 type!
+#define MIN_INT_16 (-32767)
+
+/* Have fun tuning these magic numbers!
+ Perhaps eventually we will have some pre-canned
+ data to show you how?  */
+
+//the higher this gets, the less likely you are to be stable
+static const int16_t k_stable_likelihood_coefficient = TOFIX(0.05f,QFIXEDPOINT);
+
+//the closer this gets to zero, the more likely it is that you will be increasing or decreasing
+static const int16_t k_change_log_likelihood = TOFIX(-0.05f,QFIXEDPOINT);
+
+//the closer this gets to zero, the shorter the amount of time it will take to switch between modes
+static const int32_t k_min_log_prob = TOFIX(-1.5f,QFIXEDPOINT);
+
+static const uint32_t k_stable_counts_to_be_considered_stable = 3;
+
 /*--------------------------------
  *   Types
  *--------------------------------*/
+typedef enum {
+    stable,
+    increasing,
+    decreasing,
+    numChangeModes
+} EChangeModes_t;
 
 typedef struct {
     int16_t melbuf[MEL_SCALE_ROUNDED_UP][MEL_BUF_SIZE]; //8 * 128 * 2 = 2K
@@ -57,8 +87,8 @@ typedef struct {
     uint16_t callcounter;
     uint8_t isBufferFull;
     
-    int16_t changebuf[CHANGE_SIGNAL_BUF_SIZE];
-    int32_t logLikelihoodOfProbabilityRatio;
+    int32_t changebuf[CHANGE_SIGNAL_BUF_SIZE];
+    int32_t logProbOfModes[numChangeModes];
     uint8_t isStable;
     int16_t energyStable;
     uint32_t stableCount;
@@ -77,16 +107,7 @@ typedef enum {
  *--------------------------------*/
 static MelFeatures_t _data;
 
-/* Have fun tuning these magic numbers! 
-   Perhaps eventually we will have some pre-canned
-   data to show you how?  */
-static const int16_t k_nochange_likelihood_coefficient = TOFIX(4.0f,QFIXEDPOINT);
-static const int16_t k_change_log_likelihood = TOFIX(-0.2f,QFIXEDPOINT);
-static const int32_t k_max_log_likelihood_difference = TOFIX(10.0f,QFIXEDPOINT);
-static const int32_t k_min_log_likelihood_difference = TOFIX(-10.0f,QFIXEDPOINT);
-static const int32_t k_log_decision_threshold_of_change = TOFIX(0.0f,QFIXEDPOINT);
 
-static const uint32_t k_stable_counts_to_be_considered_stable = 3;
 
 
 /*--------------------------------
@@ -165,20 +186,38 @@ static void SegmentSteadyState(uint8_t isStable,const int16_t * logmfcc) {
 }
 
 
-uint8_t AudioFeatures_UpdateChangeSignals(const int16_t * logmfcc, uint32_t counter) {
+uint8_t AudioFeatures_UpdateChangeSignals(const int32_t * mfccavg, uint32_t counter) {
     const uint16_t idx = counter & CHANGE_SIGNAL_BUF_MASK;
-    int16_t newestenergy = logmfcc[0];
-    int16_t oldestenergy = _data.changebuf[idx];
-    int16_t change;
-    int16_t logliknochange;
+    int32_t newestenergy = mfccavg[0];
+    int32_t oldestenergy = _data.changebuf[idx];
+    int32_t change32;
+    int16_t change16;
+    int32_t logLikelihoodOfModePdfs[numChangeModes];
     uint8_t isStable;
+    int32_t * logProbOfModes = _data.logProbOfModes;
+    int16_t i;
+    int16_t maxidx;
+    int32_t maxlogprob;
+    
    
     
     /* update buffer */
     _data.changebuf[idx] = newestenergy;
 
-    change = newestenergy - oldestenergy;
+    change32 = (int32_t)newestenergy - (int32_t)oldestenergy;
+    //DEBUG_LOG_S32("change32", &change32, 1);
+
+    if (change32 < MIN_INT_16) {
+        change32 = MIN_INT_16;
+    }
     
+    if (change32 > MAX_INT_16) {
+        change32 = MAX_INT_16;
+    }
+    
+    change16 = change32;
+    //DEBUG_LOG_S16("change16", &change16, 1);
+
     //evaluate log likelihood and compute Bayes update
     /*
      
@@ -208,8 +247,23 @@ uint8_t AudioFeatures_UpdateChangeSignals(const int16_t * logmfcc, uint32_t coun
 
      
      */
-    change = -abs(change);
-    logliknochange = MUL(change,k_nochange_likelihood_coefficient,QFIXEDPOINT);
+    
+    if (change16 > 0) {
+        logLikelihoodOfModePdfs[increasing] = k_change_log_likelihood;
+        logLikelihoodOfModePdfs[decreasing] = MIN_INT_16;
+    }
+    else if (change16 < 0) {
+        logLikelihoodOfModePdfs[increasing] = MIN_INT_16;
+        logLikelihoodOfModePdfs[decreasing] = k_change_log_likelihood;
+
+    }
+    else {
+        logLikelihoodOfModePdfs[increasing] = k_change_log_likelihood;
+        logLikelihoodOfModePdfs[decreasing] = k_change_log_likelihood;
+    }
+    
+    change16 = -abs(change16);
+    logLikelihoodOfModePdfs[stable] = MUL_PRECISE_RESULT(change16,k_stable_likelihood_coefficient,QFIXEDPOINT);
     
     
     
@@ -247,25 +301,37 @@ uint8_t AudioFeatures_UpdateChangeSignals(const int16_t * logmfcc, uint32_t coun
      
      */
     
-    _data.logLikelihoodOfProbabilityRatio += logliknochange;
-    _data.logLikelihoodOfProbabilityRatio -= k_change_log_likelihood;
-    
-    //enforce minimum probabilties of either hypothesis
-    if (_data.logLikelihoodOfProbabilityRatio > k_max_log_likelihood_difference) {
-        _data.logLikelihoodOfProbabilityRatio = k_max_log_likelihood_difference;
+   
+    for (i = 0; i < numChangeModes; i++) {
+        logProbOfModes[i] += logLikelihoodOfModePdfs[i];
     }
     
-    if (_data.logLikelihoodOfProbabilityRatio < k_min_log_likelihood_difference) {
-        _data.logLikelihoodOfProbabilityRatio = k_min_log_likelihood_difference;
+    
+    /* normalize -- the highest log probability will now be 0 */
+    maxlogprob = logProbOfModes[0];
+    maxidx = 0;
+    for (i = 1; i < numChangeModes; i++) {
+        if (logProbOfModes[i] > maxlogprob) {
+            maxlogprob = logProbOfModes[i];
+            maxidx = i;
+        }
     }
     
-    if (_data.logLikelihoodOfProbabilityRatio > k_log_decision_threshold_of_change) {
-        isStable = TRUE;
-    }
-    else {
-        isStable = FALSE;
+    for (i = 0; i < numChangeModes; i++) {
+        logProbOfModes[i] -= maxlogprob;
     }
     
+    /* enforce min log prob */
+    for (i = 0; i < numChangeModes; i++) {
+        if (logProbOfModes[i] < k_min_log_prob) {
+            logProbOfModes[i] = k_min_log_prob;
+        }
+    }
+    
+    isStable = (maxidx == stable);
+    
+    //DEBUG_LOG_S32("logProbOfModes",logProbOfModes,3);
+    DEBUG_LOG_S16("mode", &maxidx, 1);
     return isStable;
     
 }
@@ -337,7 +403,7 @@ uint8_t AudioFeatures_Extract(int16_t * logmfcc, uint8_t * pIsStable,const int16
     /* Get Log Mel */
     mel_freq(mel,fr,fi,AUDIO_FFT_SIZE_2N,EXPECTED_AUDIO_SAMPLE_RATE_HZ / AUDIO_FFT_SIZE,log2scaleOfRawSignal);
     
-    DEBUG_LOG_S16("logmel",mel,MEL_SCALE_SIZE);
+    //DEBUG_LOG_S16("logmel",mel,MEL_SCALE_SIZE);
 
     /*  get dct of mel,zero padded */
     memset(fr,0,MEL_SCALE_ROUNDED_UP*sizeof(int16_t));
@@ -350,7 +416,7 @@ uint8_t AudioFeatures_Extract(int16_t * logmfcc, uint8_t * pIsStable,const int16
     
     /* fr will contain the dct */
     fft(fr,fi,NUM_MFCC_FEATURES_2N + 1);
-    DEBUG_LOG_S16("mfcc",fr,NUM_MFCC_FEATURES);
+    //DEBUG_LOG_S16("mfcc",fr,NUM_MFCC_FEATURES);
 
 
     /* Moving Average */
@@ -363,7 +429,7 @@ uint8_t AudioFeatures_Extract(int16_t * logmfcc, uint8_t * pIsStable,const int16
 
     DEBUG_LOG_S32("mfcc_avg",mfccavg,NUM_MFCC_FEATURES);
     
-    isStable = AudioFeatures_UpdateChangeSignals(logmfcc, _data.callcounter);
+    isStable = AudioFeatures_UpdateChangeSignals(mfccavg, _data.callcounter);
     
     SegmentSteadyState(isStable,mfcc);
     
