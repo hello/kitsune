@@ -79,6 +79,11 @@ static const uint32_t k_stable_counts_to_be_considered_stable =  STABLE_TIME_TO_
 #define STEADY_STATE_SEGMENT_PERIOD_IN_MILLISECONDS (10000)
 static const uint32_t k_stable_count_period_in_counts = STEADY_STATE_SEGMENT_PERIOD_IN_MILLISECONDS / SAMPLE_PERIOD_IN_MILLISECONDS;
 
+#define MIN_SEGMENT_TIME_IN_MILLISECONDS (500)
+static const uint32_t k_min_segment_time_in_counts = MIN_SEGMENT_TIME_IN_MILLISECONDS / SAMPLE_PERIOD_IN_MILLISECONDS;
+
+
+
 /*--------------------------------
  *   Types
  *--------------------------------*/
@@ -100,8 +105,8 @@ typedef struct {
     int16_t energyStable;
     uint32_t stableCount;
     uint32_t stablePeriodCounter;
-    EChangeModes_t lastModes[2];
-    int64_t modechangeTimes[2];
+    EChangeModes_t lastModes[3];
+    int64_t modechangeTimes[3];
     int32_t featuresAtModeChange[2][NUM_MFCC_FEATURES];
 
     SegmentAndFeatureCallback_t fpCallback;
@@ -201,10 +206,11 @@ static void SegmentSteadyState(EChangeModes_t currentMode,const int32_t * mfccav
         _data.stableCount = 0xFFFFFFFF;
     };
     
-    //segment steady state
+    //segment steady state (i.e. energy has been the same)
     if (_data.stableCount > k_stable_counts_to_be_considered_stable) {
         
         //if stable for long enough, erase all history
+        _data.lastModes[2] = stable;
         _data.lastModes[1] = stable;
         _data.lastModes[0] = stable;
         
@@ -221,43 +227,58 @@ static void SegmentSteadyState(EChangeModes_t currentMode,const int32_t * mfccav
             //reset period counter
             _data.stablePeriodCounter = 0;
             
-            //update mode change times
+            //update mode change history
+            _data.modechangeTimes[2] = _data.modechangeTimes[1];
             _data.modechangeTimes[1] = _data.modechangeTimes[0];
             _data.modechangeTimes[0] = samplecount;
             
-            memcpy(_data.featuresAtModeChange[0],mfccavg,NUM_MFCC_FEATURES*sizeof(int32_t));
+            //update feature history
             memcpy(_data.featuresAtModeChange[1],_data.featuresAtModeChange[0],NUM_MFCC_FEATURES*sizeof(int32_t));
+            memcpy(_data.featuresAtModeChange[0],mfccavg,NUM_MFCC_FEATURES*sizeof(int32_t));
 
         }
     }
 
     
-    //segment out a transition
-    if ( (_data.lastModes[1] == stable || _data.lastModes[1] == increasing) &&
+    //segment out a burst of energy
+    if ( (( _data.lastModes[1] == stable && _data.lastModes[2] == increasing) || _data.lastModes[1] == increasing) &&
         _data.lastModes[0] == decreasing &&
         currentMode != decreasing) {
         
         // Segment!
         Segment_t seg;
-        seg.startOfSegment = _data.modechangeTimes[1];
+        
+        //set segment start time when it actually began increasing
+        if (_data.lastModes[1] == increasing) {
+            seg.startOfSegment = _data.modechangeTimes[1];
+        }
+        else {
+            seg.startOfSegment = _data.modechangeTimes[2];
+        }
         seg.endOfSegment = samplecount;
-    
-        if (_data.fpCallback) {
-            _data.fpCallback(_data.featuresAtModeChange[0],&seg);
+        
+        if (seg.endOfSegment - seg.startOfSegment > k_min_segment_time_in_counts) {
+            
+            if (_data.fpCallback) {
+                _data.fpCallback(_data.featuresAtModeChange[0],&seg);
+            }
         }
     }
     
 
     //if there was a mode change, track when it happend
     if (currentMode != _data.lastModes[0]) {
+        
+        _data.lastModes[2] = _data.lastModes[1];
         _data.lastModes[1] = _data.lastModes[0];
         _data.lastModes[0] = currentMode;
         
+        _data.modechangeTimes[2] = _data.modechangeTimes[1];
         _data.modechangeTimes[1] = _data.modechangeTimes[0];
         _data.modechangeTimes[0] = samplecount;
         
-        memcpy(_data.featuresAtModeChange[0],mfccavg,NUM_MFCC_FEATURES*sizeof(int32_t));
         memcpy(_data.featuresAtModeChange[1],_data.featuresAtModeChange[0],NUM_MFCC_FEATURES*sizeof(int32_t));
+        memcpy(_data.featuresAtModeChange[0],mfccavg,NUM_MFCC_FEATURES*sizeof(int32_t));
 
     }
     
@@ -405,6 +426,7 @@ static void UpdateChangeSignals(EChangeModes_t * pCurrentMode, const int32_t * m
         }
     }
     
+    *pCurrentMode = (EChangeModes_t)maxidx;
     
     //DEBUG_LOG_S32("logProbOfModes",logProbOfModes,3);
     DEBUG_LOG_S16("mode", &maxidx, 1);

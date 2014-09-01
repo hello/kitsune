@@ -10,6 +10,9 @@ using namespace std;
 #define FFT_SIZE (1 << FFT_SIZE_2N)
 #define SAMPLE_RATE (44100)
 
+static void SegmentCallback(const int32_t * mfcc, const Segment_t * pSegment) {
+    cerr << pSegment->startOfSegment << "," << pSegment->endOfSegment << endl;
+}
 
 int main(int argc, char * argv[]) {
     if (argc <= 2) {
@@ -30,7 +33,7 @@ int main(int argc, char * argv[]) {
     int64_t counter = 0;
     
     
-    AudioFeatures_Init(NULL);
+    AudioFeatures_Init(SegmentCallback);
 
     
     
