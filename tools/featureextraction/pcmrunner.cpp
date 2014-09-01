@@ -21,18 +21,16 @@ int main(int argc, char * argv[]) {
     
     ifstream inFile (argv[1], ios::in | ios::binary);
     
-    //init output logging
+    //init output logging... tell it what its destination filename is
     DebugLogSingleton::Initialize(argv[2]);
 
     
     char buf[2 * FFT_SIZE ];
     const short * samples = (const short *) buf;
-    uint8_t isStable;
-    int16_t logmfcc[MEL_SCALE_ROUNDED_UP];
+    int64_t counter = 0;
     
     
-    
-    AudioFeatures_Init();
+    AudioFeatures_Init(NULL);
 
     
     
@@ -40,10 +38,7 @@ int main(int argc, char * argv[]) {
         //read
         inFile.read(buf,sizeof(buf));
         
-        //DebugLogSingleton::Instance()->SetDebugVectorS16("signalx", samples, FFT_SIZE);
-        
-
-        AudioFeatures_Extract(logmfcc,&isStable,samples, AUDIO_FFT_SIZE);
+        AudioFeatures_SetAudioData(samples, AUDIO_FFT_SIZE,counter++);
         
         
     } while (inFile);

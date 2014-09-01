@@ -29,6 +29,9 @@
 /*--------------------------------
  *   Memory sizes, constants, macros, and related items
  *--------------------------------*/
+#define SAMPLE_RATE_IN_HZ (EXPECTED_AUDIO_SAMPLE_RATE_HZ / AUDIO_FFT_SIZE)
+#define SAMPLE_PERIOD_IN_MILLISECONDS  (1000 / SAMPLE_RATE_IN_HZ)
+
 #define MEL_BUF_SIZE_2N (6)
 #define MEL_BUF_SIZE (1 << MEL_BUF_SIZE_2N)
 #define MEL_BUF_MASK (MEL_BUF_SIZE - 1)
@@ -69,7 +72,12 @@ static const int16_t k_change_log_likelihood = TOFIX(-0.05f,QFIXEDPOINT);
 //the closer this gets to zero, the shorter the amount of time it will take to switch between modes
 static const int32_t k_min_log_prob = TOFIX(-1.5f,QFIXEDPOINT);
 
-static const uint32_t k_stable_counts_to_be_considered_stable = 3;
+#define STABLE_TIME_TO_BE_CONSIDERED_STABLE_IN_MILLISECONDS  (500)
+
+static const uint32_t k_stable_counts_to_be_considered_stable =  STABLE_TIME_TO_BE_CONSIDERED_STABLE_IN_MILLISECONDS / SAMPLE_PERIOD_IN_MILLISECONDS;
+
+#define STEADY_STATE_SEGMENT_PERIOD_IN_MILLISECONDS (10000)
+static const uint32_t k_stable_count_period_in_counts = STEADY_STATE_SEGMENT_PERIOD_IN_MILLISECONDS / SAMPLE_PERIOD_IN_MILLISECONDS;
 
 /*--------------------------------
  *   Types
@@ -82,16 +90,21 @@ typedef enum {
 } EChangeModes_t;
 
 typedef struct {
-    int16_t melbuf[MEL_SCALE_ROUNDED_UP][MEL_BUF_SIZE]; //8 * 128 * 2 = 2K
-    int32_t melaccumulator[MEL_SCALE_ROUNDED_UP];
+    int16_t melbuf[NUM_MFCC_FEATURES][MEL_BUF_SIZE]; //8 * 128 * 2 = 2K
+    int32_t melaccumulator[NUM_MFCC_FEATURES];
     uint16_t callcounter;
-    uint8_t isBufferFull;
     
     int32_t changebuf[CHANGE_SIGNAL_BUF_SIZE];
     int32_t logProbOfModes[numChangeModes];
     uint8_t isStable;
     int16_t energyStable;
     uint32_t stableCount;
+    uint32_t stablePeriodCounter;
+    EChangeModes_t lastModes[2];
+    int64_t modechangeTimes[2];
+    int32_t featuresAtModeChange[2][NUM_MFCC_FEATURES];
+
+    SegmentAndFeatureCallback_t fpCallback;
     
 } MelFeatures_t;
 
@@ -113,8 +126,9 @@ static MelFeatures_t _data;
 /*--------------------------------
  *   Functions
  *--------------------------------*/
-void AudioFeatures_Init() {
+void AudioFeatures_Init(SegmentAndFeatureCallback_t fpCallback) {
     memset(&_data,0,sizeof(_data));
+    _data.fpCallback = fpCallback;
 }
 
 static int16_t MovingAverage16(uint32_t counter, int16_t x,int16_t * buf, int32_t * accumulator) {
@@ -155,45 +169,108 @@ static EAudioSignalSimilarity_t CheckForSignalDiversity(const int16_t * logmfcc)
     return eAudioSignalIsNotInteresting;
 }
 
-static void SegmentSteadyState(uint8_t isStable,const int16_t * logmfcc) {
-    int16_t energySignal = logmfcc[0];
-    
-    if (isStable && !_data.isStable) {
-        //rising edge
-        _data.energyStable = energySignal;
-    }
+static void SegmentSteadyState(EChangeModes_t currentMode,const int32_t * mfccavg,int64_t samplecount) {
+    int32_t energySignal = mfccavg[0];
     
     
-    if (!isStable && _data.isStable) {
-        //falling edge
+    /*  Every day I'm segmenting segmenting
+     
+     
+     
+        If increasing, still for less than a still period, then decreasing
+           then it was an audio segment, from the start of the increase to the end of the decrease
+     
+        If increasing, still for longer than a still period,
+           then it was and audio segment, from the start of the increase to the end of the still period
+     
+        If still for greater than some period, and the energy was above some threshold,
+           then it was an audio segment, from the start of the still period
+     
+     
+         If audio segment, take mfc avg signal, and do a callback with segment info.
+     
+    */
+    
+    if (currentMode != stable) {
         _data.stableCount = 0;
+        _data.stablePeriodCounter = 0;
     }
-    
-    if (_data.stableCount >= k_stable_counts_to_be_considered_stable) {
-        
-        CheckForSignalDiversity(logmfcc);
-    }
-    
-    
-    
-    
     
     //increment stable count
-    //just say no to rollovers.
     if ((++_data.stableCount) == 0) {
         _data.stableCount = 0xFFFFFFFF;
     };
+    
+    //segment steady state
+    if (_data.stableCount > k_stable_counts_to_be_considered_stable) {
+        
+        //if stable for long enough, erase all history
+        _data.lastModes[1] = stable;
+        _data.lastModes[0] = stable;
+        
+        //if you have been stable long enough, output a segment
+        if (++_data.stablePeriodCounter > k_stable_count_period_in_counts) {
+            Segment_t seg;
+            seg.startOfSegment = _data.modechangeTimes[1];
+            seg.endOfSegment = samplecount;
+            
+            if (_data.fpCallback) {
+                _data.fpCallback(mfccavg,&seg);
+            }
+            
+            //reset period counter
+            _data.stablePeriodCounter = 0;
+            
+            //update mode change times
+            _data.modechangeTimes[1] = _data.modechangeTimes[0];
+            _data.modechangeTimes[0] = samplecount;
+            
+            memcpy(_data.featuresAtModeChange[0],mfccavg,NUM_MFCC_FEATURES*sizeof(int32_t));
+            memcpy(_data.featuresAtModeChange[1],_data.featuresAtModeChange[0],NUM_MFCC_FEATURES*sizeof(int32_t));
+
+        }
+    }
+
+    
+    //segment out a transition
+    if ( (_data.lastModes[1] == stable || _data.lastModes[1] == increasing) &&
+        _data.lastModes[0] == decreasing &&
+        currentMode != decreasing) {
+        
+        // Segment!
+        Segment_t seg;
+        seg.startOfSegment = _data.modechangeTimes[1];
+        seg.endOfSegment = samplecount;
+    
+        if (_data.fpCallback) {
+            _data.fpCallback(_data.featuresAtModeChange[0],&seg);
+        }
+    }
+    
+
+    //if there was a mode change, track when it happend
+    if (currentMode != _data.lastModes[0]) {
+        _data.lastModes[1] = _data.lastModes[0];
+        _data.lastModes[0] = currentMode;
+        
+        _data.modechangeTimes[1] = _data.modechangeTimes[0];
+        _data.modechangeTimes[0] = samplecount;
+        
+        memcpy(_data.featuresAtModeChange[0],mfccavg,NUM_MFCC_FEATURES*sizeof(int32_t));
+        memcpy(_data.featuresAtModeChange[1],_data.featuresAtModeChange[0],NUM_MFCC_FEATURES*sizeof(int32_t));
+
+    }
+    
 }
 
 
-uint8_t AudioFeatures_UpdateChangeSignals(const int32_t * mfccavg, uint32_t counter) {
+static void UpdateChangeSignals(EChangeModes_t * pCurrentMode, const int32_t * mfccavg, uint32_t counter) {
     const uint16_t idx = counter & CHANGE_SIGNAL_BUF_MASK;
     int32_t newestenergy = mfccavg[0];
     int32_t oldestenergy = _data.changebuf[idx];
     int32_t change32;
     int16_t change16;
     int32_t logLikelihoodOfModePdfs[numChangeModes];
-    uint8_t isStable;
     int32_t * logProbOfModes = _data.logProbOfModes;
     int16_t i;
     int16_t maxidx;
@@ -328,11 +405,9 @@ uint8_t AudioFeatures_UpdateChangeSignals(const int32_t * mfccavg, uint32_t coun
         }
     }
     
-    isStable = (maxidx == stable);
     
     //DEBUG_LOG_S32("logProbOfModes",logProbOfModes,3);
     DEBUG_LOG_S16("mode", &maxidx, 1);
-    return isStable;
     
 }
 
@@ -378,7 +453,7 @@ static void ScaleInt16Vector(int16_t * vec, uint8_t * scaling, uint16_t len,uint
  */
 #define RAW_SAMPLES_SCALE (14)
 
-uint8_t AudioFeatures_Extract(int16_t * logmfcc, uint8_t * pIsStable,const int16_t samples[],int16_t nfftsize) {
+void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t samplecount) {
     //enjoy this nice large stack.
     //this can all go away if we get fftr to work, and do the
     int16_t fr[AUDIO_FFT_SIZE]; //2K
@@ -386,9 +461,8 @@ uint8_t AudioFeatures_Extract(int16_t * logmfcc, uint8_t * pIsStable,const int16
     int16_t mel[MEL_SCALE_SIZE]; //inconsiquential
     uint16_t i;
     uint8_t log2scaleOfRawSignal;
-    uint8_t isStable;
-    int16_t mfcc[NUM_MFCC_FEATURES];
     int32_t mfccavg[NUM_MFCC_FEATURES];
+    EChangeModes_t currentMode;
     
     /* Copy in raw samples, zero out complex part of fft input*/
     memcpy(fr,samples,AUDIO_FFT_SIZE*sizeof(int16_t));
@@ -406,8 +480,8 @@ uint8_t AudioFeatures_Extract(int16_t * logmfcc, uint8_t * pIsStable,const int16
     //DEBUG_LOG_S16("logmel",mel,MEL_SCALE_SIZE);
 
     /*  get dct of mel,zero padded */
-    memset(fr,0,MEL_SCALE_ROUNDED_UP*sizeof(int16_t));
-    memset(fi,0,MEL_SCALE_ROUNDED_UP*sizeof(int16_t));
+    memset(fr,0,NUM_MFCC_FEATURES*2*sizeof(int16_t));
+    memset(fi,0,NUM_MFCC_FEATURES*2*sizeof(int16_t));
 
     for (i = 0; i < MEL_SCALE_SIZE; i++) {
         fr[i] = (int16_t)mel[i];
@@ -421,7 +495,7 @@ uint8_t AudioFeatures_Extract(int16_t * logmfcc, uint8_t * pIsStable,const int16
 
     /* Moving Average */
     for (i = 0; i < NUM_MFCC_FEATURES; i++) {
-        mfcc[i] = MovingAverage16(_data.callcounter,fr[i],_data.melbuf[i],&_data.melaccumulator[i]);
+        MovingAverage16(_data.callcounter,fr[i],_data.melbuf[i],&_data.melaccumulator[i]);
         
         mfccavg[i] = _data.melaccumulator[i];
     }
@@ -429,21 +503,12 @@ uint8_t AudioFeatures_Extract(int16_t * logmfcc, uint8_t * pIsStable,const int16
 
     DEBUG_LOG_S32("mfcc_avg",mfccavg,NUM_MFCC_FEATURES);
     
-    isStable = AudioFeatures_UpdateChangeSignals(mfccavg, _data.callcounter);
+    UpdateChangeSignals(&currentMode, mfccavg, _data.callcounter);
     
-    SegmentSteadyState(isStable,mfcc);
+    SegmentSteadyState(currentMode,mfccavg,samplecount);
     
-    /* Update counter */
-    
+    /* Update counter.  It's okay if this one rolls over*/
     _data.callcounter++;
     
-    if (_data.callcounter >= MEL_BUF_SIZE) {
-        _data.isBufferFull = 1;
-    }
     
-    *pIsStable = isStable;
-    
-    memcpy(logmfcc, mfcc, MEL_SCALE_ROUNDED_UP*sizeof(int16_t));
-    
-    return _data.isBufferFull;
 }

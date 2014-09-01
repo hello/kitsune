@@ -8,8 +8,6 @@
 #define AUDIO_FFT_SIZE (1 << AUDIO_FFT_SIZE_2N)
 #define EXPECTED_AUDIO_SAMPLE_RATE_HZ (44100)
 
-#define MEL_SCALE_ROUNDED_UP_2N (4)
-#define MEL_SCALE_ROUNDED_UP (1 << MEL_SCALE_ROUNDED_UP_2N)
 #define NUM_MFCC_FEATURES_2N (3)
 #define NUM_MFCC_FEATURES (1 << NUM_MFCC_FEATURES_2N)
 
@@ -17,14 +15,17 @@
 extern "C" {
 #endif
 
-
-
-/*  exported for debug and test purposes */
-uint8_t AudioFeatures_UpdateChangeSignals(const int32_t * mfccavg, uint32_t counter);
+typedef struct {
+    int64_t startOfSegment;
+    int64_t endOfSegment;
+    
+} Segment_t;
+    
+typedef void (*SegmentAndFeatureCallback_t)(const int32_t * mfccfeats, const Segment_t * pSegment);
 
 /*  exported for your enjoyment -- use these! */
-void AudioFeatures_Init();
-uint8_t AudioFeatures_Extract(int16_t * logmfcc,  uint8_t * pIsStable, const int16_t buf[],int16_t nfftsize);
+void AudioFeatures_Init(SegmentAndFeatureCallback_t fpCallback);
+void AudioFeatures_SetAudioData(const int16_t buf[],int16_t nfftsize, int64_t samplecount);
 
 
 #ifdef __cplusplus
