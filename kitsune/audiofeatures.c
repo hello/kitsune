@@ -82,7 +82,7 @@ static const uint32_t k_stable_count_period_in_counts = STEADY_STATE_SEGMENT_PER
 #define MIN_SEGMENT_TIME_IN_MILLISECONDS (500)
 static const uint32_t k_min_segment_time_in_counts = MIN_SEGMENT_TIME_IN_MILLISECONDS / SAMPLE_PERIOD_IN_MILLISECONDS;
 
-
+static const int32_t k_min_energy = 100;
 
 /*--------------------------------
  *   Types
@@ -108,6 +108,9 @@ typedef struct {
     EChangeModes_t lastModes[3];
     int64_t modechangeTimes[3];
     int32_t featuresAtModeChange[2][NUM_MFCC_FEATURES];
+    int32_t maxabsfeatures[NUM_MFCC_FEATURES];
+    uint8_t isValidSteadyStateSegment;
+    
 
     SegmentAndFeatureCallback_t fpCallback;
     
@@ -176,6 +179,7 @@ static EAudioSignalSimilarity_t CheckForSignalDiversity(const int16_t * logmfcc)
 
 static void SegmentSteadyState(EChangeModes_t currentMode,const int32_t * mfccavg,int64_t samplecount) {
     int32_t energySignal = mfccavg[0];
+    uint16_t i;
     
     
     /*  Every day I'm segmenting segmenting
@@ -200,6 +204,11 @@ static void SegmentSteadyState(EChangeModes_t currentMode,const int32_t * mfccav
         _data.stableCount = 0;
         _data.stablePeriodCounter = 0;
     }
+    else {
+        if (energySignal > k_min_energy) {
+            _data.isValidSteadyStateSegment = TRUE;
+        }
+    }
     
     //increment stable count
     if ((++_data.stableCount) == 0) {
@@ -220,8 +229,12 @@ static void SegmentSteadyState(EChangeModes_t currentMode,const int32_t * mfccav
             seg.startOfSegment = _data.modechangeTimes[1];
             seg.endOfSegment = samplecount;
             
-            if (_data.fpCallback) {
-                _data.fpCallback(mfccavg,&seg);
+            
+            if (_data.isValidSteadyStateSegment) {
+                if (_data.fpCallback) {
+                    _data.fpCallback(mfccavg,&seg);
+                }
+                _data.isValidSteadyStateSegment = FALSE;
             }
             
             //reset period counter
@@ -244,6 +257,7 @@ static void SegmentSteadyState(EChangeModes_t currentMode,const int32_t * mfccav
     if ( (( _data.lastModes[1] == stable && _data.lastModes[2] == increasing) || _data.lastModes[1] == increasing) &&
         _data.lastModes[0] == decreasing &&
         currentMode != decreasing) {
+        uint8_t featindex;
         
         // Segment!
         Segment_t seg;
@@ -251,20 +265,28 @@ static void SegmentSteadyState(EChangeModes_t currentMode,const int32_t * mfccav
         //set segment start time when it actually began increasing
         if (_data.lastModes[1] == increasing) {
             seg.startOfSegment = _data.modechangeTimes[1];
+            featindex = 0;
         }
         else {
             seg.startOfSegment = _data.modechangeTimes[2];
+            featindex = 1; //use the feature index from further in the past
         }
         seg.endOfSegment = samplecount;
         
         if (seg.endOfSegment - seg.startOfSegment > k_min_segment_time_in_counts) {
             
             if (_data.fpCallback) {
-                _data.fpCallback(_data.featuresAtModeChange[0],&seg);
+                _data.fpCallback(_data.featuresAtModeChange[featindex],&seg);
             }
         }
     }
     
+    //find max magnitude of features over time
+    for (i = 0; i < NUM_MFCC_FEATURES; i++) {
+        if (abs(_data.maxabsfeatures[i]) < abs(mfccavg[i])) {
+            _data.maxabsfeatures[i] = mfccavg[i];
+        }
+    }
 
     //if there was a mode change, track when it happend
     if (currentMode != _data.lastModes[0]) {
@@ -278,7 +300,9 @@ static void SegmentSteadyState(EChangeModes_t currentMode,const int32_t * mfccav
         _data.modechangeTimes[0] = samplecount;
         
         memcpy(_data.featuresAtModeChange[1],_data.featuresAtModeChange[0],NUM_MFCC_FEATURES*sizeof(int32_t));
-        memcpy(_data.featuresAtModeChange[0],mfccavg,NUM_MFCC_FEATURES*sizeof(int32_t));
+        memcpy(_data.featuresAtModeChange[0],_data.maxabsfeatures,NUM_MFCC_FEATURES*sizeof(int32_t));
+        
+        memset(_data.maxabsfeatures,0,sizeof(_data.maxabsfeatures));
 
     }
     
@@ -512,7 +536,7 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
     
     /* fr will contain the dct */
     fft(fr,fi,NUM_MFCC_FEATURES_2N + 1);
-    //DEBUG_LOG_S16("mfcc",fr,NUM_MFCC_FEATURES);
+    DEBUG_LOG_S16("mfcc",fr,NUM_MFCC_FEATURES);
 
 
     /* Moving Average */
