@@ -26,6 +26,11 @@
 	</natures>
 	<linkedResources>
 		<link>
+			<name>audiofeatures.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audiofeatures.c</locationURI>
+		</link>
+		<link>
 			<name>cmdline.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/cmdline.c</locationURI>
