@@ -35,23 +35,23 @@ extern "C" {
 
 /* do nothing otherwise */
 #ifndef DEBUG_LOG_S32
-#define DEBUG_LOG_S32(name,ptr,len) (void)
+#define DEBUG_LOG_S32(name,ptr,len)
 #endif
 
 #ifndef DEBUG_LOG_S16
-#define DEBUG_LOG_S16(name,ptr,len) (void)
+#define DEBUG_LOG_S16(name,ptr,len)
 #endif
 
 #ifndef DEBUG_LOG_U16
-#define DEBUG_LOG_U16(name,ptr,len) (void)
+#define DEBUG_LOG_U16(name,ptr,len)
 #endif
 
 #ifndef DEBUG_LOG_U8
-#define DEBUG_LOG_U8(name,ptr,len) (void)
+#define DEBUG_LOG_U8(name,ptr,len)
 #endif
 
 #ifndef DEBUG_LOG_S8
-#define DEBUG_LOG_S8(name,ptr,len) (void)
+#define DEBUG_LOG_S8(name,ptr,len)
 #endif
 
 #endif
