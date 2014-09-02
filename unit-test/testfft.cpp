@@ -1,5 +1,6 @@
 #include "gtest/gtest.h"
 #include "../kitsune/fft.h"
+#include "../kitsune/audiofeatures.h"
 #include "testvec1.c"
 #include "refvec1.c"
 #include <string.h>
@@ -7,6 +8,7 @@
 #include <fstream>
 #include <string>
 #include <math.h>
+#include <stdlib.h>
 
 class TestFrequencyFeatures : public ::testing::Test {
 protected:
@@ -116,33 +118,49 @@ TEST_F(TestFrequencyFeatures,TestFFTR1) {
     
 }
 
-TEST_F(TestFrequencyFeatures,TestMel) {
-    short vecr[1024];
-    short veci[1024];
-    short mypsd[512];
-    short b = 44100 / 1024;
-    uint8_t mel[MEL_SCALE_SIZE];
-    int n = sizeof(testvec1) / sizeof(short);
-    
-    
-    ASSERT_TRUE(n == 1024);
-    
-    memcpy(vecr,testvec1,sizeof(vecr));
-    memset(veci,0,sizeof(veci));
-    
-    //2^10 = 1024
-    fft(vecr,veci,10);
-
-    abs_fft(mypsd, vecr, veci, (1 << 9));
-    
-    PrintShortVecToFile("mypsd.txt",mypsd,1<<9);
-    
-    mel_freq(mel,mypsd, 10, b);
-    
-    PrintUint8VecToFile("mel.txt",mel,MEL_SCALE_SIZE);
-
+static Segment_t _myseg;
+static int32_t _mfcc[8];
+static void AudioFeatCallback(const int32_t * mfccavg, const Segment_t * pSegment) {
+    memcpy(&_myseg,pSegment,sizeof(Segment_t));
+    memcpy(_mfcc,mfccavg,sizeof(_mfcc));
     
 }
+
+TEST_F(TestFrequencyFeatures,TestMel) {
+    int i,ichunk;
+	int16_t x[1024];
+    
+    memset(_mfcc,0,sizeof(_mfcc));
+    memset(&_myseg,0,sizeof(_myseg));
+    
+	srand(0);
+    
+	printf("EXPECT: t1=%d,t2=%d,energy=something not zero\n",43,86);
+    
+    
+	AudioFeatures_Init(AudioFeatCallback);
+    
+	//still ---> white random noise ---> still
+	for (ichunk = 0; ichunk < 43*8; ichunk++) {
+		if (ichunk > 43 && ichunk <= 86) {
+			for (i = 0; i < 1024; i++) {
+				x[i] = (rand() % 32767) - (1<<14);
+			}
+		}
+		else {
+			memset(x,0,sizeof(x));
+		}
+        
+		AudioFeatures_SetAudioData(x,10,ichunk);
+        
+	}
+    
+    ASSERT_TRUE(_myseg.startOfSegment > 43 && _myseg.startOfSegment < 86);
+    ASSERT_TRUE(_myseg.endOfSegment > 86);
+    ASSERT_TRUE(_mfcc[0] > 0);
+}
+
+
 
 TEST_F(TestFrequencyFeatures,TestCountMsb) {
     short y;
@@ -188,22 +206,28 @@ TEST_F(TestFrequencyFeatures,TestBitLog) {
     
     
 }
-TEST_F(TestFrequencyFeatures,TestLog2Q8) {
-    short x;
+TEST_F(TestFrequencyFeatures,TestLog2Q10) {
+    int64_t x;
     short y;
     float fx;
     float fy,fy2;
     
-    y = FixedPointLog2Q8(33);
-    
-    for (x = 1; x < 0x7FFF; x++) {
-        fx = (float)x / (float)(1<<8);
+    for (x = 2; x < 0x7FFF; x++) {
+        fx = (float)x / (float)(1<<10);
         fy = log2(fx);
-        y = FixedPointLog2Q8(x);
+        y = FixedPointLog2Q10(x);
 
-        fy2 = (float)y / (float)(1 <<8);
+        fy2 = (float)y / (float)(1 <<10);
         ASSERT_NEAR(fy2,fy,0.5f);
     }
     
+    x = 0xFFFFFFFF;
+    fx = (float)x / (float)(1<<10);
+    fy = log2(fx);
+    y = FixedPointLog2Q10(x);
+    
+    fy2 = (float)y / (float)(1 <<10);
+    ASSERT_NEAR(fy2,fy,0.5f);
+
 }
 
