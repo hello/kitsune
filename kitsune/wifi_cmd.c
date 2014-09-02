@@ -858,16 +858,19 @@ int send_data_pb(char * buffer, int buffer_size, const pb_field_t fields[], cons
     UARTprintf("%s\n\n", buffer);
 
     {
-	#define CL_HDR "Content-Length: "
-	char * content = strstr( buffer, "\r\n\r\n" ) + 4;
-	char * len_str = strstr( buffer, CL_HDR ) + strlen(CL_HDR);
-	int resp_ok = match( "2..", buffer );
-	int len = atoi(len_str);
+		#define CL_HDR "Content-Length: "
+		char * content = strstr(buffer, "\r\n\r\n") + 4;
+		char * len_str = strstr(buffer, CL_HDR) + strlen(CL_HDR);
+		int resp_ok = match("2..", buffer);
+		int len;
 
-	if( resp_ok ) {
-		rx_data_pb( (unsigned char*)content, len );
+		if (len_str != NULL) {
+			len = atoi(len_str);
+			if (resp_ok) {
+				rx_data_pb((unsigned char*) content, len);
+			}
 		}
-    }
+	}
 
     //todo check for http response code 2xx
 
