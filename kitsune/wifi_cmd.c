@@ -542,6 +542,7 @@ int send_audio_wifi(char * buffer, int buffer_size, audio_read_cb arcb) {
     int rv = 0;
     int message_length;
     unsigned char mac[6];
+    unsigned char mac_len = 6;
 #if 0
     mac[0] = 0xab;
     mac[1] = 0xcd;
