@@ -39,6 +39,7 @@
 #include "dust_cmd.h"
 #include "fatfs_cmd.h"
 #include "spi_cmd.h"
+#include "audiofeatures.h"
 
 #include "fft.h"
 
@@ -380,26 +381,45 @@ int Cmd_fault(int argc, char *argv[]) {
 	*(int*) (0x40001) = 1; /* error logging test... */
 	return 0;
 }
+
+static void AudioFeatCallback(const int32_t * mfccfeats, const Segment_t * pSegment) {
+	int32_t t1;
+	int32_t t2;
+
+	t1 = pSegment->startOfSegment;
+	t2 = pSegment->endOfSegment;
+
+	UARTprintf("ACTUAL: t1=%d,t2=%d,energy=%d\n",t1,t2,mfccfeats[0]);
+}
+
 int Cmd_mel(int argc, char *argv[]) {
-    /*
-    int i;
-	short s[1024];
 
-	for (i = 0; i < 1024; ++i) {
-		s[i] = fxd_sin(i * 10) / 4 + fxd_sin(i * 20) / 4 + fxd_sin(i * 100) / 4;
+    int i,ichunk;
+	int16_t x[1024];
+
+
+	srand(0);
+
+	UARTprintf("EXPECT: t1=%d,t2=%d,energy=something not zero\n",43,86);
+
+
+	AudioFeatures_Init(AudioFeatCallback);
+
+	//still ---> white random noise ---> still
+	for (ichunk = 0; ichunk < 43*8; ichunk++) {
+		if (ichunk > 43 && ichunk <= 86) {
+			for (i = 0; i < 1024; i++) {
+				x[i] = (rand() % 32767) - (1<<14);
+			}
+		}
+		else {
+			memset(x,0,sizeof(x));
+		}
+
+		AudioFeatures_SetAudioData(x,10,ichunk);
+
 	}
 
-//	norm(s, 1024);
-	fix_window(s, 1024);
-	fftr(s, 10);
-	psd(s, 1024);
-	mel_freq(s, 1024, 44100 / 512);
-
-	for (i = 0; i < 16; ++i) {
-		UARTprintf("%d ", s[i]);
-	}
-	UARTprintf("\n");
-	*/
 	return (0);
 }
 
