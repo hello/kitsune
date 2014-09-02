@@ -36,7 +36,7 @@
 #define MEL_BUF_SIZE (1 << MEL_BUF_SIZE_2N)
 #define MEL_BUF_MASK (MEL_BUF_SIZE - 1)
 
-#define CHANGE_SIGNAL_BUF_SIZE_2N (4)
+#define CHANGE_SIGNAL_BUF_SIZE_2N (6)
 #define CHANGE_SIGNAL_BUF_SIZE (1 << CHANGE_SIGNAL_BUF_SIZE_2N)
 #define CHANGE_SIGNAL_BUF_MASK (CHANGE_SIGNAL_BUF_SIZE - 1)
 
@@ -70,6 +70,7 @@ static const int16_t k_stable_likelihood_coefficient = TOFIX(0.05f,QFIXEDPOINT);
 static const int16_t k_change_log_likelihood = TOFIX(-0.05f,QFIXEDPOINT);
 
 //the closer this gets to zero, the shorter the amount of time it will take to switch between modes
+//the more negative it gets, the more evidence is required before switching modes, in general
 static const int32_t k_min_log_prob = TOFIX(-1.5f,QFIXEDPOINT);
 
 #define STABLE_TIME_TO_BE_CONSIDERED_STABLE_IN_MILLISECONDS  (500)
@@ -158,24 +159,6 @@ static int16_t MovingAverage16(uint32_t counter, int16_t x,int16_t * buf, int32_
     return (uint8_t) (a >> MEL_BUF_SIZE_2N);
 }
 
-
-/* 
- 
-    */
-
-static EAudioSignalSimilarity_t CheckForSignalDiversity(const int16_t * logmfcc) {
-    /*
-     Now welcome to the curse of dimensionality!!!!
-      Our "volume" of space will go with the the power of the dimension!
-      
-     So very similar feature vectors might not look similar in high dimensional
-     space, but if we will apply a linear transform that we learned from the data
-     to reduce the dimensionality we can then do a better job at identifiying similar 
-     feature vectors
-     */
-    
-    return eAudioSignalIsNotInteresting;
-}
 
 static void SegmentSteadyState(EChangeModes_t currentMode,const int32_t * mfccavg,int64_t samplecount) {
     int32_t energySignal = mfccavg[0];
