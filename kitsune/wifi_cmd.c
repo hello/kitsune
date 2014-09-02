@@ -358,8 +358,6 @@ void load_aes() {
 #include "periodic.pb.h"
 #include "audio_data.pb.h"
 
-#include "crypto.h"
-
 static SHA1_CTX sha1ctx;
 
 static bool write_callback_sha(pb_ostream_t *stream, const uint8_t *buf,
@@ -618,6 +616,130 @@ int send_audio_wifi(char * buffer, int buffer_size, audio_read_cb arcb) {
     return 0;
 }
 
+#if 1
+#define SIG_SIZE 32
+#include "SyncResponse.pb.h"
+
+int rx_data_pb(unsigned char * buffer, int buffer_size ) {
+	AES_CTX aesctx;
+	unsigned char * buf_pos = buffer;
+	unsigned char sig[SIG_SIZE];
+	unsigned char sig_test[SIG_SIZE];
+	int i;
+	int status;
+	pb_istream_t stream;
+	SyncResponse SyncResponse_data;
+
+	//memset( aesctx.iv, 0, sizeof( aesctx.iv ) );
+
+	UARTprintf("iv ");
+	for (i = 0; i < AES_IV_SIZE; ++i) {
+		aesctx.iv[i] = *buf_pos++;
+		UARTprintf("%x", aesctx.iv[i]);
+		if (buf_pos > (buffer + buffer_size)) {
+			return -1;
+		}
+	}
+	UARTprintf("\n");
+	buffer_size -= AES_IV_SIZE;
+	UARTprintf("sig");
+	for (i = 0; i < SIG_SIZE; ++i) {
+		sig[i] = *buf_pos++;
+		UARTprintf("%x", sig[i]);
+		if (buf_pos > (buffer + buffer_size)) {
+			return -1;
+		}
+	}
+	UARTprintf("\n");
+	buffer_size -= SIG_SIZE;
+
+	AES_set_key(&aesctx, aes_key, aesctx.iv, AES_MODE_128); //todo real key
+	AES_cbc_decrypt(&aesctx, sig, sig, SIG_SIZE);
+
+	SHA1_Init(&sha1ctx);
+	SHA1_Update(&sha1ctx, buf_pos, buffer_size);
+	//now verify sig
+	SHA1_Final(sig_test, &sha1ctx);
+	if (memcmp(sig, sig_test, SHA1_SIZE) != 0) {
+		UARTprintf("signatures do not match\n");
+		for (i = 0; i < SHA1_SIZE; ++i) {
+			UARTprintf("%x", sig[i]);
+		}
+		UARTprintf("\nvs\n");
+		for (i = 0; i < SHA1_SIZE; ++i) {
+			UARTprintf("%x", sig_test[i]);
+		}
+		UARTprintf("\n");
+
+		UARTprintf("WARNING PASSING ON EVEN THOUGH signatures do not match\n");
+		//return -1; //todo uncomment
+	}
+
+	/* Create a stream that will read from our buffer. */
+	stream = pb_istream_from_buffer(buf_pos, buffer_size);
+	/* Now we are ready to decode the message! */
+
+	UARTprintf("data ");
+	status = pb_decode(&stream, SyncResponse_fields, &SyncResponse_data);
+	UARTprintf("\n");
+
+	/* Then just check for any errors.. */
+	if (!status) {
+		UARTprintf("Decoding failed: %s\n", PB_GET_ERROR(&stream));
+		return -1;
+	}
+
+	UARTprintf("Decoding success: %d %d %d %d %d\n",
+					SyncResponse_data.has_acc_sampling_interval,
+					SyncResponse_data.has_acc_scan_cyle,
+					SyncResponse_data.has_alarm,
+					SyncResponse_data.has_device_sampling_interval,
+					SyncResponse_data.has_flash_action);
+
+	//now act on incoming data!
+	return 0;
+}
+#endif
+
+
+int matchhere(char *regexp, char *text);
+/* matchstar: search for c*regexp at beginning of text */
+int matchstar(int c, char *regexp, char *text)
+{
+    do {    /* a * matches zero or more instances */
+        if (matchhere(regexp, text))
+            return 1;
+    } while (*text != '\n' && (*text++ == c || c == '.'));
+    return 0;
+}
+
+/* matchhere: search for regexp at beginning of text */
+int matchhere(char *regexp, char *text)
+{
+    if (regexp[0] == '\0')
+        return 1;
+    if (regexp[1] == '*')
+        return matchstar(regexp[0], regexp+2, text);
+    if (regexp[0] == '$' && regexp[1] == '\0')
+        return *text == '\n';
+    if (*text!='\n' && (regexp[0]=='.' || regexp[0]==*text))
+        return matchhere(regexp+1, text+1);
+    return 0;
+}
+
+
+/* match: search for regexp anywhere in text */
+int match(char *regexp, char *text)
+{
+    if (regexp[0] == '^')
+        return matchhere(regexp+1, text);
+    do {    /* must look even if string is empty */
+        if (matchhere(regexp, text))
+            return 1;
+    } while (*text++ != '\n');
+    return 0;
+}
+
 //buffer needs to be at least 128 bytes...
 int send_data_pb(char * buffer, int buffer_size, const pb_field_t fields[], const void *src_struct) {
     int send_length;
@@ -730,8 +852,20 @@ int send_data_pb(char * buffer, int buffer_size, const pb_field_t fields[], cons
     UARTprintf("recv %d\n\r\n\r", rv);
 
     UARTprintf("Reply is:\n\r\n\r");
-    buffer[buffer_size-2] = 0; //make sure it terminates..
+    buffer[buffer_size-1] = 0; //make sure it terminates..
     UARTprintf("%s\n\n", buffer);
+
+    {
+	#define CL_HDR "Content-Length: "
+	char * content = strstr( buffer, "\r\n\r\n" ) + 4;
+	char * len_str = strstr( buffer, CL_HDR ) + strlen(CL_HDR);
+	int resp_ok = match( "2..", buffer );
+	int len = atoi(len_str);
+
+	if( resp_ok ) {
+		rx_data_pb( (unsigned char*)content, len );
+		}
+    }
 
     //todo check for http response code 2xx
 
@@ -741,99 +875,7 @@ int send_data_pb(char * buffer, int buffer_size, const pb_field_t fields[], cons
     return 0;
 }
 
-#if 0
-int rx_data_pb(unsigned char * buffer, int buffer_size ) {
-	AES_CTX aesctx;
-	unsigned char * buf_pos = buffer;
-	unsigned char sig[32];
-	unsigned char sig_test[32];
 
-	//memset( aesctx.iv, 0, sizeof( aesctx.iv ) );
-
-	UARTprintf("iv ");
-	for (i = 0; i < sizeof(aesctx.iv); ++i) {
-		aesctx.iv[i] = *buf_pos++;
-		UARTprintf("%x", aesctx.iv[i]);
-		if( buf_pos > (buffer+buffer_size)) {return -1;}
-	}
-	UARTprintf("\n");
-	UARTprintf("sig");
-	for (i = 0; i < sizeof(sig); ++i) {
-		sig[i] = *buf_pos++;
-		UARTprintf("%x", sig[i]);
-		if( buf_pos > (buffer+buffer_size)) {return -1;}
-	}
-	UARTprintf("\n");
-
-	AES_set_key(&aesctx, aes_key, aesctx.iv, AES_MODE_128); //todo real key
-	AES_cbc_decrypt(&aesctx, sig, sig, sizeof(sig));
-
-	SHA1_Init(&sha1ctx);
-
-	/* Create a stream that will read from our buffer. */
-	stream = pb_istream_from_sha_socket(sock);
-	/* Now we are ready to decode the message! */
-
-	UARTprintf("data ");
-	status = pb_decode(&stream, downlink_data_fields, downlink_data );
-	UARTprintf("\n");
-
-	/* Then just check for any errors.. */
-	if (!status) {
-		UARTprintf("Decoding failed: %s\n", PB_GET_ERROR(&stream));
-		return -1;
-	}
-
-	//now verify sig
-	SHA1_Final(sig_test, &sha1ctx);
-	if( memcmp( sig, sig_test, SHA1_SIZE ) != 0 ) {
-		UARTprintf("signatures do not match\n");
-		for(i=0;i<SHA1_SIZE;++i) {
-			UARTprintf("%x", sig[i] );
-		}
-		UARTprintf("\nvs\n");
-		for(i=0;i<SHA1_SIZE;++i) {
-			UARTprintf("%x", sig_test[i] );
-		}
-		UARTprintf("\n");
-		return -1;
-	}
-
-	//now act on incoming data!
-	return 0;
-}
-#endif
-
-
-bool encode_audio_chunk(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
-    unsigned char tagtype = (6 << 3) | 0x2; // field_number << 3 | 2 (length deliminated)
-    short audio[1024] = { 0xabcd };
-    int audio_len = sizeof(audio);
-
-    return pb_write(stream, &tagtype, 1) && pb_encode_string(stream, (uint8_t*) audio, audio_len);
-}
-bool encode_features(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
-    unsigned char tagtype = (1 << 3) | 0x2; // field_number << 3 | 2 (length deliminated)
-    unsigned char features[16] = { 0xBA };
-    int len = sizeof(features);
-
-    return pb_write(stream, &tagtype, 1) && pb_encode_string(stream, (uint8_t*) features, len);
-}
-int send_audio_chunk( int16_t * audio_chunk, int samples ) {
-
-    char buffer[256];
-    audio_data msg;
-
-    //build the message
-    msg.audio.funcs.encode = encode_audio_chunk;
-    msg.audio_version = 1;
-    msg.feature_version = 1;
-    msg.features.funcs.encode = encode_features;
-    msg.rate = 44100;
-    msg.samples = 1024;
-
-    return send_data_pb(buffer, sizeof(buffer), audio_data_fields, &msg);
-}
 
 bool encode_mac(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
     unsigned char tagtype = (7 << 3) | 0x2; // field_number << 3 | 2 (length deliminated)
