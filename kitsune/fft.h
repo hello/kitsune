@@ -23,7 +23,7 @@ uint32_t fxd_sqrt (uint32_t n); //untested
 
 void abs_fft(uint16_t psd[], const int16_t fr[],const int16_t fi[],const int16_t len);
 
-int16_t FixedPointLog2Q8(uint64_t x);
+int16_t FixedPointLog2Q10(uint64_t x);
 uint8_t CountHighestMsb(uint64_t x);
 
 

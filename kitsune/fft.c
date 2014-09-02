@@ -310,9 +310,11 @@ int16_t FixedPointLog2Q10(uint64_t x) {
     msb = CountHighestMsb(x);
     
     if (msb > LOG2_LOOKUP_SIZE_2N) {
-        shift = msb - 10;
         x >>= (msb - LOG2_LOOKUP_SIZE_2N);
+        shift += msb - LOG2_LOOKUP_SIZE_2N;
     }
+    
+    shift -= 5;
     
     ret = k_log2_lookup_q10[(uint16_t)x];
     ret += shift * 1024;
