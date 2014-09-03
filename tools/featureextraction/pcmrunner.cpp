@@ -28,10 +28,6 @@ static void SegmentCallback(const int32_t * mfcc, const Segment_t * pSegment) {
         tags = "steady";
     }
     
-    if (_label.size() > 1) {
-        tags += "," + _label;
-    }
-    
     DebugLogSingleton::Instance()->SetDebugVectorS32("featAudio", tags.c_str(), mfcc, NUM_MFCC_FEATURES, pSegment->t1, pSegment->t2);
 }
 
@@ -42,7 +38,7 @@ int main(int argc, char * argv[]) {
     }
     
     _label.clear();
-    _label.push_back('\0');
+    _label = "none";
     
     if (argc >= 4) {
         _label = argv[3];
