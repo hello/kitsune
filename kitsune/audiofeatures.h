@@ -15,9 +15,16 @@
 extern "C" {
 #endif
 
+    
+typedef enum {
+    segmentPacket,
+    segmentSteadyState
+} ESegmentType_t;
+    
 typedef struct {
-    int64_t startOfSegment;
-    int64_t endOfSegment;
+    int64_t t1;
+    int64_t t2;
+    ESegmentType_t type;
     
 } Segment_t;
     

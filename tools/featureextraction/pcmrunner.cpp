@@ -10,13 +10,29 @@ using namespace std;
 #define FFT_SIZE (1 << FFT_SIZE_2N)
 #define SAMPLE_RATE (44100)
 
+static std::string _label;
+
 static void SegmentCallback(const int32_t * mfcc, const Segment_t * pSegment) {
-    cout << pSegment->startOfSegment << "," << pSegment->endOfSegment;
-    for (int j =0 ; j < 8; j++) {
+    cout << pSegment->t1 << "," << pSegment->t2;
+    /*for (int j =0 ; j < 8; j++) {
         cout << "," << mfcc[j];
-    }
+    }*/
     cout << endl;
 
+    std::string tags;
+    
+    if (pSegment->type == segmentPacket) {
+        tags = "packet";
+    }
+    else if (pSegment->type == segmentSteadyState) {
+        tags = "steady";
+    }
+    
+    if (_label.size() > 1) {
+        tags += "," + _label;
+    }
+    
+    DebugLogSingleton::Instance()->SetDebugVectorS32("featAudio", tags.c_str(), mfcc, NUM_MFCC_FEATURES, pSegment->t1, pSegment->t2);
 }
 
 int main(int argc, char * argv[]) {
@@ -25,11 +41,11 @@ int main(int argc, char * argv[]) {
         cerr << "It is assumed that the input is mono, 16 bits per sample, in PCM format (i.e as raw as you can get)" << endl;
     }
     
-    std::string label;
-    label = '\0';
+    _label.clear();
+    _label.push_back('\0');
     
-    if (argc >= 3) {
-        label = argv[2];
+    if (argc >= 4) {
+        _label = argv[3];
     }
     
     
@@ -37,7 +53,7 @@ int main(int argc, char * argv[]) {
     ifstream inFile (argv[1], ios::in | ios::binary);
     
     //init output logging... tell it what its destination filename is
-    DebugLogSingleton::Initialize(argv[2],label);
+    DebugLogSingleton::Initialize(argv[2],_label);
 
     
     char buf[2 * FFT_SIZE ];

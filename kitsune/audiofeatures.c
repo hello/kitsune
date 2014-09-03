@@ -78,7 +78,7 @@ static const int32_t k_min_log_prob = TOFIX(-1.5f,QFIXEDPOINT);
 
 static const uint32_t k_stable_counts_to_be_considered_stable =  STABLE_TIME_TO_BE_CONSIDERED_STABLE_IN_MILLISECONDS / SAMPLE_PERIOD_IN_MILLISECONDS;
 
-#define STEADY_STATE_SEGMENT_PERIOD_IN_MILLISECONDS (10000)
+#define STEADY_STATE_SEGMENT_PERIOD_IN_MILLISECONDS (50000)
 static const uint32_t k_stable_count_period_in_counts = STEADY_STATE_SEGMENT_PERIOD_IN_MILLISECONDS / SAMPLE_PERIOD_IN_MILLISECONDS;
 
 #define MIN_SEGMENT_TIME_IN_MILLISECONDS (500)
@@ -210,8 +210,9 @@ static void SegmentSteadyState(EChangeModes_t currentMode,const int32_t * mfccav
         //if you have been stable long enough, output a segment
         if (++_data.stablePeriodCounter > k_stable_count_period_in_counts) {
             Segment_t seg;
-            seg.startOfSegment = _data.modechangeTimes[1];
-            seg.endOfSegment = samplecount;
+            seg.t1 = _data.modechangeTimes[1];
+            seg.t2 = samplecount;
+            seg.type = segmentSteadyState;
             
             
             if (_data.isValidSteadyStateSegment) {
@@ -245,14 +246,15 @@ static void SegmentSteadyState(EChangeModes_t currentMode,const int32_t * mfccav
         
         //set segment start time when it actually began increasing
         if (_data.lastModes[0] == stable) {
-            seg.startOfSegment = _data.modechangeTimes[2];
+            seg.t1 = _data.modechangeTimes[2];
         }
         else {
-            seg.startOfSegment = _data.modechangeTimes[1];
+            seg.t1 = _data.modechangeTimes[1];
         }
-        seg.endOfSegment = samplecount;
-        
-        if (seg.endOfSegment - seg.startOfSegment > k_min_segment_time_in_counts) {
+        seg.t2 = samplecount;
+        seg.type = segmentPacket;
+
+        if (seg.t2 - seg.t1 > k_min_segment_time_in_counts) {
             
             if (_data.fpCallback) {
                 _data.fpCallback(_data.maxabsfeatures,&seg);

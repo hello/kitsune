@@ -386,8 +386,8 @@ static void AudioFeatCallback(const int32_t * mfccfeats, const Segment_t * pSegm
 	int32_t t1;
 	int32_t t2;
 
-	t1 = pSegment->startOfSegment;
-	t2 = pSegment->endOfSegment;
+	t1 = pSegment->t1;
+	t2 = pSegment->t2;
 
 	UARTprintf("ACTUAL: t1=%d,t2=%d,energy=%d\n",t1,t2,mfccfeats[0]);
 }
