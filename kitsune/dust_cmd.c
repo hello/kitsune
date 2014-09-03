@@ -131,7 +131,6 @@ int get_dust() {
 //
 // Read BUFFER_SZ ADC samples
 //
-	while (++uiIndex < SAMPLES) {
 	while (uiIndex < SAMPLES) {
 		if (ADCFIFOLvlGet(ADC_BASE, uiChannel)) {
 			++uiIndex;
