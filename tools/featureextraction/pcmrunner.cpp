@@ -11,7 +11,12 @@ using namespace std;
 #define SAMPLE_RATE (44100)
 
 static void SegmentCallback(const int32_t * mfcc, const Segment_t * pSegment) {
-    cerr << pSegment->startOfSegment << "," << pSegment->endOfSegment << endl;
+    cout << pSegment->startOfSegment << "," << pSegment->endOfSegment;
+    for (int j =0 ; j < 8; j++) {
+        cout << "," << mfcc[j];
+    }
+    cout << endl;
+
 }
 
 int main(int argc, char * argv[]) {
@@ -20,12 +25,19 @@ int main(int argc, char * argv[]) {
         cerr << "It is assumed that the input is mono, 16 bits per sample, in PCM format (i.e as raw as you can get)" << endl;
     }
     
+    std::string label;
+    label = '\0';
+    
+    if (argc >= 3) {
+        label = argv[2];
+    }
+    
     
     
     ifstream inFile (argv[1], ios::in | ios::binary);
     
     //init output logging... tell it what its destination filename is
-    DebugLogSingleton::Initialize(argv[2]);
+    DebugLogSingleton::Initialize(argv[2],label);
 
     
     char buf[2 * FFT_SIZE ];

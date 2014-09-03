@@ -12,7 +12,8 @@ def GetMatrixFromData(data):
     mat = matrix_pb2.Matrix()
     mat.ParseFromString(binarydata) 
     array =  np.reshape(mat.idata,(mat.rows,mat.cols))
-    return array
+    
+    return (mat.id,mat.tags,array)
 
 
 
@@ -38,21 +39,23 @@ def plotData(key,data,fignum):
     plt.figure(fignum)
     plt.plot(x,arr)
     plt.title(key)
-    
+    plt.grid()    
 
 ###################
 mydict = {}
 for line in sys.stdin:
-    key,data = line.split('\t',1)
-    data = data.rstrip()
+    matdata = GetMatrixFromData(line)
+    key = matdata[0]
+    tags = matdata[1]
+    data = matdata[2]
 
     if not mydict.has_key(key):
         mydict[key] = []
     try:
-        mydict[key].append(GetMatrixFromData(data))
+        mydict[key].append(data)
     except Exception:
         print 'exception for key %s' % key
-        GetMatrixFromData(data)
+        raise
 
 fignum = 1
 for key in mydict.keys():

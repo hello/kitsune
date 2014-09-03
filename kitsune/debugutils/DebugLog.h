@@ -8,26 +8,26 @@
 
 #ifdef __cplusplus
 extern "C" {
-    void SetDebugVectorS32(const char * name, const int32_t * pdata, uint32_t len);
-    void SetDebugVectorS16(const char * name, const int16_t * pdata, uint32_t len);
-    void SetDebugVectorU16(const char * name, const uint16_t * pdata, uint32_t len);
-    void SetDebugVectorU8(const char * name, const uint8_t * pdata, uint32_t len);
-    void SetDebugVectorS8(const char * name, const int8_t * pdata, uint32_t len);
+    void SetDebugVectorS32(const char * name, const char * tags,const int32_t * pdata, uint32_t len,int64_t t1, int64_t t2);
+    void SetDebugVectorS16(const char * name, const char * tags,const int16_t * pdata, uint32_t len,int64_t t1, int64_t t2);
+    void SetDebugVectorU16(const char * name, const char * tags,const uint16_t * pdata, uint32_t len,int64_t t1, int64_t t2);
+    void SetDebugVectorU8(const char * name, const char * tags,const uint8_t * pdata, uint32_t len,int64_t t1, int64_t t2);
+    void SetDebugVectorS8(const char * name, const char * tags,const int8_t * pdata, uint32_t len,int64_t t1, int64_t t2);
 
 }
 #else
-    void SetDebugVectorS32(const char * name, const int32_t * pdata, uint32_t len);
-    void SetDebugVectorS16(const char * name, const int16_t * pdata, uint32_t len);
-    void SetDebugVectorU16(const char * name, const uint16_t * pdata, uint32_t len);
-    void SetDebugVectorU8(const char * name, const uint8_t * pdata, uint32_t len);
-    void SetDebugVectorS8(const char * name, const int8_t * pdata, uint32_t len);
+    void SetDebugVectorS32(const char * name, const char * tags,const int32_t * pdata, uint32_t len,int64_t t1, int64_t t2);
+    void SetDebugVectorS16(const char * name, const char * tags,const int16_t * pdata, uint32_t len,int64_t t1, int64_t t2);
+    void SetDebugVectorU16(const char * name, const char * tags,const uint16_t * pdata, uint32_t len,int64_t t1, int64_t t2);
+    void SetDebugVectorU8(const char * name, const char * tags,const uint8_t * pdata, uint32_t len,int64_t t1, int64_t t2);
+    void SetDebugVectorS8(const char * name, const char * tags,const int8_t * pdata, uint32_t len,int64_t t1, int64_t t2);
 #endif
 
-#define DEBUG_LOG_S32(name,ptr,len)  (SetDebugVectorS32( (name) , (ptr) , (len) ))
-#define DEBUG_LOG_S16(name,ptr,len)  (SetDebugVectorS16( (name) , (ptr) , (len) ))
-#define DEBUG_LOG_U16(name,ptr,len)  (SetDebugVectorS16( (name) , (ptr) , (len) ))
-#define DEBUG_LOG_U8(name,ptr,len)  (SetDebugVectorU8( (name) , (ptr) , (len) ))
-#define DEBUG_LOG_S8(name,ptr,len)  (SetDebugVectorS8( (name) , (ptr) , (len) ))
+#define DEBUG_LOG_S32(name,tags,ptr,len,t1,t2)  (SetDebugVectorS32( (name) , (tags), (ptr) , (len), (t1), (t2) ) )
+#define DEBUG_LOG_S16(name,tags,ptr,len,t1,t2)  (SetDebugVectorS16( (name) , (tags), (ptr) , (len), (t1), (t2) ) )
+#define DEBUG_LOG_U16(name,tags,ptr,len,t1,t2)  (SetDebugVectorS16( (name) , (tags), (ptr) , (len), (t1), (t2) ) )
+#define DEBUG_LOG_U8(name,tags,ptr,len,t1,t2)  (SetDebugVectorU8( (name) , (tags), (ptr) , (len), (t1), (t2) ) )
+#define DEBUG_LOG_S8(name,tags,ptr,len,t1,t2)  (SetDebugVectorS8( (name) , (tags), (ptr) , (len), (t1), (t2) ) )
 
 #endif
 
@@ -35,23 +35,23 @@ extern "C" {
 
 /* do nothing otherwise */
 #ifndef DEBUG_LOG_S32
-#define DEBUG_LOG_S32(name,ptr,len)
+#define DEBUG_LOG_S32(name,tags,ptr,len,t1,t2)
 #endif
 
 #ifndef DEBUG_LOG_S16
-#define DEBUG_LOG_S16(name,ptr,len)
+#define DEBUG_LOG_S16(name,tags,ptr,len,t1,t2)
 #endif
 
 #ifndef DEBUG_LOG_U16
-#define DEBUG_LOG_U16(name,ptr,len)
+#define DEBUG_LOG_U16(name,tags,ptr,len,t1,t2)
 #endif
 
 #ifndef DEBUG_LOG_U8
-#define DEBUG_LOG_U8(name,ptr,len)
+#define DEBUG_LOG_U8(name,tags,ptr,len,t1,t2)
 #endif
 
 #ifndef DEBUG_LOG_S8
-#define DEBUG_LOG_S8(name,ptr,len)
+#define DEBUG_LOG_S8(name,tags,ptr,len,t1,t2)
 #endif
 
 #endif

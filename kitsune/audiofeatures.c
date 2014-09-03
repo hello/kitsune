@@ -438,8 +438,8 @@ static void UpdateChangeSignals(EChangeModes_t * pCurrentMode, const int32_t * m
     
     *pCurrentMode = (EChangeModes_t)maxidx;
     
-    //DEBUG_LOG_S32("logProbOfModes",logProbOfModes,3);
-    DEBUG_LOG_S16("mode", &maxidx, 1);
+    //DEBUG_LOG_S32("logProbOfModes",NULL,logProbOfModes,3,0,0);
+    //DEBUG_LOG_S16("mode",NULL,&maxidx,1,0,0);
     
 }
 
@@ -522,7 +522,7 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
     
     /* fr will contain the dct */
     fft(fr,fi,NUM_MFCC_FEATURES_2N + 1);
-    DEBUG_LOG_S16("mfcc",fr,NUM_MFCC_FEATURES);
+    DEBUG_LOG_S16("mfcc",NULL,fr,NUM_MFCC_FEATURES,samplecount,samplecount);
 
 
     /* Moving Average */
@@ -533,7 +533,7 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
     }
 
 
-    DEBUG_LOG_S32("mfcc_avg",mfccavg,NUM_MFCC_FEATURES);
+    DEBUG_LOG_S32("mfcc_avg",NULL,mfccavg,NUM_MFCC_FEATURES,samplecount,samplecount);
     
     UpdateChangeSignals(&currentMode, mfccavg, _data.callcounter);
     

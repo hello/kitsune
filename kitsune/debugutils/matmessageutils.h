@@ -33,8 +33,15 @@ extern "C" {
         uint32_t len;
     } IntArray_t;
     
-    size_t SetIntMatrix(pb_ostream_t * stream,IntArray_t data, int32_t rows, int32_t cols, uint32_t id,int64_t time);
-    
+    size_t SetIntMatrix(pb_ostream_t * stream,
+                        const char * id,
+                        const char * tags,
+                        const char * source,
+                        IntArray_t data,
+                        int32_t rows,
+                        int32_t cols,
+                        int64_t t1,
+                        int64_t t2);
     
     
 #ifdef __cplusplus

@@ -4,6 +4,27 @@
 #include "../protobuf/matrix.pb.h"
 
 
+static bool write_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
+    const char * str = (const char *)(*arg);
+    static const char nullchar = '\0';
+    
+    if (!str) {
+        str = &nullchar;
+    }
+    
+    //write tag
+    if (!pb_encode_tag(stream, PB_WT_STRING, field->tag)) {
+        return 0;
+    }
+    
+    
+    pb_encode_string(stream, (uint8_t*)str, strlen(str));
+ 
+    
+    
+    return 1;
+
+}
 
 static void encode_int_array(pb_ostream_t *stream,IntArray_t * pdesc) {
     uint32_t i;
@@ -74,7 +95,15 @@ static bool write_int_mat(pb_ostream_t *stream, const pb_field_t *field, void * 
     
 }
 
-size_t SetIntMatrix(pb_ostream_t * stream,IntArray_t data, int32_t rows, int32_t cols, uint32_t id,int64_t time) {
+size_t SetIntMatrix(pb_ostream_t * stream,
+                    const char * id,
+                    const char * tags,
+                    const char * source,
+                    IntArray_t data,
+                    int32_t rows,
+                    int32_t cols,
+                    int64_t t1,
+                    int64_t t2) {
     
     Matrix mat;
     size_t size;
@@ -82,12 +111,26 @@ size_t SetIntMatrix(pb_ostream_t * stream,IntArray_t data, int32_t rows, int32_t
     memset(&mat,0,sizeof(Matrix));
     data.len = rows*cols;
     
-    mat.id = id;
+    mat.id.arg = (void *) id;
+    mat.id.funcs.encode = write_string;
+    
+    mat.tags.arg = (void *)tags;
+    mat.tags.funcs.encode = write_string;
+    
+    mat.source.arg = (void *)source;
+    mat.source.funcs.encode = write_string;
+    
     mat.datatype = Matrix_DataType_INT;
+    
     mat.idata.funcs.encode = write_int_mat;
     mat.idata.arg = &data;
-    mat.time = time;
+    
+    mat.time1 = t1;
+    
+    mat.time2 = t2;
+    
     mat.rows = rows;
+    
     mat.cols = cols;
 
     
