@@ -33,7 +33,7 @@
 #define TIMER_INTERVAL_RELOAD   65535
 #define PULSE_WIDTH             20000//8192//2097
 
-#define SAMPLES 4096
+#define SAMPLES 1024
 
 //****************************************************************************
 //
@@ -132,9 +132,10 @@ int get_dust() {
 // Read BUFFER_SZ ADC samples
 //
 	while (++uiIndex < SAMPLES) {
+	while (uiIndex < SAMPLES) {
 		if (ADCFIFOLvlGet(ADC_BASE, uiChannel)) {
-			ulSample = ADCFIFORead(ADC_BASE, uiChannel) & 0x3FFC;
-			ulSample >>= 2;
+			++uiIndex;
+			ulSample = (ADCFIFORead(ADC_BASE, uiChannel) & 0x3FFC ) >> 2;
 			if (ulSample > max) {
 				max = ulSample;
 			}
