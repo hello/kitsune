@@ -155,8 +155,8 @@ TEST_F(TestFrequencyFeatures,TestMel) {
         
 	}
     
-    ASSERT_TRUE(_myseg.startOfSegment > 43 && _myseg.startOfSegment < 86);
-    ASSERT_TRUE(_myseg.endOfSegment > 86);
+    ASSERT_TRUE(_myseg.t1 < 86);
+    ASSERT_TRUE(_myseg.t2 >= 86);
     ASSERT_TRUE(_mfcc[0] > 0);
 }
 
