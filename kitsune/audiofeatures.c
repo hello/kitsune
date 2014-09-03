@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdlib.h>     /* abs */
 #include "debugutils/debuglog.h"
+#include <stdio.h>
 
 
 /*
@@ -108,7 +109,6 @@ typedef struct {
     uint32_t stablePeriodCounter;
     EChangeModes_t lastModes[3];
     int64_t modechangeTimes[3];
-    int32_t featuresAtModeChange[2][NUM_MFCC_FEATURES];
     int32_t maxabsfeatures[NUM_MFCC_FEATURES];
     uint8_t isValidSteadyStateSegment;
     
@@ -163,6 +163,7 @@ static int16_t MovingAverage16(uint32_t counter, int16_t x,int16_t * buf, int32_
 static void SegmentSteadyState(EChangeModes_t currentMode,const int32_t * mfccavg,int64_t samplecount) {
     int32_t energySignal = mfccavg[0];
     uint16_t i;
+    
     
     
     /*  Every day I'm segmenting segmenting
@@ -227,41 +228,40 @@ static void SegmentSteadyState(EChangeModes_t currentMode,const int32_t * mfccav
             _data.modechangeTimes[2] = _data.modechangeTimes[1];
             _data.modechangeTimes[1] = _data.modechangeTimes[0];
             _data.modechangeTimes[0] = samplecount;
-            
-            //update feature history
-            memcpy(_data.featuresAtModeChange[1],_data.featuresAtModeChange[0],NUM_MFCC_FEATURES*sizeof(int32_t));
-            memcpy(_data.featuresAtModeChange[0],mfccavg,NUM_MFCC_FEATURES*sizeof(int32_t));
+
+            //reset features for next segment
+            memset(_data.maxabsfeatures,0,sizeof(_data.maxabsfeatures));
 
         }
     }
 
     
     //segment out a burst of energy
-    if ( (( _data.lastModes[1] == stable && _data.lastModes[2] == increasing) || _data.lastModes[1] == increasing) &&
-        _data.lastModes[0] == decreasing &&
-        currentMode != decreasing) {
-        uint8_t featindex;
+    if ( currentMode == decreasing &&
+         (_data.lastModes[0] == increasing || _data.lastModes[0] == stable) ) {
         
         // Segment!
         Segment_t seg;
         
         //set segment start time when it actually began increasing
-        if (_data.lastModes[1] == increasing) {
-            seg.startOfSegment = _data.modechangeTimes[1];
-            featindex = 0;
+        if (_data.lastModes[0] == stable) {
+            seg.startOfSegment = _data.modechangeTimes[2];
         }
         else {
-            seg.startOfSegment = _data.modechangeTimes[2];
-            featindex = 1; //use the feature index from further in the past
+            seg.startOfSegment = _data.modechangeTimes[1];
         }
         seg.endOfSegment = samplecount;
         
         if (seg.endOfSegment - seg.startOfSegment > k_min_segment_time_in_counts) {
             
             if (_data.fpCallback) {
-                _data.fpCallback(_data.featuresAtModeChange[featindex],&seg);
+                _data.fpCallback(_data.maxabsfeatures,&seg);
             }
         }
+        
+        //reset features for next segment
+        memset(_data.maxabsfeatures,0,sizeof(_data.maxabsfeatures));
+
     }
     
     //find max magnitude of features over time
@@ -282,10 +282,13 @@ static void SegmentSteadyState(EChangeModes_t currentMode,const int32_t * mfccav
         _data.modechangeTimes[1] = _data.modechangeTimes[0];
         _data.modechangeTimes[0] = samplecount;
         
-        memcpy(_data.featuresAtModeChange[1],_data.featuresAtModeChange[0],NUM_MFCC_FEATURES*sizeof(int32_t));
-        memcpy(_data.featuresAtModeChange[0],_data.maxabsfeatures,NUM_MFCC_FEATURES*sizeof(int32_t));
+        //reset features because we may be starting a segment now
+        if (currentMode == increasing) {
+            memset(_data.maxabsfeatures,0,sizeof(_data.maxabsfeatures));
+        }
         
-        memset(_data.maxabsfeatures,0,sizeof(_data.maxabsfeatures));
+        
+        //printf("Mode change at %lld\n",samplecount);
 
     }
     
