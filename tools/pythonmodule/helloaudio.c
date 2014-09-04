@@ -1,0 +1,48 @@
+#include "../../kitsune/audiofeatures.h"
+#include <stdio.h>
+#include <string.h>
+static int64_t _counter;
+static int _gotcallback;
+static Segment_t _segment;
+static int32_t _mfccfeats[NUM_MFCC_FEATURES];
+
+static void AudioFeaturesCallback(const int32_t * mfccfeats, const Segment_t * pSegment) {
+    _gotcallback = 1;
+
+    memcpy(&_segment,pSegment,sizeof(Segment_t));
+    memcpy(_mfccfeats,mfccfeats,sizeof(int32_t)*NUM_MFCC_FEATURES);
+}
+
+void Init(void) {
+    _counter = 0;
+    AudioFeatures_Init(AudioFeaturesCallback);
+}
+
+void GetAudioFeatures(int feats[NUM_MFCC_FEATURES]) {
+    memcpy(feats,_mfccfeats,NUM_MFCC_FEATURES*sizeof(int));
+}
+
+int GetT1(void) {
+    return (int)_segment.t1;
+}
+
+int GetT2(void) {
+    return (int)_segment.t2;
+}
+
+int SetAudioData(int buf[1024]) {
+    int16_t shortbuf[1024];
+    int16_t i;
+
+    for (i = 0; i < 1024; i++) {
+        shortbuf[i] = (int16_t)buf[i];
+    }
+
+    //printf("%d,%d,%d\n",shortbuf[0],shortbuf[1],shortbuf[2]);
+
+    _gotcallback = 0;
+    AudioFeatures_SetAudioData(shortbuf,10,_counter);
+
+    _counter++;
+    return _gotcallback;
+}
