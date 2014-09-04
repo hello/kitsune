@@ -7,19 +7,7 @@ set(CMAKE_INCLUDE_PATH ${PROJECT_SOURCE_DIR}/)
 add_definitions(-DUSE_CPP_DEBUG_LOGGING)
 
 
-#compile our alg code
-add_library(EmbeddedAlg STATIC
-../../kitsune/fft.c
-../../kitsune/audiofeatures.c
-../../kitsune/nanopb/pb_decode.c
-../../kitsune/nanopb/pb_encode.c
-../../kitsune/protobuf/matrix.pb.c
-../../kitsune/debugutils/matmessageutils.c
-../../kitsune/debugutils/DebugLog.cpp
-../../kitsune/debugutils/base64.cpp
-)
-
-
+add_subdirectory("../../kitsune" "${CMAKE_CURRENT_BINARY_DIR}/kitsune")
 
 
 add_executable(pcmrunner
