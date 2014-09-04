@@ -656,6 +656,7 @@ int rx_data_pb(unsigned char * buffer, int buffer_size ) {
 	buffer_size -= SIG_SIZE;
 
 	AES_set_key(&aesctx, aes_key, aesctx.iv, AES_MODE_128); //todo real key
+	AES_convert_key(&aesctx);
 	AES_cbc_decrypt(&aesctx, sig, sig, SIG_SIZE);
 
 	SHA1_Init(&sha1ctx);
@@ -673,8 +674,7 @@ int rx_data_pb(unsigned char * buffer, int buffer_size ) {
 		}
 		UARTprintf("\n");
 
-		UARTprintf("WARNING PASSING ON EVEN THOUGH signatures do not match\n");
-		//return -1; //todo uncomment
+		return -1; //todo uncomment
 	}
 
 	/* Create a stream that will read from our buffer. */
