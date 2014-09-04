@@ -10,7 +10,7 @@ extern void GetAudioFeatures(int feats[8]);
 extern int GetT1(void);
 extern int GetT2(void);
 extern const char * DumpDebugBuffer();
-
+extern int GetSegmentType(void);
 
 %}
 
@@ -20,4 +20,5 @@ extern void GetAudioFeatures(int feats[8]);
 extern int GetT1(void);
 extern int GetT2(void);
 extern const char * DumpDebugBuffer();
+extern int GetSegmentType(void);
 

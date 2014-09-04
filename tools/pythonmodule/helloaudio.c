@@ -42,6 +42,10 @@ int GetT2(void) {
     return (int)_segment.t2;
 }
 
+int GetSegmentType(void) {
+    return (int)_segment.type;
+}
+
 int SetAudioData(int buf[1024]) {
     int16_t shortbuf[1024];
     int16_t i;

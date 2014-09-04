@@ -24,7 +24,7 @@ CHANNELS = 1
 RATE = 44100 #sample rate
 
 plot_target = 'mfcc_avg'
-plot_samples = 430
+plot_samples = 430*3
 num_feats = 8
 plot_yrange = (-50000, 300000)
 plot_num_signal = num_feats + 1
@@ -85,11 +85,17 @@ def update(p6, stream):
             helloaudio.intArray_setitem(arr,j, idata[j])
 
         retval = helloaudio.SetAudioData(arr)
-        t1 = 0
-        t2 = 0
+        
         if retval:
             t1 = helloaudio.GetT1() 
             t2 = helloaudio.GetT2() 
+            segtype = helloaudio.GetSegmentType()
+            
+            if (segtype == 0):
+                segtype = 'packet';
+            else:
+                segtype = 'steady'
+                
             duration = t2 - t1
             
             t2 = t2 % plot_samples
@@ -100,7 +106,7 @@ def update(p6, stream):
             segdata[t1] = plot_yrange[1]
             segdata[t2] = plot_yrange[1]
             
-            text = pg.TextItem('hello', anchor=(0, 0))
+            text = pg.TextItem(segtype, anchor=(0, 0))
             p6.addItem(text)
             graphicsitems.append(text)
             text.setPos(t2, 0)
