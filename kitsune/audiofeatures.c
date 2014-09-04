@@ -210,14 +210,14 @@ static void SegmentSteadyState(EChangeModes_t currentMode,const int32_t * mfccav
         //if you have been stable long enough, output a segment
         if (++_data.stablePeriodCounter > k_stable_count_period_in_counts) {
             Segment_t seg;
-            seg.t1 = _data.modechangeTimes[1];
+            seg.t1 = _data.modechangeTimes[0];
             seg.t2 = samplecount;
             seg.type = segmentSteadyState;
             
             
             if (_data.isValidSteadyStateSegment) {
                 if (_data.fpCallback) {
-                    _data.fpCallback(mfccavg,&seg);
+                    _data.fpCallback(_data.maxabsfeatures,&seg);
                 }
                 _data.isValidSteadyStateSegment = FALSE;
             }
@@ -236,12 +236,28 @@ static void SegmentSteadyState(EChangeModes_t currentMode,const int32_t * mfccav
         }
     }
 
+    //segment out a prematurely ended steady state
+    if (currentMode == increasing && currentMode != _data.lastModes[0]) {
+        if (_data.lastModes[0] == stable && _data.stablePeriodCounter && _data.isValidSteadyStateSegment) {
+            Segment_t seg;
+            seg.t1 = _data.modechangeTimes[0];
+            seg.t2 = samplecount;
+            seg.type = segmentSteadyState;
+            
+            if (_data.fpCallback) {
+                _data.fpCallback(_data.maxabsfeatures,&seg);
+            }
+
+        }
+        
+        _data.stablePeriodCounter = 0;
+    }
     
     //segment out a burst of energy
     if ( currentMode == decreasing && currentMode != _data.lastModes[0]) {
         Segment_t seg;
         seg.type = segmentPacket;
-
+        _data.stablePeriodCounter = 0;
         
         //very short
         if (_data.lastModes[0] == increasing) {
@@ -259,6 +275,8 @@ static void SegmentSteadyState(EChangeModes_t currentMode,const int32_t * mfccav
         if (_data.lastModes[0] == stable && _data.lastModes[1] == stable) {
             seg.t1 = _data.modechangeTimes[0];
             seg.t2 = samplecount;
+            seg.type = segmentSteadyState;
+
         }
         
         
