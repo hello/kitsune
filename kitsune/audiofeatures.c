@@ -78,13 +78,13 @@ static const int32_t k_min_log_prob = TOFIX(-1.5f,QFIXEDPOINT);
 
 static const uint32_t k_stable_counts_to_be_considered_stable =  STABLE_TIME_TO_BE_CONSIDERED_STABLE_IN_MILLISECONDS / SAMPLE_PERIOD_IN_MILLISECONDS;
 
-#define STEADY_STATE_SEGMENT_PERIOD_IN_MILLISECONDS (50000)
+#define STEADY_STATE_SEGMENT_PERIOD_IN_MILLISECONDS (2000)
 static const uint32_t k_stable_count_period_in_counts = STEADY_STATE_SEGMENT_PERIOD_IN_MILLISECONDS / SAMPLE_PERIOD_IN_MILLISECONDS;
 
 #define MIN_SEGMENT_TIME_IN_MILLISECONDS (500)
 static const uint32_t k_min_segment_time_in_counts = MIN_SEGMENT_TIME_IN_MILLISECONDS / SAMPLE_PERIOD_IN_MILLISECONDS;
 
-static const int32_t k_min_energy = 100;
+static const int32_t k_min_energy = 5000;
 
 /*--------------------------------
  *   Types
@@ -238,22 +238,30 @@ static void SegmentSteadyState(EChangeModes_t currentMode,const int32_t * mfccav
 
     
     //segment out a burst of energy
-    if ( currentMode == decreasing &&
-         (_data.lastModes[0] == increasing || _data.lastModes[0] == stable) ) {
-        
-        // Segment!
+    if ( currentMode == decreasing && currentMode != _data.lastModes[0]) {
         Segment_t seg;
-        
-        //set segment start time when it actually began increasing
-        if (_data.lastModes[0] == stable) {
-            seg.t1 = _data.modechangeTimes[2];
-        }
-        else {
-            seg.t1 = _data.modechangeTimes[1];
-        }
-        seg.t2 = samplecount;
         seg.type = segmentPacket;
 
+        
+        //very short
+        if (_data.lastModes[0] == increasing) {
+            seg.t1 = _data.modechangeTimes[0];
+            seg.t2 = samplecount;
+        }
+        
+        //little longer
+        if (_data.lastModes[0] == stable && _data.lastModes[1] == increasing) {
+            seg.t1 = _data.modechangeTimes[1];
+            seg.t2 = samplecount;
+        }
+        
+        //coming off of a stable period
+        if (_data.lastModes[0] == stable && _data.lastModes[1] == stable) {
+            seg.t1 = _data.modechangeTimes[0];
+            seg.t2 = samplecount;
+        }
+        
+        
         if (seg.t2 - seg.t1 > k_min_segment_time_in_counts) {
             
             if (_data.fpCallback) {
@@ -263,7 +271,8 @@ static void SegmentSteadyState(EChangeModes_t currentMode,const int32_t * mfccav
         
         //reset features for next segment
         memset(_data.maxabsfeatures,0,sizeof(_data.maxabsfeatures));
-
+        
+        
     }
     
     //find max magnitude of features over time
