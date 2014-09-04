@@ -49,7 +49,7 @@ int main(int argc, char * argv[]) {
     ifstream inFile (argv[1], ios::in | ios::binary);
     
     //init output logging... tell it what its destination filename is
-    DebugLogSingleton::Initialize(argv[2],_label);
+    DebugLogSingleton::Initialize_UsingFileStream(argv[2],_label);
 
     
     char buf[2 * FFT_SIZE ];

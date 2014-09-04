@@ -3,8 +3,31 @@
 #include "../nanopb/pb_encode.h"
 #include "base64.h"
 #include "matmessageutils.h"
+#include <sstream>
+#include <assert.h>
 
 #define MAT_BUF_SIZE (100000*2)
+
+static DebugLogSingleton * _pSingletonData;
+
+
+void DebugLog_Initialize(const char * filename) {
+    if (filename) {
+        DebugLogSingleton::Initialize_UsingFileStream(filename);
+    }
+    else {
+        DebugLogSingleton::Initialize_UsingStringStream();
+    }
+}
+
+void DebugLog_Deinitialize() {
+    
+}
+
+const char * DebugLog_DumpStringBuf() {
+    return DebugLogSingleton::DumpStringBuffer().c_str();
+}
+
 
 void SetDebugVectorS32(const char * name, const char * tags,const int32_t * pdata, uint32_t len,int64_t t1, int64_t t2) {
     if (DebugLogSingleton::Instance()) {
@@ -30,7 +53,6 @@ void SetDebugVectorS8(const char * name, const char * tags,const int8_t * pdata,
     }
 }
 
-static DebugLogSingleton * _pSingletonData;
 
 
 static void SetDebugMatrix(std::ostream & outstream, const std::string & source, const std::string & defaulttags,const char * name, const char * tags,IntArray_t arr, uint32_t len,int64_t t1, int64_t t2) {
@@ -55,7 +77,8 @@ static void SetDebugMatrix(std::ostream & outstream, const std::string & source,
 
 
 
-DebugLogSingleton::DebugLogSingleton() {
+DebugLogSingleton::DebugLogSingleton()
+: _isStringBuffer(false) {
     
 }
 
@@ -64,13 +87,41 @@ DebugLogSingleton::~DebugLogSingleton() {
 }
 
 //static
-void DebugLogSingleton::Initialize(const std::string & filename, const std::string & labels) {
+void DebugLogSingleton::Initialize_UsingFileStream(const std::string & filename, const std::string & labels) {
     _pSingletonData = new DebugLogSingleton();
     
     _pSingletonData->_pOutstream = new std::ofstream(filename,std::ios::out | std::ios::binary);
     _pSingletonData->_source = filename;
     _pSingletonData->_tags = labels;
 }
+
+//static
+void DebugLogSingleton::Initialize_UsingStringStream(const std::string & source, const std::string & labels) {
+    _pSingletonData = new DebugLogSingleton();
+    
+    _pSingletonData->_pOutstream = new std::ostringstream();
+    _pSingletonData->_source = source;
+    _pSingletonData->_tags = labels;
+    _pSingletonData->_isStringBuffer = true;
+}
+
+const std::string & DebugLogSingleton::DumpStringBuffer() {
+    assert(_pSingletonData);
+    
+    if (_pSingletonData->_isStringBuffer) {
+        std::ostringstream * p = static_cast<std::ostringstream *>(_pSingletonData->_pOutstream);
+    
+        if (p) {
+            _pSingletonData->_strbuf = p->str();
+        
+            p->str("");
+            p->clear();
+        }
+    }
+    
+    return _pSingletonData->_strbuf;
+}
+
 
 //static
 void DebugLogSingleton::Deinitialize() {

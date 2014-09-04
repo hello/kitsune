@@ -1,6 +1,8 @@
 #include "../../kitsune/audiofeatures.h"
+#include "../../kitsune/debugutils/debuglog.h"
 #include <stdio.h>
 #include <string.h>
+
 static int64_t _counter;
 static int _gotcallback;
 static Segment_t _segment;
@@ -15,11 +17,21 @@ static void AudioFeaturesCallback(const int32_t * mfccfeats, const Segment_t * p
 
 void Init(void) {
     _counter = 0;
+    DebugLog_Initialize(NULL);
     AudioFeatures_Init(AudioFeaturesCallback);
+
+}
+
+void Deinit(void) {
+    DebugLog_Deinitialize();
 }
 
 void GetAudioFeatures(int feats[NUM_MFCC_FEATURES]) {
     memcpy(feats,_mfccfeats,NUM_MFCC_FEATURES*sizeof(int));
+}
+
+const char * DumpDebugBuffer() {
+    return DebugLog_DumpStringBuf();
 }
 
 int GetT1(void) {

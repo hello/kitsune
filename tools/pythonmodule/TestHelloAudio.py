@@ -18,6 +18,8 @@ for i in range(430):
             helloaudio.intArray_setitem(arr,j, val)
 
     retval = helloaudio.SetAudioData(arr)
+    debugbuf = helloaudio.DumpDebugBuffer()
+    print debugbuf
     if retval:
         t1 = helloaudio.GetT1()
         t2 = helloaudio.GetT2();
