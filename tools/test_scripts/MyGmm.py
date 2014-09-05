@@ -68,8 +68,8 @@ class MyGmm():
                 logliksum = loglik
             else:
                 logliksum = logliksum + loglik
-            
-        return logliksum
+         
+        return logliksum.reshape( (len(logliksum), 1))
         
     def evalgaussian(self, L, LTInv, w, mean, loglikdenom, x):
         # lik  == 1/sqrt( (2*pi)^k * det(P))  * exp[ -0.5 (x-mu)^T  * P^-1 * (x-mu) ]
@@ -91,7 +91,58 @@ class MyGmm():
         loglik = y + loglikdenom
                 
         return loglik
+
+
+class MyGmmEnsemble():
+    def __init__(self):
+        self.gmm_ = []
+        
+    def addGmm(self, g):
+        self.gmm_ .append(g)
+        
+    def toJson(self):
+        me = []
+        for g in self.gmm_:
+            me.append(json.loads(g.toJson()))
+        
+        return json.dumps(me)
+        
+    def setFromJson(self, str):
+        me = json.loads(str)
+        
+        for item in me:
+            g = MyGmm()
+            g.setFromJson(json.dumps(item))
+            self.addGmm(g)
             
+    def evaluate(self, x):
+        max = 0.0
+        
+        #evaluate, possibly in batch
+        first = True
+        for g in self.gmm_:
+            if first:
+                y = g.evaluate(x)
+                first = False
+            else:
+                y2 = g.evaluate(x)
+                y = np.concatenate((y,y2 ), axis=1)
+
+        #compute maximum log liklihood for each evaluation
+        maxloglik = np.amax(y, axis=1).reshape((y.shape[0], 1))
+
+        #subtract to keep in sane range after exp
+        y= y - np.tile(maxloglik, (1, y.shape[1]))
+        
+        z = np.exp(y)
+        
+        #normalize probabilties to sum to 1.0
+        probsum = np.sum(z, axis=1).reshape((y.shape[0], 1))
+        probs = z / np.tile(probsum, (1, y.shape[1]))
+        
+        return (probs, maxloglik)
+        
+
 if __name__ == '__main__':
     #test
     data = {"dim": 3, "covars": 
