@@ -445,24 +445,23 @@ Cmd_write(int argc, char *argv[])
     return(0);
 }
 // add this for creating buff for sound recording
-int
-Cmd_write_record(int argc, char *argv[])
+int Cmd_write_record(unsigned char *content)
+//int Cmd_write_record(int argc, char *argv[])
 {
-	#define RECORD_SIZE 4
-	unsigned char content[RECORD_SIZE];
+	//#define RECORD_SIZE 4
+	//unsigned char content[RECORD_SIZE];
 
 				//content[0] = 0xAA;
-				content[1] = 0x78;
-				content[2] = 0x55;
-				content[3] = 0x50;
-				//argv[1] = "VONE";
+//				content[1] = 0x78;
+//				content[2] = 0x55;
+//				content[3] = 0x50;
 
     FRESULT res;
 
 	WORD bytes = 0;
 	WORD bytes_written = 0;
 	WORD bytes_to_write = strlen(content[1]) * sizeof(content)+1;
-
+//	WORD bytes_to_write = strlen(content[1]) * 4 +1;
     if(global_filename( "VONE" ))
     {
     	return 1;

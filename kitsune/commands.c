@@ -392,18 +392,16 @@ UARTprintf("wrote to the file %d bytes\n", bytes);
 sl_FsClose(hndl, 0, 0, 0);
 #endif
 //////////////////////////////// start with SD card assessment
-  long k;
-	char *arg[3];
-		arg[1] = "SONE";
-		arg[2] = "0xAA";
-		arg[3] = "0xBB";
-  //char *saver = 0 ;
-  for (k=1; k<4; ++k)
-  {
-	  UARTprintf("%x th wrote\n",arg[k]);
-	  //saver = strcat(saver,arg[k+1]);
-	  vTaskDelay( 100 );
-  }
+//#define RECORD_SIZE 4
+//unsigned char content[RECORD_SIZE];
+unsigned char content[] = {" \r\n"};
+
+	//content[0] = 0xAA;
+	content[1] = 0x78;
+	content[2] = 0x55;
+	content[3] = 0x50;
+//	int str_con = strlen(content[1]); UARTprintf("d% string number \n",str_con);
+	Cmd_write_record(content);
 //UARTprintf("%d arg is ",saver);
 		//Cmd_write(2, arg);
 	//	UARTprintf("%dth wrote\n",k);
