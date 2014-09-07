@@ -444,7 +444,53 @@ Cmd_write(int argc, char *argv[])
     }
     return(0);
 }
+// add this for creating buff for sound recording
+int
+Cmd_write_record(int argc, char *argv[])
+{
+	#define RECORD_SIZE 4
+	unsigned char content[RECORD_SIZE];
 
+				//content[0] = 0xAA;
+				content[1] = 0x78;
+				content[2] = 0x55;
+				content[3] = 0x50;
+				//argv[1] = "VONE";
+
+    FRESULT res;
+
+	WORD bytes = 0;
+	WORD bytes_written = 0;
+	WORD bytes_to_write = strlen(content[1]) * sizeof(content)+1;
+
+    if(global_filename( "VONE" ))
+    {
+    	return 1;
+    }
+
+    // Open the file for reading.
+    res = f_open(&file_obj, g_pcTmpBuf, FA_CREATE_NEW|FA_WRITE);
+
+    f_stat( g_pcTmpBuf, &file_info );
+
+    if( file_info.fsize != 0 )
+        res = f_lseek(&file_obj, file_info.fsize );
+
+    do {
+		res = f_write( &file_obj, content+bytes_written, bytes_to_write-bytes_written, &bytes );
+		bytes_written+=bytes;
+    } while( bytes_written < bytes_to_write );
+
+    res = f_close( &file_obj );
+
+    if(res != FR_OK)
+    {
+        return((int)res);
+    }
+    UARTprintf("%s", g_pcTmpBuf);
+    return(0);
+}
+// end sound recording buffer
 int
 Cmd_rm(int argc, char *argv[])
 {

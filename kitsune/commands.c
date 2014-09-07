@@ -321,17 +321,14 @@ int Cmd_code_playbuff(int argc, char *argv[]) {
 //unsigned short * record_buf;
 
 int Cmd_record_buff(int argc, char *argv[]) {
-
+#if 0
 #define RECORD_SIZE 2
-
 #define minval( a,b ) a < b ? a : b
 
 unsigned long tok;
 
 int err, i ;
-
 long hndl , bytes;
-
 SlFsFileInfo_t info;
 
 unsigned char content[RECORD_SIZE];
@@ -343,27 +340,23 @@ unsigned char content[RECORD_SIZE];
 
 argv[1] = "TONE";
 
+
+
 sl_FsDel(argv[1], 0); UARTprintf("delete such a file\n");
 
 sl_FsGetInfo(argv[1], tok, &info);
 
-
-
 //tok = "this is testing this is testing";
 
 if (sl_FsOpen(argv[1], FS_MODE_OPEN_WRITE, &tok, &hndl)) {
-
 UARTprintf("no such a file, trying to create\n");
 
 if (sl_FsOpen(argv[1], FS_MODE_OPEN_CREATE(65535, _FS_FILE_OPEN_FLAG_COMMIT), &tok, &hndl)) {
-
 UARTprintf("error opening for write\n");
 
 return -1;
 														 	 	 	 	 	 	 	 	 	 }
 }
-
-UARTprintf(" Done for testing\n ");
 
 get_codec_mic_NAU(); UARTprintf(" Done for get_codec_NAU\n ");
 
@@ -387,6 +380,9 @@ Audio_Start(); //UARTprintf(" Done for Audio_Start\n ");
 
 //for (i=0; i < sizeof(content); i++){
 
+
+
+
 bytes = sl_FsWrite(hndl, info.FileLen, content, strlen(content));
 
 //}
@@ -394,7 +390,26 @@ bytes = sl_FsWrite(hndl, info.FileLen, content, strlen(content));
 UARTprintf("wrote to the file %d bytes\n", bytes);
 
 sl_FsClose(hndl, 0, 0, 0);
-
+#endif
+//////////////////////////////// start with SD card assessment
+  long k;
+	char *arg[3];
+		arg[1] = "SONE";
+		arg[2] = "0xAA";
+		arg[3] = "0xBB";
+  //char *saver = 0 ;
+  for (k=1; k<4; ++k)
+  {
+	  UARTprintf("%x th wrote\n",arg[k]);
+	  //saver = strcat(saver,arg[k+1]);
+	  vTaskDelay( 100 );
+  }
+//UARTprintf("%d arg is ",saver);
+		//Cmd_write(2, arg);
+	//	UARTprintf("%dth wrote\n",k);
+	//	}
+UARTprintf(" Done for Cmd_write_record\n ");
+//////////////////////////////// edit for SD card assessment
 //vPortFree(record_buf); //UARTprintf(" audio_buf\n ");
 
 return 0;
@@ -716,6 +731,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{"proximity", Cmd_readproximity, "i2 read proximity" },
 		{"codec_NAU8814", get_codec_NAU, "i2 nuvoton_codec" },
 		{"codec_Mic", get_codec_mic_NAU, "i2s mic_codec" },
+		{"auto_saveSD", Cmd_write_record, "automatic save data into SD"},
 #if ( configUSE_TRACE_FACILITY == 1 )
 		{ "tasks", Cmd_tasks, "Report stats of all tasks" },
 #endif
