@@ -256,6 +256,7 @@ static void SegmentSteadyState(EChangeModes_t currentMode,const int32_t * mfccav
     //segment out a burst of energy
     if ( currentMode == decreasing && currentMode != _data.lastModes[0]) {
         Segment_t seg;
+        memset(&seg,0,sizeof(Segment_t));
         seg.type = segmentPacket;
         _data.stablePeriodCounter = 0;
         
