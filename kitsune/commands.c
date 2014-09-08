@@ -203,13 +203,22 @@ static xSemaphoreHandle light_smphr;
 
  xSemaphoreHandle i2c_smphr;
 
-void thread_light(void* unused) {
+void thread_fast_i2c_poll(void* unused) {
 	while (1) {
 		portTickType now = xTaskGetTickCount();
 		int light;
+		int prox,last_prox,hpf_prox;
 
 		if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
 			light = get_light();
+			vTaskDelay(2); //this is important! If we don't do it, then the prox will stretch the clock!
+			prox = get_prox();
+			hpf_prox = last_prox - prox;
+			if (abs(hpf_prox) > 20) {
+				UARTprintf("PROX: %d\n", hpf_prox);
+			}
+			last_prox = prox;
+
 			xSemaphoreGive(i2c_smphr);
 
 			if (xSemaphoreTake(light_smphr, portMAX_DELAY)) {
@@ -539,7 +548,7 @@ void vUARTTask(void *pvParameters) {
 		UARTprintf("Failed to create the data_queue.\n");
 	}
 
-	xTaskCreate(thread_light, "lightTask", 2 * 1024 / 4, NULL, 3, NULL);
+	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask", 2 * 1024 / 4, NULL, 3, NULL);
 	xTaskCreate(thread_dust, "dustTask", 256 / 4, NULL, 3, NULL);
 	xTaskCreate(thread_sensor_poll, "pollTask", 2 * 1024 / 4, NULL, 4, NULL);
 	xTaskCreate(thread_tx, "txTask", 4 * 1024 / 4, NULL, 2, NULL);

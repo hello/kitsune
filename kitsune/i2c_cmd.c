@@ -22,6 +22,9 @@
                                      return  iRetVal;}
 #define BUF_SIZE 2
 
+
+#define TRY_OR_GOTOFAIL(a) if(a!=SUCCESS) { UARTprintf( "fail at %s %d\n\r", __FILE__, __LINE__ ); return FAILURE;}
+
 //*****************************************************************************
 //
 //! Display the buffer contents over I2C
@@ -218,7 +221,6 @@ int Cmd_i2c_write(int argc, char *argv[]) {
 }
 
 int get_temp() {
-#define TRY_OR_GOTOFAIL(a) if(a!=SUCCESS) { UARTprintf( "fail at %s %d\n\r", __FILE__, __LINE__ ); return FAILURE;}
 	unsigned char aucDataBuf[2];
 
 	unsigned char cmd = 0xfe;
@@ -250,7 +252,6 @@ int Cmd_readtemp(int argc, char *argv[]) {
 }
 
 int get_humid() {
-#define TRY_OR_GOTOFAIL(a) if(a!=SUCCESS) { UARTprintf( "fail at %s %d\n\r", __FILE__, __LINE__ ); return FAILURE;}
 	unsigned char aucDataBuf[2];
 	unsigned char cmd = 0xfe;
 	int humid_raw;
@@ -282,7 +283,6 @@ int Cmd_readhumid(int argc, char *argv[]) {
 }
 
 int get_light() {
-	#define TRY_OR_GOTOFAIL(a) if(a!=SUCCESS) { UARTprintf( "fail at %s %d\n\r", __FILE__, __LINE__ ); return FAILURE;}
 	unsigned char aucDataBuf_LOW[2];
 	unsigned char aucDataBuf_HIGH[2];
 	unsigned char cmd_init[2];
@@ -290,8 +290,8 @@ int get_light() {
 
 	unsigned char cmd;
 
-	static int first = 0;
-	if (!first) {
+	static int first = 1;
+	if (first) {
 		cmd_init[0] = 0x80; // Command register - 8'b1000_0000
 		cmd_init[1] = 0x03; // Control register - 8'b0000_0011
 		TRY_OR_GOTOFAIL(I2C_IF_Write(0x39, cmd_init, 2, 1)); // setup normal mode
@@ -299,7 +299,7 @@ int get_light() {
 		cmd_init[0] = 0x81; // Command register - 8'b1000_0000
 		cmd_init[1] = 0x02; // Control register - 8'b0000_0010 // 100ms
 		TRY_OR_GOTOFAIL(I2C_IF_Write(0x39, cmd_init, 2, 1)); //  );// change integration
-		first = 1;
+		first = 0;
 	}
 
 	cmd = 0x84; // Command register - 0x04
@@ -325,38 +325,37 @@ int Cmd_readlight(int argc, char *argv[]) {
 int get_prox() {
 	unsigned char prx_aucDataBuf_LOW[2];
 	unsigned char prx_aucDataBuf_HIGH[2];
-	unsigned char prx_cmd_init[2];
 	int proximity_raw;
-	unsigned char prx_cmd = 0x88; // Command register - 0x88
+	unsigned char prx_cmd;
+	unsigned char prx_cmd_init[2];
 
-	//int proximity;
+	static int first = 1;
+	if (first) {
+
+//		prx_cmd_init[0] = 0x82;
+//		prx_cmd_init[1] = 111; // max speed
+//		TRY_OR_GOTOFAIL(I2C_IF_Write(0x13, prx_cmd_init, 2, 1) );
+
+		prx_cmd_init[0] = 0x83; // Current setting register
+		prx_cmd_init[1] = 20; // Value * 10mA
+		TRY_OR_GOTOFAIL( I2C_IF_Write(0x13, prx_cmd_init, 2, 1) );
+		first = 0;
+	}
+
 	prx_cmd_init[0] = 0x80; // Command register - 8'b1000_0000
-	prx_cmd_init[1] = 0x08; // Control register - 8'b0000_1000
-	//RET_IF_ERR(
+	prx_cmd_init[1] = 0x08; // one shot measurements
+	TRY_OR_GOTOFAIL(I2C_IF_Write(0x13, prx_cmd_init, 2, 1) );// reset
 
-	I2C_IF_Write(0x13, prx_cmd_init, 2, 1);	//  );// reset
-	//RET_IF_ERR( I2C_IF_Write(ucDevAddr,&aucDataBuf[0],ucWrLen+1,1));
-	//vTaskDelay(10);
-
-	unsigned char prx_cmd_current[2];
-	//int proximity;
-	prx_cmd_current[0] = 0x83; // Current setting register
-	prx_cmd_current[1] = 0x14; // Value * 10mA
-	//RET_IF_ERR(
-	I2C_IF_Write(0x13, prx_cmd_current, 2, 1);
-
-	I2C_IF_Write(0x13, &prx_cmd, 1, 1);    // );
-	//vTaskDelay(50);
-	I2C_IF_Read(0x13, prx_aucDataBuf_LOW, 1);  //only using top byte...
+	prx_cmd = 0x88; // Command register - 0x87
+	TRY_OR_GOTOFAIL( I2C_IF_Write(0x13, &prx_cmd, 1, 1) );
+	TRY_OR_GOTOFAIL( I2C_IF_Read(0x13, prx_aucDataBuf_LOW, 1) );  //only using top byte...
 
 	prx_cmd = 0x87; // Command register - 0x87
-	I2C_IF_Write(0x13, &prx_cmd, 1, 1); // );
-	//vTaskDelay(50);
-	I2C_IF_Read(0x13, prx_aucDataBuf_HIGH, 1);   //only using top byte...
+	TRY_OR_GOTOFAIL( I2C_IF_Write(0x13, &prx_cmd, 1, 1) );
+	TRY_OR_GOTOFAIL( I2C_IF_Read(0x13, prx_aucDataBuf_HIGH, 1) );   //only using top byte...
 
-	//light_raw = aucDataBuf[0];
 	proximity_raw = (prx_aucDataBuf_HIGH[0] << 8) | prx_aucDataBuf_LOW[0];
-	//proximity = proximity_raw;
+
 	return proximity_raw;
 }
 
