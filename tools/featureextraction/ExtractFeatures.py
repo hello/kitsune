@@ -10,6 +10,7 @@ import matrix_pb2
 
 file_ending_of_feature_files = '.mel'
 
+sample_size = 20
 
 def DeserializeMatrixData(data):
     binarydata = base64.b64decode(data)

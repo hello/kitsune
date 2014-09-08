@@ -32,7 +32,7 @@ RATE = 44100 #sample rate
 
 plot_target = 'mfcc_avg'
 plot_samples = 430*3
-num_feats = 8
+num_feats = 16
 plot_yrange = (-50000, 300000)
 plot_num_signal = num_feats + 1
 

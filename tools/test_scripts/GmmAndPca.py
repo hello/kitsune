@@ -9,7 +9,7 @@ import numpy as np
 
 np.set_printoptions(precision=3, suppress=True, threshold=np.nan)
 
-
+min_maxloglik = -50
 class GmmPcaEvalutator():
     def __init__(self):
         self.pca = MyPca.MyPca()
@@ -24,6 +24,5 @@ class GmmPcaEvalutator():
         
     def evaluate(self, x):
         x2 = self.pca.transform(x)
-        #print x2
-        probs = self.ens.evaluate(x2)
+        probs = self.ens.evaluate(x2,min_maxloglik)
         return probs

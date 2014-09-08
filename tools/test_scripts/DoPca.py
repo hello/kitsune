@@ -20,10 +20,6 @@ for file in files:
     for i in range(temp.shape[0]):
         data[i,:] = data[i,:] / temp[i,0]
 
-    if idx == 0:
-        extradata = np.load('talkingfeats.dat.npy')
-        data = np.concatenate((data, extradata), axis=0)
-        
     ldata.append(data) #ignore energy
     idx = idx + 1
    
@@ -34,8 +30,7 @@ for d in ldata:
         first = False;
     else:
         feats = np.concatenate((feats, d))
-print feats
-print feats.shape
+
 p = MyPca()
 p.fit(feats, ndim) #do PCA on all data
 

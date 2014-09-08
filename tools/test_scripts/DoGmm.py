@@ -13,13 +13,15 @@ import matplotlib.pyplot as plt
 
 np.set_printoptions(precision=3, suppress=True, threshold=numpy.nan)
 
-files = ['talking.dat', 'crying.dat', 'snoring.dat', 'vehicles.dat']
+files = ['talking.dat','crying.dat','snoring.dat', 'vehicles.dat']
 
 ndims = 3
-
+ngaussians = 1
+cov_type = 'full'
+#cov_type = 'diag'
 def GetConfusionMatrixFromGmmEnsemble(tldata, ens):
     threshold = 0.4
-    min_maximumloglik = -20
+    min_maximumloglik = -50
     idx = 0;
     labels = []
     predictions  = []
@@ -64,10 +66,7 @@ for file in files:
         temp2[i, :] = temp2[i, :] / n
             
     if first:
-        first = False
-        extradata = np.load('talkingfeats.dat.npy')
-        temp2 = np.concatenate((temp2, extradata), axis=0)
-        
+        first = False        
         udata = temp2
 
     else:
@@ -78,7 +77,7 @@ for file in files:
 
 pca = MyPca.MyPca()
 pca.fit(udata, ndims) #do PCA on all data
-
+print "energy fraction in each dimension:", pca.explainedvariance_
 tldata = []
 for x in ldata:
     temp  = pca.transform(x)
@@ -103,7 +102,7 @@ if ndims == 3:
 ###########
 ens = MyGmm.MyGmmEnsemble()
 for x in tldata:
-    g = mixture.GMM(n_components=1, n_iter=1000, covariance_type='full')
+    g = mixture.GMM(n_components=ngaussians, n_iter=1000, covariance_type=cov_type)
     g.fit(x)
 
     g2 = MyGmm.MyGmm()
