@@ -84,7 +84,7 @@ static const uint32_t k_stable_count_period_in_counts = STEADY_STATE_SEGMENT_PER
 #define MIN_SEGMENT_TIME_IN_MILLISECONDS (500)
 static const uint32_t k_min_segment_time_in_counts = MIN_SEGMENT_TIME_IN_MILLISECONDS / SAMPLE_PERIOD_IN_MILLISECONDS;
 
-static const int32_t k_min_energy = 5000;
+static const int32_t k_min_energy = 10000;
 
 /*--------------------------------
  *   Types
