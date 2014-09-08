@@ -1,6 +1,7 @@
 #!/usr/bin/python
 from pyqtgraph.Qt import QtGui, QtCore
 import numpy as np
+import numpy.linalg
 import pyqtgraph as pg
 import pyaudio
 import wave
@@ -8,9 +9,15 @@ import sys
 import threading
 import signal
 import struct
-import helloaudio
 import matrix_pb2
 import base64
+
+import sys
+sys.path.append('.')
+import helloaudio
+import GmmAndPca
+
+np.set_printoptions(precision=3, suppress=True, threshold=numpy.nan)
 
 
 #def signal_handler(signal, frame):
@@ -53,6 +60,11 @@ def Refresh(p6, curves):
         p6.addItem(c)
         
 def update(p6, stream):
+    
+    gmm = GmmAndPca.GmmPcaEvalutator()
+    gmm.SetFromJsonFile('gmm_coeffs.json')
+
+    
     plotdata = []
     segdata = [0 for j in range(plot_samples)]
     
@@ -90,9 +102,24 @@ def update(p6, stream):
             t1 = helloaudio.GetT1() 
             t2 = helloaudio.GetT2() 
             segtype = helloaudio.GetSegmentType()
+            helloaudio.GetAudioFeatures(feats)
+            
+            segfeats = []
+            for j in range(0, num_feats):
+                segfeats.append(helloaudio.intArray_getitem(feats, j))
+            
+            segfeats = np.array(segfeats).astype(float)
+            normalizedfeats = segfeats / segfeats[0]
+            normalizedfeats = normalizedfeats[1:].reshape((1, num_feats-1))
+
+             
+            probs = gmm.evaluate(normalizedfeats)
+            
             
             if (segtype == 0):
                 segtype = 'packet';
+                print probs
+                #print normalizedfeats[0].tolist()
             else:
                 segtype = 'steady'
                 
@@ -112,7 +139,6 @@ def update(p6, stream):
             text.setPos(t2, 0)
 
 
-            helloaudio.GetAudioFeatures(feats)
 
         #pull out results
         debugdata = helloaudio.DumpDebugBuffer()
@@ -182,4 +208,7 @@ if __name__ == '__main__':
 
 
     if (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION'):
+        #this blocks
         QtGui.QApplication.instance().exec_()
+    
+    g_kill = True

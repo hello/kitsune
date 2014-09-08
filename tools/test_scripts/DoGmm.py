@@ -3,47 +3,107 @@ import numpy as np
 import numpy.linalg
 import sklearn as s
 from sklearn import mixture
+from sklearn.metrics import confusion_matrix
 import MyPca
 import MyGmm
 import json
+from pylab import *
+from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.pyplot as plt
+
+np.set_printoptions(precision=3, suppress=True, threshold=numpy.nan)
 
 files = ['talking.dat', 'crying.dat', 'snoring.dat', 'vehicles.dat']
+
+ndims = 3
+
+def GetConfusionMatrixFromGmmEnsemble(tldata, ens):
+    threshold = 0.4
+    min_maximumloglik = -20
+    idx = 0;
+    labels = []
+    predictions  = []
+    nullclass = len(tldata)
+    for temp in tldata:
+        probs = ens.evaluate(temp, min_maximumloglik)
+   
+        for i in range(probs.shape[0]):
+            p = probs[i, :]
+            myclass = np.where(p > threshold)[0]
+            if myclass.size > 0:
+                myclass = myclass[0]
+            else:
+                myclass = nullclass
+            
+            predictions.append(myclass)
+            labels.append(idx)
+    
+        idx = idx + 1
+    
+   
+    cm = confusion_matrix(labels, predictions).astype(float)
+    rowcounts = np.sum(cm, axis=1) 
+    for i in range(cm.shape[1]):
+        cm[i, :] = cm[i, :] / rowcounts[i]
+
+    print files
+    print cm
 
 ###########
 # Get PCA
 ###########
+#get labeled data
 ldata = []
+first = True
 for file in files:
-    temp = MyPca.GetFeats(file)
-    ldata.append(temp[:, 1:]) #ignore energy
+    temp = MyPca.GetFeats(file).astype(float)
+    temp2 = temp[:, 1:].reshape(temp.shape[0], temp.shape[1]-1)
+
+    for i in range(temp2.shape[0]):
+        n = temp[i, 0]
+        temp2[i, :] = temp2[i, :] / n
+            
+    if first:
+        first = False
+        extradata = np.load('talkingfeats.dat.npy')
+        temp2 = np.concatenate((temp2, extradata), axis=0)
+        
+        udata = temp2
+
+    else:
+        udata = np.concatenate((udata, temp2), axis=0)
     
-    #"labeled" data
-ldata = []
-for file in files:
-    temp = MyPca.GetFeats(file)
-    ldata.append(temp[:, 1:]) #ignore energy
-   
-feats = MyPca.GetFeats('feats.dat')
-feats = feats[:, 1:] #ignore energy
+    ldata.append(temp2) #ignore energy
+    
 
-
-p = MyPca.MyPca()
-p.fit(feats, 3) #do PCA on all data
+pca = MyPca.MyPca()
+pca.fit(udata, ndims) #do PCA on all data
 
 tldata = []
 for x in ldata:
-    temp  = p.transform(x)
-    temp = temp[:, 0:3]
+    temp  = pca.transform(x)
     tldata.append(temp)
     
+
+if ndims == 2:
+    plot(tldata[0][:,0],tldata[0][:,1],'.', tldata[1][:,0],tldata[1][:,1],'.', tldata[2][:,0],tldata[2][:,1],'.', tldata[3][:,0],tldata[3][:,1],'.')
+    show()    
+
+if ndims == 3:
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.scatter(tldata[0][:,0],tldata[0][:,1],  tldata[0][:,2], c='b',marker='.')
+    ax.scatter(tldata[1][:,0],tldata[1][:,1],  tldata[1][:,2], c='r',marker='o')
+    ax.scatter(tldata[2][:,0],tldata[2][:,1],  tldata[2][:,2], c='c',marker='x')
+    ax.scatter(tldata[3][:,0],tldata[3][:,1],  tldata[3][:,2], c='m',marker='+')
+    plt.show()
     
 ##########
 #Fit the GMM
 ###########
 ens = MyGmm.MyGmmEnsemble()
-
 for x in tldata:
-    g = mixture.GMM(n_components=1, covariance_type='full')
+    g = mixture.GMM(n_components=1, n_iter=1000, covariance_type='full')
     g.fit(x)
 
     g2 = MyGmm.MyGmm()
@@ -51,13 +111,18 @@ for x in tldata:
     ens.addGmm(g2)
 
 
+
+GetConfusionMatrixFromGmmEnsemble(tldata, ens)
+
+
 myclassifer = {}
-myclassifer['pca'] = json.loads(p.toJson())
-myclassifer['gmmsensemble'] = json.loads(ens.toJson())
+myclassifer['pca'] = pca.toDict()
+myclassifer['gmmsensemble'] = ens.toDict()
 
 f = open('gmm_coeffs.json', 'w')
 json.dump(myclassifer, f)
 f.close()
+
     
 
     

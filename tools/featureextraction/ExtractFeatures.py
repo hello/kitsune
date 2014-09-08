@@ -1,10 +1,12 @@
 #!/usr/bin/python
-import matrix_pb2
 import base64
 import sys
 import numpy as np
 import os
 import json
+
+sys.path.append('.')
+import matrix_pb2
 
 file_ending_of_feature_files = '.mel'
 

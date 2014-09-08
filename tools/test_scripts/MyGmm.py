@@ -1,8 +1,8 @@
 #!/usr/bin/python
 import numpy as np
 import numpy.linalg
-import json
 import scipy.linalg
+
 
 class MyGmm():
     def init(self):
@@ -35,20 +35,35 @@ class MyGmm():
         self.means_ = g.means_
         self.weights_ = g.weights_
         self.dim_ = self.covars_.shape[1]
-        self.nmodels_ = self.covars_.shape[0]
+        
+        if len(self.covars_[0].shape) == 1:     
+            cs = []
+       
+            for j in range(len(self.covars_)):
+                cs.append(np.diag(self.covars_[j]))
+
+            self.covars_ = [] 
+            for c in cs:
+                self.covars_.append(c)
+			
+            self.covars_ = np.array(self.covars_)
+            
+            self.nmodels_ = len(self.covars_)
+
+        else:
+            self.nmodels_ = self.covars_.shape[0]
         self.init()
         
-    def toJson(self):
+    def toDict(self):
         me = {}
         me['covars'] = self.covars_.tolist()
         me['means'] = self.means_.tolist()
         me['weights'] = self.weights_.tolist()
         me['dim'] = self.dim_
         me['nmodels'] = self.nmodels_
-        return json.dumps(me)
+        return me
         
-    def setFromJson(self, str):
-        me = json.loads(str)
+    def setFromDict(self, me):
         self.covars_ = np.array(me['covars'])
         self.means_ = np.array(me['means'])
         self.weights_ = np.array(me['weights'])
@@ -77,7 +92,7 @@ class MyGmm():
         # y = (L^T)^-1 * (x - mu)  
         # log(lik) = -1/2 [k*log(2*pi)] - 0.5*log(L(1,1)) - 0.5*log(L(2,2)) ... -0.5 *log(L(N,N))  - 0.5 y^T * y
         #print np.tile(mean, (x.shape[0], 1))
-        xnomean = x + np.tile(mean, (x.shape[0], 1))
+        xnomean = x - np.tile(mean, (x.shape[0], 1))
 
         xt = xnomean.transpose()
         y = np.matrix(LTInv) * xt
@@ -100,22 +115,21 @@ class MyGmmEnsemble():
     def addGmm(self, g):
         self.gmm_ .append(g)
         
-    def toJson(self):
+    def toDict(self):
         me = []
         for g in self.gmm_:
-            me.append(json.loads(g.toJson()))
+            me.append(g.toDict())
         
-        return json.dumps(me)
+        return me
         
-    def setFromJson(self, str):
-        me = json.loads(str)
+    def setFromDict(self, me):
         
         for item in me:
             g = MyGmm()
-            g.setFromJson(json.dumps(item))
+            g.setFromDict(item)
             self.addGmm(g)
             
-    def evaluate(self, x):
+    def evaluate(self, x, minmaxloglik = -20):
         max = 0.0
         
         #evaluate, possibly in batch
@@ -140,7 +154,9 @@ class MyGmmEnsemble():
         probsum = np.sum(z, axis=1).reshape((y.shape[0], 1))
         probs = z / np.tile(probsum, (1, y.shape[1]))
         
-        return (probs, maxloglik)
+        probs[np.where(maxloglik < minmaxloglik), :] = 0
+        
+        return probs
         
 
 if __name__ == '__main__':
@@ -150,10 +166,10 @@ if __name__ == '__main__':
             [0.1, 1, 0.3], 
              [0.2, 0.3, 1]]], 
     "nmodels": 1, "weights": [1.0000000000000002], 
-    "means": [[-0.1, -0.2, -0.3]]}
+    "means": [[0.1, 0.2, 0.3]]}
 
     g = MyGmm()
-    g.setFromJson(json.dumps(data))
+    g.setFromDict(data)
     
     x = np.array([0.1, 0.2, 0.3])
     x = x.reshape((1, 3))
@@ -163,5 +179,11 @@ if __name__ == '__main__':
     x = x.reshape((1, 3))
 
     print g.evaluate(x) + 2.7245
+    
+    me = g.toDict()
+    g = MyGmm()
+    g.setFromDict(me)
+    print g.evaluate(x) + 2.7245
+
 
     

@@ -1,6 +1,12 @@
 #!/usr/bin/python
+import sys
+sys.path.append('')
+
+
+
 import helloaudio
 import random
+
 
 helloaudio.Init()
 
