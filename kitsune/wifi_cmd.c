@@ -370,7 +370,7 @@ static bool write_callback_sha(pb_ostream_t *stream, const uint8_t *buf,
     SHA1_Update(&sha1ctx, buf, count);
 
     for (i = 0; i < count; ++i) {
-        UARTprintf("%c", buf);
+        UARTprintf("%x", buf);
     }
     return send(fd, buf, count, 0) == count;
 }
@@ -384,7 +384,7 @@ static bool read_callback_sha(pb_istream_t *stream, uint8_t *buf, size_t count) 
     SHA1_Update(&sha1ctx, buf, count);
 
     for (i = 0; i < count; ++i) {
-        UARTprintf("%c", buf);
+        UARTprintf("%x", buf);
     }
 
     if (result == 0)
@@ -854,9 +854,6 @@ int send_data_pb(char * buffer, int buffer_size, const pb_field_t fields[], cons
     UARTprintf("recv %d\n\r\n\r", rv);
 
     UARTprintf("Reply is:\n\r\n\r");
-    buffer[buffer_size-1] = 0; //make sure it terminates..
-    UARTprintf("%s\n\n", buffer);
-
     {
 		#define CL_HDR "Content-Length: "
 		char * content = strstr(buffer, "\r\n\r\n") + 4;
@@ -868,9 +865,15 @@ int send_data_pb(char * buffer, int buffer_size, const pb_field_t fields[], cons
 			len = atoi(len_str);
 			if (resp_ok) {
 				rx_data_pb((unsigned char*) content, len);
+			} else {
+				UARTprintf("Did not see http 2xx\n");
 			}
+		} else {
+			UARTprintf("Failed to find length\n");
 		}
 	}
+
+	UARTprintf("Send complete\n");
 
     //todo check for http response code 2xx
 
