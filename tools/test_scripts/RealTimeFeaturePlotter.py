@@ -11,6 +11,7 @@ import signal
 import struct
 import matrix_pb2
 import base64
+from Queue import Queue
 
 import sys
 sys.path.append('.')
@@ -31,20 +32,42 @@ CHANNELS = 1
 RATE = 44100 #sample rate
 
 plot_target = 'mfcc_avg'
-plot_samples = 430*3
+plot_samples = 430*1
 num_feats = 16
 plot_yrange = (-50000, 300000)
 plot_num_signal = num_feats + 1
 
 g_kill = False
+g_PlotQueue = Queue()
+
+
+
+global g_graphicsitems
+global g_p6
+global g_segdata
+global g_plotdata
+global g_curves
+
+g_curves = []
+g_plotdata = []
+g_segdata = [0 for j in range(plot_samples)]
+g_graphicsitems = []
+g_p6 = None
+
+class DataBlock():
+    def __init__(self, data, mytype):
+        self.data_ = data
+        self.mytype_ = mytype
+        
+    
 
 def DeserializeDebugData(base64data):
     binarydata = base64.b64decode(base64data)
     mat = matrix_pb2.Matrix()
     mat.ParseFromString(binarydata) 
     
-    return (mat.id,mat.idata)
-
+    return mat
+    
 def CreatePlotCurves(p6):
      p6.setRange(xRange=(0, plot_samples-1), yRange=plot_yrange)
 
@@ -59,23 +82,73 @@ def Refresh(p6, curves):
         p6.removeItem(c)
         p6.addItem(c)
         
-def update(p6, stream):
+def updatePlot():
+    global g_graphicsitems
+    global g_p6
+    global g_segdata
+    global g_plotdata
+    global g_curves
+    
+    try:
+        while True:
+            block = g_PlotQueue.get(False)
+            if block.mytype_ == 'audiofeatures':
+                vec = block.data_.idata
+                idx = block.data_.time1 % plot_samples
+                for j in range(len(vec)):
+                    g_plotdata[j][idx]= (vec[j]);
+                
+                
+                #reset plot signals
+                if idx == plot_samples - 1:
+                    print "HERE"
+                    g_plotdata = []
+                    g_segdata = [0 for j in range(plot_samples)]
+
+                    #fill in empy buffers
+                    for j in range(num_feats):
+                        g_plotdata.append([0 for j in range(plot_samples)])
+
+                    g_plotdata.append(g_segdata)
+
+        #remove text
+                    for gitem in g_graphicsitems:
+                        g_p6.removeItem(gitem)
+             
+                    g_graphicsitems = []
+            
+                    Refresh(g_p6, g_curves)
+            
+                else:
+                    #update plot
+                    for j in range(plot_num_signal):
+                        g_curves[j].setData(g_plotdata[j])
+            
+            if block.mytype_ == 'segdata':
+                s1 = block.data_[0]
+                s2 = block.data_[1]
+                g_segdata[s1[0]] = s1[1]
+                g_segdata[s2[0]] = s2[1]
+                segtype = block.data_[2]
+                
+                text = pg.TextItem(segtype, anchor=(0, 0))
+                text.setPos(s2[0], 0)
+                g_graphicsitems.append(text)
+                g_p6.addItem(text)
+
+
+    
+    except Exception:
+        foo = 3
+
+def updateAudio(stream):
+    first = True
+    dcfeats = None
     
     gmm = GmmAndPca.GmmPcaEvalutator()
     gmm.SetFromJsonFile('gmm_coeffs.json')
 
-    
-    plotdata = []
-    segdata = [0 for j in range(plot_samples)]
-    
-    graphicsitems = []
-
-    for j in range(num_feats):
-        plotdata.append([])
-    plotdata.append(segdata)
-
-    curves = CreatePlotCurves(p6)
-
+ 
     helloaudio.Init()
 
     arr = helloaudio.new_intArray(CHUNK)
@@ -109,9 +182,19 @@ def update(p6, stream):
                 segfeats.append(helloaudio.intArray_getitem(feats, j))
             
             segfeats = np.array(segfeats).astype(float)
+            
+            if first and segtype == 1:
+                first = False
+                dcfeats = segfeats
+                print dcfeats
+        
+            if dcfeats is not None:
+                segfeats = segfeats - dcfeats
+            
             normalizedfeats = segfeats / segfeats[0]
             normalizedfeats = normalizedfeats[1:].reshape((1, num_feats-1))
-
+            
+           
              
             probs = gmm.evaluate(normalizedfeats)
             
@@ -123,22 +206,20 @@ def update(p6, stream):
             else:
                 segtype = 'steady'
                 
+            
+                
             duration = t2 - t1
             
             t2 = t2 % plot_samples
             t1 = t2 - duration
             if t1 < 0:
                 t1 = 0
-                
-            segdata[t1] = plot_yrange[1]
-            segdata[t2] = plot_yrange[1]
+               
+            segdata = [(t1,plot_yrange[1]), (t2, plot_yrange[1]), segtype]
             
-            text = pg.TextItem(segtype, anchor=(0, 0))
-            p6.addItem(text)
-            graphicsitems.append(text)
-            text.setPos(t2, 0)
-
-
+            block = DataBlock(segdata, 'segdata')
+            g_PlotQueue.put(block)
+            
 
         #pull out results
         debugdata = helloaudio.DumpDebugBuffer()
@@ -149,35 +230,13 @@ def update(p6, stream):
         
         for line in lines:
             dd = DeserializeDebugData(line)
-            datadict[dd[0]] = dd[1]
+            datadict[dd.id] = dd
          
     
         #add data to plot vectors
-        vec = datadict[plot_target]
-        for j in range(len(vec)):
-            plotdata[j].append(vec[j]);
-         
-        #reset plot signals
-        if len(plotdata[0]) > plot_samples:
-            plotdata = []
-            segdata = [0 for j in range(plot_samples)]
-
-            for j in range(num_feats):
-                plotdata.append([])
-            plotdata.append(segdata)
-
-            #remove text
-            for gitem in graphicsitems:
-                p6.removeItem(gitem)
-             
-            graphicsitems = []
-            
-            Refresh(p6, curves)
-            
-        else:
-            #update plot
-            for j in range(plot_num_signal):
-                curves[j].setData(plotdata[j])
+        data = datadict[plot_target]
+        block = DataBlock(data, 'audiofeatures')
+        g_PlotQueue.put(block)
 
 
 ## Start Qt event loop unless running in interactive mode or using pyside.
@@ -187,14 +246,25 @@ if __name__ == '__main__':
     paud = pyaudio.PyAudio()
     app = QtGui.QApplication([])
 
+    plotTimer = QtCore.QTimer()
+    plotTimer.timeout.connect(updatePlot)
+    plotTimer.start(10)
+    
+
+
     win = pg.GraphicsWindow(title="Basic plotting examples")
     win.resize(640,480)
     win.setWindowTitle('sound!')
     pg.setConfigOptions(antialias=True)
 
-    p6 = win.addPlot(title="mfcc features")
+    g_p6 = win.addPlot(title="mfcc features")
    
-    
+    g_curves = CreatePlotCurves(g_p6)
+
+    for j in range(num_feats):
+        g_plotdata.append([0 for j in range(plot_samples)])
+    g_plotdata.append(g_segdata)
+
 
     stream = paud.open(format=FORMAT,
                 channels=CHANNELS,
@@ -203,7 +273,7 @@ if __name__ == '__main__':
                 frames_per_buffer=CHUNK)
                 
 
-    t = threading.Thread(target=update, args = (p6, stream))
+    t = threading.Thread(target=updateAudio, args = (stream,))
     t.start()
 
 
