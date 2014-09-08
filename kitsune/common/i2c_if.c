@@ -127,7 +127,7 @@ void recoveri2c() {
 	}
 
 	//SDA is now high again, go back to i2c controller...
-	MAP_PRCMPeripheralReset(PRCM_I2CA0);
+	//MAP_PRCMPeripheralReset(PRCM_I2CA0);
 
 	MAP_PinTypeI2C(PIN_01, PIN_MODE_1);
 	MAP_PinTypeI2C(PIN_02, PIN_MODE_1);

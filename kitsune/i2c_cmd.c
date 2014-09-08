@@ -285,40 +285,31 @@ int get_light() {
 	#define TRY_OR_GOTOFAIL(a) if(a!=SUCCESS) { UARTprintf( "fail at %s %d\n\r", __FILE__, __LINE__ ); return FAILURE;}
 	unsigned char aucDataBuf_LOW[2];
 	unsigned char aucDataBuf_HIGH[2];
-	unsigned char setup_config;
 	unsigned char cmd_init[2];
 	int light_raw;
 
-	unsigned char cmd = 0x81; // Command register - 0x01
+	unsigned char cmd;
 
-	cmd_init[0] = 0x80; // Command register - 8'b1000_0000
-	cmd_init[1] = 0x0F; // Control register - 8'b0000_1111
-//RET_IF_ERR(
-	TRY_OR_GOTOFAIL(I2C_IF_Write(0x39, cmd_init, 2, 1)); //  );// reset
-//RET_IF_ERR( I2C_IF_Write(ucDevAddr,&aucDataBuf[0],ucWrLen+1,1));
-//vTaskDelay(10);
+	static int first = 0;
+	if (!first) {
+		cmd_init[0] = 0x80; // Command register - 8'b1000_0000
+		cmd_init[1] = 0x03; // Control register - 8'b0000_0011
+		TRY_OR_GOTOFAIL(I2C_IF_Write(0x39, cmd_init, 2, 1)); // setup normal mode
 
-	cmd_init[0] = 0x81; // Command register - 8'b1000_0000
-	cmd_init[1] = 0x00; // Control register - 8'b0000_0000 // 400ms
-//RET_IF_ERR(
-	TRY_OR_GOTOFAIL(I2C_IF_Write(0x39, cmd_init, 2, 1)); //  );// change integration
-	vTaskDelay(50);
-
-	TRY_OR_GOTOFAIL(I2C_IF_Write(0x39, &cmd, 1, 1));
-	vTaskDelay(50);
-	TRY_OR_GOTOFAIL(I2C_IF_Read(0x39, &setup_config, 1)); // configure
+		cmd_init[0] = 0x81; // Command register - 8'b1000_0000
+		cmd_init[1] = 0x02; // Control register - 8'b0000_0010 // 100ms
+		TRY_OR_GOTOFAIL(I2C_IF_Write(0x39, cmd_init, 2, 1)); //  );// change integration
+		first = 1;
+	}
 
 	cmd = 0x84; // Command register - 0x04
 	TRY_OR_GOTOFAIL(I2C_IF_Write(0x39, &cmd, 1, 1));
-//vTaskDelay(50);
-	TRY_OR_GOTOFAIL(I2C_IF_Read(0x39, aucDataBuf_LOW, 2));
+	TRY_OR_GOTOFAIL(I2C_IF_Read(0x39, aucDataBuf_LOW, 1)); //could read 2 here, but we don't use the other one...
 
 	cmd = 0x85; // Command register - 0x05
 	TRY_OR_GOTOFAIL(I2C_IF_Write(0x39, &cmd, 1, 1));
-//vTaskDelay(50);
-	TRY_OR_GOTOFAIL(I2C_IF_Read(0x39, aucDataBuf_HIGH, 2));
+	TRY_OR_GOTOFAIL(I2C_IF_Read(0x39, aucDataBuf_HIGH, 1));
 
-//light_raw = aucDataBuf[0];
 	light_raw = ((aucDataBuf_HIGH[0] << 8) | aucDataBuf_LOW[0]) << 0;
 
 	return light_raw;
@@ -356,12 +347,12 @@ int get_prox() {
 
 	I2C_IF_Write(0x13, &prx_cmd, 1, 1);    // );
 	//vTaskDelay(50);
-	I2C_IF_Read(0x13, prx_aucDataBuf_LOW, 2);    // );
+	I2C_IF_Read(0x13, prx_aucDataBuf_LOW, 1);  //only using top byte...
 
 	prx_cmd = 0x87; // Command register - 0x87
 	I2C_IF_Write(0x13, &prx_cmd, 1, 1); // );
 	//vTaskDelay(50);
-	I2C_IF_Read(0x13, prx_aucDataBuf_HIGH, 2);    // );
+	I2C_IF_Read(0x13, prx_aucDataBuf_HIGH, 1);   //only using top byte...
 
 	//light_raw = aucDataBuf[0];
 	proximity_raw = (prx_aucDataBuf_HIGH[0] << 8) | prx_aucDataBuf_LOW[0];
