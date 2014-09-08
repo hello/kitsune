@@ -108,9 +108,9 @@ void recoveri2c() {
 
 	UARTprintf("i2c recovery...\r\n");
 	//
-	// Configure PIN_01 for GPIOOutput 10
+	// Configure PIN_01 for GPIOOutput 10 open drain
 	//
-	MAP_PinTypeGPIO(PIN_01, PIN_MODE_0, false);
+	MAP_PinTypeGPIO(PIN_01, PIN_MODE_0, true);
 	MAP_GPIODirModeSet(GPIOA1_BASE, 0x4, GPIO_DIR_MODE_OUT);
 
 	//
@@ -121,12 +121,14 @@ void recoveri2c() {
 
 	while ( MAP_GPIOPinRead(GPIO_PORT, 0x8) == 0) {
 		MAP_GPIOPinWrite(GPIO_PORT, 0x4, 0); //pulse the clock line...
-		vTaskDelay(2);
+		vTaskDelay(10);
 		MAP_GPIOPinWrite(GPIO_PORT, 0x4, 1);
-		vTaskDelay(2);
+		vTaskDelay(10);
 	}
 
 	//SDA is now high again, go back to i2c controller...
+	MAP_PRCMPeripheralReset(PRCM_I2CA0);
+
 	MAP_PinTypeI2C(PIN_01, PIN_MODE_1);
 	MAP_PinTypeI2C(PIN_02, PIN_MODE_1);
 	I2CMasterControl(I2C_BASE, 0x00000004); //send a stop...
@@ -163,7 +165,7 @@ static int I2CTransact(unsigned long ulCmd) {
 	// Check for any errors in transfer
 	//
 	if (MAP_I2CMasterErr(I2C_BASE) != I2C_MASTER_ERR_NONE) {
-		I2CMasterControl(I2C_BASE, 0x00000004); //send a stop...
+		recoveri2c();
 		return FAILURE;
     }
     return SUCCESS;
