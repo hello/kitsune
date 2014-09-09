@@ -15,8 +15,9 @@ from Queue import Queue
 
 import sys
 sys.path.append('.')
+
 import helloaudio
-import GmmAndPca
+from AudioDataClient import *
 
 np.set_printoptions(precision=3, suppress=True, threshold=numpy.nan)
 
@@ -32,13 +33,15 @@ CHANNELS = 1
 RATE = 44100 #sample rate
 
 plot_target = 'mfcc_avg'
-plot_samples = 430*1
+plot_samples = 430*3
 num_feats = 16
 plot_yrange = (-50000, 300000)
 plot_num_signal = num_feats + 1
 
 g_kill = False
 g_PlotQueue = Queue()
+
+g_client = AudioDataClient('http://127.0.0.1:5555/audio/features')
 
 
 
@@ -101,7 +104,6 @@ def updatePlot():
                 
                 #reset plot signals
                 if idx == plot_samples - 1:
-                    print "HERE"
                     g_plotdata = []
                     g_segdata = [0 for j in range(plot_samples)]
 
@@ -142,13 +144,7 @@ def updatePlot():
         foo = 3
 
 def updateAudio(stream):
-    first = True
-    dcfeats = None
-    
-    gmm = GmmAndPca.GmmPcaEvalutator()
-    gmm.SetFromJsonFile('gmm_coeffs.json')
-
- 
+    first = True    
     helloaudio.Init()
 
     arr = helloaudio.new_intArray(CHUNK)
@@ -156,87 +152,77 @@ def updateAudio(stream):
 
     #p6.enableAutoRange('xy', False)  ## stop auto-scaling after the first data set is plotted
     while(not g_kill):
-        data = stream.read(CHUNK)
-        idata = []
-        
-        #extract integers from binary audio chunk
-        for i in range(len(data)/2):
-            idx = 2*i
-            a = struct.unpack('h', data[idx:idx+2])
-            idata.append(a[0])
-         
-        #pass of data to audio alg via SWIG interface
-        for j in range(len(idata)):
-            helloaudio.intArray_setitem(arr,j, idata[j])
-
-        retval = helloaudio.SetAudioData(arr)
-        
-        if retval:
-            t1 = helloaudio.GetT1() 
-            t2 = helloaudio.GetT2() 
-            segtype = helloaudio.GetSegmentType()
-            helloaudio.GetAudioFeatures(feats)
+        try:
+            data = stream.read(CHUNK)
+            idata = []
             
-            segfeats = []
-            for j in range(0, num_feats):
-                segfeats.append(helloaudio.intArray_getitem(feats, j))
-            
-            segfeats = np.array(segfeats).astype(float)
-            
-            if first and segtype == 1:
-                first = False
-                dcfeats = segfeats
-                print dcfeats
-        
-            if dcfeats is not None:
-                segfeats = segfeats - dcfeats
-            
-            normalizedfeats = segfeats / segfeats[0]
-            normalizedfeats = normalizedfeats[1:].reshape((1, num_feats-1))
-            
-           
+            #extract integers from binary audio chunk
+            for i in range(len(data)/2):
+                idx = 2*i
+                a = struct.unpack('h', data[idx:idx+2])
+                idata.append(a[0])
              
-            probs = gmm.evaluate(normalizedfeats)
-            
-            
-            if (segtype == 0):
-                segtype = 'packet';
-                print probs
-                #print normalizedfeats[0].tolist()
-            else:
-                segtype = 'steady'
-                
-            
-                
-            duration = t2 - t1
-            
-            t2 = t2 % plot_samples
-            t1 = t2 - duration
-            if t1 < 0:
-                t1 = 0
-               
-            segdata = [(t1,plot_yrange[1]), (t2, plot_yrange[1]), segtype]
-            
-            block = DataBlock(segdata, 'segdata')
-            g_PlotQueue.put(block)
-            
-
-        #pull out results
-        debugdata = helloaudio.DumpDebugBuffer()
-        
-        #deserialize results
-        datadict = {}
-        lines = debugdata.split('\n')
-        
-        for line in lines:
-            dd = DeserializeDebugData(line)
-            datadict[dd.id] = dd
-         
+            #pass of data to audio alg via SWIG interface
+            for j in range(len(idata)):
+                helloaudio.intArray_setitem(arr,j, idata[j])
     
-        #add data to plot vectors
-        data = datadict[plot_target]
-        block = DataBlock(data, 'audiofeatures')
-        g_PlotQueue.put(block)
+            retval = helloaudio.SetAudioData(arr)
+            
+            if retval:
+                t1 = helloaudio.GetT1() 
+                t2 = helloaudio.GetT2() 
+                segtype = helloaudio.GetSegmentType()
+                helloaudio.GetAudioFeatures(feats)
+                
+                segfeats = []
+                for j in range(0, num_feats):
+                    segfeats.append(helloaudio.intArray_getitem(feats, j))
+                
+                segfeats = np.array(segfeats).astype(float)
+                normalizedfeats = segfeats / segfeats[0]
+                normalizedfeats = normalizedfeats[1:].reshape((1, num_feats-1))
+                
+                if (segtype == 0):
+                    segtype = 'packet';
+                else:
+                    segtype = 'steady'
+                    
+                
+                duration = t2 - t1
+                
+                t2 = t2 % plot_samples
+                t1 = t2 - duration
+                if t1 < 0:
+                    t1 = 0
+                   
+                segdata = [(t1,plot_yrange[1]), (t2, plot_yrange[1]), segtype]
+                
+                block = DataBlock(segdata, 'segdata')
+                g_PlotQueue.put(block)
+                
+    
+            #pull out results
+            debugdata = helloaudio.DumpDebugBuffer()
+            
+            #deserialize results
+            datadict = {}
+            lines = debugdata.split('\n')
+            
+            for line in lines:
+                dd = DeserializeDebugData(line)
+                datadict[dd.id] = dd
+             
+        
+            #add data to plot vectors
+            data = datadict[plot_target]
+            
+            if retval:
+                g_client.sendMatrixMessage(data)
+            
+            block = DataBlock(data, 'audiofeatures')
+            g_PlotQueue.put(block)
+        except IOError:
+            print "IO Error"
 
 
 ## Start Qt event loop unless running in interactive mode or using pyside.
@@ -264,7 +250,6 @@ if __name__ == '__main__':
     for j in range(num_feats):
         g_plotdata.append([0 for j in range(plot_samples)])
     g_plotdata.append(g_segdata)
-
 
     stream = paud.open(format=FORMAT,
                 channels=CHANNELS,
