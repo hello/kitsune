@@ -1,4 +1,4 @@
-message AudioData {
+message MatrixClientMessage {
   optional bytes mac = 1;
   optional int32 unix_time = 2;
   optional Matrix matrix_payload  = 3;
