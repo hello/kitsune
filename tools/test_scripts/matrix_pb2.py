@@ -13,7 +13,7 @@ from google.protobuf import descriptor_pb2
 DESCRIPTOR = _descriptor.FileDescriptor(
   name='matrix.proto',
   package='',
-  serialized_pb='\n\x0cmatrix.proto\"\xce\x01\n\x06Matrix\x12\n\n\x02id\x18\x01 \x02(\t\x12\x0c\n\x04rows\x18\x02 \x02(\x05\x12\x0c\n\x04\x63ols\x18\x03 \x02(\x05\x12\"\n\x08\x64\x61tatype\x18\x04 \x02(\x0e\x32\x10.Matrix.DataType\x12\r\n\x05idata\x18\x05 \x03(\x11\x12\r\n\x05\x66\x64\x61ta\x18\x06 \x03(\x02\x12\r\n\x05time1\x18\x07 \x02(\x03\x12\r\n\x05time2\x18\x08 \x02(\x03\x12\x0c\n\x04tags\x18\t \x02(\t\x12\x0e\n\x06source\x18\n \x02(\t\"\x1e\n\x08\x44\x61taType\x12\t\n\x05\x46LOAT\x10\x00\x12\x07\n\x03INT\x10\x01')
+  serialized_pb='\n\x0cmatrix.proto\"L\n\tAudioData\x12\x0b\n\x03mac\x18\x01 \x01(\x0c\x12\x11\n\tunix_time\x18\x02 \x01(\x05\x12\x1f\n\x0ematrix_payload\x18\x03 \x01(\x0b\x32\x07.Matrix\"\xce\x01\n\x06Matrix\x12\n\n\x02id\x18\x01 \x02(\t\x12\x0c\n\x04rows\x18\x02 \x02(\x05\x12\x0c\n\x04\x63ols\x18\x03 \x02(\x05\x12\"\n\x08\x64\x61tatype\x18\x04 \x02(\x0e\x32\x10.Matrix.DataType\x12\r\n\x05idata\x18\x05 \x03(\x11\x12\r\n\x05\x66\x64\x61ta\x18\x06 \x03(\x02\x12\r\n\x05time1\x18\x07 \x02(\x03\x12\r\n\x05time2\x18\x08 \x02(\x03\x12\x0c\n\x04tags\x18\t \x02(\t\x12\x0e\n\x06source\x18\n \x02(\t\"\x1e\n\x08\x44\x61taType\x12\t\n\x05\x46LOAT\x10\x00\x12\x07\n\x03INT\x10\x01')
 
 
 
@@ -34,8 +34,50 @@ _MATRIX_DATATYPE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   options=None,
-  serialized_start=193,
-  serialized_end=223,
+  serialized_start=271,
+  serialized_end=301,
+)
+
+
+_AUDIODATA = _descriptor.Descriptor(
+  name='AudioData',
+  full_name='AudioData',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='mac', full_name='AudioData.mac', index=0,
+      number=1, type=12, cpp_type=9, label=1,
+      has_default_value=False, default_value="",
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='unix_time', full_name='AudioData.unix_time', index=1,
+      number=2, type=5, cpp_type=1, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='matrix_payload', full_name='AudioData.matrix_payload', index=2,
+      number=3, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  options=None,
+  is_extendable=False,
+  extension_ranges=[],
+  serialized_start=16,
+  serialized_end=92,
 )
 
 
@@ -126,13 +168,21 @@ _MATRIX = _descriptor.Descriptor(
   options=None,
   is_extendable=False,
   extension_ranges=[],
-  serialized_start=17,
-  serialized_end=223,
+  serialized_start=95,
+  serialized_end=301,
 )
 
+_AUDIODATA.fields_by_name['matrix_payload'].message_type = _MATRIX
 _MATRIX.fields_by_name['datatype'].enum_type = _MATRIX_DATATYPE
 _MATRIX_DATATYPE.containing_type = _MATRIX;
+DESCRIPTOR.message_types_by_name['AudioData'] = _AUDIODATA
 DESCRIPTOR.message_types_by_name['Matrix'] = _MATRIX
+
+class AudioData(_message.Message):
+  __metaclass__ = _reflection.GeneratedProtocolMessageType
+  DESCRIPTOR = _AUDIODATA
+
+  # @@protoc_insertion_point(class_scope:AudioData)
 
 class Matrix(_message.Message):
   __metaclass__ = _reflection.GeneratedProtocolMessageType
