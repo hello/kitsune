@@ -210,11 +210,12 @@ void thread_fast_i2c_poll(void* unused) {
 		int prox,last_prox,hpf_prox;
 
 		if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
+			vTaskDelay(2);
 			light = get_light();
 			vTaskDelay(2); //this is important! If we don't do it, then the prox will stretch the clock!
 			prox = get_prox();
 			hpf_prox = last_prox - prox;
-			if (abs(hpf_prox) > 20) {
+			if (abs(hpf_prox) > 30) {
 				UARTprintf("PROX: %d\n", hpf_prox);
 			}
 			last_prox = prox;
@@ -304,8 +305,11 @@ void thread_sensor_poll(void* unused) {
 			xSemaphoreGive(light_smphr);
 		}
 		if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
+			vTaskDelay(2);
 			data.humid = get_humid();
+			vTaskDelay(2);
 			data.temp = get_temp();
+			vTaskDelay(2);
 			xSemaphoreGive(i2c_smphr);
 		} else {
 			continue;
