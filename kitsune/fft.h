@@ -8,7 +8,7 @@
 extern "C" {
 #endif
 
-#define MEL_SCALE_SIZE (15)
+#define MEL_SCALE_SIZE (16)
     
 int32_t fft(int16_t fr[], int16_t fi[], int32_t m);
 int32_t fftr(int16_t f[], int32_t m); //this does not work, do not use it.

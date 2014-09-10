@@ -9,7 +9,7 @@
 #define LOG2_N_WAVE     (10)
 #define N_WAVE          (1 << LOG2_N_WAVE)        /* dimension of Sinewave[] */
 
-#define MIN_LOG2_Q10_ENERGY (1 << 10)
+#define MIN_LOG2_Q10_ENERGY (1 << 1)
 
 
 static const uint16_t sin_lut[N_WAVE/4+1] = {
@@ -332,19 +332,21 @@ int16_t FixedPointLog2Q10(uint64_t x) {
 void mel_freq(int16_t mel[],const int16_t fr[],const int16_t fi[], uint8_t nfft, uint16_t b,uint8_t log2scaleOfRawSignal) {
 	
     // in Hz
-    static const uint16_t mel_scale[MEL_SCALE_SIZE] = {20,160,394,670,1000,1420,1900,2450,3120,4000,5100,6600,9000,14000,22050};
-	static const int16_t mel_log2_normalization[MEL_SCALE_SIZE] = {8,5,4,4,4,4,3,3,3,3,2,2,1,0,0};
-    int32_t iBin;
-	int32_t iMel;
-    const int32_t nbins = 1 << (nfft - 1);
+    static const uint16_t k_bin_start = 3;
+    static const uint16_t k_bins_indices[MEL_SCALE_SIZE] = {6,9,12,15,18,24,30,36,48,60,72,84,96,120,144,168};
+	static const int16_t k_log2_normalization[MEL_SCALE_SIZE] = {3,3,3,3,3,2,2,2,1,1,1,1,1,0,0,0};
+    uint16_t iBin;
+    uint16_t iBinEdge;
+    uint16_t nextBinEdge;
     uint64_t accumulator64;
     
     int32_t log2mel;
-    uint32_t freq;
     uint16_t ufr;
     uint16_t ufi;
+    int16_t scale;
 
 
+    
 #if 0 //For generating mel scales
 	for( int i=0; i<50; ++i ) {
 		mel = 1127 * log( 1.0 + (double)freq / 700.0 );
@@ -354,12 +356,12 @@ void mel_freq(int16_t mel[],const int16_t fr[],const int16_t fi[], uint8_t nfft,
 #endif // 0
     
 	accumulator64 = 0;
-    iMel = 0;
-    freq = 0;
-	
+    iBinEdge = 0;
+    nextBinEdge = k_bins_indices[0] - 1;
+    iBin = k_bin_start;
+
     /* skip dc, start at 1 */
-    for(iBin = 1; iBin < nbins; iBin++ ) {
-        
+    while(1) {
         //take PSD here
         ufr = abs(fr[iBin]);
         ufi = abs(fi[iBin]);
@@ -367,8 +369,10 @@ void mel_freq(int16_t mel[],const int16_t fr[],const int16_t fi[], uint8_t nfft,
         accumulator64 += (uint32_t)ufr*(uint32_t)ufr;
         accumulator64 += (uint32_t)ufi*(uint32_t)ufi;
         
-		if( freq > mel_scale[iMel] || iBin == nbins - 1 ) {
-            int8_t scale = -2*log2scaleOfRawSignal + mel_log2_normalization[iMel];
+		if(iBin == nextBinEdge) {
+            
+            scale = -2*log2scaleOfRawSignal + k_log2_normalization[iBinEdge];
+            
             if (scale > 0) {
                 accumulator64 <<= scale;
             }
@@ -377,27 +381,28 @@ void mel_freq(int16_t mel[],const int16_t fr[],const int16_t fi[], uint8_t nfft,
             }
             
             accumulator64 += MIN_LOG2_Q10_ENERGY;
+            
             log2mel = FixedPointLog2Q10(accumulator64);
-            //log2mel += mel_log2_normalization_q10[iMel];
             
             if (log2mel < -32768) {
                 log2mel = -32768;
             }
             
-            mel[iMel] =log2mel;
+            mel[iBinEdge] = log2mel;
 			
             accumulator64 = 0;
+
+            iBinEdge++;
             
-            iMel++;
-            
-            if( iMel == MEL_SCALE_SIZE ) {
-				break;
+            if (iBinEdge >= MEL_SCALE_SIZE) {
+                break;
             }
+            
+            nextBinEdge = k_bins_indices[iBinEdge];
 
 		}
         
-        freq += b;
-
+        iBin++;
 	}
 }
 
