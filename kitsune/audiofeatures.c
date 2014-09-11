@@ -68,7 +68,7 @@
 static const int16_t k_stable_likelihood_coefficient = TOFIX(0.05f,QFIXEDPOINT);
 
 //the closer this gets to zero, the more likely it is that you will be increasing or decreasing
-static const int16_t k_change_log_likelihood = TOFIX(-0.05f,QFIXEDPOINT);
+static const int16_t k_change_log_likelihood = TOFIX(-0.10f,QFIXEDPOINT);
 
 //the closer this gets to zero, the shorter the amount of time it will take to switch between modes
 //the more negative it gets, the more evidence is required before switching modes, in general
@@ -78,13 +78,13 @@ static const int32_t k_min_log_prob = TOFIX(-1.5f,QFIXEDPOINT);
 
 static const uint32_t k_stable_counts_to_be_considered_stable =  STABLE_TIME_TO_BE_CONSIDERED_STABLE_IN_MILLISECONDS / SAMPLE_PERIOD_IN_MILLISECONDS;
 
-#define STEADY_STATE_SEGMENT_PERIOD_IN_MILLISECONDS (2000)
+#define STEADY_STATE_SEGMENT_PERIOD_IN_MILLISECONDS (1500)
 static const uint32_t k_stable_count_period_in_counts = STEADY_STATE_SEGMENT_PERIOD_IN_MILLISECONDS / SAMPLE_PERIOD_IN_MILLISECONDS;
 
 #define MIN_SEGMENT_TIME_IN_MILLISECONDS (500)
 static const uint32_t k_min_segment_time_in_counts = MIN_SEGMENT_TIME_IN_MILLISECONDS / SAMPLE_PERIOD_IN_MILLISECONDS;
 
-static const int32_t k_min_energy = 10000;
+static const int32_t k_min_energy = -300000;
 
 /*--------------------------------
  *   Types
@@ -539,7 +539,7 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
     /* Get Log Mel */
     mel_freq(mel,fr,fi,AUDIO_FFT_SIZE_2N,EXPECTED_AUDIO_SAMPLE_RATE_HZ / AUDIO_FFT_SIZE,log2scaleOfRawSignal);
     
-    //DEBUG_LOG_S16("logmel",mel,MEL_SCALE_SIZE);
+    //DEBUG_LOG_S16("logmel",NULL,mel,MEL_SCALE_SIZE,samplecount,samplecount);
 
     /*  get dct of mel,zero padded */
     memset(fr,0,NUM_MFCC_FEATURES*2*sizeof(int16_t));
@@ -548,13 +548,11 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
     for (i = 0; i < MEL_SCALE_SIZE; i++) {
         fr[i] = (int16_t)mel[i];
     }
-    
-    
+
     /* fr will contain the dct */
     fft(fr,fi,NUM_MFCC_FEATURES_2N + 1);
-    DEBUG_LOG_S16("mfcc",NULL,fr,NUM_MFCC_FEATURES,samplecount,samplecount);
-
-
+    //DEBUG_LOG_S16("mfcc",NULL,fr,NUM_MFCC_FEATURES,samplecount,samplecount);
+    
     /* Moving Average */
     for (i = 0; i < NUM_MFCC_FEATURES; i++) {
         MovingAverage16(_data.callcounter,fr[i],_data.melbuf[i],&_data.melaccumulator[i]);
