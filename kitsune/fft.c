@@ -4,12 +4,13 @@
 #include "stdlib.h" //for abs
 
 #define FIX_MPY(DEST,A,B) (DEST) = ((int32_t)(A) * (int32_t)(B))>>15
+
 //#define fix_mpy(A, B) (FIX_MPY(a,a,b))
 
 #define LOG2_N_WAVE     (10)
 #define N_WAVE          (1 << LOG2_N_WAVE)        /* dimension of Sinewave[] */
 
-#define MIN_LOG2_Q10_ENERGY (1 << 1)
+#define MIN_LOG2_Q10_ENERGY (2)
 
 
 static const uint16_t sin_lut[N_WAVE/4+1] = {
@@ -48,7 +49,13 @@ static const uint16_t sin_lut[N_WAVE/4+1] = {
   32727, 32736, 32744, 32751, 32757, 32761, 32764, 32766, 32767
 };
 
-
+static inline uint16_t umultq16(uint16_t a, uint16_t b) {
+    uint32_t c;
+    uint16_t * p = (uint16_t *)(&c);
+    
+    c = (uint32_t)a * (uint32_t)b;
+    return *(p + 1);
+}
 
 uint8_t bitlog(uint32_t n) {
     int16_t b;
@@ -320,6 +327,82 @@ int16_t FixedPointLog2Q10(uint64_t x) {
     ret += shift * 1024;
     
     return ret;
+}
+
+/* 2^(a + b) ---> 2^a * 2^b
+    and exp(log(2)* x) == 2^x
+ 
+    if 0 <= b < 1.... can approximate exp11
+ */
+uint32_t FixedPointExp2Q10(const int16_t x) {
+#define LOG2_Q16 (45426)
+#define B_Q16 (33915)
+#define C_Q16  (21698)
+#define ONE_Q10 (1 << 10)
+#define ONE_Q16 (1 << 16)
+
+    uint32_t accumulator;
+    uint16_t ux;
+    uint16_t a,b;
+    uint16_t utemp16;
+    
+    //2^22 is the max we can do (32 - 10 == 22)
+    if (x >= 22527) {
+        return 0xFFFFFFFF;
+    }
+    
+    if (x == -32768) {
+        return 0;
+    }
+    
+    ux = abs(x);
+    
+    //split to the left and right of the binary point (Q10)
+    a = ux & 0xFC00;
+    b = ux & 0x03FF;
+    a >>= 10; //get Q10 as ints
+
+    //multipy by log2 so  we compute exp(log(2) b) ===> 2^b
+    b = umultq16((uint16_t)b,LOG2_Q16);
+
+   
+    b <<= 6; //convert from Q10 to Q16
+    
+    if (x > 0) {
+        accumulator = ONE_Q16 + b;
+    }
+    else {
+        accumulator = ONE_Q16 - b;
+    }
+    
+    
+    utemp16 = umultq16(b, b);
+    utemp16 = umultq16(B_Q16, utemp16);
+
+    accumulator += utemp16;
+    
+    utemp16 = umultq16(utemp16,b);
+    utemp16 = umultq16(C_Q16, utemp16);
+    
+    
+    if (x > 0) {
+        accumulator += utemp16;
+    }
+    else {
+        accumulator -= utemp16;
+    }
+    
+    accumulator >>= 6; //convert back to Q10
+
+
+    if (x < 0) {
+        accumulator >>= a;
+    }
+    else {
+        accumulator <<= a;
+    }
+    
+    return accumulator;
 }
 
 // b - size of the bin in the fft in hz

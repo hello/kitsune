@@ -25,6 +25,8 @@ void abs_fft(uint16_t psd[], const int16_t fr[],const int16_t fi[],const int16_t
 
 int16_t FixedPointLog2Q10(uint64_t x);
 uint8_t CountHighestMsb(uint64_t x);
+uint32_t FixedPointExp2Q10(const int16_t x);
+
 
 
 #ifdef __cplusplus
