@@ -52,6 +52,67 @@
 #include "gpio.h"
 #include "prcm.h"
 
+#define REG_PAD_CONFIG_26   (0x4402E108)
+#define REG_PAD_CONFIG_27   (0x4402E10C)
+
+#define PAD_MODE_MASK        0x0000000F
+#define PAD_STRENGTH_MASK    0x000000E0
+#define PAD_TYPE_MASK        0x00000310
+
+
+//*****************************************************************************
+//
+//! Configure Antenna Selection GPIOs
+//!
+//! \param  None
+//!
+//! \return None
+//
+//*****************************************************************************
+static void SetAntennaSelectionGPIOs(void)
+{
+
+    MAP_PRCMPeripheralClkEnable(PRCM_GPIOA3, PRCM_RUN_MODE_CLK);
+    MAP_GPIODirModeSet(GPIOA3_BASE,0xC,GPIO_DIR_MODE_OUT);
+
+    //
+    // Configure PIN_29 for GPIOOutput
+    //
+    HWREG(REG_PAD_CONFIG_26) = ((HWREG(REG_PAD_CONFIG_26) & ~(PAD_STRENGTH_MASK
+                        | PAD_TYPE_MASK)) | (0x00000020 | 0x00000000 ));
+
+    //
+    // Set the mode.
+    //
+    HWREG(REG_PAD_CONFIG_26) = (((HWREG(REG_PAD_CONFIG_26) & ~PAD_MODE_MASK) |
+                                                    0x00000000) & ~(3<<10));
+
+    //
+    // Set the direction
+    //
+    HWREG(REG_PAD_CONFIG_26) = ((HWREG(REG_PAD_CONFIG_26) & ~0xC00) | 0x00000800);
+
+
+     //
+    // Configure PIN_30 for GPIOOutput
+    //
+    HWREG(REG_PAD_CONFIG_27) = ((HWREG(REG_PAD_CONFIG_27) & ~(PAD_STRENGTH_MASK
+                                | PAD_TYPE_MASK)) | (0x00000020 | 0x00000000 ));
+
+    //
+    // Set the mode.
+    //
+    HWREG(REG_PAD_CONFIG_27) = (((HWREG(REG_PAD_CONFIG_27) & ~PAD_MODE_MASK) |
+                                        0x00000000) & ~(3<<10));
+
+    //
+    // Set the direction
+    //
+    HWREG(REG_PAD_CONFIG_26) = ((HWREG(REG_PAD_CONFIG_27) & ~0xC00) | 0x00000800);
+
+}
+
+
 //*****************************************************************************
 void
 PinMuxConfig(void)
@@ -170,4 +231,6 @@ PinMuxConfig(void)
     // Configure PIN_52 for SPI0 GSPI_MOSI
     //
     MAP_PinTypeSPI(PIN_52, PIN_MODE_8);
+
+    SetAntennaSelectionGPIOs();
 }

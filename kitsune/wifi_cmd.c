@@ -25,6 +25,10 @@ unsigned int sl_status = 0;
 #include "prcm.h"
 #include "utils.h"
 
+#include "hw_memmap.h"
+#include "rom_map.h"
+#include "gpio.h"
+
 void mcu_reset()
 {
 #define SLOW_CLK_FREQ           (32*1024)
@@ -124,6 +128,30 @@ void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent) {
     default:
         break;
     }
+}
+
+void antsel(unsigned char a)
+{
+    if(a == 1)
+    {
+         MAP_GPIOPinWrite(GPIOA3_BASE, 0xC, 0x8);
+    }
+    else if(a == 2)
+    {
+        MAP_GPIOPinWrite(GPIOA3_BASE, 0xC, 0x4);
+    }
+    return;
+}
+
+
+int Cmd_antsel(int argc, char *argv[]) {
+    if (argc != 2) {
+        UARTprintf( "usage: antsel <1=IFA or 2=chip>\n\r");
+        return -1;
+    }
+    antsel( *argv[1] ==  '1' ? 1 : 2 );
+
+    return 0;
 }
 
 int Cmd_connect(int argc, char *argv[]) {

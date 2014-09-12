@@ -17,6 +17,11 @@ int sl_mode;
 extern
 unsigned int sl_status;
 
+#define IFA_ANT 1
+#define CHIP_ANT 2
+void antsel(unsigned char a);
+int Cmd_antsel(int argc, char *argv[]);
+
 int Cmd_connect(int argc, char *argv[]);
 int Cmd_ping(int argc, char *argv[]);
 int Cmd_status(int argc, char *argv[]);

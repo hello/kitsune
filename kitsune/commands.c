@@ -207,7 +207,7 @@ void thread_fast_i2c_poll(void* unused) {
 	while (1) {
 		portTickType now = xTaskGetTickCount();
 		int light;
-		int prox,last_prox,hpf_prox;
+		int prox,last_prox=0,hpf_prox;
 
 		if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
 			vTaskDelay(2);
@@ -486,6 +486,9 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "spiwr", Cmd_spi_write, "spi write" },
 		{ "spirst", Cmd_spi_reset, "spi reset" },
 
+		{ "antsel", Cmd_antsel, "select antenna" },
+
+
 		{ 0, 0, 0 } };
 
 //#include "fault.h"
@@ -514,6 +517,9 @@ void vUARTTask(void *pvParameters) {
 	UARTStdioInit(0);
 
 	UARTIntRegister(UARTA0_BASE, UARTStdioIntHandler);
+
+	//default to IFA
+	antsel(IFA_ANT);
 
 	now = xTaskGetTickCount();
 	sl_mode = sl_Start(NULL, NULL, NULL);
