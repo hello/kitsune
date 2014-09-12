@@ -524,7 +524,17 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
     uint16_t i;
     uint8_t log2scaleOfRawSignal;
     int32_t mfccavg[NUM_MFCC_FEATURES];
+    int16_t diffsig;
+    uint16_t idx;
+    static const uint16_t k_half_mfcc_buf_count = NUM_MFCC_FEATURES >> 1;
+    
     EChangeModes_t currentMode;
+    
+#if NUM_MFCC_FEATURES < MEL_SCALE_SIZE
+#error "it is assumed that NUM_MFCC_FEATURES is greater than or equal to MEL_SCALE_SIZE because of the FFT zero padding"
+#endif
+    
+
     
     /* Copy in raw samples, zero out complex part of fft input*/
     memcpy(fr,samples,AUDIO_FFT_SIZE*sizeof(int16_t));
@@ -542,8 +552,9 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
     //DEBUG_LOG_S16("logmel",mel,MEL_SCALE_SIZE);
 
     /*  get dct of mel,zero padded */
-    memset(fr,0,NUM_MFCC_FEATURES*2*sizeof(int16_t));
-    memset(fi,0,NUM_MFCC_FEATURES*2*sizeof(int16_t));
+    memset(fr,0,NUM_MFCC_FEATURES*sizeof(int16_t));
+    memset(fi,0,NUM_MFCC_FEATURES*sizeof(int16_t));
+    
 
     for (i = 0; i < MEL_SCALE_SIZE; i++) {
         fr[i] = (int16_t)mel[i];
@@ -551,16 +562,28 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
     
     
     /* fr will contain the dct */
-    fft(fr,fi,NUM_MFCC_FEATURES_2N + 1);
-    DEBUG_LOG_S16("mfcc",NULL,fr,NUM_MFCC_FEATURES,samplecount,samplecount);
+    /* REMEMBER, ONLY HALF OF FR WILL BE USEFUL */
+    fft(fr,fi,NUM_MFCC_FEATURES_2N);
+    DEBUG_LOG_S16("mfcc",NULL,fr,k_half_mfcc_buf_count,samplecount,samplecount);
 
 
+    idx = _data.callcounter & MEL_BUF_MASK;
+    
     /* Moving Average */
-    for (i = 0; i < NUM_MFCC_FEATURES; i++) {
-        MovingAverage16(_data.callcounter,fr[i],_data.melbuf[i],&_data.melaccumulator[i]);
+    for (i = 0; i < k_half_mfcc_buf_count; i++) {
+        diffsig = abs(fr[i] - _data.melbuf[i][idx]);
         
+        MovingAverage16(_data.callcounter,fr[i],_data.melbuf[i],&_data.melaccumulator[i]);
+        MovingAverage16(_data.callcounter,diffsig,_data.melbuf[i + k_half_mfcc_buf_count],&_data.melaccumulator[i + k_half_mfcc_buf_count]);
+
+        
+    }
+    
+    for (i = 0; i < NUM_MFCC_FEATURES; i++) {
         mfccavg[i] = _data.melaccumulator[i];
     }
+    
+    
 
 
     DEBUG_LOG_S32("mfcc_avg",NULL,mfccavg,NUM_MFCC_FEATURES,samplecount,samplecount);
