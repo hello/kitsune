@@ -41,6 +41,9 @@
 #define CHANGE_SIGNAL_BUF_SIZE (1 << CHANGE_SIGNAL_BUF_SIZE_2N)
 #define CHANGE_SIGNAL_BUF_MASK (CHANGE_SIGNAL_BUF_SIZE - 1)
 
+#define STEADY_STATE_AVERAGING_PERID_2N (6)
+#define STEADY_STATE_AVERAGING_PERIOD (1 << STEADY_STATE_AVERAGING_PERID_2N)
+
 #define MUL(a,b,q)\
   ((int16_t)((((int32_t)(a)) * ((int32_t)(b))) >> q))
 
@@ -99,7 +102,12 @@ typedef enum {
 typedef struct {
     int16_t melbuf[NUM_MFCC_FEATURES][MEL_BUF_SIZE]; //8 * 128 * 2 = 2K
     int32_t melaccumulator[NUM_MFCC_FEATURES];
+    
+    int32_t steadyStateAccumulator[MEL_SCALE_SIZE];
+    int16_t melavg[MEL_SCALE_SIZE];
+
     uint16_t callcounter;
+    uint16_t steadyStateCounter;
     
     int32_t changebuf[CHANGE_SIGNAL_BUF_SIZE];
     int32_t logProbOfModes[numChangeModes];
@@ -160,11 +168,11 @@ static int16_t MovingAverage16(uint32_t counter, int16_t x,int16_t * buf, int32_
 }
 
 
-static void SegmentSteadyState(EChangeModes_t currentMode,const int32_t * mfccavg,int64_t samplecount) {
+static void SegmentSteadyState(uint8_t * pIsStable,EChangeModes_t currentMode,const int32_t * mfccavg,int64_t samplecount) {
     int32_t energySignal = mfccavg[0];
     uint16_t i;
     
-    
+    *pIsStable = FALSE;
     
     /*  Every day I'm segmenting segmenting
      
@@ -201,11 +209,9 @@ static void SegmentSteadyState(EChangeModes_t currentMode,const int32_t * mfccav
     
     //segment steady state (i.e. energy has been the same)
     if (_data.stableCount > k_stable_counts_to_be_considered_stable) {
+        *pIsStable = TRUE;
         
-        //if stable for long enough, erase all history
-        _data.lastModes[2] = stable;
-        _data.lastModes[1] = stable;
-        _data.lastModes[0] = stable;
+        
         
         //if you have been stable long enough, output a segment
         if (++_data.stablePeriodCounter > k_stable_count_period_in_counts) {
@@ -236,22 +242,6 @@ static void SegmentSteadyState(EChangeModes_t currentMode,const int32_t * mfccav
         }
     }
 
-    //segment out a prematurely ended steady state
-    if (currentMode == increasing && currentMode != _data.lastModes[0]) {
-        if (_data.lastModes[0] == stable && _data.stablePeriodCounter && _data.isValidSteadyStateSegment) {
-            Segment_t seg;
-            seg.t1 = _data.modechangeTimes[0];
-            seg.t2 = samplecount;
-            seg.type = segmentSteadyState;
-            
-            if (_data.fpCallback) {
-                _data.fpCallback(_data.maxabsfeatures,&seg);
-            }
-
-        }
-        
-        _data.stablePeriodCounter = 0;
-    }
     
     //segment out a burst of energy
     if ( currentMode == decreasing && currentMode != _data.lastModes[0]) {
@@ -271,15 +261,6 @@ static void SegmentSteadyState(EChangeModes_t currentMode,const int32_t * mfccav
             seg.t1 = _data.modechangeTimes[1];
             seg.t2 = samplecount;
         }
-        
-        //coming off of a stable period
-        if (_data.lastModes[0] == stable && _data.lastModes[1] == stable) {
-            seg.t1 = _data.modechangeTimes[0];
-            seg.t2 = samplecount;
-            seg.type = segmentSteadyState;
-
-        }
-        
         
         if (seg.t2 - seg.t1 > k_min_segment_time_in_counts) {
             
@@ -321,7 +302,6 @@ static void SegmentSteadyState(EChangeModes_t currentMode,const int32_t * mfccav
         //printf("Mode change at %lld\n",samplecount);
 
     }
-    
 }
 
 
@@ -505,7 +485,40 @@ static void ScaleInt16Vector(int16_t * vec, uint8_t * scaling, uint16_t len,uint
     
 }
 
-/* 
+static uint8_t SteadyStateAveraging(int16_t * avgsteadymel,uint8_t isStable, const int16_t * mel) {
+    
+    uint16_t i;
+    uint8_t isHaveUpdate = FALSE;
+    
+    if (!isStable) {
+        
+        if (_data.steadyStateCounter) {
+            memset(_data.steadyStateAccumulator,0,sizeof(_data.steadyStateAccumulator));
+            _data.steadyStateCounter = 0;
+        }
+        
+        return FALSE;
+    }
+    
+    if (_data.steadyStateCounter++ < STEADY_STATE_AVERAGING_PERIOD) {
+        
+        for (i = 0; i < MEL_SCALE_SIZE; i++) {
+            _data.steadyStateAccumulator[i] += mel[i];
+        }
+        
+        if (_data.steadyStateCounter == STEADY_STATE_AVERAGING_PERIOD) {
+            for (i = 0; i < MEL_SCALE_SIZE; i++) {
+                avgsteadymel[i] = (int16_t) (_data.steadyStateAccumulator[i] >> STEADY_STATE_AVERAGING_PERID_2N);
+            }
+            isHaveUpdate = TRUE;
+        }
+    }
+   
+   
+    return isHaveUpdate;
+}
+
+/*
  *  Given AUDIO_FFT_SIZE of samples, it will return the time averaged MFCC coefficients.
  *
  *    nfftsize = log2(AUDIO_FFT_SIZE)  ergo if AUDIO_FFT_SIZE == 1024, nfftsize == 10
@@ -521,10 +534,13 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
     int16_t fr[AUDIO_FFT_SIZE]; //2K
     int16_t fi[AUDIO_FFT_SIZE]; //2K
     int16_t mel[MEL_SCALE_SIZE]; //inconsiquential
+    int16_t melCorrected[MEL_SCALE_SIZE]; //inconsiquential
+
     uint16_t i;
     uint8_t log2scaleOfRawSignal;
     int32_t mfccavg[NUM_MFCC_FEATURES];
     EChangeModes_t currentMode;
+    uint8_t isStable;
     
     /* Copy in raw samples, zero out complex part of fft input*/
     memcpy(fr,samples,AUDIO_FFT_SIZE*sizeof(int16_t));
@@ -537,7 +553,7 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
     fft(fr,fi, AUDIO_FFT_SIZE_2N);
     
     /* Get Log Mel */
-    mel_freq(mel,fr,fi,AUDIO_FFT_SIZE_2N,EXPECTED_AUDIO_SAMPLE_RATE_HZ / AUDIO_FFT_SIZE,log2scaleOfRawSignal);
+    mel_freq(mel,melCorrected,_data.melavg,fr,fi,log2scaleOfRawSignal);
     
     //DEBUG_LOG_S16("logmel",NULL,mel,MEL_SCALE_SIZE,samplecount,samplecount);
 
@@ -546,7 +562,7 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
     memset(fi,0,NUM_MFCC_FEATURES*2*sizeof(int16_t));
 
     for (i = 0; i < MEL_SCALE_SIZE; i++) {
-        fr[i] = (int16_t)mel[i];
+        fr[i] = melCorrected[i];
     }
 
     /* fr will contain the dct */
@@ -565,7 +581,10 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
     
     UpdateChangeSignals(&currentMode, mfccavg, _data.callcounter);
     
-    SegmentSteadyState(currentMode,mfccavg,samplecount);
+    SegmentSteadyState(&isStable,currentMode,mfccavg,samplecount);
+    
+    SteadyStateAveraging(_data.melavg,isStable,mel);
+    
     
     /* Update counter.  It's okay if this one rolls over*/
     _data.callcounter++;
