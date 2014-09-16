@@ -280,6 +280,16 @@ void thread_sensor_poll(void* unused) {
 
 		data.time = get_time();
 
+		if( alarm.has_start_time && data.time > alarm.start_time ) {
+			UARTprintf("ALARM RINGING RING RING RING\n");
+			if( alarm.has_end_time && data.time > alarm.end_time ) {
+				UARTprintf("ALARM DONE RINGING\n");
+				alarm.has_start_time = 0;
+			} else {
+				alarm.has_start_time = 0;
+			}
+		}
+
 		if( xSemaphoreTake( dust_smphr, portMAX_DELAY ) ) {
 			if( dust_cnt != 0 ) {
 				data.dust = dust_val / dust_cnt;

@@ -14,6 +14,13 @@ int sl_mode;
 #define HAS_IP    0x00000002
 #define IP_LEASED 0x00000004
 
+#include "stdint.h"
+#include "SyncResponse.pb.h"
+
+#define INV_TIME 0xffffffff
+extern
+SyncResponse_Alarm alarm;
+
 extern
 unsigned int sl_status;
 
