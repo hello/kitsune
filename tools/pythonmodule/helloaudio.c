@@ -13,6 +13,9 @@ static void AudioFeaturesCallback(const int32_t * mfccfeats, const Segment_t * p
 
     memcpy(&_segment,pSegment,sizeof(Segment_t));
     memcpy(_mfccfeats,mfccfeats,sizeof(int32_t)*NUM_MFCC_FEATURES);
+   
+    DEBUG_LOG_S32("featAudio",NULL,mfccfeats,NUM_MFCC_FEATURES,pSegment->t1,pSegment->t2);
+
 }
 
 void Init(void) {
