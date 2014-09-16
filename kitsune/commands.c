@@ -437,6 +437,36 @@ int Cmd_mel(int argc, char *argv[]) {
 	return (0);
 }
 
+int Cmd_led(int argc, char *argv[]) {
+int i;
+	while (1) {
+		//colors are RGB 888
+		unsigned int color = 0x00ff00;
+
+		for(i =0; i<24; ++i ) {
+			if( (color<<i) & 0x800000 ) {
+				//1
+				MAP_GPIOPinWrite(GPIOA2_BASE, 0x40, 0x40);
+				UtilsDelay(7);
+				MAP_GPIOPinWrite(GPIOA2_BASE, 0x40, 0x0);
+				//UtilsDelay(1);
+			} else {
+				//0
+				MAP_GPIOPinWrite(GPIOA2_BASE, 0x40, 0x40);
+				UtilsDelay(2);
+				MAP_GPIOPinWrite(GPIOA2_BASE, 0x40, 0x0);
+				UtilsDelay(4);
+			}
+		}
+
+		UtilsDelay(6250); //reset
+	}
+
+	return (0);
+}
+
+
+
 // ==============================================================================
 // This is the table that holds the command names, implementing functions, and
 // brief description.
@@ -488,6 +518,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "spirst", Cmd_spi_reset, "spi reset" },
 
 		{ "antsel", Cmd_antsel, "select antenna" },
+		{ "led", Cmd_led, "led test pattern" },
 
 
 		{ 0, 0, 0 } };
