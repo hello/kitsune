@@ -204,10 +204,11 @@ static xSemaphoreHandle light_smphr;
  xSemaphoreHandle i2c_smphr;
 
 void thread_fast_i2c_poll(void* unused) {
+	int last_prox =0;
 	while (1) {
 		portTickType now = xTaskGetTickCount();
 		int light;
-		int prox,last_prox=0,hpf_prox;
+		int prox,hpf_prox;
 
 		if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
 			vTaskDelay(2);
