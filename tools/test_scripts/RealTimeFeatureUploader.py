@@ -9,6 +9,10 @@ from boto import kinesis
 import matrix_pb2
 import os
 import sys
+import commands
+import requests
+import requests.packages.urllib3 as urllib3
+
 sys.path.append('.')
 
 import helloaudio
@@ -16,18 +20,13 @@ from AudioDataClient import *
 
 
 k_region = 'us-east-1'
+k_server_url = 'https://dev-in.hello.is/audio/features'
 
 k_access_key_id = os.getenv('AWS_ACCESS_KEY_ID')
 k_secret_access_key = os.getenv('AWS_SECRET_KEY')
 k_auth = {'aws_access_key_id':k_access_key_id,'aws_secret_access_key' : k_secret_access_key }
 k_stream = 'audio_features'
 
-
-def signal_handler(signal, frame):
-    global g_kill
-    print('You pressed Ctrl+C!')
-    g_kill = True
-    sys.exit(0)
 
 CHUNK = 1024 
 FORMAT = pyaudio.paInt16 #paInt8
@@ -37,13 +36,63 @@ RATE = 44100 #sample rate
 send_target = 'featAudio'
 num_feats = 16
 
+
+
 g_kill = False
 g_queue = Queue()
 
+
+def signal_handler(signal, frame):
+    global g_kill
+    print('You pressed Ctrl+C!')
+    g_kill = True
+    sys.exit(0)
+
+def getHwAddr(ifname):
+    txt = commands.getoutput("ifconfig " + ifname)
+    mynum = bytes()
+    if 'ether' in txt:
+            before, middle, after = txt.partition('ether')
+            before, middle, after = after.partition('\n')
+            addr = before.strip()
+            myhex = addr.split(':')
+            print myhex
+            for item in myhex:
+                myint = int(item, 16)
+                mynum += chr(myint)
+                
+
+    elif 'HWaddr' in txt:
+        print ('LINUX MAC ADDRESS GETTER NEEDS AN IMPLEMENTATION')
+        
+    return mynum
+
+class AudioDataClient():
+    def __init__(self, server_url):
+        self.mac = getHwAddr('en0')
+        self.server_url = server_url
+
+
+    def send_matrix_message(self, matrix):
+        message = matrix_pb2.MatrixClientMessage()
+        message.mac = self.mac
+        message.matrix_payload.CopyFrom(matrix)
+        message.unix_time = int(time.time())
+        payload = message.SerializeToString()
+        
+        try:
+            r = requests.post(self.server_url , data=payload)
+            worked = r.status_code == requests.codes.ok
+        except urllib3.exceptions.ProtocolError:
+            worked = False
+            print 'Failed to connect to ', self.server_url
+        
+        return worked
+          
 class SendThread(threading.Thread):
     def __init__(self):
         threading.Thread.__init__(self)
-        self.conn = kinesis.connect_to_region(k_region, **k_auth)
+        self.client = AudioDataClient(k_server_url)
         
     def run(self):
         global g_kill
@@ -51,9 +100,10 @@ class SendThread(threading.Thread):
         
         while (not g_kill):
             
-            bindata = g_queue.get()
-            response = self.conn.put_record(k_stream,bindata, 'blahblahpartitionkey' )
-            print response
+            mat = g_queue.get()
+
+            self.client.send_matrix_message(mat)
+            
             g_queue.task_done()
 
 def updateAudio(stream):
@@ -96,9 +146,10 @@ def updateAudio(stream):
                 mat.ParseFromString(bindata)
                 
                 if mat.id == send_target:
-                    print mat.id, line
+                    duration = mat.time2 - mat.time1
+                    print time.strftime("%X"), mat.id, mat.tags,mat.time1,duration
 
-                    g_queue.put(line)
+                    g_queue.put(mat)
                    
              
         except IOError:
