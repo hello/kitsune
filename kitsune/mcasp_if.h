@@ -58,7 +58,7 @@ extern "C"
 #define WFIFO_NUMDMA_WORDS      1
 #define MCASP_DMA_PORT_ADDR     0x4401E200
 
-#define AUDIO_BUF_SZ 50000
+#define AUDIO_BUF_SZ 5000
 //
 // Update the sampling freq, channels, sample length appropriately
 //

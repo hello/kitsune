@@ -424,12 +424,16 @@ UARTprintf(" Done for Cmd_write_record\n ");
 //
 pTxBuffer = CreateCircularBuffer(TX_BUFFER_SIZE);
 pRxBuffer = CreateCircularBuffer(RX_BUFFER_SIZE);
+
 // Configure Audio Codec
 //
 ConfigureAudioCodec(CODEC_I2S_WORD_LEN_16);
+
 // Initialize the Audio(I2S) Module
 //
-AudioCapturerInit();
+//AudioCapturerInit();
+AudioCapturerInit_mic();
+
 // Initialize the DMA Module
 //
 UDMAInit();
@@ -456,15 +460,20 @@ ControlTaskCreate();
 
 // Start the Microphone Task
 //
-osi_TaskCreate( Microphone,(signed char*)"MicroPhone", OSI_STACK_SIZE, NULL, 1, &g_MicTask );
+osi_TaskCreate( Microphone,(signed char*)"MicroPhone", OSI_STACK_SIZE, NULL, 1, &g_MicTask ); //MICButtonHandler g_MicTask
+//UARTprintf("pTxBuffer x%\n", *pTxBuffer);
+#if 0
 // Start the Speaker Task
 //
 osi_TaskCreate( Speaker, (signed char*)"Speaker",OSI_STACK_SIZE, NULL, 1, &g_SpeakerTask );
+
 //
 // Start the task scheduler
 //
 osi_start();
+UARTprintf("loop done \n");
 // end of DMA
+#endif
 return 0;
 
 }
@@ -795,7 +804,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "fswr", Cmd_fs_write, "fs write" },
 		{ "fsrd", Cmd_fs_read, "fs read" },
 		{ "play_ringtone", Cmd_code_playbuff, "play selected ringtone" },
-		{ "record_sounds", Cmd_record_buff,"record sounds"},
+		{ "r", Cmd_record_buff,"record sounds"},
 		{ "fsdl", Cmd_fs_delete, "fs delete" },
 		//{ "readout", Cmd_readout_data, "read out sensor data log" },
 

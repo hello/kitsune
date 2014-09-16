@@ -63,10 +63,12 @@ typedef void (*P_AUDIO_HANDLER)(void);
 // API Function prototypes
 //
 //*****************************************************************************
-void InitControl(P_AUDIO_HANDLER pAudioInControl,P_AUDIO_HANDLER pAudioOutControl);
+//void InitControl(P_AUDIO_HANDLER pAudioInControl,P_AUDIO_HANDLER pAudioOutControl);
+void InitControl(P_AUDIO_HANDLER pAudioInControl);
 
 void ControlTaskCreate();
 
+void MICButtonHandler();
 //*****************************************************************************
 //
 // Mark the end of the C bindings section for C++ compilers.

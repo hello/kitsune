@@ -151,8 +151,8 @@ void McASPInit()
     MAP_PRCMPeripheralClkEnable(PRCM_I2S,PRCM_RUN_MODE_CLK); 
     MAP_PRCMI2SClockFreqSet(512000*3);
       //512000 = 16*2*16000Khz(Num of bytes * STEREO * 16000 sampling)
-    MAP_I2SIntRegister(I2S_BASE,I2SIntHandler); // add by ben
-    MAP_I2SIntEnable(I2S_BASE,I2S_INT_XDATA); // add by ben
+//    MAP_I2SIntRegister(I2S_BASE,I2SIntHandler); // add by ben
+//    MAP_I2SIntEnable(I2S_BASE,I2S_INT_XDATA); // add by ben
 }
 void McASPInit_RX()
 {
@@ -160,8 +160,8 @@ void McASPInit_RX()
     MAP_PRCMPeripheralClkEnable(PRCM_I2S,PRCM_RUN_MODE_CLK);
     MAP_PRCMI2SClockFreqSet(512000*3);
       //512000 = 16*2*16000Khz(Num of bytes * STEREO * 16000 sampling)
-    MAP_I2SIntRegister(I2S_BASE,I2SIntHandler); // add by ben
-    MAP_I2SIntEnable(I2S_BASE,I2S_INT_RDATA); // add by ben
+//    MAP_I2SIntRegister(I2S_BASE,I2SIntHandler); // add by ben
+//    MAP_I2SIntEnable(I2S_BASE,I2S_INT_RDATA); // add by ben
 }
 # if 0
 void McASPTXINT()
@@ -188,6 +188,7 @@ void I2SIntHandler(){
    static int i=0;
    // Get the interrupt status
    ulStatus = I2SIntStatus(I2S_BASE);
+#if 0
    // Check if there was a Transmit interrupt; if so write next data into the tx buffer and acknowledge the interrupt
    if(ulStatus & I2S_STS_XDATA)
    {
@@ -199,13 +200,22 @@ void I2SIntHandler(){
 	    }
         I2SIntClear(I2S_BASE,I2S_STS_XDATA);
    }
+
    // Check if there was a receive interrupt; if so read the data from the rx buffer and acknowledge
    // the interrupt
+#endif
    if(ulStatus & I2S_STS_RDATA)
    {
+	   UARTprintf("loop into I2SIntClear \n");
+#if 0
         I2SDataGetNonBlocking(I2S_BASE, I2S_DATA_LINE_1, ulDummy);
+
+#endif
         I2SIntClear(I2S_BASE,I2S_STS_RDATA);
+
+
    }
+
 }
 
 //*****************************************************************************
@@ -260,7 +270,7 @@ void AudioCaptureRendererConfigure()
 {
 
     MAP_I2SConfigSetExpClk(I2S_BASE,512000*3,512000*3,I2S_SLOT_SIZE_16|
-    										I2S_PORT_CPU );// I2S_PORT_DMA
+    										I2S_PORT_DMA );// I2S_PORT_DMA
     MAP_I2SSerializerConfig(I2S_BASE,I2S_DATA_LINE_1,I2S_SER_MODE_RX,
                                             I2S_INACT_LOW_LEVEL);
     MAP_I2SSerializerConfig(I2S_BASE,I2S_DATA_LINE_0,I2S_SER_MODE_TX,

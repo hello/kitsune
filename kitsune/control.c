@@ -56,6 +56,8 @@
 #include "simplelink.h"
 #include "utils.h"
 #include "network.h"
+
+#include "mcasp_if.h"
 //*****************************************************************************
 //                      GLOBAL VARIABLES
 //*****************************************************************************
@@ -86,10 +88,11 @@ volatile unsigned char g_ucSpkrStartFlag = 0;
 //*****************************************************************************
 void MicroPhoneControl(void* pValue)
 {
-    int iCount=0;
-    unsigned long ulPin5Val = 1; 
-    
+    //int iCount=0;
+    //unsigned long ulPin5Val = 1;
+
     //Check whether GPIO Level is Stable As No Debouncing Circuit in LP
+#if 0
     for(iCount=0;iCount<3;iCount++)
     {
         osi_Sleep(200);
@@ -100,6 +103,8 @@ void MicroPhoneControl(void* pValue)
             return;
         }
     }
+
+
     if (g_ucMicStartFlag ==  0)
     {
         for(iCount = 0; iCount<3; iCount++)
@@ -110,8 +115,9 @@ void MicroPhoneControl(void* pValue)
             GPIO_IF_LedOn(MCU_GREEN_LED_GPIO);
             osi_Sleep(50);
         }
+#endif
          g_ucMicStartFlag = 1;
-        
+#if 0
      }
      else
      {
@@ -131,7 +137,7 @@ void MicroPhoneControl(void* pValue)
      MAP_IntPendClear(INT_GPIOA1);
      MAP_IntEnable(INT_GPIOA1);
      MAP_GPIOIntEnable(GPIOA1_BASE,GPIO_PIN_5);
-
+#endif
 }
 
 //*****************************************************************************
@@ -252,20 +258,22 @@ static void SpeakerStartStopControl()
 //! \return None
 //
 //*****************************************************************************
-static void MICButtonHandler()
+void MICButtonHandler()
 {
-    unsigned long ulPinState =  GPIOIntStatus(GPIOA1_BASE,1);
-    if(ulPinState & GPIO_PIN_5)
+    //unsigned long ulPinState =  GPIOIntStatus(GPIOA1_BASE,1);
+    //if(ulPinState & GPIO_PIN_5)
+
     {  
         //Clear and Disable GPIO Interrupt
-        MAP_GPIOIntDisable(GPIOA1_BASE,GPIO_PIN_5);
-        MAP_GPIOIntClear(GPIOA1_BASE,GPIO_PIN_5);        
-        MAP_IntDisable(INT_GPIOA1);
+        //MAP_GPIOIntDisable(GPIOA1_BASE,GPIO_PIN_5);
+        //MAP_GPIOIntClear(GPIOA1_BASE,GPIO_PIN_5);
+        //MAP_IntDisable(INT_GPIOA1);
         
         //Call Speaker Handler
         if(g_pAudioInControlHdl)
         {
             g_pAudioInControlHdl();
+           // UARTprintf("loop into g_pAudioInControlHdl \n");
         }
     }
               
@@ -310,33 +318,36 @@ static void SpeakerButtonHandler()
 //! \brief  Initializes Audio Player Push Button Controls
 //
 //*****************************************************************************
-void InitControl(P_AUDIO_HANDLER pAudioInControl,P_AUDIO_HANDLER pAudioOutControl)
+//void InitControl(P_AUDIO_HANDLER pAudioInControl,P_AUDIO_HANDLER pAudioOutControl)
+void InitControl(P_AUDIO_HANDLER pAudioInControl)
 {
     //
     // Set Interrupt Type for GPIO
     // 
-    MAP_GPIOIntTypeSet(GPIOA1_BASE,GPIO_PIN_5,GPIO_FALLING_EDGE);
-    MAP_GPIOIntTypeSet(GPIOA2_BASE,GPIO_PIN_6,GPIO_FALLING_EDGE);
+    //MAP_GPIOIntTypeSet(GPIOA1_BASE,GPIO_PIN_5,GPIO_FALLING_EDGE);
+    //MAP_GPIOIntTypeSet(GPIOA2_BASE,GPIO_PIN_6,GPIO_FALLING_EDGE);
 
     //
     // Store Interrupt handlers
     //
     g_pAudioInControlHdl = pAudioInControl;
-    g_pAudioOutControlHdl = pAudioOutControl;
-    
+    //g_pAudioOutControlHdl = pAudioOutControl;
     //
     // Register Interrupt handler
     //
-    osi_InterruptRegister(INT_GPIOA1,(P_OSI_INTR_ENTRY)MICButtonHandler,INT_PRIORITY_LVL_1);
-    osi_InterruptRegister(INT_GPIOA2,(P_OSI_INTR_ENTRY)SpeakerButtonHandler,INT_PRIORITY_LVL_1);
-    
+    //osi_InterruptRegister(INT_GPIOA1,(P_OSI_INTR_ENTRY)MICButtonHandler,INT_PRIORITY_LVL_1);
+    //osi_InterruptRegister(INT_GPIOA2,(P_OSI_INTR_ENTRY)SpeakerButtonHandler,INT_PRIORITY_LVL_1);
+
+    MAP_I2SIntRegister(I2S_BASE,MICButtonHandler);
+    //MAP_I2SIntRegister(I2S_BASE,SpeakerButtonHandler);
+    //UARTprintf("MICButtonHandler");
     //
     // Enable Interrupt
     //
-    MAP_GPIOIntClear(GPIOA1_BASE,GPIO_PIN_5);
-    MAP_GPIOIntEnable(GPIOA1_BASE,GPIO_INT_PIN_5);
-    MAP_GPIOIntClear(GPIOA2_BASE,GPIO_PIN_6);
-    MAP_GPIOIntEnable(GPIOA2_BASE,GPIO_INT_PIN_6);
+    //MAP_GPIOIntClear(GPIOA1_BASE,GPIO_PIN_5);
+    //MAP_GPIOIntEnable(GPIOA1_BASE,GPIO_INT_PIN_5);
+    //MAP_GPIOIntClear(GPIOA2_BASE,GPIO_PIN_6);
+    //MAP_GPIOIntEnable(GPIOA2_BASE,GPIO_INT_PIN_6);
 
 }
 
@@ -378,6 +389,7 @@ void AudioControlTask(void *pvParameters)
 void ControlTaskCreate()
 {
     //InitControl(MICStartStopControl,SpeakerStartStopControl);
+    InitControl(MICStartStopControl);
     
     osi_MsgQCreate(&g_ControlMsgQueue,"g_ControlMsgQueue",sizeof(tTxMsg),1);
     osi_TaskCreate(AudioControlTask, (signed char*)"AudioControlTask",2048, NULL, 1, &g_AudioControlTask );

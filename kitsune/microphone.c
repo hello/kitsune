@@ -118,6 +118,9 @@ void Microphone( void *pvParameters )
         {
             int iBufferFilled = 0;
             iBufferFilled = GetBufferSize(pTxBuffer);
+            //iBufferFilled = GetBufferSize(pRxBuffer);
+            UARTprintf("loop into iBufferFilled pRxBuffer %x\n", iBufferFilled);
+            vTaskDelay(1000);
             if(iBufferFilled >= (2*PACKET_SIZE))
             { 
 #ifdef NETWORK
@@ -125,6 +128,8 @@ void Microphone( void *pvParameters )
 #ifndef MULTICAST          
                 sendto(g_UdpSock.iSockDesc, (char*)(pTxBuffer->pucReadPtr),PACKET_SIZE,
                 0,(struct sockaddr*)&(g_UdpSock.Client),sizeof(g_UdpSock.Client));
+
+                //UARTprintf(" test\n ");
 #else      //MULTICAST         
                 SendMulticastPacket();
 #endif     //MULTICAST      
