@@ -49,15 +49,16 @@
 #include "udma_if.h"
 #include "pcm_handler.h"
 #include "circ_buff.h"
-//#include "circ_buff.h"
-//#include "pcm_handler.h"
+#include "pcm_handler.h"
 #include "osi.h"
 
 #include "control.h"
+#include "ti_codec.h"
+#include "network.h"
 //#include "mcasp_if.h" // add by Ben
 
 #define NUM_LOGS 72
-
+#if 0
 //*****************************************************************************
 //
 // Define Packet Size, Rx and Tx Buffer
@@ -67,10 +68,19 @@
 #define PLAY_WATERMARK		30*256
 #define TX_BUFFER_SIZE          10*PACKET_SIZE
 #define RX_BUFFER_SIZE          10*PACKET_SIZE
-
+#endif
 extern void Speaker( void *pvParameters );
 extern tCircularBuffer *pTxBuffer;
 extern tCircularBuffer *pRxBuffer;
+tUDPSocket g_UdpSock;
+
+OsiTaskHandle g_SpeakerTask = NULL ;
+OsiTaskHandle g_MicTask = NULL ;
+//******************************************************************************
+//			        FUNCTION DECLARATIONS
+//******************************************************************************
+//extern void Speaker( void *pvParameters );
+extern void Microphone( void *pvParameters );
 
 unsigned long tone;
 //*****************************************************************************
@@ -105,7 +115,6 @@ int iCounter,i = 0;
 //                          LOCAL DEFINES
 //*****************************************************************************
 #define OSI_STACK_SIZE          256
-OsiTaskHandle g_SpeakerTask = NULL ;
 
 //unsigned char speaker_data[16*1024];
 //// ==============================================================================
@@ -391,6 +400,7 @@ UARTprintf("wrote to the file %d bytes\n", bytes);
 
 sl_FsClose(hndl, 0, 0, 0);
 #endif
+#if 0
 //////////////////////////////// start with SD card assessment
 //#define RECORD_SIZE 4
 //unsigned char content[RECORD_SIZE];
@@ -409,7 +419,52 @@ unsigned char content[] = {" \r\n"};
 UARTprintf(" Done for Cmd_write_record\n ");
 //////////////////////////////// edit for SD card assessment
 //vPortFree(record_buf); //UARTprintf(" audio_buf\n ");
+#endif
+// Create RX and TX Buffer
+//
+pTxBuffer = CreateCircularBuffer(TX_BUFFER_SIZE);
+pRxBuffer = CreateCircularBuffer(RX_BUFFER_SIZE);
+// Configure Audio Codec
+//
+ConfigureAudioCodec(CODEC_I2S_WORD_LEN_16);
+// Initialize the Audio(I2S) Module
+//
+AudioCapturerInit();
+// Initialize the DMA Module
+//
+UDMAInit();
+UDMAChannelSelect(UDMA_CH4_I2S_RX, NULL);
+UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL);
 
+//
+// Setup the DMA Mode
+//
+SetupPingPongDMATransferTx();
+SetupPingPongDMATransferRx();
+// Setup the Audio In/Out
+//
+AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
+AudioCaptureRendererConfigure();
+
+// Start Audio Tx/Rx
+//
+Audio_Start();
+
+// Start the Control Task
+//
+ControlTaskCreate();
+
+// Start the Microphone Task
+//
+osi_TaskCreate( Microphone,(signed char*)"MicroPhone", OSI_STACK_SIZE, NULL, 1, &g_MicTask );
+// Start the Speaker Task
+//
+osi_TaskCreate( Speaker, (signed char*)"Speaker",OSI_STACK_SIZE, NULL, 1, &g_SpeakerTask );
+//
+// Start the task scheduler
+//
+osi_start();
+// end of DMA
 return 0;
 
 }

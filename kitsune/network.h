@@ -70,11 +70,11 @@ extern "C"
 //
 // Define Packet Size, Rx and Tx Buffer
 //
-//*****************************************************************************  
-#define PACKET_SIZE             1024
-#define PLAY_WATERMARK		30*1024
+//*****************************************************************************
+#define PACKET_SIZE             100
+#define PLAY_WATERMARK		30*256
 #define TX_BUFFER_SIZE          10*PACKET_SIZE
-#define RX_BUFFER_SIZE          70*PACKET_SIZE
+#define RX_BUFFER_SIZE          10*PACKET_SIZE
   
 //*****************************************************************************
 //
