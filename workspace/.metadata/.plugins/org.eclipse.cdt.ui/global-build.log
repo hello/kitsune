@@ -1,0 +1,79 @@
+
+**** Clean-only build of configuration Release for project driverlib ****
+
+"c:\\ti\\ccsv6\\utils\\bin\\gmake" -k clean 
+DEL /F  "driverlib.a" 
+DEL /F "adc.pp" "aes.pp" "camera.pp" "cpu.pp" "crc.pp" "des.pp" "flash.pp" "gpio.pp" "hwspinlock.pp" "i2c.pp" "i2s.pp" "interrupt.pp" "pin.pp" "prcm.pp" "sdhost.pp" "shamd5.pp" "spi.pp" "systick.pp" "timer.pp" "uart.pp" "udma.pp" "utils.pp" "wdt.pp" 
+DEL /F "adc.obj" "aes.obj" "camera.obj" "cpu.obj" "crc.obj" "des.obj" "flash.obj" "gpio.obj" "hwspinlock.obj" "i2c.obj" "i2s.obj" "interrupt.obj" "pin.obj" "prcm.obj" "sdhost.obj" "shamd5.obj" "spi.obj" "systick.obj" "timer.obj" "uart.obj" "udma.obj" "utils.obj" "wdt.obj" 
+'Finished clean'
+' '
+
+**** Build Finished ****
+
+**** Clean-only build of configuration Release for project fatfs ****
+
+"c:\\ti\\ccsv6\\utils\\bin\\gmake" -k clean 
+DEL /F  "fatfs.a" 
+DEL /F "ff.pp" 
+DEL /F "ff.obj" 
+'Finished clean'
+' '
+
+**** Build Finished ****
+
+**** Clean-only build of configuration Debug for project flc ****
+
+"c:\\ti\\ccsv6\\utils\\bin\\gmake" -k clean 
+DEL /F  "C:\Users\chrisjohnson\Desktop\kitsune\ExtLibs\libs\ccs\flc.lib" 
+DEL /F "flc.pp" 
+DEL /F "flc.obj" 
+'Finished clean'
+' '
+
+**** Build Finished ****
+
+**** Clean-only build of configuration Release for project kitsune ****
+
+"c:\\ti\\ccsv6\\utils\\bin\\gmake" -k clean 
+DEL /F  "C:\Users\chrisjohnson\Desktop\kitsune\kitsune\main\ccs\exe\kitsune.out"  "C:\Users\chrisjohnson\Desktop\kitsune\kitsune\main\ccs\exe\kitsune.hex" 
+DEL /F "audiofeatures.pp" "cmdline.pp" "commands.pp" "diskio.pp" "dust_cmd.pp" "fatfs_cmd.pp" "fault.pp" "fft.pp" "i2c_cmd.pp" "main.pp" "pinmux.pp" "spi_cmd.pp" "uartstdio.pp" "ustdlib.pp" "wifi_cmd.pp" "protobuf\SyncResponse.pb.pp" "protobuf\periodic.pb.pp" "nanopb\pb_decode.pp" "nanopb\pb_encode.pp" "crypto\aes.pp" "crypto\sha1.pp" "common\button_if.pp" "common\gpio_if.pp" "common\i2c_if.pp" "common\startup_ccs.pp" "common\timer_if.pp" "common\udma_if.pp" "common\wdt_if.pp" 
+DEL /F "audiofeatures.obj" "cmdline.obj" "commands.obj" "diskio.obj" "dust_cmd.obj" "fatfs_cmd.obj" "fault.obj" "fft.obj" "i2c_cmd.obj" "main.obj" "pinmux.obj" "spi_cmd.obj" "uartstdio.obj" "ustdlib.obj" "wifi_cmd.obj" "protobuf\SyncResponse.pb.obj" "protobuf\periodic.pb.obj" "nanopb\pb_decode.obj" "nanopb\pb_encode.obj" "crypto\aes.obj" "crypto\sha1.obj" "common\button_if.obj" "common\gpio_if.obj" "common\i2c_if.obj" "common\startup_ccs.obj" "common\timer_if.obj" "common\udma_if.obj" "common\wdt_if.obj" 
+'Finished clean'
+' '
+
+**** Build Finished ****
+
+**** Clean-only build of configuration free_rtos for project oslib ****
+
+"c:\\ti\\ccsv6\\utils\\bin\\gmake" -k clean 
+DEL /F  "C:\Users\chrisjohnson\Desktop\kitsune\oslib\ccs\exe\FreeRTOS.a" 
+DEL /F "croutine.pp" "heap_4.pp" "list.pp" "osi_freertos.pp" "port.pp" "queue.pp" "tasks.pp" "timers.pp" 
+DEL /F "croutine.obj" "heap_4.obj" "list.obj" "osi_freertos.obj" "port.obj" "portasm.obj" "queue.obj" "tasks.obj" "timers.obj" 
+DEL /F "portasm.pp" 
+Could Not Find C:\Users\chrisjohnson\Desktop\kitsune\oslib\ccs\free_rtos\portasm.pp
+'Finished clean'
+' '
+
+**** Build Finished ****
+
+**** Clean-only build of configuration Debug for project ota ****
+
+"c:\\ti\\ccsv6\\utils\\bin\\gmake" -k clean 
+DEL /F  "C:\Users\chrisjohnson\Desktop\kitsune\ExtLibs\libs\ccs\ota.lib" 
+DEL /F "CdnClient.pp" "LogClient.pp" "OtaApp.pp" "OtaClient.pp" "OtaHttp.pp" 
+DEL /F "CdnClient.obj" "LogClient.obj" "OtaApp.obj" "OtaClient.obj" "OtaHttp.obj" 
+'Finished clean'
+' '
+
+**** Build Finished ****
+
+**** Clean-only build of configuration OS for project simplelink ****
+
+"c:\\ti\\ccsv6\\utils\\bin\\gmake" -k clean 
+DEL /F  "C:\Users\chrisjohnson\Desktop\kitsune\simplelink\ccs\exe\simplelink.a" 
+DEL /F "cc_pal.pp" "device.pp" "driver.pp" "flowcont.pp" "fs.pp" "netapp.pp" "netcfg.pp" "nonos.pp" "socket.pp" "spawn.pp" "wlan.pp" 
+DEL /F "cc_pal.obj" "device.obj" "driver.obj" "flowcont.obj" "fs.obj" "netapp.obj" "netcfg.obj" "nonos.obj" "socket.obj" "spawn.obj" "wlan.obj" 
+'Finished clean'
+' '
+
+**** Build Finished ****

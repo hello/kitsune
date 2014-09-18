@@ -1,0 +1,13 @@
+
+**** Clean-only build of configuration free_rtos for project oslib ****
+
+"c:\\ti\\ccsv6\\utils\\bin\\gmake" -k clean 
+DEL /F  "C:\Users\chrisjohnson\Desktop\kitsune\oslib\ccs\exe\FreeRTOS.a" 
+DEL /F "croutine.pp" "heap_4.pp" "list.pp" "osi_freertos.pp" "port.pp" "queue.pp" "tasks.pp" "timers.pp" 
+DEL /F "croutine.obj" "heap_4.obj" "list.obj" "osi_freertos.obj" "port.obj" "portasm.obj" "queue.obj" "tasks.obj" "timers.obj" 
+DEL /F "portasm.pp" 
+Could Not Find C:\Users\chrisjohnson\Desktop\kitsune\oslib\ccs\free_rtos\portasm.pp
+'Finished clean'
+' '
+
+**** Build Finished ****

@@ -1,0 +1,7 @@
+#Thu Aug 07 18:57:26 IDT 2014
+capacity=1MB
+com=28
+interface=CC3x Serial(UART) Interface
+device=SimpleLink Wifi CC3100/CC3200
+secure=true
+alert=false

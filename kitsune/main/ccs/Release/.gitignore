@@ -1,0 +1,9 @@
+/common
+/crypto
+/makefile
+/nanopb
+/objects.mk
+/protobuf
+/sources.mk
+/subdir_rules.mk
+/subdir_vars.mk

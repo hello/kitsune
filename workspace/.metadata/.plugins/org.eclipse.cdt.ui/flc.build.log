@@ -1,0 +1,11 @@
+
+**** Clean-only build of configuration Debug for project flc ****
+
+"c:\\ti\\ccsv6\\utils\\bin\\gmake" -k clean 
+DEL /F  "C:\Users\chrisjohnson\Desktop\kitsune\ExtLibs\libs\ccs\flc.lib" 
+DEL /F "flc.pp" 
+DEL /F "flc.obj" 
+'Finished clean'
+' '
+
+**** Build Finished ****

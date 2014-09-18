@@ -1,0 +1,11 @@
+
+**** Clean-only build of configuration Release for project fatfs ****
+
+"c:\\ti\\ccsv6\\utils\\bin\\gmake" -k clean 
+DEL /F  "fatfs.a" 
+DEL /F "ff.pp" 
+DEL /F "ff.obj" 
+'Finished clean'
+' '
+
+**** Build Finished ****

@@ -1,0 +1,1 @@
+"./wdt.obj" "./utils.obj" "./udma.obj" "./uart.obj" "./timer.obj" "./systick.obj" "./spi.obj" "./shamd5.obj" "./sdhost.obj" "./prcm.obj" "./pin.obj" "./interrupt.obj" "./i2s.obj" "./i2c.obj" "./hwspinlock.obj" "./gpio.obj" "./flash.obj" "./des.obj" "./crc.obj" "./cpu.obj" "./camera.obj" "./aes.obj" "./adc.obj" 

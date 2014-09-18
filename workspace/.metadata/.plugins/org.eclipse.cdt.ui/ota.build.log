@@ -1,0 +1,11 @@
+
+**** Clean-only build of configuration Debug for project ota ****
+
+"c:\\ti\\ccsv6\\utils\\bin\\gmake" -k clean 
+DEL /F  "C:\Users\chrisjohnson\Desktop\kitsune\ExtLibs\libs\ccs\ota.lib" 
+DEL /F "CdnClient.pp" "LogClient.pp" "OtaApp.pp" "OtaClient.pp" "OtaHttp.pp" 
+DEL /F "CdnClient.obj" "LogClient.obj" "OtaApp.obj" "OtaClient.obj" "OtaHttp.obj" 
+'Finished clean'
+' '
+
+**** Build Finished ****

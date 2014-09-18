@@ -1,0 +1,11 @@
+
+**** Clean-only build of configuration Release for project driverlib ****
+
+"c:\\ti\\ccsv6\\utils\\bin\\gmake" -k clean 
+DEL /F  "driverlib.a" 
+DEL /F "adc.pp" "aes.pp" "camera.pp" "cpu.pp" "crc.pp" "des.pp" "flash.pp" "gpio.pp" "hwspinlock.pp" "i2c.pp" "i2s.pp" "interrupt.pp" "pin.pp" "prcm.pp" "sdhost.pp" "shamd5.pp" "spi.pp" "systick.pp" "timer.pp" "uart.pp" "udma.pp" "utils.pp" "wdt.pp" 
+DEL /F "adc.obj" "aes.obj" "camera.obj" "cpu.obj" "crc.obj" "des.obj" "flash.obj" "gpio.obj" "hwspinlock.obj" "i2c.obj" "i2s.obj" "interrupt.obj" "pin.obj" "prcm.obj" "sdhost.obj" "shamd5.obj" "spi.obj" "systick.obj" "timer.obj" "uart.obj" "udma.obj" "utils.obj" "wdt.obj" 
+'Finished clean'
+' '
+
+**** Build Finished ****
