@@ -10,9 +10,11 @@ int Cmd_rm(int argc, char *argv[]);
 int Cmd_write(int argc, char *argv[]);
 //int Cmd_write_record(int argc, char *argv[]);
 int Cmd_write_record(unsigned char *content);
+int Cmd_write_audio(char *argv[]);
 int Cmd_mkfs(int argc, char *argv[]);
 int Cmd_mkdir(int argc, char *argv[]);
 int Cmd_pwd(int argc, char *argv[]);
 int Cmd_cat(int argc, char *argv[]);
+int Cmd_append(int argc, char *argv[]);
 
 #endif

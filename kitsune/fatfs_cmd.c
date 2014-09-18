@@ -10,16 +10,20 @@
 #include <string.h>
 #include <assert.h>
 #include <stdint.h>
+#include "fatfs_cmd.h"
 
-/* FatFS include */
-#include "ff.h"
-#include "diskio.h"
-#
 /* Standard Stellaris includes */
 #include "hw_types.h"
 
 /* Other Stellaris include */
 #include "uartstdio.h"
+
+#include "circ_buff.h"
+#include "ff.h"
+#include "diskio.h"
+
+
+
 
 //*****************************************************************************
 //
@@ -58,6 +62,7 @@ static DIR g_sDirObject;
 static FILINFO file_info;
 static FIL file_obj;
 
+extern tCircularBuffer *pTxBuffer;
 
 int Cmd_mnt(int argc, char *argv[])
 {
@@ -409,30 +414,31 @@ Cmd_cat(int argc, char *argv[])
     UARTprintf("\n");
     return(0);
 }
+
 int
-Cmd_write(int argc, char *argv[])
+Cmd_write_audio(char *argv[])
 {
     FRESULT res;
 
 	WORD bytes = 0;
 	WORD bytes_written = 0;
-	WORD bytes_to_write = strlen(argv[2])+1;
+	WORD bytes_to_write = strlen(argv[1])+1;
 
-    if(global_filename( argv[1] ))
+    if(global_filename( "TXBUF"))
     {
     	return 1;
     }
-
+    UARTprintf("print");
     // Open the file for reading.
-    res = f_open(&file_obj, g_pcTmpBuf, FA_CREATE_NEW|FA_WRITE);
-
+    //res = f_open(&file_obj, g_pcTmpBuf, FA_CREATE_NEW|FA_WRITE);
+    res = f_open(&file_obj, g_pcTmpBuf, FA_WRITE);
     f_stat( g_pcTmpBuf, &file_info );
 
     if( file_info.fsize != 0 )
         res = f_lseek(&file_obj, file_info.fsize );
 
     do {
-		res = f_write( &file_obj, argv[2]+bytes_written, bytes_to_write-bytes_written, &bytes );
+		res = f_write( &file_obj, argv[1]+bytes_written, bytes_to_write-bytes_written, &bytes );
 		bytes_written+=bytes;
     } while( bytes_written < bytes_to_write );
 
@@ -444,6 +450,60 @@ Cmd_write(int argc, char *argv[])
     }
     return(0);
 }
+
+int
+Cmd_write(int argc, char *argv[])
+{
+	UARTprintf("Cmd_write\n");
+
+	WORD bytes = 0;
+	WORD bytes_written = 0;
+	WORD bytes_to_write = strlen(argv[2]) + 1;
+
+    if(global_filename( argv[1] ))
+    {
+    	return 1;
+
+    }
+
+    // Open the file for reading.
+    FRESULT res = f_open(&file_obj, g_pcTmpBuf, FA_CREATE_NEW|FA_WRITE);
+    UARTprintf("res :%d\n",res);
+
+    if(res != FR_OK && res != FR_EXIST){
+    	UARTprintf("File open %s failed: %d\n", g_pcTmpBuf, res);
+    	return res;
+    }
+
+    f_stat( g_pcTmpBuf, &file_info );
+
+    if( file_info.fsize != 0 )
+        res = f_lseek(&file_obj, file_info.fsize );
+
+    do {
+		res = f_write( &file_obj, argv[2]+bytes_written, bytes_to_write-bytes_written, &bytes );
+		bytes_written+=bytes;
+		UARTprintf("bytes written: %d\n", bytes_written);
+
+    } while( bytes_written < bytes_to_write );
+
+    res = f_close( &file_obj );
+
+    if(res != FR_OK)
+    {
+        return((int)res);
+    }
+    return(0);
+}
+
+int
+Cmd_append(int argc, char *argv[])
+{
+	f_append(argv[1], argv[2], strlen(argv[2]));
+}
+
+
+
 // add this for creating buff for sound recording
 int Cmd_write_record(unsigned char *content)
 //int Cmd_write_record(int argc, char *argv[])
@@ -468,7 +528,8 @@ int Cmd_write_record(unsigned char *content)
     }
 
     // Open the file for reading.
-    res = f_open(&file_obj, g_pcTmpBuf, FA_CREATE_NEW|FA_WRITE);
+    //res = f_open(&file_obj, g_pcTmpBuf, FA_CREATE_NEW|FA_WRITE);
+    res = f_open(&file_obj, g_pcTmpBuf, FA_WRITE|FA_OPEN_EXISTING|FA_CREATE_NEW);
 
     f_stat( g_pcTmpBuf, &file_info );
 

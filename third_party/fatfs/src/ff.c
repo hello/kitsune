@@ -1769,6 +1769,50 @@ FRESULT f_mkfs (
     return (disk_ioctl(drv, CTRL_SYNC, NULL) == RES_OK) ? FR_OK : FR_RW_ERROR;
 }
 
+
+FRESULT f_append(const char* file_name, const unsigned char* content, int length)
+{
+	WORD bytes = 0;
+	WORD bytes_written = 0;
+	WORD bytes_to_write = length;
+	FIL file_obj;
+
+	memset(&file_obj, 0, sizeof(file_obj));
+
+	// Open the file for reading.
+	FRESULT res = f_open(&file_obj, file_name, FA_WRITE|FA_OPEN_ALWAYS);
+	//UARTprintf("res :%d\n",res);
+
+	if(res != FR_OK && res != FR_EXIST){
+		UARTprintf("File open %s failed: %d\n", file_name, res);
+		return res;
+	}
+
+	FILINFO file_info;
+	memset(&file_info, 0, sizeof(file_info));
+
+	f_stat(file_name, &file_info);
+
+	if( file_info.fsize != 0 ){
+		res = f_lseek(&file_obj, file_info.fsize);
+	}
+
+	do {
+		res = f_write(&file_obj, content+bytes_written, bytes_to_write-bytes_written, &bytes );
+		bytes_written+=bytes;
+		//UARTprintf("bytes written: %d\n", bytes_written);
+
+	} while( bytes_written < bytes_to_write );
+
+	res = f_close( &file_obj );
+
+	if(res != FR_OK)
+	{
+		return res;
+	}
+	return FR_OK;
+}
+
 #endif /* _USE_MKFS */
 #endif /* !_FS_READONLY */
 #endif /* _FS_MINIMIZE == 0 */

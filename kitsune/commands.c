@@ -17,6 +17,9 @@
 #include <uart.h>
 #include <stdarg.h>
 #include <stdlib.h>
+
+#include <string.h>
+
 #include "sdhost.h"
 #include "rom_map.h"
 
@@ -55,6 +58,9 @@
 #include "control.h"
 #include "ti_codec.h"
 #include "network.h"
+
+#include "ff.h"
+#include "diskio.h"
 //#include "mcasp_if.h" // add by Ben
 
 #define NUM_LOGS 72
@@ -327,7 +333,7 @@ int Cmd_code_playbuff(int argc, char *argv[]) {
 
 //extern
 
-//unsigned short * record_buf;
+
 
 int Cmd_record_buff(int argc, char *argv[]) {
 #if 0
@@ -817,6 +823,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{"codec_NAU8814", get_codec_NAU, "i2 nuvoton_codec" },
 		{"codec_Mic", get_codec_mic_NAU, "i2s mic_codec" },
 		{"auto_saveSD", Cmd_write_record, "automatic save data into SD"},
+		{"append", Cmd_append,"Cmd_test_append_content"},
 #if ( configUSE_TRACE_FACILITY == 1 )
 		{ "tasks", Cmd_tasks, "Report stats of all tasks" },
 #endif
