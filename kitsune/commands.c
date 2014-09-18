@@ -558,13 +558,13 @@ void vUARTTask(void *pvParameters) {
 	if (data_queue == 0) {
 		UARTprintf("Failed to create the data_queue.\n");
 	}
-
+/*
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask", 2 * 1024 / 4, NULL, 3, NULL);
 	xTaskCreate(thread_dust, "dustTask", 256 / 4, NULL, 3, NULL);
 	xTaskCreate(thread_sensor_poll, "pollTask", 2 * 1024 / 4, NULL, 4, NULL);
 	xTaskCreate(thread_tx, "txTask", 4 * 1024 / 4, NULL, 2, NULL);
 	xTaskCreate(thread_ota, "otaTask", 2 * 1024 / 4, NULL, 1, NULL);
-
+*/
 	//checkFaults();
 
 	/* Loop forever */
