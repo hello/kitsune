@@ -96,6 +96,7 @@ DmaSwIntHandler(void)
 {
     unsigned long uiIntStatus;
     iDone = 1;
+//    UARTprintf("iDone\n");
     uiIntStatus = MAP_uDMAIntStatus();
     MAP_uDMAIntClear(uiIntStatus);
 }
@@ -147,7 +148,6 @@ void UDMAInit()
     // Enable uDMA using master enable
     //
     MAP_uDMAEnable();
-
     //
     // Set Control Table
     //

@@ -71,11 +71,10 @@ extern "C"
 // Define Packet Size, Rx and Tx Buffer
 //
 //*****************************************************************************
-#define PACKET_SIZE             10
-#define PLAY_WATERMARK			5*256
+#define PACKET_SIZE             1024
+#define PLAY_WATERMARK			10*1024
 #define TX_BUFFER_SIZE          10*PACKET_SIZE
-#define RX_BUFFER_SIZE          10*PACKET_SIZE
-  
+#define RX_BUFFER_SIZE          30*PACKET_SIZE
 //*****************************************************************************
 //
 // Define Audio Input/Output Connection

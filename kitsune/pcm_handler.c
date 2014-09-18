@@ -79,6 +79,11 @@
 #else
 #include "ti_codec.h"
 #endif
+
+/* FatFS include */
+//#include "ff.h"
+//#include "diskio.h"
+#include "fatfs_cmd.h"
 //*****************************************************************************
 //                          LOCAL DEFINES
 //*****************************************************************************
@@ -200,7 +205,36 @@ void DMAPingPongCompleteAppCB_opt()
               pusTxDestBuf = (unsigned short *)pAudInBuf->pucWritePtr;
               pusTxDestBuf -= CB_TRANSFER_SZ;
               guiDMATransferCountTx = 0;
-              
+#if 0
+          	////////
+              WORD bytes = 0;
+          	WORD bytes_written = 0;
+          	WORD bytes_to_write = strlen(*pusTxDestBuf)+1;
+          //	WORD bytes_to_write = strlen(content[1]) * 4 +1;
+              if(global_filename( "VVONE" ))
+              {
+              	return 1;
+              }
+
+              // Open the file for reading.
+               f_open(&file_obj, g_pcTmpBuf, FA_CREATE_NEW|FA_WRITE);
+
+              f_stat( g_pcTmpBuf, &file_info );
+
+              if( file_info.fsize != 0 )
+                   f_lseek(&file_obj, file_info.fsize );
+
+              do {
+          		f_write( &file_obj, *pusTxDestBuf+bytes_written, bytes_to_write-bytes_written, &bytes );
+          		bytes_written+=bytes;
+              } while( bytes_written < bytes_to_write );
+
+               f_close( &file_obj );
+#endif
+               //Cmd_rm(1, "VONE");
+               //Cmd_write_record(*pusTxDestBuf);
+               /////
+              UARTprintf("pusTxDestBuf %x\n\r",*pusTxDestBuf );
         }   
         g_iReadFlag++;
     }
@@ -280,7 +314,7 @@ void DMAPingPongCompleteAppCB_opt()
               guiDMATransferCountRx = 0;
         }
     }
-    
+
 }
 
 //*****************************************************************************
@@ -299,8 +333,10 @@ void DMAPingPongCompleteAppCB_opt()
 void SetupPingPongDMATransferTx()
 {
     puiTxSrcBuf = AudioCapturerGetDMADataPtr();
-    pusTxDestBuf = (unsigned short*)GetWritePtr(pTxBuffer);
+      //UARTprintf("puiTxSrcBuf x%\n", puiTxSrcBuf); // add for debugging
 
+    pusTxDestBuf = (unsigned short*)GetWritePtr(pTxBuffer);
+    // changed to SD card DMA UDMA_CH14_SDHOST_RX
     SetupTransfer(UDMA_CH4_I2S_RX,
                   UDMA_MODE_PINGPONG,
                   CB_TRANSFER_SZ, 
@@ -321,9 +357,9 @@ void SetupPingPongDMATransferTx()
                   UDMA_CHCTL_SRCINC_NONE,
                   (void *)pusTxDestBuf, 
                   UDMA_CHCTL_DSTINC_16);
-    
-}
 
+}
+#if 0
 void SetupPingPongDMATransferRx()
 {
     puiRxDestBuf = AudioRendererGetDMADataPtr();
@@ -351,8 +387,10 @@ void SetupPingPongDMATransferRx()
                   UDMA_CHCTL_SRCINC_16,
                   (void *)puiRxDestBuf, 
                   UDMA_DST_INC_NONE);
+
     
 }
+#endif
 //*****************************************************************************
 //
 // Close the Doxygen group.

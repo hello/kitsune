@@ -486,7 +486,7 @@ int Cmd_write_record(unsigned char *content)
     {
         return((int)res);
     }
-    UARTprintf("%s", g_pcTmpBuf);
+    //UARTprintf("%s", g_pcTmpBuf);
     return(0);
 }
 // end sound recording buffer

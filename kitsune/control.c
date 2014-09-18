@@ -318,8 +318,8 @@ static void SpeakerButtonHandler()
 //! \brief  Initializes Audio Player Push Button Controls
 //
 //*****************************************************************************
-//void InitControl(P_AUDIO_HANDLER pAudioInControl,P_AUDIO_HANDLER pAudioOutControl)
-void InitControl(P_AUDIO_HANDLER pAudioInControl)
+void InitControl(P_AUDIO_HANDLER pAudioInControl,P_AUDIO_HANDLER pAudioOutControl)
+//void InitControl(P_AUDIO_HANDLER pAudioInControl)
 {
     //
     // Set Interrupt Type for GPIO
@@ -388,8 +388,8 @@ void AudioControlTask(void *pvParameters)
 
 void ControlTaskCreate()
 {
-    //InitControl(MICStartStopControl,SpeakerStartStopControl);
-    InitControl(MICStartStopControl);
+    InitControl(MICStartStopControl,SpeakerStartStopControl);
+    //InitControl(MICStartStopControl);
     
     osi_MsgQCreate(&g_ControlMsgQueue,"g_ControlMsgQueue",sizeof(tTxMsg),1);
     osi_TaskCreate(AudioControlTask, (signed char*)"AudioControlTask",2048, NULL, 1, &g_AudioControlTask );

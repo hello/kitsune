@@ -42,6 +42,8 @@
 #include "rom_map.h"
 #include "utils.h"
 #include "hw_ints.h"
+
+#include "hw_memmap.h"
 //******************************************************************************
 //							GLOBAL VARIABLES
 //******************************************************************************
@@ -114,22 +116,35 @@ void Microphone( void *pvParameters )
    
     while(1)
     {     
-        while(g_ucMicStartFlag)
+        //while(g_ucMicStartFlag)
         {
             int iBufferFilled = 0;
+
             iBufferFilled = GetBufferSize(pTxBuffer);
-            //iBufferFilled = GetBufferSize(pRxBuffer);
-            UARTprintf("loop into iBufferFilled pRxBuffer %x\n", iBufferFilled);
-            vTaskDelay(1000);
             if(iBufferFilled >= (2*PACKET_SIZE))
-            { 
+            {
+#if 0
+            int i;
+            long tmp = 0;
+            for(i = 0; i < pTxBuffer->ulBufferSize; i++){
+            	tmp += pTxBuffer->pucBufferStartPtr[i];
+            }
+            UARTprintf("loop into iBufferFilled pRxBuffer %x\n", tmp);
+            //long FIFO_DMA;
+            //FIFO_DMA = I2STxFIFOStatusGet(I2S_BASE);
+            //UARTprintf("FIFO_DMA %x\n", FIFO_DMA);
+            //vTaskDelay(1000);
+#endif
+
 #ifdef NETWORK
 
-#ifndef MULTICAST          
+#ifndef MULTICAST
+#if 0
                 sendto(g_UdpSock.iSockDesc, (char*)(pTxBuffer->pucReadPtr),PACKET_SIZE,
                 0,(struct sockaddr*)&(g_UdpSock.Client),sizeof(g_UdpSock.Client));
-
+#endif
                 //UARTprintf(" test\n ");
+                //UARTprintf("pucReadPtr %x\n\r", *(pTxBuffer->pucReadPtr));
 #else      //MULTICAST         
                 SendMulticastPacket();
 #endif     //MULTICAST      
@@ -146,7 +161,9 @@ void Microphone( void *pvParameters )
 
 #endif   //NETWORK       
                  UpdateReadPtr(pTxBuffer, PACKET_SIZE);
+                 //UARTprintf("pTxBuffer %x\n\r", *(pTxBuffer->pucReadPtr));
                  g_iSentCount++;
+
             }
 
         }      

@@ -435,7 +435,7 @@ int get_codec_mic_NAU(int argc, char *argv[]) {
 	cmd_init[0] = 0x72 ; cmd_init[1] = 0x40 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec);
 	cmd_init[0] = 0x74 ; cmd_init[1] = 0x00 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec);
 
-	UARTprintf(" Mic codec is testing \n\r");
+	//UARTprintf(" Mic codec is testing \n\r");
 
 	return SUCCESS;
 }

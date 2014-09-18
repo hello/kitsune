@@ -150,9 +150,6 @@ void McASPInit()
 
     MAP_PRCMPeripheralClkEnable(PRCM_I2S,PRCM_RUN_MODE_CLK); 
     MAP_PRCMI2SClockFreqSet(512000*3);
-      //512000 = 16*2*16000Khz(Num of bytes * STEREO * 16000 sampling)
-//    MAP_I2SIntRegister(I2S_BASE,I2SIntHandler); // add by ben
-//    MAP_I2SIntEnable(I2S_BASE,I2S_INT_XDATA); // add by ben
 }
 void McASPInit_RX()
 {
@@ -206,11 +203,10 @@ void I2SIntHandler(){
 #endif
    if(ulStatus & I2S_STS_RDATA)
    {
-	   UARTprintf("loop into I2SIntClear \n");
-#if 0
-        I2SDataGetNonBlocking(I2S_BASE, I2S_DATA_LINE_1, ulDummy);
 
-#endif
+        I2SDataGetNonBlocking(I2S_BASE, I2S_DATA_LINE_1, ulDummy);
+        UARTprintf("loop into I2SIntClear \n");
+
         I2SIntClear(I2S_BASE,I2S_STS_RDATA);
 
 
@@ -240,6 +236,7 @@ void AudioCapturerSetupDMAMode(void (*pfnAppCbHndlr)(void),
 {
 
     MAP_I2SIntEnable(I2S_BASE,I2S_INT_XDATA);
+    MAP_I2SIntEnable(I2S_BASE,I2S_INT_RDATA); //added by Ben
 #ifdef USE_TIRTOS
     osi_InterruptRegister(INT_I2S, pfnAppCbHndlr, INT_PRIORITY_LVL_1);
 #else
@@ -270,7 +267,7 @@ void AudioCaptureRendererConfigure()
 {
 
     MAP_I2SConfigSetExpClk(I2S_BASE,512000*3,512000*3,I2S_SLOT_SIZE_16|
-    										I2S_PORT_DMA );// I2S_PORT_DMA
+    		I2S_PORT_DMA );// I2S_PORT_DMA
     MAP_I2SSerializerConfig(I2S_BASE,I2S_DATA_LINE_1,I2S_SER_MODE_RX,
                                             I2S_INACT_LOW_LEVEL);
     MAP_I2SSerializerConfig(I2S_BASE,I2S_DATA_LINE_0,I2S_SER_MODE_TX,

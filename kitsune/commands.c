@@ -69,7 +69,7 @@
 #define TX_BUFFER_SIZE          10*PACKET_SIZE
 #define RX_BUFFER_SIZE          10*PACKET_SIZE
 #endif
-extern void Speaker( void *pvParameters );
+
 extern tCircularBuffer *pTxBuffer;
 extern tCircularBuffer *pRxBuffer;
 tUDPSocket g_UdpSock;
@@ -81,7 +81,7 @@ OsiTaskHandle g_MicTask = NULL ;
 //******************************************************************************
 //extern void Speaker( void *pvParameters );
 extern void Microphone( void *pvParameters );
-
+extern void Speaker( void *pvParameters );
 unsigned long tone;
 //*****************************************************************************
 //                      GLOBAL VARIABLES
@@ -375,11 +375,9 @@ AudioCaptureRendererConfigure(); //UARTprintf(" Done for AudioCaptureRendererCon
 
 AudioCapturerInit_mic(); UARTprintf(" Done for AudioCapturerInit_mic\n ");
 
-#if 0
 
 Audio_Start(); //UARTprintf(" Done for Audio_Start\n ");
 
-#endif
 
 //content = "this is testing this is testing";
 
@@ -420,23 +418,35 @@ UARTprintf(" Done for Cmd_write_record\n ");
 //////////////////////////////// edit for SD card assessment
 //vPortFree(record_buf); //UARTprintf(" audio_buf\n ");
 #endif
+
 // Create RX and TX Buffer
 //
 pTxBuffer = CreateCircularBuffer(TX_BUFFER_SIZE);
+if(pTxBuffer == NULL)
+{
+	UARTprintf("Unable to Allocate Memory for Tx Buffer\n\r");
+    while(1){};
+}
 pRxBuffer = CreateCircularBuffer(RX_BUFFER_SIZE);
-
+if(pRxBuffer == NULL)
+{
+	UARTprintf("Unable to Allocate Memory for Rx Buffer\n\r");
+	while(1){};
+}
 // Configure Audio Codec
 //
-ConfigureAudioCodec(CODEC_I2S_WORD_LEN_16);
+get_codec_mic_NAU();
+//ConfigureAudioCodec(CODEC_I2S_WORD_LEN_24);
 
 // Initialize the Audio(I2S) Module
 //
-//AudioCapturerInit();
-AudioCapturerInit_mic();
+AudioCapturerInit();
+//AudioCapturerInit_mic();
 
 // Initialize the DMA Module
 //
 UDMAInit();
+
 UDMAChannelSelect(UDMA_CH4_I2S_RX, NULL);
 UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL);
 
@@ -444,36 +454,49 @@ UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL);
 // Setup the DMA Mode
 //
 SetupPingPongDMATransferTx();
-SetupPingPongDMATransferRx();
+//SetupPingPongDMATransferRx();
+//UDMAStartTransfer(UDMA_CH4_I2S_RX);
+//UDMAStartTransfer(UDMA_CH5_I2S_TX);
 // Setup the Audio In/Out
 //
+
 AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
+#if 0
+#endif
 AudioCaptureRendererConfigure();
 
 // Start Audio Tx/Rx
 //
 Audio_Start();
 
+#if 0
 // Start the Control Task
 //
 ControlTaskCreate();
+#endif
 
 // Start the Microphone Task
 //
+Microphone(0);
+
+#if 0
 osi_TaskCreate( Microphone,(signed char*)"MicroPhone", OSI_STACK_SIZE, NULL, 1, &g_MicTask ); //MICButtonHandler g_MicTask
 //UARTprintf("pTxBuffer x%\n", *pTxBuffer);
-#if 0
+
 // Start the Speaker Task
 //
 osi_TaskCreate( Speaker, (signed char*)"Speaker",OSI_STACK_SIZE, NULL, 1, &g_SpeakerTask );
-
+#endif
 //
 // Start the task scheduler
 //
+#if 0
 osi_start();
 UARTprintf("loop done \n");
 // end of DMA
 #endif
+//ControlTaskDestroy();
+
 return 0;
 
 }

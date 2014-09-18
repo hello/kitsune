@@ -63,8 +63,8 @@ typedef void (*P_AUDIO_HANDLER)(void);
 // API Function prototypes
 //
 //*****************************************************************************
-//void InitControl(P_AUDIO_HANDLER pAudioInControl,P_AUDIO_HANDLER pAudioOutControl);
-void InitControl(P_AUDIO_HANDLER pAudioInControl);
+void InitControl(P_AUDIO_HANDLER pAudioInControl,P_AUDIO_HANDLER pAudioOutControl);
+//void InitControl(P_AUDIO_HANDLER pAudioInControl);
 
 void ControlTaskCreate();
 
