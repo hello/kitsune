@@ -105,6 +105,5 @@ SUBDIRS := \
 . \
 protobuf \
 nanopb \
-crypto \
 common \
 

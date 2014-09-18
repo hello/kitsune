@@ -15,8 +15,6 @@ $(GEN_CMDS__FLAG) \
 "./common/i2c_if.obj" \
 "./common/gpio_if.obj" \
 "./common/button_if.obj" \
-"./crypto/sha1.obj" \
-"./crypto/aes.obj" \
 "./nanopb/pb_encode.obj" \
 "./nanopb/pb_decode.obj" \
 "./protobuf/periodic.pb.obj" \
@@ -25,6 +23,7 @@ $(GEN_CMDS__FLAG) \
 "./ustdlib.obj" \
 "./uartstdio.obj" \
 "./spi_cmd.obj" \
+"./sha1.obj" \
 "./pinmux.obj" \
 "./main.obj" \
 "./i2c_cmd.obj" \
@@ -36,6 +35,7 @@ $(GEN_CMDS__FLAG) \
 "./commands.obj" \
 "./cmdline.obj" \
 "./audiofeatures.obj" \
+"./aes.obj" \
 "../cc3200v1p32.cmd" \
 -l"libc.a" \
 -l"C:/Users/chrisjohnson/Desktop/kitsune/kitsune/main/ccs\..\..\..\Extlibs\libs\ccs\flc.lib" \
@@ -55,12 +55,10 @@ RMDIR := RMDIR /S/Q
 -include subdir_vars.mk
 -include protobuf/subdir_vars.mk
 -include nanopb/subdir_vars.mk
--include crypto/subdir_vars.mk
 -include common/subdir_vars.mk
 -include subdir_rules.mk
 -include protobuf/subdir_rules.mk
 -include nanopb/subdir_rules.mk
--include crypto/subdir_rules.mk
 -include common/subdir_rules.mk
 -include objects.mk
 
@@ -182,8 +180,8 @@ C:/Users/chrisjohnson/Desktop/kitsune/kitsune/main/ccs/exe/kitsune.hex: $(EXE_OU
 # Other Targets
 clean:
 	-$(RM) $(EXE_OUTPUTS__QUOTED)$(BIN_OUTPUTS__QUOTED)
-	-$(RM) "audiofeatures.pp" "cmdline.pp" "commands.pp" "diskio.pp" "dust_cmd.pp" "fatfs_cmd.pp" "fault.pp" "fft.pp" "i2c_cmd.pp" "main.pp" "pinmux.pp" "spi_cmd.pp" "uartstdio.pp" "ustdlib.pp" "wifi_cmd.pp" "protobuf\SyncResponse.pb.pp" "protobuf\periodic.pb.pp" "nanopb\pb_decode.pp" "nanopb\pb_encode.pp" "crypto\aes.pp" "crypto\sha1.pp" "common\button_if.pp" "common\gpio_if.pp" "common\i2c_if.pp" "common\startup_ccs.pp" "common\timer_if.pp" "common\udma_if.pp" "common\wdt_if.pp" 
-	-$(RM) "audiofeatures.obj" "cmdline.obj" "commands.obj" "diskio.obj" "dust_cmd.obj" "fatfs_cmd.obj" "fault.obj" "fft.obj" "i2c_cmd.obj" "main.obj" "pinmux.obj" "spi_cmd.obj" "uartstdio.obj" "ustdlib.obj" "wifi_cmd.obj" "protobuf\SyncResponse.pb.obj" "protobuf\periodic.pb.obj" "nanopb\pb_decode.obj" "nanopb\pb_encode.obj" "crypto\aes.obj" "crypto\sha1.obj" "common\button_if.obj" "common\gpio_if.obj" "common\i2c_if.obj" "common\startup_ccs.obj" "common\timer_if.obj" "common\udma_if.obj" "common\wdt_if.obj" 
+	-$(RM) "aes.pp" "audiofeatures.pp" "cmdline.pp" "commands.pp" "diskio.pp" "dust_cmd.pp" "fatfs_cmd.pp" "fault.pp" "fft.pp" "i2c_cmd.pp" "main.pp" "pinmux.pp" "sha1.pp" "spi_cmd.pp" "uartstdio.pp" "ustdlib.pp" "wifi_cmd.pp" "protobuf\SyncResponse.pb.pp" "protobuf\periodic.pb.pp" "nanopb\pb_decode.pp" "nanopb\pb_encode.pp" "common\button_if.pp" "common\gpio_if.pp" "common\i2c_if.pp" "common\startup_ccs.pp" "common\timer_if.pp" "common\udma_if.pp" "common\wdt_if.pp" 
+	-$(RM) "aes.obj" "audiofeatures.obj" "cmdline.obj" "commands.obj" "diskio.obj" "dust_cmd.obj" "fatfs_cmd.obj" "fault.obj" "fft.obj" "i2c_cmd.obj" "main.obj" "pinmux.obj" "sha1.obj" "spi_cmd.obj" "uartstdio.obj" "ustdlib.obj" "wifi_cmd.obj" "protobuf\SyncResponse.pb.obj" "protobuf\periodic.pb.obj" "nanopb\pb_decode.obj" "nanopb\pb_encode.obj" "common\button_if.obj" "common\gpio_if.obj" "common\i2c_if.obj" "common\startup_ccs.obj" "common\timer_if.obj" "common\udma_if.obj" "common\wdt_if.obj" 
 	-@echo 'Finished clean'
 	-@echo ' '
 

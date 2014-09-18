@@ -1,11 +1,128 @@
 
-**** Clean-only build of configuration Release for project driverlib ****
+**** Build of configuration Release for project driverlib ****
 
-"c:\\ti\\ccsv6\\utils\\bin\\gmake" -k clean 
-DEL /F  "driverlib.a" 
-DEL /F "adc.pp" "aes.pp" "camera.pp" "cpu.pp" "crc.pp" "des.pp" "flash.pp" "gpio.pp" "hwspinlock.pp" "i2c.pp" "i2s.pp" "interrupt.pp" "pin.pp" "prcm.pp" "sdhost.pp" "shamd5.pp" "spi.pp" "systick.pp" "timer.pp" "uart.pp" "udma.pp" "utils.pp" "wdt.pp" 
-DEL /F "adc.obj" "aes.obj" "camera.obj" "cpu.obj" "crc.obj" "des.obj" "flash.obj" "gpio.obj" "hwspinlock.obj" "i2c.obj" "i2s.obj" "interrupt.obj" "pin.obj" "prcm.obj" "sdhost.obj" "shamd5.obj" "spi.obj" "systick.obj" "timer.obj" "uart.obj" "udma.obj" "utils.obj" "wdt.obj" 
-'Finished clean'
+"c:\\ti\\ccsv6\\utils\\bin\\gmake" -k all 
+'Building file: C:/Users/chrisjohnson/Desktop/kitsune/driverlib/adc.c'
+'Invoking: ARM Compiler'
+"c:/ti/ccsv6/tools/compiler/arm_5.1.5/bin/armcl" -mv7M4 --code_state=16 --float_support=vfplib --abi=eabi -me -O1 --opt_for_speed=0 --fp_mode=relaxed --include_path="c:/ti/ccsv6/tools/compiler/arm_5.1.5/include" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/driverlib" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/inc" --include_path="C:/Users/chrisjohnson/Desktop/kitsune" -g --gcc --define=ccs --define=DRIVERLIB_APPS --define=cc3200 --display_error_number --diag_warning=225 --diag_wrap=off --gen_func_subsections=on --printf_support=full --ual --preproc_with_compile --preproc_dependency="adc.pp"  "C:/Users/chrisjohnson/Desktop/kitsune/driverlib/adc.c"
+'Finished building: C:/Users/chrisjohnson/Desktop/kitsune/driverlib/adc.c'
+' '
+'Building file: C:/Users/chrisjohnson/Desktop/kitsune/driverlib/aes.c'
+'Invoking: ARM Compiler'
+"c:/ti/ccsv6/tools/compiler/arm_5.1.5/bin/armcl" -mv7M4 --code_state=16 --float_support=vfplib --abi=eabi -me -O1 --opt_for_speed=0 --fp_mode=relaxed --include_path="c:/ti/ccsv6/tools/compiler/arm_5.1.5/include" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/driverlib" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/inc" --include_path="C:/Users/chrisjohnson/Desktop/kitsune" -g --gcc --define=ccs --define=DRIVERLIB_APPS --define=cc3200 --display_error_number --diag_warning=225 --diag_wrap=off --gen_func_subsections=on --printf_support=full --ual --preproc_with_compile --preproc_dependency="aes.pp"  "C:/Users/chrisjohnson/Desktop/kitsune/driverlib/aes.c"
+'Finished building: C:/Users/chrisjohnson/Desktop/kitsune/driverlib/aes.c'
+' '
+'Building file: C:/Users/chrisjohnson/Desktop/kitsune/driverlib/camera.c'
+'Invoking: ARM Compiler'
+"c:/ti/ccsv6/tools/compiler/arm_5.1.5/bin/armcl" -mv7M4 --code_state=16 --float_support=vfplib --abi=eabi -me -O1 --opt_for_speed=0 --fp_mode=relaxed --include_path="c:/ti/ccsv6/tools/compiler/arm_5.1.5/include" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/driverlib" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/inc" --include_path="C:/Users/chrisjohnson/Desktop/kitsune" -g --gcc --define=ccs --define=DRIVERLIB_APPS --define=cc3200 --display_error_number --diag_warning=225 --diag_wrap=off --gen_func_subsections=on --printf_support=full --ual --preproc_with_compile --preproc_dependency="camera.pp"  "C:/Users/chrisjohnson/Desktop/kitsune/driverlib/camera.c"
+'Finished building: C:/Users/chrisjohnson/Desktop/kitsune/driverlib/camera.c'
+' '
+'Building file: C:/Users/chrisjohnson/Desktop/kitsune/driverlib/cpu.c'
+'Invoking: ARM Compiler'
+"c:/ti/ccsv6/tools/compiler/arm_5.1.5/bin/armcl" -mv7M4 --code_state=16 --float_support=vfplib --abi=eabi -me -O1 --opt_for_speed=0 --fp_mode=relaxed --include_path="c:/ti/ccsv6/tools/compiler/arm_5.1.5/include" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/driverlib" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/inc" --include_path="C:/Users/chrisjohnson/Desktop/kitsune" -g --gcc --define=ccs --define=DRIVERLIB_APPS --define=cc3200 --display_error_number --diag_warning=225 --diag_wrap=off --gen_func_subsections=on --printf_support=full --ual --preproc_with_compile --preproc_dependency="cpu.pp"  "C:/Users/chrisjohnson/Desktop/kitsune/driverlib/cpu.c"
+'Finished building: C:/Users/chrisjohnson/Desktop/kitsune/driverlib/cpu.c'
+' '
+'Building file: C:/Users/chrisjohnson/Desktop/kitsune/driverlib/crc.c'
+'Invoking: ARM Compiler'
+"c:/ti/ccsv6/tools/compiler/arm_5.1.5/bin/armcl" -mv7M4 --code_state=16 --float_support=vfplib --abi=eabi -me -O1 --opt_for_speed=0 --fp_mode=relaxed --include_path="c:/ti/ccsv6/tools/compiler/arm_5.1.5/include" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/driverlib" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/inc" --include_path="C:/Users/chrisjohnson/Desktop/kitsune" -g --gcc --define=ccs --define=DRIVERLIB_APPS --define=cc3200 --display_error_number --diag_warning=225 --diag_wrap=off --gen_func_subsections=on --printf_support=full --ual --preproc_with_compile --preproc_dependency="crc.pp"  "C:/Users/chrisjohnson/Desktop/kitsune/driverlib/crc.c"
+'Finished building: C:/Users/chrisjohnson/Desktop/kitsune/driverlib/crc.c'
+' '
+'Building file: C:/Users/chrisjohnson/Desktop/kitsune/driverlib/des.c'
+'Invoking: ARM Compiler'
+"c:/ti/ccsv6/tools/compiler/arm_5.1.5/bin/armcl" -mv7M4 --code_state=16 --float_support=vfplib --abi=eabi -me -O1 --opt_for_speed=0 --fp_mode=relaxed --include_path="c:/ti/ccsv6/tools/compiler/arm_5.1.5/include" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/driverlib" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/inc" --include_path="C:/Users/chrisjohnson/Desktop/kitsune" -g --gcc --define=ccs --define=DRIVERLIB_APPS --define=cc3200 --display_error_number --diag_warning=225 --diag_wrap=off --gen_func_subsections=on --printf_support=full --ual --preproc_with_compile --preproc_dependency="des.pp"  "C:/Users/chrisjohnson/Desktop/kitsune/driverlib/des.c"
+'Finished building: C:/Users/chrisjohnson/Desktop/kitsune/driverlib/des.c'
+' '
+'Building file: C:/Users/chrisjohnson/Desktop/kitsune/driverlib/flash.c'
+'Invoking: ARM Compiler'
+"c:/ti/ccsv6/tools/compiler/arm_5.1.5/bin/armcl" -mv7M4 --code_state=16 --float_support=vfplib --abi=eabi -me -O1 --opt_for_speed=0 --fp_mode=relaxed --include_path="c:/ti/ccsv6/tools/compiler/arm_5.1.5/include" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/driverlib" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/inc" --include_path="C:/Users/chrisjohnson/Desktop/kitsune" -g --gcc --define=ccs --define=DRIVERLIB_APPS --define=cc3200 --display_error_number --diag_warning=225 --diag_wrap=off --gen_func_subsections=on --printf_support=full --ual --preproc_with_compile --preproc_dependency="flash.pp"  "C:/Users/chrisjohnson/Desktop/kitsune/driverlib/flash.c"
+'Finished building: C:/Users/chrisjohnson/Desktop/kitsune/driverlib/flash.c'
+' '
+'Building file: C:/Users/chrisjohnson/Desktop/kitsune/driverlib/gpio.c'
+'Invoking: ARM Compiler'
+"c:/ti/ccsv6/tools/compiler/arm_5.1.5/bin/armcl" -mv7M4 --code_state=16 --float_support=vfplib --abi=eabi -me -O1 --opt_for_speed=0 --fp_mode=relaxed --include_path="c:/ti/ccsv6/tools/compiler/arm_5.1.5/include" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/driverlib" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/inc" --include_path="C:/Users/chrisjohnson/Desktop/kitsune" -g --gcc --define=ccs --define=DRIVERLIB_APPS --define=cc3200 --display_error_number --diag_warning=225 --diag_wrap=off --gen_func_subsections=on --printf_support=full --ual --preproc_with_compile --preproc_dependency="gpio.pp"  "C:/Users/chrisjohnson/Desktop/kitsune/driverlib/gpio.c"
+'Finished building: C:/Users/chrisjohnson/Desktop/kitsune/driverlib/gpio.c'
+' '
+'Building file: C:/Users/chrisjohnson/Desktop/kitsune/driverlib/hwspinlock.c'
+'Invoking: ARM Compiler'
+"c:/ti/ccsv6/tools/compiler/arm_5.1.5/bin/armcl" -mv7M4 --code_state=16 --float_support=vfplib --abi=eabi -me -O1 --opt_for_speed=0 --fp_mode=relaxed --include_path="c:/ti/ccsv6/tools/compiler/arm_5.1.5/include" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/driverlib" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/inc" --include_path="C:/Users/chrisjohnson/Desktop/kitsune" -g --gcc --define=ccs --define=DRIVERLIB_APPS --define=cc3200 --display_error_number --diag_warning=225 --diag_wrap=off --gen_func_subsections=on --printf_support=full --ual --preproc_with_compile --preproc_dependency="hwspinlock.pp"  "C:/Users/chrisjohnson/Desktop/kitsune/driverlib/hwspinlock.c"
+'Finished building: C:/Users/chrisjohnson/Desktop/kitsune/driverlib/hwspinlock.c'
+' '
+'Building file: C:/Users/chrisjohnson/Desktop/kitsune/driverlib/i2c.c'
+'Invoking: ARM Compiler'
+"c:/ti/ccsv6/tools/compiler/arm_5.1.5/bin/armcl" -mv7M4 --code_state=16 --float_support=vfplib --abi=eabi -me -O1 --opt_for_speed=0 --fp_mode=relaxed --include_path="c:/ti/ccsv6/tools/compiler/arm_5.1.5/include" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/driverlib" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/inc" --include_path="C:/Users/chrisjohnson/Desktop/kitsune" -g --gcc --define=ccs --define=DRIVERLIB_APPS --define=cc3200 --display_error_number --diag_warning=225 --diag_wrap=off --gen_func_subsections=on --printf_support=full --ual --preproc_with_compile --preproc_dependency="i2c.pp"  "C:/Users/chrisjohnson/Desktop/kitsune/driverlib/i2c.c"
+'Finished building: C:/Users/chrisjohnson/Desktop/kitsune/driverlib/i2c.c'
+' '
+'Building file: C:/Users/chrisjohnson/Desktop/kitsune/driverlib/i2s.c'
+'Invoking: ARM Compiler'
+"c:/ti/ccsv6/tools/compiler/arm_5.1.5/bin/armcl" -mv7M4 --code_state=16 --float_support=vfplib --abi=eabi -me -O1 --opt_for_speed=0 --fp_mode=relaxed --include_path="c:/ti/ccsv6/tools/compiler/arm_5.1.5/include" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/driverlib" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/inc" --include_path="C:/Users/chrisjohnson/Desktop/kitsune" -g --gcc --define=ccs --define=DRIVERLIB_APPS --define=cc3200 --display_error_number --diag_warning=225 --diag_wrap=off --gen_func_subsections=on --printf_support=full --ual --preproc_with_compile --preproc_dependency="i2s.pp"  "C:/Users/chrisjohnson/Desktop/kitsune/driverlib/i2s.c"
+'Finished building: C:/Users/chrisjohnson/Desktop/kitsune/driverlib/i2s.c'
+' '
+'Building file: C:/Users/chrisjohnson/Desktop/kitsune/driverlib/interrupt.c'
+'Invoking: ARM Compiler'
+"c:/ti/ccsv6/tools/compiler/arm_5.1.5/bin/armcl" -mv7M4 --code_state=16 --float_support=vfplib --abi=eabi -me -O1 --opt_for_speed=0 --fp_mode=relaxed --include_path="c:/ti/ccsv6/tools/compiler/arm_5.1.5/include" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/driverlib" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/inc" --include_path="C:/Users/chrisjohnson/Desktop/kitsune" -g --gcc --define=ccs --define=DRIVERLIB_APPS --define=cc3200 --display_error_number --diag_warning=225 --diag_wrap=off --gen_func_subsections=on --printf_support=full --ual --preproc_with_compile --preproc_dependency="interrupt.pp"  "C:/Users/chrisjohnson/Desktop/kitsune/driverlib/interrupt.c"
+'Finished building: C:/Users/chrisjohnson/Desktop/kitsune/driverlib/interrupt.c'
+' '
+'Building file: C:/Users/chrisjohnson/Desktop/kitsune/driverlib/pin.c'
+'Invoking: ARM Compiler'
+"c:/ti/ccsv6/tools/compiler/arm_5.1.5/bin/armcl" -mv7M4 --code_state=16 --float_support=vfplib --abi=eabi -me -O1 --opt_for_speed=0 --fp_mode=relaxed --include_path="c:/ti/ccsv6/tools/compiler/arm_5.1.5/include" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/driverlib" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/inc" --include_path="C:/Users/chrisjohnson/Desktop/kitsune" -g --gcc --define=ccs --define=DRIVERLIB_APPS --define=cc3200 --display_error_number --diag_warning=225 --diag_wrap=off --gen_func_subsections=on --printf_support=full --ual --preproc_with_compile --preproc_dependency="pin.pp"  "C:/Users/chrisjohnson/Desktop/kitsune/driverlib/pin.c"
+'Finished building: C:/Users/chrisjohnson/Desktop/kitsune/driverlib/pin.c'
+' '
+'Building file: C:/Users/chrisjohnson/Desktop/kitsune/driverlib/prcm.c'
+'Invoking: ARM Compiler'
+"c:/ti/ccsv6/tools/compiler/arm_5.1.5/bin/armcl" -mv7M4 --code_state=16 --float_support=vfplib --abi=eabi -me -O1 --opt_for_speed=0 --fp_mode=relaxed --include_path="c:/ti/ccsv6/tools/compiler/arm_5.1.5/include" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/driverlib" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/inc" --include_path="C:/Users/chrisjohnson/Desktop/kitsune" -g --gcc --define=ccs --define=DRIVERLIB_APPS --define=cc3200 --display_error_number --diag_warning=225 --diag_wrap=off --gen_func_subsections=on --printf_support=full --ual --preproc_with_compile --preproc_dependency="prcm.pp"  "C:/Users/chrisjohnson/Desktop/kitsune/driverlib/prcm.c"
+'Finished building: C:/Users/chrisjohnson/Desktop/kitsune/driverlib/prcm.c'
+' '
+'Building file: C:/Users/chrisjohnson/Desktop/kitsune/driverlib/sdhost.c'
+'Invoking: ARM Compiler'
+"c:/ti/ccsv6/tools/compiler/arm_5.1.5/bin/armcl" -mv7M4 --code_state=16 --float_support=vfplib --abi=eabi -me -O1 --opt_for_speed=0 --fp_mode=relaxed --include_path="c:/ti/ccsv6/tools/compiler/arm_5.1.5/include" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/driverlib" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/inc" --include_path="C:/Users/chrisjohnson/Desktop/kitsune" -g --gcc --define=ccs --define=DRIVERLIB_APPS --define=cc3200 --display_error_number --diag_warning=225 --diag_wrap=off --gen_func_subsections=on --printf_support=full --ual --preproc_with_compile --preproc_dependency="sdhost.pp"  "C:/Users/chrisjohnson/Desktop/kitsune/driverlib/sdhost.c"
+'Finished building: C:/Users/chrisjohnson/Desktop/kitsune/driverlib/sdhost.c'
+' '
+'Building file: C:/Users/chrisjohnson/Desktop/kitsune/driverlib/shamd5.c'
+'Invoking: ARM Compiler'
+"c:/ti/ccsv6/tools/compiler/arm_5.1.5/bin/armcl" -mv7M4 --code_state=16 --float_support=vfplib --abi=eabi -me -O1 --opt_for_speed=0 --fp_mode=relaxed --include_path="c:/ti/ccsv6/tools/compiler/arm_5.1.5/include" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/driverlib" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/inc" --include_path="C:/Users/chrisjohnson/Desktop/kitsune" -g --gcc --define=ccs --define=DRIVERLIB_APPS --define=cc3200 --display_error_number --diag_warning=225 --diag_wrap=off --gen_func_subsections=on --printf_support=full --ual --preproc_with_compile --preproc_dependency="shamd5.pp"  "C:/Users/chrisjohnson/Desktop/kitsune/driverlib/shamd5.c"
+'Finished building: C:/Users/chrisjohnson/Desktop/kitsune/driverlib/shamd5.c'
+' '
+'Building file: C:/Users/chrisjohnson/Desktop/kitsune/driverlib/spi.c'
+'Invoking: ARM Compiler'
+"c:/ti/ccsv6/tools/compiler/arm_5.1.5/bin/armcl" -mv7M4 --code_state=16 --float_support=vfplib --abi=eabi -me -O1 --opt_for_speed=0 --fp_mode=relaxed --include_path="c:/ti/ccsv6/tools/compiler/arm_5.1.5/include" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/driverlib" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/inc" --include_path="C:/Users/chrisjohnson/Desktop/kitsune" -g --gcc --define=ccs --define=DRIVERLIB_APPS --define=cc3200 --display_error_number --diag_warning=225 --diag_wrap=off --gen_func_subsections=on --printf_support=full --ual --preproc_with_compile --preproc_dependency="spi.pp"  "C:/Users/chrisjohnson/Desktop/kitsune/driverlib/spi.c"
+'Finished building: C:/Users/chrisjohnson/Desktop/kitsune/driverlib/spi.c'
+' '
+'Building file: C:/Users/chrisjohnson/Desktop/kitsune/driverlib/systick.c'
+'Invoking: ARM Compiler'
+"c:/ti/ccsv6/tools/compiler/arm_5.1.5/bin/armcl" -mv7M4 --code_state=16 --float_support=vfplib --abi=eabi -me -O1 --opt_for_speed=0 --fp_mode=relaxed --include_path="c:/ti/ccsv6/tools/compiler/arm_5.1.5/include" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/driverlib" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/inc" --include_path="C:/Users/chrisjohnson/Desktop/kitsune" -g --gcc --define=ccs --define=DRIVERLIB_APPS --define=cc3200 --display_error_number --diag_warning=225 --diag_wrap=off --gen_func_subsections=on --printf_support=full --ual --preproc_with_compile --preproc_dependency="systick.pp"  "C:/Users/chrisjohnson/Desktop/kitsune/driverlib/systick.c"
+'Finished building: C:/Users/chrisjohnson/Desktop/kitsune/driverlib/systick.c'
+' '
+'Building file: C:/Users/chrisjohnson/Desktop/kitsune/driverlib/timer.c'
+'Invoking: ARM Compiler'
+"c:/ti/ccsv6/tools/compiler/arm_5.1.5/bin/armcl" -mv7M4 --code_state=16 --float_support=vfplib --abi=eabi -me -O1 --opt_for_speed=0 --fp_mode=relaxed --include_path="c:/ti/ccsv6/tools/compiler/arm_5.1.5/include" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/driverlib" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/inc" --include_path="C:/Users/chrisjohnson/Desktop/kitsune" -g --gcc --define=ccs --define=DRIVERLIB_APPS --define=cc3200 --display_error_number --diag_warning=225 --diag_wrap=off --gen_func_subsections=on --printf_support=full --ual --preproc_with_compile --preproc_dependency="timer.pp"  "C:/Users/chrisjohnson/Desktop/kitsune/driverlib/timer.c"
+'Finished building: C:/Users/chrisjohnson/Desktop/kitsune/driverlib/timer.c'
+' '
+'Building file: C:/Users/chrisjohnson/Desktop/kitsune/driverlib/uart.c'
+'Invoking: ARM Compiler'
+"c:/ti/ccsv6/tools/compiler/arm_5.1.5/bin/armcl" -mv7M4 --code_state=16 --float_support=vfplib --abi=eabi -me -O1 --opt_for_speed=0 --fp_mode=relaxed --include_path="c:/ti/ccsv6/tools/compiler/arm_5.1.5/include" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/driverlib" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/inc" --include_path="C:/Users/chrisjohnson/Desktop/kitsune" -g --gcc --define=ccs --define=DRIVERLIB_APPS --define=cc3200 --display_error_number --diag_warning=225 --diag_wrap=off --gen_func_subsections=on --printf_support=full --ual --preproc_with_compile --preproc_dependency="uart.pp"  "C:/Users/chrisjohnson/Desktop/kitsune/driverlib/uart.c"
+'Finished building: C:/Users/chrisjohnson/Desktop/kitsune/driverlib/uart.c'
+' '
+'Building file: C:/Users/chrisjohnson/Desktop/kitsune/driverlib/udma.c'
+'Invoking: ARM Compiler'
+"c:/ti/ccsv6/tools/compiler/arm_5.1.5/bin/armcl" -mv7M4 --code_state=16 --float_support=vfplib --abi=eabi -me -O1 --opt_for_speed=0 --fp_mode=relaxed --include_path="c:/ti/ccsv6/tools/compiler/arm_5.1.5/include" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/driverlib" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/inc" --include_path="C:/Users/chrisjohnson/Desktop/kitsune" -g --gcc --define=ccs --define=DRIVERLIB_APPS --define=cc3200 --display_error_number --diag_warning=225 --diag_wrap=off --gen_func_subsections=on --printf_support=full --ual --preproc_with_compile --preproc_dependency="udma.pp"  "C:/Users/chrisjohnson/Desktop/kitsune/driverlib/udma.c"
+'Finished building: C:/Users/chrisjohnson/Desktop/kitsune/driverlib/udma.c'
+' '
+'Building file: C:/Users/chrisjohnson/Desktop/kitsune/driverlib/utils.c'
+'Invoking: ARM Compiler'
+"c:/ti/ccsv6/tools/compiler/arm_5.1.5/bin/armcl" -mv7M4 --code_state=16 --float_support=vfplib --abi=eabi -me -O1 --opt_for_speed=0 --fp_mode=relaxed --include_path="c:/ti/ccsv6/tools/compiler/arm_5.1.5/include" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/driverlib" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/inc" --include_path="C:/Users/chrisjohnson/Desktop/kitsune" -g --gcc --define=ccs --define=DRIVERLIB_APPS --define=cc3200 --display_error_number --diag_warning=225 --diag_wrap=off --gen_func_subsections=on --printf_support=full --ual --preproc_with_compile --preproc_dependency="utils.pp"  "C:/Users/chrisjohnson/Desktop/kitsune/driverlib/utils.c"
+'Finished building: C:/Users/chrisjohnson/Desktop/kitsune/driverlib/utils.c'
+' '
+'Building file: C:/Users/chrisjohnson/Desktop/kitsune/driverlib/wdt.c'
+'Invoking: ARM Compiler'
+"c:/ti/ccsv6/tools/compiler/arm_5.1.5/bin/armcl" -mv7M4 --code_state=16 --float_support=vfplib --abi=eabi -me -O1 --opt_for_speed=0 --fp_mode=relaxed --include_path="c:/ti/ccsv6/tools/compiler/arm_5.1.5/include" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/driverlib" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/inc" --include_path="C:/Users/chrisjohnson/Desktop/kitsune" -g --gcc --define=ccs --define=DRIVERLIB_APPS --define=cc3200 --display_error_number --diag_warning=225 --diag_wrap=off --gen_func_subsections=on --printf_support=full --ual --preproc_with_compile --preproc_dependency="wdt.pp"  "C:/Users/chrisjohnson/Desktop/kitsune/driverlib/wdt.c"
+'Finished building: C:/Users/chrisjohnson/Desktop/kitsune/driverlib/wdt.c'
+' '
+'Building target: driverlib.a'
+'Invoking: ARM Archiver'
+"c:/ti/ccsv6/tools/compiler/arm_5.1.5/bin/armar" r "driverlib.a"  "./wdt.obj" "./utils.obj" "./udma.obj" "./uart.obj" "./timer.obj" "./systick.obj" "./spi.obj" "./shamd5.obj" "./sdhost.obj" "./prcm.obj" "./pin.obj" "./interrupt.obj" "./i2s.obj" "./i2c.obj" "./hwspinlock.obj" "./gpio.obj" "./flash.obj" "./des.obj" "./crc.obj" "./cpu.obj" "./camera.obj" "./aes.obj" "./adc.obj" 
+  ==>  new archive 'driverlib.a'
+  ==>  building archive 'driverlib.a'
+'Finished building target: driverlib.a'
 ' '
 
 **** Build Finished ****

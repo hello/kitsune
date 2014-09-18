@@ -5,16 +5,16 @@
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS += \
 C:/Users/chrisjohnson/Desktop/kitsune/simplelink/cc_pal.c \
-C:/Users/chrisjohnson/Desktop/kitsune/simplelink/source/device.c \
-C:/Users/chrisjohnson/Desktop/kitsune/simplelink/source/driver.c \
-C:/Users/chrisjohnson/Desktop/kitsune/simplelink/source/flowcont.c \
-C:/Users/chrisjohnson/Desktop/kitsune/simplelink/source/fs.c \
-C:/Users/chrisjohnson/Desktop/kitsune/simplelink/source/netapp.c \
-C:/Users/chrisjohnson/Desktop/kitsune/simplelink/source/netcfg.c \
-C:/Users/chrisjohnson/Desktop/kitsune/simplelink/source/nonos.c \
-C:/Users/chrisjohnson/Desktop/kitsune/simplelink/source/socket.c \
-C:/Users/chrisjohnson/Desktop/kitsune/simplelink/source/spawn.c \
-C:/Users/chrisjohnson/Desktop/kitsune/simplelink/source/wlan.c 
+C:/Users/chrisjohnson/Desktop/kitsune/simplelink/Source/device.c \
+C:/Users/chrisjohnson/Desktop/kitsune/simplelink/Source/driver.c \
+C:/Users/chrisjohnson/Desktop/kitsune/simplelink/Source/flowcont.c \
+C:/Users/chrisjohnson/Desktop/kitsune/simplelink/Source/fs.c \
+C:/Users/chrisjohnson/Desktop/kitsune/simplelink/Source/netapp.c \
+C:/Users/chrisjohnson/Desktop/kitsune/simplelink/Source/netcfg.c \
+C:/Users/chrisjohnson/Desktop/kitsune/simplelink/Source/nonos.c \
+C:/Users/chrisjohnson/Desktop/kitsune/simplelink/Source/socket.c \
+C:/Users/chrisjohnson/Desktop/kitsune/simplelink/Source/spawn.c \
+C:/Users/chrisjohnson/Desktop/kitsune/simplelink/Source/wlan.c 
 
 OBJS += \
 ./cc_pal.obj \
@@ -70,15 +70,15 @@ OBJS__QUOTED += \
 
 C_SRCS__QUOTED += \
 "C:/Users/chrisjohnson/Desktop/kitsune/simplelink/cc_pal.c" \
-"C:/Users/chrisjohnson/Desktop/kitsune/simplelink/source/device.c" \
-"C:/Users/chrisjohnson/Desktop/kitsune/simplelink/source/driver.c" \
-"C:/Users/chrisjohnson/Desktop/kitsune/simplelink/source/flowcont.c" \
-"C:/Users/chrisjohnson/Desktop/kitsune/simplelink/source/fs.c" \
-"C:/Users/chrisjohnson/Desktop/kitsune/simplelink/source/netapp.c" \
-"C:/Users/chrisjohnson/Desktop/kitsune/simplelink/source/netcfg.c" \
-"C:/Users/chrisjohnson/Desktop/kitsune/simplelink/source/nonos.c" \
-"C:/Users/chrisjohnson/Desktop/kitsune/simplelink/source/socket.c" \
-"C:/Users/chrisjohnson/Desktop/kitsune/simplelink/source/spawn.c" \
-"C:/Users/chrisjohnson/Desktop/kitsune/simplelink/source/wlan.c" 
+"C:/Users/chrisjohnson/Desktop/kitsune/simplelink/Source/device.c" \
+"C:/Users/chrisjohnson/Desktop/kitsune/simplelink/Source/driver.c" \
+"C:/Users/chrisjohnson/Desktop/kitsune/simplelink/Source/flowcont.c" \
+"C:/Users/chrisjohnson/Desktop/kitsune/simplelink/Source/fs.c" \
+"C:/Users/chrisjohnson/Desktop/kitsune/simplelink/Source/netapp.c" \
+"C:/Users/chrisjohnson/Desktop/kitsune/simplelink/Source/netcfg.c" \
+"C:/Users/chrisjohnson/Desktop/kitsune/simplelink/Source/nonos.c" \
+"C:/Users/chrisjohnson/Desktop/kitsune/simplelink/Source/socket.c" \
+"C:/Users/chrisjohnson/Desktop/kitsune/simplelink/Source/spawn.c" \
+"C:/Users/chrisjohnson/Desktop/kitsune/simplelink/Source/wlan.c" 
 
 

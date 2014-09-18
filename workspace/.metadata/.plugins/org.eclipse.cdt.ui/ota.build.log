@@ -1,11 +1,38 @@
 
-**** Clean-only build of configuration Debug for project ota ****
+**** Build of configuration Debug for project ota ****
 
-"c:\\ti\\ccsv6\\utils\\bin\\gmake" -k clean 
-DEL /F  "C:\Users\chrisjohnson\Desktop\kitsune\ExtLibs\libs\ccs\ota.lib" 
-DEL /F "CdnClient.pp" "LogClient.pp" "OtaApp.pp" "OtaClient.pp" "OtaHttp.pp" 
-DEL /F "CdnClient.obj" "LogClient.obj" "OtaApp.obj" "OtaClient.obj" "OtaHttp.obj" 
-'Finished clean'
+"c:\\ti\\ccsv6\\utils\\bin\\gmake" -k all 
+'Building file: C:/Users/chrisjohnson/Desktop/kitsune/ExtLibs/ota/CdnClient.c'
+'Invoking: ARM Compiler'
+"c:/ti/ccsv6/tools/compiler/arm_5.1.5/bin/armcl" -mv7M4 --code_state=16 --float_support=vfplib --abi=eabi -me -O2 --opt_for_speed=0 --fp_mode=relaxed --include_path="c:/ti/ccsv6/tools/compiler/arm_5.1.5/include" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/ExtLibs/ota" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/extlibs/include" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/driverlib" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/inc" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/simplelink" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/simplelink/Include" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/simplelink/Source" -g --define=cc3200 --display_error_number --diag_warning=225 --diag_wrap=off --gen_func_subsections=on --preproc_with_compile --preproc_dependency="CdnClient.pp"  "C:/Users/chrisjohnson/Desktop/kitsune/ExtLibs/ota/CdnClient.c"
+'Finished building: C:/Users/chrisjohnson/Desktop/kitsune/ExtLibs/ota/CdnClient.c'
+' '
+'Building file: C:/Users/chrisjohnson/Desktop/kitsune/ExtLibs/ota/LogClient.c'
+'Invoking: ARM Compiler'
+"c:/ti/ccsv6/tools/compiler/arm_5.1.5/bin/armcl" -mv7M4 --code_state=16 --float_support=vfplib --abi=eabi -me -O2 --opt_for_speed=0 --fp_mode=relaxed --include_path="c:/ti/ccsv6/tools/compiler/arm_5.1.5/include" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/ExtLibs/ota" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/extlibs/include" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/driverlib" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/inc" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/simplelink" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/simplelink/Include" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/simplelink/Source" -g --define=cc3200 --display_error_number --diag_warning=225 --diag_wrap=off --gen_func_subsections=on --preproc_with_compile --preproc_dependency="LogClient.pp"  "C:/Users/chrisjohnson/Desktop/kitsune/ExtLibs/ota/LogClient.c"
+'Finished building: C:/Users/chrisjohnson/Desktop/kitsune/ExtLibs/ota/LogClient.c'
+' '
+'Building file: C:/Users/chrisjohnson/Desktop/kitsune/ExtLibs/ota/OtaApp.c'
+'Invoking: ARM Compiler'
+"c:/ti/ccsv6/tools/compiler/arm_5.1.5/bin/armcl" -mv7M4 --code_state=16 --float_support=vfplib --abi=eabi -me -O2 --opt_for_speed=0 --fp_mode=relaxed --include_path="c:/ti/ccsv6/tools/compiler/arm_5.1.5/include" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/ExtLibs/ota" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/extlibs/include" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/driverlib" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/inc" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/simplelink" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/simplelink/Include" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/simplelink/Source" -g --define=cc3200 --display_error_number --diag_warning=225 --diag_wrap=off --gen_func_subsections=on --preproc_with_compile --preproc_dependency="OtaApp.pp"  "C:/Users/chrisjohnson/Desktop/kitsune/ExtLibs/ota/OtaApp.c"
+'Finished building: C:/Users/chrisjohnson/Desktop/kitsune/ExtLibs/ota/OtaApp.c'
+' '
+'Building file: C:/Users/chrisjohnson/Desktop/kitsune/ExtLibs/ota/OtaClient.c'
+'Invoking: ARM Compiler'
+"c:/ti/ccsv6/tools/compiler/arm_5.1.5/bin/armcl" -mv7M4 --code_state=16 --float_support=vfplib --abi=eabi -me -O2 --opt_for_speed=0 --fp_mode=relaxed --include_path="c:/ti/ccsv6/tools/compiler/arm_5.1.5/include" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/ExtLibs/ota" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/extlibs/include" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/driverlib" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/inc" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/simplelink" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/simplelink/Include" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/simplelink/Source" -g --define=cc3200 --display_error_number --diag_warning=225 --diag_wrap=off --gen_func_subsections=on --preproc_with_compile --preproc_dependency="OtaClient.pp"  "C:/Users/chrisjohnson/Desktop/kitsune/ExtLibs/ota/OtaClient.c"
+'Finished building: C:/Users/chrisjohnson/Desktop/kitsune/ExtLibs/ota/OtaClient.c'
+' '
+'Building file: C:/Users/chrisjohnson/Desktop/kitsune/ExtLibs/ota/OtaHttp.c'
+'Invoking: ARM Compiler'
+"c:/ti/ccsv6/tools/compiler/arm_5.1.5/bin/armcl" -mv7M4 --code_state=16 --float_support=vfplib --abi=eabi -me -O2 --opt_for_speed=0 --fp_mode=relaxed --include_path="c:/ti/ccsv6/tools/compiler/arm_5.1.5/include" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/ExtLibs/ota" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/extlibs/include" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/driverlib" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/inc" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/simplelink" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/simplelink/Include" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/simplelink/Source" -g --define=cc3200 --display_error_number --diag_warning=225 --diag_wrap=off --gen_func_subsections=on --preproc_with_compile --preproc_dependency="OtaHttp.pp"  "C:/Users/chrisjohnson/Desktop/kitsune/ExtLibs/ota/OtaHttp.c"
+'Finished building: C:/Users/chrisjohnson/Desktop/kitsune/ExtLibs/ota/OtaHttp.c'
+' '
+'Building target: C:/Users/chrisjohnson/Desktop/kitsune/ExtLibs/ota/ccs/../../libs/ccs/ota.lib'
+'Invoking: ARM Archiver'
+"c:/ti/ccsv6/tools/compiler/arm_5.1.5/bin/armar" r "C:/Users/chrisjohnson/Desktop/kitsune/ExtLibs/ota/ccs/../../libs/ccs/ota.lib"  "./OtaHttp.obj" "./OtaClient.obj" "./OtaApp.obj" "./LogClient.obj" "./CdnClient.obj" 
+  ==>  new archive 'C:/Users/chrisjohnson/Desktop/kitsune/ExtLibs/ota/ccs/../../libs/ccs/ota.lib'
+  ==>  building archive 'C:/Users/chrisjohnson/Desktop/kitsune/ExtLibs/ota/ccs/../../libs/ccs/ota.lib'
+'Finished building target: C:/Users/chrisjohnson/Desktop/kitsune/ExtLibs/ota/ccs/../../libs/ccs/ota.lib'
 ' '
 
 **** Build Finished ****

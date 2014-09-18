@@ -1,11 +1,19 @@
 
-**** Clean-only build of configuration Release for project fatfs ****
+**** Build of configuration Release for project fatfs ****
 
-"c:\\ti\\ccsv6\\utils\\bin\\gmake" -k clean 
-DEL /F  "fatfs.a" 
-DEL /F "ff.pp" 
-DEL /F "ff.obj" 
-'Finished clean'
+"c:\\ti\\ccsv6\\utils\\bin\\gmake" -k all 
+'Building file: C:/Users/chrisjohnson/Desktop/kitsune/third_party/fatfs/src/ff.c'
+'Invoking: ARM Compiler'
+"c:/ti/ccsv6/tools/compiler/arm_5.1.5/bin/armcl" -mv7M4 --code_state=16 --float_support=vfplib --abi=eabi -me -O1 --opt_for_speed=0 --include_path="c:/ti/ccsv6/tools/compiler/arm_5.1.5/include" --include_path="C:/Users/chrisjohnson/Desktop/kitsune/third_party/fatfs/src/" -g --define=cc3200 --display_error_number --diag_warning=225 --diag_wrap=off --gen_func_subsections=on --preproc_with_compile --preproc_dependency="ff.pp"  "C:/Users/chrisjohnson/Desktop/kitsune/third_party/fatfs/src/ff.c"
+"C:/Users/chrisjohnson/Desktop/kitsune/third_party/fatfs/src/ff.c", line 1255: warning #190-D: enumerated type mixed with another type
+'Finished building: C:/Users/chrisjohnson/Desktop/kitsune/third_party/fatfs/src/ff.c'
+' '
+'Building target: fatfs.a'
+'Invoking: ARM Archiver'
+"c:/ti/ccsv6/tools/compiler/arm_5.1.5/bin/armar" r "fatfs.a"  "./ff.obj" 
+  ==>  new archive 'fatfs.a'
+  ==>  building archive 'fatfs.a'
+'Finished building target: fatfs.a'
 ' '
 
 **** Build Finished ****

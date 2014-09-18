@@ -26,6 +26,11 @@
 	</natures>
 	<linkedResources>
 		<link>
+			<name>aes.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/aes.c</locationURI>
+		</link>
+		<link>
 			<name>audiofeatures.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/audiofeatures.c</locationURI>
@@ -49,6 +54,11 @@
 			<name>common</name>
 			<type>2</type>
 			<locationURI>virtual:/virtual</locationURI>
+		</link>
+		<link>
+			<name>crypto.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/crypto.h</locationURI>
 		</link>
 		<link>
 			<name>diskio.c</name>
@@ -139,6 +149,11 @@
 			<name>readme.txt</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/readme.txt</locationURI>
+		</link>
+		<link>
+			<name>sha1.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/sha1.c</locationURI>
 		</link>
 		<link>
 			<name>spi_cmd.c</name>
@@ -274,21 +289,6 @@
 			<name>common/wdt_if.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/common/wdt_if.h</locationURI>
-		</link>
-		<link>
-			<name>crypto/aes.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/aes.c</locationURI>
-		</link>
-		<link>
-			<name>crypto/crypto.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/crypto.h</locationURI>
-		</link>
-		<link>
-			<name>crypto/sha1.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/sha1.c</locationURI>
 		</link>
 		<link>
 			<name>nanopb/pb.h</name>

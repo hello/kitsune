@@ -26,9 +26,7 @@ RMDIR := RMDIR /S/Q
 # All of the sources participating in the build are defined here
 -include sources.mk
 -include subdir_vars.mk
--include exe/subdir_vars.mk
 -include subdir_rules.mk
--include exe/subdir_rules.mk
 -include objects.mk
 
 ifneq ($(MAKECMDGOALS),clean)
@@ -126,10 +124,10 @@ LIB_OUTPUTS__QUOTED += \
 all: C:/Users/chrisjohnson/Desktop/kitsune/oslib/ccs/exe/FreeRTOS.a
 
 # Tool invocations
-C:/Users/chrisjohnson/Desktop/kitsune/oslib/ccs/exe/FreeRTOS.a: $(OBJS) $(A_SRCS)
+C:/Users/chrisjohnson/Desktop/kitsune/oslib/ccs/exe/FreeRTOS.a: $(OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: ARM Archiver'
-	"c:/ti/ccsv6/tools/compiler/arm_5.1.5/bin/armar" r "C:/Users/chrisjohnson/Desktop/kitsune/oslib/ccs/exe/FreeRTOS.a" $(ORDERED_OBJS) $(A_SRCS)
+	"c:/ti/ccsv6/tools/compiler/arm_5.1.5/bin/armar" r "C:/Users/chrisjohnson/Desktop/kitsune/oslib/ccs/exe/FreeRTOS.a" $(ORDERED_OBJS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
