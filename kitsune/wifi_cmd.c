@@ -29,6 +29,8 @@ unsigned int sl_status = 0;
 #include "rom_map.h"
 #include "gpio.h"
 
+SyncResponse_Alarm alarm;
+
 void mcu_reset()
 {
 #define SLOW_CLK_FREQ           (32*1024)
@@ -166,7 +168,8 @@ int Cmd_connect(int argc, char *argv[]) {
     secParams.KeyLen = strlen(argv[2]);
     secParams.Type = atoi(argv[3]);
 
-    sl_WlanConnect((_i8*)argv[1], strlen(argv[1]), "123456", &secParams, 0);
+    sl_WlanConnect((_i8*)argv[1], strlen(argv[1]), NULL, &secParams, 0);
+    sl_WlanProfileAdd((_i8*)argv[1], strlen(argv[1]), NULL, &secParams, NULL, 0, 0 );
     return (0);
 }
 
@@ -649,6 +652,7 @@ int send_audio_wifi(char * buffer, int buffer_size, audio_read_cb arcb) {
 #if 1
 #define SIG_SIZE 32
 #include "SyncResponse.pb.h"
+unsigned long get_time();
 
 int rx_data_pb(unsigned char * buffer, int buffer_size ) {
 	AES_CTX aesctx;
@@ -726,6 +730,13 @@ int rx_data_pb(unsigned char * buffer, int buffer_size ) {
 					SyncResponse_data.has_device_sampling_interval,
 					SyncResponse_data.has_flash_action);
 
+	if( SyncResponse_data.has_alarm ) {
+		alarm = SyncResponse_data.alarm;
+
+		if(alarm.has_start_time) {
+			UARTprintf( "Got alarm %d to %d in %d minutes\n", alarm.start_time, alarm.end_time, (alarm.start_time - get_time())/60 );
+		}
+	}
 	//now act on incoming data!
 	return 0;
 }

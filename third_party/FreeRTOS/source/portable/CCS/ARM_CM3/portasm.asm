@@ -26,6 +26,8 @@ ulPortSetInterruptMask:
 	mrs r0,basepri
 	mov r1, #configMAX_SYSCALL_INTERRUPT_PRIORITY                     
 	msr basepri, r1     
+	dsb
+	isb
 	bx r14
 	
 ;---------------------------------------------------------
@@ -33,6 +35,8 @@ ulPortSetInterruptMask:
 vPortClearInterruptMask:
 
 	msr basepri, r0
+	dsb
+	isb
 	bx r14
 	
 
@@ -51,9 +55,13 @@ xPortPendSVHandler:
    stmdb sp!, {r3, r14}             
    mov r0, #configMAX_SYSCALL_INTERRUPT_PRIORITY                       
    msr basepri, r0                  
+   dsb
+   isb
    bl vTaskSwitchContext           
    mov r0, #0                       
    msr basepri, r0                  
+   dsb
+   isb
    ldmia sp!, {r3, r14}             														    
                                     ; Restore the context, including the critical nesting count.
    ldr r1, [r3]                     
@@ -76,6 +84,8 @@ vPortSVCHandler:
    	msr psp, r0                     ; Restore the task stack pointer. 
    	mov r0, #0                      
    	msr basepri, r0                 
+   	dsb
+   	isb
    	orr r14, #0xd                   
    	bx r14                          
    	                                
@@ -92,6 +102,8 @@ prvPortStartFirstTask:
  	ldr r0, [r0]         
  	msr msp, r0          			; Set the msp back to the start of the stack.
  	cpsie i 						; System call to start first task.
+ 	dsb
+ 	isb
  	svc #0               			; System call to start first task. 
 
 ;---------------------------------------------------------
