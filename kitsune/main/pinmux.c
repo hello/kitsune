@@ -239,4 +239,13 @@ PinMuxConfig(void)
 	MAP_PinTypeGPIO(PIN_15, PIN_MODE_0, false);
 	MAP_GPIODirModeSet(GPIOA2_BASE, 0x40, GPIO_DIR_MODE_OUT);
 */
+    //SOP2
+    //
+	//
+	// Configure PIN_21 for GPIOOutput
+	//
+	MAP_PinTypeGPIO(PIN_21, PIN_MODE_0, false);
+	MAP_GPIODirModeSet(GPIOA3_BASE, 0x2, GPIO_DIR_MODE_OUT);
+	//drive low by default
+    MAP_GPIOPinWrite(GPIOA3_BASE, 0x2, 0x2);
 }
