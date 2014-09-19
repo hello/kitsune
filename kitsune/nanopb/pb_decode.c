@@ -16,6 +16,8 @@
 #include "pb.h"
 #include "pb_decode.h"
 
+#define NULL 0
+
 /**************************************
  * Declarations internal to this file *
  **************************************/
