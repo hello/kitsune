@@ -231,3 +231,43 @@ TEST_F(TestFrequencyFeatures,TestLog2Q10) {
 
 }
 
+TEST_F (TestFrequencyFeatures,TestExp2Q10) {
+    int16_t x;
+    uint32_t y;
+    float fx,fy,fy2;
+    const float reltol = 0.02f;
+    const float tol = 5.0f / (1<<10);
+    float relerr;
+    float err;
+    
+    for (x = 0; x < 22527; x++) {
+        fx = (float)x / (float)(1<<10);
+        fy = exp(log(2)*fx);
+        y = FixedPointExp2Q10(x);
+        
+        fy2 = (float)y / (float)(1 <<10);
+        relerr = fabs(2.0f * (fy2 - fy) / (fy2 + fy));
+        ASSERT_TRUE(relerr < reltol);
+    }
+    
+    
+    for (x = -1; x > -32768; x--) {
+        fx = (float)x / (float)(1<<10);
+        fy = exp(log(2)*fx);
+        y = FixedPointExp2Q10(x);
+        
+        fy2 = (float)y / (float)(1 <<10);
+        err = fabs(fy2 - fy);
+        
+        if (err >= tol) {
+            std::cerr << err << ":"<< x << std::endl;
+            ASSERT_TRUE(err < tol);
+        }
+    }
+
+    
+    
+    int foo =3 ;
+    foo++;
+}
+

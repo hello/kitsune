@@ -4,13 +4,11 @@
 #include "stdlib.h" //for abs
 
 #define FIX_MPY(DEST,A,B) (DEST) = ((int32_t)(A) * (int32_t)(B))>>15
+
 //#define fix_mpy(A, B) (FIX_MPY(a,a,b))
 
 #define LOG2_N_WAVE     (10)
 #define N_WAVE          (1 << LOG2_N_WAVE)        /* dimension of Sinewave[] */
-
-#define MIN_LOG2_Q10_ENERGY (1 << 10)
-
 
 static const uint16_t sin_lut[N_WAVE/4+1] = {
   0, 201, 402, 603, 804, 1005, 1206, 1406,
@@ -48,7 +46,13 @@ static const uint16_t sin_lut[N_WAVE/4+1] = {
   32727, 32736, 32744, 32751, 32757, 32761, 32764, 32766, 32767
 };
 
-
+static inline uint16_t umultq16(uint16_t a, uint16_t b) {
+    uint32_t c;
+    uint16_t * p = (uint16_t *)(&c);
+    
+    c = (uint32_t)a * (uint32_t)b;
+    return *(p + 1);
+}
 
 uint8_t bitlog(uint32_t n) {
     int16_t b;
@@ -322,6 +326,82 @@ int16_t FixedPointLog2Q10(uint64_t x) {
     return ret;
 }
 
+/* 2^(a + b) ---> 2^a * 2^b
+    and exp(log(2)* x) == 2^x
+ 
+    if 0 <= b < 1.... can approximate exp11
+ */
+uint32_t FixedPointExp2Q10(const int16_t x) {
+#define LOG2_Q16 (45426)
+#define B_Q16 (33915)
+#define C_Q16  (21698)
+#define ONE_Q10 (1 << 10)
+#define ONE_Q16 (1 << 16)
+
+    uint32_t accumulator;
+    uint16_t ux;
+    uint16_t a,b;
+    uint16_t utemp16;
+    
+    //2^22 is the max we can do (32 - 10 == 22)
+    if (x >= 22527) {
+        return 0xFFFFFFFF;
+    }
+    
+    if (x == -32768) {
+        return 0;
+    }
+    
+    ux = abs(x);
+    
+    //split to the left and right of the binary point (Q10)
+    a = ux & 0xFC00;
+    b = ux & 0x03FF;
+    a >>= 10; //get Q10 as ints
+
+    //multipy by log2 so  we compute exp(log(2) b) ===> 2^b
+    b = umultq16((uint16_t)b,LOG2_Q16);
+
+   
+    b <<= 6; //convert from Q10 to Q16
+    
+    if (x > 0) {
+        accumulator = ONE_Q16 + b;
+    }
+    else {
+        accumulator = ONE_Q16 - b;
+    }
+    
+    
+    utemp16 = umultq16(b, b);
+    utemp16 = umultq16(B_Q16, utemp16);
+
+    accumulator += utemp16;
+    
+    utemp16 = umultq16(utemp16,b);
+    utemp16 = umultq16(C_Q16, utemp16);
+    
+    
+    if (x > 0) {
+        accumulator += utemp16;
+    }
+    else {
+        accumulator -= utemp16;
+    }
+    
+    accumulator >>= 6; //convert back to Q10
+
+
+    if (x < 0) {
+        accumulator >>= a;
+    }
+    else {
+        accumulator <<= a;
+    }
+    
+    return accumulator;
+}
+
 // b - size of the bin in the fft in hz
 // ergo, b = Fs / 2 / (n/2) or if you prefer, Nyquist freq divided by half of the FFT
 // n is the PSD size (nfft / 2)
@@ -329,22 +409,24 @@ int16_t FixedPointLog2Q10(uint64_t x) {
 // f as input is the PSD bin, and is always positive
 // f as output is the mel bins
 
-void mel_freq(int16_t mel[],const int16_t fr[],const int16_t fi[], uint8_t nfft, uint16_t b,uint8_t log2scaleOfRawSignal) {
+void mel_freq(int16_t mel[],int16_t melCorrected[], const int16_t melBackgroundNoise[],const int16_t fr[],const int16_t fi[],uint8_t log2scaleOfRawSignal) {
 	
     // in Hz
-    static const uint16_t mel_scale[MEL_SCALE_SIZE] = {20,160,394,670,1000,1420,1900,2450,3120,4000,5100,6600,9000,14000,22050};
-	static const int16_t mel_log2_normalization[MEL_SCALE_SIZE] = {8,5,4,4,4,4,3,3,3,3,2,2,1,0,0};
-    int32_t iBin;
-	int32_t iMel;
-    const int32_t nbins = 1 << (nfft - 1);
+    static const uint16_t k_bin_start = 3;
+    static const uint16_t k_bins_indices[MEL_SCALE_SIZE] = {6,9,12,15,18,24,30,36,48,60,72,84,96,120,144,168};
+	static const int16_t k_log2_normalization[MEL_SCALE_SIZE] = {3,3,3,3,3,2,2,2,1,1,1,1,1,0,0,0};
+    uint16_t iBin;
+    uint16_t iBinEdge;
+    uint16_t nextBinEdge;
     uint64_t accumulator64;
+    uint32_t backgroundNoise;
     
-    int32_t log2mel;
-    uint32_t freq;
     uint16_t ufr;
     uint16_t ufi;
+    int16_t scale;
 
 
+    
 #if 0 //For generating mel scales
 	for( int i=0; i<50; ++i ) {
 		mel = 1127 * log( 1.0 + (double)freq / 700.0 );
@@ -354,12 +436,12 @@ void mel_freq(int16_t mel[],const int16_t fr[],const int16_t fi[], uint8_t nfft,
 #endif // 0
     
 	accumulator64 = 0;
-    iMel = 0;
-    freq = 0;
-	
+    iBinEdge = 0;
+    nextBinEdge = k_bins_indices[0] - 1;
+    iBin = k_bin_start;
+
     /* skip dc, start at 1 */
-    for(iBin = 1; iBin < nbins; iBin++ ) {
-        
+    while(1) {
         //take PSD here
         ufr = abs(fr[iBin]);
         ufi = abs(fi[iBin]);
@@ -367,8 +449,10 @@ void mel_freq(int16_t mel[],const int16_t fr[],const int16_t fi[], uint8_t nfft,
         accumulator64 += (uint32_t)ufr*(uint32_t)ufr;
         accumulator64 += (uint32_t)ufi*(uint32_t)ufi;
         
-		if( freq > mel_scale[iMel] || iBin == nbins - 1 ) {
-            int8_t scale = -2*log2scaleOfRawSignal + mel_log2_normalization[iMel];
+		if(iBin == nextBinEdge) {
+            //deal with different bin widths and original signal scaling at the same time
+            scale = -2*log2scaleOfRawSignal + k_log2_normalization[iBinEdge];
+            
             if (scale > 0) {
                 accumulator64 <<= scale;
             }
@@ -376,28 +460,56 @@ void mel_freq(int16_t mel[],const int16_t fr[],const int16_t fi[], uint8_t nfft,
                 accumulator64 >>= -scale;
             }
             
-            accumulator64 += MIN_LOG2_Q10_ENERGY;
-            log2mel = FixedPointLog2Q10(accumulator64);
-            //log2mel += mel_log2_normalization_q10[iMel];
-            
-            if (log2mel < -32768) {
-                log2mel = -32768;
+            //enforce floor of at least 1, because log of 0 is -inf
+            if (accumulator64 == 0) {
+                accumulator64++;
             }
             
-            mel[iMel] =log2mel;
-			
+            //result!
+            mel[iBinEdge]  = FixedPointLog2Q10(accumulator64);
+            
+            
+            //now correct for background noise
+            backgroundNoise = FixedPointExp2Q10(melBackgroundNoise[iBinEdge]);
+
+            
+            //check for rollover of accumulator64 after subtraction
+            if (backgroundNoise > accumulator64) {
+                accumulator64 = 0;
+            }
+            else {
+                accumulator64 -= backgroundNoise;
+            }
+            
+            //enforce floor of at least 1, because log of 0 is -inf
+            if (accumulator64 == 0) {
+                accumulator64++;
+            }
+            
+            //result!
+            if (iBinEdge == 0) {
+                //do not correct energy for dc
+                melCorrected[iBinEdge] = mel[iBinEdge];
+            }
+            else {
+                melCorrected[iBinEdge]  = FixedPointLog2Q10(accumulator64);
+            }
+
+            /// prepare for next iterator ///
+    
             accumulator64 = 0;
+
+            iBinEdge++;
             
-            iMel++;
-            
-            if( iMel == MEL_SCALE_SIZE ) {
-				break;
+            if (iBinEdge >= MEL_SCALE_SIZE) {
+                break;
             }
+            
+            nextBinEdge = k_bins_indices[iBinEdge];
 
 		}
         
-        freq += b;
-
+        iBin++;
 	}
 }
 
