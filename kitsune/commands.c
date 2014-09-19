@@ -419,6 +419,78 @@ static void AudioFeatCallback(const int32_t * mfccfeats, const Segment_t * pSegm
 	UARTprintf("ACTUAL: t1=%d,t2=%d,energy=%d\n",t1,t2,mfccfeats[0]);
 }
 
+#define SCAN_TABLE_SIZE   20
+
+static void SortByRSSI(Sl_WlanNetworkEntry_t* netEntries,
+                                            unsigned char ucSSIDCount)
+{
+    Sl_WlanNetworkEntry_t tTempNetEntry;
+    unsigned char ucCount, ucSwapped;
+    do{
+        ucSwapped = 0;
+        for(ucCount =0; ucCount < ucSSIDCount - 1; ucCount++)
+        {
+           if(netEntries[ucCount].rssi < netEntries[ucCount + 1].rssi)
+           {
+              tTempNetEntry = netEntries[ucCount];
+              netEntries[ucCount] = netEntries[ucCount + 1];
+              netEntries[ucCount + 1] = tTempNetEntry;
+              ucSwapped = 1;
+           }
+        } //end for
+     }while(ucSwapped);
+}
+static int GetScanResult(Sl_WlanNetworkEntry_t* netEntries )
+{
+    unsigned char   policyOpt;
+    unsigned long IntervalVal = 60;
+    int lRetVal;
+
+    policyOpt = SL_CONNECTION_POLICY(0, 0, 0, 0, 0);
+    lRetVal = sl_WlanPolicySet(SL_POLICY_CONNECTION , policyOpt, NULL, 0);
+
+
+    // enable scan
+    policyOpt = SL_SCAN_POLICY(1);
+
+    // set scan policy - this starts the scan
+    lRetVal = sl_WlanPolicySet(SL_POLICY_SCAN , policyOpt,
+                            (unsigned char *)(IntervalVal), sizeof(IntervalVal));
+
+
+    // delay 1 second to verify scan is started
+    vTaskDelay(1000);
+
+    // lRetVal indicates the valid number of entries
+    // The scan results are occupied in netEntries[]
+    lRetVal = sl_WlanGetNetworkList(0, SCAN_TABLE_SIZE, netEntries);
+
+    // Disable scan
+    policyOpt = SL_SCAN_POLICY(0);
+
+    // set scan policy - this stops the scan
+    sl_WlanPolicySet(SL_POLICY_SCAN , policyOpt,
+                            (unsigned char *)(IntervalVal), sizeof(IntervalVal));
+
+    return lRetVal;
+
+}
+int Cmd_rssi(int argc, char *argv[]) {
+	int lCountSSID,i;
+
+	Sl_WlanNetworkEntry_t g_netEntries[SCAN_TABLE_SIZE];
+
+	lCountSSID = GetScanResult(&g_netEntries[0]);
+
+    SortByRSSI(&g_netEntries[0],(unsigned char)lCountSSID);
+
+    UARTprintf( "SSID RSSI\n" );
+	for(i=0;i<lCountSSID;++i) {
+		UARTprintf( "%s %d\n", g_netEntries[i].ssid, g_netEntries[i].rssi );
+	}
+	return 0;
+}
+
 int Cmd_mel(int argc, char *argv[]) {
 
     int i,ichunk;
@@ -533,6 +605,8 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "antsel", Cmd_antsel, "select antenna" },
 		{ "led", Cmd_led, "led test pattern" },
 
+		{ "rssi", Cmd_rssi, "scan rssi" },
+
 
 		{ 0, 0, 0 } };
 
@@ -591,7 +665,7 @@ void vUARTTask(void *pvParameters) {
 
 	vTaskDelayUntil(&now, 1000);
 	if (sl_mode == ROLE_AP || !sl_status) {
-		Cmd_sl(0, 0);
+		//Cmd_sl(0, 0);
 	}
 
 	 data_queue = xQueueCreate( 60, sizeof( data_t ) );
