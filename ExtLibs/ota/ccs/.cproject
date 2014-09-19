@@ -67,6 +67,25 @@
 							</tool>
 						</toolChain>
 					</folderInfo>
+					<fileInfo id="com.ti.ccstudio.buildDefinitions.TMS470.Debug.2071073414.666704318" name="OtaClient.c" rcbsApplicability="disable" resourcePath="OtaClient.c" toolsToInvoke="com.ti.ccstudio.buildDefinitions.TMS470_5.1.library.compilerDebug.233622606.331540282">
+						<tool id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.library.compilerDebug.233622606.331540282" name="ARM Compiler" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.library.compilerDebug.233622606">
+							<option id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.INCLUDE_PATH.1109117078" name="Add dir to #include search path (--include_path, -I)" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.INCLUDE_PATH" valueType="includePath">
+								<listOptionValue builtIn="false" value="&quot;${CG_TOOL_ROOT}/include&quot;"/>
+								<listOptionValue builtIn="false" value="&quot;C:\Users\chrisjohnson\Desktop\kitsune_clean_2\simplelink\Include&quot;"/>
+								<listOptionValue builtIn="false" value="${PROJECT_LOC}/.."/>
+								<listOptionValue builtIn="false" value="${PROJECT_LOC}/../../../extlibs/include"/>
+								<listOptionValue builtIn="false" value="${PROJECT_LOC}/../../../driverlib"/>
+								<listOptionValue builtIn="false" value="${PROJECT_LOC}/../../../inc"/>
+								<listOptionValue builtIn="false" value="${PROJECT_LOC}/../../../simplelink"/>
+								<listOptionValue builtIn="false" value="${PROJECT_LOC}/../../../simplelink/Include"/>
+								<listOptionValue builtIn="false" value="${PROJECT_LOC}/../../../simplelink/Source"/>
+							</option>
+							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__C_SRCS.80800023" name="C Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__C_SRCS"/>
+							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__CPP_SRCS.1517615083" name="C++ Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__CPP_SRCS"/>
+							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM_SRCS.163184002" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM_SRCS"/>
+							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM2_SRCS.644209881" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM2_SRCS"/>
+						</tool>
+					</fileInfo>
 				</configuration>
 			</storageModule>
 			<storageModule moduleId="org.eclipse.cdt.core.externalSettings"/>
