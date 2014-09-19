@@ -1014,9 +1014,8 @@ typedef OsiLockObj_t                            _SlLockObj_t;
 
     \warning
 */
-/*
+
 #define sl_HttpServerCallback   SimpleLinkHttpServerCallback
-*/
 /*!
     \brief
 

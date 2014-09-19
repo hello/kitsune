@@ -53,6 +53,8 @@
 
 #include "uartstdio.h"
 
+#define NULL 0
+
 #ifdef WANT_FREERTOS_SUPPORT
 #include "FreeRTOS.h"
 #include "task.h"

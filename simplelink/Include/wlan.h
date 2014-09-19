@@ -155,11 +155,19 @@ extern "C" {
 #define SL_SEC_TYPE_WPS_PIN                                                                             (4)
 #define SL_SEC_TYPE_WPA_ENT                                                                             (5)
 #define SL_SEC_TYPE_P2P_PBC                                                                             (6)
-#define SL_SEC_TYPE_P2P_PIN_KEYPAD                                                                        (7)
-#define SL_SEC_TYPE_P2P_PIN_DISPLAY                                                                        (8)
+#define SL_SEC_TYPE_P2P_PIN_KEYPAD                                                                      (7)
+#define SL_SEC_TYPE_P2P_PIN_DISPLAY                                                                     (8)
 #define SL_SEC_TYPE_P2P_PIN_AUTO                                                                        (9) /* NOT Supported yet */
 
 
+  
+#define SL_SCAN_SEC_TYPE_OPEN                                                                           (0)
+#define SL_SCAN_SEC_TYPE_WEP                                                                            (1)
+#define SL_SCAN_SEC_TYPE_WPA                                                                            (2) 
+#define SL_SCAN_SEC_TYPE_WPA2                                                                           (3)
+
+  
+  
 #define TLS                                (0x1)
 #define MSCHAP                             (0x0)
 #define PSK                                (0x2) 
@@ -734,6 +742,8 @@ _i16 sl_WlanPolicyGet(_u8 Type , _u8 Policy,_u8 *pVal,_u8 *pValLen);
     \param[in]   Count - How many entries to fetch. Max is (20-"Index").
     \param[out]  pEntries - pointer to an allocated Sl_WlanNetworkEntry_t. 
                             the number of array items should match "Count" 
+                            sec_type: SL_SCAN_SEC_TYPE_OPEN, SL_SCAN_SEC_TYPE_WEP, SL_SCAN_SEC_TYPE_WPA or SL_SCAN_SEC_TYPE_WPA2
+ 
      
     \return  Number of valid networks list items
      

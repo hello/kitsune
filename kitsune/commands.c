@@ -17,7 +17,9 @@
 #include <uart.h>
 #include <stdarg.h>
 #include <stdlib.h>
+#include "utils.h"
 #include "sdhost.h"
+#include "gpio.h"
 #include "rom_map.h"
 
 #include "wlan.h"
@@ -177,6 +179,7 @@ int thread_prox(void* unused) {
 
 		vTaskDelay( 100 );
 	} //try every little bit
+	return 0;
 }
 
 #define SENSOR_RATE 60
@@ -347,7 +350,7 @@ void thread_sensor_poll(void* unused) {
 #if ( configUSE_TRACE_FACILITY == 1 )
 
 int Cmd_tasks(int argc, char *argv[]) {
-	signed char* pBuffer;
+	char* pBuffer;
 
 	pBuffer = pvPortMalloc(1024);
 	vTaskList(pBuffer);
@@ -448,8 +451,9 @@ int Cmd_mel(int argc, char *argv[]) {
 }
 
 int Cmd_led(int argc, char *argv[]) {
-int i;
-	while (1) {
+	int i, j;
+	j = 0;
+	while (++j < (1 << 31)) {
 		//colors are RGB 888
 		unsigned int color = 0x00ff00;
 
@@ -471,8 +475,7 @@ int i;
 
 		UtilsDelay(6250); //reset
 	}
-
-	return (0);
+	return 0;
 }
 
 
@@ -580,7 +583,7 @@ void vUARTTask(void *pvParameters) {
     MAP_PRCMPeripheralClkEnable(PRCM_SDHOST,PRCM_RUN_MODE_CLK);
     MAP_PRCMPeripheralReset(PRCM_SDHOST);
     MAP_SDHostInit(SDHOST_BASE);
-    MAP_SDHostSetExpClk(SDHOST_BASE,MAP_PRCMPeripheralClockGet(PRCM_SDHOST),15000000);
+    MAP_SDHostSetExpClk(SDHOST_BASE,MAP_PRCMPeripheralClockGet(PRCM_SDHOST),1000000);
     Cmd_mnt(0,0);
 
     //INIT SPI
@@ -599,13 +602,14 @@ void vUARTTask(void *pvParameters) {
 	if (data_queue == 0) {
 		UARTprintf("Failed to create the data_queue.\n");
 	}
-/*
+
+#if 0
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask", 2 * 1024 / 4, NULL, 3, NULL);
 	xTaskCreate(thread_dust, "dustTask", 256 / 4, NULL, 3, NULL);
 	xTaskCreate(thread_sensor_poll, "pollTask", 2 * 1024 / 4, NULL, 4, NULL);
 	xTaskCreate(thread_tx, "txTask", 4 * 1024 / 4, NULL, 2, NULL);
 	xTaskCreate(thread_ota, "otaTask", 2 * 1024 / 4, NULL, 1, NULL);
-*/
+#endif
 	//checkFaults();
 
 	/* Loop forever */

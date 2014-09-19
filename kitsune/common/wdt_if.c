@@ -73,10 +73,6 @@ void WDT_IF_Init(fAPPWDTDevCallbk fpAppWDTCB,
     //
     MAP_WatchdogIntRegister(WDT_BASE,fpAppWDTCB);
     //
-    // Enable the interrupt
-    //
-    MAP_WatchdogIntEnable(WDT_BASE);
-    //
     // Enable stalling of the watchdog timer during debug events
     //
     MAP_WatchdogStallEnable(WDT_BASE);

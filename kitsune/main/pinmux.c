@@ -234,9 +234,9 @@ PinMuxConfig(void)
 
     SetAntennaSelectionGPIOs();
 
-
+/*
     MAP_PRCMPeripheralClkEnable(PRCM_GPIOA2, PRCM_RUN_MODE_CLK);
 	MAP_PinTypeGPIO(PIN_15, PIN_MODE_0, false);
 	MAP_GPIODirModeSet(GPIOA2_BASE, 0x40, GPIO_DIR_MODE_OUT);
-
+*/
 }

@@ -208,31 +208,6 @@ int spi_Write(Fd_t fd, unsigned char *pBuff, int len)
 }
 
 /*!
-    \brief NWP Interrupt Handler
-
-	\param	 		none
-
-	\return			none
-
-	\note
-    \warning
-*/
-
-void HostIntHanlder()
-{
-    if(g_pHostIntHdl != NULL)
-    {
-        g_pHostIntHdl();
-    }
-    else
-    {
-        while(1)
-        {
-
-        }
-    }
-}
-/*!
     \brief register an interrupt handler for the host IRQ
 
 	\param	 		InterruptHdl	-	pointer to interrupt handler function
@@ -260,12 +235,10 @@ int NwpRegisterInterruptHandler(P_EVENT_HANDLER InterruptHdl , void* pValue)    
          MAP_IntDisable(INT_NWPIC);
          MAP_IntUnregister(INT_NWPIC);
          MAP_IntPendClear(INT_NWPIC);
-         g_pHostIntHdl = NULL;
 		#endif
     }
     else
     {
-          g_pHostIntHdl = InterruptHdl;
           #ifdef SL_PLATFORM_MULTI_THREADED
           	  MAP_IntPendClear(INT_NWPIC);
              osi_InterruptRegister(INT_NWPIC, (P_OSI_INTR_ENTRY)InterruptHdl,
@@ -321,6 +294,8 @@ void NwpUnMaskInterrupt()
 */
 void NwpPowerOnPreamble(void)
 {
+#ifndef CC3200_ES_1_2_1
+
 #define MAX_RETRY_COUNT         1000
     unsigned int sl_stop_ind, apps_int_sts_raw, nwp_lpds_wake_cfg;
     unsigned int retry_count;
@@ -356,6 +331,7 @@ void NwpPowerOnPreamble(void)
 
     /* Stop the networking services */
     NwpPowerOff();
+#endif
 }
 
 /*!
@@ -369,7 +345,7 @@ void NwpPowerOnPreamble(void)
 void NwpPowerOn(void)
 {
 
- #if CC3200_ES_1_2_1
+#ifdef CC3200_ES_1_2_1
     //SPI CLK GATING
     HWREG(0x440250C8) = 0;
 
@@ -407,7 +383,7 @@ void NwpPowerOff(void)
     
     //Switch to PFM Mode
     HWREG(0x4402F024) &= 0xF7FFFFFF;
-#if CC3200_ES_1_2_1
+#ifdef CC3200_ES_1_2_1
     //Reset NWP
     HWREG(APPS_SOFT_RESET_REG) |= 4; 
     //WLAN PD OFF
@@ -416,7 +392,7 @@ void NwpPowerOff(void)
     //sl_stop eco for PG1.32 devices
     HWREG(0x4402E16C) |= 0x2;
 
-    UtilsDelay(4000);
+    UtilsDelay(800000);
 #endif
 }
 

@@ -60,6 +60,40 @@ void nwp_reset() {
 
 #include "ota_usr.h"
 
+
+//*****************************************************************************
+//
+//! \brief This function handles HTTP server events
+//!
+//! \param[in]  pServerEvent - Contains the relevant event information
+//! \param[in]    pServerResponse - Should be filled by the user with the
+//!                                      relevant response information
+//!
+//! \return None
+//!
+//****************************************************************************
+void SimpleLinkHttpServerCallback(SlHttpServerEvent_t *pHttpEvent,
+                                  SlHttpServerResponse_t *pHttpResponse)
+{
+    // Unused in this application
+}
+
+//*****************************************************************************
+//
+//! This function handles socket events indication
+//!
+//! \param[in]      pSock - Pointer to Socket Event Info
+//!
+//! \return None
+//!
+//*****************************************************************************
+void SimpleLinkSockEventHandler(SlSockEvent_t *pSock)
+{
+    //
+    // This application doesn't work w/ socket - Events are not expected
+    //
+}
+
 //****************************************************************************
 //
 //!    \brief This function handles WLAN events
