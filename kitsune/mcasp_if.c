@@ -293,6 +293,11 @@ void Audio_Start()
 
 }
 
+void Audio_Stop()
+{
+	MAP_I2SDisable(I2S_BASE);
+
+}
 //*****************************************************************************
 //
 // Close the Doxygen group.

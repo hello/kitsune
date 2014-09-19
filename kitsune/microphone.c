@@ -44,6 +44,8 @@
 #include "hw_ints.h"
 
 #include "hw_memmap.h"
+#include "fatfs_cmd.h"
+#include "ff.h"
 //******************************************************************************
 //							GLOBAL VARIABLES
 //******************************************************************************
@@ -51,7 +53,7 @@
 extern unsigned int clientIP;
 extern tCircularBuffer *pTxBuffer;
 extern tUDPSocket g_UdpSock;
-int g_iSentCount =0;
+extern int g_iSentCount =0;
 unsigned long g_ulConnected = 0; 
 
 extern tCircularBuffer *pRxBuffer;
@@ -94,7 +96,7 @@ void SendMulticastPacket()
 //
 //*****************************************************************************
 
-void Microphone( void *pvParameters )
+void Microphone(FIL* file_ptr )
 {
 #ifdef NETWORK
 #ifdef MULTICAST
@@ -161,8 +163,31 @@ void Microphone( void *pvParameters )
 
 #endif   //NETWORK       
                  UpdateReadPtr(pTxBuffer, PACKET_SIZE);
-                 //UARTprintf("pTxBuffer %x\n\r", *(pTxBuffer->pucReadPtr));
+             //    UARTprintf("pTxBuffer %x\n\r", *(pTxBuffer->pucReadPtr));
                  g_iSentCount++;
+             	if(g_iSentCount == 1000){
+             		FRESULT res = f_close(file_ptr);
+             		UARTprintf("mic task completed\r\n" );
+             		break;
+             	}
+                 //UARTprintf("g_iSentCount %d\n\r", g_iSentCount);
+                 //f_append("/Pud",*(pTxBuffer->pucReadPtr),512);
+                 WORD bytes = 0;
+                 WORD bytes_written = 0;
+                 WORD bytes_to_write = PACKET_SIZE;
+                 const char* junk = "test junk\r\n";
+
+                 do {
+                	 FRESULT res= f_write(file_ptr, junk + bytes_written, bytes_to_write-bytes_written, &bytes );
+                 		bytes_written+=bytes;
+                 		if (res != FR_OK)
+                 		{
+                 			UARTprintf("Write fail %d\n",res);
+                 			break;
+                 		}
+                 		//UARTprintf("bytes written: %d\n", bytes_written);
+
+                 	} while( bytes_written < bytes_to_write );
 
             }
 

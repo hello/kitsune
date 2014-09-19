@@ -397,7 +397,7 @@ int get_codec_mic_NAU(int argc, char *argv[]) {
 	cmd_init[0] = 0x17 ; cmd_init[1] = 0xff ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec);
 	cmd_init[0] = 0x18 ; cmd_init[1] = 0x00 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec);
 	cmd_init[0] = 0x1a ; cmd_init[1] = 0x00 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec);
-	cmd_init[0] = 0x1d ; cmd_init[1] = 0x08 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec);
+	cmd_init[0] = 0x1d ; cmd_init[1] = 0x74 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); //  0x08
 	cmd_init[0] = 0x1f ; cmd_init[1] = 0xff ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec);
 	cmd_init[0] = 0x25 ; cmd_init[1] = 0x2c ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec);
 	cmd_init[0] = 0x26 ; cmd_init[1] = 0x2c ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec);
@@ -425,11 +425,11 @@ int get_codec_mic_NAU(int argc, char *argv[]) {
 	cmd_init[0] = 0x5f ; cmd_init[1] = 0x00 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec);
 	cmd_init[0] = 0x60 ; cmd_init[1] = 0x00 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec);
 	cmd_init[0] = 0x62 ; cmd_init[1] = 0x02 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec);
-	cmd_init[0] = 0x64 ; cmd_init[1] = 0x01 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec);
+	cmd_init[0] = 0x64 ; cmd_init[1] = 0x03 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec);
 	cmd_init[0] = 0x66 ; cmd_init[1] = 0x00 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec);
 	cmd_init[0] = 0x68 ; cmd_init[1] = 0x40 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec);
 	cmd_init[0] = 0x6a ; cmd_init[1] = 0x40 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec);
-	cmd_init[0] = 0x6c ; cmd_init[1] = 0xb9 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec);
+	cmd_init[0] = 0x6c ; cmd_init[1] = 0xbD ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec);
 	cmd_init[0] = 0x6e ; cmd_init[1] = 0x40 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec);
 	cmd_init[0] = 0x70 ; cmd_init[1] = 0x40 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec);
 	cmd_init[0] = 0x72 ; cmd_init[1] = 0x40 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec);

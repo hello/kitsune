@@ -234,7 +234,19 @@ void DMAPingPongCompleteAppCB_opt()
                //Cmd_rm(1, "VONE");
                //Cmd_write_record(*pusTxDestBuf);
                /////
-              UARTprintf("pusTxDestBuf %x\n\r",*pusTxDestBuf );
+              //UARTprintf("pusTxDestBuf %x\n\r",*pusTxDestBuf );
+              //f_append("/Aud",pusTxDestBuf,CB_TRANSFER_SZ);
+
+               /*
+			   int i = 0;
+               for(i=0; i<128; i++){
+            	   short* num = &pusTxDestBuf[i * 2];
+            	   UARTprintf("%d ", *num);
+               }
+               */
+
+               //short* num = &pusTxDestBuf[2];
+			   //UARTprintf("%d ", *num);
         }   
         g_iReadFlag++;
     }
@@ -359,7 +371,7 @@ void SetupPingPongDMATransferTx()
                   UDMA_CHCTL_DSTINC_16);
 
 }
-#if 0
+
 void SetupPingPongDMATransferRx()
 {
     puiRxDestBuf = AudioRendererGetDMADataPtr();
@@ -390,7 +402,7 @@ void SetupPingPongDMATransferRx()
 
     
 }
-#endif
+
 //*****************************************************************************
 //
 // Close the Doxygen group.

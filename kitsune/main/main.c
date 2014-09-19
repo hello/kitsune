@@ -315,7 +315,7 @@ void main()
   //
   BoardInit();
 
-  start_wdt();
+  //start_wdt();
   //
   // configure the GPIO pins for LEDs
   //
@@ -335,7 +335,7 @@ void main()
 
   /* Create the UART processing task. */
   xTaskCreate( vUARTTask, "UARTTask", 10*1024/(sizeof(portSTACK_TYPE)), NULL, 10, NULL );
-  xTaskCreate( watchdog_thread, "wdtTask", configMINIMAL_STACK_SIZE, NULL, 1, NULL );
+  //xTaskCreate( watchdog_thread, "wdtTask", configMINIMAL_STACK_SIZE, NULL, 1, NULL );
 
   //
   // Start the task scheduler
