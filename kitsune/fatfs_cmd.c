@@ -68,7 +68,6 @@ int Cmd_mnt(int argc, char *argv[])
 		UARTprintf("f_mount error: %i\n", (res));
 		return(1);
 	}
-	UARTprintf("f_mount success\n");
 	return 0;
 }
 int Cmd_umnt(int argc, char *argv[])

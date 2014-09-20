@@ -97,52 +97,73 @@ _i16 sl_Start(const void* pIfHdl, _i8*  pDevName, const P_INIT_CALLBACK pInitCal
     _i16 ObjIdx = MAX_CONCURRENT_ACTIONS;
     InitComplete_t  AsyncRsp;
 
+    UARTprintf("*");
+
     /* Perform any preprocessing before enable networking services */
     sl_DeviceEnablePreamble();
+
+    UARTprintf("*");
 
     /* ControlBlock init */
     _SlDrvDriverCBInit();
 
+    UARTprintf("*");
+
     /* open the interface: usually SPI or UART */
     if (NULL == pIfHdl)
     {
+        UARTprintf("*");
         g_pCB->FD = sl_IfOpen((void *)pDevName, 0);
+        UARTprintf("*");
     }
     else
     {
+        UARTprintf("*");
         g_pCB->FD = (_SlFd_t)pIfHdl;
+        UARTprintf("*");
     }
+    UARTprintf("*");
     /* Use Obj to issue the command, if not available try later */
     ObjIdx = _SlDrvWaitForPoolObj(START_STOP_ID,SL_MAX_SOCKETS);
+    UARTprintf("*");
     if (MAX_CONCURRENT_ACTIONS == ObjIdx)
     {
         return SL_POOL_IS_EMPTY;
     }
     OSI_RET_OK_CHECK(sl_LockObjLock(&g_pCB->ProtectionLockObj, SL_OS_WAIT_FOREVER));
+    UARTprintf("*");
     g_pCB->ObjPool[ObjIdx].pRespArgs = (_u8 *)&AsyncRsp;
+    UARTprintf("*");
     OSI_RET_OK_CHECK(sl_LockObjUnlock(&g_pCB->ProtectionLockObj));
 
     if( g_pCB->FD >= 0)
     {
+        UARTprintf("*");
         sl_DeviceDisable();
 
         sl_IfRegIntHdlr((SL_P_EVENT_HANDLER)_SlDrvRxIrqHandler, NULL);
-
+        UARTprintf("*");
         if(NULL != pInitCallBack)
         {
+            UARTprintf("*");
             g_pCB->pInitCallback = pInitCallBack;
         }
+        UARTprintf("*");
         sl_DeviceEnable();
+        UARTprintf("*");
 
         if (NULL == pInitCallBack)
         {
+            UARTprintf("*");
             OSI_RET_OK_CHECK(sl_SyncObjWait(&g_pCB->ObjPool[ObjIdx].SyncObj, SL_OS_WAIT_FOREVER));
+            UARTprintf("*");
             /*release Pool Object*/
             _SlDrvReleasePoolObj(g_pCB->FunctionParams.AsyncExt.ActionIndex);
+            UARTprintf("*");
             return _sl_GetStartResponseConvert(AsyncRsp.Status);
         }
     }
-
+    UARTprintf("*");
     return (_i16)g_pCB->FD;
 
 }

@@ -744,9 +744,14 @@ void NwpPowerOnPreamble(void)
     HWREG(0x400F70B8) = 1;   /* APPs to NWP interrupt */
     UtilsDelay(800000/5);
 
+	UARTprintf("*");
+
     retry_count = 0;
     nwp_lpds_wake_cfg = HWREG(0x4402D404);
-    sl_stop_ind = HWREG(0x4402E16C);
+    UARTprintf("*");
+
+	sl_stop_ind = HWREG(0x4402E16C);
+	UARTprintf("*");
 
     if((nwp_lpds_wake_cfg != 0x20) && /* Check for NWP POR condition */
             !(sl_stop_ind & 0x2))     /* Check if sl_stop was executed */
@@ -755,6 +760,7 @@ void NwpPowerOnPreamble(void)
         while(retry_count < MAX_RETRY_COUNT)
         {
             apps_int_sts_raw = HWREG(0x400F70C0);
+            UARTprintf("-");
             if(apps_int_sts_raw & 0x1)
             {
                 UtilsDelay(800000/5);
@@ -762,15 +768,20 @@ void NwpPowerOnPreamble(void)
             }
             else
             {
+                UARTprintf("+");
                 break;
             }
         }
     }
+    UARTprintf("*");
     HWREG(0x400F70B0) = 1;   /* Clear APPs to NWP interrupt */
     UtilsDelay(800000/5);
 
-    /* Stop the networking services */
+    UARTprintf("*");
+    	    /* Stop the networking services */
     NwpPowerOff();
+    UARTprintf("*");
+
 #endif
 }
 

@@ -663,41 +663,58 @@ void vUARTTask(void *pvParameters) {
 
 	UARTIntRegister(UARTA0_BASE, UARTStdioIntHandler);
 
+	UARTprintf("Booting...\n");
+
 	//default to IFA
 	antsel(IFA_ANT);
 
+	UARTprintf("*");
 	now = xTaskGetTickCount();
 	sl_mode = sl_Start(NULL, NULL, NULL);
+	UARTprintf("*");
+	while (sl_mode != ROLE_STA) {
+		UARTprintf("+");
+		sl_WlanSetMode(ROLE_STA);
+		sl_Stop(1);
+		sl_mode = sl_Start(NULL, NULL, NULL);
+	}
+	UARTprintf("*");
+
+	// Set connection policy to Auto + SmartConfig
+	//      (Device's default connection policy)
+	sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 1),
+			NULL, 0);
+
+	UARTprintf("*");
 	unsigned char mac[6];
 	unsigned char mac_len;
 	sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
+	UARTprintf("*");
 
-	UARTprintf("\n\nFreeRTOS %s, %d, %s %x%x%x%x%x%x\n",
-	tskKERNEL_VERSION_NUMBER, KIT_VER, MORPH_NAME, mac[0], mac[1], mac[2],
-			mac[3], mac[4], mac[5]);
-	UARTprintf("\n? for help\n");
-	UARTprintf("> ");
-
-    // SDCARD INITIALIZATION
-    // Enable MMCHS, Reset MMCHS, Configure MMCHS, Configure card clock, mount
-    MAP_PRCMPeripheralClkEnable(PRCM_SDHOST,PRCM_RUN_MODE_CLK);
-    MAP_PRCMPeripheralReset(PRCM_SDHOST);
-    MAP_SDHostInit(SDHOST_BASE);
-    MAP_SDHostSetExpClk(SDHOST_BASE,MAP_PRCMPeripheralClockGet(PRCM_SDHOST),1000000);
-    Cmd_mnt(0,0);
-
-    //INIT SPI
-    spi_init();
-
+	// SDCARD INITIALIZATION
+	// Enable MMCHS, Reset MMCHS, Configure MMCHS, Configure card clock, mount
+	MAP_PRCMPeripheralClkEnable(PRCM_SDHOST, PRCM_RUN_MODE_CLK);
+	MAP_PRCMPeripheralReset(PRCM_SDHOST);
+	MAP_SDHostInit(SDHOST_BASE);
+	MAP_SDHostSetExpClk(SDHOST_BASE, MAP_PRCMPeripheralClockGet(PRCM_SDHOST),
+			1000000);
+	UARTprintf("*");
+	Cmd_mnt(0, 0);
+	UARTprintf("*");
+	//INIT SPI
+	spi_init();
+	UARTprintf("*");
 	vTaskDelayUntil(&now, 1000);
+	UARTprintf("*");
+
 	if (sl_mode == ROLE_AP || !sl_status) {
 		//Cmd_sl(0, 0);
 	}
 
-	 data_queue = xQueueCreate( 60, sizeof( data_t ) );
-	 vSemaphoreCreateBinary( dust_smphr );
-	 vSemaphoreCreateBinary( light_smphr );
-	 vSemaphoreCreateBinary( i2c_smphr );
+	data_queue = xQueueCreate(60, sizeof(data_t));
+	vSemaphoreCreateBinary(dust_smphr);
+	vSemaphoreCreateBinary(light_smphr);
+	vSemaphoreCreateBinary(i2c_smphr);
 
 	if (data_queue == 0) {
 		UARTprintf("Failed to create the data_queue.\n");
@@ -705,15 +722,28 @@ void vUARTTask(void *pvParameters) {
 
 #if 0
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask", 2 * 1024 / 4, NULL, 3, NULL);
+	UARTprintf("*");
 	xTaskCreate(thread_dust, "dustTask", 256 / 4, NULL, 3, NULL);
+	UARTprintf("*");
 	xTaskCreate(thread_sensor_poll, "pollTask", 2 * 1024 / 4, NULL, 4, NULL);
+	UARTprintf("*");
 	xTaskCreate(thread_tx, "txTask", 4 * 1024 / 4, NULL, 2, NULL);
+	UARTprintf("*");
 	xTaskCreate(thread_ota, "otaTask", 2 * 1024 / 4, NULL, 1, NULL);
+	UARTprintf("*");
 #endif
 	//checkFaults();
 
+	UARTprintf("\n\nFreeRTOS %s, %d, %s %x%x%x%x%x%x\n",
+	tskKERNEL_VERSION_NUMBER, KIT_VER, MORPH_NAME, mac[0], mac[1], mac[2],
+			mac[3], mac[4], mac[5]);
+	UARTprintf("\n? for help\n");
+	UARTprintf("> ");
+
 	/* Loop forever */
 	while (1) {
+		/* remove anything we recieved before we were ready */
+		UARTFlushRx();
 
 		/* Wait for a signal indicating we have an RX line to process */
 		xSemaphoreTake(g_xRxLineSemaphore, portMAX_DELAY);
