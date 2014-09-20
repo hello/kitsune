@@ -740,11 +740,11 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("\n? for help\n");
 	UARTprintf("> ");
 
+	/* remove anything we recieved before we were ready */
+	UARTFlushRx();
+
 	/* Loop forever */
 	while (1) {
-		/* remove anything we recieved before we were ready */
-		UARTFlushRx();
-
 		/* Wait for a signal indicating we have an RX line to process */
 		xSemaphoreTake(g_xRxLineSemaphore, portMAX_DELAY);
 
