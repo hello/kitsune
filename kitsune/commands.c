@@ -522,30 +522,56 @@ int Cmd_mel(int argc, char *argv[]) {
 	return (0);
 }
 
-int Cmd_led(int argc, char *argv[]) {
-	int i, j;
-	j = 0;
-	while (++j < (1 << 31)) {
-		//colors are RGB 888
-		unsigned int color = 0x00ff00;
-
-		for(i =0; i<24; ++i ) {
-			if( (color<<i) & 0x800000 ) {
+#define NUM_LED 12
+#define LED_GPIO_BIT 0x1
+#define LED_GPIO_BASE GPIOA3_BASE
+int led( unsigned int* color ) {
+	int i;
+	unsigned long ulInt;
+	unsigned int * end = color + NUM_LED;
+	//
+	// Temporarily turn off interrupts.
+	//
+	ulInt = MAP_IntMasterDisable();
+	for( ;; ) {
+		for (i = 0; i < 24; ++i) {
+			if ((*color << i) & 0x800000) {
 				//1
-				MAP_GPIOPinWrite(GPIOA2_BASE, 0x40, 0x40);
+				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_GPIO_BIT);
 				UtilsDelay(7);
-				MAP_GPIOPinWrite(GPIOA2_BASE, 0x40, 0x0);
+				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, 0x0);
 				//UtilsDelay(1);
 			} else {
 				//0
-				MAP_GPIOPinWrite(GPIOA2_BASE, 0x40, 0x40);
+				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_GPIO_BIT);
 				UtilsDelay(2);
-				MAP_GPIOPinWrite(GPIOA2_BASE, 0x40, 0x0);
+				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, 0x0);
 				UtilsDelay(4);
 			}
 		}
+		if( ++color == end ) {
+			break;
+		}
+	}
+	if (!ulInt) {
+		MAP_IntMasterEnable();
+	}
+	return 0;
+}
 
-		UtilsDelay(6250); //reset
+int Cmd_led(int argc, char *argv[]) {
+	int i;
+	unsigned int color[NUM_LED];
+	for (i = 0; i < NUM_LED; ++i) {
+		color[i] = 0x000fff << i;
+	}
+	led(color);
+	for (i = 0; i < NUM_LED; ++i) {
+		vTaskDelay(1000);
+		for (i = 0; i < NUM_LED; ++i) {
+			color[i] = color[(i + 1) % NUM_LED];
+		}
+		led(color);
 	}
 	return 0;
 }

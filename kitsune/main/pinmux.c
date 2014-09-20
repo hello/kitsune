@@ -71,8 +71,6 @@
 //*****************************************************************************
 static void SetAntennaSelectionGPIOs(void)
 {
-
-    MAP_PRCMPeripheralClkEnable(PRCM_GPIOA3, PRCM_RUN_MODE_CLK);
     MAP_GPIODirModeSet(GPIOA3_BASE,0xC,GPIO_DIR_MODE_OUT);
 
     //
@@ -124,9 +122,11 @@ PinMuxConfig(void)
     MAP_PRCMPeripheralClkEnable(PRCM_UARTA0, PRCM_RUN_MODE_CLK);
     MAP_PRCMPeripheralClkEnable(PRCM_UARTA1, PRCM_RUN_MODE_CLK);
     MAP_PRCMPeripheralClkEnable(PRCM_GPIOA0, PRCM_RUN_MODE_CLK);
+    MAP_PRCMPeripheralClkEnable(PRCM_GPIOA1, PRCM_RUN_MODE_CLK);
+    MAP_PRCMPeripheralClkEnable(PRCM_GPIOA2, PRCM_RUN_MODE_CLK);
+    MAP_PRCMPeripheralClkEnable(PRCM_GPIOA3, PRCM_RUN_MODE_CLK);
     MAP_PRCMPeripheralClkEnable(PRCM_TIMERA2, PRCM_RUN_MODE_CLK);
     MAP_PRCMPeripheralClkEnable(PRCM_I2CA0, PRCM_RUN_MODE_CLK);
-    MAP_PRCMPeripheralClkEnable(PRCM_GPIOA1, PRCM_RUN_MODE_CLK);
     MAP_PRCMPeripheralClkEnable(PRCM_GSPI, PRCM_RUN_MODE_CLK);
     MAP_PRCMPeripheralClkEnable(PRCM_SDHOST, PRCM_RUN_MODE_CLK);
 
@@ -234,11 +234,18 @@ PinMuxConfig(void)
 
     SetAntennaSelectionGPIOs();
 
-/*
-    MAP_PRCMPeripheralClkEnable(PRCM_GPIOA2, PRCM_RUN_MODE_CLK);
-	MAP_PinTypeGPIO(PIN_15, PIN_MODE_0, false);
-	MAP_GPIODirModeSet(GPIOA2_BASE, 0x40, GPIO_DIR_MODE_OUT);
-*/
+    //
+    // Configure PIN_16 for GPIOInput
+    //
+    MAP_PinTypeGPIO(PIN_16, PIN_MODE_0, false);
+    MAP_GPIODirModeSet(GPIOA2_BASE, 0x80, GPIO_DIR_MODE_IN);
+
+    //
+    // Configure PIN_17 for GPIOOutput
+    //
+    MAP_PinTypeGPIO(PIN_17, PIN_MODE_0, false);
+    MAP_GPIODirModeSet(GPIOA3_BASE, 0x1, GPIO_DIR_MODE_OUT);
+
     //SOP2
     //
 	//
