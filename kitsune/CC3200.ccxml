@@ -14,8 +14,7 @@
                             <router HW_revision="1.0" XML_version="1.2" description="CS_DAP Router" id="CS_DAP_0" isa="CS_DAP">
                                 <subpath id="subpath_1">
                                     <cpu HW_revision="1.0" XML_version="1.2" description="Cortex_M4 CPU" deviceSim="false" id="Cortex_M4_0" isa="CORTEX_M4_CC">
-                                        <property Type="choicelist" Value="0" id="debugPort"/>
-                                    <property Type="stringfield" Value="500000" id="JTAG Frequency (Hz)"/>
+                                        <property Type="choicelist" Value="1" id="debugPort"/>
                                     </cpu>
                                 </subpath>
                             </router>
