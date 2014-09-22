@@ -96,7 +96,7 @@ void SendMulticastPacket()
 //
 //*****************************************************************************
 
-void Microphone(FIL* file_ptr )
+void Microphone1()
 {
 #ifdef NETWORK
 #ifdef MULTICAST
@@ -115,7 +115,33 @@ void Microphone(FIL* file_ptr )
 #endif
 #endif //MULTICAST
 #endif //NETWORK
-   
+
+    // Open the file for reading.
+
+    const char* file_name = "/POD3";
+
+    FIL file_obj;
+    FILINFO file_info;
+    memset(&file_obj, 0, sizeof(file_obj));
+    FIL* file_ptr = &file_obj;
+
+    FRESULT res = f_open(&file_obj, file_name, FA_WRITE|FA_OPEN_ALWAYS);
+    //UARTprintf("res :%d\n",res);
+
+    if(res != FR_OK && res != FR_EXIST){
+    	UARTprintf("File open %s failed: %d\n", file_name, res);
+    	return -1;
+    }
+
+
+    memset(&file_info, 0, sizeof(file_info));
+
+    f_stat(file_name, &file_info);
+
+    if( file_info.fsize != 0 ){
+    	res = f_lseek(&file_obj, file_info.fsize);
+    }
+
     while(1)
     {     
         //while(g_ucMicStartFlag)
@@ -123,6 +149,7 @@ void Microphone(FIL* file_ptr )
             int iBufferFilled = 0;
 
             iBufferFilled = GetBufferSize(pTxBuffer);
+            //UARTprintf("iBufferFilled %d\r\n" , iBufferFilled);
             if(iBufferFilled >= (2*PACKET_SIZE))
             {
 #if 0
@@ -145,8 +172,6 @@ void Microphone(FIL* file_ptr )
                 sendto(g_UdpSock.iSockDesc, (char*)(pTxBuffer->pucReadPtr),PACKET_SIZE,
                 0,(struct sockaddr*)&(g_UdpSock.Client),sizeof(g_UdpSock.Client));
 #endif
-                //UARTprintf(" test\n ");
-                //UARTprintf("pucReadPtr %x\n\r", *(pTxBuffer->pucReadPtr));
 #else      //MULTICAST         
                 SendMulticastPacket();
 #endif     //MULTICAST      
@@ -162,33 +187,33 @@ void Microphone(FIL* file_ptr )
                 g_iReceiveCount++;
 
 #endif   //NETWORK       
-                 UpdateReadPtr(pTxBuffer, PACKET_SIZE);
-             //    UARTprintf("pTxBuffer %x\n\r", *(pTxBuffer->pucReadPtr));
-                 g_iSentCount++;
-             	if(g_iSentCount == 1000){
-             		FRESULT res = f_close(file_ptr);
+
+             	if(g_iSentCount == iBufferFilled){
+             		 res = f_close(file_ptr);
              		UARTprintf("mic task completed\r\n" );
+             		g_iSentCount = 0;
              		break;
              	}
-                 //UARTprintf("g_iSentCount %d\n\r", g_iSentCount);
-                 //f_append("/Pud",*(pTxBuffer->pucReadPtr),512);
+                 //  f_append("/Pud",*(pTxBuffer->pucReadPtr),512);
                  WORD bytes = 0;
                  WORD bytes_written = 0;
                  WORD bytes_to_write = PACKET_SIZE;
-                 const char* junk = "test junk\r\n";
 
                  do {
-                	 FRESULT res= f_write(file_ptr, junk + bytes_written, bytes_to_write-bytes_written, &bytes );
+                	 FRESULT res= f_write(file_ptr, (pTxBuffer->pucReadPtr)+bytes_written , bytes_to_write-bytes_written, &bytes );
+                	 //UARTprintf("res is %d\n ",res);
                  		bytes_written+=bytes;
                  		if (res != FR_OK)
                  		{
                  			UARTprintf("Write fail %d\n",res);
                  			break;
                  		}
-                 		//UARTprintf("bytes written: %d\n", bytes_written);
 
                  	} while( bytes_written < bytes_to_write );
 
+                 UpdateReadPtr(pTxBuffer, PACKET_SIZE);
+                 UARTprintf("pTxBuffer %x\n\r", *(pTxBuffer->pucReadPtr));
+                 g_iSentCount++;
             }
 
         }      

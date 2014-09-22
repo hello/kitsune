@@ -118,7 +118,10 @@ int iCounter,i = 0;
 //extern unsigned char iDone;
 //OsiTaskHandle g_SpeakerTask = NULL ;
 //OsiTaskHandle g_MicTask = NULL ;
-static FIL file_obj;
+//static FIL file_obj;
+//const char* file_name = "/POD2";
+//FRESULT res;
+//FILINFO file_info;
 //*****************************************************************************
 //                          LOCAL DEFINES
 //*****************************************************************************
@@ -426,9 +429,7 @@ UARTprintf(" Done for Cmd_write_record\n ");
 //////////////////////////////// edit for SD card assessment
 //vPortFree(record_buf); //UARTprintf(" audio_buf\n ");
 #endif
-const char* file_name = "/POD2";
-FRESULT res;
-FILINFO file_info;
+
 // Create RX and TX Buffer
 //
 pTxBuffer = CreateCircularBuffer(TX_BUFFER_SIZE);
@@ -444,13 +445,10 @@ if(pRxBuffer == NULL)
 	while(1){};
 }
 
-
-
-
 // Configure Audio Codec
 //
-get_codec_mic_NAU();
-//ConfigureAudioCodec(CODEC_I2S_WORD_LEN_24);
+//get_codec_mic_NAU();
+ConfigureAudioCodec(CODEC_I2S_WORD_LEN_24);
 
 // Initialize the Audio(I2S) Module
 //
@@ -467,72 +465,22 @@ UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL);
 // Setup the DMA Mode
 //
 SetupPingPongDMATransferTx();
-//SetupPingPongDMATransferRx();
-//UDMAStartTransfer(UDMA_CH4_I2S_RX);
-//UDMAStartTransfer(UDMA_CH5_I2S_TX);
 // Setup the Audio In/Out
 //
 
 AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
-#if 0
-#endif
 AudioCaptureRendererConfigure();
-
-
-// Open the file for reading.
-res = f_open(&file_obj, file_name, FA_WRITE|FA_OPEN_ALWAYS);
-//UARTprintf("res :%d\n",res);
-
-if(res != FR_OK && res != FR_EXIST){
-	UARTprintf("File open %s failed: %d\n", file_name, res);
-	return -1;
-}
-
-
-memset(&file_info, 0, sizeof(file_info));
-
-f_stat(file_name, &file_info);
-
-if( file_info.fsize != 0 ){
-	res = f_lseek(&file_obj, file_info.fsize);
-}
-
-
 // Start Audio Tx/Rx
 //
 Audio_Start();
 
-#if 0
-// Start the Control Task
-//
-ControlTaskCreate();
-#endif
 
 // Start the Microphone Task
 //
-Microphone(&file_obj);
+Microphone1();
 
-//while(true){
 	UARTprintf("g_iSentCount %d\n\r", g_iSentCount);
 	Audio_Stop();
-//}
-#if 0
-osi_TaskCreate( Microphone,(signed char*)"MicroPhone", OSI_STACK_SIZE, NULL, 1, &g_MicTask ); //MICButtonHandler g_MicTask
-//UARTprintf("pTxBuffer x%\n", *pTxBuffer);
-
-// Start the Speaker Task
-//
-osi_TaskCreate( Speaker, (signed char*)"Speaker",OSI_STACK_SIZE, NULL, 1, &g_SpeakerTask );
-#endif
-//
-// Start the task scheduler
-//
-#if 0
-osi_start();
-UARTprintf("loop done \n");
-// end of DMA
-#endif
-//ControlTaskDestroy();
 
 return 0;
 
