@@ -11,5 +11,6 @@
 /**/Release
 /**/Debug
 /**/exe
+/**/*.swp
 ./oslib/ccs/free_rtos
 workspace
