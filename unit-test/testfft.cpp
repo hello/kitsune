@@ -161,6 +161,35 @@ TEST_F(TestFrequencyFeatures,TestMel) {
 }
 
 
+TEST_F(TestFrequencyFeatures,TestMel2) {
+    int i,ichunk;
+    int16_t x[1024];
+    
+    memset(_mfcc,0,sizeof(_mfcc));
+    memset(&_myseg,0,sizeof(_myseg));
+    
+    srand(0);
+    
+    
+    AudioFeatures_Init(AudioFeatCallback);
+#define amplitude (2)
+    //still ---> white random noise ---> still
+    for (ichunk = 0; ichunk < 43*100; ichunk++) {
+        for (i = 0; i < 1024; i++) {
+            x[i] = (rand() % amplitude) - (amplitude >> 1);
+        }
+        
+        AudioFeatures_SetAudioData(x,10,ichunk);
+        
+    }
+    
+    ASSERT_TRUE(_myseg.t1 < 86);
+    ASSERT_TRUE(_myseg.t2 >= 86);
+    ASSERT_TRUE(_mfcc[0] > 0);
+}
+
+
+
 
 TEST_F(TestFrequencyFeatures,TestCountMsb) {
     short y;

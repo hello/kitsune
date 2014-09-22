@@ -33,7 +33,7 @@
 #define SAMPLE_RATE_IN_HZ (EXPECTED_AUDIO_SAMPLE_RATE_HZ / AUDIO_FFT_SIZE)
 #define SAMPLE_PERIOD_IN_MILLISECONDS  (1000 / SAMPLE_RATE_IN_HZ)
 
-#define MEL_BUF_SIZE_2N (6)
+#define MEL_BUF_SIZE_2N (3)
 #define MEL_BUF_SIZE (1 << MEL_BUF_SIZE_2N)
 #define MEL_BUF_MASK (MEL_BUF_SIZE - 1)
 
@@ -41,8 +41,8 @@
 #define CHANGE_SIGNAL_BUF_SIZE (1 << CHANGE_SIGNAL_BUF_SIZE_2N)
 #define CHANGE_SIGNAL_BUF_MASK (CHANGE_SIGNAL_BUF_SIZE - 1)
 
-#define STEADY_STATE_AVERAGING_PERID_2N (6)
-#define STEADY_STATE_AVERAGING_PERIOD (1 << STEADY_STATE_AVERAGING_PERID_2N)
+#define STEADY_STATE_AVERAGING_PERIOD_2N (6)
+#define STEADY_STATE_AVERAGING_PERIOD (1 << STEADY_STATE_AVERAGING_PERIOD_2N)
 
 #define MUL(a,b,q)\
   ((int16_t)((((int32_t)(a)) * ((int32_t)(b))) >> q))
@@ -62,6 +62,7 @@
 //purposely DO NOT MAKE THIS -32768
 // abs(-32768) is 32768.  I can't represent this number with an int16 type!
 #define MIN_INT_16 (-32767)
+#define MIN_INT_32 (-2147483647)
 
 /* Have fun tuning these magic numbers!
  Perhaps eventually we will have some pre-canned
@@ -87,7 +88,7 @@ static const uint32_t k_stable_count_period_in_counts = STEADY_STATE_SEGMENT_PER
 #define MIN_SEGMENT_TIME_IN_MILLISECONDS (500)
 static const uint32_t k_min_segment_time_in_counts = MIN_SEGMENT_TIME_IN_MILLISECONDS / SAMPLE_PERIOD_IN_MILLISECONDS;
 
-static const int32_t k_min_energy = -300000;
+static const int32_t k_min_energy = MIN_INT_32;
 
 /*--------------------------------
  *   Types
@@ -103,7 +104,7 @@ typedef struct {
     int16_t melbuf[NUM_MFCC_FEATURES][MEL_BUF_SIZE]; //8 * 128 * 2 = 2K
     int32_t melaccumulator[NUM_MFCC_FEATURES];
     
-    int32_t steadyStateAccumulator[MEL_SCALE_SIZE];
+    int64_t steadyStateAccumulator[MEL_SCALE_SIZE];
     int16_t melavg[MEL_SCALE_SIZE];
 
     uint16_t callcounter;
@@ -117,7 +118,7 @@ typedef struct {
     uint32_t stablePeriodCounter;
     EChangeModes_t lastModes[3];
     int64_t modechangeTimes[3];
-    int32_t maxabsfeatures[NUM_MFCC_FEATURES];
+    int32_t maxenergyfeatures[NUM_MFCC_FEATURES];
     uint8_t isValidSteadyStateSegment;
     
 
@@ -144,7 +145,14 @@ static MelFeatures_t _data;
  *   Functions
  *--------------------------------*/
 void AudioFeatures_Init(SegmentAndFeatureCallback_t fpCallback) {
+    uint8_t i;
+    
     memset(&_data,0,sizeof(_data));
+    
+    for (i = 0; i <  NUM_MFCC_FEATURES; i++) {
+        _data.melavg[i] = MIN_INT_16;
+    }
+    
     _data.fpCallback = fpCallback;
 }
 
@@ -223,7 +231,7 @@ static void SegmentSteadyState(uint8_t * pIsStable,EChangeModes_t currentMode,co
             
             if (_data.isValidSteadyStateSegment) {
                 if (_data.fpCallback) {
-                    _data.fpCallback(_data.maxabsfeatures,&seg);
+                    _data.fpCallback(mfccavg,&seg);
                 }
                 _data.isValidSteadyStateSegment = FALSE;
             }
@@ -237,7 +245,8 @@ static void SegmentSteadyState(uint8_t * pIsStable,EChangeModes_t currentMode,co
             _data.modechangeTimes[0] = samplecount;
 
             //reset features for next segment
-            memset(_data.maxabsfeatures,0,sizeof(_data.maxabsfeatures));
+            _data.maxenergyfeatures[0] = MIN_INT_32;
+
 
         }
     }
@@ -265,20 +274,21 @@ static void SegmentSteadyState(uint8_t * pIsStable,EChangeModes_t currentMode,co
         if (seg.t2 - seg.t1 > k_min_segment_time_in_counts) {
             
             if (_data.fpCallback) {
-                _data.fpCallback(_data.maxabsfeatures,&seg);
+                _data.fpCallback(_data.maxenergyfeatures,&seg);
             }
         }
         
         //reset features for next segment
-        memset(_data.maxabsfeatures,0,sizeof(_data.maxabsfeatures));
+        _data.maxenergyfeatures[0] = MIN_INT_32;
+
         
         
     }
     
-    //find max magnitude of features over time
+    //track max energy features
     for (i = 0; i < NUM_MFCC_FEATURES; i++) {
-        if (abs(_data.maxabsfeatures[i]) < abs(mfccavg[i])) {
-            _data.maxabsfeatures[i] = mfccavg[i];
+        if (_data.maxenergyfeatures[0] < mfccavg[0]) {
+            memcpy(_data.maxenergyfeatures,mfccavg,sizeof(_data.maxenergyfeatures));
         }
     }
 
@@ -295,7 +305,7 @@ static void SegmentSteadyState(uint8_t * pIsStable,EChangeModes_t currentMode,co
         
         //reset features because we may be starting a segment now
         if (currentMode == increasing) {
-            memset(_data.maxabsfeatures,0,sizeof(_data.maxabsfeatures));
+            _data.maxenergyfeatures[0] = MIN_INT_32;
         }
         
         
@@ -508,8 +518,9 @@ static uint8_t SteadyStateAveraging(int16_t * avgsteadymel,uint8_t isStable, con
         
         if (_data.steadyStateCounter == STEADY_STATE_AVERAGING_PERIOD) {
             for (i = 0; i < MEL_SCALE_SIZE; i++) {
-                avgsteadymel[i] = (int16_t) (_data.steadyStateAccumulator[i] >> STEADY_STATE_AVERAGING_PERID_2N);
+                avgsteadymel[i] = (int16_t) (_data.steadyStateAccumulator[i] >> STEADY_STATE_AVERAGING_PERIOD_2N);
             }
+            
             isHaveUpdate = TRUE;
         }
     }
@@ -533,8 +544,8 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
     //this can all go away if we get fftr to work, and do the
     int16_t fr[AUDIO_FFT_SIZE]; //2K
     int16_t fi[AUDIO_FFT_SIZE]; //2K
-    int16_t mel[MEL_SCALE_SIZE]; //inconsiquential
-    int16_t melCorrected[MEL_SCALE_SIZE]; //inconsiquential
+    int16_t logmel[MEL_SCALE_SIZE]; //inconsiquential
+    int16_t logmelCorrected[MEL_SCALE_SIZE]; //inconsiquential
 
     uint16_t i;
     uint8_t log2scaleOfRawSignal;
@@ -553,21 +564,23 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
     fft(fr,fi, AUDIO_FFT_SIZE_2N);
     
     /* Get Log Mel */
-    mel_freq(mel,melCorrected,_data.melavg,fr,fi,log2scaleOfRawSignal);
+    mel_freq(logmel,logmelCorrected,_data.melavg,fr,fi,log2scaleOfRawSignal);
     
-    //DEBUG_LOG_S16("logmel",NULL,mel,MEL_SCALE_SIZE,samplecount,samplecount);
+    DEBUG_LOG_S16("logmel",NULL,logmelCorrected,MEL_SCALE_SIZE,samplecount,samplecount);
 
     /*  get dct of mel,zero padded */
     memset(fr,0,NUM_MFCC_FEATURES*2*sizeof(int16_t));
     memset(fi,0,NUM_MFCC_FEATURES*2*sizeof(int16_t));
 
     for (i = 0; i < MEL_SCALE_SIZE; i++) {
-        fr[i] = melCorrected[i];
+        fr[i] = logmelCorrected[i];
     }
 
-    /* fr will contain the dct */
-    fft(fr,fi,NUM_MFCC_FEATURES_2N + 1);
-    //DEBUG_LOG_S16("mfcc",NULL,fr,NUM_MFCC_FEATURES,samplecount,samplecount);
+    /* fi will contain the dct */
+    dct16_direct(fi,fr,NUM_MFCC_FEATURES);
+    memcpy(fr,fi,NUM_MFCC_FEATURES*sizeof(int16_t));
+    
+    DEBUG_LOG_S16("mfcc",NULL,fr,NUM_MFCC_FEATURES,samplecount,samplecount);
     
     /* Moving Average */
     for (i = 0; i < NUM_MFCC_FEATURES; i++) {
@@ -583,7 +596,9 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
     
     SegmentSteadyState(&isStable,currentMode,mfccavg,samplecount);
     
-    SteadyStateAveraging(_data.melavg,isStable,mel);
+    if (SteadyStateAveraging(_data.melavg,isStable,logmel)) {
+        DEBUG_LOG_S16("steadyStateBackground", NULL, _data.melavg, NUM_MFCC_FEATURES, samplecount-STEADY_STATE_AVERAGING_PERIOD, samplecount);
+    }
     
     
     /* Update counter.  It's okay if this one rolls over*/
