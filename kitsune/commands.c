@@ -534,7 +534,13 @@ int Cmd_mel(int argc, char *argv[]) {
 #define NUM_LED 12
 #define LED_GPIO_BIT 0x1
 #define LED_GPIO_BASE GPIOA3_BASE
-int led( unsigned int* color ) {
+
+#if defined(ccs)
+
+#endif
+
+
+void led( unsigned int* color ) {
 	int i;
 	unsigned long ulInt;
 	unsigned int * end = color + NUM_LED;
@@ -544,18 +550,27 @@ int led( unsigned int* color ) {
 	ulInt = MAP_IntMasterDisable();
 	for( ;; ) {
 		for (i = 0; i < 24; ++i) {
-			if ((*color << i) & 0x800000) {
+			if ((*color << i) & 0x800000 ) {
 				//1
 				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_GPIO_BIT);
-				UtilsDelay(7);
+				UtilsDelay(10);
 				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, 0x0);
-				//UtilsDelay(1);
+				if( i!=23 ) {
+					UtilsDelay(5);
+				} else {
+					UtilsDelay(4);
+				}
+
 			} else {
 				//0
 				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_GPIO_BIT);
-				UtilsDelay(2);
+				UtilsDelay(5);
 				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, 0x0);
-				UtilsDelay(4);
+				if( i!=23 ) {
+					UtilsDelay(10);
+				} else {
+					UtilsDelay(7);
+				}
 			}
 		}
 		if( ++color == end ) {
@@ -565,23 +580,80 @@ int led( unsigned int* color ) {
 	if (!ulInt) {
 		MAP_IntMasterEnable();
 	}
-	return 0;
+}
+void led_array( unsigned int * colors ) {
+	int i;
+	for (i = 0; i < NUM_LED; ++i) {
+		led(colors+i);
+	}
+}
+void led_ccw( unsigned int * colors) {
+	int l;
+	for (l = 0; l < NUM_LED-1; ++l) {
+		int temp = colors[l];
+		colors[l] = colors[(l + 1) % NUM_LED];
+		colors[(l + 1) % NUM_LED] = temp;
+	}
+}
+void led_cw( unsigned int * colors) {
+	int l;
+	for (l = NUM_LED-2; l != -1; --l) {
+		int temp = colors[l];
+		if( l == 0) {
+			colors[l] = colors[NUM_LED-1];
+			colors[NUM_LED-1] = temp;
+		} else {
+			colors[l] = colors[(l - 1)];
+			colors[(l - 1)] = temp;
+		}
+	}
+}
+void led_brightness(unsigned int * colors, unsigned int brightness ) {
+	int l;
+	unsigned int blue,red,green;
+
+	for (l = 0; l < NUM_LED; ++l) {
+		blue = ( colors[l] & ~0xffff00 );
+		red = ( colors[l] & ~0xff00ff );
+		green = ( colors[l] & ~0x00ffff );
+
+		blue = (brightness * blue)>>8;
+		red = (brightness * red)>>8;
+		green = (brightness * green)>>8;
+		colors[l] = (blue) | (red<<8) | (green<<16);
+	}
 }
 
 int Cmd_led(int argc, char *argv[]) {
 	int i;
-	unsigned int color[NUM_LED];
-	for (i = 0; i < NUM_LED; ++i) {
-		color[i] = 0x000fff << i;
-	}
-	led(color);
-	for (i = 0; i < NUM_LED; ++i) {
-		vTaskDelay(1000);
-		for (i = 0; i < NUM_LED; ++i) {
-			color[i] = color[(i + 1) % NUM_LED];
+	unsigned int colors[NUM_LED]= {2,4,8,16,32,64,128,255,0,0,0,0};
+	unsigned int colors_o[NUM_LED]= {2,4,8,16,32,64,128,255,0,0,0,0};
+
+	//colors[0] = atoi(argv[1]);
+
+	for (i = 0; i < 512; i+=10) {
+		led_cw(colors_o);
+		memcpy( colors, colors_o, sizeof(colors));
+		if( i > 255 ) {
+			led_brightness( colors, 512-i );
+		} else {
+			led_brightness( colors, i );
 		}
-		led(color);
+		led_array(colors);
+		vTaskDelay(10);
 	}
+
+	memset(colors, 0, sizeof(colors));
+	led_array(colors);
+//
+	return 0;
+}
+
+int Cmd_led_clr(int argc, char *argv[]) {
+	int i;
+	unsigned int colors[NUM_LED] = { 0 };
+	led_array(colors);
+
 	return 0;
 }
 
@@ -639,6 +711,7 @@ tCmdLineEntry g_sCmdTable[] = {
 
 		{ "antsel", Cmd_antsel, "select antenna" },
 		{ "led", Cmd_led, "led test pattern" },
+		{ "clrled", Cmd_led_clr, "led test pattern" },
 
 		{ "rssi", Cmd_rssi, "scan rssi" },
 
