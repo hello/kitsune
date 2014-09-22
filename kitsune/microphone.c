@@ -118,7 +118,7 @@ void Microphone1()
 
     // Open the file for reading.
 
-    const char* file_name = "/POD3";
+    const char* file_name = "/POD101";
 
     FIL file_obj;
     FILINFO file_info;
@@ -188,18 +188,20 @@ void Microphone1()
 
 #endif   //NETWORK       
 
-             	if(g_iSentCount == iBufferFilled){
+             	if(g_iSentCount == 10000){
              		 res = f_close(file_ptr);
              		UARTprintf("mic task completed\r\n" );
              		g_iSentCount = 0;
              		break;
              	}
                  //  f_append("/Pud",*(pTxBuffer->pucReadPtr),512);
-                 WORD bytes = 0;
-                 WORD bytes_written = 0;
-                 WORD bytes_to_write = PACKET_SIZE;
 
+        	    WORD bytes = 0;
+        	    WORD bytes_written = 0;
+        	    WORD bytes_to_write = PACKET_SIZE;
                  do {
+
+
                 	 FRESULT res= f_write(file_ptr, (pTxBuffer->pucReadPtr)+bytes_written , bytes_to_write-bytes_written, &bytes );
                 	 //UARTprintf("res is %d\n ",res);
                  		bytes_written+=bytes;

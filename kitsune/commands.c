@@ -447,8 +447,8 @@ if(pRxBuffer == NULL)
 
 // Configure Audio Codec
 //
-//get_codec_mic_NAU();
-ConfigureAudioCodec(CODEC_I2S_WORD_LEN_24);
+get_codec_mic_NAU();
+//ConfigureAudioCodec(CODEC_I2S_WORD_LEN_24);
 
 // Initialize the Audio(I2S) Module
 //
