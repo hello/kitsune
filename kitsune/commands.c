@@ -171,6 +171,15 @@ unsigned long get_time() {
 	return ntp;
 }
 
+int thread_audio(void* unused) {
+	while (1) {
+		portTickType now = xTaskGetTickCount();
+		//todo audio processing
+		vTaskDelayUntil(&now, 100 ); //todo 10hz - this may need adjusted
+	}
+	return 0;
+}
+
 int thread_prox(void* unused) {
 	while (1) {
 		int prox = get_prox();
@@ -720,6 +729,8 @@ void vUARTTask(void *pvParameters) {
 		UARTprintf("Failed to create the data_queue.\n");
 	}
 
+	xTaskCreate(thread_audio, "audioTask", 10 * 1024 / 4, NULL, 4, NULL); //todo reduce stack
+	UARTprintf("*");
 #if 0
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask", 2 * 1024 / 4, NULL, 3, NULL);
 	UARTprintf("*");
