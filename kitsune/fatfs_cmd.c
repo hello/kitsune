@@ -41,7 +41,7 @@
 // it is root ("/").
 //
 //*****************************************************************************
-static char g_pcCwdBuf[PATH_BUF_SIZE] = "/";
+static char cwd_buff[PATH_BUF_SIZE] = "/";
 
 //*****************************************************************************
 //
@@ -49,7 +49,7 @@ static char g_pcCwdBuf[PATH_BUF_SIZE] = "/";
 // from the SD card.
 //
 //*****************************************************************************
-static char g_pcTmpBuf[PATH_BUF_SIZE];
+static char path_buff[PATH_BUF_SIZE];
 
 
 //*****************************************************************************
@@ -125,7 +125,7 @@ Cmd_ls(int argc, char *argv[])
     FRESULT res;
     FATFS *psFatFs;
 
-    res = f_opendir(&g_sDirObject, g_pcCwdBuf);
+    res = f_opendir(&g_sDirObject, cwd_buff);
 
     if(res != FR_OK)
     {
@@ -232,14 +232,14 @@ Cmd_cd(int argc, char *argv[])
 
     // Copy the current working path into a temporary buffer so it can be
     // manipulated.
-    strcpy(g_pcTmpBuf, g_pcCwdBuf);
+    strcpy(path_buff, cwd_buff);
 
     // If the first character is /, then this is a fully specified path, and it
     // should just be used as-is.
     if(argv[1][0] == '/')
     {
         // Make sure the new path is not bigger than the cwd buffer.
-        if(strlen(argv[1]) + 1 > sizeof(g_pcCwdBuf))
+        if(strlen(argv[1]) + 1 > sizeof(cwd_buff))
         {
             UARTprintf("Resulting path name is too long\n");
             return(0);
@@ -249,7 +249,7 @@ Cmd_cd(int argc, char *argv[])
         // into the temporary buffer so it can be checked.
         else
         {
-            strncpy(g_pcTmpBuf, argv[1], sizeof(g_pcTmpBuf));
+            strncpy(path_buff, argv[1], sizeof(path_buff));
         }
     }
     // If the argument is .. then attempt to remove the lowest level on the
@@ -257,11 +257,11 @@ Cmd_cd(int argc, char *argv[])
     else if(!strcmp(argv[1], ".."))
     {
         // Get the index to the last character in the current path.
-        ui8Idx = strlen(g_pcTmpBuf) - 1;
+        ui8Idx = strlen(path_buff) - 1;
 
         // Back up from the end of the path name until a separator (/) is
         // found, or until we bump up to the start of the path.
-        while((g_pcTmpBuf[ui8Idx] != '/') && (ui8Idx > 1))
+        while((path_buff[ui8Idx] != '/') && (ui8Idx > 1))
         {
             // Back up one character.
             ui8Idx--;
@@ -270,7 +270,7 @@ Cmd_cd(int argc, char *argv[])
         // Now we are either at the lowest level separator in the current path,
         // or at the beginning of the string (root).  So set the new end of
         // string here, effectively removing that last part of the path.
-        g_pcTmpBuf[ui8Idx] = 0;
+        path_buff[ui8Idx] = 0;
     }
 
     // Otherwise this is just a normal path name from the current directory,
@@ -280,7 +280,7 @@ Cmd_cd(int argc, char *argv[])
         // Test to make sure that when the new additional path is added on to
         // the current path, there is room in the buffer for the full new path.
         // It needs to include a new separator, and a trailing null character.
-        if(strlen(g_pcTmpBuf) + strlen(argv[1]) + 1 + 1 > sizeof(g_pcCwdBuf))
+        if(strlen(path_buff) + strlen(argv[1]) + 1 + 1 > sizeof(cwd_buff))
         {
             UARTprintf("Resulting path name is too long\n");
             return(0);
@@ -291,32 +291,32 @@ Cmd_cd(int argc, char *argv[])
         else
         {
             // If not already at the root level, then append a /
-            if(strcmp(g_pcTmpBuf, "/"))
+            if(strcmp(path_buff, "/"))
             {
-                strcat(g_pcTmpBuf, "/");
+                strcat(path_buff, "/");
             }
 
             // Append the new directory to the path.
-            strcat(g_pcTmpBuf, argv[1]);
+            strcat(path_buff, argv[1]);
         }
     }
 
     // At this point, a candidate new directory path is in chTmpBuf.  Try to
     // open it to make sure it is valid.
-    res = f_opendir(&g_sDirObject, g_pcTmpBuf);
+    res = f_opendir(&g_sDirObject, path_buff);
 
     // If it can't be opened, then it is a bad path.  Inform the user and
     // return.
     if(res != FR_OK)
     {
-        UARTprintf("cd: %s\n", g_pcTmpBuf);
+        UARTprintf("cd: %s\n", path_buff);
         return((int)res);
     }
 
     // Otherwise, it is a valid new path, so copy it into the CWD.
     else
     {
-        strncpy(g_pcCwdBuf, g_pcTmpBuf, sizeof(g_pcCwdBuf));
+        strncpy(cwd_buff, path_buff, sizeof(cwd_buff));
     }
     return(0);
 }
@@ -330,7 +330,7 @@ Cmd_cd(int argc, char *argv[])
 int
 Cmd_pwd(int argc, char *argv[])
 {
-    UARTprintf("%s\n", g_pcCwdBuf);
+    UARTprintf("%s\n", cwd_buff);
     return(0);
 }
 int global_filename(char * local_fn)
@@ -339,23 +339,23 @@ int global_filename(char * local_fn)
     // name, plus a separator and trailing null, will all fit in the temporary
     // buffer that will be used to hold the file name.  The file name must be
     // fully specified, with path, to FatFs.
-    if(strlen(g_pcCwdBuf) + strlen(local_fn) + 1 + 1 > sizeof(g_pcTmpBuf))
+    if(strlen(cwd_buff) + strlen(local_fn) + 1 + 1 > sizeof(path_buff))
     {
         UARTprintf("Resulting path name is too long\n");
         return(0);
     }
 
     // Copy the current path to the temporary buffer so it can be manipulated.
-    strcpy(g_pcTmpBuf, g_pcCwdBuf);
+    strcpy(path_buff, cwd_buff);
 
     // If not already at the root level, then append a separator.
-    if(strcmp("/", g_pcCwdBuf))
+    if(strcmp("/", cwd_buff))
     {
-        strcat(g_pcTmpBuf, "/");
+        strcat(path_buff, "/");
     }
 
     // Now finally, append the file name to result in a fully specified file.
-    strcat(g_pcTmpBuf, local_fn);
+    strcat(path_buff, local_fn);
 
     return 0;
 }
@@ -378,7 +378,7 @@ Cmd_cat(int argc, char *argv[])
     	return 1;
     }
 
-    res = f_open(&file_obj, g_pcTmpBuf, FA_READ);
+    res = f_open(&file_obj, path_buff, FA_READ);
     if(res != FR_OK)
     {
         return((int)res);
@@ -390,7 +390,7 @@ Cmd_cat(int argc, char *argv[])
     {
         // Read a block of data from the file.  Read as much as can fit in the
         // temporary buffer, including a space for the trailing null.
-        res = f_read(&file_obj, g_pcTmpBuf, 4,
+        res = f_read(&file_obj, path_buff, 4,
                          &ui16BytesRead);
 
         // If there was an error reading, then print a newline and return the
@@ -402,10 +402,10 @@ Cmd_cat(int argc, char *argv[])
         }
         // Null terminate the last block that was read to make it a null
         // terminated string that can be used with printf.
-        g_pcTmpBuf[ui16BytesRead] = 0;
+        path_buff[ui16BytesRead] = 0;
 
         // Print the last chunk of the file that was received.
-        UARTprintf("%s", g_pcTmpBuf);
+        UARTprintf("%s", path_buff);
     }
     while(ui16BytesRead == 4);
 
@@ -430,9 +430,9 @@ Cmd_write_audio(char *argv[])
     }
     UARTprintf("print");
     // Open the file for reading.
-    //res = f_open(&file_obj, g_pcTmpBuf, FA_CREATE_NEW|FA_WRITE);
-    res = f_open(&file_obj, g_pcTmpBuf, FA_WRITE);
-    f_stat( g_pcTmpBuf, &file_info );
+    //res = f_open(&file_obj, path_buff, FA_CREATE_NEW|FA_WRITE);
+    res = f_open(&file_obj, path_buff, FA_WRITE);
+    f_stat( path_buff, &file_info );
 
     if( file_info.fsize != 0 )
         res = f_lseek(&file_obj, file_info.fsize );
@@ -467,15 +467,15 @@ Cmd_write(int argc, char *argv[])
     }
 
     // Open the file for reading.
-    FRESULT res = f_open(&file_obj, g_pcTmpBuf, FA_CREATE_NEW|FA_WRITE);
+    FRESULT res = f_open(&file_obj, path_buff, FA_CREATE_NEW|FA_WRITE);
     UARTprintf("res :%d\n",res);
 
     if(res != FR_OK && res != FR_EXIST){
-    	UARTprintf("File open %s failed: %d\n", g_pcTmpBuf, res);
+    	UARTprintf("File open %s failed: %d\n", path_buff, res);
     	return res;
     }
 
-    f_stat( g_pcTmpBuf, &file_info );
+    f_stat( path_buff, &file_info );
 
     if( file_info.fsize != 0 )
         res = f_lseek(&file_obj, file_info.fsize );
@@ -528,10 +528,10 @@ int Cmd_write_record(unsigned char *content)
     }
 
     // Open the file for reading.
-    //res = f_open(&file_obj, g_pcTmpBuf, FA_CREATE_NEW|FA_WRITE);
-    res = f_open(&file_obj, g_pcTmpBuf, FA_WRITE|FA_OPEN_EXISTING|FA_CREATE_NEW);
+    //res = f_open(&file_obj, path_buff, FA_CREATE_NEW|FA_WRITE);
+    res = f_open(&file_obj, path_buff, FA_WRITE|FA_OPEN_EXISTING|FA_CREATE_NEW);
 
-    f_stat( g_pcTmpBuf, &file_info );
+    f_stat( path_buff, &file_info );
 
     if( file_info.fsize != 0 )
         res = f_lseek(&file_obj, file_info.fsize );
@@ -547,7 +547,7 @@ int Cmd_write_record(unsigned char *content)
     {
         return((int)res);
     }
-    //UARTprintf("%s", g_pcTmpBuf);
+    //UARTprintf("%s", path_buff);
     return(0);
 }
 // end sound recording buffer
@@ -561,7 +561,7 @@ Cmd_rm(int argc, char *argv[])
     	return 1;
     }
 
-    res = f_unlink( g_pcTmpBuf);
+    res = f_unlink( path_buff);
 
     if(res != FR_OK)
     {
@@ -581,7 +581,7 @@ Cmd_mkdir(int argc, char *argv[])
     	return 1;
     }
 
-    res = f_mkdir( g_pcTmpBuf);
+    res = f_mkdir( path_buff);
     if(res != FR_OK)
     {
         return((int)res);
