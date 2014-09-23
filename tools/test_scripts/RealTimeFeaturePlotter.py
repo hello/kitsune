@@ -12,6 +12,8 @@ import struct
 import matrix_pb2
 import base64
 from Queue import Queue
+from Queue import Empty
+
 
 import sys
 sys.path.append('.')
@@ -32,10 +34,13 @@ FORMAT = pyaudio.paInt16 #paInt8
 CHANNELS = 1 
 RATE = 44100 #sample rate
 
-plot_target = 'mfcc_avg'
-plot_samples = 430*3
-num_feats = 16
-plot_yrange = (-50000, 300000)
+#plot_target = 'mfcc_avg'
+#plot_target = 'psd'
+plot_target = 'sums'
+
+plot_samples = 430
+num_feats = 8
+plot_yrange = (0, 30000)
 plot_num_signal = num_feats + 1
 
 g_kill = False
@@ -138,10 +143,21 @@ def updatePlot():
                 g_graphicsitems.append(text)
                 g_p6.addItem(text)
 
-
+            
+            if block.mytype_ == 'block':
+                vec = block.data_.idata
+                vec2 = []
+                for i in vec:
+                    vec2.append(i)
+               
+                g_curves[0].setData(vec2)
     
-    except Exception:
+    
+    except Empty:
         foo = 3
+    except Exception:
+        raise
+
 
 def updateAudio(stream):
     first = True    
@@ -218,9 +234,16 @@ def updateAudio(stream):
             
             if retval:
                 g_client.sendMatrixMessage(data)
-            
-            block = DataBlock(data, 'audiofeatures')
+           
+            mytype = 'audiofeatures'
+        
+            if plot_target == 'psd':
+                mytype = 'block'
+                
+
+            block = DataBlock(data, mytype)
             g_PlotQueue.put(block)
+        
         except IOError:
             print "IO Error"
 

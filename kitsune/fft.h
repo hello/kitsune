@@ -13,7 +13,7 @@ extern "C" {
 int32_t fft(int16_t fr[], int16_t fi[], int32_t m);
 int32_t fftr(int16_t f[], int32_t m); //this does not work, do not use it.
 
-void mel_freq(int16_t mel[],int16_t mel_denoised[], const int16_t mel_correction[],const int16_t fr[],const int16_t fi[],uint8_t log2scaleOfRawSignal);
+void mel_freq(int32_t mel[],const int16_t mel_correction[],const int16_t fr[],const int16_t fi[],uint8_t log2scaleOfRawSignal);
     
 void dct16(int16_t f[16]);
 void dct16_direct(int16_t dctf[16],const int16_t f[16],const uint16_t n);
@@ -25,6 +25,7 @@ int16_t fxd_sin( uint16_t x );
 uint32_t fxd_sqrt (uint32_t n); //untested
 
 void abs_fft(uint16_t psd[], const int16_t fr[],const int16_t fi[],const int16_t len);
+void logpsd(int16_t psd[],const int16_t fr[],const int16_t fi[],uint8_t log2scaleOfRawSignal,uint8_t nfft);
 
 int16_t FixedPointLog2Q10(uint64_t x);
 uint8_t CountHighestMsb(uint64_t x);

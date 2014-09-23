@@ -41,6 +41,13 @@ void SetDebugVectorS16(const char * name, const char * tags,const int16_t * pdat
     }
 }
 
+void SetDebugVectorU16(const char * name, const char * tags,const uint16_t * pdata, uint32_t len,int64_t t1, int64_t t2) {
+    if (DebugLogSingleton::Instance()) {
+        DebugLogSingleton::Instance()->SetDebugVectorU16(name,tags,pdata,len,t1,t2);
+    }
+}
+
+
 void SetDebugVectorU8(const char * name, const char * tags,const uint8_t * pdata, uint32_t len,int64_t t1, int64_t t2) {
     if (DebugLogSingleton::Instance()) {
         DebugLogSingleton::Instance()->SetDebugVectorU8(name,tags,pdata,len,t1,t2);

@@ -86,9 +86,31 @@ TEST_F(TestFrequencyFeatures,TestFFT1) {
     ASSERT_NEAR (err2,0,10);
     
     
+
+}
+
+TEST_F(TestFrequencyFeatures,TestPsd) {
+    short vecr[1024];
+    short veci[1024];
     
+    int n = sizeof(testvec1) / sizeof(short);
+    
+    
+    ASSERT_TRUE(n == 1024);
+    
+    memcpy(vecr,testvec1,sizeof(vecr));
+    memset(veci,0,sizeof(veci));
+    
+    //2^10 = 1024
+    fft(vecr,veci,10);
+    
+    logpsd(&vecr[512], vecr, veci, 0, 10);
+    
+    PrintShortVecToFile("logpsd.txt",&vecr[512],512);
     
 }
+
+
 
 TEST_F(TestFrequencyFeatures,TestFFTR1) {
     short vec[1024];

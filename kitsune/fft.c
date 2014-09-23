@@ -500,11 +500,74 @@ uint32_t FixedPointExp2Q10(const int16_t x) {
 // f is both input and output
 // f as input is the PSD bin, and is always positive
 // f as output is the mel bins
+void logpsd(int16_t psd[],const int16_t fr[],const int16_t fi[],uint8_t log2scaleOfRawSignal,uint8_t nfft) {
+    uint16_t i;
+    uint16_t ufr;
+    uint16_t ufi;
+    uint64_t utemp64;
+    const uint16_t numelements = (1 << (nfft - 1));
+#define WINDOW_SIZE_2N (0)
+#define WINDOW_SIZE (1 << WINDOW_SIZE_2N)
+#define WINDOW_SIZE_MASK (WINDOW_SIZE - 1)
+#define MIN_ENERGY_LOGPSD (16)
 
-void mel_freq(int16_t mel[],int16_t melCorrected[], const int16_t melBackgroundNoise[],const int16_t fr[],const int16_t fi[],uint8_t log2scaleOfRawSignal) {
+    
+    uint16_t bufr[WINDOW_SIZE] = {0};
+    uint16_t bufi[WINDOW_SIZE] = {0};
+    uint16_t idx;
+    uint32_t accumr = 0;
+    uint32_t accumi = 0;
+    
+    psd[0] = -32768;
+    psd[1] = -32768;
+    psd[2] = -32768;
+    
+    idx = 0;
+    
+    //square window in place... this is very crappy... our window is even sized, not odd... so it will slightly move the frequencies
+    for (i = 4; i < numelements; i++) {
+        idx = i & WINDOW_SIZE_MASK;
+        ufr = abs(fr[i]);
+        ufi = abs(fi[i]);
+        
+        
+        
+        accumr += ufr;
+        accumr -= bufr[idx];
+        
+        accumi += ufi;
+        accumi -= bufi[idx];
+        
+        
+        bufi[idx] = abs(fi[i]);
+        bufr[idx] = abs(fr[i]);
+        
+        if (i - WINDOW_SIZE/2 >= 0) {
+            ufr = accumr >> WINDOW_SIZE_2N;
+            ufi = accumi >> WINDOW_SIZE_2N;
+            
+            utemp64 = MIN_ENERGY_LOGPSD;
+            utemp64 += (uint32_t)ufr*(uint32_t)ufr;
+            utemp64 += (uint32_t)ufi*(uint32_t)ufi;
+            
+            psd[i - WINDOW_SIZE/2] = FixedPointLog2Q10(utemp64) - log2scaleOfRawSignal*(1<<10);
+        }
+        
+    }
+    
+    for (i = 1; i <= WINDOW_SIZE/2; i++) {
+        psd[numelements - i] = psd[numelements - WINDOW_SIZE/2 - 1];
+    }
+
+}
+
+
+void mel_freq(int32_t mel[],const int16_t melBackgroundNoise[],const int16_t fr[],const int16_t fi[],uint8_t log2scaleOfRawSignal) {
 	
     // in Hz
     static const uint16_t k_bin_start = 3;
+    /* 129 - 258
+        */
     static const uint16_t k_bins_indices[MEL_SCALE_SIZE] = {6,9,12,15,18,24,30,36,48,60,72,84,96,120,144,168};
 	static const int16_t k_log2_normalization[MEL_SCALE_SIZE] = {3,3,3,3,3,2,2,2,1,1,1,1,1,0,0,0};
     uint16_t iBin;
@@ -552,35 +615,12 @@ void mel_freq(int16_t mel[],int16_t melCorrected[], const int16_t melBackgroundN
                 accumulator64 >>= -scale;
             }
             
-            //enforce floor of at least 1, because log of 0 is -inf
-            if (accumulator64 == 0) {
-                accumulator64++;
+            if (accumulator64 > INT32_MAX) {
+                accumulator64 = INT32_MAX;
             }
             
-            //result!
-            mel[iBinEdge]  = FixedPointLog2Q10(accumulator64);
-            
-            
-            //now correct for background noise
-            backgroundNoise = FixedPointExp2Q10(melBackgroundNoise[iBinEdge]);
+            mel[iBinEdge]  = (int32_t)accumulator64;//FixedPointLog2Q10(accumulator64);
 
-            
-            //check for rollover of accumulator64 after subtraction
-            if (backgroundNoise > accumulator64) {
-                accumulator64 = 0;
-            }
-            else {
-                accumulator64 -= backgroundNoise;
-            }
-            
-            //enforce floor of at least 1, because log of 0 is -inf
-            if (accumulator64 == 0) {
-                accumulator64++;
-            }
-            
-            //corrected result!
-            melCorrected[iBinEdge]  = FixedPointLog2Q10(accumulator64);
-            
 
             /// prepare for next iterator ///
     

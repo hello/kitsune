@@ -544,14 +544,21 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
     //this can all go away if we get fftr to work, and do the
     int16_t fr[AUDIO_FFT_SIZE]; //2K
     int16_t fi[AUDIO_FFT_SIZE]; //2K
-    int16_t logmel[MEL_SCALE_SIZE]; //inconsiquential
+    int32_t logmel[MEL_SCALE_SIZE]; //inconsiquential
     int16_t logmelCorrected[MEL_SCALE_SIZE]; //inconsiquential
 
-    uint16_t i;
+    uint16_t i,j,k;
     uint8_t log2scaleOfRawSignal;
     int32_t mfccavg[NUM_MFCC_FEATURES];
     EChangeModes_t currentMode;
     uint8_t isStable;
+    static  int16_t buf[512] = {0};
+    static  int16_t buf1[512] = {0};
+    int32_t sumbuf[8];
+
+    uint16_t buf2[256];
+    int16_t * psd = &fr[512];
+
     
     /* Copy in raw samples, zero out complex part of fft input*/
     memcpy(fr,samples,AUDIO_FFT_SIZE*sizeof(int16_t));
@@ -563,11 +570,40 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
     /* Get FFT */
     fft(fr,fi, AUDIO_FFT_SIZE_2N);
     
-    /* Get Log Mel */
-    mel_freq(logmel,logmelCorrected,_data.melavg,fr,fi,log2scaleOfRawSignal);
+    logpsd(psd,fr, fi, log2scaleOfRawSignal, AUDIO_FFT_SIZE_2N);
     
-    DEBUG_LOG_S16("logmel",NULL,logmelCorrected,MEL_SCALE_SIZE,samplecount,samplecount);
+    for (i = 0; i < 256; i++) {
+        buf[i] = MUL(buf[i], TOFIX(0.99f,15), 15) + MUL(psd[i], TOFIX(0.01f,15), 15);
+        buf1[i] = MUL(buf1[i], TOFIX(0.5f,15), 15) + MUL(psd[i] - buf[i], TOFIX(0.5,15), 15);
+    }
+    
+    memset(fr,0,sizeof(fi));
+    memcpy(fr,buf1,256*sizeof(int16_t));
+    memset(fi,0,sizeof(fi));
 
+    
+    fft(fr,fi,AUDIO_FFT_SIZE_2N>>2);
+    
+    abs_fft(buf2, fr, fi, 256);
+    k = 0;
+    buf2[0] = 0;
+    for (j = 0; j < 4; j++) {
+        sumbuf[j] = 0;
+        for (i = 0; i < 64; i++) {
+            sumbuf[j] += buf2[k++];
+        }
+    }
+    
+    DEBUG_LOG_S32("sums",NULL,sumbuf,4,samplecount,samplecount);
+
+    
+  //  DEBUG_LOG_U16("psd", NULL, buf2, 256, samplecount, samplecount);
+    /* Get Log Mel */
+    //mel_freq(logmel,_data.melavg,fr,fi,log2scaleOfRawSignal);
+    
+    //DEBUG_LOG_S32("logmel",NULL,logmel,MEL_SCALE_SIZE,samplecount,samplecount);
+
+#if 0
     /*  get dct of mel,zero padded */
     memset(fr,0,NUM_MFCC_FEATURES*2*sizeof(int16_t));
     memset(fi,0,NUM_MFCC_FEATURES*2*sizeof(int16_t));
@@ -599,7 +635,7 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
     if (SteadyStateAveraging(_data.melavg,isStable,logmel)) {
         DEBUG_LOG_S16("steadyStateBackground", NULL, _data.melavg, NUM_MFCC_FEATURES, samplecount-STEADY_STATE_AVERAGING_PERIOD, samplecount);
     }
-    
+#endif
     
     /* Update counter.  It's okay if this one rolls over*/
     _data.callcounter++;
