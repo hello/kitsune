@@ -1745,6 +1745,9 @@ void PRCMCC3200MCUInit()
     //
     PRCMPeripheralReset(PRCM_UDMA);
 
+    // Reset I2S
+    //
+    PRCMPeripheralReset(PRCM_I2S);
     //
     // Disable uDMA
     //

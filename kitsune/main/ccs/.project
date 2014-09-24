@@ -28,7 +28,7 @@
 		<link>
 			<name>CC3200.ccxml</name>
 			<type>1</type>
-			<location>PARENT-2-PROJECT_LOC/CC3200.ccxml</location>
+			<locationURI>PARENT-2-PROJECT_LOC/CC3200.ccxml</locationURI>
 		</link>
 		<link>
 			<name>aes.c</name>
@@ -39,6 +39,16 @@
 			<name>audiofeatures.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/audiofeatures.c</locationURI>
+		</link>
+		<link>
+			<name>circ_buff.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/circ_buff.c</locationURI>
+		</link>
+		<link>
+			<name>circ_buff.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/circ_buff.h</locationURI>
 		</link>
 		<link>
 			<name>cmdline.c</name>
@@ -126,6 +136,21 @@
 			<locationURI>PARENT-1-PROJECT_LOC/main.c</locationURI>
 		</link>
 		<link>
+			<name>mcasp_if.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/mcasp_if.c</locationURI>
+		</link>
+		<link>
+			<name>mcasp_if.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/mcasp_if.h</locationURI>
+		</link>
+		<link>
+			<name>microphone.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/microphone.c</locationURI>
+		</link>
+		<link>
 			<name>nanopb</name>
 			<type>2</type>
 			<locationURI>virtual:/virtual</locationURI>
@@ -134,6 +159,16 @@
 			<name>ota_usr.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/ota_usr.h</locationURI>
+		</link>
+		<link>
+			<name>pcm_handler.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/pcm_handler.c</locationURI>
+		</link>
+		<link>
+			<name>pcm_handler.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/pcm_handler.h</locationURI>
 		</link>
 		<link>
 			<name>pinmux.c</name>
@@ -159,6 +194,11 @@
 			<name>sha1.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/sha1.c</locationURI>
+		</link>
+		<link>
+			<name>speaker.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/speaker.c</locationURI>
 		</link>
 		<link>
 			<name>spi_cmd.c</name>

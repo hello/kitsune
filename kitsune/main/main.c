@@ -315,12 +315,11 @@ void main()
   //
   BoardInit();
 
- // start_wdt();
+  //start_wdt();
   //
   // configure the GPIO pins for LEDs
   //
   PinMuxConfig();
-
 
   SetupGPIOInterrupts();
 

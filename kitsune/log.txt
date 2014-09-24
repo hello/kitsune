@@ -1,0 +1,112 @@
+HEAD detached from 42c6248
+Changes not staged for commit:
+  (use "git add/rm <file>..." to update what will be committed)
+  (use "git checkout -- <file>..." to discard changes in working directory)
+
+	modified:   ../driverlib/adc.c
+	modified:   ../driverlib/adc.h
+	modified:   ../driverlib/camera.h
+	modified:   ../driverlib/ccs/.cproject
+	modified:   ../driverlib/ccs/.project
+	modified:   ../driverlib/cpu.c
+	modified:   ../driverlib/i2c.c
+	modified:   ../driverlib/interrupt.c
+	modified:   ../driverlib/prcm.c
+	modified:   ../driverlib/rom.h
+	modified:   ../driverlib/rom_map.h
+	modified:   ../driverlib/sdhost.c
+	modified:   ../driverlib/spi.c
+	modified:   ../driverlib/timer.c
+	modified:   ../driverlib/timer.h
+	modified:   ../driverlib/utils.c
+	modified:   ../inc/hw_adc.h
+	modified:   ../inc/hw_timer.h
+	modified:   commands.c
+	modified:   common/i2c_if.c
+	modified:   common/startup_ccs.c
+	modified:   dust_cmd.c
+	modified:   fault.c
+	modified:   fft.c
+	modified:   fft.h
+	modified:   i2c_cmd.c
+	modified:   main/ccs/.cproject
+	modified:   main/ccs/.project
+	modified:   main/main.c
+	modified:   main/pinmux.c
+	modified:   wifi_cmd.c
+	modified:   wifi_cmd.h
+	deleted:    ../oslib/ccs/.cproject
+	modified:   ../simplelink/Include/device.h
+	modified:   ../simplelink/Include/fs.h
+	modified:   ../simplelink/Include/netapp.h
+	modified:   ../simplelink/Include/netcfg.h
+	modified:   ../simplelink/Include/simplelink.h
+	modified:   ../simplelink/Include/socket.h
+	modified:   ../simplelink/Include/trace.h
+	modified:   ../simplelink/Include/wlan.h
+	modified:   ../simplelink/Include/wlan_rx_filters.h
+	deleted:    ../simplelink/Source/datatypes.h
+	modified:   ../simplelink/Source/device.c
+	modified:   ../simplelink/Source/driver.c
+	modified:   ../simplelink/Source/driver.h
+	modified:   ../simplelink/Source/flowcont.c
+	modified:   ../simplelink/Source/flowcont.h
+	modified:   ../simplelink/Source/fs.c
+	modified:   ../simplelink/Source/netapp.c
+	modified:   ../simplelink/Source/netcfg.c
+	modified:   ../simplelink/Source/nonos.c
+	modified:   ../simplelink/Source/nonos.h
+	modified:   ../simplelink/Source/protocol.h
+	modified:   ../simplelink/Source/socket.c
+	modified:   ../simplelink/Source/spawn.c
+	modified:   ../simplelink/Source/spawn.h
+	modified:   ../simplelink/Source/wlan.c
+	modified:   ../simplelink/cc_pal.c
+	modified:   ../simplelink/cc_pal.h
+	modified:   ../simplelink/cc_pal_pm.c
+	modified:   ../simplelink/ccs/.cproject
+	modified:   ../simplelink/gcc/Makefile
+	modified:   ../simplelink/gcc/exe/simplelink.a
+	modified:   ../simplelink/gcc/exe/simplelink_nonos.a
+	modified:   ../simplelink/user.h
+	modified:   ../third_party/FreeRTOS/source/FreeRTOSConfig.h
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+
+	../ExtLibs/
+	../driverlib/.interrupt.h.swp
+	../driverlib/ccs/.gitignore
+	.command.c.swn
+	.command.c.swo
+	.command.c.swp
+	.commands.c.swp
+	desktop.ini
+	diskio.c
+	fatfs_cmd.c
+	fatfs_cmd.h
+	log.txt
+	main/ccs/.gitignore
+	main/ccs/.launches/
+	main/ccs/.project0
+	protobuf/audio_data.pb
+	protobuf/audio_data.pb.c
+	protobuf/audio_data.pb.h
+	protobuf/audio_data.proto
+	protobuf/envelope.pb
+	protobuf/envelope.pb.c
+	protobuf/envelope.pb.h
+	protobuf/envelope.proto
+	spi_cmd.c
+	spi_cmd.h
+	stdcmd.h
+	../simplelink/user_cc3200.h
+	../simplelink/user_win.h
+	../third_party/fatfs/
+	../third_party/gtest/
+	../third_party/libcelt/
+	../tools/test_scripts/
+	../uniflash_session/templates/CC3xxx_template.xml
+	../unit-test/
+
+no changes added to commit (use "git add" and/or "git commit -a")

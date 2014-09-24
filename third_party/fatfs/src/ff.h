@@ -209,7 +209,7 @@ FRESULT    f_mkdir (const char*);                        /* Create a new directo
 FRESULT f_chmod (const char*, BYTE, BYTE);            /* Change file/dir attriburte */
 FRESULT f_rename (const char*, const char*);        /* Rename/Move a file or directory */
 FRESULT f_mkfs (BYTE, BYTE, BYTE);                    /* Create a file system on the drive */
-
+FRESULT f_append(const char* file_name, const unsigned char* content, int length);
 
 /* User defined function to give a current time to fatfs module */
 

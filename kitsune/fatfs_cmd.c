@@ -10,6 +10,7 @@
 #include <string.h>
 #include <assert.h>
 #include <stdint.h>
+#include "fatfs_cmd.h"
 
 /* Standard Stellaris includes */
 #include "hw_types.h"
@@ -18,6 +19,9 @@
 #include "uartstdio.h"
 
 #include "fatfs_cmd.h"
+#include "circ_buff.h"
+#include "ff.h"
+#include "diskio.h"
 
 
 //*****************************************************************************
@@ -52,11 +56,12 @@ static char path_buff[PATH_BUF_SIZE];
 // The following are data structures used by FatFs.
 //
 //*****************************************************************************
-FATFS fsobj;
-DIR fsdirobj;
-FILINFO file_info;
-FIL file_obj;
+static FATFS fsobj;
+static DIR fsdirobj;
+static FILINFO file_info;
+static FIL file_obj;
 
+extern tCircularBuffer *pTxBuffer;
 
 int Cmd_mnt(int argc, char *argv[])
 {
@@ -225,7 +230,7 @@ Cmd_cd(int argc, char *argv[])
 
     // Copy the current working path into a temporary buffer so it can be
     // manipulated.
-    strcpy(path_buff,cwd_buff);
+    strcpy(path_buff, cwd_buff);
 
     // If the first character is /, then this is a fully specified path, and it
     // should just be used as-is.
@@ -263,7 +268,7 @@ Cmd_cd(int argc, char *argv[])
         // Now we are either at the lowest level separator in the current path,
         // or at the beginning of the string (root).  So set the new end of
         // string here, effectively removing that last part of the path.
-       path_buff[ui8Idx] = 0;
+        path_buff[ui8Idx] = 0;
     }
 
     // Otherwise this is just a normal path name from the current directory,
@@ -323,7 +328,7 @@ Cmd_cd(int argc, char *argv[])
 int
 Cmd_pwd(int argc, char *argv[])
 {
-    UARTprintf("%s\n",cwd_buff);
+    UARTprintf("%s\n", cwd_buff);
     return(0);
 }
 int global_filename(char * local_fn)
@@ -339,10 +344,10 @@ int global_filename(char * local_fn)
     }
 
     // Copy the current path to the temporary buffer so it can be manipulated.
-    strcpy(path_buff,cwd_buff);
+    strcpy(path_buff, cwd_buff);
 
     // If not already at the root level, then append a separator.
-    if(strcmp("/",cwd_buff))
+    if(strcmp("/", cwd_buff))
     {
         strcat(path_buff, "/");
     }
@@ -371,7 +376,7 @@ Cmd_cat(int argc, char *argv[])
     	return 1;
     }
 
-    res = f_open(&file_obj,path_buff, FA_READ);
+    res = f_open(&file_obj, path_buff, FA_READ);
     if(res != FR_OK)
     {
         return((int)res);
@@ -383,7 +388,7 @@ Cmd_cat(int argc, char *argv[])
     {
         // Read a block of data from the file.  Read as much as can fit in the
         // temporary buffer, including a space for the trailing null.
-        res = f_read(&file_obj,path_buff, 4,
+        res = f_read(&file_obj, path_buff, 4,
                          &ui16BytesRead);
 
         // If there was an error reading, then print a newline and return the
@@ -395,10 +400,11 @@ Cmd_cat(int argc, char *argv[])
         }
         // Null terminate the last block that was read to make it a null
         // terminated string that can be used with printf.
-       path_buff[ui16BytesRead] = 0;
+        path_buff[ui16BytesRead] = 0;
 
         // Print the last chunk of the file that was received.
-        UARTprintf("%s",path_buff);
+        UARTprintf("%s", path_buff);
+
     }
     while(ui16BytesRead == 4);
 
@@ -407,30 +413,31 @@ Cmd_cat(int argc, char *argv[])
     UARTprintf("\n");
     return(0);
 }
+
 int
-Cmd_write(int argc, char *argv[])
+Cmd_write_audio(char *argv[])
 {
     FRESULT res;
 
 	WORD bytes = 0;
 	WORD bytes_written = 0;
-	WORD bytes_to_write = strlen(argv[2])+1;
+	WORD bytes_to_write = strlen(argv[1])+1;
 
-    if(global_filename( argv[1] ))
+    if(global_filename( "TXBUF"))
     {
     	return 1;
     }
-
-    // Open the file for writing
-    res = f_open(&file_obj,path_buff, FA_CREATE_NEW|FA_WRITE);
-
-    f_stat(path_buff, &file_info );
+    UARTprintf("print");
+    // Open the file for reading.
+    //res = f_open(&file_obj, path_buff, FA_CREATE_NEW|FA_WRITE);
+    res = f_open(&file_obj, path_buff, FA_WRITE);
+    f_stat( path_buff, &file_info );
 
     if( file_info.fsize != 0 )
         res = f_lseek(&file_obj, file_info.fsize );
 
     do {
-		res = f_write( &file_obj, argv[2]+bytes_written, bytes_to_write-bytes_written, &bytes );
+		res = f_write( &file_obj, argv[1]+bytes_written, bytes_to_write-bytes_written, &bytes );
 		bytes_written+=bytes;
     } while( bytes_written < bytes_to_write );
 
@@ -443,6 +450,106 @@ Cmd_write(int argc, char *argv[])
     return(0);
 }
 
+int
+Cmd_write(int argc, char *argv[])
+{
+	UARTprintf("Cmd_write\n");
+
+	WORD bytes = 0;
+	WORD bytes_written = 0;
+	WORD bytes_to_write = strlen(argv[2]) + 1;
+
+    if(global_filename( argv[1] ))
+    {
+    	return 1;
+
+    }
+
+    // Open the file for writing.
+    FRESULT res = f_open(&file_obj, path_buff, FA_CREATE_NEW|FA_WRITE);
+    UARTprintf("res :%d\n",res);
+
+    if(res != FR_OK && res != FR_EXIST){
+    	UARTprintf("File open %s failed: %d\n", path_buff, res);
+    	return res;
+    }
+
+    f_stat( path_buff, &file_info );
+
+    if( file_info.fsize != 0 )
+        res = f_lseek(&file_obj, file_info.fsize );
+
+    do {
+		res = f_write( &file_obj, argv[2]+bytes_written, bytes_to_write-bytes_written, &bytes );
+		bytes_written+=bytes;
+		UARTprintf("bytes written: %d\n", bytes_written);
+
+    } while( bytes_written < bytes_to_write );
+
+    res = f_close( &file_obj );
+
+    if(res != FR_OK)
+    {
+        return((int)res);
+    }
+    return(0);
+}
+
+int
+Cmd_append(int argc, char *argv[])
+{
+	return f_append(argv[1], argv[2], strlen(argv[2])) != FR_OK;
+}
+
+
+
+// add this for creating buff for sound recording
+int Cmd_write_record(unsigned char *content)
+//int Cmd_write_record(int argc, char *argv[])
+{
+	//#define RECORD_SIZE 4
+	//unsigned char content[RECORD_SIZE];
+
+				//content[0] = 0xAA;
+//				content[1] = 0x78;
+//				content[2] = 0x55;
+//				content[3] = 0x50;
+
+    FRESULT res;
+
+	WORD bytes = 0;
+	WORD bytes_written = 0;
+	WORD bytes_to_write = strlen(content[1]) * sizeof(content)+1;
+//	WORD bytes_to_write = strlen(content[1]) * 4 +1;
+    if(global_filename( "VONE" ))
+    {
+    	return 1;
+    }
+
+    // Open the file for reading.
+    //res = f_open(&file_obj, path_buff, FA_CREATE_NEW|FA_WRITE);
+    res = f_open(&file_obj, path_buff, FA_WRITE|FA_OPEN_EXISTING|FA_CREATE_NEW);
+
+    f_stat( path_buff, &file_info );
+
+    if( file_info.fsize != 0 )
+        res = f_lseek(&file_obj, file_info.fsize );
+
+    do {
+		res = f_write( &file_obj, content+bytes_written, bytes_to_write-bytes_written, &bytes );
+		bytes_written+=bytes;
+    } while( bytes_written < bytes_to_write );
+
+    res = f_close( &file_obj );
+
+    if(res != FR_OK)
+    {
+        return((int)res);
+    }
+    //UARTprintf("%s", path_buff);
+    return(0);
+}
+// end sound recording buffer
 int
 Cmd_rm(int argc, char *argv[])
 {
