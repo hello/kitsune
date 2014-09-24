@@ -553,23 +553,59 @@ void led( unsigned int* color ) {
 			if ((*color << i) & 0x800000 ) {
 				//1
 				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_GPIO_BIT);
-				UtilsDelay(10);
+				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, 0x0);
 				if( i!=23 ) {
-					UtilsDelay(5);
+					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 				} else {
-					UtilsDelay(4);
+					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 				}
 
 			} else {
 				//0
 				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_GPIO_BIT);
-				UtilsDelay(5);
 				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, 0x0);
 				if( i!=23 ) {
-					UtilsDelay(10);
+					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 				} else {
-					UtilsDelay(7);
+					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 				}
 			}
 		}
@@ -589,23 +625,18 @@ void led_array( unsigned int * colors ) {
 }
 void led_ccw( unsigned int * colors) {
 	int l;
-	for (l = 0; l < NUM_LED-1; ++l) {
+	for (l = 0; l < NUM_LED-2; ++l) {
 		int temp = colors[l];
-		colors[l] = colors[(l + 1) % NUM_LED];
-		colors[(l + 1) % NUM_LED] = temp;
+		colors[l] = colors[l + 1];
+		colors[l + 1] = temp;
 	}
 }
 void led_cw( unsigned int * colors) {
 	int l;
-	for (l = NUM_LED-2; l != -1; --l) {
+	for (l = NUM_LED-2; l > -1; --l) {
 		int temp = colors[l];
-		if( l == 0) {
-			colors[l] = colors[NUM_LED-1];
-			colors[NUM_LED-1] = temp;
-		} else {
-			colors[l] = colors[(l - 1)];
-			colors[(l - 1)] = temp;
-		}
+		colors[l] = colors[l + 1];
+		colors[l + 1] = temp;
 	}
 }
 void led_brightness(unsigned int * colors, unsigned int brightness ) {
@@ -630,22 +661,16 @@ int Cmd_led(int argc, char *argv[]) {
 	unsigned int colors_o[NUM_LED]= {2,4,8,16,32,64,128,255,0,0,0,0};
 
 	//colors[0] = atoi(argv[1]);
-
-	for (i = 0; i < 512; i+=10) {
+	for (i = 1; i < 32; ++i) {
 		led_cw(colors_o);
 		memcpy( colors, colors_o, sizeof(colors));
-		if( i > 255 ) {
-			led_brightness( colors, 512-i );
-		} else {
-			led_brightness( colors, i );
-		}
+		led_brightness( colors, fxd_sin(i<<4)>>7);
 		led_array(colors);
-		vTaskDelay(10);
+		vTaskDelay(12-(fxd_sin((i+1)<<4)>>12));
 	}
-
+	vTaskDelay(1);
 	memset(colors, 0, sizeof(colors));
 	led_array(colors);
-//
 	return 0;
 }
 
