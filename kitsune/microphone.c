@@ -42,7 +42,8 @@
 #include "rom_map.h"
 #include "utils.h"
 #include "hw_ints.h"
-
+// common interface includes
+#include "common.h"
 #include "hw_memmap.h"
 #include "fatfs_cmd.h"
 #include "ff.h"
