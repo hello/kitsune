@@ -25,7 +25,7 @@ int16_t fxd_sin( uint16_t x );
 uint32_t fxd_sqrt (uint32_t n); //untested
 
 void abs_fft(uint16_t psd[], const int16_t fr[],const int16_t fi[],const int16_t len);
-void logpsd(int16_t psd[],const int16_t fr[],const int16_t fi[],uint8_t log2scaleOfRawSignal,uint8_t nfft);
+void logpsd(int16_t * logTotalEnergy,int16_t psd[],const int16_t fr[],const int16_t fi[],uint8_t log2scaleOfRawSignal,uint8_t nfft);
 
 int16_t FixedPointLog2Q10(uint64_t x);
 uint8_t CountHighestMsb(uint64_t x);

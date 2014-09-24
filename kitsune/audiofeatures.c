@@ -544,17 +544,13 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
     //this can all go away if we get fftr to work, and do the
     int16_t fr[AUDIO_FFT_SIZE]; //2K
     int16_t fi[AUDIO_FFT_SIZE]; //2K
-    int32_t logmel[MEL_SCALE_SIZE]; //inconsiquential
-    int16_t logmelCorrected[MEL_SCALE_SIZE]; //inconsiquential
-
+  
     uint16_t i,j,k;
     uint8_t log2scaleOfRawSignal;
-    int32_t mfccavg[NUM_MFCC_FEATURES];
-    EChangeModes_t currentMode;
-    uint8_t isStable;
     static  int16_t buf[512] = {0};
     static  int16_t buf1[512] = {0};
     int32_t sumbuf[8];
+    int16_t logTotalEnergy;
 
     uint16_t buf2[256];
     int16_t * psd = &fr[512];
@@ -570,10 +566,13 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
     /* Get FFT */
     fft(fr,fi, AUDIO_FFT_SIZE_2N);
     
-    logpsd(psd,fr, fi, log2scaleOfRawSignal, AUDIO_FFT_SIZE_2N);
+    //ignore everything above 11050 hz
+
+    logpsd(&logTotalEnergy,psd,fr, fi, log2scaleOfRawSignal, AUDIO_FFT_SIZE_2N - 1);
     
+    //crappy adaptive equalization. lowpass the psd, and subtract that from the psd
     for (i = 0; i < 256; i++) {
-        buf[i] = MUL(buf[i], TOFIX(0.99f,15), 15) + MUL(psd[i], TOFIX(0.01f,15), 15);
+        buf[i] = MUL(buf[i], TOFIX(0.995f,15), 15) + MUL(psd[i], TOFIX(0.005f,15), 15);
         buf1[i] = MUL(buf1[i], TOFIX(0.5f,15), 15) + MUL(psd[i] - buf[i], TOFIX(0.5,15), 15);
     }
     
@@ -581,20 +580,20 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
     memcpy(fr,buf1,256*sizeof(int16_t));
     memset(fi,0,sizeof(fi));
 
-    
+    //fft of 2^8 --> 256
     fft(fr,fi,AUDIO_FFT_SIZE_2N>>2);
     
     abs_fft(buf2, fr, fi, 256);
     k = 0;
     buf2[0] = 0;
-    for (j = 0; j < 4; j++) {
+    for (j = 0; j < 8; j++) {
         sumbuf[j] = 0;
-        for (i = 0; i < 64; i++) {
+        for (i = 0; i < 32; i++) {
             sumbuf[j] += buf2[k++];
         }
     }
     
-    DEBUG_LOG_S32("sums",NULL,sumbuf,4,samplecount,samplecount);
+    DEBUG_LOG_S32("sums",NULL,sumbuf,8,samplecount,samplecount);
 
     
   //  DEBUG_LOG_U16("psd", NULL, buf2, 256, samplecount, samplecount);

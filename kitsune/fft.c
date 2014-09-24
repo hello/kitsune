@@ -327,19 +327,21 @@ void fix_window(int16_t fr[], int32_t n)
 void abs_fft(uint16_t psd[], const int16_t fr[],const int16_t fi[],const int16_t len)
 {
     int i;
-    uint32_t temp;
+    uint64_t temp64;
     uint16_t x,y;
     
     for (i=0; i < len ; ++i) {
         x = abs(fr[i]);
         y = abs(fi[i]);
         
-        temp = ((uint32_t)x * (uint32_t)x) + ((uint32_t)y * (uint32_t)y);
-        temp >>= 16;
-    //    if (temp > 0xFFFF) {
-     //       temp = 0xFFFF;
-     //   }
-		psd[i] = (uint16_t) temp;
+        temp64 = ((uint32_t)x * (uint32_t)x) + ((uint32_t)y * (uint32_t)y);
+        temp64 >>= 16;
+        
+        if (temp64 > 0xFFFF) {
+            temp64 = 0xFFFF;
+        }
+        
+		psd[i] = (uint16_t) temp64;
     }
 }
 
@@ -500,11 +502,13 @@ uint32_t FixedPointExp2Q10(const int16_t x) {
 // f is both input and output
 // f as input is the PSD bin, and is always positive
 // f as output is the mel bins
-void logpsd(int16_t psd[],const int16_t fr[],const int16_t fi[],uint8_t log2scaleOfRawSignal,uint8_t nfft) {
+void logpsd(int16_t * logTotalEnergy,int16_t psd[],const int16_t fr[],const int16_t fi[],uint8_t log2scaleOfRawSignal,uint8_t nfft) {
     uint16_t i;
     uint16_t ufr;
     uint16_t ufi;
     uint64_t utemp64;
+    uint64_t accumulator64 = 0;
+
     const uint16_t numelements = (1 << (nfft - 1));
 #define WINDOW_SIZE_2N (0)
 #define WINDOW_SIZE (1 << WINDOW_SIZE_2N)
@@ -550,7 +554,9 @@ void logpsd(int16_t psd[],const int16_t fr[],const int16_t fi[],uint8_t log2scal
             utemp64 += (uint32_t)ufr*(uint32_t)ufr;
             utemp64 += (uint32_t)ufi*(uint32_t)ufi;
             
-            psd[i - WINDOW_SIZE/2] = FixedPointLog2Q10(utemp64) - log2scaleOfRawSignal*(1<<10);
+            accumulator64 += utemp64 >> log2scaleOfRawSignal;
+            
+            psd[i - WINDOW_SIZE/2] = FixedPointLog2Q10(utemp64) - 2*log2scaleOfRawSignal*(1<<10);
         }
         
     }
@@ -558,6 +564,8 @@ void logpsd(int16_t psd[],const int16_t fr[],const int16_t fi[],uint8_t log2scal
     for (i = 1; i <= WINDOW_SIZE/2; i++) {
         psd[numelements - i] = psd[numelements - WINDOW_SIZE/2 - 1];
     }
+    
+    *logTotalEnergy = FixedPointLog2Q10(accumulator64);
 
 }
 
