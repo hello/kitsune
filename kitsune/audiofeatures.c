@@ -33,7 +33,7 @@
 #define SAMPLE_RATE_IN_HZ (EXPECTED_AUDIO_SAMPLE_RATE_HZ / AUDIO_FFT_SIZE)
 #define SAMPLE_PERIOD_IN_MILLISECONDS  (1000 / SAMPLE_RATE_IN_HZ)
 
-#define FEAT_BUF_SIZE_2N (5)
+#define FEAT_BUF_SIZE_2N (4)
 #define FEAT_BUF_SIZE (1 << FEAT_BUF_SIZE_2N)
 #define FEAT_BUF_MASK (FEAT_BUF_SIZE - 1)
 
@@ -143,6 +143,8 @@ typedef struct {
     EChangeModes_t lastModes[3];
     int64_t modechangeTimes[3];
     uint8_t isValidSteadyStateSegment;
+    int16_t maxenergyfeatures[NUM_AUDIO_FEATURES];
+    int16_t maxenergyinsegment;
     
 
     SegmentAndFeatureCallback_t fpCallback;
@@ -172,6 +174,8 @@ void AudioFeatures_Init(SegmentAndFeatureCallback_t fpCallback) {
     memset(&_data,0,sizeof(_data));
     
     _data.fpCallback = fpCallback;
+    
+    _data.maxenergyinsegment = MIN_INT_16;
 }
 
 static int16_t MovingAverage16(uint32_t counter, const int16_t x,int16_t * buf, int32_t * accumulator,const uint32_t mask,const uint8_t shiftnum) {
@@ -330,7 +334,7 @@ static void UpdateChangeSignals(EChangeModes_t * pCurrentMode, const int16_t new
     }
     
     change16 = change32;
-    DEBUG_LOG_S16("change", NULL, &change16, 1, counter, counter);
+    //DEBUG_LOG_S16("change", NULL, &change16, 1, counter, counter);
     
     //evaluate log likelihood and compute Bayes update
     /*
@@ -378,7 +382,7 @@ static void UpdateChangeSignals(EChangeModes_t * pCurrentMode, const int16_t new
     
     change16 = -abs(change16);
     logLikelihoodOfModePdfs[stable] = MUL_PRECISE_RESULT(change16,k_stable_likelihood_coefficient,QFIXEDPOINT);
-    DEBUG_LOG_S32("loglik", NULL, logLikelihoodOfModePdfs, 3, counter, counter);
+    //DEBUG_LOG_S32("loglik", NULL, logLikelihoodOfModePdfs, 3, counter, counter);
     
     
     /* Bayes rule 
@@ -568,7 +572,7 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
     logTotalEnergyDiff = MovingAverage16(_data.callcounter, logTotalEnergyDiff, _data.energydiffbuf, &_data.energydiffaccumulator,ENERGYDIFF_BUF_MASK,ENERGYDIFF_BUF_SIZE_2N);
 
     DEBUG_LOG_S16("totalenergy",NULL,&logTotalEnergy,1,samplecount,samplecount);
-    DEBUG_LOG_S16("totalenergydiff",NULL,&logTotalEnergyDiff,1,samplecount,samplecount);
+    //DEBUG_LOG_S16("totalenergydiff",NULL,&logTotalEnergyDiff,1,samplecount,samplecount);
 
     UpdateChangeSignals(&currentMode, logTotalEnergy, _data.callcounter);
 
@@ -622,12 +626,42 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
         shapes[i] = MovingAverage16(_data.callcounter, shapes[i], _data.featbuf[i], &_data.featbufaccumulator[i],FEAT_BUF_MASK, FEAT_BUF_SIZE_2N);
     }
     
+    //get feats
+    feats[0] = logTotalEnergyDiff;
+    memcpy(&feats[1],shapes,NUM_AUDIO_SHAPE_FEATURES*sizeof(int16_t));
+
+    
+    if (((_data.callcounter + 1) & FEAT_BUF_MASK) == 0) {
+        DEBUG_LOG_S16("sampledfeats",NULL,feats,NUM_AUDIO_FEATURES,samplecount,samplecount);
+        DEBUG_LOG_S16("sampledshapes",NULL,shapes,NUM_AUDIO_SHAPE_FEATURES,samplecount,samplecount);
+
+    }
+    
     DEBUG_LOG_S16("shapes",NULL,shapes,NUM_AUDIO_SHAPE_FEATURES,samplecount,samplecount);
 
+    
+
+
+    
+
+    
+    if (currentMode == increasing) {
+        _data.maxenergyinsegment = MIN_INT_16;
+    }
+    
+    if (_data.maxenergyinsegment < logTotalEnergy) {
+        _data.maxenergyinsegment = logTotalEnergy;
+        memcpy(_data.maxenergyfeatures,feats,sizeof(_data.maxenergyfeatures));
+    }
+    
     if (isSegmentReady && _data.callcounter > STARTUP_EQUALIZATION_COUNTS) {
-        feats[0] = logTotalEnergyDiff;
-        memcpy(&feats[1],shapes,NUM_AUDIO_SHAPE_FEATURES*sizeof(int16_t));
-        _data.fpCallback(feats,&seg);
+        if (seg.type == segmentPacket) {
+            _data.fpCallback(_data.maxenergyfeatures,&seg);
+        }
+        else if (seg.type == segmentSteadyState) {
+            _data.fpCallback(feats,&seg);
+
+        }
     }
     
     
