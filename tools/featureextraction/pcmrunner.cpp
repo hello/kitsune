@@ -12,7 +12,7 @@ using namespace std;
 
 static std::string _label;
 
-static void SegmentCallback(const int32_t * mfcc, const Segment_t * pSegment) {
+static void SegmentCallback(const int16_t * feats, const Segment_t * pSegment) {
     cout << pSegment->t1 << "," << pSegment->t2;
     /*for (int j =0 ; j < 8; j++) {
         cout << "," << mfcc[j];
@@ -28,7 +28,7 @@ static void SegmentCallback(const int32_t * mfcc, const Segment_t * pSegment) {
         tags = "steady";
     }
     
-    DebugLogSingleton::Instance()->SetDebugVectorS32("featAudio", tags.c_str(), mfcc, NUM_MFCC_FEATURES, pSegment->t1, pSegment->t2);
+    DebugLogSingleton::Instance()->SetDebugVectorS16("featAudio", tags.c_str(), feats, NUM_AUDIO_FEATURES, pSegment->t1, pSegment->t2);
 }
 
 int main(int argc, char * argv[]) {

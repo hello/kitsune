@@ -38,7 +38,12 @@ def plotData(key,data,fignum):
 
     plt.figure(fignum)
     plt.plot(x,arr)
-    plt.title(key)
+    if len(sys.argv) > 1:
+        filename = sys.argv[1]
+    else:
+        filename = ''
+
+    plt.title(filename + ':' + key)
     plt.grid()    
 
 ###################

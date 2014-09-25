@@ -8,7 +8,8 @@
 #define AUDIO_FFT_SIZE (1 << AUDIO_FFT_SIZE_2N)
 #define EXPECTED_AUDIO_SAMPLE_RATE_HZ (44100)
 
-#define NUM_MFCC_FEATURES (8)
+#define NUM_AUDIO_FEATURES (9)
+
 
 #ifdef __cplusplus
 extern "C" {
@@ -27,7 +28,7 @@ typedef struct {
     
 } Segment_t;
     
-typedef void (*SegmentAndFeatureCallback_t)(const int32_t * mfccfeats, const Segment_t * pSegment);
+typedef void (*SegmentAndFeatureCallback_t)(const int16_t * feats, const Segment_t * pSegment);
 
 /*  exported for your enjoyment -- use these! */
 void AudioFeatures_Init(SegmentAndFeatureCallback_t fpCallback);

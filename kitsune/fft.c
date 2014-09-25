@@ -327,21 +327,8 @@ void fix_window(int16_t fr[], int32_t n)
 void abs_fft(uint16_t psd[], const int16_t fr[],const int16_t fi[],const int16_t len)
 {
     int i;
-    uint64_t temp64;
-    uint16_t x,y;
-    
     for (i=0; i < len ; ++i) {
-        x = abs(fr[i]);
-        y = abs(fi[i]);
-        
-        temp64 = ((uint32_t)x * (uint32_t)x) + ((uint32_t)y * (uint32_t)y);
-        temp64 >>= 16;
-        
-        if (temp64 > 0xFFFF) {
-            temp64 = 0xFFFF;
-        }
-        
-		psd[i] = (uint16_t) temp64;
+		psd[i] = abs(fr[i]) + abs(fi[i]);
     }
 }
 
@@ -502,15 +489,14 @@ uint32_t FixedPointExp2Q10(const int16_t x) {
 // f is both input and output
 // f as input is the PSD bin, and is always positive
 // f as output is the mel bins
-void logpsd(int16_t * logTotalEnergy,int16_t psd[],const int16_t fr[],const int16_t fi[],uint8_t log2scaleOfRawSignal,uint8_t nfft) {
+void logpsd(int16_t * logTotalEnergy,int16_t psd[],const int16_t fr[],const int16_t fi[],uint8_t log2scaleOfRawSignal,const uint16_t numelements ) {
     uint16_t i;
     uint16_t ufr;
     uint16_t ufi;
     uint64_t utemp64;
     uint64_t accumulator64 = 0;
 
-    const uint16_t numelements = (1 << (nfft - 1));
-#define WINDOW_SIZE_2N (0)
+#define WINDOW_SIZE_2N (2)
 #define WINDOW_SIZE (1 << WINDOW_SIZE_2N)
 #define WINDOW_SIZE_MASK (WINDOW_SIZE - 1)
 #define MIN_ENERGY_LOGPSD (16)
@@ -521,15 +507,14 @@ void logpsd(int16_t * logTotalEnergy,int16_t psd[],const int16_t fr[],const int1
     uint16_t idx;
     uint32_t accumr = 0;
     uint32_t accumi = 0;
+    const uint16_t istart = 4;
+    const int16_t ioutstart = istart - WINDOW_SIZE/2;
     
-    psd[0] = -32768;
-    psd[1] = -32768;
-    psd[2] = -32768;
-    
+
     idx = 0;
     
     //square window in place... this is very crappy... our window is even sized, not odd... so it will slightly move the frequencies
-    for (i = 4; i < numelements; i++) {
+    for (i = istart; i < numelements; i++) {
         idx = i & WINDOW_SIZE_MASK;
         ufr = abs(fr[i]);
         ufi = abs(fi[i]);
@@ -554,20 +539,35 @@ void logpsd(int16_t * logTotalEnergy,int16_t psd[],const int16_t fr[],const int1
             utemp64 += (uint32_t)ufr*(uint32_t)ufr;
             utemp64 += (uint32_t)ufi*(uint32_t)ufi;
             
-            accumulator64 += utemp64 >> log2scaleOfRawSignal;
+            if (accumulator64 + utemp64 < accumulator64) {
+                accumulator64 = 0xFFFFFFFFFFFFFFFF;
+            }
+            else {
+                accumulator64 += utemp64;
+            }
             
             psd[i - WINDOW_SIZE/2] = FixedPointLog2Q10(utemp64) - 2*log2scaleOfRawSignal*(1<<10);
         }
         
     }
     
+    //copy last computed elements to end
     for (i = 1; i <= WINDOW_SIZE/2; i++) {
         psd[numelements - i] = psd[numelements - WINDOW_SIZE/2 - 1];
     }
     
-    *logTotalEnergy = FixedPointLog2Q10(accumulator64);
+    //copy first computed element to begnning
+    for (i = 0; i  < ioutstart; i++) {
+        psd[i] = psd[ioutstart];
+    }
+    
+    //log2 (256 * 2^10) = log2 (256) + log2(2^10) = 8 + 10
+    
+    *logTotalEnergy = FixedPointLog2Q10(accumulator64) - 2*log2scaleOfRawSignal*(1<<10) - (FixedPointLog2Q10(numelements) + 10);
 
 }
+
+#if 0
 
 
 void mel_freq(int32_t mel[],const int16_t melBackgroundNoise[],const int16_t fr[],const int16_t fi[],uint8_t log2scaleOfRawSignal) {
@@ -648,7 +648,6 @@ void mel_freq(int32_t mel[],const int16_t melBackgroundNoise[],const int16_t fr[
 	}
 }
 
-#if 0
 void norm(short f[], int n) {
     int i;
 	unsigned long long m=0;
