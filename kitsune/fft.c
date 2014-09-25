@@ -1,8 +1,11 @@
 #define MIN_ENERGY (4)
 
 #include "fft.h"
+#include "audio_types.h"
+
 #include <stdlib.h> //for abs
 #include <string.h>
+#include <stdint.h>
 
 #define FIX_MPY(DEST,A,B) (DEST) = ((int32_t)(A) * (int32_t)(B))>>15
 
@@ -567,22 +570,24 @@ void logpsd(int16_t * logTotalEnergy,int16_t psd[],const int16_t fr[],const int1
 
 }
 
-#if 0
 
 
-void mel_freq(int32_t mel[],const int16_t melBackgroundNoise[],const int16_t fr[],const int16_t fi[],uint8_t log2scaleOfRawSignal) {
+void freq_energy_bins(int16_t logbinpower[],const int16_t fr[],const int16_t fi[],uint8_t log2scaleOfRawSignal) {
 	
     // in Hz
-    static const uint16_t k_bin_start = 3;
-    /* 129 - 258
-        */
-    static const uint16_t k_bins_indices[MEL_SCALE_SIZE] = {6,9,12,15,18,24,30,36,48,60,72,84,96,120,144,168};
-	static const int16_t k_log2_normalization[MEL_SCALE_SIZE] = {3,3,3,3,3,2,2,2,1,1,1,1,1,0,0,0};
+    static const uint16_t k_bin_start = 4;
+    static const uint16_t k_bin_width_hz = EXPECTED_AUDIO_SAMPLE_RATE_HZ / AUDIO_FFT_SIZE;
+    static const uint16_t k_fundamental_width = 1000 / k_bin_width_hz; //1000 hz
+    
+    static const uint16_t k_width_indices[NUM_FREQ_ENERGY_BINS] = {1,3,7}; // k_fundamental_width * the index gets you the top of the bin.
+	static const int16_t k_log2_normalization[NUM_FREQ_ENERGY_BINS] = {2,1,0};
     uint16_t iBin;
     uint16_t iBinEdge;
     uint16_t nextBinEdge;
+
     uint64_t accumulator64;
-    uint32_t backgroundNoise;
+    int32_t temp32;
+    uint64_t utemp64;
     
     uint16_t ufr;
     uint16_t ufi;
@@ -590,17 +595,9 @@ void mel_freq(int32_t mel[],const int16_t melBackgroundNoise[],const int16_t fr[
 
 
     
-#if 0 //For generating mel scales
-	for( int i=0; i<50; ++i ) {
-		mel = 1127 * log( 1.0 + (double)freq / 700.0 );
-		printf( "%d,", mel );
-		freq+=250;
-	}
-#endif // 0
-    
 	accumulator64 = 0;
     iBinEdge = 0;
-    nextBinEdge = k_bins_indices[0] - 1;
+    nextBinEdge = k_width_indices[0]*k_fundamental_width - 1;
     iBin = k_bin_start;
 
     /* skip dc, start at 1 */
@@ -609,25 +606,34 @@ void mel_freq(int32_t mel[],const int16_t melBackgroundNoise[],const int16_t fr[
         ufr = abs(fr[iBin]);
         ufi = abs(fi[iBin]);
         
-        accumulator64 += (uint32_t)ufr*(uint32_t)ufr;
-        accumulator64 += (uint32_t)ufi*(uint32_t)ufi;
+        utemp64 = 0;
+        utemp64 += (uint32_t)ufr*(uint32_t)ufr;
+        utemp64 += (uint32_t)ufi*(uint32_t)ufi;
+
+        if (accumulator64 + utemp64 < accumulator64) {
+            accumulator64 = 0xFFFFFFFFFFFFFFFF;
+        }
+        else {
+            accumulator64 += utemp64;
+        }
+        
         
 		if(iBin == nextBinEdge) {
             //deal with different bin widths and original signal scaling at the same time
             scale = -2*log2scaleOfRawSignal + k_log2_normalization[iBinEdge];
             
-            if (scale > 0) {
-                accumulator64 <<= scale;
-            }
-            else {
-                accumulator64 >>= -scale;
+            temp32 = FixedPointLog2Q10(accumulator64);
+            temp32 += scale*(1<<10);
+            
+            if (temp32 > INT16_MAX) {
+                temp32 = INT16_MAX;
             }
             
-            if (accumulator64 > INT32_MAX) {
-                accumulator64 = INT32_MAX;
+            if (temp32 < INT16_MIN) {
+                temp32 = INT16_MIN;
             }
             
-            mel[iBinEdge]  = (int32_t)accumulator64;//FixedPointLog2Q10(accumulator64);
+            logbinpower[iBinEdge]  =  (int16_t)temp32;
 
 
             /// prepare for next iterator ///
@@ -636,18 +642,18 @@ void mel_freq(int32_t mel[],const int16_t melBackgroundNoise[],const int16_t fr[
 
             iBinEdge++;
             
-            if (iBinEdge >= MEL_SCALE_SIZE) {
+            if (iBinEdge >= sizeof(k_width_indices) / sizeof(k_width_indices[0]) ) {
                 break;
             }
             
-            nextBinEdge = k_bins_indices[iBinEdge];
+            nextBinEdge = k_width_indices[iBinEdge]*k_fundamental_width -  1;
 
 		}
         
         iBin++;
 	}
 }
-
+#if 0
 void norm(short f[], int n) {
     int i;
 	unsigned long long m=0;
