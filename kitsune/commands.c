@@ -470,6 +470,7 @@ SetupPingPongDMATransferTx();
 
 AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
 AudioCaptureRendererConfigure();
+
 // Start Audio Tx/Rx
 //
 Audio_Start();
