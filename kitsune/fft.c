@@ -138,7 +138,7 @@ unsigned int fxd_sqrt (unsigned int n)
 /*
   fix_mpy() - short-point multiplication
 */
-static short fix_mpy(short a, short b)
+inline static short fix_mpy(short a, short b)
 {
   FIX_MPY(a, a, b);
   return a;
@@ -146,70 +146,81 @@ static short fix_mpy(short a, short b)
 
 int fft(int16_t fr[], int16_t fi[], int32_t m)
 {
-  int32_t mr, nn, i, j, l, k, istep, n;
-  int16_t qr, qi, wr, wi;
+    int32_t mr, nn, i, j, l, k, istep, n;
+    int16_t  wr, wi;
 
-  n = 1 << m;
-
-  if (n > N_WAVE)
-    return -1;
-
-  mr = 0;
-  nn = n - 1;
-
-  /* decimation in time - re-order data */
-  for (m = 1; m <= nn; ++m) {
-    short tmp;
-    l = n;
-    do {
-      l >>= 1;
-    } while (mr + l > nn);
-    mr = (mr & (l - 1)) + l;
-
-    if (mr <= m)
-      continue;
-    tmp = fr[m];
-    fr[m] = fr[mr];
-    fr[mr] = tmp;
-    tmp = fi[m];
-    fi[m] = fi[mr];
-    fi[mr] = tmp;
-  }
-
-  l = 1;
-  k = LOG2_N_WAVE - 1;
-  while (l < n) {
-    /* short scaling, for proper normalization -
-       there will be log2(n) passes, so this
-       results in an overall factor of 1/n,
-       distributed to maximize arithmetic accuracy. */
-    istep = l << 1;
-    for (m = 0; m < l; ++m) {
-      j = m << k;
-      /* 0 <= j < N_WAVE/2 */
-      wr = fxd_sin(j + N_WAVE / 4);
-      wi = -fxd_sin(j);
-      wr >>= 1;
-      wi >>= 1;
-      for (i = m; i < n; i += istep) {
-    short tr,ti;
-    j = i + l;
-    tr = fix_mpy(wr, fr[j]) - fix_mpy(wi, fi[j]);
-    ti = fix_mpy(wr, fi[j]) + fix_mpy(wi, fr[j]);
-    qr = fr[i];
-    qi = fi[i];
-    qr >>= 1;
-    qi >>= 1;
-    fr[j] = qr - tr;
-    fi[j] = qi - ti;
-    fr[i] = qr + tr;
-    fi[i] = qi + ti;
-      }
+    
+    n = 1 << m;
+    
+    if (n > N_WAVE)
+        return -1;
+    
+    mr = 0;
+    nn = n - 1;
+    
+    /* decimation in time - re-order data */
+    for (m = 1; m <= nn; ++m) {
+        short tmp;
+        l = n;
+        do {
+            l >>= 1;
+        } while (mr + l > nn);
+        mr = (mr & (l - 1)) + l;
+        
+        if (mr <= m)
+            continue;
+        
+        //swap
+        tmp = fr[m];
+        fr[m] = fr[mr];
+        fr[mr] = tmp;
+        
+        //swap
+        tmp = fi[m];
+        fi[m] = fi[mr];
+        fi[mr] = tmp;
     }
-    --k;
-    l = istep;
-  }
-  return 0;
+    
+    l = 1;
+    k = LOG2_N_WAVE - 1;
+    while (l < n) {
+        /* short scaling, for proper normalization -
+         there will be log2(n) passes, so this
+         results in an overall factor of 1/n,
+         distributed to maximize arithmetic accuracy. */
+        istep = l << 1;
+        for (m = 0; m < l; ++m) {
+            j = m << k;
+            /* 0 <= j < N_WAVE/2 */
+            wr = fxd_sin(j + N_WAVE / 4);
+            wi = -fxd_sin(j);
+            
+            for (i = m; i < n; i += istep) {
+                int32_t tr,ti,qr, qi;
+
+                j = i + l;
+                
+                //tr = fix_mpy(wr, fr[j]) - fix_mpy(wi, fi[j]);
+                tr = (int32_t)wr * (int32_t)fr[j] - (int32_t)wi * (int32_t)fi[j];
+                tr >>= 1;
+                
+                //ti = fix_mpy(wr, fi[j]) + fix_mpy(wi, fr[j]);
+                ti = (int32_t)wr * (int32_t)fi[j] + (int32_t)wi*(int32_t)fr[j];
+                ti >>= 1;
+                
+                qr = fr[i] << 14;
+                qi = fi[i] << 14;
+                
+                fr[j] = (qr - tr) >> 15;
+                fi[j] = (qi - ti) >> 15;
+                fr[i] = (qr + tr) >> 15;
+                fi[i] = (qi + ti) >> 15;
+            }
+        }
+        --k;
+        l = istep;
+    }
+    return 0;
 }
 
 int fftr(int16_t f[], int32_t m)
@@ -225,90 +236,54 @@ int fftr(int16_t f[], int32_t m)
     return fft(fi, fr, m-1);
 }
 
-void dct16_direct(int16_t dctf[16],const int16_t f[16],const uint16_t n) {
-    static const int16_t A[16][16] = {
-        {16384,16384,16384,16384,16384,16384,16384,16384,16384,16384,16384,16384,16384,16384,16384,16384},
-        {23059,22173,20435,17911,14699,10922,6726,2271,-2271,-6726,-10922,-14699,-17911,-20435,-22173,-23059},
-        {22725,19266,12873,4520,-4520,-12873,-19266,-22725,-22725,-19266,-12873,-4520,4520,12873,19266,22725},
-        {22173,14699,2271,-10922,-20435,-23059,-17911,-6726,6726,17911,23059,20435,10922,-2271,-14699,-22173},
-        {21407,8867,-8867,-21407,-21407,-8867,8867,21407,21407,8867,-8867,-21407,-21407,-8867,8867,21407},
-        {20435,2271,-17911,-22173,-6726,14699,23059,10922,-10922,-23059,-14699,6726,22173,17911,-2271,-20435},
-        {19266,-4520,-22725,-12873,12873,22725,4520,-19266,-19266,4520,22725,12873,-12873,-22725,-4520,19266},
-        {17911,-10922,-22173,2271,23059,6726,-20435,-14699,14699,20435,-6726,-23059,-2271,22173,10922,-17911},
-        {16384,-16384,-16384,16384,16384,-16384,-16384,16384,16384,-16384,-16384,16384,16384,-16384,-16384,16384},
-        {14699,-20435,-6726,23059,-2271,-22173,10922,17911,-17911,-10922,22173,2271,-23059,6726,20435,-14699},
-        {12873,-22725,4520,19266,-19266,-4520,22725,-12873,-12873,22725,-4520,-19266,19266,4520,-22725,12873},
-        {10922,-23059,14699,6726,-22173,17911,2271,-20435,20435,-2271,-17911,22173,-6726,-14699,23059,-10922},
-        {8867,-21407,21407,-8867,-8867,21407,-21407,8867,8867,-21407,21407,-8867,-8867,21407,-21407,8867},
-        {6726,-17911,23059,-20435,10922,2271,-14699,22173,-22173,14699,-2271,-10922,20435,-23059,17911,-6726},
-        {4520,-12873,19266,-22725,22725,-19266,12873,-4520,-4520,12873,-19266,22725,-22725,19266,-12873,4520},
-        { 2271,-6726,10922,-14699,17911,-20435,22173,-23059,23059,-22173,20435,-17911,14699,-10922,6726,-2271}};
-    
-    int64_t temp64;
-    int16_t i;
-    int16_t j;
-    
-    for (j = 0; j < n; j++) {
-        temp64 = 0;
-        for (i = 0; i < 16; i++) {
-            temp64 += ((int32_t)A[j][i] * (int32_t)f[i]);
-        }
-        
-        temp64 >>= 20;
-        
-        if (temp64 > INT16_MAX) {
-            temp64 = INT16_MAX;
-        }
-        
-        if (temp64 < INT16_MIN) {
-            temp64 = INT16_MIN;
-        }
-        
-        dctf[j] = (int16_t)temp64;
-        
+//requires 2N memory... for now
+//ndct can be no greater than 8 (ie. length 256)
+//so fr should be length (2^(ndct + 1))
+void dct(int16_t fr[],int16_t fi[],const int16_t ndct) {
+    uint32_t i,k;
+    int16_t sine,cosine;
+    uint16_t stheta;
+    uint16_t ctheta;
+    static const uint16_t wavemask = (N_WAVE/4) - 1;
+    const uint32_t n = (1 << ndct);
+    const int8_t step2n = LOG2_N_WAVE - ndct - 2;
+    const uint16_t step = 1 << step2n;
+    int32_t temp32;
+    memset(fi,0,2*n*sizeof(int16_t));
+    //mirror mirror
+    for (i = n; i < 2*n; i++) {
+        k = 2*n - i - 1;
+        fr[i] = fr[k];
     }
     
+    fft(fr,fi,ndct + 1);
     
-}
-
-void dct16(int16_t f[16]) {
-    int16_t i;
-    int16_t vecr[32] = {0};
-    int16_t veci[32] = {0};
-    
-    int16_t temp1,temp2;
-    
-    const int16_t rot[15][2] = {
-        {32610,-3212},
-        {32138,-6393},
-        {31357,-9512},
-        {30274,-12540},
-        {28899,-15447},
-        {27246,-18205},
-        {25330,-20788},
-        {23170,-23170},
-        {20788,-25330},
-        {18205,-27246},
-        {15447,-28899},
-        {12540,-30274},
-        {9512,-31357},
-        {6393,-32138},
-        {3212,-32610}};
-    
-    
-    //[a, b, c, d, e, f] becomes [a, c, e, f, d, b]
-    //[ b--> end, d--> end-1, f--> end-2
-  
-    memcpy(vecr,f,16*sizeof(int16_t));
-    
-    fft(vecr, veci, 5);
-    
-    f[0] = vecr[0];
-    for (i = 1; i < 16; i++) {
-        FIX_MPY(temp1,rot[i-1][0],vecr[i]);
-        FIX_MPY(temp2,rot[i-1][1],veci[i]);
-
-        f[i] = temp1 + temp2;
+    k = 0;
+    for (i = 0; i  < n; i++) {
+        //go from 0 to -pi
+        //so sin will go from 0 --> 1 ---> 0
+        //cos will go from 1 --> 0 --> -1
+        
+        if (k > N_WAVE / 4) {
+            stheta = (N_WAVE/2 - k) & wavemask;
+            ctheta = k & wavemask;
+            
+            sine = sin_lut[stheta];
+            cosine = -sin_lut[ctheta];
+        }
+        else {
+            stheta = k;
+            ctheta = k == 0 ? N_WAVE/4 : (N_WAVE/2 - k) & wavemask;
+            
+            sine = sin_lut[stheta];
+            cosine = sin_lut[ctheta];
+        }
+        
+        temp32 = (int32_t)fr[i] * (int32_t)cosine;
+        temp32 -= (int32_t)fi[i] * (int32_t)sine;
+        temp32 >>= 15;
+        fr[i] = (int16_t)temp32;
+        k += step;
     }
     
 }

@@ -59,7 +59,7 @@
 #define STARTUP_PERIOD_IN_MS (10000)
 #define STARTUP_EQUALIZATION_COUNTS (STARTUP_PERIOD_IN_MS / SAMPLE_PERIOD_IN_MILLISECONDS)
 
-#define NUM_AUDIO_SHAPE_FEATURES (8)
+#define NUM_AUDIO_SHAPE_FEATURES (16)
 
 #define MUL(a,b,q)\
   ((int16_t)((((int32_t)(a)) * ((int32_t)(b))) >> q))
@@ -539,7 +539,6 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
     EChangeModes_t currentMode;
     uint8_t isStable;
     int16_t * psd = &fr[AUDIO_FFT_SIZE/2];
-    uint16_t * buf2 = (uint16_t * )&fi[AUDIO_FFT_SIZE/2];
     uint8_t isSegmentReady;
     Segment_t seg;
     int16_t feats[NUM_AUDIO_FEATURES];
@@ -628,18 +627,10 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
 
     
     //fft of 2^8 --> 256
-    fft(fr,fi,AUDIO_FFT_SIZE_2N - 2);
+    dct(fr,fi,AUDIO_FFT_SIZE_2N - 2);
     
-    abs_fft(buf2, fr, fi, AUDIO_FFT_SIZE/8);
-
-    shapes[0] = fr[1];
-    shapes[1] = fi[1];
-    shapes[2] = fr[2];
-    shapes[3] = fi[2];
-    
-    k = 3;
-    for (j = 4; j < NUM_AUDIO_SHAPE_FEATURES; j++) {
-        shapes[j] = buf2[k++];
+    for (j = 0; j < NUM_AUDIO_SHAPE_FEATURES; j++) {
+        shapes[j] = fr[j+1];
     }
     
     for ( i= 0 ; i  < NUM_AUDIO_SHAPE_FEATURES; i++) {
@@ -648,7 +639,7 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
     
     //get feats
     feats[0] = logTotalEnergyDiff;
-    memcpy(&feats[1],shapes,NUM_AUDIO_SHAPE_FEATURES*sizeof(int16_t));
+    memcpy(&feats[0],shapes,NUM_AUDIO_SHAPE_FEATURES*sizeof(int16_t));
 
     
     if (((_data.callcounter + 1) & FEAT_BUF_MASK) == 0) {

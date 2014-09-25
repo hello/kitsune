@@ -24,6 +24,9 @@ void abs_fft(uint16_t psd[], const int16_t fr[],const int16_t fi[],const int16_t
 void logpsd(int16_t * logTotalEnergy,int16_t psd[],const int16_t fr[],const int16_t fi[],uint8_t log2scaleOfRawSignal,const uint16_t numelemenets);
 void freq_energy_bins(int16_t logbinpower[],const int16_t fr[],const int16_t fi[],uint8_t log2scaleOfRawSignal);
 
+void dct(int16_t fr[],int16_t fi[],const int16_t ndct);
+
+    
 int16_t FixedPointLog2Q10(uint64_t x);
 uint8_t CountHighestMsb(uint64_t x);
 uint32_t FixedPointExp2Q10(const int16_t x);
