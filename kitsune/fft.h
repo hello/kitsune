@@ -22,7 +22,6 @@ uint32_t fxd_sqrt (uint32_t n); //untested
 
 void abs_fft(uint16_t psd[], const int16_t fr[],const int16_t fi[],const int16_t len);
 void logpsd(int16_t * logTotalEnergy,int16_t psd[],const int16_t fr[],const int16_t fi[],uint8_t log2scaleOfRawSignal,const uint16_t numelemenets);
-void freq_energy_bins(int16_t logbinpower[],const int16_t fr[],const int16_t fi[],uint8_t log2scaleOfRawSignal);
 
 void dct(int16_t fr[],int16_t fi[],const int16_t ndct);
 

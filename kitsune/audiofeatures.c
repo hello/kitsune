@@ -49,10 +49,6 @@
 #define CHANGE_SIGNAL_BUF_SIZE (1 << CHANGE_SIGNAL_BUF_SIZE_2N)
 #define CHANGE_SIGNAL_BUF_MASK (CHANGE_SIGNAL_BUF_SIZE - 1)
 
-#define BINPOWER_BUF_SIZE_2N (4)
-#define BINPOWER_BUF_SIZE  (1 << BINPOWER_BUF_SIZE_2N)
-#define BINPOWER_BUF_MASK (BINPOWER_BUF_SIZE - 1)
-
 #define STEADY_STATE_AVERAGING_PERIOD_2N (6)
 #define STEADY_STATE_AVERAGING_PERIOD (1 << STEADY_STATE_AVERAGING_PERIOD_2N)
 
@@ -105,7 +101,7 @@ static const uint32_t k_stable_count_period_in_counts = STEADY_STATE_SEGMENT_PER
 #define MIN_SEGMENT_TIME_IN_MILLISECONDS (100)
 static const uint32_t k_min_segment_time_in_counts = MIN_SEGMENT_TIME_IN_MILLISECONDS / SAMPLE_PERIOD_IN_MILLISECONDS;
 
-static const int32_t k_min_energy = MIN_INT_32;
+static const int32_t k_min_energy = 3000;
 
 /*--------------------------------
  *   Types
@@ -120,11 +116,6 @@ typedef enum {
 typedef struct {
     //needed for equalization of spectrum
     int16_t lpfbuf[AUDIO_FFT_SIZE / 4]; //256 * 2 = 0.5K
-
-    int16_t lpflogbinpower[NUM_FREQ_ENERGY_BINS];
-    
-    int16_t binpower[NUM_FREQ_ENERGY_BINS][BINPOWER_BUF_SIZE];
-    int32_t binpoweraccumulator[NUM_FREQ_ENERGY_BINS];
     
     int16_t featbuf[NUM_AUDIO_SHAPE_FEATURES][FEAT_BUF_SIZE]; //8 * 128 * 2 = 2K
     int32_t featbufaccumulator[NUM_AUDIO_SHAPE_FEATURES];
@@ -531,7 +522,7 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
     int16_t fr[AUDIO_FFT_SIZE]; //2K
     int16_t fi[AUDIO_FFT_SIZE]; //2K
   
-    uint16_t i,j,k;
+    uint16_t i,j;
     uint8_t log2scaleOfRawSignal;
     int16_t shapes[NUM_AUDIO_SHAPE_FEATURES];
     int16_t logTotalEnergy;
@@ -542,7 +533,6 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
     uint8_t isSegmentReady;
     Segment_t seg;
     int16_t feats[NUM_AUDIO_FEATURES];
-    int16_t logbinpower[NUM_FREQ_ENERGY_BINS];
     
     
 
@@ -564,8 +554,6 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
     
     /* Get PSD, but we only care about the PSD up until ~10 Khz, so we will stop at 256 */
     logpsd(&logTotalEnergy,psd,fr, fi, log2scaleOfRawSignal, AUDIO_FFT_SIZE/4);
-
-    freq_energy_bins(logbinpower,fr,fi,log2scaleOfRawSignal);
     
     logTotalEnergyDiff = abs(logTotalEnergy - _data.lastEnergy);
     _data.lastEnergy = logTotalEnergy;
@@ -594,16 +582,13 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
     /* Equalize the PSD */
     
     //only do adaptive equalization if we are starting up, or our energy level is stable
-    if (isStable || _data.callcounter < STARTUP_EQUALIZATION_COUNTS) {
+    if (isStable || logTotalEnergy < k_min_energy ||  _data.callcounter < STARTUP_EQUALIZATION_COUNTS) {
         
         //crappy adaptive equalization. lowpass the psd, and subtract that from the psd
         for (i = 0; i < AUDIO_FFT_SIZE/4; i++) {
             _data.lpfbuf[i] = MUL(_data.lpfbuf[i], TOFIX(0.99f,15), 15) + MUL(psd[i], TOFIX(0.01f,15), 15);
         }
-        
-        for (i = 0; i < NUM_FREQ_ENERGY_BINS; i++) {
-            _data.lpflogbinpower[i] = MUL(_data.lpflogbinpower[i], TOFIX(0.99f,15), 15) + MUL(logbinpower[i], TOFIX(0.01f,15), 15);
-        }
+       
     }
     
     memset(fi,0,sizeof(fi));
@@ -612,17 +597,7 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
         fr[i] = psd[i] - _data.lpfbuf[i];
     }
     
-    for (i = 0; i < NUM_FREQ_ENERGY_BINS; i++) {
-        logbinpower[i] -= _data.lpflogbinpower[i];
-    }
     
-    for (i = 0; i < NUM_FREQ_ENERGY_BINS; i++) {
-        logbinpower[i] = MovingAverage16(_data.callcounter, logbinpower[i], _data.binpower[i], &_data.binpoweraccumulator[i], BINPOWER_BUF_MASK, BINPOWER_BUF_SIZE_2N);
-    }
-    
-    
-    DEBUG_LOG_S16("logbinpower",NULL,logbinpower,NUM_FREQ_ENERGY_BINS,samplecount,samplecount);
-
    
 
     
@@ -648,7 +623,12 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
 
     }
     
-    DEBUG_LOG_S16("shapes",NULL,shapes,NUM_AUDIO_SHAPE_FEATURES,samplecount,samplecount);
+    
+    if (!isStable) {
+        DEBUG_LOG_S16("shapes",NULL,shapes,NUM_AUDIO_SHAPE_FEATURES,samplecount,samplecount);
+    }
+    
+    DEBUG_LOG_S16("shapes2",NULL,shapes,NUM_AUDIO_SHAPE_FEATURES,samplecount,samplecount);
 
     
 

@@ -8,7 +8,7 @@
 
 #define NUM_AUDIO_FEATURES (16)
 
-#define NUM_FREQ_ENERGY_BINS (3)
+#define NUM_FREQ_ENERGY_BINS (6)
 
 #ifdef __cplusplus
 extern "C" {

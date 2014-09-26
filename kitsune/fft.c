@@ -545,17 +545,17 @@ void logpsd(int16_t * logTotalEnergy,int16_t psd[],const int16_t fr[],const int1
 
 }
 
-
+#if 0
 
 void freq_energy_bins(int16_t logbinpower[],const int16_t fr[],const int16_t fi[],uint8_t log2scaleOfRawSignal) {
 	
     // in Hz
     static const uint16_t k_bin_start = 4;
     static const uint16_t k_bin_width_hz = EXPECTED_AUDIO_SAMPLE_RATE_HZ / AUDIO_FFT_SIZE;
-    static const uint16_t k_fundamental_width = 1000 / k_bin_width_hz; //1000 hz
+    static const uint16_t k_fundamental_width = 800 / k_bin_width_hz; //800 hz
     
-    static const uint16_t k_width_indices[NUM_FREQ_ENERGY_BINS] = {1,3,7}; // k_fundamental_width * the index gets you the top of the bin.
-	static const int16_t k_log2_normalization[NUM_FREQ_ENERGY_BINS] = {2,1,0};
+    static const uint16_t k_width_indices[NUM_FREQ_ENERGY_BINS] = {1,2,3,4,5,6}; // k_fundamental_width * the index gets you the top of the bin.
+	static const int16_t k_log2_normalization[NUM_FREQ_ENERGY_BINS] = {2,2,2,2,2,2};
     uint16_t iBin;
     uint16_t iBinEdge;
     uint16_t nextBinEdge;
@@ -628,6 +628,8 @@ void freq_energy_bins(int16_t logbinpower[],const int16_t fr[],const int16_t fi[
         iBin++;
 	}
 }
+#endif
+
 #if 0
 void norm(short f[], int n) {
     int i;
