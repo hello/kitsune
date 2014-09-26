@@ -122,8 +122,7 @@ short fxd_sin( uint16_t x ) {
         root |= 2 << (N); \
     }
 
-unsigned int fxd_sqrt (unsigned int n)
-{
+uint32_t fxd_sqrt (uint32_t n) {
     unsigned int root = 0,t;
 
     iter1 (15);    iter1 (14);    iter1 (13);    iter1 (12);
@@ -133,6 +132,28 @@ unsigned int fxd_sqrt (unsigned int n)
     return root >> 1;
 }
 
+uint32_t fxd_sqrt_q10(uint32_t x) {
+    uint32_t topbits = (x & 0xFFC00000);
+        
+    topbits >>= 22;
+    
+    if (topbits & 0x00000001) {
+        topbits++;
+    }
+    
+        
+    x >>= topbits;
+    
+    x <<= 10;
+
+    x = fxd_sqrt(x);
+    
+    topbits >>= 1;
+    x <<= (topbits);
+    
+    return x;
+    
+}
 
 
 /*

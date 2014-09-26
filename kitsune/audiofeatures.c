@@ -41,7 +41,7 @@
 #define ENERGY_BUF_SIZE (1 << ENERGY_BUF_SIZE_2N)
 #define ENERGY_BUF_MASK (ENERGY_BUF_SIZE - 1)
 
-#define ENERGYDIFF_BUF_SIZE_2N (8)
+#define ENERGYDIFF_BUF_SIZE_2N (1)
 #define ENERGYDIFF_BUF_SIZE  (1 << ENERGYDIFF_BUF_SIZE_2N)
 #define ENERGYDIFF_BUF_MASK (ENERGYDIFF_BUF_SIZE - 1)
 
@@ -126,10 +126,10 @@ typedef struct {
     int16_t energydiffbuf[ENERGYDIFF_BUF_SIZE];
     int32_t energydiffaccumulator;
     
+    int16_t lastshapes[NUM_AUDIO_SHAPE_FEATURES];
+    
     int16_t lastEnergy;
     
-    int64_t steadyStateAccumulator[MEL_SCALE_SIZE];
-
     uint16_t callcounter;
     uint16_t steadyStateCounter;
     
@@ -506,6 +506,43 @@ static void ScaleInt16Vector(int16_t * vec, uint8_t * scaling, uint16_t len,uint
 }
 
 
+static int16_t cosvec(const int16_t * vec1, const int16_t * vec2, uint8_t n) {
+    int32_t temp1,temp2,temp3;
+    static const uint8_t q = 10;
+    uint8_t i;
+    
+    temp1 = 0;
+    temp2 = 0;
+    temp3 = 0;
+    for (i = 0; i < n; i++) {
+        temp1 += (int32_t)vec1[i]*(int32_t)vec1[i];
+        temp2 += (int32_t)vec2[i]*(int32_t)vec2[i];
+        temp3 += (int32_t)vec1[i]*(int32_t)vec2[i];
+    }
+    
+    if (!temp1 || !temp2) {
+        return INT16_MAX;
+    }
+    
+    temp1 = fxd_sqrt(temp1);
+    temp2 = fxd_sqrt(temp2);
+    
+    if (temp1 > temp2) {
+        temp3 /= temp2;
+        temp3 <<= q;
+        temp3 /= temp1;
+    }
+    else {
+        temp3 /= temp1;
+        temp3 <<= q;
+        temp3 /= temp2;
+    }
+    
+    return (int16_t) temp3;
+    
+}
+
+
 /*
  *  Given AUDIO_FFT_SIZE of samples, it will return the time averaged MFCC coefficients.
  *
@@ -533,6 +570,7 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
     uint8_t isSegmentReady;
     Segment_t seg;
     int16_t feats[NUM_AUDIO_FEATURES];
+    int16_t vecdotresult;
     
     
 
@@ -567,10 +605,7 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
     //start by averaging the energy
     logTotalEnergy = MovingAverage16(_data.callcounter, logTotalEnergy, _data.energybuf, &_data.energyaccumulator,ENERGY_BUF_MASK,ENERGY_BUF_SIZE_2N);
     
-    logTotalEnergyDiff = MovingAverage16(_data.callcounter, logTotalEnergyDiff, _data.energydiffbuf, &_data.energydiffaccumulator,ENERGYDIFF_BUF_MASK,ENERGYDIFF_BUF_SIZE_2N);
-
     DEBUG_LOG_S16("totalenergy",NULL,&logTotalEnergy,1,samplecount,samplecount);
-    //DEBUG_LOG_S16("totalenergydiff",NULL,&logTotalEnergyDiff,1,samplecount,samplecount);
 
     UpdateChangeSignals(&currentMode, logTotalEnergy, _data.callcounter);
 
@@ -598,9 +633,6 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
     }
     
     
-   
-
-    
     //fft of 2^8 --> 256
     dct(fr,fi,AUDIO_FFT_SIZE_2N - 2);
     
@@ -608,12 +640,29 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
         shapes[j] = fr[j+1];
     }
     
+    
+
+    vecdotresult = cosvec(_data.lastshapes,shapes,NUM_AUDIO_SHAPE_FEATURES);
+    
+    vecdotresult = MovingAverage16(_data.callcounter, vecdotresult, _data.energydiffbuf, &_data.energydiffaccumulator,ENERGYDIFF_BUF_MASK,ENERGYDIFF_BUF_SIZE_2N);
+    
+    
+    
+    DEBUG_LOG_S16("cosvec",NULL,&vecdotresult,1,samplecount,samplecount);
+    
+    memcpy(_data.lastshapes,shapes,sizeof(_data.lastshapes));
+
+    
+    
+   
     for ( i= 0 ; i  < NUM_AUDIO_SHAPE_FEATURES; i++) {
         shapes[i] = MovingAverage16(_data.callcounter, shapes[i], _data.featbuf[i], &_data.featbufaccumulator[i],FEAT_BUF_MASK, FEAT_BUF_SIZE_2N);
     }
     
-    //get feats
-    feats[0] = logTotalEnergyDiff;
+    
+
+
+    
     memcpy(&feats[0],shapes,NUM_AUDIO_SHAPE_FEATURES*sizeof(int16_t));
 
     
@@ -622,13 +671,21 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
         DEBUG_LOG_S16("sampledshapes",NULL,shapes,NUM_AUDIO_SHAPE_FEATURES,samplecount,samplecount);
 
     }
-    
-    
+   
     if (!isStable) {
         DEBUG_LOG_S16("shapes",NULL,shapes,NUM_AUDIO_SHAPE_FEATURES,samplecount,samplecount);
     }
     
+
+
+    
+    for (i = 0; i < NUM_AUDIO_SHAPE_FEATURES; i++) {
+        shapes[i] >>= 4;
+    }
+    
+   
     DEBUG_LOG_S16("shapes2",NULL,shapes,NUM_AUDIO_SHAPE_FEATURES,samplecount,samplecount);
+
 
     
 

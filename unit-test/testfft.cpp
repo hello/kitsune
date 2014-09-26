@@ -110,6 +110,23 @@ TEST_F(TestFrequencyFeatures,TestPsd) {
     
 }
 
+TEST_F(TestFrequencyFeatures,TestSqrt) {
+    uint32_t i;
+    uint32_t res;
+    uint32_t x;
+    for (i = 0; i < 0x7FFF; i++) {
+        float fx = i * 0.5f;
+        float fy = sqrt(fx);
+        float fres;
+        
+        x = i << 9;
+        res = fxd_sqrt_q10(x);
+        fres  = res / 1024.0;
+        
+        ASSERT_NEAR(fres, fy, 1e-2);
+        
+    }
+}
 
 TEST_F(TestFrequencyFeatures,TestDct) {
     short vecr[512];

@@ -18,7 +18,8 @@ uint8_t bitlog(uint32_t n);
 uint32_t bitexp(uint16_t n);
 
 int16_t fxd_sin( uint16_t x );
-uint32_t fxd_sqrt (uint32_t n); //untested
+uint32_t fxd_sqrt (uint32_t n);
+uint32_t fxd_sqrt_q10(uint32_t x);
 
 void abs_fft(uint16_t psd[], const int16_t fr[],const int16_t fi[],const int16_t len);
 void logpsd(int16_t * logTotalEnergy,int16_t psd[],const int16_t fr[],const int16_t fi[],uint8_t log2scaleOfRawSignal,const uint16_t numelemenets);
