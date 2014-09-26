@@ -92,7 +92,7 @@ TEST_F(TestFrequencyFeatures,TestFFT1) {
 TEST_F(TestFrequencyFeatures,TestPsd) {
     short vecr[1024];
     short veci[1024];
-    
+    int16_t logTotalEnergy;
     int n = sizeof(testvec1) / sizeof(short);
     
     
@@ -104,12 +104,35 @@ TEST_F(TestFrequencyFeatures,TestPsd) {
     //2^10 = 1024
     fft(vecr,veci,10);
     
-    logpsd(&vecr[512], vecr, veci, 0, 10);
+    logpsd(&logTotalEnergy,&vecr[512], vecr, veci, 0, 10);
     
     PrintShortVecToFile("logpsd.txt",&vecr[512],512);
     
 }
 
+
+TEST_F(TestFrequencyFeatures,TestDct) {
+    short vecr[512];
+    short veci[512];
+    
+    for (int j = 0; j < 16; j++) {
+        vecr[j] = (j - 8) * (1024);
+    }
+    
+    dct(vecr,veci,4);
+    
+    for (int j = 0; j < 32; j++) {
+        vecr[j] = (j - 16) * (1024);
+    }
+    
+    dct(vecr,veci,5);
+    
+    
+    
+    int foo = 3;
+    foo++;
+    
+}
 
 
 TEST_F(TestFrequencyFeatures,TestFFTR1) {
@@ -141,10 +164,12 @@ TEST_F(TestFrequencyFeatures,TestFFTR1) {
 }
 
 static Segment_t _myseg;
-static int32_t _mfcc[8];
-static void AudioFeatCallback(const int32_t * mfccavg, const Segment_t * pSegment) {
+
+static int16_t _mfcc[NUM_AUDIO_FEATURES];
+
+static void AudioFeatCallback(const int16_t * feats, const Segment_t * pSegment) {
     memcpy(&_myseg,pSegment,sizeof(Segment_t));
-    memcpy(_mfcc,mfccavg,sizeof(_mfcc));
+    memcpy(_mfcc,feats,sizeof(_mfcc));
     
 }
 
