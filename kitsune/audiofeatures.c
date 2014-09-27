@@ -95,10 +95,9 @@ static const int16_t k_coherence_slope = TOFIX(1.0f,QFIXEDPOINT);
 static const int16_t k_incoherence_slope = TOFIX(1.0f,QFIXEDPOINT);
 static const int32_t k_coherence_min_log_prob = TOFIX(-0.25f,QFIXEDPOINT);
 
-#define STABLE_TIME_TO_BE_CONSIDERED_STABLE_IN_MILLISECONDS  (500)
+#define STABLE_TIME_TO_BE_CONSIDERED_STABLE_IN_MILLISECONDS  (2000)
 
 static const uint32_t k_stable_counts_to_be_considered_stable =  STABLE_TIME_TO_BE_CONSIDERED_STABLE_IN_MILLISECONDS / SAMPLE_PERIOD_IN_MILLISECONDS;
-
 
 static const int32_t k_min_energy = 3000;
 
@@ -122,14 +121,8 @@ typedef struct {
     //needed for equalization of spectrum
     int16_t lpfbuf[AUDIO_FFT_SIZE / 4]; //256 * 2 = 0.5K
     
-    int16_t featbuf[NUM_AUDIO_SHAPE_FEATURES][FEAT_BUF_SIZE]; //8 * 128 * 2 = 2K
-    int32_t featbufaccumulator[NUM_AUDIO_SHAPE_FEATURES];
-    
     int16_t energybuf[ENERGY_BUF_SIZE];
     int32_t energyaccumulator;
-    
-    int16_t energydiffbuf[ENERGYDIFF_BUF_SIZE];
-    int32_t energydiffaccumulator;
     
     int16_t lastmfcc[NUM_AUDIO_SHAPE_FEATURES];
     
@@ -150,6 +143,11 @@ typedef struct {
     uint8_t isValidSteadyStateSegment;
     int16_t maxenergyfeatures[NUM_AUDIO_FEATURES];
     int16_t maxenergyinsegment;
+    ECoherencyModes_t lastmode;
+    int32_t mfccaccumulator[NUM_AUDIO_SHAPE_FEATURES];
+    int16_t mfccavg[NUM_AUDIO_SHAPE_FEATURES];
+    uint16_t coherentCount;
+    Segment_t coherentSegment;
     
 
     SegmentAndFeatureCallback_t fpCallback;
@@ -512,6 +510,48 @@ static void ScaleInt16Vector(int16_t * vec, uint8_t * scaling, uint16_t len,uint
     
 }
 
+static uint8_t SegmentCoherentSignals(ECoherencyModes_t mode,const int16_t * mfcc, int64_t time) {
+    uint16_t i;
+    uint8_t ret = 0x00;
+    
+    //rising edge
+    if (mode == coherent && _data.lastmode == incoherent) {
+        _data.coherentSegment.t1 = time;
+        _data.coherentCount = 0;
+        memset(_data.mfccaccumulator,0,sizeof(_data.mfccaccumulator));
+    }
+    
+    //falling edge
+    if (mode == incoherent && _data.lastmode == coherent) {
+
+        //compute average
+        for (i = 0; i < NUM_AUDIO_SHAPE_FEATURES; i++) {
+            _data.mfccavg[i] = _data.mfccaccumulator[i] / _data.coherentCount;
+        }
+        
+        _data.coherentSegment.t2 = time;
+        _data.coherentSegment.duration = time - _data.coherentSegment.t1;
+        _data.coherentSegment.type = segmentCoherent;
+        
+        //report that I have something
+        ret = 0x01;
+        
+    }
+    
+    //average
+    if (mode == coherent) {
+        for (i = 0; i < NUM_AUDIO_SHAPE_FEATURES; i++) {
+            _data.mfccaccumulator[i] += mfcc[i];
+        }
+        
+        _data.coherentCount++;
+    }
+    
+    _data.lastmode = mode;
+    
+    return ret;
+}
+
 
 static int16_t cosvec(const int16_t * vec1, const int16_t * vec2, uint8_t n) {
     int32_t temp1,temp2,temp3;
@@ -574,8 +614,7 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
     ECoherencyModes_t coherencyMode;
     uint8_t isStable;
     int16_t * psd = &fr[AUDIO_FFT_SIZE/2];
-    uint8_t isSegmentReady;
-    Segment_t seg;
+
     int16_t feats[NUM_AUDIO_FEATURES];
     int16_t vecdotresult;
     
@@ -601,11 +640,9 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
     logpsd(&logTotalEnergy,psd,fr, fi, log2scaleOfRawSignal, AUDIO_FFT_SIZE/4);
     
     
-    /* Determine stability in order to figure out when to subtract out background spectrum */
-    
+    /* Determine stability of signal energy order to figure out when to estimate background spectrum */
     logTotalEnergy = MovingAverage16(_data.callcounter, logTotalEnergy, _data.energybuf, &_data.energyaccumulator,ENERGY_BUF_MASK,ENERGY_BUF_SIZE_2N);
     
-
     UpdateChangeSignals(&currentMode, logTotalEnergy, _data.callcounter);
 
     isStable = IsStable(currentMode,logTotalEnergy);
@@ -614,13 +651,11 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
     /* Equalize the PSD */
     
     //only do adaptive equalization if we are starting up, or our energy level is stable
-    if (isStable || logTotalEnergy < k_min_energy ||  _data.callcounter < STARTUP_EQUALIZATION_COUNTS) {
-        
+    if (isStable ||  _data.callcounter < STARTUP_EQUALIZATION_COUNTS) {
         //crappy adaptive equalization. lowpass the psd, and subtract that from the psd
         for (i = 0; i < AUDIO_FFT_SIZE/4; i++) {
             _data.lpfbuf[i] = MUL(_data.lpfbuf[i], TOFIX(0.99f,15), 15) + MUL(psd[i], TOFIX(0.01f,15), 15);
         }
-       
     }
     
     //get MFCC coefficients
@@ -649,6 +684,12 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
     UpdateCoherencySignals(&coherencyMode,vecdotresult,_data.callcounter);
 
     SetDebugVectorS16("coherent", NULL, (int16_t *)&coherencyMode, 1, samplecount, samplecount);
+    
+    if (SegmentCoherentSignals(coherencyMode, mfcc, samplecount)) {
+        if (_data.fpCallback) {
+            _data.fpCallback(_data.mfccavg,&_data.coherentSegment);
+        }
+    }
     
     memcpy(&feats[0],mfcc,NUM_AUDIO_SHAPE_FEATURES*sizeof(int16_t));
 

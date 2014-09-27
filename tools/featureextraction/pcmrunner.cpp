@@ -13,20 +13,17 @@ using namespace std;
 static std::string _label;
 
 static void SegmentCallback(const int16_t * feats, const Segment_t * pSegment) {
-    cout << pSegment->t1 << "," << pSegment->t2;
-    /*for (int j =0 ; j < 8; j++) {
-        cout << "," << mfcc[j];
-    }*/
+    
+    cout << pSegment->t1 << "," << pSegment->duration;
+#if 1
+    for (int j =0 ; j < NUM_AUDIO_FEATURES; j++) {
+        cout << "," << feats[j];
+    }
+#endif
     cout << endl;
 
     std::string tags;
-    
-    if (pSegment->type == segmentPacket) {
-        tags = "packet";
-    }
-    else if (pSegment->type == segmentSteadyState) {
-        tags = "steady";
-    }
+    tags = "coherent";
     
     DebugLogSingleton::Instance()->SetDebugVectorS16("featAudio", tags.c_str(), feats, NUM_AUDIO_FEATURES, pSegment->t1, pSegment->t2);
 }
