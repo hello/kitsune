@@ -2,6 +2,7 @@
 #include <fstream>
 
 #include "../../kitsune/audiofeatures.h"
+#include "../../kitsune/audioclassifier.h"
 #include "../../kitsune/debugutils/DebugLogSingleton.h"
 #include <string.h>
 using namespace std;
@@ -21,11 +22,12 @@ static void SegmentCallback(const int16_t * feats, const Segment_t * pSegment) {
     }
 #endif
     cout << endl;
-
+#if 0
     std::string tags;
     tags = "coherent";
     
     DebugLogSingleton::Instance()->SetDebugVectorS16("featAudio", tags.c_str(), feats, NUM_AUDIO_FEATURES, pSegment->t1, pSegment->t2);
+#endif
 }
 
 int main(int argc, char * argv[]) {
@@ -54,7 +56,8 @@ int main(int argc, char * argv[]) {
     int64_t counter = 0;
     
     
-    AudioFeatures_Init(SegmentCallback);
+    AudioFeatures_Init(AudioClassifier_SegmentCallback);
+    AudioClassifier_Init(SegmentCallback);
 
     
     

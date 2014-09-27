@@ -16,13 +16,7 @@ static void AudioFeaturesCallback(const int16_t * feats, const Segment_t * pSegm
     memcpy(&_segment,pSegment,sizeof(Segment_t));
     memcpy(_feats,feats,sizeof(int16_t)*NUM_AUDIO_FEATURES);
    
-    if (pSegment->type == segmentPacket) {
-        tag = "packet";
-    }
-    else if (pSegment->type == segmentSteadyState){
-        tag = "steady";
-    }
-    
+       
     DEBUG_LOG_S16("featAudio",tag,feats,NUM_AUDIO_FEATURES,pSegment->t1,pSegment->t2);
 
 }

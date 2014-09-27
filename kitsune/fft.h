@@ -25,6 +25,8 @@ void abs_fft(uint16_t psd[], const int16_t fr[],const int16_t fi[],const int16_t
 void logpsd(int16_t * logTotalEnergy,int16_t psd[],const int16_t fr[],const int16_t fi[],uint8_t log2scaleOfRawSignal,const uint16_t numelemenets);
 
 void dct(int16_t fr[],int16_t fi[],const int16_t ndct);
+int16_t cosvec16(const int16_t * vec1, const int16_t * vec2, uint8_t n);
+int16_t cosvec8(const int8_t * vec1, const int8_t * vec2, uint8_t n);
 
     
 int16_t FixedPointLog2Q10(uint64_t x);

@@ -47,27 +47,10 @@
 #define STARTUP_PERIOD_IN_MS (10000)
 #define STARTUP_EQUALIZATION_COUNTS (STARTUP_PERIOD_IN_MS / SAMPLE_PERIOD_IN_MILLISECONDS)
 
-#define NUM_AUDIO_SHAPE_FEATURES (16)
 
-#define MUL(a,b,q)\
-  ((int16_t)((((int32_t)(a)) * ((int32_t)(b))) >> q))
-
-#define MUL_PRECISE_RESULT(a,b,q)\
-((int32_t)((((int32_t)(a)) * ((int32_t)(b))) >> q))
-
-#define TOFIX(x,q)\
-  ((int32_t) ((x) * (float)(1 << (q))))
 
 #define QFIXEDPOINT (12)
-#define TRUE (1)
-#define FALSE (0)
 
-#define MAX_INT_16 (32767)
-
-//purposely DO NOT MAKE THIS -32768
-// abs(-32768) is 32768.  I can't represent this number with an int16 type!
-#define MIN_INT_16 (-32767)
-#define MIN_INT_32 (-2147483647)
 
 /* Have fun tuning these magic numbers!
  Perhaps eventually we will have some pre-canned
@@ -115,7 +98,7 @@ typedef struct {
     int16_t energybuf[ENERGY_BUF_SIZE];
     int32_t energyaccumulator;
     
-    int16_t lastmfcc[NUM_AUDIO_SHAPE_FEATURES];
+    int16_t lastmfcc[NUM_AUDIO_FEATURES];
     
     int16_t lastEnergy;
     
@@ -134,8 +117,8 @@ typedef struct {
     uint8_t isValidSteadyStateSegment;
     int16_t maxenergyfeatures[NUM_AUDIO_FEATURES];
     ECoherencyModes_t lastmode;
-    int32_t mfccaccumulator[NUM_AUDIO_SHAPE_FEATURES];
-    int16_t mfccavg[NUM_AUDIO_SHAPE_FEATURES];
+    int32_t mfccaccumulator[NUM_AUDIO_FEATURES];
+    int16_t mfccavg[NUM_AUDIO_FEATURES];
     uint16_t coherentCount;
     Segment_t coherentSegment;
     
@@ -167,8 +150,6 @@ void AudioFeatures_Init(SegmentAndFeatureCallback_t fpCallback) {
     memset(&_data,0,sizeof(_data));
     
     _data.fpCallback = fpCallback;
-    
-    _data.maxenergyinsegment = MIN_INT_16;
 }
 
 static int16_t MovingAverage16(uint32_t counter, const int16_t x,int16_t * buf, int32_t * accumulator,const uint32_t mask,const uint8_t shiftnum) {
@@ -515,7 +496,7 @@ static uint8_t SegmentCoherentSignals(ECoherencyModes_t mode,const int16_t * mfc
     if (mode == incoherent && _data.lastmode == coherent) {
 
         //compute average
-        for (i = 0; i < NUM_AUDIO_SHAPE_FEATURES; i++) {
+        for (i = 0; i < NUM_AUDIO_FEATURES; i++) {
             _data.mfccavg[i] = _data.mfccaccumulator[i] / _data.coherentCount;
         }
         
@@ -530,7 +511,7 @@ static uint8_t SegmentCoherentSignals(ECoherencyModes_t mode,const int16_t * mfc
     
     //average
     if (mode == coherent) {
-        for (i = 0; i < NUM_AUDIO_SHAPE_FEATURES; i++) {
+        for (i = 0; i < NUM_AUDIO_FEATURES; i++) {
             _data.mfccaccumulator[i] += mfcc[i];
         }
         
@@ -540,43 +521,6 @@ static uint8_t SegmentCoherentSignals(ECoherencyModes_t mode,const int16_t * mfc
     _data.lastmode = mode;
     
     return ret;
-}
-
-
-static int16_t cosvec(const int16_t * vec1, const int16_t * vec2, uint8_t n) {
-    int32_t temp1,temp2,temp3;
-    static const uint8_t q = 10;
-    uint8_t i;
-    
-    temp1 = 0;
-    temp2 = 0;
-    temp3 = 0;
-    for (i = 0; i < n; i++) {
-        temp1 += (int32_t)vec1[i]*(int32_t)vec1[i];
-        temp2 += (int32_t)vec2[i]*(int32_t)vec2[i];
-        temp3 += (int32_t)vec1[i]*(int32_t)vec2[i];
-    }
-    
-    if (!temp1 || !temp2) {
-        return INT16_MAX;
-    }
-    
-    temp1 = fxd_sqrt(temp1);
-    temp2 = fxd_sqrt(temp2);
-    
-    if (temp1 > temp2) {
-        temp3 /= temp2;
-        temp3 <<= q;
-        temp3 /= temp1;
-    }
-    else {
-        temp3 /= temp1;
-        temp3 <<= q;
-        temp3 /= temp2;
-    }
-    
-    return (int16_t) temp3;
-    
 }
 
 
@@ -598,7 +542,7 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
   
     uint16_t i,j;
     uint8_t log2scaleOfRawSignal;
-    int16_t mfcc[NUM_AUDIO_SHAPE_FEATURES];
+    int16_t mfcc[NUM_AUDIO_FEATURES];
     int16_t logTotalEnergy;
     EChangeModes_t currentMode;
     ECoherencyModes_t coherencyMode;
@@ -659,15 +603,15 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
     dct(fr,fi,AUDIO_FFT_SIZE_2N - 2);
     
     //here they are
-    for (j = 0; j < NUM_AUDIO_SHAPE_FEATURES; j++) {
+    for (j = 0; j < NUM_AUDIO_FEATURES; j++) {
         mfcc[j] = fr[j+1];
     }
     
     //now compute MFCC directional change
-    vecdotresult = cosvec(_data.lastmfcc,mfcc,NUM_AUDIO_SHAPE_FEATURES);
+    vecdotresult = cosvec16(_data.lastmfcc,mfcc,NUM_AUDIO_FEATURES);
     memcpy(_data.lastmfcc,mfcc,sizeof(_data.lastmfcc));
 
-    //DEBUG_LOG_S16("cosvec",NULL,&vecdotresult,1,samplecount,samplecount);
+    DEBUG_LOG_S16("cosvec",NULL,&vecdotresult,1,samplecount,samplecount);
     
     UpdateCoherencySignals(&coherencyMode,vecdotresult,_data.callcounter);
 
@@ -681,9 +625,9 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
         }
     }
     
-    memcpy(&feats[0],mfcc,NUM_AUDIO_SHAPE_FEATURES*sizeof(int16_t));
+    memcpy(&feats[0],mfcc,NUM_AUDIO_FEATURES*sizeof(int16_t));
 
-    DEBUG_LOG_S16("shapes",NULL,mfcc,NUM_AUDIO_SHAPE_FEATURES,samplecount,samplecount);
+    DEBUG_LOG_S16("shapes",NULL,mfcc,NUM_AUDIO_FEATURES,samplecount,samplecount);
 
 
     /* Update counter.  It's okay if this one rolls over*/

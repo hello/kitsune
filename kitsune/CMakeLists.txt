@@ -11,6 +11,7 @@ add_definitions(-DUSE_CPP_DEBUG_LOGGING)
 add_library(EmbeddedAlg STATIC
 fft.c
 audiofeatures.c
+audioclassifier.c
 nanopb/pb_decode.c
 nanopb/pb_encode.c
 protobuf/matrix.pb.c

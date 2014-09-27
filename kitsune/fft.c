@@ -566,6 +566,78 @@ void logpsd(int16_t * logTotalEnergy,int16_t psd[],const int16_t fr[],const int1
 
 }
 
+int16_t cosvec16(const int16_t * vec1, const int16_t * vec2, uint8_t n) {
+    int32_t temp1,temp2,temp3;
+    static const uint8_t q = 10;
+    uint8_t i;
+    
+    temp1 = 0;
+    temp2 = 0;
+    temp3 = 0;
+    for (i = 0; i < n; i++) {
+        temp1 += (int32_t)vec1[i]*(int32_t)vec1[i];
+        temp2 += (int32_t)vec2[i]*(int32_t)vec2[i];
+        temp3 += (int32_t)vec1[i]*(int32_t)vec2[i];
+    }
+    
+    if (!temp1 || !temp2) {
+        return INT16_MAX;
+    }
+    
+    temp1 = fxd_sqrt(temp1);
+    temp2 = fxd_sqrt(temp2);
+    
+    if (temp1 > temp2) {
+        temp3 /= temp2;
+        temp3 <<= q;
+        temp3 /= temp1;
+    }
+    else {
+        temp3 /= temp1;
+        temp3 <<= q;
+        temp3 /= temp2;
+    }
+    
+    return (int16_t) temp3;
+    
+}
+
+int16_t cosvec8(const int8_t * vec1, const int8_t * vec2, uint8_t n) {
+    int32_t temp1,temp2,temp3;
+    static const uint8_t q = 10;
+    uint8_t i;
+    
+    temp1 = 0;
+    temp2 = 0;
+    temp3 = 0;
+    for (i = 0; i < n; i++) {
+        temp1 += (int16_t)vec1[i]*(int16_t)vec1[i];
+        temp2 += (int16_t)vec2[i]*(int16_t)vec2[i];
+        temp3 += (int16_t)vec1[i]*(int16_t)vec2[i];
+    }
+    
+    if (!temp1 || !temp2) {
+        return INT16_MAX;
+    }
+    
+    temp1 = fxd_sqrt(temp1);
+    temp2 = fxd_sqrt(temp2);
+    
+    if (temp1 > temp2) {
+        temp3 /= temp2;
+        temp3 <<= q;
+        temp3 /= temp1;
+    }
+    else {
+        temp3 /= temp1;
+        temp3 <<= q;
+        temp3 /= temp2;
+    }
+    
+    return (int16_t) temp3;
+    
+}
+
 #if 0
 
 void freq_energy_bins(int16_t logbinpower[],const int16_t fr[],const int16_t fi[],uint8_t log2scaleOfRawSignal) {
