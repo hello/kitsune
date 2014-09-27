@@ -91,15 +91,14 @@ static const int16_t k_change_log_likelihood = TOFIX(-0.10f,QFIXEDPOINT);
 //the more negative it gets, the more evidence is required before switching modes, in general
 static const int32_t k_min_log_prob = TOFIX(-0.25f,QFIXEDPOINT);
 
+static const int16_t k_coherence_slope = TOFIX(1.0f,QFIXEDPOINT);
+static const int16_t k_incoherence_slope = TOFIX(1.0f,QFIXEDPOINT);
+static const int32_t k_coherence_min_log_prob = TOFIX(-0.25f,QFIXEDPOINT);
+
 #define STABLE_TIME_TO_BE_CONSIDERED_STABLE_IN_MILLISECONDS  (500)
 
 static const uint32_t k_stable_counts_to_be_considered_stable =  STABLE_TIME_TO_BE_CONSIDERED_STABLE_IN_MILLISECONDS / SAMPLE_PERIOD_IN_MILLISECONDS;
 
-#define STEADY_STATE_SEGMENT_PERIOD_IN_MILLISECONDS (1500)
-static const uint32_t k_stable_count_period_in_counts = STEADY_STATE_SEGMENT_PERIOD_IN_MILLISECONDS / SAMPLE_PERIOD_IN_MILLISECONDS;
-
-#define MIN_SEGMENT_TIME_IN_MILLISECONDS (100)
-static const uint32_t k_min_segment_time_in_counts = MIN_SEGMENT_TIME_IN_MILLISECONDS / SAMPLE_PERIOD_IN_MILLISECONDS;
 
 static const int32_t k_min_energy = 3000;
 
@@ -112,6 +111,12 @@ typedef enum {
     decreasing,
     numChangeModes
 } EChangeModes_t;
+
+typedef enum {
+    incoherent,
+    coherent,
+    numCoherencyModes
+} ECoherencyModes_t;
 
 typedef struct {
     //needed for equalization of spectrum
@@ -126,7 +131,7 @@ typedef struct {
     int16_t energydiffbuf[ENERGYDIFF_BUF_SIZE];
     int32_t energydiffaccumulator;
     
-    int16_t lastshapes[NUM_AUDIO_SHAPE_FEATURES];
+    int16_t lastmfcc[NUM_AUDIO_SHAPE_FEATURES];
     
     int16_t lastEnergy;
     
@@ -135,6 +140,7 @@ typedef struct {
     
     int16_t changebuf[CHANGE_SIGNAL_BUF_SIZE];
     int32_t logProbOfModes[numChangeModes];
+    int32_t logProbOfCoherencyModes[numCoherencyModes];
     uint8_t isStable;
     int16_t energyStable;
     uint32_t stableCount;
@@ -197,112 +203,30 @@ static int16_t MovingAverage16(uint32_t counter, const int16_t x,int16_t * buf, 
 }
 
 
-static uint8_t SegmentSteadyState(Segment_t * pSeg,uint8_t * pIsStable,EChangeModes_t currentMode,const int16_t energySignal,int64_t samplecount) {
-    uint8_t isSegmentReady = FALSE;
+static uint8_t IsStable(EChangeModes_t currentMode,const int16_t energySignal) {
     
-    *pIsStable = FALSE;
+    uint8_t isStable = FALSE;
     
-    /*  Every day I'm segmenting segmenting
-     
-     
-     
-        If increasing, still for less than a still period, then decreasing
-           then it was an audio segment, from the start of the increase to the end of the decrease
-     
-        If increasing, still for longer than a still period,
-           then it was and audio segment, from the start of the increase to the end of the still period
-     
-        If still for greater than some period, and the energy was above some threshold,
-           then it was an audio segment, from the start of the still period
-     
-     
-         If audio segment, take mfc avg signal, and do a callback with segment info.
-     
-    */
-    
+ 
     if (currentMode != stable) {
         _data.stableCount = 0;
-        _data.stablePeriodCounter = 0;
     }
     else {
-        if (energySignal > k_min_energy) {
-            _data.isValidSteadyStateSegment = TRUE;
-        }
+        
+        //increment stable count
+        if ((++_data.stableCount) == 0) {
+            _data.stableCount = 0xFFFFFFFF;
+        };
+        
     }
-    
-    //increment stable count
-    if ((++_data.stableCount) == 0) {
-        _data.stableCount = 0xFFFFFFFF;
-    };
     
     //segment steady state (i.e. energy has been the same)
     if (_data.stableCount > k_stable_counts_to_be_considered_stable) {
-        *pIsStable = TRUE;
-        
-        
-        
-        //if you have been stable long enough, output a segment
-        if (++_data.stablePeriodCounter > k_stable_count_period_in_counts) {
-            pSeg->t1 = _data.modechangeTimes[0];
-            pSeg->t2 = samplecount;
-            pSeg->type = segmentSteadyState;
-            
-            
-            if (_data.isValidSteadyStateSegment) {
-                isSegmentReady = TRUE;
-                _data.isValidSteadyStateSegment = FALSE;
-            }
-            
-            //reset period counter
-            _data.stablePeriodCounter = 0;
-            
-            //update mode change history
-            _data.modechangeTimes[2] = _data.modechangeTimes[1];
-            _data.modechangeTimes[1] = _data.modechangeTimes[0];
-            _data.modechangeTimes[0] = samplecount;
-
-        }
+        isStable = TRUE;
     }
 
+    return isStable;
     
-    //segment out a burst of energy
-    if ( currentMode == decreasing && currentMode != _data.lastModes[0]) {
-        memset(pSeg,0,sizeof(Segment_t));
-        pSeg->type = segmentPacket;
-        _data.stablePeriodCounter = 0;
-        
-        //very short
-        if (_data.lastModes[0] == increasing) {
-            pSeg->t1 = _data.modechangeTimes[0];
-            pSeg->t2 = samplecount;
-        }
-        
-        //little longer
-        if (_data.lastModes[0] == stable && _data.lastModes[1] == increasing) {
-            pSeg->t1 = _data.modechangeTimes[1];
-            pSeg->t2 = samplecount;
-        }
-        
-        if (pSeg->t2 - pSeg->t1 > k_min_segment_time_in_counts) {
-            isSegmentReady = TRUE;
-        }
-    }
-    
-
-    //if there was a mode change, track when it happend
-    if (currentMode != _data.lastModes[0]) {
-        
-        _data.lastModes[2] = _data.lastModes[1];
-        _data.lastModes[1] = _data.lastModes[0];
-        _data.lastModes[0] = currentMode;
-        
-        _data.modechangeTimes[2] = _data.modechangeTimes[1];
-        _data.modechangeTimes[1] = _data.modechangeTimes[0];
-        _data.modechangeTimes[0] = samplecount;
-
-    }
-    
-    return isSegmentReady;
 }
 
 
@@ -473,6 +397,89 @@ static void UpdateChangeSignals(EChangeModes_t * pCurrentMode, const int16_t new
     
 }
 
+static void UpdateCoherencySignals(ECoherencyModes_t * pCurrentMode, const int16_t cosangle, uint32_t counter) {
+
+    int32_t logLikelihoodOfModePdfs[numCoherencyModes];
+    int32_t * logProbOfModes = _data.logProbOfCoherencyModes;
+    int16_t i;
+    int16_t coherentSignal = -((1<<10) - cosangle);
+    int16_t incoherentSignal = -(cosangle);
+    int32_t maxlogprob;
+    int16_t maxidx;
+    
+    
+    
+ /*  Mode log pdfs
+(0,0)|B\    /| (1,0)
+     |  \  /A|
+     |   \/  |
+     |  / \  |
+     | /   \ |
+     |/     \|
+     .       .
+     .       .
+  (0,-m)  (1,-n)
+     
+     pdf A is coherency (as cos angle goes to 1, your signal is more coherent)
+  
+     */
+    
+
+    
+    logLikelihoodOfModePdfs[coherent] = MUL_PRECISE_RESULT(coherentSignal,k_coherence_slope,QFIXEDPOINT);
+    logLikelihoodOfModePdfs[incoherent] = MUL_PRECISE_RESULT(incoherentSignal,k_incoherence_slope,QFIXEDPOINT);
+    
+    DEBUG_LOG_S32("loglik", NULL, logLikelihoodOfModePdfs, numCoherencyModes, counter, counter);
+
+    for (i = 0; i < numCoherencyModes; i++) {
+        logProbOfModes[i] += logLikelihoodOfModePdfs[i];
+    }
+    
+    
+    /* normalize -- the highest log probability will now be 0 */
+    maxlogprob = logProbOfModes[0];
+    maxidx = 0;
+    for (i = 1; i < numCoherencyModes; i++) {
+        if (logProbOfModes[i] > maxlogprob) {
+            maxlogprob = logProbOfModes[i];
+            maxidx = i;
+        }
+    }
+    
+    for (i = 0; i < numCoherencyModes; i++) {
+        logProbOfModes[i] -= maxlogprob;
+    }
+    
+    /* enforce min log prob */
+    for (i = 0; i < numCoherencyModes; i++) {
+        if (logProbOfModes[i] < k_coherence_min_log_prob) {
+            logProbOfModes[i] = k_coherence_min_log_prob;
+        }
+    }
+    
+    *pCurrentMode = (ECoherencyModes_t)maxidx;
+    
+#if 0
+    switch (*pCurrentMode) {
+        case coherent:
+            printf("coherent\n");
+            break;
+            
+        case incoherent:
+            printf("incoherent\n");
+            
+            
+            break;
+            
+        default:
+            break;
+    }
+    
+#endif
+    
+}
+
+
 static void ScaleInt16Vector(int16_t * vec, uint8_t * scaling, uint16_t len,uint8_t desiredscaling) {
     uint16_t utemp16;
     uint16_t max;
@@ -561,10 +568,10 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
   
     uint16_t i,j;
     uint8_t log2scaleOfRawSignal;
-    int16_t shapes[NUM_AUDIO_SHAPE_FEATURES];
+    int16_t mfcc[NUM_AUDIO_SHAPE_FEATURES];
     int16_t logTotalEnergy;
-    int16_t logTotalEnergyDiff;
     EChangeModes_t currentMode;
+    ECoherencyModes_t coherencyMode;
     uint8_t isStable;
     int16_t * psd = &fr[AUDIO_FFT_SIZE/2];
     uint8_t isSegmentReady;
@@ -593,27 +600,17 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
     /* Get PSD, but we only care about the PSD up until ~10 Khz, so we will stop at 256 */
     logpsd(&logTotalEnergy,psd,fr, fi, log2scaleOfRawSignal, AUDIO_FFT_SIZE/4);
     
-    logTotalEnergyDiff = abs(logTotalEnergy - _data.lastEnergy);
-    _data.lastEnergy = logTotalEnergy;
     
+    /* Determine stability in order to figure out when to subtract out background spectrum */
     
-    
-    
-    
-    /* Do segmenting stuff */
-    
-    //start by averaging the energy
     logTotalEnergy = MovingAverage16(_data.callcounter, logTotalEnergy, _data.energybuf, &_data.energyaccumulator,ENERGY_BUF_MASK,ENERGY_BUF_SIZE_2N);
     
-    DEBUG_LOG_S16("totalenergy",NULL,&logTotalEnergy,1,samplecount,samplecount);
 
     UpdateChangeSignals(&currentMode, logTotalEnergy, _data.callcounter);
 
-    isSegmentReady = SegmentSteadyState(&seg,&isStable,currentMode,logTotalEnergy,samplecount);
+    isStable = IsStable(currentMode,logTotalEnergy);
     
-    
-    
-    
+
     /* Equalize the PSD */
     
     //only do adaptive equalization if we are starting up, or our energy level is stable
@@ -626,6 +623,7 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
        
     }
     
+    //get MFCC coefficients
     memset(fi,0,sizeof(fi));
 
     for (i = 0; i < AUDIO_FFT_SIZE/4; i++) {
@@ -636,55 +634,45 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
     //fft of 2^8 --> 256
     dct(fr,fi,AUDIO_FFT_SIZE_2N - 2);
     
+    //here they are
     for (j = 0; j < NUM_AUDIO_SHAPE_FEATURES; j++) {
-        shapes[j] = fr[j+1];
+        mfcc[j] = fr[j+1];
     }
     
-    
+    //now compute MFCC directional change
+    vecdotresult = cosvec(_data.lastmfcc,mfcc,NUM_AUDIO_SHAPE_FEATURES);
+    memcpy(_data.lastmfcc,mfcc,sizeof(_data.lastmfcc));
 
-    vecdotresult = cosvec(_data.lastshapes,shapes,NUM_AUDIO_SHAPE_FEATURES);
-    
-    vecdotresult = MovingAverage16(_data.callcounter, vecdotresult, _data.energydiffbuf, &_data.energydiffaccumulator,ENERGYDIFF_BUF_MASK,ENERGYDIFF_BUF_SIZE_2N);
-    
-    
-    
+    //vecdotresult = MovingAverage16(_data.callcounter, vecdotresult, _data.energydiffbuf, &_data.energydiffaccumulator,ENERGYDIFF_BUF_MASK,ENERGYDIFF_BUF_SIZE_2N);
     DEBUG_LOG_S16("cosvec",NULL,&vecdotresult,1,samplecount,samplecount);
     
-    memcpy(_data.lastshapes,shapes,sizeof(_data.lastshapes));
+    UpdateCoherencySignals(&coherencyMode,vecdotresult,_data.callcounter);
 
+    SetDebugVectorS16("coherent", NULL, (int16_t *)&coherencyMode, 1, samplecount, samplecount);
     
-    
-   
-    for ( i= 0 ; i  < NUM_AUDIO_SHAPE_FEATURES; i++) {
-        shapes[i] = MovingAverage16(_data.callcounter, shapes[i], _data.featbuf[i], &_data.featbufaccumulator[i],FEAT_BUF_MASK, FEAT_BUF_SIZE_2N);
-    }
-    
-    
+    memcpy(&feats[0],mfcc,NUM_AUDIO_SHAPE_FEATURES*sizeof(int16_t));
 
-
-    
-    memcpy(&feats[0],shapes,NUM_AUDIO_SHAPE_FEATURES*sizeof(int16_t));
-
-    
+    /*
     if (((_data.callcounter + 1) & FEAT_BUF_MASK) == 0) {
         DEBUG_LOG_S16("sampledfeats",NULL,feats,NUM_AUDIO_FEATURES,samplecount,samplecount);
-        DEBUG_LOG_S16("sampledshapes",NULL,shapes,NUM_AUDIO_SHAPE_FEATURES,samplecount,samplecount);
+        DEBUG_LOG_S16("sampledshapes",NULL,mfcc,NUM_AUDIO_SHAPE_FEATURES,samplecount,samplecount);
 
     }
+     */
    
     if (!isStable) {
-        DEBUG_LOG_S16("shapes",NULL,shapes,NUM_AUDIO_SHAPE_FEATURES,samplecount,samplecount);
+        DEBUG_LOG_S16("shapes",NULL,mfcc,NUM_AUDIO_SHAPE_FEATURES,samplecount,samplecount);
     }
     
 
 
     
     for (i = 0; i < NUM_AUDIO_SHAPE_FEATURES; i++) {
-        shapes[i] >>= 4;
+        mfcc[i] >>= 4;
     }
     
    
-    DEBUG_LOG_S16("shapes2",NULL,shapes,NUM_AUDIO_SHAPE_FEATURES,samplecount,samplecount);
+    DEBUG_LOG_S16("shapes2",NULL,mfcc,NUM_AUDIO_SHAPE_FEATURES,samplecount,samplecount);
 
 
     
@@ -702,6 +690,7 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
         memcpy(_data.maxenergyfeatures,feats,sizeof(_data.maxenergyfeatures));
     }
     
+   /*
     if (isSegmentReady && _data.callcounter > STARTUP_EQUALIZATION_COUNTS) {
         if (seg.type == segmentPacket) {
             _data.fpCallback(_data.maxenergyfeatures,&seg);
@@ -711,6 +700,7 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
 
         }
     }
+    */
     
     
     /* Update counter.  It's okay if this one rolls over*/
