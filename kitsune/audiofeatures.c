@@ -33,17 +33,9 @@
 #define SAMPLE_RATE_IN_HZ (EXPECTED_AUDIO_SAMPLE_RATE_HZ / AUDIO_FFT_SIZE)
 #define SAMPLE_PERIOD_IN_MILLISECONDS  (1000 / SAMPLE_RATE_IN_HZ)
 
-#define FEAT_BUF_SIZE_2N (4)
-#define FEAT_BUF_SIZE (1 << FEAT_BUF_SIZE_2N)
-#define FEAT_BUF_MASK (FEAT_BUF_SIZE - 1)
-
 #define ENERGY_BUF_SIZE_2N (4)
 #define ENERGY_BUF_SIZE (1 << ENERGY_BUF_SIZE_2N)
 #define ENERGY_BUF_MASK (ENERGY_BUF_SIZE - 1)
-
-#define ENERGYDIFF_BUF_SIZE_2N (1)
-#define ENERGYDIFF_BUF_SIZE  (1 << ENERGYDIFF_BUF_SIZE_2N)
-#define ENERGYDIFF_BUF_MASK (ENERGYDIFF_BUF_SIZE - 1)
 
 #define CHANGE_SIGNAL_BUF_SIZE_2N (5)
 #define CHANGE_SIGNAL_BUF_SIZE (1 << CHANGE_SIGNAL_BUF_SIZE_2N)
@@ -99,7 +91,6 @@ static const int32_t k_coherence_min_log_prob = TOFIX(-0.25f,QFIXEDPOINT);
 
 static const uint32_t k_stable_counts_to_be_considered_stable =  STABLE_TIME_TO_BE_CONSIDERED_STABLE_IN_MILLISECONDS / SAMPLE_PERIOD_IN_MILLISECONDS;
 
-static const int32_t k_min_energy = 3000;
 
 /*--------------------------------
  *   Types
@@ -142,7 +133,6 @@ typedef struct {
     int64_t modechangeTimes[3];
     uint8_t isValidSteadyStateSegment;
     int16_t maxenergyfeatures[NUM_AUDIO_FEATURES];
-    int16_t maxenergyinsegment;
     ECoherencyModes_t lastmode;
     int32_t mfccaccumulator[NUM_AUDIO_SHAPE_FEATURES];
     int16_t mfccavg[NUM_AUDIO_SHAPE_FEATURES];
@@ -632,7 +622,6 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
 
     
     
-    
     /* Get FFT */
     fft(fr,fi, AUDIO_FFT_SIZE_2N);
     
@@ -665,7 +654,7 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
         fr[i] = psd[i] - _data.lpfbuf[i];
     }
     
-    
+    /*  TAKE THE DCT! */
     //fft of 2^8 --> 256
     dct(fr,fi,AUDIO_FFT_SIZE_2N - 2);
     
@@ -678,72 +667,25 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
     vecdotresult = cosvec(_data.lastmfcc,mfcc,NUM_AUDIO_SHAPE_FEATURES);
     memcpy(_data.lastmfcc,mfcc,sizeof(_data.lastmfcc));
 
-    //vecdotresult = MovingAverage16(_data.callcounter, vecdotresult, _data.energydiffbuf, &_data.energydiffaccumulator,ENERGYDIFF_BUF_MASK,ENERGYDIFF_BUF_SIZE_2N);
-    DEBUG_LOG_S16("cosvec",NULL,&vecdotresult,1,samplecount,samplecount);
+    //DEBUG_LOG_S16("cosvec",NULL,&vecdotresult,1,samplecount,samplecount);
     
     UpdateCoherencySignals(&coherencyMode,vecdotresult,_data.callcounter);
 
-    SetDebugVectorS16("coherent", NULL, (int16_t *)&coherencyMode, 1, samplecount, samplecount);
+    //DEBUG_LOG_S16("coherent", NULL, (int16_t *)&coherencyMode, 1, samplecount, samplecount);
+
+
     
     if (SegmentCoherentSignals(coherencyMode, mfcc, samplecount)) {
-        if (_data.fpCallback) {
+        if (_data.fpCallback && _data.callcounter > STARTUP_EQUALIZATION_COUNTS) {
             _data.fpCallback(_data.mfccavg,&_data.coherentSegment);
         }
     }
     
     memcpy(&feats[0],mfcc,NUM_AUDIO_SHAPE_FEATURES*sizeof(int16_t));
 
-    /*
-    if (((_data.callcounter + 1) & FEAT_BUF_MASK) == 0) {
-        DEBUG_LOG_S16("sampledfeats",NULL,feats,NUM_AUDIO_FEATURES,samplecount,samplecount);
-        DEBUG_LOG_S16("sampledshapes",NULL,mfcc,NUM_AUDIO_SHAPE_FEATURES,samplecount,samplecount);
-
-    }
-     */
-   
-    if (!isStable) {
-        DEBUG_LOG_S16("shapes",NULL,mfcc,NUM_AUDIO_SHAPE_FEATURES,samplecount,samplecount);
-    }
-    
+    DEBUG_LOG_S16("shapes",NULL,mfcc,NUM_AUDIO_SHAPE_FEATURES,samplecount,samplecount);
 
 
-    
-    for (i = 0; i < NUM_AUDIO_SHAPE_FEATURES; i++) {
-        mfcc[i] >>= 4;
-    }
-    
-   
-    DEBUG_LOG_S16("shapes2",NULL,mfcc,NUM_AUDIO_SHAPE_FEATURES,samplecount,samplecount);
-
-
-    
-
-
-    
-
-    
-    if (currentMode == increasing) {
-        _data.maxenergyinsegment = MIN_INT_16;
-    }
-    
-    if (_data.maxenergyinsegment < logTotalEnergy) {
-        _data.maxenergyinsegment = logTotalEnergy;
-        memcpy(_data.maxenergyfeatures,feats,sizeof(_data.maxenergyfeatures));
-    }
-    
-   /*
-    if (isSegmentReady && _data.callcounter > STARTUP_EQUALIZATION_COUNTS) {
-        if (seg.type == segmentPacket) {
-            _data.fpCallback(_data.maxenergyfeatures,&seg);
-        }
-        else if (seg.type == segmentSteadyState) {
-            _data.fpCallback(feats,&seg);
-
-        }
-    }
-    */
-    
-    
     /* Update counter.  It's okay if this one rolls over*/
     _data.callcounter++;
     
