@@ -16,6 +16,7 @@
 #include "prcm.h"
 
 #include "gpio_if.h"
+#include "ble_cmd.h"
 
 /* FreeRTOS includes */
 #include "FreeRTOS.h"
@@ -204,6 +205,8 @@ int Cmd_spi_read(int argc, char *argv[]) {
 		UARTprintf( "%x", buf[i] );
 	}
 	UARTprintf( "\r\n" );
+
+	on_morpheus_protobuf_arrival(buf, len);
 
 	return SUCCESS;
 
