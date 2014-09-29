@@ -1052,3 +1052,288 @@ int Cmd_audio_test(int argc, char *argv[]) {
     return (0);
 }
 
+//radio test functions
+#define FRAME_SIZE		1500
+typedef enum
+{
+    LONG_PREAMBLE_MODE = 0,
+    SHORT_PREAMBLE_MODE = 1,
+    OFDM_PREAMBLE_MODE = 2,
+    N_MIXED_MODE_PREAMBLE_MODE = 3,
+    GREENFIELD_PREAMBLE_MODE = 4,
+    MAX_NUM_PREAMBLE = 0xff
+}RadioPreamble_e;
+
+typedef enum
+{
+    RADIO_TX_CONTINUOUS = 1,
+    RADIO_TX_PACKETIZED = 2,
+    RADIO_TX_CW = 3,
+    MAX_RADIO_TX_MODE = 0xff
+}RadioTxMode_e;
+
+typedef enum
+{
+    ALL_0_PATTERN = 0,
+    ALL_1_PATTERN = 1,
+    INCREMENTAL_PATTERN = 2,
+    DECREMENTAL_PATTERN = 3,
+    PN9_PATTERN = 4,
+    PN15_PATTERN = 5,
+    PN23_PATTERN = 6,
+    MAX_NUM_PATTERN = 0xff
+}RadioDataPattern_e;
+
+int rawSocket;
+uint8_t CurrentTxMode;
+
+#define RADIO_CMD_BUFF_SIZE_MAX 100
+#define DEV_VER_LENGTH			136
+#define WLAN_DEL_ALL_PROFILES	255
+#define CW_LOW_TONE			-25
+#define CW_HIGH_TONE			25
+#define CW_STOP					128
+
+/**************************** Definitions for template frame ****************************/
+#define RATE RATE_1M
+#define FRAME_TYPE 0xC8											/* QOS data */
+#define FRAME_CONTROL 0x01										/* TO DS*/
+#define DURATION 0x00,0x00
+#define RECEIVE_ADDR 0x55, 0x44, 0x33, 0x22, 0x11, 0x00
+#define TRANSMITTER_ADDR 0x00, 0x11, 0x22, 0x33, 0x44, 0x55
+#define DESTINATION_ADDR 0x55, 0x44, 0x33, 0x22, 0x11, 0x00
+#define FRAME_NUMBER   0x00, 0x00
+#define QOS_CONTROL	0x00, 0x00
+
+#define RA_OFFSET		4
+#define TA_OFFSET		10
+#define DA_OFFSET		16
+
+uint8_t TemplateFrame[] = {
+                   /*---- wlan header start -----*/
+                   FRAME_TYPE,                          							/* version type and sub type */
+                   FRAME_CONTROL,                       							/* Frame control flag*/
+                   DURATION,                            							/* duration */
+                   RECEIVE_ADDR,                        							/* Receiver Address */
+                   TRANSMITTER_ADDR,                    						/* Transmitter Address */
+                   DESTINATION_ADDR,                    						/* destination Address*/
+                   FRAME_NUMBER,                        							/* frame number */
+                   QOS_CONTROL											/* QoS control */
+};
+
+int RadioStopRX ()
+{
+	sl_WlanRxStatStop();
+
+    vTaskDelay(30 / portTICK_RATE_MS);
+
+	return sl_Close(rawSocket);
+}
+
+
+int RadioStartRX(int eChannel)
+{
+	struct SlTimeval_t timeval;
+	uint8_t * DataFrame = (uint8_t*)pvPortMalloc( FRAME_SIZE );
+
+	timeval.tv_sec =  0;             // Seconds
+	timeval.tv_usec = 20000;             // Microseconds. 10000 microseconds resoultion
+
+	sl_WlanRxStatStart();
+
+	rawSocket = sl_Socket(SL_AF_RF, SL_SOCK_RAW, eChannel);
+
+	if (rawSocket < 0)
+	{
+		return -1;
+	}
+
+	sl_SetSockOpt(rawSocket,SL_SOL_SOCKET,SL_SO_RCVTIMEO, &timeval, sizeof(timeval));    // Enable receive timeout
+
+	sl_Recv(rawSocket, DataFrame, 1470, 0);
+
+	vPortFree( DataFrame );
+	return 0;
+}
+
+
+int RadioGetStats(unsigned int *validPackets, unsigned int *fcsPackets,unsigned int *plcpPackets, int16_t *avgRssiMgmt, int16_t  *avgRssiOther, uint16_t * pRssiHistogram, uint16_t * pRateHistogram)
+{
+
+	SlGetRxStatResponse_t rxStatResp;
+
+	sl_WlanRxStatGet(&rxStatResp, 0);
+
+	*validPackets = rxStatResp.ReceivedValidPacketsNumber;
+	*fcsPackets = rxStatResp.ReceivedFcsErrorPacketsNumber;
+	*plcpPackets = rxStatResp.ReceivedPlcpErrorPacketsNumber;
+	*avgRssiMgmt = rxStatResp.AvarageMgMntRssi;
+	*avgRssiOther = rxStatResp.AvarageDataCtrlRssi;
+
+	memcpy(pRssiHistogram, rxStatResp.RssiHistogram, sizeof(unsigned short) * SIZE_OF_RSSI_HISTOGRAM);
+
+	memcpy(pRateHistogram, rxStatResp.RateHistogram, sizeof(unsigned short) * NUM_OF_RATE_INDEXES);
+
+    return 0;
+
+}
+
+/* Note: the followings are not yet supported:
+1) Power level
+2) Preamble type
+3) CW	*/
+//int32_t RadioStartTX(RadioTxMode_e eTxMode, RadioPowerLevel_e ePowerLevel, Channel_e eChannel, RateIndex_e eRate, RadioPreamble_e ePreamble, RadioDataPattern_e eDataPattern, uint16_t size, uint32_t delay, uint8_t * pDstMac)
+int32_t RadioStartTX(RadioTxMode_e eTxMode, uint8_t powerLevel_Tone, int eChannel, SlRateIndex_e eRate, RadioPreamble_e ePreamble, RadioDataPattern_e eDataPattern, uint16_t size, uint32_t delay_amount, uint8_t overrideCCA, uint8_t * pDstMac)
+{
+	uint16_t loopIdx;
+	int32_t length;
+	uint32_t numberOfFrames = delay_amount;
+	uint8_t pConfigLen = SL_BSSID_LENGTH;
+	CurrentTxMode = (uint8_t) eTxMode;
+	int32_t minDelay;
+	uint8_t * DataFrame = (uint8_t*)pvPortMalloc( FRAME_SIZE );
+
+	if ((RADIO_TX_PACKETIZED == eTxMode) || (RADIO_TX_CONTINUOUS == eTxMode))
+	{
+		/* build the frame */
+		switch (eDataPattern)
+		{
+			case ALL_0_PATTERN:
+				memset(DataFrame, 0, sizeof(DataFrame));
+
+				break;
+	    		case ALL_1_PATTERN:
+				memset(DataFrame, 1, sizeof(DataFrame));
+
+				break;
+			case INCREMENTAL_PATTERN:
+				for (loopIdx = 0; loopIdx < FRAME_SIZE; loopIdx++)
+					DataFrame[loopIdx] = (uint8_t)loopIdx;
+
+				break;
+	    		case DECREMENTAL_PATTERN:
+				for (loopIdx = 0; loopIdx < FRAME_SIZE; loopIdx++)
+					DataFrame[loopIdx] = (uint8_t)(FRAME_SIZE - 1 - loopIdx);
+
+				break;
+			default:
+				memset(DataFrame, 0, sizeof(DataFrame));
+		}
+
+		sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL,&pConfigLen, &TemplateFrame[TA_OFFSET]);
+		memcpy(&TemplateFrame[RA_OFFSET], pDstMac, SL_BSSID_LENGTH);
+		memcpy(&TemplateFrame[DA_OFFSET], pDstMac, SL_BSSID_LENGTH);
+
+		memcpy(DataFrame, TemplateFrame, sizeof(TemplateFrame));
+
+		/* open a RAW/DGRAM socket based on CCA override*/
+		if (overrideCCA == 1)
+			rawSocket = sl_Socket(SL_AF_RF, SL_SOCK_RAW, eChannel);
+		else
+			rawSocket = sl_Socket(SL_AF_RF, SL_SOCK_DGRAM, eChannel);
+
+		if (rawSocket < 0)
+		{
+			vPortFree( DataFrame );
+			return -1;
+		}
+	}
+
+
+
+	if (RADIO_TX_PACKETIZED == eTxMode)
+	{
+			length = size;
+			portTickType xDelay;
+
+
+			while ((length == size))
+			{
+                            /* transmit the frame */
+							minDelay = (delay_amount%50);
+                            length = sl_Send(rawSocket, DataFrame, size, SL_RAW_RF_TX_PARAMS(eChannel, eRate, powerLevel_Tone, ePreamble));
+                            //UtilsDelay((delay_amount*CPU_CYCLES_1MSEC)/12);
+                            xDelay= minDelay / portTICK_RATE_MS;
+                            vTaskDelay(xDelay);
+
+                			minDelay = (delay_amount - minDelay);
+                			while(minDelay > 0)
+                			{
+                				vTaskDelay(50/portTICK_RATE_MS);
+                				minDelay -= 50;
+                			}
+			}
+
+			if (length != size)
+			{
+				RadioStopTX((RadioTxMode_e)CurrentTxMode);
+
+				vPortFree( DataFrame );
+				return -1;
+			}
+
+			if(sl_Close(rawSocket) < 0)
+			{
+				vPortFree( DataFrame );
+				return -1;
+			}
+
+			vPortFree( DataFrame );
+			return 0;
+		}
+
+	if (RADIO_TX_CONTINUOUS == eTxMode)
+	{
+		sl_SetSockOpt(rawSocket, SL_SOL_PHY_OPT, SL_SO_PHY_NUM_FRAMES_TO_TX, &numberOfFrames, sizeof(uint32_t));
+
+		sl_Send(rawSocket, DataFrame, size, SL_RAW_RF_TX_PARAMS(eChannel, eRate, powerLevel_Tone, ePreamble));
+
+	}
+
+	if (RADIO_TX_CW == eTxMode)
+	{
+		rawSocket = sl_Socket(SL_AF_RF,SL_SOCK_RAW,eChannel);
+		if(rawSocket < 0)
+		{
+			vPortFree( DataFrame );
+			return -1;
+		}
+
+		sl_Send(rawSocket, NULL, 0, powerLevel_Tone);
+	}
+
+	vPortFree( DataFrame );
+	return 0;
+}
+
+int RadioStopTX(RadioTxMode_e eTxMode)
+{
+	int retVal;
+
+	if (RADIO_TX_PACKETIZED == eTxMode)
+	{
+		retVal = 0;
+	}
+
+	if (RADIO_TX_CW == eTxMode)
+	{
+		sl_Send(rawSocket, NULL, 0, CW_STOP);
+		vTaskDelay(30 / portTICK_RATE_MS);
+		retVal = sl_Close(rawSocket);
+	}
+
+	if (RADIO_TX_CONTINUOUS == eTxMode)
+	{
+		retVal = sl_Close(rawSocket);
+	}
+
+	return retVal;
+
+
+
+//	radioSM = RADIO_IDLE;
+//
+//	return sl_Close(rawSocket);
+}
+
+//end radio test functions
