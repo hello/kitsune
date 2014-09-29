@@ -174,17 +174,16 @@ int Cmd_fs_write(int argc, char *argv[]) {
 	// Print some header text.
 	//
 	unsigned long tok=0;
-	int err;
 	long hndl, bytes;
 	SlFsFileInfo_t info;
 
-	sl_FsGetInfo(argv[1], tok, &info);
+	sl_FsGetInfo((unsigned char*)argv[1], tok, &info);
 
-	if (sl_FsOpen(argv[1],
+	if (sl_FsOpen((unsigned char*)argv[1],
 	FS_MODE_OPEN_WRITE, &tok, &hndl)) {
 		UARTprintf("error opening file, trying to create\n");
 
-		if (sl_FsOpen(argv[1],
+		if (sl_FsOpen((unsigned char*)argv[1],
 				FS_MODE_OPEN_CREATE(65535, _FS_FILE_OPEN_FLAG_COMMIT), &tok,
 				&hndl)) {
 			UARTprintf("error opening for write\n");
@@ -192,7 +191,7 @@ int Cmd_fs_write(int argc, char *argv[]) {
 		}
 	}
 
-	bytes = sl_FsWrite(hndl, info.FileLen, argv[2], strlen(argv[2]));
+	bytes = sl_FsWrite(hndl, info.FileLen, (unsigned char*)argv[2], strlen(argv[2]));
 	UARTprintf("wrote to the file %d bytes\n", bytes);
 
 	sl_FsClose(hndl, 0, 0, 0);
@@ -211,14 +210,14 @@ int Cmd_fs_read(int argc, char *argv[]) {
 	SlFsFileInfo_t info;
 	char buffer[BUF_SZ];
 
-	sl_FsGetInfo(argv[1], tok, &info);
+	sl_FsGetInfo((unsigned char*)argv[1], tok, &info);
 
-	if (err = sl_FsOpen(argv[1], FS_MODE_OPEN_READ, &tok, &hndl)) {
+	if (err = sl_FsOpen((unsigned char*)argv[1], FS_MODE_OPEN_READ, &tok, &hndl)) {
 		UARTprintf("error opening for read %d\n", err);
 		return -1;
 	}
 
-	if (bytes = sl_FsRead(hndl, 0, buffer, minval(info.FileLen, BUF_SZ))) {
+	if (bytes = sl_FsRead(hndl, 0, (unsigned char*)buffer, minval(info.FileLen, BUF_SZ))) {
 		UARTprintf("read %d bytes\n", bytes);
 	}
 
@@ -237,8 +236,11 @@ int Cmd_code_playbuff(int argc, char *argv[]) {
 
 #define minval( a,b ) a < b ? a : b
 	unsigned long tok;
-	long hndl, err, bytes, i,j;
+	long hndl, err, bytes;
+#if 0
+	int i,j;
 	SlFsFileInfo_t info;
+#endif
 
 	audio_buf = (unsigned short*)pvPortMalloc(AUDIO_BUF_SZ);
 
@@ -246,7 +248,7 @@ int Cmd_code_playbuff(int argc, char *argv[]) {
 		UARTprintf("error opening for read %d\n", err);
 		return -1;
 	}
-	if (bytes = sl_FsRead(hndl, 0, audio_buf, AUDIO_BUF_SZ)) {
+	if (bytes = sl_FsRead(hndl, 0, (unsigned char*)audio_buf, AUDIO_BUF_SZ)) {
 		UARTprintf("read %d bytes\n", bytes);
 	}
 	sl_FsClose(hndl, 0, 0, 0);
@@ -341,8 +343,7 @@ int Cmd_code_playbuff(int argc, char *argv[]) {
 }
 
 //extern
-
-
+void Microphone1();
 
 int Cmd_record_buff(int argc, char *argv[]) {
 #if 0
@@ -497,7 +498,7 @@ int Cmd_fs_delete(int argc, char *argv[]) {
 	//
 	int err;
 
-	if (err = sl_FsDel(argv[1], 0)) {
+	if (err = sl_FsDel((unsigned char*)argv[1], 0)) {
 		UARTprintf("error %d\n", err);
 		return -1;
 	}
@@ -596,24 +597,13 @@ unsigned long get_time() {
 	return ntp;
 }
 
-int thread_audio(void* unused) {
-	while (1) {
+void thread_audio(void * unused) {
+	int c=1;
+	while (c) {
 		portTickType now = xTaskGetTickCount();
 		//todo audio processing
 		vTaskDelayUntil(&now, 100 ); //todo 10hz - this may need adjusted
 	}
-	return 0;
-}
-
-int thread_prox(void* unused) {
-	while (1) {
-		int prox = get_prox();
-
-		UARTprintf("%d\n", prox);
-
-		vTaskDelay( 100 );
-	} //try every little bit
-	return 0;
 }
 
 #define SENSOR_RATE 60
@@ -622,7 +612,7 @@ static unsigned int dust_val=0;
 static unsigned int dust_cnt=0;
 xSemaphoreHandle dust_smphr;
 
-void thread_dust(void* unused) {
+void thread_dust(void * unused)  {
     #define maxval( a, b ) a>b ? a : b
 	while (1) {
 		if (xSemaphoreTake(dust_smphr, portMAX_DELAY)) {
@@ -640,7 +630,7 @@ static xSemaphoreHandle light_smphr;
 
  xSemaphoreHandle i2c_smphr;
 
-void thread_fast_i2c_poll(void* unused) {
+void thread_fast_i2c_poll(void * unused)  {
 	int last_prox =0;
 	while (1) {
 		portTickType now = xTaskGetTickCount();
@@ -1101,7 +1091,6 @@ int Cmd_led(int argc, char *argv[]) {
 }
 
 int Cmd_led_clr(int argc, char *argv[]) {
-	int i;
 	unsigned int colors[NUM_LED] = { 0 };
 	led_array(colors);
 
@@ -1203,7 +1192,6 @@ void UARTStdioIntHandler(void);
 
 void vUARTTask(void *pvParameters) {
 	char cCmdBuf[64];
-	int nStatus;
 	portTickType now;
 
 	//

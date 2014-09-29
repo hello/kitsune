@@ -206,7 +206,7 @@ void I2SIntHandler(){
    if(ulStatus & I2S_STS_RDATA)
    {
 
-        I2SDataGetNonBlocking(I2S_BASE, I2S_DATA_LINE_1, ulDummy);
+        I2SDataGetNonBlocking(I2S_BASE, I2S_DATA_LINE_1, &ulDummy);
         UARTprintf("loop into I2SIntClear \n");
 
         I2SIntClear(I2S_BASE,I2S_STS_RDATA);

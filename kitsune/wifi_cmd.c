@@ -1003,7 +1003,6 @@ int send_periodic_data( data_t * data ) {
 
 
 int Cmd_sl(int argc, char*argv[]) {
-#define WLAN_DEL_ALL_PROFILES 0xff
 
     unsigned char policyVal;
 
@@ -1194,8 +1193,8 @@ int Cmd_RadioGetStats(int argc, char*argv[])
 	uint16_t * rate_histogram;
 	int i;
 
-	rssi_histogram = (int16_t*)pvPortMalloc(sizeof(unsigned short) * SIZE_OF_RSSI_HISTOGRAM);
-	rate_histogram = (int16_t*)pvPortMalloc(sizeof(unsigned short) * NUM_OF_RATE_INDEXES);
+	rssi_histogram = (uint16_t*)pvPortMalloc(sizeof(unsigned short) * SIZE_OF_RSSI_HISTOGRAM);
+	rate_histogram = (uint16_t*)pvPortMalloc(sizeof(unsigned short) * NUM_OF_RATE_INDEXES);
 
 	RadioGetStats(&valid_packets, &fcs_packets, &plcp_packets, &avg_rssi_mgmt, &avg_rssi_other, rssi_histogram, rate_histogram);
 
@@ -1216,6 +1215,34 @@ int Cmd_RadioGetStats(int argc, char*argv[])
 
 	vPortFree(rssi_histogram);
 	vPortFree(rate_histogram);
+	return 0;
+}
+
+int RadioStopTX(RadioTxMode_e eTxMode)
+{
+	int retVal;
+
+	if (RADIO_TX_PACKETIZED == eTxMode)
+	{
+		retVal = 0;
+	}
+
+	if (RADIO_TX_CW == eTxMode)
+	{
+		sl_Send(rawSocket, NULL, 0, CW_STOP);
+		vTaskDelay(30 / portTICK_RATE_MS);
+		retVal = sl_Close(rawSocket);
+	}
+
+	if (RADIO_TX_CONTINUOUS == eTxMode)
+	{
+		retVal = sl_Close(rawSocket);
+	}
+
+	return retVal;
+//	radioSM = RADIO_IDLE;
+//
+//	return sl_Close(rawSocket);
 }
 
 /* Note: the followings are not yet supported:
@@ -1370,12 +1397,12 @@ int Cmd_RadioStartTX(int argc, char*argv[])
 						);
 		return -1;
 	}
-	mode = atoi(argv[1]);
+	mode = (RadioTxMode_e)atoi(argv[1]);
 	pwrlvl = atoi(argv[2]);
 	chnl = atoi(argv[3]);
-	rate = atoi(argv[4]);
-	preamble = atoi(argv[5]);
-	datapattern = atoi(argv[6]);
+	rate = (SlRateIndex_e)atoi(argv[4]);
+	preamble = (RadioPreamble_e)atoi(argv[5]);
+	datapattern = (RadioDataPattern_e)atoi(argv[6]);
 	size = atoi(argv[7]);
 	delay = atoi(argv[8]);
 	overridecca = atoi(argv[9]);
@@ -1386,40 +1413,13 @@ int Cmd_RadioStartTX(int argc, char*argv[])
 	return RadioStartTX(mode, pwrlvl, chnl, rate, preamble, datapattern, size, delay, overridecca, dest_mac);
 }
 
-int RadioStopTX(RadioTxMode_e eTxMode)
-{
-	int retVal;
-
-	if (RADIO_TX_PACKETIZED == eTxMode)
-	{
-		retVal = 0;
-	}
-
-	if (RADIO_TX_CW == eTxMode)
-	{
-		sl_Send(rawSocket, NULL, 0, CW_STOP);
-		vTaskDelay(30 / portTICK_RATE_MS);
-		retVal = sl_Close(rawSocket);
-	}
-
-	if (RADIO_TX_CONTINUOUS == eTxMode)
-	{
-		retVal = sl_Close(rawSocket);
-	}
-
-	return retVal;
-//	radioSM = RADIO_IDLE;
-//
-//	return sl_Close(rawSocket);
-}
-
 int Cmd_RadioStopTX(int argc, char*argv[])
 {
-	int mode;
+	RadioTxMode_e mode;
 	if(argc!=2) {
 		UARTprintf("stoptx <mode, RADIO_TX_PACKETIZED=2, RADIO_TX_CW=3, RADIO_TX_CONTINUOUS=1>\n");
 	}
-	mode = atoi(argv[1]);
+	mode = (RadioTxMode_e)atoi(argv[1]);
 	return RadioStopTX(mode);
 }
 

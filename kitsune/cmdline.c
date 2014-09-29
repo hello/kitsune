@@ -38,7 +38,7 @@
 //
 //*****************************************************************************
 #ifndef CMDLINE_MAX_ARGS
-#define CMDLINE_MAX_ARGS        8
+#define CMDLINE_MAX_ARGS        20
 #endif
 
 //*****************************************************************************
@@ -62,8 +62,12 @@
 //! Otherwise it returns the code that was returned by the command function.
 //
 //*****************************************************************************
+#include "uartstdio.h"
+#include "FreeRTOS.h"
+#include "task.h"
+
 void
-CmdLineProcess(char *pcCmdLine)
+CmdLineProcess(void * line)
 {
     static char *argv[CMDLINE_MAX_ARGS + 1];
     char *pcChar;
@@ -71,6 +75,7 @@ CmdLineProcess(char *pcCmdLine)
     int bFindArg = 1;
     tCmdLineEntry *pCmdEntry;
 
+    char * pcCmdLine = (char*)line;
     //
     // Initialize the argument counter, and point to the beginning of the
     // command line string.

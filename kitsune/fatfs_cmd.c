@@ -498,29 +498,29 @@ Cmd_write(int argc, char *argv[])
 int
 Cmd_append(int argc, char *argv[])
 {
-	return f_append(argv[1], argv[2], strlen(argv[2])) != FR_OK;
+	return f_append((const char *)argv[1], (const unsigned char *)argv[2], strlen(argv[2])) != FR_OK;
 }
 
 
 
 // add this for creating buff for sound recording
-int Cmd_write_record(unsigned char *content)
+int Cmd_write_record(int argc, char *argv[])
 //int Cmd_write_record(int argc, char *argv[])
 {
 	//#define RECORD_SIZE 4
-	//unsigned char content[RECORD_SIZE];
+	//unsigned char argv[1][RECORD_SIZE];
 
-				//content[0] = 0xAA;
-//				content[1] = 0x78;
-//				content[2] = 0x55;
-//				content[3] = 0x50;
+				//argv[1][0] = 0xAA;
+//				argv[1][1] = 0x78;
+//				argv[1][2] = 0x55;
+//				argv[1][3] = 0x50;
 
     FRESULT res;
 
 	WORD bytes = 0;
 	WORD bytes_written = 0;
-	WORD bytes_to_write = strlen(content[1]) * sizeof(content)+1;
-//	WORD bytes_to_write = strlen(content[1]) * 4 +1;
+	WORD bytes_to_write = strlen(argv[1]) * sizeof(char)+1;
+//	WORD bytes_to_write = strlen(argv[1][1]) * 4 +1;
     if(global_filename( "VONE" ))
     {
     	return 1;
@@ -536,7 +536,7 @@ int Cmd_write_record(unsigned char *content)
         res = f_lseek(&file_obj, file_info.fsize );
 
     do {
-		res = f_write( &file_obj, content+bytes_written, bytes_to_write-bytes_written, &bytes );
+		res = f_write( &file_obj, argv[1]+bytes_written, bytes_to_write-bytes_written, &bytes );
 		bytes_written+=bytes;
     } while( bytes_written < bytes_to_write );
 

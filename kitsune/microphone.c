@@ -47,6 +47,11 @@
 #include "hw_memmap.h"
 #include "fatfs_cmd.h"
 #include "ff.h"
+
+#include "uartstdio.h"
+#include "FreeRTOS.h"
+#include "task.h"
+
 //******************************************************************************
 //                            GLOBAL VARIABLES
 //******************************************************************************

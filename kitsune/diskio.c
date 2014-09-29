@@ -525,6 +525,8 @@ DRESULT disk_read ( BYTE bDrive, BYTE* pBuffer, DWORD ulSectorNumber,
 //! \return Returns RES_OK on success.
 //
 //*****************************************************************************
+#include "FreeRTOS.h"
+#include "task.h"
 DRESULT disk_write ( BYTE bDrive,const BYTE* pBuffer, DWORD ulSectorNumber,
                     BYTE bSectorCount)
 {

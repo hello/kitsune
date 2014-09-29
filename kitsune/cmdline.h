@@ -107,7 +107,7 @@ extern tCmdLineEntry g_sCmdTable[];
 // Prototypes for the APIs.
 //
 //*****************************************************************************
-extern void CmdLineProcess(char *pcCmdLine);
+extern void CmdLineProcess(void *line);
 
 //*****************************************************************************
 //
