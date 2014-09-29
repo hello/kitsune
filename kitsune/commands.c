@@ -1301,7 +1301,6 @@ void vUARTTask(void *pvParameters) {
 			// parsed and valid commands executed.
 			//
 			xTaskCreate(CmdLineProcess, "commandTask",  1024 / 4, cCmdBuf, 9, NULL);
-			UARTprintf("> ");
 		}
 	}
 }

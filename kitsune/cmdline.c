@@ -167,6 +167,7 @@ CmdLineProcess(void * line)
             {
                 int code = pCmdEntry->pfnCmd(argc, argv);
                 UARTprintf("Command returned code %d\n", code);
+                UARTprintf("> ");
                 vTaskDelete( NULL );
                 return;
             }
