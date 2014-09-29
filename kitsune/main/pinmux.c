@@ -133,7 +133,7 @@ PinMuxConfig(void)
     //
     // Configure PIN_50 for MCASP0 McAXR1
     //
-   // MAP_PinTypeI2S(PIN_50, PIN_MODE_6);
+    MAP_PinTypeI2S(PIN_50, PIN_MODE_6);
 
     //
     // Configure PIN_55 for UART0 UART0_TX
@@ -161,15 +161,18 @@ PinMuxConfig(void)
     MAP_PinTypeGPIO(PIN_61, PIN_MODE_0, false);
     MAP_GPIODirModeSet(GPIOA0_BASE, 0x40, GPIO_DIR_MODE_IN);
 
-    //setup i2S clock
-    MAP_PRCMPeripheralClkEnable(PRCM_I2S, PRCM_RUN_MODE_CLK);
     //
     // Configure PIN_62 for GPIOInput
     //
     MAP_PinTypeGPIO(PIN_62, PIN_MODE_0, false);
     MAP_GPIODirModeSet(GPIOA0_BASE, 0x80, GPIO_DIR_MODE_IN);
-    //
 
+    //
+    // Configure PIN_63 for MCASP0 McAFSX
+    //
+    MAP_PinTypeI2S(PIN_63, PIN_MODE_7);
+
+    //
     // Configure PIN_64 for TIMERPWM5 GT_PWM05
     //
     MAP_PinTypeTimer(PIN_64, PIN_MODE_3);
@@ -187,12 +190,13 @@ PinMuxConfig(void)
     //
     // Configure PIN_03 for MCASP0 McACLK
     //
-   // MAP_PinTypeI2S(PIN_03, PIN_MODE_3);
+    MAP_PinTypeI2S(PIN_03, PIN_MODE_3);
 
     //
-    // Configure PIN_04 for GPIOOutputOD
+    // Configure PIN_04 for GPIOOutput
     //
-    //MAP_PinTypeGPIO(PIN_04, PIN_MODE_0, true);
+    MAP_PinTypeGPIO(PIN_04, PIN_MODE_0, false);
+    MAP_GPIODirModeSet(GPIOA1_BASE, 0x20, GPIO_DIR_MODE_OUT);
 
     //
     // Configure PIN_05 for SPI0 GSPI_CLK
@@ -218,22 +222,12 @@ PinMuxConfig(void)
     // Configure PIN_53 for SPI0 GSPI_MISO
     //
     MAP_PinTypeSPI(PIN_53, PIN_MODE_7);
-    // Configure PIN_08 for SPI0 GSPI_CS
-    //
-    MAP_PinTypeSPI(PIN_04, PIN_MODE_7);
+
     //
     // Configure PIN_45 for MCASP0 McAXR0
     //
-   // MAP_PinTypeI2S(PIN_45, PIN_MODE_6);
-     //
-     // Configure PIN_63 for MCASP0 McAFSX
-     MAP_PinTypeI2S(PIN_63, PIN_MODE_7);
-     // Configure PIN_53 for MCASP0 McACLK
-     MAP_PinTypeI2S(PIN_03, PIN_MODE_3);
-     // Configure PIN_64 for MCASP0 McAXR0
-     MAP_PinTypeI2S(PIN_45, PIN_MODE_6);
-     // Configure PIN_50 for MCASP0 McAXR1
-     MAP_PinTypeI2S(PIN_50, PIN_MODE_6);
+    MAP_PinTypeI2S(PIN_45, PIN_MODE_6);
+
     //
     // Configure PIN_52 for SPI0 GSPI_MOSI
     //

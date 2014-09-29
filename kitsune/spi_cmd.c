@@ -39,13 +39,13 @@ typedef struct {
 #define SPI_IF_BIT_RATE  10000
 #define TR_BUFF_SIZE     100
 
-void CS_set(int val) {
-	unsigned char gpio, pin;
-	unsigned int port;
 
-	gpio = 13;
-	GPIO_IF_GetPortNPin(gpio, &port, &pin);
-	GPIO_IF_Set(gpio, port, pin, val);
+
+
+
+
+void CS_set(int val) {
+	  MAP_GPIOPinWrite(GPIOA1_BASE,0x20,val?0x20:0);
 }
 
 void spi_init() {
@@ -158,7 +158,7 @@ int spi_write( int len, unsigned char * buf ) {
 }
 
 int spi_read( int * len, unsigned char * buf ) {
-	unsigned char mode = WRITE;
+	unsigned char mode = READ;
 	ctx_t ctx;
 
 	spi_write_step( 1, &mode );
@@ -185,10 +185,10 @@ int Cmd_spi_write(int argc, char *argv[]) {
 				"write  <rdlen> \n\r\t - Read data frpm the specified i2c device\n\r");
 		return FAILURE;
 	}
-	len = atoi(argv[1]);
+	len = strlen(argv[1]);
 
 	UARTprintf("Writing...\r\n");
-	spi_write( len, (unsigned char*)argv[2] );
+	spi_write( len, (unsigned char*)argv[1] );
 
 	return SUCCESS;
 }
