@@ -1306,30 +1306,7 @@ void vUARTTask(void *pvParameters) {
 			// Pass the line from the user to the command processor.  It will be
 			// parsed and valid commands executed.
 			//
-			nStatus = CmdLineProcess(cCmdBuf);
-
-			//
-			// Handle the case of bad command.
-			//
-			if (nStatus == CMDLINE_BAD_CMD) {
-				UARTprintf("Bad command!\n");
-			}
-
-			//
-			// Handle the case of too many arguments.
-			//
-			else if (nStatus == CMDLINE_TOO_MANY_ARGS) {
-				UARTprintf("Too many arguments for command processor!\n");
-			}
-
-			//
-			// Otherwise the command was executed.  Print the error code if one was
-			// returned.
-			//
-			else if (nStatus != 0) {
-				UARTprintf("Command returned error code %d\n", nStatus);
-			}
-
+			xTaskCreate(CmdLineProcess, "commandTask",  1024 / 4, cCmdBuf, 9, NULL);
 			UARTprintf("> ");
 		}
 	}

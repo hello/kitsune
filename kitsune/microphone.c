@@ -48,7 +48,7 @@
 #include "fatfs_cmd.h"
 #include "ff.h"
 //******************************************************************************
-//							GLOBAL VARIABLES
+//                            GLOBAL VARIABLES
 //******************************************************************************
 
 extern unsigned int clientIP;
@@ -83,7 +83,7 @@ void SendMulticastPacket()
     stClient.sin_port = htons(uiPort);
   
     sendto(g_UdpSock.iSockDesc, (char*)(pTxBuffer->pucReadPtr),PACKET_SIZE,
-        0,(struct sockaddr*)&(stClient),sizeof(stClient));	
+        0,(struct sockaddr*)&(stClient),sizeof(stClient));
 }
 #endif
 
@@ -130,8 +130,8 @@ void Microphone1()
     //UARTprintf("res :%d\n",res);
 
     if(res != FR_OK && res != FR_EXIST){
-    	UARTprintf("File open %s failed: %d\n", file_name, res);
-    	return -1;
+        UARTprintf("File open %s failed: %d\n", file_name, res);
+        return;
     }
 
 
@@ -140,7 +140,7 @@ void Microphone1()
     f_stat(file_name, &file_info);
 
     if( file_info.fsize != 0 ){
-    	res = f_lseek(&file_obj, file_info.fsize);
+        res = f_lseek(&file_obj, file_info.fsize);
     }
 
     while(1)
@@ -157,7 +157,7 @@ void Microphone1()
             int i;
             long tmp = 0;
             for(i = 0; i < pTxBuffer->ulBufferSize; i++){
-            	tmp += pTxBuffer->pucBufferStartPtr[i];
+                tmp += pTxBuffer->pucBufferStartPtr[i];
             }
             UARTprintf("loop into iBufferFilled pRxBuffer %x\n", tmp);
             //long FIFO_DMA;
@@ -189,30 +189,30 @@ void Microphone1()
 
 #endif   //NETWORK       
 
-             	if(g_iSentCount == 56250){
-             		 res = f_close(file_ptr);
-             		UARTprintf("mic task completed\r\n" );
-             		g_iSentCount = 0;
-             		break;
-             	}
+                 if(g_iSentCount == 56250){
+                      res = f_close(file_ptr);
+                     UARTprintf("mic task completed\r\n" );
+                     g_iSentCount = 0;
+                     break;
+                 }
                  //  f_append("/Pud",*(pTxBuffer->pucReadPtr),512);
 
-        	    WORD bytes = 0;
-        	    WORD bytes_written = 0;
-        	    WORD bytes_to_write = PACKET_SIZE;
+                WORD bytes = 0;
+                WORD bytes_written = 0;
+                WORD bytes_to_write = PACKET_SIZE;
                  do {
 
 
-                	 FRESULT res= f_write(file_ptr, (pTxBuffer->pucReadPtr)+bytes_written , bytes_to_write-bytes_written, &bytes );
-                	 //UARTprintf("res is %d\n ",res);
-                 		bytes_written+=bytes;
-                 		if (res != FR_OK)
-                 		{
-                 			UARTprintf("Write fail %d\n",res);
-                 			break;
-                 		}
+                     FRESULT res= f_write(file_ptr, (pTxBuffer->pucReadPtr)+bytes_written , bytes_to_write-bytes_written, &bytes );
+                     //UARTprintf("res is %d\n ",res);
+                         bytes_written+=bytes;
+                         if (res != FR_OK)
+                         {
+                             UARTprintf("Write fail %d\n",res);
+                             break;
+                         }
 
-                 	} while( bytes_written < bytes_to_write );
+                     } while( bytes_written < bytes_to_write );
 
                  UpdateReadPtr(pTxBuffer, PACKET_SIZE);
                  UARTprintf("pTxBuffer %x\n\r", *(pTxBuffer->pucReadPtr));
@@ -220,6 +220,6 @@ void Microphone1()
             }
 
         }      
-    MAP_UtilsDelay(1000);
+    vTaskDelay(1);
     }
 }

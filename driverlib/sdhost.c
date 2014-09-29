@@ -288,6 +288,9 @@ SDHostDataWrite(unsigned long ulBase, unsigned long ulData)
 //! \return None.
 //
 //*****************************************************************************
+#include "FreeRTOS.h"
+#include "task.h"
+
 void
 SDHostDataRead(unsigned long ulBase, unsigned long *pulData)
 {
@@ -296,7 +299,7 @@ SDHostDataRead(unsigned long ulBase, unsigned long *pulData)
   //
   while( !(HWREG(ulBase + MMCHS_O_PSTATE) & (1<<11)) )
   {
-
+	  vTaskDelay(1);
   }
 
   //

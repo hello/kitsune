@@ -62,7 +62,7 @@
 //! Otherwise it returns the code that was returned by the command function.
 //
 //*****************************************************************************
-int
+void
 CmdLineProcess(char *pcCmdLine)
 {
     static char *argv[CMDLINE_MAX_ARGS + 1];
@@ -123,7 +123,9 @@ CmdLineProcess(char *pcCmdLine)
                 //
                 else
                 {
-                    return(CMDLINE_TOO_MANY_ARGS);
+                    UARTprintf("Too many arguments for command processor!\n");
+                    vTaskDelete( NULL );
+                    return;
                 }
             }
         }
@@ -158,7 +160,10 @@ CmdLineProcess(char *pcCmdLine)
             //
             if(!strcmp(argv[0], pCmdEntry->pcCmd))
             {
-                return(pCmdEntry->pfnCmd(argc, argv));
+                int code = pCmdEntry->pfnCmd(argc, argv);
+                UARTprintf("Command returned code %d\n", code);
+                vTaskDelete( NULL );
+                return;
             }
 
             //
@@ -172,7 +177,9 @@ CmdLineProcess(char *pcCmdLine)
     // Fall through to here means that no matching command was found, so return
     // an error.
     //
-    return(CMDLINE_BAD_CMD);
+    UARTprintf("Bad command!\n");
+    vTaskDelete( NULL );
+    return;
 }
 
 //*****************************************************************************
