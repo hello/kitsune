@@ -1360,7 +1360,7 @@ int Cmd_RadioStartTX(int argc, char*argv[])
 	uint8_t dest_mac[6];
 	int i;
 
-	if(argc!=17) {
+	if(argc!=16) {
 		UARTprintf("startx <mode, RADIO_TX_PACKETIZED=2, RADIO_TX_CW=3, RADIO_TX_CONTINUOUS=1> "
 				          "<power level 0-15, as dB offset from max power so 0 high>"
 						  "<channel> <rate 1=1M, 2=2M, 3=5.5M, 4=11M, 6=6M, 7=9M, 8=12M, 9=18M, 10=24M, 11=36M, 12=48M, 13=54M, 14 to 21 = MCS_0 to 7"
@@ -1368,6 +1368,7 @@ int Cmd_RadioStartTX(int argc, char*argv[])
 				          "<data pattern 0=all 0, 1=all 1, 2=incremental, 3=decremental, 4=PN9, 5=PN15, 6=PN23>"
 				          "<size> <delay amount> <override CCA> <destination mac address, given as six 8 bit hex values>"
 						);
+		return -1;
 	}
 	mode = atoi(argv[1]);
 	pwrlvl = atoi(argv[2]);
