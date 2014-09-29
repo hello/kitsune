@@ -48,7 +48,7 @@
 /  physical drive number and can mount only 1st primaly partition. When it is
 /  set to 1, each logical drive can mount a partition listed in Drives[]. */
 
-#define _USE_FSINFO    0
+#define _USE_FSINFO    1
 /* To enable FSInfo support on FAT32 volume, set _USE_FSINFO to 1. */
 
 #define    _USE_SJIS    1
@@ -101,7 +101,7 @@ typedef struct _FATFS {
     BYTE    drive;            /* Physical drive number */
     BYTE    winflag;        /* win[] dirty flag (1:must be written back) */
     BYTE    pad1;
-    BYTE    pad2;
+    BYTE    pad22;
     BYTE    pad3;
     BYTE    win[S_MAX_SIZ];    /* Disk access window for Directory/FAT */
 } FATFS;
