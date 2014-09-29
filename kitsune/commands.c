@@ -826,6 +826,7 @@ int Cmd_help(int argc, char *argv[]) {
 		//
 		UARTprintf("%s: %s\n", pEntry->pcCmd, pEntry->pcHelp);
 
+		vTaskDelay(10);
 		//
 		// Advance to the next entry in the table.
 		//
@@ -1175,6 +1176,11 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "led", Cmd_led, "led test pattern" },
 		{ "clrled", Cmd_led_clr, "led test pattern" },
 
+		{ "rdiostats", Cmd_RadioGetStats, "radio stats" },
+		{ "rdiotxstart", Cmd_RadioStartTX, "start tx test" },
+		{ "rdiotxstop", Cmd_RadioStopTX, "stop tx test" },
+		{ "rdiorxstart", Cmd_RadioStartRX, "start rx test" },
+		{ "rdiorxstop", Cmd_RadioStopRX, "stop rx test" },
 		{ "rssi", Cmd_rssi, "scan rssi" },
 
 

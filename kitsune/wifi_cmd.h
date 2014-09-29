@@ -37,6 +37,14 @@ int Cmd_time(int argc, char*argv[]);
 int Cmd_sl(int argc, char*argv[]);
 int Cmd_mode(int argc, char*argv[]);
 
+
+int Cmd_RadioStartRX(int argc, char*argv[]);
+int Cmd_RadioStopRX(int argc, char*argv[]);
+int Cmd_RadioStopTX(int argc, char*argv[]);
+int Cmd_RadioStartTX(int argc, char*argv[]);
+int Cmd_RadioGetStats(int argc, char*argv[]);
+
+
 unsigned long unix_time();
 void load_aes();
 

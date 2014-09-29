@@ -1121,7 +1121,7 @@ uint8_t TemplateFrame[] = {
                    QOS_CONTROL											/* QoS control */
 };
 
-int RadioStopRX ()
+int Cmd_RadioStopRX(int argc, char*argv[])
 {
 	sl_WlanRxStatStop();
 
@@ -1129,7 +1129,6 @@ int RadioStopRX ()
 
 	return sl_Close(rawSocket);
 }
-
 
 int RadioStartRX(int eChannel)
 {
@@ -1156,6 +1155,15 @@ int RadioStartRX(int eChannel)
 	return 0;
 }
 
+int Cmd_RadioStartRX(int argc, char*argv[])
+{
+	int channel;
+	if(argc!=2) {
+		UARTprintf("startrx <channel>\n");
+	}
+	channel = atoi(argv[1]);
+	return RadioStartRX(channel);
+}
 
 int RadioGetStats(unsigned int *validPackets, unsigned int *fcsPackets,unsigned int *plcpPackets, int16_t *avgRssiMgmt, int16_t  *avgRssiOther, uint16_t * pRssiHistogram, uint16_t * pRateHistogram)
 {
@@ -1176,6 +1184,38 @@ int RadioGetStats(unsigned int *validPackets, unsigned int *fcsPackets,unsigned 
 
     return 0;
 
+}
+
+int Cmd_RadioGetStats(int argc, char*argv[])
+{
+	unsigned int valid_packets, fcs_packets, plcp_packets;
+	int16_t avg_rssi_mgmt, avg_rssi_other;
+	uint16_t * rssi_histogram;
+	uint16_t * rate_histogram;
+	int i;
+
+	rssi_histogram = (int16_t*)pvPortMalloc(sizeof(unsigned short) * SIZE_OF_RSSI_HISTOGRAM);
+	rate_histogram = (int16_t*)pvPortMalloc(sizeof(unsigned short) * NUM_OF_RATE_INDEXES);
+
+	RadioGetStats(&valid_packets, &fcs_packets, &plcp_packets, &avg_rssi_mgmt, &avg_rssi_other, rssi_histogram, rate_histogram);
+
+	UARTprintf( "valid_packets %d\n", valid_packets );
+	UARTprintf( "fcs_packets %d\n", fcs_packets );
+	UARTprintf( "plcp_packets %d\n", plcp_packets );
+	UARTprintf( "avg_rssi_mgmt %d\n", avg_rssi_mgmt );
+	UARTprintf( "acg_rssi_other %d\n", avg_rssi_other );
+
+	UARTprintf("rssi histogram\n");
+	for (i = 0; i < SIZE_OF_RSSI_HISTOGRAM; ++i) {
+		UARTprintf("%d\n", rssi_histogram[i]);
+	}
+	UARTprintf("rate histogram\n");
+	for (i = 0; i < NUM_OF_RATE_INDEXES; ++i) {
+		UARTprintf("%d\n", rate_histogram[i]);
+	}
+
+	vPortFree(rssi_histogram);
+	vPortFree(rate_histogram);
 }
 
 /* Note: the followings are not yet supported:
@@ -1306,6 +1346,45 @@ int32_t RadioStartTX(RadioTxMode_e eTxMode, uint8_t powerLevel_Tone, int eChanne
 	return 0;
 }
 
+int Cmd_RadioStartTX(int argc, char*argv[])
+{
+	RadioTxMode_e mode;
+	uint8_t pwrlvl;
+	int chnl;
+	SlRateIndex_e rate;
+	RadioPreamble_e preamble;
+	RadioDataPattern_e datapattern;
+	uint16_t size;
+	uint32_t delay;
+	uint8_t overridecca;
+	uint8_t dest_mac[6];
+	int i;
+
+	if(argc!=17) {
+		UARTprintf("startx <mode, RADIO_TX_PACKETIZED=2, RADIO_TX_CW=3, RADIO_TX_CONTINUOUS=1> "
+				          "<power level 0-15, as dB offset from max power so 0 high>"
+						  "<channel> <rate 1=1M, 2=2M, 3=5.5M, 4=11M, 6=6M, 7=9M, 8=12M, 9=18M, 10=24M, 11=36M, 12=48M, 13=54M, 14 to 21 = MCS_0 to 7"
+						  "<preamble, 0=long, 1=short, 2=odfm, 3=mixed, 4=greenfield>"
+				          "<data pattern 0=all 0, 1=all 1, 2=incremental, 3=decremental, 4=PN9, 5=PN15, 6=PN23>"
+				          "<size> <delay amount> <override CCA> <destination mac address, given as six 8 bit hex values>"
+						);
+	}
+	mode = atoi(argv[1]);
+	pwrlvl = atoi(argv[2]);
+	chnl = atoi(argv[3]);
+	rate = atoi(argv[4]);
+	preamble = atoi(argv[5]);
+	datapattern = atoi(argv[6]);
+	size = atoi(argv[7]);
+	delay = atoi(argv[8]);
+	overridecca = atoi(argv[9]);
+
+	for (i = 0; i < 6; ++i) {
+		dest_mac[i] = strtol(argv[10+i], NULL, 16);
+	}
+	return RadioStartTX(mode, pwrlvl, chnl, rate, preamble, datapattern, size, delay, overridecca, dest_mac);
+}
+
 int RadioStopTX(RadioTxMode_e eTxMode)
 {
 	int retVal;
@@ -1328,12 +1407,20 @@ int RadioStopTX(RadioTxMode_e eTxMode)
 	}
 
 	return retVal;
-
-
-
 //	radioSM = RADIO_IDLE;
 //
 //	return sl_Close(rawSocket);
 }
+
+int Cmd_RadioStopTX(int argc, char*argv[])
+{
+	int mode;
+	if(argc!=2) {
+		UARTprintf("stoptx <mode, RADIO_TX_PACKETIZED=2, RADIO_TX_CW=3, RADIO_TX_CONTINUOUS=1>\n");
+	}
+	mode = atoi(argv[1]);
+	return RadioStopTX(mode);
+}
+
 
 //end radio test functions
