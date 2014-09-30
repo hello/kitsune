@@ -611,7 +611,7 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
     vecdotresult = cosvec16(_data.lastmfcc,mfcc,NUM_AUDIO_FEATURES);
     memcpy(_data.lastmfcc,mfcc,sizeof(_data.lastmfcc));
 
-    DEBUG_LOG_S16("cosvec",NULL,&vecdotresult,1,samplecount,samplecount);
+    //DEBUG_LOG_S16("cosvec",NULL,&vecdotresult,1,samplecount,samplecount);
     
     UpdateCoherencySignals(&coherencyMode,vecdotresult,_data.callcounter);
 
@@ -627,7 +627,7 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int16_t nfftsize,int64_t
     
     memcpy(&feats[0],mfcc,NUM_AUDIO_FEATURES*sizeof(int16_t));
 
-    DEBUG_LOG_S16("shapes",NULL,mfcc,NUM_AUDIO_FEATURES,samplecount,samplecount);
+  //  DEBUG_LOG_S16("shapes",NULL,mfcc,NUM_AUDIO_FEATURES,samplecount,samplecount);
 
 
     /* Update counter.  It's okay if this one rolls over*/
