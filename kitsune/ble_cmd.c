@@ -1,3 +1,4 @@
+#include <string.h>
 
 #include "ble_cmd.h"
 
@@ -62,6 +63,9 @@ static void _on_ble_protobuf_command(const MorpheusCommand* command)
             args[2] = password;
             args[3] = strlen(password) == 0 ? "0" : "2";  // TODO: Guess the security type.
 
+            // This is just a hack to make the Wifi connect
+            // TODO: check with the connection status and loop through for 
+            // different security type.
             Cmd_connect(4, args);
         }
         break;
@@ -181,9 +185,9 @@ bool send_protobuf_to_ble(MorpheusCommand* command)
         spi_write(protobuf_len, heap_page);
 
     }else{
-        PRINTS("encode protobuf failed: ");
-        PRINTS(PB_GET_ERROR(&stream));
-        PRINTS("\r\n");
+        UARTprintf("encode protobuf failed: ");
+        UARTprintf(PB_GET_ERROR(&stream));
+        UARTprintf("\r\n");
     }
     free(heap_page);
 
@@ -193,6 +197,12 @@ bool send_protobuf_to_ble(MorpheusCommand* command)
 
 void free_protobuf_command(const MorpheusCommand* command)
 {
+    if(!command)
+    {
+        UARTprintf("Inavlid parameter.\r\n");
+        return;
+    }
+
     if(!command->accountId.arg)
     {
         free(command->accountId.arg);
