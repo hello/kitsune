@@ -299,29 +299,29 @@ int get_light() {
 	cmd_init[0] = 0x80; // Command register - 8'b1000_0000
 	cmd_init[1] = 0x0F; // Control register - 8'b0000_1111
 //RET_IF_ERR(
-	TRY_OR_GOTOFAIL(I2C_IF_Write(0x39, cmd_init, 2, 1)); //  );// reset
+	TRY_OR_GOTOFAIL(I2C_IF_Write(0x29, cmd_init, 2, 1)); //  );// reset
 //RET_IF_ERR( I2C_IF_Write(ucDevAddr,&aucDataBuf[0],ucWrLen+1,1));
 //vTaskDelay(10);
 
 	cmd_init[0] = 0x81; // Command register - 8'b1000_0000
 	cmd_init[1] = 0x00; // Control register - 8'b0000_0000 // 400ms
 //RET_IF_ERR(
-	TRY_OR_GOTOFAIL(I2C_IF_Write(0x39, cmd_init, 2, 1)); //  );// change integration
+	TRY_OR_GOTOFAIL(I2C_IF_Write(0x29, cmd_init, 2, 1)); //  );// change integration
 	vTaskDelay(50);
 
-	TRY_OR_GOTOFAIL(I2C_IF_Write(0x39, &cmd, 1, 1));
+	TRY_OR_GOTOFAIL(I2C_IF_Write(0x29, &cmd, 1, 1));
 	vTaskDelay(50);
-	TRY_OR_GOTOFAIL(I2C_IF_Read(0x39, &setup_config, 1)); // configure
+	TRY_OR_GOTOFAIL(I2C_IF_Read(0x29, &setup_config, 1)); // configure
 
 	cmd = 0x84; // Command register - 0x04
-	TRY_OR_GOTOFAIL(I2C_IF_Write(0x39, &cmd, 1, 1));
+	TRY_OR_GOTOFAIL(I2C_IF_Write(0x29, &cmd, 1, 1));
 //vTaskDelay(50);
-	TRY_OR_GOTOFAIL(I2C_IF_Read(0x39, aucDataBuf_LOW, 2));
+	TRY_OR_GOTOFAIL(I2C_IF_Read(0x29, aucDataBuf_LOW, 2));
 
 	cmd = 0x85; // Command register - 0x05
-	TRY_OR_GOTOFAIL(I2C_IF_Write(0x39, &cmd, 1, 1));
+	TRY_OR_GOTOFAIL(I2C_IF_Write(0x29, &cmd, 1, 1));
 //vTaskDelay(50);
-	TRY_OR_GOTOFAIL(I2C_IF_Read(0x39, aucDataBuf_HIGH, 2));
+	TRY_OR_GOTOFAIL(I2C_IF_Read(0x29, aucDataBuf_HIGH, 2));
 
 //light_raw = aucDataBuf[0];
 	light_raw = ((aucDataBuf_HIGH[0] << 8) | aucDataBuf_LOW[0]) << 0;

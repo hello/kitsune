@@ -95,7 +95,7 @@
 									<listOptionValue builtIn="false" value="&quot;${PROJECT_LOC}\..\..\..\Extlibs\libs\ccs\ota.lib&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${PROJECT_LOC}\..\..\..\oslib\ccs\exe\FreeRTOS.a&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${PROJECT_LOC}\..\..\..\simplelink\ccs\exe\simplelink.a&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${PROJECT_LOC}\..\..\..\driverlib\ccs\exe\driverlib.a&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${PROJECT_LOC}\..\..\..\driverlib\ccs\Release\driverlib.a&quot;"/>
 								</option>
 								<option id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.linkerID.SEARCH_PATH.75344779" name="Add &lt;dir&gt; to library search path (--search_path, -i)" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.linkerID.SEARCH_PATH" valueType="libPaths">
 									<listOptionValue builtIn="false" value="&quot;${CG_TOOL_ROOT}/lib&quot;"/>
