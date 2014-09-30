@@ -8,46 +8,101 @@
 #define malloc pvPortMalloc
 #define free vPortFree
 
-
-bool set_wifi(const char* ssid, char* password)
+static int _get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uint32_t scan_duration_ms)
 {
-    SlSecParams_t secParams;
-    int security_type;
-
-    memset(&secParams, 0, sizeof(SlSecParams_t));
-
-    for(security_type = SL_SEC_TYPE_OPEN; security_type < SL_SEC_TYPE_P2P_PIN_AUTO; security_type++)
+    if(scan_duration_ms < 1000)
     {
-        secParams.Key = (signed char*)password;
-        secParams.KeyLen = password == NULL ? 0 : strlen(password);
-        secParams.Type = security_type;
+        return 0;
+    }
 
-        SlSecParams_t* secParamsPtr = security_type == SL_SEC_TYPE_OPEN ? NULL : &secParams;
+    unsigned long IntervalVal = 60;
 
-        // We don't support all the security types in this implementation.
-        int16_t ret = sl_WlanConnect((_i8*)ssid, strlen(ssid), NULL, secParamsPtr, 0);
-        if(ret == 0 || ret == -71)
+    unsigned char policyOpt = SL_CONNECTION_POLICY(0, 0, 0, 0, 0);
+    int lRetVal = sl_WlanPolicySet(SL_POLICY_CONNECTION , policyOpt, NULL, 0);
+
+
+    // enable scan
+    policyOpt = SL_SCAN_POLICY(1);
+
+    // set scan policy - this starts the scan
+    lRetVal = sl_WlanPolicySet(SL_POLICY_SCAN , policyOpt, (unsigned char *)(IntervalVal), sizeof(IntervalVal));
+
+
+    // delay specific milli seconds to verify scan is started
+    vTaskDelay(scan_duration_ms);
+
+    // lRetVal indicates the valid number of entries
+    // The scan results are occupied in netEntries[]
+    lRetVal = sl_WlanGetNetworkList(0, entry_len, entries);
+
+    // Disable scan
+    policyOpt = SL_SCAN_POLICY(0);
+
+    // set scan policy - this stops the scan
+    sl_WlanPolicySet(SL_POLICY_SCAN , policyOpt,
+                            (unsigned char *)(IntervalVal), sizeof(IntervalVal));
+
+    return lRetVal;
+
+}
+
+
+bool set_wifi(const char* ssid, const char* password)
+{
+    Sl_WlanNetworkEntry_t wifi_endpoints[MAX_WIFI_EP_PER_SCAN];
+    memset(wifi_endpoints, 0, sizeof(wifi_endpoints));
+
+    int scanned_wifi_count = _get_wifi_scan_result(wifi_endpoints, MAX_WIFI_EP_PER_SCAN, 10000);  // Shall we have a bg thread scan periodically?
+    if(scanned_wifi_count == 0)
+    {
+        return 0;
+    }
+
+    int i = 0;
+    for(i = 0; i < scanned_wifi_count; i++)
+    {
+        Sl_WlanNetworkEntry_t wifi_endpoint = wifi_endpoints[i];
+        if(strcmp((const char*)wifi_endpoint.ssid, ssid) == 0)
         {
-            // To make things simple in the first pass implementation, 
-            // we only store one endpoint.
-            // There is no sl_sl_WlanProfileSet?
-            // So I delete all endpoint first.
-            _i16 del_ret = sl_WlanProfileDel(0xFF);
-            if(del_ret)
+            SlSecParams_t secParams;
+
+            memset(&secParams, 0, sizeof(SlSecParams_t));
+
+            
+            secParams.Key = (signed char*)password;
+            secParams.KeyLen = password == NULL ? 0 : strlen(password);
+            secParams.Type = wifi_endpoint.sec_type;
+
+            SlSecParams_t* secParamsPtr = wifi_endpoint.sec_type == SL_SEC_TYPE_OPEN ? NULL : &secParams;
+
+            // We don't support all the security types in this implementation.
+            int16_t ret = sl_WlanConnect((_i8*)ssid, strlen(ssid), NULL, secParamsPtr, 0);
+            if(ret == 0 || ret == -71)
             {
-                UARTprintf("Delete all stored endpoint failed, error %d.\r\n", del_ret);
+                // To make things simple in the first pass implementation, 
+                // we only store one endpoint.
+                // There is no sl_sl_WlanProfileSet?
+                // So I delete all endpoint first.
+                _i16 del_ret = sl_WlanProfileDel(0xFF);
+                if(del_ret)
+                {
+                    UARTprintf("Delete all stored endpoint failed, error %d.\r\n", del_ret);
+                }
+
+                // Then add the current one back.
+                _i16 profile_add_ret = sl_WlanProfileAdd((_i8*)ssid, strlen(ssid), NULL, secParamsPtr, NULL, 0, 0);
+                if(profile_add_ret < 0)
+                {
+                    UARTprintf("Save connected endpoint failed, error %d.\r\n", profile_add_ret);
+                }
+
+                return 1;
             }
 
-            // Then add the current one back.
-            _i16 profile_add_ret = sl_WlanProfileAdd((_i8*)ssid, strlen(ssid), NULL, secParamsPtr, NULL, 0, 0);
-            if(profile_add_ret < 0)
-            {
-                UARTprintf("Save connected endpoint failed, error %d.\r\n", profile_add_ret);
-            }
-
-            return 1;
         }
     }
+
+    
 
     return 0;
 }
@@ -121,10 +176,12 @@ void on_ble_protobuf_command(MorpheusCommand* command)
             UARTprintf("Wifi SSID %s, pswd %s \r\n", ssid, password);
             if(!set_wifi(ssid, (char*)password))
             {
+                UARTprintf("Connection attemp failed.\n");
                 ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
             }else{
                 // If the wifi connection is set, reply the same message
                 // to the phone.
+                UARTprintf("Connection attemp issued.\n");
                 ble_send_protobuf(command);
             }
             

@@ -8,7 +8,8 @@
 #include "nanopb/pb_encode.h"
 #include "protobuf/morpheus_ble.pb.h"
 
-#define PROTOBUF_VERSION    0
+#define PROTOBUF_VERSION            0
+#define MAX_WIFI_EP_PER_SCAN        100
 
 //*****************************************************************************
 //
@@ -22,7 +23,7 @@ extern "C"
 #endif
 
 void on_ble_protobuf_command(MorpheusCommand* command);
-bool set_wifi(const char* ssid, char* password);
+bool set_wifi(const char* ssid, const char* password);
 
 //*****************************************************************************
 //
