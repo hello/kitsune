@@ -28,7 +28,7 @@ static int _get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_
     lRetVal = sl_WlanPolicySet(SL_POLICY_SCAN , policyOpt, (unsigned char *)(IntervalVal), sizeof(IntervalVal));
 
 
-    // delay 1 second to verify scan is started
+    // delay specific milli seconds to verify scan is started
     vTaskDelay(scan_duration_ms);
 
     // lRetVal indicates the valid number of entries
