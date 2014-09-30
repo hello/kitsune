@@ -185,9 +185,9 @@ int spi_read( int * len, unsigned char * buf ) {
 	ctx_t ctx;
 
 	spi_write_step( 1, &mode );
-	vTaskDelay(1);
+	vTaskDelay(5);
 	spi_read_step( 4,  (unsigned char*)&ctx );
-	vTaskDelay(1);
+	vTaskDelay(5);
 	UARTprintf("Ctx len %u, address %u\r\n",ctx.len, ctx.addr);
 	if( ctx.addr == 0xAAAA || ctx.addr == 0x5500 || ctx.addr == 0x5555 ) {
 		ctx.len = 0;
