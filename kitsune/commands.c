@@ -1310,7 +1310,7 @@ void vUARTTask(void *pvParameters) {
 			// Pass the line from the user to the command processor.  It will be
 			// parsed and valid commands executed.
 			//
-			xTaskCreate(CmdLineProcess, "commandTask",  1024 / 4, cCmdBuf, 9, NULL);
+			xTaskCreate(CmdLineProcess, "commandTask",  2*1024 / 4, cCmdBuf, 9, NULL);
 		}
 	}
 }
