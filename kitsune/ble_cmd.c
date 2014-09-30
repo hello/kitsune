@@ -76,6 +76,12 @@ static void _on_ble_protobuf_command(const MorpheusCommand* command)
 
 void on_morpheus_protobuf_arrival(const char* protobuf, size_t len)
 {
+    if(!protobuf)
+    {
+        UARTprintf("Inavlid parameter.\r\n");
+        return;
+    }
+
     MorpheusCommand command;
     memset(&command, 0, sizeof(command));
 
@@ -113,8 +119,47 @@ void on_morpheus_protobuf_arrival(const char* protobuf, size_t len)
     
 }
 
-bool send_protobuf_to_ble(const MorpheusCommand* command)
+static MorpheusCommand* _assign_encode_funcs(MorpheusCommand* command)
 {
+    if(command->accountId.arg != NULL && command->accountId.funcs.encode == NULL)
+    {
+        command->accountId.funcs.encode = _encode_string_fields;
+    }
+
+    if(command->deviceId.arg != NULL && command->deviceId.funcs.encode == NULL)
+    {
+        command->deviceId.funcs.encode = _encode_string_fields;
+    }
+
+    if(command->wifiName.arg != NULL && command->wifiName.funcs.encode == NULL)
+    {
+        command->wifiName.funcs.encode = _encode_string_fields;
+    }
+
+    if(command->wifiSSID.arg != NULL && command->wifiSSID.funcs.encode == NULL)
+    {
+        command->wifiSSID.funcs.encode = _encode_string_fields;
+    }
+
+    if(command->wifiPassword.arg != NULL && command->wifiPassword.funcs.encode == NULL)
+    {
+        command->wifiPassword.funcs.encode = _encode_string_fields;
+    }
+
+    return command;
+}
+
+bool send_protobuf_to_ble(MorpheusCommand* command)
+{
+    if(!command){
+        UARTprintf("Inavlid parameter.\r\n");
+        return false;
+    }
+
+
+    _assign_encode_funcs(command);
+
+
     pb_ostream_t stream = {0};
     pb_encode(&stream, MorpheusCommand_fields, command);
 
