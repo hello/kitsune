@@ -1316,7 +1316,7 @@ void vUARTTask(void *pvParameters) {
 
 	xTaskCreate(thread_audio, "audioTask", 10 * 1024 / 4, NULL, 4, NULL); //todo reduce stack
 	UARTprintf("*");
-	xTaskCreate(thread_spi, "spiTask", 512 / 4, NULL, 5, NULL);
+	xTaskCreate(thread_spi, "spiTask", 768 / 4, NULL, 5, NULL);
 	SetupGPIOInterrupts();
 	UARTprintf("*");
 #if 0

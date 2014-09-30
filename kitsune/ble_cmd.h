@@ -2,6 +2,7 @@
 #define __BLE_COMMAND_H__
 
 #include <stdlib.h>
+#include <stdbool.h>
 
 
 #include "nanopb/pb_decode.h"
@@ -21,10 +22,10 @@ extern "C"
 {
 #endif
 
-void on_morpheus_protobuf_arrival(const char* protobuf, size_t len);
-bool ble_send_protobuf(const MorpheusCommand* command);
+void on_morpheus_protobuf_arrival(uint8_t* protobuf, size_t len);
+bool ble_send_protobuf(MorpheusCommand* command);
 bool ble_reply_protobuf_error(uint32_t error_type);
-void free_protobuf_command(const MorpheusCommand* command);
+void free_protobuf_command( MorpheusCommand* command);
 
 //*****************************************************************************
 //

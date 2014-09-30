@@ -41,6 +41,26 @@
 			<locationURI>PARENT-2-PROJECT_LOC/audiofeatures.c</locationURI>
 		</link>
 		<link>
+			<name>ble_cmd.c</name>
+			<type>1</type>
+			<locationURI>PARENT-4-PROJECT_LOC/kitsune/kitsune/ble_cmd.c</locationURI>
+		</link>
+		<link>
+			<name>ble_cmd.h</name>
+			<type>1</type>
+			<locationURI>PARENT-4-PROJECT_LOC/kitsune/kitsune/ble_cmd.h</locationURI>
+		</link>
+		<link>
+			<name>ble_proto.c</name>
+			<type>1</type>
+			<locationURI>PARENT-4-PROJECT_LOC/kitsune/kitsune/ble_proto.c</locationURI>
+		</link>
+		<link>
+			<name>ble_proto.h</name>
+			<type>1</type>
+			<locationURI>PARENT-4-PROJECT_LOC/kitsune/kitsune/ble_proto.h</locationURI>
+		</link>
+		<link>
 			<name>circ_buff.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/circ_buff.c</locationURI>
@@ -369,6 +389,16 @@
 			<name>protobuf/SyncResponse.pb.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/protobuf/SyncResponse.pb.h</locationURI>
+		</link>
+		<link>
+			<name>protobuf/morpheus_ble.pb.c</name>
+			<type>1</type>
+			<locationURI>PARENT-4-PROJECT_LOC/kitsune/kitsune/protobuf/morpheus_ble.pb.c</locationURI>
+		</link>
+		<link>
+			<name>protobuf/morpheus_ble.pb.h</name>
+			<type>1</type>
+			<locationURI>PARENT-4-PROJECT_LOC/kitsune/kitsune/protobuf/morpheus_ble.pb.h</locationURI>
 		</link>
 		<link>
 			<name>protobuf/periodic.pb.c</name>
