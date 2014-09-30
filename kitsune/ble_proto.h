@@ -8,7 +8,8 @@
 #include "nanopb/pb_encode.h"
 #include "protobuf/morpheus_ble.pb.h"
 
-#define PROTOBUF_VERSION    0
+#define PROTOBUF_VERSION            0
+#define MAX_WIFI_EP_PER_SCAN        100
 
 //*****************************************************************************
 //
