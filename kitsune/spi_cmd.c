@@ -157,6 +157,28 @@ int spi_write( int len, unsigned char * buf ) {
 	return SUCCESS;
 }
 
+#if 0
+//referenced from wifi_cmd.c
+pb_istream_t pb_istream_from_buffer(uint8_t *buf, size_t bufsize);
+
+int proc_pb_nordic( int * len, unsigned * buf ) {
+	pb_istream_t stream;
+	int status;
+
+	/* Create a stream that will read from our buffer. */
+	stream = pb_istream_from_buffer(buf, len);
+	/* Now we are ready to decode the message! */
+
+	UARTprintf("data ");
+	status = pb_decode(&stream, _fields, &_data); //todo figure out IDL
+	UARTprintf("\n");
+
+	if( ?? ) {
+
+
+	}
+}
+#endif
 int spi_read( int * len, unsigned char * buf ) {
 	unsigned char mode = READ;
 	ctx_t ctx;
@@ -166,8 +188,14 @@ int spi_read( int * len, unsigned char * buf ) {
 	spi_read_step( 4,  (unsigned char*)&ctx );
 	vTaskDelay(1);
 	UARTprintf("Ctx len %u, address %u\r\n",ctx.len, ctx.addr);
+	if( ctx.addr == 0xAAAA || ctx.addr == 0x5500 ) {
+		ctx.len = 0;
+	}
 	*len = ctx.len;
-	spi_read_step( ctx.len, buf );
+
+	if( *len != 0 ) {
+		spi_read_step(ctx.len, buf);
+	}
 
 	return SUCCESS;
 }

@@ -947,6 +947,61 @@ int Cmd_mel(int argc, char *argv[]) {
 	return (0);
 }
 
+
+#define GPIO_PORT 0x40004000
+#define NORDIC_PIN 0x40
+#define PROX_PIN   0x80
+#define NORDIC_INT_GPIO 6
+#define PROX_INT_GPIO 7
+
+xSemaphoreHandle spi_smphr;
+
+void nordic_prox_int() {
+    unsigned int status;
+    signed long xHigherPriorityTaskWoken; //todo this should be basetype_t
+
+    //check for which pin triggered
+    status = GPIOIntStatus(GPIO_PORT, FALSE);
+	//clear all interrupts
+
+    MAP_GPIOIntClear(GPIO_PORT, status);
+	if (status & NORDIC_PIN) {
+		UARTprintf("nordic interrupt\r\n");
+	}
+	if (status & PROX_PIN) {
+		xSemaphoreGiveFromISR(spi_smphr, &xHigherPriorityTaskWoken);
+		UARTprintf("prox interrupt\r\n");
+	}
+	/* If xHigherPriorityTaskWoken was set to true you
+    we should yield.  The actual macro used here is
+    port specific. */
+	MAP_GPIOIntDisable(GPIO_PORT,PROX_PIN);
+    portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
+}
+
+#include "gpio.h"
+#include "gpio_if.h"
+
+void SetupGPIOInterrupts() {
+    unsigned char pin;
+    unsigned int port;
+
+    port = GPIO_PORT;
+    pin = /*NORDIC_PIN |*/ PROX_PIN;
+	GPIO_IF_ConfigureNIntEnable( port, pin, GPIO_HIGH_LEVEL, nordic_prox_int );
+	//only one interrupt per port...
+}
+
+void thread_spi(void * data) {
+	while(1) {
+		if (xSemaphoreTake(spi_smphr, portMAX_DELAY)) {
+			vTaskDelay(10);
+			SetupGPIOInterrupts();
+			Cmd_spi_read(0, 0);
+		}
+	}
+}
+
 #define NUM_LED 12
 #define LED_GPIO_BIT 0x1
 #define LED_GPIO_BASE GPIOA3_BASE
@@ -1253,12 +1308,16 @@ void vUARTTask(void *pvParameters) {
 	vSemaphoreCreateBinary(dust_smphr);
 	vSemaphoreCreateBinary(light_smphr);
 	vSemaphoreCreateBinary(i2c_smphr);
+	vSemaphoreCreateBinary(spi_smphr);
 
 	if (data_queue == 0) {
 		UARTprintf("Failed to create the data_queue.\n");
 	}
 
 	xTaskCreate(thread_audio, "audioTask", 10 * 1024 / 4, NULL, 4, NULL); //todo reduce stack
+	UARTprintf("*");
+	xTaskCreate(thread_spi, "spiTask", 512 / 4, NULL, 5, NULL);
+	SetupGPIOInterrupts();
 	UARTprintf("*");
 #if 0
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask", 2 * 1024 / 4, NULL, 3, NULL);

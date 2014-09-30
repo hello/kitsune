@@ -73,7 +73,6 @@
 #include "pinmux.h"
 #include "portmacro.h"
 #include "uart_if.h"
-#include "gpio.h"
 #include "systick.h"
 
 /*Simple Link inlcudes */
@@ -87,7 +86,6 @@
 #include "semphr.h"
 
 /* HW interfaces */
-#include "gpio_if.h"
 #include "uartstdio.h"
 #include "i2c_if.h"
 
@@ -186,38 +184,6 @@ vApplicationStackOverflowHook( xTaskHandle *pxTask, signed portCHAR *pcTaskName 
     UARTprintf( "%s STACK OVERFLOW", pcTaskName );
 
     for( ;; );
-}
-
-#define GPIO_PORT 0x40004000
-#define NORDIC_PIN 0x40
-#define PROX_PIN   0x80
-#define NORDIC_INT_GPIO 6
-#define PROX_INT_GPIO 7
-
-void nordic_prox_int() {
-    unsigned int status;
-
-    //check for which pin triggered
-    status = GPIOIntStatus(GPIO_PORT, FALSE);
-	//clear all interrupts
-    MAP_GPIOIntClear(GPIO_PORT, status);
-
-	if (status & NORDIC_PIN) {
-		UARTprintf("nordic interrupt\r\n");
-	}
-	if (status & PROX_PIN) {
-		UARTprintf("prox interrupt\r\n");
-	}
-}
-
-void SetupGPIOInterrupts() {
-    unsigned char pin;
-    unsigned int port;
-
-    port = GPIO_PORT;
-    pin = NORDIC_PIN | PROX_PIN;
-	GPIO_IF_ConfigureNIntEnable( port, pin, GPIO_RISING_EDGE, nordic_prox_int );
-	//only one interrupt per port...
 }
 
 //*****************************************************************************
@@ -321,8 +287,6 @@ void main()
   //
   PinMuxConfig();
 
-  SetupGPIOInterrupts();
-
   //
   // Set the SD card clock as output pin
   //
@@ -331,6 +295,7 @@ void main()
   //
   // Start the SimpleLink Host
   //
+
   VStartSimpleLinkSpawnTask(SPAWN_TASK_PRIORITY);
 
   /* Create the UART processing task. */
