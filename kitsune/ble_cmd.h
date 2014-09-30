@@ -24,8 +24,8 @@ extern "C"
 
 void on_morpheus_protobuf_arrival(uint8_t* protobuf, size_t len);
 bool ble_send_protobuf(MorpheusCommand* command);
-bool ble_reply_protobuf_error(uint32_t error_type);
-void free_protobuf_command( MorpheusCommand* command);
+bool ble_reply_protobuf_error(ErrorType error_type);
+void free_protobuf_command(MorpheusCommand* command);
 
 //*****************************************************************************
 //

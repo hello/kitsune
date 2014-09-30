@@ -3,7 +3,10 @@
 #include "ble_cmd.h"
 #include "ble_proto.h"
 
+#include "uartstdio.h"
+
 #include "wifi_cmd.h"
+#include "spi_cmd.h"
 
 static bool _encode_string_fields(pb_ostream_t *stream, const pb_field_t *field, void * const *arg)
 {
@@ -30,7 +33,7 @@ static bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, 
         return false;
     }
     
-    char* str = malloc(stream->bytes_left + 1);
+    uint8_t* str = malloc(stream->bytes_left + 1);
     if(!str)
     {
         return false;
@@ -49,7 +52,7 @@ static bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, 
 
 
 
-void on_morpheus_protobuf_arrival(const char* protobuf, size_t len)
+void on_morpheus_protobuf_arrival(uint8_t* protobuf, size_t len)
 {
     if(!protobuf)
     {
@@ -124,8 +127,9 @@ static MorpheusCommand* _assign_encode_funcs(MorpheusCommand* command)
     return command;
 }
 
-bool ble_reply_protobuf_error(uint32_t error_type)
+bool ble_reply_protobuf_error(ErrorType error_type)
 {
+	uint8_t _error_buf[20];
     MorpheusCommand morpheus_command;
     memset(&morpheus_command, 0, sizeof(morpheus_command));
     morpheus_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_ERROR;
@@ -165,7 +169,7 @@ bool ble_send_protobuf(MorpheusCommand* command)
     pb_ostream_t stream = {0};
     pb_encode(&stream, MorpheusCommand_fields, command);
 
-    char* heap_page = malloc(stream.bytes_written);
+    uint8_t* heap_page = malloc(stream.bytes_written);
     if(!heap_page)
     {
         UARTprintf("Not enough memory.\r\n");
@@ -193,7 +197,7 @@ bool ble_send_protobuf(MorpheusCommand* command)
 }
 
 
-void free_protobuf_command(const MorpheusCommand* command)
+void free_protobuf_command(MorpheusCommand* command)
 {
     if(!command)
     {

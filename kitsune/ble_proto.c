@@ -1,23 +1,31 @@
 #include "ble_proto.h"
+#include "ble_cmd.h"
 #include "wlan.h"
 
-static char _error_buf[20];
+#include "uartstdio.h"
 
-bool set_wifi(const char* ssid, const char* password)
+#include "FreeRTOS.h"
+#define malloc pvPortMalloc
+#define free vPortFree
+
+
+bool set_wifi(const char* ssid, char* password)
 {
     SlSecParams_t secParams;
+    int security_type;
+
     memset(&secParams, 0, sizeof(SlSecParams_t));
 
-    for(int security_type = SL_SEC_TYPE_OPEN; security_type < SL_SEC_TYPE_P2P_PIN_AUTO; security_type++)
+    for(security_type = SL_SEC_TYPE_OPEN; security_type < SL_SEC_TYPE_P2P_PIN_AUTO; security_type++)
     {
-        secParams.Key = password;
+        secParams.Key = (signed char*)password;
         secParams.KeyLen = password == NULL ? 0 : strlen(password);
         secParams.Type = security_type;
 
-        const SlSecParams_t* secParamsPtr = security_type == SL_SEC_TYPE_OPEN ? NULL : &secParams;
+        SlSecParams_t* secParamsPtr = security_type == SL_SEC_TYPE_OPEN ? NULL : &secParams;
 
         // We don't support all the security types in this implementation.
-        uint16_t ret = sl_WlanConnect((_i8*)ssid, strlen(ssid), NULL, secParamsPtr, 0);
+        int16_t ret = sl_WlanConnect((_i8*)ssid, strlen(ssid), NULL, secParamsPtr, 0);
         if(ret == 0 || ret == -71)
         {
             // To make things simple in the first pass implementation, 
@@ -49,7 +57,7 @@ bool set_wifi(const char* ssid, const char* password)
 *
 */
 static void _ble_reply_wifi_info(){
-    _i8*  name = malloc(32);  // due to wlan.h
+    int8_t*  name = malloc(32);  // due to wlan.h
     if(!name)
     {
         UARTprintf("Not enough memory.\r\n");
@@ -58,13 +66,13 @@ static void _ble_reply_wifi_info(){
     }
 
     memset(name, 0, 32);
-    _i16 name_len = 0;
-    _u8 mac_addr[6] = {0};
+    int16_t name_len = 0;
+    uint8_t mac_addr[6] = {0};
     SlSecParams_t sec_params = {0};
     SlGetSecParamsExt_t secExt_params = {0};
-    _u32 priority  = 0;
+    unsigned long priority  = 0;
 
-    _i16 get_ret = sl_WlanProfileGet(0, name, &name_len, mac_addr, &sec_params, &secExt_params, &priority);
+    int16_t get_ret = sl_WlanProfileGet(0, name, &name_len, mac_addr, &sec_params, &secExt_params, &priority);
     if(get_ret == -1)
     {
         UARTprintf("Get wifi endpoint failed, error %d.\r\n", get_ret);
@@ -76,13 +84,13 @@ static void _ble_reply_wifi_info(){
         reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_WIFI_ENDPOINT;
         reply_command.version = PROTOBUF_VERSION;
 
-        size_t len = strlen(name) + 1;
+        size_t len = strlen((char*)name) + 1;
         char* ssid = malloc(len);
 
         if(ssid)
         {
             memset(ssid, 0, len);
-            memcpy(ssid, name, strlen(name));
+            memcpy(ssid, name, strlen((const char*)name));
 
             reply_command.wifiSSID.arg = ssid;
             ble_send_protobuf(&reply_command);
@@ -97,21 +105,21 @@ static void _ble_reply_wifi_info(){
     free(name);
 }
 
+int Cmd_led(int argc, char *argv[]);
 
-
-void on_ble_protobuf_command(const MorpheusCommand* command)
+void on_ble_protobuf_command(MorpheusCommand* command)
 {
     switch(command->type)
     {
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SET_WIFI_ENDPOINT:
         {
             const char* ssid = command->wifiSSID.arg;
-            const char* password = command->wifiPassword.arg;
+            char* password = command->wifiPassword.arg;
             // I can get the Mac address as well, but not sure it is necessary.
 
             // Just call API to connect to WIFI.
             UARTprintf("Wifi SSID %s, pswd %s \r\n", ssid, password);
-            if(!set_wifi(ssid, password))
+            if(!set_wifi(ssid, (char*)password))
             {
                 ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
             }else{
@@ -125,22 +133,27 @@ void on_ble_protobuf_command(const MorpheusCommand* command)
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_PAIRING_MODE:  // Just for testing
         {
             // Light up LEDs?
+            Cmd_led(0,0);
+            UARTprintf( "PAIRING MODE\n" );
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_WIFI_ENDPOINT:
         {
             // Get the current wifi connection information.
             _ble_reply_wifi_info();
+            UARTprintf( "GET_WIFI\n" );
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_DATA:
         {
             // Pill data received from ANT
+        	UARTprintf( "PILL DATA\n" );
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_HEARTBEAT:
         {   
             // Pill heartbeat received from ANT
+        	UARTprintf( "PILL HEARBEAT\n" );
         }
         break;
     }
