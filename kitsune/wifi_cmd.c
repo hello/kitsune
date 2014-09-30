@@ -143,6 +143,9 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
 //! \return None
 //
 //****************************************************************************
+
+int Cmd_led(int argc, char *argv[]);
+
 void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent) {
 
     switch (pNetAppEvent->Event) {
@@ -154,6 +157,8 @@ void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent) {
 			UARTprintf("seeding %d\r\n", seed);
 			srand(seed); //seed with low bits of lf clock when connecting(not sure when it happens, gives some more entropy).
 		}
+
+        Cmd_led(0,0);
 
 		sl_status |= HAS_IP;
 		break;
