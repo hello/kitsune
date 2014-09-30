@@ -958,12 +958,8 @@ int Cmd_mel(int argc, char *argv[]) {
 
 void led( unsigned int* color ) {
 	int i;
-	unsigned long ulInt;
 	unsigned int * end = color + NUM_LED;
-	//
-	// Temporarily turn off interrupts.
-	//
-	ulInt = MAP_IntMasterDisable();
+
 	for( ;; ) {
 		for (i = 0; i < 24; ++i) {
 			if ((*color << i) & 0x800000 ) {
@@ -981,6 +977,27 @@ void led( unsigned int* color ) {
 				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, 0x0);
+				if( i!=23 ) {
+					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+
+				} else {
+					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+				}
+			} else {
+				//0
+				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_GPIO_BIT);
+				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, 0x0);
 				if( i!=23 ) {
@@ -991,42 +1008,10 @@ void led( unsigned int* color ) {
 					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-				} else {
 					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-				}
 
-			} else {
-				//0
-				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_GPIO_BIT);
-				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, 0x0);
-				if( i!=23 ) {
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 				} else {
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
@@ -1037,14 +1022,19 @@ void led( unsigned int* color ) {
 			break;
 		}
 	}
-	if (!ulInt) {
-		MAP_IntMasterEnable();
-	}
 }
 void led_array( unsigned int * colors ) {
 	int i;
+	unsigned long ulInt;
+	//
+	// Temporarily turn off interrupts.
+	//
+	ulInt = MAP_IntMasterDisable();
 	for (i = 0; i < NUM_LED; ++i) {
 		led(colors+i);
+	}
+	if (!ulInt) {
+		MAP_IntMasterEnable();
 	}
 }
 void led_ccw( unsigned int * colors) {
@@ -1202,14 +1192,14 @@ void vUARTTask(void *pvParameters) {
 	char cCmdBuf[64];
 	portTickType now;
 
+	Cmd_led_clr(0,0);
+
 	//
 	// Initialize the UART for console I/O.
 	//
 	UARTStdioInit(0);
 
 	UARTIntRegister(UARTA0_BASE, UARTStdioIntHandler);
-
-	Cmd_led_clr(0,0);
 
 	UARTprintf("Booting...\n");
 
