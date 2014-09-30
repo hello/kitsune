@@ -1012,7 +1012,15 @@ void led( unsigned int* color ) {
 					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 				} else {
+					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
@@ -1200,6 +1208,8 @@ void vUARTTask(void *pvParameters) {
 	UARTStdioInit(0);
 
 	UARTIntRegister(UARTA0_BASE, UARTStdioIntHandler);
+
+	Cmd_led_clr(0,0);
 
 	UARTprintf("Booting...\n");
 
