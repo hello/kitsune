@@ -8,16 +8,16 @@
 #define malloc pvPortMalloc
 #define free vPortFree
 
-static int _get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint32_t scan_duration_ms)
+static int _get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uint32_t scan_duration_ms)
 {
-    if(scanDuration < 1000)
+    if(scan_duration_ms < 1000)
     {
         return 0;
     }
 
     unsigned long IntervalVal = 60;
 
-    unsigned char policyOpt; = SL_CONNECTION_POLICY(0, 0, 0, 0, 0);
+    unsigned char policyOpt = SL_CONNECTION_POLICY(0, 0, 0, 0, 0);
     int lRetVal = sl_WlanPolicySet(SL_POLICY_CONNECTION , policyOpt, NULL, 0);
 
 
@@ -33,7 +33,7 @@ static int _get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint32_t scan_d
 
     // lRetVal indicates the valid number of entries
     // The scan results are occupied in netEntries[]
-    lRetVal = sl_WlanGetNetworkList(0, SCAN_TABLE_SIZE, entries);
+    lRetVal = sl_WlanGetNetworkList(0, entry_len, entries);
 
     // Disable scan
     policyOpt = SL_SCAN_POLICY(0);
@@ -47,12 +47,12 @@ static int _get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint32_t scan_d
 }
 
 
-bool set_wifi(const char* ssid, char* password)
+bool set_wifi(const char* ssid, const char* password)
 {
     Sl_WlanNetworkEntry_t wifi_endpoints[MAX_WIFI_EP_PER_SCAN];
     memset(wifi_endpoints, 0, sizeof(wifi_endpoints));
 
-    int scanned_wifi_count = _get_wifi_scan_result(wifi_endpoints, 10000);  // Shall we have a bg thread scan periodically?
+    int scanned_wifi_count = _get_wifi_scan_result(wifi_endpoints, MAX_WIFI_EP_PER_SCAN, 10000);  // Shall we have a bg thread scan periodically?
     if(scanned_wifi_count == 0)
     {
         return 0;
@@ -62,10 +62,9 @@ bool set_wifi(const char* ssid, char* password)
     for(i = 0; i < scanned_wifi_count; i++)
     {
         Sl_WlanNetworkEntry_t wifi_endpoint = wifi_endpoints[i];
-        if(strcmp(wifi_endpoint.ssid, ssid) == 0)
+        if(strcmp((const char*)wifi_endpoint.ssid, ssid) == 0)
         {
             SlSecParams_t secParams;
-            int security_type;
 
             memset(&secParams, 0, sizeof(SlSecParams_t));
 
@@ -74,7 +73,7 @@ bool set_wifi(const char* ssid, char* password)
             secParams.KeyLen = password == NULL ? 0 : strlen(password);
             secParams.Type = wifi_endpoint.sec_type;
 
-            SlSecParams_t* secParamsPtr = security_type == SL_SEC_TYPE_OPEN ? NULL : &secParams;
+            SlSecParams_t* secParamsPtr = wifi_endpoint.sec_type == SL_SEC_TYPE_OPEN ? NULL : &secParams;
 
             // We don't support all the security types in this implementation.
             int16_t ret = sl_WlanConnect((_i8*)ssid, strlen(ssid), NULL, secParamsPtr, 0);
