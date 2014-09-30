@@ -52,7 +52,7 @@ bool set_wifi(const char* ssid, const char* password)
     Sl_WlanNetworkEntry_t wifi_endpoints[MAX_WIFI_EP_PER_SCAN];
     memset(wifi_endpoints, 0, sizeof(wifi_endpoints));
 
-    int scanned_wifi_count = _get_wifi_scan_result(wifi_endpoints, MAX_WIFI_EP_PER_SCAN, 10000);  // Shall we have a bg thread scan periodically?
+    int scanned_wifi_count = _get_wifi_scan_result(wifi_endpoints, MAX_WIFI_EP_PER_SCAN, 1000);  // Shall we have a bg thread scan periodically?
     if(scanned_wifi_count == 0)
     {
         return 0;
