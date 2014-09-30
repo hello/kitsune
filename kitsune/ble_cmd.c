@@ -1,6 +1,7 @@
 #include <string.h>
 
 #include "ble_cmd.h"
+#include "ble_proto.h"
 
 #include "wifi_cmd.h"
 
@@ -45,37 +46,7 @@ static bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, 
     return true;
 }
 
-static void _on_ble_protobuf_command(const MorpheusCommand* command)
-{
-    switch(command->type)
-    {
-        case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SET_WIFI_ENDPOINT:
-        {
-            const char* ssid = command->wifiSSID.arg;  // Mac Address in String:  xx:xx:xx:xx
-            const char* password = command->wifiPassword.arg;
-            // Just call API to connect to WIFI.
-            UARTprintf("Wifi SSID %s, pswd %s \r\n", ssid, password);  // might print junk.
-            // Just simulate the command line input.
-            // If the command line works, this shit should work.
-            char* args[4];
-            memset(args, 0, sizeof(args));
-            args[1] = ssid;
-            args[2] = password;
-            args[3] = strlen(password) == 0 ? "0" : "2";  // TODO: Guess the security type.
 
-            // This is just a hack to make the Wifi connect
-            // TODO: check with the connection status and loop through for 
-            // different security type.
-            Cmd_connect(4, args);
-        }
-        break;
-        case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_PAIRING_MODE:
-        {
-            // Light up LEDs?
-        }
-        break;
-    }
-}
 
 
 void on_morpheus_protobuf_arrival(const char* protobuf, size_t len)
@@ -116,7 +87,7 @@ void on_morpheus_protobuf_arrival(const char* protobuf, size_t len)
         UARTprintf("\r\n");
     }else{
 
-        _on_ble_protobuf_command(&command);
+        on_ble_protobuf_command(&command);
     }
 
     free_protobuf_command(&command);
@@ -153,7 +124,34 @@ static MorpheusCommand* _assign_encode_funcs(MorpheusCommand* command)
     return command;
 }
 
-bool send_protobuf_to_ble(MorpheusCommand* command)
+bool ble_reply_protobuf_error(uint32_t error_type)
+{
+    MorpheusCommand morpheus_command;
+    memset(&morpheus_command, 0, sizeof(morpheus_command));
+    morpheus_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_ERROR;
+    morpheus_command.version = PROTOBUF_VERSION;
+
+    morpheus_command.has_error = true;
+    morpheus_command.error = error_type;
+
+    memset(_error_buf, 0, sizeof(_error_buf));
+
+    pb_ostream_t stream = pb_ostream_from_buffer(_error_buf, sizeof(_error_buf));
+    bool status = pb_encode(&stream, MorpheusCommand_fields, &morpheus_command);
+    
+    if(status)
+    {
+        size_t protobuf_len = stream.bytes_written;
+        spi_write(protobuf_len, _error_buf);
+    }else{
+        UARTprintf("encode protobuf failed: %s\r\n", PB_GET_ERROR(&stream));
+    }
+
+    return status;
+}
+
+
+bool ble_send_protobuf(MorpheusCommand* command)
 {
     if(!command){
         UARTprintf("Inavlid parameter.\r\n");

@@ -1,5 +1,5 @@
-#ifndef __BLE_COMMAND_H__
-#define __BLE_COMMAND_H__
+#ifndef __BLE_PROTO_H__
+#define __BLE_PROTO_H__
 
 #include <stdlib.h>
 
@@ -8,7 +8,7 @@
 #include "nanopb/pb_encode.h"
 #include "protobuf/morpheus_ble.pb.h"
 
-#define MAX_STRING_LEN      256
+#define PROTOBUF_VERSION    0
 
 //*****************************************************************************
 //
@@ -21,10 +21,8 @@ extern "C"
 {
 #endif
 
-void on_morpheus_protobuf_arrival(const char* protobuf, size_t len);
-bool ble_send_protobuf(const MorpheusCommand* command);
-bool ble_reply_protobuf_error(uint32_t error_type);
-void free_protobuf_command(const MorpheusCommand* command);
+void on_ble_protobuf_command(const MorpheusCommand* command);
+bool set_wifi(const char* ssid, const char* password);
 
 //*****************************************************************************
 //
@@ -35,4 +33,4 @@ void free_protobuf_command(const MorpheusCommand* command);
 }
 #endif
 
-#endif //  __BLE_COMMAND_H__
+#endif //  __BLE_PROTO_H__
