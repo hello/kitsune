@@ -8,7 +8,7 @@
 #include "nanopb/pb_encode.h"
 #include "protobuf/morpheus_ble.pb.h"
 
-#define MAX_STRING_LEN      (256)
+#define MAX_STRING_LEN      256
 
 //*****************************************************************************
 //
@@ -22,6 +22,7 @@ extern "C"
 #endif
 
 void on_morpheus_protobuf_arrival(const char* protobuf, size_t len);
+bool send_protobuf_to_ble(const MorpheusCommand* command);
 void free_protobuf_command(const MorpheusCommand* command);
 
 //*****************************************************************************

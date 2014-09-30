@@ -3,6 +3,22 @@
 
 #include "wifi_cmd.h"
 
+static bool _encode_string_fields(pb_ostream_t *stream, const pb_field_t *field, void * const *arg)
+{
+    char* str = *arg;
+    if(!str)
+    {
+        return false;
+    }
+    
+    if (!pb_encode_tag_for_field(stream, field))
+    {
+        return false;
+    }
+
+    return pb_encode_string(stream, (uint8_t*)str, strlen(str));
+}
+
 
 static bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, void **arg)
 {
@@ -95,6 +111,38 @@ void on_morpheus_protobuf_arrival(const char* protobuf, size_t len)
 
     free_protobuf_command(&command);
     
+}
+
+bool send_protobuf_to_ble(const MorpheusCommand* command)
+{
+    pb_ostream_t stream = {0};
+    pb_encode(&stream, MorpheusCommand_fields, command);
+
+    char* heap_page = malloc(stream.bytes_written);
+    if(!heap_page)
+    {
+        UARTprintf("Not enough memory.\r\n");
+        return false;
+    }
+
+    memset(heap_page, 0, stream.bytes_written);
+    stream = pb_ostream_from_buffer(heap_page, stream.bytes_written);
+
+    bool status = pb_encode(&stream, MorpheusCommand_fields, command);
+    
+    if(status)
+    {
+        size_t protobuf_len = stream.bytes_written;
+        spi_write(protobuf_len, heap_page);
+
+    }else{
+        PRINTS("encode protobuf failed: ");
+        PRINTS(PB_GET_ERROR(&stream));
+        PRINTS("\r\n");
+    }
+    free(heap_page);
+
+    return status;
 }
 
 
