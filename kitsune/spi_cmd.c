@@ -189,7 +189,7 @@ int spi_read( int * len, unsigned char * buf ) {
 	spi_read_step( 4,  (unsigned char*)&ctx );
 	vTaskDelay(1);
 	UARTprintf("Ctx len %u, address %u\r\n",ctx.len, ctx.addr);
-	if( ctx.addr == 0xAAAA || ctx.addr == 0x5500 ) {
+	if( ctx.addr == 0xAAAA || ctx.addr == 0x5500 || ctx.addr == 0x5555 ) {
 		ctx.len = 0;
 	}
 	*len = ctx.len;
@@ -234,7 +234,9 @@ int Cmd_spi_read(int argc, char *argv[]) {
 	}
 	UARTprintf( "\r\n" );
 
-	on_morpheus_protobuf_arrival(buf, len);
+	if( len ) {
+	    on_morpheus_protobuf_arrival(buf, len);
+	}
 
 	return SUCCESS;
 
