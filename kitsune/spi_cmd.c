@@ -147,11 +147,11 @@ int spi_write( int len, unsigned char * buf ) {
 	ctx_t ctx;
 
 	spi_write_step( 1, &mode );
-	vTaskDelay(1);
+	vTaskDelay(10);
 	ctx.len = len;
 	ctx.addr = 0xcc;
 	spi_read_step( 4, (unsigned char*)&ctx );
-	vTaskDelay(1);
+	vTaskDelay(10);
 	UARTprintf("Ctx len %u, address %u\r\n",ctx.len, ctx.addr);
 	spi_write_step( len, buf );
 
@@ -185,9 +185,9 @@ int spi_read( int * len, unsigned char * buf ) {
 	ctx_t ctx;
 
 	spi_write_step( 1, &mode );
-	vTaskDelay(5);
+	vTaskDelay(10);
 	spi_read_step( 4,  (unsigned char*)&ctx );
-	vTaskDelay(5);
+	vTaskDelay(10);
 	UARTprintf("Ctx len %u, address %u\r\n",ctx.len, ctx.addr);
 	if( ctx.addr == 0xAAAA || ctx.addr == 0x5500 || ctx.addr == 0x5555 ) {
 		ctx.len = 0;

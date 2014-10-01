@@ -5,6 +5,7 @@
 #include "uartstdio.h"
 
 #include "FreeRTOS.h"
+#include "task.h"
 #define malloc pvPortMalloc
 #define free vPortFree
 
@@ -65,10 +66,11 @@ bool set_wifi(const char* ssid, const char* password)
         if(strcmp((const char*)wifi_endpoint.ssid, ssid) == 0)
         {
             SlSecParams_t secParams;
-
             memset(&secParams, 0, sizeof(SlSecParams_t));
 
-            
+            if( wifi_endpoint.sec_type == 3 ) {
+            	wifi_endpoint.sec_type = 2;
+            }
             secParams.Key = (signed char*)password;
             secParams.KeyLen = password == NULL ? 0 : strlen(password);
             secParams.Type = wifi_endpoint.sec_type;
@@ -81,15 +83,6 @@ bool set_wifi(const char* ssid, const char* password)
             {
                 // To make things simple in the first pass implementation, 
                 // we only store one endpoint.
-                // There is no sl_sl_WlanProfileSet?
-                // So I delete all endpoint first.
-                _i16 del_ret = sl_WlanProfileDel(0xFF);
-                if(del_ret)
-                {
-                    UARTprintf("Delete all stored endpoint failed, error %d.\r\n", del_ret);
-                }
-
-                // Then add the current one back.
                 _i16 profile_add_ret = sl_WlanProfileAdd((_i8*)ssid, strlen(ssid), NULL, secParamsPtr, NULL, 0, 0);
                 if(profile_add_ret < 0)
                 {
@@ -170,19 +163,25 @@ void on_ble_protobuf_command(MorpheusCommand* command)
         {
             const char* ssid = command->wifiSSID.arg;
             char* password = command->wifiPassword.arg;
+
             // I can get the Mac address as well, but not sure it is necessary.
 
             // Just call API to connect to WIFI.
             UARTprintf("Wifi SSID %s, pswd %s \r\n", ssid, password);
             if(!set_wifi(ssid, (char*)password))
             {
-                UARTprintf("Connection attemp failed.\n");
+                UARTprintf("Connection attempt failed.\n");
                 ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
             }else{
-                // If the wifi connection is set, reply the same message
-                // to the phone.
-                UARTprintf("Connection attemp issued.\n");
-                ble_send_protobuf(command);
+                // If the wifi connection is set, reply
+                MorpheusCommand reply_command;
+                memset(&reply_command, 0, sizeof(reply_command));
+                reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_WIFI_ENDPOINT;
+                reply_command.version = PROTOBUF_VERSION;
+                reply_command.wifiSSID.arg = (void*)ssid;
+
+                UARTprintf("Connection attempt issued.\n");
+                ble_send_protobuf(&reply_command);
             }
             
         }

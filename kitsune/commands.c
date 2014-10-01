@@ -1164,6 +1164,7 @@ tCmdLineEntry g_sCmdTable[] = {
 //    { "cpu",      Cmd_cpu,      "Show CPU utilization" },
 		{ "free", Cmd_free, "Report free memory" },
 		{ "connect", Cmd_connect, "Connect to an AP" },
+		{ "disconnect", Cmd_disconnect, "disconnect to an AP" },
 		{ "ping", Cmd_ping, "Ping a server" },
 		{ "time", Cmd_time, "get ntp time" },
 		{ "status", Cmd_status, "status of simple link" },

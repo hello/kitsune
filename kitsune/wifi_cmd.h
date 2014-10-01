@@ -30,6 +30,7 @@ void antsel(unsigned char a);
 int Cmd_antsel(int argc, char *argv[]);
 
 int Cmd_connect(int argc, char *argv[]);
+int Cmd_disconnect(int argc, char *argv[]);
 int Cmd_ping(int argc, char *argv[]);
 int Cmd_status(int argc, char *argv[]);
 int Cmd_audio_test(int argc, char *argv[]);

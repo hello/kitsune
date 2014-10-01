@@ -195,6 +195,13 @@ int Cmd_antsel(int argc, char *argv[]) {
     return 0;
 }
 
+int Cmd_disconnect(int argc, char *argv[]) {
+
+    _i16 del_ret = sl_WlanProfileDel(0xFF);
+
+	sl_WlanDisconnect();
+    return (0);
+}
 int Cmd_connect(int argc, char *argv[]) {
     SlSecParams_t secParams;
 
