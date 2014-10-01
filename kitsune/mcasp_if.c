@@ -152,6 +152,8 @@ void McASPInit()
 
     MAP_PRCMPeripheralClkEnable(PRCM_I2S,PRCM_RUN_MODE_CLK); 
     MAP_PRCMI2SClockFreqSet(512000*3);
+        MAP_I2SIntRegister(I2S_BASE,I2SIntHandler); // add by ben
+        MAP_I2SIntEnable(I2S_BASE,I2S_INT_XDATA); // add by ben
 }
 void McASPInit_RX()
 {
@@ -270,6 +272,17 @@ void AudioCaptureRendererConfigure()
 
     MAP_I2SConfigSetExpClk(I2S_BASE,512000*3,512000*3,I2S_SLOT_SIZE_16|
     		I2S_PORT_DMA );// I2S_PORT_DMA
+    MAP_I2SSerializerConfig(I2S_BASE,I2S_DATA_LINE_1,I2S_SER_MODE_RX,
+                                            I2S_INACT_LOW_LEVEL);
+    MAP_I2SSerializerConfig(I2S_BASE,I2S_DATA_LINE_0,I2S_SER_MODE_TX,
+                                            I2S_INACT_LOW_LEVEL);
+
+}
+void AudioCaptureRendererConfigure_aud()
+{
+
+    MAP_I2SConfigSetExpClk(I2S_BASE,512000*3,512000*3,I2S_SLOT_SIZE_16|
+    		I2S_PORT_CPU );// I2S_PORT_DMA
     MAP_I2SSerializerConfig(I2S_BASE,I2S_DATA_LINE_1,I2S_SER_MODE_RX,
                                             I2S_INACT_LOW_LEVEL);
     MAP_I2SSerializerConfig(I2S_BASE,I2S_DATA_LINE_0,I2S_SER_MODE_TX,

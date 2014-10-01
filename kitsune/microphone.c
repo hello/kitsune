@@ -134,9 +134,10 @@ void Microphone1()
     FRESULT res = f_open(&file_obj, file_name, FA_WRITE|FA_OPEN_ALWAYS);
     //UARTprintf("res :%d\n",res);
 
+
     if(res != FR_OK && res != FR_EXIST){
-        UARTprintf("File open %s failed: %d\n", file_name, res);
-        return;
+    	UARTprintf("File open %s failed: %d\n", file_name, res);
+    	//return -1;
     }
 
 
@@ -194,12 +195,12 @@ void Microphone1()
 
 #endif   //NETWORK       
 
-                 if(g_iSentCount == 56250){
-                      res = f_close(file_ptr);
-                     UARTprintf("mic task completed\r\n" );
-                     g_iSentCount = 0;
-                     break;
-                 }
+             	if(g_iSentCount == 6250){
+             		 res = f_close(file_ptr);
+             		UARTprintf("mic task completed\r\n" );
+             		g_iSentCount = 0;
+             		break;
+             	}
                  //  f_append("/Pud",*(pTxBuffer->pucReadPtr),512);
 
                 WORD bytes = 0;

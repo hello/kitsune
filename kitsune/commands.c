@@ -475,6 +475,7 @@ SetupPingPongDMATransferTx();
 
 AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
 AudioCaptureRendererConfigure();
+
 // Start Audio Tx/Rx
 //
 Audio_Start();
@@ -1300,6 +1301,7 @@ void vUARTTask(void *pvParameters) {
 	//INIT SPI
 	spi_init();
 	UARTprintf("*");
+
 	vTaskDelayUntil(&now, 1000);
 	UARTprintf("*");
 
