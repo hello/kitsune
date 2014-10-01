@@ -113,6 +113,7 @@ int spi_write_step( int len, unsigned char * buf ) {
 	}
 	//MAP_SPICSEnable(GSPI_BASE);
 	CS_set(0);
+	vTaskDelay(1);
 	for (i = 0; i < len; i++) {
 		MAP_SPIDataPut(GSPI_BASE, buf[i]);
 		MAP_SPIDataGet(GSPI_BASE, &dud);
@@ -133,6 +134,7 @@ int spi_read_step( int len, unsigned char * buf ) {
 	UARTprintf("Reading...\r\n");
 	//	MAP_SPITransfer(GSPI_BASE,rx_buf,rx_buf,len,SPI_CS_ENABLE|SPI_CS_DISABLE);
 	CS_set(0);
+	vTaskDelay(1);
 	len = MAP_SPITransfer(GSPI_BASE, buf, buf, len, 0);
 	CS_set(1);
 	UARTprintf("Read %d bytes \r\n", len);
