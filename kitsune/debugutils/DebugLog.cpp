@@ -1,6 +1,6 @@
 #include "debuglog.h"
 #include "DebugLogSingleton.h"
-#include "../nanopb/pb_encode.h"
+#include "pb_encode.h"
 #include "base64.h"
 #include "matmessageutils.h"
 #include <sstream>

@@ -1,10 +1,11 @@
 #include <iostream>
 #include <fstream>
-
 #include "../../kitsune/audiofeatures.h"
 #include "../../kitsune/audioclassifier.h"
 #include "../../kitsune/debugutils/DebugLogSingleton.h"
 #include <string.h>
+#include "pb_encode.h"
+#include "../../kitsune/debugutils/base64.h"
 using namespace std;
 
 #define FFT_SIZE_2N (10)
@@ -30,6 +31,27 @@ static void SegmentCallback(const int16_t * feats, const Segment_t * pSegment) {
 #endif
 }
 
+#define OUT_BUF_SIZE (100000)
+static void serialize_buf() {
+    unsigned char buf[OUT_BUF_SIZE];
+    pb_ostream_t output;
+    size_t encodelength;
+    std::string mytags = "";
+    
+    memset(buf,0,sizeof(buf));
+    
+    output = pb_ostream_from_buffer(buf, OUT_BUF_SIZE);
+    
+    AudioClassifier_GetSerializedBuffer(&output, "abcdefg", 1337, NULL, "magic");
+    
+    std::ofstream file("foo.out");
+    if (file.is_open()) {
+        file << base64_encode(buf,encodelength) <<std::endl;
+
+    }
+    
+    
+}
 int main(int argc, char * argv[]) {
     if (argc <= 2) {
         cerr << "Takes 2 inputs, 1) input file and 2) output file" << endl;
@@ -69,6 +91,8 @@ int main(int argc, char * argv[]) {
         
         
     } while (inFile);
+    
+    serialize_buf();
 
     return 0;
 }
