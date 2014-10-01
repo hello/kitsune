@@ -86,14 +86,14 @@ bool set_wifi(const char* ssid, const char* password)
                 _i16 del_ret = sl_WlanProfileDel(0xFF);
                 if(del_ret)
                 {
-                    UARTprintf("Delete all stored endpoint failed, error %d.\r\n", del_ret);
+                    UARTprintf("Delete all stored endpoint failed, error %d.\n", del_ret);
                 }
 
                 // Then add the current one back.
                 _i16 profile_add_ret = sl_WlanProfileAdd((_i8*)ssid, strlen(ssid), NULL, secParamsPtr, NULL, 0, 0);
                 if(profile_add_ret < 0)
                 {
-                    UARTprintf("Save connected endpoint failed, error %d.\r\n", profile_add_ret);
+                    UARTprintf("Save connected endpoint failed, error %d.\n", profile_add_ret);
                 }
 
                 return 1;
@@ -107,6 +107,41 @@ bool set_wifi(const char* ssid, const char* password)
     return 0;
 }
 
+static void _reply_device_id()
+{
+    uint8_t mac_len = SL_MAC_ADDR_LEN;
+    uint8_t mac[SL_MAC_ADDR_LEN] = {0};
+
+    int32_t ret = sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
+    if(ret == 0)
+    {
+        uint8_t device_id_len = SL_MAC_ADDR_LEN * 3;  // xx:xx:xx:xx\0
+        char device_id[device_id_len] = {0};
+
+        uint8_t index = 0;
+        for(i = 0; i < SL_MAC_ADDR_LEN; i++){
+            sprintf(device_id[i * 3], "%02X", mac[i]);  // It has sprintf!
+            if(i < SL_MAC_ADDR_LEN - 1)
+            {
+                device_id[i * 3 + 2] = ':';
+            }
+        }
+
+        UARTprintf("Morpheus device id: %s\n", device_id);
+        MorpheusCommand reply_command;
+        memset(&reply_command, 0, sizeof(reply_command));
+        reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_DEVICE_ID;
+        reply_command.version = PROTOBUF_VERSION;
+
+        reply_command.deviceId.arg = device_id;
+        ble_send_protobuf(&reply_command);
+
+    }else{
+        UARTprintf("Get Mac address failed, error %d.\n", ret);
+        ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
+    }
+}
+
 /*
 * Get the current saved WIFI profile and send it back via BLE
 *
@@ -115,7 +150,7 @@ static void _ble_reply_wifi_info(){
     int8_t*  name = malloc(32);  // due to wlan.h
     if(!name)
     {
-        UARTprintf("Not enough memory.\r\n");
+        UARTprintf("Not enough memory.\n");
         ble_reply_protobuf_error(ErrorType_DEVICE_NO_MEMORY);
         return;
     }
@@ -130,7 +165,7 @@ static void _ble_reply_wifi_info(){
     int16_t get_ret = sl_WlanProfileGet(0, name, &name_len, mac_addr, &sec_params, &secExt_params, &priority);
     if(get_ret == -1)
     {
-        UARTprintf("Get wifi endpoint failed, error %d.\r\n", get_ret);
+        UARTprintf("Get wifi endpoint failed, error %d.\n", get_ret);
         ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
 
     }else{
@@ -151,7 +186,7 @@ static void _ble_reply_wifi_info(){
             ble_send_protobuf(&reply_command);
             free(ssid);
         }else{
-            UARTprintf("Not enough memory.\r\n");
+            UARTprintf("Not enough memory.\n");
             ble_reply_protobuf_error(ErrorType_DEVICE_NO_MEMORY);
         }
 
@@ -173,7 +208,7 @@ void on_ble_protobuf_command(MorpheusCommand* command)
             // I can get the Mac address as well, but not sure it is necessary.
 
             // Just call API to connect to WIFI.
-            UARTprintf("Wifi SSID %s, pswd %s \r\n", ssid, password);
+            UARTprintf("Wifi SSID %s, pswd %s \n", ssid, password);
             if(!set_wifi(ssid, (char*)password))
             {
                 UARTprintf("Connection attemp failed.\n");
@@ -211,6 +246,12 @@ void on_ble_protobuf_command(MorpheusCommand* command)
         {   
             // Pill heartbeat received from ANT
         	UARTprintf( "PILL HEARBEAT\n" );
+        }
+        break;
+        case MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_DEVICE_ID:
+        {
+            UARTprintf("GET DEVICE ID\n");
+            _reply_device_id();
         }
         break;
     }
