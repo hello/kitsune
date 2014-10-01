@@ -1,9 +1,11 @@
 #include <iostream>
 #include <fstream>
-
 #include "../../kitsune/audiofeatures.h"
+#include "../../kitsune/audioclassifier.h"
 #include "../../kitsune/debugutils/DebugLogSingleton.h"
 #include <string.h>
+#include "pb_encode.h"
+#include "../../kitsune/debugutils/base64.h"
 using namespace std;
 
 #define FFT_SIZE_2N (10)
@@ -12,25 +14,47 @@ using namespace std;
 
 static std::string _label;
 
-static void SegmentCallback(const int32_t * mfcc, const Segment_t * pSegment) {
-    cout << pSegment->t1 << "," << pSegment->t2;
-    /*for (int j =0 ; j < 8; j++) {
-        cout << "," << mfcc[j];
-    }*/
-    cout << endl;
-
-    std::string tags;
+static void NoveltyNotifcation(void) {
     
-    if (pSegment->type == segmentPacket) {
-        tags = "packet";
-    }
-    else if (pSegment->type == segmentSteadyState) {
-        tags = "steady";
-    }
-    
-    DebugLogSingleton::Instance()->SetDebugVectorS32("featAudio", tags.c_str(), mfcc, NUM_MFCC_FEATURES, pSegment->t1, pSegment->t2);
 }
 
+static void SegmentCallback(const int16_t * feats, const Segment_t * pSegment) {
+    
+    cout << pSegment->t1 << "," << pSegment->duration;
+#if 1
+    for (int j =0 ; j < NUM_AUDIO_FEATURES; j++) {
+        cout << "," << feats[j];
+    }
+#endif
+    cout << endl;
+#if 0
+    std::string tags;
+    tags = "coherent";
+    
+    DebugLogSingleton::Instance()->SetDebugVectorS16("featAudio", tags.c_str(), feats, NUM_AUDIO_FEATURES, pSegment->t1, pSegment->t2);
+#endif
+}
+
+#define OUT_BUF_SIZE (100000)
+static void serialize_buf() {
+    unsigned char buf[OUT_BUF_SIZE];
+    pb_ostream_t output;
+    size_t encodelength;
+    std::string mytags = "";
+    
+    memset(buf,0,sizeof(buf));
+    
+    output = pb_ostream_from_buffer(buf, OUT_BUF_SIZE);
+    
+    encodelength = AudioClassifier_GetSerializedBuffer(&output, "abcdefg", 1337, NULL, "magic");
+    std::cout << "length is " << encodelength << std::endl;
+    std::ofstream file("foo.out");
+    if (file.is_open()) {
+        file << base64_encode(buf,encodelength) <<std::endl;
+    }
+    
+    
+}
 int main(int argc, char * argv[]) {
     if (argc <= 2) {
         cerr << "Takes 2 inputs, 1) input file and 2) output file" << endl;
@@ -57,7 +81,8 @@ int main(int argc, char * argv[]) {
     int64_t counter = 0;
     
     
-    AudioFeatures_Init(SegmentCallback);
+    AudioFeatures_Init(AudioClassifier_SegmentCallback);
+    AudioClassifier_Init(5,NoveltyNotifcation,NULL,NULL);
 
     
     
@@ -69,6 +94,8 @@ int main(int argc, char * argv[]) {
         
         
     } while (inFile);
+    
+    serialize_buf();
 
     return 0;
 }

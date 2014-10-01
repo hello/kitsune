@@ -16,7 +16,7 @@ extern int GetSegmentType(void);
 
 extern void Init(void);
 extern int SetAudioData(int buf[1024]);
-extern void GetAudioFeatures(int feats[8]);
+extern void GetAudioFeatures(int feats[9]);
 extern int GetT1(void);
 extern int GetT2(void);
 extern const char * DumpDebugBuffer();

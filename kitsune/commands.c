@@ -835,7 +835,7 @@ int Cmd_fault(int argc, char *argv[]) {
 	return 0;
 }
 
-static void AudioFeatCallback(const int32_t * mfccfeats, const Segment_t * pSegment) {
+static void AudioFeatCallback(const int16_t * mfccfeats, const Segment_t * pSegment) {
 	int32_t t1;
 	int32_t t2;
 

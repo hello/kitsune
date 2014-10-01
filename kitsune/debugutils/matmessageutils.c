@@ -1,8 +1,12 @@
 #include "matmessageutils.h"
 
-#include "../nanopb/pb_encode.h"
-#include "../protobuf/matrix.pb.h"
+#include "pb_encode.h"
+#include "protobuf/matrix.pb.h"
 
+typedef struct {
+    const MatDesc_t * data;
+    uint16_t len;
+} MatDescArray_t;
 
 static bool write_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
     const char * str = (const char *)(*arg);
@@ -84,13 +88,47 @@ static bool write_int_mat(pb_ostream_t *stream, const pb_field_t *field, void * 
     encode_int_array(&sizestream,pdesc);
     
     //write size
-    if (!pb_encode_varint(stream, sizestream.bytes_written))
+    if (!pb_encode_varint(stream, sizestream.bytes_written)) {
         return 0;
+    }
     
     //write payload
     encode_int_array(stream,pdesc);
     
     
+    return 1;
+    
+}
+
+static bool write_mat_array(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
+    MatDescArray_t * pdesc = (MatDescArray_t *)(*arg);
+    const MatDesc_t * p;
+    uint16_t i;
+    pb_ostream_t sizestream;
+
+    for (i = 0; i < pdesc->len; i++) {
+        p = &pdesc->data[i];
+        
+        if (!pb_encode_tag(stream,PB_WT_STRING, field->tag)) {
+            return 0;
+        }
+        
+        //reset size stream
+        memset(&sizestream,0,sizeof(sizestream));
+
+        //get size
+        SetIntMatrix(&sizestream, p->id, p->tags, p->source, p->data, p->rows, p->cols, p->t1, p->t2);
+
+        //write size
+        if (!pb_encode_varint(stream, sizestream.bytes_written)) {
+            return 0;
+        }
+        
+        //encode matrix payload
+        SetIntMatrix(stream, p->id, p->tags, p->source, p->data, p->rows, p->cols, p->t1, p->t2);
+        
+    }
+
     return 1;
     
 }
@@ -106,7 +144,7 @@ size_t SetIntMatrix(pb_ostream_t * stream,
                     int64_t t2) {
     
     Matrix mat;
-    size_t size;
+    size_t size = 0;
     
     memset(&mat,0,sizeof(Matrix));
     data.len = rows*cols;
@@ -135,8 +173,45 @@ size_t SetIntMatrix(pb_ostream_t * stream,
 
     
     pb_get_encoded_size(&size,Matrix_fields,&mat);
-    pb_encode(stream,Matrix_fields,&mat);
+    
+    if (stream) {
+        pb_encode(stream,Matrix_fields,&mat);
+    }
     
     return size;
 }
+
+
+size_t SetMatrixMessage(pb_ostream_t * stream,
+                        const char * macbytes,
+                        uint32_t unix_time,
+                        const MatDesc_t * mats,
+                        uint16_t nummats) {
+    
+    size_t size = 0;
+
+    MatrixClientMessage mess;
+    MatDescArray_t desc;
+    
+    desc.data = mats;
+    desc.len = nummats;
+    
+    mess.unix_time = unix_time;
+    mess.has_unix_time = 1;
+    
+    mess.mac.funcs.encode = write_string;
+    mess.mac.arg = (void*)macbytes;
+    
+    mess.matrix_payload.funcs.encode = write_mat_array;
+    mess.matrix_payload.arg = (void *)&desc;
+    
+    pb_get_encoded_size(&size,MatrixClientMessage_fields,&mess);
+    
+    if (stream) {
+        pb_encode(stream,MatrixClientMessage_fields,&mess);
+    }
+    
+    return size;
+}
+
 
