@@ -269,6 +269,7 @@ void AudioClassifier_ResetUpdateTime(void) {
     }
 
     _data.firstUpdateTime = 0;
+    _data.numItemsInOccurenceBuffer = 0;
     
     if (_data.fpUnlock) {
         _data.fpUnlock();
