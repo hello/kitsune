@@ -255,62 +255,40 @@ void AudioClassifier_Init(SegmentAndFeatureCallback_t novelDataCallback) {
    - Set source and tags to NULL if you want.
  
  */
-uint32_t AudioClassifier_GetSerializedBuffer(pb_ostream_t * stream,const char * tags, const char * source) {
+uint32_t AudioClassifier_GetSerializedBuffer(pb_ostream_t * stream,const char * macbytes, uint32_t unix_time,const char * tags, const char * source) {
     uint32_t size;
     
-    IntArray_t arr;
+ 
+    MatDesc_t descs[4] = {
+        {k_occurence_indices_buf_id,tags,source,{},1,_data.numItemsInOccurenceBuffer,_data.firstUpdateTime,_data.lastUpdateTime},
+        {k_occurence_durations_buf_id,tags,source,{},1,_data.numItemsInOccurenceBuffer,_data.firstUpdateTime,_data.lastUpdateTime},
+        {k_feat_index_buf_id,tags,source,{},1,NUM_LIST_ITEMS,_data.firstUpdateTime,_data.lastUpdateTime},
+        {k_feat_vec_buf_id,tags,source,{},NUM_LIST_ITEMS,NUM_AUDIO_FEATURES,_data.firstUpdateTime,_data.lastUpdateTime}
+    };
+    
+    /*****************/
+    descs[0].data.len = _data.numItemsInOccurenceBuffer;
+    descs[0].data.type = euint8;
+    descs[0].data.data.uint8 = _data.occurencesindices;
+    
+    /*****************/
+    descs[1].data.len = _data.numItemsInOccurenceBuffer;
+    descs[1].data.type = euint8;
+    descs[1].data.data.uint8 = _data.occurenceDurations;
+    
+    /*****************/
+    descs[2].data.len = _data.numItemsInOccurenceBuffer;
+    descs[2].data.type = euint8;
+    descs[2].data.data.uint8 = _data.featsidx;
+    
+    /*****************/
+    descs[3].data.len = NUM_LIST_ITEMS*NUM_AUDIO_FEATURES;
+    descs[3].data.type = esint8;
+    descs[3].data.data.sint8 = &_data.feats[0][0];
 
-    /*****************/
-    arr.len = _data.numItemsInOccurenceBuffer;
-    arr.type = euint8;
-    arr.data.uint8 = _data.occurencesindices;
-    
-    size = 0;
-    
-    size += SetIntMatrix(stream, k_occurence_indices_buf_id, tags, source, arr,
-                 1,_data.numItemsInOccurenceBuffer,
-                 _data.firstUpdateTime, _data.lastUpdateTime);
-    
-    
-    
-    /*****************/
-    arr.len = _data.numItemsInOccurenceBuffer;
-    arr.type = euint8;
-    arr.data.uint8 = _data.occurenceDurations;
-    
-    size += SetIntMatrix(stream, k_occurence_durations_buf_id, tags, source, arr,
-                         1,_data.numItemsInOccurenceBuffer,
-                         _data.firstUpdateTime, _data.lastUpdateTime);
-    
-    
-    
-    
-    /*****************/
-    arr.len = _data.numItemsInOccurenceBuffer;
-    arr.type = euint8;
-    arr.data.uint8 = _data.featsidx;
-    
-    size += SetIntMatrix(stream, k_feat_index_buf_id, tags, source, arr,
-                         1,NUM_LIST_ITEMS,
-                         _data.firstUpdateTime, _data.lastUpdateTime);
-    
-    
-    
-    /*****************/
-    arr.len = NUM_LIST_ITEMS*NUM_AUDIO_FEATURES;
-    arr.type = esint8;
-    arr.data.sint8 = &_data.feats[0][0];
-
-    
-    size += SetIntMatrix(stream, k_feat_vec_buf_id, tags, source, arr,
-                         NUM_LIST_ITEMS,NUM_AUDIO_FEATURES,
-                         _data.firstUpdateTime, _data.lastUpdateTime);
-    
-    
+    size = SetMatrixMessage(stream, macbytes, unix_time, descs, 4);
     
     return size;
-    
-    
 }
 
 

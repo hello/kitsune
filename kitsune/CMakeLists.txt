@@ -6,6 +6,9 @@ project(EmbeddedAlgLibrary)
 
 add_definitions(-DUSE_CPP_DEBUG_LOGGING)
 
+include_directories ("${PROJECT_SOURCE_DIR}")
+include_directories ("${PROJECT_SOURCE_DIR}/nanopb")
+
 
 #compile our alg code
 add_library(EmbeddedAlg STATIC
