@@ -994,10 +994,12 @@ void SetupGPIOInterrupts() {
 
 void thread_spi(void * data) {
 	while(1) {
-		if (xSemaphoreTake(spi_smphr, portMAX_DELAY)) {
+		if (xSemaphoreTake(spi_smphr, 10000)) {
 			vTaskDelay(10);
-			SetupGPIOInterrupts();
 			Cmd_spi_read(0, 0);
+			MAP_GPIOIntEnable(GPIO_PORT,PROX_PIN);
+		} else {
+			MAP_GPIOIntEnable(GPIO_PORT,PROX_PIN);
 		}
 	}
 }
