@@ -132,7 +132,7 @@ void Microphone1()
 
     if(res != FR_OK && res != FR_EXIST){
     	UARTprintf("File open %s failed: %d\n", file_name, res);
-    	return -1;
+    	//return -1;
     }
 
 

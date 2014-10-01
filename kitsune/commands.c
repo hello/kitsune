@@ -872,7 +872,7 @@ void vUARTTask(void *pvParameters) {
     MAP_PRCMPeripheralClkEnable(PRCM_SDHOST,PRCM_RUN_MODE_CLK);
     MAP_PRCMPeripheralReset(PRCM_SDHOST);
     MAP_SDHostInit(SDHOST_BASE);
-    MAP_SDHostSetExpClk(SDHOST_BASE,MAP_PRCMPeripheralClockGet(PRCM_SDHOST),15000000);
+    MAP_SDHostSetExpClk(SDHOST_BASE,MAP_PRCMPeripheralClockGet(PRCM_SDHOST),1000000);
     Cmd_mnt(0,0);
 
     //INIT SPI
