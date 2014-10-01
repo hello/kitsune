@@ -14,6 +14,10 @@ using namespace std;
 
 static std::string _label;
 
+static void NoveltyNotifcation(void) {
+    
+}
+
 static void SegmentCallback(const int16_t * feats, const Segment_t * pSegment) {
     
     cout << pSegment->t1 << "," << pSegment->duration;
@@ -78,7 +82,7 @@ int main(int argc, char * argv[]) {
     
     
     AudioFeatures_Init(AudioClassifier_SegmentCallback);
-    AudioClassifier_Init(SegmentCallback);
+    AudioClassifier_Init(5,NoveltyNotifcation,NULL,NULL);
 
     
     

@@ -24,6 +24,7 @@
 
 typedef struct ListItem {
     uint8_t listidx;
+    uint8_t updatecount;
     struct ListItem * next;
     struct ListItem * prev;
 } ListItem_t; //~12 bytes
@@ -37,12 +38,18 @@ typedef struct {
 
     uint8_t occurencesindices[ITEMS_SIZE]; //256 bytes
     uint8_t occurenceDurations[ITEMS_SIZE]; //256 bytes
+    uint16_t occurenceDeltaTimeSinceLastSegment[ITEMS_SIZE]; //512 bytes
+
     uint16_t occurenceidx;
     
     uint16_t numItemsInOccurenceBuffer;
-    SegmentAndFeatureCallback_t fpNovelDataCallback;
+    NotificationCallback_t fpNovelDataCallback;
     int64_t lastUpdateTime;
     int64_t firstUpdateTime;
+    uint8_t updateCountNoveltyThreshold;
+    
+    MutexCallback_t fpLock;
+    MutexCallback_t fpUnlock;
     
 } AudioClassifier_t;
 
@@ -56,6 +63,7 @@ static const char * k_occurence_indices_buf_id = "occurenceIndices";
 static const char * k_occurence_durations_buf_id = "occurenceDurations";
 static const char * k_feat_vec_buf_id = "featVecs";
 static const char * k_feat_index_buf_id = "featIndices";
+static const char * k_occurence_info_buf_id = "occurenceInfo";
 
 static ListItem_t * _pHead;
 static ListItem_t * _pFree;
@@ -159,7 +167,7 @@ static ListItem_t * AddItemToHeadOfList(const int8_t * featvec8,const Segment_t 
     
     memcpy(featdata,featvec8,sizeof(int8_t)*NUM_AUDIO_FEATURES);
     _data.featsidx[_pHead->listidx] = _data.featModeIndex;
-    
+    _pHead->updatecount = 0;
     return  _pHead;
 }
 
@@ -228,7 +236,7 @@ void Scale16VecTo8(int8_t * pscaled, const int16_t * vec,uint16_t n) {
  exported functions
  *****************/
 
-void AudioClassifier_Init(SegmentAndFeatureCallback_t novelDataCallback) {
+void AudioClassifier_Init(uint8_t updateCountNoveltyThreshold,NotificationCallback_t novelDataCallback,MutexCallback_t fpLock, MutexCallback_t fpUnlock) {
     uint16_t i;
     
     _data.fpNovelDataCallback = novelDataCallback;
@@ -247,6 +255,24 @@ void AudioClassifier_Init(SegmentAndFeatureCallback_t novelDataCallback) {
     for (i = 0; i < NUM_LIST_ITEMS; i++) {
         _data.listdata[i].listidx = i;
     }
+    
+    _data.updateCountNoveltyThreshold = updateCountNoveltyThreshold;
+    _data.fpUnlock = fpUnlock;
+    _data.fpLock = fpLock;
+}
+
+/* Call this after you pull the buffer */
+void AudioClassifier_ResetUpdateTime(void) {
+    
+    if (_data.fpLock) {
+        _data.fpLock();
+    }
+
+    _data.firstUpdateTime = 0;
+    
+    if (_data.fpUnlock) {
+        _data.fpUnlock();
+    }
 }
 
 /* 
@@ -256,124 +282,158 @@ void AudioClassifier_Init(SegmentAndFeatureCallback_t novelDataCallback) {
  
  */
 uint32_t AudioClassifier_GetSerializedBuffer(pb_ostream_t * stream,const char * macbytes, uint32_t unix_time,const char * tags, const char * source) {
-    uint32_t size;
     
- 
-    MatDesc_t descs[4] = {
-        {k_occurence_indices_buf_id,tags,source,{},1,_data.numItemsInOccurenceBuffer,_data.firstUpdateTime,_data.lastUpdateTime},
-        {k_occurence_durations_buf_id,tags,source,{},1,_data.numItemsInOccurenceBuffer,_data.firstUpdateTime,_data.lastUpdateTime},
-        {k_feat_index_buf_id,tags,source,{},1,NUM_LIST_ITEMS,_data.firstUpdateTime,_data.lastUpdateTime},
-        {k_feat_vec_buf_id,tags,source,{},NUM_LIST_ITEMS,NUM_AUDIO_FEATURES,_data.firstUpdateTime,_data.lastUpdateTime}
-    };
+    uint32_t size = 0;
     
-    /*****************/
-    descs[0].data.len = _data.numItemsInOccurenceBuffer;
-    descs[0].data.type = euint8;
-    descs[0].data.data.uint8 = _data.occurencesindices;
     
-    /*****************/
-    descs[1].data.len = _data.numItemsInOccurenceBuffer;
-    descs[1].data.type = euint8;
-    descs[1].data.data.uint8 = _data.occurenceDurations;
+    if (_data.fpLock) {
+        _data.fpLock();
+    }
     
-    /*****************/
-    descs[2].data.len = NUM_LIST_ITEMS;
-    descs[2].data.type = euint8;
-    descs[2].data.data.uint8 = _data.featsidx;
+    {
+        const uint16_t info[2] = {_data.occurenceidx,_data.numItemsInOccurenceBuffer};
+        
+        MatDesc_t descs[6] = {
+            {k_occurence_indices_buf_id,tags,source,{},1,_data.numItemsInOccurenceBuffer,_data.firstUpdateTime,_data.lastUpdateTime},
+            {k_occurence_durations_buf_id,tags,source,{},1,_data.numItemsInOccurenceBuffer,_data.firstUpdateTime,_data.lastUpdateTime},
+            {k_feat_index_buf_id,tags,source,{},1,NUM_LIST_ITEMS,_data.firstUpdateTime,_data.lastUpdateTime},
+            {k_feat_vec_buf_id,tags,source,{},NUM_LIST_ITEMS,NUM_AUDIO_FEATURES,_data.firstUpdateTime,_data.lastUpdateTime},
+            {k_occurence_info_buf_id,tags,source,{},1,2,_data.firstUpdateTime,_data.lastUpdateTime}
+        };
+        
+        /*****************/
+        descs[0].data.len = 2;
+        descs[0].data.type = euint16;
+        descs[0].data.data.uint16 = info;
+        
+        /*****************/
+        descs[1].data.len = _data.numItemsInOccurenceBuffer;
+        descs[1].data.type = euint8;
+        descs[1].data.data.uint8 = _data.occurencesindices;
+        
+        /*****************/
+        descs[2].data.len = _data.numItemsInOccurenceBuffer;
+        descs[2].data.type = euint8;
+        descs[2].data.data.uint8 = _data.occurenceDurations;
+        
+        /*****************/
+        descs[3].data.len = _data.numItemsInOccurenceBuffer;
+        descs[3].data.type = euint16;
+        descs[3].data.data.uint16 = _data.occurenceDeltaTimeSinceLastSegment;
+        
+        /*****************/
+        descs[4].data.len = NUM_LIST_ITEMS;
+        descs[4].data.type = euint8;
+        descs[4].data.data.uint8 = _data.featsidx;
+        
+        /*****************/
+        descs[5].data.len = NUM_LIST_ITEMS*NUM_AUDIO_FEATURES;
+        descs[5].data.type = esint8;
+        descs[5].data.data.sint8 = &_data.feats[0][0];
+        
+        
+        size = SetMatrixMessage(stream, macbytes, unix_time, descs, sizeof(descs) / sizeof(MatDesc_t));
+    }
     
-    /*****************/
-    descs[3].data.len = NUM_LIST_ITEMS*NUM_AUDIO_FEATURES;
-    descs[3].data.type = esint8;
-    descs[3].data.data.sint8 = &_data.feats[0][0];
+    
+    if (_data.fpUnlock) {
+        _data.fpUnlock();
+    }
 
-    size = SetMatrixMessage(stream, macbytes, unix_time, descs, 4);
-    
     return size;
 }
 
 
 
 void AudioClassifier_SegmentCallback(const int16_t * feats, const Segment_t * pSegment) {
-    int8_t featvec8[NUM_AUDIO_FEATURES];
-    ListItem_t * pitem;
-    Scale16VecTo8(featvec8,feats,NUM_AUDIO_FEATURES);
-    uint8_t duration;
-    int64_t deltaTimeSinceLastUpdate;
-
-    pitem = FindSimilarItem(featvec8);
     
-    if (pitem) {
-        MoveItemToHeadOfList(pitem);
-    }
-    else {
-        //add similarity vector
-        pitem = AddItemToHeadOfList(featvec8,pSegment);
-        _data.featModeIndex++;
+    uint8_t isNovel = FALSE;
+    
+    if (_data.fpLock) {
+        _data.fpLock();
     }
     
-    //safety first
-    if (!pitem) {
-        return;
-    }
-
-    
-    //compute how long it's been since the last segment came in
-    deltaTimeSinceLastUpdate = pSegment->t2 - _data.lastUpdateTime;
-    _data.lastUpdateTime = pSegment->t2;
-
-    if (deltaTimeSinceLastUpdate > UINT16_MAX) {
-        deltaTimeSinceLastUpdate = UINT16_MAX;
-    }
-    (void)deltaTimeSinceLastUpdate;
-    
-    if (!_data.firstUpdateTime) {
-        _data.firstUpdateTime = pSegment->t1;
-    }
-    
-    //add occurence to circular buffer
-    _data.occurencesindices[_data.occurenceidx] = _data.featsidx[pitem->listidx];
-    
-    if (pSegment->duration > UINT8_MAX) {
-        duration = UINT8_MAX;
-    }
-    else {
-        duration = pSegment->duration;
-    }
-    
-    _data.occurenceDurations[_data.occurenceidx] = duration;
-   
-    
-    _data.occurenceidx++;
-    _data.occurenceidx &= ITEMS_SIZE_MASK;
-    
-    if (++_data.numItemsInOccurenceBuffer > ITEMS_SIZE ) {
-        _data.numItemsInOccurenceBuffer = ITEMS_SIZE;
-    }
-
-    
-#if 0
     {
-        ListItem_t * p2;
+        int8_t featvec8[NUM_AUDIO_FEATURES];
+        ListItem_t * pitem;
+        uint8_t duration;
+        int64_t deltaTimeSinceLastUpdate;
         
-        p2 = _pHead;
-        while (p2) {
-            if (p2 != _pHead) {
-                printf(",");
+        //scale to int8
+        Scale16VecTo8(featvec8,feats,NUM_AUDIO_FEATURES);
+        
+        //go through list and find a similar item (potentially NUM_LIST_ITEMS dot products)
+        pitem = FindSimilarItem(featvec8);
+        
+        if (pitem) {
+            //we found a similar item!
+            MoveItemToHeadOfList(pitem);
+        }
+        else {
+            //add similarity vector, because this is phresh
+            pitem = AddItemToHeadOfList(featvec8,pSegment);
+            
+            //increment (and possibly even rollover) our index number for the features
+            _data.featModeIndex++;
+        }
+        
+        //safety first
+        if (pitem) {
+            
+            //for the first N new feature vectors, let someone know that this is a new sound
+            if (pitem->updatecount++ < _data.updateCountNoveltyThreshold) {
+                isNovel = TRUE;
+            }
+            
+            
+            //compute how long it's been since the last segment came in
+            deltaTimeSinceLastUpdate = pSegment->t1 - _data.lastUpdateTime;
+            _data.lastUpdateTime = pSegment->t1;
+            
+            if (deltaTimeSinceLastUpdate > UINT16_MAX) {
+                deltaTimeSinceLastUpdate = UINT16_MAX;
+            }
+            
+            _data.occurenceDeltaTimeSinceLastSegment[_data.occurenceidx] = (uint16_t)deltaTimeSinceLastUpdate;
+            
+            if (!_data.firstUpdateTime) {
+                _data.firstUpdateTime = pSegment->t1;
+            }
+            
+            //add occurence to circular buffer, give it index of the feature vector to which is associated
+            _data.occurencesindices[_data.occurenceidx] = _data.featsidx[pitem->listidx];
+            
+            //compute duration
+            if (pSegment->duration > UINT8_MAX) {
+                duration = UINT8_MAX;
             }
             else {
-                printf("ITEMS: ");
+                duration = pSegment->duration;
             }
-            printf("%lld",p2->data.lastUpdateTime);
-            p2 = p2->next;
+            
+            _data.occurenceDurations[_data.occurenceidx] = duration;
+            
+            
+            //update occurence index, wrapping as necessary
+            _data.occurenceidx++;
+            _data.occurenceidx &= ITEMS_SIZE_MASK;
+            
+            //update number of items in occurence buffer
+            if (++_data.numItemsInOccurenceBuffer > ITEMS_SIZE ) {
+                _data.numItemsInOccurenceBuffer = ITEMS_SIZE;
+            }
+            
+            DEBUG_LOG_S16("featAudio",NULL,feats,NUM_AUDIO_FEATURES,pSegment->t1,pSegment->t2);
         }
     }
-    printf("\n");
-#endif
     
-    DEBUG_LOG_S16("featAudio",NULL,feats,NUM_AUDIO_FEATURES,pSegment->t1,pSegment->t2);
+    if (_data.fpUnlock) {
+        _data.fpUnlock();
+    }
     
-    //go classify feature vector
-    //! \todo CLASSIFY THIS FEATURE VECTOR
+    if (isNovel && _data.fpNovelDataCallback) {
+        _data.fpNovelDataCallback();
+    }
     
 }
 

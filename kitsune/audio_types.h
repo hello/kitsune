@@ -47,6 +47,9 @@ typedef struct {
 } Segment_t;
 
 typedef void (*SegmentAndFeatureCallback_t)(const int16_t * feats, const Segment_t * pSegment);
+typedef void (*NotificationCallback_t)(void);
+
+typedef void (*MutexCallback_t)(void);
 
     
 #ifdef __cplusplus
