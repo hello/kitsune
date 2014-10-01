@@ -42,12 +42,11 @@ static void serialize_buf() {
     
     output = pb_ostream_from_buffer(buf, OUT_BUF_SIZE);
     
-    AudioClassifier_GetSerializedBuffer(&output, "abcdefg", 1337, NULL, "magic");
-    
+    encodelength = AudioClassifier_GetSerializedBuffer(&output, "abcdefg", 1337, NULL, "magic");
+    std::cout << "length is " << encodelength << std::endl;
     std::ofstream file("foo.out");
     if (file.is_open()) {
         file << base64_encode(buf,encodelength) <<std::endl;
-
     }
     
     

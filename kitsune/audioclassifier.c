@@ -277,7 +277,7 @@ uint32_t AudioClassifier_GetSerializedBuffer(pb_ostream_t * stream,const char * 
     descs[1].data.data.uint8 = _data.occurenceDurations;
     
     /*****************/
-    descs[2].data.len = _data.numItemsInOccurenceBuffer;
+    descs[2].data.len = NUM_LIST_ITEMS;
     descs[2].data.type = euint8;
     descs[2].data.data.uint8 = _data.featsidx;
     

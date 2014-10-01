@@ -104,27 +104,29 @@ static bool write_mat_array(pb_ostream_t *stream, const pb_field_t *field, void 
     MatDescArray_t * pdesc = (MatDescArray_t *)(*arg);
     const MatDesc_t * p;
     uint16_t i;
-    pb_ostream_t sizestream = {0};
+    pb_ostream_t sizestream;
 
-    //write tag
-    if (!pb_encode_tag(stream, PB_WT_STRING, field->tag)) {
-        return 0;
-    }
-    
     for (i = 0; i < pdesc->len; i++) {
         p = &pdesc->data[i];
+        
+        if (!pb_encode_tag(stream,PB_WT_STRING, field->tag)) {
+            return 0;
+        }
+        
+        //reset size stream
+        memset(&sizestream,0,sizeof(sizestream));
+
+        //get size
         SetIntMatrix(&sizestream, p->id, p->tags, p->source, p->data, p->rows, p->cols, p->t1, p->t2);
-    }
-    
-    //write size
-    if (!pb_encode_varint(stream, sizestream.bytes_written)) {
-        return 0;
-    }
-    
-    //write payload
-    for (i = 0; i < pdesc->len; i++) {
-        p = &pdesc->data[i];
+
+        //write size
+        if (!pb_encode_varint(stream, sizestream.bytes_written)) {
+            return 0;
+        }
+        
+        //encode matrix payload
         SetIntMatrix(stream, p->id, p->tags, p->source, p->data, p->rows, p->cols, p->t1, p->t2);
+        
     }
 
     return 1;
@@ -142,7 +144,7 @@ size_t SetIntMatrix(pb_ostream_t * stream,
                     int64_t t2) {
     
     Matrix mat;
-    size_t size;
+    size_t size = 0;
     
     memset(&mat,0,sizeof(Matrix));
     data.len = rows*cols;
@@ -186,7 +188,7 @@ size_t SetMatrixMessage(pb_ostream_t * stream,
                         const MatDesc_t * mats,
                         uint16_t nummats) {
     
-    size_t size;
+    size_t size = 0;
 
     MatrixClientMessage mess;
     MatDescArray_t desc;
@@ -209,7 +211,7 @@ size_t SetMatrixMessage(pb_ostream_t * stream,
         pb_encode(stream,MatrixClientMessage_fields,&mess);
     }
     
-    return 0;
+    return size;
 }
 
 
