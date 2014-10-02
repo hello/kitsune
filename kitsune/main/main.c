@@ -288,6 +288,11 @@ void main()
   PinMuxConfig();
 
   //
+  // Initialize the UART for console I/O.
+  //
+  UARTStdioInit(0);
+
+  //
   // Set the SD card clock as output pin
   //
   MAP_PinDirModeSet(PIN_07,PIN_DIR_MODE_OUT);

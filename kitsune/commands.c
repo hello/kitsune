@@ -1262,11 +1262,6 @@ void vUARTTask(void *pvParameters) {
 
 	Cmd_led_clr(0,0);
 
-	//
-	// Initialize the UART for console I/O.
-	//
-	UARTStdioInit(0);
-
 	UARTIntRegister(UARTA0_BASE, UARTStdioIntHandler);
 
 	UARTprintf("Booting...\n");
