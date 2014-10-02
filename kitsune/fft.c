@@ -1,7 +1,11 @@
 #define MIN_ENERGY (4)
 
 #include "fft.h"
-#include "stdlib.h" //for abs
+#include "audio_types.h"
+
+#include <stdlib.h> //for abs
+#include <string.h>
+#include <stdint.h>
 
 #define FIX_MPY(DEST,A,B) (DEST) = ((int32_t)(A) * (int32_t)(B))>>15
 
@@ -118,8 +122,7 @@ short fxd_sin( uint16_t x ) {
         root |= 2 << (N); \
     }
 
-unsigned int fxd_sqrt (unsigned int n)
-{
+uint32_t fxd_sqrt (uint32_t n) {
     unsigned int root = 0,t;
 
     iter1 (15);    iter1 (14);    iter1 (13);    iter1 (12);
@@ -129,12 +132,34 @@ unsigned int fxd_sqrt (unsigned int n)
     return root >> 1;
 }
 
+uint32_t fxd_sqrt_q10(uint32_t x) {
+    uint32_t topbits = (x & 0xFFC00000);
+        
+    topbits >>= 22;
+    
+    if (topbits & 0x00000001) {
+        topbits++;
+    }
+    
+        
+    x >>= topbits;
+    
+    x <<= 10;
+
+    x = fxd_sqrt(x);
+    
+    topbits >>= 1;
+    x <<= (topbits);
+    
+    return x;
+    
+}
 
 
 /*
   fix_mpy() - short-point multiplication
 */
-static short fix_mpy(short a, short b)
+inline static short fix_mpy(short a, short b)
 {
   FIX_MPY(a, a, b);
   return a;
@@ -142,70 +167,81 @@ static short fix_mpy(short a, short b)
 
 int fft(int16_t fr[], int16_t fi[], int32_t m)
 {
-  int32_t mr, nn, i, j, l, k, istep, n;
-  int16_t qr, qi, wr, wi;
+    int32_t mr, nn, i, j, l, k, istep, n;
+    int16_t  wr, wi;
 
-  n = 1 << m;
-
-  if (n > N_WAVE)
-    return -1;
-
-  mr = 0;
-  nn = n - 1;
-
-  /* decimation in time - re-order data */
-  for (m = 1; m <= nn; ++m) {
-    short tmp;
-    l = n;
-    do {
-      l >>= 1;
-    } while (mr + l > nn);
-    mr = (mr & (l - 1)) + l;
-
-    if (mr <= m)
-      continue;
-    tmp = fr[m];
-    fr[m] = fr[mr];
-    fr[mr] = tmp;
-    tmp = fi[m];
-    fi[m] = fi[mr];
-    fi[mr] = tmp;
-  }
-
-  l = 1;
-  k = LOG2_N_WAVE - 1;
-  while (l < n) {
-    /* short scaling, for proper normalization -
-       there will be log2(n) passes, so this
-       results in an overall factor of 1/n,
-       distributed to maximize arithmetic accuracy. */
-    istep = l << 1;
-    for (m = 0; m < l; ++m) {
-      j = m << k;
-      /* 0 <= j < N_WAVE/2 */
-      wr = fxd_sin(j + N_WAVE / 4);
-      wi = -fxd_sin(j);
-      wr >>= 1;
-      wi >>= 1;
-      for (i = m; i < n; i += istep) {
-    short tr,ti;
-    j = i + l;
-    tr = fix_mpy(wr, fr[j]) - fix_mpy(wi, fi[j]);
-    ti = fix_mpy(wr, fi[j]) + fix_mpy(wi, fr[j]);
-    qr = fr[i];
-    qi = fi[i];
-    qr >>= 1;
-    qi >>= 1;
-    fr[j] = qr - tr;
-    fi[j] = qi - ti;
-    fr[i] = qr + tr;
-    fi[i] = qi + ti;
-      }
+    
+    n = 1 << m;
+    
+    if (n > N_WAVE)
+        return -1;
+    
+    mr = 0;
+    nn = n - 1;
+    
+    /* decimation in time - re-order data */
+    for (m = 1; m <= nn; ++m) {
+        short tmp;
+        l = n;
+        do {
+            l >>= 1;
+        } while (mr + l > nn);
+        mr = (mr & (l - 1)) + l;
+        
+        if (mr <= m)
+            continue;
+        
+        //swap
+        tmp = fr[m];
+        fr[m] = fr[mr];
+        fr[mr] = tmp;
+        
+        //swap
+        tmp = fi[m];
+        fi[m] = fi[mr];
+        fi[mr] = tmp;
     }
-    --k;
-    l = istep;
-  }
-  return 0;
+    
+    l = 1;
+    k = LOG2_N_WAVE - 1;
+    while (l < n) {
+        /* short scaling, for proper normalization -
+         there will be log2(n) passes, so this
+         results in an overall factor of 1/n,
+         distributed to maximize arithmetic accuracy. */
+        istep = l << 1;
+        for (m = 0; m < l; ++m) {
+            j = m << k;
+            /* 0 <= j < N_WAVE/2 */
+            wr = fxd_sin(j + N_WAVE / 4);
+            wi = -fxd_sin(j);
+            
+            for (i = m; i < n; i += istep) {
+                int32_t tr,ti,qr, qi;
+
+                j = i + l;
+                
+                //tr = fix_mpy(wr, fr[j]) - fix_mpy(wi, fi[j]);
+                tr = (int32_t)wr * (int32_t)fr[j] - (int32_t)wi * (int32_t)fi[j];
+                tr >>= 1;
+                
+                //ti = fix_mpy(wr, fi[j]) + fix_mpy(wi, fr[j]);
+                ti = (int32_t)wr * (int32_t)fi[j] + (int32_t)wi*(int32_t)fr[j];
+                ti >>= 1;
+                
+                qr = fr[i] << 14;
+                qi = fi[i] << 14;
+                
+                fr[j] = (qr - tr) >> 15;
+                fi[j] = (qi - ti) >> 15;
+                fr[i] = (qr + tr) >> 15;
+                fi[i] = (qi + ti) >> 15;
+            }
+        }
+        --k;
+        l = istep;
+    }
+    return 0;
 }
 
 int fftr(int16_t f[], int32_t m)
@@ -219,6 +255,58 @@ int fftr(int16_t f[], int32_t m)
         f[i] = tt;
     }
     return fft(fi, fr, m-1);
+}
+
+//requires 2N memory... for now
+//ndct can be no greater than 8 (ie. length 256)
+//so fr should be length (2^(ndct + 1))
+void dct(int16_t fr[],int16_t fi[],const int16_t ndct) {
+    uint32_t i,k;
+    int16_t sine,cosine;
+    uint16_t stheta;
+    uint16_t ctheta;
+    static const uint16_t wavemask = (N_WAVE/4) - 1;
+    const uint32_t n = (1 << ndct);
+    const int8_t step2n = LOG2_N_WAVE - ndct - 2;
+    const uint16_t step = 1 << step2n;
+    int32_t temp32;
+    memset(fi,0,2*n*sizeof(int16_t));
+    //mirror mirror
+    for (i = n; i < 2*n; i++) {
+        k = 2*n - i - 1;
+        fr[i] = fr[k];
+    }
+    
+    fft(fr,fi,ndct + 1);
+    
+    k = 0;
+    for (i = 0; i  < n; i++) {
+        //go from 0 to -pi
+        //so sin will go from 0 --> 1 ---> 0
+        //cos will go from 1 --> 0 --> -1
+        
+        if (k > N_WAVE / 4) {
+            stheta = (N_WAVE/2 - k) & wavemask;
+            ctheta = k & wavemask;
+            
+            sine = sin_lut[stheta];
+            cosine = -sin_lut[ctheta];
+        }
+        else {
+            stheta = k;
+            ctheta = k == 0 ? N_WAVE/4 : (N_WAVE/2 - k) & wavemask;
+            
+            sine = sin_lut[stheta];
+            cosine = sin_lut[ctheta];
+        }
+        
+        temp32 = (int32_t)fr[i] * (int32_t)cosine;
+        temp32 -= (int32_t)fi[i] * (int32_t)sine;
+        temp32 >>= 15;
+        fr[i] = (int16_t)temp32;
+        k += step;
+    }
+    
 }
 
 void fix_window(int16_t fr[], int32_t n)
@@ -238,19 +326,8 @@ void fix_window(int16_t fr[], int32_t n)
 void abs_fft(uint16_t psd[], const int16_t fr[],const int16_t fi[],const int16_t len)
 {
     int i;
-    uint32_t temp;
-    uint16_t x,y;
-    
     for (i=0; i < len ; ++i) {
-        x = abs(fr[i]);
-        y = abs(fi[i]);
-        
-        temp = ((uint32_t)x * (uint32_t)x) + ((uint32_t)y * (uint32_t)y);
-        temp >>= 16;
-    //    if (temp > 0xFFFF) {
-     //       temp = 0xFFFF;
-     //   }
-		psd[i] = (uint16_t) temp;
+		psd[i] = abs(fr[i]) + abs(fi[i]);
     }
 }
 
@@ -292,16 +369,19 @@ uint8_t CountHighestMsb(uint64_t x) {
 }
 
 /*  Not super high precision, but oh wells! */
-#define LOG2_LOOKUP_SIZE_2N (5)
+#define LOG2_LOOKUP_SIZE_2N (8)
 #define LOG2_LOOKUP_SIZE ((1 << LOG2_LOOKUP_SIZE_2N))
 
+#if LOG2_LOOKUP_SIZE_2N == 8
 static const int16_t k_log2_lookup_q10[LOG2_LOOKUP_SIZE] =
-{-32768,-5120,-4096,-3497,-3072,-2742,-2473,-2245,-2048,-1874,-1718,-1578,-1449,-1331,-1221,-1119,-1024,-934,-850,-770,-694,-622,-554,-488,-425,-365,-307,-251,-197,-145,-95,-47};
+{-32767,-8192,-7168,-6569,-6144,-5814,-5545,-5317,-5120,-4946,-4790,-4650,-4521,-4403,-4293,-4191,-4096,-4006,-3922,-3842,-3766,-3694,-3626,-3560,-3497,-3437,-3379,-3323,-3269,-3217,-3167,-3119,-3072,-3027,-2982,-2940,-2898,-2858,-2818,-2780,-2742,-2706,-2670,-2636,-2602,-2568,-2536,-2504,-2473,-2443,-2413,-2383,-2355,-2327,-2299,-2272,-2245,-2219,-2193,-2168,-2143,-2119,-2095,-2071,-2048,-2025,-2003,-1980,-1958,-1937,-1916,-1895,-1874,-1854,-1834,-1814,-1794,-1775,-1756,-1737,-1718,-1700,-1682,-1664,-1646,-1629,-1612,-1594,-1578,-1561,-1544,-1528,-1512,-1496,-1480,-1464,-1449,-1434,-1419,-1404,-1389,-1374,-1359,-1345,-1331,-1317,-1303,-1289,-1275,-1261,-1248,-1235,-1221,-1208,-1195,-1182,-1169,-1157,-1144,-1132,-1119,-1107,-1095,-1083,-1071,-1059,-1047,-1036,-1024,-1013,-1001,-990,-979,-967,-956,-945,-934,-924,-913,-902,-892,-881,-871,-860,-850,-840,-830,-820,-810,-800,-790,-780,-770,-760,-751,-741,-732,-722,-713,-704,-694,-685,-676,-667,-658,-649,-640,-631,-622,-613,-605,-596,-588,-579,-570,-562,-554,-545,-537,-529,-520,-512,-504,-496,-488,-480,-472,-464,-456,-448,-440,-433,-425,-417,-410,-402,-395,-387,-380,-372,-365,-357,-350,-343,-335,-328,-321,-314,-307,-300,-293,-286,-279,-272,-265,-258,-251,-244,-237,-231,-224,-217,-211,-204,-197,-191,-184,-178,-171,-165,-158,-152,-145,-139,-133,-126,-120,-114,-108,-102,-95,-89,-83,-77,-71,-65,-59,-53,-47,-41,-35,-29,-23,-17,-12,-6};
+#endif
 
-/* so if I have .11111000
-   it's 31*2^-5
+#if LOG2_LOOKUP_SIZE_2N == 5
+static const int16_t k_log2_lookup_q10[LOG2_LOOKUP_SIZE] =
+{-32767,-5120,-4096,-3497,-3072,-2742,-2473,-2245,-2048,-1874,-1718,-1578,-1449,-1331,-1221,-1119,-1024,-934,-850,-770,-694,-622,-554,-488,-425,-365,-307,-251,-197,-145,-95,-47};
+#endif
 
-*/
 
 int16_t FixedPointLog2Q10(uint64_t x) {
     int16_t ret;
@@ -318,7 +398,7 @@ int16_t FixedPointLog2Q10(uint64_t x) {
         shift += msb - LOG2_LOOKUP_SIZE_2N;
     }
     
-    shift -= 5;
+    shift -= (10 - LOG2_LOOKUP_SIZE_2N);
     
     ret = k_log2_lookup_q10[(uint16_t)x];
     ret += shift * 1024;
@@ -408,18 +488,174 @@ uint32_t FixedPointExp2Q10(const int16_t x) {
 // f is both input and output
 // f as input is the PSD bin, and is always positive
 // f as output is the mel bins
+void logpsd(int16_t * logTotalEnergy,int16_t psd[],const int16_t fr[],const int16_t fi[],uint8_t log2scaleOfRawSignal,const uint16_t numelements ) {
+    uint16_t i;
+    uint16_t ufr;
+    uint16_t ufi;
+    uint64_t utemp64;
+    uint64_t accumulator64 = 0;
 
-void mel_freq(int16_t mel[],int16_t melCorrected[], const int16_t melBackgroundNoise[],const int16_t fr[],const int16_t fi[],uint8_t log2scaleOfRawSignal) {
+#define WINDOW_SIZE_2N (2)
+#define WINDOW_SIZE (1 << WINDOW_SIZE_2N)
+#define WINDOW_SIZE_MASK (WINDOW_SIZE - 1)
+#define MIN_ENERGY_LOGPSD (16)
+
+    
+    uint16_t bufr[WINDOW_SIZE] = {0};
+    uint16_t bufi[WINDOW_SIZE] = {0};
+    uint16_t idx;
+    uint32_t accumr = 0;
+    uint32_t accumi = 0;
+    const uint16_t istart = 4;
+    const int16_t ioutstart = istart - WINDOW_SIZE/2;
+    
+
+    idx = 0;
+    
+    //square window in place... this is very crappy... our window is even sized, not odd... so it will slightly move the frequencies
+    for (i = istart; i < numelements; i++) {
+        idx = i & WINDOW_SIZE_MASK;
+        ufr = abs(fr[i]);
+        ufi = abs(fi[i]);
+        
+        
+        
+        accumr += ufr;
+        accumr -= bufr[idx];
+        
+        accumi += ufi;
+        accumi -= bufi[idx];
+        
+        
+        bufi[idx] = abs(fi[i]);
+        bufr[idx] = abs(fr[i]);
+        
+        if (i - WINDOW_SIZE/2 >= 0) {
+            ufr = accumr >> WINDOW_SIZE_2N;
+            ufi = accumi >> WINDOW_SIZE_2N;
+            
+            utemp64 = MIN_ENERGY_LOGPSD;
+            utemp64 += (uint32_t)ufr*(uint32_t)ufr;
+            utemp64 += (uint32_t)ufi*(uint32_t)ufi;
+            
+            if (accumulator64 + utemp64 < accumulator64) {
+                accumulator64 = 0xFFFFFFFFFFFFFFFF;
+            }
+            else {
+                accumulator64 += utemp64;
+            }
+            
+            psd[i - WINDOW_SIZE/2] = FixedPointLog2Q10(utemp64) - 2*log2scaleOfRawSignal*(1<<10);
+        }
+        
+    }
+    
+    //copy last computed elements to end
+    for (i = 1; i <= WINDOW_SIZE/2; i++) {
+        psd[numelements - i] = psd[numelements - WINDOW_SIZE/2 - 1];
+    }
+    
+    //copy first computed element to begnning
+    for (i = 0; i  < ioutstart; i++) {
+        psd[i] = psd[ioutstart];
+    }
+    
+    //log2 (256 * 2^10) = log2 (256) + log2(2^10) = 8 + 10
+    
+    *logTotalEnergy = FixedPointLog2Q10(accumulator64) - 2*log2scaleOfRawSignal*(1<<10) - (FixedPointLog2Q10(numelements) + 10);
+
+}
+
+int16_t cosvec16(const int16_t * vec1, const int16_t * vec2, uint8_t n) {
+    int32_t temp1,temp2,temp3;
+    static const uint8_t q = 10;
+    uint8_t i;
+    
+    temp1 = 0;
+    temp2 = 0;
+    temp3 = 0;
+    for (i = 0; i < n; i++) {
+        temp1 += (int32_t)vec1[i]*(int32_t)vec1[i];
+        temp2 += (int32_t)vec2[i]*(int32_t)vec2[i];
+        temp3 += (int32_t)vec1[i]*(int32_t)vec2[i];
+    }
+    
+    if (!temp1 || !temp2) {
+        return INT16_MAX;
+    }
+    
+    temp1 = fxd_sqrt(temp1);
+    temp2 = fxd_sqrt(temp2);
+    
+    if (temp1 > temp2) {
+        temp3 /= temp2;
+        temp3 <<= q;
+        temp3 /= temp1;
+    }
+    else {
+        temp3 /= temp1;
+        temp3 <<= q;
+        temp3 /= temp2;
+    }
+    
+    return (int16_t) temp3;
+    
+}
+
+int16_t cosvec8(const int8_t * vec1, const int8_t * vec2, uint8_t n) {
+    int32_t temp1,temp2,temp3;
+    static const uint8_t q = 10;
+    uint8_t i;
+    
+    temp1 = 0;
+    temp2 = 0;
+    temp3 = 0;
+    for (i = 0; i < n; i++) {
+        temp1 += (int16_t)vec1[i]*(int16_t)vec1[i];
+        temp2 += (int16_t)vec2[i]*(int16_t)vec2[i];
+        temp3 += (int16_t)vec1[i]*(int16_t)vec2[i];
+    }
+    
+    if (!temp1 || !temp2) {
+        return INT16_MAX;
+    }
+    
+    temp1 = fxd_sqrt(temp1);
+    temp2 = fxd_sqrt(temp2);
+    
+    if (temp1 > temp2) {
+        temp3 /= temp2;
+        temp3 <<= q;
+        temp3 /= temp1;
+    }
+    else {
+        temp3 /= temp1;
+        temp3 <<= q;
+        temp3 /= temp2;
+    }
+    
+    return (int16_t) temp3;
+    
+}
+
+#if 0
+
+void freq_energy_bins(int16_t logbinpower[],const int16_t fr[],const int16_t fi[],uint8_t log2scaleOfRawSignal) {
 	
     // in Hz
-    static const uint16_t k_bin_start = 3;
-    static const uint16_t k_bins_indices[MEL_SCALE_SIZE] = {6,9,12,15,18,24,30,36,48,60,72,84,96,120,144,168};
-	static const int16_t k_log2_normalization[MEL_SCALE_SIZE] = {3,3,3,3,3,2,2,2,1,1,1,1,1,0,0,0};
+    static const uint16_t k_bin_start = 4;
+    static const uint16_t k_bin_width_hz = EXPECTED_AUDIO_SAMPLE_RATE_HZ / AUDIO_FFT_SIZE;
+    static const uint16_t k_fundamental_width = 800 / k_bin_width_hz; //800 hz
+    
+    static const uint16_t k_width_indices[NUM_FREQ_ENERGY_BINS] = {1,2,3,4,5,6}; // k_fundamental_width * the index gets you the top of the bin.
+	static const int16_t k_log2_normalization[NUM_FREQ_ENERGY_BINS] = {2,2,2,2,2,2};
     uint16_t iBin;
     uint16_t iBinEdge;
     uint16_t nextBinEdge;
+
     uint64_t accumulator64;
-    uint32_t backgroundNoise;
+    int32_t temp32;
+    uint64_t utemp64;
     
     uint16_t ufr;
     uint16_t ufi;
@@ -427,17 +663,9 @@ void mel_freq(int16_t mel[],int16_t melCorrected[], const int16_t melBackgroundN
 
 
     
-#if 0 //For generating mel scales
-	for( int i=0; i<50; ++i ) {
-		mel = 1127 * log( 1.0 + (double)freq / 700.0 );
-		printf( "%d,", mel );
-		freq+=250;
-	}
-#endif // 0
-    
 	accumulator64 = 0;
     iBinEdge = 0;
-    nextBinEdge = k_bins_indices[0] - 1;
+    nextBinEdge = k_width_indices[0]*k_fundamental_width - 1;
     iBin = k_bin_start;
 
     /* skip dc, start at 1 */
@@ -446,54 +674,35 @@ void mel_freq(int16_t mel[],int16_t melCorrected[], const int16_t melBackgroundN
         ufr = abs(fr[iBin]);
         ufi = abs(fi[iBin]);
         
-        accumulator64 += (uint32_t)ufr*(uint32_t)ufr;
-        accumulator64 += (uint32_t)ufi*(uint32_t)ufi;
+        utemp64 = 0;
+        utemp64 += (uint32_t)ufr*(uint32_t)ufr;
+        utemp64 += (uint32_t)ufi*(uint32_t)ufi;
+
+        if (accumulator64 + utemp64 < accumulator64) {
+            accumulator64 = 0xFFFFFFFFFFFFFFFF;
+        }
+        else {
+            accumulator64 += utemp64;
+        }
+        
         
 		if(iBin == nextBinEdge) {
             //deal with different bin widths and original signal scaling at the same time
             scale = -2*log2scaleOfRawSignal + k_log2_normalization[iBinEdge];
             
-            if (scale > 0) {
-                accumulator64 <<= scale;
-            }
-            else {
-                accumulator64 >>= -scale;
-            }
+            temp32 = FixedPointLog2Q10(accumulator64);
+            temp32 += scale*(1<<10);
             
-            //enforce floor of at least 1, because log of 0 is -inf
-            if (accumulator64 == 0) {
-                accumulator64++;
+            if (temp32 > INT16_MAX) {
+                temp32 = INT16_MAX;
             }
             
-            //result!
-            mel[iBinEdge]  = FixedPointLog2Q10(accumulator64);
+            if (temp32 < INT16_MIN) {
+                temp32 = INT16_MIN;
+            }
             
-            
-            //now correct for background noise
-            backgroundNoise = FixedPointExp2Q10(melBackgroundNoise[iBinEdge]);
+            logbinpower[iBinEdge]  =  (int16_t)temp32;
 
-            
-            //check for rollover of accumulator64 after subtraction
-            if (backgroundNoise > accumulator64) {
-                accumulator64 = 0;
-            }
-            else {
-                accumulator64 -= backgroundNoise;
-            }
-            
-            //enforce floor of at least 1, because log of 0 is -inf
-            if (accumulator64 == 0) {
-                accumulator64++;
-            }
-            
-            //result!
-            if (iBinEdge == 0) {
-                //do not correct energy for dc
-                melCorrected[iBinEdge] = mel[iBinEdge];
-            }
-            else {
-                melCorrected[iBinEdge]  = FixedPointLog2Q10(accumulator64);
-            }
 
             /// prepare for next iterator ///
     
@@ -501,17 +710,18 @@ void mel_freq(int16_t mel[],int16_t melCorrected[], const int16_t melBackgroundN
 
             iBinEdge++;
             
-            if (iBinEdge >= MEL_SCALE_SIZE) {
+            if (iBinEdge >= sizeof(k_width_indices) / sizeof(k_width_indices[0]) ) {
                 break;
             }
             
-            nextBinEdge = k_bins_indices[iBinEdge];
+            nextBinEdge = k_width_indices[iBinEdge]*k_fundamental_width -  1;
 
 		}
         
         iBin++;
 	}
 }
+#endif
 
 #if 0
 void norm(short f[], int n) {

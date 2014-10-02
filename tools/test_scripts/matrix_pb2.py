@@ -13,7 +13,7 @@ from google.protobuf import descriptor_pb2
 DESCRIPTOR = _descriptor.FileDescriptor(
   name='matrix.proto',
   package='',
-  serialized_pb='\n\x0cmatrix.proto\"V\n\x13MatrixClientMessage\x12\x0b\n\x03mac\x18\x01 \x01(\x0c\x12\x11\n\tunix_time\x18\x02 \x01(\x05\x12\x1f\n\x0ematrix_payload\x18\x03 \x01(\x0b\x32\x07.Matrix\"\xce\x01\n\x06Matrix\x12\n\n\x02id\x18\x01 \x02(\t\x12\x0c\n\x04rows\x18\x02 \x02(\x05\x12\x0c\n\x04\x63ols\x18\x03 \x02(\x05\x12\"\n\x08\x64\x61tatype\x18\x04 \x02(\x0e\x32\x10.Matrix.DataType\x12\r\n\x05idata\x18\x05 \x03(\x11\x12\r\n\x05\x66\x64\x61ta\x18\x06 \x03(\x02\x12\r\n\x05time1\x18\x07 \x02(\x03\x12\r\n\x05time2\x18\x08 \x02(\x03\x12\x0c\n\x04tags\x18\t \x02(\t\x12\x0e\n\x06source\x18\n \x02(\t\"\x1e\n\x08\x44\x61taType\x12\t\n\x05\x46LOAT\x10\x00\x12\x07\n\x03INT\x10\x01')
+  serialized_pb='\n\x0cmatrix.proto\"t\n\x13MatrixClientMessage\x12\x0b\n\x03mac\x18\x01 \x01(\x0c\x12\x11\n\tunix_time\x18\x02 \x01(\x05\x12\x1f\n\x0ematrix_payload\x18\x03 \x01(\x0b\x32\x07.Matrix\x12\x1c\n\x0bmatrix_list\x18\x04 \x03(\x0b\x32\x07.Matrix\"\xce\x01\n\x06Matrix\x12\n\n\x02id\x18\x01 \x02(\t\x12\x0c\n\x04rows\x18\x02 \x02(\x05\x12\x0c\n\x04\x63ols\x18\x03 \x02(\x05\x12\"\n\x08\x64\x61tatype\x18\x04 \x02(\x0e\x32\x10.Matrix.DataType\x12\r\n\x05idata\x18\x05 \x03(\x11\x12\r\n\x05\x66\x64\x61ta\x18\x06 \x03(\x02\x12\r\n\x05time1\x18\x07 \x02(\x03\x12\r\n\x05time2\x18\x08 \x02(\x03\x12\x0c\n\x04tags\x18\t \x02(\t\x12\x0e\n\x06source\x18\n \x02(\t\"\x1e\n\x08\x44\x61taType\x12\t\n\x05\x46LOAT\x10\x00\x12\x07\n\x03INT\x10\x01')
 
 
 
@@ -34,8 +34,8 @@ _MATRIX_DATATYPE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   options=None,
-  serialized_start=281,
-  serialized_end=311,
+  serialized_start=311,
+  serialized_end=341,
 )
 
 
@@ -67,6 +67,13 @@ _MATRIXCLIENTMESSAGE = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
+    _descriptor.FieldDescriptor(
+      name='matrix_list', full_name='MatrixClientMessage.matrix_list', index=3,
+      number=4, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
   ],
   extensions=[
   ],
@@ -77,7 +84,7 @@ _MATRIXCLIENTMESSAGE = _descriptor.Descriptor(
   is_extendable=False,
   extension_ranges=[],
   serialized_start=16,
-  serialized_end=102,
+  serialized_end=132,
 )
 
 
@@ -168,11 +175,12 @@ _MATRIX = _descriptor.Descriptor(
   options=None,
   is_extendable=False,
   extension_ranges=[],
-  serialized_start=105,
-  serialized_end=311,
+  serialized_start=135,
+  serialized_end=341,
 )
 
 _MATRIXCLIENTMESSAGE.fields_by_name['matrix_payload'].message_type = _MATRIX
+_MATRIXCLIENTMESSAGE.fields_by_name['matrix_list'].message_type = _MATRIX
 _MATRIX.fields_by_name['datatype'].enum_type = _MATRIX_DATATYPE
 _MATRIX_DATATYPE.containing_type = _MATRIX;
 DESCRIPTOR.message_types_by_name['MatrixClientMessage'] = _MATRIXCLIENTMESSAGE

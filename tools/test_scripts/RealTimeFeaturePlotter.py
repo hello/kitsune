@@ -12,6 +12,9 @@ import struct
 import matrix_pb2
 import base64
 from Queue import Queue
+from Queue import Empty
+import copy
+
 
 import sys
 sys.path.append('.')
@@ -32,10 +35,14 @@ FORMAT = pyaudio.paInt16 #paInt8
 CHANNELS = 1 
 RATE = 44100 #sample rate
 
-plot_target = 'mfcc_avg'
-plot_samples = 430*3
-num_feats = 16
-plot_yrange = (-50000, 300000)
+#plot_target = 'mfcc_avg'
+#plot_target = 'psd'
+#plot_target = 'totalenergy'
+plot_target = 'sums'
+
+plot_samples = 430
+num_feats = 8
+plot_yrange = (-6000, 10000)
 plot_num_signal = num_feats + 1
 
 g_kill = False
@@ -138,10 +145,21 @@ def updatePlot():
                 g_graphicsitems.append(text)
                 g_p6.addItem(text)
 
-
+            
+            if block.mytype_ == 'block':
+                vec = block.data_.idata
+                vec2 = []
+                for i in vec:
+                    vec2.append(i)
+               
+                g_curves[0].setData(vec2)
     
-    except Exception:
+    
+    except Empty:
         foo = 3
+    except Exception:
+        raise
+
 
 def updateAudio(stream):
     first = True    
@@ -178,12 +196,14 @@ def updateAudio(stream):
                 for j in range(0, num_feats):
                     segfeats.append(helloaudio.intArray_getitem(feats, j))
                 
+                segfeatsOrig = copy.deepcopy(segfeats)
                 segfeats = np.array(segfeats).astype(float)
                 normalizedfeats = segfeats / segfeats[0]
                 normalizedfeats = normalizedfeats[1:].reshape((1, num_feats-1))
                 
                 if (segtype == 0):
                     segtype = 'packet';
+                    print segfeatsOrig
                 else:
                     segtype = 'steady'
                     
@@ -218,15 +238,32 @@ def updateAudio(stream):
             
             if retval:
                 g_client.sendMatrixMessage(data)
-            
-            block = DataBlock(data, 'audiofeatures')
+           
+            mytype = 'audiofeatures'
+        
+            if plot_target == 'psd':
+                mytype = 'block'
+                
+
+            block = DataBlock(data, mytype)
             g_PlotQueue.put(block)
+        
         except IOError:
             print "IO Error"
 
 
 ## Start Qt event loop unless running in interactive mode or using pyside.
 if __name__ == '__main__':
+    
+    argc = len(sys.argv)
+    if argc > 1:
+        plot_target = sys.argv[1]
+        
+    if argc > 2:
+        plot_yrange = (-int(sys.argv[2]), int(sys.argv[2]))
+        
+    if argc > 3:
+        plot_samples = int(sys.argv[3])
     
     #signal.signal(signal.SIGINT, signal_handler)
     paud = pyaudio.PyAudio()
