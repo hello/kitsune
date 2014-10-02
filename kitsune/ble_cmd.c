@@ -1,3 +1,4 @@
+
 #include <string.h>
 
 #include "ble_cmd.h"
@@ -56,7 +57,7 @@ void on_morpheus_protobuf_arrival(uint8_t* protobuf, size_t len)
 {
     if(!protobuf)
     {
-        UARTprintf("Inavlid parameter.\r\n");
+        UARTprintf("Invalid parameter.\r\n");
         return;
     }
 

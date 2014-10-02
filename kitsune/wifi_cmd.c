@@ -967,11 +967,29 @@ int send_data_pb(char * buffer, int buffer_size, const pb_field_t fields[], cons
 
     return 0;
 }
+bool encode_pill_id(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
+	periodic_data_pill_data_container * data = (periodic_data_pill_data_container*) arg;
+    return pb_encode_tag(stream, PB_WT_STRING, field->tag) && pb_encode_string(stream, (uint8_t*) data->id, strlen(data->id));
+}
 
+bool encode_pill_data(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
+	periodic_data_pill_data_container * data = (periodic_data_pill_data_container*) arg;
+	int i;
+	if (xSemaphoreTake(pill_smphr, portMAX_DELAY)) {
+		data->pill_data.deviceId.funcs.encode = encode_pill_id;
+		data->pill_data.deviceId.arg = (void*)arg;
 
+		for (i = 0; data->magic == PILL_MAGIC && i < MAX_PILLS; ++i) {
+			if (!pb_encode(stream, periodic_data_pill_data_fields, (const void*)&data->pill_data)) {
+				return false;
+			}
+		}
+		xSemaphoreGive(pill_smphr);
+	}
+	return true;
+}
 
 bool encode_mac(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
-    unsigned char tagtype = (7 << 3) | 0x2; // field_number << 3 | 2 (length deliminated)
     unsigned char mac[6];
     unsigned char mac_len = 6;
 #if 0
@@ -984,12 +1002,12 @@ bool encode_mac(pb_ostream_t *stream, const pb_field_t *field, void * const *arg
 #else
     sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
 #endif
-    return pb_write(stream, &tagtype, 1) && pb_encode_string(stream, (uint8_t*) mac, mac_len);
+
+    return pb_encode_tag(stream, PB_WT_STRING, field->tag) && pb_encode_string(stream, (uint8_t*) mac, mac_len);
 }
 
 bool encode_name(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
-    unsigned char tagtype = (6 << 3) | 0x2; // field_number << 3 | 2 (length deliminated)
-    return pb_write(stream, &tagtype, 1)
+    return pb_encode_tag(stream, PB_WT_STRING, field->tag)
             && pb_encode_string(stream, (uint8_t*) MORPH_NAME,
                     strlen(MORPH_NAME));
 }
@@ -1009,6 +1027,8 @@ int send_periodic_data( data_t * data ) {
     msg.unix_time = data->time;
     msg.name.funcs.encode = encode_name;
     msg.mac.funcs.encode = encode_mac;
+    msg.pills.funcs.encode = encode_pill_data;
+    msg.pills.arg = data->pill_list;
 
     return send_data_pb(buffer, sizeof(buffer), periodic_data_fields, &msg);
 }

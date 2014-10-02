@@ -642,7 +642,7 @@ void thread_fast_i2c_poll(void * unused)  {
 			vTaskDelay(2);
 			light = get_light();
 			vTaskDelay(2); //this is important! If we don't do it, then the prox will stretch the clock!
-			prox = get_prox();
+			prox = 0;//todo get_prox();
 			hpf_prox = last_prox - prox;
 			if (abs(hpf_prox) > 30) {
 				UARTprintf("PROX: %d\n", hpf_prox);
@@ -694,6 +694,7 @@ void thread_tx(void* unused) {
 	}
 }
 
+xSemaphoreHandle pill_smphr;
 
 void thread_sensor_poll(void* unused) {
 
@@ -750,6 +751,12 @@ void thread_sensor_poll(void* unused) {
 			data.temp = get_temp();
 			vTaskDelay(2);
 			xSemaphoreGive(i2c_smphr);
+		} else {
+			continue;
+		}
+		if (xSemaphoreTake(pill_smphr, portMAX_DELAY)) {
+			data.pill_list = pill_list;
+			xSemaphoreGive(pill_smphr);
 		} else {
 			continue;
 		}
@@ -989,18 +996,20 @@ void SetupGPIOInterrupts() {
 
     port = GPIO_PORT;
     pin = /*NORDIC_PIN |*/ PROX_PIN;
-	GPIO_IF_ConfigureNIntEnable( port, pin, GPIO_HIGH_LEVEL, nordic_prox_int );
+	//GPIO_IF_ConfigureNIntEnable( port, pin, GPIO_HIGH_LEVEL, nordic_prox_int );
 	//only one interrupt per port...
 }
 
+xSemaphoreHandle pill_smphr;
+
 void thread_spi(void * data) {
 	while(1) {
-		if (xSemaphoreTake(spi_smphr, 10000)) {
+		if (xSemaphoreTake(spi_smphr, 10000) ) {
 			vTaskDelay(10);
 			Cmd_spi_read(0, 0);
-			MAP_GPIOIntEnable(GPIO_PORT,PROX_PIN);
+			//MAP_GPIOIntEnable(GPIO_PORT,PROX_PIN);
 		} else {
-			MAP_GPIOIntEnable(GPIO_PORT,PROX_PIN);
+			//MAP_GPIOIntEnable(GPIO_PORT,PROX_PIN);
 		}
 	}
 }
@@ -1314,26 +1323,27 @@ void vUARTTask(void *pvParameters) {
 	vSemaphoreCreateBinary(light_smphr);
 	vSemaphoreCreateBinary(i2c_smphr);
 	vSemaphoreCreateBinary(spi_smphr);
+	vSemaphoreCreateBinary(pill_smphr);
 
 	if (data_queue == 0) {
 		UARTprintf("Failed to create the data_queue.\n");
 	}
 
-	xTaskCreate(thread_audio, "audioTask", 10 * 1024 / 4, NULL, 4, NULL); //todo reduce stack
+	xTaskCreate(thread_audio, "audioTask", 5 * 1024 / 4, NULL, 4, NULL); //todo reduce stack
 	UARTprintf("*");
-	xTaskCreate(thread_spi, "spiTask", 10*2048 / 4, NULL, 5, NULL);
+	xTaskCreate(thread_spi, "spiTask", 5*2048 / 4, NULL, 5, NULL);
 	SetupGPIOInterrupts();
 	UARTprintf("*");
 #if 0
-	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask", 2 * 1024 / 4, NULL, 3, NULL);
+	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask", 5 * 1024 / 4, NULL, 3, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_dust, "dustTask", 256 / 4, NULL, 3, NULL);
+	xTaskCreate(thread_dust, "dustTask", 5* 1024 / 4, NULL, 3, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_sensor_poll, "pollTask", 2 * 1024 / 4, NULL, 4, NULL);
+	xTaskCreate(thread_sensor_poll, "pollTask", 5 * 1024 / 4, NULL, 4, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_tx, "txTask", 4 * 1024 / 4, NULL, 2, NULL);
+	xTaskCreate(thread_tx, "txTask", 5 * 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_ota, "otaTask", 2 * 1024 / 4, NULL, 1, NULL);
+	xTaskCreate(thread_ota, "otaTask",5 * 1024 / 4, NULL, 1, NULL);
 	UARTprintf("*");
 #endif
 	//checkFaults();

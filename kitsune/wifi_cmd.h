@@ -1,14 +1,28 @@
 #ifndef __WIFI_CMD_H__
 #define __WIFI_CMD_H__
 
+#include "periodic.pb.h"
+typedef struct {
+	uint32_t magic;
+	char id[256];
+	periodic_data_pill_data pill_data;
+} periodic_data_pill_data_container;
+#define PILL_MAGIC 0xAAAAAAAA
+#define MAX_PILLS 10
+#include "FreeRTOS.h"
+#include "semphr.h"
+extern xSemaphoreHandle pill_smphr;
+
 typedef struct {
 	unsigned int time;
 	int light, light_variability, light_tonality, temp, humid, dust;
+	periodic_data_pill_data_container * pill_list;
 } data_t;
 
 extern
 int sl_mode;
 
+extern periodic_data_pill_data_container pill_list[MAX_PILLS];
 
 #define CONNECT   0x00000001
 #define HAS_IP    0x00000002

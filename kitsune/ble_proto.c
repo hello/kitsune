@@ -1,7 +1,9 @@
+
 #include "ble_proto.h"
 #include "ble_cmd.h"
 #include "wlan.h"
 
+#include "wifi_cmd.h"
 #include "uartstdio.h"
 
 #include "FreeRTOS.h"
@@ -154,6 +156,22 @@ static void _ble_reply_wifi_info(){
 }
 
 int Cmd_led(int argc, char *argv[]);
+#include "wifi_cmd.h"
+periodic_data_pill_data_container pill_list[MAX_PILLS] = {0};
+
+int scan_pill_list(periodic_data_pill_data_container* p, char * device_id) {
+	int i;
+	for (i = 0; i < MAX_PILLS && p[i].magic == PILL_MAGIC; ++i) {
+		if (strcmp(p[i].id, device_id) == 0) {
+			break;
+		}
+	}
+	if (i == MAX_PILLS) {
+		UARTprintf(" too many pills, overwriting\n ");
+		i=0;
+	}
+	return i;
+}
 
 void on_ble_protobuf_command(MorpheusCommand* command)
 {
@@ -183,7 +201,6 @@ void on_ble_protobuf_command(MorpheusCommand* command)
                 UARTprintf("Connection attempt issued.\n");
                 ble_send_protobuf(&reply_command);
             }
-            
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_PAIRING_MODE:  // Just for testing
@@ -200,17 +217,45 @@ void on_ble_protobuf_command(MorpheusCommand* command)
             UARTprintf( "GET_WIFI\n" );
         }
         break;
-        case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_DATA:
-        {
-            // Pill data received from ANT
-        	UARTprintf( "PILL DATA\n" );
-        }
-        break;
-        case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_HEARTBEAT:
-        {   
-            // Pill heartbeat received from ANT
-        	UARTprintf( "PILL HEARBEAT\n" );
-        }
-        break;
-    }
+	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_DATA: {
+		// Pill data received from ANT
+		if (command->has_motionData) {
+			int i;
+			if (xSemaphoreTake(pill_smphr, portMAX_DELAY)) {
+				i = scan_pill_list(pill_list, command->deviceId.arg);
+				memcpy(pill_list[i].id, command->deviceId.arg,
+						strlen(command->deviceId.arg));
+				pill_list[i].magic = PILL_MAGIC;
+				pill_list[i].pill_data.motionData = command->motionData;
+
+				UARTprintf("PILL DATA %d\n", command->motionData);
+				xSemaphoreGive(pill_smphr);
+			}
+		}
+	}
+		break;
+	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_HEARTBEAT: {
+		int i;
+		if (xSemaphoreTake(pill_smphr, portMAX_DELAY)) {
+			i = scan_pill_list(pill_list, command->deviceId.arg);
+			memcpy(pill_list[i].id, command->deviceId.arg,
+					strlen(command->deviceId.arg));
+			pill_list[i].magic = PILL_MAGIC;
+
+			// Pill heartbeat received from ANT
+			UARTprintf("PILL HEARBEAT\n");
+
+			if (command->has_batteryLevel) {
+				pill_list[i].pill_data.batteryLevel = command->batteryLevel;
+				UARTprintf("PILL BATTERY %d\n", command->batteryLevel);
+			}
+			if (command->has_batteryLevel) {
+				pill_list[i].pill_data.uptime = command->uptime;
+				UARTprintf("PILL UPTIME %d\n", command->uptime);
+			}
+			xSemaphoreGive(pill_smphr);
+		}
+		break;
+		}
+	}
 }
