@@ -61,6 +61,7 @@ typedef struct {
 static const int16_t k_similarity_threshold = TOFIX(SIMILARITY_THRESHOLD,10);
 static const char * k_occurence_indices_buf_id = "occurenceIndices";
 static const char * k_occurence_durations_buf_id = "occurenceDurations";
+static const char * k_occurence_deltatimes_buf_id = "occurenceDeltaTimes";
 static const char * k_feat_vec_buf_id = "featVecs";
 static const char * k_feat_index_buf_id = "featIndices";
 static const char * k_occurence_info_buf_id = "occurenceInfo";
@@ -295,11 +296,12 @@ uint32_t AudioClassifier_GetSerializedBuffer(pb_ostream_t * stream,const char * 
         const uint16_t info[2] = {_data.occurenceidx,_data.numItemsInOccurenceBuffer};
         
         MatDesc_t descs[6] = {
+            {k_occurence_info_buf_id,tags,source,{},1,2,_data.firstUpdateTime,_data.lastUpdateTime},
             {k_occurence_indices_buf_id,tags,source,{},1,_data.numItemsInOccurenceBuffer,_data.firstUpdateTime,_data.lastUpdateTime},
             {k_occurence_durations_buf_id,tags,source,{},1,_data.numItemsInOccurenceBuffer,_data.firstUpdateTime,_data.lastUpdateTime},
+            {k_occurence_deltatimes_buf_id,tags,source,{},1,_data.numItemsInOccurenceBuffer,_data.firstUpdateTime,_data.lastUpdateTime},
             {k_feat_index_buf_id,tags,source,{},1,NUM_LIST_ITEMS,_data.firstUpdateTime,_data.lastUpdateTime},
             {k_feat_vec_buf_id,tags,source,{},NUM_LIST_ITEMS,NUM_AUDIO_FEATURES,_data.firstUpdateTime,_data.lastUpdateTime},
-            {k_occurence_info_buf_id,tags,source,{},1,2,_data.firstUpdateTime,_data.lastUpdateTime}
         };
         
         /*****************/
