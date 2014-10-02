@@ -1022,6 +1022,13 @@ void thread_spi(void * data) {
 
 #endif
 
+#if 1
+#define LED_LOGIC_HIGH 0
+#define LED_LOGIC_LOW LED_GPIO_BIT
+#else
+#define LED_LOGIC_HIGH LED_GPIO_BIT
+#define LED_LOGIC_LOW 0
+#endif
 
 void led( unsigned int* color ) {
 	int i;
@@ -1031,7 +1038,7 @@ void led( unsigned int* color ) {
 		for (i = 0; i < 24; ++i) {
 			if ((*color << i) & 0x800000 ) {
 				//1
-				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_GPIO_BIT);
+				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_HIGH);
 				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
@@ -1044,7 +1051,7 @@ void led( unsigned int* color ) {
 				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, 0x0);
+				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_LOW);
 				if( i!=23 ) {
 					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
@@ -1063,10 +1070,10 @@ void led( unsigned int* color ) {
 				}
 			} else {
 				//0
-				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_GPIO_BIT);
+				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_HIGH);
 				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, 0x0);
+				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_LOW);
 				if( i!=23 ) {
 					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
