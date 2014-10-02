@@ -11,16 +11,18 @@ from pylab import *
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 
-np.set_printoptions(precision=3, suppress=True, threshold=numpy.nan)
+np.set_printoptions(precision=3, suppress=True, threshold=numpy.nan, linewidth=10000)
 
-files = ['talking.dat','crying.dat','snoring.dat', 'vehicles.dat']
+#files = ['talking.dat','crying.dat','snoring.dat', 'vehicles.dat']
+#files = ['snoring.dat','talking.dat','steady.dat']
+files = ['snoring.dat','talking.dat']
 
 ndims = 3
 ngaussians = 1
-cov_type = 'full'
-#cov_type = 'diag'
+#cov_type = 'full'
+cov_type = 'diag'
 def GetConfusionMatrixFromGmmEnsemble(tldata, ens):
-    threshold = 0.4
+    threshold = 0.6
     min_maximumloglik = -50
     idx = 0;
     labels = []
@@ -58,13 +60,11 @@ def GetConfusionMatrixFromGmmEnsemble(tldata, ens):
 ldata = []
 first = True
 for file in files:
-    temp = MyPca.GetFeats(file).astype(float)
-    temp2 = temp[:, 1:].reshape(temp.shape[0], temp.shape[1]-1)
-
+    temp2 = MyPca.GetFeats(file).astype(float)
+    
     for i in range(temp2.shape[0]):
-        n = temp[i, 0]
-        temp2[i, :] = temp2[i, :] / n
-            
+        temp2[i,:] = temp2[i,:] / np.linalg.norm(temp2[i,:])
+
     if first:
         first = False        
         udata = temp2
@@ -85,7 +85,8 @@ for x in ldata:
     
 
 if ndims == 2:
-    plot(tldata[0][:,0],tldata[0][:,1],'.', tldata[1][:,0],tldata[1][:,1],'.', tldata[2][:,0],tldata[2][:,1],'.', tldata[3][:,0],tldata[3][:,1],'.')
+    #plot(tldata[0][:,0],tldata[0][:,1],'.', tldata[1][:,0],tldata[1][:,1],'.', tldata[2][:,0],tldata[2][:,1],'.', tldata[3][:,0],tldata[3][:,1],'.')
+    plot(tldata[0][:,0],tldata[0][:,1],'.', tldata[1][:,0],tldata[1][:,1],'.')
     show()    
 
 if ndims == 3:
@@ -93,8 +94,8 @@ if ndims == 3:
     ax = fig.add_subplot(111, projection='3d')
     ax.scatter(tldata[0][:,0],tldata[0][:,1],  tldata[0][:,2], c='b',marker='.')
     ax.scatter(tldata[1][:,0],tldata[1][:,1],  tldata[1][:,2], c='r',marker='o')
-    ax.scatter(tldata[2][:,0],tldata[2][:,1],  tldata[2][:,2], c='c',marker='x')
-    ax.scatter(tldata[3][:,0],tldata[3][:,1],  tldata[3][:,2], c='m',marker='+')
+#    ax.scatter(tldata[2][:,0],tldata[2][:,1],  tldata[2][:,2], c='c',marker='x')
+#    ax.scatter(tldata[3][:,0],tldata[3][:,1],  tldata[3][:,2], c='m',marker='+')
     plt.show()
     
 ##########

@@ -1,12 +1,18 @@
 #include "matmessageutils.h"
 
 #include "pb_encode.h"
+#include "pb_decode.h"
 #include "protobuf/matrix.pb.h"
 
 typedef struct {
-    const MatDesc_t * data;
+    const_MatDesc_t * data;
     uint16_t len;
-} MatDescArray_t;
+} const_MatDescArray_t;
+
+typedef struct {
+    uint8_t * writebuf;
+    size_t maxlen;
+} StringDesc_t;
 
 static bool write_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
     const char * str = (const char *)(*arg);
@@ -101,8 +107,8 @@ static bool write_int_mat(pb_ostream_t *stream, const pb_field_t *field, void * 
 }
 
 static bool write_mat_array(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
-    MatDescArray_t * pdesc = (MatDescArray_t *)(*arg);
-    const MatDesc_t * p;
+    const_MatDescArray_t * pdesc = (const_MatDescArray_t *)(*arg);
+    const_MatDesc_t * p;
     uint16_t i;
     pb_ostream_t sizestream;
 
@@ -133,11 +139,102 @@ static bool write_mat_array(pb_ostream_t *stream, const pb_field_t *field, void 
     
 }
 
+static bool read_int_array(pb_istream_t *stream,IntArray_t * pdesc) {
+    int64_t value;
+    uint32_t i = 0;
+    
+    while(stream->bytes_left > 0) {
+        
+        if (!pb_decode_svarint(stream, &value)) {
+            return false;
+        }
+
+        switch (pdesc->type) {
+                
+            case esint8:
+            {
+                pdesc->data.sint8[i] = value;
+                break;
+            }
+            case euint8:
+            {
+                pdesc->data.uint8[i] = value;
+                break;
+            }
+            case esint16:
+            {
+                pdesc->data.sint16[i] = value;
+                break;
+            }
+            case euint16:
+            {
+                pdesc->data.uint16[i] = value;
+                break;
+            }
+            case esint32:
+            {
+                pdesc->data.sint32[i] = value;
+                break;
+            }
+            case euint32:
+            {
+                pdesc->data.uint32[i] = value;
+                break;
+            }
+                
+            default:
+                //log an error eventually
+                break;
+        }
+        
+        i++;
+    }
+    
+    return true;
+}
+
+bool read_string(pb_istream_t *stream, const pb_field_t *field, void **arg) {
+    StringDesc_t * p = (StringDesc_t *) (*arg);
+    /* We could read block-by-block to avoid the large buffer... */
+    
+    if (p->maxlen < stream->bytes_left) {
+        return false;
+    }
+    
+    
+    if (!pb_read(stream, p->writebuf, stream->bytes_left))
+        return false;
+    
+    /* Print the string, in format comparable with protoc --decode.
+     * Format comes from the arg defined in main().
+     */
+    //printf((char*)*arg, buffer);
+    return true;
+}
+
+
+bool read_mat_array(pb_istream_t *stream, const pb_field_t *field, void **arg) {
+    IntArray_t * p = (IntArray_t *)(*arg);
+    
+    //max size comes in through the array parameters, and is in bytes
+    if (p->len < stream->bytes_left) {
+        return false;
+    }
+    
+    if (!read_int_array(stream,p)) {
+        return false;
+    }
+    
+    return true;
+
+}
+
+
 size_t SetIntMatrix(pb_ostream_t * stream,
                     const char * id,
                     const char * tags,
                     const char * source,
-                    IntArray_t data,
+                    const_IntArray_t data,
                     int32_t rows,
                     int32_t cols,
                     int64_t t1,
@@ -181,17 +278,61 @@ size_t SetIntMatrix(pb_ostream_t * stream,
     return size;
 }
 
+uint8_t GetIntMatrix(MatDesc_t * matdesc, pb_istream_t * stream,size_t string_maxsize) {
+
+    Matrix mat;
+    
+    //id
+    StringDesc_t desc1;
+    desc1.maxlen = string_maxsize;
+    desc1.writebuf = (uint8_t *)matdesc->id;
+    
+    mat.id.arg = &desc1;
+    mat.id.funcs.decode = read_mat_array;
+    
+    //tags
+    StringDesc_t desc2;
+    desc2.maxlen = string_maxsize;
+    desc2.writebuf = (uint8_t *)matdesc->tags;
+    
+    mat.tags.arg = &desc2;
+    mat.tags.funcs.decode = read_mat_array;
+    
+    //source
+    StringDesc_t desc3;
+    desc3.maxlen = string_maxsize;
+    desc3.writebuf = (uint8_t *)matdesc->source;
+    
+    mat.tags.arg = &desc3;
+    mat.tags.funcs.decode = read_mat_array;
+    
+    
+    //the sweet,sweet payload
+    mat.idata.arg = &matdesc->data;
+    mat.idata.funcs.decode = read_mat_array;
+    
+    if (pb_decode(stream, Matrix_fields, &mat)) {
+        matdesc->t1 = mat.time1;
+        matdesc->t2 = mat.time2;
+        matdesc->rows = mat.rows;
+        matdesc->cols = mat.cols;
+        
+        return true;
+    }
+    
+    return false;
+}
 
 size_t SetMatrixMessage(pb_ostream_t * stream,
                         const char * macbytes,
                         uint32_t unix_time,
-                        const MatDesc_t * mats,
+                        const_MatDesc_t * mats,
                         uint16_t nummats) {
     
     size_t size = 0;
 
     MatrixClientMessage mess;
-    MatDescArray_t desc;
+    const_MatDescArray_t desc;
     
     desc.data = mats;
     desc.len = nummats;

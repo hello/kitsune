@@ -62,7 +62,7 @@ void SetDebugVectorS8(const char * name, const char * tags,const int8_t * pdata,
 
 
 
-static void SetDebugMatrix(std::ostream & outstream, const std::string & source, const std::string & defaulttags,const char * name, const char * tags,IntArray_t arr, uint32_t len,int64_t t1, int64_t t2) {
+static void SetDebugMatrix(std::ostream & outstream, const std::string & source, const std::string & defaulttags,const char * name, const char * tags,const_IntArray_t arr, uint32_t len,int64_t t1, int64_t t2) {
     unsigned char buf[MAT_BUF_SIZE];
     pb_ostream_t output;
     size_t encodelength;
@@ -143,7 +143,7 @@ DebugLogSingleton * DebugLogSingleton::Instance() {
 
 void DebugLogSingleton::SetDebugVectorS32(const char * name, const char * tags,const int32_t * pdata, uint32_t len,int64_t t1, int64_t t2) {
     
-    IntArray_t arr;
+    const_IntArray_t arr;
     
     arr.data.sint32 = pdata;
     arr.type = esint32;
@@ -153,7 +153,7 @@ void DebugLogSingleton::SetDebugVectorS32(const char * name, const char * tags,c
 
 void DebugLogSingleton::SetDebugVectorS16(const char * name, const char * tags,const int16_t * pdata, uint32_t len,int64_t t1, int64_t t2) {
     
-    IntArray_t arr;
+    const_IntArray_t arr;
     
     arr.data.sint16 = pdata;
     arr.type = esint16;
@@ -163,7 +163,7 @@ void DebugLogSingleton::SetDebugVectorS16(const char * name, const char * tags,c
 
 void DebugLogSingleton::SetDebugVectorU16(const char * name, const char * tags,const uint16_t * pdata, uint32_t len,int64_t t1, int64_t t2) {
    
-    IntArray_t arr;
+    const_IntArray_t arr;
     
     arr.data.uint16 = pdata;
     arr.type = euint16;
@@ -176,7 +176,7 @@ void DebugLogSingleton::SetDebugVectorU16(const char * name, const char * tags,c
 void DebugLogSingleton::SetDebugVectorU8(const char * name, const char * tags,const uint8_t * pdata, uint32_t len,int64_t t1, int64_t t2) {
     
     
-    IntArray_t arr;
+    const_IntArray_t arr;
     
     arr.data.uint8 = pdata;
     arr.type = euint8;
@@ -187,7 +187,7 @@ void DebugLogSingleton::SetDebugVectorU8(const char * name, const char * tags,co
 
 void DebugLogSingleton::SetDebugVectorS8(const char * name, const char * tags,const int8_t * pdata, uint32_t len,int64_t t1, int64_t t2) {
     
-    IntArray_t arr;
+    const_IntArray_t arr;
     
     arr.data.sint8 = pdata;
     arr.type = esint8;
