@@ -975,9 +975,9 @@ void nordic_prox_int() {
     MAP_GPIOIntClear(GPIO_PORT, status);
 	if (status & NORDIC_PIN) {
 		UARTprintf("nordic interrupt\r\n");
+		xSemaphoreGiveFromISR(spi_smphr, &xHigherPriorityTaskWoken);
 	}
 	if (status & PROX_PIN) {
-		xSemaphoreGiveFromISR(spi_smphr, &xHigherPriorityTaskWoken);
 		UARTprintf("prox interrupt\r\n");
 	}
 	/* If xHigherPriorityTaskWoken was set to true you
@@ -995,8 +995,8 @@ void SetupGPIOInterrupts() {
     unsigned int port;
 
     port = GPIO_PORT;
-    pin = /*NORDIC_PIN |*/ PROX_PIN;
-	//GPIO_IF_ConfigureNIntEnable( port, pin, GPIO_HIGH_LEVEL, nordic_prox_int );
+    pin = NORDIC_PIN /*| PROX_PIN*/;
+	GPIO_IF_ConfigureNIntEnable( port, pin, GPIO_HIGH_LEVEL, nordic_prox_int );
 	//only one interrupt per port...
 }
 
@@ -1007,9 +1007,9 @@ void thread_spi(void * data) {
 		if (xSemaphoreTake(spi_smphr, 10000) ) {
 			vTaskDelay(10);
 			Cmd_spi_read(0, 0);
-			//MAP_GPIOIntEnable(GPIO_PORT,PROX_PIN);
+			MAP_GPIOIntEnable(GPIO_PORT,PROX_PIN);
 		} else {
-			//MAP_GPIOIntEnable(GPIO_PORT,PROX_PIN);
+			MAP_GPIOIntEnable(GPIO_PORT,PROX_PIN);
 		}
 	}
 }
