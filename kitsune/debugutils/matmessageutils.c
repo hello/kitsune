@@ -202,8 +202,10 @@ size_t SetMatrixMessage(pb_ostream_t * stream,
     mess.mac.funcs.encode = write_string;
     mess.mac.arg = (void*)macbytes;
     
-    mess.matrix_payload.funcs.encode = write_mat_array;
-    mess.matrix_payload.arg = (void *)&desc;
+    mess.has_matrix_payload = 0;
+    
+    mess.matrix_list.funcs.encode = write_mat_array;
+    mess.matrix_list.arg = (void *)&desc;
     
     pb_get_encoded_size(&size,MatrixClientMessage_fields,&mess);
     
