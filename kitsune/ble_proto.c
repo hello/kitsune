@@ -122,9 +122,10 @@ static void _reply_device_id()
     if(ret == 0)
     {
         uint8_t device_id_len = SL_MAC_ADDR_LEN * 2 + 1;  // hex string representation
-        char device_id[device_id_len] = {0};
+        char* device_id = malloc(device_id_len);
+        memset(device_id, 0, device_id_len);
 
-        uint8_t index = 0;
+        uint8_t i = 0;
         for(i = 0; i < SL_MAC_ADDR_LEN; i++){
             sprintf(device_id[i * 2], "%02X", mac[i]);  // It has sprintf!
         }
@@ -138,8 +139,7 @@ static void _reply_device_id()
         reply_command.deviceId.arg = device_id;
         ble_send_protobuf(&reply_command);
 
-        // Since the device_id is allocated in the stack, we don't need to
-        // free protobuf
+        free_protobuf_command(&reply_command);
 
     }else{
         UARTprintf("Get Mac address failed, error %d.\n", ret);
