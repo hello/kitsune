@@ -979,6 +979,7 @@ bool encode_pill_data(pb_ostream_t *stream, const pb_field_t *field, void * cons
 		data->pill_data.deviceId.funcs.encode = encode_pill_id;
 		data->pill_data.deviceId.arg = (void*)arg;
 
+		pb_encode_tag(stream, PB_WT_STRING, field->tag);
 		for (i = 0; data->magic == PILL_MAGIC && i < MAX_PILLS; ++i) {
 			if (!pb_encode(stream, periodic_data_pill_data_fields, (const void*)&data->pill_data)) {
 				return false;

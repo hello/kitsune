@@ -8,7 +8,7 @@ typedef struct {
 	periodic_data_pill_data pill_data;
 } periodic_data_pill_data_container;
 #define PILL_MAGIC 0xAAAAAAAA
-#define MAX_PILLS 10
+#define MAX_PILLS 8
 #include "FreeRTOS.h"
 #include "semphr.h"
 extern xSemaphoreHandle pill_smphr;
