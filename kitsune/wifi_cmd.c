@@ -404,7 +404,7 @@ int Cmd_mode(int argc, char*argv[]) {
 }
 
 #include "crypto.h"
-static uint8_t aes_key[AES_BLOCKSIZE + 1];
+static uint8_t aes_key[AES_BLOCKSIZE + 1] = "1234567891234567";
 
 void load_aes() {
 	long DeviceFileHandle = -1;
@@ -938,7 +938,7 @@ int send_data_pb(char * buffer, int buffer_size, const pb_field_t fields[], cons
     }
     UARTprintf("recv %d\n\r\n\r", rv);
 
-    UARTprintf("Reply is:\n\r\n\r");
+    UARTprintf("Reply is:\n\r%s\n\r", buffer);
     {
 		#define CL_HDR "Content-Length: "
 		char * content = strstr(buffer, "\r\n\r\n") + 4;
@@ -973,17 +973,35 @@ bool encode_pill_id(pb_ostream_t *stream, const pb_field_t *field, void * const 
 }
 
 bool encode_pill_data(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
-	periodic_data_pill_data_container * data = (periodic_data_pill_data_container*) arg;
+	periodic_data_pill_data_container * data = *(periodic_data_pill_data_container**) arg;
+
 	int i;
 	if (xSemaphoreTake(pill_smphr, portMAX_DELAY)) {
-		data->pill_data.deviceId.funcs.encode = encode_pill_id;
-		data->pill_data.deviceId.arg = (void*)arg;
 
-		pb_encode_tag(stream, PB_WT_STRING, field->tag);
+		if( data->magic != PILL_MAGIC ) {
+			return true; //nothing to encode
+		}
+
+		data->pill_data.deviceId.funcs.encode = encode_pill_id;
+		data->pill_data.deviceId.arg = (void*) arg;
+
+ 		if (!pb_encode_tag(stream, PB_WT_STRING, field->tag))
+			return false;
+		{
+			pb_ostream_t sizestream = { 0 };
+			pb_encode(&sizestream, periodic_data_pill_data_fields,
+					(const void*) &data->pill_data);
+
+			if (!pb_encode_varint(stream, (uint64_t) sizestream.bytes_written))
+				return false;
+		}
+
 		for (i = 0; data->magic == PILL_MAGIC && i < MAX_PILLS; ++i) {
-			if (!pb_encode(stream, periodic_data_pill_data_fields, (const void*)&data->pill_data)) {
+			if (!pb_encode(stream, periodic_data_pill_data_fields,
+					(const void*) &data->pill_data)) {
 				return false;
 			}
+			++data;
 		}
 		xSemaphoreGive(pill_smphr);
 	}

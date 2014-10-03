@@ -686,6 +686,7 @@ void thread_tx(void* unused) {
 		UARTprintf("sending time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d\n",
 				data.time, data.light, data.light_variability, data.light_tonality, data.temp, data.humid,
 				data.dust);
+		data.pill_list = pill_list;
 
 		while (!send_periodic_data(&data) == 0) {
 			do {vTaskDelay(100);} //wait for a connection...
@@ -1022,7 +1023,7 @@ void thread_spi(void * data) {
 
 #endif
 
-#if 1
+#if 0
 #define LED_LOGIC_HIGH 0
 #define LED_LOGIC_LOW LED_GPIO_BIT
 #else
@@ -1336,7 +1337,7 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(thread_spi, "spiTask", 5*2048 / 4, NULL, 5, NULL);
 	SetupGPIOInterrupts();
 	UARTprintf("*");
-#if 0
+#if 1
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask", 5 * 1024 / 4, NULL, 3, NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_dust, "dustTask", 5* 1024 / 4, NULL, 3, NULL);

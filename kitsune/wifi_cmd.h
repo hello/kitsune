@@ -2,9 +2,10 @@
 #define __WIFI_CMD_H__
 
 #include "periodic.pb.h"
+#define PILL_ID_LEN 16
 typedef struct {
 	uint32_t magic;
-	char id[256];
+	char id[PILL_ID_LEN+1];
 	periodic_data_pill_data pill_data;
 } periodic_data_pill_data_container;
 #define PILL_MAGIC 0xAAAAAAAA
