@@ -1,10 +1,13 @@
+
 #include "ble_proto.h"
 #include "ble_cmd.h"
 #include "wlan.h"
 
+#include "wifi_cmd.h"
 #include "uartstdio.h"
 
 #include "FreeRTOS.h"
+#include "task.h"
 #define malloc pvPortMalloc
 #define free vPortFree
 
@@ -52,7 +55,7 @@ bool set_wifi(const char* ssid, const char* password)
     Sl_WlanNetworkEntry_t wifi_endpoints[MAX_WIFI_EP_PER_SCAN];
     memset(wifi_endpoints, 0, sizeof(wifi_endpoints));
 
-    int scanned_wifi_count = _get_wifi_scan_result(wifi_endpoints, MAX_WIFI_EP_PER_SCAN, 10000);  // Shall we have a bg thread scan periodically?
+    int scanned_wifi_count = _get_wifi_scan_result(wifi_endpoints, MAX_WIFI_EP_PER_SCAN, 1000);  // Shall we have a bg thread scan periodically?
     if(scanned_wifi_count == 0)
     {
         return 0;
@@ -65,10 +68,11 @@ bool set_wifi(const char* ssid, const char* password)
         if(strcmp((const char*)wifi_endpoint.ssid, ssid) == 0)
         {
             SlSecParams_t secParams;
-
             memset(&secParams, 0, sizeof(SlSecParams_t));
 
-            
+            if( wifi_endpoint.sec_type == 3 ) {
+            	wifi_endpoint.sec_type = 2;
+            }
             secParams.Key = (signed char*)password;
             secParams.KeyLen = password == NULL ? 0 : strlen(password);
             secParams.Type = wifi_endpoint.sec_type;
@@ -81,6 +85,7 @@ bool set_wifi(const char* ssid, const char* password)
             {
                 // To make things simple in the first pass implementation, 
                 // we only store one endpoint.
+/*
                 // There is no sl_sl_WlanProfileSet?
                 // So I delete all endpoint first.
                 _i16 del_ret = sl_WlanProfileDel(0xFF);
@@ -90,6 +95,7 @@ bool set_wifi(const char* ssid, const char* password)
                 }
 
                 // Then add the current one back.
+*/
                 _i16 profile_add_ret = sl_WlanProfileAdd((_i8*)ssid, strlen(ssid), NULL, secParamsPtr, NULL, 0, 0);
                 if(profile_add_ret < 0)
                 {
@@ -195,6 +201,22 @@ static void _ble_reply_wifi_info(){
 }
 
 int Cmd_led(int argc, char *argv[]);
+#include "wifi_cmd.h"
+periodic_data_pill_data_container pill_list[MAX_PILLS] = {0};
+
+int scan_pill_list(periodic_data_pill_data_container* p, char * device_id) {
+	int i;
+	for (i = 0; i < MAX_PILLS && p[i].magic == PILL_MAGIC; ++i) {
+		if (strcmp(p[i].id, device_id) == 0) {
+			break;
+		}
+	}
+	if (i == MAX_PILLS) {
+		UARTprintf(" too many pills, overwriting\n ");
+		i=0;
+	}
+	return i;
+}
 
 void on_ble_protobuf_command(MorpheusCommand* command)
 {
@@ -204,21 +226,26 @@ void on_ble_protobuf_command(MorpheusCommand* command)
         {
             const char* ssid = command->wifiSSID.arg;
             char* password = command->wifiPassword.arg;
+
             // I can get the Mac address as well, but not sure it is necessary.
 
             // Just call API to connect to WIFI.
             UARTprintf("Wifi SSID %s, pswd %s \n", ssid, password);
             if(!set_wifi(ssid, (char*)password))
             {
-                UARTprintf("Connection attemp failed.\n");
+                UARTprintf("Connection attempt failed.\n");
                 ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
             }else{
-                // If the wifi connection is set, reply the same message
-                // to the phone.
-                UARTprintf("Connection attemp issued.\n");
-                ble_send_protobuf(command);
+                // If the wifi connection is set, reply
+                MorpheusCommand reply_command;
+                memset(&reply_command, 0, sizeof(reply_command));
+                reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_WIFI_ENDPOINT;
+                reply_command.version = PROTOBUF_VERSION;
+                reply_command.wifiSSID.arg = (void*)ssid;
+
+                UARTprintf("Connection attempt issued.\n");
+                ble_send_protobuf(&reply_command);
             }
-            
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_PAIRING_MODE:  // Just for testing
@@ -235,24 +262,52 @@ void on_ble_protobuf_command(MorpheusCommand* command)
             UARTprintf( "GET_WIFI\n" );
         }
         break;
-        case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_DATA:
-        {
-            // Pill data received from ANT
-        	UARTprintf( "PILL DATA\n" );
-        }
-        break;
-        case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_HEARTBEAT:
-        {   
-            // Pill heartbeat received from ANT
-        	UARTprintf( "PILL HEARBEAT\n" );
-        }
-        break;
-        case MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_DEVICE_ID:
+    case MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_DEVICE_ID:
         {
             // Get morpheus device id request from Nordic
             UARTprintf("GET DEVICE ID\n");
             _reply_device_id();
         }
         break;
-    }
+	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_DATA: {
+		// Pill data received from ANT
+		if (command->has_motionData) {
+			int i;
+			if (xSemaphoreTake(pill_smphr, portMAX_DELAY)) {
+				i = scan_pill_list(pill_list, command->deviceId.arg);
+				memcpy(pill_list[i].id, command->deviceId.arg,
+						strlen(command->deviceId.arg));
+				pill_list[i].magic = PILL_MAGIC;
+				pill_list[i].pill_data.motionData = command->motionData;
+
+				UARTprintf("PILL DATA %d\n", command->motionData);
+				xSemaphoreGive(pill_smphr);
+			}
+		}
+	}
+		break;
+	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_HEARTBEAT: {
+		int i;
+		if (xSemaphoreTake(pill_smphr, portMAX_DELAY)) {
+			i = scan_pill_list(pill_list, command->deviceId.arg);
+			memcpy(pill_list[i].id, command->deviceId.arg,
+					strlen(command->deviceId.arg));
+			pill_list[i].magic = PILL_MAGIC;
+
+			// Pill heartbeat received from ANT
+			UARTprintf("PILL HEARBEAT\n");
+
+			if (command->has_batteryLevel) {
+				pill_list[i].pill_data.batteryLevel = command->batteryLevel;
+				UARTprintf("PILL BATTERY %d\n", command->batteryLevel);
+			}
+			if (command->has_batteryLevel) {
+				pill_list[i].pill_data.uptime = command->uptime;
+				UARTprintf("PILL UPTIME %d\n", command->uptime);
+			}
+			xSemaphoreGive(pill_smphr);
+		}
+		break;
+		}
+	}
 }

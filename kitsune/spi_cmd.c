@@ -113,6 +113,7 @@ int spi_write_step( int len, unsigned char * buf ) {
 	}
 	//MAP_SPICSEnable(GSPI_BASE);
 	CS_set(0);
+	vTaskDelay(1);
 	for (i = 0; i < len; i++) {
 		MAP_SPIDataPut(GSPI_BASE, buf[i]);
 		MAP_SPIDataGet(GSPI_BASE, &dud);
@@ -133,6 +134,7 @@ int spi_read_step( int len, unsigned char * buf ) {
 	UARTprintf("Reading...\r\n");
 	//	MAP_SPITransfer(GSPI_BASE,rx_buf,rx_buf,len,SPI_CS_ENABLE|SPI_CS_DISABLE);
 	CS_set(0);
+	vTaskDelay(1);
 	len = MAP_SPITransfer(GSPI_BASE, buf, buf, len, 0);
 	CS_set(1);
 	UARTprintf("Read %d bytes \r\n", len);
@@ -147,47 +149,24 @@ int spi_write( int len, unsigned char * buf ) {
 	ctx_t ctx;
 
 	spi_write_step( 1, &mode );
-	vTaskDelay(1);
+	vTaskDelay(10);
 	ctx.len = len;
 	ctx.addr = 0xcc;
 	spi_read_step( 4, (unsigned char*)&ctx );
-	vTaskDelay(1);
+	vTaskDelay(10);
 	UARTprintf("Ctx len %u, address %u\r\n",ctx.len, ctx.addr);
 	spi_write_step( len, buf );
 
 	return SUCCESS;
 }
-
-#if 0
-//referenced from wifi_cmd.c
-pb_istream_t pb_istream_from_buffer(uint8_t *buf, size_t bufsize);
-
-int proc_pb_nordic( int * len, unsigned * buf ) {
-	pb_istream_t stream;
-	int status;
-
-	/* Create a stream that will read from our buffer. */
-	stream = pb_istream_from_buffer(buf, len);
-	/* Now we are ready to decode the message! */
-
-	UARTprintf("data ");
-	status = pb_decode(&stream, _fields, &_data); //todo figure out IDL
-	UARTprintf("\n");
-
-	if( ?? ) {
-
-
-	}
-}
-#endif
 int spi_read( int * len, unsigned char * buf ) {
 	unsigned char mode = READ;
 	ctx_t ctx;
 
 	spi_write_step( 1, &mode );
-	vTaskDelay(5);
+	vTaskDelay(10);
 	spi_read_step( 4,  (unsigned char*)&ctx );
-	vTaskDelay(5);
+	vTaskDelay(10);
 	UARTprintf("Ctx len %u, address %u\r\n",ctx.len, ctx.addr);
 	if( ctx.addr == 0xAAAA || ctx.addr == 0x5500 || ctx.addr == 0x5555 ) {
 		ctx.len = 0;

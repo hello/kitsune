@@ -27,7 +27,7 @@ extern "C" {
 
 #define DEBUG_LOG_S32(name,tags,ptr,len,t1,t2)  (SetDebugVectorS32( (name) , (tags), (ptr) , (len), (t1), (t2) ) )
 #define DEBUG_LOG_S16(name,tags,ptr,len,t1,t2)  (SetDebugVectorS16( (name) , (tags), (ptr) , (len), (t1), (t2) ) )
-#define DEBUG_LOG_U16(name,tags,ptr,len,t1,t2)  (SetDebugVectorS16( (name) , (tags), (ptr) , (len), (t1), (t2) ) )
+#define DEBUG_LOG_U16(name,tags,ptr,len,t1,t2)  (SetDebugVectorU16( (name) , (tags), (ptr) , (len), (t1), (t2) ) )
 #define DEBUG_LOG_U8(name,tags,ptr,len,t1,t2)  (SetDebugVectorU8( (name) , (tags), (ptr) , (len), (t1), (t2) ) )
 #define DEBUG_LOG_S8(name,tags,ptr,len,t1,t2)  (SetDebugVectorS8( (name) , (tags), (ptr) , (len), (t1), (t2) ) )
 

@@ -1,3 +1,4 @@
+
 message periodic_data {
     optional int32 unix_time=1;
     optional int32 light=2;
@@ -9,4 +10,11 @@ message periodic_data {
 	optional int32 light_variability=8;
 	optional int32 light_tonality=9;
 	optional int32 firmware_version=10;
+	message pill_data {
+		optional string deviceId = 3;
+		optional int32 batteryLevel = 9;
+		optional int32 uptime = 10;
+		optional int32 motionData = 11;
+	}
+    repeated pill_data pills=11;
     }

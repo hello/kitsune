@@ -475,6 +475,7 @@ SetupPingPongDMATransferTx();
 
 AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
 AudioCaptureRendererConfigure();
+
 // Start Audio Tx/Rx
 //
 Audio_Start();
@@ -641,7 +642,7 @@ void thread_fast_i2c_poll(void * unused)  {
 			vTaskDelay(2);
 			light = get_light();
 			vTaskDelay(2); //this is important! If we don't do it, then the prox will stretch the clock!
-			prox = get_prox();
+			prox = 0;//todo get_prox();
 			hpf_prox = last_prox - prox;
 			if (abs(hpf_prox) > 30) {
 				UARTprintf("PROX: %d\n", hpf_prox);
@@ -693,6 +694,7 @@ void thread_tx(void* unused) {
 	}
 }
 
+xSemaphoreHandle pill_smphr;
 
 void thread_sensor_poll(void* unused) {
 
@@ -749,6 +751,12 @@ void thread_sensor_poll(void* unused) {
 			data.temp = get_temp();
 			vTaskDelay(2);
 			xSemaphoreGive(i2c_smphr);
+		} else {
+			continue;
+		}
+		if (xSemaphoreTake(pill_smphr, portMAX_DELAY)) {
+			data.pill_list = pill_list;
+			xSemaphoreGive(pill_smphr);
 		} else {
 			continue;
 		}
@@ -834,7 +842,7 @@ int Cmd_fault(int argc, char *argv[]) {
 	return 0;
 }
 
-static void AudioFeatCallback(const int32_t * mfccfeats, const Segment_t * pSegment) {
+static void AudioFeatCallback(const int16_t * mfccfeats, const Segment_t * pSegment) {
 	int32_t t1;
 	int32_t t2;
 
@@ -988,18 +996,20 @@ void SetupGPIOInterrupts() {
 
     port = GPIO_PORT;
     pin = /*NORDIC_PIN |*/ PROX_PIN;
-	GPIO_IF_ConfigureNIntEnable( port, pin, GPIO_HIGH_LEVEL, nordic_prox_int );
+	//GPIO_IF_ConfigureNIntEnable( port, pin, GPIO_HIGH_LEVEL, nordic_prox_int );
 	//only one interrupt per port...
 }
 
+xSemaphoreHandle pill_smphr;
+
 void thread_spi(void * data) {
 	while(1) {
-		if (xSemaphoreTake(spi_smphr, 10000)) {
+		if (xSemaphoreTake(spi_smphr, 10000) ) {
 			vTaskDelay(10);
 			Cmd_spi_read(0, 0);
-			MAP_GPIOIntEnable(GPIO_PORT,PROX_PIN);
+			//MAP_GPIOIntEnable(GPIO_PORT,PROX_PIN);
 		} else {
-			MAP_GPIOIntEnable(GPIO_PORT,PROX_PIN);
+			//MAP_GPIOIntEnable(GPIO_PORT,PROX_PIN);
 		}
 	}
 }
@@ -1012,6 +1022,13 @@ void thread_spi(void * data) {
 
 #endif
 
+#if 1
+#define LED_LOGIC_HIGH 0
+#define LED_LOGIC_LOW LED_GPIO_BIT
+#else
+#define LED_LOGIC_HIGH LED_GPIO_BIT
+#define LED_LOGIC_LOW 0
+#endif
 
 void led( unsigned int* color ) {
 	int i;
@@ -1021,7 +1038,7 @@ void led( unsigned int* color ) {
 		for (i = 0; i < 24; ++i) {
 			if ((*color << i) & 0x800000 ) {
 				//1
-				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_GPIO_BIT);
+				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_HIGH);
 				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
@@ -1034,7 +1051,7 @@ void led( unsigned int* color ) {
 				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, 0x0);
+				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_LOW);
 				if( i!=23 ) {
 					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
@@ -1053,10 +1070,10 @@ void led( unsigned int* color ) {
 				}
 			} else {
 				//0
-				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_GPIO_BIT);
+				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_HIGH);
 				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, 0x0);
+				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_LOW);
 				if( i!=23 ) {
 					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
@@ -1164,6 +1181,7 @@ tCmdLineEntry g_sCmdTable[] = {
 //    { "cpu",      Cmd_cpu,      "Show CPU utilization" },
 		{ "free", Cmd_free, "Report free memory" },
 		{ "connect", Cmd_connect, "Connect to an AP" },
+		{ "disconnect", Cmd_disconnect, "disconnect to an AP" },
 		{ "ping", Cmd_ping, "Ping a server" },
 		{ "time", Cmd_time, "get ntp time" },
 		{ "status", Cmd_status, "status of simple link" },
@@ -1251,11 +1269,6 @@ void vUARTTask(void *pvParameters) {
 
 	Cmd_led_clr(0,0);
 
-	//
-	// Initialize the UART for console I/O.
-	//
-	UARTStdioInit(0);
-
 	UARTIntRegister(UARTA0_BASE, UARTStdioIntHandler);
 
 	UARTprintf("Booting...\n");
@@ -1299,6 +1312,7 @@ void vUARTTask(void *pvParameters) {
 	//INIT SPI
 	spi_init();
 	UARTprintf("*");
+
 	vTaskDelayUntil(&now, 1000);
 	UARTprintf("*");
 
@@ -1311,26 +1325,27 @@ void vUARTTask(void *pvParameters) {
 	vSemaphoreCreateBinary(light_smphr);
 	vSemaphoreCreateBinary(i2c_smphr);
 	vSemaphoreCreateBinary(spi_smphr);
+	vSemaphoreCreateBinary(pill_smphr);
 
 	if (data_queue == 0) {
 		UARTprintf("Failed to create the data_queue.\n");
 	}
 
-	xTaskCreate(thread_audio, "audioTask", 10 * 1024 / 4, NULL, 4, NULL); //todo reduce stack
+	xTaskCreate(thread_audio, "audioTask", 5 * 1024 / 4, NULL, 4, NULL); //todo reduce stack
 	UARTprintf("*");
-	xTaskCreate(thread_spi, "spiTask", 10*2048 / 4, NULL, 5, NULL);
+	xTaskCreate(thread_spi, "spiTask", 5*2048 / 4, NULL, 5, NULL);
 	SetupGPIOInterrupts();
 	UARTprintf("*");
 #if 0
-	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask", 2 * 1024 / 4, NULL, 3, NULL);
+	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask", 5 * 1024 / 4, NULL, 3, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_dust, "dustTask", 256 / 4, NULL, 3, NULL);
+	xTaskCreate(thread_dust, "dustTask", 5* 1024 / 4, NULL, 3, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_sensor_poll, "pollTask", 2 * 1024 / 4, NULL, 4, NULL);
+	xTaskCreate(thread_sensor_poll, "pollTask", 5 * 1024 / 4, NULL, 4, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_tx, "txTask", 4 * 1024 / 4, NULL, 2, NULL);
+	xTaskCreate(thread_tx, "txTask", 5 * 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_ota, "otaTask", 2 * 1024 / 4, NULL, 1, NULL);
+	xTaskCreate(thread_ota, "otaTask",5 * 1024 / 4, NULL, 1, NULL);
 	UARTprintf("*");
 #endif
 	//checkFaults();

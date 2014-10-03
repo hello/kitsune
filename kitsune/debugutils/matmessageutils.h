@@ -2,7 +2,7 @@
 #ifndef _MATMESSAGEUTILS_H_
 #define _MATMESSAGEUTILS_H_
 
-#include "../nanopb/pb.h"
+#include "pb.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -33,6 +33,17 @@ extern "C" {
         uint32_t len;
     } IntArray_t;
     
+    typedef struct {
+        const char * id;
+        const char * tags;
+        const char * source;
+        IntArray_t data;
+        int32_t rows;
+        int32_t cols;
+        int64_t t1;
+        int64_t t2;
+    } MatDesc_t;
+    
     size_t SetIntMatrix(pb_ostream_t * stream,
                         const char * id,
                         const char * tags,
@@ -42,6 +53,15 @@ extern "C" {
                         int32_t cols,
                         int64_t t1,
                         int64_t t2);
+    
+    
+    
+    
+    size_t SetMatrixMessage(pb_ostream_t * stream,
+                            const char * macbytes,
+                            uint32_t unix_time,
+                            const MatDesc_t * mats,
+                            uint16_t nummats);
     
     
 #ifdef __cplusplus

@@ -6,24 +6,18 @@
 static int64_t _counter;
 static int _gotcallback;
 static Segment_t _segment;
-static int32_t _mfccfeats[NUM_MFCC_FEATURES];
+static int16_t _feats[NUM_AUDIO_FEATURES];
 
-static void AudioFeaturesCallback(const int32_t * mfccfeats, const Segment_t * pSegment) {
+static void AudioFeaturesCallback(const int16_t * feats, const Segment_t * pSegment) {
     const char * tag = NULL;
     
     _gotcallback = 1;
 
     memcpy(&_segment,pSegment,sizeof(Segment_t));
-    memcpy(_mfccfeats,mfccfeats,sizeof(int32_t)*NUM_MFCC_FEATURES);
+    memcpy(_feats,feats,sizeof(int16_t)*NUM_AUDIO_FEATURES);
    
-    if (pSegment->type == segmentPacket) {
-        tag = "packet";
-    }
-    else if (pSegment->type == segmentSteadyState){
-        tag = "steady";
-    }
-    
-    DEBUG_LOG_S32("featAudio",tag,mfccfeats,NUM_MFCC_FEATURES,pSegment->t1,pSegment->t2);
+       
+    DEBUG_LOG_S16("featAudio",tag,feats,NUM_AUDIO_FEATURES,pSegment->t1,pSegment->t2);
 
 }
 
@@ -38,8 +32,12 @@ void Deinit(void) {
     DebugLog_Deinitialize();
 }
 
-void GetAudioFeatures(int feats[NUM_MFCC_FEATURES]) {
-    memcpy(feats,_mfccfeats,NUM_MFCC_FEATURES*sizeof(int));
+void GetAudioFeatures(int feats[NUM_AUDIO_FEATURES]) {
+    int16_t j;
+    
+    for (j = 0; j < NUM_AUDIO_FEATURES; j++) {
+        feats[j] = _feats[j];
+    }
 }
 
 const char * DumpDebugBuffer() {
