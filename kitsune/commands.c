@@ -977,13 +977,13 @@ void nordic_prox_int() {
 		UARTprintf("nordic interrupt\r\n");
 		xSemaphoreGiveFromISR(spi_smphr, &xHigherPriorityTaskWoken);
 	}
-	if (status & PROX_PIN) {
+	if (status & NORDIC_PIN) {
 		UARTprintf("prox interrupt\r\n");
 	}
 	/* If xHigherPriorityTaskWoken was set to true you
     we should yield.  The actual macro used here is
     port specific. */
-	MAP_GPIOIntDisable(GPIO_PORT,PROX_PIN);
+	MAP_GPIOIntDisable(GPIO_PORT,NORDIC_PIN);
     portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
 }
 
@@ -1007,9 +1007,9 @@ void thread_spi(void * data) {
 		if (xSemaphoreTake(spi_smphr, 10000) ) {
 			vTaskDelay(10);
 			Cmd_spi_read(0, 0);
-			MAP_GPIOIntEnable(GPIO_PORT,PROX_PIN);
+			MAP_GPIOIntEnable(GPIO_PORT,NORDIC_PIN);
 		} else {
-			MAP_GPIOIntEnable(GPIO_PORT,PROX_PIN);
+			MAP_GPIOIntEnable(GPIO_PORT,NORDIC_PIN);
 		}
 	}
 }
