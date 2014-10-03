@@ -115,16 +115,12 @@ static void _reply_device_id()
     int32_t ret = sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
     if(ret == 0)
     {
-        uint8_t device_id_len = SL_MAC_ADDR_LEN * 3;  // xx:xx:xx:xx\0
+        uint8_t device_id_len = SL_MAC_ADDR_LEN * 2 + 1;  // hex string representation
         char device_id[device_id_len] = {0};
 
         uint8_t index = 0;
         for(i = 0; i < SL_MAC_ADDR_LEN; i++){
-            sprintf(device_id[i * 3], "%02X", mac[i]);  // It has sprintf!
-            if(i < SL_MAC_ADDR_LEN - 1)
-            {
-                device_id[i * 3 + 2] = ':';
-            }
+            sprintf(device_id[i * 2], "%02X", mac[i]);  // It has sprintf!
         }
 
         UARTprintf("Morpheus device id: %s\n", device_id);
@@ -135,6 +131,9 @@ static void _reply_device_id()
 
         reply_command.deviceId.arg = device_id;
         ble_send_protobuf(&reply_command);
+
+        // Since the device_id is allocated in the stack, we don't need to
+        // free protobuf
 
     }else{
         UARTprintf("Get Mac address failed, error %d.\n", ret);
@@ -250,6 +249,7 @@ void on_ble_protobuf_command(MorpheusCommand* command)
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_DEVICE_ID:
         {
+            // Get morpheus device id request from Nordic
             UARTprintf("GET DEVICE ID\n");
             _reply_device_id();
         }
