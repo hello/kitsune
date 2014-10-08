@@ -40,11 +40,6 @@ typedef struct {
 #define SPI_IF_BIT_RATE  10000
 #define TR_BUFF_SIZE     100
 
-
-
-
-
-
 void CS_set(int val) {
 	  MAP_GPIOPinWrite(GPIOA1_BASE,0x20,val?0x20:0);
 }
@@ -81,24 +76,28 @@ void spi_init() {
 int spi_reset(){
 	unsigned char reset = 0xFF;
 	CS_set(0);
+	vTaskDelay(5);
 //	MAP_SPITransfer(GSPI_BASE,&reset,&reset,1,SPI_CS_ENABLE|SPI_CS_DISABLE);
 	MAP_SPITransfer(GSPI_BASE,&reset,&reset,1,0);
 
 	CS_set(1);
-	vTaskDelay(1);
+	vTaskDelay(5);
 	reset = 0xFF;
 	CS_set(0);
+	vTaskDelay(5);
 //	MAP_SPITransfer(GSPI_BASE,&reset,&reset,1,SPI_CS_ENABLE|SPI_CS_DISABLE);
 	MAP_SPITransfer(GSPI_BASE,&reset,&reset,1,0);
 
 	CS_set(1);
-	vTaskDelay(1);
+	vTaskDelay(5);
 	reset = 0xFF;
 	CS_set(0);
+	vTaskDelay(5);
 //	MAP_SPITransfer(GSPI_BASE,&reset,&reset,1,SPI_CS_ENABLE|SPI_CS_DISABLE);
 	MAP_SPITransfer(GSPI_BASE,&reset,&reset,1,0);
 
 	CS_set(1);
+	vTaskDelay(5);
 
 	return SUCCESS;
 }
@@ -113,14 +112,14 @@ int spi_write_step( int len, unsigned char * buf ) {
 	}
 	//MAP_SPICSEnable(GSPI_BASE);
 	CS_set(0);
-	vTaskDelay(1);
+	vTaskDelay(5);
 	for (i = 0; i < len; i++) {
 		MAP_SPIDataPut(GSPI_BASE, buf[i]);
 		MAP_SPIDataGet(GSPI_BASE, &dud);
 		UARTprintf("%x ", buf[i]);
 	}
 	//MAP_SPICSDisable(GSPI_BASE);
-	CS_set(1);
+	CS_set(5);
 	UARTprintf("\r\n");
 	return SUCCESS;
 }
@@ -134,7 +133,7 @@ int spi_read_step( int len, unsigned char * buf ) {
 	UARTprintf("Reading...\r\n");
 	//	MAP_SPITransfer(GSPI_BASE,rx_buf,rx_buf,len,SPI_CS_ENABLE|SPI_CS_DISABLE);
 	CS_set(0);
-	vTaskDelay(1);
+	vTaskDelay(5);
 	len = MAP_SPITransfer(GSPI_BASE, buf, buf, len, 0);
 	CS_set(1);
 	UARTprintf("Read %d bytes \r\n", len);
@@ -162,6 +161,7 @@ int spi_write( int len, unsigned char * buf ) {
 int spi_read( int * len, unsigned char * buf ) {
 	unsigned char mode = READ;
 	ctx_t ctx;
+	int i;
 
 	spi_write_step( 1, &mode );
 	vTaskDelay(10);
@@ -169,12 +169,22 @@ int spi_read( int * len, unsigned char * buf ) {
 	vTaskDelay(10);
 	UARTprintf("Ctx len %u, address %u\r\n",ctx.len, ctx.addr);
 	if( ctx.addr == 0xAAAA || ctx.addr == 0x5500 || ctx.addr == 0x5555 ) {
+		spi_reset();
 		ctx.len = 0;
 	}
 	*len = ctx.len;
 
 	if( *len != 0 ) {
 		spi_read_step(ctx.len, buf);
+
+		for(i=1;i<ctx.len;++i) {
+			if(buf[i]!= 0x55 ) {
+				break;
+			}
+		}
+		if(i==ctx.len) {
+			spi_reset();
+		}
 	}
 
 	return SUCCESS;
