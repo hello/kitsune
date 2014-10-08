@@ -22,6 +22,12 @@ extern "C"
 {
 #endif
 
+typedef struct array_t
+{
+    uint8_t* buffer;
+    size_t length;
+} array_data;
+
 void on_morpheus_protobuf_arrival(uint8_t* protobuf, size_t len);
 bool ble_send_protobuf(MorpheusCommand* command);
 bool ble_reply_protobuf_error(ErrorType error_type);
