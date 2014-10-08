@@ -709,6 +709,7 @@ int rx_data_pb(unsigned char * buffer, int buffer_size ) {
 	int status;
 	pb_istream_t stream;
 	SyncResponse SyncResponse_data;
+    memset(&SyncResponse_data, 0, sizeof(SyncResponse_data));
 
 	//memset( aesctx.iv, 0, sizeof( aesctx.iv ) );
 
