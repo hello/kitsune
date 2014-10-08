@@ -142,7 +142,7 @@ static void _reply_device_id()
         reply_command.deviceId.arg = device_id;
         ble_send_protobuf(&reply_command);
 
-        free_protobuf_command(&reply_command);
+        ble_proto_free_command(&reply_command);
 
     }else{
         UARTprintf("Get Mac address failed, error %d.\n", ret);
@@ -311,7 +311,7 @@ static void _process_pill_heartbeat(const MorpheusCommand* command)
 
 static void _send_response_to_ble(const char* buffer, size_t len)
 {
-    const char* header_content_len = "Content-Length: "
+    const char* header_content_len = "Content-Length: ";
     char * content = strstr(buffer, "\r\n\r\n") + 4;
     char * len_str = strstr(buffer, header_content_len) + strlen(header_content_len);
     if (len_str == NULL) {
@@ -334,7 +334,7 @@ static void _send_response_to_ble(const char* buffer, size_t len)
     memset(&response, 0, sizeof(response));
     ble_proto_assign_decode_funcs(&response);
 
-    if(decode_rx_data_pb((unsigned char*)response_buffer, content_len, MorpheusCommand_fields, &response, sizeof(response)) != 0)
+    if(decode_rx_data_pb((unsigned char*)content, content_len, MorpheusCommand_fields, &response, sizeof(response)) != 0)
     {
         UARTprintf("Invalid response, protobuf decryption & decode failed.\n");
         ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
@@ -345,7 +345,7 @@ static void _send_response_to_ble(const char* buffer, size_t len)
     ble_proto_free_command(&response);
 }
 
-void on_ble_protobuf_command(const MorpheusCommand* command)
+void on_ble_protobuf_command(MorpheusCommand* command)
 {
     switch(command->type)
     {

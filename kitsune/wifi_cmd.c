@@ -1049,9 +1049,9 @@ int send_periodic_data( data_t * data ) {
     if(ret == 0)
     {
         // Parse the response
-        UARTprintf("Reply is:\n\r%s\n\r", buffer_out);
+        UARTprintf("Reply is:\n\r%s\n\r", buffer);
         
-        const char* header_content_len = "Content-Length: "
+        const char* header_content_len = "Content-Length: ";
         char * content = strstr(buffer, "\r\n\r\n") + 4;
         char * len_str = strstr(buffer, header_content_len) + strlen(header_content_len);
         int resp_ok = match("2..", buffer);

@@ -127,7 +127,7 @@ void on_morpheus_protobuf_arrival(uint8_t* protobuf, size_t len)
     memset(&command, 0, sizeof(command));
 
     
-    ble_proto_assign_decode_funcs(command);
+    ble_proto_assign_decode_funcs(&command);
 
     pb_istream_t stream = pb_istream_from_buffer(protobuf, len);
     bool status = pb_decode(&stream, MorpheusCommand_fields, &command);
@@ -149,40 +149,40 @@ void on_morpheus_protobuf_arrival(uint8_t* protobuf, size_t len)
 
 void ble_proto_assign_decode_funcs(MorpheusCommand* command)
 {
-    if(NULL == command.accountId.funcs.decode)
+    if(NULL == command->accountId.funcs.decode)
     {
-        command.accountId.funcs.decode = _decode_string_field;
-        command.accountId.arg = NULL;
+        command->accountId.funcs.decode = _decode_string_field;
+        command->accountId.arg = NULL;
     }
 
-    if(NULL == command.deviceId.funcs.decode)
+    if(NULL == command->deviceId.funcs.decode)
     {
-        command.deviceId.funcs.decode = _decode_string_field;
-        command.deviceId.arg = NULL;
+        command->deviceId.funcs.decode = _decode_string_field;
+        command->deviceId.arg = NULL;
     }
 
-    if(NULL == command.wifiName.funcs.decode)
+    if(NULL == command->wifiName.funcs.decode)
     {
-        command.wifiName.funcs.decode = _decode_string_field;
-        command.wifiName.arg = NULL;
+        command->wifiName.funcs.decode = _decode_string_field;
+        command->wifiName.arg = NULL;
     }
 
-    if(NULL == command.wifiSSID.funcs.decode)
+    if(NULL == command->wifiSSID.funcs.decode)
     {
-        command.wifiSSID.funcs.decode = _decode_string_field;
-        command.wifiSSID.arg = NULL;
+        command->wifiSSID.funcs.decode = _decode_string_field;
+        command->wifiSSID.arg = NULL;
     }
 
-    if(NULL == command.wifiPassword.funcs.decode)
+    if(NULL == command->wifiPassword.funcs.decode)
     {
-        command.wifiPassword.funcs.decode = _decode_string_field;
-        command.wifiPassword.arg = NULL;
+        command->wifiPassword.funcs.decode = _decode_string_field;
+        command->wifiPassword.arg = NULL;
     }
 
-    if(NULL == command.motionDataEntrypted.funcs.decode)
+    if(NULL == command->motionDataEntrypted.funcs.decode)
     {
-        command.motionDataEntrypted.funcs.decode = _decode_bytes_field;
-        command.motionDataEntrypted.arg = NULL;
+        command->motionDataEntrypted.funcs.decode = _decode_bytes_field;
+        command->motionDataEntrypted.arg = NULL;
     }
 }
 

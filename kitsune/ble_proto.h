@@ -22,7 +22,7 @@ extern "C"
 {
 #endif
 
-void on_ble_protobuf_command(const MorpheusCommand* command);
+void on_ble_protobuf_command(MorpheusCommand* command);
 bool set_wifi(const char* ssid, const char* password);
 
 //*****************************************************************************
