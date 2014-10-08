@@ -986,7 +986,7 @@ static bool _encode_encrypted_pilldata(pb_ostream_t *stream, const pb_field_t *f
         return false;
     }
 
-    return pb_encode_string(stream, array_holder->buffer, array_holder->len);
+    return pb_encode_string(stream, array_holder->buffer, array_holder->length);
 }
 
 bool encode_pill_data(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
@@ -1094,7 +1094,7 @@ int send_periodic_data( data_t * data ) {
 
                 if(data->pill_list[i].pill_data.motionDataEncrypted.arg)
                 {
-                    const array_data* array_holder = data->pill_list[i].pill_data.motionDataEncrypted.arg;
+                    array_data* array_holder = data->pill_list[i].pill_data.motionDataEncrypted.arg;
                     if(array_holder->buffer)
                     {
                         vPortFree(array_holder->buffer);
@@ -1109,6 +1109,8 @@ int send_periodic_data( data_t * data ) {
             xSemaphoreGive(pill_smphr);
         }
     }
+
+    return ret;
 }
 
 

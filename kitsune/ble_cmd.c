@@ -308,7 +308,7 @@ void free_protobuf_command(MorpheusCommand* command)
 
     if(!command->motionDataEntrypted.arg)
     {
-        array_data* array = (array_data*)command->motionDataEntrypted.arg
+        array_data* array = (array_data*)command->motionDataEntrypted.arg;
         free(array->buffer);  // first free the actual data
         free(array);  // Then free the actual
         command->motionDataEntrypted.arg = NULL;

@@ -311,14 +311,21 @@ void on_ble_protobuf_command(MorpheusCommand* command)
                         }else{
                             array_cp->buffer = encrypted_data;
                             array_cp->length = array->length;
-                            memcpy(encrypted_data, array->buffer);
+                            memcpy(encrypted_data, array->buffer, array->length);
 
             				pill_list[i].pill_data.motionDataEncrypted.arg = array_cp;
                             pill_list[i].magic = PILL_MAGIC;
                         }
                     }
 
-    				UARTprintf("PILL DATA %s %d\n", command->deviceId.arg, command->motionDataEncrypted);
+    				UARTprintf("PILL DATA FROM ID: %s, length: %d\n", command->deviceId.arg, array->length);
+    				int i = 0;
+    				for(i = 0; i < array->length; i++){
+						UARTprintf( "%x", array->buffer[i] );
+
+    				}
+    				UARTprintf("\n");
+
     				xSemaphoreGive(pill_smphr);
     			}
     		}
