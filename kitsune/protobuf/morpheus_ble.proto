@@ -43,4 +43,5 @@ message MorpheusCommand {
 	optional int32 batteryLevel = 9;
 	optional int32 uptime = 10;
 	optional int32 motionData = 11;
+	optional bytes motionDataEntrypted = 12;
 }
