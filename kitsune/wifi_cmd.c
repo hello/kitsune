@@ -9,7 +9,6 @@
 #include "wlan.h"
 #include "socket.h"
 #include "simplelink.h"
-#include "extlibs_common.h"
 #include "protocol.h"
 
 #include "ota_api.h"
