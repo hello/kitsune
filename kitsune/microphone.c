@@ -131,7 +131,7 @@ void Microphone1()
 
     if(res != FR_OK && res != FR_EXIST){
     	UARTprintf("File open %s failed: %d\n", file_name, res);
-    	return -1;
+  //  	return -1;
     }
 
 
@@ -189,7 +189,7 @@ void Microphone1()
 
 #endif   //NETWORK       
 
-             	if(g_iSentCount == 56250){
+             	if(g_iSentCount == 2000){
              		 res = f_close(file_ptr);
              		UARTprintf("mic task completed\r\n" );
              		g_iSentCount = 0;

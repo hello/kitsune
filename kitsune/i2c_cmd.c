@@ -386,7 +386,7 @@ unsigned char cmd_init[2];
 cmd_init[0] = 0x00 ; cmd_init[1] = 0x00 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // Software reset
 cmd_init[0] = 0x03 ; cmd_init[1] = 0x7d ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // PWR 1
 cmd_init[0] = 0x04 ; cmd_init[1] = 0x15 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // PWR 2
-cmd_init[0] = 0x06 ; cmd_init[1] = 0xfd ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // PWR 3
+cmd_init[0] = 0x06 ; cmd_init[1] = 0xf9 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // PWR 3
 cmd_init[0] = 0x09 ; cmd_init[1] = 0x18 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // Audio interface
 cmd_init[0] = 0x0a ; cmd_init[1] = 0x01 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // Companding
 cmd_init[0] = 0x0d ; cmd_init[1] = 0x48 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // CLK control 1

@@ -459,7 +459,7 @@ AudioCapturerInit();
 //
 UDMAInit();
 UDMAChannelSelect(UDMA_CH4_I2S_RX, NULL);
-UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL);
+ UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL);
 
 //
 // Setup the DMA Mode
