@@ -9,6 +9,12 @@
 #include "wifi_cmd.h"
 #include "spi_cmd.h"
 
+#ifndef malloc
+#define malloc pvPortMalloc
+#define free vPortFree
+#endif
+
+
 static bool _encode_string_fields(pb_ostream_t *stream, const pb_field_t *field, void * const *arg)
 {
     char* str = *arg;

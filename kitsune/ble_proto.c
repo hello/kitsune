@@ -8,8 +8,11 @@
 
 #include "FreeRTOS.h"
 #include "task.h"
+
+#ifndef malloc
 #define malloc pvPortMalloc
 #define free vPortFree
+#endif
 
 static int _get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uint32_t scan_duration_ms)
 {
@@ -269,21 +272,57 @@ void on_ble_protobuf_command(MorpheusCommand* command)
             _reply_device_id();
         }
         break;
-	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_DATA: {
-		// Pill data received from ANT
-		if (command->has_motionData) {
-			int i;
-			if (xSemaphoreTake(pill_smphr, portMAX_DELAY)) {
-				i = scan_pill_list(pill_list, command->deviceId.arg);
-				memcpy(pill_list[i].id, command->deviceId.arg,PILL_ID_LEN);
-				pill_list[i].magic = PILL_MAGIC;
-				pill_list[i].pill_data.motionData = command->motionData;
+	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_DATA: 
+        {
+    		// Pill data received from ANT
+    		if (command->motionDataEntrypted.arg) {
+    			int i;
+    			if (xSemaphoreTake(pill_smphr, portMAX_DELAY)) {
+    				i = scan_pill_list(pill_list, command->deviceId.arg);
 
-				UARTprintf("PILL DATA %s %d\n", command->deviceId.arg, command->motionData);
-				xSemaphoreGive(pill_smphr);
-			}
-		}
-	}
+                    memset(pill_list[i].id, 0, PILL_ID_LEN + 1);  // Just in case
+    				memcpy(pill_list[i].id, command->deviceId.arg, PILL_ID_LEN);
+
+                    if(pill_list[i].pill_data.motionDataEncrypted.arg)
+                    {
+                        // If we see there is old data, first release them,
+                        // or we will get memory leak.
+                        array_data* old_data = (array_data*)pill_list[i].pill_data.motionDataEncrypted.arg;
+                        if(old_data->buffer)
+                        {
+                            free(old_data->buffer);
+                        }
+                        free(old_data);
+                        pill_list[i].pill_data.motionDataEncrypted.arg = NULL;
+                        pill_list[i].pill_data.motionDataEncrypted.funcs.encode = NULL;
+                    }
+    				
+
+                    const array_data* array = (array_data*)command->motionDataEntrypted.arg;  // This thing will be free when this function exits
+                    array_data* array_cp = malloc(sizeof(array_data));
+                    if(!array_cp){
+                        UARTprintf("No memory\n");
+
+                    }else{
+                        char* encrypted_data = malloc(array->length);
+                        if(!encrypted_data){
+                            free(array_cp);
+                            UARTprintf("No memory\n");
+                        }else{
+                            array_cp->buffer = encrypted_data;
+                            array_cp->length = array->length;
+                            memcpy(encrypted_data, array->buffer);
+
+            				pill_list[i].pill_data.motionDataEncrypted.arg = array_cp;
+                            pill_list[i].magic = PILL_MAGIC;
+                        }
+                    }
+
+    				UARTprintf("PILL DATA %s %d\n", command->deviceId.arg, command->motionDataEncrypted);
+    				xSemaphoreGive(pill_smphr);
+    			}
+    		}
+    	}
 		break;
 	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_HEARTBEAT: {
 		int i;
