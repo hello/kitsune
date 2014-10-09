@@ -47,6 +47,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "circ_buff.h"
+#include "FreeRTOS.h"
 //*****************************************************************************
 //
 //! Creating and Initializing the Circular Buffer
@@ -64,7 +65,7 @@ tCircularBuffer*
 CreateCircularBuffer(unsigned long ulBufferSize)
 {
     tCircularBuffer *pTempBuff;
-    pTempBuff = (tCircularBuffer*)malloc(sizeof(tCircularBuffer));
+    pTempBuff = (tCircularBuffer*)pvPortMalloc(sizeof(tCircularBuffer));
     pTempBuff->pucBufferStartPtr = (unsigned char*)malloc(ulBufferSize);
     pTempBuff->pucReadPtr = pTempBuff->pucBufferStartPtr;
     pTempBuff->pucWritePtr = pTempBuff->pucBufferStartPtr;
@@ -92,10 +93,10 @@ DestroyCircularBuffer(tCircularBuffer *pCircularBuffer)
 {
     if(pCircularBuffer->pucBufferStartPtr)
     {
-        free(pCircularBuffer->pucBufferStartPtr);
+        vPortFree(pCircularBuffer->pucBufferStartPtr);
     }
 
-    free(pCircularBuffer);
+    vPortFree(pCircularBuffer);
 }
 
 //*****************************************************************************

@@ -163,7 +163,7 @@ PinMuxConfig(void)
     MAP_GPIODirModeSet(GPIOA0_BASE, 0x40, GPIO_DIR_MODE_IN);
 
     //setup i2S clock
-    MAP_PRCMPeripheralClkEnable(PRCM_I2S, PRCM_RUN_MODE_CLK);
+    //MAP_PRCMPeripheralClkEnable(PRCM_I2S, PRCM_RUN_MODE_CLK);
     //
     // Configure PIN_62 for GPIOInput
     //
