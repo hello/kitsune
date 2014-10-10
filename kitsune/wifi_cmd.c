@@ -88,12 +88,12 @@ void SimpleLinkHttpServerCallback(SlHttpServerEvent_t *pHttpEvent,
 //!
 //*****************************************************************************
 // Chris are we redefining this? there is one in osilib/osi_tirtos.c
-/*void SimpleLinkSockEventHandler(SlSockEvent_t *pSock)
+void SimpleLinkSockEventHandler(SlSockEvent_t *pSock)
 {
     //
     // This application doesn't work w/ socket - Events are not expected
     //
-}*/
+}
 
 //****************************************************************************
 //
