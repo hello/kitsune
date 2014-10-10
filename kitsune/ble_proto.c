@@ -335,8 +335,9 @@ void on_ble_protobuf_command(MorpheusCommand* command)
 		int i;
 		if (xSemaphoreTake(pill_smphr, portMAX_DELAY)) {
 			i = scan_pill_list(pill_list, command->deviceId.arg);
-			memcpy(pill_list[i].id, command->deviceId.arg,
-					strlen(command->deviceId.arg));
+
+            memset(pill_list[i].id, 0, PILL_ID_LEN + 1);  // Just in case
+			memcpy(pill_list[i].id, command->deviceId.arg, PILL_ID_LEN);
 			pill_list[i].magic = PILL_MAGIC;
 
 			// Pill heartbeat received from ANT
@@ -350,6 +351,11 @@ void on_ble_protobuf_command(MorpheusCommand* command)
 				pill_list[i].pill_data.uptime = command->uptime;
 				UARTprintf("PILL UPTIME %d\n", command->uptime);
 			}
+
+            if(command->has_firmwareVersion) {
+                pill_list[i].pill_data.firmwareVersion = command->firmwareVersion;
+                UARTprintf("PILL FirmwareVersion %d\n", command->firmwareVersion);
+            }
 			xSemaphoreGive(pill_smphr);
 		}
 		break;
