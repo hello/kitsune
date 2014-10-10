@@ -1055,10 +1055,9 @@ int send_periodic_data( data_t * data ) {
         char * content = strstr(buffer, "\r\n\r\n") + 4;
         char * len_str = strstr(buffer, header_content_len) + strlen(header_content_len);
         int resp_ok = match("2..", buffer);
-        int len = 0;
-
+        
         if (len_str != NULL) {
-            len = atoi(len_str);
+            int len = atoi(len_str);
             if (resp_ok) {
                 SyncResponse response_protobuf;
                 memset(&response_protobuf, 0, sizeof(response_protobuf));
@@ -1112,7 +1111,7 @@ int send_periodic_data( data_t * data ) {
                 UARTprintf("Did not see http 2xx\n");
             }
         } else {
-            UARTprintf("Failed to find length\n");
+            UARTprintf("Failed to find Content-Length header\n");
         }
     }else{
         UARTprintf("Send data failed, network error %d\n", ret);
