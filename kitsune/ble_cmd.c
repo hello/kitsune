@@ -127,23 +127,7 @@ void on_morpheus_protobuf_arrival(uint8_t* protobuf, size_t len)
     memset(&command, 0, sizeof(command));
 
     
-    command.accountId.funcs.decode = _decode_string_field;
-    command.accountId.arg = NULL;
-
-    command.deviceId.funcs.decode = _decode_string_field;
-    command.deviceId.arg = NULL;
-
-    command.wifiName.funcs.decode = _decode_string_field;
-    command.wifiName.arg = NULL;
-
-    command.wifiSSID.funcs.decode = _decode_string_field;
-    command.wifiSSID.arg = NULL;
-
-    command.wifiPassword.funcs.decode = _decode_string_field;
-    command.wifiPassword.arg = NULL;
-
-    command.motionDataEntrypted.funcs.decode = _decode_bytes_field;
-    command.motionDataEntrypted.arg = NULL;
+    ble_proto_assign_decode_funcs(command);
 
     pb_istream_t stream = pb_istream_from_buffer(protobuf, len);
     bool status = pb_decode(&stream, MorpheusCommand_fields, &command);
@@ -159,11 +143,50 @@ void on_morpheus_protobuf_arrival(uint8_t* protobuf, size_t len)
         on_ble_protobuf_command(&command);
     }
 
-    free_protobuf_command(&command);
+    ble_proto_free_command(&command);
     
 }
 
-static MorpheusCommand* _assign_encode_funcs(MorpheusCommand* command)
+void ble_proto_assign_decode_funcs(MorpheusCommand* command)
+{
+    if(NULL == command.accountId.funcs.decode)
+    {
+        command.accountId.funcs.decode = _decode_string_field;
+        command.accountId.arg = NULL;
+    }
+
+    if(NULL == command.deviceId.funcs.decode)
+    {
+        command.deviceId.funcs.decode = _decode_string_field;
+        command.deviceId.arg = NULL;
+    }
+
+    if(NULL == command.wifiName.funcs.decode)
+    {
+        command.wifiName.funcs.decode = _decode_string_field;
+        command.wifiName.arg = NULL;
+    }
+
+    if(NULL == command.wifiSSID.funcs.decode)
+    {
+        command.wifiSSID.funcs.decode = _decode_string_field;
+        command.wifiSSID.arg = NULL;
+    }
+
+    if(NULL == command.wifiPassword.funcs.decode)
+    {
+        command.wifiPassword.funcs.decode = _decode_string_field;
+        command.wifiPassword.arg = NULL;
+    }
+
+    if(NULL == command.motionDataEntrypted.funcs.decode)
+    {
+        command.motionDataEntrypted.funcs.decode = _decode_bytes_field;
+        command.motionDataEntrypted.arg = NULL;
+    }
+}
+
+void ble_proto_assign_encode_funcs(MorpheusCommand* command)
 {
     if(command->accountId.arg != NULL && command->accountId.funcs.encode == NULL)
     {
@@ -194,8 +217,6 @@ static MorpheusCommand* _assign_encode_funcs(MorpheusCommand* command)
     {
         command->motionDataEntrypted.funcs.encode = _encode_bytes_fields;
     }
-
-    return command;
 }
 
 bool ble_reply_protobuf_error(ErrorType error_type)
@@ -234,11 +255,16 @@ bool ble_send_protobuf(MorpheusCommand* command)
     }
 
 
-    _assign_encode_funcs(command);
+    ble_proto_assign_encode_funcs(command);
 
 
     pb_ostream_t stream = {0};
     pb_encode(&stream, MorpheusCommand_fields, command);
+
+    if(!stream.bytes_written)
+    {
+        return false;
+    }
 
     uint8_t* heap_page = malloc(stream.bytes_written);
     if(!heap_page)
@@ -268,7 +294,7 @@ bool ble_send_protobuf(MorpheusCommand* command)
 }
 
 
-void free_protobuf_command(MorpheusCommand* command)
+void ble_proto_free_command(MorpheusCommand* command)
 {
     if(!command)
     {

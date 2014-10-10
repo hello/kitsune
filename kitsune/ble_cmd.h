@@ -31,7 +31,9 @@ typedef struct array_t
 void on_morpheus_protobuf_arrival(uint8_t* protobuf, size_t len);
 bool ble_send_protobuf(MorpheusCommand* command);
 bool ble_reply_protobuf_error(ErrorType error_type);
-void free_protobuf_command(MorpheusCommand* command);
+void ble_proto_free_command(MorpheusCommand* command);
+void ble_proto_assign_encode_funcs(MorpheusCommand* command);
+void ble_proto_assign_decode_funcs(MorpheusCommand* command);
 
 //*****************************************************************************
 //

@@ -561,7 +561,6 @@ int start_connection() {
     }
     UARTprintf("Socket created\n\r");
 
-#define DATA_SERVER "dev-in.hello.is"
 #if !LOCAL_TEST
     if (ipaddr == 0) {
         if (!(rv = gethostbyname(DATA_SERVER, strlen(DATA_SERVER), &ipaddr,
@@ -700,7 +699,7 @@ int send_audio_wifi(char * buffer, int buffer_size, audio_read_cb arcb) {
 #include "SyncResponse.pb.h"
 unsigned long get_time();
 
-int rx_data_pb(unsigned char * buffer, int buffer_size ) {
+int decode_rx_data_pb(const unsigned char * buffer, int buffer_size, const pb_field_t fields[], void* dst_struct, size_t dst_struct_len) {
 	AES_CTX aesctx;
 	unsigned char * buf_pos = buffer;
 	unsigned char sig[SIG_SIZE];
@@ -708,8 +707,7 @@ int rx_data_pb(unsigned char * buffer, int buffer_size ) {
 	int i;
 	int status;
 	pb_istream_t stream;
-	SyncResponse SyncResponse_data;
-    memset(&SyncResponse_data, 0, sizeof(SyncResponse_data));
+    memset(dst_struct, 0, dst_struct_len);
 
 	//memset( aesctx.iv, 0, sizeof( aesctx.iv ) );
 
@@ -761,7 +759,7 @@ int rx_data_pb(unsigned char * buffer, int buffer_size ) {
 	/* Now we are ready to decode the message! */
 
 	UARTprintf("data ");
-	status = pb_decode(&stream, SyncResponse_fields, &SyncResponse_data);
+	status = pb_decode(&stream, fields, dst_struct);
 	UARTprintf("\n");
 
 	/* Then just check for any errors.. */
@@ -770,21 +768,6 @@ int rx_data_pb(unsigned char * buffer, int buffer_size ) {
 		return -1;
 	}
 
-	UARTprintf("Decoding success: %d %d %d %d %d\n",
-					SyncResponse_data.has_acc_sampling_interval,
-					SyncResponse_data.has_acc_scan_cyle,
-					SyncResponse_data.has_alarm,
-					SyncResponse_data.has_device_sampling_interval,
-					SyncResponse_data.has_flash_action);
-
-	if( SyncResponse_data.has_alarm ) {
-		alarm = SyncResponse_data.alarm;
-
-		if(alarm.has_start_time) {
-			UARTprintf( "Got alarm %d to %d in %d minutes\n", alarm.start_time, alarm.end_time, (alarm.start_time - get_time())/60 );
-		}
-	}
-	//now act on incoming data!
 	return 0;
 }
 #endif
@@ -829,7 +812,10 @@ int match(char *regexp, char *text)
 }
 
 //buffer needs to be at least 128 bytes...
-int send_data_pb(char * buffer, int buffer_size, const pb_field_t fields[], const void *src_struct) {
+int send_data_pb(const char* host, const char* path, 
+    char * buffer_out, int buffer_size, 
+    const pb_field_t fields[], const void *src_struct) {
+
     int send_length;
     int rv = 0;
     uint8_t sig[32]={0};
@@ -844,12 +830,12 @@ int send_data_pb(char * buffer, int buffer_size, const pb_field_t fields[], cons
         UARTprintf("message len %d sig len %d\n\r\n\r", stream.bytes_written, sizeof(sig));
     }
 
-    snprintf(buffer, buffer_size, "POST /in/morpheus/pb2 HTTP/1.1\r\n"
-            "Host: in.skeletor.com\r\n"
+    snprintf(buffer_out, buffer_size, "POST %s HTTP/1.1\r\n"
+            "Host: %s\r\n"
             "Content-type: application/x-protobuf\r\n"
             "Content-length: %d\r\n"
-            "\r\n", message_length);
-    send_length = strlen(buffer);
+            "\r\n", path, host, message_length);
+    send_length = strlen(buffer_out);
 
     //setup the connection
     if( start_connection() < 0 ) {
@@ -857,13 +843,13 @@ int send_data_pb(char * buffer, int buffer_size, const pb_field_t fields[], cons
         return -1;
     }
 
-    //UARTprintf("Sending request\n\r%s\n\r", buffer);
-    rv = send(sock, buffer, send_length, 0);
+    //UARTprintf("Sending request\n\r%s\n\r", buffer_out);
+    rv = send(sock, buffer_out, send_length, 0);
     if (rv <= 0) {
         UARTprintf("send error %d\n\r\n\r", rv);
         return stop_connection();
     }
-    UARTprintf("sent %d\n\r%s\n\r", rv, buffer);
+    UARTprintf("sent %d\n\r%s\n\r", rv, buffer_out);
 
     {
         pb_ostream_t stream;
@@ -929,35 +915,15 @@ int send_data_pb(char * buffer, int buffer_size, const pb_field_t fields[], cons
         }
         UARTprintf("\n");
     }
-    memset(buffer, 0, buffer_size);
+    memset(buffer_out, 0, buffer_size);
 
     //UARTprintf("Waiting for reply\n\r\n\r");
-    rv = recv(sock, buffer, buffer_size, 0);
+    rv = recv(sock, buffer_out, buffer_size, 0);
     if (rv <= 0) {
         UARTprintf("recv error %d\n\r\n\r", rv);
         return stop_connection();
     }
     UARTprintf("recv %d\n\r\n\r", rv);
-
-    UARTprintf("Reply is:\n\r%s\n\r", buffer);
-    {
-		#define CL_HDR "Content-Length: "
-		char * content = strstr(buffer, "\r\n\r\n") + 4;
-		char * len_str = strstr(buffer, CL_HDR) + strlen(CL_HDR);
-		int resp_ok = match("2..", buffer);
-		int len;
-
-		if (len_str != NULL) {
-			len = atoi(len_str);
-			if (resp_ok) {
-				rx_data_pb((unsigned char*) content, len);
-			} else {
-				UARTprintf("Did not see http 2xx\n");
-			}
-		} else {
-			UARTprintf("Failed to find length\n");
-		}
-	}
 
 	UARTprintf("Send complete\n");
 
@@ -1079,35 +1045,77 @@ int send_periodic_data( data_t * data ) {
     msg.pills.funcs.encode = encode_pill_data;
     msg.pills.arg = data->pill_list;
 
-    int ret = send_data_pb(buffer, sizeof(buffer), periodic_data_fields, &msg);
+    int ret = send_data_pb(DATA_SERVER, DATA_RECEIVE_ENDPOINT, buffer, sizeof(buffer), periodic_data_fields, &msg);
     if(ret == 0)
     {
-        // Release all the resource occupied by pill data, or
-        // user can occupy the buffer forever by sending only one packet
-        if (xSemaphoreTake(pill_smphr, portMAX_DELAY)) {
-            int i;
-            for (i = 0; i < MAX_PILLS; ++i) {
-                if (data->pill_list[i].magic != PILL_MAGIC) {
-                    // Slot already empty, skip.
-                    continue;
-                }
+        // Parse the response
+        UARTprintf("Reply is:\n\r%s\n\r", buffer_out);
+        
+        const char* header_content_len = "Content-Length: "
+        char * content = strstr(buffer, "\r\n\r\n") + 4;
+        char * len_str = strstr(buffer, header_content_len) + strlen(header_content_len);
+        int resp_ok = match("2..", buffer);
+        int len = 0;
 
-                if(data->pill_list[i].pill_data.motionDataEncrypted.arg)
+        if (len_str != NULL) {
+            len = atoi(len_str);
+            if (resp_ok) {
+                SyncResponse response_protobuf;
+                memset(&response_protobuf, 0, sizeof(response_protobuf));
+
+                if(decode_rx_data_pb((unsigned char*) content, len, SyncResponse_fields, &response_protobuf, sizeof(response_protobuf)) == 0)
                 {
-                    array_data* array_holder = data->pill_list[i].pill_data.motionDataEncrypted.arg;
-                    if(array_holder->buffer)
-                    {
-                        vPortFree(array_holder->buffer);
-                    }
+                    UARTprintf("Decoding success: %d %d %d %d %d\n",
+                    response_protobuf.has_acc_sampling_interval,
+                    response_protobuf.has_acc_scan_cyle,
+                    response_protobuf.has_alarm,
+                    response_protobuf.has_device_sampling_interval,
+                    response_protobuf.has_flash_action);
 
-                    vPortFree(array_holder);
-                    data->pill_list[i].pill_data.motionDataEncrypted.arg = NULL;
-                    data->pill_list[i].pill_data.motionDataEncrypted.funcs.encode = NULL;
-                    data->pill_list[i].magic = 0;  // Release this slot.
+                    if( response_protobuf.has_alarm ) {
+                        alarm = response_protobuf.alarm;
+
+                        if(alarm.has_start_time) {
+                            UARTprintf( "Got alarm %d to %d in %d minutes\n", alarm.start_time, alarm.end_time, (alarm.start_time - get_time())/60 );
+                        }
+                    }
+                    //now act on incoming data!
                 }
+
+                // Release all the resource occupied by pill data, or
+                // user can occupy the buffer forever by sending only one packet
+                if (xSemaphoreTake(pill_smphr, portMAX_DELAY)) {
+                    int i;
+                    for (i = 0; i < MAX_PILLS; ++i) {
+                        if (data->pill_list[i].magic != PILL_MAGIC) {
+                            // Slot already empty, skip.
+                            continue;
+                        }
+
+                        if(data->pill_list[i].pill_data.motionDataEncrypted.arg)
+                        {
+                            array_data* array_holder = data->pill_list[i].pill_data.motionDataEncrypted.arg;
+                            if(array_holder->buffer)
+                            {
+                                vPortFree(array_holder->buffer);
+                            }
+
+                            vPortFree(array_holder);
+                            data->pill_list[i].pill_data.motionDataEncrypted.arg = NULL;
+                            data->pill_list[i].pill_data.motionDataEncrypted.funcs.encode = NULL;
+                            data->pill_list[i].magic = 0;  // Release this slot.
+                        }
+                    }
+                    xSemaphoreGive(pill_smphr);
+                }
+            } else {
+                UARTprintf("Did not see http 2xx\n");
             }
-            xSemaphoreGive(pill_smphr);
+        } else {
+            UARTprintf("Failed to find length\n");
         }
+    }else{
+        UARTprintf("Send data failed, network error %d\n", ret);
     }
 
     return ret;

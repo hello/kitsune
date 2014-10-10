@@ -2,6 +2,11 @@
 #define __WIFI_CMD_H__
 
 #include "periodic.pb.h"
+#define DATA_SERVER                         "dev-in.hello.is"
+#define DATA_RECEIVE_ENDPOINT               "/in/morpheus/pb2"
+#define MORPHEUS_REGISTER_ENDPOINT          "/register/morpheus"
+#define PILL_REGISTER_ENDPOINT              "/register/pill"
+
 #define PILL_ID_LEN 16
 typedef struct {
 	uint32_t magic;
@@ -68,6 +73,12 @@ int send_periodic_data( data_t * data );
 int send_audio_data( data_t * data );
 
 void thread_ota( void * unused );
+
+int send_data_pb(const char* host, const char* path, 
+    char * buffer_out, int buffer_size, 
+    const pb_field_t fields[], const void *src_struct);
+int decode_rx_data_pb(const unsigned char * buffer, int buffer_size, 
+    const pb_field_t fields[], void* dst_struct, size_t dst_struct_len);
 
 //#define MORPH_NAME "KingShy's morpheus"
 
