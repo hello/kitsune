@@ -46,8 +46,8 @@
 // If you are using CCS for building, it is probably better to make any such 
 // modifications in your CCS project and leave this file alone.              
 //*****************************************************************************                                                                           */
- __HEAP_SIZE=0x00001000;
- __STACK_SIZE=0x500;
+ __HEAP_SIZE=0x00008000;
+ __STACK_SIZE=0x1000;
 
 //*****************************************************************************
 // The starting address of the application.  Normally the interrupt vectors  
