@@ -9,6 +9,12 @@
 #include "wifi_cmd.h"
 #include "spi_cmd.h"
 
+#ifndef malloc
+#define malloc pvPortMalloc
+#define free vPortFree
+#endif
+
+
 static bool _encode_string_fields(pb_ostream_t *stream, const pb_field_t *field, void * const *arg)
 {
     char* str = *arg;
@@ -18,11 +24,29 @@ static bool _encode_string_fields(pb_ostream_t *stream, const pb_field_t *field,
     }
 
     //write tag
-    if (!pb_encode_tag(stream, PB_WT_STRING, field->tag)) {
+    //if (!pb_encode_tag(stream, PB_WT_STRING, field->tag)) { // Not sure should do this,
+                                                              // This is for encoding byte array
+    if (pb_encode_tag_for_field(stream, field)){
         return 0;
     }
 
     return pb_encode_string(stream, (uint8_t*)str, strlen(str));
+}
+
+static bool _encode_bytes_fields(pb_ostream_t *stream, const pb_field_t *field, void * const *arg)
+{
+    array_data* array = *arg;
+    if(!array)
+    {
+        return false;
+    }
+
+    //write tag
+    if (!pb_encode_tag(stream, PB_WT_STRING, field->tag)) {
+        return 0;
+    }
+
+    return pb_encode_string(stream, (uint8_t*)array->buffer, array->length);
 }
 
 
@@ -43,9 +67,47 @@ static bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, 
     memset(str, 0, stream->bytes_left + 1);
     if (!pb_read(stream, str, stream->bytes_left))
     {
+        free(str);  // Remember to free if read failed.
         return false;
     }
     *arg = str;
+
+    return true;
+}
+
+static bool _decode_bytes_field(pb_istream_t *stream, const pb_field_t *field, void **arg)
+{
+    /* We could read block-by-block to avoid the large buffer... */
+    if (stream->bytes_left > MAX_STRING_LEN - 1)
+    {
+        return false;
+    }
+    
+    uint8_t* buffer = malloc(stream->bytes_left);
+    if(!buffer)
+    {
+        return false;
+    }
+
+    memset(buffer, 0, stream->bytes_left);
+    if (!pb_read(stream, buffer, stream->bytes_left))
+    {
+        free(buffer);
+        return false;
+    }
+
+    array_data* array = malloc(sizeof(array_data));
+    if(!array)
+    {
+        free(buffer);
+        return false;
+    }
+
+    memset(array, 0, sizeof(array_data));
+    array->buffer = buffer;
+    array->length = stream->bytes_left;
+
+    *arg = array;
 
     return true;
 }
@@ -79,6 +141,9 @@ void on_morpheus_protobuf_arrival(uint8_t* protobuf, size_t len)
 
     command.wifiPassword.funcs.decode = _decode_string_field;
     command.wifiPassword.arg = NULL;
+
+    command.motionDataEntrypted.funcs.decode = _decode_bytes_field;
+    command.motionDataEntrypted.arg = NULL;
 
     pb_istream_t stream = pb_istream_from_buffer(protobuf, len);
     bool status = pb_decode(&stream, MorpheusCommand_fields, &command);
@@ -123,6 +188,11 @@ static MorpheusCommand* _assign_encode_funcs(MorpheusCommand* command)
     if(command->wifiPassword.arg != NULL && command->wifiPassword.funcs.encode == NULL)
     {
         command->wifiPassword.funcs.encode = _encode_string_fields;
+    }
+
+    if(command->motionDataEntrypted.arg != NULL && command->motionDataEntrypted.funcs.encode == NULL)
+    {
+        command->motionDataEntrypted.funcs.encode = _encode_bytes_fields;
     }
 
     return command;
@@ -234,5 +304,13 @@ void free_protobuf_command(MorpheusCommand* command)
     {
         free(command->wifiPassword.arg);
         command->wifiPassword.arg = NULL;
+    }
+
+    if(!command->motionDataEntrypted.arg)
+    {
+        array_data* array = (array_data*)command->motionDataEntrypted.arg;
+        free(array->buffer);  // first free the actual data
+        free(array);  // Then free the actual
+        command->motionDataEntrypted.arg = NULL;
     }
 }

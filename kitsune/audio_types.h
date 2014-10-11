@@ -2,15 +2,13 @@
 #define _AUDIOTYPES_H_
 
 #include <stdint.h>
+#include <simplelink.h>
 
 #define AUDIO_FFT_SIZE_2N (10)
 #define AUDIO_FFT_SIZE (1 << AUDIO_FFT_SIZE_2N)
 #define EXPECTED_AUDIO_SAMPLE_RATE_HZ (44100)
 
 #define NUM_AUDIO_FEATURES (16)
-
-#define TRUE (1)
-#define FALSE (0)
 
 #define MAX_INT_16 (32767)
 
