@@ -464,7 +464,7 @@ AudioCapturerInit();
 //
 UDMAInit();
 UDMAChannelSelect(UDMA_CH4_I2S_RX, NULL);
-UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL);
+ UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL);
 
 //
 // Setup the DMA Mode
@@ -997,7 +997,7 @@ void SetupGPIOInterrupts() {
 
     port = GPIO_PORT;
     pin = NORDIC_PIN /*| PROX_PIN*/;
-	GPIO_IF_ConfigureNIntEnable( port, pin, GPIO_HIGH_LEVEL, nordic_prox_int );
+	//GPIO_IF_ConfigureNIntEnable( port, pin, GPIO_HIGH_LEVEL, nordic_prox_int );
 	//only one interrupt per port...
 }
 
@@ -1337,7 +1337,7 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(thread_spi, "spiTask", 5*2048 / 4, NULL, 5, NULL);
 	SetupGPIOInterrupts();
 	UARTprintf("*");
-#if 1
+#if 0
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask", 5 * 1024 / 4, NULL, 3, NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_dust, "dustTask", 5* 1024 / 4, NULL, 3, NULL);

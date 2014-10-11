@@ -195,7 +195,7 @@ void Microphone1()
 
 #endif   //NETWORK       
 
-             	if(g_iSentCount == 6250){
+             	if(g_iSentCount == 2000){
              		 res = f_close(file_ptr);
              		UARTprintf("mic task completed\r\n" );
              		g_iSentCount = 0;
