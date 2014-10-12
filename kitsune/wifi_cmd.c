@@ -1245,6 +1245,7 @@ int RadioStartRX(int eChannel)
 {
 	struct SlTimeval_t timeval;
 	uint8_t * DataFrame = (uint8_t*)pvPortMalloc( FRAME_SIZE );
+	assert(DataFrame);
 
 	timeval.tv_sec =  0;             // Seconds
 	timeval.tv_usec = 20000;             // Microseconds. 10000 microseconds resoultion
@@ -1307,6 +1308,8 @@ int Cmd_RadioGetStats(int argc, char*argv[])
 
 	rssi_histogram = (uint16_t*)pvPortMalloc(sizeof(unsigned short) * SIZE_OF_RSSI_HISTOGRAM);
 	rate_histogram = (uint16_t*)pvPortMalloc(sizeof(unsigned short) * NUM_OF_RATE_INDEXES);
+	assert(rssi_histogram);
+	assert(rate_histogram);
 
 	RadioGetStats(&valid_packets, &fcs_packets, &plcp_packets, &avg_rssi_mgmt, &avg_rssi_other, rssi_histogram, rate_histogram);
 
@@ -1371,6 +1374,7 @@ int32_t RadioStartTX(RadioTxMode_e eTxMode, uint8_t powerLevel_Tone, int eChanne
 	CurrentTxMode = (uint8_t) eTxMode;
 	int32_t minDelay;
 	uint8_t * DataFrame = (uint8_t*)pvPortMalloc( FRAME_SIZE );
+	assert(DataFrame);
 
 	if ((RADIO_TX_PACKETIZED == eTxMode) || (RADIO_TX_CONTINUOUS == eTxMode))
 	{

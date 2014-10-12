@@ -47,6 +47,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "circ_buff.h"
+#include "assert.h"
 #include "FreeRTOS.h"
 //*****************************************************************************
 //
@@ -66,7 +67,9 @@ CreateCircularBuffer(unsigned long ulBufferSize)
 {
     tCircularBuffer *pTempBuff;
     pTempBuff = (tCircularBuffer*)pvPortMalloc(sizeof(tCircularBuffer));
+    assert(pTempBuff);
     pTempBuff->pucBufferStartPtr = (unsigned char*)pvPortMalloc(ulBufferSize);
+    assert(pTempBuff->pucBufferStartPtr);
     pTempBuff->pucReadPtr = pTempBuff->pucBufferStartPtr;
     pTempBuff->pucWritePtr = pTempBuff->pucBufferStartPtr;
     pTempBuff->ulBufferSize = ulBufferSize;

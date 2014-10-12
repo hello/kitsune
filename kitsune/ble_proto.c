@@ -9,6 +9,9 @@
 #include "FreeRTOS.h"
 #include "task.h"
 
+#include "assert.h"
+#include "stdlib.h"
+
 #ifndef malloc
 #define malloc pvPortMalloc
 #define free vPortFree
@@ -116,6 +119,24 @@ bool set_wifi(const char* ssid, const char* password)
     return 0;
 }
 
+static int itoa(unsigned int v, char *sp, int radix)
+{
+    char *tp = sp;
+    int i;
+
+    while(v)
+    {
+        i = v % radix;
+        v /= radix;
+        if (i < 10)
+          *tp++ = i+'0';
+        else
+          *tp++ = i+'a'-10;
+    }
+    return tp - sp;
+}
+
+
 static void _reply_device_id()
 {
     uint8_t mac_len = SL_MAC_ADDR_LEN;
@@ -126,11 +147,12 @@ static void _reply_device_id()
     {
         uint8_t device_id_len = SL_MAC_ADDR_LEN * 2 + 1;  // hex string representation
         char* device_id = malloc(device_id_len);
+        assert(device_id);
         memset(device_id, 0, device_id_len);
 
         uint8_t i = 0;
         for(i = 0; i < SL_MAC_ADDR_LEN; i++){
-            sprintf(device_id[i * 2], "%02X", mac[i]);  // It has sprintf!
+            assert( itoa( mac[i], device_id+i*2, 16 ) == 2 );
         }
 
         UARTprintf("Morpheus device id: %s\n", device_id);
@@ -309,7 +331,7 @@ void on_ble_protobuf_command(MorpheusCommand* command)
                             free(array_cp);
                             UARTprintf("No memory\n");
                         }else{
-                            array_cp->buffer = encrypted_data;
+                            array_cp->buffer = (uint8_t*)encrypted_data;
                             array_cp->length = array->length;
                             memcpy(encrypted_data, array->buffer, array->length);
 

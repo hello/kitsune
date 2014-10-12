@@ -245,7 +245,7 @@ int Cmd_code_playbuff(int argc, char *argv[]) {
 #endif
 
 	audio_buf = (unsigned short*)pvPortMalloc(AUDIO_BUF_SZ);
-
+	assert(audio_buf);
 	if (err = sl_FsOpen("Ringtone_hello_leftchannel_16PCM", FS_MODE_OPEN_READ, &tok, &hndl)) {
 		UARTprintf("error opening for read %d\n", err);
 		return -1;
@@ -788,6 +788,7 @@ int Cmd_tasks(int argc, char *argv[]) {
 	char* pBuffer;
 
 	pBuffer = pvPortMalloc(1024);
+	assert(pBuffer);
 	vTaskList(pBuffer);
 	UARTprintf("\t\t\t\t\tUnused\nTaskName\t\tStatus\tPri\tStack\tTask ID\n");
 	UARTprintf("=======================================================");
