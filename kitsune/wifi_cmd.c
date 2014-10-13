@@ -634,7 +634,7 @@ int send_audio_wifi(char * buffer, int buffer_size, audio_read_cb arcb) {
     message_length = 110000;
 
     snprintf(buffer, buffer_size, "POST /audio/%x%x%x%x%x%x HTTP/1.1\r\n"
-            "Host: in.skeletor.com\r\n"
+            "Host: dev-in.hello.com\r\n"
             "Content-type: application/octet-stream\r\n"
             "Content-length: %d\r\n"
             "\r\n", mac[0],mac[1],mac[2],mac[3],mac[4],mac[5], message_length);
