@@ -278,18 +278,9 @@ if(pTxBuffer == NULL)
 	UARTprintf("Unable to Allocate Memory for Tx Buffer\n\r");
     while(1){};
 }
-
-pRxBuffer = CreateCircularBuffer(RX_BUFFER_SIZE);
-if(pRxBuffer == NULL)
-{
-	UARTprintf("Unable to Allocate Memory for Rx Buffer\n\r");
-	while(1){};
-}
-
 // Configure Audio Codec
 //
 get_codec_mic_NAU();
-//ConfigureAudioCodec(CODEC_I2S_WORD_LEN_24);
 
 // Initialize the Audio(I2S) Module
 //
@@ -299,7 +290,6 @@ AudioCapturerInit(CPU_XDATA);
 //
 UDMAInit();
 UDMAChannelSelect(UDMA_CH4_I2S_RX, NULL);
-UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL);
 
 //
 // Setup the DMA Mode
@@ -324,7 +314,6 @@ UARTprintf("g_iSentCount %d\n\r", g_iSentCount);
 Audio_Stop();
 
 DestroyCircularBuffer(pTxBuffer);
-DestroyCircularBuffer(pRxBuffer);
 
 return 0;
 
