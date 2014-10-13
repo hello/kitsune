@@ -254,13 +254,13 @@ unsigned int CPU_XDATA = 1; //1: enabled CPU interrupt triggerred
 	get_codec_NAU();
 	UARTprintf(" Done for get_codec_NAU\n ");
 
-	    AudioCaptureRendererConfigure(I2S_PORT_CPU);
+	AudioCaptureRendererConfigure(I2S_PORT_CPU);
 
-		 AudioCapturerInit(CPU_XDATA); //UARTprintf(" Done for AudioCapturerInit\n ");
+	AudioCapturerInit(CPU_XDATA); //UARTprintf(" Done for AudioCapturerInit\n ");
 
-		 Audio_Start(); //UARTprintf(" Done for Audio_Start\n ");
+	Audio_Start(); //UARTprintf(" Done for Audio_Start\n ");
 
-		 vPortFree(audio_buf); //UARTprintf(" audio_buf\n ");
+	vPortFree(audio_buf); //UARTprintf(" audio_buf\n ");
 		// Audio_Stop(); // added this, the ringtone will not play
 	 return 0;
 }
@@ -278,6 +278,7 @@ if(pTxBuffer == NULL)
 	UARTprintf("Unable to Allocate Memory for Tx Buffer\n\r");
     while(1){};
 }
+
 pRxBuffer = CreateCircularBuffer(RX_BUFFER_SIZE);
 if(pRxBuffer == NULL)
 {
@@ -1104,6 +1105,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "fswr", Cmd_fs_write, "fs write" },
 		{ "fsrd", Cmd_fs_read, "fs read" },
 		{ "play_ringtone", Cmd_code_playbuff, "play selected ringtone" },
+		{ "stop_ringtone", Audio_Stop,"stop sounds"},
 		{ "r", Cmd_record_buff,"record sounds"},
 		{ "fsdl", Cmd_fs_delete, "fs delete" },
 		//{ "readout", Cmd_readout_data, "read out sensor data log" },
