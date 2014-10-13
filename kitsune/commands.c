@@ -1028,15 +1028,12 @@ void thread_spi(void * data) {
 
 #endif
 
-#if 0
-#define LED_LOGIC_HIGH 0
-#define LED_LOGIC_LOW LED_GPIO_BIT
-#else
-#define LED_LOGIC_HIGH LED_GPIO_BIT
-#define LED_LOGIC_LOW 0
-#endif
+#define LED_LOGIC_HIGH_FAST 0
+#define LED_LOGIC_LOW_FAST LED_GPIO_BIT
+#define LED_LOGIC_HIGH_SLOW LED_GPIO_BIT
+#define LED_LOGIC_LOW_SLOW 0
 
-void led( unsigned int* color ) {
+void led_fast( unsigned int* color ) {
 	int i;
 	unsigned int * end = color + NUM_LED;
 
@@ -1044,7 +1041,7 @@ void led( unsigned int* color ) {
 		for (i = 0; i < 24; ++i) {
 			if ((*color << i) & 0x800000 ) {
 				//1
-				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_HIGH);
+				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_HIGH_FAST);
 				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
@@ -1057,7 +1054,7 @@ void led( unsigned int* color ) {
 				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_LOW);
+				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_LOW_FAST);
 				if( i!=23 ) {
 					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
@@ -1076,10 +1073,10 @@ void led( unsigned int* color ) {
 				}
 			} else {
 				//0
-				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_HIGH);
+				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_HIGH_FAST);
 				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_LOW);
+				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_LOW_FAST);
 				if( i!=23 ) {
 					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
@@ -1103,15 +1100,58 @@ void led( unsigned int* color ) {
 		}
 	}
 }
-void led_array( unsigned int * colors ) {
+void led_slow(unsigned int* color) {
+	int i;
+	unsigned int * end = color + NUM_LED;
+	for (;;) {
+		for (i = 0; i < 24; ++i) {
+			if ((*color << i) & 0x800000) {
+				//1
+				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_HIGH_SLOW);
+				UtilsDelay(5);
+				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_LOW_SLOW);
+				if (i != 23) {
+					UtilsDelay(5);
+				} else {
+					UtilsDelay(4);
+				}
+
+			} else {
+				//0
+				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_HIGH_SLOW);
+				UtilsDelay(1);
+				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_LOW_SLOW);
+				if (i != 23) {
+					UtilsDelay(5);
+				} else {
+					UtilsDelay(2);
+				}
+			}
+		}
+		if (++color == end) {
+			break;
+		}
+	}
+}
+
+#define LED_GPIO_BASE_DOUT GPIOA2_BASE
+#define LED_GPIO_BIT_DOUT 0x80
+void led_array(unsigned int * colors) {
 	int i;
 	unsigned long ulInt;
 	//
 	// Temporarily turn off interrupts.
 	//
+	bool fast = MAP_GPIOPinRead(LED_GPIO_BASE_DOUT, LED_GPIO_BIT_DOUT);
 	ulInt = MAP_IntMasterDisable();
-	for (i = 0; i < NUM_LED; ++i) {
-		led(colors+i);
+	if (fast) {
+		for (i = 0; i < NUM_LED; ++i) {
+			led_fast(colors + i);
+		}
+	} else {
+		for (i = 0; i < NUM_LED; ++i) {
+			led_slow(colors + i);
+		}
 	}
 	if (!ulInt) {
 		MAP_IntMasterEnable();
