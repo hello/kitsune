@@ -183,13 +183,13 @@ void McASPLoad(unsigned long * b, unsigned long size){
 void I2SIntHandler(){
 	//static unsigned long sin[32]={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 	//						 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa};
-	//static int i;
+	 static int i;
    unsigned long ulStatus;
    unsigned long ulDummy=0;
 
    // Get the interrupt status
    ulStatus = I2SIntStatus(I2S_BASE);
-#if 0
+
    // Check if there was a Transmit interrupt; if so write next data into the tx buffer and acknowledge the interrupt
    if(ulStatus & I2S_STS_XDATA)
    {
@@ -204,7 +204,7 @@ void I2SIntHandler(){
 
    // Check if there was a receive interrupt; if so read the data from the rx buffer and acknowledge
    // the interrupt
-#endif
+
    if(ulStatus & I2S_STS_RDATA)
    {
 
@@ -240,7 +240,7 @@ void AudioCapturerSetupDMAMode(void (*pfnAppCbHndlr)(void),
 {
 
      MAP_I2SIntEnable(I2S_BASE,I2S_INT_XDATA);
-     MAP_I2SIntEnable(I2S_BASE,I2S_INT_RDATA); //added by Ben
+   //  MAP_I2SIntEnable(I2S_BASE,I2S_INT_RDATA); //added by Ben
 #ifdef USE_TIRTOS
     osi_InterruptRegister(INT_I2S, pfnAppCbHndlr, INT_PRIORITY_LVL_1);
 #else
@@ -271,17 +271,6 @@ void AudioCaptureRendererConfigure()
 {
 
     MAP_I2SConfigSetExpClk(I2S_BASE,512000*3,512000*3,I2S_SLOT_SIZE_16|
-    		I2S_PORT_DMA );// I2S_PORT_DMA
-    MAP_I2SSerializerConfig(I2S_BASE,I2S_DATA_LINE_1,I2S_SER_MODE_RX,
-                                            I2S_INACT_LOW_LEVEL);
-    MAP_I2SSerializerConfig(I2S_BASE,I2S_DATA_LINE_0,I2S_SER_MODE_TX,
-                                            I2S_INACT_LOW_LEVEL);
-
-}
-void AudioCaptureRendererConfigure_aud()
-{
-
-    MAP_I2SConfigSetExpClk(I2S_BASE,512000*3,512000*3,I2S_SLOT_SIZE_16|
     		I2S_PORT_CPU );// I2S_PORT_DMA
     MAP_I2SSerializerConfig(I2S_BASE,I2S_DATA_LINE_1,I2S_SER_MODE_RX,
                                             I2S_INACT_LOW_LEVEL);
@@ -289,6 +278,7 @@ void AudioCaptureRendererConfigure_aud()
                                             I2S_INACT_LOW_LEVEL);
 
 }
+
 //*****************************************************************************
 //
 //! Initialize the Audio_Start

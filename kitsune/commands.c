@@ -244,13 +244,13 @@ int Cmd_code_playbuff(int argc, char *argv[]) {
 	SlFsFileInfo_t info;
 #endif
 
-	audio_buf = (unsigned short*)pvPortMalloc(AUDIO_BUF_SZ);
-	assert(audio_buf);
+	audio_buf = (char*)pvPortMalloc(AUDIO_BUF_SZ);
+	//assert(audio_buf);
 	if (err = sl_FsOpen("Ringtone_hello_leftchannel_16PCM", FS_MODE_OPEN_READ, &tok, &hndl)) {
 		UARTprintf("error opening for read %d\n", err);
 		return -1;
 	}
-	if (bytes = sl_FsRead(hndl, 0, (unsigned char*)audio_buf, AUDIO_BUF_SZ)) {
+	if (bytes = sl_FsRead(hndl, 0,  audio_buf, AUDIO_BUF_SZ)) {
 		UARTprintf("read %d bytes\n", bytes);
 	}
 	sl_FsClose(hndl, 0, 0, 0);
@@ -260,22 +260,12 @@ int Cmd_code_playbuff(int argc, char *argv[]) {
 	//UARTprintf("Done for CreateCircularBuffer TX\n ");
     //pRxBuffer = CreateCircularBuffer(RX_BUFFER_SIZE);
 	//UARTprintf("Done for CreateCircularBuffer RX\n ");
-# if 0
+/*
 	for (i = 0; i < bytes; ++i) {
-		UARTprintf("%x", buffer[i]);
-		//buffer[i] = CreateCircularBuffer(TX_BUFFER_SIZE);
-		//pTxBuffer->pucWritePtr = buffer[i+1]<<8 + buffer[i];
-		//speaker_data = buffer[i];
-		//UARTprintf("%x\d\n\r", pRxBuffer->pucReadPtr);
-	    //unsigned char *pucReadPtr;
-	    //unsigned char *pucWritePtr;
-	    //unsigned char *pucBufferStartPtr;
-	    //unsigned long ulBufferSize;
-	    //unsigned char *pucBufferEndPtr;
-		//UARTprintf("%x\n", pRxBuffer->pucWritePtr);
-	    // put data in the buffer
+		UARTprintf("%x", audio_buf[i]);
+
 	}
-# endif
+*/
 	get_codec_NAU();
 	UARTprintf(" Done for get_codec_NAU\n ");
 	//UARTprintf(" Done for ControlTaskCreate\n ");
@@ -1001,7 +991,7 @@ void SetupGPIOInterrupts() {
     port = GPIO_PORT;
     pin = NORDIC_PIN /*| PROX_PIN*/;
 #if !ONLY_MID
-	GPIO_IF_ConfigureNIntEnable( port, pin, GPIO_HIGH_LEVEL, nordic_prox_int );
+	//GPIO_IF_ConfigureNIntEnable( port, pin, GPIO_HIGH_LEVEL, nordic_prox_int );
 	//only one interrupt per port...
 #endif
 }
@@ -1382,7 +1372,7 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(thread_spi, "spiTask", 5*2048 / 4, NULL, 5, NULL);
 	SetupGPIOInterrupts();
 	UARTprintf("*");
-#if !ONLY_MID
+#if 0
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask", 5 * 1024 / 4, NULL, 3, NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_dust, "dustTask", 5* 1024 / 4, NULL, 3, NULL);

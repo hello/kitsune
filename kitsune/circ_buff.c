@@ -67,9 +67,9 @@ CreateCircularBuffer(unsigned long ulBufferSize)
 {
     tCircularBuffer *pTempBuff;
     pTempBuff = (tCircularBuffer*)pvPortMalloc(sizeof(tCircularBuffer));
-    assert(pTempBuff);
+    //assert(pTempBuff);
     pTempBuff->pucBufferStartPtr = (unsigned char*)pvPortMalloc(ulBufferSize);
-    assert(pTempBuff->pucBufferStartPtr);
+    //assert(pTempBuff->pucBufferStartPtr);
     pTempBuff->pucReadPtr = pTempBuff->pucBufferStartPtr;
     pTempBuff->pucWritePtr = pTempBuff->pucBufferStartPtr;
     pTempBuff->ulBufferSize = ulBufferSize;
