@@ -235,14 +235,10 @@ int Cmd_fs_read(int argc, char *argv[]) {
 extern
 unsigned short * audio_buf;
 int Cmd_code_playbuff(int argc, char *argv[]) {
-
+unsigned int CPU_XDATA = 1; //1: enabled CPU interrupt triggerred
 #define minval( a,b ) a < b ? a : b
 	unsigned long tok;
 	long hndl, err, bytes;
-#if 0
-	int i,j;
-	SlFsFileInfo_t info;
-#endif
 
 	audio_buf = (char*)pvPortMalloc(AUDIO_BUF_SZ);
 	//assert(audio_buf);
@@ -254,83 +250,18 @@ int Cmd_code_playbuff(int argc, char *argv[]) {
 		UARTprintf("read %d bytes\n", bytes);
 	}
 	sl_FsClose(hndl, 0, 0, 0);
-	// Create RX and TX Buffer
-    //
-   // pTxBuffer = CreateCircularBuffer(TX_BUFFER_SIZE);
-	//UARTprintf("Done for CreateCircularBuffer TX\n ");
-    //pRxBuffer = CreateCircularBuffer(RX_BUFFER_SIZE);
-	//UARTprintf("Done for CreateCircularBuffer RX\n ");
-/*
-	for (i = 0; i < bytes; ++i) {
-		UARTprintf("%x", audio_buf[i]);
 
-	}
-*/
 	get_codec_NAU();
 	UARTprintf(" Done for get_codec_NAU\n ");
-	//UARTprintf(" Done for ControlTaskCreate\n ");
 
-	    // Initialize the DMA Module
-	    //
-/*
-	    UDMAInit(); UARTprintf(" Done for UDMAInit\n ");
-	    UDMAChannelSelect(UDMA_CH4_I2S_RX, NULL); UARTprintf(" Done for UDMA_CH4_I2S_RX\n ");
-	    UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL); UARTprintf(" Done for UDMA_CH5_I2S_TX\n ");
-	    //
-	    // Setup the DMA Mode
-	    //
-	    SetupPingPongDMATransferTx(); UARTprintf(" Done for SetupPingPongDMATransferTx\n ");
-	    SetupPingPongDMATransferRx(); UARTprintf(" Done for SetupPingPongDMATransferRx\n ");
-	    //
-	    // Setup the Audio In/Out
-	    //
-	    AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
-	    UARTprintf(" Done for AudioCapturerSetupDMAMode\n ");
-*/
-	    AudioCaptureRendererConfigure();
-	    //UARTprintf(" Done for AudioCaptureRendererConfigure\n ");
+	    AudioCaptureRendererConfigure(I2S_PORT_CPU);
 
-//#	if 0
-		 //I2SDataPutNonBlocking(I2S_BASE,I2S_DATA_LINE_0,sin[i%16]);
-		 //McASPLoad(tmp, BUF_SZ/sizeof(unsigned long));
+		 AudioCapturerInit(CPU_XDATA); //UARTprintf(" Done for AudioCapturerInit\n ");
 
-//		 unsigned short *tmp = (unsigned short*)buffer;
-		 AudioCapturerInit(); //UARTprintf(" Done for AudioCapturerInit\n ");
-		 //McASPTXINT();
 		 Audio_Start(); //UARTprintf(" Done for Audio_Start\n ");
-		// Audio_Stop();
-//#endif
-		// while(1){
 
-		 //I2SDataPutNonBlocking(I2S_BASE, I2S_DATA_LINE_0, tmp[i]);
-
-		 //pTxBuffer->pucWritePtr = tmp[i];
-		 //UARTprintf("%x\n\r",pTxBuffer->pucWritePtr);
-		 //I2SDataPutNonBlocking(I2S_BASE, I2S_DATA_LINE_0, sin[i%16]);
-		// UARTprintf("%x\n\r",sin[i%16]);
-
-	    //I2SDataPut(I2S_BASE, I2S_DATA_LINE_0, ((unsigned long*)buffer)[0]);
-	    //I2SDataPutNonBlocking(I2S_BASE, I2S_DATA_LINE_0, ((unsigned long*)buffer)[0]); UARTprintf("Done for I2SDataPutNonBlocking\n");
-		 //};
-		    // Start Audio Tx/Rx
-	    //UARTprintf(" Audio is starting %d\n\r");
-	//ControlTaskCreate(); UARTprintf(" Done for ControlTaskCreate\n");
-
-    // Start the Speaker Task
-    //
-    //osi_TaskCreate( Speaker, (signed char*)"Speaker",OSI_STACK_SIZE, NULL, 1, &g_SpeakerTask );
-    //osi_TaskCreate( Speaker, (signed char*)"Speaker",OSI_STACK_SIZE, NULL, 1, &g_pAudioOutControlHdl );
-    //UARTprintf(" Done for osi_TaskCreate\n");
-	//UARTprintf("%x", pRxBuffer->pucReadPtr);
-	//UARTprintf("%x", i);
-	//UARTprintf("%x", buffer[i]);
-	//UARTprintf("%x", pRxBuffer->pucWritePtr);
-	//UARTprintf("%x", pRxBuffer->pucBufferStartPtr);
-	//UARTprintf("%x", pRxBuffer->pucBufferEndPtr);
-	//UARTprintf("%x", pRxBuffer->)
-    //osi_start();
-    //UARTprintf(" Done for osi_start\n");
 		 vPortFree(audio_buf); //UARTprintf(" audio_buf\n ");
+		// Audio_Stop(); // added this, the ringtone will not play
 	 return 0;
 }
 
@@ -338,95 +269,7 @@ int Cmd_code_playbuff(int argc, char *argv[]) {
 void Microphone1();
 
 int Cmd_record_buff(int argc, char *argv[]) {
-#if 0
-#define RECORD_SIZE 2
-#define minval( a,b ) a < b ? a : b
-
-unsigned long tok;
-
-int err, i ;
-long hndl , bytes;
-SlFsFileInfo_t info;
-
-unsigned char content[RECORD_SIZE];
-
-			content[0] = 0xAA;
-			content[1] = 0x78;
-
-//record_buf = (char*)pvPortMalloc(AUDIO_BUF_SZ);
-
-argv[1] = "TONE";
-
-
-
-sl_FsDel(argv[1], 0); UARTprintf("delete such a file\n");
-
-sl_FsGetInfo(argv[1], tok, &info);
-
-//tok = "this is testing this is testing";
-
-if (sl_FsOpen(argv[1], FS_MODE_OPEN_WRITE, &tok, &hndl)) {
-UARTprintf("no such a file, trying to create\n");
-
-if (sl_FsOpen(argv[1], FS_MODE_OPEN_CREATE(65535, _FS_FILE_OPEN_FLAG_COMMIT), &tok, &hndl)) {
-UARTprintf("error opening for write\n");
-
-return -1;
-														 	 	 	 	 	 	 	 	 	 }
-}
-
-get_codec_mic_NAU(); UARTprintf(" Done for get_codec_NAU\n ");
-
-AudioCaptureRendererConfigure(); //UARTprintf(" Done for AudioCaptureRendererConfigure\n ");
-
-//McASPINTRX(); UARTprintf(" Done for McASPINTRX\n ");
-
-AudioCapturerInit_mic(); UARTprintf(" Done for AudioCapturerInit_mic\n ");
-
-
-Audio_Start(); //UARTprintf(" Done for Audio_Start\n ");
-
-
-//content = "this is testing this is testing";
-
-//bytes = sl_FsWrite(hndl, info.FileLen, argv[2], strlen(argv[2]));
-
-//UARTprintf("content is shown here: %d  \n", "this is testing this is testing");
-
-//for (i=0; i < sizeof(content); i++){
-
-
-
-
-bytes = sl_FsWrite(hndl, info.FileLen, content, strlen(content));
-
-//}
-
-UARTprintf("wrote to the file %d bytes\n", bytes);
-
-sl_FsClose(hndl, 0, 0, 0);
-#endif
-#if 0
-//////////////////////////////// start with SD card assessment
-//#define RECORD_SIZE 4
-//unsigned char content[RECORD_SIZE];
-unsigned char content[] = {" \r\n"};
-
-	//content[0] = 0xAA;
-	content[1] = 0x78;
-	content[2] = 0x55;
-	content[3] = 0x50;
-//	int str_con = strlen(content[1]); UARTprintf("d% string number \n",str_con);
-	Cmd_write_record(content);
-//UARTprintf("%d arg is ",saver);
-		//Cmd_write(2, arg);
-	//	UARTprintf("%dth wrote\n",k);
-	//	}
-UARTprintf(" Done for Cmd_write_record\n ");
-//////////////////////////////// edit for SD card assessment
-//vPortFree(record_buf); //UARTprintf(" audio_buf\n ");
-#endif
-
+	unsigned int CPU_XDATA = 0; //1: enabled CPU interrupt triggerred
 // Create RX and TX Buffer
 //
 pTxBuffer = CreateCircularBuffer(TX_BUFFER_SIZE);
@@ -449,14 +292,13 @@ get_codec_mic_NAU();
 
 // Initialize the Audio(I2S) Module
 //
-AudioCapturerInit();
-//AudioCapturerInit_mic();
+AudioCapturerInit(CPU_XDATA);
 
 // Initialize the DMA Module
 //
 UDMAInit();
 UDMAChannelSelect(UDMA_CH4_I2S_RX, NULL);
- UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL);
+UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL);
 
 //
 // Setup the DMA Mode
@@ -466,7 +308,7 @@ SetupPingPongDMATransferTx();
 //
 
 AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
-AudioCaptureRendererConfigure();
+AudioCaptureRendererConfigure(I2S_PORT_DMA);
 
 // Start Audio Tx/Rx
 //
@@ -477,8 +319,11 @@ Audio_Start();
 //
 Microphone1();
 
-	UARTprintf("g_iSentCount %d\n\r", g_iSentCount);
-	Audio_Stop();
+UARTprintf("g_iSentCount %d\n\r", g_iSentCount);
+Audio_Stop();
+
+DestroyCircularBuffer(pTxBuffer);
+DestroyCircularBuffer(pRxBuffer);
 
 return 0;
 

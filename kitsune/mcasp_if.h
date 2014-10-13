@@ -58,7 +58,8 @@ extern "C"
 #define WFIFO_NUMDMA_WORDS      1
 #define MCASP_DMA_PORT_ADDR     0x4401E200
 
-#define AUDIO_BUF_SZ 50000
+#define AUDIO_BUF_SZ 60000
+//#define CPU_XDATA 1
 //
 // Update the sampling freq, channels, sample length appropriately
 //
@@ -87,12 +88,12 @@ typedef enum {
 //
 // Audio Renderer Interface APIs
 //
-extern void AudioRendererInit();
-extern void AudioCapturerInit();
+extern void AudioRendererInit(unsigned int CPU_XDATA);
+//extern void AudioCapturerInit();
 extern void AudioCapturerInit_mic();
-extern void McASPInit();
+extern void McASPInit(unsigned int CPU_XDATA);
 extern void McASPInit_RX();
-//extern void McASPTXINT();
+
 extern void AudioRendererSetupCPUMode(void (*pfnAppCbHndlr)(void));
 extern void AudioRendererSetupDMAMode(void (*pfnAppCbHndlr)(void), 
                                       unsigned long ulCallbackEvtSamples);
@@ -114,7 +115,8 @@ extern void AudioRendererDeInit();
 extern unsigned int BitClockConfigure(int iSamplingFrequency,
                                       short sNumOfChannels,
                                       short sBitsPerSample);
-extern void AudioCaptureRendererConfigure();
+//extern void AudioCaptureRendererConfigure();
+extern void AudioCaptureRendererConfigure(unsigned int PORTI2S);
 extern void Audio_Start();
 extern void Audio_Stop();
 extern void I2SIntHandler();

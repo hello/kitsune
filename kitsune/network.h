@@ -72,9 +72,10 @@ extern "C"
 //
 //*****************************************************************************
 #define PACKET_SIZE             1024
-#define PLAY_WATERMARK			10*1024
+#define PLAY_WATERMARK		30*1024
 #define TX_BUFFER_SIZE          10*PACKET_SIZE
-#define RX_BUFFER_SIZE          30*PACKET_SIZE
+#define RX_BUFFER_SIZE          70*PACKET_SIZE
+
 //*****************************************************************************
 //
 // Define Audio Input/Output Connection
@@ -89,7 +90,7 @@ extern "C"
 // 0 - LoopBack, MIC is Connected to Speaker
 //
 //*****************************************************************************    
-#define NETWORK 0
+#define NETWORK 1
 
   //*****************************************************************************
 //
