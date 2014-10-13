@@ -298,7 +298,7 @@ int Cmd_code_playbuff(int argc, char *argv[]) {
 		 AudioCapturerInit(); //UARTprintf(" Done for AudioCapturerInit\n ");
 		 //McASPTXINT();
 		 Audio_Start(); //UARTprintf(" Done for Audio_Start\n ");
-
+		// Audio_Stop();
 //#endif
 		// while(1){
 

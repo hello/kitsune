@@ -183,7 +183,7 @@ void McASPLoad(unsigned long * b, unsigned long size){
 void I2SIntHandler(){
 	//static unsigned long sin[32]={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 	//						 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa};
-	 static int i;
+	 static int i = 0 ;
    unsigned long ulStatus;
    unsigned long ulDummy=0;
 
@@ -195,16 +195,22 @@ void I2SIntHandler(){
    {
 	   //I2SDataPutNonBlocking(I2S_BASE,I2S_DATA_LINE_0,sin[(i++)%32]);
 	    I2SDataPut(I2S_BASE,I2S_DATA_LINE_0, (unsigned long) (audio_buf[i/2]));
+
+	  //  for( i = 0; i < 2*AUDIO_BUF_SZ/sizeof(unsigned short); i++) {
+	    //for(;;){
 		I2SDataPutNonBlocking(I2S_BASE,I2S_DATA_LINE_0, (unsigned long) (audio_buf[i/2]));
-	    if( ++i > 2*AUDIO_BUF_SZ/sizeof(unsigned short) ) {
+	    //i++;
+		if( ++i > 2*AUDIO_BUF_SZ/sizeof(unsigned short) ) {
 	    	i=0;
 	    }
+
         I2SIntClear(I2S_BASE,I2S_STS_XDATA);
+	    //}
    }
 
    // Check if there was a receive interrupt; if so read the data from the rx buffer and acknowledge
    // the interrupt
-
+#if 0
    if(ulStatus & I2S_STS_RDATA)
    {
 
@@ -215,7 +221,7 @@ void I2SIntHandler(){
 
 
    }
-
+#endif
 }
 
 //*****************************************************************************
