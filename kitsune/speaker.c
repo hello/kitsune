@@ -70,6 +70,7 @@ unsigned int g_uiPlayWaterMark = 1;
 extern unsigned long  g_ulStatus;
 extern unsigned char g_ucSpkrStartFlag;
 unsigned char speaker_data[20*1024]; //16*1024
+unsigned char speaker_data_padded[1024]={0}; //16*1024
 //*****************************************************************************
 //                 GLOBAL VARIABLES -- End
 //*****************************************************************************
@@ -102,9 +103,9 @@ void Speaker1()
     /* Workaround - Read initial 9 bytes that is file name:" mari.rec". We writing file
                       name at start because of hang issue in f_write.
     */
-    f_read(&fp, speaker_data, 9, (unsigned short*)&Size);
+    f_read(&fp, speaker_data, 0, (unsigned short*)&Size);
     UARTprintf("Read : %d Bytes\n\n\r",Size);
-    totBytesRead = 9;
+    totBytesRead = 0;
   }
   else
   {
@@ -129,14 +130,7 @@ void Speaker1()
   	*/
       /* Wait to avoid buffer overflow as reading speed is faster than playback */
       while((IsBufferSizeFilled(pRxBuffer,PLAY_WATERMARK) == TRUE)){};
-#if 0
-   	if(g_iReceiveCount == 10000){
-   		 res = f_close(&fp);
-   		UARTprintf("speaker task completed\r\n" );
-   		g_iReceiveCount = 0;
-   		break;
-   	}
-#endif
+
       if(Size>0)
       {
     	  //UARTprintf("Read : %d Bytes totBytesRead: %d\n\n\r",Size, totBytesRead);
@@ -149,7 +143,13 @@ void Speaker1()
     	             		pu16++;
     	             	}
     	  //}
-        iRetVal = FillBuffer(pRxBuffer,(unsigned char*)(speaker_data + offset*Size),\
+			for( i=0;i<512;++i) {
+				speaker_data_padded[i*2+1] = speaker_data[i];
+				speaker_data_padded[i*2] = speaker_data[i];
+			}
+			Size *=2;
+
+        iRetVal = FillBuffer(pRxBuffer,(unsigned char*)(speaker_data_padded + offset*Size),\
         		Size);
        // offset = (offset+1)%(sizeof(speaker_data)/512);
 
