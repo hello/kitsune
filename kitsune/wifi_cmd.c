@@ -991,11 +991,14 @@ static bool _encode_encrypted_pilldata(pb_ostream_t *stream, const pb_field_t *f
 
 bool encode_pill_data(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
 	periodic_data_pill_data_container * data = *(periodic_data_pill_data_container**) arg;
+	bool ret = false;
 
 	int i;
 	if (xSemaphoreTake(pill_smphr, portMAX_DELAY)) {
 
 		if( data->magic != PILL_MAGIC ) {
+			UARTprintf("Nothing to encode\r\n");
+			xSemaphoreGive(pill_smphr);
 			return true; //nothing to encode
 		}
 
@@ -1004,6 +1007,8 @@ bool encode_pill_data(pb_ostream_t *stream, const pb_field_t *field, void * cons
 
  		if (!pb_encode_tag(stream, PB_WT_STRING, field->tag))
         {
+ 			UARTprintf("Failed to encode string\r\n");
+ 			xSemaphoreGive(pill_smphr);
 			return false;
         }
 
@@ -1012,8 +1017,12 @@ bool encode_pill_data(pb_ostream_t *stream, const pb_field_t *field, void * cons
 			pb_encode(&sizestream, periodic_data_pill_data_fields,
 					(const void*) &data->pill_data);
 
-			if (!pb_encode_varint(stream, (uint64_t) sizestream.bytes_written))
+			if (!pb_encode_varint(stream, (uint64_t) sizestream.bytes_written)){
+				UARTprintf("Fail to encode bytes\r\n");
+				xSemaphoreGive(pill_smphr);
 				return false;
+			}
+
 		}
 
 		for (i = 0; data->magic == PILL_MAGIC && i < MAX_PILLS; ++i) {
@@ -1026,6 +1035,8 @@ bool encode_pill_data(pb_ostream_t *stream, const pb_field_t *field, void * cons
 
 			if (!pb_encode(stream, periodic_data_pill_data_fields,
 					(const void*) &data->pill_data)) {
+				UARTprintf("Fail to encode pill data\r\n");
+				xSemaphoreGive(pill_smphr);
 				return false;
 			}
 			++data;
