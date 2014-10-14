@@ -76,23 +76,23 @@ void spi_init() {
 int spi_reset(){
 	unsigned char reset = 0xFF;
 	CS_set(0);
-	vTaskDelay(5);
+	vTaskDelay(10);
 //	MAP_SPITransfer(GSPI_BASE,&reset,&reset,1,SPI_CS_ENABLE|SPI_CS_DISABLE);
 	MAP_SPITransfer(GSPI_BASE,&reset,&reset,1,0);
 
 	CS_set(1);
-	vTaskDelay(5);
+	vTaskDelay(10);
 	reset = 0xFF;
 	CS_set(0);
-	vTaskDelay(5);
+	vTaskDelay(10);
 //	MAP_SPITransfer(GSPI_BASE,&reset,&reset,1,SPI_CS_ENABLE|SPI_CS_DISABLE);
 	MAP_SPITransfer(GSPI_BASE,&reset,&reset,1,0);
 
 	CS_set(1);
-	vTaskDelay(5);
+	vTaskDelay(10);
 	reset = 0xFF;
 	CS_set(0);
-	vTaskDelay(5);
+	vTaskDelay(10);
 //	MAP_SPITransfer(GSPI_BASE,&reset,&reset,1,SPI_CS_ENABLE|SPI_CS_DISABLE);
 	MAP_SPITransfer(GSPI_BASE,&reset,&reset,1,0);
 
@@ -120,6 +120,7 @@ int spi_write_step( int len, unsigned char * buf ) {
 	}
 	//MAP_SPICSDisable(GSPI_BASE);
 	CS_set(1);
+	vTaskDelay(5);
 	UARTprintf("\r\n");
 	return SUCCESS;
 }
@@ -136,6 +137,7 @@ int spi_read_step( int len, unsigned char * buf ) {
 	vTaskDelay(10);
 	len = MAP_SPITransfer(GSPI_BASE, buf, buf, len, 0);
 	CS_set(1);
+	vTaskDelay(5);
 	UARTprintf("Read %d bytes \r\n", len);
 	for (i = 0; i < len; i++) {
 		UARTprintf("%x ", buf[i]);
