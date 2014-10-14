@@ -957,11 +957,14 @@ static bool _encode_encrypted_pilldata(pb_ostream_t *stream, const pb_field_t *f
 
 bool encode_pill_data(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
 	periodic_data_pill_data_container * data = *(periodic_data_pill_data_container**) arg;
+	bool ret = false;
 
 	int i;
 	if (xSemaphoreTake(pill_smphr, portMAX_DELAY)) {
 
 		if( data->magic != PILL_MAGIC ) {
+			UARTprintf("Nothing to encode\r\n");
+			xSemaphoreGive(pill_smphr);
 			return true; //nothing to encode
 		}
 
@@ -970,6 +973,8 @@ bool encode_pill_data(pb_ostream_t *stream, const pb_field_t *field, void * cons
 
  		if (!pb_encode_tag(stream, PB_WT_STRING, field->tag))
         {
+ 			UARTprintf("Failed to encode string\r\n");
+ 			xSemaphoreGive(pill_smphr);
 			return false;
         }
 
@@ -978,8 +983,12 @@ bool encode_pill_data(pb_ostream_t *stream, const pb_field_t *field, void * cons
 			pb_encode(&sizestream, periodic_data_pill_data_fields,
 					(const void*) &data->pill_data);
 
-			if (!pb_encode_varint(stream, (uint64_t) sizestream.bytes_written))
+			if (!pb_encode_varint(stream, (uint64_t) sizestream.bytes_written)){
+				UARTprintf("Fail to encode bytes\r\n");
+				xSemaphoreGive(pill_smphr);
 				return false;
+			}
+
 		}
 
 		for (i = 0; data->magic == PILL_MAGIC && i < MAX_PILLS; ++i) {
@@ -992,6 +1001,8 @@ bool encode_pill_data(pb_ostream_t *stream, const pb_field_t *field, void * cons
 
 			if (!pb_encode(stream, periodic_data_pill_data_fields,
 					(const void*) &data->pill_data)) {
+				UARTprintf("Fail to encode pill data\r\n");
+				xSemaphoreGive(pill_smphr);
 				return false;
 			}
 			++data;
@@ -1252,6 +1263,7 @@ int RadioStartRX(int eChannel)
 {
 	struct SlTimeval_t timeval;
 	uint8_t * DataFrame = (uint8_t*)pvPortMalloc( FRAME_SIZE );
+	assert(DataFrame);
 
 	timeval.tv_sec =  0;             // Seconds
 	timeval.tv_usec = 20000;             // Microseconds. 10000 microseconds resoultion
@@ -1314,6 +1326,8 @@ int Cmd_RadioGetStats(int argc, char*argv[])
 
 	rssi_histogram = (uint16_t*)pvPortMalloc(sizeof(unsigned short) * SIZE_OF_RSSI_HISTOGRAM);
 	rate_histogram = (uint16_t*)pvPortMalloc(sizeof(unsigned short) * NUM_OF_RATE_INDEXES);
+	assert(rssi_histogram);
+	assert(rate_histogram);
 
 	RadioGetStats(&valid_packets, &fcs_packets, &plcp_packets, &avg_rssi_mgmt, &avg_rssi_other, rssi_histogram, rate_histogram);
 
@@ -1378,6 +1392,7 @@ int32_t RadioStartTX(RadioTxMode_e eTxMode, uint8_t powerLevel_Tone, int eChanne
 	CurrentTxMode = (uint8_t) eTxMode;
 	int32_t minDelay;
 	uint8_t * DataFrame = (uint8_t*)pvPortMalloc( FRAME_SIZE );
+	assert(DataFrame);
 
 	if ((RADIO_TX_PACKETIZED == eTxMode) || (RADIO_TX_CONTINUOUS == eTxMode))
 	{

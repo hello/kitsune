@@ -239,8 +239,8 @@ void AudioCapturerSetupDMAMode(void (*pfnAppCbHndlr)(void),
                               unsigned long ulCallbackEvtSamples)
 {
 
-    MAP_I2SIntEnable(I2S_BASE,I2S_INT_XDATA);
-    MAP_I2SIntEnable(I2S_BASE,I2S_INT_RDATA); //added by Ben
+     MAP_I2SIntEnable(I2S_BASE,I2S_INT_XDATA);
+     MAP_I2SIntEnable(I2S_BASE,I2S_INT_RDATA); //added by Ben
 #ifdef USE_TIRTOS
     osi_InterruptRegister(INT_I2S, pfnAppCbHndlr, INT_PRIORITY_LVL_1);
 #else
@@ -248,7 +248,7 @@ void AudioCapturerSetupDMAMode(void (*pfnAppCbHndlr)(void),
 #endif
 
     MAP_I2STxFIFOEnable(I2S_BASE,8,1);
-    MAP_I2SRxFIFOEnable(I2S_BASE,8,1);
+     MAP_I2SRxFIFOEnable(I2S_BASE,8,1);
 
 }
 

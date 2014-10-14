@@ -67,6 +67,8 @@
 #include "diskio.h"
 //#include "mcasp_if.h" // add by Ben
 
+#define ONLY_MID 0
+
 #define NUM_LOGS 72
 #if 0
 //*****************************************************************************
@@ -243,7 +245,7 @@ int Cmd_code_playbuff(int argc, char *argv[]) {
 #endif
 
 	audio_buf = (unsigned short*)pvPortMalloc(AUDIO_BUF_SZ);
-
+	assert(audio_buf);
 	if (err = sl_FsOpen("Ringtone_hello_leftchannel_16PCM", FS_MODE_OPEN_READ, &tok, &hndl)) {
 		UARTprintf("error opening for read %d\n", err);
 		return -1;
@@ -464,7 +466,7 @@ AudioCapturerInit();
 //
 UDMAInit();
 UDMAChannelSelect(UDMA_CH4_I2S_RX, NULL);
-UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL);
+ UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL);
 
 //
 // Setup the DMA Mode
@@ -786,6 +788,7 @@ int Cmd_tasks(int argc, char *argv[]) {
 	char* pBuffer;
 
 	pBuffer = pvPortMalloc(1024);
+	assert(pBuffer);
 	vTaskList(pBuffer);
 	UARTprintf("\t\t\t\t\tUnused\nTaskName\t\tStatus\tPri\tStack\tTask ID\n");
 	UARTprintf("=======================================================");
@@ -997,8 +1000,10 @@ void SetupGPIOInterrupts() {
 
     port = GPIO_PORT;
     pin = NORDIC_PIN /*| PROX_PIN*/;
+#if !ONLY_MID
 	GPIO_IF_ConfigureNIntEnable( port, pin, GPIO_HIGH_LEVEL, nordic_prox_int );
 	//only one interrupt per port...
+#endif
 }
 
 xSemaphoreHandle pill_smphr;
@@ -1023,15 +1028,12 @@ void thread_spi(void * data) {
 
 #endif
 
-#if 0
-#define LED_LOGIC_HIGH 0
-#define LED_LOGIC_LOW LED_GPIO_BIT
-#else
-#define LED_LOGIC_HIGH LED_GPIO_BIT
-#define LED_LOGIC_LOW 0
-#endif
+#define LED_LOGIC_HIGH_FAST 0
+#define LED_LOGIC_LOW_FAST LED_GPIO_BIT
+#define LED_LOGIC_HIGH_SLOW LED_GPIO_BIT
+#define LED_LOGIC_LOW_SLOW 0
 
-void led( unsigned int* color ) {
+void led_fast( unsigned int* color ) {
 	int i;
 	unsigned int * end = color + NUM_LED;
 
@@ -1039,7 +1041,7 @@ void led( unsigned int* color ) {
 		for (i = 0; i < 24; ++i) {
 			if ((*color << i) & 0x800000 ) {
 				//1
-				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_HIGH);
+				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_HIGH_FAST);
 				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
@@ -1052,7 +1054,7 @@ void led( unsigned int* color ) {
 				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_LOW);
+				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_LOW_FAST);
 				if( i!=23 ) {
 					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
@@ -1071,10 +1073,10 @@ void led( unsigned int* color ) {
 				}
 			} else {
 				//0
-				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_HIGH);
+				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_HIGH_FAST);
 				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_LOW);
+				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_LOW_FAST);
 				if( i!=23 ) {
 					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
@@ -1098,15 +1100,58 @@ void led( unsigned int* color ) {
 		}
 	}
 }
-void led_array( unsigned int * colors ) {
+void led_slow(unsigned int* color) {
+	int i;
+	unsigned int * end = color + NUM_LED;
+	for (;;) {
+		for (i = 0; i < 24; ++i) {
+			if ((*color << i) & 0x800000) {
+				//1
+				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_HIGH_SLOW);
+				UtilsDelay(5);
+				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_LOW_SLOW);
+				if (i != 23) {
+					UtilsDelay(5);
+				} else {
+					UtilsDelay(4);
+				}
+
+			} else {
+				//0
+				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_HIGH_SLOW);
+				UtilsDelay(1);
+				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_LOW_SLOW);
+				if (i != 23) {
+					UtilsDelay(5);
+				} else {
+					UtilsDelay(2);
+				}
+			}
+		}
+		if (++color == end) {
+			break;
+		}
+	}
+}
+
+#define LED_GPIO_BASE_DOUT GPIOA2_BASE
+#define LED_GPIO_BIT_DOUT 0x80
+void led_array(unsigned int * colors) {
 	int i;
 	unsigned long ulInt;
 	//
 	// Temporarily turn off interrupts.
 	//
+	bool fast = MAP_GPIOPinRead(LED_GPIO_BASE_DOUT, LED_GPIO_BIT_DOUT);
 	ulInt = MAP_IntMasterDisable();
-	for (i = 0; i < NUM_LED; ++i) {
-		led(colors+i);
+	if (fast) {
+		for (i = 0; i < NUM_LED; ++i) {
+			led_fast(colors + i);
+		}
+	} else {
+		for (i = 0; i < NUM_LED; ++i) {
+			led_slow(colors + i);
+		}
 	}
 	if (!ulInt) {
 		MAP_IntMasterEnable();
@@ -1337,7 +1382,7 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(thread_spi, "spiTask", 5*2048 / 4, NULL, 5, NULL);
 	SetupGPIOInterrupts();
 	UARTprintf("*");
-#if 1
+#if !ONLY_MID
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask", 5 * 1024 / 4, NULL, 3, NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_dust, "dustTask", 5* 1024 / 4, NULL, 3, NULL);

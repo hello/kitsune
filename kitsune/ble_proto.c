@@ -9,6 +9,9 @@
 #include "FreeRTOS.h"
 #include "task.h"
 
+#include "assert.h"
+#include "stdlib.h"
+
 static int _get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uint32_t scan_duration_ms)
 {
     if(scan_duration_ms < 1000)
@@ -111,33 +114,58 @@ bool set_wifi(const char* ssid, const char* password)
     return 0;
 }
 
+static int itoa(unsigned int v, char *sp, int radix)
+{
+    char *tp = sp;
+    int i;
+
+    while(v)
+    {
+        i = v % radix;
+        v /= radix;
+        if (i < 10)
+          *tp++ = i+'0';
+        else
+          *tp++ = i+'a'-10;
+    }
+    return tp - sp;
+}
+
+
 static void _reply_device_id()
 {
     uint8_t mac_len = SL_MAC_ADDR_LEN;
     uint8_t mac[SL_MAC_ADDR_LEN] = {0};
 
     int32_t ret = sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
-    if(ret == 0)
+    if(ret == 0 || ret == SL_ESMALLBUF)  // OK you win: http://e2e.ti.com/support/wireless_connectivity/f/968/p/360573/1279578.aspx#1279578
     {
         uint8_t device_id_len = SL_MAC_ADDR_LEN * 2 + 1;  // hex string representation
+
         char* device_id = pvPortMalloc(device_id_len);
-        memset(device_id, 0, device_id_len);
+        if(!device_id)
+        {
+            ble_reply_protobuf_error(ErrorType_DEVICE_NO_MEMORY);
+        }else{
 
-        uint8_t i = 0;
-        for(i = 0; i < SL_MAC_ADDR_LEN; i++){
-            sprintf(device_id[i * 2], "%02X", mac[i]);  // It has sprintf!
+            memset(device_id, 0, device_id_len);
+
+            uint8_t i = 0;
+            for(i = 0; i < SL_MAC_ADDR_LEN; i++){
+                assert( itoa( mac[i], device_id+i*2, 16 ) == 2 );
+            }
+
+            UARTprintf("Morpheus device id: %s\n", device_id);
+            MorpheusCommand reply_command;
+            memset(&reply_command, 0, sizeof(reply_command));
+            reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_DEVICE_ID;
+            reply_command.version = PROTOBUF_VERSION;
+
+            reply_command.deviceId.arg = device_id;
+            ble_send_protobuf(&reply_command);
+
+            ble_proto_free_command(&reply_command);
         }
-
-        UARTprintf("Morpheus device id: %s\n", device_id);
-        MorpheusCommand reply_command;
-        memset(&reply_command, 0, sizeof(reply_command));
-        reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_DEVICE_ID;
-        reply_command.version = PROTOBUF_VERSION;
-
-        reply_command.deviceId.arg = device_id;
-        ble_send_protobuf(&reply_command);
-
-        ble_proto_free_command(&reply_command);
 
     }else{
         UARTprintf("Get Mac address failed, error %d.\n", ret);
@@ -396,6 +424,7 @@ void on_ble_protobuf_command(MorpheusCommand* command)
     		// Pill data received from ANT
             UARTprintf("PILL DATA\n");
     		_process_encrypted_pill_data(command);
+
     	}
 		break;
     	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_HEARTBEAT: 

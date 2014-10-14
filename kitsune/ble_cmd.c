@@ -77,8 +77,10 @@ static bool _decode_bytes_field(pb_istream_t *stream, const pb_field_t *field, v
     {
         return false;
     }
-    
+
+    int length = stream->bytes_left;
     uint8_t* buffer = pvPortMalloc(stream->bytes_left);
+
     if(!buffer)
     {
         return false;
@@ -100,7 +102,7 @@ static bool _decode_bytes_field(pb_istream_t *stream, const pb_field_t *field, v
 
     memset(array, 0, sizeof(array_data));
     array->buffer = buffer;
-    array->length = stream->bytes_left;
+    array->length = length;
 
     *arg = array;
 
@@ -275,8 +277,11 @@ bool ble_send_protobuf(MorpheusCommand* command)
     
     if(status)
     {
+    	int i;
+
         size_t protobuf_len = stream.bytes_written;
-        spi_write(protobuf_len, heap_page);
+        i = spi_write(protobuf_len, heap_page);
+        UARTprintf("spiwrite: %d",i);
 
     }else{
         UARTprintf("encode protobuf failed: ");
