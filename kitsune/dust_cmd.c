@@ -33,7 +33,7 @@
 #define TIMER_INTERVAL_RELOAD   65535
 #define PULSE_WIDTH             20000//8192//2097
 
-#define SAMPLES 256
+#define SAMPLES 1024
 
 //****************************************************************************
 //
@@ -156,7 +156,7 @@ int Cmd_dusttest(int argc, char *argv[]) {
 	if( argc == 1 ) {cnt=2;}
 	while( --cnt ) {
 		UARTprintf("%d\n", get_dust());
-		vTaskDelay(10);
+		vTaskDelay(200);
 	}
 	return (0);
 }
