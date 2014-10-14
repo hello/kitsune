@@ -457,6 +457,9 @@ void on_ble_protobuf_command(MorpheusCommand* command)
             if(ret == 0)
             {
                 _send_response_to_ble(response_buffer, sizeof(response_buffer));
+            }else{
+                UARTprintf("Pairing request failed, error %d\n", ret);
+                ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
             }
         }
         break;

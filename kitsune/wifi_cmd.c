@@ -826,6 +826,12 @@ int send_data_pb(const char* host, const char* path,
     {
         pb_ostream_t stream = {0};
         status = pb_encode(&stream, fields, src_struct);
+        if(!status)
+        {
+            UARTprintf("Encode protobuf failed, %s\n", PB_GET_ERROR(&stream));
+            return -1;
+        }
+
         message_length = stream.bytes_written + sizeof(sig) + AES_IV_SIZE;
         UARTprintf("message len %d sig len %d\n\r\n\r", stream.bytes_written, sizeof(sig));
     }
@@ -852,7 +858,7 @@ int send_data_pb(const char* host, const char* path,
     UARTprintf("sent %d\n\r%s\n\r", rv, buffer_out);
 
     {
-        pb_ostream_t stream;
+        pb_ostream_t stream = {0};
         int i;
 
         //todo guard sha1ctx with semaphore...
