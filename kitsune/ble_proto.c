@@ -389,7 +389,7 @@ void on_ble_protobuf_command(MorpheusCommand* command)
                 // If the wifi connection is set, reply
                 MorpheusCommand reply_command;
                 memset(&reply_command, 0, sizeof(reply_command));
-                reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_WIFI_ENDPOINT;
+                reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_SET_WIFI_ENDPOINT;
                 reply_command.version = PROTOBUF_VERSION;
                 reply_command.wifiSSID.arg = (void*)ssid;
 
