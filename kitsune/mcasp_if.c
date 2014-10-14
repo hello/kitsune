@@ -65,8 +65,6 @@
 
 /* Demo app includes. */
 #include "mcasp_if.h"
-//#include "gpio_if.h"
-//#include "network.h"
 
 //unsigned long tone;
 unsigned short * audio_buf;
@@ -121,19 +119,12 @@ unsigned int* AudioCapturerGetDMADataPtr()
 //! \return None.
 //
 //*****************************************************************************
-void AudioCapturerInit(unsigned int CPU_XDATA)
+void AudioCapturerInit(unsigned int CPU_XDATA, unsigned int SAMPLING_FREQ)
 {
     //
     // Initialising the McASP
     //
-    McASPInit(CPU_XDATA);
-}
-void AudioCapturerInit_mic()
-{
-    //
-    // Initialising the McASP
-    //
-	McASPInit_RX();
+    McASPInit(CPU_XDATA, SAMPLING_FREQ);
 }
 //*****************************************************************************
 //
@@ -147,24 +138,14 @@ void AudioCapturerInit_mic()
 //! \return None.
 //
 //*****************************************************************************
-void McASPInit(unsigned int CPU_XDATA)
+void McASPInit(unsigned int CPU_XDATA, unsigned int SAMPLING_FREQ)
 {
-
     MAP_PRCMPeripheralClkEnable(PRCM_I2S,PRCM_RUN_MODE_CLK); 
-    MAP_PRCMI2SClockFreqSet(705600 );
+    MAP_PRCMI2SClockFreqSet(SAMPLING_FREQ*2*16); // 16bit *2* 22050Hz
 if(CPU_XDATA)
 {        MAP_I2SIntRegister(I2S_BASE,I2SIntHandler); // add by ben
         MAP_I2SIntEnable(I2S_BASE,I2S_INT_XDATA); // add by ben
 }
-}
-void McASPInit_RX()
-{
-
-    MAP_PRCMPeripheralClkEnable(PRCM_I2S,PRCM_RUN_MODE_CLK);
-    MAP_PRCMI2SClockFreqSet(705600 );
-      //512000 = 16*2*16000Khz(Num of bytes * STEREO * 16000 sampling)
-//    MAP_I2SIntRegister(I2S_BASE,I2SIntHandler); // add by ben
-//    MAP_I2SIntEnable(I2S_BASE,I2S_INT_RDATA); // add by ben
 }
 
 void McASPLoad(unsigned long * b, unsigned long size){
@@ -179,7 +160,7 @@ void McASPLoad(unsigned long * b, unsigned long size){
 void I2SIntHandler(){
 	//static unsigned long sin[32]={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 	//						 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa};
-	 static int i = 0 ;
+    static int i = 0 ;
    unsigned long ulStatus;
    unsigned long ulDummy=0;
 
@@ -269,11 +250,11 @@ void AudioCapturerSetupDMAMode(void (*pfnAppCbHndlr)(void),
 //
 //*****************************************************************************
 
-void AudioCaptureRendererConfigure(unsigned int PORTI2S)
+void AudioCaptureRendererConfigure(unsigned int PORTI2S, unsigned int SAMPLING_FREQ)
 {
 
-    MAP_I2SConfigSetExpClk(I2S_BASE,705600 ,705600 ,I2S_SLOT_SIZE_16|
-    		PORTI2S );// I2S_PORT_DMA
+    MAP_I2SConfigSetExpClk(I2S_BASE,SAMPLING_FREQ*2*16 ,SAMPLING_FREQ*2*16 ,I2S_SLOT_SIZE_16|
+    		PORTI2S );// // 16bit *2* 22050Hz = 705600
     MAP_I2SSerializerConfig(I2S_BASE,I2S_DATA_LINE_1,I2S_SER_MODE_RX,
                                             I2S_INACT_LOW_LEVEL);
     MAP_I2SSerializerConfig(I2S_BASE,I2S_DATA_LINE_0,I2S_SER_MODE_TX,

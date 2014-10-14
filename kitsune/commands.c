@@ -255,9 +255,9 @@ unsigned int CPU_XDATA = 1; //1: enabled CPU interrupt triggerred
 	get_codec_NAU();
 	UARTprintf(" Done for get_codec_NAU\n ");
 
-	AudioCaptureRendererConfigure(I2S_PORT_CPU);
+	AudioCaptureRendererConfigure(I2S_PORT_CPU, 48000);
 
-	AudioCapturerInit(CPU_XDATA); //UARTprintf(" Done for AudioCapturerInit\n ");
+	AudioCapturerInit(CPU_XDATA, 48000); //UARTprintf(" Done for AudioCapturerInit\n ");
 
 	Audio_Start(); //UARTprintf(" Done for Audio_Start\n ");
 
@@ -285,7 +285,7 @@ get_codec_mic_NAU();
 
 // Initialize the Audio(I2S) Module
 //
-AudioCapturerInit(CPU_XDATA);
+AudioCapturerInit(CPU_XDATA, 48000);
 
 // Initialize the DMA Module
 //
@@ -300,7 +300,7 @@ SetupPingPongDMATransferTx();
 //
 
 AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
-AudioCaptureRendererConfigure(I2S_PORT_DMA);
+AudioCaptureRendererConfigure(I2S_PORT_DMA, 48000);
 
 // Start Audio Tx/Rx
 //
@@ -338,7 +338,7 @@ get_codec_NAU();
 
 // Initialize the Audio(I2S) Module
 //
-AudioCapturerInit(CPU_XDATA);
+AudioCapturerInit(CPU_XDATA, 22050);
 
 // Initialize the DMA Module
 //
@@ -353,7 +353,7 @@ SetupPingPongDMATransferRx();
 //
 
 AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
-AudioCaptureRendererConfigure(I2S_PORT_DMA);
+AudioCaptureRendererConfigure(I2S_PORT_DMA, 22050);
 
 // Start Audio Tx/Rx
 //
@@ -1231,7 +1231,7 @@ void vUARTTask(void *pvParameters) {
 	MAP_PRCMPeripheralReset(PRCM_SDHOST);
 	MAP_SDHostInit(SDHOST_BASE);
 	MAP_SDHostSetExpClk(SDHOST_BASE, MAP_PRCMPeripheralClockGet(PRCM_SDHOST),
-			25000000);
+			1000000);
 	UARTprintf("*");
 	Cmd_mnt(0, 0);
 	UARTprintf("*");
