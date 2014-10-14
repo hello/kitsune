@@ -379,7 +379,7 @@ void on_ble_protobuf_command(MorpheusCommand* command)
         {
             // Light up LEDs?
             Cmd_led(0,0);
-            UARTprintf( "PAIRING MODE %s\n", command->deviceId.arg );
+            UARTprintf( "PAIRING MODE \n");
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_WIFI_ENDPOINT:
