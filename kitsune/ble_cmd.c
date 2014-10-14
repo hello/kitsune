@@ -21,7 +21,7 @@ static bool _encode_string_fields(pb_ostream_t *stream, const pb_field_t *field,
     //write tag
     //if (!pb_encode_tag(stream, PB_WT_STRING, field->tag)) { // Not sure should do this,
                                                               // This is for encoding byte array
-    if (pb_encode_tag_for_field(stream, field)){
+    if (!pb_encode_tag_for_field(stream, field)){
         return 0;
     }
 
