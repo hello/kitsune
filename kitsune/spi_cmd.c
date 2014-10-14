@@ -151,7 +151,7 @@ int spi_write( int len, unsigned char * buf ) {
 	vTaskDelay(10);
 	ctx.len = len;
 	ctx.addr = 0xcc;
-	spi_read_step( 4, (unsigned char*)&ctx );
+	spi_write_step( 4, (unsigned char*)&ctx );
 	vTaskDelay(10);
 	UARTprintf("Ctx len %u, address %u\r\n",ctx.len, ctx.addr);
 	spi_write_step( len, buf );
