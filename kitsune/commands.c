@@ -365,7 +365,7 @@ Audio_Start();
 Speaker1();
 
 UARTprintf("g_iReceiveCount %d\n\r", g_iReceiveCount);
-//Audio_Stop();
+Audio_Stop();
 
 DestroyCircularBuffer(pRxBuffer); UARTprintf("DestroyCircularBuffer(pRxBuffer)" );
 
@@ -1231,7 +1231,7 @@ void vUARTTask(void *pvParameters) {
 	MAP_PRCMPeripheralReset(PRCM_SDHOST);
 	MAP_SDHostInit(SDHOST_BASE);
 	MAP_SDHostSetExpClk(SDHOST_BASE, MAP_PRCMPeripheralClockGet(PRCM_SDHOST),
-			15000000);
+			25000000);
 	UARTprintf("*");
 	Cmd_mnt(0, 0);
 	UARTprintf("*");
