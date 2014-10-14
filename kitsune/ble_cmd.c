@@ -26,7 +26,7 @@ static bool _encode_string_fields(pb_ostream_t *stream, const pb_field_t *field,
     //write tag
     //if (!pb_encode_tag(stream, PB_WT_STRING, field->tag)) { // Not sure should do this,
                                                               // This is for encoding byte array
-    if (pb_encode_tag_for_field(stream, field)){
+    if (!pb_encode_tag_for_field(stream, field)){
         return 0;
     }
 
@@ -82,7 +82,7 @@ static bool _decode_bytes_field(pb_istream_t *stream, const pb_field_t *field, v
     {
         return false;
     }
-    
+    int length = stream->bytes_left;
     uint8_t* buffer = malloc(stream->bytes_left);
     if(!buffer)
     {
@@ -105,7 +105,7 @@ static bool _decode_bytes_field(pb_istream_t *stream, const pb_field_t *field, v
 
     memset(array, 0, sizeof(array_data));
     array->buffer = buffer;
-    array->length = stream->bytes_left;
+    array->length = length;
 
     *arg = array;
 
@@ -254,8 +254,11 @@ bool ble_send_protobuf(MorpheusCommand* command)
     
     if(status)
     {
+    	int i;
+
         size_t protobuf_len = stream.bytes_written;
-        spi_write(protobuf_len, heap_page);
+        i = spi_write(protobuf_len, heap_page);
+        UARTprintf("spiwrite: %d",i);
 
     }else{
         UARTprintf("encode protobuf failed: ");
