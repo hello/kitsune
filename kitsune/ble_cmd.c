@@ -9,11 +9,6 @@
 #include "wifi_cmd.h"
 #include "spi_cmd.h"
 
-#ifndef malloc
-#define malloc pvPortMalloc
-#define free vPortFree
-#endif
-
 
 static bool _encode_string_fields(pb_ostream_t *stream, const pb_field_t *field, void * const *arg)
 {
@@ -58,7 +53,7 @@ static bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, 
         return false;
     }
     
-    uint8_t* str = malloc(stream->bytes_left + 1);
+    uint8_t* str = pvPortMalloc(stream->bytes_left + 1);
     if(!str)
     {
         return false;
@@ -67,7 +62,7 @@ static bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, 
     memset(str, 0, stream->bytes_left + 1);
     if (!pb_read(stream, str, stream->bytes_left))
     {
-        free(str);  // Remember to free if read failed.
+        vPortFree(str);  // Remember to vPortFree if read failed.
         return false;
     }
     *arg = str;
@@ -83,7 +78,7 @@ static bool _decode_bytes_field(pb_istream_t *stream, const pb_field_t *field, v
         return false;
     }
     
-    uint8_t* buffer = malloc(stream->bytes_left);
+    uint8_t* buffer = pvPortMalloc(stream->bytes_left);
     if(!buffer)
     {
         return false;
@@ -92,14 +87,14 @@ static bool _decode_bytes_field(pb_istream_t *stream, const pb_field_t *field, v
     memset(buffer, 0, stream->bytes_left);
     if (!pb_read(stream, buffer, stream->bytes_left))
     {
-        free(buffer);
+        vPortFree(buffer);
         return false;
     }
 
-    array_data* array = malloc(sizeof(array_data));
+    array_data* array = pvPortMalloc(sizeof(array_data));
     if(!array)
     {
-        free(buffer);
+        vPortFree(buffer);
         return false;
     }
 
@@ -266,7 +261,7 @@ bool ble_send_protobuf(MorpheusCommand* command)
         return false;
     }
 
-    uint8_t* heap_page = malloc(stream.bytes_written);
+    uint8_t* heap_page = pvPortMalloc(stream.bytes_written);
     if(!heap_page)
     {
         UARTprintf("Not enough memory.\r\n");
@@ -288,7 +283,7 @@ bool ble_send_protobuf(MorpheusCommand* command)
         UARTprintf(PB_GET_ERROR(&stream));
         UARTprintf("\r\n");
     }
-    free(heap_page);
+    vPortFree(heap_page);
 
     return status;
 }
@@ -304,39 +299,39 @@ void ble_proto_free_command(MorpheusCommand* command)
 
     if(!command->accountId.arg)
     {
-        free(command->accountId.arg);
+        vPortFree(command->accountId.arg);
         command->accountId.arg = NULL;
     }
 
     if(!command->deviceId.arg)
     {
-        free(command->deviceId.arg);
+        vPortFree(command->deviceId.arg);
         command->deviceId.arg = NULL;
     }
 
     if(!command->wifiName.arg)
     {
-        free(command->wifiName.arg);
+        vPortFree(command->wifiName.arg);
         command->wifiName.arg = NULL;
     }
 
     if(!command->wifiSSID.arg)
     {
-        free(command->wifiSSID.arg);
+        vPortFree(command->wifiSSID.arg);
         command->wifiSSID.arg = NULL;
     }
 
     if(!command->wifiPassword.arg)
     {
-        free(command->wifiPassword.arg);
+        vPortFree(command->wifiPassword.arg);
         command->wifiPassword.arg = NULL;
     }
 
     if(!command->motionDataEntrypted.arg)
     {
         array_data* array = (array_data*)command->motionDataEntrypted.arg;
-        free(array->buffer);  // first free the actual data
-        free(array);  // Then free the actual
+        vPortFree(array->buffer);  // first vPortFree the actual data
+        vPortFree(array);  // Then vPortFree the actual
         command->motionDataEntrypted.arg = NULL;
     }
 }

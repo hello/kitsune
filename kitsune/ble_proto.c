@@ -9,11 +9,6 @@
 #include "FreeRTOS.h"
 #include "task.h"
 
-#ifndef malloc
-#define malloc pvPortMalloc
-#define free vPortFree
-#endif
-
 static int _get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uint32_t scan_duration_ms)
 {
     if(scan_duration_ms < 1000)
@@ -125,7 +120,7 @@ static void _reply_device_id()
     if(ret == 0)
     {
         uint8_t device_id_len = SL_MAC_ADDR_LEN * 2 + 1;  // hex string representation
-        char* device_id = malloc(device_id_len);
+        char* device_id = pvPortMalloc(device_id_len);
         memset(device_id, 0, device_id_len);
 
         uint8_t i = 0;
@@ -155,7 +150,7 @@ static void _reply_device_id()
 *
 */
 static void _ble_reply_wifi_info(){
-    int8_t*  name = malloc(32);  // due to wlan.h
+    int8_t*  name = pvPortMalloc(32);  // due to wlan.h
     if(!name)
     {
         UARTprintf("Not enough memory.\n");
@@ -183,7 +178,7 @@ static void _ble_reply_wifi_info(){
         reply_command.version = PROTOBUF_VERSION;
 
         size_t len = strlen((char*)name) + 1;
-        char* ssid = malloc(len);
+        char* ssid = pvPortMalloc(len);
 
         if(ssid)
         {
@@ -192,7 +187,7 @@ static void _ble_reply_wifi_info(){
 
             reply_command.wifiSSID.arg = ssid;
             ble_send_protobuf(&reply_command);
-            free(ssid);
+            vPortFree(ssid);
         }else{
             UARTprintf("Not enough memory.\n");
             ble_reply_protobuf_error(ErrorType_DEVICE_NO_MEMORY);
@@ -200,7 +195,7 @@ static void _ble_reply_wifi_info(){
 
     }
 
-    free(name);
+    vPortFree(name);
 }
 
 int Cmd_led(int argc, char *argv[]);
@@ -238,23 +233,23 @@ static void _process_encrypted_pill_data(const MorpheusCommand* command)
                 array_data* old_data = (array_data*)pill_list[i].pill_data.motionDataEncrypted.arg;
                 if(old_data->buffer)
                 {
-                    free(old_data->buffer);
+                    vPortFree(old_data->buffer);
                 }
-                free(old_data);
+                vPortFree(old_data);
                 pill_list[i].pill_data.motionDataEncrypted.arg = NULL;
                 pill_list[i].pill_data.motionDataEncrypted.funcs.encode = NULL;
             }
             
 
             const array_data* array = (array_data*)command->motionDataEntrypted.arg;  // This thing will be free when this function exits
-            array_data* array_cp = malloc(sizeof(array_data));
+            array_data* array_cp = pvPortMalloc(sizeof(array_data));
             if(!array_cp){
                 UARTprintf("No memory\n");
 
             }else{
-                char* encrypted_data = malloc(array->length);
+                char* encrypted_data = pvPortMalloc(array->length);
                 if(!encrypted_data){
-                    free(array_cp);
+                    vPortFree(array_cp);
                     UARTprintf("No memory\n");
                 }else{
                     array_cp->buffer = encrypted_data;
