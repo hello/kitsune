@@ -95,6 +95,7 @@ OsiTaskHandle g_MicTask = NULL ;
 extern void Microphone( void *pvParameters );
 extern void Speaker( void *pvParameters );
 extern int g_iSentCount;
+extern int g_iReceiveCount;
 unsigned long tone;
 //*****************************************************************************
 //                      GLOBAL VARIABLES
@@ -319,7 +320,58 @@ return 0;
 
 }
 
+void Speaker1();
 
+int Cmd_play_buff(int argc, char *argv[]) {
+	unsigned int CPU_XDATA = 0; //1: enabled CPU interrupt triggerred; 0: DMA
+// Create RX and TX Buffer
+//
+	pRxBuffer = CreateCircularBuffer(RX_BUFFER_SIZE);
+if(pRxBuffer == NULL)
+{
+	UARTprintf("Unable to Allocate Memory for Rx Buffer\n\r");
+    while(1){};
+}
+// Configure Audio Codec
+//
+get_codec_NAU();
+
+// Initialize the Audio(I2S) Module
+//
+AudioCapturerInit(CPU_XDATA);
+
+// Initialize the DMA Module
+//
+UDMAInit();
+UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL);
+
+//
+// Setup the DMA Mode
+//
+SetupPingPongDMATransferRx();
+// Setup the Audio In/Out
+//
+
+AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
+AudioCaptureRendererConfigure(I2S_PORT_DMA);
+
+// Start Audio Tx/Rx
+//
+Audio_Start();
+
+
+// Start the Microphone Task
+//
+Speaker1();
+
+UARTprintf("g_iReceiveCount %d\n\r", g_iReceiveCount);
+//Audio_Stop();
+
+DestroyCircularBuffer(pRxBuffer); UARTprintf("DestroyCircularBuffer(pRxBuffer)" );
+
+return 0;
+
+}
 int Cmd_fs_delete(int argc, char *argv[]) {
 	//
 	// Print some header text.
@@ -1095,7 +1147,8 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "fsrd", Cmd_fs_read, "fs read" },
 		{ "play_ringtone", Cmd_code_playbuff, "play selected ringtone" },
 		{ "stop_ringtone", Audio_Stop,"stop sounds"},
-		{ "r", Cmd_record_buff,"record sounds"},
+		{ "r", Cmd_record_buff,"record sounds into SD card"},
+		{ "p", Cmd_play_buff, "play sounds from SD card"},
 		{ "fsdl", Cmd_fs_delete, "fs delete" },
 		//{ "readout", Cmd_readout_data, "read out sensor data log" },
 
@@ -1178,7 +1231,7 @@ void vUARTTask(void *pvParameters) {
 	MAP_PRCMPeripheralReset(PRCM_SDHOST);
 	MAP_SDHostInit(SDHOST_BASE);
 	MAP_SDHostSetExpClk(SDHOST_BASE, MAP_PRCMPeripheralClockGet(PRCM_SDHOST),
-			1000000);
+			15000000);
 	UARTprintf("*");
 	Cmd_mnt(0, 0);
 	UARTprintf("*");
