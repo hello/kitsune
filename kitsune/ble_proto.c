@@ -368,6 +368,43 @@ static void _send_response_to_ble(const char* buffer, size_t len)
     ble_proto_free_command(&response);
 }
 
+static void _pair_device(const MorpheusCommand* command, int is_morpheus)
+{
+	char response_buffer[256] = {0};
+	if(NULL == command->accountId.arg || NULL == command->deviceId.arg){
+		UARTprintf("****************************************Missing fields\n");
+		ble_reply_protobuf_error(ErrorType_INTERNAL_DATA_ERROR);
+	}else{
+		MorpheusCommand command_copy;
+		memset(&command_copy, 0, sizeof(MorpheusCommand));
+		char account_id_buffer[50] = {0};
+
+		memcpy(account_id_buffer, command->accountId.arg, strlen(command->accountId.arg));
+		command_copy.accountId.arg = account_id_buffer;
+
+		char device_id_buffer[20] = {0};
+
+		memcpy(device_id_buffer, command->deviceId.arg, strlen(command->deviceId.arg));
+		command_copy.deviceId.arg = device_id_buffer;
+
+		ble_proto_assign_encode_funcs(&command_copy);
+		int ret = send_data_pb(DATA_SERVER,
+				is_morpheus == 1 ? MORPHEUS_REGISTER_ENDPOINT : PILL_REGISTER_ENDPOINT,
+				response_buffer, sizeof(response_buffer),
+				MorpheusCommand_fields, &command_copy);
+
+		// All the args are in stack, don't need to do protobuf free.
+
+		if(ret == 0)
+		{
+			_send_response_to_ble(response_buffer, sizeof(response_buffer));
+		}else{
+			UARTprintf("Pairing request failed, error %d\n", ret);
+			ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
+		}
+	}
+}
+
 void on_ble_protobuf_command(MorpheusCommand* command)
 {
     switch(command->type)
@@ -436,31 +473,14 @@ void on_ble_protobuf_command(MorpheusCommand* command)
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_PILL:
         {
             UARTprintf("PAIR PILL\n");
-            char response_buffer[256] = {0};
-            ble_proto_assign_encode_funcs(command);
-            int ret = send_data_pb(DATA_SERVER, PILL_REGISTER_ENDPOINT, response_buffer, sizeof(response_buffer), MorpheusCommand_fields, command);
-
-            if(ret == 0)
-            {
-                _send_response_to_ble(response_buffer, sizeof(response_buffer));
-            }
+            _pair_device(command, 0);
             
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_SENSE:
         {
             UARTprintf("PAIR SENSE\n");
-            char response_buffer[256] = {0};
-            ble_proto_assign_encode_funcs(command);
-            int ret = send_data_pb(DATA_SERVER, MORPHEUS_REGISTER_ENDPOINT, response_buffer, sizeof(response_buffer), MorpheusCommand_fields, command);
-
-            if(ret == 0)
-            {
-                _send_response_to_ble(response_buffer, sizeof(response_buffer));
-            }else{
-                UARTprintf("Pairing request failed, error %d\n", ret);
-                ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
-            }
+            _pair_device(command, 1);
         }
         break;
 	}
