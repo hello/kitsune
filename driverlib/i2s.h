@@ -67,7 +67,7 @@ extern "C"
 #define I2S_SLOT_SIZE_24      0x00B200B4
 #define I2S_SLOT_SIZE_16      0x00700074
 
-#define I2S_PORT_CPU          0x00008000
+#define I2S_PORT_CPU          0x00000008
 #define I2S_PORT_DMA          0x00000000
 
 //*****************************************************************************

@@ -35,25 +35,46 @@
 //  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 //*****************************************************************************
-#include "network.h"
-#include "simplelink.h"
-#include "circ_buff.h"
+// Hardware & driverlib library includes
 #include "rom.h"
 #include "rom_map.h"
 #include "utils.h"
-//******************************************************************************
-//				GLOBAL VARIABLES
-//******************************************************************************
-extern unsigned int clientIP;
+#include "hw_ints.h"
+
+// simplelink include
+
+#include "ff.h"
+
+
+// common interface includes
+#include "common.h"
+
+// Demo app includes
+
+#include "circ_buff.h"
+
+#include "integer.h"
+#include "uart_if.h"
+
+#include "fatfs_cmd.h"
+#include "network.h"
+//*****************************************************************************
+//                 GLOBAL VARIABLES -- Start
+//*****************************************************************************
 extern tCircularBuffer *pRxBuffer;
-extern tUDPSocket g_UdpSock;
-int g_iReceiveCount =0;
+
+extern int g_iReceiveCount =0;
 int g_iRetVal =0;
 int iCount =0;
 unsigned int g_uiPlayWaterMark = 1;
-//extern unsigned int g_uiIpObtained;
+extern unsigned long  g_ulStatus;
 extern unsigned char g_ucSpkrStartFlag;
-unsigned char speaker_data[16*1024];
+unsigned char speaker_data[20*1024]; //16*1024
+unsigned char speaker_data_padded[1024]={0}; //16*1024
+//*****************************************************************************
+//                 GLOBAL VARIABLES -- End
+//*****************************************************************************
+
 
 //*****************************************************************************
 //
@@ -65,57 +86,113 @@ unsigned char speaker_data[16*1024];
 //
 //*****************************************************************************
 
-void Speaker( void *pvParameters )
-{
-#if 0
-#ifdef NETWORK
 
-    while(g_uiIpObtained == 0)
+void Speaker1()
+{
+  FIL		fp;
+  WORD		Size;
+  FRESULT	res;
+  unsigned long totBytesRead = 0;
+
+
+  long iRetVal = -1;
+  res = f_open(&fp, AUDIO_FILE,FA_READ);
+
+  if(res == FR_OK)
+  {
+    /* Workaround - Read initial 9 bytes that is file name:" mari.rec". We writing file
+                      name at start because of hang issue in f_write.
+    */
+    f_read(&fp, speaker_data, 0, (unsigned short*)&Size);
+    UARTprintf("Read : %d Bytes\n\n\r",Size);
+    totBytesRead = 0;
+  }
+  else
+  {
+	  UARTprintf("Failed to open audio file\n\r");
+    LOOP_FOREVER();
+  }
+
+  //g_ucSpkrStartFlag = 1;
+  unsigned long offset = 0 ;
+  while(1)
+  {
+    //while(g_ucSpkrStartFlag)
     {
-    }   
-    
-#endif
-#endif
-    while(1)
-    {
-      while(g_ucSpkrStartFlag)
-      {     
-#if NETWORK
-          fd_set readfds,writefds;
-          struct SlTimeval_t tv;
-          FD_ZERO(&readfds);
-          FD_ZERO(&writefds);
-          FD_SET(g_UdpSock.iSockDesc,&readfds);
-          FD_SET(g_UdpSock.iSockDesc,&writefds);
-          tv.tv_sec = 0;
-          tv.tv_usec = 2000000;
-          int rv = select(g_UdpSock.iSockDesc, &readfds, NULL, NULL, &tv);
-          if(rv <= 0)
-          {
-            continue;
-          }        
-          if (FD_ISSET(g_UdpSock.iSockDesc, &readfds) )
-          {        
-              g_iRetVal = recvfrom(g_UdpSock.iSockDesc, (char*)(speaker_data),PACKET_SIZE*16, 0,
-                   (struct sockaddr *)&(g_UdpSock.Client),
-                   (SlSocklen_t*)&(g_UdpSock.iClientLength));
-          }
-#endif    
-          if(g_iRetVal>0)
-          {
-             FillBuffer(pRxBuffer,(unsigned char*)speaker_data, g_iRetVal);
-          }
-          if(g_uiPlayWaterMark == 0)
-          {
-            if(IsBufferSizeFilled(pRxBuffer,PLAY_WATERMARK) == TRUE)
-              {               
-                g_uiPlayWaterMark = 1;               
-              }
-          }
-          g_iReceiveCount++;
+      /* Read always in block of 512 Bytes or less else it will stuck in f_read() */
+      res = f_read(&fp, speaker_data, 512, (unsigned short*)&Size);
+      totBytesRead += Size;
+/*
+      int i;
+  	for (i = 0; i < 512; ++i) {
+  		UARTprintf("%x", speaker_data[i]);
+  	}
+  	*/
+      /* Wait to avoid buffer overflow as reading speed is faster than playback */
+      while((IsBufferSizeFilled(pRxBuffer,PLAY_WATERMARK) == TRUE)){};
+
+      if(Size>0)
+      {
+    	  //UARTprintf("Read : %d Bytes totBytesRead: %d\n\n\r",Size, totBytesRead);
+    		unsigned int i;
+    	  //for(i = 0; i < 512/2; i++){
+    		unsigned short *pu16;
+    	  pu16 = (unsigned short *)(speaker_data + offset*Size);
+    	             	for (i = 0; i < 512/2; i ++) {
+    	             		*pu16 = ((*pu16) << 8) | ((*pu16) >> 8);
+    	             		pu16++;
+    	             	}
+    	  //}
+			for( i=0;i<512;++i) {
+				speaker_data_padded[i*2+1] = speaker_data[i];
+				speaker_data_padded[i*2] = speaker_data[i];
+			}
+			Size *=2;
+
+        iRetVal = FillBuffer(pRxBuffer,(unsigned char*)(speaker_data_padded + offset*Size),\
+        		Size);
+       // offset = (offset+1)%(sizeof(speaker_data)/512);
+
+        if(iRetVal < 0)
+        {
+        	UARTprintf("Unable to fill buffer");
+          LOOP_FOREVER();
+        }
       }
-     
-      MAP_UtilsDelay(1000);  
-      
+      else
+      {
+    	//  UARTprintf("Read : %d Bytes totBytesRead: %d\n\n\r",Size, totBytesRead);
+        f_close(&fp);
+        iRetVal = f_open(&fp,AUDIO_FILE,FA_READ);
+        if(iRetVal == FR_OK)
+        {
+          /* Workaround - Read initial 9 bytes that is file name. We were
+                            wrote file name at start because of hang issue
+                            in f_write.
+          */
+          //f_read(&fp, speaker_data, 9, (unsigned short*)&Size);
+          //totBytesRead = 9;
+        	UARTprintf("speaker task completed\r\n" );
+          break;
+        }
+        else
+        {
+        	UARTprintf("Failed to open audio file\n\r");
+          LOOP_FOREVER();
+        }
+      }
+      if(g_uiPlayWaterMark == 0)
+      {
+        if(IsBufferSizeFilled(pRxBuffer,PLAY_WATERMARK) == TRUE)
+        {
+          g_uiPlayWaterMark = 1;
+        }
+      }
+      g_iReceiveCount++;
+       UARTprintf("g_iReceiveCount: %d\n\r",g_iReceiveCount);
     }
+
+    MAP_UtilsDelay(1000);
+
+  }
 }

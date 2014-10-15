@@ -98,7 +98,7 @@
       <Type>blob</Type>
       <Storage>SFLASH</Storage>
       <MaxSize>0</MaxSize>
-      <url>C:\Users\chrisjohnson\Desktop\kitsune\kitsune\main\ccs\exe\kitsune.bin</url>
+      <url>&quot;location on local machine&quot;</url>
       <mode>
          <ModeEntry name="Rollback" checked="false"/>
          <ModeEntry name="Secured" checked="false"/>
@@ -108,9 +108,9 @@
          <ModeEntry name="PublicWrite" checked="false"/>
          <ModeEntry name="PublicRead" checked="false"/>
       </mode>
-      <verify>true</verify>
-      <Update>true</Update>
-      <Erase>true</Erase>
+      <verify>false</verify>
+      <Update>false</Update>
+      <Erase>false</Erase>
       <Certificate>&quot;&quot;</Certificate>
       <Signature>&quot;&quot;</Signature>
    </Filename>
@@ -225,12 +225,12 @@
          <Offset>0</Offset>
       </Param>
    </Filename>
-   <Filename name="testfile" category="user">
+   <Filename name="new file/6eee0ea6-2b2f-42bf-9027-539ee115a706" category="user">
       <Version>0</Version>
       <Type>blob</Type>
       <Storage>SFLASH</Storage>
       <MaxSize>0</MaxSize>
-      <url>C:\Users\chrisjohnson\Desktop\kitsune\.gitignore</url>
+      <url></url>
       <mode>
          <ModeEntry name="Rollback" checked="false"/>
          <ModeEntry name="Secured" checked="false"/>
@@ -243,48 +243,6 @@
       <verify>false</verify>
       <Update>false</Update>
       <Erase>false</Erase>
-      <Certificate></Certificate>
-      <Signature></Signature>
-   </Filename>
-   <Filename name="Yo" category="user">
-      <Version>0</Version>
-      <Type>blob</Type>
-      <Storage>SFLASH</Storage>
-      <MaxSize>0</MaxSize>
-      <url>C:\Users\chrisjohnson\Desktop\Yo.raw</url>
-      <mode>
-         <ModeEntry name="Rollback" checked="false"/>
-         <ModeEntry name="Secured" checked="false"/>
-         <ModeEntry name="NoSignatureTest" checked="false"/>
-         <ModeEntry name="StaticToken" checked="false"/>
-         <ModeEntry name="VendorToken" checked="false"/>
-         <ModeEntry name="PublicWrite" checked="false"/>
-         <ModeEntry name="PublicRead" checked="false"/>
-      </mode>
-      <verify>true</verify>
-      <Update>true</Update>
-      <Erase>true</Erase>
-      <Certificate></Certificate>
-      <Signature></Signature>
-   </Filename>
-   <Filename name="Ringtone_hello_leftchannel_16PCM" category="user">
-      <Version>0</Version>
-      <Type>blob</Type>
-      <Storage>SFLASH</Storage>
-      <MaxSize>0</MaxSize>
-      <url>C:\Users\chrisjohnson\Desktop\Ringtone_hello_leftchannel_16PCM.raw</url>
-      <mode>
-         <ModeEntry name="Rollback" checked="false"/>
-         <ModeEntry name="Secured" checked="false"/>
-         <ModeEntry name="NoSignatureTest" checked="false"/>
-         <ModeEntry name="StaticToken" checked="false"/>
-         <ModeEntry name="VendorToken" checked="false"/>
-         <ModeEntry name="PublicWrite" checked="false"/>
-         <ModeEntry name="PublicRead" checked="false"/>
-      </mode>
-      <verify>true</verify>
-      <Update>true</Update>
-      <Erase>true</Erase>
       <Certificate></Certificate>
       <Signature></Signature>
    </Filename>

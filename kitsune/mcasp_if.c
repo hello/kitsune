@@ -65,8 +65,6 @@
 
 /* Demo app includes. */
 #include "mcasp_if.h"
-//#include "gpio_if.h"
-//#include "network.h"
 
 //unsigned long tone;
 unsigned short * audio_buf;
@@ -121,19 +119,12 @@ unsigned int* AudioCapturerGetDMADataPtr()
 //! \return None.
 //
 //*****************************************************************************
-void AudioCapturerInit()
+void AudioCapturerInit(unsigned int CPU_XDATA, unsigned int SAMPLING_FREQ)
 {
     //
     // Initialising the McASP
     //
-    McASPInit();
-}
-void AudioCapturerInit_mic()
-{
-    //
-    // Initialising the McASP
-    //
-	McASPInit_RX();
+    McASPInit(CPU_XDATA, SAMPLING_FREQ);
 }
 //*****************************************************************************
 //
@@ -147,30 +138,16 @@ void AudioCapturerInit_mic()
 //! \return None.
 //
 //*****************************************************************************
-void McASPInit()
+void McASPInit(unsigned int CPU_XDATA, unsigned int SAMPLING_FREQ)
 {
-
     MAP_PRCMPeripheralClkEnable(PRCM_I2S,PRCM_RUN_MODE_CLK); 
-    MAP_PRCMI2SClockFreqSet(512000*3);
-        MAP_I2SIntRegister(I2S_BASE,I2SIntHandler); // add by ben
+    MAP_PRCMI2SClockFreqSet(SAMPLING_FREQ*2*16); // 16bit *2* 22050Hz
+if(CPU_XDATA)
+{        MAP_I2SIntRegister(I2S_BASE,I2SIntHandler); // add by ben
         MAP_I2SIntEnable(I2S_BASE,I2S_INT_XDATA); // add by ben
 }
-void McASPInit_RX()
-{
+}
 
-    MAP_PRCMPeripheralClkEnable(PRCM_I2S,PRCM_RUN_MODE_CLK);
-    MAP_PRCMI2SClockFreqSet(512000*3);
-      //512000 = 16*2*16000Khz(Num of bytes * STEREO * 16000 sampling)
-//    MAP_I2SIntRegister(I2S_BASE,I2SIntHandler); // add by ben
-//    MAP_I2SIntEnable(I2S_BASE,I2S_INT_RDATA); // add by ben
-}
-# if 0
-void McASPTXINT()
-{
-    MAP_I2SIntRegister(I2S_BASE,I2SIntHandler); // add by ben
-    MAP_I2SIntEnable(I2S_BASE,I2S_INT_XDATA); // add by ben
-}
-#endif
 void McASPLoad(unsigned long * b, unsigned long size){
 	playback_buffer = b;
 	playback_buffer_size = size;
@@ -183,28 +160,34 @@ void McASPLoad(unsigned long * b, unsigned long size){
 void I2SIntHandler(){
 	//static unsigned long sin[32]={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 	//						 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa};
-	//static int i;
+    static int i = 0 ;
    unsigned long ulStatus;
    unsigned long ulDummy=0;
 
    // Get the interrupt status
    ulStatus = I2SIntStatus(I2S_BASE);
-#if 0
+
    // Check if there was a Transmit interrupt; if so write next data into the tx buffer and acknowledge the interrupt
    if(ulStatus & I2S_STS_XDATA)
    {
 	   //I2SDataPutNonBlocking(I2S_BASE,I2S_DATA_LINE_0,sin[(i++)%32]);
 	    I2SDataPut(I2S_BASE,I2S_DATA_LINE_0, (unsigned long) (audio_buf[i/2]));
+
+	  //  for( i = 0; i < 2*AUDIO_BUF_SZ/sizeof(unsigned short); i++) {
+	    //for(;;){
 		I2SDataPutNonBlocking(I2S_BASE,I2S_DATA_LINE_0, (unsigned long) (audio_buf[i/2]));
-	    if( ++i > 2*AUDIO_BUF_SZ/sizeof(unsigned short) ) {
+	    //i++;
+		if( ++i > 2*AUDIO_BUF_SZ/sizeof(unsigned short) ) {
 	    	i=0;
 	    }
+
         I2SIntClear(I2S_BASE,I2S_STS_XDATA);
+	    //}
    }
 
    // Check if there was a receive interrupt; if so read the data from the rx buffer and acknowledge
    // the interrupt
-#endif
+#if 0
    if(ulStatus & I2S_STS_RDATA)
    {
 
@@ -215,7 +198,7 @@ void I2SIntHandler(){
 
 
    }
-
+#endif
 }
 
 //*****************************************************************************
@@ -248,7 +231,7 @@ void AudioCapturerSetupDMAMode(void (*pfnAppCbHndlr)(void),
 #endif
 
     MAP_I2STxFIFOEnable(I2S_BASE,8,1);
-     MAP_I2SRxFIFOEnable(I2S_BASE,8,1);
+    MAP_I2SRxFIFOEnable(I2S_BASE,8,1);
 
 }
 
@@ -267,28 +250,18 @@ void AudioCapturerSetupDMAMode(void (*pfnAppCbHndlr)(void),
 //
 //*****************************************************************************
 
-void AudioCaptureRendererConfigure()
+void AudioCaptureRendererConfigure(unsigned int PORTI2S, unsigned int SAMPLING_FREQ)
 {
 
-    MAP_I2SConfigSetExpClk(I2S_BASE,512000*3,512000*3,I2S_SLOT_SIZE_16|
-    		I2S_PORT_DMA );// I2S_PORT_DMA
+    MAP_I2SConfigSetExpClk(I2S_BASE,SAMPLING_FREQ*2*16 ,SAMPLING_FREQ*2*16 ,I2S_SLOT_SIZE_16|
+    		PORTI2S );// // 16bit *2* 22050Hz = 705600
     MAP_I2SSerializerConfig(I2S_BASE,I2S_DATA_LINE_1,I2S_SER_MODE_RX,
                                             I2S_INACT_LOW_LEVEL);
     MAP_I2SSerializerConfig(I2S_BASE,I2S_DATA_LINE_0,I2S_SER_MODE_TX,
                                             I2S_INACT_LOW_LEVEL);
 
 }
-void AudioCaptureRendererConfigure_aud()
-{
 
-    MAP_I2SConfigSetExpClk(I2S_BASE,512000*3,512000*3,I2S_SLOT_SIZE_16|
-    		I2S_PORT_CPU );// I2S_PORT_DMA
-    MAP_I2SSerializerConfig(I2S_BASE,I2S_DATA_LINE_1,I2S_SER_MODE_RX,
-                                            I2S_INACT_LOW_LEVEL);
-    MAP_I2SSerializerConfig(I2S_BASE,I2S_DATA_LINE_0,I2S_SER_MODE_TX,
-                                            I2S_INACT_LOW_LEVEL);
-
-}
 //*****************************************************************************
 //
 //! Initialize the Audio_Start
@@ -308,10 +281,10 @@ void Audio_Start()
 
 }
 
-void Audio_Stop()
+int Audio_Stop()
 {
 	MAP_I2SDisable(I2S_BASE);
-
+	return 0;
 }
 //*****************************************************************************
 //
