@@ -702,8 +702,8 @@ unsigned long get_time();
 int decode_rx_data_pb(const unsigned char * buffer, int buffer_size, const pb_field_t fields[], void* dst_struct, size_t dst_struct_len) {
 	AES_CTX aesctx;
 	unsigned char * buf_pos = buffer;
-	unsigned char sig[SIG_SIZE];
-	unsigned char sig_test[SIG_SIZE];
+	unsigned char sig[SIG_SIZE] = {0};
+	unsigned char sig_test[SIG_SIZE] = {0};
 	int i;
 	int status;
 	pb_istream_t stream;
@@ -714,7 +714,7 @@ int decode_rx_data_pb(const unsigned char * buffer, int buffer_size, const pb_fi
 	UARTprintf("iv ");
 	for (i = 0; i < AES_IV_SIZE; ++i) {
 		aesctx.iv[i] = *buf_pos++;
-		UARTprintf("%x", aesctx.iv[i]);
+		UARTprintf("%02x", aesctx.iv[i]);
 		if (buf_pos > (buffer + buffer_size)) {
 			return -1;
 		}
@@ -724,7 +724,7 @@ int decode_rx_data_pb(const unsigned char * buffer, int buffer_size, const pb_fi
 	UARTprintf("sig");
 	for (i = 0; i < SIG_SIZE; ++i) {
 		sig[i] = *buf_pos++;
-		UARTprintf("%x", sig[i]);
+		UARTprintf("%02x", sig[i]);
 		if (buf_pos > (buffer + buffer_size)) {
 			return -1;
 		}
@@ -732,7 +732,7 @@ int decode_rx_data_pb(const unsigned char * buffer, int buffer_size, const pb_fi
 	UARTprintf("\n");
 	buffer_size -= SIG_SIZE;
 
-	AES_set_key(&aesctx, aes_key, aesctx.iv, AES_MODE_128); //todo real key
+	AES_set_key(&aesctx, aes_key, aesctx.iv, AES_MODE_128); //TODO: real key
 	AES_convert_key(&aesctx);
 	AES_cbc_decrypt(&aesctx, sig, sig, SIG_SIZE);
 
@@ -743,11 +743,11 @@ int decode_rx_data_pb(const unsigned char * buffer, int buffer_size, const pb_fi
 	if (memcmp(sig, sig_test, SHA1_SIZE) != 0) {
 		UARTprintf("signatures do not match\n");
 		for (i = 0; i < SHA1_SIZE; ++i) {
-			UARTprintf("%x", sig[i]);
+			UARTprintf("%02x", sig[i]);
 		}
 		UARTprintf("\nvs\n");
 		for (i = 0; i < SHA1_SIZE; ++i) {
-			UARTprintf("%x", sig_test[i]);
+			UARTprintf("%02x", sig_test[i]);
 		}
 		UARTprintf("\n");
 

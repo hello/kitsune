@@ -343,8 +343,8 @@ static void _send_response_to_ble(const char* buffer, size_t len)
         return;
     }
 
-
-    int resp_ok = match("2..", buffer);
+    char* first_line = strstr(buffer, "\r\n") + 2;
+    int resp_ok = match("2..", first_line);
     if (!resp_ok) {
         UARTprintf("Invalid response, %s endpoint return failure.\n", PILL_REGISTER_ENDPOINT);
         ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
@@ -353,6 +353,8 @@ static void _send_response_to_ble(const char* buffer, size_t len)
 
 
     int content_len = atoi(len_str);
+    UARTprintf("Content length %d\n", content_len);
+    
     MorpheusCommand response;
     memset(&response, 0, sizeof(response));
     ble_proto_assign_decode_funcs(&response);
@@ -446,7 +448,7 @@ void on_ble_protobuf_command(MorpheusCommand* command)
         {
             // Get the current wifi connection information.
             _ble_reply_wifi_info();
-            UARTprintf( "GET_WIFI %s\n", command->deviceId.arg );
+            UARTprintf( "GET_WIFI\n");
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_DEVICE_ID:
@@ -459,7 +461,7 @@ void on_ble_protobuf_command(MorpheusCommand* command)
     	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_DATA: 
         {
     		// Pill data received from ANT
-            UARTprintf("PILL DATA\n");
+            UARTprintf("PILL DATA %s\n", command->deviceId.arg);
     		_process_encrypted_pill_data(command);
 
     	}
