@@ -29,6 +29,8 @@ extern periodic_data_pill_data_container pill_list[MAX_PILLS];
 #define HAS_IP    0x00000002
 #define IP_LEASED 0x00000004
 
+#define AES_KEY_LOC "/cert/key.aes"
+
 #include "stdint.h"
 #include "SyncResponse.pb.h"
 
@@ -52,7 +54,8 @@ int Cmd_audio_test(int argc, char *argv[]);
 int Cmd_time(int argc, char*argv[]);
 int Cmd_sl(int argc, char*argv[]);
 int Cmd_mode(int argc, char*argv[]);
-
+int Cmd_set_mac(int argc, char*argv[]);
+int Cmd_set_aes(int argc, char *argv[]) ;
 
 int Cmd_RadioStartRX(int argc, char*argv[]);
 int Cmd_RadioStopRX(int argc, char*argv[]);

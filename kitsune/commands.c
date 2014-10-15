@@ -1106,6 +1106,9 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "free", Cmd_free, "Report free memory" },
 		{ "connect", Cmd_connect, "Connect to an AP" },
 		{ "disconnect", Cmd_disconnect, "disconnect to an AP" },
+		{ "mac", Cmd_set_mac, "set the mac" },
+		{ "aes", Cmd_set_aes, "set the aes key" },
+
 		{ "ping", Cmd_ping, "Ping a server" },
 		{ "time", Cmd_time, "get ntp time" },
 		{ "status", Cmd_status, "status of simple link" },

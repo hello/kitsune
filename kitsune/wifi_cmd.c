@@ -402,16 +402,72 @@ int Cmd_mode(int argc, char*argv[]) {
 
     return 0;
 }
-
 #include "crypto.h"
 static uint8_t aes_key[AES_BLOCKSIZE + 1] = "1234567891234567";
+
+int Cmd_set_aes(int argc, char *argv[]) {
+	//
+	// Print some header text.
+	//
+	unsigned long tok=0;
+	long hndl, bytes;
+	SlFsFileInfo_t info;
+    int i;
+    char* next = &argv[1][0];
+    char *pend;
+
+    for( i=0; i<AES_BLOCKSIZE/2;++i) {
+    	aes_key[i] = strtol(next, &pend, 16);
+        next = pend+1;
+    }
+
+	sl_FsGetInfo((unsigned char*)AES_KEY_LOC, tok, &info);
+
+	if (sl_FsOpen((unsigned char*)AES_KEY_LOC,
+	FS_MODE_OPEN_WRITE, &tok, &hndl)) {
+		UARTprintf("error opening file, trying to create\n");
+
+		if (sl_FsOpen((unsigned char*)AES_KEY_LOC,
+				FS_MODE_OPEN_CREATE(65535, _FS_FILE_OPEN_FLAG_COMMIT), &tok,
+				&hndl)) {
+			UARTprintf("error opening for write\n");
+			return -1;
+		}
+	}
+
+	bytes = sl_FsWrite(hndl, info.FileLen, aes_key, AES_BLOCKSIZE);
+	UARTprintf("wrote to the file %d bytes\n", bytes);
+
+	sl_FsClose(hndl, 0, 0, 0);
+
+	// Return success.
+	return (0);
+}
+
+int Cmd_set_mac(int argc, char*argv[]) {
+    uint8_t MAC_Address[6];
+    int i;
+    char* pend;
+    char* next = &argv[1][0];
+
+    for( i=0; i<6;++i) {
+        MAC_Address[i] = strtol(next, &pend, 16);
+        next = pend+1;
+    }
+
+    sl_NetCfgSet(SL_MAC_ADDRESS_SET,1,SL_MAC_ADDR_LEN,(_u8 *)MAC_Address);
+    sl_Stop(0);
+    sl_Start(NULL,NULL,NULL);
+
+    return 0;
+}
 
 void load_aes() {
 	long DeviceFileHandle = -1;
 	int RetVal, Offset;
 
 	// read in aes key
-	RetVal = sl_FsOpen("/cert/key.aes", FS_MODE_OPEN_READ, NULL,
+	RetVal = sl_FsOpen(AES_KEY_LOC, FS_MODE_OPEN_READ, NULL,
 			&DeviceFileHandle);
 	if (RetVal != 0) {
 		UARTprintf("failed to open aes key file\n");
@@ -784,6 +840,13 @@ int rx_data_pb(unsigned char * buffer, int buffer_size ) {
 			UARTprintf( "Got alarm %d to %d in %d minutes\n", alarm.start_time, alarm.end_time, (alarm.start_time - get_time())/60 );
 		}
 	}
+#if 0
+	if( SyncResponse_data.has_flash_action )
+	{
+
+		alarm = SyncResponse_data.flash_action.led_1;
+	}
+#endif
 	//now act on incoming data!
 	return 0;
 }
