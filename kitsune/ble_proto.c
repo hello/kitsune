@@ -379,6 +379,10 @@ static void _pair_device(const MorpheusCommand* command, int is_morpheus)
 	}else{
 		MorpheusCommand command_copy;
 		memset(&command_copy, 0, sizeof(MorpheusCommand));
+        command_copy.type = is_morpheus == 1 ? MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_SENSE:
+            MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_PILL;
+        command_copy.version = PROTOBUF_VERSION;
+
 		char account_id_buffer[50] = {0};
 
 		memcpy(account_id_buffer, command->accountId.arg, strlen(command->accountId.arg));
@@ -393,7 +397,7 @@ static void _pair_device(const MorpheusCommand* command, int is_morpheus)
 		int ret = send_data_pb(DATA_SERVER,
 				is_morpheus == 1 ? MORPHEUS_REGISTER_ENDPOINT : PILL_REGISTER_ENDPOINT,
 				response_buffer, sizeof(response_buffer),
-				MorpheusCommand_fields, &command_copy);
+				MorpheusCommand_fields, /*&command_copy*/command);
 
 		// All the args are in stack, don't need to do protobuf free.
 
