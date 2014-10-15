@@ -939,9 +939,39 @@ int send_data_pb(const char* host, const char* path,
 
     return 0;
 }
+
 bool encode_pill_id(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
 	periodic_data_pill_data_container * data = (periodic_data_pill_data_container*) arg;
     return pb_encode_tag(stream, PB_WT_STRING, field->tag) && pb_encode_string(stream, (uint8_t*) data->id, strlen(data->id));
+}
+
+int http_response_ok(const char* response_buffer)
+{
+	char* first_line = strstr(response_buffer, "\r\n") + 2;
+	uint16_t first_line_len = first_line - response_buffer;
+	if(!first_line_len > 0)
+	{
+		UARTprintf("Cannot get response first line.\n");
+		return -1;
+	}
+	first_line = pvPortMalloc(first_line_len + 1);
+	if(!first_line)
+	{
+		UARTprintf("No memory\n");
+		return -2;
+	}
+
+	memset(first_line, 0, first_line_len + 1);
+	memcpy(first_line, response_buffer, first_line_len);
+	UARTprintf("Status line: %s\n", first_line);
+
+	int resp_ok = match("2..", first_line);
+	int ret = 0;
+	if (resp_ok) {
+		ret = 1;
+	}
+	vPortFree(first_line);
+	return ret;
 }
 
 #include "ble_cmd.h"

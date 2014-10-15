@@ -343,14 +343,11 @@ static void _send_response_to_ble(const char* buffer, size_t len)
         return;
     }
 
-    char* first_line = strstr(buffer, "\r\n") + 2;
-    int resp_ok = match("2..", first_line);
-    if (!resp_ok) {
+    if (http_response_ok(buffer) != 1) {
         UARTprintf("Invalid response, %s endpoint return failure.\n", PILL_REGISTER_ENDPOINT);
         ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
         return;
     }
-
 
     int content_len = atoi(len_str);
     UARTprintf("Content length %d\n", content_len);

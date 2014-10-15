@@ -79,7 +79,7 @@ int send_data_pb(const char* host, const char* path,
     const pb_field_t fields[], const void *src_struct);
 int decode_rx_data_pb(const unsigned char * buffer, int buffer_size, 
     const pb_field_t fields[], void* dst_struct, size_t dst_struct_len);
-
+int http_response_ok(const char* response_buffer);
 //#define MORPH_NAME "KingShy's morpheus"
 
 //#define MORPH_NAME "Chris's morpheus"
