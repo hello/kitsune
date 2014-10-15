@@ -720,7 +720,6 @@ int decode_rx_data_pb(const unsigned char * buffer, int buffer_size, const pb_fi
 		}
 	}
 	UARTprintf("\n");
-	buffer_size -= AES_IV_SIZE;
 	UARTprintf("sig");
 	for (i = 0; i < SIG_SIZE; ++i) {
 		sig[i] = *buf_pos++;
@@ -730,7 +729,7 @@ int decode_rx_data_pb(const unsigned char * buffer, int buffer_size, const pb_fi
 		}
 	}
 	UARTprintf("\n");
-	buffer_size -= SIG_SIZE;
+	buffer_size -= (SIG_SIZE + AES_IV_SIZE);
 
 	AES_set_key(&aesctx, aes_key, aesctx.iv, AES_MODE_128); //TODO: real key
 	AES_convert_key(&aesctx);
