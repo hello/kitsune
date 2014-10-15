@@ -367,6 +367,7 @@ static void _send_response_to_ble(const char* buffer, size_t len)
 
         ble_send_protobuf(&response);
     }
+    ble_proto_remove_decode_funcs(&response);
     ble_proto_free_command(&response);
 }
 
@@ -377,6 +378,7 @@ static void _pair_device(const MorpheusCommand* command, int is_morpheus)
 		UARTprintf("****************************************Missing fields\n");
 		ble_reply_protobuf_error(ErrorType_INTERNAL_DATA_ERROR);
 	}else{
+		/*
 		MorpheusCommand command_copy;
 		memset(&command_copy, 0, sizeof(MorpheusCommand));
         command_copy.type = is_morpheus == 1 ? MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_SENSE:
@@ -392,8 +394,9 @@ static void _pair_device(const MorpheusCommand* command, int is_morpheus)
 
 		memcpy(device_id_buffer, command->deviceId.arg, strlen(command->deviceId.arg));
 		command_copy.deviceId.arg = device_id_buffer;
+		*/
 
-		ble_proto_assign_encode_funcs(&command_copy);
+		ble_proto_assign_encode_funcs(command);
 		int ret = send_data_pb(DATA_SERVER,
 				is_morpheus == 1 ? MORPHEUS_REGISTER_ENDPOINT : PILL_REGISTER_ENDPOINT,
 				response_buffer, sizeof(response_buffer),

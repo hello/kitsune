@@ -34,6 +34,7 @@ bool ble_reply_protobuf_error(ErrorType error_type);
 void ble_proto_free_command(MorpheusCommand* command);
 void ble_proto_assign_encode_funcs(MorpheusCommand* command);
 void ble_proto_assign_decode_funcs(MorpheusCommand* command);
+void ble_proto_remove_decode_funcs(MorpheusCommand* command);
 
 //*****************************************************************************
 //

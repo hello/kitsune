@@ -128,7 +128,7 @@ void on_morpheus_protobuf_arrival(uint8_t* protobuf, size_t len)
 
     pb_istream_t stream = pb_istream_from_buffer(protobuf, len);
     bool status = pb_decode(&stream, MorpheusCommand_fields, &command);
-    
+    ble_proto_remove_decode_funcs(&command);
 
     if (!status)
     {
@@ -180,6 +180,39 @@ void ble_proto_assign_decode_funcs(MorpheusCommand* command)
     {
         command->motionDataEntrypted.funcs.decode = _decode_bytes_field;
         command->motionDataEntrypted.arg = NULL;
+    }
+}
+
+void ble_proto_remove_decode_funcs(MorpheusCommand* command)
+{
+    if(command->accountId.funcs.decode)
+    {
+        command->accountId.funcs.decode = NULL;
+    }
+
+    if(command->deviceId.funcs.decode)
+    {
+        command->deviceId.funcs.decode = NULL;
+    }
+
+    if(command->wifiName.funcs.decode)
+    {
+        command->wifiName.funcs.decode = NULL;
+    }
+
+    if(command->wifiSSID.funcs.decode)
+    {
+        command->wifiSSID.funcs.decode = NULL;
+    }
+
+    if(command->wifiPassword.funcs.decode)
+    {
+        command->wifiPassword.funcs.decode = NULL;
+    }
+
+    if(command->motionDataEntrypted.funcs.decode)
+    {
+        command->motionDataEntrypted.funcs.decode = NULL;
     }
 }
 
