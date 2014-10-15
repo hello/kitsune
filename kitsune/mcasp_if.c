@@ -281,10 +281,10 @@ void Audio_Start()
 
 }
 
-void Audio_Stop()
+int Audio_Stop()
 {
 	MAP_I2SDisable(I2S_BASE);
-
+	return 0;
 }
 //*****************************************************************************
 //

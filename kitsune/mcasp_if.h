@@ -114,7 +114,7 @@ extern unsigned int BitClockConfigure(int iSamplingFrequency,
                                       short sBitsPerSample);
 extern void AudioCaptureRendererConfigure(unsigned int PORTI2S, unsigned int SAMPLING_FREQ);
 extern void Audio_Start();
-extern void Audio_Stop();
+extern int Audio_Stop();
 extern void I2SIntHandler();
 void McASPLoad(unsigned long * b, unsigned long size);
 //*****************************************************************************

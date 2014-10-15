@@ -991,7 +991,6 @@ static bool _encode_encrypted_pilldata(pb_ostream_t *stream, const pb_field_t *f
 
 bool encode_pill_data(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
 	periodic_data_pill_data_container * data = *(periodic_data_pill_data_container**) arg;
-	bool ret = false;
 
 	int i;
 	if (xSemaphoreTake(pill_smphr, portMAX_DELAY)) {
