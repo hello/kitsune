@@ -854,15 +854,15 @@ void nordic_prox_int() {
 	//clear all interrupts
 
     MAP_GPIOIntClear(GPIO_PORT, status);
-	if (status & RTC_INT_PIN) {
+	if (status & GSPI_INT_PIN) {
 		UARTprintf("nordic interrupt\r\n");
 		xSemaphoreGiveFromISR(spi_smphr, &xHigherPriorityTaskWoken);
-		MAP_GPIOIntDisable(GPIO_PORT,RTC_INT_PIN);
+		MAP_GPIOIntDisable(GPIO_PORT,GSPI_INT_PIN);
 	    portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
 	}
-	if (status & GSPI_INT_PIN) {
+	if (status & RTC_INT_PIN) {
 		UARTprintf("prox interrupt\r\n");
-		MAP_GPIOIntDisable(GPIO_PORT,GSPI_INT_PIN);
+		MAP_GPIOIntDisable(GPIO_PORT,RTC_INT_PIN);
 	}
 	/* If xHigherPriorityTaskWoken was set to true you
     we should yield.  The actual macro used here is
@@ -877,7 +877,7 @@ void SetupGPIOInterrupts() {
     unsigned int port;
 
     port = GPIO_PORT;
-    pin = RTC_INT_PIN /*| GSPI_INT_PIN*/;
+    pin = /*RTC_INT_PIN |*/ GSPI_INT_PIN;
 #if !ONLY_MID
 	GPIO_IF_ConfigureNIntEnable( port, pin, GPIO_HIGH_LEVEL, nordic_prox_int );
 	//only one interrupt per port...
@@ -891,9 +891,9 @@ void thread_spi(void * data) {
 		if (xSemaphoreTake(spi_smphr, 10000) ) {
 			vTaskDelay(10);
 			Cmd_spi_read(0, 0);
-			MAP_GPIOIntEnable(GPIO_PORT,RTC_INT_PIN);
+			MAP_GPIOIntEnable(GPIO_PORT,GSPI_INT_PIN);
 		} else {
-			MAP_GPIOIntEnable(GPIO_PORT,RTC_INT_PIN);
+			MAP_GPIOIntEnable(GPIO_PORT,GSPI_INT_PIN);
 		}
 	}
 }
