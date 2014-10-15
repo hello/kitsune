@@ -1147,75 +1147,81 @@ int send_periodic_data( data_t * data ) {
     msg.pills.arg = data->pill_list;
 
     int ret = send_data_pb(DATA_SERVER, DATA_RECEIVE_ENDPOINT, buffer, sizeof(buffer), periodic_data_fields, &msg);
-    if(ret == 0)
+    if(ret != 0)
     {
-        // Parse the response
-        UARTprintf("Reply is:\n\r%s\n\r", buffer);
-        
-        const char* header_content_len = "Content-Length: ";
-        char * content = strstr(buffer, "\r\n\r\n") + 4;
-        char * len_str = strstr(buffer, header_content_len) + strlen(header_content_len);
-        int resp_ok = match("2..", buffer);
-        
-        if (len_str != NULL) {
-            int len = atoi(len_str);
-            if (resp_ok) {
-                SyncResponse response_protobuf;
-                memset(&response_protobuf, 0, sizeof(response_protobuf));
-
-                if(decode_rx_data_pb((unsigned char*) content, len, SyncResponse_fields, &response_protobuf, sizeof(response_protobuf)) == 0)
-                {
-                    UARTprintf("Decoding success: %d %d %d %d %d\n",
-                    response_protobuf.has_acc_sampling_interval,
-                    response_protobuf.has_acc_scan_cyle,
-                    response_protobuf.has_alarm,
-                    response_protobuf.has_device_sampling_interval,
-                    response_protobuf.has_flash_action);
-
-                    if( response_protobuf.has_alarm ) {
-                        alarm = response_protobuf.alarm;
-
-                        if(alarm.has_start_time) {
-                            UARTprintf( "Got alarm %d to %d in %d minutes\n", alarm.start_time, alarm.end_time, (alarm.start_time - get_time())/60 );
-                        }
-                    }
-                    //now act on incoming data!
-                }
-
-                // Release all the resource occupied by pill data, or
-                // user can occupy the buffer forever by sending only one packet
-                if (xSemaphoreTake(pill_smphr, portMAX_DELAY)) {
-                    int i;
-                    for (i = 0; i < MAX_PILLS; ++i) {
-                        if (data->pill_list[i].magic != PILL_MAGIC) {
-                            // Slot already empty, skip.
-                            continue;
-                        }
-
-                        if(data->pill_list[i].pill_data.motionDataEncrypted.arg)
-                        {
-                            array_data* array_holder = data->pill_list[i].pill_data.motionDataEncrypted.arg;
-                            if(array_holder->buffer)
-                            {
-                                vPortFree(array_holder->buffer);
-                            }
-
-                            vPortFree(array_holder);
-                            data->pill_list[i].pill_data.motionDataEncrypted.arg = NULL;
-                            data->pill_list[i].pill_data.motionDataEncrypted.funcs.encode = NULL;
-                            data->pill_list[i].magic = 0;  // Release this slot.
-                        }
-                    }
-                    xSemaphoreGive(pill_smphr);
-                }
-            } else {
-                UARTprintf("Did not see http 2xx\n");
-            }
-        } else {
-            UARTprintf("Failed to find Content-Length header\n");
-        }
-    }else{
+        // network error
         UARTprintf("Send data failed, network error %d\n", ret);
+        return;
+    }
+
+    int upload_success = 0;
+    
+    // Parse the response
+    UARTprintf("Reply is:\n\r%s\n\r", buffer);
+    
+    const char* header_content_len = "Content-Length: ";
+    char * content = strstr(buffer, "\r\n\r\n") + 4;
+    char * len_str = strstr(buffer, header_content_len) + strlen(header_content_len);
+    if (http_response_ok(buffer) != 1) {
+        UARTprintf("Invalid response, endpoint return failure.\n");
+    }
+    
+    if (len_str == NULL) {
+        UARTprintf("Failed to find Content-Length header\n");
+    }
+    int len = atoi(len_str);
+    
+    SyncResponse response_protobuf;
+    memset(&response_protobuf, 0, sizeof(response_protobuf));
+
+    if(decode_rx_data_pb((unsigned char*) content, len, SyncResponse_fields, &response_protobuf, sizeof(response_protobuf)) == 0)
+    {
+        UARTprintf("Decoding success: %d %d %d %d %d\n",
+        response_protobuf.has_acc_sampling_interval,
+        response_protobuf.has_acc_scan_cyle,
+        response_protobuf.has_alarm,
+        response_protobuf.has_device_sampling_interval,
+        response_protobuf.has_flash_action);
+
+        if( response_protobuf.has_alarm ) {
+            alarm = response_protobuf.alarm;
+
+            if(alarm.has_start_time) {
+                UARTprintf( "Got alarm %d to %d in %d minutes\n", alarm.start_time, alarm.end_time, (alarm.start_time - get_time())/60 );
+            }
+        }
+        upload_success = 1;
+        //now act on incoming data!
+    }
+
+    if(upload_success)
+    {
+        // Release all the resource occupied by pill data, or
+        // user can occupy the buffer forever by sending only one packet
+        if (xSemaphoreTake(pill_smphr, portMAX_DELAY)) {
+            int i;
+            for (i = 0; i < MAX_PILLS; ++i) {
+                if (data->pill_list[i].magic != PILL_MAGIC) {
+                    // Slot already empty, skip.
+                    continue;
+                }
+
+                if(data->pill_list[i].pill_data.motionDataEncrypted.arg)
+                {
+                    array_data* array_holder = data->pill_list[i].pill_data.motionDataEncrypted.arg;
+                    if(array_holder->buffer)
+                    {
+                        vPortFree(array_holder->buffer);
+                    }
+
+                    vPortFree(array_holder);
+                    data->pill_list[i].pill_data.motionDataEncrypted.arg = NULL;
+                    data->pill_list[i].pill_data.motionDataEncrypted.funcs.encode = NULL;
+                    data->pill_list[i].magic = 0;  // Release this slot.
+                }
+            }
+            xSemaphoreGive(pill_smphr);
+        }
     }
 
     return ret;
