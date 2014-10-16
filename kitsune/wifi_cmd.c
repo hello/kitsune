@@ -1133,10 +1133,32 @@ bool encode_mac(pb_ostream_t *stream, const pb_field_t *field, void * const *arg
     mac[4] = 0xab;
     mac[5] = 0xcd;
 #else
-    sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
+    int32_t ret = sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
+    if(ret != 0 && ret != SL_ESMALLBUF)
+    {
+        return false;  // If get mac failed, don't encode that field
+    }
 #endif
 
     return pb_encode_tag(stream, PB_WT_STRING, field->tag) && pb_encode_string(stream, (uint8_t*) mac, mac_len);
+}
+
+static bool encode_mac_as_device_id_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
+    unsigned char mac[6] = {0};
+    unsigned char mac_len = 6;
+    int32_t ret = sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
+    if(ret != 0 && ret != SL_ESMALLBUF)
+    {
+        return false;  // If get mac failed, don't encode that field
+    }
+    char hex_device_id[13] = {0};
+    uint8_t i = 0;  uint8_t i = 0;
+    for(i = 0; i < sizeof(mac); i++){
+        sprintf(hex_device_id[i * 2], "%02X", mac[i]);
+    }
+
+
+    return pb_encode_tag_for_field(stream, field) && pb_encode_string(stream, hex_device_id, strlen(hex_device_id));
 }
 
 bool encode_name(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
@@ -1159,7 +1181,8 @@ int send_periodic_data( data_t * data ) {
     msg.temperature = data->temp;
     msg.unix_time = data->time;
     msg.name.funcs.encode = encode_name;
-    msg.mac.funcs.encode = encode_mac;
+    msg.mac.funcs.encode = encode_mac;  // Now this is a fallback, the backend will not use this at the first hand
+    msg.device_id.funcs.encode = encode_mac_as_device_id_string;
     msg.pills.funcs.encode = encode_pill_list;
     msg.pills.arg = data->pill_list;
 
