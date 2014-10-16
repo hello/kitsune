@@ -11,6 +11,7 @@
 
 #include "assert.h"
 #include "stdlib.h"
+#include "stdio.h"
 
 static int _get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uint32_t scan_duration_ms)
 {
@@ -146,7 +147,6 @@ static void _reply_device_id()
     int32_t ret = sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
     if(ret == 0 || ret == SL_ESMALLBUF)  // OK you win: http://e2e.ti.com/support/wireless_connectivity/f/968/p/360573/1279578.aspx#1279578
     {
-        uint8_t device_id_len = SL_MAC_ADDR_LEN * 2 + 1;  // hex string representation
 
         char device_id[SL_MAC_ADDR_LEN * 2 + 1] = {0}; //pvPortMalloc(device_id_len);
 
