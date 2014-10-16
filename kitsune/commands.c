@@ -1023,6 +1023,7 @@ void led_array(unsigned int * colors) {
 	int i;
 	unsigned long ulInt;
 	//
+
 	// Temporarily turn off interrupts.
 	//
 	bool fast = MAP_GPIOPinRead(LED_GPIO_BASE_DOUT, LED_GPIO_BIT_DOUT);
@@ -1083,7 +1084,7 @@ int Cmd_led(int argc, char *argv[]) {
 		memcpy( colors, colors_o, sizeof(colors));
 		led_brightness( colors, fxd_sin(i<<4)>>7);
 		led_array(colors);
-		vTaskDelay(12-(fxd_sin((i+1)<<4)>>12));
+		vTaskDelay(8*(12-(fxd_sin((i+1)<<4)>>12)));
 	}
 	vTaskDelay(1);
 	memset(colors, 0, sizeof(colors));
