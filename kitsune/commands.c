@@ -557,10 +557,9 @@ void thread_tx(void* unused) {
 	load_aes();
 
 	while (1) {
-		UARTprintf("********************Start polling *****************\n");
-		if( data_queue != 0 && !xQueueReceive( data_queue, &( data ), portMAX_DELAY ) ) {
+		if( data_queue != 0 && !xQueueReceive( data_queue, &( data ), 10) ) {
 			vTaskDelay(100);
-			UARTprintf("*********************** Waiting for data *****************\n");
+			UARTprintf("=");
 			continue;
 		}
 
@@ -572,10 +571,11 @@ void thread_tx(void* unused) {
 		while (!send_periodic_data(&data) == 0) {
 			do {
 				vTaskDelay(1000);
-				UARTprintf("********************* Waiting for WIFI connection *****************\n");
+				UARTprintf("x");
 			} //wait for a connection...
-			while( !(sl_status&HAS_IP ) );
+			while( !(sl_status & HAS_IP ));
 		}//try every little bit
+		UARTprintf("!");
 	}
 }
 
