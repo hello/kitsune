@@ -495,6 +495,53 @@ Cmd_write(int argc, char *argv[])
     return(0);
 }
 
+#include "stdlib.h"
+#include "uart.h"
+#include "hw_memmap.h"
+void UARTStdioIntHandler(void);
+
+int
+Cmd_write_file(int argc, char *argv[])
+{
+	UARTprintf("Cmd_write_file\n");
+
+	WORD bytes = 0;
+	WORD bytes_written = 0;
+	WORD bytes_to_write = atoi(argv[2]);
+
+    if(global_filename( argv[1] ))
+    {
+    	return 1;
+
+    }
+
+    // Open the file for writing.
+    FRESULT res = f_open(&file_obj, path_buff, FA_CREATE_NEW|FA_WRITE);
+    UARTprintf("res :%d\n",res);
+
+    if(res != FR_OK && res != FR_EXIST){
+    	UARTprintf("File open %s failed: %d\n", path_buff, res);
+    	return res;
+    }
+
+	UARTIntUnregister(UARTA0_BASE);
+    do {
+		uint8_t c = UARTCharGet(UARTA0_BASE);
+		res = f_write( &file_obj, (void*)&c, 1, &bytes );
+		bytes_written+=bytes;
+		UARTCharPutNonBlocking(UARTA0_BASE, "*");
+    } while( bytes_written < bytes_to_write );
+
+    res = f_close( &file_obj );
+
+	UARTIntRegister(UARTA0_BASE, UARTStdioIntHandler);
+    if(res != FR_OK)
+    {
+        return((int)res);
+    }
+    return(0);
+}
+
 int
 Cmd_append(int argc, char *argv[])
 {

@@ -8,6 +8,7 @@ int Cmd_ls(int argc, char *argv[]);
 int Cmd_cd(int argc, char *argv[]);
 int Cmd_rm(int argc, char *argv[]);
 int Cmd_write(int argc, char *argv[]);
+int Cmd_write_file(int argc, char *argv[]);
 int Cmd_write_record(int argc, char *argv[]);
 int Cmd_write_audio(char *argv[]);
 int Cmd_mkfs(int argc, char *argv[]);
