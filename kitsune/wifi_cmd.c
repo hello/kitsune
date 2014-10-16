@@ -568,9 +568,9 @@ void UARTprintfFaults() {
 
             recv(sock, buffer, sizeof(buffer), 0);
 
-            UARTprintf("Reply is:\n\r\n\r");
-            buffer[127] = 0; //make sure it terminates..
-            UARTprintf("%s", buffer);
+            //UARTprintf("Reply is:\n\r\n\r");
+            //buffer[127] = 0; //make sure it terminates..
+            //UARTprintf("%s", buffer);
 
             info->magic = 0;
         }
@@ -742,9 +742,9 @@ int send_audio_wifi(char * buffer, int buffer_size, audio_read_cb arcb) {
     }
     UARTprintf("recv %d\n\r\n\r", rv);
 
-    UARTprintf("Reply is:\n\r\n\r");
-    buffer[127] = 0; //make sure it terminates..
-    UARTprintf("%s", buffer);
+    //UARTprintf("Reply is:\n\r\n\r");
+    //buffer[127] = 0; //make sure it terminates..
+    //UARTprintf("%s", buffer);
 
 
     return 0;
@@ -1197,7 +1197,7 @@ int send_periodic_data( data_t * data ) {
     int upload_success = 0;
     
     // Parse the response
-    UARTprintf("Reply is:\n\r%s\n\r", buffer);
+    //UARTprintf("Reply is:\n\r%s\n\r", buffer);
     
     const char* header_content_len = "Content-Length: ";
     char * content = strstr(buffer, "\r\n\r\n") + 4;
