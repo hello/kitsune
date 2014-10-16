@@ -844,7 +844,6 @@ int Cmd_mel(int argc, char *argv[]) {
 	return (0);
 }
 
-
 #define GPIO_PORT 0x40004000
 #define RTC_INT_PIN 0x80
 #define GSPI_INT_PIN 0x40
@@ -1102,8 +1101,6 @@ int Cmd_led_clr(int argc, char *argv[]) {
 	return 0;
 }
 
-
-
 // ==============================================================================
 // This is the table that holds the command names, implementing functions, and
 // brief description.
@@ -1204,6 +1201,15 @@ tCmdLineEntry g_sCmdTable[] = {
 extern xSemaphoreHandle g_xRxLineSemaphore;
 void UARTStdioIntHandler(void);
 
+void loopback_uart(void * p) {
+	MAP_UARTConfigSetExpClk(UARTA0_BASE,configCPU_CLOCK_HZ, 38400,
+		                            (UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE |
+		                             UART_CONFIG_PAR_NONE));
+	while(1) {
+		uint8_t c = UARTCharGet(UARTA0_BASE);
+		UARTCharPutNonBlocking(UARTA0_BASE, c); //basic feedback
+	}
+}
 void vUARTTask(void *pvParameters) {
 	char cCmdBuf[64];
 	portTickType now;
@@ -1271,6 +1277,8 @@ void vUARTTask(void *pvParameters) {
 	if (data_queue == 0) {
 		UARTprintf("Failed to create the data_queue.\n");
 	}
+
+	xTaskCreate(loopback_uart, "loopback_uart", 1024 / 4, NULL, 4, NULL); //todo reduce stack
 
 	xTaskCreate(thread_audio, "audioTask", 5 * 1024 / 4, NULL, 4, NULL); //todo reduce stack
 	UARTprintf("*");
