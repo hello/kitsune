@@ -76,28 +76,28 @@ void spi_init() {
 int spi_reset(){
 	unsigned char reset = 0xFF;
 	CS_set(0);
-	vTaskDelay(10);
+	vTaskDelay(8*10);
 //	MAP_SPITransfer(GSPI_BASE,&reset,&reset,1,SPI_CS_ENABLE|SPI_CS_DISABLE);
 	MAP_SPITransfer(GSPI_BASE,&reset,&reset,1,0);
 
 	CS_set(1);
-	vTaskDelay(10);
+	vTaskDelay(8*10);
 	reset = 0xFF;
 	CS_set(0);
-	vTaskDelay(10);
+	vTaskDelay(8*10);
 //	MAP_SPITransfer(GSPI_BASE,&reset,&reset,1,SPI_CS_ENABLE|SPI_CS_DISABLE);
 	MAP_SPITransfer(GSPI_BASE,&reset,&reset,1,0);
 
 	CS_set(1);
-	vTaskDelay(10);
+	vTaskDelay(8*10);
 	reset = 0xFF;
 	CS_set(0);
-	vTaskDelay(10);
+	vTaskDelay(8*10);
 //	MAP_SPITransfer(GSPI_BASE,&reset,&reset,1,SPI_CS_ENABLE|SPI_CS_DISABLE);
 	MAP_SPITransfer(GSPI_BASE,&reset,&reset,1,0);
 
 	CS_set(1);
-	vTaskDelay(5);
+	vTaskDelay(8*5);
 
 	return SUCCESS;
 }
@@ -112,7 +112,7 @@ int spi_write_step( int len, unsigned char * buf ) {
 	}
 	//MAP_SPICSEnable(GSPI_BASE);
 	CS_set(0);
-	vTaskDelay(10);
+	vTaskDelay(8*10);
 	for (i = 0; i < len; i++) {
 		MAP_SPIDataPut(GSPI_BASE, buf[i]);
 		MAP_SPIDataGet(GSPI_BASE, &dud);
@@ -120,7 +120,7 @@ int spi_write_step( int len, unsigned char * buf ) {
 	}
 	//MAP_SPICSDisable(GSPI_BASE);
 	CS_set(1);
-	vTaskDelay(5);
+	vTaskDelay(8*5);
 	UARTprintf("\r\n");
 	return SUCCESS;
 }
@@ -134,10 +134,10 @@ int spi_read_step( int len, unsigned char * buf ) {
 	UARTprintf("Reading...\r\n");
 	//	MAP_SPITransfer(GSPI_BASE,rx_buf,rx_buf,len,SPI_CS_ENABLE|SPI_CS_DISABLE);
 	CS_set(0);
-	vTaskDelay(10);
+	vTaskDelay(8*10);
 	len = MAP_SPITransfer(GSPI_BASE, buf, buf, len, 0);
 	CS_set(1);
-	vTaskDelay(5);
+	vTaskDelay(8*5);
 	UARTprintf("Read %d bytes \r\n", len);
 	for (i = 0; i < len; i++) {
 		UARTprintf("%x ", buf[i]);
@@ -150,14 +150,14 @@ int spi_write( int len, unsigned char * buf ) {
 	ctx_t ctx;
 
 	spi_write_step( 1, &mode );
-	vTaskDelay(10);
+	vTaskDelay(8*10);
 	ctx.len = len;
 	ctx.addr = 0xcc;
 	spi_write_step( 4, (unsigned char*)&ctx );
-	vTaskDelay(10);
+	vTaskDelay(8*10);
 	UARTprintf("Ctx len %u, address %u\r\n",ctx.len, ctx.addr);
 	spi_write_step( len, buf );
-	vTaskDelay(10);
+	vTaskDelay(8*10);
 
 	return SUCCESS;
 }
@@ -167,9 +167,9 @@ int spi_read( int * len, unsigned char * buf ) {
 	int i;
 
 	spi_write_step( 1, &mode );
-	vTaskDelay(10);
+	vTaskDelay(8*10);
 	spi_read_step( 4,  (unsigned char*)&ctx );
-	vTaskDelay(10);
+	vTaskDelay(8*10);
 	UARTprintf("Ctx len %u, address %u\r\n",ctx.len, ctx.addr);
 	if( ctx.addr == 0xAAAA || ctx.addr == 0x5500 || ctx.addr == 0x5555 ) {
 		spi_reset();
@@ -189,7 +189,7 @@ int spi_read( int * len, unsigned char * buf ) {
 			spi_reset();
 		}
 	}
-	vTaskDelay(10);
+	vTaskDelay(8*10);
 	return SUCCESS;
 }
 
