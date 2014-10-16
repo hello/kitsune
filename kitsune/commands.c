@@ -240,7 +240,7 @@ unsigned int CPU_XDATA = 1; //1: enabled CPU interrupt triggerred
 #define minval( a,b ) a < b ? a : b
 	unsigned long tok;
 	long hndl, err, bytes;
-
+	Audio_Stop();
 	audio_buf = (unsigned short*)pvPortMalloc(AUDIO_BUF_SZ);
 	//assert(audio_buf);
 	if (err = sl_FsOpen("Ringtone_hello_leftchannel_16PCM", FS_MODE_OPEN_READ, &tok, &hndl)) {
@@ -285,7 +285,7 @@ get_codec_mic_NAU();
 
 // Initialize the Audio(I2S) Module
 //
-AudioCapturerInit(CPU_XDATA, 48000);
+AudioCapturerInit(CPU_XDATA, 16000);
 
 // Initialize the DMA Module
 //
@@ -300,7 +300,7 @@ SetupPingPongDMATransferTx();
 //
 
 AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
-AudioCaptureRendererConfigure(I2S_PORT_DMA, 48000);
+AudioCaptureRendererConfigure(I2S_PORT_DMA, 16000);
 
 // Start Audio Tx/Rx
 //
@@ -879,7 +879,7 @@ void SetupGPIOInterrupts() {
     port = GPIO_PORT;
     pin = /*RTC_INT_PIN |*/ GSPI_INT_PIN;
 #if !ONLY_MID
-	GPIO_IF_ConfigureNIntEnable( port, pin, GPIO_HIGH_LEVEL, nordic_prox_int );
+	//GPIO_IF_ConfigureNIntEnable( port, pin, GPIO_HIGH_LEVEL, nordic_prox_int );
 	//only one interrupt per port...
 #endif
 }
@@ -1265,7 +1265,7 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(thread_spi, "spiTask", 5*2048 / 4, NULL, 5, NULL);
 	SetupGPIOInterrupts();
 	UARTprintf("*");
-#if !ONLY_MID
+#if 0
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask", 5 * 1024 / 4, NULL, 3, NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_dust, "dustTask", 5* 1024 / 4, NULL, 3, NULL);

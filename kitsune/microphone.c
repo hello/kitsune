@@ -130,10 +130,17 @@ void Microphone1()
     FILINFO file_info;
     memset(&file_obj, 0, sizeof(file_obj));
     FIL* file_ptr = &file_obj;
-
+    WORD Size;
+    unsigned long totBytesWrote = 0;
     FRESULT res = f_open(&file_obj, file_name, FA_WRITE|FA_OPEN_ALWAYS);
     //UARTprintf("res :%d\n",res);
 
+    if(res == FR_OK)
+    {
+    f_write(file_ptr, "/POD101", sizeof("/POD101"), &Size);
+    totBytesWrote = 7;
+    UARTprintf("dummy_write\n");
+    }
 
     if(res != FR_OK && res != FR_EXIST){
     	UARTprintf("File open %s failed: %d\n", file_name, res);
@@ -195,7 +202,7 @@ void Microphone1()
 
 #endif   //NETWORK       
 
-             	if(g_iSentCount == 2000){
+             	if(g_iSentCount == 1000){
              		 res = f_close(file_ptr);
              		UARTprintf("mic task completed\r\n" );
              		g_iSentCount = 0;
