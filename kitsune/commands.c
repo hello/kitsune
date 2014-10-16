@@ -557,8 +557,10 @@ void thread_tx(void* unused) {
 	load_aes();
 
 	while (1) {
+		UARTprintf("********************Start polling *****************\n");
 		if( data_queue != 0 && !xQueueReceive( data_queue, &( data ), portMAX_DELAY ) ) {
 			vTaskDelay(100);
+			UARTprintf("*********************** Waiting for data *****************\n");
 			continue;
 		}
 
@@ -568,7 +570,10 @@ void thread_tx(void* unused) {
 		data.pill_list = pill_list;
 
 		while (!send_periodic_data(&data) == 0) {
-			do {vTaskDelay(100);} //wait for a connection...
+			do {
+				vTaskDelay(1000);
+				UARTprintf("********************* Waiting for WIFI connection *****************\n");
+			} //wait for a connection...
 			while( !(sl_status&HAS_IP ) );
 		}//try every little bit
 	}
@@ -1173,6 +1178,8 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "rdiorxstart", Cmd_RadioStartRX, "start rx test" },
 		{ "rdiorxstop", Cmd_RadioStopRX, "stop rx test" },
 		{ "rssi", Cmd_rssi, "scan rssi" },
+
+		{ "data_upload", Cmd_data_upload, "upload protobuf data" },
 
 
 		{ 0, 0, 0 } };

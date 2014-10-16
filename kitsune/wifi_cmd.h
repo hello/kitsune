@@ -67,6 +67,7 @@ int Cmd_RadioStopRX(int argc, char*argv[]);
 int Cmd_RadioStopTX(int argc, char*argv[]);
 int Cmd_RadioStartTX(int argc, char*argv[]);
 int Cmd_RadioGetStats(int argc, char*argv[]);
+int Cmd_data_upload(int arg, char* argv[]);
 
 int match(char *regexp, char *text);
 unsigned long unix_time();
