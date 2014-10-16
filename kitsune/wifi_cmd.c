@@ -1046,59 +1046,52 @@ static bool _encode_encrypted_pilldata(pb_ostream_t *stream, const pb_field_t *f
     return pb_encode_string(stream, array_holder->buffer, array_holder->length);
 }
 
-bool encode_pill_data(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
-	periodic_data_pill_data_container * data = *(periodic_data_pill_data_container**) arg;
+static bool encode_pill_list(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
+	periodic_data_pill_data_container* ptr_pill_list = *(periodic_data_pill_data_container**) arg;
+    if(!ptr_pill_list)
+    {
+        UARTprintf("No pill list t encode\n");
+        return 0;
+    }
+
+    if (!pb_encode_tag_for_field(stream, field)){
+        UARTprintf("Cannot encode pill list\n");
+        return 0;
+    }
 
 	int i;
 	if (xSemaphoreTake(pill_smphr, portMAX_DELAY)) {
+        for (i = 0; i < MAX_PILLS; ++i) {
+            periodic_data_pill_data_container* data = ptr_pill_list[i];
+    		if( data->magic != PILL_MAGIC ) {
+                continue;
+    		}
 
-		if( data->magic != PILL_MAGIC ) {
-			UARTprintf("Nothing to encode\r\n");
-			xSemaphoreGive(pill_smphr);
-			return true; //nothing to encode
-		}
-
-		data->pill_data.deviceId.funcs.encode = encode_pill_id;
-		data->pill_data.deviceId.arg = (void*) arg;
-
- 		if (!pb_encode_tag(stream, PB_WT_STRING, field->tag))
-        {
- 			UARTprintf("Failed to encode string\r\n");
- 			xSemaphoreGive(pill_smphr);
-			return false;
-        }
-
-		{
-			pb_ostream_t sizestream = { 0 };
-			pb_encode(&sizestream, periodic_data_pill_data_fields,
-					(const void*) &data->pill_data);
-
-			if (!pb_encode_varint(stream, (uint64_t) sizestream.bytes_written)){
-				UARTprintf("Fail to encode bytes\r\n");
-				xSemaphoreGive(pill_smphr);
-				return false;
-			}
-
-		}
-
-		for (i = 0; data->magic == PILL_MAGIC && i < MAX_PILLS; ++i) {
+    		data->pill_data.deviceId.funcs.encode = encode_pill_id;
+    		data->pill_data.deviceId.arg = data->id; // attach the id to protobuf structure.
             if(data->pill_data.motionDataEncrypted.arg && 
                 NULL == data->pill_data.motionDataEncrypted.funcs.encode)
             {
                 // Set the default encode function for encrypted motion data.
                 data->pill_data.motionDataEncrypted.funcs.encode = _encode_encrypted_pilldata;
             }
+		  
+            /*
+			pb_ostream_t sizestream = { 0 };
+			if(!pb_encode(&sizestream, periodic_data_pill_data_fields, &data->pill_data))
+            {
+                UARTprintf("Fail to encode pill %s\r\n", data->id);
+                continue;
+            }
+            */
 
-			if (!pb_encode(stream, periodic_data_pill_data_fields,
-					(const void*) &data->pill_data)) {
-				UARTprintf("Fail to encode pill data\r\n");
-				xSemaphoreGive(pill_smphr);
-				return false;
+			if (!pb_encode(stream, periodic_data_pill_data_fields, &data->pill_data))){
+				UARTprintf("Fail to encode pill %s\r\n", data->id);
 			}
-			++data;
-		}
-		xSemaphoreGive(pill_smphr);
-	}
+
+	    }
+        xSemaphoreGive(pill_smphr);
+    }
 	return true;
 }
 
@@ -1143,7 +1136,7 @@ int send_periodic_data( data_t * data ) {
     msg.unix_time = data->time;
     msg.name.funcs.encode = encode_name;
     msg.mac.funcs.encode = encode_mac;
-    msg.pills.funcs.encode = encode_pill_data;
+    msg.pills.funcs.encode = encode_pill_list;
     msg.pills.arg = data->pill_list;
 
     int ret = send_data_pb(DATA_SERVER, DATA_RECEIVE_ENDPOINT, buffer, sizeof(buffer), periodic_data_fields, &msg);
