@@ -4,6 +4,9 @@ import sys
 import numpy as np
 import os
 import json
+from multiprocessing import Pool
+from multiprocessing import Queue
+
 
 sys.path.append('.')
 import matrix_pb2
@@ -11,6 +14,9 @@ import matrix_pb2
 file_ending_of_feature_files = '.mel'
 
 sample_size = 20
+
+
+
 
 def DeserializeMatrixData(data):
     binarydata = base64.b64decode(data)
@@ -84,7 +90,7 @@ if __name__ == '__main__':
                                 break;
  
                         if isgood:
-                            print item
+                            #print item
                             itemlist.append(item) 
                             for tag in tags:
                                 if not itemdict.has_key(tag):

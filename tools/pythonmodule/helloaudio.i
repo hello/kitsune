@@ -5,8 +5,8 @@
 %{
 /* Put headers and other declarations here */
 extern void Init(void);
-extern int SetAudioData(int buf[1024]);
-extern void GetAudioFeatures(int feats[8]);
+extern int SetAudioData(int buf[256]);
+extern void GetAudioFeatures(int feats[16]);
 extern int GetT1(void);
 extern int GetT2(void);
 extern const char * DumpDebugBuffer();
@@ -15,8 +15,8 @@ extern int GetSegmentType(void);
 %}
 
 extern void Init(void);
-extern int SetAudioData(int buf[1024]);
-extern void GetAudioFeatures(int feats[9]);
+extern int SetAudioData(int buf[256]);
+extern void GetAudioFeatures(int feats[16]);
 extern int GetT1(void);
 extern int GetT2(void);
 extern const char * DumpDebugBuffer();

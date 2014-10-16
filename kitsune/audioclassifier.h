@@ -1,25 +1,28 @@
 #ifndef _AUDIOCLASSIFIER_H_
 #define _AUDIOCLASSIFIER_H_
 
-#include "audio_types.h"
 #include <pb.h>
+#include "audio_types.h"
+#include "machinelearning/machine_learning_types.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-void AudioClassifier_Init(uint8_t updateCountNoveltyThreshold,NotificationCallback_t novelDataCallback,MutexCallback_t fpLock, MutexCallback_t fpUnlock);
+void AudioClassifier_Init(RecordAudioCallback_t recordfunc,MutexCallback_t lockfunc, MutexCallback_t unlockfunc) ;
 
-void AudioClassifier_ResetUpdateTime(void);
+void AudioClassifier_DeserializeClassifier(pb_istream_t * stream);
     
+void AudioClassifier_DataCallback(int64_t samplecount, const AudioFeatures_t * pfeats);
+
 uint32_t AudioClassifier_GetSerializedBuffer(pb_ostream_t * stream,const char * macbytes, uint32_t unix_time,const char * tags, const char * source);
 
-void AudioClassifier_SegmentCallback(const int16_t * feats, const Segment_t * pSegment);
- 
+    
 #ifdef __cplusplus
 }
 #endif
 
-
-#endif
+    
+    
+#endif //#ifndef _AUDIOCLASSIFIER_H_
 
