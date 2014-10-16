@@ -1154,7 +1154,7 @@ static bool encode_mac_as_device_id_string(pb_ostream_t *stream, const pb_field_
     char hex_device_id[13] = {0};
     uint8_t i = 0;
     for(i = 0; i < sizeof(mac); i++){
-        sprintf(&hex_device_id[i * 2], "%02X", mac[i]);
+        sprintf(&hex_device_id[i * 2], "%02X", mac[i]);  // The hex is in upper case
     }
 
 
