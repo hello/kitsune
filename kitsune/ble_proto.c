@@ -116,19 +116,25 @@ bool set_wifi(const char* ssid, const char* password)
 
 static int itoa(unsigned int v, char *sp, int radix)
 {
-    char *tp = sp;
-    int i;
+	char *tp = sp;
+	int i, len, tmp;
 
-    while(v)
-    {
-        i = v % radix;
-        v /= radix;
-        if (i < 10)
-          *tp++ = i+'0';
-        else
-          *tp++ = i+'a'-10;
-    }
-    return tp - sp;
+	while (v) {
+		i = v % radix;
+		v /= radix;
+		if (i < 10)
+			*tp++ = i + '0';
+		else
+			*tp++ = i + 'A' - 10;
+	}
+	len = tp - sp;
+	for (i = 0; i < len / 2; ++i) {
+		tmp = sp[i];
+		sp[i] = sp[len - i - 1];
+		sp[len - i - 1] = tmp;
+	}
+
+	return len;
 }
 
 
