@@ -757,7 +757,7 @@ unsigned long get_time();
 
 int decode_rx_data_pb(const unsigned char * buffer, int buffer_size, const pb_field_t fields[], void* dst_struct, size_t dst_struct_len) {
 	AES_CTX aesctx;
-	unsigned char * buf_pos = buffer;
+	unsigned char * buf_pos = (unsigned char*)buffer;
 	unsigned char sig[SIG_SIZE] = {0};
 	unsigned char sig_test[SIG_SIZE] = {0};
 	int i;
@@ -1144,21 +1144,21 @@ bool encode_mac(pb_ostream_t *stream, const pb_field_t *field, void * const *arg
 }
 
 static bool encode_mac_as_device_id_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
-    unsigned char mac[6] = {0};
-    unsigned char mac_len = 6;
+    uint8_t mac[6] = {0};
+    uint8_t mac_len = 6;
     int32_t ret = sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
     if(ret != 0 && ret != SL_ESMALLBUF)
     {
         return false;  // If get mac failed, don't encode that field
     }
     char hex_device_id[13] = {0};
-    uint8_t i = 0;  uint8_t i = 0;
+    uint8_t i = 0;
     for(i = 0; i < sizeof(mac); i++){
-        sprintf(hex_device_id[i * 2], "%02X", mac[i]);
+        sprintf(&hex_device_id[i * 2], "%02X", mac[i]);
     }
 
 
-    return pb_encode_tag_for_field(stream, field) && pb_encode_string(stream, hex_device_id, strlen(hex_device_id));
+    return pb_encode_tag_for_field(stream, field) && pb_encode_string(stream, (uint8_t*)hex_device_id, strlen(hex_device_id));
 }
 
 bool encode_name(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
@@ -1191,7 +1191,7 @@ int send_periodic_data( data_t * data ) {
     {
         // network error
         UARTprintf("Send data failed, network error %d\n", ret);
-        return;
+        return ret;
     }
 
     int upload_success = 0;
@@ -1283,6 +1283,8 @@ int Cmd_data_upload(int arg, char* argv[])
 	data.pill_list = pill_list;
 	UARTprintf("Debugging....\n");
 	send_periodic_data(&data);
+
+	return 0;
 }
 
 
