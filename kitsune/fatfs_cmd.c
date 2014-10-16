@@ -524,12 +524,12 @@ Cmd_write_file(int argc, char *argv[])
     	return res;
     }
 
-	UARTIntUnregister(UARTA0_BASE);
+	UARTIntUnregister(UARTA0_BASE); //Ahoy matey, I be takin yer uart
     do {
 		uint8_t c = UARTCharGet(UARTA0_BASE);
 		res = f_write( &file_obj, (void*)&c, 1, &bytes );
 		bytes_written+=bytes;
-		UARTCharPutNonBlocking(UARTA0_BASE, "*");
+		UARTCharPutNonBlocking(UARTA0_BASE, 52u); //basic feedback
     } while( bytes_written < bytes_to_write );
 
     res = f_close( &file_obj );
