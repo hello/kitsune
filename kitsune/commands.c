@@ -557,6 +557,8 @@ void thread_tx(void* unused) {
 	load_aes();
 
 	while (1) {
+		int tries = 0;
+
 		if( data_queue != 0 && !xQueueReceive( data_queue, &( data ), portMAX_DELAY ) ) {
 			vTaskDelay(100);
 			continue;
@@ -568,7 +570,11 @@ void thread_tx(void* unused) {
 		data.pill_list = pill_list;
 
 		while (!send_periodic_data(&data) == 0) {
-			do {vTaskDelay(100);} //wait for a connection...
+			vTaskDelay( (1<<tries) * 1000 );
+			if( tries++ > 5 ) {
+				tries = 5;
+			}
+			do {vTaskDelay(1000);} //wait for a connection...
 			while( !(sl_status&HAS_IP ) );
 		}//try every little bit
 	}
