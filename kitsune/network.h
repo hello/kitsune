@@ -73,11 +73,11 @@ extern "C"
 //*****************************************************************************
 #define PACKET_SIZE             1024
 #define PLAY_WATERMARK		    30*1024
-#define TX_BUFFER_SIZE          10*PACKET_SIZE
-#define RX_BUFFER_SIZE          40*PACKET_SIZE
+#define TX_BUFFER_SIZE          30*PACKET_SIZE
+#define RX_BUFFER_SIZE          30*PACKET_SIZE
 
 
-#define AUDIO_FILE "/POD101" //armi.rec
+#define AUDIO_FILE "mari.rec" //armi.rec
 //*****************************************************************************
 //
 // Define Audio Input/Output Connection

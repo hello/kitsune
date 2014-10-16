@@ -103,9 +103,9 @@ void Speaker1()
     /* Workaround - Read initial 9 bytes that is file name:" mari.rec". We writing file
                       name at start because of hang issue in f_write.
     */
-    f_read(&fp, speaker_data, 8, (unsigned short*)&Size);
+    f_read(&fp, speaker_data, 0, (unsigned short*)&Size);
     UARTprintf("Read : %d Bytes\n\n\r",Size);
-    totBytesRead = 8;
+    totBytesRead = 0;
   }
   else
   {
@@ -131,7 +131,7 @@ void Speaker1()
 
     	  //UARTprintf("Read : %d Bytes totBytesRead: %d\n\n\r",Size, totBytesRead);
     		unsigned int i;
-			#if 0
+			#if 1
     		unsigned short *pu16;
     	  pu16 = (unsigned short *)(speaker_data + offset*Size);
     	             	for (i = 0; i < 512/2; i ++) {
