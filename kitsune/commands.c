@@ -498,19 +498,29 @@ void thread_audio(void * unused) {
 		//todo audio processing
 		uint32_t time = get_time();
 		if (xSemaphoreTake(alarm_smphr, portMAX_DELAY)) {
-			if (alarm.has_start_time && time >= alarm.start_time) {
-				UARTprintf("ALARM RINGING RING RING RING\n");
-				xSemaphoreGive(alarm_smphr);
-				Cmd_code_playbuff(0, 0);
-				xSemaphoreTake(alarm_smphr, portMAX_DELAY);
+
+			if(alarm.has_start_time && alarm.start_time > 0)
+			{
+				if (time >= alarm.start_time) {
+					UARTprintf("ALARM RINGING RING RING RING\n");
+					xSemaphoreGive(alarm_smphr);
+					Cmd_code_playbuff(0, 0);
+					xSemaphoreTake(alarm_smphr, portMAX_DELAY);
+				}
+				time = get_time();
+				if (alarm.has_end_time && time >= alarm.end_time) {
+					UARTprintf("ALARM DONE RINGING\n");
+					alarm.has_end_time = 0;
+					alarm.has_start_time = 0;
+				} else if( !alarm.has_end_time ) {
+					alarm.has_end_time = 0;
+					alarm.has_start_time = 0;
+					UARTprintf("Buggy backend, alarm should has endtime.\n");
+				}
+			}else{
+				// Alarm start time = 0 means no alarm
 			}
-			time = get_time();
-			if (alarm.has_end_time && time >= alarm.end_time) {
-				UARTprintf("ALARM DONE RINGING\n");
-				alarm.has_end_time = alarm.has_start_time = 0;
-			} else if( !alarm.has_end_time ) {
-				alarm.has_end_time = alarm.has_start_time = 0;
-			}
+			
 			xSemaphoreGive(alarm_smphr);
 		}
 		vTaskDelayUntil(&now, 1000 );
