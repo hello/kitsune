@@ -162,6 +162,9 @@ static void _reply_device_id()
 		reply_command.version = PROTOBUF_VERSION;
 
 		reply_command.deviceId.arg = device_id;
+		reply_command.has_firmwareVersion = true;
+		reply_command.firmwareVersion = FIRMWARE_VERSION_INTERNAL;
+
 		ble_send_protobuf(&reply_command);
 
     }else{
