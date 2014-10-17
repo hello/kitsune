@@ -11,6 +11,7 @@
 
 #include "assert.h"
 #include "stdlib.h"
+#include "stdio.h"
 
 static int _get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uint32_t scan_duration_ms)
 {
@@ -146,32 +147,25 @@ static void _reply_device_id()
     int32_t ret = sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
     if(ret == 0 || ret == SL_ESMALLBUF)  // OK you win: http://e2e.ti.com/support/wireless_connectivity/f/968/p/360573/1279578.aspx#1279578
     {
-        uint8_t device_id_len = SL_MAC_ADDR_LEN * 2 + 1;  // hex string representation
 
-        char* device_id = pvPortMalloc(device_id_len);
-        if(!device_id)
-        {
-            ble_reply_protobuf_error(ErrorType_DEVICE_NO_MEMORY);
-        }else{
+        char device_id[SL_MAC_ADDR_LEN * 2 + 1] = {0}; //pvPortMalloc(device_id_len);
 
-            memset(device_id, 0, device_id_len);
+		uint8_t i = 0;
+		for(i = 0; i < SL_MAC_ADDR_LEN; i++){
+			sprintf(&device_id[i * 2], "%02X", mac[i]);  //assert( itoa( mac[i], device_id+i*2, 16 ) == 2 );
+		}
 
-            uint8_t i = 0;
-            for(i = 0; i < SL_MAC_ADDR_LEN; i++){
-                assert( itoa( mac[i], device_id+i*2, 16 ) == 2 );
-            }
+		UARTprintf("Morpheus device id: %s\n", device_id);
+		MorpheusCommand reply_command;
+		memset(&reply_command, 0, sizeof(reply_command));
+		reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_DEVICE_ID;
+		reply_command.version = PROTOBUF_VERSION;
 
-            UARTprintf("Morpheus device id: %s\n", device_id);
-            MorpheusCommand reply_command;
-            memset(&reply_command, 0, sizeof(reply_command));
-            reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_DEVICE_ID;
-            reply_command.version = PROTOBUF_VERSION;
+		reply_command.deviceId.arg = device_id;
+		reply_command.has_firmwareVersion = true;
+		reply_command.firmwareVersion = FIRMWARE_VERSION_INTERNAL;
 
-            reply_command.deviceId.arg = device_id;
-            ble_send_protobuf(&reply_command);
-
-            ble_proto_free_command(&reply_command);
-        }
+		ble_send_protobuf(&reply_command);
 
     }else{
         UARTprintf("Get Mac address failed, error %d.\n", ret);
