@@ -62,6 +62,7 @@ static bool _set_wifi(const char* ssid, const char* password)
     int scanned_wifi_count = _get_wifi_scan_result(wifi_endpoints, MAX_WIFI_EP_PER_SCAN, 1000);  // Shall we have a bg thread scan periodically?
     if(scanned_wifi_count == 0)
     {
+        UARTprintf("No wifi scanned\n");
         return 0;
     }
 
@@ -125,7 +126,7 @@ static bool _set_wifi(const char* ssid, const char* password)
     }
 
     
-
+    UARTprintf("Tried all wifi ep, all failed to connect\n");
     return 0;
 }
 
