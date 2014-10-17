@@ -29,6 +29,8 @@ unsigned int sl_status = 0;
 #include "rom_map.h"
 #include "gpio.h"
 
+#define FAKE_MAC 1
+
 xSemaphoreHandle alarm_smphr;
 SyncResponse_Alarm alarm;
 
