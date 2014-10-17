@@ -5,6 +5,7 @@
 #include "debugutils/debuglog.h"
 #include <stdio.h>
 #include "hellomath.h"
+#include "simplelink.h"  // This defines TRUE and FALSE
 
 /*
    How is this all going to work? 
