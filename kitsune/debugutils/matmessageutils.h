@@ -31,12 +31,39 @@ extern "C" {
         } data;
         EIntType type;
         uint32_t len;
+    } const_IntArray_t;
+    
+    typedef struct {
+        union {
+            int8_t * sint8;
+            uint8_t * uint8;
+            
+            int16_t * sint16;
+            uint16_t * uint16;
+            
+            int32_t * sint32;
+            uint32_t * uint32;
+            
+        } data;
+        EIntType type;
+        uint32_t len;
     } IntArray_t;
     
     typedef struct {
         const char * id;
         const char * tags;
         const char * source;
+        const_IntArray_t data;
+        int32_t rows;
+        int32_t cols;
+        int64_t t1;
+        int64_t t2;
+    } const_MatDesc_t;
+    
+    typedef struct {
+        char * id;
+        char * tags;
+        char * source;
         IntArray_t data;
         int32_t rows;
         int32_t cols;
@@ -48,7 +75,7 @@ extern "C" {
                         const char * id,
                         const char * tags,
                         const char * source,
-                        IntArray_t data,
+                        const_IntArray_t data,
                         int32_t rows,
                         int32_t cols,
                         int64_t t1,
@@ -60,8 +87,10 @@ extern "C" {
     size_t SetMatrixMessage(pb_ostream_t * stream,
                             const char * macbytes,
                             uint32_t unix_time,
-                            const MatDesc_t * mats,
+                            const_MatDesc_t * mats,
                             uint16_t nummats);
+    
+    uint8_t GetIntMatrix(MatDesc_t * mymat, pb_istream_t * stream,size_t maxsize);
     
     
 #ifdef __cplusplus

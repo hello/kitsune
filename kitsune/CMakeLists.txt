@@ -12,6 +12,7 @@ include_directories ("${PROJECT_SOURCE_DIR}/nanopb")
 
 #compile our alg code
 add_library(EmbeddedAlg STATIC
+hellomath.c
 fft.c
 audiofeatures.c
 audioclassifier.c
@@ -21,6 +22,9 @@ protobuf/matrix.pb.c
 debugutils/matmessageutils.c
 debugutils/DebugLog.cpp
 debugutils/base64.cpp
+machinelearning/linear_svm.c
+machinelearning/classifier_factory.c
+machinelearning/hmm.c
 )
 
 

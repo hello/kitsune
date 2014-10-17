@@ -14,7 +14,7 @@ import base64
 from Queue import Queue
 from Queue import Empty
 import copy
-
+import GmmAndPca
 
 import sys
 sys.path.append('.')
@@ -24,31 +24,32 @@ from AudioDataClient import *
 
 np.set_printoptions(precision=3, suppress=True, threshold=numpy.nan)
 
-
+g_ens = GmmAndPca.GmmPcaEvalutator()
+g_ens.SetFromJsonFile('gmm_coeffs.json')
 #def signal_handler(signal, frame):
  #       print('You pressed Ctrl+C!')
  #       g_kill = True
  #       sys.exit(0)
 
-CHUNK = 1024 
+CHUNK = 256 
 FORMAT = pyaudio.paInt16 #paInt8
 CHANNELS = 1 
-RATE = 44100 #sample rate
+RATE = 16000 #sample rate
 
 #plot_target = 'mfcc_avg'
 #plot_target = 'psd'
 #plot_target = 'totalenergy'
-plot_target = 'sums'
+#plot_target = 'sums'
 
 plot_samples = 430
-num_feats = 8
+num_feats = 16
 plot_yrange = (-6000, 10000)
 plot_num_signal = num_feats + 1
 
 g_kill = False
 g_PlotQueue = Queue()
 
-g_client = AudioDataClient('http://127.0.0.1:5555/audio/features')
+#g_client = AudioDataClient('http://127.0.0.1:5555/audio/features')
 
 
 
@@ -198,12 +199,12 @@ def updateAudio(stream):
                 
                 segfeatsOrig = copy.deepcopy(segfeats)
                 segfeats = np.array(segfeats).astype(float)
-                normalizedfeats = segfeats / segfeats[0]
-                normalizedfeats = normalizedfeats[1:].reshape((1, num_feats-1))
+                
                 
                 if (segtype == 0):
                     segtype = 'packet';
-                    print segfeatsOrig
+		    #print segfeats
+                    #print g_ens.evaluate(segfeats)
                 else:
                     segtype = 'steady'
                     
@@ -216,9 +217,10 @@ def updateAudio(stream):
                     t1 = 0
                    
                 segdata = [(t1,plot_yrange[1]), (t2, plot_yrange[1]), segtype]
-                
-                block = DataBlock(segdata, 'segdata')
-                g_PlotQueue.put(block)
+               
+	        if plot_target != 'psd':
+                    block = DataBlock(segdata, 'segdata')
+                    g_PlotQueue.put(block)
                 
     
             #pull out results
@@ -233,11 +235,29 @@ def updateAudio(stream):
                 datadict[dd.id] = dd
              
         
+            magickey = 'featAudio'
+            
+            if (datadict.has_key(magickey)):
+                dd = datadict[magickey]
+                vec = []
+                for d in dd.idata:
+                    vec.append(d)
+                    
+                vec = np.array(vec).reshape((1, len(vec)))
+                probs = g_ens.evaluate(vec)
+                probs = probs[0]
+                print probs
+                if probs[0] > 0.9:
+                    print 'snoring'
+                if probs[1] > 0.7:
+                    print 'talking'
+
+
             #add data to plot vectors
             data = datadict[plot_target]
             
-            if retval:
-                g_client.sendMatrixMessage(data)
+            #if retval:
+            #    g_client.sendMatrixMessage(data)
            
             mytype = 'audiofeatures'
         
@@ -280,7 +300,7 @@ if __name__ == '__main__':
     win.setWindowTitle('sound!')
     pg.setConfigOptions(antialias=True)
 
-    g_p6 = win.addPlot(title="mfcc features")
+    g_p6 = win.addPlot(title=plot_target)
    
     g_curves = CreatePlotCurves(g_p6)
 

@@ -27,7 +27,7 @@ static void SegmentCallback(const int16_t * feats, const Segment_t * pSegment) {
     }
 #endif
     cout << endl;
-#if 0
+#if 1
     std::string tags;
     tags = "coherent";
     
@@ -36,25 +36,26 @@ static void SegmentCallback(const int16_t * feats, const Segment_t * pSegment) {
 }
 
 #define OUT_BUF_SIZE (100000)
-static void serialize_buf() {
-    unsigned char buf[OUT_BUF_SIZE];
-    pb_ostream_t output;
-    size_t encodelength;
-    std::string mytags = "";
-    
-    memset(buf,0,sizeof(buf));
-    
-    output = pb_ostream_from_buffer(buf, OUT_BUF_SIZE);
-    
-    encodelength = AudioClassifier_GetSerializedBuffer(&output, "abcdefg", 1337, NULL, "magic");
-    std::cout << "length is " << encodelength << std::endl;
-    std::ofstream file("foo.out");
-    if (file.is_open()) {
-        file << base64_encode(buf,encodelength) <<std::endl;
-    }
-    
-    
-}
+//static void serialize_buf() {
+//    unsigned char buf[OUT_BUF_SIZE];
+//    pb_ostream_t output;
+//    size_t encodelength;
+//    std::string mytags = "";
+//    
+//    memset(buf,0,sizeof(buf));
+//    
+//    output = pb_ostream_from_buffer(buf, OUT_BUF_SIZE);
+//    
+//    encodelength = AudioClassifier_GetSerializedBuffer(&output, "abcdefg", 1337, NULL, "magic");
+//    std::cout << "length is " << encodelength << std::endl;
+//    std::ofstream file("foo.out");
+//    if (file.is_open()) {
+//        file << base64_encode(buf,encodelength) <<std::endl;
+//    }
+//}
+
+
+
 int main(int argc, char * argv[]) {
     if (argc <= 2) {
         cerr << "Takes 2 inputs, 1) input file and 2) output file" << endl;
@@ -71,7 +72,7 @@ int main(int argc, char * argv[]) {
     
     
     ifstream inFile (argv[1], ios::in | ios::binary);
-    
+    std::cout << "Processing " << argv[1] << std::endl;
     //init output logging... tell it what its destination filename is
     DebugLogSingleton::Initialize_UsingFileStream(argv[2],_label);
 
@@ -81,8 +82,8 @@ int main(int argc, char * argv[]) {
     int64_t counter = 0;
     
     
-    AudioFeatures_Init(AudioClassifier_SegmentCallback);
-    AudioClassifier_Init(5,NoveltyNotifcation,NULL,NULL);
+    AudioFeatures_Init(AudioClassifier_DataCallback);
+    AudioClassifier_Init(NULL,NULL,NULL);
 
     
     
@@ -90,12 +91,12 @@ int main(int argc, char * argv[]) {
         //read
         inFile.read(buf,sizeof(buf));
         
-        AudioFeatures_SetAudioData(samples, AUDIO_FFT_SIZE,counter++);
+        AudioFeatures_SetAudioData(samples,counter++);
         
         
     } while (inFile);
     
-    serialize_buf();
+    //serialize_buf();
 
     return 0;
 }

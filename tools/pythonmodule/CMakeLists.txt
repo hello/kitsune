@@ -5,6 +5,8 @@ PROJECT (HelloAudio)
 set(CMAKE_INCLUDE_PATH ${PROJECT_SOURCE_DIR}/)
 
 add_definitions(-DUSE_CPP_DEBUG_LOGGING)
+include_directories ("${PROJECT_SOURCE_DIR}/../../nanopb;${PROJECT_SOURCE_DIR}/../../kitsune/nanopb")
+
 
 #add alg library
 add_subdirectory("../../kitsune" "${CMAKE_CURRENT_BINARY_DIR}/kitsune")

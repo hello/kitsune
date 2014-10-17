@@ -814,7 +814,7 @@ int Cmd_rssi(int argc, char *argv[]) {
 }
 
 int Cmd_mel(int argc, char *argv[]) {
-
+/*
     int i,ichunk;
 	int16_t x[1024];
 
@@ -840,7 +840,7 @@ int Cmd_mel(int argc, char *argv[]) {
 		AudioFeatures_SetAudioData(x,10,ichunk);
 
 	}
-
+*/
 	return (0);
 }
 

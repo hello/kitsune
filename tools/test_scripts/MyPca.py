@@ -17,7 +17,7 @@ class MyPca():
         #print np.cov(feats.transpose, axis).shape
         mean =  np.mean(x, axis=0).reshape(1, x.shape[1])
         meanmat = np.tile(mean, (x.shape[0], 1))
-        print meanmat.shape
+        #print meanmat.shape
         nomeanfeats = x - meanmat
         P = np.cov(nomeanfeats.transpose())
         d = np.sqrt(np.diagonal(P))
@@ -28,7 +28,16 @@ class MyPca():
         P2 = np.cov(nomeanfeats.transpose())
 
         w, v = np.linalg.eig(P2)
-
+        #f = np.matrix(v) * np.matrix(np.diag(w)) * np.matrix(v.transpose());
+        #print f - P2
+        # decomposition is E * lambda * E'
+        #  X = [ndata,nstates], X'*X = [nstates,nstates]
+        #
+        #  Ergo (X - xm)'*(X - Xm) = P2 = E * lambda * E'
+        #        E'*(X - xm)'*(X - xm)*E = lambda
+        #  post-multiply by eigenvectors to get transformed
+        #print ((P2 + 1e-6)*10).astype('int')
+        print v
         transform = v[:, 0:ndimsout]
         
         self.covdiags_ = d
