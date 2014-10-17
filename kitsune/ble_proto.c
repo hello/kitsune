@@ -13,6 +13,8 @@
 #include "stdlib.h"
 #include "stdio.h"
 
+extern unsigned int sl_status;
+
 static int _get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uint32_t scan_duration_ms)
 {
     if(scan_duration_ms < 1000)
@@ -52,7 +54,7 @@ static int _get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_
 }
 
 
-bool set_wifi(const char* ssid, const char* password)
+static bool _set_wifi(const char* ssid, const char* password)
 {
     Sl_WlanNetworkEntry_t wifi_endpoints[MAX_WIFI_EP_PER_SCAN];
     memset(wifi_endpoints, 0, sizeof(wifi_endpoints));
@@ -102,6 +104,18 @@ bool set_wifi(const char* ssid, const char* password)
                 if(profile_add_ret < 0)
                 {
                     UARTprintf("Save connected endpoint failed, error %d.\n", profile_add_ret);
+                }else{
+                    uint8_t wait_time = 30;
+                    while(wait_time-- && (!(sl_status & HAS_IP)))
+                    {
+                        UARTprintf("Waiting connection....");
+                        vTaskDelay(1000);
+                    }
+
+                    if(!wait_time && (!(sl_status & HAS_IP)))
+                    {
+                        UARTprintf("!!WIFI set without network connection.");
+                    }
                 }
 
                 return 1;
@@ -418,12 +432,13 @@ void on_ble_protobuf_command(MorpheusCommand* command)
 
             // Just call API to connect to WIFI.
             UARTprintf("Wifi SSID %s, pswd %s \n", ssid, password);
-            if(!set_wifi(ssid, (char*)password))
+            if(!_set_wifi(ssid, (char*)password))
             {
                 UARTprintf("Connection attempt failed.\n");
                 ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
             }else{
                 // If the wifi connection is set, reply
+                
                 MorpheusCommand reply_command;
                 memset(&reply_command, 0, sizeof(reply_command));
                 reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_SET_WIFI_ENDPOINT;
