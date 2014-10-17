@@ -1246,11 +1246,13 @@ extern xSemaphoreHandle g_xRxLineSemaphore;
 void UARTStdioIntHandler(void);
 
 void loopback_uart(void * p) {
-	MAP_UARTConfigSetExpClk(UARTA0_BASE,configCPU_CLOCK_HZ, 38400,
+	MAP_UARTConfigSetExpClk(UARTA1_BASE,configCPU_CLOCK_HZ, 38400,
 		                            (UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE |
 		                             UART_CONFIG_PAR_NONE));
 	while(1) {
-		uint8_t c = UARTCharGet(UARTA0_BASE);
+		uint8_t c = UARTCharGet(UARTA1_BASE);
+		UARTCharPutNonBlocking(UARTA0_BASE, '1'); //basic feedback
+		UARTCharPutNonBlocking(UARTA0_BASE, '>'); //basic feedback
 		UARTCharPutNonBlocking(UARTA0_BASE, c); //basic feedback
 	}
 }
