@@ -15,9 +15,12 @@ extern "C" {
 
 
 /*  exported for your enjoyment -- use these! */
-void AudioFeatures_Init(SegmentAndFeatureCallback_t fpCallback);
-void AudioFeatures_SetAudioData(const int16_t buf[],int16_t nfftsize, int64_t samplecount);
+void AudioFeatures_Init(AudioFeatureCallback_t fpCallback);
+    
+/*  Expects AUDIO_FFT_SIZE samples in samplebuf  */
+void AudioFeatures_SetAudioData(const int16_t samples[],int64_t samplecount);
 
+void AudioFeatures_SetParams(uint16_t psd_min_energy);
 
 #ifdef __cplusplus
 }

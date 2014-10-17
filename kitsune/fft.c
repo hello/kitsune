@@ -1,11 +1,12 @@
-#define MIN_ENERGY (4)
 
 #include "fft.h"
 #include "audio_types.h"
+#include "hellomath.h"
 
 #include <stdlib.h> //for abs
 #include <string.h>
 #include <stdint.h>
+#include <assert.h>
 
 #define FIX_MPY(DEST,A,B) (DEST) = ((int32_t)(A) * (int32_t)(B))>>15
 
@@ -50,13 +51,7 @@ static const uint16_t sin_lut[N_WAVE/4+1] = {
   32727, 32736, 32744, 32751, 32757, 32761, 32764, 32766, 32767
 };
 
-static inline uint16_t umultq16(uint16_t a, uint16_t b) {
-    uint32_t c;
-    uint16_t * p = (uint16_t *)(&c);
-    
-    c = (uint32_t)a * (uint32_t)b;
-    return *(p + 1);
-}
+
 
 uint8_t bitlog(uint32_t n) {
     int16_t b;
@@ -114,46 +109,6 @@ short fxd_sin( uint16_t x ) {
 	return 0;
 }
 
-
-#define iter1(N) \
-    t = root + (1 << (N)); \
-    if (n >= t << (N))   \
-    {   n -= t << (N);   \
-        root |= 2 << (N); \
-    }
-
-uint32_t fxd_sqrt (uint32_t n) {
-    unsigned int root = 0,t;
-
-    iter1 (15);    iter1 (14);    iter1 (13);    iter1 (12);
-    iter1 (11);    iter1 (10);    iter1 ( 9);    iter1 ( 8);
-    iter1 ( 7);    iter1 ( 6);    iter1 ( 5);    iter1 ( 4);
-    iter1 ( 3);    iter1 ( 2);    iter1 ( 1);    iter1 ( 0);
-    return root >> 1;
-}
-
-uint32_t fxd_sqrt_q10(uint32_t x) {
-    uint32_t topbits = (x & 0xFFC00000);
-        
-    topbits >>= 22;
-    
-    if (topbits & 0x00000001) {
-        topbits++;
-    }
-    
-        
-    x >>= topbits;
-    
-    x <<= 10;
-
-    x = fxd_sqrt(x);
-    
-    topbits >>= 1;
-    x <<= (topbits);
-    
-    return x;
-    
-}
 
 
 /*
@@ -281,9 +236,9 @@ void dct(int16_t fr[],int16_t fi[],const int16_t ndct) {
     
     k = 0;
     for (i = 0; i  < n; i++) {
-        //go from 0 to -pi
-        //so sin will go from 0 --> 1 ---> 0
-        //cos will go from 1 --> 0 --> -1
+        //go from 0 to pi/2
+        //so sin will go from 0 --> 1
+        //cos will go from 1 --> 0
         
         if (k > N_WAVE / 4) {
             stheta = (N_WAVE/2 - k) & wavemask;
@@ -331,156 +286,6 @@ void abs_fft(uint16_t psd[], const int16_t fr[],const int16_t fi[],const int16_t
     }
 }
 
-/*
- 0000 - 0
- 0001 - 1
- 0010 - 2
- 0011 - 2
- 0100 - 3
- 0101 - 3
- 0110 - 3
- 0111 - 3
- 1000 - 4
- 1001 - 4
- 1010 - 4
- 1011 - 4
- 1100 - 4
- 1101 - 4
- 1110 - 4
- 1111 - 4
- */
-#define BIT_COUNT_LOOKUP_SIZE (16)
-static const uint8_t k_bit_count_lookup[BIT_COUNT_LOOKUP_SIZE] =
-{0,1,2,2,3,3,3,3,4,4,4,4,4,4,4,4};
-
-
-uint8_t CountHighestMsb(uint64_t x) {
-    short j;
-    uint8_t count = 0;
-    for (j = 0; j < 16; j++) {
-        if (x < 16) {
-            count += k_bit_count_lookup[x];
-            break;
-        }
-        count += 4;
-        x >>= 4;
-    }
-    return count;
-}
-
-/*  Not super high precision, but oh wells! */
-#define LOG2_LOOKUP_SIZE_2N (8)
-#define LOG2_LOOKUP_SIZE ((1 << LOG2_LOOKUP_SIZE_2N))
-
-#if LOG2_LOOKUP_SIZE_2N == 8
-static const int16_t k_log2_lookup_q10[LOG2_LOOKUP_SIZE] =
-{-32767,-8192,-7168,-6569,-6144,-5814,-5545,-5317,-5120,-4946,-4790,-4650,-4521,-4403,-4293,-4191,-4096,-4006,-3922,-3842,-3766,-3694,-3626,-3560,-3497,-3437,-3379,-3323,-3269,-3217,-3167,-3119,-3072,-3027,-2982,-2940,-2898,-2858,-2818,-2780,-2742,-2706,-2670,-2636,-2602,-2568,-2536,-2504,-2473,-2443,-2413,-2383,-2355,-2327,-2299,-2272,-2245,-2219,-2193,-2168,-2143,-2119,-2095,-2071,-2048,-2025,-2003,-1980,-1958,-1937,-1916,-1895,-1874,-1854,-1834,-1814,-1794,-1775,-1756,-1737,-1718,-1700,-1682,-1664,-1646,-1629,-1612,-1594,-1578,-1561,-1544,-1528,-1512,-1496,-1480,-1464,-1449,-1434,-1419,-1404,-1389,-1374,-1359,-1345,-1331,-1317,-1303,-1289,-1275,-1261,-1248,-1235,-1221,-1208,-1195,-1182,-1169,-1157,-1144,-1132,-1119,-1107,-1095,-1083,-1071,-1059,-1047,-1036,-1024,-1013,-1001,-990,-979,-967,-956,-945,-934,-924,-913,-902,-892,-881,-871,-860,-850,-840,-830,-820,-810,-800,-790,-780,-770,-760,-751,-741,-732,-722,-713,-704,-694,-685,-676,-667,-658,-649,-640,-631,-622,-613,-605,-596,-588,-579,-570,-562,-554,-545,-537,-529,-520,-512,-504,-496,-488,-480,-472,-464,-456,-448,-440,-433,-425,-417,-410,-402,-395,-387,-380,-372,-365,-357,-350,-343,-335,-328,-321,-314,-307,-300,-293,-286,-279,-272,-265,-258,-251,-244,-237,-231,-224,-217,-211,-204,-197,-191,-184,-178,-171,-165,-158,-152,-145,-139,-133,-126,-120,-114,-108,-102,-95,-89,-83,-77,-71,-65,-59,-53,-47,-41,-35,-29,-23,-17,-12,-6};
-#endif
-
-#if LOG2_LOOKUP_SIZE_2N == 5
-static const int16_t k_log2_lookup_q10[LOG2_LOOKUP_SIZE] =
-{-32767,-5120,-4096,-3497,-3072,-2742,-2473,-2245,-2048,-1874,-1718,-1578,-1449,-1331,-1221,-1119,-1024,-934,-850,-770,-694,-622,-554,-488,-425,-365,-307,-251,-197,-145,-95,-47};
-#endif
-
-
-int16_t FixedPointLog2Q10(uint64_t x) {
-    int16_t ret;
-    int16_t msb;
-    int16_t shift = 0;
-    if (x <= 0) {
-        return k_log2_lookup_q10[0];
-    }
-    
-    msb = CountHighestMsb(x);
-    
-    if (msb > LOG2_LOOKUP_SIZE_2N) {
-        x >>= (msb - LOG2_LOOKUP_SIZE_2N);
-        shift += msb - LOG2_LOOKUP_SIZE_2N;
-    }
-    
-    shift -= (10 - LOG2_LOOKUP_SIZE_2N);
-    
-    ret = k_log2_lookup_q10[(uint16_t)x];
-    ret += shift * 1024;
-    
-    return ret;
-}
-
-/* 2^(a + b) ---> 2^a * 2^b
-    and exp(log(2)* x) == 2^x
- 
-    if 0 <= b < 1.... can approximate exp11
- */
-uint32_t FixedPointExp2Q10(const int16_t x) {
-#define LOG2_Q16 (45426)
-#define B_Q16 (33915)
-#define C_Q16  (21698)
-#define ONE_Q10 (1 << 10)
-#define ONE_Q16 (1 << 16)
-
-    uint32_t accumulator;
-    uint16_t ux;
-    uint16_t a,b;
-    uint16_t utemp16;
-    
-    //2^22 is the max we can do (32 - 10 == 22)
-    if (x >= 22527) {
-        return 0xFFFFFFFF;
-    }
-    
-    if (x == -32768) {
-        return 0;
-    }
-    
-    ux = abs(x);
-    
-    //split to the left and right of the binary point (Q10)
-    a = ux & 0xFC00;
-    b = ux & 0x03FF;
-    a >>= 10; //get Q10 as ints
-
-    //multipy by log2 so  we compute exp(log(2) b) ===> 2^b
-    b = umultq16((uint16_t)b,LOG2_Q16);
-
-   
-    b <<= 6; //convert from Q10 to Q16
-    
-    if (x > 0) {
-        accumulator = ONE_Q16 + b;
-    }
-    else {
-        accumulator = ONE_Q16 - b;
-    }
-    
-    
-    utemp16 = umultq16(b, b);
-    utemp16 = umultq16(B_Q16, utemp16);
-
-    accumulator += utemp16;
-    
-    utemp16 = umultq16(utemp16,b);
-    utemp16 = umultq16(C_Q16, utemp16);
-    
-    
-    if (x > 0) {
-        accumulator += utemp16;
-    }
-    else {
-        accumulator -= utemp16;
-    }
-    
-    accumulator >>= 6; //convert back to Q10
-
-
-    if (x < 0) {
-        accumulator >>= a;
-    }
-    else {
-        accumulator <<= a;
-    }
-    
-    return accumulator;
-}
 
 // b - size of the bin in the fft in hz
 // ergo, b = Fs / 2 / (n/2) or if you prefer, Nyquist freq divided by half of the FFT
@@ -488,155 +293,77 @@ uint32_t FixedPointExp2Q10(const int16_t x) {
 // f is both input and output
 // f as input is the PSD bin, and is always positive
 // f as output is the mel bins
-void logpsd(int16_t * logTotalEnergy,int16_t psd[],const int16_t fr[],const int16_t fi[],uint8_t log2scaleOfRawSignal,const uint16_t numelements ) {
+void logpsdmel(int16_t * logTotalEnergy,int16_t psd[],const int16_t fr[],const int16_t fi[],uint8_t log2scaleOfRawSignal,uint16_t min_energy) {
     uint16_t i;
     uint16_t ufr;
     uint16_t ufi;
     uint64_t utemp64;
     uint64_t accumulator64 = 0;
-
-#define WINDOW_SIZE_2N (2)
-#define WINDOW_SIZE (1 << WINDOW_SIZE_2N)
-#define WINDOW_SIZE_MASK (WINDOW_SIZE - 1)
-#define MIN_ENERGY_LOGPSD (16)
-
+    int32_t temp32;
+    static const uint8_t spacings[31] = {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+                                         2,3,3,4,4,5,5,6,7,8,10,11,13,14,17};
     
-    uint16_t bufr[WINDOW_SIZE] = {0};
-    uint16_t bufi[WINDOW_SIZE] = {0};
-    uint16_t idx;
-    uint32_t accumr = 0;
-    uint32_t accumi = 0;
-    const uint16_t istart = 4;
-    const int16_t ioutstart = istart - WINDOW_SIZE/2;
+    static const int16_t binaveragingcoeff[18] = {0,0,-1024,-1623,-2048,-2378,-2647,
+                                                -2875,-3072,-3246,-3402,-3542,-3671,
+                                                -3789,-3899,-4001,-4096,-4186};
+
+
+
+
+    uint16_t idx,ifft,iend;
+   
+    accumulator64 = 0;
     
 
-    idx = 0;
-    
-    //square window in place... this is very crappy... our window is even sized, not odd... so it will slightly move the frequencies
-    for (i = istart; i < numelements; i++) {
-        idx = i & WINDOW_SIZE_MASK;
-        ufr = abs(fr[i]);
-        ufi = abs(fi[i]);
-        
-        
-        
-        accumr += ufr;
-        accumr -= bufr[idx];
-        
-        accumi += ufi;
-        accumi -= bufi[idx];
-        
-        
-        bufi[idx] = abs(fi[i]);
-        bufr[idx] = abs(fr[i]);
-        
-        if (i - WINDOW_SIZE/2 >= 0) {
-            ufr = accumr >> WINDOW_SIZE_2N;
-            ufi = accumi >> WINDOW_SIZE_2N;
+    ifft = 0;
+    psd[0] = FixedPointLog2Q10(fr[0]) - 1024 * log2scaleOfRawSignal;
+    psd[0] = 0;
+    for (idx = 1; idx < 32; idx++) {
+        assert(idx-1 <= 31);
+        iend = spacings[idx-1];
+        utemp64 = 0;
+
+        for (i = 0; i < iend; i++) {
+            assert(ifft < 128);
+            ufr = abs(fr[ifft]);
+            ufi = abs(fi[ifft]);
             
-            utemp64 = MIN_ENERGY_LOGPSD;
             utemp64 += (uint32_t)ufr*(uint32_t)ufr;
             utemp64 += (uint32_t)ufi*(uint32_t)ufi;
+
             
-            if (accumulator64 + utemp64 < accumulator64) {
-                accumulator64 = 0xFFFFFFFFFFFFFFFF;
-            }
-            else {
-                accumulator64 += utemp64;
-            }
-            
-            psd[i - WINDOW_SIZE/2] = FixedPointLog2Q10(utemp64) - 2*log2scaleOfRawSignal*(1<<10);
+            ifft++;
         }
         
+        utemp64 += min_energy;
+        
+        temp32 = FixedPointLog2Q10(utemp64) + binaveragingcoeff[iend] - log2scaleOfRawSignal*1024;
+        
+        if (temp32 > INT16_MAX) {
+            temp32 = INT16_MAX;
+        }
+        
+        if (temp32 < INT16_MIN) {
+            temp32 = INT16_MIN;
+        }
+        
+        psd[idx] = temp32;
+        
+        utemp64 = accumulator64 + utemp64;
+        if (utemp64 < accumulator64) {
+            accumulator64 = 0xFFFFFFFFFFFFFFFF;
+        }
+        else {
+            accumulator64 = utemp64;
+        }
     }
     
-    //copy last computed elements to end
-    for (i = 1; i <= WINDOW_SIZE/2; i++) {
-        psd[numelements - i] = psd[numelements - WINDOW_SIZE/2 - 1];
-    }
+    *logTotalEnergy = FixedPointLog2Q10(accumulator64) - log2scaleOfRawSignal*1024;
     
-    //copy first computed element to begnning
-    for (i = 0; i  < ioutstart; i++) {
-        psd[i] = psd[ioutstart];
-    }
-    
-    //log2 (256 * 2^10) = log2 (256) + log2(2^10) = 8 + 10
-    
-    *logTotalEnergy = FixedPointLog2Q10(accumulator64) - 2*log2scaleOfRawSignal*(1<<10) - (FixedPointLog2Q10(numelements) + 10);
 
 }
 
-int16_t cosvec16(const int16_t * vec1, const int16_t * vec2, uint8_t n) {
-    int32_t temp1,temp2,temp3;
-    static const uint8_t q = 10;
-    uint8_t i;
-    
-    temp1 = 0;
-    temp2 = 0;
-    temp3 = 0;
-    for (i = 0; i < n; i++) {
-        temp1 += (int32_t)vec1[i]*(int32_t)vec1[i];
-        temp2 += (int32_t)vec2[i]*(int32_t)vec2[i];
-        temp3 += (int32_t)vec1[i]*(int32_t)vec2[i];
-    }
-    
-    if (!temp1 || !temp2) {
-        return INT16_MAX;
-    }
-    
-    temp1 = fxd_sqrt(temp1);
-    temp2 = fxd_sqrt(temp2);
-    
-    if (temp1 > temp2) {
-        temp3 /= temp2;
-        temp3 <<= q;
-        temp3 /= temp1;
-    }
-    else {
-        temp3 /= temp1;
-        temp3 <<= q;
-        temp3 /= temp2;
-    }
-    
-    return (int16_t) temp3;
-    
-}
 
-int16_t cosvec8(const int8_t * vec1, const int8_t * vec2, uint8_t n) {
-    int32_t temp1,temp2,temp3;
-    static const uint8_t q = 10;
-    uint8_t i;
-    
-    temp1 = 0;
-    temp2 = 0;
-    temp3 = 0;
-    for (i = 0; i < n; i++) {
-        temp1 += (int16_t)vec1[i]*(int16_t)vec1[i];
-        temp2 += (int16_t)vec2[i]*(int16_t)vec2[i];
-        temp3 += (int16_t)vec1[i]*(int16_t)vec2[i];
-    }
-    
-    if (!temp1 || !temp2) {
-        return INT16_MAX;
-    }
-    
-    temp1 = fxd_sqrt(temp1);
-    temp2 = fxd_sqrt(temp2);
-    
-    if (temp1 > temp2) {
-        temp3 /= temp2;
-        temp3 <<= q;
-        temp3 /= temp1;
-    }
-    else {
-        temp3 /= temp1;
-        temp3 <<= q;
-        temp3 /= temp2;
-    }
-    
-    return (int16_t) temp3;
-    
-}
 
 #if 0
 
