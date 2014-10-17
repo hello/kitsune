@@ -29,6 +29,7 @@ unsigned int sl_status = 0;
 #include "rom_map.h"
 #include "gpio.h"
 
+xSemaphoreHandle alarm_smphr;
 SyncResponse_Alarm alarm;
 
 void mcu_reset()
@@ -675,7 +676,7 @@ int send_audio_wifi(char * buffer, int buffer_size, audio_read_cb arcb) {
     int message_length;
     unsigned char mac[6];
     unsigned char mac_len = 6;
-#if 0
+#if FAKE_MAC
     mac[0] = 0xab;
     mac[1] = 0xcd;
     mac[2] = 0xab;
@@ -1125,7 +1126,7 @@ static bool encode_pill_list(pb_ostream_t *stream, const pb_field_t *field, void
 bool encode_mac(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
     unsigned char mac[6];
     unsigned char mac_len = 6;
-#if 0
+#if FAKE_MAC
     mac[0] = 0xab;
     mac[1] = 0xcd;
     mac[2] = 0xab;
@@ -1146,17 +1147,25 @@ bool encode_mac(pb_ostream_t *stream, const pb_field_t *field, void * const *arg
 static bool encode_mac_as_device_id_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
     uint8_t mac[6] = {0};
     uint8_t mac_len = 6;
+#if FAKE_MAC
+    mac[0] = 0xab;
+    mac[1] = 0xcd;
+    mac[2] = 0xab;
+    mac[3] = 0xcd;
+    mac[4] = 0xab;
+    mac[5] = 0xcd;
+#else
     int32_t ret = sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
     if(ret != 0 && ret != SL_ESMALLBUF)
     {
         return false;  // If get mac failed, don't encode that field
     }
+#endif
     char hex_device_id[13] = {0};
     uint8_t i = 0;
     for(i = 0; i < sizeof(mac); i++){
-        sprintf(&hex_device_id[i * 2], "%02X", mac[i]);  // The hex is in upper case
+    	snprintf(&hex_device_id[i * 2], 3, "%02X", mac[i]);
     }
-
 
     return pb_encode_tag_for_field(stream, field) && pb_encode_string(stream, (uint8_t*)hex_device_id, strlen(hex_device_id));
 }
@@ -1223,12 +1232,24 @@ int send_periodic_data( data_t * data ) {
         response_protobuf.has_device_sampling_interval,
         response_protobuf.has_flash_action);
 
-        if( response_protobuf.has_alarm ) {
-            alarm = response_protobuf.alarm;
+		if (response_protobuf.has_alarm) {
 
-            if(alarm.has_start_time) {
-                UARTprintf( "Got alarm %d to %d in %d minutes\n", alarm.start_time, alarm.end_time, (alarm.start_time - get_time())/60 );
-            }
+			if (xSemaphoreTake(alarm_smphr, portMAX_DELAY)) {
+				alarm = response_protobuf.alarm;
+
+				if (alarm.has_start_time) {
+					if (get_time() > alarm.start_time) {
+						int duration = alarm.end_time - alarm.start_time;
+						alarm.start_time = get_time();
+						alarm.end_time = alarm.start_time + duration;
+					}
+					UARTprintf("Got alarm %d to %d in %d minutes\n",
+							alarm.start_time, alarm.end_time,
+							(alarm.start_time - get_time()) / 60);
+				}
+
+				xSemaphoreGive(alarm_smphr);
+			}
         }
         upload_success = 1;
         //now act on incoming data!

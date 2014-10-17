@@ -216,7 +216,7 @@ void ble_proto_remove_decode_funcs(MorpheusCommand* command)
     }
 }
 
-void ble_proto_assign_encode_funcs(MorpheusCommand* command)
+void ble_proto_assign_encode_funcs( MorpheusCommand* command)
 {
     if(command->accountId.arg != NULL && command->accountId.funcs.encode == NULL)
     {

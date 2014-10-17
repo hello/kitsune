@@ -11,6 +11,7 @@
 
 #include "assert.h"
 #include "stdlib.h"
+#include "stdio.h"
 
 static int _get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uint32_t scan_duration_ms)
 {
@@ -114,30 +115,6 @@ bool set_wifi(const char* ssid, const char* password)
     return 0;
 }
 
-static int itoa(unsigned int v, char *sp, int radix)
-{
-	char *tp = sp;
-	int i, len, tmp;
-
-	while (v) {
-		i = v % radix;
-		v /= radix;
-		if (i < 10)
-			*tp++ = i + '0';
-		else
-			*tp++ = i + 'A' - 10;
-	}
-	len = tp - sp;
-	for (i = 0; i < len / 2; ++i) {
-		tmp = sp[i];
-		sp[i] = sp[len - i - 1];
-		sp[len - i - 1] = tmp;
-	}
-
-	return len;
-}
-
-
 static void _reply_device_id()
 {
     uint8_t mac_len = SL_MAC_ADDR_LEN;
@@ -158,7 +135,7 @@ static void _reply_device_id()
 
             uint8_t i = 0;
             for(i = 0; i < SL_MAC_ADDR_LEN; i++){
-                assert( itoa( mac[i], device_id+i*2, 16 ) == 2 );
+            	snprintf(&device_id[i * 2], 3, "%02X", mac[i]);
             }
 
             UARTprintf("Morpheus device id: %s\n", device_id);
@@ -281,7 +258,7 @@ static void _process_encrypted_pill_data(const MorpheusCommand* command)
                 UARTprintf("No memory\n");
 
             }else{
-                char* encrypted_data = pvPortMalloc(array->length);
+            	uint8_t* encrypted_data = (uint8_t*)pvPortMalloc(array->length);
                 if(!encrypted_data){
                     vPortFree(array_cp);
                     UARTprintf("No memory\n");
@@ -374,7 +351,7 @@ static void _send_response_to_ble(const char* buffer, size_t len)
     ble_proto_free_command(&response);
 }
 
-static void _pair_device(const MorpheusCommand* command, int is_morpheus)
+static void _pair_device( MorpheusCommand* command, int is_morpheus)
 {
 	char response_buffer[256] = {0};
 	if(NULL == command->accountId.arg || NULL == command->deviceId.arg){

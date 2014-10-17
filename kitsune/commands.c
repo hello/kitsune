@@ -483,12 +483,29 @@ unsigned long get_time() {
 	return ntp;
 }
 
+extern xSemaphoreHandle alarm_smphr;
 void thread_audio(void * unused) {
-	int c=1;
-	while (c) {
+	while (1) {
 		portTickType now = xTaskGetTickCount();
 		//todo audio processing
-		vTaskDelayUntil(&now, 100 ); //todo 10hz - this may need adjusted
+		uint32_t time = get_time();
+		if (xSemaphoreTake(alarm_smphr, portMAX_DELAY)) {
+			if (alarm.has_start_time && time >= alarm.start_time) {
+				UARTprintf("ALARM RINGING RING RING RING\n");
+				xSemaphoreGive(alarm_smphr);
+				Cmd_code_playbuff(0, 0);
+				xSemaphoreTake(alarm_smphr, portMAX_DELAY);
+			}
+			time = get_time();
+			if (alarm.has_end_time && time >= alarm.end_time) {
+				UARTprintf("ALARM DONE RINGING\n");
+				alarm.has_end_time = alarm.has_start_time = 0;
+			} else if( !alarm.has_end_time ) {
+				alarm.has_end_time = alarm.has_start_time = 0;
+			}
+			xSemaphoreGive(alarm_smphr);
+		}
+		vTaskDelayUntil(&now, 1000 );
 	}
 }
 
@@ -515,6 +532,7 @@ static int light_m2,light_mean, light_cnt,light_log_sum,light_sf;
 static xSemaphoreHandle light_smphr;
 
  xSemaphoreHandle i2c_smphr;
+ int Cmd_led(int argc, char *argv[]) ;
 
 void thread_fast_i2c_poll(void * unused)  {
 	int last_prox =0;
@@ -527,10 +545,18 @@ void thread_fast_i2c_poll(void * unused)  {
 			vTaskDelay(2);
 			light = get_light();
 			vTaskDelay(2); //this is important! If we don't do it, then the prox will stretch the clock!
-			prox = 0;//todo get_prox();
+			prox = get_prox();
 			hpf_prox = last_prox - prox;
-			if (abs(hpf_prox) > 30) {
+			if (abs(hpf_prox) > 35) {
 				UARTprintf("PROX: %d\n", hpf_prox);
+
+				xSemaphoreTake(alarm_smphr, portMAX_DELAY);
+				if (alarm.has_start_time && get_time() >= alarm.start_time) {
+					memset(&alarm, 0, sizeof(alarm));
+				}
+				xSemaphoreGive(alarm_smphr);
+				Audio_Stop();
+				Cmd_led(0,0);
 			}
 			last_prox = prox;
 
@@ -602,16 +628,6 @@ void thread_sensor_poll(void* unused) {
 		portTickType now = xTaskGetTickCount();
 
 		data.time = get_time();
-
-		if( alarm.has_start_time && data.time > alarm.start_time ) {
-			UARTprintf("ALARM RINGING RING RING RING\n");
-			if( alarm.has_end_time && data.time > alarm.end_time ) {
-				UARTprintf("ALARM DONE RINGING\n");
-				alarm.has_start_time = 0;
-			} else {
-				alarm.has_start_time = 0;
-			}
-		}
 
 		if( xSemaphoreTake( dust_smphr, portMAX_DELAY ) ) {
 			if( dust_cnt != 0 ) {
@@ -1275,6 +1291,8 @@ void vUARTTask(void *pvParameters) {
 	vSemaphoreCreateBinary(i2c_smphr);
 	vSemaphoreCreateBinary(spi_smphr);
 	vSemaphoreCreateBinary(pill_smphr);
+	vSemaphoreCreateBinary(alarm_smphr);
+
 
 	if (data_queue == 0) {
 		UARTprintf("Failed to create the data_queue.\n");
