@@ -1150,7 +1150,20 @@ int Cmd_slip(int argc, char * argv[]){
 	}
 	return 0;
 }
-
+int Cmd_send_top(int argc, char *argv[]){
+	int i;
+	for(i = 1; i < argc; i++){
+		int j = 0;
+		while(argv[i][j] != '\0'){
+			UARTCharPut(UARTA1_BASE, argv[i][j]);
+			j++;
+		}
+		UARTCharPut(UARTA1_BASE, ' ');
+	}
+	UARTCharPut(UARTA1_BASE, '\r');
+	UARTCharPut(UARTA1_BASE, '\n');
+	return 0;
+}
 // ==============================================================================
 // This is the table that holds the command names, implementing functions, and
 // brief description.
@@ -1232,6 +1245,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "rssi", Cmd_rssi, "scan rssi" },
 		{ "slip", Cmd_slip, "slip test" },
 		{ "data_upload", Cmd_data_upload, "upload protobuf data" },
+		{ "^", Cmd_send_top, "send command to top board"},
 
 
 		{ 0, 0, 0 } };
