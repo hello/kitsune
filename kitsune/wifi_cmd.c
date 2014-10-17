@@ -1248,7 +1248,7 @@ int send_periodic_data( data_t * data ) {
 			if (xSemaphoreTake(alarm_smphr, portMAX_DELAY)) {
 				alarm = response_protobuf.alarm;
 
-				if (alarm.has_start_time) {
+				if (alarm.has_start_time && alarm.start_time > 0) {
 					if (get_time() > alarm.start_time) {
 						int duration = alarm.end_time - alarm.start_time;
 						alarm.start_time = get_time();
@@ -1257,7 +1257,9 @@ int send_periodic_data( data_t * data ) {
 					UARTprintf("Got alarm %d to %d in %d minutes\n",
 							alarm.start_time, alarm.end_time,
 							(alarm.start_time - get_time()) / 60);
-				}
+				}else{
+                    UARTprintf("No alarm for now.\n");
+                }
 
 				xSemaphoreGive(alarm_smphr);
 			}
