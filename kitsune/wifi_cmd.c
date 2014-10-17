@@ -1003,10 +1003,12 @@ bool encode_pill_id(pb_ostream_t *stream, const pb_field_t *field, void * const 
 	char* str = *arg;
 	if(!str)
 	{
-		return false;
+		UARTprintf("encode_pill_id: No data to encode\n");
+		return 0;
 	}
 
 	if (!pb_encode_tag_for_field(stream, field)){
+		UARTprintf("encode_pill_id: Fail to encode tag\n");
 		return 0;
 	}
 
@@ -1047,11 +1049,13 @@ static bool _encode_encrypted_pilldata(pb_ostream_t *stream, const pb_field_t *f
     const array_data* array_holder = (array_data*)(*arg);
     if(!array_holder)
     {
+    	UARTprintf("_encode_encrypted_pilldata: No data to encode\n");
         return false;
     }
 
     if (!pb_encode_tag(stream, PB_WT_STRING, field->tag))
     {
+    	UARTprintf("_encode_encrypted_pilldata: Fail to encode tag\n");
         return false;
     }
 
@@ -1062,14 +1066,14 @@ static bool encode_pill_list(pb_ostream_t *stream, const pb_field_t *field, void
 	periodic_data_pill_data_container* ptr_pill_list = *(periodic_data_pill_data_container**) arg;
     if(!ptr_pill_list)
     {
-        UARTprintf("No pill list t encode\n");
+        UARTprintf("No pill list to encode\n");
         return 0;
     }
 
 
 
 	int i;
-	if (xSemaphoreTake(pill_smphr, portMAX_DELAY)) {
+	if (xSemaphoreTake(pill_smphr, 1000)) {
         for (i = 0; i < MAX_PILLS; ++i) {
             periodic_data_pill_data_container data = ptr_pill_list[i];
     		if( data.magic != PILL_MAGIC ) {
@@ -1118,8 +1122,11 @@ static bool encode_pill_list(pb_ostream_t *stream, const pb_field_t *field, void
 
 	    }
         xSemaphoreGive(pill_smphr);
+        return 1;
+    }else{
+    	UARTprintf("Fail to acquire Semaphore\n");
+    	return 0;
     }
-	return true;
 }
 
 
@@ -1139,6 +1146,7 @@ bool encode_mac(pb_ostream_t *stream, const pb_field_t *field, void * const *arg
     int32_t ret = sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
     if(ret != 0 && ret != SL_ESMALLBUF)
     {
+    	UARTprintf("encode_mac: Fail to get MAC addr, err %d\n", ret);
         return false;  // If get mac failed, don't encode that field
     }
 #endif
@@ -1160,6 +1168,7 @@ static bool encode_mac_as_device_id_string(pb_ostream_t *stream, const pb_field_
     int32_t ret = sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
     if(ret != 0 && ret != SL_ESMALLBUF)
     {
+    	UARTprintf("encode_mac_as_device_id_string: Fail to get MAC addr, err %d\n", ret);
         return false;  // If get mac failed, don't encode that field
     }
 #endif
@@ -1263,7 +1272,7 @@ int send_periodic_data( data_t * data ) {
     {
         // Release all the resource occupied by pill data, or
         // user can occupy the buffer forever by sending only one packet
-        if (xSemaphoreTake(pill_smphr, portMAX_DELAY)) {
+        if (xSemaphoreTake(pill_smphr, 1000)) {
             int i;
             for (i = 0; i < MAX_PILLS; ++i) {
                 if (data->pill_list[i].magic != PILL_MAGIC) {
@@ -1286,6 +1295,8 @@ int send_periodic_data( data_t * data ) {
                 }
             }
             xSemaphoreGive(pill_smphr);
+        }else{
+        	UARTprintf("Fail to acquire Semaphore\n");
         }
     }
 
