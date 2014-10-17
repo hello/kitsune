@@ -16,9 +16,11 @@
 
 #define NUM_AUDIO_FEATURES (16)
 
+/*
+ // use simplelink.h instead
 #define TRUE (1)
 #define FALSE (0)
-
+*/
 
 
 

@@ -281,7 +281,7 @@ static void _process_encrypted_pill_data(const MorpheusCommand* command)
                 UARTprintf("No memory\n");
 
             }else{
-                char* encrypted_data = pvPortMalloc(array->length);
+                uint8_t* encrypted_data = pvPortMalloc(array->length);
                 if(!encrypted_data){
                     vPortFree(array_cp);
                     UARTprintf("No memory\n");
@@ -374,7 +374,7 @@ static void _send_response_to_ble(const char* buffer, size_t len)
     ble_proto_free_command(&response);
 }
 
-static void _pair_device(const MorpheusCommand* command, int is_morpheus)
+static void _pair_device(MorpheusCommand* command, int is_morpheus)
 {
 	char response_buffer[256] = {0};
 	if(NULL == command->accountId.arg || NULL == command->deviceId.arg){
