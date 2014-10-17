@@ -11,11 +11,6 @@
 
 #include "stdint.h"
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-
 
 
 //resets SEQ number in slip header
@@ -25,12 +20,9 @@ void   slip_reset(void);
 //returns dest
 void * slip_write(const uint8_t * orig, uint32_t buffer_size);
 //frees buffer
-void * slip_free_buffer(void * buffer);
+void slip_free_buffer(void * buffer);
 
 
 
 
-#ifdef __cplusplus
-}
-#endif
 #endif

@@ -6,6 +6,7 @@
  */
 #include "slip_packet.h"
 #include "FreeRTOS.h"
+#include "string.h"
 
 static struct{
 	uint8_t sequence_number;
@@ -13,7 +14,7 @@ static struct{
 
 #define SLIP_RELIABLE_PACKET (0x1u << 7)
 #define SLIP_INTEGRITY_CHECK (0x1u << 6)
-#define SLIP_VENDOR_NORDIC_OPCODE 0x14u
+#define SLIP_VENDOR_NORDIC_OPCODE 14u
 #define SLIP_FRAME_SIZE 1u
 #define SLIP_HEADER_SIZE 4u
 #define SLIP_CRC_SIZE 2u
@@ -45,7 +46,7 @@ static void inc_seq(void){
 
 }
 void   slip_reset(void){
-
+	self.sequence_number = 0;
 }
 //automatically incrememnt sequence number
 //if checksum is enabled, an extra 2 bytes is appended at the end of the buffer
@@ -63,10 +64,11 @@ void * slip_write(const uint8_t * orig, uint32_t buffer_size){
 		//package frame
 		*frame_start = 0xC0;
 		header[0] = (SLIP_RELIABLE_PACKET | SLIP_INTEGRITY_CHECK) + self.sequence_number;
-		*(uint16_t*)(header+1) = ((uint16_t)buffer_size <<4) + SLIP_VENDOR_NORDIC_OPCODE;
-		header[3] = header_checksum_calcualte(header);
+		//payload includes crc in nordic
+		*(uint16_t*)(header+1) = (uint16_t)(( (buffer_size + SLIP_CRC_SIZE) <<4) + SLIP_VENDOR_NORDIC_OPCODE);
+		header[3] = header_checksum_calculate(header);
 		memcpy(body, orig, buffer_size);
-		*checksum = crc16_compute(orig,buffer_size);
+		*checksum = crc16_compute(header,buffer_size + SLIP_HEADER_SIZE);
 		*frame_end = 0xC0;
 
 	}
@@ -74,6 +76,6 @@ void * slip_write(const uint8_t * orig, uint32_t buffer_size){
 
 }
 //frees buffer
-void * slip_free(void * buffer){
-	return vPortFree(buffer);
+void slip_free(void * buffer){
+	vPortFree(buffer);
 }
