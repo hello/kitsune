@@ -224,7 +224,7 @@ static void _process_encrypted_pill_data(const MorpheusCommand* command)
 {
     if (command->motionDataEntrypted.arg) {
         int i;
-        if (xSemaphoreTake(pill_smphr, portMAX_DELAY)) {
+        if (xSemaphoreTake(pill_smphr, 1000)) {   // If the Semaphore is not available, fail fast
             i = scan_pill_list(pill_list, command->deviceId.arg);
 
             memset(pill_list[i].id, 0, PILL_ID_LEN + 1);  // Just in case
@@ -274,6 +274,8 @@ static void _process_encrypted_pill_data(const MorpheusCommand* command)
             UARTprintf("\n");
 
             xSemaphoreGive(pill_smphr);
+        }else{
+        	UARTprintf("Fail to acquire Semaphore\n");
         }
     }
 }
@@ -281,7 +283,7 @@ static void _process_encrypted_pill_data(const MorpheusCommand* command)
 static void _process_pill_heartbeat(const MorpheusCommand* command)
 {
     int i = 0;
-    if (xSemaphoreTake(pill_smphr, portMAX_DELAY)) {
+    if (xSemaphoreTake(pill_smphr, 1000)) {
         i = scan_pill_list(pill_list, command->deviceId.arg);
 
         memset(pill_list[i].id, 0, PILL_ID_LEN + 1);  // Just in case
@@ -305,6 +307,8 @@ static void _process_pill_heartbeat(const MorpheusCommand* command)
             UARTprintf("PILL FirmwareVersion %d\n", command->firmwareVersion);
         }
         xSemaphoreGive(pill_smphr);
+    }else{
+    	UARTprintf("Fail to acquire Semaphore\n");
     }
 }
 
@@ -370,10 +374,24 @@ static void _pair_device( MorpheusCommand* command, int is_morpheus)
 		*/
 
 		ble_proto_assign_encode_funcs(command);
+		uint8_t retry_count = 5;   // Retry 5 times if we have network error
+		// TODO: Figure out why always get -1 when this is the 1st request
+		// after the IPv4 retrieved.
+
 		int ret = send_data_pb(DATA_SERVER,
 				is_morpheus == 1 ? MORPHEUS_REGISTER_ENDPOINT : PILL_REGISTER_ENDPOINT,
 				response_buffer, sizeof(response_buffer),
 				MorpheusCommand_fields, /*&command_copy*/command);
+
+		while(ret != 0 && retry_count--){
+			UARTprintf("Network error, try to resend command...\n");
+			vTaskDelay(1000);
+			ret = send_data_pb(DATA_SERVER,
+				is_morpheus == 1 ? MORPHEUS_REGISTER_ENDPOINT : PILL_REGISTER_ENDPOINT,
+				response_buffer, sizeof(response_buffer),
+				MorpheusCommand_fields, /*&command_copy*/command);
+
+		}
 
 		// All the args are in stack, don't need to do protobuf free.
 
@@ -441,7 +459,13 @@ void on_ble_protobuf_command(MorpheusCommand* command)
     	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_DATA: 
         {
     		// Pill data received from ANT
-            UARTprintf("PILL DATA %s\n", command->deviceId.arg);
+        	if(command->has_motionData){
+        		UARTprintf("PILL DATA %s\n", command->deviceId.arg);
+        	}else if(command->motionDataEntrypted.arg){
+        		UARTprintf("PILL ENCRYPTED DATA %s\n", command->deviceId.arg);
+        	}else{
+        		UARTprintf("You may have a bug in the pill\n");
+        	}
     		_process_encrypted_pill_data(command);
 
     	}

@@ -15,6 +15,7 @@ static bool _encode_string_fields(pb_ostream_t *stream, const pb_field_t *field,
     char* str = *arg;
     if(!str)
     {
+    	UARTprintf("_encode_string_fields: No string to encode\n");
         return false;
     }
 
@@ -33,6 +34,7 @@ static bool _encode_bytes_fields(pb_ostream_t *stream, const pb_field_t *field, 
     array_data* array = *arg;
     if(!array)
     {
+    	UARTprintf("_encode_bytes_fields: No bytes to encode\n");
         return false;
     }
 
@@ -50,18 +52,21 @@ static bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, 
     /* We could read block-by-block to avoid the large buffer... */
     if (stream->bytes_left > MAX_STRING_LEN - 1)
     {
+    	UARTprintf("_decode_string_field: String too long to decode\n");
         return false;
     }
     
     uint8_t* str = pvPortMalloc(stream->bytes_left + 1);
     if(!str)
     {
+    	UARTprintf("_decode_string_field: Not enought memory\n");
         return false;
     }
 
     memset(str, 0, stream->bytes_left + 1);
     if (!pb_read(stream, str, stream->bytes_left))
     {
+    	UARTprintf("_decode_string_field: Cannot read string\n");
         vPortFree(str);  // Remember to vPortFree if read failed.
         return false;
     }
@@ -75,6 +80,7 @@ static bool _decode_bytes_field(pb_istream_t *stream, const pb_field_t *field, v
     /* We could read block-by-block to avoid the large buffer... */
     if (stream->bytes_left > MAX_STRING_LEN - 1)
     {
+    	UARTprintf("_decode_bytes_fields: Data tooo long\n");
         return false;
     }
 
@@ -83,12 +89,14 @@ static bool _decode_bytes_field(pb_istream_t *stream, const pb_field_t *field, v
 
     if(!buffer)
     {
+    	UARTprintf("_decode_bytes_fields: Out of memory\n");
         return false;
     }
 
     memset(buffer, 0, stream->bytes_left);
     if (!pb_read(stream, buffer, stream->bytes_left))
     {
+    	UARTprintf("_decode_bytes_fields: Failed to read data\n");
         vPortFree(buffer);
         return false;
     }
@@ -96,6 +104,7 @@ static bool _decode_bytes_field(pb_istream_t *stream, const pb_field_t *field, v
     array_data* array = pvPortMalloc(sizeof(array_data));
     if(!array)
     {
+    	UARTprintf("_decode_bytes_fields: Failed to malloc data holder\n");
         vPortFree(buffer);
         return false;
     }
