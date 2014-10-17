@@ -70,7 +70,7 @@ static bool _set_wifi(const char* ssid, const char* password)
     if(scanned_wifi_count == 0)
     {
     	UARTprintf("No wifi found after retry %d times\n", 10);
-    	return;
+    	return -1;
     }
 
     int i = 0;
@@ -150,7 +150,7 @@ static void _reply_device_id()
 
 		uint8_t i = 0;
 		for(i = 0; i < SL_MAC_ADDR_LEN; i++){
-			sprintf(&device_id[i * 2], "%02X", mac[i]);  //assert( itoa( mac[i], device_id+i*2, 16 ) == 2 );
+			snprintf(&device_id[i * 2], 3, "%02X", mac[i]);  //assert( itoa( mac[i], device_id+i*2, 16 ) == 2 );
 		}
 
 		UARTprintf("Morpheus device id: %s\n", device_id);
