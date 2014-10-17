@@ -168,6 +168,7 @@ void Speaker1()
           */
           //f_read(&fp, speaker_data, 9, (unsigned short*)&Size);
           //totBytesRead = 9;
+        	g_iReceiveCount = 0;
         	UARTprintf("speaker task completed\r\n" );
           break;
         }

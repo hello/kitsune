@@ -313,8 +313,9 @@ Microphone1();
 
 UARTprintf("g_iSentCount %d\n\r", g_iSentCount);
 Audio_Stop();
-
+McASPDeInit();
 DestroyCircularBuffer(pTxBuffer);
+Cmd_free(0,0);
 
 return 0;
 
@@ -366,8 +367,9 @@ Speaker1();
 
 UARTprintf("g_iReceiveCount %d\n\r", g_iReceiveCount);
 Audio_Stop();
-
+McASPDeInit();
 DestroyCircularBuffer(pRxBuffer); UARTprintf("DestroyCircularBuffer(pRxBuffer)" );
+Cmd_free(0,0);
 
 return 0;
 

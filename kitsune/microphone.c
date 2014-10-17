@@ -229,7 +229,7 @@ void Microphone1()
 
                  UpdateReadPtr(pTxBuffer, PACKET_SIZE);
                  //UARTprintf("pTxBuffer %x\n\r", *(pTxBuffer->pucReadPtr));
-                 UARTprintf("*");
+                 UARTprintf("^__");
                  g_iSentCount++;
             }
 

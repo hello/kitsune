@@ -466,7 +466,7 @@ Cmd_write(int argc, char *argv[])
     }
 
     // Open the file for writing.
-    FRESULT res = f_open(&file_obj, path_buff, FA_CREATE_NEW|FA_WRITE);
+    FRESULT res = f_open(&file_obj, path_buff, FA_CREATE_NEW|FA_WRITE|FA_OPEN_ALWAYS);
     UARTprintf("res :%d\n",res);
 
     if(res != FR_OK && res != FR_EXIST){
