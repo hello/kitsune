@@ -447,6 +447,7 @@ unsigned long get_time() {
 	static portTickType unix_now = 0;
 	unsigned long ntp = 0;
 	static unsigned long last_ntp = 0;
+	unsigned int tries = 0;
 
 	if (last_ntp == 0) {
 
@@ -456,6 +457,11 @@ unsigned long get_time() {
 			} //wait for a connection the first time...
 
 			ntp = last_ntp = unix_time();
+
+			vTaskDelay((1 << tries) * 1000);
+			if (tries++ > 5) {
+				tries = 5;
+			}
 
 			if( ntp != 0 ) {
 				SlDateTime_t tm;
@@ -1096,7 +1102,9 @@ int Cmd_led(int argc, char *argv[]) {
 }
 
 int Cmd_led_clr(int argc, char *argv[]) {
-	unsigned int colors[NUM_LED] = { 0 };
+	unsigned int colors[NUM_LED];
+
+	memset(colors, 0, sizeof(colors));
 	led_array(colors);
 
 	return 0;
