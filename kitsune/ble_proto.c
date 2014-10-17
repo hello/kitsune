@@ -59,11 +59,18 @@ static bool _set_wifi(const char* ssid, const char* password)
     Sl_WlanNetworkEntry_t wifi_endpoints[MAX_WIFI_EP_PER_SCAN];
     memset(wifi_endpoints, 0, sizeof(wifi_endpoints));
 
+    uint8_t retry_count = 10;
     int scanned_wifi_count = _get_wifi_scan_result(wifi_endpoints, MAX_WIFI_EP_PER_SCAN, 1000);  // Shall we have a bg thread scan periodically?
+    while(scanned_wifi_count == 0 && retry_count--)
+    {
+        UARTprintf("No wifi scanned, retry times remain %d\n", retry_count);
+        vTaskDelay(500);
+    }
+
     if(scanned_wifi_count == 0)
     {
-        UARTprintf("No wifi scanned\n");
-        return 0;
+    	UARTprintf("No wifi found after retry %d times\n", 10);
+    	return;
     }
 
     int i = 0;
