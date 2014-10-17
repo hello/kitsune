@@ -46,7 +46,7 @@
 #include "fatfs_cmd.h"
 #include "spi_cmd.h"
 #include "audiofeatures.h"
-
+#include "top_board.h"
 #include "fft.h"
 
 /* I2S module*/
@@ -1150,20 +1150,7 @@ int Cmd_slip(int argc, char * argv[]){
 	}
 	return 0;
 }
-int Cmd_send_top(int argc, char *argv[]){
-	int i;
-	for(i = 1; i < argc; i++){
-		int j = 0;
-		while(argv[i][j] != '\0'){
-			UARTCharPut(UARTA1_BASE, argv[i][j]);
-			j++;
-		}
-		UARTCharPut(UARTA1_BASE, ' ');
-	}
-	UARTCharPut(UARTA1_BASE, '\r');
-	UARTCharPut(UARTA1_BASE, '\n');
-	return 0;
-}
+
 // ==============================================================================
 // This is the table that holds the command names, implementing functions, and
 // brief description.
@@ -1266,13 +1253,7 @@ extern xSemaphoreHandle g_xRxLineSemaphore;
 void UARTStdioIntHandler(void);
 
 void loopback_uart(void * p) {
-	MAP_UARTConfigSetExpClk(UARTA1_BASE,PRCMPeripheralClockGet(PRCM_UARTA1), 38400,
-		                            (UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE |
-		                             UART_CONFIG_PAR_NONE));
-	while(1) {
-		uint8_t c = UARTCharGet(UARTA1_BASE);
-		UARTCharPutNonBlocking(UARTA0_BASE, c); //basic feedback
-	}
+	top_board_task();
 }
 void vUARTTask(void *pvParameters) {
 	char cCmdBuf[64];

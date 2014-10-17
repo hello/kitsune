@@ -11,7 +11,8 @@
 extern "C" {
 #endif
 
-
+int top_board_task(void); //infinite loop
+int Cmd_send_top(int argc, char *argv[]);
 
 #ifdef __cplusplus
 }
