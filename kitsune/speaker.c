@@ -124,27 +124,23 @@ void Speaker1()
       /* Read always in block of 512 Bytes or less else it will stuck in f_read() */
       res = f_read(&fp, speaker_data, 512, (unsigned short*)&Size);
       totBytesRead += Size;
-/*
-      int i;
-  	for (i = 0; i < 512; ++i) {
-  		UARTprintf("%x", speaker_data[i]);
-  	}
-  	*/
+
       /* Wait to avoid buffer overflow as reading speed is faster than playback */
       while((IsBufferSizeFilled(pRxBuffer,PLAY_WATERMARK) == TRUE)){};
 
       if(Size>0)
       {
+
     	  //UARTprintf("Read : %d Bytes totBytesRead: %d\n\n\r",Size, totBytesRead);
     		unsigned int i;
-    	  //for(i = 0; i < 512/2; i++){
+			#if 1
     		unsigned short *pu16;
     	  pu16 = (unsigned short *)(speaker_data + offset*Size);
     	             	for (i = 0; i < 512/2; i ++) {
     	             		*pu16 = ((*pu16) << 8) | ((*pu16) >> 8);
     	             		pu16++;
     	             	}
-    	  //}
+    	  #endif
 			for( i=0;i<512;++i) {
 				speaker_data_padded[i*2+1] = speaker_data[i];
 				speaker_data_padded[i*2] = speaker_data[i];
@@ -174,6 +170,7 @@ void Speaker1()
           */
           //f_read(&fp, speaker_data, 9, (unsigned short*)&Size);
           //totBytesRead = 9;
+        	g_iReceiveCount = 0;
         	UARTprintf("speaker task completed\r\n" );
           break;
         }

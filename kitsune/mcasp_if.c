@@ -147,7 +147,15 @@ if(CPU_XDATA)
         MAP_I2SIntEnable(I2S_BASE,I2S_INT_XDATA); // add by ben
 }
 }
-
+void McASPDeInit()
+{
+	//MAP_PRCMPeripheralClkDisable(PRCM_I2S,PRCM_RUN_MODE_CLK);
+	MAP_I2SIntDisable(I2S_BASE,I2S_INT_XDATA);
+	MAP_I2SIntDisable(I2S_BASE,I2S_INT_RDATA);
+	MAP_I2STxFIFODisable(I2S_BASE);
+	MAP_I2SRxFIFODisable(I2S_BASE);
+	I2SIntUnregister(I2S_BASE);
+}
 void McASPLoad(unsigned long * b, unsigned long size){
 	playback_buffer = b;
 	playback_buffer_size = size;
