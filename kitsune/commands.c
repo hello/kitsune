@@ -65,6 +65,8 @@
 
 #include "ff.h"
 #include "diskio.h"
+
+#include "slip_packet.h"
 //#include "mcasp_if.h" // add by Ben
 
 #define ONLY_MID 0
@@ -1128,7 +1130,21 @@ int Cmd_led_clr(int argc, char *argv[]) {
 	return 0;
 }
 
-
+int Cmd_slip(int argc, char * argv[]){
+	uint8_t test_packet[] = {0x2, 0x00, 0x00, 0x00, 0xB8, 0x43, 0x00, 0x00};
+	slip_reset();
+	uint8_t * ret = (uint8_t*)slip_write(test_packet, sizeof(test_packet));
+	if(ret){
+		int i;
+		UARTprintf("\r\nSLIP TEST");
+		for(i = 0; i < (sizeof(test_packet) + 8); i++){
+			UARTprintf("0x%02X ",*(uint8_t*)(ret+i));
+		}
+		UARTprintf("\r\n");
+		slip_free(ret);
+	}
+	return 0;
+}
 
 // ==============================================================================
 // This is the table that holds the command names, implementing functions, and
@@ -1209,7 +1225,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "rdiorxstart", Cmd_RadioStartRX, "start rx test" },
 		{ "rdiorxstop", Cmd_RadioStopRX, "stop rx test" },
 		{ "rssi", Cmd_rssi, "scan rssi" },
-
+		{ "slip", Cmd_slip, "slip test" },
 		{ "data_upload", Cmd_data_upload, "upload protobuf data" },
 
 
