@@ -275,7 +275,7 @@ void watchdog_thread(void* unused){
 //							MAIN FUNCTION
 //*****************************************************************************
 void main()
-{
+ {
   //
   // Board Initialization
 
@@ -287,6 +287,7 @@ void main()
   // configure the GPIO pins for LEDs
   //
   PinMuxConfig();
+
 
   //
   // Initialize the UART for console I/O.

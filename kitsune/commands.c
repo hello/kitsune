@@ -235,6 +235,8 @@ int Cmd_fs_read(int argc, char *argv[]) {
 	// Return success.
 	return (0);
 }
+
+#define AUDIO_RATE 16000
 extern
 unsigned short * audio_buf;
 int Cmd_code_playbuff(int argc, char *argv[]) {
@@ -242,7 +244,8 @@ unsigned int CPU_XDATA = 1; //1: enabled CPU interrupt triggerred
 #define minval( a,b ) a < b ? a : b
 	unsigned long tok;
 	long hndl, err, bytes;
-	Audio_Stop();
+    McASPInit(true, AUDIO_RATE);
+	//Audio_Stop();
 	audio_buf = (unsigned short*)pvPortMalloc(AUDIO_BUF_SZ);
 	//assert(audio_buf);
 	if (err = sl_FsOpen("Ringtone_hello_leftchannel_16PCM", FS_MODE_OPEN_READ, &tok, &hndl)) {
@@ -257,15 +260,18 @@ unsigned int CPU_XDATA = 1; //1: enabled CPU interrupt triggerred
 	get_codec_NAU();
 	UARTprintf(" Done for get_codec_NAU\n ");
 
-	AudioCaptureRendererConfigure(I2S_PORT_CPU, 48000);
+	AudioCaptureRendererConfigure(I2S_PORT_CPU, AUDIO_RATE);
 
-	AudioCapturerInit(CPU_XDATA, 48000); //UARTprintf(" Done for AudioCapturerInit\n ");
+	AudioCapturerInit(CPU_XDATA, AUDIO_RATE); //UARTprintf(" Done for AudioCapturerInit\n ");
 
 	Audio_Start(); //UARTprintf(" Done for Audio_Start\n ");
 
+	vTaskDelay(5 * 1000);
+	Audio_Stop(); // added this, the ringtone will not play
+	McASPDeInit(true, AUDIO_RATE);
+
 	vPortFree(audio_buf); //UARTprintf(" audio_buf\n ");
-		// Audio_Stop(); // added this, the ringtone will not play
-	 return 0;
+	return 0;
 }
 
 //extern
@@ -287,7 +293,7 @@ get_codec_mic_NAU();
 
 // Initialize the Audio(I2S) Module
 //
-AudioCapturerInit(CPU_XDATA, 16000);
+AudioCapturerInit(CPU_XDATA, AUDIO_RATE);
 
 // Initialize the DMA Module
 //
@@ -302,7 +308,7 @@ SetupPingPongDMATransferTx();
 //
 
 AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
-AudioCaptureRendererConfigure(I2S_PORT_DMA, 16000);
+AudioCaptureRendererConfigure(I2S_PORT_DMA, AUDIO_RATE);
 
 // Start Audio Tx/Rx
 //
@@ -559,7 +565,7 @@ void thread_fast_i2c_poll(void * unused)  {
 					memset(&alarm, 0, sizeof(alarm));
 				}
 				xSemaphoreGive(alarm_smphr);
-				Audio_Stop();
+				//Audio_Stop();
 				Cmd_led(0,0);
 			}
 			last_prox = prox;
@@ -1330,17 +1336,17 @@ void vUARTTask(void *pvParameters) {
 
 	xTaskCreate(thread_audio, "audioTask", 5 * 1024 / 4, NULL, 4, NULL); //todo reduce stack
 	UARTprintf("*");
-	xTaskCreate(thread_spi, "spiTask", 5*2048 / 4, NULL, 5, NULL);
+	xTaskCreate(thread_spi, "spiTask", 4*1024 / 4, NULL, 5, NULL);
 	SetupGPIOInterrupts();
 	UARTprintf("*");
 #if !ONLY_MID
-	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask", 5 * 1024 / 4, NULL, 3, NULL);
+	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 3, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_dust, "dustTask", 5* 1024 / 4, NULL, 3, NULL);
+	xTaskCreate(thread_dust, "dustTask", 256 / 4, NULL, 3, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_sensor_poll, "pollTask", 5 * 1024 / 4, NULL, 4, NULL);
+	xTaskCreate(thread_sensor_poll, "pollTask", 1024 / 4, NULL, 4, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_tx, "txTask", 5 * 1024 / 4, NULL, 2, NULL);
+	xTaskCreate(thread_tx, "txTask", 2 * 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_ota, "otaTask",5 * 1024 / 4, NULL, 1, NULL);
 	UARTprintf("*");
@@ -1373,7 +1379,7 @@ void vUARTTask(void *pvParameters) {
 			// Pass the line from the user to the command processor.  It will be
 			// parsed and valid commands executed.
 			//
-			xTaskCreate(CmdLineProcess, "commandTask",  2*1024 / 4, cCmdBuf, 20, NULL);
+			xTaskCreate(CmdLineProcess, "commandTask",  5*1024 / 4, cCmdBuf, 20, NULL);
 		}
 	}
 }
