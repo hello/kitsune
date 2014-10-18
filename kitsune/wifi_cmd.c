@@ -1192,14 +1192,30 @@ int send_periodic_data( data_t * data ) {
     periodic_data msg = {0};
 
     //build the message
-    msg.firmware_version = 2;
+    msg.has_firmware_version = true;
+    msg.firmware_version = KIT_VER;
+
+    msg.has_dust = true;
     msg.dust = data->dust;
+
+    msg.has_humidity = true;
     msg.humidity = data->humid;
+
+    msg.has_light = true;
     msg.light = data->light;
+
+    msg.has_light_variability = true;
     msg.light_variability = data->light_variability;
+
+    msg.has_light_tonality = true;
     msg.light_tonality = data->light_tonality;
+
+    msg.has_temperature = true;
     msg.temperature = data->temp;
+
+    msg.has_unix_time = true;
     msg.unix_time = data->time;
+
     msg.name.funcs.encode = encode_name;
     msg.mac.funcs.encode = encode_mac;  // Now this is a fallback, the backend will not use this at the first hand
     msg.device_id.funcs.encode = encode_mac_as_device_id_string;
