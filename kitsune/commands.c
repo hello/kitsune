@@ -1287,7 +1287,6 @@ void vUARTTask(void *pvParameters) {
 
 	UARTprintf("Boot\n");
 
-	if( UART)
 	//default to IFA
 	antsel(IFA_ANT);
 
