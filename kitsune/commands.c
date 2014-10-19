@@ -1261,7 +1261,6 @@ void vUARTTask(void *pvParameters) {
 	//switch the uart lines to gpios, drive tx low and see if rx goes low as well
     // Configure PIN_57 for GPIOInput
     //
-	UARTIntUnregister(UARTA0_BASE);
     MAP_PinTypeGPIO(PIN_57, PIN_MODE_0, false);
     MAP_GPIODirModeSet(GPIOA0_BASE, 0x4, GPIO_DIR_MODE_IN);
     //
@@ -1272,8 +1271,9 @@ void vUARTTask(void *pvParameters) {
     MAP_GPIOPinWrite(GPIOA0_BASE, 0x2, 0);
 
     vTaskDelay(100);
-    if( MAP_GPIOPinRead(GPIOA0_BASE, 0x4) != 0 ) {
-    	UARTIntRegister(UARTA0_BASE, UARTStdioIntHandler);
+    if( MAP_GPIOPinRead(GPIOA0_BASE, 0x4) == 0 ) {
+    	//drive sop2 low so we disconnect
+        MAP_GPIOPinWrite(GPIOA3_BASE, 0x2, 0);
     }
     MAP_PinTypeUART(PIN_55, PIN_MODE_3);
     MAP_PinTypeUART(PIN_57, PIN_MODE_3);
