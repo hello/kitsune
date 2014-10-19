@@ -1121,6 +1121,13 @@ int Cmd_led(int argc, char *argv[]) {
 	unsigned int colors[NUM_LED]= {2,4,8,16,32,64,128,255,0,0,0,0};
 	unsigned int colors_o[NUM_LED]= {2,4,8,16,32,64,128,255,0,0,0,0};
 
+	if ((sl_status & HAS_IP)) {
+		for (i = 1; i < NUM_LED; ++i) {
+			colors_o[i] <<= 8;
+			colors[i] <<= 8;
+		}
+	} //wait for a connection the first time...
+
 	//colors[0] = atoi(argv[1]);
 	for (i = 1; i < 32; ++i) {
 		led_cw(colors_o);
@@ -1249,13 +1256,27 @@ void UARTStdioIntHandler(void);
 void vUARTTask(void *pvParameters) {
 	char cCmdBuf[64];
 	portTickType now;
+	bool loop = false;
 
 	Cmd_led_clr(0,0);
 
+	//
+	// Initialize the UART for console I/O.
+	//
+	UARTStdioInit(0);
+
 	UARTIntRegister(UARTA0_BASE, UARTStdioIntHandler);
 
-	UARTprintf("Booting...\n");
+	UARTprintf("Boot\n");
+	vTaskDelay(10);
+	if( UARTCharsAvail(UARTA0_BASE) ) {
+		UARTprintf("Loop detected\n");
+		vTaskDelay(10);
+		UARTIntUnregister( UARTA0_BASE );
+		loop = true;
+	}
 
+	if( UART)
 	//default to IFA
 	antsel(IFA_ANT);
 
@@ -1345,7 +1366,7 @@ void vUARTTask(void *pvParameters) {
 	UARTFlushRx();
 
 	/* Loop forever */
-	while (1) {
+	while (!loop) {
 		/* Wait for a signal indicating we have an RX line to process */
 		xSemaphoreTake(g_xRxLineSemaphore, portMAX_DELAY);
 
