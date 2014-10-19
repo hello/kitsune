@@ -565,7 +565,7 @@ void thread_fast_i2c_poll(void * unused)  {
 			vTaskDelay(2); //this is important! If we don't do it, then the prox will stretch the clock!
 			prox = get_prox();
 			hpf_prox = last_prox - prox;
-			if (abs(hpf_prox) > 35) {
+			if(hpf_prox > 35) {
 				UARTprintf("PROX: %d\n", hpf_prox);
 
 				xSemaphoreTake(alarm_smphr, portMAX_DELAY);
@@ -1106,8 +1106,8 @@ void led_brightness(unsigned int * colors, unsigned int brightness ) {
 
 	for (l = 0; l < NUM_LED; ++l) {
 		blue = ( colors[l] & ~0xffff00 );
-		red = ( colors[l] & ~0xff00ff );
-		green = ( colors[l] & ~0x00ffff );
+		red = ( colors[l] & ~0xff00ff )>>8;
+		green = ( colors[l] & ~0x00ffff )>>16;
 
 		blue = (brightness * blue)>>8;
 		red = (brightness * red)>>8;
@@ -1123,8 +1123,8 @@ int Cmd_led(int argc, char *argv[]) {
 
 	if ((sl_status & HAS_IP)) {
 		for (i = 1; i < NUM_LED; ++i) {
-			colors_o[i] <<= 8;
-			colors[i] <<= 8;
+			colors_o[i] <<= 16;
+			colors[i] <<= 16;
 		}
 	} //wait for a connection the first time...
 
@@ -1256,9 +1256,27 @@ void UARTStdioIntHandler(void);
 void vUARTTask(void *pvParameters) {
 	char cCmdBuf[64];
 	portTickType now;
-	bool loop = false;
 
 	Cmd_led_clr(0,0);
+	//switch the uart lines to gpios, drive tx low and see if rx goes low as well
+    // Configure PIN_57 for GPIOInput
+    //
+	UARTIntUnregister(UARTA0_BASE);
+    MAP_PinTypeGPIO(PIN_57, PIN_MODE_0, false);
+    MAP_GPIODirModeSet(GPIOA0_BASE, 0x4, GPIO_DIR_MODE_IN);
+    //
+    // Configure PIN_55 for GPIOOutput
+    //
+    MAP_PinTypeGPIO(PIN_55, PIN_MODE_0, false);
+    MAP_GPIODirModeSet(GPIOA0_BASE, 0x2, GPIO_DIR_MODE_OUT);
+    MAP_GPIOPinWrite(GPIOA0_BASE, 0x2, 0);
+
+    vTaskDelay(100);
+    if( MAP_GPIOPinRead(GPIOA0_BASE, 0x4) != 0 ) {
+    	UARTIntRegister(UARTA0_BASE, UARTStdioIntHandler);
+    }
+    MAP_PinTypeUART(PIN_55, PIN_MODE_3);
+    MAP_PinTypeUART(PIN_57, PIN_MODE_3);
 
 	//
 	// Initialize the UART for console I/O.
@@ -1268,13 +1286,6 @@ void vUARTTask(void *pvParameters) {
 	UARTIntRegister(UARTA0_BASE, UARTStdioIntHandler);
 
 	UARTprintf("Boot\n");
-	vTaskDelay(10);
-	if( UARTCharsAvail(UARTA0_BASE) ) {
-		UARTprintf("Loop detected\n");
-		vTaskDelay(10);
-		UARTIntUnregister( UARTA0_BASE );
-		loop = true;
-	}
 
 	if( UART)
 	//default to IFA
@@ -1356,6 +1367,8 @@ void vUARTTask(void *pvParameters) {
 #endif
 	//checkFaults();
 
+
+
 	UARTprintf("\n\nFreeRTOS %s, %d, %s %x%x%x%x%x%x\n",
 	tskKERNEL_VERSION_NUMBER, KIT_VER, MORPH_NAME, mac[0], mac[1], mac[2],
 			mac[3], mac[4], mac[5]);
@@ -1363,10 +1376,9 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("> ");
 
 	/* remove anything we recieved before we were ready */
-	UARTFlushRx();
 
 	/* Loop forever */
-	while (!loop) {
+	while (1) {
 		/* Wait for a signal indicating we have an RX line to process */
 		xSemaphoreTake(g_xRxLineSemaphore, portMAX_DELAY);
 
