@@ -6,6 +6,7 @@
 #include <hw_memmap.h>
 #include <prcm.h>
 #include <stdint.h>
+#include <string.h>
 
 static struct{
 	enum{
@@ -21,7 +22,13 @@ _printchar(uint8_t c){
 
 static void
 _on_slip_message(uint8_t * c, uint32_t size){
-	UARTprintf("Got a slip message\r\n");
+
+	char * ret = hci_decode(c, size, NULL);
+	if(ret){
+		UARTprintf("Got a HCI message: %s\r\n", ret);
+	}else{
+		UARTprintf("HCI decode fail\r\n");
+	}
 }
 
 static void

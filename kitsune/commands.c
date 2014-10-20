@@ -65,7 +65,7 @@
 
 #include "ff.h"
 #include "diskio.h"
-
+#include "top_hci.h"
 #include "slip_packet.h"
 //#include "mcasp_if.h" // add by Ben
 
@@ -1136,9 +1136,17 @@ int Cmd_led_clr(int argc, char *argv[]) {
 }
 
 int Cmd_slip(int argc, char * argv[]){
-	uint8_t test_packet[] = {0x2, 0x00, 0x00, 0x00, 0xB8, 0x43, 0x00, 0x00};
-	slip_reset();
-	slip_write(test_packet, sizeof(test_packet));
+	uint32_t len, llen;
+	if(argc >= 2){
+		uint8_t * message = hci_encode("hello", strlen(argv[1]) + 1, &len);
+		UARTprintf("Decoded: %s \r\n", hci_decode(message, len, NULL));
+		hci_free(message);
+	}else{
+		uint8_t * message = hci_encode("hello", strlen("hello") + 1, &len);
+		UARTprintf("Decoded: %s \r\n", hci_decode(message, len, NULL));
+		hci_free(message);
+
+	}
 	return 0;
 }
 

@@ -251,6 +251,16 @@
 			<locationURI>PARENT-2-PROJECT_LOC/top_board.h</locationURI>
 		</link>
 		<link>
+			<name>top_hci.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/top_hci.c</locationURI>
+		</link>
+		<link>
+			<name>top_hci.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/top_hci.h</locationURI>
+		</link>
+		<link>
 			<name>uartstdio.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/uartstdio.c</locationURI>

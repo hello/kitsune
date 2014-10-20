@@ -21,15 +21,14 @@ typedef struct{
 	void (*slip_put_char)(uint8_t c);
 }slip_handler_t;
 
+//initialization functions, these two must be called before calling handle_rx
 void slip_set_handler(const slip_handler_t * user);
+void   slip_reset(void);
 
 //entry point to pass input here
 void slip_handle_rx(uint8_t c);
 
-//resets SEQ number in slip header
-void   slip_reset(void);
-
-//does not reset seq
+//writes hci packet in slip format to uart
 uint32_t slip_write(const uint8_t * orig, uint32_t buffer_size);
 
 
