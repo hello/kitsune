@@ -11,7 +11,15 @@
 
 #include "stdint.h"
 
+typedef struct{
+	//default handler for unknown characters
+	void (*slip_putchar)(uint8_t c);
+	//user handles slip message
+	void (*slip_on_message)(uint8_t * message, uint32_t size);
+}slip_handler_t;
 
+void slip_set_handler(const slip_handler_t * user);
+void slip_handle_rx(uint8_t c);
 
 //resets SEQ number in slip header
 void   slip_reset(void);
