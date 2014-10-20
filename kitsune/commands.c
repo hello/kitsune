@@ -807,47 +807,14 @@ static void SortByRSSI(Sl_WlanNetworkEntry_t* netEntries,
         } //end for
      }while(ucSwapped);
 }
-static int GetScanResult(Sl_WlanNetworkEntry_t* netEntries )
-{
-    unsigned char   policyOpt;
-    unsigned long IntervalVal = 60;
-    int lRetVal;
-
-    policyOpt = SL_CONNECTION_POLICY(0, 0, 0, 0, 0);
-    lRetVal = sl_WlanPolicySet(SL_POLICY_CONNECTION , policyOpt, NULL, 0);
 
 
-    // enable scan
-    policyOpt = SL_SCAN_POLICY(1);
-
-    // set scan policy - this starts the scan
-    lRetVal = sl_WlanPolicySet(SL_POLICY_SCAN , policyOpt,
-                            (unsigned char *)(IntervalVal), sizeof(IntervalVal));
-
-
-    // delay 1 second to verify scan is started
-    vTaskDelay(1000);
-
-    // lRetVal indicates the valid number of entries
-    // The scan results are occupied in netEntries[]
-    lRetVal = sl_WlanGetNetworkList(0, SCAN_TABLE_SIZE, netEntries);
-
-    // Disable scan
-    policyOpt = SL_SCAN_POLICY(0);
-
-    // set scan policy - this stops the scan
-    sl_WlanPolicySet(SL_POLICY_SCAN , policyOpt,
-                            (unsigned char *)(IntervalVal), sizeof(IntervalVal));
-
-    return lRetVal;
-
-}
 int Cmd_rssi(int argc, char *argv[]) {
 	int lCountSSID,i;
 
 	Sl_WlanNetworkEntry_t g_netEntries[SCAN_TABLE_SIZE];
 
-	lCountSSID = GetScanResult(&g_netEntries[0]);
+	lCountSSID = get_wifi_scan_result(&g_netEntries[0], SCAN_TABLE_SIZE, 1000);
 
     SortByRSSI(&g_netEntries[0],(unsigned char)lCountSSID);
 

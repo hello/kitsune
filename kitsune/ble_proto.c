@@ -103,18 +103,19 @@ static bool _set_wifi(const char* ssid, const char* password)
             {
                 // To make things simple in the first pass implementation, 
                 // we only store one endpoint.
-/*
+
                 // There is no sl_sl_WlanProfileSet?
                 // So I delete all endpoint first.
-                _i16 del_ret = sl_WlanProfileDel(0xFF);
+                int16_t del_ret = sl_WlanProfileDel(0xFF);
                 if(del_ret)
                 {
                     UARTprintf("Delete all stored endpoint failed, error %d.\n", del_ret);
+                }else{
+                	UARTprintf("All stored WIFI EP removed.\n");
                 }
 
                 // Then add the current one back.
-*/
-                _i16 profile_add_ret = sl_WlanProfileAdd((_i8*)ssid, strlen(ssid), NULL, secParamsPtr, NULL, 0, 0);
+                int16_t profile_add_ret = sl_WlanProfileAdd((_i8*)ssid, strlen(ssid), NULL, secParamsPtr, NULL, 0, 0);
                 if(profile_add_ret < 0)
                 {
                     UARTprintf("Save connected endpoint failed, error %d.\n", profile_add_ret);
