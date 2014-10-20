@@ -86,11 +86,17 @@ static const int16_t _defaultsvmdata[3][NUM_AUDIO_FEATURES + 1] =
     };
 
 
-#define LOG2_06 (-0.73697f)
-#define LOG2_04 (-1.3219f)
+/* ATTENTION!   
+  
+  - The conditional probablities are in Q10   
+  - The state transition matrix is in Q15 
+ 
+   This info will come in handy when you send a classifier on down from the server.
+ */
+
 static const int16_t _defaulthmmdata[2][5] = {
-    {TOFIX(LOG2_06,HMM_LOGPROB_QFIXEDPOINT),TOFIX(LOG2_04,HMM_LOGPROB_QFIXEDPOINT),TOFIX(LOG2_04,HMM_LOGPROB_QFIXEDPOINT),   TOFIX(0.98f,15),TOFIX(0.02f,15)},
-    {TOFIX(LOG2_04,HMM_LOGPROB_QFIXEDPOINT),TOFIX(LOG2_06,HMM_LOGPROB_QFIXEDPOINT),TOFIX(LOG2_06,HMM_LOGPROB_QFIXEDPOINT),   TOFIX(0.006f,15),TOFIX(0.994f,15)},
+    {TOFIX(0.6f,HMM_LOGPROB_QFIXEDPOINT),TOFIX(0.4f,HMM_LOGPROB_QFIXEDPOINT),TOFIX(0.4f,HMM_LOGPROB_QFIXEDPOINT),   TOFIX(0.98f,15),TOFIX(0.02f,15)},
+    {TOFIX(0.4f,HMM_LOGPROB_QFIXEDPOINT),TOFIX(0.6f,HMM_LOGPROB_QFIXEDPOINT),TOFIX(0.6f,HMM_LOGPROB_QFIXEDPOINT),   TOFIX(0.006f,15),TOFIX(0.994f,15)},
 };
 
 static inline uint8_t pack_int8_to_int4(int8_t x) {
