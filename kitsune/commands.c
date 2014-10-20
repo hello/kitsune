@@ -1138,7 +1138,7 @@ int Cmd_led_clr(int argc, char *argv[]) {
 int Cmd_slip(int argc, char * argv[]){
 	uint32_t len, llen;
 	if(argc >= 2){
-		uint8_t * message = hci_encode("hello", strlen(argv[1]) + 1, &len);
+		uint8_t * message = hci_encode(argv[1], strlen(argv[1]) + 1, &len);
 		UARTprintf("Decoded: %s \r\n", hci_decode(message, len, NULL));
 		hci_free(message);
 	}else{
