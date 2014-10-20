@@ -89,6 +89,6 @@ int http_response_ok(const char* response_buffer);
 //#define MORPH_NAME "Chris's morpheus"
 #define MORPH_NAME "test morpheus 10"
 //#define MORPH_NAME "test morpheus 80"
-#define KIT_VER 4
+#define KIT_VER 6
 
 #endif

@@ -257,6 +257,6 @@ PinMuxConfig(void)
 	//
 	MAP_PinTypeGPIO(PIN_21, PIN_MODE_0, false);
 	MAP_GPIODirModeSet(GPIOA3_BASE, 0x2, GPIO_DIR_MODE_OUT);
-	//drive low by default
+	//drive high by default
     MAP_GPIOPinWrite(GPIOA3_BASE, 0x2, 0x2);
 }
