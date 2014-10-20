@@ -198,11 +198,27 @@ int Cmd_antsel(int argc, char *argv[]) {
     return 0;
 }
 
+static void _wifi_reset()
+{
+    int16_t ret = sl_WlanProfileDel(0xFF);
+    if(ret)
+    {
+        UARTprintf("Delete all stored endpoint failed, error %d.\n", ret);
+    }else{
+        UARTprintf("All stored WIFI EP removed.\n");
+    }
+
+    ret = sl_WlanDisconnect();
+    if(ret == 0){
+        UARTprintf("WIFI disconnected");
+    }else{
+        UARTprintf("Disconnect WIFI failed, error %d.\n", ret);
+    }
+}
+
 int Cmd_disconnect(int argc, char *argv[]) {
 
-    _i16 del_ret = sl_WlanProfileDel(0xFF);
-
-	sl_WlanDisconnect();
+    _wifi_reset();
     return (0);
 }
 int Cmd_connect(int argc, char *argv[]) {
@@ -1279,6 +1295,13 @@ int send_periodic_data( data_t * data ) {
 
 				xSemaphoreGive(alarm_smphr);
 			}
+        }
+
+        if(response_protobuf.has_reset_device && response_protobuf.reset_device){
+            UARTprintf("Server factory reset.\n");
+            // hehe I am going to disconnect WLAN here, don't kill me Chris
+            _wifi_reset();
+            
         }
         upload_success = 1;
         //now act on incoming data!

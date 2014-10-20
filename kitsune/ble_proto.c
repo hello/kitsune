@@ -15,44 +15,31 @@
 
 extern unsigned int sl_status;
 
-static int _get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uint32_t scan_duration_ms)
-{
-    if(scan_duration_ms < 1000)
+static void _factory_reset(){
+    int16_t ret = sl_WlanProfileDel(0xFF);
+    if(ret)
     {
-        return 0;
+        UARTprintf("Delete all stored endpoint failed, error %d.\n", ret);
+        ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
+        return;
+    }else{
+        UARTprintf("All stored WIFI EP removed.\n");
     }
 
-    unsigned long IntervalVal = 60;
+    ret = sl_WlanDisconnect();
+    if(ret == 0){
+        UARTprintf("WIFI disconnected");
+        MorpheusCommand reply_command;
+        memset(&reply_command, 0, sizeof(reply_command));
+        reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_FACTORY_RESET;
+        reply_command.version = PROTOBUF_VERSION;
+        ble_send_protobuf(&reply_command);
 
-    unsigned char policyOpt = SL_CONNECTION_POLICY(0, 0, 0, 0, 0);
-    int lRetVal = sl_WlanPolicySet(SL_POLICY_CONNECTION , policyOpt, NULL, 0);
-
-
-    // enable scan
-    policyOpt = SL_SCAN_POLICY(1);
-
-    // set scan policy - this starts the scan
-    lRetVal = sl_WlanPolicySet(SL_POLICY_SCAN , policyOpt, (unsigned char *)(IntervalVal), sizeof(IntervalVal));
-
-
-    // delay specific milli seconds to verify scan is started
-    vTaskDelay(scan_duration_ms);
-
-    // lRetVal indicates the valid number of entries
-    // The scan results are occupied in netEntries[]
-    lRetVal = sl_WlanGetNetworkList(0, entry_len, entries);
-
-    // Disable scan
-    policyOpt = SL_SCAN_POLICY(0);
-
-    // set scan policy - this stops the scan
-    sl_WlanPolicySet(SL_POLICY_SCAN , policyOpt,
-                            (unsigned char *)(IntervalVal), sizeof(IntervalVal));
-
-    return lRetVal;
-
+    }else{
+        UARTprintf("Disconnect WIFI failed, error %d.\n", ret);
+        ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
+    }
 }
-
 
 static bool _set_wifi(const char* ssid, const char* password)
 {
@@ -510,6 +497,12 @@ void on_ble_protobuf_command(MorpheusCommand* command)
         {
             UARTprintf("PAIR SENSE\n");
             _pair_device(command, 1);
+        }
+        break;
+        case MorpheusCommand_CommandType_MORPHEUS_COMMAND_FACTORY_RESET:
+        {
+            UARTprintf("FACTORY RESET\n");
+            _factory_reset();
         }
         break;
 	}
