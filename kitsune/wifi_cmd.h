@@ -17,6 +17,8 @@ typedef struct {
 #define MAX_PILLS 8
 #include "FreeRTOS.h"
 #include "semphr.h"
+#include "wlan.h"
+
 extern xSemaphoreHandle pill_smphr;
 
 typedef struct {
