@@ -71,7 +71,7 @@ extern "C" {
         int64_t t2;
     } MatDesc_t;
     
-    typedef const_MatDesc_t * (*GetNextMatrixFunc_t)(uint8_t isFirst);
+    typedef uint8_t (*GetNextMatrixFunc_t)(uint8_t isFirst,const_MatDesc_t * pdesc);
     
     size_t SetIntMatrix(pb_ostream_t * stream,
                         const char * id,

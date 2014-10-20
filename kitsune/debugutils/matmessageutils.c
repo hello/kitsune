@@ -105,12 +105,14 @@ static bool write_int_mat(pb_ostream_t *stream, const pb_field_t *field, void * 
 
 static bool write_mat_array(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
     GetNextMatrixFunc_t next_mat_func = (GetNextMatrixFunc_t)(*arg);
-    const_MatDesc_t * p;
+    const_MatDesc_t desc;
     pb_ostream_t sizestream;
-
-    p = next_mat_func(true);
+    uint8_t isFirst = true;
     
-    while(p) {
+    
+    while(next_mat_func(isFirst,&desc)) {
+        isFirst = false;
+        
         if (!pb_encode_tag(stream,PB_WT_STRING, field->tag)) {
             return 0;
         }
@@ -119,7 +121,7 @@ static bool write_mat_array(pb_ostream_t *stream, const pb_field_t *field, void 
         memset(&sizestream,0,sizeof(sizestream));
 
         //get size
-        SetIntMatrix(&sizestream, p->id, p->tags, p->source, p->data, p->rows, p->cols, p->t1, p->t2);
+        SetIntMatrix(&sizestream, desc.id, desc.tags, desc.source, desc.data, desc.rows, desc.cols, desc.t1, desc.t2);
 
         //write size
         if (!pb_encode_varint(stream, sizestream.bytes_written)) {
@@ -127,9 +129,8 @@ static bool write_mat_array(pb_ostream_t *stream, const pb_field_t *field, void 
         }
         
         //encode matrix payload
-        SetIntMatrix(stream, p->id, p->tags, p->source, p->data, p->rows, p->cols, p->t1, p->t2);
+        SetIntMatrix(stream, desc.id, desc.tags, desc.source, desc.data, desc.rows, desc.cols, desc.t1, desc.t2);
     
-        p = next_mat_func(false);
     }
 
     return 1;

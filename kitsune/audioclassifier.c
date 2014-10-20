@@ -24,9 +24,6 @@
 #define RECORD_DURATION_IN_FRAMES (RECORD_DURATION_IN_MS / SAMPLE_PERIOD_IN_MILLISECONDS)
 
 
-typedef struct {
-    
-} AudioClassifier_t;
 
 
 #define BUF_SIZE_IN_CHUNK (32)
@@ -53,17 +50,19 @@ typedef struct {
     AudioFeatureChunk_t chunkbuf[CHUNK_BUF_SIZE];
     
     uint16_t chunkbufidx;
+    uint16_t numchunkbuf;
+    
     uint16_t incomingidx;
     uint16_t numincoming;
+    
     uint8_t isThereAnythingInteresting;
 
     
 } DataBuffer_t;
 
 
-static const char * k_feats_buf_id = "feats4bit";
-static const char * k_energies_buf_id = "logenergy";
-static const char * k_bufinfo_buf_id = "bufinfo";
+static const char * k_id_feature_chunk = "feature_chunk";
+static const char * k_id_energy_chunk = "energy_chunk";
 
 
 static DataBuffer_t _buffer;
@@ -94,43 +93,77 @@ static const int16_t _defaulthmmdata[2][5] = {
     {TOFIX(LOG2_04,HMM_LOGPROB_QFIXEDPOINT),TOFIX(LOG2_06,HMM_LOGPROB_QFIXEDPOINT),TOFIX(LOG2_06,HMM_LOGPROB_QFIXEDPOINT),   TOFIX(0.006f,15),TOFIX(0.994f,15)},
 };
 
+static inline uint8_t pack_int8_to_int4(int8_t x) {
+    const uint8_t sign = x < 0;
+    
+    return (x & 0x07) | (sign * 8);
+}
+
+// assumes two's complement architecture (who the heck doesn't do this these days?)
+static inline void unpack_int4_pair_to_int8(uint8_t packed, int8_t * upper, int8_t * lower) {
+    *lower = packed & 0x07;
+    if (packed & 0x08) {
+        *lower |= 0xF8; //sign extension
+    }
+    
+    *upper = (packed & 0x70) >> 4;
+    if (packed & 0x80) {
+        *upper |= 0xF8; //sign extension
+    }
+    
+    
+}
 
 static void PackFeats(uint8_t * datahead, const int8_t * feats4bit) {
     uint8_t i;
-    const uint8_t * pbytes = (const uint8_t * )feats4bit;
+    uint8_t idx;
+    
     
     for (i = 0; i < NUM_AUDIO_FEATURES/2; i++) {
-        uint8_t idx = 2*i;
+        idx = 2*i;
         
-        datahead[i] = (pbytes[idx]) | (pbytes[idx + 1] << 4);
+        datahead[i] = pack_int8_to_int4(feats4bit[idx]);
+        datahead[i] |= (pack_int8_to_int4(feats4bit[idx + 1]) << 4);
     }
 }
+
+
 
 static void UnpackFeats8(int8_t * unpacked8, const uint8_t * datahead) {
     uint8_t i;
-
+    
     for (i = 0; i < NUM_AUDIO_FEATURES/2; i++) {
         //lsb first
-        *unpacked8 = (int16_t) (datahead[i] & 0x0F);
-        unpacked8++;
-        *unpacked8 = (int16_t) ( (datahead[i] & 0xF0) >> 4);
-        unpacked8++;
+        
+        unpack_int4_pair_to_int8(datahead[i],unpacked8+1,unpacked8);
+        unpacked8 += 2;
     }
     
 }
+
+#if 0
+static void TestPackUnpack(void) {
+    int8_t input[NUM_AUDIO_FEATURES] = {-8,-7,-6,-5,-4,-3,-2,-1,0,1,2,3,4,5,6,7};
+    int8_t out[NUM_AUDIO_FEATURES] = {0};
+    uint8_t packed[NUM_AUDIO_FEATURES/2];
+    int foo = 3;
+    PackFeats(packed, input);
+    UnpackFeats8(out, packed);
+    
+    foo++;
+    
+}
+#endif
 
 static void CopyCircularBufferToPermanentStorage(int64_t samplecount) {
     
     AudioFeatureChunk_t chunk;
-    uint16_t idx1,idx2;
+    uint16_t idx;
     int32_t size1,size2;
     uint16_t i;
     int16_t max;
     
- 
-    
-    idx2 = (_buffer.incomingidx - 1) & CIRCULAR_BUF_MASK; //latest
-    idx1 = _buffer.incomingidx; //oldest
+    idx = _buffer.incomingidx; //oldest
     /* 
         t2 t1
       ---| |-------
@@ -140,13 +173,13 @@ static void CopyCircularBufferToPermanentStorage(int64_t samplecount) {
      */
     
     //copy circular buf out in chronological order
-    size1 = CIRCULAR_BUF_SIZE - idx1;
-    memcpy(&chunk.packedbuf[0][0],&_buffer.packedbuf[idx1][0],size1*NUM_AUDIO_FEATURES*sizeof(uint8_t));
-    memcpy(&chunk.relativeEnergy[0],&_buffer.relativeenergy[idx1],size1*sizeof(int16_t));
+    size1 = CIRCULAR_BUF_SIZE - idx;
+    memcpy(&chunk.packedbuf[0][0],&_buffer.packedbuf[idx][0],size1*NUM_AUDIO_FEATURES/2*sizeof(uint8_t));
+    memcpy(&chunk.relativeEnergy[0],&_buffer.relativeenergy[idx],size1*sizeof(int16_t));
     
     if (size1 < CIRCULAR_BUF_SIZE) {
-        size2 = idx2;
-        memcpy(&chunk.packedbuf[size1][0],&_buffer.packedbuf[0][0],size2*NUM_AUDIO_FEATURES*sizeof(uint8_t));
+        size2 = idx;
+        memcpy(&chunk.packedbuf[size1][0],&_buffer.packedbuf[0][0],size2*NUM_AUDIO_FEATURES/2*sizeof(uint8_t));
         memcpy(&chunk.relativeEnergy[size1],&_buffer.relativeenergy[0],size2*sizeof(int16_t));
     }
     
@@ -168,6 +201,10 @@ static void CopyCircularBufferToPermanentStorage(int64_t samplecount) {
     memcpy(&_buffer.chunkbuf[_buffer.chunkbufidx],&chunk,sizeof(chunk));
     _buffer.chunkbufidx++;
     _buffer.chunkbufidx &= CHUNK_BUF_MASK;
+    
+    if (_buffer.numchunkbuf < CHUNK_BUF_SIZE) {
+        _buffer.numchunkbuf++;
+    }
     
     /* END CRITICAL SECTION  */
     if (_unlockFunc) {
@@ -202,6 +239,7 @@ static void InitDefaultClassifier(void) {
 void AudioClassifier_Init(RecordAudioCallback_t recordfunc,MutexCallback_t lockfunc, MutexCallback_t unlockfunc) {
     memset(&_buffer,0,sizeof(_buffer));
     memset(&_classifier,0,sizeof(Classifier_t));
+    memset(&_hmm,0,sizeof(_hmm));
     
     InitDefaultClassifier();
     
@@ -297,71 +335,104 @@ void AudioClassifier_DataCallback(int64_t samplecount, const AudioFeatures_t * p
 }
 
 /* sadly this is not stateless, but was the only way to serialize chunks one at a time */
-static const_MatDesc_t * GetNextMatrixCallback(uint8_t isFirst) {
+static uint8_t GetNextMatrixCallback(uint8_t isFirst,const_MatDesc_t * pdesc) {
     /* STATIC!  */
-    static uint16_t idx;
+    static uint16_t currentidx;
     static uint8_t state;
-    
+    static int8_t unpackedbuffer[BUF_SIZE_IN_CHUNK][NUM_AUDIO_FEATURES]; //32 * 16 * 1  = 512 bytes
+
 
     /* On the stack */
     const AudioFeatureChunk_t * pchunk;
-    int8_t unpackedbuffer[BUF_SIZE_IN_CHUNK][NUM_AUDIO_FEATURES]; //32 * 16 * 1 = 512 bytes
-    int16_t * bufptr = (int16_t *) &unpackedbuffer[0][0];
-    const_MatDesc_t desc;
-    desc.tags = "";
-    desc.source = "";
-    
+    int16_t * bufptr16 = (int16_t *) &unpackedbuffer[0][0];
+    const int16_t * beginning16 = (int16_t *) &unpackedbuffer[0][0];
+
+    uint16_t endidx;
     uint16_t i;
     
+    memset(pdesc,0,sizeof(const_MatDesc_t));
+    
     if (isFirst) {
-        idx = _buffer.chunkbufidx; //oldest
-        state = 0;
+        currentidx = _buffer.chunkbufidx; //oldest
+        state = 1;
     }
     
-    pchunk = &_buffer.chunkbuf[idx];
+    endidx = _buffer.chunkbufidx + _buffer.numchunkbuf;
+    endidx &= CHUNK_BUF_MASK;
+    
+    pchunk = &_buffer.chunkbuf[currentidx];
 
-    desc.t1 = pchunk->samplecount;
-    desc.t2 = desc.t1 + CHUNK_BUF_SIZE*2; //*2 because we are decimating audio samples by 2
+    pdesc->t1 = pchunk->samplecount;
+    pdesc->t2 = pdesc->t1 + CHUNK_BUF_SIZE*2; //*2 because we are decimating audio samples by 2
    
     
-    if (state == 0) {
-        desc.id = "feature_chunk";
+    if (state == 1) {
+        pdesc->id = k_id_feature_chunk;
 
         for (i = 0; i < BUF_SIZE_IN_CHUNK; i++) {
             UnpackFeats8(unpackedbuffer[i], pchunk->packedbuf[i]);
         }
-        
-        desc.data.len = BUF_SIZE_IN_CHUNK * NUM_AUDIO_FEATURES;
-        desc.data.type = esint8;
-        desc.data.data.sint8 = &unpackedbuffer[0][0];
-        desc.rows = BUF_SIZE_IN_CHUNK;
-        desc.cols = NUM_AUDIO_FEATURES;
-
-        state = 1;
-        
-    }
-    else {
-        desc.id = "energy_chunk";
-
-        for (i = 0; i < BUF_SIZE_IN_CHUNK; i++) {
-            *bufptr = pchunk->relativeEnergy[i];
-            bufptr++;
+      /*
+        for (i = 0; i < NUM_AUDIO_FEATURES; i++) {
+            printf("%d,",unpackedbuffer[BUF_SIZE_IN_CHUNK-1][i]);
         }
         
-        *bufptr = pchunk->maxenergy;
+        printf("\n");
+       */
+       
+        pdesc->data.len = BUF_SIZE_IN_CHUNK * NUM_AUDIO_FEATURES;
+        pdesc->data.type = esint8;
+        pdesc->data.data.sint8 = &unpackedbuffer[0][0];
+        pdesc->rows = BUF_SIZE_IN_CHUNK;
+        pdesc->cols = NUM_AUDIO_FEATURES;
+
+        state = 2;
+        
+    }
+    else if (state == 2) {
+        pdesc->id = k_id_energy_chunk;
+
+        //re-use the unpacked buffer, but let's pretend it's 16 bit...
+        for (i = 0; i < BUF_SIZE_IN_CHUNK; i++) {
+            *bufptr16 = pchunk->relativeEnergy[i];
+            bufptr16++;
+        }
+        
+        *bufptr16 = pchunk->maxenergy;
+        
+        /*
+        for (i = 0; i < BUF_SIZE_IN_CHUNK + 1; i++) {
+            printf("%d,",beginning16[i]);
+        }
+        printf("\n");
+        */
         
         
-        state = 0;
-        idx++;
-        idx &= CHUNK_BUF_MASK;
+        pdesc->data.len = BUF_SIZE_IN_CHUNK + 1;
+        pdesc->data.type = esint16;
+        pdesc->data.data.sint16 = beginning16;
+        pdesc->rows = 1;
+        pdesc->cols = BUF_SIZE_IN_CHUNK + 1;
+        
+        state = 1;
+        currentidx++;
+        currentidx &= CHUNK_BUF_MASK;
+        
+        //have we reached the end?
+        if (currentidx == endidx) {
+            state = 0;
+        }
 
     }
-    UnpackFeats16
     
-    
-    
-    
-    return 0;
+    //termination condition
+    if (state == 0) {
+        return FALSE;
+    }
+    else {
+        return TRUE;
+    }
+
 }
 
 
@@ -375,40 +446,18 @@ uint32_t AudioClassifier_GetSerializedBuffer(pb_ostream_t * stream,const char * 
     }
     
     size = SetMatrixMessage(stream, macbytes, unix_time,GetNextMatrixCallback);
+    
+    /* Buffer read out?  Great, let's reset it */
 
+    _buffer.chunkbufidx = 0;
+    _buffer.numchunkbuf = 0;
+    
     /* END CRITICAL SECTION  */
     if (_unlockFunc) {
         _unlockFunc();
     }
 
     
-
-    
-#if 0
-    bufinfo[0] = _buffer.idx;
-    bufinfo[1] = _buffer.numsamples;
-    
-    const_MatDesc_t descs[CHUNK_BUF_SIZE];
-        
-    
-    /*****************/
-    descs[0].data.len = _buffer.numsamples*NUM_AUDIO_FEATURES/2;
-    descs[0].data.type = euint8;
-    descs[0].data.data.uint8 = &_buffer.data[0][0];
-    
-    descs[1].data.len = _buffer.numsamples;
-    descs[1].data.type = esint8;
-    descs[1].data.data.sint8 = _buffer.energy;
-    
-    descs[2].data.len = sizeof(bufinfo) / sizeof(uint16_t);
-    descs[2].data.type = euint16;
-    descs[2].data.data.uint16 = bufinfo;
-    
-
-    /* now reset the buffer */
-    _buffer.idx = 0;
-    _buffer.numsamples = 0;
-#endif
     return size;
 
 }
