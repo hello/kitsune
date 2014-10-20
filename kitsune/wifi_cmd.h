@@ -17,6 +17,8 @@ typedef struct {
 #define MAX_PILLS 8
 #include "FreeRTOS.h"
 #include "semphr.h"
+#include "wlan.h"
+
 extern xSemaphoreHandle pill_smphr;
 
 typedef struct {
@@ -30,9 +32,12 @@ int sl_mode;
 
 extern periodic_data_pill_data_container pill_list[MAX_PILLS];
 
-#define CONNECT   0x00000001
-#define HAS_IP    0x00000002
-#define IP_LEASED 0x00000004
+#define CONNECT    0x00000001
+#define HAS_IP     0x00000002
+#define IP_LEASED  0x00000004
+#define SCANNING   0x00000008
+#define CONNECTING 0x00000010
+#define UPLOADING  0x00000020
 
 #define AES_KEY_LOC "/cert/key.aes"
 
@@ -84,11 +89,14 @@ int send_data_pb(const char* host, const char* path,
 int decode_rx_data_pb(const unsigned char * buffer, int buffer_size, 
     const pb_field_t fields[], void* dst_struct, size_t dst_struct_len);
 int http_response_ok(const char* response_buffer);
+
+int get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uint32_t scan_duration_ms);
+
 //#define MORPH_NAME "KingShy's morpheus"
 
 //#define MORPH_NAME "Chris's morpheus"
 #define MORPH_NAME "test morpheus 10"
 //#define MORPH_NAME "test morpheus 80"
-#define KIT_VER 6
+#define KIT_VER 7
 
 #endif
