@@ -216,6 +216,16 @@
 			<locationURI>PARENT-2-PROJECT_LOC/sha1.c</locationURI>
 		</link>
 		<link>
+			<name>slip_packet.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/slip_packet.c</locationURI>
+		</link>
+		<link>
+			<name>slip_packet.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/slip_packet.h</locationURI>
+		</link>
+		<link>
 			<name>speaker.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/speaker.c</locationURI>
@@ -229,6 +239,26 @@
 			<name>spi_cmd.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/spi_cmd.h</locationURI>
+		</link>
+		<link>
+			<name>top_board.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/top_board.c</locationURI>
+		</link>
+		<link>
+			<name>top_board.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/top_board.h</locationURI>
+		</link>
+		<link>
+			<name>top_hci.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/top_hci.c</locationURI>
+		</link>
+		<link>
+			<name>top_hci.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/top_hci.h</locationURI>
 		</link>
 		<link>
 			<name>uartstdio.c</name>
