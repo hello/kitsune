@@ -11,7 +11,7 @@
 
 #include <string.h>
 
-#define CIRCULAR_FEATBUF_SIZE_2N (11)
+#define CIRCULAR_FEATBUF_SIZE_2N (5)
 #define CIRCULAR_BUF_SIZE (1 << CIRCULAR_FEATBUF_SIZE_2N)
 #define CIRCULAR_BUF_MASK (CIRCULAR_BUF_SIZE - 1)
 
@@ -28,15 +28,35 @@ typedef struct {
     
 } AudioClassifier_t;
 
+
+#define BUF_SIZE_IN_CHUNK (32)
+
+#define CHUNK_BUF_SIZE_2N (6)
+#define CHUNK_BUF_SIZE (1 << CHUNK_BUF_SIZE_2N)
+#define CHUNK_BUF_MASK (CHUNK_BUF_SIZE - 1)
+
+typedef struct {
+    uint8_t packedbuf[BUF_SIZE_IN_CHUNK][NUM_AUDIO_FEATURES/2];// 32 x 16 = 2^5 * 2^4 = 2^9 = 256 bytes
+    int16_t relativeEnergy[BUF_SIZE_IN_CHUNK]; //32 * 2 = 64bytes
+    int64_t samplecount; // 8 bytes
+    int16_t maxenergy; // 2 bytes
+} AudioFeatureChunk_t; //330 bytes
+
 typedef struct {
     
-    uint8_t data[CIRCULAR_BUF_SIZE][NUM_AUDIO_FEATURES/2]; //2048 * 8 = 16K bytes
-    int8_t energy[CIRCULAR_BUF_SIZE];// 2K;
-    int8_t energyAboveBackground[CIRCULAR_BUF_SIZE];// 2K;
+    //cicular buffer of incoming data
+    uint8_t packedbuf[CIRCULAR_BUF_SIZE][NUM_AUDIO_FEATURES/2];
+    int16_t relativeenergy[CIRCULAR_BUF_SIZE];//
+    int16_t totalenergy[CIRCULAR_BUF_SIZE];//
 
-    uint16_t idx;
-    uint16_t numsamples;
-    int64_t epoch;
+    //"long term storage"
+    AudioFeatureChunk_t chunkbuf[CHUNK_BUF_SIZE];
+    
+    uint16_t chunkbufidx;
+    uint16_t incomingidx;
+    uint16_t numincoming;
+    uint8_t isThereAnythingInteresting;
+
     
 } DataBuffer_t;
 
@@ -84,6 +104,77 @@ static void PackFeats(uint8_t * datahead, const int8_t * feats4bit) {
         
         datahead[i] = (pbytes[idx]) | (pbytes[idx + 1] << 4);
     }
+}
+
+static void UnpackFeats8(int8_t * unpacked8, const uint8_t * datahead) {
+    uint8_t i;
+
+    for (i = 0; i < NUM_AUDIO_FEATURES/2; i++) {
+        //lsb first
+        *unpacked8 = (int16_t) (datahead[i] & 0x0F);
+        unpacked8++;
+        *unpacked8 = (int16_t) ( (datahead[i] & 0xF0) >> 4);
+        unpacked8++;
+    }
+    
+}
+
+static void CopyCircularBufferToPermanentStorage(int64_t samplecount) {
+    
+    AudioFeatureChunk_t chunk;
+    uint16_t idx1,idx2;
+    int32_t size1,size2;
+    uint16_t i;
+    int16_t max;
+    
+ 
+    
+    idx2 = (_buffer.incomingidx - 1) & CIRCULAR_BUF_MASK; //latest
+    idx1 = _buffer.incomingidx; //oldest
+    /* 
+        t2 t1
+      ---| |-------
+     
+     t1            t2
+     |-------------|
+     */
+    
+    //copy circular buf out in chronological order
+    size1 = CIRCULAR_BUF_SIZE - idx1;
+    memcpy(&chunk.packedbuf[0][0],&_buffer.packedbuf[idx1][0],size1*NUM_AUDIO_FEATURES*sizeof(uint8_t));
+    memcpy(&chunk.relativeEnergy[0],&_buffer.relativeenergy[idx1],size1*sizeof(int16_t));
+    
+    if (size1 < CIRCULAR_BUF_SIZE) {
+        size2 = idx2;
+        memcpy(&chunk.packedbuf[size1][0],&_buffer.packedbuf[0][0],size2*NUM_AUDIO_FEATURES*sizeof(uint8_t));
+        memcpy(&chunk.relativeEnergy[size1],&_buffer.relativeenergy[0],size2*sizeof(int16_t));
+    }
+    
+    /* find max in energy buffer */
+    max = MIN_INT_16;
+    for (i = 0 ; i < CIRCULAR_BUF_SIZE; i++) {
+        if (_buffer.totalenergy[i] > max) {
+            max = _buffer.totalenergy[i];
+        }
+    }
+    chunk.maxenergy = max;
+    chunk.samplecount = samplecount;
+    
+    /* START CRITICAL SECTION AROUND STORAGE BUFFERS */
+    if (_lockFunc) {
+        _lockFunc();
+    }
+    
+    memcpy(&_buffer.chunkbuf[_buffer.chunkbufidx],&chunk,sizeof(chunk));
+    _buffer.chunkbufidx++;
+    _buffer.chunkbufidx &= CHUNK_BUF_MASK;
+    
+    /* END CRITICAL SECTION  */
+    if (_unlockFunc) {
+        _unlockFunc();
+    }
+    
+
 }
 
 static void InitDefaultClassifier(void) {
@@ -138,28 +229,43 @@ void AudioClassifier_DeserializeClassifier(pb_istream_t * stream) {
 void AudioClassifier_DataCallback(int64_t samplecount, const AudioFeatures_t * pfeats) {
     int8_t classes[MAX_NUMBER_CLASSES];
     int8_t probs[2];
+    uint16_t idx;
 
     
-    /* START CRITICAL SECTION AROUND STORAGE BUFFERS */
-    if (_lockFunc) {
-        _lockFunc();
-    }
-    /* Save off data in the big massive buffer */
-    PackFeats(_buffer.data[_buffer.idx],pfeats->feats4bit);
-    _buffer.energy[_buffer.idx] = pfeats->logenergy >> 8;
-    _buffer.idx++;
-    _buffer.idx &= CIRCULAR_BUF_MASK;
     
-    //increment and limit
-    if (++_buffer.numsamples > CIRCULAR_BUF_SIZE) {
-        _buffer.numsamples = CIRCULAR_BUF_SIZE;
+    /* 
+     
+       Data comes in, and if it doesn't pass the energy threshold for being interesting, we don't save it off.
+       
+       Meanwhile, we keep a running circular buffer.
+     
+     */
+    
+    idx = _buffer.incomingidx;
+    PackFeats(_buffer.packedbuf[idx],pfeats->feats4bit);
+    _buffer.relativeenergy[idx] = pfeats->logenergyOverBackroundNoise;
+    _buffer.totalenergy[idx] = pfeats->logenergy;
+    
+    //increment circular buffer index
+    _buffer.incomingidx++;
+    _buffer.incomingidx &= CIRCULAR_BUF_MASK;
+    
+    if (_buffer.numincoming < CIRCULAR_BUF_SIZE) {
+        _buffer.numincoming++;
     }
     
-    if (_unlockFunc) {
-        _unlockFunc();
+    if (pfeats->logenergyOverBackroundNoise > MIN_CLASSIFICATION_ENERGY) {
+        _buffer.isThereAnythingInteresting = TRUE;
     }
     
-    /* END CRITICAL SECTION  */
+    //ready for storage!
+    if (_buffer.isThereAnythingInteresting == TRUE && _buffer.numincoming == CIRCULAR_BUF_SIZE) {
+        
+        //this may block... hopefully not for too long?
+        CopyCircularBufferToPermanentStorage(samplecount);
+    }
+    
+   
     
     /* Run classifier if energy is signficant */
     if (pfeats->logenergyOverBackroundNoise > MIN_CLASSIFICATION_ENERGY) {
@@ -190,21 +296,100 @@ void AudioClassifier_DataCallback(int64_t samplecount, const AudioFeatures_t * p
 
 }
 
+/* sadly this is not stateless, but was the only way to serialize chunks one at a time */
+static const_MatDesc_t * GetNextMatrixCallback(uint8_t isFirst) {
+    /* STATIC!  */
+    static uint16_t idx;
+    static uint8_t state;
+    
+
+    /* On the stack */
+    const AudioFeatureChunk_t * pchunk;
+    int8_t unpackedbuffer[BUF_SIZE_IN_CHUNK][NUM_AUDIO_FEATURES]; //32 * 16 * 1 = 512 bytes
+    int16_t * bufptr = (int16_t *) &unpackedbuffer[0][0];
+    const_MatDesc_t desc;
+    desc.tags = "";
+    desc.source = "";
+    
+    uint16_t i;
+    
+    if (isFirst) {
+        idx = _buffer.chunkbufidx; //oldest
+        state = 0;
+    }
+    
+    pchunk = &_buffer.chunkbuf[idx];
+
+    desc.t1 = pchunk->samplecount;
+    desc.t2 = desc.t1 + CHUNK_BUF_SIZE*2; //*2 because we are decimating audio samples by 2
+   
+    
+    if (state == 0) {
+        desc.id = "feature_chunk";
+
+        for (i = 0; i < BUF_SIZE_IN_CHUNK; i++) {
+            UnpackFeats8(unpackedbuffer[i], pchunk->packedbuf[i]);
+        }
+        
+        desc.data.len = BUF_SIZE_IN_CHUNK * NUM_AUDIO_FEATURES;
+        desc.data.type = esint8;
+        desc.data.data.sint8 = &unpackedbuffer[0][0];
+        desc.rows = BUF_SIZE_IN_CHUNK;
+        desc.cols = NUM_AUDIO_FEATURES;
+
+        state = 1;
+        
+    }
+    else {
+        desc.id = "energy_chunk";
+
+        for (i = 0; i < BUF_SIZE_IN_CHUNK; i++) {
+            *bufptr = pchunk->relativeEnergy[i];
+            bufptr++;
+        }
+        
+        *bufptr = pchunk->maxenergy;
+        
+        
+        state = 0;
+        idx++;
+        idx &= CHUNK_BUF_MASK;
+
+    }
+    UnpackFeats16
+    
+    
+    
+    
+    return 0;
+}
 
 
 uint32_t AudioClassifier_GetSerializedBuffer(pb_ostream_t * stream,const char * macbytes, uint32_t unix_time,const char * tags, const char * source) {
     
-    uint32_t size;
-    uint16_t bufinfo[2];
+    uint32_t size = 0;
     
+    /* START CRITICAL SECTION AROUND STORAGE BUFFERS */
+    if (_lockFunc) {
+        _lockFunc();
+    }
+    
+    size = SetMatrixMessage(stream, macbytes, unix_time,GetNextMatrixCallback);
+
+    /* END CRITICAL SECTION  */
+    if (_unlockFunc) {
+        _unlockFunc();
+    }
+
+    
+
+    
+#if 0
     bufinfo[0] = _buffer.idx;
     bufinfo[1] = _buffer.numsamples;
     
-    const_MatDesc_t descs[3] = {
-        {k_feats_buf_id,tags,source,{},_buffer.numsamples,NUM_AUDIO_FEATURES/2,_buffer.epoch,_buffer.epoch},
-        {k_energies_buf_id,tags,source,{},1,_buffer.numsamples,_buffer.epoch,_buffer.epoch},
-        {k_bufinfo_buf_id,tags,source,{},1,2,_buffer.epoch,_buffer.epoch}
-    };
+    const_MatDesc_t descs[CHUNK_BUF_SIZE];
+        
     
     /*****************/
     descs[0].data.len = _buffer.numsamples*NUM_AUDIO_FEATURES/2;
@@ -219,12 +404,11 @@ uint32_t AudioClassifier_GetSerializedBuffer(pb_ostream_t * stream,const char * 
     descs[2].data.type = euint16;
     descs[2].data.data.uint16 = bufinfo;
     
-    size = SetMatrixMessage(stream, macbytes, unix_time, descs, sizeof(descs) / sizeof(MatDesc_t));
 
     /* now reset the buffer */
     _buffer.idx = 0;
     _buffer.numsamples = 0;
-    
+#endif
     return size;
 
 }
