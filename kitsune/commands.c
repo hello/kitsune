@@ -1138,16 +1138,7 @@ int Cmd_led_clr(int argc, char *argv[]) {
 int Cmd_slip(int argc, char * argv[]){
 	uint8_t test_packet[] = {0x2, 0x00, 0x00, 0x00, 0xB8, 0x43, 0x00, 0x00};
 	slip_reset();
-	uint8_t * ret = (uint8_t*)slip_write(test_packet, sizeof(test_packet));
-	if(ret){
-		int i;
-		UARTprintf("\r\nSLIP TEST");
-		for(i = 0; i < (sizeof(test_packet) + 8); i++){
-			UARTprintf("0x%02X ",*(uint8_t*)(ret+i));
-		}
-		UARTprintf("\r\n");
-		slip_free(ret);
-	}
+	slip_write(test_packet, sizeof(test_packet));
 	return 0;
 }
 

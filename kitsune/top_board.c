@@ -15,20 +15,27 @@ static struct{
 }self;
 
 static void
-_putchar(char c){
+_printchar(uint8_t c){
 	UARTCharPutNonBlocking(UARTA0_BASE, c); //basic feedback
 }
 
 static void
 _on_slip_message(uint8_t * c, uint32_t size){
+	UARTprintf("Got a slip message\r\n");
+}
 
+static void
+_sendchar(uint8_t c){
+	UARTCharPut(UARTA1_BASE, c);
 }
 
 int top_board_task(void){
 	slip_handler_t me = {
-			.slip_putchar = _putchar,
-			.slip_on_message = _on_slip_message
+			.slip_display_char = _printchar,
+			.slip_on_message = _on_slip_message,
+			.slip_put_char = _sendchar
 	};
+	slip_reset();
 	MAP_UARTConfigSetExpClk(UARTA1_BASE, PRCMPeripheralClockGet(PRCM_UARTA1),
 			38400,
 			(UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE));

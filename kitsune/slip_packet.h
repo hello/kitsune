@@ -11,24 +11,26 @@
 
 #include "stdint.h"
 
+#define SLIP_MAX_TX_BUFFER_SIZE 256
+#define SLIP_MAX_RX_BUFFER_SIZE 256
 typedef struct{
 	//default handler for unknown characters
-	void (*slip_putchar)(uint8_t c);
+	void (*slip_display_char)(uint8_t c);
 	//user handles slip message
 	void (*slip_on_message)(uint8_t * message, uint32_t size);
+	void (*slip_put_char)(uint8_t c);
 }slip_handler_t;
 
 void slip_set_handler(const slip_handler_t * user);
+
+//entry point to pass input here
 void slip_handle_rx(uint8_t c);
 
 //resets SEQ number in slip header
 void   slip_reset(void);
-//copies user buffer to a SLIP compatible buffer
-//SEQ number is automatically generated
-//returns dest
-void * slip_write(const uint8_t * orig, uint32_t buffer_size);
-//frees buffer
-void slip_free_buffer(void * buffer);
+
+//does not reset seq
+uint32_t slip_write(const uint8_t * orig, uint32_t buffer_size);
 
 
 
