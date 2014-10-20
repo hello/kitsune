@@ -30,9 +30,12 @@ int sl_mode;
 
 extern periodic_data_pill_data_container pill_list[MAX_PILLS];
 
-#define CONNECT   0x00000001
-#define HAS_IP    0x00000002
-#define IP_LEASED 0x00000004
+#define CONNECT    0x00000001
+#define HAS_IP     0x00000002
+#define IP_LEASED  0x00000004
+#define SCANNING   0x00000008
+#define CONNECTING 0x00000010
+#define UPLOADING  0x00000020
 
 #define AES_KEY_LOC "/cert/key.aes"
 
