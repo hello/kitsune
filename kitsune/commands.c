@@ -345,7 +345,7 @@ get_codec_NAU();
 
 // Initialize the Audio(I2S) Module
 //
-AudioCapturerInit(CPU_XDATA, 22050);
+AudioCapturerInit(CPU_XDATA, 48000);
 
 // Initialize the DMA Module
 //
@@ -360,7 +360,7 @@ SetupPingPongDMATransferRx();
 //
 
 AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
-AudioCaptureRendererConfigure(I2S_PORT_DMA, 22050);
+AudioCaptureRendererConfigure(I2S_PORT_DMA, 48000);
 
 // Start Audio Tx/Rx
 //
@@ -372,6 +372,7 @@ Audio_Start();
 Speaker1();
 
 UARTprintf("g_iReceiveCount %d\n\r", g_iReceiveCount);
+close_codec_NAU(); UARTprintf("close_codec_NAU");
 Audio_Stop();
 McASPDeInit();
 DestroyCircularBuffer(pRxBuffer); UARTprintf("DestroyCircularBuffer(pRxBuffer)" );
@@ -899,7 +900,7 @@ void SetupGPIOInterrupts() {
     port = GPIO_PORT;
     pin = /*RTC_INT_PIN |*/ GSPI_INT_PIN;
 #if !ONLY_MID
-	GPIO_IF_ConfigureNIntEnable( port, pin, GPIO_HIGH_LEVEL, nordic_prox_int );
+	//GPIO_IF_ConfigureNIntEnable( port, pin, GPIO_HIGH_LEVEL, nordic_prox_int );
 	//only one interrupt per port...
 #endif
 }
@@ -1348,7 +1349,8 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(thread_spi, "spiTask", 4*1024 / 4, NULL, 5, NULL);
 	SetupGPIOInterrupts();
 	UARTprintf("*");
-#if !ONLY_MID
+//#if !ONLY_MID
+#if 0
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 3, NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_dust, "dustTask", 256 / 4, NULL, 3, NULL);
