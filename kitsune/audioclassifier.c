@@ -14,6 +14,7 @@
 #define CIRCULAR_FEATBUF_SIZE_2N (5)
 #define CIRCULAR_BUF_SIZE (1 << CIRCULAR_FEATBUF_SIZE_2N)
 #define CIRCULAR_BUF_MASK (CIRCULAR_BUF_SIZE - 1)
+#define BUF_SIZE_IN_CHUNK (32)
 
 #define MAX_NUMBER_CLASSES (5)
 #define EXPECTED_NUMBER_OF_CLASSIFIER_INPUTS (NUM_AUDIO_FEATURES)
@@ -26,7 +27,6 @@
 
 
 
-#define BUF_SIZE_IN_CHUNK (32)
 
 #define CHUNK_BUF_SIZE_2N (6)
 #define CHUNK_BUF_SIZE (1 << CHUNK_BUF_SIZE_2N)
@@ -42,12 +42,12 @@ typedef struct {
 typedef struct {
     
     //cicular buffer of incoming data
-    uint8_t packedbuf[CIRCULAR_BUF_SIZE][NUM_AUDIO_FEATURES/2];
+    uint8_t packedbuf[CIRCULAR_BUF_SIZE][NUM_AUDIO_FEATURES/2]; //32 * 8 = 256 bytes
     int16_t relativeenergy[CIRCULAR_BUF_SIZE];//
     int16_t totalenergy[CIRCULAR_BUF_SIZE];//
 
     //"long term storage"
-    AudioFeatureChunk_t chunkbuf[CHUNK_BUF_SIZE];
+    AudioFeatureChunk_t chunkbuf[CHUNK_BUF_SIZE]; //330 * 64 = 21.1 Kbytes
     
     uint16_t chunkbufidx;
     uint16_t numchunkbuf;
