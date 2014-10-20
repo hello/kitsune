@@ -42,11 +42,10 @@ int top_board_task(void){
 			.slip_on_message = _on_slip_message,
 			.slip_put_char = _sendchar
 	};
-	slip_reset();
+	slip_reset(&me);
 	MAP_UARTConfigSetExpClk(UARTA1_BASE, PRCMPeripheralClockGet(PRCM_UARTA1),
 			38400,
 			(UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE));
-	slip_set_handler(&me);
 	while (1) {
 		uint8_t c = UARTCharGet(UARTA1_BASE);
 		slip_handle_rx(c);

@@ -163,17 +163,16 @@ uint32_t slip_write(const uint8_t * orig, uint32_t buffer_size) {
 
 }
 
-void slip_set_handler(const slip_handler_t * user) {
-	self.handler = *user;
-}
-
 void slip_handle_rx(uint8_t c) {
 	self.handle_rx_byte(c);
 }
-void slip_reset(void) {
+void   slip_reset(const slip_handler_t * user){
 	self.sequence_number = 0;
 	self.handle_rx_byte = _handle_rx_byte_wait_start;
 	self.rx_idx = 0;
+	if(user){
+		self.handler = *user;
+	}
 	if(self.rx_buffer){
 		vPortFree(self.rx_buffer);
 		self.rx_buffer = NULL;
