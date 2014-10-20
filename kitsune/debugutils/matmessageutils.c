@@ -4,10 +4,7 @@
 #include "pb_decode.h"
 #include "protobuf/matrix.pb.h"
 
-typedef struct {
-    const_MatDesc_t * data;
-    uint16_t len;
-} const_MatDescArray_t;
+
 
 typedef struct {
     uint8_t * writebuf;
@@ -107,14 +104,13 @@ static bool write_int_mat(pb_ostream_t *stream, const pb_field_t *field, void * 
 }
 
 static bool write_mat_array(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
-    const_MatDescArray_t * pdesc = (const_MatDescArray_t *)(*arg);
+    GetNextMatrixFunc_t next_mat_func = (GetNextMatrixFunc_t)(*arg);
     const_MatDesc_t * p;
-    uint16_t i;
     pb_ostream_t sizestream;
 
-    for (i = 0; i < pdesc->len; i++) {
-        p = &pdesc->data[i];
-        
+    p = next_mat_func(true);
+    
+    while(p) {
         if (!pb_encode_tag(stream,PB_WT_STRING, field->tag)) {
             return 0;
         }
@@ -132,7 +128,8 @@ static bool write_mat_array(pb_ostream_t *stream, const pb_field_t *field, void 
         
         //encode matrix payload
         SetIntMatrix(stream, p->id, p->tags, p->source, p->data, p->rows, p->cols, p->t1, p->t2);
-        
+    
+        p = next_mat_func(false);
     }
 
     return 1;
@@ -326,16 +323,11 @@ uint8_t GetIntMatrix(MatDesc_t * matdesc, pb_istream_t * stream,size_t string_ma
 size_t SetMatrixMessage(pb_ostream_t * stream,
                         const char * macbytes,
                         uint32_t unix_time,
-                        const_MatDesc_t * mats,
-                        uint16_t nummats) {
+                        GetNextMatrixFunc_t get_next_mat_func) {
     
     size_t size = 0;
 
     MatrixClientMessage mess;
-    const_MatDescArray_t desc;
-    
-    desc.data = mats;
-    desc.len = nummats;
     
     mess.unix_time = unix_time;
     mess.has_unix_time = 1;
@@ -346,7 +338,7 @@ size_t SetMatrixMessage(pb_ostream_t * stream,
     mess.has_matrix_payload = 0;
     
     mess.matrix_list.funcs.encode = write_mat_array;
-    mess.matrix_list.arg = (void *)&desc;
+    mess.matrix_list.arg = (void *)get_next_mat_func;
     
     pb_get_encoded_size(&size,MatrixClientMessage_fields,&mess);
     
