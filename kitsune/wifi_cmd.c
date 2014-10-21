@@ -1808,5 +1808,41 @@ int get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uin
 
 }
 
+int connect_scanned_endpoints(const char* ssid, const char* password, 
+    const Sl_WlanNetworkEntry_t* wifi_endpoints, int scanned_wifi_count)
+{
+    int i = 0;
+    for(i = 0; i < scanned_wifi_count; i++)
+    {
+        Sl_WlanNetworkEntry_t wifi_endpoint = wifi_endpoints[i];
+        if(strcmp((const char*)wifi_endpoint.ssid, ssid) == 0)
+        {
+            SlSecParams_t secParams;
+            memset(&secParams, 0, sizeof(SlSecParams_t));
+
+            if( wifi_endpoint.sec_type == 3 ) {
+                wifi_endpoint.sec_type = 2;
+            }
+            secParams.Key = (signed char*)password;
+            secParams.KeyLen = password == NULL ? 0 : strlen(password);
+            secParams.Type = wifi_endpoint.sec_type;
+
+            SlSecParams_t* secParamsPtr = wifi_endpoint.sec_type == SL_SEC_TYPE_OPEN ? NULL : &secParams;
+
+            // We don't support all the security types in this implementation.
+            int16_t ret = sl_WlanConnect((_i8*)ssid, strlen(ssid), NULL, secParamsPtr, 0);
+            if(ret == 0 || ret == -71)
+            {
+                UARTprintf("WLAN connected\n");
+
+                return 1;
+            }
+
+        }
+    }
+
+    return 0;
+}
+
 
 //end radio test functions
