@@ -96,12 +96,10 @@ static bool _set_wifi(const char* ssid, const char* password)
     uint8_t retry_count = 10;
 
     sl_status |= SCANNING;
-    int scanned_wifi_count = get_wifi_scan_result(wifi_endpoints, MAX_WIFI_EP_PER_SCAN, 1000);  // Shall we have a bg thread scan periodically?
-
-    while(scanned_wifi_count == 0 && retry_count--)
+    
+    while(get_wifi_scan_result(wifi_endpoints, MAX_WIFI_EP_PER_SCAN, 1000) == 0 && retry_count--)
     {
         Cmd_led(0,0);
-        scanned_wifi_count = get_wifi_scan_result(wifi_endpoints, MAX_WIFI_EP_PER_SCAN, 1000);
         UARTprintf("No wifi scanned, retry times remain %d\n", retry_count);
         vTaskDelay(500);
     }
@@ -116,9 +114,8 @@ static bool _set_wifi(const char* ssid, const char* password)
 
     //////
 
-    int connection_ret = _connect_from_scanned_eps(ssid, password, wifi_endpoints, scanned_wifi_count);
     retry_count = 10;
-    while(connection_ret == 0 && retry_count--)
+    while(_connect_from_scanned_eps(ssid, password, wifi_endpoints, scanned_wifi_count) == 0 && retry_count--)
 	{
 		Cmd_led(0,0);
 		connection_ret = _connect_from_scanned_eps(ssid, password, wifi_endpoints, scanned_wifi_count);
