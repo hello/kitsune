@@ -1,5 +1,6 @@
 #include "top_hci.h"
 #include <string.h>
+#include <stdbool.h>
 
 #define HCI_RELIABLE_PACKET (0x1u << 7)
 #define HCI_INTEGRITY_CHECK (0x1u << 6)
@@ -13,7 +14,6 @@ static struct{
 static void _inc_seq(void) {
 	//increase sequence number
 	self.sequence_number = (self.sequence_number + 1) & 0x7;
-
 }
 static uint8_t
 _header_checksum_calculate(const uint8_t * hdr) {
@@ -38,42 +38,60 @@ _crc16_compute(const uint8_t * data, uint32_t size) {
 	}
 	return crc;
 }
-
-uint8_t * hci_decode(uint8_t * raw, uint32_t length, uint32_t * out_decoded_len){
-	if(length <= HCI_HEADER_SIZE){
-		UARTprintf("header size fail\r\n");
-		return NULL;
+uint16_t hci_crc16_compute(uint8_t * raw, uint32_t length){
+	return _crc16_compute(raw, length);
+}
+uint32_t hci_decode(uint8_t * raw, uint32_t length, const hci_decode_handler_t * handler){
+	bool has_checksum = false;
+	bool is_custom = false;
+	if(length < HCI_HEADER_SIZE){
+		UARTprintf("header size fail %u \r\n", length);
+		return 0;
 	}
 	if( !(raw[0] & HCI_RELIABLE_PACKET) ){
-		UARTprintf("Flag Fail \r\n");
-		return NULL;
+		//Unreliable packet does not necessarily mean it fails, just throw a warning instead
+		UARTprintf("Not reliable packet\r\n");
 	}
 	if( !(raw[0] & HCI_INTEGRITY_CHECK) ){
-		UARTprintf("Flag Fial 2 \r\n");
-			return NULL;
-	}
-	if((raw[1] & 0x0Fu) != HCI_VENDOR_NORDIC_OPCODE){
-		UARTprintf("VENDOR FAIL  \r\n");
-		return NULL;
+		UARTprintf("No Checksum\r\n");
+	}else{
+		has_checksum = true;
 	}
 
+
+	if((raw[1] & 0x0Fu) == HCI_VENDOR_NORDIC_OPCODE){
+		//custom opcode is 14, we don tknow how to handle others
+		//may need unknown message handler
+		is_custom = true;
+	}
+	//check header integrity
 	const uint32_t expected_checksum = (raw[0] + raw[1] + raw[2] + raw[3]) & 0xFFu;
 	if(expected_checksum != 0){
 		UARTprintf("Header Checksu fail \r\n");
-		return NULL;
+		return 0;
 	}
-	uint16_t crc_calculated = _crc16_compute(raw, (length - HCI_CRC_SIZE));
-	//uint16_t crc_received = raw[length - HCI_CRC_SIZE + 1] << 8 + raw[length - HCI_CRC_SIZE];
-	uint16_t crc_received = *(uint16_t*)(raw+length-HCI_CRC_SIZE);
-	if(crc_received != crc_calculated){
-		UARTprintf("Body Checksum fail cal%x rcvd %x\r\n",crc_calculated, crc_received);
-		return NULL;
+	//check body integrity
+	if(has_checksum){
+		uint16_t crc_calculated = _crc16_compute(raw, (length - HCI_CRC_SIZE));
+		uint16_t crc_received = *(uint16_t*) (raw + length - HCI_CRC_SIZE);
+		if (crc_received != crc_calculated) {
+			UARTprintf("Body Checksum fail cal%x rcvd %x\r\n", crc_calculated,
+					crc_received);
+			return 0;
+		}
 	}
-	if(out_decoded_len){
-		*out_decoded_len = length - HCI_HEADER_SIZE - HCI_CRC_SIZE;
+	//update ack number
+	{
+		uint8_t ack = (raw[0] & 0x38u) >> 3u;
+		UARTprintf("ack:%x", ack);
+		if (ack == self.sequence_number) {
+			//retransmit
+		} else {
+			self.sequence_number = ack;
+			//message succeeded
+		}
 	}
-	return raw + HCI_HEADER_SIZE;
-
+	return length - HCI_HEADER_SIZE - (has_checksum?HCI_CRC_SIZE:0);
 }
 
 uint8_t * hci_encode(uint8_t * message_body, uint32_t body_length, uint32_t * out_encoded_len){
@@ -83,7 +101,6 @@ uint8_t * hci_encode(uint8_t * message_body, uint32_t body_length, uint32_t * ou
 		uint8_t * header = (uint8_t *) (ret);
 		uint8_t * body = (uint8_t *) (header + HCI_HEADER_SIZE);
 		uint16_t * checksum = (uint16_t*) (body + body_length);
-		_inc_seq();
 		//pack header
 		header[0] = (HCI_RELIABLE_PACKET | HCI_INTEGRITY_CHECK)
 						+ self.sequence_number;
@@ -101,4 +118,7 @@ uint8_t * hci_encode(uint8_t * message_body, uint32_t body_length, uint32_t * ou
 }
 void hci_free(uint8_t * encoded_message){
 	vPortFree(encoded_message);
+}
+void hci_init(void){
+	self.sequence_number = 1;
 }

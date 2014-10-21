@@ -13,7 +13,6 @@ static void _handle_rx_byte_wait_start(uint8_t byte);
 static void _handle_rx_byte_esc(uint8_t byte);
 static void _handle_rx_byte_default(uint8_t byte) ;
 static struct {
-	uint8_t sequence_number;
 	slip_handler_t handler;
 	uint8_t * rx_buffer;
 	uint32_t rx_idx;
@@ -37,13 +36,12 @@ static struct {
 
 static void
 _handle_slip_end(void){
+
 	if(self.rx_buffer){
 		if(self.handler.slip_on_message){
-			self.handler.slip_on_message(self.rx_buffer + SLIP_HEADER_SIZE, self.rx_idx - SLIP_HEADER_SIZE);
+			self.handler.slip_on_message(self.rx_buffer, self.rx_idx);
 		}
-		vPortFree(self.rx_buffer);
-		self.rx_buffer = NULL;
-		self.rx_idx = 0;
+		slip_reset(&self.handler);
 	}
 
 }
@@ -66,7 +64,6 @@ static void _copy_slip_buffer_tx(uint8_t * dst, const uint8_t* orig,
 		if (orig[i] == SLIP_END) {
 			*workptr++ = SLIP_ESC;
 			*workptr++ = SLIP_ESC_END;
-
 		} else if (orig[i] == SLIP_ESC) {
 			*workptr++ = SLIP_ESC;
 			*workptr++ = SLIP_ESC_ESC;
@@ -135,6 +132,9 @@ _slip_set_buffer(const uint8_t * orig, uint32_t raw_size, uint32_t * out_new_siz
 		_copy_slip_buffer_tx(ret + SLIP_FRAME_SIZE, orig, raw_size);
 		ret[new_size - 1] = SLIP_END;
 		ret[0] = SLIP_END;
+		if(out_new_size){
+			*out_new_size = new_size;
+		}
 	}
 	return (void*)ret;
 
@@ -150,9 +150,14 @@ uint32_t slip_write(const uint8_t * orig, uint32_t buffer_size) {
 			if (self.handler.slip_display_char) {
 				int i;
 				for (i = 0; i < new_size; i++) {
-					UARTprintf("0x%02X ", *(uint8_t*) (tx_buffer + i));
+					UARTprintf("%02X ", *(uint8_t*) (tx_buffer + i));
+					if(self.handler.slip_put_char){
+						//TODO take out the pointer checks by preset to default handlers
+						self.handler.slip_put_char(tx_buffer[i]);
+					}
 				}
 			}
+
 			//test end
 			vPortFree(tx_buffer);
 			return 0;
@@ -164,10 +169,10 @@ uint32_t slip_write(const uint8_t * orig, uint32_t buffer_size) {
 }
 
 void slip_handle_rx(uint8_t c) {
+
 	self.handle_rx_byte(c);
 }
 void   slip_reset(const slip_handler_t * user){
-	self.sequence_number = 0;
 	self.handle_rx_byte = _handle_rx_byte_wait_start;
 	self.rx_idx = 0;
 	if(user){

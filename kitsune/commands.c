@@ -1150,6 +1150,11 @@ int Cmd_slip(int argc, char * argv[]){
 	return 0;
 }
 
+int Cmd_dfu(int argc, char *argv[]){
+	top_board_dfu_begin();
+	return 0;
+}
+
 // ==============================================================================
 // This is the table that holds the command names, implementing functions, and
 // brief description.
@@ -1232,7 +1237,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "slip", Cmd_slip, "slip test" },
 		{ "data_upload", Cmd_data_upload, "upload protobuf data" },
 		{ "^", Cmd_send_top, "send command to top board"},
-
+		{ "dfu", Cmd_dfu, "update topboard firmware."},
 
 		{ 0, 0, 0 } };
 
