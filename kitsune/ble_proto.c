@@ -46,8 +46,9 @@ static bool _set_wifi(const char* ssid, const char* password)
     //////
 
     retry_count = 10;
+    SlSecParams_t secParams = {0};
 
-    while((connection_ret = _connect_from_scanned_eps(ssid, password, wifi_endpoints, scanned_wifi_count)) == 0 && retry_count--)
+    while((connection_ret = connect_scanned_endpoints(ssid, password, wifi_endpoints, scanned_wifi_count, &secParams)) == 0 && retry_count--)
 	{
 		Cmd_led(0,0);
 		UARTprintf("Failed to connect, retry times remain %d\n", retry_count);
@@ -75,7 +76,7 @@ static bool _set_wifi(const char* ssid, const char* password)
         }
 
         // Then add the current one back.
-        int16_t profile_add_ret = sl_WlanProfileAdd((_i8*)ssid, strlen(ssid), NULL, secParamsPtr, NULL, 0, 0);
+        int16_t profile_add_ret = sl_WlanProfileAdd((_i8*)ssid, strlen(ssid), NULL, &secParams, NULL, 0, 0);
         if(profile_add_ret < 0)
         {
             UARTprintf("Save connected endpoint failed, error %d.\n", profile_add_ret);
