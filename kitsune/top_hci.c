@@ -26,9 +26,9 @@ _header_checksum_calculate(const uint8_t * hdr) {
 }
 
 static uint16_t
-_crc16_compute(const uint8_t * data, uint32_t size) {
+_crc16_compute(const uint8_t * data, uint32_t size, const uint16_t * init_val) {
 	uint32_t i;
-	uint16_t crc = 0xFFFF;
+	uint16_t crc = init_val?(*init_val):(0xFFFF);
 	for (i = 0; i < size; i++) {
 		crc = (uint8_t) (crc >> 8) | (crc << 8);
 		crc ^= data[i];
@@ -38,8 +38,11 @@ _crc16_compute(const uint8_t * data, uint32_t size) {
 	}
 	return crc;
 }
+uint16_t hci_crc16_compute_cont(uint8_t * raw, uint32_t length, const uint16_t * cont){
+	return _crc16_compute(raw, length, cont);
+}
 uint16_t hci_crc16_compute(uint8_t * raw, uint32_t length){
-	return _crc16_compute(raw, length);
+	return _crc16_compute(raw, length, NULL);
 }
 uint32_t hci_decode(uint8_t * raw, uint32_t length, const hci_decode_handler_t * handler){
 	bool has_checksum = false;
@@ -72,7 +75,7 @@ uint32_t hci_decode(uint8_t * raw, uint32_t length, const hci_decode_handler_t *
 	}
 	//check body integrity
 	if(has_checksum){
-		uint16_t crc_calculated = _crc16_compute(raw, (length - HCI_CRC_SIZE));
+		uint16_t crc_calculated = _crc16_compute(raw, (length - HCI_CRC_SIZE), NULL);
 		uint16_t crc_received = *(uint16_t*) (raw + length - HCI_CRC_SIZE);
 		if (crc_received != crc_calculated) {
 			UARTprintf("Body Checksum fail cal%x rcvd %x\r\n", crc_calculated,
@@ -108,7 +111,7 @@ uint8_t * hci_encode(uint8_t * message_body, uint32_t body_length, uint32_t * ou
 						<< 4) + HCI_VENDOR_NORDIC_OPCODE);
 		header[3] = _header_checksum_calculate(header);
 		memcpy(body, message_body, body_length);
-		*checksum = _crc16_compute(header, body_length + HCI_HEADER_SIZE);
+		*checksum = _crc16_compute(header, body_length + HCI_HEADER_SIZE, NULL);
 		if(out_encoded_len){
 			*out_encoded_len = total_size;
 		}

@@ -20,6 +20,7 @@ void hci_init(void);
 uint32_t hci_decode(uint8_t * raw, uint32_t length, const hci_decode_handler_t * handler);
 uint8_t * hci_encode(uint8_t * body, uint32_t body_length, uint32_t * out_encoded);
 uint16_t hci_crc16_compute(uint8_t * raw, uint32_t length);
+uint16_t hci_crc16_compute_cont(uint8_t * raw, uint32_t length, const uint16_t * cont);
 void hci_free(uint8_t * encoded_message);
 
 #ifdef __cplusplus

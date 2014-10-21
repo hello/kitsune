@@ -8,6 +8,8 @@
 #include <prcm.h>
 #include <stdint.h>
 #include <string.h>
+#include "fs.h"
+#include "uartstdio.h"
 
 typedef enum {
 	DFU_INVALID_PACKET = 0,
@@ -24,6 +26,11 @@ static struct{
 	}mode;
 	dfu_packet_type dfu_state;
 	hci_decode_handler_t hci_handler;
+	struct{
+		char name[32];
+		uint16_t crc;
+		uint32_t len;
+	}dfu_contex;
 }self;
 //test
 static uint8_t test_bin[256];
@@ -135,18 +142,63 @@ int top_board_task(void){
 	return 1;
 }
 
+int _prep_file(char * name, uint32_t * out_fsize, uint16_t * out_crc){
+	if(!out_fsize || !out_crc){
+		return -1;
+	}
+	uint8_t buffer[128];
+	unsigned long tok = 0;
+	long hndl, err, total = 0;
+	int status = 0;
+	uint16_t crc = 0xFFFFu;
+	SlFsFileInfo_t info;
+	sl_FsGetInfo(name, tok, &info);
+	if(err = sl_FsOpen((unsigned char*)name, FS_MODE_OPEN_READ, &tok, &hndl)){
+		UARTprintf("error opening for read %s.\r\n", name);
+		return -1;
+	}
+	do{
+		status = sl_FsRead(hndl, total, buffer, sizeof(buffer));
+		if(status > 0){
+			crc = hci_crc16_compute_cont(buffer,status,&crc);
+			total += status;
+		}
+
+	}while(status > 0);
+
+	sl_FsClose(hndl, 0,0,0);
+	*out_crc = crc;
+	*out_fsize = total;
+	UARTprintf("Bytes Read %u, crc = %u.\r\n", *out_fsize, *out_crc);
+	return 0;
+}
+
 int top_board_dfu_begin(const char * bin){
-	uint32_t i;
+	int ret;
 	if(self.mode == TOP_NORMAL_MODE){
 		self.mode = TOP_DFU_MODE;
-		for (i = 0; i < sizeof(test_bin); i++) {
+		/*for (i = 0; i < sizeof(test_bin); i++) {
 			test_bin[i] = i & 0xFFu;
 		}
-		self.dfu_state = DFU_START_DATA_PACKET;
-		uint32_t begin_packet[] = { DFU_START_DATA_PACKET, sizeof(test_bin) };
-		_encode_and_send((uint8_t*) begin_packet, sizeof(begin_packet));
-	}
 
+		*/
+		uint16_t crc;
+		uint32_t len;
+		ret = _prep_file("/top/factory.bin",&len, &crc);
+		if(0 == ret){
+			self.dfu_context.crc = crc;
+			self.dfu_context.len = len;
+			uint32_t begin_packet[] = { DFU_START_DATA_PACKET, sizeof(test_bin) };
+			_encode_and_send((uint8_t*) begin_packet, sizeof(begin_packet));
+			self.dfu_state = DFU_START_DATA_PACKET;
+		}else{
+			self.mode = TOP_NORMAL_MODE;
+			return ret;
+		}
+	}else{
+		UARTprintf("Already in dfu mode\r\n");
+	}
+	return 0;
 
 }
 
