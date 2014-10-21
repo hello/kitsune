@@ -1158,7 +1158,7 @@ int Cmd_slip(int argc, char * argv[]){
 	return 0;
 }
 
-int Cmd_dfu(int argc, char *argv[]){
+int Cmd_topdfu(int argc, char *argv[]){
 	top_board_dfu_begin("/top/update.bin");
 	return 0;
 }
@@ -1245,7 +1245,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "slip", Cmd_slip, "slip test" },
 		{ "data_upload", Cmd_data_upload, "upload protobuf data" },
 		{ "^", Cmd_send_top, "send command to top board"},
-		{ "dfu", Cmd_dfu, "update topboard firmware."},
+		{ "topdfu", Cmd_topdfu, "update topboard firmware."},
 
 		{ 0, 0, 0 } };
 
