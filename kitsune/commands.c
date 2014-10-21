@@ -1158,8 +1158,11 @@ int Cmd_slip(int argc, char * argv[]){
 }
 
 int Cmd_topdfu(int argc, char *argv[]){
-	top_board_dfu_begin("/top/update.bin");
-	return 0;
+	if(argc > 1){
+		return top_board_dfu_begin(argv[1]);
+	}
+	UARTprintf("Usage: topdfu $full_path_to_file");
+	return -2;
 }
 
 // ==============================================================================

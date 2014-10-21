@@ -168,7 +168,7 @@ int top_board_task(void){
 	}
 	return 1;
 }
-int _prep_file(char * name, uint32_t * out_fsize, uint16_t * out_crc, long * out_handle){
+int _prep_file(uint8_t * name, uint32_t * out_fsize, uint16_t * out_crc, long * out_handle){
 	if(!out_fsize || !out_crc){
 		return -1;
 	}
@@ -202,12 +202,15 @@ int _prep_file(char * name, uint32_t * out_fsize, uint16_t * out_crc, long * out
 
 int top_board_dfu_begin(const char * bin){
 	int ret;
+	if(!bin){
+		return -1;
+	}
 	if(self.mode == TOP_NORMAL_MODE){
 		self.mode = TOP_DFU_MODE;
 		uint16_t crc;
 		uint32_t len;
 		long handle;
-		ret = _prep_file("/top/factory.bin",&len, &crc, &handle);
+		ret = _prep_file(bin ,&len, &crc, &handle);
 		if(0 == ret){
 			self.dfu_contex.crc = crc;
 			self.dfu_contex.len = len;
