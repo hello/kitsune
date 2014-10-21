@@ -61,43 +61,22 @@ static bool _set_wifi(const char* ssid, const char* password)
 		UARTprintf("Tried all wifi ep, all failed to connect\n");
 		return 0;
     }else{
+		uint8_t wait_time = 30;
 
-        // To make things simple in the first pass implementation,
-        // we only store one endpoint.
+		sl_status |= CONNECTING;
 
-        // There is no sl_sl_WlanProfileSet?
-        // So I delete all endpoint first.
-        int16_t del_ret = sl_WlanProfileDel(0xFF);
-        if(del_ret)
-        {
-            UARTprintf("Delete all stored endpoint failed, error %d.\n", del_ret);
-        }else{
-            UARTprintf("All stored WIFI EP removed.\n");
-        }
+		while(wait_time-- && (!(sl_status & HAS_IP)))
+		{
+			Cmd_led(0,0);
+			UARTprintf("Waiting connection....");
+			vTaskDelay(1000);
+		}
 
-        // Then add the current one back.
-        int16_t profile_add_ret = sl_WlanProfileAdd((_i8*)ssid, strlen(ssid), NULL, &secParams, NULL, 0, 0);
-        if(profile_add_ret < 0)
-        {
-            UARTprintf("Save connected endpoint failed, error %d.\n", profile_add_ret);
-        }else{
-            uint8_t wait_time = 30;
-
-            sl_status |= CONNECTING;
-
-            while(wait_time-- && (!(sl_status & HAS_IP)))
-            {
-                Cmd_led(0,0);
-                UARTprintf("Waiting connection....");
-                vTaskDelay(1000);
-            }
-
-            if(!wait_time && (!(sl_status & HAS_IP)))
-            {
-                Cmd_led(0,0);
-                UARTprintf("!!WIFI set without network connection.");
-            }
-        }
+		if(!wait_time && (!(sl_status & HAS_IP)))
+		{
+			Cmd_led(0,0);
+			UARTprintf("!!WIFI set without network connection.");
+		}
     }
 
     return 1;
