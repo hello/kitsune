@@ -555,7 +555,6 @@ static xSemaphoreHandle light_smphr;
 
 void thread_fast_i2c_poll(void * unused)  {
 	int last_prox =0;
-	unsigned int last_led =0;
 	while (1) {
 		portTickType now = xTaskGetTickCount();
 		int light;
@@ -576,11 +575,7 @@ void thread_fast_i2c_poll(void * unused)  {
 				}
 				xSemaphoreGive(alarm_smphr);
 				//Audio_Stop();
-
-				if( now - last_led > 1000 ){
-					Cmd_led(0,0);
-					last_led = now;
-				}
+				Cmd_led(0,0);
 			}
 			last_prox = prox;
 
@@ -1105,8 +1100,18 @@ int Cmd_led(int argc, char *argv[]) {
 	unsigned int colors_white[NUM_LED]= {0x020202,0x040404,0x080808,0x101010,0x202020,0x404040,0x808080,0x808080,0,0,0,0};
 	unsigned int colors_green[NUM_LED]= {0x020000,0x040000,0x080000,0x100000,0x200000,0x400000,0x800000,0x800000,0,0,0,0};
 	unsigned int colors_red[NUM_LED]= {0x000200,0x000400,0x000800,0x001000,0x002000,0x004000,0x008000,0x008000,0,0,0,0};
-	unsigned int colors_yellow[NUM_LED]= {0x000202,0x000404,0x000808,0x001010,0x002020,0x004040,0x008080,0x008080,0,0,0,0};
+	unsigned int colors_yellow[NUM_LED]= {0x020200,0x040400,0x080800,0x101000,0x202000,0x404000,0x808000,0x808000,0,0,0,0};
 	unsigned int colors_original[NUM_LED];
+
+	static unsigned int last_time;
+	static unsigned int now;
+
+	now = xTaskGetTickCount();
+
+	if( now - last_time < 1000 ) {
+		return 0;
+	}
+	last_time = now;
 
 	colors = colors_white;
 
