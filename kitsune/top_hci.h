@@ -13,7 +13,9 @@ extern "C" {
 
 typedef struct{
 	void (*on_message)(uint8_t * message_body, uint32_t body_length);
-	void (*on_failed)(void);
+	void (*on_ack_failed)(void);	//ack fail
+	void (*on_ack_success)(void);	//ack sucess
+	void (*on_decode_failed)(void);
 }hci_decode_handler_t;
 
 void hci_init(void);

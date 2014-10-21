@@ -27,15 +27,13 @@ static struct{
 	dfu_packet_type dfu_state;
 	hci_decode_handler_t hci_handler;
 	struct{
-		char name[32];
 		uint16_t crc;
 		uint32_t len;
+		uint32_t offset;
+		long handle;
+
 	}dfu_contex;
 }self;
-//test
-static uint8_t test_bin[256];
-static uint32_t write_idx;
-//test end
 static void
 _printchar(uint8_t c){
 	UARTCharPutNonBlocking(UARTA0_BASE, c); //basic feedback
@@ -53,66 +51,75 @@ _encode_and_send(uint8_t* orig, uint32_t size){
 	return -1;
 }
 static dfu_packet_type
-_next_data_block(uint8_t * write_buf, uint32_t buffer_size, uint32_t * out_actual_size){
-	if(write_idx + buffer_size >= sizeof(test_bin)){
-		memcpy(write_buf, test_bin+write_idx, sizeof(test_bin) - write_idx);
-		*out_actual_size = sizeof(test_bin) - write_idx;
-		return DFU_STOP_DATA_PACKET;
-	}else{
-		memcpy(write_buf, test_bin + write_idx, buffer_size);
-		write_idx += buffer_size;
-		*out_actual_size = buffer_size;
+_next_file_data_block(uint8_t * write_buf, uint32_t buffer_size, uint32_t * out_actual_size){
+	int status = sl_FsRead(self.dfu_contex.handle, self.dfu_contex.offset, write_buf, buffer_size);
+	if(status > 0){
+		self.dfu_contex.offset += status;
+		*out_actual_size = status;
 		return DFU_DATA_PACKET;
+	}else{
+		*out_actual_size = 0;
+		return DFU_STOP_DATA_PACKET;
 	}
 }
-
 static void
 _on_message(uint8_t * message_body, uint32_t body_length){
-	//ack does not have message!
+
 }
 static void
-_on_failed(void){
-
+_close_and_reset_dfu(){
+	sl_FsClose(self.dfu_contex.handle, 0,0,0);
+	self.mode = TOP_NORMAL_MODE;
 }
+static void
+_on_ack_failed(void){
+	_close_and_reset_dfu();
+}
+static void
+_on_decode_failed(void){
+	if(self.mode == TOP_DFU_MODE){
+		_close_and_reset_dfu();
+	}
+}
+static void
+_on_ack_success(void){
+	vTaskDelay();
+	if (self.mode == TOP_DFU_MODE) {
+		switch (self.dfu_state) {
+		case DFU_INVALID_PACKET:
+			_close_and_reset_dfu();
+			break;
+		case DFU_START_DATA_PACKET: {
+			self.dfu_state = DFU_INIT_PACKET;
+			uint32_t init_packet[] = { (uint32_t) DFU_INIT_PACKET,
+					(uint32_t) self.dfu_contex.crc };
+			_encode_and_send(init_packet, sizeof(init_packet));
 
+		}
+			break;
+		case DFU_INIT_PACKET:
+		case DFU_DATA_PACKET: {
+			uint32_t block[32];
+			uint32_t written;
+			block[0] = DFU_DATA_PACKET;
+			self.dfu_state = _next_file_data_block(
+					((uint8_t*) block) + sizeof(uint32_t),
+					(sizeof(block) - sizeof(uint32_t)), &written);
+			_encode_and_send(block, written + sizeof(block[0]));
+		}
+			break;
+		case DFU_STOP_DATA_PACKET: {
+			uint32_t end_packet[] = { DFU_STOP_DATA_PACKET };
+			_encode_and_send(end_packet, sizeof(end_packet));
+			self.dfu_state = DFU_INVALID_PACKET;
+		}
+			break;
+		}
+	}
+}
 static void
 _on_slip_message(uint8_t * c, uint32_t size){
-
-	char * msg;
 	uint32_t err = hci_decode(c, size, &self.hci_handler);
-
-
-	//move below to ack
-	vTaskDelay(100);
-	switch (self.dfu_state) {
-	case DFU_START_DATA_PACKET:
-	{
-		self.dfu_state = DFU_INIT_PACKET;
-		uint32_t init_packet[] = {(uint32_t)DFU_INIT_PACKET, (uint32_t)hci_crc16_compute(test_bin,sizeof(test_bin))};
-		UARTprintf("crc = %x\r\n", hci_crc16_compute(test_bin, sizeof(test_bin)));
-		_encode_and_send(init_packet,sizeof(init_packet));
-
-	}
-		break;
-	case DFU_INIT_PACKET:
-	case DFU_DATA_PACKET:
-	{
-		uint32_t block[32];
-		uint32_t written;
-		block[0] = DFU_DATA_PACKET;
-		self.dfu_state = _next_data_block( ((uint8_t*)block)+sizeof(uint32_t), (sizeof(block) - sizeof(uint32_t)), &written);
-		_encode_and_send(block,written + sizeof(block[0]));
-	}
-		break;
-	case DFU_STOP_DATA_PACKET:
-	{
-		uint32_t end_packet[] = {DFU_STOP_DATA_PACKET};
-		_encode_and_send(end_packet, sizeof(end_packet));
-		self.dfu_state = DFU_INVALID_PACKET;
-	}
-		break;
-	}
-
 }
 
 static void
@@ -128,8 +135,10 @@ int top_board_task(void){
 	};
 	self.hci_handler = (hci_decode_handler_t){
 			.on_message = _on_message,
-			.on_failed = _on_failed
+			.on_ack_failed = _on_ack_failed,
+			.on_ack_success = _on_ack_success
 	};
+	self.mode = TOP_NORMAL_MODE;
 	slip_reset(&me);
 	hci_init();
 	MAP_UARTConfigSetExpClk(UARTA1_BASE, PRCMPeripheralClockGet(PRCM_UARTA1),
@@ -141,8 +150,7 @@ int top_board_task(void){
 	}
 	return 1;
 }
-
-int _prep_file(char * name, uint32_t * out_fsize, uint16_t * out_crc){
+int _prep_file(char * name, uint32_t * out_fsize, uint16_t * out_crc, long * out_handle){
 	if(!out_fsize || !out_crc){
 		return -1;
 	}
@@ -166,9 +174,10 @@ int _prep_file(char * name, uint32_t * out_fsize, uint16_t * out_crc){
 
 	}while(status > 0);
 
-	sl_FsClose(hndl, 0,0,0);
+	//sl_FsClose(hndl, 0,0,0);
 	*out_crc = crc;
 	*out_fsize = total;
+	*out_handle = hndl;
 	UARTprintf("Bytes Read %u, crc = %u.\r\n", *out_fsize, *out_crc);
 	return 0;
 }
@@ -184,11 +193,14 @@ int top_board_dfu_begin(const char * bin){
 		*/
 		uint16_t crc;
 		uint32_t len;
-		ret = _prep_file("/top/factory.bin",&len, &crc);
+		long handle;
+		ret = _prep_file("/top/factory.bin",&len, &crc, &handle);
 		if(0 == ret){
-			self.dfu_context.crc = crc;
-			self.dfu_context.len = len;
-			uint32_t begin_packet[] = { DFU_START_DATA_PACKET, sizeof(test_bin) };
+			self.dfu_contex.crc = crc;
+			self.dfu_contex.len = len;
+			self.dfu_contex.offset = 0;
+			self.dfu_contex.handle = handle;
+			uint32_t begin_packet[] = { DFU_START_DATA_PACKET, len };
 			_encode_and_send((uint8_t*) begin_packet, sizeof(begin_packet));
 			self.dfu_state = DFU_START_DATA_PACKET;
 		}else{

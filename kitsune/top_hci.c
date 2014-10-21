@@ -49,6 +49,7 @@ uint32_t hci_decode(uint8_t * raw, uint32_t length, const hci_decode_handler_t *
 	bool is_custom = false;
 	if(length < HCI_HEADER_SIZE){
 		UARTprintf("header size fail %u \r\n", length);
+		handler->on_decode_failed();
 		return 0;
 	}
 	if( !(raw[0] & HCI_RELIABLE_PACKET) ){
@@ -60,8 +61,6 @@ uint32_t hci_decode(uint8_t * raw, uint32_t length, const hci_decode_handler_t *
 	}else{
 		has_checksum = true;
 	}
-
-
 	if((raw[1] & 0x0Fu) == HCI_VENDOR_NORDIC_OPCODE){
 		//custom opcode is 14, we don tknow how to handle others
 		//may need unknown message handler
@@ -71,6 +70,7 @@ uint32_t hci_decode(uint8_t * raw, uint32_t length, const hci_decode_handler_t *
 	const uint32_t expected_checksum = (raw[0] + raw[1] + raw[2] + raw[3]) & 0xFFu;
 	if(expected_checksum != 0){
 		UARTprintf("Header Checksu fail \r\n");
+		handler->on_decode_failed();
 		return 0;
 	}
 	//check body integrity
@@ -89,8 +89,10 @@ uint32_t hci_decode(uint8_t * raw, uint32_t length, const hci_decode_handler_t *
 		UARTprintf("ack:%x", ack);
 		if (ack == self.sequence_number) {
 			//retransmit
+			handler->on_ack_failed();
 		} else {
 			self.sequence_number = ack;
+			handler->on_ack_success();
 			//message succeeded
 		}
 	}
