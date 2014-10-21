@@ -118,7 +118,6 @@ static bool _set_wifi(const char* ssid, const char* password)
     while(_connect_from_scanned_eps(ssid, password, wifi_endpoints, scanned_wifi_count) == 0 && retry_count--)
 	{
 		Cmd_led(0,0);
-		connection_ret = _connect_from_scanned_eps(ssid, password, wifi_endpoints, scanned_wifi_count);
 		UARTprintf("Failed to connect, retry times remain %d\n", retry_count);
 		vTaskDelay(500);
 	}
