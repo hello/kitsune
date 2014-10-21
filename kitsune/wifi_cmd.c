@@ -1243,13 +1243,11 @@ int send_periodic_data( data_t * data ) {
     if (http_response_ok(buffer) != 1) {
     	sl_status &= ~UPLOADING;
         UARTprintf("Invalid response, endpoint return failure.\n");
-        return -1;
     }
     
     if (len_str == NULL) {
     	sl_status &= ~UPLOADING;
         UARTprintf("Failed to find Content-Length header\n");
-        return -1;
     }
     int len = atoi(len_str);
     
@@ -1665,19 +1663,19 @@ int32_t RadioStartTX(RadioTxMode_e eTxMode, uint8_t powerLevel_Tone, int eChanne
 
 			while ((length == size))
 			{
-                /* transmit the frame */
-				minDelay = (delay_amount%50);
-                length = sl_Send(rawSocket, DataFrame, size, SL_RAW_RF_TX_PARAMS(eChannel, eRate, powerLevel_Tone, ePreamble));
-                //UtilsDelay((delay_amount*CPU_CYCLES_1MSEC)/12);
-                xDelay= minDelay / portTICK_RATE_MS;
-                vTaskDelay(xDelay);
+                            /* transmit the frame */
+							minDelay = (delay_amount%50);
+                            length = sl_Send(rawSocket, DataFrame, size, SL_RAW_RF_TX_PARAMS(eChannel, eRate, powerLevel_Tone, ePreamble));
+                            //UtilsDelay((delay_amount*CPU_CYCLES_1MSEC)/12);
+                            xDelay= minDelay / portTICK_RATE_MS;
+                            vTaskDelay(xDelay);
 
-    			minDelay = (delay_amount - minDelay);
-    			while(minDelay > 0)
-    			{
-    				vTaskDelay(50/portTICK_RATE_MS);
-    				minDelay -= 50;
-    			}
+                			minDelay = (delay_amount - minDelay);
+                			while(minDelay > 0)
+                			{
+                				vTaskDelay(50/portTICK_RATE_MS);
+                				minDelay -= 50;
+                			}
 			}
 
 			if (length != size)
