@@ -1243,11 +1243,13 @@ int send_periodic_data( data_t * data ) {
     if (http_response_ok(buffer) != 1) {
     	sl_status &= ~UPLOADING;
         UARTprintf("Invalid response, endpoint return failure.\n");
+        return -1;
     }
     
     if (len_str == NULL) {
     	sl_status &= ~UPLOADING;
         UARTprintf("Failed to find Content-Length header\n");
+        return -1;
     }
     int len = atoi(len_str);
     
