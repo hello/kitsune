@@ -23,6 +23,7 @@ static struct{
 		TOP_DFU_MODE
 	}mode;
 	dfu_packet_type dfu_state;
+	hci_decode_handler_t hci_handler;
 }self;
 //test
 static uint8_t test_bin[256];
@@ -57,11 +58,21 @@ _next_data_block(uint8_t * write_buf, uint32_t buffer_size, uint32_t * out_actua
 		return DFU_DATA_PACKET;
 	}
 }
+
+static void
+_on_message(uint8_t * message_body, uint32_t body_length){
+	//ack does not have message!
+}
+static void
+_on_failed(void){
+
+}
+
 static void
 _on_slip_message(uint8_t * c, uint32_t size){
 
 	char * msg;
-	uint32_t err = hci_decode(c, size, NULL);
+	uint32_t err = hci_decode(c, size, &self.handler);
 
 
 	//move below to ack
@@ -108,6 +119,10 @@ int top_board_task(void){
 			.slip_on_message = _on_slip_message,
 			.slip_put_char = _sendchar
 	};
+	self.hci_handler = {
+			.on_message = _on_message,
+			.on_failed = _on_failed
+	};
 	slip_reset(&me);
 	hci_init();
 	MAP_UARTConfigSetExpClk(UARTA1_BASE, PRCMPeripheralClockGet(PRCM_UARTA1),
@@ -122,12 +137,16 @@ int top_board_task(void){
 
 int top_board_dfu_begin(void){
 	uint32_t i;
-	for(i = 0; i < sizeof(test_bin); i++){
-		test_bin[i] = i & 0xFFu;
+	if(self.mode == TOP_NORMAL_MODE){
+		self.mode = TOP_DFU_MODE;
+		for (i = 0; i < sizeof(test_bin); i++) {
+			test_bin[i] = i & 0xFFu;
+		}
+		self.dfu_state = DFU_START_DATA_PACKET;
+		uint32_t begin_packet[] = { DFU_START_DATA_PACKET, sizeof(test_bin) };
+		_encode_and_send((uint8_t*) begin_packet, sizeof(begin_packet));
 	}
-	self.dfu_state = DFU_START_DATA_PACKET;
-	uint32_t begin_packet[] = {DFU_START_DATA_PACKET, sizeof(test_bin)};
-	_encode_and_send((uint8_t*)begin_packet, sizeof(begin_packet));
+
 
 }
 
