@@ -28,7 +28,7 @@ static bool _set_wifi(const char* ssid, const char* password)
 
     sl_status |= SCANNING;
     
-    while((scanned_wifi_count = get_wifi_scan_result(wifi_endpoints, MAX_WIFI_EP_PER_SCAN, 1000)) == 0 && retry_count--)
+    while((scanned_wifi_count = get_wifi_scan_result(wifi_endpoints, MAX_WIFI_EP_PER_SCAN, 1000)) == 0 && --retry_count)
     {
         Cmd_led(0,0);
         UARTprintf("No wifi scanned, retry times remain %d\n", retry_count);
@@ -48,7 +48,7 @@ static bool _set_wifi(const char* ssid, const char* password)
     retry_count = 10;
     SlSecParams_t secParams = {0};
 
-    while((connection_ret = connect_scanned_endpoints(ssid, password, wifi_endpoints, scanned_wifi_count, &secParams)) == 0 && retry_count--)
+    while((connection_ret = connect_scanned_endpoints(ssid, password, wifi_endpoints, scanned_wifi_count, &secParams)) == 0 && --retry_count)
 	{
 		Cmd_led(0,0);
 		UARTprintf("Failed to connect, retry times remain %d\n", retry_count);
@@ -65,19 +65,20 @@ static bool _set_wifi(const char* ssid, const char* password)
 
 		sl_status |= CONNECTING;
 
-		while(wait_time-- && (!(sl_status & HAS_IP)))
+		while(--wait_time && (!(sl_status & HAS_IP)))
 		{
 			Cmd_led(0,0);
-			UARTprintf("Waiting connection....");
+			UARTprintf("Retrieving IP address...\n");
 			vTaskDelay(1000);
 		}
 
-		if(!wait_time && (!(sl_status & HAS_IP)))
+		if(!(sl_status & HAS_IP))
 		{
 			Cmd_led(0,0);
 			UARTprintf("!!WIFI set without network connection.");
 			return 0;
 		}
+
     }
 
     return 1;
