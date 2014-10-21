@@ -61,7 +61,7 @@ static bool _set_wifi(const char* ssid, const char* password)
 		UARTprintf("Tried all wifi ep, all failed to connect\n");
 		return 0;
     }else{
-		uint8_t wait_time = 30;
+		uint8_t wait_time = 10;
 
 		sl_status |= CONNECTING;
 
