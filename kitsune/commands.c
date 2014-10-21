@@ -577,7 +577,7 @@ void thread_fast_i2c_poll(void * unused)  {
 				xSemaphoreGive(alarm_smphr);
 				//Audio_Stop();
 
-				if( now - last_led > 5000 ){
+				if( now - last_led > 1000 ){
 					Cmd_led(0,0);
 					last_led = now;
 				}
@@ -900,7 +900,7 @@ void SetupGPIOInterrupts() {
     port = GPIO_PORT;
     pin = /*RTC_INT_PIN |*/ GSPI_INT_PIN;
 #if !ONLY_MID
-	//GPIO_IF_ConfigureNIntEnable( port, pin, GPIO_HIGH_LEVEL, nordic_prox_int );
+	GPIO_IF_ConfigureNIntEnable( port, pin, GPIO_HIGH_LEVEL, nordic_prox_int );
 	//only one interrupt per port...
 #endif
 }
@@ -1349,8 +1349,7 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(thread_spi, "spiTask", 4*1024 / 4, NULL, 5, NULL);
 	SetupGPIOInterrupts();
 	UARTprintf("*");
-//#if !ONLY_MID
-#if 0
+#if !ONLY_MID
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 3, NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_dust, "dustTask", 256 / 4, NULL, 3, NULL);
