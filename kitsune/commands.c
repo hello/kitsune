@@ -345,7 +345,7 @@ get_codec_NAU();
 
 // Initialize the Audio(I2S) Module
 //
-AudioCapturerInit(CPU_XDATA, 22050);
+AudioCapturerInit(CPU_XDATA, 48000);
 
 // Initialize the DMA Module
 //
@@ -360,7 +360,7 @@ SetupPingPongDMATransferRx();
 //
 
 AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
-AudioCaptureRendererConfigure(I2S_PORT_DMA, 22050);
+AudioCaptureRendererConfigure(I2S_PORT_DMA, 48000);
 
 // Start Audio Tx/Rx
 //
@@ -372,6 +372,7 @@ Audio_Start();
 Speaker1();
 
 UARTprintf("g_iReceiveCount %d\n\r", g_iReceiveCount);
+close_codec_NAU(); UARTprintf("close_codec_NAU");
 Audio_Stop();
 McASPDeInit();
 DestroyCircularBuffer(pRxBuffer); UARTprintf("DestroyCircularBuffer(pRxBuffer)" );
@@ -576,7 +577,7 @@ void thread_fast_i2c_poll(void * unused)  {
 				xSemaphoreGive(alarm_smphr);
 				//Audio_Stop();
 
-				if( now - last_led > 5000 ){
+				if( now - last_led > 1000 ){
 					Cmd_led(0,0);
 					last_led = now;
 				}

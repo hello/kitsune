@@ -87,6 +87,7 @@ static int _connect_from_scanned_eps(const char* ssid, const char* password, con
 	return 0;
 }
 
+
 static bool _set_wifi(const char* ssid, const char* password)
 {
     Sl_WlanNetworkEntry_t wifi_endpoints[MAX_WIFI_EP_PER_SCAN];
@@ -96,6 +97,7 @@ static bool _set_wifi(const char* ssid, const char* password)
 
     sl_status |= SCANNING;
     int scanned_wifi_count = get_wifi_scan_result(wifi_endpoints, MAX_WIFI_EP_PER_SCAN, 1000);  // Shall we have a bg thread scan periodically?
+
     while(scanned_wifi_count == 0 && retry_count--)
     {
         Cmd_led(0,0);
