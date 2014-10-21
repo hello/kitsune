@@ -21,13 +21,14 @@ int Cmd_led(int argc, char *argv[]);
 static bool _set_wifi(const char* ssid, const char* password)
 {
     Sl_WlanNetworkEntry_t wifi_endpoints[MAX_WIFI_EP_PER_SCAN];
+    int scanned_wifi_count, connection_ret;
     memset(wifi_endpoints, 0, sizeof(wifi_endpoints));
 
     uint8_t retry_count = 10;
 
     sl_status |= SCANNING;
     
-    while(get_wifi_scan_result(wifi_endpoints, MAX_WIFI_EP_PER_SCAN, 1000) == 0 && retry_count--)
+    while((scanned_wifi_count = get_wifi_scan_result(wifi_endpoints, MAX_WIFI_EP_PER_SCAN, 1000)) == 0 && retry_count--)
     {
         Cmd_led(0,0);
         UARTprintf("No wifi scanned, retry times remain %d\n", retry_count);
@@ -45,7 +46,8 @@ static bool _set_wifi(const char* ssid, const char* password)
     //////
 
     retry_count = 10;
-    while(connect_scanned_endpoints(ssid, password, wifi_endpoints, scanned_wifi_count) == 0 && retry_count--)
+
+    while((connection_ret = _connect_from_scanned_eps(ssid, password, wifi_endpoints, scanned_wifi_count)) == 0 && retry_count--)
 	{
 		Cmd_led(0,0);
 		UARTprintf("Failed to connect, retry times remain %d\n", retry_count);

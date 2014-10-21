@@ -188,6 +188,8 @@ int spi_read( int * len, unsigned char * buf ) {
 		if(i==ctx.len) {
 			spi_reset();
 		}
+	}else{
+		spi_read_step(0, buf);
 	}
 	vTaskDelay(8*10);
 	return SUCCESS;
