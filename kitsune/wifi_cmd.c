@@ -1799,14 +1799,12 @@ int get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uin
     // The scan results are occupied in netEntries[]
     lRetVal = sl_WlanGetNetworkList(0, entry_len, entries);
 
-    /*
     // Disable scan
     policyOpt = SL_SCAN_POLICY(0);
 
     // set scan policy - this stops the scan
     sl_WlanPolicySet(SL_POLICY_SCAN , policyOpt,
                             (unsigned char *)(IntervalVal), sizeof(IntervalVal));
-    */
 
     // Restore connection policy to Auto + SmartConfig
     //      (Device's default connection policy)
@@ -1820,6 +1818,7 @@ int get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uin
 int connect_scanned_endpoints(const char* ssid, const char* password, 
     const Sl_WlanNetworkEntry_t* wifi_endpoints, int scanned_wifi_count, SlSecParams_t* connectedEPSecParamsPtr)
 {
+	int16_t ret;
 	if(!connectedEPSecParamsPtr)
 	{
 		return 0;
@@ -1840,11 +1839,24 @@ int connect_scanned_endpoints(const char* ssid, const char* password,
             connectedEPSecParamsPtr->KeyLen = password == NULL ? 0 : strlen(password);
             connectedEPSecParamsPtr->Type = wifi_endpoint.sec_type;
 
-            // We don't support all the security types in this implementation.
-            int16_t ret = sl_WlanConnect((_i8*)ssid, strlen(ssid), NULL, wifi_endpoint.sec_type == SL_SEC_TYPE_OPEN ? NULL : connectedEPSecParamsPtr, 0);
+			// We don't support all the security types in this implementation.
+            // There is no sl_sl_WlanProfileSet?
+            // So I delete all endpoint first.
+            ret = sl_WlanProfileDel(0xFF);
+			if (ret != 0) {
+                UARTprintf("profile del fail\n");
+                return 0;
+			}
+			ret = sl_WlanProfileAdd((_i8*) ssid, strlen(ssid), NULL,
+					connectedEPSecParamsPtr, NULL, 0, 0);
+			if (ret != 0) {
+                UARTprintf("profile add fail\n");
+                return 0;
+			}
+			ret = sl_WlanConnect((_i8*) ssid, strlen(ssid), NULL, wifi_endpoint.sec_type == SL_SEC_TYPE_OPEN ? NULL : connectedEPSecParamsPtr, 0);
             if(ret == 0 || ret == -71)
             {
-                UARTprintf("WLAN connected\n");
+                UARTprintf("WLAN connect attempt issued\n");
 
                 return 1;
             }
