@@ -16,7 +16,8 @@ typedef enum {
 	DFU_INIT_PACKET = 1,
 	DFU_START_DATA_PACKET = 2,
 	DFU_DATA_PACKET = 3,
-	DFU_STOP_DATA_PACKET = 4
+	DFU_STOP_DATA_PACKET = 4,
+	DFU_IDLE = 0xff
 } dfu_packet_type;
 
 static struct{
@@ -87,32 +88,48 @@ _on_ack_success(void){
 	if (self.mode == TOP_DFU_MODE) {
 		switch (self.dfu_state) {
 		case DFU_INVALID_PACKET:
-			_close_and_reset_dfu();
+			{
+			self.dfu_state = DFU_START_DATA_PACKET;
+			uint32_t begin_packet[] = { DFU_START_DATA_PACKET, self.dfu_contex.len };
+			_encode_and_send((uint8_t*) begin_packet, sizeof(begin_packet));
+			}
 			break;
-		case DFU_START_DATA_PACKET: {
+		case DFU_START_DATA_PACKET:
+			{
 			self.dfu_state = DFU_INIT_PACKET;
 			uint32_t init_packet[] = { (uint32_t) DFU_INIT_PACKET,
 					(uint32_t) self.dfu_contex.crc };
 			_encode_and_send((uint8_t*)init_packet, sizeof(init_packet));
 
-		}
+			}
 			break;
 		case DFU_INIT_PACKET:
-		case DFU_DATA_PACKET: {
-			uint32_t block[32];
+		case DFU_DATA_PACKET:
+			{
+			uint32_t block[128];
 			uint32_t written;
 			block[0] = DFU_DATA_PACKET;
 			self.dfu_state = _next_file_data_block(
 					((uint8_t*) block) + sizeof(uint32_t),
 					(sizeof(block) - sizeof(uint32_t)), &written);
-			_encode_and_send((uint8_t*)block, written + sizeof(block[0]));
-		}
+			if(written){
+				_encode_and_send((uint8_t*)block, written + sizeof(block[0]));
+			}else{
+				uint32_t primer_packet[] = { DFU_INVALID_PACKET };
+				_encode_and_send((uint8_t*) primer_packet,sizeof(primer_packet));
+			}
+			}
 			break;
-		case DFU_STOP_DATA_PACKET: {
+		case DFU_STOP_DATA_PACKET:
+			{
 			uint32_t end_packet[] = { DFU_STOP_DATA_PACKET };
 			_encode_and_send((uint8_t*)end_packet, sizeof(end_packet));
-			self.dfu_state = DFU_INVALID_PACKET;
-		}
+			self.dfu_state = DFU_IDLE;
+			}
+			break;
+		default:
+		case DFU_IDLE:
+			_close_and_reset_dfu();
 			break;
 		}
 	}
@@ -196,9 +213,9 @@ int top_board_dfu_begin(const char * bin){
 			self.dfu_contex.len = len;
 			self.dfu_contex.offset = 0;
 			self.dfu_contex.handle = handle;
-			uint32_t begin_packet[] = { DFU_START_DATA_PACKET, len };
-			_encode_and_send((uint8_t*) begin_packet, sizeof(begin_packet));
-			self.dfu_state = DFU_START_DATA_PACKET;
+			uint32_t primer_packet[] = {DFU_INVALID_PACKET};
+			_encode_and_send((uint8_t*) primer_packet, sizeof(primer_packet));
+			self.dfu_state = DFU_INVALID_PACKET;
 		}else{
 			self.mode = TOP_NORMAL_MODE;
 			return ret;
