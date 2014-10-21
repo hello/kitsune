@@ -76,6 +76,7 @@ static bool _set_wifi(const char* ssid, const char* password)
 		{
 			Cmd_led(0,0);
 			UARTprintf("!!WIFI set without network connection.");
+			return 0;
 		}
     }
 
