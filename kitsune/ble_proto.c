@@ -14,6 +14,7 @@
 #include "stdio.h"
 
 extern unsigned int sl_status;
+int Cmd_led(int argc, char *argv[]);
 
 static bool _set_wifi(const char* ssid, const char* password)
 {
@@ -21,15 +22,21 @@ static bool _set_wifi(const char* ssid, const char* password)
     memset(wifi_endpoints, 0, sizeof(wifi_endpoints));
 
     uint8_t retry_count = 10;
+
+    sl_status |= SCANNING;
     int scanned_wifi_count = get_wifi_scan_result(wifi_endpoints, MAX_WIFI_EP_PER_SCAN, 1000);  // Shall we have a bg thread scan periodically?
+
     while(scanned_wifi_count == 0 && retry_count--)
     {
+        Cmd_led(0,0);
         UARTprintf("No wifi scanned, retry times remain %d\n", retry_count);
         vTaskDelay(500);
     }
 
     if(scanned_wifi_count == 0)
     {
+        Cmd_led(0,0);
+        sl_status &= ~SCANNING;
     	UARTprintf("No wifi found after retry %d times\n", 10);
     	return -1;
     }
@@ -76,14 +83,19 @@ static bool _set_wifi(const char* ssid, const char* password)
                     UARTprintf("Save connected endpoint failed, error %d.\n", profile_add_ret);
                 }else{
                     uint8_t wait_time = 30;
+
+                    sl_status |= CONNECTING;
+
                     while(wait_time-- && (!(sl_status & HAS_IP)))
                     {
+                    	Cmd_led(0,0);
                         UARTprintf("Waiting connection....");
                         vTaskDelay(1000);
                     }
 
                     if(!wait_time && (!(sl_status & HAS_IP)))
                     {
+                    	Cmd_led(0,0);
                         UARTprintf("!!WIFI set without network connection.");
                     }
                 }

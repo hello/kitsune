@@ -345,7 +345,7 @@ get_codec_NAU();
 
 // Initialize the Audio(I2S) Module
 //
-AudioCapturerInit(CPU_XDATA, 22050);
+AudioCapturerInit(CPU_XDATA, 48000);
 
 // Initialize the DMA Module
 //
@@ -360,7 +360,7 @@ SetupPingPongDMATransferRx();
 //
 
 AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
-AudioCaptureRendererConfigure(I2S_PORT_DMA, 22050);
+AudioCaptureRendererConfigure(I2S_PORT_DMA, 48000);
 
 // Start Audio Tx/Rx
 //
@@ -372,6 +372,7 @@ Audio_Start();
 Speaker1();
 
 UARTprintf("g_iReceiveCount %d\n\r", g_iReceiveCount);
+close_codec_NAU(); UARTprintf("close_codec_NAU");
 Audio_Stop();
 McASPDeInit();
 DestroyCircularBuffer(pRxBuffer); UARTprintf("DestroyCircularBuffer(pRxBuffer)" );
@@ -554,6 +555,7 @@ static xSemaphoreHandle light_smphr;
 
 void thread_fast_i2c_poll(void * unused)  {
 	int last_prox =0;
+	unsigned int last_led =0;
 	while (1) {
 		portTickType now = xTaskGetTickCount();
 		int light;
@@ -574,7 +576,11 @@ void thread_fast_i2c_poll(void * unused)  {
 				}
 				xSemaphoreGive(alarm_smphr);
 				//Audio_Stop();
-				Cmd_led(0,0);
+
+				if( now - last_led > 5000 ){
+					Cmd_led(0,0);
+					last_led = now;
+				}
 			}
 			last_prox = prox;
 
@@ -894,7 +900,7 @@ void SetupGPIOInterrupts() {
     port = GPIO_PORT;
     pin = /*RTC_INT_PIN |*/ GSPI_INT_PIN;
 #if !ONLY_MID
-	GPIO_IF_ConfigureNIntEnable( port, pin, GPIO_HIGH_LEVEL, nordic_prox_int );
+	//GPIO_IF_ConfigureNIntEnable( port, pin, GPIO_HIGH_LEVEL, nordic_prox_int );
 	//only one interrupt per port...
 #endif
 }
@@ -904,7 +910,7 @@ xSemaphoreHandle pill_smphr;
 void thread_spi(void * data) {
 	while(1) {
 		if (xSemaphoreTake(spi_smphr, 10000) ) {
-			vTaskDelay(10);
+			vTaskDelay(8*10);
 			Cmd_spi_read(0, 0);
 			MAP_GPIOIntEnable(GPIO_PORT,GSPI_INT_PIN);
 		} else {
@@ -1076,36 +1082,60 @@ void led_brightness(unsigned int * colors, unsigned int brightness ) {
 		red = ( colors[l] & ~0xff00ff )>>8;
 		green = ( colors[l] & ~0x00ffff )>>16;
 
-		blue = (brightness * blue)>>8;
-		red = (brightness * red)>>8;
-		green = (brightness * green)>>8;
+		blue = ((brightness * blue)>>8)&0xff;
+		red = ((brightness * red)>>8)&0xff;
+		green = ((brightness * green)>>8)&0xff;
 		colors[l] = (blue) | (red<<8) | (green<<16);
 	}
 }
 
 int Cmd_led(int argc, char *argv[]) {
-	int i;
-	unsigned int colors[NUM_LED]= {2,4,8,16,32,64,128,255,0,0,0,0};
-	unsigned int colors_o[NUM_LED]= {2,4,8,16,32,64,128,255,0,0,0,0};
+	int i,select;
+	unsigned int* colors;
 
-	if ((sl_status & HAS_IP)) {
-		for (i = 1; i < NUM_LED; ++i) {
-			colors_o[i] <<= 16;
-			colors[i] <<= 16;
+	unsigned int colors_blue[NUM_LED]= {0x00002,0x000004,0x000008,0x000010,0x000020,0x000040,0x000080,0x000080,0,0,0,0};
+	unsigned int colors_white[NUM_LED]= {0x020202,0x040404,0x080808,0x101010,0x202020,0x404040,0x808080,0x808080,0,0,0,0};
+	unsigned int colors_green[NUM_LED]= {0x020000,0x040000,0x080000,0x100000,0x200000,0x400000,0x800000,0x800000,0,0,0,0};
+	unsigned int colors_red[NUM_LED]= {0x000200,0x000400,0x000800,0x001000,0x002000,0x004000,0x008000,0x008000,0,0,0,0};
+	unsigned int colors_yellow[NUM_LED]= {0x000202,0x000404,0x000808,0x001010,0x002020,0x004040,0x008080,0x008080,0,0,0,0};
+	unsigned int colors_original[NUM_LED];
+
+	colors = colors_white;
+
+	if(argc == 2) {
+		select = atoi(argv[1]);
+		switch(select) {
+		case 1: colors = colors_white; break;
+		case 2: colors = colors_blue;break;
+		case 3: colors = colors_green;break;
+		case 4: colors = colors_red;break;
+		case 5: colors = colors_yellow;break;
 		}
-	} //wait for a connection the first time...
+	} else
+	if( sl_status & UPLOADING ) {
+		colors = colors_blue;
+	}
+	else if( sl_status & HAS_IP ) {
+		colors = colors_green;
+	}
+	else if( sl_status & CONNECTING ) {
+		colors = colors_yellow;
+	}
+	else if( sl_status & SCANNING ) {
+		colors = colors_red;
+	}
+	memcpy( colors_original, colors, sizeof(colors_original));
 
-	//colors[0] = atoi(argv[1]);
 	for (i = 1; i < 32; ++i) {
-		led_cw(colors_o);
-		memcpy( colors, colors_o, sizeof(colors));
+		led_cw(colors_original);
+		memcpy( colors, colors_original, sizeof(colors_original));
 		led_brightness( colors, fxd_sin(i<<4)>>7);
 		led_array(colors);
 		vTaskDelay(8*(12-(fxd_sin((i+1)<<4)>>12)));
 	}
-	vTaskDelay(1);
-	memset(colors, 0, sizeof(colors));
-	led_array(colors);
+	vTaskDelay(10);
+	memset(colors_original, 0, sizeof(colors_original));
+	led_array(colors_original);
 	return 0;
 }
 
@@ -1319,7 +1349,8 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(thread_spi, "spiTask", 4*1024 / 4, NULL, 5, NULL);
 	SetupGPIOInterrupts();
 	UARTprintf("*");
-#if !ONLY_MID
+//#if !ONLY_MID
+#if 0
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 3, NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_dust, "dustTask", 256 / 4, NULL, 3, NULL);

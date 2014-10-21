@@ -77,7 +77,7 @@ extern "C"
 #define RX_BUFFER_SIZE          40*PACKET_SIZE
 
 
-#define AUDIO_FILE "mari.rec" //armi.rec
+#define AUDIO_FILE "DIG1.raw" //armi.rec
 //*****************************************************************************
 //
 // Define Audio Input/Output Connection

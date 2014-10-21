@@ -125,6 +125,7 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
     case SL_WLAN_CONNECT_EVENT:
         UARTprintf("SL_WLAN_CONNECT_EVENT\n\r");
         sl_status |= CONNECT;
+        sl_status &= ~CONNECTING;
         break;
     case SL_WLAN_DISCONNECT_EVENT:
         UARTprintf("SL_WLAN_DISCONNECT_EVENT\n\r");
@@ -161,9 +162,9 @@ void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent) {
 			srand(seed); //seed with low bits of lf clock when connecting(not sure when it happens, gives some more entropy).
 		}
 
-        Cmd_led(0,0);
-
 		sl_status |= HAS_IP;
+
+        Cmd_led(0,0);
 		break;
 
 	case SL_NETAPP_IP_LEASED_EVENT:
@@ -1226,6 +1227,7 @@ int send_periodic_data( data_t * data ) {
     if(ret != 0)
     {
         // network error
+    	sl_status &= ~UPLOADING;
         UARTprintf("Send data failed, network error %d\n", ret);
         return ret;
     }
@@ -1239,10 +1241,12 @@ int send_periodic_data( data_t * data ) {
     char * content = strstr(buffer, "\r\n\r\n") + 4;
     char * len_str = strstr(buffer, header_content_len) + strlen(header_content_len);
     if (http_response_ok(buffer) != 1) {
+    	sl_status &= ~UPLOADING;
         UARTprintf("Invalid response, endpoint return failure.\n");
     }
     
     if (len_str == NULL) {
+    	sl_status &= ~UPLOADING;
         UARTprintf("Failed to find Content-Length header\n");
     }
     int len = atoi(len_str);
@@ -1286,6 +1290,7 @@ int send_periodic_data( data_t * data ) {
 
     if(upload_success)
     {
+    	sl_status |= UPLOADING;
         // Release all the resource occupied by pill data, or
         // user can occupy the buffer forever by sending only one packet
         if (xSemaphoreTake(pill_smphr, 1000)) {
