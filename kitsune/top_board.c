@@ -83,7 +83,7 @@ _on_decode_failed(void){
 }
 static void
 _on_ack_success(void){
-	vTaskDelay();
+	vTaskDelay(50);
 	if (self.mode == TOP_DFU_MODE) {
 		switch (self.dfu_state) {
 		case DFU_INVALID_PACKET:
@@ -93,7 +93,7 @@ _on_ack_success(void){
 			self.dfu_state = DFU_INIT_PACKET;
 			uint32_t init_packet[] = { (uint32_t) DFU_INIT_PACKET,
 					(uint32_t) self.dfu_contex.crc };
-			_encode_and_send(init_packet, sizeof(init_packet));
+			_encode_and_send((uint8_t*)init_packet, sizeof(init_packet));
 
 		}
 			break;
@@ -105,12 +105,12 @@ _on_ack_success(void){
 			self.dfu_state = _next_file_data_block(
 					((uint8_t*) block) + sizeof(uint32_t),
 					(sizeof(block) - sizeof(uint32_t)), &written);
-			_encode_and_send(block, written + sizeof(block[0]));
+			_encode_and_send((uint8_t*)block, written + sizeof(block[0]));
 		}
 			break;
 		case DFU_STOP_DATA_PACKET: {
 			uint32_t end_packet[] = { DFU_STOP_DATA_PACKET };
-			_encode_and_send(end_packet, sizeof(end_packet));
+			_encode_and_send((uint8_t*)end_packet, sizeof(end_packet));
 			self.dfu_state = DFU_INVALID_PACKET;
 		}
 			break;
@@ -136,7 +136,8 @@ int top_board_task(void){
 	self.hci_handler = (hci_decode_handler_t){
 			.on_message = _on_message,
 			.on_ack_failed = _on_ack_failed,
-			.on_ack_success = _on_ack_success
+			.on_ack_success = _on_ack_success,
+			.on_decode_failed = _on_decode_failed
 	};
 	self.mode = TOP_NORMAL_MODE;
 	slip_reset(&me);
@@ -156,12 +157,12 @@ int _prep_file(char * name, uint32_t * out_fsize, uint16_t * out_crc, long * out
 	}
 	uint8_t buffer[128];
 	unsigned long tok = 0;
-	long hndl, err, total = 0;
+	long hndl, total = 0;
 	int status = 0;
 	uint16_t crc = 0xFFFFu;
 	SlFsFileInfo_t info;
 	sl_FsGetInfo(name, tok, &info);
-	if(err = sl_FsOpen((unsigned char*)name, FS_MODE_OPEN_READ, &tok, &hndl)){
+	if(sl_FsOpen((unsigned char*)name, FS_MODE_OPEN_READ, &tok, &hndl)){
 		UARTprintf("error opening for read %s.\r\n", name);
 		return -1;
 	}
@@ -186,11 +187,6 @@ int top_board_dfu_begin(const char * bin){
 	int ret;
 	if(self.mode == TOP_NORMAL_MODE){
 		self.mode = TOP_DFU_MODE;
-		/*for (i = 0; i < sizeof(test_bin); i++) {
-			test_bin[i] = i & 0xFFu;
-		}
-
-		*/
 		uint16_t crc;
 		uint32_t len;
 		long handle;
@@ -208,6 +204,7 @@ int top_board_dfu_begin(const char * bin){
 			return ret;
 		}
 	}else{
+		_close_and_reset_dfu();
 		UARTprintf("Already in dfu mode\r\n");
 	}
 	return 0;

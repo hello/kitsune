@@ -1153,7 +1153,6 @@ int Cmd_slip(int argc, char * argv[]){
 		uint8_t * message = hci_encode("hello", strlen("hello") + 1, &len);
 		UARTprintf("Decoded: %s \r\n", hci_decode(message, len, NULL));
 		hci_free(message);
-
 	}
 	return 0;
 }
