@@ -16,44 +16,76 @@
 extern unsigned int sl_status;
 int Cmd_led(int argc, char *argv[]);
 
-static int _get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uint32_t scan_duration_ms)
+
+static int _connect_from_scanned_eps(const char* ssid, const char* password, const Sl_WlanNetworkEntry_t* wifi_endpoints, int scanned_wifi_count)
 {
-    if(scan_duration_ms < 1000)
-    {
-        return 0;
-    }
+	int i = 0;
+	for(i = 0; i < scanned_wifi_count; i++)
+	{
+		Sl_WlanNetworkEntry_t wifi_endpoint = wifi_endpoints[i];
+		if(strcmp((const char*)wifi_endpoint.ssid, ssid) == 0)
+		{
+			SlSecParams_t secParams;
+			memset(&secParams, 0, sizeof(SlSecParams_t));
 
-    unsigned long IntervalVal = 60;
+			if( wifi_endpoint.sec_type == 3 ) {
+				wifi_endpoint.sec_type = 2;
+			}
+			secParams.Key = (signed char*)password;
+			secParams.KeyLen = password == NULL ? 0 : strlen(password);
+			secParams.Type = wifi_endpoint.sec_type;
 
-    unsigned char policyOpt = SL_CONNECTION_POLICY(0, 0, 0, 0, 0);
-    int lRetVal = sl_WlanPolicySet(SL_POLICY_CONNECTION , policyOpt, NULL, 0);
+			SlSecParams_t* secParamsPtr = wifi_endpoint.sec_type == SL_SEC_TYPE_OPEN ? NULL : &secParams;
 
+			// We don't support all the security types in this implementation.
+			int16_t ret = sl_WlanConnect((_i8*)ssid, strlen(ssid), NULL, secParamsPtr, 0);
+			if(ret == 0 || ret == -71)
+			{
+				// To make things simple in the first pass implementation,
+				// we only store one endpoint.
 
-    // enable scan
-    policyOpt = SL_SCAN_POLICY(1);
+				// There is no sl_sl_WlanProfileSet?
+				// So I delete all endpoint first.
+				int16_t del_ret = sl_WlanProfileDel(0xFF);
+				if(del_ret)
+				{
+					UARTprintf("Delete all stored endpoint failed, error %d.\n", del_ret);
+				}else{
+					UARTprintf("All stored WIFI EP removed.\n");
+				}
 
-    // set scan policy - this starts the scan
-    lRetVal = sl_WlanPolicySet(SL_POLICY_SCAN , policyOpt, (unsigned char *)(IntervalVal), sizeof(IntervalVal));
+				// Then add the current one back.
+				int16_t profile_add_ret = sl_WlanProfileAdd((_i8*)ssid, strlen(ssid), NULL, secParamsPtr, NULL, 0, 0);
+				if(profile_add_ret < 0)
+				{
+					UARTprintf("Save connected endpoint failed, error %d.\n", profile_add_ret);
+				}else{
+					uint8_t wait_time = 30;
 
+					sl_status |= CONNECTING;
 
-    // delay specific milli seconds to verify scan is started
-    vTaskDelay(scan_duration_ms);
+					while(wait_time-- && (!(sl_status & HAS_IP)))
+					{
+						Cmd_led(0,0);
+						UARTprintf("Waiting connection....");
+						vTaskDelay(1000);
+					}
 
-    // lRetVal indicates the valid number of entries
-    // The scan results are occupied in netEntries[]
-    lRetVal = sl_WlanGetNetworkList(0, entry_len, entries);
+					if(!wait_time && (!(sl_status & HAS_IP)))
+					{
+						Cmd_led(0,0);
+						UARTprintf("!!WIFI set without network connection.");
+					}
+				}
 
-    // Disable scan
-    policyOpt = SL_SCAN_POLICY(0);
+				return 1;
+			}
 
-    // set scan policy - this stops the scan
-    sl_WlanPolicySet(SL_POLICY_SCAN , policyOpt,
-                            (unsigned char *)(IntervalVal), sizeof(IntervalVal));
+		}
+	}
 
-    return lRetVal;
-
+	return 0;
 }
-
 
 static bool _set_wifi(const char* ssid, const char* password)
 {
@@ -63,10 +95,11 @@ static bool _set_wifi(const char* ssid, const char* password)
     uint8_t retry_count = 10;
 
     sl_status |= SCANNING;
-    int scanned_wifi_count = _get_wifi_scan_result(wifi_endpoints, MAX_WIFI_EP_PER_SCAN, 1000);  // Shall we have a bg thread scan periodically?
+    int scanned_wifi_count = get_wifi_scan_result(wifi_endpoints, MAX_WIFI_EP_PER_SCAN, 1000);  // Shall we have a bg thread scan periodically?
     while(scanned_wifi_count == 0 && retry_count--)
     {
         Cmd_led(0,0);
+        scanned_wifi_count = get_wifi_scan_result(wifi_endpoints, MAX_WIFI_EP_PER_SCAN, 1000);
         UARTprintf("No wifi scanned, retry times remain %d\n", retry_count);
         vTaskDelay(500);
     }
@@ -76,77 +109,29 @@ static bool _set_wifi(const char* ssid, const char* password)
         Cmd_led(0,0);
         sl_status &= ~SCANNING;
     	UARTprintf("No wifi found after retry %d times\n", 10);
-    	return -1;
+    	return 0;
     }
 
-    int i = 0;
-    for(i = 0; i < scanned_wifi_count; i++)
+    //////
+
+    int connection_ret = _connect_from_scanned_eps(ssid, password, wifi_endpoints, scanned_wifi_count);
+    retry_count = 10;
+    while(connection_ret == 0 && retry_count--)
+	{
+		Cmd_led(0,0);
+		connection_ret = _connect_from_scanned_eps(ssid, password, wifi_endpoints, scanned_wifi_count);
+		UARTprintf("Failed to connect, retry times remain %d\n", retry_count);
+		vTaskDelay(500);
+	}
+
+
+    if(!connection_ret)
     {
-        Sl_WlanNetworkEntry_t wifi_endpoint = wifi_endpoints[i];
-        if(strcmp((const char*)wifi_endpoint.ssid, ssid) == 0)
-        {
-            SlSecParams_t secParams;
-            memset(&secParams, 0, sizeof(SlSecParams_t));
-
-            if( wifi_endpoint.sec_type == 3 ) {
-            	wifi_endpoint.sec_type = 2;
-            }
-            secParams.Key = (signed char*)password;
-            secParams.KeyLen = password == NULL ? 0 : strlen(password);
-            secParams.Type = wifi_endpoint.sec_type;
-
-            SlSecParams_t* secParamsPtr = wifi_endpoint.sec_type == SL_SEC_TYPE_OPEN ? NULL : &secParams;
-
-            // We don't support all the security types in this implementation.
-            int16_t ret = sl_WlanConnect((_i8*)ssid, strlen(ssid), NULL, secParamsPtr, 0);
-            if(ret == 0 || ret == -71)
-            {
-                // To make things simple in the first pass implementation, 
-                // we only store one endpoint.
-
-                // There is no sl_sl_WlanProfileSet?
-                // So I delete all endpoint first.
-                int16_t del_ret = sl_WlanProfileDel(0xFF);
-                if(del_ret)
-                {
-                    UARTprintf("Delete all stored endpoint failed, error %d.\n", del_ret);
-                }else{
-                	UARTprintf("All stored WIFI EP removed.\n");
-                }
-
-                // Then add the current one back.
-                int16_t profile_add_ret = sl_WlanProfileAdd((_i8*)ssid, strlen(ssid), NULL, secParamsPtr, NULL, 0, 0);
-                if(profile_add_ret < 0)
-                {
-                    UARTprintf("Save connected endpoint failed, error %d.\n", profile_add_ret);
-                }else{
-                    uint8_t wait_time = 30;
-
-                    sl_status |= CONNECTING;
-
-                    while(wait_time-- && (!(sl_status & HAS_IP)))
-                    {
-                    	Cmd_led(0,0);
-                        UARTprintf("Waiting connection....");
-                        vTaskDelay(1000);
-                    }
-
-                    if(!wait_time && (!(sl_status & HAS_IP)))
-                    {
-                    	Cmd_led(0,0);
-                        UARTprintf("!!WIFI set without network connection.");
-                    }
-                }
-
-                return 1;
-            }
-
-        }
+		UARTprintf("Tried all wifi ep, all failed to connect\n");
+		return 0;
     }
 
-    
-    UARTprintf("Tried all wifi ep, all failed to connect\n");
-    return 0;
+    return 1;
 }
 
 static void _reply_device_id()
