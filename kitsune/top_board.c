@@ -202,15 +202,17 @@ int _prep_file(uint8_t * name, uint32_t * out_fsize, uint16_t * out_crc, long * 
 
 int top_board_dfu_begin(const char * bin){
 	int ret;
+	static char default_file[] = "/top/factory.bin";
+	char * target = bin;
 	if(!bin){
-		return -1;
+		return target = default_file;
 	}
 	if(self.mode == TOP_NORMAL_MODE){
 		self.mode = TOP_DFU_MODE;
 		uint16_t crc;
 		uint32_t len;
 		long handle;
-		ret = _prep_file(bin ,&len, &crc, &handle);
+		ret = _prep_file(target ,&len, &crc, &handle);
 		if(0 == ret){
 			self.dfu_contex.crc = crc;
 			self.dfu_contex.len = len;
@@ -225,7 +227,7 @@ int top_board_dfu_begin(const char * bin){
 		}
 	}else{
 		_close_and_reset_dfu();
-		UARTprintf("Already in dfu mode\r\n");
+		UARTprintf("Already in dfu mode, resetting context\r\n");
 	}
 	return 0;
 
