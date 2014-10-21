@@ -1779,7 +1779,7 @@ int get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uin
         return 0;
     }
 
-    unsigned long IntervalVal = 60;
+    unsigned long IntervalVal = 20;
 
     unsigned char policyOpt = SL_CONNECTION_POLICY(0, 0, 0, 0, 0);
     int lRetVal = sl_WlanPolicySet(SL_POLICY_CONNECTION , policyOpt, NULL, 0);
@@ -1799,12 +1799,19 @@ int get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uin
     // The scan results are occupied in netEntries[]
     lRetVal = sl_WlanGetNetworkList(0, entry_len, entries);
 
+    /*
     // Disable scan
     policyOpt = SL_SCAN_POLICY(0);
 
     // set scan policy - this stops the scan
     sl_WlanPolicySet(SL_POLICY_SCAN , policyOpt,
                             (unsigned char *)(IntervalVal), sizeof(IntervalVal));
+    */
+
+    // Restore connection policy to Auto + SmartConfig
+    //      (Device's default connection policy)
+    sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 1),
+            NULL, 0);
 
     return lRetVal;
 
