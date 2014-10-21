@@ -908,6 +908,7 @@ void SetupGPIOInterrupts() {
 xSemaphoreHandle pill_smphr;
 
 void thread_spi(void * data) {
+	Cmd_spi_read(0, 0);
 	while(1) {
 		if (xSemaphoreTake(spi_smphr, 10000) ) {
 			vTaskDelay(8*10);
@@ -917,6 +918,13 @@ void thread_spi(void * data) {
 			MAP_GPIOIntEnable(GPIO_PORT,GSPI_INT_PIN);
 		}
 	}
+
+	/*
+	while(1) {
+		vTaskDelay(8*10);
+		Cmd_spi_read(0, 0);
+	}
+	*/
 }
 
 #define NUM_LED 12
