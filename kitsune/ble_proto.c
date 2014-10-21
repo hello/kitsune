@@ -16,45 +16,6 @@
 extern unsigned int sl_status;
 int Cmd_led(int argc, char *argv[]);
 
-static int _get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uint32_t scan_duration_ms)
-{
-    if(scan_duration_ms < 1000)
-    {
-        return 0;
-    }
-
-    unsigned long IntervalVal = 60;
-
-    unsigned char policyOpt = SL_CONNECTION_POLICY(0, 0, 0, 0, 0);
-    int lRetVal = sl_WlanPolicySet(SL_POLICY_CONNECTION , policyOpt, NULL, 0);
-
-
-    // enable scan
-    policyOpt = SL_SCAN_POLICY(1);
-
-    // set scan policy - this starts the scan
-    lRetVal = sl_WlanPolicySet(SL_POLICY_SCAN , policyOpt, (unsigned char *)(IntervalVal), sizeof(IntervalVal));
-
-
-    // delay specific milli seconds to verify scan is started
-    vTaskDelay(scan_duration_ms);
-
-    // lRetVal indicates the valid number of entries
-    // The scan results are occupied in netEntries[]
-    lRetVal = sl_WlanGetNetworkList(0, entry_len, entries);
-
-    // Disable scan
-    policyOpt = SL_SCAN_POLICY(0);
-
-    // set scan policy - this stops the scan
-    sl_WlanPolicySet(SL_POLICY_SCAN , policyOpt,
-                            (unsigned char *)(IntervalVal), sizeof(IntervalVal));
-
-    return lRetVal;
-
-}
-
-
 static bool _set_wifi(const char* ssid, const char* password)
 {
     Sl_WlanNetworkEntry_t wifi_endpoints[MAX_WIFI_EP_PER_SCAN];
@@ -63,7 +24,8 @@ static bool _set_wifi(const char* ssid, const char* password)
     uint8_t retry_count = 10;
 
     sl_status |= SCANNING;
-    int scanned_wifi_count = _get_wifi_scan_result(wifi_endpoints, MAX_WIFI_EP_PER_SCAN, 1000);  // Shall we have a bg thread scan periodically?
+    int scanned_wifi_count = get_wifi_scan_result(wifi_endpoints, MAX_WIFI_EP_PER_SCAN, 1000);  // Shall we have a bg thread scan periodically?
+
     while(scanned_wifi_count == 0 && retry_count--)
     {
         Cmd_led(0,0);
