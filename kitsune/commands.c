@@ -221,10 +221,16 @@ int Cmd_fs_read(int argc, char *argv[]) {
 		UARTprintf("error opening for read %d\n", err);
 		return -1;
 	}
-
-	if (bytes = sl_FsRead(hndl, 0, (unsigned char*)buffer, minval(info.FileLen, BUF_SZ))) {
-		UARTprintf("read %d bytes\n", bytes);
+	if( argc >= 3 ){
+		if (bytes = sl_FsRead(hndl, atoi(argv[2]), (unsigned char*)buffer, minval(info.FileLen, BUF_SZ))) {
+						UARTprintf("read %d bytes\n", bytes);
+					}
+	}else{
+		if (bytes = sl_FsRead(hndl, 0, (unsigned char*)buffer, minval(info.FileLen, BUF_SZ))) {
+						UARTprintf("read %d bytes\n", bytes);
+					}
 	}
+
 
 	sl_FsClose(hndl, 0, 0, 0);
 
@@ -1135,6 +1141,8 @@ int Cmd_led_clr(int argc, char *argv[]) {
 	return 0;
 }
 
+#include "top_hci.h"
+
 int Cmd_slip(int argc, char * argv[]){
 	uint32_t len, llen;
 	if(argc >= 2){
@@ -1151,7 +1159,7 @@ int Cmd_slip(int argc, char * argv[]){
 }
 
 int Cmd_dfu(int argc, char *argv[]){
-	top_board_dfu_begin();
+	top_board_dfu_begin("/top/update.bin");
 	return 0;
 }
 

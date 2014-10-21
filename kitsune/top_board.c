@@ -72,7 +72,7 @@ static void
 _on_slip_message(uint8_t * c, uint32_t size){
 
 	char * msg;
-	uint32_t err = hci_decode(c, size, &self.handler);
+	uint32_t err = hci_decode(c, size, &self.hci_handler);
 
 
 	//move below to ack
@@ -119,7 +119,7 @@ int top_board_task(void){
 			.slip_on_message = _on_slip_message,
 			.slip_put_char = _sendchar
 	};
-	self.hci_handler = {
+	self.hci_handler = (hci_decode_handler_t){
 			.on_message = _on_message,
 			.on_failed = _on_failed
 	};
@@ -135,7 +135,7 @@ int top_board_task(void){
 	return 1;
 }
 
-int top_board_dfu_begin(void){
+int top_board_dfu_begin(const char * bin){
 	uint32_t i;
 	if(self.mode == TOP_NORMAL_MODE){
 		self.mode = TOP_DFU_MODE;

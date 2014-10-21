@@ -1,8 +1,8 @@
 /**
  * Top board control daemon
  */
-#ifndef TOP_BOARD_H
-#define TOP_BOARD_H
+#ifndef TOP_HCI_H
+#define TOP_HCI_H
 
 #include <stdint.h>
 
