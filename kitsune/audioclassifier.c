@@ -34,7 +34,7 @@
 #endif
 
 
-#define CHUNK_BUF_SIZE_2N (6)
+#define CHUNK_BUF_SIZE_2N (1)
 #define CHUNK_BUF_SIZE (1 << CHUNK_BUF_SIZE_2N)
 #define CHUNK_BUF_MASK (CHUNK_BUF_SIZE - 1)
 
