@@ -275,7 +275,7 @@ void watchdog_thread(void* unused){
 //							MAIN FUNCTION
 //*****************************************************************************
 void main()
- {
+{
   //
   // Board Initialization
 
@@ -288,6 +288,10 @@ void main()
   //
   PinMuxConfig();
 
+  //
+  // Initialize the UART for console I/O.
+  //
+  UARTStdioInit(0);
   //
   // Set the SD card clock as output pin
   //
