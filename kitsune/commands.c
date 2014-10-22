@@ -1195,9 +1195,9 @@ int Cmd_led_clr(int argc, char *argv[]) {
 #include "top_hci.h"
 
 int Cmd_slip(int argc, char * argv[]){
-	uint32_t len, llen;
+	uint32_t len;
 	if(argc >= 2){
-		uint8_t * message = hci_encode(argv[1], strlen(argv[1]) + 1, &len);
+		uint8_t * message = hci_encode((uint8_t*)argv[1], strlen(argv[1]) + 1, &len);
 		UARTprintf("Decoded: %s \r\n", hci_decode(message, len, NULL));
 		hci_free(message);
 	}else{
@@ -1414,7 +1414,7 @@ void vUARTTask(void *pvParameters) {
 		UARTprintf("Failed to create the data_queue.\n");
 	}
 
-	xTaskCreate(loopback_uart, "loopback_uart", 1024 / 4, NULL, 4, NULL); //todo reduce stack
+	xTaskCreate(loopback_uart, "loopback_uart", 1024 / 4, NULL, 2, NULL); //todo reduce stack
 
 	xTaskCreate(thread_audio, "audioTask", 5 * 1024 / 4, NULL, 4, NULL); //todo reduce stack
 	UARTprintf("*");

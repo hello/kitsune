@@ -173,8 +173,13 @@ int top_board_task(void){
 			38400,
 			(UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE));
 	while (1) {
-		uint8_t c = UARTCharGet(UARTA1_BASE);
-		slip_handle_rx(c);
+		while( UARTCharsAvail(UARTA1_BASE)) {
+			uint8_t c = UARTCharGetNonBlocking(UARTA1_BASE);
+			if( c != -1 ) {
+				slip_handle_rx(c);
+			}
+		}
+		vTaskDelay(1);
 	}
 	return 1;
 }
