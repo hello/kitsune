@@ -11,6 +11,9 @@
 #include "fs.h"
 #include "uartstdio.h"
 
+#include "FreeRTOS.h"
+#include "task.h"
+
 typedef enum {
 	DFU_INVALID_PACKET = 0,
 	DFU_INIT_PACKET = 1,
@@ -66,7 +69,7 @@ _next_file_data_block(uint8_t * write_buf, uint32_t buffer_size, uint32_t * out_
 static void
 _on_message(uint8_t * message_body, uint32_t body_length){
 	UARTprintf("Got a SLIP message: %s\r\n", message_body);
-	if(!strncmp("DFUBEGIN",message_body, body_length)){
+	if(!strncmp("DFUBEGIN",(char*)message_body, body_length)){
 		//delay is necessary because top board is slower.
 		vTaskDelay(4000);
 		if(0 != top_board_dfu_begin("/top/update.bin")){
@@ -174,14 +177,13 @@ int top_board_task(void){
 			(UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE));
 	while (1) {
 		while( UARTCharsAvail(UARTA1_BASE)) {
-			uint8_t c = UARTCharGetNonBlocking(UARTA1_BASE);
+			int8_t c = UARTCharGetNonBlocking(UARTA1_BASE);
 			if( c != -1 ) {
 				slip_handle_rx(c);
 			}
 		}
 		vTaskDelay(1);
 	}
-	return 1;
 }
 static int _prep_file(const char * name, uint32_t * out_fsize, uint16_t * out_crc, long * out_handle){
 	if(!out_fsize || !out_crc){
