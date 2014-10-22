@@ -99,6 +99,6 @@ int connect_scanned_endpoints(const char* ssid, const char* password,
 //#define MORPH_NAME "Chris's morpheus"
 #define MORPH_NAME "test morpheus 10"
 //#define MORPH_NAME "test morpheus 80"
-#define KIT_VER 8
+#define KIT_VER 9
 
 #endif
