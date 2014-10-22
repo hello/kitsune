@@ -50,16 +50,8 @@ static portTickType _readMaxDelay = portMAX_DELAY;
 static uint8_t _isCapturing = 0;
 static int64_t _callCounter;
 
-static void SegmentCallback(const int16_t * mfcc, const Segment_t * pSeg) {
-	AudioFeatureMessage_t message;
-
-	memcpy(message.feat,mfcc,NUM_AUDIO_FEATURES*sizeof(int16_t));
-	memcpy(&message.seg,pSeg,sizeof(Segment_t));
-
-	UARTprintf("audio segment of duration %d counts,\n",pSeg->duration);
-
-	AudioProcessingTask_AddMessageToQueue(&message);
-
+static void DataCallback(AudioFeatures_t * pfeats) {
+	AudioProcessingTask_AddMessageToQueue(pfeats);
 }
 
 void AudioCaptureTask_Init(void) {
@@ -103,7 +95,7 @@ void AudioCaptureTask_Init(void) {
 	AudioCaptureRendererConfigure(I2S_PORT_DMA,AUDIO_RATE);
 
 	//Initialize the audio features processing
-	AudioFeatures_Init(SegmentCallback);
+	AudioFeatures_Init(DataCallback);
 
 	UARTprintf("INIT AUDIO PROCESSING\n");
 

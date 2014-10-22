@@ -13,7 +13,7 @@ void AudioClassifier_Init(RecordAudioCallback_t recordfunc,MutexCallback_t lockf
 
 void AudioClassifier_DeserializeClassifier(pb_istream_t * stream);
     
-void AudioClassifier_DataCallback(int64_t samplecount, const AudioFeatures_t * pfeats);
+void AudioClassifier_DataCallback(const AudioFeatures_t * pfeats);
 
 uint32_t AudioClassifier_GetSerializedBuffer(pb_ostream_t * stream,const char * macbytes, uint32_t unix_time,const char * tags, const char * source);
 

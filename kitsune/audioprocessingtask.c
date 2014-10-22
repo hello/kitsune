@@ -12,25 +12,24 @@ static void RecordCallback(const RecordAudioRequest_t * request) {
 }
 
 void AudioProcessingTask_Init(void) {
-	_queue = xQueueCreate(INBOX_QUEUE_LENGTH,sizeof( AudioFeatureMessage_t ) );
+	_queue = xQueueCreate(INBOX_QUEUE_LENGTH,sizeof( AudioFeatures_t ) );
 
 	AudioClassifier_Init(RecordCallback,0,0);
 }
 
-void AudioProcessingTask_AddMessageToQueue(const AudioFeatureMessage_t * message) {
-	xQueueSend(_queue,message,0);
+void AudioProcessingTask_AddMessageToQueue(const AudioFeatures_t * feat) {
+	xQueueSend(_queue,feat,0);
 }
 
 
 void AudioProcessingTask_Thread(void * data) {
-	AudioFeatureMessage_t message;
+	AudioFeatures_t message;
 
 	for( ;; ) {
 		/* Wait until we get a message */
         xQueueReceive( _queue,(void *) &message, portMAX_DELAY );
 
-        AudioClassifier_SegmentCallback(message.feat,&message.seg);
-
+        AudioClassifier_DataCallback(&message);
 
 	}
 }
