@@ -7,14 +7,14 @@
 #define INBOX_QUEUE_LENGTH (3)
 static xQueueHandle _queue = NULL;
 
-static void NoveltyCallback(void) {
+static void RecordCallback(const RecordAudioRequest_t * request) {
 	/* Go tell audio capture task to write to disk as it captures */
 }
 
 void AudioProcessingTask_Init(void) {
 	_queue = xQueueCreate(INBOX_QUEUE_LENGTH,sizeof( AudioFeatureMessage_t ) );
 
-	AudioClassifier_Init(4,NoveltyCallback,0,0);
+	AudioClassifier_Init(RecordCallback,0,0);
 }
 
 void AudioProcessingTask_AddMessageToQueue(const AudioFeatureMessage_t * message) {

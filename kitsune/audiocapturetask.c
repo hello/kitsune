@@ -23,6 +23,8 @@
 #include "udma.h"
 #include "pcm_handler.h"
 #include "i2c_cmd.h"
+#include "i2s.h"
+
 
 
 
@@ -30,6 +32,10 @@
 
 #define INBOX_QUEUE_LENGTH (5)
 #define LOOP_DELAY_WHILE_PROCESSING_IN_TICKS (1)
+
+#define AUDIO_RATE 16000
+static const unsigned int CPU_XDATA = 1; //1: enabled CPU interrupt triggerred
+
 
 /* externs */
 extern tCircularBuffer *pTxBuffer;
@@ -80,7 +86,7 @@ void AudioCaptureTask_Init(void) {
 	get_codec_mic_NAU();
 
 	// Initialize the Audio(I2S) Module
-	AudioCapturerInit();
+	AudioCapturerInit(CPU_XDATA,AUDIO_RATE);
 
 	// Initialize the DMA Module
 	UDMAInit();
@@ -94,7 +100,7 @@ void AudioCaptureTask_Init(void) {
 	// Setup the Audio In/Out
 	//
 	AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
-	AudioCaptureRendererConfigure();
+	AudioCaptureRendererConfigure(I2S_PORT_DMA,AUDIO_RATE);
 
 	//Initialize the audio features processing
 	AudioFeatures_Init(SegmentCallback);
@@ -249,7 +255,7 @@ void AudioCaptureTask_Thread(void * data) {
 				/* process audio to get features.  This takes a finite amount of time, by the way. */
 				t1 = xTaskGetTickCount();
 				//do audio feature processing
-				energy = AudioFeatures_SetAudioData(samples,_callCounter++);
+				AudioFeatures_SetAudioData(samples,_callCounter++);
 				t2 = xTaskGetTickCount();
 
 			  	//UARTprintf("dt = %d, compute=%d\n",dt,t2-t1); //vTaskDelay(5);
