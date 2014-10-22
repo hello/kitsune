@@ -178,17 +178,17 @@ int top_board_task(void){
 	}
 	return 1;
 }
-int _prep_file(uint8_t * name, uint32_t * out_fsize, uint16_t * out_crc, long * out_handle){
+static int _prep_file(const char * name, uint32_t * out_fsize, uint16_t * out_crc, long * out_handle){
 	if(!out_fsize || !out_crc){
 		return -1;
 	}
-	uint8_t buffer[128];
+	unsigned char buffer[128] = {0};
 	unsigned long tok = 0;
 	long hndl, total = 0;
 	int status = 0;
 	uint16_t crc = 0xFFFFu;
 	SlFsFileInfo_t info;
-	sl_FsGetInfo(name, tok, &info);
+	sl_FsGetInfo((unsigned char*)name, tok, &info);
 	if(sl_FsOpen((unsigned char*)name, FS_MODE_OPEN_READ, &tok, &hndl)){
 		UARTprintf("error opening for read %s.\r\n", name);
 		return -1;
@@ -212,11 +212,12 @@ int _prep_file(uint8_t * name, uint32_t * out_fsize, uint16_t * out_crc, long * 
 
 int top_board_dfu_begin(const char * bin){
 	int ret;
-	static char default_file[] = "/top/factory.bin";
-	char * target = bin;
+
+	char * target = (char*)bin;
 	if(!bin){
-		return target = default_file;
+		return -1;
 	}
+
 	if(self.mode == TOP_NORMAL_MODE){
 		self.mode = TOP_DFU_MODE;
 		uint16_t crc;
