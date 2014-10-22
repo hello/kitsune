@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+typedef void (*CommandCompleteNotification)(void);
+
 typedef enum {
 	eAudioCaptureCarryOnAsUsual,
 	eAudioCaptureTurnOn,
@@ -14,11 +16,9 @@ typedef enum {
 typedef struct {
 	EAudioCaptureCommand_t command;
 	uint32_t captureduration;
-
+	CommandCompleteNotification fpCommandComplete;
 
 } AudioCaptureMessage_t;
-
-void AudioCaptureTask_Init(void);
 
 void AudioCaptureTask_Thread(void * data);
 

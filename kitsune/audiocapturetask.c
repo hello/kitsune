@@ -27,6 +27,7 @@
 
 
 
+#define AUDIO_DEBUG_MESSAGES
 
 #define SWAP_ENDIAN
 
@@ -49,56 +50,102 @@ static uint32_t _captureCounter;
 static portTickType _readMaxDelay = portMAX_DELAY;
 static uint8_t _isCapturing = 0;
 static int64_t _callCounter;
+static CommandCompleteNotification _fpLastCommandComplete;
 
-static void DataCallback(AudioFeatures_t * pfeats) {
-	AudioProcessingTask_AddMessageToQueue(pfeats);
+static void DataCallback(const AudioFeatures_t * pfeats) {
+	//AudioProcessingTask_AddMessageToQueue(pfeats);
 }
 
-void AudioCaptureTask_Init(void) {
+
+static void CreateTxBuffer(void) {
+	// Create TX Buffer
+	if (!pTxBuffer) {
+
+#ifdef AUDIO_DEBUG_MESSAGES
+		UARTprintf("tx buffer created\n");
+		vTaskDelay(5);
+#endif
+
+		pTxBuffer = CreateCircularBuffer(TX_BUFFER_SIZE);
+		if(pTxBuffer == NULL)
+		{
+			UARTprintf("Unable to Allocate Memory for Tx Buffer\n\r");
+		}
+	}
+}
+
+static void DeleteTxBuffer(void) {
+	if (pTxBuffer) {
+		DestroyCircularBuffer(pTxBuffer);
+		pTxBuffer = NULL;
+
+#ifdef AUDIO_DEBUG_MESSAGES
+		UARTprintf("tx buffer destroyed\n");
+		vTaskDelay(5);
+#endif
+	}
+}
+
+static void Init(void) {
 	_readMaxDelay = portMAX_DELAY;
 	_isCapturing = 0;
 	_callCounter = 0;
-	_queue = xQueueCreate(INBOX_QUEUE_LENGTH,sizeof(AudioCaptureMessage_t));
+	_fpLastCommandComplete = NULL;
 
-	// Create RX and TX Buffer
-	//
-	pTxBuffer = CreateCircularBuffer(TX_BUFFER_SIZE);
-	if(pTxBuffer == NULL)
-	{
-		UARTprintf("Unable to Allocate Memory for Tx Buffer\n\r");
-	    while(1){};
+	if (!_queue) {
+		_queue = xQueueCreate(INBOX_QUEUE_LENGTH,sizeof(AudioCaptureMessage_t));
 	}
 
+	CreateTxBuffer();
 
-
+#ifdef AUDIO_DEBUG_MESSAGES
+	UARTprintf("get nau\n");
+	vTaskDelay(5);
+#endif
 	// Configure Audio Codec
-	//
-
-
 	get_codec_mic_NAU();
+
+#ifdef AUDIO_DEBUG_MESSAGES
+	UARTprintf("capturer init\n");
+	vTaskDelay(5);
+#endif
 
 	// Initialize the Audio(I2S) Module
 	AudioCapturerInit(CPU_XDATA,AUDIO_RATE);
 
+#ifdef AUDIO_DEBUG_MESSAGES
+	UARTprintf("udma init\n");
+	vTaskDelay(5);
+#endif
 	// Initialize the DMA Module
 	UDMAInit();
 	UDMAChannelSelect(UDMA_CH4_I2S_RX, NULL);
 	UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL);
 
-	//
+#ifdef AUDIO_DEBUG_MESSAGES
+	UARTprintf("pingpong init\n");
+	vTaskDelay(5);
+#endif
 	// Setup the DMA Mode
-	//
 	SetupPingPongDMATransferTx();
+
+#ifdef AUDIO_DEBUG_MESSAGES
+	UARTprintf("capturer init\n");
+	vTaskDelay(5);
+#endif
 	// Setup the Audio In/Out
-	//
 	AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
 	AudioCaptureRendererConfigure(I2S_PORT_DMA,AUDIO_RATE);
 
 	//Initialize the audio features processing
 	AudioFeatures_Init(DataCallback);
 
+#ifdef AUDIO_DEBUG_MESSAGES
 	UARTprintf("INIT AUDIO PROCESSING\n");
+	vTaskDelay(5);
+#endif
 
+	DeleteTxBuffer();
 
 }
 
@@ -109,7 +156,6 @@ void AudioCaptureTask_Thread(void * data) {
 	WORD bytes_written = 0;
 	const WORD bytes_to_write = PACKET_SIZE/4 * sizeof(int16_t);
 	const char* file_name = "/POD101";
-	int16_t energy;
 	FIL file_obj;
 	FILINFO file_info;
 	memset(&file_obj, 0, sizeof(file_obj));
@@ -119,13 +165,18 @@ void AudioCaptureTask_Thread(void * data) {
 	unsigned long t0,t1,t2,dt;
 	FRESULT res;
 	int iBufferFilled = 0;
-
-
-	UARTprintf("STARTING AUDIO THREAD\n");
-
-
 	uint8_t * ptr_samples_bytes = (uint8_t *)&samples[0];
 	const uint8_t * const_ptr_samples_bytes = (const uint8_t *)&samples[0];
+
+#ifdef AUDIO_DEBUG_MESSAGES
+	UARTprintf("INITIALIZING AUDIO THREAD\n");
+	vTaskDelay(5);
+#endif
+
+	/* Create everything, except the buffer (which we want to recycle)  */
+	Init();
+
+
 
 	for (; ;) {
 		AudioCaptureMessage_t  message;
@@ -140,8 +191,11 @@ void AudioCaptureTask_Thread(void * data) {
 
 			case eAudioCaptureTurnOn:
 			{
-				UARTprintf("turning on audio....\n");
-
+#ifdef AUDIO_DEBUG_MESSAGES
+				UARTprintf("turn on audio\n");
+				vTaskDelay(5);
+#endif
+				CreateTxBuffer();
 				Audio_Start();
 				vTaskDelay(5);
 
@@ -154,8 +208,10 @@ void AudioCaptureTask_Thread(void * data) {
 
 			case eAudioCaptureTurnOff:
 			{
-				UARTprintf("turning off audio....\n");
-
+#ifdef AUDIO_DEBUG_MESSAGES
+				UARTprintf("turn off audio\n");
+				vTaskDelay(5);
+#endif
 				Audio_Stop();
 				vTaskDelay(5);
 
@@ -168,13 +224,15 @@ void AudioCaptureTask_Thread(void * data) {
 					memset(&file_obj, 0, sizeof(file_obj));
 				}
 
+				DeleteTxBuffer();
+
 				break;
 			}
 
 			case eAudioCaptureSaveToDisk:
 			{
 				uint8_t isNewRequest = 0;
-
+				_fpLastCommandComplete = message.fpCommandComplete;
 				UARTprintf("saving %d samples of audio....\n",message.captureduration);
 
 				if (_captureCounter == 0) {
@@ -273,14 +331,23 @@ void AudioCaptureTask_Thread(void * data) {
 
 					_captureCounter--;
 
+#ifdef AUDIO_DEBUG_MESSAGES
 					if (_captureCounter % 20 == 0) {
 						UARTprintf("%d more frames to capture\n",_captureCounter);
 					}
+#endif
 
 					if (_captureCounter == 0) {
 						f_close(file_ptr);
 						memset(&file_obj, 0, sizeof(file_obj));
-						UARTprintf("done capturing!\n");
+#ifdef AUDIO_DEBUG_MESSAGES
+						UARTprintf("done capturing\n");
+#endif
+						if (_fpLastCommandComplete) {
+							_fpLastCommandComplete();
+						}
+
+
 					}
 				}
 			}
@@ -291,8 +358,6 @@ void AudioCaptureTask_Thread(void * data) {
 
 
 void AudioCaptureTask_AddMessageToQueue(const AudioCaptureMessage_t * message) {
-	//UARTprintf("AudioCaptureTask_AddMessageToQueue - 1\n");
 	xQueueSend(_queue,message,0);
-	//UARTprintf("AudioCaptureTask_AddMessageToQueue - 2\n");
 }
 
