@@ -1104,7 +1104,7 @@ int Cmd_led(int argc, char *argv[]) {
 
 	now = xTaskGetTickCount();
 
-	if( now - last_time < 1000 ) {
+	if( now - last_time < 2000 ) {
 		return 0;
 	}
 	last_time = now;

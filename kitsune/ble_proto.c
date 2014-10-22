@@ -28,7 +28,7 @@ static bool _set_wifi(const char* ssid, const char* password)
 
     sl_status |= SCANNING;
     
-    while((scanned_wifi_count = get_wifi_scan_result(wifi_endpoints, MAX_WIFI_EP_PER_SCAN, 1000)) == 0 && retry_count--)
+    while((scanned_wifi_count = get_wifi_scan_result(wifi_endpoints, MAX_WIFI_EP_PER_SCAN, 1000)) == 0 && --retry_count)
     {
         Cmd_led(0,0);
         UARTprintf("No wifi scanned, retry times remain %d\n", retry_count);
@@ -48,7 +48,7 @@ static bool _set_wifi(const char* ssid, const char* password)
     retry_count = 10;
     SlSecParams_t secParams = {0};
 
-    while((connection_ret = connect_scanned_endpoints(ssid, password, wifi_endpoints, scanned_wifi_count, &secParams)) == 0 && retry_count--)
+    while((connection_ret = connect_scanned_endpoints(ssid, password, wifi_endpoints, scanned_wifi_count, &secParams)) == 0 && --retry_count)
 	{
 		Cmd_led(0,0);
 		UARTprintf("Failed to connect, retry times remain %d\n", retry_count);
@@ -61,21 +61,22 @@ static bool _set_wifi(const char* ssid, const char* password)
 		UARTprintf("Tried all wifi ep, all failed to connect\n");
 		return 0;
     }else{
-		uint8_t wait_time = 30;
+		uint8_t wait_time = 10;
 
 		sl_status |= CONNECTING;
 
-		while(wait_time-- && (!(sl_status & HAS_IP)))
+		while(--wait_time && (!(sl_status & HAS_IP)))
 		{
 			Cmd_led(0,0);
-			UARTprintf("Waiting connection....");
+			UARTprintf("Retrieving IP address...\n");
 			vTaskDelay(1000);
 		}
 
-		if(!wait_time && (!(sl_status & HAS_IP)))
+		if(!(sl_status & HAS_IP))
 		{
 			Cmd_led(0,0);
 			UARTprintf("!!WIFI set without network connection.");
+			return 0;
 		}
     }
 
@@ -381,6 +382,10 @@ void on_ble_protobuf_command(MorpheusCommand* command)
             const char* ssid = command->wifiSSID.arg;
             char* password = command->wifiPassword.arg;
 
+            sl_WlanDisconnect();
+            while(sl_status&HAS_IP) {
+            	vTaskDelay(1);
+            }
             // I can get the Mac address as well, but not sure it is necessary.
 
             // Just call API to connect to WIFI.
