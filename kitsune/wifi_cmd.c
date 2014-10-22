@@ -1204,6 +1204,57 @@ bool encode_name(pb_ostream_t *stream, const pb_field_t *field, void * const *ar
                     strlen(MORPH_NAME));
 }
 
+static void _on_alarm_received(const SyncResponse_Alarm* alarm)
+{
+    if (xSemaphoreTake(alarm_smphr, portMAX_DELAY)) {
+        if (alarm->has_start_time && alarm->start_time > 0) {
+            if (get_time() > alarm->start_time) {
+                // This approach is error prond: We got information from two different sources
+                // and expect them consistent. The time in our server might be different with NTP.
+                // I am going to redesign this, instead of returning start/end timestamp, the backend
+                // will retrun the offset seconds from now to the next ring and the ring duration.
+                // So we don't need to care the actual time of 'Now'.
+                int duration = alarm->end_time - alarm->start_time;
+                alarm->start_time = get_time();
+                alarm->end_time = alarm->start_time + duration;
+            }
+            UARTprintf("Got alarm %d to %d in %d minutes\n",
+                    alarm->start_time, alarm->end_time,
+                    (alarm->start_time - get_time()) / 60);
+        }else{
+            UARTprintf("No alarm for now.\n");
+        }
+
+        xSemaphoreGive(alarm_smphr);
+    }
+}
+
+static void _on_factory_reset_received()
+{
+    // hehe I am going to disconnect WLAN here, don't kill me Chris
+    _wifi_reset();
+
+    // Notify the topboard factory reset, wipe out all whitelist info
+    MorpheusCommand morpheusCommand = {0};
+    morpheusCommand.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_FACTORY_RESET;
+    morpheusCommand.version = PROTOBUF_VERSION;
+    ble_send_protobuf(&morpheusCommand);  // Send the protobuf to topboard
+}
+
+static void _on_response_protobuf(const SyncResponse* response_protobuf)
+{
+    if (response_protobuf->has_alarm) {
+        _on_alarm_received(&response_protobuf->alarm);
+        alarm = response_protobuf->alarm;  // I may redesign this in the next PR
+    }
+
+    if(response_protobuf->has_reset_device && response_protobuf->reset_device){
+        UARTprintf("Server factory reset.\n");
+        
+        
+    }
+}
+
 int send_periodic_data( data_t * data ) {
     char buffer[256] = {0};
     periodic_data msg = {0};
@@ -1259,11 +1310,13 @@ int send_periodic_data( data_t * data ) {
     if (http_response_ok(buffer) != 1) {
     	sl_status &= ~UPLOADING;
         UARTprintf("Invalid response, endpoint return failure.\n");
+        return -1;
     }
     
     if (len_str == NULL) {
     	sl_status &= ~UPLOADING;
         UARTprintf("Failed to find Content-Length header\n");
+        return -1;
     }
     int len = atoi(len_str);
     
@@ -1279,34 +1332,7 @@ int send_periodic_data( data_t * data ) {
         response_protobuf.has_device_sampling_interval,
         response_protobuf.has_flash_action);
 
-		if (response_protobuf.has_alarm) {
-
-			if (xSemaphoreTake(alarm_smphr, portMAX_DELAY)) {
-				alarm = response_protobuf.alarm;
-
-				if (alarm.has_start_time && alarm.start_time > 0) {
-					if (get_time() > alarm.start_time) {
-						int duration = alarm.end_time - alarm.start_time;
-						alarm.start_time = get_time();
-						alarm.end_time = alarm.start_time + duration;
-					}
-					UARTprintf("Got alarm %d to %d in %d minutes\n",
-							alarm.start_time, alarm.end_time,
-							(alarm.start_time - get_time()) / 60);
-				}else{
-                    UARTprintf("No alarm for now.\n");
-                }
-
-				xSemaphoreGive(alarm_smphr);
-			}
-        }
-
-        if(response_protobuf.has_reset_device && response_protobuf.reset_device){
-            UARTprintf("Server factory reset.\n");
-            // hehe I am going to disconnect WLAN here, don't kill me Chris
-            _wifi_reset();
-            
-        }
+		_on_response_protobuf(&response_protobuf);
         upload_success = 1;
         //now act on incoming data!
     }
@@ -1346,6 +1372,8 @@ int send_periodic_data( data_t * data ) {
 
     return ret;
 }
+
+
 
 int Cmd_data_upload(int arg, char* argv[])
 {
@@ -1800,13 +1828,14 @@ int get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uin
         return 0;
     }
 
-    unsigned long IntervalVal = 60;
+    unsigned long IntervalVal = 20;
 
     unsigned char policyOpt = SL_CONNECTION_POLICY(0, 0, 0, 0, 0);
-    int lRetVal = sl_WlanPolicySet(SL_POLICY_CONNECTION , policyOpt, NULL, 0);
+    int lRetVal;
 
+    lRetVal = sl_WlanPolicySet(SL_POLICY_CONNECTION , policyOpt, NULL, 0);
 
-    // enable scan
+    // Make sure scan is enabled
     policyOpt = SL_SCAN_POLICY(1);
 
     // set scan policy - this starts the scan
@@ -1820,15 +1849,70 @@ int get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uin
     // The scan results are occupied in netEntries[]
     lRetVal = sl_WlanGetNetworkList(0, entry_len, entries);
 
-    // Disable scan
-    policyOpt = SL_SCAN_POLICY(0);
-
-    // set scan policy - this stops the scan
-    sl_WlanPolicySet(SL_POLICY_SCAN , policyOpt,
-                            (unsigned char *)(IntervalVal), sizeof(IntervalVal));
+    // Restore connection policy to Auto + SmartConfig
+    //      (Device's default connection policy)
+    sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 1),
+            NULL, 0);
 
     return lRetVal;
 
+}
+
+int connect_scanned_endpoints(const char* ssid, const char* password, 
+    const Sl_WlanNetworkEntry_t* wifi_endpoints, int scanned_wifi_count, SlSecParams_t* connectedEPSecParamsPtr)
+{
+	int16_t ret;
+	if(!connectedEPSecParamsPtr)
+	{
+		return 0;
+	}
+
+    int i = 0;
+
+    for(i = 0; i < scanned_wifi_count; i++)
+    {
+        Sl_WlanNetworkEntry_t wifi_endpoint = wifi_endpoints[i];
+        if(strcmp((const char*)wifi_endpoint.ssid, ssid) == 0)
+        {
+            memset(connectedEPSecParamsPtr, 0, sizeof(SlSecParams_t));
+
+            if( wifi_endpoint.sec_type == 3 ) {
+                wifi_endpoint.sec_type = 2;
+            }
+            connectedEPSecParamsPtr->Key = (signed char*)password;
+            connectedEPSecParamsPtr->KeyLen = password == NULL ? 0 : strlen(password);
+            connectedEPSecParamsPtr->Type = wifi_endpoint.sec_type;
+
+			// We don't support all the security types in this implementation.
+            // There is no sl_sl_WlanProfileSet?
+            // So I delete all endpoint first.
+			int16_t index;
+			int retry = 5;
+
+			while((index = sl_WlanProfileAdd((_i8*) ssid, strlen(ssid), NULL,
+					connectedEPSecParamsPtr, NULL, 0, 0)) < 0 && retry--){
+				ret = sl_WlanProfileDel(0xFF);
+				if (ret != 0) {
+					UARTprintf("profile del fail\n");
+				}
+			}
+
+			if (index < 0) {
+                UARTprintf("profile add fail\n");
+                return 0;
+			}
+			ret = sl_WlanConnect((_i8*) ssid, strlen(ssid), NULL, wifi_endpoint.sec_type == SL_SEC_TYPE_OPEN ? NULL : connectedEPSecParamsPtr, 0);
+            if(ret == 0 || ret == -71)
+            {
+                UARTprintf("WLAN connect attempt issued\n");
+
+                return 1;
+            }
+
+        }
+    }
+
+    return 0;
 }
 
 

@@ -555,7 +555,6 @@ static xSemaphoreHandle light_smphr;
 
 void thread_fast_i2c_poll(void * unused)  {
 	int last_prox =0;
-	unsigned int last_led =0;
 	while (1) {
 		portTickType now = xTaskGetTickCount();
 		int light;
@@ -576,11 +575,7 @@ void thread_fast_i2c_poll(void * unused)  {
 				}
 				xSemaphoreGive(alarm_smphr);
 				//Audio_Stop();
-
-				if( now - last_led > 5000 ){
-					Cmd_led(0,0);
-					last_led = now;
-				}
+				Cmd_led(0,0);
 			}
 			last_prox = prox;
 
@@ -900,7 +895,7 @@ void SetupGPIOInterrupts() {
     port = GPIO_PORT;
     pin = /*RTC_INT_PIN |*/ GSPI_INT_PIN;
 #if !ONLY_MID
-	//GPIO_IF_ConfigureNIntEnable( port, pin, GPIO_HIGH_LEVEL, nordic_prox_int );
+	GPIO_IF_ConfigureNIntEnable( port, pin, GPIO_HIGH_LEVEL, nordic_prox_int );
 	//only one interrupt per port...
 #endif
 }
@@ -908,6 +903,7 @@ void SetupGPIOInterrupts() {
 xSemaphoreHandle pill_smphr;
 
 void thread_spi(void * data) {
+	Cmd_spi_read(0, 0);
 	while(1) {
 		if (xSemaphoreTake(spi_smphr, 10000) ) {
 			vTaskDelay(8*10);
@@ -917,6 +913,13 @@ void thread_spi(void * data) {
 			MAP_GPIOIntEnable(GPIO_PORT,GSPI_INT_PIN);
 		}
 	}
+
+	/*
+	while(1) {
+		vTaskDelay(8*10);
+		Cmd_spi_read(0, 0);
+	}
+	*/
 }
 
 #define NUM_LED 12
@@ -994,8 +997,8 @@ void led_fast( unsigned int* color ) {
 				}
 			}
 		}
-		if( ++color == end ) {
-			break;
+		if( ++color > end ) {
+			return;
 		}
 	}
 }
@@ -1027,8 +1030,8 @@ void led_slow(unsigned int* color) {
 				}
 			}
 		}
-		if (++color == end) {
-			break;
+		if (++color > end) {
+			return;
 		}
 	}
 }
@@ -1045,13 +1048,9 @@ void led_array(unsigned int * colors) {
 	bool fast = MAP_GPIOPinRead(LED_GPIO_BASE_DOUT, LED_GPIO_BIT_DOUT);
 	ulInt = MAP_IntMasterDisable();
 	if (fast) {
-		for (i = 0; i < NUM_LED; ++i) {
-			led_fast(colors + i);
-		}
+		led_fast(colors);
 	} else {
-		for (i = 0; i < NUM_LED; ++i) {
-			led_slow(colors + i);
-		}
+		led_slow(colors);
 	}
 	if (!ulInt) {
 		MAP_IntMasterEnable();
@@ -1093,12 +1092,22 @@ int Cmd_led(int argc, char *argv[]) {
 	int i,select;
 	unsigned int* colors;
 
-	unsigned int colors_blue[NUM_LED]= {0x00002,0x000004,0x000008,0x000010,0x000020,0x000040,0x000080,0x000080,0,0,0,0};
-	unsigned int colors_white[NUM_LED]= {0x020202,0x040404,0x080808,0x101010,0x202020,0x404040,0x808080,0x808080,0,0,0,0};
-	unsigned int colors_green[NUM_LED]= {0x020000,0x040000,0x080000,0x100000,0x200000,0x400000,0x800000,0x800000,0,0,0,0};
-	unsigned int colors_red[NUM_LED]= {0x000200,0x000400,0x000800,0x001000,0x002000,0x004000,0x008000,0x008000,0,0,0,0};
-	unsigned int colors_yellow[NUM_LED]= {0x000202,0x000404,0x000808,0x001010,0x002020,0x004040,0x008080,0x008080,0,0,0,0};
-	unsigned int colors_original[NUM_LED];
+	unsigned int colors_blue[NUM_LED+1]= {0x00002,0x000004,0x000008,0x000010,0x000020,0x000040,0x000080,0x000080,0,0,0,0,0};
+	unsigned int colors_white[NUM_LED+1]= {0x020202,0x040404,0x080808,0x101010,0x202020,0x404040,0x808080,0x808080,0,0,0,0,0};
+	unsigned int colors_green[NUM_LED+1]= {0x020000,0x040000,0x080000,0x100000,0x200000,0x400000,0x800000,0x800000,0,0,0,0,0};
+	unsigned int colors_red[NUM_LED+1]= {0x000200,0x000400,0x000800,0x001000,0x002000,0x004000,0x008000,0x008000,0,0,0,0,0};
+	unsigned int colors_yellow[NUM_LED+1]= {0x020200,0x040400,0x080800,0x101000,0x202000,0x404000,0x808000,0x808000,0,0,0,0,0};
+	unsigned int colors_original[NUM_LED+1];
+
+	static unsigned int last_time;
+	static unsigned int now;
+
+	now = xTaskGetTickCount();
+
+	if( now - last_time < 2000 ) {
+		return 0;
+	}
+	last_time = now;
 
 	colors = colors_white;
 
@@ -1299,10 +1308,10 @@ void vUARTTask(void *pvParameters) {
 	}
 	UARTprintf("*");
 
-	// Set connection policy to Auto + SmartConfig
-	//      (Device's default connection policy)
-	sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 1),
-			NULL, 0);
+	// Set connection policy to Auto + SmartConfig (Device's default connection policy)
+	sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 1), NULL, 0);
+
+
 
 	UARTprintf("*");
 	unsigned char mac[6];
@@ -1349,8 +1358,7 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(thread_spi, "spiTask", 4*1024 / 4, NULL, 5, NULL);
 	SetupGPIOInterrupts();
 	UARTprintf("*");
-//#if !ONLY_MID
-#if 0
+#if !ONLY_MID
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 3, NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_dust, "dustTask", 256 / 4, NULL, 3, NULL);

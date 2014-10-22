@@ -45,14 +45,14 @@ static void _factory_reset(){
 static bool _set_wifi(const char* ssid, const char* password)
 {
     Sl_WlanNetworkEntry_t wifi_endpoints[MAX_WIFI_EP_PER_SCAN];
+    int scanned_wifi_count, connection_ret;
     memset(wifi_endpoints, 0, sizeof(wifi_endpoints));
 
     uint8_t retry_count = 10;
 
     sl_status |= SCANNING;
-    int scanned_wifi_count = get_wifi_scan_result(wifi_endpoints, MAX_WIFI_EP_PER_SCAN, 1000);  // Shall we have a bg thread scan periodically?
-
-    while(scanned_wifi_count == 0 && retry_count--)
+    
+    while((scanned_wifi_count = get_wifi_scan_result(wifi_endpoints, MAX_WIFI_EP_PER_SCAN, 1000)) == 0 && --retry_count)
     {
         Cmd_led(0,0);
         UARTprintf("No wifi scanned, retry times remain %d\n", retry_count);
@@ -64,77 +64,47 @@ static bool _set_wifi(const char* ssid, const char* password)
         Cmd_led(0,0);
         sl_status &= ~SCANNING;
     	UARTprintf("No wifi found after retry %d times\n", 10);
-    	return -1;
+    	return 0;
     }
 
-    int i = 0;
-    for(i = 0; i < scanned_wifi_count; i++)
+    //////
+
+    retry_count = 10;
+    SlSecParams_t secParams = {0};
+
+    while((connection_ret = connect_scanned_endpoints(ssid, password, wifi_endpoints, scanned_wifi_count, &secParams)) == 0 && --retry_count)
+	{
+		Cmd_led(0,0);
+		UARTprintf("Failed to connect, retry times remain %d\n", retry_count);
+		vTaskDelay(500);
+	}
+
+
+    if(!connection_ret)
     {
-        Sl_WlanNetworkEntry_t wifi_endpoint = wifi_endpoints[i];
-        if(strcmp((const char*)wifi_endpoint.ssid, ssid) == 0)
-        {
-            SlSecParams_t secParams;
-            memset(&secParams, 0, sizeof(SlSecParams_t));
+		UARTprintf("Tried all wifi ep, all failed to connect\n");
+		return 0;
+    }else{
+		uint8_t wait_time = 10;
 
-            if( wifi_endpoint.sec_type == 3 ) {
-            	wifi_endpoint.sec_type = 2;
-            }
-            secParams.Key = (signed char*)password;
-            secParams.KeyLen = password == NULL ? 0 : strlen(password);
-            secParams.Type = wifi_endpoint.sec_type;
+		sl_status |= CONNECTING;
 
-            SlSecParams_t* secParamsPtr = wifi_endpoint.sec_type == SL_SEC_TYPE_OPEN ? NULL : &secParams;
+		while(--wait_time && (!(sl_status & HAS_IP)))
+		{
+			Cmd_led(0,0);
+			UARTprintf("Retrieving IP address...\n");
+			vTaskDelay(1000);
+		}
 
-            // We don't support all the security types in this implementation.
-            int16_t ret = sl_WlanConnect((_i8*)ssid, strlen(ssid), NULL, secParamsPtr, 0);
-            if(ret == 0 || ret == -71)
-            {
-                // To make things simple in the first pass implementation, 
-                // we only store one endpoint.
-
-                // There is no sl_sl_WlanProfileSet?
-                // So I delete all endpoint first.
-                int16_t del_ret = sl_WlanProfileDel(0xFF);
-                if(del_ret)
-                {
-                    UARTprintf("Delete all stored endpoint failed, error %d.\n", del_ret);
-                }else{
-                	UARTprintf("All stored WIFI EP removed.\n");
-                }
-
-                // Then add the current one back.
-                int16_t profile_add_ret = sl_WlanProfileAdd((_i8*)ssid, strlen(ssid), NULL, secParamsPtr, NULL, 0, 0);
-                if(profile_add_ret < 0)
-                {
-                    UARTprintf("Save connected endpoint failed, error %d.\n", profile_add_ret);
-                }else{
-                    uint8_t wait_time = 30;
-
-                    sl_status |= CONNECTING;
-
-                    while(wait_time-- && (!(sl_status & HAS_IP)))
-                    {
-                    	Cmd_led(0,0);
-                        UARTprintf("Waiting connection....");
-                        vTaskDelay(1000);
-                    }
-
-                    if(!wait_time && (!(sl_status & HAS_IP)))
-                    {
-                    	Cmd_led(0,0);
-                        UARTprintf("!!WIFI set without network connection.");
-                    }
-                }
-
-                return 1;
-            }
-
-        }
+		if(!(sl_status & HAS_IP))
+		{
+			Cmd_led(0,0);
+			UARTprintf("!!WIFI set without network connection.");
+			return 0;
+		}
     }
 
-    
-    UARTprintf("Tried all wifi ep, all failed to connect\n");
-    return 0;
+    return 1;
 }
 
 static void _reply_device_id()
@@ -377,23 +347,6 @@ static void _pair_device( MorpheusCommand* command, int is_morpheus)
 		UARTprintf("****************************************Missing fields\n");
 		ble_reply_protobuf_error(ErrorType_INTERNAL_DATA_ERROR);
 	}else{
-		/*
-		MorpheusCommand command_copy;
-		memset(&command_copy, 0, sizeof(MorpheusCommand));
-        command_copy.type = is_morpheus == 1 ? MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_SENSE:
-            MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_PILL;
-        command_copy.version = PROTOBUF_VERSION;
-
-		char account_id_buffer[50] = {0};
-
-		memcpy(account_id_buffer, command->accountId.arg, strlen(command->accountId.arg));
-		command_copy.accountId.arg = account_id_buffer;
-
-		char device_id_buffer[20] = {0};
-
-		memcpy(device_id_buffer, command->deviceId.arg, strlen(command->deviceId.arg));
-		command_copy.deviceId.arg = device_id_buffer;
-		*/
 
 		ble_proto_assign_encode_funcs(command);
 		uint8_t retry_count = 5;   // Retry 5 times if we have network error
@@ -403,7 +356,7 @@ static void _pair_device( MorpheusCommand* command, int is_morpheus)
 		int ret = send_data_pb(DATA_SERVER,
 				is_morpheus == 1 ? MORPHEUS_REGISTER_ENDPOINT : PILL_REGISTER_ENDPOINT,
 				response_buffer, sizeof(response_buffer),
-				MorpheusCommand_fields, /*&command_copy*/command);
+				MorpheusCommand_fields, command);
 
 		while(ret != 0 && retry_count--){
 			UARTprintf("Network error, try to resend command...\n");
@@ -411,7 +364,7 @@ static void _pair_device( MorpheusCommand* command, int is_morpheus)
 			ret = send_data_pb(DATA_SERVER,
 				is_morpheus == 1 ? MORPHEUS_REGISTER_ENDPOINT : PILL_REGISTER_ENDPOINT,
 				response_buffer, sizeof(response_buffer),
-				MorpheusCommand_fields, /*&command_copy*/command);
+				MorpheusCommand_fields, command);
 
 		}
 
@@ -436,6 +389,10 @@ void on_ble_protobuf_command(MorpheusCommand* command)
             const char* ssid = command->wifiSSID.arg;
             char* password = command->wifiPassword.arg;
 
+            sl_WlanDisconnect();
+            while(sl_status&HAS_IP) {
+            	vTaskDelay(1);
+            }
             // I can get the Mac address as well, but not sure it is necessary.
 
             // Just call API to connect to WIFI.
