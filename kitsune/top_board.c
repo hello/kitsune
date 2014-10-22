@@ -65,7 +65,13 @@ _next_file_data_block(uint8_t * write_buf, uint32_t buffer_size, uint32_t * out_
 }
 static void
 _on_message(uint8_t * message_body, uint32_t body_length){
+	UARTprintf("Got a SLIP message: %s\r\n", message_body);
+	if(!strncmp("DFUBEGIN",message_body, body_length)){
+		if(0 != top_board_dfu_begin("/top/update.bin")){
+			top_board_dfu_begin("/top/factory.bin");
+		}
 
+	}
 }
 static void
 _close_and_reset_dfu(){
