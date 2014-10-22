@@ -46,7 +46,7 @@
 #include "fatfs_cmd.h"
 #include "spi_cmd.h"
 #include "audiofeatures.h"
-
+#include "top_board.h"
 #include "fft.h"
 
 /* I2S module*/
@@ -65,6 +65,8 @@
 
 #include "ff.h"
 #include "diskio.h"
+#include "top_hci.h"
+#include "slip_packet.h"
 //#include "mcasp_if.h" // add by Ben
 
 #define ONLY_MID 0
@@ -219,10 +221,16 @@ int Cmd_fs_read(int argc, char *argv[]) {
 		UARTprintf("error opening for read %d\n", err);
 		return -1;
 	}
-
-	if (bytes = sl_FsRead(hndl, 0, (unsigned char*)buffer, minval(info.FileLen, BUF_SZ))) {
-		UARTprintf("read %d bytes\n", bytes);
+	if( argc >= 3 ){
+		if (bytes = sl_FsRead(hndl, atoi(argv[2]), (unsigned char*)buffer, minval(info.FileLen, BUF_SZ))) {
+						UARTprintf("read %d bytes\n", bytes);
+					}
+	}else{
+		if (bytes = sl_FsRead(hndl, 0, (unsigned char*)buffer, minval(info.FileLen, BUF_SZ))) {
+						UARTprintf("read %d bytes\n", bytes);
+					}
 	}
+
 
 	sl_FsClose(hndl, 0, 0, 0);
 
@@ -881,7 +889,6 @@ int Cmd_mel(int argc, char *argv[]) {
 	return (0);
 }
 
-
 #define GPIO_PORT 0x40004000
 #define RTC_INT_PIN 0x80
 #define GSPI_INT_PIN 0x40
@@ -1185,7 +1192,29 @@ int Cmd_led_clr(int argc, char *argv[]) {
 	return 0;
 }
 
+#include "top_hci.h"
 
+int Cmd_slip(int argc, char * argv[]){
+	uint32_t len, llen;
+	if(argc >= 2){
+		uint8_t * message = hci_encode(argv[1], strlen(argv[1]) + 1, &len);
+		UARTprintf("Decoded: %s \r\n", hci_decode(message, len, NULL));
+		hci_free(message);
+	}else{
+		uint8_t * message = hci_encode("hello", strlen("hello") + 1, &len);
+		UARTprintf("Decoded: %s \r\n", hci_decode(message, len, NULL));
+		hci_free(message);
+	}
+	return 0;
+}
+
+int Cmd_topdfu(int argc, char *argv[]){
+	if(argc > 1){
+		return top_board_dfu_begin(argv[1]);
+	}
+	UARTprintf("Usage: topdfu $full_path_to_file");
+	return -2;
+}
 
 // ==============================================================================
 // This is the table that holds the command names, implementing functions, and
@@ -1266,9 +1295,10 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "rdiorxstart", Cmd_RadioStartRX, "start rx test" },
 		{ "rdiorxstop", Cmd_RadioStopRX, "stop rx test" },
 		{ "rssi", Cmd_rssi, "scan rssi" },
-
+		{ "slip", Cmd_slip, "slip test" },
 		{ "data_upload", Cmd_data_upload, "upload protobuf data" },
-
+		{ "^", Cmd_send_top, "send command to top board"},
+		{ "topdfu", Cmd_topdfu, "update topboard firmware."},
 
 		{ 0, 0, 0 } };
 
@@ -1287,6 +1317,9 @@ tCmdLineEntry g_sCmdTable[] = {
 extern xSemaphoreHandle g_xRxLineSemaphore;
 void UARTStdioIntHandler(void);
 
+void loopback_uart(void * p) {
+	top_board_task();
+}
 void vUARTTask(void *pvParameters) {
 	char cCmdBuf[64];
 	portTickType now;
@@ -1381,7 +1414,9 @@ void vUARTTask(void *pvParameters) {
 		UARTprintf("Failed to create the data_queue.\n");
 	}
 
-	xTaskCreate(thread_audio, "audioTask", 2 * 1024 / 4, NULL, 4, NULL); //todo reduce stack
+	xTaskCreate(loopback_uart, "loopback_uart", 1024 / 4, NULL, 4, NULL); //todo reduce stack
+
+	xTaskCreate(thread_audio, "audioTask", 5 * 1024 / 4, NULL, 4, NULL); //todo reduce stack
 	UARTprintf("*");
 	xTaskCreate(thread_spi, "spiTask", 4*1024 / 4, NULL, 5, NULL);
 	SetupGPIOInterrupts();
