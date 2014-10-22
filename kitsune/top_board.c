@@ -67,6 +67,7 @@ static void
 _on_message(uint8_t * message_body, uint32_t body_length){
 	UARTprintf("Got a SLIP message: %s\r\n", message_body);
 	if(!strncmp("DFUBEGIN",message_body, body_length)){
+		//delay is necessary because top board is slower.
 		vTaskDelay(4000);
 		if(0 != top_board_dfu_begin("/top/update.bin")){
 			top_board_dfu_begin("/top/factory.bin");
@@ -227,6 +228,7 @@ int top_board_dfu_begin(const char * bin){
 			self.dfu_contex.len = len;
 			self.dfu_contex.offset = 0;
 			self.dfu_contex.handle = handle;
+			//Primer packet is to sync up ACK packets.
 			uint32_t primer_packet[] = {DFU_INVALID_PACKET};
 			_encode_and_send((uint8_t*) primer_packet, sizeof(primer_packet));
 			self.dfu_state = DFU_INVALID_PACKET;
