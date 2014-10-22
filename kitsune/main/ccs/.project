@@ -361,6 +361,16 @@
 			<locationURI>PARENT-2-PROJECT_LOC/nanopb/pb.h</locationURI>
 		</link>
 		<link>
+			<name>nanopb/pb_common.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/nanopb/pb_common.c</locationURI>
+		</link>
+		<link>
+			<name>nanopb/pb_common.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/nanopb/pb_common.h</locationURI>
+		</link>
+		<link>
 			<name>nanopb/pb_decode.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/nanopb/pb_decode.c</locationURI>

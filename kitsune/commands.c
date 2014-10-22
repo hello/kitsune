@@ -530,16 +530,33 @@ void thread_audio(void * unused) {
 
 #define SENSOR_RATE 60
 
-static unsigned int dust_val=0;
-static unsigned int dust_cnt=0;
+static int dust_m2,dust_mean,dust_log_sum,dust_max,dust_min,dust_cnt;
 xSemaphoreHandle dust_smphr;
 
 void thread_dust(void * unused)  {
     #define maxval( a, b ) a>b ? a : b
+	dust_min = 5000;
+	dust_m2 = dust_mean = dust_cnt = dust_log_sum = dust_max = 0;
 	while (1) {
 		if (xSemaphoreTake(dust_smphr, portMAX_DELAY)) {
+			int dust = get_dust();
+
+			dust_log_sum += bitlog(dust);
 			++dust_cnt;
-			dust_val += get_dust();
+
+			int delta = dust - dust_mean;
+			dust_mean = dust_mean + delta/dust_cnt;
+			dust_m2 = dust_m2 + delta * ( dust - dust_mean);
+			if( dust_m2 < 0 ) {
+				dust_m2 = 0x7FFFFFFF;
+			}
+			if(dust > dust_max) {
+				dust_max = dust;
+			}
+			if(dust < dust_min) {
+				dust_min = dust;
+			}
+
 			xSemaphoreGive(dust_smphr);
 		}
 
@@ -649,12 +666,24 @@ void thread_sensor_poll(void* unused) {
 		data.time = get_time();
 
 		if( xSemaphoreTake( dust_smphr, portMAX_DELAY ) ) {
+			int dust_var;
+
 			if( dust_cnt != 0 ) {
-				data.dust = dust_val / dust_cnt;
+				data.dust = dust_mean;
 			} else {
 				data.dust = get_dust();
 			}
-			dust_val = dust_cnt = 0;
+			dust_log_sum /= dust_cnt;
+
+			dust_var = dust_m2 / (dust_cnt-1);
+
+			data.dust_var = dust_var;
+			data.dust_max = dust_max;
+			data.dust_min = dust_min;
+
+			dust_min = 5000;
+			dust_m2 = dust_mean = dust_cnt = dust_log_sum = dust_max = 0;
+
 			xSemaphoreGive( dust_smphr );
 		} else {
 			data.dust = get_dust();
@@ -689,9 +718,9 @@ void thread_sensor_poll(void* unused) {
 		} else {
 			continue;
 		}
-		UARTprintf("collecting time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d\n",
+		UARTprintf("collecting time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d %d %d %d\n",
 				data.time, data.light, data.light_variability, data.light_tonality, data.temp, data.humid,
-				data.dust);
+				data.dust, data.dust_max, data.dust_min, data.dust_var);
 
 		    // ...
 
@@ -1039,7 +1068,6 @@ void led_slow(unsigned int* color) {
 #define LED_GPIO_BASE_DOUT GPIOA2_BASE
 #define LED_GPIO_BIT_DOUT 0x80
 void led_array(unsigned int * colors) {
-	int i;
 	unsigned long ulInt;
 	//
 

@@ -23,7 +23,7 @@ extern xSemaphoreHandle pill_smphr;
 
 typedef struct {
 	unsigned int time;
-	int light, light_variability, light_tonality, temp, humid, dust;
+	int light, light_variability, light_tonality, temp, humid, dust, dust_max, dust_min, dust_var;
 	periodic_data_pill_data_container * pill_list;
 } data_t;
 
