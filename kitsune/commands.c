@@ -1307,10 +1307,10 @@ void vUARTTask(void *pvParameters) {
 	}
 	UARTprintf("*");
 
-	// Set connection policy to Auto + SmartConfig
-	//      (Device's default connection policy)
-	sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 1),
-			NULL, 0);
+	// Set connection policy to Auto + SmartConfig (Device's default connection policy)
+	sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 1), NULL, 0);
+
+
 
 	UARTprintf("*");
 	unsigned char mac[6];

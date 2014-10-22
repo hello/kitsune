@@ -1243,11 +1243,13 @@ int send_periodic_data( data_t * data ) {
     if (http_response_ok(buffer) != 1) {
     	sl_status &= ~UPLOADING;
         UARTprintf("Invalid response, endpoint return failure.\n");
+        return -1;
     }
     
     if (len_str == NULL) {
     	sl_status &= ~UPLOADING;
         UARTprintf("Failed to find Content-Length header\n");
+        return -1;
     }
     int len = atoi(len_str);
     
@@ -1777,13 +1779,13 @@ int get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uin
         return 0;
     }
 
-    unsigned long IntervalVal = 60;
+    unsigned long IntervalVal = 20;
 
     unsigned char policyOpt = SL_CONNECTION_POLICY(0, 0, 0, 0, 0);
     int lRetVal = sl_WlanPolicySet(SL_POLICY_CONNECTION , policyOpt, NULL, 0);
 
 
-    // enable scan
+    // Make sure scan is enabled
     policyOpt = SL_SCAN_POLICY(1);
 
     // set scan policy - this starts the scan
@@ -1798,14 +1800,78 @@ int get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uin
     lRetVal = sl_WlanGetNetworkList(0, entry_len, entries);
 
     // Disable scan
-    policyOpt = SL_SCAN_POLICY(0);
+    //policyOpt = SL_SCAN_POLICY(0);
 
     // set scan policy - this stops the scan
-    sl_WlanPolicySet(SL_POLICY_SCAN , policyOpt,
-                            (unsigned char *)(IntervalVal), sizeof(IntervalVal));
+    //sl_WlanPolicySet(SL_POLICY_SCAN , policyOpt,
+    //                      (unsigned char *)(IntervalVal), sizeof(IntervalVal));
+
+    // Restore connection policy to Auto + SmartConfig
+    //      (Device's default connection policy)
+    sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 1),
+            NULL, 0);
 
     return lRetVal;
 
+}
+
+int connect_scanned_endpoints(const char* ssid, const char* password, 
+    const Sl_WlanNetworkEntry_t* wifi_endpoints, int scanned_wifi_count, SlSecParams_t* connectedEPSecParamsPtr)
+{
+	int16_t ret;
+	if(!connectedEPSecParamsPtr)
+	{
+		return 0;
+	}
+
+    int i = 0;
+
+    for(i = 0; i < scanned_wifi_count; i++)
+    {
+        Sl_WlanNetworkEntry_t wifi_endpoint = wifi_endpoints[i];
+        if(strcmp((const char*)wifi_endpoint.ssid, ssid) == 0)
+        {
+            memset(connectedEPSecParamsPtr, 0, sizeof(SlSecParams_t));
+
+            if( wifi_endpoint.sec_type == 3 ) {
+                wifi_endpoint.sec_type = 2;
+            }
+            connectedEPSecParamsPtr->Key = (signed char*)password;
+            connectedEPSecParamsPtr->KeyLen = password == NULL ? 0 : strlen(password);
+            connectedEPSecParamsPtr->Type = wifi_endpoint.sec_type;
+
+			// We don't support all the security types in this implementation.
+            // There is no sl_sl_WlanProfileSet?
+            // So I delete all endpoint first.
+
+			int16_t index;
+			int retry = 5;
+
+			while((index = sl_WlanProfileAdd((_i8*) ssid, strlen(ssid), NULL,
+					connectedEPSecParamsPtr, NULL, 0, 0)) < 0 && retry--){
+				ret = sl_WlanProfileDel(0xFF);
+				if (ret != 0) {
+					UARTprintf("profile del fail\n");
+				}
+			}
+
+			if (index < 0) {
+                UARTprintf("profile add fail\n");
+                return 0;
+			}
+
+			ret = sl_WlanConnect((_i8*) ssid, strlen(ssid), NULL, wifi_endpoint.sec_type == SL_SEC_TYPE_OPEN ? NULL : connectedEPSecParamsPtr, 0);
+            if(ret == 0 || ret == -71)
+            {
+                UARTprintf("WLAN connect attempt issued\n");
+
+                return 1;
+            }
+
+        }
+    }
+
+    return 0;
 }
 
 
