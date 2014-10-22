@@ -41,6 +41,11 @@
 			<locationURI>PARENT-2-PROJECT_LOC/audiocapturetask.c</locationURI>
 		</link>
 		<link>
+			<name>audioclassifier.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audioclassifier.c</locationURI>
+		</link>
+		<link>
 			<name>audiofeatures.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/audiofeatures.c</locationURI>
