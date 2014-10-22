@@ -67,6 +67,7 @@ static void
 _on_message(uint8_t * message_body, uint32_t body_length){
 	UARTprintf("Got a SLIP message: %s\r\n", message_body);
 	if(!strncmp("DFUBEGIN",message_body, body_length)){
+		vTaskDelay(4000);
 		if(0 != top_board_dfu_begin("/top/update.bin")){
 			top_board_dfu_begin("/top/factory.bin");
 		}
@@ -120,6 +121,7 @@ _on_ack_success(void){
 					(sizeof(block) - sizeof(uint32_t)), &written);
 			if(written){
 				_encode_and_send((uint8_t*)block, written + sizeof(block[0]));
+				UARTprintf("Wrote %u / %d (%u)%%\r", self.dfu_contex.offset, self.dfu_contex.len, (self.dfu_contex.offset*100/self.dfu_contex.len));
 			}else{
 				uint32_t primer_packet[] = { DFU_INVALID_PACKET };
 				_encode_and_send((uint8_t*) primer_packet,sizeof(primer_packet));
@@ -131,6 +133,7 @@ _on_ack_success(void){
 			uint32_t end_packet[] = { DFU_STOP_DATA_PACKET };
 			_encode_and_send((uint8_t*)end_packet, sizeof(end_packet));
 			self.dfu_state = DFU_IDLE;
+			UARTprintf("Attempting to boot top board...\r\n");
 			}
 			break;
 		default:

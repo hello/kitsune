@@ -150,7 +150,7 @@ uint32_t slip_write(const uint8_t * orig, uint32_t buffer_size) {
 			if (self.handler.slip_display_char) {
 				int i;
 				for (i = 0; i < new_size; i++) {
-					UARTprintf("%02X ", *(uint8_t*) (tx_buffer + i));
+					//UARTprintf("%02X ", *(uint8_t*) (tx_buffer + i));
 					if(self.handler.slip_put_char){
 						//TODO take out the pointer checks by preset to default handlers
 						self.handler.slip_put_char(tx_buffer[i]);
