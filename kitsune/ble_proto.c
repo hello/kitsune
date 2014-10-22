@@ -64,6 +64,7 @@ static bool _set_wifi(const char* ssid, const char* password)
 		uint8_t wait_time = 10;
 
 		sl_status |= CONNECTING;
+		sl_status &= ~HAS_IP;  // we need to set this, teh event happens AFTER the connection is set the first time
 
 		while(--wait_time && (!(sl_status & HAS_IP)))
 		{
