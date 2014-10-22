@@ -997,8 +997,8 @@ void led_fast( unsigned int* color ) {
 				}
 			}
 		}
-		if( ++color == end ) {
-			break;
+		if( ++color > end ) {
+			return;
 		}
 	}
 }
@@ -1030,8 +1030,8 @@ void led_slow(unsigned int* color) {
 				}
 			}
 		}
-		if (++color == end) {
-			break;
+		if (++color > end) {
+			return;
 		}
 	}
 }
@@ -1048,13 +1048,9 @@ void led_array(unsigned int * colors) {
 	bool fast = MAP_GPIOPinRead(LED_GPIO_BASE_DOUT, LED_GPIO_BIT_DOUT);
 	ulInt = MAP_IntMasterDisable();
 	if (fast) {
-		for (i = 0; i < NUM_LED; ++i) {
-			led_fast(colors + i);
-		}
+		led_fast(colors);
 	} else {
-		for (i = 0; i < NUM_LED; ++i) {
-			led_slow(colors + i);
-		}
+		led_slow(colors);
 	}
 	if (!ulInt) {
 		MAP_IntMasterEnable();
@@ -1096,12 +1092,12 @@ int Cmd_led(int argc, char *argv[]) {
 	int i,select;
 	unsigned int* colors;
 
-	unsigned int colors_blue[NUM_LED]= {0x00002,0x000004,0x000008,0x000010,0x000020,0x000040,0x000080,0x000080,0,0,0,0};
-	unsigned int colors_white[NUM_LED]= {0x020202,0x040404,0x080808,0x101010,0x202020,0x404040,0x808080,0x808080,0,0,0,0};
-	unsigned int colors_green[NUM_LED]= {0x020000,0x040000,0x080000,0x100000,0x200000,0x400000,0x800000,0x800000,0,0,0,0};
-	unsigned int colors_red[NUM_LED]= {0x000200,0x000400,0x000800,0x001000,0x002000,0x004000,0x008000,0x008000,0,0,0,0};
-	unsigned int colors_yellow[NUM_LED]= {0x020200,0x040400,0x080800,0x101000,0x202000,0x404000,0x808000,0x808000,0,0,0,0};
-	unsigned int colors_original[NUM_LED];
+	unsigned int colors_blue[NUM_LED+1]= {0x00002,0x000004,0x000008,0x000010,0x000020,0x000040,0x000080,0x000080,0,0,0,0,0};
+	unsigned int colors_white[NUM_LED+1]= {0x020202,0x040404,0x080808,0x101010,0x202020,0x404040,0x808080,0x808080,0,0,0,0,0};
+	unsigned int colors_green[NUM_LED+1]= {0x020000,0x040000,0x080000,0x100000,0x200000,0x400000,0x800000,0x800000,0,0,0,0,0};
+	unsigned int colors_red[NUM_LED+1]= {0x000200,0x000400,0x000800,0x001000,0x002000,0x004000,0x008000,0x008000,0,0,0,0,0};
+	unsigned int colors_yellow[NUM_LED+1]= {0x020200,0x040400,0x080800,0x101000,0x202000,0x404000,0x808000,0x808000,0,0,0,0,0};
+	unsigned int colors_original[NUM_LED+1];
 
 	static unsigned int last_time;
 	static unsigned int now;
