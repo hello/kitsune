@@ -4,10 +4,7 @@
 #include "pb_decode.h"
 #include "protobuf/matrix.pb.h"
 
-typedef struct {
-    const_MatDesc_t * data;
-    uint16_t len;
-} const_MatDescArray_t;
+
 
 typedef struct {
     uint8_t * writebuf;
@@ -107,13 +104,14 @@ static bool write_int_mat(pb_ostream_t *stream, const pb_field_t *field, void * 
 }
 
 static bool write_mat_array(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
-    const_MatDescArray_t * pdesc = (const_MatDescArray_t *)(*arg);
-    const_MatDesc_t * p;
-    uint16_t i;
+    GetNextMatrixFunc_t next_mat_func = (GetNextMatrixFunc_t)(*arg);
+    const_MatDesc_t desc;
     pb_ostream_t sizestream;
-
-    for (i = 0; i < pdesc->len; i++) {
-        p = &pdesc->data[i];
+    uint8_t isFirst = true;
+    
+    
+    while(next_mat_func(isFirst,&desc)) {
+        isFirst = false;
         
         if (!pb_encode_tag(stream,PB_WT_STRING, field->tag)) {
             return 0;
@@ -123,7 +121,7 @@ static bool write_mat_array(pb_ostream_t *stream, const pb_field_t *field, void 
         memset(&sizestream,0,sizeof(sizestream));
 
         //get size
-        SetIntMatrix(&sizestream, p->id, p->tags, p->source, p->data, p->rows, p->cols, p->t1, p->t2);
+        SetIntMatrix(&sizestream, desc.id, desc.tags, desc.source, desc.data, desc.rows, desc.cols, desc.t1, desc.t2);
 
         //write size
         if (!pb_encode_varint(stream, sizestream.bytes_written)) {
@@ -131,8 +129,8 @@ static bool write_mat_array(pb_ostream_t *stream, const pb_field_t *field, void 
         }
         
         //encode matrix payload
-        SetIntMatrix(stream, p->id, p->tags, p->source, p->data, p->rows, p->cols, p->t1, p->t2);
-        
+        SetIntMatrix(stream, desc.id, desc.tags, desc.source, desc.data, desc.rows, desc.cols, desc.t1, desc.t2);
+    
     }
 
     return 1;
@@ -326,16 +324,11 @@ uint8_t GetIntMatrix(MatDesc_t * matdesc, pb_istream_t * stream,size_t string_ma
 size_t SetMatrixMessage(pb_ostream_t * stream,
                         const char * macbytes,
                         uint32_t unix_time,
-                        const_MatDesc_t * mats,
-                        uint16_t nummats) {
+                        GetNextMatrixFunc_t get_next_mat_func) {
     
     size_t size = 0;
 
     MatrixClientMessage mess;
-    const_MatDescArray_t desc;
-    
-    desc.data = mats;
-    desc.len = nummats;
     
     mess.unix_time = unix_time;
     mess.has_unix_time = 1;
@@ -346,7 +339,7 @@ size_t SetMatrixMessage(pb_ostream_t * stream,
     mess.has_matrix_payload = 0;
     
     mess.matrix_list.funcs.encode = write_mat_array;
-    mess.matrix_list.arg = (void *)&desc;
+    mess.matrix_list.arg = (void *)get_next_mat_func;
     
     pb_get_encoded_size(&size,MatrixClientMessage_fields,&mess);
     
