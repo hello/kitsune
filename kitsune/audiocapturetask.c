@@ -27,7 +27,7 @@
 
 
 
-#define AUDIO_DEBUG_MESSAGES
+//#define AUDIO_DEBUG_MESSAGES
 
 #define SWAP_ENDIAN
 
@@ -345,6 +345,7 @@ void AudioCaptureTask_Thread(void * data) {
 #endif
 						if (_fpLastCommandComplete) {
 							_fpLastCommandComplete();
+							_fpLastCommandComplete = NULL;
 						}
 
 
