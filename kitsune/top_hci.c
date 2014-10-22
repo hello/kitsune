@@ -9,6 +9,7 @@
 #define HCI_CRC_SIZE 2u
 static struct{
 	uint8_t sequence_number;
+	uint8_t acknowledge_number;
 }self;
 
 static void _inc_seq(void) {
@@ -85,7 +86,9 @@ uint32_t hci_decode(uint8_t * raw, uint32_t length, const hci_decode_handler_t *
 	}
 	//update ack number
 	{
+		uint32_t decoded_length = length - HCI_HEADER_SIZE - (has_checksum?HCI_CRC_SIZE:0);
 		uint8_t ack = (raw[0] & 0x38u) >> 3u;
+		self.acknowledge_number = (raw[0] & 0x7u) + 1;
 		UARTprintf("ack:%x", ack);
 		if (ack == self.sequence_number) {
 			//retransmit
@@ -95,8 +98,11 @@ uint32_t hci_decode(uint8_t * raw, uint32_t length, const hci_decode_handler_t *
 			handler->on_ack_success();
 			//message succeeded
 		}
+		if(decoded_length){
+			handler->on_message(raw + 4, length);
+		}
+		return decoded_length;
 	}
-	return length - HCI_HEADER_SIZE - (has_checksum?HCI_CRC_SIZE:0);
 }
 
 uint8_t * hci_encode(uint8_t * message_body, uint32_t body_length, uint32_t * out_encoded_len){
@@ -108,7 +114,7 @@ uint8_t * hci_encode(uint8_t * message_body, uint32_t body_length, uint32_t * ou
 		uint16_t * checksum = (uint16_t*) (body + body_length);
 		//pack header
 		header[0] = (HCI_RELIABLE_PACKET | HCI_INTEGRITY_CHECK)
-						+ self.sequence_number;
+						+ self.sequence_number + (self.acknowledge_number << 3);
 		*(uint16_t*) (header + 1) = (uint16_t) (((body_length + HCI_CRC_SIZE)
 						<< 4) + HCI_VENDOR_NORDIC_OPCODE);
 		header[3] = _header_checksum_calculate(header);
