@@ -201,11 +201,6 @@
 			<locationURI>PARENT-2-PROJECT_LOC/mcasp_if.h</locationURI>
 		</link>
 		<link>
-			<name>microphone.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/microphone.c</locationURI>
-		</link>
-		<link>
 			<name>nanopb</name>
 			<type>2</type>
 			<locationURI>virtual:/virtual</locationURI>
