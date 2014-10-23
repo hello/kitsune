@@ -13,7 +13,7 @@
 #include "i2c_if.h"
 #include "uartstdio.h"
 
-
+#define MAX_MEASURE_TIME		20
 
 #define FAILURE                 -1
 #define SUCCESS                 0
@@ -227,7 +227,7 @@ int Cmd_i2c_write(int argc, char *argv[]) {
 int get_temp() {
 
 	int64_t sum = 0;
-	uint8_t measure_time = 10;
+	uint8_t measure_time = MAX_MEASURE_TIME;
 
 	unsigned char cmd = 0xfe;
 	int temp_raw;
@@ -254,11 +254,18 @@ int get_temp() {
 		temp -= 47*100;
 		*/
 
-		temp = 17572 * temp / 65536 - 4685;
+		if(measure_time == MAX_MEASURE_TIME - 1)
+		{
+			continue;  // skip the 1st measure.
+		}
+
+		temp = 17572 * temp_raw / 65536 - 4685;
 		sum += temp;
 	}
 
-	return temp / 10;
+	return sum / (MAX_MEASURE_TIME - 1);
+
+	//return temp;
 }
 
 int Cmd_readtemp(int argc, char *argv[]) {
@@ -273,22 +280,37 @@ int get_humid() {
 	int humid;
 
 	TRY_OR_GOTOFAIL(I2C_IF_Write(0x40, &cmd, 1, 1));    // reset
+	int64_t sum = 0;
+	uint8_t measure_time = MAX_MEASURE_TIME;
 
-	vTaskDelay(10);
+	while(--measure_time)
+	{
+		vTaskDelay(10);
 
-	cmd = 0xe5;
-	TRY_OR_GOTOFAIL(I2C_IF_Write(0x40, &cmd, 1, 1));
+		cmd = 0xe5;
+		TRY_OR_GOTOFAIL(I2C_IF_Write(0x40, &cmd, 1, 1));
 
-	vTaskDelay(50);
-	TRY_OR_GOTOFAIL(I2C_IF_Read(0x40, aucDataBuf, 2));
-	humid_raw = (aucDataBuf[0] << 8) | ((aucDataBuf[1] & 0xfc));
-	humid = humid_raw;
+		vTaskDelay(50);
+		TRY_OR_GOTOFAIL(I2C_IF_Read(0x40, aucDataBuf, 2));
+		humid_raw = (aucDataBuf[0] << 8) | ((aucDataBuf[1] & 0xfc));
+		humid = humid_raw;
 
-	humid *= 125;
-	humid /= 65536/100;
-	humid -= 6*100;
+		/*
+		humid *= 125;
+		humid /= 65536/100;
+		humid -= 6*100;
+		*/
 
-	return humid;
+		if(measure_time == MAX_MEASURE_TIME - 1)
+		{
+			continue;  // skip the 1st measure.
+		}
+
+		humid = 12500 * humid_raw / 65536 - 600;
+		sum += humid;
+	}
+
+	return sum / (MAX_MEASURE_TIME - 1);
 }
 
 int Cmd_readhumid(int argc, char *argv[]) {
@@ -361,17 +383,32 @@ int get_prox() {
 	prx_cmd_init[1] = 0x08; // one shot measurements
 	TRY_OR_GOTOFAIL(I2C_IF_Write(0x13, prx_cmd_init, 2, 1) );// reset
 
-	prx_cmd = 0x88; // Command register - 0x87
-	TRY_OR_GOTOFAIL( I2C_IF_Write(0x13, &prx_cmd, 1, 1) );
-	TRY_OR_GOTOFAIL( I2C_IF_Read(0x13, prx_aucDataBuf_LOW, 1) );  //only using top byte...
+	int64_t sum = 0;
+	uint8_t measure_time = MAX_MEASURE_TIME;
 
-	prx_cmd = 0x87; // Command register - 0x87
-	TRY_OR_GOTOFAIL( I2C_IF_Write(0x13, &prx_cmd, 1, 1) );
-	TRY_OR_GOTOFAIL( I2C_IF_Read(0x13, prx_aucDataBuf_HIGH, 1) );   //only using top byte...
+	while(--measure_time)
+	{
+		vTaskDelay(5);
+		prx_cmd = 0x88; // Command register - 0x87
+		TRY_OR_GOTOFAIL( I2C_IF_Write(0x13, &prx_cmd, 1, 1) );
+		TRY_OR_GOTOFAIL( I2C_IF_Read(0x13, prx_aucDataBuf_LOW, 1) );  //only using top byte...
 
-	proximity_raw = (prx_aucDataBuf_HIGH[0] << 8) | prx_aucDataBuf_LOW[0];
+		prx_cmd = 0x87; // Command register - 0x87
+		TRY_OR_GOTOFAIL( I2C_IF_Write(0x13, &prx_cmd, 1, 1) );
+		TRY_OR_GOTOFAIL( I2C_IF_Read(0x13, prx_aucDataBuf_HIGH, 1) );   //only using top byte...
 
-	return proximity_raw;
+		proximity_raw = (prx_aucDataBuf_HIGH[0] << 8) | prx_aucDataBuf_LOW[0];
+
+		if(measure_time == MAX_MEASURE_TIME - 1)
+		{
+			continue;
+		}
+
+		sum += proximity_raw;
+	}
+
+	//return proximity_raw;
+	return sum / (MAX_MEASURE_TIME - 1);
 }
 
 int Cmd_readproximity(int argc, char *argv[]) {
