@@ -36,6 +36,8 @@ void ble_proto_assign_encode_funcs(MorpheusCommand* command);
 void ble_proto_assign_decode_funcs(MorpheusCommand* command);
 void ble_proto_remove_decode_funcs(MorpheusCommand* command);
 
+int Cmd_factory_reset(int argc, char* argv[]);
+
 //*****************************************************************************
 //
 // Mark the end of the C bindings section for C++ compilers.
