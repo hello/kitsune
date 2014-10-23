@@ -225,7 +225,9 @@ int Cmd_i2c_write(int argc, char *argv[]) {
 }
 
 int get_temp() {
-	unsigned char aucDataBuf[2];
+
+	int64_t sum = 0;
+	uint8_t measure_time = 10;
 
 	unsigned char cmd = 0xfe;
 	int temp_raw;
@@ -233,21 +235,30 @@ int get_temp() {
 
 	TRY_OR_GOTOFAIL(I2C_IF_Write(0x40, &cmd, 1, 1));    // reset
 
-	vTaskDelay(10);
+	while(--measure_time)
+	{
+		unsigned char aucDataBuf[2];
+		vTaskDelay(10);
 
-	cmd = 0xe3;
-	TRY_OR_GOTOFAIL(I2C_IF_Write(0x40, &cmd, 1, 1));
+		cmd = 0xe3;
+		TRY_OR_GOTOFAIL(I2C_IF_Write(0x40, &cmd, 1, 1));
 
-	vTaskDelay(50);
-	TRY_OR_GOTOFAIL(I2C_IF_Read(0x40, aucDataBuf, 2));
-	temp_raw = (aucDataBuf[0] << 8) | ((aucDataBuf[1] & 0xfc));
-	temp = temp_raw;
+		vTaskDelay(50);
+		TRY_OR_GOTOFAIL(I2C_IF_Read(0x40, aucDataBuf, 2));
+		temp_raw = (aucDataBuf[0] << 8) | ((aucDataBuf[1] & 0xfc));
+		temp = temp_raw;
 
-	temp *= 175;
-	temp /= (65536/100);
-	temp -= 47*100;
+		/*
+		temp *= 175;
+		temp /= (65536/100);
+		temp -= 47*100;
+		*/
 
-	return temp;
+		temp = 17572 * temp / 65536 - 4685;
+		sum += temp;
+	}
+
+	return temp / 10;
 }
 
 int Cmd_readtemp(int argc, char *argv[]) {
