@@ -260,6 +260,7 @@ int get_temp() {
 		}
 
 		temp = 17572 * temp_raw / 65536 - 4685;
+		//temp = 17500 * temp_raw / 65536 - 4700;
 		sum += temp;
 	}
 
@@ -327,6 +328,8 @@ int get_light() {
 
 	unsigned char cmd;
 
+	//TODO: Assert part number here.
+
 	static int first = 1;
 	if (first) {
 		cmd_init[0] = 0x80; // Command register - 8'b1000_0000
@@ -334,22 +337,37 @@ int get_light() {
 		TRY_OR_GOTOFAIL(I2C_IF_Write(0x29, cmd_init, 2, 1)); // setup normal mode
 
 		cmd_init[0] = 0x81; // Command register - 8'b1000_0000
-		cmd_init[1] = 0x02; // Control register - 8'b0000_0010 // 100ms
+		cmd_init[1] = 0x02; // Control register - 8'b0000_0010 // 100ms due to page 9 of http://media.digikey.com/pdf/Data%20Sheets/Austriamicrosystems%20PDFs/TSL4531.pdf
 		TRY_OR_GOTOFAIL(I2C_IF_Write(0x29, cmd_init, 2, 1)); //  );// change integration
 		first = 0;
 	}
 
-	cmd = 0x84; // Command register - 0x04
-	TRY_OR_GOTOFAIL(I2C_IF_Write(0x29, &cmd, 1, 1));
-	TRY_OR_GOTOFAIL(I2C_IF_Read(0x29, aucDataBuf_LOW, 1)); //could read 2 here, but we don't use the other one...
+	int64_t sum = 0;
+	uint8_t measure_time = MAX_MEASURE_TIME;
 
-	cmd = 0x85; // Command register - 0x05
-	TRY_OR_GOTOFAIL(I2C_IF_Write(0x29, &cmd, 1, 1));
-	TRY_OR_GOTOFAIL(I2C_IF_Read(0x29, aucDataBuf_HIGH, 1));
+	while(--measure_time)
+	{
+		vTaskDelay(100);
+		cmd = 0x84; // Command register - 0x04
+		TRY_OR_GOTOFAIL(I2C_IF_Write(0x29, &cmd, 1, 1));
+		TRY_OR_GOTOFAIL(I2C_IF_Read(0x29, aucDataBuf_LOW, 1)); //could read 2 here, but we don't use the other one...
 
-	light_raw = ((aucDataBuf_HIGH[0] << 8) | aucDataBuf_LOW[0]) << 0;
+		cmd = 0x85; // Command register - 0x05
+		TRY_OR_GOTOFAIL(I2C_IF_Write(0x29, &cmd, 1, 1));
+		TRY_OR_GOTOFAIL(I2C_IF_Read(0x29, aucDataBuf_HIGH, 1));
 
-	return light_raw;
+
+		if(measure_time == MAX_MEASURE_TIME - 1)
+		{
+			continue;
+		}
+
+		//light_raw = ((aucDataBuf_HIGH[0] << 8) | aucDataBuf_LOW[0]) << 0;
+		// We are using 100ms mode
+		light_raw = ((aucDataBuf_HIGH[0] << 8) | aucDataBuf_LOW[0]) << 2;  // page 6 of http://media.digikey.com/pdf/Data%20Sheets/Austriamicrosystems%20PDFs/TSL4531.pdf
+		sum += light_raw;
+	}
+	return sum / (MAX_MEASURE_TIME - 1);
 }
 
 int Cmd_readlight(int argc, char *argv[]) {
