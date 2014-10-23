@@ -71,6 +71,8 @@ extern "C" {
         int64_t t2;
     } MatDesc_t;
     
+    typedef uint8_t (*GetNextMatrixFunc_t)(uint8_t isFirst,const_MatDesc_t * pdesc);
+    
     size_t SetIntMatrix(pb_ostream_t * stream,
                         const char * id,
                         const char * tags,
@@ -87,8 +89,7 @@ extern "C" {
     size_t SetMatrixMessage(pb_ostream_t * stream,
                             const char * macbytes,
                             uint32_t unix_time,
-                            const_MatDesc_t * mats,
-                            uint16_t nummats);
+                            GetNextMatrixFunc_t get_next_mat_func);
     
     uint8_t GetIntMatrix(MatDesc_t * mymat, pb_istream_t * stream,size_t maxsize);
     

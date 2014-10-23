@@ -1261,6 +1261,12 @@ int send_periodic_data( data_t * data ) {
 
     msg.has_dust = true;
     msg.dust = data->dust;
+    msg.has_dust_variability = true;
+    msg.dust_variability = data->dust_var;
+    msg.has_dust_max = true;
+    msg.dust_max = data->dust_max;
+    msg.has_dust_min = true;
+    msg.dust_min = data->dust_min;
 
     msg.has_humidity = true;
     msg.humidity = data->humid;

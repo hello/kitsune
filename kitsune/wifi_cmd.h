@@ -23,7 +23,7 @@ extern xSemaphoreHandle pill_smphr;
 
 typedef struct {
 	unsigned int time;
-	int light, light_variability, light_tonality, temp, humid, dust;
+	int light, light_variability, light_tonality, temp, humid, dust, dust_max, dust_min, dust_var;
 	periodic_data_pill_data_container * pill_list;
 } data_t;
 
@@ -99,6 +99,6 @@ int connect_scanned_endpoints(const char* ssid, const char* password,
 //#define MORPH_NAME "Chris's morpheus"
 #define MORPH_NAME "test morpheus 10"
 //#define MORPH_NAME "test morpheus 80"
-#define KIT_VER 8
+#define KIT_VER 9
 
 #endif

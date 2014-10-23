@@ -64,7 +64,7 @@ uint8_t Hmm_Init(void * data, const int16_t * params, int32_t rows, int32_t cols
     for (i = 0; i < pdata->numObservations; i++) {
         for (j = 0; j < pdata->numStates; j++) {
             idx = j*cols + i;
-            pdata->logConditionalProbs[k] = params[idx];
+            pdata->logConditionalProbs[k] = FixedPointLog2Q10(params[idx]);
             k++;
         }
     }
