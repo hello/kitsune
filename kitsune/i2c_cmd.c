@@ -325,6 +325,8 @@ int get_light_100ms_integration() {
 	//TODO: Assert part number here.
 
 	static int first = 1;
+	uint8_t max_measure_time = first ? 2 : 1;
+
 	if (first) {
 		cmd_init[0] = 0x80; // Command register - 8'b1000_0000
 		cmd_init[1] = 0x03; // Control register - 8'b0000_0011
@@ -337,11 +339,15 @@ int get_light_100ms_integration() {
 	}
 
 	int64_t sum = 0;
-	uint8_t max_measure_time = first ? 2 : 1;
 	uint8_t measure_time = max_measure_time;
 
 	while(measure_time--)
 	{
+		if(max_measure_time == 2)  // first time measure, first reading will be skiped.
+		{
+			vTaskDelay(100);
+		}
+
 		cmd = 0x84; // Command register - 0x04
 		TRY_OR_GOTOFAIL(I2C_IF_Write(0x29, &cmd, 1, 1));
 		TRY_OR_GOTOFAIL(I2C_IF_Read(0x29, aucDataBuf_LOW, 1)); //could read 2 here, but we don't use the other one...
@@ -353,7 +359,6 @@ int get_light_100ms_integration() {
 
 		if(measure_time == MAX_MEASURE_TIME - 1)
 		{
-			vTaskDelay(100);
 			continue;
 		}
 
@@ -396,32 +401,18 @@ int get_prox() {
 	prx_cmd_init[1] = 0x08; // one shot measurements
 	TRY_OR_GOTOFAIL(I2C_IF_Write(0x13, prx_cmd_init, 2, 1) );// reset
 
-	int64_t sum = 0;
-	uint8_t measure_time = MAX_MEASURE_TIME;
+	prx_cmd = 0x88; // Command register - 0x87
+	TRY_OR_GOTOFAIL( I2C_IF_Write(0x13, &prx_cmd, 1, 1) );
+	TRY_OR_GOTOFAIL( I2C_IF_Read(0x13, prx_aucDataBuf_LOW, 1) );  //only using top byte...
 
-	while(--measure_time)
-	{
-		vTaskDelay(5);
-		prx_cmd = 0x88; // Command register - 0x87
-		TRY_OR_GOTOFAIL( I2C_IF_Write(0x13, &prx_cmd, 1, 1) );
-		TRY_OR_GOTOFAIL( I2C_IF_Read(0x13, prx_aucDataBuf_LOW, 1) );  //only using top byte...
+	prx_cmd = 0x87; // Command register - 0x87
+	TRY_OR_GOTOFAIL( I2C_IF_Write(0x13, &prx_cmd, 1, 1) );
+	TRY_OR_GOTOFAIL( I2C_IF_Read(0x13, prx_aucDataBuf_HIGH, 1) );   //only using top byte...
 
-		prx_cmd = 0x87; // Command register - 0x87
-		TRY_OR_GOTOFAIL( I2C_IF_Write(0x13, &prx_cmd, 1, 1) );
-		TRY_OR_GOTOFAIL( I2C_IF_Read(0x13, prx_aucDataBuf_HIGH, 1) );   //only using top byte...
+	proximity_raw = (prx_aucDataBuf_HIGH[0] << 8) | prx_aucDataBuf_LOW[0];
 
-		proximity_raw = (prx_aucDataBuf_HIGH[0] << 8) | prx_aucDataBuf_LOW[0];
+	return proximity_raw;
 
-		if(measure_time == MAX_MEASURE_TIME - 1)
-		{
-			continue;
-		}
-
-		sum += proximity_raw;
-	}
-
-	//return proximity_raw;
-	return sum / (MAX_MEASURE_TIME - 1);
 }
 
 int Cmd_readproximity(int argc, char *argv[]) {
