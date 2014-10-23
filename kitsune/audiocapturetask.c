@@ -27,7 +27,7 @@
 
 
 
-//#define AUDIO_DEBUG_MESSAGES
+#define AUDIO_DEBUG_MESSAGES
 
 #define SWAP_ENDIAN
 
@@ -86,7 +86,7 @@ static void DeleteTxBuffer(void) {
 	}
 }
 
-static void Init(void) {
+static void InitAudio(void) {
 	_readMaxDelay = portMAX_DELAY;
 	_isCapturing = 0;
 	_callCounter = 0;
@@ -97,56 +97,62 @@ static void Init(void) {
 	}
 
 	CreateTxBuffer();
+	vTaskDelay(20);
 
-#ifdef AUDIO_DEBUG_MESSAGES
-	UARTprintf("get nau\n");
-	vTaskDelay(5);
-#endif
-	// Configure Audio Codec
 	get_codec_mic_NAU();
-
-#ifdef AUDIO_DEBUG_MESSAGES
-	UARTprintf("capturer init\n");
-	vTaskDelay(5);
-#endif
+	vTaskDelay(20);
 
 	// Initialize the Audio(I2S) Module
-	AudioCapturerInit(CPU_XDATA,AUDIO_RATE);
+	AudioCapturerInit(CPU_XDATA, AUDIO_RATE);
+	vTaskDelay(20);
 
-#ifdef AUDIO_DEBUG_MESSAGES
-	UARTprintf("udma init\n");
-	vTaskDelay(5);
-#endif
 	// Initialize the DMA Module
 	UDMAInit();
-	UDMAChannelSelect(UDMA_CH4_I2S_RX, NULL);
-	UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL);
+	vTaskDelay(20);
 
-#ifdef AUDIO_DEBUG_MESSAGES
-	UARTprintf("pingpong init\n");
-	vTaskDelay(5);
-#endif
+	UDMAChannelSelect(UDMA_CH4_I2S_RX, NULL);
+	vTaskDelay(20);
+
 	// Setup the DMA Mode
 	SetupPingPongDMATransferTx();
+	vTaskDelay(20);
 
-#ifdef AUDIO_DEBUG_MESSAGES
-	UARTprintf("capturer init\n");
-	vTaskDelay(5);
-#endif
+
 	// Setup the Audio In/Out
 	AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
-	AudioCaptureRendererConfigure(I2S_PORT_DMA,AUDIO_RATE);
+	vTaskDelay(20);
 
-	//Initialize the audio features processing
-	AudioFeatures_Init(DataCallback);
+	AudioCaptureRendererConfigure(I2S_PORT_DMA, AUDIO_RATE);
+	vTaskDelay(20);
+
+	// Start Audio Tx/Rx
+	Audio_Start();
+	vTaskDelay(20);
+
 
 #ifdef AUDIO_DEBUG_MESSAGES
-	UARTprintf("INIT AUDIO PROCESSING\n");
+	UARTprintf("INIT AUDIO\n");
 	vTaskDelay(5);
 #endif
 
-	DeleteTxBuffer();
 
+}
+
+static void DeinitAudio(void) {
+	Audio_Stop();
+	vTaskDelay(20);
+
+	McASPDeInit();
+	vTaskDelay(20);
+
+	DeleteTxBuffer();
+	vTaskDelay(20);
+
+
+#ifdef AUDIO_DEBUG_MESSAGES
+	UARTprintf("DEINITIALIZE AUDIO\n");
+	vTaskDelay(5);
+#endif
 }
 
 void AudioCaptureTask_Thread(void * data) {
@@ -173,9 +179,13 @@ void AudioCaptureTask_Thread(void * data) {
 	vTaskDelay(5);
 #endif
 
-	/* Create everything, except the buffer (which we want to recycle)  */
-	Init();
+	vTaskDelay(100);
+	//for some reason I must have this here, or AudioFeatures_Init causes a crash.  THIS MAKES NO SENSE.
+	InitAudio();
+	DeinitAudio();
 
+	//Initialize the audio features
+	AudioFeatures_Init(DataCallback);
 
 
 	for (; ;) {
@@ -195,8 +205,7 @@ void AudioCaptureTask_Thread(void * data) {
 				UARTprintf("turn on audio\n");
 				vTaskDelay(5);
 #endif
-				CreateTxBuffer();
-				Audio_Start();
+				InitAudio();
 				vTaskDelay(5);
 
 				_readMaxDelay = LOOP_DELAY_WHILE_PROCESSING_IN_TICKS; //ensure that our queue no longer blocks
@@ -212,7 +221,7 @@ void AudioCaptureTask_Thread(void * data) {
 				UARTprintf("turn off audio\n");
 				vTaskDelay(5);
 #endif
-				Audio_Stop();
+				DeinitAudio();
 				vTaskDelay(5);
 
 				_readMaxDelay = portMAX_DELAY; //make queue block again
@@ -223,8 +232,6 @@ void AudioCaptureTask_Thread(void * data) {
 					f_close(file_ptr);
 					memset(&file_obj, 0, sizeof(file_obj));
 				}
-
-				DeleteTxBuffer();
 
 				break;
 			}
@@ -308,7 +315,7 @@ void AudioCaptureTask_Thread(void * data) {
 				AudioFeatures_SetAudioData(samples,_callCounter++);
 				t2 = xTaskGetTickCount();
 
-			  	//UARTprintf("dt = %d, compute=%d\n",dt,t2-t1); //vTaskDelay(5);
+			  //	UARTprintf("dt = %d, compute=%d\n",dt,t2-t1); //vTaskDelay(5);
 
 
 				if (_captureCounter > 0) {
