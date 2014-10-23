@@ -127,7 +127,6 @@ static void _reply_device_id()
 		MorpheusCommand reply_command;
 		memset(&reply_command, 0, sizeof(reply_command));
 		reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_DEVICE_ID;
-		reply_command.version = PROTOBUF_VERSION;
 
 		reply_command.deviceId.arg = device_id;
 		reply_command.has_firmwareVersion = true;
@@ -171,7 +170,6 @@ static void _ble_reply_wifi_info(){
         MorpheusCommand reply_command;
         memset(&reply_command, 0, sizeof(reply_command));
         reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_WIFI_ENDPOINT;
-        reply_command.version = PROTOBUF_VERSION;
 
         size_t len = strlen((char*)name) + 1;
         char* ssid = pvPortMalloc(len);
@@ -407,7 +405,6 @@ void on_ble_protobuf_command(MorpheusCommand* command)
                 MorpheusCommand reply_command;
                 memset(&reply_command, 0, sizeof(reply_command));
                 reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_SET_WIFI_ENDPOINT;
-                reply_command.version = PROTOBUF_VERSION;
                 reply_command.wifiSSID.arg = (void*)ssid;
 
                 UARTprintf("Connection attempt issued.\n");
