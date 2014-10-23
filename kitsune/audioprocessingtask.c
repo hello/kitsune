@@ -1,6 +1,7 @@
 #include "FreeRTOS.h"
 #include "queue.h"
 
+#include "audiocapturetask.h"
 #include "audioprocessingtask.h"
 #include "audioclassifier.h"
 
@@ -9,6 +10,13 @@ static xQueueHandle _queue = NULL;
 
 static void RecordCallback(const RecordAudioRequest_t * request) {
 	/* Go tell audio capture task to write to disk as it captures */
+	AudioCaptureMessage_t message;
+	memset(&message,0,sizeof(message));
+
+	message.captureduration = request->durationInFrames;
+	message.command = eAudioCaptureSaveToDisk;
+
+	AudioCaptureTask_AddMessageToQueue(&message);
 }
 
 static void Init(void) {
