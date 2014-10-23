@@ -68,6 +68,7 @@
 #include "diskio.h"
 #include "top_hci.h"
 #include "slip_packet.h"
+#include "ble_cmd.h"
 //#include "mcasp_if.h" // add by Ben
 
 #define ONLY_MID 0
@@ -1304,6 +1305,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "data_upload", Cmd_data_upload, "upload protobuf data" },
 		{ "^", Cmd_send_top, "send command to top board"},
 		{ "topdfu", Cmd_topdfu, "update topboard firmware."},
+		{ "factory_reset", Cmd_factory_reset, "Factory reset from middle."},
 
 		{ 0, 0, 0 } };
 
