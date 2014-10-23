@@ -314,7 +314,7 @@ int Cmd_readhumid(int argc, char *argv[]) {
 	return SUCCESS;
 }
 
-int get_light() {
+int get_light_100ms_integration() {
 	unsigned char aucDataBuf_LOW[2];
 	unsigned char aucDataBuf_HIGH[2];
 	unsigned char cmd_init[2];
@@ -342,7 +342,6 @@ int get_light() {
 
 	while(measure_time--)
 	{
-		vTaskDelay(100);
 		cmd = 0x84; // Command register - 0x04
 		TRY_OR_GOTOFAIL(I2C_IF_Write(0x29, &cmd, 1, 1));
 		TRY_OR_GOTOFAIL(I2C_IF_Read(0x29, aucDataBuf_LOW, 1)); //could read 2 here, but we don't use the other one...
@@ -354,6 +353,7 @@ int get_light() {
 
 		if(measure_time == MAX_MEASURE_TIME - 1)
 		{
+			vTaskDelay(100);
 			continue;
 		}
 
@@ -367,7 +367,7 @@ int get_light() {
 
 int Cmd_readlight(int argc, char *argv[]) {
 
-	UARTprintf(" light is %d\n\r", get_light());
+	UARTprintf(" light is %d\n\r", get_light_100ms_integration());
 
 	return SUCCESS;
 }

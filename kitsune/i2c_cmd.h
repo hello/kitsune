@@ -18,7 +18,7 @@ int get_codec_mic_NAU();
 
 int get_temp();
 int get_humid();
-int get_light();
+int get_light_100ms_integration();
 int get_prox();
 
 #endif

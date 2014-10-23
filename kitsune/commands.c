@@ -591,7 +591,7 @@ void thread_fast_i2c_poll(void * unused)  {
 
 		if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
 			vTaskDelay(2);
-			light = get_light();
+			light = get_light_100ms_integration();
 			vTaskDelay(2); //this is important! If we don't do it, then the prox will stretch the clock!
 			prox = get_prox();
 			hpf_prox = last_prox - prox;
@@ -626,7 +626,7 @@ void thread_fast_i2c_poll(void * unused)  {
 				xSemaphoreGive(light_smphr);
 			}
 		}
-		vTaskDelayUntil(&now, 5);   // The primitive level light sampling max freq will take care of this, no worries.
+		vTaskDelayUntil(&now, 100);
 	}
 }
 
@@ -1170,7 +1170,7 @@ int Cmd_led(int argc, char *argv[]) {
 	last_time = now;
 
 	if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
-		light = get_light();
+		light = get_light_100ms_integration();
 		xSemaphoreGive(i2c_smphr);
 
 		if( light > 80 ){
