@@ -32,7 +32,9 @@
 #define SWAP_ENDIAN
 
 #define INBOX_QUEUE_LENGTH (5)
+
 #define LOOP_DELAY_WHILE_PROCESSING_IN_TICKS (1)
+#define LOOP_DELAY_WHILE_WAITING_BUFFER_TO_FILL (5)
 
 #define AUDIO_RATE 16000
 static const unsigned int CPU_XDATA = 1; //1: enabled CPU interrupt triggerred
@@ -282,8 +284,10 @@ void AudioCaptureTask_Thread(void * data) {
 			}
 		}
 
-		if (_isCapturing) {
-
+		if (!_isCapturing) {
+			vTaskDelay(LOOP_DELAY_WHILE_WAITING_BUFFER_TO_FILL)
+		}
+		else {
 			iBufferFilled = GetBufferSize(pTxBuffer);
 			//UARTprintf("iBufferFilled %d\r\n" , iBufferFilled);
 
