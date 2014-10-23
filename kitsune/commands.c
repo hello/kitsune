@@ -626,7 +626,7 @@ void thread_fast_i2c_poll(void * unused)  {
 				xSemaphoreGive(light_smphr);
 			}
 		}
-		vTaskDelayUntil(&now, 100 );
+		vTaskDelayUntil(&now, 5);   // The primitive level light sampling max freq will take care of this, no worries.
 	}
 }
 
