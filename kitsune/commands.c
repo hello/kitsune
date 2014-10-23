@@ -603,6 +603,7 @@ void thread_fast_i2c_poll(void * unused)  {
 				}
 				xSemaphoreGive(alarm_smphr);
 				//Audio_Stop();
+				xSemaphoreGive(i2c_smphr);
 				Cmd_led(0,0);
 			}
 			last_prox = prox;
@@ -1125,9 +1126,29 @@ void led_brightness(unsigned int * colors, unsigned int brightness ) {
 		colors[l] = (blue) | (red<<8) | (green<<16);
 	}
 }
+void led_add_intensity(unsigned int * colors, int intensity ) {
+	int l;
+	int blue,red,green;
+
+	for (l = 0; l < NUM_LED; ++l) {
+		blue = ( colors[l] & ~0xffff00 );
+		red = ( colors[l] & ~0xff00ff )>>8;
+		green = ( colors[l] & ~0x00ffff )>>16;
+
+		blue = blue + intensity < 0 ? 0 : blue + intensity;
+		red = red + intensity < 0 ? 0 : red + intensity;
+		green = green + intensity < 0 ? 0 : green + intensity;
+
+		blue = blue > 0xff ? 0xff : blue&0xff;
+		red = red > 0xff ? 0xff : red&0xff;
+		green = green > 0xff ? 0xff : green&0xff;
+
+		colors[l] = (blue) | (red<<8) | (green<<16);
+	}
+}
 
 int Cmd_led(int argc, char *argv[]) {
-	int i,select;
+	int i,select,light,adjust;
 	unsigned int* colors;
 
 	unsigned int colors_blue[NUM_LED+1]= {0x00002,0x000004,0x000008,0x000010,0x000020,0x000040,0x000080,0x000080,0,0,0,0,0};
@@ -1147,6 +1168,18 @@ int Cmd_led(int argc, char *argv[]) {
 	}
 	last_time = now;
 
+	if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
+		light = get_light();
+		xSemaphoreGive(i2c_smphr);
+
+		if( light > 80 ){
+			adjust = 0;
+		} else {
+			adjust = light-80;
+		}
+	} else {
+		adjust = 0;
+	}
 	colors = colors_white;
 
 	if(argc == 2) {
@@ -1177,6 +1210,7 @@ int Cmd_led(int argc, char *argv[]) {
 		led_cw(colors_original);
 		memcpy( colors, colors_original, sizeof(colors_original));
 		led_brightness( colors, fxd_sin(i<<4)>>7);
+		led_add_intensity( colors, adjust );
 		led_array(colors);
 		vTaskDelay(8*(12-(fxd_sin((i+1)<<4)>>12)));
 	}
