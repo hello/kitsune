@@ -16,6 +16,10 @@
 #define CIRCULAR_BUF_MASK (CIRCULAR_BUF_SIZE - 1)
 #define BUF_SIZE_IN_CHUNK (32)
 
+#define CHUNK_BUF_SIZE_2N (6)
+#define CHUNK_BUF_SIZE (1 << CHUNK_BUF_SIZE_2N)
+#define CHUNK_BUF_MASK (CHUNK_BUF_SIZE - 1)
+
 #define MAX_NUMBER_CLASSES (5)
 #define EXPECTED_NUMBER_OF_CLASSIFIER_INPUTS (NUM_AUDIO_FEATURES)
 
@@ -34,9 +38,7 @@
 #endif
 
 
-#define CHUNK_BUF_SIZE_2N (1)
-#define CHUNK_BUF_SIZE (1 << CHUNK_BUF_SIZE_2N)
-#define CHUNK_BUF_MASK (CHUNK_BUF_SIZE - 1)
+
 
 typedef struct {
     uint8_t packedbuf[BUF_SIZE_IN_CHUNK][NUM_AUDIO_FEATURES/2];// 32 x 16 = 2^5 * 2^4 = 2^9 = 256 bytes
