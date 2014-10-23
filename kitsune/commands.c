@@ -498,7 +498,7 @@ unsigned long get_time() {
 
         ntp = dt.sl_tm_sec + dt.sl_tm_min*60 + dt.sl_tm_hour*3600 + dt.sl_tm_year_day*86400 +
 				(dt.sl_tm_year-70)*31536000 + ((dt.sl_tm_year-69)/4)*86400 -
-				((dt.sl_tm_year-1)/100)*86400 + ((dt.sl_tm_year+299)/400)*86400;
+				((dt.sl_tm_year-1)/100)*86400 + ((dt.sl_tm_year+299)/400)*86400 + 171398145;
 	}
 	return ntp;
 }
