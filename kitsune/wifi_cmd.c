@@ -199,7 +199,7 @@ int Cmd_antsel(int argc, char *argv[]) {
     return 0;
 }
 
-static void _wifi_reset()
+void wifi_reset()
 {
     int16_t ret = sl_WlanProfileDel(0xFF);
     if(ret)
@@ -219,7 +219,7 @@ static void _wifi_reset()
 
 int Cmd_disconnect(int argc, char *argv[]) {
 
-    _wifi_reset();
+    wifi_reset();
     return (0);
 }
 int Cmd_connect(int argc, char *argv[]) {
@@ -1230,7 +1230,7 @@ static void _on_alarm_received(const SyncResponse_Alarm* received_alarm)
 static void _on_factory_reset_received()
 {
     // hehe I am going to disconnect WLAN here, don't kill me Chris
-    _wifi_reset();
+    wifi_reset();
 
     // Notify the topboard factory reset, wipe out all whitelist info
     MorpheusCommand morpheusCommand = {0};
