@@ -285,7 +285,7 @@ void AudioCaptureTask_Thread(void * data) {
 		}
 
 		if (!_isCapturing) {
-			vTaskDelay(LOOP_DELAY_WHILE_WAITING_BUFFER_TO_FILL)
+			vTaskDelay(LOOP_DELAY_WHILE_WAITING_BUFFER_TO_FILL);
 		}
 		else {
 			iBufferFilled = GetBufferSize(pTxBuffer);
