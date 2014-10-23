@@ -293,7 +293,7 @@ bool ble_send_protobuf(MorpheusCommand* command)
         return false;
     }
 
-
+    command->version = PROTOBUF_VERSION;
     ble_proto_assign_encode_funcs(command);
 
 

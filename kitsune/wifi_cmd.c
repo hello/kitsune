@@ -1204,23 +1204,21 @@ bool encode_name(pb_ostream_t *stream, const pb_field_t *field, void * const *ar
                     strlen(MORPH_NAME));
 }
 
-static void _on_alarm_received(const SyncResponse_Alarm* alarm)
+static void _on_alarm_received(const SyncResponse_Alarm* received_alarm)
 {
     if (xSemaphoreTake(alarm_smphr, portMAX_DELAY)) {
-        if (alarm->has_start_time && alarm->start_time > 0) {
-            if (get_time() > alarm->start_time) {
+        if (received_alarm->has_start_time && received_alarm->start_time > 0) {
+            if (get_time() > received_alarm->start_time) {
                 // This approach is error prond: We got information from two different sources
                 // and expect them consistent. The time in our server might be different with NTP.
                 // I am going to redesign this, instead of returning start/end timestamp, the backend
                 // will retrun the offset seconds from now to the next ring and the ring duration.
                 // So we don't need to care the actual time of 'Now'.
-                int duration = alarm->end_time - alarm->start_time;
-                alarm->start_time = get_time();
-                alarm->end_time = alarm->start_time + duration;
+                memcpy(&alarm, received_alarm, sizeof(alarm));
             }
             UARTprintf("Got alarm %d to %d in %d minutes\n",
-                    alarm->start_time, alarm->end_time,
-                    (alarm->start_time - get_time()) / 60);
+            		received_alarm->start_time, received_alarm->end_time,
+                    (received_alarm->start_time - get_time()) / 60);
         }else{
             UARTprintf("No alarm for now.\n");
         }
@@ -1237,7 +1235,6 @@ static void _on_factory_reset_received()
     // Notify the topboard factory reset, wipe out all whitelist info
     MorpheusCommand morpheusCommand = {0};
     morpheusCommand.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_FACTORY_RESET;
-    morpheusCommand.version = PROTOBUF_VERSION;
     ble_send_protobuf(&morpheusCommand);  // Send the protobuf to topboard
 }
 
@@ -1245,13 +1242,12 @@ static void _on_response_protobuf(const SyncResponse* response_protobuf)
 {
     if (response_protobuf->has_alarm) {
         _on_alarm_received(&response_protobuf->alarm);
-        alarm = response_protobuf->alarm;  // I may redesign this in the next PR
     }
 
     if(response_protobuf->has_reset_device && response_protobuf->reset_device){
         UARTprintf("Server factory reset.\n");
         
-        
+        _on_factory_reset_received();
     }
 }
 
