@@ -25,7 +25,7 @@
 
 #define CLASS_OF_INTEREST_TO_ENABLE_CALLBACK (0)
 
-#define RECORD_DURATION_IN_MS (5000)
+#define RECORD_DURATION_IN_MS (10000)
 #define RECORD_DURATION_IN_FRAMES (RECORD_DURATION_IN_MS / SAMPLE_PERIOD_IN_MILLISECONDS)
 
 
@@ -328,7 +328,7 @@ void AudioClassifier_DataCallback(const AudioFeatures_t * pfeats) {
             
             _hmm.fpClassifier(_hmm.data,probs,classes,0);
             
-            if (probs[CLASS_OF_INTEREST_TO_ENABLE_CALLBACK] > TOFIX(0.95f,HMM_LOGPROB_QFIXEDPOINT) && _playbackFunc) {
+            if (probs[CLASS_OF_INTEREST_TO_ENABLE_CALLBACK] > TOFIX(0.95f,HMM_LOGPROB_QFIXEDPOINT_OUTPUT) && _playbackFunc) {
                 RecordAudioRequest_t req;
                 memset(&req,0,sizeof(req));
                 
