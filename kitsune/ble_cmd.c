@@ -382,3 +382,13 @@ void ble_proto_free_command(MorpheusCommand* command)
         command->motionDataEntrypted.arg = NULL;
     }
 }
+
+
+int Cmd_factory_reset(int argc, char* argv[])
+{
+	MorpheusCommand morpheusCommand = {0};
+	morpheusCommand.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_FACTORY_RESET;
+	ble_send_protobuf(&morpheusCommand);  // Send the protobuf to topboard
+
+	return 0;
+}
