@@ -461,7 +461,6 @@ void untime(unsigned long unixtime, SlDateTime_t *tm)
 
 unsigned long get_time() {
 	portTickType now = xTaskGetTickCount();
-	static portTickType unix_now = 0;
 	unsigned long ntp = 0;
 	static unsigned long last_ntp = 0;
 	unsigned int tries = 0;
@@ -491,11 +490,15 @@ unsigned long get_time() {
 			}
 		}
 
-		unix_now = now;
 	} else if (last_ntp != 0) {
-		ntp = last_ntp + (now - unix_now) / 1000;
-		last_ntp = ntp;
-		unix_now = now;
+        SlDateTime_t dt =  {0};
+        _u8 configLen = sizeof(SlDateTime_t);
+        _u8 configOpt = SL_DEVICE_GENERAL_CONFIGURATION_DATE_TIME;
+        sl_DevGet(SL_DEVICE_GENERAL_CONFIGURATION,&configOpt, &configLen,(_u8 *)(&dt));
+
+        ntp = dt.sl_tm_sec + dt.sl_tm_min*60 + dt.sl_tm_hour*3600 + dt.sl_tm_year_day*86400 +
+				(dt.sl_tm_year-70)*31536000 + ((dt.sl_tm_year-69)/4)*86400 -
+				((dt.sl_tm_year-1)/100)*86400 + ((dt.sl_tm_year+299)/400)*86400;
 	}
 	return ntp;
 }
