@@ -13,7 +13,7 @@
 #include "i2c_if.h"
 #include "uartstdio.h"
 
-#define MAX_MEASURE_TIME		20
+#define MAX_MEASURE_TIME		10
 
 #define FAILURE                 -1
 #define SUCCESS                 0
@@ -248,12 +248,6 @@ int get_temp() {
 		temp_raw = (aucDataBuf[0] << 8) | ((aucDataBuf[1] & 0xfc));
 		temp = temp_raw;
 
-		/*
-		temp *= 175;
-		temp /= (65536/100);
-		temp -= 47*100;
-		*/
-
 		if(measure_time == MAX_MEASURE_TIME - 1)
 		{
 			continue;  // skip the 1st measure.
@@ -343,9 +337,10 @@ int get_light() {
 	}
 
 	int64_t sum = 0;
-	uint8_t measure_time = MAX_MEASURE_TIME;
+	uint8_t max_measure_time = first ? 2 : 1;
+	uint8_t measure_time = max_measure_time;
 
-	while(--measure_time)
+	while(measure_time--)
 	{
 		vTaskDelay(100);
 		cmd = 0x84; // Command register - 0x04
@@ -367,7 +362,7 @@ int get_light() {
 		light_raw = ((aucDataBuf_HIGH[0] << 8) | aucDataBuf_LOW[0]) << 2;  // page 6 of http://media.digikey.com/pdf/Data%20Sheets/Austriamicrosystems%20PDFs/TSL4531.pdf
 		sum += light_raw;
 	}
-	return sum / (MAX_MEASURE_TIME - 1);
+	return sum;
 }
 
 int Cmd_readlight(int argc, char *argv[]) {
