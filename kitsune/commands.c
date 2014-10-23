@@ -329,7 +329,7 @@ get_codec_NAU();
 
 // Initialize the Audio(I2S) Module
 //
-AudioCapturerInit(CPU_XDATA, 48000);
+AudioCapturerInit(CPU_XDATA, 44100/2);
 
 // Initialize the DMA Module
 //
@@ -344,7 +344,7 @@ SetupPingPongDMATransferRx();
 //
 
 AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
-AudioCaptureRendererConfigure(I2S_PORT_DMA, 48000);
+AudioCaptureRendererConfigure(I2S_PORT_DMA, 44100/2);
 
 // Start Audio Tx/Rx
 //
@@ -1452,8 +1452,8 @@ void vUARTTask(void *pvParameters) {
 #if !ONLY_MID
 	xTaskCreate(AudioCaptureTask_Thread,"audioCaptureTask",4*1024/4,NULL,4,NULL);
 	UARTprintf("*");
-//	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",2*1024/4,NULL,1,NULL);
-//	UARTprintf("*");
+	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,1,NULL);
+	UARTprintf("*");
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 3, NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_dust, "dustTask", 256 / 4, NULL, 3, NULL);
