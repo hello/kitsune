@@ -233,7 +233,11 @@ int get_temp() {
 	int temp_raw;
 	int temp;
 
-	TRY_OR_GOTOFAIL(I2C_IF_Write(0x40, &cmd, 1, 1));    // reset
+	static int first = 1;
+	if (first) {
+		TRY_OR_GOTOFAIL(I2C_IF_Write(0x40, &cmd, 1, 1));    // reset
+		first = 0;
+	}
 
 	while(--measure_time)
 	{
@@ -274,7 +278,12 @@ int get_humid() {
 	int humid_raw;
 	int humid;
 
-	TRY_OR_GOTOFAIL(I2C_IF_Write(0x40, &cmd, 1, 1));    // reset
+	static int first = 1;
+	if (first) {
+		TRY_OR_GOTOFAIL(I2C_IF_Write(0x40, &cmd, 1, 1));    // reset
+		first = 0;
+	}
+
 	int64_t sum = 0;
 	uint8_t measure_time = MAX_MEASURE_TIME;
 
@@ -397,6 +406,7 @@ int get_prox() {
 		first = 0;
 	}
 
+
 	prx_cmd_init[0] = 0x80; // Command register - 8'b1000_0000
 	prx_cmd_init[1] = 0x08; // one shot measurements
 	TRY_OR_GOTOFAIL(I2C_IF_Write(0x13, prx_cmd_init, 2, 1) );// reset
@@ -411,7 +421,7 @@ int get_prox() {
 
 	proximity_raw = (prx_aucDataBuf_HIGH[0] << 8) | prx_aucDataBuf_LOW[0];
 
-	return proximity_raw;
+	return 200000 - proximity_raw * 200000 / 65536;
 
 }
 

@@ -593,11 +593,16 @@ void thread_fast_i2c_poll(void * unused)  {
 			vTaskDelay(2);
 			light = get_light_100ms_integration();
 			vTaskDelay(2); //this is important! If we don't do it, then the prox will stretch the clock!
-			prox = get_prox();
-			hpf_prox = last_prox - prox;
-			if(hpf_prox > 35) {
-				UARTprintf("PROX: %d\n", hpf_prox);
 
+			// For the black morpheus, we can detect 6mm distance max
+			// for white one, 9mm distance max.
+			prox = get_prox();  // now this thing is in um.
+
+			hpf_prox = last_prox - prox;   // The noise in enclosure is in 100+ um level
+
+			//UARTprintf("PROX: %d um\n", prox);
+			if(hpf_prox > 400) {  // seems not very sensitive,  the noise in enclosure is in 100+ um level
+				UARTprintf("PROX: %d um, diff %d um\n", prox, hpf_prox);
 				xSemaphoreTake(alarm_smphr, portMAX_DELAY);
 				if (alarm.has_start_time && get_time() >= alarm.start_time) {
 					memset(&alarm, 0, sizeof(alarm));
