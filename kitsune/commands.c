@@ -699,17 +699,34 @@ void thread_sensor_poll(void* unused) {
 			uint8_t measure_time = 10;
 			int64_t humid_sum = 0;
 			int64_t temp_sum = 0;
+
+			uint8_t humid_count = 0;
+			uint8_t temp_count = 0;
+
 			while(--measure_time)
 			{
 				vTaskDelay(2);
-				humid_sum += get_humid();
+				int humid = get_humid();
+				if(humid != FAILURE)
+				{
+					humid_sum += humid;
+					humid_count++;
+				}
+
 				vTaskDelay(2);
-				temp_sum += get_temp();
+
+				int temp = get_temp();
+
+				if(temp != FAILURE)
+				{
+					temp_sum += temp;
+					temp_count++;
+				}
 				vTaskDelay(2);
 			}
 
-			data.humid = humid_sum / 10;
-			data.temp = temp_sum / 10;
+			data.humid = humid_count == 0 ? 0 : humid_sum / humid_count;
+			data.temp = temp_count == 0 ? 0 : temp_sum / temp_count;
 			
 			xSemaphoreGive(i2c_smphr);
 		} else {

@@ -14,8 +14,6 @@
 #include "uartstdio.h"
 #include "i2c_cmd.h"
 
-#define MAX_MEASURE_TIME		10
-
 #define FAILURE                 -1
 #define SUCCESS                 0
 
