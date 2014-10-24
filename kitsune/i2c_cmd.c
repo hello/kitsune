@@ -12,6 +12,7 @@
 
 #include "i2c_if.h"
 #include "uartstdio.h"
+#include "i2c_cmd.h"
 
 #define MAX_MEASURE_TIME		10
 
@@ -271,8 +272,6 @@ int init_humid_sensor()
 
 	if (first) {
 		unsigned char cmd = 0xfe;
-		unsigned char aucDataBuf[2];
-	
 		TRY_OR_GOTOFAIL(I2C_IF_Write(0x40, &cmd, 1, 1));    // reset
 
 		// Dummy read the 1st value.
@@ -373,9 +372,7 @@ int init_prox_sensor()
 		prx_cmd_init[1] = 20; // Value * 10mA
 		TRY_OR_GOTOFAIL( I2C_IF_Write(0x13, prx_cmd_init, 2, 1) );
 
-		prx_cmd_init[0] = 0x80; // Command register - 8'b1000_0000
-		prx_cmd_init[1] = 0x08; // one shot measurements
-		TRY_OR_GOTOFAIL(I2C_IF_Write(0x13, prx_cmd_init, 2, 1) );// reset
+
 		first = 0;
 	}
 
@@ -387,6 +384,11 @@ int get_prox() {
 	unsigned char prx_aucDataBuf_HIGH[2];
 	int proximity_raw;
 	unsigned char prx_cmd;
+
+	unsigned char prx_cmd_init[2];
+	prx_cmd_init[0] = 0x80; // Command register - 8'b1000_0000
+	prx_cmd_init[1] = 0x08; // one shot measurements
+	TRY_OR_GOTOFAIL(I2C_IF_Write(0x13, prx_cmd_init, 2, 1) );// reset
 
 
 	prx_cmd = 0x88; // Command register - 0x87
