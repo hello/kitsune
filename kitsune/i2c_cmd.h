@@ -16,14 +16,17 @@ int get_codec_NAU();
 int close_codec_NAU();
 int get_codec_mic_NAU();
 
-void init_humid_sensor();
-void init_temp_sensor();
-void init_light_sensor();
-void init_prox_sensor();
+
 
 int get_temp();
 int get_humid();
 int get_light();
 int get_prox();
+
+
+int init_humid_sensor();
+int init_temp_sensor();
+int init_light_sensor();
+int init_prox_sensor();
 
 #endif

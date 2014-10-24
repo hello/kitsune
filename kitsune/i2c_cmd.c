@@ -224,7 +224,7 @@ int Cmd_i2c_write(int argc, char *argv[]) {
 
 }
 
-void init_temp_sensor()
+int init_temp_sensor()
 {
 
 	static int first = 1;
@@ -236,6 +236,8 @@ void init_temp_sensor()
 
 		first = 0;
 	}
+
+	return SUCCESS;
 }
 
 int get_temp() {
@@ -262,7 +264,7 @@ int Cmd_readtemp(int argc, char *argv[]) {
 	return SUCCESS;
 }
 
-void init_humid_sensor()
+int init_humid_sensor()
 {
 	static int first = 1;
 
@@ -273,9 +275,11 @@ void init_humid_sensor()
 		TRY_OR_GOTOFAIL(I2C_IF_Write(0x40, &cmd, 1, 1));    // reset
 
 		// Dummy read the 1st value.
-		get_humid()
+		get_humid();
 		first = 0;
 	}
+
+	return SUCCESS;
 }
 
 int get_humid() {
@@ -303,7 +307,7 @@ int Cmd_readhumid(int argc, char *argv[]) {
 	return SUCCESS;
 }
 
-void init_light_sensor()
+int init_light_sensor()
 {
 	unsigned char cmd_init[2];
 	static int first = 1;
@@ -318,6 +322,8 @@ void init_light_sensor()
 		TRY_OR_GOTOFAIL(I2C_IF_Write(0x29, cmd_init, 2, 1)); //  );// change integration
 		first = 0;
 	}
+
+	return SUCCESS;
 }
 
 int get_light() {
@@ -351,7 +357,7 @@ int Cmd_readlight(int argc, char *argv[]) {
 	return SUCCESS;
 }
 
-void init_prox_sensor()
+int init_prox_sensor()
 {
 	unsigned char prx_cmd_init[2];
 
@@ -371,6 +377,8 @@ void init_prox_sensor()
 		TRY_OR_GOTOFAIL(I2C_IF_Write(0x13, prx_cmd_init, 2, 1) );// reset
 		first = 0;
 	}
+
+	return SUCCESS;
 }
 
 int get_prox() {
