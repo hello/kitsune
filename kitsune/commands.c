@@ -591,7 +591,7 @@ void thread_fast_i2c_poll(void * unused)  {
 
 		if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
 			vTaskDelay(2);
-			light = get_light_100ms_integration();
+			light = get_light();
 			vTaskDelay(2); //this is important! If we don't do it, then the prox will stretch the clock!
 
 			// For the black morpheus, we can detect 6mm distance max
@@ -721,11 +721,21 @@ void thread_sensor_poll(void* unused) {
 			xSemaphoreGive(light_smphr);
 		}
 		if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
-			vTaskDelay(2);
-			data.humid = get_humid();
-			vTaskDelay(2);
-			data.temp = get_temp();
-			vTaskDelay(2);
+			uint8_t measure_time = 10;
+			int64_t humid_sum = 0;
+			int64_t temp_sum = 0;
+			while(--measure_time)
+			{
+				vTaskDelay(2);
+				humid_sum += get_humid();
+				vTaskDelay(2);
+				temp_sum += get_temp();
+				vTaskDelay(2);
+			}
+
+			data.humid = humid_sum / 10;
+			data.temp = temp_sum / 10;
+			
 			xSemaphoreGive(i2c_smphr);
 		} else {
 			continue;
@@ -1175,7 +1185,7 @@ int Cmd_led(int argc, char *argv[]) {
 	last_time = now;
 
 	if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
-		light = get_light_100ms_integration();
+		light = get_light();
 		xSemaphoreGive(i2c_smphr);
 
 		if( light > 80 ){
@@ -1444,6 +1454,12 @@ void vUARTTask(void *pvParameters) {
 	if (sl_mode == ROLE_AP || !sl_status) {
 		//Cmd_sl(0, 0);
 	}
+
+	// Init sensors
+	init_humid_sensor();
+	init_temp_sensor();
+	init_light_sensor();
+	init_prox_sensor();
 
 	data_queue = xQueueCreate(60, sizeof(data_t));
 	vSemaphoreCreateBinary(dust_smphr);

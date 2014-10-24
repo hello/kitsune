@@ -169,7 +169,7 @@ int Cmd_i2c_readreg(int argc, char *argv[]) {
 	//
 	RET_IF_ERR(I2C_IF_Read(ucDevAddr, &aucRdDataBuf[0], ucRdLen));
 
-	UARTprintf("I2C_IF_ Read From address complete\n\r");
+	UARTprintf("I2C_IF_ Read From address complete\n");
 	//
 	// Display the buffer over UART on successful readreg
 	//
@@ -224,114 +224,90 @@ int Cmd_i2c_write(int argc, char *argv[]) {
 
 }
 
-int get_temp() {
-
-	int64_t sum = 0;
-	uint8_t measure_time = MAX_MEASURE_TIME;
-
-	unsigned char cmd = 0xfe;
-	int temp_raw;
-	int temp;
+void init_temp_sensor()
+{
 
 	static int first = 1;
 	if (first) {
+		unsigned char cmd = 0xfe;
 		TRY_OR_GOTOFAIL(I2C_IF_Write(0x40, &cmd, 1, 1));    // reset
+
+		get_temp();
+
 		first = 0;
 	}
+}
 
-	while(--measure_time)
-	{
-		unsigned char aucDataBuf[2];
-		vTaskDelay(10);
+int get_temp() {
+	unsigned char cmd = 0xe3;
+	int temp_raw;
+	int temp;
 
-		cmd = 0xe3;
-		TRY_OR_GOTOFAIL(I2C_IF_Write(0x40, &cmd, 1, 1));
+	unsigned char aucDataBuf[2];
+	vTaskDelay(10);
+	TRY_OR_GOTOFAIL(I2C_IF_Write(0x40, &cmd, 1, 1));
 
-		vTaskDelay(50);
-		TRY_OR_GOTOFAIL(I2C_IF_Read(0x40, aucDataBuf, 2));
-		temp_raw = (aucDataBuf[0] << 8) | ((aucDataBuf[1] & 0xfc));
-		temp = temp_raw;
+	vTaskDelay(50);
+	TRY_OR_GOTOFAIL(I2C_IF_Read(0x40, aucDataBuf, 2));
+	temp_raw = (aucDataBuf[0] << 8) | ((aucDataBuf[1] & 0xfc));
+	
+	temp = 17572 * temp_raw / 65536 - 4685;
 
-		if(measure_time == MAX_MEASURE_TIME - 1)
-		{
-			continue;  // skip the 1st measure.
-		}
-
-		temp = 17572 * temp_raw / 65536 - 4685;
-		//temp = 17500 * temp_raw / 65536 - 4700;
-		sum += temp;
-	}
-
-	return sum / (MAX_MEASURE_TIME - 1);
+	return temp;
 }
 
 int Cmd_readtemp(int argc, char *argv[]) {
-	UARTprintf("temp is %d\n\rç", get_temp());
+	init_temp_sensor();
+	UARTprintf("temp is %d\n", get_temp());
 	return SUCCESS;
+}
+
+void init_humid_sensor()
+{
+	static int first = 1;
+
+	if (first) {
+		unsigned char cmd = 0xfe;
+		unsigned char aucDataBuf[2];
+	
+		TRY_OR_GOTOFAIL(I2C_IF_Write(0x40, &cmd, 1, 1));    // reset
+
+		// Dummy read the 1st value.
+		get_humid()
+		first = 0;
+	}
 }
 
 int get_humid() {
 	unsigned char aucDataBuf[2];
-	unsigned char cmd = 0xfe;
+	unsigned char cmd = 0xe5;
 	int humid_raw;
 	int humid;
 
-	static int first = 1;
-	if (first) {
-		TRY_OR_GOTOFAIL(I2C_IF_Write(0x40, &cmd, 1, 1));    // reset
-		first = 0;
-	}
+	vTaskDelay(10);
+	TRY_OR_GOTOFAIL(I2C_IF_Write(0x40, &cmd, 1, 1));
 
-	int64_t sum = 0;
-	uint8_t measure_time = MAX_MEASURE_TIME;
+	vTaskDelay(50);
+	TRY_OR_GOTOFAIL(I2C_IF_Read(0x40, aucDataBuf, 2));
+	humid_raw = (aucDataBuf[0] << 8) | ((aucDataBuf[1] & 0xfc));  // humid has only 12bit
+	
 
-	while(--measure_time)
-	{
-		vTaskDelay(10);
-
-		cmd = 0xe5;
-		TRY_OR_GOTOFAIL(I2C_IF_Write(0x40, &cmd, 1, 1));
-
-		vTaskDelay(50);
-		TRY_OR_GOTOFAIL(I2C_IF_Read(0x40, aucDataBuf, 2));
-		humid_raw = (aucDataBuf[0] << 8) | ((aucDataBuf[1] & 0xfc));
-		humid = humid_raw;
-
-		/*
-		humid *= 125;
-		humid /= 65536/100;
-		humid -= 6*100;
-		*/
-
-		if(measure_time == MAX_MEASURE_TIME - 1)
-		{
-			continue;  // skip the 1st measure.
-		}
-
-		humid = 12500 * humid_raw / 65536 - 600;
-		sum += humid;
-	}
-
-	return sum / (MAX_MEASURE_TIME - 1);
+	humid = 12500 * humid_raw / 65536 - 600;
+	return humid;
 }
 
 int Cmd_readhumid(int argc, char *argv[]) {
+	init_humid_sensor();
 
-	UARTprintf("humid is %d\n\rç", get_humid());
+	UARTprintf("humid is %d\n", get_humid());
 	return SUCCESS;
 }
 
-int get_light_100ms_integration() {
-	unsigned char aucDataBuf_LOW[2];
-	unsigned char aucDataBuf_HIGH[2];
+void init_light_sensor()
+{
 	unsigned char cmd_init[2];
-	int light_raw;
-
-	unsigned char cmd;
-
 	static int first = 1;
-	uint8_t max_measure_time = first ? 2 : 1;
-
+	
 	if (first) {
 		cmd_init[0] = 0x80; // Command register - 8'b1000_0000
 		cmd_init[1] = 0x03; // Control register - 8'b0000_0011
@@ -342,51 +318,41 @@ int get_light_100ms_integration() {
 		TRY_OR_GOTOFAIL(I2C_IF_Write(0x29, cmd_init, 2, 1)); //  );// change integration
 		first = 0;
 	}
+}
 
-	int64_t sum = 0;
-	uint8_t measure_time = max_measure_time;
+int get_light() {
+	unsigned char aucDataBuf_LOW[2];
+	unsigned char aucDataBuf_HIGH[2];
+	int light_lux;
 
-	while(measure_time--)
-	{
-		if(max_measure_time == 2)  // first time measure, first reading will be skiped.
-		{
-			vTaskDelay(100);
-		}
+	unsigned char cmd;
+	
+	cmd = 0x84; // Command register - 0x04
+	TRY_OR_GOTOFAIL(I2C_IF_Write(0x29, &cmd, 1, 1));
+	TRY_OR_GOTOFAIL(I2C_IF_Read(0x29, aucDataBuf_LOW, 1)); //could read 2 here, but we don't use the other one...
 
-		cmd = 0x84; // Command register - 0x04
-		TRY_OR_GOTOFAIL(I2C_IF_Write(0x29, &cmd, 1, 1));
-		TRY_OR_GOTOFAIL(I2C_IF_Read(0x29, aucDataBuf_LOW, 1)); //could read 2 here, but we don't use the other one...
-
-		cmd = 0x85; // Command register - 0x05
-		TRY_OR_GOTOFAIL(I2C_IF_Write(0x29, &cmd, 1, 1));
-		TRY_OR_GOTOFAIL(I2C_IF_Read(0x29, aucDataBuf_HIGH, 1));
+	cmd = 0x85; // Command register - 0x05
+	TRY_OR_GOTOFAIL(I2C_IF_Write(0x29, &cmd, 1, 1));
+	TRY_OR_GOTOFAIL(I2C_IF_Read(0x29, aucDataBuf_HIGH, 1));
 
 
-		if(measure_time == MAX_MEASURE_TIME - 1)
-		{
-			continue;
-		}
+	// We are using 100ms mode
+	// formula based on page 6 of http://media.digikey.com/pdf/Data%20Sheets/Austriamicrosystems%20PDFs/TSL4531.pdf
+	light_lux = ((aucDataBuf_HIGH[0] << 8) | aucDataBuf_LOW[0]) << 2;
 
-		//light_raw = ((aucDataBuf_HIGH[0] << 8) | aucDataBuf_LOW[0]) << 0;
-		// We are using 100ms mode
-		light_raw = ((aucDataBuf_HIGH[0] << 8) | aucDataBuf_LOW[0]) << 2;  // page 6 of http://media.digikey.com/pdf/Data%20Sheets/Austriamicrosystems%20PDFs/TSL4531.pdf
-		sum += light_raw;
-	}
-	return sum;
+	return light_lux;
+		
 }
 
 int Cmd_readlight(int argc, char *argv[]) {
-
-	UARTprintf(" light is %d\n\r", get_light_100ms_integration());
+	init_light_sensor();
+	UARTprintf(" light is %d\n", get_light());
 
 	return SUCCESS;
 }
 
-int get_prox() {
-	unsigned char prx_aucDataBuf_LOW[2];
-	unsigned char prx_aucDataBuf_HIGH[2];
-	int proximity_raw;
-	unsigned char prx_cmd;
+void init_prox_sensor()
+{
 	unsigned char prx_cmd_init[2];
 
 	static int first = 1;
@@ -399,13 +365,20 @@ int get_prox() {
 		prx_cmd_init[0] = 0x83; // Current setting register
 		prx_cmd_init[1] = 20; // Value * 10mA
 		TRY_OR_GOTOFAIL( I2C_IF_Write(0x13, prx_cmd_init, 2, 1) );
+
+		prx_cmd_init[0] = 0x80; // Command register - 8'b1000_0000
+		prx_cmd_init[1] = 0x08; // one shot measurements
+		TRY_OR_GOTOFAIL(I2C_IF_Write(0x13, prx_cmd_init, 2, 1) );// reset
 		first = 0;
 	}
+}
 
+int get_prox() {
+	unsigned char prx_aucDataBuf_LOW[2];
+	unsigned char prx_aucDataBuf_HIGH[2];
+	int proximity_raw;
+	unsigned char prx_cmd;
 
-	prx_cmd_init[0] = 0x80; // Command register - 8'b1000_0000
-	prx_cmd_init[1] = 0x08; // one shot measurements
-	TRY_OR_GOTOFAIL(I2C_IF_Write(0x13, prx_cmd_init, 2, 1) );// reset
 
 	prx_cmd = 0x88; // Command register - 0x87
 	TRY_OR_GOTOFAIL( I2C_IF_Write(0x13, &prx_cmd, 1, 1) );
@@ -422,8 +395,8 @@ int get_prox() {
 }
 
 int Cmd_readproximity(int argc, char *argv[]) {
-
-	UARTprintf(" proximity is %d\n\r", get_prox());
+	init_prox_sensor();
+	UARTprintf(" proximity is %d\n", get_prox());
 	return SUCCESS;
 }
 
