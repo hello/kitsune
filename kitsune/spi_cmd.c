@@ -116,12 +116,16 @@ int spi_write_step( int len, unsigned char * buf ) {
 	for (i = 0; i < len; i++) {
 		MAP_SPIDataPut(GSPI_BASE, buf[i]);
 		MAP_SPIDataGet(GSPI_BASE, &dud);
+#ifdef SPI_DEBUG_PRINT
 		UARTprintf("%x ", buf[i]);
+#endif
 	}
 	//MAP_SPICSDisable(GSPI_BASE);
 	CS_set(1);
 	vTaskDelay(8*5);
+#ifdef SPI_DEBUG_PRINT
 	UARTprintf("\r\n");
+#endif
 	return SUCCESS;
 }
 
@@ -131,18 +135,24 @@ int spi_read_step( int len, unsigned char * buf ) {
 		UARTprintf("Length limited to 256\r\n");
 		return FAILURE;
 	}
+#ifdef SPI_DEBUG_PRINT
 	UARTprintf("Reading...\r\n");
+#endif
 	//	MAP_SPITransfer(GSPI_BASE,rx_buf,rx_buf,len,SPI_CS_ENABLE|SPI_CS_DISABLE);
 	CS_set(0);
 	vTaskDelay(8*10);
 	len = MAP_SPITransfer(GSPI_BASE, buf, buf, len, 0);
 	CS_set(1);
 	vTaskDelay(8*5);
+#ifdef SPI_DEBUG_PRINT
 	UARTprintf("Read %d bytes \r\n", len);
 	for (i = 0; i < len; i++) {
 		UARTprintf("%x ", buf[i]);
 	}
 	UARTprintf("\r\n");
+
+#endif
+
 	return SUCCESS;
 }
 int spi_write( int len, unsigned char * buf ) {
@@ -155,7 +165,9 @@ int spi_write( int len, unsigned char * buf ) {
 	ctx.addr = 0xcc;
 	spi_write_step( 4, (unsigned char*)&ctx );
 	vTaskDelay(8*10);
+#ifdef SPI_DEBUG_PRINT
 	UARTprintf("Ctx len %u, address %u\r\n",ctx.len, ctx.addr);
+#endif
 	spi_write_step( len, buf );
 	vTaskDelay(8*10);
 
@@ -170,7 +182,9 @@ int spi_read( int * len, unsigned char * buf ) {
 	vTaskDelay(8*10);
 	spi_read_step( 4,  (unsigned char*)&ctx );
 	vTaskDelay(8*10);
+#ifdef SPI_DEBUG_PRINT
 	UARTprintf("Ctx len %u, address %u\r\n",ctx.len, ctx.addr);
+#endif
 	if( ctx.addr == 0xAAAA || ctx.addr == 0x5500 || ctx.addr == 0x5555 ) {
 		spi_reset();
 		ctx.len = 0;
@@ -221,12 +235,13 @@ int Cmd_spi_read(int argc, char *argv[]) {
 	unsigned char buf[256];
 
 	spi_read( &len, buf );
-
+#ifdef SPI_DEBUG_PRINT
 	UARTprintf("read %u\r\n", len);
 	for( i=0; i<len; ++i ) {
 		UARTprintf( "%x", buf[i] );
 	}
 	UARTprintf( "\r\n" );
+#endif
 
 	if( len ) {
 	    on_morpheus_protobuf_arrival(buf, len);
