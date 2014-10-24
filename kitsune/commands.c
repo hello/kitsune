@@ -1371,7 +1371,7 @@ void loopback_uart(void * p) {
 	top_board_task();
 }
 void vUARTTask(void *pvParameters) {
-	char cCmdBuf[64];
+	char cCmdBuf[64] = {0};
 	portTickType now;
 
 	Cmd_led_clr(0,0);
@@ -1523,6 +1523,7 @@ void vUARTTask(void *pvParameters) {
 			// parsed and valid commands executed.
 			//
 			xTaskCreate(CmdLineProcess, "commandTask",  5*1024 / 4, cCmdBuf, 20, NULL);
+			memset(cCmdBuf,0,sizeof(cCmdBuf)); //zero out buffer after a command
 		}
 	}
 }
