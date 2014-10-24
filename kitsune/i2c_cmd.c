@@ -261,7 +261,6 @@ int get_temp() {
 }
 
 int Cmd_readtemp(int argc, char *argv[]) {
-	init_temp_sensor();
 	UARTprintf("temp is %d\n", get_temp());
 	return SUCCESS;
 }
@@ -301,8 +300,6 @@ int get_humid() {
 }
 
 int Cmd_readhumid(int argc, char *argv[]) {
-	init_humid_sensor();
-
 	UARTprintf("humid is %d\n", get_humid());
 	return SUCCESS;
 }
@@ -351,7 +348,6 @@ int get_light() {
 }
 
 int Cmd_readlight(int argc, char *argv[]) {
-	init_light_sensor();
 	UARTprintf(" light is %d\n", get_light());
 
 	return SUCCESS;
@@ -406,7 +402,6 @@ int get_prox() {
 }
 
 int Cmd_readproximity(int argc, char *argv[]) {
-	init_prox_sensor();
 	UARTprintf(" proximity is %d\n", get_prox());
 	return SUCCESS;
 }
