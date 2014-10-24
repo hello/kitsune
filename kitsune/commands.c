@@ -721,6 +721,7 @@ void thread_sensor_poll(void* unused) {
 			while(--measure_time)
 			{
 				vTaskDelay(2);
+
 				int humid = get_humid();
 				if(humid != FAILURE)
 				{
@@ -737,11 +738,15 @@ void thread_sensor_poll(void* unused) {
 					temp_sum += temp;
 					temp_count++;
 				}
+
 				vTaskDelay(2);
 			}
 
+
+
 			if(humid_count == 0 || temp_count == 0)
 			{
+				UARTprintf("Temp and humid measure all failed!\n");
 				xSemaphoreGive(i2c_smphr);
 				continue;
 			}
