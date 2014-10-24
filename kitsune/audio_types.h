@@ -51,6 +51,7 @@ typedef struct {
 } Segment_t;
 
 typedef struct {
+	int64_t samplecount;
     int16_t logenergy;
     int16_t logenergyOverBackroundNoise;
     int8_t feats4bit[NUM_AUDIO_FEATURES];
@@ -62,7 +63,7 @@ typedef struct {
 } RecordAudioRequest_t;
 
 typedef void (*SegmentAndFeatureCallback_t)(const int16_t * feats, const Segment_t * pSegment);
-typedef void (*AudioFeatureCallback_t)(int64_t samplecount,const AudioFeatures_t * pfeats);
+typedef void (*AudioFeatureCallback_t)(const AudioFeatures_t * pfeats);
 typedef void (*NotificationCallback_t)(void);
 typedef void (*RecordAudioCallback_t)(const RecordAudioRequest_t * request);
 typedef void (*MutexCallback_t)(void);

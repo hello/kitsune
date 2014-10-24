@@ -36,9 +36,24 @@
 			<locationURI>PARENT-2-PROJECT_LOC/aes.c</locationURI>
 		</link>
 		<link>
+			<name>audiocapturetask.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audiocapturetask.c</locationURI>
+		</link>
+		<link>
+			<name>audioclassifier.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audioclassifier.c</locationURI>
+		</link>
+		<link>
 			<name>audiofeatures.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/audiofeatures.c</locationURI>
+		</link>
+		<link>
+			<name>audioprocessingtask.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audioprocessingtask.c</locationURI>
 		</link>
 		<link>
 			<name>ble_cmd.c</name>
@@ -69,6 +84,11 @@
 			<name>circ_buff.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/circ_buff.h</locationURI>
+		</link>
+		<link>
+			<name>classifier_factory.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/machinelearning/classifier_factory.c</locationURI>
 		</link>
 		<link>
 			<name>cmdline.c</name>
@@ -141,6 +161,16 @@
 			<locationURI>PARENT-2-PROJECT_LOC/fft.h</locationURI>
 		</link>
 		<link>
+			<name>hellomath.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hellomath.c</locationURI>
+		</link>
+		<link>
+			<name>hmm.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/machinelearning/hmm.c</locationURI>
+		</link>
+		<link>
 			<name>i2c_cmd.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/i2c_cmd.c</locationURI>
@@ -149,6 +179,11 @@
 			<name>i2c_cmd.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/i2c_cmd.h</locationURI>
+		</link>
+		<link>
+			<name>linear_svm.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/machinelearning/linear_svm.c</locationURI>
 		</link>
 		<link>
 			<name>main.c</name>
@@ -164,11 +199,6 @@
 			<name>mcasp_if.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/mcasp_if.h</locationURI>
-		</link>
-		<link>
-			<name>microphone.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/microphone.c</locationURI>
 		</link>
 		<link>
 			<name>nanopb</name>
