@@ -32,7 +32,6 @@ message MorpheusCommand {
 	    MORPHEUS_COMMAND_PILL_HEARTBEAT = 18;
 	    MORPHEUS_COMMAND_PILL_DFU_BEGIN = 19;
 	    MORPHEUS_COMMAND_FACTORY_RESET = 20;
-
 	}
 	required int32 version = 1;
 	required CommandType type = 2;

@@ -263,8 +263,6 @@ int get_temp() {
 	}
 
 	return sum / (MAX_MEASURE_TIME - 1);
-
-	//return temp;
 }
 
 int Cmd_readtemp(int argc, char *argv[]) {
@@ -330,8 +328,6 @@ int get_light_100ms_integration() {
 	int light_raw;
 
 	unsigned char cmd;
-
-	//TODO: Assert part number here.
 
 	static int first = 1;
 	uint8_t max_measure_time = first ? 2 : 1;
