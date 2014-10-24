@@ -16,6 +16,30 @@
 extern unsigned int sl_status;
 int Cmd_led(int argc, char *argv[]);
 
+static void _factory_reset(){
+    int16_t ret = sl_WlanProfileDel(0xFF);
+    if(ret)
+    {
+        UARTprintf("Delete all stored endpoint failed, error %d.\n", ret);
+        ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
+        return;
+    }else{
+        UARTprintf("All stored WIFI EP removed.\n");
+    }
+
+    ret = sl_WlanDisconnect();
+    if(ret == 0){
+        UARTprintf("WIFI disconnected");
+        MorpheusCommand reply_command;
+        memset(&reply_command, 0, sizeof(reply_command));
+        reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_FACTORY_RESET;
+        ble_send_protobuf(&reply_command);
+
+    }else{
+        UARTprintf("Disconnect WIFI failed, error %d.\n", ret);
+        ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
+    }
+}
 
 
 static bool _set_wifi(const char* ssid, const char* password)
@@ -103,7 +127,6 @@ static void _reply_device_id()
 		MorpheusCommand reply_command;
 		memset(&reply_command, 0, sizeof(reply_command));
 		reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_DEVICE_ID;
-		reply_command.version = PROTOBUF_VERSION;
 
 		reply_command.deviceId.arg = device_id;
 		reply_command.has_firmwareVersion = true;
@@ -147,7 +170,6 @@ static void _ble_reply_wifi_info(){
         MorpheusCommand reply_command;
         memset(&reply_command, 0, sizeof(reply_command));
         reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_WIFI_ENDPOINT;
-        reply_command.version = PROTOBUF_VERSION;
 
         size_t len = strlen((char*)name) + 1;
         char* ssid = pvPortMalloc(len);
@@ -323,23 +345,6 @@ static void _pair_device( MorpheusCommand* command, int is_morpheus)
 		UARTprintf("****************************************Missing fields\n");
 		ble_reply_protobuf_error(ErrorType_INTERNAL_DATA_ERROR);
 	}else{
-		/*
-		MorpheusCommand command_copy;
-		memset(&command_copy, 0, sizeof(MorpheusCommand));
-        command_copy.type = is_morpheus == 1 ? MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_SENSE:
-            MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_PILL;
-        command_copy.version = PROTOBUF_VERSION;
-
-		char account_id_buffer[50] = {0};
-
-		memcpy(account_id_buffer, command->accountId.arg, strlen(command->accountId.arg));
-		command_copy.accountId.arg = account_id_buffer;
-
-		char device_id_buffer[20] = {0};
-
-		memcpy(device_id_buffer, command->deviceId.arg, strlen(command->deviceId.arg));
-		command_copy.deviceId.arg = device_id_buffer;
-		*/
 
 		ble_proto_assign_encode_funcs(command);
 		uint8_t retry_count = 5;   // Retry 5 times if we have network error
@@ -349,7 +354,7 @@ static void _pair_device( MorpheusCommand* command, int is_morpheus)
 		int ret = send_data_pb(DATA_SERVER,
 				is_morpheus == 1 ? MORPHEUS_REGISTER_ENDPOINT : PILL_REGISTER_ENDPOINT,
 				response_buffer, sizeof(response_buffer),
-				MorpheusCommand_fields, /*&command_copy*/command);
+				MorpheusCommand_fields, command);
 
 		while(ret != 0 && retry_count--){
 			UARTprintf("Network error, try to resend command...\n");
@@ -357,7 +362,7 @@ static void _pair_device( MorpheusCommand* command, int is_morpheus)
 			ret = send_data_pb(DATA_SERVER,
 				is_morpheus == 1 ? MORPHEUS_REGISTER_ENDPOINT : PILL_REGISTER_ENDPOINT,
 				response_buffer, sizeof(response_buffer),
-				MorpheusCommand_fields, /*&command_copy*/command);
+				MorpheusCommand_fields, command);
 
 		}
 
@@ -400,7 +405,6 @@ void on_ble_protobuf_command(MorpheusCommand* command)
                 MorpheusCommand reply_command;
                 memset(&reply_command, 0, sizeof(reply_command));
                 reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_SET_WIFI_ENDPOINT;
-                reply_command.version = PROTOBUF_VERSION;
                 reply_command.wifiSSID.arg = (void*)ssid;
 
                 UARTprintf("Connection attempt issued.\n");
@@ -460,6 +464,12 @@ void on_ble_protobuf_command(MorpheusCommand* command)
         {
             UARTprintf("PAIR SENSE\n");
             _pair_device(command, 1);
+        }
+        break;
+        case MorpheusCommand_CommandType_MORPHEUS_COMMAND_FACTORY_RESET:
+        {
+            UARTprintf("FACTORY RESET\n");
+            _factory_reset();
         }
         break;
 	}

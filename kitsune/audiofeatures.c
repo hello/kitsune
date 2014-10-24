@@ -706,10 +706,12 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int64_t samplecount) {
         if (dc > MIN_CLASSIFICATION_ENERGY) {
             DEBUG_LOG_S8("mfcc",NULL,featvec,NUM_AUDIO_FEATURES,samplecount,samplecount);
         }
-        
+
+        _data.feats.samplecount = samplecount;
+
         //do data callback always
         if (_data.fpCallback) {
-            _data.fpCallback(samplecount,&_data.feats);
+            _data.fpCallback(&_data.feats);
         }
     }
     

@@ -45,7 +45,8 @@
 #include "dust_cmd.h"
 #include "fatfs_cmd.h"
 #include "spi_cmd.h"
-#include "audiofeatures.h"
+#include "audioprocessingtask.h"
+#include "audiocapturetask.h"
 #include "top_board.h"
 #include "fft.h"
 
@@ -67,6 +68,7 @@
 #include "diskio.h"
 #include "top_hci.h"
 #include "slip_packet.h"
+#include "ble_cmd.h"
 //#include "mcasp_if.h" // add by Ben
 
 #define ONLY_MID 0
@@ -280,58 +282,32 @@ unsigned int CPU_XDATA = 1; //1: enabled CPU interrupt triggerred
 	return 0;
 }
 
-//extern
-void Microphone1();
+static void RecordingCompleteNotification(void) {
+	AudioCaptureMessage_t message;
+
+	//turn off
+	memset(&message,0,sizeof(message));
+	message.command = eAudioCaptureTurnOff;
+	AudioCaptureTask_AddMessageToQueue(&message);
+
+}
 
 int Cmd_record_buff(int argc, char *argv[]) {
-	unsigned int CPU_XDATA = 0; //1: enabled CPU interrupt triggerred
-// Create RX and TX Buffer
-//
-pTxBuffer = CreateCircularBuffer(TX_BUFFER_SIZE);
-if(pTxBuffer == NULL)
-{
-	UARTprintf("Unable to Allocate Memory for Tx Buffer\n\r");
-    while(1){};
-}
-// Configure Audio Codec
-//
-get_codec_mic_NAU();
+	AudioCaptureMessage_t message;
 
-// Initialize the Audio(I2S) Module
-//
-AudioCapturerInit(CPU_XDATA, AUDIO_RATE);
+	//turn on
+	memset(&message,0,sizeof(message));
+	message.command = eAudioCaptureTurnOn;
+	AudioCaptureTask_AddMessageToQueue(&message);
 
-// Initialize the DMA Module
-//
-UDMAInit();
-UDMAChannelSelect(UDMA_CH4_I2S_RX, NULL);
+	//capture
+	memset(&message,0,sizeof(message));
+	message.command = eAudioCaptureSaveToDisk;
+	message.captureduration = 625; //about 10 seconds at 62.5 hz
+	message.fpCommandComplete = RecordingCompleteNotification;
+	AudioCaptureTask_AddMessageToQueue(&message);
 
-//
-// Setup the DMA Mode
-//
-SetupPingPongDMATransferTx();
-// Setup the Audio In/Out
-//
-
-AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
-AudioCaptureRendererConfigure(I2S_PORT_DMA, AUDIO_RATE);
-
-// Start Audio Tx/Rx
-//
-Audio_Start();
-
-
-// Start the Microphone Task
-//
-Microphone1();
-
-UARTprintf("g_iSentCount %d\n\r", g_iSentCount);
-Audio_Stop();
-McASPDeInit();
-DestroyCircularBuffer(pTxBuffer);
-Cmd_free(0,0);
-
-return 0;
+	return 0;
 
 }
 
@@ -592,11 +568,16 @@ void thread_fast_i2c_poll(void * unused)  {
 			vTaskDelay(2);
 			light = get_light();
 			vTaskDelay(2); //this is important! If we don't do it, then the prox will stretch the clock!
-			prox = get_prox();
-			hpf_prox = last_prox - prox;
-			if(hpf_prox > 35) {
-				UARTprintf("PROX: %d\n", hpf_prox);
 
+			// For the black morpheus, we can detect 6mm distance max
+			// for white one, 9mm distance max.
+			prox = get_prox();  // now this thing is in um.
+
+			hpf_prox = last_prox - prox;   // The noise in enclosure is in 100+ um level
+
+			//UARTprintf("PROX: %d um\n", prox);
+			if(hpf_prox > 400) {  // seems not very sensitive,  the noise in enclosure is in 100+ um level
+				UARTprintf("PROX: %d um, diff %d um\n", prox, hpf_prox);
 				xSemaphoreTake(alarm_smphr, portMAX_DELAY);
 				if (alarm.has_start_time && get_time() >= alarm.start_time) {
 					memset(&alarm, 0, sizeof(alarm));
@@ -625,7 +606,7 @@ void thread_fast_i2c_poll(void * unused)  {
 				xSemaphoreGive(light_smphr);
 			}
 		}
-		vTaskDelayUntil(&now, 100 );
+		vTaskDelayUntil(&now, 100);
 	}
 }
 
@@ -715,11 +696,21 @@ void thread_sensor_poll(void* unused) {
 			xSemaphoreGive(light_smphr);
 		}
 		if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
-			vTaskDelay(2);
-			data.humid = get_humid();
-			vTaskDelay(2);
-			data.temp = get_temp();
-			vTaskDelay(2);
+			uint8_t measure_time = 10;
+			int64_t humid_sum = 0;
+			int64_t temp_sum = 0;
+			while(--measure_time)
+			{
+				vTaskDelay(2);
+				humid_sum += get_humid();
+				vTaskDelay(2);
+				temp_sum += get_temp();
+				vTaskDelay(2);
+			}
+
+			data.humid = humid_sum / 10;
+			data.temp = temp_sum / 10;
+			
 			xSemaphoreGive(i2c_smphr);
 		} else {
 			continue;
@@ -813,15 +804,6 @@ int Cmd_fault(int argc, char *argv[]) {
 	return 0;
 }
 
-static void AudioFeatCallback(const int16_t * mfccfeats, const Segment_t * pSegment) {
-	int32_t t1;
-	int32_t t2;
-
-	t1 = pSegment->t1;
-	t2 = pSegment->t2;
-
-	UARTprintf("ACTUAL: t1=%d,t2=%d,energy=%d\n",t1,t2,mfccfeats[0]);
-}
 
 #define SCAN_TABLE_SIZE   20
 
@@ -911,7 +893,9 @@ void nordic_prox_int() {
 
     MAP_GPIOIntClear(GPIO_PORT, status);
 	if (status & GSPI_INT_PIN) {
+#if DEBUG_PRINT_NORDIC == 1
 		UARTprintf("nordic interrupt\r\n");
+#endif
 		xSemaphoreGiveFromISR(spi_smphr, &xHigherPriorityTaskWoken);
 		MAP_GPIOIntDisable(GPIO_PORT,GSPI_INT_PIN);
 	    portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
@@ -1336,6 +1320,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "data_upload", Cmd_data_upload, "upload protobuf data" },
 		{ "^", Cmd_send_top, "send command to top board"},
 		{ "topdfu", Cmd_topdfu, "update topboard firmware."},
+		{ "factory_reset", Cmd_factory_reset, "Factory reset from middle."},
 
 		{ 0, 0, 0 } };
 
@@ -1438,6 +1423,12 @@ void vUARTTask(void *pvParameters) {
 		//Cmd_sl(0, 0);
 	}
 
+	// Init sensors
+	init_humid_sensor();
+	init_temp_sensor();
+	init_light_sensor();
+	init_prox_sensor();
+
 	data_queue = xQueueCreate(60, sizeof(data_t));
 	vSemaphoreCreateBinary(dust_smphr);
 	vSemaphoreCreateBinary(light_smphr);
@@ -1452,13 +1443,17 @@ void vUARTTask(void *pvParameters) {
 	}
 
 	xTaskCreate(loopback_uart, "loopback_uart", 1024 / 4, NULL, 2, NULL); //todo reduce stack
-
 	xTaskCreate(thread_audio, "audioTask", 5 * 1024 / 4, NULL, 4, NULL); //todo reduce stack
+
 	UARTprintf("*");
 	xTaskCreate(thread_spi, "spiTask", 4*1024 / 4, NULL, 5, NULL);
 	SetupGPIOInterrupts();
 	UARTprintf("*");
 #if !ONLY_MID
+	xTaskCreate(AudioCaptureTask_Thread,"audioCaptureTask",4*1024/4,NULL,4,NULL);
+	UARTprintf("*");
+//	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",2*1024/4,NULL,1,NULL);
+//	UARTprintf("*");
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 3, NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_dust, "dustTask", 256 / 4, NULL, 3, NULL);

@@ -25,10 +25,16 @@
 #define RECORD_DURATION_IN_FRAMES (RECORD_DURATION_IN_MS / SAMPLE_PERIOD_IN_MILLISECONDS)
 
 
+#ifndef true
+#define true (1)
+#endif
+
+#ifndef false
+#define false (0)
+#endif
 
 
-
-#define CHUNK_BUF_SIZE_2N (6)
+#define CHUNK_BUF_SIZE_2N (1)
 #define CHUNK_BUF_SIZE (1 << CHUNK_BUF_SIZE_2N)
 #define CHUNK_BUF_MASK (CHUNK_BUF_SIZE - 1)
 
@@ -270,7 +276,7 @@ void AudioClassifier_DeserializeClassifier(pb_istream_t * stream) {
    
 }
 
-void AudioClassifier_DataCallback(int64_t samplecount, const AudioFeatures_t * pfeats) {
+void AudioClassifier_DataCallback(const AudioFeatures_t * pfeats) {
     int8_t classes[MAX_NUMBER_CLASSES];
     int8_t probs[2];
     uint16_t idx;
@@ -299,14 +305,14 @@ void AudioClassifier_DataCallback(int64_t samplecount, const AudioFeatures_t * p
     }
     
     if (pfeats->logenergyOverBackroundNoise > MIN_CLASSIFICATION_ENERGY) {
-        _buffer.isThereAnythingInteresting = TRUE;
+        _buffer.isThereAnythingInteresting = true;
     }
     
     //ready for storage!
-    if (_buffer.isThereAnythingInteresting == TRUE && _buffer.numincoming == CIRCULAR_BUF_SIZE) {
+    if (_buffer.isThereAnythingInteresting == true && _buffer.numincoming == CIRCULAR_BUF_SIZE) {
         
         //this may block... hopefully not for too long?
-        CopyCircularBufferToPermanentStorage(samplecount);
+        CopyCircularBufferToPermanentStorage(pfeats->samplecount);
     }
     
    
@@ -433,10 +439,10 @@ static uint8_t GetNextMatrixCallback(uint8_t isFirst,const_MatDesc_t * pdesc) {
     
     //termination condition
     if (state == 0) {
-        return FALSE;
+        return false;
     }
     else {
-        return TRUE;
+        return true;
     }
 
 }
