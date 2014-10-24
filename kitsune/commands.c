@@ -746,7 +746,7 @@ void thread_sensor_poll(void* unused) {
 
 			if(humid_count == 0 || temp_count == 0)
 			{
-				UARTprintf("Temp and humid measure all failed!\n");
+				UARTprintf("Temp/humid measure failed!\n");
 				xSemaphoreGive(i2c_smphr);
 				continue;
 			}
