@@ -397,8 +397,10 @@ unsigned long unix_time() {
 }
 
 int Cmd_time(int argc, char*argv[]) {
+	int unix = unix_time();
+	int t = get_time();
 
-    UARTprintf(" time is %u \n", unix_time());
+    UARTprintf(" time is %u and the ntp is %d and the diff is %d\n", t, unix, t-unix);
 
     return 0;
 }

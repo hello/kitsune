@@ -112,6 +112,7 @@ void Speaker1()
   else
   {
 	  UARTprintf("Failed to open audio file\n\r");
+	  return;
     LOOP_FOREVER();
   }
 
@@ -154,6 +155,7 @@ void Speaker1()
         if(iRetVal < 0)
         {
         	UARTprintf("Unable to fill buffer");
+      	  return;
           LOOP_FOREVER();
         }
       }
@@ -177,6 +179,7 @@ void Speaker1()
         else
         {
         	UARTprintf("Failed to open audio file\n\r");
+      	  return;
           LOOP_FOREVER();
         }
       }
