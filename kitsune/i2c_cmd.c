@@ -240,6 +240,7 @@ int init_temp_sensor()
 	return SUCCESS;
 }
 
+
 int get_temp() {
 	unsigned char cmd = 0xe3;
 	int temp_raw;
@@ -293,7 +294,7 @@ int get_humid() {
 
 	vTaskDelay(50);
 	TRY_OR_GOTOFAIL(I2C_IF_Read(0x40, aucDataBuf, 2));
-	humid_raw = (aucDataBuf[0] << 8) | ((aucDataBuf[1] & 0xfc));  // humid has only 12bit
+	humid_raw = (aucDataBuf[0] << 8) | ((aucDataBuf[1] & 0xfc));
 	
 
 	humid = 12500 * humid_raw / 65536 - 600;
@@ -342,7 +343,7 @@ int get_light() {
 	TRY_OR_GOTOFAIL(I2C_IF_Read(0x29, aucDataBuf_HIGH, 1));
 
 
-	// We are using 100ms mode
+	// We are using 100ms mode, multipler is 4
 	// formula based on page 6 of http://media.digikey.com/pdf/Data%20Sheets/Austriamicrosystems%20PDFs/TSL4531.pdf
 	light_lux = ((aucDataBuf_HIGH[0] << 8) | aucDataBuf_LOW[0]) << 2;
 

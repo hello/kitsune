@@ -45,7 +45,8 @@
 #include "dust_cmd.h"
 #include "fatfs_cmd.h"
 #include "spi_cmd.h"
-#include "audiofeatures.h"
+#include "audioprocessingtask.h"
+#include "audiocapturetask.h"
 #include "top_board.h"
 #include "fft.h"
 
@@ -281,58 +282,32 @@ unsigned int CPU_XDATA = 1; //1: enabled CPU interrupt triggerred
 	return 0;
 }
 
-//extern
-void Microphone1();
+static void RecordingCompleteNotification(void) {
+	AudioCaptureMessage_t message;
+
+	//turn off
+	memset(&message,0,sizeof(message));
+	message.command = eAudioCaptureTurnOff;
+	AudioCaptureTask_AddMessageToQueue(&message);
+
+}
 
 int Cmd_record_buff(int argc, char *argv[]) {
-	unsigned int CPU_XDATA = 0; //1: enabled CPU interrupt triggerred
-// Create RX and TX Buffer
-//
-pTxBuffer = CreateCircularBuffer(TX_BUFFER_SIZE);
-if(pTxBuffer == NULL)
-{
-	UARTprintf("Unable to Allocate Memory for Tx Buffer\n\r");
-    while(1){};
-}
-// Configure Audio Codec
-//
-get_codec_mic_NAU();
+	AudioCaptureMessage_t message;
 
-// Initialize the Audio(I2S) Module
-//
-AudioCapturerInit(CPU_XDATA, AUDIO_RATE);
+	//turn on
+	memset(&message,0,sizeof(message));
+	message.command = eAudioCaptureTurnOn;
+	AudioCaptureTask_AddMessageToQueue(&message);
 
-// Initialize the DMA Module
-//
-UDMAInit();
-UDMAChannelSelect(UDMA_CH4_I2S_RX, NULL);
+	//capture
+	memset(&message,0,sizeof(message));
+	message.command = eAudioCaptureSaveToDisk;
+	message.captureduration = 625; //about 10 seconds at 62.5 hz
+	message.fpCommandComplete = RecordingCompleteNotification;
+	AudioCaptureTask_AddMessageToQueue(&message);
 
-//
-// Setup the DMA Mode
-//
-SetupPingPongDMATransferTx();
-// Setup the Audio In/Out
-//
-
-AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
-AudioCaptureRendererConfigure(I2S_PORT_DMA, AUDIO_RATE);
-
-// Start Audio Tx/Rx
-//
-Audio_Start();
-
-
-// Start the Microphone Task
-//
-Microphone1();
-
-UARTprintf("g_iSentCount %d\n\r", g_iSentCount);
-Audio_Stop();
-McASPDeInit();
-DestroyCircularBuffer(pTxBuffer);
-Cmd_free(0,0);
-
-return 0;
+	return 0;
 
 }
 
@@ -829,15 +804,6 @@ int Cmd_fault(int argc, char *argv[]) {
 	return 0;
 }
 
-static void AudioFeatCallback(const int16_t * mfccfeats, const Segment_t * pSegment) {
-	int32_t t1;
-	int32_t t2;
-
-	t1 = pSegment->t1;
-	t2 = pSegment->t2;
-
-	UARTprintf("ACTUAL: t1=%d,t2=%d,energy=%d\n",t1,t2,mfccfeats[0]);
-}
 
 #define SCAN_TABLE_SIZE   20
 
@@ -927,7 +893,9 @@ void nordic_prox_int() {
 
     MAP_GPIOIntClear(GPIO_PORT, status);
 	if (status & GSPI_INT_PIN) {
+#if DEBUG_PRINT_NORDIC == 1
 		UARTprintf("nordic interrupt\r\n");
+#endif
 		xSemaphoreGiveFromISR(spi_smphr, &xHigherPriorityTaskWoken);
 		MAP_GPIOIntDisable(GPIO_PORT,GSPI_INT_PIN);
 	    portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
@@ -1475,13 +1443,17 @@ void vUARTTask(void *pvParameters) {
 	}
 
 	xTaskCreate(loopback_uart, "loopback_uart", 1024 / 4, NULL, 2, NULL); //todo reduce stack
-
 	xTaskCreate(thread_audio, "audioTask", 5 * 1024 / 4, NULL, 4, NULL); //todo reduce stack
+
 	UARTprintf("*");
 	xTaskCreate(thread_spi, "spiTask", 4*1024 / 4, NULL, 5, NULL);
 	SetupGPIOInterrupts();
 	UARTprintf("*");
 #if !ONLY_MID
+	xTaskCreate(AudioCaptureTask_Thread,"audioCaptureTask",4*1024/4,NULL,4,NULL);
+	UARTprintf("*");
+//	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",2*1024/4,NULL,1,NULL);
+//	UARTprintf("*");
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 3, NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_dust, "dustTask", 256 / 4, NULL, 3, NULL);
