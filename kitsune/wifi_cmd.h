@@ -83,11 +83,14 @@ int send_audio_data( data_t * data );
 
 void thread_ota( void * unused );
 
-int send_data_pb(const char* host, const char* path, 
-    char * buffer_out, int buffer_size, 
-    const pb_field_t fields[], const void *src_struct);
-int decode_rx_data_pb(const unsigned char * buffer, int buffer_size, 
-    const pb_field_t fields[], void* dst_struct, size_t dst_struct_len);
+typedef uint32_t (* pb_encode_callback_t)(pb_ostream_t * stream);
+typedef uint32_t (* pb_decode_callback_t)(pb_istream_t * stream);
+
+
+int send_data_pb_callback(const char* host, const char* path,char * recv_buf, uint32_t recv_buf_size,pb_encode_callback_t encoder);
+
+int decode_rx_data_pb_callback(const uint8_t * buffer, uint32_t buffer_size, pb_decode_callback_t decoder);
+
 int http_response_ok(const char* response_buffer);
 
 int get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uint32_t scan_duration_ms);
