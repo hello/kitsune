@@ -68,6 +68,7 @@
 #include "diskio.h"
 #include "top_hci.h"
 #include "slip_packet.h"
+#include "ble_cmd.h"
 //#include "mcasp_if.h" // add by Ben
 
 #define ONLY_MID 0
@@ -567,11 +568,16 @@ void thread_fast_i2c_poll(void * unused)  {
 			vTaskDelay(2);
 			light = get_light();
 			vTaskDelay(2); //this is important! If we don't do it, then the prox will stretch the clock!
-			prox = get_prox();
-			hpf_prox = last_prox - prox;
-			if(hpf_prox > 35) {
-				UARTprintf("PROX: %d\n", hpf_prox);
 
+			// For the black morpheus, we can detect 6mm distance max
+			// for white one, 9mm distance max.
+			prox = get_prox();  // now this thing is in um.
+
+			hpf_prox = last_prox - prox;   // The noise in enclosure is in 100+ um level
+
+			//UARTprintf("PROX: %d um\n", prox);
+			if(hpf_prox > 400) {  // seems not very sensitive,  the noise in enclosure is in 100+ um level
+				UARTprintf("PROX: %d um, diff %d um\n", prox, hpf_prox);
 				xSemaphoreTake(alarm_smphr, portMAX_DELAY);
 				if (alarm.has_start_time && get_time() >= alarm.start_time) {
 					memset(&alarm, 0, sizeof(alarm));
@@ -600,7 +606,7 @@ void thread_fast_i2c_poll(void * unused)  {
 				xSemaphoreGive(light_smphr);
 			}
 		}
-		vTaskDelayUntil(&now, 100 );
+		vTaskDelayUntil(&now, 100);
 	}
 }
 
@@ -690,11 +696,21 @@ void thread_sensor_poll(void* unused) {
 			xSemaphoreGive(light_smphr);
 		}
 		if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
-			vTaskDelay(2);
-			data.humid = get_humid();
-			vTaskDelay(2);
-			data.temp = get_temp();
-			vTaskDelay(2);
+			uint8_t measure_time = 10;
+			int64_t humid_sum = 0;
+			int64_t temp_sum = 0;
+			while(--measure_time)
+			{
+				vTaskDelay(2);
+				humid_sum += get_humid();
+				vTaskDelay(2);
+				temp_sum += get_temp();
+				vTaskDelay(2);
+			}
+
+			data.humid = humid_sum / 10;
+			data.temp = temp_sum / 10;
+			
 			xSemaphoreGive(i2c_smphr);
 		} else {
 			continue;
@@ -1304,6 +1320,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "data_upload", Cmd_data_upload, "upload protobuf data" },
 		{ "^", Cmd_send_top, "send command to top board"},
 		{ "topdfu", Cmd_topdfu, "update topboard firmware."},
+		{ "factory_reset", Cmd_factory_reset, "Factory reset from middle."},
 
 		{ 0, 0, 0 } };
 
@@ -1406,6 +1423,12 @@ void vUARTTask(void *pvParameters) {
 		//Cmd_sl(0, 0);
 	}
 
+	// Init sensors
+	init_humid_sensor();
+	init_temp_sensor();
+	init_light_sensor();
+	init_prox_sensor();
+
 	data_queue = xQueueCreate(60, sizeof(data_t));
 	vSemaphoreCreateBinary(dust_smphr);
 	vSemaphoreCreateBinary(light_smphr);
@@ -1421,6 +1444,7 @@ void vUARTTask(void *pvParameters) {
 
 	xTaskCreate(loopback_uart, "loopback_uart", 1024 / 4, NULL, 2, NULL); //todo reduce stack
 	xTaskCreate(thread_audio, "audioTask", 5 * 1024 / 4, NULL, 4, NULL); //todo reduce stack
+
 	UARTprintf("*");
 	xTaskCreate(thread_spi, "spiTask", 4*1024 / 4, NULL, 5, NULL);
 	SetupGPIOInterrupts();

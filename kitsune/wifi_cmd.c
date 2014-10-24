@@ -199,11 +199,27 @@ int Cmd_antsel(int argc, char *argv[]) {
     return 0;
 }
 
+void wifi_reset()
+{
+    int16_t ret = sl_WlanProfileDel(0xFF);
+    if(ret)
+    {
+        UARTprintf("Delete all stored endpoint failed, error %d.\n", ret);
+    }else{
+        UARTprintf("All stored WIFI EP removed.\n");
+    }
+
+    ret = sl_WlanDisconnect();
+    if(ret == 0){
+        UARTprintf("WIFI disconnected");
+    }else{
+        UARTprintf("Disconnect WIFI failed, error %d.\n", ret);
+    }
+}
+
 int Cmd_disconnect(int argc, char *argv[]) {
 
-    _i16 del_ret = sl_WlanProfileDel(0xFF);
-
-	sl_WlanDisconnect();
+    wifi_reset();
     return (0);
 }
 int Cmd_connect(int argc, char *argv[]) {
@@ -1190,6 +1206,53 @@ bool encode_name(pb_ostream_t *stream, const pb_field_t *field, void * const *ar
                     strlen(MORPH_NAME));
 }
 
+static void _on_alarm_received(const SyncResponse_Alarm* received_alarm)
+{
+    if (xSemaphoreTake(alarm_smphr, portMAX_DELAY)) {
+        if (received_alarm->has_start_time && received_alarm->start_time > 0) {
+            if (get_time() > received_alarm->start_time) {
+                // This approach is error prond: We got information from two different sources
+                // and expect them consistent. The time in our server might be different with NTP.
+                // I am going to redesign this, instead of returning start/end timestamp, the backend
+                // will retrun the offset seconds from now to the next ring and the ring duration.
+                // So we don't need to care the actual time of 'Now'.
+                memcpy(&alarm, received_alarm, sizeof(alarm));
+            }
+            UARTprintf("Got alarm %d to %d in %d minutes\n",
+            		received_alarm->start_time, received_alarm->end_time,
+                    (received_alarm->start_time - get_time()) / 60);
+        }else{
+            UARTprintf("No alarm for now.\n");
+        }
+
+        xSemaphoreGive(alarm_smphr);
+    }
+}
+
+static void _on_factory_reset_received()
+{
+    // hehe I am going to disconnect WLAN here, don't kill me Chris
+    wifi_reset();
+
+    // Notify the topboard factory reset, wipe out all whitelist info
+    MorpheusCommand morpheusCommand = {0};
+    morpheusCommand.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_FACTORY_RESET;
+    ble_send_protobuf(&morpheusCommand);  // Send the protobuf to topboard
+}
+
+static void _on_response_protobuf(const SyncResponse* response_protobuf)
+{
+    if (response_protobuf->has_alarm) {
+        _on_alarm_received(&response_protobuf->alarm);
+    }
+
+    if(response_protobuf->has_reset_device && response_protobuf->reset_device){
+        UARTprintf("Server factory reset.\n");
+        
+        _on_factory_reset_received();
+    }
+}
+
 int send_periodic_data( data_t * data ) {
     char buffer[256] = {0};
     periodic_data msg = {0};
@@ -1273,27 +1336,7 @@ int send_periodic_data( data_t * data ) {
         response_protobuf.has_device_sampling_interval,
         response_protobuf.has_flash_action);
 
-		if (response_protobuf.has_alarm) {
-
-			if (xSemaphoreTake(alarm_smphr, portMAX_DELAY)) {
-				alarm = response_protobuf.alarm;
-
-				if (alarm.has_start_time && alarm.start_time > 0) {
-					if (get_time() > alarm.start_time) {
-						int duration = alarm.end_time - alarm.start_time;
-						alarm.start_time = get_time();
-						alarm.end_time = alarm.start_time + duration;
-					}
-					UARTprintf("Got alarm %d to %d in %d minutes\n",
-							alarm.start_time, alarm.end_time,
-							(alarm.start_time - get_time()) / 60);
-				}else{
-                    UARTprintf("No alarm for now.\n");
-                }
-
-				xSemaphoreGive(alarm_smphr);
-			}
-        }
+		_on_response_protobuf(&response_protobuf);
         upload_success = 1;
         //now act on incoming data!
     }
@@ -1333,6 +1376,8 @@ int send_periodic_data( data_t * data ) {
 
     return ret;
 }
+
+
 
 int Cmd_data_upload(int arg, char* argv[])
 {
