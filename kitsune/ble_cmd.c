@@ -383,6 +383,11 @@ void ble_proto_free_command(MorpheusCommand* command)
     }
 }
 
+bool erase_user_data_folder()
+{
+    // TODO: Implement this later
+}
+
 
 int Cmd_factory_reset(int argc, char* argv[])
 {

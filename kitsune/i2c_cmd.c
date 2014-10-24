@@ -285,6 +285,7 @@ int get_humid() {
 	
 
 	humid = 12500 * humid_raw / 65536 - 600;
+
 	return humid;
 }
 
@@ -305,7 +306,7 @@ int init_light_sensor()
 	cmd_init[1] = 0x02; // Control register - 8'b0000_0010 // 100ms due to page 9 of http://media.digikey.com/pdf/Data%20Sheets/Austriamicrosystems%20PDFs/TSL4531.pdf
 	TRY_OR_GOTOFAIL(I2C_IF_Write(0x29, cmd_init, 2, 1)); //  );// change integration
 	
-
+	
 	return SUCCESS;
 }
 
