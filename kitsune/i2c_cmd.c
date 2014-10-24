@@ -227,16 +227,10 @@ int Cmd_i2c_write(int argc, char *argv[]) {
 
 int init_temp_sensor()
 {
+	unsigned char cmd = 0xfe;
+	TRY_OR_GOTOFAIL(I2C_IF_Write(0x40, &cmd, 1, 1));    // reset
 
-	static int first = 1;
-	if (first) {
-		unsigned char cmd = 0xfe;
-		TRY_OR_GOTOFAIL(I2C_IF_Write(0x40, &cmd, 1, 1));    // reset
-
-		get_temp();
-
-		first = 0;
-	}
+	get_temp();
 
 	return SUCCESS;
 }
@@ -267,16 +261,11 @@ int Cmd_readtemp(int argc, char *argv[]) {
 
 int init_humid_sensor()
 {
-	static int first = 1;
+	unsigned char cmd = 0xfe;
+	TRY_OR_GOTOFAIL(I2C_IF_Write(0x40, &cmd, 1, 1));    // reset
 
-	if (first) {
-		unsigned char cmd = 0xfe;
-		TRY_OR_GOTOFAIL(I2C_IF_Write(0x40, &cmd, 1, 1));    // reset
-
-		// Dummy read the 1st value.
-		get_humid();
-		first = 0;
-	}
+	// Dummy read the 1st value.
+	get_humid();
 
 	return SUCCESS;
 }
@@ -307,18 +296,15 @@ int Cmd_readhumid(int argc, char *argv[]) {
 int init_light_sensor()
 {
 	unsigned char cmd_init[2];
-	static int first = 1;
-	
-	if (first) {
-		cmd_init[0] = 0x80; // Command register - 8'b1000_0000
-		cmd_init[1] = 0x03; // Control register - 8'b0000_0011
-		TRY_OR_GOTOFAIL(I2C_IF_Write(0x29, cmd_init, 2, 1)); // setup normal mode
 
-		cmd_init[0] = 0x81; // Command register - 8'b1000_0000
-		cmd_init[1] = 0x02; // Control register - 8'b0000_0010 // 100ms due to page 9 of http://media.digikey.com/pdf/Data%20Sheets/Austriamicrosystems%20PDFs/TSL4531.pdf
-		TRY_OR_GOTOFAIL(I2C_IF_Write(0x29, cmd_init, 2, 1)); //  );// change integration
-		first = 0;
-	}
+	cmd_init[0] = 0x80; // Command register - 8'b1000_0000
+	cmd_init[1] = 0x03; // Control register - 8'b0000_0011
+	TRY_OR_GOTOFAIL(I2C_IF_Write(0x29, cmd_init, 2, 1)); // setup normal mode
+
+	cmd_init[0] = 0x81; // Command register - 8'b1000_0000
+	cmd_init[1] = 0x02; // Control register - 8'b0000_0010 // 100ms due to page 9 of http://media.digikey.com/pdf/Data%20Sheets/Austriamicrosystems%20PDFs/TSL4531.pdf
+	TRY_OR_GOTOFAIL(I2C_IF_Write(0x29, cmd_init, 2, 1)); //  );// change integration
+	
 
 	return SUCCESS;
 }
@@ -357,20 +343,14 @@ int init_prox_sensor()
 {
 	unsigned char prx_cmd_init[2];
 
-	static int first = 1;
-	if (first) {
-
 //		prx_cmd_init[0] = 0x82;
 //		prx_cmd_init[1] = 111; // max speed
 //		TRY_OR_GOTOFAIL(I2C_IF_Write(0x13, prx_cmd_init, 2, 1) );
 
-		prx_cmd_init[0] = 0x83; // Current setting register
-		prx_cmd_init[1] = 20; // Value * 10mA
-		TRY_OR_GOTOFAIL( I2C_IF_Write(0x13, prx_cmd_init, 2, 1) );
+	prx_cmd_init[0] = 0x83; // Current setting register
+	prx_cmd_init[1] = 20; // Value * 10mA
+	TRY_OR_GOTOFAIL( I2C_IF_Write(0x13, prx_cmd_init, 2, 1) );
 
-
-		first = 0;
-	}
 
 	return SUCCESS;
 }
