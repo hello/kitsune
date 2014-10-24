@@ -33,7 +33,6 @@ static void _factory_reset(){
         MorpheusCommand reply_command;
         memset(&reply_command, 0, sizeof(reply_command));
         reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_FACTORY_RESET;
-        reply_command.version = PROTOBUF_VERSION;
         ble_send_protobuf(&reply_command);
 
     }else{
