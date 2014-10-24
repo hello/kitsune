@@ -12,6 +12,7 @@
 
 #include "i2c_if.h"
 #include "uartstdio.h"
+#include "i2c_cmd.h"
 
 #define MAX_MEASURE_TIME		10
 
@@ -271,8 +272,6 @@ int init_humid_sensor()
 
 	if (first) {
 		unsigned char cmd = 0xfe;
-		unsigned char aucDataBuf[2];
-	
 		TRY_OR_GOTOFAIL(I2C_IF_Write(0x40, &cmd, 1, 1));    // reset
 
 		// Dummy read the 1st value.
