@@ -17,6 +17,8 @@ static struct {
 	uint8_t * rx_buffer;
 	uint32_t rx_idx;
 	void (*handle_rx_byte)(uint8_t byte);
+	uint16_t dtm_msb;
+	uint8_t dtm_has_msb;
 } self;
 
 #define SLIP_END 0xC0
@@ -86,6 +88,15 @@ static void _handle_rx_byte_default(uint8_t byte) {
 			self.rx_buffer[self.rx_idx++] = byte;
 		}
 		break;
+	}
+}
+static void _handle_rx_byte_dtm(uint8_t byte){
+	if(!self.dtm_has_msb){
+		self.dtm_has_msb = 1;
+		self.dtm_msb = byte;
+	}else{
+		self.dtm_has_msb = 0;
+		self.handler.slip_on_dtm_event(self.dtm_msb << 8 + (uint16_t)byte);
 	}
 }
 static void _handle_rx_byte_wait_start(uint8_t byte) {
@@ -182,4 +193,9 @@ void   slip_reset(const slip_handler_t * user){
 		vPortFree(self.rx_buffer);
 		self.rx_buffer = NULL;
 	}
+}
+
+void slip_dtm_mode(void){
+	slip_reset(&self.handler);
+	self.handle_rx_byte = _handle_rx_byte_dtm;
 }
