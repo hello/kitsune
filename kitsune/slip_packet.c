@@ -153,25 +153,33 @@ _slip_set_buffer(const uint8_t * orig, uint32_t raw_size, uint32_t * out_new_siz
 
 uint32_t slip_write(const uint8_t * orig, uint32_t buffer_size) {
 	if (orig && buffer_size) {
-		uint32_t new_size;
-		uint8_t * tx_buffer = (uint8_t*) _slip_set_buffer(orig, buffer_size,
-				&new_size);
-		if (tx_buffer) {
-			//test
-			if (self.handler.slip_display_char) {
-				int i;
-				for (i = 0; i < new_size; i++) {
-					//UARTprintf("%02X ", *(uint8_t*) (tx_buffer + i));
-					if(self.handler.slip_put_char){
-						//TODO take out the pointer checks by preset to default handlers
-						self.handler.slip_put_char(tx_buffer[i]);
+		if(self.handle_rx_byte == _handle_rx_byte_dtm){
+			//we are in dtm mode
+			if(buffer_size == 2){
+				self.handler.slip_put_char(orig[1]);
+				self.handler.slip_put_char(orig[0]);
+			}
+		}else{
+			uint32_t new_size;
+			uint8_t * tx_buffer = (uint8_t*) _slip_set_buffer(orig, buffer_size,
+					&new_size);
+			if (tx_buffer) {
+				//test
+				if (self.handler.slip_display_char) {
+					int i;
+					for (i = 0; i < new_size; i++) {
+						//UARTprintf("%02X ", *(uint8_t*) (tx_buffer + i));
+						if (self.handler.slip_put_char) {
+							//TODO take out the pointer checks by preset to default handlers
+							self.handler.slip_put_char(tx_buffer[i]);
+						}
 					}
 				}
-			}
 
-			//test end
-			vPortFree(tx_buffer);
-			return 0;
+				//test end
+				vPortFree(tx_buffer);
+				return 0;
+			}
 		}
 	}
 	return 1;
