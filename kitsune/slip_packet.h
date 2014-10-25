@@ -6,8 +6,8 @@
  *  Prepares SLIP formated UART packet for DFU
  *
  */
-#ifndef __MCASP_IF_H__
-#define __MCASP_IF_H__
+#ifndef SLIP_PACKET_H
+#define SLIP_PACKET_H
 
 #include "stdint.h"
 
