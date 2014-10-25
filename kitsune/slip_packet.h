@@ -18,6 +18,7 @@ typedef struct{
 	void (*slip_display_char)(uint8_t c);
 	//user handles slip message
 	void (*slip_on_message)(uint8_t * message, uint32_t size);
+	void (*slip_on_dtm_event)(uint16_t dtm_event);
 	void (*slip_put_char)(uint8_t c);
 }slip_handler_t;
 
