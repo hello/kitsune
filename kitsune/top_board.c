@@ -279,10 +279,18 @@ int Cmd_send_top(int argc, char *argv[]){
 #include "dtm.h"
 int Cmd_top_dtm(int argc, char * argv[]){
 	slip_dtm_mode();
-	if(argc == 1){
-		//assuming reset
-		uint16_t slip_cmd = DTM_CMD(DTM_CMD_RESET);
-		slip_write(&slip_cmd,sizeof(slip_cmd));
+	uint16_t slip_cmd = 0;
+	if(argc > 1){
+		if(!strcmp(argv[1], "end")){
+			slip_cmd = DTM_CMD(DTM_CMD_TEST_END);
+		}else if(!strcmp(argv[1], "reset")){
+			slip_cmd = 0;//reset is all 0s
+		}else{
+			return -1;
+		}
+	}else{
+		return -1;
 	}
+	slip_write((uint8_t*)&slip_cmd,sizeof(slip_cmd));
 	return 0;
 }
