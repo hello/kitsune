@@ -93,10 +93,10 @@ static void _handle_rx_byte_default(uint8_t byte) {
 static void _handle_rx_byte_dtm(uint8_t byte){
 	if(!self.dtm_has_msb){
 		self.dtm_has_msb = 1;
-		self.dtm_msb = byte;
+		self.dtm_msb = ((uint16_t)byte & 0xFF) << 8;
 	}else{
 		self.dtm_has_msb = 0;
-		self.handler.slip_on_dtm_event(self.dtm_msb << 8 + (uint16_t)byte);
+		self.handler.slip_on_dtm_event(self.dtm_msb + byte);
 	}
 }
 static void _handle_rx_byte_wait_start(uint8_t byte) {
