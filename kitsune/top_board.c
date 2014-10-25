@@ -153,7 +153,7 @@ _on_slip_message(uint8_t * c, uint32_t size){
 }
 static void
 _on_dtm_event(uint16_t dtm_event){
-	UARTprintf("Got a dtm event\r\n");
+	UARTprintf("Got a dtm event: %X\r\n", dtm_event);
 }
 
 static void
@@ -279,9 +279,10 @@ int Cmd_send_top(int argc, char *argv[]){
 #include "dtm.h"
 int Cmd_top_dtm(int argc, char * argv[]){
 	slip_dtm_mode();
-	if(argc == 0){
+	if(argc == 1){
 		//assuming reset
 		uint16_t slip_cmd = DTM_CMD(DTM_CMD_RESET);
 		slip_write(&slip_cmd,sizeof(slip_cmd));
 	}
+	return 0;
 }

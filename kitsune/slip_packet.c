@@ -155,9 +155,10 @@ uint32_t slip_write(const uint8_t * orig, uint32_t buffer_size) {
 	if (orig && buffer_size) {
 		if(self.handle_rx_byte == _handle_rx_byte_dtm){
 			//we are in dtm mode
-			if(buffer_size == 2){
+			if(buffer_size == 2 && self.handler.slip_put_char){
 				self.handler.slip_put_char(orig[1]);
 				self.handler.slip_put_char(orig[0]);
+				return 0;
 			}
 		}else{
 			uint32_t new_size;
@@ -194,6 +195,7 @@ void slip_handle_rx(uint8_t c) {
 void   slip_reset(const slip_handler_t * user){
 	self.handle_rx_byte = _handle_rx_byte_wait_start;
 	self.rx_idx = 0;
+	self.dtm_has_msb = 0;
 	if(user){
 		self.handler = *user;
 	}
