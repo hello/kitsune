@@ -165,7 +165,7 @@ int top_board_task(void){
 	slip_handler_t me = {
 			.slip_display_char = _printchar,
 			.slip_on_message = _on_slip_message,
-			.slip_put_char = _sendchar
+			.slip_put_char = _sendchar,
 			.slip_on_dtm_event = _on_dtm_event
 	};
 	self.hci_handler = (hci_decode_handler_t){
@@ -274,5 +274,14 @@ int Cmd_send_top(int argc, char *argv[]){
 	}else{
 		UARTprintf("Top board is in DFU mode\r\n");
 		return -1;
+	}
+}
+#include "dtm.h"
+int Cmd_top_dtm(int argc, char * argv[]){
+	slip_dtm_mode();
+	if(argc == 0){
+		//assuming reset
+		uint16_t slip_cmd = DTM_CMD(DTM_CMD_RESET);
+		slip_write(&slip_cmd,sizeof(slip_cmd));
 	}
 }

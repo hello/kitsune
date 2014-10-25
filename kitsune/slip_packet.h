@@ -31,6 +31,7 @@ void slip_handle_rx(uint8_t c);
 //writes hci packet in slip format to uart
 uint32_t slip_write(const uint8_t * orig, uint32_t buffer_size);
 
+//one way street to dtm mode, call slip reset to set it back.
 void slip_dtm_mode(void);
 
 

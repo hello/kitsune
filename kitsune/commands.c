@@ -1336,6 +1336,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "data_upload", Cmd_data_upload, "upload protobuf data" },
 		{ "^", Cmd_send_top, "send command to top board"},
 		{ "topdfu", Cmd_topdfu, "update topboard firmware."},
+		{ "dtm", Cmd_top_dtm, "Sends Direct Test Mode command" },
 
 		{ 0, 0, 0 } };
 
