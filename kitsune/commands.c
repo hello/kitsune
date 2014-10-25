@@ -567,11 +567,26 @@ void thread_fast_i2c_poll(void * unused)  {
 		if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
 			vTaskDelay(2);
 			light = get_light();
+
+			if(light == FAILURE)
+			{
+				UARTprintf("Read light failed\n");
+				xSemaphoreGive(i2c_smphr);
+				continue;
+			}
+
 			vTaskDelay(2); //this is important! If we don't do it, then the prox will stretch the clock!
 
 			// For the black morpheus, we can detect 6mm distance max
 			// for white one, 9mm distance max.
 			prox = get_prox();  // now this thing is in um.
+
+			if(prox == FAILURE)
+			{
+				UARTprintf("Read prox failed\n");
+				xSemaphoreGive(i2c_smphr);
+				continue;
+			}
 
 			hpf_prox = last_prox - prox;   // The noise in enclosure is in 100+ um level
 
@@ -699,17 +714,45 @@ void thread_sensor_poll(void* unused) {
 			uint8_t measure_time = 10;
 			int64_t humid_sum = 0;
 			int64_t temp_sum = 0;
+
+			uint8_t humid_count = 0;
+			uint8_t temp_count = 0;
+
 			while(--measure_time)
 			{
 				vTaskDelay(2);
-				humid_sum += get_humid();
+
+				int humid = get_humid();
+				if(humid != FAILURE)
+				{
+					humid_sum += humid;
+					humid_count++;
+				}
+
 				vTaskDelay(2);
-				temp_sum += get_temp();
+
+				int temp = get_temp();
+
+				if(temp != FAILURE)
+				{
+					temp_sum += temp;
+					temp_count++;
+				}
+
 				vTaskDelay(2);
 			}
 
-			data.humid = humid_sum / 10;
-			data.temp = temp_sum / 10;
+
+
+			if(humid_count == 0 || temp_count == 0)
+			{
+				UARTprintf("Temp/humid measure failed!\n");
+				xSemaphoreGive(i2c_smphr);
+				continue;
+			}
+
+			data.humid = humid_sum / humid_count;
+			data.temp = temp_sum / temp_count;
 			
 			xSemaphoreGive(i2c_smphr);
 		} else {
