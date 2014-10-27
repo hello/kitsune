@@ -927,7 +927,10 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
     size_t message_length;
     bool status;
 
-
+    if (!recv_buf) {
+    	UARTprintf("send_data_pb_callback needs a buffer\r\n");
+    	return -1;
+    }
 
     if (encoder) {
         pb_ostream_t stream = {0};
