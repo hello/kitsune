@@ -64,6 +64,7 @@ static bool _set_wifi(const char* ssid, const char* password)
         Cmd_led(0,0);
         sl_status &= ~SCANNING;
     	UARTprintf("No wifi found after retry %d times\n", 10);
+        ble_reply_protobuf_error(ErrorType_NO_ENDPOINT_IN_RANGE);
     	return 0;
     }
 
@@ -83,6 +84,7 @@ static bool _set_wifi(const char* ssid, const char* password)
     if(!connection_ret)
     {
 		UARTprintf("Tried all wifi ep, all failed to connect\n");
+        ble_reply_protobuf_error(ErrorType_WLAN_CONNECTION_ERROR);
 		return 0;
     }else{
 		uint8_t wait_time = 10;
@@ -100,10 +102,18 @@ static bool _set_wifi(const char* ssid, const char* password)
 		{
 			Cmd_led(0,0);
 			UARTprintf("!!WIFI set without network connection.");
+            ble_reply_protobuf_error(ErrorType_FAIL_TO_OBTAIN_IP);
 			return 0;
 		}
     }
 
+    MorpheusCommand reply_command;
+    memset(&reply_command, 0, sizeof(reply_command));
+    reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_SET_WIFI_ENDPOINT;
+    reply_command.wifiSSID.arg = (void*)ssid;
+
+    UARTprintf("Connection attempt issued.\n");
+    ble_send_protobuf(&reply_command);
     return 1;
 }
 
@@ -395,21 +405,7 @@ void on_ble_protobuf_command(MorpheusCommand* command)
 
             // Just call API to connect to WIFI.
             UARTprintf("Wifi SSID %s, pswd %s \n", ssid, password);
-            if(!_set_wifi(ssid, (char*)password))
-            {
-                UARTprintf("Connection attempt failed.\n");
-                ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
-            }else{
-                // If the wifi connection is set, reply
-                
-                MorpheusCommand reply_command;
-                memset(&reply_command, 0, sizeof(reply_command));
-                reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_SET_WIFI_ENDPOINT;
-                reply_command.wifiSSID.arg = (void*)ssid;
-
-                UARTprintf("Connection attempt issued.\n");
-                ble_send_protobuf(&reply_command);
-            }
+            _set_wifi(ssid, (char*)password);
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_PAIRING_MODE:  // Just for testing
