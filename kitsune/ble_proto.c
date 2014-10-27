@@ -64,14 +64,15 @@ static void _reply_wifi_scan_result()
     {
         wifi_endpoints_cp[0] = wifi_endpoints[i];
         MorpheusCommand reply_command = {0};
-        reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_START_WIFISCAN;
-        reply_command.wifi_scan_result.arg = wifi_endpoints_cp;
-
-        ble_send_protobuf(&reply_command);
-
         if(wifi_endpoints[i].ssid_len == 0)
         {
+            reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_STOP_WIFISCAN;
+            ble_send_protobuf(&reply_command);
             break;
+        }else{
+            reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_START_WIFISCAN;
+            reply_command.wifi_scan_result.arg = wifi_endpoints_cp;
+            ble_send_protobuf(&reply_command);
         }
         vTaskDelay(100);
     }
