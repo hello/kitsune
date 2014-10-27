@@ -1479,9 +1479,11 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(thread_audio, "audioTask", 5 * 1024 / 4, NULL, 4, NULL); //todo reduce stack
 
 	UARTprintf("*");
-	xTaskCreate(thread_spi, "spiTask", 4*1024 / 4, NULL, 5, NULL);
+	xTaskCreate(thread_spi, "spiTask", 1*1024 / 4, NULL, 5, NULL);
 
-	xTaskCreate(NetworkTask_Thread,"networkTask",2*1024/4,&network_task_data,1,NULL);
+	//this task needs a larger stack because
+	//some protobuf encoding will happen on the stack of this task
+	xTaskCreate(NetworkTask_Thread,"networkTask",4*1024/4,&network_task_data,10,NULL);
 
 	SetupGPIOInterrupts();
 	UARTprintf("*");

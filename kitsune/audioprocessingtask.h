@@ -5,7 +5,9 @@
 #include "audio_types.h"
 
 
-void AudioProcessingTask_AddFeaturesToQueue(const AudioFeatures_t * message);
+
+
+void AudioProcessingTask_AddFeaturesToQueue(const AudioFeatures_t * feats);
 
 void AudioProcessingTask_Thread(void * data);
 

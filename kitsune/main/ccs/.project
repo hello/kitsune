@@ -191,6 +191,11 @@
 			<locationURI>PARENT-1-PROJECT_LOC/main.c</locationURI>
 		</link>
 		<link>
+			<name>matmessageutils.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/debugutils/matmessageutils.c</locationURI>
+		</link>
+		<link>
 			<name>mcasp_if.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/mcasp_if.c</locationURI>
@@ -464,6 +469,11 @@
 			<name>protobuf/SyncResponse.pb.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/protobuf/SyncResponse.pb.h</locationURI>
+		</link>
+		<link>
+			<name>protobuf/matrix.pb.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/matrix.pb.c</locationURI>
 		</link>
 		<link>
 			<name>protobuf/morpheus_ble.pb.c</name>
