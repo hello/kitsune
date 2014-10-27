@@ -9,6 +9,7 @@
 #include "wifi_cmd.h"
 #include "spi_cmd.h"
 
+static bool _encode_bytes_fields(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 
 static bool _encode_string_fields(pb_ostream_t *stream, const pb_field_t *field, void * const *arg)
 {
@@ -42,7 +43,7 @@ static bool _encode_wifi_scan_result_fields(pb_ostream_t *stream, const pb_field
     for(i = 0; i < MAX_WIFI_EP_PER_SCAN; i++)
     {
         Sl_WlanNetworkEntry_t wifi_ap = wifi_aps[i];
-        if(strlen(wifi_ap.ssid_len) == 0)
+        if(wifi_ap.ssid_len == 0)
         {
             continue;  // Skip empty SSID, or null item
         }
@@ -55,14 +56,12 @@ static bool _encode_wifi_scan_result_fields(pb_ostream_t *stream, const pb_field
         data.ssid.funcs.encode = _encode_string_fields;
         data.ssid.arg = ssid;
 
-        if(wifi_ap.bssid_len > 0)
-        {
-            array_data arr = {0};
-            arr.length = wifi_ap.bssid_len;
-            arr.buffer = wifi_ap.bssid;
-            data.bssid.funcs.encode = _encode_bytes_fields;
-            data.bssid.arg = &arr;
-        }
+		array_data arr = {0};
+		arr.length = SL_BSSID_LENGTH;
+		arr.buffer = wifi_ap.bssid;
+		data.bssid.funcs.encode = _encode_bytes_fields;
+		data.bssid.arg = &arr;
+
 
         switch(wifi_ap.sec_type)
         {
@@ -91,7 +90,7 @@ static bool _encode_wifi_scan_result_fields(pb_ostream_t *stream, const pb_field
 
             pb_ostream_t sizestream = { 0 };
             if(!pb_encode(&sizestream, wifi_endpoint_fields, &data)){
-                UARTprintf("Failed to retreive length for ssid %s\n", data.ssid);
+                UARTprintf("Failed to retreive length for ssid %s\n", data.ssid.arg);
                 continue;
             }
 
@@ -101,9 +100,9 @@ static bool _encode_wifi_scan_result_fields(pb_ostream_t *stream, const pb_field
             }
 
             if (!pb_encode(stream, wifi_endpoint_fields, &data)){
-                UARTprintf("Fail to encode wifi_endpoint_fields %s\r\n", data.ssid);
+                UARTprintf("Fail to encode wifi_endpoint_fields %s\r\n", data.ssid.arg);
             }else{
-                UARTprintf("WIFI %s encoded\n", data.ssid);
+                UARTprintf("WIFI %s encoded\n", data.ssid.arg);
             }
         }
     }
