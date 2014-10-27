@@ -293,7 +293,7 @@ bool ble_send_protobuf(MorpheusCommand* command)
         return false;
     }
 
-
+    command->version = PROTOBUF_VERSION;
     ble_proto_assign_encode_funcs(command);
 
 
@@ -381,4 +381,16 @@ void ble_proto_free_command(MorpheusCommand* command)
         vPortFree(array);  // Then vPortFree the actual
         command->motionDataEntrypted.arg = NULL;
     }
+}
+
+
+int Cmd_factory_reset(int argc, char* argv[])
+{
+    wifi_reset();
+
+	MorpheusCommand morpheusCommand = {0};
+	morpheusCommand.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_FACTORY_RESET;
+	ble_send_protobuf(&morpheusCommand);  // Send the protobuf to topboard
+
+	return 0;
 }
