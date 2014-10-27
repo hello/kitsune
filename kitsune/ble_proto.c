@@ -57,11 +57,24 @@ static void _reply_wifi_scan_result()
     }
 
     sl_status &= ~SCANNING;
-    MorpheusCommand reply_command = {0};
-    reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_START_WIFISCAN;
-    reply_command.wifi_scan_result.arg = wifi_endpoints;
 
-    ble_send_protobuf(&reply_command);
+    int i = 0;
+    Sl_WlanNetworkEntry_t wifi_endpoints_cp[MAX_WIFI_EP_PER_SCAN] = {0};
+    for(i = 0; i < scanned_wifi_count; i++)
+    {
+        wifi_endpoints_cp[0] = wifi_endpoints[i];
+        MorpheusCommand reply_command = {0};
+        reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_START_WIFISCAN;
+        reply_command.wifi_scan_result.arg = wifi_endpoints_cp;
+
+        ble_send_protobuf(&reply_command);
+
+        if(wifi_endpoints[i].ssid_len == 0)
+        {
+            break;
+        }
+        vTaskDelay(100);
+    }
 }
 
 
