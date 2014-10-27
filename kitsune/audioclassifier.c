@@ -450,9 +450,13 @@ static uint8_t GetNextMatrixCallback(uint8_t isFirst,const_MatDesc_t * pdesc) {
 }
 
 
-uint32_t AudioClassifier_GetSerializedBuffer(pb_ostream_t * stream,const char * macbytes, uint32_t unix_time,const char * tags, const char * source) {
+uint32_t AudioClassifier_EncodeAudio(pb_ostream_t * stream,const void * encode_data) {
     
     uint32_t size = 0;
+    const char * macbytes = "ffffff";
+    uint32_t unix_time = 0;
+    const char * tags = NULL;
+    const char * source = NULL;
     
     /* START CRITICAL SECTION AROUND STORAGE BUFFERS */
     if (_lockFunc) {
