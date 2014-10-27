@@ -777,7 +777,8 @@ int send_audio_wifi(char * buffer, int buffer_size, audio_read_cb arcb) {
 #include "SyncResponse.pb.h"
 unsigned long get_time();
 
-int decode_rx_data_pb_callback(const uint8_t * buffer, uint32_t buffer_size, pb_decode_callback_t decoder) {
+
+int decode_rx_data_pb_callback(const uint8_t * buffer, uint32_t buffer_size, void * decodedata,network_decode_callback_t decoder) {
 	AES_CTX aesctx;
 	unsigned char * buf_pos = (unsigned char*)buffer;
 	unsigned char sig[SIG_SIZE] = {0};
@@ -841,7 +842,7 @@ int decode_rx_data_pb_callback(const uint8_t * buffer, uint32_t buffer_size, pb_
 	/* Now we are ready to decode the message! */
 
 	UARTprintf("data ");
-	status = decoder(&stream);
+	status = decoder(&stream,decodedata);
 	UARTprintf("\n");
 
 	/* Then just check for any errors.. */
@@ -852,6 +853,29 @@ int decode_rx_data_pb_callback(const uint8_t * buffer, uint32_t buffer_size, pb_
 
 	return 0;
 }
+
+
+
+
+static uint32_t default_decode_callback(pb_istream_t * stream, void * data) {
+	network_decode_data_t * decoderinfo = (network_decode_data_t *) data;
+	return pb_decode(stream,decoderinfo->fields,decoderinfo->decodedata);
+}
+
+int decode_rx_data_pb(const uint8_t * buffer, uint32_t buffer_size, pb_field_t fields[],void * structdata) {
+	network_decode_data_t decode_data;
+	int ret;
+
+	decode_data.fields = fields;
+	decode_data.decodedata = structdata;
+
+	ret = decode_rx_data_pb_callback(buffer,buffer_size,&decode_data,default_decode_callback);
+
+	return ret;
+}
+
+
+
 #endif
 
 
@@ -894,7 +918,7 @@ int match(char *regexp, char *text)
 }
 
 //buffer needs to be at least 128 bytes...
-int send_data_pb_callback(const char* host, const char* path,char * recv_buf, uint32_t recv_buf_size,pb_encode_callback_t encoder) {
+int send_data_pb_callback(const char* host, const char* path,char * recv_buf, uint32_t recv_buf_size,const void * encodedata,network_encode_callback_t encoder) {
     int send_length = 0;
     int rv = 0;
     uint8_t sig[32]={0};
@@ -906,7 +930,7 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
 
     if (encoder) {
         pb_ostream_t stream = {0};
-        status = encoder(&stream);
+        status = encoder(&stream,encodedata);
         if(!status)
         {
             UARTprintf("Encode protobuf failed, %s\n", PB_GET_ERROR(&stream));
@@ -950,7 +974,7 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
         /* Now we are ready to encode the message! */
 
         UARTprintf("data ");
-        status = encoder(&stream);
+        status = encoder(&stream,encodedata);
         UARTprintf("\n");
 
         /* Then just check for any errors.. */

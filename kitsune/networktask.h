@@ -2,7 +2,8 @@
 #define _NETWORKTASK_H_
 
 #include <pb.h>
-#include "queue.h"
+
+#include "network_types.h"
 
 #define NETWORK_RESPONSE_FLAG_NO_CONNECTION (0x00000001)
 #define NETWORK_RESPONSE_FLAG_FAILED_DECODE (0x00000002)
@@ -12,32 +13,38 @@ typedef struct {
 	uint32_t flags;
 } NetworkResponse_t;
 
-typedef uint32_t (*StreamSerializationCallback_t)(pb_ostream_t * stream);
-typedef uint32_t (*StreamDeserializationCallback_t)(pb_istream_t * stream);
-
 typedef void (*NetworkResponseCallback_t)(const NetworkResponse_t * response);
 
 
 typedef struct {
 
 	//optional encode and decode callbacks.  You can have one or both enabled.
-	StreamSerializationCallback_t encode; //optional encode callback.  If you're just polling, you don't need this
-	StreamDeserializationCallback_t decode; //optional decode callback.  If you're just sending, you don't need this
+	network_encode_callback_t encode; //optional encode callback.  If you're just polling, you don't need this
+	const void * encodedata; //optional extra data passed to your encode callback
+
+	network_decode_callback_t decode; //optional decode callback.  If you're just sending, you don't need this
+	void * decodedata; //optional extra data passed to your decode callback
+
 
 	const char * endpoint; //where on the server you wish to communicate to
 
-	uint8_t * decode_buf; //by default we have 1K for you, but if you need more, put it here
+	uint8_t * decode_buf; //the buffer we dump our server response to
 	uint32_t decode_buf_size;
+
+	int32_t retry_timeout;
 
 	NetworkResponseCallback_t response_callback;
 
-} NetworkTaskServerSendMessage_t
+} NetworkTaskServerSendMessage_t;
 
 typedef struct {
 	const char * host;
-	QueueHandle_t queue;
-
 } NetworkTaskData_t;
 
+void NetworkTask_Thread(void * networkdata);
+
+int NetworkTask_SynchronousSendProtobuf(const char * endpoint, char * buf, uint32_t buf_size, pb_field_t fields[], const void * structdata,int32_t retry_time_in_counts);
+
+int NetworkTask_AddMessageToQueue(const NetworkTaskServerSendMessage_t * message);
 
 #endif//_NETWORKTASK_H_

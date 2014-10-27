@@ -18,6 +18,7 @@ typedef struct {
 #include "FreeRTOS.h"
 #include "semphr.h"
 #include "wlan.h"
+#include "network_types.h"
 
 extern xSemaphoreHandle pill_smphr;
 
@@ -83,13 +84,10 @@ int send_audio_data( data_t * data );
 
 void thread_ota( void * unused );
 
-typedef uint32_t (* pb_encode_callback_t)(pb_ostream_t * stream);
-typedef uint32_t (* pb_decode_callback_t)(pb_istream_t * stream);
+int send_data_pb_callback(const char* host, const char* path,char * recv_buf, uint32_t recv_buf_size,const void * encodedata,network_encode_callback_t encoder);
 
-
-int send_data_pb_callback(const char* host, const char* path,char * recv_buf, uint32_t recv_buf_size,pb_encode_callback_t encoder);
-
-int decode_rx_data_pb_callback(const uint8_t * buffer, uint32_t buffer_size, pb_decode_callback_t decoder);
+int decode_rx_data_pb_callback(const uint8_t * buffer, uint32_t buffer_size, void * decodedata,network_decode_callback_t decoder);
+int decode_rx_data_pb(const uint8_t * buffer, uint32_t buffer_size, pb_field_t fields[],void * structdata);
 
 int http_response_ok(const char* response_buffer);
 

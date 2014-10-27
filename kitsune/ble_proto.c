@@ -12,6 +12,7 @@
 #include "assert.h"
 #include "stdlib.h"
 #include "stdio.h"
+#include "networktask.h"
 
 extern unsigned int sl_status;
 int Cmd_led(int argc, char *argv[]);
@@ -351,6 +352,7 @@ static void _send_response_to_ble(const char* buffer, size_t len)
 static void _pair_device( MorpheusCommand* command, int is_morpheus)
 {
 	char response_buffer[256] = {0};
+	int ret;
 	if(NULL == command->accountId.arg || NULL == command->deviceId.arg){
 		UARTprintf("****************************************Missing fields\n");
 		ble_reply_protobuf_error(ErrorType_INTERNAL_DATA_ERROR);
@@ -361,20 +363,14 @@ static void _pair_device( MorpheusCommand* command, int is_morpheus)
 		// TODO: Figure out why always get -1 when this is the 1st request
 		// after the IPv4 retrieved.
 
-		int ret = send_data_pb(DATA_SERVER,
+#define MAX_RETRY_TIME_IN_TICKS (5000)
+		ret = NetworkTask_SynchronousSendProtobuf(
 				is_morpheus == 1 ? MORPHEUS_REGISTER_ENDPOINT : PILL_REGISTER_ENDPOINT,
-				response_buffer, sizeof(response_buffer),
-				MorpheusCommand_fields, command);
-
-		while(ret != 0 && retry_count--){
-			UARTprintf("Network error, try to resend command...\n");
-			vTaskDelay(1000);
-			ret = send_data_pb(DATA_SERVER,
-				is_morpheus == 1 ? MORPHEUS_REGISTER_ENDPOINT : PILL_REGISTER_ENDPOINT,
-				response_buffer, sizeof(response_buffer),
-				MorpheusCommand_fields, command);
-
-		}
+				response_buffer,
+				sizeof(response_buffer),
+				MorpheusCommand_fields,
+				command,
+				MAX_RETRY_TIME_IN_TICKS);
 
 		// All the args are in stack, don't need to do protobuf free.
 
