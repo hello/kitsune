@@ -5,8 +5,11 @@ enum ErrorType {
 	DEVICE_ALREADY_PAIRED = 2; // User tries to paired a paired device to another account.
 	INTERNAL_DATA_ERROR = 3;   // Data packets corruption during BLE or SPI transfer
 	DEVICE_DATABASE_FULL = 4;  // No more space for device pairing.
-	DEVICE_NO_MEMORY = 5;  // Device run out of heap
+	DEVICE_NO_MEMORY = 5;      // Device run out of heap
 	INTERNAL_OPERATION_FAILED = 6;
+	NO_ENDPOINT_IN_RANGE = 7;
+	WLAN_CONNECTION_ERROR = 8;
+	FAIL_TO_OBTAIN_IP = 9;
 }
 
 message MorpheusCommand {
