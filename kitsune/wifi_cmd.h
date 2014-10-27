@@ -67,6 +67,9 @@ int Cmd_mode(int argc, char*argv[]);
 int Cmd_set_mac(int argc, char*argv[]);
 int Cmd_set_aes(int argc, char *argv[]) ;
 
+
+int Cmd_download(int argc, char*argv[]);
+
 int Cmd_RadioStartRX(int argc, char*argv[]);
 int Cmd_RadioStopRX(int argc, char*argv[]);
 int Cmd_RadioStopTX(int argc, char*argv[]);

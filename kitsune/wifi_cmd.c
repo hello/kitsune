@@ -396,6 +396,8 @@ unsigned long unix_time() {
     return (unsigned long) ntp;
 }
 
+unsigned long get_time();
+
 int Cmd_time(int argc, char*argv[]) {
 	int unix = unix_time();
 	int t = get_time();
@@ -775,7 +777,6 @@ int send_audio_wifi(char * buffer, int buffer_size, audio_read_cb arcb) {
 #if 1
 #define SIG_SIZE 32
 #include "SyncResponse.pb.h"
-unsigned long get_time();
 
 int decode_rx_data_pb(const unsigned char * buffer, int buffer_size, const pb_field_t fields[], void* dst_struct, size_t dst_struct_len) {
 	AES_CTX aesctx;
@@ -1547,7 +1548,7 @@ int RadioStartRX(int eChannel)
 
 	sl_SetSockOpt(rawSocket,SL_SOL_SOCKET,SL_SO_RCVTIMEO, &timeval, sizeof(timeval));    // Enable receive timeout
 
-	sl_Recv(rawSocket, DataFrame, 1470, 0);
+	recv(rawSocket, DataFrame, 1470, 0);
 
 	vPortFree( DataFrame );
 	return 0;
@@ -1835,30 +1836,30 @@ int get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uin
     unsigned long IntervalVal = 20;
 
     unsigned char policyOpt = SL_CONNECTION_POLICY(0, 0, 0, 0, 0);
-    int lRetVal;
+    int r;
 
-    lRetVal = sl_WlanPolicySet(SL_POLICY_CONNECTION , policyOpt, NULL, 0);
+    r = sl_WlanPolicySet(SL_POLICY_CONNECTION , policyOpt, NULL, 0);
 
     // Make sure scan is enabled
     policyOpt = SL_SCAN_POLICY(1);
 
     // set scan policy - this starts the scan
-    lRetVal = sl_WlanPolicySet(SL_POLICY_SCAN , policyOpt, (unsigned char *)(IntervalVal), sizeof(IntervalVal));
+    r = sl_WlanPolicySet(SL_POLICY_SCAN , policyOpt, (unsigned char *)(IntervalVal), sizeof(IntervalVal));
 
 
     // delay specific milli seconds to verify scan is started
     vTaskDelay(scan_duration_ms);
 
-    // lRetVal indicates the valid number of entries
+    // r indicates the valid number of entries
     // The scan results are occupied in netEntries[]
-    lRetVal = sl_WlanGetNetworkList(0, entry_len, entries);
+    r = sl_WlanGetNetworkList(0, entry_len, entries);
 
     // Restore connection policy to Auto + SmartConfig
     //      (Device's default connection policy)
     sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 1),
             NULL, 0);
 
-    return lRetVal;
+    return r;
 
 }
 
@@ -1921,3 +1922,528 @@ int connect_scanned_endpoints(const char* ssid, const char* password,
 
 
 //end radio test functions
+
+//begin download functions
+
+#include "common.h"
+
+#define PREFIX_BUFFER    "GET /lit/er/swrz044b/swrz044b.pdf"
+#define POST_BUFFER      " HTTP/1.1\nHost:www.ti.com\nAccept: text/html, application/xhtml+xml, */*\n\n"
+#define HOST_NAME        "www.ti.com"
+
+#define HTTP_FILE_NOT_FOUND    "404 Not Found" /* HTTP file not found response */
+#define HTTP_STATUS_OK         "200 OK"  /* HTTP status ok response */
+#define HTTP_CONTENT_LENGTH    "Content-Length:"  /* HTTP content length header */
+#define HTTP_TRANSFER_ENCODING "Transfer-Encoding:" /* HTTP transfer encoding header */
+#define HTTP_ENCODING_CHUNKED  "chunked" /* HTTP transfer encoding header value */
+#define HTTP_CONNECTION        "Connection:" /* HTTP Connection header */
+#define HTTP_CONNECTION_CLOSE  "close"  /* HTTP Connection header value */
+
+#define DNS_RETRY           5 /* No of DNS tries */
+#define HTTP_END_OF_HEADER  "\r\n\r\n"  /* string marking the end of headers in response */
+#define SIZE_40K            40960  /* Serial flash file size 40 KB */
+
+#define READ_SIZE          1450
+#define MAX_BUFF_SIZE      1460
+
+// Temporary file to store the downloaded file
+#define TEMP_FILE_NAME "cc3000_module_temp.pdf"
+// File on the serial flash to be replaced
+#define FILE_NAME "cc3000_module.pdf"
+
+
+// Application specific status/error codes
+typedef enum{
+ /* Choosing this number to avoid overlap with host-driver's error codes */
+    DEVICE_NOT_IN_STATION_MODE = -0x7D0,
+    DEVICE_START_FAILED = DEVICE_NOT_IN_STATION_MODE - 1,
+    INVALID_HEX_STRING = DEVICE_START_FAILED - 1,
+    TCP_RECV_ERROR = INVALID_HEX_STRING - 1,
+    TCP_SEND_ERROR = TCP_RECV_ERROR - 1,
+    FILE_NOT_FOUND_ERROR = TCP_SEND_ERROR - 1,
+    INVALID_SERVER_RESPONSE = FILE_NOT_FOUND_ERROR - 1,
+    FORMAT_NOT_SUPPORTED = INVALID_SERVER_RESPONSE - 1,
+    FILE_OPEN_FAILED = FORMAT_NOT_SUPPORTED - 1,
+    FILE_WRITE_ERROR = FILE_OPEN_FAILED - 1,
+    INVALID_FILE = FILE_WRITE_ERROR - 1,
+    SERVER_CONNECTION_FAILED = INVALID_FILE - 1,
+    GET_HOST_IP_FAILED = SERVER_CONNECTION_FAILED  - 1,
+
+    STATUS_CODE_MAX = -0xBB8
+} dl_status_codes;
+
+unsigned char g_buff[MAX_BUFF_SIZE+1];
+long bytesReceived = 0; // variable to store the file size
+static int dl_sock = -1;
+
+
+//****************************************************************************
+//
+//! Create an endpoint for communication and initiate connection on socket.*/
+//!
+//! \brief Create connection with server
+//!
+//! This function opens a socket and create the endpoint communication with server
+//!
+//! \param[in]      DestinationIP - IP address of the server
+//!
+//! \return         socket id for success and negative for error
+//
+//****************************************************************************
+int CreateConnection(unsigned long DestinationIP)
+{
+    SlSockAddrIn_t  Addr;
+    int             Status = 0;
+    int             AddrSize = 0;
+    int             SockID = 0;
+
+    Addr.sin_family = SL_AF_INET;
+    Addr.sin_port = sl_Htons(80);
+    Addr.sin_addr.s_addr = sl_Htonl(DestinationIP);
+
+    AddrSize = sizeof(SlSockAddrIn_t);
+
+    SockID = socket(SL_AF_INET,SL_SOCK_STREAM, 0);
+    ASSERT_ON_ERROR(SockID);
+
+    Status = connect(SockID, ( SlSockAddr_t *)&Addr, AddrSize);
+    if( Status < 0 )
+    {
+        /* Error */
+        close(SockID);
+        ASSERT_ON_ERROR(Status);
+    }
+    return SockID;
+}
+
+//****************************************************************************
+//
+//!
+//! \brief Convert hex to decimal base
+//!
+//! \param[in]      ptr - pointer to string containing number in hex
+//!
+//! \return         number in decimal base
+//!
+//
+//****************************************************************************
+signed long hexToi(unsigned char *ptr)
+{
+    unsigned long result = 0;
+    int idx = 0;
+    unsigned int len = strlen((const char *)ptr);
+
+    // convert characters to upper case
+    for(idx = 0; ptr[idx] != '\0'; ++idx)
+    {
+        if( (ptr[idx] >= 'a') &&
+            (ptr[idx] <= 'f') )
+        {
+            /* Change case - ASCII 'a' = 97, 'A' = 65 => 97-65 = 32 */
+            ptr[idx] -= 32;
+        }
+    }
+
+    for(idx = 0; ptr[idx] != '\0'; ++idx)
+    {
+        if(ptr[idx] >= '0' && ptr[idx] <= '9')
+        {
+            /* Converting '0' to '9' to their decimal value */
+            result += (ptr[idx] - '0') * (1 << (4 * (len - 1 - idx)));
+        }
+        else if(ptr[idx] >= 'A' && ptr[idx] <= 'F')
+        {
+            /* Converting hex 'A' to 'F' to their decimal value */
+            /* .i.e. 'A' - 55 = 10, 'F' - 55 = 15 */
+            result += (ptr[idx] - 55) * (1 << (4 * (len -1 - idx)));
+        }
+        else
+        {
+            ASSERT_ON_ERROR(INVALID_HEX_STRING);
+        }
+    }
+
+    return result;
+}
+
+//****************************************************************************
+//
+//! \brief Calculate the file chunk size
+//!
+//! \param[in]      len - pointer to length of the data in the buffer
+//! \param[in]      p_Buff - pointer to ponter of buffer containing data
+//! \param[out]     chunk_size - pointer to variable containing chunk size
+//!
+//! \return         0 for success, -ve for error
+//
+//****************************************************************************
+int GetChunkSize(int *len, unsigned char **p_Buff, unsigned long *chunk_size)
+{
+    int           idx = 0;
+    unsigned char lenBuff[10];
+    signed long r = -1;
+
+    idx = 0;
+    memset(lenBuff, 0, 10);
+    while(*len >= 0 && **p_Buff != 13) /* check for <CR> */
+    {
+        if(*len == 0)
+        {
+            memset(g_buff, 0, sizeof(g_buff));
+            *len = recv(dl_sock, &g_buff[0], MAX_BUFF_SIZE, 0);
+            if(*len <= 0)
+                ASSERT_ON_ERROR(TCP_RECV_ERROR);
+
+            *p_Buff = g_buff;
+        }
+        lenBuff[idx] = **p_Buff;
+        idx++;
+        (*p_Buff)++;
+        (*len)--;
+    }
+    (*p_Buff) += 2; // skip <CR><LF>
+    (*len) -= 2;
+    r = hexToi(lenBuff);
+    if(r < 0)
+    {
+        ASSERT_ON_ERROR(INVALID_HEX_STRING);
+    }
+    else
+    {
+        *chunk_size = r;
+    }
+
+    return 0;
+}
+
+//****************************************************************************
+//
+//! \brief Obtain the file from the server
+//!
+//!  This function requests the file from the server and save it on serial flash.
+//!  To request a different file for different user needs to modify the
+//!  PREFIX_BUFFER and POST_BUFFER macros.
+//!
+//! \param[in]      None
+//!
+//! \return         0 for success and negative for error
+//
+//****************************************************************************
+int GetData()
+{
+    int           transfer_len = 0;
+    long          r = 0;
+    long          fileHandle = -1;
+    unsigned long Token = 0;
+    unsigned char *pBuff = 0;
+    char          eof_detected = 0;
+    unsigned long recv_size = 0;
+    unsigned char isChunked = 0;
+
+    UARTprintf("Start downloading the file\r\n");
+
+    memset(g_buff, 0, sizeof(g_buff));
+
+    // Puts together the HTTP GET string.
+    strcpy((char *)g_buff, PREFIX_BUFFER);
+
+    strcat((char *)g_buff, POST_BUFFER);
+
+
+    // Send the HTTP GET string to the opened TCP/IP socket.
+    transfer_len = sl_Send(dl_sock, g_buff, strlen((const char *)g_buff), 0);
+
+    if (transfer_len < 0)
+    {
+        // error
+        ASSERT_ON_ERROR(TCP_SEND_ERROR);
+    }
+
+    memset(g_buff, 0, sizeof(g_buff));
+
+    // get the reply from the server in buffer.
+    transfer_len = recv(dl_sock, &g_buff[0], MAX_BUFF_SIZE, 0);
+
+    if(transfer_len <= 0)
+    {
+        ASSERT_ON_ERROR(TCP_RECV_ERROR);
+    }
+
+    // Check for 404 return code
+    if(strstr((const char *)g_buff, HTTP_FILE_NOT_FOUND) != 0)
+    {
+        ASSERT_ON_ERROR(FILE_NOT_FOUND_ERROR);
+    }
+
+    // if not "200 OK" return error
+    if(strstr((const char *)g_buff, HTTP_STATUS_OK) == 0)
+    {
+        ASSERT_ON_ERROR(INVALID_SERVER_RESPONSE);
+    }
+
+    // check if content length is transfered with headers
+    pBuff = (unsigned char *)strstr((const char *)g_buff, HTTP_CONTENT_LENGTH);
+    if(pBuff != 0)
+    {
+        // not supported
+        ASSERT_ON_ERROR(FORMAT_NOT_SUPPORTED);
+    }
+
+    // Check if data is chunked
+    pBuff = (unsigned char *)strstr((const char *)g_buff, HTTP_TRANSFER_ENCODING);
+    if(pBuff != 0)
+    {
+        pBuff += strlen(HTTP_TRANSFER_ENCODING);
+        while(*pBuff == 32)
+            pBuff++;
+
+        if(memcmp(pBuff, HTTP_ENCODING_CHUNKED, strlen(HTTP_ENCODING_CHUNKED)) == 0)
+        {
+            recv_size = 0;
+            isChunked = 1;
+        }
+    }
+    else
+    {
+        // Check if connection will be closed by after sending data
+        // In this method the content length is not received and end of
+        // connection marks the end of data
+        pBuff = (unsigned char *)strstr((const char *)g_buff, HTTP_CONNECTION);
+        if(pBuff != 0)
+        {
+            pBuff += strlen(HTTP_CONNECTION);
+            while(*pBuff == 32)
+                pBuff++;
+
+            if(memcmp(pBuff, HTTP_ENCODING_CHUNKED, strlen(HTTP_CONNECTION_CLOSE)) == 0)
+            {
+                // not supported
+                ASSERT_ON_ERROR(FORMAT_NOT_SUPPORTED);
+            }
+        }
+    }
+
+    // "\r\n\r\n" marks the end of headers
+    pBuff = (unsigned char *)strstr((const char *)g_buff, HTTP_END_OF_HEADER);
+    if(pBuff == 0)
+    {
+        ASSERT_ON_ERROR(INVALID_SERVER_RESPONSE);
+    }
+    // Increment by 4 to skip "\r\n\r\n"
+    pBuff += 4;
+
+    // Adjust buffer data length for header size
+    transfer_len -= (pBuff - g_buff);
+
+    // If data in chunked format, calculate the chunk size
+    if(isChunked == 1)
+    {
+        r = GetChunkSize(&transfer_len, &pBuff, &recv_size);
+        ASSERT_ON_ERROR(r);
+    }
+
+    /* Open file to save the downloaded file */
+    r = sl_FsOpen((_u8 *)FILE_NAME,
+                       FS_MODE_OPEN_WRITE, &Token, &fileHandle);
+    if(r < 0)
+    {
+        // File Doesn't exit create a new of 40 KB file
+        r = sl_FsOpen((unsigned char *)FILE_NAME, \
+                           FS_MODE_OPEN_CREATE(SIZE_40K, \
+                           _FS_FILE_OPEN_FLAG_COMMIT|_FS_FILE_PUBLIC_WRITE),
+                           &Token, &fileHandle);
+        ASSERT_ON_ERROR(r);
+
+    }
+
+    while (0 < transfer_len)
+    {
+        // For chunked data recv_size contains the chunk size to be received
+        if(recv_size <= transfer_len)
+        {
+            // write the recv_size
+            r = sl_FsWrite(fileHandle, bytesReceived,
+                    (unsigned char *)pBuff, recv_size);
+            if(r < recv_size)
+            {
+                UARTprintf("Failed during writing the file, Error-code: %d\r\n", \
+                            FILE_WRITE_ERROR);
+                /* Close file without saving */
+                r = sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
+                return r;
+            }
+            transfer_len -= recv_size;
+            bytesReceived +=recv_size;
+            pBuff += recv_size;
+            recv_size = 0;
+
+            if(isChunked == 1)
+            {
+                // if data in chunked format calculate next chunk size
+                pBuff += 2; // 2 bytes for <CR> <LF>
+                transfer_len -= 2;
+
+                if(GetChunkSize(&transfer_len, &pBuff, &recv_size) < 0)
+                {
+                    // Error
+                    break;
+                }
+
+                // if next chunk size is zero we have received the complete file
+                if(recv_size == 0)
+                {
+                    eof_detected = 1;
+                    break;
+                }
+
+                if(recv_size < transfer_len)
+                {
+                    // Code will enter this section if the new chunk size is
+                    // less than the transfer size. This will the last chunk of
+                    // file received
+                    r =sl_FsWrite(fileHandle, bytesReceived,
+                            (unsigned char *)pBuff, recv_size);
+                    if(r < recv_size)
+                    {
+                        UARTprintf("Failed during writing the file, " \
+                                    "Error-code: %d\r\n", FILE_WRITE_ERROR);
+                        /* Close file without saving */
+                        r = sl_FsClose(fileHandle, 0, \
+                                                (unsigned char*)"A", 1);
+                        return FILE_WRITE_ERROR;
+                    }
+                    transfer_len -= recv_size;
+                    bytesReceived +=recv_size;
+                    pBuff += recv_size;
+                    recv_size = 0;
+
+                    pBuff += 2; // 2bytes for <CR> <LF>
+                    transfer_len -= 2;
+
+                    // Calculate the next chunk size, should be zero
+                    if(GetChunkSize(&transfer_len, &pBuff, &recv_size) < 0)
+                    {
+                        // Error
+                        break;
+                    }
+
+                    // if next chunk size is non zero error
+                    if(recv_size != 0)
+                    {
+                        // Error
+                        break;
+                    }
+                    eof_detected = 1;
+                    break;
+                }
+                else
+                {
+                    // write data on the file
+                    r =sl_FsWrite(fileHandle, bytesReceived,
+                            (unsigned char *)pBuff, transfer_len);
+                    if(r < transfer_len)
+                    {
+                        UARTprintf("Failed during writing the file, " \
+                                    "Error-code: %d\r\n", FILE_WRITE_ERROR);
+                        /* Close file without saving */
+                        r = sl_FsClose(fileHandle, 0, \
+                                                (unsigned char*)"A", 1);
+                        return FILE_WRITE_ERROR;
+                    }
+                    recv_size -= transfer_len;
+                    bytesReceived +=transfer_len;
+                }
+            }
+            // complete file received exit
+            if(recv_size == 0)
+            {
+                eof_detected = 1;
+                break;
+            }
+        }
+        else
+        {
+            // write data on the file
+            r = sl_FsWrite(fileHandle, bytesReceived,
+                                 (unsigned char *)pBuff, transfer_len);
+            if (r < 0)
+            {
+                UARTprintf("Failed during writing the file, Error-code: " \
+                            "%d\r\n", FILE_WRITE_ERROR);
+                /* Close file without saving */
+                r = sl_FsClose(fileHandle, 0, (unsigned char*)"A", 1);
+                return FILE_WRITE_ERROR;
+            }
+            bytesReceived +=transfer_len;
+            recv_size -= transfer_len;
+        }
+
+        memset(g_buff, 0, sizeof(g_buff));
+
+        transfer_len = recv(dl_sock, &g_buff[0], MAX_BUFF_SIZE, 0);
+        if(transfer_len <= 0)
+            return TCP_RECV_ERROR;
+
+        pBuff = g_buff;
+    }
+
+    //
+    // If user file has checksum which can be used to verify the temporary
+    // file then file should be verified
+    // In case of invalid file (FILE_NAME) should be closed without saving to
+    // recover the previous version of file
+    //
+    if(0 > transfer_len || eof_detected == 0)
+    {
+        /* Close file without saving */
+        r = sl_FsClose(fileHandle, 0, (unsigned char*)"A", 1);
+        UARTprintf("Failed while File Download, Error-code: %d\r\n", \
+                            INVALID_FILE);
+        return INVALID_FILE;
+    }
+    else
+    {
+        /* Save and close file */
+        r = sl_FsClose(fileHandle, 0, 0, 0);
+        ASSERT_ON_ERROR(r);
+    }
+
+    return 0;
+}
+
+int Cmd_download(int argc, char*argv[]) {
+	unsigned long ip;
+
+    int r = gethostbyname((signed char *)HOST_NAME,
+                                       strlen((const char *)HOST_NAME),
+                                       &ip,SL_AF_INET);
+    if(r < 0)
+    {
+        ASSERT_ON_ERROR(GET_HOST_IP_FAILED);
+    }
+
+    // Create a TCP connection to the Web Server
+    dl_sock = CreateConnection(ip);
+
+    if(dl_sock < 0)
+    {
+        UARTprintf("Connection to server failed\n\r");
+        return SERVER_CONNECTION_FAILED;
+    }
+    else
+    {
+        UARTprintf("Connection to server created successfully\r\n");
+    }
+    // Download the file, verify the file and replace the exiting file
+    r = GetData();
+    if(r < 0)
+    {
+        UARTprintf("Device couldn't download the file from the server\n\r");
+    }
+
+    r = close(dl_sock);
+
+    return r;
+}
+
+//end download functions

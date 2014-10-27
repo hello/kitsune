@@ -1321,6 +1321,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "^", Cmd_send_top, "send command to top board"},
 		{ "topdfu", Cmd_topdfu, "update topboard firmware."},
 		{ "factory_reset", Cmd_factory_reset, "Factory reset from middle."},
+		{ "download", Cmd_download, "download test function."},
 
 		{ 0, 0, 0 } };
 
