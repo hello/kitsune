@@ -16,12 +16,16 @@
 #define CIRCULAR_BUF_MASK (CIRCULAR_BUF_SIZE - 1)
 #define BUF_SIZE_IN_CHUNK (32)
 
+#define CHUNK_BUF_SIZE_2N (6)
+#define CHUNK_BUF_SIZE (1 << CHUNK_BUF_SIZE_2N)
+#define CHUNK_BUF_MASK (CHUNK_BUF_SIZE - 1)
+
 #define MAX_NUMBER_CLASSES (5)
 #define EXPECTED_NUMBER_OF_CLASSIFIER_INPUTS (NUM_AUDIO_FEATURES)
 
 #define CLASS_OF_INTEREST_TO_ENABLE_CALLBACK (0)
 
-#define RECORD_DURATION_IN_MS (5000)
+#define RECORD_DURATION_IN_MS (10000)
 #define RECORD_DURATION_IN_FRAMES (RECORD_DURATION_IN_MS / SAMPLE_PERIOD_IN_MILLISECONDS)
 
 
@@ -34,9 +38,7 @@
 #endif
 
 
-#define CHUNK_BUF_SIZE_2N (1)
-#define CHUNK_BUF_SIZE (1 << CHUNK_BUF_SIZE_2N)
-#define CHUNK_BUF_MASK (CHUNK_BUF_SIZE - 1)
+
 
 typedef struct {
     uint8_t packedbuf[BUF_SIZE_IN_CHUNK][NUM_AUDIO_FEATURES/2];// 32 x 16 = 2^5 * 2^4 = 2^9 = 256 bytes
@@ -326,7 +328,7 @@ void AudioClassifier_DataCallback(const AudioFeatures_t * pfeats) {
             
             _hmm.fpClassifier(_hmm.data,probs,classes,0);
             
-            if (probs[CLASS_OF_INTEREST_TO_ENABLE_CALLBACK] > TOFIX(0.95f,HMM_LOGPROB_QFIXEDPOINT) && _playbackFunc) {
+            if (probs[CLASS_OF_INTEREST_TO_ENABLE_CALLBACK] > TOFIX(0.95f,HMM_LOGPROB_QFIXEDPOINT_OUTPUT) && _playbackFunc) {
                 RecordAudioRequest_t req;
                 memset(&req,0,sizeof(req));
                 

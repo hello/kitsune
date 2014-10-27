@@ -311,6 +311,33 @@ int Cmd_record_buff(int argc, char *argv[]) {
 
 }
 
+int Cmd_audio_do_stuff(int argc, char * argv[]) {
+
+	AudioCaptureMessage_t message;
+	const char * buf = argv[1];
+
+	if (strncmp(buf,"on",4) == 0) {
+		//turn on
+		UARTprintf("Turning on audio\r\n");
+		memset(&message,0,sizeof(message));
+		message.command = eAudioCaptureTurnOn;
+		AudioCaptureTask_AddMessageToQueue(&message);
+	}
+	else if (strncmp(buf,"off",4) == 0) {
+		//turn on
+		UARTprintf("Turning off audio\r\n");
+
+		memset(&message,0,sizeof(message));
+		message.command = eAudioCaptureTurnOff;
+		AudioCaptureTask_AddMessageToQueue(&message);
+	}
+	else {
+		UARTprintf("aud command takes an argument, either on or off\r\n");
+	}
+
+	return 0;
+}
+
 void Speaker1();
 
 int Cmd_play_buff(int argc, char *argv[]) {
@@ -329,7 +356,7 @@ get_codec_NAU();
 
 // Initialize the Audio(I2S) Module
 //
-AudioCapturerInit(CPU_XDATA, 48000);
+AudioCapturerInit(CPU_XDATA, 44100/2);
 
 // Initialize the DMA Module
 //
@@ -344,7 +371,7 @@ SetupPingPongDMATransferRx();
 //
 
 AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
-AudioCaptureRendererConfigure(I2S_PORT_DMA, 48000);
+AudioCaptureRendererConfigure(I2S_PORT_DMA, 44100/2);
 
 // Start Audio Tx/Rx
 //
@@ -1295,6 +1322,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "stop_ringtone", Audio_Stop,"stop sounds"},
 		{ "r", Cmd_record_buff,"record sounds into SD card"},
 		{ "p", Cmd_play_buff, "play sounds from SD card"},
+		{ "aud",Cmd_audio_do_stuff,"command the audio on/off"},
 		{ "fsdl", Cmd_fs_delete, "fs delete" },
 		//{ "readout", Cmd_readout_data, "read out sensor data log" },
 
@@ -1343,7 +1371,7 @@ void loopback_uart(void * p) {
 	top_board_task();
 }
 void vUARTTask(void *pvParameters) {
-	char cCmdBuf[64];
+	char cCmdBuf[64] = {0};
 	portTickType now;
 
 	Cmd_led_clr(0,0);
@@ -1452,8 +1480,8 @@ void vUARTTask(void *pvParameters) {
 #if !ONLY_MID
 	xTaskCreate(AudioCaptureTask_Thread,"audioCaptureTask",4*1024/4,NULL,4,NULL);
 	UARTprintf("*");
-//	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",2*1024/4,NULL,1,NULL);
-//	UARTprintf("*");
+	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,1,NULL);
+	UARTprintf("*");
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 3, NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_dust, "dustTask", 256 / 4, NULL, 3, NULL);
@@ -1495,6 +1523,7 @@ void vUARTTask(void *pvParameters) {
 			// parsed and valid commands executed.
 			//
 			xTaskCreate(CmdLineProcess, "commandTask",  5*1024 / 4, cCmdBuf, 20, NULL);
+			memset(cCmdBuf,0,sizeof(cCmdBuf)); //zero out buffer after a command
 		}
 	}
 }

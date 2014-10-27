@@ -191,7 +191,10 @@ void Speaker1()
         }
       }
       g_iReceiveCount++;
-       UARTprintf("g_iReceiveCount: %d\n\r",g_iReceiveCount);
+
+      if ((g_iReceiveCount % 100) == 0) {
+    	UARTprintf("g_iReceiveCount: %d\n\r",g_iReceiveCount);
+  	  }
     }
 
     MAP_UtilsDelay(1000);

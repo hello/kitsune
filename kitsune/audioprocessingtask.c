@@ -1,6 +1,7 @@
 #include "FreeRTOS.h"
 #include "queue.h"
 
+#include "audiocapturetask.h"
 #include "audioprocessingtask.h"
 #include "audioclassifier.h"
 
@@ -9,21 +10,34 @@ static xQueueHandle _queue = NULL;
 
 static void RecordCallback(const RecordAudioRequest_t * request) {
 	/* Go tell audio capture task to write to disk as it captures */
+	AudioCaptureMessage_t message;
+	memset(&message,0,sizeof(message));
+
+	message.captureduration = request->durationInFrames;
+	message.command = eAudioCaptureSaveToDisk;
+
+	AudioCaptureTask_AddMessageToQueue(&message);
 }
 
-void AudioProcessingTask_Init(void) {
-	_queue = xQueueCreate(INBOX_QUEUE_LENGTH,sizeof( AudioFeatures_t ) );
+static void Init(void) {
+	if (!_queue) {
+		_queue = xQueueCreate(INBOX_QUEUE_LENGTH,sizeof( AudioFeatures_t ) );
+	}
 
 	AudioClassifier_Init(RecordCallback,0,0);
 }
 
-void AudioProcessingTask_AddMessageToQueue(const AudioFeatures_t * feat) {
-	xQueueSend(_queue,feat,0);
+void AudioProcessingTask_AddFeaturesToQueue(const AudioFeatures_t * feat) {
+	if (_queue) {
+		xQueueSend(_queue,feat,0);
+	}
 }
 
 
 void AudioProcessingTask_Thread(void * data) {
 	AudioFeatures_t message;
+
+	Init();
 
 	for( ;; ) {
 		/* Wait until we get a message */
