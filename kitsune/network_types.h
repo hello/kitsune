@@ -10,12 +10,12 @@ typedef uint32_t (* network_decode_callback_t)(pb_istream_t * stream, void * dec
 
 typedef struct {
 	const void * encodedata;
-	pb_field_t * fields;
+	const pb_field_t * fields;
 } network_encode_data_t;
 
 typedef struct {
 	void * decodedata;
-	pb_field_t * fields;
+	const pb_field_t * fields;
 } network_decode_data_t;
 
 #endif // _NETWORKTYPES_H_

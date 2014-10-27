@@ -337,14 +337,15 @@ static void _send_response_to_ble(const char* buffer, size_t len)
     memset(&response, 0, sizeof(response));
     ble_proto_assign_decode_funcs(&response);
 
-    if(decode_rx_data_pb((unsigned char*)content, content_len, MorpheusCommand_fields, &response, sizeof(response)) != 0)
+    if(decode_rx_data_pb((unsigned char*)content, content_len, MorpheusCommand_fields, &response) == 0)
     {
-        UARTprintf("Invalid response, protobuf decryption & decode failed.\n");
-        ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
-    }else{
+    	ble_send_protobuf(&response);
 
-        ble_send_protobuf(&response);
+    }else{
+    	UARTprintf("Invalid response, protobuf decryption & decode failed.\n");
+    	ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
     }
+
     ble_proto_remove_decode_funcs(&response);
     ble_proto_free_command(&response);
 }

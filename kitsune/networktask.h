@@ -43,7 +43,7 @@ typedef struct {
 
 void NetworkTask_Thread(void * networkdata);
 
-int NetworkTask_SynchronousSendProtobuf(const char * endpoint, char * buf, uint32_t buf_size, pb_field_t fields[], const void * structdata,int32_t retry_time_in_counts);
+int NetworkTask_SynchronousSendProtobuf(const char * endpoint, char * buf, uint32_t buf_size, const pb_field_t fields[], const void * structdata,int32_t retry_time_in_counts);
 
 int NetworkTask_AddMessageToQueue(const NetworkTaskServerSendMessage_t * message);
 

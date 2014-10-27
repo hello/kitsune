@@ -14,6 +14,7 @@
 #include "ota_api.h"
 
 #include "wifi_cmd.h"
+#include "networktask.h"
 
 #define ROLE_INVALID (-5)
 
@@ -862,7 +863,7 @@ static uint32_t default_decode_callback(pb_istream_t * stream, void * data) {
 	return pb_decode(stream,decoderinfo->fields,decoderinfo->decodedata);
 }
 
-int decode_rx_data_pb(const uint8_t * buffer, uint32_t buffer_size, pb_field_t fields[],void * structdata) {
+int decode_rx_data_pb(const uint8_t * buffer, uint32_t buffer_size, const pb_field_t fields[],void * structdata) {
 	network_decode_data_t decode_data;
 	int ret;
 
@@ -1286,6 +1287,7 @@ static void _on_response_protobuf(const SyncResponse* response_protobuf)
 int send_periodic_data( data_t * data ) {
     char buffer[256] = {0};
     periodic_data msg = {0};
+    int ret;
 
     //build the message
     msg.has_firmware_version = true;
@@ -1324,7 +1326,10 @@ int send_periodic_data( data_t * data ) {
     msg.pills.funcs.encode = encode_pill_list;
     msg.pills.arg = data->pill_list;
 
-    int ret = send_data_pb(DATA_SERVER, DATA_RECEIVE_ENDPOINT, buffer, sizeof(buffer), periodic_data_fields, &msg);
+    //set this to zero--it won't retry, since retrying is handled by an outside loop
+#define MAX_RETRY_TIME_IN_TICKS_PERIODIC_DATA (0)
+    ret = NetworkTask_SynchronousSendProtobuf(DATA_RECEIVE_ENDPOINT,buffer,sizeof(buffer),periodic_data_fields,&msg,MAX_RETRY_TIME_IN_TICKS_PERIODIC_DATA);
+
     if(ret != 0)
     {
         // network error
@@ -1357,7 +1362,7 @@ int send_periodic_data( data_t * data ) {
     SyncResponse response_protobuf;
     memset(&response_protobuf, 0, sizeof(response_protobuf));
 
-    if(decode_rx_data_pb((unsigned char*) content, len, SyncResponse_fields, &response_protobuf, sizeof(response_protobuf)) == 0)
+    if(decode_rx_data_pb((unsigned char*) content, len, SyncResponse_fields, &response_protobuf) == 0)
     {
         UARTprintf("Decoding success: %d %d %d %d %d\n",
         response_protobuf.has_acc_sampling_interval,

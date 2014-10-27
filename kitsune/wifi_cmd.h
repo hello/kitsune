@@ -87,7 +87,7 @@ void thread_ota( void * unused );
 int send_data_pb_callback(const char* host, const char* path,char * recv_buf, uint32_t recv_buf_size,const void * encodedata,network_encode_callback_t encoder);
 
 int decode_rx_data_pb_callback(const uint8_t * buffer, uint32_t buffer_size, void * decodedata,network_decode_callback_t decoder);
-int decode_rx_data_pb(const uint8_t * buffer, uint32_t buffer_size, pb_field_t fields[],void * structdata);
+int decode_rx_data_pb(const uint8_t * buffer, uint32_t buffer_size, const  pb_field_t fields[],void * structdata);
 
 int http_response_ok(const char* response_buffer);
 
