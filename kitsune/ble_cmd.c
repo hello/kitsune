@@ -29,6 +29,88 @@ static bool _encode_string_fields(pb_ostream_t *stream, const pb_field_t *field,
     return pb_encode_string(stream, (uint8_t*)str, strlen(str));
 }
 
+static bool _encode_wifi_scan_result_fields(pb_ostream_t *stream, const pb_field_t *field, void * const *arg)
+{
+    Sl_WlanNetworkEntry_t* wifi_aps = *arg;
+    if(!wifi_aps)
+    {
+        UARTprintf("_encode_string_fields: No string to encode\n");
+        return false;
+    }
+
+    int i = 0;
+    for(i = 0; i < MAX_WIFI_EP_PER_SCAN; i++)
+    {
+        Sl_WlanNetworkEntry_t wifi_ap = wifi_aps[i];
+        if(strlen(wifi_ap.ssid_len) == 0)
+        {
+            continue;  // Skip empty SSID, or null item
+        }
+
+        
+
+        wifi_endpoint data = {0};
+        char ssid[MAXIMAL_SSID_LENGTH + 1] = {0};
+        memcpy(ssid, wifi_ap.ssid, wifi_ap.ssid_len);
+        data.ssid.funcs.encode = _encode_string_fields;
+        data.ssid.arg = ssid;
+
+        if(wifi_ap.bssid_len > 0)
+        {
+            array_data arr = {0};
+            arr.length = wifi_ap.bssid_len;
+            arr.buffer = wifi_ap.bssid;
+            data.bssid.funcs.encode = _encode_bytes_fields;
+            data.bssid.arg = &arr;
+        }
+
+        switch(wifi_ap.sec_type)
+        {
+            case SL_SCAN_SEC_TYPE_OPEN:
+            data.security_type = wifi_endpoint_sec_type_SL_SCAN_SEC_TYPE_OPEN;
+            break;
+
+            case SL_SCAN_SEC_TYPE_WEP:
+            data.security_type = wifi_endpoint_sec_type_SL_SCAN_SEC_TYPE_WEP;
+            break;
+
+            case SL_SCAN_SEC_TYPE_WPA:
+            data.security_type = wifi_endpoint_sec_type_SL_SCAN_SEC_TYPE_WPA;
+            break;
+
+            case SL_SCAN_SEC_TYPE_WPA2:
+            data.security_type = wifi_endpoint_sec_type_SL_SCAN_SEC_TYPE_WPA2;
+            break;
+        }
+
+        data.rssi = wifi_ap.rssi;
+
+        if (!pb_encode_tag(stream, PB_WT_STRING, field->tag)){
+            UARTprintf("Fail to encode tag for wifi ap %s\r\n", wifi_ap.ssid);
+        }else{
+
+            pb_ostream_t sizestream = { 0 };
+            if(!pb_encode(&sizestream, wifi_endpoint_fields, &data)){
+                UARTprintf("Failed to retreive length for ssid %s\n", data.ssid);
+                continue;
+            }
+
+            if (!pb_encode_varint(stream, sizestream.bytes_written)){
+                UARTprintf("Failed to write length\n");
+                continue;
+            }
+
+            if (!pb_encode(stream, wifi_endpoint_fields, &data)){
+                UARTprintf("Fail to encode wifi_endpoint_fields %s\r\n", data.ssid);
+            }else{
+                UARTprintf("WIFI %s encoded\n", data.ssid);
+            }
+        }
+    }
+
+    return true;
+}
+
 static bool _encode_bytes_fields(pb_ostream_t *stream, const pb_field_t *field, void * const *arg)
 {
     array_data* array = *arg;
@@ -256,6 +338,11 @@ void ble_proto_assign_encode_funcs( MorpheusCommand* command)
     {
         command->motionDataEntrypted.funcs.encode = _encode_bytes_fields;
     }
+
+    if(command->wifi_scan_result.arg != NULL && command->wifi_scan_result.funcs.encode == NULL)
+    {
+        command->wifi_scan_result.funcs.encode = _encode_wifi_scan_result_fields;
+    }
 }
 
 bool ble_reply_protobuf_error(ErrorType error_type)
@@ -380,6 +467,12 @@ void ble_proto_free_command(MorpheusCommand* command)
         vPortFree(array->buffer);  // first vPortFree the actual data
         vPortFree(array);  // Then vPortFree the actual
         command->motionDataEntrypted.arg = NULL;
+    }
+
+    if(!command->wifi_scan_result.arg)
+    {
+        vPortFree(command->wifi_scan_result.arg);
+        command->wifi_scan_result.arg = NULL;
     }
 }
 

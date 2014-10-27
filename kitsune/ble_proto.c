@@ -41,6 +41,29 @@ static void _factory_reset(){
     }
 }
 
+static void _reply_wifi_scan_result()
+{
+    Sl_WlanNetworkEntry_t wifi_endpoints[MAX_WIFI_EP_PER_SCAN] = {0};
+    int scanned_wifi_count = 0;
+
+    uint8_t retry_count = 10;
+    sl_status |= SCANNING;
+    
+    while((scanned_wifi_count = get_wifi_scan_result(wifi_endpoints, MAX_WIFI_EP_PER_SCAN, 3000)) == 0 && --retry_count)
+    {
+        Cmd_led(0,0);
+        UARTprintf("No wifi scanned, retry times remain %d\n", retry_count);
+        vTaskDelay(500);
+    }
+
+    sl_status &= ~SCANNING;
+    MorpheusCommand reply_command = {0};
+    reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_START_WIFISCAN;
+    reply_command.wifi_scan_result.arg = wifi_endpoints;
+
+    ble_send_protobuf(&reply_command);
+}
+
 
 static bool _set_wifi(const char* ssid, const char* password)
 {
@@ -466,6 +489,12 @@ void on_ble_protobuf_command(MorpheusCommand* command)
         {
             UARTprintf("FACTORY RESET\n");
             _factory_reset();
+        }
+        break;
+        case MorpheusCommand_CommandType_MORPHEUS_COMMAND_START_WIFISCAN:
+        {
+            UARTprintf("WIFI Scan request\n");
+            _reply_wifi_scan_result();
         }
         break;
 	}
