@@ -45,7 +45,7 @@ static bool _encode_wifi_scan_result_fields(pb_ostream_t *stream, const pb_field
         Sl_WlanNetworkEntry_t wifi_ap = wifi_aps[i];
         if(wifi_ap.ssid_len == 0)
         {
-            continue;  // Skip empty SSID, or null item
+            break;  // Skip empty SSID, or null item
         }
 
         
