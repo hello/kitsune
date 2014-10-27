@@ -17,6 +17,8 @@ int Cmd_pwd(int argc, char *argv[]);
 int Cmd_cat(int argc, char *argv[]);
 int Cmd_append(int argc, char *argv[]);
 
+int Cmd_download(int argc, char*argv[]);
+
 /* FatFS include */
 #include "ff.h"
 #include "diskio.h"

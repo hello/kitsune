@@ -1344,7 +1344,7 @@ void loopback_uart(void * p) {
 	top_board_task();
 }
 void vUARTTask(void *pvParameters) {
-	char cCmdBuf[64];
+	char cCmdBuf[512];
 	portTickType now;
 
 	Cmd_led_clr(0,0);
@@ -1495,7 +1495,7 @@ void vUARTTask(void *pvParameters) {
 			// Pass the line from the user to the command processor.  It will be
 			// parsed and valid commands executed.
 			//
-			xTaskCreate(CmdLineProcess, "commandTask",  5*1024 / 4, cCmdBuf, 20, NULL);
+			xTaskCreate(CmdLineProcess, "commandTask",  10*1024 / 4, cCmdBuf, 20, NULL);
 		}
 	}
 }
