@@ -199,11 +199,7 @@ PinMuxConfig(void)
     //
     MAP_PinTypeI2S(PIN_03, PIN_MODE_3);
 
-    //
-    // Configure PIN_04 for GPIOOutput
-    //
-    MAP_PinTypeGPIO(PIN_04, PIN_MODE_0, false);
-    MAP_GPIODirModeSet(GPIOA1_BASE, 0x20, GPIO_DIR_MODE_OUT);
+    MAP_PinTypeI2C(PIN_04, PIN_MODE_5);
 
     //
     // Configure PIN_05 for SPI0 GSPI_CLK
