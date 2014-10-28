@@ -344,7 +344,7 @@ void AudioClassifier_DataCallback(const AudioFeatures_t * pfeats) {
 
     }
     
-    DEBUG_LOG_S8("probs", NULL, probs, 2, samplecount, samplecount);
+    DEBUG_LOG_S8("probs", NULL, probs, 2, pfeats->samplecount, pfeats->samplecount);
 
 }
 
