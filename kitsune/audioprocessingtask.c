@@ -1,5 +1,6 @@
 #include "FreeRTOS.h"
 #include "queue.h"
+#include "semphr.h"
 
 #include "audiocapturetask.h"
 #include "audioprocessingtask.h"
@@ -8,6 +9,7 @@
 
 #define INBOX_QUEUE_LENGTH (6)
 static xQueueHandle _queue = NULL;
+static xSemaphoreHandle _mutex = NULL;
 static uint8_t _decodebuf[1024];
 static uint32_t samplecounter;
 
@@ -30,14 +32,26 @@ static void RecordCallback(const RecordAudioRequest_t * request) {
 	AudioCaptureTask_AddMessageToQueue(&message);
 }
 
+static void LockFunc(void) {
+	xSemaphoreTake(_mutex,portMAX_DELAY);
+}
+
+static void UnlockFunc(void) {
+	xSemaphoreGive(_mutex);
+}
+
 static void Init(void) {
 	if (!_queue) {
 		_queue = xQueueCreate(INBOX_QUEUE_LENGTH,sizeof( AudioFeatures_t ) );
 	}
 
+	if (!_mutex) {
+		_mutex = xSemaphoreCreateMutex();
+	}
+
 	samplecounter = 0;
 
-	AudioClassifier_Init(RecordCallback,0,0);
+	AudioClassifier_Init(RecordCallback,LockFunc,UnlockFunc);
 }
 
 void AudioProcessingTask_AddFeaturesToQueue(const AudioFeatures_t * feat) {
