@@ -648,7 +648,6 @@ Cmd_mkdir(int argc, char *argv[])
 //#define POST_BUFFER      " HTTP/1.1\nAccept: text/html, application/xhtml+xml, */*\n\n"
 #define POST_BUFFER_1  " HTTP/1.1\nHost:"
 #define POST_BUFFER_2  "\nAccept: text/html, application/xhtml+xml, */*\n\n"
-#define HOST_NAME        "www.ti.com"
 
 #define HTTP_FILE_NOT_FOUND    "404 Not Found" /* HTTP file not found response */
 #define HTTP_STATUS_OK         "200 OK"  /* HTTP status ok response */
@@ -808,7 +807,9 @@ int GetChunkSize(int *len, unsigned char **p_Buff, unsigned long *chunk_size)
         if(*len == 0)
         {
             memset(g_buff, 0, sizeof(g_buff));
-            *len = recv(dl_sock, &g_buff[0], MAX_BUFF_SIZE, 0);
+            *len = recv(dl_sock, g_buff, MAX_BUFF_SIZE, 0);
+
+            UARTprintf( "chunked rx:\r\n%s\r\n", g_buff);
             if(*len <= 0)
                 ASSERT_ON_ERROR(TCP_RECV_ERROR);
 
@@ -911,8 +912,12 @@ int GetData(char * filename, char* url, char * host)
     pBuff = (unsigned char *)strstr((const char *)g_buff, HTTP_CONTENT_LENGTH);
     if(pBuff != 0)
     {
+    	char *p = pBuff;
         // not supported
         ASSERT_ON_ERROR(FORMAT_NOT_SUPPORTED);
+
+    	p += strlen(HTTP_CONTENT_LENGTH)+1;
+    	recv_size = atoi(p);
     }
 
     // Check if data is chunked
@@ -981,11 +986,14 @@ int GetData(char * filename, char* url, char * host)
     	UARTprintf("File open %s failed: %d\n", path_buff, res);
     	return res;
     }
-
+    uint32_t total = recv_size;
+    int percent = 101-100*recv_size/total;
     while (0 < transfer_len)
     {
-
-        UARTprintf("dl loop\r\n");
+    	if( 101-100*recv_size/total != percent ) {
+    		percent = 101-100*recv_size/total;
+    		UARTprintf("dl loop %d %d\r\n", recv_size, percent );
+    	}
 
         // For chunked data recv_size contains the chunk size to be received
         if(recv_size <= transfer_len)
@@ -1118,7 +1126,7 @@ int GetData(char * filename, char* url, char * host)
             // write data on the file
             res = f_write( &file_obj, pBuff, transfer_len, &r );
 
-            UARTprintf("wrote:  %d %d\r\n", r, res);
+            //UARTprintf("wrote:  %d %d\r\n", r, res);
 
             if (r != transfer_len )
             {
@@ -1141,7 +1149,7 @@ int GetData(char * filename, char* url, char * host)
         memset(g_buff, 0, sizeof(g_buff));
 
         transfer_len = recv(dl_sock, &g_buff[0], MAX_BUFF_SIZE, 0);
-        UARTprintf("rx:  %d\r\n", transfer_len);
+        //UARTprintf("rx:  %d\r\n", transfer_len);
         if(transfer_len <= 0) {
         	UARTprintf("TCP_RECV_ERROR\r\n" );
             return TCP_RECV_ERROR;
