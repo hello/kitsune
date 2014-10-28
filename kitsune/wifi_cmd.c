@@ -1908,7 +1908,7 @@ int connect_scanned_endpoints(const char* ssid, const char* password,
 		return 0;
 	}
 
-	if(!wifi_endoints)
+	if(!wifi_endpoints)
 	{
 		return connect_wifi(ssid, password, connectedEPSecParamsPtr->Type);
 	}

@@ -83,7 +83,7 @@ static void _reply_wifi_scan_result()
 }
 
 
-static bool _set_wifi(const char* ssid, const char* password, int sec_type)
+static bool _set_wifi(const char* ssid, const char* password)
 {
     Sl_WlanNetworkEntry_t wifi_endpoints[MAX_WIFI_EP_PER_SCAN];
     int scanned_wifi_count, connection_ret;
