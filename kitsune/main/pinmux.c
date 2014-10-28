@@ -192,7 +192,7 @@ PinMuxConfig(void)
     MAP_PinTypeCamera(PIN_02, PIN_MODE_4);
 
     HWREG(0x44025000) = 0x0000;
-    MAP_CameraXClkConfig(CAMERA_BASE, 120000000ul,40000000ul);
+    MAP_CameraXClkConfig(CAMERA_BASE, 120000000ul,12000000ul);
 
     //
     // Configure PIN_03 for MCASP0 McACLK

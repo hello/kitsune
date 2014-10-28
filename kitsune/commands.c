@@ -1409,7 +1409,7 @@ void vUARTTask(void *pvParameters) {
 	MAP_PRCMPeripheralReset(PRCM_SDHOST);
 	MAP_SDHostInit(SDHOST_BASE);
 	MAP_SDHostSetExpClk(SDHOST_BASE, MAP_PRCMPeripheralClockGet(PRCM_SDHOST),
-			1000000);
+			15000000);
 	UARTprintf("*");
 	Cmd_mnt(0, 0);
 	UARTprintf("*");
@@ -1423,7 +1423,7 @@ void vUARTTask(void *pvParameters) {
 	if (sl_mode == ROLE_AP || !sl_status) {
 		//Cmd_sl(0, 0);
 	}
-
+#if 0
 	// Init sensors
 	init_humid_sensor();
 	init_temp_sensor();
@@ -1450,7 +1450,7 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(thread_spi, "spiTask", 4*1024 / 4, NULL, 5, NULL);
 	SetupGPIOInterrupts();
 	UARTprintf("*");
-#if !ONLY_MID
+
 	xTaskCreate(AudioCaptureTask_Thread,"audioCaptureTask",4*1024/4,NULL,4,NULL);
 	UARTprintf("*");
 //	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",2*1024/4,NULL,1,NULL);
