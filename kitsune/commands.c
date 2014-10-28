@@ -1131,15 +1131,69 @@ void led_add_intensity(unsigned int * colors, int intensity ) {
 	}
 }
 
+void led_to_rgb( unsigned int * c, unsigned int *r, unsigned int* g, unsigned int* b) {
+	*b = (( *c & ~0xffff00 ))&0xff;
+	*r = (( *c & ~0xff00ff )>>8)&0xff;
+	*g = (( *c & ~0x00ffff )>>16)&0xff;
+}
+unsigned int led_from_rgb( int r, int g, int b) {
+	return (b&0xff) | ((r&0xff)<<8) | ((g&0xff)<<16);
+}
+uint32_t wheel_color(int WheelPos, int color) {
+	int r,g,b,c;
+	led_to_rgb(&color, &r,&g,&b);
+
+  if(WheelPos < 85) {
+   return led_from_rgb(0, 0, 0);
+  } else if(WheelPos < 170) {
+   WheelPos -= 85;
+    return led_from_rgb( (r * (WheelPos * 3))>>8,
+    					 (g * (WheelPos * 3))>>8,
+    					 (b * (WheelPos * 3))>>8);
+  } else {
+   WheelPos -= 170;
+   return led_from_rgb( (r * (255 - WheelPos * 3))>>8,
+		   	   	   	    (g * (255 - WheelPos * 3))>>8,
+		   	   	   	    (b * (255 - WheelPos * 3))>>8);
+  }
+}
+
+uint32_t wheel(int WheelPos) {
+  if(WheelPos < 85) {
+   return led_from_rgb(WheelPos * 3, 255 - WheelPos * 3, 0);
+  } else if(WheelPos < 170) {
+   WheelPos -= 85;
+   return  led_from_rgb(255 - WheelPos * 3, 0, WheelPos * 3);
+  } else {
+   WheelPos -= 170;
+   return led_from_rgb(0, WheelPos * 3, 255 - WheelPos * 3);
+  }
+}
+
 int Cmd_led(int argc, char *argv[]) {
-	int i,select,light,adjust;
+	int j,i,select,light,adjust;
 	unsigned int* colors;
 
 	unsigned int colors_blue[NUM_LED+1]= {0x00002,0x000004,0x000008,0x000010,0x000020,0x000040,0x000080,0x000080,0,0,0,0,0};
 	unsigned int colors_white[NUM_LED+1]= {0x020202,0x040404,0x080808,0x101010,0x202020,0x404040,0x808080,0x808080,0,0,0,0,0};
-	unsigned int colors_green[NUM_LED+1]= {0x020000,0x040000,0x080000,0x100000,0x200000,0x400000,0x800000,0x800000,0,0,0,0,0};
-	unsigned int colors_red[NUM_LED+1]= {0x000200,0x000400,0x000800,0x001000,0x002000,0x004000,0x008000,0x008000,0,0,0,0,0};
-	unsigned int colors_yellow[NUM_LED+1]= {0x020200,0x040400,0x080800,0x101000,0x202000,0x404000,0x808000,0x808000,0,0,0,0,0};
+	//unsigned int colors_green[NUM_LED+1]= {0x020000,0x040000,0x080000,0x100000,0x200000,0x400000,0x800000,0x800000,0,0,0,0,0};
+//	unsigned int colors_red[NUM_LED+1]= {0x000200,0x000400,0x000800,0x001000,0x002000,0x004000,0x008000,0x008000,0,0,0,0,0};
+//	unsigned int colors_yellow[NUM_LED+1]= {0x020200,0x040400,0x080800,0x101000,0x202000,0x404000,0x808000,0x808000,0,0,0,0,0};
+
+	unsigned int colors_green[NUM_LED+1]=
+	{			0xffffff,0xcecece,0x9c9c9c,
+				0x6a6a6a,0x383838,0x060606,
+				0xfafafa,0xc8c8c8,0x969696,
+				0x646464,0x323232,0xababab,};
+
+	unsigned int colors_red[NUM_LED+1]= {
+			0x05ff00,0x05ff00,0x05ff00,
+			0x73ff00,0x73ff00,0x73ff00,
+			0x05ff00,0x05ff00,0x05ff00,
+			0x73ff00,0x73ff00,0x73ff00,};
+
+	unsigned int colors_yellow[NUM_LED+1]= {0xaaff00,0xaaff00,0xaaff00,0xaaff00,0xaaff00,0xaaff00,0xaaff00,0xaaff00,0xaaff00,0xaaff00,0xaaff00,0xaaff00,0xaaff00};
+
 	unsigned int colors_original[NUM_LED+1];
 
 	static unsigned int last_time;
@@ -1190,15 +1244,65 @@ int Cmd_led(int argc, char *argv[]) {
 	}
 	memcpy( colors_original, colors, sizeof(colors_original));
 
-	for (i = 1; i < 32; ++i) {
-		led_cw(colors_original);
+
+#if 0
+	for (i = 1; i < 64; ++i) {
+		//led_cw(colors_original);
 		memcpy( colors, colors_original, sizeof(colors_original));
-		led_brightness( colors, fxd_sin(i<<4)>>7);
+		led_brightness( colors, fxd_sin(i<<3)>>7);
 		led_add_intensity( colors, adjust );
 		led_array(colors);
-		vTaskDelay(8*(12-(fxd_sin((i+1)<<4)>>12)));
+		vTaskDelay(7*(12-(fxd_sin((i+1)<<3)>>12)));
 	}
 	vTaskDelay(10);
+#endif
+	//int dly = atoi(argv[2]);
+	if(1){ //spinning arb color
+    int fadeControl=0;
+
+	for (j = 0; j < 5*256; j++) {
+		for(i=0; i< 12; i++) {
+
+		      colors[i] = wheel_color(((i * 256 / 12) + j) & 255, led_from_rgb(168,0,255));
+
+		}
+		led_array(colors);
+
+		vTaskDelay(6);
+	}
+	}
+
+	if(0){//rainbow
+    int fadeControl=0;
+
+	for (j = 0; j < 2*256; j++) {
+		for(i=0; i< 12; i++) {
+		      colors[i] = wheel(((i * 256 / 12) + j) & 255 );
+		}
+		led_array(colors);
+
+		vTaskDelay(20);
+	}
+	}
+
+if(0){//fade
+int fadeControl=0;
+
+	for (i = 0; i < 512; i++) {
+		memcpy( colors, colors_original, sizeof(colors_original));
+		led_brightness( colors, fadeControl );
+		led_array(colors);
+
+		if (i < 256) {
+			fadeControl = i;
+		} else {
+			fadeControl = 255 - (i - 256);
+		}
+		vTaskDelay(6);
+	}
+	}
+
+
 	memset(colors_original, 0, sizeof(colors_original));
 	led_array(colors_original);
 	return 0;
@@ -1450,7 +1554,7 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(thread_spi, "spiTask", 4*1024 / 4, NULL, 5, NULL);
 	SetupGPIOInterrupts();
 	UARTprintf("*");
-#if !ONLY_MID
+#if 0
 	xTaskCreate(AudioCaptureTask_Thread,"audioCaptureTask",4*1024/4,NULL,4,NULL);
 	UARTprintf("*");
 //	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",2*1024/4,NULL,1,NULL);

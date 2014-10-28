@@ -144,7 +144,7 @@ void Speaker1()
     	  #endif
 			for( i=0;i<512;++i) {
 				speaker_data_padded[i*2+1] = speaker_data[i];
-				speaker_data_padded[i*2] = speaker_data[i];
+				speaker_data_padded[i*2] = speaker_data[i+1];
 			}
 			Size *=2;
 

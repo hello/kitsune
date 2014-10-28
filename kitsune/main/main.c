@@ -284,7 +284,7 @@ void main()
 
   //start_wdt();
   //
-  // configure the GPIO pins for LEDs
+  // configure the GPIO pins for LEDvs
   //
   PinMuxConfig();
 
