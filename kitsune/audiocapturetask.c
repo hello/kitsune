@@ -342,11 +342,6 @@ void AudioCaptureTask_Thread(void * data) {
 
 					_captureCounter--;
 
-#ifdef AUDIO_DEBUG_MESSAGES
-					if (_captureCounter % 20 == 0) {
-						UARTprintf("%d more frames to capture\n",_captureCounter);
-					}
-#endif
 
 					if (_captureCounter == 0) {
 						f_close(file_ptr);
