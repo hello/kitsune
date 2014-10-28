@@ -24,8 +24,8 @@
 #include "pcm_handler.h"
 #include "i2c_cmd.h"
 #include "i2s.h"
-
-
+#include "udma_if.h"
+#include "uartstdio.h"
 
 #define AUDIO_DEBUG_MESSAGES
 

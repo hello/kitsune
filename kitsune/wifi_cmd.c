@@ -396,6 +396,8 @@ unsigned long unix_time() {
     return (unsigned long) ntp;
 }
 
+unsigned long get_time();
+
 int Cmd_time(int argc, char*argv[]) {
 	int unix = unix_time();
 	int t = get_time();
@@ -775,7 +777,6 @@ int send_audio_wifi(char * buffer, int buffer_size, audio_read_cb arcb) {
 #if 1
 #define SIG_SIZE 32
 #include "SyncResponse.pb.h"
-unsigned long get_time();
 
 int decode_rx_data_pb(const unsigned char * buffer, int buffer_size, const pb_field_t fields[], void* dst_struct, size_t dst_struct_len) {
 	AES_CTX aesctx;
@@ -1548,7 +1549,7 @@ int RadioStartRX(int eChannel)
 
 	sl_SetSockOpt(rawSocket,SL_SOL_SOCKET,SL_SO_RCVTIMEO, &timeval, sizeof(timeval));    // Enable receive timeout
 
-	sl_Recv(rawSocket, DataFrame, 1470, 0);
+	recv(rawSocket, DataFrame, 1470, 0);
 
 	vPortFree( DataFrame );
 	return 0;
@@ -1836,30 +1837,30 @@ int get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uin
     unsigned long IntervalVal = 20;
 
     unsigned char policyOpt = SL_CONNECTION_POLICY(0, 0, 0, 0, 0);
-    int lRetVal;
+    int r;
 
-    lRetVal = sl_WlanPolicySet(SL_POLICY_CONNECTION , policyOpt, NULL, 0);
+    r = sl_WlanPolicySet(SL_POLICY_CONNECTION , policyOpt, NULL, 0);
 
     // Make sure scan is enabled
     policyOpt = SL_SCAN_POLICY(1);
 
     // set scan policy - this starts the scan
-    lRetVal = sl_WlanPolicySet(SL_POLICY_SCAN , policyOpt, (unsigned char *)(IntervalVal), sizeof(IntervalVal));
+    r = sl_WlanPolicySet(SL_POLICY_SCAN , policyOpt, (unsigned char *)(IntervalVal), sizeof(IntervalVal));
 
 
     // delay specific milli seconds to verify scan is started
     vTaskDelay(scan_duration_ms);
 
-    // lRetVal indicates the valid number of entries
+    // r indicates the valid number of entries
     // The scan results are occupied in netEntries[]
-    lRetVal = sl_WlanGetNetworkList(0, entry_len, entries);
+    r = sl_WlanGetNetworkList(0, entry_len, entries);
 
     // Restore connection policy to Auto + SmartConfig
     //      (Device's default connection policy)
     sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 1),
             NULL, 0);
 
-    return lRetVal;
+    return r;
 
 }
 
