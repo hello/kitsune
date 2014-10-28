@@ -17,7 +17,7 @@ static uint32_t samplecounter;
 #define AUDIO_UPLOAD_PERIOD_IN_TICKS (AUDIO_UPLOAD_PERIOD_IN_MS / SAMPLE_PERIOD_IN_MILLISECONDS / 2 )
 
 
-static const char * k_audio_endpoint = "/audio_features";
+static const char * k_audio_endpoint = "/audio/features";
 
 
 
