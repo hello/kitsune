@@ -1068,18 +1068,19 @@ static bool _encode_encrypted_pilldata(pb_ostream_t *stream, const pb_field_t *f
     const array_data* array_holder = (array_data*)(*arg);
     if(!array_holder)
     {
-    	//UARTprintf("_encode_encrypted_pilldata: No data to encode\n");
+    	UARTprintf("_encode_encrypted_pilldata: No data holder\n");
         return false;
     }
 
     if(!array_holder->buffer)
     {
+    	UARTprintf("_encode_encrypted_pilldata: No data to encode\n");
         return false;
     }
 
     if (!pb_encode_tag(stream, PB_WT_STRING, field->tag))
     {
-    	//UARTprintf("_encode_encrypted_pilldata: Fail to encode tag\n");
+    	UARTprintf("_encode_encrypted_pilldata: Fail to encode tag\n");
         return false;
     }
 
@@ -1091,11 +1092,13 @@ bool encode_serialized_pill_list(pb_ostream_t *stream, const pb_field_t *field, 
     const array_data* array_holder = *arg;
     if(!array_holder)
     {
+    	UARTprintf("encode_serialized_pill_list: No data holder\n");
         return false;
     }
 
     if(!array_holder->buffer)
     {
+    	UARTprintf("encode_serialized_pill_list: No data to encode\n");
         return false;
     }
 
@@ -1324,7 +1327,11 @@ int send_periodic_data(periodic_data * data) {
     data->name.funcs.encode = encode_name;
     data->mac.funcs.encode = encode_mac;  // Now this is a fallback, the backend will not use this at the first hand
     data->device_id.funcs.encode = encode_mac_as_device_id_string;
-    data->pills.funcs.encode = encode_serialized_pill_list;
+
+    if(data->pills.arg)
+    {
+    	data->pills.funcs.encode = encode_serialized_pill_list;
+    }
 
     int ret = send_data_pb(DATA_SERVER, DATA_RECEIVE_ENDPOINT, buffer, sizeof(buffer), periodic_data_fields, data);
     if(ret != 0)

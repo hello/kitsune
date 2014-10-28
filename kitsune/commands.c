@@ -661,6 +661,9 @@ void thread_tx(void* unused) {
 	        array_data* array_holder = (array_data*)data.pills.arg;
 	        vPortFree(array_holder->buffer);
 
+	        data.pills.funcs.encode = NULL;
+	        data.pills.arg = NULL;
+
 	        // Keep in mind that the array_holder is actually appended at
 			// the end of the buffer, so no need to free the holder itself.
 	    }
@@ -856,6 +859,7 @@ void thread_sensor_poll(void* unused) {
     			// keep in mind that the array_holder is actually appended at
     			// the end of the buffer, so no need to free the holder itself.
     			data.pills.arg = NULL;
+    			data.pills.funcs.encode = NULL;
     		}
     	}
 		UARTprintf("Sensor polling task sleep... heap size for this data %d bytes\n", increased_heap_size);
