@@ -9,7 +9,8 @@
 #include "nanopb/pb_encode.h"
 #include "protobuf/morpheus_ble.pb.h"
 
-#define MAX_STRING_LEN      256
+#define MAX_STRING_LEN              256
+#define MAX_WIFI_EP_PER_SCAN        10
 
 //*****************************************************************************
 //
