@@ -520,17 +520,67 @@ void load_aes() {
 
 static SHA1_CTX sha1ctx;
 
+typedef struct {
+	int fd;
+	uint8_t * buf;
+	uint32_t buf_pos;
+	uint32_t buf_size;
+} ostream_buffered_desc_t;
+
+static bool flush_out_buffer(ostream_buffered_desc_t * desc) {
+	uint32_t buf_size = desc->buf_pos + 1;
+	bool ret;
+
+	UARTprintf("write_callback (flush) - %d bytes written\n",buf_size);
+
+	//encrypt
+	SHA1_Update(&sha1ctx, desc->buf, buf_size);
+
+	//send
+	ret = send(desc->fd, desc->buf, buf_size, 0) == desc->buf_size;
+
+	return ret;
+}
+
 static bool write_callback_sha(pb_ostream_t *stream, const uint8_t *buf,
         size_t count) {
-    int fd = (intptr_t) stream->state;
-    int i;
+	ostream_buffered_desc_t * desc = (ostream_buffered_desc_t *) stream->state;
+	uint32_t count2 = count;
+	uint32_t bytes_left;
+	bool ret = true;
+	uint8_t * buf_ptr;
 
-    SHA1_Update(&sha1ctx, buf, count);
+	//if the number of incoming bytes exceed the buffer size,
+	//truncate the number copied to the buffer
+	if (desc->buf_pos + count > desc->buf_size) {
+		count2 = desc->buf_size - desc->buf_pos;
+	}
 
-    for (i = 0; i < count; ++i) {
-        UARTprintf("%x", buf);
-    }
-    return send(fd, buf, count, 0) == count;
+	bytes_left = count - count2;
+	buf_ptr = desc->buf + desc->buf_pos;
+
+	memcpy(buf_ptr,buf,count2);
+
+	desc->buf_pos += count2;
+
+	//if the buffer has filled...
+	if (desc->buf_pos >= desc->buf_size) {
+		UARTprintf("write_callback - %d bytes written\n",desc->buf_size);
+
+		 //encrypt
+	    SHA1_Update(&sha1ctx, buf, desc->buf_size);
+
+	    //send
+	    ret = send(desc->fd, desc->buf, desc->buf_size, 0) == desc->buf_size;
+	}
+
+	if (bytes_left > 0) {
+		memcpy(desc->buf,buf + count2,bytes_left);
+		//copy out end to beginning
+		desc->buf_pos = bytes_left;
+	}
+
+    return ret;
 }
 
 static bool read_callback_sha(pb_istream_t *stream, uint8_t *buf, size_t count) {
@@ -552,10 +602,13 @@ static bool read_callback_sha(pb_istream_t *stream, uint8_t *buf, size_t count) 
 }
 
 
+
 //WARNING not re-entrant! Only 1 of these can be going at a time!
-pb_ostream_t pb_ostream_from_sha_socket(int fd) {
-    pb_ostream_t stream =
-            { &write_callback_sha, (void*) (intptr_t) fd, SIZE_MAX, 0 };
+pb_ostream_t pb_ostream_from_sha_socket(ostream_buffered_desc_t * desc) {
+  //  pb_ostream_t stream = { &write_callback_sha, (void*) (intptr_t) fd, SIZE_MAX, 0 };
+    pb_ostream_t stream = { &write_callback_sha, (void*)desc, SIZE_MAX, 0 };
+
+
     return stream;
 }
 
@@ -924,9 +977,13 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
     int send_length = 0;
     int rv = 0;
     uint8_t sig[32]={0};
-
+    ostream_buffered_desc_t desc;
     size_t message_length;
     bool status;
+
+    desc.buf = recv_buf;
+    desc.buf_size = recv_buf_size;
+    desc.buf_pos = 0;
 
     if (!recv_buf) {
     	UARTprintf("send_data_pb_callback needs a buffer\r\n");
@@ -975,12 +1032,15 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
         SHA1_Init(&sha1ctx);
 
         /* Create a stream that will write to our buffer. */
-        stream = pb_ostream_from_sha_socket(sock);
+        desc.fd = sock;
+        stream = pb_ostream_from_sha_socket(&desc);
         /* Now we are ready to encode the message! */
 
         UARTprintf("data ");
         status = encoder(&stream,encodedata);
         UARTprintf("\n");
+
+        flush_out_buffer(&desc);
 
         /* Then just check for any errors.. */
         if (!status) {
