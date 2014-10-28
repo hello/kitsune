@@ -98,8 +98,8 @@ void wifi_reset();
 
 bool encode_pill_list(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 void encode_pill_list_to_buffer(const periodic_data_pill_data_container* ptr_pill_list, 
-    char* buffer, size_t buffer_len, size_t* out_len);
-void encode_serialized_pill_list(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
+    uint8_t* buffer, size_t buffer_len, size_t* out_len);
+bool encode_serialized_pill_list(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 
 //#define MORPH_NAME "KingShy's morpheus"
 

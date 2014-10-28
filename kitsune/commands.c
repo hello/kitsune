@@ -817,14 +817,14 @@ void thread_sensor_poll(void* unused) {
 			if(len > 0)
 			{
 				// I am going to buffer the serialized pill list in the heap
-				char* buffer = pvPortMalloc(len + sizeof(array_data));  // put the holder at the end
+				uint8_t* buffer = pvPortMalloc(len + sizeof(array_data));  // put the holder at the end
 
 				if(buffer)
 				{	
 					increased_heap_size += len + sizeof(array_data); 
 					memset(buffer, 0, len + sizeof(array_data));
 					encode_pill_list_to_buffer(pill_list, buffer, len, &len);
-					array_data* array_holder = &buffer[len];
+					array_data* array_holder = (array_data*)&buffer[len];
 					array_holder->buffer = buffer;
 					array_holder->length = len;
 
@@ -839,7 +839,7 @@ void thread_sensor_poll(void* unused) {
 
 
 		UARTprintf("collecting time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d %d %d %d\n",
-				data.unix_time, data.light, data.light_variability, data.light_tonality, data.temp, data.humid,
+				data.unix_time, data.light, data.light_variability, data.light_tonality, data.temperature, data.humidity,
 				data.dust, data.dust_max, data.dust_min, data.dust_variability);
 
         if(xQueueSend(data_queue, (void*)&data, 10) != pdPASS)
@@ -858,7 +858,7 @@ void thread_sensor_poll(void* unused) {
     			data.pills.arg = NULL;
     		}
     	}
-		UARTprintf("Sensor polling task sleep... heap size for this data %d\n", );
+		UARTprintf("Sensor polling task sleep... heap size for this data %d bytes\n", increased_heap_size);
 
 		vTaskDelayUntil(&now, 60 * configTICK_RATE_HZ);
 	}

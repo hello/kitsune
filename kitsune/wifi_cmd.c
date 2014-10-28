@@ -1086,7 +1086,7 @@ static bool _encode_encrypted_pilldata(pb_ostream_t *stream, const pb_field_t *f
     return pb_encode_string(stream, array_holder->buffer, array_holder->length);
 }
 
-void encode_serialized_pill_list(pb_ostream_t *stream, const pb_field_t *field, void * const *arg)
+bool encode_serialized_pill_list(pb_ostream_t *stream, const pb_field_t *field, void * const *arg)
 {
     const array_data* array_holder = *arg;
     if(!array_holder)
@@ -1105,7 +1105,7 @@ void encode_serialized_pill_list(pb_ostream_t *stream, const pb_field_t *field, 
 }
 
 void encode_pill_list_to_buffer(const periodic_data_pill_data_container* ptr_pill_list, 
-    char* buffer, size_t buffer_len, size_t* out_len)
+    uint8_t* buffer, size_t buffer_len, size_t* out_len)
 {
     pb_ostream_t stream = {0};
     if(!buffer)
@@ -1114,6 +1114,7 @@ void encode_pill_list_to_buffer(const periodic_data_pill_data_container* ptr_pil
     }
     memset(buffer, 0, buffer_len);
 
+    int i;
     for (i = 0; i < MAX_PILLS; ++i) {
         periodic_data_pill_data_container data = ptr_pill_list[i];
         if( data.magic != PILL_MAGIC ) {
@@ -1129,7 +1130,7 @@ void encode_pill_list_to_buffer(const periodic_data_pill_data_container* ptr_pil
             data.pill_data.motionDataEncrypted.funcs.encode = _encode_encrypted_pilldata;
         }
 
-        if (!pb_encode_tag(stream, PB_WT_STRING, field->tag)){
+        if (!pb_encode_tag(&stream, PB_WT_STRING, periodic_data_pills_tag)){
             UARTprintf("Fail to encode tag for pill %s\r\n", data.id);
             continue;
         }
@@ -1140,12 +1141,12 @@ void encode_pill_list_to_buffer(const periodic_data_pill_data_container* ptr_pil
             continue;
         }
 
-        if (!pb_encode_varint(stream, sizestream.bytes_written)){
+        if (!pb_encode_varint(&stream, sizestream.bytes_written)){
             UARTprintf("Failed to write length\n");
             continue;
         }
 
-        if (!pb_encode(stream, periodic_data_pill_data_fields, &data.pill_data)){
+        if (!pb_encode(&stream, periodic_data_pill_data_fields, &data.pill_data)){
             UARTprintf("Fail to encode pill %s\r\n", data.id);
         }else{
             UARTprintf("Pill %s data uploaded\n", data.id);
@@ -1204,11 +1205,8 @@ bool encode_pill_list(pb_ostream_t *stream, const pb_field_t *field, void * cons
 		}
 
     }
-        return 1;
-    }else{
-    	UARTprintf("Fail to acquire Semaphore\n");
-    	return 0;
-    }
+
+    return 1;
 }
 
 
@@ -1328,7 +1326,7 @@ int send_periodic_data(periodic_data * data) {
     data->device_id.funcs.encode = encode_mac_as_device_id_string;
     data->pills.funcs.encode = encode_serialized_pill_list;
 
-    int ret = send_data_pb(DATA_SERVER, DATA_RECEIVE_ENDPOINT, buffer, sizeof(buffer), periodic_data_fields, &msg);
+    int ret = send_data_pb(DATA_SERVER, DATA_RECEIVE_ENDPOINT, buffer, sizeof(buffer), periodic_data_fields, data);
     if(ret != 0)
     {
         // network error
@@ -1417,13 +1415,13 @@ int Cmd_data_upload(int arg, char* argv[])
     if(len > 0)
     {
         // I am going to buffer the serialized pill list in the heap
-        char* buffer = pvPortMalloc(len + sizeof(array_data));  // put the holder at the end
+        uint8_t* buffer = pvPortMalloc(len + sizeof(array_data));  // put the holder at the end
 
         if(buffer)
         {
             memset(buffer, 0, len + sizeof(array_data));
             encode_pill_list_to_buffer(pill_list, buffer, len, &len);
-            array_data* array_holder = &buffer[len];
+            array_data* array_holder = (array_data*)&buffer[len];
             array_holder->buffer = buffer;
             array_holder->length = len;
 
