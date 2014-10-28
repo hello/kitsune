@@ -50,9 +50,10 @@ static void _reply_wifi_scan_result()
     uint8_t retry_count = max_retry;
     sl_status |= SCANNING;
     
+    Cmd_led(0,0);
     while((scanned_wifi_count = get_wifi_scan_result(wifi_endpoints, MAX_WIFI_EP_PER_SCAN, 3000 * (max_retry - retry_count + 1))) == 0 && --retry_count)
     {
-        //Cmd_led(0,0);
+
         UARTprintf("No wifi scanned, retry times remain %d\n", retry_count);
         vTaskDelay(500);
     }
@@ -71,7 +72,7 @@ static void _reply_wifi_scan_result()
 		reply_command.wifi_scan_result.arg = wifi_endpoints_cp;
 		ble_send_protobuf(&reply_command);
 
-        vTaskDelay(100);
+        vTaskDelay(1000);  // This number must be long enough so the BLE can get the data transmit to phone
         memset(&reply_command, 0, sizeof(reply_command));
     }
 
@@ -82,7 +83,7 @@ static void _reply_wifi_scan_result()
 }
 
 
-static bool _set_wifi(const char* ssid, const char* password)
+static bool _set_wifi(const char* ssid, const char* password, int sec_type)
 {
     Sl_WlanNetworkEntry_t wifi_endpoints[MAX_WIFI_EP_PER_SCAN];
     int scanned_wifi_count, connection_ret;
@@ -438,11 +439,11 @@ void on_ble_protobuf_command(MorpheusCommand* command)
             const char* ssid = command->wifiSSID.arg;
             char* password = command->wifiPassword.arg;
 
-            /*sl_WlanDisconnect();
+            sl_WlanDisconnect();   // This might cause trouble, cannot get IP back after reconnect
             while(sl_status&HAS_IP) {
-            	vTaskDelay(1);
+            	vTaskDelay(100);
             }
-            */
+
             // I can get the Mac address as well, but not sure it is necessary.
 
             // Just call API to connect to WIFI.

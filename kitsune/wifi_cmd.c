@@ -1329,12 +1329,13 @@ int send_periodic_data( data_t * data ) {
 
     if(decode_rx_data_pb((unsigned char*) content, len, SyncResponse_fields, &response_protobuf, sizeof(response_protobuf)) == 0)
     {
-        UARTprintf("Decoding success: %d %d %d %d %d\n",
+        UARTprintf("Decoding success: %d %d %d %d %d %d\n",
         response_protobuf.has_acc_sampling_interval,
         response_protobuf.has_acc_scan_cyle,
         response_protobuf.has_alarm,
         response_protobuf.has_device_sampling_interval,
-        response_protobuf.has_flash_action);
+        response_protobuf.has_flash_action,
+        response_protobuf.has_reset_device);
 
 		_on_response_protobuf(&response_protobuf);
         upload_success = 1;
@@ -1862,6 +1863,42 @@ int get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uin
 
 }
 
+
+int connect_wifi(const char* ssid, const char* password, int sec_type)
+{
+	SlSecParams_t secParam = {0};
+
+	if(sec_type == 3 ) {
+		sec_type = 2;
+	}
+	secParam.Key = (signed char*)password;
+	secParam.KeyLen = password == NULL ? 0 : strlen(password);
+	secParam.Type = sec_type;
+
+	int16_t index = 0;
+	int16_t ret = 0;
+	uint8_t retry = 5;
+	while((index = sl_WlanProfileAdd((_i8*) ssid, strlen(ssid), NULL,
+			&secParam, NULL, 0, 0)) < 0 && retry--){
+		ret = sl_WlanProfileDel(0xFF);
+		if (ret != 0) {
+			UARTprintf("profile del fail\n");
+		}
+	}
+
+	if (index < 0) {
+		UARTprintf("profile add fail\n");
+		return 0;
+	}
+	ret = sl_WlanConnect((_i8*) ssid, strlen(ssid), NULL, sec_type == SL_SEC_TYPE_OPEN ? NULL : &secParam, 0);
+	if(ret == 0 || ret == -71)
+	{
+		UARTprintf("WLAN connect attempt issued\n");
+
+		return 1;
+	}
+}
+
 int connect_scanned_endpoints(const char* ssid, const char* password, 
     const Sl_WlanNetworkEntry_t* wifi_endpoints, int scanned_wifi_count, SlSecParams_t* connectedEPSecParamsPtr)
 {
@@ -1871,6 +1908,11 @@ int connect_scanned_endpoints(const char* ssid, const char* password,
 		return 0;
 	}
 
+	if(!wifi_endoints)
+	{
+		return connect_wifi(ssid, password, connectedEPSecParamsPtr->Type);
+	}
+
     int i = 0;
 
     for(i = 0; i < scanned_wifi_count; i++)
@@ -1878,40 +1920,11 @@ int connect_scanned_endpoints(const char* ssid, const char* password,
         Sl_WlanNetworkEntry_t wifi_endpoint = wifi_endpoints[i];
         if(strcmp((const char*)wifi_endpoint.ssid, ssid) == 0)
         {
-            memset(connectedEPSecParamsPtr, 0, sizeof(SlSecParams_t));
-
-            if( wifi_endpoint.sec_type == 3 ) {
-                wifi_endpoint.sec_type = 2;
-            }
-            connectedEPSecParamsPtr->Key = (signed char*)password;
-            connectedEPSecParamsPtr->KeyLen = password == NULL ? 0 : strlen(password);
-            connectedEPSecParamsPtr->Type = wifi_endpoint.sec_type;
-
-			// We don't support all the security types in this implementation.
-            // There is no sl_sl_WlanProfileSet?
-            // So I delete all endpoint first.
-			int16_t index;
-			int retry = 5;
-
-			while((index = sl_WlanProfileAdd((_i8*) ssid, strlen(ssid), NULL,
-					connectedEPSecParamsPtr, NULL, 0, 0)) < 0 && retry--){
-				ret = sl_WlanProfileDel(0xFF);
-				if (ret != 0) {
-					UARTprintf("profile del fail\n");
-				}
+			ret = connect_wifi(ssid, password, wifi_endpoint.sec_type);
+			if(ret)
+			{
+				return 1;
 			}
-
-			if (index < 0) {
-                UARTprintf("profile add fail\n");
-                return 0;
-			}
-			ret = sl_WlanConnect((_i8*) ssid, strlen(ssid), NULL, wifi_endpoint.sec_type == SL_SEC_TYPE_OPEN ? NULL : connectedEPSecParamsPtr, 0);
-            if(ret == 0 || ret == -71)
-            {
-                UARTprintf("WLAN connect attempt issued\n");
-
-                return 1;
-            }
 
         }
     }
