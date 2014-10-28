@@ -78,7 +78,7 @@ int match(char *regexp, char *text);
 unsigned long unix_time();
 void load_aes();
 
-int send_periodic_data( data_t * data );
+int send_periodic_data(periodic_data* data );
 int send_audio_data( data_t * data );
 
 void thread_ota( void * unused );
@@ -95,6 +95,11 @@ int connect_scanned_endpoints(const char* ssid, const char* password,
     const Sl_WlanNetworkEntry_t* wifi_endpoints, int scanned_wifi_count, SlSecParams_t* connectedEPSecParamsPtr);
 
 void wifi_reset();
+
+bool encode_pill_list(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
+void encode_pill_list_to_buffer(const periodic_data_pill_data_container* ptr_pill_list, 
+    char* buffer, size_t buffer_len, size_t* out_len);
+void encode_serialized_pill_list(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 
 //#define MORPH_NAME "KingShy's morpheus"
 
