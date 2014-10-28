@@ -89,6 +89,21 @@ static bool _set_wifi(const char* ssid, const char* password)
     int scanned_wifi_count, connection_ret;
     memset(wifi_endpoints, 0, sizeof(wifi_endpoints));
 
+    /*
+    sl_WlanDisconnect();   // This line causes trouble, cannot get IP back after reconnect
+    // To reproduce the problem, connect to a valid WIFI first, then switch to another WIFI
+    // The 2nd connection will never managed to get the IP address event.
+    // If we don't disconnect, after the 2nd connection request, the chip will
+    // disconnect itself and successfully reconnect.
+    // But it seems I never get the UART print out get IP event, not sure if
+    // it happens or not.
+    // This chip is a mystery.
+
+	while(sl_status&HAS_IP) {
+		vTaskDelay(100);
+	}
+	*/
+
     uint8_t max_retry = 10;
     uint8_t retry_count = max_retry;
 
@@ -438,11 +453,6 @@ void on_ble_protobuf_command(MorpheusCommand* command)
         {
             const char* ssid = command->wifiSSID.arg;
             char* password = command->wifiPassword.arg;
-
-            sl_WlanDisconnect();   // This might cause trouble, cannot get IP back after reconnect
-            while(sl_status&HAS_IP) {
-            	vTaskDelay(100);
-            }
 
             // I can get the Mac address as well, but not sure it is necessary.
 
