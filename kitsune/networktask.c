@@ -47,7 +47,7 @@ static void Init(NetworkTaskData_t * info) {
 static void SynchronousSendNetworkResponseCallback(const NetworkResponse_t * response) {
 	memcpy(&_syncsendresponse,response,sizeof(NetworkResponse_t));
 
-	DEBUG_PRINTF("NetTask::SynchronousSendNetworkResponseCallback -- got callback");
+//	DEBUG_PRINTF("NetTask::SynchronousSendNetworkResponseCallback -- got callback");
 
 	xSemaphoreGive(_waiter);
 
@@ -60,7 +60,7 @@ static uint32_t EncodePb(pb_ostream_t * stream, const void * data) {
 
 	ret = pb_encode(stream,encodedata->fields,encodedata->encodedata);
 
-	DEBUG_PRINTF("NetTask::EncodePb -- got callback");
+//	DEBUG_PRINTF("NetTask::EncodePb -- got callback");
 
 
 	return ret;
@@ -134,6 +134,8 @@ void NetworkTask_Thread(void * networkdata) {
 	for (; ;) {
 
 		if (!xQueueReceive( _asyncqueue, &message, portMAX_DELAY )) {
+			vTaskDelay(1000);
+			DEBUG_PRINTF("NetTask::Thread  -- looping");
 			continue; //LOOP FOREVEREVEREVEREVER
 		}
 
@@ -143,6 +145,8 @@ void NetworkTask_Thread(void * networkdata) {
 		response.success = true;
 		retry_period = INITIAL_RETRY_PERIOD_COUNTS;
 		attempt_count = 0;
+		timeout_counts = message.retry_timeout;
+
 		while (1) {
 
 			DEBUG_PRINTF("NetTask::Thread -- %s%s -- %d",taskdata->host,message.endpoint,attempt_count);
@@ -172,10 +176,12 @@ void NetworkTask_Thread(void * networkdata) {
 			//if failed response and there's some timeout time left, go delay and try again.
 			if (!response.success && timeout_counts > 0) {
 				if (timeout_counts < retry_period) {
+					DEBUG_PRINTF("NetTask::Thread -- waiting %d ticks",retry_period);
 					vTaskDelay(retry_period);
 					timeout_counts = 0;
 				}
 				else {
+					DEBUG_PRINTF("NetTask::Thread -- waiting %d ticks",retry_period);
 					vTaskDelay(retry_period);
 					timeout_counts -= retry_period;
 					retry_period <<= 1;
@@ -189,7 +195,14 @@ void NetworkTask_Thread(void * networkdata) {
 
 		};
 
-		DEBUG_PRINTF("NetTask::Thread -- %s%s -- SUCCESS",taskdata->host,message.endpoint);
+		if (response.success) {
+			DEBUG_PRINTF("NetTask::Thread -- %s%s -- FINISHED (success)",taskdata->host,message.endpoint);
+
+		}
+		else {
+			DEBUG_PRINTF("NetTask::Thread -- %s%s -- FINISHED (failure)",taskdata->host,message.endpoint);
+		}
+
 
 
 		//let the requester know we are done
