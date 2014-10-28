@@ -1133,7 +1133,7 @@ void encode_pill_list_to_buffer(const periodic_data_pill_data_container* ptr_pil
             data.pill_data.motionDataEncrypted.funcs.encode = _encode_encrypted_pilldata;
         }
 
-        if (!pb_encode_tag(&stream, PB_WT_STRING, periodic_data_pills_tag)){
+        if (!pb_encode_tag(&stream, PB_WT_STRING, periodic_data_fields[periodic_data_pills_tag].tag)){
             UARTprintf("Fail to encode tag for pill %s\r\n", data.id);
             continue;
         }
