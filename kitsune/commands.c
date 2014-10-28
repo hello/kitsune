@@ -845,7 +845,7 @@ void thread_sensor_poll(void* unused) {
 				data.unix_time, data.light, data.light_variability, data.light_tonality, data.temperature, data.humidity,
 				data.dust, data.dust_max, data.dust_min, data.dust_variability);
 
-        if(xQueueSend(data_queue, (void*)&data, 10) != pdPASS)
+        if(xQueueSend(data_queue, (void*)&data, 10) == pdPASS)
         {
         	increased_heap_size += sizeof(data);
     	}else{
