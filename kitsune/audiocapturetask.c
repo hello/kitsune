@@ -55,11 +55,7 @@ static int64_t _callCounter;
 static CommandCompleteNotification _fpLastCommandComplete;
 
 static void DataCallback(const AudioFeatures_t * pfeats) {
-	AudioProcessingTaskMessage_t message;
-	memcpy(&message.payload.feats,pfeats,sizeof(AudioFeatures_t));
-	message.type = eFeats;
-
-	AudioProcessingTask_AddFeaturesToQueue(&message);
+	AudioProcessingTask_AddFeaturesToQueue(pfeats);
 }
 
 

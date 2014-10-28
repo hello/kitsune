@@ -1,6 +1,5 @@
 #include "FreeRTOS.h"
 #include "queue.h"
-#include "timers.h"
 
 #include "audiocapturetask.h"
 #include "audioprocessingtask.h"
@@ -8,21 +7,16 @@
 #include "networktask.h"
 
 #define INBOX_QUEUE_LENGTH (6)
-#define UPLOAD_TIMER_PERIOD_IN_TICKS (60000)
 static xQueueHandle _queue = NULL;
-static TimerHandle_t _uploadtimer = NULL;
-static uint8_t _decodebuf[256];
+static uint8_t _decodebuf[1024];
+static uint32_t samplecounter;
 
-static const char * k_audio_endopoint = "audio_features";
+#define AUDIO_UPLOAD_PERIOD_IN_MS (60000)
+#define AUDIO_UPLOAD_PERIOD_IN_TICKS (AUDIO_UPLOAD_PERIOD_IN_MS / SAMPLE_PERIOD_IN_MILLISECONDS / 2 )
 
-/*  Add a message to the queue */
-static void UploadTimerCallback( TimerHandle_t pxTimer ) {
-	AudioProcessingTaskMessage_t message;
-	message.type = eTimeToUpload;
-	message.payload.empty = 0;
 
-	AudioProcessingTask_AddFeaturesToQueue(&message);
-}
+static const char * k_audio_endpoint = "/audio_features";
+
 
 
 static void RecordCallback(const RecordAudioRequest_t * request) {
@@ -38,19 +32,16 @@ static void RecordCallback(const RecordAudioRequest_t * request) {
 
 static void Init(void) {
 	if (!_queue) {
-		_queue = xQueueCreate(INBOX_QUEUE_LENGTH,sizeof( AudioProcessingTaskMessage_t ) );
+		_queue = xQueueCreate(INBOX_QUEUE_LENGTH,sizeof( AudioFeatures_t ) );
 	}
 
-	if (!_uploadtimer) {
-		_uploadtimer = xTimerCreate("audioUploadTimer",UPLOAD_TIMER_PERIOD_IN_TICKS,pdTRUE,"AudioProcessingTaskTimer",UploadTimerCallback);
-	}
+	samplecounter = 0;
 
 	AudioClassifier_Init(RecordCallback,0,0);
 }
 
-void AudioProcessingTask_AddFeaturesToQueue(const AudioProcessingTaskMessage_t * feat) {
+void AudioProcessingTask_AddFeaturesToQueue(const AudioFeatures_t * feat) {
 	if (_queue) {
-
 		xQueueSend(_queue,feat,0);
 	}
 }
@@ -66,7 +57,7 @@ static void SetUpUpload(void) {
 	message.decode_buf = _decodebuf;
 	message.decode_buf_size = sizeof(_decodebuf);
 
-	message.endpoint = k_audio_endopoint;
+	message.endpoint = k_audio_endpoint;
 	message.response_callback = NetworkResponseFunc;
 	message.retry_timeout = 8000;
 
@@ -76,7 +67,7 @@ static void SetUpUpload(void) {
 }
 
 void AudioProcessingTask_Thread(void * data) {
-	AudioProcessingTaskMessage_t message;
+	AudioFeatures_t message;
 
 	Init();
 
@@ -84,28 +75,14 @@ void AudioProcessingTask_Thread(void * data) {
 		/* Wait until we get a message */
         xQueueReceive( _queue,(void *) &message, portMAX_DELAY );
 
-        switch (message.type) {
-        case eFeats:
-        {
-            AudioClassifier_DataCallback(&message.payload.feats);
-        	break;
-        }
+        AudioClassifier_DataCallback(&message);
 
-        case eTimeToUpload:
-        {
-        	//set up callback with network task
+        samplecounter++;
+
+        if (samplecounter > AUDIO_UPLOAD_PERIOD_IN_TICKS) {
         	SetUpUpload();
-        	break;
+        	samplecounter = 0;
         }
-
-        default:
-        {
-        	break;
-        }
-        }
-
-
-
 
 	}
 }
