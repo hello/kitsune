@@ -67,6 +67,7 @@ int Cmd_mode(int argc, char*argv[]);
 int Cmd_set_mac(int argc, char*argv[]);
 int Cmd_set_aes(int argc, char *argv[]) ;
 
+
 int Cmd_RadioStartRX(int argc, char*argv[]);
 int Cmd_RadioStopRX(int argc, char*argv[]);
 int Cmd_RadioStopTX(int argc, char*argv[]);
@@ -93,6 +94,7 @@ int http_response_ok(const char* response_buffer);
 int get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uint32_t scan_duration_ms);
 int connect_scanned_endpoints(const char* ssid, const char* password, 
     const Sl_WlanNetworkEntry_t* wifi_endpoints, int scanned_wifi_count, SlSecParams_t* connectedEPSecParamsPtr);
+int connect_wifi(const char* ssid, const char* password, int sec_type);
 
 void wifi_reset();
 
@@ -101,6 +103,6 @@ void wifi_reset();
 //#define MORPH_NAME "Chris's morpheus"
 #define MORPH_NAME "test morpheus 10"
 //#define MORPH_NAME "test morpheus 80"
-#define KIT_VER 11
+#define KIT_VER 12
 
 #endif

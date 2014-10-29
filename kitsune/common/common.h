@@ -69,9 +69,9 @@ extern "C"
 #define DBG_PRINT(x,...)
 #define ERR_PRINT(x)
 #else
-#define UART_PRINT Report
-#define DBG_PRINT  Report
-#define ERR_PRINT(x) Report("Error [%d] at line [%d] in function [%s]  \n\r",x,__LINE__,__FUNCTION__)
+#define UART_PRINT UARTprintf
+#define DBG_PRINT  UARTprintf
+#define ERR_PRINT(x) UARTprintf("Error [%d] at line [%d] in function [%s]  \n\r",x,__LINE__,__FUNCTION__)
 #endif
 
 // Loop forever, user can change it as per application's requirement
@@ -91,7 +91,9 @@ extern "C"
             }
 
 #define SPAWN_TASK_PRIORITY     9
+#ifndef SL_STOP_TIMEOUT
 #define SL_STOP_TIMEOUT         200
+#endif
 #define UNUSED(x)               ((x) = (x))
 #define SUCCESS                 0
 #define FAILURE                 -1

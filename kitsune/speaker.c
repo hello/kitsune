@@ -71,8 +71,8 @@ int iCount =0;
 unsigned int g_uiPlayWaterMark = 1;
 extern unsigned long  g_ulStatus;
 extern unsigned char g_ucSpkrStartFlag;
-unsigned char speaker_data[20*1024]; //16*1024
-unsigned char speaker_data_padded[1024]={0}; //16*1024
+unsigned char speaker_data[512];
+unsigned char speaker_data_padded[1024]={0};
 //*****************************************************************************
 //                 GLOBAL VARIABLES -- End
 //*****************************************************************************
@@ -144,7 +144,7 @@ void Speaker1()
     	  #endif
 			for( i=0;i<512;++i) {
 				speaker_data_padded[i*2+1] = speaker_data[i];
-				speaker_data_padded[i*2] = speaker_data[i];
+				speaker_data_padded[i*2] = speaker_data[i+1];
 			}
 			Size *=2;
 
