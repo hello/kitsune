@@ -33,6 +33,7 @@
 #include "task.h"
 #include "semphr.h"
 #include "queue.h"
+#include "event_groups.h"
 
 #include "fault.h"
 
@@ -1131,84 +1132,214 @@ void led_add_intensity(unsigned int * colors, int intensity ) {
 	}
 }
 
-int Cmd_led(int argc, char *argv[]) {
-	int i,select,light,adjust;
-	unsigned int* colors;
+void led_to_rgb( unsigned int * c, unsigned int *r, unsigned int* g, unsigned int* b) {
+	*b = (( *c & ~0xffff00 ))&0xff;
+	*r = (( *c & ~0xff00ff )>>8)&0xff;
+	*g = (( *c & ~0x00ffff )>>16)&0xff;
+}
+unsigned int led_from_rgb( int r, int g, int b) {
+	return (b&0xff) | ((r&0xff)<<8) | ((g&0xff)<<16);
+}
+uint32_t wheel_color(int WheelPos, unsigned int color) {
+	unsigned int r, g, b;
+	led_to_rgb(&color, &r, &g, &b);
 
-	unsigned int colors_blue[NUM_LED+1]= {0x00002,0x000004,0x000008,0x000010,0x000020,0x000040,0x000080,0x000080,0,0,0,0,0};
-	unsigned int colors_white[NUM_LED+1]= {0x020202,0x040404,0x080808,0x101010,0x202020,0x404040,0x808080,0x808080,0,0,0,0,0};
-	unsigned int colors_green[NUM_LED+1]= {0x020000,0x040000,0x080000,0x100000,0x200000,0x400000,0x800000,0x800000,0,0,0,0,0};
-	unsigned int colors_red[NUM_LED+1]= {0x000200,0x000400,0x000800,0x001000,0x002000,0x004000,0x008000,0x008000,0,0,0,0,0};
-	unsigned int colors_yellow[NUM_LED+1]= {0x020200,0x040400,0x080800,0x101000,0x202000,0x404000,0x808000,0x808000,0,0,0,0,0};
-	unsigned int colors_original[NUM_LED+1];
-
-	static unsigned int last_time;
-	static unsigned int now;
-
-	now = xTaskGetTickCount();
-
-	if( now - last_time < 2000 ) {
-		return 0;
-	}
-	last_time = now;
-
-	if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
-		light = get_light();
-		xSemaphoreGive(i2c_smphr);
-
-		if( light > 80 ){
-			adjust = 0;
-		} else {
-			adjust = light-80;
-		}
+	if (WheelPos < 85) {
+		return led_from_rgb(0, 0, 0);
+	} else if (WheelPos < 170) {
+		WheelPos -= 85;
+		return led_from_rgb((r * (WheelPos * 3)) >> 8,
+				(g * (WheelPos * 3)) >> 8, (b * (WheelPos * 3)) >> 8);
 	} else {
-		adjust = 0;
+		WheelPos -= 170;
+		return led_from_rgb((r * (255 - WheelPos * 3)) >> 8,
+				(g * (255 - WheelPos * 3)) >> 8,
+				(b * (255 - WheelPos * 3)) >> 8);
 	}
-	colors = colors_white;
+}
 
-	if(argc == 2) {
-		select = atoi(argv[1]);
-		switch(select) {
-		case 1: colors = colors_white; break;
-		case 2: colors = colors_blue;break;
-		case 3: colors = colors_green;break;
-		case 4: colors = colors_red;break;
-		case 5: colors = colors_yellow;break;
+uint32_t wheel(int WheelPos) {
+	if (WheelPos < 85) {
+		return led_from_rgb(WheelPos * 3, 255 - WheelPos * 3, 0);
+	} else if (WheelPos < 170) {
+		WheelPos -= 85;
+		return led_from_rgb(255 - WheelPos * 3, 0, WheelPos * 3);
+	} else {
+		WheelPos -= 170;
+		return led_from_rgb(0, WheelPos * 3, 255 - WheelPos * 3);
+	}
+}
+
+#define LED_RESET_BIT 				1
+#define LED_SOLID_PURPLE_BIT 		2
+#define LED_ROTATE_PURPLE_BIT 		4
+#define LED_ROTATE_RAINBOW_BIT		8
+#define LED_FADE_IN_BIT			0x010
+#define LED_FADE_IN_FAST_BIT	0x020
+#define LED_FADE_OUT_BIT		0x040
+#define LED_FADE_OUT_FAST_BIT	0x080
+#define LED_FADE_OUT_ROTATE_BIT 0x100
+#define LED_FADE_OUT_STEP_BIT   0x200
+#define LED_FADE_IN_STEP_BIT    0x400
+EventGroupHandle_t led_events;
+
+void led_task( void * params ) {
+	int i,j;
+	unsigned int colors_last[NUM_LED+1];
+	memset( colors_last, 0, sizeof(colors_last) );
+	led_array( colors_last );
+
+	while(1) {
+		EventBits_t evnt;
+
+		evnt = xEventGroupWaitBits(
+		                led_events,   /* The event group being tested. */
+		                0xffffff,    /* The bits within the event group to wait for. */
+		                pdFALSE,        /* all bits should not be cleared before returning. */
+		                pdFALSE,       /* Don't wait for both bits, either bit will do. */
+		                1000 );/* Wait for any bit to be set. */
+		if( evnt & LED_RESET_BIT ) {
+			memset( colors_last, 0, sizeof(colors_last) );
+			led_array( colors_last );
+
+			xEventGroupClearBits(led_events, LED_RESET_BIT );
 		}
-	} else
-	if( sl_status & UPLOADING ) {
-		colors = colors_blue;
-	}
-	else if( sl_status & HAS_IP ) {
-		colors = colors_green;
-	}
-	else if( sl_status & CONNECTING ) {
-		colors = colors_yellow;
-	}
-	else if( sl_status & SCANNING ) {
-		colors = colors_red;
-	}
-	memcpy( colors_original, colors, sizeof(colors_original));
 
-	for (i = 1; i < 32; ++i) {
-		led_cw(colors_original);
-		memcpy( colors, colors_original, sizeof(colors_original));
-		led_brightness( colors, fxd_sin(i<<4)>>7);
-		led_add_intensity( colors, adjust );
-		led_array(colors);
-		vTaskDelay(8*(12-(fxd_sin((i+1)<<4)>>12)));
+		if (evnt & LED_SOLID_PURPLE_BIT) {
+			unsigned int colors[NUM_LED + 1];
+			int color_to_use = led_from_rgb(132, 0, 255);
+			for (i = 0; i <= NUM_LED; ++i) {
+				colors[i] = color_to_use;
+			}
+			led_array(colors);
+			memcpy(colors_last, colors, sizeof(colors_last));
+
+			xEventGroupClearBits(led_events, LED_SOLID_PURPLE_BIT );
+		}
+		if (evnt & LED_ROTATE_PURPLE_BIT) {
+			unsigned int colors[NUM_LED + 1];
+			int color_to_use = led_from_rgb(132, 0, 255);
+			for (i = 0; i <= NUM_LED; ++i) {
+				colors[i] = wheel_color(((i * 256 / 12) + j) & 255, color_to_use);
+			}
+			++j;
+			led_array(colors);
+			memcpy(colors_last, colors, sizeof(colors_last));
+
+			vTaskDelay(20);
+		}
+		if (evnt & LED_ROTATE_RAINBOW_BIT) {
+			unsigned int colors[NUM_LED + 1];
+			int color_to_use = led_from_rgb(132, 0, 255);
+			for (i = 0; i <= NUM_LED; ++i) {
+				colors[i] = wheel(((i * 256 / 12) + j) & 255);
+			}
+			++j;
+			led_array(colors);
+			memcpy(colors_last, colors, sizeof(colors_last));
+
+			vTaskDelay(20);
+		}
+		if (evnt & LED_FADE_OUT_ROTATE_BIT) {
+			unsigned int r, g, b, ro, go, bo;
+			unsigned int colors[NUM_LED + 1];
+			int color_to_use = led_from_rgb(132, 0, 255);
+			for (i = 0; i <= NUM_LED; ++i) {
+				colors[i] = wheel_color(((i * 256 / 12) + j) & 255,
+						color_to_use);
+
+				led_to_rgb(&colors[i], &r, &g, &b);
+
+				r = minval(r, ro);
+				g = minval(g, go);
+				b = minval(b, bo);
+
+				colors[i] = led_from_rgb(r, g, b);
+			}
+			++j;
+			for (i = 0; i < NUM_LED; i++) {
+				if (!(r < 10 && g <= 10 && b <= 10)) {
+					break;
+				}
+			}
+			if (i == NUM_LED) {
+				xEventGroupClearBits(led_events, LED_FADE_OUT_ROTATE_BIT);
+				xEventGroupSetBits(led_events,
+						LED_FADE_IN_BIT | LED_FADE_IN_FAST_BIT);
+			}
+
+			led_array(colors);
+			memcpy(colors_last, colors, sizeof(colors_last));
+
+			vTaskDelay(20);
+		}
+		if (evnt & LED_FADE_IN_BIT) {
+			j = 0;
+			xEventGroupClearBits(led_events, LED_FADE_IN_BIT);
+			xEventGroupSetBits(led_events, LED_FADE_IN_STEP_BIT);
+		}
+		if (evnt & LED_FADE_IN_STEP_BIT) { //set j to 0 first
+			unsigned int colors[NUM_LED + 1];
+			int color_to_use = led_from_rgb(132, 0, 255);
+			for (i = 0; i <= NUM_LED; i++) {
+				colors[i] = color_to_use;
+			}
+			led_brightness(colors, ++j);
+			led_array(colors);
+			memcpy(colors_last, colors, sizeof(colors_last));
+
+			if (j > 255) {
+				xEventGroupClearBits(led_events, LED_FADE_IN_STEP_BIT | LED_FADE_IN_FAST_BIT);
+			}
+
+			if (evnt & LED_FADE_IN_FAST_BIT) {
+				vTaskDelay(3);
+			} else {
+				vTaskDelay(6);
+			}
+		}
+		if (evnt & LED_FADE_OUT_BIT) {
+			j = 255;
+			xEventGroupClearBits(led_events, LED_FADE_OUT_BIT);
+			xEventGroupSetBits(led_events, LED_FADE_OUT_STEP_BIT);
+		}
+		if (evnt & LED_FADE_OUT_STEP_BIT) {
+			unsigned int colors[NUM_LED + 1];
+			int color_to_use = led_from_rgb(132, 0, 255);
+			for (i = 0; i <= NUM_LED; i++) {
+				colors[i] = color_to_use;
+			}
+			led_brightness(colors, --j);
+			led_array(colors);
+			memcpy(colors_last, colors, sizeof(colors_last));
+
+			if (j == 0) {
+				xEventGroupClearBits(led_events,
+						LED_FADE_OUT_STEP_BIT | LED_FADE_OUT_FAST_BIT);
+			}
+
+			if (evnt & LED_FADE_OUT_FAST_BIT) {
+				vTaskDelay(3);
+			} else {
+				vTaskDelay(6);
+			}
+		}
 	}
-	vTaskDelay(10);
-	memset(colors_original, 0, sizeof(colors_original));
-	led_array(colors_original);
+}
+
+int Cmd_led(int argc, char *argv[]) {
+	if(argc == 2) {
+		int select = atoi(argv[1]);
+		xEventGroupClearBits( led_events, 0xffffff );
+		xEventGroupSetBits( led_events, select );
+	}
 	return 0;
 }
 
 int Cmd_led_clr(int argc, char *argv[]) {
-	unsigned int colors[NUM_LED];
 
-	memset(colors, 0, sizeof(colors));
-	led_array(colors);
+	xEventGroupClearBits( led_events, 0xffffff );
+	xEventGroupSetBits( led_events, LED_RESET_BIT );
 
 	return 0;
 }
@@ -1347,6 +1478,14 @@ void vUARTTask(void *pvParameters) {
 	char cCmdBuf[512];
 	portTickType now;
 
+
+	led_events = xEventGroupCreate();
+	if (led_events == NULL) {
+		UARTprintf("Failed to create the led_events.\n");
+	}
+
+	xTaskCreate(led_task, "ledTask", 1024 / 4, NULL, 4, NULL); //todo reduce stack
+
 	Cmd_led_clr(0,0);
 	//switch the uart lines to gpios, drive tx low and see if rx goes low as well
     // Configure PIN_57 for GPIOInput
@@ -1454,7 +1593,7 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(AudioCaptureTask_Thread,"audioCaptureTask",4*1024/4,NULL,4,NULL);
 	UARTprintf("*");
 //	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",2*1024/4,NULL,1,NULL);
-//	UARTprintf("*");
+	UARTprintf("*");
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 3, NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_dust, "dustTask", 256 / 4, NULL, 3, NULL);
