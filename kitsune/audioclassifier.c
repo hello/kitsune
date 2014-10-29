@@ -75,8 +75,6 @@ static const char * k_id_energy_chunk = "energy_chunk";
 
 static DataBuffer_t _buffer;
 static RecordAudioCallback_t _playbackFunc;
-static MutexCallback_t _lockFunc;
-static MutexCallback_t _unlockFunc;
 static Classifier_t _classifier;
 static Classifier_t _hmm;
 
@@ -207,10 +205,6 @@ static void CopyCircularBufferToPermanentStorage(int64_t samplecount) {
     chunk.maxenergy = max;
     chunk.samplecount = samplecount;
     
-    /* START CRITICAL SECTION AROUND STORAGE BUFFERS */
-    if (_lockFunc) {
-        _lockFunc();
-    }
     
     memcpy(&_buffer.chunkbuf[_buffer.chunkbufidx],&chunk,sizeof(chunk));
     _buffer.chunkbufidx++;
@@ -220,12 +214,6 @@ static void CopyCircularBufferToPermanentStorage(int64_t samplecount) {
         _buffer.numchunkbuf++;
     }
     
-    /* END CRITICAL SECTION  */
-    if (_unlockFunc) {
-        _unlockFunc();
-    }
-    
-
 }
 
 static void InitDefaultClassifier(void) {
@@ -250,7 +238,7 @@ static void InitDefaultClassifier(void) {
 }
 
 
-void AudioClassifier_Init(RecordAudioCallback_t recordfunc,MutexCallback_t lockfunc, MutexCallback_t unlockfunc) {
+void AudioClassifier_Init(RecordAudioCallback_t recordfunc) {
     memset(&_buffer,0,sizeof(_buffer));
     memset(&_classifier,0,sizeof(Classifier_t));
     memset(&_hmm,0,sizeof(_hmm));
@@ -258,8 +246,7 @@ void AudioClassifier_Init(RecordAudioCallback_t recordfunc,MutexCallback_t lockf
     InitDefaultClassifier();
     
     _playbackFunc = recordfunc;
-    _lockFunc = lockfunc;
-    _unlockFunc = unlockfunc;
+
 }
 
 
@@ -457,26 +444,17 @@ uint32_t AudioClassifier_EncodeAudioFeatures(pb_ostream_t * stream,const void * 
     uint32_t unix_time = 0;
     const char * tags = NULL;
     const char * source = NULL;
-    
-    /* START CRITICAL SECTION AROUND STORAGE BUFFERS */
-    if (_lockFunc) {
-        _lockFunc();
-    }
-    
+
     size = SetMatrixMessage(stream, macbytes, unix_time,GetNextMatrixCallback);
     
-    /* Buffer read out?  Great, let's reset it */
 
-    _buffer.chunkbufidx = 0;
-    _buffer.numchunkbuf = 0;
-    
-    /* END CRITICAL SECTION  */
-    if (_unlockFunc) {
-        _unlockFunc();
-    }
-
-    
     return size;
 
 }
 
+void AudioClassifier_ResetStorageBuffer(void) {
+	/* Buffer read out?  Great, let's reset it */
+
+	_buffer.chunkbufidx = 0;
+	_buffer.numchunkbuf = 0;
+}

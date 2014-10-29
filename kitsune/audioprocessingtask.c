@@ -14,7 +14,7 @@ static uint8_t _decodebuf[1024];
 static uint32_t samplecounter;
 
 #define AUDIO_UPLOAD_PERIOD_IN_MS (60000)
-#define AUDIO_UPLOAD_PERIOD_IN_TICKS (AUDIO_UPLOAD_PERIOD_IN_MS / SAMPLE_PERIOD_IN_MILLISECONDS / 2 )
+#define AUDIO_UPLOAD_PERIOD_IN_TICKS (AUDIO_UPLOAD_PERIOD_IN_MS / SAMPLE_PERIOD_IN_MILLISECONDS / 2 / 6 )
 
 
 static const char * k_audio_endpoint = "/audio/features";
@@ -32,11 +32,11 @@ static void RecordCallback(const RecordAudioRequest_t * request) {
 	AudioCaptureTask_AddMessageToQueue(&message);
 }
 
-static void LockFunc(void) {
+static void Prepare(void * data) {
 	xSemaphoreTake(_mutex,portMAX_DELAY);
 }
 
-static void UnlockFunc(void) {
+static void Unprepare(void * data) {
 	xSemaphoreGive(_mutex);
 }
 
@@ -51,7 +51,7 @@ static void Init(void) {
 
 	samplecounter = 0;
 
-	AudioClassifier_Init(RecordCallback,LockFunc,UnlockFunc);
+	AudioClassifier_Init(RecordCallback);
 }
 
 void AudioProcessingTask_AddFeaturesToQueue(const AudioFeatures_t * feat) {
@@ -61,12 +61,20 @@ void AudioProcessingTask_AddFeaturesToQueue(const AudioFeatures_t * feat) {
 }
 
 static void NetworkResponseFunc(const NetworkResponse_t * response) {
+	UARTprintf("AUDIO RESPONSE:\r\n%s",_decodebuf);
 
+	if (response->success) {
+    	xSemaphoreTake(_mutex,portMAX_DELAY);
+		AudioClassifier_ResetStorageBuffer();
+    	xSemaphoreGive(_mutex);
+
+	}
 }
 
 static void SetUpUpload(void) {
 	NetworkTaskServerSendMessage_t message;
 	memset(&message,0,sizeof(message));
+	memset(_decodebuf,0,sizeof(_decodebuf));
 
 	message.decode_buf = _decodebuf;
 	message.decode_buf_size = sizeof(_decodebuf);
@@ -74,6 +82,8 @@ static void SetUpUpload(void) {
 	message.endpoint = k_audio_endpoint;
 	message.response_callback = NetworkResponseFunc;
 	message.retry_timeout = 8000;
+	message.prepare = Prepare;
+	message.unprepare = Unprepare;
 
 	message.encode = AudioClassifier_EncodeAudioFeatures;
 
@@ -89,7 +99,10 @@ void AudioProcessingTask_Thread(void * data) {
 		/* Wait until we get a message */
         xQueueReceive( _queue,(void *) &message, portMAX_DELAY );
 
+        //crit section around this function
+    	xSemaphoreTake(_mutex,portMAX_DELAY);
         AudioClassifier_DataCallback(&message);
+    	xSemaphoreGive(_mutex);
 
         samplecounter++;
 

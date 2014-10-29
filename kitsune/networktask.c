@@ -151,6 +151,11 @@ void NetworkTask_Thread(void * networkdata) {
 
 			DEBUG_PRINTF("NetTask::Thread -- %s%s -- %d",taskdata->host,message.endpoint,attempt_count);
 
+			/* prepare to prepare */
+			if (message.prepare) {
+				message.prepare(message.prepdata);
+			}
+
 			//push to server
 			if (send_data_pb_callback(taskdata->host,
 					message.endpoint,
@@ -173,8 +178,15 @@ void NetworkTask_Thread(void * networkdata) {
 
 			}
 
+			/* unprepare */
+			if (message.unprepare) {
+				message.unprepare(message.prepdata);
+			}
+
+
 			//if failed response and there's some timeout time left, go delay and try again.
 			if (!response.success && timeout_counts > 0) {
+
 				if (timeout_counts < retry_period) {
 					DEBUG_PRINTF("NetTask::Thread -- waiting %d ticks",retry_period);
 					vTaskDelay(retry_period);
@@ -197,7 +209,6 @@ void NetworkTask_Thread(void * networkdata) {
 
 		if (response.success) {
 			DEBUG_PRINTF("NetTask::Thread -- %s%s -- FINISHED (success)",taskdata->host,message.endpoint);
-
 		}
 		else {
 			DEBUG_PRINTF("NetTask::Thread -- %s%s -- FINISHED (failure)",taskdata->host,message.endpoint);

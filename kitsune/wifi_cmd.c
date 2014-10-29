@@ -1014,6 +1014,7 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
     uint8_t sig[32]={0};
     ostream_buffered_desc_t desc;
     size_t message_length;
+    uint32_t null_stream_bytes = 0;
     bool status;
     SHA1_CTX ctx;
 
@@ -1037,6 +1038,7 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
             return -1;
         }
 
+        null_stream_bytes = stream.bytes_written;
         message_length = stream.bytes_written + sizeof(sig) + AES_IV_SIZE;
         UARTprintf("message len %d sig len %d\n\r\n\r", stream.bytes_written, sizeof(sig));
     }
@@ -1084,6 +1086,15 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
 
         if (desc.bytes_written != desc.bytes_that_should_have_been_written) {
         	UARTprintf("==== ERROR ERROR ====   only %d of %d bytes written\r\n",desc.bytes_written,desc.bytes_that_should_have_been_written);
+        }
+
+        if (desc.bytes_written != null_stream_bytes) {
+        	UARTprintf("ERROR %d bytes estimated, %d bytes were sent\r\n",null_stream_bytes,desc.bytes_written);
+
+        }
+
+        if (desc.bytes_written + sizeof(sig) + AES_IV_SIZE != message_length) {
+        	UARTprintf("ERROR %d bytes sent, we promised to send %d \r\n",desc.bytes_written + sizeof(sig) + AES_IV_SIZE,message_length);
         }
 
         /* Then just check for any errors.. */
