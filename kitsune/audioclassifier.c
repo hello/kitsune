@@ -372,13 +372,16 @@ static uint8_t GetNextMatrixCallback(uint8_t isFirst,const_MatDesc_t * pdesc,voi
     
     memset(pdesc,0,sizeof(const_MatDesc_t));
     
-    if (encodedata->buf->numchunkbuf == 0) {
+    if (encodedata->buf->numchunkbuf == 0 ) {
         return false; //stop
     }
     
     if (isFirst) {
         encodedata->currentidx = encodedata->buf->chunkbufidx; //oldest
         encodedata->state = 1;
+    }
+    else if (encodedata->state == 0) {
+        return false; //stop, termination condition
     }
     
     endidx = encodedata->buf->chunkbufidx + encodedata->buf->numchunkbuf;
@@ -449,14 +452,7 @@ static uint8_t GetNextMatrixCallback(uint8_t isFirst,const_MatDesc_t * pdesc,voi
 
     }
     
-    //termination condition
-    if (encodedata->state == 0) {
-        return false;
-    }
-    else {
-        return true;
-    }
-
+    return true;
 }
 
 
