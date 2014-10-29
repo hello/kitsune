@@ -1194,7 +1194,7 @@ void led_task( void * params ) {
 
 		evnt = xEventGroupWaitBits(
 		                led_events,   /* The event group being tested. */
-		                0xffffffff,    /* The bits within the event group to wait for. */
+		                0xffffff,    /* The bits within the event group to wait for. */
 		                pdFALSE,        /* all bits should not be cleared before returning. */
 		                pdFALSE,       /* Don't wait for both bits, either bit will do. */
 		                1000 );/* Wait for any bit to be set. */
@@ -1220,13 +1220,12 @@ void led_task( void * params ) {
 			unsigned int colors[NUM_LED + 1];
 			int color_to_use = led_from_rgb(132, 0, 255);
 			for (i = 0; i <= NUM_LED; ++i) {
-				colors[i] = wheel_color(((i * 256 / 12) + j++) & 255,
-						color_to_use);
+				colors[i] = wheel_color(((i * 256 / 12) + j++) & 255, color_to_use);
 			}
 			led_array(colors);
 			memcpy(colors_last, colors, sizeof(colors_last));
 
-			vTaskDelay(6);
+			vTaskDelay(20);
 		}
 		if (evnt & LED_ROTATE_RAINBOW_BIT) {
 			unsigned int colors[NUM_LED + 1];
@@ -1237,7 +1236,7 @@ void led_task( void * params ) {
 			led_array(colors);
 			memcpy(colors_last, colors, sizeof(colors_last));
 
-			vTaskDelay(20);
+			vTaskDelay(100);
 		}
 		if (evnt & LED_FADE_OUT_ROTATE_BIT) {
 			unsigned int r, g, b, ro, go, bo;
@@ -1256,7 +1255,7 @@ void led_task( void * params ) {
 				colors[i] = led_from_rgb(r, g, b);
 			}
 			for (i = 0; i < NUM_LED; i++) {
-				if (!(r < 20 && g <= 20 && b <= 100)) {
+				if (!(r < 10 && g <= 10 && b <= 10)) {
 					break;
 				}
 			}
@@ -1269,7 +1268,7 @@ void led_task( void * params ) {
 			led_array(colors);
 			memcpy(colors_last, colors, sizeof(colors_last));
 
-			vTaskDelay(6);
+			vTaskDelay(20);
 		}
 		if (evnt & LED_FADE_IN_BIT) {
 			j = 0;
@@ -1328,7 +1327,7 @@ void led_task( void * params ) {
 int Cmd_led(int argc, char *argv[]) {
 	if(argc == 2) {
 		int select = atoi(argv[1]);
-		xEventGroupClearBits( led_events, 0xffffffff );
+		xEventGroupClearBits( led_events, 0xffffff );
 		xEventGroupSetBits( led_events, select );
 	}
 	return 0;
@@ -1336,7 +1335,7 @@ int Cmd_led(int argc, char *argv[]) {
 
 int Cmd_led_clr(int argc, char *argv[]) {
 
-	xEventGroupClearBits( led_events, 0xffffffff );
+	xEventGroupClearBits( led_events, 0xffffff );
 	xEventGroupSetBits( led_events, LED_RESET_BIT );
 
 	return 0;
@@ -1476,6 +1475,14 @@ void vUARTTask(void *pvParameters) {
 	char cCmdBuf[512];
 	portTickType now;
 
+
+	led_events = xEventGroupCreate();
+	if (led_events == NULL) {
+		UARTprintf("Failed to create the led_events.\n");
+	}
+
+	xTaskCreate(led_task, "ledTask", 1024 / 4, NULL, 4, NULL); //todo reduce stack
+
 	Cmd_led_clr(0,0);
 	//switch the uart lines to gpios, drive tx low and see if rx goes low as well
     // Configure PIN_57 for GPIOInput
@@ -1572,15 +1579,8 @@ void vUARTTask(void *pvParameters) {
 		UARTprintf("Failed to create the data_queue.\n");
 	}
 
-	led_events = xEventGroupCreate();
-	if (led_events == NULL) {
-		UARTprintf("Failed to create the led_events.\n");
-	}
-
-
 	xTaskCreate(loopback_uart, "loopback_uart", 1024 / 4, NULL, 2, NULL); //todo reduce stack
 	xTaskCreate(thread_audio, "audioTask", 5 * 1024 / 4, NULL, 4, NULL); //todo reduce stack
-	xTaskCreate(led_task, "ledTask", 1024 / 4, NULL, 4, NULL); //todo reduce stack
 
 	UARTprintf("*");
 	xTaskCreate(thread_spi, "spiTask", 4*1024 / 4, NULL, 5, NULL);
@@ -1590,7 +1590,7 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(AudioCaptureTask_Thread,"audioCaptureTask",4*1024/4,NULL,4,NULL);
 	UARTprintf("*");
 //	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",2*1024/4,NULL,1,NULL);
-//	UARTprintf("*");
+	UARTprintf("*");
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 3, NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_dust, "dustTask", 256 / 4, NULL, 3, NULL);
