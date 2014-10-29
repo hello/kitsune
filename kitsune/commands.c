@@ -1201,7 +1201,8 @@ void led_task( void * params ) {
 		if( evnt & LED_RESET_BIT ) {
 			memset( colors_last, 0, sizeof(colors_last) );
 			led_array( colors_last );
-			vTaskDelay(100);
+
+			xEventGroupClearBits(led_events, LED_RESET_BIT );
 		}
 
 		if (evnt & LED_SOLID_PURPLE_BIT) {
@@ -1213,7 +1214,7 @@ void led_task( void * params ) {
 			led_array(colors);
 			memcpy(colors_last, colors, sizeof(colors_last));
 
-			vTaskDelay(100);
+			xEventGroupClearBits(led_events, LED_SOLID_PURPLE_BIT );
 		}
 		if (evnt & LED_ROTATE_PURPLE_BIT) {
 			unsigned int colors[NUM_LED + 1];
