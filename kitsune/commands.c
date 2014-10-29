@@ -1409,7 +1409,7 @@ void vUARTTask(void *pvParameters) {
 	MAP_PRCMPeripheralReset(PRCM_SDHOST);
 	MAP_SDHostInit(SDHOST_BASE);
 	MAP_SDHostSetExpClk(SDHOST_BASE, MAP_PRCMPeripheralClockGet(PRCM_SDHOST),
-			1000000);
+			15000000);
 	UARTprintf("*");
 	Cmd_mnt(0, 0);
 	UARTprintf("*");
