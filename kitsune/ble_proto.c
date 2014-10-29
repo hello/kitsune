@@ -41,6 +41,47 @@ static void _factory_reset(){
     }
 }
 
+static void _reply_wifi_scan_result()
+{
+    Sl_WlanNetworkEntry_t wifi_endpoints[MAX_WIFI_EP_PER_SCAN] = {0};
+    int scanned_wifi_count = 0;
+
+    uint8_t max_retry = 3;
+    uint8_t retry_count = max_retry;
+    sl_status |= SCANNING;
+    
+    Cmd_led(0,0);
+    while((scanned_wifi_count = get_wifi_scan_result(wifi_endpoints, MAX_WIFI_EP_PER_SCAN, 3000 * (max_retry - retry_count + 1))) == 0 && --retry_count)
+    {
+
+        UARTprintf("No wifi scanned, retry times remain %d\n", retry_count);
+        vTaskDelay(500);
+    }
+
+    sl_status &= ~SCANNING;
+
+    int i = 0;
+    Sl_WlanNetworkEntry_t wifi_endpoints_cp[2] = {0};
+
+    MorpheusCommand reply_command = {0};
+    for(i = 0; i < scanned_wifi_count; i++)
+    {
+        wifi_endpoints_cp[0] = wifi_endpoints[i];
+
+		reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_START_WIFISCAN;
+		reply_command.wifi_scan_result.arg = wifi_endpoints_cp;
+		ble_send_protobuf(&reply_command);
+
+        vTaskDelay(1000);  // This number must be long enough so the BLE can get the data transmit to phone
+        memset(&reply_command, 0, sizeof(reply_command));
+    }
+
+    reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_STOP_WIFISCAN;
+	ble_send_protobuf(&reply_command);
+	UARTprintf(">>>>>>Send WIFI scan results done<<<<<<\n");
+
+}
+
 
 static bool _set_wifi(const char* ssid, const char* password)
 {
@@ -48,11 +89,27 @@ static bool _set_wifi(const char* ssid, const char* password)
     int scanned_wifi_count, connection_ret;
     memset(wifi_endpoints, 0, sizeof(wifi_endpoints));
 
-    uint8_t retry_count = 10;
+    /*
+    sl_WlanDisconnect();   // This line causes trouble, cannot get IP back after reconnect
+    // To reproduce the problem, connect to a valid WIFI first, then switch to another WIFI
+    // The 2nd connection will never managed to get the IP address event.
+    // If we don't disconnect, after the 2nd connection request, the chip will
+    // disconnect itself and successfully reconnect.
+    // But it seems I never get the UART print out get IP event, not sure if
+    // it happens or not.
+    // This chip is a mystery.
+
+	while(sl_status&HAS_IP) {
+		vTaskDelay(100);
+	}
+	*/
+
+    uint8_t max_retry = 10;
+    uint8_t retry_count = max_retry;
 
     sl_status |= SCANNING;
     
-    while((scanned_wifi_count = get_wifi_scan_result(wifi_endpoints, MAX_WIFI_EP_PER_SCAN, 1000)) == 0 && --retry_count)
+    while((scanned_wifi_count = get_wifi_scan_result(wifi_endpoints, MAX_WIFI_EP_PER_SCAN, 2000 * (max_retry - retry_count + 1))) == 0 && --retry_count)
     {
         Cmd_led(0,0);
         UARTprintf("No wifi scanned, retry times remain %d\n", retry_count);
@@ -397,10 +454,6 @@ void on_ble_protobuf_command(MorpheusCommand* command)
             const char* ssid = command->wifiSSID.arg;
             char* password = command->wifiPassword.arg;
 
-            sl_WlanDisconnect();
-            while(sl_status&HAS_IP) {
-            	vTaskDelay(1);
-            }
             // I can get the Mac address as well, but not sure it is necessary.
 
             // Just call API to connect to WIFI.
@@ -466,6 +519,12 @@ void on_ble_protobuf_command(MorpheusCommand* command)
         {
             UARTprintf("FACTORY RESET\n");
             _factory_reset();
+        }
+        break;
+        case MorpheusCommand_CommandType_MORPHEUS_COMMAND_START_WIFISCAN:
+        {
+            UARTprintf("WIFI Scan request\n");
+            _reply_wifi_scan_result();
         }
         break;
 	}
