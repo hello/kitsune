@@ -1484,7 +1484,7 @@ void vUARTTask(void *pvParameters) {
 		UARTprintf("Failed to create the led_events.\n");
 	}
 
-	xTaskCreate(led_task, "ledTask", 1024 / 4, NULL, 4, NULL); //todo reduce stack
+	xTaskCreate(led_task, "ledTask", 384 / 4, NULL, 4, NULL); //todo reduce stack
 
 	Cmd_led_clr(0,0);
 	//switch the uart lines to gpios, drive tx low and see if rx goes low as well
