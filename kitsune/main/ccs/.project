@@ -186,6 +186,16 @@
 			<locationURI>PARENT-2-PROJECT_LOC/i2c_cmd.h</locationURI>
 		</link>
 		<link>
+			<name>led_cmd.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/led_cmd.c</locationURI>
+		</link>
+		<link>
+			<name>led_cmd.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/led_cmd.h</locationURI>
+		</link>
+		<link>
 			<name>linear_svm.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/machinelearning/linear_svm.c</locationURI>
