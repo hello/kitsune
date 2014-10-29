@@ -22,6 +22,11 @@
 #endif
 
 static EventGroupHandle_t led_events;
+static struct{
+	int r;
+	int g;
+	int b;
+}user_color_t;
 
 int led_init(void){
 	led_events = xEventGroupCreate();
@@ -245,14 +250,17 @@ static uint32_t wheel(int WheelPos) {
 #define LED_SOLID_PURPLE_BIT 		0x02
 #define LED_ROTATE_PURPLE_BIT 		0x04
 #define LED_ROTATE_RAINBOW_BIT		0x08
-#define LED_CUSTOM_COLOR			0x10
+
 #define LED_FADE_IN_BIT			0x010
 #define LED_FADE_IN_FAST_BIT	0x020
 #define LED_FADE_OUT_BIT		0x040
 #define LED_FADE_OUT_FAST_BIT	0x080
+
 #define LED_FADE_OUT_ROTATE_BIT 0x100
 #define LED_FADE_OUT_STEP_BIT   0x200
 #define LED_FADE_IN_STEP_BIT    0x400
+
+#define LED_CUSTOM_COLOR		0x1000
 
 
 void led_task( void * params ) {
