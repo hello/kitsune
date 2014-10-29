@@ -103,6 +103,6 @@ void wifi_reset();
 //#define MORPH_NAME "Chris's morpheus"
 #define MORPH_NAME "test morpheus 10"
 //#define MORPH_NAME "test morpheus 80"
-#define KIT_VER 11
+#define KIT_VER 12
 
 #endif
