@@ -7,7 +7,12 @@
 #define NUM_LED 12
 #define LED_GPIO_BIT 0x1
 #define LED_GPIO_BASE GPIOA3_BASE
-static EventGroupHandle_t led_events;
+
+#define LED_LOGIC_HIGH_FAST 0
+#define LED_LOGIC_LOW_FAST LED_GPIO_BIT
+#define LED_LOGIC_HIGH_SLOW LED_GPIO_BIT
+#define LED_LOGIC_LOW_SLOW 0
+
 #if defined(ccs)
 
 #endif
@@ -16,10 +21,7 @@ static EventGroupHandle_t led_events;
 #define minval( a,b ) a < b ? a : b
 #endif
 
-#define LED_LOGIC_HIGH_FAST 0
-#define LED_LOGIC_LOW_FAST LED_GPIO_BIT
-#define LED_LOGIC_HIGH_SLOW LED_GPIO_BIT
-#define LED_LOGIC_LOW_SLOW 0
+static EventGroupHandle_t led_events;
 
 int led_init(void){
 	led_events = xEventGroupCreate();
