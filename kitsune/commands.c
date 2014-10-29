@@ -1257,20 +1257,69 @@ int Cmd_led(int argc, char *argv[]) {
 	vTaskDelay(10);
 #endif
 	//int dly = atoi(argv[2]);
+    int color_to_use = led_from_rgb( 132,0,255);
 	if(1){ //spinning arb color
     int fadeControl=0;
 
 	for (j = 0; j < 5*256; j++) {
 		for(i=0; i< 12; i++) {
 
-		      colors[i] = wheel_color(((i * 256 / 12) + j) & 255, led_from_rgb(168,0,255));
+		      colors[i] = wheel_color(((i * 256 / 12) + j) & 255, color_to_use);
 
 		}
-		led_array(colors);
+#if 1
+		if( j < 4*256 ) {
+	        memcpy( colors_original, colors, sizeof(colors_original));
+		} else {
+            unsigned int r,g,b;
+            unsigned int ro,go,bo;
+			for(i=0; i< 12; i++) {
 
+			   led_to_rgb( &colors[i], &r, &g, &b );
+			   led_to_rgb( &colors_original[i], &ro, &go, &bo );
+
+			   r = minval( r, ro );
+			   g = minval( g, go );
+			   b = minval( b, bo );
+
+			   colors_original[i] = colors[i] = led_from_rgb( r,g,b );
+			}
+			for(i=0; i< 12; i++) {
+			   if( !(r<20&&g<=20&&b<=100)) {
+				   break;
+			   }
+			}
+			if( i == 12 ) {
+				led_array(colors);
+				vTaskDelay(6);
+			   goto done;
+			}
+		}
+#endif
+		led_array(colors);
 		vTaskDelay(6);
 	}
 	}
+	done:
+	for(i=0; i< 12; i++) {
+		colors[i] = colors_original[i] = color_to_use;
+	}
+	int fadeControl=0;
+
+		for (i = 0; i < 256; i++) {
+			memcpy( colors, colors_original, sizeof(colors_original));
+			led_brightness( colors, fadeControl );
+			led_array(colors);
+
+			if (i < 256) {
+				fadeControl = i;
+			} else {
+				fadeControl = 255 - (i - 256);
+			}
+			vTaskDelay(3);
+		}
+return 0;
+
 
 	if(0){//rainbow
     int fadeControl=0;
