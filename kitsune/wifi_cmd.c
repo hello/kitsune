@@ -553,65 +553,39 @@ static bool flush_out_buffer(ostream_buffered_desc_t * desc) {
 		SHA1_Update(desc->ctx, desc->buf, buf_size);
 
 		//send
-		ret = send(desc->fd, desc->buf, buf_size, 0) == desc->buf_size;
+		ret = send(desc->fd, desc->buf, buf_size, 0) == buf_size;
 	}
 	return ret;
 }
 
-static bool write_buffered_callback_sha(pb_ostream_t *stream, const uint8_t *buf,
+static bool write_buffered_callback_sha(pb_ostream_t *stream, const uint8_t * inbuf,
         size_t count) {
 	ostream_buffered_desc_t * desc = (ostream_buffered_desc_t *) stream->state;
-	uint32_t count2 = count;
-	uint32_t bytes_left;
+
 	bool ret = true;
-	uint8_t * buf_ptr;
 
 	desc->bytes_that_should_have_been_written += count;
 
-	//if the number of incoming bytes exceed the buffer size,
-	//truncate the number copied to the buffer
-	//pos = 14, buf_size=16, count=3
-	//I should write 2 bytes (14 and 15)
-	//and save the last 1 byte
-	//a = pos + count = 17
-	//17 - buf_size = 1 ---> the one we save
-	//buf_size - pos = 2 --> the ones we write
-	bytes_left = 0;
-	if (desc->buf_pos + count > desc->buf_size) {
-		count2 = desc->buf_size - desc->buf_pos;
-		bytes_left = count - count2;
-	}
-
-	buf_ptr = desc->buf + desc->buf_pos;
-
-	memcpy(buf_ptr,buf,count2);
-
-	desc->buf_pos += count2;
-
-	//if the buffer has filled...
-	if (desc->buf_pos >= desc->buf_size) {
-		//UARTprintf("write_callback - %d bytes written\n",desc->buf_size);
+	/* Will I exceed the buffer size? then send buffer */
+	if ( (desc->buf_pos + count ) >= desc->buf_size) {
 
 		//encrypt
-	    SHA1_Update(&sha1ctx, desc->buf, desc->buf_size);
+		SHA1_Update(desc->ctx, desc->buf, desc->buf_pos);
 
-	    //send
-	    ret = send(desc->fd, desc->buf, desc->buf_size, 0) == desc->buf_size;
+		//send
+		ret = send(desc->fd, desc->buf, desc->buf_pos, 0) == desc->buf_pos;
 
-	    if (ret) {
-	    	desc->bytes_written += desc->buf_size;
-	    }
+		desc->bytes_written += desc->buf_pos;
 
-	    //set our position back to the beginning of the buffer
-	    desc->buf_pos = 0;
+		desc->buf_pos = 0;
 
 	}
 
-	if (bytes_left > 0) {
-		memcpy(desc->buf,buf + count2 + 1,bytes_left);
-		//copy out end to beginning
-		desc->buf_pos = bytes_left;
-	}
+
+	//copy to our buffer
+	memcpy(desc->buf + desc->buf_pos,inbuf,count);
+	desc->buf_pos += count;
+
 
     return ret;
 }
