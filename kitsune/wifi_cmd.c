@@ -1012,16 +1012,11 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
     int send_length = 0;
     int rv = 0;
     uint8_t sig[32]={0};
-    ostream_buffered_desc_t desc;
     size_t message_length;
     uint32_t null_stream_bytes = 0;
     bool status;
-    SHA1_CTX ctx;
 
-    memset(&desc,0,sizeof(desc));
-    desc.buf = (uint8_t *)recv_buf;
-    desc.buf_size = recv_buf_size;
-    desc.ctx = &ctx;
+
 
 
     if (!recv_buf) {
@@ -1066,35 +1061,41 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
     UARTprintf("sent %d\n\r%s\n\r", rv, recv_buf);
 
     if (encoder) {
+        ostream_buffered_desc_t desc;
+
+        SHA1_CTX ctx;
         AES_CTX aesctx;
         pb_ostream_t stream = {0};
         int i;
 
-        //todo guard sha1ctx with semaphore...
-        SHA1_Init(desc.ctx);
+        memset(&desc,0,sizeof(desc));
+        memset(&ctx,0,sizeof(ctx));
+        memset(&aesctx,0,sizeof(aesctx));
+
+        desc.buf = (uint8_t *)recv_buf;
+        desc.buf_size = recv_buf_size;
+        desc.ctx = &ctx;
+        desc.fd = (intptr_t) sock;
+
+
+        SHA1_Init(&ctx);
 
         /* Create a stream that will write to our buffer. */
-        desc.fd = (intptr_t) sock;
         stream = pb_ostream_from_sha_socket(&desc);
-        /* Now we are ready to encode the message! */
 
+        /* Now we are ready to encode the message! Let's go encode. */
         UARTprintf("data ");
         status = encoder(&stream,encodedata);
+        flush_out_buffer(&desc);
         UARTprintf("\n");
 
-        flush_out_buffer(&desc);
-
+        /* sanity checks  */
         if (desc.bytes_written != desc.bytes_that_should_have_been_written) {
-        	UARTprintf("==== ERROR ERROR ====   only %d of %d bytes written\r\n",desc.bytes_written,desc.bytes_that_should_have_been_written);
+        	UARTprintf("ERROR only %d of %d bytes written\r\n",desc.bytes_written,desc.bytes_that_should_have_been_written);
         }
 
         if (desc.bytes_written != null_stream_bytes) {
         	UARTprintf("ERROR %d bytes estimated, %d bytes were sent\r\n",null_stream_bytes,desc.bytes_written);
-
-        }
-
-        if (desc.bytes_written + sizeof(sig) + AES_IV_SIZE != message_length) {
-        	UARTprintf("ERROR %d bytes sent, we promised to send %d \r\n",desc.bytes_written + sizeof(sig) + AES_IV_SIZE,message_length);
         }
 
         /* Then just check for any errors.. */
@@ -1106,6 +1107,7 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
         //now sign it
         SHA1_Final(sig, &ctx);
 
+        /*  fill in rest of signature with random numbers (eh?) */
         for (i = SHA1_SIZE; i < sizeof(sig); ++i) {
             sig[i] = (uint8_t)rand();
         }
@@ -1118,13 +1120,18 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
 
         //memset( aesctx.iv, 0, sizeof( aesctx.iv ) );
 
+        /*  create AES initialization vector */
         UARTprintf("iv ");
         for (i = 0; i < sizeof(aesctx.iv); ++i) {
             aesctx.iv[i] = (uint8_t)rand();
             UARTprintf("%x", aesctx.iv[i]);
         }
         UARTprintf("\n");
+
+        /*  send AES initialization vector */
         rv = send(sock, aesctx.iv, AES_IV_SIZE, 0);
+
+
         if (rv != AES_IV_SIZE) {
             UARTprintf("Sending IV failed: %d\n", rv);
             return -1;
@@ -1133,7 +1140,9 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
         AES_set_key(&aesctx, aes_key, aesctx.iv, AES_MODE_128); //todo real key
         AES_cbc_encrypt(&aesctx, sig, sig, sizeof(sig));
 
+        /* send signature */
         rv = send(sock, sig, sizeof(sig), 0);
+
         if (rv != sizeof(sig)) {
             UARTprintf("Sending SHA failed: %d\n", rv);
             return -1;
