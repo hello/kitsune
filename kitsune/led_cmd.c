@@ -4,6 +4,8 @@
 #include "rom_map.h"
 #include "FreeRTOS.h"
 #include "event_groups.h"
+#include <string.h>
+
 #define NUM_LED 12
 #define LED_GPIO_BIT 0x1
 #define LED_GPIO_BASE GPIOA3_BASE
