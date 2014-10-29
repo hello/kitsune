@@ -112,7 +112,6 @@ void Speaker1()
   else
   {
 	  UARTprintf("Failed to open audio file\n\r");
-	  return;
     LOOP_FOREVER();
   }
 
@@ -143,8 +142,14 @@ void Speaker1()
     	             	}
     	  #endif
 			for( i=0;i<512;++i) {
-				speaker_data_padded[i*2+1] = speaker_data[i];
-				speaker_data_padded[i*2] = speaker_data[i+1];
+				if (i % 2){
+				speaker_data_padded[i*2+1] = 0; // speaker_data[i]
+				speaker_data_padded[i*2] = 0;
+				}
+				else{
+					speaker_data_padded[i*2+1] = speaker_data[i]; // speaker_data[i]
+					speaker_data_padded[i*2] = speaker_data[i+1];
+				}
 			}
 			Size *=2;
 
@@ -155,7 +160,6 @@ void Speaker1()
         if(iRetVal < 0)
         {
         	UARTprintf("Unable to fill buffer");
-      	  return;
           LOOP_FOREVER();
         }
       }
@@ -179,7 +183,6 @@ void Speaker1()
         else
         {
         	UARTprintf("Failed to open audio file\n\r");
-      	  return;
           LOOP_FOREVER();
         }
       }
