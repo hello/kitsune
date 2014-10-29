@@ -1197,7 +1197,7 @@ void led_task( void * params ) {
 		                0xffffffff,    /* The bits within the event group to wait for. */
 		                pdFALSE,        /* all bits should not be cleared before returning. */
 		                pdFALSE,       /* Don't wait for both bits, either bit will do. */
-		                0 );/* don't Wait for either bit to be set. */
+		                1000 );/* Wait for any bit to be set. */
 		if( evnt & LED_RESET_BIT ) {
 			memset( colors_last, 0, sizeof(colors_last) );
 			led_array( colors_last );
