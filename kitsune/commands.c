@@ -1455,6 +1455,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "topdfu", Cmd_topdfu, "update topboard firmware."},
 		{ "factory_reset", Cmd_factory_reset, "Factory reset from middle."},
 		{ "download", Cmd_download, "download test function."},
+		{ "dtm", Cmd_top_dtm, "Sends Direct Test Mode command" },
 
 		{ 0, 0, 0 } };
 

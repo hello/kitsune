@@ -121,6 +121,11 @@
 			<locationURI>PARENT-2-PROJECT_LOC/diskio.c</locationURI>
 		</link>
 		<link>
+			<name>dtm.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/dtm.h</locationURI>
+		</link>
+		<link>
 			<name>dust_cmd.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/dust_cmd.c</locationURI>

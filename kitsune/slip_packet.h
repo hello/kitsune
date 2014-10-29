@@ -6,8 +6,8 @@
  *  Prepares SLIP formated UART packet for DFU
  *
  */
-#ifndef __MCASP_IF_H__
-#define __MCASP_IF_H__
+#ifndef SLIP_PACKET_H
+#define SLIP_PACKET_H
 
 #include "stdint.h"
 
@@ -18,6 +18,7 @@ typedef struct{
 	void (*slip_display_char)(uint8_t c);
 	//user handles slip message
 	void (*slip_on_message)(uint8_t * message, uint32_t size);
+	void (*slip_on_dtm_event)(uint16_t dtm_event);
 	void (*slip_put_char)(uint8_t c);
 }slip_handler_t;
 
@@ -30,6 +31,8 @@ void slip_handle_rx(uint8_t c);
 //writes hci packet in slip format to uart
 uint32_t slip_write(const uint8_t * orig, uint32_t buffer_size);
 
+//one way street to dtm mode, call slip reset to set it back.
+void slip_dtm_mode(void);
 
 
 #endif
