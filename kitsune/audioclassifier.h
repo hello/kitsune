@@ -11,7 +11,7 @@ extern "C" {
 
 void AudioClassifier_Init(RecordAudioCallback_t recordfunc) ;
 
-void AudioClassifier_DeserializeClassifier(pb_istream_t * stream);
+void AudioClassifier_DeserializeClassifier(pb_istream_t * stream, void * data);
     
 void AudioClassifier_DataCallback(const AudioFeatures_t * pfeats);
 

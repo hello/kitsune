@@ -104,13 +104,13 @@ static bool write_int_mat(pb_ostream_t *stream, const pb_field_t *field, void * 
 }
 
 static bool write_mat_array(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
-    GetNextMatrixFunc_t next_mat_func = (GetNextMatrixFunc_t)(*arg);
+    MatrixListEncodeContext_t * context = (MatrixListEncodeContext_t  * )(*arg);
     const_MatDesc_t desc;
     pb_ostream_t sizestream;
     uint8_t isFirst = true;
+        
     
-    
-    while(next_mat_func(isFirst,&desc)) {
+    while(context->func(isFirst,&desc,context->data)) {
         isFirst = false;
         
         if (!pb_encode_tag(stream,PB_WT_STRING, field->tag)) {
@@ -324,7 +324,7 @@ uint8_t GetIntMatrix(MatDesc_t * matdesc, pb_istream_t * stream,size_t string_ma
 size_t SetMatrixMessage(pb_ostream_t * stream,
                         const char * macbytes,
                         uint32_t unix_time,
-                        GetNextMatrixFunc_t get_next_mat_func) {
+                        MatrixListEncodeContext_t * matrix_list_context) {
     
     size_t size = 0;
 
@@ -339,7 +339,7 @@ size_t SetMatrixMessage(pb_ostream_t * stream,
     mess.has_matrix_payload = 0;
     
     mess.matrix_list.funcs.encode = write_mat_array;
-    mess.matrix_list.arg = (void *)get_next_mat_func;
+    mess.matrix_list.arg = (void *)matrix_list_context;
     
     pb_get_encoded_size(&size,MatrixClientMessage_fields,&mess);
     
