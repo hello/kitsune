@@ -36,23 +36,23 @@ static void SegmentCallback(const int16_t * feats, const Segment_t * pSegment) {
 }
 
 #define OUT_BUF_SIZE (100000)
-//static void serialize_buf() {
-//    unsigned char buf[OUT_BUF_SIZE];
-//    pb_ostream_t output;
-//    size_t encodelength;
-//    std::string mytags = "";
-//    
-//    memset(buf,0,sizeof(buf));
-//    
-//    output = pb_ostream_from_buffer(buf, OUT_BUF_SIZE);
-//    
-//    encodelength = AudioClassifier_GetSerializedBuffer(&output, "abcdefg", 1337, NULL, "magic");
-//    std::cout << "length is " << encodelength << std::endl;
-//    std::ofstream file("foo.out");
-//    if (file.is_open()) {
-//        file << base64_encode(buf,encodelength) <<std::endl;
-//    }
-//}
+static void serialize_buf() {
+    unsigned char buf[OUT_BUF_SIZE];
+    pb_ostream_t output;
+    size_t encodelength;
+    std::string mytags = "";
+    
+    memset(buf,0,sizeof(buf));
+    
+    output = pb_ostream_from_buffer(buf, OUT_BUF_SIZE);
+    
+    encodelength = AudioClassifier_EncodeAudioFeatures(&output, NULL);
+    std::cout << "length is " << encodelength << std::endl;
+    std::ofstream file("foo.out");
+    if (file.is_open()) {
+        file << base64_encode(buf,encodelength) <<std::endl;
+    }
+}
 
 
 
@@ -96,7 +96,7 @@ int main(int argc, char * argv[]) {
         
     } while (inFile);
     
-    //serialize_buf();
+    serialize_buf();
 
     return 0;
 }
