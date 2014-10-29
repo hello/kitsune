@@ -1249,6 +1249,7 @@ void led_task( void * params ) {
 						color_to_use);
 
 				led_to_rgb(&colors[i], &r, &g, &b);
+				led_to_rgb(&colors_last[i], &ro, &go, &bo);
 
 				r = minval(r, ro);
 				g = minval(g, go);
@@ -1258,7 +1259,8 @@ void led_task( void * params ) {
 			}
 			++j;
 			for (i = 0; i < NUM_LED; i++) {
-				if (!(r < 10 && g <= 10 && b <= 10)) {
+				led_to_rgb(&colors[i], &r, &g, &b);
+				if (!(r < 20 && g < 20 && b < 20)) {
 					break;
 				}
 			}
