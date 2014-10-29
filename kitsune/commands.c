@@ -1592,7 +1592,8 @@ void vUARTTask(void *pvParameters) {
 #if !ONLY_MID
 	xTaskCreate(AudioCaptureTask_Thread,"audioCaptureTask",4*1024/4,NULL,4,NULL);
 	UARTprintf("*");
-//	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",2*1024/4,NULL,1,NULL);
+	AudioProcessingTask_Init();
+	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",2*1024/4,NULL,1,NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 3, NULL);
 	UARTprintf("*");
