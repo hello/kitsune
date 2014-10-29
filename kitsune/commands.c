@@ -1204,53 +1204,55 @@ void led_task( void * params ) {
 			vTaskDelay(100);
 		}
 
-		if( evnt & LED_SOLID_PURPLE_BIT ) {
-		    unsigned int colors[NUM_LED+1];
+		if (evnt & LED_SOLID_PURPLE_BIT) {
+			unsigned int colors[NUM_LED + 1];
 			int color_to_use = led_from_rgb(132, 0, 255);
 			for (i = 0; i <= NUM_LED; ++i) {
 				colors[i] = color_to_use;
 			}
 			led_array(colors);
-			memcpy( colors_last, colors, sizeof(colors_last));
+			memcpy(colors_last, colors, sizeof(colors_last));
 
 			vTaskDelay(100);
 		}
-		if( evnt & LED_ROTATE_PURPLE_BIT ) {
+		if (evnt & LED_ROTATE_PURPLE_BIT) {
 			unsigned int colors[NUM_LED + 1];
 			int color_to_use = led_from_rgb(132, 0, 255);
 			for (i = 0; i <= NUM_LED; ++i) {
-				colors[i] = wheel_color(((i * 256 / 12) + j++) & 255, color_to_use);
+				colors[i] = wheel_color(((i * 256 / 12) + j++) & 255,
+						color_to_use);
 			}
 			led_array(colors);
-			memcpy( colors_last, colors, sizeof(colors_last));
+			memcpy(colors_last, colors, sizeof(colors_last));
 
 			vTaskDelay(6);
 		}
-		if( evnt & LED_ROTATE_RAINBOW_BIT ) {
+		if (evnt & LED_ROTATE_RAINBOW_BIT) {
 			unsigned int colors[NUM_LED + 1];
 			int color_to_use = led_from_rgb(132, 0, 255);
 			for (i = 0; i <= NUM_LED; ++i) {
-				colors[i] = wheel(((i * 256 / 12) + j++) & 255 );
+				colors[i] = wheel(((i * 256 / 12) + j++) & 255);
 			}
 			led_array(colors);
-			memcpy( colors_last, colors, sizeof(colors_last));
+			memcpy(colors_last, colors, sizeof(colors_last));
 
 			vTaskDelay(20);
 		}
-		if( evnt & LED_FADE_OUT_ROTATE_BIT ) {
-			unsigned int r,g,b,ro,go,bo;
+		if (evnt & LED_FADE_OUT_ROTATE_BIT) {
+			unsigned int r, g, b, ro, go, bo;
 			unsigned int colors[NUM_LED + 1];
 			int color_to_use = led_from_rgb(132, 0, 255);
 			for (i = 0; i <= NUM_LED; ++i) {
-				colors[i] = wheel_color(((i * 256 / 12) + j++) & 255, color_to_use);
+				colors[i] = wheel_color(((i * 256 / 12) + j++) & 255,
+						color_to_use);
 
-			   led_to_rgb( &colors[i], &r, &g, &b );
+				led_to_rgb(&colors[i], &r, &g, &b);
 
-			   r = minval( r, ro );
-			   g = minval( g, go );
-			   b = minval( b, bo );
+				r = minval(r, ro);
+				g = minval(g, go);
+				b = minval(b, bo);
 
-			   colors[i] = led_from_rgb( r,g,b );
+				colors[i] = led_from_rgb(r, g, b);
 			}
 			for (i = 0; i < NUM_LED; i++) {
 				if (!(r < 20 && g <= 20 && b <= 100)) {
@@ -1259,32 +1261,35 @@ void led_task( void * params ) {
 			}
 			if (i == NUM_LED) {
 				xEventGroupClearBits(led_events, LED_FADE_OUT_ROTATE_BIT);
-				xEventGroupSetBits(led_events, LED_FADE_IN_BIT | LED_FADE_IN_FAST_BIT);
+				xEventGroupSetBits(led_events,
+						LED_FADE_IN_BIT | LED_FADE_IN_FAST_BIT);
 			}
 
 			led_array(colors);
-			memcpy( colors_last, colors, sizeof(colors_last));
+			memcpy(colors_last, colors, sizeof(colors_last));
 
 			vTaskDelay(6);
 		}
 		if (evnt & LED_FADE_IN_BIT) {
 			j = 0;
-			xEventGroupClearBits( led_events, LED_FADE_IN_BIT );
-			xEventGroupSetBits( led_events, LED_FADE_IN_STEP_BIT );
+			xEventGroupClearBits(led_events, LED_FADE_IN_BIT);
+			xEventGroupSetBits(led_events, LED_FADE_IN_STEP_BIT);
 		}
-		if( evnt & LED_FADE_IN_STEP_BIT ) { //set j to 0 first
+		if (evnt & LED_FADE_IN_STEP_BIT) { //set j to 0 first
 			unsigned int colors[NUM_LED + 1];
 			int color_to_use = led_from_rgb(132, 0, 255);
 			for (i = 0; i <= NUM_LED; i++) {
 				colors[i] = color_to_use;
 			}
-			if( j < 255 ) {
-				led_brightness(colors, ++j);
-			}
+			led_brightness(colors, ++j);
 			led_array(colors);
 			memcpy(colors_last, colors, sizeof(colors_last));
 
-			if( evnt & LED_FADE_IN_FAST_BIT ) {
+			if (j > 255) {
+				xEventGroupClearBits(led_events, LED_FADE_IN_STEP_BIT | LED_FADE_IN_FAST_BIT);
+			}
+
+			if (evnt & LED_FADE_IN_FAST_BIT) {
 				vTaskDelay(3);
 			} else {
 				vTaskDelay(6);
@@ -1292,8 +1297,8 @@ void led_task( void * params ) {
 		}
 		if (evnt & LED_FADE_OUT_BIT) {
 			j = 255;
-			xEventGroupClearBits( led_events, LED_FADE_OUT_BIT );
-			xEventGroupSetBits( led_events, LED_FADE_OUT_STEP_BIT );
+			xEventGroupClearBits(led_events, LED_FADE_OUT_BIT);
+			xEventGroupSetBits(led_events, LED_FADE_OUT_STEP_BIT);
 		}
 		if (evnt & LED_FADE_OUT_STEP_BIT) {
 			unsigned int colors[NUM_LED + 1];
@@ -1301,11 +1306,14 @@ void led_task( void * params ) {
 			for (i = 0; i <= NUM_LED; i++) {
 				colors[i] = color_to_use;
 			}
-			if (j > 0 ) {
-				led_brightness(colors, --j);
-			}
+			led_brightness(colors, --j);
 			led_array(colors);
 			memcpy(colors_last, colors, sizeof(colors_last));
+
+			if (j == 0) {
+				xEventGroupClearBits(led_events,
+						LED_FADE_OUT_STEP_BIT | LED_FADE_OUT_FAST_BIT);
+			}
 
 			if (evnt & LED_FADE_OUT_FAST_BIT) {
 				vTaskDelay(3);
