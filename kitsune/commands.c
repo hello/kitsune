@@ -1220,8 +1220,9 @@ void led_task( void * params ) {
 			unsigned int colors[NUM_LED + 1];
 			int color_to_use = led_from_rgb(132, 0, 255);
 			for (i = 0; i <= NUM_LED; ++i) {
-				colors[i] = wheel_color(((i * 256 / 12) + j++) & 255, color_to_use);
+				colors[i] = wheel_color(((i * 256 / 12) + j) & 255, color_to_use);
 			}
+			++j;
 			led_array(colors);
 			memcpy(colors_last, colors, sizeof(colors_last));
 
@@ -1231,19 +1232,20 @@ void led_task( void * params ) {
 			unsigned int colors[NUM_LED + 1];
 			int color_to_use = led_from_rgb(132, 0, 255);
 			for (i = 0; i <= NUM_LED; ++i) {
-				colors[i] = wheel(((i * 256 / 12) + j++) & 255);
+				colors[i] = wheel(((i * 256 / 12) + j) & 255);
 			}
+			++j;
 			led_array(colors);
 			memcpy(colors_last, colors, sizeof(colors_last));
 
-			vTaskDelay(100);
+			vTaskDelay(20);
 		}
 		if (evnt & LED_FADE_OUT_ROTATE_BIT) {
 			unsigned int r, g, b, ro, go, bo;
 			unsigned int colors[NUM_LED + 1];
 			int color_to_use = led_from_rgb(132, 0, 255);
 			for (i = 0; i <= NUM_LED; ++i) {
-				colors[i] = wheel_color(((i * 256 / 12) + j++) & 255,
+				colors[i] = wheel_color(((i * 256 / 12) + j) & 255,
 						color_to_use);
 
 				led_to_rgb(&colors[i], &r, &g, &b);
@@ -1254,6 +1256,7 @@ void led_task( void * params ) {
 
 				colors[i] = led_from_rgb(r, g, b);
 			}
+			++j;
 			for (i = 0; i < NUM_LED; i++) {
 				if (!(r < 10 && g <= 10 && b <= 10)) {
 					break;
