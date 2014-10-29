@@ -430,9 +430,12 @@ int Cmd_led(int argc, char *argv[]) {
 		xEventGroupSetBits( led_events, select );
 	}else if(argc > 2){
 		if(strcmp(argv[1], "color") == 0 && argc >= 5){
-			user_color_t.r = minval(254, atoi(argv[2]));
-			user_color_t.g = minval(254, atoi(argv[3]));
-			user_color_t.b = minval(254, atoi(argv[4]));
+			user_color_t.r = minval(128, atoi(argv[2]));
+			user_color_t.g = minval(128, atoi(argv[3]));
+			user_color_t.b = minval(128, atoi(argv[4]));
+			user_color_t.r = user_color_t.r>0?user_color_t.r:0;
+			user_color_t.g = user_color_t.g>0?user_color_t.g:0;
+			user_color_t.b = user_color_t.b>0?user_color_t.b:0;
 			UARTprintf("Setting colors R: %d, G: %d, B: %d \r\n", user_color_t.r, user_color_t.g, user_color_t.b);
 			xEventGroupClearBits( led_events, 0xffffff );
 			xEventGroupSetBits( led_events, LED_CUSTOM_COLOR );
