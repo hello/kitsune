@@ -1171,10 +1171,11 @@ uint32_t wheel(int WheelPos) {
 	}
 }
 
-#define LED_RESET_BIT 				1
-#define LED_SOLID_PURPLE_BIT 		2
-#define LED_ROTATE_PURPLE_BIT 		4
-#define LED_ROTATE_RAINBOW_BIT		8
+#define LED_RESET_BIT 				0x01
+#define LED_SOLID_PURPLE_BIT 		0x02
+#define LED_ROTATE_PURPLE_BIT 		0x04
+#define LED_ROTATE_RAINBOW_BIT		0x08
+#define LED_CUSTOM_COLOR			0x10
 #define LED_FADE_IN_BIT			0x010
 #define LED_FADE_IN_FAST_BIT	0x020
 #define LED_FADE_OUT_BIT		0x040
