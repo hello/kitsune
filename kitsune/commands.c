@@ -1335,10 +1335,9 @@ int Cmd_led(int argc, char *argv[]) {
 }
 
 int Cmd_led_clr(int argc, char *argv[]) {
-	unsigned int colors[NUM_LED];
 
-	memset(colors, 0, sizeof(colors));
-	led_array(colors);
+	xEventGroupClearBits( led_events, 0xffffffff );
+	xEventGroupSetBits( led_events, LED_RESET_BIT );
 
 	return 0;
 }
