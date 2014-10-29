@@ -32,6 +32,11 @@
 			<locationURI>PARENT-2-PROJECT_LOC/third_party/FreeRTOS/source/croutine.c</locationURI>
 		</link>
 		<link>
+			<name>event_groups.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/third_party/FreeRTOS/source/event_groups.c</locationURI>
+		</link>
+		<link>
 			<name>heap_4.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/third_party/FreeRTOS/source/portable/MemMang/heap_4.c</locationURI>
