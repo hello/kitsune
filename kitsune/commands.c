@@ -41,6 +41,7 @@
 #include "ustdlib.h"
 #include "uartstdio.h"
 
+#include "networktask.h"
 #include "wifi_cmd.h"
 #include "i2c_cmd.h"
 #include "dust_cmd.h"
@@ -1480,6 +1481,10 @@ void loopback_uart(void * p) {
 void vUARTTask(void *pvParameters) {
 	char cCmdBuf[512];
 	portTickType now;
+	NetworkTaskData_t network_task_data;
+
+	memset(&network_task_data,0,sizeof(network_task_data));
+	network_task_data.host = DATA_SERVER;
 
 
 	led_events = xEventGroupCreate();
@@ -1590,6 +1595,9 @@ void vUARTTask(void *pvParameters) {
 
 	UARTprintf("*");
 	xTaskCreate(thread_spi, "spiTask", 4*1024 / 4, NULL, 5, NULL);
+
+	xTaskCreate(NetworkTask_Thread,"networkTask",2*1024/4,&network_task_data,1,NULL);
+
 	SetupGPIOInterrupts();
 	UARTprintf("*");
 #if !ONLY_MID

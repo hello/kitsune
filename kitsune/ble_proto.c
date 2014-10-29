@@ -12,6 +12,7 @@
 #include "assert.h"
 #include "stdlib.h"
 #include "stdio.h"
+#include "networktask.h"
 
 extern unsigned int sl_status;
 int Cmd_led(int argc, char *argv[]);
@@ -393,14 +394,15 @@ static void _send_response_to_ble(const char* buffer, size_t len)
     memset(&response, 0, sizeof(response));
     ble_proto_assign_decode_funcs(&response);
 
-    if(decode_rx_data_pb((unsigned char*)content, content_len, MorpheusCommand_fields, &response, sizeof(response)) != 0)
+    if(decode_rx_data_pb((unsigned char*)content, content_len, MorpheusCommand_fields, &response) == 0)
     {
-        UARTprintf("Invalid response, protobuf decryption & decode failed.\n");
-        ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
-    }else{
+    	ble_send_protobuf(&response);
 
-        ble_send_protobuf(&response);
+    }else{
+    	UARTprintf("Invalid response, protobuf decryption & decode failed.\n");
+    	ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
     }
+
     ble_proto_remove_decode_funcs(&response);
     ble_proto_free_command(&response);
 }
@@ -408,6 +410,7 @@ static void _send_response_to_ble(const char* buffer, size_t len)
 static void _pair_device( MorpheusCommand* command, int is_morpheus)
 {
 	char response_buffer[256] = {0};
+	int ret;
 	if(NULL == command->accountId.arg || NULL == command->deviceId.arg){
 		UARTprintf("****************************************Missing fields\n");
 		ble_reply_protobuf_error(ErrorType_INTERNAL_DATA_ERROR);
@@ -418,20 +421,14 @@ static void _pair_device( MorpheusCommand* command, int is_morpheus)
 		// TODO: Figure out why always get -1 when this is the 1st request
 		// after the IPv4 retrieved.
 
-		int ret = send_data_pb(DATA_SERVER,
+#define MAX_RETRY_TIME_IN_TICKS (5000)
+		ret = NetworkTask_SynchronousSendProtobuf(
 				is_morpheus == 1 ? MORPHEUS_REGISTER_ENDPOINT : PILL_REGISTER_ENDPOINT,
-				response_buffer, sizeof(response_buffer),
-				MorpheusCommand_fields, command);
-
-		while(ret != 0 && retry_count--){
-			UARTprintf("Network error, try to resend command...\n");
-			vTaskDelay(1000);
-			ret = send_data_pb(DATA_SERVER,
-				is_morpheus == 1 ? MORPHEUS_REGISTER_ENDPOINT : PILL_REGISTER_ENDPOINT,
-				response_buffer, sizeof(response_buffer),
-				MorpheusCommand_fields, command);
-
-		}
+				response_buffer,
+				sizeof(response_buffer),
+				MorpheusCommand_fields,
+				command,
+				MAX_RETRY_TIME_IN_TICKS);
 
 		// All the args are in stack, don't need to do protobuf free.
 

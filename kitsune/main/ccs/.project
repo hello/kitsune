@@ -211,6 +211,11 @@
 			<locationURI>virtual:/virtual</locationURI>
 		</link>
 		<link>
+			<name>networktask.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/networktask.c</locationURI>
+		</link>
+		<link>
 			<name>ota_usr.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/ota_usr.h</locationURI>

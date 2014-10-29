@@ -14,6 +14,7 @@
 #include "ota_api.h"
 
 #include "wifi_cmd.h"
+#include "networktask.h"
 
 #define ROLE_INVALID (-5)
 
@@ -778,7 +779,8 @@ int send_audio_wifi(char * buffer, int buffer_size, audio_read_cb arcb) {
 #define SIG_SIZE 32
 #include "SyncResponse.pb.h"
 
-int decode_rx_data_pb(const unsigned char * buffer, int buffer_size, const pb_field_t fields[], void* dst_struct, size_t dst_struct_len) {
+
+int decode_rx_data_pb_callback(const uint8_t * buffer, uint32_t buffer_size, void * decodedata,network_decode_callback_t decoder) {
 	AES_CTX aesctx;
 	unsigned char * buf_pos = (unsigned char*)buffer;
 	unsigned char sig[SIG_SIZE] = {0};
@@ -786,7 +788,12 @@ int decode_rx_data_pb(const unsigned char * buffer, int buffer_size, const pb_fi
 	int i;
 	int status;
 	pb_istream_t stream;
-    memset(dst_struct, 0, dst_struct_len);
+
+
+	if (!decoder) {
+		return -1;
+	}
+
 
 	//memset( aesctx.iv, 0, sizeof( aesctx.iv ) );
 
@@ -837,7 +844,7 @@ int decode_rx_data_pb(const unsigned char * buffer, int buffer_size, const pb_fi
 	/* Now we are ready to decode the message! */
 
 	UARTprintf("data ");
-	status = pb_decode(&stream, fields, dst_struct);
+	status = decoder(&stream,decodedata);
 	UARTprintf("\n");
 
 	/* Then just check for any errors.. */
@@ -848,6 +855,29 @@ int decode_rx_data_pb(const unsigned char * buffer, int buffer_size, const pb_fi
 
 	return 0;
 }
+
+
+
+
+static uint32_t default_decode_callback(pb_istream_t * stream, void * data) {
+	network_decode_data_t * decoderinfo = (network_decode_data_t *) data;
+	return pb_decode(stream,decoderinfo->fields,decoderinfo->decodedata);
+}
+
+int decode_rx_data_pb(const uint8_t * buffer, uint32_t buffer_size, const pb_field_t fields[],void * structdata) {
+	network_decode_data_t decode_data;
+	int ret;
+
+	decode_data.fields = fields;
+	decode_data.decodedata = structdata;
+
+	ret = decode_rx_data_pb_callback(buffer,buffer_size,&decode_data,default_decode_callback);
+
+	return ret;
+}
+
+
+
 #endif
 
 
@@ -890,20 +920,22 @@ int match(char *regexp, char *text)
 }
 
 //buffer needs to be at least 128 bytes...
-int send_data_pb(const char* host, const char* path, 
-    char * buffer_out, int buffer_size, 
-    const pb_field_t fields[], const void *src_struct) {
-
-    int send_length;
+int send_data_pb_callback(const char* host, const char* path,char * recv_buf, uint32_t recv_buf_size,const void * encodedata,network_encode_callback_t encoder) {
+    int send_length = 0;
     int rv = 0;
     uint8_t sig[32]={0};
 
     size_t message_length;
     bool status;
 
-    {
+    if (!recv_buf) {
+    	UARTprintf("send_data_pb_callback needs a buffer\r\n");
+    	return -1;
+    }
+
+    if (encoder) {
         pb_ostream_t stream = {0};
-        status = pb_encode(&stream, fields, src_struct);
+        status = encoder(&stream,encodedata);
         if(!status)
         {
             UARTprintf("Encode protobuf failed, %s\n", PB_GET_ERROR(&stream));
@@ -914,12 +946,12 @@ int send_data_pb(const char* host, const char* path,
         UARTprintf("message len %d sig len %d\n\r\n\r", stream.bytes_written, sizeof(sig));
     }
 
-    snprintf(buffer_out, buffer_size, "POST %s HTTP/1.1\r\n"
+    snprintf(recv_buf, recv_buf_size, "POST %s HTTP/1.1\r\n"
             "Host: %s\r\n"
             "Content-type: application/x-protobuf\r\n"
             "Content-length: %d\r\n"
             "\r\n", path, host, message_length);
-    send_length = strlen(buffer_out);
+    send_length = strlen(recv_buf);
 
     //setup the connection
     if( start_connection() < 0 ) {
@@ -927,15 +959,15 @@ int send_data_pb(const char* host, const char* path,
         return -1;
     }
 
-    //UARTprintf("Sending request\n\r%s\n\r", buffer_out);
-    rv = send(sock, buffer_out, send_length, 0);
+    //UARTprintf("Sending request\n\r%s\n\r", recv_buf);
+    rv = send(sock, recv_buf, send_length, 0);
     if (rv <= 0) {
         UARTprintf("send error %d\n\r\n\r", rv);
         return stop_connection();
     }
-    UARTprintf("sent %d\n\r%s\n\r", rv, buffer_out);
+    UARTprintf("sent %d\n\r%s\n\r", rv, recv_buf);
 
-    {
+    if (encoder) {
         pb_ostream_t stream = {0};
         int i;
 
@@ -947,7 +979,7 @@ int send_data_pb(const char* host, const char* path,
         /* Now we are ready to encode the message! */
 
         UARTprintf("data ");
-        status = pb_encode(&stream, fields, src_struct);
+        status = encoder(&stream,encodedata);
         UARTprintf("\n");
 
         /* Then just check for any errors.. */
@@ -999,10 +1031,12 @@ int send_data_pb(const char* host, const char* path,
         }
         UARTprintf("\n");
     }
-    memset(buffer_out, 0, buffer_size);
+
+
+    memset(recv_buf, 0, recv_buf_size);
 
     //UARTprintf("Waiting for reply\n\r\n\r");
-    rv = recv(sock, buffer_out, buffer_size, 0);
+    rv = recv(sock, recv_buf, recv_buf_size, 0);
     if (rv <= 0) {
         UARTprintf("recv error %d\n\r\n\r", rv);
         return stop_connection();
@@ -1257,6 +1291,7 @@ static void _on_response_protobuf(const SyncResponse* response_protobuf)
 int send_periodic_data( data_t * data ) {
     char buffer[256] = {0};
     periodic_data msg = {0};
+    int ret;
 
     //build the message
     msg.has_firmware_version = true;
@@ -1295,7 +1330,10 @@ int send_periodic_data( data_t * data ) {
     msg.pills.funcs.encode = encode_pill_list;
     msg.pills.arg = data->pill_list;
 
-    int ret = send_data_pb(DATA_SERVER, DATA_RECEIVE_ENDPOINT, buffer, sizeof(buffer), periodic_data_fields, &msg);
+    //set this to zero--it won't retry, since retrying is handled by an outside loop
+#define MAX_RETRY_TIME_IN_TICKS_PERIODIC_DATA (0)
+    ret = NetworkTask_SynchronousSendProtobuf(DATA_RECEIVE_ENDPOINT,buffer,sizeof(buffer),periodic_data_fields,&msg,MAX_RETRY_TIME_IN_TICKS_PERIODIC_DATA);
+
     if(ret != 0)
     {
         // network error
@@ -1328,7 +1366,7 @@ int send_periodic_data( data_t * data ) {
     SyncResponse response_protobuf;
     memset(&response_protobuf, 0, sizeof(response_protobuf));
 
-    if(decode_rx_data_pb((unsigned char*) content, len, SyncResponse_fields, &response_protobuf, sizeof(response_protobuf)) == 0)
+    if(decode_rx_data_pb((unsigned char*) content, len, SyncResponse_fields, &response_protobuf) == 0)
     {
         UARTprintf("Decoding success: %d %d %d %d %d %d\n",
         response_protobuf.has_acc_sampling_interval,
