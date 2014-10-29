@@ -8,7 +8,7 @@
 #include "hellomath.h"
 #include "machinelearning/hmm.h"
 #include <math.h>
-
+#include <assert.h>
 #include <string.h>
 
 #define CIRCULAR_FEATBUF_SIZE_2N (5)
@@ -72,6 +72,8 @@ typedef struct {
     const DataBuffer_t * buf;
     uint16_t currentidx;
     uint8_t state;
+    int8_t unpackedbuffer[BUF_SIZE_IN_CHUNK][NUM_AUDIO_FEATURES]; //32 * 16 * 1  = 512 bytes
+
 } Encoder_t;
 
 static const char * k_id_feature_chunk = "feature_chunk";
@@ -356,16 +358,17 @@ void AudioClassifier_DataCallback(const AudioFeatures_t * pfeats) {
 /* sadly this is not stateless, but was the only way to serialize chunks one at a time */
 static uint8_t GetNextMatrixCallback(uint8_t isFirst,const_MatDesc_t * pdesc,void * data) {
     
-    int8_t unpackedbuffer[BUF_SIZE_IN_CHUNK][NUM_AUDIO_FEATURES]; //32 * 16 * 1  = 512 bytes
     
     Encoder_t * encodedata = (Encoder_t *)data;
     
     const AudioFeatureChunk_t * pchunk;
-    int16_t * bufptr16 = (int16_t *) &unpackedbuffer[0][0];
-    const int16_t * beginning16 = (int16_t *) &unpackedbuffer[0][0];
+    int16_t * bufptr16 = (int16_t *) &encodedata->unpackedbuffer[0][0];
+    const int16_t * beginning16 = (int16_t *) &encodedata->unpackedbuffer[0][0];
 
     uint16_t endidx;
     uint16_t i;
+    
+    assert(encodedata->buf == &_buffer);
     
     memset(pdesc,0,sizeof(const_MatDesc_t));
     
@@ -391,7 +394,7 @@ static uint8_t GetNextMatrixCallback(uint8_t isFirst,const_MatDesc_t * pdesc,voi
         pdesc->id = k_id_feature_chunk;
 
         for (i = 0; i < BUF_SIZE_IN_CHUNK; i++) {
-            UnpackFeats8(unpackedbuffer[i], pchunk->packedbuf[i]);
+            UnpackFeats8(encodedata->unpackedbuffer[i], pchunk->packedbuf[i]);
         }
       /*
         for (i = 0; i < NUM_AUDIO_FEATURES; i++) {
@@ -403,7 +406,7 @@ static uint8_t GetNextMatrixCallback(uint8_t isFirst,const_MatDesc_t * pdesc,voi
        
         pdesc->data.len = BUF_SIZE_IN_CHUNK * NUM_AUDIO_FEATURES;
         pdesc->data.type = esint8;
-        pdesc->data.data.sint8 = &unpackedbuffer[0][0];
+        pdesc->data.data.sint8 = &encodedata->unpackedbuffer[0][0];
         pdesc->rows = BUF_SIZE_IN_CHUNK;
         pdesc->cols = NUM_AUDIO_FEATURES;
 
