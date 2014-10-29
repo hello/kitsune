@@ -1,6 +1,7 @@
 #include "led_cmd.h"
 #include <stdbool.h>
 #include <hw_memmap.h>
+#include <stdlib.h>
 #include "rom_map.h"
 #include "FreeRTOS.h"
 #include "event_groups.h"
@@ -265,6 +266,7 @@ static uint32_t wheel(int WheelPos) {
 #define LED_CUSTOM_COLOR		0x1000
 
 
+
 void led_task( void * params ) {
 	int i,j;
 	unsigned int colors_last[NUM_LED+1];
@@ -286,7 +288,17 @@ void led_task( void * params ) {
 
 			xEventGroupClearBits(led_events, LED_RESET_BIT );
 		}
-
+		if (evnt & LED_CUSTOM_COLOR){
+			unsigned int colors[NUM_LED + 1];
+			int color_to_use = led_from_rgb(user_color_t.r, user_color_t.g,
+					user_color_t.b);
+			for (i = 0; i <= NUM_LED; ++i) {
+				colors[i] = color_to_use;
+			}
+			led_array(colors);
+			memcpy(colors_last, colors, sizeof(colors_last));
+			xEventGroupClearBits(led_events, LED_CUSTOM_COLOR);
+		}
 		if (evnt & LED_SOLID_PURPLE_BIT) {
 			unsigned int colors[NUM_LED + 1];
 			int color_to_use = led_from_rgb(132, 0, 255);
@@ -414,8 +426,17 @@ void led_task( void * params ) {
 int Cmd_led(int argc, char *argv[]) {
 	if(argc == 2) {
 		int select = atoi(argv[1]);
-		xEventGroupClearBits( led_events, 0xffffff );
+		xEventGroupClearBits( led_events, 0xffffffff );
 		xEventGroupSetBits( led_events, select );
+	}else if(argc > 2){
+		if(strcmp(argv[1], "color") == 0 && argc >= 5){
+			user_color_t.r = minval(254, atoi(argv[2]));
+			user_color_t.g = minval(254, atoi(argv[3]));
+			user_color_t.b = minval(254, atoi(argv[4]));
+			UARTprintf("Setting colors R: %d, G: %d, B: %d \r\n", user_color_t.r, user_color_t.g, user_color_t.b);
+			xEventGroupClearBits( led_events, 0xffffff );
+			xEventGroupSetBits( led_events, LED_CUSTOM_COLOR );
+		}
 	}
 	return 0;
 }
