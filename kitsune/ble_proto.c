@@ -466,8 +466,14 @@ void on_ble_protobuf_command(MorpheusCommand* command)
 
             // Just call API to connect to WIFI.
             UARTprintf("Wifi SSID %s, pswd %s \n", ssid, password);
-            _set_wifi(ssid, (char*)password, 
-                command->security_type == wifi_endpoint_sec_type_SL_SCAN_SEC_TYPE_WPA2 ? SL_SEC_TYPE_WPA_WPA2 : command->security_type);
+
+            int sec_type = SL_SEC_TYPE_WPA_WPA2;
+            if(command->has_security_type)
+            {
+            	sec_type = command->security_type == wifi_endpoint_sec_type_SL_SCAN_SEC_TYPE_WPA2 ? SL_SEC_TYPE_WPA_WPA2 : command->security_type;
+            }
+
+            _set_wifi(ssid, (char*)password, sec_type);
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_PAIRING_MODE:  // Just for testing
