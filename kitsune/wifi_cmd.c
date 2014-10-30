@@ -1104,7 +1104,7 @@ bool encode_serialized_pill_list(pb_ostream_t *stream, const pb_field_t *field, 
 
     // The serilized pill list already has tags encoded, don't need to write tag anymore
     // just write the bytes straight into the stream.
-    UARTprintf("raw len: %d\n", array_holder->length);
+    UARTprintf("raw len: %d, tag: %d\n", array_holder->length, field->tag);
     return pb_write(stream, array_holder->buffer, array_holder->length);
 }
 
