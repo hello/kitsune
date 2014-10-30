@@ -112,20 +112,23 @@ static bool _set_wifi(const char* ssid, const char* password)
     uint8_t retry_count = max_retry;
 
     sl_status |= SCANNING;
-    
+    play_led_progress_bar(30,30,0,0);
     while((scanned_wifi_count = get_wifi_scan_result(wifi_endpoints, MAX_WIFI_EP_PER_SCAN, 2000 * (max_retry - retry_count + 1))) == 0 && --retry_count)
     {
-        Cmd_led(0,0);
+        //Cmd_led(0,0);
         UARTprintf("No wifi scanned, retry times remain %d\n", retry_count);
+        set_led_progress_bar((max_retry - retry_count ) * 100 / max_retry);
         vTaskDelay(500);
     }
+    stop_led_animation();
 
     if(scanned_wifi_count == 0)
     {
-        Cmd_led(0,0);
+        //Cmd_led(0,0);
         sl_status &= ~SCANNING;
     	UARTprintf("No wifi found after retry %d times\n", 10);
         ble_reply_protobuf_error(ErrorType_NO_ENDPOINT_IN_RANGE);
+        led_set_color(30,0,0,1,1,30,0);
     	return 0;
     }
 
@@ -133,37 +136,41 @@ static bool _set_wifi(const char* ssid, const char* password)
 
     retry_count = 10;
     SlSecParams_t secParams = {0};
-
+    play_led_progress_bar(30,30,0,0);
     while((connection_ret = connect_scanned_endpoints(ssid, password, wifi_endpoints, scanned_wifi_count, &secParams)) == 0 && --retry_count)
 	{
-		Cmd_led(0,0);
+		//Cmd_led(0,0);
+    	set_led_progress_bar((10 - retry_count ) * 100 / 10);
 		UARTprintf("Failed to connect, retry times remain %d\n", retry_count);
 		vTaskDelay(500);
 	}
-
+    stop_led_animation();
 
     if(!connection_ret)
     {
 		UARTprintf("Tried all wifi ep, all failed to connect\n");
         ble_reply_protobuf_error(ErrorType_WLAN_CONNECTION_ERROR);
+        led_set_color(30,0,0,1,1,33,0);
 		return 0;
     }else{
 		uint8_t wait_time = 10;
 
 		sl_status |= CONNECTING;
-
+		play_led_progress_bar(30,30,0,0);
 		while(--wait_time && (!(sl_status & HAS_IP)))
 		{
-			Cmd_led(0,0);
+			//Cmd_led(0,0);
+			set_led_progress_bar((10 - wait_time ) * 100 / 10);
 			UARTprintf("Retrieving IP address...\n");
 			vTaskDelay(1000);
 		}
-
+		stop_led_animation();
 		if(!(sl_status & HAS_IP))
 		{
-			Cmd_led(0,0);
+			//Cmd_led(0,0);
 			UARTprintf("!!WIFI set without network connection.");
             ble_reply_protobuf_error(ErrorType_FAIL_TO_OBTAIN_IP);
+            led_set_color(30,0,0,1,1,30,0);
 			return 0;
 		}
     }
@@ -175,6 +182,7 @@ static bool _set_wifi(const char* ssid, const char* password)
 
     UARTprintf("Connection attempt issued.\n");
     ble_send_protobuf(&reply_command);
+    led_set_color(0,30,0,1,1,33,0);
     return 1;
 }
 
