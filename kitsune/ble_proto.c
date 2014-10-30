@@ -13,6 +13,7 @@
 #include "stdlib.h"
 #include "stdio.h"
 #include "networktask.h"
+#include "led_animations.h"
 
 extern unsigned int sl_status;
 int Cmd_led(int argc, char *argv[]);
