@@ -10,6 +10,7 @@ int Cmd_led_animate(int argc, char *argv[]);
 
 //custom animations
 void play_led_animation_pulse(void);
+void play_led_trippy(void);
 
 #ifdef __cplusplus
 }
