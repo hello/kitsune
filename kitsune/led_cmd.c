@@ -342,9 +342,11 @@ void led_task( void * params ) {
 					vTaskDelay(delay);
 				}else{
 					xEventGroupClearBits(led_events,LED_CUSTOM_ANIMATION);
+					xEventGroupSetBits(led_events,LED_RESET_BIT);
 				}
 			}else{
 				xEventGroupClearBits(led_events,LED_CUSTOM_ANIMATION);
+				xEventGroupSetBits(led_events,LED_RESET_BIT);
 			}
 		}
 		if (evnt & LED_SOLID_PURPLE_BIT) {
