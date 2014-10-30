@@ -1281,7 +1281,22 @@ static bool encode_pill_list(pb_ostream_t *stream, const pb_field_t *field, void
 }
 
 
+bool get_mac(unsigned char mac[6]) {
+	int32_t ret;
+	unsigned char mac_len = 6;
 
+	ret = sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
+
+    if(ret != 0 && ret != SL_ESMALLBUF)
+    {
+    	UARTprintf("encode_mac_as_device_id_string: Fail to get MAC addr, err %d\n", ret);
+        return false;  // If get mac failed, don't encode that field
+    }
+
+
+
+    return ret;
+}
 
 bool encode_mac(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
     unsigned char mac[6];
