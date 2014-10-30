@@ -17,6 +17,16 @@ typedef void (*NetworkResponseCallback_t)(const NetworkResponse_t * response);
 
 
 typedef struct {
+	/* This will be called before you encode or decode */
+	network_prep_callback_t prepare;
+
+	/* This will called AFTER you encode or decode, including during timeouts  */
+	network_prep_callback_t unprepare;
+
+	void * prepdata;
+
+
+
 
 	//optional encode and decode callbacks.  You can have one or both enabled.
 	network_encode_callback_t encode; //optional encode callback.  If you're just polling, you don't need this

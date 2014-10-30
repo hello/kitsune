@@ -18,6 +18,7 @@ audiofeatures.c
 audioclassifier.c
 nanopb/pb_decode.c
 nanopb/pb_encode.c
+nanopb/pb_common.c
 protobuf/matrix.pb.c
 debugutils/matmessageutils.c
 debugutils/DebugLog.cpp
