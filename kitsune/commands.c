@@ -598,16 +598,16 @@ void thread_fast_i2c_poll(void * unused)  {
 					adjust = light - 80;
 				}
 				if( sl_status & UPLOADING ) {
-					led_set_color( 0,0,255+adjust, 1, 1, 3 ); //blue
+					led_set_color( 0,0,255+adjust, 1, 1, 3, 1 ); //blue
 			 	}
 			 	else if( sl_status & HAS_IP ) {
-					led_set_color( 0,255+adjust,0, 1, 1, 3 ); //green
+					led_set_color( 0,255+adjust,0, 1, 1, 3, 1 ); //green
 			 	}
 			 	else if( sl_status & CONNECTING ) {
-			 		led_set_color( 255+adjust,255+adjust,0, 1, 1, 3 ); //yellow
+			 		led_set_color( 255+adjust,255+adjust,0, 1, 1, 3, 1 ); //yellow
 			 	}
 			 	else if( sl_status & SCANNING ) {
-			 		led_set_color( 255+adjust,0,0, 1, 1, 3 ); //red
+			 		led_set_color( 255+adjust,0,0, 1, 1, 3, 1 ); //red
 			 	}
 			}
 			last_prox = prox;
