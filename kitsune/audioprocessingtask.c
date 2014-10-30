@@ -6,6 +6,7 @@
 #include "audioprocessingtask.h"
 #include "audioclassifier.h"
 #include "networktask.h"
+#include "wifi_cmd.h"
 
 #define INBOX_QUEUE_LENGTH (6)
 static xQueueHandle _queue = NULL;
@@ -14,11 +15,11 @@ static uint8_t _decodebuf[1024];
 static uint32_t samplecounter;
 
 #define AUDIO_UPLOAD_PERIOD_IN_MS (60000)
-#define AUDIO_UPLOAD_PERIOD_IN_TICKS (AUDIO_UPLOAD_PERIOD_IN_MS / SAMPLE_PERIOD_IN_MILLISECONDS / 2 / 6 )
+#define AUDIO_UPLOAD_PERIOD_IN_TICKS (AUDIO_UPLOAD_PERIOD_IN_MS / SAMPLE_PERIOD_IN_MILLISECONDS / 2)
 
 
 static const char * k_audio_endpoint = "/audio/features";
-
+static DeviceCurrentInfo_t _deviceCurrentInfo;
 
 
 static void RecordCallback(const RecordAudioRequest_t * request) {
@@ -81,11 +82,16 @@ static void SetUpUpload(void) {
 
 	message.endpoint = k_audio_endpoint;
 	message.response_callback = NetworkResponseFunc;
-	message.retry_timeout = 8000;
+	message.retry_timeout = 0; //just try once
 	message.prepare = Prepare;
 	message.unprepare = Unprepare;
 
 	message.encode = AudioClassifier_EncodeAudioFeatures;
+
+	get_mac(_deviceCurrentInfo.mac);
+	_deviceCurrentInfo.unix_time = unix_time();
+
+	message.encodedata = (void *) &_deviceCurrentInfo;
 
 	NetworkTask_AddMessageToQueue(&message);
 }

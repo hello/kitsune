@@ -459,10 +459,15 @@ static uint8_t GetNextMatrixCallback(uint8_t isFirst,const_MatDesc_t * pdesc,voi
 uint32_t AudioClassifier_EncodeAudioFeatures(pb_ostream_t * stream,const void * encode_data) {
     
     uint32_t size = 0;
-    const char * macbytes = "ffffff";
+    uint8_t macbytes[6] = {0};
     uint32_t unix_time = 0;
-    const char * tags = NULL;
-    const char * source = NULL;
+
+
+    if (encode_data) {
+        DeviceCurrentInfo_t * pinfo = (DeviceCurrentInfo_t *) encode_data; //passing in mac address
+        memcpy(macbytes,pinfo->mac,6);
+        unix_time = pinfo->unix_time;
+    }
 
     MatrixListEncodeContext_t context;
     Encoder_t encoderstruct;

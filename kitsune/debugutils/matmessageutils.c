@@ -11,6 +11,12 @@ typedef struct {
     size_t maxlen;
 } StringDesc_t;
 
+typedef struct {
+	uint8_t * bytes;
+	uint32_t len;
+} bytes_desc_t;
+
+
 static bool write_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
     const char * str = (const char *)(*arg);
     static const char nullchar = '\0';
@@ -29,6 +35,22 @@ static bool write_string(pb_ostream_t *stream, const pb_field_t *field, void * c
  
     
     
+    return 1;
+
+}
+
+static bool write_bytes(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
+	bytes_desc_t * desc = (bytes_desc_t *)(*arg);
+
+
+    //write tag
+    if (!pb_encode_tag(stream, PB_WT_STRING, field->tag)) {
+        return 0;
+    }
+
+
+    pb_encode_string(stream,desc->bytes, desc->len);
+
     return 1;
 
 }
@@ -321,20 +343,24 @@ uint8_t GetIntMatrix(MatDesc_t * matdesc, pb_istream_t * stream,size_t string_ma
     return false;
 }
 
+
 size_t SetMatrixMessage(pb_ostream_t * stream,
-                        const char * macbytes,
+                        uint8_t * macbytes,
                         uint32_t unix_time,
                         MatrixListEncodeContext_t * matrix_list_context) {
     
     size_t size = 0;
-
+    bytes_desc_t bytedesc;
     MatrixClientMessage mess;
     
+    bytedesc.bytes = (uint8_t *)macbytes;
+    bytedesc.len = 6;
+
     mess.unix_time = unix_time;
     mess.has_unix_time = 1;
     
-    mess.mac.funcs.encode = write_string;
-    mess.mac.arg = (void*)macbytes;
+    mess.mac.funcs.encode = write_bytes;
+    mess.mac.arg = (void*)&bytedesc;
     
     mess.has_matrix_payload = 0;
     

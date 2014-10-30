@@ -93,7 +93,7 @@ extern "C" {
     
     
     size_t SetMatrixMessage(pb_ostream_t * stream,
-                            const char * macbytes,
+            				uint8_t * macbytes,
                             uint32_t unix_time,
                             MatrixListEncodeContext_t * matrix_list_context);
     
