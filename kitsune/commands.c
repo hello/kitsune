@@ -1641,7 +1641,7 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("*");
 	xTaskCreate(thread_dust, "dustTask", 256 / 4, NULL, 3, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_sensor_poll, "pollTask", 1024 / 4, NULL, 4, NULL);
+	xTaskCreate(thread_sensor_poll, "pollTask", 2 * 1024 / 4, NULL, 4, NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_tx, "txTask", 3 * 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
