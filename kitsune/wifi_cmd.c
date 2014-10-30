@@ -1104,13 +1104,16 @@ bool encode_serialized_pill_list(pb_ostream_t *stream, const pb_field_t *field, 
 
     // The serilized pill list already has tags encoded, don't need to write tag anymore
     // just write the bytes straight into the stream.
-    return pb_encode_string(stream, array_holder->buffer, array_holder->length);
+    UARTprintf("raw len: %d\n", array_holder->length);
+    return pb_write(stream, array_holder->buffer, array_holder->length);
 }
 
 void encode_pill_list_to_buffer(const periodic_data_pill_data_container* ptr_pill_list, 
     uint8_t* buffer, size_t buffer_len, size_t* out_len)
 {
     pb_ostream_t stream = {0};
+    *out_len = 0;
+
     if(!buffer)
     {
         stream = pb_ostream_from_buffer(buffer, buffer_len);
@@ -1152,17 +1155,14 @@ void encode_pill_list_to_buffer(const periodic_data_pill_data_container* ptr_pil
 				continue;
 			}
 
-			message_len = sizestream.bytes_written;
+			message_len = sizestream.bytes_written;  // The payload len
 
-			if (!pb_encode_varint(&size_stream, message_len)){
+			if (!pb_encode_varint(&sizestream, message_len)){
 				UARTprintf("Failed to get length\n");
 				continue;
 			}
 
-			if (!pb_encode(&size_stream, periodic_data_pill_data_fields, &data.pill_data)){
-				UARTprintf("Fail to get encode pill len %s\r\n", data.id);
-				continue;
-			}
+			message_len = sizestream.bytes_written;  // len + payload len
 
 			size_t len = size_stream.bytes_written + 10;  // This is a must or we can't know the actual length including the tag
 			uint8_t* size_buffer = pvPortMalloc(len);
@@ -1175,39 +1175,30 @@ void encode_pill_list_to_buffer(const periodic_data_pill_data_container* ptr_pil
 			size_stream = pb_ostream_from_buffer(size_buffer, len);
 
 			UARTprintf("start: %d\n", size_stream.bytes_written);
-			if (!pb_encode_tag_for_field(&size_stream, &periodic_data_fields[periodic_data_pills_tag])){
+			if (!pb_encode_tag(&size_stream, PB_WT_STRING, periodic_data_pills_tag))
+			{
 				UARTprintf("encode_pill_list_to_buffer: Fail to encode tag for pill %s, error %s\n", data.id, PB_GET_ERROR(&size_stream));
 				vPortFree(size_buffer);
 				continue;
 			}
 			UARTprintf("tag len: %d, tag_val: %d\n", size_stream.bytes_written, size_buffer[0]);
+			message_len += size_stream.bytes_written;   // tag + len + payload len
 
-			/*
-			if (!pb_encode_delimited(&size_stream, periodic_data_pill_data_fields, &data.pill_data)){
-				UARTprintf("encode_pill_list_to_buffer: Fail to get length2 %s\n", PB_GET_ERROR(&size_stream));
-				vPortFree(size_buffer);
-				continue;
-			}
-			*/
 
-			if (!pb_encode_varint(&size_stream, message_len)){
-				UARTprintf("Failed to get length2\n");
-				continue;
-			}
-
-			if (!pb_encode(&size_stream, periodic_data_pill_data_fields, &data.pill_data)){
-				UARTprintf("Fail to get encode pill len2 %s\r\n", data.id);
-				continue;
-			}
-
-			UARTprintf("tag+len+message: %d\n", size_stream.bytes_written);
+			UARTprintf("tag+len+message: %d\n", message_len);
 			vPortFree(size_buffer);
-			*out_len += size_stream.bytes_written;
+			*out_len += message_len;
         }else{
-        	if (!pb_encode_tag_for_field(&stream, &periodic_data_fields[periodic_data_pills_tag])){
+
+        	size_t message_len, stream_len;
+        	message_len = stream_len = stream.bytes_written;
+        	if (!pb_encode_tag(&stream, PB_WT_STRING, periodic_data_pills_tag))
+        	{
 				UARTprintf("encode_pill_list_to_buffer: Fail to encode tag for pill %s, error %s\n", data.id, PB_GET_ERROR(&stream));
 				continue;
 			}
+        	message_len += stream.bytes_written - stream_len;
+        	stream_len = stream.bytes_written;
 
         	/*
         	if (!pb_encode_delimited(&stream, periodic_data_pill_data_fields, &data.pill_data)){
@@ -1231,6 +1222,9 @@ void encode_pill_list_to_buffer(const periodic_data_pill_data_container* ptr_pil
 				continue;
 			}
 
+			message_len += stream.bytes_written - stream_len;
+			stream_len = stream.bytes_written;
+
 			if (!pb_encode(&stream, periodic_data_pill_data_fields, &data.pill_data)){
 				UARTprintf("Fail to encode pill %s\n", data.id);
 				continue;
@@ -1238,9 +1232,14 @@ void encode_pill_list_to_buffer(const periodic_data_pill_data_container* ptr_pil
 				UARTprintf("Pill %s data uploaded\n", data.id);
 			}
 
-        	*out_len += stream.bytes_written;
+			message_len += stream.bytes_written - stream_len;
+			stream_len = stream.bytes_written;
+
+        	*out_len += message_len;
         }
     }
+
+    UARTprintf("total len: %d\n", *out_len);
 
 
 }
