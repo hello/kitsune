@@ -35,6 +35,12 @@ void stop_led_animation(void){
 }
 int Cmd_led_animate(int argc, char *argv[]){
 	//demo
+	if(argc > 1){
+		if(strcmp(argv[1], "stop") == 0){
+			self.sig_stop = false;
+			return 0;
+		}
+	}
 	play_led_animation_pulse();
 	return 0;
 }
