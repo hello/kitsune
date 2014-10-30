@@ -17,10 +17,11 @@ static uint32_t samplecounter;
 #define AUDIO_UPLOAD_PERIOD_IN_MS (60000)
 #define AUDIO_UPLOAD_PERIOD_IN_TICKS (AUDIO_UPLOAD_PERIOD_IN_MS / SAMPLE_PERIOD_IN_MILLISECONDS / 2)
 
+#define DESIRED_BUFFER_SIZE_IN_BYTES (23000)
 
 static const char * k_audio_endpoint = "/audio/features";
 static DeviceCurrentInfo_t _deviceCurrentInfo;
-
+static void * _longTermStorageBuffer = NULL;
 
 static void RecordCallback(const RecordAudioRequest_t * request) {
 	/* Go tell audio capture task to write to disk as it captures */
@@ -52,7 +53,34 @@ static void Init(void) {
 
 	samplecounter = 0;
 
-	AudioClassifier_Init(RecordCallback);
+	_longTermStorageBuffer = pvPortMalloc(DESIRED_BUFFER_SIZE_IN_BYTES);
+
+	if (_longTermStorageBuffer) {
+		//pvPortMalloc
+			//vPortFree
+		AudioClassifier_Init(RecordCallback,_longTermStorageBuffer,DESIRED_BUFFER_SIZE_IN_BYTES);
+	}
+	else {
+		//errror logggg
+		UARTprintf("ALL ABOARD THE MALLOC FAILBOAT -- AUDIO CLASSIFICATION WILL NOT HAPPEN\r\n");
+	}
+
+}
+
+void AudioProcessingTask_FreeBuffers(void) {
+	//try and be thread safe in case you do this while processing
+	if (_mutex) {
+		xSemaphoreTake(_mutex,portMAX_DELAY);
+	}
+
+	if (_longTermStorageBuffer) {
+		vPortFree(_longTermStorageBuffer);
+		_longTermStorageBuffer = NULL;
+	}
+
+	if (_mutex) {
+		xSemaphoreGive(_mutex);
+	}
 }
 
 void AudioProcessingTask_AddFeaturesToQueue(const AudioFeatures_t * feat) {
@@ -104,6 +132,11 @@ void AudioProcessingTask_Thread(void * data) {
 	for( ;; ) {
 		/* Wait until we get a message */
         xQueueReceive( _queue,(void *) &message, portMAX_DELAY );
+
+        //if our malloc failed, then sorry we aren't doing anything.
+        if (!_longTermStorageBuffer) {
+        	continue;
+        }
 
         //crit section around this function
     	xSemaphoreTake(_mutex,portMAX_DELAY);

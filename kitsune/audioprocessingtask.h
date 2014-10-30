@@ -11,5 +11,6 @@ void AudioProcessingTask_AddFeaturesToQueue(const AudioFeatures_t * feats);
 
 void AudioProcessingTask_Thread(void * data);
 
+void AudioProcessingTask_FreeBuffers(void);
 
 #endif //_AUDIOPROCESSINGTASK_H_
