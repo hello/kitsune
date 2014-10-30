@@ -475,5 +475,5 @@ int led_set_color(int r, int g, int b, int fade){
 	user_color_t.b = clamp_rgb(b, 0, 128);
 	UARTprintf("Setting colors R: %d, G: %d, B: %d \r\n", user_color_t.r, user_color_t.g, user_color_t.b);
 	xEventGroupClearBits( led_events, 0xffffff );
-	xEventGroupSetBits( led_events, LED_CUSTOM_COLOR );
+	xEventGroupSetBits( led_events, LED_CUSTOM_COLOR | (fade>0?LED_CUSTOM_COLOR_FADE:0) );
 }
