@@ -376,10 +376,9 @@ void led_task( void * params ) {
 			}
 			if( !(evnt & (LED_FADE_IN_BIT|LED_FADE_OUT_BIT|LED_FADE_IN_STEP_BIT|LED_FADE_OUT_STEP_BIT)) ){
 				led_array(colors);
+				vTaskDelay(delay);
 			}
 			memcpy(colors_last, colors, sizeof(colors_last));
-
-			vTaskDelay(delay);
 		}
 		if (evnt & LED_ROTATE_RAINBOW_BIT) {
 			unsigned int colors[NUM_LED + 1];
