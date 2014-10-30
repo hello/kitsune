@@ -5,7 +5,6 @@
 #include "debugutils/debuglog.h"
 #include <stdio.h>
 #include "hellomath.h"
-#include "simplelink.h"  // This defines TRUE and FALSE
 
 /*
    How is this all going to work? 
@@ -55,6 +54,9 @@
 #define STARTUP_EQUALIZATION_COUNTS (STARTUP_PERIOD_IN_MS / SAMPLE_PERIOD_IN_MILLISECONDS)
 
 #define QFIXEDPOINT (12)
+
+#define TRUE (1)
+#define FALSE (0)
 
 
 /* Have fun tuning these magic numbers!

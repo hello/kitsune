@@ -8,7 +8,7 @@
 #include "hellomath.h"
 #include "machinelearning/hmm.h"
 #include <math.h>
-
+#include <assert.h>
 #include <string.h>
 
 #define CIRCULAR_FEATBUF_SIZE_2N (5)
@@ -16,12 +16,16 @@
 #define CIRCULAR_BUF_MASK (CIRCULAR_BUF_SIZE - 1)
 #define BUF_SIZE_IN_CHUNK (32)
 
+#define CHUNK_BUF_SIZE_2N (6)
+#define CHUNK_BUF_SIZE (1 << CHUNK_BUF_SIZE_2N)
+#define CHUNK_BUF_MASK (CHUNK_BUF_SIZE - 1)
+
 #define MAX_NUMBER_CLASSES (5)
 #define EXPECTED_NUMBER_OF_CLASSIFIER_INPUTS (NUM_AUDIO_FEATURES)
 
 #define CLASS_OF_INTEREST_TO_ENABLE_CALLBACK (0)
 
-#define RECORD_DURATION_IN_MS (5000)
+#define RECORD_DURATION_IN_MS (10000)
 #define RECORD_DURATION_IN_FRAMES (RECORD_DURATION_IN_MS / SAMPLE_PERIOD_IN_MILLISECONDS)
 
 
@@ -34,9 +38,7 @@
 #endif
 
 
-#define CHUNK_BUF_SIZE_2N (1)
-#define CHUNK_BUF_SIZE (1 << CHUNK_BUF_SIZE_2N)
-#define CHUNK_BUF_MASK (CHUNK_BUF_SIZE - 1)
+
 
 typedef struct {
     uint8_t packedbuf[BUF_SIZE_IN_CHUNK][NUM_AUDIO_FEATURES/2];// 32 x 16 = 2^5 * 2^4 = 2^9 = 256 bytes
@@ -66,6 +68,13 @@ typedef struct {
     
 } DataBuffer_t;
 
+typedef struct {
+    const DataBuffer_t * buf;
+    uint16_t currentidx;
+    uint8_t state;
+    int8_t unpackedbuffer[BUF_SIZE_IN_CHUNK][NUM_AUDIO_FEATURES]; //32 * 16 * 1  = 512 bytes
+
+} Encoder_t;
 
 static const char * k_id_feature_chunk = "feature_chunk";
 static const char * k_id_energy_chunk = "energy_chunk";
@@ -73,8 +82,6 @@ static const char * k_id_energy_chunk = "energy_chunk";
 
 static DataBuffer_t _buffer;
 static RecordAudioCallback_t _playbackFunc;
-static MutexCallback_t _lockFunc;
-static MutexCallback_t _unlockFunc;
 static Classifier_t _classifier;
 static Classifier_t _hmm;
 
@@ -205,10 +212,6 @@ static void CopyCircularBufferToPermanentStorage(int64_t samplecount) {
     chunk.maxenergy = max;
     chunk.samplecount = samplecount;
     
-    /* START CRITICAL SECTION AROUND STORAGE BUFFERS */
-    if (_lockFunc) {
-        _lockFunc();
-    }
     
     memcpy(&_buffer.chunkbuf[_buffer.chunkbufidx],&chunk,sizeof(chunk));
     _buffer.chunkbufidx++;
@@ -218,12 +221,6 @@ static void CopyCircularBufferToPermanentStorage(int64_t samplecount) {
         _buffer.numchunkbuf++;
     }
     
-    /* END CRITICAL SECTION  */
-    if (_unlockFunc) {
-        _unlockFunc();
-    }
-    
-
 }
 
 static void InitDefaultClassifier(void) {
@@ -248,7 +245,7 @@ static void InitDefaultClassifier(void) {
 }
 
 
-void AudioClassifier_Init(RecordAudioCallback_t recordfunc,MutexCallback_t lockfunc, MutexCallback_t unlockfunc) {
+void AudioClassifier_Init(RecordAudioCallback_t recordfunc) {
     memset(&_buffer,0,sizeof(_buffer));
     memset(&_classifier,0,sizeof(Classifier_t));
     memset(&_hmm,0,sizeof(_hmm));
@@ -256,12 +253,11 @@ void AudioClassifier_Init(RecordAudioCallback_t recordfunc,MutexCallback_t lockf
     InitDefaultClassifier();
     
     _playbackFunc = recordfunc;
-    _lockFunc = lockfunc;
-    _unlockFunc = unlockfunc;
+
 }
 
 
-void AudioClassifier_DeserializeClassifier(pb_istream_t * stream) {
+void AudioClassifier_DeserializeClassifier(pb_istream_t * stream, void * data) {
    
     if (!ClassifierFactory_CreateFromSerializedData(_classifierdata,&_classifier,stream,sizeof(_classifierdata))) {
         memset(&_classifier,0,sizeof(Classifier_t));
@@ -291,6 +287,11 @@ void AudioClassifier_DataCallback(const AudioFeatures_t * pfeats) {
      
      */
     
+    /************************
+     THE BUFFERING SECTION
+     ***********************/
+    
+    
     idx = _buffer.incomingidx;
     PackFeats(_buffer.packedbuf[idx],pfeats->feats4bit);
     _buffer.relativeenergy[idx] = pfeats->logenergyOverBackroundNoise;
@@ -300,22 +301,30 @@ void AudioClassifier_DataCallback(const AudioFeatures_t * pfeats) {
     _buffer.incomingidx++;
     _buffer.incomingidx &= CIRCULAR_BUF_MASK;
     
+    //increment until full
     if (_buffer.numincoming < CIRCULAR_BUF_SIZE) {
         _buffer.numincoming++;
     }
     
+    //determine if anything interesting happend, energy-wise
     if (pfeats->logenergyOverBackroundNoise > MIN_CLASSIFICATION_ENERGY) {
         _buffer.isThereAnythingInteresting = true;
     }
     
-    //ready for storage!
+    //if something interesting happend and the circular buffer is full
+    //dump it to storage
     if (_buffer.isThereAnythingInteresting == true && _buffer.numincoming == CIRCULAR_BUF_SIZE) {
         
         //this may block... hopefully not for too long?
         CopyCircularBufferToPermanentStorage(pfeats->samplecount);
+        _buffer.numincoming = 0; //"empty" the buffer
+        _buffer.incomingidx = 0;
     }
     
    
+    /************************
+     THE CLASSIFIER SECTION
+     ***********************/
     
     /* Run classifier if energy is signficant */
     if (pfeats->logenergyOverBackroundNoise > MIN_CLASSIFICATION_ENERGY) {
@@ -326,7 +335,7 @@ void AudioClassifier_DataCallback(const AudioFeatures_t * pfeats) {
             
             _hmm.fpClassifier(_hmm.data,probs,classes,0);
             
-            if (probs[CLASS_OF_INTEREST_TO_ENABLE_CALLBACK] > TOFIX(0.95f,HMM_LOGPROB_QFIXEDPOINT) && _playbackFunc) {
+            if (probs[CLASS_OF_INTEREST_TO_ENABLE_CALLBACK] > TOFIX(0.95f,HMM_LOGPROB_QFIXEDPOINT_OUTPUT) && _playbackFunc) {
                 RecordAudioRequest_t req;
                 memset(&req,0,sizeof(req));
                 
@@ -342,47 +351,53 @@ void AudioClassifier_DataCallback(const AudioFeatures_t * pfeats) {
 
     }
     
-    DEBUG_LOG_S8("probs", NULL, probs, 2, samplecount, samplecount);
+    DEBUG_LOG_S8("probs", NULL, probs, 2, pfeats->samplecount, pfeats->samplecount);
 
 }
 
 /* sadly this is not stateless, but was the only way to serialize chunks one at a time */
-static uint8_t GetNextMatrixCallback(uint8_t isFirst,const_MatDesc_t * pdesc) {
-    /* STATIC!  */
-    static uint16_t currentidx;
-    static uint8_t state;
-    static int8_t unpackedbuffer[BUF_SIZE_IN_CHUNK][NUM_AUDIO_FEATURES]; //32 * 16 * 1  = 512 bytes
-
-
-    /* On the stack */
+static uint8_t GetNextMatrixCallback(uint8_t isFirst,const_MatDesc_t * pdesc,void * data) {
+    
+    
+    Encoder_t * encodedata = (Encoder_t *)data;
+    
     const AudioFeatureChunk_t * pchunk;
-    int16_t * bufptr16 = (int16_t *) &unpackedbuffer[0][0];
-    const int16_t * beginning16 = (int16_t *) &unpackedbuffer[0][0];
+    int16_t * bufptr16 = (int16_t *) &encodedata->unpackedbuffer[0][0];
+    const int16_t * beginning16 = (int16_t *) &encodedata->unpackedbuffer[0][0];
 
     uint16_t endidx;
     uint16_t i;
     
+    assert(encodedata->buf == &_buffer);
+    
     memset(pdesc,0,sizeof(const_MatDesc_t));
     
-    if (isFirst) {
-        currentidx = _buffer.chunkbufidx; //oldest
-        state = 1;
+    if (encodedata->buf->numchunkbuf == 0 ) {
+        return false; //stop
     }
     
-    endidx = _buffer.chunkbufidx + _buffer.numchunkbuf;
+    if (isFirst) {
+        encodedata->currentidx = encodedata->buf->chunkbufidx; //oldest
+        encodedata->state = 1;
+    }
+    else if (encodedata->state == 0) {
+        return false; //stop, termination condition
+    }
+    
+    endidx = encodedata->buf->chunkbufidx + encodedata->buf->numchunkbuf;
     endidx &= CHUNK_BUF_MASK;
     
-    pchunk = &_buffer.chunkbuf[currentidx];
+    pchunk = &encodedata->buf->chunkbuf[encodedata->currentidx];
 
     pdesc->t1 = pchunk->samplecount;
     pdesc->t2 = pdesc->t1 + CHUNK_BUF_SIZE*2; //*2 because we are decimating audio samples by 2
    
     
-    if (state == 1) {
+    if (encodedata->state == 1) {
         pdesc->id = k_id_feature_chunk;
 
         for (i = 0; i < BUF_SIZE_IN_CHUNK; i++) {
-            UnpackFeats8(unpackedbuffer[i], pchunk->packedbuf[i]);
+            UnpackFeats8(encodedata->unpackedbuffer[i], pchunk->packedbuf[i]);
         }
       /*
         for (i = 0; i < NUM_AUDIO_FEATURES; i++) {
@@ -394,14 +409,14 @@ static uint8_t GetNextMatrixCallback(uint8_t isFirst,const_MatDesc_t * pdesc) {
        
         pdesc->data.len = BUF_SIZE_IN_CHUNK * NUM_AUDIO_FEATURES;
         pdesc->data.type = esint8;
-        pdesc->data.data.sint8 = &unpackedbuffer[0][0];
+        pdesc->data.data.sint8 = &encodedata->unpackedbuffer[0][0];
         pdesc->rows = BUF_SIZE_IN_CHUNK;
         pdesc->cols = NUM_AUDIO_FEATURES;
 
-        state = 2;
+        encodedata->state = 2;
         
     }
-    else if (state == 2) {
+    else if (encodedata->state == 2) {
         pdesc->id = k_id_energy_chunk;
 
         //re-use the unpacked buffer, but let's pretend it's 16 bit...
@@ -426,51 +441,54 @@ static uint8_t GetNextMatrixCallback(uint8_t isFirst,const_MatDesc_t * pdesc) {
         pdesc->rows = 1;
         pdesc->cols = BUF_SIZE_IN_CHUNK + 1;
         
-        state = 1;
-        currentidx++;
-        currentidx &= CHUNK_BUF_MASK;
+        encodedata->state = 1;
+        encodedata->currentidx++;
+        encodedata->currentidx &= CHUNK_BUF_MASK;
         
         //have we reached the end?
-        if (currentidx == endidx) {
-            state = 0;
+        if (encodedata->currentidx == endidx) {
+            encodedata->state = 0;
         }
 
     }
     
-    //termination condition
-    if (state == 0) {
-        return false;
-    }
-    else {
-        return true;
-    }
-
+    return true;
 }
 
 
-uint32_t AudioClassifier_GetSerializedBuffer(pb_ostream_t * stream,const char * macbytes, uint32_t unix_time,const char * tags, const char * source) {
+uint32_t AudioClassifier_EncodeAudioFeatures(pb_ostream_t * stream,const void * encode_data) {
     
     uint32_t size = 0;
-    
-    /* START CRITICAL SECTION AROUND STORAGE BUFFERS */
-    if (_lockFunc) {
-        _lockFunc();
-    }
-    
-    size = SetMatrixMessage(stream, macbytes, unix_time,GetNextMatrixCallback);
-    
-    /* Buffer read out?  Great, let's reset it */
+    uint8_t macbytes[6] = {0};
+    uint32_t unix_time = 0;
 
-    _buffer.chunkbufidx = 0;
-    _buffer.numchunkbuf = 0;
-    
-    /* END CRITICAL SECTION  */
-    if (_unlockFunc) {
-        _unlockFunc();
+
+    if (encode_data) {
+        DeviceCurrentInfo_t * pinfo = (DeviceCurrentInfo_t *) encode_data; //passing in mac address
+        memcpy(macbytes,pinfo->mac,6);
+        unix_time = pinfo->unix_time;
     }
 
+    MatrixListEncodeContext_t context;
+    Encoder_t encoderstruct;
     
+    memset(&context,0,sizeof(context));
+    context.data = &encoderstruct;
+    context.func = GetNextMatrixCallback;
+    
+    memset(&encoderstruct,0,sizeof(encoderstruct));
+    encoderstruct.buf = &_buffer;
+    
+    size = SetMatrixMessage(stream, macbytes, unix_time,&context);
+    
+
     return size;
 
 }
 
+void AudioClassifier_ResetStorageBuffer(void) {
+	/* Buffer read out?  Great, let's reset it */
+
+	_buffer.chunkbufidx = 0;
+	_buffer.numchunkbuf = 0;
+}
