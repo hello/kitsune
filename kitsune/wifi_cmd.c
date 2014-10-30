@@ -889,7 +889,7 @@ int match(char *regexp, char *text)
 }
 
 //buffer needs to be at least 128 bytes...
-int send_data_pb(const char* host, const char* path, 
+int send_data_pb(const char* host, const char* path, const uint8_t* buffer_in, size_t content_len,
     char * buffer_out, int buffer_size, 
     const pb_field_t fields[], const void *src_struct) {
 
@@ -900,6 +900,7 @@ int send_data_pb(const char* host, const char* path,
     size_t message_length;
     bool status;
 
+    if(src_struct)
     {
         pb_ostream_t stream = {0};
         status = pb_encode(&stream, fields, src_struct);
@@ -911,6 +912,9 @@ int send_data_pb(const char* host, const char* path,
 
         message_length = stream.bytes_written + sizeof(sig) + AES_IV_SIZE;
         UARTprintf("message len %d sig len %d\n\r\n\r", stream.bytes_written, sizeof(sig));
+    }else{
+    	message_length = content_len + sizeof(sig) + AES_IV_SIZE;
+		UARTprintf("message len %d sig len %d\n\r\n\r", content_len, sizeof(sig));
     }
 
     snprintf(buffer_out, buffer_size, "POST %s HTTP/1.1\r\n"
@@ -932,7 +936,7 @@ int send_data_pb(const char* host, const char* path,
         UARTprintf("send error %d\n\r\n\r", rv);
         return stop_connection();
     }
-    UARTprintf("sent %d\n\r%s\n\r", rv, buffer_out);
+    UARTprintf("HTTP header sent %d\n\r%s\n\r", rv, buffer_out);
 
     {
         pb_ostream_t stream = {0};
@@ -946,7 +950,12 @@ int send_data_pb(const char* host, const char* path,
         /* Now we are ready to encode the message! */
 
         UARTprintf("data ");
-        status = pb_encode(&stream, fields, src_struct);
+        if(!src_struct)
+        {
+        	status = pb_write(&stream, buffer_in, content_len);
+        }else{
+        	status = pb_encode(&stream, fields, src_struct);
+        }
         UARTprintf("\n");
 
         /* Then just check for any errors.. */
@@ -1105,7 +1114,14 @@ bool encode_serialized_pill_list(pb_ostream_t *stream, const pb_field_t *field, 
     // The serilized pill list already has tags encoded, don't need to write tag anymore
     // just write the bytes straight into the stream.
     UARTprintf("raw len: %d, tag: %d\n", array_holder->length, field->tag);
-    return pb_write(stream, array_holder->buffer, array_holder->length);
+    bool ret = pb_write(stream, array_holder->buffer, array_holder->length);
+
+    if(!ret)
+    {
+    	UARTprintf("You get fucked!\n");
+    }
+
+    return ret;
 }
 
 void encode_pill_list_to_buffer(const periodic_data_pill_data_container* ptr_pill_list, 
@@ -1321,7 +1337,7 @@ bool encode_mac(pb_ostream_t *stream, const pb_field_t *field, void * const *arg
     return pb_encode_tag(stream, PB_WT_STRING, field->tag) && pb_encode_string(stream, (uint8_t*) mac, mac_len);
 }
 
-static bool encode_mac_as_device_id_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
+bool encode_mac_as_device_id_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
     uint8_t mac[6] = {0};
     uint8_t mac_len = 6;
 #if FAKE_MAC
@@ -1401,9 +1417,10 @@ static void _on_response_protobuf(const SyncResponse* response_protobuf)
     }
 }
 
-int send_periodic_data(periodic_data * data) {
+int send_periodic_data(array_data* data) {
     char buffer[256] = {0};
-    
+
+   /*
     //build the message
     data->has_firmware_version = true;
     data->firmware_version = KIT_VER;
@@ -1416,8 +1433,9 @@ int send_periodic_data(periodic_data * data) {
     {
     	data->pills.funcs.encode = encode_serialized_pill_list;
     }
+	*/
 
-    int ret = send_data_pb(DATA_SERVER, DATA_RECEIVE_ENDPOINT, buffer, sizeof(buffer), periodic_data_fields, data);
+    int ret = send_data_pb(DATA_SERVER, DATA_RECEIVE_ENDPOINT, data->buffer, data->length, buffer, sizeof(buffer), periodic_data_fields, NULL);
     if(ret != 0)
     {
         // network error

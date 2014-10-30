@@ -353,6 +353,7 @@ static void _pair_device( MorpheusCommand* command, int is_morpheus)
 
 		int ret = send_data_pb(DATA_SERVER,
 				is_morpheus == 1 ? MORPHEUS_REGISTER_ENDPOINT : PILL_REGISTER_ENDPOINT,
+				NULL, 0,
 				response_buffer, sizeof(response_buffer),
 				MorpheusCommand_fields, command);
 
@@ -361,6 +362,7 @@ static void _pair_device( MorpheusCommand* command, int is_morpheus)
 			vTaskDelay(1000);
 			ret = send_data_pb(DATA_SERVER,
 				is_morpheus == 1 ? MORPHEUS_REGISTER_ENDPOINT : PILL_REGISTER_ENDPOINT,
+				NULL, 0,
 				response_buffer, sizeof(response_buffer),
 				MorpheusCommand_fields, command);
 

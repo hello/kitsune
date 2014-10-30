@@ -18,6 +18,7 @@ typedef struct {
 #include "FreeRTOS.h"
 #include "semphr.h"
 #include "wlan.h"
+#include "ble_cmd.h"
 
 extern xSemaphoreHandle pill_smphr;
 
@@ -78,12 +79,13 @@ int match(char *regexp, char *text);
 unsigned long unix_time();
 void load_aes();
 
-int send_periodic_data(periodic_data* data );
+int send_periodic_data(array_data* data );
 int send_audio_data( data_t * data );
 
 void thread_ota( void * unused );
 
 int send_data_pb(const char* host, const char* path, 
+	const uint8_t* buffer_in, size_t content_len,
     char * buffer_out, int buffer_size, 
     const pb_field_t fields[], const void *src_struct);
 int decode_rx_data_pb(const unsigned char * buffer, int buffer_size, 
@@ -95,6 +97,10 @@ int connect_scanned_endpoints(const char* ssid, const char* password,
     const Sl_WlanNetworkEntry_t* wifi_endpoints, int scanned_wifi_count, SlSecParams_t* connectedEPSecParamsPtr);
 
 void wifi_reset();
+
+bool encode_mac(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
+bool encode_mac_as_device_id_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
+bool encode_name(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 
 bool encode_pill_list(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 void encode_pill_list_to_buffer(const periodic_data_pill_data_container* ptr_pill_list, 

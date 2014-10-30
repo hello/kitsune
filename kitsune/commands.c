@@ -628,7 +628,7 @@ void thread_fast_i2c_poll(void * unused)  {
 xQueueHandle data_queue = 0;
 
 void thread_tx(void* unused) {
-	periodic_data data = {0};
+	array_data data = {0};
 
 	load_aes();
 
@@ -641,9 +641,11 @@ void thread_tx(void* unused) {
 			continue;
 		}
 
+		/*
 		UARTprintf("sending time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d\n",
 				data.unix_time, data.light, data.light_variability, data.light_tonality, data.temperature, data.humidity,
 				data.dust);
+		*/
 
 		while (send_periodic_data(&data) != 0) {
 			UARTprintf("********************* Waiting for WIFI connection *****************\n");
@@ -655,7 +657,7 @@ void thread_tx(void* unused) {
 			while( !(sl_status&HAS_IP ) );
 		}//try every little bit
 
-
+		/*
 		if(data.pills.arg)
 	    {
 	        array_data* array_holder = (array_data*)data.pills.arg;
@@ -667,6 +669,9 @@ void thread_tx(void* unused) {
 	        // Keep in mind that the array_holder is actually appended at
 			// the end of the buffer, so no need to free the holder itself.
 	    }
+	    */
+
+		vPortFree(data.buffer);
 	}
 }
 
@@ -813,8 +818,11 @@ void thread_sensor_poll(void* unused) {
 			xSemaphoreGive(i2c_smphr);
 		}
 
+		array_data* array = NULL;
 		// made the deep copy of the current pill data. and reset pill data after copy.
 		if (xSemaphoreTake(pill_smphr, portMAX_DELAY)) {
+
+			/*
 			size_t len = 0;
 			encode_pill_list_to_buffer(pill_list, NULL, 0, &len);
 			if(len > 0)
@@ -837,6 +845,45 @@ void thread_sensor_poll(void* unused) {
 			}
 			
 			memset(pill_list, 0, sizeof(pill_list));   // reset the pill list 
+			*/
+
+			data.has_firmware_version = true;
+			data.firmware_version = KIT_VER;
+
+			//data.name.funcs.encode = encode_name;
+			//data.mac.funcs.encode = encode_mac;  // Now this is a fallback, the backend will not use this at the first hand
+			data.device_id.funcs.encode = encode_mac_as_device_id_string;
+
+			data.pills.arg = pill_list;
+			data.pills.funcs.encode = encode_pill_list;
+
+			pb_ostream_t size_stream = {0};
+
+			if(pb_encode(&size_stream, periodic_data_fields, &data))
+			{
+				if(size_stream.bytes_written == 0){
+					UARTprintf("encode periodic data failed!\n");
+				}else{
+
+					size_t len;
+					len = size_stream.bytes_written + sizeof(array_data);
+					uint8_t* buffer = pvPortMalloc(len);
+					if(buffer)
+					{
+						memset(buffer, 0, len);
+						pb_ostream_t buffer_stream = pb_ostream_from_buffer(buffer, len - sizeof(array_data));
+						pb_encode(&buffer_stream, periodic_data_fields, &data);
+
+						array = (array_data*)&buffer[buffer_stream.bytes_written];  // holder is at the end
+						array->buffer = buffer;   // In this case we can just free array->buffer and free the whole memory
+						array->length = buffer_stream.bytes_written;
+
+					}
+
+				}
+			}else{
+				UARTprintf("size eval failed\n");
+			}
 			xSemaphoreGive(pill_smphr);
 		}
 
@@ -845,11 +892,13 @@ void thread_sensor_poll(void* unused) {
 				data.unix_time, data.light, data.light_variability, data.light_tonality, data.temperature, data.humidity,
 				data.dust, data.dust_max, data.dust_min, data.dust_variability);
 
-        if(xQueueSend(data_queue, (void*)&data, 10) == pdPASS)
+        if(array && xQueueSend(data_queue, (void*)array, 10) == pdPASS)
         {
-        	increased_heap_size += sizeof(data);
+        	increased_heap_size += array->length;
     	}else{
     		UARTprintf("Failed to post data\n");
+
+    		/*
     		if(data.pills.arg)
     		{
     			array_data* array_holder = (array_data*)data.pills.arg;
@@ -861,6 +910,7 @@ void thread_sensor_poll(void* unused) {
     			data.pills.arg = NULL;
     			data.pills.funcs.encode = NULL;
     		}
+    		*/
     	}
 		UARTprintf("Sensor polling task sleep... heap size for this data %d bytes\n", increased_heap_size);
 
@@ -1562,7 +1612,7 @@ void vUARTTask(void *pvParameters) {
 	init_light_sensor();
 	init_prox_sensor();
 
-	data_queue = xQueueCreate(60, sizeof(periodic_data));
+	data_queue = xQueueCreate(60, sizeof(array_data));
 	vSemaphoreCreateBinary(dust_smphr);
 	vSemaphoreCreateBinary(light_smphr);
 	vSemaphoreCreateBinary(i2c_smphr);
