@@ -13,6 +13,7 @@
 
 #include "FreeRTOS.h"
 #include "task.h"
+#include "led_cmd.h"
 
 typedef enum {
 	DFU_INVALID_PACKET = 0,
@@ -75,9 +76,11 @@ _on_message(uint8_t * message_body, uint32_t body_length){
 		if(0 != top_board_dfu_begin("/top/update.bin")){
 			top_board_dfu_begin("/top/factory.bin");
 		}
+		led_set_color(50,0,0,0);
 
 	}
 }
+
 static void
 _close_and_reset_dfu(){
 	sl_FsClose(self.dfu_contex.handle, 0,0,0);
@@ -275,6 +278,9 @@ int Cmd_send_top(int argc, char *argv[]){
 		UARTprintf("Top board is in DFU mode\r\n");
 		return -1;
 	}
+}
+void top_board_notify_boot_complete(void){
+	led_set_color(0,0,50,1);
 }
 #include "dtm.h"
 int Cmd_top_dtm(int argc, char * argv[]){

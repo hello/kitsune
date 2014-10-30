@@ -1,10 +1,12 @@
 #include "led_cmd.h"
-#include <stdbool.h>
 #include <hw_memmap.h>
+#include <stdlib.h>
 #include "rom_map.h"
 #include "FreeRTOS.h"
 #include "event_groups.h"
-#define NUM_LED 12
+#include <string.h>
+
+
 #define LED_GPIO_BIT 0x1
 #define LED_GPIO_BASE GPIOA3_BASE
 
@@ -13,6 +15,7 @@
 #define LED_LOGIC_HIGH_SLOW LED_GPIO_BIT
 #define LED_LOGIC_LOW_SLOW 0
 
+#define LED_CLAMP_MAX 128
 #if defined(ccs)
 
 #endif
@@ -27,7 +30,18 @@ static struct{
 	int g;
 	int b;
 }user_color_t;
+void * user_context;
+led_user_animation_handler user_animation_handler;
 
+static int clamp_rgb(int v, int min, int max){
+	if(v >= 0 && v <=max){
+		return v;
+	}else if(v >= max){
+		return max;
+	}else{
+		return 0;
+	}
+}
 int led_init(void){
 	led_events = xEventGroupCreate();
 	if (led_events == NULL) {
@@ -261,6 +275,9 @@ static uint32_t wheel(int WheelPos) {
 #define LED_FADE_IN_STEP_BIT    0x400
 
 #define LED_CUSTOM_COLOR		0x1000
+#define LED_CUSTOM_COLOR_FADE	0x2000
+#define LED_CUSTOM_ANIMATION	0x4000
+
 
 
 void led_task( void * params ) {
@@ -284,7 +301,54 @@ void led_task( void * params ) {
 
 			xEventGroupClearBits(led_events, LED_RESET_BIT );
 		}
-
+		if (evnt & LED_CUSTOM_COLOR || evnt & LED_CUSTOM_COLOR_FADE){
+			unsigned int colors[NUM_LED + 1];
+			int color_to_use = led_from_rgb(user_color_t.r, user_color_t.g,
+					user_color_t.b);
+			for (i = 0; i <= NUM_LED; ++i) {
+				colors[i] = color_to_use;
+			}
+			led_array(colors);
+			memcpy(colors_last, colors, sizeof(colors_last));
+			xEventGroupClearBits(led_events, LED_CUSTOM_COLOR);
+			if(user_color_t.r == 0 && user_color_t.g == 0 && user_color_t.b == 0){
+				xEventGroupClearBits(led_events, LED_CUSTOM_COLOR_FADE);
+			}else if(evnt & LED_CUSTOM_COLOR_FADE){
+				user_color_t.r = clamp_rgb(--user_color_t.r,0,LED_CLAMP_MAX);
+				user_color_t.g = clamp_rgb(--user_color_t.g,0,LED_CLAMP_MAX);
+				user_color_t.b = clamp_rgb(--user_color_t.b,0,LED_CLAMP_MAX);
+				vTaskDelay(20);
+			}
+		}
+		if(evnt & LED_CUSTOM_ANIMATION){
+			unsigned int colors[NUM_LED + 1];
+			if(user_animation_handler){
+				int r[NUM_LED] = {0};
+				int g[NUM_LED] = {0};
+				int b[NUM_LED] = {0};
+				int delay = 10;
+				int i;
+				if(user_animation_handler(r,g,b,&delay,user_context, NUM_LED)){
+					for(i = 0; i <= NUM_LED; i++){
+						r[i] = clamp_rgb(r[i],0,LED_CLAMP_MAX);
+						g[i] = clamp_rgb(g[i],0,LED_CLAMP_MAX);
+						b[i] = clamp_rgb(b[i],0,LED_CLAMP_MAX);
+						colors[i] = led_from_rgb(r[i],g[i],b[i]);
+					}
+					led_array(colors);
+					memcpy(colors_last,colors, sizeof(colors_last));
+					//delay capped at 500 ms to improve task responsiveness
+					delay = clamp_rgb(delay,0,500);
+					vTaskDelay(delay);
+				}else{
+					xEventGroupClearBits(led_events,LED_CUSTOM_ANIMATION);
+					xEventGroupSetBits(led_events,LED_RESET_BIT);
+				}
+			}else{
+				xEventGroupClearBits(led_events,LED_CUSTOM_ANIMATION);
+				xEventGroupSetBits(led_events,LED_RESET_BIT);
+			}
+		}
 		if (evnt & LED_SOLID_PURPLE_BIT) {
 			unsigned int colors[NUM_LED + 1];
 			int color_to_use = led_from_rgb(132, 0, 255);
@@ -414,7 +478,17 @@ int Cmd_led(int argc, char *argv[]) {
 		int select = atoi(argv[1]);
 		xEventGroupClearBits( led_events, 0xffffff );
 		xEventGroupSetBits( led_events, select );
+	}else if(argc > 2){
+		if(strcmp(argv[1], "color") == 0 && argc >= 5){
+			user_color_t.r = clamp_rgb(atoi(argv[2]), 0, LED_CLAMP_MAX);
+			user_color_t.g = clamp_rgb(atoi(argv[3]), 0, LED_CLAMP_MAX);
+			user_color_t.b = clamp_rgb(atoi(argv[4]), 0, LED_CLAMP_MAX);
+			UARTprintf("Setting colors R: %d, G: %d, B: %d \r\n", user_color_t.r, user_color_t.g, user_color_t.b);
+			xEventGroupClearBits( led_events, 0xffffff );
+			xEventGroupSetBits( led_events, LED_CUSTOM_COLOR_FADE );
+		}
 	}
+
 	return 0;
 }
 
@@ -424,4 +498,23 @@ int Cmd_led_clr(int argc, char *argv[]) {
 	xEventGroupSetBits( led_events, LED_RESET_BIT );
 
 	return 0;
+}
+int led_set_color(int r, int g, int b, int fade){
+	user_color_t.r = clamp_rgb(r, 0, LED_CLAMP_MAX);
+	user_color_t.g = clamp_rgb(g, 0, LED_CLAMP_MAX);
+	user_color_t.b = clamp_rgb(b, 0, LED_CLAMP_MAX);
+	UARTprintf("Setting colors R: %d, G: %d, B: %d \r\n", user_color_t.r, user_color_t.g, user_color_t.b);
+	xEventGroupClearBits( led_events, 0xffffff );
+	xEventGroupSetBits( led_events, LED_CUSTOM_COLOR | (fade>0?LED_CUSTOM_COLOR_FADE:0) );
+}
+int led_start_custom_animation(led_user_animation_handler user, void * context){
+	if(!user){
+		return -1;
+	}else{
+		user_animation_handler = user;
+		user_context  = context;
+		xEventGroupClearBits( led_events, 0xffffff );
+		xEventGroupSetBits( led_events, LED_CUSTOM_ANIMATION );
+		return 0;
+	}
 }
