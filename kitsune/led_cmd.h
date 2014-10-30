@@ -4,7 +4,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
+#define NUM_LED 12
 int Cmd_led_clr(int argc, char *argv[]);
 int Cmd_led(int argc, char *argv[]);
 int led_init(void);
