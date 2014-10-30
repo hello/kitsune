@@ -121,14 +121,13 @@ static bool _set_wifi(const char* ssid, const char* password)
         vTaskDelay(500);
     }
     stop_led_animation();
-
     if(scanned_wifi_count == 0)
     {
         //Cmd_led(0,0);
         sl_status &= ~SCANNING;
     	UARTprintf("No wifi found after retry %d times\n", 10);
         ble_reply_protobuf_error(ErrorType_NO_ENDPOINT_IN_RANGE);
-        led_set_color(30,0,0,1,1,30,0);
+        led_set_color(30,0,0,1,1,10,0);
     	return 0;
     }
 
@@ -145,12 +144,11 @@ static bool _set_wifi(const char* ssid, const char* password)
 		vTaskDelay(500);
 	}
     stop_led_animation();
-
     if(!connection_ret)
     {
 		UARTprintf("Tried all wifi ep, all failed to connect\n");
         ble_reply_protobuf_error(ErrorType_WLAN_CONNECTION_ERROR);
-        led_set_color(30,0,0,1,1,33,0);
+        led_set_color(30,0,0,1,1,10,0);
 		return 0;
     }else{
 		uint8_t wait_time = 10;
@@ -170,7 +168,7 @@ static bool _set_wifi(const char* ssid, const char* password)
 			//Cmd_led(0,0);
 			UARTprintf("!!WIFI set without network connection.");
             ble_reply_protobuf_error(ErrorType_FAIL_TO_OBTAIN_IP);
-            led_set_color(30,0,0,1,1,30,0);
+            led_set_color(30,0,0,1,1,10,0);
 			return 0;
 		}
     }
