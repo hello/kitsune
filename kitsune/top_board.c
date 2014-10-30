@@ -76,7 +76,7 @@ _on_message(uint8_t * message_body, uint32_t body_length){
 		if(0 != top_board_dfu_begin("/top/update.bin")){
 			top_board_dfu_begin("/top/factory.bin");
 		}
-		led_set_color(50,0,0,0);
+		led_set_color(50,0,0,0,0,0);
 
 	}
 }
@@ -280,7 +280,7 @@ int Cmd_send_top(int argc, char *argv[]){
 	}
 }
 void top_board_notify_boot_complete(void){
-	led_set_color(0,0,50,1);
+	led_set_color(0,0,50,1,1,3);
 }
 #include "dtm.h"
 int Cmd_top_dtm(int argc, char * argv[]){
