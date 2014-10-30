@@ -84,7 +84,7 @@ static void _reply_wifi_scan_result()
 }
 
 
-static bool _set_wifi(const char* ssid, const char* password)
+static bool _set_wifi(const char* ssid, const char* password, int security_type)
 {
     Sl_WlanNetworkEntry_t wifi_endpoints[MAX_WIFI_EP_PER_SCAN];
     int scanned_wifi_count, connection_ret;
@@ -108,6 +108,7 @@ static bool _set_wifi(const char* ssid, const char* password)
     uint8_t max_retry = 10;
     uint8_t retry_count = max_retry;
 
+    /*
     sl_status |= SCANNING;
     
     while((scanned_wifi_count = get_wifi_scan_result(wifi_endpoints, MAX_WIFI_EP_PER_SCAN, 2000 * (max_retry - retry_count + 1))) == 0 && --retry_count)
@@ -129,6 +130,8 @@ static bool _set_wifi(const char* ssid, const char* password)
     //////
 
     retry_count = 10;
+    
+
     SlSecParams_t secParams = {0};
 
     while((connection_ret = connect_scanned_endpoints(ssid, password, wifi_endpoints, scanned_wifi_count, &secParams)) == 0 && --retry_count)
@@ -137,6 +140,14 @@ static bool _set_wifi(const char* ssid, const char* password)
 		UARTprintf("Failed to connect, retry times remain %d\n", retry_count);
 		vTaskDelay(500);
 	}
+    */
+
+    while((connection_ret = connect_wifi(ssid, password, security_type)) == 0 && --retry_count)
+    {
+        Cmd_led(0,0);
+        UARTprintf("Failed to connect, retry times remain %d\n", retry_count);
+        vTaskDelay(500);
+    }
 
 
     if(!connection_ret)
@@ -455,7 +466,7 @@ void on_ble_protobuf_command(MorpheusCommand* command)
 
             // Just call API to connect to WIFI.
             UARTprintf("Wifi SSID %s, pswd %s \n", ssid, password);
-            _set_wifi(ssid, (char*)password);
+            _set_wifi(ssid, (char*)password, command->security_type);
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_PAIRING_MODE:  // Just for testing
