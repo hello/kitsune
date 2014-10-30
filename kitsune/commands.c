@@ -72,6 +72,7 @@
 #include "slip_packet.h"
 #include "ble_cmd.h"
 #include "led_cmd.h"
+#include "led_animations.h"
 //#include "mcasp_if.h" // add by Ben
 
 #define ONLY_MID 0
@@ -1061,6 +1062,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "factory_reset", Cmd_factory_reset, "Factory reset from middle."},
 		{ "download", Cmd_download, "download test function."},
 		{ "dtm", Cmd_top_dtm, "Sends Direct Test Mode command" },
+		{ "animate", Cmd_led_animate, "Animates led"},
 
 		{ 0, 0, 0 } };
 
