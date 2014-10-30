@@ -64,6 +64,8 @@ int main(int argc, char * argv[]) {
         cerr << "It is assumed that the input is mono, 16 bits per sample, in PCM format (i.e as raw as you can get)" << endl;
     }
     
+    char bigbuffer[20000];
+    
     _label.clear();
     _label = "none";
     
@@ -86,7 +88,7 @@ int main(int argc, char * argv[]) {
     
     
     AudioFeatures_Init(AudioClassifier_DataCallback);
-    AudioClassifier_Init(NULL);
+    AudioClassifier_Init(NULL,bigbuffer,sizeof(bigbuffer));
 
     
     

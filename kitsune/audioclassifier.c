@@ -16,10 +16,6 @@
 #define CIRCULAR_BUF_MASK (CIRCULAR_BUF_SIZE - 1)
 #define BUF_SIZE_IN_CHUNK (32)
 
-#define CHUNK_BUF_SIZE_2N (6)
-#define CHUNK_BUF_SIZE (1 << CHUNK_BUF_SIZE_2N)
-#define CHUNK_BUF_MASK (CHUNK_BUF_SIZE - 1)
-
 #define MAX_NUMBER_CLASSES (5)
 #define EXPECTED_NUMBER_OF_CLASSIFIER_INPUTS (NUM_AUDIO_FEATURES)
 
@@ -54,11 +50,12 @@ typedef struct {
     int16_t relativeenergy[CIRCULAR_BUF_SIZE];//
     int16_t totalenergy[CIRCULAR_BUF_SIZE];//
 
-    //"long term storage"
-    AudioFeatureChunk_t chunkbuf[CHUNK_BUF_SIZE]; //330 * 64 = 21.1 Kbytes
-    
     uint16_t chunkbufidx;
     uint16_t numchunkbuf;
+    
+    AudioFeatureChunk_t * pchunkbuf;
+    uint32_t chunk_buf_size;
+
     
     uint16_t incomingidx;
     uint16_t numincoming;
@@ -79,7 +76,7 @@ typedef struct {
 static const char * k_id_feature_chunk = "feature_chunk";
 static const char * k_id_energy_chunk = "energy_chunk";
 
-
+//"long term storage"
 static DataBuffer_t _buffer;
 static RecordAudioCallback_t _playbackFunc;
 static Classifier_t _classifier;
@@ -213,11 +210,15 @@ static void CopyCircularBufferToPermanentStorage(int64_t samplecount) {
     chunk.samplecount = samplecount;
     
     
-    memcpy(&_buffer.chunkbuf[_buffer.chunkbufidx],&chunk,sizeof(chunk));
+    memcpy(&_buffer.pchunkbuf[_buffer.chunkbufidx],&chunk,sizeof(chunk));
     _buffer.chunkbufidx++;
-    _buffer.chunkbufidx &= CHUNK_BUF_MASK;
     
-    if (_buffer.numchunkbuf < CHUNK_BUF_SIZE) {
+    //wrap
+    if (_buffer.chunkbufidx >= _buffer.chunk_buf_size) {
+        _buffer.chunkbufidx -= _buffer.chunk_buf_size;
+    }
+    
+    if (_buffer.numchunkbuf < _buffer.chunk_buf_size) {
         _buffer.numchunkbuf++;
     }
     
@@ -245,12 +246,15 @@ static void InitDefaultClassifier(void) {
 }
 
 
-void AudioClassifier_Init(RecordAudioCallback_t recordfunc) {
+void AudioClassifier_Init(RecordAudioCallback_t recordfunc,void * buffer, uint32_t buf_size_in_bytes) {
     memset(&_buffer,0,sizeof(_buffer));
     memset(&_classifier,0,sizeof(Classifier_t));
     memset(&_hmm,0,sizeof(_hmm));
     
     InitDefaultClassifier();
+    
+    _buffer.pchunkbuf = (AudioFeatureChunk_t *)buffer;
+    _buffer.chunk_buf_size = buf_size_in_bytes / sizeof(AudioFeatureChunk_t);
     
     _playbackFunc = recordfunc;
 
@@ -385,12 +389,16 @@ static uint8_t GetNextMatrixCallback(uint8_t isFirst,const_MatDesc_t * pdesc,voi
     }
     
     endidx = encodedata->buf->chunkbufidx + encodedata->buf->numchunkbuf;
-    endidx &= CHUNK_BUF_MASK;
     
-    pchunk = &encodedata->buf->chunkbuf[encodedata->currentidx];
+    //wrap
+    if (endidx >= encodedata->buf->chunk_buf_size) {
+        endidx -= encodedata->buf->chunk_buf_size;
+    }
+    
+    pchunk = &encodedata->buf->pchunkbuf[encodedata->currentidx];
 
     pdesc->t1 = pchunk->samplecount;
-    pdesc->t2 = pdesc->t1 + CHUNK_BUF_SIZE*2; //*2 because we are decimating audio samples by 2
+    pdesc->t2 = pdesc->t1 + BUF_SIZE_IN_CHUNK*2; //*2 because we are decimating audio samples by 2
    
     
     if (encodedata->state == 1) {
@@ -443,7 +451,11 @@ static uint8_t GetNextMatrixCallback(uint8_t isFirst,const_MatDesc_t * pdesc,voi
         
         encodedata->state = 1;
         encodedata->currentidx++;
-        encodedata->currentidx &= CHUNK_BUF_MASK;
+        
+        //wrap
+        if (encodedata->currentidx >= encodedata->buf->chunk_buf_size) {
+            encodedata->currentidx -= encodedata->buf->chunk_buf_size;
+        }
         
         //have we reached the end?
         if (encodedata->currentidx == endidx) {
@@ -461,7 +473,6 @@ uint32_t AudioClassifier_EncodeAudioFeatures(pb_ostream_t * stream,const void * 
     uint32_t size = 0;
     uint8_t macbytes[6] = {0};
     uint32_t unix_time = 0;
-
 
     if (encode_data) {
         DeviceCurrentInfo_t * pinfo = (DeviceCurrentInfo_t *) encode_data; //passing in mac address
