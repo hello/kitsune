@@ -348,12 +348,14 @@ void led_task( void * params ) {
 					memcpy(colors_last,colors, sizeof(colors_last));
 					//delay capped at 500 ms to improve task responsiveness
 					delay = clamp_rgb(delay,0,500);
+					xSemaphoreGive( led_smphr );
 					vTaskDelay(delay);
 				}else{
 					xEventGroupClearBits(led_events,LED_CUSTOM_ANIMATION);
 					xEventGroupSetBits(led_events,LED_RESET_BIT);
+					xSemaphoreGive( led_smphr );
 				}
-				xSemaphoreGive( led_smphr );
+
 
 			}else{
 				xEventGroupClearBits(led_events,LED_CUSTOM_ANIMATION);
