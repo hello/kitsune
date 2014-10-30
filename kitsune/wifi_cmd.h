@@ -49,6 +49,7 @@ extern periodic_data_pill_data_container pill_list[MAX_PILLS];
 extern
 SyncResponse_Alarm alarm;
 
+//todo semaphore protect
 extern
 unsigned int sl_status;
 

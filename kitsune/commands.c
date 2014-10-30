@@ -569,6 +569,8 @@ void thread_fast_i2c_poll(void * unused)  {
 		int prox,hpf_prox;
 
 		if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
+			int adjust;
+
 			vTaskDelay(2);
 			light = get_light();
 			vTaskDelay(2); //this is important! If we don't do it, then the prox will stretch the clock!
@@ -589,7 +591,24 @@ void thread_fast_i2c_poll(void * unused)  {
 				xSemaphoreGive(alarm_smphr);
 				//Audio_Stop();
 				xSemaphoreGive(i2c_smphr);
-				Cmd_led(0,0);
+
+				if( light > 80 ) {
+					adjust = 0;
+				} else {
+					adjust = light - 80;
+				}
+				if( sl_status & UPLOADING ) {
+					led_set_color( 0,0,255+adjust, 1, 1, 3 ); //blue
+			 	}
+			 	else if( sl_status & HAS_IP ) {
+					led_set_color( 0,255+adjust,0, 1, 1, 3 ); //green
+			 	}
+			 	else if( sl_status & CONNECTING ) {
+			 		led_set_color( 255+adjust,255+adjust,0, 1, 1, 3 ); //yellow
+			 	}
+			 	else if( sl_status & SCANNING ) {
+			 		led_set_color( 255+adjust,0,0, 1, 1, 3 ); //red
+			 	}
 			}
 			last_prox = prox;
 
