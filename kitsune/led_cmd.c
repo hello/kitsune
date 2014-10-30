@@ -437,7 +437,7 @@ void led_task( void * params ) {
 int Cmd_led(int argc, char *argv[]) {
 	if(argc == 2) {
 		int select = atoi(argv[1]);
-		xEventGroupClearBits( led_events, 0xffffffff );
+		xEventGroupClearBits( led_events, 0xffffff );
 		xEventGroupSetBits( led_events, select );
 	}else if(argc > 2){
 		if(strcmp(argv[1], "color") == 0 && argc >= 5){
@@ -445,10 +445,11 @@ int Cmd_led(int argc, char *argv[]) {
 			user_color_t.g = clamp_rgb(atoi(argv[3]), 0, 128);
 			user_color_t.b = clamp_rgb(atoi(argv[4]), 0, 128);
 			UARTprintf("Setting colors R: %d, G: %d, B: %d \r\n", user_color_t.r, user_color_t.g, user_color_t.b);
-			xEventGroupClearBits( led_events, 0xffffffff );
+			xEventGroupClearBits( led_events, 0xffffff );
 			xEventGroupSetBits( led_events, LED_CUSTOM_COLOR );
 		}
 	}
+
 	return 0;
 }
 
@@ -464,6 +465,6 @@ int led_set_color(int r, int g, int b, int fade){
 	user_color_t.g = clamp_rgb(g, 0, 128);
 	user_color_t.b = clamp_rgb(b, 0, 128);
 	UARTprintf("Setting colors R: %d, G: %d, B: %d \r\n", user_color_t.r, user_color_t.g, user_color_t.b);
-	xEventGroupClearBits( led_events, 0xffffffff );
+	xEventGroupClearBits( led_events, 0xffffff );
 	xEventGroupSetBits( led_events, LED_CUSTOM_COLOR );
 }
