@@ -274,7 +274,8 @@ static uint32_t wheel(int WheelPos) {
 #define LED_FADE_IN_STEP_BIT    0x400
 
 #define LED_CUSTOM_COLOR		0x1000
-#define LED_CUSTOM_ANIMATINO	0x2000
+#define LED_CUSTOM_COLOR_FADE	0x2000
+#define LED_CUSTOM_ANIMATION	0x4000
 
 
 
@@ -299,7 +300,7 @@ void led_task( void * params ) {
 
 			xEventGroupClearBits(led_events, LED_RESET_BIT );
 		}
-		if (evnt & LED_CUSTOM_COLOR){
+		if (evnt & LED_CUSTOM_COLOR || evnt & LED_CUSTOM_COLOR_FADE){
 			unsigned int colors[NUM_LED + 1];
 			int color_to_use = led_from_rgb(user_color_t.r, user_color_t.g,
 					user_color_t.b);
@@ -309,6 +310,14 @@ void led_task( void * params ) {
 			led_array(colors);
 			memcpy(colors_last, colors, sizeof(colors_last));
 			xEventGroupClearBits(led_events, LED_CUSTOM_COLOR);
+			if(user_color_t.r == 0 && user_color_t.g == 0 && user_color_t.b == 0){
+				xEventGroupClearBits(led_events, LED_CUSTOM_COLOR_FADE);
+			}else if(evnt & LED_CUSTOM_COLOR_FADE){
+				user_color_t.r = clamp_rgb(--user_color_t.r,0,128);
+				user_color_t.g = clamp_rgb(--user_color_t.g,0,128);
+				user_color_t.b = clamp_rgb(--user_color_t.b,0,128);
+				vTaskDelay(20);
+			}
 		}
 		if (evnt & LED_SOLID_PURPLE_BIT) {
 			unsigned int colors[NUM_LED + 1];
@@ -446,7 +455,7 @@ int Cmd_led(int argc, char *argv[]) {
 			user_color_t.b = clamp_rgb(atoi(argv[4]), 0, 128);
 			UARTprintf("Setting colors R: %d, G: %d, B: %d \r\n", user_color_t.r, user_color_t.g, user_color_t.b);
 			xEventGroupClearBits( led_events, 0xffffff );
-			xEventGroupSetBits( led_events, LED_CUSTOM_COLOR );
+			xEventGroupSetBits( led_events, LED_CUSTOM_COLOR_FADE );
 		}
 	}
 
