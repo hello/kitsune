@@ -51,19 +51,20 @@ static void _reply_wifi_scan_result()
     uint8_t retry_count = max_retry;
     sl_status |= SCANNING;
     
-    Cmd_led(0,0);
+    //Cmd_led(0,0);
+    play_led_progress_bar(30,30,0,0);
     while((scanned_wifi_count = get_wifi_scan_result(wifi_endpoints, MAX_WIFI_EP_PER_SCAN, 3000 * (max_retry - retry_count + 1))) == 0 && --retry_count)
     {
-
+    	set_led_progress_bar((max_retry - retry_count) * 100 / max_retry);
         UARTprintf("No wifi scanned, retry times remain %d\n", retry_count);
         vTaskDelay(500);
     }
-
+    stop_led_animation();
     sl_status &= ~SCANNING;
 
     int i = 0;
     Sl_WlanNetworkEntry_t wifi_endpoints_cp[2] = {0};
-
+    play_led_progress_bar(0,0,30,0);
     MorpheusCommand reply_command = {0};
     for(i = 0; i < scanned_wifi_count; i++)
     {
@@ -72,10 +73,11 @@ static void _reply_wifi_scan_result()
 		reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_START_WIFISCAN;
 		reply_command.wifi_scan_result.arg = wifi_endpoints_cp;
 		ble_send_protobuf(&reply_command);
-
+		set_led_progress_bar(i * 100 / scanned_wifi_count);
         vTaskDelay(1000);  // This number must be long enough so the BLE can get the data transmit to phone
         memset(&reply_command, 0, sizeof(reply_command));
     }
+    stop_led_animation();
 
     reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_STOP_WIFISCAN;
 	ble_send_protobuf(&reply_command);
