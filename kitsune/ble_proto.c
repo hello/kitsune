@@ -441,7 +441,7 @@ static void _pair_device( MorpheusCommand* command, int is_morpheus)
 		}
 	}
 }
-
+#include "top_board.h"
 void on_ble_protobuf_command(MorpheusCommand* command)
 {
     switch(command->type)
@@ -476,6 +476,7 @@ void on_ble_protobuf_command(MorpheusCommand* command)
         {
             // Get morpheus device id request from Nordic
             UARTprintf("GET DEVICE ID\n");
+            top_board_notify_boot_complete();
             _reply_device_id();
         }
         break;
