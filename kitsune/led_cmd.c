@@ -323,7 +323,10 @@ void led_task( void * params ) {
 		if(evnt & LED_CUSTOM_ANIMATION){
 			unsigned int colors[NUM_LED + 1];
 			if(user_animation_handler){
-				int r[NUM_LED],g[NUM_LED],b[NUM_LED],delay,i;
+				int r[NUM_LED] = {0};
+				int g[NUM_LED] = {0};
+				int b[NUM_LED] = {0};
+				int delay,i;
 				if(user_animation_handler(r,g,b,&delay,user_context, NUM_LED)){
 					for(i = 0; i <= NUM_LED; i++){
 						r[i] = clamp_rgb(r[i],0,LED_CLAMP_MAX);
