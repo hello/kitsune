@@ -27,7 +27,7 @@
 #define TRY_OR_GOTOFAIL(a) if(a!=SUCCESS) { UARTprintf( "fail at %s %d\n\r", __FILE__, __LINE__ ); return FAILURE;}
 
 #define Codec_addr 0x1A
-#define delay_codec 5
+#define delay_codec 10
 
 //*****************************************************************************
 //
@@ -434,7 +434,7 @@ int get_codec_NAU(int argc, char *argv[]) {
 	unsigned char cmd_init[2];
 	//int light_raw;
 
-	cmd_init[0] = 0x00 ; cmd_init[1] = 0x00 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(150); // reset register
+	cmd_init[0] = 0x00 ; cmd_init[1] = 0x00 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // reset register
 	// Do sequencing for avoid pop and click sounds
 	/////////////// 1. Power supplies VDDA, VDDB, VDDC, and VDDSPK /////////////////////
 	/////////////// 2. Mode SPKBST and MOUTBST /////////////////////////////////////////
