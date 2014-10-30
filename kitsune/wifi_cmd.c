@@ -1104,7 +1104,7 @@ bool encode_serialized_pill_list(pb_ostream_t *stream, const pb_field_t *field, 
 
     // The serilized pill list already has tags encoded, don't need to write tag anymore
     // just write the bytes straight into the stream.
-    return pb_write(stream, array_holder->buffer, array_holder->length);
+    return pb_encode_string(stream, array_holder->buffer, array_holder->length);
 }
 
 void encode_pill_list_to_buffer(const periodic_data_pill_data_container* ptr_pill_list, 
@@ -1133,29 +1133,113 @@ void encode_pill_list_to_buffer(const periodic_data_pill_data_container* ptr_pil
             data.pill_data.motionDataEncrypted.funcs.encode = _encode_encrypted_pilldata;
         }
 
-        if (!pb_encode_tag(&stream, PB_WT_STRING, periodic_data_fields[periodic_data_pills_tag].tag)){
-            UARTprintf("encode_pill_list_to_buffer: Fail to encode tag for pill %s\r\n", data.id);
-            continue;
-        }
+        if(!buffer)
+        {
+			pb_ostream_t size_stream = {0};
 
-        /*
-        pb_ostream_t sizestream = {0};
-        if(!pb_encode(&sizestream, periodic_data_pill_data_fields, &data.pill_data)){
-            UARTprintf("encode_pill_list_to_buffer: Failed to retreive length\n");
-            continue;
-        }
+			/*
+			if (!pb_encode_delimited(&size_stream, periodic_data_pill_data_fields, &data.pill_data)){
+				UARTprintf("encode_pill_list_to_buffer: Fail to get length %s\n", PB_GET_ERROR(&size_stream));
+				continue;
+			}
+			*/
 
-        if (!pb_encode_varint(&stream, sizestream.bytes_written)){
-            UARTprintf("encode_pill_list_to_buffer: Failed to write length\n");
-            continue;
-        }
-        */
 
-        if (!pb_encode_delimited(&stream, periodic_data_pill_data_fields, &data.pill_data)){
-            UARTprintf("encode_pill_list_to_buffer: Fail to encode pill %s\r\n", data.id);
-        }
+			pb_ostream_t sizestream = {0};
+			size_t message_len = 0;
+			if (!pb_encode(&sizestream, periodic_data_pill_data_fields, &data.pill_data)){
+				UARTprintf("Fail to encode pill %s\r\n", data.id);
+				continue;
+			}
 
-        *out_len += stream.bytes_written;
+			message_len = sizestream.bytes_written;
+
+			if (!pb_encode_varint(&size_stream, message_len)){
+				UARTprintf("Failed to get length\n");
+				continue;
+			}
+
+			if (!pb_encode(&size_stream, periodic_data_pill_data_fields, &data.pill_data)){
+				UARTprintf("Fail to get encode pill len %s\r\n", data.id);
+				continue;
+			}
+
+			size_t len = size_stream.bytes_written + 10;  // This is a must or we can't know the actual length including the tag
+			uint8_t* size_buffer = pvPortMalloc(len);
+			if(!size_buffer)
+			{
+				continue;
+			}
+
+			memset(size_buffer, 0, len);
+			size_stream = pb_ostream_from_buffer(size_buffer, len);
+
+			UARTprintf("start: %d\n", size_stream.bytes_written);
+			if (!pb_encode_tag_for_field(&size_stream, &periodic_data_fields[periodic_data_pills_tag])){
+				UARTprintf("encode_pill_list_to_buffer: Fail to encode tag for pill %s, error %s\n", data.id, PB_GET_ERROR(&size_stream));
+				vPortFree(size_buffer);
+				continue;
+			}
+			UARTprintf("tag len: %d, tag_val: %d\n", size_stream.bytes_written, size_buffer[0]);
+
+			/*
+			if (!pb_encode_delimited(&size_stream, periodic_data_pill_data_fields, &data.pill_data)){
+				UARTprintf("encode_pill_list_to_buffer: Fail to get length2 %s\n", PB_GET_ERROR(&size_stream));
+				vPortFree(size_buffer);
+				continue;
+			}
+			*/
+
+			if (!pb_encode_varint(&size_stream, message_len)){
+				UARTprintf("Failed to get length2\n");
+				continue;
+			}
+
+			if (!pb_encode(&size_stream, periodic_data_pill_data_fields, &data.pill_data)){
+				UARTprintf("Fail to get encode pill len2 %s\r\n", data.id);
+				continue;
+			}
+
+			UARTprintf("tag+len+message: %d\n", size_stream.bytes_written);
+			vPortFree(size_buffer);
+			*out_len += size_stream.bytes_written;
+        }else{
+        	if (!pb_encode_tag_for_field(&stream, &periodic_data_fields[periodic_data_pills_tag])){
+				UARTprintf("encode_pill_list_to_buffer: Fail to encode tag for pill %s, error %s\n", data.id, PB_GET_ERROR(&stream));
+				continue;
+			}
+
+        	/*
+        	if (!pb_encode_delimited(&stream, periodic_data_pill_data_fields, &data.pill_data)){
+				UARTprintf("encode_pill_list_to_buffer: Fail to encode pill %s, error: %s\n", data.id, PB_GET_ERROR(&stream));
+				continue;
+			}
+			*/
+
+        	pb_ostream_t sizestream = { 0 };
+			if(!pb_encode(&sizestream, periodic_data_pill_data_fields, &data.pill_data)){
+				//UARTprintf("Failed to retreive length\n");
+				continue;
+			}
+
+			UARTprintf("message: %d\n", sizestream.bytes_written);
+
+
+
+			if (!pb_encode_varint(&stream, sizestream.bytes_written)){
+				//UARTprintf("Failed to write length\n");
+				continue;
+			}
+
+			if (!pb_encode(&stream, periodic_data_pill_data_fields, &data.pill_data)){
+				UARTprintf("Fail to encode pill %s\n", data.id);
+				continue;
+			}else{
+				UARTprintf("Pill %s data uploaded\n", data.id);
+			}
+
+        	*out_len += stream.bytes_written;
+        }
     }
 
 

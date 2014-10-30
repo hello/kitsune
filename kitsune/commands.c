@@ -645,7 +645,7 @@ void thread_tx(void* unused) {
 				data.unix_time, data.light, data.light_variability, data.light_tonality, data.temperature, data.humidity,
 				data.dust);
 
-		while (!send_periodic_data(&data) == 0) {
+		while (send_periodic_data(&data) != 0) {
 			UARTprintf("********************* Waiting for WIFI connection *****************\n");
 			vTaskDelay( (1<<tries) * 1000 );
 			if( tries++ > 5 ) {
