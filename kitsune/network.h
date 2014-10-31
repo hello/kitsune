@@ -72,12 +72,32 @@ extern "C"
 //
 //*****************************************************************************
 #define PACKET_SIZE             1024
-#define PLAY_WATERMARK		    5*1024
+#define PLAY_WATERMARK		    10*1024
 #define TX_BUFFER_SIZE          10*PACKET_SIZE
-#define RX_BUFFER_SIZE          10*PACKET_SIZE
+#define RX_BUFFER_SIZE          20*PACKET_SIZE
 
-
-#define AUDIO_FILE "DIGITT.raw" //armi.rec
+//#ifdef DIGITT
+#define AUDIO_FILE "DIGIEQQ.raw" //armi.rec DIGITLP DIGITOR
+//#define AUDIO_FILE "mari.rec" //armi.rec DIGITLP DIGITOR
+//#else if ORGANICSIX
+//#define AUDIO_FILE "ORGANICSIX.raw"
+//#else if ORGANICFIVE
+//#define AUDIO_FILE "ORGANICFIVE.raw"
+//#else if ORGANICFOUR
+//#define AUDIO_FILE "ORGANICFOUR.raw""
+//#else if ORGANICTHREE
+//#define AUDIO_FILE "ORGANICTHREE.raw"
+//#else if ORGANICTWO
+//#define AUDIO_FILE "ORGANICTWO.raw"
+//#else if ORGANICONE
+//#define AUDIO_FILE "ORGANICONE.raw"
+//#else if DRYTHREE
+//#define AUDIO_FILE "DRYTHREE.raw"
+//#else if COLORTWO
+//#define AUDIO_FILE "COLORTWO.raw"
+//#else if COLORTHREE
+//#define AUDIO_FILE "COLORTHREE.raw"
+//#endif
 //*****************************************************************************
 //
 // Define Audio Input/Output Connection
