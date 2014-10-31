@@ -131,7 +131,7 @@ PinMuxConfig(void)
     MAP_PRCMPeripheralClkEnable(PRCM_GSPI, PRCM_RUN_MODE_CLK);
     MAP_PRCMPeripheralClkEnable(PRCM_SDHOST, PRCM_RUN_MODE_CLK);
 
-    MAP_PRCMPeripheralClkEnable(PRCM_CAMERA, PRCM_RUN_MODE_CLK);
+   // MAP_PRCMPeripheralClkEnable(PRCM_CAMERA, PRCM_RUN_MODE_CLK);
     //
     // Configure PIN_50 for MCASP0 McAXR1
     //
@@ -191,8 +191,8 @@ PinMuxConfig(void)
     //
     MAP_PinTypeCamera(PIN_02, PIN_MODE_4);
 
-    HWREG(0x44025000) = 0x0000;
-    MAP_CameraXClkConfig(CAMERA_BASE, 120000000ul,12000000ul);
+//    HWREG(0x44025000) = 0x0000;
+//    MAP_CameraXClkConfig(CAMERA_BASE, 120000000ul,12000000ul);
 
     //
     // Configure PIN_03 for MCASP0 McACLK

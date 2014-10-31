@@ -326,6 +326,12 @@ if(pRxBuffer == NULL)
 // Configure Audio Codec
 //
 get_codec_NAU();
+vTaskDelay(50);
+	MAP_PRCMPeripheralClkEnable(PRCM_CAMERA, PRCM_RUN_MODE_CLK);
+	vTaskDelay(50);
+	HWREG(0x44025000) = 0x0000;
+    MAP_CameraXClkConfig(CAMERA_BASE, 120000000ul,12000000ul);
+    vTaskDelay(50);
 
 // Initialize the Audio(I2S) Module
 //
@@ -356,6 +362,8 @@ Audio_Start();
 Speaker1();
 
 UARTprintf("g_iReceiveCount %d\n\r", g_iReceiveCount);
+MAP_PRCMPeripheralClkDisable(PRCM_CAMERA, PRCM_RUN_MODE_CLK);
+vTaskDelay(50);
 close_codec_NAU(); UARTprintf("close_codec_NAU");
 Audio_Stop();
 McASPDeInit();
