@@ -33,7 +33,7 @@
 #define TIMER_INTERVAL_RELOAD   65535
 #define PULSE_WIDTH             20000//8192//2097
 
-#define SAMPLES 1024
+#define SAMPLES 4096
 
 //****************************************************************************
 //
