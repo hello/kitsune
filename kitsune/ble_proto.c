@@ -12,6 +12,8 @@
 #include "assert.h"
 #include "stdlib.h"
 #include "stdio.h"
+#include "networktask.h"
+#include "top_board.h"
 
 extern unsigned int sl_status;
 int Cmd_led(int argc, char *argv[]);
@@ -41,6 +43,47 @@ static void _factory_reset(){
     }
 }
 
+static void _reply_wifi_scan_result()
+{
+    Sl_WlanNetworkEntry_t wifi_endpoints[MAX_WIFI_EP_PER_SCAN] = {0};
+    int scanned_wifi_count = 0;
+
+    uint8_t max_retry = 3;
+    uint8_t retry_count = max_retry;
+    sl_status |= SCANNING;
+    
+    Cmd_led(0,0);
+    while((scanned_wifi_count = get_wifi_scan_result(wifi_endpoints, MAX_WIFI_EP_PER_SCAN, 3000 * (max_retry - retry_count + 1))) == 0 && --retry_count)
+    {
+
+        UARTprintf("No wifi scanned, retry times remain %d\n", retry_count);
+        vTaskDelay(500);
+    }
+
+    sl_status &= ~SCANNING;
+
+    int i = 0;
+    Sl_WlanNetworkEntry_t wifi_endpoints_cp[2] = {0};
+
+    MorpheusCommand reply_command = {0};
+    for(i = 0; i < scanned_wifi_count; i++)
+    {
+        wifi_endpoints_cp[0] = wifi_endpoints[i];
+
+		reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_START_WIFISCAN;
+		reply_command.wifi_scan_result.arg = wifi_endpoints_cp;
+		ble_send_protobuf(&reply_command);
+
+        vTaskDelay(1000);  // This number must be long enough so the BLE can get the data transmit to phone
+        memset(&reply_command, 0, sizeof(reply_command));
+    }
+
+    reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_STOP_WIFISCAN;
+	ble_send_protobuf(&reply_command);
+	UARTprintf(">>>>>>Send WIFI scan results done<<<<<<\n");
+
+}
+
 
 static bool _set_wifi(const char* ssid, const char* password)
 {
@@ -48,11 +91,27 @@ static bool _set_wifi(const char* ssid, const char* password)
     int scanned_wifi_count, connection_ret;
     memset(wifi_endpoints, 0, sizeof(wifi_endpoints));
 
-    uint8_t retry_count = 10;
+    /*
+    sl_WlanDisconnect();   // This line causes trouble, cannot get IP back after reconnect
+    // To reproduce the problem, connect to a valid WIFI first, then switch to another WIFI
+    // The 2nd connection will never managed to get the IP address event.
+    // If we don't disconnect, after the 2nd connection request, the chip will
+    // disconnect itself and successfully reconnect.
+    // But it seems I never get the UART print out get IP event, not sure if
+    // it happens or not.
+    // This chip is a mystery.
+
+	while(sl_status&HAS_IP) {
+		vTaskDelay(100);
+	}
+	*/
+
+    uint8_t max_retry = 10;
+    uint8_t retry_count = max_retry;
 
     sl_status |= SCANNING;
     
-    while((scanned_wifi_count = get_wifi_scan_result(wifi_endpoints, MAX_WIFI_EP_PER_SCAN, 1000)) == 0 && --retry_count)
+    while((scanned_wifi_count = get_wifi_scan_result(wifi_endpoints, MAX_WIFI_EP_PER_SCAN, 2000 * (max_retry - retry_count + 1))) == 0 && --retry_count)
     {
         Cmd_led(0,0);
         UARTprintf("No wifi scanned, retry times remain %d\n", retry_count);
@@ -64,6 +123,7 @@ static bool _set_wifi(const char* ssid, const char* password)
         Cmd_led(0,0);
         sl_status &= ~SCANNING;
     	UARTprintf("No wifi found after retry %d times\n", 10);
+        ble_reply_protobuf_error(ErrorType_NO_ENDPOINT_IN_RANGE);
     	return 0;
     }
 
@@ -83,6 +143,7 @@ static bool _set_wifi(const char* ssid, const char* password)
     if(!connection_ret)
     {
 		UARTprintf("Tried all wifi ep, all failed to connect\n");
+        ble_reply_protobuf_error(ErrorType_WLAN_CONNECTION_ERROR);
 		return 0;
     }else{
 		uint8_t wait_time = 10;
@@ -100,10 +161,18 @@ static bool _set_wifi(const char* ssid, const char* password)
 		{
 			Cmd_led(0,0);
 			UARTprintf("!!WIFI set without network connection.");
+            ble_reply_protobuf_error(ErrorType_FAIL_TO_OBTAIN_IP);
 			return 0;
 		}
     }
 
+    MorpheusCommand reply_command;
+    memset(&reply_command, 0, sizeof(reply_command));
+    reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_SET_WIFI_ENDPOINT;
+    reply_command.wifiSSID.arg = (void*)ssid;
+
+    UARTprintf("Connection attempt issued.\n");
+    ble_send_protobuf(&reply_command);
     return 1;
 }
 
@@ -326,14 +395,15 @@ static void _send_response_to_ble(const char* buffer, size_t len)
     memset(&response, 0, sizeof(response));
     ble_proto_assign_decode_funcs(&response);
 
-    if(decode_rx_data_pb((unsigned char*)content, content_len, MorpheusCommand_fields, &response, sizeof(response)) != 0)
+    if(decode_rx_data_pb((unsigned char*)content, content_len, MorpheusCommand_fields, &response) == 0)
     {
-        UARTprintf("Invalid response, protobuf decryption & decode failed.\n");
-        ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
-    }else{
+    	ble_send_protobuf(&response);
 
-        ble_send_protobuf(&response);
+    }else{
+    	UARTprintf("Invalid response, protobuf decryption & decode failed.\n");
+    	ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
     }
+
     ble_proto_remove_decode_funcs(&response);
     ble_proto_free_command(&response);
 }
@@ -341,6 +411,7 @@ static void _send_response_to_ble(const char* buffer, size_t len)
 static void _pair_device( MorpheusCommand* command, int is_morpheus)
 {
 	char response_buffer[256] = {0};
+	int ret;
 	if(NULL == command->accountId.arg || NULL == command->deviceId.arg){
 		UARTprintf("****************************************Missing fields\n");
 		ble_reply_protobuf_error(ErrorType_INTERNAL_DATA_ERROR);
@@ -351,22 +422,13 @@ static void _pair_device( MorpheusCommand* command, int is_morpheus)
 		// TODO: Figure out why always get -1 when this is the 1st request
 		// after the IPv4 retrieved.
 
-		int ret = send_data_pb(DATA_SERVER,
+		ret = NetworkTask_SynchronousSendProtobuf(
 				is_morpheus == 1 ? MORPHEUS_REGISTER_ENDPOINT : PILL_REGISTER_ENDPOINT,
-				NULL, 0,
-				response_buffer, sizeof(response_buffer),
-				MorpheusCommand_fields, command);
-
-		while(ret != 0 && retry_count--){
-			UARTprintf("Network error, try to resend command...\n");
-			vTaskDelay(1000);
-			ret = send_data_pb(DATA_SERVER,
-				is_morpheus == 1 ? MORPHEUS_REGISTER_ENDPOINT : PILL_REGISTER_ENDPOINT,
-				NULL, 0,
-				response_buffer, sizeof(response_buffer),
-				MorpheusCommand_fields, command);
-
-		}
+				response_buffer,
+				sizeof(response_buffer),
+				MorpheusCommand_fields,
+				command,
+				5000);
 
 		// All the args are in stack, don't need to do protobuf free.
 
@@ -389,29 +451,11 @@ void on_ble_protobuf_command(MorpheusCommand* command)
             const char* ssid = command->wifiSSID.arg;
             char* password = command->wifiPassword.arg;
 
-            sl_WlanDisconnect();
-            while(sl_status&HAS_IP) {
-            	vTaskDelay(1);
-            }
             // I can get the Mac address as well, but not sure it is necessary.
 
             // Just call API to connect to WIFI.
             UARTprintf("Wifi SSID %s, pswd %s \n", ssid, password);
-            if(!_set_wifi(ssid, (char*)password))
-            {
-                UARTprintf("Connection attempt failed.\n");
-                ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
-            }else{
-                // If the wifi connection is set, reply
-                
-                MorpheusCommand reply_command;
-                memset(&reply_command, 0, sizeof(reply_command));
-                reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_SET_WIFI_ENDPOINT;
-                reply_command.wifiSSID.arg = (void*)ssid;
-
-                UARTprintf("Connection attempt issued.\n");
-                ble_send_protobuf(&reply_command);
-            }
+            _set_wifi(ssid, (char*)password);
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_PAIRING_MODE:  // Just for testing
@@ -432,6 +476,7 @@ void on_ble_protobuf_command(MorpheusCommand* command)
         {
             // Get morpheus device id request from Nordic
             UARTprintf("GET DEVICE ID\n");
+            top_board_notify_boot_complete();
             _reply_device_id();
         }
         break;
@@ -472,6 +517,12 @@ void on_ble_protobuf_command(MorpheusCommand* command)
         {
             UARTprintf("FACTORY RESET\n");
             _factory_reset();
+        }
+        break;
+        case MorpheusCommand_CommandType_MORPHEUS_COMMAND_START_WIFISCAN:
+        {
+            UARTprintf("WIFI Scan request\n");
+            _reply_wifi_scan_result();
         }
         break;
 	}

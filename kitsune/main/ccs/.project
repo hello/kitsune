@@ -121,6 +121,11 @@
 			<locationURI>PARENT-2-PROJECT_LOC/diskio.c</locationURI>
 		</link>
 		<link>
+			<name>dtm.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/dtm.h</locationURI>
+		</link>
+		<link>
 			<name>dust_cmd.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/dust_cmd.c</locationURI>
@@ -181,6 +186,26 @@
 			<locationURI>PARENT-2-PROJECT_LOC/i2c_cmd.h</locationURI>
 		</link>
 		<link>
+			<name>led_animations.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/led_animations.c</locationURI>
+		</link>
+		<link>
+			<name>led_animations.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/led_animations.h</locationURI>
+		</link>
+		<link>
+			<name>led_cmd.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/led_cmd.c</locationURI>
+		</link>
+		<link>
+			<name>led_cmd.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/led_cmd.h</locationURI>
+		</link>
+		<link>
 			<name>linear_svm.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/machinelearning/linear_svm.c</locationURI>
@@ -204,6 +229,11 @@
 			<name>nanopb</name>
 			<type>2</type>
 			<locationURI>virtual:/virtual</locationURI>
+		</link>
+		<link>
+			<name>networktask.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/networktask.c</locationURI>
 		</link>
 		<link>
 			<name>ota_usr.h</name>

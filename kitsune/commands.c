@@ -33,6 +33,7 @@
 #include "task.h"
 #include "semphr.h"
 #include "queue.h"
+#include "event_groups.h"
 
 #include "fault.h"
 
@@ -40,6 +41,7 @@
 #include "ustdlib.h"
 #include "uartstdio.h"
 
+#include "networktask.h"
 #include "wifi_cmd.h"
 #include "i2c_cmd.h"
 #include "dust_cmd.h"
@@ -69,6 +71,8 @@
 #include "top_hci.h"
 #include "slip_packet.h"
 #include "ble_cmd.h"
+#include "led_cmd.h"
+#include "led_animations.h"
 //#include "mcasp_if.h" // add by Ben
 
 #define ONLY_MID 0
@@ -565,28 +569,15 @@ void thread_fast_i2c_poll(void * unused)  {
 		int prox,hpf_prox;
 
 		if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
+			int adjust;
+
 			vTaskDelay(2);
 			light = get_light();
-
-			if(light == FAILURE)
-			{
-				UARTprintf("Read light failed\n");
-				xSemaphoreGive(i2c_smphr);
-				continue;
-			}
-
 			vTaskDelay(2); //this is important! If we don't do it, then the prox will stretch the clock!
 
 			// For the black morpheus, we can detect 6mm distance max
 			// for white one, 9mm distance max.
 			prox = get_prox();  // now this thing is in um.
-
-			if(prox == FAILURE)
-			{
-				UARTprintf("Read prox failed\n");
-				xSemaphoreGive(i2c_smphr);
-				continue;
-			}
 
 			hpf_prox = last_prox - prox;   // The noise in enclosure is in 100+ um level
 
@@ -600,7 +591,24 @@ void thread_fast_i2c_poll(void * unused)  {
 				xSemaphoreGive(alarm_smphr);
 				//Audio_Stop();
 				xSemaphoreGive(i2c_smphr);
-				Cmd_led(0,0);
+
+				if( light > 80 ) {
+					adjust = 0;
+				} else {
+					adjust = light - 80;
+				}
+				if( sl_status & UPLOADING ) {
+					led_set_color( 0,0,255+adjust, 1, 1, 3, 1 ); //blue
+			 	}
+			 	else if( sl_status & HAS_IP ) {
+					led_set_color( 0,255+adjust,0, 1, 1, 3, 1 ); //green
+			 	}
+			 	else if( sl_status & CONNECTING ) {
+			 		led_set_color( 255+adjust,255+adjust,0, 1, 1, 3, 1 ); //yellow
+			 	}
+			 	else if( sl_status & SCANNING ) {
+			 		led_set_color( 255+adjust,0,0, 1, 1, 3, 1 ); //red
+			 	}
 			}
 			last_prox = prox;
 
@@ -629,13 +637,12 @@ xQueueHandle data_queue = 0;
 
 void thread_tx(void* unused) {
 	array_data data = {0};
-
 	load_aes();
 
 	while (1) {
 		int tries = 0;
 		UARTprintf("********************Start polling *****************\n");
-		if( data_queue != 0 && !xQueueReceive(data_queue, &data, portMAX_DELAY)) {
+		if( data_queue != 0 && !xQueueReceive( data_queue, &( data ), portMAX_DELAY ) ) {
 			vTaskDelay(100);
 			UARTprintf("*********************** Waiting for data *****************\n");
 			continue;
@@ -643,7 +650,7 @@ void thread_tx(void* unused) {
 
 		/*
 		UARTprintf("sending time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d\n",
-				data.unix_time, data.light, data.light_variability, data.light_tonality, data.temperature, data.humidity,
+				data.time, data.light, data.light_variability, data.light_tonality, data.temp, data.humid,
 				data.dust);
 		*/
 
@@ -657,20 +664,9 @@ void thread_tx(void* unused) {
 			while( !(sl_status&HAS_IP ) );
 		}//try every little bit
 
-		/*
-		if(data.pills.arg)
-	    {
-	        array_data* array_holder = (array_data*)data.pills.arg;
-	        vPortFree(array_holder->buffer);
 
-	        data.pills.funcs.encode = NULL;
-	        data.pills.arg = NULL;
-
-	        // Keep in mind that the array_holder is actually appended at
-			// the end of the buffer, so no need to free the holder itself.
-	    }
-	    */
-
+	    // Keep in mind that the array_holder is actually appended at
+		// the end of the buffer, so no need to free the holder itself.
 		vPortFree(data.buffer);
 	}
 }
@@ -683,169 +679,74 @@ void thread_sensor_poll(void* unused) {
 	// Print some header text.
 	//
 
-	periodic_data data = {0};
+	data_t data;
 
 	while (1) {
 		portTickType now = xTaskGetTickCount();
 
-		memset(&data, 0, sizeof(data));  // Don't forget re-init!
-		data.unix_time = get_time();
-		data.has_unix_time = true;
+		data.time = get_time();
 
-		size_t increased_heap_size = 0;
+		if( xSemaphoreTake( dust_smphr, portMAX_DELAY ) ) {
+			int dust_var;
 
-		// copy over the dust values
-		if( xSemaphoreTake(dust_smphr, portMAX_DELAY)) {
 			if( dust_cnt != 0 ) {
 				data.dust = dust_mean;
-				data.has_dust = true;
-
-				dust_log_sum /= dust_cnt;  // devide by zero?
-				if(dust_cnt > 1)
-				{
-					data.dust_variability = dust_m2 / (dust_cnt - 1);  // devide by zero again, add if
-					data.has_dust_variability = true;  // since init with 0, by default it is false
-				}
-				data.has_dust_max = true;
-				data.dust_max = dust_max;
-
-				data.has_dust_min = true;
-				data.dust_min = dust_min;
-
-				
 			} else {
 				data.dust = get_dust();
-				if(data.dust == 0)  // This means we get some error?
-				{
-					data.has_dust = false;
-				}
-
-				data.has_dust_variability = false;
-				data.has_dust_max = false;
-				data.has_dust_min = false;
 			}
-			
+			dust_log_sum /= dust_cnt;
+
+			dust_var = dust_m2 / (dust_cnt-1);
+
+			data.dust_var = dust_var;
+			data.dust_max = dust_max;
+			data.dust_min = dust_min;
+
 			dust_min = 5000;
 			dust_m2 = dust_mean = dust_cnt = dust_log_sum = dust_max = 0;
-			xSemaphoreGive(dust_smphr);
+
+			xSemaphoreGive( dust_smphr );
 		} else {
-			data.has_dust = false;  // if Semaphore take failed, don't upload
+			data.dust = get_dust();
 		}
-
-		// copy over light values
 		if (xSemaphoreTake(light_smphr, portMAX_DELAY)) {
-			if(light_cnt == 0)
-			{
-				data.has_light = false;
-			}else{
-				light_log_sum /= light_cnt;  // just be careful for devide by zero.
-				light_sf = (light_mean << 8) / bitexp( light_log_sum );
+			light_log_sum /= light_cnt;
+			light_sf = (light_mean<<8) / bitexp( light_log_sum );
 
-				if(light_cnt > 1)
-				{
-					data.light_variability = light_m2 / (light_cnt - 1);
-					data.has_light_variability = true;
-				}else{
-					data.has_light_variability = false;
-				}
+			int light_var = light_m2 / (light_cnt-1);
 
-				//UARTprintf( "%d lightsf %d var %d cnt\n", light_sf, light_var, light_cnt );
-				data.light_tonality = light_sf;
-				data.has_light_tonality = true;
+			//UARTprintf( "%d lightsf %d var %d cnt\n", light_sf, light_var, light_cnt );
 
-				data.light = light_mean;
-				data.has_light = true;
-
-				light_m2 = light_mean = light_cnt = light_log_sum = light_sf = 0;
-			}
-			
+			data.light_variability = light_var;
+			data.light_tonality = light_sf;
+			data.light = light_mean;
+			light_m2 = light_mean = light_cnt = light_log_sum = light_sf = 0;
 			xSemaphoreGive(light_smphr);
 		}
-
-		// get temperature and humidity
 		if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
 			uint8_t measure_time = 10;
 			int64_t humid_sum = 0;
 			int64_t temp_sum = 0;
-
-			uint8_t humid_count = 0;
-			uint8_t temp_count = 0;
-
 			while(--measure_time)
 			{
 				vTaskDelay(2);
-
-				int humid = get_humid();
-				if(humid != FAILURE)
-				{
-					humid_sum += humid;
-					humid_count++;
-				}
-
+				humid_sum += get_humid();
 				vTaskDelay(2);
-
-				int temp = get_temp();
-
-				if(temp != FAILURE)
-				{
-					temp_sum += temp;
-					temp_count++;
-				}
-
+				temp_sum += get_temp();
 				vTaskDelay(2);
 			}
 
-
-
-			if(humid_count == 0)
-			{
-				data.has_humidity = false;
-			}else{
-				data.has_humidity = true;
-				data.humidity = humid_sum / humid_count;
-
-			}
-
-
-			if(temp_count == 0)
-			{
-				data.has_temperature = false;
-			}else{
-				data.has_temperature = true;
-				data.temperature = temp_sum / temp_count;
-			}
+			data.humid = humid_sum / 10;
+			data.temp = temp_sum / 10;
 			
 			xSemaphoreGive(i2c_smphr);
+		} else {
+			continue;
 		}
 
 		array_data* array = NULL;
 		// made the deep copy of the current pill data. and reset pill data after copy.
 		if (xSemaphoreTake(pill_smphr, portMAX_DELAY)) {
-
-			/*
-			size_t len = 0;
-			encode_pill_list_to_buffer(pill_list, NULL, 0, &len);
-			if(len > 0)
-			{
-				// I am going to buffer the serialized pill list in the heap
-				uint8_t* buffer = pvPortMalloc(len + sizeof(array_data));  // put the holder at the end
-
-				if(buffer)
-				{	
-					increased_heap_size += len + sizeof(array_data); 
-					memset(buffer, 0, len + sizeof(array_data));
-					encode_pill_list_to_buffer(pill_list, buffer, len, &len);
-					array_data* array_holder = (array_data*)&buffer[len];
-					array_holder->buffer = buffer;
-					array_holder->length = len;
-
-					data.pills.arg = array_holder;
-
-				}
-			}
-			
-			memset(pill_list, 0, sizeof(pill_list));   // reset the pill list 
-			*/
 
 			data.has_firmware_version = true;
 			data.firmware_version = KIT_VER;
@@ -880,37 +781,31 @@ void thread_sensor_poll(void* unused) {
 
 					}
 
+					memset(pill_list, 0, sizeof(pill_list));
+
 				}
 			}else{
 				UARTprintf("size eval failed\n");
 			}
+
 			xSemaphoreGive(pill_smphr);
+		} else {
+			continue;
 		}
-
-
 		UARTprintf("collecting time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d %d %d %d\n",
-				data.unix_time, data.light, data.light_variability, data.light_tonality, data.temperature, data.humidity,
-				data.dust, data.dust_max, data.dust_min, data.dust_variability);
+				data.time, data.light, data.light_variability, data.light_tonality, data.temp, data.humid,
+				data.dust, data.dust_max, data.dust_min, data.dust_var);
+
+		    // ...
+
+        xQueueSend( data_queue, ( void * ) &data, 10 );
+
 
         if(array && xQueueSend(data_queue, (void*)array, 10) == pdPASS)
         {
         	increased_heap_size += array->length;
     	}else{
     		UARTprintf("Failed to post data\n");
-
-    		/*
-    		if(data.pills.arg)
-    		{
-    			array_data* array_holder = (array_data*)data.pills.arg;
-    			increased_heap_size -= array_holder->length;
-    			vPortFree(array_holder->buffer);
-
-    			// keep in mind that the array_holder is actually appended at
-    			// the end of the buffer, so no need to free the holder itself.
-    			data.pills.arg = NULL;
-    			data.pills.funcs.encode = NULL;
-    		}
-    		*/
     	}
 		UARTprintf("Sensor polling task sleep... heap size for this data %d bytes\n", increased_heap_size);
 
@@ -1129,272 +1024,7 @@ void thread_spi(void * data) {
 	*/
 }
 
-#define NUM_LED 12
-#define LED_GPIO_BIT 0x1
-#define LED_GPIO_BASE GPIOA3_BASE
 
-#if defined(ccs)
-
-#endif
-
-#define LED_LOGIC_HIGH_FAST 0
-#define LED_LOGIC_LOW_FAST LED_GPIO_BIT
-#define LED_LOGIC_HIGH_SLOW LED_GPIO_BIT
-#define LED_LOGIC_LOW_SLOW 0
-
-void led_fast( unsigned int* color ) {
-	int i;
-	unsigned int * end = color + NUM_LED;
-
-	for( ;; ) {
-		for (i = 0; i < 24; ++i) {
-			if ((*color << i) & 0x800000 ) {
-				//1
-				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_HIGH_FAST);
-				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_LOW_FAST);
-				if( i!=23 ) {
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-
-				} else {
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-				}
-			} else {
-				//0
-				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_HIGH_FAST);
-				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_LOW_FAST);
-				if( i!=23 ) {
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-
-				} else {
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-					__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
-				}
-			}
-		}
-		if( ++color > end ) {
-			return;
-		}
-	}
-}
-void led_slow(unsigned int* color) {
-	int i;
-	unsigned int * end = color + NUM_LED;
-	for (;;) {
-		for (i = 0; i < 24; ++i) {
-			if ((*color << i) & 0x800000) {
-				//1
-				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_HIGH_SLOW);
-				UtilsDelay(5);
-				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_LOW_SLOW);
-				if (i != 23) {
-					UtilsDelay(5);
-				} else {
-					UtilsDelay(4);
-				}
-
-			} else {
-				//0
-				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_HIGH_SLOW);
-				UtilsDelay(1);
-				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_LOW_SLOW);
-				if (i != 23) {
-					UtilsDelay(5);
-				} else {
-					UtilsDelay(2);
-				}
-			}
-		}
-		if (++color > end) {
-			return;
-		}
-	}
-}
-
-#define LED_GPIO_BASE_DOUT GPIOA2_BASE
-#define LED_GPIO_BIT_DOUT 0x80
-void led_array(unsigned int * colors) {
-	unsigned long ulInt;
-	//
-
-	// Temporarily turn off interrupts.
-	//
-	bool fast = MAP_GPIOPinRead(LED_GPIO_BASE_DOUT, LED_GPIO_BIT_DOUT);
-	ulInt = MAP_IntMasterDisable();
-	if (fast) {
-		led_fast(colors);
-	} else {
-		led_slow(colors);
-	}
-	if (!ulInt) {
-		MAP_IntMasterEnable();
-	}
-}
-void led_ccw( unsigned int * colors) {
-	int l;
-	for (l = 0; l < NUM_LED-2; ++l) {
-		int temp = colors[l];
-		colors[l] = colors[l + 1];
-		colors[l + 1] = temp;
-	}
-}
-void led_cw( unsigned int * colors) {
-	int l;
-	for (l = NUM_LED-2; l > -1; --l) {
-		int temp = colors[l];
-		colors[l] = colors[l + 1];
-		colors[l + 1] = temp;
-	}
-}
-void led_brightness(unsigned int * colors, unsigned int brightness ) {
-	int l;
-	unsigned int blue,red,green;
-
-	for (l = 0; l < NUM_LED; ++l) {
-		blue = ( colors[l] & ~0xffff00 );
-		red = ( colors[l] & ~0xff00ff )>>8;
-		green = ( colors[l] & ~0x00ffff )>>16;
-
-		blue = ((brightness * blue)>>8)&0xff;
-		red = ((brightness * red)>>8)&0xff;
-		green = ((brightness * green)>>8)&0xff;
-		colors[l] = (blue) | (red<<8) | (green<<16);
-	}
-}
-void led_add_intensity(unsigned int * colors, int intensity ) {
-	int l;
-	int blue,red,green;
-
-	for (l = 0; l < NUM_LED; ++l) {
-		blue = ( colors[l] & ~0xffff00 );
-		red = ( colors[l] & ~0xff00ff )>>8;
-		green = ( colors[l] & ~0x00ffff )>>16;
-
-		blue = blue + intensity < 0 ? 0 : blue + intensity;
-		red = red + intensity < 0 ? 0 : red + intensity;
-		green = green + intensity < 0 ? 0 : green + intensity;
-
-		blue = blue > 0xff ? 0xff : blue&0xff;
-		red = red > 0xff ? 0xff : red&0xff;
-		green = green > 0xff ? 0xff : green&0xff;
-
-		colors[l] = (blue) | (red<<8) | (green<<16);
-	}
-}
-
-int Cmd_led(int argc, char *argv[]) {
-	int i,select,light,adjust;
-	unsigned int* colors;
-
-	unsigned int colors_blue[NUM_LED+1]= {0x00002,0x000004,0x000008,0x000010,0x000020,0x000040,0x000080,0x000080,0,0,0,0,0};
-	unsigned int colors_white[NUM_LED+1]= {0x020202,0x040404,0x080808,0x101010,0x202020,0x404040,0x808080,0x808080,0,0,0,0,0};
-	unsigned int colors_green[NUM_LED+1]= {0x020000,0x040000,0x080000,0x100000,0x200000,0x400000,0x800000,0x800000,0,0,0,0,0};
-	unsigned int colors_red[NUM_LED+1]= {0x000200,0x000400,0x000800,0x001000,0x002000,0x004000,0x008000,0x008000,0,0,0,0,0};
-	unsigned int colors_yellow[NUM_LED+1]= {0x020200,0x040400,0x080800,0x101000,0x202000,0x404000,0x808000,0x808000,0,0,0,0,0};
-	unsigned int colors_original[NUM_LED+1];
-
-	static unsigned int last_time;
-	static unsigned int now;
-
-	now = xTaskGetTickCount();
-
-	if( now - last_time < 2000 ) {
-		return 0;
-	}
-	last_time = now;
-
-	if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
-		light = get_light();
-		xSemaphoreGive(i2c_smphr);
-
-		if( light > 80 ){
-			adjust = 0;
-		} else {
-			adjust = light-80;
-		}
-	} else {
-		adjust = 0;
-	}
-	colors = colors_white;
-
-	if(argc == 2) {
-		select = atoi(argv[1]);
-		switch(select) {
-		case 1: colors = colors_white; break;
-		case 2: colors = colors_blue;break;
-		case 3: colors = colors_green;break;
-		case 4: colors = colors_red;break;
-		case 5: colors = colors_yellow;break;
-		}
-	} else
-	if( sl_status & UPLOADING ) {
-		colors = colors_blue;
-	}
-	else if( sl_status & HAS_IP ) {
-		colors = colors_green;
-	}
-	else if( sl_status & CONNECTING ) {
-		colors = colors_yellow;
-	}
-	else if( sl_status & SCANNING ) {
-		colors = colors_red;
-	}
-	memcpy( colors_original, colors, sizeof(colors_original));
-
-	for (i = 1; i < 32; ++i) {
-		led_cw(colors_original);
-		memcpy( colors, colors_original, sizeof(colors_original));
-		led_brightness( colors, fxd_sin(i<<4)>>7);
-		led_add_intensity( colors, adjust );
-		led_array(colors);
-		vTaskDelay(8*(12-(fxd_sin((i+1)<<4)>>12)));
-	}
-	vTaskDelay(10);
-	memset(colors_original, 0, sizeof(colors_original));
-	led_array(colors_original);
-	return 0;
-}
-
-int Cmd_led_clr(int argc, char *argv[]) {
-	unsigned int colors[NUM_LED];
-
-	memset(colors, 0, sizeof(colors));
-	led_array(colors);
-
-	return 0;
-}
 
 #include "top_hci.h"
 
@@ -1504,6 +1134,9 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "^", Cmd_send_top, "send command to top board"},
 		{ "topdfu", Cmd_topdfu, "update topboard firmware."},
 		{ "factory_reset", Cmd_factory_reset, "Factory reset from middle."},
+		{ "download", Cmd_download, "download test function."},
+		{ "dtm", Cmd_top_dtm, "Sends Direct Test Mode command" },
+		{ "animate", Cmd_led_animate, "Animates led"},
 
 		{ 0, 0, 0 } };
 
@@ -1522,12 +1155,20 @@ tCmdLineEntry g_sCmdTable[] = {
 extern xSemaphoreHandle g_xRxLineSemaphore;
 void UARTStdioIntHandler(void);
 
-void loopback_uart(void * p) {
-	top_board_task();
-}
 void vUARTTask(void *pvParameters) {
-	char cCmdBuf[64];
+	char cCmdBuf[512];
 	portTickType now;
+	NetworkTaskData_t network_task_data;
+
+	memset(&network_task_data,0,sizeof(network_task_data));
+	network_task_data.host = DATA_SERVER;
+
+
+	if(led_init() != 0){
+		UARTprintf("Failed to create the led_events.\n");
+	}
+
+	xTaskCreate(led_task, "ledTask", 384 / 4, NULL, 4, NULL); //todo reduce stack
 
 	Cmd_led_clr(0,0);
 	//switch the uart lines to gpios, drive tx low and see if rx goes low as well
@@ -1625,25 +1266,29 @@ void vUARTTask(void *pvParameters) {
 		UARTprintf("Failed to create the data_queue.\n");
 	}
 
-	xTaskCreate(loopback_uart, "loopback_uart", 1024 / 4, NULL, 2, NULL); //todo reduce stack
-	xTaskCreate(thread_audio, "audioTask", 5 * 1024 / 4, NULL, 4, NULL); //todo reduce stack
+	xTaskCreate(top_board_task, "top_board_task", 1024 / 4, NULL, 2, NULL); //todo reduce stack
+	xTaskCreate(thread_audio, "audioTask", 2 * 1024 / 4, NULL, 4, NULL); //todo reduce stack
 
 	UARTprintf("*");
 	xTaskCreate(thread_spi, "spiTask", 4*1024 / 4, NULL, 5, NULL);
+
+	xTaskCreate(NetworkTask_Thread,"networkTask",2*1024/4,&network_task_data,1,NULL);
+
 	SetupGPIOInterrupts();
 	UARTprintf("*");
 #if !ONLY_MID
 	xTaskCreate(AudioCaptureTask_Thread,"audioCaptureTask",4*1024/4,NULL,4,NULL);
 	UARTprintf("*");
-//	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",2*1024/4,NULL,1,NULL);
-//	UARTprintf("*");
+	AudioProcessingTask_Init();
+	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",2*1024/4,NULL,1,NULL);
+	UARTprintf("*");
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 3, NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_dust, "dustTask", 256 / 4, NULL, 3, NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_sensor_poll, "pollTask", 2 * 1024 / 4, NULL, 4, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_tx, "txTask", 3 * 1024 / 4, NULL, 2, NULL);
+	xTaskCreate(thread_tx, "txTask", 2 * 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_ota, "otaTask",5 * 1024 / 4, NULL, 1, NULL);
 	UARTprintf("*");
@@ -1677,7 +1322,7 @@ void vUARTTask(void *pvParameters) {
 			// Pass the line from the user to the command processor.  It will be
 			// parsed and valid commands executed.
 			//
-			xTaskCreate(CmdLineProcess, "commandTask",  5*1024 / 4, cCmdBuf, 20, NULL);
+			xTaskCreate(CmdLineProcess, "commandTask",  2*1024 / 4, cCmdBuf, 20, NULL);
 		}
 	}
 }

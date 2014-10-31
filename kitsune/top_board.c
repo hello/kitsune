@@ -13,6 +13,7 @@
 
 #include "FreeRTOS.h"
 #include "task.h"
+#include "led_cmd.h"
 
 typedef enum {
 	DFU_INVALID_PACKET = 0,
@@ -75,9 +76,11 @@ _on_message(uint8_t * message_body, uint32_t body_length){
 		if(0 != top_board_dfu_begin("/top/update.bin")){
 			top_board_dfu_begin("/top/factory.bin");
 		}
+		led_set_color(50,0,0,0,0,0,0);
 
 	}
 }
+
 static void
 _close_and_reset_dfu(){
 	sl_FsClose(self.dfu_contex.handle, 0,0,0);
@@ -151,17 +154,22 @@ static void
 _on_slip_message(uint8_t * c, uint32_t size){
 	uint32_t err = hci_decode(c, size, &self.hci_handler);
 }
+static void
+_on_dtm_event(uint16_t dtm_event){
+	UARTprintf("Got a dtm event: %X\r\n", dtm_event);
+}
 
 static void
 _sendchar(uint8_t c){
 	UARTCharPut(UARTA1_BASE, c);
 }
 
-int top_board_task(void){
+void top_board_task(void * params){
 	slip_handler_t me = {
 			.slip_display_char = _printchar,
 			.slip_on_message = _on_slip_message,
-			.slip_put_char = _sendchar
+			.slip_put_char = _sendchar,
+			.slip_on_dtm_event = _on_dtm_event
 	};
 	self.hci_handler = (hci_decode_handler_t){
 			.on_message = _on_message,
@@ -270,4 +278,28 @@ int Cmd_send_top(int argc, char *argv[]){
 		UARTprintf("Top board is in DFU mode\r\n");
 		return -1;
 	}
+}
+void top_board_notify_boot_complete(void){
+	led_set_color(0,0,50,1,1,3,0);
+}
+#include "dtm.h"
+int Cmd_top_dtm(int argc, char * argv[]){
+	slip_dtm_mode();
+	uint16_t slip_cmd = 0;
+	if(argc > 1){
+		if(!strcmp(argv[1], "end")){
+			slip_cmd = DTM_CMD(DTM_CMD_TEST_END);
+		}else if(!strcmp(argv[1], "reset")){
+			slip_cmd = 0;//reset is all 0s
+		}else if(!strcmp(argv[1], "code") && argc > 2){
+			slip_cmd = (uint16_t)strtol(argv[2], NULL, 16);
+			UARTprintf("Trying Slip Code 0x%02X (%d)\r\n", slip_cmd, slip_cmd);
+		}else{
+			return -1;
+		}
+	}else{
+		return -1;
+	}
+	slip_write((uint8_t*)&slip_cmd,sizeof(slip_cmd));
+	return 0;
 }
