@@ -77,4 +77,5 @@ message MorpheusCommand {
 	optional bytes motionDataEntrypted = 12;
 	optional int32 firmwareVersion = 13;
 	repeated wifi_endpoint wifi_scan_result = 14;
+	optional wifi_endpoint.sec_type security_type = 15;
 }
