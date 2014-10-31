@@ -62,7 +62,7 @@ _MATRIXCLIENTMESSAGE = _descriptor.Descriptor(
       options=None),
     _descriptor.FieldDescriptor(
       name='matrix_payload', full_name='MatrixClientMessage.matrix_payload', index=2,
-      number=3, type=11, cpp_type=10, label=3,
+      number=3, type=11, cpp_type=10, label=1,
       has_default_value=False, default_value=None,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,

@@ -36,23 +36,25 @@ static void SegmentCallback(const int16_t * feats, const Segment_t * pSegment) {
 }
 
 #define OUT_BUF_SIZE (100000)
-//static void serialize_buf() {
-//    unsigned char buf[OUT_BUF_SIZE];
-//    pb_ostream_t output;
-//    size_t encodelength;
-//    std::string mytags = "";
-//    
-//    memset(buf,0,sizeof(buf));
-//    
-//    output = pb_ostream_from_buffer(buf, OUT_BUF_SIZE);
-//    
-//    encodelength = AudioClassifier_GetSerializedBuffer(&output, "abcdefg", 1337, NULL, "magic");
-//    std::cout << "length is " << encodelength << std::endl;
-//    std::ofstream file("foo.out");
-//    if (file.is_open()) {
-//        file << base64_encode(buf,encodelength) <<std::endl;
-//    }
-//}
+static void serialize_buf(std::ofstream & ostream) {
+    unsigned char buf[OUT_BUF_SIZE];
+    pb_ostream_t output;
+    size_t encodelength;
+    std::string mytags = "";
+    
+    memset(buf,0,sizeof(buf));
+    
+    output = pb_ostream_from_buffer(buf, OUT_BUF_SIZE);
+    
+    encodelength = AudioClassifier_EncodeAudioFeatures(&output, NULL);
+    AudioClassifier_ResetStorageBuffer();
+    
+    std::cout << "length is " << encodelength << std::endl;
+    
+    if (ostream.is_open()) {
+        ostream << base64_encode(buf,encodelength) <<std::endl;
+    }
+}
 
 
 
@@ -62,6 +64,8 @@ int main(int argc, char * argv[]) {
         cerr << "It is assumed that the input is mono, 16 bits per sample, in PCM format (i.e as raw as you can get)" << endl;
     }
     
+    char bigbuffer[20000];
+    
     _label.clear();
     _label = "none";
     
@@ -69,7 +73,8 @@ int main(int argc, char * argv[]) {
         _label = argv[3];
     }
     
-    
+    std::ofstream dumpfile("bufdump.dat");
+
     
     ifstream inFile (argv[1], ios::in | ios::binary);
     std::cout << "Processing " << argv[1] << std::endl;
@@ -83,7 +88,7 @@ int main(int argc, char * argv[]) {
     
     
     AudioFeatures_Init(AudioClassifier_DataCallback);
-    AudioClassifier_Init(NULL,NULL,NULL);
+    AudioClassifier_Init(NULL,bigbuffer,sizeof(bigbuffer));
 
     
     
@@ -93,10 +98,15 @@ int main(int argc, char * argv[]) {
         
         AudioFeatures_SetAudioData(samples,counter++);
         
+        if (counter % 320 == 0) {
+            serialize_buf(dumpfile);
+        }
         
     } while (inFile);
     
-    //serialize_buf();
+    serialize_buf(dumpfile);
+    
+    dumpfile.close();
 
     return 0;
 }

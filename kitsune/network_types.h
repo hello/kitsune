@@ -8,6 +8,8 @@ typedef uint32_t (* network_encode_callback_t)(pb_ostream_t * stream, const void
 
 typedef uint32_t (* network_decode_callback_t)(pb_istream_t * stream, void * decode_target);
 
+typedef void (*network_prep_callback_t)(void * data);
+
 typedef struct {
 	const void * encodedata;
 	const pb_field_t * fields;
