@@ -55,7 +55,7 @@ static int64_t _callCounter;
 static CommandCompleteNotification _fpLastCommandComplete;
 
 static void DataCallback(const AudioFeatures_t * pfeats) {
-	//AudioProcessingTask_AddMessageToQueue(pfeats);
+	AudioProcessingTask_AddFeaturesToQueue(pfeats);
 }
 
 
@@ -342,11 +342,6 @@ void AudioCaptureTask_Thread(void * data) {
 
 					_captureCounter--;
 
-#ifdef AUDIO_DEBUG_MESSAGES
-					if (_captureCounter % 20 == 0) {
-						UARTprintf("%d more frames to capture\n",_captureCounter);
-					}
-#endif
 
 					if (_captureCounter == 0) {
 						f_close(file_ptr);
@@ -370,6 +365,8 @@ void AudioCaptureTask_Thread(void * data) {
 
 
 void AudioCaptureTask_AddMessageToQueue(const AudioCaptureMessage_t * message) {
-	xQueueSend(_queue,message,0);
+	if (_queue) {
+		xQueueSend(_queue,message,0);
+	}
 }
 

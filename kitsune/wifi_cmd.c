@@ -520,17 +520,74 @@ void load_aes() {
 
 static SHA1_CTX sha1ctx;
 
+typedef struct {
+	intptr_t fd;
+	uint8_t * buf;
+	uint32_t buf_pos;
+	uint32_t buf_size;
+	SHA1_CTX * ctx;
+	uint32_t bytes_written;
+	uint32_t bytes_that_should_have_been_written;
+} ostream_buffered_desc_t;
+
+
 static bool write_callback_sha(pb_ostream_t *stream, const uint8_t *buf,
         size_t count) {
-    int fd = (intptr_t) stream->state;
-    int i;
 
-    SHA1_Update(&sha1ctx, buf, count);
+	ostream_buffered_desc_t * desc = (ostream_buffered_desc_t *) stream->state;
 
-    for (i = 0; i < count; ++i) {
-        UARTprintf("%x", buf);
-    }
-    return send(fd, buf, count, 0) == count;
+
+    SHA1_Update(desc->ctx, buf, count);
+
+    return send(desc->fd, buf, count, 0) == count;
+}
+
+static bool flush_out_buffer(ostream_buffered_desc_t * desc) {
+	uint32_t buf_size = desc->buf_pos;
+	bool ret = true;
+
+	if (buf_size > 0) {
+		desc->bytes_written += buf_size;
+
+		//encrypt
+		SHA1_Update(desc->ctx, desc->buf, buf_size);
+
+		//send
+		ret = send(desc->fd, desc->buf, buf_size, 0) == buf_size;
+	}
+	return ret;
+}
+
+static bool write_buffered_callback_sha(pb_ostream_t *stream, const uint8_t * inbuf,
+        size_t count) {
+	ostream_buffered_desc_t * desc = (ostream_buffered_desc_t *) stream->state;
+
+	bool ret = true;
+
+	desc->bytes_that_should_have_been_written += count;
+
+	/* Will I exceed the buffer size? then send buffer */
+	if ( (desc->buf_pos + count ) >= desc->buf_size) {
+
+		//encrypt
+		SHA1_Update(desc->ctx, desc->buf, desc->buf_pos);
+
+		//send
+		ret = send(desc->fd, desc->buf, desc->buf_pos, 0) == desc->buf_pos;
+
+		desc->bytes_written += desc->buf_pos;
+
+		desc->buf_pos = 0;
+
+	}
+
+
+	//copy to our buffer
+	memcpy(desc->buf + desc->buf_pos,inbuf,count);
+	desc->buf_pos += count;
+
+
+    return ret;
 }
 
 static bool read_callback_sha(pb_istream_t *stream, uint8_t *buf, size_t count) {
@@ -552,10 +609,15 @@ static bool read_callback_sha(pb_istream_t *stream, uint8_t *buf, size_t count) 
 }
 
 
+
 //WARNING not re-entrant! Only 1 of these can be going at a time!
-pb_ostream_t pb_ostream_from_sha_socket(int fd) {
-    pb_ostream_t stream =
-            { &write_callback_sha, (void*) (intptr_t) fd, SIZE_MAX, 0 };
+pb_ostream_t pb_ostream_from_sha_socket(ostream_buffered_desc_t * desc) {
+
+    //pb_ostream_t stream = { write_callback_sha, (void*)desc, SIZE_MAX, 0 };
+    pb_ostream_t stream = { write_buffered_callback_sha, (void*)desc, SIZE_MAX, 0 };
+
+
+
     return stream;
 }
 
@@ -923,7 +985,11 @@ int match(char *regexp, char *text)
 
 int send_data_pb_callback(const char* host, const char* path,char * recv_buf, uint32_t recv_buf_size,const void * encodedata,network_encode_callback_t encoder) {
 
+    int send_length = 0;
+    int rv = 0;
+    uint8_t sig[32]={0};
     size_t message_length;
+    uint32_t null_stream_bytes = 0;
     bool status;
 
 
@@ -941,22 +1007,10 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
             return -1;
         }
 
-        message_length = size_stream.bytes_written
-        uint8_t* buffer_in = pvPortMalloc(message_length);
-        if(!buffer_in)
-        {
-            UARTprintf("Malloc failed!\n");
-            return -1;
-        }
 
-        pb_ostream_t stream = pb_ostream_from_buffer(buffer_in, message_length);
-        status = encoder(&stream, encodedata);
-        if(status)
-        {
-            return send_data_pb_raw(buffer_in, message_length, recv_buf, recv_buf_size);
-        }
-
-        
+        null_stream_bytes = stream.bytes_written;
+        message_length = stream.bytes_written + sizeof(sig) + AES_IV_SIZE;
+        UARTprintf("message len %d sig len %d\n\r\n\r", stream.bytes_written, sizeof(sig));
     }
 
     snprintf(recv_buf, recv_buf_size, "POST %s HTTP/1.1\r\n"
@@ -964,6 +1018,7 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
             "Content-type: application/x-protobuf\r\n"
             "Content-length: %d\r\n"
             "\r\n", path, host, message_length);
+
     send_length = strlen(recv_buf);
 
     //setup the connection
@@ -983,19 +1038,42 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
 
 
     if (encoder) {
+        ostream_buffered_desc_t desc;
+
+        SHA1_CTX ctx;
+        AES_CTX aesctx;
         pb_ostream_t stream = {0};
         int i;
 
-        //todo guard sha1ctx with semaphore...
-        SHA1_Init(&sha1ctx);
+        memset(&desc,0,sizeof(desc));
+        memset(&ctx,0,sizeof(ctx));
+        memset(&aesctx,0,sizeof(aesctx));
+
+        desc.buf = (uint8_t *)recv_buf;
+        desc.buf_size = recv_buf_size;
+        desc.ctx = &ctx;
+        desc.fd = (intptr_t) sock;
+
+
+        SHA1_Init(&ctx);
 
         /* Create a stream that will write to our buffer. */
-        stream = pb_ostream_from_sha_socket(sock);
-        /* Now we are ready to encode the message! */
+        stream = pb_ostream_from_sha_socket(&desc);
 
+        /* Now we are ready to encode the message! Let's go encode. */
         UARTprintf("data ");
         status = encoder(&stream,encodedata);
+        flush_out_buffer(&desc);
         UARTprintf("\n");
+
+        /* sanity checks  */
+        if (desc.bytes_written != desc.bytes_that_should_have_been_written) {
+        	UARTprintf("ERROR only %d of %d bytes written\r\n",desc.bytes_written,desc.bytes_that_should_have_been_written);
+        }
+
+        if (desc.bytes_written != null_stream_bytes) {
+        	UARTprintf("ERROR %d bytes estimated, %d bytes were sent\r\n",null_stream_bytes,desc.bytes_written);
+        }
 
         /* Then just check for any errors.. */
         if (!status) {
@@ -1004,8 +1082,9 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
         }
 
         //now sign it
-        SHA1_Final(sig, &sha1ctx);
+        SHA1_Final(sig, &ctx);
 
+        /*  fill in rest of signature with random numbers (eh?) */
         for (i = SHA1_SIZE; i < sizeof(sig); ++i) {
             sig[i] = (uint8_t)rand();
         }
@@ -1016,16 +1095,20 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
         }
         UARTprintf("\n");
 
-        AES_CTX aesctx;
         //memset( aesctx.iv, 0, sizeof( aesctx.iv ) );
 
+        /*  create AES initialization vector */
         UARTprintf("iv ");
         for (i = 0; i < sizeof(aesctx.iv); ++i) {
             aesctx.iv[i] = (uint8_t)rand();
             UARTprintf("%x", aesctx.iv[i]);
         }
         UARTprintf("\n");
+
+        /*  send AES initialization vector */
         rv = send(sock, aesctx.iv, AES_IV_SIZE, 0);
+
+
         if (rv != AES_IV_SIZE) {
             UARTprintf("Sending IV failed: %d\n", rv);
             return -1;
@@ -1034,7 +1117,9 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
         AES_set_key(&aesctx, aes_key, aesctx.iv, AES_MODE_128); //todo real key
         AES_cbc_encrypt(&aesctx, sig, sig, sizeof(sig));
 
+        /* send signature */
         rv = send(sock, sig, sizeof(sig), 0);
+
         if (rv != sizeof(sig)) {
             UARTprintf("Sending SHA failed: %d\n", rv);
             return -1;
@@ -1494,7 +1579,22 @@ bool encode_pill_list(pb_ostream_t *stream, const pb_field_t *field, void * cons
 }
 
 
+bool get_mac(unsigned char mac[6]) {
+	int32_t ret;
+	unsigned char mac_len = 6;
 
+	ret = sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
+
+    if(ret != 0 && ret != SL_ESMALLBUF)
+    {
+    	UARTprintf("encode_mac_as_device_id_string: Fail to get MAC addr, err %d\n", ret);
+        return false;  // If get mac failed, don't encode that field
+    }
+
+
+
+    return ret;
+}
 
 bool encode_mac(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
     unsigned char mac[6];
@@ -1578,6 +1678,7 @@ static void _on_factory_reset_received()
 {
     // hehe I am going to disconnect WLAN here, don't kill me Chris
     wifi_reset();
+    nwp_reset();
 
     // Notify the topboard factory reset, wipe out all whitelist info
     MorpheusCommand morpheusCommand = {0};
@@ -2208,6 +2309,8 @@ int connect_wifi(const char* ssid, const char* password, int sec_type)
 
 		return 1;
 	}
+
+	return 0;
 }
 
 int connect_scanned_endpoints(const char* ssid, const char* password, 

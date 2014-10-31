@@ -41,9 +41,19 @@
 			<locationURI>PARENT-2-PROJECT_LOC/audiocapturetask.c</locationURI>
 		</link>
 		<link>
+			<name>audiocapturetask.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audiocapturetask.h</locationURI>
+		</link>
+		<link>
 			<name>audioclassifier.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/audioclassifier.c</locationURI>
+		</link>
+		<link>
+			<name>audioclassifier.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audioclassifier.h</locationURI>
 		</link>
 		<link>
 			<name>audiofeatures.c</name>
@@ -51,9 +61,19 @@
 			<locationURI>PARENT-2-PROJECT_LOC/audiofeatures.c</locationURI>
 		</link>
 		<link>
+			<name>audiofeatures.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audiofeatures.h</locationURI>
+		</link>
+		<link>
 			<name>audioprocessingtask.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/audioprocessingtask.c</locationURI>
+		</link>
+		<link>
+			<name>audioprocessingtask.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audioprocessingtask.h</locationURI>
 		</link>
 		<link>
 			<name>ble_cmd.c</name>
@@ -214,6 +234,11 @@
 			<name>main.c</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/main.c</locationURI>
+		</link>
+		<link>
+			<name>matmessageutils.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/debugutils/matmessageutils.c</locationURI>
 		</link>
 		<link>
 			<name>mcasp_if.c</name>
@@ -489,6 +514,11 @@
 			<name>protobuf/SyncResponse.pb.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/protobuf/SyncResponse.pb.h</locationURI>
+		</link>
+		<link>
+			<name>protobuf/matrix.pb.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/matrix.pb.c</locationURI>
 		</link>
 		<link>
 			<name>protobuf/morpheus_ble.pb.c</name>

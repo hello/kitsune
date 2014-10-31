@@ -81,6 +81,8 @@ int Cmd_RadioStartTX(int argc, char*argv[]);
 int Cmd_RadioGetStats(int argc, char*argv[]);
 int Cmd_data_upload(int arg, char* argv[]);
 
+bool get_mac(unsigned char mac[6]);
+
 int match(char *regexp, char *text);
 unsigned long unix_time();
 void load_aes();
@@ -127,6 +129,6 @@ bool encode_serialized_pill_list(pb_ostream_t *stream, const pb_field_t *field, 
 //#define MORPH_NAME "Chris's morpheus"
 #define MORPH_NAME "test morpheus 10"
 //#define MORPH_NAME "test morpheus 80"
-#define KIT_VER 12
+#define KIT_VER 13
 
 #endif

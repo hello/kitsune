@@ -256,6 +256,7 @@ unsigned int CPU_XDATA = 1; //1: enabled CPU interrupt triggerred
 #define minval( a,b ) a < b ? a : b
 	unsigned long tok;
 	long hndl, err, bytes;
+
     McASPInit(true, AUDIO_RATE);
 	//Audio_Stop();
 	audio_buf = (unsigned short*)pvPortMalloc(AUDIO_BUF_SZ);
@@ -283,6 +284,7 @@ unsigned int CPU_XDATA = 1; //1: enabled CPU interrupt triggerred
 	McASPDeInit(true, AUDIO_RATE);
 
 	vPortFree(audio_buf); //UARTprintf(" audio_buf\n ");
+
 	return 0;
 }
 
@@ -315,13 +317,44 @@ int Cmd_record_buff(int argc, char *argv[]) {
 
 }
 
+int Cmd_audio_do_stuff(int argc, char * argv[]) {
+
+	AudioCaptureMessage_t message;
+	const char * buf = argv[1];
+
+	if (strncmp(buf,"on",4) == 0) {
+		//turn on
+		UARTprintf("Turning on audio\r\n");
+		memset(&message,0,sizeof(message));
+		message.command = eAudioCaptureTurnOn;
+		AudioCaptureTask_AddMessageToQueue(&message);
+	}
+	else if (strncmp(buf,"off",4) == 0) {
+		//turn on
+		UARTprintf("Turning off audio\r\n");
+
+		memset(&message,0,sizeof(message));
+		message.command = eAudioCaptureTurnOff;
+		AudioCaptureTask_AddMessageToQueue(&message);
+	}
+	else {
+		UARTprintf("aud command takes an argument, either on or off\r\n");
+	}
+
+	return 0;
+}
+
 void Speaker1();
 
 int Cmd_play_buff(int argc, char *argv[]) {
 	unsigned int CPU_XDATA = 0; //1: enabled CPU interrupt triggerred; 0: DMA
 // Create RX and TX Buffer
 //
+	UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
+	AudioProcessingTask_FreeBuffers();
+	UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
 	pRxBuffer = CreateCircularBuffer(RX_BUFFER_SIZE);
+	UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
 if(pRxBuffer == NULL)
 {
 	UARTprintf("Unable to Allocate Memory for Rx Buffer\n\r");
@@ -346,6 +379,8 @@ UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL);
 SetupPingPongDMATransferRx();
 // Setup the Audio In/Out
 //
+UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
+
 
 AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
 AudioCaptureRendererConfigure(I2S_PORT_DMA, 48000);
@@ -353,18 +388,23 @@ AudioCaptureRendererConfigure(I2S_PORT_DMA, 48000);
 // Start Audio Tx/Rx
 //
 Audio_Start();
+UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
 
 
 // Start the Microphone Task
 //
 Speaker1();
+UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
 
 UARTprintf("g_iReceiveCount %d\n\r", g_iReceiveCount);
 close_codec_NAU(); UARTprintf("close_codec_NAU");
 Audio_Stop();
 McASPDeInit();
 DestroyCircularBuffer(pRxBuffer); UARTprintf("DestroyCircularBuffer(pRxBuffer)" );
-Cmd_free(0,0);
+UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
+
+AudioProcessingTask_AllocBuffers();
+UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
 
 return 0;
 
@@ -563,6 +603,7 @@ static xSemaphoreHandle light_smphr;
 
 void thread_fast_i2c_poll(void * unused)  {
 	int last_prox =0;
+	portTickType last = 0;
 	while (1) {
 		portTickType now = xTaskGetTickCount();
 		int light;
@@ -582,8 +623,9 @@ void thread_fast_i2c_poll(void * unused)  {
 			hpf_prox = last_prox - prox;   // The noise in enclosure is in 100+ um level
 
 			//UARTprintf("PROX: %d um\n", prox);
-			if(hpf_prox > 400) {  // seems not very sensitive,  the noise in enclosure is in 100+ um level
+			if(hpf_prox > 400 && now - last > 2000 ) {  // seems not very sensitive,  the noise in enclosure is in 100+ um level
 				UARTprintf("PROX: %d um, diff %d um\n", prox, hpf_prox);
+				last = now;
 				xSemaphoreTake(alarm_smphr, portMAX_DELAY);
 				if (alarm.has_start_time && get_time() >= alarm.start_time) {
 					memset(&alarm, 0, sizeof(alarm));
@@ -608,6 +650,8 @@ void thread_fast_i2c_poll(void * unused)  {
 			 	}
 			 	else if( sl_status & SCANNING ) {
 			 		led_set_color( 255+adjust,0,0, 1, 1, 3, 1 ); //red
+			 	} else {
+			 		led_set_color( 255+adjust, 255+adjust, 255+adjust, 1, 1, 3, 1 ); //white
 			 	}
 			}
 			last_prox = prox;
@@ -1108,6 +1152,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "stop_ringtone", Audio_Stop,"stop sounds"},
 		{ "r", Cmd_record_buff,"record sounds into SD card"},
 		{ "p", Cmd_play_buff, "play sounds from SD card"},
+		{ "aud",Cmd_audio_do_stuff,"command the audio on/off"},
 		{ "fsdl", Cmd_fs_delete, "fs delete" },
 		//{ "readout", Cmd_readout_data, "read out sensor data log" },
 
@@ -1168,7 +1213,7 @@ void vUARTTask(void *pvParameters) {
 		UARTprintf("Failed to create the led_events.\n");
 	}
 
-	xTaskCreate(led_task, "ledTask", 384 / 4, NULL, 4, NULL); //todo reduce stack
+	xTaskCreate(led_task, "ledTask", 512 / 4, NULL, 4, NULL); //todo reduce stack
 
 	Cmd_led_clr(0,0);
 	//switch the uart lines to gpios, drive tx low and see if rx goes low as well
@@ -1270,17 +1315,18 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(thread_audio, "audioTask", 2 * 1024 / 4, NULL, 4, NULL); //todo reduce stack
 
 	UARTprintf("*");
-	xTaskCreate(thread_spi, "spiTask", 4*1024 / 4, NULL, 5, NULL);
+	xTaskCreate(thread_spi, "spiTask", 2*1024 / 4, NULL, 5, NULL);
 
-	xTaskCreate(NetworkTask_Thread,"networkTask",2*1024/4,&network_task_data,1,NULL);
+	//this task needs a larger stack because
+	//some protobuf encoding will happen on the stack of this task
+	xTaskCreate(NetworkTask_Thread,"networkTask",4*1024/4,&network_task_data,10,NULL);
 
 	SetupGPIOInterrupts();
 	UARTprintf("*");
 #if !ONLY_MID
 	xTaskCreate(AudioCaptureTask_Thread,"audioCaptureTask",4*1024/4,NULL,4,NULL);
 	UARTprintf("*");
-	AudioProcessingTask_Init();
-	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",2*1024/4,NULL,1,NULL);
+	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,1,NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 3, NULL);
 	UARTprintf("*");
@@ -1288,7 +1334,7 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("*");
 	xTaskCreate(thread_sensor_poll, "pollTask", 2 * 1024 / 4, NULL, 4, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_tx, "txTask", 2 * 1024 / 4, NULL, 2, NULL);
+	xTaskCreate(thread_tx, "txTask", 3 * 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_ota, "otaTask",5 * 1024 / 4, NULL, 1, NULL);
 	UARTprintf("*");
@@ -1322,7 +1368,8 @@ void vUARTTask(void *pvParameters) {
 			// Pass the line from the user to the command processor.  It will be
 			// parsed and valid commands executed.
 			//
-			xTaskCreate(CmdLineProcess, "commandTask",  2*1024 / 4, cCmdBuf, 20, NULL);
-		}
+			xTaskCreate(CmdLineProcess, "commandTask",  3*1024 / 4, cCmdBuf, 20, NULL);
+			memset(cCmdBuf,0,sizeof(cCmdBuf)); //zero out buffer after a command
+        }
 	}
 }

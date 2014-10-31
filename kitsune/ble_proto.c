@@ -13,7 +13,7 @@
 #include "stdlib.h"
 #include "stdio.h"
 #include "networktask.h"
-#include "top_board.h"
+#include "led_animations.h"
 
 extern unsigned int sl_status;
 int Cmd_led(int argc, char *argv[]);
@@ -32,15 +32,22 @@ static void _factory_reset(){
     ret = sl_WlanDisconnect();
     if(ret == 0){
         UARTprintf("WIFI disconnected");
-        MorpheusCommand reply_command;
-        memset(&reply_command, 0, sizeof(reply_command));
-        reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_FACTORY_RESET;
-        ble_send_protobuf(&reply_command);
-
     }else{
         UARTprintf("Disconnect WIFI failed, error %d.\n", ret);
-        ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
     }
+
+    ret = sl_Stop(2);
+    if(ret == 0)
+    {
+    	sl_Start(NULL, NULL, NULL);
+    }else{
+    	UARTprintf("NWP reset failed\n");
+    }
+
+    MorpheusCommand reply_command;
+	memset(&reply_command, 0, sizeof(reply_command));
+	reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_FACTORY_RESET;
+	ble_send_protobuf(&reply_command);
 }
 
 static void _reply_wifi_scan_result()
@@ -52,19 +59,20 @@ static void _reply_wifi_scan_result()
     uint8_t retry_count = max_retry;
     sl_status |= SCANNING;
     
-    Cmd_led(0,0);
+    //Cmd_led(0,0);
+    play_led_progress_bar(30,30,0,0);
     while((scanned_wifi_count = get_wifi_scan_result(wifi_endpoints, MAX_WIFI_EP_PER_SCAN, 3000 * (max_retry - retry_count + 1))) == 0 && --retry_count)
     {
-
+    	set_led_progress_bar((max_retry - retry_count) * 100 / max_retry);
         UARTprintf("No wifi scanned, retry times remain %d\n", retry_count);
         vTaskDelay(500);
     }
-
+    stop_led_animation();
     sl_status &= ~SCANNING;
 
     int i = 0;
     Sl_WlanNetworkEntry_t wifi_endpoints_cp[2] = {0};
-
+    play_led_progress_bar(0,0,30,0);
     MorpheusCommand reply_command = {0};
     for(i = 0; i < scanned_wifi_count; i++)
     {
@@ -73,10 +81,11 @@ static void _reply_wifi_scan_result()
 		reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_START_WIFISCAN;
 		reply_command.wifi_scan_result.arg = wifi_endpoints_cp;
 		ble_send_protobuf(&reply_command);
-
+		set_led_progress_bar(i * 100 / scanned_wifi_count);
         vTaskDelay(1000);  // This number must be long enough so the BLE can get the data transmit to phone
         memset(&reply_command, 0, sizeof(reply_command));
     }
+    stop_led_animation();
 
     reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_STOP_WIFISCAN;
 	ble_send_protobuf(&reply_command);
@@ -85,83 +94,48 @@ static void _reply_wifi_scan_result()
 }
 
 
-static bool _set_wifi(const char* ssid, const char* password)
+static bool _set_wifi(const char* ssid, const char* password, int security_type)
 {
-    Sl_WlanNetworkEntry_t wifi_endpoints[MAX_WIFI_EP_PER_SCAN];
-    int scanned_wifi_count, connection_ret;
-    memset(wifi_endpoints, 0, sizeof(wifi_endpoints));
-
-    /*
-    sl_WlanDisconnect();   // This line causes trouble, cannot get IP back after reconnect
-    // To reproduce the problem, connect to a valid WIFI first, then switch to another WIFI
-    // The 2nd connection will never managed to get the IP address event.
-    // If we don't disconnect, after the 2nd connection request, the chip will
-    // disconnect itself and successfully reconnect.
-    // But it seems I never get the UART print out get IP event, not sure if
-    // it happens or not.
-    // This chip is a mystery.
-
-	while(sl_status&HAS_IP) {
-		vTaskDelay(100);
-	}
-	*/
+    int connection_ret;
 
     uint8_t max_retry = 10;
     uint8_t retry_count = max_retry;
 
-    sl_status |= SCANNING;
-    
-    while((scanned_wifi_count = get_wifi_scan_result(wifi_endpoints, MAX_WIFI_EP_PER_SCAN, 2000 * (max_retry - retry_count + 1))) == 0 && --retry_count)
+	play_led_progress_bar(30,30,0,0);
+    while((connection_ret = connect_wifi(ssid, password, security_type)) == 0 && --retry_count)
     {
         Cmd_led(0,0);
-        UARTprintf("No wifi scanned, retry times remain %d\n", retry_count);
-        vTaskDelay(500);
+        UARTprintf("Failed to connect, retry times remain %d\n", retry_count);
+        set_led_progress_bar((max_retry - retry_count ) * 100 / max_retry);
+        vTaskDelay(2000);
     }
-
-    if(scanned_wifi_count == 0)
-    {
-        Cmd_led(0,0);
-        sl_status &= ~SCANNING;
-    	UARTprintf("No wifi found after retry %d times\n", 10);
-        ble_reply_protobuf_error(ErrorType_NO_ENDPOINT_IN_RANGE);
-    	return 0;
-    }
-
-    //////
-
-    retry_count = 10;
-    SlSecParams_t secParams = {0};
-
-    while((connection_ret = connect_scanned_endpoints(ssid, password, wifi_endpoints, scanned_wifi_count, &secParams)) == 0 && --retry_count)
-	{
-		Cmd_led(0,0);
-		UARTprintf("Failed to connect, retry times remain %d\n", retry_count);
-		vTaskDelay(500);
-	}
-
+    stop_led_animation();
 
     if(!connection_ret)
     {
 		UARTprintf("Tried all wifi ep, all failed to connect\n");
         ble_reply_protobuf_error(ErrorType_WLAN_CONNECTION_ERROR);
+        led_set_color(30,0,0,1,1,10,0);
 		return 0;
     }else{
 		uint8_t wait_time = 10;
 
 		sl_status |= CONNECTING;
-
+		play_led_progress_bar(30,30,0,0);
 		while(--wait_time && (!(sl_status & HAS_IP)))
 		{
-			Cmd_led(0,0);
+			//Cmd_led(0,0);
+			set_led_progress_bar((10 - wait_time ) * 100 / 10);
 			UARTprintf("Retrieving IP address...\n");
-			vTaskDelay(1000);
+			vTaskDelay(4000);
 		}
-
+		stop_led_animation();
 		if(!(sl_status & HAS_IP))
 		{
-			Cmd_led(0,0);
+			//Cmd_led(0,0);
 			UARTprintf("!!WIFI set without network connection.");
             ble_reply_protobuf_error(ErrorType_FAIL_TO_OBTAIN_IP);
+            led_set_color(30,0,0,1,1,10,0);
 			return 0;
 		}
     }
@@ -173,6 +147,7 @@ static bool _set_wifi(const char* ssid, const char* password)
 
     UARTprintf("Connection attempt issued.\n");
     ble_send_protobuf(&reply_command);
+    led_set_color(0,30,0,1,1,33,0);
     return 1;
 }
 
@@ -455,13 +430,20 @@ void on_ble_protobuf_command(MorpheusCommand* command)
 
             // Just call API to connect to WIFI.
             UARTprintf("Wifi SSID %s, pswd %s \n", ssid, password);
-            _set_wifi(ssid, (char*)password);
+
+            int sec_type = SL_SEC_TYPE_WPA_WPA2;
+            if(command->has_security_type)
+            {
+            	sec_type = command->security_type == wifi_endpoint_sec_type_SL_SCAN_SEC_TYPE_WPA2 ? SL_SEC_TYPE_WPA_WPA2 : command->security_type;
+            }
+
+            _set_wifi(ssid, (char*)password, sec_type);
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_PAIRING_MODE:  // Just for testing
         {
             // Light up LEDs?
-            Cmd_led(0,0);
+        	led_set_color( 0,0,50, 1, 1, 3, 0 ); //blue
             UARTprintf( "PAIRING MODE \n");
         }
         break;
