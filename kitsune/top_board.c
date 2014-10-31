@@ -72,11 +72,12 @@ _on_message(uint8_t * message_body, uint32_t body_length){
 	UARTprintf("Got a SLIP message: %s\r\n", message_body);
 	if(!strncmp("DFUBEGIN",(char*)message_body, body_length)){
 		//delay is necessary because top board is slower.
+		play_led_progress_bar(30,0,0,0);
 		vTaskDelay(4000);
 		if(0 != top_board_dfu_begin("/top/update.bin")){
 			top_board_dfu_begin("/top/factory.bin");
 		}
-		led_set_color(50,0,0,0,0,0,0);
+		//led_set_color(50,0,0,0,0,0,0);
 
 	}
 }
@@ -114,7 +115,6 @@ _on_ack_success(void){
 			uint32_t init_packet[] = { (uint32_t) DFU_INIT_PACKET,
 					(uint32_t) self.dfu_contex.crc };
 			_encode_and_send((uint8_t*)init_packet, sizeof(init_packet));
-
 			}
 			break;
 		case DFU_INIT_PACKET:
@@ -129,6 +129,7 @@ _on_ack_success(void){
 			if(written){
 				_encode_and_send((uint8_t*)block, written + sizeof(block[0]));
 				UARTprintf("Wrote %u / %d (%u)%%\r", self.dfu_contex.offset, self.dfu_contex.len, (self.dfu_contex.offset*100/self.dfu_contex.len));
+				set_led_progress_bar((self.dfu_contex.offset*100/self.dfu_contex.len));
 			}else{
 				uint32_t primer_packet[] = { DFU_INVALID_PACKET };
 				_encode_and_send((uint8_t*) primer_packet,sizeof(primer_packet));
@@ -141,6 +142,8 @@ _on_ack_success(void){
 			_encode_and_send((uint8_t*)end_packet, sizeof(end_packet));
 			self.dfu_state = DFU_IDLE;
 			UARTprintf("Attempting to boot top board...\r\n");
+			stop_led_animation();
+			led_set_color(0,10,0,1,1,200,0);
 			}
 			break;
 		default:
