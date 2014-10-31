@@ -631,7 +631,7 @@ int get_codec_NAU(int argc, char *argv[]) {
 	// Addr D8 D7  D6                  D5,D4      D3     D2      D1 D0
 	// 0x0A 0  0   DACMT/0: Disable    DEEMP[1:0] DACOS  AUTOMT  0  DACPL
 	// set  0  0   0                   0  0       1      1       0  0
-	cmd_init[0] = 0x17 ; cmd_init[1] = 0xff ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // DAC Vol.
+	cmd_init[0] = 0x17 ; cmd_init[1] = 0xfd ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // DAC Vol.
 	// Addr D8 D7 D6 D5 D4 D3 D2 D1 D0
 	// 0x0B 0  DACGAIN
 	// set  0  1  1  1  1  1  1  1  1
@@ -649,27 +649,55 @@ int get_codec_NAU(int argc, char *argv[]) {
 	//     0     0     0  0  0  1     0  0  0
 	cmd_init[0] = 0x1e ; cmd_init[1] = 0xff ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // ADC Gain control reg
 //  cmd_init[0] = 0x24 ;
-	cmd_init[0] = 0x24 ; cmd_init[1] = 0x10 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // EQ1
+	cmd_init[0] = 0x25 ; cmd_init[1] = 0x58 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // EQ1
 	// Address D8  D7 D6   D5     D4 D3 D2 D1 D0
 	// 0x12    EQM 0  EQ1CF[1:0]  EQ1GC[4:0]
 	// set     1   0  1    1      0  0  0  0  1
-	// set     1   0  1    1      1  0  0  0  0    -3.86
-	cmd_init[0] = 0x27 ; cmd_init[1] = 0x50 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // EQ2
+	// set     1   0  1    0      1  1  0  0  0    -12
+	cmd_init[0] = 0x27 ; cmd_init[1] = 0x58 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // EQ2
 	// Address D8    D7 D6   D5     D4 D3 D2 D1 D0
 	// 0x13    EQ2BW 0  EQ2CF[1:0]  EQ2GC[4:0]
-	// set     1     0  1    0      1  0  0  0  0
-	cmd_init[0] = 0x29 ; cmd_init[1] = 0x4C ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // EQ3
+	// set     1     0  1    0      1  0  0  0  1  -5
+	cmd_init[0] = 0x29 ; cmd_init[1] = 0x58 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // EQ3
 	// Address D8    D7 D6   D5     D4 D3 D2 D1 D0
 	// 0x14    EQ3BW 0  EQ3CF[1:0]  EQ3GC[4:0]
-	// set     1     0  1    0      0  1  1  0  0  0dB
-	cmd_init[0] = 0x2b ; cmd_init[1] = 0x49 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // EQ4
+	// set     1     0  1    0      0  1  0  0  0  4dB
+	cmd_init[0] = 0x2b ; cmd_init[1] = 0x40 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // EQ4
 	// Address D8    D7 D6   D5     D4 D3 D2 D1 D0
 	// 0x15    EQ4BW 0  EQ4CF[1:0]  EQ4GC[4:0]
-	// set     1     0  1    0      0  1  0  0  1  2.93dB
+	// set     1     0  1    0      0  0  1  0  0  8dB
 	cmd_init[0] = 0x2c ; cmd_init[1] = 0x60 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // EQ5
 	// Address D8    D7  D6   D5     D4 D3 D2 D1 D0
 	// 0x16    0     0   EQ5CF[1:0]  EQ5GC[4:0]
-	// set     0     0   1    1      0  0  0  0  0
+	// set     0     0   1    1      0  0  1  0  0  23dB
+
+
+	// 12 00000
+	// 11 00001
+	// 10 00010
+	//  9 00011
+	//  8 00100
+	//  7 00101
+	//  6 00110
+	//  5 00111
+	//  4 01000
+	//  3 01001
+	//  2 01010
+	//  1 01011
+	//  0 01100
+	// -1 01101
+	// -2 01110
+	// -3 01111
+	// -4 10000
+	// -5 10001
+	// -6 10010
+	// -7 10011
+	// -8 10100
+	// -9 10101
+	//-10 10110
+	//-11 10111
+	//-12 11000
+
 	cmd_init[0] = 0x30 ; cmd_init[1] = 0x32 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // DIGITAL TO ANALOG CONVERTER (DAC) LIMITER REGISTERS
 	//Addr D8          D7 D6 D5 D4    D3 D2 D1 D0
 	//0x18 DACLIMEN    DACLIMDCY[3:0] DACLIMATK[3:0]
@@ -737,7 +765,7 @@ int get_codec_NAU(int argc, char *argv[]) {
 	// Address D8    D7  D6   D5     D4 D3 D2 D1       D0
 	// 0x32    0     0   0    AUXSPK 0  0  0  BYPSPK   DACSPK
 	// set     0     0   0    0      0  0  0  0        1
-	cmd_init[0] = 0x6c ; cmd_init[1] = 0x3d ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // Speaker Gain Control Register
+	cmd_init[0] = 0x6c ; cmd_init[1] = 0x39 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // Speaker Gain Control Register
 	// Address D8    D7      D6       D5 D4 D3 D2 D1 D0
 	// 0x36    0     SPKZC   SPKMT    SPKGAIN[5:0]
 	// set     0     1       0        1  1  1  1  1  1
