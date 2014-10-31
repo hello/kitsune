@@ -1936,6 +1936,8 @@ int connect_wifi(const char* ssid, const char* password, int sec_type)
 
 		return 1;
 	}
+
+	return 0;
 }
 
 int connect_scanned_endpoints(const char* ssid, const char* password, 

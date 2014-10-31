@@ -86,67 +86,16 @@ static void _reply_wifi_scan_result()
 
 static bool _set_wifi(const char* ssid, const char* password, int security_type)
 {
-    Sl_WlanNetworkEntry_t wifi_endpoints[MAX_WIFI_EP_PER_SCAN];
-    int scanned_wifi_count, connection_ret;
-    memset(wifi_endpoints, 0, sizeof(wifi_endpoints));
-
-    /*
-    sl_WlanDisconnect();   // This line causes trouble, cannot get IP back after reconnect
-    // To reproduce the problem, connect to a valid WIFI first, then switch to another WIFI
-    // The 2nd connection will never managed to get the IP address event.
-    // If we don't disconnect, after the 2nd connection request, the chip will
-    // disconnect itself and successfully reconnect.
-    // But it seems I never get the UART print out get IP event, not sure if
-    // it happens or not.
-    // This chip is a mystery.
-
-	while(sl_status&HAS_IP) {
-		vTaskDelay(100);
-	}
-	*/
+    int connection_ret;
 
     uint8_t max_retry = 10;
     uint8_t retry_count = max_retry;
-
-    /*
-    sl_status |= SCANNING;
-    
-    while((scanned_wifi_count = get_wifi_scan_result(wifi_endpoints, MAX_WIFI_EP_PER_SCAN, 2000 * (max_retry - retry_count + 1))) == 0 && --retry_count)
-    {
-        Cmd_led(0,0);
-        UARTprintf("No wifi scanned, retry times remain %d\n", retry_count);
-        vTaskDelay(500);
-    }
-
-    if(scanned_wifi_count == 0)
-    {
-        Cmd_led(0,0);
-        sl_status &= ~SCANNING;
-    	UARTprintf("No wifi found after retry %d times\n", 10);
-        ble_reply_protobuf_error(ErrorType_NO_ENDPOINT_IN_RANGE);
-    	return 0;
-    }
-
-    //////
-
-    retry_count = 10;
-    
-
-    SlSecParams_t secParams = {0};
-
-    while((connection_ret = connect_scanned_endpoints(ssid, password, wifi_endpoints, scanned_wifi_count, &secParams)) == 0 && --retry_count)
-	{
-		Cmd_led(0,0);
-		UARTprintf("Failed to connect, retry times remain %d\n", retry_count);
-		vTaskDelay(500);
-	}
-    */
 
     while((connection_ret = connect_wifi(ssid, password, security_type)) == 0 && --retry_count)
     {
         Cmd_led(0,0);
         UARTprintf("Failed to connect, retry times remain %d\n", retry_count);
-        vTaskDelay(500);
+        vTaskDelay(2000);
     }
 
 
@@ -164,7 +113,7 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type)
 		{
 			Cmd_led(0,0);
 			UARTprintf("Retrieving IP address...\n");
-			vTaskDelay(1000);
+			vTaskDelay(4000);
 		}
 
 		if(!(sl_status & HAS_IP))
