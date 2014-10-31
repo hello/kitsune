@@ -36,8 +36,18 @@ static void _factory_reset(){
         UARTprintf("Disconnect WIFI failed, error %d.\n", ret);
     }
 
-    sl_Stop(2);
-    sl_Start(NULL, NULL, NULL);
+    ret = sl_Stop(2);
+    if(ret == 0)
+    {
+    	sl_Start(NULL, NULL, NULL);
+    }else{
+    	UARTprintf("NWP reset failed\n");
+    }
+
+    MorpheusCommand reply_command;
+	memset(&reply_command, 0, sizeof(reply_command));
+	reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_FACTORY_RESET;
+	ble_send_protobuf(&reply_command);
 }
 
 static void _reply_wifi_scan_result()
