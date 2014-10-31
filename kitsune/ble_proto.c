@@ -31,15 +31,12 @@ static void _factory_reset(){
     ret = sl_WlanDisconnect();
     if(ret == 0){
         UARTprintf("WIFI disconnected");
-        MorpheusCommand reply_command;
-        memset(&reply_command, 0, sizeof(reply_command));
-        reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_FACTORY_RESET;
-        ble_send_protobuf(&reply_command);
-
     }else{
         UARTprintf("Disconnect WIFI failed, error %d.\n", ret);
-        ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
     }
+
+    sl_Stop(2);
+    sl_Start(NULL, NULL, NULL);
 }
 
 static void _reply_wifi_scan_result()

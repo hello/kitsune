@@ -1268,6 +1268,7 @@ static void _on_factory_reset_received()
 {
     // hehe I am going to disconnect WLAN here, don't kill me Chris
     wifi_reset();
+    nwp_reset();
 
     // Notify the topboard factory reset, wipe out all whitelist info
     MorpheusCommand morpheusCommand = {0};
