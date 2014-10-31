@@ -14,6 +14,7 @@
 #include "stdio.h"
 #include "networktask.h"
 #include "led_animations.h"
+#include "led_cmd.h"
 
 extern unsigned int sl_status;
 int Cmd_led(int argc, char *argv[]);
@@ -372,6 +373,10 @@ static void _send_response_to_ble(const char* buffer, size_t len)
 
     if(decode_rx_data_pb((unsigned char*)content, content_len, MorpheusCommand_fields, &response) == 0)
     {
+
+    	//PANG says: DO NOT EVER REMOVE THIS FUNCTION, ALTHOUGH IT MAKES NO SENSE WHY WE NEED THIS
+    	ble_proto_remove_decode_funcs(&response);
+
     	ble_send_protobuf(&response);
 
     }else{
@@ -379,7 +384,6 @@ static void _send_response_to_ble(const char* buffer, size_t len)
     	ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
     }
 
-    ble_proto_remove_decode_funcs(&response);
     ble_proto_free_command(&response);
 }
 
@@ -393,7 +397,6 @@ static void _pair_device( MorpheusCommand* command, int is_morpheus)
 	}else{
 
 		ble_proto_assign_encode_funcs(command);
-		uint8_t retry_count = 5;   // Retry 5 times if we have network error
 		// TODO: Figure out why always get -1 when this is the 1st request
 		// after the IPv4 retrieved.
 

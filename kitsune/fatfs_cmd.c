@@ -912,7 +912,7 @@ int GetData(char * filename, char* url, char * host)
     pBuff = (unsigned char *)strstr((const char *)g_buff, HTTP_CONTENT_LENGTH);
     if(pBuff != 0)
     {
-    	char *p = pBuff;
+    	char *p = (char*)pBuff;
         // not supported
         ASSERT_ON_ERROR(FORMAT_NOT_SUPPORTED);
 
@@ -970,7 +970,6 @@ int GetData(char * filename, char* url, char * host)
     if(isChunked == 1)
     {
         r = GetChunkSize(&transfer_len, &pBuff, &recv_size);
-        ASSERT_ON_ERROR(r);
     }
 
     /* Open file to save the downloaded file */
@@ -1194,10 +1193,15 @@ int GetData(char * filename, char* url, char * host)
 
 int Cmd_download(int argc, char*argv[]) {
 	unsigned long ip;
+	char host[128];
+	char filename[128];
+	char url[256];
 
-    int r = gethostbyname((signed char *)argv[1],
-                                       strlen((const char *)argv[1]),
-                                       &ip,SL_AF_INET);
+	strncpy( host, argv[1], 128 );
+	strncpy( filename, argv[2], 128 );
+	strncpy( url, argv[3], 256 );
+
+    int r = gethostbyname(host, strlen(host), &ip,SL_AF_INET);
     if(r < 0)
     {
         ASSERT_ON_ERROR(GET_HOST_IP_FAILED);
@@ -1216,7 +1220,7 @@ int Cmd_download(int argc, char*argv[]) {
         UARTprintf("Connection to server created successfully\r\n");
     }
     // Download the file, verify the file and replace the exiting file
-    r = GetData(argv[2], argv[3], argv[1]);
+    r = GetData(filename, url, host);
     if(r < 0)
     {
         UARTprintf("Device couldn't download the file from the server\n\r");

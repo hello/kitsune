@@ -1,6 +1,7 @@
 #include "FreeRTOS.h"
 #include "queue.h"
 #include "semphr.h"
+#include "uartstdio.h"
 
 #include "audiocapturetask.h"
 #include "audioprocessingtask.h"
@@ -153,14 +154,16 @@ void AudioProcessingTask_Thread(void * data) {
 		/* Wait until we get a message */
         xQueueReceive( _queue,(void *) &message, portMAX_DELAY );
 
-        //if our malloc failed, then sorry we aren't doing anything.
+        //crit section around this function
+    	xSemaphoreTake(_mutex,portMAX_DELAY);
+        
+	//if our malloc failed, then sorry we aren't doing anything.
         if (!_longTermStorageBuffer) {
+        	xSemaphoreGive(_mutex);
         	continue;
         }
 
-        //crit section around this function
-    	xSemaphoreTake(_mutex,portMAX_DELAY);
-        AudioClassifier_DataCallback(&message);
+	AudioClassifier_DataCallback(&message);
     	xSemaphoreGive(_mutex);
 
         samplecounter++;

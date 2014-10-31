@@ -7,6 +7,11 @@
 #include "event_groups.h"
 #include <string.h>
 
+#include "rom_map.h"
+#include "gpio.h"
+#include "interrupt.h"
+#include "uartstdio.h"
+#include "utils.h"
 
 #define LED_GPIO_BIT 0x1
 #define LED_GPIO_BASE GPIOA3_BASE
@@ -176,22 +181,6 @@ static void led_array(unsigned int * colors) {
 		MAP_IntMasterEnable();
 	}
 }
-static void led_ccw( unsigned int * colors) {
-	int l;
-	for (l = 0; l < NUM_LED-2; ++l) {
-		int temp = colors[l];
-		colors[l] = colors[l + 1];
-		colors[l + 1] = temp;
-	}
-}
-static void led_cw( unsigned int * colors) {
-	int l;
-	for (l = NUM_LED-2; l > -1; --l) {
-		int temp = colors[l];
-		colors[l] = colors[l + 1];
-		colors[l + 1] = temp;
-	}
-}
 static void led_brightness(unsigned int * colors, unsigned int brightness ) {
 	int l;
 	unsigned int blue,red,green;
@@ -207,6 +196,7 @@ static void led_brightness(unsigned int * colors, unsigned int brightness ) {
 		colors[l] = (blue) | (red<<8) | (green<<16);
 	}
 }
+#if 0
 static void led_add_intensity(unsigned int * colors, int intensity ) {
 	int l;
 	int blue,red,green;
@@ -228,6 +218,23 @@ static void led_add_intensity(unsigned int * colors, int intensity ) {
 	}
 }
 
+static void led_ccw( unsigned int * colors) {
+	int l;
+	for (l = 0; l < NUM_LED-2; ++l) {
+		int temp = colors[l];
+		colors[l] = colors[l + 1];
+		colors[l + 1] = temp;
+	}
+}
+static void led_cw( unsigned int * colors) {
+	int l;
+	for (l = NUM_LED-2; l > -1; --l) {
+		int temp = colors[l];
+		colors[l] = colors[l + 1];
+		colors[l + 1] = temp;
+	}
+}
+#endif
 static void led_to_rgb( unsigned int * c, unsigned int *r, unsigned int* g, unsigned int* b) {
 	*b = (( *c & ~0xffff00 ))&0xff;
 	*r = (( *c & ~0xff00ff )>>8)&0xff;
@@ -309,11 +316,10 @@ void led_task( void * params ) {
 		}
 		if (evnt & LED_CUSTOM_COLOR ){
 			unsigned int colors[NUM_LED + 1];
-			unsigned int color_to_use, delay;
+			unsigned int color_to_use;
 
 			xSemaphoreTake(led_smphr, portMAX_DELAY);
 			color_to_use = led_from_rgb(user_color.r, user_color.g, user_color.b);
-			delay = user_delay;
 			xSemaphoreGive( led_smphr );
 
 			for (i = 0; i <= NUM_LED; ++i) {
@@ -384,7 +390,6 @@ void led_task( void * params ) {
 		}
 		if (evnt & LED_ROTATE_RAINBOW_BIT) {
 			unsigned int colors[NUM_LED + 1];
-			int color_to_use;
 			for (i = 0; i <= NUM_LED; ++i) {
 				colors[i] = wheel(((i * 256 / 12) + j) & 255);
 			}
@@ -503,6 +508,7 @@ int led_set_color(int r, int g, int b, int fade_in, int fade_out, unsigned int u
 						| (fade_out > 0 ? LED_FADE_OUT_BIT : 0));
 	}
 	xSemaphoreGive(led_smphr);
+	return 0;
 }
 int led_start_custom_animation(led_user_animation_handler user, void * context){
 	if(!user){

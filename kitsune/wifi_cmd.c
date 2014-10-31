@@ -530,7 +530,7 @@ typedef struct {
 	uint32_t bytes_that_should_have_been_written;
 } ostream_buffered_desc_t;
 
-
+#if 0
 static bool write_callback_sha(pb_ostream_t *stream, const uint8_t *buf,
         size_t count) {
 
@@ -541,6 +541,7 @@ static bool write_callback_sha(pb_ostream_t *stream, const uint8_t *buf,
 
     return send(desc->fd, buf, count, 0) == count;
 }
+#endif
 
 static bool flush_out_buffer(ostream_buffered_desc_t * desc) {
 	uint32_t buf_size = desc->buf_pos;
