@@ -563,6 +563,7 @@ static xSemaphoreHandle light_smphr;
 
 void thread_fast_i2c_poll(void * unused)  {
 	int last_prox =0;
+	portTickType last = 0;
 	while (1) {
 		portTickType now = xTaskGetTickCount();
 		int light;
@@ -582,8 +583,9 @@ void thread_fast_i2c_poll(void * unused)  {
 			hpf_prox = last_prox - prox;   // The noise in enclosure is in 100+ um level
 
 			//UARTprintf("PROX: %d um\n", prox);
-			if(hpf_prox > 400) {  // seems not very sensitive,  the noise in enclosure is in 100+ um level
+			if(hpf_prox > 400 && now - last > 2000 ) {  // seems not very sensitive,  the noise in enclosure is in 100+ um level
 				UARTprintf("PROX: %d um, diff %d um\n", prox, hpf_prox);
+				last = now;
 				xSemaphoreTake(alarm_smphr, portMAX_DELAY);
 				if (alarm.has_start_time && get_time() >= alarm.start_time) {
 					memset(&alarm, 0, sizeof(alarm));
@@ -608,6 +610,8 @@ void thread_fast_i2c_poll(void * unused)  {
 			 	}
 			 	else if( sl_status & SCANNING ) {
 			 		led_set_color( 255+adjust,0,0, 1, 1, 3, 1 ); //red
+			 	} else {
+			 		led_set_color( 255+adjust,255+adjust,255+adjust, 1, 1, 3, 1 ); //red
 			 	}
 			}
 			last_prox = prox;
