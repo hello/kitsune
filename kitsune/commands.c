@@ -608,6 +608,8 @@ void thread_fast_i2c_poll(void * unused)  {
 			 	}
 			 	else if( sl_status & SCANNING ) {
 			 		led_set_color( 255+adjust,0,0, 1, 1, 3, 1 ); //red
+			 	}else{
+			 		led_set_color( 255+adjust, 255+adjust, 255+adjust, 1, 1, 3, 1 ); //white
 			 	}
 			}
 			last_prox = prox;
