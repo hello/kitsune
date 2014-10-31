@@ -154,14 +154,15 @@ void AudioProcessingTask_Thread(void * data) {
 		/* Wait until we get a message */
         xQueueReceive( _queue,(void *) &message, portMAX_DELAY );
 
-        //if our malloc failed, then sorry we aren't doing anything.
+        //crit section around this function
+    	xSemaphoreTake(_mutex,portMAX_DELAY);
+        
+	//if our malloc failed, then sorry we aren't doing anything.
         if (!_longTermStorageBuffer) {
         	continue;
         }
 
-        //crit section around this function
-    	xSemaphoreTake(_mutex,portMAX_DELAY);
-        AudioClassifier_DataCallback(&message);
+	AudioClassifier_DataCallback(&message);
     	xSemaphoreGive(_mutex);
 
         samplecounter++;
