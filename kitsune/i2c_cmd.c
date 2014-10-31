@@ -30,7 +30,7 @@
 #define Codec_addr 0x1A
 #define delay_codec 10
 
-#define OLD_LIGHT_SENSOR 0
+#define OLD_LIGHT_SENSOR 1
 
 //*****************************************************************************
 //

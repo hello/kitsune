@@ -126,7 +126,9 @@ void Speaker1()
       totBytesRead += Size;
 
       /* Wait to avoid buffer overflow as reading speed is faster than playback */
-      while((IsBufferSizeFilled(pRxBuffer,PLAY_WATERMARK) == TRUE)){};
+      while((IsBufferSizeFilled(pRxBuffer,PLAY_WATERMARK) == TRUE)){
+    	    vTaskDelay(1);
+      };
 
       if(Size>0)
       {
@@ -200,7 +202,7 @@ void Speaker1()
   	  }
     }
 
-    MAP_UtilsDelay(1000);
+    vTaskDelay(0);
 
   }
 }

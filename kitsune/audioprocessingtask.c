@@ -67,6 +67,26 @@ static void Init(void) {
 
 }
 
+void AudioProcessingTask_AllocBuffers(void) {
+	//try and be thread safe in case you do this while processing
+	if (_mutex) {
+		xSemaphoreTake(_mutex,portMAX_DELAY);
+	}
+
+	_longTermStorageBuffer = pvPortMalloc(DESIRED_BUFFER_SIZE_IN_BYTES);
+
+	if (_longTermStorageBuffer) {
+		AudioClassifier_Init(RecordCallback,_longTermStorageBuffer,DESIRED_BUFFER_SIZE_IN_BYTES);
+	}
+	else {
+		UARTprintf("ALL ABOARD THE MALLOC FAILBOAT -- AUDIO CLASSIFICATION WILL NOT HAPPEN\r\n");
+	}
+
+
+	if (_mutex) {
+		xSemaphoreGive(_mutex);
+	}
+}
 void AudioProcessingTask_FreeBuffers(void) {
 	//try and be thread safe in case you do this while processing
 	if (_mutex) {

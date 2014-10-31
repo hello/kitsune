@@ -256,6 +256,7 @@ unsigned int CPU_XDATA = 1; //1: enabled CPU interrupt triggerred
 #define minval( a,b ) a < b ? a : b
 	unsigned long tok;
 	long hndl, err, bytes;
+
     McASPInit(true, AUDIO_RATE);
 	//Audio_Stop();
 	audio_buf = (unsigned short*)pvPortMalloc(AUDIO_BUF_SZ);
@@ -283,6 +284,7 @@ unsigned int CPU_XDATA = 1; //1: enabled CPU interrupt triggerred
 	McASPDeInit(true, AUDIO_RATE);
 
 	vPortFree(audio_buf); //UARTprintf(" audio_buf\n ");
+
 	return 0;
 }
 
@@ -348,7 +350,11 @@ int Cmd_play_buff(int argc, char *argv[]) {
 	unsigned int CPU_XDATA = 0; //1: enabled CPU interrupt triggerred; 0: DMA
 // Create RX and TX Buffer
 //
+	UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
+	AudioProcessingTask_FreeBuffers();
+	UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
 	pRxBuffer = CreateCircularBuffer(RX_BUFFER_SIZE);
+	UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
 if(pRxBuffer == NULL)
 {
 	UARTprintf("Unable to Allocate Memory for Rx Buffer\n\r");
@@ -373,6 +379,8 @@ UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL);
 SetupPingPongDMATransferRx();
 // Setup the Audio In/Out
 //
+UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
+
 
 AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
 AudioCaptureRendererConfigure(I2S_PORT_DMA, 48000);
@@ -380,18 +388,23 @@ AudioCaptureRendererConfigure(I2S_PORT_DMA, 48000);
 // Start Audio Tx/Rx
 //
 Audio_Start();
+UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
 
 
 // Start the Microphone Task
 //
 Speaker1();
+UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
 
 UARTprintf("g_iReceiveCount %d\n\r", g_iReceiveCount);
 close_codec_NAU(); UARTprintf("close_codec_NAU");
 Audio_Stop();
 McASPDeInit();
 DestroyCircularBuffer(pRxBuffer); UARTprintf("DestroyCircularBuffer(pRxBuffer)" );
-Cmd_free(0,0);
+UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
+
+AudioProcessingTask_AllocBuffers();
+UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
 
 return 0;
 
@@ -1145,7 +1158,7 @@ void vUARTTask(void *pvParameters) {
 		UARTprintf("Failed to create the led_events.\n");
 	}
 
-	xTaskCreate(led_task, "ledTask", 384 / 4, NULL, 4, NULL); //todo reduce stack
+	xTaskCreate(led_task, "ledTask", 512 / 4, NULL, 4, NULL); //todo reduce stack
 
 	Cmd_led_clr(0,0);
 	//switch the uart lines to gpios, drive tx low and see if rx goes low as well
@@ -1300,7 +1313,7 @@ void vUARTTask(void *pvParameters) {
 			// Pass the line from the user to the command processor.  It will be
 			// parsed and valid commands executed.
 			//
-			xTaskCreate(CmdLineProcess, "commandTask",  2*1024 / 4, cCmdBuf, 20, NULL);
+			xTaskCreate(CmdLineProcess, "commandTask",  3*1024 / 4, cCmdBuf, 20, NULL);
 			memset(cCmdBuf,0,sizeof(cCmdBuf)); //zero out buffer after a command
         }
 	}
