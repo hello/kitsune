@@ -98,7 +98,7 @@ int Cmd_i2c_writereg(int argc, char *argv[]) {
 	char *pcErrPtr;
 	int iLoopCnt = 0;
 
-	if (argc != 4) {
+	if (argc != 5) {
 		UARTprintf(
 				"writereg <dev_addr> <reg_offset> <wrlen> <<byte0> [<byte1> ... ]> \n\r");
 		return FAILURE;

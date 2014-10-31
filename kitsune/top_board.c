@@ -167,7 +167,7 @@ _sendchar(uint8_t c){
 	UARTCharPut(UARTA1_BASE, c);
 }
 
-int top_board_task(void){
+void top_board_task(void * params){
 	slip_handler_t me = {
 			.slip_display_char = _printchar,
 			.slip_on_message = _on_slip_message,

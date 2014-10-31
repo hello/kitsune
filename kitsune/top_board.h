@@ -11,7 +11,7 @@
 extern "C" {
 #endif
 
-int top_board_task(void); //infinite loop
+void top_board_task(void * params);//infinite loop
 int Cmd_send_top(int argc, char *argv[]);
 int Cmd_top_dtm(int argc, char * argv[]);
 int top_board_dfu_begin(const char * binname);
