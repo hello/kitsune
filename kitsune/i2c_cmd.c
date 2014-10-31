@@ -649,20 +649,20 @@ int get_codec_NAU(int argc, char *argv[]) {
 	//     0     0     0  0  0  1     0  0  0
 	cmd_init[0] = 0x1e ; cmd_init[1] = 0xff ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // ADC Gain control reg
 //  cmd_init[0] = 0x24 ;
-	cmd_init[0] = 0x25 ; cmd_init[1] = 0x58 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // EQ1
+	cmd_init[0] = 0x25 ; cmd_init[1] = 0x78 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // EQ1
 	// Address D8  D7 D6   D5     D4 D3 D2 D1 D0
 	// 0x12    EQM 0  EQ1CF[1:0]  EQ1GC[4:0]
 	// set     1   0  1    1      0  0  0  0  1
-	// set     1   0  1    0      1  1  0  0  0    -12
-	cmd_init[0] = 0x27 ; cmd_init[1] = 0x58 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // EQ2
+	// set     1   0  1    1     1  1  0  0  0    -12
+	cmd_init[0] = 0x26 ; cmd_init[1] = 0x58 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // EQ2
 	// Address D8    D7 D6   D5     D4 D3 D2 D1 D0
 	// 0x13    EQ2BW 0  EQ2CF[1:0]  EQ2GC[4:0]
 	// set     1     0  1    0      1  0  0  0  1  -5
-	cmd_init[0] = 0x29 ; cmd_init[1] = 0x58 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // EQ3
+	cmd_init[0] = 0x28 ; cmd_init[1] = 0x58 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // EQ3
 	// Address D8    D7 D6   D5     D4 D3 D2 D1 D0
 	// 0x14    EQ3BW 0  EQ3CF[1:0]  EQ3GC[4:0]
 	// set     1     0  1    0      0  1  0  0  0  4dB
-	cmd_init[0] = 0x2b ; cmd_init[1] = 0x40 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // EQ4
+	cmd_init[0] = 0x2a ; cmd_init[1] = 0x40 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // EQ4
 	// Address D8    D7 D6   D5     D4 D3 D2 D1 D0
 	// 0x15    EQ4BW 0  EQ4CF[1:0]  EQ4GC[4:0]
 	// set     1     0  1    0      0  0  1  0  0  8dB
