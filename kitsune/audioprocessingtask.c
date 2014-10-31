@@ -1,6 +1,7 @@
 #include "FreeRTOS.h"
 #include "queue.h"
 #include "semphr.h"
+#include "uartstdio.h"
 
 #include "audiocapturetask.h"
 #include "audioprocessingtask.h"

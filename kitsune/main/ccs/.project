@@ -111,6 +111,11 @@
 			<locationURI>PARENT-2-PROJECT_LOC/machinelearning/classifier_factory.c</locationURI>
 		</link>
 		<link>
+			<name>classifier_factory.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/machinelearning/classifier_factory.h</locationURI>
+		</link>
+		<link>
 			<name>cmdline.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/cmdline.c</locationURI>
@@ -196,6 +201,11 @@
 			<locationURI>PARENT-2-PROJECT_LOC/machinelearning/hmm.c</locationURI>
 		</link>
 		<link>
+			<name>hmm.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/machinelearning/hmm.h</locationURI>
+		</link>
+		<link>
 			<name>i2c_cmd.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/i2c_cmd.c</locationURI>
@@ -229,6 +239,16 @@
 			<name>linear_svm.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/machinelearning/linear_svm.c</locationURI>
+		</link>
+		<link>
+			<name>linear_svm.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/machinelearning/linear_svm.h</locationURI>
+		</link>
+		<link>
+			<name>machine_learning_types.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/machinelearning/machine_learning_types.h</locationURI>
 		</link>
 		<link>
 			<name>main.c</name>

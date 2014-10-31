@@ -14,6 +14,7 @@
 #include "stdio.h"
 #include "networktask.h"
 #include "led_animations.h"
+#include "led_cmd.h"
 
 extern unsigned int sl_status;
 int Cmd_led(int argc, char *argv[]);
@@ -393,7 +394,6 @@ static void _pair_device( MorpheusCommand* command, int is_morpheus)
 	}else{
 
 		ble_proto_assign_encode_funcs(command);
-		uint8_t retry_count = 5;   // Retry 5 times if we have network error
 		// TODO: Figure out why always get -1 when this is the 1st request
 		// after the IPv4 retrieved.
 

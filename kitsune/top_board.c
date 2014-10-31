@@ -14,6 +14,9 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "led_cmd.h"
+#include "led_animations.h"
+
+#include "stdlib.h"
 
 typedef enum {
 	DFU_INVALID_PACKET = 0,

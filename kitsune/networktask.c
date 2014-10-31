@@ -5,6 +5,7 @@
 #include "queue.h"
 #include "wifi_cmd.h"
 #include <pb_encode.h>
+#include "uartstdio.h"
 
 #define NETWORK_TASK_QUEUE_DEPTH (10)
 #define INITIAL_RETRY_PERIOD_COUNTS (1024)

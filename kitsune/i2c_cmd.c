@@ -798,4 +798,5 @@ int close_codec_NAU(int argc, char *argv[]) {
 	// 0x03 0  MOUTEN NSPKEN PSPKEN BIASGEN MOUTMXEN SPKMXEN 0  DACEN
 	// set  0  0      0      0      1       0        1       0  1
 	//////// 4.  Power supplies Analog VDDA VDDB VDDC VDDSPK
+	return 0;
 }

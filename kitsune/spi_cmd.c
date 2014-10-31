@@ -26,6 +26,10 @@
 #include "spi_cmd.h"
 #include "uartstdio.h"
 
+#if 0
+#define SPI_DEBUG_PRINT
+#endif
+
 #define FAILURE                 -1
 #define SUCCESS                 0
 
@@ -130,7 +134,6 @@ int spi_write_step( int len, unsigned char * buf ) {
 }
 
 int spi_read_step( int len, unsigned char * buf ) {
-	int i;
 	if( len > 256 ) {
 		UARTprintf("Length limited to 256\r\n");
 		return FAILURE;
@@ -146,6 +149,7 @@ int spi_read_step( int len, unsigned char * buf ) {
 	vTaskDelay(8*5);
 #ifdef SPI_DEBUG_PRINT
 	UARTprintf("Read %d bytes \r\n", len);
+	int i;
 	for (i = 0; i < len; i++) {
 		UARTprintf("%x ", buf[i]);
 	}
@@ -231,12 +235,13 @@ int Cmd_spi_write(int argc, char *argv[]) {
 }
 
 int Cmd_spi_read(int argc, char *argv[]) {
-	int i, len;
+	int len;
 	unsigned char buf[256];
 
 	spi_read( &len, buf );
 #ifdef SPI_DEBUG_PRINT
 	UARTprintf("read %u\r\n", len);
+	int i;
 	for( i=0; i<len; ++i ) {
 		UARTprintf( "%x", buf[i] );
 	}

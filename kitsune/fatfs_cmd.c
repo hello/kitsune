@@ -912,7 +912,7 @@ int GetData(char * filename, char* url, char * host)
     pBuff = (unsigned char *)strstr((const char *)g_buff, HTTP_CONTENT_LENGTH);
     if(pBuff != 0)
     {
-    	char *p = pBuff;
+    	char *p = (char*)pBuff;
         // not supported
         ASSERT_ON_ERROR(FORMAT_NOT_SUPPORTED);
 
@@ -970,7 +970,6 @@ int GetData(char * filename, char* url, char * host)
     if(isChunked == 1)
     {
         r = GetChunkSize(&transfer_len, &pBuff, &recv_size);
-        ASSERT_ON_ERROR(r);
     }
 
     /* Open file to save the downloaded file */
