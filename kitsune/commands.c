@@ -1260,7 +1260,7 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(thread_audio, "audioTask", 2 * 1024 / 4, NULL, 4, NULL); //todo reduce stack
 
 	UARTprintf("*");
-	xTaskCreate(thread_spi, "spiTask", 1*1024 / 4, NULL, 5, NULL);
+	xTaskCreate(thread_spi, "spiTask", 2*1024 / 4, NULL, 5, NULL);
 
 	//this task needs a larger stack because
 	//some protobuf encoding will happen on the stack of this task
