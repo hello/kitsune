@@ -607,7 +607,7 @@ void thread_fast_i2c_poll(void * unused)  {
 	while (1) {
 		portTickType now = xTaskGetTickCount();
 		int light;
-		int prox,hpf_prox;
+		int prox,hpf_prox=0;
 
 		if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
 			int adjust;
@@ -620,10 +620,10 @@ void thread_fast_i2c_poll(void * unused)  {
 			// for white one, 9mm distance max.
 			prox = get_prox();  // now this thing is in um.
 
-			hpf_prox = last_prox - prox;   // The noise in enclosure is in 100+ um level
+			hpf_prox += ( (last_prox - prox) - hpf_prox )>>1;   // The noise in enclosure is in 100+ um level
 
 			//UARTprintf("PROX: %d um\n", prox);
-			if(hpf_prox > 400 && now - last > 2000 ) {  // seems not very sensitive,  the noise in enclosure is in 100+ um level
+			if(hpf_prox > 300 && now - last > 2000 ) {  // seems not very sensitive,  the noise in enclosure is in 100+ um level
 				UARTprintf("PROX: %d um, diff %d um\n", prox, hpf_prox);
 				last = now;
 				xSemaphoreTake(alarm_smphr, portMAX_DELAY);
