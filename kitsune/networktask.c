@@ -116,7 +116,7 @@ int NetworkTask_SynchronousSendProtobuf(const char * endpoint, char * buf, uint3
 
 static uint32_t _encode_raw_protobuf(pb_ostream_t * stream, const void * encode_data)
 {
-    array_data* array = encode_data;
+    const array_data* array = (const array_data*)encode_data;
     if(pb_write(stream, array->buffer, array->length))
     {
         return array->length;
@@ -129,7 +129,8 @@ static uint32_t _encode_raw_protobuf(pb_ostream_t * stream, const void * encode_
 int NetworkTask_SynchronousSendRawProtobuf(const char * endpoint, 
 	const array_data* data_holder, 
 	uint8_t * response_buf, uint32_t buf_size,
-	int32_t retry_time_in_counts) {
+	int32_t retry_time_in_counts) 
+{
 
 	int retcode = -1;
 
