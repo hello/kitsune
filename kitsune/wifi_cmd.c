@@ -1407,7 +1407,7 @@ static void _on_response_protobuf(const SyncResponse* response_protobuf)
 
 
 int send_periodic_data(array_data* data) {
-    uint8_t buffer[256];
+    uint8_t buffer[256] = {0};
 
     int ret;
     //set this to zero--it won't retry, since retrying is handled by an outside loop
@@ -1459,7 +1459,6 @@ int send_periodic_data(array_data* data) {
         sl_status |= UPLOADING;
 
         return 0;
-        //now act on incoming data!
     }
     return -1;
 }
