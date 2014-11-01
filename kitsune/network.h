@@ -77,7 +77,7 @@ extern "C"
 #define RX_BUFFER_SIZE          20*PACKET_SIZE
 
 //#ifdef DIGITT
-#define AUDIO_FILE "DIGIQQ.raw" //armi.rec DIGITLP DIGITOR
+#define AUDIO_FILE "DIGIAUX.raw" //armi.rec DIGITLP DIGITOR
 //#define AUDIO_FILE "mari.rec" //armi.rec DIGITLP DIGITOR
 //#else if ORGANICSIX
 //#define AUDIO_FILE "ORGANICSIX.raw"
