@@ -18,11 +18,8 @@ typedef struct {
 #include "FreeRTOS.h"
 #include "semphr.h"
 #include "wlan.h"
-<<<<<<< HEAD
 #include "ble_cmd.h"
-=======
 #include "network_types.h"
->>>>>>> master
 
 extern xSemaphoreHandle pill_smphr;
 
@@ -88,15 +85,11 @@ unsigned long unix_time();
 void load_aes();
 
 
-int send_periodic_data(array_data* data );
+int send_periodic_data(array_data* data);
 int send_audio_data( data_t * data );
 
 void thread_ota( void * unused );
 
-
-int send_data_pb_raw(const char* host, const char* path, 
-	const uint8_t* buffer_in, size_t content_len,
-    char * buffer_out, size_t buffer_size);
 
 int send_data_pb_callback(const char* host, const char* path,char * recv_buf, uint32_t recv_buf_size,const void * encodedata,network_encode_callback_t encoder);
 
@@ -119,9 +112,6 @@ bool encode_mac_as_device_id_string(pb_ostream_t *stream, const pb_field_t *fiel
 bool encode_name(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 
 bool encode_pill_list(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
-void encode_pill_list_to_buffer(const periodic_data_pill_data_container* ptr_pill_list, 
-    uint8_t* buffer, size_t buffer_len, size_t* out_len);
-bool encode_serialized_pill_list(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 
 
 //#define MORPH_NAME "KingShy's morpheus"

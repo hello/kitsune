@@ -128,7 +128,7 @@ static uint32_t _encode_raw_protobuf(pb_ostream_t * stream, const void * encode_
 
 int NetworkTask_SynchronousSendRawProtobuf(const char * endpoint, 
 	const array_data* data_holder, 
-	char * response_buf, uint32_t buf_size, 
+	uint8_t * response_buf, uint32_t buf_size,
 	int32_t retry_time_in_counts) {
 
 	int retcode = -1;

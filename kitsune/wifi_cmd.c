@@ -1009,9 +1009,9 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
         }
 
 
-        null_stream_bytes = stream.bytes_written;
-        message_length = stream.bytes_written + sizeof(sig) + AES_IV_SIZE;
-        UARTprintf("message len %d sig len %d\n\r\n\r", stream.bytes_written, sizeof(sig));
+        null_stream_bytes = size_stream.bytes_written;
+        message_length = size_stream.bytes_written + sizeof(sig) + AES_IV_SIZE;
+        UARTprintf("message len %d sig len %d\n\r\n\r", size_stream.bytes_written, sizeof(sig));
     }
 
     snprintf(recv_buf, recv_buf_size, "POST %s HTTP/1.1\r\n"
@@ -1405,8 +1405,6 @@ static void _on_response_protobuf(const SyncResponse* response_protobuf)
     }
 }
 
-
-static 
 
 int send_periodic_data(array_data* data) {
     uint8_t buffer[256];

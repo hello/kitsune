@@ -818,7 +818,7 @@ void thread_sensor_poll(void* unused) {
 				vTaskDelay(2);
 
 				int humid = get_humid();
-				if(humid != FAILURE)
+				if(humid != -1)
 				{
 					humid_sum += humid;
 					humid_count++;
@@ -828,7 +828,7 @@ void thread_sensor_poll(void* unused) {
 
 				int temp = get_temp();
 
-				if(temp != FAILURE)
+				if(temp != -1)
 				{
 					temp_sum += temp;
 					temp_count++;
