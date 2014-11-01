@@ -255,6 +255,33 @@ int scan_pill_list(periodic_data_pill_data_container* p, char * device_id) {
 	return i;
 }
 
+void free_pill_list()
+{
+    int i;
+    for (i = 0; i < MAX_PILLS; ++i) 
+    {
+        if (pill_list[i].magic != PILL_MAGIC) {
+            // Slot already empty, skip.
+            continue;
+        }
+
+        if(pill_list[i].pill_data.motionDataEncrypted.arg)
+        {
+            array_data* array_holder = pill_list[i].pill_data.motionDataEncrypted.arg;
+            if(array_holder->buffer)
+            {
+                vPortFree(array_holder->buffer);
+            }
+
+            // We don't need to free the holder, they are in the same block with the holder->buffer
+            // holder->buffer points to the beginning of block.
+            pill_list[i].pill_data.motionDataEncrypted.arg = NULL;
+            pill_list[i].pill_data.motionDataEncrypted.funcs.encode = NULL;
+            pill_list[i].magic = 0;  // Release this slot.
+        }
+    }
+}
+
 static void _process_encrypted_pill_data(const MorpheusCommand* command)
 {
     if (command->motionDataEntrypted.arg) {

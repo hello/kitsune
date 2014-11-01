@@ -24,6 +24,7 @@ extern "C"
 {
 #endif
 
+void free_pill_list();
 void on_ble_protobuf_command(MorpheusCommand* command);
 
 //*****************************************************************************
