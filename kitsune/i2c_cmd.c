@@ -12,8 +12,9 @@
 
 #include "i2c_if.h"
 #include "uartstdio.h"
+#include "i2c_cmd.h"
 
-
+#define MAX_MEASURE_TIME		10
 
 #define FAILURE                 -1
 #define SUCCESS                 0
@@ -27,7 +28,9 @@
 #define TRY_OR_GOTOFAIL(a) if(a!=SUCCESS) { UARTprintf( "fail at %s %d\n\r", __FILE__, __LINE__ ); return FAILURE;}
 
 #define Codec_addr 0x1A
-#define delay_codec 5
+#define delay_codec 10
+
+#define OLD_LIGHT_SENSOR 1
 
 //*****************************************************************************
 //
@@ -97,7 +100,7 @@ int Cmd_i2c_writereg(int argc, char *argv[]) {
 	char *pcErrPtr;
 	int iLoopCnt = 0;
 
-	if (argc != 4) {
+	if (argc != 5) {
 		UARTprintf(
 				"writereg <dev_addr> <reg_offset> <wrlen> <<byte0> [<byte1> ... ]> \n\r");
 		return FAILURE;
@@ -169,7 +172,7 @@ int Cmd_i2c_readreg(int argc, char *argv[]) {
 	//
 	RET_IF_ERR(I2C_IF_Read(ucDevAddr, &aucRdDataBuf[0], ucRdLen));
 
-	UARTprintf("I2C_IF_ Read From address complete\n\r");
+	UARTprintf("I2C_IF_ Read From address complete\n");
 	//
 	// Display the buffer over UART on successful readreg
 	//
@@ -224,88 +227,104 @@ int Cmd_i2c_write(int argc, char *argv[]) {
 
 }
 
-int get_temp() {
-	unsigned char aucDataBuf[2];
-
+int init_temp_sensor()
+{
 	unsigned char cmd = 0xfe;
+	TRY_OR_GOTOFAIL(I2C_IF_Write(0x40, &cmd, 1, 1));    // reset
+
+	get_temp();
+
+	return SUCCESS;
+}
+
+
+int get_temp() {
+	unsigned char cmd = 0xe3;
 	int temp_raw;
 	int temp;
 
-	TRY_OR_GOTOFAIL(I2C_IF_Write(0x40, &cmd, 1, 1));    // reset
-
- 	vTaskDelay(10);
-
- 	cmd = 0xe3;
- 	TRY_OR_GOTOFAIL(I2C_IF_Write(0x40, &cmd, 1, 1));
+	unsigned char aucDataBuf[2];
+	vTaskDelay(10);
+	TRY_OR_GOTOFAIL(I2C_IF_Write(0x40, &cmd, 1, 1));
 
 	vTaskDelay(50);
- 	TRY_OR_GOTOFAIL(I2C_IF_Read(0x40, aucDataBuf, 2));
- 	temp_raw = (aucDataBuf[0] << 8) | ((aucDataBuf[1] & 0xfc));
-	temp = temp_raw;
-
-	temp *= 175;
-	temp /= (65536/100);
-	temp -= 47*100;
+	TRY_OR_GOTOFAIL(I2C_IF_Read(0x40, aucDataBuf, 2));
+	temp_raw = (aucDataBuf[0] << 8) | ((aucDataBuf[1] & 0xfc));
+	
+	temp = 17572 * temp_raw / 65536 - 4685;
 
 	return temp;
 }
 
 int Cmd_readtemp(int argc, char *argv[]) {
-	UARTprintf("temp is %d\n\rç", get_temp());
+	UARTprintf("temp is %d\n", get_temp());
+	return SUCCESS;
+}
+
+int init_humid_sensor()
+{
+	unsigned char cmd = 0xfe;
+	TRY_OR_GOTOFAIL(I2C_IF_Write(0x40, &cmd, 1, 1));    // reset
+
+	// Dummy read the 1st value.
+	get_humid();
+
 	return SUCCESS;
 }
 
 int get_humid() {
 	unsigned char aucDataBuf[2];
-	unsigned char cmd = 0xfe;
+	unsigned char cmd = 0xe5;
 	int humid_raw;
 	int humid;
 
-	TRY_OR_GOTOFAIL(I2C_IF_Write(0x40, &cmd, 1, 1));    // reset
-
 	vTaskDelay(10);
-
-	cmd = 0xe5;
 	TRY_OR_GOTOFAIL(I2C_IF_Write(0x40, &cmd, 1, 1));
 
 	vTaskDelay(50);
 	TRY_OR_GOTOFAIL(I2C_IF_Read(0x40, aucDataBuf, 2));
 	humid_raw = (aucDataBuf[0] << 8) | ((aucDataBuf[1] & 0xfc));
-	humid = humid_raw;
+	
 
-	humid *= 125;
-	humid /= 65536/100;
-	humid -= 6*100;
-
+	humid = 12500 * humid_raw / 65536 - 600;
 	return humid;
 }
 
 int Cmd_readhumid(int argc, char *argv[]) {
+	UARTprintf("humid is %d\n", get_humid());
+	return SUCCESS;
+}
 
-	UARTprintf("humid is %d\n\rç", get_humid());
+int init_light_sensor()
+{
+#if OLD_LIGHT_SENSOR
+	unsigned char cmd_init[2];
+
+	cmd_init[0] = 0x80; // Command register - 8'b1000_0000
+	cmd_init[1] = 0x03; // Control register - 8'b0000_0011
+	TRY_OR_GOTOFAIL(I2C_IF_Write(0x29, cmd_init, 2, 1)); // setup normal mode
+
+	cmd_init[0] = 0x81; // Command register - 8'b1000_0000
+	cmd_init[1] = 0x02; // Control register - 8'b0000_0010 // 100ms due to page 9 of http://media.digikey.com/pdf/Data%20Sheets/Austriamicrosystems%20PDFs/TSL4531.pdf
+	TRY_OR_GOTOFAIL(I2C_IF_Write(0x29, cmd_init, 2, 1)); //  );// change integration
+#else
+	unsigned char aucDataBuf[2]={0,0};
+	aucDataBuf[0] = 0;
+	aucDataBuf[1] = 0xA0;
+	TRY_OR_GOTOFAIL(I2C_IF_Write(0x44, aucDataBuf, 2, 1));
+#endif
+
 	return SUCCESS;
 }
 
 int get_light() {
+#if OLD_LIGHT_SENSOR
 	unsigned char aucDataBuf_LOW[2];
 	unsigned char aucDataBuf_HIGH[2];
-	unsigned char cmd_init[2];
-	int light_raw;
+	int light_lux;
 
 	unsigned char cmd;
-
-	static int first = 1;
-	if (first) {
-		cmd_init[0] = 0x80; // Command register - 8'b1000_0000
-		cmd_init[1] = 0x03; // Control register - 8'b0000_0011
-		TRY_OR_GOTOFAIL(I2C_IF_Write(0x29, cmd_init, 2, 1)); // setup normal mode
-
-		cmd_init[0] = 0x81; // Command register - 8'b1000_0000
-		cmd_init[1] = 0x02; // Control register - 8'b0000_0010 // 100ms
-		TRY_OR_GOTOFAIL(I2C_IF_Write(0x29, cmd_init, 2, 1)); //  );// change integration
-		first = 0;
-	}
-
+	
 	cmd = 0x84; // Command register - 0x04
 	TRY_OR_GOTOFAIL(I2C_IF_Write(0x29, &cmd, 1, 1));
 	TRY_OR_GOTOFAIL(I2C_IF_Read(0x29, aucDataBuf_LOW, 1)); //could read 2 here, but we don't use the other one...
@@ -314,14 +333,43 @@ int get_light() {
 	TRY_OR_GOTOFAIL(I2C_IF_Write(0x29, &cmd, 1, 1));
 	TRY_OR_GOTOFAIL(I2C_IF_Read(0x29, aucDataBuf_HIGH, 1));
 
-	light_raw = ((aucDataBuf_HIGH[0] << 8) | aucDataBuf_LOW[0]) << 0;
 
-	return light_raw;
+	// We are using 100ms mode, multipler is 4
+	// formula based on page 6 of http://media.digikey.com/pdf/Data%20Sheets/Austriamicrosystems%20PDFs/TSL4531.pdf
+	light_lux = ((aucDataBuf_HIGH[0] << 8) | aucDataBuf_LOW[0]) << 2;
+
+	return light_lux;
+#else
+	int cmd;
+	unsigned char aucDataBuf[2]={0,0};
+
+	cmd = 0x2;
+	TRY_OR_GOTOFAIL(I2C_IF_Write(0x44, &cmd, 1, 1));
+	vTaskDelay(0);
+	TRY_OR_GOTOFAIL(I2C_IF_Read(0x44, aucDataBuf, 2));
+
+	return aucDataBuf[0]|(aucDataBuf[1]<<8);
+#endif
 }
 
 int Cmd_readlight(int argc, char *argv[]) {
+	UARTprintf(" light is %d\n", get_light());
 
-	UARTprintf(" light is %d\n\r", get_light());
+	return SUCCESS;
+}
+
+int init_prox_sensor()
+{
+	unsigned char prx_cmd_init[2];
+
+//		prx_cmd_init[0] = 0x82;
+//		prx_cmd_init[1] = 111; // max speed
+//		TRY_OR_GOTOFAIL(I2C_IF_Write(0x13, prx_cmd_init, 2, 1) );
+
+	prx_cmd_init[0] = 0x83; // Current setting register
+	prx_cmd_init[1] = 20; // Value * 10mA
+	TRY_OR_GOTOFAIL( I2C_IF_Write(0x13, prx_cmd_init, 2, 1) );
+
 
 	return SUCCESS;
 }
@@ -331,24 +379,12 @@ int get_prox() {
 	unsigned char prx_aucDataBuf_HIGH[2];
 	int proximity_raw;
 	unsigned char prx_cmd;
+
 	unsigned char prx_cmd_init[2];
-
-	static int first = 1;
-	if (first) {
-
-//		prx_cmd_init[0] = 0x82;
-//		prx_cmd_init[1] = 111; // max speed
-//		TRY_OR_GOTOFAIL(I2C_IF_Write(0x13, prx_cmd_init, 2, 1) );
-
-		prx_cmd_init[0] = 0x83; // Current setting register
-		prx_cmd_init[1] = 20; // Value * 10mA
-		TRY_OR_GOTOFAIL( I2C_IF_Write(0x13, prx_cmd_init, 2, 1) );
-		first = 0;
-	}
-
 	prx_cmd_init[0] = 0x80; // Command register - 8'b1000_0000
 	prx_cmd_init[1] = 0x08; // one shot measurements
 	TRY_OR_GOTOFAIL(I2C_IF_Write(0x13, prx_cmd_init, 2, 1) );// reset
+
 
 	prx_cmd = 0x88; // Command register - 0x87
 	TRY_OR_GOTOFAIL( I2C_IF_Write(0x13, &prx_cmd, 1, 1) );
@@ -360,12 +396,12 @@ int get_prox() {
 
 	proximity_raw = (prx_aucDataBuf_HIGH[0] << 8) | prx_aucDataBuf_LOW[0];
 
-	return proximity_raw;
+	return 200000 - proximity_raw * 200000 / 65536;
+
 }
 
 int Cmd_readproximity(int argc, char *argv[]) {
-
-	UARTprintf(" proximity is %d\n\r", get_prox());
+	UARTprintf(" proximity is %d\n", get_prox());
 	return SUCCESS;
 }
 
@@ -430,7 +466,7 @@ cmd_init[0] = 0x78 ; cmd_init[1] = 0x8C ; I2C_IF_Write(Codec_addr, cmd_init, 2, 
 
 
 int get_codec_NAU(int argc, char *argv[]) {
-#if 0
+//#if 0
 	unsigned char cmd_init[2];
 	//int light_raw;
 
@@ -569,14 +605,14 @@ int get_codec_NAU(int argc, char *argv[]) {
 	//Addr D8 D7 D6 D5 D4 D3 D2 D1 D0
 	//0x49 SPIEN FSERRVAL[1:0] FSERFLSH FSERRENA NFDLY DACINMT PLLLOCKP DACOS256
 	UARTprintf(" codec is testing \n\r");
-#endif
-
+//#endif
+#if 0
 	unsigned char cmd_init[2];
 	//int light_raw;
 
 	cmd_init[0] = 0x00 ; cmd_init[1] = 0x00 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec);
 	//cmd_init[0] = 0x03 ; cmd_init[1] = 0x6d ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec);
-	cmd_init[0] = 0x02 ; cmd_init[1] = 0x2b ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // Power Management 1 DCBUFEN = 1 (Louder)
+	cmd_init[0] = 0x02 ; cmd_init[1] = 0x2f ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // Power Management 1 DCBUFEN = 1 (Louder)
 	// Addr D8 		D7 D6    D5    D4        D3      D2     D1,D0
 	// 0x01 DCBUFEN 0  AUXEN PLLEN MICBIASEN ABIASEN IOBUFEN REFIMP[1:0]
 	// set  0       0  0     1     0         1       0      1  1
@@ -609,28 +645,12 @@ int get_codec_NAU(int argc, char *argv[]) {
 	// Addr D8    D7 D6 D5 D4 D3 D2 D1   D0
 	// 0x07 SPIEN 0  0  0  0  SMPLR[2:0] SCLKEN
 	// set  0     0  0  0  0  0  1  1    0
-	cmd_init[0] = 0x10 ; cmd_init[1] = 0x04 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec);
-	// Addr D8    D7 D6 D5 D4 			D3     D2 D1  D0
-	//0x08  0     0  0  GPIOPLL[4:5]    GPIOPL GPIOSEL[2:0]
-	//      0     0  0  0  0            0      1  0   0
-	// General Purpose I/O Selection
-	// GPIOSEL [2]  GPIOSEL [1]  GPIOSEL [0]   Mode (Hz)
-	//	 0             0             0         CSb Input
-	//   0     		   0   			 1         Jack Insert Detect
-	//   0   		   1   			 0  	   Temperature OK
-	//   0			   1		     1		   AMUTE Active
-	//   1  		   0  			 0	       PLL CLK Output
-	//   1			   0			 1         PLL Lock
-	//   1             1             0         1
-	//   1             1             1         0
-
-
-
+	cmd_init[0] = 0x10 ; cmd_init[1] = 0x00 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec);
 	cmd_init[0] = 0x14 ; cmd_init[1] = 0x0c ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // DAC control
 	// Addr D8 D7  D6                  D5,D4      D3     D2      D1 D0
 	// 0x0A 0  0   DACMT/0: Disable    DEEMP[1:0] DACOS  AUTOMT  0  DACPL
 	// set  0  0   0                   0  0       1      1       0  0
-	cmd_init[0] = 0x17 ; cmd_init[1] = 0xff ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // DAC Vol.
+	cmd_init[0] = 0x17 ; cmd_init[1] = 0xe9 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // DAC Vol.
 	// Addr D8 D7 D6 D5 D4 D3 D2 D1 D0
 	// 0x0B 0  DACGAIN
 	// set  0  1  1  1  1  1  1  1  1
@@ -648,7 +668,7 @@ int get_codec_NAU(int argc, char *argv[]) {
 	//     0     0     0  0  0  1     0  0  0
 	cmd_init[0] = 0x1e ; cmd_init[1] = 0xff ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // ADC Gain control reg
 
-	cmd_init[0] = 0x24 ; cmd_init[1] = 0x6C ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // EQ1
+	cmd_init[0] = 0x25 ; cmd_init[1] = 0x61 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // EQ1
 	// Address D8  D7 D6   D5     D4 D3 D2 D1 D0
 	// 0x12    EQM 0  EQ1CF[1:0]  EQ1GC[4:0]
 	// set     1   0  1    1      0  0  0  0  1
@@ -735,7 +755,7 @@ int get_codec_NAU(int argc, char *argv[]) {
 	// Address D8    D7  D6   D5     D4 D3 D2 D1       D0
 	// 0x32    0     0   0    AUXSPK 0  0  0  BYPSPK   DACSPK
 	// set     0     0   0    0      0  0  0  0        1
-	cmd_init[0] = 0x6c ; cmd_init[1] = 0x39 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // Speaker Gain Control Register
+	cmd_init[0] = 0x6c ; cmd_init[1] = 0x3f ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); //Speaker Gain Control Register
 	// Address D8    D7      D6       D5 D4 D3 D2 D1 D0
 	// 0x36    0     SPKZC   SPKMT    SPKGAIN[5:0]
 	// set     0     1       0        1  1  1  1  1  1
@@ -754,7 +774,7 @@ int get_codec_NAU(int argc, char *argv[]) {
 	//Addr D8     D7 D6            D5    D4      D3    D2      D1       D0
 	//0x49 SPIEN FSERRVAL[1:0] FSERFLSH FSERRENA NFDLY DACINMT PLLLOCKP DACOS256
 	//     0      1  1             0     0       0     0       0        1
-
+#endif
 	UARTprintf(" codec is testing \n\r");
 	return SUCCESS;
 }
@@ -778,4 +798,5 @@ int close_codec_NAU(int argc, char *argv[]) {
 	// 0x03 0  MOUTEN NSPKEN PSPKEN BIASGEN MOUTMXEN SPKMXEN 0  DACEN
 	// set  0  0      0      0      1       0        1       0  1
 	//////// 4.  Power supplies Analog VDDA VDDB VDDC VDDSPK
+	return 0;
 }

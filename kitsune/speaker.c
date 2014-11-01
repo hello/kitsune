@@ -60,6 +60,9 @@
 #include "network.h"
 #include "uartstdio.h"
 
+#include "FreeRTOS.h"
+#include "task.h"
+
 //*****************************************************************************
 //                 GLOBAL VARIABLES -- Start
 //*****************************************************************************
@@ -71,8 +74,8 @@ int iCount =0;
 unsigned int g_uiPlayWaterMark = 1;
 extern unsigned long  g_ulStatus;
 extern unsigned char g_ucSpkrStartFlag;
-unsigned char speaker_data[20*1024]; //16*1024
-unsigned char speaker_data_padded[1024]={0}; //16*1024
+unsigned char speaker_data[512];
+unsigned char speaker_data_padded[1024]={0};
 //*****************************************************************************
 //                 GLOBAL VARIABLES -- End
 //*****************************************************************************
@@ -126,7 +129,9 @@ void Speaker1()
       totBytesRead += Size;
 
       /* Wait to avoid buffer overflow as reading speed is faster than playback */
-      while((IsBufferSizeFilled(pRxBuffer,PLAY_WATERMARK) == TRUE)){};
+      while((IsBufferSizeFilled(pRxBuffer,PLAY_WATERMARK) == TRUE)){
+    	    vTaskDelay(1);
+      };
 
       if(Size>0)
       {
@@ -194,10 +199,13 @@ void Speaker1()
         }
       }
       g_iReceiveCount++;
-       UARTprintf("g_iReceiveCount: %d\n\r",g_iReceiveCount);
+
+      if ((g_iReceiveCount % 100) == 0) {
+    	UARTprintf("g_iReceiveCount: %d\n\r",g_iReceiveCount);
+  	  }
     }
 
-    MAP_UtilsDelay(1000);
+    vTaskDelay(0);
 
   }
 }
