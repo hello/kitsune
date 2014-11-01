@@ -281,23 +281,23 @@ static void _process_encrypted_pill_data(const MorpheusCommand* command)
             
 
             const array_data* array = (array_data*)command->motionDataEntrypted.arg;  // This thing will be free when this function exits
-            array_data* array_cp = pvPortMalloc(sizeof(array_data));
-            if(!array_cp){
+            
+            // the holder and buffer are in one memory block
+            uint8_t* buffer = pvPortMalloc(sizeof(array_data) + array->length);
+            if(!buffer){
                 UARTprintf("No memory\n");
 
             }else{
-            	uint8_t* encrypted_data = (uint8_t*)pvPortMalloc(array->length);
-                if(!encrypted_data){
-                    vPortFree(array_cp);
-                    UARTprintf("No memory\n");
-                }else{
-                    array_cp->buffer = encrypted_data;
-                    array_cp->length = array->length;
-                    memcpy(encrypted_data, array->buffer, array->length);
 
-                    pill_list[i].pill_data.motionDataEncrypted.arg = array_cp;
-                    pill_list[i].magic = PILL_MAGIC;
-                }
+                array_data* holder = (array_data*)&buffer[array->length];
+
+                holder->buffer = buffer;
+                holder->length = array->length;
+                memcpy(holder->buffer, array->buffer, array->length);
+
+                pill_list[i].pill_data.motionDataEncrypted.arg = holder;
+                pill_list[i].magic = PILL_MAGIC;
+                
             }
 
             UARTprintf("PILL DATA FROM ID: %s, length: %d\n", command->deviceId.arg, array->length);

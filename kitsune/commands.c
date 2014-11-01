@@ -685,8 +685,10 @@ void thread_tx(void* unused) {
 
 	while (1) {
 		int tries = 0;
+		memset(&data, 0, sizeof(data));
+
 		UARTprintf("********************Start polling *****************\n");
-		if( data_queue != 0 && !xQueueReceive( data_queue, &( data ), portMAX_DELAY ) ) {
+		if( data_queue != 0 && !xQueueReceive( data_queue, &data, portMAX_DELAY ) ) {
 			vTaskDelay(100);
 			UARTprintf("*********************** Waiting for data *****************\n");
 			continue;
@@ -723,69 +725,139 @@ void thread_sensor_poll(void* unused) {
 	// Print some header text.
 	//
 
-	data_t data;
+	periodic_data data = {0};
 
 	while (1) {
 		portTickType now = xTaskGetTickCount();
 
-		data.time = get_time();
+		memset(&data, 0, sizeof(data));  // Don't forget re-init!
+		data.unix_time = get_time();
+		data.has_unix_time = true;
 
-		if( xSemaphoreTake( dust_smphr, portMAX_DELAY ) ) {
-			int dust_var;
+		size_t increased_heap_size = 0;
 
+		// copy over the dust values
+		if( xSemaphoreTake(dust_smphr, portMAX_DELAY)) {
 			if( dust_cnt != 0 ) {
 				data.dust = dust_mean;
+				data.has_dust = true;
+
+				dust_log_sum /= dust_cnt;  // devide by zero?
+				if(dust_cnt > 1)
+				{
+					data.dust_variability = dust_m2 / (dust_cnt - 1);  // devide by zero again, add if
+					data.has_dust_variability = true;  // since init with 0, by default it is false
+				}
+				data.has_dust_max = true;
+				data.dust_max = dust_max;
+
+				data.has_dust_min = true;
+				data.dust_min = dust_min;
+
+				
 			} else {
 				data.dust = get_dust();
+				if(data.dust == 0)  // This means we get some error?
+				{
+					data.has_dust = false;
+				}
+
+				data.has_dust_variability = false;
+				data.has_dust_max = false;
+				data.has_dust_min = false;
 			}
-			dust_log_sum /= dust_cnt;
-
-			dust_var = dust_m2 / (dust_cnt-1);
-
-			data.dust_var = dust_var;
-			data.dust_max = dust_max;
-			data.dust_min = dust_min;
-
+			
 			dust_min = 5000;
 			dust_m2 = dust_mean = dust_cnt = dust_log_sum = dust_max = 0;
-
-			xSemaphoreGive( dust_smphr );
+			xSemaphoreGive(dust_smphr);
 		} else {
-			data.dust = get_dust();
+			data.has_dust = false;  // if Semaphore take failed, don't upload
 		}
+
+		// copy over light values
 		if (xSemaphoreTake(light_smphr, portMAX_DELAY)) {
-			light_log_sum /= light_cnt;
-			light_sf = (light_mean<<8) / bitexp( light_log_sum );
+			if(light_cnt == 0)
+			{
+				data.has_light = false;
+			}else{
+				light_log_sum /= light_cnt;  // just be careful for devide by zero.
+				light_sf = (light_mean << 8) / bitexp( light_log_sum );
 
-			int light_var = light_m2 / (light_cnt-1);
+				if(light_cnt > 1)
+				{
+					data.light_variability = light_m2 / (light_cnt - 1);
+					data.has_light_variability = true;
+				}else{
+					data.has_light_variability = false;
+				}
 
-			//UARTprintf( "%d lightsf %d var %d cnt\n", light_sf, light_var, light_cnt );
+				//UARTprintf( "%d lightsf %d var %d cnt\n", light_sf, light_var, light_cnt );
+				data.light_tonality = light_sf;
+				data.has_light_tonality = true;
 
-			data.light_variability = light_var;
-			data.light_tonality = light_sf;
-			data.light = light_mean;
-			light_m2 = light_mean = light_cnt = light_log_sum = light_sf = 0;
+				data.light = light_mean;
+				data.has_light = true;
+
+				light_m2 = light_mean = light_cnt = light_log_sum = light_sf = 0;
+			}
+			
 			xSemaphoreGive(light_smphr);
 		}
+
+		// get temperature and humidity
 		if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
 			uint8_t measure_time = 10;
 			int64_t humid_sum = 0;
 			int64_t temp_sum = 0;
+
+			uint8_t humid_count = 0;
+			uint8_t temp_count = 0;
+
 			while(--measure_time)
 			{
 				vTaskDelay(2);
-				humid_sum += get_humid();
+
+				int humid = get_humid();
+				if(humid != FAILURE)
+				{
+					humid_sum += humid;
+					humid_count++;
+				}
+
 				vTaskDelay(2);
-				temp_sum += get_temp();
+
+				int temp = get_temp();
+
+				if(temp != FAILURE)
+				{
+					temp_sum += temp;
+					temp_count++;
+				}
+
 				vTaskDelay(2);
 			}
 
-			data.humid = humid_sum / 10;
-			data.temp = temp_sum / 10;
+
+
+			if(humid_count == 0)
+			{
+				data.has_humidity = false;
+			}else{
+				data.has_humidity = true;
+				data.humidity = humid_sum / humid_count;
+
+			}
+
+
+			if(temp_count == 0)
+			{
+				data.has_temperature = false;
+			}else{
+				data.has_temperature = true;
+				data.temperature = temp_sum / temp_count;
+			}
 			
 			xSemaphoreGive(i2c_smphr);
-		} else {
-			continue;
 		}
 
 		array_data* array = NULL;
@@ -825,36 +897,60 @@ void thread_sensor_poll(void* unused) {
 
 					}
 
-					memset(pill_list, 0, sizeof(pill_list));
-
 				}
 			}else{
 				UARTprintf("size eval failed\n");
 			}
-
 			xSemaphoreGive(pill_smphr);
-		} else {
-			continue;
 		}
+
+
 		UARTprintf("collecting time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d %d %d %d\n",
-				data.time, data.light, data.light_variability, data.light_tonality, data.temp, data.humid,
-				data.dust, data.dust_max, data.dust_min, data.dust_var);
-
-		    // ...
-
-        xQueueSend( data_queue, ( void * ) &data, 10 );
-
+				data.unix_time, data.light, data.light_variability, data.light_tonality, data.temperature, data.humidity,
+				data.dust, data.dust_max, data.dust_min, data.dust_variability);
 
         if(array && xQueueSend(data_queue, (void*)array, 10) == pdPASS)
         {
         	increased_heap_size += array->length;
+
+        	// we can delete pill data, because everything is copied
+        	if (xSemaphoreTake(pill_smphr, portMAX_DELAY)) 
+        	{
+	        	int i;
+	            for (i = 0; i < MAX_PILLS; ++i) 
+	            {
+	                if (pill_list[i].magic != PILL_MAGIC) {
+	                    // Slot already empty, skip.
+	                    continue;
+	                }
+
+	                if(pill_list[i].pill_data.motionDataEncrypted.arg)
+	                {
+	                    array_data* array_holder = pill_list[i].pill_data.motionDataEncrypted.arg;
+	                    if(array_holder->buffer)
+	                    {
+	                        vPortFree(array_holder->buffer);
+	                    }
+
+	                    // We don't need to free the holder, they are in the same block
+	                    // holder->buffer points to the beginning of block.
+	                    pill_list[i].pill_data.motionDataEncrypted.arg = NULL;
+	                    pill_list[i].pill_data.motionDataEncrypted.funcs.encode = NULL;
+	                    pill_list[i].magic = 0;  // Release this slot.
+	                }
+	            }
+	            xSemaphoreGive(pill_smphr);
+        	}
     	}else{
     		UARTprintf("Failed to post data\n");
     	}
+    	
 		UARTprintf("Sensor polling task sleep... heap size for this data %d bytes\n", increased_heap_size);
 
 		vTaskDelayUntil(&now, 60 * configTICK_RATE_HZ);
 	}
+
+
 
 }
 

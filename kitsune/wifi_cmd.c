@@ -1155,134 +1155,7 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
 }
 
 
-int send_data_pb_raw(const char* host, const char* path, 
-    const char* buffer_out, size_t content_len, 
-    char * recv_buf, size_t recv_buf_size) {
 
-    int send_length = 0;
-    int rv = 0;
-    uint8_t sig[32]={0};
-
-    size_t message_length;
-    bool status;
-
-
-    if (!recv_buf) {
-        UARTprintf("send_data_pb_callback needs a buffer\r\n");
-        return -1;
-    }
-
-    message_length = content_len + sizeof(sig) + AES_IV_SIZE;
-    UARTprintf("message len %d sig len %d\n\r\n\r", content_len, sizeof(sig));
-
-    snprintf(recv_buf, recv_buf_size, "POST %s HTTP/1.1\r\n"
-            "Host: %s\r\n"
-            "Content-type: application/x-protobuf\r\n"
-            "Content-length: %d\r\n"
-            "\r\n", path, host, message_length);
-    send_length = strlen(recv_buf);
-
-    //setup the connection
-    if( start_connection() < 0 ) {
-        UARTprintf("failed to start connection\n\r\n\r");
-        return -1;
-    }
-
-    //UARTprintf("Sending request\n\r%s\n\r", recv_buf);
-    rv = send(sock, recv_buf, send_length, 0);
-    if (rv <= 0) {
-        UARTprintf("send error %d\n\r\n\r", rv);
-        return stop_connection();
-    }
-
-    UARTprintf("HTTP header sent %d\n\r%s\n\r", rv, recv_buf);
-
-
-    if (buffer_out) {
-        pb_ostream_t stream = {0};
-        int i;
-
-        //todo guard sha1ctx with semaphore...
-        SHA1_Init(&sha1ctx);
-
-        /* Create a stream that will write to our buffer. */
-        stream = pb_ostream_from_sha_socket(sock);
-        /* Now we are ready to encode the message! */
-
-        UARTprintf("data ");
-        status = pb_write(&stream, buffer_out, content_len);
-        UARTprintf("\n");
-
-        /* Then just check for any errors.. */
-        if (!status) {
-            UARTprintf("Protobuf write to socket failed: %s\n", PB_GET_ERROR(&stream));
-            return -1;
-        }
-
-        //now sign it
-        SHA1_Final(sig, &sha1ctx);
-
-        for (i = SHA1_SIZE; i < sizeof(sig); ++i) {
-            sig[i] = (uint8_t)rand();
-        }
-
-        UARTprintf("SHA ");
-        for (i = 0; i < sizeof(sig); ++i) {
-            UARTprintf("%x", sig[i]);
-        }
-        UARTprintf("\n");
-
-        AES_CTX aesctx;
-        //memset( aesctx.iv, 0, sizeof( aesctx.iv ) );
-
-        UARTprintf("iv ");
-        for (i = 0; i < sizeof(aesctx.iv); ++i) {
-            aesctx.iv[i] = (uint8_t)rand();
-            UARTprintf("%x", aesctx.iv[i]);
-        }
-        UARTprintf("\n");
-        rv = send(sock, aesctx.iv, AES_IV_SIZE, 0);
-        if (rv != AES_IV_SIZE) {
-            UARTprintf("Sending IV failed: %d\n", rv);
-            return -1;
-        }
-
-        AES_set_key(&aesctx, aes_key, aesctx.iv, AES_MODE_128); //todo real key
-        AES_cbc_encrypt(&aesctx, sig, sig, sizeof(sig));
-
-        rv = send(sock, sig, sizeof(sig), 0);
-        if (rv != sizeof(sig)) {
-            UARTprintf("Sending SHA failed: %d\n", rv);
-            return -1;
-        }
-
-        UARTprintf("sig ");
-        for (i = 0; i < sizeof(sig); ++i) {
-            UARTprintf("%x", sig[i]);
-        }
-        UARTprintf("\n");
-    }
-
-
-    memset(recv_buf, 0, recv_buf_size);
-
-    //UARTprintf("Waiting for reply\n\r\n\r");
-    rv = recv(sock, recv_buf, recv_buf_size, 0);
-    if (rv <= 0) {
-        UARTprintf("recv error %d\n\r\n\r", rv);
-        return stop_connection();
-    }
-    UARTprintf("recv %d\n\r\n\r", rv);
-
-    UARTprintf("Send complete\n");
-
-    //todo check for http response code 2xx
-
-    //UARTprintfFaults();
-    //close( sock ); //never close our precious socket
-
-    return 0;
-}
 
 bool encode_pill_id(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
 	char* str = *arg;
@@ -1347,171 +1220,6 @@ static bool _encode_encrypted_pilldata(pb_ostream_t *stream, const pb_field_t *f
     return pb_encode_string(stream, array_holder->buffer, array_holder->length);
 }
 
-
-bool encode_serialized_pill_list(pb_ostream_t *stream, const pb_field_t *field, void * const *arg)
-{
-    const array_data* array_holder = *arg;
-    if(!array_holder)
-    {
-    	UARTprintf("encode_serialized_pill_list: No data holder\n");
-        return false;
-    }
-
-    if(!array_holder->buffer)
-    {
-    	UARTprintf("encode_serialized_pill_list: No data to encode\n");
-        return false;
-    }
-
-    // The serilized pill list already has tags encoded, don't need to write tag anymore
-    // just write the bytes straight into the stream.
-    UARTprintf("raw len: %d, tag: %d\n", array_holder->length, field->tag);
-    bool ret = pb_write(stream, array_holder->buffer, array_holder->length);
-
-    if(!ret)
-    {
-    	UARTprintf("You get fucked!\n");
-    }
-
-    return ret;
-}
-
-void encode_pill_list_to_buffer(const periodic_data_pill_data_container* ptr_pill_list, 
-    uint8_t* buffer, size_t buffer_len, size_t* out_len)
-{
-    pb_ostream_t stream = {0};
-    *out_len = 0;
-
-    if(!buffer)
-    {
-        stream = pb_ostream_from_buffer(buffer, buffer_len);
-    }
-    memset(buffer, 0, buffer_len);
-
-    int i;
-    for (i = 0; i < MAX_PILLS; ++i) {
-        periodic_data_pill_data_container data = ptr_pill_list[i];
-        if( data.magic != PILL_MAGIC ) {
-            continue;
-        }
-
-        data.pill_data.deviceId.funcs.encode = encode_pill_id;
-        data.pill_data.deviceId.arg = data.id; // attach the id to protobuf structure.
-        if(data.pill_data.motionDataEncrypted.arg &&
-            NULL == data.pill_data.motionDataEncrypted.funcs.encode)
-        {
-            // Set the default encode function for encrypted motion data.
-            data.pill_data.motionDataEncrypted.funcs.encode = _encode_encrypted_pilldata;
-        }
-
-        if(!buffer)
-        {
-			pb_ostream_t size_stream = {0};
-
-			/*
-			if (!pb_encode_delimited(&size_stream, periodic_data_pill_data_fields, &data.pill_data)){
-				UARTprintf("encode_pill_list_to_buffer: Fail to get length %s\n", PB_GET_ERROR(&size_stream));
-				continue;
-			}
-			*/
-
-
-			pb_ostream_t sizestream = {0};
-			size_t message_len = 0;
-			if (!pb_encode(&sizestream, periodic_data_pill_data_fields, &data.pill_data)){
-				UARTprintf("Fail to encode pill %s\r\n", data.id);
-				continue;
-			}
-
-			message_len = sizestream.bytes_written;  // The payload len
-
-			if (!pb_encode_varint(&sizestream, message_len)){
-				UARTprintf("Failed to get length\n");
-				continue;
-			}
-
-			message_len = sizestream.bytes_written;  // len + payload len
-
-			size_t len = size_stream.bytes_written + 10;  // This is a must or we can't know the actual length including the tag
-			uint8_t* size_buffer = pvPortMalloc(len);
-			if(!size_buffer)
-			{
-				continue;
-			}
-
-			memset(size_buffer, 0, len);
-			size_stream = pb_ostream_from_buffer(size_buffer, len);
-
-			UARTprintf("start: %d\n", size_stream.bytes_written);
-			if (!pb_encode_tag(&size_stream, PB_WT_STRING, periodic_data_pills_tag))
-			{
-				UARTprintf("encode_pill_list_to_buffer: Fail to encode tag for pill %s, error %s\n", data.id, PB_GET_ERROR(&size_stream));
-				vPortFree(size_buffer);
-				continue;
-			}
-			UARTprintf("tag len: %d, tag_val: %d\n", size_stream.bytes_written, size_buffer[0]);
-			message_len += size_stream.bytes_written;   // tag + len + payload len
-
-
-			UARTprintf("tag+len+message: %d\n", message_len);
-			vPortFree(size_buffer);
-			*out_len += message_len;
-        }else{
-
-        	size_t message_len, stream_len;
-        	message_len = stream_len = stream.bytes_written;
-        	if (!pb_encode_tag(&stream, PB_WT_STRING, periodic_data_pills_tag))
-        	{
-				UARTprintf("encode_pill_list_to_buffer: Fail to encode tag for pill %s, error %s\n", data.id, PB_GET_ERROR(&stream));
-				continue;
-			}
-        	message_len += stream.bytes_written - stream_len;
-        	stream_len = stream.bytes_written;
-
-        	/*
-        	if (!pb_encode_delimited(&stream, periodic_data_pill_data_fields, &data.pill_data)){
-				UARTprintf("encode_pill_list_to_buffer: Fail to encode pill %s, error: %s\n", data.id, PB_GET_ERROR(&stream));
-				continue;
-			}
-			*/
-
-        	pb_ostream_t sizestream = { 0 };
-			if(!pb_encode(&sizestream, periodic_data_pill_data_fields, &data.pill_data)){
-				//UARTprintf("Failed to retreive length\n");
-				continue;
-			}
-
-			UARTprintf("message: %d\n", sizestream.bytes_written);
-
-
-
-			if (!pb_encode_varint(&stream, sizestream.bytes_written)){
-				//UARTprintf("Failed to write length\n");
-				continue;
-			}
-
-			message_len += stream.bytes_written - stream_len;
-			stream_len = stream.bytes_written;
-
-			if (!pb_encode(&stream, periodic_data_pill_data_fields, &data.pill_data)){
-				UARTprintf("Fail to encode pill %s\n", data.id);
-				continue;
-			}else{
-				UARTprintf("Pill %s data uploaded\n", data.id);
-			}
-
-			message_len += stream.bytes_written - stream_len;
-			stream_len = stream.bytes_written;
-
-        	*out_len += message_len;
-        }
-    }
-
-    UARTprintf("total len: %d\n", *out_len);
-
-
-}
-
 bool encode_pill_list(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
 	periodic_data_pill_data_container* ptr_pill_list = *(periodic_data_pill_data_container**) arg;
     if(!ptr_pill_list)
@@ -1521,62 +1229,59 @@ bool encode_pill_list(pb_ostream_t *stream, const pb_field_t *field, void * cons
     }
 
 
-
 	int i;
-	if (xSemaphoreTake(pill_smphr, 1000)) {
-        for (i = 0; i < MAX_PILLS; ++i) {
-            periodic_data_pill_data_container data = ptr_pill_list[i];
-    		if( data.magic != PILL_MAGIC ) {
-                continue;
-    		}
+	
+    for (i = 0; i < MAX_PILLS; ++i) {
+        periodic_data_pill_data_container data = ptr_pill_list[i];
+		if( data.magic != PILL_MAGIC ) {
+            continue;
+		}
 
-    		data.pill_data.deviceId.funcs.encode = encode_pill_id;
-    		data.pill_data.deviceId.arg = data.id; // attach the id to protobuf structure.
-            if(data.pill_data.motionDataEncrypted.arg &&
-                NULL == data.pill_data.motionDataEncrypted.funcs.encode)
-            {
-                // Set the default encode function for encrypted motion data.
-                data.pill_data.motionDataEncrypted.funcs.encode = _encode_encrypted_pilldata;
-            }
-		  
-            /*
-			pb_ostream_t sizestream = { 0 };
-			if(!pb_encode(&sizestream, periodic_data_pill_data_fields, &data->pill_data))
-            {
-                UARTprintf("Fail to encode pill %s\r\n", data->id);
-                continue;
-            }
-            */
+		data.pill_data.deviceId.funcs.encode = encode_pill_id;
+		data.pill_data.deviceId.arg = data.id; // attach the id to protobuf structure.
+        if(data.pill_data.motionDataEncrypted.arg &&
+            NULL == data.pill_data.motionDataEncrypted.funcs.encode)
+        {
+            // Set the default encode function for encrypted motion data.
+            data.pill_data.motionDataEncrypted.funcs.encode = _encode_encrypted_pilldata;
+        }
+	  
+        /*
+		pb_ostream_t sizestream = { 0 };
+		if(!pb_encode(&sizestream, periodic_data_pill_data_fields, &data->pill_data))
+        {
+            UARTprintf("Fail to encode pill %s\r\n", data->id);
+            continue;
+        }
+        */
 
-            if (!pb_encode_tag(stream, PB_WT_STRING, field->tag)){
-            	UARTprintf("Fail to encode tag for pill %s\r\n", data.id);
-            	continue;
-			}
+        if (!pb_encode_tag(stream, PB_WT_STRING, field->tag)){
+        	UARTprintf("Fail to encode tag for pill %s\r\n", data.id);
+        	continue;
+		}
 
-            pb_ostream_t sizestream = { 0 };
-            if(!pb_encode(&sizestream, periodic_data_pill_data_fields, &data.pill_data)){
-            	UARTprintf("Failed to retreive length\n");
-            	continue;
-            }
+        pb_ostream_t sizestream = { 0 };
+        if(!pb_encode(&sizestream, periodic_data_pill_data_fields, &data.pill_data)){
+        	UARTprintf("Failed to retreive length\n");
+        	continue;
+        }
 
-            if (!pb_encode_varint(stream, sizestream.bytes_written)){
-            	UARTprintf("Failed to write length\n");
-				continue;
-            }
+        if (!pb_encode_varint(stream, sizestream.bytes_written)){
+        	UARTprintf("Failed to write length\n");
+			continue;
+        }
 
-			if (!pb_encode(stream, periodic_data_pill_data_fields, &data.pill_data)){
-				UARTprintf("Fail to encode pill %s\r\n", data.id);
-			}else{
-				UARTprintf("Pill %s data uploaded\n", data.id);
-			}
+		if (!pb_encode(stream, periodic_data_pill_data_fields, &data.pill_data)){
+			UARTprintf("Fail to encode pill %s\r\n", data.id);
+            continue;
+		}else{
+			UARTprintf("Pill %s data uploaded\n", data.id);
+		}
 
-	    }
-        xSemaphoreGive(pill_smphr);
-        return 1;
-    }else{
-    	UARTprintf("Fail to acquire Semaphore\n");
-    	return 0;
     }
+
+    return 1;
+    
 }
 
 
@@ -1700,13 +1405,15 @@ static void _on_response_protobuf(const SyncResponse* response_protobuf)
     }
 }
 
-int send_periodic_data(array_data* data) {
-    char buffer[256] = {0};
 
+static 
+
+int send_periodic_data(array_data* data) {
+    uint8_t buffer[256];
+
+    int ret;
     //set this to zero--it won't retry, since retrying is handled by an outside loop
-#define MAX_RETRY_TIME_IN_TICKS_PERIODIC_DATA (0)
-    ret = NetworkTask_SynchronousSendProtobuf(DATA_RECEIVE_ENDPOINT,buffer,sizeof(buffer),periodic_data_fields,&msg,
-        MAX_RETRY_TIME_IN_TICKS_PERIODIC_DATA);
+    ret = NetworkTask_SynchronousSendRawProtobuf(DATA_RECEIVE_ENDPOINT, data, buffer, sizeof(buffer), 0);
 
     if(ret != 0)
     {
@@ -1751,44 +1458,12 @@ int send_periodic_data(array_data* data) {
         response_protobuf.has_reset_device);
 
 		_on_response_protobuf(&response_protobuf);
-        upload_success = 1;
+        sl_status |= UPLOADING;
+
+        return 0;
         //now act on incoming data!
     }
-
-    if(upload_success)
-    {
-    	sl_status |= UPLOADING;
-        // Release all the resource occupied by pill data, or
-        // user can occupy the buffer forever by sending only one packet
-        if (xSemaphoreTake(pill_smphr, 1000)) {
-            int i;
-            for (i = 0; i < MAX_PILLS; ++i) {
-                if (data->pill_list[i].magic != PILL_MAGIC) {
-                    // Slot already empty, skip.
-                    continue;
-                }
-
-                if(data->pill_list[i].pill_data.motionDataEncrypted.arg)
-                {
-                    array_data* array_holder = data->pill_list[i].pill_data.motionDataEncrypted.arg;
-                    if(array_holder->buffer)
-                    {
-                        vPortFree(array_holder->buffer);
-                    }
-
-                    vPortFree(array_holder);
-                    data->pill_list[i].pill_data.motionDataEncrypted.arg = NULL;
-                    data->pill_list[i].pill_data.motionDataEncrypted.funcs.encode = NULL;
-                    data->pill_list[i].magic = 0;  // Release this slot.
-                }
-            }
-            xSemaphoreGive(pill_smphr);
-        }else{
-        	UARTprintf("Fail to acquire Semaphore\n");
-        }
-    }
-
-    return ret;
+    return -1;
 }
 
 
