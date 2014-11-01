@@ -119,6 +119,6 @@ bool encode_pill_list(pb_ostream_t *stream, const pb_field_t *field, void * cons
 //#define MORPH_NAME "Chris's morpheus"
 #define MORPH_NAME "test morpheus 10"
 //#define MORPH_NAME "test morpheus 80"
-#define KIT_VER 13
+#define KIT_VER 14
 
 #endif
