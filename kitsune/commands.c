@@ -680,15 +680,15 @@ void thread_fast_i2c_poll(void * unused)  {
 xQueueHandle data_queue = 0;
 
 void thread_tx(void* unused) {
-	array_data data = {0};
+	array_data serialized_data_holder = {0};
 	load_aes();
 
 	while (1) {
 		int tries = 0;
-		memset(&data, 0, sizeof(data));
+		memset(&serialized_data_holder, 0, sizeof(serialized_data_holder));
 
 		UARTprintf("********************Start polling *****************\n");
-		if( data_queue != 0 && !xQueueReceive( data_queue, &data, portMAX_DELAY ) ) {
+		if( data_queue != 0 && !xQueueReceive( data_queue, &serialized_data_holder, portMAX_DELAY ) ) {
 			vTaskDelay(100);
 			UARTprintf("*********************** Waiting for data *****************\n");
 			continue;
@@ -700,7 +700,7 @@ void thread_tx(void* unused) {
 				data.dust);
 		*/
 
-		while (send_periodic_data(&data) != 0) {
+		while (send_periodic_data(&serialized_data_holder) != 0) {
 			UARTprintf("********************* Waiting for WIFI connection *****************\n");
 			vTaskDelay( (1<<tries) * 1000 );
 			if( tries++ > 5 ) {
@@ -713,7 +713,7 @@ void thread_tx(void* unused) {
 
 	    // Keep in mind that the array_holder is actually appended at
 		// the end of the buffer, so no need to free the holder itself.
-		vPortFree(data.buffer);
+		vPortFree(serialized_data_holder.buffer);
 	}
 }
 
@@ -860,7 +860,7 @@ void thread_sensor_poll(void* unused) {
 			xSemaphoreGive(i2c_smphr);
 		}
 
-		array_data* array = NULL;
+		array_data* serialized_data_holder = NULL;
 		// made the deep copy of the current pill data. and reset pill data after copy.
 		if (xSemaphoreTake(pill_smphr, portMAX_DELAY)) {
 
@@ -891,9 +891,9 @@ void thread_sensor_poll(void* unused) {
 						pb_ostream_t buffer_stream = pb_ostream_from_buffer(buffer, len - sizeof(array_data));
 						pb_encode(&buffer_stream, periodic_data_fields, &data);
 
-						array = (array_data*)&buffer[buffer_stream.bytes_written];  // holder is at the end
-						array->buffer = buffer;   // In this case we can just free array->buffer and free the whole memory
-						array->length = buffer_stream.bytes_written;
+						serialized_data_holder = (array_data*)&buffer[buffer_stream.bytes_written];  // holder is at the end
+						serialized_data_holder->buffer = buffer;   // In this case we can just free array->buffer and free the whole memory
+						serialized_data_holder->length = buffer_stream.bytes_written;
 
 					}
 
@@ -909,9 +909,9 @@ void thread_sensor_poll(void* unused) {
 				data.unix_time, data.light, data.light_variability, data.light_tonality, data.temperature, data.humidity,
 				data.dust, data.dust_max, data.dust_min, data.dust_variability);
 
-        if(array && xQueueSend(data_queue, (void*)array, 10) == pdPASS)
+        if(serialized_data_holder && xQueueSend(data_queue, (void*)serialized_data_holder, 10) == pdPASS)
         {
-        	increased_heap_size += array->length;
+        	increased_heap_size += serialized_data_holder->length;
 
         	// we can delete pill data, because everything is copied
         	if (xSemaphoreTake(pill_smphr, portMAX_DELAY)) 
