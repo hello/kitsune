@@ -895,6 +895,8 @@ void thread_sensor_poll(void* unused) {
 						serialized_data_holder->buffer = buffer;   // In this case we can just free array->buffer and free the whole memory
 						serialized_data_holder->length = buffer_stream.bytes_written;
 
+						free_pill_list();
+
 					}
 
 				}
@@ -911,14 +913,7 @@ void thread_sensor_poll(void* unused) {
 
         if(serialized_data_holder && xQueueSend(data_queue, (void*)serialized_data_holder, 10) == pdPASS)
         {
-        	increased_heap_size += serialized_data_holder->length;
-
-        	// we can delete pill data, because everything is copied
-        	if (xSemaphoreTake(pill_smphr, portMAX_DELAY)) 
-        	{
-	        	free_pill_list();
-	            xSemaphoreGive(pill_smphr);
-        	}
+        	increased_heap_size += serialized_data_holder->length + sizeof(serialized_data_holder);
     	}else{
     		UARTprintf("Failed to post data\n");
     	}
