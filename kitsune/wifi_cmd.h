@@ -85,7 +85,7 @@ unsigned long unix_time();
 void load_aes();
 
 
-int send_periodic_data(array_data* data);
+int send_periodic_data(periodic_data* data);
 int send_audio_data( data_t * data );
 
 void thread_ota( void * unused );
@@ -105,12 +105,14 @@ int connect_scanned_endpoints(const char* ssid, const char* password,
 int connect_wifi(const char* ssid, const char* password, int sec_type);
 
 void wifi_reset();
+void free_pill_list();
 
 
 bool encode_mac(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 bool encode_mac_as_device_id_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 bool encode_name(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 
+bool encode_serialized_pill_list(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 bool encode_pill_list(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 
 

@@ -680,15 +680,15 @@ void thread_fast_i2c_poll(void * unused)  {
 xQueueHandle data_queue = 0;
 
 void thread_tx(void* unused) {
-	array_data serialized_data_holder = {0};
+	periodic_data data = {0};
 	load_aes();
 
 	while (1) {
 		int tries = 0;
-		memset(&serialized_data_holder, 0, sizeof(serialized_data_holder));
+		memset(&data, 0, sizeof(periodic_data));
 
 		UARTprintf("********************Start polling *****************\n");
-		if( data_queue != 0 && !xQueueReceive( data_queue, &serialized_data_holder, portMAX_DELAY ) ) {
+		if( data_queue != 0 && !xQueueReceive( data_queue, &data, portMAX_DELAY ) ) {
 			vTaskDelay(100);
 			UARTprintf("*********************** Waiting for data *****************\n");
 			continue;
@@ -700,20 +700,23 @@ void thread_tx(void* unused) {
 				data.dust);
 		*/
 
-		while (send_periodic_data(&serialized_data_holder) != 0) {
+		while (send_periodic_data(&data) != 0) {
 			UARTprintf("********************* Waiting for WIFI connection *****************\n");
 			vTaskDelay( (1<<tries) * 1000 );
 			if( tries++ > 5 ) {
 				tries = 5;
 			}
 			do {vTaskDelay(1000);} //wait for a connection...
-			while( !(sl_status&HAS_IP ) );
+			while(!(sl_status & HAS_IP) );
 		}//try every little bit
 
 
-	    // Keep in mind that the array_holder is actually appended at
-		// the end of the buffer, so no need to free the holder itself.
-		vPortFree(serialized_data_holder.buffer);
+	    // Keep in mind that the array_holder is actually at
+		// the start of the buffer, so no need to free the buffer again.
+		if(data.pills.arg)
+		{
+			vPortFree(data.pills.arg);
+		}
 	}
 }
 
@@ -860,7 +863,7 @@ void thread_sensor_poll(void* unused) {
 			xSemaphoreGive(i2c_smphr);
 		}
 
-		array_data* serialized_data_holder = NULL;
+
 		// made the deep copy of the current pill data. and reset pill data after copy.
 		if (xSemaphoreTake(pill_smphr, portMAX_DELAY)) {
 
@@ -871,38 +874,30 @@ void thread_sensor_poll(void* unused) {
 			//data.mac.funcs.encode = encode_mac;  // Now this is a fallback, the backend will not use this at the first hand
 			data.device_id.funcs.encode = encode_mac_as_device_id_string;
 
-			data.pills.arg = pill_list;
-			data.pills.funcs.encode = encode_pill_list;
 
-			pb_ostream_t size_stream = {0};
+			size_t len;
 
-			if(pb_encode(&size_stream, periodic_data_fields, &data))
+			encode_pill_list_to_buffer(pill_list, NULL, 0, &len);
+
+			if(len > 0)
 			{
-				if(size_stream.bytes_written == 0){
-					UARTprintf("encode periodic data failed!\n");
-				}else{
+				uint8_t* buffer = pvPortMalloc(len + sizeof(array_data));
 
-					size_t len;
-					len = size_stream.bytes_written + sizeof(array_data);
-					uint8_t* buffer = pvPortMalloc(len);
-					if(buffer)
-					{
-						memset(buffer, 0, len);
-						pb_ostream_t buffer_stream = pb_ostream_from_buffer(buffer, len - sizeof(array_data));
-						pb_encode(&buffer_stream, periodic_data_fields, &data);
+				if(buffer)
+				{
+					memset(buffer, 0, len + sizeof(array_data));
+					array_data* serialized_pill_list_holder = (array_data*)buffer;
+					serialized_pill_list_holder->length = len;
+					serialized_pill_list_holder->buffer = &buffer[sizeof(array_data)];
+					encode_pill_list_to_buffer(pill_list, serialized_pill_list_holder->buffer, serialized_pill_list_holder->length, &len);
 
-						serialized_data_holder = (array_data*)&buffer[buffer_stream.bytes_written];  // holder is at the end
-						serialized_data_holder->buffer = buffer;   // In this case we can just free array->buffer and free the whole memory
-						serialized_data_holder->length = buffer_stream.bytes_written;
-
-						free_pill_list();
-
-					}
-
+					data.pills.arg = serialized_pill_list_holder;
+					data.pills.funcs.encode = encode_serialized_pill_list;
 				}
-			}else{
-				UARTprintf("size eval failed\n");
+
+				free_pill_list();
 			}
+
 			xSemaphoreGive(pill_smphr);
 		}
 
@@ -911,9 +906,9 @@ void thread_sensor_poll(void* unused) {
 				data.unix_time, data.light, data.light_variability, data.light_tonality, data.temperature, data.humidity,
 				data.dust, data.dust_max, data.dust_min, data.dust_variability);
 
-        if(serialized_data_holder && xQueueSend(data_queue, (void*)serialized_data_holder, 10) == pdPASS)
+        if(xQueueSend(data_queue, (void*)data, 10) == pdPASS)
         {
-        	increased_heap_size += serialized_data_holder->length + sizeof(serialized_data_holder);
+        	increased_heap_size += serialized_pilll_list_holder->length + sizeof(serialized_pilll_list_holder);
     	}else{
     		UARTprintf("Failed to post data\n");
     	}
