@@ -1,6 +1,9 @@
 #ifndef LED_CMD_H
 #define LED_CMD_H
+
 #include <stdbool.h>
+#include <stdint.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif

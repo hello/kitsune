@@ -29,6 +29,8 @@ unsigned int sl_status = 0;
 #include "hw_memmap.h"
 #include "rom_map.h"
 #include "gpio.h"
+#include "led_cmd.h"
+
 
 #define FAKE_MAC 0
 
@@ -148,8 +150,6 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
 //! \return None
 //
 //****************************************************************************
-
-int Cmd_led(int argc, char *argv[]);
 
 void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent) {
 
@@ -1400,7 +1400,7 @@ static void _on_room_conditions_received(SyncResponse_RoomConditions room_condit
             led_set_user_color(LED_MAX, LED_MAX, 0x00);
         break;
         case SyncResponse_RoomConditions_ALERT:
-            led_set_user_color(LED_MAX, 0x00, 0x00);
+            led_set_user_color(LED_MAX, 0xF4, 0xED);
         break;
         default:
             led_set_user_color(0x00, 0x00, LED_MAX);
