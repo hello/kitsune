@@ -529,6 +529,7 @@ int led_start_custom_animation(led_user_animation_handler user, void * context){
 
 void led_get_user_color(uint8_t* out_red, uint8_t* out_green, uint8_t* out_blue)
 {
+	xSemaphoreTake(led_smphr, portMAX_DELAY);
 	if(out_red){
 		*out_red = user_color.r;
 	}
@@ -540,11 +541,14 @@ void led_get_user_color(uint8_t* out_red, uint8_t* out_green, uint8_t* out_blue)
 	if(out_blue){
 		*out_blue = user_color.b;
 	}
+	xSemaphoreGive(led_smphr);
 }
 
 void led_set_user_color(uint8_t red, uint8_t green, uint8_t blue)
 {
+	xSemaphoreTake(led_smphr, portMAX_DELAY);
 	user_color.r = red;
 	user_color.g = green;
 	user_color.b = blue;
+	xSemaphoreGive(led_smphr);
 }
