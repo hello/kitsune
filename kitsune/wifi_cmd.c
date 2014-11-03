@@ -1358,17 +1358,19 @@ static void _on_alarm_received(const SyncResponse_Alarm* received_alarm)
 {
     if (xSemaphoreTake(alarm_smphr, portMAX_DELAY)) {
         if (received_alarm->has_start_time && received_alarm->start_time > 0) {
-            if (get_time() > received_alarm->start_time) {
+            if (get_time() < received_alarm->start_time) {
                 // This approach is error prond: We got information from two different sources
                 // and expect them consistent. The time in our server might be different with NTP.
                 // I am going to redesign this, instead of returning start/end timestamp, the backend
                 // will retrun the offset seconds from now to the next ring and the ring duration.
                 // So we don't need to care the actual time of 'Now'.
                 memcpy(&alarm, received_alarm, sizeof(alarm));
+            } else {
+            	UARTprintf( "got alarm in the past?\n");
             }
             UARTprintf("Got alarm %d to %d in %d minutes\n",
-            		received_alarm->start_time, received_alarm->end_time,
-                    (received_alarm->start_time - get_time()) / 60);
+                		received_alarm->start_time, received_alarm->end_time,
+                        (received_alarm->start_time - get_time()) / 60);
         }else{
             UARTprintf("No alarm for now.\n");
         }

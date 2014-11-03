@@ -225,7 +225,7 @@ unsigned int CPU_XDATA = 1; //1: enabled CPU interrupt triggerred
 	}
 	sl_FsClose(hndl, 0, 0, 0);
 
-	get_codec_NAU();
+	get_codec_NAU(atoi(argv[1]));
 	UARTprintf(" Done for get_codec_NAU\n ");
 
 	AudioCaptureRendererConfigure(I2S_PORT_CPU, AUDIO_RATE);
@@ -302,8 +302,10 @@ int Cmd_audio_do_stuff(int argc, char * argv[]) {
 void Speaker1();
 unsigned char g_ucSpkrStartFlag;
 
-int Cmd_play_buff(int argc, char *argv[]) {
+int play_ringtone(int vol) {
+
 	unsigned int CPU_XDATA = 0; //1: enabled CPU interrupt triggerred; 0: DMA
+
 // Create RX and TX Buffer
 //
 	UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
@@ -311,58 +313,64 @@ int Cmd_play_buff(int argc, char *argv[]) {
 	UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
 	pRxBuffer = CreateCircularBuffer(RX_BUFFER_SIZE);
 	UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
-if(pRxBuffer == NULL)
-{
-	UARTprintf("Unable to Allocate Memory for Rx Buffer\n\r");
-	return -1;
-}
+	if (pRxBuffer == NULL) {
+		UARTprintf("Unable to Allocate Memory for Rx Buffer\n\r");
+		return -1;
+	}
 // Configure Audio Codec
 //
-get_codec_NAU();
+
+	get_codec_NAU(vol);
 
 // Initialize the Audio(I2S) Module
 //
-AudioCapturerInit(CPU_XDATA, 48000);
+	AudioCapturerInit(CPU_XDATA, 48000);
 
 // Initialize the DMA Module
 //
-UDMAInit();
-UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL);
+	UDMAInit();
+	UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL);
 
 //
 // Setup the DMA Mode
 //
-SetupPingPongDMATransferRx();
+	SetupPingPongDMATransferRx();
 // Setup the Audio In/Out
 //
-UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
+	UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
 
+	AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
+	AudioCaptureRendererConfigure(I2S_PORT_DMA, 48000);
 
-AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
-AudioCaptureRendererConfigure(I2S_PORT_DMA, 48000);
-
-g_ucSpkrStartFlag = 1;
+	g_ucSpkrStartFlag = 1;
 // Start Audio Tx/Rx
 //
-Audio_Start();
+	Audio_Start();
 
 // Start the Microphone Task
 //
-Speaker1();
-UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
+	Speaker1();
+	UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
 
-UARTprintf("g_iReceiveCount %d\n\r", g_iReceiveCount);
-close_codec_NAU(); UARTprintf("close_codec_NAU");
-Audio_Stop();
-McASPDeInit();
-DestroyCircularBuffer(pRxBuffer); UARTprintf("DestroyCircularBuffer(pRxBuffer)" );
-UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
+	UARTprintf("g_iReceiveCount %d\n\r", g_iReceiveCount);
+	close_codec_NAU();
+	UARTprintf("close_codec_NAU");
+	Audio_Stop();
+	McASPDeInit();
+	DestroyCircularBuffer(pRxBuffer);
+	UARTprintf("DestroyCircularBuffer(pRxBuffer)");
+	UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
 
-AudioProcessingTask_AllocBuffers();
-UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
+	AudioProcessingTask_AllocBuffers();
+	UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
 
-return 0;
+	return 0;
 
+}
+
+int Cmd_play_buff(int argc, char *argv[]) {
+    int vol = atoi( argv[1] );
+    return play_ringtone( vol );
 }
 int Cmd_fs_delete(int argc, char *argv[]) {
 	//
@@ -480,6 +488,7 @@ unsigned long get_time() {
 
 extern xSemaphoreHandle alarm_smphr;
 void thread_audio(void * unused) {
+	bool ringing = false;
 	while (1) {
 		portTickType now = xTaskGetTickCount();
 		//todo audio processing
@@ -488,18 +497,23 @@ void thread_audio(void * unused) {
 
 			if(alarm.has_start_time && alarm.start_time > 0)
 			{
-				if (time >= alarm.start_time) {
+				if (time >= alarm.start_time && !ringing) {
+					ringing = true;
 					UARTprintf("ALARM RINGING RING RING RING\n");
 					xSemaphoreGive(alarm_smphr);
-					Cmd_code_playbuff(0, 0);
+					play_ringtone(57);
 					xSemaphoreTake(alarm_smphr, portMAX_DELAY);
 				}
 				time = get_time();
 				if (alarm.has_end_time && time >= alarm.end_time) {
+					ringing = false;
+					g_ucSpkrStartFlag = 0;
 					UARTprintf("ALARM DONE RINGING\n");
 					alarm.has_end_time = 0;
 					alarm.has_start_time = 0;
 				} else if( !alarm.has_end_time ) {
+					ringing = false;
+					g_ucSpkrStartFlag = 0;
 					alarm.has_end_time = 0;
 					alarm.has_start_time = 0;
 					UARTprintf("Buggy backend, alarm should has endtime.\n");
@@ -1038,7 +1052,6 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "temp", Cmd_readtemp,	"i2 read temp" },
 		{ "light", Cmd_readlight, "i2 read light" },
 		{"proximity", Cmd_readproximity, "i2 read proximity" },
-		{"codec_NAU8814", get_codec_NAU, "i2 nuvoton_codec" },
 		{"codec_Mic", get_codec_mic_NAU, "i2s mic_codec" },
 		{"auto_saveSD", Cmd_write_record, "automatic save data into SD"},
 		{"append", Cmd_append,"Cmd_test_append_content"},
