@@ -533,15 +533,15 @@ void led_get_user_color(uint8_t* out_red, uint8_t* out_green, uint8_t* out_blue)
 {
 	xSemaphoreTake(led_smphr, portMAX_DELAY);
 	if(out_red){
-		*out_red = _rgb.r;
+		*out_red = _rgb[0];
 	}
 
 	if(out_green){
-		*out_green = _rgb.g;
+		*out_green = _rgb[1];
 	}
 
 	if(out_blue){
-		*out_blue = _rgb.b;
+		*out_blue = _rgb[2];
 	}
 	xSemaphoreGive(led_smphr);
 }
@@ -549,8 +549,8 @@ void led_get_user_color(uint8_t* out_red, uint8_t* out_green, uint8_t* out_blue)
 void led_set_user_color(uint8_t red, uint8_t green, uint8_t blue)
 {
 	xSemaphoreTake(led_smphr, portMAX_DELAY);
-	_rgb.r = red;
-	_rgb.g = green;
-	_rgb.b = blue;
+	_rgb[0] = red;
+	_rgb[1] = green;
+	_rgb[2] = blue;
 	xSemaphoreGive(led_smphr);
 }
