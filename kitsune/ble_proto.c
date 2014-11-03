@@ -116,7 +116,7 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type)
     {
 		UARTprintf("Tried all wifi ep, all failed to connect\n");
         ble_reply_protobuf_error(ErrorType_WLAN_CONNECTION_ERROR);
-        led_set_color(30,0,0,1,1,10,0);
+        led_set_color(30,0,0,1,1,60,0);
 		return 0;
     }else{
 		uint8_t wait_time = 10;
@@ -136,7 +136,7 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type)
 			//Cmd_led(0,0);
 			UARTprintf("!!WIFI set without network connection.");
             ble_reply_protobuf_error(ErrorType_FAIL_TO_OBTAIN_IP);
-            led_set_color(30,0,0,1,1,10,0);
+            led_set_color(30,0,0,1,1,60,0);
 			return 0;
 		}
     }
@@ -148,7 +148,7 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type)
 
     UARTprintf("Connection attempt issued.\n");
     ble_send_protobuf(&reply_command);
-    led_set_color(0,30,0,1,1,33,0);
+    led_set_color(0,30,0,1,1,200,0);
     return 1;
 }
 
@@ -447,7 +447,7 @@ void on_ble_protobuf_command(MorpheusCommand* command)
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_PAIRING_MODE:  // Just for testing
         {
             // Light up LEDs?
-        	led_set_color( 0,0,50, 1, 1, 3, 0 ); //blue
+        	led_set_color( 0,0,50, 1, 1, 18, 0 ); //blue
             UARTprintf( "PAIRING MODE \n");
         }
         break;

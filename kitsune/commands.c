@@ -73,43 +73,14 @@
 #include "ble_cmd.h"
 #include "led_cmd.h"
 #include "led_animations.h"
-//#include "mcasp_if.h" // add by Ben
 
 #define ONLY_MID 0
 
-#define NUM_LOGS 72
-#if 0
-//*****************************************************************************
-//
-// Define Packet Size, Rx and Tx Buffer
-//
-//*****************************************************************************
-#define PACKET_SIZE             100
-#define PLAY_WATERMARK		30*256
-#define TX_BUFFER_SIZE          10*PACKET_SIZE
-#define RX_BUFFER_SIZE          10*PACKET_SIZE
-#endif
-
-extern tCircularBuffer *pTxBuffer;
-extern tCircularBuffer *pRxBuffer;
-tUDPSocket g_UdpSock;
-
-OsiTaskHandle g_SpeakerTask = NULL ;
-OsiTaskHandle g_MicTask = NULL ;
 //******************************************************************************
 //			        FUNCTION DECLARATIONS
 //******************************************************************************
-//extern void Speaker( void *pvParameters );
-extern void Microphone( void *pvParameters );
-extern void Speaker( void *pvParameters );
-extern int g_iSentCount;
+
 extern int g_iReceiveCount;
-unsigned long tone;
-//*****************************************************************************
-//                      GLOBAL VARIABLES
-//*****************************************************************************
-P_AUDIO_HANDLER g_pAudioInControlHdl;
-P_AUDIO_HANDLER g_pAudioOutControlHdl;
 //******************************************************************************
 //			    GLOBAL VARIABLES
 //******************************************************************************
@@ -120,29 +91,13 @@ extern void (* const g_pfnVectors[])(void);
 extern uVectorEntry __vector_table;
 #endif
 
-unsigned int clientIP;
 tCircularBuffer *pTxBuffer;
 tCircularBuffer *pRxBuffer;
-//tUDPSocket g_UdpSock;
-unsigned long g_ulMcASPStatus = 0;
-unsigned long g_ulRxCounter = 0;
-unsigned long g_ulTxCounter = 0;
-unsigned long g_ulZeroCounter = 0;
-unsigned long g_ulValue = 0;
-int iCounter,i = 0;
-//extern unsigned char iDone;
-//OsiTaskHandle g_SpeakerTask = NULL ;
-//OsiTaskHandle g_MicTask = NULL ;
-//static FIL file_obj;
-//const char* file_name = "/POD2";
-//FRESULT res;
-//FILINFO file_info;
+
 //*****************************************************************************
 //                          LOCAL DEFINES
 //*****************************************************************************
-#define OSI_STACK_SIZE          256
 
-//unsigned char speaker_data[16*1024];
 //// ==============================================================================
 //// The CPU usage in percent, in 16.16 fixed point format.
 //// ==============================================================================
@@ -345,6 +300,7 @@ int Cmd_audio_do_stuff(int argc, char * argv[]) {
 }
 
 void Speaker1();
+unsigned char g_ucSpkrStartFlag;
 
 int Cmd_play_buff(int argc, char *argv[]) {
 	unsigned int CPU_XDATA = 0; //1: enabled CPU interrupt triggerred; 0: DMA
@@ -358,7 +314,7 @@ int Cmd_play_buff(int argc, char *argv[]) {
 if(pRxBuffer == NULL)
 {
 	UARTprintf("Unable to Allocate Memory for Rx Buffer\n\r");
-    while(1){};
+	return -1;
 }
 // Configure Audio Codec
 //
@@ -385,11 +341,10 @@ UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
 AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
 AudioCaptureRendererConfigure(I2S_PORT_DMA, 48000);
 
+g_ucSpkrStartFlag = 1;
 // Start Audio Tx/Rx
 //
 Audio_Start();
-UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
-
 
 // Start the Microphone Task
 //
@@ -620,19 +575,20 @@ void thread_fast_i2c_poll(void * unused)  {
 			// for white one, 9mm distance max.
 			prox = get_prox();  // now this thing is in um.
 
-			hpf_prox += ( (last_prox - prox) - hpf_prox )>>1;   // The noise in enclosure is in 100+ um level
+			hpf_prox += ( (last_prox - prox) - hpf_prox )>>2;   // The noise in enclosure is in 100+ um level
 
 			//UARTprintf("PROX: %d um\n", prox);
-			if(hpf_prox > 300 && now - last > 2000 ) {  // seems not very sensitive,  the noise in enclosure is in 100+ um level
+			if(hpf_prox > 400 && now - last > 2000 ) {  // seems not very sensitive,  the noise in enclosure is in 100+ um level
 				UARTprintf("PROX: %d um, diff %d um\n", prox, hpf_prox);
 				last = now;
+				hpf_prox = 0;
 				xSemaphoreTake(alarm_smphr, portMAX_DELAY);
 				if (alarm.has_start_time && get_time() >= alarm.start_time) {
 					memset(&alarm, 0, sizeof(alarm));
 				}
 				xSemaphoreGive(alarm_smphr);
-				//Audio_Stop();
 				xSemaphoreGive(i2c_smphr);
+				g_ucSpkrStartFlag = 0;
 
 				if( light > 80 ) {
 					adjust = 0;
@@ -640,23 +596,23 @@ void thread_fast_i2c_poll(void * unused)  {
 					adjust = light - 80;
 				}
 				if( sl_status & UPLOADING ) {
-					led_set_color( 0,0,255+adjust, 1, 1, 3, 1 ); //blue
+					led_set_color( 0,0,LED_MAX+adjust, 1, 1, 18, 1 ); //blue
 			 	}
 			 	else if( sl_status & HAS_IP ) {
-					led_set_color( 0,255+adjust,0, 1, 1, 3, 1 ); //green
+					led_set_color( 0,LED_MAX+adjust,0, 1, 1, 18, 1 ); //green
 			 	}
 			 	else if( sl_status & CONNECTING ) {
-			 		led_set_color( 255+adjust,255+adjust,0, 1, 1, 3, 1 ); //yellow
+			 		led_set_color( LED_MAX+adjust,LED_MAX+adjust,0, 1, 1, 18, 1 ); //yellow
 			 	}
 			 	else if( sl_status & SCANNING ) {
-			 		led_set_color( 255+adjust,0,0, 1, 1, 3, 1 ); //red
+			 		led_set_color( LED_MAX+adjust,0,0, 1, 1, 18, 1 ); //red
 			 	} else {
-			 		led_set_color( 255+adjust, 255+adjust, 255+adjust, 1, 1, 3, 1 ); //white
+			 		led_set_color( LED_MAX+adjust, LED_MAX+adjust, LED_MAX+adjust, 1, 1, 18, 1 ); //white
 			 	}
+			} else {
+				xSemaphoreGive(i2c_smphr);
 			}
 			last_prox = prox;
-
-			xSemaphoreGive(i2c_smphr);
 
 			if (xSemaphoreTake(light_smphr, portMAX_DELAY)) {
 				light_log_sum += bitlog(light);
@@ -1205,10 +1161,8 @@ void vUARTTask(void *pvParameters) {
 	}
 	UARTprintf("*");
 
-	// Set connection policy to Auto + SmartConfig (Device's default connection policy)
-	sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 1), NULL, 0);
-
-
+	// Set connection policy to Auto
+	sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0), NULL, 0);
 
 	UARTprintf("*");
 	unsigned char mac[6];
@@ -1273,7 +1227,7 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("*");
 	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,1,NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 3, NULL);
+	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 13, NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_dust, "dustTask", 256 / 4, NULL, 3, NULL);
 	UARTprintf("*");
@@ -1313,7 +1267,7 @@ void vUARTTask(void *pvParameters) {
 			// Pass the line from the user to the command processor.  It will be
 			// parsed and valid commands executed.
 			//
-			xTaskCreate(CmdLineProcess, "commandTask",  3*1024 / 4, cCmdBuf, 20, NULL);
+			xTaskCreate(CmdLineProcess, "commandTask",  5*1024 / 4, cCmdBuf, 20, NULL);
 			memset(cCmdBuf,0,sizeof(cCmdBuf)); //zero out buffer after a command
         }
 	}

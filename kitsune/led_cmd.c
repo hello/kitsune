@@ -164,13 +164,15 @@ static void led_slow(unsigned int* color) {
 
 #define LED_GPIO_BASE_DOUT GPIOA2_BASE
 #define LED_GPIO_BIT_DOUT 0x80
-static void led_array(unsigned int * colors) {
+static void led_array(unsigned int * colors, int delay) {
 	unsigned long ulInt;
 	//
 
 	// Temporarily turn off interrupts.
 	//
 	bool fast = MAP_GPIOPinRead(LED_GPIO_BASE_DOUT, LED_GPIO_BIT_DOUT);
+
+	vTaskDelay(delay);
 	ulInt = MAP_IntMasterDisable();
 	if (fast) {
 		led_fast(colors);
@@ -180,6 +182,7 @@ static void led_array(unsigned int * colors) {
 	if (!ulInt) {
 		MAP_IntMasterEnable();
 	}
+	vTaskDelay(0);
 }
 static void led_brightness(unsigned int * colors, unsigned int brightness ) {
 	int l;
@@ -290,11 +293,13 @@ static uint32_t wheel(int WheelPos) {
 #define LED_CUSTOM_COLOR		  0x0800
 #define LED_CUSTOM_ANIMATION	  0x1000
 
+#define QUANT_FACTOR 6
+
 void led_task( void * params ) {
 	int i,j;
 	unsigned int colors_last[NUM_LED+1];
 	memset( colors_last, 0, sizeof(colors_last) );
-	led_array( colors_last );
+	led_array( colors_last, 20 );
 
 	vSemaphoreCreateBinary(led_smphr);
 
@@ -310,28 +315,25 @@ void led_task( void * params ) {
 
 		if( evnt & LED_RESET_BIT ) {
 			memset( colors_last, 0, sizeof(colors_last) );
-			led_array( colors_last );
-
-			xEventGroupClearBits(led_events, LED_RESET_BIT );
+			led_array( colors_last, 20 );
+			xEventGroupClearBits(led_events, 0xffffff );
 		}
 		if (evnt & LED_CUSTOM_COLOR ){
 			unsigned int colors[NUM_LED + 1];
-			unsigned int color_to_use;
+			unsigned int color_to_use, delay;
 
 			xSemaphoreTake(led_smphr, portMAX_DELAY);
 			color_to_use = led_from_rgb(user_color.r, user_color.g, user_color.b);
+			delay = user_delay;
 			xSemaphoreGive( led_smphr );
 
 			for (i = 0; i <= NUM_LED; ++i) {
 				colors[i] = color_to_use;
 			}
-			if (evnt & LED_FADE_IN_BIT ) {
-				memcpy(colors_last, colors, sizeof(colors_last));
-			} else {
-				xEventGroupClearBits(led_events, LED_CUSTOM_COLOR);
-				led_array(colors);
-				memcpy(colors_last, colors, sizeof(colors_last));
+			if( !(evnt & (LED_FADE_IN_BIT|LED_FADE_OUT_BIT|LED_FADE_IN_STEP_BIT|LED_FADE_OUT_STEP_BIT)) ){
+				led_array(colors, delay);
 			}
+			memcpy(colors_last, colors, sizeof(colors_last));
 		}
 		if(evnt & LED_CUSTOM_ANIMATION){
 			unsigned int colors[NUM_LED + 1];
@@ -344,18 +346,17 @@ void led_task( void * params ) {
 
 				xSemaphoreTake(led_smphr, portMAX_DELAY);
 				if(user_animation_handler(r,g,b,&delay,user_context, NUM_LED)){
+					xSemaphoreGive( led_smphr );
 					for(i = 0; i <= NUM_LED; i++){
 						r[i] = clamp_rgb(r[i],0,LED_CLAMP_MAX);
 						g[i] = clamp_rgb(g[i],0,LED_CLAMP_MAX);
 						b[i] = clamp_rgb(b[i],0,LED_CLAMP_MAX);
 						colors[i] = led_from_rgb(r[i],g[i],b[i]);
 					}
-					led_array(colors);
+					led_array(colors, delay);
 					memcpy(colors_last,colors, sizeof(colors_last));
 					//delay capped at 500 ms to improve task responsiveness
 					delay = clamp_rgb(delay,0,500);
-					xSemaphoreGive( led_smphr );
-					vTaskDelay(delay);
 				}else{
 					xEventGroupClearBits(led_events,LED_CUSTOM_ANIMATION);
 					xEventGroupSetBits(led_events,LED_RESET_BIT);
@@ -373,18 +374,17 @@ void led_task( void * params ) {
 			unsigned int colors[NUM_LED + 1];
 			unsigned int color_to_use, delay;
 
-			xSemaphoreTake(led_smphr, portMAX_DELAY); //todo overkill
+			xSemaphoreTake(led_smphr, portMAX_DELAY);
 			color_to_use = led_from_rgb(user_color.r, user_color.g, user_color.b);
 			delay = user_delay;
 			xSemaphoreGive( led_smphr );
 
-			++p;
+			p+=QUANT_FACTOR;
 			for (i = 0; i <= NUM_LED; ++i) {
 				colors[i] = wheel_color(((i * 256 / 12) + p) & 255, color_to_use);
 			}
 			if( !(evnt & (LED_FADE_IN_BIT|LED_FADE_OUT_BIT|LED_FADE_IN_STEP_BIT|LED_FADE_OUT_STEP_BIT)) ){
-				led_array(colors);
-				vTaskDelay(delay);
+				led_array(colors, delay);
 			}
 			memcpy(colors_last, colors, sizeof(colors_last));
 		}
@@ -394,25 +394,24 @@ void led_task( void * params ) {
 				colors[i] = wheel(((i * 256 / 12) + j) & 255);
 			}
 			++j;
-			led_array(colors);
+			led_array(colors, 20);
 			memcpy(colors_last, colors, sizeof(colors_last));
-
-			vTaskDelay(20);
 		}
 		if (evnt & LED_FADE_IN_BIT) {
 			j = 0;
 			xEventGroupClearBits(led_events, LED_FADE_IN_BIT );
 			xEventGroupSetBits(led_events, LED_FADE_IN_STEP_BIT );
+			evnt|=LED_FADE_IN_STEP_BIT;
 		}
 		if (evnt & LED_FADE_IN_STEP_BIT) { //set j to 0 first
 			unsigned int colors[NUM_LED + 1];
 			for (i = 0; i <= NUM_LED; i++) {
 				colors[i] = colors_last[i];
 			}
-			led_brightness(colors, ++j);
-			led_array(colors);
+			j+=QUANT_FACTOR;
+			led_brightness(colors, j);
 
-			if (j == 255) {
+			if (j > 255) {
 				xEventGroupClearBits(led_events, LED_FADE_IN_STEP_BIT | LED_FADE_IN_FAST_BIT);
 				memcpy(colors_last, colors, sizeof(colors_last));
 			}
@@ -421,32 +420,36 @@ void led_task( void * params ) {
 			xSemaphoreTake(led_smphr, portMAX_DELAY);
 			delay = user_delay;
 			xSemaphoreGive( led_smphr );
-			vTaskDelay(delay);
+			led_array(colors, delay);
 		}
 		if ((evnt & LED_FADE_OUT_BIT) && !(evnt & (LED_FADE_IN_STEP_BIT|LED_FADE_IN_BIT) ) ) {
 			j = 255;
 			xEventGroupClearBits(led_events, LED_FADE_OUT_BIT );
 			xEventGroupSetBits(led_events, LED_FADE_OUT_STEP_BIT );
+			evnt|=LED_FADE_OUT_STEP_BIT;
 		}
 		if (evnt & LED_FADE_OUT_STEP_BIT) {
 			unsigned int colors[NUM_LED + 1];
 			for (i = 0; i <= NUM_LED; i++) {
 				colors[i] = colors_last[i];
 			}
-			led_brightness(colors, --j);
-			led_array(colors);
+			j-=QUANT_FACTOR;
 
-			if (j == 0) {
+			if (j < 0) {
 				xEventGroupClearBits(led_events, 0xffffff);
 				xEventGroupSetBits(led_events,LED_RESET_BIT);
+				memset(colors, 0, sizeof(colors));
 				memcpy(colors_last, colors, sizeof(colors_last));
+			} else {
+				led_brightness(colors, j);
 			}
 			unsigned int delay;
 
 			xSemaphoreTake(led_smphr, portMAX_DELAY);
 			delay = user_delay;
 			xSemaphoreGive( led_smphr );
-			vTaskDelay(delay);
+
+			led_array(colors, delay);
 		}
 	}
 }

@@ -72,7 +72,7 @@ extern "C"
 //
 //*****************************************************************************
 #define PACKET_SIZE             1024
-#define PLAY_WATERMARK		    5*1024
+#define PLAY_WATERMARK		    8*PACKET_SIZE
 #define TX_BUFFER_SIZE          10*PACKET_SIZE
 #define RX_BUFFER_SIZE          10*PACKET_SIZE
 

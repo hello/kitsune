@@ -2007,10 +2007,8 @@ int get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uin
     // The scan results are occupied in netEntries[]
     r = sl_WlanGetNetworkList(0, entry_len, entries);
 
-    // Restore connection policy to Auto + SmartConfig
-    //      (Device's default connection policy)
-    sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 1),
-            NULL, 0);
+    // Restore connection policy to Auto
+    sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0), NULL, 0);
 
     return r;
 

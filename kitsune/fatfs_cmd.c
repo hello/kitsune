@@ -1201,7 +1201,7 @@ int Cmd_download(int argc, char*argv[]) {
 	strncpy( filename, argv[2], 128 );
 	strncpy( url, argv[3], 256 );
 
-    int r = gethostbyname(host, strlen(host), &ip,SL_AF_INET);
+    int r = gethostbyname((signed char*)host, strlen(host), &ip,SL_AF_INET);
     if(r < 0)
     {
         ASSERT_ON_ERROR(GET_HOST_IP_FAILED);
