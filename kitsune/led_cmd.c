@@ -526,3 +526,25 @@ int led_start_custom_animation(led_user_animation_handler user, void * context){
 		return 0;
 	}
 }
+
+void led_get_user_color(uint8_t* out_red, uint8_t* out_green, uint8_t* out_blue)
+{
+	if(out_red){
+		*out_red = user_color.r;
+	}
+
+	if(out_green){
+		*out_green = user_color.g;
+	}
+
+	if(out_blue){
+		*out_blue = user_color.b;
+	}
+}
+
+void led_set_user_color(uint8_t red, uint8_t green, uint8_t blue)
+{
+	user_color.r = red;
+	user_color.g = green;
+	user_color.b = blue;
+}

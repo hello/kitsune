@@ -447,7 +447,7 @@ void on_ble_protobuf_command(MorpheusCommand* command)
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_PAIRING_MODE:  // Just for testing
         {
             // Light up LEDs?
-        	led_set_color( 0,0,50, 1, 1, 18, 0 ); //blue
+        	led_set_color(0, 0, 50, 1, 1, 18, 0); //blue
             UARTprintf( "PAIRING MODE \n");
         }
         break;
@@ -489,6 +489,7 @@ void on_ble_protobuf_command(MorpheusCommand* command)
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_PILL:
         {
             UARTprintf("PAIR PILL\n");
+            led_set_color(0, 0, 50, 1, 1, 18, 0); //blue
             _pair_device(command, 0);
             
         }

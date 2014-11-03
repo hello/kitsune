@@ -39,6 +39,12 @@ message SyncResponse {
         optional LEDAction led_5 = 5;
     }
 
+    enum RoomConditions {
+        IDEAL = 1;
+        WARNING = 2;
+        ALERT = 3;
+    }
+
     // TODO: failure cases (timeout, exponential backoff, etc.)
 
     optional int32 upload_cycle = 1;
@@ -51,6 +57,7 @@ message SyncResponse {
     optional WhiteNoise white_noise = 8;
     optional FlashAction flash_action = 9;
     optional bool reset_device = 10;
+    optional RoomConditions room_conditions = 12;
 
     // TODO: settings for snoring detection
     // TODO: settings for firmware update

@@ -1389,16 +1389,42 @@ static void _on_factory_reset_received()
     ble_send_protobuf(&morpheusCommand);  // Send the protobuf to topboard
 }
 
+static void _on_room_conditions_received(SyncResponse_RoomConditions room_conditions)
+{
+    switch(room_conditions)
+    {
+        case SyncResponse_RoomConditions_IDEAL:
+            led_set_user_color(0x00, LED_MAX, 0x00);
+        break;
+        case SyncResponse_RoomConditions_WARNING:
+            led_set_user_color(LED_MAX, LED_MAX, 0x00);
+        break;
+        case SyncResponse_RoomConditions_ALERT:
+            led_set_user_color(LED_MAX, 0x00, 0x00);
+        break;
+        default:
+            led_set_user_color(0x00, 0x00, LED_MAX);
+        break;
+    }
+}
+
 static void _on_response_protobuf(const SyncResponse* response_protobuf)
 {
-    if (response_protobuf->has_alarm) {
+    if (response_protobuf->has_alarm) 
+    {
         _on_alarm_received(&response_protobuf->alarm);
     }
 
-    if(response_protobuf->has_reset_device && response_protobuf->reset_device){
+    if(response_protobuf->has_reset_device && response_protobuf->reset_device)
+    {
         UARTprintf("Server factory reset.\n");
         
         _on_factory_reset_received();
+    }
+
+    if(response_protobuf->has_room_conditions)
+    {
+        _on_room_conditions_received(response_protobuf->room_conditions);
     }
 }
 
