@@ -17,7 +17,6 @@
 #include "led_cmd.h"
 
 extern unsigned int sl_status;
-int Cmd_led(int argc, char *argv[]);
 
 static void _factory_reset(){
     int16_t ret = sl_WlanProfileDel(0xFF);
@@ -105,7 +104,7 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type)
 	play_led_progress_bar(30,30,0,0);
     while((connection_ret = connect_wifi(ssid, password, security_type)) == 0 && --retry_count)
     {
-        Cmd_led(0,0);
+        //Cmd_led(0,0);
         UARTprintf("Failed to connect, retry times remain %d\n", retry_count);
         set_led_progress_bar((max_retry - retry_count ) * 100 / max_retry);
         vTaskDelay(2000);
@@ -237,7 +236,6 @@ static void _ble_reply_wifi_info(){
     vPortFree(name);
 }
 
-int Cmd_led(int argc, char *argv[]);
 #include "wifi_cmd.h"
 periodic_data_pill_data_container pill_list[MAX_PILLS] = {0};
 
