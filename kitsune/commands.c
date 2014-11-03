@@ -601,7 +601,7 @@ void thread_fast_i2c_poll(void * unused)  {
 					led_set_color(rgb[0] + adjust, rgb[1] + adjust, rgb[2] + adjust, 1, 1, 18, 1 );
 			 	}
 			 	else if( sl_status & HAS_IP ) {
-					led_set_color( 0,LED_MAX+adjust,0, 1, 1, 18, 1 ); //green
+					led_set_color(LED_MAX + adjust, 0, 0, 1, 1, 18, 1 ); //blue
 			 	}
 			 	else if( sl_status & CONNECTING ) {
 			 		led_set_color( LED_MAX+adjust,LED_MAX+adjust,0, 1, 1, 18, 1 ); //yellow
