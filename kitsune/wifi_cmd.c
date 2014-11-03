@@ -1389,22 +1389,27 @@ static void _on_factory_reset_received()
     ble_send_protobuf(&morpheusCommand);  // Send the protobuf to topboard
 }
 
-static void _on_room_conditions_received(SyncResponse_RoomConditions room_conditions)
+static void _set_led_color_based_on_room_conditions(const SyncResponse* response_protobuf)
 {
-    switch(room_conditions)
+    if(response_protobuf->has_room_conditions)
     {
-        case SyncResponse_RoomConditions_IDEAL:
-            led_set_user_color(0x00, LED_MAX, 0x00);
-        break;
-        case SyncResponse_RoomConditions_WARNING:
-            led_set_user_color(LED_MAX, LED_MAX, 0x00);
-        break;
-        case SyncResponse_RoomConditions_ALERT:
-            led_set_user_color(LED_MAX, 0xF4, 0xED);
-        break;
-        default:
-            led_set_user_color(0x00, 0x00, LED_MAX);
-        break;
+        switch(response_protobuf->room_conditions)
+        {
+            case SyncResponse_RoomConditions_IDEAL:
+                led_set_user_color(0x00, LED_MAX, 0x00);
+            break;
+            case SyncResponse_RoomConditions_WARNING:
+                led_set_user_color(LED_MAX, LED_MAX, 0x00);
+            break;
+            case SyncResponse_RoomConditions_ALERT:
+                led_set_user_color(LED_MAX, 0xF4, 0xED);
+            break;
+            default:
+                led_set_user_color(0x00, 0x00, LED_MAX);
+            break;
+        }
+    }else{
+        led_set_user_color(0x00, LED_MAX, 0x00);
     }
 }
 
@@ -1422,10 +1427,9 @@ static void _on_response_protobuf(const SyncResponse* response_protobuf)
         _on_factory_reset_received();
     }
 
-    if(response_protobuf->has_room_conditions)
-    {
-        _on_room_conditions_received(response_protobuf->room_conditions);
-    }
+    
+    _set_led_color_based_on_room_conditions(response_protobuf);
+    
 }
 
 int send_periodic_data( data_t * data ) {
