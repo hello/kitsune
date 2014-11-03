@@ -225,7 +225,7 @@ unsigned int CPU_XDATA = 1; //1: enabled CPU interrupt triggerred
 	}
 	sl_FsClose(hndl, 0, 0, 0);
 
-	get_codec_NAU();
+	get_codec_NAU(argv[1]);
 	UARTprintf(" Done for get_codec_NAU\n ");
 
 	AudioCaptureRendererConfigure(I2S_PORT_CPU, AUDIO_RATE);
@@ -304,6 +304,7 @@ unsigned char g_ucSpkrStartFlag;
 
 int Cmd_play_buff(int argc, char *argv[]) {
 	unsigned int CPU_XDATA = 0; //1: enabled CPU interrupt triggerred; 0: DMA
+    int vol = atoi( argv[1] );
 // Create RX and TX Buffer
 //
 	UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
@@ -318,7 +319,8 @@ if(pRxBuffer == NULL)
 }
 // Configure Audio Codec
 //
-get_codec_NAU();
+
+get_codec_NAU(vol);
 
 // Initialize the Audio(I2S) Module
 //
@@ -1036,7 +1038,6 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "temp", Cmd_readtemp,	"i2 read temp" },
 		{ "light", Cmd_readlight, "i2 read light" },
 		{"proximity", Cmd_readproximity, "i2 read proximity" },
-		{"codec_NAU8814", get_codec_NAU, "i2 nuvoton_codec" },
 		{"codec_Mic", get_codec_mic_NAU, "i2s mic_codec" },
 		{"auto_saveSD", Cmd_write_record, "automatic save data into SD"},
 		{"append", Cmd_append,"Cmd_test_append_content"},
