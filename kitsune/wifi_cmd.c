@@ -1395,18 +1395,21 @@ static void _set_led_color_based_on_room_conditions(const SyncResponse* response
 {
     if(response_protobuf->has_room_conditions)
     {
-        case SyncResponse_RoomConditions_IDEAL:
-            led_set_user_color(0x00, LED_MAX, 0x00);
-        break;
-        case SyncResponse_RoomConditions_WARNING:
-            led_set_user_color(LED_MAX, LED_MAX, 0x00);
-        break;
-        case SyncResponse_RoomConditions_ALERT:
-            led_set_user_color(LED_MAX, 0x36, 0x00);
-        break;
-        default:
-            led_set_user_color(0x00, 0x00, LED_MAX);
-        break;
+    	switch(response_protobuf->room_conditions)
+    	{
+			case SyncResponse_RoomConditions_IDEAL:
+				led_set_user_color(0x00, LED_MAX, 0x00);
+			break;
+			case SyncResponse_RoomConditions_WARNING:
+				led_set_user_color(LED_MAX, LED_MAX, 0x00);
+			break;
+			case SyncResponse_RoomConditions_ALERT:
+				led_set_user_color(LED_MAX, 0x36, 0x00);
+			break;
+			default:
+				led_set_user_color(0x00, 0x00, LED_MAX);
+			break;
+    	}
     }else{
         led_set_user_color(0x00, LED_MAX, 0x00);
     }
