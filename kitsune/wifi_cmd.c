@@ -1547,7 +1547,7 @@ static void _on_response_protobuf(const SyncResponse* response_protobuf)
 
 
 int send_periodic_data(periodic_data* data) {
-    uint8_t buffer[256] = {0};
+    char buffer[256] = {0};
 
     int ret;
     //set this to zero--it won't retry, since retrying is handled by an outside loop
@@ -1562,7 +1562,7 @@ int send_periodic_data(periodic_data* data) {
     }
 
     // Parse the response
-    //UARTprintf("Reply is:\n\r%s\n\r", buffer);
+    UARTprintf("Reply is:\n\r%s\n\r", buffer);
     
     const char* header_content_len = "Content-Length: ";
     char * content = strstr(buffer, "\r\n\r\n") + 4;

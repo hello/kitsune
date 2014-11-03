@@ -863,7 +863,7 @@ void thread_sensor_poll(void* unused) {
 			xSemaphoreGive(i2c_smphr);
 		}
 
-
+		array_data* serialized_pill_list_holder = NULL;
 		// made the deep copy of the current pill data. and reset pill data after copy.
 		if (xSemaphoreTake(pill_smphr, portMAX_DELAY)) {
 
@@ -886,7 +886,7 @@ void thread_sensor_poll(void* unused) {
 				if(buffer)
 				{
 					memset(buffer, 0, len + sizeof(array_data));
-					array_data* serialized_pill_list_holder = (array_data*)buffer;
+					serialized_pill_list_holder = (array_data*)buffer;
 					serialized_pill_list_holder->length = len;
 					serialized_pill_list_holder->buffer = &buffer[sizeof(array_data)];
 					encode_pill_list_to_buffer(pill_list, serialized_pill_list_holder->buffer, serialized_pill_list_holder->length, &len);
@@ -906,11 +906,17 @@ void thread_sensor_poll(void* unused) {
 				data.unix_time, data.light, data.light_variability, data.light_tonality, data.temperature, data.humidity,
 				data.dust, data.dust_max, data.dust_min, data.dust_variability);
 
-        if(xQueueSend(data_queue, (void*)data, 10) == pdPASS)
+        if(xQueueSend(data_queue, (void*)&data, 10) == pdPASS)
         {
-        	increased_heap_size += serialized_pilll_list_holder->length + sizeof(serialized_pilll_list_holder);
+        	increased_heap_size += serialized_pill_list_holder ? serialized_pill_list_holder->length : 0;
     	}else{
     		UARTprintf("Failed to post data\n");
+    		// Release the seralized pill list buffer
+    		if(serialized_pill_list_holder)
+    		{
+    			vPortFree(serialized_pill_list_holder);
+    		}
+
     	}
     	
 		UARTprintf("Sensor polling task sleep... heap size for this data %d bytes\n", increased_heap_size);
@@ -1362,7 +1368,7 @@ void vUARTTask(void *pvParameters) {
 	init_light_sensor();
 	init_prox_sensor();
 
-	data_queue = xQueueCreate(60, sizeof(array_data));
+	data_queue = xQueueCreate(60, sizeof(periodic_data));
 	vSemaphoreCreateBinary(dust_smphr);
 	vSemaphoreCreateBinary(light_smphr);
 	vSemaphoreCreateBinary(i2c_smphr);
@@ -1396,7 +1402,7 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("*");
 	xTaskCreate(thread_dust, "dustTask", 256 / 4, NULL, 3, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_sensor_poll, "pollTask", 2 * 1024 / 4, NULL, 4, NULL);
+	xTaskCreate(thread_sensor_poll, "pollTask", 3 * 1024 / 4, NULL, 4, NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_tx, "txTask", 3 * 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");

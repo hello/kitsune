@@ -114,7 +114,8 @@ bool encode_name(pb_ostream_t *stream, const pb_field_t *field, void * const *ar
 
 bool encode_serialized_pill_list(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 bool encode_pill_list(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
-
+void encode_pill_list_to_buffer(const periodic_data_pill_data_container* ptr_pill_list,
+    uint8_t* buffer, size_t buffer_len, size_t* out_len);
 
 //#define MORPH_NAME "KingShy's morpheus"
 
