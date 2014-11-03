@@ -1400,7 +1400,7 @@ static void _on_room_conditions_received(SyncResponse_RoomConditions room_condit
             led_set_user_color(LED_MAX, LED_MAX, 0x00);
         break;
         case SyncResponse_RoomConditions_ALERT:
-            led_set_user_color(LED_MAX, 0xF4, 0xED);
+            led_set_user_color(LED_MAX, 0x36, 0x00);
         break;
         default:
             led_set_user_color(0x00, 0x00, LED_MAX);
