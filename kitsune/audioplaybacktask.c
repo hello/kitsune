@@ -10,7 +10,23 @@
 
 #include "networktask.h"
 
+#include "network.h"
+#include "mcasp_if.h"
+#include "circ_buff.h"
+#include "ff.h"
+#include "udma.h"
+#include "pcm_handler.h"
+#include "i2s.h"
+
 #define INBOX_QUEUE_LENGTH (5)
+#define AUDIO_PLAYBACK_RATE_HZ (48000)
+
+#define FLAG_SUCCESS (0x01)
+#define FLAG_SNOOZE  (0x02)
+#define FLAG_STOP    (0x04)
+
+extern tCircularBuffer *pRxBuffer;
+
 
 typedef enum {
 	off,
@@ -20,6 +36,10 @@ typedef enum {
 static AudioState_t _originalCaptureState;
 static AudioState_t _originalProcessingState;
 static xQueueHandle _queue = NULL;
+
+
+static const unsigned int CPU_XDATA = 1; //1: enabled CPU interrupt triggerred
+
 
 typedef enum {
 	request	,
@@ -59,7 +79,9 @@ void AudioPlaybackTask_Snooze(void) {
 	memset(&m,0,sizeof(m));
 
 	m.type = snooze;
-	xQueueSend(_queue,( const void * )&m,10);
+
+	//make sure the latest interruption gets priority over other messages
+	xQueueSendToFront(_queue,( const void * )&m,10);
 
 }
 
@@ -68,26 +90,163 @@ void AudioPlaybackTask_StopPlayback(void) {
 	memset(&m,0,sizeof(m));
 
 	m.type = stop;
-	xQueueSend(_queue,( const void * )&m,10);
+
+	//make sure the latest interruption gets priority over other messages
+	xQueueSendToFront(_queue,( const void * )&m,10);
 
 }
 
 
-static void DoPlayback(const AudioPlaybackDesc_t * info) {
-	//get original state of capture and processing
+static uint8_t CheckForInterruptionDuringPlayback(void) {
+	PlaybackMessage_t m;
+	uint8_t ret = 0x00;
 
-	//turn off capture and processing if it was on
+	/* Take a peak at the top of our queue.  If we get something that says stop, we stop  */
+	if (xQueuePeek(_queue,(void *)&m,0)) {
 
-	//play file
+		if (m.type == stop) {
+			ret = FLAG_STOP;
+		}
+		else if (m.type == snooze) {
+			ret = FLAG_SNOOZE;
+		}
+
+		if (ret) {
+			xQueueReceive(_queue,(void *)&m,0); //pop this interruption off the queue
+		}
+
+	}
+
+	return ret;
 }
 
-static void StopPlayback(void) {
-	//get original state of capture and processing
+static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
-	//turn off capture and processing if it was on
+	FIL fp;
+	WORD size;
+	FRESULT res;
+	uint32_t totBytesRead = 0;
+	uint32_t uiPlayWaterMark = 1;
+	uint32_t iReceiveCount = 0;
 
-	//play file
+	int32_t iRetVal = -1;
+	uint8_t returnFlags = 0x00;
+
+	uint16_t speaker_data_padded[512];
+	uint16_t speaker_data[256];
+
+
+	if (!info || !info->file) {
+		UARTprintf("invalid playback info %s\n\r",info->file);
+		return returnFlags;
+	}
+
+
+	res = f_open(&fp, info->file, FA_READ);
+
+	if (res != FR_OK) {
+		UARTprintf("Failed to open audio file %s\n\r",info->file);
+		return returnFlags;
+	}
+
+	pRxBuffer = CreateCircularBuffer(RX_BUFFER_SIZE);
+
+	if (!pRxBuffer) {
+		UARTprintf("Failed to create circular buffer of size %d\r\n",RX_BUFFER_SIZE);
+		UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
+		return returnFlags;
+	}
+
+
+
+	get_codec_NAU(info->volume);
+
+	// Initialize the Audio(I2S) Module
+	AudioCapturerInit(CPU_XDATA, AUDIO_PLAYBACK_RATE_HZ);
+
+	// Initialize the DMA Module
+	UDMAInit();
+	UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL);
+
+	// Setup the DMA Mode
+	SetupPingPongDMATransferRx();
+
+	// Setup the Audio In/Out
+	AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
+	AudioCaptureRendererConfigure(I2S_PORT_DMA, AUDIO_PLAYBACK_RATE_HZ);
+
+	Audio_Start();
+
+	memset(speaker_data_padded,0,sizeof(speaker_data_padded));
+
+	uiPlayWaterMark = 1;
+
+	while (1) {
+		/* Read always in block of 512 Bytes or less else it will stuck in f_read() */
+		res = f_read(&fp, speaker_data, sizeof(speaker_data), (uint16_t*) &size);
+		totBytesRead += size;
+
+		/* Wait to avoid buffer overflow as reading speed is faster than playback */
+		while ((IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) == TRUE)) {
+			vTaskDelay(2);
+		};
+
+		if (size > 0) {
+			unsigned int i;
+			for (i = 0; i != (size>>1); ++i) {
+				//the odd ones are zeroed already
+				speaker_data_padded[i<<1] = speaker_data[i];
+			}
+			iRetVal = FillBuffer(pRxBuffer, (unsigned char*) (speaker_data_padded), size<<1);
+
+			if (iRetVal < 0) {
+				UARTprintf("Unable to fill buffer");
+			}
+
+			returnFlags |= CheckForInterruptionDuringPlayback();
+
+			if (returnFlags) {
+				//ruh-roh, gotta stop.
+				UARTprintf("stopping playback");
+				break;
+			}
+
+		}
+		else {
+			//we're done
+			break;
+		}
+
+		if (uiPlayWaterMark == 0) {
+			if (IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) == TRUE) {
+				uiPlayWaterMark = 1;
+			}
+		}
+		iReceiveCount++;
+
+		if ((iReceiveCount % 100) == 0) {
+			UARTprintf("g_iReceiveCount: %d\n\r", iReceiveCount);
+		}
+		vTaskDelay(0);
+	}
+
+
+	f_close(&fp);
+
+	close_codec_NAU();
+	Audio_Stop();
+	McASPDeInit();
+	DestroyCircularBuffer(pRxBuffer);
+
+	UARTprintf("completed playback\r\n");
+
+	returnFlags |= FLAG_SUCCESS;
+
+
+	return returnFlags;
+
 }
+
 
 static void SetSnoozeWithServer(void) {
 
@@ -96,6 +255,7 @@ static void SetSnoozeWithServer(void) {
 
 void AudioPlaybackTask_Thread(void * data) {
 	PlaybackMessage_t m;
+	uint8_t playbackResultFlags;
 
 	Init();
 
@@ -107,20 +267,24 @@ void AudioPlaybackTask_Thread(void * data) {
 		switch (m.type) {
 		case request:
 		{
-			DoPlayback(&m.message.playbackinfo);
+			playbackResultFlags = DoPlayback(&m.message.playbackinfo);
+
+			if (playbackResultFlags & FLAG_SNOOZE) {
+				SetSnoozeWithServer();
+			}
+
 			break;
 		}
 
 		case stop:
 		{
-			StopPlayback();
+			//do nothing -- this is only meaningful if it happened during playback, and it is handled during playback
 			break;
 		}
 
 		case snooze:
 		{
-			StopPlayback();
-			SetSnoozeWithServer();
+			//do nothing -- this is only meaningful if it happened during playback, and it is handled during playback
 			break;
 		}
 		default:
