@@ -11,17 +11,12 @@ typedef enum {
 } EAudioProcessingCommand_t;
 
 
-
-
-
 void AudioProcessingTask_AddFeaturesToQueue(const AudioFeatures_t * feats);
 
 //turn it on or off via a message
 void AudioProcessingTask_SetControl(EAudioProcessingCommand_t cmd,NotificationCallback_t onFinished, void * context);
 void AudioProcessingTask_Thread(void * data);
 
-void AudioProcessingTask_FreeBuffers(void);
-void AudioProcessingTask_AllocBuffers(void);
 
 
 #endif //_AUDIOPROCESSINGTASK_H_

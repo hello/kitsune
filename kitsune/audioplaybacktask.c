@@ -1,4 +1,5 @@
 #include "FreeRTOS.h"
+#include "task.h"
 #include "queue.h"
 #include "semphr.h"
 #include "uartstdio.h"
@@ -17,6 +18,8 @@
 #include "udma.h"
 #include "pcm_handler.h"
 #include "i2s.h"
+#include "i2c_cmd.h"
+#include "udma_if.h"
 
 #define INBOX_QUEUE_LENGTH (5)
 #define AUDIO_PLAYBACK_RATE_HZ (48000)
@@ -25,9 +28,11 @@
 #define FLAG_SNOOZE  (0x02)
 #define FLAG_STOP    (0x04)
 
+/* stupid globals */
 extern tCircularBuffer *pRxBuffer;
+extern unsigned char g_ucSpkrStartFlag;
 
-
+#if 0
 typedef enum {
 	off,
 	on
@@ -35,10 +40,11 @@ typedef enum {
 
 static AudioState_t _originalCaptureState;
 static AudioState_t _originalProcessingState;
+#endif
 static xQueueHandle _queue = NULL;
 
 
-static const unsigned int CPU_XDATA = 1; //1: enabled CPU interrupt triggerred
+static const unsigned int CPU_XDATA = 0; //1: enabled CPU interrupt triggerred, 0 for DMA
 
 
 typedef enum {
@@ -68,6 +74,7 @@ void AudioPlaybackTask_PlayFile(const AudioPlaybackDesc_t * playbackinfo) {
 	m.type = request;
 	memcpy(&m.message.playbackinfo,playbackinfo,sizeof(AudioPlaybackDesc_t));
 
+
 	xQueueSend(_queue,( const void * )&m,10);
 
 
@@ -91,6 +98,7 @@ void AudioPlaybackTask_StopPlayback(void) {
 
 	m.type = stop;
 
+	UARTprintf("AudioPlaybackTask_StopPlayback\r\n");
 	//make sure the latest interruption gets priority over other messages
 	xQueueSendToFront(_queue,( const void * )&m,10);
 
@@ -106,9 +114,13 @@ static uint8_t CheckForInterruptionDuringPlayback(void) {
 
 		if (m.type == stop) {
 			ret = FLAG_STOP;
+			UARTprintf("Stopping playback\r\n");
+
 		}
 		else if (m.type == snooze) {
 			ret = FLAG_SNOOZE;
+			UARTprintf("Snoozing playback\r\n");
+
 		}
 
 		if (ret) {
@@ -122,7 +134,7 @@ static uint8_t CheckForInterruptionDuringPlayback(void) {
 
 static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
-	FIL fp;
+	FIL fp = {0};
 	WORD size;
 	FRESULT res;
 	uint32_t totBytesRead = 0;
@@ -135,20 +147,15 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	uint16_t speaker_data_padded[512];
 	uint16_t speaker_data[256];
 
+	UARTprintf("Starting playback\r\n");
+	UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
 
 	if (!info || !info->file) {
 		UARTprintf("invalid playback info %s\n\r",info->file);
 		return returnFlags;
 	}
 
-
-	res = f_open(&fp, info->file, FA_READ);
-
-	if (res != FR_OK) {
-		UARTprintf("Failed to open audio file %s\n\r",info->file);
-		return returnFlags;
-	}
-
+	//create circular buffer
 	pRxBuffer = CreateCircularBuffer(RX_BUFFER_SIZE);
 
 	if (!pRxBuffer) {
@@ -157,7 +164,23 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		return returnFlags;
 	}
 
+	//open file for playback
+	UARTprintf("Opening %s for playback\r\n",info->file);
+	res = f_open(&fp, info->file, FA_READ);
 
+	if (res != FR_OK) {
+		UARTprintf("Failed to open audio file %s\n\r",info->file);
+
+		if (pRxBuffer) {
+			DestroyCircularBuffer(pRxBuffer);
+		}
+
+		return returnFlags;
+	}
+
+
+	//////
+	// SET UP AUDIO PLAYBACK
 
 	get_codec_NAU(info->volume);
 
@@ -166,6 +189,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 	// Initialize the DMA Module
 	UDMAInit();
+
 	UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL);
 
 	// Setup the DMA Mode
@@ -175,28 +199,39 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
 	AudioCaptureRendererConfigure(I2S_PORT_DMA, AUDIO_PLAYBACK_RATE_HZ);
 
+	/* FUCK!  A magic global variable here!  */
+	g_ucSpkrStartFlag = 1;
+
+	//do whatever this function does
 	Audio_Start();
+
 
 	memset(speaker_data_padded,0,sizeof(speaker_data_padded));
 
 	uiPlayWaterMark = 1;
 
+
+
 	while (1) {
 		/* Read always in block of 512 Bytes or less else it will stuck in f_read() */
-		res = f_read(&fp, speaker_data, sizeof(speaker_data), (uint16_t*) &size);
+	//	UARTprintf("HERE1 - %d\r\n",counter++);
+
+		res = f_read(&fp, speaker_data, sizeof(speaker_data), &size);
 		totBytesRead += size;
 
 		/* Wait to avoid buffer overflow as reading speed is faster than playback */
-		while ((IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) == TRUE)) {
+		while (IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) == TRUE) {
 			vTaskDelay(2);
 		};
 
 		if (size > 0) {
 			unsigned int i;
+
 			for (i = 0; i != (size>>1); ++i) {
 				//the odd ones are zeroed already
 				speaker_data_padded[i<<1] = speaker_data[i];
 			}
+
 			iRetVal = FillBuffer(pRxBuffer, (unsigned char*) (speaker_data_padded), size<<1);
 
 			if (iRetVal < 0) {
@@ -204,6 +239,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 			}
 
 			returnFlags |= CheckForInterruptionDuringPlayback();
+
 
 			if (returnFlags) {
 				//ruh-roh, gotta stop.
@@ -230,11 +266,20 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		vTaskDelay(0);
 	}
 
+	///CLEANUP
+
+
+
+
 
 	f_close(&fp);
 
 	close_codec_NAU();
 	Audio_Stop();
+
+	/* goddamned globals */
+	g_ucSpkrStartFlag = 0;
+
 	McASPDeInit();
 	DestroyCircularBuffer(pRxBuffer);
 
