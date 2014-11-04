@@ -49,6 +49,7 @@
 #include "spi_cmd.h"
 #include "audioprocessingtask.h"
 #include "audiocapturetask.h"
+#include "audioplaybacktask.h"
 #include "top_board.h"
 #include "fft.h"
 
@@ -302,6 +303,7 @@ int Cmd_audio_do_stuff(int argc, char * argv[]) {
 void Speaker1(char * file);
 unsigned char g_ucSpkrStartFlag;
 
+/*
 int play_ringtone(int vol, char * file) {
 
 	unsigned int CPU_XDATA = 0; //1: enabled CPU interrupt triggerred; 0: DMA
@@ -367,11 +369,27 @@ int play_ringtone(int vol, char * file) {
 	return 0;
 
 }
+*/
+
+int Cmd_stop_buff(int argc, char *argv[]) {
+	AudioPlaybackTask_StopPlayback();
+
+	return 0;
+}
 
 int Cmd_play_buff(int argc, char *argv[]) {
     int vol = atoi( argv[1] );
     char * file = argv[2];
-    return play_ringtone( vol, file );
+    
+    AudioPlaybackDesc_t desc;
+    desc.file = file;
+    desc.volume = vol;
+    desc.durationInSeconds = 60;
+
+    AudioPlaybackTask_PlayFile(&desc);
+
+    return 0;
+    //return play_ringtone( vol );
 }
 int Cmd_fs_delete(int argc, char *argv[]) {
 	//
@@ -523,7 +541,21 @@ void set_alarm( SyncResponse_Alarm * received_alarm ) {
     }
 }
 
+static void thread_alarm_on_finished(void * context) {
+	if (xSemaphoreTake(alarm_smphr, portMAX_DELAY)) {
+
+		if (alarm.has_end_time) {
+			UARTprintf("ALARM DONE RINGING\n");
+			alarm.has_end_time = 0;
+			alarm.has_start_time = 0;
+		}
+
+		xSemaphoreGive(alarm_smphr);
+	}
+}
+
 void thread_alarm(void * unused) {
+
 	while (1) {
 		portTickType now = xTaskGetTickCount();
 		//todo audio processing
@@ -532,20 +564,22 @@ void thread_alarm(void * unused) {
 
 			if(alarm.has_start_time && alarm.start_time > 0)
 			{
-				if ( time - alarm.start_time < alarm.ring_duration_in_second ) {
+				if (time > alarm.start_time) {
+					AudioPlaybackDesc_t desc;
+					memset(&desc,0,sizeof(desc));
+
+					desc.file = AUDIO_FILE;
+					desc.durationInSeconds = alarm.ring_duration_in_second;
+					desc.volume = 57;
+					desc.callback = thread_alarm_on_finished;
+
 					UARTprintf("ALARM RINGING RING RING RING\n");
-					xSemaphoreGive(alarm_smphr);
-					if (!g_ucSpkrStartFlag) {
-						play_ringtone(57, AUDIO_FILE);
-					}
-					xSemaphoreTake(alarm_smphr, portMAX_DELAY);
-				} else if(g_ucSpkrStartFlag) {
-					g_ucSpkrStartFlag = 0;
-					UARTprintf("ALARM DONE RINGING\n");
-					alarm.has_end_time = 0;
+					AudioPlaybackTask_PlayFile(&desc);
 					alarm.has_start_time = 0;
+					alarm.start_time = 0;
 				}
-			}else{
+			}
+			else {
 				// Alarm start time = 0 means no alarm
 			}
 			
@@ -629,7 +663,9 @@ void thread_fast_i2c_poll(void * unused)  {
 				}
 				xSemaphoreGive(alarm_smphr);
 				xSemaphoreGive(i2c_smphr);
-				g_ucSpkrStartFlag = 0;
+
+				//TURN OFF AUDIO!!!!
+				AudioPlaybackTask_StopPlayback();
 
 				uint8_t adjust_max_light = 80;
 
@@ -1102,10 +1138,10 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "fswr", Cmd_fs_write, "fs write" },
 		{ "fsrd", Cmd_fs_read, "fs read" },
 		{ "play_ringtone", Cmd_code_playbuff, "play selected ringtone" },
-		{ "stop_ringtone", Audio_Stop,"stop sounds"},
+		{ "stop_ringtone", Cmd_stop_buff,"stop sounds"},
 		{ "r", Cmd_record_buff,"record sounds into SD card"},
 		{ "p", Cmd_play_buff, "play sounds from SD card"},
-		{ "aud",Cmd_audio_do_stuff,"command the audio on/off"},
+		{ "aud",Cmd_audio_do_stuff,"command the audio capture on/off"},
 		{ "fsdl", Cmd_fs_delete, "fs delete" },
 		//{ "readout", Cmd_readout_data, "read out sensor data log" },
 
@@ -1228,7 +1264,7 @@ void vUARTTask(void *pvParameters) {
 	MAP_PRCMPeripheralReset(PRCM_SDHOST);
 	MAP_SDHostInit(SDHOST_BASE);
 	MAP_SDHostSetExpClk(SDHOST_BASE, MAP_PRCMPeripheralClockGet(PRCM_SDHOST),
-			1000000);
+			15000000);
 	UARTprintf("*");
 	Cmd_mnt(0, 0);
 	UARTprintf("*");
@@ -1272,6 +1308,8 @@ void vUARTTask(void *pvParameters) {
 	//some protobuf encoding will happen on the stack of this task
 	xTaskCreate(NetworkTask_Thread,"networkTask",4*1024/4,&network_task_data,10,NULL);
 
+	//create task for audio playback
+	xTaskCreate(AudioPlaybackTask_Thread,"audioPlayback",3*1024/4,NULL,9,NULL);
 	SetupGPIOInterrupts();
 	UARTprintf("*");
 #if !ONLY_MID
