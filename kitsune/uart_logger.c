@@ -26,12 +26,14 @@ static struct{
 	uint8_t view_tag;
 }self;
 
-static bool _encode_text_block(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
+static bool
+_encode_text_block(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
 	return pb_encode_tag(stream, PB_WT_STRING, field->tag)
 			&& pb_encode_string(stream, (uint8_t*)self.upload_block,
 					UART_LOGGER_BLOCK_SIZE);
 }
-static bool encode_mac_as_device_id_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
+static bool
+_encode_mac_as_device_id_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
     uint8_t mac[6] = {0};
     uint8_t mac_len = 6;
 #if FAKE_MAC
@@ -56,7 +58,8 @@ static bool encode_mac_as_device_id_string(pb_ostream_t *stream, const pb_field_
     }
     return pb_encode_tag_for_field(stream, field) && pb_encode_string(stream, (uint8_t*)hex_device_id, strlen(hex_device_id));
 }
-static void _swap_and_upload(void){
+static void
+_swap_and_upload(void){
 	if (!(xEventGroupGetBitsFromISR(self.uart_log_events) & LOG_EVENT_BACKEND)) {
 		self.upload_block = self.logging_block;
 		//logc can be called anywhere, so using ISR api instead
@@ -72,7 +75,8 @@ static void _swap_and_upload(void){
 	self.widx = 0;
 }
 
-void _logstr(const char * str, int len, bool echo){
+static void
+_logstr(const char * str, int len, bool echo){
 	int i;
 	for(i = 0; i < len; i++){
 		uart_logc(str[i]);
@@ -82,7 +86,9 @@ void _logstr(const char * str, int len, bool echo){
 	}
 }
 
-
+/**
+ * PUBLIC functions
+ */
 int Cmd_log_upload(int argc, char *argv[]){
 	_swap_and_upload();
 	return 0;
@@ -92,7 +98,7 @@ void uart_logger_init(void){
 	self.uart_log_events = xEventGroupCreate();
 	xEventGroupClearBits( self.uart_log_events, 0xff );
 	self.log.text.funcs.encode = _encode_text_block;
-	self.log.device_id.funcs.encode = encode_mac_as_device_id_string;
+	self.log.device_id.funcs.encode = _encode_mac_as_device_id_string;
 	self.log.has_unix_time = true;
 	self.view_tag = LOG_INFO | LOG_WARNING | LOG_ERROR;
 }
