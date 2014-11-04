@@ -1351,6 +1351,41 @@ bool encode_name(pb_ostream_t *stream, const pb_field_t *field, void * const *ar
                     strlen(MORPH_NAME));
 }
 
+bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field,void **arg);
+int download_file(char * host, char * url, char * filename, char * path);
+
+static bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg)
+{
+	SyncResponse_FileDownload download_info;
+	char * filename=NULL, * url=NULL, * host=NULL, * path=NULL, * serial_flash_path=NULL, * serial_flash_name=NULL;
+
+	download_info.filename.funcs.decode = _decode_string_field;
+	download_info.filename.arg = filename;
+
+	download_info.url.funcs.decode = _decode_string_field;
+	download_info.url.arg = url;
+
+	download_info.host.funcs.decode = _decode_string_field;
+	download_info.host.arg = host;
+
+	download_info.serial_flash_filename.funcs.decode = _decode_string_field;
+	download_info.serial_flash_filename.arg = serial_flash_name;
+
+	download_info.serial_flash_path.funcs.decode = _decode_string_field;
+	download_info.serial_flash_path.arg = serial_flash_path;
+
+	if( !pb_decode(stream,SyncResponse_FileDownload_fields,&download_info) ) {
+		return false;
+	}
+
+	if( filename && url && host && path ) {
+		//download it!
+		download_file( host, filename, url, path );
+
+	}
+	return true;
+}
+
 void set_alarm( SyncResponse_Alarm * received_alarm );
 
 static void _on_alarm_received( SyncResponse_Alarm* received_alarm)
@@ -1490,6 +1525,7 @@ int send_periodic_data( data_t * data ) {
     
     SyncResponse response_protobuf;
     memset(&response_protobuf, 0, sizeof(response_protobuf));
+    response_protobuf.files.funcs.decode = _on_file_download;
 
     if(decode_rx_data_pb((unsigned char*) content, len, SyncResponse_fields, &response_protobuf) == 0)
     {
