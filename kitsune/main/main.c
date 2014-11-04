@@ -90,6 +90,7 @@
 #include "i2c_if.h"
 
 #include "wifi_cmd.h"
+#include "uart_logger.h"
 
 extern void vUARTTask( void *pvParameters );
 extern void thead_sensor_poll( void * Data);
@@ -291,6 +292,7 @@ void main()
   //
   // Initialize the UART for console I/O.
   //
+  uart_logger_init();
   UARTStdioInit(0);
   //
   // Set the SD card clock as output pin

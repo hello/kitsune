@@ -6,7 +6,7 @@
 #define DATA_RECEIVE_ENDPOINT               "/in/morpheus/pb2"
 #define MORPHEUS_REGISTER_ENDPOINT          "/register/morpheus"
 #define PILL_REGISTER_ENDPOINT              "/register/pill"
-#define CONSOLE_LOG_ENDPOINT				"/logs"
+
 
 #define PILL_ID_LEN 16
 typedef struct {

@@ -73,6 +73,7 @@
 #include "ble_cmd.h"
 #include "led_cmd.h"
 #include "led_animations.h"
+#include "uart_logger.h"
 
 #define ONLY_MID 0
 
@@ -1084,7 +1085,8 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "download", Cmd_download, "download test function."},
 		{ "dtm", Cmd_top_dtm, "Sends Direct Test Mode command" },
 		{ "animate", Cmd_led_animate, "Animates led"},
-
+		{ "uplog", Cmd_log_upload, "Uploads log to server"},
+		{ "loglevel", Cmd_log_setview, "Sets log level" },
 		{ 0, 0, 0 } };
 
 //#include "fault.h"
@@ -1237,6 +1239,8 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(thread_tx, "txTask", 3 * 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_ota, "otaTask",5 * 1024 / 4, NULL, 1, NULL);
+	UARTprintf("*");
+	xTaskCreate(uart_logger_task, "otaTask",  2 * 1024 / 4, NULL, 1, NULL);
 	UARTprintf("*");
 #endif
 	//checkFaults();
