@@ -497,6 +497,7 @@ UARTStdioInitExpClk(unsigned long ulPortNum, unsigned long ulBaud)
 //! \return Returns the count of characters written.
 //
 //*****************************************************************************
+#include "uart_logger.h"
 int
 UARTwrite(const char *pcBuf, unsigned long ulLen)
 {
@@ -508,7 +509,11 @@ UARTwrite(const char *pcBuf, unsigned long ulLen)
     //
     ASSERT(pcBuf != 0);
     ASSERT(g_ulBase != 0);
-
+#if UART_LOGGER_MODE == UART_LOGGER_MODE_RAW
+    for(uIdx = 0; uIdx < ulLen; uIdx++){
+    	uart_logc(pcBuf[uIdx]);
+    }
+#endif
     //
     // Send the characters
     //

@@ -9,9 +9,11 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define UART_LOGGER_BLOCK_SIZE 512
-#define UART_LOGGER_RETRY_TIMES_IN_TICKS 5000
-#define UART_LOGGER_PREPEND_TAG 1
+#define UART_LOGGER_BLOCK_SIZE 1024
+#define UART_LOGGER_RESERVED_SIZE 128	//for reserved stack in the task
+#define UART_LOGGER_PREPEND_TAG 0	//if you want to prepend a tag when calling LOGX() functions
+#define UART_LOGGER_MODE	UART_LOGGER_MODE_RAW
+
 
 
 /**
@@ -22,15 +24,33 @@ extern "C" {
 #define LOG_ERROR	0x04
 #define LOG_TIME	0x08
 #define LOG_RADIO	0x10
+/**
+ * Mode defines
+ */
+#define UART_LOGGER_MODE_RAW 0
+#define UART_LOGGER_MODE_TAGGED 1
 
+
+
+/**
+ * Utility macros, use these over logf
+ */
+#if UART_LOGGER_MODE == UART_LOGGER_MODE_TAGGED
 #define LOGI(...) uart_logf(LOG_INFO, __VA_ARGS__)
 #define LOGW(...) uart_logf(LOG_WARNING, __VA_ARGS__)
 #define LOGE(...) uart_logf(LOG_ERROR, __VA_ARGS__)
-
+#else
+#define LOGI(...) UARTprintf(__VA_ARGS__)
+#define LOGW(...) UARTprintf(__VA_ARGS__)
+#define LOGE(...) UARTprintf(__VA_ARGS__)
+#endif
+/**
+ * For printing tags other than LOGX()
+ */
 void uart_logf(uint8_t tag, const char *pcString, ...);
-
 /**
  * logs a character to be uploaded to server
+ * use for raw mode
  */
 void uart_logc(uint8_t c);
 void uart_logger_task(void * params);

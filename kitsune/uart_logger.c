@@ -25,7 +25,7 @@ static struct{
 	SenseLog log;
 	uint8_t view_tag;
 }self;
-static const char * const g_pcHex = "0123456789abcdef";
+
 static bool _encode_text_block(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
 	return pb_encode_tag(stream, PB_WT_STRING, field->tag)
 			&& pb_encode_string(stream, (uint8_t*)self.upload_block,
@@ -110,7 +110,7 @@ void uart_logc(uint8_t c){
 unsigned long get_time();
 void uart_logger_task(void * params){
 	while(1){
-		char buffer[UART_LOGGER_BLOCK_SIZE + 64] = {0};
+		char buffer[UART_LOGGER_BLOCK_SIZE + UART_LOGGER_RESERVED_SIZE] = {0};
 		int ret;
 		EventBits_t evnt = xEventGroupWaitBits(
 				self.uart_log_events,   /* The event group being tested. */
@@ -151,6 +151,8 @@ int Cmd_log_setview(int argc, char * argv[]){
 	}
 	return -1;
 }
+
+static const char * const g_pcHex = "0123456789abcdef";
 void uart_logf(uint8_t tag, const char *pcString, ...){
     unsigned long ulIdx, ulValue, ulPos, ulCount, ulBase, ulNeg;
     char *pcStr, pcBuf[16], cFill;
