@@ -1550,9 +1550,75 @@ int send_periodic_data(periodic_data* data) {
     char buffer[256] = {0};
 
     int ret;
+
+    UARTprintf("1111111111111111111111111\n");
+
+    pb_ostream_t size_stream = {0};
+    if(pb_encode(&size_stream, periodic_data_fields, data))
+    {
+    	uint8_t* proto_buffer = pvPortMalloc(size_stream.bytes_written);
+    	if(!buffer)
+    	{
+    		return -1;
+    	}
+
+    	memset(proto_buffer, 0, size_stream.bytes_written);
+    	pb_ostream_t buffer_stream = pb_ostream_from_buffer(proto_buffer, size_stream.bytes_written);
+    	pb_encode(&buffer_stream, periodic_data_fields, data);
+
+    	array_data holder = {0};
+    	holder.buffer = proto_buffer;
+    	holder.length = buffer_stream.bytes_written;
+
+    	ret = NetworkTask_SynchronousSendRawProtobuf(DATA_RECEIVE_ENDPOINT, &holder, buffer, sizeof(buffer), 0);
+    	vPortFree(proto_buffer);
+
+    	// Parse the response
+		UARTprintf("Reply is:\n\r%s\n\r", buffer);
+
+		const char* header_content_len = "Content-Length: ";
+		char * content = strstr(buffer, "\r\n\r\n") + 4;
+		char * len_str = strstr(buffer, header_content_len) + strlen(header_content_len);
+		if (http_response_ok(buffer) != 1) {
+			sl_status &= ~UPLOADING;
+			UARTprintf("Invalid response, endpoint return failure.\n");
+			return -1;
+		}
+
+		if (len_str == NULL) {
+			sl_status &= ~UPLOADING;
+			UARTprintf("Failed to find Content-Length header\n");
+			return -1;
+		}
+		int len = atoi(len_str);
+
+		SyncResponse response_protobuf;
+		memset(&response_protobuf, 0, sizeof(response_protobuf));
+
+		if(decode_rx_data_pb((unsigned char*) content, len, SyncResponse_fields, &response_protobuf) == 0)
+		{
+			UARTprintf("Decoding success: %d %d %d %d %d %d\n",
+			response_protobuf.has_acc_sampling_interval,
+			response_protobuf.has_acc_scan_cyle,
+			response_protobuf.has_alarm,
+			response_protobuf.has_device_sampling_interval,
+			response_protobuf.has_flash_action,
+			response_protobuf.has_reset_device);
+
+			_on_response_protobuf(&response_protobuf);
+			sl_status |= UPLOADING;
+
+			return 0;
+		}
+
+    }else{
+    	UARTprintf("Get size failed\n");
+    }
+
+    /*
     //set this to zero--it won't retry, since retrying is handled by an outside loop
     ret = NetworkTask_SynchronousSendProtobuf(DATA_RECEIVE_ENDPOINT, buffer, sizeof(buffer), periodic_data_fields, &data, 0);
-
+    UARTprintf("2222222222222222222222222\n");
     if(ret != 0)
     {
         // network error
@@ -1598,6 +1664,8 @@ int send_periodic_data(periodic_data* data) {
 
         return 0;
     }
+    */
+
     return -1;
 }
 
