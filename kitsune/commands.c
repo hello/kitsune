@@ -543,7 +543,7 @@ void thread_alarm(void * unused) {
 					alarm.has_start_time = 0;
 				}
 				if( !alarm.has_end_time ) {
-					UARTprintf("Buggy backend, alarm should has endtime.\n");
+					UARTprintf("Bug, alarm should have endtime.\n");
 				}
 			}else{
 				// Alarm start time = 0 means no alarm
