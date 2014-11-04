@@ -312,7 +312,7 @@ int Cmd_record_buff(int argc, char *argv[]) {
 }
 
 void Speaker1();
-
+unsigned char g_ucSpkrStartFlag;
 int Cmd_play_buff(int argc, char *argv[]) {
 	unsigned int CPU_XDATA = 0; //1: enabled CPU interrupt triggerred; 0: DMA
 // Create RX and TX Buffer
@@ -351,7 +351,7 @@ SetupPingPongDMATransferRx();
 
 AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
 AudioCaptureRendererConfigure(I2S_PORT_DMA, 48000);
-
+g_ucSpkrStartFlag = 1;
 // Start Audio Tx/Rx
 //
 Audio_Start();
