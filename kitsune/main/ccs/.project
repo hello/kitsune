@@ -536,6 +536,16 @@
 			<locationURI>PARENT-2-PROJECT_LOC/nanopb/pb_encode.h</locationURI>
 		</link>
 		<link>
+			<name>protobuf/SenseLog.pb.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/SenseLog.pb.c</locationURI>
+		</link>
+		<link>
+			<name>protobuf/SenseLog.pb.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/SenseLog.pb.h</locationURI>
+		</link>
+		<link>
 			<name>protobuf/SyncResponse.pb.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/protobuf/SyncResponse.pb.c</locationURI>
