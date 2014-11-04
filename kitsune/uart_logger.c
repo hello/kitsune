@@ -25,6 +25,7 @@ static struct{
 	EventGroupHandle_t uart_log_events;
 	SenseLog log;
 	uint8_t view_tag;
+	xSemaphoreHandle block_operation_sem;
 }self;
 
 static bool
@@ -59,6 +60,7 @@ _encode_mac_as_device_id_string(pb_ostream_t *stream, const pb_field_t *field, v
     }
     return pb_encode_tag_for_field(stream, field) && pb_encode_string(stream, (uint8_t*)hex_device_id, strlen(hex_device_id));
 }
+//
 static void
 _swap_and_upload(void){
 	if (!(xEventGroupGetBitsFromISR(self.uart_log_events) & LOG_EVENT_BACKEND)) {
@@ -102,13 +104,17 @@ void uart_logger_init(void){
 	self.log.device_id.funcs.encode = _encode_mac_as_device_id_string;
 	self.log.has_unix_time = true;
 	self.view_tag = LOG_INFO | LOG_WARNING | LOG_ERROR;
+	vSemaphoreCreateBinary(self.block_operation_sem);
 }
 void uart_logc(uint8_t c){
-	if (self.widx == UART_LOGGER_BLOCK_SIZE) {
-		_swap_and_upload();
+	if(xSemaphoreTake(self.block_operation_sem,1)){
+		if (self.widx == UART_LOGGER_BLOCK_SIZE) {
+			_swap_and_upload();
+		}
+		self.logging_block[self.widx] = c;
+		self.widx++;
+		xSemaphoreGive(self.block_operation_sem);
 	}
-	self.logging_block[self.widx] = c;
-	self.widx++;
 }
 unsigned long get_time();
 void uart_logger_task(void * params){
