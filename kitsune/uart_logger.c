@@ -61,10 +61,6 @@ static void _swap_and_upload(void){
 		self.upload_block = self.logging_block;
 		//logc can be called anywhere, so using ISR api instead
 		xEventGroupSetBits(self.uart_log_events, LOG_EVENT_BACKEND);
-	} else if (!(xEventGroupGetBitsFromISR(self.uart_log_events)
-			& LOG_EVENT_LOCAL)) {
-		//TODO write speed is faster than upload speed, delegate the block to SD flash instead
-		xEventGroupSetBits(self.uart_log_events, LOG_EVENT_LOCAL);
 	} else {
 		//both sd card and internet are busy, wtfmate
 	}
