@@ -10,6 +10,7 @@
 #include "wifi_cmd.h"
 #include "uartstdio.h"
 #include "debug.h"
+#include <stdlib.h>
 
 #define SENSE_LOG_ENDPOINT		"/logs"
 #define LOG_EVENT_BACKEND 		0x1

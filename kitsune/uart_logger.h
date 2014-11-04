@@ -44,18 +44,20 @@ extern "C" {
 #define LOGW(...) UARTprintf(__VA_ARGS__)
 #define LOGE(...) UARTprintf(__VA_ARGS__)
 #endif
+
+/**
+ * call this before any printf operation
+ */
+void uart_logger_init(void);
 /**
  * For printing tags other than LOGX()
  */
 void uart_logf(uint8_t tag, const char *pcString, ...);
-/**
- * logs a character to be uploaded to server
- * use for raw mode
- */
-void uart_logc(uint8_t c);
+
 void uart_logger_task(void * params);
 int Cmd_log_upload(int argc, char *argv[]);
 int Cmd_log_setview(int argc, char * argv[]);
+void uart_logc(uint8_t c);	//advanced: directly dumps character to tx block
 #ifdef __cplusplus
 }
 #endif
