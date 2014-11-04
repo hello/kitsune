@@ -107,14 +107,14 @@ void uart_logger_init(void){
 	vSemaphoreCreateBinary(self.block_operation_sem);
 }
 void uart_logc(uint8_t c){
-	if(xSemaphoreTake(self.block_operation_sem,1)){
+	//if(xSemaphoreTake(self.block_operation_sem,1)){
 		if (self.widx == UART_LOGGER_BLOCK_SIZE) {
 			_swap_and_upload();
 		}
 		self.logging_block[self.widx] = c;
 		self.widx++;
 		xSemaphoreGive(self.block_operation_sem);
-	}
+	//}
 }
 unsigned long get_time();
 void uart_logger_task(void * params){
