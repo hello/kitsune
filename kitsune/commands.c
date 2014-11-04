@@ -631,24 +631,36 @@ void thread_fast_i2c_poll(void * unused)  {
 				xSemaphoreGive(i2c_smphr);
 				g_ucSpkrStartFlag = 0;
 
-				if( light > 80 ) {
-					adjust = 0;
+				uint8_t adjust_max_light = 80;
+
+				if( light > adjust_max_light ) {
+					adjust = adjust_max_light;
 				} else {
-					adjust = light - 80;
+					adjust = light;
 				}
+
+				if(adjust < 20)
+				{
+					adjust = 20;
+				}
+
+				uint8_t alpha = 0xFF * adjust / 80;
+
 				if( sl_status & UPLOADING ) {
-					led_set_color( 0,0,LED_MAX+adjust, 1, 1, 18, 1 ); //blue
+					uint8_t rgb[3] = { LED_MAX };
+					led_get_user_color(&rgb[0], &rgb[1], &rgb[2]);
+					led_set_color(alpha, rgb[0], rgb[1], rgb[2], 1, 1, 18, 0);
 			 	}
 			 	else if( sl_status & HAS_IP ) {
-					led_set_color( 0,LED_MAX+adjust,0, 1, 1, 18, 1 ); //green
+					led_set_color(alpha, LED_MAX, 0, 0, 1, 1, 18, 1); //blue
 			 	}
 			 	else if( sl_status & CONNECTING ) {
-			 		led_set_color( LED_MAX+adjust,LED_MAX+adjust,0, 1, 1, 18, 1 ); //yellow
+			 		led_set_color(alpha, LED_MAX,LED_MAX,0, 1, 1, 18, 1); //yellow
 			 	}
 			 	else if( sl_status & SCANNING ) {
-			 		led_set_color( LED_MAX+adjust,0,0, 1, 1, 18, 1 ); //red
+			 		led_set_color(alpha, LED_MAX,0,0, 1, 1, 18, 1 ); //red
 			 	} else {
-			 		led_set_color( LED_MAX+adjust, LED_MAX+adjust, LED_MAX+adjust, 1, 1, 18, 1 ); //white
+			 		led_set_color(alpha, LED_MAX, LED_MAX, LED_MAX, 1, 1, 18, 1 ); //white
 			 	}
 			} else {
 				xSemaphoreGive(i2c_smphr);

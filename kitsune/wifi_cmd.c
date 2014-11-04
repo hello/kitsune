@@ -29,6 +29,8 @@ unsigned int sl_status = 0;
 #include "hw_memmap.h"
 #include "rom_map.h"
 #include "gpio.h"
+#include "led_cmd.h"
+
 
 #define FAKE_MAC 0
 
@@ -145,8 +147,6 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
 //! \return None
 //
 //****************************************************************************
-
-int Cmd_led(int argc, char *argv[]);
 
 void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent) {
 
@@ -1370,17 +1370,47 @@ static void _on_factory_reset_received()
     ble_send_protobuf(&morpheusCommand);  // Send the protobuf to topboard
 }
 
+static void _set_led_color_based_on_room_conditions(const SyncResponse* response_protobuf)
+{
+    if(response_protobuf->has_room_conditions)
+    {
+    	switch(response_protobuf->room_conditions)
+    	{
+			case SyncResponse_RoomConditions_IDEAL:
+				led_set_user_color(0x00, LED_MAX, 0x00);
+			break;
+			case SyncResponse_RoomConditions_WARNING:
+				led_set_user_color(LED_MAX, LED_MAX, 0x00);
+			break;
+			case SyncResponse_RoomConditions_ALERT:
+				led_set_user_color(0xF0, 0x76, 0x00);
+			break;
+			default:
+				led_set_user_color(0x00, 0x00, LED_MAX);
+			break;
+    	}
+    }else{
+        led_set_user_color(0x00, LED_MAX, 0x00);
+    }
+}
+
 static void _on_response_protobuf(const SyncResponse* response_protobuf)
 {
-    if (response_protobuf->has_alarm) {
+    if (response_protobuf->has_alarm) 
+    {
         _on_alarm_received(&response_protobuf->alarm);
     }
 
-    if(response_protobuf->has_reset_device && response_protobuf->reset_device){
+    if(response_protobuf->has_reset_device && response_protobuf->reset_device)
+    {
         UARTprintf("Server factory reset.\n");
         
         _on_factory_reset_received();
     }
+
+    
+    _set_led_color_based_on_room_conditions(response_protobuf);
+    
 }
 
 int send_periodic_data( data_t * data ) {
