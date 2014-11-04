@@ -11,14 +11,21 @@ extern "C" {
 #endif
 #define UART_LOGGER_BLOCK_SIZE 512
 #define UART_LOGGER_RETRY_TIMES_IN_TICKS 5000
+#define UART_LOGGER_PREPEND_TAG 1
 
-#define LOG_INFO 	0x1
-#define LOG_WARNING 0x2
-#define LOG_ERROR	0x4
 
-#define LOGI(format, ...) uart_logf(LOG_INFO, format, __VA_ARGS__)
-#define LOGW(format, ...) uart_logf(LOG_WARNING, format, __VA_ARGS__)
-#define LOGE(format, ...) uart_logf(LOG_ERROR, format, __VA_ARGS__)
+/**
+ * Tag level defines
+ */
+#define LOG_INFO 	0x01
+#define LOG_WARNING 0x02
+#define LOG_ERROR	0x04
+#define LOG_TIME	0x08
+#define LOG_RADIO	0x10
+
+#define LOGI(...) uart_logf(LOG_INFO, __VA_ARGS__)
+#define LOGW(...) uart_logf(LOG_WARNING, __VA_ARGS__)
+#define LOGE(...) uart_logf(LOG_ERROR, __VA_ARGS__)
 
 void uart_logf(uint8_t tag, const char *pcString, ...);
 

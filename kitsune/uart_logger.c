@@ -9,6 +9,7 @@
 #include "networktask.h"
 #include "wifi_cmd.h"
 #include "uartstdio.h"
+#include "debug.h"
 
 #define SENSE_LOG_ENDPOINT		"/logs"
 #define LOG_EVENT_BACKEND 		0x1
@@ -119,7 +120,7 @@ void uart_logger_task(void * params){
                 portMAX_DELAY );/* Wait for any bit to be set. */
 		switch(evnt){
 		case LOG_EVENT_BACKEND:
-			UARTprintf("Uploading UART logs to server...");
+			LOGI("Uploading UART logs to server...");
 			if(sl_status & HAS_IP){
 				self.log.has_unix_time = true;
 				self.log.unix_time = get_time();
@@ -129,15 +130,15 @@ void uart_logger_task(void * params){
 
 			ret = NetworkTask_SynchronousSendProtobuf(SENSE_LOG_ENDPOINT,buffer,sizeof(buffer),SenseLog_fields,&self.log,0);
 			if(ret == 0){
-				UARTprintf("Succeeded\r\n");
+				LOGI("Succeeded\r\n");
 			}else{
-				UARTprintf("Failed\r\n");
+				LOGI("Failed\r\n");
 				//TODO, failed tx, logging local
 			}
 			xEventGroupClearBits(self.uart_log_events,LOG_EVENT_BACKEND);
 			break;
 		case LOG_EVENT_LOCAL:
-			UARTprintf("Logging to SD Card\r\n");
+			LOGI("Logging to SD Card\r\n");
 			xEventGroupClearBits(self.uart_log_events,LOG_EVENT_LOCAL);
 			break;
 		}
@@ -159,6 +160,7 @@ void uart_logf(uint8_t tag, const char *pcString, ...){
     if(tag & self.view_tag){
     	echo = true;
     }
+#if UART_LOGGER_PREPEND_TAG > 0
     while(tag){
 		 switch(tag){
 		case LOG_INFO:
@@ -177,7 +179,7 @@ void uart_logf(uint8_t tag, const char *pcString, ...){
 		tag = 0;
 		}
     }
-
+#endif
     va_start(vaArgP, pcString);
     while(*pcString)
     {
