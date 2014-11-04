@@ -153,4 +153,5 @@ void Speaker1()
 		}
 		vTaskDelay(0);
 	}
+	g_ucSpkrStartFlag = 0;
 }
