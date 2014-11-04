@@ -366,6 +366,16 @@
 			<locationURI>PARENT-2-PROJECT_LOC/top_hci.h</locationURI>
 		</link>
 		<link>
+			<name>uart_logger.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/uart_logger.c</locationURI>
+		</link>
+		<link>
+			<name>uart_logger.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/uart_logger.h</locationURI>
+		</link>
+		<link>
 			<name>uartstdio.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/uartstdio.c</locationURI>
