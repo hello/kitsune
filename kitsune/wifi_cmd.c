@@ -1553,6 +1553,7 @@ int send_periodic_data(periodic_data* data) {
 
     UARTprintf("1111111111111111111111111\n");
 
+    /*
     pb_ostream_t size_stream = {0};
     if(pb_encode(&size_stream, periodic_data_fields, data))
     {
@@ -1614,8 +1615,9 @@ int send_periodic_data(periodic_data* data) {
     }else{
     	UARTprintf("Get size failed\n");
     }
+	*/
 
-    /*
+    /* */
     //set this to zero--it won't retry, since retrying is handled by an outside loop
     ret = NetworkTask_SynchronousSendProtobuf(DATA_RECEIVE_ENDPOINT, buffer, sizeof(buffer), periodic_data_fields, &data, 0);
     UARTprintf("2222222222222222222222222\n");
@@ -1664,7 +1666,7 @@ int send_periodic_data(periodic_data* data) {
 
         return 0;
     }
-    */
+    /* */
 
     return -1;
 }
