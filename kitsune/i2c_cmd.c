@@ -428,8 +428,8 @@ cmd_init[0] = 0x78 ; cmd_init[1] = 0x8C ; I2C_IF_Write(Codec_addr, cmd_init, 2, 
 	return SUCCESS;
 }
 
-
 int get_codec_NAU(char *vol) {
+
 #if 0
 	unsigned char cmd_init[2];
 	//int light_raw;
@@ -648,26 +648,26 @@ int get_codec_NAU(char *vol) {
 	//     0     0     0  0  0  1     0  0  0
 	cmd_init[0] = 0x1e ; cmd_init[1] = 0xff ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // ADC Gain control reg
 
-	cmd_init[0] = 0x24 ; cmd_init[1] = 0x6C ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // EQ1
+	cmd_init[0] = 0x25 ; cmd_init[1] = 0x66 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // EQ1
 	// Address D8  D7 D6   D5     D4 D3 D2 D1 D0
 	// 0x12    EQM 0  EQ1CF[1:0]  EQ1GC[4:0]
-	// set     1   0  1    1      0  0  0  0  1
-	cmd_init[0] = 0x27 ; cmd_init[1] = 0x42 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // EQ2
+	// set     1   0  1    1      0  0  0  0  0
+	cmd_init[0] = 0x27 ; cmd_init[1] = 0x46 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // EQ2
 	// Address D8    D7 D6   D5     D4 D3 D2 D1 D0
 	// 0x13    EQ2BW 0  EQ2CF[1:0]  EQ2GC[4:0]
 	// set     1     0  1    0      0  0  0  1  0
-	cmd_init[0] = 0x29 ; cmd_init[1] = 0x48 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // EQ3
+	cmd_init[0] = 0x29 ; cmd_init[1] = 0x46 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // EQ3
 	// Address D8    D7 D6   D5     D4 D3 D2 D1 D0
 	// 0x14    EQ3BW 0  EQ3CF[1:0]  EQ3GC[4:0]
 	// set     1     0  1    0      0  1  0  0  0
-	cmd_init[0] = 0x2b ; cmd_init[1] = 0x45 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // EQ4
+	cmd_init[0] = 0x2b ; cmd_init[1] = 0x46 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // EQ4
 	// Address D8    D7 D6   D5     D4 D3 D2 D1 D0
 	// 0x15    EQ4BW 0  EQ4CF[1:0]  EQ4GC[4:0]
 	// set     1     0  1    0      0  0  1  0  1
-	cmd_init[0] = 0x2c ; cmd_init[1] = 0x18 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // EQ5
+	cmd_init[0] = 0x2c ; cmd_init[1] = 0x66 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // EQ5
 	// Address D8    D7  D6   D5     D4 D3 D2 D1 D0
 	// 0x16    0     0   EQ5CF[1:0]  EQ5GC[4:0]
-	// set     0     0   0    0      1  1  0  0  0
+	// set     0     0   1    1      0  0  1  1  0
 	cmd_init[0] = 0x30 ; cmd_init[1] = 0x32 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // DIGITAL TO ANALOG CONVERTER (DAC) LIMITER REGISTERS
 	//Addr D8          D7 D6 D5 D4    D3 D2 D1 D0
 	//0x18 DACLIMEN    DACLIMDCY[3:0] DACLIMATK[3:0]
@@ -675,7 +675,7 @@ int get_codec_NAU(char *vol) {
 	cmd_init[0] = 0x32 ; cmd_init[1] = 0x00 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec);
 	//0x19 0    0 DACLIMTHL[2:0] DACLIMBST[3:0]
 	// set 0    0   0  0  0      0 0 0 0
-	cmd_init[0] = 0x36 ; cmd_init[1] = 0xC0 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); //Notch
+	cmd_init[0] = 0x36 ; cmd_init[1] = 0xC0 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // Notch
 	cmd_init[0] = 0x38 ; cmd_init[1] = 0x6B ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // Notch
 	cmd_init[0] = 0x3a ; cmd_init[1] = 0x3F ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // Notch
 	cmd_init[0] = 0x3d ; cmd_init[1] = 0x05 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // Notch
@@ -792,4 +792,5 @@ int close_codec_NAU(int argc, char *argv[]) {
 	// 0x03 0  MOUTEN NSPKEN PSPKEN BIASGEN MOUTMXEN SPKMXEN 0  DACEN
 	// set  0  0      0      0      1       0        1       0  1
 	//////// 4.  Power supplies Analog VDDA VDDB VDDC VDDSPK
+	return 0;
 }

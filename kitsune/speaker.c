@@ -104,6 +104,7 @@ void Speaker1(const char* AUDIO_FILE)
 
 	if (res != FR_OK) {
 		UARTprintf("Failed to open audio file\n\r");
+		 LOOP_FOREVER();
 	}
 
 	memset(speaker_data_padded,0,sizeof(speaker_data_padded));
