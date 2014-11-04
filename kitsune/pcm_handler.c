@@ -84,6 +84,7 @@
 //#include "ff.h"
 //#include "diskio.h"
 #include "fatfs_cmd.h"
+#include "uartstdio.h"
 //*****************************************************************************
 //                          LOCAL DEFINES
 //*****************************************************************************
@@ -266,7 +267,7 @@ void DMAPingPongCompleteAppCB_opt()
                 {
                     g_uiPlayWaterMark = 0;
                     guiDMAEmptyCount++;
-                    //DBG_PRINT("Buffer Empty %d\n\r",guiDMAEmptyCount );
+                    UARTprintf("Buffer Empty %d\n\r",guiDMAEmptyCount );
                 }
                 guiDMATransferCountRx = 0;
                 iCount3++;
@@ -295,7 +296,7 @@ void DMAPingPongCompleteAppCB_opt()
                     {
                       g_uiPlayWaterMark = 0;
                       guiDMAEmptyCount++;
-                      //DBG_PRINT("Buffer Empty %d\n\r",guiDMAEmptyCount );
+                      UARTprintf("Buffer Empty %d\n\r",guiDMAEmptyCount );
                     }
                     guiDMATransferCountRx = 0;
                 }

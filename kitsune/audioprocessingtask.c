@@ -159,6 +159,7 @@ void AudioProcessingTask_Thread(void * data) {
         
 	//if our malloc failed, then sorry we aren't doing anything.
         if (!_longTermStorageBuffer) {
+        	Init();
         	xSemaphoreGive(_mutex);
         	continue;
         }

@@ -17,7 +17,6 @@
 #include "led_cmd.h"
 
 extern unsigned int sl_status;
-int Cmd_led(int argc, char *argv[]);
 
 static void _factory_reset(){
     int16_t ret = sl_WlanProfileDel(0xFF);
@@ -105,7 +104,7 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type)
 	play_led_progress_bar(30,30,0,0);
     while((connection_ret = connect_wifi(ssid, password, security_type)) == 0 && --retry_count)
     {
-        Cmd_led(0,0);
+        //Cmd_led(0,0);
         UARTprintf("Failed to connect, retry times remain %d\n", retry_count);
         set_led_progress_bar((max_retry - retry_count ) * 100 / max_retry);
         vTaskDelay(2000);
@@ -116,7 +115,7 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type)
     {
 		UARTprintf("Tried all wifi ep, all failed to connect\n");
         ble_reply_protobuf_error(ErrorType_WLAN_CONNECTION_ERROR);
-        led_set_color(30,0,0,1,1,10,0);
+        led_set_color(0xFF, 30,0,0,1,1,60,0);
 		return 0;
     }else{
 		uint8_t wait_time = 10;
@@ -136,7 +135,7 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type)
 			//Cmd_led(0,0);
 			UARTprintf("!!WIFI set without network connection.");
             ble_reply_protobuf_error(ErrorType_FAIL_TO_OBTAIN_IP);
-            led_set_color(30,0,0,1,1,10,0);
+            led_set_color(0xFF, 30,0,0,1,1,60,0);
 			return 0;
 		}
     }
@@ -148,7 +147,7 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type)
 
     UARTprintf("Connection attempt issued.\n");
     ble_send_protobuf(&reply_command);
-    led_set_color(0,30,0,1,1,33,0);
+    led_set_color(0xFF, 0,30,0,1,1,200,0);
     return 1;
 }
 
@@ -190,54 +189,20 @@ static void _reply_device_id()
 *
 */
 static void _ble_reply_wifi_info(){
-    int8_t*  name = pvPortMalloc(32);  // due to wlan.h
-    if(!name)
-    {
-        UARTprintf("Not enough memory.\n");
-        ble_reply_protobuf_error(ErrorType_DEVICE_NO_MEMORY);
-        return;
-    }
+	uint8_t ssid[MAX_SSID_LEN] = {0};
+	wifi_get_connected_ssid(ssid, sizeof(ssid));
 
-    memset(name, 0, 32);
-    int16_t name_len = 0;
-    uint8_t mac_addr[6] = {0};
-    SlSecParams_t sec_params = {0};
-    SlGetSecParamsExt_t secExt_params = {0};
-    unsigned long priority  = 0;
-
-    int16_t get_ret = sl_WlanProfileGet(0, name, &name_len, mac_addr, &sec_params, &secExt_params, &priority);
-    if(get_ret == -1)
-    {
-        UARTprintf("Get wifi endpoint failed, error %d.\n", get_ret);
-        ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
-
-    }else{
-        MorpheusCommand reply_command;
-        memset(&reply_command, 0, sizeof(reply_command));
-        reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_WIFI_ENDPOINT;
-
-        size_t len = strlen((char*)name) + 1;
-        char* ssid = pvPortMalloc(len);
-
-        if(ssid)
-        {
-            memset(ssid, 0, len);
-            memcpy(ssid, name, strlen((const char*)name));
-
-            reply_command.wifiSSID.arg = ssid;
-            ble_send_protobuf(&reply_command);
-            vPortFree(ssid);
-        }else{
-            UARTprintf("Not enough memory.\n");
-            ble_reply_protobuf_error(ErrorType_DEVICE_NO_MEMORY);
-        }
-
-    }
-
-    vPortFree(name);
+	MorpheusCommand reply_command;
+	memset(&reply_command, 0, sizeof(reply_command));
+	reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_WIFI_ENDPOINT;
+	size_t len = strlen((char*)ssid) + 1;
+	if(len - 1 > 0)
+	{
+		reply_command.wifiSSID.arg = ssid;
+	}
+	ble_send_protobuf(&reply_command);
 }
 
-int Cmd_led(int argc, char *argv[]);
 #include "wifi_cmd.h"
 periodic_data_pill_data_container pill_list[MAX_PILLS] = {0};
 
@@ -473,7 +438,7 @@ void on_ble_protobuf_command(MorpheusCommand* command)
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_PAIRING_MODE:  // Just for testing
         {
             // Light up LEDs?
-        	led_set_color( 0,0,50, 1, 1, 3, 0 ); //blue
+        	led_set_color(0xFF, 0, 0, 50, 1, 1, 18, 0); //blue
             UARTprintf( "PAIRING MODE \n");
         }
         break;
@@ -515,6 +480,7 @@ void on_ble_protobuf_command(MorpheusCommand* command)
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_PILL:
         {
             UARTprintf("PAIR PILL\n");
+            led_set_color(0xFF, 0, 0, 50, 1, 1, 18, 1); //blue
             _pair_device(command, 0);
             
         }

@@ -28,7 +28,7 @@
 #define TRY_OR_GOTOFAIL(a) if(a!=SUCCESS) { UARTprintf( "fail at %s %d\n\r", __FILE__, __LINE__ ); return FAILURE;}
 
 #define Codec_addr 0x1A
-#define delay_codec 10
+#define delay_codec 5
 
 #define OLD_LIGHT_SENSOR 1
 
@@ -465,8 +465,9 @@ cmd_init[0] = 0x78 ; cmd_init[1] = 0x8C ; I2C_IF_Write(Codec_addr, cmd_init, 2, 
 }
 
 
-int get_codec_NAU(int argc, char *argv[]) {
-//#if 0
+int get_codec_NAU(int vol_codec) {
+//int get_codec_NAU(unsigned char *vol) {
+#if 0
 	unsigned char cmd_init[2];
 	//int light_raw;
 
@@ -605,14 +606,13 @@ int get_codec_NAU(int argc, char *argv[]) {
 	//Addr D8 D7 D6 D5 D4 D3 D2 D1 D0
 	//0x49 SPIEN FSERRVAL[1:0] FSERFLSH FSERRENA NFDLY DACINMT PLLLOCKP DACOS256
 	UARTprintf(" codec is testing \n\r");
-//#endif
-#if 0
+#endif
+
 	unsigned char cmd_init[2];
-	//int light_raw;
 
 	cmd_init[0] = 0x00 ; cmd_init[1] = 0x00 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec);
 	//cmd_init[0] = 0x03 ; cmd_init[1] = 0x6d ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec);
-	cmd_init[0] = 0x02 ; cmd_init[1] = 0x2f ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // Power Management 1 DCBUFEN = 1 (Louder)
+	cmd_init[0] = 0x02 ; cmd_init[1] = 0x2b ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // Power Management 1 DCBUFEN = 1 (Louder)
 	// Addr D8 		D7 D6    D5    D4        D3      D2     D1,D0
 	// 0x01 DCBUFEN 0  AUXEN PLLEN MICBIASEN ABIASEN IOBUFEN REFIMP[1:0]
 	// set  0       0  0     1     0         1       0      1  1
@@ -645,12 +645,28 @@ int get_codec_NAU(int argc, char *argv[]) {
 	// Addr D8    D7 D6 D5 D4 D3 D2 D1   D0
 	// 0x07 SPIEN 0  0  0  0  SMPLR[2:0] SCLKEN
 	// set  0     0  0  0  0  0  1  1    0
-	cmd_init[0] = 0x10 ; cmd_init[1] = 0x00 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec);
+	cmd_init[0] = 0x10 ; cmd_init[1] = 0x04 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec);
+	// Addr D8    D7 D6 D5 D4 			D3     D2 D1  D0
+	//0x08  0     0  0  GPIOPLL[4:5]    GPIOPL GPIOSEL[2:0]
+	//      0     0  0  0  0            0      1  0   0
+	// General Purpose I/O Selection
+	// GPIOSEL [2]  GPIOSEL [1]  GPIOSEL [0]   Mode (Hz)
+	//	 0             0             0         CSb Input
+	//   0     		   0   			 1         Jack Insert Detect
+	//   0   		   1   			 0  	   Temperature OK
+	//   0			   1		     1		   AMUTE Active
+	//   1  		   0  			 0	       PLL CLK Output
+	//   1			   0			 1         PLL Lock
+	//   1             1             0         1
+	//   1             1             1         0
+
+
+
 	cmd_init[0] = 0x14 ; cmd_init[1] = 0x0c ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // DAC control
 	// Addr D8 D7  D6                  D5,D4      D3     D2      D1 D0
 	// 0x0A 0  0   DACMT/0: Disable    DEEMP[1:0] DACOS  AUTOMT  0  DACPL
 	// set  0  0   0                   0  0       1      1       0  0
-	cmd_init[0] = 0x17 ; cmd_init[1] = 0xe9 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // DAC Vol.
+	cmd_init[0] = 0x17 ; cmd_init[1] = 0xff ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // DAC Vol.
 	// Addr D8 D7 D6 D5 D4 D3 D2 D1 D0
 	// 0x0B 0  DACGAIN
 	// set  0  1  1  1  1  1  1  1  1
@@ -668,7 +684,7 @@ int get_codec_NAU(int argc, char *argv[]) {
 	//     0     0     0  0  0  1     0  0  0
 	cmd_init[0] = 0x1e ; cmd_init[1] = 0xff ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // ADC Gain control reg
 
-	cmd_init[0] = 0x25 ; cmd_init[1] = 0x61 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // EQ1
+	cmd_init[0] = 0x24 ; cmd_init[1] = 0x6C ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // EQ1
 	// Address D8  D7 D6   D5     D4 D3 D2 D1 D0
 	// 0x12    EQM 0  EQ1CF[1:0]  EQ1GC[4:0]
 	// set     1   0  1    1      0  0  0  0  1
@@ -755,13 +771,14 @@ int get_codec_NAU(int argc, char *argv[]) {
 	// Address D8    D7  D6   D5     D4 D3 D2 D1       D0
 	// 0x32    0     0   0    AUXSPK 0  0  0  BYPSPK   DACSPK
 	// set     0     0   0    0      0  0  0  0        1
-	cmd_init[0] = 0x6c ; cmd_init[1] = 0x3f ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); //Speaker Gain Control Register
+	cmd_init[0] = 0x6c ; cmd_init[1] = vol_codec ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); UARTprintf(" vol. is %d dB\n\r", vol_codec);
 	// Address D8    D7      D6       D5 D4 D3 D2 D1 D0
 	// 0x36    0     SPKZC   SPKMT    SPKGAIN[5:0]
 	// set     0     1       0        1  1  1  1  1  1
 	// 								  1  1  1  0  0  1  0dB
 	// 								  1  1  1  0  1  0 +1.0
 	// 								  1  1  1  1  1  1 +6.0
+
 	cmd_init[0] = 0x70 ; cmd_init[1] = 0x40 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // MONO Mixer Control Register
 	// Address D8    D7      D6       D5 D4 D3 D2      D1      D0
 	// 0x38    0     0       MOUTMXMT 0  0  0  AUXMOUT BYPMOUT DACMOUT
@@ -774,7 +791,7 @@ int get_codec_NAU(int argc, char *argv[]) {
 	//Addr D8     D7 D6            D5    D4      D3    D2      D1       D0
 	//0x49 SPIEN FSERRVAL[1:0] FSERFLSH FSERRENA NFDLY DACINMT PLLLOCKP DACOS256
 	//     0      1  1             0     0       0     0       0        1
-#endif
+
 	UARTprintf(" codec is testing \n\r");
 	return SUCCESS;
 }

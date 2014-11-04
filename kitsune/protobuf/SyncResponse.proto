@@ -1,11 +1,11 @@
 message SyncResponse {
 
     message Alarm {
-        optional int32 start_time = 1;  // obselete,  use ring_offset_from_now
-        optional int32 end_time = 2;  // obselete, use ring_offset_from_now + ring_duration
+        optional uint32 start_time = 1;  // obselete,  use ring_offset_from_now
+        optional uint32 end_time = 2;  // obselete, use ring_offset_from_now + ring_duration
         optional int32 ringtone_id = 3 [default = 1];
-        optional int32 ring_offset_from_now = 4;  // This is a more fault tolerance design
-        optional int32 ring_duration = 5;
+        optional int32 ring_offset_from_now_in_second = 4;  // This is a more fault tolerance design
+        optional int32 ring_duration_in_second = 5;
     }
 
     message PairingAction {
@@ -39,6 +39,12 @@ message SyncResponse {
         optional LEDAction led_5 = 5;
     }
 
+    enum RoomConditions {
+        IDEAL = 1;
+        WARNING = 2;
+        ALERT = 3;
+    }
+
     // TODO: failure cases (timeout, exponential backoff, etc.)
 
     optional int32 upload_cycle = 1;
@@ -51,6 +57,7 @@ message SyncResponse {
     optional WhiteNoise white_noise = 8;
     optional FlashAction flash_action = 9;
     optional bool reset_device = 10;
+    optional RoomConditions room_conditions = 12;
 
     // TODO: settings for snoring detection
     // TODO: settings for firmware update

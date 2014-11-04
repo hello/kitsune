@@ -73,43 +73,14 @@
 #include "ble_cmd.h"
 #include "led_cmd.h"
 #include "led_animations.h"
-//#include "mcasp_if.h" // add by Ben
 
 #define ONLY_MID 0
 
-#define NUM_LOGS 72
-#if 0
-//*****************************************************************************
-//
-// Define Packet Size, Rx and Tx Buffer
-//
-//*****************************************************************************
-#define PACKET_SIZE             100
-#define PLAY_WATERMARK		30*256
-#define TX_BUFFER_SIZE          10*PACKET_SIZE
-#define RX_BUFFER_SIZE          10*PACKET_SIZE
-#endif
-
-extern tCircularBuffer *pTxBuffer;
-extern tCircularBuffer *pRxBuffer;
-tUDPSocket g_UdpSock;
-
-OsiTaskHandle g_SpeakerTask = NULL ;
-OsiTaskHandle g_MicTask = NULL ;
 //******************************************************************************
 //			        FUNCTION DECLARATIONS
 //******************************************************************************
-//extern void Speaker( void *pvParameters );
-extern void Microphone( void *pvParameters );
-extern void Speaker( void *pvParameters );
-extern int g_iSentCount;
+
 extern int g_iReceiveCount;
-unsigned long tone;
-//*****************************************************************************
-//                      GLOBAL VARIABLES
-//*****************************************************************************
-P_AUDIO_HANDLER g_pAudioInControlHdl;
-P_AUDIO_HANDLER g_pAudioOutControlHdl;
 //******************************************************************************
 //			    GLOBAL VARIABLES
 //******************************************************************************
@@ -120,29 +91,13 @@ extern void (* const g_pfnVectors[])(void);
 extern uVectorEntry __vector_table;
 #endif
 
-unsigned int clientIP;
 tCircularBuffer *pTxBuffer;
 tCircularBuffer *pRxBuffer;
-//tUDPSocket g_UdpSock;
-unsigned long g_ulMcASPStatus = 0;
-unsigned long g_ulRxCounter = 0;
-unsigned long g_ulTxCounter = 0;
-unsigned long g_ulZeroCounter = 0;
-unsigned long g_ulValue = 0;
-int iCounter,i = 0;
-//extern unsigned char iDone;
-//OsiTaskHandle g_SpeakerTask = NULL ;
-//OsiTaskHandle g_MicTask = NULL ;
-//static FIL file_obj;
-//const char* file_name = "/POD2";
-//FRESULT res;
-//FILINFO file_info;
+
 //*****************************************************************************
 //                          LOCAL DEFINES
 //*****************************************************************************
-#define OSI_STACK_SIZE          256
 
-//unsigned char speaker_data[16*1024];
 //// ==============================================================================
 //// The CPU usage in percent, in 16.16 fixed point format.
 //// ==============================================================================
@@ -270,7 +225,7 @@ unsigned int CPU_XDATA = 1; //1: enabled CPU interrupt triggerred
 	}
 	sl_FsClose(hndl, 0, 0, 0);
 
-	get_codec_NAU();
+	get_codec_NAU(atoi(argv[1]));
 	UARTprintf(" Done for get_codec_NAU\n ");
 
 	AudioCaptureRendererConfigure(I2S_PORT_CPU, AUDIO_RATE);
@@ -344,10 +299,13 @@ int Cmd_audio_do_stuff(int argc, char * argv[]) {
 	return 0;
 }
 
-void Speaker1();
+void Speaker1(char * file);
+unsigned char g_ucSpkrStartFlag;
 
-int Cmd_play_buff(int argc, char *argv[]) {
+int play_ringtone(int vol, char * file) {
+
 	unsigned int CPU_XDATA = 0; //1: enabled CPU interrupt triggerred; 0: DMA
+
 // Create RX and TX Buffer
 //
 	UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
@@ -355,59 +313,65 @@ int Cmd_play_buff(int argc, char *argv[]) {
 	UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
 	pRxBuffer = CreateCircularBuffer(RX_BUFFER_SIZE);
 	UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
-if(pRxBuffer == NULL)
-{
-	UARTprintf("Unable to Allocate Memory for Rx Buffer\n\r");
-    while(1){};
-}
+	if (pRxBuffer == NULL) {
+		UARTprintf("Unable to Allocate Memory for Rx Buffer\n\r");
+		return -1;
+	}
 // Configure Audio Codec
 //
-get_codec_NAU();
+
+	get_codec_NAU(vol);
 
 // Initialize the Audio(I2S) Module
 //
-AudioCapturerInit(CPU_XDATA, 48000);
+	AudioCapturerInit(CPU_XDATA, 48000);
 
 // Initialize the DMA Module
 //
-UDMAInit();
-UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL);
+	UDMAInit();
+	UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL);
 
 //
 // Setup the DMA Mode
 //
-SetupPingPongDMATransferRx();
+	SetupPingPongDMATransferRx();
 // Setup the Audio In/Out
 //
-UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
+	UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
 
+	AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
+	AudioCaptureRendererConfigure(I2S_PORT_DMA, 48000);
 
-AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
-AudioCaptureRendererConfigure(I2S_PORT_DMA, 48000);
-
+	g_ucSpkrStartFlag = 1;
 // Start Audio Tx/Rx
 //
-Audio_Start();
-UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
-
+	Audio_Start();
 
 // Start the Microphone Task
 //
-Speaker1();
-UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
+	Speaker1(file);
+	UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
 
-UARTprintf("g_iReceiveCount %d\n\r", g_iReceiveCount);
-close_codec_NAU(); UARTprintf("close_codec_NAU");
-Audio_Stop();
-McASPDeInit();
-DestroyCircularBuffer(pRxBuffer); UARTprintf("DestroyCircularBuffer(pRxBuffer)" );
-UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
+	UARTprintf("g_iReceiveCount %d\n\r", g_iReceiveCount);
+	close_codec_NAU();
+	UARTprintf("close_codec_NAU");
+	Audio_Stop();
+	McASPDeInit();
+	DestroyCircularBuffer(pRxBuffer);
+	UARTprintf("DestroyCircularBuffer(pRxBuffer)");
+	UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
 
-AudioProcessingTask_AllocBuffers();
-UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
+	AudioProcessingTask_AllocBuffers();
+	UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
 
-return 0;
+	return 0;
 
+}
+
+int Cmd_play_buff(int argc, char *argv[]) {
+    int vol = atoi( argv[1] );
+    char * file = argv[2];
+    return play_ringtone( vol, file );
 }
 int Cmd_fs_delete(int argc, char *argv[]) {
 	//
@@ -523,8 +487,41 @@ unsigned long get_time() {
 	return ntp;
 }
 
-extern xSemaphoreHandle alarm_smphr;
-void thread_audio(void * unused) {
+static xSemaphoreHandle alarm_smphr;
+static SyncResponse_Alarm alarm;
+#define ONE_YEAR_IN_SECONDS 0x1E13380
+
+void set_alarm( SyncResponse_Alarm * received_alarm ) {
+    if (xSemaphoreTake(alarm_smphr, portMAX_DELAY)) {
+        if (received_alarm->has_ring_offset_from_now_in_second && received_alarm->has_ring_duration_in_second ) {
+        	unsigned long now = get_time();
+        	received_alarm->start_time = now + received_alarm->ring_offset_from_now_in_second;
+        	received_alarm->end_time = now + received_alarm->ring_offset_from_now_in_second + received_alarm->ring_duration_in_second;
+        	//sanity check
+            if( received_alarm->start_time - now < ONE_YEAR_IN_SECONDS ) {
+                //are we within the duration of the current alarm?
+                if( alarm.start_time - now > 0
+                 && now - alarm.start_time >= alarm.ring_duration_in_second ) {
+                    UARTprintf( "alarm currently active, putting off setting\n");
+                } else {
+                    memcpy(&alarm, received_alarm, sizeof(alarm));
+                }
+            } else {
+                UARTprintf( "alarm cancelled\n");
+                memcpy(&alarm, received_alarm, sizeof(alarm));
+            }
+            UARTprintf("Got alarm %d to %d in %d minutes\n",
+                        received_alarm->start_time, received_alarm->end_time,
+                        (received_alarm->start_time - now) / 60);
+        }else{
+            UARTprintf("No alarm for now.\n");
+        }
+
+        xSemaphoreGive(alarm_smphr);
+    }
+}
+
+void thread_alarm(void * unused) {
 	while (1) {
 		portTickType now = xTaskGetTickCount();
 		//todo audio processing
@@ -533,21 +530,21 @@ void thread_audio(void * unused) {
 
 			if(alarm.has_start_time && alarm.start_time > 0)
 			{
-				if (time >= alarm.start_time) {
+				if (time >= alarm.start_time && !g_ucSpkrStartFlag) {
 					UARTprintf("ALARM RINGING RING RING RING\n");
 					xSemaphoreGive(alarm_smphr);
-					Cmd_code_playbuff(0, 0);
+					play_ringtone(57, AUDIO_FILE);
 					xSemaphoreTake(alarm_smphr, portMAX_DELAY);
 				}
 				time = get_time();
-				if (alarm.has_end_time && time >= alarm.end_time) {
+				if ( (alarm.has_end_time && time >= alarm.end_time) || !alarm.has_end_time) {
+					g_ucSpkrStartFlag = 0;
 					UARTprintf("ALARM DONE RINGING\n");
 					alarm.has_end_time = 0;
 					alarm.has_start_time = 0;
-				} else if( !alarm.has_end_time ) {
-					alarm.has_end_time = 0;
-					alarm.has_start_time = 0;
-					UARTprintf("Buggy backend, alarm should has endtime.\n");
+				}
+				if( !alarm.has_end_time ) {
+					UARTprintf("Bug, alarm should have endtime.\n");
 				}
 			}else{
 				// Alarm start time = 0 means no alarm
@@ -620,43 +617,56 @@ void thread_fast_i2c_poll(void * unused)  {
 			// for white one, 9mm distance max.
 			prox = get_prox();  // now this thing is in um.
 
-			hpf_prox += ( (last_prox - prox) - hpf_prox )>>1;   // The noise in enclosure is in 100+ um level
+			hpf_prox += ( (last_prox - prox) - hpf_prox )>>2;   // The noise in enclosure is in 100+ um level
 
 			//UARTprintf("PROX: %d um\n", prox);
-			if(hpf_prox > 300 && now - last > 2000 ) {  // seems not very sensitive,  the noise in enclosure is in 100+ um level
+			if(hpf_prox > 400 && now - last > 2000 ) {  // seems not very sensitive,  the noise in enclosure is in 100+ um level
 				UARTprintf("PROX: %d um, diff %d um\n", prox, hpf_prox);
 				last = now;
+				hpf_prox = 0;
 				xSemaphoreTake(alarm_smphr, portMAX_DELAY);
 				if (alarm.has_start_time && get_time() >= alarm.start_time) {
 					memset(&alarm, 0, sizeof(alarm));
 				}
 				xSemaphoreGive(alarm_smphr);
-				//Audio_Stop();
 				xSemaphoreGive(i2c_smphr);
+				g_ucSpkrStartFlag = 0;
 
-				if( light > 80 ) {
-					adjust = 0;
+				uint8_t adjust_max_light = 80;
+
+				if( light > adjust_max_light ) {
+					adjust = adjust_max_light;
 				} else {
-					adjust = light - 80;
+					adjust = light;
 				}
+
+				if(adjust < 20)
+				{
+					adjust = 20;
+				}
+
+				uint8_t alpha = 0xFF * adjust / 80;
+
 				if( sl_status & UPLOADING ) {
-					led_set_color( 0,0,255+adjust, 1, 1, 3, 1 ); //blue
+					uint8_t rgb[3] = { LED_MAX };
+					led_get_user_color(&rgb[0], &rgb[1], &rgb[2]);
+					led_set_color(alpha, rgb[0], rgb[1], rgb[2], 1, 1, 18, 0);
 			 	}
 			 	else if( sl_status & HAS_IP ) {
-					led_set_color( 0,255+adjust,0, 1, 1, 3, 1 ); //green
+					led_set_color(alpha, LED_MAX, 0, 0, 1, 1, 18, 1); //blue
 			 	}
 			 	else if( sl_status & CONNECTING ) {
-			 		led_set_color( 255+adjust,255+adjust,0, 1, 1, 3, 1 ); //yellow
+			 		led_set_color(alpha, LED_MAX,LED_MAX,0, 1, 1, 18, 1); //yellow
 			 	}
 			 	else if( sl_status & SCANNING ) {
-			 		led_set_color( 255+adjust,0,0, 1, 1, 3, 1 ); //red
+			 		led_set_color(alpha, LED_MAX,0,0, 1, 1, 18, 1 ); //red
 			 	} else {
-			 		led_set_color( 255+adjust, 255+adjust, 255+adjust, 1, 1, 3, 1 ); //white
+			 		led_set_color(alpha, LED_MAX, LED_MAX, LED_MAX, 1, 1, 18, 1 ); //white
 			 	}
+			} else {
+				xSemaphoreGive(i2c_smphr);
 			}
 			last_prox = prox;
-
-			xSemaphoreGive(i2c_smphr);
 
 			if (xSemaphoreTake(light_smphr, portMAX_DELAY)) {
 				light_log_sum += bitlog(light);
@@ -1205,7 +1215,6 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "temp", Cmd_readtemp,	"i2 read temp" },
 		{ "light", Cmd_readlight, "i2 read light" },
 		{"proximity", Cmd_readproximity, "i2 read proximity" },
-		{"codec_NAU8814", get_codec_NAU, "i2 nuvoton_codec" },
 		{"codec_Mic", get_codec_mic_NAU, "i2s mic_codec" },
 		{"auto_saveSD", Cmd_write_record, "automatic save data into SD"},
 		{"append", Cmd_append,"Cmd_test_append_content"},
@@ -1330,10 +1339,8 @@ void vUARTTask(void *pvParameters) {
 	}
 	UARTprintf("*");
 
-	// Set connection policy to Auto + SmartConfig (Device's default connection policy)
-	sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 1), NULL, 0);
-
-
+	// Set connection policy to Auto
+	sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0), NULL, 0);
 
 	UARTprintf("*");
 	unsigned char mac[6];
@@ -1382,7 +1389,7 @@ void vUARTTask(void *pvParameters) {
 	}
 
 	xTaskCreate(top_board_task, "top_board_task", 1024 / 4, NULL, 2, NULL); //todo reduce stack
-	xTaskCreate(thread_audio, "audioTask", 2 * 1024 / 4, NULL, 4, NULL); //todo reduce stack
+	xTaskCreate(thread_alarm, "alarmTask", 2 * 1024 / 4, NULL, 4, NULL); //todo reduce stack
 
 	UARTprintf("*");
 	xTaskCreate(thread_spi, "spiTask", 2*1024 / 4, NULL, 5, NULL);
@@ -1398,7 +1405,7 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("*");
 	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,1,NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 3, NULL);
+	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 13, NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_dust, "dustTask", 256 / 4, NULL, 3, NULL);
 	UARTprintf("*");
@@ -1438,7 +1445,7 @@ void vUARTTask(void *pvParameters) {
 			// Pass the line from the user to the command processor.  It will be
 			// parsed and valid commands executed.
 			//
-			xTaskCreate(CmdLineProcess, "commandTask",  3*1024 / 4, cCmdBuf, 20, NULL);
+			xTaskCreate(CmdLineProcess, "commandTask",  5*1024 / 4, cCmdBuf, 20, NULL);
 			memset(cCmdBuf,0,sizeof(cCmdBuf)); //zero out buffer after a command
         }
 	}
