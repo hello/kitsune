@@ -92,7 +92,7 @@ unsigned short speaker_data_padded[512]={0};
 //*****************************************************************************
 
 
-void Speaker1()
+void Speaker1(char * file)
  {
 	FIL fp;
 	WORD size;
@@ -100,7 +100,7 @@ void Speaker1()
 	unsigned long totBytesRead = 0;
 
 	long iRetVal = -1;
-	res = f_open(&fp, AUDIO_FILE, FA_READ);
+	res = f_open(&fp, file, FA_READ);
 
 	if (res != FR_OK) {
 		UARTprintf("Failed to open audio file\n\r");

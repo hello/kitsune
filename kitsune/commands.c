@@ -299,10 +299,10 @@ int Cmd_audio_do_stuff(int argc, char * argv[]) {
 	return 0;
 }
 
-void Speaker1();
+void Speaker1(char * file);
 unsigned char g_ucSpkrStartFlag;
 
-int play_ringtone(int vol) {
+int play_ringtone(int vol, char * file) {
 
 	unsigned int CPU_XDATA = 0; //1: enabled CPU interrupt triggerred; 0: DMA
 
@@ -349,7 +349,7 @@ int play_ringtone(int vol) {
 
 // Start the Microphone Task
 //
-	Speaker1();
+	Speaker1(file);
 	UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
 
 	UARTprintf("g_iReceiveCount %d\n\r", g_iReceiveCount);
@@ -370,7 +370,8 @@ int play_ringtone(int vol) {
 
 int Cmd_play_buff(int argc, char *argv[]) {
     int vol = atoi( argv[1] );
-    return play_ringtone( vol );
+    char * file = argv[2];
+    return play_ringtone( vol, file );
 }
 int Cmd_fs_delete(int argc, char *argv[]) {
 	//
@@ -532,7 +533,7 @@ void thread_alarm(void * unused) {
 				if (time >= alarm.start_time && !g_ucSpkrStartFlag) {
 					UARTprintf("ALARM RINGING RING RING RING\n");
 					xSemaphoreGive(alarm_smphr);
-					play_ringtone(57);
+					play_ringtone(57, AUDIO_FILE);
 					xSemaphoreTake(alarm_smphr, portMAX_DELAY);
 				}
 				time = get_time();
