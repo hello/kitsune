@@ -1240,7 +1240,7 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("*");
 	xTaskCreate(thread_ota, "otaTask",5 * 1024 / 4, NULL, 1, NULL);
 	UARTprintf("*");
-	xTaskCreate(uart_logger_task, "logger task",   (2 *UART_LOGGER_BLOCK_SIZE)/ 4 , NULL, 1, NULL);
+	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 1, NULL);
 	UARTprintf("*");
 #endif
 	//checkFaults();

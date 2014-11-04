@@ -9,8 +9,9 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#define UART_LOGGER_BLOCK_SIZE 1024
-#define UART_LOGGER_RESERVED_SIZE 128	//for reserved stack in the task
+#define UART_LOGGER_BLOCK_SIZE 2048
+#define UART_LOGGER_THREAD_STACK_SIZE	(UART_LOGGER_BLOCK_SIZE + 1024)
+#define UART_LOGGER_RESERVED_SIZE 128	//for reserved txbuf in the task
 #define UART_LOGGER_PREPEND_TAG 0	//if you want to prepend a tag when calling LOGX() functions
 #define UART_LOGGER_MODE	UART_LOGGER_MODE_RAW
 
