@@ -35,9 +35,9 @@
 static xSemaphoreHandle led_smphr;
 static EventGroupHandle_t led_events;
 static struct{
-	int r;
-	int g;
-	int b;
+	uint8_t r;
+	uint8_t g;
+	uint8_t b;
 }user_color;
 unsigned int user_delay;
 void * user_context;
@@ -479,7 +479,7 @@ int Cmd_led(int argc, char *argv[]) {
 		fo = atoi(argv[5]);
 		ud = atoi(argv[6]);
 		rot = atoi(argv[7]);
-		led_set_color(r,g,b,fi,fo,ud,rot);
+		led_set_color(0xFF, r,g,b,fi,fo,ud,rot);
 	}
 
 	return 0;
@@ -493,11 +493,11 @@ int Cmd_led_clr(int argc, char *argv[]) {
 	return 0;
 }
 
-int led_set_color(int r, int g, int b, int fade_in, int fade_out, unsigned int ud, int rot) {
+int led_set_color(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b, int fade_in, int fade_out, unsigned int ud, int rot) {
 	xSemaphoreTake(led_smphr, portMAX_DELAY);
-	user_color.r = clamp_rgb(r, 0, LED_CLAMP_MAX);
-	user_color.g = clamp_rgb(g, 0, LED_CLAMP_MAX);
-	user_color.b = clamp_rgb(b, 0, LED_CLAMP_MAX);
+	user_color.r = clamp_rgb(r, 0, LED_CLAMP_MAX) * alpha / 0xFF;
+	user_color.g = clamp_rgb(g, 0, LED_CLAMP_MAX) * alpha / 0xFF;
+	user_color.b = clamp_rgb(b, 0, LED_CLAMP_MAX) * alpha / 0xFF;
 	user_delay = ud;
 	UARTprintf("Setting colors R: %d, G: %d, B: %d \r\n", user_color.r, user_color.g, user_color.b);
 	xEventGroupClearBits( led_events, 0xffffff );
