@@ -1368,9 +1368,9 @@ static void _on_alarm_received(const SyncResponse_Alarm* received_alarm)
                 //handle the case where the server sends us the next day's alarm before
                 //there's a chance to ring today's alarm...
                 if( alarm.start_time - get_time() > 0
-                 && alarm.start_time - get_time() < 60
-                 && received_alarm->start_time - get_time() > 60 ) {
-                    UARTprintf( "alarm in next minute, putting off setting\n");
+                 && alarm.start_time - get_time() < 120
+                 && received_alarm->start_time - get_time() > 120 ) {
+                    UARTprintf( "alarm in next 2 minutes, putting off setting\n");
                 } else {
                     memcpy(&alarm, received_alarm, sizeof(alarm));
                 }
