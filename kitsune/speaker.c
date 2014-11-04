@@ -92,7 +92,7 @@ unsigned short speaker_data_padded[512]={0};
 //*****************************************************************************
 
 
-void Speaker1()
+void Speaker1(const char* AUDIO_FILE)
  {
 	FIL fp;
 	WORD size;

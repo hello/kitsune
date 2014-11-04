@@ -265,7 +265,7 @@ unsigned int CPU_XDATA = 1; //1: enabled CPU interrupt triggerred
 	}
 	sl_FsClose(hndl, 0, 0, 0);
 
-	get_codec_NAU();
+	get_codec_NAU(argv[1]);
 	UARTprintf(" Done for get_codec_NAU\n ");
 
 	AudioCaptureRendererConfigure(I2S_PORT_CPU, AUDIO_RATE);
@@ -311,10 +311,18 @@ int Cmd_record_buff(int argc, char *argv[]) {
 
 }
 
-void Speaker1();
+void Speaker1(const char* AUDIO_FILE);
+
 unsigned char g_ucSpkrStartFlag;
+
 int Cmd_play_buff(int argc, char *argv[]) {
 	unsigned int CPU_XDATA = 0; //1: enabled CPU interrupt triggerred; 0: DMA
+	char vol[16];
+	char file_string[32];
+	strcpy(vol, argv[2]);
+	strcpy(file_string, argv[1]);
+	// const char *file_string = argv[1];
+	//    UARTprintf("%s \n\r", file_name);
 // Create RX and TX Buffer
 //
 	pRxBuffer = CreateCircularBuffer(RX_BUFFER_SIZE);
@@ -325,7 +333,7 @@ if(pRxBuffer == NULL)
 }
 // Configure Audio Codec
 //
-get_codec_NAU();
+get_codec_NAU(vol);
 vTaskDelay(50);
 	MAP_PRCMPeripheralClkEnable(PRCM_CAMERA, PRCM_RUN_MODE_CLK);
 	vTaskDelay(50);
@@ -359,7 +367,7 @@ Audio_Start();
 
 // Start the Microphone Task
 //
-Speaker1();
+Speaker1(file_string);
 
 UARTprintf("g_iReceiveCount %d\n\r", g_iReceiveCount);
 MAP_PRCMPeripheralClkDisable(PRCM_CAMERA, PRCM_RUN_MODE_CLK);
