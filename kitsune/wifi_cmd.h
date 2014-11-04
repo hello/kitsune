@@ -20,6 +20,10 @@ typedef struct {
 #include "wlan.h"
 #include "network_types.h"
 
+#ifndef MAX_SSID_LEN
+#define MAX_SSID_LEN	(32)
+#endif
+
 extern xSemaphoreHandle pill_smphr;
 
 typedef struct {
