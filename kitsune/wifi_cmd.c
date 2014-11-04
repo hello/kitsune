@@ -1364,12 +1364,21 @@ static void _on_alarm_received(const SyncResponse_Alarm* received_alarm)
                 // I am going to redesign this, instead of returning start/end timestamp, the backend
                 // will retrun the offset seconds from now to the next ring and the ring duration.
                 // So we don't need to care the actual time of 'Now'.
-                memcpy(&alarm, received_alarm, sizeof(alarm));
+
+                //handle the case where the server sends us the next day's alarm before
+                //there's a chance to ring today's alarm...
+                if( alarm.start_time - get_time() > 0
+                 && alarm.start_time - get_time() < 60
+                 && received_alarm->start_time - get_time() > 60 ) {
+                    UARTprintf( "alarm in next minute, putting off setting\n");
+                } else {
+                    memcpy(&alarm, received_alarm, sizeof(alarm));
+                }
             } else {
-            	UARTprintf( "got alarm in the past?\n");
+                UARTprintf( "got alarm in the past?\n");
             }
             UARTprintf("Got alarm %d to %d in %d minutes\n",
-                		received_alarm->start_time, received_alarm->end_time,
+                        received_alarm->start_time, received_alarm->end_time,
                         (received_alarm->start_time - get_time()) / 60);
         }else{
             UARTprintf("No alarm for now.\n");

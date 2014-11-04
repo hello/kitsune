@@ -505,17 +505,14 @@ void thread_audio(void * unused) {
 					xSemaphoreTake(alarm_smphr, portMAX_DELAY);
 				}
 				time = get_time();
-				if (alarm.has_end_time && time >= alarm.end_time) {
+				if ( (alarm.has_end_time && time >= alarm.end_time) || !alarm.has_end_time) {
 					ringing = false;
 					g_ucSpkrStartFlag = 0;
 					UARTprintf("ALARM DONE RINGING\n");
 					alarm.has_end_time = 0;
 					alarm.has_start_time = 0;
-				} else if( !alarm.has_end_time ) {
-					ringing = false;
-					g_ucSpkrStartFlag = 0;
-					alarm.has_end_time = 0;
-					alarm.has_start_time = 0;
+				}
+				if( !alarm.has_end_time ) {
 					UARTprintf("Buggy backend, alarm should has endtime.\n");
 				}
 			}else{
