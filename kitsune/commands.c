@@ -486,9 +486,39 @@ unsigned long get_time() {
 	return ntp;
 }
 
-extern xSemaphoreHandle alarm_smphr;
-void thread_audio(void * unused) {
-	bool ringing = false;
+static xSemaphoreHandle alarm_smphr;
+static SyncResponse_Alarm alarm;
+
+void set_alarm( SyncResponse_Alarm * received_alarm ) {
+    if (xSemaphoreTake(alarm_smphr, portMAX_DELAY)) {
+        if (received_alarm->has_ring_offset_from_now_in_second && received_alarm->has_ring_duration_in_second ) {
+        	unsigned long now = get_time();
+        	received_alarm->start_time = now + received_alarm->ring_offset_from_now_in_second;
+        	received_alarm->end_time = now + received_alarm->ring_offset_from_now_in_second + received_alarm->ring_duration_in_second;
+            if (now < received_alarm->start_time) {
+                //are we within the duration of the current alarm?
+                if( alarm.start_time - now > 0
+                 && alarm.start_time - now <= alarm.ring_duration_in_second ) {
+                    UARTprintf( "alarm currently active, putting off setting\n");
+                } else {
+                    memcpy(&alarm, received_alarm, sizeof(alarm));
+                }
+            } else {
+                UARTprintf( "alarm cancelled\n");
+                memcpy(&alarm, received_alarm, sizeof(alarm));
+            }
+            UARTprintf("Got alarm %d to %d in %d minutes\n",
+                        received_alarm->start_time, received_alarm->end_time,
+                        (received_alarm->start_time - now) / 60);
+        }else{
+            UARTprintf("No alarm for now.\n");
+        }
+
+        xSemaphoreGive(alarm_smphr);
+    }
+}
+
+void thread_alarm(void * unused) {
 	while (1) {
 		portTickType now = xTaskGetTickCount();
 		//todo audio processing
@@ -497,8 +527,7 @@ void thread_audio(void * unused) {
 
 			if(alarm.has_start_time && alarm.start_time > 0)
 			{
-				if (time >= alarm.start_time && !ringing) {
-					ringing = true;
+				if (time >= alarm.start_time && !g_ucSpkrStartFlag) {
 					UARTprintf("ALARM RINGING RING RING RING\n");
 					xSemaphoreGive(alarm_smphr);
 					play_ringtone(57);
@@ -506,7 +535,6 @@ void thread_audio(void * unused) {
 				}
 				time = get_time();
 				if ( (alarm.has_end_time && time >= alarm.end_time) || !alarm.has_end_time) {
-					ringing = false;
 					g_ucSpkrStartFlag = 0;
 					UARTprintf("ALARM DONE RINGING\n");
 					alarm.has_end_time = 0;
@@ -1221,7 +1249,7 @@ void vUARTTask(void *pvParameters) {
 	}
 
 	xTaskCreate(top_board_task, "top_board_task", 1024 / 4, NULL, 2, NULL); //todo reduce stack
-	xTaskCreate(thread_audio, "audioTask", 2 * 1024 / 4, NULL, 4, NULL); //todo reduce stack
+	xTaskCreate(thread_alarm, "alarmTask", 2 * 1024 / 4, NULL, 4, NULL); //todo reduce stack
 
 	UARTprintf("*");
 	xTaskCreate(thread_spi, "spiTask", 2*1024 / 4, NULL, 5, NULL);
