@@ -1353,7 +1353,7 @@ bool encode_name(pb_ostream_t *stream, const pb_field_t *field, void * const *ar
 
 void set_alarm( SyncResponse_Alarm * received_alarm );
 
-static void _on_alarm_received(const SyncResponse_Alarm* received_alarm)
+static void _on_alarm_received( SyncResponse_Alarm* received_alarm)
 {
 	set_alarm( received_alarm );
 }
@@ -1394,7 +1394,7 @@ static void _set_led_color_based_on_room_conditions(const SyncResponse* response
     }
 }
 
-static void _on_response_protobuf(const SyncResponse* response_protobuf)
+static void _on_response_protobuf( SyncResponse* response_protobuf)
 {
     if (response_protobuf->has_alarm) 
     {
