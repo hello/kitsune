@@ -15,7 +15,7 @@
 #include "task.h"
 #include "led_cmd.h"
 #include "led_animations.h"
-
+#include "uart_logger.h"
 #include "stdlib.h"
 
 typedef enum {
@@ -45,6 +45,10 @@ static struct{
 static void
 _printchar(uint8_t c){
 	UARTCharPutNonBlocking(UARTA0_BASE, c); //basic feedback
+#if UART_LOGGER_MODE == UART_LOGGER_MODE_RAW
+	uart_logc(c);
+#endif
+
 }
 
 static int32_t
