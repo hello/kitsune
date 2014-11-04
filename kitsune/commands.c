@@ -488,6 +488,7 @@ unsigned long get_time() {
 
 static xSemaphoreHandle alarm_smphr;
 static SyncResponse_Alarm alarm;
+#define ONE_YEAR_IN_SECONDS 0x1E13380
 
 void set_alarm( SyncResponse_Alarm * received_alarm ) {
     if (xSemaphoreTake(alarm_smphr, portMAX_DELAY)) {
@@ -495,10 +496,11 @@ void set_alarm( SyncResponse_Alarm * received_alarm ) {
         	unsigned long now = get_time();
         	received_alarm->start_time = now + received_alarm->ring_offset_from_now_in_second;
         	received_alarm->end_time = now + received_alarm->ring_offset_from_now_in_second + received_alarm->ring_duration_in_second;
-            if (now < received_alarm->start_time) {
+        	//sanity check
+            if( received_alarm->start_time - now < ONE_YEAR_IN_SECONDS ) {
                 //are we within the duration of the current alarm?
                 if( alarm.start_time - now > 0
-                 && alarm.start_time - now <= alarm.ring_duration_in_second ) {
+                 && now - alarm.start_time >= alarm.ring_duration_in_second ) {
                     UARTprintf( "alarm currently active, putting off setting\n");
                 } else {
                     memcpy(&alarm, received_alarm, sizeof(alarm));
