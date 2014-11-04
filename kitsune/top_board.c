@@ -286,7 +286,7 @@ int Cmd_send_top(int argc, char *argv[]){
 	}
 }
 void top_board_notify_boot_complete(void){
-	led_set_color(0,0,50,1,1,18,0);
+	//led_set_color(0,0,50,1,1,18,0);
 }
 #include "dtm.h"
 int Cmd_top_dtm(int argc, char * argv[]){

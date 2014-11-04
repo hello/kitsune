@@ -1404,7 +1404,7 @@ static void _set_led_color_based_on_room_conditions(const SyncResponse* response
 				led_set_user_color(LED_MAX, LED_MAX, 0x00);
 			break;
 			case SyncResponse_RoomConditions_ALERT:
-				led_set_user_color(0xC0, 0x36, 0x00);
+				led_set_user_color(0xF0, 0x76, 0x00);
 			break;
 			default:
 				led_set_user_color(0x00, 0x00, LED_MAX);
