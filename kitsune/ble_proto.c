@@ -189,22 +189,51 @@ static void _reply_device_id()
 *
 */
 static void _ble_reply_wifi_info(){
-    uint8_t ssid[MAX_SSID_LEN] = {0};
-
-    wifi_get_connected_ssid(ssid, sizeof(ssid));
-
-    MorpheusCommand reply_command;
-    memset(&reply_command, 0, sizeof(reply_command));
-    reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_WIFI_ENDPOINT;
-
-    size_t len = strlen((char*)ssid) + 1;
-
-    if(len - 1 > 0)
+    int8_t*  name = pvPortMalloc(32);  // due to wlan.h
+    if(!name)
     {
-        reply_command.wifiSSID.arg = ssid;
+        UARTprintf("Not enough memory.\n");
+        ble_reply_protobuf_error(ErrorType_DEVICE_NO_MEMORY);
+        return;
     }
 
-    ble_send_protobuf(&reply_command);
+    memset(name, 0, 32);
+    int16_t name_len = 0;
+    uint8_t mac_addr[6] = {0};
+    SlSecParams_t sec_params = {0};
+    SlGetSecParamsExt_t secExt_params = {0};
+    unsigned long priority  = 0;
+
+    int16_t get_ret = sl_WlanProfileGet(0, name, &name_len, mac_addr, &sec_params, &secExt_params, &priority);
+    if(get_ret == -1)
+    {
+        UARTprintf("Get wifi endpoint failed, error %d.\n", get_ret);
+        ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
+
+    }else{
+        MorpheusCommand reply_command;
+        memset(&reply_command, 0, sizeof(reply_command));
+        reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_WIFI_ENDPOINT;
+
+        size_t len = strlen((char*)name) + 1;
+        char* ssid = pvPortMalloc(len);
+
+        if(ssid)
+        {
+            memset(ssid, 0, len);
+            memcpy(ssid, name, strlen((const char*)name));
+
+            reply_command.wifiSSID.arg = ssid;
+            ble_send_protobuf(&reply_command);
+            vPortFree(ssid);
+        }else{
+            UARTprintf("Not enough memory.\n");
+            ble_reply_protobuf_error(ErrorType_DEVICE_NO_MEMORY);
+        }
+
+    }
+
+    vPortFree(name);
 }
 
 #include "wifi_cmd.h"

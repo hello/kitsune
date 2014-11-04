@@ -97,14 +97,6 @@ void SimpleLinkSockEventHandler(SlSockEvent_t *pSock)
     //
 }
 
-
-
-static uint8_t _connected_ssid[MAX_SSID_LEN];
-void wifi_get_connected_ssid(uint8_t* ssid_buffer, size_t len)
-{
-    size_t copy_len = MAX_SSID_LEN > len ? len : MAX_SSID_LEN;
-    memcpy(ssid_buffer, _connected_ssid, copy_len - 1);
-}
 //****************************************************************************
 //
 //!    \brief This function handles WLAN events
@@ -131,26 +123,14 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
         UARTprintf("SL_WLAN_SMART_CONFIG_STOP_EVENT\n\r");
         break;
     case SL_WLAN_CONNECT_EVENT:
-    {
         UARTprintf("SL_WLAN_CONNECT_EVENT\n\r");
         sl_status |= CONNECT;
         sl_status &= ~CONNECTING;
-
-        char* pSSID = (char*)pSlWlanEvent->EventData.STAandP2PModeWlanConnected.ssid_name;
-        uint8_t ssidLength = pSlWlanEvent->EventData.STAandP2PModeWlanConnected.ssid_len;
-        if (ssidLength > MAX_SSID_LEN) {
-            UARTprintf("ssid tooo long\n");
-        }else{
-            memset(_connected_ssid, 0, MAX_SSID_LEN);
-            memcpy(_connected_ssid, pSSID, ssidLength);
-        }
-    }
         break;
     case SL_WLAN_DISCONNECT_EVENT:
         UARTprintf("SL_WLAN_DISCONNECT_EVENT\n\r");
         sl_status &= ~CONNECT;
         sl_status &= ~HAS_IP;
-        memset(_connected_ssid, 0, MAX_SSID_LEN);
         break;
     default:
         break;

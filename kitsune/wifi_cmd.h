@@ -103,7 +103,6 @@ int get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uin
 int connect_scanned_endpoints(const char* ssid, const char* password, 
     const Sl_WlanNetworkEntry_t* wifi_endpoints, int scanned_wifi_count, SlSecParams_t* connectedEPSecParamsPtr);
 int connect_wifi(const char* ssid, const char* password, int sec_type);
-void wifi_get_connected_ssid(uint8_t* ssid_buffer, size_t len);
 
 void wifi_reset();
 
