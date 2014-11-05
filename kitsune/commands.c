@@ -497,11 +497,13 @@ void set_alarm( SyncResponse_Alarm * received_alarm ) {
         	unsigned long now = get_time();
         	received_alarm->start_time = now + received_alarm->ring_offset_from_now_in_second;
         	received_alarm->end_time = now + received_alarm->ring_offset_from_now_in_second + received_alarm->ring_duration_in_second;
+        	received_alarm->has_end_time = received_alarm->has_start_time = true;
         	//sanity check
             if( received_alarm->start_time - now < ONE_YEAR_IN_SECONDS ) {
                 //are we within the duration of the current alarm?
-                if( alarm.start_time - now > 0
-                 && now - alarm.start_time >= alarm.ring_duration_in_second ) {
+                if( alarm.has_start_time
+                 && alarm.start_time - now > 0
+                 && now - alarm.start_time < alarm.ring_duration_in_second ) {
                     UARTprintf( "alarm currently active, putting off setting\n");
                 } else {
                     memcpy(&alarm, received_alarm, sizeof(alarm));
@@ -530,21 +532,18 @@ void thread_alarm(void * unused) {
 
 			if(alarm.has_start_time && alarm.start_time > 0)
 			{
-				if (time >= alarm.start_time && !g_ucSpkrStartFlag) {
+				if ( time - alarm.start_time < alarm.ring_duration_in_second ) {
 					UARTprintf("ALARM RINGING RING RING RING\n");
 					xSemaphoreGive(alarm_smphr);
-					play_ringtone(57, AUDIO_FILE);
+					if (!g_ucSpkrStartFlag) {
+						play_ringtone(57, AUDIO_FILE);
+					}
 					xSemaphoreTake(alarm_smphr, portMAX_DELAY);
-				}
-				time = get_time();
-				if ( (alarm.has_end_time && time >= alarm.end_time) || !alarm.has_end_time) {
+				} else if(g_ucSpkrStartFlag) {
 					g_ucSpkrStartFlag = 0;
 					UARTprintf("ALARM DONE RINGING\n");
 					alarm.has_end_time = 0;
 					alarm.has_start_time = 0;
-				}
-				if( !alarm.has_end_time ) {
-					UARTprintf("Bug, alarm should have endtime.\n");
 				}
 			}else{
 				// Alarm start time = 0 means no alarm
