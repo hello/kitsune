@@ -239,7 +239,7 @@ FRESULT cd( char * path ) {
         if(strlen(path) + 1 > sizeof(cwd_buff))
         {
             UARTprintf("Resulting path name is too long\n");
-            return(0);
+            return(FR_INVALID_NAME);
         }
 
         // If the new path name (in argv[1])  is not too long, then copy it
@@ -280,7 +280,7 @@ FRESULT cd( char * path ) {
         if(strlen(path_buff) + strlen(path) + 1 + 1 > sizeof(cwd_buff))
         {
             UARTprintf("Resulting path name is too long\n");
-            return(0);
+            return(FR_INVALID_NAME);
         }
 
         // The new path is okay, so add the separator and then append the new
@@ -306,19 +306,10 @@ FRESULT cd( char * path ) {
     // return.
     if(res != FR_OK)
     {
-        UARTprintf("cd: %s\n",path_buff);
-        UARTprintf("cd: failed, trying to make dir");
-        res = f_mkdir(path_buff);
-		if (res != FR_OK) {
-			return ((int) res);
-		}
-    }
+		return ( res);
+	}
 
-    // Otherwise, it is a valid new path, so copy it into the CWD.
-    else
-    {
-        strncpy(cwd_buff,path_buff, sizeof(cwd_buff));
-    }
+    strncpy(cwd_buff,path_buff, sizeof(cwd_buff));
     return(FR_OK);
 }
 
@@ -475,6 +466,7 @@ Cmd_write(int argc, char *argv[])
 
     }
 
+
     // Open the file for writing.
     FRESULT res = f_open(&file_obj, path_buff, FA_CREATE_NEW|FA_WRITE|FA_OPEN_ALWAYS);
     UARTprintf("res :%d\n",res);
@@ -505,52 +497,6 @@ Cmd_write(int argc, char *argv[])
     return(0);
 }
 
-#include "stdlib.h"
-#include "uart.h"
-#include "hw_memmap.h"
-void UARTStdioIntHandler(void);
-
-int
-Cmd_write_file(int argc, char *argv[])
-{
-	UARTprintf("Cmd_write_file\n");
-
-	WORD bytes = 0;
-	WORD bytes_written = 0;
-	WORD bytes_to_write = atoi(argv[2]);
-
-    if(global_filename( argv[1] ))
-    {
-    	return 1;
-
-    }
-
-    // Open the file for writing.
-    FRESULT res = f_open(&file_obj, path_buff, FA_CREATE_NEW|FA_WRITE);
-    UARTprintf("res :%d\n",res);
-
-    if(res != FR_OK && res != FR_EXIST){
-    	UARTprintf("File open %s failed: %d\n", path_buff, res);
-    	return res;
-    }
-
-	UARTIntUnregister(UARTA0_BASE); //Ahoy matey, I be takin yer uart
-    do {
-		uint8_t c = UARTCharGet(UARTA0_BASE);
-		res = f_write( &file_obj, (void*)&c, 1, &bytes );
-		bytes_written+=bytes;
-		UARTCharPutNonBlocking(UARTA0_BASE, 52u); //basic feedback
-    } while( bytes_written < bytes_to_write );
-
-    res = f_close( &file_obj );
-
-	UARTIntRegister(UARTA0_BASE, UARTStdioIntHandler);
-    if(res != FR_OK)
-    {
-        return((int)res);
-    }
-    return(0);
-}
 
 int
 Cmd_append(int argc, char *argv[])
@@ -606,13 +552,12 @@ int Cmd_write_record(int argc, char *argv[])
     //UARTprintf("%s", path_buff);
     return(0);
 }
+
 // end sound recording buffer
-int
-Cmd_rm(int argc, char *argv[])
-{
+static int rm(char * file) {
     FRESULT res;
 
-    if(global_filename( argv[1] ))
+    if(global_filename( file ))
     {
     	return 1;
     }
@@ -626,13 +571,16 @@ Cmd_rm(int argc, char *argv[])
 
     return(0);
 }
-
 int
-Cmd_mkdir(int argc, char *argv[])
+Cmd_rm(int argc, char *argv[])
 {
+	return rm(argv[1]);
+}
+
+int mkdir( char * path ) {
     FRESULT res;
 
-    if(global_filename( argv[1] ))
+    if(global_filename( path ))
     {
     	return 1;
     }
@@ -643,6 +591,12 @@ Cmd_mkdir(int argc, char *argv[])
         return((int)res);
     }
     return(0);
+}
+
+int
+Cmd_mkdir(int argc, char *argv[])
+{
+	return mkdir(argv[1]);
 }
 
 
@@ -862,6 +816,7 @@ int GetChunkSize(int *len, unsigned char **p_Buff, unsigned long *chunk_size)
 //download img4.wikia.nocookie.net al __cb20130206084237/disney/images/e/eb/Aladdin_-_A_Whole_New_World_%281%29.gif
 
 //****************************************************************************
+#include "stdlib.h"
 int GetData(char * filename, char* url, char * host, char * path)
 {
     int           transfer_len = 0;
@@ -974,23 +929,27 @@ int GetData(char * filename, char* url, char * host, char * path)
     pBuff += 4;
 
     // Adjust buffer data length for header size
-    transfer_len -= (pBuff - g_buff);
+    if( (pBuff - g_buff) < transfer_len ) {
+    	transfer_len -= (pBuff - g_buff);
+    } else {
+    	transfer_len = 0;
+    	return -1;
+    }
 
     // If data in chunked format, calculate the chunk size
     if(isChunked == 1)
     {
         r = GetChunkSize(&transfer_len, &pBuff, &recv_size);
     }
+    FRESULT res;
 
-    FRESULT res = cd( path );
-
-    if( res != FR_OK ) {
-    	UARTprintf( "can't make/open dir %s", path );
-    }
+	mkdir( path );
+	cd( path );
 
     /* Open file to save the downloaded file */
     if(global_filename( filename ))
     {
+    	cd( "/" );
     	return 1;
     }
     // Open the file for writing.
@@ -999,6 +958,7 @@ int GetData(char * filename, char* url, char * host, char * path)
 
     if(res != FR_OK && res != FR_EXIST){
     	UARTprintf("File open %s failed: %d\n", path_buff, res);
+    	cd( "/" );
     	return res;
     }
     uint32_t total = recv_size;
@@ -1027,9 +987,11 @@ int GetData(char * filename, char* url, char * host, char * path)
 
                 if(res != FR_OK)
                 {
+                	cd( "/" );
                     return((int)res);
                 }
                 f_unlink( path_buff );
+                cd( "/" );
                 return r;
             }
             transfer_len -= recv_size;
@@ -1074,10 +1036,11 @@ int GetData(char * filename, char* url, char * host, char * path)
 
                         if(res != FR_OK)
                         {
+                        	cd( "/" );
                             return((int)res);
                         }
                         f_unlink( path_buff );
-
+                        cd( "/" );
                         return FILE_WRITE_ERROR;
                     }
                     transfer_len -= recv_size;
@@ -1120,9 +1083,11 @@ int GetData(char * filename, char* url, char * host, char * path)
 
                         if(res != FR_OK)
                         {
+                        	cd( "/" );
                             return((int)res);
                         }
                         f_unlink( path_buff );
+                        cd( "/" );
                         return FILE_WRITE_ERROR;
                     }
                     recv_size -= transfer_len;
@@ -1152,6 +1117,7 @@ int GetData(char * filename, char* url, char * host, char * path)
 
                 if(res != FR_OK)
                 {
+                	cd( "/" );
                     return((int)res);
                 }
                 f_unlink( path_buff );
@@ -1167,6 +1133,7 @@ int GetData(char * filename, char* url, char * host, char * path)
         //UARTprintf("rx:  %d\r\n", transfer_len);
         if(transfer_len <= 0) {
         	UARTprintf("TCP_RECV_ERROR\r\n" );
+        	cd( "/" );
             return TCP_RECV_ERROR;
         }
 
@@ -1187,9 +1154,11 @@ int GetData(char * filename, char* url, char * host, char * path)
 
         if(res != FR_OK)
         {
+        	cd( "/" );
             return((int)res);
         }
         f_unlink( path_buff );
+        cd( "/" );
         return INVALID_FILE;
     }
     else
@@ -1200,10 +1169,11 @@ int GetData(char * filename, char* url, char * host, char * path)
 
         if(res != FR_OK)
         {
+        	cd( "/" );
             return((int)res);
         }
     }
-
+    cd( "/" );
     return 0;
 }
 
@@ -1235,15 +1205,7 @@ int download_file(char * host, char * url, char * filename, char * path ) {
 }
 
 int Cmd_download(int argc, char*argv[]) {
-	char host[128];
-	char filename[128];
-	char url[256];
-
-	strncpy( host, argv[1], 128 );
-	strncpy( filename, argv[2], 128 );
-	strncpy( url, argv[3], 256 );
-
-	return download_file( host, url, filename, "/" );
+	return download_file( argv[1], argv[3], argv[2], argv[4] );
 }
 
 //end download functions

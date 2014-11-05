@@ -1030,7 +1030,9 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
         UARTprintf("send error %d\n\r\n\r", rv);
         return stop_connection();
     }
+#if 0
     UARTprintf("sent %d\n\r%s\n\r", rv, recv_buf);
+#endif
 
     if (encoder) {
         ostream_buffered_desc_t desc;
@@ -1083,22 +1085,28 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
         for (i = SHA1_SIZE; i < sizeof(sig); ++i) {
             sig[i] = (uint8_t)rand();
         }
-
+#if 0
         UARTprintf("SHA ");
         for (i = 0; i < sizeof(sig); ++i) {
             UARTprintf("%x", sig[i]);
         }
         UARTprintf("\n");
-
+#endif
         //memset( aesctx.iv, 0, sizeof( aesctx.iv ) );
 
         /*  create AES initialization vector */
+#if 0
         UARTprintf("iv ");
+#endif
         for (i = 0; i < sizeof(aesctx.iv); ++i) {
             aesctx.iv[i] = (uint8_t)rand();
+#if 0
             UARTprintf("%x", aesctx.iv[i]);
+#endif
         }
+#if 0
         UARTprintf("\n");
+#endif
 
         /*  send AES initialization vector */
         rv = send(sock, aesctx.iv, AES_IV_SIZE, 0);
@@ -1120,11 +1128,13 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
             return -1;
         }
 
+#if 0
         UARTprintf("sig ");
         for (i = 0; i < sizeof(sig); ++i) {
             UARTprintf("%x", sig[i]);
         }
         UARTprintf("\n");
+#endif
     }
 
 

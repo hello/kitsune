@@ -696,10 +696,10 @@ void thread_tx(void* unused) {
 
 	while (1) {
 		int tries = 0;
-		UARTprintf("********************Start polling *****************\n");
+		UARTprintf("Start polling\n");
 		if( data_queue != 0 && !xQueueReceive( data_queue, &( data ), portMAX_DELAY ) ) {
 			vTaskDelay(100);
-			UARTprintf("*********************** Waiting for data *****************\n");
+			UARTprintf("Waiting for data\n");
 			continue;
 		}
 
@@ -709,7 +709,7 @@ void thread_tx(void* unused) {
 		data.pill_list = pill_list;
 
 		while (!send_periodic_data(&data) == 0) {
-			UARTprintf("********************* Waiting for WIFI connection *****************\n");
+			UARTprintf("Waiting for WIFI\n");
 			vTaskDelay( (1<<tries) * 1000 );
 			if( tries++ > 5 ) {
 				tries = 5;
@@ -1076,7 +1076,6 @@ tCmdLineEntry g_sCmdTable[] = {
     { "mkdir",    Cmd_mkdir,    "make a directory" },
     { "rm",       Cmd_rm,       "Remove file" },
     { "write",    Cmd_write,    "Write some text to a file" },
-    { "write_file",    Cmd_write_file,    "Write some text to a file" },
     { "mkfs",     Cmd_mkfs,     "Make filesystem" },
     { "pwd",      Cmd_pwd,      "Show current working directory" },
     { "cat",      Cmd_cat,      "Show contents of a text file" },
