@@ -123,6 +123,13 @@ void AudioProcessingTask_SetControl(EAudioProcessingCommand_t cmd,NotificationCa
 	}
 }
 
+void AudiopProcessingTask_TurnOff(void) {
+	AudioProcessingTask_SetControl(processingOff,NULL,NULL);
+}
+void AudiopProcessingTask_TurnOn(void) {
+	AudioProcessingTask_SetControl(processingOn,NULL,NULL);
+}
+
 
 static void NetworkResponseFunc(const NetworkResponse_t * response) {
 	UARTprintf("AUDIO RESPONSE:\r\n%s",_decodebuf);
