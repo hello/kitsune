@@ -239,7 +239,7 @@ FRESULT cd( char * path ) {
         if(strlen(path) + 1 > sizeof(cwd_buff))
         {
             UARTprintf("Resulting path name is too long\n");
-            return(0);
+            return(FR_INVALID_NAME);
         }
 
         // If the new path name (in argv[1])  is not too long, then copy it
@@ -280,7 +280,7 @@ FRESULT cd( char * path ) {
         if(strlen(path_buff) + strlen(path) + 1 + 1 > sizeof(cwd_buff))
         {
             UARTprintf("Resulting path name is too long\n");
-            return(0);
+            return(FR_INVALID_NAME);
         }
 
         // The new path is okay, so add the separator and then append the new
@@ -310,7 +310,7 @@ FRESULT cd( char * path ) {
         UARTprintf("cd: failed, trying to make dir");
         res = f_mkdir(path_buff);
 		if (res != FR_OK) {
-			return ((int) res);
+			return ( res);
 		}
     }
 

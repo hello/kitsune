@@ -129,6 +129,7 @@ CmdLineProcess(void * line)
                 else
                 {
                     UARTprintf("Too many arguments for command processor!\n");
+                    vPortFree(line);
                     vTaskDelete( NULL );
                     return;
                 }
@@ -168,6 +169,7 @@ CmdLineProcess(void * line)
                 int code = pCmdEntry->pfnCmd(argc, argv);
                 UARTprintf("Command returned code %d\n", code);
                 UARTprintf("> ");
+                vPortFree(line);
                 vTaskDelete( NULL );
                 return;
             }
@@ -184,6 +186,7 @@ CmdLineProcess(void * line)
     // an error.
     //
     UARTprintf("Bad command!\n");
+    vPortFree(line);
     vTaskDelete( NULL );
     return;
 }

@@ -1320,8 +1320,9 @@ void vUARTTask(void *pvParameters) {
 			// Pass the line from the user to the command processor.  It will be
 			// parsed and valid commands executed.
 			//
-			xTaskCreate(CmdLineProcess, "commandTask",  5*1024 / 4, cCmdBuf, 20, NULL);
-			memset(cCmdBuf,0,sizeof(cCmdBuf)); //zero out buffer after a command
+			char * args = pvPortMalloc( sizeof(cCmdBuf) );
+			memcpy( args, cCmdBuf, sizeof( cCmdBuf ) );
+			xTaskCreate(CmdLineProcess, "commandTask",  5*1024 / 4, args, 20, NULL);
         }
 	}
 }
