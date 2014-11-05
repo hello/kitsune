@@ -887,6 +887,7 @@ void thread_sensor_poll(void* unused) {
 			size_t len;
 
 			encode_pill_list_to_buffer(pill_list, NULL, 0, &len);
+			UARTprintf("Len from 1st encode %d\n", len);
 
 			if(len > 0)
 			{
@@ -897,10 +898,14 @@ void thread_sensor_poll(void* unused) {
 					memset(buffer, 0, len + sizeof(array_data));
 					serialized_pill_list_holder = (array_data*)buffer;
 					serialized_pill_list_holder->length = len;
+					UARTprintf("Len from 1st encode %d\n", len);
+
 					serialized_pill_list_holder->buffer = &buffer[sizeof(array_data)];
 					encode_pill_list_to_buffer(pill_list, serialized_pill_list_holder->buffer, serialized_pill_list_holder->length, &len);
+					UARTprintf("Len from 2st encode %d\n", len);
 
 					data.pills.arg = serialized_pill_list_holder;
+					UARTprintf("***********HOLDER addr caller %d\n", data.pills.arg);
 					data.pills.funcs.encode = encode_serialized_pill_list;
 				}
 

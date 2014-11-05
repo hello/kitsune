@@ -296,7 +296,7 @@ static void _process_encrypted_pill_data(const MorpheusCommand* command)
             UARTprintf("PILL DATA FROM ID: %s, length: %d\n", command->deviceId.arg, array->length);
             int i = 0;
             for(i = 0; i < array->length; i++){
-                UARTprintf( "%x", array->buffer[i] );
+                UARTprintf( "%02x", array->buffer[i] );
 
             }
             UARTprintf("\n");

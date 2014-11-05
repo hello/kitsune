@@ -1234,7 +1234,7 @@ static bool _encode_encrypted_pilldata(pb_ostream_t *stream, const pb_field_t *f
     return pb_encode_string(stream, array_holder->buffer, array_holder->length);
 }
 
-bool encode_pill_list(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
+bool encode_pill_list(pb_ostream_t *stream, const pb_field_t *field, void** arg) {
 	periodic_data_pill_data_container* ptr_pill_list = *(periodic_data_pill_data_container**) arg;
     if(!ptr_pill_list)
     {
@@ -1371,8 +1371,8 @@ bool encode_name(pb_ostream_t *stream, const pb_field_t *field, void * const *ar
                     strlen(MORPH_NAME));
 }
 
-bool encode_serialized_pill_list(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
-	array_data* array_holder = (array_data*)arg;
+bool encode_serialized_pill_list(pb_ostream_t *stream, const pb_field_t *field, void** arg) {
+	array_data* array_holder = (array_data*)*arg;
     if(!array_holder)
     {
         UARTprintf("No pill data to encode\n");
@@ -1381,7 +1381,7 @@ bool encode_serialized_pill_list(pb_ostream_t *stream, const pb_field_t *field, 
 
     // The serilized pill list already has tags encoded, don't need to write tag anymore
     // just write the bytes straight into the stream.
-    UARTprintf("raw len: %d, tag: %d\n", array_holder->length, field->tag);
+    UARTprintf("holder addr: %d, raw len: %d, tag: %d\n", array_holder, array_holder->length, field->tag);
     return pb_write(stream, array_holder->buffer, array_holder->length);
 }
 
@@ -1391,11 +1391,11 @@ void encode_pill_list_to_buffer(const periodic_data_pill_data_container* ptr_pil
     pb_ostream_t stream = {0};
     *out_len = 0;
 
-    if(!buffer)
+    if(buffer)
     {
         stream = pb_ostream_from_buffer(buffer, buffer_len);
+        memset(buffer, 0, buffer_len);
     }
-    memset(buffer, 0, buffer_len);
 
 	int i;
 
@@ -1460,26 +1460,24 @@ void encode_pill_list_to_buffer(const periodic_data_pill_data_container* ptr_pil
 
 		}else{
 
-			size_t message_len, stream_len;
-			stream_len = stream.bytes_written;
+			size_t message_len = 0;
+			size_t stream_len = stream.bytes_written;
 			if (!pb_encode_tag(&stream, PB_WT_STRING, periodic_data_pills_tag))
 			{
 				UARTprintf("encode_pill_list_to_buffer: Fail to encode tag for pill %s, error %s\n", data.id, PB_GET_ERROR(&stream));
 				continue;
 			}
-			message_len = stream.bytes_written - stream_len;
-			stream_len = stream.bytes_written;
 
-			/*
+
 			if (!pb_encode_delimited(&stream, periodic_data_pill_data_fields, &data.pill_data)){
 				UARTprintf("encode_pill_list_to_buffer: Fail to encode pill %s, error: %s\n", data.id, PB_GET_ERROR(&stream));
 				continue;
 			}
-			*/
 
-			pb_ostream_t sizestream = { 0 };
+			/*
+			pb_ostream_t sizestream = {0};
 			if(!pb_encode(&sizestream, periodic_data_pill_data_fields, &data.pill_data)){
-				//UARTprintf("Failed to retreive length\n");
+				UARTprintf("Failed to retreive length\n");
 				continue;
 			}
 
@@ -1488,7 +1486,7 @@ void encode_pill_list_to_buffer(const periodic_data_pill_data_container* ptr_pil
 
 
 			if (!pb_encode_varint(&stream, sizestream.bytes_written)){
-				//UARTprintf("Failed to write length\n");
+				UARTprintf("Failed to write length\n");
 				continue;
 			}
 
@@ -1498,7 +1496,8 @@ void encode_pill_list_to_buffer(const periodic_data_pill_data_container* ptr_pil
 			if (!pb_encode(&stream, periodic_data_pill_data_fields, &data.pill_data)){
 				UARTprintf("Fail to encode pill %s\n", data.id);
 				continue;
-			}
+			}*/
+
 
 			message_len += stream.bytes_written - stream_len;
 			stream_len = stream.bytes_written;
@@ -1682,6 +1681,8 @@ int send_periodic_data(periodic_data* data) {
 
     /* */
     //set this to zero--it won't retry, since retrying is handled by an outside loop
+
+    UARTprintf("************HOLDER: %d\n", data->pills.arg);
     ret = NetworkTask_SynchronousSendProtobuf(DATA_RECEIVE_ENDPOINT, buffer, sizeof(buffer), periodic_data_fields, data, 0);
     UARTprintf("2222222222222222222222222\n");
     if(ret != 0)

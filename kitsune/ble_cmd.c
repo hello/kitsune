@@ -176,7 +176,7 @@ static bool _decode_bytes_field(pb_istream_t *stream, const pb_field_t *field, v
     }
 
     memset(buffer, 0, buffer_len);
-    array_data* array = &buffer[length];;
+    array_data* array = (array_data*)&buffer[length];
     if (!pb_read(stream, buffer, stream->bytes_left))
     {
     	UARTprintf("_decode_bytes_fields: Failed to read data\n");
