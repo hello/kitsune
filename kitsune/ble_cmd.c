@@ -128,7 +128,7 @@ static bool _encode_bytes_fields(pb_ostream_t *stream, const pb_field_t *field, 
 }
 
 
-static bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, void **arg)
+bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, void **arg)
 {
     /* We could read block-by-block to avoid the large buffer... */
     if (stream->bytes_left > MAX_STRING_LEN - 1)

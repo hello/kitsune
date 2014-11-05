@@ -29,11 +29,10 @@ unsigned int sl_status = 0;
 #include "hw_memmap.h"
 #include "rom_map.h"
 #include "gpio.h"
+#include "led_cmd.h"
+
 
 #define FAKE_MAC 0
-
-xSemaphoreHandle alarm_smphr;
-SyncResponse_Alarm alarm;
 
 void mcu_reset()
 {
@@ -98,6 +97,12 @@ void SimpleLinkSockEventHandler(SlSockEvent_t *pSock)
     //
 }
 
+static uint8_t _connected_ssid[MAX_SSID_LEN];
+void wifi_get_connected_ssid(uint8_t* ssid_buffer, size_t len)
+{
+    size_t copy_len = MAX_SSID_LEN > len ? len : MAX_SSID_LEN;
+    memcpy(ssid_buffer, _connected_ssid, copy_len - 1);
+}
 //****************************************************************************
 //
 //!    \brief This function handles WLAN events
@@ -124,14 +129,25 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
         UARTprintf("SL_WLAN_SMART_CONFIG_STOP_EVENT\n\r");
         break;
     case SL_WLAN_CONNECT_EVENT:
+    {
         UARTprintf("SL_WLAN_CONNECT_EVENT\n\r");
         sl_status |= CONNECT;
         sl_status &= ~CONNECTING;
+        char* pSSID = (char*)pSlWlanEvent->EventData.STAandP2PModeWlanConnected.ssid_name;
+        uint8_t ssidLength = pSlWlanEvent->EventData.STAandP2PModeWlanConnected.ssid_len;
+        if (ssidLength > MAX_SSID_LEN) {
+        	UARTprintf("ssid tooo long\n");
+		}else{
+			memset(_connected_ssid, 0, MAX_SSID_LEN);
+			memcpy(_connected_ssid, pSSID, ssidLength);
+		}
+    }
         break;
     case SL_WLAN_DISCONNECT_EVENT:
         UARTprintf("SL_WLAN_DISCONNECT_EVENT\n\r");
         sl_status &= ~CONNECT;
         sl_status &= ~HAS_IP;
+        memset(_connected_ssid, 0, MAX_SSID_LEN);
         break;
     default:
         break;
@@ -148,8 +164,6 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
 //! \return None
 //
 //****************************************************************************
-
-int Cmd_led(int argc, char *argv[]);
 
 void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent) {
 
@@ -1354,27 +1368,46 @@ bool encode_name(pb_ostream_t *stream, const pb_field_t *field, void * const *ar
                     strlen(MORPH_NAME));
 }
 
-static void _on_alarm_received(const SyncResponse_Alarm* received_alarm)
-{
-    if (xSemaphoreTake(alarm_smphr, portMAX_DELAY)) {
-        if (received_alarm->has_start_time && received_alarm->start_time > 0) {
-            if (get_time() > received_alarm->start_time) {
-                // This approach is error prond: We got information from two different sources
-                // and expect them consistent. The time in our server might be different with NTP.
-                // I am going to redesign this, instead of returning start/end timestamp, the backend
-                // will retrun the offset seconds from now to the next ring and the ring duration.
-                // So we don't need to care the actual time of 'Now'.
-                memcpy(&alarm, received_alarm, sizeof(alarm));
-            }
-            UARTprintf("Got alarm %d to %d in %d minutes\n",
-            		received_alarm->start_time, received_alarm->end_time,
-                    (received_alarm->start_time - get_time()) / 60);
-        }else{
-            UARTprintf("No alarm for now.\n");
-        }
+bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field,void **arg);
+int download_file(char * host, char * url, char * filename, char * path);
 
-        xSemaphoreGive(alarm_smphr);
-    }
+static bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg)
+{
+	SyncResponse_FileDownload download_info;
+	char * filename=NULL, * url=NULL, * host=NULL, * path=NULL, * serial_flash_path=NULL, * serial_flash_name=NULL;
+
+	download_info.filename.funcs.decode = _decode_string_field;
+	download_info.filename.arg = filename;
+
+	download_info.url.funcs.decode = _decode_string_field;
+	download_info.url.arg = url;
+
+	download_info.host.funcs.decode = _decode_string_field;
+	download_info.host.arg = host;
+
+	download_info.serial_flash_filename.funcs.decode = _decode_string_field;
+	download_info.serial_flash_filename.arg = serial_flash_name;
+
+	download_info.serial_flash_path.funcs.decode = _decode_string_field;
+	download_info.serial_flash_path.arg = serial_flash_path;
+
+	if( !pb_decode(stream,SyncResponse_FileDownload_fields,&download_info) ) {
+		return false;
+	}
+
+	if( filename && url && host && path ) {
+		//download it!
+		download_file( host, filename, url, path );
+
+	}
+	return true;
+}
+
+void set_alarm( SyncResponse_Alarm * received_alarm );
+
+static void _on_alarm_received( SyncResponse_Alarm* received_alarm)
+{
+	set_alarm( received_alarm );
 }
 
 static void _on_factory_reset_received()
@@ -1389,17 +1422,47 @@ static void _on_factory_reset_received()
     ble_send_protobuf(&morpheusCommand);  // Send the protobuf to topboard
 }
 
-static void _on_response_protobuf(const SyncResponse* response_protobuf)
+static void _set_led_color_based_on_room_conditions(const SyncResponse* response_protobuf)
 {
-    if (response_protobuf->has_alarm) {
+    if(response_protobuf->has_room_conditions)
+    {
+    	switch(response_protobuf->room_conditions)
+    	{
+			case SyncResponse_RoomConditions_IDEAL:
+				led_set_user_color(0x00, LED_MAX, 0x00);
+			break;
+			case SyncResponse_RoomConditions_WARNING:
+				led_set_user_color(LED_MAX, LED_MAX, 0x00);
+			break;
+			case SyncResponse_RoomConditions_ALERT:
+				led_set_user_color(0xF0, 0x76, 0x00);
+			break;
+			default:
+				led_set_user_color(0x00, 0x00, LED_MAX);
+			break;
+    	}
+    }else{
+        led_set_user_color(0x00, LED_MAX, 0x00);
+    }
+}
+
+static void _on_response_protobuf( SyncResponse* response_protobuf)
+{
+    if (response_protobuf->has_alarm) 
+    {
         _on_alarm_received(&response_protobuf->alarm);
     }
 
-    if(response_protobuf->has_reset_device && response_protobuf->reset_device){
+    if(response_protobuf->has_reset_device && response_protobuf->reset_device)
+    {
         UARTprintf("Server factory reset.\n");
         
         _on_factory_reset_received();
     }
+
+    
+    _set_led_color_based_on_room_conditions(response_protobuf);
+    
 }
 
 int send_periodic_data( data_t * data ) {
@@ -1479,6 +1542,7 @@ int send_periodic_data( data_t * data ) {
     
     SyncResponse response_protobuf;
     memset(&response_protobuf, 0, sizeof(response_protobuf));
+    response_protobuf.files.funcs.decode = _on_file_download;
 
     if(decode_rx_data_pb((unsigned char*) content, len, SyncResponse_fields, &response_protobuf) == 0)
     {
