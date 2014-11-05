@@ -23,6 +23,7 @@
 
 #define INBOX_QUEUE_LENGTH (5)
 #define AUDIO_PLAYBACK_RATE_HZ (48000)
+#define NUMBER_OF_TICKS_IN_A_SECOND (1000)
 
 #define FLAG_SUCCESS (0x01)
 #define FLAG_SNOOZE  (0x02)
@@ -32,20 +33,10 @@
 extern tCircularBuffer *pRxBuffer;
 extern unsigned char g_ucSpkrStartFlag;
 
-#if 0
-typedef enum {
-	off,
-	on
-} AudioState_t;
-
-static AudioState_t _originalCaptureState;
-static AudioState_t _originalProcessingState;
-#endif
 static xQueueHandle _queue = NULL;
-
-
 static const unsigned int CPU_XDATA = 0; //1: enabled CPU interrupt triggerred, 0 for DMA
 
+#define MAX_LOOP_ITERS (100000)
 
 typedef enum {
 	request	,
@@ -147,6 +138,16 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	uint16_t speaker_data_padded[512];
 	uint16_t speaker_data[256];
 
+	uint64_t loop_ticks,desired_ticks_elapsed;
+	int64_t dtick;
+	portTickType t1,t2;
+
+
+
+	loop_ticks = 0;
+	desired_ticks_elapsed = info->durationInSeconds * NUMBER_OF_TICKS_IN_A_SECOND;
+
+
 	UARTprintf("Starting playback\r\n");
 	UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
 
@@ -213,8 +214,9 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 
 	while (1) {
+		t1 = xTaskGetTickCount();
+
 		/* Read always in block of 512 Bytes or less else it will stuck in f_read() */
-	//	UARTprintf("HERE1 - %d\r\n",counter++);
 
 		res = f_read(&fp, speaker_data, sizeof(speaker_data), &size);
 		totBytesRead += size;
@@ -249,8 +251,9 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 		}
 		else {
-			//we're done
-			break;
+			//LOOP THE FILE -- start over
+			f_lseek(&fp,0);
+
 		}
 
 		if (uiPlayWaterMark == 0) {
@@ -262,15 +265,29 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 		if ((iReceiveCount % 100) == 0) {
 			UARTprintf("g_iReceiveCount: %d\n\r", iReceiveCount);
+			UARTprintf("%d ticks\r\n",(uint32_t)loop_ticks);
+
 		}
+
+		t2  = xTaskGetTickCount();
+
+		dtick = (int64_t)t2 - (int64_t)t1;
+		//watch out for rollovers of the 32 bit counter
+		if (dtick < 0) {
+			dtick += UINT32_MAX;
+		}
+
+		loop_ticks += dtick;
+
+		if (loop_ticks > desired_ticks_elapsed) {
+			break;
+		}
+
+
 		vTaskDelay(0);
 	}
 
 	///CLEANUP
-
-
-
-
 
 	f_close(&fp);
 
@@ -312,6 +329,7 @@ void AudioPlaybackTask_Thread(void * data) {
 		switch (m.type) {
 		case request:
 		{
+
 			playbackResultFlags = DoPlayback(&m.message.playbackinfo);
 
 			if (playbackResultFlags & FLAG_SNOOZE) {
