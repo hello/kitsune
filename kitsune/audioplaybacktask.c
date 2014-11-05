@@ -330,7 +330,20 @@ void AudioPlaybackTask_Thread(void * data) {
 		case request:
 		{
 
+			//disable audio capture
+			AudiopProcessingTask_TurnOff();
+			AudioCaptureTask_Disable();
+
+			vTaskDelay(500); //wait for shutdown -- 1/2 second is very safe
+
+			//do the playback
 			playbackResultFlags = DoPlayback(&m.message.playbackinfo);
+
+			//enable audio capture
+			AudiopProcessingTask_TurnOn();
+			AudioCaptureTask_Enable();
+
+
 
 			if (playbackResultFlags & FLAG_SNOOZE) {
 				SetSnoozeWithServer();
