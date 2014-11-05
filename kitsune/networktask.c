@@ -143,7 +143,6 @@ void NetworkTask_Thread(void * networkdata) {
 
 		memset(&response,0,sizeof(response));
 
-		response.success = true;
 		retry_period = INITIAL_RETRY_PERIOD_COUNTS;
 		attempt_count = 0;
 		timeout_counts = message.retry_timeout;
@@ -171,6 +170,8 @@ void NetworkTask_Thread(void * networkdata) {
 						response.flags |= NETWORK_RESPONSE_FLAG_FAILED_DECODE;
 					}
 				}
+
+				response.success = true;
 			}
 			else {
 				//failed to push, now what?
