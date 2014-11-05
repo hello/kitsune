@@ -1369,8 +1369,11 @@ static bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, voi
 	SyncResponse_FileDownload download_info;
 	char * filename=NULL, * url=NULL, * host=NULL, * path=NULL, * serial_flash_path=NULL, * serial_flash_name=NULL;
 
-	download_info.filename.funcs.decode = _decode_string_field;
-	download_info.filename.arg = filename;
+	download_info.sd_card_filename.funcs.decode = _decode_string_field;
+	download_info.sd_card_filename.arg = filename;
+
+	download_info.sd_card_path.funcs.decode = _decode_string_field;
+	download_info.sd_card_path.arg = path;
 
 	download_info.url.funcs.decode = _decode_string_field;
 	download_info.url.arg = url;
