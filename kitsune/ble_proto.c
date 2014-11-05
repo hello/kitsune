@@ -209,8 +209,8 @@ periodic_data_pill_data_container pill_list[MAX_PILLS] = {0};
 
 int scan_pill_list(periodic_data_pill_data_container* p, char * device_id) {
 	int i;
-	for (i = 0; i < MAX_PILLS && p[i].magic == PILL_MAGIC; ++i) {
-		if (strcmp(p[i].id, device_id) == 0) {
+	for (i = 0; i < MAX_PILLS; ++i) {
+		if (p[i].magic == PILL_MAGIC && strcmp(p[i].id, device_id) == 0) {
 			break;
 		}
 	}
