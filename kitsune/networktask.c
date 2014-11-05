@@ -9,6 +9,7 @@
 
 #define NETWORK_TASK_QUEUE_DEPTH (10)
 #define INITIAL_RETRY_PERIOD_COUNTS (1024)
+#define NUM_RECEIVE_RETRIES (10)
 
 static xQueueHandle _asyncqueue = NULL;
 static xSemaphoreHandle _waiter = NULL;
@@ -203,7 +204,6 @@ void NetworkTask_Thread(void * networkdata) {
 
 		memset(&response,0,sizeof(response));
 
-		response.success = true;
 		retry_period = INITIAL_RETRY_PERIOD_COUNTS;
 		attempt_count = 0;
 		timeout_counts = message.retry_timeout;
@@ -223,7 +223,8 @@ void NetworkTask_Thread(void * networkdata) {
 					(char*)message.decode_buf,
 					message.decode_buf_size,
 					message.encodedata,
-					message.encode) == 0) {
+					message.encode,
+					NUM_RECEIVE_RETRIES) == 0) {
 
 				//if we care about decoding via a protobuf callback, we use the callback
 				if (message.decode) {
@@ -231,6 +232,8 @@ void NetworkTask_Thread(void * networkdata) {
 						response.flags |= NETWORK_RESPONSE_FLAG_FAILED_DECODE;
 					}
 				}
+
+				response.success = true;
 			}
 			else {
 				//failed to push, now what?

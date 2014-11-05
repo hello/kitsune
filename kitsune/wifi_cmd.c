@@ -997,15 +997,14 @@ int match(char *regexp, char *text)
 }
 
 //buffer needs to be at least 128 bytes...
-
-int send_data_pb_callback(const char* host, const char* path,char * recv_buf, uint32_t recv_buf_size,const void * encodedata,network_encode_callback_t encoder) {
-
+int send_data_pb_callback(const char* host, const char* path,char * recv_buf, uint32_t recv_buf_size,const void * encodedata,network_encode_callback_t encoder,uint16_t num_receive_retries) {
     int send_length = 0;
     int rv = 0;
     uint8_t sig[32]={0};
     size_t message_length;
     uint32_t null_stream_bytes = 0;
     bool status;
+    uint16_t iretry;
 
 
     if (!recv_buf) {
@@ -1150,8 +1149,28 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
 
     memset(recv_buf, 0, recv_buf_size);
 
-    //UARTprintf("Waiting for reply\n\r\n\r");
-    rv = recv(sock, recv_buf, recv_buf_size, 0);
+    //keep looping while our socket error code is telling us to try again
+    iretry = 0;
+    do {
+
+        UARTprintf("Waiting for reply, attempt %d\r\n",iretry);
+
+    	rv = recv(sock, recv_buf, recv_buf_size, 0);
+
+    	if (iretry >= num_receive_retries) {
+    		break;
+    	}
+
+    	iretry++;
+
+    	//delay 200ms
+    	vTaskDelay(200);
+
+    } while (rv == SL_EAGAIN);
+
+
+
+
     if (rv <= 0) {
         UARTprintf("recv error %d\n\r\n\r", rv);
         return stop_connection();
