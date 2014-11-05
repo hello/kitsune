@@ -10,6 +10,8 @@ typedef enum {
 	eAudioCaptureTurnOn,
 	eAudioCaptureTurnOff,
 	eAudioCaptureSaveToDisk,
+	eAudioCaptureDisable,
+	eAudioCaptureEnable
 
 } EAudioCaptureCommand_t;
 
@@ -23,6 +25,10 @@ typedef struct {
 void AudioCaptureTask_Thread(void * data);
 
 void AudioCaptureTask_AddMessageToQueue(const AudioCaptureMessage_t * message);
+
+void AudioCaptureTask_Enable(void);
+
+void AudioCaptureTask_Disable(void);
 
 
 #endif //_AUDIOCAPTURETASK_H_
