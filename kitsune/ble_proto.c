@@ -15,6 +15,7 @@
 #include "networktask.h"
 #include "led_animations.h"
 #include "led_cmd.h"
+#include "top_board.h"
 
 extern unsigned int sl_status;
 

@@ -1739,18 +1739,36 @@ int send_periodic_data(periodic_data* data) {
 
 int Cmd_data_upload(int arg, char* argv[])
 {
-	data_t data = {0};
+	periodic_data data = {0};
 	//load_aes();
 
+	data.has_firmware_version = 1;
+	data.firmware_version = KIT_VER;
 
-	data.time = 1;
+	data.device_id.funcs.encode = encode_mac_as_device_id_string;
+
+	data.unix_time = 1;
+	data.has_unix_time = 1;
+
 	data.light = 2;
+	data.has_light = 1;
+
 	data.light_variability = 3;
+	data.has_light_variability = 1;
+
 	data.light_tonality = 4;
-	data.temp = 5;
-	data.humid = 6;
+	data.has_light_tonality = 1;
+
+	data.temperature = 5;
+	data.has_temperature = 1;
+
+	data.humidity = 6;
+	data.has_humidity = 1;
+
 	data.dust = 7;
-	data.pill_list = pill_list;
+	data.has_dust = 1;
+
+	//data.pill_list = pill_list;
 	UARTprintf("Debugging....\n");
 	send_periodic_data(&data);
 
