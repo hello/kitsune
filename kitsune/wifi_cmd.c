@@ -1363,6 +1363,7 @@ bool encode_name(pb_ostream_t *stream, const pb_field_t *field, void * const *ar
 
 bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field,void **arg);
 int download_file(char * host, char * url, char * filename, char * path);
+int file_exists(char * filename, char * path);
 
 static bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg)
 {
@@ -1392,9 +1393,47 @@ static bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, voi
 	}
 
 	if( filename && url && host && path ) {
-		//download it!
-		download_file( host, filename, url, path );
+		if( !file_exists(filename, path) ) {
+			int ImageTestFlags;
+			//download it!
+			download_file( host, filename, url, path );
 
+			if( download_info.has_copy_to_serial_flash && serial_flash_name && serial_flash_path ) {
+				char full[128] = 0;
+				char buf[512] = 0;
+				long sflash_fh = -1;
+				int size=0;
+				int status;
+				strcpy(full, serial_flash_name);
+				strcat(full, serial_flash_path);
+
+				cd( path );
+			    if(global_filename(  ))
+			    {
+			    	return 1;
+			    }
+
+			    res = f_open(&file_obj, path_buff, FA_READ);
+
+				sl_FsOpen((unsigned char *)full, FS_MODE_OPEN_CREATE(MaxSize , _FS_FILE_OPEN_FLAG_NO_SIGNATURE_TEST | _FS_FILE_OPEN_FLAG_COMMIT ), NULL, &sflash_fh);
+
+				bytes_to_copy;
+
+				while( bytes_to_copy > 0 ) {
+					//read from sd into buff
+					status = sl_FsWrite(sflash_fh, 0, buff, size);
+					bytes_to_copy -= size;
+				}
+				sl_FsClose(sflash_fh,0,0,0);
+			    //close on sd
+			}
+			if( download_info.reset_network_processor ) {
+				reset_nwp();
+			}
+			if( download_info.reset_application_processor ) {
+                reset_mcu();
+			}
+		}
 	}
 	return true;
 }

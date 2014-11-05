@@ -1177,6 +1177,25 @@ int GetData(char * filename, char* url, char * host, char * path)
     return 0;
 }
 
+int file_exists( char * filename, char * path ) {
+	cd(path);
+
+    if(global_filename( filename ))
+    {
+    	return 1;
+    }
+
+    res = f_open(&file_obj, path_buff, FA_READ);
+    if(res != FR_OK)
+    {
+    	cd("/");
+        return(0);
+    }
+    f_close( &file_obj );
+	cd("/");
+	return 1;
+}
+
 int download_file(char * host, char * url, char * filename, char * path ) {
 	unsigned long ip;
 	int r = gethostbyname((signed char*) host, strlen(host), &ip, SL_AF_INET);
