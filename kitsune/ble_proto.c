@@ -267,7 +267,7 @@ static void _process_encrypted_pill_data(const MorpheusCommand* command)
                 {
                     vPortFree(old_data->buffer);
                 }
-                vPortFree(old_data);
+
                 pill_list[i].pill_data.motionDataEncrypted.arg = NULL;
                 pill_list[i].pill_data.motionDataEncrypted.funcs.encode = NULL;
             }

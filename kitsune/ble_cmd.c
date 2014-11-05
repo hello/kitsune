@@ -166,7 +166,8 @@ static bool _decode_bytes_field(pb_istream_t *stream, const pb_field_t *field, v
     }
 
     int length = stream->bytes_left;
-    uint8_t* buffer = pvPortMalloc(stream->bytes_left);
+    size_t buffer_len = stream->bytes_left + sizeof(array_data);
+    uint8_t* buffer = pvPortMalloc(buffer_len);
 
     if(!buffer)
     {
@@ -174,7 +175,8 @@ static bool _decode_bytes_field(pb_istream_t *stream, const pb_field_t *field, v
         return false;
     }
 
-    memset(buffer, 0, stream->bytes_left);
+    memset(buffer, 0, buffer_len);
+    array_data* array = &buffer[length];;
     if (!pb_read(stream, buffer, stream->bytes_left))
     {
     	UARTprintf("_decode_bytes_fields: Failed to read data\n");
@@ -182,15 +184,6 @@ static bool _decode_bytes_field(pb_istream_t *stream, const pb_field_t *field, v
         return false;
     }
 
-    array_data* array = pvPortMalloc(sizeof(array_data));
-    if(!array)
-    {
-    	UARTprintf("_decode_bytes_fields: Failed to malloc data holder\n");
-        vPortFree(buffer);
-        return false;
-    }
-
-    memset(array, 0, sizeof(array_data));
     array->buffer = buffer;
     array->length = length;
 
@@ -463,8 +456,7 @@ void ble_proto_free_command(MorpheusCommand* command)
     if(!command->motionDataEntrypted.arg)
     {
         array_data* array = (array_data*)command->motionDataEntrypted.arg;
-        vPortFree(array->buffer);  // first vPortFree the actual data
-        vPortFree(array);  // Then vPortFree the actual
+        vPortFree(array->buffer);  // Buffer and holder are in the same block, holder->buffer points to the start addr
         command->motionDataEntrypted.arg = NULL;
     }
 
