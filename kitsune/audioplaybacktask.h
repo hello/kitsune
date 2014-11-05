@@ -6,6 +6,7 @@
 typedef struct {
 	const char * file;
 	int32_t volume;
+	uint32_t durationInSeconds;
 
 } AudioPlaybackDesc_t;
 
