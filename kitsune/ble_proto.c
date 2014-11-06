@@ -210,14 +210,16 @@ static void _ble_reply_wifi_info(){
 }
 
 #include "wifi_cmd.h"
+extern xQueueHandle pill_queue;
+unsigned long get_time();
 
-static void _process_encrypted_pill_data(const MorpheusCommand* command)
+static void _process_encrypted_pill_data( MorpheusCommand* command)
 {
     if( command->has_pillData ) {
         command->pillData.timestamp = get_time();  // attach timestamp, so we don't need to worry about the sending time
         xQueueSend(pill_queue, &command->pillData, 10);
 
-        if(command->has_pillData.has_motionDataEntrypted)
+        if(command->pillData.has_motionDataEntrypted)
         {
             UARTprintf("PILL DATA FROM ID: %s, length: %d\n", command->pillData.deviceId, 
                 command->pillData.motionDataEntrypted.size);
@@ -227,7 +229,7 @@ static void _process_encrypted_pill_data(const MorpheusCommand* command)
     }
 }
 
-static void _process_pill_heartbeat(const MorpheusCommand* command)
+static void _process_pill_heartbeat( MorpheusCommand* command)
 {
 	// Pill heartbeat received from ANT
     if( command->has_pillData ) {
@@ -321,7 +323,6 @@ static void _pair_device( MorpheusCommand* command, int is_morpheus)
 
 #include "top_board.h"
 
-extern xQueueHandle pill_queue;
 
 bool on_ble_protobuf_command(MorpheusCommand* command)
 {
