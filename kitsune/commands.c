@@ -497,11 +497,13 @@ void set_alarm( SyncResponse_Alarm * received_alarm ) {
         	unsigned long now = get_time();
         	received_alarm->start_time = now + received_alarm->ring_offset_from_now_in_second;
         	received_alarm->end_time = now + received_alarm->ring_offset_from_now_in_second + received_alarm->ring_duration_in_second;
+        	received_alarm->has_end_time = received_alarm->has_start_time = true;
         	//sanity check
             if( received_alarm->start_time - now < ONE_YEAR_IN_SECONDS ) {
                 //are we within the duration of the current alarm?
-                if( alarm.start_time - now > 0
-                 && now - alarm.start_time >= alarm.ring_duration_in_second ) {
+                if( alarm.has_start_time
+                 && alarm.start_time - now > 0
+                 && now - alarm.start_time < alarm.ring_duration_in_second ) {
                     UARTprintf( "alarm currently active, putting off setting\n");
                 } else {
                     memcpy(&alarm, received_alarm, sizeof(alarm));
@@ -530,21 +532,18 @@ void thread_alarm(void * unused) {
 
 			if(alarm.has_start_time && alarm.start_time > 0)
 			{
-				if (time >= alarm.start_time && !g_ucSpkrStartFlag) {
+				if ( time - alarm.start_time < alarm.ring_duration_in_second ) {
 					UARTprintf("ALARM RINGING RING RING RING\n");
 					xSemaphoreGive(alarm_smphr);
-					play_ringtone(57, AUDIO_FILE);
+					if (!g_ucSpkrStartFlag) {
+						play_ringtone(57, AUDIO_FILE);
+					}
 					xSemaphoreTake(alarm_smphr, portMAX_DELAY);
-				}
-				time = get_time();
-				if ( (alarm.has_end_time && time >= alarm.end_time) || !alarm.has_end_time) {
+				} else if(g_ucSpkrStartFlag) {
 					g_ucSpkrStartFlag = 0;
 					UARTprintf("ALARM DONE RINGING\n");
 					alarm.has_end_time = 0;
 					alarm.has_start_time = 0;
-				}
-				if( !alarm.has_end_time ) {
-					UARTprintf("Bug, alarm should have endtime.\n");
 				}
 			}else{
 				// Alarm start time = 0 means no alarm
@@ -687,40 +686,62 @@ void thread_fast_i2c_poll(void * unused)  {
 	}
 }
 
+#define PILL_BATCH_WATERMARK 2
+int send_pill_data(BatchedPillData * pill_data);
+
 xQueueHandle data_queue = 0;
+xQueueHandle pill_queue = 0;
 
-void thread_tx(void* unused) {
-	data_t data;
+bool encode_all_pills (pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
+	MorpheusCommand_PillData pill_data;
+	uint32_t ret = true;
 
-	load_aes();
-
-	while (1) {
-		int tries = 0;
-		UARTprintf("Start polling\n");
-		if( data_queue != 0 && !xQueueReceive( data_queue, &( data ), portMAX_DELAY ) ) {
-			vTaskDelay(100);
-			UARTprintf("Waiting for data\n");
-			continue;
-		}
-
-		UARTprintf("sending time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d\n",
-				data.time, data.light, data.light_variability, data.light_tonality, data.temp, data.humid,
-				data.dust);
-		data.pill_list = pill_list;
-
-		while (!send_periodic_data(&data) == 0) {
-			UARTprintf("Waiting for WIFI\n");
-			vTaskDelay( (1<<tries) * 1000 );
-			if( tries++ > 5 ) {
-				tries = 5;
-			}
-			do {vTaskDelay(1000);} //wait for a connection...
-			while( !(sl_status&HAS_IP ) );
-		}//try every little bit
+	while( xQueueReceive(pill_queue, &pill_data, 1) && ret ) {
+		ret = pb_encode(stream,MorpheusCommand_PillData_fields, &pill_data);
 	}
+	return ret;
 }
 
-xSemaphoreHandle pill_smphr;
+void thread_tx(void* unused) {
+	BatchedPillData pill_data_batched;
+	periodic_data data = {0};
+	load_aes();
+
+	UARTprintf(" Start polling  \n");
+	while (1) {
+		int tries = 0;
+		memset(&data, 0, sizeof(periodic_data));
+		if (xQueueReceive(data_queue, &(data), 1)) {
+			UARTprintf(
+					"sending time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d\n",
+					data.unix_time, data.light, data.light_variability,
+					data.light_tonality, data.temperature, data.humidity, data.dust);
+
+			while (!send_periodic_data(&data) == 0) {
+				UARTprintf("  Waiting for WIFI connection  \n");
+				vTaskDelay((1 << tries) * 1000);
+				if (tries++ > 5) {
+					tries = 5;
+				}
+			}
+		}
+		if (uxQueueMessagesWaiting(pill_queue)>PILL_BATCH_WATERMARK) {
+			UARTprintf(	"sending  pill data" );
+			pill_data_batched.pills.funcs.encode = encode_all_pills;
+
+			while (!send_pill_data(&pill_data_batched) == 0) {
+				UARTprintf("  Waiting for WIFI connection  \n");
+				vTaskDelay((1 << tries) * 1000);
+				if (tries++ > 5) {
+					tries = 5;
+				}
+			}
+		}
+		while (!(sl_status & HAS_IP)) {
+			vTaskDelay(1000);
+		}
+	}
+}
 
 void thread_sensor_poll(void* unused) {
 
@@ -728,88 +749,153 @@ void thread_sensor_poll(void* unused) {
 	// Print some header text.
 	//
 
-	data_t data;
+	periodic_data data = {0};
 
 	while (1) {
 		portTickType now = xTaskGetTickCount();
 
-		data.time = get_time();
+		memset(&data, 0, sizeof(data));  // Don't forget re-init!
+		data.unix_time = get_time();
+		data.has_unix_time = true;
 
-		if( xSemaphoreTake( dust_smphr, portMAX_DELAY ) ) {
-			int dust_var;
-
+		// copy over the dust values
+		if( xSemaphoreTake(dust_smphr, portMAX_DELAY)) {
 			if( dust_cnt != 0 ) {
 				data.dust = dust_mean;
+				data.has_dust = true;
+
+				dust_log_sum /= dust_cnt;  // devide by zero?
+				if(dust_cnt > 1)
+				{
+					data.dust_variability = dust_m2 / (dust_cnt - 1);  // devide by zero again, add if
+					data.has_dust_variability = true;  // since init with 0, by default it is false
+				}
+				data.has_dust_max = true;
+				data.dust_max = dust_max;
+
+				data.has_dust_min = true;
+				data.dust_min = dust_min;
+
+				
 			} else {
 				data.dust = get_dust();
+				if(data.dust == 0)  // This means we get some error?
+				{
+					data.has_dust = false;
+				}
+
+				data.has_dust_variability = false;
+				data.has_dust_max = false;
+				data.has_dust_min = false;
 			}
-			dust_log_sum /= dust_cnt;
-
-			dust_var = dust_m2 / (dust_cnt-1);
-
-			data.dust_var = dust_var;
-			data.dust_max = dust_max;
-			data.dust_min = dust_min;
-
+			
 			dust_min = 5000;
 			dust_m2 = dust_mean = dust_cnt = dust_log_sum = dust_max = 0;
-
-			xSemaphoreGive( dust_smphr );
+			xSemaphoreGive(dust_smphr);
 		} else {
-			data.dust = get_dust();
+			data.has_dust = false;  // if Semaphore take failed, don't upload
 		}
+
+		// copy over light values
 		if (xSemaphoreTake(light_smphr, portMAX_DELAY)) {
-			light_log_sum /= light_cnt;
-			light_sf = (light_mean<<8) / bitexp( light_log_sum );
+			if(light_cnt == 0)
+			{
+				data.has_light = false;
+			}else{
+				light_log_sum /= light_cnt;  // just be careful for devide by zero.
+				light_sf = (light_mean << 8) / bitexp( light_log_sum );
 
-			int light_var = light_m2 / (light_cnt-1);
+				if(light_cnt > 1)
+				{
+					data.light_variability = light_m2 / (light_cnt - 1);
+					data.has_light_variability = true;
+				}else{
+					data.has_light_variability = false;
+				}
 
-			//UARTprintf( "%d lightsf %d var %d cnt\n", light_sf, light_var, light_cnt );
+				//UARTprintf( "%d lightsf %d var %d cnt\n", light_sf, light_var, light_cnt );
+				data.light_tonality = light_sf;
+				data.has_light_tonality = true;
 
-			data.light_variability = light_var;
-			data.light_tonality = light_sf;
-			data.light = light_mean;
-			light_m2 = light_mean = light_cnt = light_log_sum = light_sf = 0;
+				data.light = light_mean;
+				data.has_light = true;
+
+				light_m2 = light_mean = light_cnt = light_log_sum = light_sf = 0;
+			}
+			
 			xSemaphoreGive(light_smphr);
 		}
+
+		// get temperature and humidity
 		if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
 			uint8_t measure_time = 10;
 			int64_t humid_sum = 0;
 			int64_t temp_sum = 0;
+
+			uint8_t humid_count = 0;
+			uint8_t temp_count = 0;
+
 			while(--measure_time)
 			{
 				vTaskDelay(2);
-				humid_sum += get_humid();
+
+				int humid = get_humid();
+				if(humid != -1)
+				{
+					humid_sum += humid;
+					humid_count++;
+				}
+
 				vTaskDelay(2);
-				temp_sum += get_temp();
+
+				int temp = get_temp();
+
+				if(temp != -1)
+				{
+					temp_sum += temp;
+					temp_count++;
+				}
+
 				vTaskDelay(2);
 			}
 
-			data.humid = humid_sum / 10;
-			data.temp = temp_sum / 10;
+
+
+			if(humid_count == 0)
+			{
+				data.has_humidity = false;
+			}else{
+				data.has_humidity = true;
+				data.humidity = humid_sum / humid_count;
+
+			}
+
+
+			if(temp_count == 0)
+			{
+				data.has_temperature = false;
+			}else{
+				data.has_temperature = true;
+				data.temperature = temp_sum / temp_count;
+			}
 			
 			xSemaphoreGive(i2c_smphr);
-		} else {
-			continue;
 		}
-		if (xSemaphoreTake(pill_smphr, portMAX_DELAY)) {
-			data.pill_list = pill_list;
-			xSemaphoreGive(pill_smphr);
-		} else {
-			continue;
-		}
+
+
 		UARTprintf("collecting time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d %d %d %d\n",
-				data.time, data.light, data.light_variability, data.light_tonality, data.temp, data.humid,
-				data.dust, data.dust_max, data.dust_min, data.dust_var);
+				data.unix_time, data.light, data.light_variability, data.light_tonality, data.temperature, data.humidity,
+				data.dust, data.dust_max, data.dust_min, data.dust_variability);
 
-		    // ...
-
-        xQueueSend( data_queue, ( void * ) &data, 10 );
-
-		UARTprintf("delay...\n");
+        if(!xQueueSend(data_queue, (void*)&data, 10) == pdPASS)
+        {
+    		UARTprintf("Failed to post data\n");
+    	}
 
 		vTaskDelayUntil(&now, 60 * configTICK_RATE_HZ);
 	}
+
+
 
 }
 
@@ -1000,8 +1086,6 @@ void SetupGPIOInterrupts() {
 	//only one interrupt per port...
 #endif
 }
-
-xSemaphoreHandle pill_smphr;
 
 void thread_spi(void * data) {
 	Cmd_spi_read(0, 0);
@@ -1249,12 +1333,12 @@ void vUARTTask(void *pvParameters) {
 	init_light_sensor();
 	init_prox_sensor();
 
-	data_queue = xQueueCreate(60, sizeof(data_t));
+	data_queue = xQueueCreate(10, sizeof(periodic_data));
+	pill_queue = xQueueCreate(10, sizeof(MorpheusCommand_PillData));
 	vSemaphoreCreateBinary(dust_smphr);
 	vSemaphoreCreateBinary(light_smphr);
 	vSemaphoreCreateBinary(i2c_smphr);
 	vSemaphoreCreateBinary(spi_smphr);
-	vSemaphoreCreateBinary(pill_smphr);
 	vSemaphoreCreateBinary(alarm_smphr);
 
 
@@ -1283,7 +1367,7 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("*");
 	xTaskCreate(thread_dust, "dustTask", 256 / 4, NULL, 3, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_sensor_poll, "pollTask", 1024 / 4, NULL, 4, NULL);
+	xTaskCreate(thread_sensor_poll, "pollTask", 3 * 1024 / 4, NULL, 4, NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_tx, "txTask", 3 * 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
@@ -1319,8 +1403,9 @@ void vUARTTask(void *pvParameters) {
 			// Pass the line from the user to the command processor.  It will be
 			// parsed and valid commands executed.
 			//
-			xTaskCreate(CmdLineProcess, "commandTask",  5*1024 / 4, cCmdBuf, 20, NULL);
-			memset(cCmdBuf,0,sizeof(cCmdBuf)); //zero out buffer after a command
+			char * args = pvPortMalloc( sizeof(cCmdBuf) );
+			memcpy( args, cCmdBuf, sizeof( cCmdBuf ) );
+			xTaskCreate(CmdLineProcess, "commandTask",  5*1024 / 4, args, 20, NULL);
         }
 	}
 }

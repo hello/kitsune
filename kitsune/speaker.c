@@ -103,7 +103,8 @@ void Speaker1(char * file)
 	res = f_open(&fp, file, FA_READ);
 
 	if (res != FR_OK) {
-		UARTprintf("Failed to open audio file\n\r");
+		UARTprintf("Failed to open audio file %d\n\r", res);
+		return;
 	}
 
 	memset(speaker_data_padded,0,sizeof(speaker_data_padded));

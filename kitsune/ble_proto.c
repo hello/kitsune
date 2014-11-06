@@ -6,8 +6,13 @@
 #include "wifi_cmd.h"
 #include "uartstdio.h"
 
+/* FreeRTOS includes */
 #include "FreeRTOS.h"
 #include "task.h"
+#include "semphr.h"
+#include "queue.h"
+#include "event_groups.h"
+
 
 #include "assert.h"
 #include "stdlib.h"
@@ -15,6 +20,7 @@
 #include "networktask.h"
 #include "led_animations.h"
 #include "led_cmd.h"
+#include "top_board.h"
 
 extern unsigned int sl_status;
 
@@ -189,160 +195,45 @@ static void _reply_device_id()
 *
 */
 static void _ble_reply_wifi_info(){
-    int8_t*  name = pvPortMalloc(32);  // due to wlan.h
-    if(!name)
-    {
-        UARTprintf("Not enough memory.\n");
-        ble_reply_protobuf_error(ErrorType_DEVICE_NO_MEMORY);
-        return;
-    }
+	uint8_t ssid[MAX_SSID_LEN] = {0};
+	wifi_get_connected_ssid(ssid, sizeof(ssid));
 
-    memset(name, 0, 32);
-    int16_t name_len = 0;
-    uint8_t mac_addr[6] = {0};
-    SlSecParams_t sec_params = {0};
-    SlGetSecParamsExt_t secExt_params = {0};
-    unsigned long priority  = 0;
-
-    int16_t get_ret = sl_WlanProfileGet(0, name, &name_len, mac_addr, &sec_params, &secExt_params, &priority);
-    if(get_ret == -1)
-    {
-        UARTprintf("Get wifi endpoint failed, error %d.\n", get_ret);
-        ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
-
-    }else{
-        MorpheusCommand reply_command;
-        memset(&reply_command, 0, sizeof(reply_command));
-        reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_WIFI_ENDPOINT;
-
-        size_t len = strlen((char*)name) + 1;
-        char* ssid = pvPortMalloc(len);
-
-        if(ssid)
-        {
-            memset(ssid, 0, len);
-            memcpy(ssid, name, strlen((const char*)name));
-
-            reply_command.wifiSSID.arg = ssid;
-            ble_send_protobuf(&reply_command);
-            vPortFree(ssid);
-        }else{
-            UARTprintf("Not enough memory.\n");
-            ble_reply_protobuf_error(ErrorType_DEVICE_NO_MEMORY);
-        }
-
-    }
-
-    vPortFree(name);
+	MorpheusCommand reply_command;
+	memset(&reply_command, 0, sizeof(reply_command));
+	reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_WIFI_ENDPOINT;
+	size_t len = strlen((char*)ssid) + 1;
+	if(len - 1 > 0)
+	{
+		reply_command.wifiSSID.arg = ssid;
+	}
+	ble_send_protobuf(&reply_command);
 }
 
 #include "wifi_cmd.h"
-periodic_data_pill_data_container pill_list[MAX_PILLS] = {0};
-
-int scan_pill_list(periodic_data_pill_data_container* p, char * device_id) {
-	int i;
-	for (i = 0; i < MAX_PILLS && p[i].magic == PILL_MAGIC; ++i) {
-		if (strcmp(p[i].id, device_id) == 0) {
-			break;
-		}
-	}
-	if (i == MAX_PILLS) {
-		UARTprintf(" too many pills, overwriting\n ");
-		i=0;
-	}
-	return i;
-}
 
 static void _process_encrypted_pill_data(const MorpheusCommand* command)
 {
     if (command->motionDataEntrypted.arg) {
-        int i;
-        if (xSemaphoreTake(pill_smphr, 1000)) {   // If the Semaphore is not available, fail fast
-            i = scan_pill_list(pill_list, command->deviceId.arg);
-
-            memset(pill_list[i].id, 0, PILL_ID_LEN + 1);  // Just in case
-            memcpy(pill_list[i].id, command->deviceId.arg, PILL_ID_LEN);
-
-            if(pill_list[i].pill_data.motionDataEncrypted.arg)
-            {
-                // If we see there is old data, first release them,
-                // or we will get memory leak.
-                array_data* old_data = (array_data*)pill_list[i].pill_data.motionDataEncrypted.arg;
-                if(old_data->buffer)
-                {
-                    vPortFree(old_data->buffer);
-                }
-                vPortFree(old_data);
-                pill_list[i].pill_data.motionDataEncrypted.arg = NULL;
-                pill_list[i].pill_data.motionDataEncrypted.funcs.encode = NULL;
-            }
-            
-
-            const array_data* array = (array_data*)command->motionDataEntrypted.arg;  // This thing will be free when this function exits
-            array_data* array_cp = pvPortMalloc(sizeof(array_data));
-            if(!array_cp){
-                UARTprintf("No memory\n");
-
-            }else{
-            	uint8_t* encrypted_data = (uint8_t*)pvPortMalloc(array->length);
-                if(!encrypted_data){
-                    vPortFree(array_cp);
-                    UARTprintf("No memory\n");
-                }else{
-                    array_cp->buffer = encrypted_data;
-                    array_cp->length = array->length;
-                    memcpy(encrypted_data, array->buffer, array->length);
-
-                    pill_list[i].pill_data.motionDataEncrypted.arg = array_cp;
-                    pill_list[i].magic = PILL_MAGIC;
-                }
-            }
-
-            UARTprintf("PILL DATA FROM ID: %s, length: %d\n", command->deviceId.arg, array->length);
-            int i = 0;
-            for(i = 0; i < array->length; i++){
-                UARTprintf( "%x", array->buffer[i] );
-
-            }
-            UARTprintf("\n");
-
-            xSemaphoreGive(pill_smphr);
-        }else{
-        	UARTprintf("Fail to acquire Semaphore\n");
-        }
+		const array_data* array = (array_data*)command->motionDataEntrypted.arg;  // This thing will be free when this function exits
+		UARTprintf("PILL DATA FROM ID: %s, length: %d\n", command->deviceId.arg, array->length);
     }
 }
 
 static void _process_pill_heartbeat(const MorpheusCommand* command)
 {
-    int i = 0;
-    if (xSemaphoreTake(pill_smphr, 1000)) {
-        i = scan_pill_list(pill_list, command->deviceId.arg);
+	// Pill heartbeat received from ANT
+	UARTprintf("PILL HEARBEAT %s\n", command->deviceId.arg);
 
-        memset(pill_list[i].id, 0, PILL_ID_LEN + 1);  // Just in case
-        memcpy(pill_list[i].id, command->deviceId.arg, PILL_ID_LEN);
-        pill_list[i].magic = PILL_MAGIC;
+	if (command->has_batteryLevel) {
+		UARTprintf("PILL BATTERY %d\n", command->batteryLevel);
+	}
+	if (command->has_batteryLevel) {
+		UARTprintf("PILL UPTIME %d\n", command->uptime);
+	}
 
-        // Pill heartbeat received from ANT
-        UARTprintf("PILL HEARBEAT %s\n", command->deviceId.arg);
-
-        if (command->has_batteryLevel) {
-            pill_list[i].pill_data.batteryLevel = command->batteryLevel;
-            UARTprintf("PILL BATTERY %d\n", command->batteryLevel);
-        }
-        if (command->has_batteryLevel) {
-            pill_list[i].pill_data.uptime = command->uptime;
-            UARTprintf("PILL UPTIME %d\n", command->uptime);
-        }
-
-        if(command->has_firmwareVersion) {
-            pill_list[i].pill_data.firmwareVersion = command->firmwareVersion;
-            UARTprintf("PILL FirmwareVersion %d\n", command->firmwareVersion);
-        }
-        xSemaphoreGive(pill_smphr);
-    }else{
-    	UARTprintf("Fail to acquire Semaphore\n");
-    }
+	if (command->has_firmwareVersion) {
+		UARTprintf("PILL FirmwareVersion %d\n", command->firmwareVersion);
+	}
 }
 
 static void _send_response_to_ble(const char* buffer, size_t len)
@@ -371,12 +262,9 @@ static void _send_response_to_ble(const char* buffer, size_t len)
 
     if(decode_rx_data_pb((unsigned char*)content, content_len, MorpheusCommand_fields, &response) == 0)
     {
-
     	//PANG says: DO NOT EVER REMOVE THIS FUNCTION, ALTHOUGH IT MAKES NO SENSE WHY WE NEED THIS
     	ble_proto_remove_decode_funcs(&response);
-
     	ble_send_protobuf(&response);
-
     }else{
     	UARTprintf("Invalid response, protobuf decryption & decode failed.\n");
     	ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
@@ -390,7 +278,7 @@ static void _pair_device( MorpheusCommand* command, int is_morpheus)
 	char response_buffer[256] = {0};
 	int ret;
 	if(NULL == command->accountId.arg || NULL == command->deviceId.arg){
-		UARTprintf("****************************************Missing fields\n");
+		UARTprintf("*******Missing fields\n");
 		ble_reply_protobuf_error(ErrorType_INTERNAL_DATA_ERROR);
 	}else{
 
@@ -398,14 +286,13 @@ static void _pair_device( MorpheusCommand* command, int is_morpheus)
 		// TODO: Figure out why always get -1 when this is the 1st request
 		// after the IPv4 retrieved.
 
-#define MAX_RETRY_TIME_IN_TICKS (5000)
 		ret = NetworkTask_SynchronousSendProtobuf(
 				is_morpheus == 1 ? MORPHEUS_REGISTER_ENDPOINT : PILL_REGISTER_ENDPOINT,
 				response_buffer,
 				sizeof(response_buffer),
 				MorpheusCommand_fields,
 				command,
-				MAX_RETRY_TIME_IN_TICKS);
+				5000);
 
 		// All the args are in stack, don't need to do protobuf free.
 
@@ -418,9 +305,16 @@ static void _pair_device( MorpheusCommand* command, int is_morpheus)
 		}
 	}
 }
+
 #include "top_board.h"
-void on_ble_protobuf_command(MorpheusCommand* command)
+
+extern xQueueHandle pill_queue;
+
+bool on_ble_protobuf_command(MorpheusCommand* command)
 {
+	if( command->has_pillData ) {
+		xQueueSend(pill_queue, &command->pillData, 10);
+	}
     switch(command->type)
     {
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SET_WIFI_ENDPOINT:
@@ -475,15 +369,13 @@ void on_ble_protobuf_command(MorpheusCommand* command)
         		UARTprintf("You may have a bug in the pill\n");
         	}
     		_process_encrypted_pill_data(command);
-
     	}
-		break;
+        break;
     	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_HEARTBEAT: 
         {
             UARTprintf("PILL HEARTBEAT\n");
     		_process_pill_heartbeat(command);
-    	}
-        break;
+        }
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_PILL:
         {
             UARTprintf("PAIR PILL\n");
@@ -511,4 +403,5 @@ void on_ble_protobuf_command(MorpheusCommand* command)
         }
         break;
 	}
+    return true;
 }
