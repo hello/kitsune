@@ -1185,7 +1185,7 @@ int file_exists( char * filename, char * path ) {
     	return 1;
     }
 
-    res = f_open(&file_obj, path_buff, FA_READ);
+    FRESULT res = f_open(&file_obj, path_buff, FA_READ);
     if(res != FR_OK)
     {
     	cd("/");
@@ -1228,4 +1228,104 @@ int Cmd_download(int argc, char*argv[]) {
 }
 
 //end download functions
+#include "protobuf/SyncResponse.pb.h"
+#include "stdbool.h"
+#include "pb.h"
+#include "pb_decode.h"
 
+void mcu_reset();
+void nwp_reset();
+bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, void **arg);
+
+bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg)
+{
+	SyncResponse_FileDownload download_info;
+	char * filename=NULL, * url=NULL, * host=NULL, * path=NULL, * serial_flash_path=NULL, * serial_flash_name=NULL;
+
+	download_info.sd_card_filename.funcs.decode = _decode_string_field;
+	download_info.sd_card_filename.arg = filename;
+
+	download_info.sd_card_path.funcs.decode = _decode_string_field;
+	download_info.sd_card_path.arg = path;
+
+	download_info.url.funcs.decode = _decode_string_field;
+	download_info.url.arg = url;
+
+	download_info.host.funcs.decode = _decode_string_field;
+	download_info.host.arg = host;
+
+	download_info.serial_flash_filename.funcs.decode = _decode_string_field;
+	download_info.serial_flash_filename.arg = serial_flash_name;
+
+	download_info.serial_flash_path.funcs.decode = _decode_string_field;
+	download_info.serial_flash_path.arg = serial_flash_path;
+
+	if( !pb_decode(stream,SyncResponse_FileDownload_fields,&download_info) ) {
+		return false;
+	}
+
+	if( filename && url && host && path ) {
+		if( !file_exists(filename, path) ) {
+			//download it!
+			download_file( host, filename, url, path );
+
+			if( download_info.has_copy_to_serial_flash && serial_flash_name && serial_flash_path ) {
+				char full[128];
+				char buf[512];
+				long sflash_fh = -1;
+				WORD size=0;
+				int status;
+				memset(buf,0,sizeof(buf));
+				memset(full,0,sizeof(full));
+
+				strcpy(full, serial_flash_name);
+				strcat(full, serial_flash_path);
+
+				cd( path );
+			    if(global_filename( filename ))
+			    {
+			    	return 1;
+			    }
+
+			    FRESULT res = f_open(&file_obj, path_buff, FA_READ);
+				if( res != FR_OK ) {
+					UARTprintf("ota - failed to open file %s", path_buff );
+					return false;
+				}
+
+			    f_stat( path_buff, &file_info );
+			    DWORD bytes_to_copy = file_info.fsize;
+
+				sl_FsOpen((unsigned char *)full, FS_MODE_OPEN_CREATE(bytes_to_copy, _FS_FILE_OPEN_FLAG_NO_SIGNATURE_TEST | _FS_FILE_OPEN_FLAG_COMMIT ), NULL, &sflash_fh);
+				if( res != FR_OK ) {
+					UARTprintf("ota - failed to open file %s", full );
+					return false;
+				}
+
+				while( bytes_to_copy > 0 ) {
+					//read from sd into buff
+					res = f_read( &file_obj, path_buff, bytes_to_copy<512?bytes_to_copy:512, &size );
+					if( res != FR_OK ) {
+						UARTprintf("ota - failed to read file %s", path_buff );
+						return false;
+					}
+					status = sl_FsWrite(sflash_fh, 0, (unsigned char*)buf, size);
+					if( status != size ) {
+						UARTprintf("ota - failed to write file %s", full );
+						return false;
+					}
+					bytes_to_copy -= size;
+				}
+				sl_FsClose(sflash_fh,0,0,0);
+			    //close on sd
+			}
+			if( download_info.reset_network_processor ) {
+				nwp_reset();
+			}
+			if( download_info.reset_application_processor ) {
+                mcu_reset();
+			}
+		}
+	}
+	return true;
+}
