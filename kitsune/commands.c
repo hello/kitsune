@@ -692,6 +692,7 @@ int send_pill_data(BatchedPillData * pill_data);
 xQueueHandle data_queue = 0;
 xQueueHandle pill_queue = 0;
 
+//WARNING - THIS WILL EAT THE QUEUE, SO NO SIZE STREAMS ALLOWED
 bool encode_all_pills (pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
 	MorpheusCommand_PillData pill_data = {0};
 	uint32_t ret = true;
@@ -730,6 +731,7 @@ void thread_tx(void* unused) {
 
 			memset(&pill_data_batched, 0, sizeof(pill_data_batched));
 			pill_data_batched.pills.funcs.encode = encode_all_pills;  // This is smart :D
+			pill_data_batched.deviceId.funcs.encode = encode_mac_as_device_id_string;
 
 			while (!send_pill_data(&pill_data_batched) == 0) {
 				UARTprintf("  Waiting for WIFI connection  \n");
@@ -1152,7 +1154,9 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "ping", Cmd_ping, "Ping a server" },
 		{ "time", Cmd_time, "get ntp time" },
 		{ "status", Cmd_status, "status of simple link" },
+#if 0
 		{ "audio", Cmd_audio_test, "audio upload test" },
+#endif
 
     { "mnt",      Cmd_mnt,      "Mount the SD card" },
     { "umnt",     Cmd_umnt,     "Unount the SD card" },

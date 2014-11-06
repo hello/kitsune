@@ -64,8 +64,7 @@ message MorpheusCommand {
 	    MORPHEUS_COMMAND_FACTORY_RESET = 20;
 	}
 	required int32 version = 1;
-	required CommandType type = 2;
-	optional string deviceId = 3;
+	required CommandType type = 2;optional string deviceId = 3;
 	optional string accountId = 4;  // Used by MORPHEUS_COMMAND_PAIRE_PILL
 	optional ErrorType error = 5;  // MORPHEUS_COMMAND_ERROR
 	optional string wifiName = 6;
@@ -80,7 +79,6 @@ message MorpheusCommand {
 	optional wifi_endpoint.sec_type security_type = 15;
 	
 	message PillData {
-
 		required string deviceId = 1;
 		optional int32 batteryLevel = 2;
 		optional int32 uptime = 3;
@@ -94,4 +92,5 @@ message MorpheusCommand {
 
 message BatchedPillData {
 	repeated MorpheusCommand.PillData pills=1;
+	required string deviceId = 2;
 }
