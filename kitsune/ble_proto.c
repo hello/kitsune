@@ -246,8 +246,11 @@ void free_pill_list()
             // holder->buffer points to the beginning of block.
             pill_list[i].pill_data.motionDataEncrypted.arg = NULL;
             pill_list[i].pill_data.motionDataEncrypted.funcs.encode = NULL;
-            pill_list[i].magic = 0;  // Release this slot.
+            
         }
+
+        memset(pill_list[i].pill_data, 0, sizeof(pill_list[i].pill_data));  // set all the has_xxx fields to empty.
+        pill_list[i].magic = 0;  // Release this slot.
     }
 }
 
@@ -325,15 +328,18 @@ static void _process_pill_heartbeat(const MorpheusCommand* command)
         UARTprintf("PILL HEARBEAT %s\n", command->deviceId.arg);
 
         if (command->has_batteryLevel) {
+            pill_list[i].pill_data.has_batteryLevel = true;
             pill_list[i].pill_data.batteryLevel = command->batteryLevel;
             UARTprintf("PILL BATTERY %d\n", command->batteryLevel);
         }
         if (command->has_batteryLevel) {
+            pill_list[i].pill_data.has_uptime = true;
             pill_list[i].pill_data.uptime = command->uptime;
             UARTprintf("PILL UPTIME %d\n", command->uptime);
         }
 
         if(command->has_firmwareVersion) {
+            pill_list[i].pill_data.has_firmwareVersion = true;
             pill_list[i].pill_data.firmwareVersion = command->firmwareVersion;
             UARTprintf("PILL FirmwareVersion %d\n", command->firmwareVersion);
         }
