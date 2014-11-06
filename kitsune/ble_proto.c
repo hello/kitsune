@@ -208,17 +208,20 @@ static void _ble_reply_wifi_info(){
 periodic_data_pill_data_container pill_list[MAX_PILLS] = {0};
 
 int scan_pill_list(periodic_data_pill_data_container* p, char * device_id) {
-	int i;
+	int i = 0;
+    int last_free_index = 0;
 	for (i = 0; i < MAX_PILLS; ++i) {
 		if (p[i].magic == PILL_MAGIC && strcmp(p[i].id, device_id) == 0) {
-			break;
+			return i;
 		}
+
+        if(p[i].magic != PILL_MAGIC)
+        {
+            last_free_index = i;
+        }
 	}
-	if (i == MAX_PILLS) {
-		UARTprintf(" too many pills, overwriting\n ");
-		i=0;
-	}
-	return i;
+
+	return last_free_index;
 }
 
 void free_pill_list()
