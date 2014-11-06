@@ -3,6 +3,7 @@
 #define _MATMESSAGEUTILS_H_
 
 #include "pb.h"
+#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -17,10 +18,12 @@ extern "C" {
 		uint32_t len;
 	} bytes_desc_t;
 
-	uint8_t write_bytes(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
+	bool write_bytes(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 
-	uint8_t write_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
+	bool write_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
     
+	bool read_string(pb_istream_t *stream, const pb_field_t *field, void **arg);
+
     typedef enum {
         euint8,
         esint8,

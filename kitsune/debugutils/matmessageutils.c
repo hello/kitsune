@@ -6,7 +6,7 @@
 
 
 
-uint8_t write_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
+bool write_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
     const char * str = (const char *)(*arg);
     static const char nullchar = '\0';
     
@@ -28,7 +28,7 @@ uint8_t write_string(pb_ostream_t *stream, const pb_field_t *field, void * const
 
 }
 
-uint8_t write_bytes(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
+bool write_bytes(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
 	bytes_desc_t * desc = (bytes_desc_t *)(*arg);
 
 
@@ -205,15 +205,15 @@ static bool read_int_array(pb_istream_t *stream,IntArray_t * pdesc) {
 bool read_string(pb_istream_t *stream, const pb_field_t *field, void **arg) {
     StringDesc_t * p = (StringDesc_t *) (*arg);
     /* We could read block-by-block to avoid the large buffer... */
-    
+
     if (p->maxlen < stream->bytes_left) {
         return false;
     }
-    
-    
+
+
     if (!pb_read(stream, p->writebuf, stream->bytes_left))
         return false;
-    
+
     /* Print the string, in format comparable with protoc --decode.
      * Format comes from the arg defined in main().
      */
