@@ -12,9 +12,12 @@
 #include "assert.h"
 #include "stdlib.h"
 #include "stdio.h"
+#include "networktask.h"
+#include "led_animations.h"
+#include "led_cmd.h"
+#include "top_board.h"
 
 extern unsigned int sl_status;
-int Cmd_led(int argc, char *argv[]);
 
 static void _factory_reset(){
     int16_t ret = sl_WlanProfileDel(0xFF);
@@ -30,15 +33,22 @@ static void _factory_reset(){
     ret = sl_WlanDisconnect();
     if(ret == 0){
         UARTprintf("WIFI disconnected");
-        MorpheusCommand reply_command;
-        memset(&reply_command, 0, sizeof(reply_command));
-        reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_FACTORY_RESET;
-        ble_send_protobuf(&reply_command);
-
     }else{
         UARTprintf("Disconnect WIFI failed, error %d.\n", ret);
-        ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
     }
+
+    ret = sl_Stop(2);
+    if(ret == 0)
+    {
+    	sl_Start(NULL, NULL, NULL);
+    }else{
+    	UARTprintf("NWP reset failed\n");
+    }
+
+    MorpheusCommand reply_command;
+	memset(&reply_command, 0, sizeof(reply_command));
+	reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_FACTORY_RESET;
+	ble_send_protobuf(&reply_command);
 }
 
 static void _reply_wifi_scan_result()
@@ -50,19 +60,20 @@ static void _reply_wifi_scan_result()
     uint8_t retry_count = max_retry;
     sl_status |= SCANNING;
     
-    Cmd_led(0,0);
+    //Cmd_led(0,0);
+    play_led_progress_bar(30,30,0,0);
     while((scanned_wifi_count = get_wifi_scan_result(wifi_endpoints, MAX_WIFI_EP_PER_SCAN, 3000 * (max_retry - retry_count + 1))) == 0 && --retry_count)
     {
-
+    	set_led_progress_bar((max_retry - retry_count) * 100 / max_retry);
         UARTprintf("No wifi scanned, retry times remain %d\n", retry_count);
         vTaskDelay(500);
     }
-
+    stop_led_animation();
     sl_status &= ~SCANNING;
 
     int i = 0;
     Sl_WlanNetworkEntry_t wifi_endpoints_cp[2] = {0};
-
+    play_led_progress_bar(0,0,30,0);
     MorpheusCommand reply_command = {0};
     for(i = 0; i < scanned_wifi_count; i++)
     {
@@ -71,10 +82,11 @@ static void _reply_wifi_scan_result()
 		reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_START_WIFISCAN;
 		reply_command.wifi_scan_result.arg = wifi_endpoints_cp;
 		ble_send_protobuf(&reply_command);
-
+		set_led_progress_bar(i * 100 / scanned_wifi_count);
         vTaskDelay(1000);  // This number must be long enough so the BLE can get the data transmit to phone
         memset(&reply_command, 0, sizeof(reply_command));
     }
+    stop_led_animation();
 
     reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_STOP_WIFISCAN;
 	ble_send_protobuf(&reply_command);
@@ -83,83 +95,48 @@ static void _reply_wifi_scan_result()
 }
 
 
-static bool _set_wifi(const char* ssid, const char* password)
+static bool _set_wifi(const char* ssid, const char* password, int security_type)
 {
-    Sl_WlanNetworkEntry_t wifi_endpoints[MAX_WIFI_EP_PER_SCAN];
-    int scanned_wifi_count, connection_ret;
-    memset(wifi_endpoints, 0, sizeof(wifi_endpoints));
-
-    /*
-    sl_WlanDisconnect();   // This line causes trouble, cannot get IP back after reconnect
-    // To reproduce the problem, connect to a valid WIFI first, then switch to another WIFI
-    // The 2nd connection will never managed to get the IP address event.
-    // If we don't disconnect, after the 2nd connection request, the chip will
-    // disconnect itself and successfully reconnect.
-    // But it seems I never get the UART print out get IP event, not sure if
-    // it happens or not.
-    // This chip is a mystery.
-
-	while(sl_status&HAS_IP) {
-		vTaskDelay(100);
-	}
-	*/
+    int connection_ret;
 
     uint8_t max_retry = 10;
     uint8_t retry_count = max_retry;
 
-    sl_status |= SCANNING;
-    
-    while((scanned_wifi_count = get_wifi_scan_result(wifi_endpoints, MAX_WIFI_EP_PER_SCAN, 2000 * (max_retry - retry_count + 1))) == 0 && --retry_count)
+	play_led_progress_bar(30,30,0,0);
+    while((connection_ret = connect_wifi(ssid, password, security_type)) == 0 && --retry_count)
     {
-        Cmd_led(0,0);
-        UARTprintf("No wifi scanned, retry times remain %d\n", retry_count);
-        vTaskDelay(500);
+        //Cmd_led(0,0);
+        UARTprintf("Failed to connect, retry times remain %d\n", retry_count);
+        set_led_progress_bar((max_retry - retry_count ) * 100 / max_retry);
+        vTaskDelay(2000);
     }
-
-    if(scanned_wifi_count == 0)
-    {
-        Cmd_led(0,0);
-        sl_status &= ~SCANNING;
-    	UARTprintf("No wifi found after retry %d times\n", 10);
-        ble_reply_protobuf_error(ErrorType_NO_ENDPOINT_IN_RANGE);
-    	return 0;
-    }
-
-    //////
-
-    retry_count = 10;
-    SlSecParams_t secParams = {0};
-
-    while((connection_ret = connect_scanned_endpoints(ssid, password, wifi_endpoints, scanned_wifi_count, &secParams)) == 0 && --retry_count)
-	{
-		Cmd_led(0,0);
-		UARTprintf("Failed to connect, retry times remain %d\n", retry_count);
-		vTaskDelay(500);
-	}
-
+    stop_led_animation();
 
     if(!connection_ret)
     {
 		UARTprintf("Tried all wifi ep, all failed to connect\n");
         ble_reply_protobuf_error(ErrorType_WLAN_CONNECTION_ERROR);
+        led_set_color(0xFF, 30,0,0,1,1,60,0);
 		return 0;
     }else{
 		uint8_t wait_time = 10;
 
 		sl_status |= CONNECTING;
-
+		play_led_progress_bar(30,30,0,0);
 		while(--wait_time && (!(sl_status & HAS_IP)))
 		{
-			Cmd_led(0,0);
+			//Cmd_led(0,0);
+			set_led_progress_bar((10 - wait_time ) * 100 / 10);
 			UARTprintf("Retrieving IP address...\n");
-			vTaskDelay(1000);
+			vTaskDelay(4000);
 		}
-
+		stop_led_animation();
 		if(!(sl_status & HAS_IP))
 		{
-			Cmd_led(0,0);
+			//Cmd_led(0,0);
 			UARTprintf("!!WIFI set without network connection.");
             ble_reply_protobuf_error(ErrorType_FAIL_TO_OBTAIN_IP);
+            led_set_color(0xFF, 30,0,0,1,1,60,0);
 			return 0;
 		}
     }
@@ -171,6 +148,7 @@ static bool _set_wifi(const char* ssid, const char* password)
 
     UARTprintf("Connection attempt issued.\n");
     ble_send_protobuf(&reply_command);
+    led_set_color(0xFF, 0,30,0,1,1,200,0);
     return 1;
 }
 
@@ -212,69 +190,68 @@ static void _reply_device_id()
 *
 */
 static void _ble_reply_wifi_info(){
-    int8_t*  name = pvPortMalloc(32);  // due to wlan.h
-    if(!name)
-    {
-        UARTprintf("Not enough memory.\n");
-        ble_reply_protobuf_error(ErrorType_DEVICE_NO_MEMORY);
-        return;
-    }
+	uint8_t ssid[MAX_SSID_LEN] = {0};
+	wifi_get_connected_ssid(ssid, sizeof(ssid));
 
-    memset(name, 0, 32);
-    int16_t name_len = 0;
-    uint8_t mac_addr[6] = {0};
-    SlSecParams_t sec_params = {0};
-    SlGetSecParamsExt_t secExt_params = {0};
-    unsigned long priority  = 0;
-
-    int16_t get_ret = sl_WlanProfileGet(0, name, &name_len, mac_addr, &sec_params, &secExt_params, &priority);
-    if(get_ret == -1)
-    {
-        UARTprintf("Get wifi endpoint failed, error %d.\n", get_ret);
-        ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
-
-    }else{
-        MorpheusCommand reply_command;
-        memset(&reply_command, 0, sizeof(reply_command));
-        reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_WIFI_ENDPOINT;
-
-        size_t len = strlen((char*)name) + 1;
-        char* ssid = pvPortMalloc(len);
-
-        if(ssid)
-        {
-            memset(ssid, 0, len);
-            memcpy(ssid, name, strlen((const char*)name));
-
-            reply_command.wifiSSID.arg = ssid;
-            ble_send_protobuf(&reply_command);
-            vPortFree(ssid);
-        }else{
-            UARTprintf("Not enough memory.\n");
-            ble_reply_protobuf_error(ErrorType_DEVICE_NO_MEMORY);
-        }
-
-    }
-
-    vPortFree(name);
+	MorpheusCommand reply_command;
+	memset(&reply_command, 0, sizeof(reply_command));
+	reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_WIFI_ENDPOINT;
+	size_t len = strlen((char*)ssid) + 1;
+	if(len - 1 > 0)
+	{
+		reply_command.wifiSSID.arg = ssid;
+	}
+	ble_send_protobuf(&reply_command);
 }
 
-int Cmd_led(int argc, char *argv[]);
 #include "wifi_cmd.h"
 periodic_data_pill_data_container pill_list[MAX_PILLS] = {0};
 
 int scan_pill_list(periodic_data_pill_data_container* p, char * device_id) {
-	int i;
-	for (i = 0; i < MAX_PILLS && p[i].magic == PILL_MAGIC; ++i) {
-		if (strcmp(p[i].id, device_id) == 0) {
-			break;
+	int i = 0;
+    int last_free_index = 0;
+	for (i = 0; i < MAX_PILLS; ++i) {
+		if (p[i].magic == PILL_MAGIC && strcmp(p[i].id, device_id) == 0) {
+			return i;
 		}
+
+        if(p[i].magic != PILL_MAGIC)
+        {
+            last_free_index = i;
+        }
 	}
-	if (i == MAX_PILLS) {
-		UARTprintf(" too many pills, overwriting\n ");
-		i=0;
-	}
-	return i;
+
+	return last_free_index;
+}
+
+void free_pill_list()
+{
+    int i;
+    for (i = 0; i < MAX_PILLS; ++i) 
+    {
+        if (pill_list[i].magic != PILL_MAGIC) {
+            // Slot already empty, skip.
+            continue;
+        }
+
+        if(pill_list[i].pill_data.motionDataEncrypted.arg)
+        {
+            array_data* array_holder = pill_list[i].pill_data.motionDataEncrypted.arg;
+            if(array_holder->buffer)
+            {
+                vPortFree(array_holder->buffer);
+            }
+
+            // We don't need to free the holder, they are in the same block with the holder->buffer
+            // holder->buffer points to the beginning of block.
+            pill_list[i].pill_data.motionDataEncrypted.arg = NULL;
+            pill_list[i].pill_data.motionDataEncrypted.funcs.encode = NULL;
+            
+        }
+
+        memset(pill_list[i].pill_data, 0, sizeof(pill_list[i].pill_data));  // set all the has_xxx fields to empty.
+        pill_list[i].magic = 0;  // Release this slot.
+    }
 }
 
 static void _process_encrypted_pill_data(const MorpheusCommand* command)
@@ -296,36 +273,36 @@ static void _process_encrypted_pill_data(const MorpheusCommand* command)
                 {
                     vPortFree(old_data->buffer);
                 }
-                vPortFree(old_data);
+
                 pill_list[i].pill_data.motionDataEncrypted.arg = NULL;
                 pill_list[i].pill_data.motionDataEncrypted.funcs.encode = NULL;
             }
             
 
             const array_data* array = (array_data*)command->motionDataEntrypted.arg;  // This thing will be free when this function exits
-            array_data* array_cp = pvPortMalloc(sizeof(array_data));
-            if(!array_cp){
+            
+            // the holder and buffer are in one memory block
+            uint8_t* buffer = pvPortMalloc(sizeof(array_data) + array->length);
+            if(!buffer){
                 UARTprintf("No memory\n");
 
             }else{
-            	uint8_t* encrypted_data = (uint8_t*)pvPortMalloc(array->length);
-                if(!encrypted_data){
-                    vPortFree(array_cp);
-                    UARTprintf("No memory\n");
-                }else{
-                    array_cp->buffer = encrypted_data;
-                    array_cp->length = array->length;
-                    memcpy(encrypted_data, array->buffer, array->length);
 
-                    pill_list[i].pill_data.motionDataEncrypted.arg = array_cp;
-                    pill_list[i].magic = PILL_MAGIC;
-                }
+                array_data* holder = (array_data*)&buffer[array->length];
+
+                holder->buffer = buffer;
+                holder->length = array->length;
+                memcpy(holder->buffer, array->buffer, array->length);
+
+                pill_list[i].pill_data.motionDataEncrypted.arg = holder;
+                pill_list[i].magic = PILL_MAGIC;
+                
             }
 
             UARTprintf("PILL DATA FROM ID: %s, length: %d\n", command->deviceId.arg, array->length);
             int i = 0;
             for(i = 0; i < array->length; i++){
-                UARTprintf( "%x", array->buffer[i] );
+                UARTprintf( "%02x", array->buffer[i] );
 
             }
             UARTprintf("\n");
@@ -351,15 +328,18 @@ static void _process_pill_heartbeat(const MorpheusCommand* command)
         UARTprintf("PILL HEARBEAT %s\n", command->deviceId.arg);
 
         if (command->has_batteryLevel) {
+            pill_list[i].pill_data.has_batteryLevel = true;
             pill_list[i].pill_data.batteryLevel = command->batteryLevel;
             UARTprintf("PILL BATTERY %d\n", command->batteryLevel);
         }
         if (command->has_batteryLevel) {
+            pill_list[i].pill_data.has_uptime = true;
             pill_list[i].pill_data.uptime = command->uptime;
             UARTprintf("PILL UPTIME %d\n", command->uptime);
         }
 
         if(command->has_firmwareVersion) {
+            pill_list[i].pill_data.has_firmwareVersion = true;
             pill_list[i].pill_data.firmwareVersion = command->firmwareVersion;
             UARTprintf("PILL FirmwareVersion %d\n", command->firmwareVersion);
         }
@@ -393,45 +373,42 @@ static void _send_response_to_ble(const char* buffer, size_t len)
     memset(&response, 0, sizeof(response));
     ble_proto_assign_decode_funcs(&response);
 
-    if(decode_rx_data_pb((unsigned char*)content, content_len, MorpheusCommand_fields, &response, sizeof(response)) != 0)
+    if(decode_rx_data_pb((unsigned char*)content, content_len, MorpheusCommand_fields, &response) == 0)
     {
-        UARTprintf("Invalid response, protobuf decryption & decode failed.\n");
-        ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
-    }else{
 
-        ble_send_protobuf(&response);
+    	//PANG says: DO NOT EVER REMOVE THIS FUNCTION, ALTHOUGH IT MAKES NO SENSE WHY WE NEED THIS
+    	ble_proto_remove_decode_funcs(&response);
+
+    	ble_send_protobuf(&response);
+
+    }else{
+    	UARTprintf("Invalid response, protobuf decryption & decode failed.\n");
+    	ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
     }
-    ble_proto_remove_decode_funcs(&response);
+
     ble_proto_free_command(&response);
 }
 
 static void _pair_device( MorpheusCommand* command, int is_morpheus)
 {
 	char response_buffer[256] = {0};
+	int ret;
 	if(NULL == command->accountId.arg || NULL == command->deviceId.arg){
 		UARTprintf("****************************************Missing fields\n");
 		ble_reply_protobuf_error(ErrorType_INTERNAL_DATA_ERROR);
 	}else{
 
 		ble_proto_assign_encode_funcs(command);
-		uint8_t retry_count = 5;   // Retry 5 times if we have network error
 		// TODO: Figure out why always get -1 when this is the 1st request
 		// after the IPv4 retrieved.
 
-		int ret = send_data_pb(DATA_SERVER,
+		ret = NetworkTask_SynchronousSendProtobuf(
 				is_morpheus == 1 ? MORPHEUS_REGISTER_ENDPOINT : PILL_REGISTER_ENDPOINT,
-				response_buffer, sizeof(response_buffer),
-				MorpheusCommand_fields, command);
-
-		while(ret != 0 && retry_count--){
-			UARTprintf("Network error, try to resend command...\n");
-			vTaskDelay(1000);
-			ret = send_data_pb(DATA_SERVER,
-				is_morpheus == 1 ? MORPHEUS_REGISTER_ENDPOINT : PILL_REGISTER_ENDPOINT,
-				response_buffer, sizeof(response_buffer),
-				MorpheusCommand_fields, command);
-
-		}
+				response_buffer,
+				sizeof(response_buffer),
+				MorpheusCommand_fields,
+				command,
+				5000);
 
 		// All the args are in stack, don't need to do protobuf free.
 
@@ -458,13 +435,20 @@ void on_ble_protobuf_command(MorpheusCommand* command)
 
             // Just call API to connect to WIFI.
             UARTprintf("Wifi SSID %s, pswd %s \n", ssid, password);
-            _set_wifi(ssid, (char*)password);
+
+            int sec_type = SL_SEC_TYPE_WPA_WPA2;
+            if(command->has_security_type)
+            {
+            	sec_type = command->security_type == wifi_endpoint_sec_type_SL_SCAN_SEC_TYPE_WPA2 ? SL_SEC_TYPE_WPA_WPA2 : command->security_type;
+            }
+
+            _set_wifi(ssid, (char*)password, sec_type);
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_PAIRING_MODE:  // Just for testing
         {
             // Light up LEDs?
-            Cmd_led(0,0);
+        	led_set_color(0xFF, 0, 0, 50, 1, 1, 18, 0); //blue
             UARTprintf( "PAIRING MODE \n");
         }
         break;
@@ -479,6 +463,7 @@ void on_ble_protobuf_command(MorpheusCommand* command)
         {
             // Get morpheus device id request from Nordic
             UARTprintf("GET DEVICE ID\n");
+            top_board_notify_boot_complete();
             _reply_device_id();
         }
         break;
@@ -505,6 +490,7 @@ void on_ble_protobuf_command(MorpheusCommand* command)
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_PILL:
         {
             UARTprintf("PAIR PILL\n");
+            led_set_color(0xFF, 0, 0, 50, 1, 1, 18, 1); //blue
             _pair_device(command, 0);
             
         }

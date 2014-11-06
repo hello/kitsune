@@ -8,12 +8,12 @@
             <instance XML_version="1.2" href="drivers/stellaris_cortex_m4.xml" id="drivers" xml="stellaris_cortex_m4.xml" xmlpath="drivers"/>
             <platform XML_version="1.2" id="platform_0">
                 <instance XML_version="1.2" desc="CC3200_0" href="devices/CC3200.xml" id="CC3200_0" xml="CC3200.xml" xmlpath="devices"/>
-            <device HW_revision="1" XML_version="1.2" description="" id="CC3200_0" partnum="CC3200" simulation="no">
+            <device HW_revision="1" XML_version="1.2" description="" id="CC3200_0" partnum="CC3200">
                     <router HW_revision="1.0" XML_version="1.2" description="ICEPick_C Router" id="IcePick_C_0" isa="ICEPICK_C">
                         <subpath id="subpath_0">
                             <router HW_revision="1.0" XML_version="1.2" description="CS_DAP Router" id="CS_DAP_0" isa="CS_DAP">
                                 <subpath id="subpath_1">
-                                    <cpu HW_revision="1.0" XML_version="1.2" description="Cortex_M4 CPU" deviceSim="false" id="Cortex_M4_0" isa="CORTEX_M4_CC">
+                                    <cpu HW_revision="1.0" XML_version="1.2" description="Cortex_M4 CPU" id="Cortex_M4_0" isa="CORTEX_M4_CC">
                                         <property Type="choicelist" Value="1" id="debugPort"/>
                                     </cpu>
                                 </subpath>

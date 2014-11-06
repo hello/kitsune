@@ -114,6 +114,7 @@ int Cmd_mkfs(int argc, char *argv[])
 // along with free space.
 //
 //*****************************************************************************
+
 int
 Cmd_ls(int argc, char *argv[])
 {
@@ -222,9 +223,7 @@ Cmd_ls(int argc, char *argv[])
 // current working directory (cwd) is changed to the new path.
 //
 //*****************************************************************************
-int
-Cmd_cd(int argc, char *argv[])
-{
+FRESULT cd( char * path ) {
     uint_fast8_t ui8Idx;
     FRESULT res;
 
@@ -234,25 +233,25 @@ Cmd_cd(int argc, char *argv[])
 
     // If the first character is /, then this is a fully specified path, and it
     // should just be used as-is.
-    if(argv[1][0] == '/')
+    if(path[0] == '/')
     {
         // Make sure the new path is not bigger than the cwd buffer.
-        if(strlen(argv[1]) + 1 > sizeof(cwd_buff))
+        if(strlen(path) + 1 > sizeof(cwd_buff))
         {
             UARTprintf("Resulting path name is too long\n");
-            return(0);
+            return(FR_INVALID_NAME);
         }
 
         // If the new path name (in argv[1])  is not too long, then copy it
         // into the temporary buffer so it can be checked.
         else
         {
-            strncpy(path_buff, argv[1], sizeof(path_buff));
+            strncpy(path_buff, path, sizeof(path_buff));
         }
     }
     // If the argument is .. then attempt to remove the lowest level on the
     // CWD.
-    else if(!strcmp(argv[1], ".."))
+    else if(!strcmp(path, ".."))
     {
         // Get the index to the last character in the current path.
         ui8Idx = strlen(path_buff) - 1;
@@ -278,10 +277,10 @@ Cmd_cd(int argc, char *argv[])
         // Test to make sure that when the new additional path is added on to
         // the current path, there is room in the buffer for the full new path.
         // It needs to include a new separator, and a trailing null character.
-        if(strlen(path_buff) + strlen(argv[1]) + 1 + 1 > sizeof(cwd_buff))
+        if(strlen(path_buff) + strlen(path) + 1 + 1 > sizeof(cwd_buff))
         {
             UARTprintf("Resulting path name is too long\n");
-            return(0);
+            return(FR_INVALID_NAME);
         }
 
         // The new path is okay, so add the separator and then append the new
@@ -295,7 +294,7 @@ Cmd_cd(int argc, char *argv[])
             }
 
             // Append the new directory to the path.
-            strcat(path_buff, argv[1]);
+            strcat(path_buff, path);
         }
     }
 
@@ -308,7 +307,11 @@ Cmd_cd(int argc, char *argv[])
     if(res != FR_OK)
     {
         UARTprintf("cd: %s\n",path_buff);
-        return((int)res);
+        UARTprintf("cd: failed, trying to make dir");
+        res = f_mkdir(path_buff);
+		if (res != FR_OK) {
+			return ( res);
+		}
     }
 
     // Otherwise, it is a valid new path, so copy it into the CWD.
@@ -316,8 +319,15 @@ Cmd_cd(int argc, char *argv[])
     {
         strncpy(cwd_buff,path_buff, sizeof(cwd_buff));
     }
-    return(0);
+    return(FR_OK);
 }
+
+
+int
+Cmd_cd(int argc, char *argv[]) {
+	return cd( argv[1] );
+}
+
 
 //*****************************************************************************
 //
@@ -852,7 +862,7 @@ int GetChunkSize(int *len, unsigned char **p_Buff, unsigned long *chunk_size)
 //download img4.wikia.nocookie.net al __cb20130206084237/disney/images/e/eb/Aladdin_-_A_Whole_New_World_%281%29.gif
 
 //****************************************************************************
-int GetData(char * filename, char* url, char * host)
+int GetData(char * filename, char* url, char * host, char * path)
 {
     int           transfer_len = 0;
     WORD          r = 0;
@@ -912,7 +922,7 @@ int GetData(char * filename, char* url, char * host)
     pBuff = (unsigned char *)strstr((const char *)g_buff, HTTP_CONTENT_LENGTH);
     if(pBuff != 0)
     {
-    	char *p = pBuff;
+    	char *p = (char*)pBuff;
         // not supported
         ASSERT_ON_ERROR(FORMAT_NOT_SUPPORTED);
 
@@ -970,7 +980,12 @@ int GetData(char * filename, char* url, char * host)
     if(isChunked == 1)
     {
         r = GetChunkSize(&transfer_len, &pBuff, &recv_size);
-        ASSERT_ON_ERROR(r);
+    }
+
+    FRESULT res = cd( path );
+
+    if( res != FR_OK ) {
+    	UARTprintf( "can't make/open dir %s", path );
     }
 
     /* Open file to save the downloaded file */
@@ -979,7 +994,7 @@ int GetData(char * filename, char* url, char * host)
     	return 1;
     }
     // Open the file for writing.
-    FRESULT res = f_open(&file_obj, path_buff, FA_CREATE_NEW|FA_WRITE|FA_OPEN_ALWAYS);
+    res = f_open(&file_obj, path_buff, FA_CREATE_NEW|FA_WRITE|FA_OPEN_ALWAYS);
     UARTprintf("res :%d\n",res);
 
     if(res != FR_OK && res != FR_EXIST){
@@ -1192,39 +1207,43 @@ int GetData(char * filename, char* url, char * host)
     return 0;
 }
 
-int Cmd_download(int argc, char*argv[]) {
+int download_file(char * host, char * url, char * filename, char * path ) {
 	unsigned long ip;
-
-    int r = gethostbyname((signed char *)argv[1],
-                                       strlen((const char *)argv[1]),
-                                       &ip,SL_AF_INET);
-    if(r < 0)
-    {
-        ASSERT_ON_ERROR(GET_HOST_IP_FAILED);
-    }
+	int r = gethostbyname((signed char*) host, strlen(host), &ip, SL_AF_INET);
+	if (r < 0) {
+		ASSERT_ON_ERROR(GET_HOST_IP_FAILED);
+	}
 	UARTprintf("download <host> <filename> <url>\n\r");
-    // Create a TCP connection to the Web Server
-    dl_sock = CreateConnection(ip);
+	// Create a TCP connection to the Web Server
+	dl_sock = CreateConnection(ip);
 
-    if(dl_sock < 0)
-    {
-        UARTprintf("Connection to server failed\n\r");
-        return SERVER_CONNECTION_FAILED;
-    }
-    else
-    {
-        UARTprintf("Connection to server created successfully\r\n");
-    }
-    // Download the file, verify the file and replace the exiting file
-    r = GetData(argv[2], argv[3], argv[1]);
-    if(r < 0)
-    {
-        UARTprintf("Device couldn't download the file from the server\n\r");
-    }
+	if (dl_sock < 0) {
+		UARTprintf("Connection to server failed\n\r");
+		return SERVER_CONNECTION_FAILED;
+	} else {
+		UARTprintf("Connection to server created successfully\r\n");
+	}
+	// Download the file, verify the file and replace the exiting file
+	r = GetData(filename, url, host, path);
+	if (r < 0) {
+		UARTprintf("Device couldn't download the file from the server\n\r");
+	}
 
-    r = close(dl_sock);
+	r = close(dl_sock);
 
-    return r;
+	return r;
+}
+
+int Cmd_download(int argc, char*argv[]) {
+	char host[128];
+	char filename[128];
+	char url[256];
+
+	strncpy( host, argv[1], 128 );
+	strncpy( filename, argv[2], 128 );
+	strncpy( url, argv[3], 256 );
+
+	return download_file( host, url, filename, "/" );
 }
 
 //end download functions

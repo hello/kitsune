@@ -60,6 +60,9 @@
 #include "network.h"
 #include "uartstdio.h"
 
+#include "FreeRTOS.h"
+#include "task.h"
+
 //*****************************************************************************
 //                 GLOBAL VARIABLES -- Start
 //*****************************************************************************
@@ -71,8 +74,8 @@ int iCount =0;
 unsigned int g_uiPlayWaterMark = 1;
 extern unsigned long  g_ulStatus;
 extern unsigned char g_ucSpkrStartFlag;
-unsigned char speaker_data[20*1024]; //16*1024
-unsigned char speaker_data_padded[1024]={0}; //16*1024
+unsigned short speaker_data[256];
+unsigned short speaker_data_padded[512]={0};
 //*****************************************************************************
 //                 GLOBAL VARIABLES -- End
 //*****************************************************************************
@@ -89,112 +92,67 @@ unsigned char speaker_data_padded[1024]={0}; //16*1024
 //*****************************************************************************
 
 
-void Speaker1()
-{
-  FIL		fp;
-  WORD		Size;
-  FRESULT	res;
-  unsigned long totBytesRead = 0;
+void Speaker1(char * file)
+ {
+	FIL fp;
+	WORD size;
+	FRESULT res;
+	unsigned long totBytesRead = 0;
 
+	long iRetVal = -1;
+	res = f_open(&fp, file, FA_READ);
 
-  long iRetVal = -1;
-  res = f_open(&fp, AUDIO_FILE,FA_READ);
+	if (res != FR_OK) {
+		UARTprintf("Failed to open audio file %d\n\r", res);
+		return;
+	}
 
-  if(res == FR_OK)
-  {
-    /* Workaround - Read initial 9 bytes that is file name:" mari.rec". We writing file
-                      name at start because of hang issue in f_write.
-    */
-    f_read(&fp, speaker_data, 0, (unsigned short*)&Size);
-    UARTprintf("Read : %d Bytes\n\n\r",Size);
-    totBytesRead = 0;
-  }
-  else
-  {
-	  UARTprintf("Failed to open audio file\n\r");
-	  return;
-    LOOP_FOREVER();
-  }
+	memset(speaker_data_padded,0,sizeof(speaker_data_padded));
 
-  //g_ucSpkrStartFlag = 1;
-  unsigned long offset = 0 ;
-  while(1)
-  {
-    //while(g_ucSpkrStartFlag)
-    {
-      /* Read always in block of 512 Bytes or less else it will stuck in f_read() */
-      res = f_read(&fp, speaker_data, 512, (unsigned short*)&Size);
-      totBytesRead += Size;
+	g_uiPlayWaterMark = 1;
+	while (g_ucSpkrStartFlag) {
+		/* Read always in block of 512 Bytes or less else it will stuck in f_read() */
+		res = f_read(&fp, speaker_data, sizeof(speaker_data), (unsigned short*) &size);
+		totBytesRead += size;
 
-      /* Wait to avoid buffer overflow as reading speed is faster than playback */
-      while((IsBufferSizeFilled(pRxBuffer,PLAY_WATERMARK) == TRUE)){};
+		/* Wait to avoid buffer overflow as reading speed is faster than playback */
+		while ((IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) == TRUE)) {
+			vTaskDelay(2);
+		};
 
-      if(Size>0)
-      {
-
-    	  //UARTprintf("Read : %d Bytes totBytesRead: %d\n\n\r",Size, totBytesRead);
-    		unsigned int i;
-			#if 1
-    		unsigned short *pu16;
-    	  pu16 = (unsigned short *)(speaker_data + offset*Size);
-    	             	for (i = 0; i < 512/2; i ++) {
-    	             		*pu16 = ((*pu16) << 8) | ((*pu16) >> 8);
-    	             		pu16++;
-    	             	}
-    	  #endif
-			for( i=0;i<512;++i) {
-				speaker_data_padded[i*2+1] = speaker_data[i];
-				speaker_data_padded[i*2] = speaker_data[i];
+		if (size > 0) {
+			unsigned int i;
+			for (i = 0; i != (size>>1); ++i) {
+				//the odd ones are zeroed already
+				speaker_data_padded[i<<1] = speaker_data[i];
 			}
-			Size *=2;
+			iRetVal = FillBuffer(pRxBuffer, (unsigned char*) (speaker_data_padded), size<<1);
 
-        iRetVal = FillBuffer(pRxBuffer,(unsigned char*)(speaker_data_padded + offset*Size),\
-        		Size);
-       // offset = (offset+1)%(sizeof(speaker_data)/512);
+			if (iRetVal < 0) {
+				UARTprintf("Unable to fill buffer");
+			}
+		} else {
+			f_close(&fp);
+			iRetVal = f_open(&fp, AUDIO_FILE, FA_READ);
+			if (iRetVal == FR_OK) {
+				g_iReceiveCount = 0;
+				UARTprintf("speaker task completed\r\n");
+				break;
+			} else {
+				UARTprintf("Failed to open audio file\n\r");
+			}
+		}
+		if (g_uiPlayWaterMark == 0) {
+			if (IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) == TRUE) {
+				g_uiPlayWaterMark = 1;
+			}
+		}
+		g_iReceiveCount++;
 
-        if(iRetVal < 0)
-        {
-        	UARTprintf("Unable to fill buffer");
-      	  return;
-          LOOP_FOREVER();
-        }
-      }
-      else
-      {
-    	//  UARTprintf("Read : %d Bytes totBytesRead: %d\n\n\r",Size, totBytesRead);
-        f_close(&fp);
-        iRetVal = f_open(&fp,AUDIO_FILE,FA_READ);
-        if(iRetVal == FR_OK)
-        {
-          /* Workaround - Read initial 9 bytes that is file name. We were
-                            wrote file name at start because of hang issue
-                            in f_write.
-          */
-          //f_read(&fp, speaker_data, 9, (unsigned short*)&Size);
-          //totBytesRead = 9;
-        	g_iReceiveCount = 0;
-        	UARTprintf("speaker task completed\r\n" );
-          break;
-        }
-        else
-        {
-        	UARTprintf("Failed to open audio file\n\r");
-      	  return;
-          LOOP_FOREVER();
-        }
-      }
-      if(g_uiPlayWaterMark == 0)
-      {
-        if(IsBufferSizeFilled(pRxBuffer,PLAY_WATERMARK) == TRUE)
-        {
-          g_uiPlayWaterMark = 1;
-        }
-      }
-      g_iReceiveCount++;
-       UARTprintf("g_iReceiveCount: %d\n\r",g_iReceiveCount);
-    }
-
-    MAP_UtilsDelay(1000);
-
-  }
+		if ((g_iReceiveCount % 100) == 0) {
+			UARTprintf("g_iReceiveCount: %d\n\r", g_iReceiveCount);
+		}
+		vTaskDelay(0);
+	}
+	g_ucSpkrStartFlag = 0;
 }

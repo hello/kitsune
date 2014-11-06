@@ -183,8 +183,8 @@ FaultDecoder(unsigned long *pulExceptionFrame)
 
     f->magic = SHUTDOWN_MAGIC;
 
-//    faultPrinter(&f);
-    PRCMMCUReset(1);
+    while(1) faultPrinter(f);
+//    PRCMMCUReset(1);
 }
 
 //*****************************************************************************

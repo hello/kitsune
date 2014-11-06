@@ -1,0 +1,42 @@
+#ifndef DTM_H
+#define DTM_H
+/**
+ * DTM Helper for putting top board to DTM mode
+ */
+
+#define DTM_CMD_OFFSET 			14
+#define DTM_CMD_MASK			0x3
+#define DTM_CMD_RESET 			0x00
+#define DTM_CMD_RECEIVER_TEST 	0x01
+#define DTM_CMD_TRASMITTER_TEST 0x02
+#define DTM_CMD_TEST_END 		0x03
+#define DTM_CMD(cmd) ((cmd & DTM_CMD_MASK) << DTM_CMD_OFFSET)
+
+#define DTM_FREQUENCY_OFFSET 	8
+#define DTM_FREQUENCY_MASK 		0x3F
+#define DTM_FREQUENCY_MIN 		0x00
+#define DTM_FREQUENCY_MAX 		0x27
+#define DTM_FREQ(freq) ((freq & DTM_FREQUENCY_MASK) << DTM_FREQUENCY_OFFSET)
+
+#define DTM_LENGTH_OFFSET 	2
+#define DTM_LENGTH_MASK 	0x3F
+#define DTM_LENGTH_MIN 		0x00
+#define DTM_LENGTH_MAX		0x25
+#define DTM_LENGTH(len) ((len & DTM_LENGTH_MASK) << DTM_LENGTH_OFFSET)
+
+#define DTM_PACKET_TYPE_OFFSET	0
+#define DTM_PACKET_TYPE_MASK 	0x3
+#define DTM_PACKET_PRBS9 		0x00
+#define DTM_PACKET_11110000 	0x01
+#define DTM_PACKET_10101010 	0x10
+#define DTM_PACKET(pkt) ((pkt & DTM_PACKET_TYPE_MASK) << DTM_PACKET_TYPE_OFFSET)
+
+#define DTM_EVENT_OFFSET 					0x15
+#define DTM_EVENT_TEST_STATUS_EVENT 		0x00
+#define DTM_EVENT_PACKET_REPORTING_EVENT 	0x01
+
+#define DTM_TEST_STATUS_EVENT_SUCCESS		0x0
+#define DTM_TEST_STATUS_EVENT_ERROR			0x1
+
+#define DTM_EVENT_TYPE(event) (event>>DTM_EVENT_OFFSET) & 0x1
+#endif

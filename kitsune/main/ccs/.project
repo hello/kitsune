@@ -41,9 +41,19 @@
 			<locationURI>PARENT-2-PROJECT_LOC/audiocapturetask.c</locationURI>
 		</link>
 		<link>
+			<name>audiocapturetask.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audiocapturetask.h</locationURI>
+		</link>
+		<link>
 			<name>audioclassifier.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/audioclassifier.c</locationURI>
+		</link>
+		<link>
+			<name>audioclassifier.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audioclassifier.h</locationURI>
 		</link>
 		<link>
 			<name>audiofeatures.c</name>
@@ -51,9 +61,19 @@
 			<locationURI>PARENT-2-PROJECT_LOC/audiofeatures.c</locationURI>
 		</link>
 		<link>
+			<name>audiofeatures.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audiofeatures.h</locationURI>
+		</link>
+		<link>
 			<name>audioprocessingtask.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/audioprocessingtask.c</locationURI>
+		</link>
+		<link>
+			<name>audioprocessingtask.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audioprocessingtask.h</locationURI>
 		</link>
 		<link>
 			<name>ble_cmd.c</name>
@@ -91,6 +111,11 @@
 			<locationURI>PARENT-2-PROJECT_LOC/machinelearning/classifier_factory.c</locationURI>
 		</link>
 		<link>
+			<name>classifier_factory.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/machinelearning/classifier_factory.h</locationURI>
+		</link>
+		<link>
 			<name>cmdline.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/cmdline.c</locationURI>
@@ -119,6 +144,11 @@
 			<name>diskio.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/diskio.c</locationURI>
+		</link>
+		<link>
+			<name>dtm.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/dtm.h</locationURI>
 		</link>
 		<link>
 			<name>dust_cmd.c</name>
@@ -171,6 +201,11 @@
 			<locationURI>PARENT-2-PROJECT_LOC/machinelearning/hmm.c</locationURI>
 		</link>
 		<link>
+			<name>hmm.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/machinelearning/hmm.h</locationURI>
+		</link>
+		<link>
 			<name>i2c_cmd.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/i2c_cmd.c</locationURI>
@@ -181,14 +216,49 @@
 			<locationURI>PARENT-2-PROJECT_LOC/i2c_cmd.h</locationURI>
 		</link>
 		<link>
+			<name>led_animations.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/led_animations.c</locationURI>
+		</link>
+		<link>
+			<name>led_animations.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/led_animations.h</locationURI>
+		</link>
+		<link>
+			<name>led_cmd.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/led_cmd.c</locationURI>
+		</link>
+		<link>
+			<name>led_cmd.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/led_cmd.h</locationURI>
+		</link>
+		<link>
 			<name>linear_svm.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/machinelearning/linear_svm.c</locationURI>
 		</link>
 		<link>
+			<name>linear_svm.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/machinelearning/linear_svm.h</locationURI>
+		</link>
+		<link>
+			<name>machine_learning_types.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/machinelearning/machine_learning_types.h</locationURI>
+		</link>
+		<link>
 			<name>main.c</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/main.c</locationURI>
+		</link>
+		<link>
+			<name>matmessageutils.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/debugutils/matmessageutils.c</locationURI>
 		</link>
 		<link>
 			<name>mcasp_if.c</name>
@@ -204,6 +274,16 @@
 			<name>nanopb</name>
 			<type>2</type>
 			<locationURI>virtual:/virtual</locationURI>
+		</link>
+		<link>
+			<name>networktask.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/networktask.c</locationURI>
+		</link>
+		<link>
+			<name>networktask.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/networktask.h</locationURI>
 		</link>
 		<link>
 			<name>ota_usr.h</name>
@@ -459,6 +539,11 @@
 			<name>protobuf/SyncResponse.pb.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/protobuf/SyncResponse.pb.h</locationURI>
+		</link>
+		<link>
+			<name>protobuf/matrix.pb.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/matrix.pb.c</locationURI>
 		</link>
 		<link>
 			<name>protobuf/morpheus_ble.pb.c</name>
