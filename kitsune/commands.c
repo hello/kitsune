@@ -74,6 +74,8 @@
 #include "led_cmd.h"
 #include "led_animations.h"
 
+#include "tests/TestNetwork.h"
+
 #define ONLY_MID 0
 
 //******************************************************************************
@@ -812,6 +814,12 @@ void thread_sensor_poll(void* unused) {
 
 }
 
+int Cmd_test_network(int argc,char * argv[]) {
+	TestNetwork_RunTests();
+
+	return 0;
+}
+
 // ==============================================================================
 // This function implements the "tasks" command.  It prints a list of the
 // current FreeRTOS tasks with information about status, stack usage, etc.
@@ -920,36 +928,7 @@ int Cmd_rssi(int argc, char *argv[]) {
 	return 0;
 }
 
-int Cmd_mel(int argc, char *argv[]) {
-/*
-    int i,ichunk;
-	int16_t x[1024];
 
-
-	srand(0);
-
-	UARTprintf("EXPECT: t1=%d,t2=%d,energy=something not zero\n",43,86);
-
-
-	AudioFeatures_Init(AudioFeatCallback);
-
-	//still ---> white random noise ---> still
-	for (ichunk = 0; ichunk < 43*8; ichunk++) {
-		if (ichunk > 43 && ichunk <= 86) {
-			for (i = 0; i < 1024; i++) {
-				x[i] = (rand() % 32767) - (1<<14);
-			}
-		}
-		else {
-			memset(x,0,sizeof(x));
-		}
-
-		AudioFeatures_SetAudioData(x,10,ichunk);
-
-	}
-*/
-	return (0);
-}
 
 #define GPIO_PORT 0x40004000
 #define RTC_INT_PIN 0x80
@@ -1111,7 +1090,6 @@ tCmdLineEntry g_sCmdTable[] = {
 
 		{ "sl", Cmd_sl, "start smart config" },
 		{ "mode", Cmd_mode, "set the ap/station mode" },
-		{ "mel", Cmd_mel, "test the mel calculation" },
 
 		{ "spird", Cmd_spi_read,"spi read" },
 		{ "spiwr", Cmd_spi_write, "spi write" },
@@ -1135,6 +1113,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "download", Cmd_download, "download test function."},
 		{ "dtm", Cmd_top_dtm, "Sends Direct Test Mode command" },
 		{ "animate", Cmd_led_animate, "Animates led"},
+		{"test_network",Cmd_test_network,"tests network task"},
 
 		{ 0, 0, 0 } };
 
@@ -1159,8 +1138,6 @@ void vUARTTask(void *pvParameters) {
 	NetworkTaskData_t network_task_data;
 
 	memset(&network_task_data,0,sizeof(network_task_data));
-	network_task_data.host = DATA_SERVER;
-
 
 	if(led_init() != 0){
 		UARTprintf("Failed to create the led_events.\n");

@@ -28,9 +28,6 @@ static void nop(const char * foo,...) {  }
 
 static void Init(NetworkTaskData_t * info) {
 
-	DEBUG_PRINTF("NetTask::Init -- host is %s",info->host);
-
-
 	if (!_asyncqueue) {
 		_asyncqueue = xQueueCreate(NETWORK_TASK_QUEUE_DEPTH,sizeof(NetworkTaskServerSendMessage_t));
 	}
@@ -58,9 +55,11 @@ static void SynchronousSendNetworkResponseCallback(const NetworkResponse_t * res
 
 static uint32_t EncodePb(pb_ostream_t * stream, const void * data) {
 	network_encode_data_t * encodedata = (network_encode_data_t *)data;
-	uint32_t ret;
+	uint32_t ret = false;
 
-	ret = pb_encode(stream,encodedata->fields,encodedata->encodedata);
+	if (encodedata && encodedata->encodedata) {
+		ret = pb_encode(stream,encodedata->fields,encodedata->encodedata);
+	}
 
 //	DEBUG_PRINTF("NetTask::EncodePb -- got callback");
 
@@ -68,7 +67,7 @@ static uint32_t EncodePb(pb_ostream_t * stream, const void * data) {
 	return ret;
 }
 
-int NetworkTask_SynchronousSendProtobuf(const char * endpoint, char * buf, uint32_t buf_size, const pb_field_t fields[], const void * structdata,int32_t retry_time_in_counts) {
+int NetworkTask_SynchronousSendProtobuf(const char * host,const char * endpoint, char * buf, uint32_t buf_size, const pb_field_t fields[], const void * structdata,int32_t retry_time_in_counts) {
 	NetworkTaskServerSendMessage_t message;
 	network_encode_data_t encodedata;
 	int retcode = -1;
@@ -79,6 +78,7 @@ int NetworkTask_SynchronousSendProtobuf(const char * endpoint, char * buf, uint3
 	encodedata.encodedata = structdata;
 
 	//craft message
+	message.host = host;
 	message.endpoint = endpoint;
 	message.response_callback = SynchronousSendNetworkResponseCallback;
 	message.retry_timeout = retry_time_in_counts;
@@ -150,7 +150,7 @@ void NetworkTask_Thread(void * networkdata) {
 
 		while (1) {
 
-			DEBUG_PRINTF("NetTask::Thread -- %s%s -- %d",taskdata->host,message.endpoint,attempt_count);
+			DEBUG_PRINTF("NetTask::Thread -- %s%s -- %d",message.host,message.endpoint,attempt_count);
 
 			/* prepare to prepare */
 			if (message.prepare) {
@@ -158,7 +158,7 @@ void NetworkTask_Thread(void * networkdata) {
 			}
 
 			//push to server
-			if (send_data_pb_callback(taskdata->host,
+			if (send_data_pb_callback(message.host,
 					message.endpoint,
 					(char*)message.decode_buf,
 					message.decode_buf_size,
@@ -212,10 +212,10 @@ void NetworkTask_Thread(void * networkdata) {
 		};
 
 		if (response.success) {
-			DEBUG_PRINTF("NetTask::Thread -- %s%s -- FINISHED (success)",taskdata->host,message.endpoint);
+			DEBUG_PRINTF("NetTask::Thread -- %s%s -- FINISHED (success)",message.host,message.endpoint);
 		}
 		else {
-			DEBUG_PRINTF("NetTask::Thread -- %s%s -- FINISHED (failure)",taskdata->host,message.endpoint);
+			DEBUG_PRINTF("NetTask::Thread -- %s%s -- FINISHED (failure)",message.host,message.endpoint);
 		}
 
 

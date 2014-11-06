@@ -1530,7 +1530,7 @@ int send_periodic_data( data_t * data ) {
 
     //set this to zero--it won't retry, since retrying is handled by an outside loop
 #define MAX_RETRY_TIME_IN_TICKS_PERIODIC_DATA (0)
-    ret = NetworkTask_SynchronousSendProtobuf(DATA_RECEIVE_ENDPOINT,buffer,sizeof(buffer),periodic_data_fields,&msg,MAX_RETRY_TIME_IN_TICKS_PERIODIC_DATA);
+    ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER,DATA_RECEIVE_ENDPOINT,buffer,sizeof(buffer),periodic_data_fields,&msg,MAX_RETRY_TIME_IN_TICKS_PERIODIC_DATA);
 
     if(ret != 0)
     {

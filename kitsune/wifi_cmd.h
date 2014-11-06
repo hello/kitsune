@@ -1,11 +1,9 @@
 #ifndef __WIFI_CMD_H__
 #define __WIFI_CMD_H__
 
+#include "endpoints.h"
 #include "periodic.pb.h"
-#define DATA_SERVER                         "dev-in.hello.is"
-#define DATA_RECEIVE_ENDPOINT               "/in/morpheus/pb2"
-#define MORPHEUS_REGISTER_ENDPOINT          "/register/morpheus"
-#define PILL_REGISTER_ENDPOINT              "/register/pill"
+
 
 #define PILL_ID_LEN 16
 typedef struct {
