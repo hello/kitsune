@@ -3,10 +3,15 @@
 
 #include <stdint.h>
 
+typedef void (*PlaybackNotification_t)(void * context);
+
 typedef struct {
 	const char * file;
 	int32_t volume;
 	uint32_t durationInSeconds;
+
+	PlaybackNotification_t callback;
+	void * context;
 
 } AudioPlaybackDesc_t;
 
