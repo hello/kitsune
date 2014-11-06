@@ -223,10 +223,9 @@ void on_morpheus_protobuf_arrival(uint8_t* protobuf, size_t len)
         UARTprintf("Decoding protobuf failed, error: ");
         UARTprintf(PB_GET_ERROR(&stream));
         UARTprintf("\r\n");
-    }else{
-    	if( on_ble_protobuf_command(&command) ) {
-    		ble_proto_free_command(&command);
-    	}
+    } else {
+    	on_ble_protobuf_command(&command);
+    	ble_proto_free_command(&command);
     }
 }
 

@@ -688,10 +688,9 @@ void thread_fast_i2c_poll(void * unused)  {
 
 xQueueHandle data_queue = 0;
 xQueueHandle pill_queue = 0;
-int send_pill_data(MorpheusCommand * pill_data);
 
 void thread_tx(void* unused) {
-	MorpheusCommand pill_data;
+	MorpheusCommand_PillData pill_data;
 	periodic_data data = {0};
 	load_aes();
 
@@ -723,7 +722,6 @@ void thread_tx(void* unused) {
 					tries = 5;
 				}
 			}
-			ble_proto_free_command(&pill_data);
 		}
 		while (!(sl_status & HAS_IP)) {
 			vTaskDelay(1000);
@@ -1323,7 +1321,7 @@ void vUARTTask(void *pvParameters) {
 	init_prox_sensor();
 
 	data_queue = xQueueCreate(10, sizeof(periodic_data));
-	pill_queue = xQueueCreate(10, sizeof(MorpheusCommand));
+	pill_queue = xQueueCreate(10, sizeof(MorpheusCommand_PillData));
 	vSemaphoreCreateBinary(dust_smphr);
 	vSemaphoreCreateBinary(light_smphr);
 	vSemaphoreCreateBinary(i2c_smphr);

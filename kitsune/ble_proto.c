@@ -310,13 +310,11 @@ static void _pair_device( MorpheusCommand* command, int is_morpheus)
 
 extern xQueueHandle pill_queue;
 
-//returns true if the memory should be freed
-static bool send_pill_protobuf( MorpheusCommand * pill_data ) {
-	return xQueueSend(pill_queue, (void * ) pill_data, 10) != pdPASS;
-}
-
 bool on_ble_protobuf_command(MorpheusCommand* command)
 {
+	if( command->has_pillData ) {
+		xQueueSend(pill_queue, &command->pillData, 10);
+	}
     switch(command->type)
     {
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SET_WIFI_ENDPOINT:
@@ -371,17 +369,12 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         		UARTprintf("You may have a bug in the pill\n");
         	}
     		_process_encrypted_pill_data(command);
-
-        	ble_proto_remove_decode_funcs(command);
-        	return send_pill_protobuf(command);
     	}
+        break;
     	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_HEARTBEAT: 
         {
             UARTprintf("PILL HEARTBEAT\n");
     		_process_pill_heartbeat(command);
-
-        	ble_proto_remove_decode_funcs(command);
-        	return send_pill_protobuf(command);
         }
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_PILL:
         {
