@@ -1426,7 +1426,24 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
 //retry logic is handled elsewhere
 int send_pill_data(MorpheusCommand * pill_data) {
     char buffer[256] = {0};
-    return NetworkTask_SynchronousSendProtobuf(PILL_DATA_RECEIVE_ENDPOINT,buffer,sizeof(buffer),MorpheusCommand_fields,pill_data,0);
+    int ret = NetworkTask_SynchronousSendProtobuf(PILL_DATA_RECEIVE_ENDPOINT,buffer,sizeof(buffer),MorpheusCommand_fields,pill_data,0);
+    if(ret != 0)
+    {
+        // network error
+        UARTprintf("Send pill data failed, network error %d\n", ret);
+        return ret;
+    }
+    // Parse the response
+    UARTprintf("Reply is:\n\r%s\n\r", buffer);
+
+    const char* header_content_len = "Content-Length: ";
+    char * content = strstr(buffer, "\r\n\r\n") + 4;
+    char * len_str = strstr(buffer, header_content_len) + strlen(header_content_len);
+    if (http_response_ok(buffer) != 1) {
+        UARTprintf("Invalid response, endpoint return failure.\n");
+        return -1;
+    }
+    return 0;
 }
 
 int send_periodic_data(periodic_data* data) {
