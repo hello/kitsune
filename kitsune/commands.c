@@ -695,10 +695,10 @@ void thread_tx(void* unused) {
 	periodic_data data = {0};
 	load_aes();
 
+	UARTprintf(" Start polling  \n");
 	while (1) {
 		int tries = 0;
 		memset(&data, 0, sizeof(periodic_data));
-		UARTprintf(" Start polling  \n");
 		if (xQueueReceive(data_queue, &(data), 1000)) {
 			UARTprintf(
 					"sending time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d\n",
@@ -1322,8 +1322,8 @@ void vUARTTask(void *pvParameters) {
 	init_light_sensor();
 	init_prox_sensor();
 
-	data_queue = xQueueCreate(60, sizeof(periodic_data));
-	pill_queue = xQueueCreate(60, sizeof(MorpheusCommand));
+	data_queue = xQueueCreate(10, sizeof(periodic_data));
+	pill_queue = xQueueCreate(10, sizeof(MorpheusCommand));
 	vSemaphoreCreateBinary(dust_smphr);
 	vSemaphoreCreateBinary(light_smphr);
 	vSemaphoreCreateBinary(i2c_smphr);

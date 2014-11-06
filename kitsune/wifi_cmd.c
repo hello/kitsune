@@ -1434,7 +1434,7 @@ int send_pill_data(MorpheusCommand * pill_data) {
         return ret;
     }
     // Parse the response
-    UARTprintf("Reply is:\n\r%s\n\r", buffer);
+    //UARTprintf("Reply is:\n\r%s\n\r", buffer);
 
     const char* header_content_len = "Content-Length: ";
     char * content = strstr(buffer, "\r\n\r\n") + 4;
@@ -1465,7 +1465,7 @@ int send_periodic_data(periodic_data* data) {
     }
 
     // Parse the response
-    UARTprintf("Reply is:\n\r%s\n\r", buffer);
+    //UARTprintf("Reply is:\n\r%s\n\r", buffer);
     
     const char* header_content_len = "Content-Length: ";
     char * content = strstr(buffer, "\r\n\r\n") + 4;
