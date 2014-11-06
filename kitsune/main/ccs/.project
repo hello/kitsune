@@ -565,6 +565,26 @@
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/protobuf/periodic.pb.h</locationURI>
 		</link>
+		<link>
+			<name>protobuf/testdata.pb.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/testdata.pb.c</locationURI>
+		</link>
+		<link>
+			<name>protobuf/testdata.pb.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/testdata.pb.h</locationURI>
+		</link>
+		<link>
+			<name>tests/TestNetwork.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tests/TestNetwork.c</locationURI>
+		</link>
+		<link>
+			<name>tests/TestNetwork.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tests/TestNetwork.h</locationURI>
+		</link>
 	</linkedResources>
 	<variableList>
 		<variable>

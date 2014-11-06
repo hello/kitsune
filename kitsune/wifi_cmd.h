@@ -1,14 +1,10 @@
 #ifndef __WIFI_CMD_H__
 #define __WIFI_CMD_H__
 
+#include "endpoints.h"
 #include "periodic.pb.h"
 #include "morpheus_ble.pb.h"
 
-#define DATA_SERVER                         "dev-in.hello.is"
-#define DATA_RECEIVE_ENDPOINT               "/in/morpheus/pb2"
-#define PILL_DATA_RECEIVE_ENDPOINT			"/in/pill"
-#define MORPHEUS_REGISTER_ENDPOINT          "/register/morpheus"
-#define PILL_REGISTER_ENDPOINT              "/register/pill"
 
 #define PILL_MAGIC 0xAAAAAAAA
 #include "FreeRTOS.h"

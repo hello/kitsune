@@ -3,11 +3,27 @@
 #define _MATMESSAGEUTILS_H_
 
 #include "pb.h"
+#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+	typedef struct {
+		uint8_t * writebuf;
+		size_t maxlen;
+	} StringDesc_t;
+
+	typedef struct {
+		uint8_t * bytes;
+		uint32_t len;
+	} bytes_desc_t;
+
+	bool write_bytes(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
+
+	bool write_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
     
+	bool read_string(pb_istream_t *stream, const pb_field_t *field, void **arg);
+
     typedef enum {
         euint8,
         esint8,

@@ -1439,7 +1439,7 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
 //retry logic is handled elsewhere
 int send_pill_data(batched_pill_data * pill_data) {
     char buffer[1024] = {0};
-    int ret = NetworkTask_SynchronousSendProtobuf(PILL_DATA_RECEIVE_ENDPOINT, buffer, sizeof(buffer), batched_pill_data_fields, pill_data, 0);
+    int ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER,PILL_DATA_RECEIVE_ENDPOINT, buffer, sizeof(buffer), batched_pill_data_fields, pill_data, 0);
     if(ret != 0)
     {
         // network error
@@ -1468,7 +1468,7 @@ int send_periodic_data(periodic_data* data) {
     data->mac.funcs.encode = encode_mac;  // Now this is a fallback, the backend will not use this at the first hand
     data->device_id.funcs.encode = encode_mac_as_device_id_string;
 
-    ret = NetworkTask_SynchronousSendProtobuf(DATA_RECEIVE_ENDPOINT, buffer, sizeof(buffer), periodic_data_fields, data, 0);
+    ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER,DATA_RECEIVE_ENDPOINT, buffer, sizeof(buffer), periodic_data_fields, data, 0);
     if(ret != 0)
     {
         // network error

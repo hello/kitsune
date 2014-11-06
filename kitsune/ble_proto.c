@@ -314,6 +314,7 @@ static void _pair_device( MorpheusCommand* command, int is_morpheus)
 		// after the IPv4 retrieved.
 
 		ret = NetworkTask_SynchronousSendProtobuf(
+				DATA_SERVER,
 				is_morpheus == 1 ? MORPHEUS_REGISTER_ENDPOINT : PILL_REGISTER_ENDPOINT,
 				response_buffer,
 				sizeof(response_buffer),
