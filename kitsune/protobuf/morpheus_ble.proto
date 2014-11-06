@@ -88,3 +88,7 @@ message MorpheusCommand {
 
 	optional PillData pillData = 16;
 }
+
+message BatchedPillData {
+	repeated MorpheusCommand.PillData pills=1;
+}

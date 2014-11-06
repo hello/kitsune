@@ -686,11 +686,24 @@ void thread_fast_i2c_poll(void * unused)  {
 	}
 }
 
+#define PILL_BATCH_WATERMARK 2
+int send_pill_data(BatchedPillData * pill_data);
+
 xQueueHandle data_queue = 0;
 xQueueHandle pill_queue = 0;
 
-void thread_tx(void* unused) {
+bool encode_all_pills (pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
 	MorpheusCommand_PillData pill_data;
+	uint32_t ret = true;
+
+	while( xQueueReceive(pill_queue, &pill_data, 1) && ret ) {
+		ret = pb_encode(stream,MorpheusCommand_PillData_fields, &pill_data);
+	}
+	return ret;
+}
+
+void thread_tx(void* unused) {
+	BatchedPillData pill_data_batched;
 	periodic_data data = {0};
 	load_aes();
 
@@ -698,7 +711,7 @@ void thread_tx(void* unused) {
 	while (1) {
 		int tries = 0;
 		memset(&data, 0, sizeof(periodic_data));
-		if (xQueueReceive(data_queue, &(data), 1000)) {
+		if (xQueueReceive(data_queue, &(data), 1)) {
 			UARTprintf(
 					"sending time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d\n",
 					data.unix_time, data.light, data.light_variability,
@@ -712,10 +725,11 @@ void thread_tx(void* unused) {
 				}
 			}
 		}
-		if (xQueueReceive(pill_queue, &(pill_data), 1000)) {
+		if (uxQueueMessagesWaiting(pill_queue)>PILL_BATCH_WATERMARK) {
 			UARTprintf(	"sending  pill data" );
+			pill_data_batched.pills.funcs.encode = encode_all_pills;
 
-			while (!send_pill_data(&pill_data) == 0) {
+			while (!send_pill_data(&pill_data_batched) == 0) {
 				UARTprintf("  Waiting for WIFI connection  \n");
 				vTaskDelay((1 << tries) * 1000);
 				if (tries++ > 5) {
