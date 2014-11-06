@@ -59,6 +59,7 @@ static void Init(void) {
 }
 
 void AudioPlaybackTask_PlayFile(const AudioPlaybackDesc_t * playbackinfo) {
+
 	PlaybackMessage_t m;
 	memset(&m,0,sizeof(m));
 
@@ -67,9 +68,6 @@ void AudioPlaybackTask_PlayFile(const AudioPlaybackDesc_t * playbackinfo) {
 
 
 	xQueueSend(_queue,( const void * )&m,10);
-
-
-
 }
 
 void AudioPlaybackTask_Snooze(void) {
@@ -164,6 +162,9 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
 		return returnFlags;
 	}
+
+	//zero out RX byffer
+	memset(pRxBuffer->pucBufferStartPtr,0,RX_BUFFER_SIZE);
 
 	//open file for playback
 	UARTprintf("Opening %s for playback\r\n",info->file);
@@ -322,13 +323,13 @@ void AudioPlaybackTask_Thread(void * data) {
 	Init();
 
 	for (; ;) {
-
 		/* Wait until we get a message */
 		xQueueReceive( _queue,(void *) &m, portMAX_DELAY );
 
 		switch (m.type) {
 		case request:
 		{
+			AudioPlaybackDesc_t * desc = &m.message.playbackinfo;
 
 			//disable audio capture
 			AudiopProcessingTask_TurnOff();
@@ -337,16 +338,19 @@ void AudioPlaybackTask_Thread(void * data) {
 			vTaskDelay(500); //wait for shutdown -- 1/2 second is very safe
 
 			//do the playback
-			playbackResultFlags = DoPlayback(&m.message.playbackinfo);
+			playbackResultFlags = DoPlayback(desc);
 
 			//enable audio capture
 			AudiopProcessingTask_TurnOn();
 			AudioCaptureTask_Enable();
 
 
-
 			if (playbackResultFlags & FLAG_SNOOZE) {
 				SetSnoozeWithServer();
+			}
+
+			if (desc->callback) {
+				desc->callback(desc->context);
 			}
 
 			break;
