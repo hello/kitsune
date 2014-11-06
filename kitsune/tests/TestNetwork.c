@@ -6,10 +6,13 @@
 #include "../networktask.h"
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "../protobuf/testdata.pb.h"
 #include "../debugutils/matmessageutils.h"
 #include "../wifi_cmd.h"
+
+#include "uartstdio.h"
 
 /*
  *  Makes request to test server with particular test cases
@@ -22,9 +25,14 @@
 #define RETURNCODE "returncode"
 #define MALFORMED "malformed"
 
+
+
 static char _urlbuf[256];
 static char _recv_buf[256];
 static 	TestData _data;
+
+typedef int32_t (*TestFunc_t)(void);
+static void RunTest(TestFunc_t test,const char * name);
 
 
 static void SetParams(char * buf, uint32_t bufsize,const char * param, const char * value,uint8_t is_last) {
@@ -89,7 +97,7 @@ static int32_t DecodeTestResponse(uint8_t * buf,uint32_t bufsize, const char * d
 
 }
 
-static void DoTest1(void) {
+static int32_t DoTest1(void) {
 	static const char * params[] = {TIMEOUT,RETURNCODE,MALFORMED};
 	static const char * values[] = {"5000","200","true"};
 	static const int32_t len = 3;
@@ -101,18 +109,53 @@ static void DoTest1(void) {
 
 	CreateUrl(_urlbuf,sizeof(_urlbuf),params,values,len);
 
-	UARTprintf("%s\r\n",_urlbuf);
 
-	NetworkTask_SynchronousSendProtobuf(DATA_SERVER,_urlbuf,_recv_buf,sizeof(_recv_buf),TestData_fields,&_data,10);
+	if (NetworkTask_SynchronousSendProtobuf(DATA_SERVER,_urlbuf,_recv_buf,sizeof(_recv_buf),TestData_fields,&_data,10) != 0) {
+		return -1;
+	}
 
-	DecodeTestResponse(returnbytes,sizeof(returnbytes),_recv_buf);
+	if (!DecodeTestResponse((uint8_t *)returnbytes,sizeof(returnbytes),_recv_buf)) {
+		return -2;
+	}
+
+	return 0;
 
 }
 
+#define RUN_TEST(test)\
+		RunTest(test,#test)
+
+static void RunTest(TestFunc_t test,const char * name) {
+	TickType_t t1,dt;
+	int32_t ret;
+
+	t1 = xTaskGetTickCount();
+
+	ret = test();
+
+	dt = xTaskGetTickCount() - t1;
+
+	UARTprintf("Running %s... ");
+
+	UARTprintf("%d.%d seconds elapsed, ",dt/1000,dt % 1000);
+
+	if (ret == 0) {
+		UARTprintf("success");
+	}
+	else {
+		UARTprintf("FAIL with code %d",ret);
+	}
+
+	UARTprintf("\r\n");
+
+}
 
 void TestNetwork_RunTests(void) {
 
-	DoTest1();
+
+	RUN_TEST(DoTest1);
+
+
 
 
 }
