@@ -1006,9 +1006,6 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
     bool status;
     uint16_t iretry;
 
-
-
-
     if (!recv_buf) {
     	UARTprintf("send_data_pb_callback needs a buffer\r\n");
     	return -1;
@@ -1232,6 +1229,7 @@ int http_response_ok(const char* response_buffer)
 }
 
 #include "ble_cmd.h"
+#if 0
 static bool _encode_encrypted_pilldata(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
     const array_data* array_holder = (array_data*)(*arg);
     if(!array_holder)
@@ -1248,74 +1246,7 @@ static bool _encode_encrypted_pilldata(pb_ostream_t *stream, const pb_field_t *f
 
     return pb_encode_string(stream, array_holder->buffer, array_holder->length);
 }
-
-static bool encode_pill_list(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
-	periodic_data_pill_data_container* ptr_pill_list = *(periodic_data_pill_data_container**) arg;
-    if(!ptr_pill_list)
-    {
-        UARTprintf("No pill list to encode\n");
-        return 0;
-    }
-
-
-
-	int i;
-	if (xSemaphoreTake(pill_smphr, 1000)) {
-        for (i = 0; i < MAX_PILLS; ++i) {
-            periodic_data_pill_data_container data = ptr_pill_list[i];
-    		if( data.magic != PILL_MAGIC ) {
-                continue;
-    		}
-
-    		data.pill_data.deviceId.funcs.encode = encode_pill_id;
-    		data.pill_data.deviceId.arg = data.id; // attach the id to protobuf structure.
-            if(data.pill_data.motionDataEncrypted.arg &&
-                NULL == data.pill_data.motionDataEncrypted.funcs.encode)
-            {
-                // Set the default encode function for encrypted motion data.
-                data.pill_data.motionDataEncrypted.funcs.encode = _encode_encrypted_pilldata;
-            }
-		  
-            /*
-			pb_ostream_t sizestream = { 0 };
-			if(!pb_encode(&sizestream, periodic_data_pill_data_fields, &data->pill_data))
-            {
-                UARTprintf("Fail to encode pill %s\r\n", data->id);
-                continue;
-            }
-            */
-
-            if (!pb_encode_tag(stream, PB_WT_STRING, field->tag)){
-            	UARTprintf("Fail to encode tag for pill %s\r\n", data.id);
-            	continue;
-			}
-
-            pb_ostream_t sizestream = { 0 };
-            if(!pb_encode(&sizestream, periodic_data_pill_data_fields, &data.pill_data)){
-            	UARTprintf("Failed to retreive length\n");
-            	continue;
-            }
-
-            if (!pb_encode_varint(stream, sizestream.bytes_written)){
-            	UARTprintf("Failed to write length\n");
-				continue;
-            }
-
-			if (!pb_encode(stream, periodic_data_pill_data_fields, &data.pill_data)){
-				UARTprintf("Fail to encode pill %s\r\n", data.id);
-			}else{
-				UARTprintf("Pill %s data uploaded\n", data.id);
-			}
-
-	    }
-        xSemaphoreGive(pill_smphr);
-        return 1;
-    }else{
-    	UARTprintf("Fail to acquire Semaphore\n");
-    	return 0;
-    }
-}
-
+#endif
 
 bool get_mac(unsigned char mac[6]) {
 	int32_t ret;
@@ -1486,6 +1417,14 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
     
 }
 
+//retry logic is handled elsewhere
+#define MAX_RETRY_TIME_IN_TICKS_PERIODIC_DATA (0)
+
+int send_pill_data(MorpheusCommand * pill_data) {
+    char buffer[256] = {0};
+    return NetworkTask_SynchronousSendProtobuf(PILL_DATA_RECEIVE_ENDPOINT,buffer,sizeof(buffer),MorpheusCommand_fields,pill_data,MAX_RETRY_TIME_IN_TICKS_PERIODIC_DATA);
+}
+
 int send_periodic_data( data_t * data ) {
     char buffer[256] = {0};
     periodic_data msg = {0};
@@ -1525,11 +1464,7 @@ int send_periodic_data( data_t * data ) {
     msg.name.funcs.encode = encode_name;
     msg.mac.funcs.encode = encode_mac;  // Now this is a fallback, the backend will not use this at the first hand
     msg.device_id.funcs.encode = encode_mac_as_device_id_string;
-    msg.pills.funcs.encode = encode_pill_list;
-    msg.pills.arg = data->pill_list;
 
-    //set this to zero--it won't retry, since retrying is handled by an outside loop
-#define MAX_RETRY_TIME_IN_TICKS_PERIODIC_DATA (0)
     ret = NetworkTask_SynchronousSendProtobuf(DATA_RECEIVE_ENDPOINT,buffer,sizeof(buffer),periodic_data_fields,&msg,MAX_RETRY_TIME_IN_TICKS_PERIODIC_DATA);
 
     if(ret != 0)
@@ -1583,34 +1518,6 @@ int send_periodic_data( data_t * data ) {
     if(upload_success)
     {
     	sl_status |= UPLOADING;
-        // Release all the resource occupied by pill data, or
-        // user can occupy the buffer forever by sending only one packet
-        if (xSemaphoreTake(pill_smphr, 1000)) {
-            int i;
-            for (i = 0; i < MAX_PILLS; ++i) {
-                if (data->pill_list[i].magic != PILL_MAGIC) {
-                    // Slot already empty, skip.
-                    continue;
-                }
-
-                if(data->pill_list[i].pill_data.motionDataEncrypted.arg)
-                {
-                    array_data* array_holder = data->pill_list[i].pill_data.motionDataEncrypted.arg;
-                    if(array_holder->buffer)
-                    {
-                        vPortFree(array_holder->buffer);
-                    }
-
-                    vPortFree(array_holder);
-                    data->pill_list[i].pill_data.motionDataEncrypted.arg = NULL;
-                    data->pill_list[i].pill_data.motionDataEncrypted.funcs.encode = NULL;
-                    data->pill_list[i].magic = 0;  // Release this slot.
-                }
-            }
-            xSemaphoreGive(pill_smphr);
-        }else{
-        	UARTprintf("Fail to acquire Semaphore\n");
-        }
     }
 
     return ret;
@@ -1631,7 +1538,6 @@ int Cmd_data_upload(int arg, char* argv[])
 	data.temp = 5;
 	data.humid = 6;
 	data.dust = 7;
-	data.pill_list = pill_list;
 	UARTprintf("Debugging....\n");
 	send_periodic_data(&data);
 

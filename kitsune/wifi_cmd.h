@@ -4,17 +4,11 @@
 #include "periodic.pb.h"
 #define DATA_SERVER                         "dev-in.hello.is"
 #define DATA_RECEIVE_ENDPOINT               "/in/morpheus/pb2"
+#define PILL_DATA_RECEIVE_ENDPOINT			"/in/pill/pb2"
 #define MORPHEUS_REGISTER_ENDPOINT          "/register/morpheus"
 #define PILL_REGISTER_ENDPOINT              "/register/pill"
 
-#define PILL_ID_LEN 16
-typedef struct {
-	uint32_t magic;
-	char id[PILL_ID_LEN+1];
-	periodic_data_pill_data pill_data;
-} periodic_data_pill_data_container;
 #define PILL_MAGIC 0xAAAAAAAA
-#define MAX_PILLS 8
 #include "FreeRTOS.h"
 #include "semphr.h"
 #include "wlan.h"
@@ -29,13 +23,11 @@ extern xSemaphoreHandle pill_smphr;
 typedef struct {
 	unsigned int time;
 	int light, light_variability, light_tonality, temp, humid, dust, dust_max, dust_min, dust_var;
-	periodic_data_pill_data_container * pill_list;
 } data_t;
 
 extern
 int sl_mode;
 
-extern periodic_data_pill_data_container pill_list[MAX_PILLS];
 
 #define CONNECT    0x00000001
 #define HAS_IP     0x00000002

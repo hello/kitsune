@@ -687,39 +687,47 @@ void thread_fast_i2c_poll(void * unused)  {
 }
 
 xQueueHandle data_queue = 0;
+xQueueHandle pill_queue = 0;
+int send_pill_data(MorpheusCommand * pill_data);
 
 void thread_tx(void* unused) {
 	data_t data;
-
+	MorpheusCommand pill_data;
 	load_aes();
 
 	while (1) {
 		int tries = 0;
-		UARTprintf("********************Start polling *****************\n");
-		if( data_queue != 0 && !xQueueReceive( data_queue, &( data ), portMAX_DELAY ) ) {
-			vTaskDelay(100);
-			UARTprintf("*********************** Waiting for data *****************\n");
-			continue;
-		}
+		UARTprintf(" Start polling  \n");
+		if (xQueueReceive(data_queue, &(data), 1000)) {
+			UARTprintf(
+					"sending time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d\n",
+					data.time, data.light, data.light_variability,
+					data.light_tonality, data.temp, data.humid, data.dust);
 
-		UARTprintf("sending time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d\n",
-				data.time, data.light, data.light_variability, data.light_tonality, data.temp, data.humid,
-				data.dust);
-		data.pill_list = pill_list;
-
-		while (!send_periodic_data(&data) == 0) {
-			UARTprintf("********************* Waiting for WIFI connection *****************\n");
-			vTaskDelay( (1<<tries) * 1000 );
-			if( tries++ > 5 ) {
-				tries = 5;
+			while (!send_periodic_data(&data) == 0) {
+				UARTprintf("  Waiting for WIFI connection  \n");
+				vTaskDelay((1 << tries) * 1000);
+				if (tries++ > 5) {
+					tries = 5;
+				}
 			}
-			do {vTaskDelay(1000);} //wait for a connection...
-			while( !(sl_status&HAS_IP ) );
-		}//try every little bit
+		}
+		if (xQueueReceive(pill_queue, &(pill_data), 1000)) {
+			UARTprintf(	"sending  pill data" );
+
+			while (!send_pill_data(&pill_data) == 0) {
+				UARTprintf("  Waiting for WIFI connection  \n");
+				vTaskDelay((1 << tries) * 1000);
+				if (tries++ > 5) {
+					tries = 5;
+				}
+			}
+		}
+		while (!(sl_status & HAS_IP)) {
+			vTaskDelay(1000);
+		}
 	}
 }
-
-xSemaphoreHandle pill_smphr;
 
 void thread_sensor_poll(void* unused) {
 
@@ -788,12 +796,6 @@ void thread_sensor_poll(void* unused) {
 			data.temp = temp_sum / 10;
 			
 			xSemaphoreGive(i2c_smphr);
-		} else {
-			continue;
-		}
-		if (xSemaphoreTake(pill_smphr, portMAX_DELAY)) {
-			data.pill_list = pill_list;
-			xSemaphoreGive(pill_smphr);
 		} else {
 			continue;
 		}
@@ -1250,6 +1252,7 @@ void vUARTTask(void *pvParameters) {
 	init_prox_sensor();
 
 	data_queue = xQueueCreate(60, sizeof(data_t));
+	pill_queue = xQueueCreate(60, sizeof(MorpheusCommand));
 	vSemaphoreCreateBinary(dust_smphr);
 	vSemaphoreCreateBinary(light_smphr);
 	vSemaphoreCreateBinary(i2c_smphr);
