@@ -20,6 +20,7 @@
 #include "networktask.h"
 #include "led_animations.h"
 #include "led_cmd.h"
+#include "top_board.h"
 
 extern unsigned int sl_status;
 
@@ -213,38 +214,26 @@ static void _ble_reply_wifi_info(){
 static void _process_encrypted_pill_data(const MorpheusCommand* command)
 {
     if (command->motionDataEntrypted.arg) {
-        if (xSemaphoreTake(pill_smphr, 1000)) {   // If the Semaphore is not available, fail fast
-        	const array_data* array = (array_data*)command->motionDataEntrypted.arg;  // This thing will be free when this function exits
-            UARTprintf("PILL DATA FROM ID: %s, length: %d\n", command->deviceId.arg, array->length);
-            
-            xSemaphoreGive(pill_smphr);
-        }else{
-        	UARTprintf("Fail to acquire Semaphore\n");
-        }
+		const array_data* array = (array_data*)command->motionDataEntrypted.arg;  // This thing will be free when this function exits
+		UARTprintf("PILL DATA FROM ID: %s, length: %d\n", command->deviceId.arg, array->length);
     }
 }
 
 static void _process_pill_heartbeat(const MorpheusCommand* command)
 {
-    if (xSemaphoreTake(pill_smphr, 1000)) {
+	// Pill heartbeat received from ANT
+	UARTprintf("PILL HEARBEAT %s\n", command->deviceId.arg);
 
-        // Pill heartbeat received from ANT
-        UARTprintf("PILL HEARBEAT %s\n", command->deviceId.arg);
+	if (command->has_batteryLevel) {
+		UARTprintf("PILL BATTERY %d\n", command->batteryLevel);
+	}
+	if (command->has_batteryLevel) {
+		UARTprintf("PILL UPTIME %d\n", command->uptime);
+	}
 
-        if (command->has_batteryLevel) {
-            UARTprintf("PILL BATTERY %d\n", command->batteryLevel);
-        }
-        if (command->has_batteryLevel) {
-            UARTprintf("PILL UPTIME %d\n", command->uptime);
-        }
-
-        if(command->has_firmwareVersion) {
-            UARTprintf("PILL FirmwareVersion %d\n", command->firmwareVersion);
-        }
-        xSemaphoreGive(pill_smphr);
-    }else{
-    	UARTprintf("Fail to acquire Semaphore\n");
-    }
+	if (command->has_firmwareVersion) {
+		UARTprintf("PILL FirmwareVersion %d\n", command->firmwareVersion);
+	}
 }
 
 static void _send_response_to_ble(const char* buffer, size_t len)
@@ -297,14 +286,13 @@ static void _pair_device( MorpheusCommand* command, int is_morpheus)
 		// TODO: Figure out why always get -1 when this is the 1st request
 		// after the IPv4 retrieved.
 
-#define MAX_RETRY_TIME_IN_TICKS (5000)
 		ret = NetworkTask_SynchronousSendProtobuf(
 				is_morpheus == 1 ? MORPHEUS_REGISTER_ENDPOINT : PILL_REGISTER_ENDPOINT,
 				response_buffer,
 				sizeof(response_buffer),
 				MorpheusCommand_fields,
 				command,
-				MAX_RETRY_TIME_IN_TICKS);
+				5000);
 
 		// All the args are in stack, don't need to do protobuf free.
 
@@ -317,6 +305,7 @@ static void _pair_device( MorpheusCommand* command, int is_morpheus)
 		}
 	}
 }
+
 #include "top_board.h"
 
 extern xQueueHandle pill_queue;
@@ -386,7 +375,6 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         	ble_proto_remove_decode_funcs(command);
         	return send_pill_protobuf(command);
     	}
-		break;
     	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_HEARTBEAT: 
         {
             UARTprintf("PILL HEARTBEAT\n");
@@ -394,8 +382,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 
         	ble_proto_remove_decode_funcs(command);
         	return send_pill_protobuf(command);
-    	}
-        break;
+        }
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_PILL:
         {
             UARTprintf("PAIR PILL\n");

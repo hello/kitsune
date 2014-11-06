@@ -1012,17 +1012,18 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
     }
 
     if (encoder) {
-        pb_ostream_t stream = {0};
-        status = encoder(&stream,encodedata);
+        pb_ostream_t size_stream = {0};
+        status = encoder(&size_stream, encodedata);
         if(!status)
         {
-            UARTprintf("Encode protobuf failed, %s\n", PB_GET_ERROR(&stream));
+            UARTprintf("Encode protobuf failed, %s\n", PB_GET_ERROR(&size_stream));
             return -1;
         }
 
-        null_stream_bytes = stream.bytes_written;
-        message_length = stream.bytes_written + sizeof(sig) + AES_IV_SIZE;
-        UARTprintf("message len %d sig len %d\n\r\n\r", stream.bytes_written, sizeof(sig));
+
+        null_stream_bytes = size_stream.bytes_written;
+        message_length = size_stream.bytes_written + sizeof(sig) + AES_IV_SIZE;
+        UARTprintf("message len %d sig len %d\n\r\n\r", size_stream.bytes_written, sizeof(sig));
     }
 
     snprintf(recv_buf, recv_buf_size, "POST %s HTTP/1.1\r\n"
@@ -1045,7 +1046,9 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
         UARTprintf("send error %d\n\r\n\r", rv);
         return stop_connection();
     }
-    UARTprintf("sent %d\n\r%s\n\r", rv, recv_buf);
+
+    UARTprintf("HTTP header sent %d\n\r%s\n\r", rv, recv_buf);
+
 
     if (encoder) {
         ostream_buffered_desc_t desc;
@@ -1183,6 +1186,9 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
     return 0;
 }
 
+
+
+
 bool encode_pill_id(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
 	char* str = *arg;
 	if(!str)
@@ -1287,7 +1293,7 @@ bool encode_mac(pb_ostream_t *stream, const pb_field_t *field, void * const *arg
     return pb_encode_tag(stream, PB_WT_STRING, field->tag) && pb_encode_string(stream, (uint8_t*) mac, mac_len);
 }
 
-static bool encode_mac_as_device_id_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
+bool encode_mac_as_device_id_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
     uint8_t mac[6] = {0};
     uint8_t mac_len = 6;
 #if FAKE_MAC
@@ -1418,55 +1424,21 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
 }
 
 //retry logic is handled elsewhere
-#define MAX_RETRY_TIME_IN_TICKS_PERIODIC_DATA (0)
-
 int send_pill_data(MorpheusCommand * pill_data) {
     char buffer[256] = {0};
-    return NetworkTask_SynchronousSendProtobuf(PILL_DATA_RECEIVE_ENDPOINT,buffer,sizeof(buffer),MorpheusCommand_fields,pill_data,MAX_RETRY_TIME_IN_TICKS_PERIODIC_DATA);
+    return NetworkTask_SynchronousSendProtobuf(PILL_DATA_RECEIVE_ENDPOINT,buffer,sizeof(buffer),MorpheusCommand_fields,pill_data,0);
 }
 
-int send_periodic_data( data_t * data ) {
+int send_periodic_data(periodic_data* data) {
     char buffer[256] = {0};
-    periodic_data msg = {0};
+
     int ret;
 
-    //build the message
-    msg.has_firmware_version = true;
-    msg.firmware_version = KIT_VER;
+    data->name.funcs.encode = encode_name;
+    data->mac.funcs.encode = encode_mac;  // Now this is a fallback, the backend will not use this at the first hand
+    data->device_id.funcs.encode = encode_mac_as_device_id_string;
 
-    msg.has_dust = true;
-    msg.dust = data->dust;
-    msg.has_dust_variability = true;
-    msg.dust_variability = data->dust_var;
-    msg.has_dust_max = true;
-    msg.dust_max = data->dust_max;
-    msg.has_dust_min = true;
-    msg.dust_min = data->dust_min;
-
-    msg.has_humidity = true;
-    msg.humidity = data->humid;
-
-    msg.has_light = true;
-    msg.light = data->light;
-
-    msg.has_light_variability = true;
-    msg.light_variability = data->light_variability;
-
-    msg.has_light_tonality = true;
-    msg.light_tonality = data->light_tonality;
-
-    msg.has_temperature = true;
-    msg.temperature = data->temp;
-
-    msg.has_unix_time = true;
-    msg.unix_time = data->time;
-
-    msg.name.funcs.encode = encode_name;
-    msg.mac.funcs.encode = encode_mac;  // Now this is a fallback, the backend will not use this at the first hand
-    msg.device_id.funcs.encode = encode_mac_as_device_id_string;
-
-    ret = NetworkTask_SynchronousSendProtobuf(DATA_RECEIVE_ENDPOINT,buffer,sizeof(buffer),periodic_data_fields,&msg,MAX_RETRY_TIME_IN_TICKS_PERIODIC_DATA);
-
+    ret = NetworkTask_SynchronousSendProtobuf(DATA_RECEIVE_ENDPOINT, buffer, sizeof(buffer), periodic_data_fields, data, 0);
     if(ret != 0)
     {
         // network error
@@ -1475,10 +1447,8 @@ int send_periodic_data( data_t * data ) {
         return ret;
     }
 
-    int upload_success = 0;
-    
     // Parse the response
-    //UARTprintf("Reply is:\n\r%s\n\r", buffer);
+    UARTprintf("Reply is:\n\r%s\n\r", buffer);
     
     const char* header_content_len = "Content-Length: ";
     char * content = strstr(buffer, "\r\n\r\n") + 4;
@@ -1511,34 +1481,46 @@ int send_periodic_data( data_t * data ) {
         response_protobuf.has_reset_device);
 
 		_on_response_protobuf(&response_protobuf);
-        upload_success = 1;
-        //now act on incoming data!
+        sl_status |= UPLOADING;
+        return 0;
     }
 
-    if(upload_success)
-    {
-    	sl_status |= UPLOADING;
-    }
-
-    return ret;
+    return -1;
 }
 
 
 
 int Cmd_data_upload(int arg, char* argv[])
 {
-	data_t data = {0};
+	periodic_data data = {0};
 	//load_aes();
 
+	data.has_firmware_version = 1;
+	data.firmware_version = KIT_VER;
 
-	data.time = 1;
+	data.device_id.funcs.encode = encode_mac_as_device_id_string;
+
+	data.unix_time = 1;
+	data.has_unix_time = 1;
+
 	data.light = 2;
+	data.has_light = 1;
+
 	data.light_variability = 3;
+	data.has_light_variability = 1;
+
 	data.light_tonality = 4;
-	data.temp = 5;
-	data.humid = 6;
+	data.has_light_tonality = 1;
+
+	data.temperature = 5;
+	data.has_temperature = 1;
+
+	data.humidity = 6;
+	data.has_humidity = 1;
+
 	data.dust = 7;
-	UARTprintf("Debugging....\n");
+	data.has_dust = 1;
+
 	send_periodic_data(&data);
 
 	return 0;

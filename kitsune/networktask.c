@@ -68,9 +68,9 @@ static uint32_t EncodePb(pb_ostream_t * stream, const void * data) {
 	return ret;
 }
 
-int NetworkTask_SynchronousSendProtobuf(const char * endpoint, char * buf, uint32_t buf_size, const pb_field_t fields[], const void * structdata,int32_t retry_time_in_counts) {
+int NetworkTask_SynchronousSendProtobuf(const char * endpoint, char* buf, uint32_t buf_size, const pb_field_t fields[], const void * structdata, int32_t retry_time_in_counts) {
 	NetworkTaskServerSendMessage_t message;
-	network_encode_data_t encodedata;
+	network_encode_data_t encodedata = {0};
 	int retcode = -1;
 
 	memset(&message,0,sizeof(message));
