@@ -560,6 +560,16 @@
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/protobuf/periodic.pb.h</locationURI>
 		</link>
+		<link>
+			<name>tests/TestNetwork.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tests/TestNetwork.c</locationURI>
+		</link>
+		<link>
+			<name>tests/TestNetwork.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tests/TestNetwork.h</locationURI>
+		</link>
 	</linkedResources>
 	<variableList>
 		<variable>

@@ -7,6 +7,19 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+	typedef struct {
+		uint8_t * writebuf;
+		size_t maxlen;
+	} StringDesc_t;
+
+	typedef struct {
+		uint8_t * bytes;
+		uint32_t len;
+	} bytes_desc_t;
+
+	uint8_t write_bytes(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
+
+	uint8_t write_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
     
     typedef enum {
         euint8,
