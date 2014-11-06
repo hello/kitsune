@@ -693,7 +693,7 @@ xQueueHandle data_queue = 0;
 xQueueHandle pill_queue = 0;
 
 bool encode_all_pills (pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
-	MorpheusCommand_PillData pill_data;
+	MorpheusCommand_PillData pill_data = {0};
 	uint32_t ret = true;
 
 	while( xQueueReceive(pill_queue, &pill_data, 1) && ret ) {
@@ -703,7 +703,7 @@ bool encode_all_pills (pb_ostream_t *stream, const pb_field_t *field, void * con
 }
 
 void thread_tx(void* unused) {
-	BatchedPillData pill_data_batched;
+	BatchedPillData pill_data_batched = {0};
 	periodic_data data = {0};
 	load_aes();
 
@@ -725,9 +725,11 @@ void thread_tx(void* unused) {
 				}
 			}
 		}
-		if (uxQueueMessagesWaiting(pill_queue)>PILL_BATCH_WATERMARK) {
+		if (uxQueueMessagesWaiting(pill_queue) > PILL_BATCH_WATERMARK) {
 			UARTprintf(	"sending  pill data" );
-			pill_data_batched.pills.funcs.encode = encode_all_pills;
+
+			memset(&pill_data_batched, 0, sizeof(pill_data_batched));
+			pill_data_batched.pills.funcs.encode = encode_all_pills;  // This is smart :D
 
 			while (!send_pill_data(&pill_data_batched) == 0) {
 				UARTprintf("  Waiting for WIFI connection  \n");

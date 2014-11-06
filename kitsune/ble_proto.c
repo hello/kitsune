@@ -213,27 +213,40 @@ static void _ble_reply_wifi_info(){
 
 static void _process_encrypted_pill_data(const MorpheusCommand* command)
 {
-    if (command->motionDataEntrypted.arg) {
-		const array_data* array = (array_data*)command->motionDataEntrypted.arg;  // This thing will be free when this function exits
-		UARTprintf("PILL DATA FROM ID: %s, length: %d\n", command->deviceId.arg, array->length);
+    if( command->has_pillData ) {
+        command->pillData.timestamp = get_time();  // attach timestamp, so we don't need to worry about the sending time
+        xQueueSend(pill_queue, &command->pillData, 10);
+
+        if(command->has_pillData.has_motionDataEntrypted)
+        {
+            UARTprintf("PILL DATA FROM ID: %s, length: %d\n", command->pillData.deviceId, 
+                command->pillData.motionDataEntrypted.size);
+        }else{
+            UARTprintf("Bug: No encrypted data!\n");
+        }
     }
 }
 
 static void _process_pill_heartbeat(const MorpheusCommand* command)
 {
 	// Pill heartbeat received from ANT
-	UARTprintf("PILL HEARBEAT %s\n", command->deviceId.arg);
+    if( command->has_pillData ) {
+        command->pillData.timestamp = get_time();
+        xQueueSend(pill_queue, &command->pillData, 10);
+        UARTprintf("PILL HEARBEAT %s\n", command->pillData.deviceId);
 
-	if (command->has_batteryLevel) {
-		UARTprintf("PILL BATTERY %d\n", command->batteryLevel);
-	}
-	if (command->has_batteryLevel) {
-		UARTprintf("PILL UPTIME %d\n", command->uptime);
-	}
+        if (command->pillData.has_batteryLevel) {
+            UARTprintf("PILL BATTERY %d\n", command->pillData.batteryLevel);
+        }
+        if (command->pillData.has_uptime) {
+            UARTprintf("PILL UPTIME %d\n", command->pillData.uptime);
+        }
 
-	if (command->has_firmwareVersion) {
-		UARTprintf("PILL FirmwareVersion %d\n", command->firmwareVersion);
-	}
+        if (command->pillData.has_firmwareVersion) {
+            UARTprintf("PILL FirmwareVersion %d\n", command->pillData.firmwareVersion);
+        }
+    }
+	
 }
 
 static void _send_response_to_ble(const char* buffer, size_t len)
@@ -312,9 +325,7 @@ extern xQueueHandle pill_queue;
 
 bool on_ble_protobuf_command(MorpheusCommand* command)
 {
-	if( command->has_pillData ) {
-		xQueueSend(pill_queue, &command->pillData, 10);
-	}
+	
     switch(command->type)
     {
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SET_WIFI_ENDPOINT:
@@ -361,10 +372,8 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
     	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_DATA: 
         {
     		// Pill data received from ANT
-        	if(command->has_motionData){
-        		UARTprintf("PILL DATA %s\n", command->deviceId.arg);
-        	}else if(command->motionDataEntrypted.arg){
-        		UARTprintf("PILL ENCRYPTED DATA %s\n", command->deviceId.arg);
+        	if(command->has_pillData){
+        		UARTprintf("PILL DATA %s\n", command->pillData.deviceId);
         	}else{
         		UARTprintf("You may have a bug in the pill\n");
         	}
@@ -376,6 +385,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
             UARTprintf("PILL HEARTBEAT\n");
     		_process_pill_heartbeat(command);
         }
+        break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_PILL:
         {
             UARTprintf("PAIR PILL\n");
