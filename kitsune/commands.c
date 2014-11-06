@@ -722,6 +722,7 @@ void thread_tx(void* unused) {
 					tries = 5;
 				}
 			}
+			ble_proto_free_command(&pill_data);
 		}
 		while (!(sl_status & HAS_IP)) {
 			vTaskDelay(1000);

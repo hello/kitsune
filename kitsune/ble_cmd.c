@@ -212,7 +212,6 @@ void on_morpheus_protobuf_arrival(uint8_t* protobuf, size_t len)
     MorpheusCommand command;
     memset(&command, 0, sizeof(command));
 
-    
     ble_proto_assign_decode_funcs(&command);
 
     pb_istream_t stream = pb_istream_from_buffer(protobuf, len);
@@ -225,11 +224,11 @@ void on_morpheus_protobuf_arrival(uint8_t* protobuf, size_t len)
         UARTprintf(PB_GET_ERROR(&stream));
         UARTprintf("\r\n");
     }else{
-
-        on_ble_protobuf_command(&command);
+    	if( on_ble_protobuf_command(&command) ) {
+    		ble_proto_free_command(&command);
+    	}
     }
 
-    ble_proto_free_command(&command);
     
 }
 

@@ -321,13 +321,12 @@ static void _pair_device( MorpheusCommand* command, int is_morpheus)
 
 extern xQueueHandle pill_queue;
 
-void send_pill_protobuf( MorpheusCommand * pill_data ) {
-	if (pill_queue) {
-		xQueueSend(pill_queue, (void * ) pill_data, 10);
-	}
+//returns true if the memory should be freed
+static bool send_pill_protobuf( MorpheusCommand * pill_data ) {
+	return xQueueSend(pill_queue, (void * ) pill_data, 10) != pdPASS;
 }
 
-void on_ble_protobuf_command(MorpheusCommand* command)
+bool on_ble_protobuf_command(MorpheusCommand* command)
 {
     switch(command->type)
     {
@@ -385,7 +384,7 @@ void on_ble_protobuf_command(MorpheusCommand* command)
     		_process_encrypted_pill_data(command);
 
         	ble_proto_remove_decode_funcs(command);
-        	send_pill_protobuf(command);
+        	return send_pill_protobuf(command);
     	}
 		break;
     	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_HEARTBEAT: 
@@ -394,7 +393,7 @@ void on_ble_protobuf_command(MorpheusCommand* command)
     		_process_pill_heartbeat(command);
 
         	ble_proto_remove_decode_funcs(command);
-        	send_pill_protobuf(command);
+        	return send_pill_protobuf(command);
     	}
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_PILL:
@@ -424,4 +423,5 @@ void on_ble_protobuf_command(MorpheusCommand* command)
         }
         break;
 	}
+    return true;
 }
