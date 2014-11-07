@@ -557,7 +557,30 @@ static bool write_callback_sha(pb_ostream_t *stream, const uint8_t *buf,
 }
 #endif
 
-static bool flush_out_buffer(ostream_buffered_desc_t * desc) {
+
+static int sock = -1;
+
+int send_chunk_len( int obj_sz ) {
+	#define CL_BUF_SZ 12
+	int rv;
+	char recv_buf[CL_BUF_SZ] = {0};
+	if( obj_sz == 0 ) {
+		snprintf(recv_buf, CL_BUF_SZ, "\r\n%x\r\n\r\n", obj_sz);
+	} else {
+		snprintf(recv_buf, CL_BUF_SZ, "\r\n%x\r\n", obj_sz);
+	}
+	rv = send(sock, recv_buf, strlen(recv_buf), 0);
+	if (rv != strlen(recv_buf)) {
+		UARTprintf("Sending CE failed\n");
+		return -1;
+	}
+
+ //   UARTprintf("HTTP chunk sent %s", recv_buf);
+	return 0;
+}
+
+
+static bool flush_out_buffer(ostream_buffered_desc_t * desc ) {
 	uint32_t buf_size = desc->buf_pos;
 	bool ret = true;
 
@@ -568,13 +591,15 @@ static bool flush_out_buffer(ostream_buffered_desc_t * desc) {
 		SHA1_Update(desc->ctx, desc->buf, buf_size);
 
 		//send
+        if( send_chunk_len( buf_size) != 0 ) {
+        	return -1;
+        }
 		ret = send(desc->fd, desc->buf, buf_size, 0) == buf_size;
 	}
 	return ret;
 }
 
-static bool write_buffered_callback_sha(pb_ostream_t *stream, const uint8_t * inbuf,
-        size_t count) {
+static bool write_buffered_callback_sha(pb_ostream_t *stream, const uint8_t * inbuf, size_t count) {
 	ostream_buffered_desc_t * desc = (ostream_buffered_desc_t *) stream->state;
 
 	bool ret = true;
@@ -588,6 +613,9 @@ static bool write_buffered_callback_sha(pb_ostream_t *stream, const uint8_t * in
 		SHA1_Update(desc->ctx, desc->buf, desc->buf_pos);
 
 		//send
+        if( send_chunk_len( desc->buf_pos) != 0 ) {
+        	return -1;
+        }
 		ret = send(desc->fd, desc->buf, desc->buf_pos, 0) == desc->buf_pos;
 
 		desc->bytes_written += desc->buf_pos;
@@ -596,11 +624,9 @@ static bool write_buffered_callback_sha(pb_ostream_t *stream, const uint8_t * in
 
 	}
 
-
 	//copy to our buffer
 	memcpy(desc->buf + desc->buf_pos,inbuf,count);
 	desc->buf_pos += count;
-
 
     return ret;
 }
@@ -641,7 +667,6 @@ pb_istream_t pb_istream_from_sha_socket(int fd) {
     return stream;
 }
 
-static int sock = -1;
 static unsigned long ipaddr = 0;
 
 #include "fault.h"
@@ -678,7 +703,6 @@ void UARTprintfFaults() {
         }
     }
 }
-
 int stop_connection() {
     close(sock);
     sock = -1;
@@ -770,6 +794,7 @@ int start_connection() {
 //takes the buffer and reads <return value> bytes, up to buffer size
 typedef int(*audio_read_cb)(char * buffer, int buffer_size);
 
+#if 0
 //buffer needs to be at least 128 bytes...
 int send_audio_wifi(char * buffer, int buffer_size, audio_read_cb arcb) {
     int send_length;
@@ -851,6 +876,7 @@ int send_audio_wifi(char * buffer, int buffer_size, audio_read_cb arcb) {
 
     return 0;
 }
+#endif
 
 #if 1
 #define SIG_SIZE 32
@@ -997,41 +1023,23 @@ int match(char *regexp, char *text)
 }
 
 //buffer needs to be at least 128 bytes...
-int send_data_pb_callback(const char* host, const char* path,char * recv_buf, uint32_t recv_buf_size,const void * encodedata,network_encode_callback_t encoder) {
+int send_data_pb_callback(const char* host, const char* path,char * recv_buf, uint32_t recv_buf_size,const void * encodedata,network_encode_callback_t encoder,uint16_t num_receive_retries) {
     int send_length = 0;
     int rv = 0;
     uint8_t sig[32]={0};
-    size_t message_length;
-    uint32_t null_stream_bytes = 0;
     bool status;
-
-
-
+    uint16_t iretry;
 
     if (!recv_buf) {
     	UARTprintf("send_data_pb_callback needs a buffer\r\n");
     	return -1;
     }
 
-    if (encoder) {
-        pb_ostream_t stream = {0};
-        status = encoder(&stream,encodedata);
-        if(!status)
-        {
-            UARTprintf("Encode protobuf failed, %s\n", PB_GET_ERROR(&stream));
-            return -1;
-        }
-
-        null_stream_bytes = stream.bytes_written;
-        message_length = stream.bytes_written + sizeof(sig) + AES_IV_SIZE;
-        UARTprintf("message len %d sig len %d\n\r\n\r", stream.bytes_written, sizeof(sig));
-    }
 
     snprintf(recv_buf, recv_buf_size, "POST %s HTTP/1.1\r\n"
             "Host: %s\r\n"
             "Content-type: application/x-protobuf\r\n"
-            "Content-length: %d\r\n"
-            "\r\n", path, host, message_length);
+            "Transfer-Encoding: chunked\r\n", path, host);
 
     send_length = strlen(recv_buf);
 
@@ -1047,7 +1055,9 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
         UARTprintf("send error %d\n\r\n\r", rv);
         return stop_connection();
     }
-    UARTprintf("sent %d\n\r%s\n\r", rv, recv_buf);
+
+    UARTprintf("HTTP header sent %d\n\r%s\n\r", rv, recv_buf);
+
 
     if (encoder) {
         ostream_buffered_desc_t desc;
@@ -1066,7 +1076,6 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
         desc.ctx = &ctx;
         desc.fd = (intptr_t) sock;
 
-
         SHA1_Init(&ctx);
 
         /* Create a stream that will write to our buffer. */
@@ -1081,10 +1090,6 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
         /* sanity checks  */
         if (desc.bytes_written != desc.bytes_that_should_have_been_written) {
         	UARTprintf("ERROR only %d of %d bytes written\r\n",desc.bytes_written,desc.bytes_that_should_have_been_written);
-        }
-
-        if (desc.bytes_written != null_stream_bytes) {
-        	UARTprintf("ERROR %d bytes estimated, %d bytes were sent\r\n",null_stream_bytes,desc.bytes_written);
         }
 
         /* Then just check for any errors.. */
@@ -1118,8 +1123,10 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
         UARTprintf("\n");
 
         /*  send AES initialization vector */
+        if( send_chunk_len( AES_IV_SIZE) != 0 ) {
+        	return -1;
+        }
         rv = send(sock, aesctx.iv, AES_IV_SIZE, 0);
-
 
         if (rv != AES_IV_SIZE) {
             UARTprintf("Sending IV failed: %d\n", rv);
@@ -1130,6 +1137,9 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
         AES_cbc_encrypt(&aesctx, sig, sig, sizeof(sig));
 
         /* send signature */
+        if( send_chunk_len( sizeof(sig)) != 0 ) {
+        	return -1;
+        }
         rv = send(sock, sig, sizeof(sig), 0);
 
         if (rv != sizeof(sig)) {
@@ -1145,10 +1155,34 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
     }
 
 
+    if( send_chunk_len(0) != 0 ) {
+    	return -1;
+    }
+
     memset(recv_buf, 0, recv_buf_size);
 
-    //UARTprintf("Waiting for reply\n\r\n\r");
-    rv = recv(sock, recv_buf, recv_buf_size, 0);
+    //keep looping while our socket error code is telling us to try again
+    iretry = 0;
+    do {
+
+        UARTprintf("Waiting for reply, attempt %d\r\n",iretry);
+
+    	rv = recv(sock, recv_buf, recv_buf_size, 0);
+
+    	if (iretry >= num_receive_retries) {
+    		break;
+    	}
+
+    	iretry++;
+
+    	//delay 200ms
+    	vTaskDelay(200);
+
+    } while (rv == SL_EAGAIN);
+
+
+
+
     if (rv <= 0) {
         UARTprintf("recv error %d\n\r\n\r", rv);
         return stop_connection();
@@ -1164,6 +1198,9 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
 
     return 0;
 }
+
+
+
 
 bool encode_pill_id(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
 	char* str = *arg;
@@ -1211,6 +1248,7 @@ int http_response_ok(const char* response_buffer)
 }
 
 #include "ble_cmd.h"
+#if 0
 static bool _encode_encrypted_pilldata(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
     const array_data* array_holder = (array_data*)(*arg);
     if(!array_holder)
@@ -1227,74 +1265,7 @@ static bool _encode_encrypted_pilldata(pb_ostream_t *stream, const pb_field_t *f
 
     return pb_encode_string(stream, array_holder->buffer, array_holder->length);
 }
-
-static bool encode_pill_list(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
-	periodic_data_pill_data_container* ptr_pill_list = *(periodic_data_pill_data_container**) arg;
-    if(!ptr_pill_list)
-    {
-        UARTprintf("No pill list to encode\n");
-        return 0;
-    }
-
-
-
-	int i;
-	if (xSemaphoreTake(pill_smphr, 1000)) {
-        for (i = 0; i < MAX_PILLS; ++i) {
-            periodic_data_pill_data_container data = ptr_pill_list[i];
-    		if( data.magic != PILL_MAGIC ) {
-                continue;
-    		}
-
-    		data.pill_data.deviceId.funcs.encode = encode_pill_id;
-    		data.pill_data.deviceId.arg = data.id; // attach the id to protobuf structure.
-            if(data.pill_data.motionDataEncrypted.arg &&
-                NULL == data.pill_data.motionDataEncrypted.funcs.encode)
-            {
-                // Set the default encode function for encrypted motion data.
-                data.pill_data.motionDataEncrypted.funcs.encode = _encode_encrypted_pilldata;
-            }
-		  
-            /*
-			pb_ostream_t sizestream = { 0 };
-			if(!pb_encode(&sizestream, periodic_data_pill_data_fields, &data->pill_data))
-            {
-                UARTprintf("Fail to encode pill %s\r\n", data->id);
-                continue;
-            }
-            */
-
-            if (!pb_encode_tag(stream, PB_WT_STRING, field->tag)){
-            	UARTprintf("Fail to encode tag for pill %s\r\n", data.id);
-            	continue;
-			}
-
-            pb_ostream_t sizestream = { 0 };
-            if(!pb_encode(&sizestream, periodic_data_pill_data_fields, &data.pill_data)){
-            	UARTprintf("Failed to retreive length\n");
-            	continue;
-            }
-
-            if (!pb_encode_varint(stream, sizestream.bytes_written)){
-            	UARTprintf("Failed to write length\n");
-				continue;
-            }
-
-			if (!pb_encode(stream, periodic_data_pill_data_fields, &data.pill_data)){
-				UARTprintf("Fail to encode pill %s\r\n", data.id);
-			}else{
-				UARTprintf("Pill %s data uploaded\n", data.id);
-			}
-
-	    }
-        xSemaphoreGive(pill_smphr);
-        return 1;
-    }else{
-    	UARTprintf("Fail to acquire Semaphore\n");
-    	return 0;
-    }
-}
-
+#endif
 
 bool get_mac(unsigned char mac[6]) {
 	int32_t ret;
@@ -1335,7 +1306,7 @@ bool encode_mac(pb_ostream_t *stream, const pb_field_t *field, void * const *arg
     return pb_encode_tag(stream, PB_WT_STRING, field->tag) && pb_encode_string(stream, (uint8_t*) mac, mac_len);
 }
 
-static bool encode_mac_as_device_id_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
+bool encode_mac_as_device_id_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
     uint8_t mac[6] = {0};
     uint8_t mac_len = 6;
 #if FAKE_MAC
@@ -1465,52 +1436,39 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
     
 }
 
-int send_periodic_data( data_t * data ) {
+//retry logic is handled elsewhere
+int send_pill_data(batched_pill_data * pill_data) {
+    char buffer[1024] = {0};
+    int ret = NetworkTask_SynchronousSendProtobuf(PILL_DATA_RECEIVE_ENDPOINT, buffer, sizeof(buffer), batched_pill_data_fields, pill_data, 0);
+    if(ret != 0)
+    {
+        // network error
+        UARTprintf("Send pill data failed, network error %d\n", ret);
+        return ret;
+    }
+    // Parse the response
+    //UARTprintf("Reply is:\n\r%s\n\r", buffer);
+
+    const char* header_content_len = "Content-Length: ";
+    char * content = strstr(buffer, "\r\n\r\n") + 4;
+    char * len_str = strstr(buffer, header_content_len) + strlen(header_content_len);
+    if (http_response_ok(buffer) != 1) {
+        UARTprintf("Invalid response, endpoint return failure.\n");
+        return -1;
+    }
+    return 0;
+}
+
+int send_periodic_data(periodic_data* data) {
     char buffer[256] = {0};
-    periodic_data msg = {0};
+
     int ret;
 
-    //build the message
-    msg.has_firmware_version = true;
-    msg.firmware_version = KIT_VER;
+    data->name.funcs.encode = encode_name;
+    data->mac.funcs.encode = encode_mac;  // Now this is a fallback, the backend will not use this at the first hand
+    data->device_id.funcs.encode = encode_mac_as_device_id_string;
 
-    msg.has_dust = true;
-    msg.dust = data->dust;
-    msg.has_dust_variability = true;
-    msg.dust_variability = data->dust_var;
-    msg.has_dust_max = true;
-    msg.dust_max = data->dust_max;
-    msg.has_dust_min = true;
-    msg.dust_min = data->dust_min;
-
-    msg.has_humidity = true;
-    msg.humidity = data->humid;
-
-    msg.has_light = true;
-    msg.light = data->light;
-
-    msg.has_light_variability = true;
-    msg.light_variability = data->light_variability;
-
-    msg.has_light_tonality = true;
-    msg.light_tonality = data->light_tonality;
-
-    msg.has_temperature = true;
-    msg.temperature = data->temp;
-
-    msg.has_unix_time = true;
-    msg.unix_time = data->time;
-
-    msg.name.funcs.encode = encode_name;
-    msg.mac.funcs.encode = encode_mac;  // Now this is a fallback, the backend will not use this at the first hand
-    msg.device_id.funcs.encode = encode_mac_as_device_id_string;
-    msg.pills.funcs.encode = encode_pill_list;
-    msg.pills.arg = data->pill_list;
-
-    //set this to zero--it won't retry, since retrying is handled by an outside loop
-#define MAX_RETRY_TIME_IN_TICKS_PERIODIC_DATA (0)
-    ret = NetworkTask_SynchronousSendProtobuf(DATA_RECEIVE_ENDPOINT,buffer,sizeof(buffer),periodic_data_fields,&msg,MAX_RETRY_TIME_IN_TICKS_PERIODIC_DATA);
-
+    ret = NetworkTask_SynchronousSendProtobuf(DATA_RECEIVE_ENDPOINT, buffer, sizeof(buffer), periodic_data_fields, data, 0);
     if(ret != 0)
     {
         // network error
@@ -1519,8 +1477,6 @@ int send_periodic_data( data_t * data ) {
         return ret;
     }
 
-    int upload_success = 0;
-    
     // Parse the response
     //UARTprintf("Reply is:\n\r%s\n\r", buffer);
     
@@ -1555,63 +1511,46 @@ int send_periodic_data( data_t * data ) {
         response_protobuf.has_reset_device);
 
 		_on_response_protobuf(&response_protobuf);
-        upload_success = 1;
-        //now act on incoming data!
+        sl_status |= UPLOADING;
+        return 0;
     }
 
-    if(upload_success)
-    {
-    	sl_status |= UPLOADING;
-        // Release all the resource occupied by pill data, or
-        // user can occupy the buffer forever by sending only one packet
-        if (xSemaphoreTake(pill_smphr, 1000)) {
-            int i;
-            for (i = 0; i < MAX_PILLS; ++i) {
-                if (data->pill_list[i].magic != PILL_MAGIC) {
-                    // Slot already empty, skip.
-                    continue;
-                }
-
-                if(data->pill_list[i].pill_data.motionDataEncrypted.arg)
-                {
-                    array_data* array_holder = data->pill_list[i].pill_data.motionDataEncrypted.arg;
-                    if(array_holder->buffer)
-                    {
-                        vPortFree(array_holder->buffer);
-                    }
-
-                    vPortFree(array_holder);
-                    data->pill_list[i].pill_data.motionDataEncrypted.arg = NULL;
-                    data->pill_list[i].pill_data.motionDataEncrypted.funcs.encode = NULL;
-                    data->pill_list[i].magic = 0;  // Release this slot.
-                }
-            }
-            xSemaphoreGive(pill_smphr);
-        }else{
-        	UARTprintf("Fail to acquire Semaphore\n");
-        }
-    }
-
-    return ret;
+    return -1;
 }
 
 
 
 int Cmd_data_upload(int arg, char* argv[])
 {
-	data_t data = {0};
+	periodic_data data = {0};
 	//load_aes();
 
+	data.has_firmware_version = 1;
+	data.firmware_version = KIT_VER;
 
-	data.time = 1;
+	data.device_id.funcs.encode = encode_mac_as_device_id_string;
+
+	data.unix_time = 1;
+	data.has_unix_time = 1;
+
 	data.light = 2;
+	data.has_light = 1;
+
 	data.light_variability = 3;
+	data.has_light_variability = 1;
+
 	data.light_tonality = 4;
-	data.temp = 5;
-	data.humid = 6;
+	data.has_light_tonality = 1;
+
+	data.temperature = 5;
+	data.has_temperature = 1;
+
+	data.humidity = 6;
+	data.has_humidity = 1;
+
 	data.dust = 7;
-	data.pill_list = pill_list;
-	UARTprintf("Debugging....\n");
+	data.has_dust = 1;
+
 	send_periodic_data(&data);
 
 	return 0;
@@ -1660,13 +1599,13 @@ int audio_read_fn (char * buffer, int buffer_size) {
 
     return buffer_size;
 }
-
+#if 0
 int Cmd_audio_test(int argc, char *argv[]) {
     short audio[1024];
     send_audio_wifi( (char*)audio, sizeof(audio), audio_read_fn );
     return (0);
 }
-
+#endif
 //radio test functions
 #define FRAME_SIZE		1500
 typedef enum
