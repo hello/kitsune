@@ -815,7 +815,7 @@ void thread_sensor_poll(void* unused) {
 }
 
 int Cmd_test_network(int argc,char * argv[]) {
-	TestNetwork_RunTests();
+	TestNetwork_RunTests(argv[1]);
 
 	return 0;
 }
@@ -1113,7 +1113,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "download", Cmd_download, "download test function."},
 		{ "dtm", Cmd_top_dtm, "Sends Direct Test Mode command" },
 		{ "animate", Cmd_led_animate, "Animates led"},
-		{"test_network",Cmd_test_network,"tests network task"},
+		{"test_network",Cmd_test_network,"tests network task, usage: test_network ip.of.host.server"},
 
 		{ 0, 0, 0 } };
 

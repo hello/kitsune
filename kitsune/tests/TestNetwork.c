@@ -30,6 +30,7 @@
 static char _urlbuf[256];
 static char _recv_buf[256];
 static 	TestData _data;
+static char _host[128];
 
 typedef int32_t (*TestFunc_t)(void);
 static void RunTest(TestFunc_t test,const char * name);
@@ -109,8 +110,9 @@ static int32_t DoTest1(void) {
 
 	CreateUrl(_urlbuf,sizeof(_urlbuf),params,values,len);
 
+	UARTprintf("%s\r\n",_urlbuf);
 
-	if (NetworkTask_SynchronousSendProtobuf(DATA_SERVER,_urlbuf,_recv_buf,sizeof(_recv_buf),TestData_fields,&_data,10) != 0) {
+	if (NetworkTask_SynchronousSendProtobuf(_host,_urlbuf,_recv_buf,sizeof(_recv_buf),TestData_fields,&_data,10) != 0) {
 		return -1;
 	}
 
@@ -150,8 +152,9 @@ static void RunTest(TestFunc_t test,const char * name) {
 
 }
 
-void TestNetwork_RunTests(void) {
+void TestNetwork_RunTests(const char * host) {
 
+	strcpy(_host,host);
 
 	RUN_TEST(DoTest1);
 
