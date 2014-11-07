@@ -529,7 +529,7 @@ void thread_alarm(void * unused) {
 		//todo audio processing
 		uint32_t time = get_time();
 		if (xSemaphoreTake(alarm_smphr, portMAX_DELAY)) {
-
+			/*
 			if(alarm.has_start_time && alarm.start_time > 0)
 			{
 				if ( time - alarm.start_time < alarm.ring_duration_in_second ) {
@@ -548,6 +548,7 @@ void thread_alarm(void * unused) {
 			}else{
 				// Alarm start time = 0 means no alarm
 			}
+			*/
 			
 			xSemaphoreGive(alarm_smphr);
 		}
