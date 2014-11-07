@@ -166,13 +166,6 @@ void NetworkTask_Thread(void * networkdata) {
 					message.encode,
 					NUM_RECEIVE_RETRIES) == 0) {
 
-				//if we care about decoding via a protobuf callback, we use the callback
-				if (message.decode) {
-					if (decode_rx_data_pb_callback(buf,buf_size,message.decodedata,message.decode) < 0) {
-						response.flags |= NETWORK_RESPONSE_FLAG_FAILED_DECODE;
-					}
-				}
-
 				response.success = true;
 			}
 			else {

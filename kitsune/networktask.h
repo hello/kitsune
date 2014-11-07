@@ -7,7 +7,6 @@
 #include "endpoints.h"
 
 #define NETWORK_RESPONSE_FLAG_NO_CONNECTION (0x00000001)
-#define NETWORK_RESPONSE_FLAG_FAILED_DECODE (0x00000002)
 
 typedef struct {
 	uint8_t success;
@@ -26,16 +25,9 @@ typedef struct {
 
 	void * prepdata;
 
-
-
-
 	//optional encode and decode callbacks.  You can have one or both enabled.
 	network_encode_callback_t encode; //optional encode callback.  If you're just polling, you don't need this
 	const void * encodedata; //optional extra data passed to your encode callback
-
-	network_decode_callback_t decode; //optional decode callback.  If you're just sending, you don't need this
-	void * decodedata; //optional extra data passed to your decode callback
-
 
 	const char * host; //the server to which you wish to communicate
 	const char * endpoint; //where on the server you wish to communicate to.  eg /audio/features
