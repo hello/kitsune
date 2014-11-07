@@ -163,6 +163,7 @@ int Cmd_log_setview(int argc, char * argv[]){
 
 static const char * const g_pcHex = "0123456789abcdef";
 void uart_logf(uint8_t tag, const char *pcString, ...){
+	//TODO protect this with sem to prevent chracters inserted inbetween
     unsigned long ulIdx, ulValue, ulPos, ulCount, ulBase, ulNeg;
     char *pcStr, pcBuf[16], cFill;
     bool echo = false;
@@ -173,22 +174,18 @@ void uart_logf(uint8_t tag, const char *pcString, ...){
     }
 #if UART_LOGGER_PREPEND_TAG > 0
     while(tag){
-		 switch(tag){
-		case LOG_INFO:
-		_logstr("[INFO]", strlen("[INFO]"), echo);
-		tag &= ~LOG_INFO;
-		break;
-		case LOG_WARNING:
-		_logstr("[WARNING]", strlen("[WARNING]"), echo);
-		tag &= ~LOG_WARNING;
-		break;
-		case LOG_ERROR:
-		_logstr("[ERROR]", strlen("[ERROR]"), echo);
-		tag &= ~LOG_ERROR;
-		break;
-		default:
-		tag = 0;
-		}
+    	if(tag & LOG_INFO){
+    		_logstr("[INFO]", strlen("[INFO]"), echo);
+    		tag &= ~LOG_INFO;
+    	}else if(tag & LOG_WARNING){
+    		_logstr("[WARNING]", strlen("[WARNING]"), echo);
+    		tag &= ~LOG_WARNING;
+    	}else if(tag & LOG_ERROR){
+    		_logstr("[ERROR]", strlen("[ERROR]"), echo);
+    		tag &= ~LOG_ERROR;
+    	}else{
+    		tag = 0;
+    	}
     }
 #endif
     va_start(vaArgP, pcString);
