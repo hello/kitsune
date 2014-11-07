@@ -686,50 +686,76 @@ void thread_fast_i2c_poll(void * unused)  {
 	}
 }
 
+#define PILL_BATCH_WATERMARK 2
+
 xQueueHandle data_queue = 0;
+xQueueHandle pill_queue = 0;
 
-void thread_tx(void* unused) {
-	periodic_data data = {0};
-	load_aes();
+//WARNING - THIS WILL EAT THE QUEUE, SO NO SIZE STREAMS ALLOWED
+static bool encode_all_pills (pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
+	pill_data pill_data = {0};
+	uint32_t ret = true;
 
-	while (1) {
-		int tries = 0;
-		memset(&data, 0, sizeof(periodic_data));
-
-		UARTprintf("********************Start polling *****************\n");
-		if( data_queue != 0 && !xQueueReceive( data_queue, &data, portMAX_DELAY ) ) {
-			vTaskDelay(100);
-			UARTprintf("*********************** Waiting for data *****************\n");
+	while( xQueueReceive(pill_queue, &pill_data, 1) && ret ) {
+		if(!pb_encode_tag(stream, PB_WT_STRING, batched_pill_data_pills_tag))
+		{
+			UARTprintf("encode_all_pills: Fail to encode tag for pill %s, error %s\n", pill_data.device_id, PB_GET_ERROR(stream));
 			continue;
 		}
 
-		/*
-		UARTprintf("sending time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d\n",
-				data.time, data.light, data.light_variability, data.light_tonality, data.temp, data.humid,
-				data.dust);
-		*/
+		if (!pb_encode_delimited(stream, pill_data_fields, &pill_data)){
+			UARTprintf("encode_all_pills: Fail to encode pill %s, error: %s\n", pill_data.device_id, PB_GET_ERROR(stream));
+			continue;
+		}
 
-		while (send_periodic_data(&data) != 0) {
-			UARTprintf("********************* Waiting for WIFI connection *****************\n");
-			vTaskDelay( (1<<tries) * 1000 );
-			if( tries++ > 5 ) {
-				tries = 5;
+		//UARTprintf("******************* encode_pill_encode_all_pills: encode pill %s\n", pill_data.deviceId);
+	}
+	return ret;
+}
+
+void thread_tx(void* unused) {
+	batched_pill_data pill_data_batched = {0};
+	periodic_data data = {0};
+	load_aes();
+
+	UARTprintf(" Start polling  \n");
+	while (1) {
+		int tries = 0;
+		memset(&data, 0, sizeof(periodic_data));
+		if (xQueueReceive(data_queue, &(data), 1)) {
+			UARTprintf(
+					"sending time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d\n",
+					data.unix_time, data.light, data.light_variability,
+					data.light_tonality, data.temperature, data.humidity, data.dust);
+
+			while (!send_periodic_data(&data) == 0) {
+				UARTprintf("  Waiting for WIFI connection  \n");
+				vTaskDelay((1 << tries) * 1000);
+				if (tries++ > 5) {
+					tries = 5;
+				}
 			}
-			do {vTaskDelay(1000);} //wait for a connection...
-			while(!(sl_status & HAS_IP) );
-		}//try every little bit
+		}
+		if (uxQueueMessagesWaiting(pill_queue) > PILL_BATCH_WATERMARK) {
+			UARTprintf(	"sending  pill data" );
 
+			memset(&pill_data_batched, 0, sizeof(pill_data_batched));
+			pill_data_batched.pills.funcs.encode = encode_all_pills;  // This is smart :D
+			pill_data_batched.device_id.funcs.encode = encode_mac_as_device_id_string;
 
-	    // Keep in mind that the array_holder is actually at
-		// the start of the buffer, so no need to free the buffer again.
-		if(data.pills.arg)
-		{
-			vPortFree(data.pills.arg);
+			while (!send_pill_data(&pill_data_batched) == 0) {
+				UARTprintf("  Waiting for WIFI connection  \n");
+				vTaskDelay((1 << tries) * 1000);
+				if (tries++ > 5) {
+					tries = 5;
+				}
+			}
+		}
+		while (!(sl_status & HAS_IP)) {
+			vTaskDelay(1000);
 		}
 	}
 }
-
-xSemaphoreHandle pill_smphr;
 
 void thread_sensor_poll(void* unused) {
 
@@ -745,8 +771,6 @@ void thread_sensor_poll(void* unused) {
 		memset(&data, 0, sizeof(data));  // Don't forget re-init!
 		data.unix_time = get_time();
 		data.has_unix_time = true;
-
-		size_t increased_heap_size = 0;
 
 		// copy over the dust values
 		if( xSemaphoreTake(dust_smphr, portMAX_DELAY)) {
@@ -872,68 +896,15 @@ void thread_sensor_poll(void* unused) {
 			xSemaphoreGive(i2c_smphr);
 		}
 
-		array_data* serialized_pill_list_holder = NULL;
-		// made the deep copy of the current pill data. and reset pill data after copy.
-		if (xSemaphoreTake(pill_smphr, portMAX_DELAY)) {
-
-			data.has_firmware_version = true;
-			data.firmware_version = KIT_VER;
-
-			//data.name.funcs.encode = encode_name;
-			//data.mac.funcs.encode = encode_mac;  // Now this is a fallback, the backend will not use this at the first hand
-			data.device_id.funcs.encode = encode_mac_as_device_id_string;
-
-
-			size_t len;
-
-			encode_pill_list_to_buffer(pill_list, NULL, 0, &len);
-			UARTprintf("Len from 1st encode %d\n", len);
-
-			if(len > 0)
-			{
-				uint8_t* buffer = pvPortMalloc(len + sizeof(array_data));
-
-				if(buffer)
-				{
-					memset(buffer, 0, len + sizeof(array_data));
-					serialized_pill_list_holder = (array_data*)buffer;
-					serialized_pill_list_holder->length = len;
-					UARTprintf("Len from 1st encode %d\n", len);
-
-					serialized_pill_list_holder->buffer = &buffer[sizeof(array_data)];
-					encode_pill_list_to_buffer(pill_list, serialized_pill_list_holder->buffer, serialized_pill_list_holder->length, &len);
-					UARTprintf("Len from 2st encode %d\n", len);
-
-					data.pills.arg = serialized_pill_list_holder;
-					UARTprintf("***********HOLDER addr caller %d\n", data.pills.arg);
-					data.pills.funcs.encode = encode_serialized_pill_list;
-				}
-
-				free_pill_list();
-			}
-
-			xSemaphoreGive(pill_smphr);
-		}
-
 
 		UARTprintf("collecting time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d %d %d %d\n",
 				data.unix_time, data.light, data.light_variability, data.light_tonality, data.temperature, data.humidity,
 				data.dust, data.dust_max, data.dust_min, data.dust_variability);
 
-        if(xQueueSend(data_queue, (void*)&data, 10) == pdPASS)
+        if(!xQueueSend(data_queue, (void*)&data, 10) == pdPASS)
         {
-        	increased_heap_size += serialized_pill_list_holder ? serialized_pill_list_holder->length : 0;
-    	}else{
     		UARTprintf("Failed to post data\n");
-    		// Release the seralized pill list buffer
-    		if(serialized_pill_list_holder)
-    		{
-    			vPortFree(serialized_pill_list_holder);
-    		}
-
     	}
-    	
-		UARTprintf("Sensor polling task sleep... heap size for this data %d bytes\n", increased_heap_size);
 
 		vTaskDelayUntil(&now, 60 * configTICK_RATE_HZ);
 	}
@@ -1130,8 +1101,6 @@ void SetupGPIOInterrupts() {
 #endif
 }
 
-xSemaphoreHandle pill_smphr;
-
 void thread_spi(void * data) {
 	Cmd_spi_read(0, 0);
 	while(1) {
@@ -1195,7 +1164,9 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "ping", Cmd_ping, "Ping a server" },
 		{ "time", Cmd_time, "get ntp time" },
 		{ "status", Cmd_status, "status of simple link" },
+#if 0
 		{ "audio", Cmd_audio_test, "audio upload test" },
+#endif
 
     { "mnt",      Cmd_mnt,      "Mount the SD card" },
     { "umnt",     Cmd_umnt,     "Unount the SD card" },
@@ -1379,12 +1350,12 @@ void vUARTTask(void *pvParameters) {
 	init_light_sensor();
 	init_prox_sensor();
 
-	data_queue = xQueueCreate(60, sizeof(periodic_data));
+	data_queue = xQueueCreate(10, sizeof(periodic_data));
+	pill_queue = xQueueCreate(10, sizeof(pill_data));
 	vSemaphoreCreateBinary(dust_smphr);
 	vSemaphoreCreateBinary(light_smphr);
 	vSemaphoreCreateBinary(i2c_smphr);
 	vSemaphoreCreateBinary(spi_smphr);
-	vSemaphoreCreateBinary(pill_smphr);
 	vSemaphoreCreateBinary(alarm_smphr);
 
 

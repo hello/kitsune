@@ -166,27 +166,31 @@ static bool _decode_bytes_field(pb_istream_t *stream, const pb_field_t *field, v
     }
 
     int length = stream->bytes_left;
-    size_t buffer_len = stream->bytes_left + sizeof(array_data);
-    uint8_t* buffer = pvPortMalloc(buffer_len);
-
+    uint8_t* buffer = pvPortMalloc(stream->bytes_left + sizeof(array_data ));
     if(!buffer)
     {
     	UARTprintf("_decode_bytes_fields: Out of memory\n");
         return false;
     }
+    array_data* array = (array_data*)buffer;
+    memset(buffer, 0, stream->bytes_left + sizeof(array_data ));
+    buffer += sizeof(array_data);
 
-    memset(buffer, 0, buffer_len);
-    array_data* array = (array_data*)&buffer[length];
     if (!pb_read(stream, buffer, stream->bytes_left))
     {
     	UARTprintf("_decode_bytes_fields: Failed to read data\n");
         vPortFree(buffer);
         return false;
     }
+    if(!array)
+    {
+    	UARTprintf("_decode_bytes_fields: Failed to malloc data holder\n");
+        vPortFree(buffer);
+        return false;
+    }
 
     array->buffer = buffer;
     array->length = length;
-
     *arg = array;
 
     return true;
@@ -219,13 +223,10 @@ void on_morpheus_protobuf_arrival(uint8_t* protobuf, size_t len)
         UARTprintf("Decoding protobuf failed, error: ");
         UARTprintf(PB_GET_ERROR(&stream));
         UARTprintf("\r\n");
-    }else{
-
-        on_ble_protobuf_command(&command);
+    } else {
+    	on_ble_protobuf_command(&command);
+    	ble_proto_free_command(&command);
     }
-
-    ble_proto_free_command(&command);
-
 }
 
 void ble_proto_assign_decode_funcs(MorpheusCommand* command)
@@ -456,8 +457,7 @@ void ble_proto_free_command(MorpheusCommand* command)
 
     if(command->motionDataEntrypted.arg)
     {
-        array_data* array = (array_data*)command->motionDataEntrypted.arg;
-        vPortFree(array->buffer);  // Buffer and holder are in the same block, holder->buffer points to the start addr
+        vPortFree(command->motionDataEntrypted.arg);
         command->motionDataEntrypted.arg = NULL;
     }
 

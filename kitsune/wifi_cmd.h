@@ -2,19 +2,15 @@
 #define __WIFI_CMD_H__
 
 #include "periodic.pb.h"
+#include "morpheus_ble.pb.h"
+
 #define DATA_SERVER                         "dev-in.hello.is"
 #define DATA_RECEIVE_ENDPOINT               "/in/morpheus/pb2"
+#define PILL_DATA_RECEIVE_ENDPOINT			"/in/pill"
 #define MORPHEUS_REGISTER_ENDPOINT          "/register/morpheus"
 #define PILL_REGISTER_ENDPOINT              "/register/pill"
 
-#define PILL_ID_LEN 16
-typedef struct {
-	uint32_t magic;
-	char id[PILL_ID_LEN+1];
-	periodic_data_pill_data pill_data;
-} periodic_data_pill_data_container;
 #define PILL_MAGIC 0xAAAAAAAA
-#define MAX_PILLS 8
 #include "FreeRTOS.h"
 #include "semphr.h"
 #include "wlan.h"
@@ -30,13 +26,11 @@ extern xSemaphoreHandle pill_smphr;
 typedef struct {
 	unsigned int time;
 	int light, light_variability, light_tonality, temp, humid, dust, dust_max, dust_min, dust_var;
-	periodic_data_pill_data_container * pill_list;
 } data_t;
 
 extern
 int sl_mode;
 
-extern periodic_data_pill_data_container pill_list[MAX_PILLS];
 
 #define CONNECT    0x00000001
 #define HAS_IP     0x00000002
@@ -91,6 +85,7 @@ void load_aes();
 
 int send_periodic_data(periodic_data* data);
 int send_audio_data( data_t * data );
+int send_pill_data(batched_pill_data * pill_data);
 
 void thread_ota( void * unused );
 
@@ -117,16 +112,7 @@ bool encode_mac(pb_ostream_t *stream, const pb_field_t *field, void * const *arg
 bool encode_mac_as_device_id_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 bool encode_name(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 
-bool encode_serialized_pill_list(pb_ostream_t *stream, const pb_field_t *field, void** arg);
-bool encode_pill_list(pb_ostream_t *stream, const pb_field_t *field, void** arg);
-void encode_pill_list_to_buffer(const periodic_data_pill_data_container* ptr_pill_list,
-    uint8_t* buffer, size_t buffer_len, size_t* out_len);
-
-//#define MORPH_NAME "KingShy's morpheus"
-
-//#define MORPH_NAME "Chris's morpheus"
-#define MORPH_NAME "test morpheus 10"
-//#define MORPH_NAME "test morpheus 80"
+#define MORPH_NAME "elder one"
 #define KIT_VER 16
 
 #endif
