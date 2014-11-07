@@ -31,12 +31,12 @@
 
 /* stupid globals */
 extern tCircularBuffer *pRxBuffer;
-extern unsigned char g_ucSpkrStartFlag;
+extern unsigned int g_uiPlayWaterMark;
 
 static xQueueHandle _queue = NULL;
 static const unsigned int CPU_XDATA = 0; //1: enabled CPU interrupt triggerred, 0 for DMA
 
-#define MAX_LOOP_ITERS (100000)
+#define MAX_NUMBER_TIMES_TO_WAIT_FOR_AUDIO_BUFFER_TO_FILL (10000)
 
 typedef enum {
 	request	,
@@ -127,18 +127,18 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	WORD size;
 	FRESULT res;
 	uint32_t totBytesRead = 0;
-	uint32_t uiPlayWaterMark = 1;
 	uint32_t iReceiveCount = 0;
 
 	int32_t iRetVal = -1;
 	uint8_t returnFlags = 0x00;
 
 	uint16_t speaker_data_padded[512];
-	uint16_t speaker_data[256];
+	uint16_t speaker_data[128];
 
 	uint64_t loop_ticks,desired_ticks_elapsed;
 	int64_t dtick;
 	portTickType t1,t2;
+	uint32_t iBufWaitingCount;
 
 
 
@@ -180,7 +180,6 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		return returnFlags;
 	}
 
-
 	//////
 	// SET UP AUDIO PLAYBACK
 
@@ -201,18 +200,13 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
 	AudioCaptureRendererConfigure(I2S_PORT_DMA, AUDIO_PLAYBACK_RATE_HZ);
 
-	/* FUCK!  A magic global variable here!  */
-	g_ucSpkrStartFlag = 1;
-
 	//do whatever this function does
 	Audio_Start();
 
 
 	memset(speaker_data_padded,0,sizeof(speaker_data_padded));
 
-	uiPlayWaterMark = 1;
-
-
+	g_uiPlayWaterMark = 1;
 
 	while (1) {
 		t1 = xTaskGetTickCount();
@@ -223,9 +217,21 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		totBytesRead += size;
 
 		/* Wait to avoid buffer overflow as reading speed is faster than playback */
-		while (IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) == TRUE) {
+		iBufWaitingCount = 0;
+		while (IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) == TRUE &&
+				iBufWaitingCount < MAX_NUMBER_TIMES_TO_WAIT_FOR_AUDIO_BUFFER_TO_FILL) {
 			vTaskDelay(2);
+
+			iBufWaitingCount++;
+
 		};
+
+
+		if (iBufWaitingCount >= MAX_NUMBER_TIMES_TO_WAIT_FOR_AUDIO_BUFFER_TO_FILL) {
+			UARTprintf("Waited too long for audio buffer empty out to the codec \r\n");
+			break;
+		}
+
 
 		if (size > 0) {
 			unsigned int i;
@@ -257,9 +263,9 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 		}
 
-		if (uiPlayWaterMark == 0) {
+		if (g_uiPlayWaterMark == 0) {
 			if (IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) == TRUE) {
-				uiPlayWaterMark = 1;
+				g_uiPlayWaterMark = 1;
 			}
 		}
 		iReceiveCount++;
@@ -294,9 +300,6 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 	close_codec_NAU();
 	Audio_Stop();
-
-	/* goddamned globals */
-	g_ucSpkrStartFlag = 0;
 
 	McASPDeInit();
 	DestroyCircularBuffer(pRxBuffer);
