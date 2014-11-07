@@ -25,6 +25,9 @@
 #define AUDIO_PLAYBACK_RATE_HZ (48000)
 #define NUMBER_OF_TICKS_IN_A_SECOND (1000)
 
+#define SPEAKER_DATA_NUM_ELEMENTS (256)
+#define SPEAKER_DATA_PADDED_NUM_ELEMENTS (512)
+
 #define FLAG_SUCCESS (0x01)
 #define FLAG_SNOOZE  (0x02)
 #define FLAG_STOP    (0x04)
@@ -132,8 +135,8 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	int32_t iRetVal = -1;
 	uint8_t returnFlags = 0x00;
 
-	uint16_t speaker_data_padded[512];
-	uint16_t speaker_data[128];
+	uint16_t * speaker_data_padded;//[512];
+	uint16_t * speaker_data;//[256];
 
 	uint64_t loop_ticks,desired_ticks_elapsed;
 	int64_t dtick;
@@ -156,10 +159,21 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 	//create circular buffer
 	pRxBuffer = CreateCircularBuffer(RX_BUFFER_SIZE);
+	speaker_data_padded = pvPortMalloc((SPEAKER_DATA_PADDED_NUM_ELEMENTS + SPEAKER_DATA_NUM_ELEMENTS) *sizeof(uint16_t)); //do it one one malloc
+	speaker_data = &speaker_data_padded[SPEAKER_DATA_PADDED_NUM_ELEMENTS];
 
-	if (!pRxBuffer) {
+	if (!pRxBuffer || !speaker_data_padded) {
 		UARTprintf("Failed to create circular buffer of size %d\r\n",RX_BUFFER_SIZE);
 		UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
+
+		if (pRxBuffer) {
+			DestroyCircularBuffer(pRxBuffer);
+		}
+
+		if (speaker_data_padded) {
+			vPortFree(speaker_data_padded);
+		}
+
 		return returnFlags;
 	}
 
@@ -175,6 +189,11 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 		if (pRxBuffer) {
 			DestroyCircularBuffer(pRxBuffer);
+		}
+
+
+		if (speaker_data_padded) {
+			vPortFree(speaker_data_padded);
 		}
 
 		return returnFlags;
@@ -204,7 +223,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	Audio_Start();
 
 
-	memset(speaker_data_padded,0,sizeof(speaker_data_padded));
+	memset(speaker_data_padded,0,SPEAKER_DATA_PADDED_NUM_ELEMENTS*sizeof(uint16_t));
 
 	g_uiPlayWaterMark = 1;
 
@@ -213,7 +232,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 		/* Read always in block of 512 Bytes or less else it will stuck in f_read() */
 
-		res = f_read(&fp, speaker_data, sizeof(speaker_data), &size);
+		res = f_read(&fp, speaker_data, sizeof(uint16_t)*SPEAKER_DATA_NUM_ELEMENTS, &size);
 		totBytesRead += size;
 
 		/* Wait to avoid buffer overflow as reading speed is faster than playback */
@@ -303,6 +322,8 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 	McASPDeInit();
 	DestroyCircularBuffer(pRxBuffer);
+	vPortFree(speaker_data_padded);
+
 
 	UARTprintf("completed playback\r\n");
 
