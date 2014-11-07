@@ -1180,8 +1180,120 @@ int Cmd_download(int argc, char*argv[]) {
 #include "pb.h"
 #include "pb_decode.h"
 
+/******************************************************************************
+   Image file names
+*******************************************************************************/
+#define IMG_BOOT_INFO           "/sys/mcubootinfo.bin"
+#define IMG_FACTORY_DEFAULT     "/sys/mcuimg1.bin"
+#define IMG_USER_1              "/sys/mcuimg2.bin"
+#define IMG_USER_2              "/sys/mcuimg3.bin"
+
+/******************************************************************************
+   Image status
+*******************************************************************************/
+#define IMG_STATUS_TESTING      0x12344321
+#define IMG_STATUS_TESTREADY    0x56788765
+#define IMG_STATUS_NOTEST       0xABCDDCBA
+
+/******************************************************************************
+   Active Image
+*******************************************************************************/
+#define IMG_ACT_FACTORY         0
+#define IMG_ACT_USER1           1
+#define IMG_ACT_USER2           2
+
+/******************************************************************************
+   Boot Info structure
+*******************************************************************************/
+typedef struct sBootInfo
+{
+  _u8  ucActiveImg;
+  _u32 ulImgStatus;
+
+}sBootInfo_t;
+
 void mcu_reset();
 void nwp_reset();
+
+/* Save bootinfo on ImageCommit call */
+static sBootInfo_t sBootInfo;
+
+static _i32 _WriteBootInfo(sBootInfo_t *psBootInfo)
+{
+    _i32 lFileHandle;
+    _u32 ulToken;
+    _i32 status = -1;
+
+    if( 0 == sl_FsOpen((unsigned char *)IMG_BOOT_INFO, FS_MODE_OPEN_WRITE, &ulToken, &lFileHandle) )
+    {
+        if( 0 < sl_FsWrite(lFileHandle, 0, (_u8 *)psBootInfo, sizeof(sBootInfo_t)) )
+        {
+            UARTprintf("WriteBootInfo: ucActiveImg=%d, ulImgStatus=0x%x\n\r", psBootInfo->ucActiveImg, psBootInfo->ulImgStatus);
+            status = 0;
+        }
+        sl_FsClose(lFileHandle, 0, 0, 0);
+    }
+
+    return status;
+}
+
+static _i32 _ReadBootInfo(sBootInfo_t *psBootInfo)
+{
+    _i32 lFileHandle;
+    _u32 ulToken;
+    _i32 status = -1;
+
+    if( 0 == sl_FsOpen((unsigned char *)IMG_BOOT_INFO, FS_MODE_OPEN_READ, &ulToken, &lFileHandle) )
+    {
+        if( 0 < sl_FsRead(lFileHandle, 0, (_u8 *)psBootInfo, sizeof(sBootInfo_t)) )
+        {
+            status = 0;
+            UARTprintf("ReadBootInfo: ucActiveImg=%d, ulImgStatus=0x%x\n\r", psBootInfo->ucActiveImg, psBootInfo->ulImgStatus);
+        }
+        sl_FsClose(lFileHandle, 0, 0, 0);
+    }
+
+    return status;
+}
+static _i32 _McuImageGetNewIndex(void)
+{
+    _i32 newImageIndex;
+
+    /* Assume sBootInfo is alrteady filled in init time (by sl_extlib_FlcCommit) */
+    switch(sBootInfo.ucActiveImg)
+    {
+        case IMG_ACT_USER1:
+            newImageIndex = IMG_ACT_USER2;
+            break;
+
+        case IMG_ACT_USER2:
+        default:
+            newImageIndex = IMG_ACT_USER1;
+            break;
+    }
+    UARTprintf("_McuImageGetNewIndex: active image is %d, return new image %d \n\r", sBootInfo.ucActiveImg, newImageIndex);
+
+    return newImageIndex;
+}
+
+void boot_commit_ota() {
+    _ReadBootInfo(&sBootInfo);
+
+    /* Check only on status TESTING */
+    if( IMG_STATUS_TESTING == sBootInfo.ulImgStatus )
+	{
+		UARTprintf("Booted in testing mode\n");
+		sBootInfo.ulImgStatus = IMG_STATUS_NOTEST;
+		sBootInfo.ucActiveImg = (sBootInfo.ucActiveImg == IMG_ACT_USER1)?
+								IMG_ACT_USER2:
+								IMG_ACT_USER1;
+		/* prepare switch image condition to the MCU boot loader */
+		_WriteBootInfo(&sBootInfo);
+		mcu_reset();
+	}
+}
+
+int send_top(char *, int);
 bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, void **arg);
 
 bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg)
@@ -1247,6 +1359,13 @@ bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg
 			    f_stat( path_buff, &file_info );
 			    DWORD bytes_to_copy = file_info.fsize;
 
+			    if (strstr(full, "/sys/mcuimgx") == 0 )
+			    {
+			    	_ReadBootInfo(&sBootInfo);
+			        full[11] = (_u8)_McuImageGetNewIndex() + '1'; /* mcuimg1 is for factory default, mcuimg2,3 are for OTA updates */
+			        UARTprintf("MCU image name converted to %s \n", full);
+			    }
+
 				sl_FsOpen((unsigned char *)full, FS_MODE_OPEN_CREATE(bytes_to_copy, _FS_FILE_OPEN_FLAG_NO_SIGNATURE_TEST | _FS_FILE_OPEN_FLAG_COMMIT ), NULL, &sflash_fh);
 				if( res != FR_OK ) {
 					UARTprintf("ota - failed to open file %s", full );
@@ -1269,11 +1388,19 @@ bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg
 				}
 				sl_FsClose(sflash_fh,0,0,0);
 			    //close on sd
+
+				if( strcmp(full, "/top/update") == 0 ) {
+					send_top("dfu", strlen("dfu"));
+				}
 			}
 			if( download_info.reset_network_processor ) {
 				nwp_reset();
 			}
 			if( download_info.reset_application_processor ) {
+		        UARTprintf("change image status to IMG_STATUS_TESTREADY\n\r");
+		        _ReadBootInfo(&sBootInfo);
+		        sBootInfo.ulImgStatus = IMG_STATUS_TESTREADY;
+		        _WriteBootInfo(&sBootInfo);
                 mcu_reset();
 			}
 		}

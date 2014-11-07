@@ -31,6 +31,8 @@ unsigned int sl_status = 0;
 #include "gpio.h"
 #include "led_cmd.h"
 
+#include "FreeRTOS.h"
+#include "task.h"
 
 #define FAKE_MAC 0
 
@@ -60,9 +62,6 @@ void nwp_reset() {
     sl_Stop(SL_STOP_TIMEOUT);
     sl_mode = sl_Start(NULL, NULL, NULL);
 }
-
-#include "ota_usr.h"
-
 
 //*****************************************************************************
 //

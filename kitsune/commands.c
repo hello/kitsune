@@ -1267,6 +1267,7 @@ tCmdLineEntry g_sCmdTable[] = {
 // ==============================================================================
 extern xSemaphoreHandle g_xRxLineSemaphore;
 void UARTStdioIntHandler(void);
+void boot_commit_ota();
 
 void vUARTTask(void *pvParameters) {
 	char cCmdBuf[512];
@@ -1377,15 +1378,15 @@ void vUARTTask(void *pvParameters) {
 		UARTprintf("Failed to create the data_queue.\n");
 	}
 
-	xTaskCreate(top_board_task, "top_board_task", 256 / 4, NULL, 2, NULL); //todo reduce stack
-	xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 4, NULL); //todo reduce stack
+	xTaskCreate(top_board_task, "top_board_task", 1024 / 4, NULL, 2, NULL);
+	xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 4, NULL);
 
 	UARTprintf("*");
-	xTaskCreate(thread_spi, "spiTask", 1024 / 4, NULL, 5, NULL);
+	xTaskCreate(thread_spi, "spiTask", 3*1024 / 4, NULL, 5, NULL); //this one doesn't look like much, but has to parse all the pb from bluetooth
 
 	//this task needs a larger stack because
 	//some protobuf encoding will happen on the stack of this task
-	xTaskCreate(NetworkTask_Thread,"networkTask",2*1024/4,&network_task_data,10,NULL);
+	xTaskCreate(NetworkTask_Thread,"networkTask",5*1024/4,&network_task_data,10,NULL);
 
 	SetupGPIOInterrupts();
 	UARTprintf("*");
@@ -1402,8 +1403,6 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("*");
 	xTaskCreate(thread_tx, "txTask", 2 * 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_ota, "otaTask",5 * 1024 / 4, NULL, 1, NULL);
-	UARTprintf("*");
 #endif
 	//checkFaults();
 
@@ -1414,6 +1413,9 @@ void vUARTTask(void *pvParameters) {
 			mac[3], mac[4], mac[5]);
 	UARTprintf("\n? for help\n");
 	UARTprintf("> ");
+
+	/* if we get this far it must be an ok image... */
+	boot_commit_ota();
 
 	/* remove anything we recieved before we were ready */
 

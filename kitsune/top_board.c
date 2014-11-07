@@ -266,16 +266,11 @@ int top_board_dfu_begin(const char * bin){
 
 }
 
-int Cmd_send_top(int argc, char *argv[]){
+int send_top(char * s, int n) {
 	int i;
 	if(self.mode == TOP_NORMAL_MODE){
-		for (i = 1; i < argc; i++) {
-			int j = 0;
-			while (argv[i][j] != '\0') {
-				UARTCharPut(UARTA1_BASE, argv[i][j]);
-				j++;
-			}
-			UARTCharPut(UARTA1_BASE, ' ');
+		for (i = 0; i < n; i++) {
+			UARTCharPut(UARTA1_BASE, *(s+i));
 		}
 		UARTCharPut(UARTA1_BASE, '\r');
 		UARTCharPut(UARTA1_BASE, '\n');
@@ -284,6 +279,25 @@ int Cmd_send_top(int argc, char *argv[]){
 		UARTprintf("Top board is in DFU mode\r\n");
 		return -1;
 	}
+}
+#include "assert.h"
+int Cmd_send_top(int argc, char *argv[]){
+	int ret,i;
+	char * start;
+	char * buf = pvPortMalloc(256);
+	start = buf;
+	assert(buf);
+	for (i = 1; i < argc; i++) {
+		int j = 0;
+		while (argv[i][j] != '\0') {
+			*buf++ = argv[i][j++];
+		}
+		*buf++ = ' ';
+	}
+	ret = send_top(start, buf - start);
+	vPortFree(start);
+
+	return ret;
 }
 void top_board_notify_boot_complete(void){
 	//led_set_color(0xFF, 0,0,50,1,1,18,0);

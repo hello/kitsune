@@ -286,11 +286,6 @@
 			<locationURI>PARENT-2-PROJECT_LOC/networktask.h</locationURI>
 		</link>
 		<link>
-			<name>ota_usr.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/ota_usr.h</locationURI>
-		</link>
-		<link>
 			<name>pcm_handler.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/pcm_handler.c</locationURI>
