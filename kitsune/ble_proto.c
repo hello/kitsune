@@ -413,6 +413,12 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
             _reply_wifi_scan_result();
         }
         break;
+        case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_SHAKES:
+        {
+            UARTprintf("PILL SHAKES\n");
+            led_set_color(0xFF, 0, 0, 50, 1, 1, 18, 1); //blue
+        }
+        break;
 	}
     return true;
 }
