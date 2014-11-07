@@ -685,7 +685,8 @@ void thread_fast_i2c_poll(void * unused)  {
 	}
 }
 
-#define MAX_PILL_DATA 10
+#define MAX_PILL_DATA 20
+#define MAX_BATCH_PILL_DATA 10
 #define PILL_BATCH_WATERMARK 2
 
 xQueueHandle data_queue = 0;
@@ -744,7 +745,7 @@ void thread_tx(void* unused) {
 			UARTprintf(	"sending  pill data" );
 			pilldata_to_encode pilldata;
 			pilldata.num_pills = 0;
-			pilldata.pills = (pill_data*)pvPortMalloc(MAX_PILL_DATA*sizeof(pill_data));
+			pilldata.pills = (pill_data*)pvPortMalloc(MAX_BATCH_PILL_DATA*sizeof(pill_data));
 
 			if( !pilldata.pills ) {
 				UARTprintf( "failed to alloc pilldata\n" );
@@ -752,7 +753,7 @@ void thread_tx(void* unused) {
 				continue;
 			}
 
-			while( xQueueReceive(pill_queue, &pilldata.pills[pilldata.num_pills], 1 ) ) {
+			while( pilldata.num_pills < MAX_BATCH_PILL_DATA && xQueueReceive(pill_queue, &pilldata.pills[pilldata.num_pills], 1 ) ) {
 				++pilldata.num_pills;
 			}
 
