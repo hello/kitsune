@@ -42,7 +42,7 @@ static void _factory_reset(){
         UARTprintf("Disconnect WIFI failed, error %d.\n", ret);
     }
 
-    ret = sl_Stop(2);
+    ret = sl_Stop(0xFFFF);
     if(ret == 0)
     {
     	sl_Start(NULL, NULL, NULL);

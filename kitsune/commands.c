@@ -454,7 +454,12 @@ uint64_t get_cache_time()
 	SlDateTime_t dt =  {0};
 	uint8_t configLen = sizeof(SlDateTime_t);
 	uint8_t configOpt = SL_DEVICE_GENERAL_CONFIGURATION_DATE_TIME;
-	sl_DevGet(SL_DEVICE_GENERAL_CONFIGURATION,&configOpt, &configLen,(_u8 *)(&dt));
+	int32_t ret = sl_DevGet(SL_DEVICE_GENERAL_CONFIGURATION,&configOpt, &configLen,(_u8 *)(&dt));
+	if(ret != 0)
+	{
+		UARTprintf("sl_DevGet failed, err: %d\n", ret);
+		return 0;
+	}
 
 	uint64_t ntp = dt.sl_tm_sec + dt.sl_tm_min*60 + dt.sl_tm_hour*3600 + dt.sl_tm_year_day*86400 +
 				(dt.sl_tm_year-70)*31536000 + ((dt.sl_tm_year-69)/4)*86400 -
