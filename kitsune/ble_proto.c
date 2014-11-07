@@ -15,6 +15,7 @@
 #include "networktask.h"
 #include "led_animations.h"
 #include "led_cmd.h"
+#include "top_board.h"
 
 extern unsigned int sl_status;
 
@@ -207,17 +208,50 @@ static void _ble_reply_wifi_info(){
 periodic_data_pill_data_container pill_list[MAX_PILLS] = {0};
 
 int scan_pill_list(periodic_data_pill_data_container* p, char * device_id) {
-	int i;
-	for (i = 0; i < MAX_PILLS && p[i].magic == PILL_MAGIC; ++i) {
-		if (strcmp(p[i].id, device_id) == 0) {
-			break;
+	int i = 0;
+    int last_free_index = 0;
+	for (i = 0; i < MAX_PILLS; ++i) {
+		if (p[i].magic == PILL_MAGIC && strcmp(p[i].id, device_id) == 0) {
+			return i;
 		}
+
+        if(p[i].magic != PILL_MAGIC)
+        {
+            last_free_index = i;
+        }
 	}
-	if (i == MAX_PILLS) {
-		UARTprintf(" too many pills, overwriting\n ");
-		i=0;
-	}
-	return i;
+
+	return last_free_index;
+}
+
+void free_pill_list()
+{
+    int i;
+    for (i = 0; i < MAX_PILLS; ++i) 
+    {
+        if (pill_list[i].magic != PILL_MAGIC) {
+            // Slot already empty, skip.
+            continue;
+        }
+
+        if(pill_list[i].pill_data.motionDataEncrypted.arg)
+        {
+            array_data* array_holder = pill_list[i].pill_data.motionDataEncrypted.arg;
+            if(array_holder->buffer)
+            {
+                vPortFree(array_holder->buffer);
+            }
+
+            // We don't need to free the holder, they are in the same block with the holder->buffer
+            // holder->buffer points to the beginning of block.
+            pill_list[i].pill_data.motionDataEncrypted.arg = NULL;
+            pill_list[i].pill_data.motionDataEncrypted.funcs.encode = NULL;
+            
+        }
+
+        memset(&pill_list[i].pill_data, 0, sizeof(pill_list[i].pill_data));  // set all the has_xxx fields to empty.
+        pill_list[i].magic = 0;  // Release this slot.
+    }
 }
 
 static void _process_encrypted_pill_data(const MorpheusCommand* command)
@@ -239,36 +273,36 @@ static void _process_encrypted_pill_data(const MorpheusCommand* command)
                 {
                     vPortFree(old_data->buffer);
                 }
-                vPortFree(old_data);
+
                 pill_list[i].pill_data.motionDataEncrypted.arg = NULL;
                 pill_list[i].pill_data.motionDataEncrypted.funcs.encode = NULL;
             }
             
 
             const array_data* array = (array_data*)command->motionDataEntrypted.arg;  // This thing will be free when this function exits
-            array_data* array_cp = pvPortMalloc(sizeof(array_data));
-            if(!array_cp){
+            
+            // the holder and buffer are in one memory block
+            uint8_t* buffer = pvPortMalloc(sizeof(array_data) + array->length);
+            if(!buffer){
                 UARTprintf("No memory\n");
 
             }else{
-            	uint8_t* encrypted_data = (uint8_t*)pvPortMalloc(array->length);
-                if(!encrypted_data){
-                    vPortFree(array_cp);
-                    UARTprintf("No memory\n");
-                }else{
-                    array_cp->buffer = encrypted_data;
-                    array_cp->length = array->length;
-                    memcpy(encrypted_data, array->buffer, array->length);
 
-                    pill_list[i].pill_data.motionDataEncrypted.arg = array_cp;
-                    pill_list[i].magic = PILL_MAGIC;
-                }
+                array_data* holder = (array_data*)&buffer[array->length];
+
+                holder->buffer = buffer;
+                holder->length = array->length;
+                memcpy(holder->buffer, array->buffer, array->length);
+
+                pill_list[i].pill_data.motionDataEncrypted.arg = holder;
+                pill_list[i].magic = PILL_MAGIC;
+                
             }
 
             UARTprintf("PILL DATA FROM ID: %s, length: %d\n", command->deviceId.arg, array->length);
             int i = 0;
             for(i = 0; i < array->length; i++){
-                UARTprintf( "%x", array->buffer[i] );
+                UARTprintf( "%02x", array->buffer[i] );
 
             }
             UARTprintf("\n");
@@ -294,15 +328,18 @@ static void _process_pill_heartbeat(const MorpheusCommand* command)
         UARTprintf("PILL HEARBEAT %s\n", command->deviceId.arg);
 
         if (command->has_batteryLevel) {
+            pill_list[i].pill_data.has_batteryLevel = true;
             pill_list[i].pill_data.batteryLevel = command->batteryLevel;
             UARTprintf("PILL BATTERY %d\n", command->batteryLevel);
         }
         if (command->has_batteryLevel) {
+            pill_list[i].pill_data.has_uptime = true;
             pill_list[i].pill_data.uptime = command->uptime;
             UARTprintf("PILL UPTIME %d\n", command->uptime);
         }
 
         if(command->has_firmwareVersion) {
+            pill_list[i].pill_data.has_firmwareVersion = true;
             pill_list[i].pill_data.firmwareVersion = command->firmwareVersion;
             UARTprintf("PILL FirmwareVersion %d\n", command->firmwareVersion);
         }
@@ -365,14 +402,13 @@ static void _pair_device( MorpheusCommand* command, int is_morpheus)
 		// TODO: Figure out why always get -1 when this is the 1st request
 		// after the IPv4 retrieved.
 
-#define MAX_RETRY_TIME_IN_TICKS (5000)
 		ret = NetworkTask_SynchronousSendProtobuf(
 				is_morpheus == 1 ? MORPHEUS_REGISTER_ENDPOINT : PILL_REGISTER_ENDPOINT,
 				response_buffer,
 				sizeof(response_buffer),
 				MorpheusCommand_fields,
 				command,
-				MAX_RETRY_TIME_IN_TICKS);
+				5000);
 
 		// All the args are in stack, don't need to do protobuf free.
 
@@ -385,7 +421,7 @@ static void _pair_device( MorpheusCommand* command, int is_morpheus)
 		}
 	}
 }
-#include "top_board.h"
+
 void on_ble_protobuf_command(MorpheusCommand* command)
 {
     switch(command->type)

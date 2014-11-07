@@ -68,9 +68,9 @@ static uint32_t EncodePb(pb_ostream_t * stream, const void * data) {
 	return ret;
 }
 
-int NetworkTask_SynchronousSendProtobuf(const char * endpoint, char * buf, uint32_t buf_size, const pb_field_t fields[], const void * structdata,int32_t retry_time_in_counts) {
+int NetworkTask_SynchronousSendProtobuf(const char * endpoint, char* buf, uint32_t buf_size, const pb_field_t fields[], const void * structdata, int32_t retry_time_in_counts) {
 	NetworkTaskServerSendMessage_t message;
-	network_encode_data_t encodedata;
+	network_encode_data_t encodedata = {0};
 	int retcode = -1;
 
 	memset(&message,0,sizeof(message));
@@ -90,6 +90,66 @@ int NetworkTask_SynchronousSendProtobuf(const char * endpoint, char * buf, uint3
 	message.decode_buf_size = buf_size;
 
 	DEBUG_PRINTF("NetTask::SynchronousSendProtobuf -- Request endpoint %s",endpoint);
+
+
+	//critical section
+	xSemaphoreTake(_syncmutex,portMAX_DELAY);
+
+	memset(&_syncsendresponse,0,sizeof(_syncsendresponse));
+
+	//add to queue
+	xQueueSend( _asyncqueue, ( const void * )&message, portMAX_DELAY );
+
+	//worry: what if callback happens before I get here?
+	//wait until network callback happens
+	xSemaphoreTake(_waiter,portMAX_DELAY);
+
+	if (_syncsendresponse.success) {
+		retcode = 0;
+	}
+
+	//end critical section
+	xSemaphoreGive(_syncmutex);
+
+	return retcode;
+
+}
+
+static uint32_t _encode_raw_protobuf(pb_ostream_t * stream, const void * encode_data)
+{
+    const array_data* array = (const array_data*)encode_data;
+    if(pb_write(stream, array->buffer, array->length))
+    {
+        return array->length;
+    }
+
+    return 0;
+}
+
+
+int NetworkTask_SynchronousSendRawProtobuf(const char * endpoint, 
+	const array_data* data_holder, 
+	uint8_t * response_buf, uint32_t buf_size,
+	int32_t retry_time_in_counts) 
+{
+
+	int retcode = -1;
+
+	NetworkTaskServerSendMessage_t message;
+	memset(&message,0,sizeof(message));
+
+	//craft message
+	message.endpoint = endpoint;
+	message.response_callback = SynchronousSendNetworkResponseCallback;
+	message.retry_timeout = retry_time_in_counts;
+
+	message.encode = _encode_raw_protobuf;
+	message.encodedata = data_holder;
+
+	message.decode_buf = (uint8_t *)response_buf;
+	message.decode_buf_size = buf_size;
+
+	DEBUG_PRINTF("NetTask::SynchronousSendRawProtobuf -- Request endpoint %s", endpoint);
 
 
 	//critical section

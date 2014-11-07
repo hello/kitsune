@@ -18,6 +18,7 @@ typedef struct {
 #include "FreeRTOS.h"
 #include "semphr.h"
 #include "wlan.h"
+#include "ble_cmd.h"
 #include "network_types.h"
 
 #ifndef MAX_SSID_LEN
@@ -87,15 +88,18 @@ int match(char *regexp, char *text);
 unsigned long unix_time();
 void load_aes();
 
-int send_periodic_data( data_t * data );
+
+int send_periodic_data(periodic_data* data);
 int send_audio_data( data_t * data );
 
 void thread_ota( void * unused );
+
 
 int send_data_pb_callback(const char* host, const char* path,char * recv_buf, uint32_t recv_buf_size,const void * encodedata,network_encode_callback_t encoder,uint16_t num_receive_retries);
 
 int decode_rx_data_pb_callback(const uint8_t * buffer, uint32_t buffer_size, void * decodedata,network_decode_callback_t decoder);
 int decode_rx_data_pb(const uint8_t * buffer, uint32_t buffer_size, const  pb_field_t fields[],void * structdata);
+
 
 int http_response_ok(const char* response_buffer);
 
@@ -106,6 +110,17 @@ int connect_wifi(const char* ssid, const char* password, int sec_type);
 void wifi_get_connected_ssid(uint8_t* ssid_buffer, size_t len);
 
 void wifi_reset();
+void free_pill_list();
+
+
+bool encode_mac(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
+bool encode_mac_as_device_id_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
+bool encode_name(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
+
+bool encode_serialized_pill_list(pb_ostream_t *stream, const pb_field_t *field, void** arg);
+bool encode_pill_list(pb_ostream_t *stream, const pb_field_t *field, void** arg);
+void encode_pill_list_to_buffer(const periodic_data_pill_data_container* ptr_pill_list,
+    uint8_t* buffer, size_t buffer_len, size_t* out_len);
 
 //#define MORPH_NAME "KingShy's morpheus"
 
