@@ -22,6 +22,31 @@
  *
  */
 
+#define ERROR_CODE_SUCCESS       (0)
+#define ERROR_CODE_FAILED_SEND   (-1)
+#define ERROR_CODE_FAILED_DECODE (-2)
+
+#if 1
+#define USE_DEBUG_PRINTF
+#endif
+
+
+#define STR(x) #x
+#define STRINGIFY(x) STR(x)
+
+#define RUN_TEST(test,code)\
+		RunTest(test,STRINGIFY(test),code)
+
+
+
+
+#ifdef USE_DEBUG_PRINTF
+#define DEBUG_PRINTF(...)  UARTprintf("%s :: ",__func__); UARTprintf(__VA_ARGS__); UARTprintf("\r\n")
+#else
+static void nop(const char * foo,...) {  }
+#define DEBUG_PRINTF(...) nop(__VA_ARGS__)
+#endif
+
 #define TIMEOUT "timeout"
 #define RETURNCODE "returncode"
 #define MALFORMED "malformed"
@@ -34,7 +59,7 @@ static 	periodic_data _data;
 static char _host[128];
 
 typedef int32_t (*TestFunc_t)(void);
-static void RunTest(TestFunc_t test,const char * name);
+static void RunTest(TestFunc_t test,const char * name,int32_t expected_code);
 
 
 static void SetParams(char * buf, uint32_t bufsize,const char * param, const char * value,uint8_t is_last) {
@@ -63,7 +88,7 @@ static void CreateUrl(char * buf, uint32_t bufsize, const char ** params, const 
 
 static int32_t DecodeTestResponse(uint8_t * buf,uint32_t bufsize, const char * data) {
 	SyncResponse reply;
-	int32_t len = 0;
+	int32_t ret;
 	const char* header_content_len = "Content-Length: ";
 	char * content = strstr(data, "\r\n\r\n") + 4;
 	char * len_str = strstr(data, header_content_len) + strlen(header_content_len);
@@ -73,18 +98,21 @@ static int32_t DecodeTestResponse(uint8_t * buf,uint32_t bufsize, const char * d
 
 
 	if (http_response_ok(data) != 1) {
+		DEBUG_PRINTF("http_response_ok != 1");
 		return -1;
 	}
 
 	if (len_str == NULL) {
-		return -1;
+		DEBUG_PRINTF("len_str == NULL");
+		return -2;
 	}
 
-	len = atoi(len_str);
 
+	ret = decode_rx_data_pb((uint8_t *) content, bufsize, SyncResponse_fields, &reply);
 
-	if(decode_rx_data_pb((uint8_t *) content, len, SyncResponse_fields, &reply) != 0) {
-		return -1;
+	if(ret != 0) {
+		DEBUG_PRINTF("decode_rx_data_pb fail with return code %d",ret);
+		return -3;
 	}
 
 
@@ -102,14 +130,12 @@ static int32_t DoSyncSendAndResponse(const char * params[],const char * values[]
 
 	CreateUrl(_urlbuf,sizeof(_urlbuf),params,values,len);
 
-	UARTprintf("%s\r\n",_urlbuf);
-
 	if (NetworkTask_SynchronousSendProtobuf(_host,_urlbuf,_recv_buf,sizeof(_recv_buf),periodic_data_fields,&_data,10) != 0) {
-		return -1;
+		return ERROR_CODE_FAILED_SEND;
 	}
 
-	if (!DecodeTestResponse((uint8_t *)returnbytes,sizeof(returnbytes),_recv_buf)) {
-		return -2;
+	if (DecodeTestResponse((uint8_t *)returnbytes,sizeof(returnbytes),_recv_buf) != 0) {
+		return ERROR_CODE_FAILED_DECODE;
 	}
 
 	return 0;
@@ -144,19 +170,20 @@ static int32_t TestFiveSecondDelay(void) {
 
 static int32_t TestMalformed(void) {
 	static const char * params[] = {TIMEOUT,RETURNCODE,MALFORMED};
-	static const char * values[] = {"5000","200","0"};
+	static const char * values[] = {"0","200","1"};
 	static const int32_t len = 3;
 
 	return DoSyncSendAndResponse(params,values,len);
 
 }
 
-#define RUN_TEST(test)\
-		RunTest(test,#test)
 
-static void RunTest(TestFunc_t test,const char * name) {
+
+static void RunTest(TestFunc_t test,const char * name,int32_t expected_code) {
 	TickType_t t1,dt;
 	int32_t ret;
+
+	DEBUG_PRINTF("Running %s... ");
 
 	t1 = xTaskGetTickCount();
 
@@ -164,29 +191,30 @@ static void RunTest(TestFunc_t test,const char * name) {
 
 	dt = xTaskGetTickCount() - t1;
 
-	UARTprintf("Running %s... ");
 
-	UARTprintf("%d.%d seconds elapsed, ",dt/1000,dt % 1000);
+	DEBUG_PRINTF("%d.%d seconds elapsed, ",dt/1000,dt % 1000);
 
-	if (ret == 0) {
-		UARTprintf("success");
+	if (ret == expected_code) {
+		DEBUG_PRINTF("SUCCESS -- %s -- expecting code %d",name,expected_code);
 	}
 	else {
-		UARTprintf("FAIL with code %d",ret);
+		DEBUG_PRINTF("FAIL -- %s --  code %d",name,ret);
 	}
 
-	UARTprintf("\r\n");
 
 }
 
 void TestNetwork_RunTests(const char * host) {
 
 	strcpy(_host,host);
-
-	RUN_TEST(TestNominal);
-	RUN_TEST(TestBadReturnCode);
-	RUN_TEST(TestFiveSecondDelay);
-	RUN_TEST(TestMalformed);
+	DEBUG_PRINTF("----------------------------------------------------------");
+	RUN_TEST(TestNominal,ERROR_CODE_SUCCESS);
+	DEBUG_PRINTF("----------------------------------------------------------");
+	RUN_TEST(TestBadReturnCode,ERROR_CODE_FAILED_DECODE);
+	DEBUG_PRINTF("----------------------------------------------------------");
+	RUN_TEST(TestFiveSecondDelay,ERROR_CODE_SUCCESS);
+	DEBUG_PRINTF("----------------------------------------------------------");
+	RUN_TEST(TestMalformed,ERROR_CODE_SUCCESS);
 
 
 
