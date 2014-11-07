@@ -736,6 +736,8 @@ void thread_tx(void* unused) {
 				}
 			}
 		}
+
+		tries = 0;
 		if (uxQueueMessagesWaiting(pill_queue) > PILL_BATCH_WATERMARK) {
 			UARTprintf(	"sending  pill data" );
 
