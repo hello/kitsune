@@ -1028,8 +1028,8 @@ int Cmd_rssi(int argc, char *argv[]) {
 	return 0;
 }
 
+#if 0
 int Cmd_mel(int argc, char *argv[]) {
-/*
     int i,ichunk;
 	int16_t x[1024];
 
@@ -1055,9 +1055,9 @@ int Cmd_mel(int argc, char *argv[]) {
 		AudioFeatures_SetAudioData(x,10,ichunk);
 
 	}
-*/
 	return (0);
 }
+#endif
 
 #define GPIO_PORT 0x40004000
 #define RTC_INT_PIN 0x80
@@ -1162,87 +1162,81 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "help", Cmd_help, "Display list of commands" },
 		{ "?", Cmd_help,"alias for help" },
 //    { "cpu",      Cmd_cpu,      "Show CPU utilization" },
-		{ "free", Cmd_free, "Report free memory" },
-		{ "connect", Cmd_connect, "Connect to an AP" },
-		{ "disconnect", Cmd_disconnect, "disconnect to an AP" },
-		{ "mac", Cmd_set_mac, "set the mac" },
-		{ "aes", Cmd_set_aes, "set the aes key" },
+		{ "free", Cmd_free, "" },
+		{ "connect", Cmd_connect, "" },
+		{ "disconnect", Cmd_disconnect, "" },
+		{ "mac", Cmd_set_mac, "" },
+		{ "aes", Cmd_set_aes, "" },
 
-		{ "ping", Cmd_ping, "Ping a server" },
-		{ "time", Cmd_time, "get ntp time" },
-		{ "status", Cmd_status, "status of simple link" },
+		{ "ping", Cmd_ping, "" },
+		{ "time", Cmd_time, "" },
+		{ "status", Cmd_status, "" },
 #if 0
 		{ "audio", Cmd_audio_test, "audio upload test" },
 #endif
 
-    { "mnt",      Cmd_mnt,      "Mount the SD card" },
-    { "umnt",     Cmd_umnt,     "Unount the SD card" },
-    { "ls",       Cmd_ls,       "Display list of files" },
-    { "chdir",    Cmd_cd,       "Change directory" },
-    { "cd",       Cmd_cd,       "alias for chdir" },
-    { "mkdir",    Cmd_mkdir,    "make a directory" },
-    { "rm",       Cmd_rm,       "Remove file" },
-    { "write",    Cmd_write,    "Write some text to a file" },
-    { "write_file",    Cmd_write_file,    "Write some text to a file" },
-    { "mkfs",     Cmd_mkfs,     "Make filesystem" },
-    { "pwd",      Cmd_pwd,      "Show current working directory" },
-    { "cat",      Cmd_cat,      "Show contents of a text file" },
-		{ "fault", Cmd_fault, "Trigger a hard fault" },
-		{ "i2crd", Cmd_i2c_read,"i2c read" },
-		{ "i2cwr", Cmd_i2c_write, "i2c write" },
-		{ "i2crdrg", Cmd_i2c_readreg, "i2c readreg" },
-        { "i2cwrrg", Cmd_i2c_writereg, "i2c_writereg" },
+    { "mnt",      Cmd_mnt,      "" },
+    { "umnt",     Cmd_umnt,     "" },
+    { "ls",       Cmd_ls,       "" },
+    { "chdir",    Cmd_cd,       "" },
+    { "cd",       Cmd_cd,       "" },
+    { "mkdir",    Cmd_mkdir,    "" },
+    { "rm",       Cmd_rm,       "" },
+    { "write",    Cmd_write,    "" },
+    { "mkfs",     Cmd_mkfs,     "" },
+    { "pwd",      Cmd_pwd,      "" },
+    { "cat",      Cmd_cat,      "" },
+		//{ "fault", Cmd_fault, "" },
 
-		{ "humid", Cmd_readhumid, "i2 read humid" },
-		{ "temp", Cmd_readtemp,	"i2 read temp" },
-		{ "light", Cmd_readlight, "i2 read light" },
-		{"proximity", Cmd_readproximity, "i2 read proximity" },
-		{"codec_Mic", get_codec_mic_NAU, "i2s mic_codec" },
-		{"auto_saveSD", Cmd_write_record, "automatic save data into SD"},
-		{"append", Cmd_append,"Cmd_test_append_content"},
+		{ "humid", Cmd_readhumid, "" },
+		{ "temp", Cmd_readtemp,	"" },
+		{ "light", Cmd_readlight, "" },
+		{"prox", Cmd_readproximity, "" },
+		{"codec_Mic", get_codec_mic_NAU, "" },
+
 #if ( configUSE_TRACE_FACILITY == 1 )
-		{ "tasks", Cmd_tasks, "Report stats of all tasks" },
+		{ "tasks", Cmd_tasks, "" },
 #endif
 
-		{ "dust", Cmd_dusttest, "dust sensor test" },
+		{ "dust", Cmd_dusttest, "" },
 
+		{ "fswr", Cmd_fs_write, "" }, //serial flash commands
+		{ "fsrd", Cmd_fs_read, "" },
+		{ "fsdl", Cmd_fs_delete, "" },
 
-		{ "fswr", Cmd_fs_write, "fs write" },
-		{ "fsrd", Cmd_fs_read, "fs read" },
-		{ "play_ringtone", Cmd_code_playbuff, "play selected ringtone" },
-		{ "stop_ringtone", Audio_Stop,"stop sounds"},
-		{ "r", Cmd_record_buff,"record sounds into SD card"},
-		{ "p", Cmd_play_buff, "play sounds from SD card"},
-		{ "aud",Cmd_audio_do_stuff,"command the audio on/off"},
-		{ "fsdl", Cmd_fs_delete, "fs delete" },
+		{ "play_ringtone", Cmd_code_playbuff, "" },
+		{ "stop_ringtone", Audio_Stop,""},
+		{ "r", Cmd_record_buff,""}, //record sounds into SD card
+		{ "p", Cmd_play_buff, ""},//play sounds from SD card
+		{ "aud",Cmd_audio_do_stuff,""},//command the audio on/off
 		//{ "readout", Cmd_readout_data, "read out sensor data log" },
 
-		{ "sl", Cmd_sl, "start smart config" },
-		{ "mode", Cmd_mode, "set the ap/station mode" },
-		{ "mel", Cmd_mel, "test the mel calculation" },
+		{ "sl", Cmd_sl, "" }, // smart config
+		{ "mode", Cmd_mode, "" }, //set the ap/station mode
+		//{ "mel", Cmd_mel, "test the mel calculation" },
 
-		{ "spird", Cmd_spi_read,"spi read" },
-		{ "spiwr", Cmd_spi_write, "spi write" },
-		{ "spirst", Cmd_spi_reset, "spi reset" },
+		{ "spird", Cmd_spi_read,"" },
+		{ "spiwr", Cmd_spi_write, "" },
+		{ "spirst", Cmd_spi_reset, "" },
 
-		{ "antsel", Cmd_antsel, "select antenna" },
-		{ "led", Cmd_led, "led test pattern" },
-		{ "clrled", Cmd_led_clr, "led test pattern" },
+		{ "antsel", Cmd_antsel, "" }, //select antenna
+		{ "led", Cmd_led, "" },
+		{ "clrled", Cmd_led_clr, "" },
 
-		{ "rdiostats", Cmd_RadioGetStats, "radio stats" },
-		{ "rdiotxstart", Cmd_RadioStartTX, "start tx test" },
-		{ "rdiotxstop", Cmd_RadioStopTX, "stop tx test" },
-		{ "rdiorxstart", Cmd_RadioStartRX, "start rx test" },
-		{ "rdiorxstop", Cmd_RadioStopRX, "stop rx test" },
-		{ "rssi", Cmd_rssi, "scan rssi" },
-		{ "slip", Cmd_slip, "slip test" },
-		{ "data_upload", Cmd_data_upload, "upload protobuf data" },
-		{ "^", Cmd_send_top, "send command to top board"},
-		{ "topdfu", Cmd_topdfu, "update topboard firmware."},
-		{ "factory_reset", Cmd_factory_reset, "Factory reset from middle."},
-		{ "download", Cmd_download, "download test function."},
-		{ "dtm", Cmd_top_dtm, "Sends Direct Test Mode command" },
-		{ "animate", Cmd_led_animate, "Animates led"},
+		{ "rdiostats", Cmd_RadioGetStats, "" },
+		{ "rdiotxstart", Cmd_RadioStartTX, "" },
+		{ "rdiotxstop", Cmd_RadioStopTX, "" },
+		{ "rdiorxstart", Cmd_RadioStartRX, "" },
+		{ "rdiorxstop", Cmd_RadioStopRX, "" },
+		{ "rssi", Cmd_rssi, "" },
+		{ "slip", Cmd_slip, "" },
+		{ "data_upload", Cmd_data_upload, "" },
+		{ "^", Cmd_send_top, ""}, //send command to top board
+		{ "topdfu", Cmd_topdfu, ""}, //update topboard firmware.
+		{ "factory_reset", Cmd_factory_reset, ""},//Factory reset from middle.
+		{ "download", Cmd_download, ""},//download test function.
+		{ "dtm", Cmd_top_dtm, "" },//Sends Direct Test Mode command
+		{ "animate", Cmd_led_animate, ""},//Animates led
 
 		{ 0, 0, 0 } };
 
