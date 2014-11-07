@@ -8,7 +8,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "../protobuf/testdata.pb.h"
+#include "../protobuf/SyncResponse.pb.h"
+#include "../protobuf/periodic.pb.h"
 #include "../debugutils/matmessageutils.h"
 #include "../wifi_cmd.h"
 
@@ -29,7 +30,7 @@
 
 static char _urlbuf[256];
 static char _recv_buf[256];
-static 	TestData _data;
+static 	periodic_data _data;
 static char _host[128];
 
 typedef int32_t (*TestFunc_t)(void);
@@ -61,20 +62,14 @@ static void CreateUrl(char * buf, uint32_t bufsize, const char ** params, const 
 }
 
 static int32_t DecodeTestResponse(uint8_t * buf,uint32_t bufsize, const char * data) {
-	TestData reply;
-	StringDesc_t desc;
+	SyncResponse reply;
 	int32_t len = 0;
 	const char* header_content_len = "Content-Length: ";
 	char * content = strstr(data, "\r\n\r\n") + 4;
 	char * len_str = strstr(data, header_content_len) + strlen(header_content_len);
 
-	desc.maxlen = bufsize;
-	desc.writebuf = buf;
 
 	memset(&reply,0,sizeof(reply));
-
-	reply.payload.funcs.decode = read_string;
-	reply.payload.arg = &desc;
 
 
 	if (http_response_ok(data) != 1) {
@@ -88,7 +83,7 @@ static int32_t DecodeTestResponse(uint8_t * buf,uint32_t bufsize, const char * d
 	len = atoi(len_str);
 
 
-	if(decode_rx_data_pb((uint8_t *) content, len, TestData_fields, &reply) != 0) {
+	if(decode_rx_data_pb((uint8_t *) content, len, SyncResponse_fields, &reply) != 0) {
 		return -1;
 	}
 
@@ -112,7 +107,7 @@ static int32_t DoTest1(void) {
 
 	UARTprintf("%s\r\n",_urlbuf);
 
-	if (NetworkTask_SynchronousSendProtobuf(_host,_urlbuf,_recv_buf,sizeof(_recv_buf),TestData_fields,&_data,10) != 0) {
+	if (NetworkTask_SynchronousSendProtobuf(_host,_urlbuf,_recv_buf,sizeof(_recv_buf),periodic_data_fields,&_data,10) != 0) {
 		return -1;
 	}
 
