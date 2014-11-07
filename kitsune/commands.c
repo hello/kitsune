@@ -529,7 +529,6 @@ void thread_alarm(void * unused) {
 		//todo audio processing
 		uint32_t time = get_time();
 		if (xSemaphoreTake(alarm_smphr, portMAX_DELAY)) {
-			/*
 			if(alarm.has_start_time && alarm.start_time > 0)
 			{
 				if ( time - alarm.start_time < alarm.ring_duration_in_second ) {
@@ -548,7 +547,6 @@ void thread_alarm(void * unused) {
 			}else{
 				// Alarm start time = 0 means no alarm
 			}
-			*/
 			
 			xSemaphoreGive(alarm_smphr);
 		}
@@ -687,33 +685,33 @@ void thread_fast_i2c_poll(void * unused)  {
 	}
 }
 
+#define MAX_PILL_DATA 10
 #define PILL_BATCH_WATERMARK 2
 
 xQueueHandle data_queue = 0;
 xQueueHandle pill_queue = 0;
 
-//WARNING - THIS WILL EAT THE QUEUE, SO NO SIZE STREAMS ALLOWED
-static bool encode_all_pills (pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
-	pill_data pill_data = {0};
-	uint32_t ret = true;
+static pill_data pilldata[MAX_PILL_DATA];
+static int num_pilldata;
 
-	while( xQueueReceive(pill_queue, &pill_data, 1) && ret ) {
+static bool encode_all_pills (pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
+	int i;
+
+	for( i = 0; i < num_pilldata; ++i ) {
 		if(!pb_encode_tag(stream, PB_WT_STRING, batched_pill_data_pills_tag))
 		{
-			UARTprintf("encode_all_pills: Fail to encode tag for pill %s, error %s\n", pill_data.device_id, PB_GET_ERROR(stream));
-			continue;
+			UARTprintf("encode_all_pills: Fail to encode tag for pill %s, error %s\n", pilldata[i].device_id, PB_GET_ERROR(stream));
+			return false;
 		}
 
-		if (!pb_encode_delimited(stream, pill_data_fields, &pill_data)){
-			UARTprintf("encode_all_pills: Fail to encode pill %s, error: %s\n", pill_data.device_id, PB_GET_ERROR(stream));
-			continue;
+		if (!pb_encode_delimited(stream, pill_data_fields, &pilldata[i])){
+			UARTprintf("encode_all_pills: Fail to encode pill %s, error: %s\n", pilldata[i].device_id, PB_GET_ERROR(stream));
+			return false;
 		}
-
 		//UARTprintf("******************* encode_pill_encode_all_pills: encode pill %s\n", pill_data.deviceId);
 	}
-	return ret;
+	return true;
 }
-
 void thread_tx(void* unused) {
 	batched_pill_data pill_data_batched = {0};
 	periodic_data data = {0};
@@ -739,8 +737,13 @@ void thread_tx(void* unused) {
 		}
 
 		tries = 0;
+		num_pilldata = 0;
 		if (uxQueueMessagesWaiting(pill_queue) > PILL_BATCH_WATERMARK) {
 			UARTprintf(	"sending  pill data" );
+
+			while( xQueueReceive(pill_queue, &pilldata[num_pilldata], 1 ) ) {
+				++num_pilldata;
+			}
 
 			memset(&pill_data_batched, 0, sizeof(pill_data_batched));
 			pill_data_batched.pills.funcs.encode = encode_all_pills;  // This is smart :D
@@ -753,6 +756,7 @@ void thread_tx(void* unused) {
 					tries = 5;
 				}
 			}
+			xQueueReset(pill_queue);
 		}
 		while (!(sl_status & HAS_IP)) {
 			vTaskDelay(1000);
@@ -1354,7 +1358,7 @@ void vUARTTask(void *pvParameters) {
 	init_prox_sensor();
 
 	data_queue = xQueueCreate(10, sizeof(periodic_data));
-	pill_queue = xQueueCreate(10, sizeof(pill_data));
+	pill_queue = xQueueCreate(MAX_PILL_DATA, sizeof(pill_data));
 	vSemaphoreCreateBinary(dust_smphr);
 	vSemaphoreCreateBinary(light_smphr);
 	vSemaphoreCreateBinary(i2c_smphr);

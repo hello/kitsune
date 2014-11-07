@@ -67,7 +67,7 @@ typedef struct _batched_pill_data {
 
 typedef PB_BYTES_ARRAY_T(20) pill_data_motion_data_entrypted_t;
 
-typedef struct _pill_data {
+typedef struct  __attribute__ ((__packed__)) _pill_data {
     char device_id[17];
     bool has_battery_level;
     int32_t battery_level;
