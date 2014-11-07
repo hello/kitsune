@@ -1437,9 +1437,9 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
 }
 
 //retry logic is handled elsewhere
-int send_pill_data(BatchedPillData * pill_data) {
+int send_pill_data(batched_pill_data * pill_data) {
     char buffer[1024] = {0};
-    int ret = NetworkTask_SynchronousSendProtobuf(PILL_DATA_RECEIVE_ENDPOINT, buffer, sizeof(buffer), BatchedPillData_fields, pill_data, 0);
+    int ret = NetworkTask_SynchronousSendProtobuf(PILL_DATA_RECEIVE_ENDPOINT, buffer, sizeof(buffer), batched_pill_data_fields, pill_data, 0);
     if(ret != 0)
     {
         // network error

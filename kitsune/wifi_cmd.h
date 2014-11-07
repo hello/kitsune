@@ -2,6 +2,8 @@
 #define __WIFI_CMD_H__
 
 #include "periodic.pb.h"
+#include "morpheus_ble.pb.h"
+
 #define DATA_SERVER                         "dev-in.hello.is"
 #define DATA_RECEIVE_ENDPOINT               "/in/morpheus/pb2"
 #define PILL_DATA_RECEIVE_ENDPOINT			"/in/pill"
@@ -83,6 +85,7 @@ void load_aes();
 
 int send_periodic_data(periodic_data* data);
 int send_audio_data( data_t * data );
+int send_pill_data(batched_pill_data * pill_data);
 
 void thread_ota( void * unused );
 

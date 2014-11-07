@@ -687,25 +687,24 @@ void thread_fast_i2c_poll(void * unused)  {
 }
 
 #define PILL_BATCH_WATERMARK 2
-int send_pill_data(BatchedPillData * pill_data);
 
 xQueueHandle data_queue = 0;
 xQueueHandle pill_queue = 0;
 
 //WARNING - THIS WILL EAT THE QUEUE, SO NO SIZE STREAMS ALLOWED
-bool encode_all_pills (pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
-	MorpheusCommand_PillData pill_data = {0};
+static bool encode_all_pills (pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
+	pill_data pill_data = {0};
 	uint32_t ret = true;
 
 	while( xQueueReceive(pill_queue, &pill_data, 1) && ret ) {
-		if(!pb_encode_tag(stream, PB_WT_STRING, BatchedPillData_pills_tag))
+		if(!pb_encode_tag(stream, PB_WT_STRING, batched_pill_data_pills_tag))
 		{
-			UARTprintf("encode_all_pills: Fail to encode tag for pill %s, error %s\n", pill_data.deviceId, PB_GET_ERROR(stream));
+			UARTprintf("encode_all_pills: Fail to encode tag for pill %s, error %s\n", pill_data.device_id, PB_GET_ERROR(stream));
 			continue;
 		}
 
-		if (!pb_encode_delimited(stream, MorpheusCommand_PillData_fields, &pill_data)){
-			UARTprintf("encode_all_pills: Fail to encode pill %s, error: %s\n", pill_data.deviceId, PB_GET_ERROR(stream));
+		if (!pb_encode_delimited(stream, pill_data_fields, &pill_data)){
+			UARTprintf("encode_all_pills: Fail to encode pill %s, error: %s\n", pill_data.device_id, PB_GET_ERROR(stream));
 			continue;
 		}
 
@@ -715,7 +714,7 @@ bool encode_all_pills (pb_ostream_t *stream, const pb_field_t *field, void * con
 }
 
 void thread_tx(void* unused) {
-	BatchedPillData pill_data_batched = {0};
+	batched_pill_data pill_data_batched = {0};
 	periodic_data data = {0};
 	load_aes();
 
@@ -742,7 +741,7 @@ void thread_tx(void* unused) {
 
 			memset(&pill_data_batched, 0, sizeof(pill_data_batched));
 			pill_data_batched.pills.funcs.encode = encode_all_pills;  // This is smart :D
-			pill_data_batched.deviceId.funcs.encode = encode_mac_as_device_id_string;
+			pill_data_batched.device_id.funcs.encode = encode_mac_as_device_id_string;
 
 			while (!send_pill_data(&pill_data_batched) == 0) {
 				UARTprintf("  Waiting for WIFI connection  \n");
@@ -1352,7 +1351,7 @@ void vUARTTask(void *pvParameters) {
 	init_prox_sensor();
 
 	data_queue = xQueueCreate(10, sizeof(periodic_data));
-	pill_queue = xQueueCreate(10, sizeof(MorpheusCommand_PillData));
+	pill_queue = xQueueCreate(10, sizeof(pill_data));
 	vSemaphoreCreateBinary(dust_smphr);
 	vSemaphoreCreateBinary(light_smphr);
 	vSemaphoreCreateBinary(i2c_smphr);
