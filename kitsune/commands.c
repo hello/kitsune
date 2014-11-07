@@ -691,21 +691,24 @@ void thread_fast_i2c_poll(void * unused)  {
 xQueueHandle data_queue = 0;
 xQueueHandle pill_queue = 0;
 
-static pill_data pilldata[MAX_PILL_DATA];
-static int num_pilldata;
+typedef struct {
+	pill_data * pills;
+	int num_pills;
+} pilldata_to_encode;
 
 static bool encode_all_pills (pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
 	int i;
+	pilldata_to_encode * data = *(pilldata_to_encode**)arg;
 
-	for( i = 0; i < num_pilldata; ++i ) {
+	for( i = 0; i < data->num_pills; ++i ) {
 		if(!pb_encode_tag(stream, PB_WT_STRING, batched_pill_data_pills_tag))
 		{
-			UARTprintf("encode_all_pills: Fail to encode tag for pill %s, error %s\n", pilldata[i].device_id, PB_GET_ERROR(stream));
+			UARTprintf("encode_all_pills: Fail to encode tag for pill %s, error %s\n", data->pills[i].device_id, PB_GET_ERROR(stream));
 			return false;
 		}
 
-		if (!pb_encode_delimited(stream, pill_data_fields, &pilldata[i])){
-			UARTprintf("encode_all_pills: Fail to encode pill %s, error: %s\n", pilldata[i].device_id, PB_GET_ERROR(stream));
+		if (!pb_encode_delimited(stream, pill_data_fields, &data->pills[i])){
+			UARTprintf("encode_all_pills: Fail to encode pill %s, error: %s\n", data->pills[i].device_id, PB_GET_ERROR(stream));
 			return false;
 		}
 		//UARTprintf("******************* encode_pill_encode_all_pills: encode pill %s\n", pill_data.deviceId);
@@ -737,16 +740,25 @@ void thread_tx(void* unused) {
 		}
 
 		tries = 0;
-		num_pilldata = 0;
 		if (uxQueueMessagesWaiting(pill_queue) > PILL_BATCH_WATERMARK) {
 			UARTprintf(	"sending  pill data" );
+			pilldata_to_encode pilldata;
+			pilldata.num_pills = 0;
+			pilldata.pills = (pill_data*)pvPortMalloc(MAX_PILL_DATA*sizeof(pill_data));
 
-			while( xQueueReceive(pill_queue, &pilldata[num_pilldata], 1 ) ) {
-				++num_pilldata;
+			if( !pilldata.pills ) {
+				UARTprintf( "failed to alloc pilldata\n" );
+				vTaskDelay(1000);
+				continue;
+			}
+
+			while( xQueueReceive(pill_queue, &pilldata.pills[pilldata.num_pills], 1 ) ) {
+				++pilldata.num_pills;
 			}
 
 			memset(&pill_data_batched, 0, sizeof(pill_data_batched));
 			pill_data_batched.pills.funcs.encode = encode_all_pills;  // This is smart :D
+			pill_data_batched.pills.arg = &pilldata;
 			pill_data_batched.device_id.funcs.encode = encode_mac_as_device_id_string;
 
 			while (!send_pill_data(&pill_data_batched) == 0) {
