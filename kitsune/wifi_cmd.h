@@ -4,7 +4,7 @@
 #include "periodic.pb.h"
 #define DATA_SERVER                         "dev-in.hello.is"
 #define DATA_RECEIVE_ENDPOINT               "/in/morpheus/pb2"
-#define PILL_DATA_RECEIVE_ENDPOINT			"/in/pill/pb2"
+#define PILL_DATA_RECEIVE_ENDPOINT			"/in/pill"
 #define MORPHEUS_REGISTER_ENDPOINT          "/register/morpheus"
 #define PILL_REGISTER_ENDPOINT              "/register/pill"
 

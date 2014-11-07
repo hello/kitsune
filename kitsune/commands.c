@@ -698,7 +698,18 @@ bool encode_all_pills (pb_ostream_t *stream, const pb_field_t *field, void * con
 	uint32_t ret = true;
 
 	while( xQueueReceive(pill_queue, &pill_data, 1) && ret ) {
-		ret = pb_encode(stream,MorpheusCommand_PillData_fields, &pill_data);
+		if(!pb_encode_tag(stream, PB_WT_STRING, BatchedPillData_pills_tag))
+		{
+			UARTprintf("encode_all_pills: Fail to encode tag for pill %s, error %s\n", pill_data.deviceId, PB_GET_ERROR(stream));
+			continue;
+		}
+
+		if (!pb_encode_delimited(stream, MorpheusCommand_PillData_fields, &pill_data)){
+			UARTprintf("encode_all_pills: Fail to encode pill %s, error: %s\n", pill_data.deviceId, PB_GET_ERROR(stream));
+			continue;
+		}
+
+		//UARTprintf("******************* encode_pill_encode_all_pills: encode pill %s\n", pill_data.deviceId);
 	}
 	return ret;
 }
