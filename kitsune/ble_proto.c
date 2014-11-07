@@ -249,7 +249,7 @@ void free_pill_list()
             
         }
 
-        memset(pill_list[i].pill_data, 0, sizeof(pill_list[i].pill_data));  // set all the has_xxx fields to empty.
+        memset(&pill_list[i].pill_data, 0, sizeof(pill_list[i].pill_data));  // set all the has_xxx fields to empty.
         pill_list[i].magic = 0;  // Release this slot.
     }
 }
