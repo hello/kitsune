@@ -15,7 +15,7 @@ extern "C" {
 
 /* Enum definitions */
 /* Struct definitions */
-typedef struct __attribute__ ((__packed__)) _periodic_data {
+typedef struct  _periodic_data {
     bool has_unix_time;
     int32_t unix_time;
     bool has_light;
