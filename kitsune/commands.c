@@ -1309,7 +1309,7 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(NetworkTask_Thread,"networkTask",4*1024/4,&network_task_data,10,NULL);
 
 	//create task for audio playback
-	xTaskCreate(AudioPlaybackTask_Thread,"audioPlayback",3*1024/4,NULL,9,NULL);
+	xTaskCreate(AudioPlaybackTask_Thread,"audioPlayback",1024/4,NULL,9,NULL);
 	SetupGPIOInterrupts();
 	UARTprintf("*");
 #if !ONLY_MID
