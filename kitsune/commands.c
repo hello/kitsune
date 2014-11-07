@@ -769,7 +769,7 @@ void thread_tx(void* unused) {
 					tries = 5;
 				}
 			}
-			xQueueReset(pill_queue);
+			vPortFree( pilldata.pills );
 		}
 		while (!(sl_status & HAS_IP)) {
 			vTaskDelay(1000);
@@ -1377,15 +1377,15 @@ void vUARTTask(void *pvParameters) {
 		UARTprintf("Failed to create the data_queue.\n");
 	}
 
-	xTaskCreate(top_board_task, "top_board_task", 1024 / 4, NULL, 2, NULL); //todo reduce stack
-	xTaskCreate(thread_alarm, "alarmTask", 2 * 1024 / 4, NULL, 4, NULL); //todo reduce stack
+	xTaskCreate(top_board_task, "top_board_task", 256 / 4, NULL, 2, NULL); //todo reduce stack
+	xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 4, NULL); //todo reduce stack
 
 	UARTprintf("*");
-	xTaskCreate(thread_spi, "spiTask", 2*1024 / 4, NULL, 5, NULL);
+	xTaskCreate(thread_spi, "spiTask", 1024 / 4, NULL, 5, NULL);
 
 	//this task needs a larger stack because
 	//some protobuf encoding will happen on the stack of this task
-	xTaskCreate(NetworkTask_Thread,"networkTask",4*1024/4,&network_task_data,10,NULL);
+	xTaskCreate(NetworkTask_Thread,"networkTask",2*1024/4,&network_task_data,10,NULL);
 
 	SetupGPIOInterrupts();
 	UARTprintf("*");
@@ -1394,13 +1394,13 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("*");
 	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,1,NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 13, NULL);
+	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  256 / 4, NULL, 13, NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_dust, "dustTask", 256 / 4, NULL, 3, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_sensor_poll, "pollTask", 3 * 1024 / 4, NULL, 4, NULL);
+	xTaskCreate(thread_sensor_poll, "pollTask", 1024 / 4, NULL, 4, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_tx, "txTask", 3 * 1024 / 4, NULL, 2, NULL);
+	xTaskCreate(thread_tx, "txTask", 2 * 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_ota, "otaTask",5 * 1024 / 4, NULL, 1, NULL);
 	UARTprintf("*");
