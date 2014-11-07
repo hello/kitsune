@@ -9,7 +9,9 @@
 extern "C" {
 #endif
 
-void AudioClassifier_Init(RecordAudioCallback_t recordfunc,void * buffer, uint32_t buf_size_in_bytes);
+void AudioClassifier_Init(RecordAudioCallback_t recordfunc);
+
+void AudioClassifier_SetStorageBuffers(void * buffer, uint32_t buf_size_in_bytes);
 
 void AudioClassifier_DeserializeClassifier(pb_istream_t * stream, void * data);
     
