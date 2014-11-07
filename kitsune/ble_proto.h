@@ -24,7 +24,7 @@ extern "C"
 {
 #endif
 
-void on_ble_protobuf_command(MorpheusCommand* command);
+bool on_ble_protobuf_command(MorpheusCommand* command);
 
 //*****************************************************************************
 //

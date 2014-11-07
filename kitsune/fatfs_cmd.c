@@ -505,108 +505,6 @@ Cmd_write(int argc, char *argv[])
     return(0);
 }
 
-#include "stdlib.h"
-#include "uart.h"
-#include "hw_memmap.h"
-void UARTStdioIntHandler(void);
-
-int
-Cmd_write_file(int argc, char *argv[])
-{
-	UARTprintf("Cmd_write_file\n");
-
-	WORD bytes = 0;
-	WORD bytes_written = 0;
-	WORD bytes_to_write = atoi(argv[2]);
-
-    if(global_filename( argv[1] ))
-    {
-    	return 1;
-
-    }
-
-    // Open the file for writing.
-    FRESULT res = f_open(&file_obj, path_buff, FA_CREATE_NEW|FA_WRITE);
-    UARTprintf("res :%d\n",res);
-
-    if(res != FR_OK && res != FR_EXIST){
-    	UARTprintf("File open %s failed: %d\n", path_buff, res);
-    	return res;
-    }
-
-	UARTIntUnregister(UARTA0_BASE); //Ahoy matey, I be takin yer uart
-    do {
-		uint8_t c = UARTCharGet(UARTA0_BASE);
-		res = f_write( &file_obj, (void*)&c, 1, &bytes );
-		bytes_written+=bytes;
-		UARTCharPutNonBlocking(UARTA0_BASE, 52u); //basic feedback
-    } while( bytes_written < bytes_to_write );
-
-    res = f_close( &file_obj );
-
-	UARTIntRegister(UARTA0_BASE, UARTStdioIntHandler);
-    if(res != FR_OK)
-    {
-        return((int)res);
-    }
-    return(0);
-}
-
-int
-Cmd_append(int argc, char *argv[])
-{
-	return f_append((const char *)argv[1], (const unsigned char *)argv[2], strlen(argv[2])) != FR_OK;
-}
-
-
-
-// add this for creating buff for sound recording
-int Cmd_write_record(int argc, char *argv[])
-//int Cmd_write_record(int argc, char *argv[])
-{
-	//#define RECORD_SIZE 4
-	//unsigned char argv[1][RECORD_SIZE];
-
-				//argv[1][0] = 0xAA;
-//				argv[1][1] = 0x78;
-//				argv[1][2] = 0x55;
-//				argv[1][3] = 0x50;
-
-    FRESULT res;
-
-	WORD bytes = 0;
-	WORD bytes_written = 0;
-	WORD bytes_to_write = strlen(argv[1]) * sizeof(char)+1;
-//	WORD bytes_to_write = strlen(argv[1][1]) * 4 +1;
-    if(global_filename( "VONE" ))
-    {
-    	return 1;
-    }
-
-    // Open the file for reading.
-    //res = f_open(&file_obj, path_buff, FA_CREATE_NEW|FA_WRITE);
-    res = f_open(&file_obj, path_buff, FA_WRITE|FA_OPEN_EXISTING|FA_CREATE_NEW);
-
-    f_stat( path_buff, &file_info );
-
-    if( file_info.fsize != 0 )
-        res = f_lseek(&file_obj, file_info.fsize );
-
-    do {
-		res = f_write( &file_obj, argv[1]+bytes_written, bytes_to_write-bytes_written, &bytes );
-		bytes_written+=bytes;
-    } while( bytes_written < bytes_to_write );
-
-    res = f_close( &file_obj );
-
-    if(res != FR_OK)
-    {
-        return((int)res);
-    }
-    //UARTprintf("%s", path_buff);
-    return(0);
-}
-// end sound recording buffer
 int
 Cmd_rm(int argc, char *argv[])
 {
@@ -862,6 +760,7 @@ int GetChunkSize(int *len, unsigned char **p_Buff, unsigned long *chunk_size)
 //download img4.wikia.nocookie.net al __cb20130206084237/disney/images/e/eb/Aladdin_-_A_Whole_New_World_%281%29.gif
 
 //****************************************************************************
+#include "stdlib.h"
 int GetData(char * filename, char* url, char * host, char * path)
 {
     int           transfer_len = 0;
