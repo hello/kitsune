@@ -93,10 +93,7 @@ static int32_t DecodeTestResponse(uint8_t * buf,uint32_t bufsize, const char * d
 
 }
 
-static int32_t DoTest1(void) {
-	static const char * params[] = {TIMEOUT,RETURNCODE,MALFORMED};
-	static const char * values[] = {"5000","200","true"};
-	static const int32_t len = 3;
+static int32_t DoSyncSendAndResponse(const char * params[],const char * values[],const int32_t len ) {
 	char returnbytes[512];
 
 	memset(&_data,0,sizeof(_data));
@@ -116,6 +113,41 @@ static int32_t DoTest1(void) {
 	}
 
 	return 0;
+}
+
+static int32_t TestNominal(void) {
+	static const char * params[] = {TIMEOUT,RETURNCODE,MALFORMED};
+	static const char * values[] = {"0","200","0"};
+	static const int32_t len = 3;
+
+	return DoSyncSendAndResponse(params,values,len);
+
+}
+
+static int32_t TestBadReturnCode(void) {
+	static const char * params[] = {TIMEOUT,RETURNCODE,MALFORMED};
+	static const char * values[] = {"0","400","0"};
+	static const int32_t len = 3;
+
+	return DoSyncSendAndResponse(params,values,len);
+
+}
+
+static int32_t TestFiveSecondDelay(void) {
+	static const char * params[] = {TIMEOUT,RETURNCODE,MALFORMED};
+	static const char * values[] = {"5000","200","0"};
+	static const int32_t len = 3;
+
+	return DoSyncSendAndResponse(params,values,len);
+
+}
+
+static int32_t TestMalformed(void) {
+	static const char * params[] = {TIMEOUT,RETURNCODE,MALFORMED};
+	static const char * values[] = {"5000","200","0"};
+	static const int32_t len = 3;
+
+	return DoSyncSendAndResponse(params,values,len);
 
 }
 
@@ -151,7 +183,10 @@ void TestNetwork_RunTests(const char * host) {
 
 	strcpy(_host,host);
 
-	RUN_TEST(DoTest1);
+	RUN_TEST(TestNominal);
+	RUN_TEST(TestBadReturnCode);
+	RUN_TEST(TestFiveSecondDelay);
+	RUN_TEST(TestMalformed);
 
 
 
