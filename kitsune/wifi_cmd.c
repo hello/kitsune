@@ -557,7 +557,30 @@ static bool write_callback_sha(pb_ostream_t *stream, const uint8_t *buf,
 }
 #endif
 
-static bool flush_out_buffer(ostream_buffered_desc_t * desc) {
+
+static int sock = -1;
+
+int send_chunk_len( int obj_sz ) {
+	#define CL_BUF_SZ 12
+	int rv;
+	char recv_buf[CL_BUF_SZ] = {0};
+	if( obj_sz == 0 ) {
+		snprintf(recv_buf, CL_BUF_SZ, "\r\n%x\r\n\r\n", obj_sz);
+	} else {
+		snprintf(recv_buf, CL_BUF_SZ, "\r\n%x\r\n", obj_sz);
+	}
+	rv = send(sock, recv_buf, strlen(recv_buf), 0);
+	if (rv != strlen(recv_buf)) {
+		UARTprintf("Sending CE failed\n");
+		return -1;
+	}
+
+ //   UARTprintf("HTTP chunk sent %s", recv_buf);
+	return 0;
+}
+
+
+static bool flush_out_buffer(ostream_buffered_desc_t * desc ) {
 	uint32_t buf_size = desc->buf_pos;
 	bool ret = true;
 
@@ -568,13 +591,15 @@ static bool flush_out_buffer(ostream_buffered_desc_t * desc) {
 		SHA1_Update(desc->ctx, desc->buf, buf_size);
 
 		//send
+        if( send_chunk_len( buf_size) != 0 ) {
+        	return -1;
+        }
 		ret = send(desc->fd, desc->buf, buf_size, 0) == buf_size;
 	}
 	return ret;
 }
 
-static bool write_buffered_callback_sha(pb_ostream_t *stream, const uint8_t * inbuf,
-        size_t count) {
+static bool write_buffered_callback_sha(pb_ostream_t *stream, const uint8_t * inbuf, size_t count) {
 	ostream_buffered_desc_t * desc = (ostream_buffered_desc_t *) stream->state;
 
 	bool ret = true;
@@ -588,6 +613,9 @@ static bool write_buffered_callback_sha(pb_ostream_t *stream, const uint8_t * in
 		SHA1_Update(desc->ctx, desc->buf, desc->buf_pos);
 
 		//send
+        if( send_chunk_len( desc->buf_pos) != 0 ) {
+        	return -1;
+        }
 		ret = send(desc->fd, desc->buf, desc->buf_pos, 0) == desc->buf_pos;
 
 		desc->bytes_written += desc->buf_pos;
@@ -596,11 +624,9 @@ static bool write_buffered_callback_sha(pb_ostream_t *stream, const uint8_t * in
 
 	}
 
-
 	//copy to our buffer
 	memcpy(desc->buf + desc->buf_pos,inbuf,count);
 	desc->buf_pos += count;
-
 
     return ret;
 }
@@ -641,7 +667,6 @@ pb_istream_t pb_istream_from_sha_socket(int fd) {
     return stream;
 }
 
-static int sock = -1;
 static unsigned long ipaddr = 0;
 
 #include "fault.h"
@@ -678,7 +703,6 @@ void UARTprintfFaults() {
         }
     }
 }
-
 int stop_connection() {
     close(sock);
     sock = -1;
@@ -770,6 +794,7 @@ int start_connection() {
 //takes the buffer and reads <return value> bytes, up to buffer size
 typedef int(*audio_read_cb)(char * buffer, int buffer_size);
 
+#if 0
 //buffer needs to be at least 128 bytes...
 int send_audio_wifi(char * buffer, int buffer_size, audio_read_cb arcb) {
     int send_length;
@@ -851,6 +876,7 @@ int send_audio_wifi(char * buffer, int buffer_size, audio_read_cb arcb) {
 
     return 0;
 }
+#endif
 
 #if 1
 #define SIG_SIZE 32
@@ -1001,8 +1027,6 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
     int send_length = 0;
     int rv = 0;
     uint8_t sig[32]={0};
-    size_t message_length;
-    uint32_t null_stream_bytes = 0;
     bool status;
     uint16_t iretry;
 
@@ -1011,26 +1035,11 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
     	return -1;
     }
 
-    if (encoder) {
-        pb_ostream_t size_stream = {0};
-        status = encoder(&size_stream, encodedata);
-        if(!status)
-        {
-            UARTprintf("Encode protobuf failed, %s\n", PB_GET_ERROR(&size_stream));
-            return -1;
-        }
-
-
-        null_stream_bytes = size_stream.bytes_written;
-        message_length = size_stream.bytes_written + sizeof(sig) + AES_IV_SIZE;
-        UARTprintf("message len %d sig len %d\n\r\n\r", size_stream.bytes_written, sizeof(sig));
-    }
 
     snprintf(recv_buf, recv_buf_size, "POST %s HTTP/1.1\r\n"
             "Host: %s\r\n"
             "Content-type: application/x-protobuf\r\n"
-            "Content-length: %d\r\n"
-            "\r\n", path, host, message_length);
+            "Transfer-Encoding: chunked\r\n", path, host);
 
     send_length = strlen(recv_buf);
 
@@ -1067,7 +1076,6 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
         desc.ctx = &ctx;
         desc.fd = (intptr_t) sock;
 
-
         SHA1_Init(&ctx);
 
         /* Create a stream that will write to our buffer. */
@@ -1082,10 +1090,6 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
         /* sanity checks  */
         if (desc.bytes_written != desc.bytes_that_should_have_been_written) {
         	UARTprintf("ERROR only %d of %d bytes written\r\n",desc.bytes_written,desc.bytes_that_should_have_been_written);
-        }
-
-        if (desc.bytes_written != null_stream_bytes) {
-        	UARTprintf("ERROR %d bytes estimated, %d bytes were sent\r\n",null_stream_bytes,desc.bytes_written);
         }
 
         /* Then just check for any errors.. */
@@ -1125,8 +1129,10 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
 #endif
 
         /*  send AES initialization vector */
+        if( send_chunk_len( AES_IV_SIZE) != 0 ) {
+        	return -1;
+        }
         rv = send(sock, aesctx.iv, AES_IV_SIZE, 0);
-
 
         if (rv != AES_IV_SIZE) {
             UARTprintf("Sending IV failed: %d\n", rv);
@@ -1137,6 +1143,9 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
         AES_cbc_encrypt(&aesctx, sig, sig, sizeof(sig));
 
         /* send signature */
+        if( send_chunk_len( sizeof(sig)) != 0 ) {
+        	return -1;
+        }
         rv = send(sock, sig, sizeof(sig), 0);
 
         if (rv != sizeof(sig)) {
@@ -1153,6 +1162,10 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
 #endif
     }
 
+
+    if( send_chunk_len(0) != 0 ) {
+    	return -1;
+    }
 
     memset(recv_buf, 0, recv_buf_size);
 
@@ -1401,9 +1414,9 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
 }
 
 //retry logic is handled elsewhere
-int send_pill_data(BatchedPillData * pill_data) {
+int send_pill_data(batched_pill_data * pill_data) {
     char buffer[1024] = {0};
-    int ret = NetworkTask_SynchronousSendProtobuf(PILL_DATA_RECEIVE_ENDPOINT,buffer,sizeof(buffer),MorpheusCommand_fields,pill_data,0);
+    int ret = NetworkTask_SynchronousSendProtobuf(PILL_DATA_RECEIVE_ENDPOINT, buffer, sizeof(buffer), batched_pill_data_fields, pill_data, 0);
     if(ret != 0)
     {
         // network error
@@ -1563,13 +1576,13 @@ int audio_read_fn (char * buffer, int buffer_size) {
 
     return buffer_size;
 }
-
+#if 0
 int Cmd_audio_test(int argc, char *argv[]) {
     short audio[1024];
     send_audio_wifi( (char*)audio, sizeof(audio), audio_read_fn );
     return (0);
 }
-
+#endif
 //radio test functions
 #define FRAME_SIZE		1500
 typedef enum

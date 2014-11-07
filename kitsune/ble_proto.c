@@ -215,14 +215,14 @@ unsigned long get_time();
 
 static void _process_encrypted_pill_data( MorpheusCommand* command)
 {
-    if( command->has_pillData ) {
-        command->pillData.timestamp = get_time();  // attach timestamp, so we don't need to worry about the sending time
-        xQueueSend(pill_queue, &command->pillData, 10);
+    if( command->has_pill_data ) {
+        command->pill_data.timestamp = get_time();  // attach timestamp, so we don't need to worry about the sending time
+        xQueueSend(pill_queue, &command->pill_data, 10);
 
-        if(command->pillData.has_motionDataEntrypted)
+        if(command->pill_data.has_motion_data_entrypted)
         {
-            UARTprintf("PILL DATA FROM ID: %s, length: %d\n", command->pillData.deviceId, 
-                command->pillData.motionDataEntrypted.size);
+            UARTprintf("PILL DATA FROM ID: %s, length: %d\n", command->pill_data.device_id,
+                command->pill_data.motion_data_entrypted.size);
         }else{
             UARTprintf("Bug: No encrypted data!\n");
         }
@@ -232,20 +232,20 @@ static void _process_encrypted_pill_data( MorpheusCommand* command)
 static void _process_pill_heartbeat( MorpheusCommand* command)
 {
 	// Pill heartbeat received from ANT
-    if( command->has_pillData ) {
-        command->pillData.timestamp = get_time();
-        xQueueSend(pill_queue, &command->pillData, 10);
-        UARTprintf("PILL HEARBEAT %s\n", command->pillData.deviceId);
+    if( command->has_pill_data ) {
+        command->pill_data.timestamp = get_time();
+        xQueueSend(pill_queue, &command->pill_data, 10);
+        UARTprintf("PILL HEARBEAT %s\n", command->pill_data.device_id);
 
-        if (command->pillData.has_batteryLevel) {
-            UARTprintf("PILL BATTERY %d\n", command->pillData.batteryLevel);
+        if (command->pill_data.has_battery_level) {
+            UARTprintf("PILL BATTERY %d\n", command->pill_data.battery_level);
         }
-        if (command->pillData.has_uptime) {
-            UARTprintf("PILL UPTIME %d\n", command->pillData.uptime);
+        if (command->pill_data.has_uptime) {
+            UARTprintf("PILL UPTIME %d\n", command->pill_data.uptime);
         }
 
-        if (command->pillData.has_firmwareVersion) {
-            UARTprintf("PILL FirmwareVersion %d\n", command->pillData.firmwareVersion);
+        if (command->pill_data.has_firmware_version) {
+            UARTprintf("PILL FirmwareVersion %d\n", command->pill_data.firmware_version);
         }
     }
 	
@@ -373,8 +373,8 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
     	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_DATA: 
         {
     		// Pill data received from ANT
-        	if(command->has_pillData){
-        		UARTprintf("PILL DATA %s\n", command->pillData.deviceId);
+        	if(command->has_pill_data){
+        		UARTprintf("PILL DATA %s\n", command->pill_data.device_id);
         	}else{
         		UARTprintf("You may have a bug in the pill\n");
         	}
@@ -411,6 +411,12 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         {
             UARTprintf("WIFI Scan request\n");
             _reply_wifi_scan_result();
+        }
+        break;
+        case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_SHAKES:
+        {
+            UARTprintf("PILL SHAKES\n");
+            led_set_color(0xFF, 0, 0, 50, 1, 1, 18, 1); //blue
         }
         break;
 	}

@@ -304,7 +304,7 @@ void main()
   VStartSimpleLinkSpawnTask(SPAWN_TASK_PRIORITY);
 
   /* Create the UART processing task. */
-  xTaskCreate( vUARTTask, "UARTTask", 2*1024/(sizeof(portSTACK_TYPE)), NULL, 10, NULL );
+  xTaskCreate( vUARTTask, "UARTTask", 1024/(sizeof(portSTACK_TYPE)), NULL, 10, NULL );
   //xTaskCreate( watchdog_thread, "wdtTask", configMINIMAL_STACK_SIZE, NULL, 1, NULL );
 
   //

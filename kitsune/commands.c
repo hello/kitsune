@@ -529,7 +529,6 @@ void thread_alarm(void * unused) {
 		//todo audio processing
 		uint32_t time = get_time();
 		if (xSemaphoreTake(alarm_smphr, portMAX_DELAY)) {
-
 			if(alarm.has_start_time && alarm.start_time > 0)
 			{
 				if ( time - alarm.start_time < alarm.ring_duration_in_second ) {
@@ -686,24 +685,39 @@ void thread_fast_i2c_poll(void * unused)  {
 	}
 }
 
+#define MAX_PILL_DATA 20
+#define MAX_BATCH_PILL_DATA 10
 #define PILL_BATCH_WATERMARK 2
-int send_pill_data(BatchedPillData * pill_data);
 
 xQueueHandle data_queue = 0;
 xQueueHandle pill_queue = 0;
 
-bool encode_all_pills (pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
-	MorpheusCommand_PillData pill_data = {0};
-	uint32_t ret = true;
+typedef struct {
+	pill_data * pills;
+	int num_pills;
+} pilldata_to_encode;
 
-	while( xQueueReceive(pill_queue, &pill_data, 1) && ret ) {
-		ret = pb_encode(stream,MorpheusCommand_PillData_fields, &pill_data);
+static bool encode_all_pills (pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
+	int i;
+	pilldata_to_encode * data = *(pilldata_to_encode**)arg;
+
+	for( i = 0; i < data->num_pills; ++i ) {
+		if(!pb_encode_tag(stream, PB_WT_STRING, batched_pill_data_pills_tag))
+		{
+			UARTprintf("encode_all_pills: Fail to encode tag for pill %s, error %s\n", data->pills[i].device_id, PB_GET_ERROR(stream));
+			return false;
+		}
+
+		if (!pb_encode_delimited(stream, pill_data_fields, &data->pills[i])){
+			UARTprintf("encode_all_pills: Fail to encode pill %s, error: %s\n", data->pills[i].device_id, PB_GET_ERROR(stream));
+			return false;
+		}
+		//UARTprintf("******************* encode_pill_encode_all_pills: encode pill %s\n", pill_data.deviceId);
 	}
-	return ret;
+	return true;
 }
-
 void thread_tx(void* unused) {
-	BatchedPillData pill_data_batched = {0};
+	batched_pill_data pill_data_batched = {0};
 	periodic_data data = {0};
 	load_aes();
 
@@ -725,11 +739,28 @@ void thread_tx(void* unused) {
 				}
 			}
 		}
+
+		tries = 0;
 		if (uxQueueMessagesWaiting(pill_queue) > PILL_BATCH_WATERMARK) {
 			UARTprintf(	"sending  pill data" );
+			pilldata_to_encode pilldata;
+			pilldata.num_pills = 0;
+			pilldata.pills = (pill_data*)pvPortMalloc(MAX_BATCH_PILL_DATA*sizeof(pill_data));
+
+			if( !pilldata.pills ) {
+				UARTprintf( "failed to alloc pilldata\n" );
+				vTaskDelay(1000);
+				continue;
+			}
+
+			while( pilldata.num_pills < MAX_BATCH_PILL_DATA && xQueueReceive(pill_queue, &pilldata.pills[pilldata.num_pills], 1 ) ) {
+				++pilldata.num_pills;
+			}
 
 			memset(&pill_data_batched, 0, sizeof(pill_data_batched));
 			pill_data_batched.pills.funcs.encode = encode_all_pills;  // This is smart :D
+			pill_data_batched.pills.arg = &pilldata;
+			pill_data_batched.device_id.funcs.encode = encode_mac_as_device_id_string;
 
 			while (!send_pill_data(&pill_data_batched) == 0) {
 				UARTprintf("  Waiting for WIFI connection  \n");
@@ -738,6 +769,7 @@ void thread_tx(void* unused) {
 					tries = 5;
 				}
 			}
+			vPortFree( pilldata.pills );
 		}
 		while (!(sl_status & HAS_IP)) {
 			vTaskDelay(1000);
@@ -913,8 +945,8 @@ int Cmd_tasks(int argc, char *argv[]) {
 	pBuffer = pvPortMalloc(1024);
 	assert(pBuffer);
 	vTaskList(pBuffer);
-	UARTprintf("\t\t\t\t\tUnused\nTaskName\t\tStatus\tPri\tStack\tTask ID\n");
-	UARTprintf("=======================================================");
+	UARTprintf("\t\t\t\t\tUnused\n            TaskName\tStatus\tPri\tStack\tTask ID\n");
+	UARTprintf("=======================================================\n");
 	UARTprintf("%s", pBuffer);
 
 	vPortFree(pBuffer);
@@ -1009,8 +1041,8 @@ int Cmd_rssi(int argc, char *argv[]) {
 	return 0;
 }
 
+#if 0
 int Cmd_mel(int argc, char *argv[]) {
-/*
     int i,ichunk;
 	int16_t x[1024];
 
@@ -1036,9 +1068,9 @@ int Cmd_mel(int argc, char *argv[]) {
 		AudioFeatures_SetAudioData(x,10,ichunk);
 
 	}
-*/
 	return (0);
 }
+#endif
 
 #define GPIO_PORT 0x40004000
 #define RTC_INT_PIN 0x80
@@ -1143,84 +1175,81 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "help", Cmd_help, "Display list of commands" },
 		{ "?", Cmd_help,"alias for help" },
 //    { "cpu",      Cmd_cpu,      "Show CPU utilization" },
-		{ "free", Cmd_free, "Report free memory" },
-		{ "connect", Cmd_connect, "Connect to an AP" },
-		{ "disconnect", Cmd_disconnect, "disconnect to an AP" },
-		{ "mac", Cmd_set_mac, "set the mac" },
-		{ "aes", Cmd_set_aes, "set the aes key" },
+		{ "free", Cmd_free, "" },
+		{ "connect", Cmd_connect, "" },
+		{ "disconnect", Cmd_disconnect, "" },
+		{ "mac", Cmd_set_mac, "" },
+		{ "aes", Cmd_set_aes, "" },
 
-		{ "ping", Cmd_ping, "Ping a server" },
-		{ "time", Cmd_time, "get ntp time" },
-		{ "status", Cmd_status, "status of simple link" },
+		{ "ping", Cmd_ping, "" },
+		{ "time", Cmd_time, "" },
+		{ "status", Cmd_status, "" },
+#if 0
 		{ "audio", Cmd_audio_test, "audio upload test" },
-
-    { "mnt",      Cmd_mnt,      "Mount the SD card" },
-    { "umnt",     Cmd_umnt,     "Unount the SD card" },
-    { "ls",       Cmd_ls,       "Display list of files" },
-    { "chdir",    Cmd_cd,       "Change directory" },
-    { "cd",       Cmd_cd,       "alias for chdir" },
-    { "mkdir",    Cmd_mkdir,    "make a directory" },
-    { "rm",       Cmd_rm,       "Remove file" },
-    { "write",    Cmd_write,    "Write some text to a file" },
-    { "mkfs",     Cmd_mkfs,     "Make filesystem" },
-    { "pwd",      Cmd_pwd,      "Show current working directory" },
-    { "cat",      Cmd_cat,      "Show contents of a text file" },
-		{ "fault", Cmd_fault, "Trigger a hard fault" },
-		{ "i2crd", Cmd_i2c_read,"i2c read" },
-		{ "i2cwr", Cmd_i2c_write, "i2c write" },
-		{ "i2crdrg", Cmd_i2c_readreg, "i2c readreg" },
-        { "i2cwrrg", Cmd_i2c_writereg, "i2c_writereg" },
-
-		{ "humid", Cmd_readhumid, "i2 read humid" },
-		{ "temp", Cmd_readtemp,	"i2 read temp" },
-		{ "light", Cmd_readlight, "i2 read light" },
-		{"proximity", Cmd_readproximity, "i2 read proximity" },
-		{"codec_Mic", get_codec_mic_NAU, "i2s mic_codec" },
-		{"auto_saveSD", Cmd_write_record, "automatic save data into SD"},
-		{"append", Cmd_append,"Cmd_test_append_content"},
-#if ( configUSE_TRACE_FACILITY == 1 )
-		{ "tasks", Cmd_tasks, "Report stats of all tasks" },
 #endif
 
-		{ "dust", Cmd_dusttest, "dust sensor test" },
+    { "mnt",      Cmd_mnt,      "" },
+    { "umnt",     Cmd_umnt,     "" },
+    { "ls",       Cmd_ls,       "" },
+    { "chdir",    Cmd_cd,       "" },
+    { "cd",       Cmd_cd,       "" },
+    { "mkdir",    Cmd_mkdir,    "" },
+    { "rm",       Cmd_rm,       "" },
+    { "write",    Cmd_write,    "" },
+    { "mkfs",     Cmd_mkfs,     "" },
+    { "pwd",      Cmd_pwd,      "" },
+    { "cat",      Cmd_cat,      "" },
+		//{ "fault", Cmd_fault, "" },
 
+		{ "humid", Cmd_readhumid, "" },
+		{ "temp", Cmd_readtemp,	"" },
+		{ "light", Cmd_readlight, "" },
+		{"prox", Cmd_readproximity, "" },
+		{"codec_Mic", get_codec_mic_NAU, "" },
 
-		{ "fswr", Cmd_fs_write, "fs write" },
-		{ "fsrd", Cmd_fs_read, "fs read" },
-		{ "play_ringtone", Cmd_code_playbuff, "play selected ringtone" },
-		{ "stop_ringtone", Audio_Stop,"stop sounds"},
-		{ "r", Cmd_record_buff,"record sounds into SD card"},
-		{ "p", Cmd_play_buff, "play sounds from SD card"},
-		{ "aud",Cmd_audio_do_stuff,"command the audio on/off"},
-		{ "fsdl", Cmd_fs_delete, "fs delete" },
+#if ( configUSE_TRACE_FACILITY == 1 )
+		{ "tasks", Cmd_tasks, "" },
+#endif
+
+		{ "dust", Cmd_dusttest, "" },
+
+		{ "fswr", Cmd_fs_write, "" }, //serial flash commands
+		{ "fsrd", Cmd_fs_read, "" },
+		{ "fsdl", Cmd_fs_delete, "" },
+
+		{ "play_ringtone", Cmd_code_playbuff, "" },
+		{ "stop_ringtone", Audio_Stop,""},
+		{ "r", Cmd_record_buff,""}, //record sounds into SD card
+		{ "p", Cmd_play_buff, ""},//play sounds from SD card
+		{ "aud",Cmd_audio_do_stuff,""},//command the audio on/off
 		//{ "readout", Cmd_readout_data, "read out sensor data log" },
 
-		{ "sl", Cmd_sl, "start smart config" },
-		{ "mode", Cmd_mode, "set the ap/station mode" },
-		{ "mel", Cmd_mel, "test the mel calculation" },
+		{ "sl", Cmd_sl, "" }, // smart config
+		{ "mode", Cmd_mode, "" }, //set the ap/station mode
+		//{ "mel", Cmd_mel, "test the mel calculation" },
 
-		{ "spird", Cmd_spi_read,"spi read" },
-		{ "spiwr", Cmd_spi_write, "spi write" },
-		{ "spirst", Cmd_spi_reset, "spi reset" },
+		{ "spird", Cmd_spi_read,"" },
+		{ "spiwr", Cmd_spi_write, "" },
+		{ "spirst", Cmd_spi_reset, "" },
 
-		{ "antsel", Cmd_antsel, "select antenna" },
-		{ "led", Cmd_led, "led test pattern" },
-		{ "clrled", Cmd_led_clr, "led test pattern" },
+		{ "antsel", Cmd_antsel, "" }, //select antenna
+		{ "led", Cmd_led, "" },
+		{ "clrled", Cmd_led_clr, "" },
 
-		{ "rdiostats", Cmd_RadioGetStats, "radio stats" },
-		{ "rdiotxstart", Cmd_RadioStartTX, "start tx test" },
-		{ "rdiotxstop", Cmd_RadioStopTX, "stop tx test" },
-		{ "rdiorxstart", Cmd_RadioStartRX, "start rx test" },
-		{ "rdiorxstop", Cmd_RadioStopRX, "stop rx test" },
-		{ "rssi", Cmd_rssi, "scan rssi" },
-		{ "slip", Cmd_slip, "slip test" },
-		{ "data_upload", Cmd_data_upload, "upload protobuf data" },
-		{ "^", Cmd_send_top, "send command to top board"},
-		{ "topdfu", Cmd_topdfu, "update topboard firmware."},
-		{ "factory_reset", Cmd_factory_reset, "Factory reset from middle."},
-		{ "download", Cmd_download, "download test function."},
-		{ "dtm", Cmd_top_dtm, "Sends Direct Test Mode command" },
-		{ "animate", Cmd_led_animate, "Animates led"},
+		{ "rdiostats", Cmd_RadioGetStats, "" },
+		{ "rdiotxstart", Cmd_RadioStartTX, "" },
+		{ "rdiotxstop", Cmd_RadioStopTX, "" },
+		{ "rdiorxstart", Cmd_RadioStartRX, "" },
+		{ "rdiorxstop", Cmd_RadioStopRX, "" },
+		{ "rssi", Cmd_rssi, "" },
+		{ "slip", Cmd_slip, "" },
+		{ "data_upload", Cmd_data_upload, "" },
+		{ "^", Cmd_send_top, ""}, //send command to top board
+		{ "topdfu", Cmd_topdfu, ""}, //update topboard firmware.
+		{ "factory_reset", Cmd_factory_reset, ""},//Factory reset from middle.
+		{ "download", Cmd_download, ""},//download test function.
+		{ "dtm", Cmd_top_dtm, "" },//Sends Direct Test Mode command
+		{ "animate", Cmd_led_animate, ""},//Animates led
 
 		{ 0, 0, 0 } };
 
@@ -1336,7 +1365,7 @@ void vUARTTask(void *pvParameters) {
 	init_prox_sensor();
 
 	data_queue = xQueueCreate(10, sizeof(periodic_data));
-	pill_queue = xQueueCreate(10, sizeof(MorpheusCommand_PillData));
+	pill_queue = xQueueCreate(MAX_PILL_DATA, sizeof(pill_data));
 	vSemaphoreCreateBinary(dust_smphr);
 	vSemaphoreCreateBinary(light_smphr);
 	vSemaphoreCreateBinary(i2c_smphr);
@@ -1348,15 +1377,15 @@ void vUARTTask(void *pvParameters) {
 		UARTprintf("Failed to create the data_queue.\n");
 	}
 
-	xTaskCreate(top_board_task, "top_board_task", 1024 / 4, NULL, 2, NULL); //todo reduce stack
-	xTaskCreate(thread_alarm, "alarmTask", 2 * 1024 / 4, NULL, 4, NULL); //todo reduce stack
+	xTaskCreate(top_board_task, "top_board_task", 256 / 4, NULL, 2, NULL); //todo reduce stack
+	xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 4, NULL); //todo reduce stack
 
 	UARTprintf("*");
-	xTaskCreate(thread_spi, "spiTask", 2*1024 / 4, NULL, 5, NULL);
+	xTaskCreate(thread_spi, "spiTask", 1024 / 4, NULL, 5, NULL);
 
 	//this task needs a larger stack because
 	//some protobuf encoding will happen on the stack of this task
-	xTaskCreate(NetworkTask_Thread,"networkTask",4*1024/4,&network_task_data,10,NULL);
+	xTaskCreate(NetworkTask_Thread,"networkTask",2*1024/4,&network_task_data,10,NULL);
 
 	SetupGPIOInterrupts();
 	UARTprintf("*");
@@ -1365,13 +1394,13 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("*");
 	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,1,NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 13, NULL);
+	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  512 / 4, NULL, 13, NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_dust, "dustTask", 256 / 4, NULL, 3, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_sensor_poll, "pollTask", 3 * 1024 / 4, NULL, 4, NULL);
+	xTaskCreate(thread_sensor_poll, "pollTask", 1024 / 4, NULL, 4, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_tx, "txTask", 3 * 1024 / 4, NULL, 2, NULL);
+	xTaskCreate(thread_tx, "txTask", 2 * 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_ota, "otaTask",5 * 1024 / 4, NULL, 1, NULL);
 	UARTprintf("*");
