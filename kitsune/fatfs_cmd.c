@@ -23,6 +23,8 @@
 #include "ff.h"
 #include "diskio.h"
 
+#include "FreeRTOS.h"
+
 
 //*****************************************************************************
 //
@@ -498,7 +500,7 @@ Cmd_write(int argc, char *argv[])
 }
 
 int
-rm(char *file)
+rm(char * file)
 {
     FRESULT res;
 
@@ -1215,11 +1217,15 @@ bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg
 			download_file( host, filename, url, path );
 
 			if( download_info.has_copy_to_serial_flash && serial_flash_name && serial_flash_path ) {
-				char full[128];
-				char buf[512];
+				char * full;
+				char *buf;
 				long sflash_fh = -1;
 				WORD size=0;
 				int status;
+				full = pvPortMalloc(128);
+				assert(full);
+				buf = pvPortMalloc(512);
+				assert(buf);
 				memset(buf,0,sizeof(buf));
 				memset(full,0,sizeof(full));
 
