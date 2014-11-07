@@ -879,7 +879,7 @@ int decode_rx_data_pb_callback(const uint8_t * buffer, uint32_t buffer_size, voi
 		aesctx.iv[i] = *buf_pos++;
 		UARTprintf("%02x", aesctx.iv[i]);
 		if (buf_pos > (buffer + buffer_size)) {
-			return -1;
+			return -2;
 		}
 	}
 	UARTprintf("\n");
@@ -888,7 +888,7 @@ int decode_rx_data_pb_callback(const uint8_t * buffer, uint32_t buffer_size, voi
 		sig[i] = *buf_pos++;
 		UARTprintf("%02x", sig[i]);
 		if (buf_pos > (buffer + buffer_size)) {
-			return -1;
+			return -3;
 		}
 	}
 	UARTprintf("\n");
@@ -913,7 +913,7 @@ int decode_rx_data_pb_callback(const uint8_t * buffer, uint32_t buffer_size, voi
 		}
 		UARTprintf("\n");
 
-		return -1; //todo uncomment
+		return -4; //todo uncomment
 	}
 
 	/* Create a stream that will read from our buffer. */
@@ -927,7 +927,7 @@ int decode_rx_data_pb_callback(const uint8_t * buffer, uint32_t buffer_size, voi
 	/* Then just check for any errors.. */
 	if (!status) {
 		UARTprintf("Decoding failed: %s\n", PB_GET_ERROR(&stream));
-		return -1;
+		return -5;
 	}
 
 	return 0;
