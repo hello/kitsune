@@ -945,8 +945,8 @@ int Cmd_tasks(int argc, char *argv[]) {
 	pBuffer = pvPortMalloc(1024);
 	assert(pBuffer);
 	vTaskList(pBuffer);
-	UARTprintf("\t\t\t\t\tUnused\nTaskName\t\tStatus\tPri\tStack\tTask ID\n");
-	UARTprintf("=======================================================");
+	UARTprintf("\t\t\t\t\tUnused\n            TaskName\tStatus\tPri\tStack\tTask ID\n");
+	UARTprintf("=======================================================\n");
 	UARTprintf("%s", pBuffer);
 
 	vPortFree(pBuffer);
