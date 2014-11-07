@@ -51,6 +51,7 @@ static xQueueHandle _queue = NULL;
 static uint32_t _captureCounter;
 static portTickType _readMaxDelay = portMAX_DELAY;
 static uint8_t _isCapturing = 0;
+static uint8_t _isDisabled = 0;
 static int64_t _callCounter;
 static CommandCompleteNotification _fpLastCommandComplete;
 
@@ -201,16 +202,60 @@ void AudioCaptureTask_Thread(void * data) {
 			/* PROCESS COMMANDS */
 			switch (message.command) {
 
+			case eAudioCaptureEnable:
+			{
+				if (_isCapturing && _isDisabled) {
+					//do initialization if we were capturing nefore and we were disabled
+
+					UARTprintf("re-enabling audio\n");
+					vTaskDelay(5);
+					InitAudio();
+					_readMaxDelay = LOOP_DELAY_WHILE_PROCESSING_IN_TICKS; //ensure that our queue no longer blocks
+				}
+
+				_isDisabled = 0;
+
+				break;
+			}
+
+			case  eAudioCaptureDisable:
+			{
+				//if you were capturing, shut down everything
+				if (_isCapturing && !_isDisabled) {
+					UARTprintf("turn off audio\n");
+					DeinitAudio();
+
+					_readMaxDelay = portMAX_DELAY; //make queue block again
+					_captureCounter = 0;
+
+					if (file_ptr) {
+						f_close(file_ptr);
+						memset(&file_obj, 0, sizeof(file_obj));
+					}
+				}
+
+				_isDisabled = 1;
+
+				break;
+			}
+
+
+
 			case eAudioCaptureTurnOn:
 			{
-#ifdef AUDIO_DEBUG_MESSAGES
-				UARTprintf("turn on audio\n");
-				vTaskDelay(5);
-#endif
-				InitAudio();
-				vTaskDelay(5);
+				//as long as you're not turned on, enable
+				if (!_isCapturing && !_isDisabled) {
+					UARTprintf("turn on audio\n");
+					InitAudio();
+					_readMaxDelay = LOOP_DELAY_WHILE_PROCESSING_IN_TICKS; //ensure that our queue no longer blocks
 
-				_readMaxDelay = LOOP_DELAY_WHILE_PROCESSING_IN_TICKS; //ensure that our queue no longer blocks
+				}
+				else {
+					UARTprintf("ignored turn on command\n");
+
+				}
+
+				//no matter what, we want to be capturing (ergo an enable command will turn us on)
 				_isCapturing = 1;
 
 				break;
@@ -219,21 +264,24 @@ void AudioCaptureTask_Thread(void * data) {
 
 			case eAudioCaptureTurnOff:
 			{
-#ifdef AUDIO_DEBUG_MESSAGES
-				UARTprintf("turn off audio\n");
-				vTaskDelay(5);
-#endif
-				DeinitAudio();
-				vTaskDelay(5);
+				if (_isCapturing && !_isDisabled) {
+					UARTprintf("turn off audio\n");
+					DeinitAudio();
 
-				_readMaxDelay = portMAX_DELAY; //make queue block again
-				_isCapturing = 0;
-				_captureCounter = 0;
+					_readMaxDelay = portMAX_DELAY; //make queue block again
+					_captureCounter = 0;
 
-				if (file_ptr) {
-					f_close(file_ptr);
-					memset(&file_obj, 0, sizeof(file_obj));
+					if (file_ptr) {
+						f_close(file_ptr);
+						memset(&file_obj, 0, sizeof(file_obj));
+					}
+
 				}
+
+				//no matter what, we don't want to be capturing
+				//this if we are disabled, someone turns us off, and then re-enables us, we stay off
+				_isCapturing = 0;
+
 
 				break;
 			}
@@ -283,6 +331,9 @@ void AudioCaptureTask_Thread(void * data) {
 			}
 			}
 		}
+
+		vTaskDelay(5);
+
 
 		if (!_isCapturing) {
 			vTaskDelay(LOOP_DELAY_WHILE_WAITING_BUFFER_TO_FILL);
@@ -362,6 +413,20 @@ void AudioCaptureTask_Thread(void * data) {
 		}
 	}
 }
+
+void AudioCaptureTask_Disable(void) {
+	AudioCaptureMessage_t m;
+	m.command = eAudioCaptureDisable;
+	AudioCaptureTask_AddMessageToQueue(&m);
+}
+
+void AudioCaptureTask_Enable(void) {
+	AudioCaptureMessage_t m;
+	m.command = eAudioCaptureEnable;
+	AudioCaptureTask_AddMessageToQueue(&m);
+}
+
+
 
 
 void AudioCaptureTask_AddMessageToQueue(const AudioCaptureMessage_t * message) {

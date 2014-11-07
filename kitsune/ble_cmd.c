@@ -166,23 +166,22 @@ static bool _decode_bytes_field(pb_istream_t *stream, const pb_field_t *field, v
     }
 
     int length = stream->bytes_left;
-    uint8_t* buffer = pvPortMalloc(stream->bytes_left);
-
+    uint8_t* buffer = pvPortMalloc(stream->bytes_left + sizeof(array_data ));
     if(!buffer)
     {
     	UARTprintf("_decode_bytes_fields: Out of memory\n");
         return false;
     }
+    array_data* array = (array_data*)buffer;
+    memset(buffer, 0, stream->bytes_left + sizeof(array_data ));
+    buffer += sizeof(array_data);
 
-    memset(buffer, 0, stream->bytes_left);
     if (!pb_read(stream, buffer, stream->bytes_left))
     {
     	UARTprintf("_decode_bytes_fields: Failed to read data\n");
         vPortFree(buffer);
         return false;
     }
-
-    array_data* array = pvPortMalloc(sizeof(array_data));
     if(!array)
     {
     	UARTprintf("_decode_bytes_fields: Failed to malloc data holder\n");
@@ -190,10 +189,8 @@ static bool _decode_bytes_field(pb_istream_t *stream, const pb_field_t *field, v
         return false;
     }
 
-    memset(array, 0, sizeof(array_data));
     array->buffer = buffer;
     array->length = length;
-
     *arg = array;
 
     return true;
@@ -212,8 +209,9 @@ void on_morpheus_protobuf_arrival(uint8_t* protobuf, size_t len)
 
     MorpheusCommand command;
     memset(&command, 0, sizeof(command));
+    UARTprintf("proto arrv\n");
 
-    
+
     ble_proto_assign_decode_funcs(&command);
 
     pb_istream_t stream = pb_istream_from_buffer(protobuf, len);
@@ -225,13 +223,10 @@ void on_morpheus_protobuf_arrival(uint8_t* protobuf, size_t len)
         UARTprintf("Decoding protobuf failed, error: ");
         UARTprintf(PB_GET_ERROR(&stream));
         UARTprintf("\r\n");
-    }else{
-
-        on_ble_protobuf_command(&command);
+    } else {
+    	on_ble_protobuf_command(&command);
+    	ble_proto_free_command(&command);
     }
-
-    ble_proto_free_command(&command);
-    
 }
 
 void ble_proto_assign_decode_funcs(MorpheusCommand* command)
@@ -430,45 +425,43 @@ void ble_proto_free_command(MorpheusCommand* command)
         return;
     }
 
-    if(!command->accountId.arg)
+    if(command->accountId.arg)
     {
         vPortFree(command->accountId.arg);
         command->accountId.arg = NULL;
     }
 
-    if(!command->deviceId.arg)
+    if(command->deviceId.arg)
     {
         vPortFree(command->deviceId.arg);
         command->deviceId.arg = NULL;
     }
 
-    if(!command->wifiName.arg)
+    if(command->wifiName.arg)
     {
         vPortFree(command->wifiName.arg);
         command->wifiName.arg = NULL;
     }
 
-    if(!command->wifiSSID.arg)
+    if(command->wifiSSID.arg)
     {
         vPortFree(command->wifiSSID.arg);
         command->wifiSSID.arg = NULL;
     }
 
-    if(!command->wifiPassword.arg)
+    if(command->wifiPassword.arg)
     {
         vPortFree(command->wifiPassword.arg);
         command->wifiPassword.arg = NULL;
     }
 
-    if(!command->motionDataEntrypted.arg)
+    if(command->motionDataEntrypted.arg)
     {
-        array_data* array = (array_data*)command->motionDataEntrypted.arg;
-        vPortFree(array->buffer);  // first vPortFree the actual data
-        vPortFree(array);  // Then vPortFree the actual
+        vPortFree(command->motionDataEntrypted.arg);
         command->motionDataEntrypted.arg = NULL;
     }
 
-    if(!command->wifi_scan_result.arg)
+    if(command->wifi_scan_result.arg)
     {
         vPortFree(command->wifi_scan_result.arg);
         command->wifi_scan_result.arg = NULL;

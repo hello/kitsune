@@ -245,17 +245,21 @@ static void InitDefaultClassifier(void) {
     
 }
 
+void AudioClassifier_SetStorageBuffers(void * buffer, uint32_t buf_size_in_bytes) {
+    memset(&_buffer,0,sizeof(_buffer));
 
-void AudioClassifier_Init(RecordAudioCallback_t recordfunc,void * buffer, uint32_t buf_size_in_bytes) {
+	_buffer.pchunkbuf = (AudioFeatureChunk_t *)buffer;
+    _buffer.chunk_buf_size = buf_size_in_bytes / sizeof(AudioFeatureChunk_t);
+
+}
+
+void AudioClassifier_Init(RecordAudioCallback_t recordfunc) {
     memset(&_buffer,0,sizeof(_buffer));
     memset(&_classifier,0,sizeof(Classifier_t));
     memset(&_hmm,0,sizeof(_hmm));
     
     InitDefaultClassifier();
-    
-    _buffer.pchunkbuf = (AudioFeatureChunk_t *)buffer;
-    _buffer.chunk_buf_size = buf_size_in_bytes / sizeof(AudioFeatureChunk_t);
-    
+
     _playbackFunc = recordfunc;
 
 }
@@ -295,6 +299,10 @@ void AudioClassifier_DataCallback(const AudioFeatures_t * pfeats) {
      THE BUFFERING SECTION
      ***********************/
     
+    //do nothing if we do not have a storage buffer allocated
+    if (!_buffer.pchunkbuf || _buffer.chunk_buf_size == 0) {
+    	return;
+    }
     
     idx = _buffer.incomingidx;
     PackFeats(_buffer.packedbuf[idx],pfeats->feats4bit);
@@ -376,7 +384,7 @@ static uint8_t GetNextMatrixCallback(uint8_t isFirst,const_MatDesc_t * pdesc,voi
     
     memset(pdesc,0,sizeof(const_MatDesc_t));
     
-    if (encodedata->buf->numchunkbuf == 0 ) {
+    if (encodedata->buf->numchunkbuf == 0 || encodedata->buf->pchunkbuf == NULL) {
         return false; //stop
     }
     

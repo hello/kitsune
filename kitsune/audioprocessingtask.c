@@ -24,6 +24,23 @@ static const char * k_audio_endpoint = "/audio/features";
 static DeviceCurrentInfo_t _deviceCurrentInfo;
 static void * _longTermStorageBuffer = NULL;
 
+typedef enum {
+	command,
+	features
+} EAudioProcesingMessage_t;
+
+typedef struct {
+	EAudioProcesingMessage_t type;
+	NotificationCallback_t onFinished;
+	void * context;
+
+	union {
+		AudioFeatures_t feats;
+		EAudioProcessingCommand_t cmd;
+	} message;
+} AudioProcessingTaskMessage_t;
+
+
 static void RecordCallback(const RecordAudioRequest_t * request) {
 	/* Go tell audio capture task to write to disk as it captures */
 	AudioCaptureMessage_t message;
@@ -45,7 +62,7 @@ static void Unprepare(void * data) {
 
 static void Init(void) {
 	if (!_queue) {
-		_queue = xQueueCreate(INBOX_QUEUE_LENGTH,sizeof( AudioFeatures_t ) );
+		_queue = xQueueCreate(INBOX_QUEUE_LENGTH,sizeof( AudioProcessingTaskMessage_t ) );
 	}
 
 	if (!_mutex) {
@@ -53,62 +70,66 @@ static void Init(void) {
 	}
 
 	samplecounter = 0;
+	_longTermStorageBuffer = NULL;
+
+	AudioClassifier_Init(RecordCallback);
+	AudioClassifier_SetStorageBuffers(NULL,0);
+
+}
+
+static void Setup(void) {
 
 	_longTermStorageBuffer = pvPortMalloc(DESIRED_BUFFER_SIZE_IN_BYTES);
 
 	if (_longTermStorageBuffer) {
-		//pvPortMalloc
-			//vPortFree
-		AudioClassifier_Init(RecordCallback,_longTermStorageBuffer,DESIRED_BUFFER_SIZE_IN_BYTES);
+		AudioClassifier_SetStorageBuffers(_longTermStorageBuffer,DESIRED_BUFFER_SIZE_IN_BYTES);
 	}
 	else {
-		//errror logggg
-		UARTprintf("ALL ABOARD THE MALLOC FAILBOAT -- AUDIO CLASSIFICATION WILL NOT HAPPEN\r\n");
+		UARTprintf("Could not allocate %d bytes for audio feature storage\r\n",DESIRED_BUFFER_SIZE_IN_BYTES);
 	}
 
 }
-
-void AudioProcessingTask_AllocBuffers(void) {
-	//try and be thread safe in case you do this while processing
-	if (_mutex) {
-		xSemaphoreTake(_mutex,portMAX_DELAY);
-	}
-
-	_longTermStorageBuffer = pvPortMalloc(DESIRED_BUFFER_SIZE_IN_BYTES);
-
-	if (_longTermStorageBuffer) {
-		AudioClassifier_Init(RecordCallback,_longTermStorageBuffer,DESIRED_BUFFER_SIZE_IN_BYTES);
-	}
-	else {
-		UARTprintf("ALL ABOARD THE MALLOC FAILBOAT -- AUDIO CLASSIFICATION WILL NOT HAPPEN\r\n");
-	}
-
-
-	if (_mutex) {
-		xSemaphoreGive(_mutex);
-	}
-}
-void AudioProcessingTask_FreeBuffers(void) {
-	//try and be thread safe in case you do this while processing
-	if (_mutex) {
-		xSemaphoreTake(_mutex,portMAX_DELAY);
-	}
+static void TearDown(void) {
 
 	if (_longTermStorageBuffer) {
 		vPortFree(_longTermStorageBuffer);
 		_longTermStorageBuffer = NULL;
-	}
-
-	if (_mutex) {
-		xSemaphoreGive(_mutex);
+		AudioClassifier_SetStorageBuffers(NULL,0);
 	}
 }
 
 void AudioProcessingTask_AddFeaturesToQueue(const AudioFeatures_t * feat) {
+	AudioProcessingTaskMessage_t m;
+	memset(&m,0,sizeof(m));
+
+	memcpy(&m.message.feats,feat,sizeof(AudioFeatures_t));
+	m.type = features;
+
 	if (_queue) {
-		xQueueSend(_queue,feat,0);
+		xQueueSend(_queue,&m,0);
 	}
 }
+
+void AudioProcessingTask_SetControl(EAudioProcessingCommand_t cmd,NotificationCallback_t onFinished, void * context) {
+	AudioProcessingTaskMessage_t m;
+	memset(&m,0,sizeof(m));
+	m.message.cmd = cmd;
+	m.type = command;
+	m.onFinished = onFinished;
+	m.context = context;
+
+	if (_queue) {
+		xQueueSend(_queue,&m,0);
+	}
+}
+
+void AudiopProcessingTask_TurnOff(void) {
+	AudioProcessingTask_SetControl(processingOff,NULL,NULL);
+}
+void AudiopProcessingTask_TurnOn(void) {
+	AudioProcessingTask_SetControl(processingOn,NULL,NULL);
+}
+
 
 static void NetworkResponseFunc(const NetworkResponse_t * response) {
 	UARTprintf("AUDIO RESPONSE:\r\n%s",_decodebuf);
@@ -146,33 +167,75 @@ static void SetUpUpload(void) {
 }
 
 void AudioProcessingTask_Thread(void * data) {
-	AudioFeatures_t message;
+	AudioProcessingTaskMessage_t m;
 
 	Init();
 
 	for( ;; ) {
 		/* Wait until we get a message */
-        xQueueReceive( _queue,(void *) &message, portMAX_DELAY );
+        xQueueReceive( _queue,(void *) &m, portMAX_DELAY );
 
-        //crit section around this function
+        //crit section begin
     	xSemaphoreTake(_mutex,portMAX_DELAY);
-        
-	//if our malloc failed, then sorry we aren't doing anything.
-        if (!_longTermStorageBuffer) {
-        	Init();
-        	xSemaphoreGive(_mutex);
-        	continue;
-        }
+    	switch(m.type) {
+    	case command:
+    	{
+    		switch (m.message.cmd) {
 
-	AudioClassifier_DataCallback(&message);
+    		case processingOff:
+    		{
+    			TearDown();
+    			break;
+    		}
+
+    		case processingOn:
+    		{
+    			Setup();
+    			break;
+    		}
+
+    		default:
+    		{
+    			UARTprintf("AudioProcessingTask_Thread -- unrecognized command\r\n");
+    			break;
+    		}
+    		}
+
+    		break;
+    	}
+
+    	case features:
+    	{
+    		if (_longTermStorageBuffer) {
+    			//process features
+    			AudioClassifier_DataCallback(&m.message.feats);
+
+    			//check to see if it's time to try to upload
+    			samplecounter++;
+
+    			if (samplecounter > AUDIO_UPLOAD_PERIOD_IN_TICKS) {
+    				SetUpUpload();
+    				samplecounter = 0;
+    			}
+    		}
+
+    		break;
+    	}
+
+    	default: {
+    		UARTprintf("AudioProcessingTask_Thread -- unrecognized message type\r\n");
+    		break;
+    	}
+    	}
+
+
+    	//end critical section
     	xSemaphoreGive(_mutex);
 
-        samplecounter++;
 
-        if (samplecounter > AUDIO_UPLOAD_PERIOD_IN_TICKS) {
-        	SetUpUpload();
-        	samplecounter = 0;
-        }
+    	if (m.onFinished) {
+    		m.onFinished(m.context);
+    	}
 
 	}
 }
