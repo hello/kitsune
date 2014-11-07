@@ -6,5 +6,5 @@
 #define MORPHEUS_REGISTER_ENDPOINT          "/register/morpheus"
 #define PILL_REGISTER_ENDPOINT              "/register/pill"
 #define AUDIO_FEATURES_ENDPOINT             "/audio/features"
-#define TEST_NETWORK_ENDPOINT               "/test/network"
+#define TEST_NETWORK_ENDPOINT               "/"
 #endif //_ENDPOINTS_H_
