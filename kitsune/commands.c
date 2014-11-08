@@ -381,6 +381,7 @@ int Cmd_play_buff(int argc, char *argv[]) {
     int vol = atoi( argv[1] );
     char * file = argv[2];
     AudioPlaybackDesc_t desc;
+    memset(&desc,0,sizeof(desc));
     desc.file = file;
     desc.volume = vol;
     desc.durationInSeconds = 60;
