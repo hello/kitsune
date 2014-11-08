@@ -92,7 +92,7 @@ static int32_t DecodeTestResponse(uint8_t * buf,uint32_t bufsize, const char * d
 	const char* header_content_len = "Content-Length: ";
 	char * content = strstr(data, "\r\n\r\n") + 4;
 	char * len_str = strstr(data, header_content_len) + strlen(header_content_len);
-
+	int len = atoi(len_str);
 
 	memset(&reply,0,sizeof(reply));
 
@@ -108,7 +108,7 @@ static int32_t DecodeTestResponse(uint8_t * buf,uint32_t bufsize, const char * d
 	}
 
 
-	ret = decode_rx_data_pb((uint8_t *) content, bufsize, SyncResponse_fields, &reply);
+	ret = decode_rx_data_pb((uint8_t *) content, len, SyncResponse_fields, &reply);
 
 	if(ret != 0) {
 		DEBUG_PRINTF("decode_rx_data_pb fail with return code %d",ret);
@@ -116,6 +116,7 @@ static int32_t DecodeTestResponse(uint8_t * buf,uint32_t bufsize, const char * d
 	}
 
 
+	DEBUG_PRINTF("acc sampling interval %d",reply.acc_sampling_interval);
 
 	return 0;
 
@@ -127,6 +128,8 @@ static int32_t DoSyncSendAndResponse(const char * params[],const char * values[]
 	memset(&_data,0,sizeof(_data));
 	memset(_urlbuf,0,sizeof(_urlbuf));
 
+	_data.has_dust = 1;
+	_data.dust = 1234;
 
 	CreateUrl(_urlbuf,sizeof(_urlbuf),params,values,len);
 
@@ -168,6 +171,15 @@ static int32_t TestFiveSecondDelay(void) {
 
 }
 
+static int32_t TestMinuteDelay(void) {
+	static const char * params[] = {TIMEOUT,RETURNCODE,MALFORMED};
+	static const char * values[] = {"60000","200","0"};
+	static const int32_t len = 3;
+
+	return DoSyncSendAndResponse(params,values,len);
+
+}
+
 static int32_t TestMalformed(void) {
 	static const char * params[] = {TIMEOUT,RETURNCODE,MALFORMED};
 	static const char * values[] = {"0","200","1"};
@@ -182,7 +194,7 @@ static int32_t TestMalformed(void) {
 static void RunTest(TestFunc_t test,const char * name,int32_t expected_code) {
 	TickType_t t1,dt;
 	int32_t ret;
-
+	uint8_t i;
 	DEBUG_PRINTF("Running %s... ");
 
 	t1 = xTaskGetTickCount();
@@ -198,7 +210,9 @@ static void RunTest(TestFunc_t test,const char * name,int32_t expected_code) {
 		DEBUG_PRINTF("SUCCESS -- %s -- expecting code %d",name,expected_code);
 	}
 	else {
-		DEBUG_PRINTF("FAIL -- %s --  code %d",name,ret);
+		for (i = 0; i < 25; i++) {
+			DEBUG_PRINTF("FAIL -- %s --  code %d",name,ret);
+		}
 	}
 
 
@@ -214,7 +228,9 @@ void TestNetwork_RunTests(const char * host) {
 	DEBUG_PRINTF("----------------------------------------------------------");
 	RUN_TEST(TestFiveSecondDelay,ERROR_CODE_SUCCESS);
 	DEBUG_PRINTF("----------------------------------------------------------");
-	RUN_TEST(TestMalformed,ERROR_CODE_SUCCESS);
+	RUN_TEST(TestMalformed,ERROR_CODE_FAILED_DECODE);
+	DEBUG_PRINTF("----------------------------------------------------------");
+	RUN_TEST(TestMinuteDelay,ERROR_CODE_FAILED_SEND);
 
 
 
