@@ -1395,7 +1395,7 @@ void vUARTTask(void *pvParameters) {
 	}
 
 	xTaskCreate(top_board_task, "top_board_task", 1024 / 4, NULL, 2, NULL); //todo reduce stack
-	xTaskCreate(thread_alarm, "alarmTask", 2 * 1024 / 4, NULL, 4, NULL); //todo reduce stack
+	//xTaskCreate(thread_alarm, "alarmTask", 2 * 1024 / 4, NULL, 4, NULL); //todo reduce stack
 
 	UARTprintf("*");
 	xTaskCreate(thread_spi, "spiTask", 2*1024 / 4, NULL, 5, NULL);
@@ -1407,9 +1407,9 @@ void vUARTTask(void *pvParameters) {
 	SetupGPIOInterrupts();
 	UARTprintf("*");
 #if !ONLY_MID
-	xTaskCreate(AudioCaptureTask_Thread,"audioCaptureTask",4*1024/4,NULL,4,NULL);
+	//xTaskCreate(AudioCaptureTask_Thread,"audioCaptureTask",4*1024/4,NULL,4,NULL);
 	UARTprintf("*");
-	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,1,NULL);
+	//xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,1,NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 13, NULL);
 	UARTprintf("*");
@@ -1419,7 +1419,7 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("*");
 	xTaskCreate(thread_tx, "txTask", 3 * 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_ota, "otaTask",5 * 1024 / 4, NULL, 1, NULL);
+	//xTaskCreate(thread_ota, "otaTask",5 * 1024 / 4, NULL, 1, NULL);
 	UARTprintf("*");
 #endif
 	//checkFaults();
