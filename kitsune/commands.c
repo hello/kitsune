@@ -815,7 +815,7 @@ void thread_sensor_poll(void* unused) {
 }
 
 int Cmd_test_network(int argc,char * argv[]) {
-	TestNetwork_RunTests(argv[1]);
+	TestNetwork_RunTests(TEST_SERVER);
 
 	return 0;
 }

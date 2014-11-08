@@ -7,4 +7,5 @@
 #define PILL_REGISTER_ENDPOINT              "/register/pill"
 #define AUDIO_FEATURES_ENDPOINT             "/audio/features"
 #define TEST_NETWORK_ENDPOINT               "/"
+#define TEST_SERVER                         "stress-in.hello.is"
 #endif //_ENDPOINTS_H_
