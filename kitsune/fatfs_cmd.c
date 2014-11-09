@@ -1358,13 +1358,22 @@ bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg
 	if( path ) {
 		UARTprintf( "ota - path: %s\n",path);
 	}
+	if( serial_flash_path ) {
+		UARTprintf( "ota - serial_flash_path: %s\n",serial_flash_path);
+	}
+	if( serial_flash_name ) {
+		UARTprintf( "ota - serial_flash_name: %s\n",serial_flash_name);
+	}
+	if( download_info.has_copy_to_serial_flash ) {
+		UARTprintf( "ota - copy_to_serial_flash: %s\n",download_info.copy_to_serial_flash);
+	}
 
 	if( filename && url && host && path ) {
 		if( !file_exists(filename, path) ) {
 			//download it!
 			download_file( host, url, filename, path );
 
-			if( download_info.has_copy_to_serial_flash && serial_flash_name && serial_flash_path ) {
+			if( download_info.has_copy_to_serial_flash && download_info.copy_to_serial_flash && serial_flash_name && serial_flash_path ) {
 				char * full;
 				char *buf;
 				long sflash_fh = -1;
@@ -1379,6 +1388,8 @@ bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg
 
 				strcpy(full, serial_flash_name);
 				strcat(full, serial_flash_path);
+
+				UARTprintf("copying %s %s\n", serial_flash_path, serial_flash_name);
 
 				cd( path );
 			    if(global_filename( filename ))

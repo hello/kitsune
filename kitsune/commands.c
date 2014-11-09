@@ -666,9 +666,9 @@ void thread_fast_i2c_poll(void * unused)  {
 			// for white one, 9mm distance max.
 			prox = get_prox();  // now this thing is in um.
 
-			hpf_prox += ( abs(last_prox - prox) - hpf_prox )>>1;   // The noise in enclosure is in 100+ um level
+			hpf_prox += ( abs(last_prox - prox) - hpf_prox )>>2;   // The noise in enclosure is in 100+ um level
 
-			prox_thresh = 300;
+			prox_thresh = 400;
 
 /*
 			UARTprintf("%d, %d", hpf_prox, light);
