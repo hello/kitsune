@@ -1386,8 +1386,8 @@ bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg
 				memset(buf,0,sizeof(buf));
 				memset(full,0,sizeof(full));
 
-				strcpy(full, serial_flash_name);
-				strcat(full, serial_flash_path);
+				strcpy(full, serial_flash_path);
+				strcat(full, serial_flash_name);
 
 				UARTprintf("copying %s %s\n", serial_flash_path, serial_flash_name);
 
@@ -1406,7 +1406,7 @@ bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg
 			    f_stat( path_buff, &file_info );
 			    DWORD bytes_to_copy = file_info.fsize;
 
-			    if (strstr(full, "/sys/mcuimgx") == 0 )
+			    if (strstr(full, "/sys/mcuimgx") != 0 )
 			    {
 			    	_ReadBootInfo(&sBootInfo);
 			        full[11] = (_u8)_McuImageGetNewIndex() + '1'; /* mcuimg1 is for factory default, mcuimg2,3 are for OTA updates */
@@ -1418,15 +1418,18 @@ bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg
 					UARTprintf("ota - failed to open file %s\n", full );
 					return false;
 				}
+				SlFsFileInfo_t info;
+				sl_FsGetInfo((unsigned char*)full, 0, &info);
 
+				UARTprintf( "copying %d from %s on sd to %s on sflash\n", bytes_to_copy, path_buff, full);
 				while( bytes_to_copy > 0 ) {
 					//read from sd into buff
-					res = f_read( &file_obj, path_buff, bytes_to_copy<512?bytes_to_copy:512, &size );
+					res = f_read( &file_obj, buf, bytes_to_copy<512?bytes_to_copy:512, &size );
 					if( res != FR_OK ) {
 						UARTprintf("ota - failed to read file %s\n", path_buff );
 						return false;
 					}
-					status = sl_FsWrite(sflash_fh, 0, (unsigned char*)buf, size);
+					status = sl_FsWrite(sflash_fh, info.FileLen, (unsigned char*)buf, size);
 					if( status != size ) {
 						UARTprintf("ota - failed to write file %s\n", full );
 						return false;
