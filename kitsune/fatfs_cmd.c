@@ -1149,7 +1149,7 @@ int download_file(char * host, char * url, char * filename, char * path ) {
 	if (r < 0) {
 		ASSERT_ON_ERROR(GET_HOST_IP_FAILED);
 	}
-	UARTprintf("download <host> <filename> <url>\n\r");
+	//UARTprintf("download <host> <filename> <url>\n\r");
 	// Create a TCP connection to the Web Server
 	dl_sock = CreateConnection(ip);
 
@@ -1302,25 +1302,46 @@ bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg
 	char * filename=NULL, * url=NULL, * host=NULL, * path=NULL, * serial_flash_path=NULL, * serial_flash_name=NULL;
 
 	download_info.sd_card_filename.funcs.decode = _decode_string_field;
-	download_info.sd_card_filename.arg = filename;
+	download_info.sd_card_filename.arg = NULL;
 
 	download_info.sd_card_path.funcs.decode = _decode_string_field;
-	download_info.sd_card_path.arg = path;
+	download_info.sd_card_path.arg = NULL;
 
 	download_info.url.funcs.decode = _decode_string_field;
-	download_info.url.arg = url;
+	download_info.url.arg = NULL;
 
 	download_info.host.funcs.decode = _decode_string_field;
-	download_info.host.arg = host;
+	download_info.host.arg = NULL;
 
 	download_info.serial_flash_filename.funcs.decode = _decode_string_field;
-	download_info.serial_flash_filename.arg = serial_flash_name;
+	download_info.serial_flash_filename.arg = NULL;
 
 	download_info.serial_flash_path.funcs.decode = _decode_string_field;
-	download_info.serial_flash_path.arg = serial_flash_path;
+	download_info.serial_flash_path.arg = NULL;
 
+	UARTprintf("ota - parsing\n" );
 	if( !pb_decode(stream,SyncResponse_FileDownload_fields,&download_info) ) {
+		UARTprintf("ota - parse fail \n" );
 		return false;
+	}
+	filename = download_info.sd_card_filename.arg;
+	path = download_info.sd_card_path.arg;
+	url = download_info.url.arg;
+	host = download_info.host.arg;
+	serial_flash_name = download_info.serial_flash_filename.arg;
+	serial_flash_path = download_info.serial_flash_path.arg;
+
+	if( filename ) {
+		UARTprintf( "ota - filename: %s\n", filename);
+	}
+	if( url ) {
+		UARTprintf( "ota - url: %s\n",url);
+	}
+	if( host ) {
+		UARTprintf( "ota - host: %s\n",host);
+	}
+	if( path ) {
+		UARTprintf( "ota - path: %s\n",path);
 	}
 
 	if( filename && url && host && path ) {
@@ -1368,7 +1389,7 @@ bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg
 
 				sl_FsOpen((unsigned char *)full, FS_MODE_OPEN_CREATE(bytes_to_copy, _FS_FILE_OPEN_FLAG_NO_SIGNATURE_TEST | _FS_FILE_OPEN_FLAG_COMMIT ), NULL, &sflash_fh);
 				if( res != FR_OK ) {
-					UARTprintf("ota - failed to open file %s", full );
+					UARTprintf("ota - failed to open file %s\n", full );
 					return false;
 				}
 
@@ -1376,12 +1397,12 @@ bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg
 					//read from sd into buff
 					res = f_read( &file_obj, path_buff, bytes_to_copy<512?bytes_to_copy:512, &size );
 					if( res != FR_OK ) {
-						UARTprintf("ota - failed to read file %s", path_buff );
+						UARTprintf("ota - failed to read file %s\n", path_buff );
 						return false;
 					}
 					status = sl_FsWrite(sflash_fh, 0, (unsigned char*)buf, size);
 					if( status != size ) {
-						UARTprintf("ota - failed to write file %s", full );
+						UARTprintf("ota - failed to write file %s\n", full );
 						return false;
 					}
 					bytes_to_copy -= size;
@@ -1403,7 +1424,24 @@ bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg
 		        _WriteBootInfo(&sBootInfo);
                 mcu_reset();
 			}
+		} else {
+			UARTprintf("ota - file exists\n" );
 		}
+
 	}
+
+	if( filename ) {
+		vPortFree(filename);
+	}
+	if( url ) {
+		vPortFree(url);
+	}
+	if( host ) {
+		vPortFree(host);
+	}
+	if( path ) {
+		vPortFree(path);
+	}
+
 	return true;
 }
