@@ -644,6 +644,7 @@ void thread_dust(void * unused)  {
 static int light_m2,light_mean, light_cnt,light_log_sum,light_sf;
 static xSemaphoreHandle light_smphr;
 
+int disp_prox;
  xSemaphoreHandle i2c_smphr;
  int Cmd_led(int argc, char *argv[]) ;
 
@@ -670,18 +671,11 @@ void thread_fast_i2c_poll(void * unused)  {
 
 			prox_thresh = 400;
 
-/*
-			UARTprintf("%d, %d", hpf_prox, light);
-			static int cnt = 0;
-			if (++cnt == 3) {
-				UARTprintf("\n");
-			} else {
-				UARTprintf("\t");
-			}
-*/
-			//UARTprintf("PROX: %d um\n", prox);
-			if(hpf_prox > prox_thresh && now - last > 2000 ) {  // seems not very sensitive,  the noise in enclosure is in 100+ um level
-				UARTprintf("PROX: %d um, diff %d um, %d\n", prox, hpf_prox, light);
+			if( disp_prox ) {
+				xSemaphoreGive(i2c_smphr);
+				UARTprintf( "%d\t", hpf_prox );
+			} else if( hpf_prox > prox_thresh && now - last > 2000 ) {  // seems not very sensitive,  the noise in enclosure is in 100+ um level
+				//UARTprintf("PROX: %d um, diff %d um, %d\n", prox, hpf_prox, light);
 				last = now;
 				hpf_prox = 0;
 				xSemaphoreTake(alarm_smphr, portMAX_DELAY);
