@@ -119,6 +119,34 @@ tCircularBuffer *pRxBuffer;
 //    return(0);
 //}
 
+static unsigned int heap_high_mark = 0;
+static unsigned int heap_low_mark = 0xffffffff;
+static unsigned int heap_print=0;
+
+void usertraceMALLOC( void * pvAddress, size_t uiSize ) {
+	if( xPortGetFreeHeapSize() > heap_high_mark ) {
+		heap_high_mark = xPortGetFreeHeapSize();
+	}
+	if (xPortGetFreeHeapSize() < heap_low_mark) {
+		heap_low_mark = xPortGetFreeHeapSize();
+	}
+	if( heap_print ) {
+		UARTprintf( "%d +%d\n",xPortGetFreeHeapSize(), uiSize );
+	}
+}
+
+void usertraceFREE( void * pvAddress, size_t uiSize ) {
+	if (xPortGetFreeHeapSize() > heap_high_mark) {
+		heap_high_mark = xPortGetFreeHeapSize();
+	}
+	if (xPortGetFreeHeapSize() < heap_low_mark) {
+		heap_low_mark = xPortGetFreeHeapSize();
+	}
+	if( heap_print ) {
+		UARTprintf( "%d -%d\n",xPortGetFreeHeapSize(), uiSize );
+	}
+}
+
 // ==============================================================================
 // This function implements the "free" command.  It prints the free memory.
 // ==============================================================================
@@ -126,8 +154,11 @@ int Cmd_free(int argc, char *argv[]) {
 	//
 	// Print some header text.
 	//
-	UARTprintf("%d bytes free\n", xPortGetFreeHeapSize());
+	UARTprintf("%d bytes free\nhigh: %d low: %d\n", xPortGetFreeHeapSize(),heap_high_mark,heap_low_mark);
 
+    heap_high_mark = 0;
+	heap_low_mark = 0xffffffff;
+	heap_print = atoi(argv[1]);
 	// Return success.
 	return (0);
 }
