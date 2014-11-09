@@ -764,6 +764,7 @@ int GetChunkSize(int *len, unsigned char **p_Buff, unsigned long *chunk_size)
 
 //****************************************************************************
 #include "stdlib.h"
+#include "led_animations.h"
 int GetData(char * filename, char* url, char * host, char * path)
 {
     int           transfer_len = 0;
@@ -910,11 +911,14 @@ int GetData(char * filename, char* url, char * host, char * path)
     }
     uint32_t total = recv_size;
     int percent = 101-100*recv_size/total;
+	play_led_progress_bar(254, 0, 0, 0);
+
     while (0 < transfer_len)
     {
-    	if( 101-100*recv_size/total != percent ) {
-    		percent = 101-100*recv_size/total;
+    	if( 100-100*recv_size/total != percent ) {
+    		percent = 100-100*recv_size/total;
     		UARTprintf("dl loop %d %d\r\n", recv_size, percent );
+    		set_led_progress_bar( percent );
     	}
 
         // For chunked data recv_size contains the chunk size to be received
@@ -935,10 +939,12 @@ int GetData(char * filename, char* url, char * host, char * path)
                 if(res != FR_OK)
                 {
                 	cd( "/" );
+        			stop_led_animation();
                     return((int)res);
                 }
                 f_unlink( path_buff );
                 cd( "/" );
+    			stop_led_animation();
                 return r;
             }
             transfer_len -= recv_size;
@@ -983,11 +989,13 @@ int GetData(char * filename, char* url, char * host, char * path)
 
                         if(res != FR_OK)
                         {
+                			stop_led_animation();
                         	cd( "/" );
                             return((int)res);
                         }
                         f_unlink( path_buff );
                         cd( "/" );
+            			stop_led_animation();
                         return FILE_WRITE_ERROR;
                     }
                     transfer_len -= recv_size;
@@ -1031,10 +1039,12 @@ int GetData(char * filename, char* url, char * host, char * path)
                         if(res != FR_OK)
                         {
                         	cd( "/" );
+                			stop_led_animation();
                             return((int)res);
                         }
                         f_unlink( path_buff );
                         cd( "/" );
+            			stop_led_animation();
                         return FILE_WRITE_ERROR;
                     }
                     recv_size -= transfer_len;
@@ -1065,9 +1075,11 @@ int GetData(char * filename, char* url, char * host, char * path)
                 if(res != FR_OK)
                 {
                 	cd( "/" );
+        			stop_led_animation();
                     return((int)res);
                 }
                 f_unlink( path_buff );
+    			stop_led_animation();
                 return FILE_WRITE_ERROR;
             }
             bytesReceived +=transfer_len;
@@ -1081,11 +1093,14 @@ int GetData(char * filename, char* url, char * host, char * path)
         if(transfer_len <= 0) {
         	UARTprintf("TCP_RECV_ERROR\r\n" );
         	cd( "/" );
+			stop_led_animation();
             return TCP_RECV_ERROR;
         }
 
         pBuff = g_buff;
     }
+
+	stop_led_animation();
 
     //
     // If user file has checksum which can be used to verify the temporary
@@ -1347,7 +1362,7 @@ bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg
 	if( filename && url && host && path ) {
 		if( !file_exists(filename, path) ) {
 			//download it!
-			download_file( host, filename, url, path );
+			download_file( host, url, filename, path );
 
 			if( download_info.has_copy_to_serial_flash && serial_flash_name && serial_flash_path ) {
 				char * full;

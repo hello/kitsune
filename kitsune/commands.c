@@ -668,13 +668,6 @@ void thread_fast_i2c_poll(void * unused)  {
 
 			hpf_prox += ( abs(last_prox - prox) - hpf_prox )>>1;   // The noise in enclosure is in 100+ um level
 
-			if( light < 30 ) {
-				prox_thresh = 25;
-			} else if( light < 50 ) {
-				prox_thresh = 100;
-			} else {
-				prox_thresh = 400;
-			}
 			prox_thresh = 300;
 
 /*
