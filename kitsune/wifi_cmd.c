@@ -1411,15 +1411,20 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
     _set_led_color_based_on_room_conditions(response_protobuf);
     
 }
-
+#define SERVER_REPLY_BUFSZ 1024
 //retry logic is handled elsewhere
 int send_pill_data(batched_pill_data * pill_data) {
-    char buffer[1024] = {0};
-    int ret = NetworkTask_SynchronousSendProtobuf(PILL_DATA_RECEIVE_ENDPOINT, buffer, sizeof(buffer), batched_pill_data_fields, pill_data, 0);
+    char *  buffer = pvPortMalloc(SERVER_REPLY_BUFSZ);
+
+    assert(buffer);
+    memset(buffer, 0, SERVER_REPLY_BUFSZ);
+
+    int ret = NetworkTask_SynchronousSendProtobuf(PILL_DATA_RECEIVE_ENDPOINT, buffer, SERVER_REPLY_BUFSZ, batched_pill_data_fields, pill_data, 0);
     if(ret != 0)
     {
         // network error
         UARTprintf("Send pill data failed, network error %d\n", ret);
+        vPortFree(buffer);
         return ret;
     }
     // Parse the response
@@ -1430,26 +1435,32 @@ int send_pill_data(batched_pill_data * pill_data) {
     char * len_str = strstr(buffer, header_content_len) + strlen(header_content_len);
     if (http_response_ok(buffer) != 1) {
         UARTprintf("Invalid response, endpoint return failure.\n");
+        vPortFree(buffer);
         return -1;
     }
+    vPortFree(buffer);
     return 0;
 }
 
 int send_periodic_data(periodic_data* data) {
-    char buffer[256] = {0};
+    char *  buffer = pvPortMalloc(SERVER_REPLY_BUFSZ);
 
     int ret;
+
+    assert(buffer);
+    memset(buffer, 0, SERVER_REPLY_BUFSZ);
 
     data->name.funcs.encode = encode_name;
     data->mac.funcs.encode = encode_mac;  // Now this is a fallback, the backend will not use this at the first hand
     data->device_id.funcs.encode = encode_mac_as_device_id_string;
 
-    ret = NetworkTask_SynchronousSendProtobuf(DATA_RECEIVE_ENDPOINT, buffer, sizeof(buffer), periodic_data_fields, data, 0);
+    ret = NetworkTask_SynchronousSendProtobuf(DATA_RECEIVE_ENDPOINT, buffer, SERVER_REPLY_BUFSZ, periodic_data_fields, data, 0);
     if(ret != 0)
     {
         // network error
     	sl_status &= ~UPLOADING;
         UARTprintf("Send data failed, network error %d\n", ret);
+        vPortFree(buffer);
         return ret;
     }
 
@@ -1462,12 +1473,14 @@ int send_periodic_data(periodic_data* data) {
     if (http_response_ok(buffer) != 1) {
     	sl_status &= ~UPLOADING;
         UARTprintf("Invalid response, endpoint return failure.\n");
+        vPortFree(buffer);
         return -1;
     }
     
     if (len_str == NULL) {
     	sl_status &= ~UPLOADING;
         UARTprintf("Failed to find Content-Length header\n");
+        vPortFree(buffer);
         return -1;
     }
     int len = atoi(len_str);
@@ -1488,9 +1501,10 @@ int send_periodic_data(periodic_data* data) {
 
 		_on_response_protobuf(&response_protobuf);
         sl_status |= UPLOADING;
+        vPortFree(buffer);
         return 0;
     }
-
+    vPortFree(buffer);
     return -1;
 }
 
