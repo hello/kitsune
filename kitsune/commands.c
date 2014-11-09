@@ -306,8 +306,28 @@ int play_ringtone(int vol, char * file) {
 
 	unsigned int CPU_XDATA = 0; //1: enabled CPU interrupt triggerred; 0: DMA
 
-// Create RX and TX Buffer
+	{ //naked block so the compiler can pop these off the stack...
+	  //check the file exists and is bug enough for a few seconds
+		FIL fp;
+		FILINFO file_info;
+		FRESULT res;
+		res = f_open(&fp, file, FA_READ);
+
+		if (res != FR_OK) {
+			UARTprintf("Failed to open audio file %d\n\r", res);
+			return -1;
+		}
+		f_stat(file, &file_info);
+		f_close( &fp );
+		if (file_info.fsize < 256000) {
+			UARTprintf("audio file too small %d\n\r", file_info.fsize );
+			return -1;
+		}
+	}
+
 //
+	// Create RX and TX Buffer
+
 	UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
 	AudioProcessingTask_FreeBuffers();
 	UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
@@ -615,10 +635,26 @@ void thread_fast_i2c_poll(void * unused)  {
 			// for white one, 9mm distance max.
 			prox = get_prox();  // now this thing is in um.
 
-			hpf_prox += ( (last_prox - prox) - hpf_prox );   // The noise in enclosure is in 100+ um level
+			hpf_prox += ( abs(last_prox - prox) - hpf_prox )>>1;   // The noise in enclosure is in 100+ um level
 
-			prox_thresh = light*3+5;
+			if( light < 30 ) {
+				prox_thresh = 25;
+			} else if( light < 50 ) {
+				prox_thresh = 100;
+			} else {
+				prox_thresh = 400;
+			}
+			prox_thresh = 300;
 
+/*
+			UARTprintf("%d, %d", hpf_prox, light);
+			static int cnt = 0;
+			if (++cnt == 3) {
+				UARTprintf("\n");
+			} else {
+				UARTprintf("\t");
+			}
+*/
 			//UARTprintf("PROX: %d um\n", prox);
 			if(hpf_prox > prox_thresh && now - last > 2000 ) {  // seems not very sensitive,  the noise in enclosure is in 100+ um level
 				UARTprintf("PROX: %d um, diff %d um, %d\n", prox, hpf_prox, light);
