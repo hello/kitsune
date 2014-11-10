@@ -612,10 +612,11 @@ static xSemaphoreHandle light_smphr;
 
  xSemaphoreHandle i2c_smphr;
  int Cmd_led(int argc, char *argv[]) ;
-
+#include "gesture.h"
 void thread_fast_i2c_poll(void * unused)  {
 	int last_prox =0;
 	portTickType last = 0;
+	gesture_init(NULL);
 	while (1) {
 		portTickType now = xTaskGetTickCount();
 		int light;
@@ -635,6 +636,7 @@ void thread_fast_i2c_poll(void * unused)  {
 			hpf_prox += ( (last_prox - prox) - hpf_prox )>>2;   // The noise in enclosure is in 100+ um level
 
 			//UARTprintf("PROX: %d um\n", prox);
+			gesture_input(prox, light);
 			if(hpf_prox > 400 && now - last > 2000 ) {  // seems not very sensitive,  the noise in enclosure is in 100+ um level
 				UARTprintf("PROX: %d um, diff %d um\n", prox, hpf_prox);
 				last = now;
