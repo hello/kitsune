@@ -10,6 +10,7 @@
 #define MORPHEUS_REGISTER_ENDPOINT          "/register/morpheus"
 #define PILL_REGISTER_ENDPOINT              "/register/pill"
 
+
 #define PILL_MAGIC 0xAAAAAAAA
 #include "FreeRTOS.h"
 #include "semphr.h"
