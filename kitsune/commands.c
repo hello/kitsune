@@ -443,10 +443,34 @@ void untime(unsigned long unixtime, SlDateTime_t *tm)
     tm->sl_tm_day = unixtime;
 }
 
+static unsigned long last_ntp = 0;
+uint64_t get_cache_time()
+{
+	if(!last_ntp)
+	{
+		return 0;
+	}
+
+	SlDateTime_t dt =  {0};
+	uint8_t configLen = sizeof(SlDateTime_t);
+	uint8_t configOpt = SL_DEVICE_GENERAL_CONFIGURATION_DATE_TIME;
+	int32_t ret = sl_DevGet(SL_DEVICE_GENERAL_CONFIGURATION,&configOpt, &configLen,(_u8 *)(&dt));
+	if(ret != 0)
+	{
+		UARTprintf("sl_DevGet failed, err: %d\n", ret);
+		return 0;
+	}
+
+	uint64_t ntp = dt.sl_tm_sec + dt.sl_tm_min*60 + dt.sl_tm_hour*3600 + dt.sl_tm_year_day*86400 +
+				(dt.sl_tm_year-70)*31536000 + ((dt.sl_tm_year-69)/4)*86400 -
+				((dt.sl_tm_year-1)/100)*86400 + ((dt.sl_tm_year+299)/400)*86400 + 171398145;
+	return ntp;
+}
+
 unsigned long get_time() {
 	portTickType now = xTaskGetTickCount();
 	unsigned long ntp = 0;
-	static unsigned long last_ntp = 0;
+
 	unsigned int tries = 0;
 
 	if (last_ntp == 0) {
@@ -475,14 +499,7 @@ unsigned long get_time() {
 		}
 
 	} else if (last_ntp != 0) {
-        SlDateTime_t dt =  {0};
-        _u8 configLen = sizeof(SlDateTime_t);
-        _u8 configOpt = SL_DEVICE_GENERAL_CONFIGURATION_DATE_TIME;
-        sl_DevGet(SL_DEVICE_GENERAL_CONFIGURATION,&configOpt, &configLen,(_u8 *)(&dt));
-
-        ntp = dt.sl_tm_sec + dt.sl_tm_min*60 + dt.sl_tm_hour*3600 + dt.sl_tm_year_day*86400 +
-				(dt.sl_tm_year-70)*31536000 + ((dt.sl_tm_year-69)/4)*86400 -
-				((dt.sl_tm_year-1)/100)*86400 + ((dt.sl_tm_year+299)/400)*86400 + 171398145;
+        ntp = get_cache_time();
 	}
 	return ntp;
 }

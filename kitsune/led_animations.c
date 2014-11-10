@@ -11,7 +11,7 @@ struct _colors{
 };
 static struct{
 	int counter;
-	bool sig_continue;
+	volatile bool sig_continue;
 	struct _colors colors[NUM_LED],prev_colors[NUM_LED];
 	int progress_bar_percent;
 }self;
