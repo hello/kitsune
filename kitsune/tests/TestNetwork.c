@@ -13,6 +13,8 @@
 #include "../debugutils/matmessageutils.h"
 #include "../wifi_cmd.h"
 
+#include "led_cmd.h"
+
 #include "uartstdio.h"
 
 /*
@@ -208,12 +210,18 @@ static void RunTest(TestFunc_t test,const char * name,int32_t expected_code) {
 
 	if (ret == expected_code) {
 		DEBUG_PRINTF("SUCCESS -- %s -- expecting code %d",name,expected_code);
+		led_set_user_color(0,255,0); //green
 	}
 	else {
 		for (i = 0; i < 25; i++) {
 			DEBUG_PRINTF("FAIL -- %s --  code %d",name,ret);
+			led_set_user_color(255,0,0); //red rum
 		}
 	}
+
+	vTaskDelay(2000);
+
+	led_set_user_color(0,0,0);
 
 
 }
