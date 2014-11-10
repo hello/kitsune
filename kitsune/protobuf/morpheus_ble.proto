@@ -39,6 +39,13 @@ message wifi_endpoint {
 	required sec_type security_type = 5;
 }
 
+enum wifi_connection_state {
+	NO_WLAN_CONNECTED = 0;
+	WLAN_CONNECTING = 1;
+	WLAN_CONNECTED = 2;
+	INTERNET_CONNECTED = 3;
+}
+
 message pill_data {
 	required string device_id = 1;
 	optional int32 battery_level = 2;
@@ -83,13 +90,13 @@ message MorpheusCommand {
 	optional string wifiPassword = 8;
 	optional int32 batteryLevel = 9;
 	optional int32 uptime = 10;
-	optional int32 motionData = 11;
-	optional bytes motionDataEntrypted = 12;
+	// optional int32 motionData = 11;   // This field is removed, to make thing explicit, please DONOT remove the line
+	// optional bytes motionDataEntrypted = 12;   // This field is removed, to make thing explicit, please DONOT remove the line
 	optional int32 firmwareVersion = 13;
 	repeated wifi_endpoint wifi_scan_result = 14;
 	optional wifi_endpoint.sec_type security_type = 15;
-
 	optional pill_data pill_data = 16;
+	optional wifi_connection_state wifi_connection_state = 17;
 }
 
 message batched_pill_data {

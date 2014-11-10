@@ -206,6 +206,23 @@ static void _ble_reply_wifi_info(){
 	{
 		reply_command.wifiSSID.arg = ssid;
 	}
+
+    reply_command.has_wifi_connection_state = true;
+    reply_command.wifi_connection_state = wifi_connection_state_NO_WLAN_CONNECTED;
+
+    if(sl_status & CONNECTING){
+        reply_command.wifi_connection_state = wifi_connection_state_WLAN_CONNECTING;
+    }
+
+    if(sl_status & CONNECT){
+        reply_command.wifi_connection_state = wifi_connection_state_WLAN_CONNECTED;
+    }
+
+    if(sl_status & HAS_IP)
+    {
+        reply_command.wifi_connection_state = wifi_connection_state_INTERNET_CONNECTED;
+    }
+
 	ble_send_protobuf(&reply_command);
 }
 
