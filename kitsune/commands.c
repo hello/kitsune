@@ -1458,7 +1458,7 @@ void vUARTTask(void *pvParameters) {
 	}
 
 	xTaskCreate(top_board_task, "top_board_task", 1024 / 4, NULL, 2, NULL);
-	xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 4, NULL);
+	xTaskCreate(thread_alarm, "alarmTask", 2*1024 / 4, NULL, 4, NULL);
 
 	UARTprintf("*");
 	xTaskCreate(thread_spi, "spiTask", 3*1024 / 4, NULL, 5, NULL); //this one doesn't look like much, but has to parse all the pb from bluetooth
