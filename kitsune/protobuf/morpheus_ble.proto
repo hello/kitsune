@@ -43,7 +43,7 @@ enum wifi_connection_state {
 	NO_WLAN_CONNECTED = 0;
 	WLAN_CONNECTING = 1;
 	WLAN_CONNECTED = 2;
-	INTERNET_CONNECTED = 3;
+	IP_RETRIEVED = 3;
 }
 
 message pill_data {
