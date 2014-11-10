@@ -220,7 +220,7 @@ static void _ble_reply_wifi_info(){
 
     if(sl_status & HAS_IP)
     {
-        reply_command.wifi_connection_state = wifi_connection_state_INTERNET_CONNECTED;
+        reply_command.wifi_connection_state = wifi_connection_state_IP_RETRIEVED;
     }
 
 	ble_send_protobuf(&reply_command);
