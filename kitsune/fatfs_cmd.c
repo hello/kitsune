@@ -1217,6 +1217,18 @@ int Cmd_download(int argc, char*argv[]) {
 #define IMG_ACT_USER1           1
 #define IMG_ACT_USER2           2
 
+//*****************************************************************************
+// User image tokens
+//*****************************************************************************
+#define FACTORY_IMG_TOKEN       0x5555AAAA
+#define USER_IMG_1_TOKEN        0xAA5555AA
+#define USER_IMG_2_TOKEN        0x55AAAA55
+#define USER_BOOT_INFO_TOKEN    0xA5A55A5A
+
+#define DEVICE_IS_CC3101RS      0x18
+#define DEVICE_IS_CC3101S       0x1B
+
+
 /******************************************************************************
    Boot Info structure
 *******************************************************************************/
@@ -1228,37 +1240,99 @@ typedef struct sBootInfo
 }sBootInfo_t;
 
 void mcu_reset();
-void nwp_reset();
+_i16 nwp_reset();
+
+
+//*****************************************************************************
+//
+//! Checks if the device is secure
+//!
+//! This function checks if the device is a secure device or not.
+//!
+//! \return Returns \b true if device is secure, \b false otherwise
+//
+//*****************************************************************************
+#include "hw_ints.h"
+#include "hw_types.h"
+#include "hw_memmap.h"
+#include "hw_gprcm.h"
+#include "hw_common_reg.h"
+
+static inline int IsSecureMCU()
+{
+  unsigned long ulChipId;
+
+  ulChipId =(HWREG(GPRCM_BASE + GPRCM_O_GPRCM_EFUSE_READ_REG2) >> 16) & 0x1F;
+
+  if((ulChipId != DEVICE_IS_CC3101RS) &&(ulChipId != DEVICE_IS_CC3101S))
+  {
+    //
+    // Return non-Secure
+    //
+    return false;
+  }
+
+  //
+  // Return secure
+  //
+  return true;
+}
+
 
 /* Save bootinfo on ImageCommit call */
 static sBootInfo_t sBootInfo;
 
 static _i32 _WriteBootInfo(sBootInfo_t *psBootInfo)
 {
-    _i32 lFileHandle;
-    _u32 ulToken;
-    _i32 status = -1;
+    _i32 hndl;
+    unsigned long ulBootInfoToken;
+    unsigned long ulBootInfoCreateFlag;
 
-    if( 0 == sl_FsOpen((unsigned char *)IMG_BOOT_INFO, FS_MODE_OPEN_WRITE, &ulToken, &lFileHandle) )
+    //
+    // Initialize boot info file create flag
+    //
+    ulBootInfoCreateFlag  = _FS_FILE_OPEN_FLAG_COMMIT|_FS_FILE_PUBLIC_WRITE;
+
+    //
+    // Check if its a secure MCU
+    //
+    if ( IsSecureMCU() )
     {
-        if( 0 < sl_FsWrite(lFileHandle, 0, (_u8 *)psBootInfo, sizeof(sBootInfo_t)) )
-        {
-            UARTprintf("WriteBootInfo: ucActiveImg=%d, ulImgStatus=0x%x\n\r", psBootInfo->ucActiveImg, psBootInfo->ulImgStatus);
-            status = 0;
-        }
-        sl_FsClose(lFileHandle, 0, 0, 0);
+      ulBootInfoToken       = USER_BOOT_INFO_TOKEN;
+      ulBootInfoCreateFlag  = _FS_FILE_OPEN_FLAG_COMMIT|_FS_FILE_OPEN_FLAG_SECURE|
+                              _FS_FILE_OPEN_FLAG_NO_SIGNATURE_TEST|
+                              _FS_FILE_PUBLIC_WRITE|_FS_FILE_OPEN_FLAG_VENDOR;
     }
 
-    return status;
+
+	if (sl_FsOpen((unsigned char *)IMG_BOOT_INFO, FS_MODE_OPEN_WRITE, &ulBootInfoToken, &hndl)) {
+		UARTprintf("error opening file, trying to create\n");
+
+		if (sl_FsOpen((unsigned char *)IMG_BOOT_INFO, ulBootInfoCreateFlag, &ulBootInfoToken, &hndl)) {
+			return -1;
+		}
+	}
+	if( 0 < sl_FsWrite(hndl, 0, (_u8 *)psBootInfo, sizeof(sBootInfo_t)) )
+	{
+		UARTprintf("WriteBootInfo: ucActiveImg=%d, ulImgStatus=0x%x\n\r", psBootInfo->ucActiveImg, psBootInfo->ulImgStatus);
+	}
+	sl_FsClose(hndl, 0, 0, 0);
+    return 0;
 }
 
 static _i32 _ReadBootInfo(sBootInfo_t *psBootInfo)
 {
     _i32 lFileHandle;
-    _u32 ulToken;
     _i32 status = -1;
-
-    if( 0 == sl_FsOpen((unsigned char *)IMG_BOOT_INFO, FS_MODE_OPEN_READ, &ulToken, &lFileHandle) )
+    unsigned long ulBootInfoToken;
+    //
+    // Check if its a secure MCU
+    //
+    if ( IsSecureMCU() )
+    {
+      ulBootInfoToken       = USER_BOOT_INFO_TOKEN;
+    }
+    if( 0 == sl_FsOpen((unsigned char *)IMG_BOOT_INFO, FS_MODE_OPEN_READ, &ulBootInfoToken, &lFileHandle) )
     {
         if( 0 < sl_FsRead(lFileHandle, 0, (_u8 *)psBootInfo, sizeof(sBootInfo_t)) )
         {
@@ -1267,7 +1341,6 @@ static _i32 _ReadBootInfo(sBootInfo_t *psBootInfo)
         }
         sl_FsClose(lFileHandle, 0, 0, 0);
     }
-
     return status;
 }
 static _i32 _McuImageGetNewIndex(void)
@@ -1290,22 +1363,37 @@ static _i32 _McuImageGetNewIndex(void)
 
     return newImageIndex;
 }
+#include "wifi_cmd.h"
+#include "FreeRTOS.h"
+#include "task.h"
 
 void boot_commit_ota() {
     _ReadBootInfo(&sBootInfo);
 
+	UARTprintf("commit status %x\n", sBootInfo.ulImgStatus);
     /* Check only on status TESTING */
     if( IMG_STATUS_TESTING == sBootInfo.ulImgStatus )
 	{
+    	while( !(sl_status & HAS_IP)) {
+    		if( xTaskGetTickCount() > 120000) {
+    			mcu_reset(); //no ip in 2 minutes, give up...
+    		}
+    		vTaskDelay(100);
+    	}
 		UARTprintf("Booted in testing mode\n");
 		sBootInfo.ulImgStatus = IMG_STATUS_NOTEST;
 		sBootInfo.ucActiveImg = (sBootInfo.ucActiveImg == IMG_ACT_USER1)?
 								IMG_ACT_USER2:
 								IMG_ACT_USER1;
-		/* prepare switch image condition to the MCU boot loader */
 		_WriteBootInfo(&sBootInfo);
-		mcu_reset();
 	}
+    //rm("mcuimgx.bin");
+}
+
+#include "wifi_cmd.h"
+int Cmd_version(int argc, char *argv[]) {
+	UARTprintf( "ver: %d\nimg: %d\nstatus: %x\n", KIT_VER, sBootInfo.ucActiveImg, sBootInfo.ulImgStatus );
+	return 0;
 }
 
 int send_top(char *, int);
@@ -1406,7 +1494,7 @@ bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg
 			    f_stat( path_buff, &file_info );
 			    DWORD bytes_to_copy = file_info.fsize;
 
-			    if (strstr(full, "/sys/mcuimgx") != 0 )
+			    if (strstr(full, "/sys/mcuimg") != 0 )
 			    {
 			    	_ReadBootInfo(&sBootInfo);
 			        full[11] = (_u8)_McuImageGetNewIndex() + '1'; /* mcuimg1 is for factory default, mcuimg2,3 are for OTA updates */
@@ -1418,8 +1506,7 @@ bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg
 					UARTprintf("ota - failed to open file %s\n", full );
 					return false;
 				}
-				SlFsFileInfo_t info;
-				sl_FsGetInfo((unsigned char*)full, 0, &info);
+				int file_len = bytes_to_copy;
 
 				UARTprintf( "copying %d from %s on sd to %s on sflash\n", bytes_to_copy, path_buff, full);
 				while( bytes_to_copy > 0 ) {
@@ -1429,29 +1516,33 @@ bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg
 						UARTprintf("ota - failed to read file %s\n", path_buff );
 						return false;
 					}
-					status = sl_FsWrite(sflash_fh, info.FileLen, (unsigned char*)buf, size);
+					UARTprintf( "offset %d, left %d, chunk %d\n",  file_len-bytes_to_copy, bytes_to_copy,size );
+					status = sl_FsWrite(sflash_fh, file_len-bytes_to_copy, (unsigned char*)buf, size);
 					if( status != size ) {
 						UARTprintf("ota - failed to write file %s\n", full );
 						return false;
 					}
 					bytes_to_copy -= size;
 				}
+				UARTprintf( "done, closing\n" );
 				sl_FsClose(sflash_fh,0,0,0);
-			    //close on sd
+			    f_close(&file_obj);
 
 				if( strcmp(full, "/top/update") == 0 ) {
 					send_top("dfu", strlen("dfu"));
 				}
 			}
-			if( download_info.reset_network_processor ) {
-				nwp_reset();
-			}
-			if( download_info.reset_application_processor ) {
+			if( download_info.has_reset_application_processor && download_info.reset_application_processor ) {
 		        UARTprintf("change image status to IMG_STATUS_TESTREADY\n\r");
 		        _ReadBootInfo(&sBootInfo);
 		        sBootInfo.ulImgStatus = IMG_STATUS_TESTREADY;
+		        //sBootInfo.ucActiveImg this is set by boot loader
 		        _WriteBootInfo(&sBootInfo);
-                mcu_reset();
+		        mcu_reset();
+			}
+			if( download_info.has_reset_network_processor && download_info.reset_network_processor ) {
+				UARTprintf( "reset nwp\n" );
+				nwp_reset();
 			}
 		} else {
 			UARTprintf("ota - file exists\n" );

@@ -57,10 +57,11 @@ void mcu_reset()
 }
 
 #define SL_STOP_TIMEOUT                 (30)
-void nwp_reset() {
+_i16 nwp_reset() {
     sl_WlanSetMode(ROLE_STA);
     sl_Stop(SL_STOP_TIMEOUT);
-    sl_mode = sl_Start(NULL, NULL, NULL);
+    sl_status = 0;
+    return sl_Start(NULL, NULL, NULL);
 }
 
 //*****************************************************************************

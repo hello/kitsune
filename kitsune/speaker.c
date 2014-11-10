@@ -121,7 +121,7 @@ void Speaker1(char * file)
 
 		/* Wait to avoid buffer overflow as reading speed is faster than playback */
 		while ((IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) == TRUE)) {
-			vTaskDelay(2);
+			vTaskDelay(0);
 		};
 
 		if (size > 0) {

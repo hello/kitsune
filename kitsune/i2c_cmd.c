@@ -364,7 +364,7 @@ int Cmd_readlight(int argc, char *argv[]) {
 		unsigned char prx_cmd_init[2];
 
 		prx_cmd_init[0] = 0x82;
-		prx_cmd_init[1] = rate;	//0b110; // 15hz
+		prx_cmd_init[1] = rate;	//0b011; // 15hz
 		TRY_OR_GOTOFAIL(I2C_IF_Write(0x13, prx_cmd_init, 2, 1));
 
 		prx_cmd_init[0] = 0x8f;
@@ -386,12 +386,12 @@ int init_prox_sensor()
 	unsigned char prx_cmd_init[2];
 
 	prx_cmd_init[0] = 0x82;
-	prx_cmd_init[1] = 0b110; // 15hz
+	prx_cmd_init[1] = 0b10; // 8hz
 	TRY_OR_GOTOFAIL(I2C_IF_Write(0x13, prx_cmd_init, 2, 1) );
 
 	prx_cmd_init[0] = 0x8f;
 	//                  ---++--- delay, frequency, dead time
-	prx_cmd_init[1] = 0b01100001; // 15hz
+	prx_cmd_init[1] = 0b10000001; // 15hz
 	TRY_OR_GOTOFAIL(I2C_IF_Write(0x13, prx_cmd_init, 2, 1) );
 
 	prx_cmd_init[0] = 0x83; // Current setting register

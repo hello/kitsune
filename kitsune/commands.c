@@ -1306,6 +1306,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "download", Cmd_download, ""},//download test function.
 		{ "dtm", Cmd_top_dtm, "" },//Sends Direct Test Mode command
 		{ "animate", Cmd_led_animate, ""},//Animates led
+		{ "ver", Cmd_version, ""},//Animates led
 
 		{ 0, 0, 0 } };
 
@@ -1384,6 +1385,8 @@ void vUARTTask(void *pvParameters) {
 		sl_mode = sl_Start(NULL, NULL, NULL);
 	}
 	UARTprintf("*");
+
+	boot_commit_ota(); //check we can get IP if OTA...
 
 	// Set connection policy to Auto
 	sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0), NULL, 0);
@@ -1469,9 +1472,6 @@ void vUARTTask(void *pvParameters) {
 			mac[3], mac[4], mac[5]);
 	UARTprintf("\n? for help\n");
 	UARTprintf("> ");
-
-	/* if we get this far it must be an ok image... */
-	boot_commit_ota();
 
 	/* remove anything we recieved before we were ready */
 
