@@ -114,6 +114,6 @@ bool encode_mac_as_device_id_string(pb_ostream_t *stream, const pb_field_t *fiel
 bool encode_name(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 
 #define MORPH_NAME ""
-#define KIT_VER 17
+#define KIT_VER 18
 
 #endif
