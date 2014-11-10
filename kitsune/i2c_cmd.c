@@ -354,6 +354,29 @@ int get_light() {
 
 int Cmd_readlight(int argc, char *argv[]) {
 	UARTprintf(" light is %d\n", get_light());
+	if (argc > 1) {
+		int rate = atoi(argv[1]);
+		int delay = atoi(argv[2]);
+		int freq = atoi(argv[3]);
+		int dead = atoi(argv[4]);
+		int power = atoi(argv[5]);
+
+		unsigned char prx_cmd_init[2];
+
+		prx_cmd_init[0] = 0x82;
+		prx_cmd_init[1] = rate;	//0b011; // 15hz
+		TRY_OR_GOTOFAIL(I2C_IF_Write(0x13, prx_cmd_init, 2, 1));
+
+		prx_cmd_init[0] = 0x8f;
+		//                    ---++--- delay, frequency, dead time
+        //prx_cmd_init[1] = 0b01100001; // 15hz
+		prx_cmd_init[1] = (delay << 5) | (freq << 3) | (dead); // 15hz
+		TRY_OR_GOTOFAIL(I2C_IF_Write(0x13, prx_cmd_init, 2, 1));
+
+		prx_cmd_init[0] = 0x83; // Current setting register
+		prx_cmd_init[1] = power; // Value * 10mA
+		TRY_OR_GOTOFAIL(I2C_IF_Write(0x13, prx_cmd_init, 2, 1));
+	}
 
 	return SUCCESS;
 }
@@ -362,9 +385,14 @@ int init_prox_sensor()
 {
 	unsigned char prx_cmd_init[2];
 
-//		prx_cmd_init[0] = 0x82;
-//		prx_cmd_init[1] = 111; // max speed
-//		TRY_OR_GOTOFAIL(I2C_IF_Write(0x13, prx_cmd_init, 2, 1) );
+	prx_cmd_init[0] = 0x82;
+	prx_cmd_init[1] = 0b10; // 8hz
+	TRY_OR_GOTOFAIL(I2C_IF_Write(0x13, prx_cmd_init, 2, 1) );
+
+	prx_cmd_init[0] = 0x8f;
+	//                  ---++--- delay, frequency, dead time
+	prx_cmd_init[1] = 0b10000001; // 15hz
+	TRY_OR_GOTOFAIL(I2C_IF_Write(0x13, prx_cmd_init, 2, 1) );
 
 	prx_cmd_init[0] = 0x83; // Current setting register
 	prx_cmd_init[1] = 20; // Value * 10mA
@@ -399,9 +427,12 @@ int get_prox() {
 	return 200000 - proximity_raw * 200000 / 65536;
 
 }
-
+extern int disp_prox;
 int Cmd_readproximity(int argc, char *argv[]) {
-	UARTprintf(" proximity is %d\n", get_prox());
+	UARTprintf(" proximity is %d %d %s\n", get_prox(), argc, argv[1]);
+	if( argc == 2 ) {
+		disp_prox = atoi(argv[1]);
+	}
 	return SUCCESS;
 }
 

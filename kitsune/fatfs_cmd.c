@@ -23,6 +23,8 @@
 #include "ff.h"
 #include "diskio.h"
 
+#include "FreeRTOS.h"
+
 
 //*****************************************************************************
 //
@@ -306,19 +308,10 @@ FRESULT cd( char * path ) {
     // return.
     if(res != FR_OK)
     {
-        UARTprintf("cd: %s\n",path_buff);
-        UARTprintf("cd: failed, trying to make dir");
-        res = f_mkdir(path_buff);
-		if (res != FR_OK) {
-			return ( res);
-		}
-    }
+		return ( res);
+	}
 
-    // Otherwise, it is a valid new path, so copy it into the CWD.
-    else
-    {
-        strncpy(cwd_buff,path_buff, sizeof(cwd_buff));
-    }
+    strncpy(cwd_buff,path_buff, sizeof(cwd_buff));
     return(FR_OK);
 }
 
@@ -475,6 +468,7 @@ Cmd_write(int argc, char *argv[])
 
     }
 
+
     // Open the file for writing.
     FRESULT res = f_open(&file_obj, path_buff, FA_CREATE_NEW|FA_WRITE|FA_OPEN_ALWAYS);
     UARTprintf("res :%d\n",res);
@@ -506,11 +500,11 @@ Cmd_write(int argc, char *argv[])
 }
 
 int
-Cmd_rm(int argc, char *argv[])
+rm(char * file)
 {
     FRESULT res;
 
-    if(global_filename( argv[1] ))
+    if(global_filename( file ))
     {
     	return 1;
     }
@@ -524,13 +518,16 @@ Cmd_rm(int argc, char *argv[])
 
     return(0);
 }
-
 int
-Cmd_mkdir(int argc, char *argv[])
+Cmd_rm(int argc, char *argv[])
 {
+	return rm(argv[1]);
+}
+
+int mkdir( char * path ) {
     FRESULT res;
 
-    if(global_filename( argv[1] ))
+    if(global_filename( path ))
     {
     	return 1;
     }
@@ -541,6 +538,12 @@ Cmd_mkdir(int argc, char *argv[])
         return((int)res);
     }
     return(0);
+}
+
+int
+Cmd_mkdir(int argc, char *argv[])
+{
+	return mkdir(argv[1]);
 }
 
 
@@ -761,6 +764,7 @@ int GetChunkSize(int *len, unsigned char **p_Buff, unsigned long *chunk_size)
 
 //****************************************************************************
 #include "stdlib.h"
+#include "led_animations.h"
 int GetData(char * filename, char* url, char * host, char * path)
 {
     int           transfer_len = 0;
@@ -873,23 +877,27 @@ int GetData(char * filename, char* url, char * host, char * path)
     pBuff += 4;
 
     // Adjust buffer data length for header size
-    transfer_len -= (pBuff - g_buff);
+    if( (pBuff - g_buff) < transfer_len ) {
+    	transfer_len -= (pBuff - g_buff);
+    } else {
+    	transfer_len = 0;
+    	return -1;
+    }
 
     // If data in chunked format, calculate the chunk size
     if(isChunked == 1)
     {
         r = GetChunkSize(&transfer_len, &pBuff, &recv_size);
     }
+    FRESULT res;
 
-    FRESULT res = cd( path );
-
-    if( res != FR_OK ) {
-    	UARTprintf( "can't make/open dir %s", path );
-    }
+	mkdir( path );
+	cd( path );
 
     /* Open file to save the downloaded file */
     if(global_filename( filename ))
     {
+    	cd( "/" );
     	return 1;
     }
     // Open the file for writing.
@@ -898,15 +906,19 @@ int GetData(char * filename, char* url, char * host, char * path)
 
     if(res != FR_OK && res != FR_EXIST){
     	UARTprintf("File open %s failed: %d\n", path_buff, res);
+    	cd( "/" );
     	return res;
     }
     uint32_t total = recv_size;
     int percent = 101-100*recv_size/total;
+	play_led_progress_bar(254, 0, 0, 0);
+
     while (0 < transfer_len)
     {
-    	if( 101-100*recv_size/total != percent ) {
-    		percent = 101-100*recv_size/total;
+    	if( 100-100*recv_size/total != percent ) {
+    		percent = 100-100*recv_size/total;
     		UARTprintf("dl loop %d %d\r\n", recv_size, percent );
+    		set_led_progress_bar( percent );
     	}
 
         // For chunked data recv_size contains the chunk size to be received
@@ -926,9 +938,13 @@ int GetData(char * filename, char* url, char * host, char * path)
 
                 if(res != FR_OK)
                 {
+                	cd( "/" );
+        			stop_led_animation();
                     return((int)res);
                 }
                 f_unlink( path_buff );
+                cd( "/" );
+    			stop_led_animation();
                 return r;
             }
             transfer_len -= recv_size;
@@ -973,10 +989,13 @@ int GetData(char * filename, char* url, char * host, char * path)
 
                         if(res != FR_OK)
                         {
+                			stop_led_animation();
+                        	cd( "/" );
                             return((int)res);
                         }
                         f_unlink( path_buff );
-
+                        cd( "/" );
+            			stop_led_animation();
                         return FILE_WRITE_ERROR;
                     }
                     transfer_len -= recv_size;
@@ -1019,9 +1038,13 @@ int GetData(char * filename, char* url, char * host, char * path)
 
                         if(res != FR_OK)
                         {
+                        	cd( "/" );
+                			stop_led_animation();
                             return((int)res);
                         }
                         f_unlink( path_buff );
+                        cd( "/" );
+            			stop_led_animation();
                         return FILE_WRITE_ERROR;
                     }
                     recv_size -= transfer_len;
@@ -1051,9 +1074,12 @@ int GetData(char * filename, char* url, char * host, char * path)
 
                 if(res != FR_OK)
                 {
+                	cd( "/" );
+        			stop_led_animation();
                     return((int)res);
                 }
                 f_unlink( path_buff );
+    			stop_led_animation();
                 return FILE_WRITE_ERROR;
             }
             bytesReceived +=transfer_len;
@@ -1066,11 +1092,15 @@ int GetData(char * filename, char* url, char * host, char * path)
         //UARTprintf("rx:  %d\r\n", transfer_len);
         if(transfer_len <= 0) {
         	UARTprintf("TCP_RECV_ERROR\r\n" );
+        	cd( "/" );
+			stop_led_animation();
             return TCP_RECV_ERROR;
         }
 
         pBuff = g_buff;
     }
+
+	stop_led_animation();
 
     //
     // If user file has checksum which can be used to verify the temporary
@@ -1086,9 +1116,11 @@ int GetData(char * filename, char* url, char * host, char * path)
 
         if(res != FR_OK)
         {
+        	cd( "/" );
             return((int)res);
         }
         f_unlink( path_buff );
+        cd( "/" );
         return INVALID_FILE;
     }
     else
@@ -1099,11 +1131,31 @@ int GetData(char * filename, char* url, char * host, char * path)
 
         if(res != FR_OK)
         {
+        	cd( "/" );
             return((int)res);
         }
     }
-
+    cd( "/" );
     return 0;
+}
+
+int file_exists( char * filename, char * path ) {
+	cd(path);
+
+    if(global_filename( filename ))
+    {
+    	return 1;
+    }
+
+    FRESULT res = f_open(&file_obj, path_buff, FA_READ);
+    if(res != FR_OK)
+    {
+    	cd("/");
+        return(0);
+    }
+    f_close( &file_obj );
+	cd("/");
+	return 1;
 }
 
 int download_file(char * host, char * url, char * filename, char * path ) {
@@ -1112,7 +1164,7 @@ int download_file(char * host, char * url, char * filename, char * path ) {
 	if (r < 0) {
 		ASSERT_ON_ERROR(GET_HOST_IP_FAILED);
 	}
-	UARTprintf("download <host> <filename> <url>\n\r");
+	//UARTprintf("download <host> <filename> <url>\n\r");
 	// Create a TCP connection to the Web Server
 	dl_sock = CreateConnection(ip);
 
@@ -1134,16 +1186,382 @@ int download_file(char * host, char * url, char * filename, char * path ) {
 }
 
 int Cmd_download(int argc, char*argv[]) {
-	char host[128];
-	char filename[128];
-	char url[256];
-
-	strncpy( host, argv[1], 128 );
-	strncpy( filename, argv[2], 128 );
-	strncpy( url, argv[3], 256 );
-
-	return download_file( host, url, filename, "/" );
+	return download_file( argv[1], argv[3], argv[2], argv[4] );
 }
 
 //end download functions
+#include "protobuf/SyncResponse.pb.h"
+#include "stdbool.h"
+#include "pb.h"
+#include "pb_decode.h"
 
+/******************************************************************************
+   Image file names
+*******************************************************************************/
+#define IMG_BOOT_INFO           "/sys/mcubootinfo.bin"
+#define IMG_FACTORY_DEFAULT     "/sys/mcuimg1.bin"
+#define IMG_USER_1              "/sys/mcuimg2.bin"
+#define IMG_USER_2              "/sys/mcuimg3.bin"
+
+/******************************************************************************
+   Image status
+*******************************************************************************/
+#define IMG_STATUS_TESTING      0x12344321
+#define IMG_STATUS_TESTREADY    0x56788765
+#define IMG_STATUS_NOTEST       0xABCDDCBA
+
+/******************************************************************************
+   Active Image
+*******************************************************************************/
+#define IMG_ACT_FACTORY         0
+#define IMG_ACT_USER1           1
+#define IMG_ACT_USER2           2
+
+//*****************************************************************************
+// User image tokens
+//*****************************************************************************
+#define FACTORY_IMG_TOKEN       0x5555AAAA
+#define USER_IMG_1_TOKEN        0xAA5555AA
+#define USER_IMG_2_TOKEN        0x55AAAA55
+#define USER_BOOT_INFO_TOKEN    0xA5A55A5A
+
+#define DEVICE_IS_CC3101RS      0x18
+#define DEVICE_IS_CC3101S       0x1B
+
+
+/******************************************************************************
+   Boot Info structure
+*******************************************************************************/
+typedef struct sBootInfo
+{
+  _u8  ucActiveImg;
+  _u32 ulImgStatus;
+
+}sBootInfo_t;
+
+void mcu_reset();
+_i16 nwp_reset();
+
+
+//*****************************************************************************
+//
+//! Checks if the device is secure
+//!
+//! This function checks if the device is a secure device or not.
+//!
+//! \return Returns \b true if device is secure, \b false otherwise
+//
+//*****************************************************************************
+#include "hw_ints.h"
+#include "hw_types.h"
+#include "hw_memmap.h"
+#include "hw_gprcm.h"
+#include "hw_common_reg.h"
+
+static inline int IsSecureMCU()
+{
+  unsigned long ulChipId;
+
+  ulChipId =(HWREG(GPRCM_BASE + GPRCM_O_GPRCM_EFUSE_READ_REG2) >> 16) & 0x1F;
+
+  if((ulChipId != DEVICE_IS_CC3101RS) &&(ulChipId != DEVICE_IS_CC3101S))
+  {
+    //
+    // Return non-Secure
+    //
+    return false;
+  }
+
+  //
+  // Return secure
+  //
+  return true;
+}
+
+
+/* Save bootinfo on ImageCommit call */
+static sBootInfo_t sBootInfo;
+
+static _i32 _WriteBootInfo(sBootInfo_t *psBootInfo)
+{
+    _i32 hndl;
+    unsigned long ulBootInfoToken;
+    unsigned long ulBootInfoCreateFlag;
+
+    //
+    // Initialize boot info file create flag
+    //
+    ulBootInfoCreateFlag  = _FS_FILE_OPEN_FLAG_COMMIT|_FS_FILE_PUBLIC_WRITE;
+
+    //
+    // Check if its a secure MCU
+    //
+    if ( IsSecureMCU() )
+    {
+      ulBootInfoToken       = USER_BOOT_INFO_TOKEN;
+      ulBootInfoCreateFlag  = _FS_FILE_OPEN_FLAG_COMMIT|_FS_FILE_OPEN_FLAG_SECURE|
+                              _FS_FILE_OPEN_FLAG_NO_SIGNATURE_TEST|
+                              _FS_FILE_PUBLIC_WRITE|_FS_FILE_OPEN_FLAG_VENDOR;
+    }
+
+
+	if (sl_FsOpen((unsigned char *)IMG_BOOT_INFO, FS_MODE_OPEN_WRITE, &ulBootInfoToken, &hndl)) {
+		UARTprintf("error opening file, trying to create\n");
+
+		if (sl_FsOpen((unsigned char *)IMG_BOOT_INFO, ulBootInfoCreateFlag, &ulBootInfoToken, &hndl)) {
+			return -1;
+		}
+	}
+	if( 0 < sl_FsWrite(hndl, 0, (_u8 *)psBootInfo, sizeof(sBootInfo_t)) )
+	{
+		UARTprintf("WriteBootInfo: ucActiveImg=%d, ulImgStatus=0x%x\n\r", psBootInfo->ucActiveImg, psBootInfo->ulImgStatus);
+	}
+	sl_FsClose(hndl, 0, 0, 0);
+    return 0;
+}
+
+static _i32 _ReadBootInfo(sBootInfo_t *psBootInfo)
+{
+    _i32 lFileHandle;
+    _i32 status = -1;
+    unsigned long ulBootInfoToken;
+    //
+    // Check if its a secure MCU
+    //
+    if ( IsSecureMCU() )
+    {
+      ulBootInfoToken       = USER_BOOT_INFO_TOKEN;
+    }
+    if( 0 == sl_FsOpen((unsigned char *)IMG_BOOT_INFO, FS_MODE_OPEN_READ, &ulBootInfoToken, &lFileHandle) )
+    {
+        if( 0 < sl_FsRead(lFileHandle, 0, (_u8 *)psBootInfo, sizeof(sBootInfo_t)) )
+        {
+            status = 0;
+            UARTprintf("ReadBootInfo: ucActiveImg=%d, ulImgStatus=0x%x\n\r", psBootInfo->ucActiveImg, psBootInfo->ulImgStatus);
+        }
+        sl_FsClose(lFileHandle, 0, 0, 0);
+    }
+    return status;
+}
+static _i32 _McuImageGetNewIndex(void)
+{
+    _i32 newImageIndex;
+
+    /* Assume sBootInfo is alrteady filled in init time (by sl_extlib_FlcCommit) */
+    switch(sBootInfo.ucActiveImg)
+    {
+        case IMG_ACT_USER1:
+            newImageIndex = IMG_ACT_USER2;
+            break;
+
+        case IMG_ACT_USER2:
+        default:
+            newImageIndex = IMG_ACT_USER1;
+            break;
+    }
+    UARTprintf("_McuImageGetNewIndex: active image is %d, return new image %d \n\r", sBootInfo.ucActiveImg, newImageIndex);
+
+    return newImageIndex;
+}
+#include "wifi_cmd.h"
+#include "FreeRTOS.h"
+#include "task.h"
+
+void boot_commit_ota() {
+    _ReadBootInfo(&sBootInfo);
+
+	UARTprintf("commit status %x\n", sBootInfo.ulImgStatus);
+    /* Check only on status TESTING */
+    if( IMG_STATUS_TESTING == sBootInfo.ulImgStatus )
+	{
+    	while( !(sl_status & HAS_IP)) {
+    		if( xTaskGetTickCount() > 120000) {
+    			mcu_reset(); //no ip in 2 minutes, give up...
+    		}
+    		vTaskDelay(100);
+    	}
+		UARTprintf("Booted in testing mode\n");
+		sBootInfo.ulImgStatus = IMG_STATUS_NOTEST;
+		sBootInfo.ucActiveImg = (sBootInfo.ucActiveImg == IMG_ACT_USER1)?
+								IMG_ACT_USER2:
+								IMG_ACT_USER1;
+		_WriteBootInfo(&sBootInfo);
+	}
+    //rm("mcuimgx.bin");
+}
+
+#include "wifi_cmd.h"
+int Cmd_version(int argc, char *argv[]) {
+	UARTprintf( "ver: %d\nimg: %d\nstatus: %x\n", KIT_VER, sBootInfo.ucActiveImg, sBootInfo.ulImgStatus );
+	return 0;
+}
+
+int send_top(char *, int);
+bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, void **arg);
+
+bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg)
+{
+	SyncResponse_FileDownload download_info;
+	char * filename=NULL, * url=NULL, * host=NULL, * path=NULL, * serial_flash_path=NULL, * serial_flash_name=NULL;
+
+	download_info.sd_card_filename.funcs.decode = _decode_string_field;
+	download_info.sd_card_filename.arg = NULL;
+
+	download_info.sd_card_path.funcs.decode = _decode_string_field;
+	download_info.sd_card_path.arg = NULL;
+
+	download_info.url.funcs.decode = _decode_string_field;
+	download_info.url.arg = NULL;
+
+	download_info.host.funcs.decode = _decode_string_field;
+	download_info.host.arg = NULL;
+
+	download_info.serial_flash_filename.funcs.decode = _decode_string_field;
+	download_info.serial_flash_filename.arg = NULL;
+
+	download_info.serial_flash_path.funcs.decode = _decode_string_field;
+	download_info.serial_flash_path.arg = NULL;
+
+	UARTprintf("ota - parsing\n" );
+	if( !pb_decode(stream,SyncResponse_FileDownload_fields,&download_info) ) {
+		UARTprintf("ota - parse fail \n" );
+		return false;
+	}
+	filename = download_info.sd_card_filename.arg;
+	path = download_info.sd_card_path.arg;
+	url = download_info.url.arg;
+	host = download_info.host.arg;
+	serial_flash_name = download_info.serial_flash_filename.arg;
+	serial_flash_path = download_info.serial_flash_path.arg;
+
+	if( filename ) {
+		UARTprintf( "ota - filename: %s\n", filename);
+	}
+	if( url ) {
+		UARTprintf( "ota - url: %s\n",url);
+	}
+	if( host ) {
+		UARTprintf( "ota - host: %s\n",host);
+	}
+	if( path ) {
+		UARTprintf( "ota - path: %s\n",path);
+	}
+	if( serial_flash_path ) {
+		UARTprintf( "ota - serial_flash_path: %s\n",serial_flash_path);
+	}
+	if( serial_flash_name ) {
+		UARTprintf( "ota - serial_flash_name: %s\n",serial_flash_name);
+	}
+	if( download_info.has_copy_to_serial_flash ) {
+		UARTprintf( "ota - copy_to_serial_flash: %s\n",download_info.copy_to_serial_flash);
+	}
+
+	if( filename && url && host && path ) {
+		if( !file_exists(filename, path) ) {
+			//download it!
+			download_file( host, url, filename, path );
+
+			if( download_info.has_copy_to_serial_flash && download_info.copy_to_serial_flash && serial_flash_name && serial_flash_path ) {
+				char * full;
+				char *buf;
+				long sflash_fh = -1;
+				WORD size=0;
+				int status;
+				full = pvPortMalloc(128);
+				assert(full);
+				buf = pvPortMalloc(512);
+				assert(buf);
+				memset(buf,0,sizeof(buf));
+				memset(full,0,sizeof(full));
+
+				strcpy(full, serial_flash_path);
+				strcat(full, serial_flash_name);
+
+				UARTprintf("copying %s %s\n", serial_flash_path, serial_flash_name);
+
+				cd( path );
+			    if(global_filename( filename ))
+			    {
+			    	return 1;
+			    }
+
+			    FRESULT res = f_open(&file_obj, path_buff, FA_READ);
+				if( res != FR_OK ) {
+					UARTprintf("ota - failed to open file %s", path_buff );
+					return false;
+				}
+
+			    f_stat( path_buff, &file_info );
+			    DWORD bytes_to_copy = file_info.fsize;
+
+			    if (strstr(full, "/sys/mcuimg") != 0 )
+			    {
+			    	_ReadBootInfo(&sBootInfo);
+			        full[11] = (_u8)_McuImageGetNewIndex() + '1'; /* mcuimg1 is for factory default, mcuimg2,3 are for OTA updates */
+			        UARTprintf("MCU image name converted to %s \n", full);
+			    }
+
+				sl_FsOpen((unsigned char *)full, FS_MODE_OPEN_CREATE(bytes_to_copy, _FS_FILE_OPEN_FLAG_NO_SIGNATURE_TEST | _FS_FILE_OPEN_FLAG_COMMIT ), NULL, &sflash_fh);
+				if( res != FR_OK ) {
+					UARTprintf("ota - failed to open file %s\n", full );
+					return false;
+				}
+				int file_len = bytes_to_copy;
+
+				UARTprintf( "copying %d from %s on sd to %s on sflash\n", bytes_to_copy, path_buff, full);
+				while( bytes_to_copy > 0 ) {
+					//read from sd into buff
+					res = f_read( &file_obj, buf, bytes_to_copy<512?bytes_to_copy:512, &size );
+					if( res != FR_OK ) {
+						UARTprintf("ota - failed to read file %s\n", path_buff );
+						return false;
+					}
+					UARTprintf( "offset %d, left %d, chunk %d\n",  file_len-bytes_to_copy, bytes_to_copy,size );
+					status = sl_FsWrite(sflash_fh, file_len-bytes_to_copy, (unsigned char*)buf, size);
+					if( status != size ) {
+						UARTprintf("ota - failed to write file %s\n", full );
+						return false;
+					}
+					bytes_to_copy -= size;
+				}
+				UARTprintf( "done, closing\n" );
+				sl_FsClose(sflash_fh,0,0,0);
+			    f_close(&file_obj);
+
+				if( strcmp(full, "/top/update") == 0 ) {
+					send_top("dfu", strlen("dfu"));
+				}
+			}
+			if( download_info.has_reset_application_processor && download_info.reset_application_processor ) {
+		        UARTprintf("change image status to IMG_STATUS_TESTREADY\n\r");
+		        _ReadBootInfo(&sBootInfo);
+		        sBootInfo.ulImgStatus = IMG_STATUS_TESTREADY;
+		        //sBootInfo.ucActiveImg this is set by boot loader
+		        _WriteBootInfo(&sBootInfo);
+		        mcu_reset();
+			}
+			if( download_info.has_reset_network_processor && download_info.reset_network_processor ) {
+				UARTprintf( "reset nwp\n" );
+				nwp_reset();
+			}
+		} else {
+			UARTprintf("ota - file exists\n" );
+		}
+
+	}
+
+	if( filename ) {
+		vPortFree(filename);
+	}
+	if( url ) {
+		vPortFree(url);
+	}
+	if( host ) {
+		vPortFree(host);
+	}
+	if( path ) {
+		vPortFree(path);
+	}
+
+	return true;
+}
