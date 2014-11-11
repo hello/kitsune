@@ -1,11 +1,21 @@
 #include "gesture.h"
 #include <string.h>
 #include <stdbool.h>
+#include <stdlib.h>
+#include "uartstdio.h"
 #include "FreeRTOS.h"
 #define GESTURE_FPS 10
+#define GESTURE_ACTIVATION_MULTIPLIER 5
+
+#define GESTURE_WAVE_MULTIPLIER (0.3)
+#define GESTURE_WAVE_ENERGY_TH	50
+
+#define GESTURE_HOLD_MULTIPLIER (1)
+#define GESTURE_WAVE_ENERGY_TH 1000
+
+
 #define NOISE_SAMPLES (GESTURE_FPS * 2)
 #define NORM_FLOOR_SAMPLES (GESTURE_FPS * 2)
-#define GESTURE_RESOLUTION 10000
 
 typedef struct{
 	int idx;
@@ -30,7 +40,7 @@ static struct{
 		}state;
 		_fifo_t * frame;
 		int total_energy;
-		int frame_count;;
+		int frame_count;
 		int prev_in;
 		bool held;
 	}fsm;
@@ -94,10 +104,10 @@ static int _fsm_reset(void){
 }
 
 static bool _hasWave(void){
-	return (self.fsm.total_energy > 50 && self.fsm.frame_count >= GESTURE_FPS * 0.3);
+	return (self.fsm.total_energy > GESTURE_WAVE_ENERGY_TH && self.fsm.frame_count >= GESTURE_FPS * GESTURE_WAVE_MULTIPLIER);
 }
 static bool _hasHold(void){
-	return (self.fsm.total_energy > 1000 && self.fsm.frame_count >= GESTURE_FPS * 1);
+	return (self.fsm.total_energy > GESTURE_HOLD_ENERGY_TH && self.fsm.frame_count >= GESTURE_FPS * GESTURE_HOLD_MULTIPLIER);
 }
 static int _fsm(int in, int th){
 	if( 0 != _putfifo(self.fsm.frame,in)){
@@ -109,7 +119,7 @@ static int _fsm(int in, int th){
 	switch(self.fsm.state){
 	case GFSM_IDLE:
 		//any edge triggers edge up state
-		if(in > (th * 5)){
+		if(in > (th * GESTURE_ACTIVATION_MULTIPLIER)){
 			UARTprintf("->1\r\n");
 			self.fsm.state = GFSM_LEVEL;
 			self.fsm.held = false;
@@ -135,6 +145,7 @@ static int _fsm(int in, int th){
 		break;
 	}
 	self.fsm.prev_in = in;
+	return 0;
 }
 static int _normalize(int in, int * out){
 	int ret = -1;
@@ -147,7 +158,7 @@ static int _normalize(int in, int * out){
 	if(ret == 0){
 		env = _avgfifo(self.normalizer.env);
 		if(in < env){
-			*out = (env - in);// * GESTURE_RESOLUTION / env;
+			*out = (env - in);
 		}else{
 			*out = 0;
 		}
