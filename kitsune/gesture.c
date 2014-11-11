@@ -110,7 +110,7 @@ static int _fsm(int in, int th){
 	case GFSM_IDLE:
 		//any edge triggers edge up state
 		if(in > (th * 3)){
-			UARTprintf("->1");
+			UARTprintf("->1\r\n");
 			self.fsm.state = GFSM_LEVEL;
 			self.fsm.held = false;
 		}
@@ -120,21 +120,21 @@ static int _fsm(int in, int th){
 		self.fsm.total_energy += abs(in - self.fsm.prev_in);
 		self.fsm.frame_count++;
 		if(average_energy < 1){
-			UARTprintf("->0");
+			UARTprintf("->0 ");
 			if(!self.fsm.held && _hasWave()){
-				UARTprintf("WAVE");
+				UARTprintf("Gesture: WAVE\r\n");
 			}
 			self.fsm.frame_count = 0;
 			self.fsm.total_energy = 0;
 			self.fsm.state = GFSM_IDLE;
+			UARTprintf("\r\n");
 		}else if(!self.fsm.held && _hasHold()){
-			UARTprintf("HOLD");
+			UARTprintf("Gesture: HOLD\r\n");
 			self.fsm.held = true;
 		}
 		break;
 	}
 	self.fsm.prev_in = in;
-	UARTprintf("\r\n");
 }
 static int _normalize(int in, int * out){
 	int ret = -1;
