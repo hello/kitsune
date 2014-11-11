@@ -133,6 +133,9 @@ static int _fsm(int in, int th){
 			UARTprintf("->0 ");
 			if(!self.fsm.held && _hasWave()){
 				UARTprintf("Gesture: WAVE\r\n");
+				if(self.user){
+					self.user.on_wave(0,0);
+				}
 			}
 			self.fsm.frame_count = 0;
 			self.fsm.total_energy = 0;
@@ -141,6 +144,9 @@ static int _fsm(int in, int th){
 		}else if(!self.fsm.held && _hasHold()){
 			UARTprintf("Gesture: HOLD\r\n");
 			self.fsm.held = true;
+			if(self.user){
+				self.user.on_hold(0, 0);
+			}
 		}
 		break;
 	}
