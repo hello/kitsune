@@ -1335,6 +1335,7 @@ void vUARTTask(void *pvParameters) {
 
 	UARTprintf("*");
 	now = xTaskGetTickCount();
+	sl_Stop(30);
 	sl_mode = sl_Start(NULL, NULL, NULL);
 	UARTprintf("*");
 	while (sl_mode != ROLE_STA) {
