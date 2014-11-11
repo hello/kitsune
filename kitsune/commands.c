@@ -606,10 +606,10 @@ void thread_dust(void * unused)  {
 		vTaskDelay( 100 );
 	}
 }
-static void _on_wave(int a, int b){
+static void _on_wave(void){
 	play_led_trippy();
 }
-static void _on_hold(int a, int b){
+static void _on_hold(void){
 	stop_led_animation();
 }
 static int light_m2,light_mean, light_cnt,light_log_sum,light_sf;
@@ -695,6 +695,7 @@ void thread_fast_i2c_poll(void * unused)  {
 			}
 			last_prox = prox;
 			*/
+			xSemaphoreGive(i2c_smphr);
 			if (xSemaphoreTake(light_smphr, portMAX_DELAY)) {
 				light_log_sum += bitlog(light);
 				++light_cnt;
