@@ -2,7 +2,7 @@
 #include <string.h>
 #include "FreeRTOS.h"
 #define GESTURE_FPS 10
-#define FIFO_SAMPLES 3
+#define NOISE_SAMPLES (GESTURE_FPS * 3)
 #define NORM_FLOOR_SAMPLES (GESTURE_FPS * 3)
 #define GESTURE_RESOLUTION 10000
 
@@ -16,17 +16,22 @@ typedef struct{
 static struct{
 	struct{
 		_fifo_t * avg;
-	}mavg;
+		int prev;
+	}mavg; //for noise
 	struct{
 		_fifo_t * env;
-	}normalizer;
+	}normalizer; //for input
 
 	struct{
 		enum fsm_state{
 			GFSM_IDLE = 0,
-			GFSM_START,
+			GFSM_LEVEL,
 		}state;
-	}fsm_data;
+		_fifo_t * frame;
+		int total_energy;
+		int frame_count;;
+		int prev_in;
+	}fsm;
 	gesture_callbacks_t user;
 }self;
 static _fifo_t * _mkfifo(int size){
@@ -58,7 +63,8 @@ static int _mavg_reset(void){
 	if(self.mavg.avg){
 		vPortFree(self.mavg.avg);
 	}
-	self.mavg.avg = _mkfifo(FIFO_SAMPLES);
+	self.mavg.avg = _mkfifo(NOISE_SAMPLES);
+	self.mavg.prev = 0;
 	if(self.mavg.avg){
 		return 0;
 	}
@@ -75,10 +81,49 @@ static int _normalizer_reset(void){
 	return -1;
 }
 static int _fsm_reset(void){
-	self.fsm_data.state = GFSM_IDLE;
+	self.fsm.state = GFSM_IDLE;
+	self.fsm.total_energy = 0;
+	self.fsm.frame_count = 0;
+	if(self.fsm.frame){
+		vPortFree(self.fsm.frame);
+	}
+	self.fsm.frame = _mkfifo(3);
 	return 0;
 }
+#define FSM_ENERGY_DECAY 1
+static int _fsm(int in, int th){
+	if( 0 != _putfifo(self.fsm.frame,in)){
+		return 0;
+	}
+	UARTprintf("> %d / %d >", in, th);
+	int average_energy = _avgfifo(self.fsm.frame);
+	switch(self.fsm.state){
+	case GFSM_IDLE:
+		//any edge triggers edge up state
+		if(in > (th * 3)){
+			UARTprintf("->1");
+			self.fsm.state = GFSM_LEVEL;
+		}
+		break;
+	case GFSM_LEVEL:
+		self.fsm.total_energy += abs(in - self.fsm.prev_in);
+		self.fsm.frame_count++;
+		_putfifo(self.fsm.frame,in);
+		if(average_energy < 1){
+			UARTprintf("->0");
 
+			if(self.fsm.total_energy > 10 && self.fsm.frame_count >= 3){
+				UARTprintf(": EVENT");
+			}
+			self.fsm.frame_count = 0;
+			self.fsm.total_energy = 0;
+			self.fsm.state = GFSM_IDLE;
+		}
+		break;
+	}
+	self.fsm.prev_in = in;
+	UARTprintf("\r\n");
+}
 static int _normalize(int in, int * out){
 	int ret = -1;
 	int env;
@@ -90,7 +135,7 @@ static int _normalize(int in, int * out){
 	if(ret == 0){
 		env = _avgfifo(self.normalizer.env);
 		if(in < env){
-			*out = (env - in) * GESTURE_RESOLUTION / env;
+			*out = (env - in);// * GESTURE_RESOLUTION / env;
 		}else{
 			*out = 0;
 		}
@@ -99,10 +144,12 @@ static int _normalize(int in, int * out){
 	return ret;
 }
 static int _mavg(int in, int * out){
-	int ret = _putfifo(self.mavg.avg, in);
+	int delta = abs(in - self.mavg.prev);
+	int ret = _putfifo(self.mavg.avg, delta);
 	if(ret == 0){
 		*out = _avgfifo(self.mavg.avg);
 	}
+	self.mavg.prev = in;
 	return ret;
 }
 
@@ -115,12 +162,12 @@ void gesture_init(gesture_callbacks_t * _user){
 	}
 }
 void gesture_input(int prox, int light){
-	int output;
-	if(0 != _mavg(prox, &output)){
-		return;
+	int output, noise_th;
+	int a,b;
+	a = _mavg(prox, &noise_th);
+	b = _normalize(prox, &output);
+	if(!a && !b){
+		_fsm(output, noise_th);
 	}
-	if(0 != _normalize(output, &output)){
-		return;
-	}
-	UARTprintf("normal %d\r\n", output);
+
 }
