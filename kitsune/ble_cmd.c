@@ -261,11 +261,6 @@ void ble_proto_assign_decode_funcs(MorpheusCommand* command)
         command->wifiPassword.arg = NULL;
     }
 
-    if(NULL == command->motionDataEntrypted.funcs.decode)
-    {
-        command->motionDataEntrypted.funcs.decode = _decode_bytes_field;
-        command->motionDataEntrypted.arg = NULL;
-    }
 }
 
 void ble_proto_remove_decode_funcs(MorpheusCommand* command)
@@ -295,10 +290,6 @@ void ble_proto_remove_decode_funcs(MorpheusCommand* command)
         command->wifiPassword.funcs.decode = NULL;
     }
 
-    if(command->motionDataEntrypted.funcs.decode)
-    {
-        command->motionDataEntrypted.funcs.decode = NULL;
-    }
 }
 
 void ble_proto_assign_encode_funcs( MorpheusCommand* command)
@@ -328,10 +319,6 @@ void ble_proto_assign_encode_funcs( MorpheusCommand* command)
         command->wifiPassword.funcs.encode = _encode_string_fields;
     }
 
-    if(command->motionDataEntrypted.arg != NULL && command->motionDataEntrypted.funcs.encode == NULL)
-    {
-        command->motionDataEntrypted.funcs.encode = _encode_bytes_fields;
-    }
 
     if(command->wifi_scan_result.arg != NULL && command->wifi_scan_result.funcs.encode == NULL)
     {
@@ -455,11 +442,6 @@ void ble_proto_free_command(MorpheusCommand* command)
         command->wifiPassword.arg = NULL;
     }
 
-    if(command->motionDataEntrypted.arg)
-    {
-        vPortFree(command->motionDataEntrypted.arg);
-        command->motionDataEntrypted.arg = NULL;
-    }
 
     if(command->wifi_scan_result.arg)
     {
