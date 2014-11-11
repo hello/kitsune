@@ -652,25 +652,38 @@ void thread_dust(void * unused)  {
 		vTaskDelay( 100 );
 	}
 }
-
+static void _on_wave(void * ctx){
+	play_led_trippy();
+}
+static void _on_hold(void * ctx){
+	stop_led_animation();
+}
+static void _on_slide(void * ctx, int delta){
+	UARTprintf("Slide delta %d\r\n", delta);
+}
 static int light_m2,light_mean, light_cnt,light_log_sum,light_sf;
 static xSemaphoreHandle light_smphr;
 
 int disp_prox;
  xSemaphoreHandle i2c_smphr;
  int Cmd_led(int argc, char *argv[]) ;
-
+#include "gesture.h"
 void thread_fast_i2c_poll(void * unused)  {
 	int last_prox =0;
+	gesture_callbacks_t gesture_cbs = (gesture_callbacks_t){
+		.on_wave = _on_wave,
+		.on_hold = _on_hold,
+		.on_slide = _on_slide,
+		.ctx = NULL,
+	};
 	portTickType last = 0;
+	gesture_init(&gesture_cbs);
 	while (1) {
 		portTickType now = xTaskGetTickCount();
 		int light;
 		int prox,hpf_prox=0;
 
 		if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
-			int adjust, prox_thresh;
-
 			vTaskDelay(2);
 			light = get_light();
 			vTaskDelay(2); //this is important! If we don't do it, then the prox will stretch the clock!
@@ -679,61 +692,13 @@ void thread_fast_i2c_poll(void * unused)  {
 			// for white one, 9mm distance max.
 			prox = get_prox();  // now this thing is in um.
 
-			hpf_prox += ( abs(last_prox - prox) - hpf_prox )>>2;   // The noise in enclosure is in 100+ um level
-
-			prox_thresh = 200;
-
+			xSemaphoreGive(i2c_smphr);
 			if( disp_prox ) {
-				xSemaphoreGive(i2c_smphr);
 				UARTprintf( "%d\t", hpf_prox );
-			} else if( hpf_prox > prox_thresh && now - last > 2000 ) {  // seems not very sensitive,  the noise in enclosure is in 100+ um level
-				//UARTprintf("PROX: %d um, diff %d um, %d\n", prox, hpf_prox, light);
-				last = now;
-				hpf_prox = 0;
-				xSemaphoreTake(alarm_smphr, portMAX_DELAY);
-				if (alarm.has_start_time && get_time() >= alarm.start_time) {
-					memset(&alarm, 0, sizeof(alarm));
-				}
-				xSemaphoreGive(alarm_smphr);
-				xSemaphoreGive(i2c_smphr);
-				g_ucSpkrStartFlag = 0;
-
-				uint8_t adjust_max_light = 80;
-
-				if( light > adjust_max_light ) {
-					adjust = adjust_max_light;
-				} else {
-					adjust = light;
-				}
-
-				if(adjust < 20)
-				{
-					adjust = 20;
-				}
-
-				uint8_t alpha = 0xFF * adjust / 80;
-
-				if( sl_status & UPLOADING ) {
-					uint8_t rgb[3] = { LED_MAX };
-					led_get_user_color(&rgb[0], &rgb[1], &rgb[2]);
-					led_set_color(alpha, rgb[0], rgb[1], rgb[2], 1, 1, 18, 0);
-			 	}
-			 	else if( sl_status & HAS_IP ) {
-					led_set_color(alpha, LED_MAX, 0, 0, 1, 1, 18, 1); //blue
-			 	}
-			 	else if( sl_status & CONNECTING ) {
-			 		led_set_color(alpha, LED_MAX,LED_MAX,0, 1, 1, 18, 1); //yellow
-			 	}
-			 	else if( sl_status & SCANNING ) {
-			 		led_set_color(alpha, LED_MAX,0,0, 1, 1, 18, 1 ); //red
-			 	} else {
-			 		led_set_color(alpha, LED_MAX, LED_MAX, LED_MAX, 1, 1, 18, 1 ); //white
-			 	}
-			} else {
-				xSemaphoreGive(i2c_smphr);
 			}
-			last_prox = prox;
 
+			gesture_input(prox, light);
+			xSemaphoreGive(i2c_smphr);
 			if (xSemaphoreTake(light_smphr, portMAX_DELAY)) {
 				light_log_sum += bitlog(light);
 				++light_cnt;

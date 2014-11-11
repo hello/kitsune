@@ -120,6 +120,7 @@ int Cmd_led_animate(int argc, char *argv[]){
 			return 0;
 		}
 	}
-	play_led_progress_bar(20, 20, 20, 0);
+	//play_led_progress_bar(20, 20, 20, 0);
+	play_led_trippy();
 	return 0;
 }
