@@ -42,8 +42,6 @@ static const unsigned int CPU_XDATA = 1; //1: enabled CPU interrupt triggerred
 
 /* externs */
 extern tCircularBuffer *pTxBuffer;
-extern tCircularBuffer *pRxBuffer;
-
 
 
 /* static variables  */
@@ -170,7 +168,7 @@ void AudioCaptureTask_Thread(void * data) {
 	FIL* file_ptr = &file_obj;
 	uint16_t i;
 	uint16_t * pu16;
-	unsigned long t0,t1,t2,dt;
+	//unsigned long t1,t2,dt,t0;
 	FRESULT res;
 	int iBufferFilled = 0;
 	uint8_t * ptr_samples_bytes = (uint8_t *)&samples[0];
@@ -302,7 +300,9 @@ void AudioCaptureTask_Thread(void * data) {
 				UpdateReadPtr(pTxBuffer, PACKET_SIZE);
 
 
-				t1 = xTaskGetTickCount(); dt = t1 - t0; t0 = t1;
+				//t1 = xTaskGetTickCount();
+				//dt = t1 - t0;
+				//t0 = t1;
 
 #ifdef  SWAP_ENDIAN
 				//swap endian, so we output little endian (it comes in as big endian)
@@ -314,10 +314,10 @@ void AudioCaptureTask_Thread(void * data) {
 #endif
 
 				/* process audio to get features.  This takes a finite amount of time, by the way. */
-				t1 = xTaskGetTickCount();
+				//t1 = xTaskGetTickCount();
 				//do audio feature processing
 				AudioFeatures_SetAudioData(samples,_callCounter++);
-				t2 = xTaskGetTickCount();
+				//t2 = xTaskGetTickCount();
 
 			  //	UARTprintf("dt = %d, compute=%d\n",dt,t2-t1); //vTaskDelay(5);
 

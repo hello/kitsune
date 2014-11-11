@@ -12,7 +12,7 @@
 #define DETECTION_THRESH 100
 
 /* multiples GESTURE FSP, minimal frames require for the wave gesture */
-#define GESTURE_WAVE_MULTIPLIER (0.1)
+#define GESTURE_WAVE_MULTIPLIER (0.2)
 
 /* multiples GESTURE FSP, minimal frames require for the hold gesture */
 #define GESTURE_HOLD_MULTIPLIER (1)
@@ -115,7 +115,11 @@ void gesture_init(gesture_callbacks_t * _user){
 		self.user = *_user;
 	}
 }
+
+int disp_prox;
 void gesture_input(int prox, int light){
+
+
 	if (self.fsm.prox_last != 0) {
 		self.fsm.prox_slow += (prox - self.fsm.prox_slow) / 64;
 		if( (prox-self.fsm.prox_slow) > 0 ) {
@@ -123,6 +127,10 @@ void gesture_input(int prox, int light){
 		}
 		prox -= self.fsm.prox_slow;
 		self.fsm.prox_impluse  = abs( prox );
+
+		if( disp_prox ) {
+			UARTprintf( "%d\t", self.fsm.prox_impluse );
+		}
 		_fsm(self.fsm.prox_impluse);
 	} else {
 		self.fsm.prox_slow = prox;

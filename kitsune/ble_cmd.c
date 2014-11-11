@@ -156,6 +156,7 @@ bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, void **
     return true;
 }
 
+#if 0
 static bool _decode_bytes_field(pb_istream_t *stream, const pb_field_t *field, void **arg)
 {
     /* We could read block-by-block to avoid the large buffer... */
@@ -195,8 +196,7 @@ static bool _decode_bytes_field(pb_istream_t *stream, const pb_field_t *field, v
 
     return true;
 }
-
-
+#endif
 
 
 void on_morpheus_protobuf_arrival(uint8_t* protobuf, size_t len)

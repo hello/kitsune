@@ -22,7 +22,7 @@ static void memalign(void ** ptr) {
     ptrval >>= MEM_BITS_2N;
     ptrval <<= MEM_BITS_2N;
     
-    *ptr = (void *)ptrval;
+    *ptr = (void*)(uint32_t)ptrval;
 }
 
 uint8_t Hmm_Init(void * data, const int16_t * params, int32_t rows, int32_t cols, uint32_t memory_limit) {

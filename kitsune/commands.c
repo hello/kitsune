@@ -202,20 +202,24 @@ int Cmd_fs_read(int argc, char *argv[]) {
 	SlFsFileInfo_t info;
 	char buffer[BUF_SZ];
 
-	sl_FsGetInfo((unsigned char*)argv[1], tok, &info);
-
-	if (err = sl_FsOpen((unsigned char*)argv[1], FS_MODE_OPEN_READ, &tok, &hndl)) {
+	sl_FsGetInfo((unsigned char*) argv[1], tok, &info);
+	err = sl_FsOpen((unsigned char*) argv[1], FS_MODE_OPEN_READ, &tok, &hndl);
+	if (err) {
 		UARTprintf("error opening for read %d\n", err);
 		return -1;
 	}
-	if( argc >= 3 ){
-		if (bytes = sl_FsRead(hndl, atoi(argv[2]), (unsigned char*)buffer, minval(info.FileLen, BUF_SZ))) {
-						UARTprintf("read %d bytes\n", bytes);
-					}
-	}else{
-		if (bytes = sl_FsRead(hndl, 0, (unsigned char*)buffer, minval(info.FileLen, BUF_SZ))) {
-						UARTprintf("read %d bytes\n", bytes);
-					}
+	if (argc >= 3) {
+		bytes = sl_FsRead(hndl, atoi(argv[2]), (unsigned char*) buffer,
+				minval(info.FileLen, BUF_SZ));
+		if (bytes) {
+			UARTprintf("read %d bytes\n", bytes);
+		}
+	} else {
+		bytes = sl_FsRead(hndl, 0, (unsigned char*) buffer,
+				minval(info.FileLen, BUF_SZ));
+		if (bytes) {
+			UARTprintf("read %d bytes\n", bytes);
+		}
 	}
 
 
@@ -242,11 +246,13 @@ unsigned int CPU_XDATA = 1; //1: enabled CPU interrupt triggerred
 	//Audio_Stop();
 	audio_buf = (unsigned short*)pvPortMalloc(AUDIO_BUF_SZ);
 	//assert(audio_buf);
-	if (err = sl_FsOpen("Ringtone_hello_leftchannel_16PCM", FS_MODE_OPEN_READ, &tok, &hndl)) {
+	err = sl_FsOpen("Ringtone_hello_leftchannel_16PCM", FS_MODE_OPEN_READ, &tok, &hndl);
+	if (err) {
 		UARTprintf("error opening for read %d\n", err);
 		return -1;
 	}
-	if (bytes = sl_FsRead(hndl, 0,  (unsigned char*)audio_buf, AUDIO_BUF_SZ)) {
+	bytes = sl_FsRead(hndl, 0,  (unsigned char*)audio_buf, AUDIO_BUF_SZ);
+	if (bytes) {
 		UARTprintf("read %d bytes\n", bytes);
 	}
 	sl_FsClose(hndl, 0, 0, 0);
@@ -423,9 +429,8 @@ int Cmd_fs_delete(int argc, char *argv[]) {
 	//
 	// Print some header text.
 	//
-	int err;
-
-	if (err = sl_FsDel((unsigned char*)argv[1], 0)) {
+	int err = sl_FsDel((unsigned char*)argv[1], 0);
+	if (err) {
 		UARTprintf("error %d\n", err);
 		return -1;
 	}
@@ -664,24 +669,21 @@ static void _on_slide(void * ctx, int delta){
 static int light_m2,light_mean, light_cnt,light_log_sum,light_sf;
 static xSemaphoreHandle light_smphr;
 
-int disp_prox;
  xSemaphoreHandle i2c_smphr;
  int Cmd_led(int argc, char *argv[]) ;
 #include "gesture.h"
 void thread_fast_i2c_poll(void * unused)  {
-	int last_prox =0;
 	gesture_callbacks_t gesture_cbs = (gesture_callbacks_t){
 		.on_wave = _on_wave,
 		.on_hold = _on_hold,
 		.on_slide = _on_slide,
 		.ctx = NULL,
 	};
-	portTickType last = 0;
 	gesture_init(&gesture_cbs);
 	while (1) {
 		portTickType now = xTaskGetTickCount();
 		int light;
-		int prox,hpf_prox=0;
+		int prox=0;
 
 		if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
 			vTaskDelay(2);
@@ -693,12 +695,8 @@ void thread_fast_i2c_poll(void * unused)  {
 			prox = get_prox();  // now this thing is in um.
 
 			xSemaphoreGive(i2c_smphr);
-			if( disp_prox ) {
-				UARTprintf( "%d\t", hpf_prox );
-			}
-
 			gesture_input(prox, light);
-			xSemaphoreGive(i2c_smphr);
+
 			if (xSemaphoreTake(light_smphr, portMAX_DELAY)) {
 				light_log_sum += bitlog(light);
 				++light_cnt;
