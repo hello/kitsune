@@ -61,6 +61,7 @@ MEMORY
 {
     /* Application uses internal RAM for program and data */
     SRAM (RWX) : origin = 0x20004000, length = 0x0003C000
+    SRAM_DATA (RWX) : origin = 0x20000000, length = 0x3FFF
 }
 
 /* Section allocation in memory */
@@ -75,7 +76,7 @@ SECTIONS
     .init_array : > SRAM
     .vtable :   > SRAM
     .data   :   > SRAM
-    .bss    :   > SRAM
+    .bss    :   > SRAM_DATA
     .sysmem :   > SRAM
     .stack  :   > SRAM
 }

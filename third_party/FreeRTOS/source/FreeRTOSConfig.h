@@ -153,4 +153,7 @@ version. */
 	#define configASSERT( x ) if( x == 0 ) vAssertCalled( __FILE__, __LINE__ );
 #endif
 
+#define traceMALLOC usertraceMALLOC
+#define traceFREE usertraceFREE
+
 #endif /* FREERTOS_CONFIG_H */

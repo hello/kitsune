@@ -73,6 +73,7 @@
 #include "ble_cmd.h"
 #include "led_cmd.h"
 #include "led_animations.h"
+#include "uart_logger.h"
 
 #define ONLY_MID 0
 
@@ -84,12 +85,6 @@ extern int g_iReceiveCount;
 //******************************************************************************
 //			    GLOBAL VARIABLES
 //******************************************************************************
-#if defined(ccs)
-extern void (* const g_pfnVectors[])(void);
-#endif
-#if defined(ewarm)
-extern uVectorEntry __vector_table;
-#endif
 
 tCircularBuffer *pTxBuffer;
 tCircularBuffer *pRxBuffer;
@@ -119,6 +114,34 @@ tCircularBuffer *pRxBuffer;
 //    return(0);
 //}
 
+static unsigned int heap_high_mark = 0;
+static unsigned int heap_low_mark = 0xffffffff;
+static unsigned int heap_print=0;
+
+void usertraceMALLOC( void * pvAddress, size_t uiSize ) {
+	if( xPortGetFreeHeapSize() > heap_high_mark ) {
+		heap_high_mark = xPortGetFreeHeapSize();
+	}
+	if (xPortGetFreeHeapSize() < heap_low_mark) {
+		heap_low_mark = xPortGetFreeHeapSize();
+	}
+	if( heap_print ) {
+		UARTprintf( "%d +%d\n",xPortGetFreeHeapSize(), uiSize );
+	}
+}
+
+void usertraceFREE( void * pvAddress, size_t uiSize ) {
+	if (xPortGetFreeHeapSize() > heap_high_mark) {
+		heap_high_mark = xPortGetFreeHeapSize();
+	}
+	if (xPortGetFreeHeapSize() < heap_low_mark) {
+		heap_low_mark = xPortGetFreeHeapSize();
+	}
+	if( heap_print ) {
+		UARTprintf( "%d -%d\n",xPortGetFreeHeapSize(), uiSize );
+	}
+}
+
 // ==============================================================================
 // This function implements the "free" command.  It prints the free memory.
 // ==============================================================================
@@ -126,8 +149,11 @@ int Cmd_free(int argc, char *argv[]) {
 	//
 	// Print some header text.
 	//
-	UARTprintf("%d bytes free\n", xPortGetFreeHeapSize());
+	UARTprintf("%d bytes free\nhigh: %d low: %d\n", xPortGetFreeHeapSize(),heap_high_mark,heap_low_mark);
 
+    heap_high_mark = 0;
+	heap_low_mark = 0xffffffff;
+	heap_print = atoi(argv[1]);
 	// Return success.
 	return (0);
 }
@@ -306,8 +332,28 @@ int play_ringtone(int vol, char * file) {
 
 	unsigned int CPU_XDATA = 0; //1: enabled CPU interrupt triggerred; 0: DMA
 
-// Create RX and TX Buffer
+	{ //naked block so the compiler can pop these off the stack...
+	  //check the file exists and is bug enough for a few seconds
+		FIL fp;
+		FILINFO file_info;
+		FRESULT res;
+		res = f_open(&fp, file, FA_READ);
+
+		if (res != FR_OK) {
+			UARTprintf("Failed to open audio file %d\n\r", res);
+			return -1;
+		}
+		f_stat(file, &file_info);
+		f_close( &fp );
+		if (file_info.fsize < 256000) {
+			UARTprintf("audio file too small %d\n\r", file_info.fsize );
+			return -1;
+		}
+	}
+
 //
+	// Create RX and TX Buffer
+
 	UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
 	AudioProcessingTask_FreeBuffers();
 	UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
@@ -606,24 +652,38 @@ void thread_dust(void * unused)  {
 		vTaskDelay( 100 );
 	}
 }
-
+static void _on_wave(void * ctx){
+	play_led_trippy();
+}
+static void _on_hold(void * ctx){
+	stop_led_animation();
+}
+static void _on_slide(void * ctx, int delta){
+	UARTprintf("Slide delta %d\r\n", delta);
+}
 static int light_m2,light_mean, light_cnt,light_log_sum,light_sf;
 static xSemaphoreHandle light_smphr;
 
+int disp_prox;
  xSemaphoreHandle i2c_smphr;
  int Cmd_led(int argc, char *argv[]) ;
-
+#include "gesture.h"
 void thread_fast_i2c_poll(void * unused)  {
 	int last_prox =0;
+	gesture_callbacks_t gesture_cbs = (gesture_callbacks_t){
+		.on_wave = _on_wave,
+		.on_hold = _on_hold,
+		.on_slide = _on_slide,
+		.ctx = NULL,
+	};
 	portTickType last = 0;
+	gesture_init(&gesture_cbs);
 	while (1) {
 		portTickType now = xTaskGetTickCount();
 		int light;
 		int prox,hpf_prox=0;
 
 		if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
-			int adjust;
-
 			vTaskDelay(2);
 			light = get_light();
 			vTaskDelay(2); //this is important! If we don't do it, then the prox will stretch the clock!
@@ -632,57 +692,13 @@ void thread_fast_i2c_poll(void * unused)  {
 			// for white one, 9mm distance max.
 			prox = get_prox();  // now this thing is in um.
 
-			hpf_prox += ( (last_prox - prox) - hpf_prox )>>2;   // The noise in enclosure is in 100+ um level
-
-			//UARTprintf("PROX: %d um\n", prox);
-			if(hpf_prox > 400 && now - last > 2000 ) {  // seems not very sensitive,  the noise in enclosure is in 100+ um level
-				UARTprintf("PROX: %d um, diff %d um\n", prox, hpf_prox);
-				last = now;
-				hpf_prox = 0;
-				xSemaphoreTake(alarm_smphr, portMAX_DELAY);
-				if (alarm.has_start_time && get_time() >= alarm.start_time) {
-					memset(&alarm, 0, sizeof(alarm));
-				}
-				xSemaphoreGive(alarm_smphr);
-				xSemaphoreGive(i2c_smphr);
-				g_ucSpkrStartFlag = 0;
-
-				uint8_t adjust_max_light = 80;
-
-				if( light > adjust_max_light ) {
-					adjust = adjust_max_light;
-				} else {
-					adjust = light;
-				}
-
-				if(adjust < 20)
-				{
-					adjust = 20;
-				}
-
-				uint8_t alpha = 0xFF * adjust / 80;
-
-				if( sl_status & UPLOADING ) {
-					uint8_t rgb[3] = { LED_MAX };
-					led_get_user_color(&rgb[0], &rgb[1], &rgb[2]);
-					led_set_color(alpha, rgb[0], rgb[1], rgb[2], 1, 1, 18, 0);
-			 	}
-			 	else if( sl_status & HAS_IP ) {
-					led_set_color(alpha, LED_MAX, 0, 0, 1, 1, 18, 1); //blue
-			 	}
-			 	else if( sl_status & CONNECTING ) {
-			 		led_set_color(alpha, LED_MAX,LED_MAX,0, 1, 1, 18, 1); //yellow
-			 	}
-			 	else if( sl_status & SCANNING ) {
-			 		led_set_color(alpha, LED_MAX,0,0, 1, 1, 18, 1 ); //red
-			 	} else {
-			 		led_set_color(alpha, LED_MAX, LED_MAX, LED_MAX, 1, 1, 18, 1 ); //white
-			 	}
-			} else {
-				xSemaphoreGive(i2c_smphr);
+			xSemaphoreGive(i2c_smphr);
+			if( disp_prox ) {
+				UARTprintf( "%d\t", hpf_prox );
 			}
-			last_prox = prox;
 
+			gesture_input(prox, light);
+			xSemaphoreGive(i2c_smphr);
 			if (xSemaphoreTake(light_smphr, portMAX_DELAY)) {
 				light_log_sum += bitlog(light);
 				++light_cnt;
@@ -786,7 +802,7 @@ void thread_tx(void* unused) {
 					tries = 5;
 				}
 			}
-			xQueueReset(pill_queue);
+			vPortFree( pilldata.pills );
 		}
 		while (!(sl_status & HAS_IP)) {
 			vTaskDelay(1000);
@@ -937,6 +953,10 @@ void thread_sensor_poll(void* unused) {
 		UARTprintf("collecting time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d %d %d %d\n",
 				data.unix_time, data.light, data.light_variability, data.light_tonality, data.temperature, data.humidity,
 				data.dust, data.dust_max, data.dust_min, data.dust_variability);
+
+		// Remember to add back firmware version, or OTA cant work.
+		data.has_firmware_version = true;
+		data.firmware_version = KIT_VER;
 
         if(!xQueueSend(data_queue, (void*)&data, 10) == pdPASS)
         {
@@ -1267,6 +1287,9 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "download", Cmd_download, ""},//download test function.
 		{ "dtm", Cmd_top_dtm, "" },//Sends Direct Test Mode command
 		{ "animate", Cmd_led_animate, ""},//Animates led
+		{ "uplog", Cmd_log_upload, "Uploads log to server"},
+		{ "loglevel", Cmd_log_setview, "Sets log level" },
+		{ "ver", Cmd_version, ""},//Animates led
 
 		{ 0, 0, 0 } };
 
@@ -1284,6 +1307,7 @@ tCmdLineEntry g_sCmdTable[] = {
 // ==============================================================================
 extern xSemaphoreHandle g_xRxLineSemaphore;
 void UARTStdioIntHandler(void);
+void boot_commit_ota();
 
 void vUARTTask(void *pvParameters) {
 	char cCmdBuf[512];
@@ -1345,6 +1369,8 @@ void vUARTTask(void *pvParameters) {
 	}
 	UARTprintf("*");
 
+	boot_commit_ota(); //check we can get IP if OTA...
+
 	// Set connection policy to Auto
 	sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0), NULL, 0);
 
@@ -1394,15 +1420,15 @@ void vUARTTask(void *pvParameters) {
 		UARTprintf("Failed to create the data_queue.\n");
 	}
 
-	xTaskCreate(top_board_task, "top_board_task", 1024 / 4, NULL, 2, NULL); //todo reduce stack
-	xTaskCreate(thread_alarm, "alarmTask", 2 * 1024 / 4, NULL, 4, NULL); //todo reduce stack
+	xTaskCreate(top_board_task, "top_board_task", 1024 / 4, NULL, 2, NULL);
+	xTaskCreate(thread_alarm, "alarmTask", 2*1024 / 4, NULL, 4, NULL);
 
 	UARTprintf("*");
-	xTaskCreate(thread_spi, "spiTask", 2*1024 / 4, NULL, 5, NULL);
+	xTaskCreate(thread_spi, "spiTask", 3*1024 / 4, NULL, 5, NULL); //this one doesn't look like much, but has to parse all the pb from bluetooth
 
 	//this task needs a larger stack because
 	//some protobuf encoding will happen on the stack of this task
-	xTaskCreate(NetworkTask_Thread,"networkTask",4*1024/4,&network_task_data,10,NULL);
+	xTaskCreate(NetworkTask_Thread,"networkTask",5*1024/4,&network_task_data,10,NULL);
 
 	SetupGPIOInterrupts();
 	UARTprintf("*");
@@ -1411,15 +1437,15 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("*");
 	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,1,NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 13, NULL);
+	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  512 / 4, NULL, 13, NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_dust, "dustTask", 256 / 4, NULL, 3, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_sensor_poll, "pollTask", 3 * 1024 / 4, NULL, 4, NULL);
+	xTaskCreate(thread_sensor_poll, "pollTask", 1024 / 4, NULL, 4, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_tx, "txTask", 3 * 1024 / 4, NULL, 2, NULL);
+	xTaskCreate(thread_tx, "txTask", 2 * 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_ota, "otaTask",5 * 1024 / 4, NULL, 1, NULL);
+	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 1, NULL);
 	UARTprintf("*");
 #endif
 	//checkFaults();

@@ -56,20 +56,22 @@ static bool _animate_trippy(int * out_r, int * out_g, int * out_b, int * out_del
 	return self.sig_continue;
 }
 static bool _animate_progress(int * out_r, int * out_g, int * out_b, int * out_delay, void * user_context, int rgb_array_size){
-	int filled = self.progress_bar_percent * rgb_array_size / 100;
+	int prog = self.progress_bar_percent * rgb_array_size;
+	int filled = prog / 100;
+	int left = ((prog % 100)*254)>>8;
+
 	int i;
 	for(i = 0; i < filled && i < rgb_array_size; i++){
 		out_r[i] = self.colors[0].r;
 		out_g[i] = self.colors[0].g;
 		out_b[i] = self.colors[0].b;
 	}
-	if(filled < rgb_array_size && self.counter%2 == 0){
-		out_r[filled] = self.colors[0].r;
-		out_g[filled] = self.colors[0].g;
-		out_b[filled] = self.colors[0].b;
+	if(filled < rgb_array_size ){
+		out_r[filled] = ((self.colors[0].r * left)>>8)&0xff;
+		out_g[filled] = ((self.colors[0].g * left)>>8)&0xff ;
+		out_b[filled] = ((self.colors[0].b * left)>>8)&0xff ;
 	}
-	self.counter++;
-	*out_delay = 200;
+	*out_delay = 20;
 	return self.sig_continue;
 }
 
@@ -110,14 +112,15 @@ int Cmd_led_animate(int argc, char *argv[]){
 			self.sig_continue = false;
 			return 0;
 		}else if(strcmp(argv[1], "+") == 0){
-			set_led_progress_bar(self.progress_bar_percent += 10);
+			set_led_progress_bar(self.progress_bar_percent += 1);
 			return 0;
 		}
 		else if(strcmp(argv[1], "-") == 0){
-			set_led_progress_bar(self.progress_bar_percent -= 10);
+			set_led_progress_bar(self.progress_bar_percent -= 1);
 			return 0;
 		}
 	}
-	play_led_progress_bar(20, 20, 20, 0);
+	//play_led_progress_bar(20, 20, 20, 0);
+	play_led_trippy();
 	return 0;
 }
