@@ -1397,6 +1397,7 @@ int Cmd_version(int argc, char *argv[]) {
 	return 0;
 }
 
+int wait_for_top_boot(unsigned int timeout);
 int send_top(char *, int);
 bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, void **arg);
 
@@ -1531,6 +1532,7 @@ bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg
 
 				if( strcmp(full, "/top/update") == 0 ) {
 					send_top("dfu", strlen("dfu"));
+					wait_for_top_boot(120000);
 				}
 			}
 			if( download_info.has_reset_application_processor && download_info.reset_application_processor ) {
