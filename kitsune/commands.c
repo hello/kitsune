@@ -954,6 +954,10 @@ void thread_sensor_poll(void* unused) {
 				data.unix_time, data.light, data.light_variability, data.light_tonality, data.temperature, data.humidity,
 				data.dust, data.dust_max, data.dust_min, data.dust_variability);
 
+		// Remember to add back firmware version, or OTA cant work.
+		data.has_firmware_version = true;
+		data.firmware_version = KIT_VER;
+
         if(!xQueueSend(data_queue, (void*)&data, 10) == pdPASS)
         {
     		UARTprintf("Failed to post data\n");
