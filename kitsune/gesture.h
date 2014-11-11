@@ -16,6 +16,7 @@ extern "C" {
 typedef struct{
 	void (*on_wave)(int duration, int height);
 	void (*on_hold)(int duration, int height);
+	void * ctx;
 }gesture_callbacks_t;
 
 void gesture_init(gesture_callbacks_t * user);

@@ -606,7 +606,12 @@ void thread_dust(void * unused)  {
 		vTaskDelay( 100 );
 	}
 }
-
+static void _on_wave(int, int){
+	play_led_trippy();
+}
+static void _on_hold(int, int){
+	stop_led_animation();
+}
 static int light_m2,light_mean, light_cnt,light_log_sum,light_sf;
 static xSemaphoreHandle light_smphr;
 
@@ -615,8 +620,13 @@ static xSemaphoreHandle light_smphr;
 #include "gesture.h"
 void thread_fast_i2c_poll(void * unused)  {
 	int last_prox =0;
+	gesture_callbacks_t gesture_cbs = (gesture_callbacks_t){
+		.on_wave = _on_wave,
+		.on_hold = _on_hold,
+		.ctx = NULL,
+	};
 	portTickType last = 0;
-	gesture_init(NULL);
+	gesture_init(&gesture_cbs);
 	while (1) {
 		portTickType now = xTaskGetTickCount();
 		int light;
@@ -632,8 +642,8 @@ void thread_fast_i2c_poll(void * unused)  {
 			// For the black morpheus, we can detect 6mm distance max
 			// for white one, 9mm distance max.
 			prox = get_prox();  // now this thing is in um.
-
-			hpf_prox += ( (last_prox - prox) - hpf_prox )>>2;   // The noise in enclosure is in 100+ um level
+			gesture_input(prox, light);
+			/*hpf_prox += ( (last_prox - prox) - hpf_prox )>>2;   // The noise in enclosure is in 100+ um level
 
 			//UARTprintf("PROX: %d um\n", prox);
 			gesture_input(prox, light);
@@ -684,7 +694,7 @@ void thread_fast_i2c_poll(void * unused)  {
 				xSemaphoreGive(i2c_smphr);
 			}
 			last_prox = prox;
-
+			*/
 			if (xSemaphoreTake(light_smphr, portMAX_DELAY)) {
 				light_log_sum += bitlog(light);
 				++light_cnt;

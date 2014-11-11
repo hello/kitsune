@@ -115,7 +115,7 @@ static int _fsm(int in, int th){
 	}
 	//computes the average of last 3 frames of energy
 	int average_energy = _avgfifo(self.fsm.frame);
-	UARTprintf("> %d / %d\r\n", in, th);
+	//UARTprintf("> %d / %d\r\n", in, th);
 	switch(self.fsm.state){
 	case GFSM_IDLE:
 		//any edge triggers edge up state
