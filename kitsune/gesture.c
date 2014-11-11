@@ -2,8 +2,8 @@
 #include <string.h>
 #include "FreeRTOS.h"
 #define GESTURE_FPS 10
-#define NOISE_SAMPLES (GESTURE_FPS * 3)
-#define NORM_FLOOR_SAMPLES (GESTURE_FPS * 3)
+#define NOISE_SAMPLES (GESTURE_FPS * 2)
+#define NORM_FLOOR_SAMPLES (GESTURE_FPS * 2)
 #define GESTURE_RESOLUTION 10000
 
 typedef struct{
@@ -26,6 +26,7 @@ static struct{
 		enum fsm_state{
 			GFSM_IDLE = 0,
 			GFSM_LEVEL,
+			GFSM_FIN_HOLD
 		}state;
 		_fifo_t * frame;
 		int total_energy;
@@ -95,7 +96,7 @@ static int _fsm(int in, int th){
 	if( 0 != _putfifo(self.fsm.frame,in)){
 		return 0;
 	}
-	UARTprintf("> %d / %d >", in, th);
+	//UARTprintf("> %d / %d >", in, th);
 	int average_energy = _avgfifo(self.fsm.frame);
 	switch(self.fsm.state){
 	case GFSM_IDLE:
@@ -112,9 +113,14 @@ static int _fsm(int in, int th){
 		if(average_energy < 1){
 			UARTprintf("->0");
 
-			if(self.fsm.total_energy > 10 && self.fsm.frame_count >= 3){
-				UARTprintf(": EVENT");
+			if(self.fsm.total_energy > 1000 && self.fsm.frame_count > (GESTURE_FPS * 1)){
+				UARTprintf(": HOLD");
+				self.fsm.state = GFSM_FIN_HOLD; //so we dont trigger hold multiple times
+			}else if(self.fsm.total_energy > 10 && self.fsm.frame_count >= 3){
+				UARTprintf(": WAVE");
 			}
+	//duff's device (http://en.wikipedia.org/wiki/Duff's_device)
+	case GFSM_FIN_HOLD:
 			self.fsm.frame_count = 0;
 			self.fsm.total_energy = 0;
 			self.fsm.state = GFSM_IDLE;
@@ -122,7 +128,7 @@ static int _fsm(int in, int th){
 		break;
 	}
 	self.fsm.prev_in = in;
-	UARTprintf("\r\n");
+	//UARTprintf("\r\n");
 }
 static int _normalize(int in, int * out){
 	int ret = -1;
