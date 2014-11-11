@@ -143,6 +143,12 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
 		}
     }
         break;
+    case SL_WLAN_CONNECTION_FAILED_EVENT:
+    {
+        UARTprintf("SL_WLAN_CONNECTION_FAILED_EVENT\n\r");
+        sl_status &= ~CONNECTING;
+    }
+    break;
     case SL_WLAN_DISCONNECT_EVENT:
         UARTprintf("SL_WLAN_DISCONNECT_EVENT\n\r");
         sl_status &= ~CONNECT;
