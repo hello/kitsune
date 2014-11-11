@@ -1,5 +1,6 @@
 #include "gesture.h"
 #include <string.h>
+#include <stdbool.h>
 #include "FreeRTOS.h"
 #define GESTURE_FPS 10
 #define NOISE_SAMPLES (GESTURE_FPS * 2)
@@ -26,12 +27,12 @@ static struct{
 		enum fsm_state{
 			GFSM_IDLE = 0,
 			GFSM_LEVEL,
-			GFSM_FIN_HOLD
 		}state;
 		_fifo_t * frame;
 		int total_energy;
 		int frame_count;;
 		int prev_in;
+		bool held;
 	}fsm;
 	gesture_callbacks_t user;
 }self;
@@ -91,44 +92,49 @@ static int _fsm_reset(void){
 	self.fsm.frame = _mkfifo(3);
 	return 0;
 }
-#define FSM_ENERGY_DECAY 1
+
+static bool _hasWave(void){
+	return (self.fsm.total_energy > 10 && self.fsm.frame_count >= GESTURE_FPS * 0.3);
+}
+static bool _hasHold(void){
+	return (self.fsm.total_energy > 1000 && self.fsm.frame_count >= GESTURE_FPS * 1);
+}
 static int _fsm(int in, int th){
 	if( 0 != _putfifo(self.fsm.frame,in)){
 		return 0;
 	}
-	//UARTprintf("> %d / %d >", in, th);
+	//computes the average of last 3 frames of energy
 	int average_energy = _avgfifo(self.fsm.frame);
+	//UARTprintf("> %d / %d >", in, th);
 	switch(self.fsm.state){
 	case GFSM_IDLE:
 		//any edge triggers edge up state
 		if(in > (th * 3)){
 			UARTprintf("->1");
 			self.fsm.state = GFSM_LEVEL;
+			self.fsm.held = false;
 		}
 		break;
 	case GFSM_LEVEL:
+		//use total energy and frame count to determine wave type
 		self.fsm.total_energy += abs(in - self.fsm.prev_in);
 		self.fsm.frame_count++;
-		_putfifo(self.fsm.frame,in);
 		if(average_energy < 1){
 			UARTprintf("->0");
-
-			if(self.fsm.total_energy > 1000 && self.fsm.frame_count > (GESTURE_FPS * 1)){
-				UARTprintf(": HOLD");
-				self.fsm.state = GFSM_FIN_HOLD; //so we dont trigger hold multiple times
-			}else if(self.fsm.total_energy > 10 && self.fsm.frame_count >= 3){
-				UARTprintf(": WAVE");
+			if(!self.fsm.held && _hasWave()){
+				UARTprintf("WAVE");
 			}
-	//duff's device (http://en.wikipedia.org/wiki/Duff's_device)
-	case GFSM_FIN_HOLD:
 			self.fsm.frame_count = 0;
 			self.fsm.total_energy = 0;
 			self.fsm.state = GFSM_IDLE;
+		}else if(!self.fsm.held && _hasHold()){
+			UARTprintf("HOLD");
+			self.fsm.held = true;
 		}
 		break;
 	}
 	self.fsm.prev_in = in;
-	//UARTprintf("\r\n");
+	UARTprintf("\r\n");
 }
 static int _normalize(int in, int * out){
 	int ret = -1;
