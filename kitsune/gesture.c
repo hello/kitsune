@@ -26,8 +26,8 @@
 #define GESTURE_HOLD_ENERGY_TH 1000
 
 /* sliding threshold */
-#define GESTURE_SLIDE_THRESHOLD 200
-#define GESTURE_SLIDE_MULTIPLIER (0.6)
+#define GESTURE_SLIDE_ACTIVATION_TH 500
+#define GESTURE_SLIDE_MULTIPLIER (0.3)
 
 #define NOISE_SAMPLES (GESTURE_FPS * 2)
 #define NORM_FLOOR_SAMPLES (GESTURE_FPS * 2)
@@ -60,6 +60,7 @@ static struct{
 		int frame_count;
 		int prev_in;
 		int prev_avg_energy;
+		int frame_energy_capture;
 	}fsm;
 	gesture_callbacks_t user;
 }self;
@@ -126,6 +127,9 @@ static bool _hasWave(void){
 static bool _hasHold(void){
 	return (self.fsm.total_energy > GESTURE_HOLD_ENERGY_TH && self.fsm.frame_count >= GESTURE_FPS * GESTURE_HOLD_MULTIPLIER);
 }
+static bool _hasSlide(int e){
+	return (abs(e - self.fsm.prev_avg_energy) > GESTURE_SLIDE_ACTIVATION_TH && self.fsm.frame_count >= GESTURE_FPS * GESTURE_SLIDE_MULTIPLIER);
+}
 static void _transition_state(enum fsm_state s){
 	self.fsm.frame_count = 0;
 	self.fsm.total_energy = 0;
@@ -165,6 +169,9 @@ static int _fsm(int in, int th){
 				self.user.on_hold(self.user.ctx);
 			}
 			_transition_state(GFSM_HOLD);
+		}else if(_hasSlide(average_energy)){
+			_transition_state(GFSM_SLIDE);
+			self.fsm.frame_energy_capture = average_energy;
 		}
 		break;
 	case GFSM_HOLD:
@@ -173,6 +180,13 @@ static int _fsm(int in, int th){
 		}
 		break;
 	case GFSM_SLIDE:
+		if(average_energy < 1){
+			_transition_state(GFSM_IDLE);
+		}else if(abs(average_energy - self.fsm.prev_avg_energy) > GESTURE_SLIDE_ACTIVATION_TH){
+			if(self.user.on_slide){
+				self.user.on_slide(self.user.ctx, average_energy - self.fsm.frame_energy_capture);
+			}
+		}
 		break;
 	}
 	self.fsm.prev_in = in;
