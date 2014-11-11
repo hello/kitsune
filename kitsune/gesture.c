@@ -94,7 +94,7 @@ static int _fsm_reset(void){
 }
 
 static bool _hasWave(void){
-	return (self.fsm.total_energy > 10 && self.fsm.frame_count >= GESTURE_FPS * 0.3);
+	return (self.fsm.total_energy > 50 && self.fsm.frame_count >= GESTURE_FPS * 0.3);
 }
 static bool _hasHold(void){
 	return (self.fsm.total_energy > 1000 && self.fsm.frame_count >= GESTURE_FPS * 1);
@@ -105,11 +105,11 @@ static int _fsm(int in, int th){
 	}
 	//computes the average of last 3 frames of energy
 	int average_energy = _avgfifo(self.fsm.frame);
-	//UARTprintf("> %d / %d >", in, th);
+	UARTprintf("> %d / %d\r\n", in, th);
 	switch(self.fsm.state){
 	case GFSM_IDLE:
 		//any edge triggers edge up state
-		if(in > (th * 3)){
+		if(in > (th * 5)){
 			UARTprintf("->1\r\n");
 			self.fsm.state = GFSM_LEVEL;
 			self.fsm.held = false;
