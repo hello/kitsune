@@ -4,14 +4,23 @@
 #include <stdlib.h>
 #include "uartstdio.h"
 #include "FreeRTOS.h"
+
+/* defines the frames per second of the gesture fsm, which is triggerd by sampling the prox*/
 #define GESTURE_FPS 10
+
+/* how much delta does it take to activate the fsm over noise floor */
 #define GESTURE_ACTIVATION_MULTIPLIER 5
+/* under what signal noise threshold for which normalizer will activate recalibrateion */
 #define GESTURE_CALIBRATION_TH 50
 
+/* multiples GESTURE FSP, minimal frames require for the wave gesture */
 #define GESTURE_WAVE_MULTIPLIER (0.3)
+/* minimal amount of energy after normalization to register a wave gesture */
 #define GESTURE_WAVE_ENERGY_TH	50
 
+/* multiples GESTURE FSP, minimal frames require for the hold gesture */
 #define GESTURE_HOLD_MULTIPLIER (1)
+/* minimal amount of energy after normalization to register a hold gesture */
 #define GESTURE_HOLD_ENERGY_TH 1000
 
 
@@ -115,7 +124,7 @@ static int _fsm(int in, int th){
 		return 0;
 	}
 	//computes the average of last 3 frames of energy
-	//UARTprintf("> %d / %d\r\n", in, th);
+	UARTprintf("> %d / %d\r\n", in, th);
 	int average_energy = _avgfifo(self.fsm.frame);
 	switch(self.fsm.state){
 	case GFSM_IDLE:
