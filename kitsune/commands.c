@@ -85,12 +85,6 @@ extern int g_iReceiveCount;
 //******************************************************************************
 //			    GLOBAL VARIABLES
 //******************************************************************************
-#if defined(ccs)
-extern void (* const g_pfnVectors[])(void);
-#endif
-#if defined(ewarm)
-extern uVectorEntry __vector_table;
-#endif
 
 tCircularBuffer *pTxBuffer;
 tCircularBuffer *pRxBuffer;
@@ -687,7 +681,7 @@ void thread_fast_i2c_poll(void * unused)  {
 
 			hpf_prox += ( abs(last_prox - prox) - hpf_prox )>>2;   // The noise in enclosure is in 100+ um level
 
-			prox_thresh = 400;
+			prox_thresh = 200;
 
 			if( disp_prox ) {
 				xSemaphoreGive(i2c_smphr);

@@ -72,7 +72,6 @@ extern int g_iReceiveCount =0;
 int g_iRetVal =0;
 int iCount =0;
 unsigned int g_uiPlayWaterMark = 1;
-extern unsigned long  g_ulStatus;
 extern unsigned char g_ucSpkrStartFlag;
 //*****************************************************************************
 //                 GLOBAL VARIABLES -- End

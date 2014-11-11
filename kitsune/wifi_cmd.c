@@ -11,8 +11,6 @@
 #include "simplelink.h"
 #include "protocol.h"
 
-#include "ota_api.h"
-
 #include "wifi_cmd.h"
 #include "networktask.h"
 
@@ -1347,9 +1345,6 @@ bool encode_name(pb_ostream_t *stream, const pb_field_t *field, void * const *ar
                     strlen(MORPH_NAME));
 }
 
-bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field,void **arg);
-int download_file(char * host, char * url, char * filename, char * path);
-int file_exists(char * filename, char * path);
 bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg);
 void set_alarm( SyncResponse_Alarm * received_alarm );
 

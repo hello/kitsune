@@ -63,7 +63,6 @@ static DIR fsdirobj;
 static FILINFO file_info;
 static FIL file_obj;
 
-extern tCircularBuffer *pTxBuffer;
 
 int Cmd_mnt(int argc, char *argv[])
 {
