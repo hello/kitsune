@@ -606,10 +606,10 @@ void thread_dust(void * unused)  {
 		vTaskDelay( 100 );
 	}
 }
-static void _on_wave(int, int){
+static void _on_wave(int a, int b){
 	play_led_trippy();
 }
-static void _on_hold(int, int){
+static void _on_hold(int a, int b){
 	stop_led_animation();
 }
 static int light_m2,light_mean, light_cnt,light_log_sum,light_sf;

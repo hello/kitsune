@@ -11,7 +11,7 @@
 #define GESTURE_WAVE_ENERGY_TH	50
 
 #define GESTURE_HOLD_MULTIPLIER (1)
-#define GESTURE_WAVE_ENERGY_TH 1000
+#define GESTURE_HOLD_ENERGY_TH 1000
 
 
 #define NOISE_SAMPLES (GESTURE_FPS * 2)
@@ -133,7 +133,7 @@ static int _fsm(int in, int th){
 			UARTprintf("->0 ");
 			if(!self.fsm.held && _hasWave()){
 				UARTprintf("Gesture: WAVE\r\n");
-				if(self.user){
+				if(self.user.on_wave){
 					self.user.on_wave(0,0);
 				}
 			}
@@ -144,7 +144,7 @@ static int _fsm(int in, int th){
 		}else if(!self.fsm.held && _hasHold()){
 			UARTprintf("Gesture: HOLD\r\n");
 			self.fsm.held = true;
-			if(self.user){
+			if(self.user.on_hold){
 				self.user.on_hold(0, 0);
 			}
 		}
