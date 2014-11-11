@@ -606,11 +606,14 @@ void thread_dust(void * unused)  {
 		vTaskDelay( 100 );
 	}
 }
-static void _on_wave(void){
+static void _on_wave(void * ctx){
 	play_led_trippy();
 }
-static void _on_hold(void){
+static void _on_hold(void * ctx){
 	stop_led_animation();
+}
+static void _on_slide(void * ctx, int delta){
+	UARTprintf("Slide delta %d\r\n", delta);
 }
 static int light_m2,light_mean, light_cnt,light_log_sum,light_sf;
 static xSemaphoreHandle light_smphr;
@@ -623,6 +626,7 @@ void thread_fast_i2c_poll(void * unused)  {
 	gesture_callbacks_t gesture_cbs = (gesture_callbacks_t){
 		.on_wave = _on_wave,
 		.on_hold = _on_hold,
+		.on_slide = _on_slide,
 		.ctx = NULL,
 	};
 	portTickType last = 0;

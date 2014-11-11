@@ -12,6 +12,8 @@
 #define GESTURE_ACTIVATION_MULTIPLIER 5
 /* under what signal noise threshold for which normalizer will activate recalibrateion */
 #define GESTURE_CALIBRATION_TH 50
+/* number of frames to calculate average energy in fsm activated state */
+#define FSM_AVG_FRAME_COUNT 3
 
 /* multiples GESTURE FSP, minimal frames require for the wave gesture */
 #define GESTURE_WAVE_MULTIPLIER (0.3)
@@ -23,6 +25,9 @@
 /* minimal amount of energy after normalization to register a hold gesture */
 #define GESTURE_HOLD_ENERGY_TH 1000
 
+/* sliding threshold */
+#define GESTURE_SLIDE_THRESHOLD 200
+#define GESTURE_SLIDE_MULTIPLIER (0.6)
 
 #define NOISE_SAMPLES (GESTURE_FPS * 2)
 #define NORM_FLOOR_SAMPLES (GESTURE_FPS * 2)
@@ -47,12 +52,14 @@ static struct{
 		enum fsm_state{
 			GFSM_IDLE = 0,
 			GFSM_LEVEL,
+			GFSM_HOLD,
+			GFSM_SLIDE,
 		}state;
 		_fifo_t * frame;
 		int total_energy;
 		int frame_count;
 		int prev_in;
-		bool held;
+		int prev_avg_energy;
 	}fsm;
 	gesture_callbacks_t user;
 }self;
@@ -109,7 +116,7 @@ static int _fsm_reset(void){
 	if(self.fsm.frame){
 		vPortFree(self.fsm.frame);
 	}
-	self.fsm.frame = _mkfifo(3);
+	self.fsm.frame = _mkfifo(FSM_AVG_FRAME_COUNT);
 	return 0;
 }
 
@@ -119,6 +126,11 @@ static bool _hasWave(void){
 static bool _hasHold(void){
 	return (self.fsm.total_energy > GESTURE_HOLD_ENERGY_TH && self.fsm.frame_count >= GESTURE_FPS * GESTURE_HOLD_MULTIPLIER);
 }
+static void _transition_state(enum fsm_state s){
+	self.fsm.frame_count = 0;
+	self.fsm.total_energy = 0;
+	self.fsm.state = s;
+}
 static int _fsm(int in, int th){
 	if( 0 != _putfifo(self.fsm.frame,in)){
 		return 0;
@@ -126,42 +138,45 @@ static int _fsm(int in, int th){
 	//computes the average of last 3 frames of energy
 	UARTprintf("> %d / %d\r\n", in, th);
 	int average_energy = _avgfifo(self.fsm.frame);
+	self.fsm.frame_count++;
+	self.fsm.total_energy += abs(in - self.fsm.prev_in);
 	switch(self.fsm.state){
 	case GFSM_IDLE:
 		//any edge triggers edge up state
 		if(in > (th * GESTURE_ACTIVATION_MULTIPLIER)){
-
 			UARTprintf("->1\r\n");
-			self.fsm.state = GFSM_LEVEL;
-			self.fsm.held = false;
+			_transition_state(GFSM_LEVEL);
 		}
 		break;
 	case GFSM_LEVEL:
-		//use total energy and frame count to determine wave type
-		self.fsm.total_energy += abs(in - self.fsm.prev_in);
-		self.fsm.frame_count++;
 		if(average_energy < 1){
 			UARTprintf("->0 ");
-			if(!self.fsm.held && _hasWave()){
+			if(_hasWave()){
 				UARTprintf("Gesture: WAVE\r\n");
 				if(self.user.on_wave){
-					self.user.on_wave();
+					self.user.on_wave(self.user.ctx);
 				}
 			}
-			self.fsm.frame_count = 0;
-			self.fsm.total_energy = 0;
-			self.fsm.state = GFSM_IDLE;
+			_transition_state(GFSM_IDLE);
 			UARTprintf("\r\n");
-		}else if(!self.fsm.held && _hasHold()){
+		}else if(_hasHold()){
 			UARTprintf("Gesture: HOLD\r\n");
-			self.fsm.held = true;
-			if(self.user.on_hold){
-				self.user.on_hold();
+			if (self.user.on_hold) {
+				self.user.on_hold(self.user.ctx);
 			}
+			_transition_state(GFSM_HOLD);
 		}
+		break;
+	case GFSM_HOLD:
+		if(average_energy < 1){
+			_transition_state(GFSM_IDLE);
+		}
+		break;
+	case GFSM_SLIDE:
 		break;
 	}
 	self.fsm.prev_in = in;
+	self.fsm.prev_avg_energy = average_energy;
 	return 0;
 }
 static int _normalize(int in, int noise, int * out){

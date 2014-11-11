@@ -14,8 +14,9 @@ extern "C" {
 //user supply callback on detection
 //duration and height are not implemented yet
 typedef struct{
-	void (*on_wave)(void);
-	void (*on_hold)(void);
+	void (*on_wave)(void * ctx);
+	void (*on_hold)(void * ctx);
+	void (*on_slide)(void * ctx, int delta);
 	void * ctx;
 }gesture_callbacks_t;
 
