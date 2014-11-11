@@ -6,6 +6,7 @@
 #include "FreeRTOS.h"
 #define GESTURE_FPS 10
 #define GESTURE_ACTIVATION_MULTIPLIER 5
+#define GESTURE_CALIBRATION_TH 50
 
 #define GESTURE_WAVE_MULTIPLIER (0.3)
 #define GESTURE_WAVE_ENERGY_TH	50
@@ -114,12 +115,13 @@ static int _fsm(int in, int th){
 		return 0;
 	}
 	//computes the average of last 3 frames of energy
+	//UARTprintf("> %d / %d\r\n", in, th);
 	int average_energy = _avgfifo(self.fsm.frame);
 	switch(self.fsm.state){
 	case GFSM_IDLE:
 		//any edge triggers edge up state
 		if(in > (th * GESTURE_ACTIVATION_MULTIPLIER)){
-			UARTprintf("> %d / %d", in, th);
+
 			UARTprintf("->1\r\n");
 			self.fsm.state = GFSM_LEVEL;
 			self.fsm.held = false;
@@ -134,7 +136,7 @@ static int _fsm(int in, int th){
 			if(!self.fsm.held && _hasWave()){
 				UARTprintf("Gesture: WAVE\r\n");
 				if(self.user.on_wave){
-					self.user.on_wave(0,0);
+					self.user.on_wave();
 				}
 			}
 			self.fsm.frame_count = 0;
@@ -145,7 +147,7 @@ static int _fsm(int in, int th){
 			UARTprintf("Gesture: HOLD\r\n");
 			self.fsm.held = true;
 			if(self.user.on_hold){
-				self.user.on_hold(0, 0);
+				self.user.on_hold();
 			}
 		}
 		break;
@@ -153,14 +155,19 @@ static int _fsm(int in, int th){
 	self.fsm.prev_in = in;
 	return 0;
 }
-static int _normalize(int in, int * out){
+static int _normalize(int in, int noise, int * out){
 	int ret = -1;
 	int env;
 	if(in >= 200000){
 		//clamping is necessary to prevent overflow
 		in = 200000;
 	}
-	ret = _putfifo(self.normalizer.env, in);
+	if(noise < GESTURE_CALIBRATION_TH){
+		ret = _putfifo(self.normalizer.env, in);
+	}else{
+		ret = 0;
+	}
+
 	if(ret == 0){
 		env = _avgfifo(self.normalizer.env);
 		if(in < env){
@@ -194,7 +201,7 @@ void gesture_input(int prox, int light){
 	int output, noise_th;
 	int a,b;
 	a = _mavg(prox, &noise_th);
-	b = _normalize(prox, &output);
+	b = _normalize(prox, noise_th, &output);
 	if(!a && !b){
 		_fsm(output, noise_th);
 	}
