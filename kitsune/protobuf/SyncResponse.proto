@@ -10,6 +10,7 @@ message SyncResponse {
 		optional string serial_flash_path =8;
 		optional string sd_card_filename =3;
 		optional string sd_card_path =9;
+		optional bytes sha1 = 10;
 	}
 
     message Alarm {
@@ -69,6 +70,7 @@ message SyncResponse {
     optional bool reset_device = 10;
     optional RoomConditions room_conditions = 12;
 	repeated FileDownload files = 13;
+	optional bool reset_to_factory_fw = 14;
 	
     // TODO: settings for snoring detection
     // TODO: settings for firmware update
