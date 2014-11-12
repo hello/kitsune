@@ -1230,7 +1230,7 @@ int Cmd_download(int argc, char*argv[]) {
 #define DEVICE_IS_CC3101RS      0x18
 #define DEVICE_IS_CC3101S       0x1B
 
-#define SHA_SIZE 32
+#define SHA1_SIZE 32
 
 /******************************************************************************
    Boot Info structure
@@ -1240,7 +1240,7 @@ typedef struct sBootInfo
   _u8  ucActiveImg;
   _u32 ulImgStatus;
 
-  unsigned char sha[NUM_OTA_IMAGES][SHA_SIZE];
+  unsigned char sha[NUM_OTA_IMAGES][SHA1_SIZE];
 }sBootInfo_t;
 
 void mcu_reset();
@@ -1405,7 +1405,6 @@ int send_top(char *, int);
 bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, void **arg);
 
 #include "crypto.h"
-#define SHA_SIZE 32
 SHA1_CTX sha1ctx;
 
 bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg)
@@ -1572,13 +1571,13 @@ bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg
 			UARTprintf("change image status to IMG_STATUS_TESTREADY\n\r");
 			_ReadBootInfo(&sBootInfo);
 			if (download_info.has_sha1) {
-				unsigned char sha[SHA_SIZE] = {0};
+				unsigned char sha[SHA1_SIZE] = {0};
 
 				SHA1_Final(sha, &sha1ctx);
 
-				if (memcmp(sha, download_info.sha1.bytes, SHA_SIZE) == 0) {
+				if (memcmp(sha, download_info.sha1.bytes, SHA1_SIZE) == 0) {
 					sBootInfo.ulImgStatus = IMG_STATUS_TESTREADY;
-					memcpy(sBootInfo.sha[_McuImageGetNewIndex()], download_info.sha1.bytes, SHA_SIZE );
+					memcpy(sBootInfo.sha[_McuImageGetNewIndex()], download_info.sha1.bytes, SHA1_SIZE );
 				} else {
 					UARTprintf( "fw update SHA did not match!\n");
 				}
