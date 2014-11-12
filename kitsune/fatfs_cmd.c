@@ -1396,6 +1396,10 @@ int wait_for_top_boot(unsigned int timeout);
 int send_top(char *, int);
 bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, void **arg);
 
+#include "crypto.h"
+#define SHA_SIZE 32
+SHA1_CTX sha1ctx;
+
 bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg)
 {
 	SyncResponse_FileDownload download_info;
@@ -1472,6 +1476,7 @@ bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg
 		download_file( host, url, filename, path );
 
 		if( download_info.has_copy_to_serial_flash && download_info.copy_to_serial_flash && serial_flash_name && serial_flash_path ) {
+
 			char * full;
 			char *buf;
 			long sflash_fh = -1;
@@ -1520,6 +1525,10 @@ bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg
 
 			play_led_progress_bar(254, 132, 4, 0);
 
+			if( download_info.has_sha1 ) {
+				SHA1_Init(&sha1ctx);
+			}
+
 			UARTprintf( "copying %d from %s on sd to %s on sflash\n", bytes_to_copy, path_buff, full);
 			while( bytes_to_copy > 0 ) {
 				//read from sd into buff
@@ -1530,6 +1539,10 @@ bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg
 				}
 				//UARTprintf( "offset %d, left %d, chunk %d\n",  file_len-bytes_to_copy, bytes_to_copy,size );
 				set_led_progress_bar( 100*(file_len-bytes_to_copy)/file_len );
+
+				if( download_info.has_sha1 ) {
+					SHA1_Update(&sha1ctx, (uint8_t*)buf, size);
+				}
 
 				status = sl_FsWrite(sflash_fh, file_len-bytes_to_copy, (unsigned char*)buf, size);
 				if( status != size ) {
@@ -1550,9 +1563,20 @@ bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg
 		if( download_info.has_reset_application_processor && download_info.reset_application_processor ) {
 			UARTprintf("change image status to IMG_STATUS_TESTREADY\n\r");
 			_ReadBootInfo(&sBootInfo);
-			sBootInfo.ulImgStatus = IMG_STATUS_TESTREADY;
-			if( download_info.has_sha1 ) {
-				memcpy( sBootInfo.sha[_McuImageGetNewIndex()], download_info.sha1.bytes, download_info.sha1.size );
+			if (download_info.has_sha1) {
+				unsigned char sha[SHA_SIZE] = {0};
+
+				SHA1_Final(sha, &sha1ctx);
+
+				if (memcmp(sha, download_info.sha1.bytes, SHA_SIZE) == 0) {
+					sBootInfo.ulImgStatus = IMG_STATUS_TESTREADY;
+					memcpy(sBootInfo.sha[_McuImageGetNewIndex()], download_info.sha1.bytes, SHA_SIZE );
+				} else {
+					UARTprintf( "fw update SHA did not match!\n");
+				}
+			} else {
+				sBootInfo.ulImgStatus = IMG_STATUS_TESTREADY;
+				UARTprintf( "warning no download SHA on fw!\n");
 			}
 			//sBootInfo.ucActiveImg this is set by boot loader
 			_WriteBootInfo(&sBootInfo);
