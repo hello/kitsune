@@ -127,8 +127,6 @@ void NetworkTask_Thread(void * networkdata) {
 	NetworkTaskServerSendMessage_t message;
 	NetworkResponse_t response;
 	NetworkTaskData_t * taskdata = (NetworkTaskData_t *)networkdata;
-	uint8_t * buf;;
-	uint32_t buf_size;
 	int32_t timeout_counts;
 	int32_t retry_period;
 	uint32_t attempt_count;

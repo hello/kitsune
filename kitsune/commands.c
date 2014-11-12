@@ -409,7 +409,7 @@ int Cmd_play_buff(int argc, char *argv[]) {
     char * file = argv[2];
     AudioPlaybackDesc_t desc;
     memset(&desc,0,sizeof(desc));
-    desc.file = file;
+    strncpy( desc.file, file, 64 );
     desc.volume = vol;
     desc.durationInSeconds = 60;
 
@@ -607,7 +607,7 @@ void thread_alarm(void * unused) {
 					AudioPlaybackDesc_t desc;
 					memset(&desc,0,sizeof(desc));
 
-					desc.file = AUDIO_FILE;
+					strncpy( desc.file, AUDIO_FILE, 64 );
 					desc.durationInSeconds = alarm.ring_duration_in_second;
 					desc.volume = 57;
 					desc.onFinished = thread_alarm_on_finished;
@@ -665,7 +665,8 @@ void thread_dust(void * unused)  {
 }
 
 static void _on_wave(void * ctx){
-	g_ucSpkrStartFlag = 0;alarm.has_start_time = 0;
+	alarm.has_start_time = 0;
+	AudioTask_StopPlayback();
 
 	uint8_t adjust_max_light = 80;
 
@@ -704,7 +705,8 @@ static void _on_wave(void * ctx){
 			}
 static void _on_hold(void * ctx){
 	stop_led_animation();
-	g_ucSpkrStartFlag = 0;alarm.has_start_time = 0;
+	alarm.has_start_time = 0;
+	AudioTask_StopPlayback();
 }
 static void _on_slide(void * ctx, int delta){
 	UARTprintf("Slide delta %d\r\n", delta);

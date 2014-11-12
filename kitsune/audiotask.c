@@ -261,7 +261,6 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 static void CaptureAudio() {
 	int16_t samples[PACKET_SIZE/4];
-	uint8_t * ptr_samples_bytes = (uint8_t *)&samples[0];
 	uint16_t i;
 	uint16_t * pu16;
 
@@ -368,23 +367,15 @@ static void CaptureAudio() {
 			vTaskDelay(5);
 		}
 		else {
+			int16_t * shortBufPtr = (int16_t*) (pTxBuffer->pucReadPtr+1);
 			//deinterleave (i.e. get mono)
-			for (i = 0; i < PACKET_SIZE/2; i++ ) {
-				ptr_samples_bytes[i] = pTxBuffer->pucReadPtr[2*i];
+			for (i = 0; i < PACKET_SIZE/4; i++ ) {
+				samples[i] = shortBufPtr[2*i];
 			}
 
 			UpdateReadPtr(pTxBuffer, PACKET_SIZE);
 #ifdef PRINT_TIMING
 			t1 = xTaskGetTickCount(); dt = t1 - t0; t0 = t1;
-#endif
-
-#ifdef  SWAP_ENDIAN
-			//swap endian, so we output little endian (it comes in as big endian)
-			pu16 = (uint16_t *)samples;
-			for (i = 0; i < PACKET_SIZE/4; i ++) {
-				*pu16 = ((*pu16) << 8) | ((*pu16) >> 8);
-				pu16++;
-			}
 #endif
 
 			//write to file

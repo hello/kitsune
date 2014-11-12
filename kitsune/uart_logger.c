@@ -11,6 +11,7 @@
 #include "uartstdio.h"
 #include "debug.h"
 #include <stdlib.h>
+#include "endpoints.h"
 
 #define SENSE_LOG_ENDPOINT		"/logs"
 #define LOG_EVENT_BACKEND 		0x1
@@ -137,7 +138,7 @@ void uart_logger_task(void * params){
 				self.log.has_unix_time = false;
 			}
 
-			ret = NetworkTask_SynchronousSendProtobuf(SENSE_LOG_ENDPOINT,buffer,sizeof(buffer),SenseLog_fields,&self.log,0);
+			ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER, SENSE_LOG_ENDPOINT,buffer,sizeof(buffer),SenseLog_fields,&self.log,0);
 			if(ret == 0){
 				LOGI("Succeeded\r\n");
 			}else{

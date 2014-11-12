@@ -13,7 +13,7 @@ typedef enum {
 } EAudioCommand_t;
 
 typedef struct {
-	const char * file;
+	char file[64];
 	int32_t volume;
 	uint32_t durationInSeconds;
 

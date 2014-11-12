@@ -22,6 +22,7 @@ static struct{
 	struct{
 		enum fsm_state{
 			GFSM_IDLE = 0,
+			GFSM_IDLE_FORREALS,
 			GFSM_LEVEL,
 			GFSM_HOLD,
 			GFSM_SLIDE,
@@ -67,6 +68,10 @@ static int _fsm(int in){
 	switch(self.fsm.state){
 	case GFSM_IDLE:
 		//any edge triggers edge up state
+		UARTprintf("->0\r\n");
+		_transition_state(GFSM_IDLE_FORREALS);
+	case GFSM_IDLE_FORREALS:
+		//any edge triggers edge up state
 		if( exceeded > 0 ){
 			UARTprintf("->1\r\n");
 			_transition_state(GFSM_LEVEL);
@@ -81,7 +86,6 @@ static int _fsm(int in){
 				}
 				_transition_state(GFSM_HOLD);
 			} else if (_hasWave()) {
-				UARTprintf("->0 ");
 				if (_hasWave()) {
 					UARTprintf("Gesture: WAVE\r\n");
 					if (self.user.on_wave) {
