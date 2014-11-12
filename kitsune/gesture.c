@@ -46,6 +46,15 @@ static void _transition_state(enum fsm_state s){
 	self.fsm.exceed_thresh_count = 0;
 	self.fsm.state = s;
 }
+
+static int _fsm_reset(void){
+	self.fsm.state = GFSM_IDLE;
+	self.fsm.exceed_thresh_count = 0;
+	self.fsm.prox_impluse = 0;
+	self.fsm.prox_slow = 0;
+	self.fsm.prox_last =0;
+	return 0;
+}
 static int _fsm(int in){
 	int exceeded = 0;
 	//computes the average of last 3 frames of energy
@@ -101,23 +110,20 @@ static int _fsm(int in){
 	return 0;
 }
 
-static int _fsm_reset(void){
-	self.fsm.state = GFSM_IDLE;
-	self.fsm.exceed_thresh_count = 0;
-	self.fsm.prox_impluse = 0;
-	self.fsm.prox_slow = 0;
-	self.fsm.prox_last =0;
-	return 0;
-}
 void gesture_init(gesture_callbacks_t * _user){
 	_fsm_reset();
 	if(_user){
 		self.user = *_user;
 	}
 }
-void gesture_input(int prox, int light){
+
+int disp_prox;
+void gesture_input(int prox){
+	if( disp_prox ) {
+		UARTprintf( "%d %d\t", prox, self.fsm.prox_impluse );
+	}
 	if (self.fsm.prox_last != 0) {
-		self.fsm.prox_slow += (prox - self.fsm.prox_slow) / 64;
+		self.fsm.prox_slow += (prox - self.fsm.prox_slow) / 32;
 		if( (prox-self.fsm.prox_slow) > 0 ) {
 			self.fsm.prox_slow = prox;
 		}

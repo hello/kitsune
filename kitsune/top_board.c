@@ -41,7 +41,9 @@ static struct{
 		long handle;
 
 	}dfu_contex;
+	int top_boot;
 }self;
+
 static void
 _printchar(uint8_t c){
 	UARTCharPutNonBlocking(UARTA0_BASE, c); //basic feedback
@@ -269,7 +271,14 @@ int top_board_dfu_begin(const char * bin){
 	return 0;
 
 }
-
+int wait_for_top_boot(unsigned int timeout) {
+	unsigned int start = xTaskGetTickCount();
+	self.top_boot = false;
+	while( !self.top_boot && xTaskGetTickCount() - start < timeout ) {
+		vTaskDelay(1);
+	}
+	return self.top_boot;
+}
 int send_top(char * s, int n) {
 	int i;
 	if(self.mode == TOP_NORMAL_MODE){
@@ -305,6 +314,7 @@ int Cmd_send_top(int argc, char *argv[]){
 }
 void top_board_notify_boot_complete(void){
 	led_set_color(0xFF, LED_MAX, LED_MAX, LED_MAX, 1, 1, 18, 0);
+	self.top_boot = true;
 }
 
 #include "dtm.h"
