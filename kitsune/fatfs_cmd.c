@@ -1230,7 +1230,7 @@ int Cmd_download(int argc, char*argv[]) {
 #define DEVICE_IS_CC3101RS      0x18
 #define DEVICE_IS_CC3101S       0x1B
 
-#define SHA1_SIZE 32
+#include "crypto.h"
 
 /******************************************************************************
    Boot Info structure
@@ -1404,7 +1404,6 @@ int wait_for_top_boot(unsigned int timeout);
 int send_top(char *, int);
 bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, void **arg);
 
-#include "crypto.h"
 SHA1_CTX sha1ctx;
 
 bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg)
