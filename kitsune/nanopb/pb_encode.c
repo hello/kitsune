@@ -11,11 +11,9 @@
  * are propagated correctly. On other compilers and gcc before 3.4.0 just
  * ignore the annotation.
  */
-#if !defined(__GNUC__) || ( __GNUC__ < 3) || (__GNUC__ == 3 && __GNUC_MINOR__ < 4)
-    #define checkreturn
-#else
+
     #define checkreturn __attribute__((warn_unused_result))
-#endif
+
 
 /**************************************
  * Declarations internal to this file *

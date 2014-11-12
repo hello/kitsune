@@ -7,11 +7,9 @@
  * are propagated correctly. On other compilers and gcc before 3.4.0 just
  * ignore the annotation.
  */
-#if !defined(__GNUC__) || ( __GNUC__ < 3) || (__GNUC__ == 3 && __GNUC_MINOR__ < 4)
-    #define checkreturn
-#else
+
     #define checkreturn __attribute__((warn_unused_result))
-#endif
+
 
 #include "pb.h"
 #include "pb_decode.h"
@@ -269,8 +267,10 @@ bool checkreturn pb_skip_field(pb_istream_t *stream, pb_wire_type_t wire_type)
         case PB_WT_64BIT: return pb_read(stream, NULL, 8);
         case PB_WT_STRING: return pb_skip_string(stream);
         case PB_WT_32BIT: return pb_read(stream, NULL, 4);
-        default: PB_RETURN_ERROR(stream, "invalid wire_type");
+        default:
+        	PB_RETURN_ERROR(stream, "invalid wire_type");
     }
+
 }
 
 /* Read a raw value to buffer, for the purpose of passing it to callback as
@@ -299,7 +299,8 @@ static bool checkreturn read_raw_value(pb_istream_t *stream, pb_wire_type_t wire
             *size = 4;
             return pb_read(stream, buf, 4);
         
-        default: PB_RETURN_ERROR(stream, "invalid wire_type");
+        default:
+        	PB_RETURN_ERROR(stream, "invalid wire_type");
     }
 }
 

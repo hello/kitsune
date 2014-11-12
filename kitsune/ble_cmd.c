@@ -156,49 +156,6 @@ bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, void **
     return true;
 }
 
-static bool _decode_bytes_field(pb_istream_t *stream, const pb_field_t *field, void **arg)
-{
-    /* We could read block-by-block to avoid the large buffer... */
-    if (stream->bytes_left > MAX_STRING_LEN - 1)
-    {
-    	UARTprintf("_decode_bytes_fields: Data tooo long\n");
-        return false;
-    }
-
-    int length = stream->bytes_left;
-    uint8_t* buffer = pvPortMalloc(stream->bytes_left + sizeof(array_data ));
-    if(!buffer)
-    {
-    	UARTprintf("_decode_bytes_fields: Out of memory\n");
-        return false;
-    }
-    array_data* array = (array_data*)buffer;
-    memset(buffer, 0, stream->bytes_left + sizeof(array_data ));
-    buffer += sizeof(array_data);
-
-    if (!pb_read(stream, buffer, stream->bytes_left))
-    {
-    	UARTprintf("_decode_bytes_fields: Failed to read data\n");
-        vPortFree(buffer);
-        return false;
-    }
-    if(!array)
-    {
-    	UARTprintf("_decode_bytes_fields: Failed to malloc data holder\n");
-        vPortFree(buffer);
-        return false;
-    }
-
-    array->buffer = buffer;
-    array->length = length;
-    *arg = array;
-
-    return true;
-}
-
-
-
-
 void on_morpheus_protobuf_arrival(uint8_t* protobuf, size_t len)
 {
     if(!protobuf)
@@ -261,11 +218,6 @@ void ble_proto_assign_decode_funcs(MorpheusCommand* command)
         command->wifiPassword.arg = NULL;
     }
 
-    if(NULL == command->motionDataEntrypted.funcs.decode)
-    {
-        command->motionDataEntrypted.funcs.decode = _decode_bytes_field;
-        command->motionDataEntrypted.arg = NULL;
-    }
 }
 
 void ble_proto_remove_decode_funcs(MorpheusCommand* command)
@@ -295,10 +247,6 @@ void ble_proto_remove_decode_funcs(MorpheusCommand* command)
         command->wifiPassword.funcs.decode = NULL;
     }
 
-    if(command->motionDataEntrypted.funcs.decode)
-    {
-        command->motionDataEntrypted.funcs.decode = NULL;
-    }
 }
 
 void ble_proto_assign_encode_funcs( MorpheusCommand* command)
@@ -328,10 +276,6 @@ void ble_proto_assign_encode_funcs( MorpheusCommand* command)
         command->wifiPassword.funcs.encode = _encode_string_fields;
     }
 
-    if(command->motionDataEntrypted.arg != NULL && command->motionDataEntrypted.funcs.encode == NULL)
-    {
-        command->motionDataEntrypted.funcs.encode = _encode_bytes_fields;
-    }
 
     if(command->wifi_scan_result.arg != NULL && command->wifi_scan_result.funcs.encode == NULL)
     {
@@ -455,11 +399,6 @@ void ble_proto_free_command(MorpheusCommand* command)
         command->wifiPassword.arg = NULL;
     }
 
-    if(command->motionDataEntrypted.arg)
-    {
-        vPortFree(command->motionDataEntrypted.arg);
-        command->motionDataEntrypted.arg = NULL;
-    }
 
     if(command->wifi_scan_result.arg)
     {

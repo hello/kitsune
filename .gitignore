@@ -14,3 +14,5 @@
 /**/*.swp
 ./oslib/ccs/free_rtos
 workspace
+ExtLibs/ota/ccs/.project
+ExtLibs/flc/ccs/.project

@@ -72,10 +72,7 @@ extern int g_iReceiveCount =0;
 int g_iRetVal =0;
 int iCount =0;
 unsigned int g_uiPlayWaterMark = 1;
-extern unsigned long  g_ulStatus;
 extern unsigned char g_ucSpkrStartFlag;
-unsigned short speaker_data[256];
-unsigned short speaker_data_padded[512]={0};
 //*****************************************************************************
 //                 GLOBAL VARIABLES -- End
 //*****************************************************************************
@@ -90,7 +87,7 @@ unsigned short speaker_data_padded[512]={0};
 //! \return None
 //
 //*****************************************************************************
-
+#include "assert.h"
 
 void Speaker1(char * file)
  {
@@ -106,18 +103,24 @@ void Speaker1(char * file)
 		UARTprintf("Failed to open audio file %d\n\r", res);
 		return;
 	}
+	#define speaker_data_size 256*sizeof(unsigned short)
+	unsigned short *speaker_data = pvPortMalloc(speaker_data_size);
+	unsigned short *speaker_data_padded = pvPortMalloc(512*sizeof(unsigned short));
+
+	assert(speaker_data);
+	assert(speaker_data_padded);
 
 	memset(speaker_data_padded,0,sizeof(speaker_data_padded));
 
 	g_uiPlayWaterMark = 1;
 	while (g_ucSpkrStartFlag) {
 		/* Read always in block of 512 Bytes or less else it will stuck in f_read() */
-		res = f_read(&fp, speaker_data, sizeof(speaker_data), (unsigned short*) &size);
+		res = f_read(&fp, speaker_data, speaker_data_size, (unsigned short*) &size);
 		totBytesRead += size;
 
 		/* Wait to avoid buffer overflow as reading speed is faster than playback */
 		while ((IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) == TRUE)) {
-			vTaskDelay(2);
+			vTaskDelay(0);
 		};
 
 		if (size > 0) {
@@ -155,4 +158,8 @@ void Speaker1(char * file)
 		vTaskDelay(0);
 	}
 	g_ucSpkrStartFlag = 0;
+
+	vPortFree(speaker_data);
+	vPortFree(speaker_data_padded);
+
 }

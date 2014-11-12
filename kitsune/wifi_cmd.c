@@ -11,7 +11,6 @@
 #include "simplelink.h"
 #include "protocol.h"
 
-#include "ota_api.h"
 
 #include "wifi_cmd.h"
 #include "networktask.h"
@@ -31,6 +30,8 @@ unsigned int sl_status = 0;
 #include "gpio.h"
 #include "led_cmd.h"
 
+#include "FreeRTOS.h"
+#include "task.h"
 
 #define FAKE_MAC 0
 
@@ -55,13 +56,13 @@ void mcu_reset()
 }
 
 #define SL_STOP_TIMEOUT                 (30)
-void nwp_reset() {
+_i16 nwp_reset() {
     sl_WlanSetMode(ROLE_STA);
     sl_Stop(SL_STOP_TIMEOUT);
-    sl_mode = sl_Start(NULL, NULL, NULL);
+    sl_status = 0;
+    return sl_Start(NULL, NULL, NULL);
 }
 
-#include "ota_usr.h"
 
 
 //*****************************************************************************
@@ -122,15 +123,15 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
          *  if (pWlanEventHandler->EventData.smartConfigStartResponse.private_token_len)
          *    then the private token is populated: pWlanEventHandler->EventData.smartConfigStartResponse.private_token
          */
-        UARTprintf("SL_WLAN_SMART_CONFIG_START_EVENT\n\r");
+        UARTprintf("SL_WLAN_SMART_CONFIG_START_EVENT\n");
         break;
 #endif
     case SL_WLAN_SMART_CONFIG_STOP_EVENT:
-        UARTprintf("SL_WLAN_SMART_CONFIG_STOP_EVENT\n\r");
+        UARTprintf("SL_WLAN_SMART_CONFIG_STOP_EVENT\n");
         break;
     case SL_WLAN_CONNECT_EVENT:
     {
-        UARTprintf("SL_WLAN_CONNECT_EVENT\n\r");
+        UARTprintf("SL_WLAN_CONNECT_EVENT\n");
         sl_status |= CONNECT;
         sl_status &= ~CONNECTING;
         char* pSSID = (char*)pSlWlanEvent->EventData.STAandP2PModeWlanConnected.ssid_name;
@@ -143,8 +144,15 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
 		}
     }
         break;
+    case SL_WLAN_CONNECTION_FAILED_EVENT:  // ahhhhh this thing blocks us for 2 weeks...
+    {
+    	// This is a P2P event, but it fired here magically.
+        UARTprintf("SL_WLAN_CONNECTION_FAILED_EVENT\n");
+        sl_status &= ~CONNECTING;
+    }
+    break;
     case SL_WLAN_DISCONNECT_EVENT:
-        UARTprintf("SL_WLAN_DISCONNECT_EVENT\n\r");
+        UARTprintf("SL_WLAN_DISCONNECT_EVENT\n");
         sl_status &= ~CONNECT;
         sl_status &= ~HAS_IP;
         memset(_connected_ssid, 0, MAX_SSID_LEN);
@@ -1056,8 +1064,10 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
         return stop_connection();
     }
 
+#if 0
     UARTprintf("HTTP header sent %d\n\r%s\n\r", rv, recv_buf);
 
+#endif
 
     if (encoder) {
         ostream_buffered_desc_t desc;
@@ -1106,21 +1116,29 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
             sig[i] = (uint8_t)rand();
         }
 
+#if 0
         UARTprintf("SHA ");
         for (i = 0; i < sizeof(sig); ++i) {
             UARTprintf("%x", sig[i]);
         }
         UARTprintf("\n");
 
+#endif
         //memset( aesctx.iv, 0, sizeof( aesctx.iv ) );
 
         /*  create AES initialization vector */
+#if 0
         UARTprintf("iv ");
+#endif
         for (i = 0; i < sizeof(aesctx.iv); ++i) {
             aesctx.iv[i] = (uint8_t)rand();
+#if 0
             UARTprintf("%x", aesctx.iv[i]);
+#endif
         }
+#if 0
         UARTprintf("\n");
+#endif
 
         /*  send AES initialization vector */
         if( send_chunk_len( AES_IV_SIZE) != 0 ) {
@@ -1147,11 +1165,13 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
             return -1;
         }
 
+#if 0
         UARTprintf("sig ");
         for (i = 0; i < sizeof(sig); ++i) {
             UARTprintf("%x", sig[i]);
         }
         UARTprintf("\n");
+#endif
     }
 
 
@@ -1339,40 +1359,7 @@ bool encode_name(pb_ostream_t *stream, const pb_field_t *field, void * const *ar
                     strlen(MORPH_NAME));
 }
 
-bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field,void **arg);
-int download_file(char * host, char * url, char * filename, char * path);
-
-static bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg)
-{
-	SyncResponse_FileDownload download_info;
-	char * filename=NULL, * url=NULL, * host=NULL, * path=NULL, * serial_flash_path=NULL, * serial_flash_name=NULL;
-
-	download_info.filename.funcs.decode = _decode_string_field;
-	download_info.filename.arg = filename;
-
-	download_info.url.funcs.decode = _decode_string_field;
-	download_info.url.arg = url;
-
-	download_info.host.funcs.decode = _decode_string_field;
-	download_info.host.arg = host;
-
-	download_info.serial_flash_filename.funcs.decode = _decode_string_field;
-	download_info.serial_flash_filename.arg = serial_flash_name;
-
-	download_info.serial_flash_path.funcs.decode = _decode_string_field;
-	download_info.serial_flash_path.arg = serial_flash_path;
-
-	if( !pb_decode(stream,SyncResponse_FileDownload_fields,&download_info) ) {
-		return false;
-	}
-
-	if( filename && url && host && path ) {
-		//download it!
-		download_file( host, filename, url, path );
-
-	}
-	return true;
-}
+bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg);
 
 void set_alarm( SyncResponse_Alarm * received_alarm );
 
@@ -1436,14 +1423,20 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
     
 }
 
+#define SERVER_REPLY_BUFSZ 1024
 //retry logic is handled elsewhere
 int send_pill_data(batched_pill_data * pill_data) {
-    char buffer[1024] = {0};
-    int ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER,PILL_DATA_RECEIVE_ENDPOINT, buffer, sizeof(buffer), batched_pill_data_fields, pill_data, 0);
+    char *  buffer = pvPortMalloc(SERVER_REPLY_BUFSZ);
+
+    assert(buffer);
+    memset(buffer, 0, SERVER_REPLY_BUFSZ);
+
+    int ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER,PILL_DATA_RECEIVE_ENDPOINT, buffer, SERVER_REPLY_BUFSZ, batched_pill_data_fields, pill_data, 0);
     if(ret != 0)
     {
         // network error
         UARTprintf("Send pill data failed, network error %d\n", ret);
+        vPortFree(buffer);
         return ret;
     }
     // Parse the response
@@ -1454,26 +1447,32 @@ int send_pill_data(batched_pill_data * pill_data) {
     char * len_str = strstr(buffer, header_content_len) + strlen(header_content_len);
     if (http_response_ok(buffer) != 1) {
         UARTprintf("Invalid response, endpoint return failure.\n");
+        vPortFree(buffer);
         return -1;
     }
+    vPortFree(buffer);
     return 0;
 }
+void boot_commit_ota();
 
 int send_periodic_data(periodic_data* data) {
-    char buffer[256] = {0};
+    char *  buffer = pvPortMalloc(SERVER_REPLY_BUFSZ);
 
     int ret;
 
+    assert(buffer);
+    memset(buffer, 0, SERVER_REPLY_BUFSZ);
     data->name.funcs.encode = encode_name;
     data->mac.funcs.encode = encode_mac;  // Now this is a fallback, the backend will not use this at the first hand
     data->device_id.funcs.encode = encode_mac_as_device_id_string;
 
-    ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER,DATA_RECEIVE_ENDPOINT, buffer, sizeof(buffer), periodic_data_fields, data, 0);
+    ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER,DATA_RECEIVE_ENDPOINT, buffer, SERVER_REPLY_BUFSZ, periodic_data_fields, data, 0);
     if(ret != 0)
     {
         // network error
     	sl_status &= ~UPLOADING;
         UARTprintf("Send data failed, network error %d\n", ret);
+        vPortFree(buffer);
         return ret;
     }
 
@@ -1486,12 +1485,14 @@ int send_periodic_data(periodic_data* data) {
     if (http_response_ok(buffer) != 1) {
     	sl_status &= ~UPLOADING;
         UARTprintf("Invalid response, endpoint return failure.\n");
+        vPortFree(buffer);
         return -1;
     }
     
     if (len_str == NULL) {
     	sl_status &= ~UPLOADING;
         UARTprintf("Failed to find Content-Length header\n");
+        vPortFree(buffer);
         return -1;
     }
     int len = atoi(len_str);
@@ -1512,9 +1513,12 @@ int send_periodic_data(periodic_data* data) {
 
 		_on_response_protobuf(&response_protobuf);
         sl_status |= UPLOADING;
+    	boot_commit_ota(); //commit only if we hear back from the server...
+        vPortFree(buffer);
         return 0;
     }
 
+    vPortFree(buffer);
     return -1;
 }
 

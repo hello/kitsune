@@ -42,7 +42,7 @@ static void _factory_reset(){
         UARTprintf("Disconnect WIFI failed, error %d.\n", ret);
     }
 
-    ret = sl_Stop(0xFFFF);
+    ret = sl_Stop(0x00FF);
     if(ret == 0)
     {
     	sl_Start(NULL, NULL, NULL);
@@ -121,28 +121,57 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type)
     {
 		UARTprintf("Tried all wifi ep, all failed to connect\n");
         ble_reply_protobuf_error(ErrorType_WLAN_CONNECTION_ERROR);
-        led_set_color(0xFF, 30,0,0,1,1,60,0);
+        led_set_color(0xFF, LED_MAX,0,0,1,1,20,0);
 		return 0;
     }else{
-		uint8_t wait_time = 10;
+		uint8_t wait_time = 5;
 
 		sl_status |= CONNECTING;
 		play_led_progress_bar(30,30,0,0);
 		while(--wait_time && (!(sl_status & HAS_IP)))
 		{
-			//Cmd_led(0,0);
+            if(!(sl_status & CONNECTING))  // This state will be triggered magically by SL_WLAN_CONNECTION_FAILED_EVENT event
+            {
+            	UARTprintf("Connection failed!\n");
+                break;
+            }
 			set_led_progress_bar((10 - wait_time ) * 100 / 10);
 			UARTprintf("Retrieving IP address...\n");
 			vTaskDelay(4000);
 		}
 		stop_led_animation();
+
 		if(!(sl_status & HAS_IP))
 		{
-			//Cmd_led(0,0);
-			UARTprintf("!!WIFI set without network connection.");
-            ble_reply_protobuf_error(ErrorType_FAIL_TO_OBTAIN_IP);
-            led_set_color(0xFF, 30,0,0,1,1,60,0);
-			return 0;
+			// This is the magical NWP reset problem...
+			// we either get an SL_WLAN_CONNECTION_FAILED_EVENT event, or
+			// no response, do a NWP reset based on the connection pattern
+			// sugguest here: http://e2e.ti.com/support/wireless_connectivity/f/968/p/361673/1273699.aspx
+			UARTprintf("Cannot retrieve IP address, try NWP reset.");
+			led_set_color(0xFF, LED_MAX, 0x66, 0, 1, 0, 15, 0);  // Tell the user we are going to fire the bomb.
+			sl_Stop(0x00FF);   // 0x00FF is a magic number... don't change or it might fail.
+			sl_Start(NULL, NULL, NULL);  // In factory reset, PW experience bus fault here. But in connection fail situation it works fine.
+
+			wait_time = 10;
+			while(--wait_time && (!(sl_status & HAS_IP)))
+			{
+				vTaskDelay(1000);
+			}
+
+			if(sl_status & HAS_IP)
+			{
+				UARTprintf("Connection success by NWP reset.");
+				led_set_color(0xFF, LED_MAX, 0x66, 0, 0, 1, 15, 0);
+			}else{
+				if(sl_status & CONNECTING)
+				{
+					ble_reply_protobuf_error(ErrorType_FAIL_TO_OBTAIN_IP);
+				}else{
+					ble_reply_protobuf_error(ErrorType_NO_ENDPOINT_IN_RANGE);
+				}
+				led_set_color(0xFF, LED_MAX,0,0,1,1,20,0);
+				return 0;
+			}
 		}
     }
 
@@ -153,7 +182,7 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type)
 
     UARTprintf("Connection attempt issued.\n");
     ble_send_protobuf(&reply_command);
-    led_set_color(0xFF, 0,30,0,1,1,200,0);
+    led_set_color(0xFF, 0,LED_MAX,0,1,1,20,0);
     return 1;
 }
 
@@ -206,6 +235,23 @@ static void _ble_reply_wifi_info(){
 	{
 		reply_command.wifiSSID.arg = ssid;
 	}
+
+    reply_command.has_wifi_connection_state = true;
+    reply_command.wifi_connection_state = wifi_connection_state_NO_WLAN_CONNECTED;
+
+    if(sl_status & CONNECTING){
+        reply_command.wifi_connection_state = wifi_connection_state_WLAN_CONNECTING;
+    }
+
+    if(sl_status & CONNECT){
+        reply_command.wifi_connection_state = wifi_connection_state_WLAN_CONNECTED;
+    }
+
+    if(sl_status & HAS_IP)
+    {
+        reply_command.wifi_connection_state = wifi_connection_state_IP_RETRIEVED;
+    }
+
 	ble_send_protobuf(&reply_command);
 }
 

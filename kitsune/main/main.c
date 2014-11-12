@@ -90,9 +90,10 @@
 #include "i2c_if.h"
 
 #include "wifi_cmd.h"
+#include "uart_logger.h"
 
 extern void vUARTTask( void *pvParameters );
-extern void thead_sensor_poll( void * Data);
+
 	
 //*****************************************************************************
 //                      MACRO DEFINITIONS
@@ -264,11 +265,19 @@ void start_wdt() {
        WDT_IF_DeInit();
     }
 }
-void watchdog_thread(void* unused){
-	while(1)
-	{
-	MAP_WatchdogIntClear(WDT_BASE); //clear wdt
-	vTaskDelay(1000);
+void mcu_reset();
+void watchdog_thread(void* unused) {
+	int upload_fail_cnt;
+	while (1) {
+		MAP_WatchdogIntClear(WDT_BASE); //clear wdt
+		if (!(sl_status & UPLOADING)) {
+			if(++upload_fail_cnt > 60 * 60 ) {
+				mcu_reset();
+			}
+		} else {
+			upload_fail_cnt = 0;
+		}
+		vTaskDelay(1000);
 	}
 }
 //*****************************************************************************
@@ -282,7 +291,7 @@ void main()
   //
   BoardInit();
 
-  //start_wdt();
+  start_wdt();
   //
   // configure the GPIO pins for LEDvs
   //
@@ -291,6 +300,7 @@ void main()
   //
   // Initialize the UART for console I/O.
   //
+  uart_logger_init();
   UARTStdioInit(0);
   //
   // Set the SD card clock as output pin
@@ -304,8 +314,8 @@ void main()
   VStartSimpleLinkSpawnTask(SPAWN_TASK_PRIORITY);
 
   /* Create the UART processing task. */
-  xTaskCreate( vUARTTask, "UARTTask", 2*1024/(sizeof(portSTACK_TYPE)), NULL, 10, NULL );
-  //xTaskCreate( watchdog_thread, "wdtTask", configMINIMAL_STACK_SIZE, NULL, 1, NULL );
+  xTaskCreate( vUARTTask, "UARTTask", 1024/(sizeof(portSTACK_TYPE)), NULL, 10, NULL );
+  xTaskCreate( watchdog_thread, "wdtTask", configMINIMAL_STACK_SIZE, NULL, 1, NULL );
 
   //
   // Start the task scheduler
