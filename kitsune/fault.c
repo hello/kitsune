@@ -141,6 +141,8 @@ void faultPrinter( faultInfo* f ) {
 
 }
 
+int mcu_reset();
+
 void
 FaultDecoder(unsigned long *pulExceptionFrame)
 {
@@ -183,8 +185,9 @@ FaultDecoder(unsigned long *pulExceptionFrame)
 
     f->magic = SHUTDOWN_MAGIC;
 
-    while(1) faultPrinter(f);
-//    PRCMMCUReset(1);
+    faultPrinter(f);
+    //todo save the UART log buffers to sd, send them to server on next boot...
+    mcu_reset();
 }
 
 //*****************************************************************************

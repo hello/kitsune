@@ -1,0 +1,8 @@
+//Logging protobuf to send to server
+
+message SenseLog {
+    optional int32 unix_time = 1;
+    optional string device_id = 2;
+    optional string text = 3;
+}
+
