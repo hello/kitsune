@@ -48,9 +48,9 @@
 #include "bootmgr.h"
 
 #include "crypto.h"
-#define SHA_SIZE 32
+#define SHA1_SIZE 32
 SHA1_CTX sha1ctx;
-unsigned char sha[SHA_SIZE] = {0};
+unsigned char sha[SHA1_SIZE] = {0};
 
 /******************************************************************************
    Image file names
@@ -97,7 +97,7 @@ typedef struct sBootInfo
   _u8  ucActiveImg;
   _u32 ulImgStatus;
 
-  unsigned char sha[NUM_OTA_IMAGES][SHA_SIZE];
+  unsigned char sha[NUM_OTA_IMAGES][SHA1_SIZE];
 }sBootInfo_t;
 
 sBootInfo_t sBootInfo;
@@ -318,14 +318,14 @@ int Load(unsigned char *ImgName, unsigned long ulToken) {
 					(unsigned char *) APP_IMG_SRAM_OFFSET, pFsFileInfo.FileLen);
 		}
 	}
-	return iRetVal;
+	return iRetVal != pFsFileInfo.FileLen;
 }
 int Test(unsigned int img) {
 	SHA1_Init(&sha1ctx);
 	SHA1_Update(&sha1ctx, (unsigned char *) APP_IMG_SRAM_OFFSET, file_len);
 	SHA1_Final(sha, &sha1ctx);
 
-	return memcmp(sha, sBootInfo.sha[img], SHA_SIZE) == 0;
+	return memcmp(sha, sBootInfo.sha[img], SHA1_SIZE) == 0;
 }
 void Execute() {
     //
