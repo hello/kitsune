@@ -1414,7 +1414,6 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
     _set_led_color_based_on_room_conditions(response_protobuf);
     
 }
-
 #define SERVER_REPLY_BUFSZ 1024
 //retry logic is handled elsewhere
 int send_pill_data(batched_pill_data * pill_data) {
@@ -1505,7 +1504,6 @@ int send_periodic_data(periodic_data* data) {
 
 		_on_response_protobuf(&response_protobuf);
         sl_status |= UPLOADING;
-
         vPortFree(buffer);
         return 0;
     }
