@@ -118,19 +118,16 @@ void gesture_init(gesture_callbacks_t * _user){
 
 int disp_prox;
 void gesture_input(int prox, int light){
-
-
+	if( disp_prox ) {
+		UARTprintf( "%d %d\t", prox, self.fsm.prox_impluse );
+	}
 	if (self.fsm.prox_last != 0) {
-		self.fsm.prox_slow += (prox - self.fsm.prox_slow) / 64;
+		self.fsm.prox_slow += (prox - self.fsm.prox_slow) / 32;
 		if( (prox-self.fsm.prox_slow) > 0 ) {
 			self.fsm.prox_slow = prox;
 		}
 		prox -= self.fsm.prox_slow;
 		self.fsm.prox_impluse  = abs( prox );
-
-		if( disp_prox ) {
-			UARTprintf( "%d\t", self.fsm.prox_impluse );
-		}
 		_fsm(self.fsm.prox_impluse);
 	} else {
 		self.fsm.prox_slow = prox;

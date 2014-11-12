@@ -272,9 +272,9 @@ int top_board_dfu_begin(const char * bin){
 
 }
 int wait_for_top_boot(unsigned int timeout) {
-	unsigned int start = vTaskGetTicks();
+	unsigned int start = xTaskGetTickCount();
 	self.top_boot = false;
-	while( !self.top_boot && vTaskGetTicks() - start < timeout ) {
+	while( !self.top_boot && xTaskGetTickCount() - start < timeout ) {
 		vTaskDelay(1);
 	}
 	return self.top_boot;
