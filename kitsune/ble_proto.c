@@ -150,7 +150,7 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type)
 			UARTprintf("Cannot retrieve IP address, try NWP reset.");
 			led_set_color(0xFF, LED_MAX, 0x66, 0, 1, 0, 15, 0);  // Tell the user we are going to fire the bomb.
 			sl_Stop(0x00FF);   // 0x00FF is a magic number... don't change or it might fail.
-			sl_Start(NULL, NULL, NULL);  // In factory reset, I experience bus fault here. But in connection fail situation it works fine.
+			sl_Start(NULL, NULL, NULL);  // In factory reset, PW experience bus fault here. But in connection fail situation it works fine.
 
 			wait_time = 10;
 			while(--wait_time && (!(sl_status & HAS_IP)))
