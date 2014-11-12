@@ -70,6 +70,7 @@ message SyncResponse {
     optional bool reset_device = 10;
     optional RoomConditions room_conditions = 12;
 	repeated FileDownload files = 13;
+	optional bool reset_to_factory_fw = 14;
 	
     // TODO: settings for snoring detection
     // TODO: settings for firmware update

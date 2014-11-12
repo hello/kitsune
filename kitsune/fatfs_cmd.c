@@ -1386,6 +1386,14 @@ void boot_commit_ota() {
 	}
 }
 
+void reset_to_factory_fw() {
+	_ReadBootInfo(&sBootInfo);
+	sBootInfo.ulImgStatus = IMG_STATUS_NOTEST;
+	sBootInfo.ucActiveImg = IMG_ACT_FACTORY;
+	_WriteBootInfo(&sBootInfo);
+	mcu_reset();
+}
+
 #include "wifi_cmd.h"
 int Cmd_version(int argc, char *argv[]) {
 	UARTprintf( "ver: %d\nimg: %d\nstatus: %x\n", KIT_VER, sBootInfo.ucActiveImg, sBootInfo.ulImgStatus );
@@ -1578,7 +1586,7 @@ bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg
 				sBootInfo.ulImgStatus = IMG_STATUS_TESTREADY;
 				UARTprintf( "warning no download SHA on fw!\n");
 			}
-			//sBootInfo.ucActiveImg this is set by boot loader
+			//sBootInfo.ucActiveImg this is set by boot loadervb
 			_WriteBootInfo(&sBootInfo);
 			mcu_reset();
 		}
