@@ -36,16 +36,6 @@
 			<locationURI>PARENT-2-PROJECT_LOC/aes.c</locationURI>
 		</link>
 		<link>
-			<name>audiocapturetask.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/audiocapturetask.c</locationURI>
-		</link>
-		<link>
-			<name>audiocapturetask.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/audiocapturetask.h</locationURI>
-		</link>
-		<link>
 			<name>audioclassifier.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/audioclassifier.c</locationURI>
@@ -66,6 +56,11 @@
 			<locationURI>PARENT-2-PROJECT_LOC/audiofeatures.h</locationURI>
 		</link>
 		<link>
+			<name>audiohelper.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audiohelper.c</locationURI>
+		</link>
+		<link>
 			<name>audioprocessingtask.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/audioprocessingtask.c</locationURI>
@@ -74,6 +69,11 @@
 			<name>audioprocessingtask.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/audioprocessingtask.h</locationURI>
+		</link>
+		<link>
+			<name>audiotask.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audiotask.c</locationURI>
 		</link>
 		<link>
 			<name>ble_cmd.c</name>

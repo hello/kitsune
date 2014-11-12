@@ -48,7 +48,7 @@
 #include "fatfs_cmd.h"
 #include "spi_cmd.h"
 #include "audioprocessingtask.h"
-#include "audiocapturetask.h"
+#include "audiotask.h"
 #include "top_board.h"
 #include "fft.h"
 
@@ -275,65 +275,42 @@ unsigned int CPU_XDATA = 1; //1: enabled CPU interrupt triggerred
 	return 0;
 }
 
-static void RecordingCompleteNotification(void) {
-	AudioCaptureMessage_t message;
 
-	//turn off
-	memset(&message,0,sizeof(message));
-	message.command = eAudioCaptureTurnOff;
-	AudioCaptureTask_AddMessageToQueue(&message);
-
-}
 
 int Cmd_record_buff(int argc, char *argv[]) {
-	AudioCaptureMessage_t message;
+	AudioMessage_t m;
 
 	//turn on
-	memset(&message,0,sizeof(message));
-	message.command = eAudioCaptureTurnOn;
-	AudioCaptureTask_AddMessageToQueue(&message);
+	memset(&m,0,sizeof(m));
+	m.command = eAudioCaptureTurnOn;
+	AudioTask_AddMessageToQueue(&m);
 
 	//capture
-	memset(&message,0,sizeof(message));
-	message.command = eAudioCaptureSaveToDisk;
-	message.captureduration = 625; //about 10 seconds at 62.5 hz
-	message.fpCommandComplete = RecordingCompleteNotification;
-	AudioCaptureTask_AddMessageToQueue(&message);
+	memset(&m,0,sizeof(m));
+	m.command = eAudioSaveToDisk;
+	m.message.capturedesc.captureduration = 625; //about 10 seconds at 62.5 hz
+	AudioTask_AddMessageToQueue(&m);
 
 	return 0;
 
 }
 
-int Cmd_audio_do_stuff(int argc, char * argv[]) {
+int Cmd_audio_turn_on(int argc, char * argv[]) {
 
-	AudioCaptureMessage_t message;
-	const char * buf = argv[1];
-
-	if (strncmp(buf,"on",4) == 0) {
-		//turn on
-		UARTprintf("Turning on audio\r\n");
-		memset(&message,0,sizeof(message));
-		message.command = eAudioCaptureTurnOn;
-		AudioCaptureTask_AddMessageToQueue(&message);
-	}
-	else if (strncmp(buf,"off",4) == 0) {
-		//turn on
-		UARTprintf("Turning off audio\r\n");
-
-		memset(&message,0,sizeof(message));
-		message.command = eAudioCaptureTurnOff;
-		AudioCaptureTask_AddMessageToQueue(&message);
-	}
-	else {
-		UARTprintf("aud command takes an argument, either on or off\r\n");
-	}
-
+	AudioTask_StartCapture();
 	return 0;
+	}
+
+int Cmd_audio_turn_off(int agrc, char * agrv[]) {
+	AudioTask_StopCapture();
+	return 0;
+
 }
 
 void Speaker1(char * file);
 unsigned char g_ucSpkrStartFlag;
 
+/*
 int play_ringtone(int vol, char * file) {
 
 	unsigned int CPU_XDATA = 0; //1: enabled CPU interrupt triggerred; 0: DMA
@@ -419,11 +396,27 @@ int play_ringtone(int vol, char * file) {
 	return 0;
 
 }
+*/
+
+int Cmd_stop_buff(int argc, char *argv[]) {
+	AudioTask_StopPlayback();
+
+	return 0;
+}
 
 int Cmd_play_buff(int argc, char *argv[]) {
     int vol = atoi( argv[1] );
     char * file = argv[2];
-    return play_ringtone( vol, file );
+    AudioPlaybackDesc_t desc;
+    memset(&desc,0,sizeof(desc));
+    desc.file = file;
+    desc.volume = vol;
+    desc.durationInSeconds = 60;
+
+    AudioTask_StartPlayback(&desc);
+
+    return 0;
+    //return play_ringtone( vol );
 }
 int Cmd_fs_delete(int argc, char *argv[]) {
 	//
@@ -591,6 +584,18 @@ void set_alarm( SyncResponse_Alarm * received_alarm ) {
     }
 }
 
+static void thread_alarm_on_finished(void * context) {
+	if (xSemaphoreTake(alarm_smphr, portMAX_DELAY)) {
+
+		if (alarm.has_end_time) {
+			UARTprintf("ALARM DONE RINGING\n");
+			alarm.has_end_time = 0;
+			alarm.has_start_time = 0;
+        }
+
+        xSemaphoreGive(alarm_smphr);
+    }
+}
 void thread_alarm(void * unused) {
 	while (1) {
 		portTickType now = xTaskGetTickCount();
@@ -600,19 +605,21 @@ void thread_alarm(void * unused) {
 			if(alarm.has_start_time && alarm.start_time > 0)
 			{
 				if ( time - alarm.start_time < alarm.ring_duration_in_second ) {
+					AudioPlaybackDesc_t desc;
+					memset(&desc,0,sizeof(desc));
+
+					desc.file = AUDIO_FILE;
+					desc.durationInSeconds = alarm.ring_duration_in_second;
+					desc.volume = 57;
+					desc.onFinished = thread_alarm_on_finished;
+
+					AudioTask_StartPlayback(&desc);
 					UARTprintf("ALARM RINGING RING RING RING\n");
-					xSemaphoreGive(alarm_smphr);
-					if (!g_ucSpkrStartFlag) {
-						play_ringtone(57, AUDIO_FILE);
-					}
-					xSemaphoreTake(alarm_smphr, portMAX_DELAY);
-				} else if(g_ucSpkrStartFlag) {
-					g_ucSpkrStartFlag = 0;
-					UARTprintf("ALARM DONE RINGING\n");
-					alarm.has_end_time = 0;
 					alarm.has_start_time = 0;
+					alarm.start_time = 0;
 				}
-			}else{
+			}
+			else {
 				// Alarm start time = 0 means no alarm
 			}
 			
@@ -659,7 +666,6 @@ void thread_dust(void * unused)  {
 }
 static void _on_wave(void * ctx){
 	g_ucSpkrStartFlag = 0;alarm.has_start_time = 0;
-
 	uint8_t adjust_max_light = 80;
 	int adjust;
 	int light = *(int*)ctx;
@@ -1288,10 +1294,11 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "fsdl", Cmd_fs_delete, "" },
 
 		{ "play_ringtone", Cmd_code_playbuff, "" },
-		{ "stop_ringtone", Audio_Stop,""},
+		{ "stop_ringtone",Cmd_stop_buff,""},
 		{ "r", Cmd_record_buff,""}, //record sounds into SD card
 		{ "p", Cmd_play_buff, ""},//play sounds from SD card
-		{ "aud",Cmd_audio_do_stuff,""},//command the audio on/off
+		{ "aon",Cmd_audio_turn_on,""},
+		{ "aoff",Cmd_audio_turn_off,""},
 		//{ "readout", Cmd_readout_data, "read out sensor data log" },
 
 		{ "sl", Cmd_sl, "" }, // smart config
@@ -1463,7 +1470,7 @@ void vUARTTask(void *pvParameters) {
 	SetupGPIOInterrupts();
 	UARTprintf("*");
 #if !ONLY_MID
-	xTaskCreate(AudioCaptureTask_Thread,"audioCaptureTask",4*1024/4,NULL,4,NULL);
+	xTaskCreate(AudioTask_Thread,"audioTask",3*1024/4,NULL,4,NULL);
 	UARTprintf("*");
 	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,1,NULL);
 	UARTprintf("*");
