@@ -204,6 +204,39 @@ BoardInit(void)
   PRCMCC3200MCUInit();
 }
 
+#include "rom_map.h"
+#include "wdt.h"
+#include "wdt_if.h"
+void WatchdogIntHandler(void)
+{
+	//
+	// watchdog interrupt - if it fires when the interrupt has not been cleared then the device will reset...
+	//
+}
+void start_wdt() {
+#define WD_PERIOD_MS 				20000
+#define MAP_SysCtlClockGet 			80000000
+#define LED_GPIO             		MCU_RED_LED_GPIO	/* RED LED */
+#define MILLISECONDS_TO_TICKS(ms) 	((MAP_SysCtlClockGet / 1000) * (ms))
+    //
+    // Enable the peripherals used by this example.
+    //
+    MAP_PRCMPeripheralClkEnable(PRCM_WDT, PRCM_RUN_MODE_CLK);
+
+    //
+    // Set up the watchdog interrupt handler.
+    //
+    WDT_IF_Init(WatchdogIntHandler, MILLISECONDS_TO_TICKS(WD_PERIOD_MS));
+
+    //
+    // Start the timer. Once the timer is started, it cannot be disable.
+    //
+    MAP_WatchdogEnable(WDT_BASE);
+    if(!MAP_WatchdogRunning(WDT_BASE))
+    {
+       WDT_IF_DeInit();
+    }
+}
 //*****************************************************************************
 //
 //! Executed the application from given location
@@ -303,6 +336,7 @@ void Execute() {
     //
     // Execute the application.
     //
+    start_wdt(); //if we do load something bad, the wdt will get us back and we can load the other image...
     Run(APP_IMG_SRAM_OFFSET);
 }
 void LoadAndExecute(unsigned char *ImgName, unsigned long ulToken)
@@ -659,12 +693,5 @@ int main()
   //
   ImageLoader(&sBootInfo);
 
-  //
-  // Infinite loop
-  //
-  while(1)
-  {
-
-  }
 }
 
