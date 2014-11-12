@@ -696,6 +696,7 @@ static void _on_wave(void * ctx){
 }
 static void _on_hold(void * ctx){
 	stop_led_animation();
+	g_ucSpkrStartFlag = 0;alarm.has_start_time = 0;
 }
 static void _on_slide(void * ctx, int delta){
 	UARTprintf("Slide delta %d\r\n", delta);
