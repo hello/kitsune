@@ -1437,6 +1437,7 @@ int send_pill_data(batched_pill_data * pill_data) {
     vPortFree(buffer);
     return 0;
 }
+void boot_commit_ota();
 
 int send_periodic_data(periodic_data* data) {
     char *  buffer = pvPortMalloc(SERVER_REPLY_BUFSZ);
@@ -1497,6 +1498,8 @@ int send_periodic_data(periodic_data* data) {
 
 		_on_response_protobuf(&response_protobuf);
         sl_status |= UPLOADING;
+
+    	boot_commit_ota(); //commit only if we hear back from the server...
         vPortFree(buffer);
         return 0;
     }

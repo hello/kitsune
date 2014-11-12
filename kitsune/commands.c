@@ -1338,7 +1338,6 @@ tCmdLineEntry g_sCmdTable[] = {
 // ==============================================================================
 extern xSemaphoreHandle g_xRxLineSemaphore;
 void UARTStdioIntHandler(void);
-void boot_commit_ota();
 
 void vUARTTask(void *pvParameters) {
 	char cCmdBuf[512];
@@ -1399,8 +1398,6 @@ void vUARTTask(void *pvParameters) {
 		sl_mode = sl_Start(NULL, NULL, NULL);
 	}
 	UARTprintf("*");
-
-	boot_commit_ota(); //check we can get IP if OTA...
 
 	// Set connection policy to Auto
 	sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0), NULL, 0);

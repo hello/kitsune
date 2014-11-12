@@ -1370,25 +1370,17 @@ static _i32 _McuImageGetNewIndex(void)
 
 void boot_commit_ota() {
     _ReadBootInfo(&sBootInfo);
-
-	UARTprintf("commit status %x\n", sBootInfo.ulImgStatus);
     /* Check only on status TESTING */
     if( IMG_STATUS_TESTING == sBootInfo.ulImgStatus )
 	{
-    	while( !(sl_status & HAS_IP)) {
-    		if( xTaskGetTickCount() > 120000) {
-    			mcu_reset(); //no ip in 2 minutes, give up...
-    		}
-    		vTaskDelay(100);
-    	}
 		UARTprintf("Booted in testing mode\n");
 		sBootInfo.ulImgStatus = IMG_STATUS_NOTEST;
 		sBootInfo.ucActiveImg = (sBootInfo.ucActiveImg == IMG_ACT_USER1)?
 								IMG_ACT_USER2:
 								IMG_ACT_USER1;
 		_WriteBootInfo(&sBootInfo);
+		mcu_reset();
 	}
-    //rm("mcuimgx.bin");
 }
 
 #include "wifi_cmd.h"
