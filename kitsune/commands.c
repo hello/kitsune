@@ -658,7 +658,8 @@ void thread_dust(void * unused)  {
 	}
 }
 static void _on_wave(void * ctx){
-	g_ucSpkrStartFlag = 0;
+	g_ucSpkrStartFlag = 0;alarm.has_start_time = 0;
+
 	uint8_t adjust_max_light = 80;
 	int adjust;
 	int light = *(int*)ctx;

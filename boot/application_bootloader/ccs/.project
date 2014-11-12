@@ -26,9 +26,19 @@
 	</natures>
 	<linkedResources>
 		<link>
+			<name>crypto.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/crypto.h</locationURI>
+		</link>
+		<link>
 			<name>main.c</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/main.c</locationURI>
+		</link>
+		<link>
+			<name>sha1.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/sha1.c</locationURI>
 		</link>
 		<link>
 			<name>startup_ccs.c</name>

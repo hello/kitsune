@@ -1214,6 +1214,7 @@ int Cmd_download(int argc, char*argv[]) {
 /******************************************************************************
    Active Image
 *******************************************************************************/
+#define NUM_OTA_IMAGES			2
 #define IMG_ACT_FACTORY         0
 #define IMG_ACT_USER1           1
 #define IMG_ACT_USER2           2
@@ -1229,6 +1230,7 @@ int Cmd_download(int argc, char*argv[]) {
 #define DEVICE_IS_CC3101RS      0x18
 #define DEVICE_IS_CC3101S       0x1B
 
+#define SHA_SIZE 32
 
 /******************************************************************************
    Boot Info structure
@@ -1238,6 +1240,7 @@ typedef struct sBootInfo
   _u8  ucActiveImg;
   _u32 ulImgStatus;
 
+  unsigned char sha[NUM_OTA_IMAGES][SHA_SIZE];
 }sBootInfo_t;
 
 void mcu_reset();
@@ -1548,6 +1551,9 @@ bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg
 			UARTprintf("change image status to IMG_STATUS_TESTREADY\n\r");
 			_ReadBootInfo(&sBootInfo);
 			sBootInfo.ulImgStatus = IMG_STATUS_TESTREADY;
+			if( download_info.has_sha1 ) {
+				memcpy( sBootInfo.sha[_McuImageGetNewIndex()], download_info.sha1.bytes, download_info.sha1.size );
+			}
 			//sBootInfo.ucActiveImg this is set by boot loader
 			_WriteBootInfo(&sBootInfo);
 			mcu_reset();
