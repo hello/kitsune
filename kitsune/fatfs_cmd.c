@@ -1214,7 +1214,7 @@ int Cmd_download(int argc, char*argv[]) {
 /******************************************************************************
    Active Image
 *******************************************************************************/
-#define NUM_OTA_IMAGES			2
+#define NUM_IMAGES			    3
 #define IMG_ACT_FACTORY         0
 #define IMG_ACT_USER1           1
 #define IMG_ACT_USER2           2
@@ -1240,7 +1240,7 @@ typedef struct sBootInfo
   _u8  ucActiveImg;
   _u32 ulImgStatus;
 
-  unsigned char sha[NUM_OTA_IMAGES][SHA1_SIZE];
+  unsigned char sha[NUM_IMAGES][SHA1_SIZE];
 }sBootInfo_t;
 
 void mcu_reset();
