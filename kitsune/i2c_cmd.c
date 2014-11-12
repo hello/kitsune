@@ -385,14 +385,6 @@ int init_prox_sensor()
 {
 	unsigned char prx_cmd_init[2];
 
-	prx_cmd_init[0] = 0x80; // Command register - 8'b1000_0000
-	prx_cmd_init[1] = 0x01; // self timed
-	TRY_OR_GOTOFAIL(I2C_IF_Write(0x13, prx_cmd_init, 2, 1) );
-
-	prx_cmd_init[0] = 0x82;
-	prx_cmd_init[1] = 0b11; // 16.625hz
-	TRY_OR_GOTOFAIL(I2C_IF_Write(0x13, prx_cmd_init, 2, 1) );
-
 	prx_cmd_init[0] = 0x8f;
 	//                  ---++--- delay, frequency, dead time
 	prx_cmd_init[1] = 0b01000001;
@@ -414,13 +406,14 @@ int get_prox() {
 	unsigned char prx_cmd_init[2];
 	unsigned char cmd_reg = 0;
 
-	while( ! ( cmd_reg & 0b00100000 ) ) {
-		TRY_OR_GOTOFAIL(I2C_IF_Read(0x13, &cmd_reg,  1 ) );// reset
-	}
-
 	prx_cmd_init[0] = 0x80; // Command register - 8'b1000_0000
 	prx_cmd_init[1] = 0x08; // one shot measurements
-	TRY_OR_GOTOFAIL(I2C_IF_Write(0x13, prx_cmd_init, 2, 1) );// reset
+	TRY_OR_GOTOFAIL(I2C_IF_Write(0x13, prx_cmd_init, 2, 1) );
+
+	while( ! ( cmd_reg & 0b00100000 ) ) {
+		TRY_OR_GOTOFAIL(I2C_IF_Read(0x13, &cmd_reg,  1 ) );
+		vTaskDelay(1);
+	}
 
 	prx_cmd = 0x88; // Command register - 0x87
 	TRY_OR_GOTOFAIL( I2C_IF_Write(0x13, &prx_cmd, 1, 1) );
