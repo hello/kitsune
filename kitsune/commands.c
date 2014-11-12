@@ -141,6 +141,7 @@ void usertraceFREE( void * pvAddress, size_t uiSize ) {
 		UARTprintf( "%d -%d\n",xPortGetFreeHeapSize(), uiSize );
 	}
 }
+
 // ==============================================================================
 // This function implements the "free" command.  It prints the free memory.
 // ==============================================================================
@@ -201,25 +202,24 @@ int Cmd_fs_read(int argc, char *argv[]) {
 	SlFsFileInfo_t info;
 	char buffer[BUF_SZ];
 
-	sl_FsGetInfo((unsigned char*)argv[1], tok, &info);
-
+	sl_FsGetInfo((unsigned char*) argv[1], tok, &info);
 	err = sl_FsOpen((unsigned char*) argv[1], FS_MODE_OPEN_READ, &tok, &hndl);
 	if (err) {
 		UARTprintf("error opening for read %d\n", err);
 		return -1;
 	}
-	if( argc >= 3 ){
+	if (argc >= 3) {
 		bytes = sl_FsRead(hndl, atoi(argv[2]), (unsigned char*) buffer,
 				minval(info.FileLen, BUF_SZ));
 		if (bytes) {
-						UARTprintf("read %d bytes\n", bytes);
-					}
-	}else{
+			UARTprintf("read %d bytes\n", bytes);
+		}
+	} else {
 		bytes = sl_FsRead(hndl, 0, (unsigned char*) buffer,
 				minval(info.FileLen, BUF_SZ));
 		if (bytes) {
-						UARTprintf("read %d bytes\n", bytes);
-					}
+			UARTprintf("read %d bytes\n", bytes);
+		}
 	}
 
 
@@ -335,7 +335,8 @@ int play_ringtone(int vol, char * file) {
 	}
 
 //
-// Create RX and TX Buffer
+	// Create RX and TX Buffer
+
 	UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
 	AudioProcessingTask_FreeBuffers();
 	UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
@@ -509,9 +510,11 @@ uint64_t get_cache_time()
 				((dt.sl_tm_year-1)/100)*86400 + ((dt.sl_tm_year+299)/400)*86400 + 171398145;
 	return ntp;
 }
+
 unsigned long get_time() {
 	portTickType now = xTaskGetTickCount();
 	unsigned long ntp = 0;
+
 	unsigned int tries = 0;
 
 	if (last_ntp == 0) {
@@ -593,7 +596,6 @@ static void thread_alarm_on_finished(void * context) {
         xSemaphoreGive(alarm_smphr);
     }
 }
-
 void thread_alarm(void * unused) {
 	while (1) {
 		portTickType now = xTaskGetTickCount();
@@ -662,46 +664,45 @@ void thread_dust(void * unused)  {
 		vTaskDelay( 100 );
 	}
 }
-
 static void _on_wave(void * ctx){
-				g_ucSpkrStartFlag = 0;
-
-				uint8_t adjust_max_light = 80;
+	g_ucSpkrStartFlag = 0;alarm.has_start_time = 0;
+	uint8_t adjust_max_light = 80;
 	int adjust;
 	int light = *(int*)ctx;
 
-				if( light > adjust_max_light ) {
-					adjust = adjust_max_light;
-				} else {
-					adjust = light;
-				}
+	if( light > adjust_max_light ) {
+		adjust = adjust_max_light;
+	} else {
+		adjust = light;
+	}
 
-				if(adjust < 20)
-				{
-					adjust = 20;
-				}
+	if(adjust < 20)
+	{
+		adjust = 20;
+	}
 
-				uint8_t alpha = 0xFF * adjust / 80;
+	uint8_t alpha = 0xFF * adjust / 80;
 
-				if( sl_status & UPLOADING ) {
-					uint8_t rgb[3] = { LED_MAX };
-					led_get_user_color(&rgb[0], &rgb[1], &rgb[2]);
-					led_set_color(alpha, rgb[0], rgb[1], rgb[2], 1, 1, 18, 0);
-			 	}
-			 	else if( sl_status & HAS_IP ) {
-					led_set_color(alpha, LED_MAX, 0, 0, 1, 1, 18, 1); //blue
-			 	}
-			 	else if( sl_status & CONNECTING ) {
-			 		led_set_color(alpha, LED_MAX,LED_MAX,0, 1, 1, 18, 1); //yellow
-			 	}
-			 	else if( sl_status & SCANNING ) {
-			 		led_set_color(alpha, LED_MAX,0,0, 1, 1, 18, 1 ); //red
-			 	} else {
-			 		led_set_color(alpha, LED_MAX, LED_MAX, LED_MAX, 1, 1, 18, 1 ); //white
-			 	}
-			}
+	if( sl_status & UPLOADING ) {
+		uint8_t rgb[3] = { LED_MAX };
+		led_get_user_color(&rgb[0], &rgb[1], &rgb[2]);
+		led_set_color(alpha, rgb[0], rgb[1], rgb[2], 1, 1, 18, 0);
+ 	}
+ 	else if( sl_status & HAS_IP ) {
+		led_set_color(alpha, LED_MAX, 0, 0, 1, 1, 18, 1); //blue
+ 	}
+ 	else if( sl_status & CONNECTING ) {
+ 		led_set_color(alpha, LED_MAX,LED_MAX,0, 1, 1, 18, 1); //yellow
+ 	}
+ 	else if( sl_status & SCANNING ) {
+ 		led_set_color(alpha, LED_MAX,0,0, 1, 1, 18, 1 ); //red
+ 	} else {
+ 		led_set_color(alpha, LED_MAX, LED_MAX, LED_MAX, 1, 1, 18, 1 ); //white
+ 	}
+}
 static void _on_hold(void * ctx){
 	stop_led_animation();
+	g_ucSpkrStartFlag = 0;alarm.has_start_time = 0;
 }
 static void _on_slide(void * ctx, int delta){
 	UARTprintf("Slide delta %d\r\n", delta);
@@ -995,6 +996,7 @@ void thread_sensor_poll(void* unused) {
 		// Remember to add back firmware version, or OTA cant work.
 		data.has_firmware_version = true;
 		data.firmware_version = KIT_VER;
+
         if(!xQueueSend(data_queue, (void*)&data, 10) == pdPASS)
         {
     		UARTprintf("Failed to post data\n");
