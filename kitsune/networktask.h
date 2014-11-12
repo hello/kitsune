@@ -4,9 +4,9 @@
 #include <pb.h>
 #include "ble_cmd.h"
 #include "network_types.h"
+#include "endpoints.h"
 
 #define NETWORK_RESPONSE_FLAG_NO_CONNECTION (0x00000001)
-#define NETWORK_RESPONSE_FLAG_FAILED_DECODE (0x00000002)
 
 typedef struct {
 	uint8_t success;
@@ -25,18 +25,12 @@ typedef struct {
 
 	void * prepdata;
 
-
-
-
 	//optional encode and decode callbacks.  You can have one or both enabled.
 	network_encode_callback_t encode; //optional encode callback.  If you're just polling, you don't need this
 	const void * encodedata; //optional extra data passed to your encode callback
 
-	network_decode_callback_t decode; //optional decode callback.  If you're just sending, you don't need this
-	void * decodedata; //optional extra data passed to your decode callback
-
-
-	const char * endpoint; //where on the server you wish to communicate to
+	const char * host; //the server to which you wish to communicate
+	const char * endpoint; //where on the server you wish to communicate to.  eg /audio/features
 
 	uint8_t * decode_buf; //the buffer we dump our server response to
 	uint32_t decode_buf_size;
@@ -48,11 +42,10 @@ typedef struct {
 } NetworkTaskServerSendMessage_t;
 
 typedef struct {
-	const char * host;
 } NetworkTaskData_t;
 
 void NetworkTask_Thread(void * networkdata);
-int NetworkTask_SynchronousSendProtobuf(const char * endpoint, char * buf, uint32_t buf_size, const pb_field_t fields[], const void * structdata,int32_t retry_time_in_counts);
+int NetworkTask_SynchronousSendProtobuf(const char * host, const char * endpoint, char * buf, uint32_t buf_size, const pb_field_t fields[], const void * structdata,int32_t retry_time_in_counts);
 int NetworkTask_AddMessageToQueue(const NetworkTaskServerSendMessage_t * message);
 
 #endif//_NETWORKTASK_H_

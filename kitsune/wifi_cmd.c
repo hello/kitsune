@@ -11,6 +11,7 @@
 #include "simplelink.h"
 #include "protocol.h"
 
+
 #include "wifi_cmd.h"
 #include "networktask.h"
 
@@ -61,6 +62,8 @@ _i16 nwp_reset() {
     sl_status = 0;
     return sl_Start(NULL, NULL, NULL);
 }
+
+
 
 //*****************************************************************************
 //
@@ -1060,8 +1063,10 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
         UARTprintf("send error %d\n\r\n\r", rv);
         return stop_connection();
     }
+
 #if 0
     UARTprintf("HTTP header sent %d\n\r%s\n\r", rv, recv_buf);
+
 #endif
 
     if (encoder) {
@@ -1110,12 +1115,14 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
         for (i = SHA1_SIZE; i < sizeof(sig); ++i) {
             sig[i] = (uint8_t)rand();
         }
+
 #if 0
         UARTprintf("SHA ");
         for (i = 0; i < sizeof(sig); ++i) {
             UARTprintf("%x", sig[i]);
         }
         UARTprintf("\n");
+
 #endif
         //memset( aesctx.iv, 0, sizeof( aesctx.iv ) );
 
@@ -1353,6 +1360,7 @@ bool encode_name(pb_ostream_t *stream, const pb_field_t *field, void * const *ar
 }
 
 bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg);
+
 void set_alarm( SyncResponse_Alarm * received_alarm );
 
 static void _on_alarm_received( SyncResponse_Alarm* received_alarm)
@@ -1419,6 +1427,7 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
     _set_led_color_based_on_room_conditions(response_protobuf);
     
 }
+
 #define SERVER_REPLY_BUFSZ 1024
 //retry logic is handled elsewhere
 int send_pill_data(batched_pill_data * pill_data) {
@@ -1427,7 +1436,7 @@ int send_pill_data(batched_pill_data * pill_data) {
     assert(buffer);
     memset(buffer, 0, SERVER_REPLY_BUFSZ);
 
-    int ret = NetworkTask_SynchronousSendProtobuf(PILL_DATA_RECEIVE_ENDPOINT, buffer, SERVER_REPLY_BUFSZ, batched_pill_data_fields, pill_data, 0);
+    int ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER,PILL_DATA_RECEIVE_ENDPOINT, buffer, SERVER_REPLY_BUFSZ, batched_pill_data_fields, pill_data, 0);
     if(ret != 0)
     {
         // network error
@@ -1458,12 +1467,11 @@ int send_periodic_data(periodic_data* data) {
 
     assert(buffer);
     memset(buffer, 0, SERVER_REPLY_BUFSZ);
-
     data->name.funcs.encode = encode_name;
     data->mac.funcs.encode = encode_mac;  // Now this is a fallback, the backend will not use this at the first hand
     data->device_id.funcs.encode = encode_mac_as_device_id_string;
 
-    ret = NetworkTask_SynchronousSendProtobuf(DATA_RECEIVE_ENDPOINT, buffer, SERVER_REPLY_BUFSZ, periodic_data_fields, data, 0);
+    ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER,DATA_RECEIVE_ENDPOINT, buffer, SERVER_REPLY_BUFSZ, periodic_data_fields, data, 0);
     if(ret != 0)
     {
         // network error
@@ -1510,11 +1518,11 @@ int send_periodic_data(periodic_data* data) {
 
 		_on_response_protobuf(&response_protobuf);
         sl_status |= UPLOADING;
-
     	boot_commit_ota(); //commit only if we hear back from the server...
         vPortFree(buffer);
         return 0;
     }
+
     vPortFree(buffer);
     return -1;
 }
