@@ -120,15 +120,15 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
          *  if (pWlanEventHandler->EventData.smartConfigStartResponse.private_token_len)
          *    then the private token is populated: pWlanEventHandler->EventData.smartConfigStartResponse.private_token
          */
-        UARTprintf("SL_WLAN_SMART_CONFIG_START_EVENT\n\r");
+        UARTprintf("SL_WLAN_SMART_CONFIG_START_EVENT\n");
         break;
 #endif
     case SL_WLAN_SMART_CONFIG_STOP_EVENT:
-        UARTprintf("SL_WLAN_SMART_CONFIG_STOP_EVENT\n\r");
+        UARTprintf("SL_WLAN_SMART_CONFIG_STOP_EVENT\n");
         break;
     case SL_WLAN_CONNECT_EVENT:
     {
-        UARTprintf("SL_WLAN_CONNECT_EVENT\n\r");
+        UARTprintf("SL_WLAN_CONNECT_EVENT\n");
         sl_status |= CONNECT;
         sl_status &= ~CONNECTING;
         char* pSSID = (char*)pSlWlanEvent->EventData.STAandP2PModeWlanConnected.ssid_name;
@@ -141,8 +141,15 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
 		}
     }
         break;
+    case SL_WLAN_CONNECTION_FAILED_EVENT:  // ahhhhh this thing blocks us for 2 weeks...
+    {
+    	// This is a P2P event, but it fired here magically.
+        UARTprintf("SL_WLAN_CONNECTION_FAILED_EVENT\n");
+        sl_status &= ~CONNECTING;
+    }
+    break;
     case SL_WLAN_DISCONNECT_EVENT:
-        UARTprintf("SL_WLAN_DISCONNECT_EVENT\n\r");
+        UARTprintf("SL_WLAN_DISCONNECT_EVENT\n");
         sl_status &= ~CONNECT;
         sl_status &= ~HAS_IP;
         memset(_connected_ssid, 0, MAX_SSID_LEN);
