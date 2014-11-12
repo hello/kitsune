@@ -658,7 +658,40 @@ void thread_dust(void * unused)  {
 	}
 }
 static void _on_wave(void * ctx){
-	play_led_trippy();
+	g_ucSpkrStartFlag = 0;
+	uint8_t adjust_max_light = 80;
+	int adjust;
+	int light = *(int*)ctx;
+
+	if( light > adjust_max_light ) {
+		adjust = adjust_max_light;
+	} else {
+		adjust = light;
+	}
+
+	if(adjust < 20)
+	{
+		adjust = 20;
+	}
+
+	uint8_t alpha = 0xFF * adjust / 80;
+
+	if( sl_status & UPLOADING ) {
+		uint8_t rgb[3] = { LED_MAX };
+		led_get_user_color(&rgb[0], &rgb[1], &rgb[2]);
+		led_set_color(alpha, rgb[0], rgb[1], rgb[2], 1, 1, 18, 0);
+ 	}
+ 	else if( sl_status & HAS_IP ) {
+		led_set_color(alpha, LED_MAX, 0, 0, 1, 1, 18, 1); //blue
+ 	}
+ 	else if( sl_status & CONNECTING ) {
+ 		led_set_color(alpha, LED_MAX,LED_MAX,0, 1, 1, 18, 1); //yellow
+ 	}
+ 	else if( sl_status & SCANNING ) {
+ 		led_set_color(alpha, LED_MAX,0,0, 1, 1, 18, 1 ); //red
+ 	} else {
+ 		led_set_color(alpha, LED_MAX, LED_MAX, LED_MAX, 1, 1, 18, 1 ); //white
+ 	}
 }
 static void _on_hold(void * ctx){
 	stop_led_animation();
@@ -673,16 +706,16 @@ static xSemaphoreHandle light_smphr;
  int Cmd_led(int argc, char *argv[]) ;
 #include "gesture.h"
 void thread_fast_i2c_poll(void * unused)  {
+	int light = 0;
 	gesture_callbacks_t gesture_cbs = (gesture_callbacks_t){
 		.on_wave = _on_wave,
 		.on_hold = _on_hold,
 		.on_slide = _on_slide,
-		.ctx = NULL,
+		.ctx = &light,
 	};
 	gesture_init(&gesture_cbs);
 	while (1) {
 		portTickType now = xTaskGetTickCount();
-		int light;
 		int prox=0;
 
 		if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
@@ -695,7 +728,7 @@ void thread_fast_i2c_poll(void * unused)  {
 			prox = get_prox();  // now this thing is in um.
 
 			xSemaphoreGive(i2c_smphr);
-			gesture_input(prox, light);
+			gesture_input(prox);
 
 			if (xSemaphoreTake(light_smphr, portMAX_DELAY)) {
 				light_log_sum += bitlog(light);

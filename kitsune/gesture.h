@@ -21,7 +21,7 @@ typedef struct{
 }gesture_callbacks_t;
 
 void gesture_init(gesture_callbacks_t * user);
-void gesture_input(int prox, int light);
+void gesture_input(int prox);
 
 #ifdef __cplusplus
 }

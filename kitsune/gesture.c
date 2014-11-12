@@ -12,7 +12,7 @@
 #define DETECTION_THRESH 100
 
 /* multiples GESTURE FSP, minimal frames require for the wave gesture */
-#define GESTURE_WAVE_MULTIPLIER (0.2)
+#define GESTURE_WAVE_MULTIPLIER (0.1)
 
 /* multiples GESTURE FSP, minimal frames require for the hold gesture */
 #define GESTURE_HOLD_MULTIPLIER (1)
@@ -45,6 +45,15 @@ static bool _hasHold(void){
 static void _transition_state(enum fsm_state s){
 	self.fsm.exceed_thresh_count = 0;
 	self.fsm.state = s;
+}
+
+static int _fsm_reset(void){
+	self.fsm.state = GFSM_IDLE;
+	self.fsm.exceed_thresh_count = 0;
+	self.fsm.prox_impluse = 0;
+	self.fsm.prox_slow = 0;
+	self.fsm.prox_last =0;
+	return 0;
 }
 static int _fsm(int in){
 	int exceeded = 0;
@@ -101,14 +110,6 @@ static int _fsm(int in){
 	return 0;
 }
 
-static int _fsm_reset(void){
-	self.fsm.state = GFSM_IDLE;
-	self.fsm.exceed_thresh_count = 0;
-	self.fsm.prox_impluse = 0;
-	self.fsm.prox_slow = 0;
-	self.fsm.prox_last =0;
-	return 0;
-}
 void gesture_init(gesture_callbacks_t * _user){
 	_fsm_reset();
 	if(_user){
@@ -117,7 +118,7 @@ void gesture_init(gesture_callbacks_t * _user){
 }
 
 int disp_prox;
-void gesture_input(int prox, int light){
+void gesture_input(int prox){
 	if( disp_prox ) {
 		UARTprintf( "%d %d\t", prox, self.fsm.prox_impluse );
 	}
