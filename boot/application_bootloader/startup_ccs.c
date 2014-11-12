@@ -192,16 +192,112 @@ NmiSR(void)
 // for examination by a debugger.
 //
 //*****************************************************************************
-static void
+typedef struct {
+
+    unsigned long magic;
+    unsigned long version;
+    unsigned long faultStatus;
+    unsigned long busFaultAddr;
+    unsigned long mmuAddr;
+    unsigned long exceptionFrame[8];
+/* only whole words here ! */
+} faultInfo;
+
+#define SHUTDOWN_MEM ((void*)((0x20004000-sizeof(faultInfo))))
+#define SHUTDOWN_MAGIC 0xDEAD0BAD
+
+#include "hw_types.h"
+#include "hw_nvic.h"
+
+void
+FaultDecoder(unsigned long *pulExceptionFrame)
+{
+    unsigned int i;
+
+    faultInfo * f = (faultInfo*)SHUTDOWN_MEM;
+
+
+    //
+    // Read the fault status register.
+    //
+    f->faultStatus = HWREG(NVIC_FAULT_STAT);
+    //
+    // Check for any bits set in the bus fault field.  Print a human
+    // readable string for any bits that are set.
+    //
+    if(f->faultStatus & 0x0000ff00)
+    {
+        if(f->faultStatus & NVIC_FAULT_STAT_BFARV)
+        {
+            f->busFaultAddr = HWREG(NVIC_FAULT_ADDR);
+        }
+    }
+
+    //
+    // Check for any bits set in the memory fault field.  Print a human
+    // readable string for any bits that are set.
+    //
+    if(f->faultStatus & 0x000000ff)
+    {
+        if(f->faultStatus & NVIC_FAULT_STAT_MMARV)
+        {
+            f->mmuAddr = HWREG(NVIC_MM_ADDR);
+        }
+    }
+
+    for( i=0;i<8;++i )
+        f->exceptionFrame[i] = pulExceptionFrame[i];
+
+    f->magic = SHUTDOWN_MAGIC;
+
+    while(1) {}
+}
+
+//*****************************************************************************
+//
+// This is the fault handler that will find the start of the exception
+// frame and pass it to the fault decoder.
+//
+//*****************************************************************************
+#if defined(gcc) || defined(sourcerygxx) || defined(codered)
+void __attribute__((naked))
 FaultISR(void)
 {
-    //
-    // Enter an infinite loop.
-    //
-    while(1)
-    {
-    }
+    __asm("    mov     r0, sp\n"
+          "    bl      FaultDecoder\n"
+          "    bx      lr");
 }
+#endif
+#if defined(ewarm)
+void
+FaultISR(void)
+{
+    __asm("    mov     r0, sp\n"
+          "    bl      FaultDecoder\n"
+          "    bx      lr");
+}
+#endif
+#if defined(rvmdk) || defined (__ARMCC_VERSION)
+__asm void
+FaultISR(void)
+{
+    mov     r0, sp
+    bl      __cpp(FaultDecoder)
+    bx      lr
+}
+#endif
+#if 1//defined(ccs)
+#endif // #if defined (CCS)
+
+
+void
+FaultISR(void)
+{
+    __asm("loop1?: mov     r0, sp\n"
+          "    bl      FaultDecoder\n"
+          "    bx      lr");
+}
+
 
 //*****************************************************************************
 //

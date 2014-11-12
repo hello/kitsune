@@ -47,6 +47,10 @@
 #include "udma_if.h"
 #include "bootmgr.h"
 
+#include "crypto.h"
+#define SHA1_SIZE 32
+SHA1_CTX sha1ctx;
+unsigned char sha[SHA1_SIZE] = {0};
 
 /******************************************************************************
    Image file names
@@ -66,6 +70,8 @@
 /******************************************************************************
    Active Image
 *******************************************************************************/
+#define NUM_OTA_IMAGES			2
+
 #define IMG_ACT_FACTORY         0
 #define IMG_ACT_USER1           1
 #define IMG_ACT_USER2           2
@@ -82,6 +88,7 @@
 #define DEVICE_IS_CC3101S       0x1B
 
 
+
 /******************************************************************************
    Boot Info structure
 *******************************************************************************/
@@ -90,9 +97,10 @@ typedef struct sBootInfo
   _u8  ucActiveImg;
   _u32 ulImgStatus;
 
+  unsigned char sha[NUM_OTA_IMAGES][SHA1_SIZE];
 }sBootInfo_t;
 
-
+sBootInfo_t sBootInfo;
 
 //*****************************************************************************
 // Local Variables
@@ -196,6 +204,39 @@ BoardInit(void)
   PRCMCC3200MCUInit();
 }
 
+#include "rom_map.h"
+#include "wdt.h"
+#include "wdt_if.h"
+void WatchdogIntHandler(void)
+{
+	//
+	// watchdog interrupt - if it fires when the interrupt has not been cleared then the device will reset...
+	//
+}
+void start_wdt() {
+#define WD_PERIOD_MS 				20000
+#define MAP_SysCtlClockGet 			80000000
+#define LED_GPIO             		MCU_RED_LED_GPIO	/* RED LED */
+#define MILLISECONDS_TO_TICKS(ms) 	((MAP_SysCtlClockGet / 1000) * (ms))
+    //
+    // Enable the peripherals used by this example.
+    //
+    MAP_PRCMPeripheralClkEnable(PRCM_WDT, PRCM_RUN_MODE_CLK);
+
+    //
+    // Set up the watchdog interrupt handler.
+    //
+    WDT_IF_Init(WatchdogIntHandler, MILLISECONDS_TO_TICKS(WD_PERIOD_MS));
+
+    //
+    // Start the timer. Once the timer is started, it cannot be disable.
+    //
+    MAP_WatchdogEnable(WDT_BASE);
+    if(!MAP_WatchdogRunning(WDT_BASE))
+    {
+       WDT_IF_DeInit();
+    }
+}
 //*****************************************************************************
 //
 //! Executed the application from given location
@@ -250,48 +291,59 @@ __asm("    .sect \".text:Run\"\n"
 //! \return None.
 //
 //*****************************************************************************
+int file_len = 0;
+int Load(unsigned char *ImgName, unsigned long ulToken) {
+	//
+	// Open the file for reading
+	//
+	iRetVal = sl_FsOpen(ImgName, FS_MODE_OPEN_READ, &ulToken, &lFileHandle);
+	//
+	// Check if successfully opened
+	//
+	if (0 == iRetVal) {
+		//
+		// Get the file size using File Info structure
+		//
+		iRetVal = sl_FsGetInfo(ImgName, ulToken, &pFsFileInfo);
+		file_len = pFsFileInfo.FileLen;
+		//
+		// Check for failure
+		//
+		if (0 == iRetVal) {
+
+			//
+			// Read the application into SRAM
+			//
+			iRetVal = sl_FsRead(lFileHandle, 0,
+					(unsigned char *) APP_IMG_SRAM_OFFSET, pFsFileInfo.FileLen);
+		}
+	}
+	return iRetVal != pFsFileInfo.FileLen;
+}
+int Test(unsigned int img) {
+	SHA1_Init(&sha1ctx);
+	SHA1_Update(&sha1ctx, (unsigned char *) APP_IMG_SRAM_OFFSET, file_len);
+	SHA1_Final(sha, &sha1ctx);
+
+	return memcmp(sha, sBootInfo.sha[img], SHA1_SIZE) == 0;
+}
+void Execute() {
+    //
+    // Stop the network services
+    //
+    sl_Stop(30);
+
+    //
+    // Execute the application.
+    //
+    start_wdt(); //if we do load something bad, the wdt will get us back and we can load the other image...
+    Run(APP_IMG_SRAM_OFFSET);
+}
 void LoadAndExecute(unsigned char *ImgName, unsigned long ulToken)
 {
-
-  //
-  // Open the file for reading
-  //
-  iRetVal = sl_FsOpen(ImgName, FS_MODE_OPEN_READ,
-                        &ulToken, &lFileHandle);
-  //
-  // Check if successfully opened
-  //
-  if( 0 == iRetVal )
-  {
-    //
-    // Get the file size using File Info structure
-    //
-    iRetVal = sl_FsGetInfo(ImgName, ulToken,&pFsFileInfo);
-
-    //
-    // Check for failure
-    //
-    if( 0 == iRetVal )
-    {
-
-      //
-      // Read the application into SRAM
-      //
-      iRetVal = sl_FsRead(lFileHandle,0, (unsigned char *)APP_IMG_SRAM_OFFSET,
-                 pFsFileInfo.FileLen );
-
-
-      //
-      // Stop the network services
-      //
-      sl_Stop(30);
-
-      //
-      // Execute the application.
-      //
-      Run(APP_IMG_SRAM_OFFSET);
-    }
-  }
+	if (Load(ImgName, ulToken) == 0) {
+		Execute();
+	}
 }
 
 
@@ -356,101 +408,91 @@ static long BootInfoWrite(sBootInfo_t *psBootInfo)
 //
 //*****************************************************************************
 static void ImageLoader(sBootInfo_t *psBootInfo)
-{
-  unsigned char ucActiveImg;
-  unsigned long ulImgStatus;
+ {
+	unsigned char ucActiveImg;
+	unsigned long ulImgStatus;
 
-  //
-  // Get the active image and image status
-  //
-  ucActiveImg = psBootInfo->ucActiveImg;
-  ulImgStatus = psBootInfo->ulImgStatus;
+	//
+	// Get the active image and image status
+	//
+	ucActiveImg = psBootInfo->ucActiveImg;
+	ulImgStatus = psBootInfo->ulImgStatus;
 
-  //
-  // Boot image based on image status and active image configuration
-  //
-  if( IMG_STATUS_NOTEST == ulImgStatus )
-  {
+	//
+	// Boot image based on image status and active image configuration
+	//
+	if ( IMG_STATUS_TESTREADY == ulImgStatus) {
+		//
+		// Some image waiting to be tested; Change the status to testing
+		// in boot info file
+		//
+		psBootInfo->ulImgStatus = IMG_STATUS_TESTING;
+		BootInfoWrite(psBootInfo);
 
-    //
-    // Since no test image boot the acive image.
-    //
-    switch(ucActiveImg)
-    {
+		//
+		// Boot the test image ( the non-active image )
+		//
+		switch (ucActiveImg) {
 
-    case IMG_ACT_USER1:
-      LoadAndExecute((unsigned char *)IMG_USER_1,ulUserImg1Token);
-      break;
+		case IMG_ACT_USER1:
+			Load((unsigned char *) IMG_USER_2, ulUserImg2Token);
+			if (!Test(IMG_ACT_USER2)) {
+				LoadAndExecute((unsigned char *) IMG_USER_1, ulUserImg1Token);
+			} else {
+				Execute();
+			}
+			break;
 
-    case IMG_ACT_USER2:
-      LoadAndExecute((unsigned char *)IMG_USER_2,ulUserImg2Token);
-      break;
+		default:
+			Load((unsigned char *) IMG_USER_1, ulUserImg2Token);
+			if (!Test(IMG_ACT_USER1)) {
+				LoadAndExecute((unsigned char *) IMG_USER_2, ulUserImg1Token);
+			} else {
+				Execute();
+			}
+		}
+	} else {
+		if ( IMG_STATUS_TESTING == ulImgStatus) {
+			//
+			// Something went wrong while in testing.
+			// Change the status to no test
+			//
+			psBootInfo->ulImgStatus = IMG_STATUS_NOTEST;
+			BootInfoWrite(psBootInfo);
+		}
+		//
+		// Since boot the acive image.
+		//
+		switch (ucActiveImg) {
 
-    default:
-      LoadAndExecute((unsigned char *)IMG_FACTORY_DEFAULT,ulFactoryImgToken);
-      break;
-    }
-  }
-  else if( IMG_STATUS_TESTREADY == ulImgStatus )
-  {
-    //
-    // Some image waiting to be tested; Change the status to testing
-    // in boot info file
-    //
-    psBootInfo->ulImgStatus = IMG_STATUS_TESTING;
-    BootInfoWrite(psBootInfo);
+		case IMG_ACT_USER1:
+			Load((unsigned char *) IMG_USER_1, ulUserImg2Token);
+			if (!Test(IMG_ACT_USER1)) {
+				LoadAndExecute((unsigned char *) IMG_FACTORY_DEFAULT,ulUserImg1Token);
+			} else {
+				Execute();
+			}
+			break;
 
-    //
-    // Boot the test image ( the non-active image )
-    //
-    switch(ucActiveImg)
-    {
+		case IMG_ACT_USER2:
+			Load((unsigned char *) IMG_USER_2, ulUserImg2Token);
+			if (!Test(IMG_ACT_USER2)) {
+				LoadAndExecute((unsigned char *) IMG_FACTORY_DEFAULT,ulUserImg1Token);
+			} else {
+				Execute();
+			}
+			break;
 
-    case IMG_ACT_USER1:
-      LoadAndExecute((unsigned char *)IMG_USER_2,ulUserImg2Token);
-      break;
+		default:
+			LoadAndExecute((unsigned char *) IMG_FACTORY_DEFAULT,ulFactoryImgToken);
+			break;
+		}
+	}
 
-    default:
-      LoadAndExecute((unsigned char *)IMG_USER_1,ulUserImg1Token);
-    }
-  }
-  else if( IMG_STATUS_TESTING == ulImgStatus )
-  {
-
-    //
-    // Something went wrong while in testing.
-    // Change the status to no test
-    //
-    psBootInfo->ulImgStatus = IMG_STATUS_NOTEST;
-    BootInfoWrite(psBootInfo);
-
-    //
-    // Boot the active image.
-    //
-    switch(ucActiveImg)
-    {
-
-    case IMG_ACT_USER1:
-      LoadAndExecute((unsigned char *)IMG_USER_1,ulUserImg1Token);
-      break;
-
-    case IMG_ACT_USER2:
-      LoadAndExecute((unsigned char *)IMG_USER_2,ulUserImg2Token);
-      break;
-
-    default:
-      LoadAndExecute((unsigned char *)IMG_FACTORY_DEFAULT,ulFactoryImgToken);
-      break;
-    }
-  }
-
-  //
-  // Boot info might be corrupted go into infinite loop
-  //
-  while(1)
-  {
-
-  }
+	//
+	// Boot info might be corrupted just try for the factory one
+	//
+	LoadAndExecute((unsigned char *) IMG_FACTORY_DEFAULT, ulFactoryImgToken);
 
 }
 
@@ -545,9 +587,6 @@ static int CreateDefaultBootInfo(sBootInfo_t *psBootInfo)
 //*****************************************************************************
 int main()
 {
-
-  sBootInfo_t sBootInfo;
-
   //
   // Board Initialization
   //
@@ -654,12 +693,5 @@ int main()
   //
   ImageLoader(&sBootInfo);
 
-  //
-  // Infinite loop
-  //
-  while(1)
-  {
-
-  }
 }
 

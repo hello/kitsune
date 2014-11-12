@@ -1403,6 +1403,7 @@ static void _set_led_color_based_on_room_conditions(const SyncResponse* response
         led_set_user_color(0x00, LED_MAX, 0x00);
     }
 }
+void reset_to_factory_fw();
 
 static void _on_response_protobuf( SyncResponse* response_protobuf)
 {
@@ -1416,6 +1417,10 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
         UARTprintf("Server factory reset.\n");
         
         _on_factory_reset_received();
+    }
+
+    if(response_protobuf->has_reset_to_factory_fw && response_protobuf->reset_to_factory_fw) {
+    	reset_to_factory_fw();
     }
 
     
