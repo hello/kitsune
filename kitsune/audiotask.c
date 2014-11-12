@@ -151,8 +151,6 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 	UARTprintf("%d bytes free\n", xPortGetFreeHeapSize());
 
-	//zero out RX byffer
-	memset(pRxBuffer->pucBufferStartPtr,0,RX_BUFFER_SIZE);
 
 	//open file for playback
 	UARTprintf("Opening %s for playback\r\n",info->file);

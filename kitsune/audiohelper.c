@@ -84,6 +84,9 @@ uint8_t InitAudioPlayback(int32_t vol) {
 		return 0;
 	}
 
+	//zero out RX byffer
+	memset(pRxBuffer->pucBufferStartPtr,0,RX_BUFFER_SIZE);
+
 	//////
 	// SET UP AUDIO PLAYBACK
 	get_codec_NAU(vol);
