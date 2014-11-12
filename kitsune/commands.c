@@ -75,6 +75,7 @@
 #include "led_animations.h"
 #include "uart_logger.h"
 
+#include "tests/TestNetwork.h"
 #define ONLY_MID 0
 
 //******************************************************************************
@@ -1117,6 +1118,11 @@ int Cmd_rssi(int argc, char *argv[]) {
 	return 0;
 }
 
+int Cmd_test_network(int argc,char * argv[]) {
+	TestNetwork_RunTests(TEST_SERVER);
+
+	return 0;
+}
 #if 0
 int Cmd_mel(int argc, char *argv[]) {
     int i,ichunk;
@@ -1330,6 +1336,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "uplog", Cmd_log_upload, "Uploads log to server"},
 		{ "loglevel", Cmd_log_setview, "Sets log level" },
 		{ "ver", Cmd_version, ""},//Animates led
+		{ "test_network",Cmd_test_network,""},
 
 		{ 0, 0, 0 } };
 
@@ -1354,7 +1361,6 @@ void vUARTTask(void *pvParameters) {
 	NetworkTaskData_t network_task_data;
 
 	memset(&network_task_data,0,sizeof(network_task_data));
-	network_task_data.host = DATA_SERVER;
 
 
 	if(led_init() != 0){

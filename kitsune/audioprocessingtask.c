@@ -20,7 +20,6 @@ static uint32_t samplecounter;
 
 #define DESIRED_BUFFER_SIZE_IN_BYTES (20000)
 
-static const char * k_audio_endpoint = "/audio/features";
 static DeviceCurrentInfo_t _deviceCurrentInfo;
 static void * _longTermStorageBuffer = NULL;
 
@@ -141,7 +140,8 @@ static void SetUpUpload(void) {
 	message.decode_buf = _decodebuf;
 	message.decode_buf_size = sizeof(_decodebuf);
 
-	message.endpoint = k_audio_endpoint;
+	message.host = DATA_SERVER;
+	message.endpoint = AUDIO_FEATURES_ENDPOINT;
 	message.response_callback = NetworkResponseFunc;
 	message.retry_timeout = 0; //just try once
 	message.prepare = Prepare;
