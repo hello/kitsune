@@ -1062,7 +1062,7 @@ int GetData(char * filename, char* url, char * host, char * path)
             // write data on the file
             res = f_write( &file_obj, pBuff, transfer_len, &r );
 
-            //UARTprintf("wrote:  %d %d\r\n", r, res);
+            UARTprintf("wrote:  %d %d\r\n", r, res);
 
             if (r != transfer_len )
             {
@@ -1403,12 +1403,68 @@ int Cmd_version(int argc, char *argv[]) {
 int wait_for_top_boot(unsigned int timeout);
 int send_top(char *, int);
 bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, void **arg);
+void free_download_info(SyncResponse_FileDownload * download_info) {
+	char * filename=NULL, * url=NULL, * host=NULL, * path=NULL, * serial_flash_path=NULL, * serial_flash_name=NULL;
+
+	filename = download_info->sd_card_filename.arg;
+	path = download_info->sd_card_path.arg;
+	url = download_info->url.arg;
+	host = download_info->host.arg;
+	serial_flash_name = download_info->serial_flash_filename.arg;
+	serial_flash_path = download_info->serial_flash_path.arg;
+	if( filename ) {
+		vPortFree(filename);
+	}
+	if( url ) {
+		vPortFree(url);
+	}
+	if( host ) {
+		vPortFree(host);
+	}
+	if( path ) {
+		vPortFree(path);
+	}
+	if( serial_flash_name ) {
+		vPortFree(serial_flash_name);
+	}
+	if( serial_flash_path ) {
+		vPortFree(serial_flash_path);
+	}
+}
+
+typedef struct {
+	char filename[32];
+	bool needed;
+} manifest_entry;
+typedef struct {
+	manifest_entry entries[32];
+	int count;
+	xSemaphoreHandle manifest_smphr;
+} manifest_t;
+//just make all this static and required in pb and use that structure!
+
+void manifest_init( manifest_t* man ) {
+
+}
+void manifest_add( manifest_t* man, char * file ) {
+//add only if not present already
+}
+void manifest_complete( manifest_t* man, char * file ) {
+
+}
+void manifest_incomplete( manifest_t* man, char * file ) {
+
+}
+void manifest_needs( manifest_t* man, char * file ) {
+
+}
 
 SHA1_CTX sha1ctx;
 
 xQueueHandle download_queue = 0;
 
-void file_download_task( void * downloads ) {
+void file_download_task( void * manifestPtr ) {
+	manifest_t * manifest = (manifest_t *)manifestPtr;
 	SyncResponse_FileDownload download_info;
 	while (xQueueReceive(download_queue, &(download_info), 100)) {
 		char * filename=NULL, * url=NULL, * host=NULL, * path=NULL, * serial_flash_path=NULL, * serial_flash_name=NULL;
@@ -1451,14 +1507,16 @@ void file_download_task( void * downloads ) {
 
 			if(global_filename( filename ))
 			{
-				continue;
+				goto end_download_task;
 			}
 			if( exists ) {
 				f_unlink(path_buff);
 			}
 
 			//download it!
-			download_file( host, url, filename, path );
+			if( download_file( host, url, filename, path ) != 0 ) {
+				goto end_download_task;
+			}
 
 			if( download_info.has_copy_to_serial_flash && download_info.copy_to_serial_flash && serial_flash_name && serial_flash_path ) {
 
@@ -1482,13 +1540,13 @@ void file_download_task( void * downloads ) {
 				cd( path );
 				if(global_filename( filename ))
 				{
-					continue;
+					goto end_download_task;
 				}
 
 				FRESULT res = f_open(&file_obj, path_buff, FA_READ);
 				if( res != FR_OK ) {
 					UARTprintf("ota - failed to open file %s", path_buff );
-					continue;
+					goto end_download_task;
 				}
 
 				f_stat( path_buff, &file_info );
@@ -1504,7 +1562,7 @@ void file_download_task( void * downloads ) {
 				sl_FsOpen((unsigned char *)full, FS_MODE_OPEN_CREATE(bytes_to_copy, _FS_FILE_OPEN_FLAG_NO_SIGNATURE_TEST | _FS_FILE_OPEN_FLAG_COMMIT ), NULL, &sflash_fh);
 				if( res != FR_OK ) {
 					UARTprintf("ota - failed to open file %s\n", full );
-					continue;
+					goto end_download_task;
 				}
 				int file_len = bytes_to_copy;
 
@@ -1520,7 +1578,7 @@ void file_download_task( void * downloads ) {
 					res = f_read( &file_obj, buf, bytes_to_copy<512?bytes_to_copy:512, &size );
 					if( res != FR_OK ) {
 						UARTprintf("ota - failed to read file %s\n", path_buff );
-						continue;
+						goto end_download_task;
 					}
 					//UARTprintf( "offset %d, left %d, chunk %d\n",  file_len-bytes_to_copy, bytes_to_copy,size );
 					set_led_progress_bar( 100*(file_len-bytes_to_copy)/file_len );
@@ -1532,7 +1590,7 @@ void file_download_task( void * downloads ) {
 					status = sl_FsWrite(sflash_fh, file_len-bytes_to_copy, (unsigned char*)buf, size);
 					if( status != size ) {
 						UARTprintf("ota - failed to write file %s\n", full );
-						continue;
+						goto end_download_task;
 					}
 					bytes_to_copy -= size;
 				}
@@ -1544,8 +1602,12 @@ void file_download_task( void * downloads ) {
 					send_top("dfu", strlen("dfu"));
 					wait_for_top_boot(120000);
 				}
+				manifest_complete(filename);
+			} else {
+				manifest_complete(filename);
 			}
 			if( download_info.has_reset_application_processor && download_info.reset_application_processor ) {
+				manifest_incomplete(filename);
 				UARTprintf("change image status to IMG_STATUS_TESTREADY\n\r");
 				_ReadBootInfo(&sBootInfo);
 				if (download_info.has_sha1) {
@@ -1556,14 +1618,17 @@ void file_download_task( void * downloads ) {
 					if (memcmp(sha, download_info.sha1.bytes, SHA1_SIZE) == 0) {
 						sBootInfo.ulImgStatus = IMG_STATUS_TESTREADY;
 						memcpy(sBootInfo.sha[_McuImageGetNewIndex()], download_info.sha1.bytes, SHA1_SIZE );
+						//sBootInfo.ucActiveImg this is set by boot loader
+						manifest_complete(filename);
+						_WriteBootInfo(&sBootInfo);
+						mcu_reset();
 					} else {
 						UARTprintf( "fw update SHA did not match!\n");
+						goto end_download_task;
 					}
-					//sBootInfo.ucActiveImg this is set by boot loadervb
-					_WriteBootInfo(&sBootInfo);
-					mcu_reset();
 				} else {
 					UARTprintf( "no download SHA on fw!\n");
+					goto end_download_task;
 				}
 			}
 			if( download_info.has_reset_network_processor && download_info.reset_network_processor ) {
@@ -1571,19 +1636,18 @@ void file_download_task( void * downloads ) {
 				nwp_reset();
 			}
 		}
+		end_download_task: //there was an error
+		free_download_info( &download_info );
+	}
+}
+bool _on_file_manifest(pb_istream_t *stream, const pb_field_t *field, void **arg) {
+	//todo what if we get the next set before the current set finishes? How do we know which set we're on? (manifest)
+	//todo what if there's an error on some but not all the files? (manifest)
 
-		if( filename ) {
-			vPortFree(filename);
-		}
-		if( url ) {
-			vPortFree(url);
-		}
-		if( host ) {
-			vPortFree(host);
-		}
-		if( path ) {
-			vPortFree(path);
-		}
+	manifest_t manifest; // = ?
+	if( !download_queue ) {
+		download_queue = xQueueCreate(20, sizeof(SyncResponse_FileDownload));
+		xTaskCreate(file_download_task, "download task", 2*1024/4, &manifest, 1, NULL);
 	}
 }
 
@@ -1615,12 +1679,10 @@ bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg
 		return false;
 	}
 
-	if( !download_queue ) {
-		download_queue = xQueueCreate(20, sizeof(SyncResponse_FileDownload));
-		xTaskCreate(file_download_task, "download task", 2*1024/4, NULL, 1, NULL);
-	}
 	if( download_queue ) {
-		xQueueSend(download_queue, (void*)&download_info, portMAX_DELAY);
+		if( xQueueSend(download_queue, (void*)&download_info, 10) != pdPASS ) {
+			free_download_info( &download_info );
+		}
 	}
 	return true;
 }
