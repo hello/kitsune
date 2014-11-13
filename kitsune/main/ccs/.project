@@ -201,6 +201,11 @@
 			<locationURI>PARENT-2-PROJECT_LOC/gesture.h</locationURI>
 		</link>
 		<link>
+			<name>hellofilesystem.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hellofilesystem.c</locationURI>
+		</link>
+		<link>
 			<name>hellomath.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/hellomath.c</locationURI>
@@ -339,11 +344,6 @@
 			<name>slip_packet.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/slip_packet.h</locationURI>
-		</link>
-		<link>
-			<name>speaker.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/speaker.c</locationURI>
 		</link>
 		<link>
 			<name>spi_cmd.c</name>
