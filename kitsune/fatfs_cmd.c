@@ -1406,10 +1406,190 @@ bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, void **
 
 SHA1_CTX sha1ctx;
 
+xQueueHandle download_queue = 0;
+
+void file_download_task( void * downloads ) {
+	SyncResponse_FileDownload download_info;
+	while (xQueueReceive(download_queue, &(download_info), 100)) {
+		char * filename=NULL, * url=NULL, * host=NULL, * path=NULL, * serial_flash_path=NULL, * serial_flash_name=NULL;
+
+		filename = download_info.sd_card_filename.arg;
+		path = download_info.sd_card_path.arg;
+		url = download_info.url.arg;
+		host = download_info.host.arg;
+		serial_flash_name = download_info.serial_flash_filename.arg;
+		serial_flash_path = download_info.serial_flash_path.arg;
+
+		if( filename ) {
+			UARTprintf( "ota - filename: %s\n", filename);
+		}
+		if( url ) {
+			UARTprintf( "ota - url: %s\n",url);
+		}
+		if( host ) {
+			UARTprintf( "ota - host: %s\n",host);
+		}
+		if( path ) {
+			UARTprintf( "ota - path: %s\n",path);
+		}
+		if( serial_flash_path ) {
+			UARTprintf( "ota - serial_flash_path: %s\n",serial_flash_path);
+		}
+		if( serial_flash_name ) {
+			UARTprintf( "ota - serial_flash_name: %s\n",serial_flash_name);
+		}
+		if( download_info.has_copy_to_serial_flash ) {
+			UARTprintf( "ota - copy_to_serial_flash: %s\n",download_info.copy_to_serial_flash);
+		}
+
+		if (filename && url && host && path) {
+			int exists = 0;
+			if (file_exists(filename, path)) {
+				UARTprintf("ota - file exists, overwriting\n");
+				exists = 1;
+			}
+
+			if(global_filename( filename ))
+			{
+				continue;
+			}
+			if( exists ) {
+				f_unlink(path_buff);
+			}
+
+			//download it!
+			download_file( host, url, filename, path );
+
+			if( download_info.has_copy_to_serial_flash && download_info.copy_to_serial_flash && serial_flash_name && serial_flash_path ) {
+
+				char * full;
+				char *buf;
+				long sflash_fh = -1;
+				WORD size=0;
+				int status;
+				full = pvPortMalloc(128);
+				assert(full);
+				buf = pvPortMalloc(512);
+				assert(buf);
+				memset(buf,0,sizeof(buf));
+				memset(full,0,sizeof(full));
+
+				strcpy(full, serial_flash_path);
+				strcat(full, serial_flash_name);
+
+				UARTprintf("copying %s %s\n", serial_flash_path, serial_flash_name);
+
+				cd( path );
+				if(global_filename( filename ))
+				{
+					continue;
+				}
+
+				FRESULT res = f_open(&file_obj, path_buff, FA_READ);
+				if( res != FR_OK ) {
+					UARTprintf("ota - failed to open file %s", path_buff );
+					continue;
+				}
+
+				f_stat( path_buff, &file_info );
+				DWORD bytes_to_copy = file_info.fsize;
+
+				if (strstr(full, "/sys/mcuimgx") != 0 )
+				{
+					_ReadBootInfo(&sBootInfo);
+					full[11] = (_u8)_McuImageGetNewIndex() + '1'; /* mcuimg1 is for factory default, mcuimg2,3 are for OTA updates */
+					UARTprintf("MCU image name converted to %s \n", full);
+				}
+
+				sl_FsOpen((unsigned char *)full, FS_MODE_OPEN_CREATE(bytes_to_copy, _FS_FILE_OPEN_FLAG_NO_SIGNATURE_TEST | _FS_FILE_OPEN_FLAG_COMMIT ), NULL, &sflash_fh);
+				if( res != FR_OK ) {
+					UARTprintf("ota - failed to open file %s\n", full );
+					continue;
+				}
+				int file_len = bytes_to_copy;
+
+				play_led_progress_bar(254, 132, 4, 0);
+
+				if( download_info.has_sha1 ) {
+					SHA1_Init(&sha1ctx);
+				}
+
+				UARTprintf( "copying %d from %s on sd to %s on sflash\n", bytes_to_copy, path_buff, full);
+				while( bytes_to_copy > 0 ) {
+					//read from sd into buff
+					res = f_read( &file_obj, buf, bytes_to_copy<512?bytes_to_copy:512, &size );
+					if( res != FR_OK ) {
+						UARTprintf("ota - failed to read file %s\n", path_buff );
+						continue;
+					}
+					//UARTprintf( "offset %d, left %d, chunk %d\n",  file_len-bytes_to_copy, bytes_to_copy,size );
+					set_led_progress_bar( 100*(file_len-bytes_to_copy)/file_len );
+
+					if( download_info.has_sha1 ) {
+						SHA1_Update(&sha1ctx, (uint8_t*)buf, size);
+					}
+
+					status = sl_FsWrite(sflash_fh, file_len-bytes_to_copy, (unsigned char*)buf, size);
+					if( status != size ) {
+						UARTprintf("ota - failed to write file %s\n", full );
+						continue;
+					}
+					bytes_to_copy -= size;
+				}
+				UARTprintf( "done, closing\n" );
+				sl_FsClose(sflash_fh,0,0,0);
+				f_close(&file_obj);
+
+				if( strcmp(full, "/top/update") == 0 ) {
+					send_top("dfu", strlen("dfu"));
+					wait_for_top_boot(120000);
+				}
+			}
+			if( download_info.has_reset_application_processor && download_info.reset_application_processor ) {
+				UARTprintf("change image status to IMG_STATUS_TESTREADY\n\r");
+				_ReadBootInfo(&sBootInfo);
+				if (download_info.has_sha1) {
+					unsigned char sha[SHA1_SIZE] = {0};
+
+					SHA1_Final(sha, &sha1ctx);
+
+					if (memcmp(sha, download_info.sha1.bytes, SHA1_SIZE) == 0) {
+						sBootInfo.ulImgStatus = IMG_STATUS_TESTREADY;
+						memcpy(sBootInfo.sha[_McuImageGetNewIndex()], download_info.sha1.bytes, SHA1_SIZE );
+					} else {
+						UARTprintf( "fw update SHA did not match!\n");
+					}
+					//sBootInfo.ucActiveImg this is set by boot loadervb
+					_WriteBootInfo(&sBootInfo);
+					mcu_reset();
+				} else {
+					UARTprintf( "no download SHA on fw!\n");
+				}
+			}
+			if( download_info.has_reset_network_processor && download_info.reset_network_processor ) {
+				UARTprintf( "reset nwp\n" );
+				nwp_reset();
+			}
+		}
+
+		if( filename ) {
+			vPortFree(filename);
+		}
+		if( url ) {
+			vPortFree(url);
+		}
+		if( host ) {
+			vPortFree(host);
+		}
+		if( path ) {
+			vPortFree(path);
+		}
+	}
+}
+
 bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg)
 {
 	SyncResponse_FileDownload download_info;
-	char * filename=NULL, * url=NULL, * host=NULL, * path=NULL, * serial_flash_path=NULL, * serial_flash_name=NULL;
 
 	download_info.sd_card_filename.funcs.decode = _decode_string_field;
 	download_info.sd_card_filename.arg = NULL;
@@ -1434,177 +1614,13 @@ bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg
 		UARTprintf("ota - parse fail \n" );
 		return false;
 	}
-	filename = download_info.sd_card_filename.arg;
-	path = download_info.sd_card_path.arg;
-	url = download_info.url.arg;
-	host = download_info.host.arg;
-	serial_flash_name = download_info.serial_flash_filename.arg;
-	serial_flash_path = download_info.serial_flash_path.arg;
 
-	if( filename ) {
-		UARTprintf( "ota - filename: %s\n", filename);
+	if( !download_queue ) {
+		download_queue = xQueueCreate(20, sizeof(SyncResponse_FileDownload));
+		xTaskCreate(file_download_task, "download task", 2*1024/4, NULL, 1, NULL);
 	}
-	if( url ) {
-		UARTprintf( "ota - url: %s\n",url);
+	if( download_queue ) {
+		xQueueSend(download_queue, (void*)&download_info, portMAX_DELAY);
 	}
-	if( host ) {
-		UARTprintf( "ota - host: %s\n",host);
-	}
-	if( path ) {
-		UARTprintf( "ota - path: %s\n",path);
-	}
-	if( serial_flash_path ) {
-		UARTprintf( "ota - serial_flash_path: %s\n",serial_flash_path);
-	}
-	if( serial_flash_name ) {
-		UARTprintf( "ota - serial_flash_name: %s\n",serial_flash_name);
-	}
-	if( download_info.has_copy_to_serial_flash ) {
-		UARTprintf( "ota - copy_to_serial_flash: %s\n",download_info.copy_to_serial_flash);
-	}
-
-	if (filename && url && host && path) {
-		int exists = 0;
-		if (file_exists(filename, path)) {
-			UARTprintf("ota - file exists, overwriting\n");
-			exists = 1;
-		}
-
-		if(global_filename( filename ))
-		{
-			return 1;
-		}
-		if( exists ) {
-			f_unlink(path_buff);
-		}
-
-		//download it!
-		download_file( host, url, filename, path );
-
-		if( download_info.has_copy_to_serial_flash && download_info.copy_to_serial_flash && serial_flash_name && serial_flash_path ) {
-
-			char * full;
-			char *buf;
-			long sflash_fh = -1;
-			WORD size=0;
-			int status;
-			full = pvPortMalloc(128);
-			assert(full);
-			buf = pvPortMalloc(512);
-			assert(buf);
-			memset(buf,0,sizeof(buf));
-			memset(full,0,sizeof(full));
-
-			strcpy(full, serial_flash_path);
-			strcat(full, serial_flash_name);
-
-			UARTprintf("copying %s %s\n", serial_flash_path, serial_flash_name);
-
-			cd( path );
-			if(global_filename( filename ))
-			{
-				return 1;
-			}
-
-			FRESULT res = f_open(&file_obj, path_buff, FA_READ);
-			if( res != FR_OK ) {
-				UARTprintf("ota - failed to open file %s", path_buff );
-				return false;
-			}
-
-			f_stat( path_buff, &file_info );
-			DWORD bytes_to_copy = file_info.fsize;
-
-			if (strstr(full, "/sys/mcuimgx") != 0 )
-			{
-				_ReadBootInfo(&sBootInfo);
-				full[11] = (_u8)_McuImageGetNewIndex() + '1'; /* mcuimg1 is for factory default, mcuimg2,3 are for OTA updates */
-				UARTprintf("MCU image name converted to %s \n", full);
-			}
-
-			sl_FsOpen((unsigned char *)full, FS_MODE_OPEN_CREATE(bytes_to_copy, _FS_FILE_OPEN_FLAG_NO_SIGNATURE_TEST | _FS_FILE_OPEN_FLAG_COMMIT ), NULL, &sflash_fh);
-			if( res != FR_OK ) {
-				UARTprintf("ota - failed to open file %s\n", full );
-				return false;
-			}
-			int file_len = bytes_to_copy;
-
-			play_led_progress_bar(254, 132, 4, 0);
-
-			if( download_info.has_sha1 ) {
-				SHA1_Init(&sha1ctx);
-			}
-
-			UARTprintf( "copying %d from %s on sd to %s on sflash\n", bytes_to_copy, path_buff, full);
-			while( bytes_to_copy > 0 ) {
-				//read from sd into buff
-				res = f_read( &file_obj, buf, bytes_to_copy<512?bytes_to_copy:512, &size );
-				if( res != FR_OK ) {
-					UARTprintf("ota - failed to read file %s\n", path_buff );
-					return false;
-				}
-				//UARTprintf( "offset %d, left %d, chunk %d\n",  file_len-bytes_to_copy, bytes_to_copy,size );
-				set_led_progress_bar( 100*(file_len-bytes_to_copy)/file_len );
-
-				if( download_info.has_sha1 ) {
-					SHA1_Update(&sha1ctx, (uint8_t*)buf, size);
-				}
-
-				status = sl_FsWrite(sflash_fh, file_len-bytes_to_copy, (unsigned char*)buf, size);
-				if( status != size ) {
-					UARTprintf("ota - failed to write file %s\n", full );
-					return false;
-				}
-				bytes_to_copy -= size;
-			}
-			UARTprintf( "done, closing\n" );
-			sl_FsClose(sflash_fh,0,0,0);
-			f_close(&file_obj);
-
-			if( strcmp(full, "/top/update") == 0 ) {
-				send_top("dfu", strlen("dfu"));
-				wait_for_top_boot(120000);
-			}
-		}
-		if( download_info.has_reset_application_processor && download_info.reset_application_processor ) {
-			UARTprintf("change image status to IMG_STATUS_TESTREADY\n\r");
-			_ReadBootInfo(&sBootInfo);
-			if (download_info.has_sha1) {
-				unsigned char sha[SHA1_SIZE] = {0};
-
-				SHA1_Final(sha, &sha1ctx);
-
-				if (memcmp(sha, download_info.sha1.bytes, SHA1_SIZE) == 0) {
-					sBootInfo.ulImgStatus = IMG_STATUS_TESTREADY;
-					memcpy(sBootInfo.sha[_McuImageGetNewIndex()], download_info.sha1.bytes, SHA1_SIZE );
-				} else {
-					UARTprintf( "fw update SHA did not match!\n");
-				}
-				//sBootInfo.ucActiveImg this is set by boot loadervb
-				_WriteBootInfo(&sBootInfo);
-				mcu_reset();
-			} else {
-				UARTprintf( "no download SHA on fw!\n");
-			}
-		}
-		if( download_info.has_reset_network_processor && download_info.reset_network_processor ) {
-			UARTprintf( "reset nwp\n" );
-			nwp_reset();
-		}
-	}
-
-	if( filename ) {
-		vPortFree(filename);
-	}
-	if( url ) {
-		vPortFree(url);
-	}
-	if( host ) {
-		vPortFree(host);
-	}
-	if( path ) {
-		vPortFree(path);
-	}
-
 	return true;
 }
