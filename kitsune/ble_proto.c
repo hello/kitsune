@@ -67,7 +67,7 @@ static void _reply_wifi_scan_result()
     
     //Cmd_led(0,0);
     play_led_progress_bar(30,30,0,0);
-    while((scanned_wifi_count = get_wifi_scan_result(wifi_endpoints, MAX_WIFI_EP_PER_SCAN, 3000 * (max_retry - retry_count + 1))) == 0 && --retry_count)
+    while((scanned_wifi_count = get_wifi_scan_result(wifi_endpoints, MAX_WIFI_EP_PER_SCAN, 10000)) == 0 && --retry_count)
     {
     	set_led_progress_bar((max_retry - retry_count) * 100 / max_retry);
         UARTprintf("No wifi scanned, retry times remain %d\n", retry_count);
@@ -80,6 +80,11 @@ static void _reply_wifi_scan_result()
     Sl_WlanNetworkEntry_t wifi_endpoints_cp[2] = {0};
     play_led_progress_bar(0,0,30,0);
     MorpheusCommand reply_command = {0};
+    for(i = 0; i < scanned_wifi_count; i++)
+	{
+    	UARTprintf("%s; ", wifi_endpoints[i].ssid);
+	}
+
     for(i = 0; i < scanned_wifi_count; i++)
     {
         wifi_endpoints_cp[0] = wifi_endpoints[i];
