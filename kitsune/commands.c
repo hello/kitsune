@@ -556,10 +556,11 @@ void set_alarm( SyncResponse_Alarm * received_alarm ) {
         	&& received_alarm->ring_offset_from_now_in_second > -1 ) {   // -1 means user has no alarm/reset his/her now
         	unsigned long now = get_time();
         	received_alarm->start_time = now + received_alarm->ring_offset_from_now_in_second;
-        	
-        	uint8_t ring_duration = received_alarm->has_ring_duration_in_second ? received_alarm->ring_duration_in_second : 30;
+
+        	int ring_duration = received_alarm->has_ring_duration_in_second ? received_alarm->ring_duration_in_second : 30;
         	received_alarm->end_time = now + received_alarm->ring_offset_from_now_in_second + ring_duration;
-        	received_alarm->has_end_time = received_alarm->has_start_time = true;
+        	received_alarm->has_end_time = received_alarm->has_start_time = received_alarm->has_ring_duration_in_second = true;
+        	received_alarm->ring_duration_in_second = ring_duration;
         	// //sanity check
         	// since received_alarm->ring_offset_from_now_in_second >= 0, we don't need to check received_alarm->start_time
             
