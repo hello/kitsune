@@ -31,6 +31,16 @@
 			<locationURI>PARENT-2-PROJECT_LOC/CC3200.ccxml</locationURI>
 		</link>
 		<link>
+			<name>TestNetwork.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tests/TestNetwork.c</locationURI>
+		</link>
+		<link>
+			<name>TestNetwork.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tests/TestNetwork.h</locationURI>
+		</link>
+		<link>
 			<name>aes.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/aes.c</locationURI>
