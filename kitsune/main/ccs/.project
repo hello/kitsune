@@ -358,7 +358,7 @@
 		<link>
 			<name>tests</name>
 			<type>2</type>
-			<locationURI>PARENT-2-PROJECT_LOC/tests</locationURI>
+			<locationURI>virtual:/virtual</locationURI>
 		</link>
 		<link>
 			<name>top_board.c</name>
@@ -604,6 +604,16 @@
 			<name>protobuf/testdata.pb.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/protobuf/testdata.pb.h</locationURI>
+		</link>
+		<link>
+			<name>tests/TestNetwork.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tests/TestNetwork.c</locationURI>
+		</link>
+		<link>
+			<name>tests/TestNetwork.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tests/TestNetwork.h</locationURI>
 		</link>
 	</linkedResources>
 	<variableList>
