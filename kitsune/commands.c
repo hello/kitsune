@@ -66,7 +66,6 @@
 #include "ti_codec.h"
 #include "network.h"
 
-#include "ff.h"
 #include "diskio.h"
 #include "top_hci.h"
 #include "slip_packet.h"

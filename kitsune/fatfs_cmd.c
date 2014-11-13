@@ -20,7 +20,7 @@
 
 #include "fatfs_cmd.h"
 #include "circ_buff.h"
-#include "ff.h"
+#include "hellofilesystem.h"
 #include "diskio.h"
 
 #include "FreeRTOS.h"
@@ -68,7 +68,7 @@ int Cmd_mnt(int argc, char *argv[])
 {
     FRESULT res;
 
-	res = f_mount(0, &fsobj);
+	res = hello_mount(0, &fsobj);
 	if(res != FR_OK)
 	{
 		UARTprintf("f_mount error: %i\n", (res));
@@ -80,7 +80,7 @@ int Cmd_umnt(int argc, char *argv[])
 {
     FRESULT res;
 
-	res = f_mount(0, NULL);
+	res = hello_mount(0, NULL);
 	if(res != FR_OK)
 	{
 		UARTprintf("f_mount error: %i\n", (res));
@@ -96,7 +96,7 @@ int Cmd_mkfs(int argc, char *argv[])
 
 	UARTprintf("\n\nMaking FS...\n");
 
-	res = f_mkfs(0, 1, 16);
+	res = hello_mkfs(0, 1, 16);
 	if(res != FR_OK)
 	{
 		UARTprintf("f_mkfs error: %i\n", (res));
@@ -125,7 +125,7 @@ Cmd_ls(int argc, char *argv[])
     FRESULT res;
     FATFS *psFatFs;
 
-    res = f_opendir(&fsdirobj,cwd_buff);
+    res = hello_opendir(&fsdirobj,cwd_buff);
 
     if(res != FR_OK)
     {
@@ -140,7 +140,7 @@ Cmd_ls(int argc, char *argv[])
 
     for(;;)
     {
-        res = f_readdir(&fsdirobj, &file_info);
+        res = hello_readdir(&fsdirobj, &file_info);
 
         if(res != FR_OK)
         {
@@ -189,7 +189,7 @@ Cmd_ls(int argc, char *argv[])
                 ui32FileCount, ui32TotalSize, ui32DirCount);
 
     // Get the free space.
-    res = f_getfree("/", (DWORD *)&ui32TotalSize, &psFatFs);
+    res = hello_getfree("/", (DWORD *)&ui32TotalSize, &psFatFs);
 
     // Check for error and return if there is a problem.
     if(res != FR_OK)
@@ -301,7 +301,7 @@ FRESULT cd( char * path ) {
 
     // At this point, a candidate new directory path is in chTmpBuf.  Try to
     // open it to make sure it is valid.
-    res = f_opendir(&fsdirobj,path_buff);
+    res = hello_opendir(&fsdirobj,path_buff);
 
     // If it can't be opened, then it is a bad path.  Inform the user and
     // return.
@@ -378,7 +378,7 @@ Cmd_cat(int argc, char *argv[])
     	return 1;
     }
 
-    res = f_open(&file_obj, path_buff, FA_READ);
+    res = hello_open(&file_obj, path_buff, FA_READ);
     if(res != FR_OK)
     {
         return((int)res);
@@ -390,7 +390,7 @@ Cmd_cat(int argc, char *argv[])
     {
         // Read a block of data from the file.  Read as much as can fit in the
         // temporary buffer, including a space for the trailing null.
-        res = f_read(&file_obj, path_buff, 4,
+        res = hello_read(&file_obj, path_buff, 4,
                          &ui16BytesRead);
 
         // If there was an error reading, then print a newline and return the
@@ -410,7 +410,7 @@ Cmd_cat(int argc, char *argv[])
     }
     while(ui16BytesRead == 4);
 
-    f_close( &file_obj );
+    hello_close( &file_obj );
 
     UARTprintf("\n");
     return(0);
@@ -431,19 +431,19 @@ Cmd_write_audio(char *argv[])
     }
     UARTprintf("print");
     // Open the file for reading.
-    //res = f_open(&file_obj, path_buff, FA_CREATE_NEW|FA_WRITE);
-    res = f_open(&file_obj, path_buff, FA_WRITE);
-    f_stat( path_buff, &file_info );
+    //res = hello_open(&file_obj, path_buff, FA_CREATE_NEW|FA_WRITE);
+    res = hello_open(&file_obj, path_buff, FA_WRITE);
+    hello_stat( path_buff, &file_info );
 
     if( file_info.fsize != 0 )
-        res = f_lseek(&file_obj, file_info.fsize );
+        res = hello_lseek(&file_obj, file_info.fsize );
 
     do {
-		res = f_write( &file_obj, argv[1]+bytes_written, bytes_to_write-bytes_written, &bytes );
+		res = hello_write( &file_obj, argv[1]+bytes_written, bytes_to_write-bytes_written, &bytes );
 		bytes_written+=bytes;
     } while( bytes_written < bytes_to_write );
 
-    res = f_close( &file_obj );
+    res = hello_close( &file_obj );
 
     if(res != FR_OK)
     {
@@ -469,7 +469,7 @@ Cmd_write(int argc, char *argv[])
 
 
     // Open the file for writing.
-    FRESULT res = f_open(&file_obj, path_buff, FA_CREATE_NEW|FA_WRITE|FA_OPEN_ALWAYS);
+    FRESULT res = hello_open(&file_obj, path_buff, FA_CREATE_NEW|FA_WRITE|FA_OPEN_ALWAYS);
     UARTprintf("res :%d\n",res);
 
     if(res != FR_OK && res != FR_EXIST){
@@ -477,19 +477,19 @@ Cmd_write(int argc, char *argv[])
     	return res;
     }
 
-    f_stat( path_buff, &file_info );
+    hello_stat( path_buff, &file_info );
 
     if( file_info.fsize != 0 )
-        res = f_lseek(&file_obj, file_info.fsize );
+        res = hello_lseek(&file_obj, file_info.fsize );
 
     do {
-		res = f_write( &file_obj, argv[2]+bytes_written, bytes_to_write-bytes_written, &bytes );
+		res = hello_write( &file_obj, argv[2]+bytes_written, bytes_to_write-bytes_written, &bytes );
 		bytes_written+=bytes;
 		UARTprintf("bytes written: %d\n", bytes_written);
 
     } while( bytes_written < bytes_to_write );
 
-    res = f_close( &file_obj );
+    res = hello_close( &file_obj );
 
     if(res != FR_OK)
     {
@@ -508,7 +508,7 @@ rm(char * file)
     	return 1;
     }
 
-    res = f_unlink(path_buff);
+    res = hello_unlink(path_buff);
 
     if(res != FR_OK)
     {
@@ -531,7 +531,7 @@ int mkdir( char * path ) {
     	return 1;
     }
 
-    res = f_mkdir(path_buff);
+    res = hello_mkdir(path_buff);
     if(res != FR_OK)
     {
         return((int)res);
@@ -900,7 +900,7 @@ int GetData(char * filename, char* url, char * host, char * path)
     	return 1;
     }
     // Open the file for writing.
-    res = f_open(&file_obj, path_buff, FA_CREATE_NEW|FA_WRITE|FA_OPEN_ALWAYS);
+    res = hello_open(&file_obj, path_buff, FA_CREATE_NEW|FA_WRITE|FA_OPEN_ALWAYS);
     UARTprintf("res :%d\n",res);
 
     if(res != FR_OK && res != FR_EXIST){
@@ -924,7 +924,7 @@ int GetData(char * filename, char* url, char * host, char * path)
         if(recv_size <= transfer_len)
         {
             // write the recv_size
-            res = f_write( &file_obj, pBuff, transfer_len, &r );
+            res = hello_write( &file_obj, pBuff, transfer_len, &r );
 
             UARTprintf("chunked 1 wrote:  %d %d\r\n", r, res);
 
@@ -933,7 +933,7 @@ int GetData(char * filename, char* url, char * host, char * path)
                 UARTprintf("Failed during writing the file, Error-code: %d\r\n", \
                             FILE_WRITE_ERROR);
                 /* Close file without saving */
-                res = f_close( &file_obj );
+                res = hello_close( &file_obj );
 
                 if(res != FR_OK)
                 {
@@ -941,7 +941,7 @@ int GetData(char * filename, char* url, char * host, char * path)
         			stop_led_animation();
                     return((int)res);
                 }
-                f_unlink( path_buff );
+                hello_unlink( path_buff );
                 cd( "/" );
     			stop_led_animation();
                 return r;
@@ -975,7 +975,7 @@ int GetData(char * filename, char* url, char * host, char * path)
                     // Code will enter this section if the new chunk size is
                     // less than the transfer size. This will the last chunk of
                     // file received
-                    res = f_write( &file_obj, pBuff, transfer_len, &r );
+                    res = hello_write( &file_obj, pBuff, transfer_len, &r );
 
                     UARTprintf("chunked 2 wrote:  %d %d\r\n", r, res);
 
@@ -984,7 +984,7 @@ int GetData(char * filename, char* url, char * host, char * path)
                         UARTprintf("Failed during writing the file, " \
                                     "Error-code: %d\r\n", FILE_WRITE_ERROR);
                         /* Close file without saving */
-                        res = f_close( &file_obj );
+                        res = hello_close( &file_obj );
 
                         if(res != FR_OK)
                         {
@@ -992,7 +992,7 @@ int GetData(char * filename, char* url, char * host, char * path)
                         	cd( "/" );
                             return((int)res);
                         }
-                        f_unlink( path_buff );
+                        hello_unlink( path_buff );
                         cd( "/" );
             			stop_led_animation();
                         return FILE_WRITE_ERROR;
@@ -1024,7 +1024,7 @@ int GetData(char * filename, char* url, char * host, char * path)
                 else
                 {
                     // write data on the file
-                    res = f_write( &file_obj, pBuff, transfer_len, &r );
+                    res = hello_write( &file_obj, pBuff, transfer_len, &r );
 
                     UARTprintf("chunked 3 wrote:  %d %d\r\n", r, res);
 
@@ -1033,7 +1033,7 @@ int GetData(char * filename, char* url, char * host, char * path)
                         UARTprintf("Failed during writing the file, " \
                                     "Error-code: %d\r\n", FILE_WRITE_ERROR);
                         /* Close file without saving */
-                        res = f_close( &file_obj );
+                        res = hello_close( &file_obj );
 
                         if(res != FR_OK)
                         {
@@ -1041,7 +1041,7 @@ int GetData(char * filename, char* url, char * host, char * path)
                 			stop_led_animation();
                             return((int)res);
                         }
-                        f_unlink( path_buff );
+                        hello_unlink( path_buff );
                         cd( "/" );
             			stop_led_animation();
                         return FILE_WRITE_ERROR;
@@ -1060,7 +1060,7 @@ int GetData(char * filename, char* url, char * host, char * path)
         else
         {
             // write data on the file
-            res = f_write( &file_obj, pBuff, transfer_len, &r );
+            res = hello_write( &file_obj, pBuff, transfer_len, &r );
 
             //UARTprintf("wrote:  %d %d\r\n", r, res);
 
@@ -1069,7 +1069,7 @@ int GetData(char * filename, char* url, char * host, char * path)
                 UARTprintf("Failed during writing the file, Error-code: " \
                             "%d\r\n", FILE_WRITE_ERROR);
                 /* Close file without saving */
-                res = f_close( &file_obj );
+                res = hello_close( &file_obj );
 
                 if(res != FR_OK)
                 {
@@ -1077,7 +1077,7 @@ int GetData(char * filename, char* url, char * host, char * path)
         			stop_led_animation();
                     return((int)res);
                 }
-                f_unlink( path_buff );
+                hello_unlink( path_buff );
     			stop_led_animation();
                 return FILE_WRITE_ERROR;
             }
@@ -1111,14 +1111,14 @@ int GetData(char * filename, char* url, char * host, char * path)
     {
     	UARTprintf(" invalid file\r\n" );
         /* Close file without saving */
-        res = f_close( &file_obj );
+        res = hello_close( &file_obj );
 
         if(res != FR_OK)
         {
         	cd( "/" );
             return((int)res);
         }
-        f_unlink( path_buff );
+        hello_unlink( path_buff );
         cd( "/" );
         return INVALID_FILE;
     }
@@ -1126,7 +1126,7 @@ int GetData(char * filename, char* url, char * host, char * path)
     {
     	UARTprintf(" successful file\r\n" );
         /* Save and close file */
-        res = f_close( &file_obj );
+        res = hello_close( &file_obj );
 
         if(res != FR_OK)
         {
@@ -1146,13 +1146,13 @@ int file_exists( char * filename, char * path ) {
     	return 1;
     }
 
-    FRESULT res = f_open(&file_obj, path_buff, FA_READ);
+    FRESULT res = hello_open(&file_obj, path_buff, FA_READ);
     if(res != FR_OK)
     {
     	cd("/");
         return(0);
     }
-    f_close( &file_obj );
+    hello_close( &file_obj );
 	cd("/");
 	return 1;
 }
@@ -1454,7 +1454,7 @@ void file_download_task( void * downloads ) {
 				continue;
 			}
 			if( exists ) {
-				f_unlink(path_buff);
+				hello_unlink(path_buff);
 			}
 
 			//download it!
@@ -1485,13 +1485,13 @@ void file_download_task( void * downloads ) {
 					continue;
 				}
 
-				FRESULT res = f_open(&file_obj, path_buff, FA_READ);
+				FRESULT res = hello_open(&file_obj, path_buff, FA_READ);
 				if( res != FR_OK ) {
 					UARTprintf("ota - failed to open file %s", path_buff );
 					continue;
 				}
 
-				f_stat( path_buff, &file_info );
+				hello_stat( path_buff, &file_info );
 				DWORD bytes_to_copy = file_info.fsize;
 
 				if (strstr(full, "/sys/mcuimgx") != 0 )
@@ -1517,7 +1517,7 @@ void file_download_task( void * downloads ) {
 				UARTprintf( "copying %d from %s on sd to %s on sflash\n", bytes_to_copy, path_buff, full);
 				while( bytes_to_copy > 0 ) {
 					//read from sd into buff
-					res = f_read( &file_obj, buf, bytes_to_copy<512?bytes_to_copy:512, &size );
+					res = hello_read( &file_obj, buf, bytes_to_copy<512?bytes_to_copy:512, &size );
 					if( res != FR_OK ) {
 						UARTprintf("ota - failed to read file %s\n", path_buff );
 						continue;
@@ -1538,7 +1538,7 @@ void file_download_task( void * downloads ) {
 				}
 				UARTprintf( "done, closing\n" );
 				sl_FsClose(sflash_fh,0,0,0);
-				f_close(&file_obj);
+				hello_close(&file_obj);
 
 				if( strcmp(full, "/top/update") == 0 ) {
 					send_top("dfu", strlen("dfu"));
