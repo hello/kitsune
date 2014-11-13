@@ -554,10 +554,8 @@ void set_alarm( SyncResponse_Alarm * received_alarm ) {
     if (xSemaphoreTake(alarm_smphr, portMAX_DELAY)) {
         if (received_alarm->has_ring_offset_from_now_in_second
         	&& received_alarm->ring_offset_from_now_in_second > -1 ) {   // -1 means user has no alarm/reset his/her now
-
         	unsigned long now = get_time();
         	received_alarm->start_time = now + received_alarm->ring_offset_from_now_in_second;
-
         	uint8_t ring_duration = received_alarm->has_ring_duration_in_second ? received_alarm->ring_duration_in_second : 30;
 
         	received_alarm->end_time = now + received_alarm->ring_offset_from_now_in_second + ring_duration;
@@ -573,7 +571,6 @@ void set_alarm( SyncResponse_Alarm * received_alarm ) {
             } else {
                 memcpy(&alarm, received_alarm, sizeof(alarm));
             }
-            
             UARTprintf("Got alarm %d to %d in %d minutes\n",
                         received_alarm->start_time, received_alarm->end_time,
                         (received_alarm->start_time - now) / 60);
@@ -588,7 +585,6 @@ void set_alarm( SyncResponse_Alarm * received_alarm ) {
             received_alarm->has_end_time = false;
 
             memcpy(&alarm, received_alarm, sizeof(alarm));
-
         }
 
         xSemaphoreGive(alarm_smphr);
