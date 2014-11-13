@@ -619,6 +619,7 @@ DRESULT disk_write ( BYTE bDrive,const BYTE* pBuffer, DWORD ulSectorNumber,
       {
         MAP_SDHostDataWrite(SDHOST_BASE,(*(unsigned long *)pBuffer));
         pBuffer+=4;
+        MAP_WatchdogIntClear(WDT_BASE); //clear wdt
       }
       
       //
