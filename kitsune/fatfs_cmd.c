@@ -1580,13 +1580,12 @@ bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg
 				} else {
 					UARTprintf( "fw update SHA did not match!\n");
 				}
+				//sBootInfo.ucActiveImg this is set by boot loadervb
+				_WriteBootInfo(&sBootInfo);
+				mcu_reset();
 			} else {
-				sBootInfo.ulImgStatus = IMG_STATUS_TESTREADY;
-				UARTprintf( "warning no download SHA on fw!\n");
+				UARTprintf( "no download SHA on fw!\n");
 			}
-			//sBootInfo.ucActiveImg this is set by boot loadervb
-			_WriteBootInfo(&sBootInfo);
-			mcu_reset();
 		}
 		if( download_info.has_reset_network_processor && download_info.reset_network_processor ) {
 			UARTprintf( "reset nwp\n" );
