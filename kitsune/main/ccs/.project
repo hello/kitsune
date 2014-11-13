@@ -356,6 +356,11 @@
 			<locationURI>PARENT-2-PROJECT_LOC/spi_cmd.h</locationURI>
 		</link>
 		<link>
+			<name>tests</name>
+			<type>2</type>
+			<locationURI>virtual:/virtual</locationURI>
+		</link>
+		<link>
 			<name>top_board.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/top_board.c</locationURI>
