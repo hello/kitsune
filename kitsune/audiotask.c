@@ -51,11 +51,12 @@
 
 #define SAVE_FILE "/usr/POD101.raw";
 
+unsigned int g_uiPlayWaterMark;
 
 /* globals */
 extern tCircularBuffer *pTxBuffer;
 extern tCircularBuffer *pRxBuffer;
-extern unsigned int g_uiPlayWaterMark;
+
 
 
 /* static variables  */
