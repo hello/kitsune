@@ -522,6 +522,7 @@ unsigned long get_time() {
 				vTaskDelay(100);
 			} //wait for a connection the first time...
 
+			networktask_enter_critical_region();
 			ntp = last_ntp = unix_time();
 
 			vTaskDelay((1 << tries) * 1000);
@@ -538,6 +539,8 @@ unsigned long get_time() {
 						  SL_DEVICE_GENERAL_CONFIGURATION_DATE_TIME,
 						  sizeof(SlDateTime_t),(unsigned char *)(&tm));
 			}
+			networktask_exit_critical_region();
+
 		}
 
 	} else if (last_ntp != 0) {
@@ -1370,10 +1373,6 @@ void UARTStdioIntHandler(void);
 void vUARTTask(void *pvParameters) {
 	char cCmdBuf[512];
 	portTickType now;
-	NetworkTaskData_t network_task_data;
-
-	memset(&network_task_data,0,sizeof(network_task_data));
-
 
 	if(led_init() != 0){
 		UARTprintf("Failed to create the led_events.\n");
@@ -1475,15 +1474,15 @@ void vUARTTask(void *pvParameters) {
 		UARTprintf("Failed to create the data_queue.\n");
 	}
 
+	networktask_init();  // Network task needs to start before, because get_time use its critical region.
+
 	xTaskCreate(top_board_task, "top_board_task", 1024 / 4, NULL, 2, NULL);
 	xTaskCreate(thread_alarm, "alarmTask", 2*1024 / 4, NULL, 4, NULL);
 
 	UARTprintf("*");
 	xTaskCreate(thread_spi, "spiTask", 3*1024 / 4, NULL, 5, NULL); //this one doesn't look like much, but has to parse all the pb from bluetooth
 
-	//this task needs a larger stack because
-	//some protobuf encoding will happen on the stack of this task
-	xTaskCreate(NetworkTask_Thread,"networkTask",5*1024/4,&network_task_data,10,NULL);
+
 
 	SetupGPIOInterrupts();
 	UARTprintf("*");

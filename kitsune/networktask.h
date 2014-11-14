@@ -44,8 +44,10 @@ typedef struct {
 typedef struct {
 } NetworkTaskData_t;
 
-void NetworkTask_Thread(void * networkdata);
+void networktask_init();
 int NetworkTask_SynchronousSendProtobuf(const char * host, const char * endpoint, char * buf, uint32_t buf_size, const pb_field_t fields[], const void * structdata,int32_t retry_time_in_counts);
 int NetworkTask_AddMessageToQueue(const NetworkTaskServerSendMessage_t * message);
+int networktask_enter_critical_region();
+int networktask_exit_critical_region();
 
 #endif//_NETWORKTASK_H_

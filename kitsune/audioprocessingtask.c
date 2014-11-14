@@ -150,7 +150,7 @@ static void SetUpUpload(void) {
 	message.encode = AudioClassifier_EncodeAudioFeatures;
 
 	get_mac(_deviceCurrentInfo.mac);
-	_deviceCurrentInfo.unix_time = unix_time();
+	_deviceCurrentInfo.unix_time = get_time();
 
 	message.encodedata = (void *) &_deviceCurrentInfo;
 

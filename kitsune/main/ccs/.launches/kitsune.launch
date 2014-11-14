@@ -17,7 +17,7 @@
 <stringAttribute key="com.ti.ccstudio.debug.debugModel.ATTR_PROGRAM.Stellaris In-Circuit Debug Interface_0/Cortex_M4_0" value="${build_artifact:kitsune}"/>
 <stringAttribute key="com.ti.ccstudio.debug.debugModel.ATTR_PROJECT.Stellaris In-Circuit Debug Interface_0/Cortex_M4_0" value="kitsune"/>
 <stringAttribute key="com.ti.ccstudio.debug.debugModel.ATTR_TARGET_CONFIG" value="${target_config_active_default:kitsune}"/>
-<stringAttribute key="com.ti.ccstudio.debug.debugModel.MRU_PROGRAM.Stellaris In-Circuit Debug Interface_0/Cortex_M4_0" value="C:/Users\chrisjohnson\Desktop\kitsune_clean_2\kitsune\main\ccs\exe\kitsune.out"/>
+<stringAttribute key="com.ti.ccstudio.debug.debugModel.MRU_PROGRAM.Stellaris In-Circuit Debug Interface_0/Cortex_M4_0" value="C:/Users\chrisjohnson\Desktop\kitsune\kitsune\main\ccs\exe\kitsune.out"/>
 <mapAttribute key="com.ti.ccstudio.debug.ui.displayFormats">
 <mapEntry key="Stellaris In-Circuit Debug Interface_0/Cortex_M4_0@##separator##@0" value="Character"/>
 </mapAttribute>

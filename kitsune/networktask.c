@@ -14,6 +14,7 @@
 static xQueueHandle _asyncqueue = NULL;
 static xSemaphoreHandle _waiter = NULL;
 static xSemaphoreHandle _syncmutex = NULL;
+static xSemaphoreHandle _network_mutex = NULL;
 
 static NetworkResponse_t _syncsendresponse;
 
@@ -28,8 +29,6 @@ static void nop(const char * foo,...) {  }
 
 static void Init(NetworkTaskData_t * info) {
 
-
-
 	if (!_asyncqueue) {
 		_asyncqueue = xQueueCreate(NETWORK_TASK_QUEUE_DEPTH,sizeof(NetworkTaskServerSendMessage_t));
 	}
@@ -40,6 +39,11 @@ static void Init(NetworkTaskData_t * info) {
 
 	if (!_syncmutex) {
 		_syncmutex = xSemaphoreCreateMutex();
+	}
+
+	if(!_network_mutex)
+	{
+		_network_mutex = xSemaphoreCreateMutex();
 	}
 
 
@@ -117,21 +121,13 @@ int NetworkTask_SynchronousSendProtobuf(const char * host,const char * endpoint,
 
 }
 
-
-int NetworkTask_AddMessageToQueue(const NetworkTaskServerSendMessage_t * message) {
-    return xQueueSend( _asyncqueue, ( const void * ) message, 10 );
-}
-
-
-void NetworkTask_Thread(void * networkdata) {
+static void NetworkTask_Thread(void * networkdata) {
 	NetworkTaskServerSendMessage_t message;
 	NetworkResponse_t response;
 	NetworkTaskData_t * taskdata = (NetworkTaskData_t *)networkdata;
 	int32_t timeout_counts;
 	int32_t retry_period;
 	uint32_t attempt_count;
-
-	Init(taskdata);
 
 	for (; ;) {
 
@@ -157,23 +153,30 @@ void NetworkTask_Thread(void * networkdata) {
 				message.prepare(message.prepdata);
 			}
 
-			//push to server
-			if (send_data_pb_callback(message.host,
-					message.endpoint,
-					(char*)message.decode_buf,
-					message.decode_buf_size,
-					message.encodedata,
-					message.encode,
-					NUM_RECEIVE_RETRIES) == 0) {
+			if(networktask_enter_critical_region() == pdTRUE)
+			{
+				//push to server
+				if (send_data_pb_callback(message.host,
+						message.endpoint,
+						(char*)message.decode_buf,
+						message.decode_buf_size,
+						message.encodedata,
+						message.encode,
+						NUM_RECEIVE_RETRIES) == 0) {
 
 
-				response.success = true;
-			}
-			else {
-				//failed to push, now what?
-				response.success = false;
-				response.flags |= NETWORK_RESPONSE_FLAG_NO_CONNECTION;
+					response.success = true;
+				}
+				else {
+					//failed to push, now what?
+					response.success = false;
+					response.flags |= NETWORK_RESPONSE_FLAG_NO_CONNECTION;
 
+				}
+
+				networktask_exit_critical_region();;
+			}else{
+				UARTprintf("NetTask::Thread enter critical region failed.\n");
 			}
 
 			/* unprepare */
@@ -219,9 +222,38 @@ void NetworkTask_Thread(void * networkdata) {
 			message.response_callback(&response);
 		}
 
-
-
-
 	}
 
 }
+
+
+int NetworkTask_AddMessageToQueue(const NetworkTaskServerSendMessage_t * message) {
+    return xQueueSend( _asyncqueue, ( const void * ) message, 10 );
+}
+
+
+int networktask_enter_critical_region()
+{
+	return xSemaphoreTake(_network_mutex, portMAX_DELAY);
+}
+
+int networktask_exit_critical_region()
+{
+	return xSemaphoreGive(_network_mutex);
+}
+
+void networktask_init()
+{
+	// In this way the network task is encapsulated to its own module
+	// no semaphore needs to expose to outside
+	NetworkTaskData_t network_task_data;
+	memset(&network_task_data, 0, sizeof(network_task_data));
+
+	Init(&network_task_data);
+
+	//this task needs a larger stack because
+	//some protobuf encoding will happen on the stack of this task
+	xTaskCreate(NetworkTask_Thread, "networkTask", 5 * 1024 / 4, &network_task_data, 10, NULL);
+}
+
+
