@@ -1,3 +1,0 @@
-message TestData {
-    optional bytes payload = 1;
-}

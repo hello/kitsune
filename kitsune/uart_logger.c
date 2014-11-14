@@ -1,7 +1,7 @@
 #include "uart_logger.h"
 #include "FreeRTOS.h"
 #include "event_groups.h"
-#include "SenseLog.pb.h"
+#include "log.pb.h"
 #include <pb_encode.h>
 #include "netcfg.h"
 #include <stdio.h>
@@ -24,7 +24,7 @@ static struct{
 	volatile uint8_t * upload_block;
 	volatile uint32_t widx;
 	EventGroupHandle_t uart_log_events;
-	SenseLog log;
+	sense_log log;
 	uint8_t view_tag;
 	xSemaphoreHandle block_operation_sem;
 }self;
@@ -138,7 +138,7 @@ void uart_logger_task(void * params){
 				self.log.has_unix_time = false;
 			}
 
-			ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER, SENSE_LOG_ENDPOINT,buffer,sizeof(buffer),SenseLog_fields,&self.log,0);
+			ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER, SENSE_LOG_ENDPOINT,buffer,sizeof(buffer),sense_log_fields,&self.log,0);
 			if(ret == 0){
 				LOGI("Succeeded\r\n");
 			}else{

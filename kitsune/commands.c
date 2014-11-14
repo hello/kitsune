@@ -76,8 +76,8 @@
 #include "uart_logger.h"
 
 #include "kitsune_version.h"
+#include "TestNetwork.h"
 
-#include "tests/TestNetwork.h"
 #define ONLY_MID 0
 
 //******************************************************************************
