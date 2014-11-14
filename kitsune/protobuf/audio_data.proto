@@ -1,9 +1,0 @@
-message audio_data {
-   optional bytes features=1;
-   optional int32 feature_version=2;
-   
-   optional int32 samples=3;
-   optional int32 rate=4;
-   optional int32 audio_version=5;
-   optional bytes audio=6;
-}
