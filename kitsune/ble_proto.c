@@ -22,7 +22,7 @@
 #include "led_cmd.h"
 #include "top_board.h"
 
-extern unsigned int sl_status;
+extern volatile unsigned int sl_status;
 
 static void _factory_reset(){
     int16_t ret = sl_WlanProfileDel(0xFF);

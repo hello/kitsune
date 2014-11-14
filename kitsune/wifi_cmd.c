@@ -19,7 +19,7 @@
 
 int sl_mode = ROLE_INVALID;
 
-unsigned int sl_status = 0;
+volatile unsigned int sl_status = 0;
 
 #include "rom_map.h"
 #include "prcm.h"
