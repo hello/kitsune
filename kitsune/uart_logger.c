@@ -12,8 +12,10 @@
 #include "debug.h"
 #include <stdlib.h>
 #include "endpoints.h"
+#include "fatfs_cmd.h"
 
 #define SENSE_LOG_ENDPOINT		"/logs"
+#define SENSE_LOG_FOLDER		"logs"
 #define LOG_EVENT_BACKEND 		0x1
 #define LOG_EVENT_LOCAL			0x2
 #define LOG_EVENT_UPLOAD_LOCAL 	0x4
@@ -26,7 +28,9 @@ static struct{
 	EventGroupHandle_t uart_log_events;
 	sense_log log;
 	uint8_t view_tag;
+	uint8_t log_local_enable;
 	xSemaphoreHandle block_operation_sem;
+	DIR logdir;
 }self;
 
 static bool
@@ -117,8 +121,38 @@ void uart_logc(uint8_t c){
 		xSemaphoreGive(self.block_operation_sem);
 	//}
 }
+void walk_log_dir(void){
+	FILINFO file_info;
+	FRESULT res;
+	 for(;;){
+	        res = hello_fs_readdir(&fsdirobj, &file_info);
+	        if(res != FR_OK){
+	           break;
+	        }
+	        // If the file name is blank, then this is the end of the listing.
+	        if(!file_info.fname[0]){
+	            break;
+	        }
+
+	        // If the attribue is directory, then increment the directory count.
+	        if(!(file_info.fattrib & AM_DIR)){
+	        	LOGI("log: %s\r\n",file_info.fname);
+	        }
+	   }
+	 LOGI("End of log files\r\n");
+}
 unsigned long get_time();
 void uart_logger_task(void * params){
+	if(0 != mkdir(SENSE_LOG_FOLDER)){
+
+	}
+	FRESULT res = hello_fs_opendir(&self.logdir,SENSE_LOG_FOLDER);
+	if(res != FR_OK){
+		//uart logging to sd card is disabled
+		self.log_local_enable = 0;
+	}else{
+		self.log_local_enable = 1;
+	}
 	while(1){
 		char buffer[UART_LOGGER_BLOCK_SIZE + UART_LOGGER_RESERVED_SIZE] = {0};
 		int ret;
