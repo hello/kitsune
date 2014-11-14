@@ -25,6 +25,7 @@
 
 #include "FreeRTOS.h"
 
+#include "kitsune_version.h"
 
 //*****************************************************************************
 //
@@ -910,7 +911,7 @@ int GetData(char * filename, char* url, char * host, char * path)
     }
     uint32_t total = recv_size;
     int percent = 101-100*recv_size/total;
-	play_led_progress_bar(132, 233, 4, 0);
+	play_led_progress_bar(132, 233, 4, 0, portMAX_DELAY);
 
     while (0 < transfer_len)
     {
@@ -1508,7 +1509,7 @@ void file_download_task( void * downloads ) {
 				}
 				int file_len = bytes_to_copy;
 
-				play_led_progress_bar(254, 132, 4, 0);
+				play_led_progress_bar(254, 132, 4, 0, portMAX_DELAY);
 
 				if( download_info.has_sha1 ) {
 					SHA1_Init(&sha1ctx);
@@ -1536,6 +1537,7 @@ void file_download_task( void * downloads ) {
 					}
 					bytes_to_copy -= size;
 				}
+				stop_led_animation();
 				UARTprintf( "done, closing\n" );
 				sl_FsClose(sflash_fh,0,0,0);
 				f_close(&file_obj);

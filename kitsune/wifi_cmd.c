@@ -187,7 +187,6 @@ void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent) {
 
 		sl_status |= HAS_IP;
 
-        Cmd_led(0,0);
 		break;
 
 	case SL_NETAPP_IP_LEASED_EVENT:
