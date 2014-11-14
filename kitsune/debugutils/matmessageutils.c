@@ -2,7 +2,7 @@
 
 #include "pb_encode.h"
 #include "pb_decode.h"
-#include "protobuf/matrix.pb.h"
+#include "matrix.pb.h"
 
 
 
