@@ -5,11 +5,16 @@
 static xSemaphoreHandle _mutex = 0;
 
 #define LOCK() \
-	if (!_mutex) _mutex = xSemaphoreCreateMutex();\
-	xSemaphoreTake(_mutex,portMAX_DELAY);\
+	xSemaphoreTake(_mutex,portMAX_DELAY);
 
 #define UNLOCK()\
 	xSemaphoreGive(_mutex);
+
+void hell_fs_init(void) {
+	if (!_mutex) {
+		_mutex = xSemaphoreCreateMutex();
+	}
+}
 
 FRESULT hello_mount (BYTE drv,FATFS *fs) {
 

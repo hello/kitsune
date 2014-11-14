@@ -3,6 +3,7 @@
 
 #include "ff.h"
 
+void hell_fs_init(void);  /*  Initializes locking semaphore */
 
 FRESULT hello_mount (BYTE, FATFS*);                        /* Mount/Unmount a logical drive */
 FRESULT hello_open (FIL*, const char*, BYTE);            /* Open or create a file */
