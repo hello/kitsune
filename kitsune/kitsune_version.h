@@ -1,3 +1,3 @@
 #ifndef KIT_VER
-#define KIT_VER 30
+#define KIT_VER 31
 #endif
