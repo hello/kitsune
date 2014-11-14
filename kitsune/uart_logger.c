@@ -133,7 +133,6 @@ _find_oldest_log(FILINFO * info){
 }
 static int
 _write_file(char * name, const char * buffer, WORD size){
-	FILINFO file_info;
 	FIL file_obj;
 	WORD bytes = 0;
 	WORD written = 0;
