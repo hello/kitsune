@@ -1191,7 +1191,7 @@ int Cmd_download(int argc, char*argv[]) {
 }
 
 //end download functions
-#include "protobuf/SyncResponse.pb.h"
+#include "sync_response.pb.h"
 #include "stdbool.h"
 #include "pb.h"
 #include "pb_decode.h"
