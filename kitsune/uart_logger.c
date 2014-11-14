@@ -12,7 +12,8 @@
 #include "debug.h"
 #include <stdlib.h>
 #include "endpoints.h"
-#include "fatfs_cmd.h"
+#include "ff.h"
+#include "hellofilesystem.h"
 
 #define SENSE_LOG_ENDPOINT		"/logs"
 #define SENSE_LOG_FOLDER		"logs"
@@ -33,6 +34,8 @@ static struct{
 	DIR logdir;
 }self;
 
+typedef void (file_handler)(FILINFO * info);
+static int _walk_log_dir(file_handler * handler);
 static bool
 _encode_text_block(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
 	return pb_encode_tag(stream, PB_WT_STRING, field->tag)
@@ -93,13 +96,88 @@ _logstr(const char * str, int len, bool echo){
 		UARTwrite(str,len);
 	}
 }
+static int
+_walk_log_dir(file_handler * handler){
+	FILINFO file_info;
+	FRESULT res;
+	int fcount = 0;
+	res = hello_fs_opendir(&self.logdir,SENSE_LOG_FOLDER);
+	if(res != FR_OK){
+		return -1;
+	}
+	for(;;){
+		res = hello_fs_readdir(&self.logdir, &file_info);
+		if(res != FR_OK){
+			fcount = -1;
+			break;
+		}
+		// If the file name is blank, then this is the end of the listing.
+		if(!file_info.fname[0]){
+			break;
+		}
+		// If the attribue is directory, then increment the directory count.
+		if(!(file_info.fattrib & AM_DIR)){
+			fcount++;
 
+			if(handler){
+				handler(&file_info);
+			}
+		}
+	}
+	LOGI("End of log files\r\n");
+	return fcount;
+}
+static void
+_find_oldest_log(FILINFO * info){
+	LOGI("log name: %s\r\n",info->fname);
+}
+static int
+_write_file(char * name, const char * buffer, WORD size){
+	FILINFO file_info;
+	FIL file_obj;
+	WORD bytes = 0;
+	WORD written = 0;
+	WORD write_size = size;
+	char full_name[32] = {0};
+	strcat(full_name, "/");
+	strcat(full_name, SENSE_LOG_FOLDER);
+	strcat(full_name, "/");
+	FRESULT res = hello_fs_open(&file_obj, strcat(full_name, name), FA_CREATE_NEW|FA_WRITE|FA_OPEN_ALWAYS);
+	if(res != FR_OK && res != FR_EXIST){
+		LOGE("File %s open fail, code %d", full_name, res);
+		return -1;
+	}
+	do{
+		res = hello_fs_write(&file_obj, buffer + written, write_size - written, &bytes);
+		written += bytes;
+	}while(written < size);
+	res = hello_fs_close(&file_obj);
+	if(res != FR_OK){
+		LOGE("unable to write log file\r\n");
+		return -1;
+	}
+	return 0;
+}
+static int
+_handle_raw_log(const char * buffer, int size){
+	int ret = _walk_log_dir(_find_oldest_log);
+	if(ret == 0){
+		LOGI("NO log file exists, creating first log\r\n");
+		return _write_file("0", buffer, size);
+	}else if(ret > 0){
+		LOGI("%d log file exists\r\n", ret);
+
+	}else{
+		LOGW("log error: %d \r\n", ret);
+	}
+	return ret;
+}
 /**
  * PUBLIC functions
  */
 int Cmd_log_upload(int argc, char *argv[]){
-	_swap_and_upload();
-	return 0;
+	//_swap_and_upload();
+	return _handle_raw_log("test", strlen("test"));
 }
 void uart_logger_init(void){
 	self.upload_block = self.blocks[0];
@@ -121,26 +199,7 @@ void uart_logc(uint8_t c){
 		xSemaphoreGive(self.block_operation_sem);
 	//}
 }
-void walk_log_dir(void){
-	FILINFO file_info;
-	FRESULT res;
-	 for(;;){
-	        res = hello_fs_readdir(&fsdirobj, &file_info);
-	        if(res != FR_OK){
-	           break;
-	        }
-	        // If the file name is blank, then this is the end of the listing.
-	        if(!file_info.fname[0]){
-	            break;
-	        }
 
-	        // If the attribue is directory, then increment the directory count.
-	        if(!(file_info.fattrib & AM_DIR)){
-	        	LOGI("log: %s\r\n",file_info.fname);
-	        }
-	   }
-	 LOGI("End of log files\r\n");
-}
 unsigned long get_time();
 void uart_logger_task(void * params){
 	if(0 != mkdir(SENSE_LOG_FOLDER)){
