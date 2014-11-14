@@ -22,6 +22,8 @@
 #include "led_cmd.h"
 #include "top_board.h"
 
+#include "kitsune_version.h"
+
 extern unsigned int sl_status;
 
 static void _factory_reset(){

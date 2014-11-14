@@ -75,6 +75,8 @@
 #include "led_animations.h"
 #include "uart_logger.h"
 
+#include "kitsune_version.h"
+
 #include "tests/TestNetwork.h"
 #define ONLY_MID 0
 

@@ -33,6 +33,8 @@ unsigned int sl_status = 0;
 #include "FreeRTOS.h"
 #include "task.h"
 
+#include "kitsune_version.h"
+
 #define FAKE_MAC 0
 
 void mcu_reset()
