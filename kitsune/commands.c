@@ -66,7 +66,6 @@
 #include "ti_codec.h"
 #include "network.h"
 
-#include "ff.h"
 #include "diskio.h"
 #include "top_hci.h"
 #include "slip_packet.h"
@@ -75,7 +74,9 @@
 #include "led_animations.h"
 #include "uart_logger.h"
 
+#include "kitsune_version.h"
 #include "TestNetwork.h"
+
 #define ONLY_MID 0
 
 //******************************************************************************
@@ -717,7 +718,7 @@ static void _on_wave(void * ctx){
 			 	}
 			}
 static void _on_hold(void * ctx){
-	stop_led_animation();
+	//stop_led_animation();
 	alarm.has_start_time = 0;
 	AudioTask_StopPlayback();
 }
@@ -1460,6 +1461,8 @@ void vUARTTask(void *pvParameters) {
 	init_temp_sensor();
 	init_light_sensor();
 	init_prox_sensor();
+
+	init_led_animation();
 
 	data_queue = xQueueCreate(10, sizeof(periodic_data));
 	pill_queue = xQueueCreate(MAX_PILL_DATA, sizeof(pill_data));

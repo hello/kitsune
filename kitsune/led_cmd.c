@@ -13,6 +13,8 @@
 #include "uartstdio.h"
 #include "utils.h"
 
+#include "led_animations.h"
+
 #define LED_GPIO_BIT 0x1
 #define LED_GPIO_BASE GPIOA3_BASE
 
@@ -291,7 +293,7 @@ static uint32_t wheel(int WheelPos) {
 #define LED_FADE_IN_STEP_BIT    0x400
 
 #define LED_CUSTOM_COLOR		  0x0800
-#define LED_CUSTOM_ANIMATION	  0x1000
+#define LED_CUSTOM_ANIMATION_BIT	  0x1000
 
 #define QUANT_FACTOR 6
 
@@ -335,7 +337,7 @@ void led_task( void * params ) {
 			}
 			memcpy(colors_last, colors, sizeof(colors_last));
 		}
-		if(evnt & LED_CUSTOM_ANIMATION){
+		if(evnt & LED_CUSTOM_ANIMATION_BIT){
 			unsigned int colors[NUM_LED + 1];
 			if(user_animation_handler){
 				int r[NUM_LED] = {0};
@@ -358,14 +360,14 @@ void led_task( void * params ) {
 					//delay capped at 500 ms to improve task responsiveness
 					delay = clamp_rgb(delay,0,500);
 				}else{
-					xEventGroupClearBits(led_events,LED_CUSTOM_ANIMATION);
+					xEventGroupClearBits(led_events,LED_CUSTOM_ANIMATION_BIT);
 					xEventGroupSetBits(led_events,LED_RESET_BIT);
 					xSemaphoreGive( led_smphr );
 				}
 
 
 			}else{
-				xEventGroupClearBits(led_events,LED_CUSTOM_ANIMATION);
+				xEventGroupClearBits(led_events,LED_CUSTOM_ANIMATION_BIT);
 				xEventGroupSetBits(led_events,LED_RESET_BIT);
 			}
 		}
@@ -454,15 +456,31 @@ void led_task( void * params ) {
 	}
 }
 
-
+int led_ready() {
+	//make sure the thread isn't doing something else...
+	if( xEventGroupGetBits( led_events ) & (LED_CUSTOM_ANIMATION_BIT | LED_FADE_OUT_BIT | LED_FADE_OUT_STEP_BIT ) ) {
+		return -1;
+	}
+	return 0;
+}
 
 int Cmd_led(int argc, char *argv[]) {
+	if(argc == 2 && strcmp(argv[1], "stop") == 0){
+		stop_led_animation();
+		return 0;
+	}
 	if(argc == 2) {
+		if( led_ready() != 0 ) {
+			return -1;
+		}
 		int select = atoi(argv[1]);
 		xEventGroupClearBits( led_events, 0xffffff );
 		xEventGroupSetBits( led_events, select );
 	}else if(argc == 3){
 		if(strcmp(argv[1], "color") == 0 && argc >= 5){
+			if( led_ready() != 0 ) {
+				return -1;
+			}
 			user_color.r = clamp_rgb(atoi(argv[2]), 0, LED_CLAMP_MAX);
 			user_color.g = clamp_rgb(atoi(argv[3]), 0, LED_CLAMP_MAX);
 			user_color.b = clamp_rgb(atoi(argv[4]), 0, LED_CLAMP_MAX);
@@ -480,13 +498,14 @@ int Cmd_led(int argc, char *argv[]) {
 		ud = atoi(argv[6]);
 		rot = atoi(argv[7]);
 		led_set_color(0xFF, r,g,b,fi,fo,ud,rot);
+	} else {
+		factory_led_test_pattern(portMAX_DELAY);
 	}
 
 	return 0;
 }
 
 int Cmd_led_clr(int argc, char *argv[]) {
-
 	xEventGroupClearBits( led_events, 0xffffff );
 	xEventGroupSetBits( led_events, LED_RESET_BIT );
 
@@ -494,6 +513,10 @@ int Cmd_led_clr(int argc, char *argv[]) {
 }
 
 int led_set_color(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b, int fade_in, int fade_out, unsigned int ud, int rot) {
+	if( led_ready() != 0 ) {
+		return -1;
+	}
+
 	xSemaphoreTake(led_smphr, portMAX_DELAY);
 	user_color.r = clamp_rgb(r, 0, LED_CLAMP_MAX) * alpha / 0xFF;
 	user_color.g = clamp_rgb(g, 0, LED_CLAMP_MAX) * alpha / 0xFF;
@@ -522,7 +545,7 @@ int led_start_custom_animation(led_user_animation_handler user, void * context){
 		user_context  = context;
 		xSemaphoreGive(led_smphr);
 		xEventGroupClearBits( led_events, 0xffffff );
-		xEventGroupSetBits( led_events, LED_CUSTOM_ANIMATION );
+		xEventGroupSetBits( led_events, LED_CUSTOM_ANIMATION_BIT );
 		return 0;
 	}
 }

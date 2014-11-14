@@ -33,6 +33,8 @@ volatile unsigned int sl_status = 0;
 #include "FreeRTOS.h"
 #include "task.h"
 
+#include "kitsune_version.h"
+
 #define FAKE_MAC 0
 
 void mcu_reset()
@@ -187,7 +189,6 @@ void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent) {
 
 		sl_status |= HAS_IP;
 
-        Cmd_led(0,0);
 		break;
 
 	case SL_NETAPP_IP_LEASED_EVENT:
