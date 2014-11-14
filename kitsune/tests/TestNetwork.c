@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "../protobuf/SyncResponse.pb.h"
+#include "../protobuf/output.pb.h"
 #include "../protobuf/periodic.pb.h"
 #include "../debugutils/matmessageutils.h"
 #include "../wifi_cmd.h"

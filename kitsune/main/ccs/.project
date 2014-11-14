@@ -551,29 +551,34 @@
 			<locationURI>PARENT-2-PROJECT_LOC/nanopb/pb_encode.h</locationURI>
 		</link>
 		<link>
-			<name>protobuf/SenseLog.pb.c</name>
+			<name>protobuf/audio_data.pb.c</name>
 			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/protobuf/SenseLog.pb.c</locationURI>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/audio_data.pb.c</locationURI>
 		</link>
 		<link>
-			<name>protobuf/SenseLog.pb.h</name>
+			<name>protobuf/audio_data.pb.h</name>
 			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/protobuf/SenseLog.pb.h</locationURI>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/audio_data.pb.h</locationURI>
 		</link>
 		<link>
-			<name>protobuf/SyncResponse.pb.c</name>
+			<name>protobuf/log.pb.c</name>
 			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/protobuf/SyncResponse.pb.c</locationURI>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/log.pb.c</locationURI>
 		</link>
 		<link>
-			<name>protobuf/SyncResponse.pb.h</name>
+			<name>protobuf/log.pb.h</name>
 			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/protobuf/SyncResponse.pb.h</locationURI>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/log.pb.h</locationURI>
 		</link>
 		<link>
 			<name>protobuf/matrix.pb.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/protobuf/matrix.pb.c</locationURI>
+		</link>
+		<link>
+			<name>protobuf/matrix.pb.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/matrix.pb.h</locationURI>
 		</link>
 		<link>
 			<name>protobuf/morpheus_ble.pb.c</name>
@@ -586,6 +591,16 @@
 			<locationURI>PARENT-2-PROJECT_LOC/protobuf/morpheus_ble.pb.h</locationURI>
 		</link>
 		<link>
+			<name>protobuf/output.pb.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/output.pb.c</locationURI>
+		</link>
+		<link>
+			<name>protobuf/output.pb.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/output.pb.h</locationURI>
+		</link>
+		<link>
 			<name>protobuf/periodic.pb.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/protobuf/periodic.pb.c</locationURI>
@@ -594,16 +609,6 @@
 			<name>protobuf/periodic.pb.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/protobuf/periodic.pb.h</locationURI>
-		</link>
-		<link>
-			<name>protobuf/testdata.pb.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/protobuf/testdata.pb.c</locationURI>
-		</link>
-		<link>
-			<name>protobuf/testdata.pb.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/protobuf/testdata.pb.h</locationURI>
 		</link>
 		<link>
 			<name>tests/TestNetwork.c</name>
