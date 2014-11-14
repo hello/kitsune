@@ -887,7 +887,7 @@ int send_audio_wifi(char * buffer, int buffer_size, audio_read_cb arcb) {
 
 #if 1
 #define SIG_SIZE 32
-#include "output.pb.h"
+#include "sync_response.pb.h"
 
 
 int decode_rx_data_pb_callback(const uint8_t * buffer, uint32_t buffer_size, void * decodedata,network_decode_callback_t decoder) {

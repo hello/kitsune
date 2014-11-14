@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "output.pb.h"
+#include "sync_response.pb.h"
 #include "periodic.pb.h"
 #include "matmessageutils.h"
 #include "wifi_cmd.h"

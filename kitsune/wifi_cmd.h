@@ -39,7 +39,7 @@ int sl_mode;
 #define AES_KEY_LOC "/cert/key.aes"
 
 #include "stdint.h"
-#include "output.pb.h"
+#include "sync_response.pb.h"
 
 #define INV_TIME 0xffffffff
 extern
