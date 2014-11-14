@@ -91,6 +91,7 @@
 
 #include "wifi_cmd.h"
 #include "uart_logger.h"
+#include "hellofilesystem.h"
 
 extern void vUARTTask( void *pvParameters );
 
@@ -312,6 +313,8 @@ void main()
   //
 
   VStartSimpleLinkSpawnTask(SPAWN_TASK_PRIORITY);
+
+  hell_fs_init(); //sets up thread safety for accessing the file system
 
   /* Create the UART processing task. */
   xTaskCreate( vUARTTask, "UARTTask", 1024/(sizeof(portSTACK_TYPE)), NULL, 10, NULL );

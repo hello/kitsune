@@ -23,7 +23,7 @@
 #include "common.h"
 #include "hw_memmap.h"
 #include "fatfs_cmd.h"
-#include "ff.h"
+#include "hellofilesystem.h"
 
 #include "audiofeatures.h"
 #include "audiohelper.h"
@@ -51,11 +51,12 @@
 
 #define SAVE_FILE "/usr/POD101.raw";
 
+unsigned int g_uiPlayWaterMark;
 
 /* globals */
 extern tCircularBuffer *pTxBuffer;
 extern tCircularBuffer *pRxBuffer;
-extern unsigned int g_uiPlayWaterMark;
+
 
 
 /* static variables  */
@@ -154,7 +155,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 	//open file for playback
 	UARTprintf("Opening %s for playback\r\n",info->file);
-	res = f_open(&fp, info->file, FA_READ);
+	res = hello_fs_open(&fp, info->file, FA_READ);
 
 	if (res != FR_OK) {
 		UARTprintf("Failed to open audio file %s\n\r",info->file);
@@ -170,9 +171,9 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	//loop until either a) done playing file for specified duration or b) our message queue gets a message that tells us to stop
 	for (; ;) {
 
-		/* Read always in block of 512 Bytes or less else it will stuck in f_read() */
+		/* Read always in block of 512 Bytes or less else it will stuck in hello_fs_read() */
 
-		res = f_read(&fp, speaker_data, sizeof(speaker_data), &size);
+		res = hello_fs_read(&fp, speaker_data, sizeof(speaker_data), &size);
 		totBytesRead += size;
 
 		/* Wait to avoid buffer overflow as reading speed is faster than playback */
@@ -218,7 +219,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		}
 		else {
 			//LOOP THE FILE -- start over
-			f_lseek(&fp,0);
+			hello_fs_lseek(&fp,0);
 
 		}
 
@@ -239,7 +240,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	}
 
 	///CLEANUP
-	f_close(&fp);
+	hello_fs_close(&fp);
 
 	DeinitAudioPlayback();
 

@@ -19,7 +19,7 @@
 #include "common.h"
 #include "hw_memmap.h"
 #include "fatfs_cmd.h"
-#include "ff.h"
+#include "hellofilesystem.h"
 
 
 /* externs */
@@ -135,7 +135,7 @@ uint8_t InitFile(Filedata_t * pfiledata) {
 	/*  If we got here, then the file should already be closed */
 	uint8_t ret = 1;
 	/* open file */
-	res = f_open(&pfiledata->file_obj, pfiledata->file_name, FA_WRITE|FA_OPEN_ALWAYS);
+	res = hello_fs_open(&pfiledata->file_obj, pfiledata->file_name, FA_WRITE|FA_OPEN_ALWAYS);
 
 	/*  Did something horrible happen?  */
 	if(res != FR_OK && res != FR_EXIST){
@@ -145,10 +145,10 @@ uint8_t InitFile(Filedata_t * pfiledata) {
 		//append to file if it already exists
 		memset(&file_info, 0, sizeof(FILINFO));
 
-		f_stat(pfiledata->file_name, &file_info);
+		hello_fs_stat(pfiledata->file_name, &file_info);
 
 		if(file_info.fsize != 0 ){
-			res = f_lseek(&pfiledata->file_obj, file_info.fsize);
+			res = hello_fs_lseek(&pfiledata->file_obj, file_info.fsize);
 		}
 	}
 
@@ -165,7 +165,7 @@ uint8_t WriteToFile(Filedata_t * pfiledata,const WORD bytes_to_write,const uint8
 
 	/* write until we cannot write anymore.  This does take a finite amount of time, by the way.  */
 	do {
-		res = f_write(&pfiledata->file_obj, const_ptr_samples_bytes +  bytes_written , bytes_to_write-bytes_written, &bytes );
+		res = hello_fs_write(&pfiledata->file_obj, const_ptr_samples_bytes +  bytes_written , bytes_to_write-bytes_written, &bytes );
 
 		bytes_written+=bytes;
 
@@ -181,7 +181,7 @@ uint8_t WriteToFile(Filedata_t * pfiledata,const WORD bytes_to_write,const uint8
 }
 
 void CloseFile(Filedata_t * pfiledata) {
-	f_close(&pfiledata->file_obj)	;
+	hello_fs_close(&pfiledata->file_obj)	;
 	memset(&pfiledata->file_obj, 0, sizeof(file_obj));
 
 }
