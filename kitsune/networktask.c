@@ -172,7 +172,6 @@ static void NetworkTask_Thread(void * networkdata) {
 					response.success = false;
 					response.flags |= NETWORK_RESPONSE_FLAG_NO_CONNECTION;
 				}
-
 				networktask_exit_critical_region();;
 			}else{
 				UARTprintf("NetTask::Thread enter critical region failed.\n");
