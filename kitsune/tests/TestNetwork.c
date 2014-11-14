@@ -3,15 +3,15 @@
 #include "task.h"
 
 #include "TestNetwork.h"
-#include "../networktask.h"
+#include "networktask.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "../protobuf/output.pb.h"
-#include "../protobuf/periodic.pb.h"
-#include "../debugutils/matmessageutils.h"
-#include "../wifi_cmd.h"
+#include "output.pb.h"
+#include "periodic.pb.h"
+#include "matmessageutils.h"
+#include "wifi_cmd.h"
 
 #include "led_cmd.h"
 

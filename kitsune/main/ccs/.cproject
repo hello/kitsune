@@ -57,6 +57,8 @@
 									<listOptionValue builtIn="false" value="&quot;${PROJECT_LOC}\..\..\..\simplelink\Include\&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${PROJECT_LOC}\..\..\..\inc\&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${PROJECT_LOC}\..\..\common&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${PROJECT_LOC}\..\..\tests&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${PROJECT_LOC}\..\..\debugutils&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${PROJECT_LOC}\..\..\&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${PROJECT_LOC}\..\..\nanopb&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${PROJECT_LOC}\..\..\protobuf&quot;"/>

@@ -75,7 +75,7 @@
 #include "led_animations.h"
 #include "uart_logger.h"
 
-#include "tests/TestNetwork.h"
+#include "TestNetwork.h"
 #define ONLY_MID 0
 
 //******************************************************************************
