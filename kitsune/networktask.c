@@ -171,7 +171,6 @@ static void NetworkTask_Thread(void * networkdata) {
 					//failed to push, now what?
 					response.success = false;
 					response.flags |= NETWORK_RESPONSE_FLAG_NO_CONNECTION;
-
 				}
 
 				networktask_exit_critical_region();;
