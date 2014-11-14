@@ -141,6 +141,11 @@
 			<locationURI>PARENT-2-PROJECT_LOC/crypto.h</locationURI>
 		</link>
 		<link>
+			<name>debugutils</name>
+			<type>2</type>
+			<locationURI>virtual:/virtual</locationURI>
+		</link>
+		<link>
 			<name>diskio.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/diskio.c</locationURI>
@@ -271,11 +276,6 @@
 			<locationURI>PARENT-1-PROJECT_LOC/main.c</locationURI>
 		</link>
 		<link>
-			<name>matmessageutils.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/debugutils/matmessageutils.c</locationURI>
-		</link>
-		<link>
 			<name>mcasp_if.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/mcasp_if.c</locationURI>
@@ -354,6 +354,11 @@
 			<name>spi_cmd.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/spi_cmd.h</locationURI>
+		</link>
+		<link>
+			<name>tests</name>
+			<type>2</type>
+			<locationURI>virtual:/virtual</locationURI>
 		</link>
 		<link>
 			<name>top_board.c</name>
@@ -511,6 +516,16 @@
 			<locationURI>PARENT-2-PROJECT_LOC/common/wdt_if.h</locationURI>
 		</link>
 		<link>
+			<name>debugutils/matmessageutils.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/debugutils/matmessageutils.c</locationURI>
+		</link>
+		<link>
+			<name>debugutils/matmessageutils.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/debugutils/matmessageutils.h</locationURI>
+		</link>
+		<link>
 			<name>nanopb/pb.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/nanopb/pb.h</locationURI>
@@ -546,29 +561,34 @@
 			<locationURI>PARENT-2-PROJECT_LOC/nanopb/pb_encode.h</locationURI>
 		</link>
 		<link>
-			<name>protobuf/SenseLog.pb.c</name>
+			<name>protobuf/audio_data.pb.c</name>
 			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/protobuf/SenseLog.pb.c</locationURI>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/audio_data.pb.c</locationURI>
 		</link>
 		<link>
-			<name>protobuf/SenseLog.pb.h</name>
+			<name>protobuf/audio_data.pb.h</name>
 			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/protobuf/SenseLog.pb.h</locationURI>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/audio_data.pb.h</locationURI>
 		</link>
 		<link>
-			<name>protobuf/SyncResponse.pb.c</name>
+			<name>protobuf/log.pb.c</name>
 			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/protobuf/SyncResponse.pb.c</locationURI>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/log.pb.c</locationURI>
 		</link>
 		<link>
-			<name>protobuf/SyncResponse.pb.h</name>
+			<name>protobuf/log.pb.h</name>
 			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/protobuf/SyncResponse.pb.h</locationURI>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/log.pb.h</locationURI>
 		</link>
 		<link>
 			<name>protobuf/matrix.pb.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/protobuf/matrix.pb.c</locationURI>
+		</link>
+		<link>
+			<name>protobuf/matrix.pb.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/matrix.pb.h</locationURI>
 		</link>
 		<link>
 			<name>protobuf/morpheus_ble.pb.c</name>
@@ -591,14 +611,14 @@
 			<locationURI>PARENT-2-PROJECT_LOC/protobuf/periodic.pb.h</locationURI>
 		</link>
 		<link>
-			<name>protobuf/testdata.pb.c</name>
+			<name>protobuf/sync_response.pb.c</name>
 			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/protobuf/testdata.pb.c</locationURI>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/sync_response.pb.c</locationURI>
 		</link>
 		<link>
-			<name>protobuf/testdata.pb.h</name>
+			<name>protobuf/sync_response.pb.h</name>
 			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/protobuf/testdata.pb.h</locationURI>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/sync_response.pb.h</locationURI>
 		</link>
 		<link>
 			<name>tests/TestNetwork.c</name>

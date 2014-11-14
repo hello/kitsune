@@ -39,7 +39,7 @@ int sl_mode;
 #define AES_KEY_LOC "/cert/key.aes"
 
 #include "stdint.h"
-#include "SyncResponse.pb.h"
+#include "sync_response.pb.h"
 
 #define INV_TIME 0xffffffff
 extern
@@ -110,6 +110,6 @@ bool encode_mac_as_device_id_string(pb_ostream_t *stream, const pb_field_t *fiel
 bool encode_name(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 
 #define MORPH_NAME ""
-#define KIT_VER 27
+#define KIT_VER 29
 
 #endif
