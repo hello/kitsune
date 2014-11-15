@@ -35,7 +35,7 @@ static struct{
 }self;
 
 typedef void (file_handler)(FILINFO * info, void * ctx);
-static int _walk_log_dir(file_handler * handler);
+static int _walk_log_dir(file_handler * handler, void * ctx);
 static bool
 _encode_text_block(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
 	return pb_encode_tag(stream, PB_WT_STRING, field->tag)
@@ -132,7 +132,10 @@ _find_oldest_log(FILINFO * info, void * ctx){
 	LOGI("log name: %s\r\n",info->fname);
 	if(ctx){
 		int * counter = (int*)ctx;
-		*counter = atoi(info->fname);
+		int fcounter = atoi(info->fname);
+		if(fcounter <= *counter){
+			*counter = fcounter;
+		}
 	}
 }
 static int
@@ -169,7 +172,7 @@ _handle_raw_log(const char * buffer, int size){
 		LOGI("NO log file exists, creating first log\r\n");
 		return _write_file("0", buffer, size);
 	}else if(ret > 0){
-		LOGI("%d log file exists\r\n", ret);
+		LOGI("%d log file exists, smallest = %d\r\n", ret, counter);
 
 	}else{
 		LOGW("log error: %d \r\n", ret);
