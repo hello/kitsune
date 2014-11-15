@@ -139,6 +139,17 @@ _find_oldest_log(FILINFO * info, void * ctx){
 		}
 	}
 }
+static void
+_find_newest_log(FILINFO * info, void * ctx){
+	LOGI("log name: %s\r\n",info->fname);
+	if (ctx) {
+		int * counter = (int*) ctx;
+		int fcounter = atoi(info->fname);
+		if (fcounter > *counter) {
+			*counter = fcounter;
+		}
+	}
+}
 static int
 _write_file(char * local_name, const char * buffer, WORD size){
 	FIL file_obj;
@@ -166,15 +177,14 @@ _write_file(char * local_name, const char * buffer, WORD size){
 	return 0;
 }
 static int
-_handle_raw_log(const char * buffer, int size){
+_save_newest(const char * buffer, int size){
 	int counter;
-	int ret = _walk_log_dir(_find_oldest_log, &counter);
+	int ret = _walk_log_dir(_find_newest_log, &counter);
 	if(ret == 0){
 		LOGI("NO log file exists, creating first log\r\n");
 		return _write_file("0", buffer, size);
 	}else if(ret > 0){
 		LOGI("%d log file exists, smallest = %d\r\n", ret, counter);
-
 	}else{
 		LOGW("log error: %d \r\n", ret);
 	}
@@ -185,7 +195,7 @@ _handle_raw_log(const char * buffer, int size){
  */
 int Cmd_log_upload(int argc, char *argv[]){
 	//_swap_and_upload();
-	return _handle_raw_log("test", strlen("test"));
+	return _save_newest("test", strlen("test"));
 }
 void uart_logger_init(void){
 	self.upload_block = self.blocks[0];
