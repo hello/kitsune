@@ -94,10 +94,6 @@ static void _reply_wifi_scan_result()
     Sl_WlanNetworkEntry_t wifi_endpoints_cp[2] = {0};
     play_led_progress_bar(0,0,30,0,portMAX_DELAY);
     MorpheusCommand reply_command = {0};
-    for(i = 0; i < scanned_wifi_count; i++)
-	{
-    	UARTprintf("%s; ", wifi_endpoints[i].ssid);
-	}
 
     for(i = 0; i < scanned_wifi_count; i++)
     {

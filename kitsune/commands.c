@@ -523,7 +523,9 @@ unsigned long get_time() {
 				vTaskDelay(100);
 			} //wait for a connection the first time...
 
+			UARTprintf("Get NTP time\n");
 			networktask_enter_critical_region();
+
 			ntp = last_ntp = unix_time();
 
 			vTaskDelay((1 << tries) * 1000);
@@ -541,6 +543,7 @@ unsigned long get_time() {
 						  sizeof(SlDateTime_t),(unsigned char *)(&tm));
 			}
 			networktask_exit_critical_region();
+			UARTprintf("Get NTP time done\n");
 
 		}
 
@@ -558,7 +561,7 @@ void set_alarm( SyncResponse_Alarm * received_alarm ) {
     if (xSemaphoreTake(alarm_smphr, portMAX_DELAY)) {
         if (received_alarm->has_ring_offset_from_now_in_second
         	&& received_alarm->ring_offset_from_now_in_second > -1 ) {   // -1 means user has no alarm/reset his/her now
-        	unsigned long now = get_time();
+        	unsigned long now = get_cache_time();
         	received_alarm->start_time = now + received_alarm->ring_offset_from_now_in_second;
 
         	int ring_duration = received_alarm->has_ring_duration_in_second ? received_alarm->ring_duration_in_second : 30;
