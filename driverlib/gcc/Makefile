@@ -41,7 +41,7 @@
 ROOT=../../
 
 #
-# Include the common make definitions.
+# include the common make definitions.
 #
 include ${ROOT}/tools/gcc_scripts/makedefs
 
@@ -107,7 +107,7 @@ ${BINDIR}/libdriver.a: ${OBJDIR}/utils.o
 ${BINDIR}/libdriver.a: ${OBJDIR}/wdt.o
 
 #
-# Include the automatically generated dependency files.
+# include the automatically generated dependency files.
 #
 ifneq (${MAKECMDGOALS},clean)
 -include ${wildcard ${OBJDIR}/*.d} __dummy__

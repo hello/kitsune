@@ -39,7 +39,7 @@
 
 #include <string.h>
 #include "ff.h"            /* FatFs declarations */
-#include "diskio.h"        /* Include file for user provided disk functions */
+#include "diskio.h"        /* include file for user provided disk functions */
 
 
 /*--------------------------------------------------------------------------

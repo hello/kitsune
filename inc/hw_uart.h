@@ -405,7 +405,7 @@
 // The following are defines for the bit fields in the UART_O_CC register.
 //
 //******************************************************************************
-#define UART_CC_CS_M          0x0000000F  // UART Baud Clock Source
+#define UART_CC_CS_M          0x0000000F  // UART Baud Clock source
                                             // 0x00000005 : UART_CC_CS_PIOSC :
                                             // PIOSC 0x00000000 :
                                             // UART_CC_CS_SYSCLK : The system
