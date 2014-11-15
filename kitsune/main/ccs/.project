@@ -361,6 +361,16 @@
 			<locationURI>PARENT-2-PROJECT_LOC/spi_cmd.h</locationURI>
 		</link>
 		<link>
+			<name>sys_time.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/sys_time.c</locationURI>
+		</link>
+		<link>
+			<name>sys_time.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/sys_time.h</locationURI>
+		</link>
+		<link>
 			<name>tests</name>
 			<type>2</type>
 			<locationURI>virtual:/virtual</locationURI>
