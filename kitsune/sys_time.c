@@ -81,6 +81,13 @@ uint64_t get_cache_time()
                 ((dt.sl_tm_year-1)/100)*86400 + ((dt.sl_tm_year+299)/400)*86400 + 171398145;
     return ntp;
 }
+
+
+/*
+ * WARNING: DONOT use get_time in protobuf encoding/decoding function if you want to send the protobuf
+ * over network, it will deadlock the network task.
+ * Use get_cache_time instead.
+ */
 unsigned long get_time() {
     portTickType now = xTaskGetTickCount();
     unsigned int tries = 0;
