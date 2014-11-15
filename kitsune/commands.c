@@ -434,61 +434,6 @@ int Cmd_fs_delete(int argc, char *argv[]) {
 	return (0);
 }
 
-
-#define YEAR_TO_DAYS(y) ((y)*365 + (y)/4 - (y)/100 + (y)/400)
-
-void untime(unsigned long unixtime, SlDateTime_t *tm)
-{
-    /* First take out the hour/minutes/seconds - this part is easy. */
-
-    tm->sl_tm_sec = unixtime % 60;
-    unixtime /= 60;
-
-    tm->sl_tm_min = unixtime % 60;
-    unixtime /= 60;
-
-    tm->sl_tm_hour = unixtime % 24;
-    unixtime /= 24;
-
-    /* unixtime is now days since 01/01/1970 UTC
-     * Rebaseline to the Common Era */
-
-    unixtime += 719499;
-
-    /* Roll forward looking for the year.  This could be done more efficiently
-     * but this will do.  We have to start at 1969 because the year we calculate here
-     * runs from March - so January and February 1970 will come out as 1969 here.
-     */
-    for (tm->sl_tm_year = 1969; unixtime > YEAR_TO_DAYS(tm->sl_tm_year + 1) + 30; tm->sl_tm_year++)
-        ;
-
-    /* OK we have our "year", so subtract off the days accounted for by full years. */
-    unixtime -= YEAR_TO_DAYS(tm->sl_tm_year);
-
-    /* unixtime is now number of days we are into the year (remembering that March 1
-     * is the first day of the "year" still). */
-
-    /* Roll forward looking for the month.  1 = March through to 12 = February. */
-    for (tm->sl_tm_mon = 1; tm->sl_tm_mon < 12 && unixtime > 367*(tm->sl_tm_mon+1)/12; tm->sl_tm_mon++)
-        ;
-
-    /* Subtract off the days accounted for by full months */
-    unixtime -= 367*tm->sl_tm_mon/12;
-
-    /* unixtime is now number of days we are into the month */
-
-    /* Adjust the month/year so that 1 = January, and years start where we
-     * usually expect them to. */
-    tm->sl_tm_mon += 2;
-    if (tm->sl_tm_mon > 12)
-    {
-        tm->sl_tm_mon -= 12;
-        tm->sl_tm_year++;
-    }
-
-    tm->sl_tm_day = unixtime;
-}
-
 static xSemaphoreHandle alarm_smphr;
 static SyncResponse_Alarm alarm;
 #define ONE_YEAR_IN_SECONDS 0x1E13380

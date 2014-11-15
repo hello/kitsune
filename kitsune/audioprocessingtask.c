@@ -8,6 +8,7 @@
 #include "audioclassifier.h"
 #include "networktask.h"
 #include "wifi_cmd.h"
+#include "sys_time.h"
 
 #define INBOX_QUEUE_LENGTH (6)
 static xQueueHandle _queue = NULL;

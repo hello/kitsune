@@ -124,7 +124,6 @@ int NetworkTask_SynchronousSendProtobuf(const char * host,const char * endpoint,
 static void NetworkTask_Thread(void * networkdata) {
 	NetworkTaskServerSendMessage_t message;
 	NetworkResponse_t response;
-	NetworkTaskData_t * taskdata = (NetworkTaskData_t *)networkdata;
 	int32_t timeout_counts;
 	int32_t retry_period;
 	uint32_t attempt_count;
