@@ -231,13 +231,13 @@ int NetworkTask_AddMessageToQueue(const NetworkTaskServerSendMessage_t * message
 
 int networktask_enter_critical_region()
 {
-	UARTprintf("ENTER CRITICAL REGION\n");
+	UARTprintf("NetTask::ENTER CRITICAL REGION\n");
 	return xSemaphoreTake(_network_mutex, portMAX_DELAY);
 }
 
 int networktask_exit_critical_region()
 {
-	UARTprintf("EXIT CRITICAL REGION\n");
+	UARTprintf("NetTask::EXIT CRITICAL REGION\n");
 	return xSemaphoreGive(_network_mutex);
 }
 
