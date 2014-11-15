@@ -34,7 +34,7 @@ static struct{
 	DIR logdir;
 }self;
 
-typedef void (file_handler)(FILINFO * info);
+typedef void (file_handler)(FILINFO * info, void * ctx);
 static int _walk_log_dir(file_handler * handler);
 static bool
 _encode_text_block(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
@@ -97,7 +97,7 @@ _logstr(const char * str, int len, bool echo){
 	}
 }
 static int
-_walk_log_dir(file_handler * handler){
+_walk_log_dir(file_handler * handler, void * ctx){
 	FILINFO file_info;
 	FRESULT res;
 	int fcount = 0;
@@ -120,7 +120,7 @@ _walk_log_dir(file_handler * handler){
 			fcount++;
 
 			if(handler){
-				handler(&file_info);
+				handler(&file_info, ctx);
 			}
 		}
 	}
@@ -128,11 +128,15 @@ _walk_log_dir(file_handler * handler){
 	return fcount;
 }
 static void
-_find_oldest_log(FILINFO * info){
+_find_oldest_log(FILINFO * info, void * ctx){
 	LOGI("log name: %s\r\n",info->fname);
+	if(ctx){
+		int * counter = (int*)ctx;
+		*counter = atoi(info->fname);
+	}
 }
 static int
-_write_file(char * name, const char * buffer, WORD size){
+_write_file(char * local_name, const char * buffer, WORD size){
 	FIL file_obj;
 	WORD bytes = 0;
 	WORD written = 0;
@@ -141,7 +145,7 @@ _write_file(char * name, const char * buffer, WORD size){
 	strcat(full_name, "/");
 	strcat(full_name, SENSE_LOG_FOLDER);
 	strcat(full_name, "/");
-	FRESULT res = hello_fs_open(&file_obj, strcat(full_name, name), FA_CREATE_NEW|FA_WRITE|FA_OPEN_ALWAYS);
+	FRESULT res = hello_fs_open(&file_obj, strcat(full_name, local_name), FA_CREATE_NEW|FA_WRITE|FA_OPEN_ALWAYS);
 	if(res != FR_OK && res != FR_EXIST){
 		LOGE("File %s open fail, code %d", full_name, res);
 		return -1;
@@ -159,7 +163,8 @@ _write_file(char * name, const char * buffer, WORD size){
 }
 static int
 _handle_raw_log(const char * buffer, int size){
-	int ret = _walk_log_dir(_find_oldest_log);
+	int counter;
+	int ret = _walk_log_dir(_find_oldest_log, &counter);
 	if(ret == 0){
 		LOGI("NO log file exists, creating first log\r\n");
 		return _write_file("0", buffer, size);
