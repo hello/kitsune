@@ -14,6 +14,7 @@
 #include "endpoints.h"
 #include "ff.h"
 #include "hellofilesystem.h"
+#include "fatfs_cmd.h"
 
 #define SENSE_LOG_ENDPOINT		"/logs"
 #define SENSE_LOG_FOLDER		"logs"
