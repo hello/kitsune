@@ -22,6 +22,7 @@
 #include "led_cmd.h"
 #include "top_board.h"
 #include "kitsune_version.h"
+#include "sys_time.h"
 
 extern volatile unsigned int sl_status;
 
