@@ -18,6 +18,12 @@
 
 #define SENSE_LOG_ENDPOINT		"/logs"
 #define SENSE_LOG_FOLDER		"logs"
+
+/**
+ * The upload order should be
+ * Local -> Backend(if has IP)
+ * This way we can guarantee continuity if wifi is intermittent
+ */
 #define LOG_EVENT_BACKEND 		0x1
 #define LOG_EVENT_LOCAL			0x2
 #define LOG_EVENT_UPLOAD_LOCAL 	0x4
