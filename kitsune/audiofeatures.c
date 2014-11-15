@@ -2,7 +2,7 @@
 #include "fft.h"
 #include <string.h>
 #include <stdlib.h>     /* abs */
-#include "debugutils/debuglog.h"
+#include "debugutils/DebugLog.h"
 #include <stdio.h>
 #include "hellomath.h"
 

@@ -1,7 +1,7 @@
 
 #include "audioclassifier.h"
 #include "fft.h"
-#include "debugutils/debuglog.h"
+#include "debugutils/DebugLog.h"
 #include "debugutils/matmessageutils.h"
 #include "machinelearning/classifier_factory.h"
 #include "machinelearning/linear_svm.h"
