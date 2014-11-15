@@ -26,11 +26,6 @@
 	</natures>
 	<linkedResources>
 		<link>
-			<name>cc_pal.c</name>
-			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/cc_pal.c</locationURI>
-		</link>
-		<link>
 			<name>cc_pal_pm.c</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/cc_pal_pm.c</locationURI>
@@ -38,52 +33,52 @@
 		<link>
 			<name>device.c</name>
 			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/Source/device.c</locationURI>
+			<locationURI>PARENT-1-PROJECT_LOC/source/device.c</locationURI>
 		</link>
 		<link>
 			<name>driver.c</name>
 			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/Source/driver.c</locationURI>
+			<locationURI>PARENT-1-PROJECT_LOC/source/driver.c</locationURI>
 		</link>
 		<link>
 			<name>flowcont.c</name>
 			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/Source/flowcont.c</locationURI>
+			<locationURI>PARENT-1-PROJECT_LOC/source/flowcont.c</locationURI>
 		</link>
 		<link>
 			<name>fs.c</name>
 			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/Source/fs.c</locationURI>
+			<locationURI>PARENT-1-PROJECT_LOC/source/fs.c</locationURI>
 		</link>
 		<link>
 			<name>netapp.c</name>
 			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/Source/netapp.c</locationURI>
+			<locationURI>PARENT-1-PROJECT_LOC/source/netapp.c</locationURI>
 		</link>
 		<link>
 			<name>netcfg.c</name>
 			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/Source/netcfg.c</locationURI>
+			<locationURI>PARENT-1-PROJECT_LOC/source/netcfg.c</locationURI>
 		</link>
 		<link>
 			<name>nonos.c</name>
 			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/Source/nonos.c</locationURI>
+			<locationURI>PARENT-1-PROJECT_LOC/source/nonos.c</locationURI>
 		</link>
 		<link>
 			<name>socket.c</name>
 			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/Source/socket.c</locationURI>
+			<locationURI>PARENT-1-PROJECT_LOC/source/socket.c</locationURI>
 		</link>
 		<link>
 			<name>spawn.c</name>
 			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/Source/spawn.c</locationURI>
+			<locationURI>PARENT-1-PROJECT_LOC/source/spawn.c</locationURI>
 		</link>
 		<link>
 			<name>wlan.c</name>
 			<type>1</type>
-			<locationURI>PARENT-1-PROJECT_LOC/Source/wlan.c</locationURI>
+			<locationURI>PARENT-1-PROJECT_LOC/source/wlan.c</locationURI>
 		</link>
 	</linkedResources>
 </projectDescription>

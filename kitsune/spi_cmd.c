@@ -44,7 +44,7 @@ typedef struct {
 #define SPI_IF_BIT_RATE  10000
 #define TR_BUFF_SIZE     100
 
-void CS_set(int val) {
+static void CS_set(int val) {
 	  MAP_GPIOPinWrite(GPIOA1_BASE,0x20,val?0x20:0);
 }
 
@@ -77,7 +77,7 @@ void spi_init() {
 	  MAP_SPIEnable(GSPI_BASE);
 
 }
-int spi_reset(){
+static int spi_reset(){
 	unsigned char reset = 0xFF;
 	CS_set(0);
 	vTaskDelay(8*10);
@@ -106,7 +106,7 @@ int spi_reset(){
 	return SUCCESS;
 }
 
-int spi_write_step( int len, unsigned char * buf ) {
+static int spi_write_step( int len, unsigned char * buf ) {
 	int i;
 	unsigned long dud;
 
@@ -133,7 +133,7 @@ int spi_write_step( int len, unsigned char * buf ) {
 	return SUCCESS;
 }
 
-int spi_read_step( int len, unsigned char * buf ) {
+static int spi_read_step( int len, unsigned char * buf ) {
 	if( len > 256 ) {
 		UARTprintf("Length limited to 256\r\n");
 		return FAILURE;
@@ -159,7 +159,7 @@ int spi_read_step( int len, unsigned char * buf ) {
 
 	return SUCCESS;
 }
-int spi_write( int len, unsigned char * buf ) {
+static int spi_write( int len, unsigned char * buf ) {
 	unsigned char mode = WRITE;
 	ctx_t ctx;
 
@@ -177,7 +177,7 @@ int spi_write( int len, unsigned char * buf ) {
 
 	return SUCCESS;
 }
-int spi_read( int * len, unsigned char * buf ) {
+static int spi_read( int * len, unsigned char * buf ) {
 	unsigned char mode = READ;
 	ctx_t ctx;
 	int i;
