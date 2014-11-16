@@ -1,5 +1,5 @@
 language: c
-# Change this to your needs
+# Script will setup ccs and build
 script: ./setup_n_build.sh
 before_install:
   - sudo apt-get update -qq
