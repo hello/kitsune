@@ -12,9 +12,9 @@ notifications:
     - chris@sayhello.com
 
 after_success:
-  - "travis-artifacts upload --path kitsune/main/ccs/exe/kitsune.out --target-path .
-  - "travis-artifacts upload --path kitsune/main/ccs/exe/kitsune.bin --target-path "/sense/travis/$TRAVIS_BUILD_ID/$TRAVIS_JOB_ID"
-  - "travis-artifacts upload --path kitsune/main/ccs/Release/kitsune.map --target-path "/sense/travis/$TRAVIS_BUILD_ID/$TRAVIS_JOB_ID"
+  - "travis-artifacts upload --path kitsune/main/ccs/exe/kitsune.out --target-path /sense/travis/$TRAVIS_BUILD_ID/$TRAVIS_JOB_ID"
+  - "travis-artifacts upload --path kitsune/main/ccs/exe/kitsune.bin --target-path /sense/travis/$TRAVIS_BUILD_ID/$TRAVIS_JOB_ID"
+  - "travis-artifacts upload --path kitsune/main/ccs/Release/kitsune.map --target-path /sense/travis/$TRAVIS_BUILD_ID/$TRAVIS_JOB_ID"
 
 env:
  global:
