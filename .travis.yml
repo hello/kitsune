@@ -2,7 +2,7 @@ language: c
 # Script will setup ccs and build
 script: ./build.sh
 install:
-  - ./setup.sh
+  - ./travis-setup.sh
 before_install:
   - ./dependencies.sh
 notifications:
