@@ -1,7 +1,5 @@
 language: c
 # Script will setup ccs and build
-before_script:
-   - "gem install travis-artifacts"
 script: ./build.sh
 install:
   - ./travis-setup.sh
@@ -11,14 +9,20 @@ notifications:
   email:
     - chris@sayhello.com
 
-after_success:
-  - "travis-artifacts upload --path kitsune/main/ccs/exe/kitsune.out --target-path /sense/travis/$TRAVIS_BUILD_ID/$TRAVIS_JOB_ID"
-  - "travis-artifacts upload --path kitsune/main/ccs/exe/kitsune.bin --target-path /sense/travis/$TRAVIS_BUILD_ID/$TRAVIS_JOB_ID"
-  - "travis-artifacts upload --path kitsune/main/ccs/Release/kitsune.map --target-path /sense/travis/$TRAVIS_BUILD_ID/$TRAVIS_JOB_ID"
+deploy:
+  - provider: releases
+    secure: "J+rz+fJmOmr3zCsoufgqc9gFutBVRygwx1NX/Hp3IizW8bQvybVZLuAKbraVV3hfwxZ4tyqDjiiWWWZsCBOdVh8LAAMKC2clDwKVLF2auGWUSlAlL48YrQQCa3nf3G6YnfA4f2xKhCp3Yot91YMNEEsQ7NfZAhno1yuuxcDl/i0="
+  - provider: s3
+    bucket: hello-firmware
+    upload-dir: /sense/releases
+    secure: "CL9yzhA5N+1iQGiRDUOI91c+Z5o58spwxZvRKCMMk0RjLnqg53P6JvQWne8AAOPPFabkRyw4Ue0zAJWNfCW6ZHDGHPhpe9/WLGMjEGVdJlUHllKTPvYeg/iRXUZaRI6jkHPiQLH2zB2Zt4mitSQ/u4IW9c6KqFbahUUarIPjeZc="
+    secure: "K8LibxGrp7y1e96E9zam9gch8yxm5P/YriGPszkXuxKMFsxvV1VTURC1+Q3Y7hn0+0ZenJIDW/XaUBJENU3C6jLOBh5qTeMn/+jUohdshfCD+8RmezPLm0+4yYD2HziZYT9kEKQLUYqUVPzKHeYjLL2jLLGzKNM8wEOAQZAzxo8="
+  file:
+    - kitsune/main/ccs/exe/kitsune.bin
+    - kitsune/main/ccs/exe/kitsune.out
+    - kitsune/main/ccs/Release/kitsune.map
+  skip_cleanup: true
+  on:
+    tags: true
+    all_branches: true
 
-env:
- global:
-   - "ARTIFACTS_AWS_REGION=us-west-1"
-   - "ARTIFACTS_S3_BUCKET=hello-firmware"
-   - secure: "CL9yzhA5N+1iQGiRDUOI91c+Z5o58spwxZvRKCMMk0RjLnqg53P6JvQWne8AAOPPFabkRyw4Ue0zAJWNfCW6ZHDGHPhpe9/WLGMjEGVdJlUHllKTPvYeg/iRXUZaRI6jkHPiQLH2zB2Zt4mitSQ/u4IW9c6KqFbahUUarIPjeZc="
-   - secure: "K8LibxGrp7y1e96E9zam9gch8yxm5P/YriGPszkXuxKMFsxvV1VTURC1+Q3Y7hn0+0ZenJIDW/XaUBJENU3C6jLOBh5qTeMn/+jUohdshfCD+8RmezPLm0+4yYD2HziZYT9kEKQLUYqUVPzKHeYjLL2jLLGzKNM8wEOAQZAzxo8="
