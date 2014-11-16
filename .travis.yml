@@ -12,8 +12,8 @@ notifications:
     - chris@sayhello.com
 
 after_success:
-  - "travis-artifacts upload --path kitsune/main/ccs/exe --target-path hello-firmware/sense/travis/$TRAVIS_BUILD_ID/$TRAVIS_JOB_ID"
-  - "travis-artifacts upload --path kitsune/main/ccs/Release/kitsune.map --target-path hello-firmware/sense/travis/$TRAVIS_BUILD_ID/$TRAVIS_JOB_ID"
+  - "travis-artifacts upload --path kitsune/main/ccs/exe --target-path s3://hello-firmware/sense/travis/$TRAVIS_BUILD_ID/$TRAVIS_JOB_ID"
+  - "travis-artifacts upload --path kitsune/main/ccs/Release/kitsune.map --target-path s3://hello-firmware/sense/travis/$TRAVIS_BUILD_ID/$TRAVIS_JOB_ID"
 
 env:
  global:
