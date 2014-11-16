@@ -1,0 +1,3 @@
+language: c
+# Change this to your needs
+script: ./setup_n_build.sh
