@@ -5,3 +5,6 @@ install:
   - ./setup.sh
 before_install:
   - ./dependencies.sh
+notifications:
+  email:
+    - chris@sayhello.com
