@@ -29,7 +29,7 @@
 #define LOG_EVENT_UPLOAD_LOCAL 	0x4
 extern unsigned int sl_status;
 static struct{
-	uint8_t blocks[2][UART_LOGGER_BLOCK_SIZE];
+	uint8_t blocks[3][UART_LOGGER_BLOCK_SIZE];
 	volatile uint8_t * logging_block;
 	volatile uint8_t * upload_block;
 	volatile uint32_t widx;
