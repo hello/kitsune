@@ -24,12 +24,10 @@
  * Backend(if has no local backlog) -> Local -> Backend(if has IP)
  * This way we can guarantee continuity if wifi is intermittent
  */
-#define LOG_EVENT_BACKEND 		0x1
-#define LOG_EVENT_LOCAL			0x2
-#define LOG_EVENT_UPLOAD_LOCAL 	0x4
+#define LOG_EVENT_START 		0x1
 extern unsigned int sl_status;
 static struct{
-	uint8_t blocks[3][UART_LOGGER_BLOCK_SIZE];
+	uint8_t blocks[2][UART_LOGGER_BLOCK_SIZE];
 	volatile uint8_t * logging_block;
 	volatile uint8_t * upload_block;
 	volatile uint32_t widx;
@@ -78,10 +76,10 @@ _encode_mac_as_device_id_string(pb_ostream_t *stream, const pb_field_t *field, v
 //
 static void
 _swap_and_upload(void){
-	if (!(xEventGroupGetBitsFromISR(self.uart_log_events) & LOG_EVENT_BACKEND)) {
+	if (!(xEventGroupGetBitsFromISR(self.uart_log_events) & LOG_EVENT_START)) {
 		self.upload_block = self.logging_block;
 		//logc can be called anywhere, so using ISR api instead
-		xEventGroupSetBits(self.uart_log_events, LOG_EVENT_BACKEND);
+		xEventGroupSetBits(self.uart_log_events, LOG_EVENT_START);
 	} else {
 		//both sd card and internet are busy, wtfmate
 	}
@@ -176,7 +174,7 @@ _write_file(char * local_name, const char * buffer, WORD size){
 		return -1;
 	}
 	do{
-		res = hello_fs_write(&file_obj, buffer + written, write_size - written, &bytes);
+		res = hello_fs_write(&file_obj, buffer + written, 128, &bytes);
 		written += bytes;
 	}while(written < size);
 	res = hello_fs_close(&file_obj);
@@ -208,7 +206,7 @@ _read_file(char * local_name, char * buffer, WORD buffer_size, WORD *size_read){
 }
 static int
 _save_newest(const char * buffer, int size){
-	int counter;
+	int counter = -1;
 	int ret = _walk_log_dir(_find_newest_log, &counter);
 	if(ret == 0){
 		LOGI("NO log file exists, creating first log\r\n");
@@ -243,12 +241,7 @@ _read_oldest(char * buffer, int size, WORD * read){
  * PUBLIC functions
  */
 int Cmd_log_upload(int argc, char *argv[]){
-	//_swap_and_upload();
-	char testbuf[16] = {0};
-	int read;
-	_read_oldest(testbuf, 16, &read);
-	LOGI("Read %bytes: %s\r\n", read, testbuf);
-	return _save_newest("test", strlen("test"));
+	_swap_and_upload();
 }
 void uart_logger_init(void){
 	self.upload_block = self.blocks[0];
@@ -293,9 +286,9 @@ void uart_logger_task(void * params){
                 pdFALSE,       /* Don't wait for both bits, either bit will do. */
                 portMAX_DELAY );/* Wait for any bit to be set. */
 		switch(evnt){
-		case LOG_EVENT_BACKEND:
-			LOGI("Uploading UART logs to server...");
-			if(sl_status & HAS_IP){
+		case LOG_EVENT_START:
+			_save_newest(self.upload_block, UART_LOGGER_BLOCK_SIZE);
+			/*if(sl_status & HAS_IP){
 				self.log.has_unix_time = true;
 				self.log.unix_time = get_time();
 			}else{
@@ -308,12 +301,9 @@ void uart_logger_task(void * params){
 			}else{
 				LOGI("Failed\r\n");
 				//TODO, failed tx, logging local
-			}
-			xEventGroupClearBits(self.uart_log_events,LOG_EVENT_BACKEND);
-			break;
-		case LOG_EVENT_LOCAL:
-			LOGI("Logging to SD Card\r\n");
-			xEventGroupClearBits(self.uart_log_events,LOG_EVENT_LOCAL);
+			}*/
+
+			xEventGroupClearBits(self.uart_log_events,LOG_EVENT_START);
 			break;
 		}
 	}

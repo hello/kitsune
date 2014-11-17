@@ -15,7 +15,7 @@ extern "C" {
 #define UART_LOGGER_BLOCK_SIZE 2048
 
 //needs to be sufficiently large to hold buffer for tx
-#define UART_LOGGER_THREAD_STACK_SIZE	(UART_LOGGER_BLOCK_SIZE + 1024)
+#define UART_LOGGER_THREAD_STACK_SIZE	(UART_LOGGER_BLOCK_SIZE + UART_LOGGER_RESERVED_SIZE + 1028)
 
 //for reserved txbuf in the task for protobuf object
 #define UART_LOGGER_RESERVED_SIZE 128
