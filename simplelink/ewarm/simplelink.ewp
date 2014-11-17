@@ -2861,34 +2861,34 @@
     </excluded>
   </file>
   <file>
-    <name>$PROJ_DIR$/../Source\device.c</name>
+    <name>$PROJ_DIR$/../source\device.c</name>
   </file>
   <file>
-    <name>$PROJ_DIR$/../Source\driver.c</name>
+    <name>$PROJ_DIR$/../source\driver.c</name>
   </file>
   <file>
-    <name>$PROJ_DIR$/../Source\flowcont.c</name>
+    <name>$PROJ_DIR$/../source\flowcont.c</name>
   </file>
   <file>
-    <name>$PROJ_DIR$/../Source\fs.c</name>
+    <name>$PROJ_DIR$/../source\fs.c</name>
   </file>
   <file>
-    <name>$PROJ_DIR$/../Source\netapp.c</name>
+    <name>$PROJ_DIR$/../source\netapp.c</name>
   </file>
   <file>
-    <name>$PROJ_DIR$/../Source\netcfg.c</name>
+    <name>$PROJ_DIR$/../source\netcfg.c</name>
   </file>
   <file>
-    <name>$PROJ_DIR$/../Source\nonos.c</name>
+    <name>$PROJ_DIR$/../source\nonos.c</name>
   </file>
   <file>
-    <name>$PROJ_DIR$/../Source\socket.c</name>
+    <name>$PROJ_DIR$/../source\socket.c</name>
   </file>
   <file>
-    <name>$PROJ_DIR$/../Source\spawn.c</name>
+    <name>$PROJ_DIR$/../source\spawn.c</name>
   </file>
   <file>
-    <name>$PROJ_DIR$/../Source\wlan.c</name>
+    <name>$PROJ_DIR$/../source\wlan.c</name>
   </file>
 </project>
 

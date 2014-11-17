@@ -196,7 +196,7 @@ void UDMAChannelSelect(unsigned int uiChannel, tAppCallbackHndl pfpAppCb)
 //! \param ulItemCount. Items to be transfered in DMA Transfer
 //! \param ulArbSize. Arbitration Size to be set
 //! \param pvSrcBuf. Pointer to the source Buffer
-//! \param ulSrcInc. Source Increment
+//! \param ulSrcInc. source Increment
 //! \param pvDstBuf. Pointer to the Destination Buffer
 //! \param ulDstInc. Destination Increment
 //!
@@ -258,9 +258,9 @@ void UDMASetupAutoMemTransfer(unsigned long ulChannel, void *pvSrcBuf,
 //! Sets up the Ping Pong mode of transfer
 //!
 //! \param ulChannel. DMA Channel to be used
-//! \param pvSrcBuf1.Pointer to the Source Buffer for Primary Control Structure
+//! \param pvSrcBuf1.Pointer to the source Buffer for Primary Control Structure
 //! \param pvDstBuf1.Pointer to the Destination Buffer for Primary  Structure
-//! \param pvSrcBuf2.Pointer to the Source Buffer for alternate Control Structure
+//! \param pvSrcBuf2.Pointer to the source Buffer for alternate Control Structure
 //! \param pvDstBuf2. Pointer to the Destination Buffer for alternate Structure
 //! \param size. Total size to be transferred.
 //!

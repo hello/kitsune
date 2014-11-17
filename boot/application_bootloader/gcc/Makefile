@@ -1,8 +1,8 @@
 #******************************************************************************
 #
-# Makefile - Rules for building the FreeRTOS Library.
+# Makefile - Rules for building the bootmgr application.
 #
-#  Copyright (C) 2014 Texas Instruments Incorporated - http:#www.ti.com/
+#  Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com/
 #
 #
 #  Redistribution and use in source and binary forms, with or without
@@ -38,62 +38,45 @@
 #
 # The base directory.
 #
-ROOT=../../
+ROOT=../../..
 
 #
 # include the common make definitions.
 #
-include ${ROOT}/tools/gcc_scripts/makedefs
+include makedefs
 
 #
-# The FreeRTOS base directory.
+# Where to find source files that do not live in this directory.
 #
-RTOS_SOURCE_DIR=../../third_party/FreeRTOS
+VPATH=..
+VPATH+=../../drivers
 
 #
-# Where to find header files that do not live in the current directory.
+# Where to find header files that do not live in the source directory.
 #
-IPATH=../
-IPATH+=${RTOS_SOURCE_DIR}
-IPATH+=${RTOS_SOURCE_DIR}/source
-IPATH+=${RTOS_SOURCE_DIR}/source/include
-IPATH+=${RTOS_SOURCE_DIR}/source/portable/MemMang
-IPATH+=${RTOS_SOURCE_DIR}/source/portable/GCC/ARM_CM4
+IPATH=..
+IPATH+=../..
+IPATH+=../../../inc
+IPATH+=../../../driverlib
+IPATH+=../../../simplelink
+IPATH+=../../../simplelink/source
+IPATH+=../../../simplelink/include
+IPATH+=../../../simplelink_extlib/flc
 
 #
-# Where to find source files that do not live in the current directory.
+# The default rule, which causes the driver library to be built.
 #
-VPATH=../
-VPATH+=${RTOS_SOURCE_DIR}
-VPATH+=${RTOS_SOURCE_DIR}/source
-VPATH+=${RTOS_SOURCE_DIR}/source/portable/MemMang
-VPATH+=${RTOS_SOURCE_DIR}/source/portable/GCC/ARM_CM4
+all: ${OBJDIR} ${BINDIR}
+all: ${BINDIR}/bootmgr.axf
 
-#
-# Required object file
-#
-OBJS= ${OBJDIR}/croutine.o    \
-      ${OBJDIR}/list.o        \
-      ${OBJDIR}/queue.o       \
-      ${OBJDIR}/tasks.o       \
-      ${OBJDIR}/port.o        \
-      ${OBJDIR}/timers.o      \
-      ${OBJDIR}/heap_3.o      \
-      ${OBJDIR}/osi_freertos.o
-
-#
-# The default rule, which causes init to be built.
-#
-all: ${OBJDIR} ${BINDIR} \
-     ${BINDIR}/FreeRTOS.a
-	 
 #
 # The rule to clean out all the build products.
 #
 clean:
 	@rm -rf ${OBJDIR} ${wildcard *~}
 	@rm -rf ${BINDIR} ${wildcard *~}
-	
+
+
 #
 # The rule to create the target directories.
 #
@@ -104,9 +87,15 @@ ${BINDIR}:
 	@mkdir -p ${BINDIR}
 
 #
-# Rules for building the FreeRTOS library.
+# Rules for building the bootmgr example.
 #
-${BINDIR}/FreeRTOS.a: ${OBJS}
+${BINDIR}/bootmgr.axf: ${OBJDIR}/main.o
+${BINDIR}/bootmgr.axf: ${OBJDIR}/udma_if.o
+${BINDIR}/bootmgr.axf: ${OBJDIR}/startup_${COMPILER}.o
+${BINDIR}/bootmgr.axf: ${ROOT}/simplelink/${COMPILER}/${BINDIR}/libsimplelink_nonos_tiny.a
+${BINDIR}/bootmgr.axf: ${ROOT}/driverlib/${COMPILER}/${BINDIR}/libdriver.a
+SCATTERgcc_bootmgr=bootmgr.ld
+ENTRY_bootmgr=ResetISR
 
 #
 # include the automatically generated dependency files.
@@ -114,9 +103,3 @@ ${BINDIR}/FreeRTOS.a: ${OBJS}
 ifneq (${MAKECMDGOALS},clean)
 -include ${wildcard ${COMPILER}/*.d} __dummy__
 endif
-
-
-	 
-
-
-

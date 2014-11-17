@@ -1,4 +1,4 @@
-FatFs/Tiny-FatFs Module Source Files R0.04b   (C)ChaN, 2007
+FatFs/Tiny-FatFs Module source Files R0.04b   (C)ChaN, 2007
 
 
 FILES

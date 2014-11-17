@@ -52,13 +52,13 @@ extern "C" {
 /*!
  ******************************************************************************
 
-    \defgroup       porting_user_include        User Include Files
+    \defgroup       porting_user_include        User include Files
  
     This section IS NOT REQUIRED in case user provided primitives are handled 
     in makefiles or project configurations (IDE) 
 
     PORTING ACTION: 
-        - Include all required header files for the definition of:
+        - include all required header files for the definition of:
             -# Transport layer library API (e.g. SPI, UART)
             -# OS primitives definitions (e.g. Task spawn, Semaphores)
             -# Memory management primitives (e.g. alloc, free)

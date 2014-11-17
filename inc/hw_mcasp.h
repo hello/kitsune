@@ -407,7 +407,7 @@
 #define MCASP_TLGC_MT_S         14
 #define MCASP_TLGC_RESV1_M      0x00003E00  // Reserved
 #define MCASP_TLGC_RESV1_S      9
-#define MCASP_TLGC_MMS          0x00000100  // Source of MISR input 0 1
+#define MCASP_TLGC_MMS          0x00000100  // source of MISR input 0 1
 #define MCASP_TLGC_ESEL         0x00000080  // Output enable select 0 1
 #define MCASP_TLGC_TOEN         0x00000040  // Test output enable control. 0 1
 #define MCASP_TLGC_MC_M         0x00000030  // States of MISR 0x0 0x1 0x2 0x3
@@ -601,7 +601,7 @@
                                 0x00030000
 
 #define MCASP_AHCLKRCTL_HCLKRADJ_S 16
-#define MCASP_AHCLKRCTL_HCLKRM  0x00008000  // High Freq. RCV clock Source 0 1
+#define MCASP_AHCLKRCTL_HCLKRM  0x00008000  // High Freq. RCV clock source 0 1
 #define MCASP_AHCLKRCTL_HCLKRP  0x00004000  // High Freq. clock Polarity Before
                                             // diviser 0 1
 #define MCASP_AHCLKRCTL_HCLKRDIV_M \
@@ -852,7 +852,7 @@
                                 0x00030000
 
 #define MCASP_AHCLKXCTL_HCLKXADJ_S 16
-#define MCASP_AHCLKXCTL_HCLKXM  0x00008000  // High Freq. XMT clock Source 0 1
+#define MCASP_AHCLKXCTL_HCLKXM  0x00008000  // High Freq. XMT clock source 0 1
 #define MCASP_AHCLKXCTL_HCLKXP  0x00004000  // High Freq. clock Polarity Before
                                             // diviser 0 1
 #define MCASP_AHCLKXCTL_HCLKXDIV_M \
