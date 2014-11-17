@@ -224,7 +224,7 @@ _save_newest(const char * buffer, int size){
 	return ret;
 }
 static int
-_read_oldest(const char * buffer, int size, int * read){
+_read_oldest(char * buffer, int size, WORD * read){
 	int counter;
 	int ret = _walk_log_dir(_find_oldest_log, &counter);
 	if(ret == 0){
