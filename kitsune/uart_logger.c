@@ -316,22 +316,21 @@ void uart_logger_task(void * params){
 		switch(evnt){
 		case LOG_EVENT_START:
 			_save_newest(self.upload_block, UART_LOGGER_BLOCK_SIZE);
-			_remove_oldest();
-			/*if(sl_status & HAS_IP){
-				self.log.has_unix_time = true;
-				self.log.unix_time = get_time();
-			}else{
+			if(sl_status & HAS_IP){
+				WORD read;
 				self.log.has_unix_time = false;
+				//for read oldest block and upload, we are reusing upload_block pointer until more memory is freed
+				//so that a upload block can be dedicated to reading old files
+				_read_oldest(self.upload_block,UART_LOGGER_BLOCK_SIZE, &read);
+				ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER, SENSE_LOG_ENDPOINT,buffer,sizeof(buffer),sense_log_fields,&self.log,0);
+				if(ret == 0){
+					LOGI("Succeeded\r\n");
+					_remove_oldest();
+				}else{
+					LOGI("Failed\r\n");
+					//TODO, failed tx, logging local
+				}
 			}
-
-			ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER, SENSE_LOG_ENDPOINT,buffer,sizeof(buffer),sense_log_fields,&self.log,0);
-			if(ret == 0){
-				LOGI("Succeeded\r\n");
-			}else{
-				LOGI("Failed\r\n");
-				//TODO, failed tx, logging local
-			}*/
-
 			xEventGroupClearBits(self.uart_log_events,LOG_EVENT_START);
 			break;
 		}
