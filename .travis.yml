@@ -1,14 +1,17 @@
 language: c
 script:
 - ./build.sh
-- ./teardown.sh
 install:
 - ./travis-setup.sh
 before_install:
 - ./dependencies.sh
+
 notifications:
   email:
   - chris@sayhello.com
+
+before_deploy:
+- ./teardown.sh
 deploy:
   provider: s3
   access_key_id: AKIAIJE3P5YMHYZQDY4Q
