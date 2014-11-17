@@ -1,22 +1,20 @@
 language: c
-# Script will setup ccs and build
 script: ./build.sh
 install:
-  - ./travis-setup.sh
+- ./travis-setup.sh
 before_install:
-  - ./dependencies.sh
+- ./dependencies.sh
 notifications:
   email:
-    - chris@sayhello.com
+  - chris@sayhello.com
 deploy:
   provider: s3
   access_key_id: AKIAIJE3P5YMHYZQDY4Q
-  secret_access_key: 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
-  bucket: "hello-firmware"
-  upload-dir: sense/releases
-  file: kitsune/main/ccs/exe/kitsune.bin
-  skip_cleanup: true
+  secret_access_key:
+    secure: M1siQBIXy9HDc9FKlgEMcnKt4C1a88D94ArbKmpfsm2/onvpK2VZ5R/aNXr5kbttv6zyqIE7dr9SbtKFfEm7NnveiKKpu7FKElRCC02pi5TSQ8u6C9CuQ+ePBoGeqg1ZvYGcP0pDh+krXRxGnLX86mDTv39WcnJ6oxQld8Ltz1Y=
+  bucket: hello-firmware
+  local-dir: exe
+  upload-dir: sense/travis/$TRAVIS_BUILD_ID/$TRAVIS_JOB_ID
   on:
-    tags: true
-    all_branches: true
-
+    repo: hello/kitsune
+    branch: chris-travis
