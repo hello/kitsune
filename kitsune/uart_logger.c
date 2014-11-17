@@ -339,6 +339,8 @@ void uart_logger_task(void * params){
 					_remove_oldest(&rem);
 					if(rem > 0){
 						xEventGroupSetBits(self.uart_log_events, LOG_EVENT_UPLOAD);
+					}else{
+						LOGI("No more logs remaining\r\n");
 					}
 				}else{
 					LOGI("Log upload failed\r\n");
@@ -346,7 +348,6 @@ void uart_logger_task(void * params){
 			}
 			break;
 		}
-		vTaskDelay(2000);
 	}
 }
 int Cmd_log_setview(int argc, char * argv[]){
