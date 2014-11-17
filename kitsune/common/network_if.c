@@ -296,13 +296,13 @@ Network_IF_InitDriver(void)
     //
     // Start the simplelink host
     //
-    SL_SYNC(sl_Start(NULL,NULL,InitCallBack));
+    sl_Start(NULL,NULL,InitCallBack);
     while(!(g_usMCUstate & MCU_SLHost_INIT));
     //reset all policies
-    SL_SYNC(sl_WlanPolicySet(  SL_POLICY_CONNECTION,
+    sl_WlanPolicySet(  SL_POLICY_CONNECTION,
                       SL_CONNECTION_POLICY(0,0,0,0,0),
                       &policyVal,
-                      1 /*PolicyValLen*/));
+                      1 /*PolicyValLen*/);
     DBG_PRINT("Started SimpleLink Device \n\r");
 
 }
@@ -328,7 +328,7 @@ Network_IF_DeInitDriver(void)
     //
     // Stop the simplelink host
     //
-    SL_SYNC(sl_Stop(SL_STOP_TIMEOUT));
+    sl_Stop(SL_STOP_TIMEOUT);
     //
     // Reset the state to uninitialized
     //
@@ -361,7 +361,7 @@ Network_IF_ConnectAP(char *pcSsid, SlSecParams_t SecurityParams)
     //
     // This triggers the CC3200 to connect to specific AP
     //
-    SL_SYNC(sl_WlanConnect(pcSsid, strlen(pcSsid), NULL, &SecurityParams, NULL));
+    sl_WlanConnect(pcSsid, strlen(pcSsid), NULL, &SecurityParams, NULL);
     //
     // Wait to check if connection to DIAGNOSTIC_AP succeeds
     //
@@ -421,7 +421,7 @@ Network_IF_ConnectAP(char *pcSsid, SlSecParams_t SecurityParams)
         //
         // This triggers the CC3200 to connect to specific AP
         //
-        SL_SYNC(sl_WlanConnect(pcSsid, strlen(pcSsid), NULL, &SecurityParams, NULL));
+        sl_WlanConnect(pcSsid, strlen(pcSsid), NULL, &SecurityParams, NULL);
         //
         // Wait to check if connection to specifed AP succeeds
         //
@@ -464,9 +464,7 @@ void
 Network_IF_DisconnectFromAP()
 {
     if (g_usMCUstate & MCU_AP_ASSOC)
-    {
-        SL_SYNC(sl_WlanDisconnect());
-    }
+        sl_WlanDisconnect();
 
     while((g_usMCUstate & MCU_AP_ASSOC));
 }
@@ -491,7 +489,7 @@ Network_IF_IpConfigGet(unsigned long *pulIP, unsigned long *pulSubnetMask,
     unsigned char len = sizeof(_NetCfgIpV4Args_t);
 	_NetCfgIpV4Args_t ipV4 = {0};
 
-	SL_SYNC(sl_NetCfgGet(SL_IPV4_STA_P2P_CL_GET_INFO,&isDhcp,&len,(unsigned char *)&ipV4));
+	sl_NetCfgGet(SL_IPV4_STA_P2P_CL_GET_INFO,&isDhcp,&len,(unsigned char *)&ipV4);
 	*pulIP=ipV4.ipV4;
 	*pulSubnetMask=ipV4.ipV4Mask;
 	*pulDefaultGateway=ipV4.ipV4Gateway;
@@ -517,9 +515,9 @@ unsigned long Network_IF_GetHostIP( char* pcHostName )
     int iStatus = 0;
     unsigned long ulDestinationIP;
 
-    iStatus = SL_SYNC(sl_NetAppDnsGetHostByName(
+    iStatus = sl_NetAppDnsGetHostByName(
                         pcHostName, strlen(pcHostName),
-                        &ulDestinationIP, SL_AF_INET));
+                        &ulDestinationIP, SL_AF_INET);
     if (iStatus == 0)
     {
         DBG_PRINT("Get Host IP succeeded.\n\rHost: %s IP: %d.%d.%d.%d.\n\r\n\r",
