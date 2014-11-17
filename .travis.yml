@@ -15,3 +15,5 @@ deploy:
   bucket: hello-firmware
   local-dir: exe
   upload-dir: sense/travis/$TRAVIS_BRANCH/$TRAVIS_TAG
+  on:
+    all_branches: true
