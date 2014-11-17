@@ -21,7 +21,7 @@
 
 /**
  * The upload order should be
- * Local -> Backend(if has IP)
+ * Backend(if has no local backlog) -> Local -> Backend(if has IP)
  * This way we can guarantee continuity if wifi is intermittent
  */
 #define LOG_EVENT_BACKEND 		0x1
@@ -156,19 +156,23 @@ _find_newest_log(FILINFO * info, void * ctx){
 		}
 	}
 }
+static FRESULT
+_open_log(FIL * file, char * local_name, WORD mode){
+	char full_name[32] = {0};
+	strcat(full_name, "/");
+	strcat(full_name, SENSE_LOG_FOLDER);
+	strcat(full_name, "/");
+	return hello_fs_open(file, strcat(full_name, local_name), mode);
+}
 static int
 _write_file(char * local_name, const char * buffer, WORD size){
 	FIL file_obj;
 	WORD bytes = 0;
 	WORD written = 0;
 	WORD write_size = size;
-	char full_name[32] = {0};
-	strcat(full_name, "/");
-	strcat(full_name, SENSE_LOG_FOLDER);
-	strcat(full_name, "/");
-	FRESULT res = hello_fs_open(&file_obj, strcat(full_name, local_name), FA_CREATE_NEW|FA_WRITE|FA_OPEN_ALWAYS);
+	FRESULT res = _open_log(&file_obj, local_name, FA_CREATE_NEW|FA_WRITE|FA_OPEN_ALWAYS);
 	if(res != FR_OK && res != FR_EXIST){
-		LOGE("File %s open fail, code %d", full_name, res);
+		LOGE("File %s open fail, code %d", local_name, res);
 		return -1;
 	}
 	do{
@@ -183,16 +187,52 @@ _write_file(char * local_name, const char * buffer, WORD size){
 	return 0;
 }
 static int
+_read_file(char * local_name, char * buffer, WORD buffer_size, WORD *size_read){
+	FIL file_obj;
+	WORD offset = 0;
+	WORD read = 0;
+	FRESULT res = _open_log(&file_obj, local_name, FA_READ);
+	if(res == FR_OK){
+		do{
+			res = hello_fs_read(&file_obj, (void*)(buffer + offset), buffer_size,
+					&read);
+
+			if(res != FR_OK){
+				return((int)res);
+			}
+			offset += read;
+		}while(read == buffer_size && offset < buffer_size);
+	}else{
+		return (int)res;
+	}
+}
+static int
 _save_newest(const char * buffer, int size){
 	int counter;
 	int ret = _walk_log_dir(_find_newest_log, &counter);
 	if(ret == 0){
 		LOGI("NO log file exists, creating first log\r\n");
 		return _write_file("0", buffer, size);
-	}else if(ret > 0){
-		LOGI("%d log file exists, smallest = %d\r\n", ret, counter);
+	}else if(ret > 0 && counter >= 0){
+		char s[16] = {0};
+		snprintf(s,sizeof(s),"%d",++counter);
+		LOGI("%d log file exists, newest = %d\r\n", ret, counter);
+		return _write_file(s, buffer, size);
 	}else{
 		LOGW("log error: %d \r\n", ret);
+	}
+	return ret;
+}
+static int
+_read_oldest(const char * buffer, int size, int * read){
+	int counter;
+	int ret = _walk_log_dir(_find_oldest_log, &counter);
+	if(ret == 0){
+		LOGI("No oldest log file exist, aborting...\r\n");
+	}else if(ret > 0 && counter >= 0){
+		LOGI("oldest log file is %d", counter);
+	}else{
+		LOGW("log error %d\r\n", ret);
 	}
 	return ret;
 }
@@ -201,6 +241,7 @@ _save_newest(const char * buffer, int size){
  */
 int Cmd_log_upload(int argc, char *argv[]){
 	//_swap_and_upload();
+	_read_oldest(NULL, 0, 0);
 	return _save_newest("test", strlen("test"));
 }
 void uart_logger_init(void){
