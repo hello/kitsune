@@ -1257,7 +1257,6 @@ extern xSemaphoreHandle g_xRxLineSemaphore;
 void UARTStdioIntHandler(void);
 
 void vUARTTask(void *pvParameters) {
-	sl_sync_init();  // thread safe for all sl_* calls
 	char cCmdBuf[512];
 	portTickType now;
 

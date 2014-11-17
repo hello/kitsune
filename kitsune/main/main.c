@@ -289,7 +289,7 @@ void main()
 {
   //
   // Board Initialization
-
+  sl_sync_init();  // thread safe for all sl_* calls
   //
   BoardInit();
 
