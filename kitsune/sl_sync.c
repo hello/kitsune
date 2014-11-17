@@ -2,21 +2,20 @@
 #include "FreeRTOS.h"
 #include "semphr.h"
 
-static xSemaphoreHandle _sl_semaphore;
+static xSemaphoreHandle _sl_mutex;
 
-void sl_sync_init()
+long sl_sync_init()
 {
-    if (!_sl_semaphore) {
-        _sl_semaphore = xSemaphoreCreateBinary();
-    }
+	_sl_mutex = xSemaphoreCreateMutex();
+	return 1;
 }
 
-int sl_enter_critical_region()
+long sl_enter_critical_region()
 {
-    return xSemaphoreTake(_sl_semaphore, portMAX_DELAY);
+    return xSemaphoreTake(_sl_mutex, portMAX_DELAY);
 }
 
-int sl_exit_critical_region()
+long sl_exit_critical_region()
 {
-    return xSemaphoreGive(_sl_semaphore);
+    return xSemaphoreGive(_sl_mutex);
 }

@@ -8,6 +8,7 @@
 #include <prcm.h>
 #include <stdint.h>
 #include <string.h>
+#include <stdlib.h>
 #include "fs.h"
 #include "uartstdio.h"
 
@@ -16,7 +17,7 @@
 #include "led_cmd.h"
 #include "led_animations.h"
 #include "uart_logger.h"
-#include "stdlib.h"
+#include "sl_sync.h"
 
 typedef enum {
 	DFU_INVALID_PACKET = 0,
@@ -66,7 +67,7 @@ _encode_and_send(uint8_t* orig, uint32_t size){
 }
 static dfu_packet_type
 _next_file_data_block(uint8_t * write_buf, uint32_t buffer_size, uint32_t * out_actual_size){
-	int status = sl_FsRead(self.dfu_contex.handle, self.dfu_contex.offset, write_buf, buffer_size);
+	int status = SL_SYNC(sl_FsRead(self.dfu_contex.handle, self.dfu_contex.offset, write_buf, buffer_size));
 	if(status > 0){
 		self.dfu_contex.offset += status;
 		*out_actual_size = status;
@@ -93,7 +94,7 @@ _on_message(uint8_t * message_body, uint32_t body_length){
 
 static void
 _close_and_reset_dfu(){
-	sl_FsClose(self.dfu_contex.handle, 0,0,0);
+	SL_SYNC(sl_FsClose(self.dfu_contex.handle, 0,0,0));
 	self.mode = TOP_NORMAL_MODE;
 }
 static void
@@ -215,13 +216,13 @@ static int _prep_file(const char * name, uint32_t * out_fsize, uint16_t * out_cr
 	int status = 0;
 	uint16_t crc = 0xFFFFu;
 	SlFsFileInfo_t info;
-	sl_FsGetInfo((unsigned char*)name, tok, &info);
-	if(sl_FsOpen((unsigned char*)name, FS_MODE_OPEN_READ, &tok, &hndl)){
+	SL_SYNC(sl_FsGetInfo((unsigned char*)name, tok, &info));
+	if(SL_SYNC(sl_FsOpen((unsigned char*)name, FS_MODE_OPEN_READ, &tok, &hndl))){
 		UARTprintf("error opening for read %s.\r\n", name);
 		return -1;
 	}
 	do{
-		status = sl_FsRead(hndl, total, buffer, sizeof(buffer));
+		status = SL_SYNC(sl_FsRead(hndl, total, buffer, sizeof(buffer)));
 		if(status > 0){
 			crc = hci_crc16_compute_cont(buffer,status,&crc);
 			total += status;

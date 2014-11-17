@@ -34,6 +34,7 @@ volatile unsigned int sl_status = 0;
 #include "task.h"
 
 #include "kitsune_version.h"
+#include "sl_sync.h"
 
 #define FAKE_MAC 0
 
@@ -439,9 +440,9 @@ int Cmd_mode(int argc, char*argv[]) {
     ap = atoi(argv[1]);
     if (ap && sl_mode != ROLE_AP) {
         //Switch to AP Mode
-        sl_WlanSetMode(ROLE_AP);
-        sl_Stop(SL_STOP_TIMEOUT);
-        sl_mode = sl_Start(NULL, NULL, NULL);
+        SL_SYNC(sl_WlanSetMode(ROLE_AP));
+        SL_SYNC(sl_Stop(SL_STOP_TIMEOUT));
+        sl_mode = SL_SYNC(sl_Start(NULL, NULL, NULL));
     }
     if (!ap && sl_mode != ROLE_STA) {
         //Switch to STA Mode
@@ -469,24 +470,24 @@ int Cmd_set_aes(int argc, char *argv[]) {
         next = pend+1;
     }
 
-	sl_FsGetInfo((unsigned char*)AES_KEY_LOC, tok, &info);
+	SL_SYNC(sl_FsGetInfo((unsigned char*)AES_KEY_LOC, tok, &info));
 
-	if (sl_FsOpen((unsigned char*)AES_KEY_LOC,
-	FS_MODE_OPEN_WRITE, &tok, &hndl)) {
+	if (SL_SYNC(sl_FsOpen((unsigned char*)AES_KEY_LOC,
+	FS_MODE_OPEN_WRITE, &tok, &hndl))) {
 		UARTprintf("error opening file, trying to create\n");
 
-		if (sl_FsOpen((unsigned char*)AES_KEY_LOC,
+		if (SL_SYNC(sl_FsOpen((unsigned char*)AES_KEY_LOC,
 				FS_MODE_OPEN_CREATE(65535, _FS_FILE_OPEN_FLAG_COMMIT), &tok,
-				&hndl)) {
+				&hndl))) {
 			UARTprintf("error opening for write\n");
 			return -1;
 		}
 	}
 
-	bytes = sl_FsWrite(hndl, info.FileLen, aes_key, AES_BLOCKSIZE);
+	bytes = SL_SYNC(sl_FsWrite(hndl, info.FileLen, aes_key, AES_BLOCKSIZE));
 	UARTprintf("wrote to the file %d bytes\n", bytes);
 
-	sl_FsClose(hndl, 0, 0, 0);
+	SL_SYNC(sl_FsClose(hndl, 0, 0, 0));
 
 	// Return success.
 	return (0);
@@ -503,9 +504,9 @@ int Cmd_set_mac(int argc, char*argv[]) {
         next = pend+1;
     }
 
-    sl_NetCfgSet(SL_MAC_ADDRESS_SET,1,SL_MAC_ADDR_LEN,(_u8 *)MAC_Address);
-    sl_Stop(0);
-    sl_Start(NULL,NULL,NULL);
+    SL_SYNC(sl_NetCfgSet(SL_MAC_ADDRESS_SET,1,SL_MAC_ADDR_LEN,(_u8 *)MAC_Address));
+    SL_SYNC(sl_Stop(0));
+    SL_SYNC(sl_Start(NULL,NULL,NULL));
 
     return 0;
 }
@@ -515,22 +516,22 @@ void load_aes() {
 	int RetVal, Offset;
 
 	// read in aes key
-	RetVal = sl_FsOpen(AES_KEY_LOC, FS_MODE_OPEN_READ, NULL,
-			&DeviceFileHandle);
+	RetVal = SL_SYNC(sl_FsOpen(AES_KEY_LOC, FS_MODE_OPEN_READ, NULL,
+			&DeviceFileHandle));
 	if (RetVal != 0) {
 		UARTprintf("failed to open aes key file\n");
 	}
 
 	Offset = 0;
-	RetVal = sl_FsRead(DeviceFileHandle, Offset, (unsigned char *) aes_key,
-			AES_BLOCKSIZE);
+	RetVal = SL_SYNC(sl_FsRead(DeviceFileHandle, Offset, (unsigned char *) aes_key,
+			AES_BLOCKSIZE));
 	if (RetVal != AES_BLOCKSIZE) {
 		UARTprintf("failed to read aes key file\n");
 	}
 	aes_key[AES_BLOCKSIZE] = 0;
 	UARTprintf("read key %s\n", aes_key);
 
-	RetVal = sl_FsClose(DeviceFileHandle, NULL, NULL, 0);
+	RetVal = SL_SYNC(sl_FsClose(DeviceFileHandle, NULL, NULL, 0));
 }
 
 /* protobuf includes */
@@ -734,12 +735,12 @@ int start_connection() {
         // setup certificate
         unsigned char method = SL_SO_SEC_METHOD_TLSV1_2;
         unsigned int cipher = SL_SEC_MASK_TLS_RSA_WITH_AES_256_CBC_SHA;
-        if( sl_SetSockOpt(sock, SL_SOL_SOCKET, SL_SO_SECMETHOD, &method, sizeof(method) ) < 0 ||
-            sl_SetSockOpt(sock, SL_SOL_SOCKET, SL_SO_SECURE_MASK, &cipher, sizeof(cipher)) < 0 ||
-            sl_SetSockOpt(sock, SL_SOL_SOCKET, \
+        if( SL_SYNC(sl_SetSockOpt(sock, SL_SOL_SOCKET, SL_SO_SECMETHOD, &method, sizeof(method))) < 0 ||
+            SL_SYNC(sl_SetSockOpt(sock, SL_SOL_SOCKET, SL_SO_SECURE_MASK, &cipher, sizeof(cipher))) < 0 ||
+            SL_SYNC(sl_SetSockOpt(sock, SL_SOL_SOCKET, \
                                    SL_SO_SECURE_FILES_CA_FILE_NAME, \
                                    SL_SSL_CA_CERT_FILE_NAME, \
-                                   strlen(SL_SSL_CA_CERT_FILE_NAME))  < 0  )
+                                   strlen(SL_SSL_CA_CERT_FILE_NAME)))  < 0  )
         {
         UARTprintf( "error setting ssl options\r\n" );
         }
@@ -818,7 +819,7 @@ int send_audio_wifi(char * buffer, int buffer_size, audio_read_cb arcb) {
     mac[4] = 0xab;
     mac[5] = 0xcd;
 #else
-    sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
+    SL_SYNC(sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac));
 #endif
 
     message_length = 110000;
@@ -1291,7 +1292,7 @@ bool get_mac(unsigned char mac[6]) {
 	int32_t ret;
 	unsigned char mac_len = 6;
 
-	ret = sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
+	ret = SL_SYNC(sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac));
 
     if(ret != 0 && ret != SL_ESMALLBUF)
     {
@@ -1315,7 +1316,7 @@ bool encode_mac(pb_ostream_t *stream, const pb_field_t *field, void * const *arg
     mac[4] = 0xab;
     mac[5] = 0xcd;
 #else
-    int32_t ret = sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
+    int32_t ret = SL_SYNC(sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac));
     if(ret != 0 && ret != SL_ESMALLBUF)
     {
     	UARTprintf("encode_mac: Fail to get MAC addr, err %d\n", ret);
@@ -1337,7 +1338,7 @@ bool encode_mac_as_device_id_string(pb_ostream_t *stream, const pb_field_t *fiel
     mac[4] = 0xab;
     mac[5] = 0xcd;
 #else
-    int32_t ret = sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
+    int32_t ret = SL_SYNC(sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac));
     if(ret != 0 && ret != SL_ESMALLBUF)
     {
     	UARTprintf("encode_mac_as_device_id_string: Fail to get MAC addr, err %d\n", ret);
@@ -1573,28 +1574,28 @@ int Cmd_sl(int argc, char*argv[]) {
     //make sure we're in station mode
     if (sl_mode != ROLE_STA) {
         //Switch to STA Mode
-        sl_WlanSetMode(ROLE_STA);
-        sl_Stop(SL_STOP_TIMEOUT);
-        sl_mode = sl_Start(NULL, NULL, NULL);
+        SL_SYNC(sl_WlanSetMode(ROLE_STA));
+        SL_SYNC(sl_Stop(SL_STOP_TIMEOUT));
+        sl_mode = SL_SYNC(sl_Start(NULL, NULL, NULL));
     }
 
     //sl_WlanProfileDel(WLAN_DEL_ALL_PROFILES);
 
     //set AUTO policy
-    sl_WlanPolicySet( SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0),
-            &policyVal, 1 /*PolicyValLen*/);
+    SL_SYNC(sl_WlanPolicySet( SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0),
+            &policyVal, 1 /*PolicyValLen*/));
 
     /* Start SmartConfig
      * This example uses the unsecured SmartConfig method
      */
-    sl_WlanSmartConfigStart(0,                          //groupIdBitmask
+    SL_SYNC(sl_WlanSmartConfigStart(0,                          //groupIdBitmask
             SMART_CONFIG_CIPHER_NONE,    //cipher
             0,                           //publicKeyLen
             0,                           //group1KeyLen
             0,                           //group2KeyLen
             NULL,                          //publicKey
             NULL,                          //group1Key
-            NULL);                         //group2Key
+            NULL));                         //group2Key
 
     return 0;
 }
@@ -1686,11 +1687,11 @@ uint8_t TemplateFrame[] = {
 
 int Cmd_RadioStopRX(int argc, char*argv[])
 {
-	sl_WlanRxStatStop();
+	SL_SYNC(sl_WlanRxStatStop());
 
     vTaskDelay(30 / portTICK_RATE_MS);
 
-	return sl_Close(rawSocket);
+	return SL_SYNC(sl_Close(rawSocket));
 }
 
 int RadioStartRX(int eChannel)
@@ -1702,16 +1703,16 @@ int RadioStartRX(int eChannel)
 	timeval.tv_sec =  0;             // Seconds
 	timeval.tv_usec = 20000;             // Microseconds. 10000 microseconds resoultion
 
-	sl_WlanRxStatStart();
+	SL_SYNC(sl_WlanRxStatStart());
 
-	rawSocket = sl_Socket(SL_AF_RF, SL_SOCK_RAW, eChannel);
+	rawSocket = SL_SYNC(sl_Socket(SL_AF_RF, SL_SOCK_RAW, eChannel));
 
 	if (rawSocket < 0)
 	{
 		return -1;
 	}
 
-	sl_SetSockOpt(rawSocket,SL_SOL_SOCKET,SL_SO_RCVTIMEO, &timeval, sizeof(timeval));    // Enable receive timeout
+	SL_SYNC(sl_SetSockOpt(rawSocket,SL_SOL_SOCKET,SL_SO_RCVTIMEO, &timeval, sizeof(timeval)));    // Enable receive timeout
 
 	recv(rawSocket, DataFrame, 1470, 0);
 
@@ -1734,7 +1735,7 @@ int RadioGetStats(unsigned int *validPackets, unsigned int *fcsPackets,unsigned 
 
 	SlGetRxStatResponse_t rxStatResp;
 
-	sl_WlanRxStatGet(&rxStatResp, 0);
+	SL_SYNC(sl_WlanRxStatGet(&rxStatResp, 0));
 
 	*validPackets = rxStatResp.ReceivedValidPacketsNumber;
 	*fcsPackets = rxStatResp.ReceivedFcsErrorPacketsNumber;
@@ -1796,14 +1797,14 @@ int RadioStopTX(RadioTxMode_e eTxMode)
 
 	if (RADIO_TX_CW == eTxMode)
 	{
-		sl_Send(rawSocket, NULL, 0, CW_STOP);
+		SL_SYNC(sl_Send(rawSocket, NULL, 0, CW_STOP));
 		vTaskDelay(30 / portTICK_RATE_MS);
-		retVal = sl_Close(rawSocket);
+		retVal = SL_SYNC(sl_Close(rawSocket));
 	}
 
 	if (RADIO_TX_CONTINUOUS == eTxMode)
 	{
-		retVal = sl_Close(rawSocket);
+		retVal = SL_SYNC(sl_Close(rawSocket));
 	}
 
 	return retVal;
@@ -1855,7 +1856,7 @@ int32_t RadioStartTX(RadioTxMode_e eTxMode, uint8_t powerLevel_Tone, int eChanne
 				memset(DataFrame, 0, sizeof(DataFrame));
 		}
 
-		sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL,&pConfigLen, &TemplateFrame[TA_OFFSET]);
+		SL_SYNC(sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL,&pConfigLen, &TemplateFrame[TA_OFFSET]));
 		memcpy(&TemplateFrame[RA_OFFSET], pDstMac, SL_BSSID_LENGTH);
 		memcpy(&TemplateFrame[DA_OFFSET], pDstMac, SL_BSSID_LENGTH);
 
@@ -1863,9 +1864,9 @@ int32_t RadioStartTX(RadioTxMode_e eTxMode, uint8_t powerLevel_Tone, int eChanne
 
 		/* open a RAW/DGRAM socket based on CCA override*/
 		if (overrideCCA == 1)
-			rawSocket = sl_Socket(SL_AF_RF, SL_SOCK_RAW, eChannel);
+			rawSocket = SL_SYNC(sl_Socket(SL_AF_RF, SL_SOCK_RAW, eChannel));
 		else
-			rawSocket = sl_Socket(SL_AF_RF, SL_SOCK_DGRAM, eChannel);
+			rawSocket = SL_SYNC(sl_Socket(SL_AF_RF, SL_SOCK_DGRAM, eChannel));
 
 		if (rawSocket < 0)
 		{
@@ -1886,7 +1887,7 @@ int32_t RadioStartTX(RadioTxMode_e eTxMode, uint8_t powerLevel_Tone, int eChanne
 			{
                             /* transmit the frame */
 							minDelay = (delay_amount%50);
-                            length = sl_Send(rawSocket, DataFrame, size, SL_RAW_RF_TX_PARAMS(eChannel, eRate, powerLevel_Tone, ePreamble));
+                            length = SL_SYNC(sl_Send(rawSocket, DataFrame, size, SL_RAW_RF_TX_PARAMS(eChannel, eRate, powerLevel_Tone, ePreamble)));
                             //UtilsDelay((delay_amount*CPU_CYCLES_1MSEC)/12);
                             xDelay= minDelay / portTICK_RATE_MS;
                             vTaskDelay(xDelay);
@@ -1907,7 +1908,7 @@ int32_t RadioStartTX(RadioTxMode_e eTxMode, uint8_t powerLevel_Tone, int eChanne
 				return -1;
 			}
 
-			if(sl_Close(rawSocket) < 0)
+			if(SL_SYNC(sl_Close(rawSocket)) < 0)
 			{
 				vPortFree( DataFrame );
 				return -1;
@@ -1919,22 +1920,22 @@ int32_t RadioStartTX(RadioTxMode_e eTxMode, uint8_t powerLevel_Tone, int eChanne
 
 	if (RADIO_TX_CONTINUOUS == eTxMode)
 	{
-		sl_SetSockOpt(rawSocket, SL_SOL_PHY_OPT, SL_SO_PHY_NUM_FRAMES_TO_TX, &numberOfFrames, sizeof(uint32_t));
+		SL_SYNC(sl_SetSockOpt(rawSocket, SL_SOL_PHY_OPT, SL_SO_PHY_NUM_FRAMES_TO_TX, &numberOfFrames, sizeof(uint32_t)));
 
-		sl_Send(rawSocket, DataFrame, size, SL_RAW_RF_TX_PARAMS(eChannel, eRate, powerLevel_Tone, ePreamble));
+		SL_SYNC(sl_Send(rawSocket, DataFrame, size, SL_RAW_RF_TX_PARAMS(eChannel, eRate, powerLevel_Tone, ePreamble)));
 
 	}
 
 	if (RADIO_TX_CW == eTxMode)
 	{
-		rawSocket = sl_Socket(SL_AF_RF,SL_SOCK_RAW,eChannel);
+		rawSocket = SL_SYNC(sl_Socket(SL_AF_RF,SL_SOCK_RAW,eChannel));
 		if(rawSocket < 0)
 		{
 			vPortFree( DataFrame );
 			return -1;
 		}
 
-		sl_Send(rawSocket, NULL, 0, powerLevel_Tone);
+		SL_SYNC(sl_Send(rawSocket, NULL, 0, powerLevel_Tone));
 	}
 
 	vPortFree( DataFrame );
@@ -2001,15 +2002,15 @@ int get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uin
     unsigned long IntervalVal = 20;
 
     unsigned char policyOpt = SL_CONNECTION_POLICY(0, 0, 0, 0, 0);
-    int r;
+    int ret;
 
-    r = sl_WlanPolicySet(SL_POLICY_CONNECTION , policyOpt, NULL, 0);
+    ret = SL_SYNC(sl_WlanPolicySet(SL_POLICY_CONNECTION , policyOpt, NULL, 0));
 
     // Make sure scan is enabled
     policyOpt = SL_SCAN_POLICY(1);
 
     // set scan policy - this starts the scan
-    r = sl_WlanPolicySet(SL_POLICY_SCAN , policyOpt, (unsigned char *)(IntervalVal), sizeof(IntervalVal));
+    ret = SL_SYNC(sl_WlanPolicySet(SL_POLICY_SCAN , policyOpt, (unsigned char *)(IntervalVal), sizeof(IntervalVal)));
 
 
     // delay specific milli seconds to verify scan is started
@@ -2017,12 +2018,12 @@ int get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uin
 
     // r indicates the valid number of entries
     // The scan results are occupied in netEntries[]
-    r = sl_WlanGetNetworkList(0, entry_len, entries);
+    ret = SL_SYNC(sl_WlanGetNetworkList(0, entry_len, entries));
 
     // Restore connection policy to Auto
-    sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0), NULL, 0);
+    SL_SYNC(sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0), NULL, 0));
 
-    return r;
+    return ret;
 
 }
 
@@ -2041,9 +2042,8 @@ int connect_wifi(const char* ssid, const char* password, int sec_type)
 	int16_t index = 0;
 	int16_t ret = 0;
 	uint8_t retry = 5;
-	while((index = sl_WlanProfileAdd((_i8*) ssid, strlen(ssid), NULL,
-			&secParam, NULL, 0, 0)) < 0 && retry--){
-		ret = sl_WlanProfileDel(0xFF);
+	while((index = SL_SYNC(sl_WlanProfileAdd((_i8*) ssid, strlen(ssid), NULL, &secParam, NULL, 0, 0))) < 0 && retry--){
+		ret = SL_SYNC(sl_WlanProfileDel(0xFF));
 		if (ret != 0) {
 			UARTprintf("profile del fail\n");
 		}
@@ -2053,7 +2053,7 @@ int connect_wifi(const char* ssid, const char* password, int sec_type)
 		UARTprintf("profile add fail\n");
 		return 0;
 	}
-	ret = sl_WlanConnect((_i8*) ssid, strlen(ssid), NULL, sec_type == SL_SEC_TYPE_OPEN ? NULL : &secParam, 0);
+	ret = SL_SYNC(sl_WlanConnect((_i8*) ssid, strlen(ssid), NULL, sec_type == SL_SEC_TYPE_OPEN ? NULL : &secParam, 0));
 	if(ret == 0 || ret == -71)
 	{
 		UARTprintf("WLAN connect attempt issued\n");

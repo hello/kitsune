@@ -9,16 +9,17 @@ extern "C" {
 #endif
 
 #define SL_SYNC(call) \
-   ({   \
-        sl_enter_critical_region(); \
-        long ret = (call); \
-        sl_exit_critical_region(); \
-        ret; \
-   })
+	({ \
+	long sl_ret; \
+	sl_enter_critical_region(); \
+	sl_ret = (call); \
+	sl_exit_critical_region(); \
+	sl_ret; \
+	})
 
-void sl_sync_init();
-int sl_enter_critical_region();
-int sl_exit_critical_region();
+long sl_sync_init();
+long sl_enter_critical_region();
+long sl_exit_critical_region();
 
 #ifdef __cplusplus
 }

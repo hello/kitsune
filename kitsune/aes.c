@@ -36,6 +36,7 @@
 
 #include <string.h>
 #include "crypto.h"
+#include "sl_sync.h"
 
 //byte order stuff will link in from network lib
 uint32_t sl_Htonl( uint32_t val );
@@ -280,7 +281,7 @@ void AES_cbc_encrypt(AES_CTX *ctx, const uint8_t *msg, uint8_t *out, int length)
 
     memcpy(iv, ctx->iv, AES_IV_SIZE);
     for (i = 0; i < 4; i++)
-        tout[i] = ntohl(iv[i]);
+        tout[i] = SL_SYNC(ntohl(iv[i]));
 
     for (length -= AES_BLOCKSIZE; length >= 0; length -= AES_BLOCKSIZE)
     {
@@ -290,14 +291,14 @@ void AES_cbc_encrypt(AES_CTX *ctx, const uint8_t *msg, uint8_t *out, int length)
         msg += AES_BLOCKSIZE;
 
         for (i = 0; i < 4; i++)
-            tin[i] = ntohl(msg_32[i])^tout[i];
+            tin[i] = SL_SYNC(ntohl(msg_32[i]))^tout[i];
 
         AES_encrypt(ctx, tin);
 
         for (i = 0; i < 4; i++)
         {
             tout[i] = tin[i]; 
-            out_32[i] = htonl(tout[i]);
+            out_32[i] = SL_SYNC(htonl(tout[i]));
         }
 
         memcpy(out, out_32, AES_BLOCKSIZE);
@@ -305,7 +306,7 @@ void AES_cbc_encrypt(AES_CTX *ctx, const uint8_t *msg, uint8_t *out, int length)
     }
 
     for (i = 0; i < 4; i++)
-        iv[i] = htonl(tout[i]);
+        iv[i] = SL_SYNC(htonl(tout[i]));
     memcpy(ctx->iv, iv, AES_IV_SIZE);
 }
 
@@ -319,7 +320,7 @@ void AES_cbc_decrypt(AES_CTX *ctx, const uint8_t *msg, uint8_t *out, int length)
 
     memcpy(iv, ctx->iv, AES_IV_SIZE);
     for (i = 0; i < 4; i++)
-        xor[i] = ntohl(iv[i]);
+        xor[i] = SL_SYNC(ntohl(iv[i]));
 
     for (length -= 16; length >= 0; length -= 16)
     {
@@ -330,7 +331,7 @@ void AES_cbc_decrypt(AES_CTX *ctx, const uint8_t *msg, uint8_t *out, int length)
 
         for (i = 0; i < 4; i++)
         {
-            tin[i] = ntohl(msg_32[i]);
+            tin[i] = SL_SYNC(ntohl(msg_32[i]));
             data[i] = tin[i];
         }
 
@@ -340,7 +341,7 @@ void AES_cbc_decrypt(AES_CTX *ctx, const uint8_t *msg, uint8_t *out, int length)
         {
             tout[i] = data[i]^xor[i];
             xor[i] = tin[i];
-            out_32[i] = htonl(tout[i]);
+            out_32[i] = SL_SYNC(htonl(tout[i]));
         }
 
         memcpy(out, out_32, AES_BLOCKSIZE);
@@ -348,7 +349,7 @@ void AES_cbc_decrypt(AES_CTX *ctx, const uint8_t *msg, uint8_t *out, int length)
     }
 
     for (i = 0; i < 4; i++)
-        iv[i] = htonl(xor[i]);
+        iv[i] = SL_SYNC(htonl(xor[i]));
     memcpy(ctx->iv, iv, AES_IV_SIZE);
 }
 
