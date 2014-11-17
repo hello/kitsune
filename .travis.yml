@@ -1,5 +1,7 @@
 language: c
-script: ./build.sh
+script:
+- ./build.sh
+- ./teardown.sh
 install:
 - ./travis-setup.sh
 before_install:
@@ -13,7 +15,7 @@ deploy:
   secret_access_key:
     secure: M1siQBIXy9HDc9FKlgEMcnKt4C1a88D94ArbKmpfsm2/onvpK2VZ5R/aNXr5kbttv6zyqIE7dr9SbtKFfEm7NnveiKKpu7FKElRCC02pi5TSQ8u6C9CuQ+ePBoGeqg1ZvYGcP0pDh+krXRxGnLX86mDTv39WcnJ6oxQld8Ltz1Y=
   bucket: hello-firmware
-  local-dir: exe
+  local-dir: $TRAVIS_BUILD_DIR/build
   upload-dir: "sense/$TRAVIS_BRANCH$TRAVIS_TAG"
   on:
     all_branches: true

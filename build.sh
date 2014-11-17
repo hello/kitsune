@@ -12,5 +12,3 @@ rm -rf ~/workspace
 ~/ti/ccsv6/eclipse/eclipse -noSplash -data ~/workspace/ -application com.ti.ccstudio.apps.projectBuild -ccs.projects  driverlib simplelink oslib fatfs
 ~/ti/ccsv6/eclipse/eclipse -noSplash -data ~/workspace/ -application com.ti.ccstudio.apps.projectBuild -ccs.projects kitsune
 
-./teardown.sh
-
