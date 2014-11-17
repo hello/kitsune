@@ -92,7 +92,7 @@
 #include "wifi_cmd.h"
 #include "uart_logger.h"
 #include "hellofilesystem.h"
-#include "sl_sync.h"
+#include "sl_sync_inlcude_after_simpilelink_header.h"
 
 extern void vUARTTask( void *pvParameters );
 

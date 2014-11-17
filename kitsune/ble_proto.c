@@ -1,4 +1,4 @@
-
+#include "simplelink.h"
 #include "ble_proto.h"
 #include "ble_cmd.h"
 #include "wlan.h"
@@ -23,7 +23,7 @@
 #include "top_board.h"
 #include "kitsune_version.h"
 #include "sys_time.h"
-#include "sl_sync.h"
+#include "sl_sync_inlcude_after_simpilelink_header.h"
 
 extern volatile unsigned int sl_status;
 

@@ -26,6 +26,7 @@
 #include "gpio.h"
 #include "rom_map.h"
 
+#include "simplelink.h"
 #include "wlan.h"
 
 /* FreeRTOS includes */
@@ -77,7 +78,7 @@
 #include "kitsune_version.h"
 #include "TestNetwork.h"
 #include "sys_time.h"
-#include "sl_sync.h"
+#include "sl_sync_inlcude_after_simpilelink_header.h"
 
 #define ONLY_MID 0
 

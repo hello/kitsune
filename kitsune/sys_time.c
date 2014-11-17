@@ -1,9 +1,10 @@
+#include "simplelink.h"
 #include "sys_time.h"
 #include "wifi_cmd.h"
 #include "networktask.h"
 #include "task.h"
 #include "uartstdio.h"
-#include "sl_sync.h"
+#include "sl_sync_inlcude_after_simpilelink_header.h"
 
 #define YEAR_TO_DAYS(y) ((y)*365 + (y)/4 - (y)/100 + (y)/400)
 static unsigned long last_ntp = 0;

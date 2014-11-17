@@ -1,4 +1,4 @@
-#include "sl_sync.h"
+#include "sl_sync_inlcude_after_simpilelink_header.h"
 #include "FreeRTOS.h"
 #include "semphr.h"
 
