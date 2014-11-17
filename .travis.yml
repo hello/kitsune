@@ -7,6 +7,7 @@ before_install:
 notifications:
   email:
   - chris@sayhello.com
+before_delpoy: ./teardown.sh
 deploy:
   provider: s3
   access_key_id: AKIAIJE3P5YMHYZQDY4Q
@@ -14,7 +15,7 @@ deploy:
     secure: M1siQBIXy9HDc9FKlgEMcnKt4C1a88D94ArbKmpfsm2/onvpK2VZ5R/aNXr5kbttv6zyqIE7dr9SbtKFfEm7NnveiKKpu7FKElRCC02pi5TSQ8u6C9CuQ+ePBoGeqg1ZvYGcP0pDh+krXRxGnLX86mDTv39WcnJ6oxQld8Ltz1Y=
   bucket: hello-firmware
   local-dir: exe
-  upload-dir: sense/travis/$TRAVIS_BUILD_ID/$TRAVIS_JOB_ID
+  upload-dir: sense/travis/$TRAVIS_BRANCH$TRAVIS_TAG
   on:
     repo: hello/kitsune
-    branch: chris-travis
+    all_branches: true
