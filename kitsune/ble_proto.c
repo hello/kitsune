@@ -23,7 +23,7 @@
 #include "top_board.h"
 #include "kitsune_version.h"
 #include "sys_time.h"
-#include "sl_sync_inlcude_after_simpilelink_header.h"
+#include "sl_sync_include_after_simplelink_header.h"
 
 extern volatile unsigned int sl_status;
 

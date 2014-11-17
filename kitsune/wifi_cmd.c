@@ -34,6 +34,7 @@ volatile unsigned int sl_status = 0;
 #include "task.h"
 
 #include "kitsune_version.h"
+#include "sl_sync_include_after_simplelink_header.h"
 
 #define FAKE_MAC 0
 

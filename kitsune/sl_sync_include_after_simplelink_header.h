@@ -10,11 +10,12 @@ extern "C" {
 
 #define SL_SYNC(call) \
 	({ \
-	UARTprintf("enter\n"); \
+	UARTprintf("enter %s\n", #call); \
 	long sl_ret; \
 	sl_enter_critical_region(); \
 	sl_ret = (call); \
 	sl_exit_critical_region(); \
+	UARTprintf("exit %s\n", #call); \
 	sl_ret; \
 	})
 

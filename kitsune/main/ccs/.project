@@ -351,9 +351,9 @@
 			<locationURI>PARENT-2-PROJECT_LOC/sl_sync.c</locationURI>
 		</link>
 		<link>
-			<name>sl_sync.h</name>
+			<name>sl_sync_include_after_simplelink_header.h</name>
 			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/sl_sync.h</locationURI>
+			<locationURI>PARENT-2-PROJECT_LOC/sl_sync_include_after_simplelink_header.h</locationURI>
 		</link>
 		<link>
 			<name>slip_packet.c</name>

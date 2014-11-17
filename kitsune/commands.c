@@ -78,7 +78,7 @@
 #include "kitsune_version.h"
 #include "TestNetwork.h"
 #include "sys_time.h"
-#include "sl_sync_inlcude_after_simpilelink_header.h"
+#include "sl_sync_include_after_simplelink_header.h"
 
 #define ONLY_MID 0
 
