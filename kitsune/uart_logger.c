@@ -273,6 +273,7 @@ _remove_oldest(int * rem){
  */
 int Cmd_log_upload(int argc, char *argv[]){
 	_swap_and_upload();
+	return 0;
 }
 void uart_logger_init(void){
 	self.upload_block = self.blocks[0];
@@ -292,7 +293,7 @@ void uart_logc(uint8_t c){
 		}
 		self.logging_block[self.widx] = c;
 		self.widx++;
-		xSemaphoreGive(self.block_operation_sem);
+		//xSemaphoreGive(self.block_operation_sem);
 	//}
 }
 
@@ -324,6 +325,7 @@ void uart_logger_task(void * params){
 			xEventGroupSetBits(self.uart_log_events, LOG_EVENT_UPLOAD);
 			break;
 		case LOG_EVENT_UPLOAD:
+			xEventGroupClearBits(self.uart_log_events,LOG_EVENT_UPLOAD);
 			if(sl_status & HAS_IP){
 				WORD read;
 				self.log.has_unix_time = false;
@@ -337,8 +339,6 @@ void uart_logger_task(void * params){
 					_remove_oldest(&rem);
 					if(rem > 0){
 						xEventGroupSetBits(self.uart_log_events, LOG_EVENT_UPLOAD);
-					}else{
-						xEventGroupClearBits(self.uart_log_events,LOG_EVENT_UPLOAD);
 					}
 				}else{
 					LOGI("Log upload failed\r\n");
