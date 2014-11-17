@@ -16,5 +16,5 @@ deploy:
   local-dir: exe
   upload-dir: sense/travis/$TRAVIS_BUILD_ID/$TRAVIS_JOB_ID
   on:
-    repo: hello/kitsune
-    branch: chris-travis
+    tags: true
+    all_branches: true
