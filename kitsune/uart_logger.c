@@ -230,7 +230,10 @@ _read_oldest(const char * buffer, int size, int * read){
 	if(ret == 0){
 		LOGI("No oldest log file exist, aborting...\r\n");
 	}else if(ret > 0 && counter >= 0){
+		char s[16] = {0};
+		snprintf(s,sizeof(s),"%d",counter);
 		LOGI("oldest log file is %d", counter);
+		return _read_file(s,buffer, size, read);
 	}else{
 		LOGW("log error %d\r\n", ret);
 	}
@@ -241,7 +244,10 @@ _read_oldest(const char * buffer, int size, int * read){
  */
 int Cmd_log_upload(int argc, char *argv[]){
 	//_swap_and_upload();
-	_read_oldest(NULL, 0, 0);
+	char testbuf[16] = {0};
+	int read;
+	_read_oldest(testbuf, 16, &read);
+	LOGI("Read %bytes: %s\r\n", read, testbuf);
 	return _save_newest("test", strlen("test"));
 }
 void uart_logger_init(void){
