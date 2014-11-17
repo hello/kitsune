@@ -341,6 +341,16 @@
 			<locationURI>PARENT-2-PROJECT_LOC/sha1.c</locationURI>
 		</link>
 		<link>
+			<name>sl_sync.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/sl_sync.c</locationURI>
+		</link>
+		<link>
+			<name>sl_sync.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/sl_sync.h</locationURI>
+		</link>
+		<link>
 			<name>slip_packet.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/slip_packet.c</locationURI>

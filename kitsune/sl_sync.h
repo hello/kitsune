@@ -16,7 +16,7 @@ extern "C" {
         ret; \
    })
 
-int sl_sync_init();
+void sl_sync_init();
 int sl_enter_critical_region();
 int sl_exit_critical_region();
 

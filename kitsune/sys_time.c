@@ -130,7 +130,6 @@ unsigned long get_time() {
 
 	}
 
-    if (last_ntp != 0) {
-        return get_cache_time();
-    }
+	return get_cache_time();
+
 }
