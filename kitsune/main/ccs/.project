@@ -196,6 +196,11 @@
 			<locationURI>PARENT-2-PROJECT_LOC/fft.h</locationURI>
 		</link>
 		<link>
+			<name>fileuploadertask.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/fileuploadertask.c</locationURI>
+		</link>
+		<link>
 			<name>gesture.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/gesture.c</locationURI>
@@ -599,6 +604,16 @@
 			<name>protobuf/audio_data.pb.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/protobuf/audio_data.pb.h</locationURI>
+		</link>
+		<link>
+			<name>protobuf/filetransfer.pb.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/filetransfer.pb.c</locationURI>
+		</link>
+		<link>
+			<name>protobuf/filetransfer.pb.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/filetransfer.pb.h</locationURI>
 		</link>
 		<link>
 			<name>protobuf/log.pb.c</name>

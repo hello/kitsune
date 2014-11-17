@@ -49,7 +49,7 @@ static void Init(NetworkTaskData_t * info) {
 
 }
 
-static void SynchronousSendNetworkResponseCallback(const NetworkResponse_t * response) {
+static void SynchronousSendNetworkResponseCallback(const NetworkResponse_t * response,void * context) {
 	memcpy(&_syncsendresponse,response,sizeof(NetworkResponse_t));
 
 //	DEBUG_PRINTF("NetTask::SynchronousSendNetworkResponseCallback -- got callback");
@@ -59,7 +59,7 @@ static void SynchronousSendNetworkResponseCallback(const NetworkResponse_t * res
 
 }
 
-static uint32_t EncodePb(pb_ostream_t * stream, const void * data) {
+static uint32_t EncodePb(pb_ostream_t * stream, void * data) {
 	network_encode_data_t * encodedata = (network_encode_data_t *)data;
 	uint32_t ret = false;
 
@@ -216,7 +216,7 @@ static void NetworkTask_Thread(void * networkdata) {
 
 		//let the requester know we are done
 		if (message.response_callback) {
-			message.response_callback(&response);
+			message.response_callback(&response,message.context);
 		}
 
 	}
