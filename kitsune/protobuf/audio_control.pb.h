@@ -26,7 +26,7 @@ typedef enum _AudioControl_AudioCaptureAction {
 /* Struct definitions */
 typedef struct _AudioClassifierMessage {
     pb_size_t idata_count;
-    int32_t idata[170];
+    int32_t idata[85];
     bool has_numclasses;
     int32_t numclasses;
     bool has_type;
