@@ -81,7 +81,7 @@ _swap_and_upload(void){
 		//logc can be called anywhere, so using ISR api instead
 		xEventGroupSetBits(self.uart_log_events, LOG_EVENT_START);
 	} else {
-		//both sd card and internet are busy, wtfmate
+		//operation busy
 	}
 	//swap
 	self.logging_block =
@@ -134,18 +134,20 @@ _walk_log_dir(file_handler * handler, void * ctx){
 }
 static void
 _find_oldest_log(FILINFO * info, void * ctx){
-	LOGI("log name: %s\r\n",info->fname);
+	//LOGI("log name: %s\r\n",info->fname);
 	if(ctx){
 		int * counter = (int*)ctx;
 		int fcounter = atoi(info->fname);
-		if(fcounter <= *counter){
+		if(fcounter <= *counter && *counter > 0){
+			*counter = fcounter;
+		}else if(*counter < 0){
 			*counter = fcounter;
 		}
 	}
 }
 static void
 _find_newest_log(FILINFO * info, void * ctx){
-	LOGI("log name: %s\r\n",info->fname);
+	//LOGI("log name: %s\r\n",info->fname);
 	if (ctx) {
 		int * counter = (int*) ctx;
 		int fcounter = atoi(info->fname);
@@ -154,13 +156,18 @@ _find_newest_log(FILINFO * info, void * ctx){
 		}
 	}
 }
-static FRESULT
-_open_log(FIL * file, char * local_name, WORD mode){
-	char full_name[32] = {0};
+static char*
+_full_log_name(char * full_name, char * local){
 	strcat(full_name, "/");
 	strcat(full_name, SENSE_LOG_FOLDER);
 	strcat(full_name, "/");
-	return hello_fs_open(file, strcat(full_name, local_name), mode);
+	strcat(full_name, local);
+	return full_name;
+}
+static FRESULT
+_open_log(FIL * file, char * local_name, WORD mode){
+	char name_buf[32] = {0};
+	return hello_fs_open(file, _full_log_name(name_buf, local_name), mode);
 }
 static int
 _write_file(char * local_name, const char * buffer, WORD size){
@@ -205,6 +212,11 @@ _read_file(char * local_name, char * buffer, WORD buffer_size, WORD *size_read){
 	}
 }
 static int
+_remove_file(char * local_name){
+	char name_buf[32] = {0};
+	return hello_fs_unlink(_full_log_name(name_buf, local_name));
+}
+static int
 _save_newest(const char * buffer, int size){
 	int counter = -1;
 	int ret = _walk_log_dir(_find_newest_log, &counter);
@@ -217,23 +229,39 @@ _save_newest(const char * buffer, int size){
 		LOGI("%d log file exists, newest = %d\r\n", ret, counter);
 		return _write_file(s, buffer, size);
 	}else{
-		LOGW("log error: %d \r\n", ret);
+		LOGW("Write log error: %d \r\n", ret);
 	}
 	return ret;
 }
 static int
 _read_oldest(char * buffer, int size, WORD * read){
-	int counter;
+	int counter = -1;
 	int ret = _walk_log_dir(_find_oldest_log, &counter);
 	if(ret == 0){
-		LOGI("No oldest log file exist, aborting...\r\n");
+		LOGI("No log file\r\n");
 	}else if(ret > 0 && counter >= 0){
 		char s[16] = {0};
 		snprintf(s,sizeof(s),"%d",counter);
-		LOGI("oldest log file is %d", counter);
+		LOGI("read log file %d", counter);
 		return _read_file(s,buffer, size, read);
 	}else{
-		LOGW("log error %d\r\n", ret);
+		LOGW("Read log error %d\r\n", ret);
+	}
+	return ret;
+}
+static int
+_remove_oldest(void){
+	int counter = -1;
+	int ret = _walk_log_dir(_find_oldest_log, &counter);
+	if(ret == 0){
+		LOGI("No log file\r\n");
+	} else if (ret > 0 && counter >= 0) {
+		char s[16] = { 0 };
+		snprintf(s, sizeof(s), "%d", counter);
+		LOGI("Removed log file %d", counter);
+		return _remove_file(s);
+	} else {
+		LOGW("Erase log error %d\r\n", ret);
 	}
 	return ret;
 }
@@ -288,6 +316,7 @@ void uart_logger_task(void * params){
 		switch(evnt){
 		case LOG_EVENT_START:
 			_save_newest(self.upload_block, UART_LOGGER_BLOCK_SIZE);
+			_remove_oldest();
 			/*if(sl_status & HAS_IP){
 				self.log.has_unix_time = true;
 				self.log.unix_time = get_time();
