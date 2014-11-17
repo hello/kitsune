@@ -7,7 +7,7 @@ before_install:
 notifications:
   email:
   - chris@sayhello.com
-before_delpoy: ./teardown.sh
+before_deploy: ./teardown.sh
 deploy:
   provider: s3
   access_key_id: AKIAIJE3P5YMHYZQDY4Q
@@ -19,3 +19,4 @@ deploy:
   on:
     repo: hello/kitsune
     all_branches: true
+    tags: true
