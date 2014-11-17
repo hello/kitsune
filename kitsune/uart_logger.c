@@ -228,7 +228,7 @@ _save_newest(const char * buffer, int size){
 	}else if(ret > 0 && counter >= 0){
 		char s[16] = {0};
 		snprintf(s,sizeof(s),"%d",++counter);
-		LOGI("%d log file exists, newest = %d\r\n", ret, counter);
+		LOGI("Wr log %d\r\n", counter);
 		return _write_file(s, buffer, size);
 	}else{
 		LOGW("Write log error: %d \r\n", ret);
@@ -244,7 +244,7 @@ _read_oldest(char * buffer, int size, WORD * read){
 	}else if(ret > 0 && counter >= 0){
 		char s[16] = {0};
 		snprintf(s,sizeof(s),"%d",counter);
-		LOGI("read log file %d", counter);
+		LOGI("Rd log %d\r\n", counter);
 		return _read_file(s,buffer, size, read);
 	}else{
 		LOGW("Read log error %d\r\n", ret);
@@ -260,7 +260,7 @@ _remove_oldest(int * rem){
 	} else if (ret > 0 && counter >= 0) {
 		char s[16] = { 0 };
 		snprintf(s, sizeof(s), "%d", counter);
-		LOGI("Removed log file %d", counter);
+		LOGI("Rm log %d\r\n", counter);
 		*rem = (ret - 1);
 		return _remove_file(s);
 	} else {
