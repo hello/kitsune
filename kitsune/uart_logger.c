@@ -24,12 +24,14 @@
  * Backend(if has no local backlog) -> Local -> Backend(if has IP)
  * This way we can guarantee continuity if wifi is intermittent
  */
-#define LOG_EVENT_START 		0x1
+#define LOG_EVENT_STORE 		0x1
+#define LOG_EVENT_UPLOAD	    0x2
 extern unsigned int sl_status;
 static struct{
-	uint8_t blocks[2][UART_LOGGER_BLOCK_SIZE];
+	uint8_t blocks[3][UART_LOGGER_BLOCK_SIZE];
 	volatile uint8_t * logging_block;
 	volatile uint8_t * upload_block;
+	uint8_t * operation_block;
 	volatile uint32_t widx;
 	EventGroupHandle_t uart_log_events;
 	sense_log log;
@@ -44,7 +46,7 @@ static int _walk_log_dir(file_handler * handler, void * ctx);
 static bool
 _encode_text_block(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
 	return pb_encode_tag(stream, PB_WT_STRING, field->tag)
-			&& pb_encode_string(stream, (uint8_t*)self.upload_block,
+			&& pb_encode_string(stream, (uint8_t*)self.operation_block,
 					UART_LOGGER_BLOCK_SIZE);
 }
 static bool
@@ -76,10 +78,10 @@ _encode_mac_as_device_id_string(pb_ostream_t *stream, const pb_field_t *field, v
 //
 static void
 _swap_and_upload(void){
-	if (!(xEventGroupGetBitsFromISR(self.uart_log_events) & LOG_EVENT_START)) {
+	if (!(xEventGroupGetBitsFromISR(self.uart_log_events) & LOG_EVENT_STORE)) {
 		self.upload_block = self.logging_block;
 		//logc can be called anywhere, so using ISR api instead
-		xEventGroupSetBits(self.uart_log_events, LOG_EVENT_START);
+		xEventGroupSetBits(self.uart_log_events, LOG_EVENT_STORE);
 	} else {
 		//operation busy
 	}
@@ -199,14 +201,14 @@ _read_file(char * local_name, char * buffer, WORD buffer_size, WORD *size_read){
 	FRESULT res = _open_log(&file_obj, local_name, FA_READ);
 	if(res == FR_OK){
 		do{
-			res = hello_fs_read(&file_obj, (void*)(buffer + offset), buffer_size,
+			res = hello_fs_read(&file_obj, (void*)(buffer + offset), 128,
 					&read);
 
 			if(res != FR_OK){
 				return((int)res);
 			}
 			offset += read;
-		}while(read == buffer_size && offset < buffer_size);
+		}while(read == 128 && offset < buffer_size);
 	}else{
 		return (int)res;
 	}
@@ -250,7 +252,7 @@ _read_oldest(char * buffer, int size, WORD * read){
 	return ret;
 }
 static int
-_remove_oldest(void){
+_remove_oldest(int * rem){
 	int counter = -1;
 	int ret = _walk_log_dir(_find_oldest_log, &counter);
 	if(ret == 0){
@@ -259,6 +261,7 @@ _remove_oldest(void){
 		char s[16] = { 0 };
 		snprintf(s, sizeof(s), "%d", counter);
 		LOGI("Removed log file %d", counter);
+		*rem = (ret - 1);
 		return _remove_file(s);
 	} else {
 		LOGW("Erase log error %d\r\n", ret);
@@ -273,6 +276,7 @@ int Cmd_log_upload(int argc, char *argv[]){
 }
 void uart_logger_init(void){
 	self.upload_block = self.blocks[0];
+	self.operation_block = self.blocks[2];
 	self.uart_log_events = xEventGroupCreate();
 	xEventGroupClearBits( self.uart_log_events, 0xff );
 	self.log.text.funcs.encode = _encode_text_block;
@@ -314,26 +318,35 @@ void uart_logger_task(void * params){
                 pdFALSE,       /* Don't wait for both bits, either bit will do. */
                 portMAX_DELAY );/* Wait for any bit to be set. */
 		switch(evnt){
-		case LOG_EVENT_START:
-			_save_newest(self.upload_block, UART_LOGGER_BLOCK_SIZE);
+		case LOG_EVENT_STORE:
+			_save_newest((char*)self.upload_block, UART_LOGGER_BLOCK_SIZE);
+			xEventGroupClearBits(self.uart_log_events,LOG_EVENT_STORE);
+			xEventGroupSetBits(self.uart_log_events, LOG_EVENT_UPLOAD);
+			break;
+		case LOG_EVENT_UPLOAD:
 			if(sl_status & HAS_IP){
 				WORD read;
 				self.log.has_unix_time = false;
 				//for read oldest block and upload, we are reusing upload_block pointer until more memory is freed
 				//so that a upload block can be dedicated to reading old files
-				_read_oldest(self.upload_block,UART_LOGGER_BLOCK_SIZE, &read);
+				_read_oldest((char*)self.operation_block,UART_LOGGER_BLOCK_SIZE, &read);
 				ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER, SENSE_LOG_ENDPOINT,buffer,sizeof(buffer),sense_log_fields,&self.log,0);
 				if(ret == 0){
-					LOGI("Succeeded\r\n");
-					_remove_oldest();
+					int rem = -1;
+					LOGI("Log upload succeeded\r\n");
+					_remove_oldest(&rem);
+					if(rem > 0){
+						xEventGroupSetBits(self.uart_log_events, LOG_EVENT_UPLOAD);
+					}else{
+						xEventGroupClearBits(self.uart_log_events,LOG_EVENT_UPLOAD);
+					}
 				}else{
-					LOGI("Failed\r\n");
-					//TODO, failed tx, logging local
+					LOGI("Log upload failed\r\n");
 				}
 			}
-			xEventGroupClearBits(self.uart_log_events,LOG_EVENT_START);
 			break;
 		}
+		vTaskDelay(2000);
 	}
 }
 int Cmd_log_setview(int argc, char * argv[]){
