@@ -28,7 +28,7 @@
 extern volatile unsigned int sl_status;
 
 static void _factory_reset(){
-    int16_t ret = sl_WlanProfileDel(0xFF);
+    int16_t ret = SL_SYNC(sl_WlanProfileDel(0xFF));
     if(ret)
     {
         UARTprintf("Delete all stored endpoint failed, error %d.\n", ret);
@@ -38,7 +38,7 @@ static void _factory_reset(){
         UARTprintf("All stored WIFI EP removed.\n");
     }
 
-    ret = sl_WlanDisconnect();
+    ret = SL_SYNC(sl_WlanDisconnect());
     if(ret == 0){
         UARTprintf("WIFI disconnected\n");
     }else{
@@ -53,10 +53,10 @@ static void _factory_reset(){
 
     if(networktask_enter_critical_region() == pdTRUE)
     {
-		ret = sl_Stop(0x00FF);
+		ret = SL_SYNC(sl_Stop(0x00FF));
 		if(ret == 0)
 		{
-			sl_Start(NULL, NULL, NULL);
+			SL_SYNC(sl_Start(NULL, NULL, NULL));
 		}else{
 			UARTprintf("NWP reset failed\n");
 		}
@@ -168,8 +168,8 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type)
 			led_set_color(0xFF, LED_MAX, 0x66, 0, 1, 0, 15, 0);  // Tell the user we are going to fire the bomb.
 
 			networktask_enter_critical_region();
-			sl_Stop(0x00FF);   // 0x00FF is a magic number... don't change or it might fail.
-			sl_Start(NULL, NULL, NULL);  // In factory reset, PW experience bus fault here. But in connection fail situation it works fine.
+			SL_SYNC(sl_Stop(0x00FF));   // 0x00FF is a magic number... don't change or it might fail.
+			SL_SYNC(sl_Start(NULL, NULL, NULL));  // In factory reset, PW experience bus fault here. But in connection fail situation it works fine.
 			networktask_exit_critical_region();
 
 			wait_time = 10;
@@ -211,7 +211,7 @@ static void _reply_device_id()
     uint8_t mac_len = SL_MAC_ADDR_LEN;
     uint8_t mac[SL_MAC_ADDR_LEN] = {0};
 
-    int32_t ret = sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
+    int32_t ret = SL_SYNC(sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac));
     if(ret == 0 || ret == SL_ESMALLBUF)  // OK you win: http://e2e.ti.com/support/wireless_connectivity/f/968/p/360573/1279578.aspx#1279578
     {
 

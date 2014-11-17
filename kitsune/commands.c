@@ -171,24 +171,24 @@ int Cmd_fs_write(int argc, char *argv[]) {
 	long hndl, bytes;
 	SlFsFileInfo_t info;
 
-	sl_FsGetInfo((unsigned char*)argv[1], tok, &info);
+	SL_SYNC(sl_FsGetInfo((unsigned char*)argv[1], tok, &info));
 
-	if (sl_FsOpen((unsigned char*)argv[1],
-	FS_MODE_OPEN_WRITE, &tok, &hndl)) {
+	if (SL_SYNC(sl_FsOpen((unsigned char*)argv[1],
+	FS_MODE_OPEN_WRITE, &tok, &hndl))) {
 		UARTprintf("error opening file, trying to create\n");
 
-		if (sl_FsOpen((unsigned char*)argv[1],
+		if (SL_SYNC(sl_FsOpen((unsigned char*)argv[1],
 				FS_MODE_OPEN_CREATE(65535, _FS_FILE_OPEN_FLAG_COMMIT), &tok,
-				&hndl)) {
+				&hndl))) {
 			UARTprintf("error opening for write\n");
 			return -1;
 		}
 	}
 
-	bytes = sl_FsWrite(hndl, info.FileLen, (unsigned char*)argv[2], strlen(argv[2]));
+	bytes = SL_SYNC(sl_FsWrite(hndl, info.FileLen, (unsigned char*)argv[2], strlen(argv[2])));
 	UARTprintf("wrote to the file %d bytes\n", bytes);
 
-	sl_FsClose(hndl, 0, 0, 0);
+	SL_SYNC(sl_FsClose(hndl, 0, 0, 0));
 
 	// Return success.
 	return (0);
@@ -204,29 +204,29 @@ int Cmd_fs_read(int argc, char *argv[]) {
 	SlFsFileInfo_t info;
 	char buffer[BUF_SZ];
 
-	sl_FsGetInfo((unsigned char*)argv[1], tok, &info);
+	SL_SYNC(sl_FsGetInfo((unsigned char*)argv[1], tok, &info));
 
-	err = sl_FsOpen((unsigned char*) argv[1], FS_MODE_OPEN_READ, &tok, &hndl);
+	err = SL_SYNC(sl_FsOpen((unsigned char*) argv[1], FS_MODE_OPEN_READ, &tok, &hndl));
 	if (err) {
 		UARTprintf("error opening for read %d\n", err);
 		return -1;
 	}
 	if( argc >= 3 ){
-		bytes = sl_FsRead(hndl, atoi(argv[2]), (unsigned char*) buffer,
-				minval(info.FileLen, BUF_SZ));
+		bytes = SL_SYNC(sl_FsRead(hndl, atoi(argv[2]), (unsigned char*) buffer,
+				minval(info.FileLen, BUF_SZ)));
 		if (bytes) {
 						UARTprintf("read %d bytes\n", bytes);
 					}
 	}else{
-		bytes = sl_FsRead(hndl, 0, (unsigned char*) buffer,
-				minval(info.FileLen, BUF_SZ));
+		bytes = SL_SYNC(sl_FsRead(hndl, 0, (unsigned char*) buffer,
+				minval(info.FileLen, BUF_SZ)));
 		if (bytes) {
 						UARTprintf("read %d bytes\n", bytes);
 					}
 	}
 
 
-	sl_FsClose(hndl, 0, 0, 0);
+	SL_SYNC(sl_FsClose(hndl, 0, 0, 0));
 
 	for (i = 0; i < bytes; ++i) {
 		UARTprintf("%x", buffer[i]);
@@ -249,16 +249,16 @@ unsigned int CPU_XDATA = 1; //1: enabled CPU interrupt triggerred
 	//Audio_Stop();
 	audio_buf = (unsigned short*)pvPortMalloc(AUDIO_BUF_SZ);
 	//assert(audio_buf);
-	err = sl_FsOpen("Ringtone_hello_leftchannel_16PCM", FS_MODE_OPEN_READ, &tok, &hndl);
+	err = SL_SYNC(sl_FsOpen("Ringtone_hello_leftchannel_16PCM", FS_MODE_OPEN_READ, &tok, &hndl));
 	if (err) {
 		UARTprintf("error opening for read %d\n", err);
 		return -1;
 	}
-	bytes = sl_FsRead(hndl, 0,  (unsigned char*)audio_buf, AUDIO_BUF_SZ);
+	bytes = SL_SYNC(sl_FsRead(hndl, 0,  (unsigned char*)audio_buf, AUDIO_BUF_SZ));
 	if (bytes) {
 		UARTprintf("read %d bytes\n", bytes);
 	}
-	sl_FsClose(hndl, 0, 0, 0);
+	SL_SYNC(sl_FsClose(hndl, 0, 0, 0));
 
 	get_codec_NAU(atoi(argv[1]));
 	UARTprintf(" Done for get_codec_NAU\n ");
@@ -424,7 +424,7 @@ int Cmd_fs_delete(int argc, char *argv[]) {
 	//
 	// Print some header text.
 	//
-	int err = sl_FsDel((unsigned char*)argv[1], 0);
+	int err = SL_SYNC(sl_FsDel((unsigned char*)argv[1], 0));
 	if (err) {
 		UARTprintf("error %d\n", err);
 		return -1;
@@ -1300,23 +1300,23 @@ void vUARTTask(void *pvParameters) {
 
 	UARTprintf("*");
 	now = xTaskGetTickCount();
-	sl_mode = sl_Start(NULL, NULL, NULL);
+	sl_mode = SL_SYNC(sl_Start(NULL, NULL, NULL));
 	UARTprintf("*");
 	while (sl_mode != ROLE_STA) {
 		UARTprintf("+");
-		sl_WlanSetMode(ROLE_STA);
-		sl_Stop(1);
-		sl_mode = sl_Start(NULL, NULL, NULL);
+		SL_SYNC(sl_WlanSetMode(ROLE_STA));
+		SL_SYNC(sl_Stop(1));
+		sl_mode = SL_SYNC(sl_Start(NULL, NULL, NULL));
 	}
 	UARTprintf("*");
 
 	// Set connection policy to Auto
-	sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0), NULL, 0);
+	SL_SYNC(sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0), NULL, 0));
 
 	UARTprintf("*");
 	unsigned char mac[6];
 	unsigned char mac_len;
-	sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
+	SL_SYNC(sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac));
 	UARTprintf("*");
 
 	// SDCARD INITIALIZATION

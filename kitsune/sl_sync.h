@@ -11,7 +11,7 @@ extern "C" {
 #define SL_SYNC(call) \
    ({   \
         sl_enter_critical_region(); \
-        int ret = (call); \
+        long ret = (call); \
         sl_exit_critical_region(); \
         ret; \
    })
