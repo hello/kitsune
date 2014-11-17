@@ -1,6 +1,3 @@
-/**
- * Top board control daemon
- */
 #ifndef __SYSTEM_TIME_H__
 #define __SYSTEM_TIME_H__
 

@@ -3,6 +3,7 @@
 #include "networktask.h"
 #include "task.h"
 #include "uartstdio.h"
+#include "sl_sync.h"
 
 #define YEAR_TO_DAYS(y) ((y)*365 + (y)/4 - (y)/100 + (y)/400)
 static unsigned long last_ntp = 0;
@@ -69,7 +70,7 @@ uint64_t get_cache_time()
     SlDateTime_t dt =  {0};
     uint8_t configLen = sizeof(SlDateTime_t);
     uint8_t configOpt = SL_DEVICE_GENERAL_CONFIGURATION_DATE_TIME;
-    int32_t ret = sl_DevGet(SL_DEVICE_GENERAL_CONFIGURATION,&configOpt, &configLen,(_u8 *)(&dt));
+    int32_t ret = SL_SYNC(sl_DevGet(SL_DEVICE_GENERAL_CONFIGURATION,&configOpt, &configLen,(_u8 *)(&dt)));
     if(ret != 0)
     {
         UARTprintf("sl_DevGet failed, err: %d\n", ret);
@@ -118,9 +119,9 @@ unsigned long get_time() {
 			untime( ntp, &tm );
 			UARTprintf( "setting sl time %d:%d:%d day %d mon %d yr %d", tm.sl_tm_hour,tm.sl_tm_min,tm.sl_tm_sec,tm.sl_tm_day,tm.sl_tm_mon,tm.sl_tm_year);
 
-			sl_DevSet(SL_DEVICE_GENERAL_CONFIGURATION,
+			SL_SYNC(sl_DevSet(SL_DEVICE_GENERAL_CONFIGURATION,
 					  SL_DEVICE_GENERAL_CONFIGURATION_DATE_TIME,
-					  sizeof(SlDateTime_t),(unsigned char *)(&tm));
+					  sizeof(SlDateTime_t),(unsigned char *)(&tm)));
 			last_ntp = ntp;   // Just be careful here, set last_ntp after setting the time to NWP, or there will be a race condition.
 		}
 
