@@ -229,11 +229,7 @@ uint32_t fetch_time_from_ntp_server() {
 		while (!(sl_status & HAS_IP)) {
 			vTaskDelay(100);
 		} //wait for a connection...
-
-		networktask_enter_critical_region();
 		ntp = unix_time();
-
-		networktask_exit_critical_region();
 
 		if(ntp != INVALID_SYS_TIME)
 		{
