@@ -309,8 +309,8 @@ int Cmd_ping(int argc, char *argv[]) {
 }
 
 int Cmd_time(int argc, char*argv[]) {
-	uint64_t unix = fetch_time_from_ntp_server();
-	uint64_t t = get_nwp_time();
+	uint32_t unix = fetch_time_from_ntp_server();
+	uint32_t t = get_nwp_time();
 
     UARTprintf(" time is %u and the ntp is %d and the diff is %d\n", t, unix, t-unix);
 
