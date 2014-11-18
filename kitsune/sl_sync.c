@@ -8,8 +8,7 @@ static xSemaphoreHandle _sl_mutex;
 
 long sl_sync_init()
 {
-	//_sl_mutex = xSemaphoreCreateMutex();
-	vSemaphoreCreateBinary(_sl_mutex);
+	_sl_mutex = xSemaphoreCreateMutex();
 	return 1;
 }
 
