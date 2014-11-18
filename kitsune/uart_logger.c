@@ -34,7 +34,7 @@ static struct{
 	//ptr to block that is being stored to sdcard
 	volatile uint8_t * store_block;
 	//ptr to block that is used to upload or read from sdcard
-	uint8_t * operation_block;
+	volatile uint8_t * operation_block;
 	volatile uint32_t widx;
 	EventGroupHandle_t uart_log_events;
 	sense_log log;
