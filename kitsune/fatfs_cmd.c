@@ -1433,39 +1433,11 @@ void free_download_info(SyncResponse_FileDownload * download_info) {
 	}
 }
 
-typedef struct {
-	char filename[32];
-	bool needed;
-} manifest_entry;
-typedef struct {
-	manifest_entry entries[32];
-	int count;
-	xSemaphoreHandle manifest_smphr;
-} manifest_t;
-//just make all this static and required in pb and use that structure!
-
-void manifest_init( manifest_t* man ) {
-
-}
-void manifest_add( manifest_t* man, char * file ) {
-//add only if not present already
-}
-void manifest_complete( manifest_t* man, char * file ) {
-
-}
-void manifest_incomplete( manifest_t* man, char * file ) {
-
-}
-void manifest_needs( manifest_t* man, char * file ) {
-
-}
-
 SHA1_CTX sha1ctx;
 
 xQueueHandle download_queue = 0;
 
 void file_download_task( void * manifestPtr ) {
-	manifest_t * manifest = (manifest_t *)manifestPtr;
 	SyncResponse_FileDownload download_info;
 	while (xQueueReceive(download_queue, &(download_info), 100)) {
 		char * filename=NULL, * url=NULL, * host=NULL, * path=NULL, * serial_flash_path=NULL, * serial_flash_name=NULL;
@@ -1604,12 +1576,8 @@ void file_download_task( void * manifestPtr ) {
 					send_top("dfu", strlen("dfu"));
 					wait_for_top_boot(120000);
 				}
-				manifest_complete(filename);
-			} else {
-				manifest_complete(filename);
 			}
 			if( download_info.has_reset_application_processor && download_info.reset_application_processor ) {
-				manifest_incomplete(filename);
 				UARTprintf("change image status to IMG_STATUS_TESTREADY\n\r");
 				_ReadBootInfo(&sBootInfo);
 				if (download_info.has_sha1) {
@@ -1621,7 +1589,6 @@ void file_download_task( void * manifestPtr ) {
 						sBootInfo.ulImgStatus = IMG_STATUS_TESTREADY;
 						memcpy(sBootInfo.sha[_McuImageGetNewIndex()], download_info.sha1.bytes, SHA1_SIZE );
 						//sBootInfo.ucActiveImg this is set by boot loader
-						manifest_complete(filename);
 						_WriteBootInfo(&sBootInfo);
 						mcu_reset();
 					} else {
@@ -1638,18 +1605,16 @@ void file_download_task( void * manifestPtr ) {
 				nwp_reset();
 			}
 		}
-		end_download_task: //there was an error
 		free_download_info( &download_info );
-	}
-}
-bool _on_file_manifest(pb_istream_t *stream, const pb_field_t *field, void **arg) {
-	//todo what if we get the next set before the current set finishes? How do we know which set we're on? (manifest)
-	//todo what if there's an error on some but not all the files? (manifest)
+		continue;
 
-	manifest_t manifest; // = ?
-	if( !download_queue ) {
-		download_queue = xQueueCreate(20, sizeof(SyncResponse_FileDownload));
-		xTaskCreate(file_download_task, "download task", 2*1024/4, &manifest, 1, NULL);
+		//what if we get the next set before the current set finishes? How do we know which set we're on? (doesn't matter, it will just overflow the queue)
+		//what if there's an error on some but not all the files? (start over)
+
+		end_download_task: //there was an error
+		while( xQueueReceive(download_queue, &download_info, 10 ) ) {
+			free_download_info( &download_info );
+		}
 	}
 }
 
