@@ -765,7 +765,16 @@ int GetChunkSize(int *len, unsigned char **p_Buff, unsigned long *chunk_size)
 //****************************************************************************
 #include "stdlib.h"
 #include "led_animations.h"
-int GetData(char * filename, char* url, char * host, char * path)
+typedef enum {
+	SERIAL_FLASH,
+	SD_CARD,
+} storage_dev_t;
+
+#include "crypto.h"
+SHA1_CTX sha1ctx;
+
+
+int GetData(char * filename, char* url, char * host, char * path, storage_dev_t storage)
 {
     int           transfer_len = 0;
     WORD          r = 0;
@@ -773,6 +782,8 @@ int GetData(char * filename, char* url, char * host, char * path)
     char          eof_detected = 0;
     unsigned long recv_size = 0;
     unsigned char isChunked = 0;
+
+    long          fileHandle = -1;
 
     UARTprintf("Start downloading the file\r\n");
 
@@ -891,24 +902,43 @@ int GetData(char * filename, char* url, char * host, char * path)
     }
     FRESULT res;
 
-	mkdir( path );
-	cd( path );
+	if (storage == SD_CARD) {
+		mkdir(path);
+		cd(path);
 
-    /* Open file to save the downloaded file */
-    if(global_filename( filename ))
-    {
-    	cd( "/" );
-    	return 1;
-    }
-    // Open the file for writing.
-    res = hello_fs_open(&file_obj, path_buff, FA_CREATE_NEW|FA_WRITE|FA_OPEN_ALWAYS);
-    UARTprintf("res :%d\n",res);
+		/* Open file to save the downloaded file */
+		if (global_filename(filename)) {
+			cd("/");
+			return 1;
+		}
+		// Open the file for writing.
+		res = hello_fs_open(&file_obj, path_buff,
+				FA_CREATE_NEW | FA_WRITE | FA_OPEN_ALWAYS);
+		UARTprintf("res :%d\n", res);
 
-    if(res != FR_OK && res != FR_EXIST){
-    	UARTprintf("File open %s failed: %d\n", path_buff, res);
-    	cd( "/" );
-    	return res;
-    }
+		if (res != FR_OK && res != FR_EXIST) {
+			UARTprintf("File open %s failed: %d\n", path_buff, res);
+			cd("/");
+			return res;
+		}
+	} else if( storage == SERIAL_FLASH ) {
+	    /* Open file to save the downloaded file */
+	    unsigned long Token = 0;
+
+	    long lRetVal = sl_FsOpen((_u8 *)FILE_NAME,
+	                       FS_MODE_OPEN_WRITE, &Token, &fileHandle);
+	    if(lRetVal < 0)
+	    {
+	        // File Doesn't exit create a new of 40 KB file
+	        lRetVal = sl_FsOpen((unsigned char *)FILE_NAME, \
+	                           FS_MODE_OPEN_CREATE(SIZE_40K, \
+	                           _FS_FILE_OPEN_FLAG_COMMIT|_FS_FILE_PUBLIC_WRITE),
+	                           &Token, &fileHandle);
+	        return (lRetVal);
+
+	    }
+		SHA1_Init(&sha1ctx);
+	}
     uint32_t total = recv_size;
     int percent = 101-100*recv_size/total;
 	play_led_progress_bar(132, 233, 4, 0, portMAX_DELAY);
@@ -925,25 +955,44 @@ int GetData(char * filename, char* url, char * host, char * path)
         if(recv_size <= transfer_len)
         {
             // write the recv_size
-            res = hello_fs_write( &file_obj, pBuff, transfer_len, &r );
+			if (storage == SD_CARD) {
+				res = hello_fs_write(&file_obj, pBuff, transfer_len, &r);
+				if (r < recv_size) {
+					UARTprintf(
+							"Failed during writing the file, Error-code: %d\r\n",
+							FILE_WRITE_ERROR);
+					/* Close file without saving */
+					res = hello_fs_close(&file_obj);
 
+					if (res != FR_OK) {
+						cd("/");
+						stop_led_animation();
+						return ((int) res);
+					}
+					hello_fs_unlink(path_buff);
+					cd("/");
+
+					return -1;
+				}
+			} else if (storage == SERIAL_FLASH) {
+				//write to serial flash file
+	            long lRetVal = sl_FsWrite(fileHandle, transfer_len,
+	                    (unsigned char *)pBuff, recv_size);
+	            if(lRetVal < recv_size)
+	            {
+	                UART_PRINT("Failed during writing the file, Error-code: %d\r\n", \
+	                            FILE_WRITE_ERROR);
+	                /* Close file without saving */
+	                lRetVal = sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
+	                return lRetVal;
+	            }
+
+				SHA1_Update(&sha1ctx, (uint8_t*)pBuff, transfer_len);
+			}
             UARTprintf("chunked 1 wrote:  %d %d\r\n", r, res);
 
             if(r < recv_size)
             {
-                UARTprintf("Failed during writing the file, Error-code: %d\r\n", \
-                            FILE_WRITE_ERROR);
-                /* Close file without saving */
-                res = hello_fs_close( &file_obj );
-
-                if(res != FR_OK)
-                {
-                	cd( "/" );
-        			stop_led_animation();
-                    return((int)res);
-                }
-                hello_fs_unlink( path_buff );
-                cd( "/" );
     			stop_led_animation();
                 return r;
             }
@@ -976,25 +1025,45 @@ int GetData(char * filename, char* url, char * host, char * path)
                     // Code will enter this section if the new chunk size is
                     // less than the transfer size. This will the last chunk of
                     // file received
-                    res = hello_fs_write( &file_obj, pBuff, transfer_len, &r );
+        			if (storage == SD_CARD) {
+        				res = hello_fs_write(&file_obj, pBuff, recv_size, &r);
+        				if (r < recv_size) {
+        					UARTprintf(
+        							"Failed during writing the file, Error-code: %d\r\n",
+        							FILE_WRITE_ERROR);
+        					/* Close file without saving */
+        					res = hello_fs_close(&file_obj);
+
+        					if (res != FR_OK) {
+        						cd("/");
+        						stop_led_animation();
+        						return ((int) res);
+        					}
+        					hello_fs_unlink(path_buff);
+        					cd("/");
+
+        					return -1;
+        				}
+        			} else if (storage == SERIAL_FLASH) {
+						//write to serial flash file
+					    r = sl_FsWrite(fileHandle, recv_size,
+								(unsigned char *) pBuff, recv_size);
+						if (r < recv_size) {
+							UART_PRINT(
+									"Failed during writing the file, Error-code: %d\r\n",
+									FILE_WRITE_ERROR);
+							/* Close file without saving */
+							r = sl_FsClose(fileHandle, 0,
+									(unsigned char*) "A", 1);
+							return r;
+						}
+        				SHA1_Update(&sha1ctx, (uint8_t*)pBuff, transfer_len);
+        			}
 
                     UARTprintf("chunked 2 wrote:  %d %d\r\n", r, res);
 
                     if(r < recv_size)
                     {
-                        UARTprintf("Failed during writing the file, " \
-                                    "Error-code: %d\r\n", FILE_WRITE_ERROR);
-                        /* Close file without saving */
-                        res = hello_fs_close( &file_obj );
-
-                        if(res != FR_OK)
-                        {
-                			stop_led_animation();
-                        	cd( "/" );
-                            return((int)res);
-                        }
-                        hello_fs_unlink( path_buff );
-                        cd( "/" );
             			stop_led_animation();
                         return FILE_WRITE_ERROR;
                     }
@@ -1025,25 +1094,45 @@ int GetData(char * filename, char* url, char * host, char * path)
                 else
                 {
                     // write data on the file
-                    res = hello_fs_write( &file_obj, pBuff, transfer_len, &r );
+        			if (storage == SD_CARD) {
+        				res = hello_fs_write(&file_obj, pBuff, transfer_len, &r);
+        				if (r < recv_size) {
+        					UARTprintf(
+        							"Failed during writing the file, Error-code: %d\r\n",
+        							FILE_WRITE_ERROR);
+        					/* Close file without saving */
+        					res = hello_fs_close(&file_obj);
+
+        					if (res != FR_OK) {
+        						cd("/");
+        						stop_led_animation();
+        						return ((int) res);
+        					}
+        					hello_fs_unlink(path_buff);
+        					cd("/");
+
+        					return -1;
+        				}
+        			} else if (storage == SERIAL_FLASH) {
+        				//write to serial flash file
+						r = sl_FsWrite(fileHandle, transfer_len,
+								(unsigned char *) pBuff, recv_size);
+						if (r < recv_size) {
+							UART_PRINT(
+									"Failed during writing the file, Error-code: %d\r\n",
+									FILE_WRITE_ERROR);
+							/* Close file without saving */
+							r = sl_FsClose(fileHandle, 0,
+									(unsigned char*) "A", 1);
+							return r;
+						}
+        				SHA1_Update(&sha1ctx, (uint8_t*)pBuff, transfer_len);
+        			}
 
                     UARTprintf("chunked 3 wrote:  %d %d\r\n", r, res);
 
                     if(r < transfer_len)
                     {
-                        UARTprintf("Failed during writing the file, " \
-                                    "Error-code: %d\r\n", FILE_WRITE_ERROR);
-                        /* Close file without saving */
-                        res = hello_fs_close( &file_obj );
-
-                        if(res != FR_OK)
-                        {
-                        	cd( "/" );
-                			stop_led_animation();
-                            return((int)res);
-                        }
-                        hello_fs_unlink( path_buff );
-                        cd( "/" );
             			stop_led_animation();
                         return FILE_WRITE_ERROR;
                     }
@@ -1061,24 +1150,45 @@ int GetData(char * filename, char* url, char * host, char * path)
         else
         {
             // write data on the file
-            res = hello_fs_write( &file_obj, pBuff, transfer_len, &r );
+			if (storage == SD_CARD) {
+				res = hello_fs_write(&file_obj, pBuff, transfer_len, &r);
+				if (r < recv_size) {
+					UARTprintf(
+							"Failed during writing the file, Error-code: %d\r\n",
+							FILE_WRITE_ERROR);
+					/* Close file without saving */
+					res = hello_fs_close(&file_obj);
+
+					if (res != FR_OK) {
+						cd("/");
+						stop_led_animation();
+						return ((int) res);
+					}
+					hello_fs_unlink(path_buff);
+					cd("/");
+
+					return -1;
+				}
+			} else if (storage == SERIAL_FLASH) {
+				//write to serial flash file
+				long lRetVal = sl_FsWrite(fileHandle, transfer_len,
+						(unsigned char *) pBuff, recv_size);
+				if (lRetVal < recv_size) {
+					UART_PRINT(
+							"Failed during writing the file, Error-code: %d\r\n",
+							FILE_WRITE_ERROR);
+					/* Close file without saving */
+					lRetVal = sl_FsClose(fileHandle, 0, (unsigned char*) "A",
+							1);
+					return lRetVal;
+				}
+				SHA1_Update(&sha1ctx, (uint8_t*)pBuff, transfer_len);
+			}
 
             UARTprintf("wrote:  %d %d\r\n", r, res);
 
             if (r != transfer_len )
             {
-                UARTprintf("Failed during writing the file, Error-code: " \
-                            "%d\r\n", FILE_WRITE_ERROR);
-                /* Close file without saving */
-                res = hello_fs_close( &file_obj );
-
-                if(res != FR_OK)
-                {
-                	cd( "/" );
-        			stop_led_animation();
-                    return((int)res);
-                }
-                hello_fs_unlink( path_buff );
     			stop_led_animation();
                 return FILE_WRITE_ERROR;
             }
@@ -1111,31 +1221,43 @@ int GetData(char * filename, char* url, char * host, char * path)
     if(0 > transfer_len || eof_detected == 0)
     {
     	UARTprintf(" invalid file\r\n" );
-        /* Close file without saving */
-        res = hello_fs_close( &file_obj );
 
-        if(res != FR_OK)
-        {
-        	cd( "/" );
-            return((int)res);
-        }
-        hello_fs_unlink( path_buff );
-        cd( "/" );
+		if (storage == SD_CARD) {
+	        /* Close file without saving */
+	        res = hello_fs_close( &file_obj );
+
+	        if(res != FR_OK)
+	        {
+	        	cd( "/" );
+	            return((int)res);
+	        }
+	        hello_fs_unlink( path_buff );
+	        cd( "/" );
+		} else if (storage == SERIAL_FLASH) {
+	        /* Close file without saving */
+		}
         return INVALID_FILE;
     }
     else
     {
     	UARTprintf(" successful file\r\n" );
-        /* Save and close file */
-        res = hello_fs_close( &file_obj );
 
-        if(res != FR_OK)
-        {
-        	cd( "/" );
-            return((int)res);
-        }
+		if (storage == SD_CARD) {
+	        /* Save and close file */
+	        res = hello_fs_close( &file_obj );
+
+	        if(res != FR_OK)
+	        {
+	        	cd( "/" );
+	            return((int)res);
+	        }
+		} else if (storage == SERIAL_FLASH) {
+	        /* Save and close file */
+		}
     }
-    cd( "/" );
+	if (storage == SD_CARD) {
+        cd( "/" );
+	}
     return 0;
 }
 
@@ -1158,7 +1280,7 @@ int file_exists( char * filename, char * path ) {
 	return 1;
 }
 
-int download_file(char * host, char * url, char * filename, char * path ) {
+int download_file(char * host, char * url, char * filename, char * path, storage_dev_t storage ) {
 	unsigned long ip;
 	int r = gethostbyname((signed char*) host, strlen(host), &ip, SL_AF_INET);
 	if (r < 0) {
@@ -1175,7 +1297,7 @@ int download_file(char * host, char * url, char * filename, char * path ) {
 		UARTprintf("Connection to server created successfully\r\n");
 	}
 	// Download the file, verify the file and replace the exiting file
-	r = GetData(filename, url, host, path);
+	r = GetData(filename, url, host, path, storage);
 	if (r < 0) {
 		UARTprintf("Device couldn't download the file from the server\n\r");
 	}
@@ -1188,7 +1310,7 @@ int download_file(char * host, char * url, char * filename, char * path ) {
 
 //download dropbox.com somefile.txt /on/drop/box/file.txt /
 int Cmd_download(int argc, char*argv[]) {
-	return download_file( argv[1], argv[3], argv[2], argv[4] );
+	return download_file( argv[1], argv[3], argv[2], argv[4], SD_CARD );
 }
 
 //end download functions
@@ -1230,8 +1352,6 @@ int Cmd_download(int argc, char*argv[]) {
 
 #define DEVICE_IS_CC3101RS      0x18
 #define DEVICE_IS_CC3101S       0x1B
-
-#include "crypto.h"
 
 /******************************************************************************
    Boot Info structure
@@ -1433,8 +1553,6 @@ void free_download_info(SyncResponse_FileDownload * download_info) {
 	}
 }
 
-SHA1_CTX sha1ctx;
-
 xQueueHandle download_queue = 0;
 
 void file_download_task( void * manifestPtr ) {
@@ -1486,102 +1604,36 @@ void file_download_task( void * manifestPtr ) {
 				hello_fs_unlink(path_buff);
 			}
 
-			//download it!
-			if( download_file( host, url, filename, path ) != 0 ) {
-				goto end_download_task;
-			}
-
-			if( download_info.has_copy_to_serial_flash && download_info.copy_to_serial_flash && serial_flash_name && serial_flash_path ) {
-
-				char * full;
-				char *buf;
-				long sflash_fh = -1;
-				WORD size=0;
-				int status;
-				full = pvPortMalloc(128);
-				assert(full);
-				buf = pvPortMalloc(512);
-				assert(buf);
-				memset(buf,0,sizeof(buf));
-				memset(full,0,sizeof(full));
-
-				strcpy(full, serial_flash_path);
-				strcat(full, serial_flash_name);
-
-				UARTprintf("copying %s %s\n", serial_flash_path, serial_flash_name);
-
-				cd( path );
-				if(global_filename( filename ))
-				{
+			if (download_info.has_copy_to_serial_flash
+					&& download_info.copy_to_serial_flash && serial_flash_name
+					&& serial_flash_path) {
+				//download it!
+				if (download_file(host, url, serial_flash_name,
+						serial_flash_path, SERIAL_FLASH) != 0) {
 					goto end_download_task;
 				}
+				char buf[64];
+				strncpy( buf, serial_flash_path, 64 );
+				strncat(buf, serial_flash_name, 64 );
 
-				FRESULT res = hello_fs_open(&file_obj, path_buff, FA_READ);
-				if( res != FR_OK ) {
-					UARTprintf("ota - failed to open file %s", path_buff );
-					goto end_download_task;
-				}
-
-				hello_fs_stat( path_buff, &file_info );
-				DWORD bytes_to_copy = file_info.fsize;
-
-				if (strstr(full, "/sys/mcuimgx") != 0 )
-				{
-					_ReadBootInfo(&sBootInfo);
-					full[11] = (_u8)_McuImageGetNewIndex() + '1'; /* mcuimg1 is for factory default, mcuimg2,3 are for OTA updates */
-					UARTprintf("MCU image name converted to %s \n", full);
-				}
-
-				sl_FsOpen((unsigned char *)full, FS_MODE_OPEN_CREATE(bytes_to_copy, _FS_FILE_OPEN_FLAG_NO_SIGNATURE_TEST | _FS_FILE_OPEN_FLAG_COMMIT ), NULL, &sflash_fh);
-				if( res != FR_OK ) {
-					UARTprintf("ota - failed to open file %s\n", full );
-					goto end_download_task;
-				}
-				int file_len = bytes_to_copy;
-
-				play_led_progress_bar(254, 132, 4, 0, portMAX_DELAY);
-
-				if( download_info.has_sha1 ) {
-					SHA1_Init(&sha1ctx);
-				}
-
-				UARTprintf( "copying %d from %s on sd to %s on sflash\n", bytes_to_copy, path_buff, full);
-				while( bytes_to_copy > 0 ) {
-					//read from sd into buff
-					res = hello_fs_read( &file_obj, buf, bytes_to_copy<512?bytes_to_copy:512, &size );
-					if( res != FR_OK ) {
-						UARTprintf("ota - failed to read file %s\n", path_buff );
-						goto end_download_task;
-					}
-					//UARTprintf( "offset %d, left %d, chunk %d\n",  file_len-bytes_to_copy, bytes_to_copy,size );
-					set_led_progress_bar( 100*(file_len-bytes_to_copy)/file_len );
-
-					if( download_info.has_sha1 ) {
-						SHA1_Update(&sha1ctx, (uint8_t*)buf, size);
-					}
-
-					status = sl_FsWrite(sflash_fh, file_len-bytes_to_copy, (unsigned char*)buf, size);
-					if( status != size ) {
-						UARTprintf("ota - failed to write file %s\n", full );
-						goto end_download_task;
-					}
-					bytes_to_copy -= size;
-				}
-				stop_led_animation();
-				UARTprintf( "done, closing\n" );
-				sl_FsClose(sflash_fh,0,0,0);
-				hello_fs_close(&file_obj);
-
-				if( strcmp(full, "/top/update") == 0 ) {
+				if (strcmp(buf, "/top/update") == 0) {
 					send_top("dfu", strlen("dfu"));
 					wait_for_top_boot(120000);
 				}
+				UARTprintf("done, closing\n");
+			} else if (download_file(host, url, filename, path, SD_CARD) == 0) {
+				UARTprintf("done, closing\n");
+				hello_fs_close(&file_obj);
+			} else {
+				goto end_download_task;
 			}
-			if( download_info.has_reset_application_processor && download_info.reset_application_processor ) {
-				UARTprintf("change image status to IMG_STATUS_TESTREADY\n\r");
-				_ReadBootInfo(&sBootInfo);
-				if (download_info.has_sha1) {
-					unsigned char sha[SHA1_SIZE] = {0};
+		}
+		if (download_info.has_reset_application_processor
+				&& download_info.reset_application_processor) {
+			UARTprintf("change image status to IMG_STATUS_TESTREADY\n\r");
+			_ReadBootInfo(&sBootInfo);
+			if (download_info.has_sha1) {
+				unsigned char sha[SHA1_SIZE] = { 0 };
 
 					SHA1_Final(sha, &sha1ctx);
 
@@ -1604,16 +1656,15 @@ void file_download_task( void * manifestPtr ) {
 				UARTprintf( "reset nwp\n" );
 				nwp_reset();
 			}
-		}
-		free_download_info( &download_info );
+		free_download_info(&download_info);
 		continue;
 
 		//what if we get the next set before the current set finishes? How do we know which set we're on? (doesn't matter, it will just overflow the queue)
 		//what if there's an error on some but not all the files? (start over)
 
 		end_download_task: //there was an error
-		while( xQueueReceive(download_queue, &download_info, 10 ) ) {
-			free_download_info( &download_info );
+		while (xQueueReceive(download_queue, &download_info, 10)) {
+			free_download_info(&download_info);
 		}
 	}
 }
