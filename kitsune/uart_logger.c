@@ -37,6 +37,7 @@ static struct{
 	sense_log log;
 	uint8_t view_tag;
 	uint8_t log_local_enable;
+	volatile uint8_t abort;
 	xSemaphoreHandle block_operation_sem;
 	DIR logdir;
 }self;
@@ -266,6 +267,10 @@ _remove_oldest(int * rem){
 /**
  * PUBLIC functions
  */
+void uart_logger_flush(void){
+	self.abort = 1;
+
+}
 int Cmd_log_upload(int argc, char *argv[]){
 	_swap_and_upload();
 	return 0;
@@ -313,6 +318,9 @@ void uart_logger_task(void * params){
                 pdFALSE,        /* all bits should not be cleared before returning. */
                 pdFALSE,       /* Don't wait for both bits, either bit will do. */
                 portMAX_DELAY );/* Wait for any bit to be set. */
+		if(self.abort){
+			return;
+		}
 		switch(evnt){
 		case LOG_EVENT_STORE:
 			if(FR_OK == _save_newest((char*)self.upload_block, UART_LOGGER_BLOCK_SIZE)){
