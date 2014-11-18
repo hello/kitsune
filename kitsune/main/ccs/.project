@@ -341,6 +341,21 @@
 			<locationURI>PARENT-2-PROJECT_LOC/sha1.c</locationURI>
 		</link>
 		<link>
+			<name>rsa.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/rsa.c</locationURI>
+		</link>
+		<link>
+			<name>bigint.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/bigint.c</locationURI>
+		</link>
+		<link>
+			<name>bigint.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/bigint.h</locationURI>
+		</link>
+		<link>
 			<name>slip_packet.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/slip_packet.c</locationURI>

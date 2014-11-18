@@ -35,11 +35,17 @@
 #ifndef HEADER_CRYPTO_H
 #define HEADER_CRYPTO_H
 
-#include "stdint.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#define CONFIG_SSL_CERT_VERIFICATION
+//#define CONFIG_SSL_FULL_MODE 0
+//#define CONFIG_BIGINT_CRT 0 //speeds up decryption
+//#define CONFIG_SSL_GENERATE_X509_CERT 0
+
+#include "bigint_impl.h"
+#include "bigint.h"
 
 #ifndef STDCALL
 #define STDCALL
@@ -47,7 +53,6 @@ extern "C" {
 #ifndef EXP_FUNC
 #define EXP_FUNC
 #endif
-
 
 /**************************************************************************
  * AES declarations 
@@ -78,6 +83,9 @@ void AES_cbc_encrypt(AES_CTX *ctx, const uint8_t *msg,
 void AES_cbc_decrypt(AES_CTX *ks, const uint8_t *in, uint8_t *out, int length);
 void AES_convert_key(AES_CTX *ctx);
 
+/**************************************************************************
+ * SHA1 declarations 
+ **************************************************************************/
 
 #define SHA1_SIZE   20
 
@@ -98,6 +106,54 @@ void SHA1_Init(SHA1_CTX *);
 void SHA1_Update(SHA1_CTX *, const uint8_t * msg, int len);
 void SHA1_Final(uint8_t *digest, SHA1_CTX *);
 
+
+/**************************************************************************
+ * RSA declarations 
+ **************************************************************************/
+
+typedef struct 
+{
+    bigint *m;              /* modulus */
+    bigint *e;              /* public exponent */
+    bigint *d;              /* private exponent */
+#ifdef CONFIG_BIGINT_CRT
+    bigint *p;              /* p as in m = pq */
+    bigint *q;              /* q as in m = pq */
+    bigint *dP;             /* d mod (p-1) */
+    bigint *dQ;             /* d mod (q-1) */
+    bigint *qInv;           /* q^-1 mod p */
+#endif
+    int num_octets;
+    BI_CTX *bi_ctx;
+} RSA_CTX;
+
+void RSA_priv_key_new(RSA_CTX **rsa_ctx, 
+        const uint8_t *modulus, int mod_len,
+        const uint8_t *pub_exp, int pub_len,
+        const uint8_t *priv_exp, int priv_len
+#ifdef CONFIG_BIGINT_CRT
+      , const uint8_t *p, int p_len,
+        const uint8_t *q, int q_len,
+        const uint8_t *dP, int dP_len,
+        const uint8_t *dQ, int dQ_len,
+        const uint8_t *qInv, int qInv_len
+#endif
+        );
+void RSA_pub_key_new(RSA_CTX **rsa_ctx, 
+        const uint8_t *modulus, int mod_len,
+        const uint8_t *pub_exp, int pub_len);
+void RSA_free(RSA_CTX *ctx);
+int RSA_decrypt(const RSA_CTX *ctx, const uint8_t *in_data, uint8_t *out_data,
+        int is_decryption);
+bigint *RSA_private(const RSA_CTX *c, bigint *bi_msg);
+#if defined(CONFIG_SSL_CERT_VERIFICATION) || defined(CONFIG_SSL_GENERATE_X509_CERT)
+bigint *RSA_sign_verify(BI_CTX *ctx, const uint8_t *sig, int sig_len,
+        bigint *modulus, bigint *pub_exp);
+bigint *RSA_public(const RSA_CTX * c, bigint *bi_msg);
+int RSA_encrypt(const RSA_CTX *ctx, const uint8_t *in_data, uint16_t in_len, 
+        uint8_t *out_data, int is_signing);
+void RSA_print(const RSA_CTX *ctx);
+#endif
 
 #ifdef __cplusplus
 }
