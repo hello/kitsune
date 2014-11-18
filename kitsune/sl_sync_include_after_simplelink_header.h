@@ -3,21 +3,36 @@
 
 #include <stdint.h>
 
+//#define SL_DEBUG_LOG
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+#ifdef SL_DEBUG_LOG
+
 #define SL_SYNC(call) \
 	({ \
-	UARTprintf("enter %s\n", #call); \
+	UARTprintf("enter %s", #call); \
 	long sl_ret; \
 	sl_enter_critical_region(); \
 	sl_ret = (call); \
 	sl_exit_critical_region(); \
-	UARTprintf("exit %s\n", #call); \
+	UARTprintf("->exit\n"); \
 	sl_ret; \
 	})
+#else
+
+#define SL_SYNC(call) \
+	({ \
+	long sl_ret; \
+	sl_enter_critical_region(); \
+	sl_ret = (call); \
+	sl_exit_critical_region(); \
+	sl_ret; \
+	})
+
+#endif
 
 #define sl_Start(...)                            SL_SYNC(sl_Start(__VA_ARGS__))
 #define sl_Stop(...)                             SL_SYNC(sl_Stop(__VA_ARGS__))

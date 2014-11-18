@@ -293,7 +293,7 @@ void pingRes(SlPingReport_t* pUARTprintf) {
 }
 
 int Cmd_ping(int argc, char *argv[]) {
-    static SlPingReport_t UARTprintf;
+    static SlPingReport_t report;
     SlPingStartCommand_t pingCommand;
 
     pingCommand.Ip = SL_IPV4_VAL(192, 3, 116, 75); // destination IP address is my router's IP
@@ -303,7 +303,7 @@ int Cmd_ping(int argc, char *argv[]) {
     pingCommand.TotalNumberOfAttempts = 3; // max number of ping requests. 0 - forever
     pingCommand.Flags = 1;                        // UARTprintf after each ping
 
-    sl_NetAppPingStart(&pingCommand, SL_AF_INET, &UARTprintf, pingRes);
+    sl_NetAppPingStart(&pingCommand, SL_AF_INET, &report, pingRes);
     return (0);
 }
 
