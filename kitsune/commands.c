@@ -444,7 +444,7 @@ void set_alarm( SyncResponse_Alarm * received_alarm ) {
     if (xSemaphoreTake(alarm_smphr, portMAX_DELAY)) {
         if (received_alarm->has_ring_offset_from_now_in_second
         	&& received_alarm->ring_offset_from_now_in_second > -1 ) {   // -1 means user has no alarm/reset his/her now
-        	unsigned long now = get_cache_time();
+        	unsigned long now = get_nwp_time();
         	received_alarm->start_time = now + received_alarm->ring_offset_from_now_in_second;
 
         	int ring_duration = received_alarm->has_ring_duration_in_second ? received_alarm->ring_duration_in_second : 30;
@@ -499,7 +499,10 @@ void thread_alarm(void * unused) {
 	while (1) {
 		portTickType now = xTaskGetTickCount();
 		//todo audio processing
-		uint32_t time = get_time();
+		uint64_t time = get_nwp_time();
+		// The alarm thread should go ahead even without a valid time,
+		// because we don't need a correct time to fire alarm, we just need the offset.
+
 		if (xSemaphoreTake(alarm_smphr, portMAX_DELAY)) {
 			if(alarm.has_start_time && alarm.start_time > 0)
 			{
@@ -765,7 +768,22 @@ void thread_sensor_poll(void* unused) {
 		portTickType now = xTaskGetTickCount();
 
 		memset(&data, 0, sizeof(data));  // Don't forget re-init!
-		data.unix_time = get_time();
+
+		if(!time_module_initialized())  // Initialize sys time module in sensor polling thread
+		{
+			uint32_t ntp_time = fetch_time_from_ntp_server();
+			if(ntp_time != INVALID_SYS_TIME)
+			{
+				if(set_nwp_time(ntp_time) != INVALID_SYS_TIME)
+				{
+					init_time_module();
+				}
+			}
+			vTaskDelay(200);
+			continue;  // The data polling thread should not proceed without a valid time.
+		}
+
+		data.unix_time = get_nwp_time();
 		data.has_unix_time = true;
 
 		// copy over the dust values

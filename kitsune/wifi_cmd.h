@@ -75,7 +75,6 @@ int Cmd_data_upload(int arg, char* argv[]);
 bool get_mac(unsigned char mac[6]);
 
 int match(char *regexp, char *text);
-unsigned long unix_time();
 void load_aes();
 
 
@@ -100,6 +99,7 @@ int connect_scanned_endpoints(const char* ssid, const char* password,
 int connect_wifi(const char* ssid, const char* password, int sec_type);
 void wifi_get_connected_ssid(uint8_t* ssid_buffer, size_t len);
 
+long nwp_reset();
 void wifi_reset();
 void free_pill_list();
 

@@ -262,17 +262,16 @@ static void _ble_reply_wifi_info(){
 
 #include "wifi_cmd.h"
 extern xQueueHandle pill_queue;
-uint64_t get_cache_time();
 
 static void _process_encrypted_pill_data( MorpheusCommand* command)
 {
     if( command->has_pill_data ) {
-    	uint64_t timestamp = get_cache_time();
-    	if(!timestamp)
+    	if(!time_module_initialized())
     	{
     		UARTprintf("Device not initialized!\n");
     		return;
     	}
+    	uint64_t timestamp = get_nwp_time();
         command->pill_data.timestamp = timestamp;  // attach timestamp, so we don't need to worry about the sending time
         xQueueSend(pill_queue, &command->pill_data, 10);
 
@@ -290,7 +289,7 @@ static void _process_pill_heartbeat( MorpheusCommand* command)
 {
 	// Pill heartbeat received from ANT
     if( command->has_pill_data ) {
-    	uint64_t timestamp = get_cache_time();
+    	uint64_t timestamp = get_nwp_time();
 		if(!timestamp)
 		{
 			UARTprintf("Device not initialized!\n");

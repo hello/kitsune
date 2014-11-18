@@ -7,7 +7,7 @@
 #include "sl_sync_include_after_simplelink_header.h"
 
 #define YEAR_TO_DAYS(y) ((y)*365 + (y)/4 - (y)/100 + (y)/400)
-static unsigned long last_ntp = 0;
+
 
 static void untime(unsigned long unixtime, SlDateTime_t *tm)
 {
@@ -61,12 +61,8 @@ static void untime(unsigned long unixtime, SlDateTime_t *tm)
     tm->sl_tm_day = unixtime;
 }
 
-uint64_t get_cache_time()
+uint32_t get_nwp_time()
 {
-    if(!last_ntp)
-    {
-        return 0;
-    }
 
     SlDateTime_t dt =  {0};
     uint8_t configLen = sizeof(SlDateTime_t);
@@ -75,60 +71,180 @@ uint64_t get_cache_time()
     if(ret != 0)
     {
         UARTprintf("sl_DevGet failed, err: %d\n", ret);
-        return 0;
+        return INVALID_SYS_TIME;
     }
 
-    uint64_t ntp = dt.sl_tm_sec + dt.sl_tm_min*60 + dt.sl_tm_hour*3600 + dt.sl_tm_year_day*86400 +
+    uint32_t ntp = dt.sl_tm_sec + dt.sl_tm_min*60 + dt.sl_tm_hour*3600 + dt.sl_tm_year_day*86400 +
                 (dt.sl_tm_year-70)*31536000 + ((dt.sl_tm_year-69)/4)*86400 -
                 ((dt.sl_tm_year-1)/100)*86400 + ((dt.sl_tm_year+299)/400)*86400 + 171398145;
     return ntp;
 }
 
+uint32_t set_nwp_time(uint32_t unix_timestamp_sec)
+{
+	if(unix_timestamp_sec > 0) {
+		SlDateTime_t tm;
+		untime(unix_timestamp_sec, &tm);
+		UARTprintf( "setting sl time %d:%d:%d day %d mon %d yr %d", tm.sl_tm_hour,tm.sl_tm_min,tm.sl_tm_sec,tm.sl_tm_day,tm.sl_tm_mon,tm.sl_tm_year);
+
+		int32_t ret = sl_DevSet(SL_DEVICE_GENERAL_CONFIGURATION,
+				  SL_DEVICE_GENERAL_CONFIGURATION_DATE_TIME,
+				  sizeof(SlDateTime_t),(unsigned char *)(&tm));
+		if(ret != 0)
+		{
+			return INVALID_SYS_TIME;
+		}
+	}
+
+	return unix_timestamp_sec;
+}
+
+static uint32_t unix_time() {
+    char buffer[48];
+    int rv = 0;
+    SlSockAddr_t sAddr;
+    SlSockAddrIn_t sLocalAddr;
+    int iAddrSize;
+    unsigned long long ntp;
+    unsigned long ipaddr;
+    int sock;
+
+    SlTimeval_t tv;
+
+    sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    tv.tv_sec = 2;             // Seconds
+    tv.tv_usec = 0;             // Microseconds. 10000 microseconds resolution
+    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)); // Enable receive timeout
+
+    if (sock < 0) {
+        UARTprintf("Socket create failed\n\r");
+        return INVALID_SYS_TIME;
+    }
+    UARTprintf("Socket created\n\r");
+
+//
+    // Send a query ? to the NTP server to get the NTP time
+    //
+    memset(buffer, 0, sizeof(buffer));
+
+#define NTP_SERVER "pool.ntp.org"
+    if (!(rv = gethostbyname(NTP_SERVER, strlen(NTP_SERVER), &ipaddr, AF_INET))) {
+        UARTprintf(
+                "Get Host IP succeeded.\n\rHost: %s IP: %d.%d.%d.%d \n\r\n\r",
+                NTP_SERVER, SL_IPV4_BYTE(ipaddr, 3), SL_IPV4_BYTE(ipaddr, 2),
+                SL_IPV4_BYTE(ipaddr, 1), SL_IPV4_BYTE(ipaddr, 0));
+    } else {
+        UARTprintf("failed to resolve ntp addr rv %d\n", rv);
+        close(sock);
+        return INVALID_SYS_TIME;
+    }
+
+    sAddr.sa_family = AF_INET;
+    // the source port
+    sAddr.sa_data[0] = 0x00;
+    sAddr.sa_data[1] = 0x7B;    // UDP port number for NTP is 123
+    sAddr.sa_data[2] = (char) ((ipaddr >> 24) & 0xff);
+    sAddr.sa_data[3] = (char) ((ipaddr >> 16) & 0xff);
+    sAddr.sa_data[4] = (char) ((ipaddr >> 8) & 0xff);
+    sAddr.sa_data[5] = (char) (ipaddr & 0xff);
+
+    buffer[0] = 0b11100011;   // LI, Version, Mode
+    buffer[1] = 0;     // Stratum, or type of clock
+    buffer[2] = 6;     // Polling Interval
+    buffer[3] = 0xEC;  // Peer Clock Precision
+    // 8 bytes of zero for Root Delay & Root Dispersion
+    buffer[12] = 49;
+    buffer[13] = 0x4E;
+    buffer[14] = 49;
+    buffer[15] = 52;
+
+    UARTprintf("Sending request\n\r\n\r");
+    rv = sendto(sock, buffer, sizeof(buffer), 0, &sAddr, sizeof(sAddr));
+    if (rv != sizeof(buffer)) {
+        UARTprintf("Could not send SNTP request\n\r\n\r");
+        close(sock);
+        return INVALID_SYS_TIME;    // could not send SNTP request
+    }
+
+    //
+    // Wait to receive the NTP time from the server
+    //
+    iAddrSize = sizeof(SlSockAddrIn_t);
+    sLocalAddr.sin_family = SL_AF_INET;
+    sLocalAddr.sin_port = 0;
+    sLocalAddr.sin_addr.s_addr = 0;
+    bind(sock, (SlSockAddr_t *) &sLocalAddr, iAddrSize);
+
+    UARTprintf("receiving reply\n\r\n\r");
+
+    rv = recvfrom(sock, buffer, sizeof(buffer), 0, (SlSockAddr_t *) &sLocalAddr,
+            (SlSocklen_t*) &iAddrSize);
+    if (rv <= 0) {
+        UARTprintf("Did not receive\n\r");
+        close(sock);
+        return INVALID_SYS_TIME;
+    }
+
+    //
+    // Confirm that the MODE is 4 --> server
+    if ((buffer[0] & 0x7) != 4)    // expect only server response
+            {
+        UARTprintf("Expecting response from Server Only!\n\r");
+        close(sock);
+        return INVALID_SYS_TIME;    // MODE is not server, abort
+    } else {
+        //
+        // Getting the data from the Transmit Timestamp (seconds) field
+        // This is the time at which the reply departed the
+        // server for the client
+        //
+        ntp = buffer[40];
+        ntp <<= 8;
+        ntp += buffer[41];
+        ntp <<= 8;
+        ntp += buffer[42];
+        ntp <<= 8;
+        ntp += buffer[43];
+
+        ntp -= 2208988800UL;
+
+        close(sock);
+    }
+    return ntp;
+}
+
 
 /*
- * WARNING: DONOT use get_time in protobuf encoding/decoding function if you want to send the protobuf
+ * WARNING: DONOT use this function in protobuf encoding/decoding function if you want to send the protobuf
  * over network, it will deadlock the network task.
  * Use get_cache_time instead.
  */
-unsigned long get_time() {
-    portTickType now = xTaskGetTickCount();
-    unsigned int tries = 0;
+uint32_t fetch_time_from_ntp_server() {
+    uint32_t ntp = INVALID_SYS_TIME;
 
-	while (last_ntp == 0) {
-		UARTprintf("Get NTP time\n");
+	UARTprintf("Get NTP time\n");
 
+	while(1)
+	{
 		while (!(sl_status & HAS_IP)) {
 			vTaskDelay(100);
-		} //wait for a connection the first time...
+		} //wait for a connection...
 
 		networktask_enter_critical_region();
-		if (last_ntp != 0) {  // race condition: some other thread got the time.
-			UARTprintf("Get NTP time done by other thread\n");
-			networktask_exit_critical_region();
-			return get_cache_time();
-		}
-		uint64_t ntp = unix_time();
+		ntp = unix_time();
 
-		vTaskDelay((1 << tries) * 1000);
-		if (tries++ > 5) {
-			tries = 5;
-		}
-
-		if( ntp > 0 ) {
-			SlDateTime_t tm;
-			untime( ntp, &tm );
-			UARTprintf( "setting sl time %d:%d:%d day %d mon %d yr %d", tm.sl_tm_hour,tm.sl_tm_min,tm.sl_tm_sec,tm.sl_tm_day,tm.sl_tm_mon,tm.sl_tm_year);
-
-			sl_DevSet(SL_DEVICE_GENERAL_CONFIGURATION,
-					  SL_DEVICE_GENERAL_CONFIGURATION_DATE_TIME,
-					  sizeof(SlDateTime_t),(unsigned char *)(&tm));
-			last_ntp = ntp;   // Just be careful here, set last_ntp after setting the time to NWP, or there will be a race condition.
-		}
-
-		UARTprintf("Get NTP time done\n");
 		networktask_exit_critical_region();
+
+		if(ntp != INVALID_SYS_TIME)
+		{
+			break;
+		}
+		vTaskDelay(10000);
 	}
 
-	return get_cache_time();
+	UARTprintf("Get NTP time done\n");
+
+
+	return ntp;
 
 }

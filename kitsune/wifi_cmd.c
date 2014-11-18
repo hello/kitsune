@@ -33,6 +33,7 @@ volatile unsigned int sl_status = 0;
 #include "FreeRTOS.h"
 #include "task.h"
 
+#include "sys_time.h"
 #include "kitsune_version.h"
 #include "sl_sync_include_after_simplelink_header.h"
 
@@ -59,7 +60,7 @@ void mcu_reset()
 }
 
 #define SL_STOP_TIMEOUT                 (30)
-_i16 nwp_reset() {
+long nwp_reset() {
     sl_WlanSetMode(ROLE_STA);
     sl_Stop(SL_STOP_TIMEOUT);
     sl_status = 0;
@@ -307,125 +308,9 @@ int Cmd_ping(int argc, char *argv[]) {
     return (0);
 }
 
-unsigned long unix_time() {
-    char buffer[48];
-    int rv = 0;
-    SlSockAddr_t sAddr;
-    SlSockAddrIn_t sLocalAddr;
-    int iAddrSize;
-    unsigned long long ntp;
-    unsigned long ipaddr;
-    int sock;
-
-    SlTimeval_t tv;
-
-    sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    tv.tv_sec = 2;             // Seconds
-    tv.tv_usec = 0;             // Microseconds. 10000 microseconds resolution
-    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)); // Enable receive timeout
-
-    if (sock < 0) {
-        UARTprintf("Socket create failed\n\r");
-        return 0;
-    }
-    UARTprintf("Socket created\n\r");
-
-//
-    // Send a query ? to the NTP server to get the NTP time
-    //
-    memset(buffer, 0, sizeof(buffer));
-
-#define NTP_SERVER "pool.ntp.org"
-    if (!(rv = gethostbyname(NTP_SERVER, strlen(NTP_SERVER), &ipaddr, AF_INET))) {
-        UARTprintf(
-                "Get Host IP succeeded.\n\rHost: %s IP: %d.%d.%d.%d \n\r\n\r",
-                NTP_SERVER, SL_IPV4_BYTE(ipaddr, 3), SL_IPV4_BYTE(ipaddr, 2),
-                SL_IPV4_BYTE(ipaddr, 1), SL_IPV4_BYTE(ipaddr, 0));
-    } else {
-        UARTprintf("failed to resolve ntp addr rv %d\n", rv);
-        close(sock);
-        return 0;
-    }
-
-    sAddr.sa_family = AF_INET;
-    // the source port
-    sAddr.sa_data[0] = 0x00;
-    sAddr.sa_data[1] = 0x7B;    // UDP port number for NTP is 123
-    sAddr.sa_data[2] = (char) ((ipaddr >> 24) & 0xff);
-    sAddr.sa_data[3] = (char) ((ipaddr >> 16) & 0xff);
-    sAddr.sa_data[4] = (char) ((ipaddr >> 8) & 0xff);
-    sAddr.sa_data[5] = (char) (ipaddr & 0xff);
-
-    buffer[0] = 0b11100011;   // LI, Version, Mode
-    buffer[1] = 0;     // Stratum, or type of clock
-    buffer[2] = 6;     // Polling Interval
-    buffer[3] = 0xEC;  // Peer Clock Precision
-    // 8 bytes of zero for Root Delay & Root Dispersion
-    buffer[12] = 49;
-    buffer[13] = 0x4E;
-    buffer[14] = 49;
-    buffer[15] = 52;
-
-    UARTprintf("Sending request\n\r\n\r");
-    rv = sendto(sock, buffer, sizeof(buffer), 0, &sAddr, sizeof(sAddr));
-    if (rv != sizeof(buffer)) {
-        UARTprintf("Could not send SNTP request\n\r\n\r");
-        close(sock);
-        return 0;    // could not send SNTP request
-    }
-
-    //
-    // Wait to receive the NTP time from the server
-    //
-    iAddrSize = sizeof(SlSockAddrIn_t);
-    sLocalAddr.sin_family = SL_AF_INET;
-    sLocalAddr.sin_port = 0;
-    sLocalAddr.sin_addr.s_addr = 0;
-    bind(sock, (SlSockAddr_t *) &sLocalAddr, iAddrSize);
-
-    UARTprintf("receiving reply\n\r\n\r");
-
-    rv = recvfrom(sock, buffer, sizeof(buffer), 0, (SlSockAddr_t *) &sLocalAddr,
-            (SlSocklen_t*) &iAddrSize);
-    if (rv <= 0) {
-        UARTprintf("Did not receive\n\r");
-        close(sock);
-        return 0;
-    }
-
-    //
-    // Confirm that the MODE is 4 --> server
-    if ((buffer[0] & 0x7) != 4)    // expect only server response
-            {
-        UARTprintf("Expecting response from Server Only!\n\r");
-        close(sock);
-        return 0;    // MODE is not server, abort
-    } else {
-        //
-        // Getting the data from the Transmit Timestamp (seconds) field
-        // This is the time at which the reply departed the
-        // server for the client
-        //
-        ntp = buffer[40];
-        ntp <<= 8;
-        ntp += buffer[41];
-        ntp <<= 8;
-        ntp += buffer[42];
-        ntp <<= 8;
-        ntp += buffer[43];
-
-        ntp -= 2208988800UL;
-
-        close(sock);
-    }
-    return (unsigned long) ntp;
-}
-
-unsigned long get_time();
-
 int Cmd_time(int argc, char*argv[]) {
-	int unix = unix_time();
-	int t = get_time();
+	uint64_t unix = fetch_time_from_ntp_server();
+	uint64_t t = get_nwp_time();
 
     UARTprintf(" time is %u and the ntp is %d and the diff is %d\n", t, unix, t-unix);
 
