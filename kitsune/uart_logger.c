@@ -18,7 +18,7 @@
 
 #define SENSE_LOG_ENDPOINT		"/logs"
 #define SENSE_LOG_FOLDER		"logs"
-
+#define SENSE_LOG_RW_SIZE		128
 /**
  * The upload order should be
  * Backend(if has no local backlog) -> Local -> Backend(if has IP)
@@ -176,14 +176,13 @@ _write_file(char * local_name, const char * buffer, WORD size){
 	FIL file_obj;
 	WORD bytes = 0;
 	WORD written = 0;
-	WORD write_size = size;
 	FRESULT res = _open_log(&file_obj, local_name, FA_CREATE_NEW|FA_WRITE|FA_OPEN_ALWAYS);
 	if(res != FR_OK && res != FR_EXIST){
 		LOGE("File %s open fail, code %d", local_name, res);
 		return res;
 	}
 	do{
-		res = hello_fs_write(&file_obj, buffer + written, 128, &bytes);
+		res = hello_fs_write(&file_obj, buffer + written, SENSE_LOG_RW_SIZE, &bytes);
 		written += bytes;
 	}while(written < size);
 	res = hello_fs_close(&file_obj);
@@ -201,16 +200,15 @@ _read_file(char * local_name, char * buffer, WORD buffer_size, WORD *size_read){
 	FRESULT res = _open_log(&file_obj, local_name, FA_READ);
 	if(res == FR_OK){
 		do{
-			res = hello_fs_read(&file_obj, (void*)(buffer + offset), 128, &read);
+			res = hello_fs_read(&file_obj, (void*)(buffer + offset), SENSE_LOG_RW_SIZE, &read);
 			if(res != FR_OK){
 				return res;
 			}
 			offset += read;
-		}while(read == 128 && offset < buffer_size);
-	}else{
-		return (int)res;
+		}while(read == SENSE_LOG_RW_SIZE && offset < buffer_size);
+		return FR_OK;
 	}
-	return FR_OK;
+	return res;
 }
 static FRESULT
 _remove_file(char * local_name){
@@ -246,8 +244,6 @@ _read_oldest(char * buffer, int size, WORD * read){
 		snprintf(s,sizeof(s),"%d",counter);
 		LOGI("Rd log %d\r\n", counter);
 		return _read_file(s,buffer, size, read);
-	}else{
-		LOGW("Read log error %d\r\n", ret);
 	}
 	return FR_RW_ERROR;
 }
@@ -257,16 +253,15 @@ _remove_oldest(int * rem){
 	int ret = _walk_log_dir(_find_oldest_log, &counter);
 	if(ret == 0){
 		LOGI("No log file\r\n");
+		return FR_OK;
 	} else if (ret > 0 && counter >= 0) {
 		char s[16] = { 0 };
 		snprintf(s, sizeof(s), "%d", counter);
 		LOGI("Rm log %d\r\n", counter);
 		*rem = (ret - 1);
 		return _remove_file(s);
-	} else {
-		LOGW("Erase log error %d\r\n", ret);
 	}
-	return ret;
+	return FR_RW_ERROR;
 }
 /**
  * PUBLIC functions
