@@ -201,11 +201,9 @@ _read_file(char * local_name, char * buffer, WORD buffer_size, WORD *size_read){
 	FRESULT res = _open_log(&file_obj, local_name, FA_READ);
 	if(res == FR_OK){
 		do{
-			res = hello_fs_read(&file_obj, (void*)(buffer + offset), 128,
-					&read);
-
+			res = hello_fs_read(&file_obj, (void*)(buffer + offset), 128, &read);
 			if(res != FR_OK){
-				return res);
+				return res;
 			}
 			offset += read;
 		}while(read == 128 && offset < buffer_size);
