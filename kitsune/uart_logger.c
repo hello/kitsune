@@ -132,7 +132,7 @@ void uart_logger_task(void * params){
 		switch(evnt){
 		case LOG_EVENT_BACKEND:
 			LOGI("Uploading UART logs to server...");
-			if((sl_status & HAS_IP) && time_module_initialized()){
+			if(time_module_initialized()){
 				self.log.has_unix_time = true;
 				self.log.unix_time = get_nwp_time();
 			}else{
