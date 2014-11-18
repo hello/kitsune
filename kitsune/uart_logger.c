@@ -269,6 +269,7 @@ _remove_oldest(int * rem){
  */
 void uart_logger_flush(void){
 	self.abort = 1;
+	_save_newest(self.logging_block, UART_LOGGER_BLOCK_SIZE);
 
 }
 int Cmd_log_upload(int argc, char *argv[]){
