@@ -241,7 +241,7 @@ int networktask_exit_critical_region()
 	return xSemaphoreGive(_network_mutex);
 }
 
-void networktask_init()
+void networktask_init(uint16_t stack_size)
 {
 	// In this way the network task is encapsulated to its own module
 	// no semaphore needs to expose to outside
@@ -252,7 +252,7 @@ void networktask_init()
 
 	//this task needs a larger stack because
 	//some protobuf encoding will happen on the stack of this task
-	xTaskCreate(NetworkTask_Thread, "networkTask", 5 * 1024 / 4, &network_task_data, 10, NULL);
+	xTaskCreate(NetworkTask_Thread, "networkTask", stack_size, /*5 * 1024 / 4*/, &network_task_data, 10, NULL);
 }
 
 

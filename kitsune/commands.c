@@ -1381,7 +1381,7 @@ void vUARTTask(void *pvParameters) {
 		UARTprintf("Failed to create the data_queue.\n");
 	}
 
-	networktask_init();  // Network task needs to start first, because get_time use its critical region.
+	networktask_init(5 * 1024 / 4);  // Network task needs to start first, because get_time use its critical region.
 
 	xTaskCreate(top_board_task, "top_board_task", 1024 / 4, NULL, 2, NULL);
 	xTaskCreate(thread_alarm, "alarmTask", 2*1024 / 4, NULL, 4, NULL);
