@@ -171,7 +171,7 @@ _open_log(FIL * file, char * local_name, WORD mode){
 	char name_buf[32] = {0};
 	return hello_fs_open(file, _full_log_name(name_buf, local_name), mode);
 }
-static int
+static FRESULT
 _write_file(char * local_name, const char * buffer, WORD size){
 	FIL file_obj;
 	WORD bytes = 0;
@@ -180,7 +180,7 @@ _write_file(char * local_name, const char * buffer, WORD size){
 	FRESULT res = _open_log(&file_obj, local_name, FA_CREATE_NEW|FA_WRITE|FA_OPEN_ALWAYS);
 	if(res != FR_OK && res != FR_EXIST){
 		LOGE("File %s open fail, code %d", local_name, res);
-		return -1;
+		return res;
 	}
 	do{
 		res = hello_fs_write(&file_obj, buffer + written, 128, &bytes);
@@ -189,11 +189,11 @@ _write_file(char * local_name, const char * buffer, WORD size){
 	res = hello_fs_close(&file_obj);
 	if(res != FR_OK){
 		LOGE("unable to write log file\r\n");
-		return -1;
+		return res;
 	}
-	return 0;
+	return FR_OK;
 }
-static int
+static FRESULT
 _read_file(char * local_name, char * buffer, WORD buffer_size, WORD *size_read){
 	FIL file_obj;
 	WORD offset = 0;
@@ -205,20 +205,21 @@ _read_file(char * local_name, char * buffer, WORD buffer_size, WORD *size_read){
 					&read);
 
 			if(res != FR_OK){
-				return((int)res);
+				return res);
 			}
 			offset += read;
 		}while(read == 128 && offset < buffer_size);
 	}else{
 		return (int)res;
 	}
+	return FR_OK;
 }
-static int
+static FRESULT
 _remove_file(char * local_name){
 	char name_buf[32] = {0};
 	return hello_fs_unlink(_full_log_name(name_buf, local_name));
 }
-static int
+static FRESULT
 _save_newest(const char * buffer, int size){
 	int counter = -1;
 	int ret = _walk_log_dir(_find_newest_log, &counter);
@@ -233,14 +234,15 @@ _save_newest(const char * buffer, int size){
 	}else{
 		LOGW("Write log error: %d \r\n", ret);
 	}
-	return ret;
+	return FR_RW_ERROR;
 }
-static int
+static FRESULT
 _read_oldest(char * buffer, int size, WORD * read){
 	int counter = -1;
 	int ret = _walk_log_dir(_find_oldest_log, &counter);
 	if(ret == 0){
 		LOGI("No log file\r\n");
+		return FR_NO_FILE;
 	}else if(ret > 0 && counter >= 0){
 		char s[16] = {0};
 		snprintf(s,sizeof(s),"%d",counter);
@@ -249,9 +251,9 @@ _read_oldest(char * buffer, int size, WORD * read){
 	}else{
 		LOGW("Read log error %d\r\n", ret);
 	}
-	return ret;
+	return FR_RW_ERROR;
 }
-static int
+static FRESULT
 _remove_oldest(int * rem){
 	int counter = -1;
 	int ret = _walk_log_dir(_find_oldest_log, &counter);
@@ -320,30 +322,40 @@ void uart_logger_task(void * params){
                 portMAX_DELAY );/* Wait for any bit to be set. */
 		switch(evnt){
 		case LOG_EVENT_STORE:
-			_save_newest((char*)self.upload_block, UART_LOGGER_BLOCK_SIZE);
-			xEventGroupClearBits(self.uart_log_events,LOG_EVENT_STORE);
-			xEventGroupSetBits(self.uart_log_events, LOG_EVENT_UPLOAD);
+			if(FR_OK == _save_newest((char*)self.upload_block, UART_LOGGER_BLOCK_SIZE)){
+				xEventGroupClearBits(self.uart_log_events,LOG_EVENT_STORE);
+				xEventGroupSetBits(self.uart_log_events, LOG_EVENT_UPLOAD);
+			}else{
+				LOGE("Unable to save logs\r\n");
+				xEventGroupClearBits(self.uart_log_events,LOG_EVENT_STORE);
+			}
 			break;
 		case LOG_EVENT_UPLOAD:
 			xEventGroupClearBits(self.uart_log_events,LOG_EVENT_UPLOAD);
 			if(sl_status & HAS_IP){
 				WORD read;
+				FRESULT res;
 				self.log.has_unix_time = false;
-				//for read oldest block and upload, we are reusing upload_block pointer until more memory is freed
-				//so that a upload block can be dedicated to reading old files
-				_read_oldest((char*)self.operation_block,UART_LOGGER_BLOCK_SIZE, &read);
+				//operation block is used for file io
+				res = _read_oldest((char*)self.operation_block,UART_LOGGER_BLOCK_SIZE, &read);
+				if(FR_OK != res){
+					LOGE("Unable to read log file %d\r\n",(int)res);
+					break;
+				}
 				ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER, SENSE_LOG_ENDPOINT,buffer,sizeof(buffer),sense_log_fields,&self.log,0);
 				if(ret == 0){
 					int rem = -1;
 					LOGI("Log upload succeeded\r\n");
-					_remove_oldest(&rem);
-					if(rem > 0){
+					res = _remove_oldest(&rem);
+					if(FR_OK == res && rem > 0){
 						xEventGroupSetBits(self.uart_log_events, LOG_EVENT_UPLOAD);
+					}else if(FR_OK == res && rem == 0){
+						LOGI("Upload logs done\r\n");
 					}else{
-						LOGI("No more logs remaining\r\n");
+						LOGE("Rm log error %d\r\n", res);
 					}
 				}else{
-					LOGI("Log upload failed\r\n");
+					LOGE("Log upload failed, network code = %d\r\n", ret);
 				}
 			}
 			break;
