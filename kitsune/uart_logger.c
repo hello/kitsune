@@ -306,7 +306,6 @@ void uart_logc(uint8_t c){
 	//}
 }
 
-unsigned long get_time();
 void uart_logger_task(void * params){
 	mkdir(SENSE_LOG_FOLDER);
 	FRESULT res = hello_fs_opendir(&self.logdir,SENSE_LOG_FOLDER);

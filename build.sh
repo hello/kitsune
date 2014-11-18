@@ -1,7 +1,7 @@
 #!/bin/bash
 
 rm -rf ~/workspace
-
+./make_set_id.rb
 
 ~/ti/ccsv6/eclipse/eclipse -noSplash -data ~/workspace/ -application com.ti.ccstudio.apps.projectImport -ccs.location ./kitsune/main/ccs/
 ~/ti/ccsv6/eclipse/eclipse -noSplash -data ~/workspace/ -application com.ti.ccstudio.apps.projectImport -ccs.location ./simplelink/ccs/
@@ -11,4 +11,5 @@ rm -rf ~/workspace
 
 ~/ti/ccsv6/eclipse/eclipse -noSplash -data ~/workspace/ -application com.ti.ccstudio.apps.projectBuild -ccs.projects  driverlib simplelink oslib fatfs
 ~/ti/ccsv6/eclipse/eclipse -noSplash -data ~/workspace/ -application com.ti.ccstudio.apps.projectBuild -ccs.projects kitsune
+
 

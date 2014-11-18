@@ -1,10 +1,42 @@
 language: c
-# Script will setup ccs and build
 script: ./build.sh
 install:
-  - ./travis-setup.sh
+- ./travis-setup.sh
 before_install:
-  - ./dependencies.sh
+- ./dependencies.sh
 notifications:
   email:
-    - chris@sayhello.com
+  - chris@sayhello.com
+before_deploy: ./teardown.sh
+deploy:
+- provider: s3
+  access_key_id: AKIAIJE3P5YMHYZQDY4Q
+  secret_access_key:
+    secure: M1siQBIXy9HDc9FKlgEMcnKt4C1a88D94ArbKmpfsm2/onvpK2VZ5R/aNXr5kbttv6zyqIE7dr9SbtKFfEm7NnveiKKpu7FKElRCC02pi5TSQ8u6C9CuQ+ePBoGeqg1ZvYGcP0pDh+krXRxGnLX86mDTv39WcnJ6oxQld8Ltz1Y=
+  bucket: hello-firmware
+  skip_cleanup: true
+  local-dir: exe
+  upload-dir: sense/$TRAVIS_BRANCH
+  on:
+    repo: hello/kitsune
+    all_branches: true
+- provider: s3
+  access_key_id: AKIAIJE3P5YMHYZQDY4Q
+  secret_access_key:
+    secure: M1siQBIXy9HDc9FKlgEMcnKt4C1a88D94ArbKmpfsm2/onvpK2VZ5R/aNXr5kbttv6zyqIE7dr9SbtKFfEm7NnveiKKpu7FKElRCC02pi5TSQ8u6C9CuQ+ePBoGeqg1ZvYGcP0pDh+krXRxGnLX86mDTv39WcnJ6oxQld8Ltz1Y=
+  bucket: hello-firmware
+  skip_cleanup: true
+  local-dir: exe
+  upload-dir: sense/$TRAVIS_TAG
+  on:
+    repo: hello/kitsune
+    all_branches: true
+    tags: true
+- provider: releases
+  api-key:
+    secure: "XTYvRkGHLlJDHVMrZN4xuCRcz6wSXras5UWcZOalckSJgCU484ZHESx8pCKbO5LDeTqNLaIWQXmAddobsiRc4qfWHOKRZylaAViOMPHDgsqmJ96lquUo+wKG6qY/LkbVWxniFKMBOHH+yUjhrJW59MXlDNrKrUOvrAcC/y486Vg="
+  file: build.tar.gz
+  skip_cleanup: true
+  on:
+    tags: true
+    all_branches: true

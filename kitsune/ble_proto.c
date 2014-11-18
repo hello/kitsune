@@ -1,4 +1,4 @@
-
+#include "simplelink.h"
 #include "ble_proto.h"
 #include "ble_cmd.h"
 #include "wlan.h"
@@ -21,10 +21,11 @@
 #include "led_animations.h"
 #include "led_cmd.h"
 #include "top_board.h"
-
 #include "kitsune_version.h"
+#include "sys_time.h"
+#include "sl_sync_include_after_simplelink_header.h"
 
-extern unsigned int sl_status;
+extern volatile unsigned int sl_status;
 
 static void _factory_reset(){
     int16_t ret = sl_WlanProfileDel(0xFF);
@@ -39,23 +40,24 @@ static void _factory_reset(){
 
     ret = sl_WlanDisconnect();
     if(ret == 0){
-        UARTprintf("WIFI disconnected");
+        UARTprintf("WIFI disconnected\n");
     }else{
         UARTprintf("Disconnect WIFI failed, error %d.\n", ret);
     }
 
-    ret = sl_Stop(0x00FF);
-    if(ret == 0)
+    while(sl_status & CONNECT)
     {
-    	sl_Start(NULL, NULL, NULL);
-    }else{
-    	UARTprintf("NWP reset failed\n");
+    	UARTprintf("Waiting disconnect...\n");
+    	vTaskDelay(1000);
     }
 
-    MorpheusCommand reply_command;
+	nwp_reset();
+
+	MorpheusCommand reply_command;
 	memset(&reply_command, 0, sizeof(reply_command));
 	reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_FACTORY_RESET;
 	ble_send_protobuf(&reply_command);
+
 }
 
 static void _reply_wifi_scan_result()
@@ -82,6 +84,7 @@ static void _reply_wifi_scan_result()
     Sl_WlanNetworkEntry_t wifi_endpoints_cp[2] = {0};
     play_led_progress_bar(0,0,30,0,portMAX_DELAY);
     MorpheusCommand reply_command = {0};
+
     for(i = 0; i < scanned_wifi_count; i++)
     {
         wifi_endpoints_cp[0] = wifi_endpoints[i];
@@ -151,8 +154,8 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type)
 			// sugguest here: http://e2e.ti.com/support/wireless_connectivity/f/968/p/361673/1273699.aspx
 			UARTprintf("Cannot retrieve IP address, try NWP reset.");
 			led_set_color(0xFF, LED_MAX, 0x66, 0, 1, 0, 15, 0);  // Tell the user we are going to fire the bomb.
-			sl_Stop(0x00FF);   // 0x00FF is a magic number... don't change or it might fail.
-			sl_Start(NULL, NULL, NULL);  // In factory reset, PW experience bus fault here. But in connection fail situation it works fine.
+
+			nwp_reset();
 
 			wait_time = 10;
 			while(--wait_time && (!(sl_status & HAS_IP)))
@@ -259,17 +262,16 @@ static void _ble_reply_wifi_info(){
 
 #include "wifi_cmd.h"
 extern xQueueHandle pill_queue;
-uint64_t get_cache_time();
 
 static void _process_encrypted_pill_data( MorpheusCommand* command)
 {
     if( command->has_pill_data ) {
-    	uint64_t timestamp = get_cache_time();
-    	if(!timestamp)
+    	if(!time_module_initialized())
     	{
     		UARTprintf("Device not initialized!\n");
     		return;
     	}
+    	uint32_t timestamp = get_nwp_time();
         command->pill_data.timestamp = timestamp;  // attach timestamp, so we don't need to worry about the sending time
         xQueueSend(pill_queue, &command->pill_data, 10);
 
@@ -287,12 +289,12 @@ static void _process_pill_heartbeat( MorpheusCommand* command)
 {
 	// Pill heartbeat received from ANT
     if( command->has_pill_data ) {
-    	uint64_t timestamp = get_cache_time();
-		if(!timestamp)
+		if(!time_module_initialized())
 		{
 			UARTprintf("Device not initialized!\n");
 			return;
 		}
+		uint32_t timestamp = get_nwp_time();
 		command->pill_data.timestamp = timestamp;  // attach timestamp, so we don't need to worry about the sending time
         xQueueSend(pill_queue, &command->pill_data, 10);
         UARTprintf("PILL HEARBEAT %s\n", command->pill_data.device_id);

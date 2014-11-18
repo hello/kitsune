@@ -57,6 +57,7 @@
 #include "network_if.h"
 #include "uart_if.h"
 #include "timer_if.h"
+#include "sl_sync_include_after_simplelink_header.h"
 
 #define SL_STOP_TIMEOUT                 30
 
