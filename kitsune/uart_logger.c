@@ -12,12 +12,13 @@
 #include "debug.h"
 #include <stdlib.h>
 #include "endpoints.h"
+#include "sys_time.h"
 
 #define SENSE_LOG_ENDPOINT		"/logs"
 #define LOG_EVENT_BACKEND 		0x1
 #define LOG_EVENT_LOCAL			0x2
 #define LOG_EVENT_UPLOAD_LOCAL 	0x4
-extern unsigned int sl_status;
+extern volatile unsigned int sl_status;
 static struct{
 	uint8_t blocks[2][UART_LOGGER_BLOCK_SIZE];
 	volatile uint8_t * logging_block;
@@ -117,7 +118,7 @@ void uart_logc(uint8_t c){
 		xSemaphoreGive(self.block_operation_sem);
 	//}
 }
-unsigned long get_time();
+
 void uart_logger_task(void * params){
 	while(1){
 		char buffer[UART_LOGGER_BLOCK_SIZE + UART_LOGGER_RESERVED_SIZE] = {0};
@@ -131,9 +132,9 @@ void uart_logger_task(void * params){
 		switch(evnt){
 		case LOG_EVENT_BACKEND:
 			LOGI("Uploading UART logs to server...");
-			if(sl_status & HAS_IP){
+			if(time_module_initialized()){
 				self.log.has_unix_time = true;
-				self.log.unix_time = get_time();
+				self.log.unix_time = get_nwp_time();
 			}else{
 				self.log.has_unix_time = false;
 			}
