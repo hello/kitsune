@@ -39,6 +39,8 @@
 #include <stdlib.h>
 #include "crypto.h"
 
+#include "FreeRTOS.h"
+
 void RSA_priv_key_new(RSA_CTX **ctx, 
         const uint8_t *modulus, int mod_len,
         const uint8_t *pub_exp, int pub_len,
@@ -85,7 +87,8 @@ void RSA_pub_key_new(RSA_CTX **ctx,
         RSA_free(*ctx);
 
     bi_ctx = bi_initialize();
-    *ctx = (RSA_CTX *)calloc(1, sizeof(RSA_CTX));
+    *ctx = (RSA_CTX *)pvPortMalloc(sizeof(RSA_CTX));
+    memset( *ctx, 0, sizeof(RSA_CTX));
     rsa_ctx = *ctx;
     rsa_ctx->bi_ctx = bi_ctx;
     rsa_ctx->num_octets = mod_len;
@@ -127,7 +130,7 @@ void RSA_free(RSA_CTX *rsa_ctx)
     }
 
     bi_terminate(bi_ctx);
-    free(rsa_ctx);
+    vPortFree(rsa_ctx);
 }
 
 /**

@@ -453,21 +453,12 @@ int Cmd_mode(int argc, char*argv[]) {
 #include "crypto.h"
 static uint8_t aes_key[AES_BLOCKSIZE + 1] = "1234567891234567";
 
-int Cmd_set_aes(int argc, char *argv[]) {
-	//
-	// Print some header text.
-	//
+int save_aes( uint8_t * key ) {
 	unsigned long tok=0;
 	long hndl, bytes;
 	SlFsFileInfo_t info;
-    int i;
-    char* next = &argv[1][0];
-    char *pend;
 
-    for( i=0; i<AES_BLOCKSIZE/2;++i) {
-    	aes_key[i] = strtol(next, &pend, 16);
-        next = pend+1;
-    }
+	memcpy( aes_key, key, AES_BLOCKSIZE);
 
 	sl_FsGetInfo((unsigned char*)AES_KEY_LOC, tok, &info);
 
@@ -483,14 +474,34 @@ int Cmd_set_aes(int argc, char *argv[]) {
 		}
 	}
 
-	bytes = sl_FsWrite(hndl, info.FileLen, aes_key, AES_BLOCKSIZE);
+	bytes = sl_FsWrite(hndl, info.FileLen, key, AES_BLOCKSIZE);
+	if( bytes != AES_BLOCKSIZE ) {
+		return -1;
+	}
 	UARTprintf("wrote to the file %d bytes\n", bytes);
 
 	sl_FsClose(hndl, 0, 0, 0);
 
+	return 0;
+}
+
+int Cmd_set_aes(int argc, char *argv[]) {
+    int i;
+    char* next = &argv[1][0];
+    char *pend;
+    static uint8_t key[AES_BLOCKSIZE + 1] = "1234567891234567";
+
+    for( i=0; i<AES_BLOCKSIZE/2;++i) {
+    	key[i] = strtol(next, &pend, 16);
+        next = pend+1;
+    }
+
+    save_aes( key );
 	// Return success.
 	return (0);
 }
+
+
 
 int Cmd_set_mac(int argc, char*argv[]) {
     uint8_t MAC_Address[6];
