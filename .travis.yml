@@ -35,7 +35,7 @@ deploy:
 - provider: releases
   api-key:
     secure: "XTYvRkGHLlJDHVMrZN4xuCRcz6wSXras5UWcZOalckSJgCU484ZHESx8pCKbO5LDeTqNLaIWQXmAddobsiRc4qfWHOKRZylaAViOMPHDgsqmJ96lquUo+wKG6qY/LkbVWxniFKMBOHH+yUjhrJW59MXlDNrKrUOvrAcC/y486Vg="
-  file: exe
+  file: build.tar.gz
   skip_cleanup: true
   on:
     tags: true
