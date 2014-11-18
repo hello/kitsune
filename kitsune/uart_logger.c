@@ -29,8 +29,11 @@
 extern unsigned int sl_status;
 static struct{
 	uint8_t blocks[3][UART_LOGGER_BLOCK_SIZE];
+	//ptr to block that is currently used for logging
 	volatile uint8_t * logging_block;
-	volatile uint8_t * upload_block;
+	//ptr to block that is being stored to sdcard
+	volatile uint8_t * store_block;
+	//ptr to block that is used to upload or read from sdcard
 	uint8_t * operation_block;
 	volatile uint32_t widx;
 	EventGroupHandle_t uart_log_events;
@@ -80,7 +83,7 @@ _encode_mac_as_device_id_string(pb_ostream_t *stream, const pb_field_t *field, v
 static void
 _swap_and_upload(void){
 	if (!(xEventGroupGetBitsFromISR(self.uart_log_events) & LOG_EVENT_STORE)) {
-		self.upload_block = self.logging_block;
+		self.store_block = self.logging_block;
 		//logc can be called anywhere, so using ISR api instead
 		xEventGroupSetBits(self.uart_log_events, LOG_EVENT_STORE);
 	} else {
@@ -277,7 +280,7 @@ int Cmd_log_upload(int argc, char *argv[]){
 	return 0;
 }
 void uart_logger_init(void){
-	self.upload_block = self.blocks[0];
+	self.store_block = self.blocks[0];
 	self.operation_block = self.blocks[2];
 	self.uart_log_events = xEventGroupCreate();
 	xEventGroupClearBits( self.uart_log_events, 0xff );
@@ -323,7 +326,7 @@ void uart_logger_task(void * params){
 		switch(evnt){
 		case LOG_EVENT_STORE:
 			if(self.log_local_enable){
-				if (FR_OK == _save_newest((char*) self.upload_block, UART_LOGGER_BLOCK_SIZE)) {
+				if (FR_OK == _save_newest((char*) self.store_block, UART_LOGGER_BLOCK_SIZE)) {
 					xEventGroupSetBits(self.uart_log_events, LOG_EVENT_UPLOAD);
 				} else {
 					LOGE("Unable to save logs\r\n");
