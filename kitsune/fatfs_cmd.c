@@ -931,7 +931,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 	    {
 	        // File Doesn't exit create a new of 40 KB file
 	        lRetVal = sl_FsOpen((unsigned char *)FILE_NAME, \
-	                           FS_MODE_OPEN_CREATE(SIZE_40K, \
+	                           FS_MODE_OPEN_CREATE(256*1024, \
 	                           _FS_FILE_OPEN_FLAG_COMMIT|_FS_FILE_PUBLIC_WRITE),
 	                           &Token, &fileHandle);
 	        return (lRetVal);
