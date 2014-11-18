@@ -322,13 +322,17 @@ void uart_logger_task(void * params){
 		}
 		switch(evnt){
 		case LOG_EVENT_STORE:
-			if(FR_OK == _save_newest((char*)self.upload_block, UART_LOGGER_BLOCK_SIZE)){
-				xEventGroupClearBits(self.uart_log_events,LOG_EVENT_STORE);
-				xEventGroupSetBits(self.uart_log_events, LOG_EVENT_UPLOAD);
+			if(self.log_local_enable){
+				if (FR_OK == _save_newest((char*) self.upload_block, UART_LOGGER_BLOCK_SIZE)) {
+					xEventGroupSetBits(self.uart_log_events, LOG_EVENT_UPLOAD);
+				} else {
+					LOGE("Unable to save logs\r\n");
+				}
+				xEventGroupClearBits(self.uart_log_events, LOG_EVENT_STORE);
 			}else{
-				LOGE("Unable to save logs\r\n");
-				xEventGroupClearBits(self.uart_log_events,LOG_EVENT_STORE);
+
 			}
+
 			break;
 		case LOG_EVENT_UPLOAD:
 			xEventGroupClearBits(self.uart_log_events,LOG_EVENT_UPLOAD);
