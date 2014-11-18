@@ -41,7 +41,7 @@
 ROOT=../../
 
 #
-# Include the common make definitions.
+# include the common make definitions.
 #
 include ${ROOT}/tools/gcc_scripts/makedefs
 
@@ -109,7 +109,7 @@ ${BINDIR}:
 ${BINDIR}/FreeRTOS.a: ${OBJS}
 
 #
-# Include the automatically generated dependency files.
+# include the automatically generated dependency files.
 #
 ifneq (${MAKECMDGOALS},clean)
 -include ${wildcard ${COMPILER}/*.d} __dummy__

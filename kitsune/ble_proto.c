@@ -22,6 +22,8 @@
 #include "led_cmd.h"
 #include "top_board.h"
 
+#include "kitsune_version.h"
+
 extern unsigned int sl_status;
 
 static void _factory_reset(){
@@ -66,7 +68,7 @@ static void _reply_wifi_scan_result()
     sl_status |= SCANNING;
     
     //Cmd_led(0,0);
-    play_led_progress_bar(30,30,0,0);
+    play_led_progress_bar(30,30,0,0,portMAX_DELAY);
     while((scanned_wifi_count = get_wifi_scan_result(wifi_endpoints, MAX_WIFI_EP_PER_SCAN, 3000 * (max_retry - retry_count + 1))) == 0 && --retry_count)
     {
     	set_led_progress_bar((max_retry - retry_count) * 100 / max_retry);
@@ -78,7 +80,7 @@ static void _reply_wifi_scan_result()
 
     int i = 0;
     Sl_WlanNetworkEntry_t wifi_endpoints_cp[2] = {0};
-    play_led_progress_bar(0,0,30,0);
+    play_led_progress_bar(0,0,30,0,portMAX_DELAY);
     MorpheusCommand reply_command = {0};
     for(i = 0; i < scanned_wifi_count; i++)
     {
@@ -107,7 +109,7 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type)
     uint8_t max_retry = 10;
     uint8_t retry_count = max_retry;
 
-	play_led_progress_bar(30,30,0,0);
+	play_led_progress_bar(30,30,0,0,portMAX_DELAY);
     while((connection_ret = connect_wifi(ssid, password, security_type)) == 0 && --retry_count)
     {
         //Cmd_led(0,0);
@@ -127,7 +129,7 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type)
 		uint8_t wait_time = 5;
 
 		sl_status |= CONNECTING;
-		play_led_progress_bar(30,30,0,0);
+		play_led_progress_bar(30,30,0,0,portMAX_DELAY);
 		while(--wait_time && (!(sl_status & HAS_IP)))
 		{
             if(!(sl_status & CONNECTING))  // This state will be triggered magically by SL_WLAN_CONNECTION_FAILED_EVENT event

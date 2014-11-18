@@ -37,7 +37,7 @@
 
 #include <string.h>
 #include "tff.h"		/* Tiny-FatFs declarations */
-#include "diskio.h"		/* Include file for user provided disk functions */
+#include "diskio.h"		/* include file for user provided disk functions */
 
 
 static

@@ -66,7 +66,6 @@
 #include "ti_codec.h"
 #include "network.h"
 
-#include "ff.h"
 #include "diskio.h"
 #include "top_hci.h"
 #include "slip_packet.h"
@@ -75,7 +74,9 @@
 #include "led_animations.h"
 #include "uart_logger.h"
 
-#include "tests/TestNetwork.h"
+#include "kitsune_version.h"
+#include "TestNetwork.h"
+
 #define ONLY_MID 0
 
 //******************************************************************************
@@ -552,23 +553,24 @@ static SyncResponse_Alarm alarm;
 
 void set_alarm( SyncResponse_Alarm * received_alarm ) {
     if (xSemaphoreTake(alarm_smphr, portMAX_DELAY)) {
-        if (received_alarm->has_ring_offset_from_now_in_second && received_alarm->has_ring_duration_in_second ) {
+        if (received_alarm->has_ring_offset_from_now_in_second
+        	&& received_alarm->ring_offset_from_now_in_second > -1 ) {   // -1 means user has no alarm/reset his/her now
         	unsigned long now = get_time();
         	received_alarm->start_time = now + received_alarm->ring_offset_from_now_in_second;
-        	received_alarm->end_time = now + received_alarm->ring_offset_from_now_in_second + received_alarm->ring_duration_in_second;
-        	received_alarm->has_end_time = received_alarm->has_start_time = true;
-        	//sanity check
-            if( received_alarm->start_time - now < ONE_YEAR_IN_SECONDS ) {
-                //are we within the duration of the current alarm?
-                if( alarm.has_start_time
-                 && alarm.start_time - now > 0
-                 && now - alarm.start_time < alarm.ring_duration_in_second ) {
-                    UARTprintf( "alarm currently active, putting off setting\n");
-                } else {
-                    memcpy(&alarm, received_alarm, sizeof(alarm));
-                }
+
+        	int ring_duration = received_alarm->has_ring_duration_in_second ? received_alarm->ring_duration_in_second : 30;
+        	received_alarm->end_time = now + received_alarm->ring_offset_from_now_in_second + ring_duration;
+        	received_alarm->has_end_time = received_alarm->has_start_time = received_alarm->has_ring_duration_in_second = true;
+        	received_alarm->ring_duration_in_second = ring_duration;
+        	// //sanity check
+        	// since received_alarm->ring_offset_from_now_in_second >= 0, we don't need to check received_alarm->start_time
+            
+            //are we within the duration of the current alarm?
+            if( alarm.has_start_time
+             && alarm.start_time - now > 0
+             && now - alarm.start_time < alarm.ring_duration_in_second ) {
+                UARTprintf( "alarm currently active, putting off setting\n");
             } else {
-                UARTprintf( "alarm cancelled\n");
                 memcpy(&alarm, received_alarm, sizeof(alarm));
             }
             UARTprintf("Got alarm %d to %d in %d minutes\n",
@@ -576,6 +578,15 @@ void set_alarm( SyncResponse_Alarm * received_alarm ) {
                         (received_alarm->start_time - now) / 60);
         }else{
             UARTprintf("No alarm for now.\n");
+            // when we reach here, we need to cancel the existing alarm to prevent them ringing.
+
+            // The following is not necessary, putting here just to make them explicit.
+            received_alarm->start_time = 0;
+            received_alarm->end_time = 0;
+            received_alarm->has_start_time = false;
+            received_alarm->has_end_time = false;
+
+            memcpy(&alarm, received_alarm, sizeof(alarm));
         }
 
         xSemaphoreGive(alarm_smphr);
@@ -704,7 +715,7 @@ static void _on_wave(void * ctx){
 			 	}
 			}
 static void _on_hold(void * ctx){
-	stop_led_animation();
+	//stop_led_animation();
 	alarm.has_start_time = 0;
 	AudioTask_StopPlayback();
 }
@@ -1451,6 +1462,8 @@ void vUARTTask(void *pvParameters) {
 	init_temp_sensor();
 	init_light_sensor();
 	init_prox_sensor();
+
+	init_led_animation();
 
 	data_queue = xQueueCreate(10, sizeof(periodic_data));
 	pill_queue = xQueueCreate(MAX_PILL_DATA, sizeof(pill_data));

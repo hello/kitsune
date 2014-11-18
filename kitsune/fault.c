@@ -11,6 +11,7 @@
 #include "wifi_cmd.h"
 #include "uartstdio.h"
 #include "fault.h"
+#include "kitsune_version.h"
 
 //*****************************************************************************
 //

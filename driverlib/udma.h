@@ -531,7 +531,7 @@ tDMAControlTable;
 // The following are defines for the Micro Direct Memory Access (uDMA) offsets.
 //
 //*****************************************************************************
-#define UDMA_O_SRCENDP          0x00000000  // DMA Channel Source Address End
+#define UDMA_O_SRCENDP          0x00000000  // DMA Channel source Address End
                                             // Pointer
 #define UDMA_O_DSTENDP          0x00000004  // DMA Channel Destination Address
                                             // End Pointer
@@ -542,7 +542,7 @@ tDMAControlTable;
 // The following are defines for the bit fields in the UDMA_O_SRCENDP register.
 //
 //*****************************************************************************
-#define UDMA_SRCENDP_ADDR_M     0xFFFFFFFF  // Source Address End Pointer
+#define UDMA_SRCENDP_ADDR_M     0xFFFFFFFF  // source Address End Pointer
 #define UDMA_SRCENDP_ADDR_S     0
 
 //*****************************************************************************
@@ -567,12 +567,12 @@ tDMAControlTable;
 #define UDMA_CHCTL_DSTSIZE_8    0x00000000  // Byte
 #define UDMA_CHCTL_DSTSIZE_16   0x10000000  // Half-word
 #define UDMA_CHCTL_DSTSIZE_32   0x20000000  // Word
-#define UDMA_CHCTL_SRCINC_M     0x0C000000  // Source Address Increment
+#define UDMA_CHCTL_SRCINC_M     0x0C000000  // source Address Increment
 #define UDMA_CHCTL_SRCINC_8     0x00000000  // Byte
 #define UDMA_CHCTL_SRCINC_16    0x04000000  // Half-word
 #define UDMA_CHCTL_SRCINC_32    0x08000000  // Word
 #define UDMA_CHCTL_SRCINC_NONE  0x0C000000  // No increment
-#define UDMA_CHCTL_SRCSIZE_M    0x03000000  // Source Data Size
+#define UDMA_CHCTL_SRCSIZE_M    0x03000000  // source Data Size
 #define UDMA_CHCTL_SRCSIZE_8    0x00000000  // Byte
 #define UDMA_CHCTL_SRCSIZE_16   0x01000000  // Half-word
 #define UDMA_CHCTL_SRCSIZE_32   0x02000000  // Word

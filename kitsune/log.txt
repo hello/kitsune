@@ -36,31 +36,31 @@ Changes not staged for commit:
 	modified:   wifi_cmd.c
 	modified:   wifi_cmd.h
 	deleted:    ../oslib/ccs/.cproject
-	modified:   ../simplelink/Include/device.h
-	modified:   ../simplelink/Include/fs.h
-	modified:   ../simplelink/Include/netapp.h
-	modified:   ../simplelink/Include/netcfg.h
-	modified:   ../simplelink/Include/simplelink.h
-	modified:   ../simplelink/Include/socket.h
-	modified:   ../simplelink/Include/trace.h
-	modified:   ../simplelink/Include/wlan.h
-	modified:   ../simplelink/Include/wlan_rx_filters.h
-	deleted:    ../simplelink/Source/datatypes.h
-	modified:   ../simplelink/Source/device.c
-	modified:   ../simplelink/Source/driver.c
-	modified:   ../simplelink/Source/driver.h
-	modified:   ../simplelink/Source/flowcont.c
-	modified:   ../simplelink/Source/flowcont.h
-	modified:   ../simplelink/Source/fs.c
-	modified:   ../simplelink/Source/netapp.c
-	modified:   ../simplelink/Source/netcfg.c
-	modified:   ../simplelink/Source/nonos.c
-	modified:   ../simplelink/Source/nonos.h
-	modified:   ../simplelink/Source/protocol.h
-	modified:   ../simplelink/Source/socket.c
-	modified:   ../simplelink/Source/spawn.c
-	modified:   ../simplelink/Source/spawn.h
-	modified:   ../simplelink/Source/wlan.c
+	modified:   ../simplelink/include/device.h
+	modified:   ../simplelink/include/fs.h
+	modified:   ../simplelink/include/netapp.h
+	modified:   ../simplelink/include/netcfg.h
+	modified:   ../simplelink/include/simplelink.h
+	modified:   ../simplelink/include/socket.h
+	modified:   ../simplelink/include/trace.h
+	modified:   ../simplelink/include/wlan.h
+	modified:   ../simplelink/include/wlan_rx_filters.h
+	deleted:    ../simplelink/source/datatypes.h
+	modified:   ../simplelink/source/device.c
+	modified:   ../simplelink/source/driver.c
+	modified:   ../simplelink/source/driver.h
+	modified:   ../simplelink/source/flowcont.c
+	modified:   ../simplelink/source/flowcont.h
+	modified:   ../simplelink/source/fs.c
+	modified:   ../simplelink/source/netapp.c
+	modified:   ../simplelink/source/netcfg.c
+	modified:   ../simplelink/source/nonos.c
+	modified:   ../simplelink/source/nonos.h
+	modified:   ../simplelink/source/protocol.h
+	modified:   ../simplelink/source/socket.c
+	modified:   ../simplelink/source/spawn.c
+	modified:   ../simplelink/source/spawn.h
+	modified:   ../simplelink/source/wlan.c
 	modified:   ../simplelink/cc_pal.c
 	modified:   ../simplelink/cc_pal.h
 	modified:   ../simplelink/cc_pal_pm.c

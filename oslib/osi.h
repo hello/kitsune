@@ -485,7 +485,7 @@ void  mem_set(void *pBuf,int Val,size_t Size);
 /*!
     \brief				Copy Memory
 	\param	pDst		-	Pointer to the Destination Buffer
-	\param	pSrc 		- 	Pointer to the Source Buffer
+	\param	pSrc 		- 	Pointer to the source Buffer
 	\param	Size 		- 	Size of the memory to be copied
 	\return void
     \note

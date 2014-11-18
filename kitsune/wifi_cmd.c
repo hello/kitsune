@@ -33,6 +33,8 @@ unsigned int sl_status = 0;
 #include "FreeRTOS.h"
 #include "task.h"
 
+#include "kitsune_version.h"
+
 #define FAKE_MAC 0
 
 void mcu_reset()
@@ -187,7 +189,6 @@ void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent) {
 
 		sl_status |= HAS_IP;
 
-        Cmd_led(0,0);
 		break;
 
 	case SL_NETAPP_IP_LEASED_EVENT:
@@ -536,7 +537,6 @@ void load_aes() {
 #include <pb.h>
 #include <pb_encode.h>
 #include <pb_decode.h>
-#include "envelope.pb.h"
 #include "periodic.pb.h"
 #include "audio_data.pb.h"
 
@@ -888,7 +888,7 @@ int send_audio_wifi(char * buffer, int buffer_size, audio_read_cb arcb) {
 
 #if 1
 #define SIG_SIZE 32
-#include "SyncResponse.pb.h"
+#include "sync_response.pb.h"
 
 
 int decode_rx_data_pb_callback(const uint8_t * buffer, uint32_t buffer_size, void * decodedata,network_decode_callback_t decoder) {
