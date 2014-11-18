@@ -16,7 +16,7 @@ deploy:
   bucket: hello-firmware
   skip_cleanup: true
   local-dir: exe
-  upload-dir: sense/travis/$TRAVIS_BRANCH
+  upload-dir: sense/$TRAVIS_BRANCH
   on:
     repo: hello/kitsune
     all_branches: true
@@ -27,7 +27,7 @@ deploy:
   bucket: hello-firmware
   skip_cleanup: true
   local-dir: exe
-  upload-dir: sense/travis/$TRAVIS_BRANCH/$TRAVIS_TAG
+  upload-dir: sense/$TRAVIS_BRANCH/$TRAVIS_TAG
   on:
     repo: hello/kitsune
     all_branches: true
