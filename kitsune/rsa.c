@@ -139,13 +139,15 @@ void RSA_free(RSA_CTX *rsa_ctx)
  * @return  The number of bytes that were originally encrypted. -1 on error.
  * @see http://www.rsasecurity.com/rsalabs/node.asp?id=2125
  */
+#include "FreeRTOS.h"
+#include "task.h"
 int RSA_decrypt(const RSA_CTX *ctx, const uint8_t *in_data, 
                             uint8_t *out_data, int is_decryption)
 {
     const int byte_size = ctx->num_octets;
     int i, size;
     bigint *decrypted_bi, *dat_bi;
-    uint8_t *block = (uint8_t *)alloca(byte_size);
+    uint8_t *block = (uint8_t *)pvPortMalloc(byte_size);
 
     memset(out_data, 0, byte_size); /* initialise */
 
@@ -182,6 +184,7 @@ int RSA_decrypt(const RSA_CTX *ctx, const uint8_t *in_data,
     if (size > 0)
         memcpy(out_data, &block[i], size);
     
+    vPortFree(block);
     return size ? size : -1;
 }
 

@@ -44,6 +44,7 @@ extern "C" {
 //#define CONFIG_BIGINT_CRT 0 //speeds up decryption
 //#define CONFIG_SSL_GENERATE_X509_CERT 0
 
+#include "stdint.h"
 #include "bigint_impl.h"
 #include "bigint.h"
 
@@ -154,6 +155,27 @@ int RSA_encrypt(const RSA_CTX *ctx, const uint8_t *in_data, uint16_t in_len,
         uint8_t *out_data, int is_signing);
 void RSA_print(const RSA_CTX *ctx);
 #endif
+
+/**************************************************************************
+ * RC4 declarations
+ **************************************************************************/
+
+typedef struct
+{
+    uint8_t x, y, m[256];
+} RC4_CTX;
+
+void RC4_setup(RC4_CTX *s, const uint8_t *key, int length);
+void RC4_crypt(RC4_CTX *s, const uint8_t *msg, uint8_t *data, int length);
+
+/**************************************************************************
+ * RNG declarations
+ **************************************************************************/
+
+void get_random_NZ(int num_rand_bytes, uint8_t *rand_data);
+void get_random(int num_rand_bytes, uint8_t *rand_data);
+void RNG_custom_init(const uint8_t *seed_buf, int size);
+
 
 #ifdef __cplusplus
 }
