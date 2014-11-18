@@ -27,9 +27,16 @@ deploy:
   bucket: hello-firmware
   skip_cleanup: true
   local-dir: exe
-  upload-dir: sense/$TRAVIS_BRANCH/$TRAVIS_TAG
+  upload-dir: sense/$TRAVIS_TAG
   on:
     repo: hello/kitsune
     all_branches: true
     tags: true
-
+- provider: releases
+  api-key:
+    secure: "XTYvRkGHLlJDHVMrZN4xuCRcz6wSXras5UWcZOalckSJgCU484ZHESx8pCKbO5LDeTqNLaIWQXmAddobsiRc4qfWHOKRZylaAViOMPHDgsqmJ96lquUo+wKG6qY/LkbVWxniFKMBOHH+yUjhrJW59MXlDNrKrUOvrAcC/y486Vg="
+  file: exe
+  skip_cleanup: true
+  on:
+    tags: true
+    all_branches: true
