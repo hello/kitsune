@@ -24,8 +24,13 @@
  * Backend(if has no local backlog) -> Local -> Backend(if has IP)
  * This way we can guarantee continuity if wifi is intermittent
  */
+
+//flag to start saving the logs to sd
 #define LOG_EVENT_STORE 		0x1
+//flag to upload to server and delete oldest file
 #define LOG_EVENT_UPLOAD	    0x2
+//flag to upload the swap block only
+#define LOG_EVENT_UPLOAD_ONLY	0x4
 extern unsigned int sl_status;
 static struct{
 	uint8_t blocks[3][UART_LOGGER_BLOCK_SIZE];
@@ -325,17 +330,15 @@ void uart_logger_task(void * params){
 		}
 		switch(evnt){
 		case LOG_EVENT_STORE:
-			if(self.log_local_enable){
-				if (FR_OK == _save_newest((char*) self.store_block, UART_LOGGER_BLOCK_SIZE)) {
-					xEventGroupSetBits(self.uart_log_events, LOG_EVENT_UPLOAD);
-				} else {
-					LOGE("Unable to save logs\r\n");
-				}
-				xEventGroupClearBits(self.uart_log_events, LOG_EVENT_STORE);
+			if(self.log_local_enable && FR_OK == _save_newest((char*) self.store_block, UART_LOGGER_BLOCK_SIZE)){
+				self.operation_block = self.blocks[2];
+				xEventGroupSetBits(self.uart_log_events, LOG_EVENT_UPLOAD);
 			}else{
-
+				self.operation_block = self.store_block;
+				xEventGroupSetBits(self.uart_log_events, LOG_EVENT_UPLOAD_ONLY);
+				LOGE("Unable to save logs\r\n");
 			}
-
+			xEventGroupClearBits(self.uart_log_events, LOG_EVENT_STORE);
 			break;
 		case LOG_EVENT_UPLOAD:
 			xEventGroupClearBits(self.uart_log_events,LOG_EVENT_UPLOAD);
