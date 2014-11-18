@@ -96,18 +96,17 @@ unsigned long get_time() {
 
 	while (last_ntp == 0) {
 		UARTprintf("Get NTP time\n");
-		networktask_enter_critical_region();
-
-		if (last_ntp != 0) {  // race condition: some other thread got the time.
-			UARTprintf("Get NTP time done by other thread\n");
-			networktask_exit_critical_region();
-			return get_cache_time();
-		}
 
 		while (!(sl_status & HAS_IP)) {
 			vTaskDelay(100);
 		} //wait for a connection the first time...
 
+		networktask_enter_critical_region();
+		if (last_ntp != 0) {  // race condition: some other thread got the time.
+			UARTprintf("Get NTP time done by other thread\n");
+			networktask_exit_critical_region();
+			return get_cache_time();
+		}
 		uint64_t ntp = unix_time();
 
 		vTaskDelay((1 << tries) * 1000);
@@ -128,7 +127,6 @@ unsigned long get_time() {
 
 		UARTprintf("Get NTP time done\n");
 		networktask_exit_critical_region();
-
 	}
 
 	return get_cache_time();
