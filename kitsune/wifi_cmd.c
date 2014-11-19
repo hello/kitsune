@@ -312,7 +312,7 @@ int Cmd_time(int argc, char*argv[]) {
 	uint32_t unix = fetch_time_from_ntp_server();
 	uint32_t t = get_nwp_time();
 
-    UARTprintf(" time is %u and the ntp is %d and the diff is %d\n", t, unix, t-unix);
+    UARTprintf("time is %u and the ntp is %d and the diff is %d, time module initialized %d\n", t, unix, t-unix, time_module_initialized());
 
     return 0;
 }
