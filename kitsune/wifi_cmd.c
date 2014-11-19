@@ -440,8 +440,7 @@ int Cmd_mode(int argc, char*argv[]) {
     if (ap && sl_mode != ROLE_AP) {
         //Switch to AP Mode
         sl_WlanSetMode(ROLE_AP);
-        sl_Stop(SL_STOP_TIMEOUT);
-        sl_mode = sl_Start(NULL, NULL, NULL);
+        nwp_reset();
     }
     if (!ap && sl_mode != ROLE_STA) {
         //Switch to STA Mode
@@ -504,8 +503,7 @@ int Cmd_set_mac(int argc, char*argv[]) {
     }
 
     sl_NetCfgSet(SL_MAC_ADDRESS_SET,1,SL_MAC_ADDR_LEN,(_u8 *)MAC_Address);
-    sl_Stop(0);
-    sl_Start(NULL,NULL,NULL);
+    nwp_reset();
 
     return 0;
 }
