@@ -12,10 +12,10 @@ extern "C" {
 
 //User Options
 //keep this large to reduce HTTP request printing overheads
-#define UART_LOGGER_BLOCK_SIZE 2048
+#define UART_LOGGER_BLOCK_SIZE 1280
 
 //needs to be sufficiently large to hold buffer for tx
-#define UART_LOGGER_THREAD_STACK_SIZE	(UART_LOGGER_BLOCK_SIZE + 1024)
+#define UART_LOGGER_THREAD_STACK_SIZE	(UART_LOGGER_BLOCK_SIZE + UART_LOGGER_RESERVED_SIZE + 1028)
 
 //for reserved txbuf in the task for protobuf object
 #define UART_LOGGER_RESERVED_SIZE 128
@@ -68,6 +68,13 @@ void uart_logger_init(void);
  */
 void uart_logf(uint8_t tag, const char *pcString, ...);
 
+/**
+ * Emergency flush
+ * should only be called by mcu reset, or before a reset function.
+ * flushes the working buffer immediately instead of passing it to the worker task.
+ * uart logger module will stop functioning right after.
+ */
+void uart_logger_flush(void);
 void uart_logger_task(void * params);
 int Cmd_log_upload(int argc, char *argv[]);
 int Cmd_log_setview(int argc, char * argv[]);

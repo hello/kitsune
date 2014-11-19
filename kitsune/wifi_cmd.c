@@ -41,6 +41,7 @@ volatile unsigned int sl_status = 0;
 
 void mcu_reset()
 {
+	uart_logger_flush();
 #define SLOW_CLK_FREQ           (32*1024)
     //
     // Configure the HIB module RTC wake time
