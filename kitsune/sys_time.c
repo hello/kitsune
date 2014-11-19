@@ -213,6 +213,17 @@ static uint32_t unix_time() {
     return ntp;
 }
 
+int time_module_initialized()
+{
+	return _init == 1;
+}
+
+int init_time_module()
+{
+	_init = 1;
+	return _init == 1;
+}
+
 
 /*
  * WARNING: DONOT use this function in protobuf encoding/decoding function if you want to send the protobuf
