@@ -10,8 +10,6 @@ extern "C" {
 
 #define INVALID_SYS_TIME	(0xFFFFFFFF)
 
-static int _init = 0;
-
 int time_module_initialized();
 int init_time_module();
 
