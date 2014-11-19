@@ -130,7 +130,6 @@ void DeinitAudioPlayback(void) {
 
 uint8_t InitFile(Filedata_t * pfiledata) {
 	FRESULT res;
-	//FILINFO file_info;
 
 	/*  If we got here, then the file should already be closed */
 	uint8_t ret = 1;
