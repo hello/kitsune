@@ -1147,9 +1147,10 @@ int save_aes( uint8_t * key ) ;
 int Cmd_generate_aes_key(int argc,char * argv[]) {
 #define NORDIC_ENC_ROOT_SIZE 16 //todo find out the real value
 	uint8_t enc_root[NORDIC_ENC_ROOT_SIZE];
-	uint8_t aes_key[AES_BLOCKSIZE];
+	uint8_t aes_key[AES_BLOCKSIZE + SHA1_SIZE];
 	uint8_t enc_aes_key[255];
 	char key_string[2*255];
+	SHA1_CTX sha_ctx;
 	RSA_CTX * rsa_ptr = NULL;
 	int enc_size;
 
@@ -1158,14 +1159,20 @@ int Cmd_generate_aes_key(int argc,char * argv[]) {
 
 	//use the entropy in our RNG
 	RNG_custom_init(enc_root, NORDIC_ENC_ROOT_SIZE);
+//todo more entropy!
 
 	//generate a key
 	get_random_NZ(AES_BLOCKSIZE, aes_key);
 	//save_aes(aes_key); //todo enable this
 
-	RSA_pub_key_new( &rsa_ptr, public_key, sizeof(public_key), exponent, sizeof(exponent) );
+	//add checksum
+	SHA1_Init( &sha_ctx );
+	SHA1_Update( &sha_ctx, aes_key, AES_BLOCKSIZE  );
+	SHA1_Final( aes_key+AES_BLOCKSIZE, &sha_ctx );
 
-	enc_size = RSA_encrypt(  rsa_ptr, aes_key, AES_BLOCKSIZE, enc_aes_key, 0);
+	//init the rsa public key, encrypt the aes key and checksum
+	RSA_pub_key_new( &rsa_ptr, public_key, sizeof(public_key), exponent, sizeof(exponent) );
+	enc_size = RSA_encrypt(  rsa_ptr, aes_key, AES_BLOCKSIZE+SHA1_SIZE, enc_aes_key, 0);
 	RSA_free( rsa_ptr );
     uint8_t i = 0;
     for(i = 0; i < enc_size; i++) {
