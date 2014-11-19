@@ -31,7 +31,7 @@
 #define LOG_EVENT_UPLOAD	    0x2
 //flag to upload the swap block only
 #define LOG_EVENT_UPLOAD_ONLY	0x4
-extern unsigned int sl_status;
+extern volatile unsigned int sl_status;
 static struct{
 	uint8_t blocks[3][UART_LOGGER_BLOCK_SIZE];
 	//ptr to block that is currently used for logging
