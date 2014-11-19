@@ -771,7 +771,6 @@ typedef enum {
 } storage_dev_t;
 
 #include "crypto.h"
-SHA1_CTX sha1ctx;
 
 
 int GetData(char * filename, char* url, char * host, char * path, storage_dev_t storage)
@@ -924,20 +923,24 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 	} else if( storage == SERIAL_FLASH ) {
 	    /* Open file to save the downloaded file */
 	    unsigned long Token = 0;
+	    strcpy(path_buff, path);
+	    strcat(path_buff, filename);
 
-	    long lRetVal = sl_FsOpen((_u8 *)FILE_NAME,
+	    long lRetVal = sl_FsOpen((unsigned char*)path_buff,
 	                       FS_MODE_OPEN_WRITE, &Token, &fileHandle);
 	    if(lRetVal < 0)
 	    {
-	        // File Doesn't exit create a new of 40 KB file
-	        lRetVal = sl_FsOpen((unsigned char *)FILE_NAME, \
+	        // File Doesn't exit create a new of 256 KB file
+	        lRetVal = sl_FsOpen((unsigned char*)path_buff, \
 	                           FS_MODE_OPEN_CREATE(256*1024, \
 	                           _FS_FILE_OPEN_FLAG_COMMIT|_FS_FILE_PUBLIC_WRITE),
 	                           &Token, &fileHandle);
-	        return (lRetVal);
+			if (lRetVal < 0) {
+				return (lRetVal);
+			}
+		}
+	    UARTprintf("opening %s\n", path_buff);
 
-	    }
-		SHA1_Init(&sha1ctx);
 	}
     uint32_t total = recv_size;
     int percent = 101-100*recv_size/total;
@@ -976,18 +979,15 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 				}
 			} else if (storage == SERIAL_FLASH) {
 				//write to serial flash file
-	            long lRetVal = sl_FsWrite(fileHandle, transfer_len,
-	                    (unsigned char *)pBuff, recv_size);
-	            if(lRetVal < recv_size)
+	            r = sl_FsWrite(fileHandle, total - recv_size,
+	                    (unsigned char *)pBuff, transfer_len);
+	            if(r < transfer_len)
 	            {
 	                UART_PRINT("Failed during writing the file, Error-code: %d\r\n", \
 	                            FILE_WRITE_ERROR);
 	                /* Close file without saving */
-	                lRetVal = sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
-	                return lRetVal;
+	                return sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
 	            }
-
-				SHA1_Update(&sha1ctx, (uint8_t*)pBuff, transfer_len);
 			}
             UARTprintf("chunked 1 wrote:  %d %d\r\n", r, res);
 
@@ -1046,9 +1046,9 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
         				}
         			} else if (storage == SERIAL_FLASH) {
 						//write to serial flash file
-					    r = sl_FsWrite(fileHandle, recv_size,
-								(unsigned char *) pBuff, recv_size);
-						if (r < recv_size) {
+					    r = sl_FsWrite(fileHandle,total - recv_size,
+								(unsigned char *) pBuff, transfer_len);
+						if (r < transfer_len) {
 							UART_PRINT(
 									"Failed during writing the file, Error-code: %d\r\n",
 									FILE_WRITE_ERROR);
@@ -1057,7 +1057,6 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 									(unsigned char*) "A", 1);
 							return r;
 						}
-        				SHA1_Update(&sha1ctx, (uint8_t*)pBuff, transfer_len);
         			}
 
                     UARTprintf("chunked 2 wrote:  %d %d\r\n", r, res);
@@ -1115,9 +1114,9 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
         				}
         			} else if (storage == SERIAL_FLASH) {
         				//write to serial flash file
-						r = sl_FsWrite(fileHandle, transfer_len,
-								(unsigned char *) pBuff, recv_size);
-						if (r < recv_size) {
+						r = sl_FsWrite(fileHandle, total - recv_size,
+								(unsigned char *) pBuff, transfer_len);
+						if (r < transfer_len) {
 							UART_PRINT(
 									"Failed during writing the file, Error-code: %d\r\n",
 									FILE_WRITE_ERROR);
@@ -1126,7 +1125,6 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 									(unsigned char*) "A", 1);
 							return r;
 						}
-        				SHA1_Update(&sha1ctx, (uint8_t*)pBuff, transfer_len);
         			}
 
                     UARTprintf("chunked 3 wrote:  %d %d\r\n", r, res);
@@ -1152,7 +1150,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
             // write data on the file
 			if (storage == SD_CARD) {
 				res = hello_fs_write(&file_obj, pBuff, transfer_len, &r);
-				if (r < recv_size) {
+				if (r < transfer_len) {
 					UARTprintf(
 							"Failed during writing the file, Error-code: %d\r\n",
 							FILE_WRITE_ERROR);
@@ -1171,18 +1169,19 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 				}
 			} else if (storage == SERIAL_FLASH) {
 				//write to serial flash file
-				long lRetVal = sl_FsWrite(fileHandle, transfer_len,
-						(unsigned char *) pBuff, recv_size);
-				if (lRetVal < recv_size) {
+				r = sl_FsWrite(fileHandle, total - recv_size,
+						(unsigned char *) pBuff, transfer_len);
+				if (r < transfer_len) {
 					UART_PRINT(
 							"Failed during writing the file, Error-code: %d\r\n",
 							FILE_WRITE_ERROR);
 					/* Close file without saving */
-					lRetVal = sl_FsClose(fileHandle, 0, (unsigned char*) "A",
+					r = sl_FsClose(fileHandle, 0, (unsigned char*) "A",
 							1);
-					return lRetVal;
+					if (r < 0) {
+						return r;
+					}
 				}
-				SHA1_Update(&sha1ctx, (uint8_t*)pBuff, transfer_len);
 			}
 
             UARTprintf("wrote:  %d %d\r\n", r, res);
@@ -1253,6 +1252,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 	        }
 		} else if (storage == SERIAL_FLASH) {
 	        /* Save and close file */
+			return sl_FsClose(fileHandle, 0, 0, 0);
 		}
     }
 	if (storage == SD_CARD) {
@@ -1555,9 +1555,9 @@ void free_download_info(SyncResponse_FileDownload * download_info) {
 
 xQueueHandle download_queue = 0;
 
-void file_download_task( void * manifestPtr ) {
+void file_download_task( void * params ) {
 	SyncResponse_FileDownload download_info;
-	while (xQueueReceive(download_queue, &(download_info), 100)) {
+	for(;;) while (xQueueReceive(download_queue, &(download_info), 100)) {
 		char * filename=NULL, * url=NULL, * host=NULL, * path=NULL, * serial_flash_path=NULL, * serial_flash_name=NULL;
 
 		filename = download_info.sd_card_filename.arg;
@@ -1608,6 +1608,13 @@ void file_download_task( void * manifestPtr ) {
 					&& download_info.copy_to_serial_flash && serial_flash_name
 					&& serial_flash_path) {
 				//download it!
+				if (strstr(serial_flash_name, "mcuimgx") != 0 )
+				{
+					_ReadBootInfo(&sBootInfo);
+					serial_flash_name[6] = (_u8)_McuImageGetNewIndex() + '1'; /* mcuimg1 is for factory default, mcuimg2,3 are for OTA updates */
+					UARTprintf("MCU image name converted to %s \n", serial_flash_name);
+				}
+
 				if (download_file(host, url, serial_flash_name,
 						serial_flash_path, SERIAL_FLASH) != 0) {
 					goto end_download_task;
@@ -1630,14 +1637,53 @@ void file_download_task( void * manifestPtr ) {
 		}
 		if (download_info.has_reset_application_processor
 				&& download_info.reset_application_processor) {
-			UARTprintf("change image status to IMG_STATUS_TESTREADY\n\r");
 			_ReadBootInfo(&sBootInfo);
 			if (download_info.has_sha1) {
-				unsigned char sha[SHA1_SIZE] = { 0 };
+
+				//compute the sha of the file...
+					unsigned char * full_path;
+					unsigned char sha[SHA1_SIZE] = { 0 };
+
+					SHA1_CTX sha1ctx;
+					SHA1_Init(&sha1ctx);
+					//
+#define minval( a,b ) a < b ? a : b
+#define BUF_SZ 512
+					unsigned long tok = 0;
+					long hndl, err, bytes, bytes_to_read;
+					SlFsFileInfo_t info;
+					unsigned char* buffer = (unsigned char*)pvPortMalloc(BUF_SZ);
+
+					full_path = (unsigned char*)pvPortMalloc(256);
+					strcpy((char*)full_path, serial_flash_path );
+					strcat((char*)full_path, serial_flash_name);
+					sl_FsGetInfo(full_path, tok, &info);
+
+					UARTprintf( "computing SHA of %s\n", full_path);
+
+					err = sl_FsOpen((unsigned char*)full_path, FS_MODE_OPEN_READ,
+							&tok, &hndl);
+					vPortFree(full_path);
+
+					if (err) {
+						UARTprintf("error opening for read %d\n", err);
+						goto end_download_task;
+					}
+					bytes_to_read = info.FileLen;
+					while (bytes_to_read > 0) {
+						bytes = sl_FsRead(hndl, info.FileLen - bytes_to_read,
+								buffer,
+								minval(info.FileLen, BUF_SZ));
+						SHA1_Update(&sha1ctx, buffer, bytes);
+						bytes_to_read -= bytes;
+					}
+					vPortFree(buffer);
+					sl_FsClose(hndl, 0, 0, 0);
 
 					SHA1_Final(sha, &sha1ctx);
 
 					if (memcmp(sha, download_info.sha1.bytes, SHA1_SIZE) == 0) {
+						UARTprintf("change image status to IMG_STATUS_TESTREADY\n\r");
 						sBootInfo.ulImgStatus = IMG_STATUS_TESTREADY;
 						memcpy(sBootInfo.sha[_McuImageGetNewIndex()], download_info.sha1.bytes, SHA1_SIZE );
 						//sBootInfo.ucActiveImg this is set by boot loader
@@ -1667,6 +1713,11 @@ void file_download_task( void * manifestPtr ) {
 			free_download_info(&download_info);
 		}
 	}
+}
+
+void init_download_task( int stack ){
+	download_queue = xQueueCreate(10, sizeof(SyncResponse_FileDownload));
+	xTaskCreate(file_download_task, "file_download_task", stack, NULL, 2, NULL);
 }
 
 bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg)

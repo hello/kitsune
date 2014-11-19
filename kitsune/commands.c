@@ -1367,6 +1367,8 @@ tCmdLineEntry g_sCmdTable[] = {
 // ==============================================================================
 extern xSemaphoreHandle g_xRxLineSemaphore;
 void UARTStdioIntHandler(void);
+void init_download_task( int stack );
+_i16 nwp_reset();
 
 void vUARTTask(void *pvParameters) {
 	char cCmdBuf[512];
@@ -1477,6 +1479,7 @@ void vUARTTask(void *pvParameters) {
 		UARTprintf("Failed to create the data_queue.\n");
 	}
 
+	init_download_task( 1024 / 4 );
 	xTaskCreate(top_board_task, "top_board_task", 1024 / 4, NULL, 2, NULL);
 	xTaskCreate(thread_alarm, "alarmTask", 2*1024 / 4, NULL, 4, NULL);
 
