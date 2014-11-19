@@ -10,18 +10,8 @@ extern "C" {
 
 #define INVALID_SYS_TIME	(0xFFFFFFFF)
 
-static int _init = 0;
-
-inline int time_module_initialized()
-{
-	return _init == 1;
-}
-
-inline int init_time_module()
-{
-	_init = 1;
-	return _init == 1;
-}
+int time_module_initialized();
+int init_time_module();
 
 uint32_t set_nwp_time(uint32_t unix_timestamp_sec);
 uint32_t get_nwp_time();

@@ -313,7 +313,7 @@ int Cmd_time(int argc, char*argv[]) {
 	uint32_t unix = fetch_time_from_ntp_server();
 	uint32_t t = get_nwp_time();
 
-    UARTprintf(" time is %u and the ntp is %d and the diff is %d\n", t, unix, t-unix);
+    UARTprintf("time is %u and the ntp is %d and the diff is %d, time module initialized %d\n", t, unix, t-unix, time_module_initialized());
 
     return 0;
 }
@@ -918,7 +918,7 @@ int match(char *regexp, char *text)
 }
 
 //buffer needs to be at least 128 bytes...
-int send_data_pb_callback(const char* host, const char* path,char * recv_buf, uint32_t recv_buf_size,const void * encodedata,network_encode_callback_t encoder,uint16_t num_receive_retries) {
+int send_data_pb_callback(const char* host, const char* path,char * recv_buf, uint32_t recv_buf_size, void * encodedata,network_encode_callback_t encoder,uint16_t num_receive_retries) {
     int send_length = 0;
     int rv = 0;
     uint8_t sig[32]={0};

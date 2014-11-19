@@ -7,7 +7,7 @@
 #include "sl_sync_include_after_simplelink_header.h"
 
 #define YEAR_TO_DAYS(y) ((y)*365 + (y)/4 - (y)/100 + (y)/400)
-
+static int _init = 0;
 
 static void untime(unsigned long unixtime, SlDateTime_t *tm)
 {
@@ -211,6 +211,17 @@ static uint32_t unix_time() {
         close(sock);
     }
     return ntp;
+}
+
+int time_module_initialized()
+{
+	return _init == 1;
+}
+
+int init_time_module()
+{
+	_init = 1;
+	return _init == 1;
 }
 
 
