@@ -966,6 +966,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 					/* Close file without saving */
 					res = hello_fs_close(&file_obj);
 
+					stop_led_animation();
 					if (res != FR_OK) {
 						cd("/");
 						stop_led_animation();
@@ -985,6 +986,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 	                UART_PRINT("Failed during writing the file, Error-code: %d\r\n", \
 	                            FILE_WRITE_ERROR);
 	                /* Close file without saving */
+	                stop_led_animation();
 	                return sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
 	            }
 			}
@@ -993,6 +995,13 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
             if(r < recv_size)
             {
     			stop_led_animation();
+    			if (storage == SD_CARD) {
+    				/* Close file without saving */
+    				res = hello_fs_close(&file_obj);
+    				hello_fs_unlink(path_buff);
+    			} else if (storage == SERIAL_FLASH) {
+    				sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
+    			}
                 return r;
             }
             transfer_len -= recv_size;
@@ -1032,6 +1041,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
         							FILE_WRITE_ERROR);
         					/* Close file without saving */
         					res = hello_fs_close(&file_obj);
+        					stop_led_animation();
 
         					if (res != FR_OK) {
         						cd("/");
@@ -1054,6 +1064,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 							/* Close file without saving */
 							r = sl_FsClose(fileHandle, 0,
 									(unsigned char*) "A", 1);
+							stop_led_animation();
 							return r;
 						}
         			}
@@ -1063,6 +1074,13 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
                     if(r < recv_size)
                     {
             			stop_led_animation();
+            			if (storage == SD_CARD) {
+            				/* Close file without saving */
+            				res = hello_fs_close(&file_obj);
+            				hello_fs_unlink(path_buff);
+            			} else if (storage == SERIAL_FLASH) {
+            				sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
+            			}
                         return FILE_WRITE_ERROR;
                     }
                     transfer_len -= recv_size;
@@ -1101,9 +1119,9 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
         					/* Close file without saving */
         					res = hello_fs_close(&file_obj);
 
+        					stop_led_animation();
         					if (res != FR_OK) {
         						cd("/");
-        						stop_led_animation();
         						return ((int) res);
         					}
         					hello_fs_unlink(path_buff);
@@ -1116,6 +1134,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 						r = sl_FsWrite(fileHandle, total - recv_size,
 								(unsigned char *) pBuff, transfer_len);
 						if (r < transfer_len) {
+							stop_led_animation();
 							UART_PRINT(
 									"Failed during writing the file, Error-code: %d\r\n",
 									FILE_WRITE_ERROR);
@@ -1131,6 +1150,13 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
                     if(r < transfer_len)
                     {
             			stop_led_animation();
+            			if (storage == SD_CARD) {
+            				/* Close file without saving */
+            				res = hello_fs_close(&file_obj);
+            				hello_fs_unlink(path_buff);
+            			} else if (storage == SERIAL_FLASH) {
+            				sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
+            			}
                         return FILE_WRITE_ERROR;
                     }
                     recv_size -= transfer_len;
@@ -1149,16 +1175,16 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
             // write data on the file
 			if (storage == SD_CARD) {
 				res = hello_fs_write(&file_obj, pBuff, transfer_len, &r);
-				if (r < transfer_len) {
+				if (r != transfer_len) {
 					LOGI(
 							"Failed during writing the file, Error-code: %d\r\n",
 							FILE_WRITE_ERROR);
 					/* Close file without saving */
 					res = hello_fs_close(&file_obj);
+					stop_led_animation();
 
 					if (res != FR_OK) {
 						cd("/");
-						stop_led_animation();
 						return ((int) res);
 					}
 					hello_fs_unlink(path_buff);
@@ -1170,12 +1196,13 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 				//write to serial flash file
 				r = sl_FsWrite(fileHandle, total - recv_size,
 						(unsigned char *) pBuff, transfer_len);
-				if (r < transfer_len) {
+				if (r != transfer_len) {
 					UART_PRINT(
 							"Failed during writing the file, Error-code: %d\r\n",
 							FILE_WRITE_ERROR);
 					/* Close file without saving */
 					sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
+					stop_led_animation();
 					return -1;
 				}
 			}
@@ -1184,6 +1211,14 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 
             if (r != transfer_len )
             {
+    			stop_led_animation();
+    			if (storage == SD_CARD) {
+    				/* Close file without saving */
+    				res = hello_fs_close(&file_obj);
+    				hello_fs_unlink(path_buff);
+    			} else if (storage == SERIAL_FLASH) {
+    				sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
+    			}
     			stop_led_animation();
                 return FILE_WRITE_ERROR;
             }
@@ -1199,6 +1234,13 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
         	LOGI("TCP_RECV_ERROR\r\n" );
         	cd( "/" );
 			stop_led_animation();
+			if (storage == SD_CARD) {
+				/* Close file without saving */
+				res = hello_fs_close(&file_obj);
+				hello_fs_unlink(path_buff);
+			} else if (storage == SERIAL_FLASH) {
+				sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
+			}
             return TCP_RECV_ERROR;
         }
 
@@ -1230,6 +1272,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 	        cd( "/" );
 		} else if (storage == SERIAL_FLASH) {
 	        /* Close file without saving */
+			sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
 		}
         return INVALID_FILE;
     }
