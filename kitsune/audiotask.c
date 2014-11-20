@@ -6,28 +6,17 @@
 
 #include "network.h"
 #include "audioprocessingtask.h"
-#include "mcasp_if.h"
-#include "hw_types.h"
-#include "udma.h"
-#include "pcm_handler.h"
-#include "i2c_cmd.h"
-#include "i2s.h"
-#include "udma_if.h"
-#include "circ_buff.h"
-#include "simplelink.h"
-#include "rom.h"
-#include "rom_map.h"
-#include "utils.h"
-#include "hw_ints.h"
-// common interface includes
-#include "common.h"
-#include "hw_memmap.h"
-#include "fatfs_cmd.h"
 #include "hellofilesystem.h"
+#include "fileuploadertask.h"
 
 #include "audiofeatures.h"
 #include "audiohelper.h"
 #include "uartstdio.h"
+#include "endpoints.h"
+#include "circ_buff.h"
+
+#include <string.h>
+#include <stdio.h>
 
 #define SWAP_ENDIAN
 
@@ -45,19 +34,17 @@
 #define MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP (500)
 
 #define MAX_NUMBER_TIMES_TO_WAIT_FOR_AUDIO_BUFFER_TO_FILL (5000)
+#define MAX_FILE_SIZE_BYTES (1048576)
 
 #define FLAG_SUCCESS (0x01)
 #define FLAG_STOP    (0x02)
 
-#define SAVE_FILE "/usr/POD101.raw";
-
-unsigned int g_uiPlayWaterMark;
+#define SAVE_BASE "/usr/A"
 
 /* globals */
-extern tCircularBuffer *pTxBuffer;
-extern tCircularBuffer *pRxBuffer;
-
-
+unsigned int g_uiPlayWaterMark;
+extern tCircularBuffer * pRxBuffer;
+extern tCircularBuffer * pTxBuffer;
 
 /* static variables  */
 static xQueueHandle _queue = NULL;
@@ -65,6 +52,7 @@ static xSemaphoreHandle _processingTaskWait;
 
 static uint8_t _isCapturing = 0;
 static int64_t _callCounter;
+static uint32_t _filecounter;
 
 /* CALLBACKS  */
 static void ProcessingCommandFinished(void * context) {
@@ -75,10 +63,15 @@ static void DataCallback(const AudioFeatures_t * pfeats) {
 	AudioProcessingTask_AddFeaturesToQueue(pfeats);
 }
 
+static void QueueFileForUpload(const char * filename) {
+	FileUploaderTask_Upload(filename,DATA_SERVER,RAW_AUDIO_ENDOPOINT,1,NULL,NULL);
+}
+
 
 static void Init(void) {
 	_isCapturing = 0;
 	_callCounter = 0;
+	_filecounter = 0;
 
 	if (!_queue) {
 		_queue = xQueueCreate(INBOX_QUEUE_LENGTH,sizeof(AudioMessage_t));
@@ -258,16 +251,17 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 
 
-static void CaptureAudio() {
+static void DoCapture() {
 	int16_t samples[PACKET_SIZE/4];
 	uint16_t i;
-	uint16_t * pu16;
+	char filepath[32];
 
 	int iBufferFilled = 0;
 	AudioMessage_t m;
 	uint32_t num_samples_to_save;
 	Filedata_t filedata;
 	uint8_t isSavingToFile = 0;
+	uint32_t num_bytes_written;
 
 #ifdef PRINT_TIMING
 	uint32_t t0;
@@ -304,22 +298,26 @@ static void CaptureAudio() {
 				//pop
 				xQueueReceive(_queue,&m,0);
 
-				//if you were previosly saving, close
-				if (isSavingToFile) {
-					CloseFile(&filedata);
-					isSavingToFile = 0;
+				//if you aren't already saving... make a new file
+				if (!isSavingToFile) {
+					memset(&filedata,0,sizeof(filedata));
+					memset(filepath,0,sizeof(filepath));
+					snprintf(filepath,sizeof(filedata),"%s%07d.dat",SAVE_BASE,_filecounter);
+					_filecounter++;
+
+
+					filedata.file_name = filepath;
+
+					InitFile(&filedata);
+					isSavingToFile = 1;
+					num_bytes_written = 0;
+
+					UARTprintf("started saving to file %s\r\n",filedata.file_name );
+
 				}
 
-				//! \todo make a file naming scheme
-				memset(&filedata,0,sizeof(filedata));
-				filedata.file_name = SAVE_FILE;
-
-				InitFile(&filedata);
-				isSavingToFile = 1;
+				//no matter what, set num_samples_to_save to the requested
 				num_samples_to_save = m.message.capturedesc.captureduration;
-
-				UARTprintf("saving %d counts to file %s\r\n",num_samples_to_save,filedata.file_name );
-
 
 				break;
 			}
@@ -379,13 +377,24 @@ static void CaptureAudio() {
 
 			//write to file
 			if (isSavingToFile) {
-				WriteToFile(&filedata,PACKET_SIZE/4 * sizeof(int16_t),(const uint8_t *)samples);
-				num_samples_to_save--;
+				const uint32_t bytes_written = PACKET_SIZE/4 * sizeof(int16_t);
+				if (WriteToFile(&filedata,bytes_written,(const uint8_t *)samples)) {
+					num_bytes_written += bytes_written;
+					num_samples_to_save--;
 
-				//close if we are done
-				if (num_samples_to_save <= 0) {
-					isSavingToFile = 0;
+					//close if we are done
+					if (num_samples_to_save <= 0 || num_bytes_written > MAX_FILE_SIZE_BYTES) {
+						CloseFile(&filedata);
+						isSavingToFile = 0;
+						QueueFileForUpload(filedata.file_name);
+					}
+				}
+				else {
+					//handle the failure case
 					CloseFile(&filedata);
+					isSavingToFile = 0;
+					UARTprintf("Failed to write to file %s\r\n",filedata.file_name);
+					_filecounter--;
 				}
 			}
 
@@ -407,6 +416,7 @@ static void CaptureAudio() {
 
 	if (isSavingToFile) {
 		CloseFile(&filedata);
+		QueueFileForUpload(filedata.file_name);
 	}
 
 	DeinitAudioCapture();
@@ -430,12 +440,6 @@ void AudioTask_Thread(void * data) {
 
 	Init();
 
-	//for some reason I must have this here, or AudioFeatures_Init causes a crash.  THIS MAKES NO SENSE.
-
-	//InitAudioCapture();
-//	DeinitAudioCapture();
-
-	//Initialize the audio features
 
 
 	for (; ;) {
@@ -484,7 +488,7 @@ void AudioTask_Thread(void * data) {
 			//if we were supposed to be capturing, we resume that mode
 			if (_isCapturing) {
 				//this will block until a message comes in
-				CaptureAudio();
+				DoCapture();
 			}
 		}
 	}

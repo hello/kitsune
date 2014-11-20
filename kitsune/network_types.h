@@ -4,7 +4,7 @@
 #include <pb.h>
 #include <stdint.h>
 
-typedef uint32_t (* network_encode_callback_t)(pb_ostream_t * stream, const void * encode_data);
+typedef uint32_t (* network_encode_callback_t)(pb_ostream_t * stream, void * encode_data);
 
 typedef uint32_t (* network_decode_callback_t)(pb_istream_t * stream, void * decode_target);
 

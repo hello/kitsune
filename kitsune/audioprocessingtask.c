@@ -8,6 +8,7 @@
 #include "audioclassifier.h"
 #include "networktask.h"
 #include "wifi_cmd.h"
+#include "sys_time.h"
 
 #define INBOX_QUEUE_LENGTH (6)
 static xQueueHandle _queue = NULL;
@@ -122,7 +123,7 @@ void AudioProcessingTask_SetControl(EAudioProcessingCommand_t cmd,NotificationCa
 	}
 }
 
-static void NetworkResponseFunc(const NetworkResponse_t * response) {
+static void NetworkResponseFunc(const NetworkResponse_t * response,void * context) {
 	UARTprintf("AUDIO RESPONSE:\r\n%s",_decodebuf);
 
 	if (response->success) {
@@ -133,6 +134,12 @@ static void NetworkResponseFunc(const NetworkResponse_t * response) {
 }
 
 static void SetUpUpload(void) {
+	if(!time_module_initialized())
+	{
+		// This function requires a valid time
+		return;
+	}
+
 	NetworkTaskServerSendMessage_t message;
 	memset(&message,0,sizeof(message));
 	memset(_decodebuf,0,sizeof(_decodebuf));
@@ -150,7 +157,7 @@ static void SetUpUpload(void) {
 	message.encode = AudioClassifier_EncodeAudioFeatures;
 
 	get_mac(_deviceCurrentInfo.mac);
-	_deviceCurrentInfo.unix_time = unix_time();
+	_deviceCurrentInfo.unix_time = get_nwp_time();
 
 	message.encodedata = (void *) &_deviceCurrentInfo;
 

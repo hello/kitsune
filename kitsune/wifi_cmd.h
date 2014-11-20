@@ -46,8 +46,7 @@ extern
 SyncResponse_Alarm alarm;
 
 //todo semaphore protect
-extern
-unsigned int sl_status;
+extern volatile unsigned int sl_status;
 
 #define IFA_ANT 1
 #define CHIP_ANT 2
@@ -76,7 +75,6 @@ int Cmd_data_upload(int arg, char* argv[]);
 bool get_mac(unsigned char mac[6]);
 
 int match(char *regexp, char *text);
-unsigned long unix_time();
 void load_aes();
 
 
@@ -87,7 +85,7 @@ int send_pill_data(batched_pill_data * pill_data);
 void thread_ota( void * unused );
 
 
-int send_data_pb_callback(const char* host, const char* path,char * recv_buf, uint32_t recv_buf_size,const void * encodedata,network_encode_callback_t encoder,uint16_t num_receive_retries);
+int send_data_pb_callback(const char* host, const char* path,char * recv_buf, uint32_t recv_buf_size, void * encodedata,network_encode_callback_t encoder,uint16_t num_receive_retries);
 
 int decode_rx_data_pb_callback(const uint8_t * buffer, uint32_t buffer_size, void * decodedata,network_decode_callback_t decoder);
 int decode_rx_data_pb(const uint8_t * buffer, uint32_t buffer_size, const  pb_field_t fields[],void * structdata);
@@ -101,6 +99,7 @@ int connect_scanned_endpoints(const char* ssid, const char* password,
 int connect_wifi(const char* ssid, const char* password, int sec_type);
 void wifi_get_connected_ssid(uint8_t* ssid_buffer, size_t len);
 
+long nwp_reset();
 void wifi_reset();
 void free_pill_list();
 

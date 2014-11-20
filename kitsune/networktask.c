@@ -14,6 +14,7 @@
 static xQueueHandle _asyncqueue = NULL;
 static xSemaphoreHandle _waiter = NULL;
 static xSemaphoreHandle _syncmutex = NULL;
+static xSemaphoreHandle _network_mutex = NULL;
 
 static NetworkResponse_t _syncsendresponse;
 
@@ -28,8 +29,6 @@ static void nop(const char * foo,...) {  }
 
 static void Init(NetworkTaskData_t * info) {
 
-
-
 	if (!_asyncqueue) {
 		_asyncqueue = xQueueCreate(NETWORK_TASK_QUEUE_DEPTH,sizeof(NetworkTaskServerSendMessage_t));
 	}
@@ -42,10 +41,15 @@ static void Init(NetworkTaskData_t * info) {
 		_syncmutex = xSemaphoreCreateMutex();
 	}
 
+	if(!_network_mutex)
+	{
+		_network_mutex = xSemaphoreCreateMutex();
+	}
+
 
 }
 
-static void SynchronousSendNetworkResponseCallback(const NetworkResponse_t * response) {
+static void SynchronousSendNetworkResponseCallback(const NetworkResponse_t * response,void * context) {
 	memcpy(&_syncsendresponse,response,sizeof(NetworkResponse_t));
 
 //	DEBUG_PRINTF("NetTask::SynchronousSendNetworkResponseCallback -- got callback");
@@ -55,7 +59,7 @@ static void SynchronousSendNetworkResponseCallback(const NetworkResponse_t * res
 
 }
 
-static uint32_t EncodePb(pb_ostream_t * stream, const void * data) {
+static uint32_t EncodePb(pb_ostream_t * stream, void * data) {
 	network_encode_data_t * encodedata = (network_encode_data_t *)data;
 	uint32_t ret = false;
 
@@ -117,21 +121,12 @@ int NetworkTask_SynchronousSendProtobuf(const char * host,const char * endpoint,
 
 }
 
-
-int NetworkTask_AddMessageToQueue(const NetworkTaskServerSendMessage_t * message) {
-    return xQueueSend( _asyncqueue, ( const void * ) message, 10 );
-}
-
-
-void NetworkTask_Thread(void * networkdata) {
+static void NetworkTask_Thread(void * networkdata) {
 	NetworkTaskServerSendMessage_t message;
 	NetworkResponse_t response;
-	NetworkTaskData_t * taskdata = (NetworkTaskData_t *)networkdata;
 	int32_t timeout_counts;
 	int32_t retry_period;
 	uint32_t attempt_count;
-
-	Init(taskdata);
 
 	for (; ;) {
 
@@ -157,23 +152,28 @@ void NetworkTask_Thread(void * networkdata) {
 				message.prepare(message.prepdata);
 			}
 
-			//push to server
-			if (send_data_pb_callback(message.host,
-					message.endpoint,
-					(char*)message.decode_buf,
-					message.decode_buf_size,
-					message.encodedata,
-					message.encode,
-					NUM_RECEIVE_RETRIES) == 0) {
+			if(networktask_enter_critical_region() == pdTRUE)
+			{
+				//push to server
+				if (send_data_pb_callback(message.host,
+						message.endpoint,
+						(char*)message.decode_buf,
+						message.decode_buf_size,
+						message.encodedata,
+						message.encode,
+						NUM_RECEIVE_RETRIES) == 0) {
 
 
-				response.success = true;
-			}
-			else {
-				//failed to push, now what?
-				response.success = false;
-				response.flags |= NETWORK_RESPONSE_FLAG_NO_CONNECTION;
-
+					response.success = true;
+				}
+				else {
+					//failed to push, now what?
+					response.success = false;
+					response.flags |= NETWORK_RESPONSE_FLAG_NO_CONNECTION;
+				}
+				networktask_exit_critical_region();;
+			}else{
+				UARTprintf("NetTask::Thread enter critical region failed.\n");
 			}
 
 			/* unprepare */
@@ -216,12 +216,43 @@ void NetworkTask_Thread(void * networkdata) {
 
 		//let the requester know we are done
 		if (message.response_callback) {
-			message.response_callback(&response);
+			message.response_callback(&response,message.context);
 		}
-
-
-
 
 	}
 
 }
+
+
+int NetworkTask_AddMessageToQueue(const NetworkTaskServerSendMessage_t * message) {
+    return xQueueSend( _asyncqueue, ( const void * ) message, 10 );
+}
+
+
+int networktask_enter_critical_region()
+{
+	UARTprintf("NetTask::ENTER CRITICAL REGION\n");
+	return xSemaphoreTake(_network_mutex, portMAX_DELAY);
+}
+
+int networktask_exit_critical_region()
+{
+	UARTprintf("NetTask::EXIT CRITICAL REGION\n");
+	return xSemaphoreGive(_network_mutex);
+}
+
+void networktask_init(uint16_t stack_size)
+{
+	// In this way the network task is encapsulated to its own module
+	// no semaphore needs to expose to outside
+	NetworkTaskData_t network_task_data;
+	memset(&network_task_data, 0, sizeof(network_task_data));
+
+	Init(&network_task_data);
+
+	//this task needs a larger stack because
+	//some protobuf encoding will happen on the stack of this task
+	xTaskCreate(NetworkTask_Thread, "networkTask", stack_size, &network_task_data, 10, NULL);
+}
+
+
