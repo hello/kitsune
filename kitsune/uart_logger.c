@@ -309,6 +309,7 @@ void uart_logger_init(void){
 	self.log.device_id.funcs.encode = _encode_mac_as_device_id_string;
 	self.log.has_unix_time = true;
 	self.view_tag = LOG_INFO | LOG_WARNING | LOG_ERROR;
+	self.store_tag = LOG_INFO | LOG_WARNING | LOG_ERROR;
 	vSemaphoreCreateBinary(self.block_operation_sem);
 	vSemaphoreCreateBinary(self.print_sem);
 
