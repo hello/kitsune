@@ -108,9 +108,9 @@ _swap_and_upload(void){
 }
 
 static void
-_logstr(const char * str, int len, bool echo){
+_logstr(const char * str, int len, bool echo, bool store){
 	int i;
-	for(i = 0; i < len; i++){
+	for(i = 0; i < len && store; i++){
 		uart_logc(str[i]);
 	}
 	if(echo){
@@ -432,21 +432,25 @@ void uart_logf(uint8_t tag, const char *pcString, ...){
     unsigned long ulIdx, ulValue, ulPos, ulCount, ulBase, ulNeg;
     char *pcStr, pcBuf[16], cFill;
     bool echo = false;
+    bool store = false;
     va_list vaArgP;
     ASSERT(pcString != 0);
     if(tag & self.view_tag){
     	echo = true;
     }
+    if(tag & self.store_tag){
+    	store = true;
+    }
 #if UART_LOGGER_PREPEND_TAG > 0
     while(tag){
     	if(tag & LOG_INFO){
-    		_logstr("[INFO]", strlen("[INFO]"), echo);
+    		_logstr("[INFO]", strlen("[INFO]"), echo, store);
     		tag &= ~LOG_INFO;
     	}else if(tag & LOG_WARNING){
-    		_logstr("[WARNING]", strlen("[WARNING]"), echo);
+    		_logstr("[WARNING]", strlen("[WARNING]"), echo, store);
     		tag &= ~LOG_WARNING;
     	}else if(tag & LOG_ERROR){
-    		_logstr("[ERROR]", strlen("[ERROR]"), echo);
+    		_logstr("[ERROR]", strlen("[ERROR]"), echo, store);
     		tag &= ~LOG_ERROR;
     	}else{
     		tag = 0;
@@ -460,7 +464,7 @@ void uart_logf(uint8_t tag, const char *pcString, ...){
             ulIdx++)
         {
         }
-        _logstr(pcString, ulIdx, echo);
+        _logstr(pcString, ulIdx, echo, store);
         pcString += ulIdx;
         if(*pcString == '%')
         {
@@ -494,7 +498,7 @@ again:
                 {
                     ulValue = va_arg(vaArgP, unsigned long);
 
-                    _logstr((char *)&ulValue, 1, echo);
+                    _logstr((char *)&ulValue, 1, echo, store);
 
                     break;
                 }
@@ -522,13 +526,13 @@ again:
                     for(ulIdx = 0; pcStr[ulIdx] != '\0'; ulIdx++)
                     {
                     }
-                    _logstr(pcStr, ulIdx, echo);
+                    _logstr(pcStr, ulIdx, echo, store);
                     if(ulCount > ulIdx)
                     {
                         ulCount -= ulIdx;
                         while(ulCount--)
                         {
-                            _logstr(" ", 1, echo);
+                            _logstr(" ", 1, echo, store);
                         }
                     }
                     break;
@@ -584,13 +588,13 @@ convert:
                     {
                         pcBuf[ulPos++] = g_pcHex[(ulValue / ulIdx) % ulBase];
                     }
-                    _logstr(pcBuf, ulPos, echo);
+                    _logstr(pcBuf, ulPos, echo, store);
 
                     break;
                 }
                 case '%':
                 {
-                    _logstr(pcString - 1, 1, echo);
+                    _logstr(pcString - 1, 1, echo, store);
 
                     break;
                 }
