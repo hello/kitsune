@@ -80,6 +80,8 @@
 #include "sys_time.h"
 #include "sl_sync_include_after_simplelink_header.h"
 
+#include "fileuploadertask.h"
+
 #define ONLY_MID 0
 
 //******************************************************************************
@@ -1391,9 +1393,13 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(thread_spi, "spiTask", 3*1024 / 4, NULL, 5, NULL); //this one doesn't look like much, but has to parse all the pb from bluetooth
 
 
+	xTaskCreate(FileUploaderTask_Thread,"fileUploadTask",1*1024/4,NULL,1,NULL);
+
+
 	SetupGPIOInterrupts();
 	UARTprintf("*");
 #if !ONLY_MID
+
 	xTaskCreate(AudioTask_Thread,"audioTask",3*1024/4,NULL,4,NULL);
 	UARTprintf("*");
 	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,1,NULL);

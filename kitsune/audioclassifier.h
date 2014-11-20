@@ -17,7 +17,7 @@ void AudioClassifier_DeserializeClassifier(pb_istream_t * stream, void * data);
     
 void AudioClassifier_DataCallback(const AudioFeatures_t * pfeats);
 
-uint32_t AudioClassifier_EncodeAudioFeatures(pb_ostream_t * stream,const void * encode_data);
+uint32_t AudioClassifier_EncodeAudioFeatures(pb_ostream_t * stream, void * encode_data);
 
 void AudioClassifier_ResetStorageBuffer(void);
 

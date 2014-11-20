@@ -915,7 +915,7 @@ int match(char *regexp, char *text)
 }
 
 //buffer needs to be at least 128 bytes...
-int send_data_pb_callback(const char* host, const char* path,char * recv_buf, uint32_t recv_buf_size,const void * encodedata,network_encode_callback_t encoder,uint16_t num_receive_retries) {
+int send_data_pb_callback(const char* host, const char* path,char * recv_buf, uint32_t recv_buf_size, void * encodedata,network_encode_callback_t encoder,uint16_t num_receive_retries) {
     int send_length = 0;
     int rv = 0;
     uint8_t sig[32]={0};

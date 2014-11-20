@@ -18,8 +18,8 @@
 // common interface includes
 #include "common.h"
 #include "hw_memmap.h"
-#include "fatfs_cmd.h"
 #include "hellofilesystem.h"
+#include "fatfs_cmd.h"
 
 
 /* externs */
@@ -130,26 +130,15 @@ void DeinitAudioPlayback(void) {
 
 uint8_t InitFile(Filedata_t * pfiledata) {
 	FRESULT res;
-	FILINFO file_info;
 
 	/*  If we got here, then the file should already be closed */
 	uint8_t ret = 1;
 	/* open file */
-	res = hello_fs_open(&pfiledata->file_obj, pfiledata->file_name, FA_WRITE|FA_OPEN_ALWAYS);
+	res = hello_fs_open(&pfiledata->file_obj, pfiledata->file_name, FA_WRITE|FA_CREATE_ALWAYS);
 
 	/*  Did something horrible happen?  */
-	if(res != FR_OK && res != FR_EXIST){
+	if(res != FR_OK) {
 		ret = 0;
-	}
-	else {
-		//append to file if it already exists
-		memset(&file_info, 0, sizeof(FILINFO));
-
-		hello_fs_stat(pfiledata->file_name, &file_info);
-
-		if(file_info.fsize != 0 ){
-			res = hello_fs_lseek(&pfiledata->file_obj, file_info.fsize);
-		}
 	}
 
 	return ret;
