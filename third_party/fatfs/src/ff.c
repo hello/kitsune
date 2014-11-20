@@ -1588,6 +1588,12 @@ FRESULT f_rename (
 #define MIN_SECTOR 2000UL
 #define ERASE_BLK 32
 
+#include "rom.h"
+#include "rom_map.h"
+#include "hw_memmap.h"
+#include "hw_common_reg.h"
+#include "FreeRTOS.h"
+#include "task.h"
 
 FRESULT f_mkfs (
     BYTE drv,            /* Logical drive number */
@@ -1610,6 +1616,8 @@ FRESULT f_mkfs (
     memset(fs, 0, sizeof(FATFS));
     drv = LD2PD(drv);
 
+    vTaskDelay(10);
+
     /* Check validity of the parameters */
     for (n = 1; n <= 64 && allocsize != n; n <<= 1);
     if (n > 64 || partition >= 2) return FR_MKFS_ABORTED;
@@ -1618,6 +1626,7 @@ FRESULT f_mkfs (
     stat = disk_initialize(drv);
     if (stat & STA_NOINIT) return FR_NOT_READY;
     if (stat & STA_PROTECT) return FR_WRITE_PROTECTED;
+    vTaskDelay(10);
     if (disk_ioctl(drv, GET_SECTOR_COUNT, &n_part) != RES_OK || n_part < MIN_SECTOR)
         return FR_MKFS_ABORTED;
     if (n_part > MAX_SECTOR) n_part = MAX_SECTOR;
@@ -1629,6 +1638,7 @@ FRESULT f_mkfs (
         || (DWORD)S_SIZ * allocsize > 32768U)
         return FR_MKFS_ABORTED;
 #endif
+    vTaskDelay(10);
 
     /* Pre-compute number of clusters and FAT type */
     n_clust = n_part / allocsize;
@@ -1688,9 +1698,11 @@ FRESULT f_mkfs (
         ST_DWORD(&tbl[8], 63);            /* Partition start in LBA */
         ST_DWORD(&tbl[12], n_part);        /* Partition size in LBA */
         ST_WORD(&tbl[64], 0xAA55);        /* Signature */
+        vTaskDelay(10);
         if (disk_write(drv, fs->win, 0, 1) != RES_OK)
             return FR_RW_ERROR;
     }
+    vTaskDelay(10);
 
     /* Create boot record */
     memset(tbl = fs->win, 0, S_SIZ);
@@ -1724,10 +1736,13 @@ FRESULT f_mkfs (
         memcpy(&tbl[BS_VolLab32], "NO NAME    FAT32   ", 19);    /* Volume lavel, FAT signature */
     }
     ST_WORD(&tbl[BS_55AA], 0xAA55);            /* Signature */
+    vTaskDelay(10);
     if (disk_write(drv, tbl, b_part+0, 1) != RES_OK)
         return FR_RW_ERROR;
+    vTaskDelay(10);
     if (fmt == FS_FAT32)
         disk_write(drv, tbl, b_part+6, 1);
+    vTaskDelay(10);
 
     /* Initialize FAT area */
     for (m = 0; m < N_FATS; m++) {
@@ -1744,16 +1759,19 @@ FRESULT f_mkfs (
             return FR_RW_ERROR;
         memset(tbl, 0, S_SIZ);        /* Following FAT entries are filled by zero */
         for (n = 1; n < n_fat; n++) {
+        	MAP_WatchdogIntClear(WDT_BASE); //clear wdt
             if (disk_write(drv, tbl, b_fat++, 1) != RES_OK)
                 return FR_RW_ERROR;
         }
     }
+    vTaskDelay(10);
 
     /* Initialize Root directory */
     for (m = 0; m < 64; m++) {
         if (disk_write(drv, tbl, b_fat++, 1) != RES_OK)
             return FR_RW_ERROR;
     }
+    vTaskDelay(10);
 
     /* Create FSInfo record if needed */
     if (fmt == FS_FAT32) {
@@ -1765,6 +1783,7 @@ FRESULT f_mkfs (
         disk_write(drv, tbl, b_part+1, 1);
         disk_write(drv, tbl, b_part+7, 1);
     }
+    vTaskDelay(10);
 
     return (disk_ioctl(drv, CTRL_SYNC, NULL) == RES_OK) ? FR_OK : FR_RW_ERROR;
 }

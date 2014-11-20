@@ -269,16 +269,8 @@ void start_wdt() {
 }
 void mcu_reset();
 void watchdog_thread(void* unused) {
-	int upload_fail_cnt;
 	while (1) {
 		MAP_WatchdogIntClear(WDT_BASE); //clear wdt
-		if (!(sl_status & UPLOADING)) {
-			if(++upload_fail_cnt > 60 * 60 ) {
-				mcu_reset();
-			}
-		} else {
-			upload_fail_cnt = 0;
-		}
 		vTaskDelay(1000);
 	}
 }
