@@ -325,6 +325,7 @@ void uart_logger_task(void * params){
                 pdFALSE,       /* Don't wait for both bits, either bit will do. */
                 portMAX_DELAY );/* Wait for any bit to be set. */
 		if(self.abort){
+			vTaskDelete(0);
 			return;
 		}
 		switch(evnt){
