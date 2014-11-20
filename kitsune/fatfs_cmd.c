@@ -816,7 +816,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
         ASSERT_ON_ERROR(TCP_RECV_ERROR);
     }
 
-    UARTprintf("recv:\r\n%s\r\n", g_buff );
+    //UARTprintf("recv:\r\n%s\r\n", g_buff );
 
 
     // Check for 404 return code
@@ -1176,15 +1176,12 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 							"Failed during writing the file, Error-code: %d\r\n",
 							FILE_WRITE_ERROR);
 					/* Close file without saving */
-					r = sl_FsClose(fileHandle, 0, (unsigned char*) "A",
-							1);
-					if (r < 0) {
-						return r;
-					}
+					sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
+					return -1;
 				}
 			}
 
-            UARTprintf("wrote:  %d %d\r\n", r, res);
+            //UARTprintf("wrote:  %d %d\r\n", r, res);
 
             if (r != transfer_len )
             {
@@ -1566,6 +1563,11 @@ void file_download_task( void * params ) {
 		serial_flash_name = download_info.serial_flash_filename.arg;
 		serial_flash_path = download_info.serial_flash_path.arg;
 
+		if( strlen(filename) == 0 && strlen(serial_flash_name) == 0 ) {
+			UARTprintf( "no file name!\n");
+			goto next_one;
+		}
+
 		if( filename ) {
 			UARTprintf( "ota - filename: %s\n", filename);
 		}
@@ -1701,6 +1703,7 @@ void file_download_task( void * params ) {
 				UARTprintf( "reset nwp\n" );
 				nwp_reset();
 			}
+		next_one:
 		free_download_info(&download_info);
 		continue;
 

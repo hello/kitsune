@@ -35,7 +35,7 @@ extern volatile unsigned int sl_status;
 static struct{
 	uint8_t blocks[3][UART_LOGGER_BLOCK_SIZE];
 	//ptr to block that is currently used for logging
-	volatile uint8_t * logging_block;
+	uint8_t * logging_block;
 	//ptr to block that is being stored to sdcard
 	volatile uint8_t * store_block;
 	//ptr to block that is used to upload or read from sdcard
@@ -87,19 +87,22 @@ _encode_mac_as_device_id_string(pb_ostream_t *stream, const pb_field_t *field, v
 //
 static void
 _swap_and_upload(void){
-	if (!(xEventGroupGetBitsFromISR(self.uart_log_events) & LOG_EVENT_STORE)) {
-		self.store_block = self.logging_block;
-		//logc can be called anywhere, so using ISR api instead
-		xEventGroupSetBits(self.uart_log_events, LOG_EVENT_STORE);
-	} else {
-		//operation busy
+	if(xSemaphoreTake(self.block_operation_sem,1)){
+		if (!(xEventGroupGetBitsFromISR(self.uart_log_events) & LOG_EVENT_STORE)) {
+			self.store_block = self.logging_block;
+			//logc can be called anywhere, so using ISR api instead
+			xEventGroupSetBits(self.uart_log_events, LOG_EVENT_STORE);
+		} else {
+			//operation busy
+		}
+		//swap
+		self.logging_block =
+				(self.logging_block == self.blocks[0]) ?
+						self.blocks[1] : self.blocks[0];
+		//reset
+		self.widx = 0;
+		xSemaphoreGive(self.block_operation_sem);
 	}
-	//swap
-	self.logging_block =
-			(self.logging_block == self.blocks[0]) ?
-					self.blocks[1] : self.blocks[0];
-	//reset
-	self.widx = 0;
 }
 
 static void
@@ -277,7 +280,11 @@ _remove_oldest(int * rem){
  */
 void uart_logger_flush(void){
 	self.abort = 1;
-	_save_newest(self.logging_block, UART_LOGGER_BLOCK_SIZE);
+	if (xSemaphoreTake(self.block_operation_sem, 1)) {
+		_save_newest((const char *)self.logging_block, UART_LOGGER_BLOCK_SIZE);
+
+		xSemaphoreGive(self.block_operation_sem);
+	}
 
 }
 int Cmd_log_upload(int argc, char *argv[]){
@@ -296,18 +303,18 @@ void uart_logger_init(void){
 	vSemaphoreCreateBinary(self.block_operation_sem);
 }
 void uart_logc(uint8_t c){
-	//if(xSemaphoreTake(self.block_operation_sem,1)){
+	if(xSemaphoreTake(self.block_operation_sem,1)){
 		if (self.widx == UART_LOGGER_BLOCK_SIZE) {
 			_swap_and_upload();
 		}
 		self.logging_block[self.widx] = c;
 		self.widx++;
-		//xSemaphoreGive(self.block_operation_sem);
-	//}
+		xSemaphoreGive(self.block_operation_sem);
+	}
 }
 
 void uart_logger_task(void * params){
-	mkdir(SENSE_LOG_FOLDER);
+	hello_fs_mkdir(SENSE_LOG_FOLDER);
 	FRESULT res = hello_fs_opendir(&self.logdir,SENSE_LOG_FOLDER);
 	if(res != FR_OK){
 		//uart logging to sd card is disabled
