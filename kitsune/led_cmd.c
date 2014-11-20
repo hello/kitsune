@@ -484,7 +484,7 @@ int Cmd_led(int argc, char *argv[]) {
 			user_color.r = clamp_rgb(atoi(argv[2]), 0, LED_CLAMP_MAX);
 			user_color.g = clamp_rgb(atoi(argv[3]), 0, LED_CLAMP_MAX);
 			user_color.b = clamp_rgb(atoi(argv[4]), 0, LED_CLAMP_MAX);
-			UARTprintf("Setting colors R: %d, G: %d, B: %d \r\n", user_color.r, user_color.g, user_color.b);
+			LOGI("Setting colors R: %d, G: %d, B: %d \r\n", user_color.r, user_color.g, user_color.b);
 			xEventGroupClearBits( led_events, 0xffffff );
 			xEventGroupSetBits( led_events, LED_FADE_OUT_BIT | LED_FADE_IN_BIT );
 		}
@@ -522,7 +522,7 @@ int led_set_color(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b, int fade_in, i
 	user_color.g = clamp_rgb(g, 0, LED_CLAMP_MAX) * alpha / 0xFF;
 	user_color.b = clamp_rgb(b, 0, LED_CLAMP_MAX) * alpha / 0xFF;
 	user_delay = ud;
-	UARTprintf("Setting colors R: %d, G: %d, B: %d \r\n", user_color.r, user_color.g, user_color.b);
+	LOGI("Setting colors R: %d, G: %d, B: %d \r\n", user_color.r, user_color.g, user_color.b);
 	xEventGroupClearBits( led_events, 0xffffff );
 	if( rot ) {
 		xEventGroupSetBits(led_events,

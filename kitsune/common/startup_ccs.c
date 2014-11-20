@@ -249,5 +249,5 @@ IntDefaultHandler(void)
     ulInts = MAP_UARTIntStatus(g_ulBase, 1);
     MAP_UARTIntClear(g_ulBase, ulInts);
 
-    UARTprintf("got interrupt %x %x", g_ulBase, ulInts);
+    LOGI("got interrupt %x %x", g_ulBase, ulInts);
 }

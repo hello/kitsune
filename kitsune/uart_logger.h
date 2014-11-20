@@ -26,7 +26,7 @@ extern "C" {
 //operation modes
 //RAW: logs everything sent to PRINTF
 //TAGGED: logs everything tagged with LOGX() functions
-#define UART_LOGGER_MODE	UART_LOGGER_MODE_RAW
+#define UART_LOGGER_MODE	UART_LOGGER_MODE_TAGGED
 
 
 

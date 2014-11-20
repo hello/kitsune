@@ -25,7 +25,7 @@
                                      return  iRetVal;}
 #define BUF_SIZE 2
 
-#define TRY_OR_GOTOFAIL(a) if(a!=SUCCESS) { UARTprintf( "fail at %s %d\n\r", __FILE__, __LINE__ ); return FAILURE;}
+#define TRY_OR_GOTOFAIL(a) if(a!=SUCCESS) { LOGI( "fail at %s %d\n\r", __FILE__, __LINE__ ); return FAILURE;}
 
 #define Codec_addr 0x1A
 #define delay_codec 5
@@ -44,16 +44,16 @@
 //*****************************************************************************
 static void DisplayBuffer(unsigned char *pucDataBuf, unsigned char ucLen) {
 	unsigned char ucBufIndx = 0;
-	UARTprintf("Read contents");
-	UARTprintf("\n\r");
+	LOGI("Read contents");
+	LOGI("\n\r");
 	while (ucBufIndx < ucLen) {
-		UARTprintf(" 0x%x, ", pucDataBuf[ucBufIndx]);
+		LOGI(" 0x%x, ", pucDataBuf[ucBufIndx]);
 		ucBufIndx++;
 		if ((ucBufIndx % 8) == 0) {
-			UARTprintf("\n\r");
+			LOGI("\n\r");
 		}
 	}
-	UARTprintf("\n\r");
+	LOGI("\n\r");
 }
 
 int Cmd_i2c_read(int argc, char *argv[]) {
@@ -63,7 +63,7 @@ int Cmd_i2c_read(int argc, char *argv[]) {
 	int iRetVal;
 
 	if (argc != 3) {
-		UARTprintf(
+		LOGI(
 				"read  <dev_addr> <rdlen> \n\r\t - Read data frpm the specified i2c device\n\r");
 		return FAILURE;
 	}
@@ -81,13 +81,13 @@ int Cmd_i2c_read(int argc, char *argv[]) {
 	iRetVal = I2C_IF_Read(ucDevAddr, aucDataBuf, ucLen);
 
 	if (iRetVal == SUCCESS) {
-		UARTprintf("I2C_IF_ Read complete\n\r");
+		LOGI("I2C_IF_ Read complete\n\r");
 		//
 		// Display the buffer over UART on successful write
 		//
 		DisplayBuffer(aucDataBuf, ucLen);
 	} else {
-		UARTprintf("I2C_IF_ Read failed\n\r");
+		LOGI("I2C_IF_ Read failed\n\r");
 		return FAILURE;
 	}
 
@@ -101,7 +101,7 @@ int Cmd_i2c_writereg(int argc, char *argv[]) {
 	int iLoopCnt = 0;
 
 	if (argc != 5) {
-		UARTprintf(
+		LOGI(
 				"writereg <dev_addr> <reg_offset> <wrlen> <<byte0> [<byte1> ... ]> \n\r");
 		return FAILURE;
 	}
@@ -133,7 +133,7 @@ int Cmd_i2c_writereg(int argc, char *argv[]) {
 	//
 	RET_IF_ERR(I2C_IF_Write(ucDevAddr, &aucDataBuf[0], ucWrLen + 1, 1));
 
-	UARTprintf("I2C_IF_ Write To address complete\n\r");
+	LOGI("I2C_IF_ Write To address complete\n\r");
 
 	return SUCCESS;
 }
@@ -143,7 +143,7 @@ int Cmd_i2c_readreg(int argc, char *argv[]) {
 	char *pcErrPtr;
 
 	if (argc != 4) {
-		UARTprintf("readreg <dev_addr> <reg_offset> <rdlen> \n\r");
+		LOGI("readreg <dev_addr> <reg_offset> <rdlen> \n\r");
 		return FAILURE;
 	}
 	//
@@ -172,7 +172,7 @@ int Cmd_i2c_readreg(int argc, char *argv[]) {
 	//
 	RET_IF_ERR(I2C_IF_Read(ucDevAddr, &aucRdDataBuf[0], ucRdLen));
 
-	UARTprintf("I2C_IF_ Read From address complete\n");
+	LOGI("I2C_IF_ Read From address complete\n");
 	//
 	// Display the buffer over UART on successful readreg
 	//
@@ -187,7 +187,7 @@ int Cmd_i2c_write(int argc, char *argv[]) {
 	int iRetVal, iLoopCnt;
 
 	if (argc != 4) {
-		UARTprintf("write <dev_addr> <wrlen> <<byte0>[<byte1> ... ]>\n\r");
+		LOGI("write <dev_addr> <wrlen> <<byte0>[<byte1> ... ]>\n\r");
 		return FAILURE;
 	}
 
@@ -217,9 +217,9 @@ int Cmd_i2c_write(int argc, char *argv[]) {
 	//
 	iRetVal = I2C_IF_Write(ucDevAddr, aucDataBuf, ucLen, ucStopBit);
 	if (iRetVal == SUCCESS) {
-		UARTprintf("I2C_IF_ Write complete\n\r");
+		LOGI("I2C_IF_ Write complete\n\r");
 	} else {
-		UARTprintf("I2C_IF_ Write failed\n\r");
+		LOGI("I2C_IF_ Write failed\n\r");
 		return FAILURE;
 	}
 
@@ -257,7 +257,7 @@ int get_temp() {
 }
 
 int Cmd_readtemp(int argc, char *argv[]) {
-	UARTprintf("temp is %d\n", get_temp());
+	LOGI("temp is %d\n", get_temp());
 	return SUCCESS;
 }
 
@@ -291,7 +291,7 @@ int get_humid() {
 }
 
 int Cmd_readhumid(int argc, char *argv[]) {
-	UARTprintf("humid is %d\n", get_humid());
+	LOGI("humid is %d\n", get_humid());
 	return SUCCESS;
 }
 
@@ -353,7 +353,7 @@ int get_light() {
 }
 
 int Cmd_readlight(int argc, char *argv[]) {
-	UARTprintf(" light is %d\n", get_light());
+	LOGI(" light is %d\n", get_light());
 	if (argc > 1) {
 		int rate = atoi(argv[1]);
 		int delay = atoi(argv[2]);
@@ -430,7 +430,7 @@ int get_prox() {
 }
 extern int disp_prox;
 int Cmd_readproximity(int argc, char *argv[]) {
-	UARTprintf(" proximity is %d %d %s\n", get_prox(), argc, argv[1]);
+	LOGI(" proximity is %d %d %s\n", get_prox(), argc, argv[1]);
 	if( argc == 2 ) {
 		disp_prox = atoi(argv[1]);
 	}
@@ -491,7 +491,7 @@ cmd_init[0] = 0x70 ; cmd_init[1] = 0x40 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 
 cmd_init[0] = 0x72 ; cmd_init[1] = 0x40 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec);
 cmd_init[0] = 0x74 ; cmd_init[1] = 0x00 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // Power Management 4
 cmd_init[0] = 0x78 ; cmd_init[1] = 0x8C ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec);// 8C : high Z // ADCOUTDrive
-	//UARTprintf(" Mic codec is testing \n\r");
+	//LOGI(" Mic codec is testing \n\r");
 
 	return SUCCESS;
 }
@@ -685,7 +685,7 @@ int get_codec_NAU(int vol_codec) {
 	// Address D8    D7  D6   D5     D4 D3 D2 D1       D0
 	// 0x32    0     0   0    AUXSPK 0  0  0  BYPSPK   DACSPK
 	// set     0     0   0    0      0  0  0  0        1
-	cmd_init[0] = 0x6c ; cmd_init[1] = vol_codec ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); UARTprintf(" vol. is %d dB\n\r", vol_codec);
+	cmd_init[0] = 0x6c ; cmd_init[1] = vol_codec ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); LOGI(" vol. is %d dB\n\r", vol_codec);
 	// Address D8    D7      D6       D5 D4 D3 D2 D1 D0
 	// 0x36    0     SPKZC   SPKMT    SPKGAIN[5:0]
 	// set     0     1       0        1  1  1  1  1  1
@@ -706,7 +706,7 @@ int get_codec_NAU(int vol_codec) {
 	//0x49 SPIEN FSERRVAL[1:0] FSERFLSH FSERRENA NFDLY DACINMT PLLLOCKP DACOS256
 	//     0      1  1             0     0       0     0       0        1
 
-	UARTprintf(" codec is testing \n\r");
+	LOGI(" codec is testing \n\r");
 	return SUCCESS;
 }
 

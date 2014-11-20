@@ -94,7 +94,7 @@ static uint8_t CheckForInterruptionDuringPlayback(void) {
 
 		if (m.command == eAudioPlaybackStop) {
 			ret = FLAG_STOP;
-			UARTprintf("Stopping playback\r\n");
+			LOGI("Stopping playback\r\n");
 		}
 
 		if (ret) {
@@ -128,30 +128,30 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 	desired_ticks_elapsed = info->durationInSeconds * NUMBER_OF_TICKS_IN_A_SECOND;
 
-	UARTprintf("Starting playback\r\n");
-	UARTprintf("%d bytes free\n", xPortGetFreeHeapSize());
+	LOGI("Starting playback\r\n");
+	LOGI("%d bytes free\n", xPortGetFreeHeapSize());
 
 	if (!info || !info->file) {
-		UARTprintf("invalid playback info %s\n\r",info->file);
+		LOGI("invalid playback info %s\n\r",info->file);
 		return returnFlags;
 	}
 
 
 	if ( !InitAudioPlayback(info->volume) ) {
-		UARTprintf("unable to initialize audio playback.  Probably not enough memory!\r\n");
+		LOGI("unable to initialize audio playback.  Probably not enough memory!\r\n");
 		return returnFlags;
 
 	}
 
-	UARTprintf("%d bytes free\n", xPortGetFreeHeapSize());
+	LOGI("%d bytes free\n", xPortGetFreeHeapSize());
 
 
 	//open file for playback
-	UARTprintf("Opening %s for playback\r\n",info->file);
+	LOGI("Opening %s for playback\r\n",info->file);
 	res = hello_fs_open(&fp, info->file, FA_READ);
 
 	if (res != FR_OK) {
-		UARTprintf("Failed to open audio file %s\n\r",info->file);
+		LOGI("Failed to open audio file %s\n\r",info->file);
 		DeinitAudioPlayback();
 		return returnFlags;
 	}
@@ -181,7 +181,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 
 		if (iBufWaitingCount >= MAX_NUMBER_TIMES_TO_WAIT_FOR_AUDIO_BUFFER_TO_FILL) {
-			UARTprintf("Waited too long for audio buffer empty out to the codec \r\n");
+			LOGI("Waited too long for audio buffer empty out to the codec \r\n");
 			break;
 		}
 
@@ -197,7 +197,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 			iRetVal = FillBuffer(pRxBuffer, (unsigned char*) (speaker_data_padded), size<<1);
 
 			if (iRetVal < 0) {
-				UARTprintf("Unable to fill buffer");
+				LOGI("Unable to fill buffer");
 			}
 
 			returnFlags |= CheckForInterruptionDuringPlayback();
@@ -205,7 +205,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 			if (returnFlags) {
 				//ruh-roh, gotta stop.
-				UARTprintf("stopping playback");
+				LOGI("stopping playback");
 				break;
 			}
 
@@ -237,11 +237,11 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 	DeinitAudioPlayback();
 
-	UARTprintf("completed playback\r\n");
+	LOGI("completed playback\r\n");
 
 	returnFlags |= FLAG_SUCCESS;
 
-	UARTprintf("%d bytes free\n", xPortGetFreeHeapSize());
+	LOGI("%d bytes free\n", xPortGetFreeHeapSize());
 
 	return returnFlags;
 
@@ -273,13 +273,13 @@ static void DoCapture() {
 	AudioProcessingTask_SetControl(processingOn,ProcessingCommandFinished,NULL);
 
 	//wait until processing is turned on
-	UARTprintf("Waiting for processing to start... \r\n");
+	LOGI("Waiting for processing to start... \r\n");
 	xSemaphoreTake(_processingTaskWait,MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP);
-	UARTprintf("done.\r\n");
+	LOGI("done.\r\n");
 
 	InitAudioCapture();
 
-	UARTprintf("%d bytes free\n", xPortGetFreeHeapSize());
+	LOGI("%d bytes free\n", xPortGetFreeHeapSize());
 
 	//loop until we get an event that disturbs capture
 	for (; ;) {
@@ -312,7 +312,7 @@ static void DoCapture() {
 					isSavingToFile = 1;
 					num_bytes_written = 0;
 
-					UARTprintf("started saving to file %s\r\n",filedata.file_name );
+					LOGI("started saving to file %s\r\n",filedata.file_name );
 
 				}
 
@@ -334,13 +334,13 @@ static void DoCapture() {
 			{
 				//go to cleanup, and then the next loop through
 				//the thread will turn off capturing
-				UARTprintf("received eAudioCaptureTurnOff\r\n ");
+				LOGI("received eAudioCaptureTurnOff\r\n ");
 				goto CAPTURE_CLEANUP;
 			}
 
 			case eAudioPlaybackStart:
 			{
-				UARTprintf("received eAudioPlaybackStart\r\n");
+				LOGI("received eAudioPlaybackStart\r\n");
 				goto CAPTURE_CLEANUP;
 			}
 
@@ -349,7 +349,7 @@ static void DoCapture() {
 			{
 				//default behavior is to go to cleanup and exit function
 				//so if we get audio playback turn on, we are booted out of this function
-				UARTprintf("goto capture cleanup\r\n");
+				LOGI("goto capture cleanup\r\n");
 				goto CAPTURE_CLEANUP;
 			}
 			}
@@ -393,7 +393,7 @@ static void DoCapture() {
 					//handle the failure case
 					CloseFile(&filedata);
 					isSavingToFile = 0;
-					UARTprintf("Failed to write to file %s\r\n",filedata.file_name);
+					LOGI("Failed to write to file %s\r\n",filedata.file_name);
 					_filecounter--;
 				}
 			}
@@ -406,7 +406,7 @@ static void DoCapture() {
 			AudioFeatures_SetAudioData(samples,_callCounter++);
 #ifdef PRINT_TIMING
 			t2 = xTaskGetTickCount();
-			UARTprintf("dt = %d, compute=%d\n",dt,t2-t1); //vTaskDelay(5);
+			LOGI("dt = %d, compute=%d\n",dt,t2-t1); //vTaskDelay(5);
 #endif
 		}
 	}
@@ -426,8 +426,8 @@ static void DoCapture() {
 	//wait until ProcessingCommandFinished is returned
 	xSemaphoreTake(_processingTaskWait,MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP);
 
-	UARTprintf("finished audio capture\r\n");
-	UARTprintf("%d bytes free\n", xPortGetFreeHeapSize());
+	LOGI("finished audio capture\r\n");
+	LOGI("%d bytes free\n", xPortGetFreeHeapSize());
 }
 
 
@@ -531,7 +531,7 @@ void AudioTask_StartCapture(void) {
 	AudioMessage_t message;
 
 	//turn on
-	UARTprintf("Turning on audio capture\r\n");
+	LOGI("Turning on audio capture\r\n");
 	memset(&message,0,sizeof(message));
 	message.command = eAudioCaptureTurnOn;
 	AudioTask_AddMessageToQueue(&message);
@@ -541,7 +541,7 @@ void AudioTask_StartCapture(void) {
 void AudioTask_StopCapture(void) {
 	AudioMessage_t message;
 
-	UARTprintf("Turning off audio capture\r\n");
+	LOGI("Turning off audio capture\r\n");
 
 	memset(&message,0,sizeof(message));
 	message.command = eAudioCaptureTurnOff;

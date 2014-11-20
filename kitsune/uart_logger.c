@@ -31,11 +31,16 @@
 #define LOG_EVENT_UPLOAD	    0x2
 //flag to upload the swap block only
 #define LOG_EVENT_UPLOAD_ONLY	0x4
+//flag to shutdown
+#define LOG_EVENT_EXIT          0x8
+//flag to indicate the thread ip up and running
+#define LOG_EVENT_READY         0x100
+
 extern volatile unsigned int sl_status;
 static struct{
 	uint8_t blocks[3][UART_LOGGER_BLOCK_SIZE];
 	//ptr to block that is currently used for logging
-	volatile uint8_t * logging_block;
+	uint8_t * logging_block;
 	//ptr to block that is being stored to sdcard
 	volatile uint8_t * store_block;
 	//ptr to block that is used to upload or read from sdcard
@@ -45,8 +50,8 @@ static struct{
 	sense_log log;
 	uint8_t view_tag;
 	uint8_t log_local_enable;
-	volatile uint8_t abort;
 	xSemaphoreHandle block_operation_sem;
+	xSemaphoreHandle print_sem;
 	DIR logdir;
 }self;
 
@@ -276,8 +281,17 @@ _remove_oldest(int * rem){
  * PUBLIC functions
  */
 void uart_logger_flush(void){
-	self.abort = 1;
-	_save_newest(self.logging_block, UART_LOGGER_BLOCK_SIZE);
+	//set the task to exit and wait for it to do so
+	xEventGroupSetBits(self.uart_log_events, LOG_EVENT_EXIT);
+	EventBits_t evnt = xEventGroupWaitBits(
+					self.uart_log_events,   /* The event group being tested. */
+	                0xff,    /* The bits within the event group to wait for. */
+	                pdFALSE,        /* all bits should not be cleared before returning. */
+	                pdFALSE,       /* Don't wait for both bits, either bit will do. */
+	                portMAX_DELAY );/* Wait for any bit to be set. */
+
+	//write out whatever's left in the logging block
+	_save_newest(self.logging_block, self.widx );
 
 }
 int Cmd_log_upload(int argc, char *argv[]){
@@ -286,29 +300,45 @@ int Cmd_log_upload(int argc, char *argv[]){
 }
 void uart_logger_init(void){
 	self.store_block = self.blocks[0];
+	self.logging_block = self.blocks[1];
 	self.operation_block = self.blocks[2];
 	self.uart_log_events = xEventGroupCreate();
 	xEventGroupClearBits( self.uart_log_events, 0xff );
+	xEventGroupSetBits(self.uart_log_events, LOG_EVENT_UPLOAD);
 	self.log.text.funcs.encode = _encode_text_block;
 	self.log.device_id.funcs.encode = _encode_mac_as_device_id_string;
 	self.log.has_unix_time = true;
 	self.view_tag = LOG_INFO | LOG_WARNING | LOG_ERROR;
 	vSemaphoreCreateBinary(self.block_operation_sem);
+	vSemaphoreCreateBinary(self.print_sem);
+
+	xEventGroupSetBits(self.uart_log_events, LOG_EVENT_READY);
 }
 void uart_logc(uint8_t c){
-	//if(xSemaphoreTake(self.block_operation_sem,1)){
-		if (self.widx == UART_LOGGER_BLOCK_SIZE) {
-			_swap_and_upload();
+	if( self.uart_log_events) {
+		xEventGroupWaitBits(
+					self.uart_log_events,   /* The event group being tested. */
+					LOG_EVENT_READY,    /* The bits within the event group to wait for. */
+	                pdFALSE,        /* all bits should not be cleared before returning. */
+	                pdFALSE,       /* Don't wait for both bits, either bit will do. */
+	                portMAX_DELAY );/* Wait for any bit to be set. */
+		if(xSemaphoreTake(self.block_operation_sem, 10)){
+			if (self.widx == UART_LOGGER_BLOCK_SIZE) {
+				_swap_and_upload();
+			}
+			self.logging_block[self.widx] = c;
+			self.widx++;
+			xSemaphoreGive(self.block_operation_sem);
 		}
-		self.logging_block[self.widx] = c;
-		self.widx++;
-		//xSemaphoreGive(self.block_operation_sem);
-	//}
+	}
 }
 
 void uart_logger_task(void * params){
-	mkdir(SENSE_LOG_FOLDER);
+	uart_logger_init();
+	hello_fs_mkdir(SENSE_LOG_FOLDER);
+
 	FRESULT res = hello_fs_opendir(&self.logdir,SENSE_LOG_FOLDER);
+
 	if(res != FR_OK){
 		//uart logging to sd card is disabled
 		self.log_local_enable = 0;
@@ -318,63 +348,67 @@ void uart_logger_task(void * params){
 	while(1){
 		char buffer[UART_LOGGER_BLOCK_SIZE + UART_LOGGER_RESERVED_SIZE] = {0};
 		int ret;
+
+		xEventGroupSetBits(self.uart_log_events, LOG_EVENT_READY);
 		EventBits_t evnt = xEventGroupWaitBits(
 				self.uart_log_events,   /* The event group being tested. */
                 0xff,    /* The bits within the event group to wait for. */
                 pdFALSE,        /* all bits should not be cleared before returning. */
                 pdFALSE,       /* Don't wait for both bits, either bit will do. */
                 portMAX_DELAY );/* Wait for any bit to be set. */
-		if(self.abort){
+		if( evnt & LOG_EVENT_EXIT ){
+			vTaskDelete(0);
 			return;
 		}
-		switch(evnt){
-		case LOG_EVENT_STORE:
-			if(self.log_local_enable && FR_OK == _save_newest((char*) self.store_block, UART_LOGGER_BLOCK_SIZE)){
-				self.operation_block = self.blocks[2];
-				xEventGroupSetBits(self.uart_log_events, LOG_EVENT_UPLOAD);
-			}else{
-				self.operation_block = self.store_block;
-				xEventGroupSetBits(self.uart_log_events, LOG_EVENT_UPLOAD_ONLY);
-				LOGE("Unable to save logs\r\n");
-			}
-			xEventGroupClearBits(self.uart_log_events, LOG_EVENT_STORE);
-			break;
-		case LOG_EVENT_UPLOAD:
-			xEventGroupClearBits(self.uart_log_events,LOG_EVENT_UPLOAD);
-			if(sl_status & HAS_IP){
-				WORD read;
-				FRESULT res;
-				self.log.has_unix_time = false;
-				//operation block is used for file io
-				res = _read_oldest((char*)self.operation_block,UART_LOGGER_BLOCK_SIZE, &read);
-				if(FR_OK != res){
-					LOGE("Unable to read log file %d\r\n",(int)res);
-					break;
-				}
-				ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER, SENSE_LOG_ENDPOINT,buffer,sizeof(buffer),sense_log_fields,&self.log,0);
-				if(ret == 0){
-					int rem = -1;
-					LOGI("Log upload succeeded\r\n");
-					res = _remove_oldest(&rem);
-					if(FR_OK == res && rem > 0){
-						xEventGroupSetBits(self.uart_log_events, LOG_EVENT_UPLOAD);
-					}else if(FR_OK == res && rem == 0){
-						LOGI("Upload logs done\r\n");
-					}else{
-						LOGE("Rm log error %d\r\n", res);
-					}
+		if( evnt && xSemaphoreTake(self.block_operation_sem, portMAX_DELAY)){
+			if( evnt & LOG_EVENT_STORE ) {
+				if(self.log_local_enable && FR_OK == _save_newest((char*) self.store_block, UART_LOGGER_BLOCK_SIZE)){
+					self.operation_block = self.blocks[2];
+					xEventGroupSetBits(self.uart_log_events, LOG_EVENT_UPLOAD);
 				}else{
-					LOGE("Log upload failed, network code = %d\r\n", ret);
+					self.operation_block = self.store_block;
+					xEventGroupSetBits(self.uart_log_events, LOG_EVENT_UPLOAD_ONLY);
+					LOGE("Unable to save logs\r\n");
+				}
+				xEventGroupClearBits(self.uart_log_events, LOG_EVENT_STORE);
+			}
+			if( evnt & LOG_EVENT_UPLOAD) {
+				xEventGroupClearBits(self.uart_log_events,LOG_EVENT_UPLOAD);
+				if(sl_status & HAS_IP){
+					WORD read;
+					FRESULT res;
+					self.log.has_unix_time = false;
+					//operation block is used for file io
+					res = _read_oldest((char*)self.operation_block,UART_LOGGER_BLOCK_SIZE, &read);
+					if(FR_OK != res){
+						LOGE("Unable to read log file %d\r\n",(int)res);
+						continue;
+					}
+					ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER, SENSE_LOG_ENDPOINT,buffer,sizeof(buffer),sense_log_fields,&self.log,0);
+					if(ret == 0){
+						int rem = -1;
+						LOGI("Log upload succeeded\r\n");
+						res = _remove_oldest(&rem);
+						if(FR_OK == res && rem > 0){
+							xEventGroupSetBits(self.uart_log_events, LOG_EVENT_UPLOAD);
+						}else if(FR_OK == res && rem == 0){
+							LOGI("Upload logs done\r\n");
+						}else{
+							LOGE("Rm log error %d\r\n", res);
+						}
+					}else{
+						LOGE("Log upload failed, network code = %d\r\n", ret);
+					}
 				}
 			}
-			break;
-		case LOG_EVENT_UPLOAD_ONLY:
-			xEventGroupClearBits(self.uart_log_events,LOG_EVENT_UPLOAD_ONLY);
-			if(sl_status & HAS_IP){
-				self.log.has_unix_time = false;
-				NetworkTask_SynchronousSendProtobuf(DATA_SERVER, SENSE_LOG_ENDPOINT,buffer,sizeof(buffer),sense_log_fields,&self.log,0);
+			if(evnt & LOG_EVENT_UPLOAD_ONLY) {
+				xEventGroupClearBits(self.uart_log_events,LOG_EVENT_UPLOAD_ONLY);
+				if(sl_status & HAS_IP){
+					self.log.has_unix_time = false;
+					NetworkTask_SynchronousSendProtobuf(DATA_SERVER, SENSE_LOG_ENDPOINT,buffer,sizeof(buffer),sense_log_fields,&self.log,0);
+				}
 			}
-			break;
+			xSemaphoreGive(self.block_operation_sem);
 		}
 	}
 }
@@ -386,9 +420,12 @@ int Cmd_log_setview(int argc, char * argv[]){
 	return -1;
 }
 
+//TODO debug the semaphore contention on this one
 static const char * const g_pcHex = "0123456789abcdef";
 void uart_logf(uint8_t tag, const char *pcString, ...){
-	//TODO protect this with sem to prevent chracters inserted inbetween
+	if( !self.print_sem ||  xSemaphoreTake(self.print_sem, 0) != pdTRUE ) {
+		return;
+	}
     unsigned long ulIdx, ulValue, ulPos, ulCount, ulBase, ulNeg;
     char *pcStr, pcBuf[16], cFill;
     bool echo = false;
@@ -563,5 +600,5 @@ convert:
     }
 
     va_end(vaArgP);
-	_logstr("\r\n", strlen("\r\n"), echo);
+    xSemaphoreGive( self.print_sem );
 }

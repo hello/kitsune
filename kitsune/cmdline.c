@@ -128,7 +128,7 @@ CmdLineProcess(void * line)
                 //
                 else
                 {
-                    UARTprintf("Too many arguments for command processor!\n");
+                    LOGI("Too many arguments for command processor!\n");
                     vPortFree(line);
                     vTaskDelete( NULL );
                     return;
@@ -167,8 +167,8 @@ CmdLineProcess(void * line)
             if(!strcmp(argv[0], pCmdEntry->pcCmd))
             {
                 int code = pCmdEntry->pfnCmd(argc, argv);
-                UARTprintf("Command returned code %d\n", code);
-                UARTprintf("> ");
+                LOGI("Command returned code %d\n", code);
+                LOGI("> ");
                 vPortFree(line);
                 vTaskDelete( NULL );
                 return;
@@ -185,7 +185,7 @@ CmdLineProcess(void * line)
     // Fall through to here means that no matching command was found, so return
     // an error.
     //
-    UARTprintf("Bad command!\n");
+    LOGI("Bad command!\n");
     vPortFree(line);
     vTaskDelete( NULL );
     return;

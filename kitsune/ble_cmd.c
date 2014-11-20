@@ -16,7 +16,7 @@ static bool _encode_string_fields(pb_ostream_t *stream, const pb_field_t *field,
     char* str = *arg;
     if(!str)
     {
-    	UARTprintf("_encode_string_fields: No string to encode\n");
+    	LOGI("_encode_string_fields: No string to encode\n");
         return false;
     }
 
@@ -35,7 +35,7 @@ static bool _encode_wifi_scan_result_fields(pb_ostream_t *stream, const pb_field
     Sl_WlanNetworkEntry_t* wifi_aps = *arg;
     if(!wifi_aps)
     {
-        UARTprintf("_encode_string_fields: No string to encode\n");
+        LOGI("_encode_string_fields: No string to encode\n");
         return false;
     }
 
@@ -85,24 +85,24 @@ static bool _encode_wifi_scan_result_fields(pb_ostream_t *stream, const pb_field
         data.rssi = wifi_ap.rssi;
 
         if (!pb_encode_tag(stream, PB_WT_STRING, field->tag)){
-            UARTprintf("Fail to encode tag for wifi ap %s\r\n", wifi_ap.ssid);
+            LOGI("Fail to encode tag for wifi ap %s\r\n", wifi_ap.ssid);
         }else{
 
             pb_ostream_t sizestream = { 0 };
             if(!pb_encode(&sizestream, wifi_endpoint_fields, &data)){
-                UARTprintf("Failed to retreive length for ssid %s\n", data.ssid.arg);
+                LOGI("Failed to retreive length for ssid %s\n", data.ssid.arg);
                 continue;
             }
 
             if (!pb_encode_varint(stream, sizestream.bytes_written)){
-                UARTprintf("Failed to write length\n");
+                LOGI("Failed to write length\n");
                 continue;
             }
 
             if (!pb_encode(stream, wifi_endpoint_fields, &data)){
-                UARTprintf("Fail to encode wifi_endpoint_fields %s\r\n", data.ssid.arg);
+                LOGI("Fail to encode wifi_endpoint_fields %s\r\n", data.ssid.arg);
             }else{
-                UARTprintf("WIFI %s encoded\n", data.ssid.arg);
+                LOGI("WIFI %s encoded\n", data.ssid.arg);
             }
         }
     }
@@ -115,7 +115,7 @@ static bool _encode_bytes_fields(pb_ostream_t *stream, const pb_field_t *field, 
     array_data* array = *arg;
     if(!array)
     {
-    	UARTprintf("_encode_bytes_fields: No bytes to encode\n");
+    	LOGI("_encode_bytes_fields: No bytes to encode\n");
         return false;
     }
 
@@ -133,21 +133,21 @@ bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, void **
     /* We could read block-by-block to avoid the large buffer... */
     if (stream->bytes_left > MAX_STRING_LEN - 1)
     {
-    	UARTprintf("_decode_string_field: String too long to decode\n");
+    	LOGI("_decode_string_field: String too long to decode\n");
         return false;
     }
     
     uint8_t* str = pvPortMalloc(stream->bytes_left + 1);
     if(!str)
     {
-    	UARTprintf("_decode_string_field: Not enought memory\n");
+    	LOGI("_decode_string_field: Not enought memory\n");
         return false;
     }
 
     memset(str, 0, stream->bytes_left + 1);
     if (!pb_read(stream, str, stream->bytes_left))
     {
-    	UARTprintf("_decode_string_field: Cannot read string\n");
+    	LOGI("_decode_string_field: Cannot read string\n");
         vPortFree(str);  // Remember to vPortFree if read failed.
         return false;
     }
@@ -160,13 +160,13 @@ void on_morpheus_protobuf_arrival(uint8_t* protobuf, size_t len)
 {
     if(!protobuf)
     {
-        UARTprintf("Invalid parameter.\r\n");
+        LOGI("Invalid parameter.\r\n");
         return;
     }
 
     MorpheusCommand command;
     memset(&command, 0, sizeof(command));
-    UARTprintf("proto arrv\n");
+    LOGI("proto arrv\n");
 
 
     ble_proto_assign_decode_funcs(&command);
@@ -177,9 +177,9 @@ void on_morpheus_protobuf_arrival(uint8_t* protobuf, size_t len)
 
     if (!status)
     {
-        UARTprintf("Decoding protobuf failed, error: ");
-        UARTprintf(PB_GET_ERROR(&stream));
-        UARTprintf("\r\n");
+        LOGI("Decoding protobuf failed, error: ");
+        LOGI(PB_GET_ERROR(&stream));
+        LOGI("\r\n");
     } else {
     	on_ble_protobuf_command(&command);
     	ble_proto_free_command(&command);
@@ -304,7 +304,7 @@ bool ble_reply_protobuf_error(ErrorType error_type)
         size_t protobuf_len = stream.bytes_written;
         spi_write(protobuf_len, _error_buf);
     }else{
-        UARTprintf("encode protobuf failed: %s\r\n", PB_GET_ERROR(&stream));
+        LOGI("encode protobuf failed: %s\r\n", PB_GET_ERROR(&stream));
     }
 
     return status;
@@ -314,7 +314,7 @@ bool ble_reply_protobuf_error(ErrorType error_type)
 bool ble_send_protobuf(MorpheusCommand* command)
 {
     if(!command){
-        UARTprintf("Inavlid parameter.\r\n");
+        LOGI("Inavlid parameter.\r\n");
         return false;
     }
 
@@ -333,7 +333,7 @@ bool ble_send_protobuf(MorpheusCommand* command)
     uint8_t* heap_page = pvPortMalloc(stream.bytes_written);
     if(!heap_page)
     {
-        UARTprintf("Not enough memory.\r\n");
+        LOGI("Not enough memory.\r\n");
         return false;
     }
 
@@ -348,12 +348,12 @@ bool ble_send_protobuf(MorpheusCommand* command)
 
         size_t protobuf_len = stream.bytes_written;
         i = spi_write(protobuf_len, heap_page);
-        UARTprintf("spiwrite: %d",i);
+        LOGI("spiwrite: %d",i);
 
     }else{
-        UARTprintf("encode protobuf failed: ");
-        UARTprintf(PB_GET_ERROR(&stream));
-        UARTprintf("\r\n");
+        LOGI("encode protobuf failed: ");
+        LOGI(PB_GET_ERROR(&stream));
+        LOGI("\r\n");
     }
     vPortFree(heap_page);
 
@@ -365,7 +365,7 @@ void ble_proto_free_command(MorpheusCommand* command)
 {
     if(!command)
     {
-        UARTprintf("Inavlid parameter.\r\n");
+        LOGI("Inavlid parameter.\r\n");
         return;
     }
 

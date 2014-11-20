@@ -114,8 +114,8 @@ tCircularBuffer *pRxBuffer;
 //    //
 //    // Print some header text.
 //    //
-//    UARTprintf("ARM Cortex-M4F %u MHz - ",configCPU_CLOCK_HZ / 1000000);
-//    UARTprintf("%2u%% utilization\n", (g_ulCPUUsage+32768) >> 16);
+//    LOGI("ARM Cortex-M4F %u MHz - ",configCPU_CLOCK_HZ / 1000000);
+//    LOGI("%2u%% utilization\n", (g_ulCPUUsage+32768) >> 16);
 //
 //    // Return success.
 //    return(0);
@@ -155,7 +155,7 @@ int Cmd_free(int argc, char *argv[]) {
 	//
 	// Print some header text.
 	//
-	UARTprintf("%d bytes free\nhigh: %d low: %d\n", xPortGetFreeHeapSize(),heap_high_mark,heap_low_mark);
+	LOGI("%d bytes free\nhigh: %d low: %d\n", xPortGetFreeHeapSize(),heap_high_mark,heap_low_mark);
 
     heap_high_mark = 0;
 	heap_low_mark = 0xffffffff;
@@ -179,18 +179,18 @@ int Cmd_fs_write(int argc, char *argv[]) {
 
 	if (sl_FsOpen((unsigned char*)argv[1],
 	FS_MODE_OPEN_WRITE, &tok, &hndl)) {
-		UARTprintf("error opening file, trying to create\n");
+		LOGI("error opening file, trying to create\n");
 
 		if (sl_FsOpen((unsigned char*)argv[1],
 				FS_MODE_OPEN_CREATE(65535, _FS_FILE_OPEN_FLAG_COMMIT), &tok,
 				&hndl)) {
-			UARTprintf("error opening for write\n");
+			LOGI("error opening for write\n");
 			return -1;
 		}
 	}
 
 	bytes = sl_FsWrite(hndl, info.FileLen, (unsigned char*)argv[2], strlen(argv[2]));
-	UARTprintf("wrote to the file %d bytes\n", bytes);
+	LOGI("wrote to the file %d bytes\n", bytes);
 
 	sl_FsClose(hndl, 0, 0, 0);
 
@@ -212,20 +212,20 @@ int Cmd_fs_read(int argc, char *argv[]) {
 
 	err = sl_FsOpen((unsigned char*) argv[1], FS_MODE_OPEN_READ, &tok, &hndl);
 	if (err) {
-		UARTprintf("error opening for read %d\n", err);
+		LOGI("error opening for read %d\n", err);
 		return -1;
 	}
 	if( argc >= 3 ){
 		bytes = sl_FsRead(hndl, atoi(argv[2]), (unsigned char*) buffer,
 				minval(info.FileLen, BUF_SZ));
 		if (bytes) {
-						UARTprintf("read %d bytes\n", bytes);
+						LOGI("read %d bytes\n", bytes);
 					}
 	}else{
 		bytes = sl_FsRead(hndl, 0, (unsigned char*) buffer,
 				minval(info.FileLen, BUF_SZ));
 		if (bytes) {
-						UARTprintf("read %d bytes\n", bytes);
+						LOGI("read %d bytes\n", bytes);
 					}
 	}
 
@@ -233,7 +233,7 @@ int Cmd_fs_read(int argc, char *argv[]) {
 	sl_FsClose(hndl, 0, 0, 0);
 
 	for (i = 0; i < bytes; ++i) {
-		UARTprintf("%x", buffer[i]);
+		LOGI("%x", buffer[i]);
 	}
 
 	// Return success.
@@ -255,29 +255,29 @@ unsigned int CPU_XDATA = 1; //1: enabled CPU interrupt triggerred
 	//assert(audio_buf);
 	err = sl_FsOpen("Ringtone_hello_leftchannel_16PCM", FS_MODE_OPEN_READ, &tok, &hndl);
 	if (err) {
-		UARTprintf("error opening for read %d\n", err);
+		LOGI("error opening for read %d\n", err);
 		return -1;
 	}
 	bytes = sl_FsRead(hndl, 0,  (unsigned char*)audio_buf, AUDIO_BUF_SZ);
 	if (bytes) {
-		UARTprintf("read %d bytes\n", bytes);
+		LOGI("read %d bytes\n", bytes);
 	}
 	sl_FsClose(hndl, 0, 0, 0);
 
 	get_codec_NAU(atoi(argv[1]));
-	UARTprintf(" Done for get_codec_NAU\n ");
+	LOGI(" Done for get_codec_NAU\n ");
 
 	AudioCaptureRendererConfigure(I2S_PORT_CPU, AUDIO_RATE);
 
-	AudioCapturerInit(CPU_XDATA, AUDIO_RATE); //UARTprintf(" Done for AudioCapturerInit\n ");
+	AudioCapturerInit(CPU_XDATA, AUDIO_RATE); //LOGI(" Done for AudioCapturerInit\n ");
 
-	Audio_Start(); //UARTprintf(" Done for Audio_Start\n ");
+	Audio_Start(); //LOGI(" Done for Audio_Start\n ");
 
 	vTaskDelay(5 * 1000);
 	Audio_Stop(); // added this, the ringtone will not play
 	McASPDeInit(true, AUDIO_RATE);
 
-	vPortFree(audio_buf); //UARTprintf(" audio_buf\n ");
+	vPortFree(audio_buf); //LOGI(" audio_buf\n ");
 
 	return 0;
 }
@@ -330,26 +330,26 @@ int play_ringtone(int vol, char * file) {
 		res = f_open(&fp, file, FA_READ);
 
 		if (res != FR_OK) {
-			UARTprintf("Failed to open audio file %d\n\r", res);
+			LOGI("Failed to open audio file %d\n\r", res);
 			return -1;
 		}
 		f_stat(file, &file_info);
 		f_close( &fp );
 		if (file_info.fsize < 256000) {
-			UARTprintf("audio file too small %d\n\r", file_info.fsize );
+			LOGI("audio file too small %d\n\r", file_info.fsize );
 			return -1;
 		}
 	}
 
 //
 // Create RX and TX Buffer
-	UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
+	LOGI("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
 	AudioProcessingTask_FreeBuffers();
-	UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
+	LOGI("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
 	pRxBuffer = CreateCircularBuffer(RX_BUFFER_SIZE);
-	UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
+	LOGI("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
 	if (pRxBuffer == NULL) {
-		UARTprintf("Unable to Allocate Memory for Rx Buffer\n\r");
+		LOGI("Unable to Allocate Memory for Rx Buffer\n\r");
 		return -1;
 	}
 // Configure Audio Codec
@@ -372,7 +372,7 @@ int play_ringtone(int vol, char * file) {
 	SetupPingPongDMATransferRx();
 // Setup the Audio In/Out
 //
-	UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
+	LOGI("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
 
 	AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
 	AudioCaptureRendererConfigure(I2S_PORT_DMA, 48000);
@@ -385,19 +385,19 @@ int play_ringtone(int vol, char * file) {
 // Start the Microphone Task
 //
 	Speaker1(file);
-	UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
+	LOGI("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
 
-	UARTprintf("g_iReceiveCount %d\n\r", g_iReceiveCount);
+	LOGI("g_iReceiveCount %d\n\r", g_iReceiveCount);
 	close_codec_NAU();
-	UARTprintf("close_codec_NAU");
+	LOGI("close_codec_NAU");
 	Audio_Stop();
 	McASPDeInit();
 	DestroyCircularBuffer(pRxBuffer);
-	UARTprintf("DestroyCircularBuffer(pRxBuffer)");
-	UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
+	LOGI("DestroyCircularBuffer(pRxBuffer)");
+	LOGI("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
 
 	AudioProcessingTask_AllocBuffers();
-	UARTprintf("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
+	LOGI("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
 
 	return 0;
 
@@ -430,7 +430,7 @@ int Cmd_fs_delete(int argc, char *argv[]) {
 	//
 	int err = sl_FsDel((unsigned char*)argv[1], 0);
 	if (err) {
-		UARTprintf("error %d\n", err);
+		LOGI("error %d\n", err);
 		return -1;
 	}
 
@@ -460,15 +460,15 @@ void set_alarm( SyncResponse_Alarm * received_alarm ) {
             if( alarm.has_start_time
              && alarm.start_time - now > 0
              && now - alarm.start_time < alarm.ring_duration_in_second ) {
-                UARTprintf( "alarm currently active, putting off setting\n");
+                LOGI( "alarm currently active, putting off setting\n");
             } else {
                 memcpy(&alarm, received_alarm, sizeof(alarm));
             }
-            UARTprintf("Got alarm %d to %d in %d minutes\n",
+            LOGI("Got alarm %d to %d in %d minutes\n",
                         received_alarm->start_time, received_alarm->end_time,
                         (received_alarm->start_time - now) / 60);
         }else{
-            UARTprintf("No alarm for now.\n");
+            LOGI("No alarm for now.\n");
             // when we reach here, we need to cancel the existing alarm to prevent them ringing.
 
             // The following is not necessary, putting here just to make them explicit.
@@ -488,7 +488,7 @@ static void thread_alarm_on_finished(void * context) {
 	if (xSemaphoreTake(alarm_smphr, portMAX_DELAY)) {
 
 		if (alarm.has_end_time) {
-			UARTprintf("ALARM DONE RINGING\n");
+			LOGI("ALARM DONE RINGING\n");
 			alarm.has_end_time = 0;
 			alarm.has_start_time = 0;
         }
@@ -518,7 +518,7 @@ void thread_alarm(void * unused) {
 					desc.onFinished = thread_alarm_on_finished;
 
 					AudioTask_StartPlayback(&desc);
-					UARTprintf("ALARM RINGING RING RING RING\n");
+					LOGI("ALARM RINGING RING RING RING\n");
 					alarm.has_start_time = 0;
 					alarm.start_time = 0;
 				}
@@ -614,7 +614,7 @@ static void _on_hold(void * ctx){
 	AudioTask_StopPlayback();
 }
 static void _on_slide(void * ctx, int delta){
-	UARTprintf("Slide delta %d\r\n", delta);
+	LOGI("Slide delta %d\r\n", delta);
 }
 static int light_m2,light_mean, light_cnt,light_log_sum,light_sf;
 static xSemaphoreHandle light_smphr;
@@ -658,7 +658,7 @@ void thread_fast_i2c_poll(void * unused)  {
 					light_m2 = 0x7FFFFFFF;
 				}
 
-				//UARTprintf( "%d %d %d %d\n", delta, light_mean, light_m2, light_cnt);
+				//LOGI( "%d %d %d %d\n", delta, light_mean, light_m2, light_cnt);
 				xSemaphoreGive(light_smphr);
 			}
 		}
@@ -685,15 +685,15 @@ static bool encode_all_pills (pb_ostream_t *stream, const pb_field_t *field, voi
 	for( i = 0; i < data->num_pills; ++i ) {
 		if(!pb_encode_tag(stream, PB_WT_STRING, batched_pill_data_pills_tag))
 		{
-			UARTprintf("encode_all_pills: Fail to encode tag for pill %s, error %s\n", data->pills[i].device_id, PB_GET_ERROR(stream));
+			LOGI("encode_all_pills: Fail to encode tag for pill %s, error %s\n", data->pills[i].device_id, PB_GET_ERROR(stream));
 			return false;
 		}
 
 		if (!pb_encode_delimited(stream, pill_data_fields, &data->pills[i])){
-			UARTprintf("encode_all_pills: Fail to encode pill %s, error: %s\n", data->pills[i].device_id, PB_GET_ERROR(stream));
+			LOGI("encode_all_pills: Fail to encode pill %s, error: %s\n", data->pills[i].device_id, PB_GET_ERROR(stream));
 			return false;
 		}
-		//UARTprintf("******************* encode_pill_encode_all_pills: encode pill %s\n", pill_data.deviceId);
+		//LOGI("******************* encode_pill_encode_all_pills: encode pill %s\n", pill_data.deviceId);
 	}
 	return true;
 }
@@ -702,18 +702,18 @@ void thread_tx(void* unused) {
 	periodic_data data = {0};
 	load_aes();
 
-	UARTprintf(" Start polling  \n");
+	LOGI(" Start polling  \n");
 	while (1) {
 		int tries = 0;
 		memset(&data, 0, sizeof(periodic_data));
 		if (xQueueReceive(data_queue, &(data), 1)) {
-			UARTprintf(
+			LOGI(
 					"sending time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d\n",
 					data.unix_time, data.light, data.light_variability,
 					data.light_tonality, data.temperature, data.humidity, data.dust);
 
 			while (!send_periodic_data(&data) == 0) {
-				UARTprintf("  Waiting for WIFI connection  \n");
+				LOGI("  Waiting for WIFI connection  \n");
 				vTaskDelay((1 << tries) * 1000);
 				if (tries++ > 5) {
 					tries = 5;
@@ -723,13 +723,13 @@ void thread_tx(void* unused) {
 
 		tries = 0;
 		if (uxQueueMessagesWaiting(pill_queue) > PILL_BATCH_WATERMARK) {
-			UARTprintf(	"sending  pill data" );
+			LOGI(	"sending  pill data" );
 			pilldata_to_encode pilldata;
 			pilldata.num_pills = 0;
 			pilldata.pills = (pill_data*)pvPortMalloc(MAX_BATCH_PILL_DATA*sizeof(pill_data));
 
 			if( !pilldata.pills ) {
-				UARTprintf( "failed to alloc pilldata\n" );
+				LOGI( "failed to alloc pilldata\n" );
 				vTaskDelay(1000);
 				continue;
 			}
@@ -744,7 +744,7 @@ void thread_tx(void* unused) {
 			pill_data_batched.device_id.funcs.encode = encode_mac_as_device_id_string;
 
 			while (!send_pill_data(&pill_data_batched) == 0) {
-				UARTprintf("  Waiting for WIFI connection  \n");
+				LOGI("  Waiting for WIFI connection  \n");
 				vTaskDelay((1 << tries) * 1000);
 				if (tries++ > 5) {
 					tries = 5;
@@ -843,7 +843,7 @@ void thread_sensor_poll(void* unused) {
 					data.has_light_variability = false;
 				}
 
-				//UARTprintf( "%d lightsf %d var %d cnt\n", light_sf, light_var, light_cnt );
+				//LOGI( "%d lightsf %d var %d cnt\n", light_sf, light_var, light_cnt );
 				data.light_tonality = light_sf;
 				data.has_light_tonality = true;
 
@@ -913,7 +913,7 @@ void thread_sensor_poll(void* unused) {
 		}
 
 
-		UARTprintf("collecting time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d %d %d %d\n",
+		LOGI("collecting time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d %d %d %d\n",
 				data.unix_time, data.light, data.light_variability, data.light_tonality, data.temperature, data.humidity,
 				data.dust, data.dust_max, data.dust_min, data.dust_variability);
 
@@ -922,7 +922,7 @@ void thread_sensor_poll(void* unused) {
 		data.firmware_version = KIT_VER;
         if(!xQueueSend(data_queue, (void*)&data, 10) == pdPASS)
         {
-    		UARTprintf("Failed to post data\n");
+    		LOGI("Failed to post data\n");
     	}
 
 		vTaskDelayUntil(&now, 60 * configTICK_RATE_HZ);
@@ -941,12 +941,13 @@ void thread_sensor_poll(void* unused) {
 int Cmd_tasks(int argc, char *argv[]) {
 	char* pBuffer;
 
+	LOGI("\t\t\t\t\tUnused\n            TaskName\tStatus\tPri\tStack\tTask ID\n");
 	pBuffer = pvPortMalloc(1024);
 	assert(pBuffer);
+	LOGI("==========================");
 	vTaskList(pBuffer);
-	UARTprintf("\t\t\t\t\tUnused\n            TaskName\tStatus\tPri\tStack\tTask ID\n");
-	UARTprintf("=======================================================\n");
-	UARTprintf("%s", pBuffer);
+	LOGI("==========================\n");
+	LOGI("%s", pBuffer);
 
 	vPortFree(pBuffer);
 	return 0;
@@ -964,8 +965,8 @@ int Cmd_help(int argc, char *argv[]) {
 	//
 	// Print some header text.
 	//
-	UARTprintf("\nAvailable commands\n");
-	UARTprintf("------------------\n");
+	LOGI("\nAvailable commands\n");
+	LOGI("------------------\n");
 
 	//
 	// Point at the beginning of the command table.
@@ -980,7 +981,7 @@ int Cmd_help(int argc, char *argv[]) {
 		//
 		// Print the command name and the brief description.
 		//
-		UARTprintf("%s: %s\n", pEntry->pcCmd, pEntry->pcHelp);
+		LOGI("%s: %s\n", pEntry->pcCmd, pEntry->pcHelp);
 
 		vTaskDelay(10);
 		//
@@ -1033,9 +1034,9 @@ int Cmd_rssi(int argc, char *argv[]) {
 
     SortByRSSI(&g_netEntries[0],(unsigned char)lCountSSID);
 
-    UARTprintf( "SSID RSSI\n" );
+    LOGI( "SSID RSSI\n" );
 	for(i=0;i<lCountSSID;++i) {
-		UARTprintf( "%s %d\n", g_netEntries[i].ssid, g_netEntries[i].rssi );
+		LOGI( "%s %d\n", g_netEntries[i].ssid, g_netEntries[i].rssi );
 	}
 	return 0;
 }
@@ -1053,7 +1054,7 @@ int Cmd_mel(int argc, char *argv[]) {
 
 	srand(0);
 
-	UARTprintf("EXPECT: t1=%d,t2=%d,energy=something not zero\n",43,86);
+	LOGI("EXPECT: t1=%d,t2=%d,energy=something not zero\n",43,86);
 
 
 	AudioFeatures_Init(AudioFeatCallback);
@@ -1095,14 +1096,14 @@ void nordic_prox_int() {
     MAP_GPIOIntClear(GPIO_PORT, status);
 	if (status & GSPI_INT_PIN) {
 #if DEBUG_PRINT_NORDIC == 1
-		UARTprintf("nordic interrupt\r\n");
+		LOGI("nordic interrupt\r\n");
 #endif
 		xSemaphoreGiveFromISR(spi_smphr, &xHigherPriorityTaskWoken);
 		MAP_GPIOIntDisable(GPIO_PORT,GSPI_INT_PIN);
 	    portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
 	}
 	if (status & RTC_INT_PIN) {
-		UARTprintf("prox interrupt\r\n");
+		LOGI("prox interrupt\r\n");
 		MAP_GPIOIntDisable(GPIO_PORT,RTC_INT_PIN);
 	}
 	/* If xHigherPriorityTaskWoken was set to true you
@@ -1153,11 +1154,11 @@ int Cmd_slip(int argc, char * argv[]){
 	uint32_t len;
 	if(argc >= 2){
 		uint8_t * message = hci_encode((uint8_t*)argv[1], strlen(argv[1]) + 1, &len);
-		UARTprintf("Decoded: %s \r\n", hci_decode(message, len, NULL));
+		LOGI("Decoded: %s \r\n", hci_decode(message, len, NULL));
 		hci_free(message);
 	}else{
 		uint8_t * message = hci_encode("hello", strlen("hello") + 1, &len);
-		UARTprintf("Decoded: %s \r\n", hci_decode(message, len, NULL));
+		LOGI("Decoded: %s \r\n", hci_decode(message, len, NULL));
 		hci_free(message);
 	}
 	return 0;
@@ -1167,7 +1168,7 @@ int Cmd_topdfu(int argc, char *argv[]){
 	if(argc > 1){
 		return top_board_dfu_begin(argv[1]);
 	}
-	UARTprintf("Usage: topdfu $full_path_to_file");
+	LOGI("Usage: topdfu $full_path_to_file");
 	return -2;
 }
 
@@ -1277,14 +1278,14 @@ tCmdLineEntry g_sCmdTable[] = {
 extern xSemaphoreHandle g_xRxLineSemaphore;
 void UARTStdioIntHandler(void);
 void init_download_task( int stack );
-_i16 nwp_reset();
+long nwp_reset();
 
 void vUARTTask(void *pvParameters) {
 	char cCmdBuf[512];
 	portTickType now;
 
 	if(led_init() != 0){
-		UARTprintf("Failed to create the led_events.\n");
+		LOGI("Failed to create the led_events.\n");
 	}
 
 	xTaskCreate(led_task, "ledTask", 512 / 4, NULL, 4, NULL); //todo reduce stack
@@ -1317,30 +1318,30 @@ void vUARTTask(void *pvParameters) {
 
 	UARTIntRegister(UARTA0_BASE, UARTStdioIntHandler);
 
-	UARTprintf("Boot\n");
+	LOGI("Boot\n");
 
 	//default to IFA
 	antsel(IFA_ANT);
 
-	UARTprintf("*");
+	LOGI("*");
 	now = xTaskGetTickCount();
 	sl_mode = sl_Start(NULL, NULL, NULL);
-	UARTprintf("*");
+	LOGI("*");
 	while (sl_mode != ROLE_STA) {
-		UARTprintf("+");
+		LOGI("+");
 		sl_WlanSetMode(ROLE_STA);
 		nwp_reset();
 	}
-	UARTprintf("*");
+	LOGI("*");
 
 	// Set connection policy to Auto
 	sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0), NULL, 0);
 
-	UARTprintf("*");
+	LOGI("*");
 	unsigned char mac[6];
 	unsigned char mac_len;
 	sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
-	UARTprintf("*");
+	LOGI("*");
 
 	// SDCARD INITIALIZATION
 	// Enable MMCHS, Reset MMCHS, Configure MMCHS, Configure card clock, mount
@@ -1349,15 +1350,15 @@ void vUARTTask(void *pvParameters) {
 	MAP_SDHostInit(SDHOST_BASE);
 	MAP_SDHostSetExpClk(SDHOST_BASE, MAP_PRCMPeripheralClockGet(PRCM_SDHOST),
 			1000000);
-	UARTprintf("*");
+	LOGI("*");
 	Cmd_mnt(0, 0);
-	UARTprintf("*");
+	LOGI("*");
 	//INIT SPI
 	spi_init();
-	UARTprintf("*");
+	LOGI("*");
 
 	vTaskDelayUntil(&now, 1000);
-	UARTprintf("*");
+	LOGI("*");
 
 	if (sl_mode == ROLE_AP || !sl_status) {
 		//Cmd_sl(0, 0);
@@ -1381,8 +1382,9 @@ void vUARTTask(void *pvParameters) {
 
 
 	if (data_queue == 0) {
-		UARTprintf("Failed to create the data_queue.\n");
+		LOGI("Failed to create the data_queue.\n");
 	}
+
 
 	init_download_task( 1024 / 4 );
 	networktask_init(5 * 1024 / 4);
@@ -1390,41 +1392,41 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(top_board_task, "top_board_task", 1024 / 4, NULL, 2, NULL);
 	xTaskCreate(thread_alarm, "alarmTask", 2*1024 / 4, NULL, 4, NULL);
 
-	UARTprintf("*");
-	xTaskCreate(thread_spi, "spiTask", 3*1024 / 4, NULL, 5, NULL); //this one doesn't look like much, but has to parse all the pb from bluetooth
+	LOGI("*");
+	xTaskCreate(thread_spi, "spiTask", 3*1024 / 4, NULL, 4, NULL); //this one doesn't look like much, but has to parse all the pb from bluetooth
 
 
 	xTaskCreate(FileUploaderTask_Thread,"fileUploadTask",1*1024/4,NULL,1,NULL);
 
 
 	SetupGPIOInterrupts();
-	UARTprintf("*");
+	LOGI("*");
 #if !ONLY_MID
 
 	xTaskCreate(AudioTask_Thread,"audioTask",3*1024/4,NULL,4,NULL);
-	UARTprintf("*");
+	LOGI("*");
 	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,1,NULL);
-	UARTprintf("*");
-	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  512 / 4, NULL, 13, NULL);
-	UARTprintf("*");
+	LOGI("*");
+	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  512 / 4, NULL, 4, NULL);
+	LOGI("*");
 	xTaskCreate(thread_dust, "dustTask", 256 / 4, NULL, 3, NULL);
-	UARTprintf("*");
-	xTaskCreate(thread_sensor_poll, "pollTask", 1024 / 4, NULL, 4, NULL);
-	UARTprintf("*");
+	LOGI("*");
+	xTaskCreate(thread_sensor_poll, "pollTask", 1024 / 4, NULL, 3, NULL);
+	LOGI("*");
 	xTaskCreate(thread_tx, "txTask", 3 * 1024 / 4, NULL, 2, NULL);
-	UARTprintf("*");
-	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 1, NULL);
-	UARTprintf("*");
+	LOGI("*");
+	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 4, NULL);
+	LOGI("*");
 #endif
 	//checkFaults();
 
 
 
-	UARTprintf("\n\nFreeRTOS %s, %d, %s %x%x%x%x%x%x\n",
+	LOGI("\n\nFreeRTOS %s, %d, %s %x%x%x%x%x%x\n",
 	tskKERNEL_VERSION_NUMBER, KIT_VER, MORPH_NAME, mac[0], mac[1], mac[2],
 			mac[3], mac[4], mac[5]);
-	UARTprintf("\n? for help\n");
-	UARTprintf("> ");
+	LOGI("\n? for help\n");
+	LOGI("> ");
 
 	/* remove anything we recieved before we were ready */
 
@@ -1437,7 +1439,7 @@ void vUARTTask(void *pvParameters) {
 			/* Read data from the UART and process the command line */
 			UARTgets(cCmdBuf, sizeof(cCmdBuf));
 			if (ustrlen(cCmdBuf) == 0) {
-				UARTprintf("> ");
+				LOGI("> ");
 				continue;
 			}
 
@@ -1447,7 +1449,7 @@ void vUARTTask(void *pvParameters) {
 			//
 			char * args = pvPortMalloc( sizeof(cCmdBuf) );
 			memcpy( args, cCmdBuf, sizeof( cCmdBuf ) );
-			xTaskCreate(CmdLineProcess, "commandTask",  5*1024 / 4, args, 20, NULL);
+			xTaskCreate(CmdLineProcess, "commandTask",  5*1024 / 4, args, 4, NULL);
         }
 	}
 }

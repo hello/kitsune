@@ -70,7 +70,7 @@ uint32_t get_nwp_time()
     int32_t ret = sl_DevGet(SL_DEVICE_GENERAL_CONFIGURATION,&configOpt, &configLen,(_u8 *)(&dt));
     if(ret != 0)
     {
-        UARTprintf("sl_DevGet failed, err: %d\n", ret);
+        LOGI("sl_DevGet failed, err: %d\n", ret);
         return INVALID_SYS_TIME;
     }
 
@@ -85,7 +85,7 @@ uint32_t set_nwp_time(uint32_t unix_timestamp_sec)
 	if(unix_timestamp_sec > 0) {
 		SlDateTime_t tm;
 		untime(unix_timestamp_sec, &tm);
-		UARTprintf( "setting sl time %d:%d:%d day %d mon %d yr %d", tm.sl_tm_hour,tm.sl_tm_min,tm.sl_tm_sec,tm.sl_tm_day,tm.sl_tm_mon,tm.sl_tm_year);
+		LOGI( "setting sl time %d:%d:%d day %d mon %d yr %d", tm.sl_tm_hour,tm.sl_tm_min,tm.sl_tm_sec,tm.sl_tm_day,tm.sl_tm_mon,tm.sl_tm_year);
 
 		int32_t ret = sl_DevSet(SL_DEVICE_GENERAL_CONFIGURATION,
 				  SL_DEVICE_GENERAL_CONFIGURATION_DATE_TIME,
@@ -117,10 +117,10 @@ static uint32_t unix_time() {
     setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)); // Enable receive timeout
 
     if (sock < 0) {
-        UARTprintf("Socket create failed\n\r");
+        LOGI("Socket create failed\n\r");
         return INVALID_SYS_TIME;
     }
-    UARTprintf("Socket created\n\r");
+    LOGI("Socket created\n\r");
 
 //
     // Send a query ? to the NTP server to get the NTP time
@@ -129,12 +129,12 @@ static uint32_t unix_time() {
 
 #define NTP_SERVER "pool.ntp.org"
     if (!(rv = gethostbyname(NTP_SERVER, strlen(NTP_SERVER), &ipaddr, AF_INET))) {
-        UARTprintf(
+        LOGI(
                 "Get Host IP succeeded.\n\rHost: %s IP: %d.%d.%d.%d \n\r\n\r",
                 NTP_SERVER, SL_IPV4_BYTE(ipaddr, 3), SL_IPV4_BYTE(ipaddr, 2),
                 SL_IPV4_BYTE(ipaddr, 1), SL_IPV4_BYTE(ipaddr, 0));
     } else {
-        UARTprintf("failed to resolve ntp addr rv %d\n", rv);
+        LOGI("failed to resolve ntp addr rv %d\n", rv);
         close(sock);
         return INVALID_SYS_TIME;
     }
@@ -158,10 +158,10 @@ static uint32_t unix_time() {
     buffer[14] = 49;
     buffer[15] = 52;
 
-    UARTprintf("Sending request\n\r\n\r");
+    LOGI("Sending request\n\r\n\r");
     rv = sendto(sock, buffer, sizeof(buffer), 0, &sAddr, sizeof(sAddr));
     if (rv != sizeof(buffer)) {
-        UARTprintf("Could not send SNTP request\n\r\n\r");
+        LOGI("Could not send SNTP request\n\r\n\r");
         close(sock);
         return INVALID_SYS_TIME;    // could not send SNTP request
     }
@@ -175,12 +175,12 @@ static uint32_t unix_time() {
     sLocalAddr.sin_addr.s_addr = 0;
     bind(sock, (SlSockAddr_t *) &sLocalAddr, iAddrSize);
 
-    UARTprintf("receiving reply\n\r\n\r");
+    LOGI("receiving reply\n\r\n\r");
 
     rv = recvfrom(sock, buffer, sizeof(buffer), 0, (SlSockAddr_t *) &sLocalAddr,
             (SlSocklen_t*) &iAddrSize);
     if (rv <= 0) {
-        UARTprintf("Did not receive\n\r");
+        LOGI("Did not receive\n\r");
         close(sock);
         return INVALID_SYS_TIME;
     }
@@ -189,7 +189,7 @@ static uint32_t unix_time() {
     // Confirm that the MODE is 4 --> server
     if ((buffer[0] & 0x7) != 4)    // expect only server response
             {
-        UARTprintf("Expecting response from Server Only!\n\r");
+        LOGI("Expecting response from Server Only!\n\r");
         close(sock);
         return INVALID_SYS_TIME;    // MODE is not server, abort
     } else {
@@ -233,7 +233,7 @@ int init_time_module()
 uint32_t fetch_time_from_ntp_server() {
     uint32_t ntp = INVALID_SYS_TIME;
 
-	UARTprintf("Get NTP time\n");
+	LOGI("Get NTP time\n");
 
 	while(1)
 	{
@@ -249,7 +249,7 @@ uint32_t fetch_time_from_ntp_server() {
 		vTaskDelay(10000);
 	}
 
-	UARTprintf("Get NTP time done\n");
+	LOGI("Get NTP time done\n");
 
 
 	return ntp;
