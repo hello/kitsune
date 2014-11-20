@@ -1555,7 +1555,7 @@ void reset_to_factory_fw() {
 
 #include "wifi_cmd.h"
 int Cmd_version(int argc, char *argv[]) {
-	LOGI( "ver: %d\nimg: %x\nstatus: %x\n", KIT_VER, sBootInfo.ucActiveImg, sBootInfo.ulImgStatus );
+	LOGI( "ver: %x\nimg: %d\nstatus: %x\n", KIT_VER, sBootInfo.ucActiveImg, sBootInfo.ulImgStatus );
 	return 0;
 }
 
