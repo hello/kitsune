@@ -106,7 +106,7 @@ static int I2CTransact(unsigned long ulCmd);
 void recoveri2c() {
 #define GPIO_PORT 0x40005000
 
-	UARTprintf("i2c recovery...\r\n");
+	LOGI("i2c recovery...\r\n");
 	//
 	// Configure PIN_01 for GPIOOutput 10 open drain
 	//

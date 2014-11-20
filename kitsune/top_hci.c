@@ -52,16 +52,16 @@ uint32_t hci_decode(uint8_t * raw, uint32_t length, const hci_decode_handler_t *
 	bool has_checksum = false;
 
 	if(length < HCI_HEADER_SIZE){
-		//UARTprintf("header size fail %u \r\n", length);
+		//LOGI("header size fail %u \r\n", length);
 		handler->on_decode_failed();
 		return 0;
 	}
 	if( !(raw[0] & HCI_RELIABLE_PACKET) ){
 		//Unreliable packet does not necessarily mean it fails, just throw a warning instead
-		//UARTprintf("Not reliable packet\r\n");
+		//LOGI("Not reliable packet\r\n");
 	}
 	if( !(raw[0] & HCI_INTEGRITY_CHECK) ){
-		//UARTprintf("No Checksum\r\n");
+		//LOGI("No Checksum\r\n");
 	}else{
 		has_checksum = true;
 	}
@@ -73,7 +73,7 @@ uint32_t hci_decode(uint8_t * raw, uint32_t length, const hci_decode_handler_t *
 	//check header integrity
 	const uint32_t expected_checksum = (raw[0] + raw[1] + raw[2] + raw[3]) & 0xFFu;
 	if(expected_checksum != 0){
-		//UARTprintf("Header Checksu fail \r\n");
+		//LOGI("Header Checksu fail \r\n");
 		handler->on_decode_failed();
 		return 0;
 	}
@@ -82,7 +82,7 @@ uint32_t hci_decode(uint8_t * raw, uint32_t length, const hci_decode_handler_t *
 		uint16_t crc_calculated = _crc16_compute(raw, (length - HCI_CRC_SIZE), NULL);
 		uint16_t crc_received = *(uint16_t*) (raw + length - HCI_CRC_SIZE);
 		if (crc_received != crc_calculated) {
-			/*UARTprintf("Body Checksum fail cal%x rcvd %x\r\n", crc_calculated,
+			/*LOGI("Body Checksum fail cal%x rcvd %x\r\n", crc_calculated,
 					crc_received);*/
 			return 0;
 		}
@@ -92,7 +92,7 @@ uint32_t hci_decode(uint8_t * raw, uint32_t length, const hci_decode_handler_t *
 		uint32_t decoded_length = length - HCI_HEADER_SIZE - (has_checksum?HCI_CRC_SIZE:0);
 		uint8_t ack = (raw[0] & 0x38u) >> 3u;
 		self.acknowledge_number = (raw[0] & 0x7u) + 1;
-		//UARTprintf("ack:%x", ack);
+		//LOGI("ack:%x", ack);
 		if (ack == self.sequence_number) {
 			//retransmit
 			handler->on_ack_failed();

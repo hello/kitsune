@@ -78,7 +78,7 @@ static void NetTaskResponse (const NetworkResponse_t * response, void * context)
 		res = hello_fs_unlink(data->filename);
 
 		if (res != FR_OK) {
-			UARTprintf("failed to delete file %s\r\n",data->filename);
+			LOGI("failed to delete file %s\r\n",data->filename);
 		}
 	}
 
@@ -119,7 +119,7 @@ bool encode_file (pb_ostream_t * stream, const pb_field_t * field,void * const *
 
 	/*  Did something horrible happen?  */
 	if(res != FR_OK){
-		UARTprintf("File open %s failed: %d\n", encodedata->filename, res);
+		LOGI("File open %s failed: %d\n", encodedata->filename, res);
 	}
 	else {
 		//find out size of file

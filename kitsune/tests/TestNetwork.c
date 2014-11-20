@@ -43,7 +43,7 @@
 
 
 #ifdef USE_DEBUG_PRINTF
-#define DEBUG_PRINTF(...)  UARTprintf("%s :: ",__func__); UARTprintf(__VA_ARGS__); UARTprintf("\r\n")
+#define DEBUG_PRINTF(...)  LOGI("%s :: ",__func__); LOGI(__VA_ARGS__); LOGI("\r\n")
 #else
 static void nop(const char * foo,...) {  }
 #define DEBUG_PRINTF(...) nop(__VA_ARGS__)

@@ -1784,7 +1784,7 @@ FRESULT f_append(const char* file_name, const unsigned char* content, int length
 	//UARTprintf("res :%d\n",res);
 
 	if(res != FR_OK && res != FR_EXIST){
-		UARTprintf("File open %s failed: %d\n", file_name, res);
+		//UARTprintf("File open %s failed: %d\n", file_name, res);
 		return res;
 	}
 

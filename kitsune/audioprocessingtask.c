@@ -85,7 +85,7 @@ static void Setup(void) {
 		AudioClassifier_SetStorageBuffers(_longTermStorageBuffer,DESIRED_BUFFER_SIZE_IN_BYTES);
 	}
 	else {
-		UARTprintf("Could not allocate %d bytes for audio feature storage\r\n",DESIRED_BUFFER_SIZE_IN_BYTES);
+		LOGI("Could not allocate %d bytes for audio feature storage\r\n",DESIRED_BUFFER_SIZE_IN_BYTES);
 	}
 
 }
@@ -124,7 +124,7 @@ void AudioProcessingTask_SetControl(EAudioProcessingCommand_t cmd,NotificationCa
 }
 
 static void NetworkResponseFunc(const NetworkResponse_t * response,void * context) {
-	UARTprintf("AUDIO RESPONSE:\r\n%s",_decodebuf);
+	LOGI("AUDIO RESPONSE:\r\n%s",_decodebuf);
 
 	if (response->success) {
     	xSemaphoreTake(_mutex,portMAX_DELAY);
@@ -194,7 +194,7 @@ void AudioProcessingTask_Thread(void * data) {
 
     		default:
     		{
-    			UARTprintf("AudioProcessingTask_Thread -- unrecognized command\r\n");
+    			LOGI("AudioProcessingTask_Thread -- unrecognized command\r\n");
     			break;
     		}
     		}
@@ -221,7 +221,7 @@ void AudioProcessingTask_Thread(void * data) {
     	}
 
     	default: {
-    		UARTprintf("AudioProcessingTask_Thread -- unrecognized message type\r\n");
+    		LOGI("AudioProcessingTask_Thread -- unrecognized message type\r\n");
     		break;
     	}
     	}
