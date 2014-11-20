@@ -50,7 +50,6 @@ static struct{
 	sense_log log;
 	uint8_t view_tag;	//what level gets printed out to console
 	uint8_t store_tag;	//what level to store to sd card
-	uint8_t log_local_enable;
 	xSemaphoreHandle block_operation_sem;
 	xSemaphoreHandle print_sem;
 	DIR logdir;
@@ -335,6 +334,7 @@ void uart_logc(uint8_t c){
 }
 
 void uart_logger_task(void * params){
+	uint8_t log_local_enable;
 	uart_logger_init();
 	hello_fs_mkdir(SENSE_LOG_FOLDER);
 
@@ -342,9 +342,9 @@ void uart_logger_task(void * params){
 
 	if(res != FR_OK){
 		//uart logging to sd card is disabled
-		self.log_local_enable = 0;
+		log_local_enable = 0;
 	}else{
-		self.log_local_enable = 1;
+		log_local_enable = 1;
 	}
 	while(1){
 		char buffer[UART_LOGGER_BLOCK_SIZE + UART_LOGGER_RESERVED_SIZE] = {0};
@@ -364,7 +364,7 @@ void uart_logger_task(void * params){
 		}
 		if( evnt && xSemaphoreTake(self.block_operation_sem, portMAX_DELAY)){
 			if( evnt & LOG_EVENT_STORE ) {
-				if(self.log_local_enable && FR_OK == _save_newest((char*) self.store_block, UART_LOGGER_BLOCK_SIZE)){
+				if(log_local_enable && FR_OK == _save_newest((char*) self.store_block, UART_LOGGER_BLOCK_SIZE)){
 					self.operation_block = self.blocks[2];
 					xEventGroupSetBits(self.uart_log_events, LOG_EVENT_UPLOAD);
 				}else{
