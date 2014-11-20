@@ -42,7 +42,7 @@
 ROOT=../../..
 
 #
-# Include the common make definitions.
+# include the common make definitions.
 #
 include ${ROOT}/tools/gcc_scripts/makedefs
 
@@ -73,8 +73,8 @@ IPATH+=../../../inc
 IPATH+=../../../oslib
 IPATH+=../../../driverlib
 IPATH+=../../../simplelink
-IPATH+=../../../simplelink/Source
-IPATH+=../../../simplelink/Include
+IPATH+=../../../simplelink/source
+IPATH+=../../../simplelink/include
 IPATH+=../../../third_party/FreeRTOS
 IPATH+=../../../third_party/FreeRTOS/source
 IPATH+=../../../third_party/FreeRTOS/source/portable/GCC/ARM_CM4
@@ -135,7 +135,7 @@ ENTRY_kitsune=ResetISR
 
 
 #
-# Include the automatically generated dependency files.
+# include the automatically generated dependency files.
 #
 ifneq (${MAKECMDGOALS},clean)
 -include ${wildcard ${COMPILER}/*.d} __dummy__

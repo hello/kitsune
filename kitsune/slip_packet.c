@@ -17,6 +17,8 @@ static struct {
 	uint8_t * rx_buffer;
 	uint32_t rx_idx;
 	void (*handle_rx_byte)(uint8_t byte);
+	uint16_t dtm_msb;
+	uint8_t dtm_has_msb;
 } self;
 
 #define SLIP_END 0xC0
@@ -88,6 +90,15 @@ static void _handle_rx_byte_default(uint8_t byte) {
 		break;
 	}
 }
+static void _handle_rx_byte_dtm(uint8_t byte){
+	if(!self.dtm_has_msb){
+		self.dtm_has_msb = 1;
+		self.dtm_msb = ((uint16_t)byte & 0xFF) << 8;
+	}else{
+		self.dtm_has_msb = 0;
+		self.handler.slip_on_dtm_event(self.dtm_msb + byte);
+	}
+}
 static void _handle_rx_byte_wait_start(uint8_t byte) {
 	if (byte == SLIP_END) {
 		if(self.rx_buffer){
@@ -142,25 +153,34 @@ _slip_set_buffer(const uint8_t * orig, uint32_t raw_size, uint32_t * out_new_siz
 
 uint32_t slip_write(const uint8_t * orig, uint32_t buffer_size) {
 	if (orig && buffer_size) {
-		uint32_t new_size;
-		uint8_t * tx_buffer = (uint8_t*) _slip_set_buffer(orig, buffer_size,
-				&new_size);
-		if (tx_buffer) {
-			//test
-			if (self.handler.slip_display_char) {
-				int i;
-				for (i = 0; i < new_size; i++) {
-					//UARTprintf("%02X ", *(uint8_t*) (tx_buffer + i));
-					if(self.handler.slip_put_char){
-						//TODO take out the pointer checks by preset to default handlers
-						self.handler.slip_put_char(tx_buffer[i]);
+		if(self.handle_rx_byte == _handle_rx_byte_dtm){
+			//we are in dtm mode
+			if(buffer_size == 2 && self.handler.slip_put_char){
+				self.handler.slip_put_char(orig[1]);
+				self.handler.slip_put_char(orig[0]);
+				return 0;
+			}
+		}else{
+			uint32_t new_size;
+			uint8_t * tx_buffer = (uint8_t*) _slip_set_buffer(orig, buffer_size,
+					&new_size);
+			if (tx_buffer) {
+				//test
+				if (self.handler.slip_display_char) {
+					int i;
+					for (i = 0; i < new_size; i++) {
+						//LOGI("%02X ", *(uint8_t*) (tx_buffer + i));
+						if (self.handler.slip_put_char) {
+							//TODO take out the pointer checks by preset to default handlers
+							self.handler.slip_put_char(tx_buffer[i]);
+						}
 					}
 				}
-			}
 
-			//test end
-			vPortFree(tx_buffer);
-			return 0;
+				//test end
+				vPortFree(tx_buffer);
+				return 0;
+			}
 		}
 	}
 	return 1;
@@ -175,6 +195,7 @@ void slip_handle_rx(uint8_t c) {
 void   slip_reset(const slip_handler_t * user){
 	self.handle_rx_byte = _handle_rx_byte_wait_start;
 	self.rx_idx = 0;
+	self.dtm_has_msb = 0;
 	if(user){
 		self.handler = *user;
 	}
@@ -182,4 +203,9 @@ void   slip_reset(const slip_handler_t * user){
 		vPortFree(self.rx_buffer);
 		self.rx_buffer = NULL;
 	}
+}
+
+void slip_dtm_mode(void){
+	slip_reset(&self.handler);
+	self.handle_rx_byte = _handle_rx_byte_dtm;
 }

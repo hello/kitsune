@@ -2,16 +2,11 @@
 
 #include "pb_encode.h"
 #include "pb_decode.h"
-#include "protobuf/matrix.pb.h"
+#include "matrix.pb.h"
 
 
 
-typedef struct {
-    uint8_t * writebuf;
-    size_t maxlen;
-} StringDesc_t;
-
-static bool write_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
+bool write_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
     const char * str = (const char *)(*arg);
     static const char nullchar = '\0';
     
@@ -29,6 +24,22 @@ static bool write_string(pb_ostream_t *stream, const pb_field_t *field, void * c
  
     
     
+    return 1;
+
+}
+
+bool write_bytes(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
+	bytes_desc_t * desc = (bytes_desc_t *)(*arg);
+
+
+    //write tag
+    if (!pb_encode_tag(stream, PB_WT_STRING, field->tag)) {
+        return 0;
+    }
+
+
+    pb_encode_string(stream,desc->bytes, desc->len);
+
     return 1;
 
 }
@@ -104,13 +115,13 @@ static bool write_int_mat(pb_ostream_t *stream, const pb_field_t *field, void * 
 }
 
 static bool write_mat_array(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
-    GetNextMatrixFunc_t next_mat_func = (GetNextMatrixFunc_t)(*arg);
+    MatrixListEncodeContext_t * context = (MatrixListEncodeContext_t  * )(*arg);
     const_MatDesc_t desc;
     pb_ostream_t sizestream;
     uint8_t isFirst = true;
+        
     
-    
-    while(next_mat_func(isFirst,&desc)) {
+    while(context->func(isFirst,&desc,context->data)) {
         isFirst = false;
         
         if (!pb_encode_tag(stream,PB_WT_STRING, field->tag)) {
@@ -194,15 +205,15 @@ static bool read_int_array(pb_istream_t *stream,IntArray_t * pdesc) {
 bool read_string(pb_istream_t *stream, const pb_field_t *field, void **arg) {
     StringDesc_t * p = (StringDesc_t *) (*arg);
     /* We could read block-by-block to avoid the large buffer... */
-    
+
     if (p->maxlen < stream->bytes_left) {
         return false;
     }
-    
-    
+
+
     if (!pb_read(stream, p->writebuf, stream->bytes_left))
         return false;
-    
+
     /* Print the string, in format comparable with protoc --decode.
      * Format comes from the arg defined in main().
      */
@@ -321,25 +332,29 @@ uint8_t GetIntMatrix(MatDesc_t * matdesc, pb_istream_t * stream,size_t string_ma
     return false;
 }
 
+
 size_t SetMatrixMessage(pb_ostream_t * stream,
-                        const char * macbytes,
+                        uint8_t * macbytes,
                         uint32_t unix_time,
-                        GetNextMatrixFunc_t get_next_mat_func) {
+                        MatrixListEncodeContext_t * matrix_list_context) {
     
     size_t size = 0;
-
+    bytes_desc_t bytedesc;
     MatrixClientMessage mess;
     
+    bytedesc.bytes = (uint8_t *)macbytes;
+    bytedesc.len = 6;
+
     mess.unix_time = unix_time;
     mess.has_unix_time = 1;
     
-    mess.mac.funcs.encode = write_string;
-    mess.mac.arg = (void*)macbytes;
+    mess.mac.funcs.encode = write_bytes;
+    mess.mac.arg = (void*)&bytedesc;
     
     mess.has_matrix_payload = 0;
     
     mess.matrix_list.funcs.encode = write_mat_array;
-    mess.matrix_list.arg = (void *)get_next_mat_func;
+    mess.matrix_list.arg = (void *)matrix_list_context;
     
     pb_get_encoded_size(&size,MatrixClientMessage_fields,&mess);
     

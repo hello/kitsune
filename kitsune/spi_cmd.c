@@ -26,6 +26,10 @@
 #include "spi_cmd.h"
 #include "uartstdio.h"
 
+#if 0
+#define SPI_DEBUG_PRINT
+#endif
+
 #define FAILURE                 -1
 #define SUCCESS                 0
 
@@ -107,7 +111,7 @@ int spi_write_step( int len, unsigned char * buf ) {
 	unsigned long dud;
 
 	if( len > 256 ) {
-		UARTprintf("Length limited to 256\r\n");
+		LOGI("Length limited to 256\r\n");
 		return FAILURE;
 	}
 	//MAP_SPICSEnable(GSPI_BASE);
@@ -117,26 +121,25 @@ int spi_write_step( int len, unsigned char * buf ) {
 		MAP_SPIDataPut(GSPI_BASE, buf[i]);
 		MAP_SPIDataGet(GSPI_BASE, &dud);
 #ifdef SPI_DEBUG_PRINT
-		UARTprintf("%x ", buf[i]);
+		LOGI("%x ", buf[i]);
 #endif
 	}
 	//MAP_SPICSDisable(GSPI_BASE);
 	CS_set(1);
 	vTaskDelay(8*5);
 #ifdef SPI_DEBUG_PRINT
-	UARTprintf("\r\n");
+	LOGI("\r\n");
 #endif
 	return SUCCESS;
 }
 
 int spi_read_step( int len, unsigned char * buf ) {
-	int i;
 	if( len > 256 ) {
-		UARTprintf("Length limited to 256\r\n");
+		LOGI("Length limited to 256\r\n");
 		return FAILURE;
 	}
 #ifdef SPI_DEBUG_PRINT
-	UARTprintf("Reading...\r\n");
+	LOGI("Reading...\r\n");
 #endif
 	//	MAP_SPITransfer(GSPI_BASE,rx_buf,rx_buf,len,SPI_CS_ENABLE|SPI_CS_DISABLE);
 	CS_set(0);
@@ -145,11 +148,12 @@ int spi_read_step( int len, unsigned char * buf ) {
 	CS_set(1);
 	vTaskDelay(8*5);
 #ifdef SPI_DEBUG_PRINT
-	UARTprintf("Read %d bytes \r\n", len);
+	LOGI("Read %d bytes \r\n", len);
+	int i;
 	for (i = 0; i < len; i++) {
-		UARTprintf("%x ", buf[i]);
+		LOGI("%x ", buf[i]);
 	}
-	UARTprintf("\r\n");
+	LOGI("\r\n");
 
 #endif
 
@@ -166,7 +170,7 @@ int spi_write( int len, unsigned char * buf ) {
 	spi_write_step( 4, (unsigned char*)&ctx );
 	vTaskDelay(8*10);
 #ifdef SPI_DEBUG_PRINT
-	UARTprintf("Ctx len %u, address %u\r\n",ctx.len, ctx.addr);
+	LOGI("Ctx len %u, address %u\r\n",ctx.len, ctx.addr);
 #endif
 	spi_write_step( len, buf );
 	vTaskDelay(8*10);
@@ -183,7 +187,7 @@ int spi_read( int * len, unsigned char * buf ) {
 	spi_read_step( 4,  (unsigned char*)&ctx );
 	vTaskDelay(8*10);
 #ifdef SPI_DEBUG_PRINT
-	UARTprintf("Ctx len %u, address %u\r\n",ctx.len, ctx.addr);
+	LOGI("Ctx len %u, address %u\r\n",ctx.len, ctx.addr);
 #endif
 	if( ctx.addr == 0xAAAA || ctx.addr == 0x5500 || ctx.addr == 0x5555 ) {
 		spi_reset();
@@ -218,29 +222,30 @@ int Cmd_spi_write(int argc, char *argv[]) {
 	unsigned char len;
 
 	if (argc != 2) {
-		UARTprintf(
+		LOGI(
 				"write  <rdlen> \n\r\t - Read data frpm the specified i2c device\n\r");
 		return FAILURE;
 	}
 	len = strlen(argv[1]);
 
-	UARTprintf("Writing...\r\n");
+	LOGI("Writing...\r\n");
 	spi_write( len, (unsigned char*)argv[1] );
 
 	return SUCCESS;
 }
 
 int Cmd_spi_read(int argc, char *argv[]) {
-	int i, len;
+	int len;
 	unsigned char buf[256];
 
 	spi_read( &len, buf );
 #ifdef SPI_DEBUG_PRINT
-	UARTprintf("read %u\r\n", len);
+	LOGI("read %u\r\n", len);
+	int i;
 	for( i=0; i<len; ++i ) {
-		UARTprintf( "%x", buf[i] );
+		LOGI( "%x", buf[i] );
 	}
-	UARTprintf( "\r\n" );
+	LOGI( "\r\n" );
 #endif
 
 	if( len ) {

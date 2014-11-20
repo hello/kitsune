@@ -106,7 +106,7 @@ static int I2CTransact(unsigned long ulCmd);
 void recoveri2c() {
 #define GPIO_PORT 0x40005000
 
-	UARTprintf("i2c recovery...\r\n");
+	LOGI("i2c recovery...\r\n");
 	//
 	// Configure PIN_01 for GPIOOutput 10 open drain
 	//
@@ -116,7 +116,7 @@ void recoveri2c() {
 	//
 	// Configure PIN_02 for GPIOOutput 11
 	//
-	MAP_PinTypeGPIO(PIN_04, PIN_MODE_0, false);
+	MAP_PinTypeGPIO(PIN_02, PIN_MODE_0, false);
 	MAP_GPIODirModeSet(GPIOA1_BASE, 0x8, GPIO_DIR_MODE_IN);
 
 	while ( MAP_GPIOPinRead(GPIO_PORT, 0x8) == 0) {
@@ -130,7 +130,7 @@ void recoveri2c() {
 	//MAP_PRCMPeripheralReset(PRCM_I2CA0);
 
 	MAP_PinTypeI2C(PIN_01, PIN_MODE_1);
-	MAP_PinTypeI2C(PIN_04, PIN_MODE_5);
+	MAP_PinTypeI2C(PIN_02, PIN_MODE_1);
 	I2CMasterControl(I2C_BASE, 0x00000004); //send a stop...
 	vTaskDelay(2);
 }

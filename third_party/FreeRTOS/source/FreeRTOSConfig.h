@@ -105,8 +105,8 @@
 #define configIDLE_SHOULD_YIELD			0
 #define configUSE_CO_ROUTINES 			0
 #define configUSE_MUTEXES				1
-#define configUSE_RECURSIVE_MUTEXES		0
-#define configCHECK_FOR_STACK_OVERFLOW	0
+#define configUSE_RECURSIVE_MUTEXES		1
+#define configCHECK_FOR_STACK_OVERFLOW	1
 #define configUSE_QUEUE_SETS			1
 #define configUSE_COUNTING_SEMAPHORES	1
 #define configUSE_ALTERNATIVE_API		1
@@ -148,9 +148,12 @@ See http://www.FreeRTOS.org/RTOS-Cortex-M3-M4.html. */
 version. */
 #define configUSE_PORT_OPTIMISED_TASK_SELECTION 1
 
-#ifdef __ICCARM__
+
 	void vAssertCalled( const char *pcFile, unsigned long ulLine );
 	#define configASSERT( x ) if( x == 0 ) vAssertCalled( __FILE__, __LINE__ );
-#endif
+
+
+#define traceMALLOC usertraceMALLOC
+#define traceFREE usertraceFREE
 
 #endif /* FREERTOS_CONFIG_H */

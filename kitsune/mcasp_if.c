@@ -170,7 +170,7 @@ void I2SIntHandler(){
 	//						 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa};
     static int i = 0 ;
    unsigned long ulStatus;
-   unsigned long ulDummy=0;
+
 
    // Get the interrupt status
    ulStatus = I2SIntStatus(I2S_BASE);
@@ -198,7 +198,7 @@ void I2SIntHandler(){
 #if 0
    if(ulStatus & I2S_STS_RDATA)
    {
-
+	   unsigned long ulDummy=0;
         I2SDataGetNonBlocking(I2S_BASE, I2S_DATA_LINE_1, &ulDummy);
         UARTprintf("loop into I2SIntClear \n");
 

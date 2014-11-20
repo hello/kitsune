@@ -3408,7 +3408,7 @@ TCB_t *pxTCB;
 									break;
 				}
 
-				sprintf( pcWriteBuffer, "%s\t\t%c\t%u\t%u\t%u\r\n", pxTaskStatusArray[ x ].pcTaskName, cStatus, ( unsigned int ) pxTaskStatusArray[ x ].uxCurrentPriority, ( unsigned int ) pxTaskStatusArray[ x ].usStackHighWaterMark, ( unsigned int ) pxTaskStatusArray[ x ].xTaskNumber );
+				sprintf( pcWriteBuffer, "%20s\t%c\t%u\t%u\t%u\r\n", pxTaskStatusArray[ x ].pcTaskName, cStatus, ( unsigned int ) pxTaskStatusArray[ x ].uxCurrentPriority, 4 * ( unsigned int ) pxTaskStatusArray[ x ].usStackHighWaterMark, ( unsigned int ) pxTaskStatusArray[ x ].xTaskNumber );
 				pcWriteBuffer += strlen( pcWriteBuffer );
 			}
 

@@ -36,14 +36,24 @@
 			<locationURI>PARENT-2-PROJECT_LOC/aes.c</locationURI>
 		</link>
 		<link>
-			<name>audiocapturetask.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/audiocapturetask.c</locationURI>
-		</link>
-		<link>
 			<name>audioclassifier.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/audioclassifier.c</locationURI>
+		</link>
+		<link>
+			<name>audioclassifier.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audioclassifier.h</locationURI>
+		</link>
+		<link>
+			<name>audiocontrolhelper.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audiocontrolhelper.c</locationURI>
+		</link>
+		<link>
+			<name>audiocontrolhelper.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audiocontrolhelper.h</locationURI>
 		</link>
 		<link>
 			<name>audiofeatures.c</name>
@@ -51,9 +61,29 @@
 			<locationURI>PARENT-2-PROJECT_LOC/audiofeatures.c</locationURI>
 		</link>
 		<link>
+			<name>audiofeatures.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audiofeatures.h</locationURI>
+		</link>
+		<link>
+			<name>audiohelper.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audiohelper.c</locationURI>
+		</link>
+		<link>
 			<name>audioprocessingtask.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/audioprocessingtask.c</locationURI>
+		</link>
+		<link>
+			<name>audioprocessingtask.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audioprocessingtask.h</locationURI>
+		</link>
+		<link>
+			<name>audiotask.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audiotask.c</locationURI>
 		</link>
 		<link>
 			<name>ble_cmd.c</name>
@@ -91,6 +121,11 @@
 			<locationURI>PARENT-2-PROJECT_LOC/machinelearning/classifier_factory.c</locationURI>
 		</link>
 		<link>
+			<name>classifier_factory.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/machinelearning/classifier_factory.h</locationURI>
+		</link>
+		<link>
 			<name>cmdline.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/cmdline.c</locationURI>
@@ -116,9 +151,19 @@
 			<locationURI>PARENT-2-PROJECT_LOC/crypto.h</locationURI>
 		</link>
 		<link>
+			<name>debugutils</name>
+			<type>2</type>
+			<locationURI>virtual:/virtual</locationURI>
+		</link>
+		<link>
 			<name>diskio.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/diskio.c</locationURI>
+		</link>
+		<link>
+			<name>dtm.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/dtm.h</locationURI>
 		</link>
 		<link>
 			<name>dust_cmd.c</name>
@@ -161,6 +206,31 @@
 			<locationURI>PARENT-2-PROJECT_LOC/fft.h</locationURI>
 		</link>
 		<link>
+			<name>fileuploadertask.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/fileuploadertask.c</locationURI>
+		</link>
+		<link>
+			<name>gesture.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/gesture.c</locationURI>
+		</link>
+		<link>
+			<name>gesture.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/gesture.h</locationURI>
+		</link>
+		<link>
+			<name>hellofilesystem.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hellofilesystem.c</locationURI>
+		</link>
+		<link>
+			<name>hellofilesystem.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hellofilesystem.h</locationURI>
+		</link>
+		<link>
 			<name>hellomath.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/hellomath.c</locationURI>
@@ -169,6 +239,11 @@
 			<name>hmm.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/machinelearning/hmm.c</locationURI>
+		</link>
+		<link>
+			<name>hmm.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/machinelearning/hmm.h</locationURI>
 		</link>
 		<link>
 			<name>i2c_cmd.c</name>
@@ -181,9 +256,44 @@
 			<locationURI>PARENT-2-PROJECT_LOC/i2c_cmd.h</locationURI>
 		</link>
 		<link>
+			<name>kitsune_version.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/kitsune_version.h</locationURI>
+		</link>
+		<link>
+			<name>led_animations.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/led_animations.c</locationURI>
+		</link>
+		<link>
+			<name>led_animations.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/led_animations.h</locationURI>
+		</link>
+		<link>
+			<name>led_cmd.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/led_cmd.c</locationURI>
+		</link>
+		<link>
+			<name>led_cmd.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/led_cmd.h</locationURI>
+		</link>
+		<link>
 			<name>linear_svm.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/machinelearning/linear_svm.c</locationURI>
+		</link>
+		<link>
+			<name>linear_svm.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/machinelearning/linear_svm.h</locationURI>
+		</link>
+		<link>
+			<name>machine_learning_types.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/machinelearning/machine_learning_types.h</locationURI>
 		</link>
 		<link>
 			<name>main.c</name>
@@ -206,9 +316,14 @@
 			<locationURI>virtual:/virtual</locationURI>
 		</link>
 		<link>
-			<name>ota_usr.h</name>
+			<name>networktask.c</name>
 			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/ota_usr.h</locationURI>
+			<locationURI>PARENT-2-PROJECT_LOC/networktask.c</locationURI>
+		</link>
+		<link>
+			<name>networktask.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/networktask.h</locationURI>
 		</link>
 		<link>
 			<name>pcm_handler.c</name>
@@ -246,6 +361,16 @@
 			<locationURI>PARENT-2-PROJECT_LOC/sha1.c</locationURI>
 		</link>
 		<link>
+			<name>sl_sync.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/sl_sync.c</locationURI>
+		</link>
+		<link>
+			<name>sl_sync_include_after_simplelink_header.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/sl_sync_include_after_simplelink_header.h</locationURI>
+		</link>
+		<link>
 			<name>slip_packet.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/slip_packet.c</locationURI>
@@ -256,11 +381,6 @@
 			<locationURI>PARENT-2-PROJECT_LOC/slip_packet.h</locationURI>
 		</link>
 		<link>
-			<name>speaker.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/speaker.c</locationURI>
-		</link>
-		<link>
 			<name>spi_cmd.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/spi_cmd.c</locationURI>
@@ -269,6 +389,21 @@
 			<name>spi_cmd.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/spi_cmd.h</locationURI>
+		</link>
+		<link>
+			<name>sys_time.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/sys_time.c</locationURI>
+		</link>
+		<link>
+			<name>sys_time.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/sys_time.h</locationURI>
+		</link>
+		<link>
+			<name>tests</name>
+			<type>2</type>
+			<locationURI>virtual:/virtual</locationURI>
 		</link>
 		<link>
 			<name>top_board.c</name>
@@ -289,6 +424,16 @@
 			<name>top_hci.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/top_hci.h</locationURI>
+		</link>
+		<link>
+			<name>uart_logger.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/uart_logger.c</locationURI>
+		</link>
+		<link>
+			<name>uart_logger.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/uart_logger.h</locationURI>
 		</link>
 		<link>
 			<name>uartstdio.c</name>
@@ -416,6 +561,16 @@
 			<locationURI>PARENT-2-PROJECT_LOC/common/wdt_if.h</locationURI>
 		</link>
 		<link>
+			<name>debugutils/matmessageutils.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/debugutils/matmessageutils.c</locationURI>
+		</link>
+		<link>
+			<name>debugutils/matmessageutils.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/debugutils/matmessageutils.h</locationURI>
+		</link>
+		<link>
 			<name>nanopb/pb.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/nanopb/pb.h</locationURI>
@@ -451,14 +606,54 @@
 			<locationURI>PARENT-2-PROJECT_LOC/nanopb/pb_encode.h</locationURI>
 		</link>
 		<link>
-			<name>protobuf/SyncResponse.pb.c</name>
+			<name>protobuf/audio_control.pb.c</name>
 			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/protobuf/SyncResponse.pb.c</locationURI>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/audio_control.pb.c</locationURI>
 		</link>
 		<link>
-			<name>protobuf/SyncResponse.pb.h</name>
+			<name>protobuf/audio_control.pb.h</name>
 			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/protobuf/SyncResponse.pb.h</locationURI>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/audio_control.pb.h</locationURI>
+		</link>
+		<link>
+			<name>protobuf/audio_data.pb.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/audio_data.pb.c</locationURI>
+		</link>
+		<link>
+			<name>protobuf/audio_data.pb.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/audio_data.pb.h</locationURI>
+		</link>
+		<link>
+			<name>protobuf/filetransfer.pb.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/filetransfer.pb.c</locationURI>
+		</link>
+		<link>
+			<name>protobuf/filetransfer.pb.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/filetransfer.pb.h</locationURI>
+		</link>
+		<link>
+			<name>protobuf/log.pb.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/log.pb.c</locationURI>
+		</link>
+		<link>
+			<name>protobuf/log.pb.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/log.pb.h</locationURI>
+		</link>
+		<link>
+			<name>protobuf/matrix.pb.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/matrix.pb.c</locationURI>
+		</link>
+		<link>
+			<name>protobuf/matrix.pb.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/matrix.pb.h</locationURI>
 		</link>
 		<link>
 			<name>protobuf/morpheus_ble.pb.c</name>
@@ -479,6 +674,26 @@
 			<name>protobuf/periodic.pb.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/protobuf/periodic.pb.h</locationURI>
+		</link>
+		<link>
+			<name>protobuf/sync_response.pb.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/sync_response.pb.c</locationURI>
+		</link>
+		<link>
+			<name>protobuf/sync_response.pb.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/sync_response.pb.h</locationURI>
+		</link>
+		<link>
+			<name>tests/TestNetwork.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tests/TestNetwork.c</locationURI>
+		</link>
+		<link>
+			<name>tests/TestNetwork.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tests/TestNetwork.h</locationURI>
 		</link>
 	</linkedResources>
 	<variableList>

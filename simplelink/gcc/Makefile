@@ -55,7 +55,7 @@ OBJDIR=obj_nonos
 endif
 
 #
-# Include the common make definitions.
+# include the common make definitions.
 #
 include ${ROOT}/tools/gcc_scripts/makedefs
 
@@ -128,7 +128,7 @@ ${TARGET}: ${OBJDIR}/wlan.o
 
 
 #
-# Include the automatically generated dependency files.
+# include the automatically generated dependency files.
 #
 ifneq (${MAKECMDGOALS},clean)
 -include ${wildcard ${OBJDIR}/*.d} __dummy__

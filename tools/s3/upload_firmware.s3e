@@ -1,0 +1,1 @@
+put ../../kitsune/main/ccs/exe/kitsune.bin hello-firmware/sense/<*S3_FIRMWARE_TARGET*>/

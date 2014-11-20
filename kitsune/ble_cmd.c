@@ -9,13 +9,14 @@
 #include "wifi_cmd.h"
 #include "spi_cmd.h"
 
+static bool _encode_bytes_fields(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 
 static bool _encode_string_fields(pb_ostream_t *stream, const pb_field_t *field, void * const *arg)
 {
     char* str = *arg;
     if(!str)
     {
-    	UARTprintf("_encode_string_fields: No string to encode\n");
+    	LOGI("_encode_string_fields: No string to encode\n");
         return false;
     }
 
@@ -29,12 +30,92 @@ static bool _encode_string_fields(pb_ostream_t *stream, const pb_field_t *field,
     return pb_encode_string(stream, (uint8_t*)str, strlen(str));
 }
 
+static bool _encode_wifi_scan_result_fields(pb_ostream_t *stream, const pb_field_t *field, void * const *arg)
+{
+    Sl_WlanNetworkEntry_t* wifi_aps = *arg;
+    if(!wifi_aps)
+    {
+        LOGI("_encode_string_fields: No string to encode\n");
+        return false;
+    }
+
+    int i = 0;
+    for(i = 0; i < MAX_WIFI_EP_PER_SCAN; i++)
+    {
+        Sl_WlanNetworkEntry_t wifi_ap = wifi_aps[i];
+        if(wifi_ap.ssid_len == 0)
+        {
+            break;  // Skip empty SSID, or null item
+        }
+
+        
+
+        wifi_endpoint data = {0};
+        char ssid[MAXIMAL_SSID_LENGTH + 1] = {0};
+        memcpy(ssid, wifi_ap.ssid, wifi_ap.ssid_len);
+        data.ssid.funcs.encode = _encode_string_fields;
+        data.ssid.arg = ssid;
+
+		array_data arr = {0};
+		arr.length = SL_BSSID_LENGTH;
+		arr.buffer = wifi_ap.bssid;
+		data.bssid.funcs.encode = _encode_bytes_fields;
+		data.bssid.arg = &arr;
+
+
+        switch(wifi_ap.sec_type)
+        {
+            case SL_SCAN_SEC_TYPE_OPEN:
+            data.security_type = wifi_endpoint_sec_type_SL_SCAN_SEC_TYPE_OPEN;
+            break;
+
+            case SL_SCAN_SEC_TYPE_WEP:
+            data.security_type = wifi_endpoint_sec_type_SL_SCAN_SEC_TYPE_WEP;
+            break;
+
+            case SL_SCAN_SEC_TYPE_WPA:
+            data.security_type = wifi_endpoint_sec_type_SL_SCAN_SEC_TYPE_WPA;
+            break;
+
+            case SL_SCAN_SEC_TYPE_WPA2:
+            data.security_type = wifi_endpoint_sec_type_SL_SCAN_SEC_TYPE_WPA2;
+            break;
+        }
+
+        data.rssi = wifi_ap.rssi;
+
+        if (!pb_encode_tag(stream, PB_WT_STRING, field->tag)){
+            LOGI("Fail to encode tag for wifi ap %s\r\n", wifi_ap.ssid);
+        }else{
+
+            pb_ostream_t sizestream = { 0 };
+            if(!pb_encode(&sizestream, wifi_endpoint_fields, &data)){
+                LOGI("Failed to retreive length for ssid %s\n", data.ssid.arg);
+                continue;
+            }
+
+            if (!pb_encode_varint(stream, sizestream.bytes_written)){
+                LOGI("Failed to write length\n");
+                continue;
+            }
+
+            if (!pb_encode(stream, wifi_endpoint_fields, &data)){
+                LOGI("Fail to encode wifi_endpoint_fields %s\r\n", data.ssid.arg);
+            }else{
+                LOGI("WIFI %s encoded\n", data.ssid.arg);
+            }
+        }
+    }
+
+    return true;
+}
+
 static bool _encode_bytes_fields(pb_ostream_t *stream, const pb_field_t *field, void * const *arg)
 {
     array_data* array = *arg;
     if(!array)
     {
-    	UARTprintf("_encode_bytes_fields: No bytes to encode\n");
+    	LOGI("_encode_bytes_fields: No bytes to encode\n");
         return false;
     }
 
@@ -47,26 +128,26 @@ static bool _encode_bytes_fields(pb_ostream_t *stream, const pb_field_t *field, 
 }
 
 
-static bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, void **arg)
+bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, void **arg)
 {
     /* We could read block-by-block to avoid the large buffer... */
     if (stream->bytes_left > MAX_STRING_LEN - 1)
     {
-    	UARTprintf("_decode_string_field: String too long to decode\n");
+    	LOGI("_decode_string_field: String too long to decode\n");
         return false;
     }
     
     uint8_t* str = pvPortMalloc(stream->bytes_left + 1);
     if(!str)
     {
-    	UARTprintf("_decode_string_field: Not enought memory\n");
+    	LOGI("_decode_string_field: Not enought memory\n");
         return false;
     }
 
     memset(str, 0, stream->bytes_left + 1);
     if (!pb_read(stream, str, stream->bytes_left))
     {
-    	UARTprintf("_decode_string_field: Cannot read string\n");
+    	LOGI("_decode_string_field: Cannot read string\n");
         vPortFree(str);  // Remember to vPortFree if read failed.
         return false;
     }
@@ -75,64 +156,19 @@ static bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, 
     return true;
 }
 
-static bool _decode_bytes_field(pb_istream_t *stream, const pb_field_t *field, void **arg)
-{
-    /* We could read block-by-block to avoid the large buffer... */
-    if (stream->bytes_left > MAX_STRING_LEN - 1)
-    {
-    	UARTprintf("_decode_bytes_fields: Data tooo long\n");
-        return false;
-    }
-
-    int length = stream->bytes_left;
-    uint8_t* buffer = pvPortMalloc(stream->bytes_left);
-
-    if(!buffer)
-    {
-    	UARTprintf("_decode_bytes_fields: Out of memory\n");
-        return false;
-    }
-
-    memset(buffer, 0, stream->bytes_left);
-    if (!pb_read(stream, buffer, stream->bytes_left))
-    {
-    	UARTprintf("_decode_bytes_fields: Failed to read data\n");
-        vPortFree(buffer);
-        return false;
-    }
-
-    array_data* array = pvPortMalloc(sizeof(array_data));
-    if(!array)
-    {
-    	UARTprintf("_decode_bytes_fields: Failed to malloc data holder\n");
-        vPortFree(buffer);
-        return false;
-    }
-
-    memset(array, 0, sizeof(array_data));
-    array->buffer = buffer;
-    array->length = length;
-
-    *arg = array;
-
-    return true;
-}
-
-
-
-
 void on_morpheus_protobuf_arrival(uint8_t* protobuf, size_t len)
 {
     if(!protobuf)
     {
-        UARTprintf("Invalid parameter.\r\n");
+        LOGI("Invalid parameter.\r\n");
         return;
     }
 
     MorpheusCommand command;
     memset(&command, 0, sizeof(command));
+    LOGI("proto arrv\n");
 
-    
+
     ble_proto_assign_decode_funcs(&command);
 
     pb_istream_t stream = pb_istream_from_buffer(protobuf, len);
@@ -141,16 +177,13 @@ void on_morpheus_protobuf_arrival(uint8_t* protobuf, size_t len)
 
     if (!status)
     {
-        UARTprintf("Decoding protobuf failed, error: ");
-        UARTprintf(PB_GET_ERROR(&stream));
-        UARTprintf("\r\n");
-    }else{
-
-        on_ble_protobuf_command(&command);
+        LOGI("Decoding protobuf failed, error: ");
+        LOGI(PB_GET_ERROR(&stream));
+        LOGI("\r\n");
+    } else {
+    	on_ble_protobuf_command(&command);
+    	ble_proto_free_command(&command);
     }
-
-    ble_proto_free_command(&command);
-    
 }
 
 void ble_proto_assign_decode_funcs(MorpheusCommand* command)
@@ -185,11 +218,6 @@ void ble_proto_assign_decode_funcs(MorpheusCommand* command)
         command->wifiPassword.arg = NULL;
     }
 
-    if(NULL == command->motionDataEntrypted.funcs.decode)
-    {
-        command->motionDataEntrypted.funcs.decode = _decode_bytes_field;
-        command->motionDataEntrypted.arg = NULL;
-    }
 }
 
 void ble_proto_remove_decode_funcs(MorpheusCommand* command)
@@ -219,10 +247,6 @@ void ble_proto_remove_decode_funcs(MorpheusCommand* command)
         command->wifiPassword.funcs.decode = NULL;
     }
 
-    if(command->motionDataEntrypted.funcs.decode)
-    {
-        command->motionDataEntrypted.funcs.decode = NULL;
-    }
 }
 
 void ble_proto_assign_encode_funcs( MorpheusCommand* command)
@@ -252,9 +276,10 @@ void ble_proto_assign_encode_funcs( MorpheusCommand* command)
         command->wifiPassword.funcs.encode = _encode_string_fields;
     }
 
-    if(command->motionDataEntrypted.arg != NULL && command->motionDataEntrypted.funcs.encode == NULL)
+
+    if(command->wifi_scan_result.arg != NULL && command->wifi_scan_result.funcs.encode == NULL)
     {
-        command->motionDataEntrypted.funcs.encode = _encode_bytes_fields;
+        command->wifi_scan_result.funcs.encode = _encode_wifi_scan_result_fields;
     }
 }
 
@@ -279,7 +304,7 @@ bool ble_reply_protobuf_error(ErrorType error_type)
         size_t protobuf_len = stream.bytes_written;
         spi_write(protobuf_len, _error_buf);
     }else{
-        UARTprintf("encode protobuf failed: %s\r\n", PB_GET_ERROR(&stream));
+        LOGI("encode protobuf failed: %s\r\n", PB_GET_ERROR(&stream));
     }
 
     return status;
@@ -289,7 +314,7 @@ bool ble_reply_protobuf_error(ErrorType error_type)
 bool ble_send_protobuf(MorpheusCommand* command)
 {
     if(!command){
-        UARTprintf("Inavlid parameter.\r\n");
+        LOGI("Inavlid parameter.\r\n");
         return false;
     }
 
@@ -308,7 +333,7 @@ bool ble_send_protobuf(MorpheusCommand* command)
     uint8_t* heap_page = pvPortMalloc(stream.bytes_written);
     if(!heap_page)
     {
-        UARTprintf("Not enough memory.\r\n");
+        LOGI("Not enough memory.\r\n");
         return false;
     }
 
@@ -323,12 +348,12 @@ bool ble_send_protobuf(MorpheusCommand* command)
 
         size_t protobuf_len = stream.bytes_written;
         i = spi_write(protobuf_len, heap_page);
-        UARTprintf("spiwrite: %d",i);
+        LOGI("spiwrite: %d",i);
 
     }else{
-        UARTprintf("encode protobuf failed: ");
-        UARTprintf(PB_GET_ERROR(&stream));
-        UARTprintf("\r\n");
+        LOGI("encode protobuf failed: ");
+        LOGI(PB_GET_ERROR(&stream));
+        LOGI("\r\n");
     }
     vPortFree(heap_page);
 
@@ -340,46 +365,45 @@ void ble_proto_free_command(MorpheusCommand* command)
 {
     if(!command)
     {
-        UARTprintf("Inavlid parameter.\r\n");
+        LOGI("Inavlid parameter.\r\n");
         return;
     }
 
-    if(!command->accountId.arg)
+    if(command->accountId.arg)
     {
         vPortFree(command->accountId.arg);
         command->accountId.arg = NULL;
     }
 
-    if(!command->deviceId.arg)
+    if(command->deviceId.arg)
     {
         vPortFree(command->deviceId.arg);
         command->deviceId.arg = NULL;
     }
 
-    if(!command->wifiName.arg)
+    if(command->wifiName.arg)
     {
         vPortFree(command->wifiName.arg);
         command->wifiName.arg = NULL;
     }
 
-    if(!command->wifiSSID.arg)
+    if(command->wifiSSID.arg)
     {
         vPortFree(command->wifiSSID.arg);
         command->wifiSSID.arg = NULL;
     }
 
-    if(!command->wifiPassword.arg)
+    if(command->wifiPassword.arg)
     {
         vPortFree(command->wifiPassword.arg);
         command->wifiPassword.arg = NULL;
     }
 
-    if(!command->motionDataEntrypted.arg)
+
+    if(command->wifi_scan_result.arg)
     {
-        array_data* array = (array_data*)command->motionDataEntrypted.arg;
-        vPortFree(array->buffer);  // first vPortFree the actual data
-        vPortFree(array);  // Then vPortFree the actual
-        command->motionDataEntrypted.arg = NULL;
+        vPortFree(command->wifi_scan_result.arg);
+        command->wifi_scan_result.arg = NULL;
     }
 }
 

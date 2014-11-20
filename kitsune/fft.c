@@ -110,7 +110,7 @@ short fxd_sin( uint16_t x ) {
 }
 
 
-
+#if 0
 /*
   fix_mpy() - short-point multiplication
 */
@@ -119,6 +119,7 @@ inline static short fix_mpy(short a, short b)
   FIX_MPY(a, a, b);
   return a;
 }
+#endif
 
 int fft(int16_t fr[], int16_t fi[], int32_t m)
 {

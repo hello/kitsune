@@ -3,14 +3,23 @@
 
 #include <stdint.h>
 #include "audio_types.h"
-/****************************
- * AUDIO FEATURE MESSAGE
- ****************************/
 
-void AudioProcessingTask_Init(void);
 
-void AudioProcessingTask_AddMessageToQueue(const AudioFeatures_t * message);
+typedef enum {
+	processingOn,
+	processingOff
+} EAudioProcessingCommand_t;
 
+
+//how we hand off features
+void AudioProcessingTask_AddFeaturesToQueue(const AudioFeatures_t * feats);
+
+//turn processon on  or off via a message
+//turning it off frees the storage buffers
+//turn it on allocates the storage buffers
+void AudioProcessingTask_SetControl(EAudioProcessingCommand_t cmd,NotificationCallback_t onFinished, void * context);
+
+//our thread function -- loops forever
 void AudioProcessingTask_Thread(void * data);
 
 

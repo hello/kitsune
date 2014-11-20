@@ -36,6 +36,7 @@ extern "C"
 {
 #endif
 
+#include "uart_logger.h"
 #include "hw_types.h"
 
 #define  WANT_CMDLINE_HISTORY

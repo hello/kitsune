@@ -103,6 +103,8 @@ extern "C"
 #define GPIO_INT_PIN_6          0x00000040
 #define GPIO_INT_PIN_7          0x00000080
 
+#include "hw_types.h"
+
 //*****************************************************************************
 //
 // Prototypes for the APIs.

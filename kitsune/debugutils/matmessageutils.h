@@ -3,11 +3,27 @@
 #define _MATMESSAGEUTILS_H_
 
 #include "pb.h"
+#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+	typedef struct {
+		uint8_t * writebuf;
+		size_t maxlen;
+	} StringDesc_t;
+
+	typedef struct {
+		uint8_t * bytes;
+		uint32_t len;
+	} bytes_desc_t;
+
+	bool write_bytes(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
+
+	bool write_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
     
+	bool read_string(pb_istream_t *stream, const pb_field_t *field, void **arg);
+
     typedef enum {
         euint8,
         esint8,
@@ -71,7 +87,13 @@ extern "C" {
         int64_t t2;
     } MatDesc_t;
     
-    typedef uint8_t (*GetNextMatrixFunc_t)(uint8_t isFirst,const_MatDesc_t * pdesc);
+    typedef uint8_t (*GetNextMatrixFunc_t)(uint8_t isFirst,const_MatDesc_t * pdesc, void * encodedata);
+    
+    typedef struct {
+        void * data;
+        GetNextMatrixFunc_t func;
+    } MatrixListEncodeContext_t;
+    
     
     size_t SetIntMatrix(pb_ostream_t * stream,
                         const char * id,
@@ -87,9 +109,9 @@ extern "C" {
     
     
     size_t SetMatrixMessage(pb_ostream_t * stream,
-                            const char * macbytes,
+            				uint8_t * macbytes,
                             uint32_t unix_time,
-                            GetNextMatrixFunc_t get_next_mat_func);
+                            MatrixListEncodeContext_t * matrix_list_context);
     
     uint8_t GetIntMatrix(MatDesc_t * mymat, pb_istream_t * stream,size_t maxsize);
     

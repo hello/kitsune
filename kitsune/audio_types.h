@@ -62,12 +62,15 @@ typedef struct {
     
 } RecordAudioRequest_t;
 
+typedef struct {
+	uint8_t mac[6];
+	uint32_t unix_time;
+} DeviceCurrentInfo_t;
+
 typedef void (*SegmentAndFeatureCallback_t)(const int16_t * feats, const Segment_t * pSegment);
 typedef void (*AudioFeatureCallback_t)(const AudioFeatures_t * pfeats);
-typedef void (*NotificationCallback_t)(void);
+typedef void (*NotificationCallback_t)(void * context);
 typedef void (*RecordAudioCallback_t)(const RecordAudioRequest_t * request);
-typedef void (*MutexCallback_t)(void);
-
     
 #ifdef __cplusplus
 }

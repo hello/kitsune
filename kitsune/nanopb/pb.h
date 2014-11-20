@@ -22,7 +22,7 @@
 /* #define PB_MAX_REQUIRED_FIELDS 256 */
 
 /* Add support for tag numbers > 255 and fields larger than 255 bytes. */
-/* #define PB_FIELD_16BIT 1 */
+ #define PB_FIELD_16BIT 1
 
 /* Add support for tag numbers > 65536 and fields larger than 65536 bytes. */
 /* #define PB_FIELD_32BIT 1 */
@@ -48,7 +48,7 @@
  * your own program. */
 #define NANOPB_VERSION nanopb-0.3.1
 
-/* Include all the system headers needed by nanopb. You will need the
+/* include all the system headers needed by nanopb. You will need the
  * definitions of the following:
  * - strlen, memcpy, memset functions
  * - [u]int8_t, [u]int16_t, [u]int32_t, [u]int64_t

@@ -90,9 +90,14 @@
 #include "i2c_if.h"
 
 #include "wifi_cmd.h"
+#include "uart_logger.h"
+#include "hellofilesystem.h"
+#include "sl_sync_include_after_simplelink_header.h"
+
+void mcu_reset();
 
 extern void vUARTTask( void *pvParameters );
-extern void thead_sensor_poll( void * Data);
+
 	
 //*****************************************************************************
 //                      MACRO DEFINITIONS
@@ -158,12 +163,9 @@ void
 vAssertCalled( const char *pcFile, unsigned long ulLine )
 {
 
-    UARTprintf( "%s %u ASSERT", pcFile, ulLine );
+  UARTprintf( "%s %u ASSERT", pcFile, ulLine );
 
-  	while(1)
-    {
-
-    }
+  mcu_reset();
 }
 
 //*****************************************************************************
@@ -183,7 +185,7 @@ vApplicationStackOverflowHook( xTaskHandle *pxTask, signed portCHAR *pcTaskName 
 
     UARTprintf( "%s STACK OVERFLOW", pcTaskName );
 
-    for( ;; );
+    mcu_reset();
 }
 
 //*****************************************************************************
@@ -236,7 +238,8 @@ void WatchdogIntHandler(void)
 	//
 	// watchdog interrupt - if it fires when the interrupt has not been cleared then the device will reset...
 	//
-		UARTprintf( "oh no WDT: %u, %u\r\n", xTaskGetTickCount() );
+		LOGE( "oh no WDT: %u, %u\r\n", xTaskGetTickCount() );
+		mcu_reset();
 }
 
 
@@ -264,11 +267,19 @@ void start_wdt() {
        WDT_IF_DeInit();
     }
 }
-void watchdog_thread(void* unused){
-	while(1)
-	{
-	MAP_WatchdogIntClear(WDT_BASE); //clear wdt
-	vTaskDelay(1000);
+void mcu_reset();
+void watchdog_thread(void* unused) {
+	int upload_fail_cnt;
+	while (1) {
+		MAP_WatchdogIntClear(WDT_BASE); //clear wdt
+		if (!(sl_status & UPLOADING)) {
+			if(++upload_fail_cnt > 60 * 60 ) {
+				mcu_reset();
+			}
+		} else {
+			upload_fail_cnt = 0;
+		}
+		vTaskDelay(1000);
 	}
 }
 //*****************************************************************************
@@ -278,13 +289,13 @@ void main()
 {
   //
   // Board Initialization
-
+  sl_sync_init();  // thread safe for all sl_* calls
   //
   BoardInit();
 
-  //start_wdt();
+  start_wdt();
   //
-  // configure the GPIO pins for LEDs
+  // configure the GPIO pins for LEDvs
   //
   PinMuxConfig();
 
@@ -303,9 +314,11 @@ void main()
 
   VStartSimpleLinkSpawnTask(SPAWN_TASK_PRIORITY);
 
+  hello_fs_init(); //sets up thread safety for accessing the file system
+
   /* Create the UART processing task. */
-  xTaskCreate( vUARTTask, "UARTTask", 2*1024/(sizeof(portSTACK_TYPE)), NULL, 10, NULL );
-  //xTaskCreate( watchdog_thread, "wdtTask", configMINIMAL_STACK_SIZE, NULL, 1, NULL );
+  xTaskCreate( vUARTTask, "UARTTask", 1024/(sizeof(portSTACK_TYPE)), NULL, 4, NULL );
+  xTaskCreate( watchdog_thread, "wdtTask", configMINIMAL_STACK_SIZE, NULL, 1, NULL );
 
   //
   // Start the task scheduler

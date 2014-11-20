@@ -28,12 +28,12 @@
 #include "hw_adc.h"
 #include "adc.h"
 
-#define UART_PRINT               UARTprintf
+#define UART_PRINT               LOGI
 
 #define TIMER_INTERVAL_RELOAD   65535
 #define PULSE_WIDTH             20000//8192//2097
 
-#define SAMPLES 1024
+#define SAMPLES 4096
 
 //****************************************************************************
 //
@@ -141,7 +141,7 @@ int get_dust() {
 			if (ulSample < min) {
 				min = ulSample;
 			}
-			//UARTprintf("%d\n", ulSample);
+			//LOGI("%d\n", ulSample);
 		}
 	}
 
@@ -155,7 +155,7 @@ int Cmd_dusttest(int argc, char *argv[]) {
 	int cnt = atoi(argv[1]);
 	if( argc == 1 ) {cnt=2;}
 	while( --cnt ) {
-		UARTprintf("%d\n", get_dust());
+		LOGI("%d\n", get_dust());
 		vTaskDelay(200);
 	}
 	return (0);

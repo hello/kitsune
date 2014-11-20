@@ -9,13 +9,17 @@
 extern "C" {
 #endif
 
-void AudioClassifier_Init(RecordAudioCallback_t recordfunc,MutexCallback_t lockfunc, MutexCallback_t unlockfunc) ;
+void AudioClassifier_Init(RecordAudioCallback_t recordfunc);
 
-void AudioClassifier_DeserializeClassifier(pb_istream_t * stream);
+void AudioClassifier_SetStorageBuffers(void * buffer, uint32_t buf_size_in_bytes);
+
+void AudioClassifier_DeserializeClassifier(pb_istream_t * stream, void * data);
     
 void AudioClassifier_DataCallback(const AudioFeatures_t * pfeats);
 
-uint32_t AudioClassifier_GetSerializedBuffer(pb_ostream_t * stream,const char * macbytes, uint32_t unix_time,const char * tags, const char * source);
+uint32_t AudioClassifier_EncodeAudioFeatures(pb_ostream_t * stream, void * encode_data);
+
+void AudioClassifier_ResetStorageBuffer(void);
 
     
 #ifdef __cplusplus
