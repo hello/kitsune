@@ -239,6 +239,12 @@ PinMuxConfig(void)
     SetAntennaSelectionGPIOs();
 
     //
+    // Configure PIN_15 for GPIOOutput
+    //
+    MAP_PinTypeGPIO(PIN_15, PIN_MODE_0, false);
+    MAP_GPIODirModeSet(GPIOA2_BASE, 0x40, GPIO_DIR_MODE_OUT);
+
+    //
     // Configure PIN_16 for GPIOInput
     //
     MAP_PinTypeGPIO(PIN_16, PIN_MODE_0, false);
