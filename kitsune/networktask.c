@@ -252,7 +252,7 @@ void networktask_init(uint16_t stack_size)
 
 	//this task needs a larger stack because
 	//some protobuf encoding will happen on the stack of this task
-	xTaskCreate(NetworkTask_Thread, "networkTask", stack_size, &network_task_data, 4, NULL);
+	xTaskCreate(NetworkTask_Thread, "networkTask", stack_size, &network_task_data, 2, NULL);
 }
 
 

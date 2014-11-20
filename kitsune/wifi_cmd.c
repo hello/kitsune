@@ -40,13 +40,16 @@ volatile unsigned int sl_status = 0;
 
 #define FAKE_MAC 0
 
+#include "rom_map.h"
+#include "rom.h"
+#include "interrupt.h"
 #include "uart_logger.h"
 
 void mcu_reset()
 {
-	//the point of no return...
-	MAP_IntMasterDisable();
-	uart_logger_flush();
+	//TODO make flush work on reset...
+	//MAP_IntMasterDisable();
+	//uart_logger_flush();
 #define SLOW_CLK_FREQ           (32*1024)
     //
     // Configure the HIB module RTC wake time

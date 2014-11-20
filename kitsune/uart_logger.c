@@ -92,22 +92,19 @@ _encode_mac_as_device_id_string(pb_ostream_t *stream, const pb_field_t *field, v
 //
 static void
 _swap_and_upload(void){
-	if(xSemaphoreTake(self.block_operation_sem,1)){
-		if (!(xEventGroupGetBitsFromISR(self.uart_log_events) & LOG_EVENT_STORE)) {
-			self.store_block = self.logging_block;
-			//logc can be called anywhere, so using ISR api instead
-			xEventGroupSetBits(self.uart_log_events, LOG_EVENT_STORE);
-		} else {
-			//operation busy
-		}
-		//swap
-		self.logging_block =
-				(self.logging_block == self.blocks[0]) ?
-						self.blocks[1] : self.blocks[0];
-		//reset
-		self.widx = 0;
-		xSemaphoreGive(self.block_operation_sem);
+	if (!(xEventGroupGetBitsFromISR(self.uart_log_events) & LOG_EVENT_STORE)) {
+		self.store_block = self.logging_block;
+		//logc can be called anywhere, so using ISR api instead
+		xEventGroupSetBits(self.uart_log_events, LOG_EVENT_STORE);
+	} else {
+		//operation busy
 	}
+	//swap
+	self.logging_block =
+			(self.logging_block == self.blocks[0]) ?
+					self.blocks[1] : self.blocks[0];
+	//reset
+	self.widx = 0;
 }
 
 static void
@@ -385,7 +382,7 @@ void uart_logger_task(void * params){
 					res = _read_oldest((char*)self.operation_block,UART_LOGGER_BLOCK_SIZE, &read);
 					if(FR_OK != res){
 						LOGE("Unable to read log file %d\r\n",(int)res);
-						break;
+						continue;
 					}
 					ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER, SENSE_LOG_ENDPOINT,buffer,sizeof(buffer),sense_log_fields,&self.log,0);
 					if(ret == 0){
@@ -423,9 +420,10 @@ int Cmd_log_setview(int argc, char * argv[]){
 	return -1;
 }
 
+//TODO debug the semaphore contention on this one
 static const char * const g_pcHex = "0123456789abcdef";
 void uart_logf(uint8_t tag, const char *pcString, ...){
-	if( !self.print_sem ||  xSemaphoreTake(self.print_sem, 100) != pdTRUE ) {
+	if( !self.print_sem ||  xSemaphoreTake(self.print_sem, 0) != pdTRUE ) {
 		return;
 	}
     unsigned long ulIdx, ulValue, ulPos, ulCount, ulBase, ulNeg;

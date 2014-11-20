@@ -94,6 +94,8 @@
 #include "hellofilesystem.h"
 #include "sl_sync_include_after_simplelink_header.h"
 
+void mcu_reset();
+
 extern void vUARTTask( void *pvParameters );
 
 	
@@ -163,6 +165,7 @@ vAssertCalled( const char *pcFile, unsigned long ulLine )
 
   UARTprintf( "%s %u ASSERT", pcFile, ulLine );
 
+  mcu_reset();
 }
 
 //*****************************************************************************
@@ -181,6 +184,8 @@ vApplicationStackOverflowHook( xTaskHandle *pxTask, signed portCHAR *pcTaskName 
     ( void ) pcTaskName;
 
     UARTprintf( "%s STACK OVERFLOW", pcTaskName );
+
+    mcu_reset();
 }
 
 //*****************************************************************************
@@ -233,7 +238,8 @@ void WatchdogIntHandler(void)
 	//
 	// watchdog interrupt - if it fires when the interrupt has not been cleared then the device will reset...
 	//
-		UARTprintf( "oh no WDT: %u, %u\r\n", xTaskGetTickCount() );
+		LOGE( "oh no WDT: %u, %u\r\n", xTaskGetTickCount() );
+		mcu_reset();
 }
 
 

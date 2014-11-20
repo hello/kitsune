@@ -133,7 +133,7 @@ void usertraceMALLOC( void * pvAddress, size_t uiSize ) {
 		heap_low_mark = xPortGetFreeHeapSize();
 	}
 	if( heap_print ) {
-		LOGI( "%d +%d\n",xPortGetFreeHeapSize(), uiSize );
+		UARTprintf( "%d +%d\n",xPortGetFreeHeapSize(), uiSize );
 	}
 }
 
@@ -145,7 +145,7 @@ void usertraceFREE( void * pvAddress, size_t uiSize ) {
 		heap_low_mark = xPortGetFreeHeapSize();
 	}
 	if( heap_print ) {
-		LOGI( "%d -%d\n",xPortGetFreeHeapSize(), uiSize );
+		UARTprintf( "%d -%d\n",xPortGetFreeHeapSize(), uiSize );
 	}
 }
 // ==============================================================================
@@ -941,11 +941,12 @@ void thread_sensor_poll(void* unused) {
 int Cmd_tasks(int argc, char *argv[]) {
 	char* pBuffer;
 
+	LOGI("\t\t\t\t\tUnused\n            TaskName\tStatus\tPri\tStack\tTask ID\n");
 	pBuffer = pvPortMalloc(1024);
 	assert(pBuffer);
+	LOGI("==========================");
 	vTaskList(pBuffer);
-	LOGI("\t\t\t\t\tUnused\n            TaskName\tStatus\tPri\tStack\tTask ID\n");
-	LOGI("=======================================================\n");
+	LOGI("==========================\n");
 	LOGI("%s", pBuffer);
 
 	vPortFree(pBuffer);
@@ -1414,7 +1415,7 @@ void vUARTTask(void *pvParameters) {
 	LOGI("*");
 	xTaskCreate(thread_tx, "txTask", 3 * 1024 / 4, NULL, 2, NULL);
 	LOGI("*");
-	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 1, NULL);
+	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 4, NULL);
 	LOGI("*");
 #endif
 	//checkFaults();
