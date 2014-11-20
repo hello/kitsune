@@ -40,6 +40,8 @@ volatile unsigned int sl_status = 0;
 
 #define FAKE_MAC 0
 
+#include "uart_logger.h"
+
 void mcu_reset()
 {
 	//the point of no return...

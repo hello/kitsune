@@ -40,7 +40,7 @@ extern volatile unsigned int sl_status;
 static struct{
 	uint8_t blocks[3][UART_LOGGER_BLOCK_SIZE];
 	//ptr to block that is currently used for logging
-	volatile uint8_t * logging_block;
+	uint8_t * logging_block;
 	//ptr to block that is being stored to sdcard
 	volatile uint8_t * store_block;
 	//ptr to block that is used to upload or read from sdcard
@@ -92,19 +92,22 @@ _encode_mac_as_device_id_string(pb_ostream_t *stream, const pb_field_t *field, v
 //
 static void
 _swap_and_upload(void){
-	if (!(xEventGroupGetBitsFromISR(self.uart_log_events) & LOG_EVENT_STORE)) {
-		self.store_block = self.logging_block;
-		//logc can be called anywhere, so using ISR api instead
-		xEventGroupSetBits(self.uart_log_events, LOG_EVENT_STORE);
-	} else {
-		//operation busy
+	if(xSemaphoreTake(self.block_operation_sem,1)){
+		if (!(xEventGroupGetBitsFromISR(self.uart_log_events) & LOG_EVENT_STORE)) {
+			self.store_block = self.logging_block;
+			//logc can be called anywhere, so using ISR api instead
+			xEventGroupSetBits(self.uart_log_events, LOG_EVENT_STORE);
+		} else {
+			//operation busy
+		}
+		//swap
+		self.logging_block =
+				(self.logging_block == self.blocks[0]) ?
+						self.blocks[1] : self.blocks[0];
+		//reset
+		self.widx = 0;
+		xSemaphoreGive(self.block_operation_sem);
 	}
-	//swap
-	self.logging_block =
-			(self.logging_block == self.blocks[0]) ?
-					self.blocks[1] : self.blocks[0];
-	//reset
-	self.widx = 0;
 }
 
 static void
@@ -335,7 +338,8 @@ void uart_logc(uint8_t c){
 
 void uart_logger_task(void * params){
 	uart_logger_init();
-	mkdir(SENSE_LOG_FOLDER);
+	hello_fs_mkdir(SENSE_LOG_FOLDER);
+
 	FRESULT res = hello_fs_opendir(&self.logdir,SENSE_LOG_FOLDER);
 
 	if(res != FR_OK){
@@ -357,7 +361,6 @@ void uart_logger_task(void * params){
                 portMAX_DELAY );/* Wait for any bit to be set. */
 		if( evnt & LOG_EVENT_EXIT ){
 			vTaskDelete(0);
-			xEventGroupClearBits(self.uart_log_events, 0xff );
 			return;
 		}
 		if( evnt && xSemaphoreTake(self.block_operation_sem, portMAX_DELAY)){
