@@ -1422,7 +1422,7 @@ void vUARTTask(void *pvParameters) {
 
 
 
-	LOGI("\n\nFreeRTOS %s, %d, %s %x%x%x%x%x%x\n",
+	LOGI("\n\nFreeRTOS %s, %x, %s %x%x%x%x%x%x\n",
 	tskKERNEL_VERSION_NUMBER, KIT_VER, MORPH_NAME, mac[0], mac[1], mac[2],
 			mac[3], mac[4], mac[5]);
 	LOGI("\n? for help\n");
