@@ -211,6 +211,11 @@
 			<locationURI>PARENT-2-PROJECT_LOC/hellofilesystem.c</locationURI>
 		</link>
 		<link>
+			<name>hellofilesystem.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hellofilesystem.h</locationURI>
+		</link>
+		<link>
 			<name>hellomath.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/hellomath.c</locationURI>
@@ -341,6 +346,16 @@
 			<locationURI>PARENT-2-PROJECT_LOC/sha1.c</locationURI>
 		</link>
 		<link>
+			<name>sl_sync.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/sl_sync.c</locationURI>
+		</link>
+		<link>
+			<name>sl_sync_include_after_simplelink_header.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/sl_sync_include_after_simplelink_header.h</locationURI>
+		</link>
+		<link>
 			<name>slip_packet.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/slip_packet.c</locationURI>
@@ -359,6 +374,16 @@
 			<name>spi_cmd.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/spi_cmd.h</locationURI>
+		</link>
+		<link>
+			<name>sys_time.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/sys_time.c</locationURI>
+		</link>
+		<link>
+			<name>sys_time.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/sys_time.h</locationURI>
 		</link>
 		<link>
 			<name>tests</name>

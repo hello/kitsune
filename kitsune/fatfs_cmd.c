@@ -1365,7 +1365,6 @@ typedef struct sBootInfo
 }sBootInfo_t;
 
 void mcu_reset();
-_i16 nwp_reset();
 
 
 //*****************************************************************************

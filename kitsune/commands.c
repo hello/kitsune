@@ -26,6 +26,7 @@
 #include "gpio.h"
 #include "rom_map.h"
 
+#include "simplelink.h"
 #include "wlan.h"
 
 /* FreeRTOS includes */
@@ -76,6 +77,8 @@
 
 #include "kitsune_version.h"
 #include "TestNetwork.h"
+#include "sys_time.h"
+#include "sl_sync_include_after_simplelink_header.h"
 
 #define ONLY_MID 0
 
@@ -433,120 +436,6 @@ int Cmd_fs_delete(int argc, char *argv[]) {
 	return (0);
 }
 
-
-#define YEAR_TO_DAYS(y) ((y)*365 + (y)/4 - (y)/100 + (y)/400)
-
-void untime(unsigned long unixtime, SlDateTime_t *tm)
-{
-    /* First take out the hour/minutes/seconds - this part is easy. */
-
-    tm->sl_tm_sec = unixtime % 60;
-    unixtime /= 60;
-
-    tm->sl_tm_min = unixtime % 60;
-    unixtime /= 60;
-
-    tm->sl_tm_hour = unixtime % 24;
-    unixtime /= 24;
-
-    /* unixtime is now days since 01/01/1970 UTC
-     * Rebaseline to the Common Era */
-
-    unixtime += 719499;
-
-    /* Roll forward looking for the year.  This could be done more efficiently
-     * but this will do.  We have to start at 1969 because the year we calculate here
-     * runs from March - so January and February 1970 will come out as 1969 here.
-     */
-    for (tm->sl_tm_year = 1969; unixtime > YEAR_TO_DAYS(tm->sl_tm_year + 1) + 30; tm->sl_tm_year++)
-        ;
-
-    /* OK we have our "year", so subtract off the days accounted for by full years. */
-    unixtime -= YEAR_TO_DAYS(tm->sl_tm_year);
-
-    /* unixtime is now number of days we are into the year (remembering that March 1
-     * is the first day of the "year" still). */
-
-    /* Roll forward looking for the month.  1 = March through to 12 = February. */
-    for (tm->sl_tm_mon = 1; tm->sl_tm_mon < 12 && unixtime > 367*(tm->sl_tm_mon+1)/12; tm->sl_tm_mon++)
-        ;
-
-    /* Subtract off the days accounted for by full months */
-    unixtime -= 367*tm->sl_tm_mon/12;
-
-    /* unixtime is now number of days we are into the month */
-
-    /* Adjust the month/year so that 1 = January, and years start where we
-     * usually expect them to. */
-    tm->sl_tm_mon += 2;
-    if (tm->sl_tm_mon > 12)
-    {
-        tm->sl_tm_mon -= 12;
-        tm->sl_tm_year++;
-    }
-
-    tm->sl_tm_day = unixtime;
-}
-
-static unsigned long last_ntp = 0;
-uint64_t get_cache_time()
-{
-	if(!last_ntp)
-	{
-		return 0;
-	}
-
-	SlDateTime_t dt =  {0};
-	uint8_t configLen = sizeof(SlDateTime_t);
-	uint8_t configOpt = SL_DEVICE_GENERAL_CONFIGURATION_DATE_TIME;
-	int32_t ret = sl_DevGet(SL_DEVICE_GENERAL_CONFIGURATION,&configOpt, &configLen,(_u8 *)(&dt));
-	if(ret != 0)
-	{
-		UARTprintf("sl_DevGet failed, err: %d\n", ret);
-		return 0;
-	}
-
-	uint64_t ntp = dt.sl_tm_sec + dt.sl_tm_min*60 + dt.sl_tm_hour*3600 + dt.sl_tm_year_day*86400 +
-				(dt.sl_tm_year-70)*31536000 + ((dt.sl_tm_year-69)/4)*86400 -
-				((dt.sl_tm_year-1)/100)*86400 + ((dt.sl_tm_year+299)/400)*86400 + 171398145;
-	return ntp;
-}
-unsigned long get_time() {
-	portTickType now = xTaskGetTickCount();
-	unsigned long ntp = 0;
-	unsigned int tries = 0;
-
-	if (last_ntp == 0) {
-
-		while (ntp == 0) {
-			while (!(sl_status & HAS_IP)) {
-				vTaskDelay(100);
-			} //wait for a connection the first time...
-
-			ntp = last_ntp = unix_time();
-
-			vTaskDelay((1 << tries) * 1000);
-			if (tries++ > 5) {
-				tries = 5;
-			}
-
-			if( ntp != 0 ) {
-				SlDateTime_t tm;
-				untime( ntp, &tm );
-				UARTprintf( "setting sl time %d:%d:%d day %d mon %d yr %d", tm.sl_tm_hour,tm.sl_tm_min,tm.sl_tm_sec,tm.sl_tm_day,tm.sl_tm_mon,tm.sl_tm_year);
-
-				sl_DevSet(SL_DEVICE_GENERAL_CONFIGURATION,
-						  SL_DEVICE_GENERAL_CONFIGURATION_DATE_TIME,
-						  sizeof(SlDateTime_t),(unsigned char *)(&tm));
-			}
-		}
-
-	} else if (last_ntp != 0) {
-        ntp = get_cache_time();
-	}
-	return ntp;
-}
-
 static xSemaphoreHandle alarm_smphr;
 static SyncResponse_Alarm alarm;
 #define ONE_YEAR_IN_SECONDS 0x1E13380
@@ -555,7 +444,7 @@ void set_alarm( SyncResponse_Alarm * received_alarm ) {
     if (xSemaphoreTake(alarm_smphr, portMAX_DELAY)) {
         if (received_alarm->has_ring_offset_from_now_in_second
         	&& received_alarm->ring_offset_from_now_in_second > -1 ) {   // -1 means user has no alarm/reset his/her now
-        	unsigned long now = get_time();
+        	unsigned long now = get_nwp_time();
         	received_alarm->start_time = now + received_alarm->ring_offset_from_now_in_second;
 
         	int ring_duration = received_alarm->has_ring_duration_in_second ? received_alarm->ring_duration_in_second : 30;
@@ -610,7 +499,10 @@ void thread_alarm(void * unused) {
 	while (1) {
 		portTickType now = xTaskGetTickCount();
 		//todo audio processing
-		uint32_t time = get_time();
+		uint64_t time = get_nwp_time();
+		// The alarm thread should go ahead even without a valid time,
+		// because we don't need a correct time to fire alarm, we just need the offset.
+
 		if (xSemaphoreTake(alarm_smphr, portMAX_DELAY)) {
 			if(alarm.has_start_time && alarm.start_time > 0)
 			{
@@ -876,7 +768,22 @@ void thread_sensor_poll(void* unused) {
 		portTickType now = xTaskGetTickCount();
 
 		memset(&data, 0, sizeof(data));  // Don't forget re-init!
-		data.unix_time = get_time();
+
+		if(!time_module_initialized())  // Initialize sys time module in sensor polling thread
+		{
+			uint32_t ntp_time = fetch_time_from_ntp_server();
+			if(ntp_time != INVALID_SYS_TIME)
+			{
+				if(set_nwp_time(ntp_time) != INVALID_SYS_TIME)
+				{
+					init_time_module();
+				}
+			}
+			vTaskDelay(200);
+			continue;  // The data polling thread should not proceed without a valid time.
+		}
+
+		data.unix_time = get_nwp_time();
 		data.has_unix_time = true;
 
 		// copy over the dust values
@@ -1368,15 +1275,11 @@ tCmdLineEntry g_sCmdTable[] = {
 extern xSemaphoreHandle g_xRxLineSemaphore;
 void UARTStdioIntHandler(void);
 void init_download_task( int stack );
-_i16 nwp_reset();
+long nwp_reset();
 
 void vUARTTask(void *pvParameters) {
 	char cCmdBuf[512];
 	portTickType now;
-	NetworkTaskData_t network_task_data;
-
-	memset(&network_task_data,0,sizeof(network_task_data));
-
 
 	if(led_init() != 0){
 		UARTprintf("Failed to create the led_events.\n");
@@ -1480,15 +1383,13 @@ void vUARTTask(void *pvParameters) {
 	}
 
 	init_download_task( 1024 / 4 );
+	networktask_init(5 * 1024 / 4);
 	xTaskCreate(top_board_task, "top_board_task", 1024 / 4, NULL, 2, NULL);
 	xTaskCreate(thread_alarm, "alarmTask", 2*1024 / 4, NULL, 4, NULL);
 
 	UARTprintf("*");
 	xTaskCreate(thread_spi, "spiTask", 3*1024 / 4, NULL, 5, NULL); //this one doesn't look like much, but has to parse all the pb from bluetooth
 
-	//this task needs a larger stack because
-	//some protobuf encoding will happen on the stack of this task
-	xTaskCreate(NetworkTask_Thread,"networkTask",5*1024/4,&network_task_data,10,NULL);
 
 	SetupGPIOInterrupts();
 	UARTprintf("*");
