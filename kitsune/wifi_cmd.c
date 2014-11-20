@@ -36,6 +36,7 @@ volatile unsigned int sl_status = 0;
 #include "sys_time.h"
 #include "kitsune_version.h"
 #include "sl_sync_include_after_simplelink_header.h"
+#include "audiocontrolhelper.h"
 
 #define FAKE_MAC 0
 
@@ -1306,6 +1307,10 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
 
     if(response_protobuf->has_reset_to_factory_fw && response_protobuf->reset_to_factory_fw) {
     	reset_to_factory_fw();
+    }
+
+    if (response_protobuf->has_audio_control) {
+    	AudioControlHelper_SetAudioControl(&response_protobuf->audio_control);
     }
 
     
