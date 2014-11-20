@@ -48,7 +48,8 @@ static struct{
 	volatile uint32_t widx;
 	EventGroupHandle_t uart_log_events;
 	sense_log log;
-	uint8_t view_tag;
+	uint8_t view_tag;	//what level gets printed out to console
+	uint8_t store_tag;	//what level to store to sd card
 	uint8_t log_local_enable;
 	xSemaphoreHandle block_operation_sem;
 	xSemaphoreHandle print_sem;
@@ -356,8 +357,9 @@ void uart_logger_task(void * params){
                 pdFALSE,        /* all bits should not be cleared before returning. */
                 pdFALSE,       /* Don't wait for both bits, either bit will do. */
                 portMAX_DELAY );/* Wait for any bit to be set. */
-		if( evnt & LOG_EVENT_EXIT ){
+		if( (evnt & LOG_EVENT_EXIT) && !(evnt & LOG_EVENT_STORE)){
 			vTaskDelete(0);
+			xEventGroupClearBits(self.uart_log_events,LOG_EVENT_EXIT);
 			return;
 		}
 		if( evnt && xSemaphoreTake(self.block_operation_sem, portMAX_DELAY)){
