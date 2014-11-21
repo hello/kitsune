@@ -44,6 +44,7 @@ volatile unsigned int sl_status = 0;
 #include "rom.h"
 #include "interrupt.h"
 #include "uart_logger.h"
+#include "led_action.h"
 
 void mcu_reset()
 {
@@ -1320,7 +1321,9 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
     	AudioControlHelper_SetAudioControl(&response_protobuf->audio_control);
     }
 
-    
+    if (response_protobuf->has_led_action) {
+    	led_action(response_protobuf);
+    }
     _set_led_color_based_on_room_conditions(response_protobuf);
     
 }
@@ -1405,13 +1408,15 @@ int send_periodic_data(periodic_data* data) {
 
     if(decode_rx_data_pb((unsigned char*) content, len, SyncResponse_fields, &response_protobuf) == 0)
     {
-        LOGI("Decoding success: %d %d %d %d %d %d\n",
+        LOGI("Decoding success: %d %d %d %d %d %d %d\n",
         response_protobuf.has_acc_sampling_interval,
         response_protobuf.has_acc_scan_cyle,
         response_protobuf.has_alarm,
         response_protobuf.has_device_sampling_interval,
         response_protobuf.has_flash_action,
-        response_protobuf.has_reset_device);
+        response_protobuf.has_reset_device,
+        response_protobuf.has_led_action
+        );
 
 		_on_response_protobuf(&response_protobuf);
         sl_status |= UPLOADING;

@@ -108,6 +108,8 @@ bool encode_mac(pb_ostream_t *stream, const pb_field_t *field, void * const *arg
 bool encode_mac_as_device_id_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 bool encode_name(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 
+int Cmd_led_action(int argc, char *argv[]);
+
 #define MORPH_NAME ""
 
 #endif
