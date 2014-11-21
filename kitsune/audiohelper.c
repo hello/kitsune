@@ -145,25 +145,36 @@ uint8_t InitFile(Filedata_t * pfiledata) {
 
 }
 
+//workaround for TIs shitty library
+#define WRITE_LIMIT_IN_BYTES (512)
+
 uint8_t WriteToFile(Filedata_t * pfiledata,const WORD bytes_to_write,const uint8_t * const_ptr_samples_bytes) {
 	WORD bytes = 0;
 	WORD bytes_written = 0;
 	FRESULT res;
 	uint8_t ret = 1;
+	WORD bytes_left_to_write;
 
 
 	/* write until we cannot write anymore.  This does take a finite amount of time, by the way.  */
-	do {
-		res = hello_fs_write(&pfiledata->file_obj, const_ptr_samples_bytes +  bytes_written , bytes_to_write-bytes_written, &bytes );
+	while( bytes_written < bytes_to_write ) {
 
-		bytes_written+=bytes;
+		bytes_left_to_write = bytes_to_write - bytes_written;
+
+		if (bytes_left_to_write > WRITE_LIMIT_IN_BYTES) {
+			bytes_left_to_write = WRITE_LIMIT_IN_BYTES;
+		}
+
+		res = hello_fs_write(&pfiledata->file_obj, const_ptr_samples_bytes +  bytes_written , bytes_left_to_write, &bytes );
+
+		bytes_written += bytes;
 
 		if (res != FR_OK) {
 			ret = 0;
 			break;
 		}
 
-	} while( bytes_written < bytes_to_write );
+	}
 
 	return ret;
 
