@@ -22,6 +22,9 @@ typedef struct{
 
 void gesture_init(gesture_callbacks_t * user);
 void gesture_input(int prox);
+int gesture_get_wave_count();
+int gesture_get_hold_count();
+void gesture_counter_reset();
 
 #ifdef __cplusplus
 }

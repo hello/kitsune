@@ -78,6 +78,7 @@
 #include "kitsune_version.h"
 #include "TestNetwork.h"
 #include "sys_time.h"
+#include "gesture.h"
 #include "sl_sync_include_after_simplelink_header.h"
 
 #include "fileuploadertask.h"
@@ -912,10 +913,25 @@ void thread_sensor_poll(void* unused) {
 			xSemaphoreGive(i2c_smphr);
 		}
 
+		int wave_count = gesture_get_wave_count();
+		if(wave_count > 0)
+		{
+			data.has_wave_count = true;
+			data.wave_count = wave_count;
+		}
 
-		LOGI("collecting time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d %d %d %d\n",
+		int hold_count = gesture_get_hold_count();
+		if(hold_count > 0)
+		{
+			data.has_hold_count = true;
+			data.hold_count = hold_count;
+		}
+
+		gesture_counter_reset();
+
+		LOGI("collecting time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d %d %d %d\twave %d\thold %d\n",
 				data.unix_time, data.light, data.light_variability, data.light_tonality, data.temperature, data.humidity,
-				data.dust, data.dust_max, data.dust_min, data.dust_variability);
+				data.dust, data.dust_max, data.dust_min, data.dust_variability, data.wave_count, data.hold_count);
 
 		// Remember to add back firmware version, or OTA cant work.
 		data.has_firmware_version = true;

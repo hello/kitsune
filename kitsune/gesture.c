@@ -33,6 +33,8 @@ static struct{
 		int prox_slow;
 		int prox_last;
 	}fsm;
+	volatile int wave_count;
+	volatile int hold_count;
 	gesture_callbacks_t user;
 }self;
 
@@ -81,6 +83,7 @@ static int _fsm(int in){
 		if (!exceeded || _hasHold() ) {
 			if (_hasHold()) {
 				LOGI("Gesture: HOLD\r\n");
+				self.hold_count += 1;
 				if (self.user.on_hold) {
 					self.user.on_hold(self.user.ctx);
 				}
@@ -88,6 +91,7 @@ static int _fsm(int in){
 			} else if (_hasWave()) {
 				if (_hasWave()) {
 					LOGI("Gesture: WAVE\r\n");
+					self.wave_count += 1;
 					if (self.user.on_wave) {
 						self.user.on_wave(self.user.ctx);
 					}
@@ -138,4 +142,20 @@ void gesture_input(int prox){
 		self.fsm.prox_slow = prox;
 	}
 	self.fsm.prox_last = prox;
+}
+
+int gesture_get_wave_count()
+{
+	return self.wave_count;
+}
+
+int gesture_get_hold_count()
+{
+	return self.hold_count;
+}
+
+void gesture_counter_reset()
+{
+	self.hold_count = 0;
+	self.wave_count = 0;
 }
