@@ -50,6 +50,8 @@ typedef struct {
 	uint8_t deleteAfterUpload;
 	const char * filename;
 	uint32_t unix_time;
+	const char * decode_buf;
+	uint32_t decode_buf_size;
 } EncodeData_t;
 
 static xQueueHandle _queue = NULL;
@@ -70,6 +72,8 @@ static void NetTaskResponse (const NetworkResponse_t * response, void * context)
 	TaskMessage_t m;
 
 	memset(&m,0,sizeof(m));
+
+	UARTprintf("%s\r\n",data->decode_buf);
 
 	//delete even if upload was not successful
 	if (data->deleteAfterUpload) {
@@ -207,6 +211,8 @@ void FileUploaderTask_Thread(void * data) {
 				encode_data.filename = m.message.uploadermessage.sfilepath;
 				encode_data.deleteAfterUpload = m.message.uploadermessage.deleteAfterUpload;
 				encode_data.unix_time = get_nwp_time();
+				encode_data.decode_buf = recvbuf;
+				encode_data.decode_buf_size = sizeof(recvbuf);
 
 				mnet.decode_buf = recvbuf;
 				mnet.decode_buf_size = sizeof(recvbuf);
