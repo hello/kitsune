@@ -36,6 +36,8 @@
 #define MAX_NUMBER_TIMES_TO_WAIT_FOR_AUDIO_BUFFER_TO_FILL (5000)
 #define MAX_FILE_SIZE_BYTES (1048576)
 
+#define MONO_BUF_LENGTH (256)
+
 #define FLAG_SUCCESS (0x01)
 #define FLAG_STOP    (0x02)
 
@@ -252,7 +254,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 
 static void DoCapture() {
-	int16_t samples[PACKET_SIZE/4];
+	int16_t samples[MONO_BUF_LENGTH]; //512 bytes
 	uint16_t i;
 	char filepath[32];
 
@@ -359,25 +361,26 @@ static void DoCapture() {
 
 		iBufferFilled = GetBufferSize(pTxBuffer);
 
-		if(iBufferFilled < (sizeof(int16_t)*PACKET_SIZE)) {
+		//data is in "stereo", so a filled buffer is 1kB, MONO_BUF_LENGTH * 2 channels * sizeof(int16_t)
+		if(iBufferFilled <= MONO_BUF_LENGTH*sizeof(int16_t)*2) {
 			//wait a bit for the tx buffer to fill
 			vTaskDelay(5);
 		}
 		else {
 			int16_t * shortBufPtr = (int16_t*) (pTxBuffer->pucReadPtr+1);
 			//deinterleave (i.e. get mono)
-			for (i = 0; i < PACKET_SIZE/4; i++ ) {
+			for (i = 0; i < MONO_BUF_LENGTH; i++ ) {
 				samples[i] = shortBufPtr[2*i];
 			}
 
-			UpdateReadPtr(pTxBuffer, PACKET_SIZE);
+			UpdateReadPtr(pTxBuffer, MONO_BUF_LENGTH*sizeof(int16_t)*2);
 #ifdef PRINT_TIMING
 			t1 = xTaskGetTickCount(); dt = t1 - t0; t0 = t1;
 #endif
 
 			//write to file
 			if (isSavingToFile) {
-				const uint32_t bytes_written = PACKET_SIZE/4 * sizeof(int16_t);
+				const uint32_t bytes_written = MONO_BUF_LENGTH * sizeof(int16_t);
 				if (WriteToFile(&filedata,bytes_written,(const uint8_t *)samples)) {
 					num_bytes_written += bytes_written;
 					num_samples_to_save--;

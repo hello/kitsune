@@ -76,7 +76,7 @@ extern "C"
 #define RX_BUFFER_SIZE          (10*PACKET_SIZE)
 #define PLAY_WATERMARK          (8*PACKET_SIZE)
 
-#define TX_BUFFER_SIZE          10*PACKET_SIZE
+#define TX_BUFFER_SIZE          2*PACKET_SIZE
 
 
 #define AUDIO_FILE "DIGIAUX.raw" //armi.rec
