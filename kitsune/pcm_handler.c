@@ -91,6 +91,8 @@
 #define UDMA_DSTSZ_32_SRCSZ_16          0x21000000
 #define mainQUEUE_SIZE		        3
 
+#define PING_PONG_BUFFER_SIZE (1024)
+
 //*****************************************************************************
 //                          GLOBAL VARIABLES
 //*****************************************************************************
@@ -151,7 +153,7 @@ void DMAPingPongCompleteAppCB_opt()
 
         if((pControlTable[ulPrimaryIndexTx].ulControl & UDMA_CHCTL_XFERMODE_M) == 0)
         {
-            if(uiBufferEmpty < 2048)
+            if(uiBufferEmpty < PING_PONG_BUFFER_SIZE)
             {   
                 if(pAudInBuf->pucWritePtr < pAudInBuf->pucBufferStartPtr)
                 {
@@ -176,7 +178,7 @@ void DMAPingPongCompleteAppCB_opt()
             if((pControlTable[ulAltIndexTx].ulControl & UDMA_CHCTL_XFERMODE_M) == 0)
             {
                
-                if(uiBufferEmpty < 2048)
+                if(uiBufferEmpty < PING_PONG_BUFFER_SIZE)
                 {
                     if(pAudInBuf->pucWritePtr < pAudInBuf->pucBufferStartPtr)
                     {

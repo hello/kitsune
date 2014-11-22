@@ -36,6 +36,8 @@
 #define MAX_NUMBER_TIMES_TO_WAIT_FOR_AUDIO_BUFFER_TO_FILL (5000)
 #define MAX_FILE_SIZE_BYTES (1048576)
 
+#define MONO_BUF_LENGTH (256)
+
 #define FLAG_SUCCESS (0x01)
 #define FLAG_STOP    (0x02)
 
@@ -249,10 +251,13 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 
 
-
+#define HISTORY_BUFFER_2N (12)
+#define HISTORY_BUFFER_NUM_ELEMENTS (1 << HISTORY_BUFFER_2N)
+#define HISTORY_BUFFER_SIZE (HISTORY_BUFFER_NUM_ELEMENTS * sizeof(int16_t))
+#define HISTORY_BUF_MASK (HISTORY_BUFFER_NUM_ELEMENTS - 1)
 
 static void DoCapture() {
-	int16_t samples[PACKET_SIZE/4];
+	int16_t samples[MONO_BUF_LENGTH]; //512 bytes
 	uint16_t i;
 	char filepath[32];
 
@@ -262,6 +267,10 @@ static void DoCapture() {
 	Filedata_t filedata;
 	uint8_t isSavingToFile = 0;
 	uint32_t num_bytes_written;
+	uint32_t history_buf_idx = 0;
+	uint8_t isHistoryNeedSaving = 0;
+
+	int16_t * history_buffer = NULL;
 
 #ifdef PRINT_TIMING
 	uint32_t t0;
@@ -278,6 +287,15 @@ static void DoCapture() {
 	LOGI("done.\r\n");
 
 	InitAudioCapture();
+
+	history_buffer = (int16_t *) pvPortMalloc(HISTORY_BUFFER_SIZE);
+
+	if (!history_buffer) {
+		UARTprintf("audio capture failed to allocate history buffer\r\n");
+		goto CAPTURE_CLEANUP;
+	}
+
+	memset(history_buffer,0,HISTORY_BUFFER_SIZE);
 
 	LOGI("%d bytes free\n", xPortGetFreeHeapSize());
 
@@ -310,6 +328,7 @@ static void DoCapture() {
 
 					InitFile(&filedata);
 					isSavingToFile = 1;
+					isHistoryNeedSaving = 1;
 					num_bytes_written = 0;
 
 					LOGI("started saving to file %s\r\n",filedata.file_name );
@@ -359,25 +378,38 @@ static void DoCapture() {
 
 		iBufferFilled = GetBufferSize(pTxBuffer);
 
-		if(iBufferFilled < (sizeof(int16_t)*PACKET_SIZE)) {
+		//data is in "stereo", so a filled buffer is 1kB, MONO_BUF_LENGTH * 2 channels * sizeof(int16_t)
+		if(iBufferFilled <= MONO_BUF_LENGTH*sizeof(int16_t)*2) {
 			//wait a bit for the tx buffer to fill
 			vTaskDelay(5);
 		}
 		else {
 			int16_t * shortBufPtr = (int16_t*) (pTxBuffer->pucReadPtr+1);
 			//deinterleave (i.e. get mono)
-			for (i = 0; i < PACKET_SIZE/4; i++ ) {
+			for (i = 0; i < MONO_BUF_LENGTH; i++ ) {
 				samples[i] = shortBufPtr[2*i];
 			}
 
-			UpdateReadPtr(pTxBuffer, PACKET_SIZE);
+			UpdateReadPtr(pTxBuffer, MONO_BUF_LENGTH*sizeof(int16_t)*2);
 #ifdef PRINT_TIMING
 			t1 = xTaskGetTickCount(); dt = t1 - t0; t0 = t1;
 #endif
 
 			//write to file
 			if (isSavingToFile) {
-				const uint32_t bytes_written = PACKET_SIZE/4 * sizeof(int16_t);
+				const uint32_t bytes_written = MONO_BUF_LENGTH * sizeof(int16_t);
+
+				if (isHistoryNeedSaving) {
+					int16_t * part1 = history_buffer + history_buf_idx;
+					int16_t * part2 = history_buffer;
+
+					WriteToFile(&filedata, (HISTORY_BUFFER_NUM_ELEMENTS - history_buf_idx)*sizeof(int16_t),(const uint8_t *)part1);
+					WriteToFile(&filedata, history_buf_idx*sizeof(int16_t),(const uint8_t *)part2);
+
+					isHistoryNeedSaving = 0;
+				}
+
+
 				if (WriteToFile(&filedata,bytes_written,(const uint8_t *)samples)) {
 					num_bytes_written += bytes_written;
 					num_samples_to_save--;
@@ -397,6 +429,11 @@ static void DoCapture() {
 					_filecounter--;
 				}
 			}
+
+
+			memcpy(history_buffer + history_buf_idx,samples,MONO_BUF_LENGTH*sizeof(int16_t));
+			history_buf_idx += MONO_BUF_LENGTH;
+			history_buf_idx &= HISTORY_BUF_MASK;
 
 			/* process audio to get features */
 #ifdef PRINT_TIMING
@@ -420,6 +457,10 @@ static void DoCapture() {
 	}
 
 	DeinitAudioCapture();
+
+	if (history_buffer) {
+		vPortFree(history_buffer);
+	}
 
 	AudioProcessingTask_SetControl(processingOff,ProcessingCommandFinished,NULL);
 
