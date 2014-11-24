@@ -11,37 +11,61 @@
 #include "time.h"
 
 static int _init = 0;
+extern xSemaphoreHandle i2c_smphr;
 
+int bcd_to_int( int bcd ) {
+	int i=0;
+
+	i += 10*((bcd & 0xf0)>>4);
+	i += (bcd & 0xf);
+	return i;
+}
+int int_to_bcd( int i ) {
+	int bcd = 0;
+
+	bcd |= i%10;
+	i/=10;
+	bcd |= (i%10)<<4;
+	return bcd;
+}
 
 #define FAILURE                 -1
 #define SUCCESS                 0
 #define TRY_OR_GOTOFAIL(a) if(a!=SUCCESS) { LOGI( "fail at %s %d\n\r", __FILE__, __LINE__ ); return FAILURE;}
 int get_rtc_time( struct tm * dt ) {
-	unsigned char data[8];
-	TRY_OR_GOTOFAIL(I2C_IF_Read(0xd1, (unsigned char*)data, 8));
-
-	dt->tm_sec = data[1] & 0x7f;
-	dt->tm_min = data[2] & 0x7f;
-	dt->tm_hour = data[3];
-	dt->tm_wday = data[4] & 0xf; //the first 4 bits here need to be 1 always
-	dt->tm_mday = data[5];
-	dt->tm_mon = data[6] & 0x3f;
-	dt->tm_year = data[7] + 2000;
+	unsigned char data[7];
+	unsigned char addy = 1;
+	if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
+		TRY_OR_GOTOFAIL(I2C_IF_Write(0x68, &addy, 1, 1));
+		TRY_OR_GOTOFAIL(I2C_IF_Read(0x68, data, 7));
+		xSemaphoreGive(i2c_smphr);
+	}
+	dt->tm_sec = bcd_to_int(data[0] & 0x7f);
+	dt->tm_min = bcd_to_int(data[1] & 0x7f);
+	dt->tm_hour = bcd_to_int(data[2]);
+	dt->tm_wday = bcd_to_int(data[3] & 0xf);
+	dt->tm_mday = bcd_to_int(data[4]);
+	dt->tm_mon = bcd_to_int(data[5] & 0x3f);
+	dt->tm_year = bcd_to_int(data[6]) + 30;
 	return 0;
 }
 
 int set_rtc_time(struct tm * dt) {
 	unsigned char data[8];
-	vTaskDelay(10);
-	TRY_OR_GOTOFAIL(I2C_IF_Read(0xd1, (unsigned char*)data, 8));
 
-	data[1] = dt->tm_sec & 0x7f;
-	data[2] = dt->tm_min & 0x7f;
-	data[3] = dt->tm_hour;
-	data[4] = dt->tm_wday = (data[4] & 0xf)|0x10; //the first 4 bits here need to be 1 always
-    data[5] = dt->tm_mday;
-    data[6] = dt->tm_mon & 0x3f;
-    data[7] = dt->tm_year - 2000;
+	data[0] = 1; //address to write to...
+	data[1] = int_to_bcd(dt->tm_sec & 0x7f);
+	data[2] = int_to_bcd(dt->tm_min & 0x7f);
+	data[3] = int_to_bcd(dt->tm_hour);
+	data[4] = int_to_bcd(dt->tm_wday)|0x10; //the first 4 bits here need to be 1 always
+    data[5] = int_to_bcd(dt->tm_mday);
+    data[6] = int_to_bcd(dt->tm_mon & 0x3f);
+    data[7] = int_to_bcd(dt->tm_year - 30);
+
+	if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
+		TRY_OR_GOTOFAIL(I2C_IF_Write(0x68, data, 8, 1));
+		xSemaphoreGive(i2c_smphr);
+	}
 	return 0;
 }
 
@@ -58,7 +82,7 @@ uint32_t set_nwp_time(time_t unix_timestamp_sec)
 {
 	if(unix_timestamp_sec > 0) {
 		//set the RTC
-		set_rtc_time(gmtime(&unix_timestamp_sec));
+		set_rtc_time(localtime(&unix_timestamp_sec));
 	}
 	return unix_timestamp_sec;
 }
