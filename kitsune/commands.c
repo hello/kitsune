@@ -81,6 +81,7 @@
 #include "sl_sync_include_after_simplelink_header.h"
 
 #include "fileuploadertask.h"
+#include "hellofilesystem.h"
 
 #define ONLY_MID 0
 
@@ -1172,6 +1173,34 @@ int Cmd_topdfu(int argc, char *argv[]){
 	return -2;
 }
 
+static void CreateDirectoryIfNotExist(const char * path) {
+
+	FILINFO finfo;
+	FRESULT res;
+	FRESULT res2;
+
+
+	res = hello_fs_stat(path,&finfo);
+
+	if (res != FR_OK) {
+		res2 = hello_fs_mkdir(path);
+
+		if (res2 == FR_OK) {
+			UARTprintf("Created directory %s\r\n",path);
+		}
+		else {
+			UARTprintf("Failed to create %s\r\n",path);
+		}
+	}
+	else {
+		UARTprintf("%s already exists\r\n",path);
+	}
+
+}
+static void CreateDefaultDirectories(void) {
+	CreateDirectoryIfNotExist("/usr");
+}
+
 // ==============================================================================
 // This is the table that holds the command names, implementing functions, and
 // brief description.
@@ -1395,9 +1424,11 @@ void vUARTTask(void *pvParameters) {
 	LOGI("*");
 	xTaskCreate(thread_spi, "spiTask", 3*1024 / 4, NULL, 4, NULL); //this one doesn't look like much, but has to parse all the pb from bluetooth
 
+	LOGI("*");
+	CreateDefaultDirectories();
 
+	LOGI("*");
 	xTaskCreate(FileUploaderTask_Thread,"fileUploadTask",1*1024/4,NULL,1,NULL);
-
 
 	SetupGPIOInterrupts();
 	LOGI("*");
