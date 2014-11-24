@@ -91,6 +91,35 @@ static uint32_t set_unix_time(time_t unix_timestamp_sec)
 	return unix_timestamp_sec;
 }
 
+static set_sl_time(time_t unix_timestamp_sec) {
+	SlDateTime_t sl_tm;
+
+    struct tm * dt;
+    dt = localtime(&unix_timestamp_sec);
+
+    sl_tm.sl_tm_day = dt->tm_mday;
+    sl_tm.sl_tm_hour = dt->tm_hour;
+    sl_tm.sl_tm_min = dt->tm_min;
+    sl_tm.sl_tm_mon = dt->tm_mon;
+    sl_tm.sl_tm_mon+=1;
+    sl_tm.sl_tm_mon = sl_tm.sl_tm_mon > 12 ? sl_tm.sl_tm_mon -= 12 : sl_tm.sl_tm_mon;
+    sl_tm.sl_tm_sec = dt->tm_sec;
+    sl_tm.sl_tm_year = dt->tm_year + 1970;
+
+	sl_DevSet(SL_DEVICE_GENERAL_CONFIGURATION,
+			  SL_DEVICE_GENERAL_CONFIGURATION_DATE_TIME,
+			  sizeof(SlDateTime_t),(unsigned char *)(&sl_tm));
+	memset(&sl_tm, 0, sizeof(sl_tm));
+	uint8_t cfg = SL_DEVICE_GENERAL_CONFIGURATION_DATE_TIME;
+	uint8_t sz = sizeof(SlDateTime_t);
+	sl_DevGet(SL_DEVICE_GENERAL_CONFIGURATION,
+			  &cfg,
+			  &sz,
+			  (unsigned char *)(&sl_tm));
+
+    UARTprintf("Day %d,Mon %d,Year %d,Hour %,Min %d,Sec %d\n",sl_tm.sl_tm_day,sl_tm.sl_tm_mon,sl_tm.sl_tm_year, sl_tm.sl_tm_hour,sl_tm.sl_tm_min,sl_tm.sl_tm_sec);
+}
+
 uint32_t fetch_unix_time_from_ntp() {
     char buffer[48];
     int rv = 0;
@@ -207,28 +236,37 @@ uint32_t fetch_unix_time_from_ntp() {
 
 static xSemaphoreHandle time_smphr = NULL;
 
+static void set_cached_time( time_t t ) {
+	cached_time = t;
+	cached_ticks = xTaskGetTickCount();
+}
+static time_t get_cached_time() {
+	return  cached_time + (xTaskGetTickCount() - cached_ticks) / 1000;
+}
+
+
 static void time_task( void * params ) { //exists to get the time going and cache so we aren't going to NTP or RTC every time...
-	bool set_time = false;
+	bool have_set_time = false;
 	while (1) {
-		if (!set_time && (HAS_IP & sl_status)) {
+		if (!have_set_time && (HAS_IP & sl_status)) {
 			uint32_t ntp_time = fetch_unix_time_from_ntp();
 			if (ntp_time != INVALID_SYS_TIME) {
 				if (set_unix_time(ntp_time) != INVALID_SYS_TIME) {
 					if (xSemaphoreTake(time_smphr, portMAX_DELAY)) {
 						is_time_good = true;
-						cached_time = ntp_time;
-						cached_ticks = xTaskGetTickCount();
+						set_cached_time( ntp_time );
+						set_sl_time( get_cached_time() );
 						xSemaphoreGive(time_smphr);
 					}
-					set_time = true;
+					have_set_time = true;
 				}
 			}
 		}
 
 		if (xSemaphoreTake(time_smphr, portMAX_DELAY)) {
 			if( !is_time_good || xTaskGetTickCount() - cached_ticks > 30000 ) {
-				cached_time = get_unix_time();
-				cached_ticks = xTaskGetTickCount();
+				set_cached_time(get_unix_time());
+				set_sl_time( get_cached_time() );
 			}
 			xSemaphoreGive(time_smphr);
 		}
@@ -257,7 +295,7 @@ time_t get_time() { //all accesses go to cache...
 	time_t t = INVALID_SYS_TIME;
 	if (time_smphr) {
 		if (cached_time != INVALID_SYS_TIME && xSemaphoreTake(time_smphr, portMAX_DELAY)) {
-			t = cached_time + (xTaskGetTickCount() - cached_ticks) / 1000;
+			t = get_cached_time();
 			xSemaphoreGive(time_smphr);
 		}
 	}
