@@ -42,6 +42,10 @@ int get_rtc_time( struct tm * dt ) {
 	}
 	dt->tm_sec = bcd_to_int(data[0] & 0x7f);
 	dt->tm_min = bcd_to_int(data[1] & 0x7f);
+	if( !(data[1] & 0x80) && !time_module_initialized() ) {
+		LOGI("Got time from RTC\n");
+		init_time_module();
+	}
 	dt->tm_hour = bcd_to_int(data[2]);
 	dt->tm_wday = bcd_to_int(data[3] & 0xf);
 	dt->tm_mday = bcd_to_int(data[4]);
@@ -55,7 +59,7 @@ int set_rtc_time(struct tm * dt) {
 
 	data[0] = 1; //address to write to...
 	data[1] = int_to_bcd(dt->tm_sec & 0x7f);
-	data[2] = int_to_bcd(dt->tm_min & 0x7f);
+	data[2] = int_to_bcd(dt->tm_min & 0x7f); //sets the OF to FALSE
 	data[3] = int_to_bcd(dt->tm_hour);
 	data[4] = int_to_bcd(dt->tm_wday)|0x10; //the first 4 bits here need to be 1 always
     data[5] = int_to_bcd(dt->tm_mday);
@@ -220,12 +224,15 @@ int init_time_module()
 uint32_t fetch_time_from_ntp_server() {
     uint32_t ntp = INVALID_SYS_TIME;
 
-	LOGI("Get NTP time\n");
+	LOGI("Fetch time\n");
 
 	while(1)
 	{
 		while (!(sl_status & HAS_IP)) {
-			vTaskDelay(100);
+			vTaskDelay(1000);
+			if(time_module_initialized()){
+				return get_nwp_time();
+			}
 		} //wait for a connection...
 		ntp = unix_time();
 
@@ -236,7 +243,7 @@ uint32_t fetch_time_from_ntp_server() {
 		vTaskDelay(10000);
 	}
 
-	LOGI("Get NTP time done\n");
+	LOGI("Fetch time done\n");
 
 
 	return ntp;
