@@ -174,7 +174,7 @@ static uint32_t FileEncode(pb_ostream_t * stream,void * data) {
 
 	pbfile.device_id.funcs.encode = encode_mac_as_device_id_string;
 
-	pbfile.unix_time = get_nwp_time();
+	pbfile.unix_time = get_time();
 	pbfile.has_unix_time = true;
 
 	pbfile.data.funcs.encode = encode_file;
@@ -206,7 +206,7 @@ void FileUploaderTask_Thread(void * data) {
 
 				encode_data.filename = m.message.uploadermessage.sfilepath;
 				encode_data.deleteAfterUpload = m.message.uploadermessage.deleteAfterUpload;
-				encode_data.unix_time = get_nwp_time();
+				encode_data.unix_time = get_time();
 
 				mnet.decode_buf = recvbuf;
 				mnet.decode_buf_size = sizeof(recvbuf);

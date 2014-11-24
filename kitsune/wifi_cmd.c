@@ -318,10 +318,10 @@ int Cmd_ping(int argc, char *argv[]) {
 }
 
 int Cmd_time(int argc, char*argv[]) {
-	uint32_t unix = fetch_time_from_ntp_server();
-	uint32_t t = get_nwp_time();
+	uint32_t unix = fetch_unix_time_from_ntp();
+	uint32_t t = get_time();
 
-    LOGI("time is %u and the ntp is %d and the diff is %d, time module initialized %d\n", t, unix, t-unix, time_module_initialized());
+    LOGI("time is %u and the ntp is %d and the diff is %d, good time? %d\n", t, unix, t-unix, has_good_time());
 
     return 0;
 }
@@ -1320,6 +1320,10 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
     	AudioControlHelper_SetAudioControl(&response_protobuf->audio_control);
     }
 
+    if( response_protobuf->has_unix_time ) {
+    	set_time( response_protobuf->unix_time );
+    }
+
     
     _set_led_color_based_on_room_conditions(response_protobuf);
     
@@ -1405,13 +1409,14 @@ int send_periodic_data(periodic_data* data) {
 
     if(decode_rx_data_pb((unsigned char*) content, len, SyncResponse_fields, &response_protobuf) == 0)
     {
-        LOGI("Decoding success: %d %d %d %d %d %d\n",
+        LOGI("Decoding success: %d %d %d %d %d %d %d\n",
         response_protobuf.has_acc_sampling_interval,
         response_protobuf.has_acc_scan_cyle,
         response_protobuf.has_alarm,
         response_protobuf.has_device_sampling_interval,
         response_protobuf.has_flash_action,
-        response_protobuf.has_reset_device);
+        response_protobuf.has_reset_device,
+        response_protobuf.has_unix_time);
 
 		_on_response_protobuf(&response_protobuf);
         sl_status |= UPLOADING;
