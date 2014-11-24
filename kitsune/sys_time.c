@@ -10,17 +10,19 @@
 
 #include "time.h"
 
-static int _init = 0;
+static time_t cached_time;
+static TickType_t cached_ticks;
+static bool is_time_good = false;
 extern xSemaphoreHandle i2c_smphr;
 
-int bcd_to_int( int bcd ) {
+static int bcd_to_int( int bcd ) {
 	int i=0;
 
 	i += 10*((bcd & 0xf0)>>4);
 	i += (bcd & 0xf);
 	return i;
 }
-int int_to_bcd( int i ) {
+static int int_to_bcd( int i ) {
 	int bcd = 0;
 
 	bcd |= i%10;
@@ -32,7 +34,7 @@ int int_to_bcd( int i ) {
 #define FAILURE                 -1
 #define SUCCESS                 0
 #define TRY_OR_GOTOFAIL(a) if(a!=SUCCESS) { LOGI( "fail at %s %d\n\r", __FILE__, __LINE__ ); return FAILURE;}
-int get_rtc_time( struct tm * dt ) {
+static int get_rtc_time( struct tm * dt ) {
 	unsigned char data[7];
 	unsigned char addy = 1;
 	if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
@@ -42,9 +44,9 @@ int get_rtc_time( struct tm * dt ) {
 	}
 	dt->tm_sec = bcd_to_int(data[0] & 0x7f);
 	dt->tm_min = bcd_to_int(data[1] & 0x7f);
-	if( !(data[1] & 0x80) && !time_module_initialized() ) {
+	if( !(data[1] & 0x80) && !is_time_good ) {
 		LOGI("Got time from RTC\n");
-		init_time_module();
+		is_time_good = true;
 	}
 	dt->tm_hour = bcd_to_int(data[2]);
 	dt->tm_wday = bcd_to_int(data[3] & 0xf);
@@ -54,7 +56,7 @@ int get_rtc_time( struct tm * dt ) {
 	return 0;
 }
 
-int set_rtc_time(struct tm * dt) {
+static int set_rtc_time(struct tm * dt) {
 	unsigned char data[8];
 
 	data[0] = 1; //address to write to...
@@ -73,16 +75,14 @@ int set_rtc_time(struct tm * dt) {
 	return 0;
 }
 
-
-
-time_t get_nwp_time()
+static time_t get_unix_time()
 {
     struct tm dt =  {0};
     get_rtc_time(&dt);
     return mktime(&dt);
 }
 
-uint32_t set_nwp_time(time_t unix_timestamp_sec)
+static uint32_t set_unix_time(time_t unix_timestamp_sec)
 {
 	if(unix_timestamp_sec > 0) {
 		//set the RTC
@@ -91,7 +91,7 @@ uint32_t set_nwp_time(time_t unix_timestamp_sec)
 	return unix_timestamp_sec;
 }
 
-static uint32_t unix_time() {
+uint32_t fetch_unix_time_from_ntp() {
     char buffer[48];
     int rv = 0;
     SlSockAddr_t sAddr;
@@ -205,47 +205,78 @@ static uint32_t unix_time() {
     return ntp;
 }
 
-int time_module_initialized()
-{
-	return _init == 1;
-}
+static xSemaphoreHandle time_smphr = NULL;
 
-int init_time_module()
-{
-	_init = 1;
-	return _init == 1;
-}
-
-/*
- * WARNING: DONOT use this function in protobuf encoding/decoding function if you want to send the protobuf
- * over network, it will deadlock the network task.
- * Use get_cache_time instead.
- */
-uint32_t fetch_time_from_ntp_server() {
-    uint32_t ntp = INVALID_SYS_TIME;
-
-	LOGI("Fetch time\n");
-
-	while(1)
-	{
-		while (!(sl_status & HAS_IP)) {
-			vTaskDelay(1000);
-			if(time_module_initialized()){
-				return get_nwp_time();
+static void time_task( void * params ) { //exists to get the time going and cache so we aren't going to NTP or RTC every time...
+	bool set_time = false;
+	while (1) {
+		if (!set_time && (HAS_IP & sl_status)) {
+			uint32_t ntp_time = fetch_unix_time_from_ntp();
+			if (ntp_time != INVALID_SYS_TIME) {
+				if (set_unix_time(ntp_time) != INVALID_SYS_TIME) {
+					if (xSemaphoreTake(time_smphr, portMAX_DELAY)) {
+						is_time_good = true;
+						cached_time = ntp_time;
+						cached_ticks = xTaskGetTickCount();
+						xSemaphoreGive(time_smphr);
+					}
+					set_time = true;
+				}
 			}
-		} //wait for a connection...
-		ntp = unix_time();
-
-		if(ntp != INVALID_SYS_TIME)
-		{
-			break;
 		}
-		vTaskDelay(10000);
+
+		if (xSemaphoreTake(time_smphr, portMAX_DELAY)) {
+			if( !is_time_good || xTaskGetTickCount() - cached_ticks > 30000 ) {
+				cached_time = get_unix_time();
+				cached_ticks = xTaskGetTickCount();
+			}
+			xSemaphoreGive(time_smphr);
+		}
+		vTaskDelay(1000);
 	}
+}
 
-	LOGI("Fetch time done\n");
+void wait_for_time() { //todo make event based, maybe use semaphore
+	while( !has_good_time() ){
+		vTaskDelay(1000);
+	}
+}
 
+bool has_good_time() {
+	bool good = false;
+	if (time_smphr) {
+		if (xSemaphoreTake(time_smphr, portMAX_DELAY)) {
+			good = is_time_good;
+			xSemaphoreGive(time_smphr);
+		}
+	}
+	return good;
+}
 
-	return ntp;
+time_t get_time() { //all accesses go to cache...
+	time_t t = INVALID_SYS_TIME;
+	if (time_smphr) {
+		if (cached_time != INVALID_SYS_TIME && xSemaphoreTake(time_smphr, portMAX_DELAY)) {
+			t = cached_time + (xTaskGetTickCount() - cached_ticks) / 1000;
+			xSemaphoreGive(time_smphr);
+		}
+	}
+	return t;
+}
+void set_time(time_t t) { //writing is special case
+	if (xSemaphoreTake(time_smphr, portMAX_DELAY)) {
+		set_unix_time(t);
+		cached_time = t;
+		cached_ticks = xTaskGetTickCount();
+		xSemaphoreGive(time_smphr);
+	}
+}
 
+void init_time_module(int stack)
+{
+	is_time_good = false;
+	cached_ticks = 0;
+	cached_time = INVALID_SYS_TIME;
+	vSemaphoreCreateBinary(time_smphr);
+	xTaskCreate(time_task, "time_task", stack / 4, NULL, 4, NULL); //todo reduce stack
 }

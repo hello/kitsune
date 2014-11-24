@@ -318,10 +318,10 @@ int Cmd_ping(int argc, char *argv[]) {
 }
 
 int Cmd_time(int argc, char*argv[]) {
-	uint32_t unix = fetch_time_from_ntp_server();
-	uint32_t t = get_nwp_time();
+	uint32_t unix = fetch_unix_time_from_ntp();
+	uint32_t t = get_time();
 
-    LOGI("time is %u and the ntp is %d and the diff is %d, time module initialized %d\n", t, unix, t-unix, time_module_initialized());
+    LOGI("time is %u and the ntp is %d and the diff is %d, good time? %d\n", t, unix, t-unix, has_good_time());
 
     return 0;
 }
@@ -1321,7 +1321,7 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
     }
 
     if( response_protobuf->has_unix_time ) {
-    	set_nwp_time( response_protobuf->unix_time );
+    	set_time( response_protobuf->unix_time );
     }
 
     

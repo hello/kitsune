@@ -266,12 +266,12 @@ extern xQueueHandle pill_queue;
 static void _process_encrypted_pill_data( MorpheusCommand* command)
 {
     if( command->has_pill_data ) {
-    	if(!time_module_initialized())
+    	if(!has_good_time())
     	{
     		LOGI("Device not initialized!\n");
     		return;
     	}
-    	uint32_t timestamp = get_nwp_time();
+    	uint32_t timestamp = get_time();
         command->pill_data.timestamp = timestamp;  // attach timestamp, so we don't need to worry about the sending time
         xQueueSend(pill_queue, &command->pill_data, 10);
 
@@ -289,12 +289,12 @@ static void _process_pill_heartbeat( MorpheusCommand* command)
 {
 	// Pill heartbeat received from ANT
     if( command->has_pill_data ) {
-		if(!time_module_initialized())
+		if(!has_good_time())
 		{
 			LOGI("Device not initialized!\n");
 			return;
 		}
-		uint32_t timestamp = get_nwp_time();
+		uint32_t timestamp = get_time();
 		command->pill_data.timestamp = timestamp;  // attach timestamp, so we don't need to worry about the sending time
         xQueueSend(pill_queue, &command->pill_data, 10);
         LOGI("PILL HEARBEAT %s\n", command->pill_data.device_id);
