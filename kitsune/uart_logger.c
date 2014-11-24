@@ -50,7 +50,6 @@ static struct{
 	sense_log log;
 	uint8_t view_tag;	//what level gets printed out to console
 	uint8_t store_tag;	//what level to store to sd card
-	xSemaphoreHandle block_operation_sem;
 	xSemaphoreHandle print_sem;
 	DIR logdir;
 }self;
@@ -113,12 +112,11 @@ _logstr(const char * str, int len, bool echo, bool store){
 	for(i = 0; i < len && store; i++){
 		uart_logc(str[i]);
 	}
-	if(echo){
-		UARTwrite(str,len);
+	if (echo) {
+		UARTwrite(str, len);
 	}
 }
-static int
-_walk_log_dir(file_handler * handler, void * ctx){
+static int _walk_log_dir(file_handler * handler, void * ctx){
 	FILINFO file_info;
 	FRESULT res;
 	int fcount = 0;
@@ -310,28 +308,17 @@ void uart_logger_init(void){
 	self.log.has_unix_time = true;
 	self.view_tag = LOG_INFO | LOG_WARNING | LOG_ERROR;
 	self.store_tag = LOG_INFO | LOG_WARNING | LOG_ERROR;
-	vSemaphoreCreateBinary(self.block_operation_sem);
 	vSemaphoreCreateBinary(self.print_sem);
 
 	xEventGroupSetBits(self.uart_log_events, LOG_EVENT_READY);
 }
 void uart_logc(uint8_t c){
-	if( self.uart_log_events) {
-		xEventGroupWaitBits(
-					self.uart_log_events,   /* The event group being tested. */
-					LOG_EVENT_READY,    /* The bits within the event group to wait for. */
-	                pdFALSE,        /* all bits should not be cleared before returning. */
-	                pdFALSE,       /* Don't wait for both bits, either bit will do. */
-	                portMAX_DELAY );/* Wait for any bit to be set. */
-		if(xSemaphoreTake(self.block_operation_sem, 10)){
-			if (self.widx == UART_LOGGER_BLOCK_SIZE) {
-				_swap_and_upload();
-			}
-			self.logging_block[self.widx] = c;
-			self.widx++;
-			xSemaphoreGive(self.block_operation_sem);
-		}
+	if (self.widx == UART_LOGGER_BLOCK_SIZE) {
+		_swap_and_upload();
 	}
+	self.logging_block[self.widx] = c;
+	self.widx++;
+
 }
 
 void uart_logger_task(void * params){
@@ -363,7 +350,7 @@ void uart_logger_task(void * params){
 			xEventGroupClearBits(self.uart_log_events,LOG_EVENT_EXIT);
 			return;
 		}
-		if( evnt && xSemaphoreTake(self.block_operation_sem, portMAX_DELAY)){
+		if( evnt && xSemaphoreTake(self.print_sem, portMAX_DELAY)){
 			if( evnt & LOG_EVENT_STORE ) {
 				if(log_local_enable && FR_OK == _save_newest((char*) self.store_block, UART_LOGGER_BLOCK_SIZE)){
 					self.operation_block = self.blocks[2];
@@ -411,7 +398,7 @@ void uart_logger_task(void * params){
 					NetworkTask_SynchronousSendProtobuf(DATA_SERVER, SENSE_LOG_ENDPOINT,buffer,sizeof(buffer),sense_log_fields,&self.log,0);
 				}
 			}
-			xSemaphoreGive(self.block_operation_sem);
+			xSemaphoreGive(self.print_sem);
 		}
 	}
 }

@@ -97,7 +97,7 @@ int Cmd_mkfs(int argc, char *argv[])
 
 	LOGI("\n\nMaking FS...\n");
 
-	res = hello_fs_mkfs(0, 1, 16);
+	res = hello_fs_mkfs(0, 0, 16);
 	if(res != FR_OK)
 	{
 		LOGI("f_mkfs error: %i\n", (res));
@@ -1555,7 +1555,7 @@ void reset_to_factory_fw() {
 
 #include "wifi_cmd.h"
 int Cmd_version(int argc, char *argv[]) {
-	LOGI( "ver: %d\nimg: %x\nstatus: %x\n", KIT_VER, sBootInfo.ucActiveImg, sBootInfo.ulImgStatus );
+	LOGI( "ver: %x\nimg: %d\nstatus: %x\n", KIT_VER, sBootInfo.ucActiveImg, sBootInfo.ulImgStatus );
 	return 0;
 }
 

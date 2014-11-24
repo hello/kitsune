@@ -81,6 +81,7 @@
 #include "sl_sync_include_after_simplelink_header.h"
 
 #include "fileuploadertask.h"
+#include "hellofilesystem.h"
 
 #define ONLY_MID 0
 
@@ -446,7 +447,7 @@ void set_alarm( SyncResponse_Alarm * received_alarm ) {
     if (xSemaphoreTake(alarm_smphr, portMAX_DELAY)) {
         if (received_alarm->has_ring_offset_from_now_in_second
         	&& received_alarm->ring_offset_from_now_in_second > -1 ) {   // -1 means user has no alarm/reset his/her now
-        	unsigned long now = get_nwp_time();
+        	unsigned long now = get_time();
         	received_alarm->start_time = now + received_alarm->ring_offset_from_now_in_second;
 
         	int ring_duration = received_alarm->has_ring_duration_in_second ? received_alarm->ring_duration_in_second : 30;
@@ -499,9 +500,10 @@ static void thread_alarm_on_finished(void * context) {
 
 void thread_alarm(void * unused) {
 	while (1) {
+		wait_for_time();
+
 		portTickType now = xTaskGetTickCount();
-		//todo audio processing
-		uint64_t time = get_nwp_time();
+		uint64_t time = get_time();
 		// The alarm thread should go ahead even without a valid time,
 		// because we don't need a correct time to fire alarm, we just need the offset.
 
@@ -771,21 +773,9 @@ void thread_sensor_poll(void* unused) {
 
 		memset(&data, 0, sizeof(data));  // Don't forget re-init!
 
-		if(!time_module_initialized())  // Initialize sys time module in sensor polling thread
-		{
-			uint32_t ntp_time = fetch_time_from_ntp_server();
-			if(ntp_time != INVALID_SYS_TIME)
-			{
-				if(set_nwp_time(ntp_time) != INVALID_SYS_TIME)
-				{
-					init_time_module();
-				}
-			}
-			vTaskDelay(200);
-			continue;  // The data polling thread should not proceed without a valid time.
-		}
+		wait_for_time();
 
-		data.unix_time = get_nwp_time();
+		data.unix_time = get_time();
 		data.has_unix_time = true;
 
 		// copy over the dust values
@@ -1172,6 +1162,34 @@ int Cmd_topdfu(int argc, char *argv[]){
 	return -2;
 }
 
+static void CreateDirectoryIfNotExist(const char * path) {
+
+	FILINFO finfo;
+	FRESULT res;
+	FRESULT res2;
+
+
+	res = hello_fs_stat(path,&finfo);
+
+	if (res != FR_OK) {
+		res2 = hello_fs_mkdir(path);
+
+		if (res2 == FR_OK) {
+			UARTprintf("Created directory %s\r\n",path);
+		}
+		else {
+			UARTprintf("Failed to create %s\r\n",path);
+		}
+	}
+	else {
+		UARTprintf("%s already exists\r\n",path);
+	}
+
+}
+static void CreateDefaultDirectories(void) {
+	CreateDirectoryIfNotExist("/usr");
+}
+
 // ==============================================================================
 // This is the table that holds the command names, implementing functions, and
 // brief description.
@@ -1363,6 +1381,8 @@ void vUARTTask(void *pvParameters) {
 	if (sl_mode == ROLE_AP || !sl_status) {
 		//Cmd_sl(0, 0);
 	}
+	vSemaphoreCreateBinary(i2c_smphr);
+	init_time_module(512);
 
 	// Init sensors
 	init_humid_sensor();
@@ -1376,7 +1396,6 @@ void vUARTTask(void *pvParameters) {
 	pill_queue = xQueueCreate(MAX_PILL_DATA, sizeof(pill_data));
 	vSemaphoreCreateBinary(dust_smphr);
 	vSemaphoreCreateBinary(light_smphr);
-	vSemaphoreCreateBinary(i2c_smphr);
 	vSemaphoreCreateBinary(spi_smphr);
 	vSemaphoreCreateBinary(alarm_smphr);
 
@@ -1395,9 +1414,11 @@ void vUARTTask(void *pvParameters) {
 	LOGI("*");
 	xTaskCreate(thread_spi, "spiTask", 3*1024 / 4, NULL, 4, NULL); //this one doesn't look like much, but has to parse all the pb from bluetooth
 
+	LOGI("*");
+	CreateDefaultDirectories();
 
+	LOGI("*");
 	xTaskCreate(FileUploaderTask_Thread,"fileUploadTask",1*1024/4,NULL,1,NULL);
-
 
 	SetupGPIOInterrupts();
 	LOGI("*");

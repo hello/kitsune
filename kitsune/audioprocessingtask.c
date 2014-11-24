@@ -134,7 +134,7 @@ static void NetworkResponseFunc(const NetworkResponse_t * response,void * contex
 }
 
 static void SetUpUpload(void) {
-	if(!time_module_initialized())
+	if(!has_good_time())
 	{
 		// This function requires a valid time
 		return;
@@ -157,7 +157,7 @@ static void SetUpUpload(void) {
 	message.encode = AudioClassifier_EncodeAudioFeatures;
 
 	get_mac(_deviceCurrentInfo.mac);
-	_deviceCurrentInfo.unix_time = get_nwp_time();
+	_deviceCurrentInfo.unix_time = get_time();
 
 	message.encodedata = (void *) &_deviceCurrentInfo;
 
