@@ -2013,7 +2013,7 @@ void wifi_status_init()
 
 int wifi_status_get(unsigned int status)
 {
-    xSemaphoreTake(_sl_status_mutex, 100);
+    xSemaphoreTake(_sl_status_mutex, portMAX_DELAY);
     int ret = _wifi_status & status;
     xSemaphoreGive(_sl_status_mutex);
     return ret;
@@ -2021,7 +2021,11 @@ int wifi_status_get(unsigned int status)
 
 int wifi_status_set(unsigned int status, int remove_status)
 {
-    xSemaphoreTake(_sl_status_mutex, 100);
+    if(xSemaphoreTake(_sl_status_mutex, portMAX_DELAY) != pdTRUE)
+    {
+        return _wifi_status;
+    }
+
     if(remove_status)
     {
         _wifi_status &= ~status;
