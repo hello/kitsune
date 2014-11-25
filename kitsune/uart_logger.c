@@ -51,7 +51,7 @@ static struct{
 	uint8_t log_local_enable;
 	xSemaphoreHandle print_sem;
 	DIR logdir;
-}self;
+}self = {0};
 
 typedef void (file_handler)(FILINFO * info, void * ctx);
 static int _walk_log_dir(file_handler * handler, void * ctx);
@@ -346,7 +346,7 @@ void uart_logger_task(void * params){
 			vTaskDelete(0);
 			return;
 		}
-		if( evnt && xSemaphoreTake(self.print_sem, portMAX_DELAY)){
+		if( self.print_sem != NULL && evnt && xSemaphoreTake(self.print_sem, portMAX_DELAY)){
 			if( evnt & LOG_EVENT_STORE ) {
 				if(self.log_local_enable && FR_OK == _save_newest((char*) self.store_block, UART_LOGGER_BLOCK_SIZE)){
 					self.operation_block = self.blocks[2];
@@ -368,6 +368,7 @@ void uart_logger_task(void * params){
 					res = _read_oldest((char*)self.operation_block,UART_LOGGER_BLOCK_SIZE, &read);
 					if(FR_OK != res){
 						LOGE("Unable to read log file %d\r\n",(int)res);
+						xSemaphoreGive(self.print_sem);
 						continue;
 					}
 					ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER, SENSE_LOG_ENDPOINT,buffer,sizeof(buffer),sense_log_fields,&self.log,0);
@@ -406,16 +407,20 @@ int Cmd_log_setview(int argc, char * argv[]){
 	return -1;
 }
 
-//TODO debug the semaphore contention on this one
 static const char * const g_pcHex = "0123456789abcdef";
 void uart_logf(uint8_t tag, const char *pcString, ...){
-	if( !self.print_sem ||  xSemaphoreTake(self.print_sem, 0) != pdTRUE ) {
+	if( self.print_sem == NULL) {
+		UARTprintf("no print_sem\n%s\n", pcString);
 		return;
 	}
-    unsigned long ulIdx, ulValue, ulPos, ulCount, ulBase, ulNeg;
+	if( xSemaphoreTake(self.print_sem, 0) != pdPASS ) {
+		UARTprintf("failed to get print_sem\n%s\n", pcString);
+		return;
+	}
+	va_list vaArgP;
+	unsigned long ulIdx, ulValue, ulPos, ulCount, ulBase, ulNeg;
     char *pcStr, pcBuf[16], cFill;
     bool echo = false;
-    va_list vaArgP;
     ASSERT(pcString != 0);
     if(tag & self.view_tag){
     	echo = true;

@@ -10,6 +10,7 @@
 #include "socket.h"
 #include "simplelink.h"
 #include "protocol.h"
+#include "sl_sync_include_after_simplelink_header.h"
 
 
 #include "wifi_cmd.h"
@@ -34,7 +35,6 @@ int sl_mode = ROLE_INVALID;
 
 #include "sys_time.h"
 #include "kitsune_version.h"
-#include "sl_sync_include_after_simplelink_header.h"
 #include "audiocontrolhelper.h"
 
 #define FAKE_MAC 0
@@ -492,7 +492,7 @@ static bool flush_out_buffer(ostream_buffered_desc_t * desc ) {
 
 		//send
         if( send_chunk_len( buf_size) != 0 ) {
-        	return -1;
+        	return false;
         }
 		ret = send(desc->fd, desc->buf, buf_size, 0) == buf_size;
 	}
@@ -514,7 +514,7 @@ static bool write_buffered_callback_sha(pb_ostream_t *stream, const uint8_t * in
 
 		//send
         if( send_chunk_len( desc->buf_pos) != 0 ) {
-        	return -1;
+        	return false;
         }
 		ret = send(desc->fd, desc->buf, desc->buf_pos, 0) == desc->buf_pos;
 

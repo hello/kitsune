@@ -5,6 +5,7 @@
 #include "uartstdio.h"
 #include "FreeRTOS.h"
 #include "semphr.h"
+#include "stdbool.h"
 
 /* defines the frames per second of the gesture fsm, which is triggerd by sampling the prox*/
 #define GESTURE_FPS 10
@@ -74,6 +75,7 @@ static gesture _fsm(int in){
 		//any edge triggers edge up state
 		LOGI("->0\r\n");
 		_transition_state(GFSM_IDLE_FORREALS);
+		//no break
 	case GFSM_IDLE_FORREALS:
 		//any edge triggers edge up state
 		if( exceeded > 0 ){
