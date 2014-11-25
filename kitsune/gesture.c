@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include "uartstdio.h"
 #include "FreeRTOS.h"
+#include "semphr.h"
 
 /* defines the frames per second of the gesture fsm, which is triggerd by sampling the prox*/
 #define GESTURE_FPS 10
@@ -84,17 +85,17 @@ static gesture _fsm(int in){
 		if (!exceeded || _hasHold() ) {
 			if (_hasHold()) {
 				LOGI("Gesture: HOLD\r\n");
-				xSemaphoreTake(gesture_count_semaphore, 100);
+				xSemaphoreTake(self.gesture_count_semaphore, 100);
 				self.hold_count += 1;
-				xSemaphoreGive(gesture_count_semaphore);
+				xSemaphoreGive(self.gesture_count_semaphore);
 				_transition_state(GFSM_HOLD);
 				ret = GESTURE_HOLD;
 			} else if (_hasWave()) {
 				if (_hasWave()) {
 					LOGI("Gesture: WAVE\r\n");
-					xSemaphoreTake(gesture_count_semaphore, 100);
+					xSemaphoreTake(self.gesture_count_semaphore, 100);
 					self.wave_count += 1;
-					xSemaphoreGive(gesture_count_semaphore);
+					xSemaphoreGive(self.gesture_count_semaphore);
 					ret = GESTURE_WAVE;
 				}
 				_transition_state(GFSM_IDLE);
@@ -121,7 +122,7 @@ static gesture _fsm(int in){
 
 void gesture_init(){
 	_fsm_reset();
-	self.gesture_semaphore = xSemaphoreCreateMutex();
+	self.gesture_count_semaphore = xSemaphoreCreateMutex();
 }
 
 int disp_prox;
@@ -158,8 +159,8 @@ int gesture_get_hold_count()
 
 void gesture_counter_reset()
 {
-	xSemaphoreTake(gesture_count_semaphore, 100);
+	xSemaphoreTake(self.gesture_count_semaphore, 100);
 	self.hold_count = 0;
 	self.wave_count = 0;
-	xSemaphoreGive(gesture_count_semaphore);
+	xSemaphoreGive(self.gesture_count_semaphore);
 }

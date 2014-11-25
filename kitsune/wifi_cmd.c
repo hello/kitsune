@@ -71,7 +71,7 @@ void mcu_reset()
 long nwp_reset() {
     sl_WlanSetMode(ROLE_STA);
     sl_Stop(SL_STOP_TIMEOUT);
-    sl_status = 0;
+    wifi_status_set(0xFFFFFFFF, true);
     return sl_Start(NULL, NULL, NULL);
 }
 
