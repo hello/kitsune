@@ -18,7 +18,7 @@ extern "C" {
 #define UART_LOGGER_RESERVED_SIZE 128
 
 //needs to be sufficiently large to hold buffer for tx 2432
-#define UART_LOGGER_THREAD_STACK_SIZE	(UART_LOGGER_BLOCK_SIZE + UART_LOGGER_RESERVED_SIZE + 1028)
+#define UART_LOGGER_THREAD_STACK_SIZE	(UART_LOGGER_BLOCK_SIZE + UART_LOGGER_RESERVED_SIZE + 2048)
 
 //if you want to prepend a tag when calling LOGX() functions with TAGGED MODE
 #define UART_LOGGER_PREPEND_TAG 0
@@ -53,10 +53,12 @@ extern "C" {
 #define LOGI(...) uart_logf(LOG_INFO, __VA_ARGS__)
 #define LOGW(...) uart_logf(LOG_WARNING, __VA_ARGS__)
 #define LOGE(...) uart_logf(LOG_ERROR, __VA_ARGS__)
+#define DISP(...) UARTprintf(__VA_ARGS__)
 #else
 #define LOGI(...) UARTprintf(__VA_ARGS__)
 #define LOGW(...) UARTprintf(__VA_ARGS__)
 #define LOGE(...) UARTprintf(__VA_ARGS__)
+#define DISP(...) UARTprintf(__VA_ARGS__)
 #endif
 
 /**
