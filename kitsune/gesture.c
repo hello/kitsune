@@ -155,16 +155,25 @@ int gesture_get_wave_count()
 {
 	if(xSemaphoreTake(self.gesture_count_semaphore, 100) == pdTRUE)
 	{
-		return self.wave_count;
+		int ret = self.wave_count;
+		xSemaphoreGive(self.gesture_count_semaphore);
+
+		return ret;
 	}
+
+	return 0;
 }
 
 int gesture_get_hold_count()
 {
 	if(xSemaphoreTake(self.gesture_count_semaphore, 100) == pdTRUE)
 	{
-		return self.hold_count;
+		int ret = self.hold_count;
+		xSemaphoreGive(self.gesture_count_semaphore);
+		return ret;
 	}
+
+	return 0;
 }
 
 void gesture_counter_reset()
