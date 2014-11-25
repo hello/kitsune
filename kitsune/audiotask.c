@@ -360,7 +360,7 @@ static void DoCapture() {
 
 		iBufferFilled = GetBufferSize(pTxBuffer);
 
-		if(iBufferFilled < HALF_PING_PONG_BUFFER_SIZE) {
+		if(iBufferFilled < PING_PONG_CHUNK_SIZE) {
 			//wait a bit for the tx buffer to fill
 			vTaskDelay(1);
 		}
