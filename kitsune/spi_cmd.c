@@ -45,7 +45,7 @@ typedef struct {
 #define TR_BUFF_SIZE     100
 
 void CS_set(int val) {
-	  MAP_GPIOPinWrite(GPIOA1_BASE,0x20,val?0x20:0);
+	  MAP_GPIOPinWrite(GPIOA2_BASE,0x40,val?0x40:0);
 }
 
 void spi_init() {
