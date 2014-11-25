@@ -129,9 +129,6 @@ void PinMuxConfig_hw_dep() {
 		//i2c on pin 4
 		MAP_PinTypeI2C(PIN_04, PIN_MODE_5);
 
-		//drive high by default
-		MAP_GPIOPinWrite(GPIOA3_BASE, 0x2, 0x2);
-
 		break;
 	case EVT2:
 		//i2c on pin 2
@@ -259,6 +256,11 @@ PinMuxConfig(void)
     MAP_PinTypeSPI(PIN_52, PIN_MODE_8);
 
     SetAntennaSelectionGPIOs();
+
+    // Configure PIN_04 for GPIOOutput
+    //
+    MAP_PinTypeGPIO(PIN_04, PIN_MODE_0, false);
+    MAP_GPIODirModeSet(GPIOA1_BASE, 0x20, GPIO_DIR_MODE_OUT);
 
     //
     // Configure PIN_15 for GPIOOutput

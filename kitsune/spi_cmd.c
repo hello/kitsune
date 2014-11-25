@@ -26,6 +26,8 @@
 #include "spi_cmd.h"
 #include "uartstdio.h"
 
+#include "sl_sync_include_after_simplelink_header.h"
+
 #if 0
 #define SPI_DEBUG_PRINT
 #endif
@@ -50,7 +52,7 @@ static int hw_ver;
 void CS_set(int val) {
 	switch( hw_ver ) {
 	case DVT: MAP_GPIOPinWrite(GPIOA2_BASE,0x40,val?0x40:0); break;
-	case EVT2: break;
+	case EVT2: MAP_GPIOPinWrite(GPIOA1_BASE,0x20,val?0x20:0); break;
 	}
 }
 
