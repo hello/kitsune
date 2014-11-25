@@ -85,17 +85,21 @@ static gesture _fsm(int in){
 		if (!exceeded || _hasHold() ) {
 			if (_hasHold()) {
 				LOGI("Gesture: HOLD\r\n");
-				xSemaphoreTake(self.gesture_count_semaphore, 100);
-				self.hold_count += 1;
-				xSemaphoreGive(self.gesture_count_semaphore);
+				if(xSemaphoreTake(self.gesture_count_semaphore, 100) == pdTRUE)
+				{
+					self.hold_count += 1;
+					xSemaphoreGive(self.gesture_count_semaphore);
+				}
 				_transition_state(GFSM_HOLD);
 				ret = GESTURE_HOLD;
 			} else if (_hasWave()) {
 				if (_hasWave()) {
 					LOGI("Gesture: WAVE\r\n");
-					xSemaphoreTake(self.gesture_count_semaphore, 100);
-					self.wave_count += 1;
-					xSemaphoreGive(self.gesture_count_semaphore);
+					if(xSemaphoreTake(self.gesture_count_semaphore, 100) == pdTRUE)
+					{
+						self.wave_count += 1;
+						xSemaphoreGive(self.gesture_count_semaphore);
+					}
 					ret = GESTURE_WAVE;
 				}
 				_transition_state(GFSM_IDLE);
@@ -149,18 +153,26 @@ gesture gesture_input(int prox){
 
 int gesture_get_wave_count()
 {
-	return self.wave_count;
+	if(xSemaphoreTake(self.gesture_count_semaphore, 100) == pdTRUE)
+	{
+		return self.wave_count;
+	}
 }
 
 int gesture_get_hold_count()
 {
-	return self.hold_count;
+	if(xSemaphoreTake(self.gesture_count_semaphore, 100) == pdTRUE)
+	{
+		return self.hold_count;
+	}
 }
 
 void gesture_counter_reset()
 {
-	xSemaphoreTake(self.gesture_count_semaphore, 100);
-	self.hold_count = 0;
-	self.wave_count = 0;
-	xSemaphoreGive(self.gesture_count_semaphore);
+	if(xSemaphoreTake(self.gesture_count_semaphore, 100) == pdTRUE)
+	{
+		self.hold_count = 0;
+		self.wave_count = 0;
+		xSemaphoreGive(self.gesture_count_semaphore);
+	}
 }
