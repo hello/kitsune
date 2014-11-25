@@ -493,7 +493,7 @@ static bool flush_out_buffer(ostream_buffered_desc_t * desc ) {
 
 		//send
         if( send_chunk_len( buf_size) != 0 ) {
-        	return -1;
+        	return false;
         }
 		ret = send(desc->fd, desc->buf, buf_size, 0) == buf_size;
 	}
@@ -515,7 +515,7 @@ static bool write_buffered_callback_sha(pb_ostream_t *stream, const uint8_t * in
 
 		//send
         if( send_chunk_len( desc->buf_pos) != 0 ) {
-        	return -1;
+        	return false;
         }
 		ret = send(desc->fd, desc->buf, desc->buf_pos, 0) == desc->buf_pos;
 
