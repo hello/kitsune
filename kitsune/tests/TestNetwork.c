@@ -1,6 +1,7 @@
 #include "FreeRTOS.h"
 #include "queue.h"
 #include "task.h"
+#include "semphr.h"
 
 #include "TestNetwork.h"
 #include "networktask.h"
@@ -16,6 +17,7 @@
 #include "led_cmd.h"
 
 #include "uartstdio.h"
+#include <stdint.h>
 
 /*
  *  Makes request to test server with particular test cases
@@ -59,6 +61,7 @@ static char _urlbuf[256];
 static char _recv_buf[256];
 static 	periodic_data _data;
 static char _host[128];
+static xSemaphoreHandle _waiter;
 
 typedef int32_t (*TestFunc_t)(void);
 static void RunTest(TestFunc_t test,const char * name,int32_t expected_code);
@@ -146,6 +149,115 @@ static int32_t DoSyncSendAndResponse(const char * params[],const char * values[]
 	return 0;
 }
 
+static uint32_t EncodePb(pb_ostream_t * stream, void * data) {
+	network_encode_data_t * encodedata = (network_encode_data_t *)data;
+	uint32_t ret = false;
+
+	if (encodedata && encodedata->encodedata) {
+	ret = pb_encode(stream,encodedata->fields,encodedata->encodedata);
+	}
+
+
+
+	return ret;
+}
+
+static void NetworkResponseCallback(const NetworkResponse_t * response,void * context) {
+	int32_t * pret = context;
+//	DEBUG_PRINTF("NetTask::SynchronousSendNetworkResponseCallback -- got callback");
+
+	*pret = !response->success;
+
+	xSemaphoreGive(_waiter);
+
+
+}
+
+static void MessWithWifiAfterDelay(void * data) {
+	uint16_t i;
+
+	for (i = 0; i < 200; i++) {
+		vTaskDelay(20);
+		sl_WlanDisconnect();
+	}
+
+
+}
+
+bool write_a_big_goddamned_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
+	char buf[256];
+	uint32_t i;
+	const int numbufs = 1024;
+
+	memset(buf,66,sizeof(buf));
+
+
+    //write tag
+    if (!pb_encode_tag(stream, PB_WT_STRING, field->tag)) {
+        return 0;
+    }
+
+
+    if (!pb_encode_varint(stream, (uint64_t)numbufs*sizeof(buf) + 1)) {
+          return false;
+    }
+
+    for (i = 0; i < numbufs; i++) {
+    	if (!pb_write(stream, (const uint8_t *)buf, sizeof(buf))) {
+    		return false;
+    	}
+    }
+
+    buf[0] = '\0';
+    if (!pb_write(stream, (const uint8_t *)buf, 1)) {
+    	return false;
+    }
+
+
+    return true;
+
+}
+
+static int32_t DoAsyncSendAndResponse(const char * params[],const char * values[],const int32_t len, network_prep_callback_t prepfunc) {
+	int32_t ret = -999;
+	char returnbytes[512];
+	NetworkTaskServerSendMessage_t m;
+	memset(&_data,0,sizeof(_data));
+	memset(_urlbuf,0,sizeof(_urlbuf));
+	network_encode_data_t encodedata;
+
+	_data.has_dust = 1;
+	_data.dust = 1234;
+	_data.name.funcs.encode = write_a_big_goddamned_string;
+
+	CreateUrl(_urlbuf,sizeof(_urlbuf),params,values,len);
+
+	encodedata.fields = periodic_data_fields;
+	encodedata.encodedata = &_data;
+
+	memset(&m,0,sizeof(m));
+
+	m.encode = EncodePb;
+	m.encodedata = &encodedata;
+	m.decode_buf = (uint8_t *)returnbytes;
+	m.decode_buf_size = sizeof(returnbytes);
+
+	m.endpoint = _urlbuf;
+	m.host = _host;
+	m.response_callback = NetworkResponseCallback;
+	m.prepare = prepfunc;
+	m.context = &ret;
+
+
+	NetworkTask_AddMessageToQueue(&m);
+
+	xSemaphoreTake(_waiter,portMAX_DELAY);
+
+
+	return ret;
+
+}
+
 static int32_t TestNominal(void) {
 	static const char * params[] = {TIMEOUT,RETURNCODE,MALFORMED};
 	static const char * values[] = {"0","200","0"};
@@ -191,6 +303,29 @@ static int32_t TestMalformed(void) {
 
 }
 
+static int32_t TestNoWifi(void) {
+	static const char * params[] = {TIMEOUT,RETURNCODE,MALFORMED};
+	static const char * values[] = {"0","200","0"};
+	static const int32_t len = 3;
+	int32_t val;
+	signed char name[64];
+	short namelen =64;
+	SlSecParams_t secparams;
+	unsigned char mac[6];
+	SlGetSecParamsExt_t getextsecparams;
+	SlSecParamsExt_t extparams = {0};
+	unsigned long int priority = 0;
+
+	//assumed there's only one profile -- not necessarily a great assumption here
+	sl_WlanProfileGet(0,name,&namelen,mac,&secparams,&getextsecparams,&priority);
+
+	val = DoAsyncSendAndResponse(params,values,len,MessWithWifiAfterDelay);
+
+	sl_WlanConnect(name,namelen,mac,&secparams,&extparams);
+
+	return val;
+
+}
 
 
 static void RunTest(TestFunc_t test,const char * name,int32_t expected_code) {
@@ -228,7 +363,12 @@ static void RunTest(TestFunc_t test,const char * name,int32_t expected_code) {
 
 void TestNetwork_RunTests(const char * host) {
 
+	if (!_waiter) {
+		_waiter = xSemaphoreCreateBinary();
+	}
+
 	strcpy(_host,host);
+
 	DEBUG_PRINTF("----------------------------------------------------------");
 	RUN_TEST(TestNominal,ERROR_CODE_SUCCESS);
 	DEBUG_PRINTF("----------------------------------------------------------");
@@ -239,6 +379,9 @@ void TestNetwork_RunTests(const char * host) {
 	RUN_TEST(TestMalformed,ERROR_CODE_FAILED_DECODE);
 	DEBUG_PRINTF("----------------------------------------------------------");
 	RUN_TEST(TestMinuteDelay,ERROR_CODE_FAILED_SEND);
+	DEBUG_PRINTF("----------------------------------------------------------");
+	RUN_TEST(TestNoWifi,ERROR_CODE_FAILED_SEND);
+
 
 
 
