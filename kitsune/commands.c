@@ -639,14 +639,13 @@ void thread_fast_i2c_poll(void * unused)  {
 			// For the black morpheus, we can detect 6mm distance max
 			// for white one, 9mm distance max.
 			prox = get_prox();  // now this thing is in um.
-			gesture gesture_state = gesture_input(prox);
-
 			xSemaphoreGive(i2c_smphr);
 
+			gesture gesture_state = gesture_input(prox);
 			switch(gesture_state)
 			{
 			case GESTURE_WAVE:
-				_on_wave();
+				_on_wave(light);
 				break;
 			case GESTURE_HOLD:
 				_on_hold();
@@ -906,25 +905,24 @@ void thread_sensor_poll(void* unused) {
 				data.temperature = temp_sum / temp_count;
 			}
 			
-
-			int wave_count = gesture_get_wave_count();
-			if(wave_count > 0)
-			{
-				data.has_wave_count = true;
-				data.wave_count = wave_count;
-			}
-
-			int hold_count = gesture_get_hold_count();
-			if(hold_count > 0)
-			{
-				data.has_hold_count = true;
-				data.hold_count = hold_count;
-			}
-
-			gesture_counter_reset();
-
 			xSemaphoreGive(i2c_smphr);
 		}
+
+		int wave_count = gesture_get_wave_count();
+		if(wave_count > 0)
+		{
+			data.has_wave_count = true;
+			data.wave_count = wave_count;
+		}
+
+		int hold_count = gesture_get_hold_count();
+		if(hold_count > 0)
+		{
+			data.has_hold_count = true;
+			data.hold_count = hold_count;
+		}
+
+		gesture_counter_reset();
 
 		LOGI("collecting time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d %d %d %d\twave %d\thold %d\n",
 				data.unix_time, data.light, data.light_variability, data.light_tonality, data.temperature, data.humidity,

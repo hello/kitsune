@@ -33,8 +33,9 @@ static struct{
 		int prox_slow;
 		int prox_last;
 	}fsm;
-	volatile int wave_count;
-	volatile int hold_count;
+	int wave_count;
+	int hold_count;
+	xSemaphoreHandle gesture_count_semaphore;
 }self;
 
 static bool _hasWave(void){
@@ -57,7 +58,7 @@ static int _fsm_reset(void){
 	self.fsm.prox_last =0;
 	return 0;
 }
-static gestures _fsm(int in){
+static gesture _fsm(int in){
 	gesture ret = GESTURE_NONE;
 	int exceeded = 0;
 	//computes the average of last 3 frames of energy
@@ -83,13 +84,17 @@ static gestures _fsm(int in){
 		if (!exceeded || _hasHold() ) {
 			if (_hasHold()) {
 				LOGI("Gesture: HOLD\r\n");
+				xSemaphoreTake(gesture_count_semaphore, 100);
 				self.hold_count += 1;
+				xSemaphoreGive(gesture_count_semaphore);
 				_transition_state(GFSM_HOLD);
 				ret = GESTURE_HOLD;
 			} else if (_hasWave()) {
 				if (_hasWave()) {
 					LOGI("Gesture: WAVE\r\n");
+					xSemaphoreTake(gesture_count_semaphore, 100);
 					self.wave_count += 1;
+					xSemaphoreGive(gesture_count_semaphore);
 					ret = GESTURE_WAVE;
 				}
 				_transition_state(GFSM_IDLE);
@@ -116,10 +121,11 @@ static gestures _fsm(int in){
 
 void gesture_init(){
 	_fsm_reset();
+	self.gesture_semaphore = xSemaphoreCreateMutex();
 }
 
 int disp_prox;
-gestures gesture_input(int prox){
+gesture gesture_input(int prox){
 	if( disp_prox ) {
 		LOGI( "%d %d\t", prox, self.fsm.prox_impluse );
 	}
@@ -152,6 +158,8 @@ int gesture_get_hold_count()
 
 void gesture_counter_reset()
 {
+	xSemaphoreTake(gesture_count_semaphore, 100);
 	self.hold_count = 0;
 	self.wave_count = 0;
+	xSemaphoreGive(gesture_count_semaphore);
 }

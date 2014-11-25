@@ -11,15 +11,15 @@
 extern "C" {
 #endif
 
-enum gestures
+typedef enum
 {
 	GESTURE_NONE = 0,
 	GESTURE_WAVE,
 	GESTURE_HOLD
-};
+} gesture;
 
 void gesture_init();
-gestures gesture_input(int prox);
+gesture gesture_input(int prox);
 int gesture_get_wave_count();
 int gesture_get_hold_count();
 void gesture_counter_reset();
