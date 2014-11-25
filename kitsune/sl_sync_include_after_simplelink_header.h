@@ -34,6 +34,26 @@ extern "C" {
 
 #endif
 
+#define socket(...)                              sl_Socket(__VA_ARGS__)
+#define close(...)                               sl_Close(__VA_ARGS__)
+#define accept(...)                              sl_Accept(__VA_ARGS__)
+#define bind(...)                                sl_Bind(__VA_ARGS__)
+#define listen(...)                              sl_Listen(__VA_ARGS__)
+#define connect(...)                             sl_Connect(__VA_ARGS__)
+#define select(...)                              sl_Select(__VA_ARGS__)
+#define setsockopt(...)                          sl_SetSockOpt(__VA_ARGS__)
+#define getsockopt(...)                          sl_GetSockOpt(__VA_ARGS__)
+#define recv(...)                                sl_Recv(__VA_ARGS__)
+#define recvfrom(...)                            sl_RecvFrom(__VA_ARGS__)
+#define write(...)                               sl_Write(__VA_ARGS__)
+#define send(...)                                sl_Send(__VA_ARGS__)
+#define sendto(...)                              sl_SendTo(__VA_ARGS__)
+#define gethostbyname(...)                       sl_NetAppDnsGetHostByName(__VA_ARGS__)
+#define htonl(...)                               sl_Htonl(__VA_ARGS__)
+#define ntohl(...)                               sl_Ntohl(__VA_ARGS__)
+#define htons(...)                               sl_Htons(__VA_ARGS__)
+#define ntohs(...)                               sl_Ntohs(__VA_ARGS__)
+
 #define sl_Start(...)                            SL_SYNC(sl_Start(__VA_ARGS__))
 #define sl_Stop(...)                             SL_SYNC(sl_Stop(__VA_ARGS__))
 #define sl_DevSet(...)                           SL_SYNC(sl_DevSet(__VA_ARGS__))

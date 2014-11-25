@@ -10,6 +10,7 @@
 #include "socket.h"
 #include "simplelink.h"
 #include "protocol.h"
+#include "sl_sync_include_after_simplelink_header.h"
 
 
 #include "wifi_cmd.h"
@@ -35,7 +36,6 @@ volatile unsigned int sl_status = 0;
 
 #include "sys_time.h"
 #include "kitsune_version.h"
-#include "sl_sync_include_after_simplelink_header.h"
 #include "audiocontrolhelper.h"
 
 #define FAKE_MAC 0

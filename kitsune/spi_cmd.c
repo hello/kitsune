@@ -26,6 +26,8 @@
 #include "spi_cmd.h"
 #include "uartstdio.h"
 
+#include "sl_sync_include_after_simplelink_header.h"
+
 #if 0
 #define SPI_DEBUG_PRINT
 #endif
@@ -38,17 +40,25 @@ typedef struct {
 	unsigned short addr;
 } ctx_t;
 
+static int hw_ver;
+
 #define READ 0
 #define WRITE 1
 
 #define SPI_IF_BIT_RATE  10000
 #define TR_BUFF_SIZE     100
 
+#include "hw_ver.h"
 void CS_set(int val) {
-	  MAP_GPIOPinWrite(GPIOA1_BASE,0x20,val?0x20:0);
+	switch( hw_ver ) {
+	case DVT: MAP_GPIOPinWrite(GPIOA2_BASE,0x40,val?0x40:0); break;
+	case EVT2: MAP_GPIOPinWrite(GPIOA1_BASE,0x20,val?0x20:0); break;
+	}
 }
 
 void spi_init() {
+      hw_ver = get_hw_ver();
+
 	  //
 	  // Reset SPI
 	  //

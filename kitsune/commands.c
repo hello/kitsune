@@ -78,10 +78,15 @@
 #include "kitsune_version.h"
 #include "TestNetwork.h"
 #include "sys_time.h"
+
+#include "fs.h"
 #include "sl_sync_include_after_simplelink_header.h"
 
 #include "fileuploadertask.h"
 #include "hellofilesystem.h"
+
+#include "hw_ver.h"
+#include "pinmux.h"
 
 #define ONLY_MID 0
 
@@ -89,7 +94,6 @@
 //			        FUNCTION DECLARATIONS
 //******************************************************************************
 
-extern int g_iReceiveCount;
 //******************************************************************************
 //			    GLOBAL VARIABLES
 //******************************************************************************
@@ -164,9 +168,6 @@ int Cmd_free(int argc, char *argv[]) {
 	// Return success.
 	return (0);
 }
-
-
-#include "fs.h"
 
 int Cmd_fs_write(int argc, char *argv[]) {
 	//
@@ -314,96 +315,6 @@ int Cmd_audio_turn_off(int agrc, char * agrv[]) {
 	return 0;
 
 }
-
-void Speaker1(char * file);
-unsigned char g_ucSpkrStartFlag;
-
-/*
-int play_ringtone(int vol, char * file) {
-
-	unsigned int CPU_XDATA = 0; //1: enabled CPU interrupt triggerred; 0: DMA
-
-	{ //naked block so the compiler can pop these off the stack...
-	  //check the file exists and is bug enough for a few seconds
-		FIL fp;
-		FILINFO file_info;
-		FRESULT res;
-		res = f_open(&fp, file, FA_READ);
-
-		if (res != FR_OK) {
-			LOGI("Failed to open audio file %d\n\r", res);
-			return -1;
-		}
-		f_stat(file, &file_info);
-		f_close( &fp );
-		if (file_info.fsize < 256000) {
-			LOGI("audio file too small %d\n\r", file_info.fsize );
-			return -1;
-		}
-	}
-
-//
-// Create RX and TX Buffer
-	LOGI("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
-	AudioProcessingTask_FreeBuffers();
-	LOGI("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
-	pRxBuffer = CreateCircularBuffer(RX_BUFFER_SIZE);
-	LOGI("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
-	if (pRxBuffer == NULL) {
-		LOGI("Unable to Allocate Memory for Rx Buffer\n\r");
-		return -1;
-	}
-// Configure Audio Codec
-//
-
-	get_codec_NAU(vol);
-
-// Initialize the Audio(I2S) Module
-//
-	AudioCapturerInit(CPU_XDATA, 48000);
-
-// Initialize the DMA Module
-//
-	UDMAInit();
-	UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL);
-
-//
-// Setup the DMA Mode
-//
-	SetupPingPongDMATransferRx();
-// Setup the Audio In/Out
-//
-	LOGI("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
-
-	AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
-	AudioCaptureRendererConfigure(I2S_PORT_DMA, 48000);
-
-	g_ucSpkrStartFlag = 1;
-// Start Audio Tx/Rx
-//
-	Audio_Start();
-
-// Start the Microphone Task
-//
-	Speaker1(file);
-	LOGI("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
-
-	LOGI("g_iReceiveCount %d\n\r", g_iReceiveCount);
-	close_codec_NAU();
-	LOGI("close_codec_NAU");
-	Audio_Stop();
-	McASPDeInit();
-	DestroyCircularBuffer(pRxBuffer);
-	LOGI("DestroyCircularBuffer(pRxBuffer)");
-	LOGI("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
-
-	AudioProcessingTask_AllocBuffers();
-	LOGI("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
-
-	return 0;
-
-}
-*/
 
 int Cmd_stop_buff(int argc, char *argv[]) {
 	AudioTask_StopPlayback();
@@ -1371,8 +1282,6 @@ void vUARTTask(void *pvParameters) {
 	LOGI("*");
 	Cmd_mnt(0, 0);
 	LOGI("*");
-	//INIT SPI
-	spi_init();
 	LOGI("*");
 
 	vTaskDelayUntil(&now, 1000);
@@ -1381,6 +1290,11 @@ void vUARTTask(void *pvParameters) {
 	if (sl_mode == ROLE_AP || !sl_status) {
 		//Cmd_sl(0, 0);
 	}
+	check_hw_version();
+	PinMuxConfig_hw_dep();
+	//INIT SPI
+	spi_init();
+
 	vSemaphoreCreateBinary(i2c_smphr);
 	init_time_module(512);
 
