@@ -306,7 +306,7 @@ void uart_logger_init(void){
 	self.log.text.funcs.encode = _encode_text_block;
 	self.log.device_id.funcs.encode = _encode_mac_as_device_id_string;
 	self.log.has_unix_time = true;
-	self.view_tag = LOG_INFO | LOG_WARNING | LOG_ERROR;
+	self.view_tag = LOG_INFO | LOG_WARNING | LOG_ERROR | LOG_VIEW_ONLY;
 	self.store_tag = LOG_INFO | LOG_WARNING | LOG_ERROR;
 	vSemaphoreCreateBinary(self.print_sem);
 
@@ -439,6 +439,8 @@ void uart_logf(uint8_t tag, const char *pcString, ...){
     	}else if(tag & LOG_ERROR){
     		_logstr("[ERROR]", strlen("[ERROR]"), echo, store);
     		tag &= ~LOG_ERROR;
+    	}else if(tag & LOG_VIEW_ONLY){
+    		tag &= ~LOG_VIEW_ONLY;
     	}else{
     		tag = 0;
     	}
