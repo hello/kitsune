@@ -18,6 +18,7 @@
 #include "stdlib.h"
 #include "stdio.h"
 #include "networktask.h"
+#include "wifi_cmd.h"
 #include "led_animations.h"
 #include "led_cmd.h"
 #include "top_board.h"
@@ -43,7 +44,7 @@ static void _factory_reset(){
         LOGI("Disconnect WIFI failed, error %d.\n", ret);
     }
 
-    while(wifi_staus_get(CONNECT))
+    while(wifi_status_get(CONNECT))
     {
     	LOGI("Waiting disconnect...\n");
     	vTaskDelay(1000);
@@ -129,11 +130,11 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type)
     }else{
 		uint8_t wait_time = 5;
 
-		wifi_staus_set(CONNECTING, false);
+		wifi_status_set(CONNECTING, false);
 		play_led_progress_bar(30,30,0,0,portMAX_DELAY);
-		while(--wait_time && (!wifi_staus_get(HAS_IP)))
+		while(--wait_time && (!wifi_status_get(HAS_IP)))
 		{
-            if(!wifi_staus_get(CONNECTING))  // This state will be triggered magically by SL_WLAN_CONNECTION_FAILED_EVENT event
+            if(!wifi_status_get(CONNECTING))  // This state will be triggered magically by SL_WLAN_CONNECTION_FAILED_EVENT event
             {
             	LOGI("Connection failed!\n");
                 break;
@@ -144,7 +145,7 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type)
 		}
 		stop_led_animation();
 
-		if(!wifi_staus_get(HAS_IP))
+		if(!wifi_status_get(HAS_IP))
 		{
 			// This is the magical NWP reset problem...
 			// we either get an SL_WLAN_CONNECTION_FAILED_EVENT event, or
@@ -156,17 +157,17 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type)
 			nwp_reset();
 
 			wait_time = 10;
-			while(--wait_time && (!wifi_staus_get(HAS_IP)))
+			while(--wait_time && (!wifi_status_get(HAS_IP)))
 			{
 				vTaskDelay(1000);
 			}
 
-			if(wifi_staus_get(HAS_IP))
+			if(wifi_status_get(HAS_IP))
 			{
 				LOGI("Connection success by NWP reset.");
 				led_set_color(0xFF, LED_MAX, 0x66, 0, 0, 1, 15, 0);
 			}else{
-				if(wifi_staus_get(CONNECTING))
+				if(wifi_status_get(CONNECTING))
 				{
 					ble_reply_protobuf_error(ErrorType_FAIL_TO_OBTAIN_IP);
 				}else{
@@ -242,15 +243,15 @@ static void _ble_reply_wifi_info(){
     reply_command.has_wifi_connection_state = true;
     reply_command.wifi_connection_state = wifi_connection_state_NO_WLAN_CONNECTED;
 
-    if(wifi_staus_get(CONNECTING)){
+    if(wifi_status_get(CONNECTING)){
         reply_command.wifi_connection_state = wifi_connection_state_WLAN_CONNECTING;
     }
 
-    if(wifi_staus_get(CONNECT)){
+    if(wifi_status_get(CONNECT)){
         reply_command.wifi_connection_state = wifi_connection_state_WLAN_CONNECTED;
     }
 
-    if(wifi_staus_get(HAS_IP))
+    if(wifi_status_get(HAS_IP))
     {
         reply_command.wifi_connection_state = wifi_connection_state_IP_RETRIEVED;
     }

@@ -360,7 +360,7 @@ void uart_logger_task(void * params){
 			}
 			if( evnt & LOG_EVENT_UPLOAD) {
 				xEventGroupClearBits(self.uart_log_events,LOG_EVENT_UPLOAD);
-				if(wifi_staus_get(HAS_IP)){
+				if(wifi_status_get(HAS_IP)){
 					WORD read;
 					FRESULT res;
 					self.log.has_unix_time = false;
@@ -389,7 +389,7 @@ void uart_logger_task(void * params){
 			}
 			if(evnt & LOG_EVENT_UPLOAD_ONLY) {
 				xEventGroupClearBits(self.uart_log_events,LOG_EVENT_UPLOAD_ONLY);
-				if(wifi_staus_get(HAS_IP)){
+				if(wifi_status_get(HAS_IP)){
 					self.log.has_unix_time = false;
 					NetworkTask_SynchronousSendProtobuf(DATA_SERVER, SENSE_LOG_ENDPOINT,buffer,sizeof(buffer),sense_log_fields,&self.log,0);
 				}

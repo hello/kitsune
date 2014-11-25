@@ -593,18 +593,18 @@ static void _on_wave(int light){
 
 	uint8_t alpha = 0xFF * adjust / 80;
 
-	if(wifi_staus_get(UPLOADING)) {
+	if(wifi_status_get(UPLOADING)) {
 		uint8_t rgb[3] = { LED_MAX };
 		led_get_user_color(&rgb[0], &rgb[1], &rgb[2]);
 		led_set_color(alpha, rgb[0], rgb[1], rgb[2], 1, 1, 18, 0);
 	}
-	else if(wifi_staus_get(HAS_IP)) {
+	else if(wifi_status_get(HAS_IP)) {
 		led_set_color(alpha, LED_MAX, 0, 0, 1, 1, 18, 1); //blue
 	}
-	else if(wifi_staus_get(CONNECTING)) {
+	else if(wifi_status_get(CONNECTING)) {
 		led_set_color(alpha, LED_MAX,LED_MAX,0, 1, 1, 18, 1); //yellow
 	}
-	else if(wifi_staus_get(SCANNING)) {
+	else if(wifi_status_get(SCANNING)) {
 		led_set_color(alpha, LED_MAX,0,0, 1, 1, 18, 1 ); //red
 	} else {
 		led_set_color(alpha, LED_MAX, LED_MAX, LED_MAX, 1, 1, 18, 1 ); //white
@@ -760,7 +760,7 @@ void thread_tx(void* unused) {
 			}
 			vPortFree( pilldata.pills );
 		}
-		while (!wifi_staus_get(HAS_IP)) {
+		while (!wifi_status_get(HAS_IP)) {
 			vTaskDelay(1000);
 		}
 	}
@@ -1399,7 +1399,7 @@ void vUARTTask(void *pvParameters) {
 	vTaskDelayUntil(&now, 1000);
 	LOGI("*");
 
-	if (sl_mode == ROLE_AP || !wifi_staus_get(0xFFFFFFFF)) {
+	if (sl_mode == ROLE_AP || !wifi_status_get(0xFFFFFFFF)) {
 		//Cmd_sl(0, 0);
 	}
 	vSemaphoreCreateBinary(i2c_smphr);
