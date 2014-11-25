@@ -35,7 +35,6 @@ static struct{
 	}fsm;
 	volatile int wave_count;
 	volatile int hold_count;
-	gesture_callbacks_t user;
 }self;
 
 static bool _hasWave(void){
@@ -58,7 +57,8 @@ static int _fsm_reset(void){
 	self.fsm.prox_last =0;
 	return 0;
 }
-static int _fsm(int in){
+static gestures _fsm(int in){
+	gesture ret = GESTURE_NONE;
 	int exceeded = 0;
 	//computes the average of last 3 frames of energy
 	//LOGI("%d\r\n", in);
@@ -84,17 +84,13 @@ static int _fsm(int in){
 			if (_hasHold()) {
 				LOGI("Gesture: HOLD\r\n");
 				self.hold_count += 1;
-				if (self.user.on_hold) {
-					self.user.on_hold(self.user.ctx);
-				}
 				_transition_state(GFSM_HOLD);
+				ret = GESTURE_HOLD;
 			} else if (_hasWave()) {
 				if (_hasWave()) {
 					LOGI("Gesture: WAVE\r\n");
 					self.wave_count += 1;
-					if (self.user.on_wave) {
-						self.user.on_wave(self.user.ctx);
-					}
+					ret = GESTURE_WAVE;
 				}
 				_transition_state(GFSM_IDLE);
 				LOGI("\r\n");
@@ -115,21 +111,20 @@ static int _fsm(int in){
 	} else {
 		self.fsm.exceed_thresh_count = 0;
 	}
-	return 0;
+	return ret;
 }
 
-void gesture_init(gesture_callbacks_t * _user){
+void gesture_init(){
 	_fsm_reset();
-	if(_user){
-		self.user = *_user;
-	}
 }
 
 int disp_prox;
-void gesture_input(int prox){
+gestures gesture_input(int prox){
 	if( disp_prox ) {
 		LOGI( "%d %d\t", prox, self.fsm.prox_impluse );
 	}
+
+	gesture result = GESTURE_NONE;
 	if (self.fsm.prox_last != 0) {
 		self.fsm.prox_slow += (prox - self.fsm.prox_slow) / 32;
 		if( (prox-self.fsm.prox_slow) > 0 ) {
@@ -137,11 +132,12 @@ void gesture_input(int prox){
 		}
 		prox -= self.fsm.prox_slow;
 		self.fsm.prox_impluse  = abs( prox );
-		_fsm(self.fsm.prox_impluse);
+		result = _fsm(self.fsm.prox_impluse);
 	} else {
 		self.fsm.prox_slow = prox;
 	}
 	self.fsm.prox_last = prox;
+	return result;
 }
 
 int gesture_get_wave_count()
