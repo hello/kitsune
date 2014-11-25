@@ -10,6 +10,8 @@
 
 #include "time.h"
 
+#include "sl_sync_include_after_simplelink_header.h"
+
 static time_t cached_time;
 static TickType_t cached_ticks;
 static bool is_time_good = false;
@@ -155,7 +157,7 @@ uint32_t fetch_unix_time_from_ntp() {
                 NTP_SERVER, SL_IPV4_BYTE(ipaddr, 3), SL_IPV4_BYTE(ipaddr, 2),
                 SL_IPV4_BYTE(ipaddr, 1), SL_IPV4_BYTE(ipaddr, 0));
     } else {
-        LOGI("failed to resolve ntp addr rv %d\n", rv);
+    	LOGI("failed to resolve ntp addr rv %d\n", rv);
         close(sock);
         return INVALID_SYS_TIME;
     }
@@ -198,8 +200,7 @@ uint32_t fetch_unix_time_from_ntp() {
 
     LOGI("receiving reply\n\r\n\r");
 
-    rv = recvfrom(sock, buffer, sizeof(buffer), 0, (SlSockAddr_t *) &sLocalAddr,
-            (SlSocklen_t*) &iAddrSize);
+    rv = recvfrom(sock, buffer, sizeof(buffer), 0, (SlSockAddr_t *) &sLocalAddr,  (SlSocklen_t*) &iAddrSize);
     if (rv <= 0) {
         LOGI("Did not receive\n\r");
         close(sock);
@@ -209,7 +210,7 @@ uint32_t fetch_unix_time_from_ntp() {
     //
     // Confirm that the MODE is 4 --> server
     if ((buffer[0] & 0x7) != 4)    // expect only server response
-            {
+    {
         LOGI("Expecting response from Server Only!\n\r");
         close(sock);
         return INVALID_SYS_TIME;    // MODE is not server, abort
@@ -228,9 +229,8 @@ uint32_t fetch_unix_time_from_ntp() {
         ntp += buffer[43];
 
         ntp -= 2208988800UL;
-
-        close(sock);
     }
+    close(sock);
     return ntp;
 }
 
@@ -252,18 +252,18 @@ static void time_task( void * params ) { //exists to get the time going and cach
 			uint32_t ntp_time = fetch_unix_time_from_ntp();
 			if (ntp_time != INVALID_SYS_TIME) {
 				if (set_unix_time(ntp_time) != INVALID_SYS_TIME) {
-					if (xSemaphoreTake(time_smphr, portMAX_DELAY)) {
+					if (xSemaphoreTake(time_smphr, 0)) {
 						is_time_good = true;
 						set_cached_time( ntp_time );
 						set_sl_time( get_cached_time() );
 						xSemaphoreGive(time_smphr);
+						have_set_time = true;
 					}
-					have_set_time = true;
 				}
 			}
 		}
 
-		if (xSemaphoreTake(time_smphr, portMAX_DELAY)) {
+		if (xSemaphoreTake(time_smphr, 0)) {
 			if( !is_time_good || xTaskGetTickCount() - cached_ticks > 30000 ) {
 				set_cached_time(get_unix_time());
 				set_sl_time( get_cached_time() );
@@ -283,9 +283,11 @@ void wait_for_time() { //todo make event based, maybe use semaphore
 bool has_good_time() {
 	bool good = false;
 	if (time_smphr) {
-		if (xSemaphoreTake(time_smphr, portMAX_DELAY)) {
+		if (xSemaphoreTake(time_smphr, 0)) {
 			good = is_time_good;
 			xSemaphoreGive(time_smphr);
+		} else {
+			good = false;
 		}
 	}
 	return good;
@@ -294,7 +296,7 @@ bool has_good_time() {
 time_t get_time() { //all accesses go to cache...
 	time_t t = INVALID_SYS_TIME;
 	if (time_smphr) {
-		if (cached_time != INVALID_SYS_TIME && xSemaphoreTake(time_smphr, portMAX_DELAY)) {
+		if (cached_time != INVALID_SYS_TIME && xSemaphoreTake(time_smphr, 0)) {
 			t = get_cached_time();
 			xSemaphoreGive(time_smphr);
 		}
