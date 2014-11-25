@@ -13,7 +13,7 @@ int hw_ver = EVT2;
 #define minval(a,b) a < b ? a : b;
 
 static int check_ver_string(char *str, char *buf, int len) {
-	return len > strlen(str) && 0 == strncmp(buf, str, strlen(str));
+	return len >= strlen(str) && 0 == strncmp(buf, str, strlen(str));
 }
 
 void check_hw_version() {

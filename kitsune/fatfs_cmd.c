@@ -762,6 +762,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
     LOGI("Start downloading the file\r\n");
 
     g_buff = (unsigned char*)pvPortMalloc( MAX_BUFF_SIZE );
+    assert(g_buff);
     memset(g_buff, 0, MAX_BUFF_SIZE);
 
     // Puts together the HTTP GET string.
@@ -810,14 +811,13 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
     pBuff = (unsigned char *)strstr((const char *)g_buff, HTTP_CONTENT_LENGTH);
     if(pBuff != 0)
     {
-		#if 0
     	char *p = (char*)pBuff;
 		p += strlen(HTTP_CONTENT_LENGTH)+1;
 		recv_size = atoi(p);
-		#else
-        // not supported
-        return(-1);
-		#endif
+
+		if(recv_size <= 0) {
+			return -1;
+		}
     }
 
     // Check if data is chunked
