@@ -2,7 +2,9 @@
 #define __SYSTEM_TIME_H__
 
 #include <stdint.h>
+#include <stdbool.h>
 
+#include "time.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -10,12 +12,16 @@ extern "C" {
 
 #define INVALID_SYS_TIME	(0xFFFFFFFF)
 
-int time_module_initialized();
-int init_time_module();
+void init_time_module( int stack );
 
-uint32_t set_nwp_time(uint32_t unix_timestamp_sec);
-uint32_t get_nwp_time();
-uint32_t fetch_time_from_ntp_server();
+void wait_for_time();
+bool has_good_time();
+time_t get_time();
+void set_time( time_t t);
+
+
+uint32_t fetch_unix_time_from_ntp(); //DO NOT CALL THIS ONE EXCEPT IN TESTS
+
 
 #ifdef __cplusplus
 }

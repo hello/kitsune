@@ -14,11 +14,11 @@ extern "C" {
 //keep this large to reduce HTTP request printing overheads
 #define UART_LOGGER_BLOCK_SIZE 1280
 
-//needs to be sufficiently large to hold buffer for tx
-#define UART_LOGGER_THREAD_STACK_SIZE	(UART_LOGGER_BLOCK_SIZE + UART_LOGGER_RESERVED_SIZE + 1028)
-
 //for reserved txbuf in the task for protobuf object
 #define UART_LOGGER_RESERVED_SIZE 128
+
+//needs to be sufficiently large to hold buffer for tx 2432
+#define UART_LOGGER_THREAD_STACK_SIZE	(UART_LOGGER_BLOCK_SIZE + UART_LOGGER_RESERVED_SIZE + 1028)
 
 //if you want to prepend a tag when calling LOGX() functions with TAGGED MODE
 #define UART_LOGGER_PREPEND_TAG 0
