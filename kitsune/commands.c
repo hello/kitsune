@@ -1434,7 +1434,7 @@ void vUARTTask(void *pvParameters) {
 	LOGI("*");
 #if !ONLY_MID
 
-	xTaskCreate(AudioTask_Thread,"audioTask",3*1024/4,NULL,4,NULL);
+	xTaskCreate(AudioTask_Thread,"audioTask",4*1024/4,NULL,4,NULL);
 	LOGI("*");
 	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,1,NULL);
 	LOGI("*");

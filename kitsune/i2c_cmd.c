@@ -490,7 +490,7 @@ cmd_init[0] = 0x6e ; cmd_init[1] = 0x40 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 
 cmd_init[0] = 0x70 ; cmd_init[1] = 0x40 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // MONO Mixer Control
 cmd_init[0] = 0x72 ; cmd_init[1] = 0x40 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec);
 cmd_init[0] = 0x74 ; cmd_init[1] = 0x00 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // Power Management 4
-cmd_init[0] = 0x78 ; cmd_init[1] = 0x8C ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec);// 8C : high Z // ADCOUTDrive
+cmd_init[0] = 0x78 ; cmd_init[1] = 0x88 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec);// 8C : high Z // ADCOUTDrive
 	//LOGI(" Mic codec is testing \n\r");
 
 	return SUCCESS;
