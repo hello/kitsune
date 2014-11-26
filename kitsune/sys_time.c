@@ -252,7 +252,7 @@ static void time_task( void * params ) { //exists to get the time going and cach
 			uint32_t ntp_time = fetch_unix_time_from_ntp();
 			if (ntp_time != INVALID_SYS_TIME) {
 				if (set_unix_time(ntp_time) != INVALID_SYS_TIME) {
-					if (xSemaphoreTake(time_smphr, 0)) {
+					if (xSemaphoreTake(time_smphr, portMAX_DELAY)) {
 						is_time_good = true;
 						set_cached_time( ntp_time );
 						set_sl_time( get_cached_time() );
