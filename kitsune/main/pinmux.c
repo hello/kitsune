@@ -135,8 +135,6 @@ void PinMuxConfig_hw_dep() {
 		MAP_PinTypeI2C(PIN_02, PIN_MODE_1);
 		break;
 	}
-	//drive high by default
-    MAP_GPIOPinWrite(GPIOA3_BASE, 0x2, 0x2);
 }
 
 void
@@ -287,4 +285,6 @@ PinMuxConfig(void)
 	//
 	MAP_PinTypeGPIO(PIN_21, PIN_MODE_0, false);
 	MAP_GPIODirModeSet(GPIOA3_BASE, 0x2, GPIO_DIR_MODE_OUT);
+	//drive high by default
+    MAP_GPIOPinWrite(GPIOA3_BASE, 0x2, 0x2);
 }
