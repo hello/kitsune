@@ -1221,17 +1221,6 @@ void vUARTTask(void *pvParameters) {
 	sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
 	UARTprintf("*");
 
-	// SDCARD INITIALIZATION
-	// Enable MMCHS, Reset MMCHS, Configure MMCHS, Configure card clock, mount
-	hello_fs_init(); //sets up thread safety for accessing the file system
-	MAP_PRCMPeripheralClkEnable(PRCM_SDHOST, PRCM_RUN_MODE_CLK);
-	MAP_PRCMPeripheralReset(PRCM_SDHOST);
-	MAP_SDHostInit(SDHOST_BASE);
-	MAP_SDHostSetExpClk(SDHOST_BASE, MAP_PRCMPeripheralClockGet(PRCM_SDHOST),
-			1000000);
-	UARTprintf("*");
-	Cmd_mnt(0, 0);
-
 	vTaskDelayUntil(&now, 1000);
 	UARTprintf("*");
 
@@ -1241,6 +1230,18 @@ void vUARTTask(void *pvParameters) {
 
 	check_hw_version();
 	PinMuxConfig_hw_dep();
+
+	// SDCARD INITIALIZATION
+	// Enable MMCHS, Reset MMCHS, Configure MMCHS, Configure card clock, mount
+	hello_fs_init(); //sets up thread safety for accessing the file system
+	MAP_PRCMPeripheralClkEnable(PRCM_SDHOST, PRCM_RUN_MODE_CLK);
+	MAP_PRCMPeripheralReset(PRCM_SDHOST);
+	MAP_SDHostInit(SDHOST_BASE);
+	MAP_SDHostSetExpClk(SDHOST_BASE, MAP_PRCMPeripheralClockGet(PRCM_SDHOST),
+			get_hw_ver()==EVT2?1000000:24000000);
+	UARTprintf("*");
+	Cmd_mnt(0, 0);
+
 	vTaskDelay(100);
 	//INIT SPI
 	spi_init();
