@@ -667,58 +667,6 @@ __attribute__(( weak )) void vPortSetupTimerInterrupt( void )
 
 	void vPortValidateInterruptPriority( void )
 	{
-	uint32_t ulCurrentInterrupt;
-	uint8_t ucCurrentPriority;
-
-		/* Obtain the number of the currently executing interrupt. */
-		__asm volatile( "mrs %0, ipsr" : "=r"( ulCurrentInterrupt ) );
-
-		/* Is the interrupt number a user defined interrupt? */
-		if( ulCurrentInterrupt >= portFIRST_USER_INTERRUPT_NUMBER )
-		{
-			/* Look up the interrupt's priority. */
-			ucCurrentPriority = pcInterruptPriorityRegisters[ ulCurrentInterrupt ];
-
-			/* The following assertion will fail if a service routine (ISR) for
-			an interrupt that has been assigned a priority above
-			configMAX_SYSCALL_INTERRUPT_PRIORITY calls an ISR safe FreeRTOS API
-			function.  ISR safe FreeRTOS API functions must *only* be called
-			from interrupts that have been assigned a priority at or below
-			configMAX_SYSCALL_INTERRUPT_PRIORITY.
-
-			Numerically low interrupt priority numbers represent logically high
-			interrupt priorities, therefore the priority of the interrupt must
-			be set to a value equal to or numerically *higher* than
-			configMAX_SYSCALL_INTERRUPT_PRIORITY.
-
-			Interrupts that	use the FreeRTOS API must not be left at their
-			default priority of	zero as that is the highest possible priority,
-			which is guaranteed to be above configMAX_SYSCALL_INTERRUPT_PRIORITY,
-			and	therefore also guaranteed to be invalid.
-
-			FreeRTOS maintains separate thread and ISR API functions to ensure
-			interrupt entry is as fast and simple as possible.
-
-			The following links provide detailed information:
-			http://www.freertos.org/RTOS-Cortex-M3-M4.html
-			http://www.freertos.org/FAQHelp.html */
-			configASSERT( ucCurrentPriority >= ucMaxSysCallPriority );
-		}
-
-		/* Priority grouping:  The interrupt controller (NVIC) allows the bits
-		that define each interrupt's priority to be split between bits that
-		define the interrupt's pre-emption priority bits and bits that define
-		the interrupt's sub-priority.  For simplicity all bits must be defined
-		to be pre-emption priority bits.  The following assertion will fail if
-		this is not the case (if some bits represent a sub-priority).
-
-		If the application only uses CMSIS libraries for interrupt
-		configuration then the correct setting can be achieved on all Cortex-M
-		devices by calling NVIC_SetPriorityGrouping( 0 ); before starting the
-		scheduler.  Note however that some vendor specific peripheral libraries
-		assume a non-zero priority group setting, in which cases using a value
-		of zero will result in unpredicable behaviour. */
-		configASSERT( ( portAIRCR_REG & portPRIORITY_GROUP_MASK ) <= ulMaxPRIGROUPValue );
 	}
 
 #endif /* configASSERT_DEFINED */

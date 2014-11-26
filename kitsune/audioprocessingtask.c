@@ -8,6 +8,7 @@
 #include "audioclassifier.h"
 #include "networktask.h"
 #include "wifi_cmd.h"
+#include "sys_time.h"
 
 #define INBOX_QUEUE_LENGTH (6)
 static xQueueHandle _queue = NULL;
@@ -84,7 +85,7 @@ static void Setup(void) {
 		AudioClassifier_SetStorageBuffers(_longTermStorageBuffer,DESIRED_BUFFER_SIZE_IN_BYTES);
 	}
 	else {
-		UARTprintf("Could not allocate %d bytes for audio feature storage\r\n",DESIRED_BUFFER_SIZE_IN_BYTES);
+		LOGI("Could not allocate %d bytes for audio feature storage\r\n",DESIRED_BUFFER_SIZE_IN_BYTES);
 	}
 
 }
@@ -122,8 +123,8 @@ void AudioProcessingTask_SetControl(EAudioProcessingCommand_t cmd,NotificationCa
 	}
 }
 
-static void NetworkResponseFunc(const NetworkResponse_t * response) {
-	UARTprintf("AUDIO RESPONSE:\r\n%s",_decodebuf);
+static void NetworkResponseFunc(const NetworkResponse_t * response,void * context) {
+	LOGI("AUDIO RESPONSE:\r\n%s",_decodebuf);
 
 	if (response->success) {
     	xSemaphoreTake(_mutex,portMAX_DELAY);
@@ -133,6 +134,12 @@ static void NetworkResponseFunc(const NetworkResponse_t * response) {
 }
 
 static void SetUpUpload(void) {
+	if(!has_good_time())
+	{
+		// This function requires a valid time
+		return;
+	}
+
 	NetworkTaskServerSendMessage_t message;
 	memset(&message,0,sizeof(message));
 	memset(_decodebuf,0,sizeof(_decodebuf));
@@ -150,7 +157,7 @@ static void SetUpUpload(void) {
 	message.encode = AudioClassifier_EncodeAudioFeatures;
 
 	get_mac(_deviceCurrentInfo.mac);
-	_deviceCurrentInfo.unix_time = unix_time();
+	_deviceCurrentInfo.unix_time = get_time();
 
 	message.encodedata = (void *) &_deviceCurrentInfo;
 
@@ -187,7 +194,7 @@ void AudioProcessingTask_Thread(void * data) {
 
     		default:
     		{
-    			UARTprintf("AudioProcessingTask_Thread -- unrecognized command\r\n");
+    			LOGI("AudioProcessingTask_Thread -- unrecognized command\r\n");
     			break;
     		}
     		}
@@ -214,7 +221,7 @@ void AudioProcessingTask_Thread(void * data) {
     	}
 
     	default: {
-    		UARTprintf("AudioProcessingTask_Thread -- unrecognized message type\r\n");
+    		LOGI("AudioProcessingTask_Thread -- unrecognized message type\r\n");
     		break;
     	}
     	}

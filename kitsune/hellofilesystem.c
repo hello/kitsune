@@ -10,7 +10,7 @@ static xSemaphoreHandle _mutex = 0;
 #define UNLOCK()\
 	xSemaphoreGive(_mutex);
 
-void hell_fs_init(void) {
+void hello_fs_init(void) {
 	if (!_mutex) {
 		_mutex = xSemaphoreCreateMutex();
 	}

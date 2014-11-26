@@ -60,8 +60,9 @@
 MEMORY
 {
     /* Application uses internal RAM for program and data */
-    SRAM (RWX) : origin = 0x20004000, length = 0x0003B400 /* 3k up to 3C000 at end is used by boot loader for data, we could reclaim it in another section */
-    SRAM_DATA (RWX) : origin = 0x20000000, length = 0x3FFF
+    SRAM_DATA (RW) : origin = 0x20000000, length = 0x3FFF
+    SRAM (RWX) : origin = 0x20004000, length = 0x23FFF
+    SRAM_HEAP (RW) : origin = 0x20028000, length = 0x17FFF
 }
 
 /* Section allocation in memory */
@@ -75,7 +76,7 @@ SECTIONS
     .pinit  :   > SRAM
     .init_array : > SRAM
     .vtable :   > SRAM
-    .data   :   > SRAM
+    .data   :   > SRAM_HEAP
     .bss    :   > SRAM_DATA
     .sysmem :   > SRAM
     .stack  :   > SRAM

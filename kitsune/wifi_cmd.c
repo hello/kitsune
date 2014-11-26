@@ -10,6 +10,7 @@
 #include "socket.h"
 #include "simplelink.h"
 #include "protocol.h"
+#include "sl_sync_include_after_simplelink_header.h"
 
 
 #include "wifi_cmd.h"
@@ -19,7 +20,6 @@
 
 int sl_mode = ROLE_INVALID;
 
-unsigned int sl_status = 0;
 
 #include "rom_map.h"
 #include "prcm.h"
@@ -33,12 +33,22 @@ unsigned int sl_status = 0;
 #include "FreeRTOS.h"
 #include "task.h"
 
+#include "sys_time.h"
 #include "kitsune_version.h"
+#include "audiocontrolhelper.h"
 
 #define FAKE_MAC 0
 
+#include "rom_map.h"
+#include "rom.h"
+#include "interrupt.h"
+#include "uart_logger.h"
+
 void mcu_reset()
 {
+	//TODO make flush work on reset...
+	//MAP_IntMasterDisable();
+	//uart_logger_flush();
 #define SLOW_CLK_FREQ           (32*1024)
     //
     // Configure the HIB module RTC wake time
@@ -58,10 +68,10 @@ void mcu_reset()
 }
 
 #define SL_STOP_TIMEOUT                 (30)
-_i16 nwp_reset() {
+long nwp_reset() {
     sl_WlanSetMode(ROLE_STA);
     sl_Stop(SL_STOP_TIMEOUT);
-    sl_status = 0;
+    wifi_status_set(0xFFFFFFFF, true);
     return sl_Start(NULL, NULL, NULL);
 }
 
@@ -125,21 +135,21 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
          *  if (pWlanEventHandler->EventData.smartConfigStartResponse.private_token_len)
          *    then the private token is populated: pWlanEventHandler->EventData.smartConfigStartResponse.private_token
          */
-        UARTprintf("SL_WLAN_SMART_CONFIG_START_EVENT\n");
+        LOGI("SL_WLAN_SMART_CONFIG_START_EVENT\n");
         break;
 #endif
     case SL_WLAN_SMART_CONFIG_STOP_EVENT:
-        UARTprintf("SL_WLAN_SMART_CONFIG_STOP_EVENT\n");
+        LOGI("SL_WLAN_SMART_CONFIG_STOP_EVENT\n");
         break;
     case SL_WLAN_CONNECT_EVENT:
     {
-        UARTprintf("SL_WLAN_CONNECT_EVENT\n");
-        sl_status |= CONNECT;
-        sl_status &= ~CONNECTING;
+        LOGI("SL_WLAN_CONNECT_EVENT\n");
+        wifi_status_set(CONNECT, false);
+        wifi_status_set(CONNECTING, true);
         char* pSSID = (char*)pSlWlanEvent->EventData.STAandP2PModeWlanConnected.ssid_name;
         uint8_t ssidLength = pSlWlanEvent->EventData.STAandP2PModeWlanConnected.ssid_len;
         if (ssidLength > MAX_SSID_LEN) {
-        	UARTprintf("ssid tooo long\n");
+        	LOGI("ssid tooo long\n");
 		}else{
 			memset(_connected_ssid, 0, MAX_SSID_LEN);
 			memcpy(_connected_ssid, pSSID, ssidLength);
@@ -149,14 +159,14 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
     case SL_WLAN_CONNECTION_FAILED_EVENT:  // ahhhhh this thing blocks us for 2 weeks...
     {
     	// This is a P2P event, but it fired here magically.
-        UARTprintf("SL_WLAN_CONNECTION_FAILED_EVENT\n");
-        sl_status &= ~CONNECTING;
+        LOGI("SL_WLAN_CONNECTION_FAILED_EVENT\n");
+        wifi_status_set(CONNECTING, true);
     }
     break;
     case SL_WLAN_DISCONNECT_EVENT:
-        UARTprintf("SL_WLAN_DISCONNECT_EVENT\n");
-        sl_status &= ~CONNECT;
-        sl_status &= ~HAS_IP;
+        LOGI("SL_WLAN_DISCONNECT_EVENT\n");
+        wifi_status_set(CONNECT, true);
+        wifi_status_set(HAS_IP, true);
         memset(_connected_ssid, 0, MAX_SSID_LEN);
         break;
     default:
@@ -180,19 +190,19 @@ void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent) {
     switch (pNetAppEvent->Event) {
 	case SL_NETAPP_IPV4_IPACQUIRED_EVENT:
 	case SL_NETAPP_IPV6_IPACQUIRED_EVENT:
-		UARTprintf("SL_NETAPP_IPV4_ACQUIRED\n\r");
+		LOGI("SL_NETAPP_IPV4_ACQUIRED\n\r");
 		{
 			int seed = (unsigned) PRCMSlowClkCtrGet();
-			UARTprintf("seeding %d\r\n", seed);
+			LOGI("seeding %d\r\n", seed);
 			srand(seed); //seed with low bits of lf clock when connecting(not sure when it happens, gives some more entropy).
 		}
 
-		sl_status |= HAS_IP;
+		wifi_status_set(HAS_IP, false);
 
 		break;
 
 	case SL_NETAPP_IP_LEASED_EVENT:
-		sl_status |= IP_LEASED;
+		wifi_status_set(IP_LEASED, false);
         break;
     default:
         break;
@@ -215,7 +225,7 @@ void antsel(unsigned char a)
 
 int Cmd_antsel(int argc, char *argv[]) {
     if (argc != 2) {
-        UARTprintf( "usage: antsel <1=IFA or 2=chip>\n\r");
+        LOGI( "usage: antsel <1=IFA or 2=chip>\n\r");
         return -1;
     }
     antsel( *argv[1] ==  '1' ? 1 : 2 );
@@ -228,16 +238,16 @@ void wifi_reset()
     int16_t ret = sl_WlanProfileDel(0xFF);
     if(ret)
     {
-        UARTprintf("Delete all stored endpoint failed, error %d.\n", ret);
+        LOGI("Delete all stored endpoint failed, error %d.\n", ret);
     }else{
-        UARTprintf("All stored WIFI EP removed.\n");
+        LOGI("All stored WIFI EP removed.\n");
     }
 
     ret = sl_WlanDisconnect();
     if(ret == 0){
-        UARTprintf("WIFI disconnected");
+        LOGI("WIFI disconnected");
     }else{
-        UARTprintf("Disconnect WIFI failed, error %d.\n", ret);
+        LOGI("Disconnect WIFI failed, error %d.\n", ret);
     }
 }
 
@@ -250,7 +260,7 @@ int Cmd_connect(int argc, char *argv[]) {
     SlSecParams_t secParams;
 
     if (argc != 4) {
-        UARTprintf(
+        LOGI(
                 "usage: connect <ssid> <key> <security: 0=open, 1=wep, 2=wpa>\n\r");
     }
 
@@ -276,23 +286,23 @@ int Cmd_status(int argc, char *argv[]) {
     //
     // Send the information
     //
-    UARTprintf("%x ip 0x%x submask 0x%x gateway 0x%x dns 0x%x\n\r", sl_status,
+    LOGI("%x ip 0x%x submask 0x%x gateway 0x%x dns 0x%x\n\r", wifi_status_get(0xFFFFFFFF),
             ipv4.ipV4, ipv4.ipV4Mask, ipv4.ipV4Gateway, ipv4.ipV4DnsServer);
     return 0;
 }
 
 // callback routine
-void pingRes(SlPingReport_t* pUARTprintf) {
+void pingRes(SlPingReport_t* pLOGI) {
     // handle ping results
-    UARTprintf(
+    LOGI(
             "Ping tx:%d rx:%d min time:%d max time:%d avg time:%d test time:%d\n",
-            pUARTprintf->PacketsSent, pUARTprintf->PacketsReceived,
-            pUARTprintf->MinRoundTime, pUARTprintf->MaxRoundTime, pUARTprintf->AvgRoundTime,
-            pUARTprintf->TestTime);
+            pLOGI->PacketsSent, pLOGI->PacketsReceived,
+            pLOGI->MinRoundTime, pLOGI->MaxRoundTime, pLOGI->AvgRoundTime,
+            pLOGI->TestTime);
 }
 
 int Cmd_ping(int argc, char *argv[]) {
-    static SlPingReport_t UARTprintf;
+    static SlPingReport_t report;
     SlPingStartCommand_t pingCommand;
 
     pingCommand.Ip = SL_IPV4_VAL(192, 3, 116, 75); // destination IP address is my router's IP
@@ -300,133 +310,17 @@ int Cmd_ping(int argc, char *argv[]) {
     pingCommand.PingIntervalTime = 100;   // delay between pings, in miliseconds
     pingCommand.PingRequestTimeout = 1000; // timeout for every ping in miliseconds
     pingCommand.TotalNumberOfAttempts = 3; // max number of ping requests. 0 - forever
-    pingCommand.Flags = 1;                        // UARTprintf after each ping
+    pingCommand.Flags = 1;                        // LOGI after each ping
 
-    sl_NetAppPingStart(&pingCommand, SL_AF_INET, &UARTprintf, pingRes);
+    sl_NetAppPingStart(&pingCommand, SL_AF_INET, &report, pingRes);
     return (0);
 }
 
-unsigned long unix_time() {
-    char buffer[48];
-    int rv = 0;
-    SlSockAddr_t sAddr;
-    SlSockAddrIn_t sLocalAddr;
-    int iAddrSize;
-    unsigned long long ntp;
-    unsigned long ipaddr;
-    int sock;
-
-    SlTimeval_t tv;
-
-    sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    tv.tv_sec = 2;             // Seconds
-    tv.tv_usec = 0;             // Microseconds. 10000 microseconds resolution
-    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)); // Enable receive timeout
-
-    if (sock < 0) {
-        UARTprintf("Socket create failed\n\r");
-        return 0;
-    }
-    UARTprintf("Socket created\n\r");
-
-//
-    // Send a query ? to the NTP server to get the NTP time
-    //
-    memset(buffer, 0, sizeof(buffer));
-
-#define NTP_SERVER "pool.ntp.org"
-    if (!(rv = gethostbyname(NTP_SERVER, strlen(NTP_SERVER), &ipaddr, AF_INET))) {
-        UARTprintf(
-                "Get Host IP succeeded.\n\rHost: %s IP: %d.%d.%d.%d \n\r\n\r",
-                NTP_SERVER, SL_IPV4_BYTE(ipaddr, 3), SL_IPV4_BYTE(ipaddr, 2),
-                SL_IPV4_BYTE(ipaddr, 1), SL_IPV4_BYTE(ipaddr, 0));
-    } else {
-        UARTprintf("failed to resolve ntp addr rv %d\n", rv);
-        close(sock);
-        return 0;
-    }
-
-    sAddr.sa_family = AF_INET;
-    // the source port
-    sAddr.sa_data[0] = 0x00;
-    sAddr.sa_data[1] = 0x7B;    // UDP port number for NTP is 123
-    sAddr.sa_data[2] = (char) ((ipaddr >> 24) & 0xff);
-    sAddr.sa_data[3] = (char) ((ipaddr >> 16) & 0xff);
-    sAddr.sa_data[4] = (char) ((ipaddr >> 8) & 0xff);
-    sAddr.sa_data[5] = (char) (ipaddr & 0xff);
-
-    buffer[0] = 0b11100011;   // LI, Version, Mode
-    buffer[1] = 0;     // Stratum, or type of clock
-    buffer[2] = 6;     // Polling Interval
-    buffer[3] = 0xEC;  // Peer Clock Precision
-    // 8 bytes of zero for Root Delay & Root Dispersion
-    buffer[12] = 49;
-    buffer[13] = 0x4E;
-    buffer[14] = 49;
-    buffer[15] = 52;
-
-    UARTprintf("Sending request\n\r\n\r");
-    rv = sendto(sock, buffer, sizeof(buffer), 0, &sAddr, sizeof(sAddr));
-    if (rv != sizeof(buffer)) {
-        UARTprintf("Could not send SNTP request\n\r\n\r");
-        close(sock);
-        return 0;    // could not send SNTP request
-    }
-
-    //
-    // Wait to receive the NTP time from the server
-    //
-    iAddrSize = sizeof(SlSockAddrIn_t);
-    sLocalAddr.sin_family = SL_AF_INET;
-    sLocalAddr.sin_port = 0;
-    sLocalAddr.sin_addr.s_addr = 0;
-    bind(sock, (SlSockAddr_t *) &sLocalAddr, iAddrSize);
-
-    UARTprintf("receiving reply\n\r\n\r");
-
-    rv = recvfrom(sock, buffer, sizeof(buffer), 0, (SlSockAddr_t *) &sLocalAddr,
-            (SlSocklen_t*) &iAddrSize);
-    if (rv <= 0) {
-        UARTprintf("Did not receive\n\r");
-        close(sock);
-        return 0;
-    }
-
-    //
-    // Confirm that the MODE is 4 --> server
-    if ((buffer[0] & 0x7) != 4)    // expect only server response
-            {
-        UARTprintf("Expecting response from Server Only!\n\r");
-        close(sock);
-        return 0;    // MODE is not server, abort
-    } else {
-        //
-        // Getting the data from the Transmit Timestamp (seconds) field
-        // This is the time at which the reply departed the
-        // server for the client
-        //
-        ntp = buffer[40];
-        ntp <<= 8;
-        ntp += buffer[41];
-        ntp <<= 8;
-        ntp += buffer[42];
-        ntp <<= 8;
-        ntp += buffer[43];
-
-        ntp -= 2208988800UL;
-
-        close(sock);
-    }
-    return (unsigned long) ntp;
-}
-
-unsigned long get_time();
-
 int Cmd_time(int argc, char*argv[]) {
-	int unix = unix_time();
-	int t = get_time();
+	uint32_t unix = fetch_unix_time_from_ntp();
+	uint32_t t = get_time();
 
-    UARTprintf(" time is %u and the ntp is %d and the diff is %d\n", t, unix, t-unix);
+    LOGI("time is %u and the ntp is %d and the diff is %d, good time? %d\n", t, unix, t-unix, has_good_time());
 
     return 0;
 }
@@ -434,14 +328,13 @@ int Cmd_time(int argc, char*argv[]) {
 int Cmd_mode(int argc, char*argv[]) {
     int ap = 0;
     if (argc != 2) {
-        UARTprintf("mode <1=ap 0=station>\n");
+        LOGI("mode <1=ap 0=station>\n");
     }
     ap = atoi(argv[1]);
     if (ap && sl_mode != ROLE_AP) {
         //Switch to AP Mode
         sl_WlanSetMode(ROLE_AP);
-        sl_Stop(SL_STOP_TIMEOUT);
-        sl_mode = sl_Start(NULL, NULL, NULL);
+        nwp_reset();
     }
     if (!ap && sl_mode != ROLE_STA) {
         //Switch to STA Mode
@@ -464,22 +357,17 @@ int save_aes( uint8_t * key ) {
 
 	if (sl_FsOpen((unsigned char*)AES_KEY_LOC,
 	FS_MODE_OPEN_WRITE, &tok, &hndl)) {
-		UARTprintf("error opening file, trying to create\n");
+		LOGI("error opening file, trying to create\n");
 
 		if (sl_FsOpen((unsigned char*)AES_KEY_LOC,
 				FS_MODE_OPEN_CREATE(65535, _FS_FILE_OPEN_FLAG_COMMIT), &tok,
 				&hndl)) {
-			UARTprintf("error opening for write\n");
+			LOGI("error opening for write\n");
 			return -1;
 		}
 	}
 
 	bytes = sl_FsWrite(hndl, info.FileLen, key, AES_BLOCKSIZE);
-	if( bytes != AES_BLOCKSIZE ) {
-		return -1;
-	}
-	UARTprintf("wrote to the file %d bytes\n", bytes);
-
 	sl_FsClose(hndl, 0, 0, 0);
 
 	return 0;
@@ -515,8 +403,7 @@ int Cmd_set_mac(int argc, char*argv[]) {
     }
 
     sl_NetCfgSet(SL_MAC_ADDRESS_SET,1,SL_MAC_ADDR_LEN,(_u8 *)MAC_Address);
-    sl_Stop(0);
-    sl_Start(NULL,NULL,NULL);
+    nwp_reset();
 
     return 0;
 }
@@ -529,17 +416,17 @@ void load_aes() {
 	RetVal = sl_FsOpen(AES_KEY_LOC, FS_MODE_OPEN_READ, NULL,
 			&DeviceFileHandle);
 	if (RetVal != 0) {
-		UARTprintf("failed to open aes key file\n");
+		LOGI("failed to open aes key file\n");
 	}
 
 	Offset = 0;
 	RetVal = sl_FsRead(DeviceFileHandle, Offset, (unsigned char *) aes_key,
 			AES_BLOCKSIZE);
 	if (RetVal != AES_BLOCKSIZE) {
-		UARTprintf("failed to read aes key file\n");
+		LOGI("failed to read aes key file\n");
 	}
 	aes_key[AES_BLOCKSIZE] = 0;
-	UARTprintf("read key %s\n", aes_key);
+	LOGI("read key %s\n", aes_key);
 
 	RetVal = sl_FsClose(DeviceFileHandle, NULL, NULL, 0);
 }
@@ -590,11 +477,11 @@ int send_chunk_len( int obj_sz ) {
 	}
 	rv = send(sock, recv_buf, strlen(recv_buf), 0);
 	if (rv != strlen(recv_buf)) {
-		UARTprintf("Sending CE failed\n");
+		LOGI("Sending CE failed\n");
 		return -1;
 	}
 
- //   UARTprintf("HTTP chunk sent %s", recv_buf);
+ //   LOGI("HTTP chunk sent %s", recv_buf);
 	return 0;
 }
 
@@ -611,7 +498,7 @@ static bool flush_out_buffer(ostream_buffered_desc_t * desc ) {
 
 		//send
         if( send_chunk_len( buf_size) != 0 ) {
-        	return -1;
+        	return false;
         }
 		ret = send(desc->fd, desc->buf, buf_size, 0) == buf_size;
 	}
@@ -633,7 +520,7 @@ static bool write_buffered_callback_sha(pb_ostream_t *stream, const uint8_t * in
 
 		//send
         if( send_chunk_len( desc->buf_pos) != 0 ) {
-        	return -1;
+        	return false;
         }
 		ret = send(desc->fd, desc->buf, desc->buf_pos, 0) == desc->buf_pos;
 
@@ -659,7 +546,7 @@ static bool read_callback_sha(pb_istream_t *stream, uint8_t *buf, size_t count) 
     SHA1_Update(&sha1ctx, buf, count);
 
     for (i = 0; i < count; ++i) {
-        UARTprintf("%x", buf);
+        LOGI("%x", buf);
     }
 
     if (result == 0)
@@ -690,7 +577,7 @@ static unsigned long ipaddr = 0;
 
 #include "fault.h"
 
-void UARTprintfFaults() {
+void LOGIFaults() {
 #define minval( a,b ) a < b ? a : b
 #define BUF_SZ 600
     size_t message_length;
@@ -708,15 +595,15 @@ void UARTprintfFaults() {
                     "\r\n", message_length);
             memcpy(buffer + strlen(buffer), info, sizeof(faultInfo));
 
-            UARTprintf("sending faultdata\n\r\n\r");
+            LOGI("sending faultdata\n\r\n\r");
 
             send(sock, buffer, strlen(buffer), 0);
 
             recv(sock, buffer, sizeof(buffer), 0);
 
-            //UARTprintf("Reply is:\n\r\n\r");
+            //LOGI("Reply is:\n\r\n\r");
             //buffer[127] = 0; //make sure it terminates..
-            //UARTprintf("%s", buffer);
+            //LOGI("%s", buffer);
 
             info->magic = 0;
         }
@@ -752,27 +639,27 @@ int start_connection() {
                                    SL_SSL_CA_CERT_FILE_NAME, \
                                    strlen(SL_SSL_CA_CERT_FILE_NAME))  < 0  )
         {
-        UARTprintf( "error setting ssl options\r\n" );
+        LOGI( "error setting ssl options\r\n" );
         }
     }
 
     if (sock < 0) {
-        UARTprintf("Socket create failed %d\n\r", sock);
+        LOGI("Socket create failed %d\n\r", sock);
         return -1;
     }
-    UARTprintf("Socket created\n\r");
+    LOGI("Socket created\n\r");
 
 #if !LOCAL_TEST
     if (ipaddr == 0) {
         if (!(rv = gethostbyname(DATA_SERVER, strlen(DATA_SERVER), &ipaddr,
         SL_AF_INET))) {
-            /*    UARTprintf(
+            /*    LOGI(
              "Get Host IP succeeded.\n\rHost: %s IP: %d.%d.%d.%d \n\r\n\r",
              DATA_SERVER, SL_IPV4_BYTE(ipaddr, 3), SL_IPV4_BYTE(ipaddr, 2),
              SL_IPV4_BYTE(ipaddr, 1), SL_IPV4_BYTE(ipaddr, 0));
              */
         } else {
-            UARTprintf("failed to resolve ntp addr rv %d\n");
+            LOGI("failed to resolve ntp addr rv %d\n");
             return -1;
         }
     }
@@ -799,11 +686,11 @@ int start_connection() {
 #endif
 
     //connect it up
-    //UARTprintf("Connecting \n\r\n\r");
+    //LOGI("Connecting \n\r\n\r");
     if (sock > 0 && sock_begin < 0 && (rv = connect(sock, &sAddr, sizeof(sAddr)))) {
-        UARTprintf("connect returned %d\n\r\n\r", rv);
+        LOGI("connect returned %d\n\r\n\r", rv);
         if (rv != SL_ESECSNOVERIFY) {
-            UARTprintf("Could not connect %d\n\r\n\r", rv);
+            LOGI("Could not connect %d\n\r\n\r", rv);
             return stop_connection();    // could not send SNTP request
         }
     }
@@ -841,56 +728,56 @@ int send_audio_wifi(char * buffer, int buffer_size, audio_read_cb arcb) {
             "\r\n", mac[0],mac[1],mac[2],mac[3],mac[4],mac[5], message_length);
     send_length = strlen(buffer);
 
-    UARTprintf("%s\n\r\n\r", buffer);
+    LOGI("%s\n\r\n\r", buffer);
 
     //setup the connection
     if( start_connection() < 0 ) {
-        UARTprintf("failed to start connection\n\r\n\r");
+        LOGI("failed to start connection\n\r\n\r");
         return -1;
     }
 
-    //UARTprintf("Sending request\n\r%s\n\r", buffer);
+    //LOGI("Sending request\n\r%s\n\r", buffer);
     rv = send(sock, buffer, send_length, 0);
     if ( rv <= 0) {
-        UARTprintf("send error %d\n\r\n\r", rv);
+        LOGI("send error %d\n\r\n\r", rv);
         return stop_connection();
     }
-    UARTprintf("sent %d\n\r\n\r", rv);
+    LOGI("sent %d\n\r\n\r", rv);
 
     while( message_length > 0 ) {
         int buffer_sent, buffer_read;
         buffer_sent = buffer_read = arcb( buffer, buffer_size );
-        UARTprintf("read %d\n\r", buffer_read);
+        LOGI("read %d\n\r", buffer_read);
 
         while( buffer_read > 0 ) {
             send_length = minval(buffer_size, buffer_read);
-            UARTprintf("attempting to send %d\n\r", send_length );
+            LOGI("attempting to send %d\n\r", send_length );
 
             rv = send(sock, buffer, send_length, 0);
             if (rv <= 0) {
-                UARTprintf("send error %d\n\r", rv);
+                LOGI("send error %d\n\r", rv);
                 return stop_connection();
             }
-            UARTprintf("sent %d, %d left in buffer\n\r", rv, buffer_read);
+            LOGI("sent %d, %d left in buffer\n\r", rv, buffer_read);
             buffer_read -= rv;
         }
         message_length -= buffer_sent;
-        UARTprintf("sent buffer, %d left\n\r\n\r", message_length);
+        LOGI("sent buffer, %d left\n\r\n\r", message_length);
     }
 
     memset(buffer, 0, buffer_size);
 
-    //UARTprintf("Waiting for reply\n\r\n\r");
+    //LOGI("Waiting for reply\n\r\n\r");
     rv = recv(sock, buffer, buffer_size, 0);
     if (rv <= 0) {
-        UARTprintf("recv error %d\n\r\n\r", rv);
+        LOGI("recv error %d\n\r\n\r", rv);
         return stop_connection();
     }
-    UARTprintf("recv %d\n\r\n\r", rv);
+    LOGI("recv %d\n\r\n\r", rv);
 
-    //UARTprintf("Reply is:\n\r\n\r");
+    //LOGI("Reply is:\n\r\n\r");
     //buffer[127] = 0; //make sure it terminates..
-    //UARTprintf("%s", buffer);
+    //LOGI("%s", buffer);
 
 
     return 0;
@@ -919,24 +806,24 @@ int decode_rx_data_pb_callback(const uint8_t * buffer, uint32_t buffer_size, voi
 
 	//memset( aesctx.iv, 0, sizeof( aesctx.iv ) );
 
-	UARTprintf("iv ");
+	LOGI("iv ");
 	for (i = 0; i < AES_IV_SIZE; ++i) {
 		aesctx.iv[i] = *buf_pos++;
-		UARTprintf("%02x", aesctx.iv[i]);
+		LOGI("%02x", aesctx.iv[i]);
 		if (buf_pos > (buffer + buffer_size)) {
 			return -1;
 		}
 	}
-	UARTprintf("\n");
-	UARTprintf("sig");
+	LOGI("\n");
+	LOGI("sig");
 	for (i = 0; i < SIG_SIZE; ++i) {
 		sig[i] = *buf_pos++;
-		UARTprintf("%02x", sig[i]);
+		LOGI("%02x", sig[i]);
 		if (buf_pos > (buffer + buffer_size)) {
 			return -1;
 		}
 	}
-	UARTprintf("\n");
+	LOGI("\n");
 	buffer_size -= (SIG_SIZE + AES_IV_SIZE);
 
 	AES_set_key(&aesctx, aes_key, aesctx.iv, AES_MODE_128); //TODO: real key
@@ -948,15 +835,15 @@ int decode_rx_data_pb_callback(const uint8_t * buffer, uint32_t buffer_size, voi
 	//now verify sig
 	SHA1_Final(sig_test, &sha1ctx);
 	if (memcmp(sig, sig_test, SHA1_SIZE) != 0) {
-		UARTprintf("signatures do not match\n");
+		LOGI("signatures do not match\n");
 		for (i = 0; i < SHA1_SIZE; ++i) {
-			UARTprintf("%02x", sig[i]);
+			LOGI("%02x", sig[i]);
 		}
-		UARTprintf("\nvs\n");
+		LOGI("\nvs\n");
 		for (i = 0; i < SHA1_SIZE; ++i) {
-			UARTprintf("%02x", sig_test[i]);
+			LOGI("%02x", sig_test[i]);
 		}
-		UARTprintf("\n");
+		LOGI("\n");
 
 		return -1; //todo uncomment
 	}
@@ -965,13 +852,13 @@ int decode_rx_data_pb_callback(const uint8_t * buffer, uint32_t buffer_size, voi
 	stream = pb_istream_from_buffer(buf_pos, buffer_size);
 	/* Now we are ready to decode the message! */
 
-	UARTprintf("data ");
+	LOGI("data ");
 	status = decoder(&stream,decodedata);
-	UARTprintf("\n");
+	LOGI("\n");
 
 	/* Then just check for any errors.. */
 	if (!status) {
-		UARTprintf("Decoding failed: %s\n", PB_GET_ERROR(&stream));
+		LOGI("Decoding failed: %s\n", PB_GET_ERROR(&stream));
 		return -1;
 	}
 
@@ -1042,7 +929,7 @@ int match(char *regexp, char *text)
 }
 
 //buffer needs to be at least 128 bytes...
-int send_data_pb_callback(const char* host, const char* path,char * recv_buf, uint32_t recv_buf_size,const void * encodedata,network_encode_callback_t encoder,uint16_t num_receive_retries) {
+int send_data_pb_callback(const char* host, const char* path,char * recv_buf, uint32_t recv_buf_size, void * encodedata,network_encode_callback_t encoder,uint16_t num_receive_retries) {
     int send_length = 0;
     int rv = 0;
     uint8_t sig[32]={0};
@@ -1050,7 +937,7 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
     uint16_t iretry;
 
     if (!recv_buf) {
-    	UARTprintf("send_data_pb_callback needs a buffer\r\n");
+    	LOGI("send_data_pb_callback needs a buffer\r\n");
     	return -1;
     }
 
@@ -1064,19 +951,19 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
 
     //setup the connection
     if( start_connection() < 0 ) {
-        UARTprintf("failed to start connection\n\r\n\r");
+        LOGI("failed to start connection\n\r\n\r");
         return -1;
     }
 
-    //UARTprintf("Sending request\n\r%s\n\r", recv_buf);
+    //LOGI("Sending request\n\r%s\n\r", recv_buf);
     rv = send(sock, recv_buf, send_length, 0);
     if (rv <= 0) {
-        UARTprintf("send error %d\n\r\n\r", rv);
+        LOGI("send error %d\n\r\n\r", rv);
         return stop_connection();
     }
 
 #if 0
-    UARTprintf("HTTP header sent %d\n\r%s\n\r", rv, recv_buf);
+    LOGI("HTTP header sent %d\n\r%s\n\r", rv, recv_buf);
 
 #endif
 
@@ -1103,19 +990,19 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
         stream = pb_ostream_from_sha_socket(&desc);
 
         /* Now we are ready to encode the message! Let's go encode. */
-        UARTprintf("data ");
+        LOGI("data ");
         status = encoder(&stream,encodedata);
         flush_out_buffer(&desc);
-        UARTprintf("\n");
+        LOGI("\n");
 
         /* sanity checks  */
         if (desc.bytes_written != desc.bytes_that_should_have_been_written) {
-        	UARTprintf("ERROR only %d of %d bytes written\r\n",desc.bytes_written,desc.bytes_that_should_have_been_written);
+        	LOGI("ERROR only %d of %d bytes written\r\n",desc.bytes_written,desc.bytes_that_should_have_been_written);
         }
 
         /* Then just check for any errors.. */
         if (!status) {
-            UARTprintf("Encoding failed: %s\n", PB_GET_ERROR(&stream));
+            LOGI("Encoding failed: %s\n", PB_GET_ERROR(&stream));
             return -1;
         }
 
@@ -1128,27 +1015,27 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
         }
 
 #if 0
-        UARTprintf("SHA ");
+        LOGI("SHA ");
         for (i = 0; i < sizeof(sig); ++i) {
-            UARTprintf("%x", sig[i]);
+            LOGI("%x", sig[i]);
         }
-        UARTprintf("\n");
+        LOGI("\n");
 
 #endif
         //memset( aesctx.iv, 0, sizeof( aesctx.iv ) );
 
         /*  create AES initialization vector */
 #if 0
-        UARTprintf("iv ");
+        LOGI("iv ");
 #endif
         for (i = 0; i < sizeof(aesctx.iv); ++i) {
             aesctx.iv[i] = (uint8_t)rand();
 #if 0
-            UARTprintf("%x", aesctx.iv[i]);
+            LOGI("%x", aesctx.iv[i]);
 #endif
         }
 #if 0
-        UARTprintf("\n");
+        LOGI("\n");
 #endif
 
         /*  send AES initialization vector */
@@ -1158,7 +1045,7 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
         rv = send(sock, aesctx.iv, AES_IV_SIZE, 0);
 
         if (rv != AES_IV_SIZE) {
-            UARTprintf("Sending IV failed: %d\n", rv);
+            LOGI("Sending IV failed: %d\n", rv);
             return -1;
         }
 
@@ -1172,16 +1059,16 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
         rv = send(sock, sig, sizeof(sig), 0);
 
         if (rv != sizeof(sig)) {
-            UARTprintf("Sending SHA failed: %d\n", rv);
+            LOGI("Sending SHA failed: %d\n", rv);
             return -1;
         }
 
 #if 0
-        UARTprintf("sig ");
+        LOGI("sig ");
         for (i = 0; i < sizeof(sig); ++i) {
-            UARTprintf("%x", sig[i]);
+            LOGI("%x", sig[i]);
         }
-        UARTprintf("\n");
+        LOGI("\n");
 #endif
     }
 
@@ -1196,7 +1083,7 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
     iretry = 0;
     do {
 
-        UARTprintf("Waiting for reply, attempt %d\r\n",iretry);
+        LOGI("Waiting for reply, attempt %d\r\n",iretry);
 
     	rv = recv(sock, recv_buf, recv_buf_size, 0);
 
@@ -1215,16 +1102,16 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
 
 
     if (rv <= 0) {
-        UARTprintf("recv error %d\n\r\n\r", rv);
+        LOGI("recv error %d\n\r\n\r", rv);
         return stop_connection();
     }
-    UARTprintf("recv %d\n\r\n\r", rv);
+    LOGI("recv %d\n\r\n\r", rv);
 
-	UARTprintf("Send complete\n");
+	LOGI("Send complete\n");
 
     //todo check for http response code 2xx
 
-    //UARTprintfFaults();
+    //LOGIFaults();
     //close( sock ); //never close our precious socket
 
     return 0;
@@ -1237,12 +1124,12 @@ bool encode_pill_id(pb_ostream_t *stream, const pb_field_t *field, void * const 
 	char* str = *arg;
 	if(!str)
 	{
-		UARTprintf("encode_pill_id: No data to encode\n");
+		LOGI("encode_pill_id: No data to encode\n");
 		return 0;
 	}
 
 	if (!pb_encode_tag_for_field(stream, field)){
-		UARTprintf("encode_pill_id: Fail to encode tag\n");
+		LOGI("encode_pill_id: Fail to encode tag\n");
 		return 0;
 	}
 
@@ -1255,19 +1142,19 @@ int http_response_ok(const char* response_buffer)
 	uint16_t first_line_len = first_line - response_buffer;
 	if(!first_line_len > 0)
 	{
-		UARTprintf("Cannot get response first line.\n");
+		LOGI("Cannot get response first line.\n");
 		return -1;
 	}
 	first_line = pvPortMalloc(first_line_len + 1);
 	if(!first_line)
 	{
-		UARTprintf("No memory\n");
+		LOGI("No memory\n");
 		return -2;
 	}
 
 	memset(first_line, 0, first_line_len + 1);
 	memcpy(first_line, response_buffer, first_line_len);
-	UARTprintf("Status line: %s\n", first_line);
+	LOGI("Status line: %s\n", first_line);
 
 	int resp_ok = match("2..", first_line);
 	int ret = 0;
@@ -1284,13 +1171,13 @@ static bool _encode_encrypted_pilldata(pb_ostream_t *stream, const pb_field_t *f
     const array_data* array_holder = (array_data*)(*arg);
     if(!array_holder)
     {
-    	UARTprintf("_encode_encrypted_pilldata: No data to encode\n");
+    	LOGI("_encode_encrypted_pilldata: No data to encode\n");
         return false;
     }
 
     if (!pb_encode_tag(stream, PB_WT_STRING, field->tag))
     {
-    	UARTprintf("_encode_encrypted_pilldata: Fail to encode tag\n");
+    	LOGI("_encode_encrypted_pilldata: Fail to encode tag\n");
         return false;
     }
 
@@ -1306,7 +1193,7 @@ bool get_mac(unsigned char mac[6]) {
 
     if(ret != 0 && ret != SL_ESMALLBUF)
     {
-    	UARTprintf("encode_mac_as_device_id_string: Fail to get MAC addr, err %d\n", ret);
+    	LOGI("encode_mac_as_device_id_string: Fail to get MAC addr, err %d\n", ret);
         return false;  // If get mac failed, don't encode that field
     }
 
@@ -1329,7 +1216,7 @@ bool encode_mac(pb_ostream_t *stream, const pb_field_t *field, void * const *arg
     int32_t ret = sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
     if(ret != 0 && ret != SL_ESMALLBUF)
     {
-    	UARTprintf("encode_mac: Fail to get MAC addr, err %d\n", ret);
+    	LOGI("encode_mac: Fail to get MAC addr, err %d\n", ret);
         return false;  // If get mac failed, don't encode that field
     }
 #endif
@@ -1351,7 +1238,7 @@ bool encode_mac_as_device_id_string(pb_ostream_t *stream, const pb_field_t *fiel
     int32_t ret = sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
     if(ret != 0 && ret != SL_ESMALLBUF)
     {
-    	UARTprintf("encode_mac_as_device_id_string: Fail to get MAC addr, err %d\n", ret);
+    	LOGI("encode_mac_as_device_id_string: Fail to get MAC addr, err %d\n", ret);
         return false;  // If get mac failed, don't encode that field
     }
 #endif
@@ -1425,13 +1312,21 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
 
     if(response_protobuf->has_reset_device && response_protobuf->reset_device)
     {
-        UARTprintf("Server factory reset.\n");
+        LOGI("Server factory reset.\n");
         
         _on_factory_reset_received();
     }
 
     if(response_protobuf->has_reset_to_factory_fw && response_protobuf->reset_to_factory_fw) {
     	reset_to_factory_fw();
+    }
+
+    if (response_protobuf->has_audio_control) {
+    	AudioControlHelper_SetAudioControl(&response_protobuf->audio_control);
+    }
+
+    if( response_protobuf->has_unix_time ) {
+    	set_time( response_protobuf->unix_time );
     }
 
     
@@ -1451,18 +1346,18 @@ int send_pill_data(batched_pill_data * pill_data) {
     if(ret != 0)
     {
         // network error
-        UARTprintf("Send pill data failed, network error %d\n", ret);
+        LOGI("Send pill data failed, network error %d\n", ret);
         vPortFree(buffer);
         return ret;
     }
     // Parse the response
-    //UARTprintf("Reply is:\n\r%s\n\r", buffer);
+    //LOGI("Reply is:\n\r%s\n\r", buffer);
 
     const char* header_content_len = "Content-Length: ";
     char * content = strstr(buffer, "\r\n\r\n") + 4;
     char * len_str = strstr(buffer, header_content_len) + strlen(header_content_len);
     if (http_response_ok(buffer) != 1) {
-        UARTprintf("Invalid response, endpoint return failure.\n");
+        LOGI("Invalid response, endpoint return failure.\n");
         vPortFree(buffer);
         return -1;
     }
@@ -1486,28 +1381,28 @@ int send_periodic_data(periodic_data* data) {
     if(ret != 0)
     {
         // network error
-    	sl_status &= ~UPLOADING;
-        UARTprintf("Send data failed, network error %d\n", ret);
+    	wifi_status_set(UPLOADING, true);
+        LOGI("Send data failed, network error %d\n", ret);
         vPortFree(buffer);
         return ret;
     }
 
     // Parse the response
-    //UARTprintf("Reply is:\n\r%s\n\r", buffer);
+    //LOGI("Reply is:\n\r%s\n\r", buffer);
     
     const char* header_content_len = "Content-Length: ";
     char * content = strstr(buffer, "\r\n\r\n") + 4;
     char * len_str = strstr(buffer, header_content_len) + strlen(header_content_len);
     if (http_response_ok(buffer) != 1) {
-    	sl_status &= ~UPLOADING;
-        UARTprintf("Invalid response, endpoint return failure.\n");
+    	wifi_status_set(UPLOADING, true);
+        LOGI("Invalid response, endpoint return failure.\n");
         vPortFree(buffer);
         return -1;
     }
     
     if (len_str == NULL) {
-    	sl_status &= ~UPLOADING;
-        UARTprintf("Failed to find Content-Length header\n");
+    	wifi_status_set(UPLOADING, true);
+        LOGI("Failed to find Content-Length header\n");
         vPortFree(buffer);
         return -1;
     }
@@ -1519,16 +1414,17 @@ int send_periodic_data(periodic_data* data) {
 
     if(decode_rx_data_pb((unsigned char*) content, len, SyncResponse_fields, &response_protobuf) == 0)
     {
-        UARTprintf("Decoding success: %d %d %d %d %d %d\n",
+        LOGI("Decoding success: %d %d %d %d %d %d %d\n",
         response_protobuf.has_acc_sampling_interval,
         response_protobuf.has_acc_scan_cyle,
         response_protobuf.has_alarm,
         response_protobuf.has_device_sampling_interval,
         response_protobuf.has_flash_action,
-        response_protobuf.has_reset_device);
+        response_protobuf.has_reset_device,
+        response_protobuf.has_unix_time);
 
 		_on_response_protobuf(&response_protobuf);
-        sl_status |= UPLOADING;
+		wifi_status_set(UPLOADING, false);
     	boot_commit_ota(); //commit only if we hear back from the server...
         vPortFree(buffer);
         return 0;
@@ -1734,7 +1630,7 @@ int Cmd_RadioStartRX(int argc, char*argv[])
 {
 	int channel;
 	if(argc!=2) {
-		UARTprintf("startrx <channel>\n");
+		LOGI("startrx <channel>\n");
 	}
 	channel = atoi(argv[1]);
 	return RadioStartRX(channel);
@@ -1776,19 +1672,19 @@ int Cmd_RadioGetStats(int argc, char*argv[])
 
 	RadioGetStats(&valid_packets, &fcs_packets, &plcp_packets, &avg_rssi_mgmt, &avg_rssi_other, rssi_histogram, rate_histogram);
 
-	UARTprintf( "valid_packets %d\n", valid_packets );
-	UARTprintf( "fcs_packets %d\n", fcs_packets );
-	UARTprintf( "plcp_packets %d\n", plcp_packets );
-	UARTprintf( "avg_rssi_mgmt %d\n", avg_rssi_mgmt );
-	UARTprintf( "acg_rssi_other %d\n", avg_rssi_other );
+	LOGI( "valid_packets %d\n", valid_packets );
+	LOGI( "fcs_packets %d\n", fcs_packets );
+	LOGI( "plcp_packets %d\n", plcp_packets );
+	LOGI( "avg_rssi_mgmt %d\n", avg_rssi_mgmt );
+	LOGI( "acg_rssi_other %d\n", avg_rssi_other );
 
-	UARTprintf("rssi histogram\n");
+	LOGI("rssi histogram\n");
 	for (i = 0; i < SIZE_OF_RSSI_HISTOGRAM; ++i) {
-		UARTprintf("%d\n", rssi_histogram[i]);
+		LOGI("%d\n", rssi_histogram[i]);
 	}
-	UARTprintf("rate histogram\n");
+	LOGI("rate histogram\n");
 	for (i = 0; i < NUM_OF_RATE_INDEXES; ++i) {
-		UARTprintf("%d\n", rate_histogram[i]);
+		LOGI("%d\n", rate_histogram[i]);
 	}
 
 	vPortFree(rssi_histogram);
@@ -1967,7 +1863,7 @@ int Cmd_RadioStartTX(int argc, char*argv[])
 	int i;
 
 	if(argc!=16) {
-		UARTprintf("startx <mode, RADIO_TX_PACKETIZED=2, RADIO_TX_CW=3, RADIO_TX_CONTINUOUS=1> "
+		LOGI("startx <mode, RADIO_TX_PACKETIZED=2, RADIO_TX_CW=3, RADIO_TX_CONTINUOUS=1> "
 				          "<power level 0-15, as dB offset from max power so 0 high>"
 						  "<channel> <rate 1=1M, 2=2M, 3=5.5M, 4=11M, 6=6M, 7=9M, 8=12M, 9=18M, 10=24M, 11=36M, 12=48M, 13=54M, 14 to 21 = MCS_0 to 7"
 						  "<preamble, 0=long, 1=short, 2=odfm, 3=mixed, 4=greenfield>"
@@ -1996,7 +1892,7 @@ int Cmd_RadioStopTX(int argc, char*argv[])
 {
 	RadioTxMode_e mode;
 	if(argc!=2) {
-		UARTprintf("stoptx <mode, RADIO_TX_PACKETIZED=2, RADIO_TX_CW=3, RADIO_TX_CONTINUOUS=1>\n");
+		LOGI("stoptx <mode, RADIO_TX_PACKETIZED=2, RADIO_TX_CW=3, RADIO_TX_CONTINUOUS=1>\n");
 	}
 	mode = (RadioTxMode_e)atoi(argv[1]);
 	return RadioStopTX(mode);
@@ -2056,18 +1952,18 @@ int connect_wifi(const char* ssid, const char* password, int sec_type)
 			&secParam, NULL, 0, 0)) < 0 && retry--){
 		ret = sl_WlanProfileDel(0xFF);
 		if (ret != 0) {
-			UARTprintf("profile del fail\n");
+			LOGI("profile del fail\n");
 		}
 	}
 
 	if (index < 0) {
-		UARTprintf("profile add fail\n");
+		LOGI("profile add fail\n");
 		return 0;
 	}
 	ret = sl_WlanConnect((_i8*) ssid, strlen(ssid), NULL, sec_type == SL_SEC_TYPE_OPEN ? NULL : &secParam, 0);
 	if(ret == 0 || ret == -71)
 	{
-		UARTprintf("WLAN connect attempt issued\n");
+		LOGI("WLAN connect attempt issued\n");
 
 		return 1;
 	}
@@ -2106,6 +2002,45 @@ int connect_scanned_endpoints(const char* ssid, const char* password,
     }
 
     return 0;
+}
+
+static xSemaphoreHandle _sl_status_mutex;
+static unsigned int _wifi_status;
+
+void wifi_status_init()
+{
+    _sl_status_mutex = xSemaphoreCreateMutex();
+    if(!_sl_status_mutex)
+    {
+        LOGI("Create _sl_status_mutex failed\n");
+    }
+    _wifi_status = 0;
+}
+
+int wifi_status_get(unsigned int status)
+{
+    xSemaphoreTake(_sl_status_mutex, portMAX_DELAY);
+    int ret = _wifi_status & status;
+    xSemaphoreGive(_sl_status_mutex);
+    return ret;
+}
+
+int wifi_status_set(unsigned int status, int remove_status)
+{
+    if(xSemaphoreTake(_sl_status_mutex, portMAX_DELAY) != pdTRUE)
+    {
+        return _wifi_status;
+    }
+
+    if(remove_status)
+    {
+        _wifi_status &= ~status;
+    }else{
+        _wifi_status |= status;
+    }
+    int ret = _wifi_status;
+    xSemaphoreGive(_sl_status_mutex);
+    return ret;
 }
 
 

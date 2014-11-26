@@ -92,6 +92,9 @@
 #include "wifi_cmd.h"
 #include "uart_logger.h"
 #include "hellofilesystem.h"
+#include "sl_sync_include_after_simplelink_header.h"
+
+void mcu_reset();
 
 extern void vUARTTask( void *pvParameters );
 
@@ -160,12 +163,9 @@ void
 vAssertCalled( const char *pcFile, unsigned long ulLine )
 {
 
-    UARTprintf( "%s %u ASSERT", pcFile, ulLine );
+  UARTprintf( "%s %u ASSERT", pcFile, ulLine );
 
-  	while(1)
-    {
-
-    }
+  mcu_reset();
 }
 
 //*****************************************************************************
@@ -185,7 +185,7 @@ vApplicationStackOverflowHook( xTaskHandle *pxTask, signed portCHAR *pcTaskName 
 
     UARTprintf( "%s STACK OVERFLOW", pcTaskName );
 
-    for( ;; );
+    mcu_reset();
 }
 
 //*****************************************************************************
@@ -238,7 +238,8 @@ void WatchdogIntHandler(void)
 	//
 	// watchdog interrupt - if it fires when the interrupt has not been cleared then the device will reset...
 	//
-		UARTprintf( "oh no WDT: %u, %u\r\n", xTaskGetTickCount() );
+		LOGE( "oh no WDT: %u, %u\r\n", xTaskGetTickCount() );
+		mcu_reset();
 }
 
 
@@ -268,19 +269,12 @@ void start_wdt() {
 }
 void mcu_reset();
 void watchdog_thread(void* unused) {
-	int upload_fail_cnt;
 	while (1) {
 		MAP_WatchdogIntClear(WDT_BASE); //clear wdt
-		if (!(sl_status & UPLOADING)) {
-			if(++upload_fail_cnt > 60 * 60 ) {
-				mcu_reset();
-			}
-		} else {
-			upload_fail_cnt = 0;
-		}
 		vTaskDelay(1000);
 	}
 }
+
 //*****************************************************************************
 //							MAIN FUNCTION
 //*****************************************************************************
@@ -288,7 +282,6 @@ void main()
 {
   //
   // Board Initialization
-
   //
   BoardInit();
 
@@ -298,11 +291,6 @@ void main()
   //
   PinMuxConfig();
 
-  //
-  // Initialize the UART for console I/O.
-  //
-  uart_logger_init();
-  UARTStdioInit(0);
   //
   // Set the SD card clock as output pin
   //
@@ -314,10 +302,8 @@ void main()
 
   VStartSimpleLinkSpawnTask(SPAWN_TASK_PRIORITY);
 
-  hell_fs_init(); //sets up thread safety for accessing the file system
-
   /* Create the UART processing task. */
-  xTaskCreate( vUARTTask, "UARTTask", 1024/(sizeof(portSTACK_TYPE)), NULL, 10, NULL );
+  xTaskCreate( vUARTTask, "UARTTask", 1024/(sizeof(portSTACK_TYPE)), NULL, 4, NULL );
   xTaskCreate( watchdog_thread, "wdtTask", configMINIMAL_STACK_SIZE, NULL, 1, NULL );
 
   //

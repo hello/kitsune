@@ -106,7 +106,7 @@ static int I2CTransact(unsigned long ulCmd);
 void recoveri2c() {
 #define GPIO_PORT 0x40005000
 
-	UARTprintf("i2c recovery...\r\n");
+	LOGI("i2c recovery...\r\n");
 	//
 	// Configure PIN_01 for GPIOOutput 10 open drain
 	//
@@ -119,7 +119,8 @@ void recoveri2c() {
 	MAP_PinTypeGPIO(PIN_02, PIN_MODE_0, false);
 	MAP_GPIODirModeSet(GPIOA1_BASE, 0x8, GPIO_DIR_MODE_IN);
 
-	while ( MAP_GPIOPinRead(GPIO_PORT, 0x8) == 0) {
+	TickType_t start = xTaskGetTickCount();
+	while ( MAP_GPIOPinRead(GPIO_PORT, 0x8) == 0 && xTaskGetTickCount() - start < 5000 ) {
 		MAP_GPIOPinWrite(GPIO_PORT, 0x4, 0); //pulse the clock line...
 		vTaskDelay(10);
 		MAP_GPIOPinWrite(GPIO_PORT, 0x4, 1);

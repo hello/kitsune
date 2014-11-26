@@ -13,7 +13,7 @@ typedef struct {
 	uint32_t flags;
 } NetworkResponse_t;
 
-typedef void (*NetworkResponseCallback_t)(const NetworkResponse_t * response);
+typedef void (*NetworkResponseCallback_t)(const NetworkResponse_t * response, void * context);
 
 
 typedef struct {
@@ -27,7 +27,7 @@ typedef struct {
 
 	//optional encode and decode callbacks.  You can have one or both enabled.
 	network_encode_callback_t encode; //optional encode callback.  If you're just polling, you don't need this
-	const void * encodedata; //optional extra data passed to your encode callback
+	void * encodedata; //optional extra data passed to your encode callback
 
 	const char * host; //the server to which you wish to communicate
 	const char * endpoint; //where on the server you wish to communicate to.  eg /audio/features
@@ -38,14 +38,17 @@ typedef struct {
 	int32_t retry_timeout;
 
 	NetworkResponseCallback_t response_callback;
+	void * context;
 
 } NetworkTaskServerSendMessage_t;
 
 typedef struct {
 } NetworkTaskData_t;
 
-void NetworkTask_Thread(void * networkdata);
+void networktask_init(uint16_t stack_size);
 int NetworkTask_SynchronousSendProtobuf(const char * host, const char * endpoint, char * buf, uint32_t buf_size, const pb_field_t fields[], const void * structdata,int32_t retry_time_in_counts);
 int NetworkTask_AddMessageToQueue(const NetworkTaskServerSendMessage_t * message);
+int networktask_enter_critical_region();
+int networktask_exit_critical_region();
 
 #endif//_NETWORKTASK_H_

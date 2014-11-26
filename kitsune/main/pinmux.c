@@ -112,6 +112,31 @@ static void SetAntennaSelectionGPIOs(void)
 
 
 //*****************************************************************************
+#include "hw_ver.h"
+void PinMuxConfig_hw_dep() {
+	int hw_ver = get_hw_ver();
+
+	switch( hw_ver ) {
+	case DVT:
+		//DVT uses camera clock for codec's master clock
+		MAP_PRCMPeripheralClkEnable(PRCM_CAMERA, PRCM_RUN_MODE_CLK);
+		HWREG(0x44025000) = 0x0000;
+		MAP_CameraXClkConfig(CAMERA_BASE, 120000000ul,12000000ul);
+
+		// Configure PIN_02 for CAMERA0 CAM_pXCLK
+		MAP_PinTypeCamera(PIN_02, PIN_MODE_4);
+
+		//i2c on pin 4
+		MAP_PinTypeI2C(PIN_04, PIN_MODE_5);
+
+		break;
+	case EVT2:
+		//i2c on pin 2
+		MAP_PinTypeI2C(PIN_02, PIN_MODE_1);
+		break;
+	}
+}
+
 void
 PinMuxConfig(void)
 {
@@ -185,21 +210,13 @@ PinMuxConfig(void)
     //
     MAP_PinTypeI2C(PIN_01, PIN_MODE_1);
 
-    //
-    // Configure PIN_02 for I2C0 I2C_SDA
-    //
-    MAP_PinTypeI2C(PIN_02, PIN_MODE_1);
+//    HWREG(0x44025000) = 0x0000;
+//    MAP_CameraXClkConfig(CAMERA_BASE, 120000000ul,12000000ul);
 
     //
     // Configure PIN_03 for MCASP0 McACLK
     //
     MAP_PinTypeI2S(PIN_03, PIN_MODE_3);
-
-    //
-    // Configure PIN_04 for GPIOOutput
-    //
-    MAP_PinTypeGPIO(PIN_04, PIN_MODE_0, false);
-    MAP_GPIODirModeSet(GPIOA1_BASE, 0x20, GPIO_DIR_MODE_OUT);
 
     //
     // Configure PIN_05 for SPI0 GSPI_CLK
@@ -237,6 +254,17 @@ PinMuxConfig(void)
     MAP_PinTypeSPI(PIN_52, PIN_MODE_8);
 
     SetAntennaSelectionGPIOs();
+
+    // Configure PIN_04 for GPIOOutput
+    //
+    MAP_PinTypeGPIO(PIN_04, PIN_MODE_0, false);
+    MAP_GPIODirModeSet(GPIOA1_BASE, 0x20, GPIO_DIR_MODE_OUT);
+
+    //
+    // Configure PIN_15 for GPIOOutput
+    //
+    MAP_PinTypeGPIO(PIN_15, PIN_MODE_0, false);
+    MAP_GPIODirModeSet(GPIOA2_BASE, 0x40, GPIO_DIR_MODE_OUT);
 
     //
     // Configure PIN_16 for GPIOInput

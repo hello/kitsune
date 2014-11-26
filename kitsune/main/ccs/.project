@@ -46,6 +46,16 @@
 			<locationURI>PARENT-2-PROJECT_LOC/audioclassifier.h</locationURI>
 		</link>
 		<link>
+			<name>audiocontrolhelper.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audiocontrolhelper.c</locationURI>
+		</link>
+		<link>
+			<name>audiocontrolhelper.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audiocontrolhelper.h</locationURI>
+		</link>
+		<link>
 			<name>audiofeatures.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/audiofeatures.c</locationURI>
@@ -216,6 +226,11 @@
 			<locationURI>PARENT-2-PROJECT_LOC/fft.h</locationURI>
 		</link>
 		<link>
+			<name>fileuploadertask.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/fileuploadertask.c</locationURI>
+		</link>
+		<link>
 			<name>gesture.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/gesture.c</locationURI>
@@ -231,6 +246,11 @@
 			<locationURI>PARENT-2-PROJECT_LOC/hellofilesystem.c</locationURI>
 		</link>
 		<link>
+			<name>hellofilesystem.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hellofilesystem.h</locationURI>
+		</link>
+		<link>
 			<name>hellomath.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/hellomath.c</locationURI>
@@ -244,6 +264,16 @@
 			<name>hmm.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/machinelearning/hmm.h</locationURI>
+		</link>
+		<link>
+			<name>hw_ver.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hw_ver.c</locationURI>
+		</link>
+		<link>
+			<name>hw_ver.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hw_ver.h</locationURI>
 		</link>
 		<link>
 			<name>i2c_cmd.c</name>
@@ -371,6 +401,16 @@
 			<locationURI>PARENT-2-PROJECT_LOC/sha1.c</locationURI>
 		</link>
 		<link>
+			<name>sl_sync.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/sl_sync.c</locationURI>
+		</link>
+		<link>
+			<name>sl_sync_include_after_simplelink_header.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/sl_sync_include_after_simplelink_header.h</locationURI>
+		</link>
+		<link>
 			<name>slip_packet.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/slip_packet.c</locationURI>
@@ -389,6 +429,16 @@
 			<name>spi_cmd.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/spi_cmd.h</locationURI>
+		</link>
+		<link>
+			<name>sys_time.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/sys_time.c</locationURI>
+		</link>
+		<link>
+			<name>sys_time.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/sys_time.h</locationURI>
 		</link>
 		<link>
 			<name>tests</name>
@@ -596,6 +646,16 @@
 			<locationURI>PARENT-2-PROJECT_LOC/nanopb/pb_encode.h</locationURI>
 		</link>
 		<link>
+			<name>protobuf/audio_control.pb.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/audio_control.pb.c</locationURI>
+		</link>
+		<link>
+			<name>protobuf/audio_control.pb.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/audio_control.pb.h</locationURI>
+		</link>
+		<link>
 			<name>protobuf/audio_data.pb.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/protobuf/audio_data.pb.c</locationURI>
@@ -604,6 +664,16 @@
 			<name>protobuf/audio_data.pb.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/protobuf/audio_data.pb.h</locationURI>
+		</link>
+		<link>
+			<name>protobuf/filetransfer.pb.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/filetransfer.pb.c</locationURI>
+		</link>
+		<link>
+			<name>protobuf/filetransfer.pb.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/filetransfer.pb.h</locationURI>
 		</link>
 		<link>
 			<name>protobuf/log.pb.c</name>

@@ -78,12 +78,12 @@ _next_file_data_block(uint8_t * write_buf, uint32_t buffer_size, uint32_t * out_
 }
 static void
 _on_message(uint8_t * message_body, uint32_t body_length){
-	UARTprintf("Got a SLIP message: %s\r\n", message_body);
+	LOGI("Got a SLIP message: %s\r\n", message_body);
 	if(!strncmp("DFUBEGIN",(char*)message_body, body_length)){
 		//delay is necessary because top board is slower.
 		play_led_progress_bar(30,0,0,0, portMAX_DELAY);
 		vTaskDelay(4000);
-		if(0 != top_board_dfu_begin("/top/update.bin")){
+		if(0 != top_board_dfu_begin("top_update.bin")){
 			top_board_dfu_begin("/top/factory.bin");
 		}
 		//led_set_color(0xFF, 50,0,0,0,0,0,0);
@@ -137,7 +137,7 @@ _on_ack_success(void){
 					(sizeof(block) - sizeof(uint32_t)), &written);
 			if(written){
 				_encode_and_send((uint8_t*)block, written + sizeof(block[0]));
-				UARTprintf("Wrote %u / %d (%u)%%\r", self.dfu_contex.offset, self.dfu_contex.len, (self.dfu_contex.offset*100/self.dfu_contex.len));
+				LOGI("Wrote %u / %d (%u)%%\r", self.dfu_contex.offset, self.dfu_contex.len, (self.dfu_contex.offset*100/self.dfu_contex.len));
 				set_led_progress_bar((self.dfu_contex.offset*100/self.dfu_contex.len));
 			}else{
 				uint32_t primer_packet[] = { DFU_INVALID_PACKET };
@@ -150,7 +150,7 @@ _on_ack_success(void){
 			uint32_t end_packet[] = { DFU_STOP_DATA_PACKET };
 			_encode_and_send((uint8_t*)end_packet, sizeof(end_packet));
 			self.dfu_state = DFU_IDLE;
-			UARTprintf("Attempting to boot top board...\r\n");
+			LOGI("Attempting to boot top board...\r\n");
 			stop_led_animation();
 			led_set_color(0xFF, 0,10,0,1,1,200,0);
 			}
@@ -168,7 +168,7 @@ _on_slip_message(uint8_t * c, uint32_t size){
 }
 static void
 _on_dtm_event(uint16_t dtm_event){
-	UARTprintf("Got a dtm event: %X\r\n", dtm_event);
+	LOGI("Got a dtm event: %X\r\n", dtm_event);
 }
 
 static void
@@ -217,7 +217,7 @@ static int _prep_file(const char * name, uint32_t * out_fsize, uint16_t * out_cr
 	SlFsFileInfo_t info;
 	sl_FsGetInfo((unsigned char*)name, tok, &info);
 	if(sl_FsOpen((unsigned char*)name, FS_MODE_OPEN_READ, &tok, &hndl)){
-		UARTprintf("error opening for read %s.\r\n", name);
+		LOGI("error opening for read %s.\r\n", name);
 		return -1;
 	}
 	do{
@@ -233,7 +233,7 @@ static int _prep_file(const char * name, uint32_t * out_fsize, uint16_t * out_cr
 	*out_crc = crc;
 	*out_fsize = total;
 	*out_handle = hndl;
-	UARTprintf("Bytes Read %u, crc = %u.\r\n", *out_fsize, *out_crc);
+	LOGI("Bytes Read %u, crc = %u.\r\n", *out_fsize, *out_crc);
 	return 0;
 }
 
@@ -266,7 +266,7 @@ int top_board_dfu_begin(const char * bin){
 		}
 	}else{
 		_close_and_reset_dfu();
-		UARTprintf("Already in dfu mode, resetting context\r\n");
+		LOGI("Already in dfu mode, resetting context\r\n");
 	}
 	return 0;
 
@@ -289,7 +289,7 @@ int send_top(char * s, int n) {
 		UARTCharPut(UARTA1_BASE, '\n');
 		return 0;
 	}else{
-		UARTprintf("Top board is in DFU mode\r\n");
+		LOGI("Top board is in DFU mode\r\n");
 		return -1;
 	}
 }
@@ -328,7 +328,7 @@ int Cmd_top_dtm(int argc, char * argv[]){
 			slip_cmd = 0;//reset is all 0s
 		}else if(!strcmp(argv[1], "code") && argc > 2){
 			slip_cmd = (uint16_t)strtol(argv[2], NULL, 16);
-			UARTprintf("Trying Slip Code 0x%02X (%d)\r\n", slip_cmd, slip_cmd);
+			LOGI("Trying Slip Code 0x%02X (%d)\r\n", slip_cmd, slip_cmd);
 		}else{
 			return -1;
 		}

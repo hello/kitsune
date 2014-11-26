@@ -11,17 +11,18 @@
 extern "C" {
 #endif
 
-//user supply callback on detection
-//duration and height are not implemented yet
-typedef struct{
-	void (*on_wave)(void * ctx);
-	void (*on_hold)(void * ctx);
-	void (*on_slide)(void * ctx, int delta);
-	void * ctx;
-}gesture_callbacks_t;
+typedef enum
+{
+	GESTURE_NONE = 0,
+	GESTURE_WAVE,
+	GESTURE_HOLD
+} gesture;
 
-void gesture_init(gesture_callbacks_t * user);
-void gesture_input(int prox);
+void gesture_init();
+gesture gesture_input(int prox);
+int gesture_get_wave_count();
+int gesture_get_hold_count();
+void gesture_counter_reset();
 
 #ifdef __cplusplus
 }

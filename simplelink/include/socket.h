@@ -354,6 +354,7 @@ extern "C" {
 #define FD_ZERO                             SL_FD_ZERO 
 #define fd_set                              SlFdSet_t    
 
+#if 0
 #define socket                              sl_Socket
 #define close                               sl_Close
 #define accept                              sl_Accept
@@ -373,6 +374,8 @@ extern "C" {
 #define ntohl                               sl_Ntohl
 #define htons                               sl_Htons
 #define ntohs                               sl_Ntohs
+#endif
+
 #endif
 
 /*****************************************************************************/

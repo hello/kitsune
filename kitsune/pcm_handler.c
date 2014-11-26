@@ -90,7 +90,7 @@
 //*****************************************************************************
 #define UDMA_DSTSZ_32_SRCSZ_16          0x21000000
 #define mainQUEUE_SIZE		        3
-
+#define UI_BUFFER_EMPTY_THRESHOLD  2048
 //*****************************************************************************
 //                          GLOBAL VARIABLES
 //*****************************************************************************
@@ -149,9 +149,10 @@ void DMAPingPongCompleteAppCB_opt()
         pControlTable = MAP_uDMAControlBaseGet();
         uiBufferEmpty = GetBufferEmptySize(pAudInBuf);
 
+        //PRIMARY part of the ping pong
         if((pControlTable[ulPrimaryIndexTx].ulControl & UDMA_CHCTL_XFERMODE_M) == 0)
         {
-            if(uiBufferEmpty < 2048)
+            if(uiBufferEmpty < UI_BUFFER_EMPTY_THRESHOLD)
             {   
                 if(pAudInBuf->pucWritePtr < pAudInBuf->pucBufferStartPtr)
                 {
@@ -173,10 +174,11 @@ void DMAPingPongCompleteAppCB_opt()
         }
         else
         {
+        	//ALT part of the ping pong
             if((pControlTable[ulAltIndexTx].ulControl & UDMA_CHCTL_XFERMODE_M) == 0)
             {
                
-                if(uiBufferEmpty < 2048)
+                if(uiBufferEmpty < UI_BUFFER_EMPTY_THRESHOLD)
                 {
                     if(pAudInBuf->pucWritePtr < pAudInBuf->pucBufferStartPtr)
                     {
@@ -235,19 +237,19 @@ void DMAPingPongCompleteAppCB_opt()
                //Cmd_rm(1, "VONE");
                //Cmd_write_record(*pusTxDestBuf);
                /////
-             // UARTprintf("pusTxDestBuf %x\n\r",*pusTxDestBuf );
+             // LOGI("pusTxDestBuf %x\n\r",*pusTxDestBuf );
               //f_append("/Aud",pusTxDestBuf,CB_TRANSFER_SZ);
 
                /*
 			   int i = 0;
                for(i=0; i<128; i++){
             	   short* num = &pusTxDestBuf[i * 2];
-            	   UARTprintf("%d ", *num);
+            	   LOGI("%d ", *num);
                }
                */
 
                //short* num = &pusTxDestBuf[2];
-			   //UARTprintf("%d ", *num);
+			   //LOGI("%d ", *num);
         }   
         g_iReadFlag++;
     }
@@ -267,7 +269,7 @@ void DMAPingPongCompleteAppCB_opt()
                 {
                     g_uiPlayWaterMark = 0;
                     guiDMAEmptyCount++;
-                    UARTprintf("Buffer Empty %d\n\r",guiDMAEmptyCount );
+                    LOGI("Buffer Empty %d\n\r",guiDMAEmptyCount );
                 }
                 guiDMATransferCountRx = 0;
                 iCount3++;
@@ -296,7 +298,7 @@ void DMAPingPongCompleteAppCB_opt()
                     {
                       g_uiPlayWaterMark = 0;
                       guiDMAEmptyCount++;
-                      UARTprintf("Buffer Empty %d\n\r",guiDMAEmptyCount );
+                      LOGI("Buffer Empty %d\n\r",guiDMAEmptyCount );
                     }
                     guiDMATransferCountRx = 0;
                 }
@@ -346,7 +348,7 @@ void DMAPingPongCompleteAppCB_opt()
 void SetupPingPongDMATransferTx()
 {
     puiTxSrcBuf = AudioCapturerGetDMADataPtr();
-      //UARTprintf("puiTxSrcBuf x%\n", puiTxSrcBuf); // add for debugging
+      //LOGI("puiTxSrcBuf x%\n", puiTxSrcBuf); // add for debugging
 
     pusTxDestBuf = (unsigned short*)GetWritePtr(pTxBuffer);
     // changed to SD card DMA UDMA_CH14_SDHOST_RX

@@ -27,6 +27,37 @@
 
 #include "kitsune_version.h"
 
+//begin download stuff
+#include "wlan.h"
+#include "simplelink.h"
+#include "socket.h"
+#include "protocol.h"
+#include "common.h"
+#include "sl_sync_include_after_simplelink_header.h"
+
+#define PREFIX_BUFFER    "GET "
+//#define POST_BUFFER      " HTTP/1.1\nAccept: text/html, application/xhtml+xml, */*\n\n"
+#define POST_BUFFER_1  " HTTP/1.1\nHost:"
+#define POST_BUFFER_2  "\nAccept: text/html, application/xhtml+xml, */*\n\n"
+
+#define HTTP_FILE_NOT_FOUND    "404 Not Found" /* HTTP file not found response */
+#define HTTP_STATUS_OK         "200 OK"  /* HTTP status ok response */
+#define HTTP_CONTENT_LENGTH    "Content-Length:"  /* HTTP content length header */
+#define HTTP_TRANSFER_ENCODING "Transfer-Encoding:" /* HTTP transfer encoding header */
+#define HTTP_ENCODING_CHUNKED  "chunked" /* HTTP transfer encoding header value */
+#define HTTP_CONNECTION        "Connection:" /* HTTP Connection header */
+#define HTTP_CONNECTION_CLOSE  "close"  /* HTTP Connection header value */
+
+#define DNS_RETRY           5 /* No of DNS tries */
+#define HTTP_END_OF_HEADER  "\r\n\r\n"  /* string marking the end of headers in response */
+
+#define MAX_BUFF_SIZE      512
+
+unsigned char * g_buff;
+long bytesReceived = 0; // variable to store the file size
+static int dl_sock = -1;
+//end download stuff
+
 //*****************************************************************************
 //
 // Defines the size of the buffers that hold the path, or temporary data from
@@ -72,7 +103,7 @@ int Cmd_mnt(int argc, char *argv[])
 	res = hello_fs_mount(0, &fsobj);
 	if(res != FR_OK)
 	{
-		UARTprintf("f_mount error: %i\n", (res));
+		LOGI("f_mount error: %i\n", (res));
 		return(1);
 	}
 	return 0;
@@ -84,10 +115,10 @@ int Cmd_umnt(int argc, char *argv[])
 	res = hello_fs_mount(0, NULL);
 	if(res != FR_OK)
 	{
-		UARTprintf("f_mount error: %i\n", (res));
+		LOGI("f_mount error: %i\n", (res));
 		return(1);
 	}
-	UARTprintf("f_mount success\n");
+	LOGI("f_mount success\n");
 	return 0;
 }
 
@@ -95,15 +126,15 @@ int Cmd_mkfs(int argc, char *argv[])
 {
     FRESULT res;
 
-	UARTprintf("\n\nMaking FS...\n");
+	LOGI("\n\nMaking FS...\n");
 
-	res = hello_fs_mkfs(0, 1, 16);
+	res = hello_fs_mkfs(0, 0, 16);
 	if(res != FR_OK)
 	{
-		UARTprintf("f_mkfs error: %i\n", (res));
+		LOGI("f_mkfs error: %i\n", (res));
 		return(1);
 	}
-	UARTprintf("f_mkfs success\n");
+	LOGI("f_mkfs success\n");
 	return 0;
 }
 
@@ -137,7 +168,7 @@ Cmd_ls(int argc, char *argv[])
     ui32FileCount = 0;
     ui32DirCount = 0;
 
-    UARTprintf("\n");
+    DISP("\n");
 
     for(;;)
     {
@@ -170,7 +201,7 @@ Cmd_ls(int argc, char *argv[])
 
         // Print the entry information on a single line with formatting to show
         // the attributes, date, time, size, and name.
-        UARTprintf("%c%c%c%c%c %u/%02u/%02u %02u:%02u %9u  %s\n",
+        DISP("%c%c%c%c%c %u/%02u/%02u %02u:%02u %9u  %s\n",
                    (file_info.fattrib & AM_DIR) ? 'D' : '-',
                    (file_info.fattrib & AM_RDO) ? 'R' : '-',
                    (file_info.fattrib & AM_HID) ? 'H' : '-',
@@ -186,7 +217,7 @@ Cmd_ls(int argc, char *argv[])
     }
 
     // Print summary lines showing the file, dir, and size totals.
-    UARTprintf("\n%4u File(s),%10u bytes total\n%4u Dir(s)",
+    DISP("\n%4u File(s),%10u bytes total\n%4u Dir(s)",
                 ui32FileCount, ui32TotalSize, ui32DirCount);
 
     // Get the free space.
@@ -199,7 +230,7 @@ Cmd_ls(int argc, char *argv[])
     }
 
     // Display the amount of free space that was calculated.
-    UARTprintf(", %10uK bytes free\n", (ui32TotalSize *
+    DISP(", %10uK bytes free\n", (ui32TotalSize *
                                         psFatFs->sects_clust / 2));
 
     return(0);
@@ -240,7 +271,7 @@ FRESULT cd( char * path ) {
         // Make sure the new path is not bigger than the cwd buffer.
         if(strlen(path) + 1 > sizeof(cwd_buff))
         {
-            UARTprintf("Resulting path name is too long\n");
+            LOGI("Resulting path name is too long\n");
             return(FR_INVALID_NAME);
         }
 
@@ -281,7 +312,7 @@ FRESULT cd( char * path ) {
         // It needs to include a new separator, and a trailing null character.
         if(strlen(path_buff) + strlen(path) + 1 + 1 > sizeof(cwd_buff))
         {
-            UARTprintf("Resulting path name is too long\n");
+            LOGI("Resulting path name is too long\n");
             return(FR_INVALID_NAME);
         }
 
@@ -331,7 +362,7 @@ Cmd_cd(int argc, char *argv[]) {
 int
 Cmd_pwd(int argc, char *argv[])
 {
-    UARTprintf("%s\n", cwd_buff);
+    LOGI("%s\n", cwd_buff);
     return(0);
 }
 int global_filename(char * local_fn)
@@ -342,7 +373,7 @@ int global_filename(char * local_fn)
     // fully specified, with path, to FatFs.
     if(strlen(cwd_buff) + strlen(local_fn) + 1 + 1 > sizeof(path_buff))
     {
-        UARTprintf("Resulting path name is too long\n");
+        LOGI("Resulting path name is too long\n");
         return(0);
     }
 
@@ -398,7 +429,7 @@ Cmd_cat(int argc, char *argv[])
         // error to the user.
         if(res != FR_OK)
         {
-            UARTprintf("\n");
+            LOGI("\n");
             return((int)res);
         }
         // Null terminate the last block that was read to make it a null
@@ -406,14 +437,14 @@ Cmd_cat(int argc, char *argv[])
         path_buff[ui16BytesRead] = 0;
 
         // Print the last chunk of the file that was received.
-        UARTprintf("%s", path_buff);
+        LOGI("%s", path_buff);
 
     }
     while(ui16BytesRead == 4);
 
     hello_fs_close( &file_obj );
 
-    UARTprintf("\n");
+    LOGI("\n");
     return(0);
 }
 
@@ -430,7 +461,7 @@ Cmd_write_audio(char *argv[])
     {
     	return 1;
     }
-    UARTprintf("print");
+    LOGI("print");
     // Open the file for reading.
     //res = hello_fs_open(&file_obj, path_buff, FA_CREATE_NEW|FA_WRITE);
     res = hello_fs_open(&file_obj, path_buff, FA_WRITE);
@@ -456,7 +487,7 @@ Cmd_write_audio(char *argv[])
 int
 Cmd_write(int argc, char *argv[])
 {
-	UARTprintf("Cmd_write\n");
+	LOGI("Cmd_write\n");
 
 	WORD bytes = 0;
 	WORD bytes_written = 0;
@@ -471,10 +502,10 @@ Cmd_write(int argc, char *argv[])
 
     // Open the file for writing.
     FRESULT res = hello_fs_open(&file_obj, path_buff, FA_CREATE_NEW|FA_WRITE|FA_OPEN_ALWAYS);
-    UARTprintf("res :%d\n",res);
+    LOGI("res :%d\n",res);
 
     if(res != FR_OK && res != FR_EXIST){
-    	UARTprintf("File open %s failed: %d\n", path_buff, res);
+    	LOGI("File open %s failed: %d\n", path_buff, res);
     	return res;
     }
 
@@ -486,7 +517,7 @@ Cmd_write(int argc, char *argv[])
     do {
 		res = hello_fs_write( &file_obj, argv[2]+bytes_written, bytes_to_write-bytes_written, &bytes );
 		bytes_written+=bytes;
-		UARTprintf("bytes written: %d\n", bytes_written);
+		LOGI("bytes written: %d\n", bytes_written);
 
     } while( bytes_written < bytes_to_write );
 
@@ -548,62 +579,6 @@ Cmd_mkdir(int argc, char *argv[])
 
 
 //begin download functions
-
-#include "wlan.h"
-#include "socket.h"
-#include "simplelink.h"
-#include "protocol.h"
-#include "common.h"
-
-#define PREFIX_BUFFER    "GET "
-//#define POST_BUFFER      " HTTP/1.1\nAccept: text/html, application/xhtml+xml, */*\n\n"
-#define POST_BUFFER_1  " HTTP/1.1\nHost:"
-#define POST_BUFFER_2  "\nAccept: text/html, application/xhtml+xml, */*\n\n"
-
-#define HTTP_FILE_NOT_FOUND    "404 Not Found" /* HTTP file not found response */
-#define HTTP_STATUS_OK         "200 OK"  /* HTTP status ok response */
-#define HTTP_CONTENT_LENGTH    "Content-Length:"  /* HTTP content length header */
-#define HTTP_TRANSFER_ENCODING "Transfer-Encoding:" /* HTTP transfer encoding header */
-#define HTTP_ENCODING_CHUNKED  "chunked" /* HTTP transfer encoding header value */
-#define HTTP_CONNECTION        "Connection:" /* HTTP Connection header */
-#define HTTP_CONNECTION_CLOSE  "close"  /* HTTP Connection header value */
-
-#define DNS_RETRY           5 /* No of DNS tries */
-#define HTTP_END_OF_HEADER  "\r\n\r\n"  /* string marking the end of headers in response */
-#define SIZE_40K            40960  /* Serial flash file size 40 KB */
-
-#define MAX_BUFF_SIZE      512
-
-// Temporary file to store the downloaded file
-#define TEMP_FILE_NAME "cc3000_module_temp.pdf"
-// File on the serial flash to be replaced
-#define FILE_NAME "test.pdf"
-
-
-// Application specific status/error codes
-typedef enum{
- /* Choosing this number to avoid overlap with host-driver's error codes */
-    DEVICE_NOT_IN_STATION_MODE =1 ,
-    DEVICE_START_FAILED = 2,
-    INVALID_HEX_STRING = 3,
-    TCP_RECV_ERROR = 4,
-    TCP_SEND_ERROR = 5,
-    FILE_NOT_FOUND_ERROR = 6,
-    INVALID_SERVER_RESPONSE = 7,
-    FORMAT_NOT_SUPPORTED = 8,
-    FILE_OPEN_FAILED = 9,
-    FILE_WRITE_ERROR = 10,
-    INVALID_FILE = 11,
-    SERVER_CONNECTION_FAILED =12,
-    GET_HOST_IP_FAILED = 13,
-
-    STATUS_CODE_MAX
-} dl_status_codes;
-
-unsigned char g_buff[MAX_BUFF_SIZE+1];
-long bytesReceived = 0; // variable to store the file size
-static int dl_sock = -1;
-
 
 //****************************************************************************
 //
@@ -687,7 +662,7 @@ signed long hexToi(unsigned char *ptr)
         }
         else
         {
-            ASSERT_ON_ERROR(INVALID_HEX_STRING);
+            ASSERT_ON_ERROR(-1);
         }
     }
 
@@ -717,12 +692,12 @@ int GetChunkSize(int *len, unsigned char **p_Buff, unsigned long *chunk_size)
     {
         if(*len == 0)
         {
-            memset(g_buff, 0, sizeof(g_buff));
+            memset(g_buff, 0, MAX_BUFF_SIZE);
             *len = recv(dl_sock, g_buff, MAX_BUFF_SIZE, 0);
 
-            UARTprintf( "chunked rx:\r\n%s\r\n", g_buff);
+            LOGI( "chunked rx:\r\n%s\r\n", g_buff);
             if(*len <= 0)
-                ASSERT_ON_ERROR(TCP_RECV_ERROR);
+                ASSERT_ON_ERROR(-1);
 
             *p_Buff = g_buff;
         }
@@ -736,7 +711,7 @@ int GetChunkSize(int *len, unsigned char **p_Buff, unsigned long *chunk_size)
     r = hexToi(lenBuff);
     if(r < 0)
     {
-        ASSERT_ON_ERROR(INVALID_HEX_STRING);
+        ASSERT_ON_ERROR(-1);
     }
     else
     {
@@ -765,7 +740,15 @@ int GetChunkSize(int *len, unsigned char **p_Buff, unsigned long *chunk_size)
 //****************************************************************************
 #include "stdlib.h"
 #include "led_animations.h"
-int GetData(char * filename, char* url, char * host, char * path)
+typedef enum {
+	SERIAL_FLASH,
+	SD_CARD,
+} storage_dev_t;
+
+#include "crypto.h"
+
+
+int GetData(char * filename, char* url, char * host, char * path, storage_dev_t storage)
 {
     int           transfer_len = 0;
     WORD          r = 0;
@@ -774,9 +757,13 @@ int GetData(char * filename, char* url, char * host, char * path)
     unsigned long recv_size = 0;
     unsigned char isChunked = 0;
 
-    UARTprintf("Start downloading the file\r\n");
+    long          fileHandle = -1;
 
-    memset(g_buff, 0, sizeof(g_buff));
+    LOGI("Start downloading the file\r\n");
+
+    g_buff = (unsigned char*)pvPortMalloc( MAX_BUFF_SIZE );
+    assert(g_buff);
+    memset(g_buff, 0, MAX_BUFF_SIZE);
 
     // Puts together the HTTP GET string.
     strcpy((char *)g_buff, PREFIX_BUFFER);
@@ -785,7 +772,7 @@ int GetData(char * filename, char* url, char * host, char * path)
     strcat((char *)g_buff, host);
     strcat((char *)g_buff, POST_BUFFER_2);
 
-    UARTprintf("sent\r\n%s\r\n", g_buff );
+    LOGI("sent\r\n%s\r\n", g_buff );
 
     // Send the HTTP GET string to the opened TCP/IP socket.
     transfer_len = send(dl_sock, g_buff, strlen((const char *)g_buff), 0);
@@ -793,32 +780,31 @@ int GetData(char * filename, char* url, char * host, char * path)
     if (transfer_len < 0)
     {
         // error
-        ASSERT_ON_ERROR(TCP_SEND_ERROR);
+        ASSERT_ON_ERROR(-1);
     }
 
-    memset(g_buff, 0, sizeof(g_buff));
+    memset(g_buff, 0, MAX_BUFF_SIZE);
 
     // get the reply from the server in buffer.
     transfer_len = recv(dl_sock, &g_buff[0], MAX_BUFF_SIZE, 0);
 
     if(transfer_len <= 0)
     {
-        ASSERT_ON_ERROR(TCP_RECV_ERROR);
+        ASSERT_ON_ERROR(-1);
     }
 
-    UARTprintf("recv:\r\n%s\r\n", g_buff );
-
+    //LOGI("recv:\r\n%s\r\n", g_buff ); don't echo binary
 
     // Check for 404 return code
     if(strstr((const char *)g_buff, HTTP_FILE_NOT_FOUND) != 0)
     {
-        ASSERT_ON_ERROR(FILE_NOT_FOUND_ERROR);
+        ASSERT_ON_ERROR(-1);
     }
 
     // if not "200 OK" return error
     if(strstr((const char *)g_buff, HTTP_STATUS_OK) == 0)
     {
-        ASSERT_ON_ERROR(INVALID_SERVER_RESPONSE);
+        ASSERT_ON_ERROR(-1);
     }
 
     // check if content length is transfered with headers
@@ -826,11 +812,12 @@ int GetData(char * filename, char* url, char * host, char * path)
     if(pBuff != 0)
     {
     	char *p = (char*)pBuff;
-        // not supported
-        ASSERT_ON_ERROR(FORMAT_NOT_SUPPORTED);
+		p += strlen(HTTP_CONTENT_LENGTH)+1;
+		recv_size = atoi(p);
 
-    	p += strlen(HTTP_CONTENT_LENGTH)+1;
-    	recv_size = atoi(p);
+		if(recv_size <= 0) {
+			return -1;
+		}
     }
 
     // Check if data is chunked
@@ -862,7 +849,7 @@ int GetData(char * filename, char* url, char * host, char * path)
             if(memcmp(pBuff, HTTP_ENCODING_CHUNKED, strlen(HTTP_CONNECTION_CLOSE)) == 0)
             {
                 // not supported
-                ASSERT_ON_ERROR(FORMAT_NOT_SUPPORTED);
+                ASSERT_ON_ERROR(-1);
             }
         }
     }
@@ -871,7 +858,7 @@ int GetData(char * filename, char* url, char * host, char * path)
     pBuff = (unsigned char *)strstr((const char *)g_buff, HTTP_END_OF_HEADER);
     if(pBuff == 0)
     {
-        ASSERT_ON_ERROR(INVALID_SERVER_RESPONSE);
+        ASSERT_ON_ERROR(-1);
     }
     // Increment by 4 to skip "\r\n\r\n"
     pBuff += 4;
@@ -881,6 +868,7 @@ int GetData(char * filename, char* url, char * host, char * path)
     	transfer_len -= (pBuff - g_buff);
     } else {
     	transfer_len = 0;
+        vPortFree(g_buff);
     	return -1;
     }
 
@@ -891,24 +879,50 @@ int GetData(char * filename, char* url, char * host, char * path)
     }
     FRESULT res;
 
-	mkdir( path );
-	cd( path );
+	if (storage == SD_CARD) {
+		mkdir(path);
+		cd(path);
 
-    /* Open file to save the downloaded file */
-    if(global_filename( filename ))
-    {
-    	cd( "/" );
-    	return 1;
-    }
-    // Open the file for writing.
-    res = hello_fs_open(&file_obj, path_buff, FA_CREATE_NEW|FA_WRITE|FA_OPEN_ALWAYS);
-    UARTprintf("res :%d\n",res);
+		/* Open file to save the downloaded file */
+		if (global_filename(filename)) {
+			cd("/");
+		    vPortFree(g_buff);
+			return 1;
+		}
+		// Open the file for writing.
+		res = hello_fs_open(&file_obj, path_buff,
+				FA_CREATE_NEW | FA_WRITE | FA_OPEN_ALWAYS);
+		LOGI("res :%d\n", res);
 
-    if(res != FR_OK && res != FR_EXIST){
-    	UARTprintf("File open %s failed: %d\n", path_buff, res);
-    	cd( "/" );
-    	return res;
-    }
+		if (res != FR_OK && res != FR_EXIST) {
+			LOGI("File open %s failed: %d\n", path_buff, res);
+			cd("/");
+		    vPortFree(g_buff);
+			return res;
+		}
+	} else if( storage == SERIAL_FLASH ) {
+	    /* Open file to save the downloaded file */
+	    unsigned long Token = 0;
+	    strcpy(path_buff, path);
+	    strcat(path_buff, filename);
+
+	    long lRetVal = sl_FsOpen((unsigned char*)path_buff,
+	                       FS_MODE_OPEN_WRITE, &Token, &fileHandle);
+	    if(lRetVal < 0)
+	    {
+	        // File Doesn't exit create a new of 256 KB file
+	        lRetVal = sl_FsOpen((unsigned char*)path_buff, \
+	                           FS_MODE_OPEN_CREATE(256*1024, \
+	                           _FS_FILE_OPEN_FLAG_COMMIT|_FS_FILE_PUBLIC_WRITE),
+	                           &Token, &fileHandle);
+			if (lRetVal < 0) {
+			    vPortFree(g_buff);
+				return (lRetVal);
+			}
+		}
+	    LOGI("opening %s\n", path_buff);
+
+	}
     uint32_t total = recv_size;
     int percent = 101-100*recv_size/total;
 	play_led_progress_bar(132, 233, 4, 0, portMAX_DELAY);
@@ -917,7 +931,7 @@ int GetData(char * filename, char* url, char * host, char * path)
     {
     	if( 100-100*recv_size/total != percent ) {
     		percent = 100-100*recv_size/total;
-    		UARTprintf("dl loop %d %d\r\n", recv_size, percent );
+    		LOGI("dl loop %d %d\r\n", recv_size, percent );
     		set_led_progress_bar( percent );
     	}
 
@@ -925,26 +939,51 @@ int GetData(char * filename, char* url, char * host, char * path)
         if(recv_size <= transfer_len)
         {
             // write the recv_size
-            res = hello_fs_write( &file_obj, pBuff, transfer_len, &r );
+			if (storage == SD_CARD) {
+				res = hello_fs_write(&file_obj, pBuff, transfer_len, &r);
+				if (r < recv_size) {
+					LOGI("Failed during writing the file\n");
+					/* Close file without saving */
+					res = hello_fs_close(&file_obj);
 
-            UARTprintf("chunked 1 wrote:  %d %d\r\n", r, res);
+					stop_led_animation();
+					if (res != FR_OK) {
+						cd("/");
+						stop_led_animation();
+					    vPortFree(g_buff);
+						return ((int) res);
+					}
+					hello_fs_unlink(path_buff);
+					cd("/");
+				    vPortFree(g_buff);
+					return -1;
+				}
+			} else if (storage == SERIAL_FLASH) {
+				//write to serial flash file
+	            r = sl_FsWrite(fileHandle, total - recv_size,
+	                    (unsigned char *)pBuff, transfer_len);
+	            if(r < transfer_len)
+	            {
+	            	LOGI("Failed during writing the file\n");
+	                /* Close file without saving */
+	                stop_led_animation();
+	                vPortFree(g_buff);
+	                return sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
+	            }
+			}
+            LOGI("chunked 1 wrote:  %d %d\r\n", r, res);
 
             if(r < recv_size)
             {
-                UARTprintf("Failed during writing the file, Error-code: %d\r\n", \
-                            FILE_WRITE_ERROR);
-                /* Close file without saving */
-                res = hello_fs_close( &file_obj );
-
-                if(res != FR_OK)
-                {
-                	cd( "/" );
-        			stop_led_animation();
-                    return((int)res);
-                }
-                hello_fs_unlink( path_buff );
-                cd( "/" );
     			stop_led_animation();
+    			if (storage == SD_CARD) {
+    				/* Close file without saving */
+    				res = hello_fs_close(&file_obj);
+    				hello_fs_unlink(path_buff);
+    			} else if (storage == SERIAL_FLASH) {
+    				sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
+    			}
+    		    vPortFree(g_buff);
                 return r;
             }
             transfer_len -= recv_size;
@@ -976,27 +1015,54 @@ int GetData(char * filename, char* url, char * host, char * path)
                     // Code will enter this section if the new chunk size is
                     // less than the transfer size. This will the last chunk of
                     // file received
-                    res = hello_fs_write( &file_obj, pBuff, transfer_len, &r );
+        			if (storage == SD_CARD) {
+        				res = hello_fs_write(&file_obj, pBuff, recv_size, &r);
+        				if (r < recv_size) {
+        					LOGI("Failed during writing the file\n");
+        					/* Close file without saving */
+        					res = hello_fs_close(&file_obj);
+        					stop_led_animation();
 
-                    UARTprintf("chunked 2 wrote:  %d %d\r\n", r, res);
+        					if (res != FR_OK) {
+        						cd("/");
+        						stop_led_animation();
+        					    vPortFree(g_buff);
+        						return ((int) res);
+        					}
+        					hello_fs_unlink(path_buff);
+        					cd("/");
+        				    vPortFree(g_buff);
+        					return -1;
+        				}
+        			} else if (storage == SERIAL_FLASH) {
+						//write to serial flash file
+					    r = sl_FsWrite(fileHandle,total - recv_size,
+								(unsigned char *) pBuff, transfer_len);
+						if (r < transfer_len) {
+							LOGI("Failed during writing the file\n");
+							/* Close file without saving */
+							r = sl_FsClose(fileHandle, 0,
+									(unsigned char*) "A", 1);
+							stop_led_animation();
+						    vPortFree(g_buff);
+							return r;
+						}
+        			}
+
+                    LOGI("chunked 2 wrote:  %d %d\r\n", r, res);
 
                     if(r < recv_size)
                     {
-                        UARTprintf("Failed during writing the file, " \
-                                    "Error-code: %d\r\n", FILE_WRITE_ERROR);
-                        /* Close file without saving */
-                        res = hello_fs_close( &file_obj );
-
-                        if(res != FR_OK)
-                        {
-                			stop_led_animation();
-                        	cd( "/" );
-                            return((int)res);
-                        }
-                        hello_fs_unlink( path_buff );
-                        cd( "/" );
             			stop_led_animation();
-                        return FILE_WRITE_ERROR;
+            			if (storage == SD_CARD) {
+            				/* Close file without saving */
+            				res = hello_fs_close(&file_obj);
+            				hello_fs_unlink(path_buff);
+            			} else if (storage == SERIAL_FLASH) {
+            				sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
+            			}
+            		    vPortFree(g_buff);
+                        return -1;
                     }
                     transfer_len -= recv_size;
                     bytesReceived +=recv_size;
@@ -1025,27 +1091,53 @@ int GetData(char * filename, char* url, char * host, char * path)
                 else
                 {
                     // write data on the file
-                    res = hello_fs_write( &file_obj, pBuff, transfer_len, &r );
+        			if (storage == SD_CARD) {
+        				res = hello_fs_write(&file_obj, pBuff, transfer_len, &r);
+        				if (r < recv_size) {
+        					LOGI("Failed during writing the file\n");
+        					/* Close file without saving */
+        					res = hello_fs_close(&file_obj);
 
-                    UARTprintf("chunked 3 wrote:  %d %d\r\n", r, res);
+        					stop_led_animation();
+        					if (res != FR_OK) {
+        						cd("/");
+        					    vPortFree(g_buff);
+        						return ((int) res);
+        					}
+        					hello_fs_unlink(path_buff);
+        					cd("/");
+        				    vPortFree(g_buff);
+        					return -1;
+        				}
+        			} else if (storage == SERIAL_FLASH) {
+        				//write to serial flash file
+						r = sl_FsWrite(fileHandle, total - recv_size,
+								(unsigned char *) pBuff, transfer_len);
+						if (r < transfer_len) {
+							stop_led_animation();
+							LOGI("Failed during writing the file\n");
+							/* Close file without saving */
+							r = sl_FsClose(fileHandle, 0,
+									(unsigned char*) "A", 1);
+						    vPortFree(g_buff);
+							return r;
+						}
+        			}
+
+                    LOGI("chunked 3 wrote:  %d %d\r\n", r, res);
 
                     if(r < transfer_len)
                     {
-                        UARTprintf("Failed during writing the file, " \
-                                    "Error-code: %d\r\n", FILE_WRITE_ERROR);
-                        /* Close file without saving */
-                        res = hello_fs_close( &file_obj );
-
-                        if(res != FR_OK)
-                        {
-                        	cd( "/" );
-                			stop_led_animation();
-                            return((int)res);
-                        }
-                        hello_fs_unlink( path_buff );
-                        cd( "/" );
             			stop_led_animation();
-                        return FILE_WRITE_ERROR;
+            			if (storage == SD_CARD) {
+            				/* Close file without saving */
+            				res = hello_fs_close(&file_obj);
+            				hello_fs_unlink(path_buff);
+            			} else if (storage == SERIAL_FLASH) {
+            				sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
+            			}
+            		    vPortFree(g_buff);
+                        return -1;
                     }
                     recv_size -= transfer_len;
                     bytesReceived +=transfer_len;
@@ -1061,40 +1153,75 @@ int GetData(char * filename, char* url, char * host, char * path)
         else
         {
             // write data on the file
-            res = hello_fs_write( &file_obj, pBuff, transfer_len, &r );
+			if (storage == SD_CARD) {
+				res = hello_fs_write(&file_obj, pBuff, transfer_len, &r);
+				if (r != transfer_len) {
+					LOGI("Failed during writing the file\n");
+					/* Close file without saving */
+					res = hello_fs_close(&file_obj);
+					stop_led_animation();
 
-            //UARTprintf("wrote:  %d %d\r\n", r, res);
+					if (res != FR_OK) {
+						cd("/");
+					    vPortFree(g_buff);
+						return ((int) res);
+					}
+					hello_fs_unlink(path_buff);
+					cd("/");
+				    vPortFree(g_buff);
+					return -1;
+				}
+			} else if (storage == SERIAL_FLASH) {
+				//write to serial flash file
+				r = sl_FsWrite(fileHandle, total - recv_size,
+						(unsigned char *) pBuff, transfer_len);
+				if (r != transfer_len) {
+					LOGI("Failed during writing the file\n");
+					/* Close file without saving */
+					sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
+					stop_led_animation();
+				    vPortFree(g_buff);
+					return -1;
+				}
+			}
+
+            //LOGI("wrote:  %d %d\r\n", r, res); spamspamspam
 
             if (r != transfer_len )
             {
-                UARTprintf("Failed during writing the file, Error-code: " \
-                            "%d\r\n", FILE_WRITE_ERROR);
-                /* Close file without saving */
-                res = hello_fs_close( &file_obj );
-
-                if(res != FR_OK)
-                {
-                	cd( "/" );
-        			stop_led_animation();
-                    return((int)res);
-                }
-                hello_fs_unlink( path_buff );
     			stop_led_animation();
-                return FILE_WRITE_ERROR;
+    			if (storage == SD_CARD) {
+    				/* Close file without saving */
+    				res = hello_fs_close(&file_obj);
+    				hello_fs_unlink(path_buff);
+    			} else if (storage == SERIAL_FLASH) {
+    				sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
+    			}
+    			stop_led_animation();
+    		    vPortFree(g_buff);
+                return -1;
             }
             bytesReceived +=transfer_len;
             recv_size -= transfer_len;
         }
 
-        memset(g_buff, 0, sizeof(g_buff));
+        memset(g_buff, 0, MAX_BUFF_SIZE);
 
         transfer_len = recv(dl_sock, &g_buff[0], MAX_BUFF_SIZE, 0);
-        //UARTprintf("rx:  %d\r\n", transfer_len);
+        //LOGI("rx:  %d\r\n", transfer_len);
         if(transfer_len <= 0) {
-        	UARTprintf("TCP_RECV_ERROR\r\n" );
+        	LOGI("TCP_RECV_ERROR\r\n" );
         	cd( "/" );
 			stop_led_animation();
-            return TCP_RECV_ERROR;
+			if (storage == SD_CARD) {
+				/* Close file without saving */
+				res = hello_fs_close(&file_obj);
+				hello_fs_unlink(path_buff);
+			} else if (storage == SERIAL_FLASH) {
+				sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
+			}
+		    vPortFree(g_buff);
+            return -1;
         }
 
         pBuff = g_buff;
@@ -1110,32 +1237,51 @@ int GetData(char * filename, char* url, char * host, char * path)
     //
     if(0 > transfer_len || eof_detected == 0)
     {
-    	UARTprintf(" invalid file\r\n" );
-        /* Close file without saving */
-        res = hello_fs_close( &file_obj );
+    	LOGI(" invalid file\r\n" );
 
-        if(res != FR_OK)
-        {
-        	cd( "/" );
-            return((int)res);
-        }
-        hello_fs_unlink( path_buff );
-        cd( "/" );
-        return INVALID_FILE;
+		if (storage == SD_CARD) {
+	        /* Close file without saving */
+	        res = hello_fs_close( &file_obj );
+
+	        if(res != FR_OK)
+	        {
+	        	cd( "/" );
+	            vPortFree(g_buff);
+	            return((int)res);
+	        }
+	        hello_fs_unlink( path_buff );
+	        cd( "/" );
+		} else if (storage == SERIAL_FLASH) {
+	        /* Close file without saving */
+			sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
+		}
+	    vPortFree(g_buff);
+        return -1;
     }
     else
     {
-    	UARTprintf(" successful file\r\n" );
-        /* Save and close file */
-        res = hello_fs_close( &file_obj );
+    	LOGI(" successful file\r\n" );
 
-        if(res != FR_OK)
-        {
-        	cd( "/" );
-            return((int)res);
-        }
+		if (storage == SD_CARD) {
+	        /* Save and close file */
+	        res = hello_fs_close( &file_obj );
+
+	        if(res != FR_OK)
+	        {
+	        	cd( "/" );
+	            vPortFree(g_buff);
+	            return((int)res);
+	        }
+		} else if (storage == SERIAL_FLASH) {
+	        /* Save and close file */
+		    vPortFree(g_buff);
+			return sl_FsClose(fileHandle, 0, 0, 0);
+		}
     }
-    cd( "/" );
+	if (storage == SD_CARD) {
+        cd( "/" );
+	}
+    vPortFree(g_buff);
     return 0;
 }
 
@@ -1158,26 +1304,26 @@ int file_exists( char * filename, char * path ) {
 	return 1;
 }
 
-int download_file(char * host, char * url, char * filename, char * path ) {
+int download_file(char * host, char * url, char * filename, char * path, storage_dev_t storage ) {
 	unsigned long ip;
 	int r = gethostbyname((signed char*) host, strlen(host), &ip, SL_AF_INET);
 	if (r < 0) {
-		ASSERT_ON_ERROR(GET_HOST_IP_FAILED);
+		ASSERT_ON_ERROR(-1);
 	}
-	//UARTprintf("download <host> <filename> <url>\n\r");
+	//LOGI("download <host> <filename> <url>\n\r");
 	// Create a TCP connection to the Web Server
 	dl_sock = CreateConnection(ip);
 
 	if (dl_sock < 0) {
-		UARTprintf("Connection to server failed\n\r");
-		return SERVER_CONNECTION_FAILED;
+		LOGI("Connection to server failed\n\r");
+		return -1;
 	} else {
-		UARTprintf("Connection to server created successfully\r\n");
+		LOGI("Connection to server created successfully\r\n");
 	}
 	// Download the file, verify the file and replace the exiting file
-	r = GetData(filename, url, host, path);
+	r = GetData(filename, url, host, path, storage);
 	if (r < 0) {
-		UARTprintf("Device couldn't download the file from the server\n\r");
+		LOGI("Device couldn't download the file from the server\n\r");
 	}
 
 	r = close(dl_sock);
@@ -1188,7 +1334,7 @@ int download_file(char * host, char * url, char * filename, char * path ) {
 
 //download dropbox.com somefile.txt /on/drop/box/file.txt /
 int Cmd_download(int argc, char*argv[]) {
-	return download_file( argv[1], argv[3], argv[2], argv[4] );
+	return download_file( argv[1], argv[3], argv[2], argv[4], SD_CARD );
 }
 
 //end download functions
@@ -1231,8 +1377,6 @@ int Cmd_download(int argc, char*argv[]) {
 #define DEVICE_IS_CC3101RS      0x18
 #define DEVICE_IS_CC3101S       0x1B
 
-#include "crypto.h"
-
 /******************************************************************************
    Boot Info structure
 *******************************************************************************/
@@ -1245,7 +1389,6 @@ typedef struct sBootInfo
 }sBootInfo_t;
 
 void mcu_reset();
-_i16 nwp_reset();
 
 
 //*****************************************************************************
@@ -1311,7 +1454,7 @@ static _i32 _WriteBootInfo(sBootInfo_t *psBootInfo)
 
 
 	if (sl_FsOpen((unsigned char *)IMG_BOOT_INFO, FS_MODE_OPEN_WRITE, &ulBootInfoToken, &hndl)) {
-		UARTprintf("error opening file, trying to create\n");
+		LOGI("error opening file, trying to create\n");
 
 		if (sl_FsOpen((unsigned char *)IMG_BOOT_INFO, ulBootInfoCreateFlag, &ulBootInfoToken, &hndl)) {
 			return -1;
@@ -1319,7 +1462,7 @@ static _i32 _WriteBootInfo(sBootInfo_t *psBootInfo)
 	}
 	if( 0 < sl_FsWrite(hndl, 0, (_u8 *)psBootInfo, sizeof(sBootInfo_t)) )
 	{
-		UARTprintf("WriteBootInfo: ucActiveImg=%d, ulImgStatus=0x%x\n\r", psBootInfo->ucActiveImg, psBootInfo->ulImgStatus);
+		LOGI("WriteBootInfo: ucActiveImg=%d, ulImgStatus=0x%x\n\r", psBootInfo->ucActiveImg, psBootInfo->ulImgStatus);
 	}
 	sl_FsClose(hndl, 0, 0, 0);
     return 0;
@@ -1342,7 +1485,7 @@ static _i32 _ReadBootInfo(sBootInfo_t *psBootInfo)
         if( 0 < sl_FsRead(lFileHandle, 0, (_u8 *)psBootInfo, sizeof(sBootInfo_t)) )
         {
             status = 0;
-            UARTprintf("ReadBootInfo: ucActiveImg=%d, ulImgStatus=0x%x\n\r", psBootInfo->ucActiveImg, psBootInfo->ulImgStatus);
+            LOGI("ReadBootInfo: ucActiveImg=%d, ulImgStatus=0x%x\n\r", psBootInfo->ucActiveImg, psBootInfo->ulImgStatus);
         }
         sl_FsClose(lFileHandle, 0, 0, 0);
     }
@@ -1364,7 +1507,7 @@ static _i32 _McuImageGetNewIndex(void)
             newImageIndex = IMG_ACT_USER1;
             break;
     }
-    UARTprintf("_McuImageGetNewIndex: active image is %d, return new image %d \n\r", sBootInfo.ucActiveImg, newImageIndex);
+    LOGI("_McuImageGetNewIndex: active image is %d, return new image %d \n\r", sBootInfo.ucActiveImg, newImageIndex);
 
     return newImageIndex;
 }
@@ -1377,7 +1520,7 @@ void boot_commit_ota() {
     /* Check only on status TESTING */
     if( IMG_STATUS_TESTING == sBootInfo.ulImgStatus )
 	{
-		UARTprintf("Booted in testing mode\n");
+		LOGI("Booted in testing mode\n");
 		sBootInfo.ulImgStatus = IMG_STATUS_NOTEST;
 		sBootInfo.ucActiveImg = (sBootInfo.ucActiveImg == IMG_ACT_USER1)?
 								IMG_ACT_USER2:
@@ -1397,21 +1540,47 @@ void reset_to_factory_fw() {
 
 #include "wifi_cmd.h"
 int Cmd_version(int argc, char *argv[]) {
-	UARTprintf( "ver: %d\nimg: %d\nstatus: %x\n", KIT_VER, sBootInfo.ucActiveImg, sBootInfo.ulImgStatus );
+	LOGI( "ver: %x\nimg: %d\nstatus: %x\n", KIT_VER, sBootInfo.ucActiveImg, sBootInfo.ulImgStatus );
 	return 0;
 }
 
 int wait_for_top_boot(unsigned int timeout);
 int send_top(char *, int);
 bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, void **arg);
+void free_download_info(SyncResponse_FileDownload * download_info) {
+	char * filename=NULL, * url=NULL, * host=NULL, * path=NULL, * serial_flash_path=NULL, * serial_flash_name=NULL;
 
-SHA1_CTX sha1ctx;
+	filename = download_info->sd_card_filename.arg;
+	path = download_info->sd_card_path.arg;
+	url = download_info->url.arg;
+	host = download_info->host.arg;
+	serial_flash_name = download_info->serial_flash_filename.arg;
+	serial_flash_path = download_info->serial_flash_path.arg;
+	if( filename ) {
+		vPortFree(filename);
+	}
+	if( url ) {
+		vPortFree(url);
+	}
+	if( host ) {
+		vPortFree(host);
+	}
+	if( path ) {
+		vPortFree(path);
+	}
+	if( serial_flash_name ) {
+		vPortFree(serial_flash_name);
+	}
+	if( serial_flash_path ) {
+		vPortFree(serial_flash_path);
+	}
+}
 
 xQueueHandle download_queue = 0;
 
-void file_download_task( void * downloads ) {
+void file_download_task( void * params ) {
 	SyncResponse_FileDownload download_info;
-	while (xQueueReceive(download_queue, &(download_info), 100)) {
+	for(;;) while (xQueueReceive(download_queue, &(download_info), 100)) {
 		char * filename=NULL, * url=NULL, * host=NULL, * path=NULL, * serial_flash_path=NULL, * serial_flash_name=NULL;
 
 		filename = download_info.sd_card_filename.arg;
@@ -1421,172 +1590,163 @@ void file_download_task( void * downloads ) {
 		serial_flash_name = download_info.serial_flash_filename.arg;
 		serial_flash_path = download_info.serial_flash_path.arg;
 
+		if( strlen(filename) == 0 && strlen(serial_flash_name) == 0 ) {
+			UARTprintf( "no file name!\n");
+			goto next_one;
+		}
+
 		if( filename ) {
-			UARTprintf( "ota - filename: %s\n", filename);
+			LOGI( "ota - filename: %s\n", filename);
 		}
 		if( url ) {
-			UARTprintf( "ota - url: %s\n",url);
+			LOGI( "ota - url: %s\n",url);
 		}
 		if( host ) {
-			UARTprintf( "ota - host: %s\n",host);
+			LOGI( "ota - host: %s\n",host);
 		}
 		if( path ) {
-			UARTprintf( "ota - path: %s\n",path);
+			LOGI( "ota - path: %s\n",path);
 		}
 		if( serial_flash_path ) {
-			UARTprintf( "ota - serial_flash_path: %s\n",serial_flash_path);
+			LOGI( "ota - serial_flash_path: %s\n",serial_flash_path);
 		}
 		if( serial_flash_name ) {
-			UARTprintf( "ota - serial_flash_name: %s\n",serial_flash_name);
+			LOGI( "ota - serial_flash_name: %s\n",serial_flash_name);
 		}
 		if( download_info.has_copy_to_serial_flash ) {
-			UARTprintf( "ota - copy_to_serial_flash: %s\n",download_info.copy_to_serial_flash);
+			LOGI( "ota - copy_to_serial_flash: %s\n",download_info.copy_to_serial_flash);
 		}
 
 		if (filename && url && host && path) {
 			int exists = 0;
 			if (file_exists(filename, path)) {
-				UARTprintf("ota - file exists, overwriting\n");
+				LOGI("ota - file exists, overwriting\n");
 				exists = 1;
 			}
 
 			if(global_filename( filename ))
 			{
-				continue;
+				goto end_download_task;
 			}
 			if( exists ) {
 				hello_fs_unlink(path_buff);
 			}
 
-			//download it!
-			download_file( host, url, filename, path );
-
-			if( download_info.has_copy_to_serial_flash && download_info.copy_to_serial_flash && serial_flash_name && serial_flash_path ) {
-
-				char * full;
-				char *buf;
-				long sflash_fh = -1;
-				WORD size=0;
-				int status;
-				full = pvPortMalloc(128);
-				assert(full);
-				buf = pvPortMalloc(512);
-				assert(buf);
-				memset(buf,0,sizeof(buf));
-				memset(full,0,sizeof(full));
-
-				strcpy(full, serial_flash_path);
-				strcat(full, serial_flash_name);
-
-				UARTprintf("copying %s %s\n", serial_flash_path, serial_flash_name);
-
-				cd( path );
-				if(global_filename( filename ))
-				{
-					continue;
-				}
-
-				FRESULT res = hello_fs_open(&file_obj, path_buff, FA_READ);
-				if( res != FR_OK ) {
-					UARTprintf("ota - failed to open file %s", path_buff );
-					continue;
-				}
-
-				hello_fs_stat( path_buff, &file_info );
-				DWORD bytes_to_copy = file_info.fsize;
-
-				if (strstr(full, "/sys/mcuimgx") != 0 )
+			if (download_info.has_copy_to_serial_flash
+					&& download_info.copy_to_serial_flash && serial_flash_name
+					&& serial_flash_path) {
+				//download it!
+				if (strstr(serial_flash_name, "mcuimgx") != 0 )
 				{
 					_ReadBootInfo(&sBootInfo);
-					full[11] = (_u8)_McuImageGetNewIndex() + '1'; /* mcuimg1 is for factory default, mcuimg2,3 are for OTA updates */
-					UARTprintf("MCU image name converted to %s \n", full);
+					serial_flash_name[6] = (_u8)_McuImageGetNewIndex() + '1'; /* mcuimg1 is for factory default, mcuimg2,3 are for OTA updates */
+					LOGI("MCU image name converted to %s \n", serial_flash_name);
 				}
 
-				sl_FsOpen((unsigned char *)full, FS_MODE_OPEN_CREATE(bytes_to_copy, _FS_FILE_OPEN_FLAG_NO_SIGNATURE_TEST | _FS_FILE_OPEN_FLAG_COMMIT ), NULL, &sflash_fh);
-				if( res != FR_OK ) {
-					UARTprintf("ota - failed to open file %s\n", full );
-					continue;
+				if (download_file(host, url, serial_flash_name,
+						serial_flash_path, SERIAL_FLASH) != 0) {
+					goto end_download_task;
 				}
-				int file_len = bytes_to_copy;
+				char buf[64];
+				strncpy( buf, serial_flash_path, 64 );
+				strncat(buf, serial_flash_name, 64 );
 
-				play_led_progress_bar(254, 132, 4, 0, portMAX_DELAY);
-
-				if( download_info.has_sha1 ) {
-					SHA1_Init(&sha1ctx);
-				}
-
-				UARTprintf( "copying %d from %s on sd to %s on sflash\n", bytes_to_copy, path_buff, full);
-				while( bytes_to_copy > 0 ) {
-					//read from sd into buff
-					res = hello_fs_read( &file_obj, buf, bytes_to_copy<512?bytes_to_copy:512, &size );
-					if( res != FR_OK ) {
-						UARTprintf("ota - failed to read file %s\n", path_buff );
-						continue;
-					}
-					//UARTprintf( "offset %d, left %d, chunk %d\n",  file_len-bytes_to_copy, bytes_to_copy,size );
-					set_led_progress_bar( 100*(file_len-bytes_to_copy)/file_len );
-
-					if( download_info.has_sha1 ) {
-						SHA1_Update(&sha1ctx, (uint8_t*)buf, size);
-					}
-
-					status = sl_FsWrite(sflash_fh, file_len-bytes_to_copy, (unsigned char*)buf, size);
-					if( status != size ) {
-						UARTprintf("ota - failed to write file %s\n", full );
-						continue;
-					}
-					bytes_to_copy -= size;
-				}
-				stop_led_animation();
-				UARTprintf( "done, closing\n" );
-				sl_FsClose(sflash_fh,0,0,0);
-				hello_fs_close(&file_obj);
-
-				if( strcmp(full, "/top/update") == 0 ) {
+				if (strcmp(buf, "/top/update") == 0) {
 					send_top("dfu", strlen("dfu"));
 					wait_for_top_boot(120000);
 				}
+				LOGI("done, closing\n");
+			} else if (download_file(host, url, filename, path, SD_CARD) == 0) {
+				LOGI("done, closing\n");
+				hello_fs_close(&file_obj);
+			} else {
+				goto end_download_task;
 			}
-			if( download_info.has_reset_application_processor && download_info.reset_application_processor ) {
-				UARTprintf("change image status to IMG_STATUS_TESTREADY\n\r");
-				_ReadBootInfo(&sBootInfo);
-				if (download_info.has_sha1) {
-					unsigned char sha[SHA1_SIZE] = {0};
+		}
+		if (download_info.has_reset_application_processor
+				&& download_info.reset_application_processor) {
+			_ReadBootInfo(&sBootInfo);
+			if (download_info.has_sha1) {
+
+				//compute the sha of the file...
+					unsigned char * full_path;
+					unsigned char sha[SHA1_SIZE] = { 0 };
+
+					SHA1_CTX sha1ctx;
+					SHA1_Init(&sha1ctx);
+					//
+#define minval( a,b ) a < b ? a : b
+#define BUF_SZ 512
+					unsigned long tok = 0;
+					long hndl, err, bytes, bytes_to_read;
+					SlFsFileInfo_t info;
+					unsigned char* buffer = (unsigned char*)pvPortMalloc(BUF_SZ);
+
+					full_path = (unsigned char*)pvPortMalloc(256);
+					strcpy((char*)full_path, serial_flash_path );
+					strcat((char*)full_path, serial_flash_name);
+					sl_FsGetInfo(full_path, tok, &info);
+
+					LOGI( "computing SHA of %s\n", full_path);
+
+					err = sl_FsOpen((unsigned char*)full_path, FS_MODE_OPEN_READ,
+							&tok, &hndl);
+					vPortFree(full_path);
+
+					if (err) {
+						LOGI("error opening for read %d\n", err);
+						goto end_download_task;
+					}
+					bytes_to_read = info.FileLen;
+					while (bytes_to_read > 0) {
+						bytes = sl_FsRead(hndl, info.FileLen - bytes_to_read,
+								buffer,
+								minval(info.FileLen, BUF_SZ));
+						SHA1_Update(&sha1ctx, buffer, bytes);
+						bytes_to_read -= bytes;
+					}
+					vPortFree(buffer);
+					sl_FsClose(hndl, 0, 0, 0);
 
 					SHA1_Final(sha, &sha1ctx);
 
 					if (memcmp(sha, download_info.sha1.bytes, SHA1_SIZE) == 0) {
+						LOGI("change image status to IMG_STATUS_TESTREADY\n\r");
 						sBootInfo.ulImgStatus = IMG_STATUS_TESTREADY;
 						memcpy(sBootInfo.sha[_McuImageGetNewIndex()], download_info.sha1.bytes, SHA1_SIZE );
+						//sBootInfo.ucActiveImg this is set by boot loader
+						_WriteBootInfo(&sBootInfo);
+						mcu_reset();
 					} else {
-						UARTprintf( "fw update SHA did not match!\n");
+						LOGI( "fw update SHA did not match!\n");
+						goto end_download_task;
 					}
-					//sBootInfo.ucActiveImg this is set by boot loadervb
-					_WriteBootInfo(&sBootInfo);
-					mcu_reset();
 				} else {
-					UARTprintf( "no download SHA on fw!\n");
+					LOGI( "no download SHA on fw!\n");
+					goto end_download_task;
 				}
 			}
 			if( download_info.has_reset_network_processor && download_info.reset_network_processor ) {
-				UARTprintf( "reset nwp\n" );
+				LOGI( "reset nwp\n" );
 				nwp_reset();
 			}
-		}
+		next_one:
+		free_download_info(&download_info);
+		continue;
 
-		if( filename ) {
-			vPortFree(filename);
-		}
-		if( url ) {
-			vPortFree(url);
-		}
-		if( host ) {
-			vPortFree(host);
-		}
-		if( path ) {
-			vPortFree(path);
+		//what if we get the next set before the current set finishes? How do we know which set we're on? (doesn't matter, it will just overflow the queue)
+		//what if there's an error on some but not all the files? (start over)
+
+		end_download_task: //there was an error
+		while (xQueueReceive(download_queue, &download_info, 10)) {
+			free_download_info(&download_info);
 		}
 	}
+}
+
+void init_download_task( int stack ){
+	download_queue = xQueueCreate(10, sizeof(SyncResponse_FileDownload));
+	xTaskCreate(file_download_task, "file_download_task", stack, NULL, 2, NULL);
 }
 
 bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg)
@@ -1611,18 +1771,16 @@ bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg
 	download_info.serial_flash_path.funcs.decode = _decode_string_field;
 	download_info.serial_flash_path.arg = NULL;
 
-	UARTprintf("ota - parsing\n" );
+	LOGI("ota - parsing\n" );
 	if( !pb_decode(stream,SyncResponse_FileDownload_fields,&download_info) ) {
-		UARTprintf("ota - parse fail \n" );
+		LOGI("ota - parse fail \n" );
 		return false;
 	}
 
-	if( !download_queue ) {
-		download_queue = xQueueCreate(20, sizeof(SyncResponse_FileDownload));
-		xTaskCreate(file_download_task, "download task", 2*1024/4, NULL, 1, NULL);
-	}
 	if( download_queue ) {
-		xQueueSend(download_queue, (void*)&download_info, portMAX_DELAY);
+		if( xQueueSend(download_queue, (void*)&download_info, 10) != pdPASS ) {
+			free_download_info( &download_info );
+		}
 	}
 	return true;
 }

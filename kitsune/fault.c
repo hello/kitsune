@@ -69,12 +69,12 @@ void faultPrinter( faultInfo* f ) {
     //
     if(f->faultStatus & 0xffff0000)
     {
-        UARTprintf("\nUSAGE FAULT:\n");
+        LOGI("\nUSAGE FAULT:\n");
         for(i = 0; i < 6; i++)
         {
             if(f->faultStatus & sUsageFaultMap[i].ulFaultBits)
             {
-                UARTprintf(" %s\n", sUsageFaultMap[i].cFaultText);
+                LOGI(" %s\n", sUsageFaultMap[i].cFaultText);
             }
         }
     }
@@ -85,12 +85,12 @@ void faultPrinter( faultInfo* f ) {
     //
     if(f->faultStatus & 0x0000ff00)
     {
-        UARTprintf("\nBUS FAULT:\n");
+        LOGI("\nBUS FAULT:\n");
         for(i = 0; i < 5; i++)
         {
             if(f->faultStatus & sBusFaultMap[i].ulFaultBits)
             {
-                UARTprintf(" %s\n", sBusFaultMap[i].cFaultText);
+                LOGI(" %s\n", sBusFaultMap[i].cFaultText);
             }
         }
 
@@ -99,7 +99,7 @@ void faultPrinter( faultInfo* f ) {
         //
         if(f->faultStatus & NVIC_FAULT_STAT_BFARV)
         {
-            UARTprintf("BFAR = %08X\n", f->busFaultAddr);
+            LOGI("BFAR = %08X\n", f->busFaultAddr);
         }
     }
 
@@ -109,12 +109,12 @@ void faultPrinter( faultInfo* f ) {
     //
     if(f->faultStatus & 0x000000ff)
     {
-        UARTprintf("\nMEMORY MANAGE FAULT:\n");
+        LOGI("\nMEMORY MANAGE FAULT:\n");
         for(i = 0; i < 4; i++)
         {
             if(f->faultStatus & sMemFaultMap[i].ulFaultBits)
             {
-                UARTprintf(" %s\n", sMemFaultMap[i].cFaultText);
+                LOGI(" %s\n", sMemFaultMap[i].cFaultText);
             }
         }
 
@@ -123,26 +123,27 @@ void faultPrinter( faultInfo* f ) {
         //
         if(f->faultStatus & NVIC_FAULT_STAT_MMARV)
         {
-            UARTprintf("MMAR = %08X\n", f->mmuAddr);
+            LOGI("MMAR = %08X\n", f->mmuAddr);
         }
     }
 
     //
     // Print the context of the exception stack frame.
     //
-    UARTprintf("\nException Frame\n---------------\n");
-    UARTprintf("R0   = 0x%08X\n", f->exceptionFrame[0]);
-    UARTprintf("R1   = 0x%08X\n", f->exceptionFrame[1]);
-    UARTprintf("R2   = 0x%08X\n", f->exceptionFrame[2]);
-    UARTprintf("R3   = 0x%08X\n", f->exceptionFrame[3]);
-    UARTprintf("R12  = 0x%08X\n", f->exceptionFrame[4]);
-    UARTprintf("LR   = 0x%08X\n", f->exceptionFrame[5]);
-    UARTprintf("PC   = 0x%08X\n", f->exceptionFrame[6]);
-    UARTprintf("xPSR = 0x%08X\n", f->exceptionFrame[7]);
+    LOGI("\nException Frame\n---------------\n");
+    LOGI("R0   = 0x%08X\n", f->exceptionFrame[0]);
+    LOGI("R1   = 0x%08X\n", f->exceptionFrame[1]);
+    LOGI("R2   = 0x%08X\n", f->exceptionFrame[2]);
+    LOGI("R3   = 0x%08X\n", f->exceptionFrame[3]);
+    LOGI("R12  = 0x%08X\n", f->exceptionFrame[4]);
+    LOGI("LR   = 0x%08X\n", f->exceptionFrame[5]);
+    LOGI("PC   = 0x%08X\n", f->exceptionFrame[6]);
+    LOGI("xPSR = 0x%08X\n", f->exceptionFrame[7]);
 
 }
 
 int mcu_reset();
+void uart_logger_flush();
 
 void
 FaultDecoder(unsigned long *pulExceptionFrame)
@@ -188,6 +189,7 @@ FaultDecoder(unsigned long *pulExceptionFrame)
 
     faultPrinter(f);
     //todo save the UART log buffers to sd, send them to server on next boot...
+    uart_logger_flush();
     mcu_reset();
 }
 

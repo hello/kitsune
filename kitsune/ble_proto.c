@@ -1,4 +1,4 @@
-
+#include "simplelink.h"
 #include "ble_proto.h"
 #include "ble_cmd.h"
 #include "wlan.h"
@@ -18,44 +18,45 @@
 #include "stdlib.h"
 #include "stdio.h"
 #include "networktask.h"
+#include "wifi_cmd.h"
 #include "led_animations.h"
 #include "led_cmd.h"
 #include "top_board.h"
-
 #include "kitsune_version.h"
-
-extern unsigned int sl_status;
+#include "sys_time.h"
+#include "sl_sync_include_after_simplelink_header.h"
 
 static void _factory_reset(){
     int16_t ret = sl_WlanProfileDel(0xFF);
     if(ret)
     {
-        UARTprintf("Delete all stored endpoint failed, error %d.\n", ret);
+        LOGI("Delete all stored endpoint failed, error %d.\n", ret);
         ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
         return;
     }else{
-        UARTprintf("All stored WIFI EP removed.\n");
+        LOGI("All stored WIFI EP removed.\n");
     }
 
     ret = sl_WlanDisconnect();
     if(ret == 0){
-        UARTprintf("WIFI disconnected");
+        LOGI("WIFI disconnected\n");
     }else{
-        UARTprintf("Disconnect WIFI failed, error %d.\n", ret);
+        LOGI("Disconnect WIFI failed, error %d.\n", ret);
     }
 
-    ret = sl_Stop(0x00FF);
-    if(ret == 0)
+    while(wifi_status_get(CONNECT))
     {
-    	sl_Start(NULL, NULL, NULL);
-    }else{
-    	UARTprintf("NWP reset failed\n");
+    	LOGI("Waiting disconnect...\n");
+    	vTaskDelay(1000);
     }
 
-    MorpheusCommand reply_command;
+	nwp_reset();
+
+	MorpheusCommand reply_command;
 	memset(&reply_command, 0, sizeof(reply_command));
 	reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_FACTORY_RESET;
 	ble_send_protobuf(&reply_command);
+
 }
 
 static void _reply_wifi_scan_result()
@@ -65,23 +66,24 @@ static void _reply_wifi_scan_result()
 
     uint8_t max_retry = 3;
     uint8_t retry_count = max_retry;
-    sl_status |= SCANNING;
+    wifi_status_set(SCANNING, false);
     
     //Cmd_led(0,0);
     play_led_progress_bar(30,30,0,0,portMAX_DELAY);
     while((scanned_wifi_count = get_wifi_scan_result(wifi_endpoints, MAX_WIFI_EP_PER_SCAN, 3000 * (max_retry - retry_count + 1))) == 0 && --retry_count)
     {
     	set_led_progress_bar((max_retry - retry_count) * 100 / max_retry);
-        UARTprintf("No wifi scanned, retry times remain %d\n", retry_count);
+        LOGI("No wifi scanned, retry times remain %d\n", retry_count);
         vTaskDelay(500);
     }
     stop_led_animation();
-    sl_status &= ~SCANNING;
+    wifi_status_set(SCANNING, true);
 
     int i = 0;
     Sl_WlanNetworkEntry_t wifi_endpoints_cp[2] = {0};
     play_led_progress_bar(0,0,30,0,portMAX_DELAY);
     MorpheusCommand reply_command = {0};
+
     for(i = 0; i < scanned_wifi_count; i++)
     {
         wifi_endpoints_cp[0] = wifi_endpoints[i];
@@ -97,7 +99,7 @@ static void _reply_wifi_scan_result()
 
     reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_STOP_WIFISCAN;
 	ble_send_protobuf(&reply_command);
-	UARTprintf(">>>>>>Send WIFI scan results done<<<<<<\n");
+	LOGI(">>>>>>Send WIFI scan results done<<<<<<\n");
 
 }
 
@@ -113,7 +115,7 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type)
     while((connection_ret = connect_wifi(ssid, password, security_type)) == 0 && --retry_count)
     {
         //Cmd_led(0,0);
-        UARTprintf("Failed to connect, retry times remain %d\n", retry_count);
+        LOGI("Failed to connect, retry times remain %d\n", retry_count);
         set_led_progress_bar((max_retry - retry_count ) * 100 / max_retry);
         vTaskDelay(2000);
     }
@@ -121,51 +123,51 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type)
 
     if(!connection_ret)
     {
-		UARTprintf("Tried all wifi ep, all failed to connect\n");
+		LOGI("Tried all wifi ep, all failed to connect\n");
         ble_reply_protobuf_error(ErrorType_WLAN_CONNECTION_ERROR);
         led_set_color(0xFF, LED_MAX,0,0,1,1,20,0);
 		return 0;
     }else{
 		uint8_t wait_time = 5;
 
-		sl_status |= CONNECTING;
+		wifi_status_set(CONNECTING, false);
 		play_led_progress_bar(30,30,0,0,portMAX_DELAY);
-		while(--wait_time && (!(sl_status & HAS_IP)))
+		while(--wait_time && (!wifi_status_get(HAS_IP)))
 		{
-            if(!(sl_status & CONNECTING))  // This state will be triggered magically by SL_WLAN_CONNECTION_FAILED_EVENT event
+            if(!wifi_status_get(CONNECTING))  // This state will be triggered magically by SL_WLAN_CONNECTION_FAILED_EVENT event
             {
-            	UARTprintf("Connection failed!\n");
+            	LOGI("Connection failed!\n");
                 break;
             }
 			set_led_progress_bar((10 - wait_time ) * 100 / 10);
-			UARTprintf("Retrieving IP address...\n");
+			LOGI("Retrieving IP address...\n");
 			vTaskDelay(4000);
 		}
 		stop_led_animation();
 
-		if(!(sl_status & HAS_IP))
+		if(!wifi_status_get(HAS_IP))
 		{
 			// This is the magical NWP reset problem...
 			// we either get an SL_WLAN_CONNECTION_FAILED_EVENT event, or
 			// no response, do a NWP reset based on the connection pattern
 			// sugguest here: http://e2e.ti.com/support/wireless_connectivity/f/968/p/361673/1273699.aspx
-			UARTprintf("Cannot retrieve IP address, try NWP reset.");
+			LOGI("Cannot retrieve IP address, try NWP reset.");
 			led_set_color(0xFF, LED_MAX, 0x66, 0, 1, 0, 15, 0);  // Tell the user we are going to fire the bomb.
-			sl_Stop(0x00FF);   // 0x00FF is a magic number... don't change or it might fail.
-			sl_Start(NULL, NULL, NULL);  // In factory reset, PW experience bus fault here. But in connection fail situation it works fine.
+
+			nwp_reset();
 
 			wait_time = 10;
-			while(--wait_time && (!(sl_status & HAS_IP)))
+			while(--wait_time && (!wifi_status_get(HAS_IP)))
 			{
 				vTaskDelay(1000);
 			}
 
-			if(sl_status & HAS_IP)
+			if(wifi_status_get(HAS_IP))
 			{
-				UARTprintf("Connection success by NWP reset.");
+				LOGI("Connection success by NWP reset.");
 				led_set_color(0xFF, LED_MAX, 0x66, 0, 0, 1, 15, 0);
 			}else{
-				if(sl_status & CONNECTING)
+				if(wifi_status_get(CONNECTING))
 				{
 					ble_reply_protobuf_error(ErrorType_FAIL_TO_OBTAIN_IP);
 				}else{
@@ -182,7 +184,7 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type)
     reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_SET_WIFI_ENDPOINT;
     reply_command.wifiSSID.arg = (void*)ssid;
 
-    UARTprintf("Connection attempt issued.\n");
+    LOGI("Connection attempt issued.\n");
     ble_send_protobuf(&reply_command);
     led_set_color(0xFF, 0,LED_MAX,0,1,1,20,0);
     return 1;
@@ -204,7 +206,7 @@ static void _reply_device_id()
 			snprintf(&device_id[i * 2], 3, "%02X", mac[i]);  //assert( itoa( mac[i], device_id+i*2, 16 ) == 2 );
 		}
 
-		UARTprintf("Morpheus device id: %s\n", device_id);
+		LOGI("Morpheus device id: %s\n", device_id);
 		MorpheusCommand reply_command;
 		memset(&reply_command, 0, sizeof(reply_command));
 		reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_DEVICE_ID;
@@ -216,7 +218,7 @@ static void _reply_device_id()
 		ble_send_protobuf(&reply_command);
 
     }else{
-        UARTprintf("Get Mac address failed, error %d.\n", ret);
+        LOGI("Get Mac address failed, error %d.\n", ret);
         ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
     }
 }
@@ -241,15 +243,15 @@ static void _ble_reply_wifi_info(){
     reply_command.has_wifi_connection_state = true;
     reply_command.wifi_connection_state = wifi_connection_state_NO_WLAN_CONNECTED;
 
-    if(sl_status & CONNECTING){
+    if(wifi_status_get(CONNECTING)){
         reply_command.wifi_connection_state = wifi_connection_state_WLAN_CONNECTING;
     }
 
-    if(sl_status & CONNECT){
+    if(wifi_status_get(CONNECT)){
         reply_command.wifi_connection_state = wifi_connection_state_WLAN_CONNECTED;
     }
 
-    if(sl_status & HAS_IP)
+    if(wifi_status_get(HAS_IP))
     {
         reply_command.wifi_connection_state = wifi_connection_state_IP_RETRIEVED;
     }
@@ -259,26 +261,25 @@ static void _ble_reply_wifi_info(){
 
 #include "wifi_cmd.h"
 extern xQueueHandle pill_queue;
-uint64_t get_cache_time();
 
 static void _process_encrypted_pill_data( MorpheusCommand* command)
 {
     if( command->has_pill_data ) {
-    	uint64_t timestamp = get_cache_time();
-    	if(!timestamp)
+    	if(!has_good_time())
     	{
-    		UARTprintf("Device not initialized!\n");
+    		LOGI("Device not initialized!\n");
     		return;
     	}
+    	uint32_t timestamp = get_time();
         command->pill_data.timestamp = timestamp;  // attach timestamp, so we don't need to worry about the sending time
         xQueueSend(pill_queue, &command->pill_data, 10);
 
         if(command->pill_data.has_motion_data_entrypted)
         {
-            UARTprintf("PILL DATA FROM ID: %s, length: %d\n", command->pill_data.device_id,
+            LOGI("PILL DATA FROM ID: %s, length: %d\n", command->pill_data.device_id,
                 command->pill_data.motion_data_entrypted.size);
         }else{
-            UARTprintf("Bug: No encrypted data!\n");
+            LOGI("Bug: No encrypted data!\n");
         }
     }
 }
@@ -287,25 +288,25 @@ static void _process_pill_heartbeat( MorpheusCommand* command)
 {
 	// Pill heartbeat received from ANT
     if( command->has_pill_data ) {
-    	uint64_t timestamp = get_cache_time();
-		if(!timestamp)
+		if(!has_good_time())
 		{
-			UARTprintf("Device not initialized!\n");
+			LOGI("Device not initialized!\n");
 			return;
 		}
+		uint32_t timestamp = get_time();
 		command->pill_data.timestamp = timestamp;  // attach timestamp, so we don't need to worry about the sending time
         xQueueSend(pill_queue, &command->pill_data, 10);
-        UARTprintf("PILL HEARBEAT %s\n", command->pill_data.device_id);
+        LOGI("PILL HEARBEAT %s\n", command->pill_data.device_id);
 
         if (command->pill_data.has_battery_level) {
-            UARTprintf("PILL BATTERY %d\n", command->pill_data.battery_level);
+            LOGI("PILL BATTERY %d\n", command->pill_data.battery_level);
         }
         if (command->pill_data.has_uptime) {
-            UARTprintf("PILL UPTIME %d\n", command->pill_data.uptime);
+            LOGI("PILL UPTIME %d\n", command->pill_data.uptime);
         }
 
         if (command->pill_data.has_firmware_version) {
-            UARTprintf("PILL FirmwareVersion %d\n", command->pill_data.firmware_version);
+            LOGI("PILL FirmwareVersion %d\n", command->pill_data.firmware_version);
         }
     }
 	
@@ -317,19 +318,19 @@ static void _send_response_to_ble(const char* buffer, size_t len)
     char * content = strstr(buffer, "\r\n\r\n") + 4;
     char * len_str = strstr(buffer, header_content_len) + strlen(header_content_len);
     if (len_str == NULL) {
-        UARTprintf("Invalid response, Content-Length header not found.\n");
+        LOGI("Invalid response, Content-Length header not found.\n");
         ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
         return;
     }
 
     if (http_response_ok(buffer) != 1) {
-        UARTprintf("Invalid response, %s endpoint return failure.\n", PILL_REGISTER_ENDPOINT);
+        LOGI("Invalid response, %s endpoint return failure.\n", PILL_REGISTER_ENDPOINT);
         ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
         return;
     }
 
     int content_len = atoi(len_str);
-    UARTprintf("Content length %d\n", content_len);
+    LOGI("Content length %d\n", content_len);
     
     MorpheusCommand response;
     memset(&response, 0, sizeof(response));
@@ -341,7 +342,7 @@ static void _send_response_to_ble(const char* buffer, size_t len)
     	ble_proto_remove_decode_funcs(&response);
     	ble_send_protobuf(&response);
     }else{
-    	UARTprintf("Invalid response, protobuf decryption & decode failed.\n");
+    	LOGI("Invalid response, protobuf decryption & decode failed.\n");
     	ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
     }
 
@@ -353,7 +354,7 @@ static void _pair_device( MorpheusCommand* command, int is_morpheus)
 	char response_buffer[256] = {0};
 	int ret;
 	if(NULL == command->accountId.arg || NULL == command->deviceId.arg){
-		UARTprintf("*******Missing fields\n");
+		LOGI("*******Missing fields\n");
 		ble_reply_protobuf_error(ErrorType_INTERNAL_DATA_ERROR);
 	}else{
 
@@ -376,7 +377,7 @@ static void _pair_device( MorpheusCommand* command, int is_morpheus)
 		{
 			_send_response_to_ble(response_buffer, sizeof(response_buffer));
 		}else{
-			UARTprintf("Pairing request failed, error %d\n", ret);
+			LOGI("Pairing request failed, error %d\n", ret);
 			ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
 		}
 	}
@@ -398,7 +399,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
             // I can get the Mac address as well, but not sure it is necessary.
 
             // Just call API to connect to WIFI.
-            UARTprintf("Wifi SSID %s, pswd %s \n", ssid, password);
+            LOGI("Wifi SSID %s, pswd %s \n", ssid, password);
 
             int sec_type = SL_SEC_TYPE_WPA_WPA2;
             if(command->has_security_type)
@@ -413,20 +414,20 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         {
             // Light up LEDs?
         	led_set_color(0xFF, 0, 0, 50, 1, 1, 18, 0); //blue
-            UARTprintf( "PAIRING MODE \n");
+            LOGI( "PAIRING MODE \n");
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_WIFI_ENDPOINT:
         {
             // Get the current wifi connection information.
             _ble_reply_wifi_info();
-            UARTprintf( "GET_WIFI\n");
+            LOGI( "GET_WIFI\n");
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_DEVICE_ID:
         {
             // Get morpheus device id request from Nordic
-            UARTprintf("GET DEVICE ID\n");
+            LOGI("GET DEVICE ID\n");
             top_board_notify_boot_complete();
             _reply_device_id();
         }
@@ -435,22 +436,22 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         {
     		// Pill data received from ANT
         	if(command->has_pill_data){
-        		UARTprintf("PILL DATA %s\n", command->pill_data.device_id);
+        		LOGI("PILL DATA %s\n", command->pill_data.device_id);
         	}else{
-        		UARTprintf("You may have a bug in the pill\n");
+        		LOGI("You may have a bug in the pill\n");
         	}
     		_process_encrypted_pill_data(command);
     	}
         break;
     	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_HEARTBEAT: 
         {
-            UARTprintf("PILL HEARTBEAT\n");
+            LOGI("PILL HEARTBEAT\n");
     		_process_pill_heartbeat(command);
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_PILL:
         {
-            UARTprintf("PAIR PILL\n");
+            LOGI("PAIR PILL\n");
             led_set_color(0xFF, 0, 0, 50, 1, 1, 18, 1); //blue
             _pair_device(command, 0);
             
@@ -458,25 +459,25 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_SENSE:
         {
-            UARTprintf("PAIR SENSE\n");
+            LOGI("PAIR SENSE\n");
             _pair_device(command, 1);
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_FACTORY_RESET:
         {
-            UARTprintf("FACTORY RESET\n");
+            LOGI("FACTORY RESET\n");
             _factory_reset();
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_START_WIFISCAN:
         {
-            UARTprintf("WIFI Scan request\n");
+            LOGI("WIFI Scan request\n");
             _reply_wifi_scan_result();
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_SHAKES:
         {
-            UARTprintf("PILL SHAKES\n");
+            LOGI("PILL SHAKES\n");
             led_set_color(0xFF, 0, 0, 50, 1, 1, 18, 1); //blue
         }
         break;
