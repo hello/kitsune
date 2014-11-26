@@ -248,19 +248,18 @@ static time_t get_cached_time() {
 static void time_task( void * params ) { //exists to get the time going and cache so we aren't going to NTP or RTC every time...
 	bool have_set_time = false;
 	while (1) {
-		if (!have_set_time && (HAS_IP & sl_status)) {
+		if (!have_set_time && (HAS_IP & sl_status)
+				&& xSemaphoreTake(time_smphr, 0)) {
 			uint32_t ntp_time = fetch_unix_time_from_ntp();
 			if (ntp_time != INVALID_SYS_TIME) {
 				if (set_unix_time(ntp_time) != INVALID_SYS_TIME) {
-					if (xSemaphoreTake(time_smphr, portMAX_DELAY)) {
-						is_time_good = true;
-						set_cached_time( ntp_time );
-						set_sl_time( get_cached_time() );
-						xSemaphoreGive(time_smphr);
-						have_set_time = true;
-					}
+					is_time_good = true;
+					set_cached_time(ntp_time);
+					set_sl_time(get_cached_time());
+					have_set_time = true;
 				}
 			}
+			xSemaphoreGive(time_smphr);
 		}
 
 		if (xSemaphoreTake(time_smphr, 0)) {

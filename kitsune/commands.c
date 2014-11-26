@@ -238,53 +238,8 @@ int Cmd_fs_read(int argc, char *argv[]) {
 		LOGI("%x", buffer[i]);
 	}
 
-	// Return success.
-	return (0);
-}
-
-#define AUDIO_RATE 16000
-extern
-unsigned short * audio_buf;
-int Cmd_code_playbuff(int argc, char *argv[]) {
-unsigned int CPU_XDATA = 1; //1: enabled CPU interrupt triggerred
-#define minval( a,b ) a < b ? a : b
-	unsigned long tok;
-	long hndl, err, bytes;
-
-    McASPInit(true, AUDIO_RATE);
-	//Audio_Stop();
-	audio_buf = (unsigned short*)pvPortMalloc(AUDIO_BUF_SZ);
-	//assert(audio_buf);
-	err = sl_FsOpen("Ringtone_hello_leftchannel_16PCM", FS_MODE_OPEN_READ, &tok, &hndl);
-	if (err) {
-		LOGI("error opening for read %d\n", err);
-		return -1;
-	}
-	bytes = sl_FsRead(hndl, 0,  (unsigned char*)audio_buf, AUDIO_BUF_SZ);
-	if (bytes) {
-		LOGI("read %d bytes\n", bytes);
-	}
-	sl_FsClose(hndl, 0, 0, 0);
-
-	get_codec_NAU(atoi(argv[1]));
-	LOGI(" Done for get_codec_NAU\n ");
-
-	AudioCaptureRendererConfigure(I2S_PORT_CPU, AUDIO_RATE);
-
-	AudioCapturerInit(CPU_XDATA, AUDIO_RATE); //LOGI(" Done for AudioCapturerInit\n ");
-
-	Audio_Start(); //LOGI(" Done for Audio_Start\n ");
-
-	vTaskDelay(5 * 1000);
-	Audio_Stop(); // added this, the ringtone will not play
-	McASPDeInit(true, AUDIO_RATE);
-
-	vPortFree(audio_buf); //LOGI(" audio_buf\n ");
-
 	return 0;
 }
-
-
 
 int Cmd_record_buff(int argc, char *argv[]) {
 	AudioMessage_t m;
@@ -1118,9 +1073,6 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "ping", Cmd_ping, "" },
 		{ "time", Cmd_time, "" },
 		{ "status", Cmd_status, "" },
-#if 0
-		{ "audio", Cmd_audio_test, "audio upload test" },
-#endif
 
     { "mnt",      Cmd_mnt,      "" },
     { "umnt",     Cmd_umnt,     "" },
@@ -1133,7 +1085,6 @@ tCmdLineEntry g_sCmdTable[] = {
     { "mkfs",     Cmd_mkfs,     "" },
     { "pwd",      Cmd_pwd,      "" },
     { "cat",      Cmd_cat,      "" },
-		//{ "fault", Cmd_fault, "" },
 
 		{ "humid", Cmd_readhumid, "" },
 		{ "temp", Cmd_readtemp,	"" },
@@ -1151,17 +1102,14 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "fsrd", Cmd_fs_read, "" },
 		{ "fsdl", Cmd_fs_delete, "" },
 
-		{ "play_ringtone", Cmd_code_playbuff, "" },
-		{ "stop_ringtone",Cmd_stop_buff,""},
 		{ "r", Cmd_record_buff,""}, //record sounds into SD card
 		{ "p", Cmd_play_buff, ""},//play sounds from SD card
+		{ "s",Cmd_stop_buff,""},
 		{ "aon",Cmd_audio_turn_on,""},
 		{ "aoff",Cmd_audio_turn_off,""},
-		//{ "readout", Cmd_readout_data, "read out sensor data log" },
 
 		{ "sl", Cmd_sl, "" }, // smart config
 		{ "mode", Cmd_mode, "" }, //set the ap/station mode
-		//{ "mel", Cmd_mel, "test the mel calculation" },
 
 		{ "spird", Cmd_spi_read,"" },
 		{ "spiwr", Cmd_spi_write, "" },
