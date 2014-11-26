@@ -119,7 +119,7 @@ static set_sl_time(time_t unix_timestamp_sec) {
 			  &sz,
 			  (unsigned char *)(&sl_tm));
 
-    UARTprintf("Day %d,Mon %d,Year %d,Hour %,Min %d,Sec %d\n",sl_tm.sl_tm_day,sl_tm.sl_tm_mon,sl_tm.sl_tm_year, sl_tm.sl_tm_hour,sl_tm.sl_tm_min,sl_tm.sl_tm_sec);
+    UARTprintf("Day %d,Mon %d,Year %d,Hour %d,Min %d,Sec %d\n",sl_tm.sl_tm_day,sl_tm.sl_tm_mon,sl_tm.sl_tm_year, sl_tm.sl_tm_hour,sl_tm.sl_tm_min,sl_tm.sl_tm_sec);
 }
 
 uint32_t fetch_unix_time_from_ntp() {
@@ -248,8 +248,7 @@ static time_t get_cached_time() {
 static void time_task( void * params ) { //exists to get the time going and cache so we aren't going to NTP or RTC every time...
 	bool have_set_time = false;
 	while (1) {
-		if (!have_set_time && (HAS_IP & sl_status)
-				&& time_smphr && xSemaphoreTake(time_smphr, 0)) {
+		if (!have_set_time && wifi_status_get(HAS_IP) && time_smphr && xSemaphoreTake(time_smphr, 0)) {
 			uint32_t ntp_time = fetch_unix_time_from_ntp();
 			if (ntp_time != INVALID_SYS_TIME) {
 				if (set_unix_time(ntp_time) != INVALID_SYS_TIME) {

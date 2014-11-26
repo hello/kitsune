@@ -45,9 +45,6 @@ int sl_mode;
 extern
 SyncResponse_Alarm alarm;
 
-//todo semaphore protect
-extern volatile unsigned int sl_status;
-
 #define IFA_ANT 1
 #define CHIP_ANT 2
 void antsel(unsigned char a);
@@ -76,6 +73,9 @@ bool get_mac(unsigned char mac[6]);
 int match(char *regexp, char *text);
 void load_aes();
 
+void wifi_status_init();
+int wifi_status_set(unsigned int status, int remove_status);
+int wifi_status_get(unsigned int status);
 
 int send_periodic_data(periodic_data* data);
 int send_audio_data( data_t * data );

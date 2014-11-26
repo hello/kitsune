@@ -20,7 +20,6 @@
 
 int sl_mode = ROLE_INVALID;
 
-volatile unsigned int sl_status = 0;
 
 #include "rom_map.h"
 #include "prcm.h"
@@ -72,7 +71,7 @@ void mcu_reset()
 long nwp_reset() {
     sl_WlanSetMode(ROLE_STA);
     sl_Stop(SL_STOP_TIMEOUT);
-    sl_status = 0;
+    wifi_status_set(0xFFFFFFFF, true);
     return sl_Start(NULL, NULL, NULL);
 }
 
@@ -145,8 +144,8 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
     case SL_WLAN_CONNECT_EVENT:
     {
         LOGI("SL_WLAN_CONNECT_EVENT\n");
-        sl_status |= CONNECT;
-        sl_status &= ~CONNECTING;
+        wifi_status_set(CONNECT, false);
+        wifi_status_set(CONNECTING, true);
         char* pSSID = (char*)pSlWlanEvent->EventData.STAandP2PModeWlanConnected.ssid_name;
         uint8_t ssidLength = pSlWlanEvent->EventData.STAandP2PModeWlanConnected.ssid_len;
         if (ssidLength > MAX_SSID_LEN) {
@@ -161,13 +160,13 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
     {
     	// This is a P2P event, but it fired here magically.
         LOGI("SL_WLAN_CONNECTION_FAILED_EVENT\n");
-        sl_status &= ~CONNECTING;
+        wifi_status_set(CONNECTING, true);
     }
     break;
     case SL_WLAN_DISCONNECT_EVENT:
         LOGI("SL_WLAN_DISCONNECT_EVENT\n");
-        sl_status &= ~CONNECT;
-        sl_status &= ~HAS_IP;
+        wifi_status_set(CONNECT, true);
+        wifi_status_set(HAS_IP, true);
         memset(_connected_ssid, 0, MAX_SSID_LEN);
         break;
     default:
@@ -198,12 +197,12 @@ void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent) {
 			srand(seed); //seed with low bits of lf clock when connecting(not sure when it happens, gives some more entropy).
 		}
 
-		sl_status |= HAS_IP;
+		wifi_status_set(HAS_IP, false);
 
 		break;
 
 	case SL_NETAPP_IP_LEASED_EVENT:
-		sl_status |= IP_LEASED;
+		wifi_status_set(IP_LEASED, false);
         break;
     default:
         break;
@@ -287,7 +286,7 @@ int Cmd_status(int argc, char *argv[]) {
     //
     // Send the information
     //
-    LOGI("%x ip 0x%x submask 0x%x gateway 0x%x dns 0x%x\n\r", sl_status,
+    LOGI("%x ip 0x%x submask 0x%x gateway 0x%x dns 0x%x\n\r", wifi_status_get(0xFFFFFFFF),
             ipv4.ipV4, ipv4.ipV4Mask, ipv4.ipV4Gateway, ipv4.ipV4DnsServer);
     return 0;
 }
@@ -1376,7 +1375,7 @@ int send_periodic_data(periodic_data* data) {
     if(ret != 0)
     {
         // network error
-    	sl_status &= ~UPLOADING;
+    	wifi_status_set(UPLOADING, true);
         LOGI("Send data failed, network error %d\n", ret);
         vPortFree(buffer);
         return ret;
@@ -1389,14 +1388,14 @@ int send_periodic_data(periodic_data* data) {
     char * content = strstr(buffer, "\r\n\r\n") + 4;
     char * len_str = strstr(buffer, header_content_len) + strlen(header_content_len);
     if (http_response_ok(buffer) != 1) {
-    	sl_status &= ~UPLOADING;
+    	wifi_status_set(UPLOADING, true);
         LOGI("Invalid response, endpoint return failure.\n");
         vPortFree(buffer);
         return -1;
     }
     
     if (len_str == NULL) {
-    	sl_status &= ~UPLOADING;
+    	wifi_status_set(UPLOADING, true);
         LOGI("Failed to find Content-Length header\n");
         vPortFree(buffer);
         return -1;
@@ -1419,7 +1418,7 @@ int send_periodic_data(periodic_data* data) {
         response_protobuf.has_unix_time);
 
 		_on_response_protobuf(&response_protobuf);
-        sl_status |= UPLOADING;
+		wifi_status_set(UPLOADING, false);
     	boot_commit_ota(); //commit only if we hear back from the server...
         vPortFree(buffer);
         return 0;
@@ -1997,6 +1996,45 @@ int connect_scanned_endpoints(const char* ssid, const char* password,
     }
 
     return 0;
+}
+
+static xSemaphoreHandle _sl_status_mutex;
+static unsigned int _wifi_status;
+
+void wifi_status_init()
+{
+    _sl_status_mutex = xSemaphoreCreateMutex();
+    if(!_sl_status_mutex)
+    {
+        LOGI("Create _sl_status_mutex failed\n");
+    }
+    _wifi_status = 0;
+}
+
+int wifi_status_get(unsigned int status)
+{
+    xSemaphoreTake(_sl_status_mutex, portMAX_DELAY);
+    int ret = _wifi_status & status;
+    xSemaphoreGive(_sl_status_mutex);
+    return ret;
+}
+
+int wifi_status_set(unsigned int status, int remove_status)
+{
+    if(xSemaphoreTake(_sl_status_mutex, portMAX_DELAY) != pdTRUE)
+    {
+        return _wifi_status;
+    }
+
+    if(remove_status)
+    {
+        _wifi_status &= ~status;
+    }else{
+        _wifi_status |= status;
+    }
+    int ret = _wifi_status;
+    xSemaphoreGive(_sl_status_mutex);
+    return ret;
 }
 
 

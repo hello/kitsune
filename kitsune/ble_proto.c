@@ -18,14 +18,13 @@
 #include "stdlib.h"
 #include "stdio.h"
 #include "networktask.h"
+#include "wifi_cmd.h"
 #include "led_animations.h"
 #include "led_cmd.h"
 #include "top_board.h"
 #include "kitsune_version.h"
 #include "sys_time.h"
 #include "sl_sync_include_after_simplelink_header.h"
-
-extern volatile unsigned int sl_status;
 
 static void _factory_reset(){
     int16_t ret = sl_WlanProfileDel(0xFF);
@@ -45,7 +44,7 @@ static void _factory_reset(){
         LOGI("Disconnect WIFI failed, error %d.\n", ret);
     }
 
-    while(sl_status & CONNECT)
+    while(wifi_status_get(CONNECT))
     {
     	LOGI("Waiting disconnect...\n");
     	vTaskDelay(1000);
@@ -67,7 +66,7 @@ static void _reply_wifi_scan_result()
 
     uint8_t max_retry = 3;
     uint8_t retry_count = max_retry;
-    sl_status |= SCANNING;
+    wifi_status_set(SCANNING, false);
     
     //Cmd_led(0,0);
     play_led_progress_bar(30,30,0,0,portMAX_DELAY);
@@ -78,7 +77,7 @@ static void _reply_wifi_scan_result()
         vTaskDelay(500);
     }
     stop_led_animation();
-    sl_status &= ~SCANNING;
+    wifi_status_set(SCANNING, true);
 
     int i = 0;
     Sl_WlanNetworkEntry_t wifi_endpoints_cp[2] = {0};
@@ -131,11 +130,11 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type)
     }else{
 		uint8_t wait_time = 5;
 
-		sl_status |= CONNECTING;
+		wifi_status_set(CONNECTING, false);
 		play_led_progress_bar(30,30,0,0,portMAX_DELAY);
-		while(--wait_time && (!(sl_status & HAS_IP)))
+		while(--wait_time && (!wifi_status_get(HAS_IP)))
 		{
-            if(!(sl_status & CONNECTING))  // This state will be triggered magically by SL_WLAN_CONNECTION_FAILED_EVENT event
+            if(!wifi_status_get(CONNECTING))  // This state will be triggered magically by SL_WLAN_CONNECTION_FAILED_EVENT event
             {
             	LOGI("Connection failed!\n");
                 break;
@@ -146,7 +145,7 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type)
 		}
 		stop_led_animation();
 
-		if(!(sl_status & HAS_IP))
+		if(!wifi_status_get(HAS_IP))
 		{
 			// This is the magical NWP reset problem...
 			// we either get an SL_WLAN_CONNECTION_FAILED_EVENT event, or
@@ -158,17 +157,17 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type)
 			nwp_reset();
 
 			wait_time = 10;
-			while(--wait_time && (!(sl_status & HAS_IP)))
+			while(--wait_time && (!wifi_status_get(HAS_IP)))
 			{
 				vTaskDelay(1000);
 			}
 
-			if(sl_status & HAS_IP)
+			if(wifi_status_get(HAS_IP))
 			{
 				LOGI("Connection success by NWP reset.");
 				led_set_color(0xFF, LED_MAX, 0x66, 0, 0, 1, 15, 0);
 			}else{
-				if(sl_status & CONNECTING)
+				if(wifi_status_get(CONNECTING))
 				{
 					ble_reply_protobuf_error(ErrorType_FAIL_TO_OBTAIN_IP);
 				}else{
@@ -244,15 +243,15 @@ static void _ble_reply_wifi_info(){
     reply_command.has_wifi_connection_state = true;
     reply_command.wifi_connection_state = wifi_connection_state_NO_WLAN_CONNECTED;
 
-    if(sl_status & CONNECTING){
+    if(wifi_status_get(CONNECTING)){
         reply_command.wifi_connection_state = wifi_connection_state_WLAN_CONNECTING;
     }
 
-    if(sl_status & CONNECT){
+    if(wifi_status_get(CONNECT)){
         reply_command.wifi_connection_state = wifi_connection_state_WLAN_CONNECTED;
     }
 
-    if(sl_status & HAS_IP)
+    if(wifi_status_get(HAS_IP))
     {
         reply_command.wifi_connection_state = wifi_connection_state_IP_RETRIEVED;
     }
