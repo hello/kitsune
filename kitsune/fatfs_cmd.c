@@ -168,7 +168,7 @@ Cmd_ls(int argc, char *argv[])
     ui32FileCount = 0;
     ui32DirCount = 0;
 
-    LOGI("\n");
+    DISP("\n");
 
     for(;;)
     {
@@ -201,7 +201,7 @@ Cmd_ls(int argc, char *argv[])
 
         // Print the entry information on a single line with formatting to show
         // the attributes, date, time, size, and name.
-        LOGI("%c%c%c%c%c %u/%02u/%02u %02u:%02u %9u  %s\n",
+        DISP("%c%c%c%c%c %u/%02u/%02u %02u:%02u %9u  %s\n",
                    (file_info.fattrib & AM_DIR) ? 'D' : '-',
                    (file_info.fattrib & AM_RDO) ? 'R' : '-',
                    (file_info.fattrib & AM_HID) ? 'H' : '-',
@@ -217,7 +217,7 @@ Cmd_ls(int argc, char *argv[])
     }
 
     // Print summary lines showing the file, dir, and size totals.
-    LOGI("\n%4u File(s),%10u bytes total\n%4u Dir(s)",
+    DISP("\n%4u File(s),%10u bytes total\n%4u Dir(s)",
                 ui32FileCount, ui32TotalSize, ui32DirCount);
 
     // Get the free space.
@@ -230,7 +230,7 @@ Cmd_ls(int argc, char *argv[])
     }
 
     // Display the amount of free space that was calculated.
-    LOGI(", %10uK bytes free\n", (ui32TotalSize *
+    DISP(", %10uK bytes free\n", (ui32TotalSize *
                                         psFatFs->sects_clust / 2));
 
     return(0);

@@ -143,6 +143,7 @@ void faultPrinter( faultInfo* f ) {
 }
 
 int mcu_reset();
+void uart_logger_flush();
 
 void
 FaultDecoder(unsigned long *pulExceptionFrame)
@@ -188,6 +189,7 @@ FaultDecoder(unsigned long *pulExceptionFrame)
 
     faultPrinter(f);
     //todo save the UART log buffers to sd, send them to server on next boot...
+    uart_logger_flush();
     mcu_reset();
 }
 
