@@ -1247,30 +1247,30 @@ void vUARTTask(void *pvParameters) {
 
 	UARTIntRegister(UARTA0_BASE, UARTStdioIntHandler);
 
-	LOGI("Boot\n");
+	UARTprintf("Boot\n");
 
 	//default to IFA
 	antsel(IFA_ANT);
 
-	LOGI("*");
+	UARTprintf("*");
 	now = xTaskGetTickCount();
 	sl_mode = sl_Start(NULL, NULL, NULL);
-	LOGI("*");
+	UARTprintf("*");
 	while (sl_mode != ROLE_STA) {
-		LOGI("+");
+		UARTprintf("+");
 		sl_WlanSetMode(ROLE_STA);
 		nwp_reset();
 	}
-	LOGI("*");
+	UARTprintf("*");
 
 	// Set connection policy to Auto
 	sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0), NULL, 0);
 
-	LOGI("*");
+	UARTprintf("*");
 	unsigned char mac[6];
 	unsigned char mac_len;
 	sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
-	LOGI("*");
+	UARTprintf("*");
 
 	// SDCARD INITIALIZATION
 	// Enable MMCHS, Reset MMCHS, Configure MMCHS, Configure card clock, mount
@@ -1279,13 +1279,11 @@ void vUARTTask(void *pvParameters) {
 	MAP_SDHostInit(SDHOST_BASE);
 	MAP_SDHostSetExpClk(SDHOST_BASE, MAP_PRCMPeripheralClockGet(PRCM_SDHOST),
 			1000000);
-	LOGI("*");
+	UARTprintf("*");
 	Cmd_mnt(0, 0);
-	LOGI("*");
-	LOGI("*");
 
 	vTaskDelayUntil(&now, 1000);
-	LOGI("*");
+	UARTprintf("*");
 
 	if (sl_mode == ROLE_AP || !sl_status) {
 		//Cmd_sl(0, 0);
@@ -1315,7 +1313,7 @@ void vUARTTask(void *pvParameters) {
 
 
 	if (data_queue == 0) {
-		LOGI("Failed to create the data_queue.\n");
+		UARTprintf("Failed to create the data_queue.\n");
 	}
 
 
@@ -1325,43 +1323,43 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(top_board_task, "top_board_task", 1024 / 4, NULL, 2, NULL);
 	xTaskCreate(thread_alarm, "alarmTask", 2*1024 / 4, NULL, 4, NULL);
 
-	LOGI("*");
+	UARTprintf("*");
 	xTaskCreate(thread_spi, "spiTask", 3*1024 / 4, NULL, 4, NULL); //this one doesn't look like much, but has to parse all the pb from bluetooth
 
-	LOGI("*");
+	UARTprintf("*");
 	CreateDefaultDirectories();
 
-	LOGI("*");
+	UARTprintf("*");
 	xTaskCreate(FileUploaderTask_Thread,"fileUploadTask",1*1024/4,NULL,1,NULL);
 
 	SetupGPIOInterrupts();
-	LOGI("*");
+	UARTprintf("*");
 #if !ONLY_MID
 
 	xTaskCreate(AudioTask_Thread,"audioTask",4*1024/4,NULL,4,NULL);
-	LOGI("*");
+	UARTprintf("*");
 	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,1,NULL);
-	LOGI("*");
+	UARTprintf("*");
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  512 / 4, NULL, 4, NULL);
-	LOGI("*");
+	UARTprintf("*");
 	xTaskCreate(thread_dust, "dustTask", 256 / 4, NULL, 3, NULL);
-	LOGI("*");
+	UARTprintf("*");
 	xTaskCreate(thread_sensor_poll, "pollTask", 1024 / 4, NULL, 3, NULL);
-	LOGI("*");
+	UARTprintf("*");
 	xTaskCreate(thread_tx, "txTask", 3 * 1024 / 4, NULL, 2, NULL);
-	LOGI("*");
+	UARTprintf("*");
 	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 4, NULL);
-	LOGI("*");
+	UARTprintf("*");
 #endif
 	//checkFaults();
 
 
 
-	LOGI("\n\nFreeRTOS %s, %x, %s %x%x%x%x%x%x\n",
+	UARTprintf("\n\nFreeRTOS %s, %x, %s %x%x%x%x%x%x\n",
 	tskKERNEL_VERSION_NUMBER, KIT_VER, MORPH_NAME, mac[0], mac[1], mac[2],
 			mac[3], mac[4], mac[5]);
-	LOGI("\n? for help\n");
-	LOGI("> ");
+	UARTprintf("\n? for help\n");
+	UARTprintf("> ");
 
 	/* remove anything we recieved before we were ready */
 
