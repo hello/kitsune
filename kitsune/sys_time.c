@@ -249,7 +249,7 @@ static void time_task( void * params ) { //exists to get the time going and cach
 	bool have_set_time = false;
 	while (1) {
 		if (!have_set_time && (HAS_IP & sl_status)
-				&& xSemaphoreTake(time_smphr, 0)) {
+				&& time_smphr && xSemaphoreTake(time_smphr, 0)) {
 			uint32_t ntp_time = fetch_unix_time_from_ntp();
 			if (ntp_time != INVALID_SYS_TIME) {
 				if (set_unix_time(ntp_time) != INVALID_SYS_TIME) {
@@ -262,10 +262,9 @@ static void time_task( void * params ) { //exists to get the time going and cach
 			xSemaphoreGive(time_smphr);
 		}
 
-		if (xSemaphoreTake(time_smphr, 0)) {
+		if (time_smphr && xSemaphoreTake(time_smphr, 0)) {
 			if( !is_time_good || xTaskGetTickCount() - cached_ticks > 30000 ) {
 				set_cached_time(get_unix_time());
-				set_sl_time( get_cached_time() );
 			}
 			xSemaphoreGive(time_smphr);
 		}

@@ -1202,6 +1202,7 @@ void vUARTTask(void *pvParameters) {
 
 	UARTprintf("*");
 	now = xTaskGetTickCount();
+	sl_sync_init();  // thread safe for all sl_* calls
 	sl_mode = sl_Start(NULL, NULL, NULL);
 	UARTprintf("*");
 	while (sl_mode != ROLE_STA) {
@@ -1222,6 +1223,7 @@ void vUARTTask(void *pvParameters) {
 
 	// SDCARD INITIALIZATION
 	// Enable MMCHS, Reset MMCHS, Configure MMCHS, Configure card clock, mount
+	hello_fs_init(); //sets up thread safety for accessing the file system
 	MAP_PRCMPeripheralClkEnable(PRCM_SDHOST, PRCM_RUN_MODE_CLK);
 	MAP_PRCMPeripheralReset(PRCM_SDHOST);
 	MAP_SDHostInit(SDHOST_BASE);
@@ -1236,8 +1238,10 @@ void vUARTTask(void *pvParameters) {
 	if (sl_mode == ROLE_AP || !sl_status) {
 		//Cmd_sl(0, 0);
 	}
+
 	check_hw_version();
 	PinMuxConfig_hw_dep();
+	vTaskDelay(100);
 	//INIT SPI
 	spi_init();
 
