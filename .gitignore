@@ -17,3 +17,4 @@ workspace
 ExtLibs/ota/ccs/.project
 ExtLibs/flc/ccs/.project
 kitsune/kitsune_version.h
+.launches
