@@ -499,6 +499,7 @@ UARTStdioInitExpClk(unsigned long ulPortNum, unsigned long ulBaud)
 //
 //*****************************************************************************
 #include "uart_logger.h"
+
 int
 UARTwrite(const char *pcBuf, unsigned long ulLen)
 {

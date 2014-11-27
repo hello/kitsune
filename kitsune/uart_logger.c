@@ -104,6 +104,7 @@ _swap_and_upload(void){
 	//reset
 	self.widx = 0;
 }
+void telnetPrint(const char * str, int len );
 
 static void
 _logstr(const char * str, int len, bool echo, bool store){
@@ -112,6 +113,8 @@ _logstr(const char * str, int len, bool echo, bool store){
 		uart_logc(str[i]);
 	}
 	if (echo) {
+		telnetPrint(str, len);
+
 		UARTwrite(str, len);
 	}
 }

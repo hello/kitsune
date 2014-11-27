@@ -2050,6 +2050,25 @@ int wifi_status_set(unsigned int status, int remove_status)
 }
 
 
+static bool connected = false;
+static int connection_sock;
+void telnetPrint(const char * str, int len) {
+	int sent = 0;
+	if (connected) {
+		while (sent < len) {
+			int ret = send(connection_sock, str, len, 0);
+			if (ret <= 0) {
+				close(connection_sock);
+				connection_sock = 0;
+			}
+			sent += ret;
+		}
+	}
+}
+
+void
+CmdLineProcess(void * line);
+
 void telnetServerTask(void *params) {
 
 #define INTERPRETER_PORT 224
@@ -2066,7 +2085,6 @@ void telnetServerTask(void *params) {
     memset(&local_addr.sa_data[2], 0, 4);
 
 	int sock;
-	int connection_sock;
 	while(1) {
         sock = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -2085,9 +2103,11 @@ void telnetServerTask(void *params) {
     	memset(buf, 0, 64);
     	memset(linebuf, 0, 512);
         while( sock ) {
+			connected = false;
 			addr_size = sizeof(their_addr);
 			connection_sock = accept(sock, &their_addr, &addr_size);
 			while( connection_sock > 0 ) {
+				connected = true;
 				int sz = recv( connection_sock, buf, 64, 0 );
 				if( sz <= 0 ) {
 					close(connection_sock);
@@ -2102,6 +2122,7 @@ void telnetServerTask(void *params) {
 				memcpy(linebuf+inbufsz, buf, sz);
 				inbufsz+=sz;
 				if (*(linebuf + inbufsz - 1) == '\n') {
+#if 0
 					if ( send( connection_sock, "\n", 1, 0 ) <= 0 ) {
 						close(connection_sock);
 						connection_sock = 0;
@@ -2111,6 +2132,20 @@ void telnetServerTask(void *params) {
 						close(connection_sock);
 						connection_sock = 0;
 						break;
+					}
+#endif
+					if (inbufsz > 2) {
+						//
+						// Pass the line from the user to the command processor.  It will be
+						// parsed and valid commands executed.
+						//
+						char * args = pvPortMalloc(inbufsz + 1);
+						memcpy(args, linebuf, inbufsz + 1);
+						args[inbufsz - 2] = 0;
+						xTaskCreate(CmdLineProcess, "commandTask", 5 * 1024 / 4,
+								args, 4, NULL);
+					} else {
+						LOGI("> ");
 					}
 					memset(linebuf, 0, 512);
 					inbufsz = 0;
