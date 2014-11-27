@@ -1240,7 +1240,7 @@ tCmdLineEntry g_sCmdTable[] = {
 
 		{ "antsel", Cmd_antsel, "" }, //select antenna
 		{ "led", Cmd_led, "" },
-		{ "action", Cmd_led_action, "" },
+		{ "la", Cmd_led_action, "" },
 		{ "clrled", Cmd_led_clr, "" },
 
 		{ "rdiostats", Cmd_RadioGetStats, "" },
@@ -1289,7 +1289,8 @@ void vUARTTask(void *pvParameters) {
 		LOGI("Failed to create the led_events.\n");
 	}
 
-	xTaskCreate(led_task, "ledTask", 512 / 4, NULL, 4, NULL); //todo reduce stack
+	// NOTE: upped stack to 1024 bytes because 512 not enough stack (see led_task 10 local int[12] arrays) [JPF]
+	xTaskCreate(led_task, "ledTask", 1024/4, NULL, 4, NULL); //todo reduce stack
 
 	Cmd_led_clr(0,0);
 	//switch the uart lines to gpios, drive tx low and see if rx goes low as well

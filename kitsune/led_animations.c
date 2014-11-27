@@ -221,3 +221,4 @@ bool factory_led_test_pattern(unsigned int timeout) {
 	}
 	return false;
 }
+
