@@ -10,10 +10,11 @@
 #include "wifi_cmd.h"
 #include "sys_time.h"
 
+#include "assert.h"
+
 #define INBOX_QUEUE_LENGTH (6)
 static xQueueHandle _queue = NULL;
 static xSemaphoreHandle _mutex = NULL;
-static uint8_t _decodebuf[1024];
 static uint32_t samplecounter;
 
 #define AUDIO_UPLOAD_PERIOD_IN_MS (60000)
@@ -124,7 +125,10 @@ void AudioProcessingTask_SetControl(EAudioProcessingCommand_t cmd,NotificationCa
 }
 
 static void NetworkResponseFunc(const NetworkResponse_t * response,void * context) {
+    uint8_t * _decodebuf = *(uint8_t**)context;
 	LOGI("AUDIO RESPONSE:\r\n%s",_decodebuf);
+
+	vPortFree( _decodebuf );
 
 	if (response->success) {
     	xSemaphoreTake(_mutex,portMAX_DELAY);
@@ -142,10 +146,14 @@ static void SetUpUpload(void) {
 
 	NetworkTaskServerSendMessage_t message;
 	memset(&message,0,sizeof(message));
-	memset(_decodebuf,0,sizeof(_decodebuf));
+#define DECODE_BUF_SZ 1024
+	uint8_t * _decodebuf = pvPortMalloc(DECODE_BUF_SZ);
+	assert(_decodebuf);
+	memset(_decodebuf,0,DECODE_BUF_SZ);
 
 	message.decode_buf = _decodebuf;
-	message.decode_buf_size = sizeof(_decodebuf);
+	message.context = &_decodebuf;
+	message.decode_buf_size = 1024;
 
 	message.host = DATA_SERVER;
 	message.endpoint = AUDIO_FEATURES_ENDPOINT;
@@ -156,7 +164,7 @@ static void SetUpUpload(void) {
 
 	message.encode = AudioClassifier_EncodeAudioFeatures;
 
-	get_mac(_deviceCurrentInfo.mac);
+	get_mac(_deviceCurrentInfo.mac); //todo switch to device id, will not be mac
 	_deviceCurrentInfo.unix_time = get_time();
 
 	message.encodedata = (void *) &_deviceCurrentInfo;

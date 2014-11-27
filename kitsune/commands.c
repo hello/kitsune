@@ -973,40 +973,11 @@ int Cmd_generate_aes_key(int argc,char * argv[]) {
 
 	return 0;
 }
-
+#if COMPILE_TESTS
 int Cmd_test_network(int argc,char * argv[]) {
 	TestNetwork_RunTests(TEST_SERVER);
 
 	return 0;
-}
-#if 0
-int Cmd_mel(int argc, char *argv[]) {
-    int i,ichunk;
-	int16_t x[1024];
-
-
-	srand(0);
-
-	LOGI("EXPECT: t1=%d,t2=%d,energy=something not zero\n",43,86);
-
-
-	AudioFeatures_Init(AudioFeatCallback);
-
-	//still ---> white random noise ---> still
-	for (ichunk = 0; ichunk < 43*8; ichunk++) {
-		if (ichunk > 43 && ichunk <= 86) {
-			for (i = 0; i < 1024; i++) {
-				x[i] = (rand() % 32767) - (1<<14);
-			}
-		}
-		else {
-			memset(x,0,sizeof(x));
-		}
-
-		AudioFeatures_SetAudioData(x,10,ichunk);
-
-	}
-	return (0);
 }
 #endif
 
@@ -1213,7 +1184,9 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "uplog", Cmd_log_upload, "Uploads log to server"},
 		{ "loglevel", Cmd_log_setview, "Sets log level" },
 		{ "ver", Cmd_version, ""},//Animates led
+#if COMPILE_TESTS
 		{ "test_network",Cmd_test_network,""},
+#endif
 		{ "genkey",Cmd_generate_aes_key,""},
 
 		{ 0, 0, 0 } };

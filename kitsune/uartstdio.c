@@ -94,7 +94,7 @@ static tBoolean g_bDisableEcho;
 // g_ulUARTTxWriteIndex.  Buffer is empty if the two indices are the same.
 //
 //*****************************************************************************
-static unsigned char g_pcUARTTxBuffer[UART_TX_BUFFER_SIZE];
+static unsigned char *g_pcUARTTxBuffer;
 static volatile unsigned long g_ulUARTTxWriteIndex = 0;
 static volatile unsigned long g_ulUARTTxReadIndex = 0;
 
@@ -104,7 +104,7 @@ static volatile unsigned long g_ulUARTTxReadIndex = 0;
 // g_ulUARTTxWriteIndex.  Buffer is empty if the two indices are the same.
 //
 //*****************************************************************************
-static unsigned char g_pcUARTRxBuffer[UART_RX_BUFFER_SIZE];
+static unsigned char * g_pcUARTRxBuffer;
 static volatile unsigned long g_ulUARTRxWriteIndex = 0;
 static volatile unsigned long g_ulUARTRxReadIndex = 0;
 
@@ -413,7 +413,8 @@ UARTStdioInitExpClk(unsigned long ulPortNum, unsigned long ulBaud)
     ASSERT(g_ulBase == 0);
 #endif
 
-
+    g_pcUARTRxBuffer = pvPortMalloc(UART_RX_BUFFER_SIZE);
+    g_pcUARTTxBuffer = pvPortMalloc(UART_TX_BUFFER_SIZE);
     //
     // Select the base address of the UART.
     //

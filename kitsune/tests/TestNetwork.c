@@ -1,3 +1,4 @@
+
 #include "FreeRTOS.h"
 #include "queue.h"
 #include "task.h"
@@ -18,6 +19,9 @@
 
 #include "uartstdio.h"
 #include <stdint.h>
+#include "assert.h"
+
+#if COMPILE_TESTS
 
 /*
  *  Makes request to test server with particular test cases
@@ -38,8 +42,8 @@
 #define STR(x) #x
 #define STRINGIFY(x) STR(x)
 
-#define RUN_TEST(test,code)\
-		RunTest(test,STRINGIFY(test),code)
+#define RUN_TEST(test,code,host)\
+		RunTest(test,STRINGIFY(test),code,host)
 
 
 
@@ -55,16 +59,11 @@ static void nop(const char * foo,...) {  }
 #define RETURNCODE "returncode"
 #define MALFORMED "malformed"
 
-
-
-static char _urlbuf[256];
-static char _recv_buf[256];
 static 	periodic_data _data;
-static char _host[128];
 static xSemaphoreHandle _waiter;
 
-typedef int32_t (*TestFunc_t)(void);
-static void RunTest(TestFunc_t test,const char * name,int32_t expected_code);
+typedef int32_t (*TestFunc_t)(char *);
+static void RunTest(TestFunc_t test,const char * name,int32_t expected_code, char * _host);
 
 
 static void SetParams(char * buf, uint32_t bufsize,const char * param, const char * value,uint8_t is_last) {
@@ -127,11 +126,17 @@ static int32_t DecodeTestResponse(uint8_t * buf,uint32_t bufsize, const char * d
 
 }
 
-static int32_t DoSyncSendAndResponse(const char * params[],const char * values[],const int32_t len ) {
-	char returnbytes[512];
+static int32_t DoSyncSendAndResponse(char * _host, const char * params[],const char * values[],const int32_t len ) {
+	char *returnbytes = pvPortMalloc(512);
+	char *_recv_buf = pvPortMalloc(256);
+	char *_urlbuf = pvPortMalloc(256);
+
+	int  r=0;
+
+	assert(returnbytes&&_recv_buf&&_urlbuf);
 
 	memset(&_data,0,sizeof(_data));
-	memset(_urlbuf,0,sizeof(_urlbuf));
+	memset(_urlbuf,0,256);
 
 	_data.has_dust = 1;
 	_data.dust = 1234;
@@ -139,14 +144,17 @@ static int32_t DoSyncSendAndResponse(const char * params[],const char * values[]
 	CreateUrl(_urlbuf,sizeof(_urlbuf),params,values,len);
 
 	if (NetworkTask_SynchronousSendProtobuf(_host,_urlbuf,_recv_buf,sizeof(_recv_buf),periodic_data_fields,&_data,10) != 0) {
-		return ERROR_CODE_FAILED_SEND;
+		r = ERROR_CODE_FAILED_SEND;
 	}
 
 	if (DecodeTestResponse((uint8_t *)returnbytes,sizeof(returnbytes),_recv_buf) != 0) {
-		return ERROR_CODE_FAILED_DECODE;
+		r = ERROR_CODE_FAILED_DECODE;
 	}
 
-	return 0;
+	vPortFree(returnbytes);
+	vPortFree(_recv_buf);
+	vPortFree(_urlbuf);
+	return r;
 }
 
 static uint32_t EncodePb(pb_ostream_t * stream, void * data) {
@@ -218,12 +226,16 @@ bool write_a_big_goddamned_string(pb_ostream_t *stream, const pb_field_t *field,
 
 }
 
-static int32_t DoAsyncSendAndResponse(const char * params[],const char * values[],const int32_t len, network_prep_callback_t prepfunc) {
+static int32_t DoAsyncSendAndResponse(char * _host, const char * params[],const char * values[],const int32_t len, network_prep_callback_t prepfunc) {
 	int32_t ret = -999;
-	char returnbytes[512];
+	char *returnbytes = pvPortMalloc(512);
+	char *_urlbuf = pvPortMalloc(256);
+
+	assert(returnbytes&&_urlbuf);
+
 	NetworkTaskServerSendMessage_t m;
 	memset(&_data,0,sizeof(_data));
-	memset(_urlbuf,0,sizeof(_urlbuf));
+	memset(_urlbuf,0,256);
 	network_encode_data_t encodedata;
 
 	_data.has_dust = 1;
@@ -253,57 +265,58 @@ static int32_t DoAsyncSendAndResponse(const char * params[],const char * values[
 
 	xSemaphoreTake(_waiter,portMAX_DELAY);
 
-
+	vPortFree(returnbytes);
+	vPortFree(_urlbuf);
 	return ret;
 
 }
 
-static int32_t TestNominal(void) {
+static int32_t TestNominal(char * _host) {
 	static const char * params[] = {TIMEOUT,RETURNCODE,MALFORMED};
 	static const char * values[] = {"0","200","0"};
 	static const int32_t len = 3;
 
-	return DoSyncSendAndResponse(params,values,len);
+	return DoSyncSendAndResponse(_host, params,values,len);
 
 }
 
-static int32_t TestBadReturnCode(void) {
+static int32_t TestBadReturnCode(char * _host) {
 	static const char * params[] = {TIMEOUT,RETURNCODE,MALFORMED};
 	static const char * values[] = {"0","400","0"};
 	static const int32_t len = 3;
 
-	return DoSyncSendAndResponse(params,values,len);
+	return DoSyncSendAndResponse(_host, params,values,len);
 
 }
 
-static int32_t TestFiveSecondDelay(void) {
+static int32_t TestFiveSecondDelay(char * _host) {
 	static const char * params[] = {TIMEOUT,RETURNCODE,MALFORMED};
 	static const char * values[] = {"5000","200","0"};
 	static const int32_t len = 3;
 
-	return DoSyncSendAndResponse(params,values,len);
+	return DoSyncSendAndResponse(_host, params,values,len);
 
 }
 
-static int32_t TestMinuteDelay(void) {
+static int32_t TestMinuteDelay(char * _host) {
 	static const char * params[] = {TIMEOUT,RETURNCODE,MALFORMED};
 	static const char * values[] = {"60000","200","0"};
 	static const int32_t len = 3;
 
-	return DoSyncSendAndResponse(params,values,len);
+	return DoSyncSendAndResponse(_host, params,values,len);
 
 }
 
-static int32_t TestMalformed(void) {
+static int32_t TestMalformed(char * _host) {
 	static const char * params[] = {TIMEOUT,RETURNCODE,MALFORMED};
 	static const char * values[] = {"0","200","1"};
 	static const int32_t len = 3;
 
-	return DoSyncSendAndResponse(params,values,len);
+	return DoSyncSendAndResponse(_host, params,values,len);
 
 }
 
-static int32_t TestNoWifi(void) {
+static int32_t TestNoWifi(char * _host) {
 	static const char * params[] = {TIMEOUT,RETURNCODE,MALFORMED};
 	static const char * values[] = {"0","200","0"};
 	static const int32_t len = 3;
@@ -319,7 +332,7 @@ static int32_t TestNoWifi(void) {
 	//assumed there's only one profile -- not necessarily a great assumption here
 	sl_WlanProfileGet(0,name,&namelen,mac,&secparams,&getextsecparams,&priority);
 
-	val = DoAsyncSendAndResponse(params,values,len,MessWithWifiAfterDelay);
+	val = DoAsyncSendAndResponse(_host, params,values,len,MessWithWifiAfterDelay);
 
 	sl_WlanConnect(name,namelen,mac,&secparams,&extparams);
 
@@ -328,7 +341,7 @@ static int32_t TestNoWifi(void) {
 }
 
 
-static void RunTest(TestFunc_t test,const char * name,int32_t expected_code) {
+static void RunTest(TestFunc_t test,const char * name,int32_t expected_code, char * _host) {
 	TickType_t t1,dt;
 	int32_t ret;
 	uint8_t i;
@@ -336,7 +349,7 @@ static void RunTest(TestFunc_t test,const char * name,int32_t expected_code) {
 
 	t1 = xTaskGetTickCount();
 
-	ret = test();
+	ret = test(_host);
 
 	dt = xTaskGetTickCount() - t1;
 
@@ -362,7 +375,9 @@ static void RunTest(TestFunc_t test,const char * name,int32_t expected_code) {
 }
 
 void TestNetwork_RunTests(const char * host) {
+	char * _host = pvPortMalloc(128);
 
+	assert(_host);
 	if (!_waiter) {
 		_waiter = xSemaphoreCreateBinary();
 	}
@@ -370,20 +385,18 @@ void TestNetwork_RunTests(const char * host) {
 	strcpy(_host,host);
 
 	DEBUG_PRINTF("----------------------------------------------------------");
-	RUN_TEST(TestNominal,ERROR_CODE_SUCCESS);
+	RUN_TEST(TestNominal,ERROR_CODE_SUCCESS,_host);
 	DEBUG_PRINTF("----------------------------------------------------------");
-	RUN_TEST(TestBadReturnCode,ERROR_CODE_FAILED_DECODE);
+	RUN_TEST(TestBadReturnCode,ERROR_CODE_FAILED_DECODE,_host);
 	DEBUG_PRINTF("----------------------------------------------------------");
-	RUN_TEST(TestFiveSecondDelay,ERROR_CODE_SUCCESS);
+	RUN_TEST(TestFiveSecondDelay,ERROR_CODE_SUCCESS,_host);
 	DEBUG_PRINTF("----------------------------------------------------------");
-	RUN_TEST(TestMalformed,ERROR_CODE_FAILED_DECODE);
+	RUN_TEST(TestMalformed,ERROR_CODE_FAILED_DECODE,_host);
 	DEBUG_PRINTF("----------------------------------------------------------");
-	RUN_TEST(TestMinuteDelay,ERROR_CODE_FAILED_SEND);
+	RUN_TEST(TestMinuteDelay,ERROR_CODE_FAILED_SEND,_host);
 	DEBUG_PRINTF("----------------------------------------------------------");
-	RUN_TEST(TestNoWifi,ERROR_CODE_FAILED_SEND);
+	RUN_TEST(TestNoWifi,ERROR_CODE_FAILED_SEND,_host);
 
-
-
-
-
+	vPortFree(_host);
 }
+#endif
