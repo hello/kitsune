@@ -288,6 +288,12 @@ int Cmd_status(int argc, char *argv[]) {
     //
     LOGI("%x ip 0x%x submask 0x%x gateway 0x%x dns 0x%x\n\r", wifi_status_get(0xFFFFFFFF),
             ipv4.ipV4, ipv4.ipV4Mask, ipv4.ipV4Gateway, ipv4.ipV4DnsServer);
+
+    LOGI("IP=%d.%d.%d.%d\n",
+                SL_IPV4_BYTE(ipv4.ipV4,3),
+                SL_IPV4_BYTE(ipv4.ipV4,2),
+                SL_IPV4_BYTE(ipv4.ipV4,1),
+                SL_IPV4_BYTE(ipv4.ipV4,0));
     return 0;
 }
 
@@ -1897,6 +1903,7 @@ int Cmd_RadioStopTX(int argc, char*argv[])
 	mode = (RadioTxMode_e)atoi(argv[1]);
 	return RadioStopTX(mode);
 }
+//end radio test functions
 
 int get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uint32_t scan_duration_ms)
 {
@@ -1932,7 +1939,6 @@ int get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uin
     return r;
 
 }
-
 
 int connect_wifi(const char* ssid, const char* password, int sec_type)
 {
@@ -2044,4 +2050,74 @@ int wifi_status_set(unsigned int status, int remove_status)
 }
 
 
-//end radio test functions
+void telnetServerTask(void *params) {
+
+#define INTERPRETER_PORT 224
+
+	sockaddr 		local_addr;
+	sockaddr        their_addr;
+    socklen_t addr_size;
+
+	local_addr.sa_family = SL_AF_INET;
+	local_addr.sa_data[0] = ((INTERPRETER_PORT >> 8) & 0xFF);
+	local_addr.sa_data[1] = (INTERPRETER_PORT & 0xFF);
+
+    //all 0 => Own IP address
+    memset(&local_addr.sa_data[2], 0, 4);
+
+	int sock;
+	int connection_sock;
+	while(1) {
+        sock = socket(AF_INET, SOCK_STREAM, 0);
+
+        if( bind(sock, &local_addr, sizeof(local_addr)) < 0 ) {
+        	close(sock);
+        	continue;
+        }
+        if( listen(sock, 0) < 0 ) {
+        	close(sock);
+        	continue;
+        }
+
+    	char * buf = pvPortMalloc(64);
+    	char * linebuf = pvPortMalloc(512);
+    	int inbufsz = 0;
+    	memset(buf, 0, 64);
+    	memset(linebuf, 0, 512);
+        while( sock ) {
+			addr_size = sizeof(their_addr);
+			connection_sock = accept(sock, &their_addr, &addr_size);
+			while( connection_sock > 0 ) {
+				int sz = recv( connection_sock, buf, 64, 0 );
+				if( sz <= 0 ) {
+					close(connection_sock);
+					connection_sock = 0;
+					break;
+				}
+				if( sz + strlen(linebuf) > 512) {
+					memset(linebuf, 0, 512);
+					inbufsz = 0;
+					continue;
+				}
+				memcpy(linebuf+inbufsz, buf, sz);
+				inbufsz+=sz;
+				if (*(linebuf + inbufsz - 1) == '\n') {
+					if ( send( connection_sock, "\n", 1, 0 ) <= 0 ) {
+						close(connection_sock);
+						connection_sock = 0;
+						break;
+					}
+					if ( send( connection_sock, linebuf, inbufsz, 0 ) <= 0 ) {
+						close(connection_sock);
+						connection_sock = 0;
+						break;
+					}
+					memset(linebuf, 0, 512);
+					inbufsz = 0;
+				}
+			}
+        }
+		vPortFree(buf);
+		vPortFree(linebuf);
+	}
+}
