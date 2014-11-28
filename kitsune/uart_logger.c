@@ -315,12 +315,17 @@ void uart_logger_init(void){
 	xEventGroupSetBits(self.uart_log_events, LOG_EVENT_READY);
 }
 void uart_logc(uint8_t c){
+	if( self.print_sem == NULL || xSemaphoreTake(self.print_sem, 0) != pdPASS ) {
+		return;
+	}
+
 	if (self.widx == UART_LOGGER_BLOCK_SIZE) {
 		_swap_and_upload();
 	}
 	self.logging_block[self.widx] = c;
 	self.widx++;
 
+    xSemaphoreGive( self.print_sem );
 }
 
 void uart_logger_task(void * params){
@@ -415,14 +420,6 @@ int Cmd_log_setview(int argc, char * argv[]){
 
 static const char * const g_pcHex = "0123456789abcdef";
 void uart_logf(uint8_t tag, const char *pcString, ...){
-	if( self.print_sem == NULL) {
-		UARTprintf("no print_sem\n%s\n", pcString);
-		return;
-	}
-	if( xSemaphoreTake(self.print_sem, 0) != pdPASS ) {
-		UARTprintf("failed to get print_sem\n%s\n", pcString);
-		return;
-	}
 	va_list vaArgP;
 	unsigned long ulIdx, ulValue, ulPos, ulCount, ulBase, ulNeg;
     char *pcStr, pcBuf[16], cFill;
@@ -603,5 +600,4 @@ convert:
     }
 
     va_end(vaArgP);
-    xSemaphoreGive( self.print_sem );
 }
