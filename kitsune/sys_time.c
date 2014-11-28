@@ -1,105 +1,128 @@
-#include "simplelink.h"
 #include "sys_time.h"
 #include "wifi_cmd.h"
 #include "networktask.h"
 #include "task.h"
 #include "uartstdio.h"
+
+#include "i2c_if.h"
+#include "uartstdio.h"
+#include "i2c_cmd.h"
+
+#include "time.h"
+
 #include "sl_sync_include_after_simplelink_header.h"
 
-#define YEAR_TO_DAYS(y) ((y)*365 + (y)/4 - (y)/100 + (y)/400)
-static int _init = 0;
+static time_t cached_time;
+static TickType_t cached_ticks;
+static bool is_time_good = false;
+extern xSemaphoreHandle i2c_smphr;
 
-static void untime(unsigned long unixtime, SlDateTime_t *tm)
-{
-    /* First take out the hour/minutes/seconds - this part is easy. */
+static int bcd_to_int( int bcd ) {
+	int i=0;
 
-    tm->sl_tm_sec = unixtime % 60;
-    unixtime /= 60;
+	i += 10*((bcd & 0xf0)>>4);
+	i += (bcd & 0xf);
+	return i;
+}
+static int int_to_bcd( int i ) {
+	int bcd = 0;
 
-    tm->sl_tm_min = unixtime % 60;
-    unixtime /= 60;
-
-    tm->sl_tm_hour = unixtime % 24;
-    unixtime /= 24;
-
-    /* unixtime is now days since 01/01/1970 UTC
-     * Rebaseline to the Common Era */
-
-    unixtime += 719499;
-
-    /* Roll forward looking for the year.  This could be done more efficiently
-     * but this will do.  We have to start at 1969 because the year we calculate here
-     * runs from March - so January and February 1970 will come out as 1969 here.
-     */
-    for (tm->sl_tm_year = 1969; unixtime > YEAR_TO_DAYS(tm->sl_tm_year + 1) + 30; tm->sl_tm_year++)
-        ;
-
-    /* OK we have our "year", so subtract off the days accounted for by full years. */
-    unixtime -= YEAR_TO_DAYS(tm->sl_tm_year);
-
-    /* unixtime is now number of days we are into the year (remembering that March 1
-     * is the first day of the "year" still). */
-
-    /* Roll forward looking for the month.  1 = March through to 12 = February. */
-    for (tm->sl_tm_mon = 1; tm->sl_tm_mon < 12 && unixtime > 367*(tm->sl_tm_mon+1)/12; tm->sl_tm_mon++)
-        ;
-
-    /* Subtract off the days accounted for by full months */
-    unixtime -= 367*tm->sl_tm_mon/12;
-
-    /* unixtime is now number of days we are into the month */
-
-    /* Adjust the month/year so that 1 = January, and years start where we
-     * usually expect them to. */
-    tm->sl_tm_mon += 2;
-    if (tm->sl_tm_mon > 12)
-    {
-        tm->sl_tm_mon -= 12;
-        tm->sl_tm_year++;
-    }
-
-    tm->sl_tm_day = unixtime;
+	bcd |= i%10;
+	i/=10;
+	bcd |= (i%10)<<4;
+	return bcd;
 }
 
-uint32_t get_nwp_time()
-{
-
-    SlDateTime_t dt =  {0};
-    uint8_t configLen = sizeof(SlDateTime_t);
-    uint8_t configOpt = SL_DEVICE_GENERAL_CONFIGURATION_DATE_TIME;
-    int32_t ret = sl_DevGet(SL_DEVICE_GENERAL_CONFIGURATION,&configOpt, &configLen,(_u8 *)(&dt));
-    if(ret != 0)
-    {
-        LOGI("sl_DevGet failed, err: %d\n", ret);
-        return INVALID_SYS_TIME;
-    }
-
-    uint32_t ntp = dt.sl_tm_sec + dt.sl_tm_min*60 + dt.sl_tm_hour*3600 + dt.sl_tm_year_day*86400 +
-                (dt.sl_tm_year-70)*31536000 + ((dt.sl_tm_year-69)/4)*86400 -
-                ((dt.sl_tm_year-1)/100)*86400 + ((dt.sl_tm_year+299)/400)*86400 + 171398145;
-    return ntp;
+#define FAILURE                 -1
+#define SUCCESS                 0
+#define TRY_OR_GOTOFAIL(a) if(a!=SUCCESS) { LOGI( "fail at %s %d\n\r", __FILE__, __LINE__ ); return FAILURE;}
+static int get_rtc_time( struct tm * dt ) {
+	unsigned char data[7];
+	unsigned char addy = 1;
+	if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
+		TRY_OR_GOTOFAIL(I2C_IF_Write(0x68, &addy, 1, 1));
+		TRY_OR_GOTOFAIL(I2C_IF_Read(0x68, data, 7));
+		xSemaphoreGive(i2c_smphr);
+	}
+	dt->tm_sec = bcd_to_int(data[0] & 0x7f);
+	dt->tm_min = bcd_to_int(data[1] & 0x7f);
+	if( !(data[1] & 0x80) && !is_time_good ) {
+		LOGI("Got time from RTC\n");
+		is_time_good = true;
+	}
+	dt->tm_hour = bcd_to_int(data[2]);
+	dt->tm_wday = bcd_to_int(data[3] & 0xf);
+	dt->tm_mday = bcd_to_int(data[4]);
+	dt->tm_mon = bcd_to_int(data[5] & 0x3f);
+	dt->tm_year = bcd_to_int(data[6]) + 30;
+	return 0;
 }
 
-uint32_t set_nwp_time(uint32_t unix_timestamp_sec)
+static int set_rtc_time(struct tm * dt) {
+	unsigned char data[8];
+
+	data[0] = 1; //address to write to...
+	data[1] = int_to_bcd(dt->tm_sec & 0x7f);
+	data[2] = int_to_bcd(dt->tm_min & 0x7f); //sets the OF to FALSE
+	data[3] = int_to_bcd(dt->tm_hour);
+	data[4] = int_to_bcd(dt->tm_wday)|0x10; //the first 4 bits here need to be 1 always
+    data[5] = int_to_bcd(dt->tm_mday);
+    data[6] = int_to_bcd(dt->tm_mon & 0x3f);
+    data[7] = int_to_bcd(dt->tm_year - 30);
+
+	if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
+		TRY_OR_GOTOFAIL(I2C_IF_Write(0x68, data, 8, 1));
+		xSemaphoreGive(i2c_smphr);
+	}
+	return 0;
+}
+
+static time_t get_unix_time()
+{
+    struct tm dt =  {0};
+    get_rtc_time(&dt);
+    return mktime(&dt);
+}
+
+static uint32_t set_unix_time(time_t unix_timestamp_sec)
 {
 	if(unix_timestamp_sec > 0) {
-		SlDateTime_t tm;
-		untime(unix_timestamp_sec, &tm);
-		LOGI( "setting sl time %d:%d:%d day %d mon %d yr %d", tm.sl_tm_hour,tm.sl_tm_min,tm.sl_tm_sec,tm.sl_tm_day,tm.sl_tm_mon,tm.sl_tm_year);
-
-		int32_t ret = sl_DevSet(SL_DEVICE_GENERAL_CONFIGURATION,
-				  SL_DEVICE_GENERAL_CONFIGURATION_DATE_TIME,
-				  sizeof(SlDateTime_t),(unsigned char *)(&tm));
-		if(ret != 0)
-		{
-			return INVALID_SYS_TIME;
-		}
+		//set the RTC
+		set_rtc_time(localtime(&unix_timestamp_sec));
 	}
-
 	return unix_timestamp_sec;
 }
 
-static uint32_t unix_time() {
+static set_sl_time(time_t unix_timestamp_sec) {
+	SlDateTime_t sl_tm;
+
+    struct tm * dt;
+    dt = localtime(&unix_timestamp_sec);
+
+    sl_tm.sl_tm_day = dt->tm_mday;
+    sl_tm.sl_tm_hour = dt->tm_hour;
+    sl_tm.sl_tm_min = dt->tm_min;
+    sl_tm.sl_tm_mon = dt->tm_mon;
+    sl_tm.sl_tm_mon+=1;
+    sl_tm.sl_tm_mon = sl_tm.sl_tm_mon > 12 ? sl_tm.sl_tm_mon -= 12 : sl_tm.sl_tm_mon;
+    sl_tm.sl_tm_sec = dt->tm_sec;
+    sl_tm.sl_tm_year = dt->tm_year + 1970;
+
+	sl_DevSet(SL_DEVICE_GENERAL_CONFIGURATION,
+			  SL_DEVICE_GENERAL_CONFIGURATION_DATE_TIME,
+			  sizeof(SlDateTime_t),(unsigned char *)(&sl_tm));
+	memset(&sl_tm, 0, sizeof(sl_tm));
+	uint8_t cfg = SL_DEVICE_GENERAL_CONFIGURATION_DATE_TIME;
+	uint8_t sz = sizeof(SlDateTime_t);
+	sl_DevGet(SL_DEVICE_GENERAL_CONFIGURATION,
+			  &cfg,
+			  &sz,
+			  (unsigned char *)(&sl_tm));
+
+    UARTprintf("Day %d,Mon %d,Year %d,Hour %d,Min %d,Sec %d\n",sl_tm.sl_tm_day,sl_tm.sl_tm_mon,sl_tm.sl_tm_year, sl_tm.sl_tm_hour,sl_tm.sl_tm_min,sl_tm.sl_tm_sec);
+}
+
+uint32_t fetch_unix_time_from_ntp() {
     char buffer[48];
     int rv = 0;
     SlSockAddr_t sAddr;
@@ -134,7 +157,7 @@ static uint32_t unix_time() {
                 NTP_SERVER, SL_IPV4_BYTE(ipaddr, 3), SL_IPV4_BYTE(ipaddr, 2),
                 SL_IPV4_BYTE(ipaddr, 1), SL_IPV4_BYTE(ipaddr, 0));
     } else {
-        LOGI("failed to resolve ntp addr rv %d\n", rv);
+    	LOGI("failed to resolve ntp addr rv %d\n", rv);
         close(sock);
         return INVALID_SYS_TIME;
     }
@@ -177,8 +200,7 @@ static uint32_t unix_time() {
 
     LOGI("receiving reply\n\r\n\r");
 
-    rv = recvfrom(sock, buffer, sizeof(buffer), 0, (SlSockAddr_t *) &sLocalAddr,
-            (SlSocklen_t*) &iAddrSize);
+    rv = recvfrom(sock, buffer, sizeof(buffer), 0, (SlSockAddr_t *) &sLocalAddr,  (SlSocklen_t*) &iAddrSize);
     if (rv <= 0) {
         LOGI("Did not receive\n\r");
         close(sock);
@@ -188,7 +210,7 @@ static uint32_t unix_time() {
     //
     // Confirm that the MODE is 4 --> server
     if ((buffer[0] & 0x7) != 4)    // expect only server response
-            {
+    {
         LOGI("Expecting response from Server Only!\n\r");
         close(sock);
         return INVALID_SYS_TIME;    // MODE is not server, abort
@@ -207,51 +229,91 @@ static uint32_t unix_time() {
         ntp += buffer[43];
 
         ntp -= 2208988800UL;
-
-        close(sock);
     }
+    close(sock);
     return ntp;
 }
 
-int time_module_initialized()
-{
-	return _init == 1;
+static xSemaphoreHandle time_smphr = NULL;
+
+static void set_cached_time( time_t t ) {
+	cached_time = t;
+	cached_ticks = xTaskGetTickCount();
+}
+static time_t get_cached_time() {
+	return  cached_time + (xTaskGetTickCount() - cached_ticks) / 1000;
 }
 
-int init_time_module()
-{
-	_init = 1;
-	return _init == 1;
-}
 
-
-/*
- * WARNING: DONOT use this function in protobuf encoding/decoding function if you want to send the protobuf
- * over network, it will deadlock the network task.
- * Use get_cache_time instead.
- */
-uint32_t fetch_time_from_ntp_server() {
-    uint32_t ntp = INVALID_SYS_TIME;
-
-	LOGI("Get NTP time\n");
-
-	while(1)
-	{
-		while (!(sl_status & HAS_IP)) {
-			vTaskDelay(100);
-		} //wait for a connection...
-		ntp = unix_time();
-
-		if(ntp != INVALID_SYS_TIME)
-		{
-			break;
+static void time_task( void * params ) { //exists to get the time going and cache so we aren't going to NTP or RTC every time...
+	bool have_set_time = false;
+	while (1) {
+		if (!have_set_time && wifi_status_get(HAS_IP) && time_smphr && xSemaphoreTake(time_smphr, 0)) {
+			uint32_t ntp_time = fetch_unix_time_from_ntp();
+			if (ntp_time != INVALID_SYS_TIME) {
+				if (set_unix_time(ntp_time) != INVALID_SYS_TIME) {
+					is_time_good = true;
+					set_cached_time(ntp_time);
+					set_sl_time(get_cached_time());
+					have_set_time = true;
+				}
+			}
+			xSemaphoreGive(time_smphr);
 		}
-		vTaskDelay(10000);
+
+		if (time_smphr && xSemaphoreTake(time_smphr, 0)) {
+			if( !is_time_good || xTaskGetTickCount() - cached_ticks > 30000 ) {
+				set_cached_time(get_unix_time());
+			}
+			xSemaphoreGive(time_smphr);
+		}
+		vTaskDelay(1000);
 	}
+}
 
-	LOGI("Get NTP time done\n");
+void wait_for_time() { //todo make event based, maybe use semaphore
+	while( !has_good_time() ){
+		vTaskDelay(1000);
+	}
+}
 
+bool has_good_time() {
+	bool good = false;
+	if (time_smphr) {
+		if (xSemaphoreTake(time_smphr, 0)) {
+			good = is_time_good;
+			xSemaphoreGive(time_smphr);
+		} else {
+			good = false;
+		}
+	}
+	return good;
+}
 
-	return ntp;
+time_t get_time() { //all accesses go to cache...
+	time_t t = INVALID_SYS_TIME;
+	if (time_smphr) {
+		if (cached_time != INVALID_SYS_TIME && xSemaphoreTake(time_smphr, 0)) {
+			t = get_cached_time();
+			xSemaphoreGive(time_smphr);
+		}
+	}
+	return t;
+}
+void set_time(time_t t) { //writing is special case
+	if (xSemaphoreTake(time_smphr, portMAX_DELAY)) {
+		set_unix_time(t);
+		cached_time = t;
+		cached_ticks = xTaskGetTickCount();
+		xSemaphoreGive(time_smphr);
+	}
+}
 
+void init_time_module(int stack)
+{
+	is_time_good = false;
+	cached_ticks = 0;
+	cached_time = INVALID_SYS_TIME;
+	vSemaphoreCreateBinary(time_smphr);
+	xTaskCreate(time_task, "time_task", stack / 4, NULL, 4, NULL); //todo reduce stack
 }

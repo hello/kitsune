@@ -36,7 +36,6 @@
 //flag to indicate the thread ip up and running
 #define LOG_EVENT_READY         0x100
 
-extern volatile unsigned int sl_status;
 static struct{
 	uint8_t blocks[3][UART_LOGGER_BLOCK_SIZE];
 	//ptr to block that is currently used for logging
@@ -48,11 +47,11 @@ static struct{
 	volatile uint32_t widx;
 	EventGroupHandle_t uart_log_events;
 	sense_log log;
-	uint8_t view_tag;
-	uint8_t log_local_enable;
+	uint8_t view_tag;	//what level gets printed out to console
+	uint8_t store_tag;	//what level to store to sd card
 	xSemaphoreHandle print_sem;
 	DIR logdir;
-}self;
+}self = {0};
 
 typedef void (file_handler)(FILINFO * info, void * ctx);
 static int _walk_log_dir(file_handler * handler, void * ctx);
@@ -107,9 +106,9 @@ _swap_and_upload(void){
 }
 
 static void
-_logstr(const char * str, int len, bool echo){
+_logstr(const char * str, int len, bool echo, bool store){
 	int i;
-	for (i = 0; i < len; i++) {
+	for(i = 0; i < len && store; i++){
 		uart_logc(str[i]);
 	}
 	if (echo) {
@@ -306,7 +305,8 @@ void uart_logger_init(void){
 	self.log.text.funcs.encode = _encode_text_block;
 	self.log.device_id.funcs.encode = _encode_mac_as_device_id_string;
 	self.log.has_unix_time = true;
-	self.view_tag = LOG_INFO | LOG_WARNING | LOG_ERROR;
+	self.view_tag = LOG_INFO | LOG_WARNING | LOG_ERROR | LOG_VIEW_ONLY;
+	self.store_tag = LOG_INFO | LOG_WARNING | LOG_ERROR;
 	vSemaphoreCreateBinary(self.print_sem);
 
 	xEventGroupSetBits(self.uart_log_events, LOG_EVENT_READY);
@@ -321,6 +321,7 @@ void uart_logc(uint8_t c){
 }
 
 void uart_logger_task(void * params){
+	uint8_t log_local_enable;
 	uart_logger_init();
 	hello_fs_mkdir(SENSE_LOG_FOLDER);
 
@@ -328,9 +329,9 @@ void uart_logger_task(void * params){
 
 	if(res != FR_OK){
 		//uart logging to sd card is disabled
-		self.log_local_enable = 0;
+		log_local_enable = 0;
 	}else{
-		self.log_local_enable = 1;
+		log_local_enable = 1;
 	}
 	while(1){
 		char buffer[UART_LOGGER_BLOCK_SIZE + UART_LOGGER_RESERVED_SIZE] = {0};
@@ -343,13 +344,14 @@ void uart_logger_task(void * params){
                 pdFALSE,        /* all bits should not be cleared before returning. */
                 pdFALSE,       /* Don't wait for both bits, either bit will do. */
                 portMAX_DELAY );/* Wait for any bit to be set. */
-		if( evnt & LOG_EVENT_EXIT ){
+		if( (evnt & LOG_EVENT_EXIT) && !(evnt & LOG_EVENT_STORE)){
 			vTaskDelete(0);
+			xEventGroupClearBits(self.uart_log_events,LOG_EVENT_EXIT);
 			return;
 		}
-		if( evnt && xSemaphoreTake(self.print_sem, portMAX_DELAY)){
+		if( self.print_sem != NULL && evnt && xSemaphoreTake(self.print_sem, portMAX_DELAY)){
 			if( evnt & LOG_EVENT_STORE ) {
-				if(self.log_local_enable && FR_OK == _save_newest((char*) self.store_block, UART_LOGGER_BLOCK_SIZE)){
+				if(log_local_enable && FR_OK == _save_newest((char*) self.store_block, UART_LOGGER_BLOCK_SIZE)){
 					self.operation_block = self.blocks[2];
 					xEventGroupSetBits(self.uart_log_events, LOG_EVENT_UPLOAD);
 				}else{
@@ -361,7 +363,7 @@ void uart_logger_task(void * params){
 			}
 			if( evnt & LOG_EVENT_UPLOAD) {
 				xEventGroupClearBits(self.uart_log_events,LOG_EVENT_UPLOAD);
-				if(sl_status & HAS_IP){
+				if(wifi_status_get(HAS_IP)){
 					WORD read;
 					FRESULT res;
 					self.log.has_unix_time = false;
@@ -369,6 +371,7 @@ void uart_logger_task(void * params){
 					res = _read_oldest((char*)self.operation_block,UART_LOGGER_BLOCK_SIZE, &read);
 					if(FR_OK != res){
 						LOGE("Unable to read log file %d\r\n",(int)res);
+						xSemaphoreGive(self.print_sem);
 						continue;
 					}
 					ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER, SENSE_LOG_ENDPOINT,buffer,sizeof(buffer),sense_log_fields,&self.log,0);
@@ -390,7 +393,7 @@ void uart_logger_task(void * params){
 			}
 			if(evnt & LOG_EVENT_UPLOAD_ONLY) {
 				xEventGroupClearBits(self.uart_log_events,LOG_EVENT_UPLOAD_ONLY);
-				if(sl_status & HAS_IP){
+				if(wifi_status_get(HAS_IP)){
 					self.log.has_unix_time = false;
 					NetworkTask_SynchronousSendProtobuf(DATA_SERVER, SENSE_LOG_ENDPOINT,buffer,sizeof(buffer),sense_log_fields,&self.log,0);
 				}
@@ -407,31 +410,41 @@ int Cmd_log_setview(int argc, char * argv[]){
 	return -1;
 }
 
-//TODO debug the semaphore contention on this one
 static const char * const g_pcHex = "0123456789abcdef";
 void uart_logf(uint8_t tag, const char *pcString, ...){
-	if( !self.print_sem ||  xSemaphoreTake(self.print_sem, 0) != pdTRUE ) {
+	if( self.print_sem == NULL) {
+		UARTprintf("no print_sem\n%s\n", pcString);
 		return;
 	}
-    unsigned long ulIdx, ulValue, ulPos, ulCount, ulBase, ulNeg;
+	if( xSemaphoreTake(self.print_sem, 0) != pdPASS ) {
+		UARTprintf("failed to get print_sem\n%s\n", pcString);
+		return;
+	}
+	va_list vaArgP;
+	unsigned long ulIdx, ulValue, ulPos, ulCount, ulBase, ulNeg;
     char *pcStr, pcBuf[16], cFill;
     bool echo = false;
-    va_list vaArgP;
+    bool store = false;
     ASSERT(pcString != 0);
     if(tag & self.view_tag){
     	echo = true;
     }
+    if(tag & self.store_tag){
+    	store = true;
+    }
 #if UART_LOGGER_PREPEND_TAG > 0
     while(tag){
     	if(tag & LOG_INFO){
-    		_logstr("[INFO]", strlen("[INFO]"), echo);
+    		_logstr("[INFO]", strlen("[INFO]"), echo, store);
     		tag &= ~LOG_INFO;
     	}else if(tag & LOG_WARNING){
-    		_logstr("[WARNING]", strlen("[WARNING]"), echo);
+    		_logstr("[WARNING]", strlen("[WARNING]"), echo, store);
     		tag &= ~LOG_WARNING;
     	}else if(tag & LOG_ERROR){
-    		_logstr("[ERROR]", strlen("[ERROR]"), echo);
+    		_logstr("[ERROR]", strlen("[ERROR]"), echo, store);
     		tag &= ~LOG_ERROR;
+    	}else if(tag & LOG_VIEW_ONLY){
+    		tag &= ~LOG_VIEW_ONLY;
     	}else{
     		tag = 0;
     	}
@@ -444,7 +457,7 @@ void uart_logf(uint8_t tag, const char *pcString, ...){
             ulIdx++)
         {
         }
-        _logstr(pcString, ulIdx, echo);
+        _logstr(pcString, ulIdx, echo, store);
         pcString += ulIdx;
         if(*pcString == '%')
         {
@@ -478,7 +491,7 @@ again:
                 {
                     ulValue = va_arg(vaArgP, unsigned long);
 
-                    _logstr((char *)&ulValue, 1, echo);
+                    _logstr((char *)&ulValue, 1, echo, store);
 
                     break;
                 }
@@ -506,13 +519,13 @@ again:
                     for(ulIdx = 0; pcStr[ulIdx] != '\0'; ulIdx++)
                     {
                     }
-                    _logstr(pcStr, ulIdx, echo);
+                    _logstr(pcStr, ulIdx, echo, store);
                     if(ulCount > ulIdx)
                     {
                         ulCount -= ulIdx;
                         while(ulCount--)
                         {
-                            _logstr(" ", 1, echo);
+                            _logstr(" ", 1, echo, store);
                         }
                     }
                     break;
@@ -568,13 +581,13 @@ convert:
                     {
                         pcBuf[ulPos++] = g_pcHex[(ulValue / ulIdx) % ulBase];
                     }
-                    _logstr(pcBuf, ulPos, echo);
+                    _logstr(pcBuf, ulPos, echo, store);
 
                     break;
                 }
                 case '%':
                 {
-                    _logstr(pcString - 1, 1, echo);
+                    _logstr(pcString - 1, 1, echo, store);
 
                     break;
                 }

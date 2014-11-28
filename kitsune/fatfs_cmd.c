@@ -27,6 +27,37 @@
 
 #include "kitsune_version.h"
 
+//begin download stuff
+#include "wlan.h"
+#include "simplelink.h"
+#include "socket.h"
+#include "protocol.h"
+#include "common.h"
+#include "sl_sync_include_after_simplelink_header.h"
+
+#define PREFIX_BUFFER    "GET "
+//#define POST_BUFFER      " HTTP/1.1\nAccept: text/html, application/xhtml+xml, */*\n\n"
+#define POST_BUFFER_1  " HTTP/1.1\nHost:"
+#define POST_BUFFER_2  "\nAccept: text/html, application/xhtml+xml, */*\n\n"
+
+#define HTTP_FILE_NOT_FOUND    "404 Not Found" /* HTTP file not found response */
+#define HTTP_STATUS_OK         "200 OK"  /* HTTP status ok response */
+#define HTTP_CONTENT_LENGTH    "Content-Length:"  /* HTTP content length header */
+#define HTTP_TRANSFER_ENCODING "Transfer-Encoding:" /* HTTP transfer encoding header */
+#define HTTP_ENCODING_CHUNKED  "chunked" /* HTTP transfer encoding header value */
+#define HTTP_CONNECTION        "Connection:" /* HTTP Connection header */
+#define HTTP_CONNECTION_CLOSE  "close"  /* HTTP Connection header value */
+
+#define DNS_RETRY           5 /* No of DNS tries */
+#define HTTP_END_OF_HEADER  "\r\n\r\n"  /* string marking the end of headers in response */
+
+#define MAX_BUFF_SIZE      512
+
+unsigned char * g_buff;
+long bytesReceived = 0; // variable to store the file size
+static int dl_sock = -1;
+//end download stuff
+
 //*****************************************************************************
 //
 // Defines the size of the buffers that hold the path, or temporary data from
@@ -137,7 +168,7 @@ Cmd_ls(int argc, char *argv[])
     ui32FileCount = 0;
     ui32DirCount = 0;
 
-    LOGI("\n");
+    DISP("\n");
 
     for(;;)
     {
@@ -170,7 +201,7 @@ Cmd_ls(int argc, char *argv[])
 
         // Print the entry information on a single line with formatting to show
         // the attributes, date, time, size, and name.
-        LOGI("%c%c%c%c%c %u/%02u/%02u %02u:%02u %9u  %s\n",
+        DISP("%c%c%c%c%c %u/%02u/%02u %02u:%02u %9u  %s\n",
                    (file_info.fattrib & AM_DIR) ? 'D' : '-',
                    (file_info.fattrib & AM_RDO) ? 'R' : '-',
                    (file_info.fattrib & AM_HID) ? 'H' : '-',
@@ -186,7 +217,7 @@ Cmd_ls(int argc, char *argv[])
     }
 
     // Print summary lines showing the file, dir, and size totals.
-    LOGI("\n%4u File(s),%10u bytes total\n%4u Dir(s)",
+    DISP("\n%4u File(s),%10u bytes total\n%4u Dir(s)",
                 ui32FileCount, ui32TotalSize, ui32DirCount);
 
     // Get the free space.
@@ -199,7 +230,7 @@ Cmd_ls(int argc, char *argv[])
     }
 
     // Display the amount of free space that was calculated.
-    LOGI(", %10uK bytes free\n", (ui32TotalSize *
+    DISP(", %10uK bytes free\n", (ui32TotalSize *
                                         psFatFs->sects_clust / 2));
 
     return(0);
@@ -549,62 +580,6 @@ Cmd_mkdir(int argc, char *argv[])
 
 //begin download functions
 
-#include "wlan.h"
-#include "socket.h"
-#include "simplelink.h"
-#include "protocol.h"
-#include "common.h"
-
-#define PREFIX_BUFFER    "GET "
-//#define POST_BUFFER      " HTTP/1.1\nAccept: text/html, application/xhtml+xml, */*\n\n"
-#define POST_BUFFER_1  " HTTP/1.1\nHost:"
-#define POST_BUFFER_2  "\nAccept: text/html, application/xhtml+xml, */*\n\n"
-
-#define HTTP_FILE_NOT_FOUND    "404 Not Found" /* HTTP file not found response */
-#define HTTP_STATUS_OK         "200 OK"  /* HTTP status ok response */
-#define HTTP_CONTENT_LENGTH    "Content-Length:"  /* HTTP content length header */
-#define HTTP_TRANSFER_ENCODING "Transfer-Encoding:" /* HTTP transfer encoding header */
-#define HTTP_ENCODING_CHUNKED  "chunked" /* HTTP transfer encoding header value */
-#define HTTP_CONNECTION        "Connection:" /* HTTP Connection header */
-#define HTTP_CONNECTION_CLOSE  "close"  /* HTTP Connection header value */
-
-#define DNS_RETRY           5 /* No of DNS tries */
-#define HTTP_END_OF_HEADER  "\r\n\r\n"  /* string marking the end of headers in response */
-#define SIZE_40K            40960  /* Serial flash file size 40 KB */
-
-#define MAX_BUFF_SIZE      512
-
-// Temporary file to store the downloaded file
-#define TEMP_FILE_NAME "cc3000_module_temp.pdf"
-// File on the serial flash to be replaced
-#define FILE_NAME "test.pdf"
-
-
-// Application specific status/error codes
-typedef enum{
- /* Choosing this number to avoid overlap with host-driver's error codes */
-    DEVICE_NOT_IN_STATION_MODE =1 ,
-    DEVICE_START_FAILED = 2,
-    INVALID_HEX_STRING = 3,
-    TCP_RECV_ERROR = 4,
-    TCP_SEND_ERROR = 5,
-    FILE_NOT_FOUND_ERROR = 6,
-    INVALID_SERVER_RESPONSE = 7,
-    FORMAT_NOT_SUPPORTED = 8,
-    FILE_OPEN_FAILED = 9,
-    FILE_WRITE_ERROR = 10,
-    INVALID_FILE = 11,
-    SERVER_CONNECTION_FAILED =12,
-    GET_HOST_IP_FAILED = 13,
-
-    STATUS_CODE_MAX
-} dl_status_codes;
-
-unsigned char g_buff[MAX_BUFF_SIZE+1];
-long bytesReceived = 0; // variable to store the file size
-static int dl_sock = -1;
-
-
 //****************************************************************************
 //
 //! Create an endpoint for communication and initiate connection on socket.*/
@@ -687,7 +662,7 @@ signed long hexToi(unsigned char *ptr)
         }
         else
         {
-            ASSERT_ON_ERROR(INVALID_HEX_STRING);
+            ASSERT_ON_ERROR(-1);
         }
     }
 
@@ -717,12 +692,12 @@ int GetChunkSize(int *len, unsigned char **p_Buff, unsigned long *chunk_size)
     {
         if(*len == 0)
         {
-            memset(g_buff, 0, sizeof(g_buff));
+            memset(g_buff, 0, MAX_BUFF_SIZE);
             *len = recv(dl_sock, g_buff, MAX_BUFF_SIZE, 0);
 
             LOGI( "chunked rx:\r\n%s\r\n", g_buff);
             if(*len <= 0)
-                ASSERT_ON_ERROR(TCP_RECV_ERROR);
+                ASSERT_ON_ERROR(-1);
 
             *p_Buff = g_buff;
         }
@@ -736,7 +711,7 @@ int GetChunkSize(int *len, unsigned char **p_Buff, unsigned long *chunk_size)
     r = hexToi(lenBuff);
     if(r < 0)
     {
-        ASSERT_ON_ERROR(INVALID_HEX_STRING);
+        ASSERT_ON_ERROR(-1);
     }
     else
     {
@@ -786,7 +761,9 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 
     LOGI("Start downloading the file\r\n");
 
-    memset(g_buff, 0, sizeof(g_buff));
+    g_buff = (unsigned char*)pvPortMalloc( MAX_BUFF_SIZE );
+    assert(g_buff);
+    memset(g_buff, 0, MAX_BUFF_SIZE);
 
     // Puts together the HTTP GET string.
     strcpy((char *)g_buff, PREFIX_BUFFER);
@@ -803,17 +780,17 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
     if (transfer_len < 0)
     {
         // error
-        ASSERT_ON_ERROR(TCP_SEND_ERROR);
+        ASSERT_ON_ERROR(-1);
     }
 
-    memset(g_buff, 0, sizeof(g_buff));
+    memset(g_buff, 0, MAX_BUFF_SIZE);
 
     // get the reply from the server in buffer.
     transfer_len = recv(dl_sock, &g_buff[0], MAX_BUFF_SIZE, 0);
 
     if(transfer_len <= 0)
     {
-        ASSERT_ON_ERROR(TCP_RECV_ERROR);
+        ASSERT_ON_ERROR(-1);
     }
 
     //LOGI("recv:\r\n%s\r\n", g_buff ); don't echo binary
@@ -821,13 +798,13 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
     // Check for 404 return code
     if(strstr((const char *)g_buff, HTTP_FILE_NOT_FOUND) != 0)
     {
-        ASSERT_ON_ERROR(FILE_NOT_FOUND_ERROR);
+        ASSERT_ON_ERROR(-1);
     }
 
     // if not "200 OK" return error
     if(strstr((const char *)g_buff, HTTP_STATUS_OK) == 0)
     {
-        ASSERT_ON_ERROR(INVALID_SERVER_RESPONSE);
+        ASSERT_ON_ERROR(-1);
     }
 
     // check if content length is transfered with headers
@@ -835,11 +812,12 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
     if(pBuff != 0)
     {
     	char *p = (char*)pBuff;
-        // not supported
-        ASSERT_ON_ERROR(FORMAT_NOT_SUPPORTED);
+		p += strlen(HTTP_CONTENT_LENGTH)+1;
+		recv_size = atoi(p);
 
-    	p += strlen(HTTP_CONTENT_LENGTH)+1;
-    	recv_size = atoi(p);
+		if(recv_size <= 0) {
+			return -1;
+		}
     }
 
     // Check if data is chunked
@@ -871,7 +849,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
             if(memcmp(pBuff, HTTP_ENCODING_CHUNKED, strlen(HTTP_CONNECTION_CLOSE)) == 0)
             {
                 // not supported
-                ASSERT_ON_ERROR(FORMAT_NOT_SUPPORTED);
+                ASSERT_ON_ERROR(-1);
             }
         }
     }
@@ -880,7 +858,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
     pBuff = (unsigned char *)strstr((const char *)g_buff, HTTP_END_OF_HEADER);
     if(pBuff == 0)
     {
-        ASSERT_ON_ERROR(INVALID_SERVER_RESPONSE);
+        ASSERT_ON_ERROR(-1);
     }
     // Increment by 4 to skip "\r\n\r\n"
     pBuff += 4;
@@ -890,6 +868,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
     	transfer_len -= (pBuff - g_buff);
     } else {
     	transfer_len = 0;
+        vPortFree(g_buff);
     	return -1;
     }
 
@@ -907,6 +886,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 		/* Open file to save the downloaded file */
 		if (global_filename(filename)) {
 			cd("/");
+		    vPortFree(g_buff);
 			return 1;
 		}
 		// Open the file for writing.
@@ -917,6 +897,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 		if (res != FR_OK && res != FR_EXIST) {
 			LOGI("File open %s failed: %d\n", path_buff, res);
 			cd("/");
+		    vPortFree(g_buff);
 			return res;
 		}
 	} else if( storage == SERIAL_FLASH ) {
@@ -935,6 +916,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 	                           _FS_FILE_OPEN_FLAG_COMMIT|_FS_FILE_PUBLIC_WRITE),
 	                           &Token, &fileHandle);
 			if (lRetVal < 0) {
+			    vPortFree(g_buff);
 				return (lRetVal);
 			}
 		}
@@ -960,9 +942,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 			if (storage == SD_CARD) {
 				res = hello_fs_write(&file_obj, pBuff, transfer_len, &r);
 				if (r < recv_size) {
-					LOGI(
-							"Failed during writing the file, Error-code: %d\r\n",
-							FILE_WRITE_ERROR);
+					LOGI("Failed during writing the file\n");
 					/* Close file without saving */
 					res = hello_fs_close(&file_obj);
 
@@ -970,11 +950,12 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 					if (res != FR_OK) {
 						cd("/");
 						stop_led_animation();
+					    vPortFree(g_buff);
 						return ((int) res);
 					}
 					hello_fs_unlink(path_buff);
 					cd("/");
-
+				    vPortFree(g_buff);
 					return -1;
 				}
 			} else if (storage == SERIAL_FLASH) {
@@ -983,10 +964,10 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 	                    (unsigned char *)pBuff, transfer_len);
 	            if(r < transfer_len)
 	            {
-	                UART_PRINT("Failed during writing the file, Error-code: %d\r\n", \
-	                            FILE_WRITE_ERROR);
+	            	LOGI("Failed during writing the file\n");
 	                /* Close file without saving */
 	                stop_led_animation();
+	                vPortFree(g_buff);
 	                return sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
 	            }
 			}
@@ -1002,6 +983,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
     			} else if (storage == SERIAL_FLASH) {
     				sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
     			}
+    		    vPortFree(g_buff);
                 return r;
             }
             transfer_len -= recv_size;
@@ -1036,9 +1018,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
         			if (storage == SD_CARD) {
         				res = hello_fs_write(&file_obj, pBuff, recv_size, &r);
         				if (r < recv_size) {
-        					LOGI(
-        							"Failed during writing the file, Error-code: %d\r\n",
-        							FILE_WRITE_ERROR);
+        					LOGI("Failed during writing the file\n");
         					/* Close file without saving */
         					res = hello_fs_close(&file_obj);
         					stop_led_animation();
@@ -1046,11 +1026,12 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
         					if (res != FR_OK) {
         						cd("/");
         						stop_led_animation();
+        					    vPortFree(g_buff);
         						return ((int) res);
         					}
         					hello_fs_unlink(path_buff);
         					cd("/");
-
+        				    vPortFree(g_buff);
         					return -1;
         				}
         			} else if (storage == SERIAL_FLASH) {
@@ -1058,13 +1039,12 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 					    r = sl_FsWrite(fileHandle,total - recv_size,
 								(unsigned char *) pBuff, transfer_len);
 						if (r < transfer_len) {
-							UART_PRINT(
-									"Failed during writing the file, Error-code: %d\r\n",
-									FILE_WRITE_ERROR);
+							LOGI("Failed during writing the file\n");
 							/* Close file without saving */
 							r = sl_FsClose(fileHandle, 0,
 									(unsigned char*) "A", 1);
 							stop_led_animation();
+						    vPortFree(g_buff);
 							return r;
 						}
         			}
@@ -1081,7 +1061,8 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
             			} else if (storage == SERIAL_FLASH) {
             				sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
             			}
-                        return FILE_WRITE_ERROR;
+            		    vPortFree(g_buff);
+                        return -1;
                     }
                     transfer_len -= recv_size;
                     bytesReceived +=recv_size;
@@ -1113,20 +1094,19 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
         			if (storage == SD_CARD) {
         				res = hello_fs_write(&file_obj, pBuff, transfer_len, &r);
         				if (r < recv_size) {
-        					LOGI(
-        							"Failed during writing the file, Error-code: %d\r\n",
-        							FILE_WRITE_ERROR);
+        					LOGI("Failed during writing the file\n");
         					/* Close file without saving */
         					res = hello_fs_close(&file_obj);
 
         					stop_led_animation();
         					if (res != FR_OK) {
         						cd("/");
+        					    vPortFree(g_buff);
         						return ((int) res);
         					}
         					hello_fs_unlink(path_buff);
         					cd("/");
-
+        				    vPortFree(g_buff);
         					return -1;
         				}
         			} else if (storage == SERIAL_FLASH) {
@@ -1135,12 +1115,11 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 								(unsigned char *) pBuff, transfer_len);
 						if (r < transfer_len) {
 							stop_led_animation();
-							UART_PRINT(
-									"Failed during writing the file, Error-code: %d\r\n",
-									FILE_WRITE_ERROR);
+							LOGI("Failed during writing the file\n");
 							/* Close file without saving */
 							r = sl_FsClose(fileHandle, 0,
 									(unsigned char*) "A", 1);
+						    vPortFree(g_buff);
 							return r;
 						}
         			}
@@ -1157,7 +1136,8 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
             			} else if (storage == SERIAL_FLASH) {
             				sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
             			}
-                        return FILE_WRITE_ERROR;
+            		    vPortFree(g_buff);
+                        return -1;
                     }
                     recv_size -= transfer_len;
                     bytesReceived +=transfer_len;
@@ -1176,20 +1156,19 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 			if (storage == SD_CARD) {
 				res = hello_fs_write(&file_obj, pBuff, transfer_len, &r);
 				if (r != transfer_len) {
-					LOGI(
-							"Failed during writing the file, Error-code: %d\r\n",
-							FILE_WRITE_ERROR);
+					LOGI("Failed during writing the file\n");
 					/* Close file without saving */
 					res = hello_fs_close(&file_obj);
 					stop_led_animation();
 
 					if (res != FR_OK) {
 						cd("/");
+					    vPortFree(g_buff);
 						return ((int) res);
 					}
 					hello_fs_unlink(path_buff);
 					cd("/");
-
+				    vPortFree(g_buff);
 					return -1;
 				}
 			} else if (storage == SERIAL_FLASH) {
@@ -1197,12 +1176,11 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 				r = sl_FsWrite(fileHandle, total - recv_size,
 						(unsigned char *) pBuff, transfer_len);
 				if (r != transfer_len) {
-					UART_PRINT(
-							"Failed during writing the file, Error-code: %d\r\n",
-							FILE_WRITE_ERROR);
+					LOGI("Failed during writing the file\n");
 					/* Close file without saving */
 					sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
 					stop_led_animation();
+				    vPortFree(g_buff);
 					return -1;
 				}
 			}
@@ -1220,13 +1198,14 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
     				sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
     			}
     			stop_led_animation();
-                return FILE_WRITE_ERROR;
+    		    vPortFree(g_buff);
+                return -1;
             }
             bytesReceived +=transfer_len;
             recv_size -= transfer_len;
         }
 
-        memset(g_buff, 0, sizeof(g_buff));
+        memset(g_buff, 0, MAX_BUFF_SIZE);
 
         transfer_len = recv(dl_sock, &g_buff[0], MAX_BUFF_SIZE, 0);
         //LOGI("rx:  %d\r\n", transfer_len);
@@ -1241,7 +1220,8 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 			} else if (storage == SERIAL_FLASH) {
 				sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
 			}
-            return TCP_RECV_ERROR;
+		    vPortFree(g_buff);
+            return -1;
         }
 
         pBuff = g_buff;
@@ -1266,6 +1246,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 	        if(res != FR_OK)
 	        {
 	        	cd( "/" );
+	            vPortFree(g_buff);
 	            return((int)res);
 	        }
 	        hello_fs_unlink( path_buff );
@@ -1274,7 +1255,8 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 	        /* Close file without saving */
 			sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
 		}
-        return INVALID_FILE;
+	    vPortFree(g_buff);
+        return -1;
     }
     else
     {
@@ -1287,16 +1269,19 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 	        if(res != FR_OK)
 	        {
 	        	cd( "/" );
+	            vPortFree(g_buff);
 	            return((int)res);
 	        }
 		} else if (storage == SERIAL_FLASH) {
 	        /* Save and close file */
+		    vPortFree(g_buff);
 			return sl_FsClose(fileHandle, 0, 0, 0);
 		}
     }
 	if (storage == SD_CARD) {
         cd( "/" );
 	}
+    vPortFree(g_buff);
     return 0;
 }
 
@@ -1323,7 +1308,7 @@ int download_file(char * host, char * url, char * filename, char * path, storage
 	unsigned long ip;
 	int r = gethostbyname((signed char*) host, strlen(host), &ip, SL_AF_INET);
 	if (r < 0) {
-		ASSERT_ON_ERROR(GET_HOST_IP_FAILED);
+		ASSERT_ON_ERROR(-1);
 	}
 	//LOGI("download <host> <filename> <url>\n\r");
 	// Create a TCP connection to the Web Server
@@ -1331,7 +1316,7 @@ int download_file(char * host, char * url, char * filename, char * path, storage
 
 	if (dl_sock < 0) {
 		LOGI("Connection to server failed\n\r");
-		return SERVER_CONNECTION_FAILED;
+		return -1;
 	} else {
 		LOGI("Connection to server created successfully\r\n");
 	}

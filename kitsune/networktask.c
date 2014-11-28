@@ -99,12 +99,22 @@ int NetworkTask_SynchronousSendProtobuf(const char * host,const char * endpoint,
 
 
 	//critical section
-	xSemaphoreTake(_syncmutex,portMAX_DELAY);
+	if(xSemaphoreTake(_syncmutex,portMAX_DELAY) != pdTRUE)
+	{
+		LOGE("Cannot take _syncmutex\n");
+		return retcode;
+	}
 
 	memset(&_syncsendresponse,0,sizeof(_syncsendresponse));
 
 	//add to queue
-	xQueueSend( _asyncqueue, ( const void * )&message, portMAX_DELAY );
+	if(xQueueSend( _asyncqueue, ( const void * )&message, portMAX_DELAY ) != pdTRUE)
+	{
+		// If queue is full, do not block the caller.
+		xSemaphoreGive(_syncmutex);
+		LOGE("Cannot send request to _asyncqueue\n");
+		return retcode;
+	}
 
 	//worry: what if callback happens before I get here?
 	//wait until network callback happens

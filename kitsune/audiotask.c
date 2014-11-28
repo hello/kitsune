@@ -14,11 +14,10 @@
 #include "uartstdio.h"
 #include "endpoints.h"
 #include "circ_buff.h"
+#include "network.h"
 
 #include <string.h>
 #include <stdio.h>
-
-#define SWAP_ENDIAN
 
 #if 0
 #define PRINT_TIMING
@@ -35,6 +34,8 @@
 
 #define MAX_NUMBER_TIMES_TO_WAIT_FOR_AUDIO_BUFFER_TO_FILL (5000)
 #define MAX_FILE_SIZE_BYTES (1048576)
+
+#define MONO_BUF_LENGTH (256)
 
 #define FLAG_SUCCESS (0x01)
 #define FLAG_STOP    (0x02)
@@ -252,7 +253,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 
 static void DoCapture() {
-	int16_t samples[PACKET_SIZE/4];
+	int16_t samples[MONO_BUF_LENGTH*2]; //256 * 2bytes * 2 = 1KB
 	uint16_t i;
 	char filepath[32];
 
@@ -359,25 +360,37 @@ static void DoCapture() {
 
 		iBufferFilled = GetBufferSize(pTxBuffer);
 
-		if(iBufferFilled < (sizeof(int16_t)*PACKET_SIZE)) {
+		if(iBufferFilled < PING_PONG_CHUNK_SIZE) {
 			//wait a bit for the tx buffer to fill
-			vTaskDelay(5);
+			vTaskDelay(1);
 		}
 		else {
-			int16_t * shortBufPtr = (int16_t*) (pTxBuffer->pucReadPtr+1);
-			//deinterleave (i.e. get mono)
-			for (i = 0; i < PACKET_SIZE/4; i++ ) {
-				samples[i] = shortBufPtr[2*i];
+	//		uint8_t * ptr_samples_bytes = (uint8_t *)samples;
+			uint16_t * pu16 = (uint16_t *)samples;
+
+			//dump buffer out
+			ReadBuffer(pTxBuffer,(uint8_t *)samples,sizeof(samples));
+
+			for (i = 0; i < MONO_BUF_LENGTH; i++) {
+				samples[i] = samples[2*i + 1];//because it goes right, left,right left, and we want the left channel.
 			}
 
-			UpdateReadPtr(pTxBuffer, PACKET_SIZE);
+#if 1
+			//swap endian, so we output little endian (it comes in as big endian)
+			for (i = 0; i < MONO_BUF_LENGTH; i ++) {
+				*pu16 = ((*pu16) << 8) | ((*pu16) >> 8);
+				pu16++;
+			}
+#endif
+
 #ifdef PRINT_TIMING
 			t1 = xTaskGetTickCount(); dt = t1 - t0; t0 = t1;
 #endif
 
 			//write to file
 			if (isSavingToFile) {
-				const uint32_t bytes_written = PACKET_SIZE/4 * sizeof(int16_t);
+				const uint32_t bytes_written = MONO_BUF_LENGTH*sizeof(int16_t);
+
 				if (WriteToFile(&filedata,bytes_written,(const uint8_t *)samples)) {
 					num_bytes_written += bytes_written;
 					num_samples_to_save--;

@@ -274,6 +274,7 @@ void watchdog_thread(void* unused) {
 		vTaskDelay(1000);
 	}
 }
+
 //*****************************************************************************
 //							MAIN FUNCTION
 //*****************************************************************************
@@ -281,7 +282,6 @@ void main()
 {
   //
   // Board Initialization
-  sl_sync_init();  // thread safe for all sl_* calls
   //
   BoardInit();
 
@@ -292,10 +292,6 @@ void main()
   PinMuxConfig();
 
   //
-  // Initialize the UART for console I/O.
-  //
-  UARTStdioInit(0);
-  //
   // Set the SD card clock as output pin
   //
   MAP_PinDirModeSet(PIN_07,PIN_DIR_MODE_OUT);
@@ -305,8 +301,6 @@ void main()
   //
 
   VStartSimpleLinkSpawnTask(SPAWN_TASK_PRIORITY);
-
-  hello_fs_init(); //sets up thread safety for accessing the file system
 
   /* Create the UART processing task. */
   xTaskCreate( vUARTTask, "UARTTask", 1024/(sizeof(portSTACK_TYPE)), NULL, 4, NULL );

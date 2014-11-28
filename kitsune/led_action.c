@@ -28,6 +28,7 @@ typedef struct animation_t{
 	pattern_t *p_patterns;			// Pattern array
 }animation_t;
 
+#ifdef TEST_PATTERN_ANIMATION
 static pattern_t s_test_pattern[] =
 {
 	{ 1, 2, 3, 0, 0, 0, 0, 0, 0, 0, 3, 2 },
@@ -52,18 +53,13 @@ static color_t s_test_map[] =
 		{ 0x3E, 0x00, 0x00 },
 };
 static int s_test_map_num = sizeof(s_test_map)/sizeof(s_test_map[0]);
+#endif
 
 typedef struct siren_t{
 	int idx;
 	uint32_t mask;
 	uint32_t alt_mask;
 }siren_t;
-
-typedef struct trippy_t{
-	int idx;
-	color_t colors[NUM_LED];
-	color_t prev_colors[NUM_LED];
-}trippy_t;
 
 typedef struct led_action_t{
 	bool init;
@@ -81,7 +77,6 @@ typedef struct led_action_t{
 	union
 	{
 		siren_t siren;
-		trippy_t trippy;
 		animation_t anim;
 	};
 }led_action_t;
@@ -148,7 +143,6 @@ static bool led_action_siren(led_action_t *p_la,
 			out_g[i] =  p_la->alt_color.g;
 			out_b[i] =  p_la->alt_color.b;
 		}
-		p_color = NULL;
 	}
 	*out_delay = p_la->delay;
 	p_la->siren.idx++;
@@ -157,7 +151,6 @@ static bool led_action_siren(led_action_t *p_la,
 
 	return true;
 }
-
 static bool led_action_party(led_action_t *p_la,
 							int * out_r, int * out_g, int * out_b,
 							int * out_delay, void * user_context, int rgb_array_size){
@@ -167,40 +160,6 @@ static bool led_action_party(led_action_t *p_la,
 		out_r[i] =  rand() % LED_MAX;
 		out_g[i] =  rand() % LED_MAX;
 		out_b[i] =  rand() % LED_MAX;
-	}
-	*out_delay = p_la->delay;
-
-	return true;
-}
-
-static bool reach_color(int * v, int target){
-	if(*v == target){
-		return true;
-	}else if(*v < target){
-		*v = *v + 1;
-	}else{
-		*v = *v - 1;
-	}
-	return false;
-}
-
-static bool led_action_trippy(led_action_t *p_la,
-								int * out_r, int * out_g, int * out_b,
-								int * out_delay, void * user_context, int rgb_array_size){
-	int i = 0;
-	for(i = 0; i < NUM_LED; i++){
-		if(reach_color(&p_la->trippy.prev_colors[i].r, p_la->trippy.colors[i].r)){
-			p_la->trippy.colors[i].r = rand()%32 + (p_la->trippy.idx++)%32;
-		}
-		if(reach_color(&p_la->trippy.prev_colors[i].g, p_la->trippy.colors[i].g)){
-			p_la->trippy.colors[i].g = rand()%32 + (p_la->trippy.idx++)%32;
-		}
-		if(reach_color(&p_la->trippy.prev_colors[i].b, p_la->trippy.colors[i].b)){
-			p_la->trippy.colors[i].b = rand()%32 + (p_la->trippy.idx++)%32;
-		}
-		out_r[i] = p_la->trippy.prev_colors[i].r;
-		out_g[i] = p_la->trippy.prev_colors[i].g;
-		out_b[i] = p_la->trippy.prev_colors[i].b;
 	}
 	*out_delay = p_la->delay;
 
@@ -227,7 +186,7 @@ static void led_action_handle_fade(led_action_t *p_la,
 	else if (p_la->brightness < 0)
 		p_la->brightness = 0;
 
-	LOGE("brightness = %d \r\n",p_la->brightness);
+	// LOGE("brightness = %d \r\n",p_la->brightness);
 
 	for (i = 0; i < NUM_LED; ++i) {
 		out_r[i] = ((p_la->brightness * out_r[i]) >> 8) & 0xFF;
@@ -248,6 +207,7 @@ static bool led_action_cb(int * out_r, int * out_g, int * out_b,
 	if (rgb_array_size > NUM_LED)
 	{
 		LOGE("rgb_array_size > NUM_LED\r\n");
+    	xSemaphoreGive(p_la->sem);
 		return false;
 	}
 
@@ -282,7 +242,8 @@ static bool led_action_cb(int * out_r, int * out_g, int * out_b,
     	result = led_action_siren(p_la, out_r,out_g,out_b,out_delay,user_context,rgb_array_size);
         break;
     case SyncResponse_LEDAction_LEDActionType_TRIPPY:	// Randomized LED colors
-    	result = led_action_trippy(p_la, out_r,out_g,out_b,out_delay,user_context,rgb_array_size);
+    	//result = led_action_trippy(p_la, out_r,out_g,out_b,out_delay,user_context,rgb_array_size);
+    	result = false;
         break ;
     case SyncResponse_LEDAction_LEDActionType_PARTY:	// Party mode, fade to/from random colors
     	result = led_action_party(p_la, out_r,out_g,out_b,out_delay,user_context,rgb_array_size);
@@ -294,11 +255,11 @@ static bool led_action_cb(int * out_r, int * out_g, int * out_b,
 
     led_action_handle_fade(p_la, out_r,out_g,out_b);
 
-    if (p_la->end_ticks < xTaskGetTickCount())
+    if (!result || (p_la->end_ticks < xTaskGetTickCount()))
     {
     	xSemaphoreGive(p_la->sem);
+    	LOGE("%s %d DONE!\r\n", __FUNCTION__,result);
     	result = false;
-    	LOGE("%s %d DONE!\r\n", __FUNCTION__,p_la->type);
     }
 
     return result;
@@ -308,7 +269,7 @@ bool led_action_start(led_action_t *p_la,const SyncResponse* p_rb ) {
 	int i, dur_ticks;
 	TickType_t ticks = xTaskGetTickCount();
 
-	LOGE("%s\r\n", __FUNCTION__);
+	// LOGE("%s\r\n", __FUNCTION__);
 	if(xSemaphoreTake(p_la->sem, MAX_ACTION_WAIT_TICKS) == pdPASS)
 	{
 		p_la->delay = 32;
@@ -354,46 +315,41 @@ bool led_action_start(led_action_t *p_la,const SyncResponse* p_rb ) {
 	    case SyncResponse_LEDAction_LEDActionType_SIREN:
 	    	p_la->siren.idx = 0;
 	    	p_la->siren.mask = 0x3F03F;
-	    	p_la->siren.alt_mask = 0x3F03F;
+	    	p_la->siren.alt_mask = 0xFC0FC0;
 			p_la->delay = 64;
 	        break;
 	    case SyncResponse_LEDAction_LEDActionType_PARTY:
 	        break;
 	    case SyncResponse_LEDAction_LEDActionType_TRIPPY:
-	    	p_la->trippy.idx = 0;
-	    	p_la->flags = 0;
-			for(i = 0; i < NUM_LED; i++){
-				p_la->trippy.colors[i] = (color_t){rand()%120, rand()%120, rand()%120};
-				p_la->trippy.prev_colors[i] = (color_t){0};
-			}
+	    	//play_led_trippy(MAX_ACTION_WAIT_TICKS);
 	        break ;
 	    case SyncResponse_LEDAction_LEDActionType_URL:
 	    	p_la->anim.idx = 0;
+#ifdef TEST_PATTERN_ANIMATION
 	    	// TODO get pattern animation from URL, for now use test animation
 	    	p_la->anim.num_colors = s_test_map_num;
 	    	p_la->anim.p_colors = s_test_map;
 	    	p_la->anim.num_patterns = s_test_pattern_num;
 	    	p_la->anim.p_patterns = s_test_pattern;
+#endif
 	        break;
 	    }
 	    i = LED_MAX/p_la->factor;  // number of cycles in a fade
 	    i *= p_la->delay;      // number of ms in a fade
 	    i = i / portTICK_PERIOD_MS; // number of ticks in a fade
-		LOGE("ticks in fade = %d\r\n", i);
-		LOGE("dur_ticks = %d\r\n", dur_ticks);
+		// LOGE("ticks in fade = %d\r\n", i);
+		// LOGE("dur_ticks = %d\r\n", dur_ticks);
 
-	    if (p_la->type != SyncResponse_LEDAction_LEDActionType_GLOW){
-	    	if (i > dur_ticks/2)
-	    		p_la->flags &= ~FLAG_FADE; // don't fade if duration isn't long enough
-	    	else {
-				p_la->end_fadein_ticks = ticks + i;
-				p_la->start_fadeout_ticks = p_la->end_ticks - i;
-				if (p_la->type == SyncResponse_LEDAction_LEDActionType_THROB)
-					p_la->start_fadeout_ticks = p_la->end_fadein_ticks;
-	    	}
-	    }
+		if (i > dur_ticks/2)
+			p_la->flags &= ~FLAG_FADE; // don't fade if duration isn't long enough
+		else {
+			p_la->end_fadein_ticks = ticks + i;
+			p_la->start_fadeout_ticks = p_la->end_ticks - i;
+			if (p_la->type == SyncResponse_LEDAction_LEDActionType_THROB)
+				p_la->start_fadeout_ticks = p_la->end_fadein_ticks;
+		}
 
-	    LOGE("%s led_start_custom_animation\r\n", __FUNCTION__);
+	    // LOGE("%s led_start_custom_animation\r\n", __FUNCTION__);
 		led_start_custom_animation(led_action_cb, p_la);
 		return true;
 	}
@@ -403,7 +359,7 @@ bool led_action_start(led_action_t *p_la,const SyncResponse* p_rb ) {
 
  void led_action(const SyncResponse* response_protobuf)
 {
-	 LOGE("%s\r\n", __FUNCTION__);
+	 // LOGE("%s\r\n", __FUNCTION__);
 	 if (!s_la.init)
 		 led_action_init(&s_la);
 	 led_action_start(&s_la,response_protobuf);
@@ -427,5 +383,4 @@ int Cmd_led_action(int argc, char *argv[]) {
     led_action((const SyncResponse*)&pb);
     return 0;
 }
-
 //end led_action.c

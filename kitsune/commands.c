@@ -78,9 +78,15 @@
 #include "kitsune_version.h"
 #include "TestNetwork.h"
 #include "sys_time.h"
+#include "gesture.h"
+#include "fs.h"
 #include "sl_sync_include_after_simplelink_header.h"
 
 #include "fileuploadertask.h"
+#include "hellofilesystem.h"
+
+#include "hw_ver.h"
+#include "pinmux.h"
 
 #define ONLY_MID 0
 
@@ -88,7 +94,6 @@
 //			        FUNCTION DECLARATIONS
 //******************************************************************************
 
-extern int g_iReceiveCount;
 //******************************************************************************
 //			    GLOBAL VARIABLES
 //******************************************************************************
@@ -164,9 +169,6 @@ int Cmd_free(int argc, char *argv[]) {
 	return (0);
 }
 
-
-#include "fs.h"
-
 int Cmd_fs_write(int argc, char *argv[]) {
 	//
 	// Print some header text.
@@ -236,53 +238,8 @@ int Cmd_fs_read(int argc, char *argv[]) {
 		LOGI("%x", buffer[i]);
 	}
 
-	// Return success.
-	return (0);
-}
-
-#define AUDIO_RATE 16000
-extern
-unsigned short * audio_buf;
-int Cmd_code_playbuff(int argc, char *argv[]) {
-unsigned int CPU_XDATA = 1; //1: enabled CPU interrupt triggerred
-#define minval( a,b ) a < b ? a : b
-	unsigned long tok;
-	long hndl, err, bytes;
-
-    McASPInit(true, AUDIO_RATE);
-	//Audio_Stop();
-	audio_buf = (unsigned short*)pvPortMalloc(AUDIO_BUF_SZ);
-	//assert(audio_buf);
-	err = sl_FsOpen("Ringtone_hello_leftchannel_16PCM", FS_MODE_OPEN_READ, &tok, &hndl);
-	if (err) {
-		LOGI("error opening for read %d\n", err);
-		return -1;
-	}
-	bytes = sl_FsRead(hndl, 0,  (unsigned char*)audio_buf, AUDIO_BUF_SZ);
-	if (bytes) {
-		LOGI("read %d bytes\n", bytes);
-	}
-	sl_FsClose(hndl, 0, 0, 0);
-
-	get_codec_NAU(atoi(argv[1]));
-	LOGI(" Done for get_codec_NAU\n ");
-
-	AudioCaptureRendererConfigure(I2S_PORT_CPU, AUDIO_RATE);
-
-	AudioCapturerInit(CPU_XDATA, AUDIO_RATE); //LOGI(" Done for AudioCapturerInit\n ");
-
-	Audio_Start(); //LOGI(" Done for Audio_Start\n ");
-
-	vTaskDelay(5 * 1000);
-	Audio_Stop(); // added this, the ringtone will not play
-	McASPDeInit(true, AUDIO_RATE);
-
-	vPortFree(audio_buf); //LOGI(" audio_buf\n ");
-
 	return 0;
 }
-
-
 
 int Cmd_record_buff(int argc, char *argv[]) {
 	AudioMessage_t m;
@@ -313,96 +270,6 @@ int Cmd_audio_turn_off(int agrc, char * agrv[]) {
 	return 0;
 
 }
-
-void Speaker1(char * file);
-unsigned char g_ucSpkrStartFlag;
-
-/*
-int play_ringtone(int vol, char * file) {
-
-	unsigned int CPU_XDATA = 0; //1: enabled CPU interrupt triggerred; 0: DMA
-
-	{ //naked block so the compiler can pop these off the stack...
-	  //check the file exists and is bug enough for a few seconds
-		FIL fp;
-		FILINFO file_info;
-		FRESULT res;
-		res = f_open(&fp, file, FA_READ);
-
-		if (res != FR_OK) {
-			LOGI("Failed to open audio file %d\n\r", res);
-			return -1;
-		}
-		f_stat(file, &file_info);
-		f_close( &fp );
-		if (file_info.fsize < 256000) {
-			LOGI("audio file too small %d\n\r", file_info.fsize );
-			return -1;
-		}
-	}
-
-//
-// Create RX and TX Buffer
-	LOGI("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
-	AudioProcessingTask_FreeBuffers();
-	LOGI("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
-	pRxBuffer = CreateCircularBuffer(RX_BUFFER_SIZE);
-	LOGI("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
-	if (pRxBuffer == NULL) {
-		LOGI("Unable to Allocate Memory for Rx Buffer\n\r");
-		return -1;
-	}
-// Configure Audio Codec
-//
-
-	get_codec_NAU(vol);
-
-// Initialize the Audio(I2S) Module
-//
-	AudioCapturerInit(CPU_XDATA, 48000);
-
-// Initialize the DMA Module
-//
-	UDMAInit();
-	UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL);
-
-//
-// Setup the DMA Mode
-//
-	SetupPingPongDMATransferRx();
-// Setup the Audio In/Out
-//
-	LOGI("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
-
-	AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
-	AudioCaptureRendererConfigure(I2S_PORT_DMA, 48000);
-
-	g_ucSpkrStartFlag = 1;
-// Start Audio Tx/Rx
-//
-	Audio_Start();
-
-// Start the Microphone Task
-//
-	Speaker1(file);
-	LOGI("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
-
-	LOGI("g_iReceiveCount %d\n\r", g_iReceiveCount);
-	close_codec_NAU();
-	LOGI("close_codec_NAU");
-	Audio_Stop();
-	McASPDeInit();
-	DestroyCircularBuffer(pRxBuffer);
-	LOGI("DestroyCircularBuffer(pRxBuffer)");
-	LOGI("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
-
-	AudioProcessingTask_AllocBuffers();
-	LOGI("%d bytes free %d\n", xPortGetFreeHeapSize(), __LINE__);
-
-	return 0;
-
-}
-*/
 
 int Cmd_stop_buff(int argc, char *argv[]) {
 	AudioTask_StopPlayback();
@@ -446,7 +313,7 @@ void set_alarm( SyncResponse_Alarm * received_alarm ) {
     if (xSemaphoreTake(alarm_smphr, portMAX_DELAY)) {
         if (received_alarm->has_ring_offset_from_now_in_second
         	&& received_alarm->ring_offset_from_now_in_second > -1 ) {   // -1 means user has no alarm/reset his/her now
-        	unsigned long now = get_nwp_time();
+        	unsigned long now = get_time();
         	received_alarm->start_time = now + received_alarm->ring_offset_from_now_in_second;
 
         	int ring_duration = received_alarm->has_ring_duration_in_second ? received_alarm->ring_duration_in_second : 30;
@@ -499,9 +366,10 @@ static void thread_alarm_on_finished(void * context) {
 
 void thread_alarm(void * unused) {
 	while (1) {
+		wait_for_time();
+
 		portTickType now = xTaskGetTickCount();
-		//todo audio processing
-		uint64_t time = get_nwp_time();
+		uint64_t time = get_time();
 		// The alarm thread should go ahead even without a valid time,
 		// because we don't need a correct time to fire alarm, we just need the offset.
 
@@ -569,53 +437,51 @@ void thread_dust(void * unused)  {
 	}
 }
 
-static void _on_wave(void * ctx){
-	alarm.has_start_time = 0;
+static void _on_wave(int light){
+	memset(&alarm, 0, sizeof(alarm));
 	AudioTask_StopPlayback();
 
 	uint8_t adjust_max_light = 80;
 
 	int adjust;
-	int light = *(int*)ctx;
 
-				if( light > adjust_max_light ) {
-					adjust = adjust_max_light;
-				} else {
-					adjust = light;
-				}
+	if( light > adjust_max_light ) {
+		adjust = adjust_max_light;
+	} else {
+		adjust = light;
+	}
 
-				if(adjust < 20)
-				{
-					adjust = 20;
-				}
+	if(adjust < 20)
+	{
+		adjust = 20;
+	}
 
-				uint8_t alpha = 0xFF * adjust / 80;
+	uint8_t alpha = 0xFF * adjust / 80;
 
-				if( sl_status & UPLOADING ) {
-					uint8_t rgb[3] = { LED_MAX };
-					led_get_user_color(&rgb[0], &rgb[1], &rgb[2]);
-					led_set_color(alpha, rgb[0], rgb[1], rgb[2], 1, 1, 18, 0);
-			 	}
-			 	else if( sl_status & HAS_IP ) {
-					led_set_color(alpha, LED_MAX, 0, 0, 1, 1, 18, 1); //blue
-			 	}
-			 	else if( sl_status & CONNECTING ) {
-			 		led_set_color(alpha, LED_MAX,LED_MAX,0, 1, 1, 18, 1); //yellow
-			 	}
-			 	else if( sl_status & SCANNING ) {
-			 		led_set_color(alpha, LED_MAX,0,0, 1, 1, 18, 1 ); //red
-			 	} else {
-			 		led_set_color(alpha, LED_MAX, LED_MAX, LED_MAX, 1, 1, 18, 1 ); //white
-			 	}
-			}
-static void _on_hold(void * ctx){
+	if(wifi_status_get(UPLOADING)) {
+		uint8_t rgb[3] = { LED_MAX };
+		led_get_user_color(&rgb[0], &rgb[1], &rgb[2]);
+		led_set_color(alpha, rgb[0], rgb[1], rgb[2], 1, 1, 18, 0);
+	}
+	else if(wifi_status_get(HAS_IP)) {
+		led_set_color(alpha, LED_MAX, 0, 0, 1, 1, 18, 1); //blue
+	}
+	else if(wifi_status_get(CONNECTING)) {
+		led_set_color(alpha, LED_MAX,LED_MAX,0, 1, 1, 18, 1); //yellow
+	}
+	else if(wifi_status_get(SCANNING)) {
+		led_set_color(alpha, LED_MAX,0,0, 1, 1, 18, 1 ); //red
+	} else {
+		led_set_color(alpha, LED_MAX, LED_MAX, LED_MAX, 1, 1, 18, 1 ); //white
+	}
+}
+
+static void _on_hold(){
 	//stop_led_animation();
-	alarm.has_start_time = 0;
+	memset(&alarm, 0, sizeof(alarm));
 	AudioTask_StopPlayback();
 }
-static void _on_slide(void * ctx, int delta){
-	LOGI("Slide delta %d\r\n", delta);
-}
+
 static int light_m2,light_mean, light_cnt,light_log_sum,light_sf;
 static xSemaphoreHandle light_smphr;
 
@@ -624,13 +490,8 @@ static xSemaphoreHandle light_smphr;
 #include "gesture.h"
 void thread_fast_i2c_poll(void * unused)  {
 	int light = 0;
-	gesture_callbacks_t gesture_cbs = (gesture_callbacks_t){
-		.on_wave = _on_wave,
-		.on_hold = _on_hold,
-		.on_slide = _on_slide,
-		.ctx = &light,
-	};
-	gesture_init(&gesture_cbs);
+	gesture_init();
+
 	while (1) {
 		portTickType now = xTaskGetTickCount();
 		int prox=0;
@@ -643,9 +504,21 @@ void thread_fast_i2c_poll(void * unused)  {
 			// For the black morpheus, we can detect 6mm distance max
 			// for white one, 9mm distance max.
 			prox = get_prox();  // now this thing is in um.
-
 			xSemaphoreGive(i2c_smphr);
-			gesture_input(prox);
+
+			gesture gesture_state = gesture_input(prox);
+			switch(gesture_state)
+			{
+			case GESTURE_WAVE:
+				_on_wave(light);
+				break;
+			case GESTURE_HOLD:
+				_on_hold();
+				break;
+			default:
+				break;
+			}
+
 
 			if (xSemaphoreTake(light_smphr, portMAX_DELAY)) {
 				light_log_sum += bitlog(light);
@@ -752,7 +625,7 @@ void thread_tx(void* unused) {
 			}
 			vPortFree( pilldata.pills );
 		}
-		while (!(sl_status & HAS_IP)) {
+		while (!wifi_status_get(HAS_IP)) {
 			vTaskDelay(1000);
 		}
 	}
@@ -771,21 +644,9 @@ void thread_sensor_poll(void* unused) {
 
 		memset(&data, 0, sizeof(data));  // Don't forget re-init!
 
-		if(!time_module_initialized())  // Initialize sys time module in sensor polling thread
-		{
-			uint32_t ntp_time = fetch_time_from_ntp_server();
-			if(ntp_time != INVALID_SYS_TIME)
-			{
-				if(set_nwp_time(ntp_time) != INVALID_SYS_TIME)
-				{
-					init_time_module();
-				}
-			}
-			vTaskDelay(200);
-			continue;  // The data polling thread should not proceed without a valid time.
-		}
+		wait_for_time();
 
-		data.unix_time = get_nwp_time();
+		data.unix_time = get_time();
 		data.has_unix_time = true;
 
 		// copy over the dust values
@@ -912,10 +773,25 @@ void thread_sensor_poll(void* unused) {
 			xSemaphoreGive(i2c_smphr);
 		}
 
+		int wave_count = gesture_get_wave_count();
+		if(wave_count > 0)
+		{
+			data.has_wave_count = true;
+			data.wave_count = wave_count;
+		}
 
-		LOGI("collecting time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d %d %d %d\n",
+		int hold_count = gesture_get_hold_count();
+		if(hold_count > 0)
+		{
+			data.has_hold_count = true;
+			data.hold_count = hold_count;
+		}
+
+		gesture_counter_reset();
+
+		LOGI("collecting time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d %d %d %d\twave %d\thold %d\n",
 				data.unix_time, data.light, data.light_variability, data.light_tonality, data.temperature, data.humidity,
-				data.dust, data.dust_max, data.dust_min, data.dust_variability);
+				data.dust, data.dust_max, data.dust_min, data.dust_variability, data.wave_count, data.hold_count);
 
 		// Remember to add back firmware version, or OTA cant work.
 		data.has_firmware_version = true;
@@ -1172,6 +1048,34 @@ int Cmd_topdfu(int argc, char *argv[]){
 	return -2;
 }
 
+static void CreateDirectoryIfNotExist(const char * path) {
+
+	FILINFO finfo;
+	FRESULT res;
+	FRESULT res2;
+
+
+	res = hello_fs_stat(path,&finfo);
+
+	if (res != FR_OK) {
+		res2 = hello_fs_mkdir(path);
+
+		if (res2 == FR_OK) {
+			UARTprintf("Created directory %s\r\n",path);
+		}
+		else {
+			UARTprintf("Failed to create %s\r\n",path);
+		}
+	}
+	else {
+		UARTprintf("%s already exists\r\n",path);
+	}
+
+}
+static void CreateDefaultDirectories(void) {
+	CreateDirectoryIfNotExist("/usr");
+}
+
 // ==============================================================================
 // This is the table that holds the command names, implementing functions, and
 // brief description.
@@ -1189,9 +1093,6 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "ping", Cmd_ping, "" },
 		{ "time", Cmd_time, "" },
 		{ "status", Cmd_status, "" },
-#if 0
-		{ "audio", Cmd_audio_test, "audio upload test" },
-#endif
 
     { "mnt",      Cmd_mnt,      "" },
     { "umnt",     Cmd_umnt,     "" },
@@ -1204,7 +1105,6 @@ tCmdLineEntry g_sCmdTable[] = {
     { "mkfs",     Cmd_mkfs,     "" },
     { "pwd",      Cmd_pwd,      "" },
     { "cat",      Cmd_cat,      "" },
-		//{ "fault", Cmd_fault, "" },
 
 		{ "humid", Cmd_readhumid, "" },
 		{ "temp", Cmd_readtemp,	"" },
@@ -1222,17 +1122,14 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "fsrd", Cmd_fs_read, "" },
 		{ "fsdl", Cmd_fs_delete, "" },
 
-		{ "play_ringtone", Cmd_code_playbuff, "" },
-		{ "stop_ringtone",Cmd_stop_buff,""},
 		{ "r", Cmd_record_buff,""}, //record sounds into SD card
 		{ "p", Cmd_play_buff, ""},//play sounds from SD card
+		{ "s",Cmd_stop_buff,""},
 		{ "aon",Cmd_audio_turn_on,""},
 		{ "aoff",Cmd_audio_turn_off,""},
-		//{ "readout", Cmd_readout_data, "read out sensor data log" },
 
 		{ "sl", Cmd_sl, "" }, // smart config
 		{ "mode", Cmd_mode, "" }, //set the ap/station mode
-		//{ "mel", Cmd_mel, "test the mel calculation" },
 
 		{ "spird", Cmd_spi_read,"" },
 		{ "spiwr", Cmd_spi_write, "" },
@@ -1284,13 +1181,13 @@ long nwp_reset();
 void vUARTTask(void *pvParameters) {
 	char cCmdBuf[512];
 	portTickType now;
-
+	wifi_status_init();
 	if(led_init() != 0){
 		LOGI("Failed to create the led_events.\n");
 	}
 
-	// NOTE: upped stack to 1024 bytes because 512 not enough stack (see led_task 10 local int[12] arrays) [JPF]
-	xTaskCreate(led_task, "ledTask", 1024/4, NULL, 4, NULL); //todo reduce stack
+	// NOTE: upped stack to 700 bytes because 512 not enough stack (see led_task 10 local int[12] arrays) [JPF]
+	xTaskCreate(led_task, "ledTask", 700/4, NULL, 4, NULL); //todo reduce stack
 
 	Cmd_led_clr(0,0);
 	//switch the uart lines to gpios, drive tx low and see if rx goes low as well
@@ -1320,51 +1217,59 @@ void vUARTTask(void *pvParameters) {
 
 	UARTIntRegister(UARTA0_BASE, UARTStdioIntHandler);
 
-	LOGI("Boot\n");
+	UARTprintf("Boot\n");
 
 	//default to IFA
 	antsel(IFA_ANT);
 
-	LOGI("*");
+	UARTprintf("*");
 	now = xTaskGetTickCount();
+	sl_sync_init();  // thread safe for all sl_* calls
 	sl_mode = sl_Start(NULL, NULL, NULL);
-	LOGI("*");
+	UARTprintf("*");
 	while (sl_mode != ROLE_STA) {
-		LOGI("+");
+		UARTprintf("+");
 		sl_WlanSetMode(ROLE_STA);
 		nwp_reset();
 	}
-	LOGI("*");
+	UARTprintf("*");
 
 	// Set connection policy to Auto
 	sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0), NULL, 0);
 
-	LOGI("*");
+	UARTprintf("*");
 	unsigned char mac[6];
 	unsigned char mac_len;
 	sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
-	LOGI("*");
+	UARTprintf("*");
+
+	vTaskDelayUntil(&now, 1000);
+	UARTprintf("*");
+
+	if (sl_mode == ROLE_AP || !wifi_status_get(0xFFFFFFFF)) {
+		//Cmd_sl(0, 0);
+	}
+
+	check_hw_version();
+	PinMuxConfig_hw_dep();
 
 	// SDCARD INITIALIZATION
 	// Enable MMCHS, Reset MMCHS, Configure MMCHS, Configure card clock, mount
+	hello_fs_init(); //sets up thread safety for accessing the file system
 	MAP_PRCMPeripheralClkEnable(PRCM_SDHOST, PRCM_RUN_MODE_CLK);
 	MAP_PRCMPeripheralReset(PRCM_SDHOST);
 	MAP_SDHostInit(SDHOST_BASE);
 	MAP_SDHostSetExpClk(SDHOST_BASE, MAP_PRCMPeripheralClockGet(PRCM_SDHOST),
-			1000000);
-	LOGI("*");
+			get_hw_ver()==EVT2?1000000:24000000);
+	UARTprintf("*");
 	Cmd_mnt(0, 0);
-	LOGI("*");
+
+	vTaskDelay(100);
 	//INIT SPI
 	spi_init();
-	LOGI("*");
 
-	vTaskDelayUntil(&now, 1000);
-	LOGI("*");
-
-	if (sl_mode == ROLE_AP || !sl_status) {
-		//Cmd_sl(0, 0);
-	}
+	vSemaphoreCreateBinary(i2c_smphr);
+	init_time_module(512);
 
 	// Init sensors
 	init_humid_sensor();
@@ -1378,13 +1283,12 @@ void vUARTTask(void *pvParameters) {
 	pill_queue = xQueueCreate(MAX_PILL_DATA, sizeof(pill_data));
 	vSemaphoreCreateBinary(dust_smphr);
 	vSemaphoreCreateBinary(light_smphr);
-	vSemaphoreCreateBinary(i2c_smphr);
 	vSemaphoreCreateBinary(spi_smphr);
 	vSemaphoreCreateBinary(alarm_smphr);
 
 
 	if (data_queue == 0) {
-		LOGI("Failed to create the data_queue.\n");
+		UARTprintf("Failed to create the data_queue.\n");
 	}
 
 
@@ -1394,41 +1298,43 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(top_board_task, "top_board_task", 1024 / 4, NULL, 2, NULL);
 	xTaskCreate(thread_alarm, "alarmTask", 2*1024 / 4, NULL, 4, NULL);
 
-	LOGI("*");
+	UARTprintf("*");
 	xTaskCreate(thread_spi, "spiTask", 3*1024 / 4, NULL, 4, NULL); //this one doesn't look like much, but has to parse all the pb from bluetooth
 
+	UARTprintf("*");
+	CreateDefaultDirectories();
 
+	UARTprintf("*");
 	xTaskCreate(FileUploaderTask_Thread,"fileUploadTask",1*1024/4,NULL,1,NULL);
 
-
 	SetupGPIOInterrupts();
-	LOGI("*");
+	UARTprintf("*");
 #if !ONLY_MID
 
-	xTaskCreate(AudioTask_Thread,"audioTask",3*1024/4,NULL,4,NULL);
-	LOGI("*");
+	xTaskCreate(AudioTask_Thread,"audioTask",4*1024/4,NULL,4,NULL);
+	UARTprintf("*");
 	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,1,NULL);
-	LOGI("*");
+	UARTprintf("*");
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  512 / 4, NULL, 4, NULL);
-	LOGI("*");
+	UARTprintf("*");
 	xTaskCreate(thread_dust, "dustTask", 256 / 4, NULL, 3, NULL);
-	LOGI("*");
+	UARTprintf("*");
 	xTaskCreate(thread_sensor_poll, "pollTask", 1024 / 4, NULL, 3, NULL);
-	LOGI("*");
+	UARTprintf("*");
 	xTaskCreate(thread_tx, "txTask", 3 * 1024 / 4, NULL, 2, NULL);
-	LOGI("*");
+	UARTprintf("*");
 	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 4, NULL);
-	LOGI("*");
+	UARTprintf("*");
 #endif
 	//checkFaults();
 
 
 
-	LOGI("\n\nFreeRTOS %s, %x, %s %x%x%x%x%x%x\n",
+	UARTprintf("\n\nFreeRTOS %s, %x, %s %x%x%x%x%x%x\n",
 	tskKERNEL_VERSION_NUMBER, KIT_VER, MORPH_NAME, mac[0], mac[1], mac[2],
 			mac[3], mac[4], mac[5]);
-	LOGI("\n? for help\n");
-	LOGI("> ");
+	UARTprintf("\n? for help\n");
+	UARTprintf("> ");
 
 	/* remove anything we recieved before we were ready */
 

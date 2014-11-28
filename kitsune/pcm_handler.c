@@ -90,7 +90,7 @@
 //*****************************************************************************
 #define UDMA_DSTSZ_32_SRCSZ_16          0x21000000
 #define mainQUEUE_SIZE		        3
-
+#define UI_BUFFER_EMPTY_THRESHOLD  2048
 //*****************************************************************************
 //                          GLOBAL VARIABLES
 //*****************************************************************************
@@ -149,9 +149,10 @@ void DMAPingPongCompleteAppCB_opt()
         pControlTable = MAP_uDMAControlBaseGet();
         uiBufferEmpty = GetBufferEmptySize(pAudInBuf);
 
+        //PRIMARY part of the ping pong
         if((pControlTable[ulPrimaryIndexTx].ulControl & UDMA_CHCTL_XFERMODE_M) == 0)
         {
-            if(uiBufferEmpty < 2048)
+            if(uiBufferEmpty < UI_BUFFER_EMPTY_THRESHOLD)
             {   
                 if(pAudInBuf->pucWritePtr < pAudInBuf->pucBufferStartPtr)
                 {
@@ -173,10 +174,11 @@ void DMAPingPongCompleteAppCB_opt()
         }
         else
         {
+        	//ALT part of the ping pong
             if((pControlTable[ulAltIndexTx].ulControl & UDMA_CHCTL_XFERMODE_M) == 0)
             {
                
-                if(uiBufferEmpty < 2048)
+                if(uiBufferEmpty < UI_BUFFER_EMPTY_THRESHOLD)
                 {
                     if(pAudInBuf->pucWritePtr < pAudInBuf->pucBufferStartPtr)
                     {

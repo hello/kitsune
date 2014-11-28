@@ -78,10 +78,10 @@ unsigned char sha[SHA1_SIZE] = {0};
 //*****************************************************************************
 // User image tokens
 //*****************************************************************************
-#define FACTORY_IMG_TOKEN       0x5555AAAA
-#define USER_IMG_1_TOKEN        0xAA5555AA
-#define USER_IMG_2_TOKEN        0x55AAAA55
-#define USER_BOOT_INFO_TOKEN    0xA5A55A5A
+#define FACTORY_IMG_TOKEN      0// 0x5555AAAA
+#define USER_IMG_1_TOKEN       0// 0xAA5555AA
+#define USER_IMG_2_TOKEN       0//0x55AAAA55
+#define USER_BOOT_INFO_TOKEN   0// 0xA5A55A5A
 
 #define DEVICE_IS_CC3101RS      0x18
 #define DEVICE_IS_CC3101S       0x1B

@@ -10,6 +10,7 @@
 #include "socket.h"
 #include "simplelink.h"
 #include "protocol.h"
+#include "sl_sync_include_after_simplelink_header.h"
 
 
 #include "wifi_cmd.h"
@@ -19,7 +20,6 @@
 
 int sl_mode = ROLE_INVALID;
 
-volatile unsigned int sl_status = 0;
 
 #include "rom_map.h"
 #include "prcm.h"
@@ -35,7 +35,6 @@ volatile unsigned int sl_status = 0;
 
 #include "sys_time.h"
 #include "kitsune_version.h"
-#include "sl_sync_include_after_simplelink_header.h"
 #include "audiocontrolhelper.h"
 
 #define FAKE_MAC 0
@@ -73,7 +72,7 @@ void mcu_reset()
 long nwp_reset() {
     sl_WlanSetMode(ROLE_STA);
     sl_Stop(SL_STOP_TIMEOUT);
-    sl_status = 0;
+    wifi_status_set(0xFFFFFFFF, true);
     return sl_Start(NULL, NULL, NULL);
 }
 
@@ -146,8 +145,8 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
     case SL_WLAN_CONNECT_EVENT:
     {
         LOGI("SL_WLAN_CONNECT_EVENT\n");
-        sl_status |= CONNECT;
-        sl_status &= ~CONNECTING;
+        wifi_status_set(CONNECT, false);
+        wifi_status_set(CONNECTING, true);
         char* pSSID = (char*)pSlWlanEvent->EventData.STAandP2PModeWlanConnected.ssid_name;
         uint8_t ssidLength = pSlWlanEvent->EventData.STAandP2PModeWlanConnected.ssid_len;
         if (ssidLength > MAX_SSID_LEN) {
@@ -162,13 +161,13 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
     {
     	// This is a P2P event, but it fired here magically.
         LOGI("SL_WLAN_CONNECTION_FAILED_EVENT\n");
-        sl_status &= ~CONNECTING;
+        wifi_status_set(CONNECTING, true);
     }
     break;
     case SL_WLAN_DISCONNECT_EVENT:
         LOGI("SL_WLAN_DISCONNECT_EVENT\n");
-        sl_status &= ~CONNECT;
-        sl_status &= ~HAS_IP;
+        wifi_status_set(CONNECT, true);
+        wifi_status_set(HAS_IP, true);
         memset(_connected_ssid, 0, MAX_SSID_LEN);
         break;
     default:
@@ -199,12 +198,12 @@ void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent) {
 			srand(seed); //seed with low bits of lf clock when connecting(not sure when it happens, gives some more entropy).
 		}
 
-		sl_status |= HAS_IP;
+		wifi_status_set(HAS_IP, false);
 
 		break;
 
 	case SL_NETAPP_IP_LEASED_EVENT:
-		sl_status |= IP_LEASED;
+		wifi_status_set(IP_LEASED, false);
         break;
     default:
         break;
@@ -288,7 +287,7 @@ int Cmd_status(int argc, char *argv[]) {
     //
     // Send the information
     //
-    LOGI("%x ip 0x%x submask 0x%x gateway 0x%x dns 0x%x\n\r", sl_status,
+    LOGI("%x ip 0x%x submask 0x%x gateway 0x%x dns 0x%x\n\r", wifi_status_get(0xFFFFFFFF),
             ipv4.ipV4, ipv4.ipV4Mask, ipv4.ipV4Gateway, ipv4.ipV4DnsServer);
     return 0;
 }
@@ -319,10 +318,10 @@ int Cmd_ping(int argc, char *argv[]) {
 }
 
 int Cmd_time(int argc, char*argv[]) {
-	uint32_t unix = fetch_time_from_ntp_server();
-	uint32_t t = get_nwp_time();
+	uint32_t unix = fetch_unix_time_from_ntp();
+	uint32_t t = get_time();
 
-    LOGI("time is %u and the ntp is %d and the diff is %d, time module initialized %d\n", t, unix, t-unix, time_module_initialized());
+    LOGI("time is %u and the ntp is %d and the diff is %d, good time? %d\n", t, unix, t-unix, has_good_time());
 
     return 0;
 }
@@ -494,7 +493,7 @@ static bool flush_out_buffer(ostream_buffered_desc_t * desc ) {
 
 		//send
         if( send_chunk_len( buf_size) != 0 ) {
-        	return -1;
+        	return false;
         }
 		ret = send(desc->fd, desc->buf, buf_size, 0) == buf_size;
 	}
@@ -516,7 +515,7 @@ static bool write_buffered_callback_sha(pb_ostream_t *stream, const uint8_t * in
 
 		//send
         if( send_chunk_len( desc->buf_pos) != 0 ) {
-        	return -1;
+        	return false;
         }
 		ret = send(desc->fd, desc->buf, desc->buf_pos, 0) == desc->buf_pos;
 
@@ -1324,6 +1323,11 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
     if (response_protobuf->has_led_action) {
     	led_action(response_protobuf);
     }
+
+    if( response_protobuf->has_unix_time ) {
+    	set_time( response_protobuf->unix_time );
+    }
+
     _set_led_color_based_on_room_conditions(response_protobuf);
     
 }
@@ -1375,7 +1379,7 @@ int send_periodic_data(periodic_data* data) {
     if(ret != 0)
     {
         // network error
-    	sl_status &= ~UPLOADING;
+    	wifi_status_set(UPLOADING, true);
         LOGI("Send data failed, network error %d\n", ret);
         vPortFree(buffer);
         return ret;
@@ -1388,14 +1392,14 @@ int send_periodic_data(periodic_data* data) {
     char * content = strstr(buffer, "\r\n\r\n") + 4;
     char * len_str = strstr(buffer, header_content_len) + strlen(header_content_len);
     if (http_response_ok(buffer) != 1) {
-    	sl_status &= ~UPLOADING;
+    	wifi_status_set(UPLOADING, true);
         LOGI("Invalid response, endpoint return failure.\n");
         vPortFree(buffer);
         return -1;
     }
     
     if (len_str == NULL) {
-    	sl_status &= ~UPLOADING;
+    	wifi_status_set(UPLOADING, true);
         LOGI("Failed to find Content-Length header\n");
         vPortFree(buffer);
         return -1;
@@ -1408,18 +1412,18 @@ int send_periodic_data(periodic_data* data) {
 
     if(decode_rx_data_pb((unsigned char*) content, len, SyncResponse_fields, &response_protobuf) == 0)
     {
-        LOGI("Decoding success: %d %d %d %d %d %d %d\n",
+        LOGI("Decoding success: %d %d %d %d %d %d %d %d\n",
         response_protobuf.has_acc_sampling_interval,
         response_protobuf.has_acc_scan_cyle,
         response_protobuf.has_alarm,
         response_protobuf.has_device_sampling_interval,
         response_protobuf.has_flash_action,
         response_protobuf.has_reset_device,
-        response_protobuf.has_led_action
-        );
+        response_protobuf.has_led_action,
+        response_protobuf.has_unix_time);
 
 		_on_response_protobuf(&response_protobuf);
-        sl_status |= UPLOADING;
+		wifi_status_set(UPLOADING, false);
     	boot_commit_ota(); //commit only if we hear back from the server...
         vPortFree(buffer);
         return 0;
@@ -1997,6 +2001,45 @@ int connect_scanned_endpoints(const char* ssid, const char* password,
     }
 
     return 0;
+}
+
+static xSemaphoreHandle _sl_status_mutex;
+static unsigned int _wifi_status;
+
+void wifi_status_init()
+{
+    _sl_status_mutex = xSemaphoreCreateMutex();
+    if(!_sl_status_mutex)
+    {
+        LOGI("Create _sl_status_mutex failed\n");
+    }
+    _wifi_status = 0;
+}
+
+int wifi_status_get(unsigned int status)
+{
+    xSemaphoreTake(_sl_status_mutex, portMAX_DELAY);
+    int ret = _wifi_status & status;
+    xSemaphoreGive(_sl_status_mutex);
+    return ret;
+}
+
+int wifi_status_set(unsigned int status, int remove_status)
+{
+    if(xSemaphoreTake(_sl_status_mutex, portMAX_DELAY) != pdTRUE)
+    {
+        return _wifi_status;
+    }
+
+    if(remove_status)
+    {
+        _wifi_status &= ~status;
+    }else{
+        _wifi_status |= status;
+    }
+    int ret = _wifi_status;
+    xSemaphoreGive(_sl_status_mutex);
+    return ret;
 }
 
 

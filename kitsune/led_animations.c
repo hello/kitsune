@@ -52,7 +52,7 @@ static bool _animate_pulse(int * out_r, int * out_g, int * out_b, int * out_dela
 	unlock();
 	return sig_continue;
 }
-
+#if 0
 static bool _reach_color(int * v, int target){
 	if(*v == target){
 		return true;
@@ -87,6 +87,7 @@ static bool _animate_trippy(int * out_r, int * out_g, int * out_b, int * out_del
 	unlock();
 	return sig_continue;
 }
+#endif
 static bool _animate_progress(int * out_r, int * out_g, int * out_b, int * out_delay, void * user_context, int rgb_array_size){
 	bool sig_continue;
 	lock();
@@ -161,6 +162,7 @@ bool play_led_animation_pulse(unsigned int timeout){
 	}
 	return false;
 }
+#if 0
 bool play_led_trippy(unsigned int timeout){
 	int i;
 	if( _start_animation( timeout ) ) {
@@ -173,6 +175,8 @@ bool play_led_trippy(unsigned int timeout){
 	}
 	return false;
 }
+#endif
+
 bool play_led_progress_bar(int r, int g, int b, unsigned int options, unsigned int timeout){
 	if( _start_animation( timeout ) ) {
 		self.colors[0] = (struct _colors){r, g, b};
