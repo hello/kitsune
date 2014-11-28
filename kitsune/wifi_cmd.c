@@ -2110,6 +2110,7 @@ void telnetServerTask(void *params) {
 				connected = true;
 				int sz = recv( connection_sock, buf, 64, 0 );
 				if( sz <= 0 ) {
+					connected = false;
 					close(connection_sock);
 					connection_sock = 0;
 					break;
