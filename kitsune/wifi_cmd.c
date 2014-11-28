@@ -2056,12 +2056,14 @@ void telnetPrint(const char * str, int len) {
 	int sent = 0;
 	if ( connected && connection_sock > 0 && wifi_status_get(HAS_IP)) {
 		while (sent < len) {
-			int ret = send(connection_sock, str, len, 0);
-			if (ret <= 0) {
+			int sz = send(connection_sock, str, len, 0);
+			if (sz <= 0 && sz != EAGAIN && sz != EWOULDBLOCK ) {
 				close(connection_sock);
 				connection_sock = 0;
+				connected = false;
+				return;
 			}
-			sent += ret;
+			sent += sz;
 		}
 	}
 }
@@ -2076,6 +2078,7 @@ void telnetServerTask(void *params) {
 	sockaddr 		local_addr;
 	sockaddr        their_addr;
     socklen_t addr_size;
+    timeval tv;
 
 	local_addr.sa_family = SL_AF_INET;
 	local_addr.sa_data[0] = ((INTERPRETER_PORT >> 8) & 0xFF);
@@ -2087,11 +2090,16 @@ void telnetServerTask(void *params) {
 	int sock;
 	while(1) {
         sock = socket(AF_INET, SOCK_STREAM, 0);
+		tv.tv_sec = 10;             // Seconds
+		tv.tv_usec = 0;           // Microseconds. 10000 microseconds resolution
+		setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)); // Enable receive timeout
 
+		LOGI( "SVR: bind\n");
         if( bind(sock, &local_addr, sizeof(local_addr)) < 0 ) {
         	close(sock);
         	continue;
         }
+		LOGI( "SVR: listen\n");
         if( listen(sock, 0) < 0 ) {
         	close(sock);
         	continue;
@@ -2100,15 +2108,32 @@ void telnetServerTask(void *params) {
     	char * buf = pvPortMalloc(64);
     	char * linebuf = pvPortMalloc(512);
     	int inbufsz = 0;
+    	assert( buf && linebuf );
     	memset(buf, 0, 64);
     	memset(linebuf, 0, 512);
-        while( sock ) {
+        while( sock > 0 ) {
+        	new_connection:
 			connected = false;
 			addr_size = sizeof(their_addr);
+			LOGI( "SVR: accept\n");
 			connection_sock = accept(sock, &their_addr, &addr_size);
+			setsockopt(connection_sock, SOL_SOCKET, SL_SO_RCVTIMEO, &tv, sizeof(tv)); // Enable receive timeout
+
+			LOGI( "SVR: connected %d %d\n", connection_sock, sock );
 			while( connection_sock > 0 ) {
 				connected = true;
-				int sz = recv( connection_sock, buf, 64, 0 );
+
+				LOGI( "SVR: recv\n");
+				int sz = EAGAIN;
+				while (sz == EAGAIN || sz == EWOULDBLOCK) {
+					sz = recv(connection_sock, buf, 64, 0);
+					if((sz <= 0 && sz != EAGAIN && sz != EWOULDBLOCK) || !connected || connection_sock <= 0) {
+						LOGI( "SVR: client disconnect\n");
+						goto new_connection;
+					}
+				}
+
+				LOGI( "SVR: got %d\n", sz);
 				if( sz <= 0 ) {
 					connected = false;
 					close(connection_sock);
@@ -2153,6 +2178,10 @@ void telnetServerTask(void *params) {
 				}
 			}
         }
+
+		LOGI( "SVR: lost sock\n");
+        connected = false;
+        close(sock);
 		vPortFree(buf);
 		vPortFree(linebuf);
 	}
