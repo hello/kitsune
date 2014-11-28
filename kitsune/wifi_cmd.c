@@ -143,7 +143,6 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
         break;
     case SL_WLAN_CONNECT_EVENT:
     {
-        LOGI("SL_WLAN_CONNECT_EVENT\n");
         wifi_status_set(CONNECT, false);
         wifi_status_set(CONNECTING, true);
         char* pSSID = (char*)pSlWlanEvent->EventData.STAandP2PModeWlanConnected.ssid_name;
@@ -154,20 +153,21 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
 			memset(_connected_ssid, 0, MAX_SSID_LEN);
 			memcpy(_connected_ssid, pSSID, ssidLength);
 		}
+        LOGI("SL_WLAN_CONNECT_EVENT\n");
     }
         break;
     case SL_WLAN_CONNECTION_FAILED_EVENT:  // ahhhhh this thing blocks us for 2 weeks...
     {
     	// This is a P2P event, but it fired here magically.
-        LOGI("SL_WLAN_CONNECTION_FAILED_EVENT\n");
         wifi_status_set(CONNECTING, true);
+        LOGI("SL_WLAN_CONNECTION_FAILED_EVENT\n");
     }
     break;
     case SL_WLAN_DISCONNECT_EVENT:
-        LOGI("SL_WLAN_DISCONNECT_EVENT\n");
         wifi_status_set(CONNECT, true);
         wifi_status_set(HAS_IP, true);
         memset(_connected_ssid, 0, MAX_SSID_LEN);
+        LOGI("SL_WLAN_DISCONNECT_EVENT\n");
         break;
     default:
         break;
@@ -2049,12 +2049,12 @@ int wifi_status_set(unsigned int status, int remove_status)
     return ret;
 }
 
-
 static bool connected = false;
 static int connection_sock;
+
 void telnetPrint(const char * str, int len) {
 	int sent = 0;
-	if (connected) {
+	if ( connected && connection_sock > 0 && wifi_status_get(HAS_IP)) {
 		while (sent < len) {
 			int ret = send(connection_sock, str, len, 0);
 			if (ret <= 0) {

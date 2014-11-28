@@ -315,7 +315,10 @@ void uart_logger_init(void){
 	xEventGroupSetBits(self.uart_log_events, LOG_EVENT_READY);
 }
 void uart_logc(uint8_t c){
-	if( self.print_sem == NULL || xSemaphoreTake(self.print_sem, 0) != pdPASS ) {
+	if( self.print_sem == NULL) {
+		return;
+	}
+	if( xSemaphoreTake(self.print_sem, 0) != pdPASS ) {
 		return;
 	}
 
