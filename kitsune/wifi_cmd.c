@@ -2051,7 +2051,7 @@ int wifi_status_set(unsigned int status, int remove_status)
 }
 
 #define SVR_LOGI(...)
-static void serv(int port, volatile int * connection_socket, int (*cb)(volatile int *, char*, int)) {
+static void serv(int port, volatile int * connection_socket, int (*cb)(volatile int *, char*, int), const char * proc_on ) {
 	sockaddr local_addr;
 	sockaddr their_addr;
 	socklen_t addr_size;
@@ -2122,7 +2122,7 @@ static void serv(int port, volatile int * connection_socket, int (*cb)(volatile 
 				}
 				memcpy(linebuf + inbufsz, buf, sz);
 				inbufsz += sz;
-				if (*(linebuf + inbufsz - 1) == '\n') {
+				if ( strstr( linebuf, proc_on ) != 0 ) {
 					if (cb(connection_socket, linebuf, inbufsz) < 0) {
 						break;
 					}
@@ -2179,7 +2179,7 @@ static int cli_cb(volatile int *sock, char * linebuf, int inbufsz) {
 }
 void telnetServerTask(void *params) {
 #define INTERPRETER_PORT 224
-    serv( INTERPRETER_PORT, &telnet_connection_sock, cli_cb );
+    serv( INTERPRETER_PORT, &telnet_connection_sock, cli_cb, "\n" );
 }
 
 static int echo_cb( volatile int * sock,  char * linebuf, int inbufsz ) {
@@ -2213,7 +2213,12 @@ static int http_cb(volatile int * sock, char * linebuf, int inbufsz) {
 			"<BODY>\n<H1>Sense Info</H1>\n<P>";
 	const char * html_end =
             "</P>\n</BODY>\n</HTML>\n";
-	if( strstr(linebuf, "\r\n\r\n" ) != 0 ) {
+	if( strstr(linebuf, "HEAD" ) != 0 ) {
+		if (send_buffer(sock, http_response, strlen(http_response)) <= 0) {
+			return -1;
+		}
+	}
+	if( strstr(linebuf, "GET" ) != 0 ) {
 		if( send_buffer( sock, http_response, strlen(http_response)) <= 0 ) {
 			return -1;
 		}
@@ -2276,14 +2281,16 @@ static int http_cb(volatile int * sock, char * linebuf, int inbufsz) {
 		if (send_chunk_len( 0, *sock ) < 0) {
 			return -1;
 		}
-		close(*sock);
-		return -1;
 	}
-	return 0;
+	if( strstr(linebuf, "Connection: keep-alive" ) != 0 ) {
+		return 0;
+	}
+	close(*sock);
+	return -1;
 }
 
 void httpServerTask(void *params) {
 	volatile int http_sock = 0;
-    serv( 80, &http_sock, http_cb );
+    serv( 80, &http_sock, http_cb, "\r\n\r\n" );
 }
 
