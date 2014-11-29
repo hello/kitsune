@@ -2051,6 +2051,12 @@ int wifi_status_set(unsigned int status, int remove_status)
 }
 
 #define SVR_LOGI(...)
+static void make_nonblocking( volatile int * sock ) {
+	SlSockNonblocking_t enableOption;
+	enableOption.NonblockingEnabled = 1;
+	sl_SetSockOpt(*sock, SL_SOL_SOCKET, SL_SO_NONBLOCKING,
+			(_u8 *)&enableOption, sizeof(enableOption));
+}
 static void serv(int port, volatile int * connection_socket, int (*cb)(volatile int *, char*, int), const char * proc_on ) {
 	sockaddr local_addr;
 	sockaddr their_addr;
@@ -2105,6 +2111,8 @@ static void serv(int port, volatile int * connection_socket, int (*cb)(volatile 
 					if ((sz <= 0 && sz != EAGAIN && sz != EWOULDBLOCK)
 							|| *connection_socket <= 0) {
 						SVR_LOGI( "SVR: client disconnect\n");
+						close(*connection_socket);
+						*connection_socket = -1;
 						goto new_connection;
 					}
 				}
@@ -2113,18 +2121,23 @@ static void serv(int port, volatile int * connection_socket, int (*cb)(volatile 
 				if (sz <= 0) {
 					close(*connection_socket);
 					*connection_socket = -1;
-					break;
+					goto new_connection;
 				}
 				if (sz + strlen(linebuf) > 512) {
 					memset(linebuf, 0, 512);
 					inbufsz = 0;
-					continue;
+					close(*connection_socket);
+					*connection_socket = -1;
+					goto new_connection;
 				}
 				memcpy(linebuf + inbufsz, buf, sz);
 				inbufsz += sz;
 				if ( strstr( linebuf, proc_on ) != 0 ) {
+					make_nonblocking( connection_socket );
 					if (cb(connection_socket, linebuf, inbufsz) < 0) {
-						break;
+						memset(linebuf, 0, 512);
+						inbufsz = 0;
+						goto new_connection;
 					}
 					memset(linebuf, 0, 512);
 					inbufsz = 0;
@@ -2142,9 +2155,11 @@ static void serv(int port, volatile int * connection_socket, int (*cb)(volatile 
 
 static int send_buffer( volatile int* sock, const char * str, int len ) {
 	int sent = 0;
+	int retries = 0;
 	while (sent < len) {
 		int sz = send(*sock, str, len, 0);
-		if (sz <= 0 && sz != EAGAIN && sz != EWOULDBLOCK ) {
+		if ((sz <= 0 && sz != EAGAIN && sz != EWOULDBLOCK )
+		 || (sz == EWOULDBLOCK && ++retries > 10)) {
 			close(*sock);
 			*sock = -1;
 			return -1;
@@ -2213,6 +2228,7 @@ static int http_cb(volatile int * sock, char * linebuf, int inbufsz) {
 			"<BODY>\n<H1>Sense Info</H1>\n<P>";
 	const char * html_end =
             "</P>\n</BODY>\n</HTML>\n";
+
 	if( strstr(linebuf, "HEAD" ) != 0 ) {
 		if (send_buffer(sock, http_response, strlen(http_response)) <= 0) {
 			return -1;
@@ -2282,9 +2298,11 @@ static int http_cb(volatile int * sock, char * linebuf, int inbufsz) {
 			return -1;
 		}
 	}
+#if 0
 	if( strstr(linebuf, "Connection: keep-alive" ) != 0 ) {
 		return 0;
 	}
+#endif
 	close(*sock);
 	return -1;
 }
