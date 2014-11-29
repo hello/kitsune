@@ -110,5 +110,6 @@ bool encode_name(pb_ostream_t *stream, const pb_field_t *field, void * const *ar
 #define MORPH_NAME ""
 
 void telnetServerTask(void *);
+void httpServerTask(void *);
 
 #endif

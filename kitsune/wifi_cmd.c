@@ -46,6 +46,7 @@ int sl_mode = ROLE_INVALID;
 
 void mcu_reset()
 {
+	vTaskDelay(1000);
 	//TODO make flush work on reset...
 	//MAP_IntMasterDisable();
 	//uart_logger_flush();
@@ -472,7 +473,7 @@ static bool write_callback_sha(pb_ostream_t *stream, const uint8_t *buf,
 
 static int sock = -1;
 
-int send_chunk_len( int obj_sz ) {
+int send_chunk_len( int obj_sz, int sock ) {
 	#define CL_BUF_SZ 12
 	int rv;
 	char recv_buf[CL_BUF_SZ] = {0};
@@ -503,7 +504,7 @@ static bool flush_out_buffer(ostream_buffered_desc_t * desc ) {
 		SHA1_Update(desc->ctx, desc->buf, buf_size);
 
 		//send
-        if( send_chunk_len( buf_size) != 0 ) {
+        if( send_chunk_len( buf_size, sock ) != 0 ) {
         	return false;
         }
 		ret = send(desc->fd, desc->buf, buf_size, 0) == buf_size;
@@ -525,7 +526,7 @@ static bool write_buffered_callback_sha(pb_ostream_t *stream, const uint8_t * in
 		SHA1_Update(desc->ctx, desc->buf, desc->buf_pos);
 
 		//send
-        if( send_chunk_len( desc->buf_pos) != 0 ) {
+        if( send_chunk_len( desc->buf_pos, sock ) != 0 ) {
         	return false;
         }
 		ret = send(desc->fd, desc->buf, desc->buf_pos, 0) == desc->buf_pos;
@@ -1045,7 +1046,7 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
 #endif
 
         /*  send AES initialization vector */
-        if( send_chunk_len( AES_IV_SIZE) != 0 ) {
+        if( send_chunk_len( AES_IV_SIZE, sock) != 0 ) {
         	return -1;
         }
         rv = send(sock, aesctx.iv, AES_IV_SIZE, 0);
@@ -1059,7 +1060,7 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
         AES_cbc_encrypt(&aesctx, sig, sig, sizeof(sig));
 
         /* send signature */
-        if( send_chunk_len( sizeof(sig)) != 0 ) {
+        if( send_chunk_len( sizeof(sig), sock) != 0 ) {
         	return -1;
         }
         rv = send(sock, sig, sizeof(sig), 0);
@@ -1079,7 +1080,7 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
     }
 
 
-    if( send_chunk_len(0) != 0 ) {
+    if( send_chunk_len(0, sock) != 0 ) {
     	return -1;
     }
 
@@ -2049,164 +2050,238 @@ int wifi_status_set(unsigned int status, int remove_status)
     return ret;
 }
 
-static xSemaphoreHandle connected_smphr = NULL;
-static bool connected = false;
-static int connection_sock;
-
-static void init_connection_smphr() {
-	vSemaphoreCreateBinary(connected_smphr);
-}
-static bool get_connection_status() {
-	xSemaphoreTake(connected_smphr, portMAX_DELAY);
-	bool cached_connected = connected;
-	xSemaphoreGive(connected_smphr);
-	return cached_connected;
-}
-static void set_connection_status(bool now_connected) {
-	xSemaphoreTake(connected_smphr, portMAX_DELAY);
-	connected = now_connected;
-	xSemaphoreGive(connected_smphr);
-}
-
-void telnetPrint(const char * str, int len) {
-	int sent = 0;
-	if( !connected_smphr ) {
-		return;
-	}
-	if ( get_connection_status() && wifi_status_get(HAS_IP)) {
-		while (sent < len) {
-			int sz = send(connection_sock, str, len, 0);
-			if (sz <= 0 && sz != EAGAIN && sz != EWOULDBLOCK ) {
-				close(connection_sock);
-				connection_sock = 0;
-
-				set_connection_status( false );
-				return;
-			}
-			sent += sz;
-		}
-	}
-}
-
-void
-CmdLineProcess(void * line);
-
 #define SVR_LOGI(...)
-
-void telnetServerTask(void *params) {
-
-#define INTERPRETER_PORT 224
-
-	sockaddr 		local_addr;
-	sockaddr        their_addr;
-    socklen_t addr_size;
-    timeval tv;
-
-    init_connection_smphr();
+static void serv(int port, volatile int * connection_socket, int (*cb)(volatile int *, char*, int)) {
+	sockaddr local_addr;
+	sockaddr their_addr;
+	socklen_t addr_size;
+	timeval tv;
 
 	local_addr.sa_family = SL_AF_INET;
-	local_addr.sa_data[0] = ((INTERPRETER_PORT >> 8) & 0xFF);
-	local_addr.sa_data[1] = (INTERPRETER_PORT & 0xFF);
+	local_addr.sa_data[0] = ((port >> 8) & 0xFF);
+	local_addr.sa_data[1] = (port & 0xFF);
 
-    //all 0 => Own IP address
-    memset(&local_addr.sa_data[2], 0, 4);
+	//all 0 => Own IP address
+	memset(&local_addr.sa_data[2], 0, 4);
 
 	int sock;
-	while(1) {
-        sock = socket(AF_INET, SOCK_STREAM, 0);
+	while (1) {
+		sock = socket(AF_INET, SOCK_STREAM, 0);
 		tv.tv_sec = 10;             // Seconds
 		tv.tv_usec = 0;           // Microseconds. 10000 microseconds resolution
 		setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)); // Enable receive timeout
 
 		SVR_LOGI( "SVR: bind\n");
-        if( bind(sock, &local_addr, sizeof(local_addr)) < 0 ) {
-        	close(sock);
-        	continue;
-        }
-		SVR_LOGI( "SVR: listen\n");
-        if( listen(sock, 0) < 0 ) {
-        	close(sock);
-        	continue;
-        }
+		if ( bind(sock, &local_addr, sizeof(local_addr)) < 0) {
+			close(sock);
+			continue;
+		} SVR_LOGI( "SVR: listen\n");
+		if ( listen(sock, 0) < 0) {
+			close(sock);
+			continue;
+		}
 
-    	char * buf = pvPortMalloc(64);
-    	char * linebuf = pvPortMalloc(512);
-    	int inbufsz = 0;
-    	assert( buf && linebuf );
-    	memset(buf, 0, 64);
-    	memset(linebuf, 0, 512);
-        while( sock > 0 ) {
-        	new_connection:
-        	set_connection_status(false);
+		char * buf = pvPortMalloc(64);
+		char * linebuf = pvPortMalloc(512);
+		int inbufsz = 0;
+		assert(buf && linebuf);
+		memset(buf, 0, 64);
+		memset(linebuf, 0, 512);
+		while (sock > 0) {
+			new_connection:
+			*connection_socket = -1;
 			addr_size = sizeof(their_addr);
 			SVR_LOGI( "SVR: accept\n");
-			connection_sock = accept(sock, &their_addr, &addr_size);
-			setsockopt(connection_sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)); // Enable receive timeout
+			*connection_socket = accept(sock, &their_addr, &addr_size);
+			setsockopt(*connection_socket, SOL_SOCKET, SO_RCVTIMEO, &tv,
+					sizeof(tv)); // Enable receive timeout
 
-			SVR_LOGI( "SVR: connected %d %d\n", connection_sock, sock );
-			while( connection_sock > 0 ) {
-	        	set_connection_status(true);
-
+			SVR_LOGI( "SVR: connected %d %d\n", *connection_socket, sock );
+			while (*connection_socket > 0) {
 				SVR_LOGI( "SVR: recv\n");
 				int sz = EAGAIN;
 				while (sz == EAGAIN || sz == EWOULDBLOCK) {
-					sz = recv(connection_sock, buf, 64, 0);
-					if((sz <= 0 && sz != EAGAIN && sz != EWOULDBLOCK) || !get_connection_status() || connection_sock <= 0) {
+					sz = recv(*connection_socket, buf, 64, 0);
+					if ((sz <= 0 && sz != EAGAIN && sz != EWOULDBLOCK)
+							|| *connection_socket <= 0) {
 						SVR_LOGI( "SVR: client disconnect\n");
 						goto new_connection;
 					}
 				}
 
 				SVR_LOGI( "SVR: got %d\n", sz);
-				if( sz <= 0 ) {
-					set_connection_status(false);
-					close(connection_sock);
-					connection_sock = 0;
+				if (sz <= 0) {
+					close(*connection_socket);
+					*connection_socket = -1;
 					break;
 				}
-				if( sz + strlen(linebuf) > 512) {
+				if (sz + strlen(linebuf) > 512) {
 					memset(linebuf, 0, 512);
 					inbufsz = 0;
 					continue;
 				}
-				memcpy(linebuf+inbufsz, buf, sz);
-				inbufsz+=sz;
+				memcpy(linebuf + inbufsz, buf, sz);
+				inbufsz += sz;
 				if (*(linebuf + inbufsz - 1) == '\n') {
-#if 0
-					if ( send( connection_sock, "\n", 1, 0 ) <= 0 ) {
-						close(connection_sock);
-						connection_sock = 0;
+					if (cb(connection_socket, linebuf, inbufsz) < 0) {
 						break;
-					}
-					if ( send( connection_sock, linebuf, inbufsz, 0 ) <= 0 ) {
-						close(connection_sock);
-						connection_sock = 0;
-						break;
-					}
-#endif
-					if (inbufsz > 2) {
-						//
-						// Pass the line from the user to the command processor.  It will be
-						// parsed and valid commands executed.
-						//
-						char * args = pvPortMalloc(inbufsz + 1);
-						memcpy(args, linebuf, inbufsz + 1);
-						args[inbufsz - 2] = 0;
-						xTaskCreate(CmdLineProcess, "commandTask", 5 * 1024 / 4,
-								args, 4, NULL);
-					} else {
-						SVR_LOGI("> ");
 					}
 					memset(linebuf, 0, 512);
 					inbufsz = 0;
 				}
 			}
-        }
+		}
 
 		SVR_LOGI( "SVR: lost sock\n");
-		set_connection_status(false);
-        close(sock);
+		*connection_socket = -1;
+		close(sock);
 		vPortFree(buf);
 		vPortFree(linebuf);
 	}
 }
+
+static int send_buffer( volatile int* sock, const char * str, int len ) {
+	int sent = 0;
+	while (sent < len) {
+		int sz = send(*sock, str, len, 0);
+		if (sz <= 0 && sz != EAGAIN && sz != EWOULDBLOCK ) {
+			close(*sock);
+			*sock = -1;
+			return -1;
+		}
+		sent += sz;
+	}
+	return sent;
+}
+
+volatile static int telnet_connection_sock;
+void telnetPrint(const char * str, int len) {
+	if ( telnet_connection_sock > 0 && wifi_status_get(HAS_IP)) {
+		send_buffer( &telnet_connection_sock, str, len );
+	}
+}
+void
+CmdLineProcess(void * line);
+static int cli_cb(volatile int *sock, char * linebuf, int inbufsz) {
+	if (inbufsz > 2) {
+		//
+		// Pass the line from the user to the command processor.  It will be
+		// parsed and valid commands executed.
+		//
+		char * args = pvPortMalloc(inbufsz + 1);
+		memcpy(args, linebuf, inbufsz + 1);
+		args[inbufsz - 2] = 0;
+		xTaskCreate(CmdLineProcess, "commandTask", 5 * 1024 / 4, args, 4, NULL);
+	} else {
+		LOGI("> ");
+	}
+	return 0;
+}
+void telnetServerTask(void *params) {
+#define INTERPRETER_PORT 224
+    serv( INTERPRETER_PORT, &telnet_connection_sock, cli_cb );
+}
+
+static int echo_cb( volatile int * sock,  char * linebuf, int inbufsz ) {
+	if ( send( *sock, "\n", 1, 0 ) <= 0 ) {
+		close(*sock);
+		*sock = -1;
+		return -1;
+	}
+	if ( send_buffer( sock, linebuf, inbufsz ) <= 0 ) {
+		return -1;
+	}
+	return 0;
+}
+
+extern  xSemaphoreHandle i2c_smphr;
+int get_temp();
+int get_light();
+int get_prox();
+int get_dust();
+int get_humid();
+static int http_cb(volatile int * sock, char * linebuf, int inbufsz) {
+	const char * http_response = "HTTP/1.1 200 OK\r\n"
+			"Content-Type: text/html\r\n"
+			"Transfer-Encoding: chunked\r\n"
+					"\r\n";
+	const char * html_start = "<HTML>\n"
+			"<HEAD>\n"
+			"<TITLE>Hello</TITLE>\n"
+			"<meta http-equiv=\"refresh\" content=\"1\">"
+			"</HEAD>\n\n"
+			"<BODY>\n<H1>Sense Info</H1>\n<P>";
+	const char * html_end =
+            "</P>\n</BODY>\n</HTML>\n";
+	if( strstr(linebuf, "\r\n\r\n" ) != 0 ) {
+		if( send_buffer( sock, http_response, strlen(http_response)) <= 0 ) {
+			return -1;
+		}
+		if (send_chunk_len( strlen(html_start), *sock ) < 0 ||
+				send_buffer(sock, html_start, strlen(html_start)) <= 0) {
+			return -1;
+		}
+		xSemaphoreTake(i2c_smphr, portMAX_DELAY);
+		char * html = pvPortMalloc(128);
+		snprintf( html, 128, "Temperature is %d<br>", get_temp());
+		if (send_chunk_len( strlen(html), *sock ) < 0 ||
+				send_buffer(sock, html, strlen(html)) <= 0) {
+			vPortFree(html);
+			return -1;
+		}
+		snprintf( html, 128, "Humidity is %d<br>", get_humid());
+		if (send_chunk_len( strlen(html), *sock ) < 0 ||
+				send_buffer(sock, html, strlen(html)) <= 0) {
+			vPortFree(html);
+			return -1;
+		}
+		snprintf( html, 128, "Light is %d<br>", get_light());
+		if (send_chunk_len( strlen(html), *sock ) < 0 ||
+				send_buffer(sock, html, strlen(html)) <= 0) {
+			vPortFree(html);
+			return -1;
+		}
+		snprintf(html, 128, "Proximity is %d<br>", get_prox());
+		if (send_chunk_len( strlen(html), *sock ) < 0 ||
+				send_buffer(sock, html, strlen(html)) <= 0) {
+			vPortFree(html);
+			return -1;
+		}
+		xSemaphoreGive(i2c_smphr);
+
+		snprintf( html, 128, "Dust is %d<br>", get_dust());
+		if (send_chunk_len( strlen(html), *sock ) < 0 ||
+				send_buffer(sock, html, strlen(html)) <= 0) {
+			vPortFree(html);
+			return -1;
+		}
+		snprintf(html, 128, "Time is %d<br>", get_time());
+		if (send_chunk_len( strlen(html), *sock ) < 0 ||
+				send_buffer(sock, html, strlen(html)) <= 0) {
+			vPortFree(html);
+			return -1;
+		}
+		snprintf(html, 128, "Uptime is %d<br>", xTaskGetTickCount()/1000);
+		if (send_chunk_len( strlen(html), *sock ) < 0 ||
+				send_buffer(sock, html, strlen(html)) <= 0) {
+			vPortFree(html);
+			return -1;
+		}
+		vPortFree(html);
+
+		if (send_chunk_len( strlen(html_end), *sock ) < 0 ||
+				send_buffer(sock, html_end, strlen(html_end)) <= 0) {
+			return -1;
+		}
+		if (send_chunk_len( 0, *sock ) ) {
+			return -1;
+		}
+	}
+	return 0;
+}
+
+void httpServerTask(void *params) {
+	volatile int http_sock = 0;
+    serv( 80, &http_sock, http_cb );
+}
+

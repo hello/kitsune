@@ -1278,7 +1278,7 @@ void vUARTTask(void *pvParameters) {
 	if (sl_mode == ROLE_AP || !wifi_status_get(0xFFFFFFFF)) {
 		//Cmd_sl(0, 0);
 	}
-
+	sl_NetAppStop(0x1f);
 	check_hw_version();
 	PinMuxConfig_hw_dep();
 
@@ -1336,7 +1336,8 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("*");
 	xTaskCreate(FileUploaderTask_Thread,"fileUploadTask",1*1024/4,NULL,1,NULL);
 
-	xTaskCreate(telnetServerTask,"telnetServerTask",1*1024/4,NULL,1,NULL);
+	xTaskCreate(telnetServerTask,"telnetServerTask",512/4,NULL,1,NULL);
+	xTaskCreate(httpServerTask,"httpServerTask",3*512/4,NULL,1,NULL);
 	SetupGPIOInterrupts();
 	UARTprintf("*");
 #if !ONLY_MID
