@@ -2208,7 +2208,7 @@ static int http_cb(volatile int * sock, char * linebuf, int inbufsz) {
 	const char * html_start = "<HTML>\n"
 			"<HEAD>\n"
 			"<TITLE>Hello</TITLE>\n"
-			"<meta http-equiv=\"refresh\" content=\"1\">"
+			"<meta http-equiv=\"refresh\" content=\"60\">"
 			"</HEAD>\n\n"
 			"<BODY>\n<H1>Sense Info</H1>\n<P>";
 	const char * html_end =
@@ -2273,9 +2273,11 @@ static int http_cb(volatile int * sock, char * linebuf, int inbufsz) {
 				send_buffer(sock, html_end, strlen(html_end)) <= 0) {
 			return -1;
 		}
-		if (send_chunk_len( 0, *sock ) ) {
+		if (send_chunk_len( 0, *sock ) < 0) {
 			return -1;
 		}
+		close(*sock);
+		return -1;
 	}
 	return 0;
 }
