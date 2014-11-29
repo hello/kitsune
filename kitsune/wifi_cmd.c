@@ -2123,7 +2123,7 @@ static void serv(int port, volatile int * connection_socket, int (*cb)(volatile 
 					*connection_socket = -1;
 					goto new_connection;
 				}
-				if (sz + strlen(linebuf) > 512) {
+				if (sz + inbufsz > 512) {
 					memset(linebuf, 0, 512);
 					inbufsz = 0;
 					close(*connection_socket);
