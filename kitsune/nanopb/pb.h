@@ -498,6 +498,7 @@ struct pb_extension_s {
  * Some code space can be saved by disabling the error
  * messages if not used.
  */
+#include "stdbool.h"
 #ifdef PB_NO_ERRMSG
 #define PB_RETURN_ERROR(stream,msg) \
     do {\

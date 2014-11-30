@@ -1144,7 +1144,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "connect", Cmd_connect, "" },
 		{ "disconnect", Cmd_disconnect, "" },
 		{ "mac", Cmd_set_mac, "" },
-		//{ "aes", Cmd_set_aes, "" },
+		{ "aes", Cmd_set_aes, "" },
 
 		{ "ping", Cmd_ping, "" },
 		{ "time", Cmd_time, "" },

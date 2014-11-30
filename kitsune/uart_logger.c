@@ -291,7 +291,7 @@ void uart_logger_flush(void){
 	                portMAX_DELAY );/* Wait for any bit to be set. */
 
 	//write out whatever's left in the logging block
-	_save_newest(self.logging_block, self.widx );
+	_save_newest((const char*)self.logging_block, self.widx );
 
 }
 int Cmd_log_upload(int argc, char *argv[]){

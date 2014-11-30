@@ -152,7 +152,7 @@ FaultDecoder(unsigned long *pulExceptionFrame)
 
     faultInfo * f = (faultInfo*)SHUTDOWN_MEM;
 
-    f->version = KIT_VER;
+    f->version = (KIT_VER&0x7fffffff);
 
     //
     // Read the fault status register.

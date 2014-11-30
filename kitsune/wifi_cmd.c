@@ -374,7 +374,7 @@ int save_aes( uint8_t * key ) {
 		}
 	}
 
-	bytes = sl_FsWrite(hndl, info.FileLen, key, AES_BLOCKSIZE);
+	bytes = sl_FsWrite(hndl, 0, key, AES_BLOCKSIZE);
 	if( bytes != AES_BLOCKSIZE) {
 		LOGE( "writing keyfile failed %d", bytes );
 	}
@@ -383,17 +383,9 @@ int save_aes( uint8_t * key ) {
 	return 0;
 }
 
-#if 0
+#if 1
 int Cmd_set_aes(int argc, char *argv[]) {
-    int i;
-    char* next = &argv[1][0];
-    char *pend;
     static uint8_t key[AES_BLOCKSIZE + 1] = "1234567891234567";
-
-    for( i=0; i<AES_BLOCKSIZE/2;++i) {
-    	key[i] = strtol(next, &pend, 16);
-        next = pend+1;
-    }
 
     save_aes( key );
 	// Return success.
