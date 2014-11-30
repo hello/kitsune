@@ -990,6 +990,8 @@ int Cmd_generate_aes_key(int argc,char * argv[]) {
     	snprintf(&key_string[i * 2 - 2], 3, "%02X", enc_aes_key[i]);
     }
     UARTprintf( "\nenc aes: %s\n", key_string);
+
+    //todo DVT get top's device ID, print it here, and use it as device ID in periodic/audio data
 #if 0 //todo DVT disable!
     for(i = 0; i < AES_BLOCKSIZE+SHA1_SIZE; i++) {
     	snprintf(&key_string[i * 2], 3, "%02X", aes_key[i]);
