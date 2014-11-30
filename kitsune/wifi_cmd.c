@@ -2177,6 +2177,9 @@ static int send_buffer( volatile int* sock, const char * str, int len ) {
 			*sock = -1;
 			return -1;
 		}
+		if( sz == EWOULDBLOCK ) {
+			vTaskDelay(100);
+		}
 		sent += sz;
 	}
 	return sent;
