@@ -2053,7 +2053,7 @@ int wifi_status_set(unsigned int status, int remove_status)
     return ret;
 }
 
-#define SVR_LOGI LOGI
+#define SVR_LOGI(...)
 static void make_nonblocking( volatile int * sock ) {
 	SlSockNonblocking_t enableOption;
 	enableOption.NonblockingEnabled = 1;
