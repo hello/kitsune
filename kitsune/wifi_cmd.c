@@ -383,6 +383,7 @@ int save_aes( uint8_t * key ) {
 	return 0;
 }
 
+#if 0
 int Cmd_set_aes(int argc, char *argv[]) {
     int i;
     char* next = &argv[1][0];
@@ -398,7 +399,7 @@ int Cmd_set_aes(int argc, char *argv[]) {
 	// Return success.
 	return (0);
 }
-
+#endif
 
 
 int Cmd_set_mac(int argc, char*argv[]) {
@@ -1321,6 +1322,12 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
     if (response_protobuf->has_alarm) 
     {
         _on_alarm_received(&response_protobuf->alarm);
+    }
+
+    if (response_protobuf->has_mac)
+    {
+        sl_NetCfgSet(SL_MAC_ADDRESS_SET,1,SL_MAC_ADDR_LEN,response_protobuf->mac.bytes);
+        nwp_reset();
     }
 
     if(response_protobuf->has_reset_device && response_protobuf->reset_device)

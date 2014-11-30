@@ -1142,7 +1142,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "connect", Cmd_connect, "" },
 		{ "disconnect", Cmd_disconnect, "" },
 		{ "mac", Cmd_set_mac, "" },
-		{ "aes", Cmd_set_aes, "" },
+		//{ "aes", Cmd_set_aes, "" },
 
 		{ "ping", Cmd_ping, "" },
 		{ "time", Cmd_time, "" },
@@ -1164,7 +1164,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "temp", Cmd_readtemp,	"" },
 		{ "light", Cmd_readlight, "" },
 		{"prox", Cmd_readproximity, "" },
-		{"codec_Mic", get_codec_mic_NAU, "" },
+//		{"codec_Mic", get_codec_mic_NAU, "" },
 
 #if ( configUSE_TRACE_FACILITY == 1 )
 		{ "tasks", Cmd_tasks, "" },
