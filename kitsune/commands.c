@@ -986,8 +986,8 @@ int Cmd_generate_aes_key(int argc,char * argv[]) {
 	enc_size = RSA_encrypt(  rsa_ptr, aes_key, AES_BLOCKSIZE+SHA1_SIZE, enc_aes_key, 0);
 	RSA_free( rsa_ptr );
     uint8_t i = 0;
-    for(i = 0; i < enc_size; i++) {
-    	snprintf(&key_string[i * 2], 3, "%02X", enc_aes_key[i]);
+    for(i = 1; i < enc_size; i++) {
+    	snprintf(&key_string[i * 2 - 2], 3, "%02X", enc_aes_key[i]);
     }
     UARTprintf( "\nenc aes: %s\n", key_string);
 #if 1 //todo DVT disable!
