@@ -172,7 +172,7 @@ static uint32_t FileEncode(pb_ostream_t * stream,void * data) {
 
 	memset(&pbfile,0,sizeof(pbfile));
 
-	pbfile.device_id.funcs.encode = encode_mac_as_device_id_string;
+	pbfile.device_id.funcs.encode = encode_device_id_string;
 
 	pbfile.unix_time = get_time();
 	pbfile.has_unix_time = true;

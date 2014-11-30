@@ -614,7 +614,7 @@ void thread_tx(void* unused) {
 			memset(&pill_data_batched, 0, sizeof(pill_data_batched));
 			pill_data_batched.pills.funcs.encode = encode_all_pills;  // This is smart :D
 			pill_data_batched.pills.arg = &pilldata;
-			pill_data_batched.device_id.funcs.encode = encode_mac_as_device_id_string;
+			pill_data_batched.device_id.funcs.encode = encode_device_id_string;
 
 			while (!send_pill_data(&pill_data_batched) == 0) {
 				LOGI("  Waiting for WIFI connection  \n");
@@ -992,6 +992,7 @@ int Cmd_generate_aes_key(int argc,char * argv[]) {
     UARTprintf( "\n%s\n", key_string);
 
     //todo DVT get top's device ID, print it here, and use it as device ID in periodic/audio data
+    save_device_id(enc_aes_key);
 #if 0 //todo DVT disable!
     for(i = 0; i < AES_BLOCKSIZE+SHA1_SIZE; i++) {
     	snprintf(&key_string[i * 2], 3, "%02X", aes_key[i]);
