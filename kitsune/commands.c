@@ -974,7 +974,7 @@ int Cmd_generate_aes_key(int argc,char * argv[]) {
 
 	//generate a key
 	get_random_NZ(AES_BLOCKSIZE, aes_key);
-	//save_aes(aes_key); //todo DVT enable this
+	save_aes(aes_key); //todo DVT enable
 
 	//add checksum
 	SHA1_Init( &sha_ctx );
@@ -990,7 +990,7 @@ int Cmd_generate_aes_key(int argc,char * argv[]) {
     	snprintf(&key_string[i * 2 - 2], 3, "%02X", enc_aes_key[i]);
     }
     UARTprintf( "\nenc aes: %s\n", key_string);
-#if 1 //todo DVT disable!
+#if 0 //todo DVT disable!
     for(i = 0; i < AES_BLOCKSIZE+SHA1_SIZE; i++) {
     	snprintf(&key_string[i * 2], 3, "%02X", aes_key[i]);
     }
