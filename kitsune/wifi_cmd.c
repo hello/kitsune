@@ -2050,7 +2050,7 @@ int wifi_status_set(unsigned int status, int remove_status)
     return ret;
 }
 
-#define SVR_LOGI(...)
+#define SVR_LOGI LOGI
 static void make_nonblocking( volatile int * sock ) {
 	SlSockNonblocking_t enableOption;
 	enableOption.NonblockingEnabled = 1;
@@ -2209,6 +2209,18 @@ static int echo_cb( volatile int * sock,  char * linebuf, int inbufsz ) {
 	return 0;
 }
 
+static int send_buffer_chunked(volatile int * sock, const char * str, int len) {
+	if (send_chunk_len( len, *sock ) < 0 ) {
+		close(*sock);
+		*sock = -1;
+		return -1;
+	}
+	if (send_buffer(sock, str, len) <= 0) {
+		return -1;
+	}
+	return 0;
+}
+
 extern  xSemaphoreHandle i2c_smphr;
 int get_temp();
 int get_light();
@@ -2238,21 +2250,19 @@ static int http_cb(volatile int * sock, char * linebuf, int inbufsz) {
 		if( send_buffer( sock, http_response, strlen(http_response)) <= 0 ) {
 			return -1;
 		}
-		if (send_chunk_len( strlen(html_start), *sock ) < 0 ||
-				send_buffer(sock, html_start, strlen(html_start)) <= 0) {
+		if( send_buffer_chunked(sock, html_start, strlen(html_start)) < 0 ){
 			return -1;
 		}
+
 		xSemaphoreTake(i2c_smphr, portMAX_DELAY);
 		char * html = pvPortMalloc(128);
 		snprintf( html, 128, "Temperature is %d<br>", get_temp());
-		if (send_chunk_len( strlen(html), *sock ) < 0 ||
-				send_buffer(sock, html, strlen(html)) <= 0) {
+		if( send_buffer_chunked( sock, html, strlen(html)) < 0 ) {
 			vPortFree(html);
 			return -1;
 		}
 		snprintf( html, 128, "Humidity is %d<br>", get_humid());
-		if (send_chunk_len( strlen(html), *sock ) < 0 ||
-				send_buffer(sock, html, strlen(html)) <= 0) {
+		if( send_buffer_chunked( sock, html, strlen(html)) < 0 ) {
 			vPortFree(html);
 			return -1;
 		}
@@ -2263,38 +2273,36 @@ static int http_cb(volatile int * sock, char * linebuf, int inbufsz) {
 			return -1;
 		}
 		snprintf(html, 128, "Proximity is %d<br>", get_prox());
-		if (send_chunk_len( strlen(html), *sock ) < 0 ||
-				send_buffer(sock, html, strlen(html)) <= 0) {
+		if( send_buffer_chunked( sock, html, strlen(html)) < 0 ) {
 			vPortFree(html);
 			return -1;
 		}
 		xSemaphoreGive(i2c_smphr);
 
 		snprintf( html, 128, "Dust is %d<br>", get_dust());
-		if (send_chunk_len( strlen(html), *sock ) < 0 ||
-				send_buffer(sock, html, strlen(html)) <= 0) {
+		if( send_buffer_chunked( sock, html, strlen(html)) < 0 ) {
 			vPortFree(html);
 			return -1;
 		}
 		snprintf(html, 128, "Time is %d<br>", get_time());
-		if (send_chunk_len( strlen(html), *sock ) < 0 ||
-				send_buffer(sock, html, strlen(html)) <= 0) {
+		if( send_buffer_chunked( sock, html, strlen(html)) < 0 ) {
 			vPortFree(html);
 			return -1;
 		}
 		snprintf(html, 128, "Uptime is %d<br>", xTaskGetTickCount()/1000);
-		if (send_chunk_len( strlen(html), *sock ) < 0 ||
-				send_buffer(sock, html, strlen(html)) <= 0) {
+		if( send_buffer_chunked( sock, html, strlen(html)) < 0 ) {
 			vPortFree(html);
 			return -1;
 		}
 		vPortFree(html);
 
-		if (send_chunk_len( strlen(html_end), *sock ) < 0 ||
-				send_buffer(sock, html_end, strlen(html_end)) <= 0) {
+		if( send_buffer_chunked( sock, html_end, strlen(html_end)) < 0 ) {
+			vPortFree(html);
 			return -1;
 		}
 		if (send_chunk_len( 0, *sock ) < 0) {
+			close(*sock);
+			*sock = -1;
 			return -1;
 		}
 	}
