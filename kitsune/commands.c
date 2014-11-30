@@ -934,13 +934,13 @@ int save_aes( uint8_t * key ) ;
 int Cmd_generate_aes_key(int argc,char * argv[]) {
 #define NORDIC_ENC_ROOT_SIZE 16 //todo find out the real value
 	uint8_t enc_root[NORDIC_ENC_ROOT_SIZE];
-	uint8_t aes_key[AES_BLOCKSIZE + SHA1_SIZE] = "hellohello hellohello hellohello 456";
-	uint8_t enc_aes_key[512];
-	char key_string[768];
+	uint8_t aes_key[AES_BLOCKSIZE + SHA1_SIZE];
+	uint8_t enc_aes_key[255];
+	char key_string[2*255];
 	SHA1_CTX sha_ctx;
 	RSA_CTX * rsa_ptr = NULL;
 	int enc_size;
-#if 0
+
 	//todo query top board's encryption root
 	//top_get_enc_root( enc_root );
 
@@ -956,7 +956,6 @@ int Cmd_generate_aes_key(int argc,char * argv[]) {
 	SHA1_Init( &sha_ctx );
 	SHA1_Update( &sha_ctx, aes_key, AES_BLOCKSIZE  );
 	SHA1_Final( aes_key+AES_BLOCKSIZE, &sha_ctx );
-#endif
 
 	//init the rsa public key, encrypt the aes key and checksum
 	RSA_pub_key_new( &rsa_ptr, public_key, sizeof(public_key), exponent, sizeof(exponent) );
