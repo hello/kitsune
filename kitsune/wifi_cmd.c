@@ -999,7 +999,10 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
         /* Now we are ready to encode the message! Let's go encode. */
         LOGI("data ");
         status = encoder(&stream,encodedata);
-        flush_out_buffer(&desc);
+        if( !flush_out_buffer(&desc) ) {
+            LOGI("Flush failed\n");
+        	return -1;
+        }
         LOGI("\n");
 
         /* sanity checks  */
@@ -2258,48 +2261,49 @@ static int http_cb(volatile int * sock, char * linebuf, int inbufsz) {
 		char * html = pvPortMalloc(128);
 		snprintf( html, 128, "Temperature is %d<br>", get_temp());
 		if( send_buffer_chunked( sock, html, strlen(html)) < 0 ) {
-			vPortFree(html);
-			return -1;
+			goto done_i2c;
 		}
 		snprintf( html, 128, "Humidity is %d<br>", get_humid());
 		if( send_buffer_chunked( sock, html, strlen(html)) < 0 ) {
-			vPortFree(html);
-			return -1;
+			goto done_i2c;
 		}
 		snprintf( html, 128, "Light is %d<br>", get_light());
 		if (send_chunk_len( strlen(html), *sock ) < 0 ||
 				send_buffer(sock, html, strlen(html)) <= 0) {
-			vPortFree(html);
-			return -1;
+			goto done_i2c;
 		}
 		snprintf(html, 128, "Proximity is %d<br>", get_prox());
 		if( send_buffer_chunked( sock, html, strlen(html)) < 0 ) {
+			goto done_i2c;
+		}
+		done_i2c:
+		xSemaphoreGive(i2c_smphr);
+		if( *sock < 0 ) {
 			vPortFree(html);
 			return -1;
 		}
-		xSemaphoreGive(i2c_smphr);
 
 		snprintf( html, 128, "Dust is %d<br>", get_dust());
 		if( send_buffer_chunked( sock, html, strlen(html)) < 0 ) {
-			vPortFree(html);
-			return -1;
+			goto done;
 		}
 		snprintf(html, 128, "Time is %d<br>", get_time());
 		if( send_buffer_chunked( sock, html, strlen(html)) < 0 ) {
-			vPortFree(html);
-			return -1;
+			goto done;
 		}
 		snprintf(html, 128, "Uptime is %d<br>", xTaskGetTickCount()/1000);
 		if( send_buffer_chunked( sock, html, strlen(html)) < 0 ) {
-			vPortFree(html);
-			return -1;
+			goto done;
 		}
-		vPortFree(html);
-
 		if( send_buffer_chunked( sock, html_end, strlen(html_end)) < 0 ) {
-			vPortFree(html);
+			goto done;
+		}
+		done:
+		vPortFree(html);
+		if( *sock < 0 ) {
 			return -1;
 		}
+
 		if (send_chunk_len( 0, *sock ) < 0) {
 			close(*sock);
 			*sock = -1;
