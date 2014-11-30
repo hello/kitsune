@@ -933,24 +933,48 @@ static const uint8_t public_key[] = {
 int save_aes( uint8_t * key ) ;
 int Cmd_generate_aes_key(int argc,char * argv[]) {
 #define NORDIC_ENC_ROOT_SIZE 16 //todo find out the real value
-	uint8_t enc_root[NORDIC_ENC_ROOT_SIZE];
 	uint8_t aes_key[AES_BLOCKSIZE + SHA1_SIZE];
 	uint8_t enc_aes_key[255];
 	char key_string[2*255];
 	SHA1_CTX sha_ctx;
 	RSA_CTX * rsa_ptr = NULL;
 	int enc_size;
+	uint8_t entropy_pool[32];
 
-	//todo query top board's encryption root
-	//top_get_enc_root( enc_root );
-
-	//use the entropy in our RNG
-	RNG_custom_init(enc_root, NORDIC_ENC_ROOT_SIZE);
-//todo more entropy!
+	//ENTROPY ! Sensors, timers, TI's mac address, so much randomness!!!11!!1!
+	int pos=0;
+	unsigned char mac[6];
+	unsigned char mac_len;
+	sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
+	memcpy(entropy_pool+pos, mac, 6);
+	pos+=6;
+	uint32_t now = xTaskGetTickCount();
+	memcpy(entropy_pool+pos, &now, 4);
+	pos+=4;
+	if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
+		vTaskDelay(2);
+		int light = get_light();
+		vTaskDelay(2);
+		memcpy(entropy_pool+pos, &light, 4);
+		pos+=4;
+		int temp = get_temp();
+		memcpy(entropy_pool+pos, &temp, 4);
+		pos+=4;
+		int prox = get_prox();
+		memcpy(entropy_pool+pos, &prox, 4);
+		pos+=4;
+		xSemaphoreGive(i2c_smphr);
+	}
+	while( pos < 28 ) {
+		int dust = get_dust();
+		memcpy(entropy_pool+pos, &dust, 4);
+		pos+=4;
+	}
+	RNG_custom_init(entropy_pool, pos);
 
 	//generate a key
 	get_random_NZ(AES_BLOCKSIZE, aes_key);
-	//save_aes(aes_key); //todo enable this
+	//save_aes(aes_key); //todo DVT enable this
 
 	//add checksum
 	SHA1_Init( &sha_ctx );
@@ -966,11 +990,12 @@ int Cmd_generate_aes_key(int argc,char * argv[]) {
     	snprintf(&key_string[i * 2], 3, "%02X", enc_aes_key[i]);
     }
     UARTprintf( "\nenc aes: %s\n", key_string);
-
+#if 1 //todo DVT disable!
     for(i = 0; i < AES_BLOCKSIZE+SHA1_SIZE; i++) {
-    	snprintf(&key_string[i * 2], 3, "%02X", aes_key[i]);//todo remove this!
+    	snprintf(&key_string[i * 2], 3, "%02X", aes_key[i]);
     }
-    UARTprintf( "\ndec aes: %s\n", key_string); //todo remove this!
+    UARTprintf( "\ndec aes: %s\n", key_string);
+#endif
 
 	return 0;
 }
@@ -1337,8 +1362,11 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("*");
 	xTaskCreate(FileUploaderTask_Thread,"fileUploadTask",1*1024/4,NULL,1,NULL);
 
+#if 1 //todo DVT disable!
 	xTaskCreate(telnetServerTask,"telnetServerTask",512/4,NULL,1,NULL);
 	xTaskCreate(httpServerTask,"httpServerTask",3*512/4,NULL,1,NULL);
+#endif
+
 	SetupGPIOInterrupts();
 	UARTprintf("*");
 #if !ONLY_MID

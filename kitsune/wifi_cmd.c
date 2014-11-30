@@ -375,6 +375,9 @@ int save_aes( uint8_t * key ) {
 	}
 
 	bytes = sl_FsWrite(hndl, info.FileLen, key, AES_BLOCKSIZE);
+	if( bytes != AES_BLOCKSIZE) {
+		LOGE( "writing keyfile failed %d", bytes );
+	}
 	sl_FsClose(hndl, 0, 0, 0);
 
 	return 0;
@@ -2199,7 +2202,7 @@ void telnetServerTask(void *params) {
 #define INTERPRETER_PORT 224
     serv( INTERPRETER_PORT, &telnet_connection_sock, cli_cb, "\n" );
 }
-
+#if 0 //used in proof of concept
 static int echo_cb( volatile int * sock,  char * linebuf, int inbufsz ) {
 	if ( send( *sock, "\n", 1, 0 ) <= 0 ) {
 		close(*sock);
@@ -2211,6 +2214,7 @@ static int echo_cb( volatile int * sock,  char * linebuf, int inbufsz ) {
 	}
 	return 0;
 }
+#endif
 
 static int send_buffer_chunked(volatile int * sock, const char * str, int len) {
 	if (send_chunk_len( len, *sock ) < 0 ) {
