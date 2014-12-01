@@ -64,8 +64,8 @@ static void DataCallback(const AudioFeatures_t * pfeats) {
 	AudioProcessingTask_AddFeaturesToQueue(pfeats);
 }
 
-static void QueueFileForUpload(const char * filename) {
-	FileUploaderTask_Upload(filename,DATA_SERVER,RAW_AUDIO_ENDOPOINT,1,NULL,NULL);
+static void QueueFileForUpload(const char * filename,uint8_t delete_after_upload) {
+	FileUploaderTask_Upload(filename,DATA_SERVER,RAW_AUDIO_ENDOPOINT,delete_after_upload,NULL,NULL);
 }
 
 
@@ -270,10 +270,11 @@ static void DoCapture() {
 
 	int iBufferFilled = 0;
 	AudioMessage_t m;
-	uint32_t num_samples_to_save;
+	uint32_t num_frames_to_save;
 	Filedata_t filedata;
 	uint8_t isSavingToFile = 0;
 	uint32_t num_bytes_written;
+	uint32_t record_flags = 0;
 
 #ifdef PRINT_TIMING
 	uint32_t t0;
@@ -328,8 +329,10 @@ static void DoCapture() {
 
 				}
 
-				//no matter what, set num_samples_to_save to the requested
-				num_samples_to_save = m.message.capturedesc.captureduration;
+				//no matter what, set num_frames_to_save to the requested
+				num_frames_to_save = m.message.capturedesc.captureduration;
+
+				record_flags |= m.message.capturedesc.flags;
 
 				break;
 			}
@@ -404,13 +407,22 @@ static void DoCapture() {
 
 				if (WriteToFile(&filedata,bytes_written,(const uint8_t *)samples)) {
 					num_bytes_written += bytes_written;
-					num_samples_to_save--;
+					num_frames_to_save--;
 
 					//close if we are done
-					if (num_samples_to_save <= 0 || num_bytes_written > MAX_FILE_SIZE_BYTES) {
+					if (num_frames_to_save <= 0 || num_bytes_written > MAX_FILE_SIZE_BYTES) {
 						CloseFile(&filedata);
 						isSavingToFile = 0;
-						QueueFileForUpload(filedata.file_name);
+
+						if (record_flags & AUDIOTASK_FLAG_UPLOAD) {
+							const uint8_t delete_after_upload = (record_flags & AUDIOTASK_FLAG_DELETE_AFTER_UPLOAD) > 0;
+							QueueFileForUpload(filedata.file_name,delete_after_upload);
+
+							//unset flags
+							record_flags &= ~AUDIOTASK_FLAG_UPLOAD;
+							record_flags &= ~AUDIOTASK_FLAG_DELETE_AFTER_UPLOAD;
+
+						}
 					}
 				}
 				else {
@@ -440,7 +452,10 @@ static void DoCapture() {
 
 	if (isSavingToFile) {
 		CloseFile(&filedata);
-		QueueFileForUpload(filedata.file_name);
+		if (record_flags & AUDIOTASK_FLAG_UPLOAD) {
+			const uint8_t delete_after_upload = (record_flags & AUDIOTASK_FLAG_DELETE_AFTER_UPLOAD) > 0;
+			QueueFileForUpload(filedata.file_name,delete_after_upload);
+		}
 	}
 
 	DeinitAudioCapture();
