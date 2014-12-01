@@ -65,7 +65,7 @@ static void DataCallback(const AudioFeatures_t * pfeats) {
 }
 
 static void QueueFileForUpload(const char * filename,uint8_t delete_after_upload) {
-	FileUploaderTask_Upload(filename,DATA_SERVER,RAW_AUDIO_ENDOPOINT,delete_after_upload,NULL,NULL);
+	FileUploaderTask_Upload(filename,DATA_SERVER,RAW_AUDIO_ENDPOINT,delete_after_upload,NULL,NULL);
 }
 
 
