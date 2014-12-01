@@ -29,9 +29,8 @@
 
 #define Codec_addr 0x1A
 #define delay_codec 5
-
-#define OLD_LIGHT_SENSOR 1
-
+#include "stdbool.h"
+static bool old_light_sensor;
 //*****************************************************************************
 //
 //! Display the buffer contents over I2C
@@ -297,59 +296,60 @@ int Cmd_readhumid(int argc, char *argv[]) {
 
 int init_light_sensor()
 {
-#if OLD_LIGHT_SENSOR
-	unsigned char cmd_init[2];
+	old_light_sensor = get_hw_ver()==EVT2;
 
-	cmd_init[0] = 0x80; // Command register - 8'b1000_0000
-	cmd_init[1] = 0x03; // Control register - 8'b0000_0011
-	TRY_OR_GOTOFAIL(I2C_IF_Write(0x29, cmd_init, 2, 1)); // setup normal mode
+	if (old_light_sensor) {
+		unsigned char cmd_init[2];
 
-	cmd_init[0] = 0x81; // Command register - 8'b1000_0000
-	cmd_init[1] = 0x02; // Control register - 8'b0000_0010 // 100ms due to page 9 of http://media.digikey.com/pdf/Data%20Sheets/Austriamicrosystems%20PDFs/TSL4531.pdf
-	TRY_OR_GOTOFAIL(I2C_IF_Write(0x29, cmd_init, 2, 1)); //  );// change integration
-#else
-	unsigned char aucDataBuf[2]={0,0};
-	aucDataBuf[0] = 0;
-	aucDataBuf[1] = 0xA0;
-	TRY_OR_GOTOFAIL(I2C_IF_Write(0x44, aucDataBuf, 2, 1));
-#endif
+		cmd_init[0] = 0x80; // Command register - 8'b1000_0000
+		cmd_init[1] = 0x03; // Control register - 8'b0000_0011
+		TRY_OR_GOTOFAIL(I2C_IF_Write(0x29, cmd_init, 2, 1)); // setup normal mode
+
+		cmd_init[0] = 0x81; // Command register - 8'b1000_0000
+		cmd_init[1] = 0x02; // Control register - 8'b0000_0010 // 100ms due to page 9 of http://media.digikey.com/pdf/Data%20Sheets/Austriamicrosystems%20PDFs/TSL4531.pdf
+		TRY_OR_GOTOFAIL(I2C_IF_Write(0x29, cmd_init, 2, 1)); //  );// change integration
+	} else {
+		unsigned char aucDataBuf[2] = { 0, 0 };
+		aucDataBuf[0] = 0;
+		aucDataBuf[1] = 0xA0;
+		TRY_OR_GOTOFAIL(I2C_IF_Write(0x44, aucDataBuf, 2, 1));
+	}
 
 	return SUCCESS;
 }
 
 int get_light() {
-#if OLD_LIGHT_SENSOR
-	unsigned char aucDataBuf_LOW[2];
-	unsigned char aucDataBuf_HIGH[2];
-	int light_lux;
+	if (old_light_sensor) {
+		unsigned char aucDataBuf_LOW[2];
+		unsigned char aucDataBuf_HIGH[2];
+		int light_lux;
 
-	unsigned char cmd;
-	
-	cmd = 0x84; // Command register - 0x04
-	TRY_OR_GOTOFAIL(I2C_IF_Write(0x29, &cmd, 1, 1));
-	TRY_OR_GOTOFAIL(I2C_IF_Read(0x29, aucDataBuf_LOW, 1)); //could read 2 here, but we don't use the other one...
+		unsigned char cmd;
 
-	cmd = 0x85; // Command register - 0x05
-	TRY_OR_GOTOFAIL(I2C_IF_Write(0x29, &cmd, 1, 1));
-	TRY_OR_GOTOFAIL(I2C_IF_Read(0x29, aucDataBuf_HIGH, 1));
+		cmd = 0x84; // Command register - 0x04
+		TRY_OR_GOTOFAIL(I2C_IF_Write(0x29, &cmd, 1, 1));
+		TRY_OR_GOTOFAIL(I2C_IF_Read(0x29, aucDataBuf_LOW, 1)); //could read 2 here, but we don't use the other one...
 
+		cmd = 0x85; // Command register - 0x05
+		TRY_OR_GOTOFAIL(I2C_IF_Write(0x29, &cmd, 1, 1));
+		TRY_OR_GOTOFAIL(I2C_IF_Read(0x29, aucDataBuf_HIGH, 1));
 
-	// We are using 100ms mode, multipler is 4
-	// formula based on page 6 of http://media.digikey.com/pdf/Data%20Sheets/Austriamicrosystems%20PDFs/TSL4531.pdf
-	light_lux = ((aucDataBuf_HIGH[0] << 8) | aucDataBuf_LOW[0]) << 2;
+		// We are using 100ms mode, multipler is 4
+		// formula based on page 6 of http://media.digikey.com/pdf/Data%20Sheets/Austriamicrosystems%20PDFs/TSL4531.pdf
+		light_lux = ((aucDataBuf_HIGH[0] << 8) | aucDataBuf_LOW[0]) << 2;
 
-	return light_lux;
-#else
-	int cmd;
-	unsigned char aucDataBuf[2]={0,0};
+		return light_lux;
+	} else {
+		int cmd;
+		unsigned char aucDataBuf[2] = { 0, 0 };
 
-	cmd = 0x2;
-	TRY_OR_GOTOFAIL(I2C_IF_Write(0x44, &cmd, 1, 1));
-	vTaskDelay(0);
-	TRY_OR_GOTOFAIL(I2C_IF_Read(0x44, aucDataBuf, 2));
+		cmd = 0x2;
+		TRY_OR_GOTOFAIL(I2C_IF_Write(0x44, &cmd, 1, 1));
+		vTaskDelay(0);
+		TRY_OR_GOTOFAIL(I2C_IF_Read(0x44, aucDataBuf, 2));
 
-	return aucDataBuf[0]|(aucDataBuf[1]<<8);
-#endif
+		return aucDataBuf[0] | (aucDataBuf[1] << 8);
+	}
 }
 
 int Cmd_readlight(int argc, char *argv[]) {
