@@ -284,7 +284,7 @@ int Cmd_play_buff(int argc, char *argv[]) {
     memset(&desc,0,sizeof(desc));
     strncpy( desc.file, file, 64 );
     desc.volume = vol;
-    desc.durationInSeconds = 60;
+    desc.durationInSeconds = -1;
 
     AudioTask_StartPlayback(&desc);
 
