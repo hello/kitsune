@@ -15,7 +15,7 @@ typedef enum {
 typedef struct {
 	char file[64];
 	int32_t volume;
-	uint32_t durationInSeconds;
+	int32_t durationInSeconds;
 
 	NotificationCallback_t onFinished;
 	void * context;

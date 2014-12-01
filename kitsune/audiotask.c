@@ -123,7 +123,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	int32_t iRetVal = -1;
 	uint8_t returnFlags = 0x00;
 
-	uint32_t desired_ticks_elapsed;
+	int32_t desired_ticks_elapsed;
 	portTickType t0;
 	uint32_t iBufWaitingCount;
 
@@ -212,8 +212,16 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 		}
 		else {
-			//LOOP THE FILE -- start over
-			hello_fs_lseek(&fp,0);
+			if (desired_ticks_elapsed >= 0) {
+				//LOOP THE FILE -- start over
+				hello_fs_lseek(&fp,0);
+			}
+			else {
+				//someone passed in a negative number--which means after one
+				//play through the file, we quit.
+
+				break;
+			}
 
 		}
 
@@ -225,7 +233,10 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		iReceiveCount++;
 
 
-		if ( (xTaskGetTickCount() - t0) > desired_ticks_elapsed) {
+		//if time elapsed is greater than desired, we quit.
+		//UNLESS anddesired_ticks_elapsed is a negative number
+		//instead, we will quit when the file is done playing
+		if ( (xTaskGetTickCount() - t0) > desired_ticks_elapsed && desired_ticks_elapsed >= 0) {
 			break;
 		}
 
