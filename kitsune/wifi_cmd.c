@@ -1318,11 +1318,6 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
     if (response_protobuf->has_audio_control) {
     	AudioControlHelper_SetAudioControl(&response_protobuf->audio_control);
     }
-
-    if( response_protobuf->has_unix_time ) {
-    	set_time( response_protobuf->unix_time );
-    }
-
     
     _set_led_color_based_on_room_conditions(response_protobuf);
     

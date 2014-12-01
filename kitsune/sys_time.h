@@ -17,8 +17,6 @@ void init_time_module( int stack );
 void wait_for_time();
 bool has_good_time();
 time_t get_time();
-void set_time( time_t t);
-
 
 uint32_t fetch_unix_time_from_ntp(); //DO NOT CALL THIS ONE EXCEPT IN TESTS
 
