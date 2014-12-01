@@ -46,8 +46,12 @@ static void RecordCallback(const RecordAudioRequest_t * request) {
 	AudioMessage_t m;
 	memset(&m,0,sizeof(m));
 
-	m.message.capturedesc.captureduration = request->durationInFrames;
 	m.command = eAudioSaveToDisk;
+
+	m.message.capturedesc.captureduration = request->durationInFrames;
+	m.message.capturedesc.flags |= AUDIOTASK_FLAG_UPLOAD;
+	m.message.capturedesc.flags |= AUDIOTASK_FLAG_DELETE_AFTER_UPLOAD;
+
 
 	AudioTask_AddMessageToQueue(&m);
 }
