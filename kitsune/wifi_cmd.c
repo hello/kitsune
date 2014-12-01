@@ -352,6 +352,7 @@ int Cmd_mode(int argc, char*argv[]) {
 }
 #include "crypto.h"
 static uint8_t aes_key[AES_BLOCKSIZE + 1] = "1234567891234567";
+static uint8_t device_id[DEVICE_ID_SZ + 1];
 
 int save_aes( uint8_t * key ) {
 	unsigned long tok=0;
@@ -376,6 +377,33 @@ int save_aes( uint8_t * key ) {
 
 	bytes = sl_FsWrite(hndl, 0, key, AES_BLOCKSIZE);
 	if( bytes != AES_BLOCKSIZE) {
+		LOGE( "writing keyfile failed %d", bytes );
+	}
+	sl_FsClose(hndl, 0, 0, 0);
+
+	return 0;
+}
+int save_device_id( uint8_t * device_id ) {
+	unsigned long tok=0;
+	long hndl, bytes;
+	SlFsFileInfo_t info;
+
+	sl_FsGetInfo((unsigned char*)DEVICE_ID_LOC, tok, &info);
+
+	if (sl_FsOpen((unsigned char*)DEVICE_ID_LOC,
+	FS_MODE_OPEN_WRITE, &tok, &hndl)) {
+		LOGI("error opening file, trying to create\n");
+
+		if (sl_FsOpen((unsigned char*)DEVICE_ID_LOC,
+				FS_MODE_OPEN_CREATE(65535, _FS_FILE_OPEN_FLAG_COMMIT), &tok,
+				&hndl)) {
+			LOGI("error opening for write\n");
+			return -1;
+		}
+	}
+
+	bytes = sl_FsWrite(hndl, 0, device_id, DEVICE_ID_SZ);
+	if( bytes != DEVICE_ID_SZ) {
 		LOGE( "writing keyfile failed %d", bytes );
 	}
 	sl_FsClose(hndl, 0, 0, 0);
@@ -429,8 +457,27 @@ void load_aes() {
 		LOGI("failed to read aes key file\n");
 	}
 	aes_key[AES_BLOCKSIZE] = 0;
-	LOGI("read key %s\n", aes_key);
 
+	RetVal = sl_FsClose(DeviceFileHandle, NULL, NULL, 0);
+}
+void load_device_id() {
+	long DeviceFileHandle = -1;
+	int RetVal, Offset;
+
+	// read in aes key
+	RetVal = sl_FsOpen(DEVICE_ID_LOC, FS_MODE_OPEN_READ, NULL,
+			&DeviceFileHandle);
+	if (RetVal != 0) {
+		LOGI("failed to open aes key file\n");
+	}
+
+	Offset = 0;
+	RetVal = sl_FsRead(DeviceFileHandle, Offset, (unsigned char *) device_id,
+			DEVICE_ID_SZ);
+	if (RetVal != DEVICE_ID_SZ) {
+		LOGI("failed to read aes key file\n");
+	}
+	aes_key[DEVICE_ID_SZ] = 0;
 	RetVal = sl_FsClose(DeviceFileHandle, NULL, NULL, 0);
 }
 
@@ -1199,12 +1246,9 @@ bool get_mac(unsigned char mac[6]) {
 
     if(ret != 0 && ret != SL_ESMALLBUF)
     {
-    	LOGI("encode_mac_as_device_id_string: Fail to get MAC addr, err %d\n", ret);
+    	LOGI("Fail to get MAC addr, err %d\n", ret);
         return false;  // If get mac failed, don't encode that field
     }
-
-
-
     return ret;
 }
 
@@ -1230,28 +1274,12 @@ bool encode_mac(pb_ostream_t *stream, const pb_field_t *field, void * const *arg
     return pb_encode_tag(stream, PB_WT_STRING, field->tag) && pb_encode_string(stream, (uint8_t*) mac, mac_len);
 }
 
-bool encode_mac_as_device_id_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
-    uint8_t mac[6] = {0};
-    uint8_t mac_len = 6;
-#if FAKE_MAC
-    mac[0] = 0xab;
-    mac[1] = 0xcd;
-    mac[2] = 0xab;
-    mac[3] = 0xcd;
-    mac[4] = 0xab;
-    mac[5] = 0xcd;
-#else
-    int32_t ret = sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
-    if(ret != 0 && ret != SL_ESMALLBUF)
-    {
-    	LOGI("encode_mac_as_device_id_string: Fail to get MAC addr, err %d\n", ret);
-        return false;  // If get mac failed, don't encode that field
-    }
-#endif
-    char hex_device_id[13] = {0};
+bool encode_device_id_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
+    char hex_device_id[16] = {0};
     uint8_t i = 0;
-    for(i = 0; i < sizeof(mac); i++){
-    	snprintf(&hex_device_id[i * 2], 3, "%02X", mac[i]);
+
+    for(i = 0; i < sizeof(device_id); i++){
+    	snprintf(&hex_device_id[i * 2], 3, "%02X", device_id[i]);
     }
 
     return pb_encode_tag_for_field(stream, field) && pb_encode_string(stream, (uint8_t*)hex_device_id, strlen(hex_device_id));

@@ -37,6 +37,8 @@ int sl_mode;
 #define UPLOADING  0x00000020
 
 #define AES_KEY_LOC "/cert/key.aes"
+#define DEVICE_ID_LOC "/hello/deviceid"
+#define DEVICE_ID_SZ 8
 
 #include "stdint.h"
 #include "sync_response.pb.h"
@@ -103,7 +105,7 @@ void free_pill_list();
 
 
 bool encode_mac(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
-bool encode_mac_as_device_id_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
+bool encode_device_id_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 bool encode_name(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 
 #define MORPH_NAME ""

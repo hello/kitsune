@@ -596,12 +596,15 @@ static bool encode_all_pills (pb_ostream_t *stream, const pb_field_t *field, voi
 	return true;
 }
 
+
+int load_device_id();
 //no need for semaphore, only thread_tx uses this one
 int data_queue_batch_size = 5;
 void thread_tx(void* unused) {
 	batched_pill_data pill_data_batched = {0};
 	batched_periodic_data data_batched = {0};
 	load_aes();
+	load_device_id();
 	int tries = 0;
 
 	LOGI(" Start polling  \n");
@@ -626,7 +629,7 @@ void thread_tx(void* unused) {
 			data_batched.data.funcs.encode = encode_all_periodic_data;  // This is smart :D
 			data_batched.data.arg = &periodicdata;
 			data_batched.firmware_version = KIT_VER;
-			data_batched.device_id.funcs.encode = encode_mac_as_device_id_string;
+			data_batched.device_id.funcs.encode = encode_device_id_string;
 
 			while (!send_periodic_data(&data_batched) == 0) {
 				LOGI("  Waiting for WIFI connection  \n");
@@ -658,7 +661,7 @@ void thread_tx(void* unused) {
 			memset(&pill_data_batched, 0, sizeof(pill_data_batched));
 			pill_data_batched.pills.funcs.encode = encode_all_pills;  // This is smart :D
 			pill_data_batched.pills.arg = &pilldata;
-			pill_data_batched.device_id.funcs.encode = encode_mac_as_device_id_string;
+			pill_data_batched.device_id.funcs.encode = encode_device_id_string;
 
 			while (!send_pill_data(&pill_data_batched) == 0) {
 				LOGI("  Waiting for WIFI connection  \n");
@@ -972,15 +975,17 @@ static const uint8_t public_key[] = {
 		    0x74,0x9c,0x3a,0x50,0x1e,0x72,0x42,0x08,0x61
 };
 int save_aes( uint8_t * key ) ;
-int Cmd_generate_aes_key(int argc,char * argv[]) {
+int save_device_id( uint8_t * device_id );
+int Cmd_generate_factory_data(int argc,char * argv[]) {
 #define NORDIC_ENC_ROOT_SIZE 16 //todo find out the real value
-	uint8_t aes_key[AES_BLOCKSIZE + SHA1_SIZE];
-	uint8_t enc_aes_key[255];
+	uint8_t factory_data[AES_BLOCKSIZE + DEVICE_ID_SZ + SHA1_SIZE + 3];
+	uint8_t enc_factory_data[255];
 	char key_string[2*255];
 	SHA1_CTX sha_ctx;
 	RSA_CTX * rsa_ptr = NULL;
 	int enc_size;
 	uint8_t entropy_pool[32];
+	unsigned char device_id[DEVICE_ID_SZ];
 
 	//ENTROPY ! Sensors, timers, TI's mac address, so much randomness!!!11!!1!
 	int pos=0;
@@ -1013,29 +1018,37 @@ int Cmd_generate_aes_key(int argc,char * argv[]) {
 	}
 	RNG_custom_init(entropy_pool, pos);
 
-	//generate a key
-	get_random_NZ(AES_BLOCKSIZE, aes_key);
-	save_aes(aes_key); //todo DVT enable
+	//generate a key...
+	get_random_NZ(AES_BLOCKSIZE, factory_data);
+	factory_data[AES_BLOCKSIZE] = 0;
+	//save_aes(factory_data); //todo DVT enable
+
+    //todo DVT get top's device ID, print it here, and use it as device ID in periodic/audio data
+	get_random_NZ(DEVICE_ID_SZ, device_id);
+    save_device_id(device_id);
+    memcpy( factory_data+AES_BLOCKSIZE + 1, device_id, DEVICE_ID_SZ);
+	factory_data[AES_BLOCKSIZE+DEVICE_ID_SZ+1] = 0;
 
 	//add checksum
 	SHA1_Init( &sha_ctx );
-	SHA1_Update( &sha_ctx, aes_key, AES_BLOCKSIZE  );
-	SHA1_Final( aes_key+AES_BLOCKSIZE, &sha_ctx );
+	SHA1_Update( &sha_ctx, factory_data, AES_BLOCKSIZE+DEVICE_ID_SZ + 2  );
+	SHA1_Final( factory_data+AES_BLOCKSIZE+DEVICE_ID_SZ + 2, &sha_ctx );
+	factory_data[AES_BLOCKSIZE+DEVICE_ID_SZ+SHA1_SIZE+2] = 0;
 
 	//init the rsa public key, encrypt the aes key and checksum
 	RSA_pub_key_new( &rsa_ptr, public_key, sizeof(public_key), exponent, sizeof(exponent) );
-	enc_size = RSA_encrypt(  rsa_ptr, aes_key, AES_BLOCKSIZE+SHA1_SIZE, enc_aes_key, 0);
+	enc_size = RSA_encrypt(  rsa_ptr, factory_data, AES_BLOCKSIZE+DEVICE_ID_SZ+SHA1_SIZE+3, enc_factory_data, 0);
 	RSA_free( rsa_ptr );
     uint8_t i = 0;
     for(i = 1; i < enc_size; i++) {
-    	snprintf(&key_string[i * 2 - 2], 3, "%02X", enc_aes_key[i]);
+    	snprintf(&key_string[i * 2 - 2], 3, "%02X", enc_factory_data[i]);
     }
     UARTprintf( "\n%s\n", key_string);
 
-    //todo DVT get top's device ID, print it here, and use it as device ID in periodic/audio data
-#if 0 //todo DVT disable!
-    for(i = 0; i < AES_BLOCKSIZE+SHA1_SIZE; i++) {
-    	snprintf(&key_string[i * 2], 3, "%02X", aes_key[i]);
+
+#if 1 //todo DVT disable!
+    for(i = 0; i < AES_BLOCKSIZE+DEVICE_ID_SZ+SHA1_SIZE+3; i++) {
+    	snprintf(&key_string[i * 2], 3, "%02X", factory_data[i]);
     }
     UARTprintf( "\ndec aes: %s\n", key_string);
 #endif
@@ -1255,7 +1268,7 @@ tCmdLineEntry g_sCmdTable[] = {
 #if COMPILE_TESTS
 		{ "test_network",Cmd_test_network,""},
 #endif
-		{ "genkey",Cmd_generate_aes_key,""},
+		{ "genkey",Cmd_generate_factory_data,""},
 
 		{ 0, 0, 0 } };
 
