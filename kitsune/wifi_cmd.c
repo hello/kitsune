@@ -1309,6 +1309,7 @@ static void _set_led_color_based_on_room_conditions(const SyncResponse* response
 }
 void reset_to_factory_fw();
 
+extern int data_queue_batch_size;
 static void _on_response_protobuf( SyncResponse* response_protobuf)
 {
     if (response_protobuf->has_alarm) 
@@ -1339,6 +1340,9 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
 
     if( response_protobuf->has_unix_time ) {
     	set_time( response_protobuf->unix_time );
+    }
+    if( response_protobuf->has_batch_size ) {
+    	data_queue_batch_size = response_protobuf->batch_size;
     }
 
     
@@ -1378,18 +1382,15 @@ int send_pill_data(batched_pill_data * pill_data) {
 }
 void boot_commit_ota();
 
-int send_periodic_data(periodic_data* data) {
+int send_periodic_data(batched_periodic_data* data) {
     char *  buffer = pvPortMalloc(SERVER_REPLY_BUFSZ);
 
     int ret;
 
     assert(buffer);
     memset(buffer, 0, SERVER_REPLY_BUFSZ);
-    data->name.funcs.encode = encode_name;
-    data->mac.funcs.encode = encode_mac;  // Now this is a fallback, the backend will not use this at the first hand
-    data->device_id.funcs.encode = encode_mac_as_device_id_string;
 
-    ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER,DATA_RECEIVE_ENDPOINT, buffer, SERVER_REPLY_BUFSZ, periodic_data_fields, data, 0);
+    ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER,DATA_RECEIVE_ENDPOINT, buffer, SERVER_REPLY_BUFSZ, batched_periodic_data_fields, data, 0);
     if(ret != 0)
     {
         // network error
@@ -1445,45 +1446,6 @@ int send_periodic_data(periodic_data* data) {
     vPortFree(buffer);
     return -1;
 }
-
-
-
-int Cmd_data_upload(int arg, char* argv[])
-{
-	periodic_data data = {0};
-	//load_aes();
-
-	data.has_firmware_version = 1;
-	data.firmware_version = KIT_VER;
-
-	data.device_id.funcs.encode = encode_mac_as_device_id_string;
-
-	data.unix_time = 1;
-	data.has_unix_time = 1;
-
-	data.light = 2;
-	data.has_light = 1;
-
-	data.light_variability = 3;
-	data.has_light_variability = 1;
-
-	data.light_tonality = 4;
-	data.has_light_tonality = 1;
-
-	data.temperature = 5;
-	data.has_temperature = 1;
-
-	data.humidity = 6;
-	data.has_humidity = 1;
-
-	data.dust = 7;
-	data.has_dust = 1;
-
-	send_periodic_data(&data);
-
-	return 0;
-}
-
 
 int Cmd_sl(int argc, char*argv[]) {
 

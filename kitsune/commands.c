@@ -547,6 +547,31 @@ xQueueHandle data_queue = 0;
 xQueueHandle pill_queue = 0;
 
 typedef struct {
+	periodic_data * data;
+	int num_data;
+} periodic_data_to_encode;
+
+static bool encode_all_periodic_data (pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
+	int i;
+	periodic_data_to_encode * data = *(periodic_data_to_encode**)arg;
+
+	for( i = 0; i < data->num_data; ++i ) {
+		if(!pb_encode_tag(stream, PB_WT_STRING, batched_periodic_data_data_tag))
+		{
+			LOGI("encode_all_periodic_data: Fail to encode tag error %s\n", PB_GET_ERROR(stream));
+			return false;
+		}
+
+		if (!pb_encode_delimited(stream, periodic_data_fields, &data->data[i])){
+			LOGI("encode_all_periodic_data2: Fail to encode error: %s\n", PB_GET_ERROR(stream));
+			return false;
+		}
+		//LOGI("******************* encode_pill_encode_all_pills: encode pill %s\n", pill_data.deviceId);
+	}
+	return true;
+}
+
+typedef struct {
 	pill_data * pills;
 	int num_pills;
 } pilldata_to_encode;
@@ -570,28 +595,47 @@ static bool encode_all_pills (pb_ostream_t *stream, const pb_field_t *field, voi
 	}
 	return true;
 }
+
+//no need for semaphore, only thread_tx uses this one
+int data_queue_batch_size = 5;
 void thread_tx(void* unused) {
 	batched_pill_data pill_data_batched = {0};
-	periodic_data data = {0};
+	batched_periodic_data data_batched = {0};
 	load_aes();
+	int tries = 0;
 
 	LOGI(" Start polling  \n");
 	while (1) {
-		int tries = 0;
-		memset(&data, 0, sizeof(periodic_data));
-		if (xQueueReceive(data_queue, &(data), 1)) {
-			LOGI(
-					"sending time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d\n",
-					data.unix_time, data.light, data.light_variability,
-					data.light_tonality, data.temperature, data.humidity, data.dust);
+		if (uxQueueMessagesWaiting(data_queue) > data_queue_batch_size) {
+			LOGI(	"sending data" );
+			periodic_data_to_encode periodicdata;
+			periodicdata.num_data = 0;
+			periodicdata.data = (periodic_data*)pvPortMalloc(data_queue_batch_size*sizeof(periodic_data));
 
-			while (!send_periodic_data(&data) == 0) {
+			if( !periodicdata.data ) {
+				LOGI( "failed to alloc periodicdata\n" );
+				vTaskDelay(1000);
+				continue;
+			}
+
+			while( periodicdata.num_data < data_queue_batch_size && xQueueReceive(data_queue, &periodicdata.data[periodicdata.num_data], 1 ) ) {
+				++periodicdata.num_data;
+			}
+
+			memset(&data_batched, 0, sizeof(data_batched));
+			data_batched.data.funcs.encode = encode_all_periodic_data;  // This is smart :D
+			data_batched.data.arg = &periodicdata;
+			data_batched.firmware_version = KIT_VER;
+			data_batched.device_id.funcs.encode = encode_mac_as_device_id_string;
+
+			while (!send_periodic_data(&data_batched) == 0) {
 				LOGI("  Waiting for WIFI connection  \n");
 				vTaskDelay((1 << tries) * 1000);
 				if (tries++ > 5) {
 					tries = 5;
 				}
 			}
+			vPortFree( periodicdata.data );
 		}
 
 		tries = 0;
@@ -793,10 +837,7 @@ void thread_sensor_poll(void* unused) {
 				data.unix_time, data.light, data.light_variability, data.light_tonality, data.temperature, data.humidity,
 				data.dust, data.dust_max, data.dust_min, data.dust_variability, data.wave_count, data.hold_count);
 
-		// Remember to add back firmware version, or OTA cant work.
-		data.has_firmware_version = true;
-		data.firmware_version = KIT_VER;
-        if(!xQueueSend(data_queue, (void*)&data, 10) == pdPASS)
+		if(!xQueueSend(data_queue, (void*)&data, 10) == pdPASS)
         {
     		LOGI("Failed to post data\n");
     	}
@@ -1202,7 +1243,6 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "rdiorxstop", Cmd_RadioStopRX, "" },
 		{ "rssi", Cmd_rssi, "" },
 		{ "slip", Cmd_slip, "" },
-		{ "data_upload", Cmd_data_upload, "" },
 		{ "^", Cmd_send_top, ""}, //send command to top board
 		{ "topdfu", Cmd_topdfu, ""}, //update topboard firmware.
 		{ "factory_reset", Cmd_factory_reset, ""},//Factory reset from middle.

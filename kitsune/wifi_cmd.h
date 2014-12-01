@@ -66,7 +66,6 @@ int Cmd_RadioStopRX(int argc, char*argv[]);
 int Cmd_RadioStopTX(int argc, char*argv[]);
 int Cmd_RadioStartTX(int argc, char*argv[]);
 int Cmd_RadioGetStats(int argc, char*argv[]);
-int Cmd_data_upload(int arg, char* argv[]);
 
 bool get_mac(unsigned char mac[6]);
 
@@ -77,7 +76,7 @@ void wifi_status_init();
 int wifi_status_set(unsigned int status, int remove_status);
 int wifi_status_get(unsigned int status);
 
-int send_periodic_data(periodic_data* data);
+int send_periodic_data(batched_periodic_data* data);
 int send_audio_data( data_t * data );
 int send_pill_data(batched_pill_data * pill_data);
 
