@@ -2045,7 +2045,7 @@ int wifi_status_set(unsigned int status, int remove_status)
     return ret;
 }
 
-#define SVR_LOGI(...)
+#define SVR_LOGI LOGI
 static void make_nonblocking( volatile int * sock ) {
 	SlSockNonblocking_t enableOption;
 	enableOption.NonblockingEnabled = 1;
@@ -2231,14 +2231,14 @@ static int http_cb(volatile int * sock, char * linebuf, int inbufsz) {
 			"Content-Type: text/html\r\n"
 			"Transfer-Encoding: chunked\r\n"
 					"\r\n";
-	const char * html_start = "<HTML>\n"
-			"<HEAD>\n"
-			"<TITLE>Hello</TITLE>\n"
+	const char * html_start = "<HTML>"
+			"<HEAD>"
+			"<TITLE>Hello</TITLE>"
 			"<meta http-equiv=\"refresh\" content=\"60\">"
-			"</HEAD>\n\n"
-			"<BODY>\n<H1>Sense Info</H1>\n<P>";
+			"</HEAD>"
+			"<BODY><H1>Sense Info</H1><P>";
 	const char * html_end =
-            "</P>\n</BODY>\n</HTML>\n";
+            "</P></BODY></HTML>";
 
 	if( strstr(linebuf, "HEAD" ) != 0 ) {
 		if (send_buffer(sock, http_response, strlen(http_response)) <= 0) {
@@ -2264,8 +2264,7 @@ static int http_cb(volatile int * sock, char * linebuf, int inbufsz) {
 			goto done_i2c;
 		}
 		snprintf( html, 128, "Light is %d<br>", get_light());
-		if (send_chunk_len( strlen(html), *sock ) < 0 ||
-				send_buffer(sock, html, strlen(html)) <= 0) {
+		if( send_buffer_chunked( sock, html, strlen(html)) < 0 ) {
 			goto done_i2c;
 		}
 		snprintf(html, 128, "Proximity is %d<br>", get_prox());
