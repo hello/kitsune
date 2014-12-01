@@ -447,14 +447,16 @@ void load_aes() {
 	RetVal = sl_FsOpen(AES_KEY_LOC, FS_MODE_OPEN_READ, NULL,
 			&DeviceFileHandle);
 	if (RetVal != 0) {
-		LOGI("failed to open aes key file\n");
+		LOGE("failed to open aes key file\n");
+		return;
 	}
 
 	Offset = 0;
 	RetVal = sl_FsRead(DeviceFileHandle, Offset, (unsigned char *) aes_key,
 			AES_BLOCKSIZE);
 	if (RetVal != AES_BLOCKSIZE) {
-		LOGI("failed to read aes key file\n");
+		LOGE("failed to read aes key file\n");
+		return;
 	}
 	aes_key[AES_BLOCKSIZE] = 0;
 
@@ -468,14 +470,16 @@ void load_device_id() {
 	RetVal = sl_FsOpen(DEVICE_ID_LOC, FS_MODE_OPEN_READ, NULL,
 			&DeviceFileHandle);
 	if (RetVal != 0) {
-		LOGI("failed to open aes key file\n");
+		LOGE("failed to open device id file\n");
+		return;
 	}
 
 	Offset = 0;
 	RetVal = sl_FsRead(DeviceFileHandle, Offset, (unsigned char *) device_id,
 			DEVICE_ID_SZ);
 	if (RetVal != DEVICE_ID_SZ) {
-		LOGI("failed to read aes key file\n");
+		LOGE("failed to read device id file\n");
+		return;
 	}
 	aes_key[DEVICE_ID_SZ] = 0;
 	RetVal = sl_FsClose(DeviceFileHandle, NULL, NULL, 0);
@@ -1275,10 +1279,11 @@ bool encode_mac(pb_ostream_t *stream, const pb_field_t *field, void * const *arg
 }
 
 bool encode_device_id_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
-    char hex_device_id[16] = {0};
+	//char are twice the size, extra 1 for null terminator
+    char hex_device_id[2*DEVICE_ID_SZ+1] = {0};
     uint8_t i = 0;
 
-    for(i = 0; i < sizeof(device_id); i++){
+    for(i = 0; i < DEVICE_ID_SZ; i++){
     	snprintf(&hex_device_id[i * 2], 3, "%02X", device_id[i]);
     }
 
@@ -2229,8 +2234,7 @@ int get_humid();
 static int http_cb(volatile int * sock, char * linebuf, int inbufsz) {
 	const char * http_response = "HTTP/1.1 200 OK\r\n"
 			"Content-Type: text/html\r\n"
-			"Transfer-Encoding: chunked\r\n"
-					"\r\n";
+			"Transfer-Encoding: chunked\r\n";
 	const char * html_start = "<HTML>"
 			"<HEAD>"
 			"<TITLE>Hello</TITLE>"

@@ -228,6 +228,7 @@ static void NetworkTask_Thread(void * networkdata) {
 		if (message.response_callback) {
 			message.response_callback(&response,message.context);
 		}
+		vTaskDelay(100);
 
 	}
 

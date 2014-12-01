@@ -672,9 +672,9 @@ void thread_tx(void* unused) {
 			}
 			vPortFree( pilldata.pills );
 		}
-		while (!wifi_status_get(HAS_IP)) {
+		do {
 			vTaskDelay(1000);
-		}
+		} while (!wifi_status_get(HAS_IP));
 	}
 }
 
