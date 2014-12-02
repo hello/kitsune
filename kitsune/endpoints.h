@@ -2,7 +2,7 @@
 #define _ENDPOINTS_H_
 
 #define DATA_SERVER                         "dev-in.hello.is"
-#define DATA_RECEIVE_ENDPOINT               "/in/morpheus"
+#define DATA_RECEIVE_ENDPOINT               "/in/sense/batch"
 #define MORPHEUS_REGISTER_ENDPOINT          "/register/morpheus"
 #define PILL_REGISTER_ENDPOINT              "/register/pill"
 #define AUDIO_FEATURES_ENDPOINT             "/audio/features"
