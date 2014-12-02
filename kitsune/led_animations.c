@@ -42,12 +42,30 @@ static bool _start_animation( unsigned int timeout ) {
 
 static bool _animate_pulse(int * out_r, int * out_g, int * out_b, int * out_delay, void * user_context, int rgb_array_size){
 	bool sig_continue;
+	static int offset;
 	lock();
-	self.counter++;
-	out_r[self.counter%rgb_array_size] = 60;
-	out_g[self.counter%rgb_array_size] = 60;
-	out_b[self.counter%rgb_array_size] = 60;
-	*out_delay = 20;
+	offset = (offset+1) % 4;
+	if(offset == 0){
+		self.counter++;
+	}
+
+	out_r[self.counter % rgb_array_size] = 5;
+	out_g[self.counter % rgb_array_size] = 5;
+	out_b[self.counter % rgb_array_size] = 5;
+
+	out_r[(self.counter + 1) % rgb_array_size] = 10;
+	out_g[(self.counter + 1) % rgb_array_size] = 10;
+	out_b[(self.counter + 1) % rgb_array_size] = 10;
+
+	out_r[(self.counter + 2) % rgb_array_size] = 20;
+	out_g[(self.counter + 2) % rgb_array_size] = 20;
+	out_b[(self.counter + 2) % rgb_array_size] = 20;
+
+	out_r[(self.counter + 3) % rgb_array_size] = 40;
+	out_g[(self.counter + 3) % rgb_array_size] = 40;
+	out_b[(self.counter + 3) % rgb_array_size] = 40;
+
+	*out_delay = 10;
 	sig_continue = self.sig_continue;
 	unlock();
 	return sig_continue;
@@ -261,6 +279,9 @@ int Cmd_led_animate(int argc, char *argv[]){
 			return 0;
 		}else if(strcmp(argv[1], "pulse") == 0){
 			play_led_animation_pulse(portMAX_DELAY);
+			return 0;
+		}else if(strcmp(argv[1], "wheel") == 0){
+			led_set_color(100, 88,0,150, 1, 1, 18, 1 );
 			return 0;
 		}
 	}
