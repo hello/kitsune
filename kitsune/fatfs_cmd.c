@@ -128,7 +128,7 @@ int Cmd_mkfs(int argc, char *argv[])
 
 	LOGI("\n\nMaking FS...\n");
 
-	res = hello_fs_mkfs(0, 0, 16);
+	res = hello_fs_mkfs(0, 0, 64);
 	if(res != FR_OK)
 	{
 		LOGI("f_mkfs error: %i\n", (res));
