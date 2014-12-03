@@ -609,7 +609,7 @@ void thread_tx(void* unused) {
 
 	LOGI(" Start polling  \n");
 	while (1) {
-		if (uxQueueMessagesWaiting(data_queue) > data_queue_batch_size) {
+		if (uxQueueMessagesWaiting(data_queue) >= data_queue_batch_size) {
 			LOGI(	"sending data" );
 			periodic_data_to_encode periodicdata;
 			periodicdata.num_data = 0;
@@ -960,7 +960,6 @@ int Cmd_rssi(int argc, char *argv[]) {
 	}
 	return 0;
 }
-
 #include "crypto.h"
 static const uint8_t exponent[] = { 1,0,1 };
 static const uint8_t public_key[] = {
@@ -1011,17 +1010,16 @@ int Cmd_generate_factory_data(int argc,char * argv[]) {
 		pos+=4;
 		xSemaphoreGive(i2c_smphr);
 	}
-	while( pos < 28 ) {
+	for(pos = 0; pos < 32; ++pos){
 		int dust = get_dust();
-		memcpy(entropy_pool+pos, &dust, 4);
-		pos+=4;
+		entropy_pool[pos] ^= (uint8_t)dust;
 	}
 	RNG_custom_init(entropy_pool, pos);
 
 	//generate a key...
 	get_random_NZ(AES_BLOCKSIZE, factory_data);
 	factory_data[AES_BLOCKSIZE] = 0;
-	//save_aes(factory_data); //todo DVT enable
+	save_aes(factory_data); //todo DVT enable
 
     //todo DVT get top's device ID, print it here, and use it as device ID in periodic/audio data
 	get_random_NZ(DEVICE_ID_SZ, device_id);
@@ -1043,10 +1041,10 @@ int Cmd_generate_factory_data(int argc,char * argv[]) {
     for(i = 1; i < enc_size; i++) {
     	snprintf(&key_string[i * 2 - 2], 3, "%02X", enc_factory_data[i]);
     }
-    UARTprintf( "\n%s\n", key_string);
+    UARTprintf( "\nfactory key: %s\n", key_string);
 
 
-#if 1 //todo DVT disable!
+#if 0 //todo DVT disable!
     for(i = 0; i < AES_BLOCKSIZE+DEVICE_ID_SZ+SHA1_SIZE+3; i++) {
     	snprintf(&key_string[i * 2], 3, "%02X", factory_data[i]);
     }
