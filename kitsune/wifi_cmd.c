@@ -447,14 +447,16 @@ void load_aes() {
 	RetVal = sl_FsOpen(AES_KEY_LOC, FS_MODE_OPEN_READ, NULL,
 			&DeviceFileHandle);
 	if (RetVal != 0) {
-		LOGI("failed to open aes key file\n");
+		LOGE("failed to open aes key file\n");
+		return;
 	}
 
 	Offset = 0;
 	RetVal = sl_FsRead(DeviceFileHandle, Offset, (unsigned char *) aes_key,
 			AES_BLOCKSIZE);
 	if (RetVal != AES_BLOCKSIZE) {
-		LOGI("failed to read aes key file\n");
+		LOGE("failed to read aes key file\n");
+		return;
 	}
 	aes_key[AES_BLOCKSIZE] = 0;
 
@@ -468,14 +470,16 @@ void load_device_id() {
 	RetVal = sl_FsOpen(DEVICE_ID_LOC, FS_MODE_OPEN_READ, NULL,
 			&DeviceFileHandle);
 	if (RetVal != 0) {
-		LOGI("failed to open aes key file\n");
+		LOGE("failed to open device id file\n");
+		return;
 	}
 
 	Offset = 0;
 	RetVal = sl_FsRead(DeviceFileHandle, Offset, (unsigned char *) device_id,
 			DEVICE_ID_SZ);
 	if (RetVal != DEVICE_ID_SZ) {
-		LOGI("failed to read aes key file\n");
+		LOGE("failed to read device id file\n");
+		return;
 	}
 	aes_key[DEVICE_ID_SZ] = 0;
 	RetVal = sl_FsClose(DeviceFileHandle, NULL, NULL, 0);
@@ -1275,10 +1279,11 @@ bool encode_mac(pb_ostream_t *stream, const pb_field_t *field, void * const *arg
 }
 
 bool encode_device_id_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
-    char hex_device_id[16] = {0};
+	//char are twice the size, extra 1 for null terminator
+    char hex_device_id[2*DEVICE_ID_SZ+1] = {0};
     uint8_t i = 0;
 
-    for(i = 0; i < sizeof(device_id); i++){
+    for(i = 0; i < DEVICE_ID_SZ; i++){
     	snprintf(&hex_device_id[i * 2], 3, "%02X", device_id[i]);
     }
 
@@ -1337,6 +1342,7 @@ static void _set_led_color_based_on_room_conditions(const SyncResponse* response
 }
 void reset_to_factory_fw();
 
+extern int data_queue_batch_size;
 static void _on_response_protobuf( SyncResponse* response_protobuf)
 {
     if (response_protobuf->has_alarm) 
@@ -1367,6 +1373,9 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
 
     if( response_protobuf->has_unix_time ) {
     	set_time( response_protobuf->unix_time );
+    }
+    if( response_protobuf->has_batch_size ) {
+    	data_queue_batch_size = response_protobuf->batch_size;
     }
 
     
@@ -1406,18 +1415,15 @@ int send_pill_data(batched_pill_data * pill_data) {
 }
 void boot_commit_ota();
 
-int send_periodic_data(periodic_data* data) {
+int send_periodic_data(batched_periodic_data* data) {
     char *  buffer = pvPortMalloc(SERVER_REPLY_BUFSZ);
 
     int ret;
 
     assert(buffer);
     memset(buffer, 0, SERVER_REPLY_BUFSZ);
-    data->name.funcs.encode = encode_name;
-    data->mac.funcs.encode = encode_mac;  // Now this is a fallback, the backend will not use this at the first hand
-    data->device_id.funcs.encode = encode_device_id_string;
 
-    ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER,DATA_RECEIVE_ENDPOINT, buffer, SERVER_REPLY_BUFSZ, periodic_data_fields, data, 0);
+    ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER,DATA_RECEIVE_ENDPOINT, buffer, SERVER_REPLY_BUFSZ, batched_periodic_data_fields, data, 0);
     if(ret != 0)
     {
         // network error
@@ -1473,45 +1479,6 @@ int send_periodic_data(periodic_data* data) {
     vPortFree(buffer);
     return -1;
 }
-
-
-
-int Cmd_data_upload(int arg, char* argv[])
-{
-	periodic_data data = {0};
-	//load_aes();
-
-	data.has_firmware_version = 1;
-	data.firmware_version = KIT_VER;
-
-	data.device_id.funcs.encode = encode_device_id_string;
-
-	data.unix_time = 1;
-	data.has_unix_time = 1;
-
-	data.light = 2;
-	data.has_light = 1;
-
-	data.light_variability = 3;
-	data.has_light_variability = 1;
-
-	data.light_tonality = 4;
-	data.has_light_tonality = 1;
-
-	data.temperature = 5;
-	data.has_temperature = 1;
-
-	data.humidity = 6;
-	data.has_humidity = 1;
-
-	data.dust = 7;
-	data.has_dust = 1;
-
-	send_periodic_data(&data);
-
-	return 0;
-}
-
 
 int Cmd_sl(int argc, char*argv[]) {
 
@@ -2083,7 +2050,12 @@ int wifi_status_set(unsigned int status, int remove_status)
     return ret;
 }
 
+#if 0
+#define SVR_LOGI LOGI
+#else
 #define SVR_LOGI(...)
+#endif
+
 static void make_nonblocking( volatile int * sock ) {
 	SlSockNonblocking_t enableOption;
 	enableOption.NonblockingEnabled = 1;
@@ -2267,16 +2239,15 @@ int get_humid();
 static int http_cb(volatile int * sock, char * linebuf, int inbufsz) {
 	const char * http_response = "HTTP/1.1 200 OK\r\n"
 			"Content-Type: text/html\r\n"
-			"Transfer-Encoding: chunked\r\n"
-					"\r\n";
-	const char * html_start = "<HTML>\n"
-			"<HEAD>\n"
-			"<TITLE>Hello</TITLE>\n"
+			"Transfer-Encoding: chunked\r\n";
+	const char * html_start = "<HTML>"
+			"<HEAD>"
+			"<TITLE>Hello</TITLE>"
 			"<meta http-equiv=\"refresh\" content=\"60\">"
-			"</HEAD>\n\n"
-			"<BODY>\n<H1>Sense Info</H1>\n<P>";
+			"</HEAD>"
+			"<BODY><H1>Sense Info</H1><P>";
 	const char * html_end =
-            "</P>\n</BODY>\n</HTML>\n";
+            "</P></BODY></HTML>";
 
 	if( strstr(linebuf, "HEAD" ) != 0 ) {
 		if (send_buffer(sock, http_response, strlen(http_response)) <= 0) {
@@ -2302,8 +2273,7 @@ static int http_cb(volatile int * sock, char * linebuf, int inbufsz) {
 			goto done_i2c;
 		}
 		snprintf( html, 128, "Light is %d<br>", get_light());
-		if (send_chunk_len( strlen(html), *sock ) < 0 ||
-				send_buffer(sock, html, strlen(html)) <= 0) {
+		if( send_buffer_chunked( sock, html, strlen(html)) < 0 ) {
 			goto done_i2c;
 		}
 		snprintf(html, 128, "Proximity is %d<br>", get_prox());
