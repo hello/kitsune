@@ -1,5 +1,5 @@
 #include "debuglog.h"
-#include "DebugLogSingleton.h"
+#include "debugsingleton.h"
 #include "pb_encode.h"
 #include "base64.h"
 #include "matmessageutils.h"
