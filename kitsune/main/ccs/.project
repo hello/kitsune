@@ -86,6 +86,21 @@
 			<locationURI>PARENT-2-PROJECT_LOC/audiotask.c</locationURI>
 		</link>
 		<link>
+			<name>bigint.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/bigint.c</locationURI>
+		</link>
+		<link>
+			<name>bigint.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/bigint.h</locationURI>
+		</link>
+		<link>
+			<name>bigint_impl.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/bigint_impl.h</locationURI>
+		</link>
+		<link>
 			<name>ble_cmd.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/ble_cmd.c</locationURI>
@@ -149,6 +164,11 @@
 			<name>crypto.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/crypto.h</locationURI>
+		</link>
+		<link>
+			<name>crypto_misc.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/crypto_misc.c</locationURI>
 		</link>
 		<link>
 			<name>debugutils</name>
@@ -361,9 +381,19 @@
 			<locationURI>virtual:/virtual</locationURI>
 		</link>
 		<link>
+			<name>rc4.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/rc4.c</locationURI>
+		</link>
+		<link>
 			<name>readme.txt</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/readme.txt</locationURI>
+		</link>
+		<link>
+			<name>rsa.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/rsa.c</locationURI>
 		</link>
 		<link>
 			<name>sha1.c</name>

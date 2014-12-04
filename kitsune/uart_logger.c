@@ -61,33 +61,6 @@ _encode_text_block(pb_ostream_t *stream, const pb_field_t *field, void * const *
 			&& pb_encode_string(stream, (uint8_t*)self.operation_block,
 					UART_LOGGER_BLOCK_SIZE);
 }
-static bool
-_encode_mac_as_device_id_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
-    uint8_t mac[6] = {0};
-    uint8_t mac_len = 6;
-#if FAKE_MAC
-    mac[0] = 0xab;
-    mac[1] = 0xcd;
-    mac[2] = 0xab;
-    mac[3] = 0xcd;
-    mac[4] = 0xab;
-    mac[5] = 0xcd;
-#else
-    int32_t ret = sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
-    if(ret != 0 && ret != SL_ESMALLBUF)
-    {
-    	UARTprintf("encode_mac_as_device_id_string: Fail to get MAC addr, err %d\n", ret);
-        return false;  // If get mac failed, don't encode that field
-    }
-#endif
-    char hex_device_id[13] = {0};
-    uint8_t i = 0;
-    for(i = 0; i < sizeof(mac); i++){
-    	snprintf(&hex_device_id[i * 2], 3, "%02X", mac[i]);
-    }
-    return pb_encode_tag_for_field(stream, field) && pb_encode_string(stream, (uint8_t*)hex_device_id, strlen(hex_device_id));
-}
-//
 static void
 _swap_and_upload(void){
 	if (!(xEventGroupGetBitsFromISR(self.uart_log_events) & LOG_EVENT_STORE)) {
@@ -104,6 +77,7 @@ _swap_and_upload(void){
 	//reset
 	self.widx = 0;
 }
+void telnetPrint(const char * str, int len );
 
 static void
 _logstr(const char * str, int len, bool echo, bool store){
@@ -112,6 +86,8 @@ _logstr(const char * str, int len, bool echo, bool store){
 		uart_logc(str[i]);
 	}
 	if (echo) {
+		telnetPrint(str, len);
+
 		UARTwrite(str, len);
 	}
 }
@@ -288,7 +264,7 @@ void uart_logger_flush(void){
 	                portMAX_DELAY );/* Wait for any bit to be set. */
 
 	//write out whatever's left in the logging block
-	_save_newest(self.logging_block, self.widx );
+	_save_newest((const char*)self.logging_block, self.widx );
 
 }
 int Cmd_log_upload(int argc, char *argv[]){
@@ -303,7 +279,7 @@ void uart_logger_init(void){
 	xEventGroupClearBits( self.uart_log_events, 0xff );
 	xEventGroupSetBits(self.uart_log_events, LOG_EVENT_UPLOAD);
 	self.log.text.funcs.encode = _encode_text_block;
-	self.log.device_id.funcs.encode = _encode_mac_as_device_id_string;
+	self.log.device_id.funcs.encode = encode_device_id_string;
 	self.log.has_unix_time = true;
 	self.view_tag = LOG_INFO | LOG_WARNING | LOG_ERROR | LOG_VIEW_ONLY;
 	self.store_tag = LOG_INFO | LOG_WARNING | LOG_ERROR;
@@ -312,12 +288,20 @@ void uart_logger_init(void){
 	xEventGroupSetBits(self.uart_log_events, LOG_EVENT_READY);
 }
 void uart_logc(uint8_t c){
+	if( self.print_sem == NULL) {
+		return;
+	}
+	if( xSemaphoreTake(self.print_sem, 0) != pdPASS ) {
+		return;
+	}
+
 	if (self.widx == UART_LOGGER_BLOCK_SIZE) {
 		_swap_and_upload();
 	}
 	self.logging_block[self.widx] = c;
 	self.widx++;
 
+    xSemaphoreGive( self.print_sem );
 }
 
 void uart_logger_task(void * params){
@@ -412,14 +396,6 @@ int Cmd_log_setview(int argc, char * argv[]){
 
 static const char * const g_pcHex = "0123456789abcdef";
 void uart_logf(uint8_t tag, const char *pcString, ...){
-	if( self.print_sem == NULL) {
-		UARTprintf("no print_sem\n%s\n", pcString);
-		return;
-	}
-	if( xSemaphoreTake(self.print_sem, 0) != pdPASS ) {
-		UARTprintf("failed to get print_sem\n%s\n", pcString);
-		return;
-	}
 	va_list vaArgP;
 	unsigned long ulIdx, ulValue, ulPos, ulCount, ulBase, ulNeg;
     char *pcStr, pcBuf[16], cFill;
@@ -600,5 +576,4 @@ convert:
     }
 
     va_end(vaArgP);
-    xSemaphoreGive( self.print_sem );
 }

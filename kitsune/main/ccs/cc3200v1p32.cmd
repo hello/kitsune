@@ -73,13 +73,13 @@ SECTIONS
     .text   :   > SRAM
     .const  :   > SRAM
     .cinit  :   > SRAM
-    .pinit  :   > SRAM
+    .pinit  :   > SRAM_DATA
     .init_array : > SRAM
-    .vtable :   > SRAM
+    .vtable :   > SRAM_DATA
     .data   :   > SRAM_HEAP
     .bss    :   > SRAM_DATA
-    .sysmem :   > SRAM
-    .stack  :   > SRAM
+    .sysmem :   > SRAM_DATA
+    .stack  :   > SRAM_DATA
 }
 
 __STACK_TOP = __stack + __STACK_SIZE;
