@@ -2,7 +2,7 @@
 #include <fstream>
 #include "../../kitsune/audiofeatures.h"
 #include "../../kitsune/audioclassifier.h"
-#include "../../kitsune/debugutils/DebugLogSingleton.h"
+#include "../../kitsune/debugutils/debugsingleton.h"
 #include <string.h>
 #include "pb_encode.h"
 #include "../../kitsune/debugutils/base64.h"
@@ -14,26 +14,6 @@ using namespace std;
 
 static std::string _label;
 
-static void NoveltyNotifcation(void) {
-    
-}
-
-static void SegmentCallback(const int16_t * feats, const Segment_t * pSegment) {
-    
-    cout << pSegment->t1 << "," << pSegment->duration;
-#if 1
-    for (int j =0 ; j < NUM_AUDIO_FEATURES; j++) {
-        cout << "," << feats[j];
-    }
-#endif
-    cout << endl;
-#if 1
-    std::string tags;
-    tags = "coherent";
-    
-    DebugLogSingleton::Instance()->SetDebugVectorS16("featAudio", tags.c_str(), feats, NUM_AUDIO_FEATURES, pSegment->t1, pSegment->t2);
-#endif
-}
 
 #define OUT_BUF_SIZE (100000)
 static void serialize_buf(std::ofstream & ostream) {
@@ -59,12 +39,15 @@ static void serialize_buf(std::ofstream & ostream) {
 
 
 int main(int argc, char * argv[]) {
+    
+    char bigbuf[1024*60];
+    
     if (argc <= 2) {
         cerr << "Takes 2 inputs, 1) input file and 2) output file" << endl;
         cerr << "It is assumed that the input is mono, 16 bits per sample, in PCM format (i.e as raw as you can get)" << endl;
+        return 0;
     }
     
-    char bigbuffer[20000];
     
     _label.clear();
     _label = "none";
@@ -88,8 +71,8 @@ int main(int argc, char * argv[]) {
     
     
     AudioFeatures_Init(AudioClassifier_DataCallback);
-    AudioClassifier_Init(NULL,bigbuffer,sizeof(bigbuffer));
-
+    AudioClassifier_Init(NULL);
+    AudioClassifier_SetStorageBuffers(bigbuf,sizeof(bigbuf));
     
     
     do {
