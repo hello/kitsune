@@ -481,6 +481,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
             LOGI("PILL SHAKES\n");
             led_set_color(0xFF, 0, 0, 50, 1, 1, 18, 1); //blue
         }
+        break;
     	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID:
         {
         	if(command->deviceId.arg){
