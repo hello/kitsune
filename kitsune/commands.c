@@ -1415,7 +1415,7 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("*");
 	xTaskCreate(FileUploaderTask_Thread,"fileUploadTask",1*1024/4,NULL,1,NULL);
 
-#if 0 //todo DVT disable!
+#if 1 //todo PVT disable!
 	xTaskCreate(telnetServerTask,"telnetServerTask",512/4,NULL,1,NULL);
 	xTaskCreate(httpServerTask,"httpServerTask",3*512/4,NULL,1,NULL);
 #endif
