@@ -111,27 +111,27 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type)
     uint8_t max_retry = 10;
     uint8_t retry_count = max_retry;
 
-	play_led_progress_bar(30,30,0,0,portMAX_DELAY);
+	//play_led_progress_bar(0xFF, 128, 0, 128,portMAX_DELAY);
     while((connection_ret = connect_wifi(ssid, password, security_type)) == 0 && --retry_count)
     {
         //Cmd_led(0,0);
         LOGI("Failed to connect, retry times remain %d\n", retry_count);
-        set_led_progress_bar((max_retry - retry_count ) * 100 / max_retry);
+        //set_led_progress_bar((max_retry - retry_count ) * 100 / max_retry);
         vTaskDelay(2000);
     }
-    stop_led_animation();
+    //stop_led_animation();
 
     if(!connection_ret)
     {
 		LOGI("Tried all wifi ep, all failed to connect\n");
         ble_reply_protobuf_error(ErrorType_WLAN_CONNECTION_ERROR);
-        led_set_color(0xFF, LED_MAX,0,0,1,1,20,0);
+        //led_set_color(0xFF, LED_MAX,0,0,1,1,20,0);
 		return 0;
     }else{
 		uint8_t wait_time = 5;
 
 		wifi_status_set(CONNECTING, false);
-		play_led_progress_bar(30,30,0,0,portMAX_DELAY);
+		//play_led_progress_bar(30,30,0,0,portMAX_DELAY);
 		while(--wait_time && (!wifi_status_get(HAS_IP)))
 		{
             if(!wifi_status_get(CONNECTING))  // This state will be triggered magically by SL_WLAN_CONNECTION_FAILED_EVENT event
@@ -139,11 +139,11 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type)
             	LOGI("Connection failed!\n");
                 break;
             }
-			set_led_progress_bar((10 - wait_time ) * 100 / 10);
+			//set_led_progress_bar((10 - wait_time ) * 100 / 10);
 			LOGI("Retrieving IP address...\n");
 			vTaskDelay(4000);
 		}
-		stop_led_animation();
+		//stop_led_animation();
 
 		if(!wifi_status_get(HAS_IP))
 		{
@@ -152,7 +152,7 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type)
 			// no response, do a NWP reset based on the connection pattern
 			// sugguest here: http://e2e.ti.com/support/wireless_connectivity/f/968/p/361673/1273699.aspx
 			LOGI("Cannot retrieve IP address, try NWP reset.");
-			led_set_color(0xFF, LED_MAX, 0x66, 0, 1, 0, 15, 0);  // Tell the user we are going to fire the bomb.
+			//led_set_color(0xFF, LED_MAX, 0x66, 0, 1, 0, 15, 0);  // Tell the user we are going to fire the bomb.
 
 			nwp_reset();
 
@@ -165,7 +165,7 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type)
 			if(wifi_status_get(HAS_IP))
 			{
 				LOGI("Connection success by NWP reset.");
-				led_set_color(0xFF, LED_MAX, 0x66, 0, 0, 1, 15, 0);
+				//led_set_color(0xFF, LED_MAX, 0x66, 0, 0, 1, 15, 0);
 			}else{
 				if(wifi_status_get(CONNECTING))
 				{
@@ -173,7 +173,7 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type)
 				}else{
 					ble_reply_protobuf_error(ErrorType_NO_ENDPOINT_IN_RANGE);
 				}
-				led_set_color(0xFF, LED_MAX,0,0,1,1,20,0);
+				//led_set_color(0xFF, LED_MAX,0,0,1,1,20,0);
 				return 0;
 			}
 		}
@@ -186,7 +186,7 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type)
 
     LOGI("Connection attempt issued.\n");
     ble_send_protobuf(&reply_command);
-    led_set_color(0xFF, 0,LED_MAX,0,1,1,20,0);
+    //led_set_color(0xFF, 0,LED_MAX,0,1,1,20,0);
     return 1;
 }
 
@@ -383,7 +383,41 @@ static void _pair_device( MorpheusCommand* command, int is_morpheus)
 	}
 }
 
-#include "top_board.h"
+static struct {
+	TaskHandle_t led_circle_task_handle;
+	int a;
+	int r;
+	int g;
+	int b;
+	int circle_time_sec;
+	bool end;
+} _self;
+
+void _led_circle_task(void* context)
+{
+	while(!_self.end)
+	{
+		led_set_color(_self.a, _self.r, _self.g, _self.b, 0, 0, _self.circle_time_sec, 1);
+		vTaskDelay(_self.circle_time_sec * 1000);
+	}
+}
+
+void _led_circle_start(int a, int r, int g, int b, int circle_time_sec)
+{
+	_self.a = a;
+	_self.r = r;
+	_self.g = g;
+	_self.b = b;
+	_self.circle_time_sec = circle_time_sec;
+	_self.end = 0;
+	xTaskCreate(_led_circle_task, , "led circle task", 1024 / 4, NULL, 2, &_self.led_circle_task_handle);
+}
+
+void _led_circle_end()
+{
+	_self.end = 1;
+	_self.led_circle_task_handle = NULL;
+}
 
 
 bool on_ble_protobuf_command(MorpheusCommand* command)
@@ -407,16 +441,31 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
             	sec_type = command->security_type == wifi_endpoint_sec_type_SL_SCAN_SEC_TYPE_WPA2 ? SL_SEC_TYPE_WPA_WPA2 : command->security_type;
             }
 
-            _set_wifi(ssid, (char*)password, sec_type);
+            _led_circle_start(0xFF, 128, 0, 128, 5);
+            bool wifi_result = _set_wifi(ssid, (char*)password, sec_type);
+            _led_circle_end();
+
+            if(!wifi_result)
+            {
+            	play_led_trippy(portMAX_DELAY);
+            }else{
+
+            }
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_PAIRING_MODE:  // Just for testing
         {
             // Light up LEDs?
-        	led_set_color(0xFF, 0, 0, 50, 1, 1, 18, 0); //blue
+        	play_led_trippy( portMAX_DELAY );
             LOGI( "PAIRING MODE \n");
         }
         break;
+        case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE:  // Just for testing
+		{
+			stop_led_animation();
+			LOGI( "NORMAL MODE \n");
+		}
+		break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_WIFI_ENDPOINT:
         {
             // Get the current wifi connection information.
