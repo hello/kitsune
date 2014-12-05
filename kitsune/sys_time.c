@@ -46,7 +46,8 @@ static int get_rtc_time( struct tm * dt ) {
 	}
 	dt->tm_sec = bcd_to_int(data[0] & 0x7f);
 	dt->tm_min = bcd_to_int(data[1] & 0x7f);
-	if( !(data[1] & 0x80) && !is_time_good ) {
+	//sometimes there seems to be a partial failure and the years are wrong and the seconds are 0...
+	if( dt->tm_sec != 0 && !(data[1] & 0x80) && !is_time_good ) {
 		LOGI("Got time from RTC\n");
 		is_time_good = true;
 	}
