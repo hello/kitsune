@@ -189,7 +189,20 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type)
     led_set_color(0xFF, 0,LED_MAX,0,1,1,20,0);
     return 1;
 }
+static void _reply_sync_device_id()
+{
 
+	MorpheusCommand reply_command;
+	memset(&reply_command, 0, sizeof(reply_command));
+	reply_command.type =
+			MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID;
+
+	reply_command.has_firmwareVersion = true;
+	reply_command.firmwareVersion = FIRMWARE_VERSION_INTERNAL;
+
+	ble_send_protobuf(&reply_command);
+
+}
 static void _reply_device_id()
 {
     uint8_t mac_len = SL_MAC_ADDR_LEN;
@@ -491,6 +504,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         				top_device_id[3],top_device_id[4],top_device_id[5],
         				top_device_id[6],top_device_id[7]);
         		top_got_device_id = true;
+        		_reply_sync_device_id();
         	}else{
         		LOGI("device id fail from top\n");
         	}
