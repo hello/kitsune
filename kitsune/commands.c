@@ -1298,6 +1298,25 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(led_task, "ledTask", 512 / 4, NULL, 4, NULL); //todo reduce stack
 
 	Cmd_led_clr(0,0);
+	//switch the uart lines to gpios, drive tx low and see if rx goes low as well
+    // Configure PIN_57 for GPIOInput
+    //
+    MAP_PinTypeGPIO(PIN_57, PIN_MODE_0, false);
+    MAP_GPIODirModeSet(GPIOA0_BASE, 0x4, GPIO_DIR_MODE_IN);
+    //
+    // Configure PIN_55 for GPIOOutput
+    //
+    MAP_PinTypeGPIO(PIN_55, PIN_MODE_0, false);
+    MAP_GPIODirModeSet(GPIOA0_BASE, 0x2, GPIO_DIR_MODE_OUT);
+    MAP_GPIOPinWrite(GPIOA0_BASE, 0x2, 0);
+
+    vTaskDelay(100);
+    if( MAP_GPIOPinRead(GPIOA0_BASE, 0x4) == 0 ) {
+    	//drive sop2 low so we disconnect
+        MAP_GPIOPinWrite(GPIOA3_BASE, 0x2, 0);
+    }
+    MAP_PinTypeUART(PIN_55, PIN_MODE_3);
+    MAP_PinTypeUART(PIN_57, PIN_MODE_3);
 
 	//
 	// Initialize the UART for console I/O.
@@ -1338,7 +1357,7 @@ void vUARTTask(void *pvParameters) {
 	if (sl_mode == ROLE_AP || !wifi_status_get(0xFFFFFFFF)) {
 		//Cmd_sl(0, 0);
 	}
-	sl_NetAppStop(0xffffffff);
+	sl_NetAppStop(0x1f);
 	check_hw_version();
 	PinMuxConfig_hw_dep();
 

@@ -128,32 +128,11 @@ void PinMuxConfig_hw_dep() {
 
 		//i2c on pin 4
 		MAP_PinTypeI2C(PIN_04, PIN_MODE_5);
+
 		break;
 	case EVT2:
 		//i2c on pin 2
 		MAP_PinTypeI2C(PIN_02, PIN_MODE_1);
-
-		//drive high f
-	    MAP_GPIOPinWrite(GPIOA3_BASE, 0x2, 0x2);
-		//switch the uart lines to gpios, drive tx low and see if rx goes low as well
-	    // Configure PIN_57 for GPIOInput
-	    //
-	    MAP_PinTypeGPIO(PIN_57, PIN_MODE_0, false);
-	    MAP_GPIODirModeSet(GPIOA0_BASE, 0x4, GPIO_DIR_MODE_IN);
-	    //
-	    // Configure PIN_55 for GPIOOutput
-	    //
-	    MAP_PinTypeGPIO(PIN_55, PIN_MODE_0, false);
-	    MAP_GPIODirModeSet(GPIOA0_BASE, 0x2, GPIO_DIR_MODE_OUT);
-	    MAP_GPIOPinWrite(GPIOA0_BASE, 0x2, 0);
-
-	    vTaskDelay(100);
-	    if( MAP_GPIOPinRead(GPIOA0_BASE, 0x4) == 0 ) {
-	    	//drive sop2 low so we disconnect
-	        MAP_GPIOPinWrite(GPIOA3_BASE, 0x2, 0);
-	    }
-	    MAP_PinTypeUART(PIN_55, PIN_MODE_3);
-	    MAP_PinTypeUART(PIN_57, PIN_MODE_3);
 		break;
 	}
 }
@@ -306,7 +285,6 @@ PinMuxConfig(void)
 	//
 	MAP_PinTypeGPIO(PIN_21, PIN_MODE_0, false);
 	MAP_GPIODirModeSet(GPIOA3_BASE, 0x2, GPIO_DIR_MODE_OUT);
-
-	//drive low by default
-    MAP_GPIOPinWrite(GPIOA3_BASE, 0x2, 0x0);
+	//drive high by default
+    MAP_GPIOPinWrite(GPIOA3_BASE, 0x2, 0x2);
 }
