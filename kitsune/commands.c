@@ -1019,7 +1019,7 @@ int Cmd_generate_factory_data(int argc,char * argv[]) {
 		xSemaphoreGive(i2c_smphr);
 	}
 	for(pos = 0; pos < 32; ++pos){
-		int dust = get_dust();
+		int dust = get_dust_internal(256); //short one here is only for entropy
 		entropy_pool[pos] ^= (uint8_t)dust;
 	}
 	RNG_custom_init(entropy_pool, pos);
