@@ -211,7 +211,6 @@ static void _reply_device_id()
 		memset(&reply_command, 0, sizeof(reply_command));
 		reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_DEVICE_ID;
 
-		reply_command.deviceId.arg = device_id;
 		reply_command.has_firmwareVersion = true;
 		reply_command.firmwareVersion = FIRMWARE_VERSION_INTERNAL;
 
@@ -384,7 +383,9 @@ static void _pair_device( MorpheusCommand* command, int is_morpheus)
 }
 
 #include "top_board.h"
-
+#include "wifi_cmd.h"
+extern uint8_t top_device_id[DEVICE_ID_SZ];
+extern volatile bool top_got_device_id; //being bad, this is only for factory
 
 bool on_ble_protobuf_command(MorpheusCommand* command)
 {
@@ -480,6 +481,19 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
             LOGI("PILL SHAKES\n");
             led_set_color(0xFF, 0, 0, 50, 1, 1, 18, 1); //blue
         }
+    	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID:
+        {
+        	if(command->deviceId.arg){
+        		memcpy( top_device_id, command->deviceId.arg, sizeof( top_device_id ) );
+        		LOGI("got id from top %x:%x:%x:%x:%x:%x:%x:%x\n",
+        				top_device_id[0],top_device_id[1],top_device_id[2],
+        				top_device_id[3],top_device_id[4],top_device_id[5],
+        				top_device_id[6],top_device_id[7]);
+        		top_got_device_id = true;
+        	}else{
+        		LOGI("device id fail from top\n");
+        	}
+    	}
         break;
 	}
     return true;

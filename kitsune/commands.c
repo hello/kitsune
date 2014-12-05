@@ -973,6 +973,9 @@ static const uint8_t public_key[] = {
 		    0x2f,0x10,0x88,0xf2,0x83,0x5a,0x63,0x20,0x64,0xf2,0x72,0x63,0xf4,0xae,0x61,
 		    0x74,0x9c,0x3a,0x50,0x1e,0x72,0x42,0x08,0x61
 };
+uint8_t top_device_id[DEVICE_ID_SZ];
+volatile bool top_got_device_id = false; //being bad, this is only for factory
+
 int save_aes( uint8_t * key ) ;
 int save_device_id( uint8_t * device_id );
 int Cmd_generate_factory_data(int argc,char * argv[]) {
@@ -985,6 +988,11 @@ int Cmd_generate_factory_data(int argc,char * argv[]) {
 	int enc_size;
 	uint8_t entropy_pool[32];
 	unsigned char device_id[DEVICE_ID_SZ];
+
+	if( !top_got_device_id ) {
+		LOGE("Error please connect TOP board!\n");
+		return -1;
+	}
 
 	//ENTROPY ! Sensors, timers, TI's mac address, so much randomness!!!11!!1!
 	int pos=0;
@@ -1022,8 +1030,7 @@ int Cmd_generate_factory_data(int argc,char * argv[]) {
 	save_aes(factory_data); //todo DVT enable
 
     //todo DVT get top's device ID, print it here, and use it as device ID in periodic/audio data
-	get_random_NZ(DEVICE_ID_SZ, device_id);
-    save_device_id(device_id);
+    save_device_id(top_device_id);
     memcpy( factory_data+AES_BLOCKSIZE + 1, device_id, DEVICE_ID_SZ);
 	factory_data[AES_BLOCKSIZE+DEVICE_ID_SZ+1] = 0;
 
