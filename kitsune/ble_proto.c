@@ -501,7 +501,9 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         	if(command->deviceId.arg){
         		const char * device_id_str = command->deviceId.arg;
         		for(i=0;i<DEVICE_ID_SZ;++i) {
-        			top_device_id[i] = strtol( device_id_str+i*2, NULL, 16 );
+        			char num[3] = {0};
+        			memcpy( num, device_id_str+i*2, 2);
+        			top_device_id[i] = strtol( num, NULL, 16 );
         		}
         		LOGI("got id from top %x:%x:%x:%x:%x:%x:%x:%x\n",
         				top_device_id[0],top_device_id[1],top_device_id[2],
