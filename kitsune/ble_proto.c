@@ -483,8 +483,11 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         }
     	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID:
         {
+        	int i;
         	if(command->deviceId.arg){
-        		memcpy( top_device_id, command->deviceId.arg, sizeof( top_device_id ) );
+        		for(i=0;i<DEVICE_ID_SZ;++i) {
+        			top_device_id[i] = strtol( command->deviceId.arg[i*2], 16 );
+        		}
         		LOGI("got id from top %x:%x:%x:%x:%x:%x:%x:%x\n",
         				top_device_id[0],top_device_id[1],top_device_id[2],
         				top_device_id[3],top_device_id[4],top_device_id[5],
