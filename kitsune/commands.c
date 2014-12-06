@@ -547,6 +547,31 @@ xQueueHandle data_queue = 0;
 xQueueHandle pill_queue = 0;
 
 typedef struct {
+	periodic_data * data;
+	int num_data;
+} periodic_data_to_encode;
+
+static bool encode_all_periodic_data (pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
+	int i;
+	periodic_data_to_encode * data = *(periodic_data_to_encode**)arg;
+
+	for( i = 0; i < data->num_data; ++i ) {
+		if(!pb_encode_tag(stream, PB_WT_STRING, batched_periodic_data_data_tag))
+		{
+			LOGI("encode_all_periodic_data: Fail to encode tag error %s\n", PB_GET_ERROR(stream));
+			return false;
+		}
+
+		if (!pb_encode_delimited(stream, periodic_data_fields, &data->data[i])){
+			LOGI("encode_all_periodic_data2: Fail to encode error: %s\n", PB_GET_ERROR(stream));
+			return false;
+		}
+		//LOGI("******************* encode_pill_encode_all_pills: encode pill %s\n", pill_data.deviceId);
+	}
+	return true;
+}
+
+typedef struct {
 	pill_data * pills;
 	int num_pills;
 } pilldata_to_encode;
@@ -570,28 +595,50 @@ static bool encode_all_pills (pb_ostream_t *stream, const pb_field_t *field, voi
 	}
 	return true;
 }
+
+
+int load_device_id();
+//no need for semaphore, only thread_tx uses this one
+int data_queue_batch_size = 5;
 void thread_tx(void* unused) {
 	batched_pill_data pill_data_batched = {0};
-	periodic_data data = {0};
+	batched_periodic_data data_batched = {0};
 	load_aes();
+	load_device_id();
+	int tries = 0;
 
 	LOGI(" Start polling  \n");
 	while (1) {
-		int tries = 0;
-		memset(&data, 0, sizeof(periodic_data));
-		if (xQueueReceive(data_queue, &(data), 1)) {
-			LOGI(
-					"sending time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d\n",
-					data.unix_time, data.light, data.light_variability,
-					data.light_tonality, data.temperature, data.humidity, data.dust);
+		if (uxQueueMessagesWaiting(data_queue) >= data_queue_batch_size) {
+			LOGI(	"sending data" );
+			periodic_data_to_encode periodicdata;
+			periodicdata.num_data = 0;
+			periodicdata.data = (periodic_data*)pvPortMalloc(data_queue_batch_size*sizeof(periodic_data));
 
-			while (!send_periodic_data(&data) == 0) {
+			if( !periodicdata.data ) {
+				LOGI( "failed to alloc periodicdata\n" );
+				vTaskDelay(1000);
+				continue;
+			}
+
+			while( periodicdata.num_data < data_queue_batch_size && xQueueReceive(data_queue, &periodicdata.data[periodicdata.num_data], 1 ) ) {
+				++periodicdata.num_data;
+			}
+
+			memset(&data_batched, 0, sizeof(data_batched));
+			data_batched.data.funcs.encode = encode_all_periodic_data;  // This is smart :D
+			data_batched.data.arg = &periodicdata;
+			data_batched.firmware_version = KIT_VER;
+			data_batched.device_id.funcs.encode = encode_device_id_string;
+
+			while (!send_periodic_data(&data_batched) == 0) {
 				LOGI("  Waiting for WIFI connection  \n");
 				vTaskDelay((1 << tries) * 1000);
 				if (tries++ > 5) {
 					tries = 5;
 				}
 			}
+			vPortFree( periodicdata.data );
 		}
 
 		tries = 0;
@@ -614,7 +661,7 @@ void thread_tx(void* unused) {
 			memset(&pill_data_batched, 0, sizeof(pill_data_batched));
 			pill_data_batched.pills.funcs.encode = encode_all_pills;  // This is smart :D
 			pill_data_batched.pills.arg = &pilldata;
-			pill_data_batched.device_id.funcs.encode = encode_mac_as_device_id_string;
+			pill_data_batched.device_id.funcs.encode = encode_device_id_string;
 
 			while (!send_pill_data(&pill_data_batched) == 0) {
 				LOGI("  Waiting for WIFI connection  \n");
@@ -625,9 +672,9 @@ void thread_tx(void* unused) {
 			}
 			vPortFree( pilldata.pills );
 		}
-		while (!wifi_status_get(HAS_IP)) {
+		do {
 			vTaskDelay(1000);
-		}
+		} while (!wifi_status_get(HAS_IP));
 	}
 }
 
@@ -793,10 +840,7 @@ void thread_sensor_poll(void* unused) {
 				data.unix_time, data.light, data.light_variability, data.light_tonality, data.temperature, data.humidity,
 				data.dust, data.dust_max, data.dust_min, data.dust_variability, data.wave_count, data.hold_count);
 
-		// Remember to add back firmware version, or OTA cant work.
-		data.has_firmware_version = true;
-		data.firmware_version = KIT_VER;
-        if(!xQueueSend(data_queue, (void*)&data, 10) == pdPASS)
+		if(!xQueueSend(data_queue, (void*)&data, 10) == pdPASS)
         {
     		LOGI("Failed to post data\n");
     	}
@@ -916,40 +960,104 @@ int Cmd_rssi(int argc, char *argv[]) {
 	}
 	return 0;
 }
+#include "crypto.h"
+static const uint8_t exponent[] = { 1,0,1 };
+static const uint8_t public_key[] = {
+		    0x00,0xa7,0x55,0x04,0x52,0x58,0x47,0x07,0x82,0x33,0xdb,0x3c,0xb3,0x01,0xf2,
+		    0x35,0x40,0xd0,0x70,0x02,0xb6,0x44,0x9e,0xd9,0x3f,0x42,0x45,0x79,0x9a,0x40,
+		    0x62,0xe0,0x5c,0x5a,0xd1,0xa8,0xa7,0x72,0x29,0x22,0x3f,0xdf,0x3c,0x9b,0x58,
+		    0xfc,0x1b,0xb2,0x53,0xa2,0xed,0xf4,0x5e,0x9a,0x1d,0xae,0x95,0x2a,0x92,0x2e,
+		    0x5f,0x12,0xa2,0xcb,0x78,0x3b,0x38,0xf6,0x5a,0x0e,0x6b,0xf0,0xd5,0xda,0xe4,
+		    0x9d,0xbc,0xb4,0x05,0xd7,0x93,0x9b,0x55,0x09,0x20,0x4a,0xbe,0x67,0x95,0xa9,
+		    0x3f,0x96,0x79,0xa7,0x7c,0xc8,0x1b,0xe0,0x6b,0x54,0x12,0xaf,0x57,0x81,0xcd,
+		    0x2f,0x10,0x88,0xf2,0x83,0x5a,0x63,0x20,0x64,0xf2,0x72,0x63,0xf4,0xae,0x61,
+		    0x74,0x9c,0x3a,0x50,0x1e,0x72,0x42,0x08,0x61
+};
+int save_aes( uint8_t * key ) ;
+int save_device_id( uint8_t * device_id );
+int Cmd_generate_factory_data(int argc,char * argv[]) {
+#define NORDIC_ENC_ROOT_SIZE 16 //todo find out the real value
+	uint8_t factory_data[AES_BLOCKSIZE + DEVICE_ID_SZ + SHA1_SIZE + 3];
+	uint8_t enc_factory_data[255];
+	char key_string[2*255];
+	SHA1_CTX sha_ctx;
+	RSA_CTX * rsa_ptr = NULL;
+	int enc_size;
+	uint8_t entropy_pool[32];
+	unsigned char device_id[DEVICE_ID_SZ];
 
+	//ENTROPY ! Sensors, timers, TI's mac address, so much randomness!!!11!!1!
+	int pos=0;
+	unsigned char mac[6];
+	unsigned char mac_len;
+	sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
+	memcpy(entropy_pool+pos, mac, 6);
+	pos+=6;
+	uint32_t now = xTaskGetTickCount();
+	memcpy(entropy_pool+pos, &now, 4);
+	pos+=4;
+	if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
+		vTaskDelay(2);
+		int light = get_light();
+		vTaskDelay(2);
+		memcpy(entropy_pool+pos, &light, 4);
+		pos+=4;
+		int temp = get_temp();
+		memcpy(entropy_pool+pos, &temp, 4);
+		pos+=4;
+		int prox = get_prox();
+		memcpy(entropy_pool+pos, &prox, 4);
+		pos+=4;
+		xSemaphoreGive(i2c_smphr);
+	}
+	for(pos = 0; pos < 32; ++pos){
+		int dust = get_dust();
+		entropy_pool[pos] ^= (uint8_t)dust;
+	}
+	RNG_custom_init(entropy_pool, pos);
+
+	//generate a key...
+	get_random_NZ(AES_BLOCKSIZE, factory_data);
+	factory_data[AES_BLOCKSIZE] = 0;
+	save_aes(factory_data); //todo DVT enable
+
+    //todo DVT get top's device ID, print it here, and use it as device ID in periodic/audio data
+	get_random_NZ(DEVICE_ID_SZ, device_id);
+    save_device_id(device_id);
+    memcpy( factory_data+AES_BLOCKSIZE + 1, device_id, DEVICE_ID_SZ);
+	factory_data[AES_BLOCKSIZE+DEVICE_ID_SZ+1] = 0;
+
+	//add checksum
+	SHA1_Init( &sha_ctx );
+	SHA1_Update( &sha_ctx, factory_data, AES_BLOCKSIZE+DEVICE_ID_SZ + 2  );
+	SHA1_Final( factory_data+AES_BLOCKSIZE+DEVICE_ID_SZ + 2, &sha_ctx );
+	factory_data[AES_BLOCKSIZE+DEVICE_ID_SZ+SHA1_SIZE+2] = 0;
+
+	//init the rsa public key, encrypt the aes key and checksum
+	RSA_pub_key_new( &rsa_ptr, public_key, sizeof(public_key), exponent, sizeof(exponent) );
+	enc_size = RSA_encrypt(  rsa_ptr, factory_data, AES_BLOCKSIZE+DEVICE_ID_SZ+SHA1_SIZE+3, enc_factory_data, 0);
+	RSA_free( rsa_ptr );
+    uint8_t i = 0;
+    for(i = 1; i < enc_size; i++) {
+    	snprintf(&key_string[i * 2 - 2], 3, "%02X", enc_factory_data[i]);
+    }
+    UARTprintf( "\nfactory key: %s\n", key_string);
+
+
+#if 0 //todo DVT disable!
+    for(i = 0; i < AES_BLOCKSIZE+DEVICE_ID_SZ+SHA1_SIZE+3; i++) {
+    	snprintf(&key_string[i * 2], 3, "%02X", factory_data[i]);
+    }
+    UARTprintf( "\ndec aes: %s\n", key_string);
+#endif
+
+	return 0;
+}
+#if COMPILE_TESTS
 int Cmd_test_network(int argc,char * argv[]) {
 	TestNetwork_RunTests(TEST_SERVER);
 
 	return 0;
-}
-#if 0
-int Cmd_mel(int argc, char *argv[]) {
-    int i,ichunk;
-	int16_t x[1024];
-
-
-	srand(0);
-
-	LOGI("EXPECT: t1=%d,t2=%d,energy=something not zero\n",43,86);
-
-
-	AudioFeatures_Init(AudioFeatCallback);
-
-	//still ---> white random noise ---> still
-	for (ichunk = 0; ichunk < 43*8; ichunk++) {
-		if (ichunk > 43 && ichunk <= 86) {
-			for (i = 0; i < 1024; i++) {
-				x[i] = (rand() % 32767) - (1<<14);
-			}
-		}
-		else {
-			memset(x,0,sizeof(x));
-		}
-
-		AudioFeatures_SetAudioData(x,10,ichunk);
-
-	}
-	return (0);
 }
 #endif
 
@@ -1110,7 +1218,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "temp", Cmd_readtemp,	"" },
 		{ "light", Cmd_readlight, "" },
 		{"prox", Cmd_readproximity, "" },
-		{"codec_Mic", get_codec_mic_NAU, "" },
+//		{"codec_Mic", get_codec_mic_NAU, "" },
 
 #if ( configUSE_TRACE_FACILITY == 1 )
 		{ "tasks", Cmd_tasks, "" },
@@ -1146,7 +1254,6 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "rdiorxstop", Cmd_RadioStopRX, "" },
 		{ "rssi", Cmd_rssi, "" },
 		{ "slip", Cmd_slip, "" },
-		{ "data_upload", Cmd_data_upload, "" },
 		{ "^", Cmd_send_top, ""}, //send command to top board
 		{ "topdfu", Cmd_topdfu, ""}, //update topboard firmware.
 		{ "factory_reset", Cmd_factory_reset, ""},//Factory reset from middle.
@@ -1156,7 +1263,10 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "uplog", Cmd_log_upload, "Uploads log to server"},
 		{ "loglevel", Cmd_log_setview, "Sets log level" },
 		{ "ver", Cmd_version, ""},//Animates led
+#if COMPILE_TESTS
 		{ "test_network",Cmd_test_network,""},
+#endif
+		{ "genkey",Cmd_generate_factory_data,""},
 
 		{ 0, 0, 0 } };
 
@@ -1248,7 +1358,7 @@ void vUARTTask(void *pvParameters) {
 	if (sl_mode == ROLE_AP || !wifi_status_get(0xFFFFFFFF)) {
 		//Cmd_sl(0, 0);
 	}
-
+	sl_NetAppStop(0x1f);
 	check_hw_version();
 	PinMuxConfig_hw_dep();
 
@@ -1305,6 +1415,11 @@ void vUARTTask(void *pvParameters) {
 
 	UARTprintf("*");
 	xTaskCreate(FileUploaderTask_Thread,"fileUploadTask",1*1024/4,NULL,1,NULL);
+
+#if 1 //todo DVT disable!
+	xTaskCreate(telnetServerTask,"telnetServerTask",512/4,NULL,1,NULL);
+	xTaskCreate(httpServerTask,"httpServerTask",3*512/4,NULL,1,NULL);
+#endif
 
 	SetupGPIOInterrupts();
 	UARTprintf("*");

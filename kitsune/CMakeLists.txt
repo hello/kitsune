@@ -8,6 +8,7 @@ add_definitions(-DUSE_CPP_DEBUG_LOGGING)
 
 include_directories ("${PROJECT_SOURCE_DIR}")
 include_directories ("${PROJECT_SOURCE_DIR}/nanopb")
+include_directories ("${PROJECT_SOURCE_DIR}/protobuf")
 
 
 #compile our alg code

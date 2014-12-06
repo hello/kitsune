@@ -46,6 +46,7 @@ int sl_mode = ROLE_INVALID;
 
 void mcu_reset()
 {
+	vTaskDelay(1000);
 	//TODO make flush work on reset...
 	//MAP_IntMasterDisable();
 	//uart_logger_flush();
@@ -143,7 +144,6 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
         break;
     case SL_WLAN_CONNECT_EVENT:
     {
-        LOGI("SL_WLAN_CONNECT_EVENT\n");
         wifi_status_set(CONNECT, false);
         wifi_status_set(CONNECTING, true);
         char* pSSID = (char*)pSlWlanEvent->EventData.STAandP2PModeWlanConnected.ssid_name;
@@ -154,20 +154,21 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
 			memset(_connected_ssid, 0, MAX_SSID_LEN);
 			memcpy(_connected_ssid, pSSID, ssidLength);
 		}
+        LOGI("SL_WLAN_CONNECT_EVENT\n");
     }
         break;
     case SL_WLAN_CONNECTION_FAILED_EVENT:  // ahhhhh this thing blocks us for 2 weeks...
     {
     	// This is a P2P event, but it fired here magically.
-        LOGI("SL_WLAN_CONNECTION_FAILED_EVENT\n");
         wifi_status_set(CONNECTING, true);
+        LOGI("SL_WLAN_CONNECTION_FAILED_EVENT\n");
     }
     break;
     case SL_WLAN_DISCONNECT_EVENT:
-        LOGI("SL_WLAN_DISCONNECT_EVENT\n");
         wifi_status_set(CONNECT, true);
         wifi_status_set(HAS_IP, true);
         memset(_connected_ssid, 0, MAX_SSID_LEN);
+        LOGI("SL_WLAN_DISCONNECT_EVENT\n");
         break;
     default:
         break;
@@ -288,6 +289,12 @@ int Cmd_status(int argc, char *argv[]) {
     //
     LOGI("%x ip 0x%x submask 0x%x gateway 0x%x dns 0x%x\n\r", wifi_status_get(0xFFFFFFFF),
             ipv4.ipV4, ipv4.ipV4Mask, ipv4.ipV4Gateway, ipv4.ipV4DnsServer);
+
+    LOGI("IP=%d.%d.%d.%d\n",
+                SL_IPV4_BYTE(ipv4.ipV4,3),
+                SL_IPV4_BYTE(ipv4.ipV4,2),
+                SL_IPV4_BYTE(ipv4.ipV4,1),
+                SL_IPV4_BYTE(ipv4.ipV4,0));
     return 0;
 }
 
@@ -345,22 +352,14 @@ int Cmd_mode(int argc, char*argv[]) {
 }
 #include "crypto.h"
 static uint8_t aes_key[AES_BLOCKSIZE + 1] = "1234567891234567";
+static uint8_t device_id[DEVICE_ID_SZ + 1];
 
-int Cmd_set_aes(int argc, char *argv[]) {
-	//
-	// Print some header text.
-	//
+int save_aes( uint8_t * key ) {
 	unsigned long tok=0;
 	long hndl, bytes;
 	SlFsFileInfo_t info;
-    int i;
-    char* next = &argv[1][0];
-    char *pend;
 
-    for( i=0; i<AES_BLOCKSIZE/2;++i) {
-    	aes_key[i] = strtol(next, &pend, 16);
-        next = pend+1;
-    }
+	memcpy( aes_key, key, AES_BLOCKSIZE);
 
 	sl_FsGetInfo((unsigned char*)AES_KEY_LOC, tok, &info);
 
@@ -376,14 +375,52 @@ int Cmd_set_aes(int argc, char *argv[]) {
 		}
 	}
 
-	bytes = sl_FsWrite(hndl, info.FileLen, aes_key, AES_BLOCKSIZE);
-	LOGI("wrote to the file %d bytes\n", bytes);
-
+	bytes = sl_FsWrite(hndl, 0, key, AES_BLOCKSIZE);
+	if( bytes != AES_BLOCKSIZE) {
+		LOGE( "writing keyfile failed %d", bytes );
+	}
 	sl_FsClose(hndl, 0, 0, 0);
 
+	return 0;
+}
+int save_device_id( uint8_t * device_id ) {
+	unsigned long tok=0;
+	long hndl, bytes;
+	SlFsFileInfo_t info;
+
+	sl_FsGetInfo((unsigned char*)DEVICE_ID_LOC, tok, &info);
+
+	if (sl_FsOpen((unsigned char*)DEVICE_ID_LOC,
+	FS_MODE_OPEN_WRITE, &tok, &hndl)) {
+		LOGI("error opening file, trying to create\n");
+
+		if (sl_FsOpen((unsigned char*)DEVICE_ID_LOC,
+				FS_MODE_OPEN_CREATE(65535, _FS_FILE_OPEN_FLAG_COMMIT), &tok,
+				&hndl)) {
+			LOGI("error opening for write\n");
+			return -1;
+		}
+	}
+
+	bytes = sl_FsWrite(hndl, 0, device_id, DEVICE_ID_SZ);
+	if( bytes != DEVICE_ID_SZ) {
+		LOGE( "writing keyfile failed %d", bytes );
+	}
+	sl_FsClose(hndl, 0, 0, 0);
+
+	return 0;
+}
+
+#if 1
+int Cmd_set_aes(int argc, char *argv[]) {
+    static uint8_t key[AES_BLOCKSIZE + 1] = "1234567891234567";
+
+    save_aes( key );
 	// Return success.
 	return (0);
 }
+#endif
+
 
 int Cmd_set_mac(int argc, char*argv[]) {
     uint8_t MAC_Address[6];
@@ -410,18 +447,41 @@ void load_aes() {
 	RetVal = sl_FsOpen(AES_KEY_LOC, FS_MODE_OPEN_READ, NULL,
 			&DeviceFileHandle);
 	if (RetVal != 0) {
-		LOGI("failed to open aes key file\n");
+		LOGE("failed to open aes key file\n");
+		return;
 	}
 
 	Offset = 0;
 	RetVal = sl_FsRead(DeviceFileHandle, Offset, (unsigned char *) aes_key,
 			AES_BLOCKSIZE);
 	if (RetVal != AES_BLOCKSIZE) {
-		LOGI("failed to read aes key file\n");
+		LOGE("failed to read aes key file\n");
+		return;
 	}
 	aes_key[AES_BLOCKSIZE] = 0;
-	LOGI("read key %s\n", aes_key);
 
+	RetVal = sl_FsClose(DeviceFileHandle, NULL, NULL, 0);
+}
+void load_device_id() {
+	long DeviceFileHandle = -1;
+	int RetVal, Offset;
+
+	// read in aes key
+	RetVal = sl_FsOpen(DEVICE_ID_LOC, FS_MODE_OPEN_READ, NULL,
+			&DeviceFileHandle);
+	if (RetVal != 0) {
+		LOGE("failed to open device id file\n");
+		return;
+	}
+
+	Offset = 0;
+	RetVal = sl_FsRead(DeviceFileHandle, Offset, (unsigned char *) device_id,
+			DEVICE_ID_SZ);
+	if (RetVal != DEVICE_ID_SZ) {
+		LOGE("failed to read device id file\n");
+		return;
+	}
+	aes_key[DEVICE_ID_SZ] = 0;
 	RetVal = sl_FsClose(DeviceFileHandle, NULL, NULL, 0);
 }
 
@@ -460,7 +520,7 @@ static bool write_callback_sha(pb_ostream_t *stream, const uint8_t *buf,
 
 static int sock = -1;
 
-int send_chunk_len( int obj_sz ) {
+int send_chunk_len( int obj_sz, int sock ) {
 	#define CL_BUF_SZ 12
 	int rv;
 	char recv_buf[CL_BUF_SZ] = {0};
@@ -491,7 +551,7 @@ static bool flush_out_buffer(ostream_buffered_desc_t * desc ) {
 		SHA1_Update(desc->ctx, desc->buf, buf_size);
 
 		//send
-        if( send_chunk_len( buf_size) != 0 ) {
+        if( send_chunk_len( buf_size, sock ) != 0 ) {
         	return false;
         }
 		ret = send(desc->fd, desc->buf, buf_size, 0) == buf_size;
@@ -513,7 +573,7 @@ static bool write_buffered_callback_sha(pb_ostream_t *stream, const uint8_t * in
 		SHA1_Update(desc->ctx, desc->buf, desc->buf_pos);
 
 		//send
-        if( send_chunk_len( desc->buf_pos) != 0 ) {
+        if( send_chunk_len( desc->buf_pos, sock ) != 0 ) {
         	return false;
         }
 		ret = send(desc->fd, desc->buf, desc->buf_pos, 0) == desc->buf_pos;
@@ -986,7 +1046,10 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
         /* Now we are ready to encode the message! Let's go encode. */
         LOGI("data ");
         status = encoder(&stream,encodedata);
-        flush_out_buffer(&desc);
+        if( !flush_out_buffer(&desc) ) {
+            LOGI("Flush failed\n");
+        	return -1;
+        }
         LOGI("\n");
 
         /* sanity checks  */
@@ -1033,7 +1096,7 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
 #endif
 
         /*  send AES initialization vector */
-        if( send_chunk_len( AES_IV_SIZE) != 0 ) {
+        if( send_chunk_len( AES_IV_SIZE, sock) != 0 ) {
         	return -1;
         }
         rv = send(sock, aesctx.iv, AES_IV_SIZE, 0);
@@ -1047,7 +1110,7 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
         AES_cbc_encrypt(&aesctx, sig, sig, sizeof(sig));
 
         /* send signature */
-        if( send_chunk_len( sizeof(sig)) != 0 ) {
+        if( send_chunk_len( sizeof(sig), sock) != 0 ) {
         	return -1;
         }
         rv = send(sock, sig, sizeof(sig), 0);
@@ -1067,7 +1130,7 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
     }
 
 
-    if( send_chunk_len(0) != 0 ) {
+    if( send_chunk_len(0, sock) != 0 ) {
     	return -1;
     }
 
@@ -1187,12 +1250,9 @@ bool get_mac(unsigned char mac[6]) {
 
     if(ret != 0 && ret != SL_ESMALLBUF)
     {
-    	LOGI("encode_mac_as_device_id_string: Fail to get MAC addr, err %d\n", ret);
+    	LOGI("Fail to get MAC addr, err %d\n", ret);
         return false;  // If get mac failed, don't encode that field
     }
-
-
-
     return ret;
 }
 
@@ -1218,28 +1278,13 @@ bool encode_mac(pb_ostream_t *stream, const pb_field_t *field, void * const *arg
     return pb_encode_tag(stream, PB_WT_STRING, field->tag) && pb_encode_string(stream, (uint8_t*) mac, mac_len);
 }
 
-bool encode_mac_as_device_id_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
-    uint8_t mac[6] = {0};
-    uint8_t mac_len = 6;
-#if FAKE_MAC
-    mac[0] = 0xab;
-    mac[1] = 0xcd;
-    mac[2] = 0xab;
-    mac[3] = 0xcd;
-    mac[4] = 0xab;
-    mac[5] = 0xcd;
-#else
-    int32_t ret = sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
-    if(ret != 0 && ret != SL_ESMALLBUF)
-    {
-    	LOGI("encode_mac_as_device_id_string: Fail to get MAC addr, err %d\n", ret);
-        return false;  // If get mac failed, don't encode that field
-    }
-#endif
-    char hex_device_id[13] = {0};
+bool encode_device_id_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
+	//char are twice the size, extra 1 for null terminator
+    char hex_device_id[2*DEVICE_ID_SZ+1] = {0};
     uint8_t i = 0;
-    for(i = 0; i < sizeof(mac); i++){
-    	snprintf(&hex_device_id[i * 2], 3, "%02X", mac[i]);
+
+    for(i = 0; i < DEVICE_ID_SZ; i++){
+    	snprintf(&hex_device_id[i * 2], 3, "%02X", device_id[i]);
     }
 
     return pb_encode_tag_for_field(stream, field) && pb_encode_string(stream, (uint8_t*)hex_device_id, strlen(hex_device_id));
@@ -1297,11 +1342,18 @@ static void _set_led_color_based_on_room_conditions(const SyncResponse* response
 }
 void reset_to_factory_fw();
 
+extern int data_queue_batch_size;
 static void _on_response_protobuf( SyncResponse* response_protobuf)
 {
     if (response_protobuf->has_alarm) 
     {
         _on_alarm_received(&response_protobuf->alarm);
+    }
+
+    if (response_protobuf->has_mac)
+    {
+        sl_NetCfgSet(SL_MAC_ADDRESS_SET,1,SL_MAC_ADDR_LEN,response_protobuf->mac.bytes);
+        nwp_reset();
     }
 
     if(response_protobuf->has_reset_device && response_protobuf->reset_device)
@@ -1321,6 +1373,9 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
 
     if( response_protobuf->has_unix_time ) {
     	set_time( response_protobuf->unix_time );
+    }
+    if( response_protobuf->has_batch_size ) {
+    	data_queue_batch_size = response_protobuf->batch_size;
     }
 
     
@@ -1360,18 +1415,15 @@ int send_pill_data(batched_pill_data * pill_data) {
 }
 void boot_commit_ota();
 
-int send_periodic_data(periodic_data* data) {
+int send_periodic_data(batched_periodic_data* data) {
     char *  buffer = pvPortMalloc(SERVER_REPLY_BUFSZ);
 
     int ret;
 
     assert(buffer);
     memset(buffer, 0, SERVER_REPLY_BUFSZ);
-    data->name.funcs.encode = encode_name;
-    data->mac.funcs.encode = encode_mac;  // Now this is a fallback, the backend will not use this at the first hand
-    data->device_id.funcs.encode = encode_mac_as_device_id_string;
 
-    ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER,DATA_RECEIVE_ENDPOINT, buffer, SERVER_REPLY_BUFSZ, periodic_data_fields, data, 0);
+    ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER,DATA_RECEIVE_ENDPOINT, buffer, SERVER_REPLY_BUFSZ, batched_periodic_data_fields, data, 0);
     if(ret != 0)
     {
         // network error
@@ -1427,45 +1479,6 @@ int send_periodic_data(periodic_data* data) {
     vPortFree(buffer);
     return -1;
 }
-
-
-
-int Cmd_data_upload(int arg, char* argv[])
-{
-	periodic_data data = {0};
-	//load_aes();
-
-	data.has_firmware_version = 1;
-	data.firmware_version = KIT_VER;
-
-	data.device_id.funcs.encode = encode_mac_as_device_id_string;
-
-	data.unix_time = 1;
-	data.has_unix_time = 1;
-
-	data.light = 2;
-	data.has_light = 1;
-
-	data.light_variability = 3;
-	data.has_light_variability = 1;
-
-	data.light_tonality = 4;
-	data.has_light_tonality = 1;
-
-	data.temperature = 5;
-	data.has_temperature = 1;
-
-	data.humidity = 6;
-	data.has_humidity = 1;
-
-	data.dust = 7;
-	data.has_dust = 1;
-
-	send_periodic_data(&data);
-
-	return 0;
-}
-
 
 int Cmd_sl(int argc, char*argv[]) {
 
@@ -1891,6 +1904,7 @@ int Cmd_RadioStopTX(int argc, char*argv[])
 	mode = (RadioTxMode_e)atoi(argv[1]);
 	return RadioStopTX(mode);
 }
+//end radio test functions
 
 int get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uint32_t scan_duration_ms)
 {
@@ -1926,7 +1940,6 @@ int get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uin
     return r;
 
 }
-
 
 int connect_wifi(const char* ssid, const char* password, int sec_type)
 {
@@ -2037,5 +2050,281 @@ int wifi_status_set(unsigned int status, int remove_status)
     return ret;
 }
 
+#if 0
+#define SVR_LOGI LOGI
+#else
+#define SVR_LOGI(...)
+#endif
 
-//end radio test functions
+static void make_nonblocking( volatile int * sock ) {
+	SlSockNonblocking_t enableOption;
+	enableOption.NonblockingEnabled = 1;
+	sl_SetSockOpt(*sock, SL_SOL_SOCKET, SL_SO_NONBLOCKING,
+			(_u8 *)&enableOption, sizeof(enableOption));
+}
+static void serv(int port, volatile int * connection_socket, int (*cb)(volatile int *, char*, int), const char * proc_on ) {
+	sockaddr local_addr;
+	sockaddr their_addr;
+	socklen_t addr_size;
+	timeval tv;
+
+	local_addr.sa_family = SL_AF_INET;
+	local_addr.sa_data[0] = ((port >> 8) & 0xFF);
+	local_addr.sa_data[1] = (port & 0xFF);
+
+	//all 0 => Own IP address
+	memset(&local_addr.sa_data[2], 0, 4);
+
+	int sock;
+	while (1) {
+		sock = socket(AF_INET, SOCK_STREAM, 0);
+		tv.tv_sec = 10;             // Seconds
+		tv.tv_usec = 0;           // Microseconds. 10000 microseconds resolution
+		setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)); // Enable receive timeout
+
+		SVR_LOGI( "SVR: bind\n");
+		if ( bind(sock, &local_addr, sizeof(local_addr)) < 0) {
+			close(sock);
+			continue;
+		} SVR_LOGI( "SVR: listen\n");
+		if ( listen(sock, 0) < 0) {
+			close(sock);
+			continue;
+		}
+
+		char * buf = pvPortMalloc(64);
+		char * linebuf = pvPortMalloc(512);
+		int inbufsz = 0;
+		assert(buf && linebuf);
+		memset(buf, 0, 64);
+		memset(linebuf, 0, 512);
+		while (sock > 0) {
+			new_connection:
+			*connection_socket = -1;
+			addr_size = sizeof(their_addr);
+			SVR_LOGI( "SVR: accept\n");
+			*connection_socket = accept(sock, &their_addr, &addr_size);
+			setsockopt(*connection_socket, SOL_SOCKET, SO_RCVTIMEO, &tv,
+					sizeof(tv)); // Enable receive timeout
+
+			SVR_LOGI( "SVR: connected %d %d\n", *connection_socket, sock );
+			while (*connection_socket > 0) {
+				SVR_LOGI( "SVR: recv\n");
+				int sz = EAGAIN;
+				while (sz == EAGAIN || sz == EWOULDBLOCK) {
+					sz = recv(*connection_socket, buf, 64, 0);
+					if ((sz <= 0 && sz != EAGAIN && sz != EWOULDBLOCK)
+							|| *connection_socket <= 0) {
+						SVR_LOGI( "SVR: client disconnect\n");
+						close(*connection_socket);
+						*connection_socket = -1;
+						goto new_connection;
+					}
+				}
+
+				SVR_LOGI( "SVR: got %d\n", sz);
+				if (sz <= 0) {
+					close(*connection_socket);
+					*connection_socket = -1;
+					goto new_connection;
+				}
+				if (sz + inbufsz > 512) {
+					memset(linebuf, 0, 512);
+					inbufsz = 0;
+					close(*connection_socket);
+					*connection_socket = -1;
+					goto new_connection;
+				}
+				memcpy(linebuf + inbufsz, buf, sz);
+				inbufsz += sz;
+				if ( strstr( linebuf, proc_on ) != 0 ) {
+					make_nonblocking( connection_socket );
+					if (cb(connection_socket, linebuf, inbufsz) < 0) {
+						memset(linebuf, 0, 512);
+						inbufsz = 0;
+						goto new_connection;
+					}
+					memset(linebuf, 0, 512);
+					inbufsz = 0;
+				}
+			}
+		}
+
+		SVR_LOGI( "SVR: lost sock\n");
+		*connection_socket = -1;
+		close(sock);
+		vPortFree(buf);
+		vPortFree(linebuf);
+	}
+}
+
+static int send_buffer( volatile int* sock, const char * str, int len ) {
+	int sent = 0;
+	int retries = 0;
+	while (sent < len) {
+		int sz = send(*sock, str, len, 0);
+		if ((sz <= 0 && sz != EAGAIN && sz != EWOULDBLOCK )
+		 || (sz == EWOULDBLOCK && ++retries > 10)) {
+			close(*sock);
+			*sock = -1;
+			return -1;
+		}
+		if( sz == EWOULDBLOCK ) {
+			vTaskDelay(100);
+		}
+		sent += sz;
+	}
+	return sent;
+}
+
+volatile static int telnet_connection_sock;
+void telnetPrint(const char * str, int len) {
+	if ( telnet_connection_sock > 0 && wifi_status_get(HAS_IP)) {
+		send_buffer( &telnet_connection_sock, str, len );
+	}
+}
+void
+CmdLineProcess(void * line);
+static int cli_cb(volatile int *sock, char * linebuf, int inbufsz) {
+	if (inbufsz > 2) {
+		//
+		// Pass the line from the user to the command processor.  It will be
+		// parsed and valid commands executed.
+		//
+		char * args = pvPortMalloc(inbufsz + 1);
+		memcpy(args, linebuf, inbufsz + 1);
+		args[inbufsz - 2] = 0;
+		xTaskCreate(CmdLineProcess, "commandTask", 5 * 1024 / 4, args, 4, NULL);
+	} else {
+		LOGI("> ");
+	}
+	return 0;
+}
+void telnetServerTask(void *params) {
+#define INTERPRETER_PORT 224
+    serv( INTERPRETER_PORT, &telnet_connection_sock, cli_cb, "\n" );
+}
+#if 0 //used in proof of concept
+static int echo_cb( volatile int * sock,  char * linebuf, int inbufsz ) {
+	if ( send( *sock, "\n", 1, 0 ) <= 0 ) {
+		close(*sock);
+		*sock = -1;
+		return -1;
+	}
+	if ( send_buffer( sock, linebuf, inbufsz ) <= 0 ) {
+		return -1;
+	}
+	return 0;
+}
+#endif
+
+static int send_buffer_chunked(volatile int * sock, const char * str, int len) {
+	if (send_chunk_len( len, *sock ) < 0 ) {
+		close(*sock);
+		*sock = -1;
+		return -1;
+	}
+	if (send_buffer(sock, str, len) <= 0) {
+		return -1;
+	}
+	return 0;
+}
+
+extern  xSemaphoreHandle i2c_smphr;
+int get_temp();
+int get_light();
+int get_prox();
+int get_dust();
+int get_humid();
+static int http_cb(volatile int * sock, char * linebuf, int inbufsz) {
+	const char * http_response = "HTTP/1.1 200 OK\r\n"
+			"Content-Type: text/html\r\n"
+			"Transfer-Encoding: chunked\r\n";
+	const char * html_start = "<HTML>"
+			"<HEAD>"
+			"<TITLE>Hello</TITLE>"
+			"<meta http-equiv=\"refresh\" content=\"60\">"
+			"</HEAD>"
+			"<BODY><H1>Sense Info</H1><P>";
+	const char * html_end =
+            "</P></BODY></HTML>";
+
+	if( strstr(linebuf, "HEAD" ) != 0 ) {
+		if (send_buffer(sock, http_response, strlen(http_response)) <= 0) {
+			return -1;
+		}
+	}
+	if( strstr(linebuf, "GET" ) != 0 ) {
+		if( send_buffer( sock, http_response, strlen(http_response)) <= 0 ) {
+			return -1;
+		}
+		if( send_buffer_chunked(sock, html_start, strlen(html_start)) < 0 ){
+			return -1;
+		}
+
+		xSemaphoreTake(i2c_smphr, portMAX_DELAY);
+		char * html = pvPortMalloc(128);
+		snprintf( html, 128, "Temperature is %d<br>", get_temp());
+		if( send_buffer_chunked( sock, html, strlen(html)) < 0 ) {
+			goto done_i2c;
+		}
+		snprintf( html, 128, "Humidity is %d<br>", get_humid());
+		if( send_buffer_chunked( sock, html, strlen(html)) < 0 ) {
+			goto done_i2c;
+		}
+		snprintf( html, 128, "Light is %d<br>", get_light());
+		if( send_buffer_chunked( sock, html, strlen(html)) < 0 ) {
+			goto done_i2c;
+		}
+		snprintf(html, 128, "Proximity is %d<br>", get_prox());
+		if( send_buffer_chunked( sock, html, strlen(html)) < 0 ) {
+			goto done_i2c;
+		}
+		done_i2c:
+		xSemaphoreGive(i2c_smphr);
+		if( *sock < 0 ) {
+			vPortFree(html);
+			return -1;
+		}
+
+		snprintf( html, 128, "Dust is %d<br>", get_dust());
+		if( send_buffer_chunked( sock, html, strlen(html)) < 0 ) {
+			goto done;
+		}
+		snprintf(html, 128, "Time is %d<br>", get_time());
+		if( send_buffer_chunked( sock, html, strlen(html)) < 0 ) {
+			goto done;
+		}
+		snprintf(html, 128, "Uptime is %d<br>", xTaskGetTickCount()/1000);
+		if( send_buffer_chunked( sock, html, strlen(html)) < 0 ) {
+			goto done;
+		}
+		if( send_buffer_chunked( sock, html_end, strlen(html_end)) < 0 ) {
+			goto done;
+		}
+		done:
+		vPortFree(html);
+		if( *sock < 0 ) {
+			return -1;
+		}
+
+		if (send_chunk_len( 0, *sock ) < 0) {
+			close(*sock);
+			*sock = -1;
+			return -1;
+		}
+	}
+#if 0
+	if( strstr(linebuf, "Connection: keep-alive" ) != 0 ) {
+		return 0;
+	}
+#endif
+	close(*sock);
+	return -1;
+}
+
+void httpServerTask(void *params) {
+	volatile int http_sock = 0;
+    serv( 80, &http_sock, http_cb, "\r\n\r\n" );
+}
+
