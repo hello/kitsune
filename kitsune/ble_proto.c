@@ -482,6 +482,11 @@ static void _on_boarding_circular_led_finished(void* params)
 	}
 }
 
+void ble_proto_init()
+{
+	_self.end = 1;
+}
+
 
 bool on_ble_protobuf_command(MorpheusCommand* command)
 {
@@ -520,16 +525,27 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_PAIRING_MODE:  // Just for testing
         {
-            // Light up LEDs?
-        	play_led_trippy(portMAX_DELAY);
         	_self.ble_mode = SENSE_PAIRING_MODE;
+            // Light up LEDs?
+        	if(!_self.end)
+        	{
+        		_led_circle_end(_on_boarding_circular_led_finished, NULL);
+        	}else{
+        		_on_boarding_circular_led_finished(NULL);
+        	}
             LOGI( "PAIRING MODE \n");
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE:  // Just for testing
 		{
-			stop_led_animation();
 			_self.ble_mode = SENSE_NORMAL_MODE;
+
+			if(!_self.end)
+			{
+				_led_circle_end(_on_boarding_circular_led_finished, NULL);
+			}else{
+				_on_boarding_circular_led_finished(NULL);
+			}
 			LOGI( "NORMAL MODE \n");
 		}
 		break;
@@ -538,6 +554,18 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
             // Get the current wifi connection information.
             _ble_reply_wifi_info();
             LOGI( "GET_WIFI\n");
+        }
+        break;
+        case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PHONE_BLE_CONNECTED:
+        {
+        	LOGI("PHONE CONNECTED\n");
+        	_led_circle_start(0xFF, 128, 0, 128, 18);
+        }
+        break;
+        case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PHONE_BLE_BONDED:
+        {
+        	_led_circle_end(_on_boarding_circular_led_finished, NULL);
+        	LOGI("PHONE BONDED\n");
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_DEVICE_ID:
