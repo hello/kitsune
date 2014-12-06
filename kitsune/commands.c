@@ -1291,7 +1291,6 @@ void vUARTTask(void *pvParameters) {
 	char cCmdBuf[512];
 	portTickType now;
 	wifi_status_init();
-	ble_proto_init();
 	if(led_init() != 0){
 		LOGI("Failed to create the led_events.\n");
 	}
