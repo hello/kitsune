@@ -481,7 +481,7 @@ void load_device_id() {
 		LOGE("failed to read device id file\n");
 		return;
 	}
-	aes_key[DEVICE_ID_SZ] = 0;
+	device_id[DEVICE_ID_SZ] = 0;
 	RetVal = sl_FsClose(DeviceFileHandle, NULL, NULL, 0);
 }
 
