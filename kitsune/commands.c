@@ -210,6 +210,15 @@ int Cmd_fs_read(int argc, char *argv[]) {
 	SlFsFileInfo_t info;
 	char buffer[BUF_SZ];
 
+	if (strstr(argv[1], "cert") == 0) {
+		LOGE("unauthorized\n");
+		return 0;
+	}
+	if (strstr(argv[1], "hello") == 0) {
+		LOGE("unauthorized\n");
+		return 0;
+	}
+
 	sl_FsGetInfo((unsigned char*)argv[1], tok, &info);
 
 	err = sl_FsOpen((unsigned char*) argv[1], FS_MODE_OPEN_READ, &tok, &hndl);
@@ -987,7 +996,6 @@ int Cmd_generate_factory_data(int argc,char * argv[]) {
 	RSA_CTX * rsa_ptr = NULL;
 	int enc_size;
 	uint8_t entropy_pool[32];
-	unsigned char device_id[DEVICE_ID_SZ];
 
 	if( !top_got_device_id ) {
 		LOGE("Error please connect TOP board!\n");
@@ -1031,7 +1039,7 @@ int Cmd_generate_factory_data(int argc,char * argv[]) {
 
     //todo DVT get top's device ID, print it here, and use it as device ID in periodic/audio data
     save_device_id(top_device_id);
-    memcpy( factory_data+AES_BLOCKSIZE + 1, device_id, DEVICE_ID_SZ);
+    memcpy( factory_data+AES_BLOCKSIZE + 1, top_device_id, DEVICE_ID_SZ);
 	factory_data[AES_BLOCKSIZE+DEVICE_ID_SZ+1] = 0;
 
 	//add checksum
