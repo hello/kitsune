@@ -87,6 +87,7 @@
 
 #include "hw_ver.h"
 #include "pinmux.h"
+#include "led_action.h"
 
 #define ONLY_MID 0
 
@@ -1245,6 +1246,7 @@ tCmdLineEntry g_sCmdTable[] = {
 
 		{ "antsel", Cmd_antsel, "" }, //select antenna
 		{ "led", Cmd_led, "" },
+		{ "action", Cmd_led_action, "" },
 		{ "clrled", Cmd_led_clr, "" },
 
 		{ "rdiostats", Cmd_RadioGetStats, "" },
@@ -1295,7 +1297,7 @@ void vUARTTask(void *pvParameters) {
 		LOGI("Failed to create the led_events.\n");
 	}
 
-	xTaskCreate(led_task, "ledTask", 512 / 4, NULL, 4, NULL); //todo reduce stack
+	xTaskCreate(led_task, "ledTask", 700 / 4, NULL, 4, NULL); //todo reduce stack - jpf 512 not large enough due to large int arrays in led_task
 
 	Cmd_led_clr(0,0);
 	//switch the uart lines to gpios, drive tx low and see if rx goes low as well
