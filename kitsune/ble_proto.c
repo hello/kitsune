@@ -34,17 +34,12 @@ typedef enum {
 } sense_mode_t;
 
 static struct {
-	bool end;
-	TaskHandle_t led_circle_task_handle;
 	int a;
 	int r;
 	int g;
 	int b;
 	int delay;
-	void* param;
 	sense_mode_t ble_mode;
-	task_routine_t on_circle_task_end;
-
 } _self;
 
 static void _led_busy_mode(int a, int r, int g, int b, int delay);
