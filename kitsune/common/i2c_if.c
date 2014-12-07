@@ -103,6 +103,31 @@ static int I2CTransact(unsigned long ulCmd);
 #include "rom_map.h"
 #include "prcm.h"
 
+#include "hw_ver.h"
+unsigned long sda_gpio_base;
+unsigned char sda_gpio_bit;
+unsigned long sda_gpio_pin;
+unsigned long sda_i2c_mode;
+
+void init_i2c_recovery() {
+	hw_ver = get_hw_ver();
+
+	switch (hw_ver) {
+	case EVT2:
+		sda_gpio_base = GPIOA1_BASE;
+		sda_gpio_bit = 0x8;
+		sda_gpio_pin = PIN_02;
+		sda_i2c_mode = PIN_MODE_1;
+		break;
+	default: //DVT onward
+		sda_gpio_base = GPIOA1_BASE;
+		sda_gpio_bit = 0x20;
+		sda_gpio_pin = PIN_04;
+		sda_i2c_mode = PIN_MODE_5;
+		break;
+	}
+}
+
 void recoveri2c() {
 #define GPIO_PORT 0x40005000
 
@@ -112,15 +137,14 @@ void recoveri2c() {
 	//
 	MAP_PinTypeGPIO(PIN_01, PIN_MODE_0, true);
 	MAP_GPIODirModeSet(GPIOA1_BASE, 0x4, GPIO_DIR_MODE_OUT);
-
 	//
 	// Configure PIN_02 for GPIOOutput 11
 	//
-	MAP_PinTypeGPIO(PIN_02, PIN_MODE_0, false);
-	MAP_GPIODirModeSet(GPIOA1_BASE, 0x8, GPIO_DIR_MODE_IN);
+	MAP_PinTypeGPIO(sda_gpio_pin, PIN_MODE_0, false);
+	MAP_GPIODirModeSet(sda_gpio_base, sda_gpio_bit, GPIO_DIR_MODE_IN);
 
 	TickType_t start = xTaskGetTickCount();
-	while ( MAP_GPIOPinRead(GPIO_PORT, 0x8) == 0 && xTaskGetTickCount() - start < 5000 ) {
+	while ( MAP_GPIOPinRead(sda_gpio_base, sda_gpio_bit) == 0 && xTaskGetTickCount() - start < 5000 ) {
 		MAP_GPIOPinWrite(GPIO_PORT, 0x4, 0); //pulse the clock line...
 		vTaskDelay(10);
 		MAP_GPIOPinWrite(GPIO_PORT, 0x4, 1);
@@ -131,7 +155,7 @@ void recoveri2c() {
 	//MAP_PRCMPeripheralReset(PRCM_I2CA0);
 
 	MAP_PinTypeI2C(PIN_01, PIN_MODE_1);
-	MAP_PinTypeI2C(PIN_02, PIN_MODE_1);
+	MAP_PinTypeI2C(sda_gpio_pin, sda_i2c_mode);
 	I2CMasterControl(I2C_BASE, 0x00000004); //send a stop...
 	vTaskDelay(2);
 }

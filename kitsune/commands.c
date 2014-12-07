@@ -1300,6 +1300,7 @@ tCmdLineEntry g_sCmdTable[] = {
 extern xSemaphoreHandle g_xRxLineSemaphore;
 void UARTStdioIntHandler(void);
 void init_download_task( int stack );
+void init_i2c_recovery();
 long nwp_reset();
 
 void vUARTTask(void *pvParameters) {
@@ -1374,6 +1375,7 @@ void vUARTTask(void *pvParameters) {
 	}
 	sl_NetAppStop(0x1f);
 	check_hw_version();
+	init_i2c_recovery();
 	PinMuxConfig_hw_dep();
 
 	// SDCARD INITIALIZATION
@@ -1451,9 +1453,9 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("*");
 	xTaskCreate(thread_tx, "txTask", 3 * 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
+#endif
 	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 4, NULL);
 	UARTprintf("*");
-#endif
 	//checkFaults();
 
 
