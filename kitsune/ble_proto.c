@@ -421,6 +421,9 @@ static void _led_normal_mode(int operation_result)
 	{
 		led_set_color(0xFF, LED_MAX, LED_MAX, LED_MAX, 1, 1, 18, 0);
 		vTaskDelay(200 * (12 + 1));
+	}else{
+		led_set_color(_self.a, _self.r, _self.g, _self.b, 0, 1, _self.delay, 1);
+		vTaskDelay(_self.delay * (12 + 1));
 	}
 
 	switch(_self.ble_mode)
@@ -492,7 +495,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PHONE_BLE_BONDED:
         {
-        	_led_normal_mode(0);
+        	_led_normal_mode(1);
         	LOGI("PHONE BONDED\n");
         }
         break;
