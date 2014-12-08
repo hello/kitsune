@@ -42,12 +42,30 @@ static bool _start_animation( unsigned int timeout ) {
 
 static bool _animate_pulse(int * out_r, int * out_g, int * out_b, int * out_delay, void * user_context, int rgb_array_size){
 	bool sig_continue;
+	static int offset;
 	lock();
-	self.counter++;
-	out_r[self.counter%rgb_array_size] = 60;
-	out_g[self.counter%rgb_array_size] = 60;
-	out_b[self.counter%rgb_array_size] = 60;
-	*out_delay = 20;
+	offset = (offset+1) % 4;
+	if(offset == 0){
+		self.counter++;
+	}
+
+	out_r[self.counter % rgb_array_size] = 5;
+	out_g[self.counter % rgb_array_size] = 5;
+	out_b[self.counter % rgb_array_size] = 5;
+
+	out_r[(self.counter + 1) % rgb_array_size] = 10;
+	out_g[(self.counter + 1) % rgb_array_size] = 10;
+	out_b[(self.counter + 1) % rgb_array_size] = 10;
+
+	out_r[(self.counter + 2) % rgb_array_size] = 20;
+	out_g[(self.counter + 2) % rgb_array_size] = 20;
+	out_b[(self.counter + 2) % rgb_array_size] = 20;
+
+	out_r[(self.counter + 3) % rgb_array_size] = 40;
+	out_g[(self.counter + 3) % rgb_array_size] = 40;
+	out_b[(self.counter + 3) % rgb_array_size] = 40;
+
+	*out_delay = 10;
 	sig_continue = self.sig_continue;
 	unlock();
 	return sig_continue;
@@ -66,22 +84,73 @@ static bool _reach_color(int * v, int target){
 static bool _animate_trippy(int * out_r, int * out_g, int * out_b, int * out_delay, void * user_context, int rgb_array_size){
 	int i = 0;
 	bool sig_continue;
+	static int reach = 1;
+	static int state = 0;
+	static int scaler = 100;
 	lock();
 	for(i = 0; i < NUM_LED; i++){
 		if(_reach_color(&self.prev_colors[i].r, self.colors[i].r)){
-			self.colors[i].r = rand()%32 + (self.counter++)%32;
+			//self.colors[i].r = rand()%32 + (self.counter++)%32;
+			self.colors[i].r = ((unsigned int)rand())%65 + 65;
 		}
 		if(_reach_color(&self.prev_colors[i].g, self.colors[i].g)){
-			self.colors[i].g = rand()%32 + (self.counter++)%32;
+			//self.colors[i].g = rand()%32 + (self.counter++)%32;
+			self.colors[i].g = ((unsigned int)rand())%25 + 25;
 		}
 		if(_reach_color(&self.prev_colors[i].b, self.colors[i].b)){
-			self.colors[i].b = rand()%32 + (self.counter++)%32;
+			//self.colors[i].b = rand()%32 + (self.counter++)%32;
+			self.colors[i].b = ((unsigned int)rand())%90 + 90;
 		}
-		out_r[i] = self.prev_colors[i].r;
-		out_g[i] = self.prev_colors[i].g;
-		out_b[i] = self.prev_colors[i].b;
+		/*out_r[i] = self.prev_colors[i].r * ((unsigned int)(self.counter)) / 100;
+		out_g[i] = self.prev_colors[i].g * ((unsigned int)(self.counter)) / 100;
+		out_b[i] = self.prev_colors[i].b * ((unsigned int)(self.counter)) / 100;*/
+
+		out_r[i] = self.prev_colors[i].r * ((unsigned int)(scaler)) / 100;
+		out_g[i] = self.prev_colors[i].g * ((unsigned int)(scaler)) / 100;
+		out_b[i] = self.prev_colors[i].b * ((unsigned int)(scaler)) / 100;
+
+		/*out_r[i] = 100  * ((unsigned int)(scaler)) / 100;
+				out_g[i] = 100  * ((unsigned int)(scaler)) / 100;
+				out_b[i] = 100  * ((unsigned int)(scaler)) / 100;*/
 	}
-	*out_delay = 20;
+/*
+	self.counter += reach;
+	if(self.counter >= 100){
+		reach = -1;
+	}else if(self.counter == 50){
+		reach = 1;
+	}
+	*/
+	/*self.counter = (self.counter + 1) % 200;
+	switch(state){
+	case 0:
+		if (self.counter == 20) {
+			state = 1;
+			self.counter = 0;
+		}
+		scaler = 100;
+		break;
+	case 1:
+		if (self.counter == 199) {
+			state = 2;
+		}
+		scaler = 100 - (self.counter/3);
+		break;
+	case 2:
+		if (self.counter == 20) {
+			state = 3;
+			self.counter = 0;
+		}
+		scaler = 33;
+		break;
+	case 3:
+		if(self.counter == 199){
+			state = 0;
+		}
+		scaler = 33 + (self.counter/3);
+		break;
+	}*/
+	*out_delay = 15;
 
 	sig_continue = self.sig_continue;
 	unlock();
@@ -197,21 +266,27 @@ int Cmd_led_animate(int argc, char *argv[]){
 	//demo
 	if(argc > 1){
 		if(strcmp(argv[1], "stop") == 0){
-			lock();
-			self.sig_continue = false;
-			unlock();
+			stop_led_animation();
 			return 0;
 		}else if(strcmp(argv[1], "+") == 0){
 			set_led_progress_bar(self.progress_bar_percent += 5);
 			return 0;
-		}
-		else if(strcmp(argv[1], "-") == 0){
+		}else if(strcmp(argv[1], "-") == 0){
 			set_led_progress_bar(self.progress_bar_percent -= 5);
+			return 0;
+		}else if(strcmp(argv[1], "trippy") == 0){
+			play_led_trippy( portMAX_DELAY );
+			return 0;
+		}else if(strcmp(argv[1], "pulse") == 0){
+			play_led_animation_pulse(portMAX_DELAY);
+			return 0;
+		}else if(strcmp(argv[1], "wheel") == 0){
+			led_set_color(100, 88,0,150, 1, 1, 18, 1 );
 			return 0;
 		}
 	}
 	//play_led_trippy( portMAX_DELAY );
-	play_led_progress_bar(20, 20, 20, 0, portMAX_DELAY);
+	//play_led_progress_bar(20, 20, 20, 0, portMAX_DELAY);
 	return 0;
 }
 bool factory_led_test_pattern(unsigned int timeout) {

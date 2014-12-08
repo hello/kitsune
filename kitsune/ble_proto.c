@@ -26,6 +26,25 @@
 #include "sys_time.h"
 #include "sl_sync_include_after_simplelink_header.h"
 
+typedef void(*task_routine_t)(void*);
+typedef enum {
+	SENSE_PAIRING_MODE = 0,
+	SENSE_ON_BOARDING_MODE,
+	SENSE_NORMAL_MODE
+} sense_mode_t;
+
+static struct {
+	int a;
+	int r;
+	int g;
+	int b;
+	int delay;
+	sense_mode_t ble_mode;
+} _self;
+
+static void _led_busy_mode(int a, int r, int g, int b, int delay);
+static void _led_normal_mode(int operation_result);
+
 static void _factory_reset(){
     int16_t ret = sl_WlanProfileDel(0xFF);
     if(ret)
@@ -69,19 +88,19 @@ static void _reply_wifi_scan_result()
     wifi_status_set(SCANNING, false);
     
     //Cmd_led(0,0);
-    play_led_progress_bar(30,30,0,0,portMAX_DELAY);
+    //play_led_progress_bar(30,30,0,0,portMAX_DELAY);
     while((scanned_wifi_count = get_wifi_scan_result(wifi_endpoints, MAX_WIFI_EP_PER_SCAN, 3000 * (max_retry - retry_count + 1))) == 0 && --retry_count)
     {
-    	set_led_progress_bar((max_retry - retry_count) * 100 / max_retry);
+    	//set_led_progress_bar((max_retry - retry_count) * 100 / max_retry);
         LOGI("No wifi scanned, retry times remain %d\n", retry_count);
         vTaskDelay(500);
     }
-    stop_led_animation();
+    //stop_led_animation();
     wifi_status_set(SCANNING, true);
 
     int i = 0;
     Sl_WlanNetworkEntry_t wifi_endpoints_cp[2] = {0};
-    play_led_progress_bar(0,0,30,0,portMAX_DELAY);
+    //play_led_progress_bar(0,0,30,0,portMAX_DELAY);
     MorpheusCommand reply_command = {0};
 
     for(i = 0; i < scanned_wifi_count; i++)
@@ -91,11 +110,11 @@ static void _reply_wifi_scan_result()
 		reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_START_WIFISCAN;
 		reply_command.wifi_scan_result.arg = wifi_endpoints_cp;
 		ble_send_protobuf(&reply_command);
-		set_led_progress_bar(i * 100 / scanned_wifi_count);
+		//set_led_progress_bar(i * 100 / scanned_wifi_count);
         vTaskDelay(1000);  // This number must be long enough so the BLE can get the data transmit to phone
         memset(&reply_command, 0, sizeof(reply_command));
     }
-    stop_led_animation();
+    //stop_led_animation();
 
     reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_STOP_WIFISCAN;
 	ble_send_protobuf(&reply_command);
@@ -111,27 +130,27 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type)
     uint8_t max_retry = 10;
     uint8_t retry_count = max_retry;
 
-	play_led_progress_bar(30,30,0,0,portMAX_DELAY);
+	//play_led_progress_bar(0xFF, 128, 0, 128,portMAX_DELAY);
     while((connection_ret = connect_wifi(ssid, password, security_type)) == 0 && --retry_count)
     {
         //Cmd_led(0,0);
         LOGI("Failed to connect, retry times remain %d\n", retry_count);
-        set_led_progress_bar((max_retry - retry_count ) * 100 / max_retry);
+        //set_led_progress_bar((max_retry - retry_count ) * 100 / max_retry);
         vTaskDelay(2000);
     }
-    stop_led_animation();
+    //stop_led_animation();
 
     if(!connection_ret)
     {
 		LOGI("Tried all wifi ep, all failed to connect\n");
         ble_reply_protobuf_error(ErrorType_WLAN_CONNECTION_ERROR);
-        led_set_color(0xFF, LED_MAX,0,0,1,1,20,0);
+        //led_set_color(0xFF, LED_MAX,0,0,1,1,20,0);
 		return 0;
     }else{
 		uint8_t wait_time = 5;
 
 		wifi_status_set(CONNECTING, false);
-		play_led_progress_bar(30,30,0,0,portMAX_DELAY);
+		//play_led_progress_bar(30,30,0,0,portMAX_DELAY);
 		while(--wait_time && (!wifi_status_get(HAS_IP)))
 		{
             if(!wifi_status_get(CONNECTING))  // This state will be triggered magically by SL_WLAN_CONNECTION_FAILED_EVENT event
@@ -139,11 +158,11 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type)
             	LOGI("Connection failed!\n");
                 break;
             }
-			set_led_progress_bar((10 - wait_time ) * 100 / 10);
+			//set_led_progress_bar((10 - wait_time ) * 100 / 10);
 			LOGI("Retrieving IP address...\n");
 			vTaskDelay(4000);
 		}
-		stop_led_animation();
+		//stop_led_animation();
 
 		if(!wifi_status_get(HAS_IP))
 		{
@@ -152,7 +171,7 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type)
 			// no response, do a NWP reset based on the connection pattern
 			// sugguest here: http://e2e.ti.com/support/wireless_connectivity/f/968/p/361673/1273699.aspx
 			LOGI("Cannot retrieve IP address, try NWP reset.");
-			led_set_color(0xFF, LED_MAX, 0x66, 0, 1, 0, 15, 0);  // Tell the user we are going to fire the bomb.
+			//led_set_color(0xFF, LED_MAX, 0x66, 0, 1, 0, 15, 0);  // Tell the user we are going to fire the bomb.
 
 			nwp_reset();
 
@@ -165,7 +184,7 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type)
 			if(wifi_status_get(HAS_IP))
 			{
 				LOGI("Connection success by NWP reset.");
-				led_set_color(0xFF, LED_MAX, 0x66, 0, 0, 1, 15, 0);
+				//led_set_color(0xFF, LED_MAX, 0x66, 0, 0, 1, 15, 0);
 			}else{
 				if(wifi_status_get(CONNECTING))
 				{
@@ -173,7 +192,7 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type)
 				}else{
 					ble_reply_protobuf_error(ErrorType_NO_ENDPOINT_IN_RANGE);
 				}
-				led_set_color(0xFF, LED_MAX,0,0,1,1,20,0);
+				//led_set_color(0xFF, LED_MAX,0,0,1,1,20,0);
 				return 0;
 			}
 		}
@@ -186,7 +205,7 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type)
 
     LOGI("Connection attempt issued.\n");
     ble_send_protobuf(&reply_command);
-    led_set_color(0xFF, 0,LED_MAX,0,1,1,20,0);
+    //led_set_color(0xFF, 0,LED_MAX,0,1,1,20,0);
     return 1;
 }
 
@@ -349,7 +368,7 @@ static void _send_response_to_ble(const char* buffer, size_t len)
     ble_proto_free_command(&response);
 }
 
-static void _pair_device( MorpheusCommand* command, int is_morpheus)
+static int _pair_device( MorpheusCommand* command, int is_morpheus)
 {
 	char response_buffer[256] = {0};
 	int ret;
@@ -376,15 +395,48 @@ static void _pair_device( MorpheusCommand* command, int is_morpheus)
 		if(ret == 0)
 		{
 			_send_response_to_ble(response_buffer, sizeof(response_buffer));
+			return 1;
 		}else{
 			LOGI("Pairing request failed, error %d\n", ret);
 			ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
 		}
 	}
+
+	return 0; // failure
 }
 
-#include "top_board.h"
+void _led_busy_mode(int a, int r, int g, int b, int delay)
+{
+	_self.a = a;
+	_self.r = r;
+	_self.g = g;
+	_self.b = b;
+	_self.delay = delay;
+	led_set_color(_self.a, _self.r, _self.g, _self.b, 0, 0, _self.delay, 1);
+}
 
+static void _led_normal_mode(int operation_result)
+{
+	if(operation_result)
+	{
+		led_set_color(0xFF, LED_MAX, LED_MAX, LED_MAX, 1, 1, 18, 0);
+		vTaskDelay(200 * (12 + 1));
+	}else{
+		led_set_color(_self.a, _self.r, _self.g, _self.b, 0, 1, _self.delay, 1);
+		vTaskDelay(_self.delay * (12 + 1));
+	}
+
+	switch(_self.ble_mode)
+	{
+	case SENSE_PAIRING_MODE:
+	case SENSE_ON_BOARDING_MODE:
+		play_led_trippy(portMAX_DELAY);
+		break;
+	case SENSE_NORMAL_MODE:
+		stop_led_animation();
+		break;
+	}
+}
 
 bool on_ble_protobuf_command(MorpheusCommand* command)
 {
@@ -407,21 +459,44 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
             	sec_type = command->security_type == wifi_endpoint_sec_type_SL_SCAN_SEC_TYPE_WPA2 ? SL_SEC_TYPE_WPA_WPA2 : command->security_type;
             }
 
-            _set_wifi(ssid, (char*)password, sec_type);
+            _led_busy_mode(0xFF, 128, 0, 128, 18);
+            int result = _set_wifi(ssid, (char*)password, sec_type);
+            _led_normal_mode(result);
+
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_PAIRING_MODE:  // Just for testing
         {
+        	_self.ble_mode = SENSE_PAIRING_MODE;
             // Light up LEDs?
-        	led_set_color(0xFF, 0, 0, 50, 1, 1, 18, 0); //blue
+			_led_normal_mode(0);
             LOGI( "PAIRING MODE \n");
         }
         break;
+        case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE:  // Just for testing
+		{
+			_self.ble_mode = SENSE_NORMAL_MODE;
+			_led_normal_mode(0);
+			LOGI( "NORMAL MODE \n");
+		}
+		break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_WIFI_ENDPOINT:
         {
             // Get the current wifi connection information.
             _ble_reply_wifi_info();
             LOGI( "GET_WIFI\n");
+        }
+        break;
+        case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PHONE_BLE_CONNECTED:
+        {
+        	LOGI("PHONE CONNECTED\n");
+        	_led_busy_mode(0xFF, 128, 0, 128, 18);
+        }
+        break;
+        case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PHONE_BLE_BONDED:
+        {
+        	_led_normal_mode(1);
+        	LOGI("PHONE BONDED\n");
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_DEVICE_ID:
@@ -452,15 +527,20 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_PILL:
         {
             LOGI("PAIR PILL\n");
-            led_set_color(0xFF, 0, 0, 50, 1, 1, 18, 1); //blue
-            _pair_device(command, 0);
+            _self.ble_mode = SENSE_ON_BOARDING_MODE;
+            _led_busy_mode(0xFF, 128, 0, 128, 18);
+            int result = _pair_device(command, 0);
+            _led_normal_mode(result);
             
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_SENSE:
         {
+        	_self.ble_mode = SENSE_ON_BOARDING_MODE;
+        	_led_busy_mode(0xFF, 128, 0, 128, 18);
             LOGI("PAIR SENSE\n");
-            _pair_device(command, 1);
+            int result = _pair_device(command, 1);
+            _led_normal_mode(result);
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_FACTORY_RESET:
@@ -472,13 +552,15 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_START_WIFISCAN:
         {
             LOGI("WIFI Scan request\n");
+            _led_busy_mode(0xFF, 128, 0, 128, 18);
             _reply_wifi_scan_result();
+            _led_normal_mode(0);
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_SHAKES:
         {
             LOGI("PILL SHAKES\n");
-            led_set_color(0xFF, 0, 0, 50, 1, 1, 18, 1); //blue
+            led_set_color(0xFF, 0, 0, LED_MAX, 1, 1, 18, 1); //blue
         }
         break;
 	}
