@@ -131,7 +131,9 @@ void init_i2c_recovery() {
 void recoveri2c() {
 #define GPIO_PORT 0x40005000
 
+#if LOG_I2C_ERR
 	LOGI("i2c recovery...\r\n");
+#endif
 	//
 	// Configure PIN_01 for GPIOOutput 10 open drain
 	//
