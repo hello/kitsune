@@ -104,8 +104,8 @@ static const int16_t k_log2_lookup_q10[LOG2_LOOKUP_SIZE] =
 #endif
 
 
-int16_t FixedPointLog2Q10(uint64_t x) {
-    int16_t ret;
+int32_t FixedPointLog2Q10(uint64_t x) {
+    int32_t ret;
     int16_t msb;
     int16_t shift = 0;
     if (x <= 0) {

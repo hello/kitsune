@@ -12,7 +12,8 @@ typedef enum {
 	eAudioCaptureTurnOff,
 	eAudioSaveToDisk,
 	eAudioPlaybackStart,
-	eAudioPlaybackStop
+	eAudioPlaybackStop,
+	eAudioCaptureOctogram
 } EAudioCommand_t;
 
 typedef struct {
@@ -31,11 +32,21 @@ typedef struct {
 } AudioCaptureDesc_t ;
 
 typedef struct {
+	uint32_t analysisduration;
+
+	NotificationCallback_t onFinished;
+	void * context;
+	OctogramResult_t * result;
+
+} AudioOctogramDesc_t;
+
+typedef struct {
 	EAudioCommand_t command;
 
 	union {
 		AudioCaptureDesc_t capturedesc;
 		AudioPlaybackDesc_t playbackdesc;
+		AudioOctogramDesc_t octogramdesc;
 	} message;
 
 } AudioMessage_t;

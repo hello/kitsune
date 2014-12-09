@@ -287,6 +287,10 @@ void abs_fft(uint16_t psd[], const int16_t fr[],const int16_t fi[],const int16_t
     }
 }
 
+/* call this post-fft  */
+void updateoctogram(const int16_t fr[],const int16_t fi[]) {
+
+}
 
 // b - size of the bin in the fft in hz
 // ergo, b = Fs / 2 / (n/2) or if you prefer, Nyquist freq divided by half of the FFT
