@@ -15,6 +15,8 @@ inline static void uadd64(uint128_t * pn,uint64_t x) {
 		pn->high++;
 	}
 
+	pn->low = temp;
+
 }
 
 #if 0
