@@ -94,7 +94,27 @@ static uint32_t set_unix_time(time_t unix_timestamp_sec)
 	return unix_timestamp_sec;
 }
 
-static set_sl_time(time_t unix_timestamp_sec) {
+time_t get_sl_time() {
+	SlDateTime_t sl_tm;
+	struct tm dt;
+	memset(&sl_tm, 0, sizeof(sl_tm));
+	uint8_t cfg = SL_DEVICE_GENERAL_CONFIGURATION_DATE_TIME;
+	uint8_t sz = sizeof(SlDateTime_t);
+	sl_DevGet(SL_DEVICE_GENERAL_CONFIGURATION, &cfg, &sz,
+			(unsigned char * )(&sl_tm));
+
+	dt.tm_hour = sl_tm.sl_tm_hour;
+	dt.tm_mday = sl_tm.sl_tm_day;
+	dt.tm_hour = sl_tm.sl_tm_hour;
+	dt.tm_min = sl_tm.sl_tm_min;
+	dt.tm_mon = sl_tm.sl_tm_mon;
+	dt.tm_mon = sl_tm.sl_tm_mon == 0 ? 12 : sl_tm.sl_tm_mon - 1;
+	dt.tm_sec = sl_tm.sl_tm_sec;
+	dt.tm_year = sl_tm.sl_tm_year - 1970;
+
+	return mktime(&dt);
+}
+void set_sl_time(time_t unix_timestamp_sec) {
 	SlDateTime_t sl_tm;
 
     struct tm * dt;

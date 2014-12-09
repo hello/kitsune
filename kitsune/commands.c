@@ -1199,6 +1199,19 @@ static void CreateDefaultDirectories(void) {
 	CreateDirectoryIfNotExist("/usr");
 }
 
+static int Cmd_test_3200_rtc(int argc, char*argv[]) {
+    unsigned int dly = atoi(argv[1]);
+	if( argc != 2 ) {
+		dly = 5000;
+	}
+	set_sl_time(0);
+	LOGI("time is %u\n", get_sl_time() );
+	vTaskDelay(dly);
+	LOGI("time is %u\n", get_sl_time() );
+	return 0;
+}
+
+
 // ==============================================================================
 // This is the table that holds the command names, implementing functions, and
 // brief description.
@@ -1282,6 +1295,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "test_network",Cmd_test_network,""},
 #endif
 		{ "genkey",Cmd_generate_factory_data,""},
+		{ "lfclktest",Cmd_test_3200_rtc,""},
 
 		{ 0, 0, 0 } };
 

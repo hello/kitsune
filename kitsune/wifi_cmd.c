@@ -312,7 +312,7 @@ int Cmd_ping(int argc, char *argv[]) {
     static SlPingReport_t report;
     SlPingStartCommand_t pingCommand;
 
-    pingCommand.Ip = SL_IPV4_VAL(192, 3, 116, 75); // destination IP address is my router's IP
+    pingCommand.Ip = SL_IPV4_VAL(192, 168, 1, 1); // destination IP address is my router's IP
     pingCommand.PingSize = 32;                     // size of ping, in bytes
     pingCommand.PingIntervalTime = 100;   // delay between pings, in miliseconds
     pingCommand.PingRequestTimeout = 1000; // timeout for every ping in miliseconds
@@ -331,7 +331,6 @@ int Cmd_time(int argc, char*argv[]) {
 
     return 0;
 }
-
 int Cmd_mode(int argc, char*argv[]) {
     int ap = 0;
     if (argc != 2) {
