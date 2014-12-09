@@ -537,6 +537,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
             // Get morpheus device id request from Nordic
             LOGI("GET DEVICE ID\n");
             top_board_notify_boot_complete();
+            _self.led_status = LED_OFF;  // init led status
             _reply_device_id();
         }
         break;
