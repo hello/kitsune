@@ -33,6 +33,12 @@ typedef enum {
 	SENSE_NORMAL_MODE
 } sense_mode_t;
 
+typedef enum {
+	LED_BUSY = 0,
+	LED_TRIPPY,
+	LED_OFF
+}led_mode_t;
+
 static struct {
 	int a;
 	int r;
@@ -40,6 +46,7 @@ static struct {
 	int b;
 	int delay;
 	sense_mode_t ble_mode;
+	led_mode_t led_status;
 } _self;
 
 static void _led_busy_mode(int a, int r, int g, int b, int delay);
@@ -407,34 +414,59 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 
 void _led_busy_mode(int a, int r, int g, int b, int delay)
 {
-	stop_led_animation();
+	LOGI("LED BUSY\n");
 	_self.a = a;
 	_self.r = r;
 	_self.g = g;
 	_self.b = b;
 	_self.delay = delay;
+
+	if(_self.led_status == LED_TRIPPY)
+	{
+		stop_led_animation();
+		led_set_color(_self.a, _self.r, _self.g, _self.b, 1, 1, _self.delay, 1);  // reset the state
+		vTaskDelay(_self.delay * (12 + 1));
+	}
+
+	_self.led_status = LED_BUSY;
 	led_set_color(_self.a, _self.r, _self.g, _self.b, 1, 0, _self.delay, 1);
 }
 
 static void _led_normal_mode(int operation_result)
 {
-	if(operation_result)
+	LOGI("LED NORMAL\n");
+
+	if(_self.led_status == LED_BUSY)
 	{
-		led_set_color(0xFF, LED_MAX, LED_MAX, LED_MAX, 1, 1, 18, 0);
-		vTaskDelay(200 * (12 + 1));
-	}else{
-		led_set_color(_self.a, _self.r, _self.g, _self.b, 0, 1, _self.delay, 1);
-		vTaskDelay(_self.delay * (12 + 1));
+		// Stop rolling
+		if(operation_result)
+		{
+			led_set_color(0xFF, LED_MAX, LED_MAX, LED_MAX, 1, 1, 18, 0);
+			vTaskDelay(200 * (12 + 1));
+		}else{
+			led_set_color(_self.a, _self.r, _self.g, _self.b, 1, 1, _self.delay, 1);
+			vTaskDelay(_self.delay * (12 + 1));
+		}
 	}
+
 
 	switch(_self.ble_mode)
 	{
 	case SENSE_PAIRING_MODE:
 	case SENSE_ON_BOARDING_MODE:
-		play_led_trippy(portMAX_DELAY);
+		if(_self.led_status != LED_TRIPPY)
+		{
+			play_led_trippy(portMAX_DELAY);
+		}
+		_self.led_status = LED_TRIPPY;
 		break;
 	case SENSE_NORMAL_MODE:
-		stop_led_animation();
+		if(_self.led_status == LED_TRIPPY)
+		{
+			stop_led_animation();
+		}
+		_self.led_status = LED_OFF;
+
 		break;
 	}
 }
@@ -505,6 +537,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
             // Get morpheus device id request from Nordic
             LOGI("GET DEVICE ID\n");
             top_board_notify_boot_complete();
+            _self.led_status = LED_OFF;  // init led status
             _reply_device_id();
         }
         break;
@@ -547,7 +580,9 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_FACTORY_RESET:
         {
             LOGI("FACTORY RESET\n");
+            _led_busy_mode(0xFF, 128, 0, 128, 18);
             _factory_reset();
+            _led_normal_mode(1);
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_START_WIFISCAN:
@@ -561,7 +596,10 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_SHAKES:
         {
             LOGI("PILL SHAKES\n");
-            led_set_color(0xFF, 0, 0, LED_MAX, 1, 1, 18, 1); //blue
+            _led_busy_mode(0xFF, 128, 0, 128, 18);
+
+        	vTaskDelay(18 *4 * (12 + 1));
+            _led_normal_mode(0);
         }
         break;
 	}
