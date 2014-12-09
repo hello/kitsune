@@ -489,6 +489,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PHONE_BLE_CONNECTED:
         {
+        	stop_led_animation();
         	LOGI("PHONE CONNECTED\n");
         	_led_busy_mode(0xFF, 128, 0, 128, 18);
         }
