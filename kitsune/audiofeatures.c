@@ -406,7 +406,7 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int64_t samplecount) {
     /* Get FFT */
     fft(fr,fi, AUDIO_FFT_SIZE_2N);
     
-    /* Get PSD, but we only care about half of the fft, so we will stop at 128 */
+    /* Get PSD of variously spaced non-overlapping frequency windows*/
     logpsdmel(&logTotalEnergy,psd,fr,fi,log2scaleOfRawSignal,_data.psd_min_energy); //psd is now 64, and on a logarithmic scale after 1khz
     
     DEBUG_LOG_S16("energy", NULL, &logTotalEnergy, 1, samplecount, samplecount);

@@ -15,6 +15,7 @@
 #include "endpoints.h"
 #include "circ_buff.h"
 #include "network.h"
+#include "octogram.h"
 
 #include <string.h>
 #include <stdio.h>
@@ -275,6 +276,9 @@ static void DoCapture() {
 	uint8_t isSavingToFile = 0;
 	uint32_t num_bytes_written;
 	uint32_t record_flags = 0;
+	uint32_t octogram_count;
+	Octogram_t octogramdata;
+	AudioOctogramDesc_t octogramdesc;
 
 #ifdef PRINT_TIMING
 	uint32_t t0;
@@ -302,14 +306,15 @@ static void DoCapture() {
 		//non-blocking call here
 		if (xQueuePeek(_queue,&m,0)) {
 
+			//pop
+			xQueueReceive(_queue,&m,0);
+
 			switch (m.command) {
 
 			case  eAudioSaveToDisk:
 			{
 
 				//setup file saving...
-				//pop
-				xQueueReceive(_queue,&m,0);
 
 				//if you aren't already saving... make a new file
 				if (!isSavingToFile) {
@@ -340,8 +345,18 @@ static void DoCapture() {
 			case eAudioCaptureTurnOn:
 			case eAudioPlaybackStop:
 			{
-				//ignore and remove
-				xQueueReceive(_queue,&m,0);
+				//ignore
+				break;
+			}
+
+			case eAudioCaptureOctogram:
+			{
+
+				Octogram_Init(&octogramdata);
+				memcpy(&octogramdesc,&(m.message.octogramdesc),sizeof(AudioOctogramDesc_t));
+
+				octogram_count = octogramdesc.analysisduration;
+
 				break;
 			}
 
@@ -349,12 +364,17 @@ static void DoCapture() {
 			{
 				//go to cleanup, and then the next loop through
 				//the thread will turn off capturing
+
+				//place message back on queue
+				xQueueSendToFront(_queue,&m,0);
 				LOGI("received eAudioCaptureTurnOff\r\n ");
 				goto CAPTURE_CLEANUP;
 			}
 
 			case eAudioPlaybackStart:
 			{
+				//place message back on queue
+				xQueueSendToFront(_queue,&m,0);
 				LOGI("received eAudioPlaybackStart\r\n");
 				goto CAPTURE_CLEANUP;
 			}
@@ -362,10 +382,10 @@ static void DoCapture() {
 
 			default:
 			{
-				//default behavior is to go to cleanup and exit function
-				//so if we get audio playback turn on, we are booted out of this function
-				LOGI("goto capture cleanup\r\n");
-				goto CAPTURE_CLEANUP;
+				//place message back on queue
+				xQueueSendToFront(_queue,&m,0);
+				LOGI("audio task received message during capture that it did not understand, placing back on queue\r\n");
+				break;
 			}
 			}
 
@@ -440,6 +460,20 @@ static void DoCapture() {
 #endif
 			//do audio feature processing
 			AudioFeatures_SetAudioData(samples,_callCounter++);
+
+			if (octogram_count > 0) {
+				octogram_count--;
+
+				Octogram_Update(&octogramdata,samples);
+
+				if (octogram_count == 0) {
+					Octogram_GetResult(&octogramdata,octogramdesc.result);
+
+					if (octogramdesc.onFinished) {
+						octogramdesc.onFinished(octogramdesc.context);
+					}
+				}
+			}
 #ifdef PRINT_TIMING
 			t2 = xTaskGetTickCount();
 			LOGI("dt = %d, compute=%d\n",dt,t2-t1); //vTaskDelay(5);
@@ -480,7 +514,6 @@ void AudioTask_Thread(void * data) {
 	Init();
 
 
-
 	for (; ;) {
 		memset(&m,0,sizeof(m));
 
@@ -517,6 +550,7 @@ void AudioTask_Thread(void * data) {
 
 			default:
 			{
+				LOGI("audio task ignoring message enum %d",m.command);
 				break;
 			}
 			}

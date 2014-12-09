@@ -16,6 +16,8 @@
 
 #define NUM_AUDIO_FEATURES (16)
 
+#define OCTOGRAM_SIZE (AUDIO_FFT_SIZE_2N - 1)
+
 /*
  // use simplelink.h instead
 #define TRUE (1)
@@ -66,6 +68,10 @@ typedef struct {
 	uint8_t mac[6];
 	uint32_t unix_time;
 } DeviceCurrentInfo_t;
+
+typedef struct {
+	int32_t logenergy[OCTOGRAM_SIZE];
+} OctogramResult_t;
 
 typedef void (*SegmentAndFeatureCallback_t)(const int16_t * feats, const Segment_t * pSegment);
 typedef void (*AudioFeatureCallback_t)(const AudioFeatures_t * pfeats);

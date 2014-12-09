@@ -286,6 +286,56 @@ int Cmd_stop_buff(int argc, char *argv[]) {
 	return 0;
 }
 
+static void octogram_notification(void * context) {
+	xSemaphoreHandle sem = (xSemaphoreHandle)context;
+
+	xSemaphoreGive(sem);
+}
+
+int Cmd_do_octogram(int argc, char * argv[]) {
+	AudioMessage_t m;
+	OctogramResult_t res;
+    int32_t numsamples = atoi( argv[1] );
+    uint16_t i;
+
+    if (numsamples == 0) {
+    	UARTprintf("number of requested samples was zero.\r\n");
+    	return 0;
+    }
+
+    xSemaphoreHandle octogramsem = xSemaphoreCreateBinary();
+
+	memset(&m,0,sizeof(m));
+
+	AudioTask_StartCapture();
+
+	m.command = eAudioCaptureOctogram;
+	m.message.octogramdesc.result = &res;
+	m.message.octogramdesc.analysisduration = numsamples;
+	m.message.octogramdesc.onFinished = octogram_notification;
+	m.message.octogramdesc.context = octogramsem;
+
+	AudioTask_AddMessageToQueue(&m);
+
+	xSemaphoreTake(octogramsem,portMAX_DELAY);
+
+	vSemaphoreDelete(octogramsem);
+
+	//report results
+	UARTprintf("octogram log energies: ");
+	for (i = 0; i < OCTOGRAM_SIZE; i++) {
+		if (i != 0) {
+			UARTprintf(",");
+		}
+		UARTprintf("%d",res.logenergy[0]);
+	}
+
+	UARTprintf("\r\n");
+
+	return 0;
+
+}
+
 int Cmd_play_buff(int argc, char *argv[]) {
     int vol = atoi( argv[1] );
     char * file = argv[2];
@@ -1261,6 +1311,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "r", Cmd_record_buff,""}, //record sounds into SD card
 		{ "p", Cmd_play_buff, ""},//play sounds from SD card
 		{ "s",Cmd_stop_buff,""},
+		{ "oct",Cmd_do_octogram,""},
 		{ "aon",Cmd_audio_turn_on,""},
 		{ "aoff",Cmd_audio_turn_off,""},
 
