@@ -407,12 +407,13 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 
 void _led_busy_mode(int a, int r, int g, int b, int delay)
 {
+	stop_led_animation();
 	_self.a = a;
 	_self.r = r;
 	_self.g = g;
 	_self.b = b;
 	_self.delay = delay;
-	led_set_color(_self.a, _self.r, _self.g, _self.b, 0, 0, _self.delay, 1);
+	led_set_color(_self.a, _self.r, _self.g, _self.b, 1, 0, _self.delay, 1);
 }
 
 static void _led_normal_mode(int operation_result)
