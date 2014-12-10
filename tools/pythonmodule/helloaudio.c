@@ -9,6 +9,7 @@ static int64_t _counter;
 static int _gotcallback;
 static Segment_t _segment;
 static int16_t _feats[NUM_AUDIO_FEATURES];
+static uint8_t _bigbuf[100000];
 
 static void AudioFeaturesCallback(int64_t samplecount, const AudioFeatures_t * pSegment) {
     const char * tag = NULL;
@@ -26,7 +27,8 @@ static void AudioFeaturesCallback(int64_t samplecount, const AudioFeatures_t * p
 void Init(void) {
     _counter = 0;
     DebugLog_Initialize(NULL);
-    AudioClassifier_Init(NULL, NULL);
+    AudioClassifier_Init(NULL);
+    AudioClassifier_SetStorageBuffers((void * ) _bigbuf,sizeof(_bigbuf));
     AudioFeatures_Init(AudioClassifier_DataCallback);
 
 }

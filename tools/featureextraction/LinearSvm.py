@@ -7,7 +7,7 @@ from numpy.linalg import *
 from sklearn.metrics import confusion_matrix
 from sklearn import cross_validation
 
-g_files = ['null.dat','snoring.dat', 'talking.dat']
+g_files = ['snoring.dat', 'talking.dat','null.dat']
 
 
 def GetFeats(filename):
@@ -17,6 +17,8 @@ def GetFeats(filename):
     return feats
 
 def GetSvmFromData(files):
+
+    np.set_printoptions(precision=3, suppress=True, threshold=np.nan, linewidth=10000)
     #get labeled data
     labeled_data = []
     labels = []
@@ -50,6 +52,13 @@ def GetSvmFromData(files):
         cm[i, :] = cm[i, :] / rowcounts[i]
 
     print cm
+
+    coeffs = np.hstack((svm.coef_,svm.intercept_.reshape((svm.coef_.shape[0],1))))
+    coeffs = coeffs * (1<<12)
+    coeffs = np.round(coeffs).astype('int')
+
+    print coeffs
+    np.savetxt('coeffs.dat',coeffs,fmt='%d',delimiter=',');
 
     return svm
 
