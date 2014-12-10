@@ -84,8 +84,6 @@ static bool _reach_color(int * v, int target){
 static bool _animate_trippy(int * out_r, int * out_g, int * out_b, int * out_delay, void * user_context, int rgb_array_size){
 	int i = 0;
 	bool sig_continue;
-	static int reach = 1;
-	static int state = 0;
 	static int scaler = 100;
 	lock();
 	for(i = 0; i < NUM_LED; i++){
