@@ -110,6 +110,7 @@ extern "C" {
     
     size_t SetMatrixMessage(pb_ostream_t * stream,
             				uint8_t * macbytes,
+                            const char * device_id,
                             uint32_t unix_time,
                             MatrixListEncodeContext_t * matrix_list_context);
     
