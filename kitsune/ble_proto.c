@@ -47,6 +47,8 @@ static struct {
 	int delay;
 	sense_mode_t ble_mode;
 	led_mode_t led_status;
+	xSemaphoreHandle device_id_mutex;
+	char device_id_string[DEVICE_ID_SZ * 2 + 1];
 } _self;
 
 static void _led_busy_mode(int a, int r, int g, int b, int delay);
@@ -477,21 +479,29 @@ void ble_proto_request_device_id_async()
 extern uint8_t top_device_id[DEVICE_ID_SZ];
 extern volatile bool top_got_device_id; //being bad, this is only for factory
 
-static char _device_id_string[DEVICE_ID_SZ * 2 + 1];
+void ble_proto_init()
+{
+	_self.device_id_mutex = xSemaphoreCreateMutex();
+}
+
 void ble_proto_get_device_id_string(char* hex_device_id, size_t len, size_t* out_len)
 {
-	if(len < sizeof(_device_id_string) && out_len)
+	xSemaphoreTake(_self.device_id_mutex, portMAX_DELAY);
+	if(len < sizeof(_self.device_id_string) && out_len)
 	{
-		*out_len = sizeof(_device_id_string);
+		*out_len = sizeof(_self.device_id_string);
+		xSemaphoreGive(_self.device_id_mutex);
 		return;
 	}
 
 	if(!hex_device_id)
 	{
-		*out_len = sizeof(_device_id_string);
+		*out_len = sizeof(_self.device_id_string);
+		xSemaphoreGive(_self.device_id_mutex);
 		return;
 	}
-	memcpy(hex_device_id, _device_id_string, sizeof(_device_id_string));
+	memcpy(hex_device_id, _self.device_id_string, sizeof(_self.device_id_string));
+	xSemaphoreGive(_self.device_id_mutex);
 }
 
 
@@ -560,7 +570,6 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         {
             // Get morpheus device id request from Nordic
             LOGI("GET DEVICE ID\n");
-            top_board_notify_boot_complete();
             _self.led_status = LED_OFF;  // init led status
             _ack_get_device_id();
         }
@@ -631,7 +640,9 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         	int i;
         	if(command->deviceId.arg){
         		const char * device_id_str = command->deviceId.arg;
-        		memcpy(_device_id_string, command->deviceId.arg, sizeof(_device_id_string));
+        		xSemaphoreTake(_self.device_id_mutex, portMAX_DELAY);
+        		memcpy(_self.device_id_string, command->deviceId.arg, sizeof(_self.device_id_string));
+        		xSemaphoreGive(_self.device_id_mutex);
 
         		for(i=0;i<DEVICE_ID_SZ;++i) {
         			char num[3] = {0};
@@ -644,6 +655,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         				top_device_id[6],top_device_id[7]);
         		top_got_device_id = true;
         		_reply_sync_device_id();
+        		top_board_notify_boot_complete();   // This is the last stage of boot now.
         	}else{
         		LOGI("device id fail from top\n");
         	}
