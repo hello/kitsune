@@ -26,7 +26,6 @@
 extern tCircularBuffer *pTxBuffer;
 extern tCircularBuffer *pRxBuffer;
 
-#define AUDIO_CAPTURE_RATE_HZ  (16000)
 #define AUDIO_PLAYBACK_RATE_HZ (48000)
 
 static const unsigned int CPU_XDATA_CAPTURE = 1; //1: enabled CPU interrupt triggerred
@@ -34,7 +33,7 @@ static const unsigned int CPU_XDATA_CAPTURE = 1; //1: enabled CPU interrupt trig
 static const unsigned int CPU_XDATA_PLAYBACK = 0; //1: enabled CPU interrupt triggerred, 0 for DMA
 
 
-uint8_t InitAudioCapture(void) {
+uint8_t InitAudioCapture(uint32_t rate) {
 	pTxBuffer = CreateCircularBuffer(TX_BUFFER_SIZE);
 
 	if(pTxBuffer == NULL) {
@@ -44,7 +43,7 @@ uint8_t InitAudioCapture(void) {
 	get_codec_mic_NAU();
 
 	// Initialize the Audio(I2S) Module
-	AudioCapturerInit(CPU_XDATA_CAPTURE, AUDIO_CAPTURE_RATE_HZ);
+	AudioCapturerInit(CPU_XDATA_CAPTURE, rate);
 
 	// Initialize the DMA Module
 	UDMAInit();
@@ -56,7 +55,7 @@ uint8_t InitAudioCapture(void) {
 
 	// Setup the Audio In/Out
 	AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
-	AudioCaptureRendererConfigure(I2S_PORT_DMA, AUDIO_CAPTURE_RATE_HZ);
+	AudioCaptureRendererConfigure(I2S_PORT_DMA, rate);
 
 	// Start Audio Tx/Rx
 	Audio_Start();
