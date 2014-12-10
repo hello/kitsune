@@ -78,11 +78,16 @@ void Octogram_Init(Octogram_t * data) {
 
 void Octogram_Update(Octogram_t * data,const int16_t samples[]) {
 	int16_t fr[AUDIO_FFT_SIZE]; //512K
-	int16_t fi[AUDIO_FFT_SIZE]; //512K
+	int16_t fi[AUDIO_FFT_SIZE] = {0}; //512K
 
+        //copy over samples
+        memcpy(fr,samples,AUDIO_FFT_SIZE*sizeof(int16_t);
+
+        /* window  */
+        fix_window(fr,AUDIO_FFT_SIZE);
+        
 	/* Get FFT */
 	fft(fr,fi, AUDIO_FFT_SIZE_2N);
-
 	update_octogram(data->energies,fr,fi);
 
 }
