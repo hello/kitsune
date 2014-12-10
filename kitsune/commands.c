@@ -100,7 +100,7 @@
 
 tCircularBuffer *pTxBuffer;
 tCircularBuffer *pRxBuffer;
-
+extern unsigned int g_uiPlayWaterMark;
 //*****************************************************************************
 //                          LOCAL DEFINES
 //*****************************************************************************
@@ -1004,6 +1004,90 @@ static void SortByRSSI(Sl_WlanNetworkEntry_t* netEntries,
 }
 
 
+int TEST_BREAK;
+int Cmd_factory_test(int argc, char *argv[]){
+	TEST_BREAK = 0;
+/*
+	SlSecParams_t secParams;
+	secParams.Key = "godsavethequeen";
+	secParams.KeyLen = strlen("godsavethequeen");
+	secParams.Type = 2;
+	sl_WlanConnect("Hello", strlen("Hello"), NULL, &secParams, 0);
+    UARTprintf("AP is connected now\n\r");
+    vTaskDelay(1000);
+    char *args[] = {
+			" ",
+			"joycemcmurtrey.com",
+			"DIGIAUX2.raw",
+			"/yoyo.raw"
+	};
+    Cmd_download(4, args); UARTprintf("Ringtone downloaded \n\r");
+*/
+//    download_file( "joycemcmurtrey.com", "/yoyo.raw", "DIGIAUX2.raw", "/" );  UARTprintf("Ringtone downloaded \n\r");
+	   char *args[] = {
+				" ",
+				"57",
+				"RINGTO~2/NEW001.raw"
+		};
+    while(1){
+    if(TEST_BREAK) break;
+	vTaskDelay(1000);
+	if(TEST_BREAK) break;
+	led_set_color(0xFF, LED_MAX, 0,      0, 1, 1, 18, 1 );  UARTprintf("LED red color test! \n\r");
+	if(TEST_BREAK) break;
+	vTaskDelay(2000);
+	if(TEST_BREAK) break;
+	led_set_color(0xFF, 0      , LED_MAX,0, 1, 1, 18, 1 ); UARTprintf("LED green color test! \n\r");
+	if(TEST_BREAK) break;
+	vTaskDelay(2000);
+	if(TEST_BREAK) break;
+	led_set_color(0xFF, 0      , 0,LED_MAX, 1, 1, 18, 1 ); UARTprintf("LED blue color test! \n\r");
+	if(TEST_BREAK) break;
+	vTaskDelay(2000);
+	if(TEST_BREAK) break;
+	led_set_color(0xFF, LED_MAX,LED_MAX,LED_MAX,1,1,18,1); UARTprintf("LED white color test! \n\r");
+	if(TEST_BREAK) break;
+	vTaskDelay(2000);
+	if(TEST_BREAK) break;
+	factory_led_test_pattern(portMAX_DELAY); UARTprintf("LED factory_testing! \n\r");
+	vTaskDelay(5000);
+	if(TEST_BREAK) break;
+	stop_led_animation(); UARTprintf("LED white color test done! \n\r");
+	vTaskDelay(2000);
+	if(TEST_BREAK) break;
+	Cmd_readtemp(0,0); UARTprintf("Read temperature! \n\r");
+	if(TEST_BREAK) break;
+	vTaskDelay(2000);
+	if(TEST_BREAK) break;
+	Cmd_readhumid(0,0); UARTprintf("Read humid! \n\r");
+	if(TEST_BREAK) break;
+	vTaskDelay(2000);
+	if(TEST_BREAK) break;
+	Cmd_readlight(0,0); UARTprintf("Read light! \n\r");
+	if(TEST_BREAK) break;
+	vTaskDelay(2000);
+	if(TEST_BREAK) break;
+	Cmd_readproximity(0,0); UARTprintf("Read proximity! \n\r");
+	if(TEST_BREAK) break;
+	vTaskDelay(2000);
+	if(TEST_BREAK) break;
+	Cmd_dusttest(1,0); UARTprintf("Read dust! \n\r");
+	if(TEST_BREAK) break;
+	vTaskDelay(2000);
+	if(TEST_BREAK) break;
+	Cmd_play_buff(3,args); UARTprintf("Ringtone playing! \n\r");
+	}
+	UARTprintf("Factory test done!"); return 0;
+}
+
+int Cmd_break(int argc, char *argv[]){
+	TEST_BREAK = 1;
+	g_uiPlayWaterMark = 0;
+	Cmd_stop_buff(0,0);
+	Cmd_stop_buff(0,0);
+	return 0;
+}
+
 int Cmd_rssi(int argc, char *argv[]) {
 	int lCountSSID,i;
 
@@ -1347,7 +1431,8 @@ tCmdLineEntry g_sCmdTable[] = {
 #endif
 		{ "genkey",Cmd_generate_factory_data,""},
 		{ "lfclktest",Cmd_test_3200_rtc,""},
-
+		{"dft", Cmd_factory_test, "run basic peripheral testing"},
+	    {"break", Cmd_break, "break any process"},
 		{ 0, 0, 0 } };
 
 //#include "fault.h"
