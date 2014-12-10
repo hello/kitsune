@@ -335,6 +335,7 @@ uint8_t GetIntMatrix(MatDesc_t * matdesc, pb_istream_t * stream,size_t string_ma
 
 size_t SetMatrixMessage(pb_ostream_t * stream,
                         uint8_t * macbytes,
+                        const char * device_id,
                         uint32_t unix_time,
                         MatrixListEncodeContext_t * matrix_list_context) {
     
@@ -356,6 +357,9 @@ size_t SetMatrixMessage(pb_ostream_t * stream,
     mess.matrix_list.funcs.encode = write_mat_array;
     mess.matrix_list.arg = (void *)matrix_list_context;
     
+    mess.device_id.funcs.encode = write_string;
+    mess.device_id.arg = (void *)device_id;
+
     pb_get_encoded_size(&size,MatrixClientMessage_fields,&mess);
     
     if (stream) {

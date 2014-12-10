@@ -66,6 +66,7 @@ typedef struct {
 
 typedef struct {
 	uint8_t mac[6];
+	char device_id[32];
 	uint32_t unix_time;
 } DeviceCurrentInfo_t;
 
