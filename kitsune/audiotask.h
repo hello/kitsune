@@ -28,6 +28,7 @@ typedef struct {
 
 typedef struct {
 	uint32_t captureduration;
+	uint32_t rate;
 	uint32_t flags;
 } AudioCaptureDesc_t ;
 
@@ -61,6 +62,6 @@ void AudioTask_StopPlayback(void);
 
 void AudioTask_StopCapture(void);
 
-void AudioTask_StartCapture(void);
+void AudioTask_StartCapture(uint32_t rate);
 
 #endif //_AUDIOCAPTURETASK_H_

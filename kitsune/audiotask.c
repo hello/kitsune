@@ -264,7 +264,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 
 
-static void DoCapture() {
+static void DoCapture(uint32_t rate) {
 	int16_t samples[MONO_BUF_LENGTH*2]; //256 * 2bytes * 2 = 1KB
 	uint16_t i;
 	char filepath[32];
@@ -294,7 +294,7 @@ static void DoCapture() {
 	xSemaphoreTake(_processingTaskWait,MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP);
 	LOGI("done.\r\n");
 
-	InitAudioCapture();
+	InitAudioCapture(rate);
 
 	LOGI("%d bytes free\n", xPortGetFreeHeapSize());
 
@@ -562,7 +562,7 @@ void AudioTask_Thread(void * data) {
 			//if we were supposed to be capturing, we resume that mode
 			if (_isCapturing) {
 				//this will block until a message comes in
-				DoCapture();
+				DoCapture(m.message.capturedesc.rate);
 			}
 		}
 	}
@@ -601,13 +601,14 @@ void AudioTask_AddMessageToQueue(const AudioMessage_t * message) {
 	}
 }
 
-void AudioTask_StartCapture(void) {
+void AudioTask_StartCapture(uint32_t rate) {
 	AudioMessage_t message;
 
 	//turn on
 	LOGI("Turning on audio capture\r\n");
 	memset(&message,0,sizeof(message));
 	message.command = eAudioCaptureTurnOn;
+	message.message.capturedesc.rate = rate;
 	AudioTask_AddMessageToQueue(&message);
 
 }

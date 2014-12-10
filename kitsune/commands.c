@@ -253,9 +253,11 @@ int Cmd_fs_read(int argc, char *argv[]) {
 int Cmd_record_buff(int argc, char *argv[]) {
 	AudioMessage_t m;
 
+
 	//turn on
 	memset(&m,0,sizeof(m));
 	m.command = eAudioCaptureTurnOn;
+	m.message.capturedesc.rate = argc==2 ? atoi(argv[1]) : 16000;
 	AudioTask_AddMessageToQueue(&m);
 
 	//capture
@@ -270,7 +272,7 @@ int Cmd_record_buff(int argc, char *argv[]) {
 
 int Cmd_audio_turn_on(int argc, char * argv[]) {
 
-	AudioTask_StartCapture();
+	AudioTask_StartCapture(16000);
 	return 0;
 	}
 
@@ -307,7 +309,7 @@ int Cmd_do_octogram(int argc, char * argv[]) {
 
 	memset(&m,0,sizeof(m));
 
-	AudioTask_StartCapture();
+	AudioTask_StartCapture(48000);
 
 	m.command = eAudioCaptureOctogram;
 	m.message.octogramdesc.result = &res;

@@ -10,7 +10,7 @@ typedef struct {
 } Filedata_t;
 
 
-uint8_t InitAudioCapture(void);
+uint8_t InitAudioCapture(uint32_t rate);
 void DeinitAudioCapture(void);
 
 uint8_t InitAudioPlayback(int32_t vol);
