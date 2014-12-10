@@ -33,7 +33,7 @@
 #define TIMER_INTERVAL_RELOAD   65535
 #define PULSE_WIDTH             20000//8192//2097
 
-#define SAMPLES 4096
+#define SAMPLES 4096u
 
 //****************************************************************************
 //
@@ -71,7 +71,7 @@ void SetupTimerPWMMode(unsigned long ulBase, unsigned long ulTimer,
 
 }
 
-int get_dust() {
+int get_dust_internal(unsigned int samples) {
 	unsigned long uiAdcInputPin;
 	unsigned int uiChannel;
 	unsigned int uiIndex = 0;
@@ -131,7 +131,7 @@ int get_dust() {
 //
 // Read BUFFER_SZ ADC samples
 //
-	while (uiIndex < SAMPLES) {
+	while (uiIndex < samples) {
 		if (ADCFIFOLvlGet(ADC_BASE, uiChannel)) {
 			++uiIndex;
 			ulSample = (ADCFIFORead(ADC_BASE, uiChannel) & 0x3FFC ) >> 2;
@@ -150,7 +150,9 @@ int get_dust() {
 	MAP_TimerDisable(TIMERA2_BASE, TIMER_B);
 	return max;
 }
-
+int get_dust() {
+	return get_dust_internal(SAMPLES);
+}
 int Cmd_dusttest(int argc, char *argv[]) {
 	int cnt = atoi(argv[1]);
 	if( argc == 1 ) {cnt=2;}

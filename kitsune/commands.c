@@ -210,6 +210,15 @@ int Cmd_fs_read(int argc, char *argv[]) {
 	SlFsFileInfo_t info;
 	char buffer[BUF_SZ];
 
+	if (strstr(argv[1], "cert") == 0) {
+		LOGE("unauthorized\n");
+		return 0;
+	}
+	if (strstr(argv[1], "hello") == 0) {
+		LOGE("unauthorized\n");
+		return 0;
+	}
+
 	sl_FsGetInfo((unsigned char*)argv[1], tok, &info);
 
 	err = sl_FsOpen((unsigned char*) argv[1], FS_MODE_OPEN_READ, &tok, &hndl);
@@ -1023,6 +1032,9 @@ static const uint8_t public_key[] = {
 		    0x2f,0x10,0x88,0xf2,0x83,0x5a,0x63,0x20,0x64,0xf2,0x72,0x63,0xf4,0xae,0x61,
 		    0x74,0x9c,0x3a,0x50,0x1e,0x72,0x42,0x08,0x61
 };
+uint8_t top_device_id[DEVICE_ID_SZ];
+volatile bool top_got_device_id = false; //being bad, this is only for factory
+
 int save_aes( uint8_t * key ) ;
 int save_device_id( uint8_t * device_id );
 int Cmd_generate_factory_data(int argc,char * argv[]) {
@@ -1034,7 +1046,11 @@ int Cmd_generate_factory_data(int argc,char * argv[]) {
 	RSA_CTX * rsa_ptr = NULL;
 	int enc_size;
 	uint8_t entropy_pool[32];
-	unsigned char device_id[DEVICE_ID_SZ];
+
+	if( !top_got_device_id ) {
+		LOGE("Error please connect TOP board!\n");
+		return -1;
+	}
 
 	//ENTROPY ! Sensors, timers, TI's mac address, so much randomness!!!11!!1!
 	int pos=0;
@@ -1061,7 +1077,7 @@ int Cmd_generate_factory_data(int argc,char * argv[]) {
 		xSemaphoreGive(i2c_smphr);
 	}
 	for(pos = 0; pos < 32; ++pos){
-		int dust = get_dust();
+		int dust = get_dust_internal(256); //short one here is only for entropy
 		entropy_pool[pos] ^= (uint8_t)dust;
 	}
 	RNG_custom_init(entropy_pool, pos);
@@ -1072,9 +1088,8 @@ int Cmd_generate_factory_data(int argc,char * argv[]) {
 	save_aes(factory_data); //todo DVT enable
 
     //todo DVT get top's device ID, print it here, and use it as device ID in periodic/audio data
-	get_random_NZ(DEVICE_ID_SZ, device_id);
-    save_device_id(device_id);
-    memcpy( factory_data+AES_BLOCKSIZE + 1, device_id, DEVICE_ID_SZ);
+    save_device_id(top_device_id);
+    memcpy( factory_data+AES_BLOCKSIZE + 1, top_device_id, DEVICE_ID_SZ);
 	factory_data[AES_BLOCKSIZE+DEVICE_ID_SZ+1] = 0;
 
 	//add checksum
@@ -1234,6 +1249,19 @@ static void CreateDefaultDirectories(void) {
 	CreateDirectoryIfNotExist("/usr");
 }
 
+static int Cmd_test_3200_rtc(int argc, char*argv[]) {
+    unsigned int dly = atoi(argv[1]);
+	if( argc != 2 ) {
+		dly = 5000;
+	}
+	set_sl_time(0);
+	LOGI("time is %u\n", get_sl_time() );
+	vTaskDelay(dly);
+	LOGI("time is %u\n", get_sl_time() );
+	return 0;
+}
+
+
 // ==============================================================================
 // This is the table that holds the command names, implementing functions, and
 // brief description.
@@ -1318,6 +1346,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "test_network",Cmd_test_network,""},
 #endif
 		{ "genkey",Cmd_generate_factory_data,""},
+		{ "lfclktest",Cmd_test_3200_rtc,""},
 
 		{ 0, 0, 0 } };
 
@@ -1336,6 +1365,7 @@ tCmdLineEntry g_sCmdTable[] = {
 extern xSemaphoreHandle g_xRxLineSemaphore;
 void UARTStdioIntHandler(void);
 void init_download_task( int stack );
+void init_i2c_recovery();
 long nwp_reset();
 
 void vUARTTask(void *pvParameters) {
@@ -1410,6 +1440,7 @@ void vUARTTask(void *pvParameters) {
 	}
 	sl_NetAppStop(0x1f);
 	check_hw_version();
+	init_i2c_recovery();
 	PinMuxConfig_hw_dep();
 
 	// SDCARD INITIALIZATION
@@ -1466,7 +1497,7 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("*");
 	xTaskCreate(FileUploaderTask_Thread,"fileUploadTask",1*1024/4,NULL,1,NULL);
 
-#if 1 //todo DVT disable!
+#if 1 //todo PVT disable!
 	xTaskCreate(telnetServerTask,"telnetServerTask",512/4,NULL,1,NULL);
 	xTaskCreate(httpServerTask,"httpServerTask",3*512/4,NULL,1,NULL);
 #endif
@@ -1487,9 +1518,9 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("*");
 	xTaskCreate(thread_tx, "txTask", 3 * 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
+#endif
 	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 4, NULL);
 	UARTprintf("*");
-#endif
 	//checkFaults();
 
 
