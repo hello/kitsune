@@ -675,7 +675,7 @@ void thread_tx(void* unused) {
 	{
 		LOGI("requesting device id...\n");
 		// request the id from top
-		// this needs the top has this commit https://github.com/hello/kodobannin/commit/21778960a037bf9fda0e8678ea8c8f34f1dccf23
+		// it needs the top has this commit https://github.com/hello/kodobannin/commit/21778960a037bf9fda0e8678ea8c8f34f1dccf23
 		ble_proto_request_device_id_async();
 		vTaskDelay(10000);
 		ble_proto_get_device_id_string(device_id_string, sizeof(device_id_string), &out_len);
