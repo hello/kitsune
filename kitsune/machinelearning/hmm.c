@@ -68,9 +68,7 @@ uint8_t Hmm_Init(void * data, const int16_t * params, int32_t rows, int32_t cols
             k++;
         }
     }
-    
-    int foo = pdata->stateTransitionMatrix - pdata->logConditionalProbs;
-    
+
     k = 0;
     for (j = 0; j < pdata->numStates; j++) {
         for (i = 0; i < pdata->numStates; i++) {

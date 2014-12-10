@@ -27,7 +27,7 @@ uint32_t fxd_sqrt (uint32_t n);
     
 uint32_t fxd_sqrt_q10(uint32_t x);
     
-int16_t FixedPointLog2Q10(uint64_t x);
+int32_t FixedPointLog2Q10(uint64_t x);
     
 uint8_t CountHighestMsb(uint64_t x);
     
