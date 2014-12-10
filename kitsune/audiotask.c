@@ -467,6 +467,7 @@ static void DoCapture() {
 				Octogram_Update(&octogramdata,samples);
 
 				if (octogram_count == 0) {
+					UARTprintf("Finished octogram \r\n");
 					Octogram_GetResult(&octogramdata,octogramdesc.result);
 
 					if (octogramdesc.onFinished) {

@@ -321,7 +321,6 @@ void logpsdmel(int16_t * logTotalEnergy,int16_t psd[],const int16_t fr[],const i
     
 
     ifft = 0;
-    psd[0] = FixedPointLog2Q10(fr[0]) - 1024 * log2scaleOfRawSignal;
     psd[0] = 0;
     for (idx = 1; idx < 32; idx++) {
         assert(idx-1 <= 31);
@@ -363,8 +362,14 @@ void logpsdmel(int16_t * logTotalEnergy,int16_t psd[],const int16_t fr[],const i
         }
     }
     
-    *logTotalEnergy = FixedPointLog2Q10(accumulator64) - log2scaleOfRawSignal*1024;
+    temp32 =  FixedPointLog2Q10(accumulator64) - log2scaleOfRawSignal*1024;
+
+    if (temp32 > INT16_MAX) {
+    	temp32 = INT16_MAX;
+    }
     
+    *logTotalEnergy = (int16_t)temp32;
+
 
 }
 
