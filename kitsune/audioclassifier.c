@@ -89,11 +89,11 @@ static uint32_t _hmmdata[128]; //0.5K
 
 //Snoring, talking, null -- BEJ 10/15/2014
 static const int16_t _defaultsvmdata[3][NUM_AUDIO_FEATURES + 1] =
-{{-5996,  1434,  3625,  1872, -6107, -5934,  4998, -4661, -4099,-1030, -9283,  2146, -1400, -7023,  -307,     0, -5635},
-    {5848, -1311, -2462,    72,  1673,  3468, -3947,  4357, -1205,3495,  4265,  3143,  -148,  4575,  1832,     0,  2086},
-    {-1807,   294,   777,   -53,  1590,   558,  -176,   -17,  4309, -2146,  1908, -3682,  1351,  2740,   239,     0, -2961},
-    
-    };
+{
+{-5584,299,4639,2525,-5064,-6144,5710,-6894,-8295,-697,-7778,-329,-1929,-3721,319,10,-6453},
+{6444,181,-4261,-64,5062,7000,-937,4706,2571,5085,5564,1009,1499,3564,2169,-156,4466},
+{-2728,-106,1799,-622,-240,-2879,-4268,-344,5197,-5411,697,-1083,2594,193,-2716,87,-4480}
+};
 
 
 /* ATTENTION!   
@@ -105,8 +105,8 @@ static const int16_t _defaultsvmdata[3][NUM_AUDIO_FEATURES + 1] =
  */
 
 static const int16_t _defaulthmmdata[2][5] = {
-    {TOFIX(0.6f,HMM_LOGPROB_QFIXEDPOINT),TOFIX(0.4f,HMM_LOGPROB_QFIXEDPOINT),TOFIX(0.4f,HMM_LOGPROB_QFIXEDPOINT),   TOFIX(0.98f,15),TOFIX(0.02f,15)},
-    {TOFIX(0.4f,HMM_LOGPROB_QFIXEDPOINT),TOFIX(0.6f,HMM_LOGPROB_QFIXEDPOINT),TOFIX(0.6f,HMM_LOGPROB_QFIXEDPOINT),   TOFIX(0.006f,15),TOFIX(0.994f,15)},
+    {TOFIX(0.7f,HMM_LOGPROB_QFIXEDPOINT),TOFIX(0.4f,HMM_LOGPROB_QFIXEDPOINT),TOFIX(0.4f,HMM_LOGPROB_QFIXEDPOINT),   TOFIX(0.98f,15),TOFIX(0.02f,15)},
+    {TOFIX(0.3f,HMM_LOGPROB_QFIXEDPOINT),TOFIX(0.6f,HMM_LOGPROB_QFIXEDPOINT),TOFIX(0.6f,HMM_LOGPROB_QFIXEDPOINT),   TOFIX(0.006f,15),TOFIX(0.994f,15)},
 };
 
 static inline uint8_t pack_int8_to_int4(int8_t x) {
@@ -346,14 +346,19 @@ void AudioClassifier_DataCallback(const AudioFeatures_t * pfeats) {
 
             
             _hmm.fpClassifier(_hmm.data,probs,classes,0);
+            //printf("probs = %f,%f\n",(float)probs[0]/127.0,(float)probs[1]/127.0);
             
-            if (probs[CLASS_OF_INTEREST_TO_ENABLE_CALLBACK] > TOFIX(0.95f,HMM_LOGPROB_QFIXEDPOINT_OUTPUT) && _playbackFunc) {
-                RecordAudioRequest_t req;
-                memset(&req,0,sizeof(req));
+            if (probs[CLASS_OF_INTEREST_TO_ENABLE_CALLBACK] > TOFIX(0.95f,HMM_LOGPROB_QFIXEDPOINT_OUTPUT)) {
+                printf("SNORING!\n");
+
+                if (_playbackFunc) {
+                    RecordAudioRequest_t req;
+                    memset(&req,0,sizeof(req));
+                    req.durationInFrames = RECORD_DURATION_IN_FRAMES;
+                    _playbackFunc(&req);
+
+                }
                 
-                req.durationInFrames = RECORD_DURATION_IN_FRAMES;
-                
-                _playbackFunc(&req);
             }
         }
     }

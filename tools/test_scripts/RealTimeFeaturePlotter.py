@@ -24,8 +24,6 @@ from AudioDataClient import *
 
 np.set_printoptions(precision=3, suppress=True, threshold=numpy.nan)
 
-g_ens = GmmAndPca.GmmPcaEvalutator()
-g_ens.SetFromJsonFile('gmm_coeffs.json')
 #def signal_handler(signal, frame):
  #       print('You pressed Ctrl+C!')
  #       g_kill = True
@@ -203,8 +201,6 @@ def updateAudio(stream):
                 
                 if (segtype == 0):
                     segtype = 'packet';
-		    #print segfeats
-                    #print g_ens.evaluate(segfeats)
                 else:
                     segtype = 'steady'
                     
@@ -244,13 +240,6 @@ def updateAudio(stream):
                     vec.append(d)
                     
                 vec = np.array(vec).reshape((1, len(vec)))
-                probs = g_ens.evaluate(vec)
-                probs = probs[0]
-                print probs
-                if probs[0] > 0.9:
-                    print 'snoring'
-                if probs[1] > 0.7:
-                    print 'talking'
 
 
             #add data to plot vectors

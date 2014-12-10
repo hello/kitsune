@@ -79,6 +79,12 @@ static const uint32_t k_stable_counts_to_be_considered_stable =  STABLE_TIME_TO_
 
 
 /*--------------------------------
+ *   forward declarations
+ *--------------------------------*/
+void fix_window(int16_t fr[], int32_t n);
+
+
+/*--------------------------------
  *   Types
  *--------------------------------*/
 typedef enum {
@@ -396,7 +402,8 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int64_t samplecount) {
     memcpy(fr,samples,AUDIO_FFT_SIZE*sizeof(int16_t));
     memset(fi,0,sizeof(fi));
     
-    
+    /* apply windowing function */
+    fix_window(fr,AUDIO_FFT_SIZE);
     
     /* Normalize time series signal  */
     //ScaleInt16Vector(fr,&log2scaleOfRawSignal,AUDIO_FFT_SIZE,RAW_SAMPLES_SCALE);
@@ -442,11 +449,13 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int64_t samplecount) {
         fr[i] = psd[i] - _data.lpfbuf[i];
     }
     
-//    DEBUG_LOG_S16("psd", NULL, fr, PSD_SIZE, samplecount, samplecount);
+    DEBUG_LOG_S16("psd", NULL, fr, PSD_SIZE, samplecount, samplecount);
     
     //fft of 2^8 --> 256
     dct(fr,fi,PSD_SIZE_2N);
     dc = fr[0];
+    
+    DEBUG_LOG_S16("dc",NULL,&dc,1,samplecount,samplecount);
     //here they are
     for (j = 0; j < NUM_AUDIO_FEATURES; j++) {
         mfcc[j] = fr[j+1];
@@ -485,7 +494,6 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int64_t samplecount) {
         }
 
         _data.feats.samplecount = samplecount;
-
         //do data callback always
         if (_data.fpCallback) {
             _data.fpCallback(&_data.feats);
