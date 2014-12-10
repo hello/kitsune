@@ -464,10 +464,36 @@ static void _led_normal_mode(int operation_result)
 	}
 }
 
+void ble_proto_request_device_id_async()
+{
+
+	_ack_get_device_id();
+	// If the top has commit https://github.com/hello/kodobannin/commit/21778960a037bf9fda0e8678ea8c8f34f1dccf23
+	// it will resume the sync device id process. on_ble_protobuf_command will be called.
+}
+
 #include "top_board.h"
 #include "wifi_cmd.h"
 extern uint8_t top_device_id[DEVICE_ID_SZ];
 extern volatile bool top_got_device_id; //being bad, this is only for factory
+
+static char _device_id_string[DEVICE_ID_SZ * 2 + 1];
+void ble_proto_get_device_id_string(char* hex_device_id, size_t len, size_t* out_len)
+{
+	if(len < sizeof(_device_id_string) && out_len)
+	{
+		*out_len = sizeof(_device_id_string);
+		return;
+	}
+
+	if(!hex_device_id)
+	{
+		*out_len = sizeof(_device_id_string);
+		return;
+	}
+	memcpy(hex_device_id, _device_id_string, sizeof(_device_id_string));
+}
+
 
 bool on_ble_protobuf_command(MorpheusCommand* command)
 {
@@ -605,6 +631,8 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         	int i;
         	if(command->deviceId.arg){
         		const char * device_id_str = command->deviceId.arg;
+        		memcpy(_device_id_string, command->deviceId.arg, sizeof(_device_id_string));
+
         		for(i=0;i<DEVICE_ID_SZ;++i) {
         			char num[3] = {0};
         			memcpy( num, device_id_str+i*2, 2);
