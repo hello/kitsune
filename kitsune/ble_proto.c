@@ -229,36 +229,17 @@ static void _reply_sync_device_id()
 	ble_send_protobuf(&reply_command);
 
 }
-static void _reply_device_id()
+
+static void _ack_get_device_id()
 {
-    uint8_t mac_len = SL_MAC_ADDR_LEN;
-    uint8_t mac[SL_MAC_ADDR_LEN] = {0};
+	MorpheusCommand reply_command;
+	memset(&reply_command, 0, sizeof(reply_command));
+	reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_DEVICE_ID;
 
-    int32_t ret = sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
-    if(ret == 0 || ret == SL_ESMALLBUF)  // OK you win: http://e2e.ti.com/support/wireless_connectivity/f/968/p/360573/1279578.aspx#1279578
-    {
+	reply_command.has_firmwareVersion = true;
+	reply_command.firmwareVersion = FIRMWARE_VERSION_INTERNAL;
 
-        char device_id[SL_MAC_ADDR_LEN * 2 + 1] = {0}; //pvPortMalloc(device_id_len);
-
-		uint8_t i = 0;
-		for(i = 0; i < SL_MAC_ADDR_LEN; i++){
-			snprintf(&device_id[i * 2], 3, "%02X", mac[i]);  //assert( itoa( mac[i], device_id+i*2, 16 ) == 2 );
-		}
-
-		LOGI("Morpheus device id: %s\n", device_id);
-		MorpheusCommand reply_command;
-		memset(&reply_command, 0, sizeof(reply_command));
-		reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_DEVICE_ID;
-
-		reply_command.has_firmwareVersion = true;
-		reply_command.firmwareVersion = FIRMWARE_VERSION_INTERNAL;
-
-		ble_send_protobuf(&reply_command);
-
-    }else{
-        LOGI("Get Mac address failed, error %d.\n", ret);
-        ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
-    }
+	ble_send_protobuf(&reply_command);
 }
 
 /*
@@ -555,7 +536,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
             LOGI("GET DEVICE ID\n");
             top_board_notify_boot_complete();
             _self.led_status = LED_OFF;  // init led status
-            _reply_device_id();
+            _ack_get_device_id();
         }
         break;
     	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_DATA: 
