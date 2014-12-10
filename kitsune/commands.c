@@ -318,7 +318,7 @@ int Cmd_do_octogram(int argc, char * argv[]) {
 		if (i != 0) {
 			UARTprintf(",");
 		}
-		UARTprintf("%d",res.logenergy[0]);
+		UARTprintf("%d",res.logenergy[i]);
 	}
 
 	UARTprintf("\r\n");

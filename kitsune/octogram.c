@@ -19,6 +19,13 @@ inline static void uadd64(uint128_t * pn,uint64_t x) {
 
 }
 
+inline static void rightshift(uint128_t * pn,uint8_t n) {
+	uint64_t mask = (1 << n) - 1;
+	pn->low >>= n;
+	pn->low |= (pn->high & mask) << (64 - n);
+	pn->high >>= n;
+}
+
 #if 0
 inline static void uadd128(uint128_t * pn,const uint128_t * px) {
 
@@ -84,10 +91,32 @@ void Octogram_GetResult(Octogram_t * data,OctogramResult_t * result) {
 	uint16_t i;
 	int32_t logenergy;
 	uint128_t * p;
+	uint8_t highmsb;
+
+
+	//right shift out high bits
+	uint64_t maxhigh = 0;
+	for (i = 0; i < OCTOGRAM_SIZE; i++) {
+		p = &data->energies[i];
+		if (p->high > maxhigh) {
+			maxhigh = p->high;
+		}
+	}
+
+	highmsb = CountHighestMsb(maxhigh);
+//	UARTprintf("maxhigh=%d\r\n",highmsb);
+	for (i = 0; i < OCTOGRAM_SIZE; i++) {
+		p = &data->energies[i];
+		rightshift(p,highmsb);
+	}
+
+
 
 	for (i = 0; i < OCTOGRAM_SIZE; i++) {
 		p = &data->energies[i];
-		logenergy  = FixedPointLog2Q10(p->low) + FixedPointLog2Q10(p->high) * 64;
+		logenergy  = FixedPointLog2Q10(p->low) + highmsb*1024;
+
+	//	UARTprintf("high = %d, loglow=%d\r\n",(int)p->high,FixedPointLog2Q10(p->low));
 
 		result->logenergy[i] = logenergy;
 
