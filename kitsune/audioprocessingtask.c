@@ -169,6 +169,7 @@ static void SetUpUpload(void) {
 	message.encode = AudioClassifier_EncodeAudioFeatures;
 
 	get_mac(_deviceCurrentInfo.mac); //todo switch to device id, will not be mac
+	get_device_id(_deviceCurrentInfo.device_id,sizeof(_deviceCurrentInfo.device_id));
 	_deviceCurrentInfo.unix_time = get_time();
 
 	message.encodedata = (void *) &_deviceCurrentInfo;

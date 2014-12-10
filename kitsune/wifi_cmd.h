@@ -70,6 +70,7 @@ int Cmd_RadioStartTX(int argc, char*argv[]);
 int Cmd_RadioGetStats(int argc, char*argv[]);
 
 bool get_mac(unsigned char mac[6]);
+bool get_device_id(char * device_id, uint32_t size_of_device_id_buffer);
 
 int match(char *regexp, char *text);
 void load_aes();

@@ -480,11 +480,13 @@ uint32_t AudioClassifier_EncodeAudioFeatures(pb_ostream_t * stream,void * encode
     
     uint32_t size = 0;
     uint8_t macbytes[6] = {0};
+    char device_id[32] = {0};
     uint32_t unix_time = 0;
 
     if (encode_data) {
         DeviceCurrentInfo_t * pinfo = (DeviceCurrentInfo_t *) encode_data; //passing in mac address
         memcpy(macbytes,pinfo->mac,6);
+        strncpy(device_id,pinfo->device_id,sizeof(device_id));
         unix_time = pinfo->unix_time;
     }
 
@@ -498,7 +500,7 @@ uint32_t AudioClassifier_EncodeAudioFeatures(pb_ostream_t * stream,void * encode
     memset(&encoderstruct,0,sizeof(encoderstruct));
     encoderstruct.buf = &_buffer;
     
-    size = SetMatrixMessage(stream, macbytes, unix_time,&context);
+    size = SetMatrixMessage(stream, macbytes,device_id, unix_time,&context);
     
 
     return size;

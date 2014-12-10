@@ -321,12 +321,12 @@ int init_light_sensor()
 }
 
 int get_light() {
+	unsigned char cmd;
+
 	if (old_light_sensor) {
 		unsigned char aucDataBuf_LOW[2];
 		unsigned char aucDataBuf_HIGH[2];
 		int light_lux;
-
-		unsigned char cmd;
 
 		cmd = 0x84; // Command register - 0x04
 		TRY_OR_GOTOFAIL(I2C_IF_Write(0x29, &cmd, 1, 1));
@@ -342,7 +342,6 @@ int get_light() {
 
 		return light_lux;
 	} else {
-		int cmd;
 		unsigned char aucDataBuf[2] = { 0, 0 };
 
 		cmd = 0x2;

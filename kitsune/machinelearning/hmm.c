@@ -16,13 +16,13 @@ typedef struct {
 //size 4 alignment? Sure.
 #define MEM_BITS_2N (2)
 static void memalign(void ** ptr) {
-    uint64_t ptrval = (uint64_t)(*ptr);
+    intptr_t ptrval = (intptr_t)(*ptr);
     
     ptrval += (1<< MEM_BITS_2N);
     ptrval >>= MEM_BITS_2N;
     ptrval <<= MEM_BITS_2N;
     
-    *ptr = (void*)(uint32_t)ptrval;
+    *ptr = (void*)(intptr_t)ptrval;
 }
 
 uint8_t Hmm_Init(void * data, const int16_t * params, int32_t rows, int32_t cols, uint32_t memory_limit) {
