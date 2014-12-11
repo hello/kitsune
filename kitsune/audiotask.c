@@ -394,7 +394,7 @@ static void DoCapture(uint32_t rate) {
 
 		iBufferFilled = GetBufferSize(pTxBuffer);
 
-		if(iBufferFilled < PING_PONG_CHUNK_SIZE) {
+		if(iBufferFilled < 2*PING_PONG_CHUNK_SIZE) {
 			//wait a bit for the tx buffer to fill
 			vTaskDelay(1);
 		}
@@ -443,6 +443,8 @@ static void DoCapture(uint32_t rate) {
 							record_flags &= ~AUDIOTASK_FLAG_DELETE_AFTER_UPLOAD;
 
 						}
+						LOGI("done recording %s\r\n",filedata.file_name);
+						AudioTask_StopCapture();
 					}
 				}
 				else {
@@ -450,6 +452,7 @@ static void DoCapture(uint32_t rate) {
 					CloseFile(&filedata);
 					isSavingToFile = 0;
 					LOGI("Failed to write to file %s\r\n",filedata.file_name);
+					AudioTask_StopCapture();
 					_filecounter--;
 				}
 			}
