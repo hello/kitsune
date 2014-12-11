@@ -10,6 +10,7 @@
 #include "socket.h"
 #include "simplelink.h"
 #include "protocol.h"
+#include "ble_proto.h"
 #include "sl_sync_include_after_simplelink_header.h"
 
 
@@ -461,7 +462,7 @@ void load_aes() {
 
 	RetVal = sl_FsClose(DeviceFileHandle, NULL, NULL, 0);
 }
-void load_device_id() {
+bool load_device_id() {
 	long DeviceFileHandle = -1;
 	int RetVal, Offset;
 
@@ -470,7 +471,7 @@ void load_device_id() {
 			&DeviceFileHandle);
 	if (RetVal != 0) {
 		LOGE("failed to open device id file\n");
-		return;
+		return false;
 	}
 
 	Offset = 0;
@@ -478,10 +479,11 @@ void load_device_id() {
 			DEVICE_ID_SZ);
 	if (RetVal != DEVICE_ID_SZ) {
 		LOGE("failed to read device id file\n");
-		return;
+		return false;
 	}
 	device_id[DEVICE_ID_SZ] = 0;
 	RetVal = sl_FsClose(DeviceFileHandle, NULL, NULL, 0);
+	return true;
 }
 
 /* protobuf includes */
@@ -1295,14 +1297,26 @@ bool get_device_id(char * device_id,uint32_t size_of_device_id_buffer) {
 
 bool encode_device_id_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
 	//char are twice the size, extra 1 for null terminator
-    char hex_device_id[2 * DEVICE_ID_SZ + 1] = {0};
-    size_t out_len;
-    ble_proto_get_device_id_string(hex_device_id, sizeof(hex_device_id), &out_len);
-    if(strlen(hex_device_id) == 0)
-    {
-    	LOGI("No device id!\n");
-    	return false;
-    }
+	uint64_t int_device_id = 0;
+	memcpy(&int_device_id, device_id, sizeof(int_device_id));
+	char hex_device_id[2 * DEVICE_ID_SZ + 1] = {0};
+
+	if(!int_device_id)
+	{
+
+		size_t out_len;
+		ble_proto_get_device_id_string(hex_device_id, sizeof(hex_device_id), &out_len);
+		if(strlen(hex_device_id) == 0)
+		{
+			LOGI("No device id!\n");
+			return false;
+		}
+	}else{
+		uint8_t i = 0;
+		for(i = 0; i < DEVICE_ID_SZ; i++){
+			snprintf(&hex_device_id[i * 2], 3, "%02X", device_id[i]);
+		}
+	}
     return pb_encode_tag_for_field(stream, field) && pb_encode_string(stream, (uint8_t*)hex_device_id, strlen(hex_device_id));
 }
 

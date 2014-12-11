@@ -664,28 +664,31 @@ void thread_tx(void* unused) {
 	batched_pill_data pill_data_batched = {0};
 	batched_periodic_data data_batched = {0};
 	load_aes();
-	load_device_id();
-
-	char device_id_string[DEVICE_ID_SZ * 2 + 1] = {0};
-	memset(device_id_string, 0, sizeof(device_id_string));
-	size_t out_len;
-	ble_proto_get_device_id_string(device_id_string, sizeof(device_id_string), &out_len);
-
-	while(strlen(device_id_string) == 0)
+	if(!load_device_id())
 	{
-		LOGI("requesting device id...\n");
-		// request the id from top
-		// it needs the top has this commit https://github.com/hello/kodobannin/commit/21778960a037bf9fda0e8678ea8c8f34f1dccf23
-		ble_proto_request_device_id_async();
-		vTaskDelay(10000);
+		char device_id_string[DEVICE_ID_SZ * 2 + 1] = {0};
+		memset(device_id_string, 0, sizeof(device_id_string));
+		size_t out_len;
 		ble_proto_get_device_id_string(device_id_string, sizeof(device_id_string), &out_len);
+
+		while(strlen(device_id_string) == 0)
+		{
+			LOGI("requesting device id...\n");
+			// request the id from top
+			// it needs the top has this commit https://github.com/hello/kodobannin/commit/21778960a037bf9fda0e8678ea8c8f34f1dccf23
+			ble_proto_request_device_id_async();
+			vTaskDelay(10000);
+			ble_proto_get_device_id_string(device_id_string, sizeof(device_id_string), &out_len);
+		}
 	}
+
+
 	int tries = 0;
 
 	LOGI(" Start polling  \n");
 	while (1) {
 		if (uxQueueMessagesWaiting(data_queue) >= data_queue_batch_size) {
-			LOGI(	"sending data" );
+			LOGI("sending data\n");
 			periodic_data_to_encode periodicdata;
 			periodicdata.num_data = 0;
 			periodicdata.data = (periodic_data*)pvPortMalloc(data_queue_batch_size*sizeof(periodic_data));
