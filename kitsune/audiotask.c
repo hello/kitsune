@@ -612,6 +612,7 @@ void AudioTask_StartCapture(uint32_t rate) {
 	memset(&message,0,sizeof(message));
 	message.command = eAudioCaptureTurnOn;
 	message.message.capturedesc.rate = rate;
+	message.message.capturedesc.flags = 0;
 	AudioTask_AddMessageToQueue(&message);
 
 }
