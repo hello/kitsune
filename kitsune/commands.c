@@ -258,12 +258,14 @@ int Cmd_record_buff(int argc, char *argv[]) {
 	memset(&m,0,sizeof(m));
 	m.command = eAudioCaptureTurnOn;
 	m.message.capturedesc.rate = argc==2 ? atoi(argv[1]) : 16000;
+	m.message.capturedesc.flags = 0;
 	AudioTask_AddMessageToQueue(&m);
 
 	//capture
 	memset(&m,0,sizeof(m));
 	m.command = eAudioSaveToDisk;
 	m.message.capturedesc.captureduration = 625; //about 10 seconds at 62.5 hz
+	m.message.capturedesc.flags = 0;
 	AudioTask_AddMessageToQueue(&m);
 
 	return 0;
