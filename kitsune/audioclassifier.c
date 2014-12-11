@@ -349,16 +349,15 @@ void AudioClassifier_DataCallback(const AudioFeatures_t * pfeats) {
             //printf("probs = %f,%f\n",(float)probs[0]/127.0,(float)probs[1]/127.0);
             
             if (probs[CLASS_OF_INTEREST_TO_ENABLE_CALLBACK] > TOFIX(0.95f,HMM_LOGPROB_QFIXEDPOINT_OUTPUT)) {
-                printf("SNORING!\n");
-
+#if 0 //this makes the recording command stop working...
+                LOGI("SNORING!\n");
                 if (_playbackFunc) {
                     RecordAudioRequest_t req;
                     memset(&req,0,sizeof(req));
                     req.durationInFrames = RECORD_DURATION_IN_FRAMES;
                     _playbackFunc(&req);
-
                 }
-                
+#endif
             }
         }
     }
