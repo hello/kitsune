@@ -303,6 +303,10 @@ int Cmd_do_octogram(int argc, char * argv[]) {
     int32_t numsamples = atoi( argv[1] );
     uint16_t i;
 
+    if( argc == 1 ) {
+    	numsamples = 500;
+    }
+
     if (numsamples == 0) {
     	UARTprintf("number of requested samples was zero.\r\n");
     	return 0;
@@ -325,6 +329,19 @@ int Cmd_do_octogram(int argc, char * argv[]) {
 	xSemaphoreTake(octogramsem,portMAX_DELAY);
 
 	vSemaphoreDelete(octogramsem);
+
+
+    if( argc == 1 ) {
+    	int avg = 0;
+    	avg += res.logenergy[3];
+    	avg += res.logenergy[4];
+    	avg += res.logenergy[5];
+    	avg += res.logenergy[6];
+    	avg /= 4;
+
+    	UARTprintf("%d\r\n", res.logenergy[2] - avg );
+    	return 0;
+    }
 
 	//report results
 	UARTprintf("octogram log energies: ");
