@@ -75,7 +75,7 @@ static void NetTaskResponse (const NetworkResponse_t * response, void * context)
 	if (data->deleteAfterUpload) {
 		FRESULT res;
 
-		res = hello_fs_unlink(data->filename);
+//		res = hello_fs_unlink(data->filename);
 
 		if (res != FR_OK) {
 			LOGI("failed to delete file %s\r\n",data->filename);

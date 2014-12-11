@@ -34,7 +34,10 @@ static const unsigned int CPU_XDATA_PLAYBACK = 0; //1: enabled CPU interrupt tri
 
 
 uint8_t InitAudioCapture(uint32_t rate) {
-	pTxBuffer = CreateCircularBuffer(TX_BUFFER_SIZE);
+
+	if(pTxBuffer == NULL) {
+		pTxBuffer = CreateCircularBuffer(TX_BUFFER_SIZE);
+	}
 
 	if(pTxBuffer == NULL) {
 		return 0;
