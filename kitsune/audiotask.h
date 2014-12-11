@@ -20,6 +20,7 @@ typedef struct {
 	char file[64];
 	int32_t volume;
 	int32_t durationInSeconds;
+	uint32_t rate;
 
 	NotificationCallback_t onFinished;
 	void * context;

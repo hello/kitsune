@@ -139,7 +139,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	}
 
 
-	if ( !InitAudioPlayback(info->volume) ) {
+	if ( !InitAudioPlayback(info->volume, info->rate ) ) {
 		LOGI("unable to initialize audio playback.  Probably not enough memory!\r\n");
 		return returnFlags;
 
