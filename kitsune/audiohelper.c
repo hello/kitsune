@@ -77,7 +77,7 @@ void DeinitAudioCapture(void) {
 	}
 }
 
-uint8_t InitAudioPlayback(int32_t vol) {
+uint8_t InitAudioPlayback(int32_t vol, uint32_t rate ) {
 
 	//create circular buffer
 	pRxBuffer = CreateCircularBuffer(RX_BUFFER_SIZE);
@@ -94,7 +94,7 @@ uint8_t InitAudioPlayback(int32_t vol) {
 	get_codec_NAU(vol);
 
 	// Initialize the Audio(I2S) Module
-	AudioCapturerInit(CPU_XDATA_PLAYBACK, AUDIO_PLAYBACK_RATE_HZ);
+	AudioCapturerInit(CPU_XDATA_PLAYBACK, rate);
 
 	// Initialize the DMA Module
 	UDMAInit();
@@ -106,7 +106,7 @@ uint8_t InitAudioPlayback(int32_t vol) {
 
 	// Setup the Audio In/Out
 	AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
-	AudioCaptureRendererConfigure(I2S_PORT_DMA, AUDIO_PLAYBACK_RATE_HZ);
+	AudioCaptureRendererConfigure(I2S_PORT_DMA, rate);
 
 	//do whatever this function does
 	Audio_Start();

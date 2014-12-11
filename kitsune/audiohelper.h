@@ -13,7 +13,7 @@ typedef struct {
 uint8_t InitAudioCapture(uint32_t rate);
 void DeinitAudioCapture(void);
 
-uint8_t InitAudioPlayback(int32_t vol);
+uint8_t InitAudioPlayback(int32_t vol, uint32_t rate);
 void DeinitAudioPlayback(void);
 
 

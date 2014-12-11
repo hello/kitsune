@@ -71,6 +71,11 @@
 			<locationURI>PARENT-2-PROJECT_LOC/audiohelper.c</locationURI>
 		</link>
 		<link>
+			<name>audiohelper.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audiohelper.h</locationURI>
+		</link>
+		<link>
 			<name>audioprocessingtask.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/audioprocessingtask.c</locationURI>
@@ -79,6 +84,11 @@
 			<name>audioprocessingtask.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/audioprocessingtask.h</locationURI>
+		</link>
+		<link>
+			<name>audiosimilarity.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audiosimilarity.h</locationURI>
 		</link>
 		<link>
 			<name>audiotask.c</name>

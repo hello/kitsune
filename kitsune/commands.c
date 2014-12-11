@@ -342,12 +342,13 @@ int Cmd_do_octogram(int argc, char * argv[]) {
 
 int Cmd_play_buff(int argc, char *argv[]) {
     int vol = atoi( argv[1] );
-    char * file = argv[2];
+    char * file = argv[3];
     AudioPlaybackDesc_t desc;
     memset(&desc,0,sizeof(desc));
     strncpy( desc.file, file, 64 );
     desc.volume = vol;
     desc.durationInSeconds = -1;
+    desc.rate = atoi(argv[2]);
 
     AudioTask_StartPlayback(&desc);
 
@@ -447,6 +448,7 @@ void thread_alarm(void * unused) {
 					desc.durationInSeconds = alarm.ring_duration_in_second;
 					desc.volume = 57;
 					desc.onFinished = thread_alarm_on_finished;
+					desc.rate = 48000;
 
 					AudioTask_StartPlayback(&desc);
 					LOGI("ALARM RINGING RING RING RING\n");
