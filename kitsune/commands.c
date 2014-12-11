@@ -311,7 +311,7 @@ int Cmd_do_octogram(int argc, char * argv[]) {
 
 	memset(&m,0,sizeof(m));
 
-	AudioTask_StartCapture(48000);
+	AudioTask_StartCapture(22050);
 
 	m.command = eAudioCaptureOctogram;
 	m.message.octogramdesc.result = &res;
