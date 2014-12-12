@@ -118,7 +118,7 @@ static int _walk_log_dir(file_handler * handler, void * ctx){
 			}
 		}
 	}
-	LOGI("End of log files\r\n");
+	//LOGI("End of log files\r\n");
 	return fcount;
 }
 static void
@@ -207,12 +207,12 @@ _save_newest(const char * buffer, int size){
 	int counter = -1;
 	int ret = _walk_log_dir(_find_newest_log, &counter);
 	if(ret == 0){
-		LOGI("NO log file exists, creating first log\r\n");
+		//LOGI("NO log file exists, creating first log\r\n");
 		return _write_file("0", buffer, size);
 	}else if(ret > 0 && counter >= 0){
 		char s[16] = {0};
 		snprintf(s,sizeof(s),"%d",++counter);
-		LOGI("Wr log %d\r\n", counter);
+		//LOGI("Wr log %d\r\n", counter);
 		return _write_file(s, buffer, size);
 	}else{
 		LOGW("Write log error: %d \r\n", ret);
@@ -224,12 +224,12 @@ _read_oldest(char * buffer, int size, WORD * read){
 	int counter = -1;
 	int ret = _walk_log_dir(_find_oldest_log, &counter);
 	if(ret == 0){
-		LOGI("No log file\r\n");
+		//LOGI("No log file\r\n");
 		return FR_NO_FILE;
 	}else if(ret > 0 && counter >= 0){
 		char s[16] = {0};
 		snprintf(s,sizeof(s),"%d",counter);
-		LOGI("Rd log %d\r\n", counter);
+		//LOGI("Rd log %d\r\n", counter);
 		return _read_file(s,buffer, size, read);
 	}
 	return FR_RW_ERROR;
@@ -239,12 +239,12 @@ _remove_oldest(int * rem){
 	int counter = -1;
 	int ret = _walk_log_dir(_find_oldest_log, &counter);
 	if(ret == 0){
-		LOGI("No log file\r\n");
+		//LOGI("No log file\r\n");
 		return FR_OK;
 	} else if (ret > 0 && counter >= 0) {
 		char s[16] = { 0 };
 		snprintf(s, sizeof(s), "%d", counter);
-		LOGI("Rm log %d\r\n", counter);
+		//LOGI("Rm log %d\r\n", counter);
 		*rem = (ret - 1);
 		return _remove_file(s);
 	}
@@ -361,17 +361,17 @@ void uart_logger_task(void * params){
 					ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER, SENSE_LOG_ENDPOINT,buffer,sizeof(buffer),sense_log_fields,&self.log,0);
 					if(ret == 0){
 						int rem = -1;
-						LOGI("Log upload succeeded\r\n");
+						//LOGI("Log upload succeeded\r\n");
 						res = _remove_oldest(&rem);
 						if(FR_OK == res && rem > 0){
 							xEventGroupSetBits(self.uart_log_events, LOG_EVENT_UPLOAD);
 						}else if(FR_OK == res && rem == 0){
-							LOGI("Upload logs done\r\n");
+							//LOGI("Upload logs done\r\n");
 						}else{
-							LOGE("Rm log error %d\r\n", res);
+							//LOGE("Rm log error %d\r\n", res);
 						}
 					}else{
-						LOGE("Log upload failed, network code = %d\r\n", ret);
+						//LOGE("Log upload failed, network code = %d\r\n", ret);
 					}
 				}
 			}
