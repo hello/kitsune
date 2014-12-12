@@ -98,6 +98,7 @@
 //			    GLOBAL VARIABLES
 //******************************************************************************
 
+volatile static bool enable_periodic =true;
 tCircularBuffer *pTxBuffer;
 tCircularBuffer *pRxBuffer;
 
@@ -918,14 +919,16 @@ void thread_sensor_poll(void* unused) {
 
 		gesture_counter_reset();
 
-		LOGI("collecting time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d %d %d %d\twave %d\thold %d\n",
-				data.unix_time, data.light, data.light_variability, data.light_tonality, data.temperature, data.humidity,
-				data.dust, data.dust_max, data.dust_min, data.dust_variability, data.wave_count, data.hold_count);
+		if( enable_periodic ) {
+			LOGI("collecting time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d %d %d %d\twave %d\thold %d\n",
+					data.unix_time, data.light, data.light_variability, data.light_tonality, data.temperature, data.humidity,
+					data.dust, data.dust_max, data.dust_min, data.dust_variability, data.wave_count, data.hold_count);
 
-		if(!xQueueSend(data_queue, (void*)&data, 10) == pdPASS)
-        {
-    		LOGI("Failed to post data\n");
-    	}
+			if(!xQueueSend(data_queue, (void*)&data, 10) == pdPASS)
+			{
+				LOGI("Failed to post data\n");
+			}
+		}
 
 		vTaskDelayUntil(&now, 60 * configTICK_RATE_HZ);
 	}
@@ -1284,6 +1287,10 @@ static int Cmd_test_3200_rtc(int argc, char*argv[]) {
 	return 0;
 }
 
+static int Cmd_enable_poll(int argc, char*argv[]) {
+    enable_periodic =  atoi(argv[1]);
+	return 0;
+}
 
 // ==============================================================================
 // This is the table that holds the command names, implementing functions, and
@@ -1370,6 +1377,7 @@ tCmdLineEntry g_sCmdTable[] = {
 #endif
 		{ "genkey",Cmd_generate_factory_data,""},
 		{ "lfclktest",Cmd_test_3200_rtc,""},
+		{ "poll",Cmd_enable_poll,""},
 
 		{ 0, 0, 0 } };
 
