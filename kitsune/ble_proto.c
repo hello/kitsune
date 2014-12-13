@@ -629,10 +629,16 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_SHAKES:
         {
             LOGI("PILL SHAKES\n");
-            _led_busy_mode(0xFF, 128, 0, 128, 18);
-
-        	vTaskDelay(18 *4 * (12 + 1));
-            _led_normal_mode(0);
+            if(_self.led_status == LED_TRIPPY)
+            {
+            	stop_led_animation();
+            }
+            led_set_color(0xFF, 128, 0, 128, 0, 1, 18, 1);
+        	vTaskDelay(3000);
+        	if(_self.led_status == LED_TRIPPY)
+        	{
+        		play_led_trippy(portMAX_DELAY);
+        	}
         }
         break;
     	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID:
