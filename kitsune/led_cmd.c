@@ -149,7 +149,8 @@ static void led_slow(unsigned int* color) {
 			} else {
 				//0
 				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_HIGH_SLOW);
-				UtilsDelay(1);
+				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_LOW_SLOW);
 				if (i != 23) {
 					UtilsDelay(5);
