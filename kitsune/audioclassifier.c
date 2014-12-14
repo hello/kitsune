@@ -10,6 +10,7 @@
 #include <math.h>
 #include <assert.h>
 #include <string.h>
+#include "rawaudiostatemachine.h"
 
 #define CIRCULAR_FEATBUF_SIZE_2N (5)
 #define CIRCULAR_BUF_SIZE (1 << CIRCULAR_FEATBUF_SIZE_2N)
@@ -78,7 +79,6 @@ static const char * k_id_energy_chunk = "energy_chunk";
 
 //"long term storage"
 static DataBuffer_t _buffer;
-static RecordAudioCallback_t _playbackFunc;
 static Classifier_t _classifier;
 static Classifier_t _hmm;
 
@@ -93,7 +93,8 @@ static const int16_t _defaultsvmdata[3][NUM_AUDIO_FEATURES + 1] =
 {-5584,299,4639,2525,-5064,-6144,5710,-6894,-8295,-697,-7778,-329,-1929,-3721,319,10,-6453},
 {6444,181,-4261,-64,5062,7000,-937,4706,2571,5085,5564,1009,1499,3564,2169,-156,4466},
 {-2728,-106,1799,-622,-240,-2879,-4268,-344,5197,-5411,697,-1083,2594,193,-2716,87,-4480}
-};
+    
+    };
 
 
 /* ATTENTION!   
@@ -260,7 +261,7 @@ void AudioClassifier_Init(RecordAudioCallback_t recordfunc) {
     
     InitDefaultClassifier();
 
-    _playbackFunc = recordfunc;
+    RawAudioStateMachine_Init(recordfunc);
 
 }
 
@@ -345,20 +346,14 @@ void AudioClassifier_DataCallback(const AudioFeatures_t * pfeats) {
             _classifier.fpClassifier(_classifier.data,classes,pfeats->feats4bit,3); //4 bits feats, SQ3 feats.
 
             
+            /*  This is just naive Bayes */
             _hmm.fpClassifier(_hmm.data,probs,classes,0);
-            //printf("probs = %f,%f\n",(float)probs[0]/127.0,(float)probs[1]/127.0);
             
-            if (probs[CLASS_OF_INTEREST_TO_ENABLE_CALLBACK] > TOFIX(0.95f,HMM_LOGPROB_QFIXEDPOINT_OUTPUT)) {
-#if 0 //this makes the recording command stop working...
-                LOGI("SNORING!\n");
-                if (_playbackFunc) {
-                    RecordAudioRequest_t req;
-                    memset(&req,0,sizeof(req));
-                    req.durationInFrames = RECORD_DURATION_IN_FRAMES;
-                    _playbackFunc(&req);
-                }
+#if 0
+            /* This could trigger an upload */
+            RawAudioStateMachine_SetProbabilityOfDesiredClass(probs[CLASS_OF_INTEREST_TO_ENABLE_CALLBACK]);
+
 #endif
-            }
         }
     }
     else {
