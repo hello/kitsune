@@ -252,16 +252,25 @@ int Cmd_fs_read(int argc, char *argv[]) {
 
 int Cmd_record_buff(int argc, char *argv[]) {
 	AudioMessage_t m;
+	static xSemaphoreHandle wait = 0;
+
+	if (!wait) {
+		wait = xSemaphoreCreateBinary();
+	}
 
 	//turn on
-	memset(&m,0,sizeof(m));
-	m.command = eAudioCaptureTurnOn;
-	AudioTask_AddMessageToQueue(&m);
+	AudioTask_StartCapture();
 
 	//capture
 	memset(&m,0,sizeof(m));
 	m.command = eAudioSaveToDisk;
-	m.message.capturedesc.captureduration = 625; //about 10 seconds at 62.5 hz
+	m.message.capturedesc.change = startSaving;
+	AudioTask_AddMessageToQueue(&m);
+
+	xSemaphoreTake(wait,10000); //10 seconds
+
+	m.command = eAudioSaveToDisk;
+	m.message.capturedesc.change = stopSaving;
 	AudioTask_AddMessageToQueue(&m);
 
 	return 0;
