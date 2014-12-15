@@ -214,6 +214,7 @@ Cmd_ls(int argc, char *argv[])
                    (file_info.ftime >> 5) & 63,
                    file_info.fsize,
                    file_info.fname);
+        vTaskDelay(5);
     }
 
     // Print summary lines showing the file, dir, and size totals.
