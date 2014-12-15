@@ -386,6 +386,16 @@
 			<locationURI>virtual:/virtual</locationURI>
 		</link>
 		<link>
+			<name>rawaudiostatemachine.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/rawaudiostatemachine.c</locationURI>
+		</link>
+		<link>
+			<name>rawaudiostatemachine.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/rawaudiostatemachine.h</locationURI>
+		</link>
+		<link>
 			<name>rc4.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/rc4.c</locationURI>

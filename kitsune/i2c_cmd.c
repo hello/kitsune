@@ -27,7 +27,7 @@
                                      return  iRetVal;}
 #define BUF_SIZE 2
 
-#define TRY_OR_GOTOFAIL(a) if(a!=SUCCESS) {/* LOGI( "fail at %s %d\n\r", __FILE__, __LINE__ ); */ return FAILURE;}
+#define TRY_OR_GOTOFAIL(a) if(a!=SUCCESS) { LOGI( "fail at %s %d\n\r", __FILE__, __LINE__ ); return FAILURE;}
 
 #define Codec_addr 0x1A
 #define delay_codec 5

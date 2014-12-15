@@ -174,3 +174,11 @@ void CloseFile(Filedata_t * pfiledata) {
 	memset(&pfiledata->file_obj, 0, sizeof(file_obj));
 
 }
+
+void CloseAndDeleteFile(Filedata_t * pfiledata) {
+	hello_fs_close(&pfiledata->file_obj);
+	hello_fs_unlink(pfiledata->file_name);
+	memset(&pfiledata->file_obj, 0, sizeof(file_obj));
+
+}
+

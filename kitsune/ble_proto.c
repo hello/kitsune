@@ -215,20 +215,7 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type)
     //led_set_color(0xFF, 0,LED_MAX,0,1,1,20,0);
     return 1;
 }
-static void _reply_sync_device_id()
-{
 
-	MorpheusCommand reply_command;
-	memset(&reply_command, 0, sizeof(reply_command));
-	reply_command.type =
-			MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID;
-
-	reply_command.has_firmwareVersion = true;
-	reply_command.firmwareVersion = FIRMWARE_VERSION_INTERNAL;
-
-	ble_send_protobuf(&reply_command);
-
-}
 static void _reply_device_id()
 {
     uint8_t mac_len = SL_MAC_ADDR_LEN;
@@ -250,6 +237,7 @@ static void _reply_device_id()
 		memset(&reply_command, 0, sizeof(reply_command));
 		reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_DEVICE_ID;
 
+		reply_command.deviceId.arg = device_id;
 		reply_command.has_firmwareVersion = true;
 		reply_command.firmwareVersion = FIRMWARE_VERSION_INTERNAL;
 
@@ -483,11 +471,6 @@ static void _led_normal_mode(int operation_result)
 	}
 }
 
-#include "top_board.h"
-#include "wifi_cmd.h"
-extern uint8_t top_device_id[DEVICE_ID_SZ];
-extern volatile bool top_got_device_id; //being bad, this is only for factory
-
 bool on_ble_protobuf_command(MorpheusCommand* command)
 {
 	
@@ -618,27 +601,6 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         	vTaskDelay(18 *4 * (12 + 1));
             _led_normal_mode(0);
         }
-        break;
-    	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID:
-        {
-        	int i;
-        	if(command->deviceId.arg){
-        		const char * device_id_str = command->deviceId.arg;
-        		for(i=0;i<DEVICE_ID_SZ;++i) {
-        			char num[3] = {0};
-        			memcpy( num, device_id_str+i*2, 2);
-        			top_device_id[i] = strtol( num, NULL, 16 );
-        		}
-        		LOGI("got id from top %x:%x:%x:%x:%x:%x:%x:%x\n",
-        				top_device_id[0],top_device_id[1],top_device_id[2],
-        				top_device_id[3],top_device_id[4],top_device_id[5],
-        				top_device_id[6],top_device_id[7]);
-        		top_got_device_id = true;
-        		_reply_sync_device_id();
-        	}else{
-        		LOGI("device id fail from top\n");
-        	}
-    	}
         break;
 	}
     return true;

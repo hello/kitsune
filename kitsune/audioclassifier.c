@@ -10,6 +10,7 @@
 #include <math.h>
 #include <assert.h>
 #include <string.h>
+#include "rawaudiostatemachine.h"
 
 #define CIRCULAR_FEATBUF_SIZE_2N (5)
 #define CIRCULAR_BUF_SIZE (1 << CIRCULAR_FEATBUF_SIZE_2N)
@@ -78,7 +79,6 @@ static const char * k_id_energy_chunk = "energy_chunk";
 
 //"long term storage"
 static DataBuffer_t _buffer;
-static RecordAudioCallback_t _playbackFunc;
 static Classifier_t _classifier;
 static Classifier_t _hmm;
 
@@ -260,8 +260,7 @@ void AudioClassifier_Init(RecordAudioCallback_t recordfunc) {
     
     InitDefaultClassifier();
 
-    _playbackFunc = recordfunc;
-
+    RawAudioStateMachine_Init(recordfunc);
 }
 
 
@@ -344,17 +343,8 @@ void AudioClassifier_DataCallback(const AudioFeatures_t * pfeats) {
 
             _classifier.fpClassifier(_classifier.data,classes,pfeats->feats4bit,3); //4 bits feats, SQ3 feats.
 
-            
+            /*  This is just naive Bayes */
             _hmm.fpClassifier(_hmm.data,probs,classes,0);
-            
-            if (probs[CLASS_OF_INTEREST_TO_ENABLE_CALLBACK] > TOFIX(0.95f,HMM_LOGPROB_QFIXEDPOINT_OUTPUT) && _playbackFunc) {
-                RecordAudioRequest_t req;
-                memset(&req,0,sizeof(req));
-                
-                req.durationInFrames = RECORD_DURATION_IN_FRAMES;
-                
-                _playbackFunc(&req);
-            }
         }
     }
     else {
@@ -363,6 +353,9 @@ void AudioClassifier_DataCallback(const AudioFeatures_t * pfeats) {
 
     }
     
+    /* This could trigger an upload */
+    RawAudioStateMachine_SetProbabilityOfDesiredClass(probs[CLASS_OF_INTEREST_TO_ENABLE_CALLBACK]);
+
     DEBUG_LOG_S8("probs", NULL, probs, 2, pfeats->samplecount, pfeats->samplecount);
 
 }
