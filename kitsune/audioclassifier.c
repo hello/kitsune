@@ -345,9 +345,6 @@ void AudioClassifier_DataCallback(const AudioFeatures_t * pfeats) {
 
             /*  This is just naive Bayes */
             _hmm.fpClassifier(_hmm.data,probs,classes,0);
-            
-            /* This could trigger an upload */
-            RawAudioStateMachine_SetProbabilityOfDesiredClass(probs[CLASS_OF_INTEREST_TO_ENABLE_CALLBACK]);
         }
     }
     else {
@@ -356,6 +353,9 @@ void AudioClassifier_DataCallback(const AudioFeatures_t * pfeats) {
 
     }
     
+    /* This could trigger an upload */
+    RawAudioStateMachine_SetProbabilityOfDesiredClass(probs[CLASS_OF_INTEREST_TO_ENABLE_CALLBACK]);
+
     DEBUG_LOG_S8("probs", NULL, probs, 2, pfeats->samplecount, pfeats->samplecount);
 
 }
