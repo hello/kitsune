@@ -337,7 +337,7 @@ static void DoCapture(uint32_t rate) {
 				else if (isSavingToFile && m.message.capturedesc.change == stopSaving) {
 					//got message to stop saving file
 					uint32_t flags = m.message.capturedesc.flags;
-
+					isSavingToFile = 0;
 					if (flags & AUDIO_TRANSFER_FLAG_DELETE_IMMEDIATELY) {
 						CloseAndDeleteFile(&filedata);
 					}

@@ -262,7 +262,6 @@ void AudioClassifier_Init(RecordAudioCallback_t recordfunc) {
     InitDefaultClassifier();
 
     RawAudioStateMachine_Init(recordfunc);
-
 }
 
 
@@ -345,15 +344,9 @@ void AudioClassifier_DataCallback(const AudioFeatures_t * pfeats) {
 
             _classifier.fpClassifier(_classifier.data,classes,pfeats->feats4bit,3); //4 bits feats, SQ3 feats.
 
-            
             /*  This is just naive Bayes */
             _hmm.fpClassifier(_hmm.data,probs,classes,0);
-            
-#if 0
-            /* This could trigger an upload */
-            RawAudioStateMachine_SetProbabilityOfDesiredClass(probs[CLASS_OF_INTEREST_TO_ENABLE_CALLBACK]);
-
-#endif
+          
         }
     }
     else {
@@ -361,7 +354,12 @@ void AudioClassifier_DataCallback(const AudioFeatures_t * pfeats) {
         _hmm.fpClassifier(_hmm.data,probs,NULL,0);
 
     }
-    
+
+#if 0
+    /* This could trigger an upload */
+    RawAudioStateMachine_SetProbabilityOfDesiredClass(probs[CLASS_OF_INTEREST_TO_ENABLE_CALLBACK]);
+#endif
+
     DEBUG_LOG_S8("probs", NULL, probs, 2, pfeats->samplecount, pfeats->samplecount);
 
 }
