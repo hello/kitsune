@@ -464,6 +464,14 @@ void load_aes() {
 	}
 	aes_key[AES_BLOCKSIZE] = 0;
 
+	int i;
+
+	UARTprintf("AES block loaded from file: ");
+	for(i = 0; i < AES_BLOCKSIZE; i++){
+		UARTprintf("%02X", aes_key[i]);
+	}
+	UARTprintf("\n");
+
 	RetVal = sl_FsClose(DeviceFileHandle, NULL, NULL, 0);
 }
 bool load_device_id() {
@@ -487,14 +495,14 @@ bool load_device_id() {
 	}
 	device_id[DEVICE_ID_SZ] = 0;
 
-	LOGI("device id loaded from file: ");
+	UARTprintf("device id loaded from file: ");
 	int i;
 	for(i = 0; i < DEVICE_ID_SZ; i++)
 	{
-		LOGI("%02X", device_id[i]);
+		UARTprintf("%02X", device_id[i]);
 	}
 
-	LOGI("\n");
+	UARTprintf("\n");
 	RetVal = sl_FsClose(DeviceFileHandle, NULL, NULL, 0);
 	return true;
 }
