@@ -371,6 +371,8 @@ int save_aes( uint8_t * key ) {
 				&hndl)) {
 			LOGI("error opening for write\n");
 			return -1;
+		}else{
+			sl_FsWrite(hndl, 0, key, AES_BLOCKSIZE);  // Dummy write, we don't care about the result
 		}
 	}
 
@@ -398,6 +400,8 @@ int save_device_id( uint8_t * device_id ) {
 				&hndl)) {
 			LOGI("error opening for write\n");
 			return -1;
+		}else{
+			sl_FsWrite(hndl, 0, device_id, DEVICE_ID_SZ);  // Dummy write, we don't care about the result
 		}
 	}
 
@@ -481,6 +485,15 @@ void load_device_id() {
 		return;
 	}
 	device_id[DEVICE_ID_SZ] = 0;
+
+	LOGI("device id loaded from file: ");
+	int i;
+	for(i = 0; i < DEVICE_ID_SZ; i++)
+	{
+		LOGI("%02X", device_id[i]);
+	}
+
+	LOGI("\n");
 	RetVal = sl_FsClose(DeviceFileHandle, NULL, NULL, 0);
 }
 
