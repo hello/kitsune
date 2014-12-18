@@ -149,7 +149,8 @@ static void led_slow(unsigned int* color) {
 			} else {
 				//0
 				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_HIGH_SLOW);
-				UtilsDelay(1);
+				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
+				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
 				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_LOW_SLOW);
 				if (i != 23) {
 					UtilsDelay(5);
@@ -522,7 +523,7 @@ int led_set_color(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b, int fade_in, i
 	user_color.g = clamp_rgb(g, 0, LED_CLAMP_MAX) * alpha / 0xFF;
 	user_color.b = clamp_rgb(b, 0, LED_CLAMP_MAX) * alpha / 0xFF;
 	user_delay = ud;
-	LOGI("Setting colors R: %d, G: %d, B: %d \r\n", user_color.r, user_color.g, user_color.b);
+	//LOGI("Setting colors R: %d, G: %d, B: %d \r\n", user_color.r, user_color.g, user_color.b);
 	xEventGroupClearBits( led_events, 0xffffff );
 	if( rot ) {
 		xEventGroupSetBits(led_events,
@@ -536,6 +537,17 @@ int led_set_color(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b, int fade_in, i
 	xSemaphoreGive(led_smphr);
 	return 0;
 }
+
+int led_rainbow(uint8_t alpha)
+{
+	//LED_ROTATE_RAINBOW_BIT
+	xSemaphoreTake(led_smphr, portMAX_DELAY);
+	xEventGroupClearBits( led_events, 0xffffff );
+	xEventGroupSetBits(led_events, LED_ROTATE_RAINBOW_BIT | 1);
+	xSemaphoreGive(led_smphr);
+	return 0;
+}
+
 int led_start_custom_animation(led_user_animation_handler user, void * context){
 	if(!user){
 		return -1;

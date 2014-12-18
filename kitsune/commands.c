@@ -1003,6 +1003,20 @@ static void SortByRSSI(Sl_WlanNetworkEntry_t* netEntries,
      }while(ucSwapped);
 }
 
+int Cmd_AP(int argc, char *argv[]){
+	   char *args[] = {
+				" ",
+				"NETGEAR58",
+				"12345678",
+				"2"
+		};
+	   Cmd_connect(4,args); UARTprintf("Connect AP! \n\r");
+/*	   static char cmd[64] = {0};
+	   strcpy(cmd, "connect NETGEAR58 0123456789 1");
+	   xTaskCreate(CmdLineProcess, "commandTask", 5 * 1024 /4, cmd, 4, NULL);
+	   */
+	   return 0;
+}
 
 int TEST_BREAK;
 int Cmd_factory_test(int argc, char *argv[]){
@@ -1027,8 +1041,18 @@ int Cmd_factory_test(int argc, char *argv[]){
 	   char *args[] = {
 				" ",
 				"57",
-				"RINGTO~2/NEW001.raw"
+				"RINGTONE/NEW001.raw"
 		};
+
+/*	   char *argss[] = {
+				" ",
+				"Neutron966",
+				"0123456789",
+				"1"
+		};//
+
+	   Cmd_connect(4,argss);
+*/
     while(1){
     if(TEST_BREAK) break;
 	vTaskDelay(1000);
@@ -1432,6 +1456,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "genkey",Cmd_generate_factory_data,""},
 		{ "lfclktest",Cmd_test_3200_rtc,""},
 		{"dft", Cmd_factory_test, "run basic peripheral testing"},
+		{"AP", Cmd_AP, "APAP"},
 	    {"break", Cmd_break, "break any process"},
 		{ 0, 0, 0 } };
 
@@ -1615,10 +1640,15 @@ void vUARTTask(void *pvParameters) {
 			mac[3], mac[4], mac[5]);
 	UARTprintf("\n? for help\n");
 	UARTprintf("> ");
+	//Cmd_AP(0,0);
+	//vTaskDelay(2000);
+	//Cmd_status(0,0);
+
+	//Cmd_factory_test(0,0);
 
 	/* remove anything we recieved before we were ready */
 
-	/* Loop forever */
+	/* Loop forever *///
 	while (1) {
 		/* Wait for a signal indicating we have an RX line to process */
 		xSemaphoreTake(g_xRxLineSemaphore, portMAX_DELAY);
