@@ -10,6 +10,7 @@
 #include "socket.h"
 #include "simplelink.h"
 #include "protocol.h"
+#include "ble_proto.h"
 #include "sl_sync_include_after_simplelink_header.h"
 
 
@@ -474,7 +475,7 @@ void load_aes() {
 
 	RetVal = sl_FsClose(DeviceFileHandle, NULL, NULL, 0);
 }
-void load_device_id() {
+bool load_device_id() {
 	long DeviceFileHandle = -1;
 	int RetVal, Offset;
 
@@ -483,7 +484,7 @@ void load_device_id() {
 			&DeviceFileHandle);
 	if (RetVal != 0) {
 		LOGE("failed to open device id file\n");
-		return;
+		return false;
 	}
 
 	Offset = 0;
@@ -491,7 +492,7 @@ void load_device_id() {
 			DEVICE_ID_SZ);
 	if (RetVal != DEVICE_ID_SZ) {
 		LOGE("failed to read device id file\n");
-		return;
+		return false;
 	}
 	device_id[DEVICE_ID_SZ] = 0;
 	/*
@@ -505,6 +506,7 @@ void load_device_id() {
 	UARTprintf("\n");
 	*/
 	RetVal = sl_FsClose(DeviceFileHandle, NULL, NULL, 0);
+	return true;
 }
 
 /* protobuf includes */

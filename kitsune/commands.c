@@ -693,7 +693,7 @@ void thread_tx(void* unused) {
 	LOGI(" Start polling  \n");
 	while (1) {
 		if (uxQueueMessagesWaiting(data_queue) >= data_queue_batch_size) {
-			LOGI(	"sending data" );
+			LOGI("sending data\n");
 			periodic_data_to_encode periodicdata;
 			periodicdata.num_data = 0;
 			periodicdata.data = (periodic_data*)pvPortMalloc(data_queue_batch_size*sizeof(periodic_data));
