@@ -24,9 +24,6 @@ extern "C"
 {
 #endif
 bool on_ble_protobuf_command(MorpheusCommand* command);
-void ble_proto_get_device_id_string(char* hex_device_id, size_t len, size_t* out_len);
-void ble_proto_request_device_id_async();
-void ble_proto_init();
 
 //*****************************************************************************
 //
