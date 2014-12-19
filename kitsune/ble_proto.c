@@ -51,6 +51,8 @@ static struct {
 
 static void _led_busy_mode(int a, int r, int g, int b, int delay);
 static void _led_normal_mode(int operation_result);
+static void _led_fade_in_trippy();
+static void _led_fade_out();
 
 static void _factory_reset(){
     int16_t ret = sl_WlanProfileDel(0xFF);
@@ -297,6 +299,14 @@ static void _ble_reply_wifi_info(){
 	ble_send_protobuf(&reply_command);
 }
 
+static void _ble_reply_command_with_type(MorpheusCommand_CommandType type)
+{
+	MorpheusCommand reply_command;
+	memset(&reply_command, 0, sizeof(reply_command));
+	reply_command.type = type;
+	ble_send_protobuf(&reply_command);
+}
+
 #include "wifi_cmd.h"
 extern xQueueHandle pill_queue;
 
@@ -442,6 +452,32 @@ void _led_busy_mode(int a, int r, int g, int b, int delay)
 
 	_self.led_status = LED_BUSY;
 	led_set_color(_self.a, _self.r, _self.g, _self.b, 1, 0, _self.delay, 1);
+	_led_fade_in_trippy();
+}
+
+void _led_roll_once(int a, int r, int g, int b, int delay)
+{
+	LOGI("LED ROLL ONCE\n");
+	_self.a = a;
+	_self.r = r;
+	_self.g = g;
+	_self.b = b;
+	_self.delay = delay;
+
+	if(_self.led_status == LED_TRIPPY)
+	{
+		_led_fade_out();
+
+		_self.led_status = LED_BUSY;
+		led_set_color(_self.a, _self.r, _self.g, _self.b, 1, 1, _self.delay, 1);
+		vTaskDelay(1000);
+
+		_led_fade_in_trippy();
+	}else{
+		_self.led_status = LED_BUSY;
+		led_set_color(_self.a, _self.r, _self.g, _self.b, 1, 1, _self.delay, 1);
+	}
+
 }
 
 static void _led_normal_mode(int operation_result)
@@ -483,6 +519,43 @@ static void _led_normal_mode(int operation_result)
 	}
 }
 
+static void _led_fade_in_trippy(){
+	switch(_self.led_status)
+	{
+	case LED_BUSY:
+		play_led_trippy(portMAX_DELAY);
+		led_set_color(_self.a, _self.r, _self.g, _self.b, 0, 1, 18, 0);
+		break;
+	case LED_TRIPPY:
+		break;
+	case LED_OFF:
+		led_set_color(_self.a, _self.r, _self.g, _self.b, 1, 0, 18, 0);
+		vTaskDelay(1000);
+		play_led_trippy(portMAX_DELAY);
+		led_set_color(_self.a, _self.r, _self.g, _self.b, 0, 1, 18, 0);
+		break;
+	}
+
+	_self.led_status = LED_TRIPPY;
+}
+
+static void _led_fade_out(){
+	switch(_self.led_status)
+	{
+	case LED_BUSY:
+		led_set_color(_self.a, _self.r, _self.g, _self.b, 0, 1, 18, 0);
+		break;
+	case LED_TRIPPY:
+		led_set_color(_self.a, _self.r, _self.g, _self.b, 0, 1, 18, 0);
+		stop_led_animation();
+		break;
+	case LED_OFF:
+		break;
+	}
+
+	_self.led_status = LED_OFF;
+}
+
 #include "top_board.h"
 #include "wifi_cmd.h"
 extern uint8_t top_device_id[DEVICE_ID_SZ];
@@ -509,9 +582,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
             	sec_type = command->security_type == wifi_endpoint_sec_type_SL_SCAN_SEC_TYPE_WPA2 ? SL_SEC_TYPE_WPA_WPA2 : command->security_type;
             }
 
-            _led_busy_mode(0xFF, 128, 0, 128, 18);
             int result = _set_wifi(ssid, (char*)password, sec_type);
-            _led_normal_mode(result);
 
         }
         break;
@@ -553,7 +624,6 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         {
             // Get morpheus device id request from Nordic
             LOGI("GET DEVICE ID\n");
-            top_board_notify_boot_complete();
             _self.led_status = LED_OFF;  // init led status
             _reply_device_id();
         }
@@ -579,44 +649,33 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         {
             LOGI("PAIR PILL\n");
             _self.ble_mode = SENSE_ON_BOARDING_MODE;
-            _led_busy_mode(0xFF, 128, 0, 128, 18);
             int result = _pair_device(command, 0);
-            _led_normal_mode(result);
             
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_SENSE:
         {
         	_self.ble_mode = SENSE_ON_BOARDING_MODE;
-        	_led_busy_mode(0xFF, 128, 0, 128, 18);
             LOGI("PAIR SENSE\n");
             int result = _pair_device(command, 1);
-            _led_normal_mode(result);
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_FACTORY_RESET:
         {
             LOGI("FACTORY RESET\n");
-            _led_busy_mode(0xFF, 128, 0, 128, 18);
             _factory_reset();
-            _led_normal_mode(1);
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_START_WIFISCAN:
         {
             LOGI("WIFI Scan request\n");
-            _led_busy_mode(0xFF, 128, 0, 128, 18);
             _reply_wifi_scan_result();
-            _led_normal_mode(0);
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_SHAKES:
         {
             LOGI("PILL SHAKES\n");
-            _led_busy_mode(0xFF, 128, 0, 128, 18);
-
-        	vTaskDelay(18 *4 * (12 + 1));
-            _led_normal_mode(0);
+            _led_roll_once(0xFF, 128, 0, 128, 18);
         }
         break;
     	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID:
@@ -635,11 +694,24 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         				top_device_id[6],top_device_id[7]);
         		top_got_device_id = true;
         		_reply_sync_device_id();
+        		top_board_notify_boot_complete();
         	}else{
         		LOGI("device id fail from top\n");
         	}
     	}
         break;
+    	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_LED_BUSY:
+    		_led_busy_mode(0xFF, 128, 0, 128, 18);
+    		_ble_reply_command_with_type(command->type);
+    		break;
+    	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_LED_OFF:
+    		_led_fade_out();
+    		_ble_reply_command_with_type(command->type);
+    		break;
+    	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_LED_TRIPPY:
+    		_led_fade_in_trippy();
+    		_ble_reply_command_with_type(command->type);
+    		break;
 	}
     return true;
 }
