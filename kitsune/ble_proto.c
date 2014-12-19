@@ -47,8 +47,6 @@ static struct {
 	int delay;
 	sense_mode_t ble_mode;
 	led_mode_t led_status;
-	xSemaphoreHandle device_id_mutex;
-	char device_id_string[DEVICE_ID_SZ * 2 + 1];
 } _self;
 
 static void _led_busy_mode(int a, int r, int g, int b, int delay);
