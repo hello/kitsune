@@ -34,7 +34,7 @@
 #define MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP (500)
 
 #define MAX_NUMBER_TIMES_TO_WAIT_FOR_AUDIO_BUFFER_TO_FILL (5000)
-#define MAX_FILE_SIZE_BYTES (1048576)
+#define MAX_FILE_SIZE_BYTES (1048576*10)
 
 #define MONO_BUF_LENGTH (256)
 
@@ -271,11 +271,9 @@ static void DoCapture(uint32_t rate) {
 
 	int iBufferFilled = 0;
 	AudioMessage_t m;
-	uint32_t num_frames_to_save;
 	Filedata_t filedata;
 	uint8_t isSavingToFile = 0;
 	uint32_t num_bytes_written;
-	uint32_t record_flags = 0;
 	uint32_t octogram_count;
 	Octogram_t octogramdata;
 	AudioOctogramDesc_t octogramdesc;
@@ -316,13 +314,16 @@ static void DoCapture(uint32_t rate) {
 
 				//setup file saving...
 
+				if (!isSavingToFile && m.message.capturedesc.change == startSaving) {
 				//if you aren't already saving... make a new file
-				if (!isSavingToFile) {
 					memset(&filedata,0,sizeof(filedata));
 					memset(filepath,0,sizeof(filepath));
 					snprintf(filepath,sizeof(filedata),"%s%07d.dat",SAVE_BASE,_filecounter);
 					_filecounter++;
 
+					if (_filecounter > 9999999) {
+						_filecounter = 0;
+					}
 
 					filedata.file_name = filepath;
 
@@ -333,11 +334,25 @@ static void DoCapture(uint32_t rate) {
 					LOGI("started saving to file %s\r\n",filedata.file_name );
 
 				}
+				else if (isSavingToFile && m.message.capturedesc.change == stopSaving) {
+					//got message to stop saving file
+					uint32_t flags = m.message.capturedesc.flags;
+					isSavingToFile = 0;
+					if (flags & AUDIO_TRANSFER_FLAG_DELETE_IMMEDIATELY) {
+						CloseAndDeleteFile(&filedata);
+					}
+					else if (flags & AUDIO_TRANSFER_FLAG_UPLOAD) {
+						const uint8_t delete_after_upload = (flags & AUDIO_TRANSFER_FLAG_DELETE_AFTER_UPLOAD) > 0;
 
-				//no matter what, set num_frames_to_save to the requested
-				num_frames_to_save = m.message.capturedesc.captureduration;
+						CloseFile(&filedata);
 
-				record_flags |= m.message.capturedesc.flags;
+						QueueFileForUpload(filedata.file_name,delete_after_upload);
+					}
+					else {
+						//default -- just close it
+						CloseFile(&filedata);
+					}
+				}
 
 				break;
 			}
@@ -399,7 +414,7 @@ static void DoCapture(uint32_t rate) {
 			vTaskDelay(1);
 		}
 		else {
-	//		uint8_t * ptr_samples_bytes = (uint8_t *)samples;
+	//		uint8_ts * ptr_samples_bytes = (uint8_t *)samples;
 			uint16_t * pu16 = (uint16_t *)samples;
 
 			//dump buffer out
@@ -427,24 +442,12 @@ static void DoCapture(uint32_t rate) {
 
 				if (WriteToFile(&filedata,bytes_written,(const uint8_t *)samples)) {
 					num_bytes_written += bytes_written;
-					num_frames_to_save--;
 
-					//close if we are done
-					if (num_frames_to_save <= 0 || num_bytes_written > MAX_FILE_SIZE_BYTES) {
-						CloseFile(&filedata);
+					//close if we get too big
+					if (num_bytes_written > MAX_FILE_SIZE_BYTES) {
+						CloseAndDeleteFile(&filedata);
 						isSavingToFile = 0;
 
-						if (record_flags & AUDIOTASK_FLAG_UPLOAD) {
-							const uint8_t delete_after_upload = (record_flags & AUDIOTASK_FLAG_DELETE_AFTER_UPLOAD) > 0;
-							QueueFileForUpload(filedata.file_name,delete_after_upload);
-
-							//unset flags
-							record_flags &= ~AUDIOTASK_FLAG_UPLOAD;
-							record_flags &= ~AUDIOTASK_FLAG_DELETE_AFTER_UPLOAD;
-
-						}
-						LOGI("done recording %s\r\n",filedata.file_name);
-						AudioTask_StopCapture();
 					}
 				}
 				else {
@@ -452,7 +455,6 @@ static void DoCapture(uint32_t rate) {
 					CloseFile(&filedata);
 					isSavingToFile = 0;
 					LOGI("Failed to write to file %s\r\n",filedata.file_name);
-					AudioTask_StopCapture();
 					_filecounter--;
 				}
 			}
@@ -489,11 +491,7 @@ static void DoCapture(uint32_t rate) {
 	CAPTURE_CLEANUP:
 
 	if (isSavingToFile) {
-		CloseFile(&filedata);
-		if (record_flags & AUDIOTASK_FLAG_UPLOAD) {
-			const uint8_t delete_after_upload = (record_flags & AUDIOTASK_FLAG_DELETE_AFTER_UPLOAD) > 0;
-			QueueFileForUpload(filedata.file_name,delete_after_upload);
-		}
+		CloseAndDeleteFile(&filedata);
 	}
 
 	DeinitAudioCapture();

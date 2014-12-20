@@ -4,8 +4,6 @@
 #include <stdint.h>
 #include "audio_types.h"
 
-#define AUDIOTASK_FLAG_UPLOAD                 (1 << 0)
-#define AUDIOTASK_FLAG_DELETE_AFTER_UPLOAD    (1 << 1)
 
 typedef enum {
 	eAudioCaptureTurnOn,
@@ -27,11 +25,6 @@ typedef struct {
 
 } AudioPlaybackDesc_t;
 
-typedef struct {
-	uint32_t captureduration;
-	uint32_t rate;
-	uint32_t flags;
-} AudioCaptureDesc_t ;
 
 typedef struct {
 	uint32_t analysisduration;
