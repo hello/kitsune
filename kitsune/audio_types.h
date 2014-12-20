@@ -77,6 +77,7 @@ typedef enum {
 typedef struct {
 	EAudioTransferChangeState_t change;
 	uint32_t flags;
+	int32_t rate;
 } AudioCaptureDesc_t;
 
 /* ----------------- */

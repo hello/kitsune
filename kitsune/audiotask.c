@@ -409,7 +409,7 @@ static void DoCapture(uint32_t rate) {
 
 		iBufferFilled = GetBufferSize(pTxBuffer);
 
-		if(iBufferFilled < PING_PONG_CHUNK_SIZE) {
+		if(iBufferFilled < 2*PING_PONG_CHUNK_SIZE) {
 			//wait a bit for the tx buffer to fill
 			vTaskDelay(1);
 		}
