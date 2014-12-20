@@ -11,7 +11,7 @@
 #include "wifi_cmd.h"
 
 #define PROTOBUF_VERSION            0
-#define FIRMWARE_VERSION_INTERNAL   (KIT_VER)
+#define FIRMWARE_VERSION_INTERNAL   40  //
 
 //*****************************************************************************
 //
