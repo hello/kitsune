@@ -1013,10 +1013,7 @@ int Cmd_AP(int argc, char *argv[]){
 	   connect_wifi( "NETGEAR58", "12345678", 2);
 	   UARTprintf("AP is connected now\n\r");
 	   //Cmd_connect(4,args); UARTprintf("Connect AP! \n\r");
-/*	   static char cmd[64] = {0};
-	   strcpy(cmd, "connect NETGEAR58 0123456789 1");
-	   xTaskCreate(CmdLineProcess, "commandTask", 5 * 1024 /4, cmd, 4, NULL);
-	   */
+
 	   return 0;
 }
 
