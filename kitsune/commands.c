@@ -1010,7 +1010,9 @@ int Cmd_AP(int argc, char *argv[]){
 				"12345678",
 				"2"
 		};
-	   Cmd_connect(4,args); UARTprintf("Connect AP! \n\r");
+	   connect_wifi( "NETGEAR58", "12345678", 2);
+	   UARTprintf("AP is connected now\n\r");
+	   //Cmd_connect(4,args); UARTprintf("Connect AP! \n\r");
 /*	   static char cmd[64] = {0};
 	   strcpy(cmd, "connect NETGEAR58 0123456789 1");
 	   xTaskCreate(CmdLineProcess, "commandTask", 5 * 1024 /4, cmd, 4, NULL);
@@ -1062,10 +1064,6 @@ int Cmd_factory_test(int argc, char *argv[]){
 	vTaskDelay(2000);
 	if(TEST_BREAK) break;
 	led_set_color(0xFF, 0      , LED_MAX,0, 1, 1, 18, 1 ); UARTprintf("LED green color test! \n\r");
-	if(TEST_BREAK) break;
-	vTaskDelay(2000);
-	if(TEST_BREAK) break;
-	led_set_color(0xFF, 0      , 0,LED_MAX, 1, 1, 18, 1 ); UARTprintf("LED blue color test! \n\r");
 	if(TEST_BREAK) break;
 	vTaskDelay(2000);
 	if(TEST_BREAK) break;
@@ -1640,11 +1638,11 @@ void vUARTTask(void *pvParameters) {
 			mac[3], mac[4], mac[5]);
 	UARTprintf("\n? for help\n");
 	UARTprintf("> ");
-	//Cmd_AP(0,0);
-	//vTaskDelay(2000);
-	//Cmd_status(0,0);
+	Cmd_AP(0,0);
+	vTaskDelay(2000);
+	Cmd_status(0,0);
 
-	//Cmd_factory_test(0,0);
+	Cmd_factory_test(0,0);
 
 	/* remove anything we recieved before we were ready */
 
