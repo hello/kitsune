@@ -412,6 +412,11 @@ void _led_busy_mode(int a, int r, int g, int b, int delay)
 		vTaskDelay(_self.delay * (12 + 1));
 	}
 
+	if(_self.led_status == LED_BUSY && _self.a == a && _self.r == r && _self.g == g && _self.g == g)
+	{
+		return;
+	}
+
 	_self.led_status = LED_BUSY;
 	led_set_color(_self.a, _self.r, _self.g, _self.b, 1, 0, _self.delay, 1);
 }
@@ -463,19 +468,10 @@ static void _led_normal_mode(int operation_result)
 	{
 	case SENSE_PAIRING_MODE:
 	case SENSE_ON_BOARDING_MODE:
-		if(_self.led_status != LED_TRIPPY)
-		{
-			play_led_trippy(portMAX_DELAY);
-		}
-		_self.led_status = LED_TRIPPY;
+		_led_fade_in_trippy();
 		break;
 	case SENSE_NORMAL_MODE:
-		if(_self.led_status == LED_TRIPPY)
-		{
-			stop_led_animation();
-		}
-		_self.led_status = LED_OFF;
-
+		_led_fade_out();
 		break;
 	}
 }
@@ -490,10 +486,8 @@ static void _led_fade_in_trippy(){
 	case LED_TRIPPY:
 		break;
 	case LED_OFF:
-		led_set_color(_self.a, _self.r, _self.g, _self.b, 1, 0, 18, 0);
-		vTaskDelay(1000);
+		//led_set_color(_self.a, _self.r, _self.g, _self.b, 1, 0, 18, 0);
 		play_led_trippy(portMAX_DELAY);
-		led_set_color(_self.a, _self.r, _self.g, _self.b, 0, 1, 18, 0);
 		break;
 	}
 
@@ -508,7 +502,8 @@ static void _led_fade_out(){
 		break;
 	case LED_TRIPPY:
 		stop_led_animation();
-		led_set_color(_self.a, _self.r, _self.g, _self.b, 0, 1, 18, 0);
+		//led_set_color(_self.a, _self.r, _self.g, _self.b, 0, 1, 18, 0);
+
 		break;
 	case LED_OFF:
 		break;
