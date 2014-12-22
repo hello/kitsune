@@ -40,10 +40,7 @@ typedef enum {
 }led_mode_t;
 
 static struct {
-	int a;
-	int r;
-	int g;
-	int b;
+	uint8_t argb[4];
 	int delay;
 	sense_mode_t ble_mode;
 	led_mode_t led_status;
@@ -52,7 +49,7 @@ static struct {
 static uint8_t _wifi_read_index;
 static Sl_WlanNetworkEntry_t _wifi_endpoints[MAX_WIFI_EP_PER_SCAN];
 
-static void _led_busy_mode(int a, int r, int g, int b, int delay);
+static void _led_busy_mode(uint8_t a, uint8_t r, uint8_t g, uint8_t b, int delay);
 static void _led_normal_mode(int operation_result);
 static void _led_fade_in_trippy();
 static void _led_fade_out();
@@ -403,13 +400,13 @@ void ble_proto_led_init()
 	led_set_color(0xFF, LED_MAX, LED_MAX, LED_MAX, 1, 1, 18, 0);
 }
 
-void _led_busy_mode(int a, int r, int g, int b, int delay)
+void _led_busy_mode(uint8_t a, uint8_t r, uint8_t g, uint8_t b, int delay)
 {
 	LOGI("LED BUSY\n");
-	_self.a = a;
-	_self.r = r;
-	_self.g = g;
-	_self.b = b;
+	_self.argb[0] = a;
+	_self.argb[1] = r;
+	_self.argb[2] = g;
+	_self.argb[3] = b;
 	_self.delay = delay;
 
 	if(_self.led_status == LED_TRIPPY)
@@ -418,22 +415,22 @@ void _led_busy_mode(int a, int r, int g, int b, int delay)
 		vTaskDelay(_self.delay * (12 + 1));
 	}
 
-	if(_self.led_status == LED_BUSY && _self.a == a && _self.r == r && _self.g == g && _self.g == g)
+	if(_self.led_status == LED_BUSY && _self.argb[0] == a && _self.argb[1] == r && _self.argb[2] == g && _self.argb[3] == g)
 	{
 		return;
 	}
 
 	_self.led_status = LED_BUSY;
-	led_set_color(_self.a, _self.r, _self.g, _self.b, 1, 0, _self.delay, 1);
+	led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 0, _self.delay, 1);
 }
 
 void _led_roll_once(int a, int r, int g, int b, int delay)
 {
 	LOGI("LED ROLL ONCE\n");
-	_self.a = a;
-	_self.r = r;
-	_self.g = g;
-	_self.b = b;
+	_self.argb[0] = a;
+	_self.argb[1] = r;
+	_self.argb[2] = g;
+	_self.argb[3] = b;
 	_self.delay = delay;
 
 	if(_self.led_status == LED_TRIPPY)
@@ -441,13 +438,13 @@ void _led_roll_once(int a, int r, int g, int b, int delay)
 		_led_fade_out();
 
 		_self.led_status = LED_BUSY;
-		led_set_color(_self.a, _self.r, _self.g, _self.b, 1, 1, _self.delay, 1);
+		led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 1);
 		vTaskDelay(1000);
 
 		_led_fade_in_trippy();
 	}else{
 		_self.led_status = LED_BUSY;
-		led_set_color(_self.a, _self.r, _self.g, _self.b, 1, 1, _self.delay, 1);
+		led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 1);
 	}
 
 }
@@ -464,7 +461,7 @@ static void _led_normal_mode(int operation_result)
 			led_set_color(0xFF, LED_MAX, LED_MAX, LED_MAX, 1, 1, 18, 0);
 			vTaskDelay(200 * (12 + 1));
 		}else{
-			led_set_color(_self.a, _self.r, _self.g, _self.b, 1, 1, _self.delay, 1);
+			led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 1);
 			vTaskDelay(_self.delay * (12 + 1));
 		}
 	}
@@ -487,7 +484,7 @@ static void _led_fade_in_trippy(){
 	{
 	case LED_BUSY:
 		play_led_trippy(portMAX_DELAY);
-		led_set_color(_self.a, _self.r, _self.g, _self.b, 0, 1, 18, 0);
+		led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 0, 1, 18, 0);
 		break;
 	case LED_TRIPPY:
 		break;
@@ -504,11 +501,11 @@ static void _led_fade_out(){
 	switch(_self.led_status)
 	{
 	case LED_BUSY:
-		led_set_color(_self.a, _self.r, _self.g, _self.b, 0, 1, 18, 0);
+		led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 0, 1, 18, 0);
 		break;
 	case LED_TRIPPY:
 		stop_led_animation();
-		//led_set_color(_self.a, _self.r, _self.g, _self.b, 0, 1, 18, 0);
+		//led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 0, 1, 18, 0);
 
 		break;
 	case LED_OFF:
