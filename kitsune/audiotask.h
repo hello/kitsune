@@ -65,4 +65,6 @@ void AudioTask_StopCapture(void);
 
 void AudioTask_StartCapture(uint32_t rate);
 
+void AudioTask_DumpOncePerMinuteStats(AudioOncePerMinuteData_t * pdata);
+
 #endif //_AUDIOCAPTURETASK_H_

@@ -74,8 +74,15 @@ typedef struct {
 	int32_t logenergy[OCTOGRAM_SIZE];
 } OctogramResult_t;
 
+typedef struct {
+	int32_t num_disturbances;
+	int32_t peak_energy;
+	int32_t peak_background_energy;
+} AudioOncePerMinuteData_t;
+
 typedef void (*SegmentAndFeatureCallback_t)(const int16_t * feats, const Segment_t * pSegment);
 typedef void (*AudioFeatureCallback_t)(const AudioFeatures_t * pfeats);
+typedef void (*AudioOncePerMinuteDataCallback_t) (const AudioOncePerMinuteData_t * pdata);
 typedef void (*NotificationCallback_t)(void * context);
 typedef void (*RecordAudioCallback_t)(const RecordAudioRequest_t * request);
     

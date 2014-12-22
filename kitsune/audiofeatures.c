@@ -125,10 +125,13 @@ typedef struct {
     int64_t modechangeTimes[3];
     uint8_t isValidSteadyStateSegment;
     uint16_t psd_min_energy;
+    uint8_t statsLastIsStable;
+    int16_t maxenergy;
     AudioFeatures_t feats;
     
 
     AudioFeatureCallback_t fpCallback;
+    AudioOncePerMinuteDataCallback_t fpOncePerMinuteDataCallback;
     
 } MelFeatures_t;
 
@@ -150,12 +153,14 @@ static MelFeatures_t _data;
 /*--------------------------------
  *   Functions
  *--------------------------------*/
-void AudioFeatures_Init(AudioFeatureCallback_t fpCallback) {
+void AudioFeatures_Init(AudioFeatureCallback_t fpCallback,AudioOncePerMinuteDataCallback_t fpOncePerMinuteCallback) {
     
     memset(&_data,0,sizeof(_data));
     
     _data.fpCallback = fpCallback;
     
+    _data.fpOncePerMinuteDataCallback = fpOncePerMinuteCallback;
+
     _data.psd_min_energy = MIN_ENERGY;
 
 }
@@ -181,6 +186,39 @@ static int16_t MovingAverage16(uint32_t counter, const int16_t x,int16_t * buf, 
     *accumulator = a;
     
     return (int16_t) (a >> shiftnum);
+}
+
+//finds stats of a disturbance, and performs callback when distubance is over
+static void UpdateEnergyStats(uint8_t isStable,int16_t logTotalEnergyAvg,int16_t logTotalEnergy,int64_t samplecount) {
+
+	//leaving stable mode -- therefore starting a disturbance
+	if (!isStable && _data.statsLastIsStable) {
+		_data.maxenergy = logTotalEnergy;
+	}
+
+	if (!isStable) {
+		if (logTotalEnergy > _data.maxenergy) {
+			_data.maxenergy = logTotalEnergy;
+		}
+
+
+	}
+
+	//entering stable mode --ending a disturbance
+	if (isStable && !_data.statsLastIsStable) {
+		if (_data.fpOncePerMinuteDataCallback) {
+			AudioOncePerMinuteData_t data;
+
+			data.num_disturbances = 1;
+			data.peak_background_energy = logTotalEnergyAvg * 16;//mulitply by 16 to account for Hann window energy reduction, and for convert to 20*log10 from log2
+			data.peak_energy = _data.maxenergy * 16;
+
+			_data.fpOncePerMinuteDataCallback(&data);
+		}
+	}
+
+
+	_data.statsLastIsStable = isStable;
 }
 
 
@@ -423,11 +461,15 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int64_t samplecount) {
     
     //DEBUG_LOG_S16("energyavg", NULL, &logTotalEnergyAvg, 1, samplecount, samplecount);
 
-    
+    /*
+     *  Determine stability of average energy -- we will use this to determine when it's safe to assume
+     *   that all the audio we are hearing is just background noise
+     */
     UpdateChangeSignals(&currentMode, logTotalEnergyAvg, _data.callcounter);
 
     isStable = IsStable(currentMode,logTotalEnergyAvg);
     
+    UpdateEnergyStats(isStable,logTotalEnergyAvg,logTotalEnergy,samplecount);
 
     /* Equalize the PSD */
     
