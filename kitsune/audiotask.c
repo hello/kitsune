@@ -83,6 +83,8 @@ static void StatsCallback(const AudioOncePerMinuteData_t * pdata) {
 		_stats.peak_energy = pdata->peak_energy;
 	}
 
+	_stats.isValid = 1;
+
 	xSemaphoreGive(_statsMutex);
 }
 

@@ -768,6 +768,7 @@ void thread_sensor_poll(void* unused) {
 	//
 
 	periodic_data data = {0};
+	AudioOncePerMinuteData_t aud_data;
 
 	while (1) {
 		portTickType now = xTaskGetTickCount();
@@ -845,6 +846,20 @@ void thread_sensor_poll(void* unused) {
 			}
 			
 			xSemaphoreGive(light_smphr);
+		}
+
+		//get audio -- this is thread safe
+		AudioTask_DumpOncePerMinuteStats(&aud_data);
+
+		if (aud_data.isValid) {
+			data.has_audio_num_disturbances = true;
+			data.audio_num_disturbances = aud_data.num_disturbances;
+
+			data.has_audio_peak_background_energy_db = true;
+			data.audio_peak_background_energy_db = aud_data.peak_background_energy;
+
+			data.has_audio_peak_disturbance_energy_db = true;
+			data.audio_peak_disturbance_energy_db = aud_data.peak_energy;
 		}
 
 		// get temperature and humidity
