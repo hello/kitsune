@@ -1,6 +1,5 @@
 #include "rawaudiostatemachine.h"
 #include "hellomath.h"
-#include "uartstdio.h"
 #include <string.h>
 
 #define NUM_SECONDS_TO_RECORD (30)
@@ -61,7 +60,7 @@ void RawAudioStateMachine_SetProbabilityOfDesiredClass(int8_t probQ7) {
 	{
 	    if (probQ7 > TOFIX(0.95f,7)) {
 	    	memset(&desc,0,sizeof(desc));
-	    	UARTprintf("SWITCHING TO RECORD MODE--%d samples\r\n",k_num_samples_to_record);
+	    //	UARTprintf("SWITCHING TO RECORD MODE--%d samples\r\n",k_num_samples_to_record);
 
 	    	_data.state = recording;
 	    	_data.num_samples_recorded = 0;
@@ -91,15 +90,15 @@ void RawAudioStateMachine_SetProbabilityOfDesiredClass(int8_t probQ7) {
 
 			desc.change = stopSaving;
 
-			UARTprintf("STOPPING RECORDING, avgprob=%d\r\n",avgprob);
+		//	UARTprintf("STOPPING RECORDING, avgprob=%d\r\n",avgprob);
 
 			if (avgprob > k_avg_prob_threshold_to_upload) {
-				UARTprintf("let us upload the raw audio\r\n");
+			//	UARTprintf("let us upload the raw audio\r\n");
 				desc.flags |= AUDIO_TRANSFER_FLAG_UPLOAD;
 				desc.flags |= AUDIO_TRANSFER_FLAG_DELETE_AFTER_UPLOAD;
 			}
 			else {
-				UARTprintf("not uploading the raw audio\r\n");
+				//UARTprintf("not uploading the raw audio\r\n");
 				desc.flags |= AUDIO_TRANSFER_FLAG_DELETE_IMMEDIATELY;
 			}
 

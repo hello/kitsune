@@ -355,10 +355,10 @@ void AudioClassifier_DataCallback(const AudioFeatures_t * pfeats) {
 
     }
 
-#if 0
     /* This could trigger an upload */
+
     RawAudioStateMachine_SetProbabilityOfDesiredClass(probs[CLASS_OF_INTEREST_TO_ENABLE_CALLBACK]);
-#endif
+
 
     DEBUG_LOG_S8("probs", NULL, probs, 2, pfeats->samplecount, pfeats->samplecount);
 
