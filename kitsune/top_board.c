@@ -313,7 +313,6 @@ int Cmd_send_top(int argc, char *argv[]){
 	return ret;
 }
 void top_board_notify_boot_complete(void){
-	led_set_color(0xFF, LED_MAX, LED_MAX, LED_MAX, 1, 1, 18, 0);
 	self.top_boot = true;
 }
 

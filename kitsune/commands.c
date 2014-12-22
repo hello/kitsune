@@ -70,7 +70,7 @@
 #include "diskio.h"
 #include "top_hci.h"
 #include "slip_packet.h"
-#include "ble_cmd.h"
+#include "ble_proto.h"
 #include "led_cmd.h"
 #include "led_animations.h"
 #include "uart_logger.h"
@@ -1410,6 +1410,7 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(led_task, "ledTask", 512 / 4, NULL, 4, NULL); //todo reduce stack
 
 	Cmd_led_clr(0,0);
+
 	//switch the uart lines to gpios, drive tx low and see if rx goes low as well
     // Configure PIN_57 for GPIOInput
     //
@@ -1484,7 +1485,6 @@ void vUARTTask(void *pvParameters) {
 			get_hw_ver()==EVT2?1000000:24000000);
 	UARTprintf("*");
 	Cmd_mnt(0, 0);
-
 	vTaskDelay(100);
 	//INIT SPI
 	spi_init();
@@ -1499,6 +1499,7 @@ void vUARTTask(void *pvParameters) {
 	init_prox_sensor();
 
 	init_led_animation();
+	ble_proto_led_init();
 
 	data_queue = xQueueCreate(10, sizeof(periodic_data));
 	pill_queue = xQueueCreate(MAX_PILL_DATA, sizeof(pill_data));

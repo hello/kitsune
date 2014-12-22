@@ -397,6 +397,12 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 	return 0; // failure
 }
 
+void ble_proto_led_init()
+{
+	_self.led_status = LED_OFF;
+	led_set_color(0xFF, LED_MAX, LED_MAX, LED_MAX, 1, 1, 18, 0);
+}
+
 void _led_busy_mode(int a, int r, int g, int b, int delay)
 {
 	LOGI("LED BUSY\n");
