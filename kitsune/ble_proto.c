@@ -574,7 +574,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PHONE_BLE_BONDED:
         {
-        	_led_normal_mode(1);
+        	_led_normal_mode(0);
         	LOGI("PHONE BONDED\n");
         }
         break;
