@@ -604,7 +604,7 @@ void thread_fast_i2c_poll(void * unused)  {
 			case GESTURE_HOLD:
 				_on_hold();
 				break;
-			case GESTURE_NONE:
+			case GESTURE_OUT:
 				_on_gesture_out();
 				break;
 			default:

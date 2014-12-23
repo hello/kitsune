@@ -503,8 +503,8 @@ void ble_proto_end_hold()
 		MorpheusCommand response = {0};
 		response.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_PAIRING_MODE;
 		ble_send_protobuf(&response);
-		_self.last_hold_time = 0;
 	}
+	_self.last_hold_time = 0;
 }
 
 bool on_ble_protobuf_command(MorpheusCommand* command)
