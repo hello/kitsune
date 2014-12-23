@@ -52,7 +52,7 @@ static Sl_WlanNetworkEntry_t _wifi_endpoints[MAX_WIFI_EP_PER_SCAN];
 static void _led_busy_mode(uint8_t a, uint8_t r, uint8_t g, uint8_t b, int delay);
 static void _led_normal_mode(int operation_result);
 static void _led_fade_in_trippy();
-static void _led_fade_out();
+static void _led_fade_out(bool operation_result);
 
 static void _ble_reply_command_with_type(MorpheusCommand_CommandType type)
 {
@@ -456,14 +456,8 @@ static void _led_normal_mode(int operation_result)
 	if(_self.led_status == LED_BUSY)
 	{
 		// Stop rolling
-		if(operation_result)
-		{
-			led_set_color(0xFF, LED_MAX, LED_MAX, LED_MAX, 1, 1, 18, 0);
-			vTaskDelay(200 * (12 + 1));
-		}else{
-			led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 1);
-			vTaskDelay(_self.delay * (12 + 1));
-		}
+		_led_fade_out(operation_result);
+        vTaskDelay(18 * (12 + 1));
 	}
 
 
@@ -497,11 +491,16 @@ static void _led_fade_in_trippy(){
 	_self.led_status = LED_TRIPPY;
 }
 
-static void _led_fade_out(){
+static void _led_fade_out(bool operation_result){
 	switch(_self.led_status)
 	{
 	case LED_BUSY:
-		led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 0, 1, 18, 0);
+        if(operation_result)
+        {
+            led_set_color(0xFF, LED_MAX, LED_MAX, LED_MAX, 0, 1, 18, 0);
+        }else{
+            led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 0, 1, 18, 0);
+        }
 		break;
 	case LED_TRIPPY:
 		stop_led_animation();
@@ -663,10 +662,14 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
     		_led_busy_mode(0xFF, 128, 0, 128, 18);
     		_ble_reply_command_with_type(command->type);
     		break;
-    	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_LED_OFF:
-    		_led_fade_out();
+    	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_LED_OPERATION_FAILED:
+    		_led_fade_out(false);
     		_ble_reply_command_with_type(command->type);
     		break;
+        case MorpheusCommand_CommandType_MORPHEUS_COMMAND_LED_OPERATION_SUCCESS:
+            _led_fade_out(true);
+            _ble_reply_command_with_type(command->type);
+            break;
     	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_LED_TRIPPY:
     		_led_fade_in_trippy();
     		_ble_reply_command_with_type(command->type);
