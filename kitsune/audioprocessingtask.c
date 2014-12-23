@@ -25,6 +25,8 @@ static uint32_t samplecounter;
 static DeviceCurrentInfo_t _deviceCurrentInfo;
 static void * _longTermStorageBuffer = NULL;
 
+static uint8_t _isUploadingRawData = 0;
+
 typedef enum {
 	command,
 	features
@@ -46,6 +48,10 @@ static void RecordCallback(const RecordAudioRequest_t * request) {
 	/* Go tell audio capture task to write to disk as it captures */
 	AudioMessage_t m;
 	memset(&m,0,sizeof(m));
+
+	if (!_isUploadingRawData) {
+		return;
+	}
 
 	m.command = eAudioSaveToDisk;
 
@@ -179,6 +185,7 @@ static void SetUpUpload(void) {
 
 void AudioProcessingTask_Thread(void * data) {
 	AudioProcessingTaskMessage_t m;
+	uint8_t featureUploads = 0;
 
 	Init();
 
@@ -205,6 +212,30 @@ void AudioProcessingTask_Thread(void * data) {
     			break;
     		}
 
+    		case rawUploadsOn:
+    		{
+    			_isUploadingRawData = 1;
+    			break;
+    		}
+
+    		case rawUploadsOff:
+    		{
+    			_isUploadingRawData = 0;
+    			break;
+    		}
+
+    		case featureUploadsOn:
+    		{
+    			featureUploads = 1;
+    			break;
+    		}
+
+    		case featureUploadsOff:
+    		{
+    			featureUploads = 0;
+    			break;
+    		}
+
     		default:
     		{
     			LOGI("AudioProcessingTask_Thread -- unrecognized command\r\n");
@@ -225,7 +256,9 @@ void AudioProcessingTask_Thread(void * data) {
     			samplecounter++;
 
     			if (samplecounter > AUDIO_UPLOAD_PERIOD_IN_TICKS) {
-    				SetUpUpload();
+    				if (featureUploads) {
+    					SetUpUpload();
+    				}
     				samplecounter = 0;
     			}
     		}
