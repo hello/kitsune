@@ -411,7 +411,7 @@ void _led_busy_mode(uint8_t a, uint8_t r, uint8_t g, uint8_t b, int delay)
 
 	if(_self.led_status == LED_TRIPPY)
 	{
-		_led_fade_out();
+		_led_fade_out(0);
 		vTaskDelay(_self.delay * (12 + 1));
 	}
 
@@ -435,7 +435,7 @@ void _led_roll_once(int a, int r, int g, int b, int delay)
 
 	if(_self.led_status == LED_TRIPPY)
 	{
-		_led_fade_out();
+		_led_fade_out(0);
 
 		_self.led_status = LED_BUSY;
 		led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 1);
@@ -468,7 +468,7 @@ static void _led_normal_mode(int operation_result)
 		_led_fade_in_trippy();
 		break;
 	case SENSE_NORMAL_MODE:
-		_led_fade_out();
+		_led_fade_out(operation_result);
 		break;
 	}
 }
