@@ -1355,12 +1355,13 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "antsel", Cmd_antsel, "" }, //select antenna
 		{ "led", Cmd_led, "" },
 		{ "clrled", Cmd_led_clr, "" },
-
+#ifdef RDIO_TEST
 		{ "rdiostats", Cmd_RadioGetStats, "" },
 		{ "rdiotxstart", Cmd_RadioStartTX, "" },
 		{ "rdiotxstop", Cmd_RadioStopTX, "" },
 		{ "rdiorxstart", Cmd_RadioStartRX, "" },
 		{ "rdiorxstop", Cmd_RadioStopRX, "" },
+#endif
 		{ "rssi", Cmd_rssi, "" },
 		{ "slip", Cmd_slip, "" },
 		{ "^", Cmd_send_top, ""}, //send command to top board

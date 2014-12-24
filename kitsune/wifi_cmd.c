@@ -1568,6 +1568,7 @@ int Cmd_audio_test(int argc, char *argv[]) {
 }
 #endif
 //radio test functions
+#ifdef RDIO_TEST
 #define FRAME_SIZE		1500
 typedef enum
 {
@@ -1943,6 +1944,7 @@ int Cmd_RadioStopTX(int argc, char*argv[])
 	return RadioStopTX(mode);
 }
 //end radio test functions
+#endif
 
 int get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uint32_t scan_duration_ms)
 {
