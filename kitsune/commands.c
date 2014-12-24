@@ -1040,7 +1040,8 @@ int Cmd_factory_test(int argc, char *argv[]){
 	   char *args[] = {
 				" ",
 				"57",
-				"RINGTONE/NEW001.raw"
+				"RINGTO~1/NEW001.raw"
+				//"RINGTONE/NEW001.raw"
 		};
 
 /*	   char *argss[] = {
