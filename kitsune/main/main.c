@@ -177,10 +177,9 @@ vAssertCalled( const char *pcFile, unsigned long ulLine )
 //! \return none
 //!
 //*****************************************************************************
-void
-vApplicationStackOverflowHook( xTaskHandle *pxTask, signed portCHAR *pcTaskName )
+void vApplicationStackOverflowHook( TaskHandle_t xTask, char *pcTaskName )
 {
-    ( void ) pxTask;
+    ( void ) xTask;
     ( void ) pcTaskName;
 
     UARTprintf( "%s STACK OVERFLOW", pcTaskName );
