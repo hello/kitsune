@@ -758,7 +758,6 @@ void thread_tx(void* unused) {
 				}
 			}
 			vPortFree( pilldata.pills );
-
 		}
 		do {
 			vTaskDelay(1000);
