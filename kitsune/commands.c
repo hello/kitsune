@@ -682,7 +682,7 @@ static bool encode_all_pills (pb_ostream_t *stream, const pb_field_t *field, voi
 
 int load_device_id();
 //no need for semaphore, only thread_tx uses this one
-int data_queue_batch_size = 5;
+int data_queue_batch_size = 1;
 void thread_tx(void* unused) {
 	batched_pill_data pill_data_batched = {0};
 	batched_periodic_data data_batched = {0};
@@ -722,6 +722,10 @@ void thread_tx(void* unused) {
 				}
 			}
 			vPortFree( periodicdata.data );
+			if(data_queue_batch_size == 1)
+			{
+				data_queue_batch_size = 5;
+			}
 		}
 
 		tries = 0;
@@ -754,6 +758,7 @@ void thread_tx(void* unused) {
 				}
 			}
 			vPortFree( pilldata.pills );
+
 		}
 		do {
 			vTaskDelay(1000);
