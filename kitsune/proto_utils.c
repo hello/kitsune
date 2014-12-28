@@ -1,4 +1,5 @@
 #include "proto_utils.h"
+#include "uartstdio.h"
 #include "wifi_cmd.h"
 
 
@@ -53,3 +54,4 @@ bool encode_device_id_string(pb_ostream_t *stream, const pb_field_t *field, void
 
     return pb_encode_tag_for_field(stream, field) && pb_encode_string(stream, (uint8_t*)hex_device_id, strlen(hex_device_id));
 }
+

@@ -11,6 +11,7 @@
 #include "debugutils/matmessageutils.h"
 #include "sys_time.h"
 #include "wifi_cmd.h"
+#include "proto_utils.h"
 
 #include <stdbool.h>
 #include <string.h>
