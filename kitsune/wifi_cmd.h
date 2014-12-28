@@ -20,11 +20,6 @@
 
 extern xSemaphoreHandle pill_smphr;
 
-typedef struct {
-	unsigned int time;
-	int light, light_variability, light_tonality, temp, humid, dust, dust_max, dust_min, dust_var;
-} data_t;
-
 extern
 int sl_mode;
 
@@ -104,10 +99,6 @@ long nwp_reset();
 void wifi_reset();
 void free_pill_list();
 
-
-bool encode_mac(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
-bool encode_device_id_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
-bool encode_name(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 
 #define MORPH_NAME ""
 

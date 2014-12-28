@@ -1,5 +1,6 @@
 #include "simplelink.h"
 #include "ble_proto.h"
+#include "proto_utils.h"
 #include "ble_cmd.h"
 #include "wlan.h"
 
@@ -51,6 +52,7 @@ static struct {
 
 static void _led_busy_mode(int a, int r, int g, int b, int delay);
 static void _led_normal_mode(int operation_result);
+void sample_sensor_data(periodic_data* data);
 
 static void _factory_reset(){
     int16_t ret = sl_WlanProfileDel(0xFF);
@@ -413,6 +415,41 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 
 		if(ret == 0)
 		{
+            if(is_morpheus)  // Force a data upload immediately after onboarding because the registration UI needs to show the current data.
+            {
+                periodic_data* data = pvPortMalloc(sizeof(periodic_data));  // Let's put this in the heap, we don't use it all the time
+                if(!data)
+                {
+                    ble_reply_protobuf_error(ErrorType_DEVICE_NO_MEMORY);
+                    return 0;
+                }
+                
+                memset(data, 0, sizeof(periodic_data));
+                sample_sensor_data(data);
+
+                periodic_data_to_encode periodicdata;
+                periodicdata.num_data = 1;
+                periodicdata.data = data;
+
+                batched_periodic_data data_batched = {0};
+                data_batched.data.funcs.encode = encode_all_periodic_data;  // This is smart :D
+                data_batched.data.arg = &periodicdata;
+                data_batched.firmware_version = KIT_VER;
+                data_batched.device_id.funcs.encode = encode_device_id_string;
+
+                uint8_t retry = 3;
+                while (send_periodic_data(&data_batched) != 0) {
+                    LOGI("Retry\n");
+                    vTaskDelay(1 * configTICK_RATE_HZ);
+                    --retry;
+                    if(!retry)
+                    {
+                        LOGI("Force post data failed\n");
+                        break;
+                    }
+                }
+                vPortFree(data);
+            }
 			_send_response_to_ble(response_buffer, sizeof(response_buffer));
 			return 1;
 		}else{

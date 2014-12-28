@@ -43,6 +43,7 @@ int sl_mode = ROLE_INVALID;
 #include "rom.h"
 #include "interrupt.h"
 #include "uart_logger.h"
+#include "proto_utils.h"
 
 void mcu_reset()
 {
@@ -1278,28 +1279,6 @@ bool get_mac(unsigned char mac[6]) {
     return ret;
 }
 
-bool encode_mac(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
-    unsigned char mac[6];
-    unsigned char mac_len = 6;
-#if FAKE_MAC
-    mac[0] = 0xab;
-    mac[1] = 0xcd;
-    mac[2] = 0xab;
-    mac[3] = 0xcd;
-    mac[4] = 0xab;
-    mac[5] = 0xcd;
-#else
-    int32_t ret = sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
-    if(ret != 0 && ret != SL_ESMALLBUF)
-    {
-    	LOGI("encode_mac: Fail to get MAC addr, err %d\n", ret);
-        return false;  // If get mac failed, don't encode that field
-    }
-#endif
-
-    return pb_encode_tag(stream, PB_WT_STRING, field->tag) && pb_encode_string(stream, (uint8_t*) mac, mac_len);
-}
-
 bool get_device_id(char * device_id,uint32_t size_of_device_id_buffer) {
     uint8_t i = 0;
 
@@ -1314,24 +1293,6 @@ bool get_device_id(char * device_id,uint32_t size_of_device_id_buffer) {
 	}
 
 	return true;
-}
-
-bool encode_device_id_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
-	//char are twice the size, extra 1 for null terminator
-    char hex_device_id[2*DEVICE_ID_SZ+1] = {0};
-    uint8_t i = 0;
-
-    for(i = 0; i < DEVICE_ID_SZ; i++){
-    	snprintf(&hex_device_id[i * 2], 3, "%02X", device_id[i]);
-    }
-
-    return pb_encode_tag_for_field(stream, field) && pb_encode_string(stream, (uint8_t*)hex_device_id, strlen(hex_device_id));
-}
-
-bool encode_name(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
-    return pb_encode_tag(stream, PB_WT_STRING, field->tag)
-            && pb_encode_string(stream, (uint8_t*) MORPH_NAME,
-                    strlen(MORPH_NAME));
 }
 
 bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg);

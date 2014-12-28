@@ -71,6 +71,7 @@
 #include "top_hci.h"
 #include "slip_packet.h"
 #include "ble_cmd.h"
+#include "proto_utils.h"
 #include "led_cmd.h"
 #include "led_animations.h"
 #include "uart_logger.h"
@@ -629,56 +630,6 @@ void thread_fast_i2c_poll(void * unused)  {
 xQueueHandle data_queue = 0;
 xQueueHandle pill_queue = 0;
 
-typedef struct {
-	periodic_data * data;
-	int num_data;
-} periodic_data_to_encode;
-
-static bool encode_all_periodic_data (pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
-	int i;
-	periodic_data_to_encode * data = *(periodic_data_to_encode**)arg;
-
-	for( i = 0; i < data->num_data; ++i ) {
-		if(!pb_encode_tag(stream, PB_WT_STRING, batched_periodic_data_data_tag))
-		{
-			LOGI("encode_all_periodic_data: Fail to encode tag error %s\n", PB_GET_ERROR(stream));
-			return false;
-		}
-
-		if (!pb_encode_delimited(stream, periodic_data_fields, &data->data[i])){
-			LOGI("encode_all_periodic_data2: Fail to encode error: %s\n", PB_GET_ERROR(stream));
-			return false;
-		}
-		//LOGI("******************* encode_pill_encode_all_pills: encode pill %s\n", pill_data.deviceId);
-	}
-	return true;
-}
-
-typedef struct {
-	pill_data * pills;
-	int num_pills;
-} pilldata_to_encode;
-
-static bool encode_all_pills (pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
-	int i;
-	pilldata_to_encode * data = *(pilldata_to_encode**)arg;
-
-	for( i = 0; i < data->num_pills; ++i ) {
-		if(!pb_encode_tag(stream, PB_WT_STRING, batched_pill_data_pills_tag))
-		{
-			LOGI("encode_all_pills: Fail to encode tag for pill %s, error %s\n", data->pills[i].device_id, PB_GET_ERROR(stream));
-			return false;
-		}
-
-		if (!pb_encode_delimited(stream, pill_data_fields, &data->pills[i])){
-			LOGI("encode_all_pills: Fail to encode pill %s, error: %s\n", data->pills[i].device_id, PB_GET_ERROR(stream));
-			return false;
-		}
-		//LOGI("******************* encode_pill_encode_all_pills: encode pill %s\n", pill_data.deviceId);
-	}
-	return true;
-}
-
 
 int load_device_id();
 //no need for semaphore, only thread_tx uses this one
@@ -765,6 +716,157 @@ void thread_tx(void* unused) {
 	}
 }
 
+void sample_sensor_data(periodic_data* data)
+{
+	if(!data)
+	{
+		return;
+	}
+
+	data->unix_time = get_time();
+	data->has_unix_time = true;
+
+	// copy over the dust values
+	if( xSemaphoreTake(dust_smphr, portMAX_DELAY)) {
+		if( dust_cnt != 0 ) {
+			data->dust = dust_mean;
+			data->has_dust = true;
+
+			dust_log_sum /= dust_cnt;  // devide by zero?
+			if(dust_cnt > 1)
+			{
+				data->dust_variability = dust_m2 / (dust_cnt - 1);  // devide by zero again, add if
+				data->has_dust_variability = true;  // since init with 0, by default it is false
+			}
+			data->has_dust_max = true;
+			data->dust_max = dust_max;
+
+			data->has_dust_min = true;
+			data->dust_min = dust_min;
+
+			
+		} else {
+			data->dust = get_dust();
+			if(data->dust == 0)  // This means we get some error?
+			{
+				data->has_dust = false;
+			}
+
+			data->has_dust_variability = false;
+			data->has_dust_max = false;
+			data->has_dust_min = false;
+		}
+		
+		dust_min = 5000;
+		dust_m2 = dust_mean = dust_cnt = dust_log_sum = dust_max = 0;
+		xSemaphoreGive(dust_smphr);
+	} else {
+		data->has_dust = false;  // if Semaphore take failed, don't upload
+	}
+
+	// copy over light values
+	if (xSemaphoreTake(light_smphr, portMAX_DELAY)) {
+		if(light_cnt == 0)
+		{
+			data->has_light = false;
+		}else{
+			light_log_sum /= light_cnt;  // just be careful for devide by zero.
+			light_sf = (light_mean << 8) / bitexp( light_log_sum );
+
+			if(light_cnt > 1)
+			{
+				data->light_variability = light_m2 / (light_cnt - 1);
+				data->has_light_variability = true;
+			}else{
+				data->has_light_variability = false;
+			}
+
+			//LOGI( "%d lightsf %d var %d cnt\n", light_sf, light_var, light_cnt );
+			data->light_tonality = light_sf;
+			data->has_light_tonality = true;
+
+			data->light = light_mean;
+			data->has_light = true;
+
+			light_m2 = light_mean = light_cnt = light_log_sum = light_sf = 0;
+		}
+		
+		xSemaphoreGive(light_smphr);
+	}
+
+	// get temperature and humidity
+	if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
+		uint8_t measure_time = 10;
+		int64_t humid_sum = 0;
+		int64_t temp_sum = 0;
+
+		uint8_t humid_count = 0;
+		uint8_t temp_count = 0;
+
+		while(--measure_time)
+		{
+			vTaskDelay(2);
+
+			int humid = get_humid();
+			if(humid != -1)
+			{
+				humid_sum += humid;
+				humid_count++;
+			}
+
+			vTaskDelay(2);
+
+			int temp = get_temp();
+
+			if(temp != -1)
+			{
+				temp_sum += temp;
+				temp_count++;
+			}
+
+			vTaskDelay(2);
+		}
+
+
+
+		if(humid_count == 0)
+		{
+			data->has_humidity = false;
+		}else{
+			data->has_humidity = true;
+			data->humidity = humid_sum / humid_count;
+
+		}
+
+
+		if(temp_count == 0)
+		{
+			data->has_temperature = false;
+		}else{
+			data->has_temperature = true;
+			data->temperature = temp_sum / temp_count;
+		}
+		
+		xSemaphoreGive(i2c_smphr);
+	}
+
+	int wave_count = gesture_get_wave_count();
+	if(wave_count > 0)
+	{
+		data->has_wave_count = true;
+		data->wave_count = wave_count;
+	}
+
+	int hold_count = gesture_get_hold_count();
+	if(hold_count > 0)
+	{
+		data->has_hold_count = true;
+		data->hold_count = hold_count;
+	}
+
+	gesture_counter_reset();
+}
+
 void thread_sensor_poll(void* unused) {
 
 	//
@@ -780,148 +882,7 @@ void thread_sensor_poll(void* unused) {
 
 		wait_for_time();
 
-		data.unix_time = get_time();
-		data.has_unix_time = true;
-
-		// copy over the dust values
-		if( xSemaphoreTake(dust_smphr, portMAX_DELAY)) {
-			if( dust_cnt != 0 ) {
-				data.dust = dust_mean;
-				data.has_dust = true;
-
-				dust_log_sum /= dust_cnt;  // devide by zero?
-				if(dust_cnt > 1)
-				{
-					data.dust_variability = dust_m2 / (dust_cnt - 1);  // devide by zero again, add if
-					data.has_dust_variability = true;  // since init with 0, by default it is false
-				}
-				data.has_dust_max = true;
-				data.dust_max = dust_max;
-
-				data.has_dust_min = true;
-				data.dust_min = dust_min;
-
-				
-			} else {
-				data.dust = get_dust();
-				if(data.dust == 0)  // This means we get some error?
-				{
-					data.has_dust = false;
-				}
-
-				data.has_dust_variability = false;
-				data.has_dust_max = false;
-				data.has_dust_min = false;
-			}
-			
-			dust_min = 5000;
-			dust_m2 = dust_mean = dust_cnt = dust_log_sum = dust_max = 0;
-			xSemaphoreGive(dust_smphr);
-		} else {
-			data.has_dust = false;  // if Semaphore take failed, don't upload
-		}
-
-		// copy over light values
-		if (xSemaphoreTake(light_smphr, portMAX_DELAY)) {
-			if(light_cnt == 0)
-			{
-				data.has_light = false;
-			}else{
-				light_log_sum /= light_cnt;  // just be careful for devide by zero.
-				light_sf = (light_mean << 8) / bitexp( light_log_sum );
-
-				if(light_cnt > 1)
-				{
-					data.light_variability = light_m2 / (light_cnt - 1);
-					data.has_light_variability = true;
-				}else{
-					data.has_light_variability = false;
-				}
-
-				//LOGI( "%d lightsf %d var %d cnt\n", light_sf, light_var, light_cnt );
-				data.light_tonality = light_sf;
-				data.has_light_tonality = true;
-
-				data.light = light_mean;
-				data.has_light = true;
-
-				light_m2 = light_mean = light_cnt = light_log_sum = light_sf = 0;
-			}
-			
-			xSemaphoreGive(light_smphr);
-		}
-
-		// get temperature and humidity
-		if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
-			uint8_t measure_time = 10;
-			int64_t humid_sum = 0;
-			int64_t temp_sum = 0;
-
-			uint8_t humid_count = 0;
-			uint8_t temp_count = 0;
-
-			while(--measure_time)
-			{
-				vTaskDelay(2);
-
-				int humid = get_humid();
-				if(humid != -1)
-				{
-					humid_sum += humid;
-					humid_count++;
-				}
-
-				vTaskDelay(2);
-
-				int temp = get_temp();
-
-				if(temp != -1)
-				{
-					temp_sum += temp;
-					temp_count++;
-				}
-
-				vTaskDelay(2);
-			}
-
-
-
-			if(humid_count == 0)
-			{
-				data.has_humidity = false;
-			}else{
-				data.has_humidity = true;
-				data.humidity = humid_sum / humid_count;
-
-			}
-
-
-			if(temp_count == 0)
-			{
-				data.has_temperature = false;
-			}else{
-				data.has_temperature = true;
-				data.temperature = temp_sum / temp_count;
-			}
-			
-			xSemaphoreGive(i2c_smphr);
-		}
-
-		int wave_count = gesture_get_wave_count();
-		if(wave_count > 0)
-		{
-			data.has_wave_count = true;
-			data.wave_count = wave_count;
-		}
-
-		int hold_count = gesture_get_hold_count();
-		if(hold_count > 0)
-		{
-			data.has_hold_count = true;
-			data.hold_count = hold_count;
-		}
-
-		gesture_counter_reset();
+		sample_sensor_data(&data);
 
 		if( enable_periodic ) {
 			LOGI("collecting time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d %d %d %d\twave %d\thold %d\n",
