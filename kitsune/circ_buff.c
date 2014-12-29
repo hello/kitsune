@@ -47,7 +47,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "circ_buff.h"
-#include "assert.h"
+#include "kit_assert.h"
 #include "FreeRTOS.h"
 //*****************************************************************************
 //

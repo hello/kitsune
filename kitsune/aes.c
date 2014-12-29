@@ -38,7 +38,7 @@
 #include "crypto.h"
 
 //byte order stuff will link in from network lib
-uint32_t sl_Htonl( uint32_t val );
+unsigned long sl_Htonl( unsigned long val );
 #define ntohl sl_Htonl
 #define htonl sl_Htonl
 

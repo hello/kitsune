@@ -293,7 +293,7 @@ int send_top(char * s, int n) {
 		return -1;
 	}
 }
-#include "assert.h"
+#include "kit_assert.h"
 int Cmd_send_top(int argc, char *argv[]){
 	int ret,i;
 	char * start;

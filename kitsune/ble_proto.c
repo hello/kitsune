@@ -14,7 +14,7 @@
 #include "event_groups.h"
 
 
-#include "assert.h"
+#include "kit_assert.h"
 #include "stdlib.h"
 #include "stdio.h"
 #include "networktask.h"
@@ -25,6 +25,7 @@
 #include "kitsune_version.h"
 #include "sys_time.h"
 #include "sl_sync_include_after_simplelink_header.h"
+#include "ustdlib.h"
 
 typedef void(*task_routine_t)(void*);
 typedef enum {
@@ -242,7 +243,7 @@ static void _reply_device_id()
 
 		uint8_t i = 0;
 		for(i = 0; i < SL_MAC_ADDR_LEN; i++){
-			snprintf(&device_id[i * 2], 3, "%02X", mac[i]);  //assert( itoa( mac[i], device_id+i*2, 16 ) == 2 );
+			usnprintf(&device_id[i * 2], 3, "%02X", mac[i]);  //assert( itoa( mac[i], device_id+i*2, 16 ) == 2 );
 		}
 
 		LOGI("Morpheus device id: %s\n", device_id);

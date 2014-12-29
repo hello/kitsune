@@ -8,7 +8,7 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <assert.h>
+#include "kit_assert.h"
 
 #include <hw_types.h>
 #include <hw_memmap.h>
@@ -87,6 +87,7 @@
 
 #include "hw_ver.h"
 #include "pinmux.h"
+#include "ustdlib.h"
 
 #define ONLY_MID 0
 
@@ -1134,14 +1135,14 @@ int Cmd_generate_factory_data(int argc,char * argv[]) {
 	RSA_free( rsa_ptr );
     uint8_t i = 0;
     for(i = 1; i < enc_size; i++) {
-    	snprintf(&key_string[i * 2 - 2], 3, "%02X", enc_factory_data[i]);
+    	usnprintf(&key_string[i * 2 - 2], 3, "%02X", enc_factory_data[i]);
     }
     UARTprintf( "\nfactory key: %s\n", key_string);
 
 
 #if 0 //todo DVT disable!
     for(i = 0; i < AES_BLOCKSIZE+DEVICE_ID_SZ+SHA1_SIZE+3; i++) {
-    	snprintf(&key_string[i * 2], 3, "%02X", factory_data[i]);
+    	usnprintf(&key_string[i * 2], 3, "%02X", factory_data[i]);
     }
     UARTprintf( "\ndec aes: %s\n", key_string);
 #endif
@@ -1359,12 +1360,13 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "antsel", Cmd_antsel, "" }, //select antenna
 		{ "led", Cmd_led, "" },
 		{ "clrled", Cmd_led_clr, "" },
-
+#ifdef RDIO_TEST
 		{ "rdiostats", Cmd_RadioGetStats, "" },
 		{ "rdiotxstart", Cmd_RadioStartTX, "" },
 		{ "rdiotxstop", Cmd_RadioStopTX, "" },
 		{ "rdiorxstart", Cmd_RadioStartRX, "" },
 		{ "rdiorxstop", Cmd_RadioStopRX, "" },
+#endif
 		{ "rssi", Cmd_rssi, "" },
 		{ "slip", Cmd_slip, "" },
 		{ "^", Cmd_send_top, ""}, //send command to top board
