@@ -1288,17 +1288,17 @@ bool get_mac(unsigned char mac[6]) {
     return ret;
 }
 
-bool get_device_id(char * device_id,uint32_t size_of_device_id_buffer) {
+bool get_device_id(char * hex_device_id,uint32_t size_of_device_id_buffer) {
     uint8_t i = 0;
 
 	if (size_of_device_id_buffer < DEVICE_ID_SZ * 2 + 1) {
 		return false;
 	}
 
-	memset(device_id,0,size_of_device_id_buffer);
+	memset(hex_device_id, 0, size_of_device_id_buffer);
 
 	for(i = 0; i < DEVICE_ID_SZ; i++){
-		usnprintf(&device_id[i * 2], 3, "%02X", device_id[i]);
+		usnprintf(&hex_device_id[i * 2], 3, "%02X", device_id[i]);
 	}
 
 	return true;
