@@ -732,6 +732,8 @@ void NwpUnMaskInterrupt()
     \note       belongs to \ref ported_sec
 
 */
+extern void UARTprintf(const char *pcString, ...);
+
 void NwpPowerOnPreamble(void)
 {
 #ifndef CC3200_ES_1_2_1

@@ -8,7 +8,7 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <assert.h>
+#include "kit_assert.h"
 
 #include <hw_types.h>
 #include <hw_memmap.h>
@@ -87,6 +87,7 @@
 
 #include "hw_ver.h"
 #include "pinmux.h"
+#include "ustdlib.h"
 
 #define ONLY_MID 0
 
@@ -561,8 +562,14 @@ static void _on_wave(int light){
 
 static void _on_hold(){
 	//stop_led_animation();
+	ble_proto_start_hold();
 	memset(&alarm, 0, sizeof(alarm));
 	AudioTask_StopPlayback();
+}
+
+static void _on_gesture_out()
+{
+	ble_proto_end_hold();
 }
 
 static int light_m2,light_mean, light_cnt,light_log_sum,light_sf;
@@ -597,6 +604,9 @@ void thread_fast_i2c_poll(void * unused)  {
 				break;
 			case GESTURE_HOLD:
 				_on_hold();
+				break;
+			case GESTURE_OUT:
+				_on_gesture_out();
 				break;
 			default:
 				break;
@@ -682,7 +692,7 @@ static bool encode_all_pills (pb_ostream_t *stream, const pb_field_t *field, voi
 
 int load_device_id();
 //no need for semaphore, only thread_tx uses this one
-int data_queue_batch_size = 5;
+int data_queue_batch_size = 1;
 void thread_tx(void* unused) {
 	batched_pill_data pill_data_batched = {0};
 	batched_periodic_data data_batched = {0};
@@ -722,6 +732,10 @@ void thread_tx(void* unused) {
 				}
 			}
 			vPortFree( periodicdata.data );
+			if(data_queue_batch_size == 1)
+			{
+				data_queue_batch_size = 5;
+			}
 		}
 
 		tries = 0;
@@ -1130,14 +1144,14 @@ int Cmd_generate_factory_data(int argc,char * argv[]) {
 	RSA_free( rsa_ptr );
     uint8_t i = 0;
     for(i = 1; i < enc_size; i++) {
-    	snprintf(&key_string[i * 2 - 2], 3, "%02X", enc_factory_data[i]);
+    	usnprintf(&key_string[i * 2 - 2], 3, "%02X", enc_factory_data[i]);
     }
     UARTprintf( "\nfactory key: %s\n", key_string);
 
 
 #if 0 //todo DVT disable!
     for(i = 0; i < AES_BLOCKSIZE+DEVICE_ID_SZ+SHA1_SIZE+3; i++) {
-    	snprintf(&key_string[i * 2], 3, "%02X", factory_data[i]);
+    	usnprintf(&key_string[i * 2], 3, "%02X", factory_data[i]);
     }
     UARTprintf( "\ndec aes: %s\n", key_string);
 #endif
@@ -1355,12 +1369,13 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "antsel", Cmd_antsel, "" }, //select antenna
 		{ "led", Cmd_led, "" },
 		{ "clrled", Cmd_led_clr, "" },
-
+#ifdef RDIO_TEST
 		{ "rdiostats", Cmd_RadioGetStats, "" },
 		{ "rdiotxstart", Cmd_RadioStartTX, "" },
 		{ "rdiotxstop", Cmd_RadioStopTX, "" },
 		{ "rdiorxstart", Cmd_RadioStartRX, "" },
 		{ "rdiorxstop", Cmd_RadioStopRX, "" },
+#endif
 		{ "rssi", Cmd_rssi, "" },
 		{ "slip", Cmd_slip, "" },
 		{ "^", Cmd_send_top, ""}, //send command to top board

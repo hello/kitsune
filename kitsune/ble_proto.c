@@ -14,7 +14,7 @@
 #include "event_groups.h"
 
 
-#include "assert.h"
+#include "kit_assert.h"
 #include "stdlib.h"
 #include "stdio.h"
 #include "networktask.h"
@@ -25,6 +25,7 @@
 #include "kitsune_version.h"
 #include "sys_time.h"
 #include "sl_sync_include_after_simplelink_header.h"
+#include "ustdlib.h"
 
 typedef void(*task_routine_t)(void*);
 typedef enum {
@@ -42,6 +43,7 @@ typedef enum {
 static struct {
 	uint8_t argb[4];
 	int delay;
+	uint32_t last_hold_time;
 	sense_mode_t ble_mode;
 	led_mode_t led_status;
 } _self;
@@ -518,6 +520,24 @@ static void _led_fade_out(bool operation_result){
 #include "wifi_cmd.h"
 extern uint8_t top_device_id[DEVICE_ID_SZ];
 extern volatile bool top_got_device_id; //being bad, this is only for factory
+void ble_proto_start_hold()
+{
+	_self.last_hold_time = xTaskGetTickCount();
+}
+
+void ble_proto_end_hold()
+{
+	//configTICK_RATE_HZ
+	uint32_t current_tick = xTaskGetTickCount();
+	if((current_tick - _self.last_hold_time) * (1000 / configTICK_RATE_HZ) > 5000 && _self.last_hold_time > 0)
+	{
+		LOGI("Trigger pairing mode\n");
+		MorpheusCommand response = {0};
+		response.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_PAIRING_MODE;
+		ble_send_protobuf(&response);
+	}
+	_self.last_hold_time = 0;
+}
 
 bool on_ble_protobuf_command(MorpheusCommand* command)
 {

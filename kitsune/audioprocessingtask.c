@@ -10,7 +10,7 @@
 #include "wifi_cmd.h"
 #include "sys_time.h"
 
-#include "assert.h"
+#include "kit_assert.h"
 
 #define INBOX_QUEUE_LENGTH (6)
 static xQueueHandle _queue = NULL;

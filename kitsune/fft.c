@@ -6,7 +6,7 @@
 #include <stdlib.h> //for abs
 #include <string.h>
 #include <stdint.h>
-#include <assert.h>
+#include "kit_assert.h"
 
 #define FIX_MPY(DEST,A,B) (DEST) = ((int32_t)(A) * (int32_t)(B))>>15
 

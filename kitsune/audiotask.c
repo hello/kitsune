@@ -19,6 +19,7 @@
 
 #include <string.h>
 #include <stdio.h>
+#include "ustdlib.h"
 
 #if 0
 #define PRINT_TIMING
@@ -320,7 +321,7 @@ static void DoCapture(uint32_t rate) {
 				if (!isSavingToFile) {
 					memset(&filedata,0,sizeof(filedata));
 					memset(filepath,0,sizeof(filepath));
-					snprintf(filepath,sizeof(filedata),"%s%07d.dat",SAVE_BASE,_filecounter);
+					usnprintf(filepath,sizeof(filedata),"%s%07d.dat",SAVE_BASE,_filecounter);
 					_filecounter++;
 
 

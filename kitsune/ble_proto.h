@@ -24,6 +24,8 @@
 extern "C"
 {
 #endif
+void ble_proto_start_hold();
+void ble_proto_end_hold();
 bool on_ble_protobuf_command(MorpheusCommand* command);
 void ble_proto_led_init();
 
