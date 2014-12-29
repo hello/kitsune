@@ -18,6 +18,7 @@
 #include "led_cmd.h"
 
 #include "uartstdio.h"
+#include "ustdlib.h"
 #include <stdint.h>
 #include "assert.h"
 
@@ -70,10 +71,10 @@ static void SetParams(char * buf, uint32_t bufsize,const char * param, const cha
 	char parambuf[256];
 
 	if (is_last) {
-		snprintf(parambuf,sizeof(parambuf),"%s=%s",param,value);
+		usnprintf(parambuf,sizeof(parambuf),"%s=%s",param,value);
 	}
 	else {
-		snprintf(parambuf,sizeof(parambuf),"%s=%s&",param,value);
+		usnprintf(parambuf,sizeof(parambuf),"%s=%s&",param,value);
 	}
 
 	strncat(buf,parambuf,bufsize);
