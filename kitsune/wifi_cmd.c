@@ -1309,17 +1309,17 @@ bool encode_mac(pb_ostream_t *stream, const pb_field_t *field, void * const *arg
     return pb_encode_tag(stream, PB_WT_STRING, field->tag) && pb_encode_string(stream, (uint8_t*) mac, mac_len);
 }
 
-bool get_device_id(char * device_id,uint32_t size_of_device_id_buffer) {
+bool get_device_id(char * hex_device_id,uint32_t size_of_device_id_buffer) {
     uint8_t i = 0;
 
 	if (size_of_device_id_buffer < DEVICE_ID_SZ * 2 + 1) {
 		return false;
 	}
 
-	memset(device_id,0,size_of_device_id_buffer);
+	memset(hex_device_id, 0, size_of_device_id_buffer);
 
 	for(i = 0; i < DEVICE_ID_SZ; i++){
-		usnprintf(&device_id[i * 2], 3, "%02X", device_id[i]);
+		usnprintf(&hex_device_id[i * 2], 3, "%02X", device_id[i]);
 	}
 
 	return true;
@@ -1328,10 +1328,9 @@ bool get_device_id(char * device_id,uint32_t size_of_device_id_buffer) {
 bool encode_device_id_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
 	//char are twice the size, extra 1 for null terminator
     char hex_device_id[2*DEVICE_ID_SZ+1] = {0};
-    uint8_t i = 0;
-
-    for(i = 0; i < DEVICE_ID_SZ; i++){
-    	usnprintf(&hex_device_id[i * 2], 3, "%02X", device_id[i]);
+    if(!get_device_id(hex_device_id, sizeof(hex_device_id)))
+    {
+        return false;
     }
 
     return pb_encode_tag_for_field(stream, field) && pb_encode_string(stream, (uint8_t*)hex_device_id, strlen(hex_device_id));
