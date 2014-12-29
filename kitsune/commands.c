@@ -1040,7 +1040,7 @@ int Cmd_factory_test(int argc, char *argv[]){
 	   char *args[] = {
 				" ",
 				"57",
-				"RINGTO~1/NEW001.raw"
+				"RINGTONE/NEW001.raw"
 				//"RINGTONE/NEW001.raw"
 		};
 
@@ -1065,17 +1065,18 @@ int Cmd_factory_test(int argc, char *argv[]){
 	if(TEST_BREAK) break;
 	vTaskDelay(2000);
 	if(TEST_BREAK) break;
+#if 0
 	led_set_color(0xFF, LED_MAX,LED_MAX,LED_MAX,1,1,18,1); UARTprintf("LED white color test! \n\r");
 	if(TEST_BREAK) break;
 	vTaskDelay(2000);
 	if(TEST_BREAK) break;
 	factory_led_test_pattern(portMAX_DELAY); UARTprintf("LED factory_testing! \n\r");
-	vTaskDelay(5000);
+#endif
+	play_led_animation_pulse(2000); UARTprintf("LED spinning \n\r");
+	vTaskDelay(13000);
 	if(TEST_BREAK) break;
-	stop_led_animation(); UARTprintf("LED white color test done! \n\r");
+	stop_led_animation(); UARTprintf("LED color test done! \n\r");
 	vTaskDelay(2000);
-	if(TEST_BREAK) break;
-	Cmd_readtemp(0,0); UARTprintf("Read temperature! \n\r");
 	if(TEST_BREAK) break;
 	vTaskDelay(2000);
 	if(TEST_BREAK) break;
@@ -1092,6 +1093,9 @@ int Cmd_factory_test(int argc, char *argv[]){
 	vTaskDelay(2000);
 	if(TEST_BREAK) break;
 	Cmd_dusttest(1,0); UARTprintf("Read dust! \n\r");
+	vTaskDelay(2000);
+	if(TEST_BREAK) break;
+	Cmd_readtemp(0,0); UARTprintf("Read temperature! \n\r");
 	if(TEST_BREAK) break;
 	vTaskDelay(2000);
 	if(TEST_BREAK) break;
