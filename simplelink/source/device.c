@@ -91,6 +91,8 @@ void sl_Task(void)
 /*****************************************************************************/
 /* sl_Start                                                                  */
 /*****************************************************************************/
+extern void UARTprintf(const char *pcString, ...);
+
 #if _SL_INCLUDE_FUNC(sl_Start)
 _i16 sl_Start(const void* pIfHdl, _i8*  pDevName, const P_INIT_CALLBACK pInitCallBack)
 {

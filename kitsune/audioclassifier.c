@@ -8,7 +8,7 @@
 #include "hellomath.h"
 #include "machinelearning/hmm.h"
 #include <math.h>
-#include <assert.h>
+#include "kit_assert.h"
 #include <string.h>
 
 #define CIRCULAR_FEATBUF_SIZE_2N (5)

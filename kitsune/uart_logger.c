@@ -16,6 +16,7 @@
 #include "hellofilesystem.h"
 #include "fatfs_cmd.h"
 #include "proto_utils.h"
+#include "ustdlib.h"
 
 #define SENSE_LOG_ENDPOINT		"/logs"
 #define SENSE_LOG_FOLDER		"logs"
@@ -212,7 +213,7 @@ _save_newest(const char * buffer, int size){
 		return _write_file("0", buffer, size);
 	}else if(ret > 0 && counter >= 0){
 		char s[16] = {0};
-		snprintf(s,sizeof(s),"%d",++counter);
+		usnprintf(s,sizeof(s),"%d",++counter);
 		//LOGI("Wr log %d\r\n", counter);
 		return _write_file(s, buffer, size);
 	}else{
@@ -229,7 +230,7 @@ _read_oldest(char * buffer, int size, WORD * read){
 		return FR_NO_FILE;
 	}else if(ret > 0 && counter >= 0){
 		char s[16] = {0};
-		snprintf(s,sizeof(s),"%d",counter);
+		usnprintf(s,sizeof(s),"%d",counter);
 		//LOGI("Rd log %d\r\n", counter);
 		return _read_file(s,buffer, size, read);
 	}
@@ -244,7 +245,7 @@ _remove_oldest(int * rem){
 		return FR_OK;
 	} else if (ret > 0 && counter >= 0) {
 		char s[16] = { 0 };
-		snprintf(s, sizeof(s), "%d", counter);
+		usnprintf(s, sizeof(s), "%d", counter);
 		//LOGI("Rm log %d\r\n", counter);
 		*rem = (ret - 1);
 		return _remove_file(s);

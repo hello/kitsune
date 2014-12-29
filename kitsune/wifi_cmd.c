@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
+#include "kit_assert.h"
 #include <stdint.h>
 
 #include "uartstdio.h"
@@ -44,6 +44,7 @@ int sl_mode = ROLE_INVALID;
 #include "interrupt.h"
 #include "uart_logger.h"
 #include "proto_utils.h"
+#include "ustdlib.h"
 
 void mcu_reset()
 {
@@ -548,9 +549,9 @@ int send_chunk_len( int obj_sz, int sock ) {
 	int rv;
 	char recv_buf[CL_BUF_SZ] = {0};
 	if( obj_sz == 0 ) {
-		snprintf(recv_buf, CL_BUF_SZ, "\r\n%x\r\n\r\n", obj_sz);
+		usnprintf(recv_buf, CL_BUF_SZ, "\r\n%x\r\n\r\n", obj_sz);
 	} else {
-		snprintf(recv_buf, CL_BUF_SZ, "\r\n%x\r\n", obj_sz);
+		usnprintf(recv_buf, CL_BUF_SZ, "\r\n%x\r\n", obj_sz);
 	}
 	rv = send(sock, recv_buf, strlen(recv_buf), 0);
 	if (rv != strlen(recv_buf)) {
@@ -665,7 +666,7 @@ void LOGIFaults() {
         char buffer[BUF_SZ];
         if (sock > 0) {
             message_length = sizeof(faultInfo);
-            snprintf(buffer, sizeof(buffer), "POST /in/morpheus/fault HTTP/1.1\r\n"
+            usnprintf(buffer, sizeof(buffer), "POST /in/morpheus/fault HTTP/1.1\r\n"
                     "Host: in.skeletor.com\r\n"
                     "Content-type: application/x-protobuf\r\n"
                     "Content-length: %d\r\n"
@@ -798,7 +799,7 @@ int send_audio_wifi(char * buffer, int buffer_size, audio_read_cb arcb) {
 
     message_length = 110000;
 
-    snprintf(buffer, buffer_size, "POST /audio/%x%x%x%x%x%x HTTP/1.1\r\n"
+    usnprintf(buffer, buffer_size, "POST /audio/%x%x%x%x%x%x HTTP/1.1\r\n"
             "Host: dev-in.hello.com\r\n"
             "Content-type: application/octet-stream\r\n"
             "Content-length: %d\r\n"
@@ -1018,11 +1019,19 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
     	return -1;
     }
 
+    char hex_device_id[DEVICE_ID_SZ * 2 + 1] = {0};
+    if(!get_device_id(hex_device_id, sizeof(hex_device_id)))
+    {
+        LOGE("get_device_id failed\n");
+        return -1;
+    }
 
-    snprintf(recv_buf, recv_buf_size, "POST %s HTTP/1.1\r\n"
+    usnprintf(recv_buf, recv_buf_size, "POST %s HTTP/1.1\r\n"
             "Host: %s\r\n"
             "Content-type: application/x-protobuf\r\n"
-            "Transfer-Encoding: chunked\r\n", path, host);
+            "X-Hello-Sense-Id: %s\r\n"
+            "Transfer-Encoding: chunked\r\n", 
+            path, host, hex_device_id);
 
     send_length = strlen(recv_buf);
 
@@ -1282,14 +1291,14 @@ bool get_mac(unsigned char mac[6]) {
 bool get_device_id(char * device_id,uint32_t size_of_device_id_buffer) {
     uint8_t i = 0;
 
-	if (size_of_device_id_buffer < DEVICE_ID_SZ + 1) {
+	if (size_of_device_id_buffer < DEVICE_ID_SZ * 2 + 1) {
 		return false;
 	}
 
 	memset(device_id,0,size_of_device_id_buffer);
 
 	for(i = 0; i < DEVICE_ID_SZ; i++){
-		snprintf(&device_id[i * 2], 3, "%02X", device_id[i]);
+		usnprintf(&device_id[i * 2], 3, "%02X", device_id[i]);
 	}
 
 	return true;
@@ -1529,6 +1538,7 @@ int Cmd_audio_test(int argc, char *argv[]) {
 }
 #endif
 //radio test functions
+#ifdef RDIO_TEST
 #define FRAME_SIZE		1500
 typedef enum
 {
@@ -1904,6 +1914,7 @@ int Cmd_RadioStopTX(int argc, char*argv[])
 	return RadioStopTX(mode);
 }
 //end radio test functions
+#endif
 
 int get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uint32_t scan_duration_ms)
 {
@@ -2263,19 +2274,19 @@ static int http_cb(volatile int * sock, char * linebuf, int inbufsz) {
 
 		xSemaphoreTake(i2c_smphr, portMAX_DELAY);
 		char * html = pvPortMalloc(128);
-		snprintf( html, 128, "Temperature is %d<br>", get_temp());
+		usnprintf( html, 128, "Temperature is %d<br>", get_temp());
 		if( send_buffer_chunked( sock, html, strlen(html)) < 0 ) {
 			goto done_i2c;
 		}
-		snprintf( html, 128, "Humidity is %d<br>", get_humid());
+		usnprintf( html, 128, "Humidity is %d<br>", get_humid());
 		if( send_buffer_chunked( sock, html, strlen(html)) < 0 ) {
 			goto done_i2c;
 		}
-		snprintf( html, 128, "Light is %d<br>", get_light());
+		usnprintf( html, 128, "Light is %d<br>", get_light());
 		if( send_buffer_chunked( sock, html, strlen(html)) < 0 ) {
 			goto done_i2c;
 		}
-		snprintf(html, 128, "Proximity is %d<br>", get_prox());
+		usnprintf(html, 128, "Proximity is %d<br>", get_prox());
 		if( send_buffer_chunked( sock, html, strlen(html)) < 0 ) {
 			goto done_i2c;
 		}
@@ -2286,15 +2297,15 @@ static int http_cb(volatile int * sock, char * linebuf, int inbufsz) {
 			return -1;
 		}
 
-		snprintf( html, 128, "Dust is %d<br>", get_dust());
+		usnprintf( html, 128, "Dust is %d<br>", get_dust());
 		if( send_buffer_chunked( sock, html, strlen(html)) < 0 ) {
 			goto done;
 		}
-		snprintf(html, 128, "Time is %d<br>", get_time());
+		usnprintf(html, 128, "Time is %d<br>", get_time());
 		if( send_buffer_chunked( sock, html, strlen(html)) < 0 ) {
 			goto done;
 		}
-		snprintf(html, 128, "Uptime is %d<br>", xTaskGetTickCount()/1000);
+		usnprintf(html, 128, "Uptime is %d<br>", xTaskGetTickCount()/1000);
 		if( send_buffer_chunked( sock, html, strlen(html)) < 0 ) {
 			goto done;
 		}

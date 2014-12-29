@@ -2,7 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include <assert.h>
+#include "kit_assert.h"
 #include <stdint.h>
 
 #include "hw_types.h"

@@ -296,6 +296,11 @@
 			<locationURI>PARENT-2-PROJECT_LOC/i2c_cmd.h</locationURI>
 		</link>
 		<link>
+			<name>kit_assert.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/kit_assert.h</locationURI>
+		</link>
+		<link>
 			<name>kitsune_version.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/kitsune_version.h</locationURI>
