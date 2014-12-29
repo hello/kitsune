@@ -1018,11 +1018,19 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
     	return -1;
     }
 
+    char hex_device_id[DEVICE_ID_SZ * 2 + 1] = {0};
+    if(!get_device_id(hex_device_id, sizeof(hex_device_id)))
+    {
+        LOGE("get_device_id failed\n");
+        return -1;
+    }
 
     usnprintf(recv_buf, recv_buf_size, "POST %s HTTP/1.1\r\n"
             "Host: %s\r\n"
             "Content-type: application/x-protobuf\r\n"
-            "Transfer-Encoding: chunked\r\n", path, host);
+            "X-Hello-Sense-Id: %s\r\n"
+            "Transfer-Encoding: chunked\r\n", 
+            path, host, hex_device_id);
 
     send_length = strlen(recv_buf);
 
@@ -1304,7 +1312,7 @@ bool encode_mac(pb_ostream_t *stream, const pb_field_t *field, void * const *arg
 bool get_device_id(char * device_id,uint32_t size_of_device_id_buffer) {
     uint8_t i = 0;
 
-	if (size_of_device_id_buffer < DEVICE_ID_SZ + 1) {
+	if (size_of_device_id_buffer < DEVICE_ID_SZ * 2 + 1) {
 		return false;
 	}
 
