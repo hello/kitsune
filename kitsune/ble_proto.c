@@ -50,8 +50,6 @@ static struct {
 	led_mode_t led_status;
 } _self;
 
-
-void sample_sensor_data(periodic_data* data);
 static void _led_busy_mode(int a, int r, int g, int b, int delay);
 static void _led_normal_mode(int operation_result);
 
@@ -390,6 +388,7 @@ static void _send_response_to_ble(const char* buffer, size_t len)
     ble_proto_free_command(&response);
 }
 
+void sample_sensor_data(periodic_data* data);
 static int _pair_device( MorpheusCommand* command, int is_morpheus)
 {
 	char response_buffer[256] = {0};
