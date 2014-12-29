@@ -50,9 +50,10 @@ static struct {
 	led_mode_t led_status;
 } _self;
 
+
+void sample_sensor_data(periodic_data* data);
 static void _led_busy_mode(int a, int r, int g, int b, int delay);
 static void _led_normal_mode(int operation_result);
-void sample_sensor_data(periodic_data* data);
 
 static void _factory_reset(){
     int16_t ret = sl_WlanProfileDel(0xFF);

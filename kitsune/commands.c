@@ -71,7 +71,6 @@
 #include "top_hci.h"
 #include "slip_packet.h"
 #include "ble_cmd.h"
-#include "proto_utils.h"
 #include "led_cmd.h"
 #include "led_animations.h"
 #include "uart_logger.h"
@@ -88,6 +87,7 @@
 
 #include "hw_ver.h"
 #include "pinmux.h"
+#include "proto_utils.h"
 
 #define ONLY_MID 0
 
