@@ -537,6 +537,7 @@ void ble_proto_end_hold()
 		ble_send_protobuf(&response);
 	}
 	_self.last_hold_time = 0;
+	_led_fade_in_trippy();
 }
 
 bool on_ble_protobuf_command(MorpheusCommand* command)
