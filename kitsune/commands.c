@@ -562,8 +562,14 @@ static void _on_wave(int light){
 
 static void _on_hold(){
 	//stop_led_animation();
+	ble_proto_start_hold();
 	memset(&alarm, 0, sizeof(alarm));
 	AudioTask_StopPlayback();
+}
+
+static void _on_gesture_out()
+{
+	ble_proto_end_hold();
 }
 
 static int light_m2,light_mean, light_cnt,light_log_sum,light_sf;
@@ -598,6 +604,9 @@ void thread_fast_i2c_poll(void * unused)  {
 				break;
 			case GESTURE_HOLD:
 				_on_hold();
+				break;
+			case GESTURE_OUT:
+				_on_gesture_out();
 				break;
 			default:
 				break;

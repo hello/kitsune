@@ -15,7 +15,8 @@ typedef enum
 {
 	GESTURE_NONE = 0,
 	GESTURE_WAVE,
-	GESTURE_HOLD
+	GESTURE_HOLD,
+	GESTURE_OUT,
 } gesture;
 
 void gesture_init();

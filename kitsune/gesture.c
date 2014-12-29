@@ -75,6 +75,7 @@ static gesture _fsm(int in){
 		//any edge triggers edge up state
 		LOGI("->0\r\n");
 		_transition_state(GFSM_IDLE_FORREALS);
+		ret = GESTURE_OUT;
 		//no break
 	case GFSM_IDLE_FORREALS:
 		//any edge triggers edge up state
