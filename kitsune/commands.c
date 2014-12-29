@@ -8,7 +8,7 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <assert.h>
+#include "kit_assert.h"
 
 #include <hw_types.h>
 #include <hw_memmap.h>

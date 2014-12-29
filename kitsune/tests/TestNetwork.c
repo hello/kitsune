@@ -20,7 +20,7 @@
 #include "uartstdio.h"
 #include "ustdlib.h"
 #include <stdint.h>
-#include "assert.h"
+#include "kit_assert.h"
 
 #if COMPILE_TESTS
 

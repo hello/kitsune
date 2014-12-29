@@ -14,7 +14,7 @@
 #include "event_groups.h"
 
 
-#include "assert.h"
+#include "kit_assert.h"
 #include "stdlib.h"
 #include "stdio.h"
 #include "networktask.h"
