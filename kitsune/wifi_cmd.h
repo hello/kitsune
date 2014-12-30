@@ -65,6 +65,7 @@ int Cmd_sl(int argc, char*argv[]);
 int Cmd_mode(int argc, char*argv[]);
 int Cmd_set_mac(int argc, char*argv[]);
 int Cmd_set_aes(int argc, char *argv[]) ;
+int Cmd_test_key(int argc, char*argv[]);
 
 
 int Cmd_RadioStartRX(int argc, char*argv[]);

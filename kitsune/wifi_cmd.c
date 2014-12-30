@@ -717,6 +717,35 @@ void load_device_id() {
 	RetVal = sl_FsClose(DeviceFileHandle, NULL, NULL, 0);
 }
 
+#include "ble_proto.h"
+int Cmd_test_key(int argc, char*argv[]) {
+    load_aes();
+    load_device_id();
+
+    MorpheusCommand test_command = {0};
+    test_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_SENSE;
+    test_command.version = PROTOBUF_VERSION;
+
+    char response_buffer[256] = {0};
+
+    int ret = NetworkTask_SynchronousSendProtobuf(
+                DATA_SERVER,
+                CHECK_KEY_ENDPOINT,
+                response_buffer,
+                sizeof(response_buffer),
+                MorpheusCommand_fields,
+                &test_command,
+                1000);
+
+    if(ret == 0){
+        UARTprintf("Test key success\n");
+    }else{
+        UARTprintf("Test key failed: network error %d\n", ret);
+    }
+
+    return 0;
+}
+
 /* protobuf includes */
 #include <pb.h>
 #include <pb_encode.h>
