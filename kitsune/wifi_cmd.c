@@ -234,8 +234,8 @@ int Cmd_antsel(int argc, char *argv[]) {
 }
 
 int Cmd_iperf_server(int argc, char *argv[]) {
-    if (argc != 2) {
-        LOGI( "usage: iperfsvr <port>\n\r");
+    if (argc != 3) {
+        LOGI( "usage: iperfsvr <port> <num packets>\n\r");
         return -1;
     }
     SlSockAddrIn_t  sAddr;
@@ -250,7 +250,6 @@ int Cmd_iperf_server(int argc, char *argv[]) {
     int             iTestBufLen;
 
 #define BUF_SIZE            1400
-#define TCP_PACKET_COUNT    1000
 
     uint8_t buf[BUF_SIZE];
     // filling the buffer
@@ -260,6 +259,7 @@ int Cmd_iperf_server(int argc, char *argv[]) {
     }
 
     unsigned short port = atoi(argv[1]);
+    unsigned int packets = atoi(argv[2]);
     iTestBufLen  = BUF_SIZE;
 
     //filling the TCP server socket address
@@ -313,11 +313,11 @@ int Cmd_iperf_server(int argc, char *argv[]) {
     sl_NetCfgGet(SL_IPV4_STA_P2P_CL_GET_INFO, &ucDHCP, &len,
             (unsigned char *) &ipv4);
     LOGI("run iperf command \"iperf.exe -c "
-                            "%d.%d.%d.%d -i 1 -t 100000\" \n\r",
+                            "%d.%d.%d.%d -p %d -i 1 -t 100000\" \n\r",
                             SL_IPV4_BYTE(ipv4.ipV4,3),
                             SL_IPV4_BYTE(ipv4.ipV4,2),
                             SL_IPV4_BYTE(ipv4.ipV4,1),
-                            SL_IPV4_BYTE(ipv4.ipV4,0));
+                            SL_IPV4_BYTE(ipv4.ipV4,0), port);
 
     // waiting for an incoming TCP connection
     while( iNewSockID < 0 )
@@ -341,7 +341,7 @@ int Cmd_iperf_server(int argc, char *argv[]) {
     }
 
     // waits for 1000 packets from the connected TCP client
-    while (lLoopCount < TCP_PACKET_COUNT)
+    while (lLoopCount < packets)
     {
         iStatus = sl_Recv(iNewSockID, buf, iTestBufLen, 0);
         if( iStatus <= 0 )
@@ -369,9 +369,9 @@ int Cmd_iperf_server(int argc, char *argv[]) {
     return 0;
 }
 int Cmd_iperf_client(int argc, char *argv[]) {
-    if (argc != 3) {
-    	LOGI("Run iperf command on target server \"iperf.exe -s -i 1\"");
-        LOGI( "usage: iperfcli <ip> <port>\n\r");
+    if (argc != 4) {
+    	LOGI("Run iperf command on target server \"iperf.exe -s -i 1\"\n");
+        LOGI( "usage: iperfcli <ip (hex)> <port> <packets>\n\r");
         return -1;
     }
 
@@ -392,13 +392,15 @@ int Cmd_iperf_client(int argc, char *argv[]) {
 
     sTestBufLen  = BUF_SIZE;
 
+    unsigned int packets = atoi(argv[3]);
     unsigned short port = atoi(argv[2]);
-    unsigned int ip = atoi(argv[1]);
+    char * pend;
+    unsigned int ip = strtol(argv[1], &pend, 16);
 
     //filling the TCP server socket address
     sAddr.sin_family = SL_AF_INET;
     sAddr.sin_port = sl_Htons((unsigned short)port);
-    sAddr.sin_addr.s_addr = sl_Htonl((unsigned int)ip);
+    sAddr.sin_addr.s_addr = ((unsigned int)ip);
 
     iAddrSize = sizeof(SlSockAddrIn_t);
 
@@ -421,7 +423,7 @@ int Cmd_iperf_client(int argc, char *argv[]) {
     }
 
     // sending multiple packets to the TCP server
-    while (lLoopCount < TCP_PACKET_COUNT)
+    while (lLoopCount < packets)
     {
         // sending packet
         iStatus = sl_Send(iSockID, buf, sTestBufLen, 0 );
