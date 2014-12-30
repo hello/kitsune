@@ -721,7 +721,7 @@ void load_device_id() {
 int Cmd_test_key(int argc, char*argv[]) {
     load_aes();
     load_device_id();
-    UARTprintf("Last two digit: %02X:%02X", aes_key[AES_BLOCKSIZE - 2], aes_key[AES_BLOCKSIZE - 1]);
+    UARTprintf("Last two digit: %02X:%02X\n", aes_key[AES_BLOCKSIZE - 2], aes_key[AES_BLOCKSIZE - 1]);
 
     MorpheusCommand test_command = {0};
     test_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_SENSE;
