@@ -443,34 +443,6 @@ int Cmd_set_mac(int argc, char*argv[]) {
     return 0;
 }
 
-int Cmd_test_key(int argc, char*argv[]) {
-    load_aes();
-    load_device_id();
-
-    MorpheusCommand test_command = {0};
-    reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_SENSE;
-    reply_command.version = PROTOBUF_VERSION;
-
-    char response_buffer[256] = {0};
-
-    int ret = NetworkTask_SynchronousSendProtobuf(
-                DATA_SERVER,
-                CHECK_KEY_ENDPOINT,
-                response_buffer,
-                sizeof(response_buffer),
-                MorpheusCommand_fields,
-                command,
-                1000);
-
-    if(ret == 0){
-        UARTprintf("Test key success\n");
-    }else{
-        UARTprintf("Test key failed: network error %d\n", ret);
-    }
-
-    return 0;
-}
-
 void load_aes() {
 	long DeviceFileHandle = -1;
 	int RetVal, Offset;
@@ -534,6 +506,35 @@ void load_device_id() {
 	UARTprintf("\n");
 	*/
 	RetVal = sl_FsClose(DeviceFileHandle, NULL, NULL, 0);
+}
+
+#include "ble_proto.c"
+int Cmd_test_key(int argc, char*argv[]) {
+    load_aes();
+    load_device_id();
+
+    MorpheusCommand test_command = {0};
+    test_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_SENSE;
+    test_command.version = PROTOBUF_VERSION;
+
+    char response_buffer[256] = {0};
+
+    int ret = NetworkTask_SynchronousSendProtobuf(
+                DATA_SERVER,
+                CHECK_KEY_ENDPOINT,
+                response_buffer,
+                sizeof(response_buffer),
+                MorpheusCommand_fields,
+                &test_command,
+                1000);
+
+    if(ret == 0){
+        UARTprintf("Test key success\n");
+    }else{
+        UARTprintf("Test key failed: network error %d\n", ret);
+    }
+
+    return 0;
 }
 
 /* protobuf includes */
