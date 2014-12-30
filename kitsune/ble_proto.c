@@ -419,11 +419,9 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 		{
             if(is_morpheus)  // Force a data upload immediately after onboarding because the registration UI needs to show the current data.
             {
-            	LOGI("Trying to post 1st data...\n");
                 periodic_data* data = pvPortMalloc(sizeof(periodic_data));  // Let's put this in the heap, we don't use it all the time
                 if(!data)
                 {
-                	LOGE("No memory to post 1st data\n");
                     ble_reply_protobuf_error(ErrorType_DEVICE_NO_MEMORY);
                     return 0;
                 }
@@ -453,10 +451,8 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
                     }
                 }
                 vPortFree(data);
-                LOGI("Post data finished\n");
             }
-            _ble_reply_command_with_type(is_morpheus ? MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_SENSE :
-            		MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_PILL);
+			_send_response_to_ble(response_buffer, sizeof(response_buffer));
 			return 1;
 		}else{
 			LOGI("Pairing request failed, error %d\n", ret);
