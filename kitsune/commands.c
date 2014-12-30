@@ -1391,6 +1391,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "test_network",Cmd_test_network,""},
 #endif
 		{ "genkey",Cmd_generate_factory_data,""},
+		{ "testkey", Cmd_test_key, ""},
 		{ "lfclktest",Cmd_test_3200_rtc,""},
 		{ "poll",Cmd_enable_poll,""},
 
