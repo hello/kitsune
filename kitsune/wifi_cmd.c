@@ -223,14 +223,223 @@ void antsel(unsigned char a)
     }
     return;
 }
-
-
 int Cmd_antsel(int argc, char *argv[]) {
     if (argc != 2) {
         LOGI( "usage: antsel <1=IFA or 2=chip>\n\r");
         return -1;
     }
     antsel( *argv[1] ==  '1' ? 1 : 2 );
+
+    return 0;
+}
+
+int Cmd_iperf_server(int argc, char *argv[]) {
+    if (argc != 3) {
+        LOGI( "usage: iperfsvr <port> <num packets>\n\r");
+        return -1;
+    }
+    SlSockAddrIn_t  sAddr;
+    SlSockAddrIn_t  sLocalAddr;
+    int             iCounter;
+    int             iAddrSize;
+    int             iSockID;
+    int             iStatus;
+    int             iNewSockID;
+    long            lLoopCount = 0;
+    long            lNonBlocking = 1;
+    int             iTestBufLen;
+
+#define BUF_SIZE            1400
+
+    uint8_t buf[BUF_SIZE];
+    // filling the buffer
+    for (iCounter=0 ; iCounter<BUF_SIZE ; iCounter++)
+    {
+        buf[iCounter] = (char)(iCounter % 10);
+    }
+
+    unsigned short port = atoi(argv[1]);
+    unsigned int packets = atoi(argv[2]);
+    iTestBufLen  = BUF_SIZE;
+
+    //filling the TCP server socket address
+    sLocalAddr.sin_family = SL_AF_INET;
+    sLocalAddr.sin_port = sl_Htons((unsigned short)port);
+    sLocalAddr.sin_addr.s_addr = 0;
+
+    // creating a TCP socket
+    iSockID = sl_Socket(SL_AF_INET,SL_SOCK_STREAM, 0);
+    if( iSockID < 0 )
+    {
+        // error
+    	return -1;
+    }
+
+    iAddrSize = sizeof(SlSockAddrIn_t);
+
+    // binding the TCP socket to the TCP server address
+    iStatus = sl_Bind(iSockID, (SlSockAddr_t *)&sLocalAddr, iAddrSize);
+    if( iStatus < 0 )
+    {
+        // error
+        (sl_Close(iSockID));
+        LOGE("failed to receive\n");
+        return -1;
+    }
+
+    // putting the socket for listening to the incoming TCP connection
+    iStatus = sl_Listen(iSockID, 0);
+    if( iStatus < 0 )
+    {
+        (sl_Close(iSockID));
+        LOGE("failed to receive\n");
+        return -1;
+    }
+
+    // setting socket option to make the socket as non blocking
+    iStatus = sl_SetSockOpt(iSockID, SL_SOL_SOCKET, SL_SO_NONBLOCKING,
+                            &lNonBlocking, sizeof(lNonBlocking));
+    if( iStatus < 0 )
+    {
+        (sl_Close(iSockID));
+        LOGE("failed to receive\n");
+        return -1;
+    }
+    iNewSockID = SL_EAGAIN;
+
+    unsigned char ucDHCP = 0;
+    unsigned char len = sizeof(SlNetCfgIpV4Args_t);
+    SlNetCfgIpV4Args_t ipv4 = { 0 };
+    sl_NetCfgGet(SL_IPV4_STA_P2P_CL_GET_INFO, &ucDHCP, &len,
+            (unsigned char *) &ipv4);
+    LOGI("run iperf command \"iperf.exe -c "
+                            "%d.%d.%d.%d -p %d -i 1 -t 100000\" \n\r",
+                            SL_IPV4_BYTE(ipv4.ipV4,3),
+                            SL_IPV4_BYTE(ipv4.ipV4,2),
+                            SL_IPV4_BYTE(ipv4.ipV4,1),
+                            SL_IPV4_BYTE(ipv4.ipV4,0), port);
+
+    // waiting for an incoming TCP connection
+    while( iNewSockID < 0 )
+    {
+        // accepts a connection form a TCP client, if there is any
+        // otherwise returns SL_EAGAIN
+        iNewSockID = sl_Accept(iSockID, ( struct SlSockAddr_t *)&sAddr,
+                                (SlSocklen_t*)&iAddrSize);
+        if( iNewSockID == SL_EAGAIN )
+        {
+           vTaskDelay(10);
+        }
+        else if( iNewSockID < 0 )
+        {
+            // error
+            ( sl_Close(iNewSockID));
+            (sl_Close(iSockID));
+            LOGE("failed to receive\n");
+            return -1;
+        }
+    }
+
+    // waits for 1000 packets from the connected TCP client
+    while (lLoopCount < packets)
+    {
+        iStatus = sl_Recv(iNewSockID, buf, iTestBufLen, 0);
+        if( iStatus <= 0 )
+        {
+          // error
+          ( sl_Close(iNewSockID));
+          (sl_Close(iSockID));
+          LOGE("failed to receive\n");
+          break;
+        }
+
+        lLoopCount++;
+    }
+
+
+    // close the connected socket after receiving from connected TCP client
+    (sl_Close(iNewSockID));
+
+    // close the listening socket
+    (sl_Close(iSockID));
+
+    LOGI("Recieved %u packets successfully\n\r",lLoopCount);
+
+
+    return 0;
+}
+int Cmd_iperf_client(int argc, char *argv[]) {
+    if (argc != 4) {
+    	LOGI("Run iperf command on target server \"iperf.exe -s -i 1\"\n");
+        LOGI( "usage: iperfcli <ip (hex)> <port> <packets>\n\r");
+        return -1;
+    }
+
+    int             iCounter;
+    short           sTestBufLen;
+    SlSockAddrIn_t  sAddr;
+    int             iAddrSize;
+    int             iSockID;
+    int             iStatus;
+    long            lLoopCount = 0;
+    uint8_t buf[BUF_SIZE];
+
+    // filling the buffer
+    for (iCounter=0 ; iCounter<BUF_SIZE ; iCounter++)
+    {
+        buf[iCounter] = (char)(iCounter % 10);
+    }
+
+    sTestBufLen  = BUF_SIZE;
+
+    unsigned int packets = atoi(argv[3]);
+    unsigned short port = atoi(argv[2]);
+    char * pend;
+    unsigned int ip = strtol(argv[1], &pend, 16);
+
+    //filling the TCP server socket address
+    sAddr.sin_family = SL_AF_INET;
+    sAddr.sin_port = sl_Htons((unsigned short)port);
+    sAddr.sin_addr.s_addr = ((unsigned int)ip);
+
+    iAddrSize = sizeof(SlSockAddrIn_t);
+
+    // creating a TCP socket
+    iSockID = sl_Socket(SL_AF_INET,SL_SOCK_STREAM, 0);
+    if( iSockID < 0 )
+    {
+    	LOGE("failed to create socket");
+    	return -1;
+    }
+
+    // connecting to TCP server
+    iStatus = sl_Connect(iSockID, ( SlSockAddr_t *)&sAddr, iAddrSize);
+    if( iStatus < 0 )
+    {
+        // error
+        sl_Close(iSockID);
+    	LOGE("failed to connect socket");
+    	return -1;
+    }
+
+    // sending multiple packets to the TCP server
+    while (lLoopCount < packets)
+    {
+        // sending packet
+        iStatus = sl_Send(iSockID, buf, sTestBufLen, 0 );
+        if( iStatus <= 0 )
+        {
+            // error
+            LOGE("failed to send to socket");
+        	break;
+        }
+        lLoopCount++;
+    }
+
+    LOGI("Sent %u packets successfully\n\r",lLoopCount);
+
+    //closing the socket after sending 1000 packets
+    sl_Close(iSockID);
 
     return 0;
 }
@@ -2375,4 +2584,5 @@ void httpServerTask(void *params) {
 	volatile int http_sock = 0;
     serv( 80, &http_sock, http_cb, "\r\n\r\n" );
 }
+
 
