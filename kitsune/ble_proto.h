@@ -9,9 +9,10 @@
 #include "protobuf/morpheus_ble.pb.h"
 
 #include "wifi_cmd.h"
+#include "kitsune_version.h"
 
 #define PROTOBUF_VERSION            0
-#define FIRMWARE_VERSION_INTERNAL   (KIT_VER)
+#define FIRMWARE_VERSION_INTERNAL   KIT_VER  //
 
 //*****************************************************************************
 //
@@ -26,6 +27,7 @@ extern "C"
 void ble_proto_start_hold();
 void ble_proto_end_hold();
 bool on_ble_protobuf_command(MorpheusCommand* command);
+void ble_proto_led_init();
 
 //*****************************************************************************
 //
