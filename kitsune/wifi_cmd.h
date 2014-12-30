@@ -42,6 +42,10 @@ int sl_mode;
 extern
 SyncResponse_Alarm alarm;
 
+
+int Cmd_iperf_client(int argc, char *argv[]);
+int Cmd_iperf_server(int argc, char *argv[]);
+
 #define IFA_ANT 1
 #define CHIP_ANT 2
 void antsel(unsigned char a);
@@ -56,6 +60,7 @@ int Cmd_sl(int argc, char*argv[]);
 int Cmd_mode(int argc, char*argv[]);
 int Cmd_set_mac(int argc, char*argv[]);
 int Cmd_set_aes(int argc, char *argv[]) ;
+int Cmd_test_key(int argc, char*argv[]);
 
 
 int Cmd_RadioStartRX(int argc, char*argv[]);

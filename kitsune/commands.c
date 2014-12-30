@@ -70,7 +70,7 @@
 #include "diskio.h"
 #include "top_hci.h"
 #include "slip_packet.h"
-#include "ble_cmd.h"
+#include "ble_proto.h"
 #include "led_cmd.h"
 #include "led_animations.h"
 #include "uart_logger.h"
@@ -522,18 +522,23 @@ void thread_dust(void * unused)  {
 	}
 }
 
-static void _on_wave(int light){
-	memset(&alarm, 0, sizeof(alarm));
-	AudioTask_StopPlayback();
 
-	uint8_t adjust_max_light = 80;
+static int light_m2,light_mean, light_cnt,light_log_sum,light_sf;
+static xSemaphoreHandle light_smphr;
+
+ xSemaphoreHandle i2c_smphr;
+ static int _light;
+
+uint8_t get_alpha_from_light()
+{
+	uint8_t adjust_max_light = 320;
 
 	int adjust;
 
-	if( light > adjust_max_light ) {
+	if( _light > adjust_max_light ) {
 		adjust = adjust_max_light;
 	} else {
-		adjust = light;
+		adjust = _light;
 	}
 
 	if(adjust < 20)
@@ -541,7 +546,16 @@ static void _on_wave(int light){
 		adjust = 20;
 	}
 
-	uint8_t alpha = 0xFF * adjust / 80;
+	uint8_t alpha = 0xFF * adjust / adjust_max_light;
+	return alpha;
+}
+
+#include "gesture.h"
+
+static void _on_wave(int light){
+	memset(&alarm, 0, sizeof(alarm));
+	AudioTask_StopPlayback();
+	uint8_t alpha = get_alpha_from_light();
 
 	if(wifi_status_get(UPLOADING)) {
 		uint8_t rgb[3] = { LED_MAX };
@@ -573,14 +587,7 @@ static void _on_gesture_out()
 	ble_proto_end_hold();
 }
 
-static int light_m2,light_mean, light_cnt,light_log_sum,light_sf;
-static xSemaphoreHandle light_smphr;
-
- xSemaphoreHandle i2c_smphr;
- int Cmd_led(int argc, char *argv[]) ;
-#include "gesture.h"
 void thread_fast_i2c_poll(void * unused)  {
-	int light = 0;
 	gesture_init();
 
 	while (1) {
@@ -589,7 +596,7 @@ void thread_fast_i2c_poll(void * unused)  {
 
 		if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
 			vTaskDelay(2);
-			light = get_light();
+			_light = get_light();
 			vTaskDelay(2); //this is important! If we don't do it, then the prox will stretch the clock!
 
 			// For the black morpheus, we can detect 6mm distance max
@@ -601,7 +608,7 @@ void thread_fast_i2c_poll(void * unused)  {
 			switch(gesture_state)
 			{
 			case GESTURE_WAVE:
-				_on_wave(light);
+				_on_wave(_light);
 				break;
 			case GESTURE_HOLD:
 				_on_hold();
@@ -615,12 +622,12 @@ void thread_fast_i2c_poll(void * unused)  {
 
 
 			if (xSemaphoreTake(light_smphr, portMAX_DELAY)) {
-				light_log_sum += bitlog(light);
+				light_log_sum += bitlog(_light);
 				++light_cnt;
 
-				int delta = light - light_mean;
+				int delta = _light - light_mean;
 				light_mean = light_mean + delta/light_cnt;
-				light_m2 = light_m2 + delta * ( light - light_mean);
+				light_m2 = light_m2 + delta * ( _light - light_mean);
 				if( light_m2 < 0 ) {
 					light_m2 = 0x7FFFFFFF;
 				}
@@ -1348,8 +1355,11 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "test_network",Cmd_test_network,""},
 #endif
 		{ "genkey",Cmd_generate_factory_data,""},
+		{ "testkey", Cmd_test_key, ""},
 		{ "lfclktest",Cmd_test_3200_rtc,""},
 		{ "poll",Cmd_enable_poll,""},
+		{ "iperfsvr",Cmd_iperf_server,""},
+		{ "iperfcli",Cmd_iperf_client,""},
 
 		{ 0, 0, 0 } };
 
@@ -1382,6 +1392,7 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(led_task, "ledTask", 512 / 4, NULL, 4, NULL); //todo reduce stack
 
 	Cmd_led_clr(0,0);
+
 	//switch the uart lines to gpios, drive tx low and see if rx goes low as well
     // Configure PIN_57 for GPIOInput
     //
@@ -1456,7 +1467,6 @@ void vUARTTask(void *pvParameters) {
 			get_hw_ver()==EVT2?1000000:24000000);
 	UARTprintf("*");
 	Cmd_mnt(0, 0);
-
 	vTaskDelay(100);
 	//INIT SPI
 	spi_init();
@@ -1471,6 +1481,7 @@ void vUARTTask(void *pvParameters) {
 	init_prox_sensor();
 
 	init_led_animation();
+	ble_proto_led_init();
 
 	data_queue = xQueueCreate(10, sizeof(periodic_data));
 	pill_queue = xQueueCreate(MAX_PILL_DATA, sizeof(pill_data));

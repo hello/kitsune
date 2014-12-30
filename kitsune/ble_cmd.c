@@ -32,80 +32,77 @@ static bool _encode_string_fields(pb_ostream_t *stream, const pb_field_t *field,
 
 static bool _encode_wifi_scan_result_fields(pb_ostream_t *stream, const pb_field_t *field, void * const *arg)
 {
-    Sl_WlanNetworkEntry_t* wifi_aps = *arg;
-    if(!wifi_aps)
+    Sl_WlanNetworkEntry_t* wifi_ap = (Sl_WlanNetworkEntry_t*)*arg;
+    if(!wifi_ap)
     {
         LOGI("_encode_string_fields: No string to encode\n");
         return false;
     }
 
-    int i = 0;
-    for(i = 0; i < MAX_WIFI_EP_PER_SCAN; i++)
-    {
-        Sl_WlanNetworkEntry_t wifi_ap = wifi_aps[i];
-        if(wifi_ap.ssid_len == 0)
-        {
-            break;  // Skip empty SSID, or null item
-        }
 
-        
-
-        wifi_endpoint data = {0};
-        char ssid[MAXIMAL_SSID_LENGTH + 1] = {0};
-        memcpy(ssid, wifi_ap.ssid, wifi_ap.ssid_len);
-        data.ssid.funcs.encode = _encode_string_fields;
-        data.ssid.arg = ssid;
-
-		array_data arr = {0};
-		arr.length = SL_BSSID_LENGTH;
-		arr.buffer = wifi_ap.bssid;
-		data.bssid.funcs.encode = _encode_bytes_fields;
-		data.bssid.arg = &arr;
+	if(wifi_ap->ssid_len == 0)
+	{
+		return false;  // Skip empty SSID, or null item
+	}
 
 
-        switch(wifi_ap.sec_type)
-        {
-            case SL_SCAN_SEC_TYPE_OPEN:
-            data.security_type = wifi_endpoint_sec_type_SL_SCAN_SEC_TYPE_OPEN;
-            break;
 
-            case SL_SCAN_SEC_TYPE_WEP:
-            data.security_type = wifi_endpoint_sec_type_SL_SCAN_SEC_TYPE_WEP;
-            break;
+	wifi_endpoint data = {0};
+	char ssid[MAXIMAL_SSID_LENGTH + 1] = {0};
+	memcpy(ssid, wifi_ap->ssid, wifi_ap->ssid_len);
+	data.ssid.funcs.encode = _encode_string_fields;
+	data.ssid.arg = ssid;
 
-            case SL_SCAN_SEC_TYPE_WPA:
-            data.security_type = wifi_endpoint_sec_type_SL_SCAN_SEC_TYPE_WPA;
-            break;
+	array_data arr = {0};
+	arr.length = SL_BSSID_LENGTH;
+	arr.buffer = wifi_ap->bssid;
+	data.bssid.funcs.encode = _encode_bytes_fields;
+	data.bssid.arg = &arr;
 
-            case SL_SCAN_SEC_TYPE_WPA2:
-            data.security_type = wifi_endpoint_sec_type_SL_SCAN_SEC_TYPE_WPA2;
-            break;
-        }
 
-        data.rssi = wifi_ap.rssi;
+	switch(wifi_ap->sec_type)
+	{
+		case SL_SCAN_SEC_TYPE_OPEN:
+		data.security_type = wifi_endpoint_sec_type_SL_SCAN_SEC_TYPE_OPEN;
+		break;
 
-        if (!pb_encode_tag(stream, PB_WT_STRING, field->tag)){
-            LOGI("Fail to encode tag for wifi ap %s\r\n", wifi_ap.ssid);
-        }else{
+		case SL_SCAN_SEC_TYPE_WEP:
+		data.security_type = wifi_endpoint_sec_type_SL_SCAN_SEC_TYPE_WEP;
+		break;
 
-            pb_ostream_t sizestream = { 0 };
-            if(!pb_encode(&sizestream, wifi_endpoint_fields, &data)){
-                LOGI("Failed to retreive length for ssid %s\n", data.ssid.arg);
-                continue;
-            }
+		case SL_SCAN_SEC_TYPE_WPA:
+		data.security_type = wifi_endpoint_sec_type_SL_SCAN_SEC_TYPE_WPA;
+		break;
 
-            if (!pb_encode_varint(stream, sizestream.bytes_written)){
-                LOGI("Failed to write length\n");
-                continue;
-            }
+		case SL_SCAN_SEC_TYPE_WPA2:
+		data.security_type = wifi_endpoint_sec_type_SL_SCAN_SEC_TYPE_WPA2;
+		break;
+	}
 
-            if (!pb_encode(stream, wifi_endpoint_fields, &data)){
-                LOGI("Fail to encode wifi_endpoint_fields %s\r\n", data.ssid.arg);
-            }else{
-                LOGI("WIFI %s encoded\n", data.ssid.arg);
-            }
-        }
-    }
+	data.rssi = wifi_ap->rssi;
+
+	if (!pb_encode_tag(stream, PB_WT_STRING, field->tag)){
+		LOGI("Fail to encode tag for wifi ap %s\r\n", wifi_ap->ssid);
+	}else{
+
+		pb_ostream_t sizestream = { 0 };
+		if(!pb_encode(&sizestream, wifi_endpoint_fields, &data)){
+			LOGI("Failed to retreive length for ssid %s\n", data.ssid.arg);
+			return false;
+		}
+
+		if (!pb_encode_varint(stream, sizestream.bytes_written)){
+			LOGI("Failed to write length\n");
+			return false;
+		}
+
+		if (!pb_encode(stream, wifi_endpoint_fields, &data)){
+			LOGI("Fail to encode wifi_endpoint_fields %s\r\n", data.ssid.arg);
+		}else{
+			LOGI("WIFI %s encoded\n", data.ssid.arg);
+		}
+	}
+
 
     return true;
 }
@@ -321,6 +318,9 @@ bool ble_send_protobuf(MorpheusCommand* command)
     command->version = PROTOBUF_VERSION;
     ble_proto_assign_encode_funcs(command);
 
+    command->has_firmwareVersion = true;
+    command->firmwareVersion = FIRMWARE_VERSION_INTERNAL;
+
 
     pb_ostream_t stream = {0};
     pb_encode(&stream, MorpheusCommand_fields, command);
@@ -411,6 +411,7 @@ void ble_proto_free_command(MorpheusCommand* command)
 int Cmd_factory_reset(int argc, char* argv[])
 {
     wifi_reset();
+    nwp_reset();
 
 	MorpheusCommand morpheusCommand = {0};
 	morpheusCommand.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_FACTORY_RESET;
