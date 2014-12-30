@@ -669,14 +669,10 @@ void thread_tx(void* unused) {
 				++periodicdata.num_data;
 			}
 
-			memset(&data_batched, 0, sizeof(data_batched));
-			data_batched.data.funcs.encode = encode_all_periodic_data;  // This is smart :D
-			data_batched.data.arg = &periodicdata;
-			data_batched.firmware_version = KIT_VER;
-			data_batched.device_id.funcs.encode = encode_device_id_string;
+			pack_batched_periodic_data(&data_batched, &periodicdata);
 
 			while (!send_periodic_data(&data_batched) == 0) {
-				LOGI("  Waiting for WIFI connection  \n");
+				LOGI("Waiting for network connection\n");
 				vTaskDelay((1 << tries) * 1000);
 				if (tries++ > 5) {
 					tries = 5;

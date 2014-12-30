@@ -55,3 +55,17 @@ bool encode_device_id_string(pb_ostream_t *stream, const pb_field_t *field, void
     return pb_encode_tag_for_field(stream, field) && pb_encode_string(stream, (uint8_t*)hex_device_id, strlen(hex_device_id));
 }
 
+void pack_batched_periodic_data(batched_periodic_data* batched, periodic_data_to_encode* encode_wrapper)
+{
+    if(NULL == batched || NULL == encode_wrapper)
+    {
+        LOGE("null param\n");
+        return;
+    }
+
+    batched->data.funcs.encode = encode_all_periodic_data;  // This is smart :D
+    batched->data.arg = encode_wrapper;
+    batched->firmware_version = KIT_VER;
+    batched->device_id.funcs.encode = encode_device_id_string;
+}
+

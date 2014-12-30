@@ -434,10 +434,7 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
                 periodicdata.data = data;
 
                 batched_periodic_data data_batched = {0};
-                data_batched.data.funcs.encode = encode_all_periodic_data;  // This is smart :D
-                data_batched.data.arg = &periodicdata;
-                data_batched.firmware_version = KIT_VER;
-                data_batched.device_id.funcs.encode = encode_device_id_string;
+                pack_batched_periodic_data(&data_batched, &periodicdata);
 
                 uint8_t retry = 3;
                 while (send_periodic_data(&data_batched) != 0) {
