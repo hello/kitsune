@@ -361,6 +361,41 @@ static void _send_response_to_ble(const char* buffer, size_t len)
 }
 
 void sample_sensor_data(periodic_data* data);
+static int _force_data_push()
+{
+    periodic_data* data = pvPortMalloc(sizeof(periodic_data));  // Let's put this in the heap, we don't use it all the time
+    if(!data)
+    {
+        ble_reply_protobuf_error(ErrorType_DEVICE_NO_MEMORY);
+        return 0;
+    }
+    
+    memset(data, 0, sizeof(periodic_data));
+    sample_sensor_data(data);
+
+    periodic_data_to_encode periodicdata;
+    periodicdata.num_data = 1;
+    periodicdata.data = data;
+
+    batched_periodic_data data_batched = {0};
+    pack_batched_periodic_data(&data_batched, &periodicdata);
+
+    uint8_t retry = 3;
+    int ret = 0;
+    while ((ret = send_periodic_data(&data_batched)) != 0) {
+        LOGI("Retry\n");
+        vTaskDelay(1 * configTICK_RATE_HZ);
+        --retry;
+        if(!retry)
+        {
+            LOGI("Force post data failed\n");
+            break;
+        }
+    }
+    vPortFree(data);
+    return ret;
+}
+
 static int _pair_device( MorpheusCommand* command, int is_morpheus)
 {
 	char response_buffer[256] = {0};
@@ -387,38 +422,6 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 
 		if(ret == 0)
 		{
-            if(is_morpheus)  // Force a data upload immediately after onboarding because the registration UI needs to show the current data.
-            {
-                periodic_data* data = pvPortMalloc(sizeof(periodic_data));  // Let's put this in the heap, we don't use it all the time
-                if(!data)
-                {
-                    ble_reply_protobuf_error(ErrorType_DEVICE_NO_MEMORY);
-                    return 0;
-                }
-                
-                memset(data, 0, sizeof(periodic_data));
-                sample_sensor_data(data);
-
-                periodic_data_to_encode periodicdata;
-                periodicdata.num_data = 1;
-                periodicdata.data = data;
-
-                batched_periodic_data data_batched = {0};
-                pack_batched_periodic_data(&data_batched, &periodicdata);
-
-                uint8_t retry = 3;
-                while (send_periodic_data(&data_batched) != 0) {
-                    LOGI("Retry\n");
-                    vTaskDelay(1 * configTICK_RATE_HZ);
-                    --retry;
-                    if(!retry)
-                    {
-                        LOGI("Force post data failed\n");
-                        break;
-                    }
-                }
-                vPortFree(data);
-            }
 			_send_response_to_ble(response_buffer, sizeof(response_buffer));
 			return 1;
 		}else{
@@ -736,6 +739,19 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
     	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_NEXT_WIFI_AP:
     		_reply_next_wifi_ap();
     		break;
+        case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PUSH_DATA_AFTER_SET_TIMEZONE:
+        {
+            LOGI("Push data\n");
+            MorpheusCommand reply_command = {0};
+            reply_command.type = command->type;
+            if(_force_data_push() != 0)
+            {
+                ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
+            }else{
+                _ble_reply_command_with_type(command->type);
+            }
+        }
+        break;
 	}
     return true;
 }
