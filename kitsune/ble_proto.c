@@ -742,8 +742,6 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PUSH_DATA_AFTER_SET_TIMEZONE:
         {
             LOGI("Push data\n");
-            MorpheusCommand reply_command = {0};
-            reply_command.type = command->type;
             if(_force_data_push() != 0)
             {
                 ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);

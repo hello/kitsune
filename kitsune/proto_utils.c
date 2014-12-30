@@ -1,6 +1,7 @@
 #include "proto_utils.h"
 #include "uartstdio.h"
 #include "wifi_cmd.h"
+#include "kitsune_version.h"
 
 
 bool encode_all_periodic_data (pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
