@@ -47,6 +47,10 @@ int sl_mode;
 extern
 SyncResponse_Alarm alarm;
 
+
+int Cmd_iperf_client(int argc, char *argv[]);
+int Cmd_iperf_server(int argc, char *argv[]);
+
 #define IFA_ANT 1
 #define CHIP_ANT 2
 void antsel(unsigned char a);

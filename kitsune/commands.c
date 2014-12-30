@@ -1393,6 +1393,8 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "genkey",Cmd_generate_factory_data,""},
 		{ "lfclktest",Cmd_test_3200_rtc,""},
 		{ "poll",Cmd_enable_poll,""},
+		{ "iperfsvr",Cmd_iperf_server,""},
+		{ "iperfcli",Cmd_iperf_client,""},
 
 		{ 0, 0, 0 } };
 
