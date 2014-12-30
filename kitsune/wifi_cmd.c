@@ -508,7 +508,7 @@ void load_device_id() {
 	RetVal = sl_FsClose(DeviceFileHandle, NULL, NULL, 0);
 }
 
-#include "ble_proto.c"
+#include "ble_proto.h"
 int Cmd_test_key(int argc, char*argv[]) {
     load_aes();
     load_device_id();
