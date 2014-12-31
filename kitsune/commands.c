@@ -467,8 +467,9 @@ void thread_alarm(void * unused) {
 					if(alarm.has_ringtone_id)
 					{
 						char file_name[64] = {0};
-						usnprintf(file_name, sizeof(file_name), "/RINGTONE/DIGO0%02X", alarm.ringtone_id + 1);
-						strncpy(desc.file, AUDIO_FILE, 64);
+						usnprintf(file_name, sizeof(file_name), "/RINGTONE/DIGO0%02X.raw", 
+							(alarm.ringtone_id >= 0 && alarm.ringtone_id < 4) ? (alarm.ringtone_id + 1) : 1);
+						strncpy(desc.file, file_name, 64);
 					}
 					desc.durationInSeconds = alarm.ring_duration_in_second;
 					desc.volume = 57;
