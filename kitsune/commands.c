@@ -447,6 +447,17 @@ static void thread_alarm_on_finished(void * context) {
     }
 }
 
+static bool _is_file_exists(char* path)
+{
+	FILINFO finfo;
+	FRESULT res = hello_fs_stat(path, &finfo);
+
+	if (res != FR_OK) {
+		return false;
+	}
+	return true;
+}
+
 void thread_alarm(void * unused) {
 	while (1) {
 		wait_for_time();
@@ -467,8 +478,13 @@ void thread_alarm(void * unused) {
 					if(alarm.has_ringtone_id)
 					{
 						char file_name[64] = {0};
-						usnprintf(file_name, sizeof(file_name), "/RINGTONE/DIGO0%02X.raw", 
-							(alarm.ringtone_id >= 0 && alarm.ringtone_id < 4) ? (alarm.ringtone_id + 1) : 1);
+						int ringtone_id = (alarm.ringtone_id >= 0 && alarm.ringtone_id < 4) ? (alarm.ringtone_id + 1) : 1;
+						usnprintf(file_name, sizeof(file_name), "/RINGTONE/DIGO0%02X.raw", ringtone_id);
+						if(!_is_file_exists(file_name))
+						{
+							// TODO: fix this in PVT
+							usnprintf(file_name, sizeof(file_name), "/RINGTO~1/DIGO0%02X.raw", ringtone_id);
+						}
 						strncpy(desc.file, file_name, 64);
 					}
 					desc.durationInSeconds = alarm.ring_duration_in_second;
