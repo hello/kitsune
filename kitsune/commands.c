@@ -530,7 +530,7 @@ static xSemaphoreHandle light_smphr;
 
 uint8_t get_alpha_from_light()
 {
-	uint8_t adjust_max_light = 320;
+	int adjust_max_light = 800;
 
 	int adjust;
 
@@ -547,6 +547,25 @@ uint8_t get_alpha_from_light()
 
 	uint8_t alpha = 0xFF * adjust / adjust_max_light;
 	return alpha;
+}
+
+static int _is_light_off(int current_light, int light_off_threshold)
+{
+	static int last_light = -1;
+	if(last_light == -1)
+	{
+		return 0;
+	}
+
+	int delta = last_light - current_light;
+	if(delta >= light_off_threshold)
+	{
+		LOGI("Light off, delta: %d\n", delta);
+		return 1;
+	}
+
+	return 0;
+
 }
 
 #include "gesture.h"
@@ -629,6 +648,14 @@ void thread_fast_i2c_poll(void * unused)  {
 				light_m2 = light_m2 + delta * ( _light - light_mean);
 				if( light_m2 < 0 ) {
 					light_m2 = 0x7FFFFFFF;
+				}
+
+				if(light_cnt % 5 == 0)  // check every 500ms
+				{
+					if(_is_light_off(_light, 500))
+					{
+						_on_wave(_light);
+					}
 				}
 
 				//LOGI( "%d %d %d %d\n", delta, light_mean, light_m2, light_cnt);
