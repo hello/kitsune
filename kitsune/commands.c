@@ -540,18 +540,19 @@ uint8_t get_alpha_from_light()
 		adjust = _light;
 	}
 
-	if(adjust < 20)
+	if(adjust < 10)
 	{
-		adjust = 20;
+		adjust = 10;
 	}
 
 	uint8_t alpha = 0xFF * adjust / adjust_max_light;
 	return alpha;
 }
 
-static int _is_light_off(int current_light, int light_off_threshold)
+static int _is_light_off(int current_light)
 {
 	static int last_light = -1;
+	const int light_off_threshold = 500;
 	if(last_light == -1)
 	{
 		return 0;
@@ -652,7 +653,7 @@ void thread_fast_i2c_poll(void * unused)  {
 
 				if(light_cnt % 5 == 0)  // check every 500ms
 				{
-					if(_is_light_off(_light, 500))
+					if(_is_light_off(_light))
 					{
 						_on_wave(_light);
 					}
