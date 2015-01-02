@@ -497,7 +497,10 @@ int get_codec_mic_NAU(int argc, char *argv[]) {
 			{0x78,0x88},
 	};
 	for( i=0;i<52;++i) {
-		cmd_init[reg[i][0]] = 0x00 ; cmd_init[reg[i][0]] = 0x00 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC);
+		cmd_init[0] = reg[i][0];
+		cmd_init[1] = reg[i][1];
+		I2C_IF_Write(Codec_addr, cmd_init, 2, 1);
+		vTaskDelay(DELAY_CODEC);
 	}
 #if 0
 cmd_init[0] = 0x00 ; cmd_init[1] = 0x00 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // Software reset
@@ -611,8 +614,11 @@ int get_codec_NAU(int vol_codec) {
 			{0x74,0x00},
 			{0x92,0xc1},
 	};
-	for( i=0;i<47;++i) {
-		cmd_init[reg[i][0]] = 0x00 ; cmd_init[reg[i][0]] = 0x00 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC);
+	for (i = 0; i < 47; ++i) {
+		cmd_init[0] = reg[i][0];
+		cmd_init[1] = reg[i][1];
+		I2C_IF_Write(Codec_addr, cmd_init, 2, 1);
+		vTaskDelay(DELAY_CODEC);
 	}
 #if 0
 	cmd_init[0] = 0x00 ; cmd_init[1] = 0x00 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC);

@@ -762,10 +762,6 @@ void thread_tx(void* unused) {
 				}
 			}
 			vPortFree( periodicdata.data );
-			if(data_queue_batch_size == 1)
-			{
-				data_queue_batch_size = 5;
-			}
 		}
 
 		tries = 0;
