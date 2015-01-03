@@ -631,6 +631,7 @@ void thread_fast_i2c_poll(void * unused)  {
 			{
 			case GESTURE_WAVE:
 				_on_wave(light_mean);
+				last_light_off_time = xTaskGetTickCount(); // prevent the grow trigger twice by LED fade out.
 				break;
 			case GESTURE_HOLD:
 				_on_hold();
