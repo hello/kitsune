@@ -591,7 +591,6 @@ static void _show_led_status()
 }
 
 static void _on_wave(int light){
-	LOGI("on wave\n");
 	memset(&alarm, 0, sizeof(alarm));
 	AudioTask_StopPlayback();
 	_show_led_status();
@@ -602,7 +601,6 @@ static void _on_hold(){
 	ble_proto_start_hold();
 	memset(&alarm, 0, sizeof(alarm));
 	AudioTask_StopPlayback();
-	LOGI("on hold\n");
 }
 
 static void _on_gesture_out()
