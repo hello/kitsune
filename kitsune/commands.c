@@ -254,25 +254,31 @@ int Cmd_fs_read(int argc, char *argv[]) {
 
 int Cmd_record_buff(int argc, char *argv[]) {
 	AudioMessage_t m;
+	static xSemaphoreHandle wait = 0;
 
+	if (!wait) {
+		wait = xSemaphoreCreateBinary();
+	}
 
 	//turn on
-	memset(&m,0,sizeof(m));
-	m.command = eAudioCaptureTurnOn;
-	m.message.capturedesc.rate = argc==2 ? atoi(argv[1]) : 16000;
-	m.message.capturedesc.flags = 0;
-	AudioTask_AddMessageToQueue(&m);
+	AudioTask_StartCapture(16000);
 
 	//capture
 	memset(&m,0,sizeof(m));
 	m.command = eAudioSaveToDisk;
-	m.message.capturedesc.captureduration = 625; //about 10 seconds at 62.5 hz
-	m.message.capturedesc.flags = 0;
+	m.message.capturedesc.change = startSaving;
+	AudioTask_AddMessageToQueue(&m);
+
+	xSemaphoreTake(wait,10000); //10 seconds
+
+	m.command = eAudioSaveToDisk;
+	m.message.capturedesc.change = stopSaving;
 	AudioTask_AddMessageToQueue(&m);
 
 	return 0;
 
 }
+
 
 int Cmd_audio_turn_on(int argc, char * argv[]) {
 
@@ -307,7 +313,6 @@ int Cmd_do_octogram(int argc, char * argv[]) {
     if( argc == 1 ) {
     	numsamples = 500;
     }
-
     if (numsamples == 0) {
     	UARTprintf("number of requested samples was zero.\r\n");
     	return 0;
@@ -331,7 +336,6 @@ int Cmd_do_octogram(int argc, char * argv[]) {
 
 	vSemaphoreDelete(octogramsem);
 
-
     if( argc == 1 ) {
     	int avg = 0;
     	avg += res.logenergy[3];
@@ -343,7 +347,6 @@ int Cmd_do_octogram(int argc, char * argv[]) {
     	UARTprintf("%d\r\n", res.logenergy[2] - avg );
     	return 0;
     }
-
 	//report results
 	UARTprintf("octogram log energies: ");
 	for (i = 0; i < OCTOGRAM_SIZE; i++) {
@@ -937,14 +940,14 @@ void thread_sensor_poll(void* unused) {
 		gesture_counter_reset();
 
 		if( enable_periodic ) {
-			LOGI("collecting time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d %d %d %d\twave %d\thold %d\n",
-					data.unix_time, data.light, data.light_variability, data.light_tonality, data.temperature, data.humidity,
-					data.dust, data.dust_max, data.dust_min, data.dust_variability, data.wave_count, data.hold_count);
+		LOGI("collecting time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d %d %d %d\twave %d\thold %d\n",
+				data.unix_time, data.light, data.light_variability, data.light_tonality, data.temperature, data.humidity,
+				data.dust, data.dust_max, data.dust_min, data.dust_variability, data.wave_count, data.hold_count);
 
-			if(!xQueueSend(data_queue, (void*)&data, 10) == pdPASS)
-			{
-				LOGI("Failed to post data\n");
-			}
+		if(!xQueueSend(data_queue, (void*)&data, 10) == pdPASS)
+        {
+    		LOGI("Failed to post data\n");
+    	}
 		}
 
 		vTaskDelayUntil(&now, 60 * configTICK_RATE_HZ);

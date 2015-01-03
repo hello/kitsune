@@ -59,10 +59,28 @@ typedef struct {
     int8_t feats4bit[NUM_AUDIO_FEATURES];
 } AudioFeatures_t;
     
+
+/* FOR SAVING AUDIO / UPLOADING AUDIO
+ *
+ * Yes, some of these flags are mutually exclusive.  Others aren ot.
+ */
+
+#define AUDIO_TRANSFER_FLAG_UPLOAD                 (1 << 0)
+#define AUDIO_TRANSFER_FLAG_DELETE_AFTER_UPLOAD    (1 << 1)
+#define AUDIO_TRANSFER_FLAG_DELETE_IMMEDIATELY     (1 << 2)
+
+typedef enum {
+	startSaving,
+	stopSaving
+} EAudioTransferChangeState_t;
+
 typedef struct {
-    uint32_t durationInFrames;
-    
-} RecordAudioRequest_t;
+	EAudioTransferChangeState_t change;
+	uint32_t flags;
+	int32_t rate;
+} AudioCaptureDesc_t;
+
+/* ----------------- */
 
 typedef struct {
 	uint8_t mac[6];
@@ -77,7 +95,7 @@ typedef struct {
 typedef void (*SegmentAndFeatureCallback_t)(const int16_t * feats, const Segment_t * pSegment);
 typedef void (*AudioFeatureCallback_t)(const AudioFeatures_t * pfeats);
 typedef void (*NotificationCallback_t)(void * context);
-typedef void (*RecordAudioCallback_t)(const RecordAudioRequest_t * request);
+typedef void (*RecordAudioCallback_t)(const AudioCaptureDesc_t * request);
     
 #ifdef __cplusplus
 }
