@@ -524,7 +524,7 @@ void thread_dust(void * unused)  {
 
 static int light_m2,light_mean, light_cnt,light_log_sum,light_sf;
 static xSemaphoreHandle light_smphr;
-
+int enable_light_off_detection;
 xSemaphoreHandle i2c_smphr;
 
 uint8_t get_alpha_from_light()
@@ -610,7 +610,6 @@ static void _on_gesture_out()
 
 void thread_fast_i2c_poll(void * unused)  {
 	gesture_init();
-	portTickType last_light_off_time = xTaskGetTickCount();
 	while (1) {
 		portTickType now = xTaskGetTickCount();
 		int prox=0;
@@ -631,7 +630,6 @@ void thread_fast_i2c_poll(void * unused)  {
 			{
 			case GESTURE_WAVE:
 				_on_wave(light_mean);
-				last_light_off_time = xTaskGetTickCount(); // prevent the grow trigger twice by LED fade out.
 				break;
 			case GESTURE_HOLD:
 				_on_hold();
@@ -657,10 +655,9 @@ void thread_fast_i2c_poll(void * unused)  {
 				//LOGI( "%d %d %d %d\n", delta, light_mean, light_m2, light_cnt);
 				xSemaphoreGive(light_smphr);
 
-				if(light_cnt % 5 == 0) {
-					if(_is_light_off(light) && xTaskGetTickCount() - last_light_off_time > 3 * configTICK_RATE_HZ) {
+				if(light_cnt % 5 == 0 && enable_light_off_detection) {
+					if(_is_light_off(light)) {
 						_show_led_status();
-						last_light_off_time = xTaskGetTickCount();
 					}
 				}
 			}
