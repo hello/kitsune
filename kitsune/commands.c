@@ -553,19 +553,19 @@ static int _is_light_off(int current_light)
 {
 	static int last_light = -1;
 	const int light_off_threshold = 500;
-	if(last_light == -1)
+	int ret = 0;
+	if(last_light != -1)
 	{
-		return 0;
+		int delta = last_light - current_light;
+		if(delta >= light_off_threshold)
+		{
+			LOGI("Light off, delta: %d\n", delta);
+			ret = 1;
+		}
 	}
 
-	int delta = last_light - current_light;
-	if(delta >= light_off_threshold)
-	{
-		LOGI("Light off, delta: %d\n", delta);
-		return 1;
-	}
-
-	return 0;
+	last_light = current_light;
+	return ret;
 
 }
 
