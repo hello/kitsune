@@ -1745,12 +1745,8 @@ int send_periodic_data(batched_periodic_data* data) {
 
     if(decode_rx_data_pb((unsigned char*) content, len, SyncResponse_fields, &response_protobuf) == 0)
     {
-        LOGI("Decoding success: %d %d %d %d %d %d %d\n",
-        response_protobuf.has_acc_sampling_interval,
-        response_protobuf.has_acc_scan_cyle,
+        LOGI("Decoding success: %d %d %d\n",
         response_protobuf.has_alarm,
-        response_protobuf.has_device_sampling_interval,
-        response_protobuf.has_flash_action,
         response_protobuf.has_reset_device,
         response_protobuf.has_unix_time);
 
