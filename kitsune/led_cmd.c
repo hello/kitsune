@@ -44,6 +44,7 @@ static struct{
 unsigned int user_delay;
 void * user_context;
 led_user_animation_handler user_animation_handler;
+static led_event_handler _animation_end_event_handler;
 //end semaphore protect
 
 static int clamp_rgb(int v, int min, int max){
@@ -297,6 +298,7 @@ static uint32_t wheel(int WheelPos) {
 #define LED_CUSTOM_ANIMATION_BIT	  0x1000
 
 #define QUANT_FACTOR 6
+extern int enable_light_off_detection;
 
 void led_task( void * params ) {
 	int i,j;
@@ -364,6 +366,10 @@ void led_task( void * params ) {
 					xEventGroupClearBits(led_events,LED_CUSTOM_ANIMATION_BIT);
 					xEventGroupSetBits(led_events,LED_RESET_BIT);
 					xSemaphoreGive( led_smphr );
+					if(_animation_end_event_handler) {
+						_animation_end_event_handler();
+					}
+					enable_light_off_detection = 1;
 				}
 
 
@@ -417,6 +423,13 @@ void led_task( void * params ) {
 			if (j > 255) {
 				xEventGroupClearBits(led_events, LED_FADE_IN_STEP_BIT | LED_FADE_IN_FAST_BIT);
 				memcpy(colors_last, colors, sizeof(colors_last));
+
+				if(!(evnt & LED_FADE_OUT_BIT)){
+					if(_animation_end_event_handler) {
+						_animation_end_event_handler();
+					}
+					enable_light_off_detection = 1;
+				}
 			}
 			unsigned int delay;
 
@@ -443,6 +456,10 @@ void led_task( void * params ) {
 				xEventGroupSetBits(led_events,LED_RESET_BIT);
 				memset(colors, 0, sizeof(colors));
 				memcpy(colors_last, colors, sizeof(colors_last));
+				if(_animation_end_event_handler) {
+					_animation_end_event_handler();
+				}
+				enable_light_off_detection = 1;
 			} else {
 				led_brightness(colors, j);
 			}
@@ -513,11 +530,16 @@ int Cmd_led_clr(int argc, char *argv[]) {
 	return 0;
 }
 
-int led_set_color(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b, int fade_in, int fade_out, unsigned int ud, int rot) {
+int led_set_color_with_callback(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b,
+		int fade_in, int fade_out,
+		unsigned int ud,
+		int rot,
+		led_event_handler end_callback) {
+	_animation_end_event_handler = end_callback;
 	if( led_ready() != 0 ) {
 		return -1;
 	}
-
+	enable_light_off_detection = 0;
 	xSemaphoreTake(led_smphr, portMAX_DELAY);
 	user_color.r = clamp_rgb(r, 0, LED_CLAMP_MAX) * alpha / 0xFF;
 	user_color.g = clamp_rgb(g, 0, LED_CLAMP_MAX) * alpha / 0xFF;
@@ -536,6 +558,12 @@ int led_set_color(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b, int fade_in, i
 	}
 	xSemaphoreGive(led_smphr);
 	return 0;
+}
+
+
+
+int led_set_color(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b, int fade_in, int fade_out, unsigned int ud, int rot) {
+	return led_set_color_with_callback(alpha, r, g, b, fade_in, fade_out, ud, rot, NULL);
 }
 
 int led_rainbow(uint8_t alpha)
