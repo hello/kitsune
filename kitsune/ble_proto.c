@@ -46,6 +46,7 @@ static struct {
 	uint32_t last_hold_time;
 	sense_mode_t ble_mode;
 	led_mode_t led_status;
+	xSemaphoreHandle sync;
 } _self;
 
 static uint8_t _wifi_read_index;
@@ -396,10 +397,22 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 	return 0; // failure
 }
 
+static void _sync_unlock()
+{
+	xSemaphoreGive(_self.sync);
+}
+
+static void _sync_lock()
+{
+	xSemaphoreTake(_self.sync, portMAX_DELAY);
+}
+
 void ble_proto_led_init()
 {
 	_self.led_status = LED_OFF;
-	led_set_color(0xFF, LED_MAX, LED_MAX, LED_MAX, 1, 1, 18, 0);
+	_self.sync = xSemaphoreCreateBinary();
+	led_set_color_with_callback(0xFF, LED_MAX, LED_MAX, LED_MAX, 1, 1, 18, 0, _sync_unlock);
+	_sync_lock();
 }
 
 void _led_busy_mode(uint8_t a, uint8_t r, uint8_t g, uint8_t b, int delay)
@@ -414,7 +427,6 @@ void _led_busy_mode(uint8_t a, uint8_t r, uint8_t g, uint8_t b, int delay)
 	if(_self.led_status == LED_TRIPPY)
 	{
 		_led_fade_out(0);
-		vTaskDelay(_self.delay * (12 + 1));
 	}
 
 	if(_self.led_status == LED_BUSY && _self.argb[0] == a && _self.argb[1] == r && _self.argb[2] == g && _self.argb[3] == g)
@@ -423,7 +435,8 @@ void _led_busy_mode(uint8_t a, uint8_t r, uint8_t g, uint8_t b, int delay)
 	}
 
 	_self.led_status = LED_BUSY;
-	led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 0, _self.delay, 1);
+	led_set_color_with_callback(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 0, _self.delay, 1, _sync_unlock);
+	_sync_lock();
 }
 
 void _led_roll_once(int a, int r, int g, int b, int delay)
@@ -440,13 +453,13 @@ void _led_roll_once(int a, int r, int g, int b, int delay)
 		_led_fade_out(0);
 
 		_self.led_status = LED_BUSY;
-		led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 1);
-		vTaskDelay(1000);
-
+		led_set_color_with_callback(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 1, _sync_unlock);
+		_sync_lock();
 		_led_fade_in_trippy();
 	}else{
 		_self.led_status = LED_BUSY;
-		led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 1);
+		led_set_color_with_callback(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 1, _sync_unlock);
+		_sync_lock();
 	}
 
 }
@@ -459,7 +472,7 @@ static void _led_normal_mode(int operation_result)
 	{
 		// Stop rolling
 		_led_fade_out(operation_result);
-        vTaskDelay(18 * (12 + 1));
+        //vTaskDelay(18 * (12 + 1));
 	}
 
 
@@ -499,10 +512,11 @@ static void _led_fade_out(bool operation_result){
 	case LED_BUSY:
         if(operation_result)
         {
-            led_set_color(0xFF, LED_MAX, LED_MAX, LED_MAX, 0, 1, 18, 0);
+            led_set_color_with_callback(0xFF, LED_MAX, LED_MAX, LED_MAX, 0, 1, 18, 0, _sync_unlock);
         }else{
-            led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 0, 1, 18, 0);
+        	led_set_color_with_callback(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 0, 1, 18, 0, _sync_unlock);
         }
+        _sync_lock();
 		break;
 	case LED_TRIPPY:
 		stop_led_animation();
