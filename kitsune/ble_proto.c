@@ -400,11 +400,13 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 static void _sync_unlock()
 {
 	xSemaphoreGive(_self.sync);
+	UARTprintf("<");
 }
 
 static void _sync_lock()
 {
 	xSemaphoreTake(_self.sync, portMAX_DELAY);
+	UARTprintf(">");
 }
 
 void ble_proto_led_init()
@@ -435,8 +437,7 @@ void _led_busy_mode(uint8_t a, uint8_t r, uint8_t g, uint8_t b, int delay)
 	}
 
 	_self.led_status = LED_BUSY;
-	led_set_color_with_callback(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 0, _self.delay, 1, _sync_unlock);
-	_sync_lock();
+	led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 0, _self.delay, 1);
 }
 
 void _led_roll_once(int a, int r, int g, int b, int delay)
@@ -492,8 +493,10 @@ static void _led_fade_in_trippy(){
 	switch(_self.led_status)
 	{
 	case LED_BUSY:
+		led_set_color_with_callback(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 0, 1, 18, 0, _sync_unlock);
+		_sync_lock();
 		play_led_trippy(portMAX_DELAY);
-		led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 0, 1, 18, 0);
+
 		break;
 	case LED_TRIPPY:
 		break;
