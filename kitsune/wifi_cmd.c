@@ -236,6 +236,16 @@ int Cmd_antsel(int argc, char *argv[]) {
 
     return 0;
 }
+
+int Cmd_country(int argc, char *argv[]) {
+	UARTprintf("country <code, either US, JP, or EU>\n");
+	if (argc != 2) {
+		return -1;
+	}
+	sl_WlanSet(SL_WLAN_CFG_GENERAL_PARAM_ID,
+			WLAN_GENERAL_PARAM_OPT_COUNTRY_CODE, 2, argv[1]);
+}
+
 #ifdef BUILD_IPERF
 int Cmd_iperf_server(int argc, char *argv[]) {
     if (argc != 3) {

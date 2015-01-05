@@ -1465,6 +1465,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "testkey", Cmd_test_key, ""},
 		{ "lfclktest",Cmd_test_3200_rtc,""},
 		{ "poll",Cmd_enable_poll,""},
+		{ "country",Cmd_country,""},
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
 		{ "iperfcli",Cmd_iperf_client,""},
