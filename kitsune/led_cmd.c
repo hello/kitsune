@@ -373,6 +373,7 @@ void led_task( void * params ) {
 				int i;
 
 				xSemaphoreTake(led_smphr, portMAX_DELAY);
+				enable_light_off_detection = 0;
 				if(user_animation_handler(r,g,b,&delay,user_context, NUM_LED)){
 					enable_light_off_detection = 0;
 					xSemaphoreGive( led_smphr );
@@ -389,6 +390,7 @@ void led_task( void * params ) {
 				}else{
 					xEventGroupClearBits(led_events,LED_CUSTOM_ANIMATION_BIT);
 					//xEventGroupSetBits(led_events,LED_RESET_BIT);
+					j = 255;
 					xEventGroupSetBits(led_events, LED_FADE_OUT_STEP_BIT );  // always fade out animation
 					xSemaphoreGive( led_smphr );
 				}
@@ -405,6 +407,7 @@ void led_task( void * params ) {
 			unsigned int color_to_use, delay;
 
 			xSemaphoreTake(led_smphr, portMAX_DELAY);
+			enable_light_off_detection = 0;
 			color_to_use = led_from_rgb(user_color.r, user_color.g, user_color.b);
 			delay = user_delay;
 			xSemaphoreGive( led_smphr );
@@ -429,6 +432,7 @@ void led_task( void * params ) {
 		}
 		if (evnt & LED_FADE_IN_BIT) {
 			j = 0;
+			enable_light_off_detection = 0;
 			xEventGroupClearBits(led_events, LED_FADE_IN_BIT );
 			xEventGroupSetBits(led_events, LED_FADE_IN_STEP_BIT );
 			evnt|=LED_FADE_IN_STEP_BIT;
@@ -451,7 +455,6 @@ void led_task( void * params ) {
 						led_unblock();
 					}
 					xSemaphoreGive(_sync_mutex);
-					enable_light_off_detection = 1;
 				}
 			}
 			unsigned int delay;
@@ -563,7 +566,6 @@ int led_set_color_sync(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b,
 	if( led_ready() != 0 ) {
 		return -1;
 	}
-	enable_light_off_detection = 0;
 	xSemaphoreTake(led_smphr, portMAX_DELAY);
 	user_color.r = clamp_rgb(r, 0, LED_CLAMP_MAX) * alpha / 0xFF;
 	user_color.g = clamp_rgb(g, 0, LED_CLAMP_MAX) * alpha / 0xFF;
