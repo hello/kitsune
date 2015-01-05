@@ -388,7 +388,8 @@ void led_task( void * params ) {
 					delay = clamp_rgb(delay,0,500);
 				}else{
 					xEventGroupClearBits(led_events,LED_CUSTOM_ANIMATION_BIT);
-					xEventGroupSetBits(led_events,LED_RESET_BIT);
+					//xEventGroupSetBits(led_events,LED_RESET_BIT);
+					xEventGroupSetBits(led_events, LED_FADE_OUT_STEP_BIT );  // always fade out animation
 					xSemaphoreGive( led_smphr );
 				}
 
