@@ -500,7 +500,7 @@ static void _led_fade_out(bool operation_result){
         {
             led_set_color_sync(0xFF, LED_MAX, LED_MAX, LED_MAX, 0, 1, 18, 0, 1);
         }else{
-        	led_set_color_sync(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 0, 1, 18, 0, 1);
+        	led_set_color_sync(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 0, 1, 18, 1, 1);
         }
 		break;
 	case LED_TRIPPY:
