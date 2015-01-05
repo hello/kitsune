@@ -83,6 +83,7 @@ _on_message(uint8_t * message_body, uint32_t body_length){
 		//delay is necessary because top board is slower.
 		play_led_progress_bar(30,0,0,0, portMAX_DELAY);
 		vTaskDelay(4000);
+
 		if(0 != top_board_dfu_begin("/top/update.bin")){
 			top_board_dfu_begin("/top/factory.bin");
 		}
