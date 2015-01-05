@@ -152,10 +152,6 @@ static bool _animate_trippy(int * out_r, int * out_g, int * out_b, int * out_del
 
 	sig_continue = self.sig_continue;
 	unlock();
-
-	if(_is_sync_request){
-		led_unblock();
-	}
 	return sig_continue;
 }
 static bool _animate_progress(int * out_r, int * out_g, int * out_b, int * out_delay, void * user_context, int rgb_array_size){
@@ -233,17 +229,14 @@ bool play_led_animation_pulse(unsigned int timeout){
 	return false;
 }
 
-bool play_led_trippy_sync(unsigned int timeout){
+bool play_led_trippy(unsigned int timeout){
 	int i;
 	if( _start_animation(timeout) ) {
 		for(i = 0; i < NUM_LED; i++){
 			self.colors[i] = (struct _colors){rand()%120, rand()%120, rand()%120};
 			self.prev_colors[i] = (struct _colors){0};
 		}
-		led_set_is_sync(1);
 		led_start_custom_animation(_animate_trippy, NULL);
-		led_block();
-		led_set_is_sync(0);
 		return true;
 	}
 	return false;
@@ -294,7 +287,7 @@ int Cmd_led_animate(int argc, char *argv[]){
 			set_led_progress_bar(self.progress_bar_percent -= 5);
 			return 0;
 		}else if(strcmp(argv[1], "trippy") == 0){
-			play_led_trippy_sync(portMAX_DELAY);
+			play_led_trippy(portMAX_DELAY);
 			return 0;
 		}else if(strcmp(argv[1], "pulse") == 0){
 			play_led_animation_pulse(portMAX_DELAY);
