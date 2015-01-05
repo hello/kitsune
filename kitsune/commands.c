@@ -1515,7 +1515,7 @@ void vUARTTask(void *pvParameters) {
 	spi_init();
 
 	vSemaphoreCreateBinary(i2c_smphr);
-	init_time_module(512);
+	init_time_module(768);
 
 	// Init sensors
 	init_humid_sensor();

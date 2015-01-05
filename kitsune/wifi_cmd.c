@@ -742,11 +742,15 @@ int Cmd_test_key(int argc, char*argv[]) {
                 &test_command,
                 1000);
 
-    if(ret == 0){
-        UARTprintf("Test key success\n");
-    }else{
+    if(ret != 0 ) {
         UARTprintf("Test key failed: network error %d\n", ret);
+    	return -1;
     }
+	if( http_response_ok(response_buffer) ) {
+		UARTprintf(" test key success \n");
+	} else {
+		UARTprintf(" test key not valid \n");
+	}
 
     return 0;
 }
