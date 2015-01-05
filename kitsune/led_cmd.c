@@ -389,7 +389,7 @@ void led_task( void * params ) {
 				}else{
 					xEventGroupClearBits(led_events,LED_CUSTOM_ANIMATION_BIT);
 					xEventGroupSetBits(led_events,LED_RESET_BIT);
-					xSemaphoreGive(led_smphr);
+					xSemaphoreGive( led_smphr );
 				}
 
 
