@@ -35,6 +35,7 @@
 
 //begin semaphore protect
 static xSemaphoreHandle led_smphr;
+static xSemaphoreHandle _sync_mutex;
 static EventGroupHandle_t led_events;
 static struct{
 	uint8_t r;
@@ -44,7 +45,32 @@ static struct{
 unsigned int user_delay;
 void * user_context;
 led_user_animation_handler user_animation_handler;
+static int _is_sync_request;
+static xSemaphoreHandle _sync;
 //end semaphore protect
+
+void led_unblock()
+{
+	xSemaphoreGive(_sync);
+	UARTprintf("<");
+}
+
+void led_block()
+{
+	xSemaphoreTake(_sync, portMAX_DELAY);
+	UARTprintf(">");
+}
+
+void led_unblock_racing_task()
+{
+	xSemaphoreTake(_sync_mutex, portMAX_DELAY);
+	if(_is_sync_request)
+	{
+		led_unblock();
+		_is_sync_request = 0;
+	}
+	xSemaphoreGive(_sync_mutex);
+}
 
 static int clamp_rgb(int v, int min, int max){
 	if(v >= 0 && v <=max){
@@ -297,6 +323,7 @@ static uint32_t wheel(int WheelPos) {
 #define LED_CUSTOM_ANIMATION_BIT	  0x1000
 
 #define QUANT_FACTOR 6
+extern int enable_light_off_detection;
 
 void led_task( void * params ) {
 	int i,j;
@@ -305,6 +332,9 @@ void led_task( void * params ) {
 	led_array( colors_last, 20 );
 
 	vSemaphoreCreateBinary(led_smphr);
+	_sync_mutex = xSemaphoreCreateMutex();
+	_sync = xSemaphoreCreateBinary();
+	_is_sync_request = 0;
 
 	while(1) {
 		EventBits_t evnt;
@@ -320,6 +350,12 @@ void led_task( void * params ) {
 			memset( colors_last, 0, sizeof(colors_last) );
 			led_array( colors_last, 20 );
 			xEventGroupClearBits(led_events, 0xffffff );
+			xSemaphoreTake(_sync_mutex, portMAX_DELAY);
+			if(_is_sync_request) {
+				led_unblock();
+			}
+			xSemaphoreGive(_sync_mutex);
+			enable_light_off_detection = 1;
 		}
 		if (evnt & LED_CUSTOM_COLOR ){
 			unsigned int colors[NUM_LED + 1];
@@ -348,7 +384,9 @@ void led_task( void * params ) {
 				int i;
 
 				xSemaphoreTake(led_smphr, portMAX_DELAY);
+				enable_light_off_detection = 0;
 				if(user_animation_handler(r,g,b,&delay,user_context, NUM_LED)){
+					enable_light_off_detection = 0;
 					xSemaphoreGive( led_smphr );
 					for(i = 0; i <= NUM_LED; i++){
 						r[i] = clamp_rgb(r[i],0,LED_CLAMP_MAX);
@@ -362,7 +400,9 @@ void led_task( void * params ) {
 					delay = clamp_rgb(delay,0,500);
 				}else{
 					xEventGroupClearBits(led_events,LED_CUSTOM_ANIMATION_BIT);
-					xEventGroupSetBits(led_events,LED_RESET_BIT);
+					//xEventGroupSetBits(led_events,LED_RESET_BIT);
+					j = 255;
+					xEventGroupSetBits(led_events, LED_FADE_OUT_STEP_BIT );  // always fade out animation
 					xSemaphoreGive( led_smphr );
 				}
 
@@ -378,6 +418,7 @@ void led_task( void * params ) {
 			unsigned int color_to_use, delay;
 
 			xSemaphoreTake(led_smphr, portMAX_DELAY);
+			enable_light_off_detection = 0;
 			color_to_use = led_from_rgb(user_color.r, user_color.g, user_color.b);
 			delay = user_delay;
 			xSemaphoreGive( led_smphr );
@@ -399,9 +440,11 @@ void led_task( void * params ) {
 			++j;
 			led_array(colors, 20);
 			memcpy(colors_last, colors, sizeof(colors_last));
+			enable_light_off_detection = 0;
 		}
 		if (evnt & LED_FADE_IN_BIT) {
 			j = 0;
+			enable_light_off_detection = 0;
 			xEventGroupClearBits(led_events, LED_FADE_IN_BIT );
 			xEventGroupSetBits(led_events, LED_FADE_IN_STEP_BIT );
 			evnt|=LED_FADE_IN_STEP_BIT;
@@ -417,6 +460,14 @@ void led_task( void * params ) {
 			if (j > 255) {
 				xEventGroupClearBits(led_events, LED_FADE_IN_STEP_BIT | LED_FADE_IN_FAST_BIT);
 				memcpy(colors_last, colors, sizeof(colors_last));
+
+				if(!(evnt & LED_FADE_OUT_BIT)){
+					xSemaphoreTake(_sync_mutex, portMAX_DELAY);
+					if(_is_sync_request) {
+						led_unblock();
+					}
+					xSemaphoreGive(_sync_mutex);
+				}
 			}
 			unsigned int delay;
 
@@ -429,6 +480,7 @@ void led_task( void * params ) {
 			j = 255;
 			xEventGroupClearBits(led_events, LED_FADE_OUT_BIT );
 			xEventGroupSetBits(led_events, LED_FADE_OUT_STEP_BIT );
+			enable_light_off_detection = 0;
 			evnt|=LED_FADE_OUT_STEP_BIT;
 		}
 		if (evnt & LED_FADE_OUT_STEP_BIT) {
@@ -513,11 +565,20 @@ int Cmd_led_clr(int argc, char *argv[]) {
 	return 0;
 }
 
-int led_set_color(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b, int fade_in, int fade_out, unsigned int ud, int rot) {
+void led_set_is_sync(int is_sync) {
+	xSemaphoreTake(_sync_mutex, portMAX_DELAY);
+	_is_sync_request = is_sync;
+	xSemaphoreGive(_sync_mutex);
+}
+
+int led_set_color_sync(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b,
+		int fade_in, int fade_out,
+		unsigned int ud,
+		int rot,
+		int sync) {
 	if( led_ready() != 0 ) {
 		return -1;
 	}
-
 	xSemaphoreTake(led_smphr, portMAX_DELAY);
 	user_color.r = clamp_rgb(r, 0, LED_CLAMP_MAX) * alpha / 0xFF;
 	user_color.g = clamp_rgb(g, 0, LED_CLAMP_MAX) * alpha / 0xFF;
@@ -535,7 +596,26 @@ int led_set_color(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b, int fade_in, i
 						| (fade_out > 0 ? LED_FADE_OUT_BIT : 0));
 	}
 	xSemaphoreGive(led_smphr);
+	led_set_is_sync(sync);
+	if(sync)
+	{
+		led_block();
+		led_set_is_sync(0);
+	}else{
+		// By the time an async LED request is scheduled, a sync
+		// LED animation might be in the middle of operation.
+		// The blocked sync request task needs to be unblocked in this
+		// case or the async request might cancel the event that is
+		// going to trigger unblocking.
+		led_unblock_racing_task();
+	}
 	return 0;
+}
+
+
+
+int led_set_color(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b, int fade_in, int fade_out, unsigned int ud, int rot) {
+	return led_set_color_sync(alpha, r, g, b, fade_in, fade_out, ud, rot, 0);
 }
 
 int led_rainbow(uint8_t alpha)
@@ -545,6 +625,7 @@ int led_rainbow(uint8_t alpha)
 	xEventGroupClearBits( led_events, 0xffffff );
 	xEventGroupSetBits(led_events, LED_ROTATE_RAINBOW_BIT | 1);
 	xSemaphoreGive(led_smphr);
+	led_unblock_racing_task();
 	return 0;
 }
 

@@ -2,6 +2,7 @@
 #define LED_ANIMATIONS_H
 
 #include "stdbool.h"
+#include "led_cmd.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -12,7 +13,8 @@ bool lock_animation();
 void unlock_animation();
 
 //call to stop all animations
-void stop_led_animation(void);
+void stop_led_animation_sync();
+void stop_led_animation();
 int Cmd_led_animate(int argc, char *argv[]);
 
 //custom animations

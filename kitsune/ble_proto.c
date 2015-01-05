@@ -436,7 +436,8 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 void ble_proto_led_init()
 {
 	_self.led_status = LED_OFF;
-	led_set_color(0xFF, LED_MAX, LED_MAX, LED_MAX, 1, 1, 18, 0);
+	_self.ble_mode = SENSE_NORMAL_MODE;
+	led_set_color_sync(0xFF, LED_MAX, LED_MAX, LED_MAX, 1, 1, 18, 0, 1);
 }
 
 void _led_busy_mode(uint8_t a, uint8_t r, uint8_t g, uint8_t b, int delay)
@@ -451,7 +452,6 @@ void _led_busy_mode(uint8_t a, uint8_t r, uint8_t g, uint8_t b, int delay)
 	if(_self.led_status == LED_TRIPPY)
 	{
 		_led_fade_out(0);
-		vTaskDelay(_self.delay * (12 + 1));
 	}
 
 	if(_self.led_status == LED_BUSY && _self.argb[0] == a && _self.argb[1] == r && _self.argb[2] == g && _self.argb[3] == g)
@@ -477,13 +477,12 @@ void _led_roll_once(int a, int r, int g, int b, int delay)
 		_led_fade_out(0);
 
 		_self.led_status = LED_BUSY;
-		led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 1);
-		vTaskDelay(1000);
-
+		led_set_color_sync(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 1, 1);
 		_led_fade_in_trippy();
-	}else{
+	}else if(_self.led_status == LED_OFF){
 		_self.led_status = LED_BUSY;
-		led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 1);
+		led_set_color_sync(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 1, 1);
+		_self.led_status = LED_OFF;
 	}
 
 }
@@ -496,7 +495,7 @@ static void _led_normal_mode(int operation_result)
 	{
 		// Stop rolling
 		_led_fade_out(operation_result);
-        vTaskDelay(18 * (12 + 1));
+        //vTaskDelay(18 * (12 + 1));
 	}
 
 
@@ -516,8 +515,9 @@ static void _led_fade_in_trippy(){
 	switch(_self.led_status)
 	{
 	case LED_BUSY:
+		led_set_color_sync(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 0, 1, 18, 0, 1);
 		play_led_trippy(portMAX_DELAY);
-		led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 0, 1, 18, 0);
+
 		break;
 	case LED_TRIPPY:
 		break;
@@ -536,13 +536,13 @@ static void _led_fade_out(bool operation_result){
 	case LED_BUSY:
         if(operation_result)
         {
-            led_set_color(0xFF, LED_MAX, LED_MAX, LED_MAX, 0, 1, 18, 0);
+            led_set_color_sync(0xFF, LED_MAX, LED_MAX, LED_MAX, 0, 1, 18, 0, 1);
         }else{
-            led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 0, 1, 18, 0);
+        	led_set_color_sync(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 0, 1, 18, 1, 1);
         }
 		break;
 	case LED_TRIPPY:
-		stop_led_animation();
+		stop_led_animation_sync();
 		//led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 0, 1, 18, 0);
 
 		break;

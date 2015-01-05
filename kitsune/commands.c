@@ -555,36 +555,51 @@ void thread_dust(void * unused)  {
 
 static int light_m2,light_mean, light_cnt,light_log_sum,light_sf;
 static xSemaphoreHandle light_smphr;
-
- xSemaphoreHandle i2c_smphr;
- static int _light;
+int enable_light_off_detection;
+xSemaphoreHandle i2c_smphr;
 
 uint8_t get_alpha_from_light()
 {
-	uint16_t adjust_max_light = 320;
-
+	int adjust_max_light = 800;
 	int adjust;
 
-	if( _light > adjust_max_light ) {
+	if( light_mean > adjust_max_light ) {
 		adjust = adjust_max_light;
 	} else {
-		adjust = _light;
-	}
-
-	if(adjust < 20)
-	{
-		adjust = 20;
+		adjust = light_mean;
 	}
 
 	uint8_t alpha = 0xFF * adjust / adjust_max_light;
+	alpha = alpha < 10 ? 10 : alpha;
 	return alpha;
+}
+
+
+static int _is_light_off(int current_light)
+{
+	static int last_light = -1;
+	const int light_off_threshold = 300;
+	int ret = 0;
+	if(last_light != -1)
+	{
+		int delta = last_light - current_light;
+		//LOGI("delta: %d, current %d, last %d\n", delta, current_light, last_light);
+		if(delta >= light_off_threshold && current_light < 100)
+		{
+			//LOGI("Light off\n");
+			ret = 1;
+		}
+	}
+
+	last_light = current_light;
+	return ret;
+
 }
 
 #include "gesture.h"
 
-static void _on_wave(int light){
-	memset(&alarm, 0, sizeof(alarm));
-	AudioTask_StopPlayback();
+static void _show_led_status()
+{
 	uint8_t alpha = get_alpha_from_light();
 
 	if(wifi_status_get(UPLOADING)) {
@@ -605,6 +620,12 @@ static void _on_wave(int light){
 	}
 }
 
+static void _on_wave(int light){
+	memset(&alarm, 0, sizeof(alarm));
+	AudioTask_StopPlayback();
+	_show_led_status();
+}
+
 static void _on_hold(){
 	//stop_led_animation();
 	ble_proto_start_hold();
@@ -619,14 +640,14 @@ static void _on_gesture_out()
 
 void thread_fast_i2c_poll(void * unused)  {
 	gesture_init();
-
 	while (1) {
 		portTickType now = xTaskGetTickCount();
 		int prox=0;
+		int light;
 
 		if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
 			vTaskDelay(2);
-			_light = get_light();
+			light = get_light();
 			vTaskDelay(2); //this is important! If we don't do it, then the prox will stretch the clock!
 
 			// For the black morpheus, we can detect 6mm distance max
@@ -638,7 +659,7 @@ void thread_fast_i2c_poll(void * unused)  {
 			switch(gesture_state)
 			{
 			case GESTURE_WAVE:
-				_on_wave(_light);
+				_on_wave(light_mean);
 				break;
 			case GESTURE_HOLD:
 				_on_hold();
@@ -652,18 +673,23 @@ void thread_fast_i2c_poll(void * unused)  {
 
 
 			if (xSemaphoreTake(light_smphr, portMAX_DELAY)) {
-				light_log_sum += bitlog(_light);
+				light_log_sum += bitlog(light);
 				++light_cnt;
 
-				int delta = _light - light_mean;
+				int delta = light - light_mean;
 				light_mean = light_mean + delta/light_cnt;
-				light_m2 = light_m2 + delta * ( _light - light_mean);
+				light_m2 = light_m2 + delta * (light - light_mean);
 				if( light_m2 < 0 ) {
 					light_m2 = 0x7FFFFFFF;
 				}
-
 				//LOGI( "%d %d %d %d\n", delta, light_mean, light_m2, light_cnt);
 				xSemaphoreGive(light_smphr);
+
+				if(light_cnt % 5 == 0 && enable_light_off_detection) {
+					if(_is_light_off(light)) {
+						_show_led_status();
+					}
+				}
 			}
 		}
 		vTaskDelayUntil(&now, 100);
