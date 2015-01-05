@@ -461,7 +461,7 @@ void _led_roll_once(int a, int r, int g, int b, int delay)
 		_self.led_status = LED_BUSY;
 		led_set_color_with_callback(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 1, _sync_unlock);
 		_sync_lock();
-		_self.led_status == LED_OFF;
+		_self.led_status = LED_OFF;
 	}
 
 }
