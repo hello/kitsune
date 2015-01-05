@@ -26,9 +26,6 @@ int led_set_color_sync(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b,
 		unsigned int ud,
 		int rot,
 		int is_sync);
-void led_unblock();
-void led_block();
-void led_set_is_sync(int is_sync);
 
 #ifdef __cplusplus
 }

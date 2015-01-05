@@ -61,6 +61,17 @@ void led_block()
 	UARTprintf(">");
 }
 
+void led_unblock_racing_task()
+{
+	xSemaphoreTake(_sync_mutex, portMAX_DELAY);
+	if(_is_sync_request)
+	{
+		led_unblock();
+		_is_sync_request = 0;
+	}
+	xSemaphoreGive(_sync_mutex);
+}
+
 static int clamp_rgb(int v, int min, int max){
 	if(v >= 0 && v <=max){
 		return v;
@@ -429,6 +440,7 @@ void led_task( void * params ) {
 			++j;
 			led_array(colors, 20);
 			memcpy(colors_last, colors, sizeof(colors_last));
+			enable_light_off_detection = 0;
 		}
 		if (evnt & LED_FADE_IN_BIT) {
 			j = 0;
@@ -468,6 +480,7 @@ void led_task( void * params ) {
 			j = 255;
 			xEventGroupClearBits(led_events, LED_FADE_OUT_BIT );
 			xEventGroupSetBits(led_events, LED_FADE_OUT_STEP_BIT );
+			enable_light_off_detection = 0;
 			evnt|=LED_FADE_OUT_STEP_BIT;
 		}
 		if (evnt & LED_FADE_OUT_STEP_BIT) {
@@ -588,6 +601,13 @@ int led_set_color_sync(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b,
 	{
 		led_block();
 		led_set_is_sync(0);
+	}else{
+		// By the time an async LED request is scheduled, a sync
+		// LED animation might be in the middle of operation.
+		// The blocked sync request task needs to be unblocked in this
+		// case or the async request might cancel the event that is
+		// going to trigger unblocking.
+		led_unblock_racing_task();
 	}
 	return 0;
 }
@@ -605,6 +625,7 @@ int led_rainbow(uint8_t alpha)
 	xEventGroupClearBits( led_events, 0xffffff );
 	xEventGroupSetBits(led_events, LED_ROTATE_RAINBOW_BIT | 1);
 	xSemaphoreGive(led_smphr);
+	led_unblock_racing_task();
 	return 0;
 }
 
