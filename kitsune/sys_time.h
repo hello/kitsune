@@ -17,7 +17,6 @@ void init_time_module( int stack );
 void wait_for_time();
 bool has_good_time();
 time_t get_time();
-void set_time( time_t t);
 
 void set_sl_time( time_t unix_timestamp_sec );
 time_t get_sl_time( );

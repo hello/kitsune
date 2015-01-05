@@ -171,7 +171,7 @@ uint32_t fetch_unix_time_from_ntp() {
     //
     memset(buffer, 0, sizeof(buffer));
 
-#define NTP_SERVER "pool.ntp.org"
+#define NTP_SERVER "ntp.hello.is"
     if (!(rv = gethostbyname(NTP_SERVER, strlen(NTP_SERVER), &ipaddr, AF_INET))) {
         LOGI(
                 "Get Host IP succeeded.\n\rHost: %s IP: %d.%d.%d.%d \n\r\n\r",
@@ -267,9 +267,12 @@ static time_t get_cached_time() {
 
 
 static void time_task( void * params ) { //exists to get the time going and cache so we aren't going to NTP or RTC every time...
+	#define TIME_POLL_INTERVAL 86400000ul //one DAY
 	bool have_set_time = false;
+	TickType_t last_set = 0;
 	while (1) {
-		if (!have_set_time && wifi_status_get(HAS_IP) && time_smphr && xSemaphoreTake(time_smphr, 0)) {
+		if ((!have_set_time || xTaskGetTickCount()- last_set > TIME_POLL_INTERVAL )
+			&& wifi_status_get(HAS_IP) && time_smphr && xSemaphoreTake(time_smphr, 0)) {
 			uint32_t ntp_time = fetch_unix_time_from_ntp();
 			if (ntp_time != INVALID_SYS_TIME) {
 				if (set_unix_time(ntp_time) != INVALID_SYS_TIME) {
@@ -277,6 +280,7 @@ static void time_task( void * params ) { //exists to get the time going and cach
 					set_cached_time(ntp_time);
 					set_sl_time(get_cached_time());
 					have_set_time = true;
+					last_set = xTaskGetTickCount();
 				}
 			}
 			xSemaphoreGive(time_smphr);
@@ -320,14 +324,6 @@ time_t get_time() { //all accesses go to cache...
 		}
 	}
 	return t;
-}
-void set_time(time_t t) { //writing is special case
-	if (xSemaphoreTake(time_smphr, portMAX_DELAY)) {
-		set_unix_time(t);
-		cached_time = t;
-		cached_ticks = xTaskGetTickCount();
-		xSemaphoreGive(time_smphr);
-	}
 }
 
 void init_time_module(int stack)
