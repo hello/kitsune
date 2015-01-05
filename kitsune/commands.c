@@ -1530,8 +1530,8 @@ void vUARTTask(void *pvParameters) {
 
 	UARTprintf("Boot\n");
 
-	//default to IFA
-	antsel(IFA_ANT);
+	//default to PCB_ANT
+	antsel(PCB_ANT);
 
 	UARTprintf("*");
 	now = xTaskGetTickCount();
