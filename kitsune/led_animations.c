@@ -28,7 +28,7 @@ static void unlock() {
 	xSemaphoreGive(self._sem);
 }
 
-static bool _start_animation(unsigned int timeout) {
+static bool _start_animation( unsigned int timeout ) {
 	if( lock_animation( timeout ) ) {
 		lock();
 		self.counter = 0;
@@ -221,7 +221,7 @@ void unlock_animation() {
 }
 
 bool play_led_animation_pulse(unsigned int timeout){
-	if( _start_animation(timeout) ) {
+	if( _start_animation( timeout ) ) {
 		led_start_custom_animation(_animate_pulse, NULL);
 		return true;
 	}
@@ -230,7 +230,7 @@ bool play_led_animation_pulse(unsigned int timeout){
 
 bool play_led_trippy(unsigned int timeout){
 	int i;
-	if( _start_animation(timeout) ) {
+	if( _start_animation( timeout ) ) {
 		for(i = 0; i < NUM_LED; i++){
 			self.colors[i] = (struct _colors){rand()%120, rand()%120, rand()%120};
 			self.prev_colors[i] = (struct _colors){0};
@@ -242,7 +242,7 @@ bool play_led_trippy(unsigned int timeout){
 }
 
 bool play_led_progress_bar(int r, int g, int b, unsigned int options, unsigned int timeout){
-	if( _start_animation(timeout) ) {
+	if( _start_animation( timeout ) ) {
 		self.colors[0] = (struct _colors){r, g, b};
 		self.progress_bar_percent = 0;
 		led_start_custom_animation(_animate_progress, NULL);
@@ -301,7 +301,7 @@ int Cmd_led_animate(int argc, char *argv[]){
 	return 0;
 }
 bool factory_led_test_pattern(unsigned int timeout) {
-	if( _start_animation(timeout) ) {
+	if( _start_animation( timeout ) ) {
 		led_start_custom_animation(_animate_factory_test_pattern, NULL);
 		return true;
 	}

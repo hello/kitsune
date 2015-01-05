@@ -508,7 +508,7 @@ int led_ready() {
 
 int Cmd_led(int argc, char *argv[]) {
 	if(argc == 2 && strcmp(argv[1], "stop") == 0){
-		stop_led_animation(NULL);
+		stop_led_animation();
 		return 0;
 	}
 	if(argc == 2) {
