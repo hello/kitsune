@@ -35,6 +35,7 @@
 
 //begin semaphore protect
 static xSemaphoreHandle led_smphr;
+static xSemaphoreHandle _callback_smphr;
 static EventGroupHandle_t led_events;
 static struct{
 	uint8_t r;
@@ -307,6 +308,7 @@ void led_task( void * params ) {
 	led_array( colors_last, 20 );
 
 	vSemaphoreCreateBinary(led_smphr);
+	_callback_smphr = xSemaphoreCreateMutex();
 
 	while(1) {
 		EventBits_t evnt;
@@ -366,9 +368,13 @@ void led_task( void * params ) {
 					xEventGroupClearBits(led_events,LED_CUSTOM_ANIMATION_BIT);
 					xEventGroupSetBits(led_events,LED_RESET_BIT);
 					xSemaphoreGive( led_smphr );
+
+					xSemaphoreTake(_callback_smphr, portMAX_DELAY);
 					if(_animation_end_event_handler) {
 						_animation_end_event_handler();
+						_animation_end_event_handler = NULL;
 					}
+					xSemaphoreGive(_callback_smphr);
 					enable_light_off_detection = 1;
 				}
 
@@ -425,9 +431,12 @@ void led_task( void * params ) {
 				memcpy(colors_last, colors, sizeof(colors_last));
 
 				if(!(evnt & LED_FADE_OUT_BIT)){
+					xSemaphoreTake(_callback_smphr, portMAX_DELAY);
 					if(_animation_end_event_handler) {
 						_animation_end_event_handler();
+						_animation_end_event_handler = NULL;
 					}
+					xSemaphoreGive(_callback_smphr);
 					enable_light_off_detection = 1;
 				}
 			}
@@ -456,9 +465,12 @@ void led_task( void * params ) {
 				xEventGroupSetBits(led_events,LED_RESET_BIT);
 				memset(colors, 0, sizeof(colors));
 				memcpy(colors_last, colors, sizeof(colors_last));
+				xSemaphoreTake(_callback_smphr, portMAX_DELAY);
 				if(_animation_end_event_handler) {
 					_animation_end_event_handler();
+					_animation_end_event_handler = NULL;
 				}
+				xSemaphoreGive(_callback_smphr);
 				enable_light_off_detection = 1;
 			} else {
 				led_brightness(colors, j);
@@ -484,7 +496,7 @@ int led_ready() {
 
 int Cmd_led(int argc, char *argv[]) {
 	if(argc == 2 && strcmp(argv[1], "stop") == 0){
-		stop_led_animation();
+		stop_led_animation(NULL);
 		return 0;
 	}
 	if(argc == 2) {
@@ -535,7 +547,15 @@ int led_set_color_with_callback(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b,
 		unsigned int ud,
 		int rot,
 		led_event_handler end_callback) {
+	xSemaphoreTake(_callback_smphr, portMAX_DELAY);
+	if(_animation_end_event_handler)
+	{
+		_animation_end_event_handler();
+		_animation_end_event_handler = NULL;
+	}
 	_animation_end_event_handler = end_callback;
+	xSemaphoreGive(_callback_smphr);
+
 	if( led_ready() != 0 ) {
 		return -1;
 	}

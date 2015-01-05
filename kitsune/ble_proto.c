@@ -457,10 +457,11 @@ void _led_roll_once(int a, int r, int g, int b, int delay)
 		led_set_color_with_callback(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 1, _sync_unlock);
 		_sync_lock();
 		_led_fade_in_trippy();
-	}else{
+	}else if(_self.led_status == LED_OFF){
 		_self.led_status = LED_BUSY;
 		led_set_color_with_callback(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 1, _sync_unlock);
 		_sync_lock();
+		_self.led_status == LED_OFF;
 	}
 
 }
@@ -495,14 +496,16 @@ static void _led_fade_in_trippy(){
 	case LED_BUSY:
 		led_set_color_with_callback(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 0, 1, 18, 0, _sync_unlock);
 		_sync_lock();
-		play_led_trippy(portMAX_DELAY);
+		play_led_trippy(portMAX_DELAY, _sync_unlock);
+		_sync_lock();
 
 		break;
 	case LED_TRIPPY:
 		break;
 	case LED_OFF:
 		//led_set_color(_self.a, _self.r, _self.g, _self.b, 1, 0, 18, 0);
-		play_led_trippy(portMAX_DELAY);
+		play_led_trippy(portMAX_DELAY, _sync_unlock);
+		_sync_lock();
 		break;
 	}
 
@@ -522,7 +525,8 @@ static void _led_fade_out(bool operation_result){
         _sync_lock();
 		break;
 	case LED_TRIPPY:
-		stop_led_animation();
+		stop_led_animation(_sync_unlock);
+		_sync_lock();
 		//led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 0, 1, 18, 0);
 
 		break;
