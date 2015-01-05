@@ -216,9 +216,18 @@ int Cmd_fs_write(int argc, char *argv[]) {
 			return -1;
 		}
 	}
+    char* next = argv[2];
+    int cnt = 0;
+    int expected = argc - 2;
+	while( cnt != expected ) {
+        uint8_t byte = strtol(next, &next, 16);
+    	bytes = sl_FsWrite(hndl, info.FileLen + cnt, (unsigned char*)&byte, 1);
+    	assert(bytes==1);
+    	++cnt;
+    	next = next + 1;
+    }
 
-	bytes = sl_FsWrite(hndl, info.FileLen, (unsigned char*)argv[2], strlen(argv[2]));
-	LOGI("wrote to the file %d bytes\n", bytes);
+	LOGI("wrote to the file %d bytes\n", cnt);
 
 	sl_FsClose(hndl, 0, 0, 0);
 
