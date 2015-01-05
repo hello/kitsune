@@ -35,7 +35,7 @@
 
 //begin semaphore protect
 static xSemaphoreHandle led_smphr;
-static xSemaphoreHandle _callback_smphr;
+static xSemaphoreHandle _sync_mutex;
 static EventGroupHandle_t led_events;
 static struct{
 	uint8_t r;
@@ -321,7 +321,7 @@ void led_task( void * params ) {
 	led_array( colors_last, 20 );
 
 	vSemaphoreCreateBinary(led_smphr);
-	_callback_smphr = xSemaphoreCreateMutex();
+	_sync_mutex = xSemaphoreCreateMutex();
 	_sync = xSemaphoreCreateBinary();
 	_is_sync_request = 0;
 
@@ -384,11 +384,11 @@ void led_task( void * params ) {
 					xEventGroupClearBits(led_events,LED_CUSTOM_ANIMATION_BIT);
 					xEventGroupSetBits(led_events,LED_RESET_BIT);
 					xSemaphoreGive(led_smphr);
-					xSemaphoreTake(_callback_smphr, portMAX_DELAY);
+					xSemaphoreTake(_sync_mutex, portMAX_DELAY);
 					if(_is_sync_request) {
 						led_unblock();
 					}
-					xSemaphoreGive(_callback_smphr);
+					xSemaphoreGive(_sync_mutex);
 					enable_light_off_detection = 1;
 				}
 
@@ -445,11 +445,11 @@ void led_task( void * params ) {
 				memcpy(colors_last, colors, sizeof(colors_last));
 
 				if(!(evnt & LED_FADE_OUT_BIT)){
-					xSemaphoreTake(_callback_smphr, portMAX_DELAY);
+					xSemaphoreTake(_sync_mutex, portMAX_DELAY);
 					if(_is_sync_request) {
 						led_unblock();
 					}
-					xSemaphoreGive(_callback_smphr);
+					xSemaphoreGive(_sync_mutex);
 					enable_light_off_detection = 1;
 				}
 			}
@@ -478,11 +478,11 @@ void led_task( void * params ) {
 				xEventGroupSetBits(led_events,LED_RESET_BIT);
 				memset(colors, 0, sizeof(colors));
 				memcpy(colors_last, colors, sizeof(colors_last));
-				xSemaphoreTake(_callback_smphr, portMAX_DELAY);
+				xSemaphoreTake(_sync_mutex, portMAX_DELAY);
 				if(_is_sync_request) {
 					led_unblock();
 				}
-				xSemaphoreGive(_callback_smphr);
+				xSemaphoreGive(_sync_mutex);
 				enable_light_off_detection = 1;
 			} else {
 				led_brightness(colors, j);
@@ -555,9 +555,9 @@ int Cmd_led_clr(int argc, char *argv[]) {
 }
 
 void led_set_is_sync(int is_sync) {
-	xSemaphoreTake(_callback_smphr, portMAX_DELAY);
+	xSemaphoreTake(_sync_mutex, portMAX_DELAY);
 	_is_sync_request = is_sync;
-	xSemaphoreGive(_callback_smphr);
+	xSemaphoreGive(_sync_mutex);
 }
 
 int led_set_color_sync(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b,

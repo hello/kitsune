@@ -227,7 +227,6 @@ bool play_led_animation_pulse(unsigned int timeout){
 	}
 	return false;
 }
-
 bool play_led_trippy(unsigned int timeout){
 	int i;
 	if( _start_animation( timeout ) ) {
@@ -240,7 +239,6 @@ bool play_led_trippy(unsigned int timeout){
 	}
 	return false;
 }
-
 bool play_led_progress_bar(int r, int g, int b, unsigned int options, unsigned int timeout){
 	if( _start_animation( timeout ) ) {
 		self.colors[0] = (struct _colors){r, g, b};
@@ -286,7 +284,7 @@ int Cmd_led_animate(int argc, char *argv[]){
 			set_led_progress_bar(self.progress_bar_percent -= 5);
 			return 0;
 		}else if(strcmp(argv[1], "trippy") == 0){
-			play_led_trippy(portMAX_DELAY);
+			play_led_trippy( portMAX_DELAY );
 			return 0;
 		}else if(strcmp(argv[1], "pulse") == 0){
 			play_led_animation_pulse(portMAX_DELAY);
