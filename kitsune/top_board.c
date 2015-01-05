@@ -173,7 +173,12 @@ _on_dtm_event(uint16_t dtm_event){
 
 static void
 _sendchar(uint8_t c){
-	UARTCharPut(UARTA1_BASE, c);
+    /*
+	 *UARTCharPut(UARTA1_BASE, c);
+     */
+    char term[2] = {0};
+    term[0] = c;
+    LOGI(term);
 }
 
 void top_board_task(void * params){
