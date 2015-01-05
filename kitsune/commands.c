@@ -557,7 +557,7 @@ static xSemaphoreHandle light_smphr;
 
 uint8_t get_alpha_from_light()
 {
-	uint8_t adjust_max_light = 320;
+	uint16_t adjust_max_light = 320;
 
 	int adjust;
 

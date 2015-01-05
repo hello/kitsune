@@ -461,7 +461,7 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int64_t samplecount) {
         mfcc[j] = fr[j+1];
     }
     
-    if (_data.callcounter > STARTUP_EQUALIZATION_COUNTS && _data.callcounter & 0x00000001) {
+    if (_data.callcounter > STARTUP_EQUALIZATION_COUNTS && (_data.callcounter & 0x00000001)) {
        //run every other count (we want to average and decimate by 2)
         int32_t temp32;
         int8_t featvec[NUM_AUDIO_FEATURES];
