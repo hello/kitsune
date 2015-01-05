@@ -45,7 +45,7 @@ static struct{
 unsigned int user_delay;
 void * user_context;
 led_user_animation_handler user_animation_handler;
-int _is_sync_request;
+static int _is_sync_request;
 static xSemaphoreHandle _sync;
 //end semaphore protect
 

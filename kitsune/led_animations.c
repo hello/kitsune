@@ -9,7 +9,6 @@
 #include "semphr.h"
 
 #include "led_animations.h"
-extern int _is_sync_request;
 struct _colors{
 		int r,g,b;
 };
