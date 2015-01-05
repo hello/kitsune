@@ -45,8 +45,21 @@ static struct{
 unsigned int user_delay;
 void * user_context;
 led_user_animation_handler user_animation_handler;
-static led_event_handler _animation_end_event_handler;
+int _is_sync_request;
+static xSemaphoreHandle _sync;
 //end semaphore protect
+
+void led_unblock()
+{
+	xSemaphoreGive(_sync);
+	UARTprintf("<");
+}
+
+void led_block()
+{
+	xSemaphoreTake(_sync, portMAX_DELAY);
+	UARTprintf(">");
+}
 
 static int clamp_rgb(int v, int min, int max){
 	if(v >= 0 && v <=max){
@@ -309,6 +322,8 @@ void led_task( void * params ) {
 
 	vSemaphoreCreateBinary(led_smphr);
 	_callback_smphr = xSemaphoreCreateMutex();
+	_sync = xSemaphoreCreateBinary();
+	_is_sync_request = 0;
 
 	while(1) {
 		EventBits_t evnt;
@@ -370,9 +385,8 @@ void led_task( void * params ) {
 					xSemaphoreGive( led_smphr );
 
 					xSemaphoreTake(_callback_smphr, portMAX_DELAY);
-					if(_animation_end_event_handler) {
-						_animation_end_event_handler();
-						_animation_end_event_handler = NULL;
+					if(_is_sync_request) {
+						led_unblock();
 					}
 					xSemaphoreGive(_callback_smphr);
 					enable_light_off_detection = 1;
@@ -432,9 +446,8 @@ void led_task( void * params ) {
 
 				if(!(evnt & LED_FADE_OUT_BIT)){
 					xSemaphoreTake(_callback_smphr, portMAX_DELAY);
-					if(_animation_end_event_handler) {
-						_animation_end_event_handler();
-						_animation_end_event_handler = NULL;
+					if(_is_sync_request) {
+						led_unblock();
 					}
 					xSemaphoreGive(_callback_smphr);
 					enable_light_off_detection = 1;
@@ -466,9 +479,8 @@ void led_task( void * params ) {
 				memset(colors, 0, sizeof(colors));
 				memcpy(colors_last, colors, sizeof(colors_last));
 				xSemaphoreTake(_callback_smphr, portMAX_DELAY);
-				if(_animation_end_event_handler) {
-					_animation_end_event_handler();
-					_animation_end_event_handler = NULL;
+				if(_is_sync_request) {
+					led_unblock();
 				}
 				xSemaphoreGive(_callback_smphr);
 				enable_light_off_detection = 1;
@@ -542,20 +554,17 @@ int Cmd_led_clr(int argc, char *argv[]) {
 	return 0;
 }
 
-int led_set_color_with_callback(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b,
+void led_set_is_sync(int is_sync) {
+	xSemaphoreTake(_callback_smphr, portMAX_DELAY);
+	_is_sync_request = is_sync;
+	xSemaphoreGive(_callback_smphr);
+}
+
+int led_set_color_sync(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b,
 		int fade_in, int fade_out,
 		unsigned int ud,
 		int rot,
-		led_event_handler end_callback) {
-	xSemaphoreTake(_callback_smphr, portMAX_DELAY);
-	if(_animation_end_event_handler)
-	{
-		_animation_end_event_handler();
-		_animation_end_event_handler = NULL;
-	}
-	_animation_end_event_handler = end_callback;
-	xSemaphoreGive(_callback_smphr);
-
+		int sync) {
 	if( led_ready() != 0 ) {
 		return -1;
 	}
@@ -577,13 +586,19 @@ int led_set_color_with_callback(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b,
 						| (fade_out > 0 ? LED_FADE_OUT_BIT : 0));
 	}
 	xSemaphoreGive(led_smphr);
+	led_set_is_sync(sync);
+	if(sync)
+	{
+		led_block();
+		led_set_is_sync(0);
+	}
 	return 0;
 }
 
 
 
 int led_set_color(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b, int fade_in, int fade_out, unsigned int ud, int rot) {
-	return led_set_color_with_callback(alpha, r, g, b, fade_in, fade_out, ud, rot, NULL);
+	return led_set_color_sync(alpha, r, g, b, fade_in, fade_out, ud, rot, 0);
 }
 
 int led_rainbow(uint8_t alpha)

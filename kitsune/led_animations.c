@@ -9,6 +9,7 @@
 #include "semphr.h"
 
 #include "led_animations.h"
+extern int _is_sync_request;
 struct _colors{
 		int r,g,b;
 };
@@ -19,7 +20,6 @@ static struct{
 	int progress_bar_percent;
 	xSemaphoreHandle _sem;
 	xSemaphoreHandle _animate_sem;
-	led_event_handler on_finished;
 }self;
 
 static bool lock() {
@@ -29,14 +29,9 @@ static void unlock() {
 	xSemaphoreGive(self._sem);
 }
 
-static bool _start_animation(unsigned int timeout, led_event_handler on_animation_started) {
+static bool _start_animation(unsigned int timeout) {
 	if( lock_animation( timeout ) ) {
 		lock();
-		if(self.on_finished)
-		{
-			self.on_finished();
-		}
-		self.on_finished = on_animation_started;
 		self.counter = 0;
 		self.sig_continue = true; //careful, to set this true requires both semaphores
 		unlock();
@@ -156,12 +151,11 @@ static bool _animate_trippy(int * out_r, int * out_g, int * out_b, int * out_del
 	*out_delay = 15;
 
 	sig_continue = self.sig_continue;
-	if(self.on_finished)
-	{
-		self.on_finished();
-		self.on_finished = NULL;
-	}
 	unlock();
+
+	if(_is_sync_request){
+		led_unblock();
+	}
 	return sig_continue;
 }
 static bool _animate_progress(int * out_r, int * out_g, int * out_b, int * out_delay, void * user_context, int rgb_array_size){
@@ -232,26 +226,31 @@ void unlock_animation() {
 }
 
 bool play_led_animation_pulse(unsigned int timeout){
-	if( _start_animation(timeout, NULL) ) {
+	if( _start_animation(timeout) ) {
 		led_start_custom_animation(_animate_pulse, NULL);
 		return true;
 	}
 	return false;
 }
-bool play_led_trippy(unsigned int timeout, led_event_handler on_finished_callback){
+
+bool play_led_trippy_sync(unsigned int timeout){
 	int i;
-	if( _start_animation(timeout, NULL) ) {
+	if( _start_animation(timeout) ) {
 		for(i = 0; i < NUM_LED; i++){
 			self.colors[i] = (struct _colors){rand()%120, rand()%120, rand()%120};
 			self.prev_colors[i] = (struct _colors){0};
 		}
+		led_set_is_sync(1);
 		led_start_custom_animation(_animate_trippy, NULL);
+		led_block();
+		led_set_is_sync(0);
 		return true;
 	}
 	return false;
 }
+
 bool play_led_progress_bar(int r, int g, int b, unsigned int options, unsigned int timeout){
-	if( _start_animation(timeout, NULL) ) {
+	if( _start_animation(timeout) ) {
 		self.colors[0] = (struct _colors){r, g, b};
 		self.progress_bar_percent = 0;
 		led_start_custom_animation(_animate_progress, NULL);
@@ -266,20 +265,22 @@ void set_led_progress_bar(uint8_t percent){
 }
 
 void stop_led_animation(){
-	stop_led_animation_with_callback(NULL);
-}
-
-void stop_led_animation_with_callback(led_event_handler on_animation_terminated){
 	lock();
-	if(self.on_finished)
-	{
-		self.on_finished();
-	}
-	self.on_finished = on_animation_terminated;
 	self.sig_continue = false;
 	unlock();
 	unlock_animation();
 }
+
+void stop_led_animation_sync(){
+	led_set_is_sync(1);
+	lock();
+	self.sig_continue = false;
+	unlock();
+	unlock_animation();
+	led_block();
+	led_set_is_sync(0);
+}
+
 int Cmd_led_animate(int argc, char *argv[]){
 	//demo
 	if(argc > 1){
@@ -293,7 +294,7 @@ int Cmd_led_animate(int argc, char *argv[]){
 			set_led_progress_bar(self.progress_bar_percent -= 5);
 			return 0;
 		}else if(strcmp(argv[1], "trippy") == 0){
-			play_led_trippy( portMAX_DELAY, NULL);
+			play_led_trippy_sync(portMAX_DELAY);
 			return 0;
 		}else if(strcmp(argv[1], "pulse") == 0){
 			play_led_animation_pulse(portMAX_DELAY);
@@ -308,7 +309,7 @@ int Cmd_led_animate(int argc, char *argv[]){
 	return 0;
 }
 bool factory_led_test_pattern(unsigned int timeout) {
-	if( _start_animation(timeout, NULL) ) {
+	if( _start_animation(timeout) ) {
 		led_start_custom_animation(_animate_factory_test_pattern, NULL);
 		return true;
 	}

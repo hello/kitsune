@@ -46,7 +46,6 @@ static struct {
 	uint32_t last_hold_time;
 	sense_mode_t ble_mode;
 	led_mode_t led_status;
-	xSemaphoreHandle sync;
 } _self;
 
 static uint8_t _wifi_read_index;
@@ -397,24 +396,10 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 	return 0; // failure
 }
 
-static void _sync_unlock()
-{
-	xSemaphoreGive(_self.sync);
-	UARTprintf("<");
-}
-
-static void _sync_lock()
-{
-	xSemaphoreTake(_self.sync, portMAX_DELAY);
-	UARTprintf(">");
-}
-
 void ble_proto_led_init()
 {
 	_self.led_status = LED_OFF;
-	_self.sync = xSemaphoreCreateBinary();
-	led_set_color_with_callback(0xFF, LED_MAX, LED_MAX, LED_MAX, 1, 1, 18, 0, _sync_unlock);
-	_sync_lock();
+	led_set_color_sync(0xFF, LED_MAX, LED_MAX, LED_MAX, 1, 1, 18, 0, 1);
 }
 
 void _led_busy_mode(uint8_t a, uint8_t r, uint8_t g, uint8_t b, int delay)
@@ -454,13 +439,11 @@ void _led_roll_once(int a, int r, int g, int b, int delay)
 		_led_fade_out(0);
 
 		_self.led_status = LED_BUSY;
-		led_set_color_with_callback(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 1, _sync_unlock);
-		_sync_lock();
+		led_set_color_sync(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 1, 1);
 		_led_fade_in_trippy();
 	}else if(_self.led_status == LED_OFF){
 		_self.led_status = LED_BUSY;
-		led_set_color_with_callback(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 1, _sync_unlock);
-		_sync_lock();
+		led_set_color_sync(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 1, 1);
 		_self.led_status = LED_OFF;
 	}
 
@@ -494,18 +477,15 @@ static void _led_fade_in_trippy(){
 	switch(_self.led_status)
 	{
 	case LED_BUSY:
-		led_set_color_with_callback(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 0, 1, 18, 0, _sync_unlock);
-		_sync_lock();
-		play_led_trippy(portMAX_DELAY, _sync_unlock);
-		_sync_lock();
+		led_set_color_sync(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 0, 1, 18, 0, 1);
+		play_led_trippy_sync(portMAX_DELAY);
 
 		break;
 	case LED_TRIPPY:
 		break;
 	case LED_OFF:
 		//led_set_color(_self.a, _self.r, _self.g, _self.b, 1, 0, 18, 0);
-		play_led_trippy(portMAX_DELAY, _sync_unlock);
-		_sync_lock();
+		play_led_trippy_sync(portMAX_DELAY);
 		break;
 	}
 
@@ -518,15 +498,13 @@ static void _led_fade_out(bool operation_result){
 	case LED_BUSY:
         if(operation_result)
         {
-            led_set_color_with_callback(0xFF, LED_MAX, LED_MAX, LED_MAX, 0, 1, 18, 0, _sync_unlock);
+            led_set_color_sync(0xFF, LED_MAX, LED_MAX, LED_MAX, 0, 1, 18, 0, 1);
         }else{
-        	led_set_color_with_callback(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 0, 1, 18, 0, _sync_unlock);
+        	led_set_color_sync(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 0, 1, 18, 0, 1);
         }
-        _sync_lock();
 		break;
 	case LED_TRIPPY:
-		stop_led_animation(_sync_unlock);
-		_sync_lock();
+		stop_led_animation_sync();
 		//led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 0, 1, 18, 0);
 
 		break;
