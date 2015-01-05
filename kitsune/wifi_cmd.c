@@ -236,7 +236,7 @@ int Cmd_antsel(int argc, char *argv[]) {
 
     return 0;
 }
-
+#ifdef BUILD_IPERF
 int Cmd_iperf_server(int argc, char *argv[]) {
     if (argc != 3) {
         LOGI( "usage: iperfsvr <port> <num packets>\n\r");
@@ -447,6 +447,7 @@ int Cmd_iperf_client(int argc, char *argv[]) {
 
     return 0;
 }
+#endif
 
 void wifi_reset()
 {

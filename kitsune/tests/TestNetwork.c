@@ -22,7 +22,7 @@
 #include <stdint.h>
 #include "kit_assert.h"
 
-#if COMPILE_TESTS
+#ifdef BUILD_TESTS
 
 /*
  *  Makes request to test server with particular test cases

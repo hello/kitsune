@@ -184,6 +184,25 @@ int Cmd_fs_write(int argc, char *argv[]) {
 	long hndl, bytes;
 	SlFsFileInfo_t info;
 
+#ifndef DEBUG_FS
+	if (strstr(argv[1], "cert") != 0) {
+		LOGE("unauthorized\n");
+		return 0;
+	}
+	if (strstr(argv[1], "hello") != 0) {
+		LOGE("unauthorized\n");
+		return 0;
+	}
+	if (strstr(argv[1], "sys") != 0) {
+		LOGE("unauthorized\n");
+		return 0;
+	}
+	if (strstr(argv[1], "top") != 0) {
+		LOGE("unauthorized\n");
+		return 0;
+	}
+#endif
+
 	sl_FsGetInfo((unsigned char*)argv[1], tok, &info);
 
 	if (sl_FsOpen((unsigned char*)argv[1],
@@ -217,14 +236,24 @@ int Cmd_fs_read(int argc, char *argv[]) {
 	SlFsFileInfo_t info;
 	char buffer[BUF_SZ];
 
-	if (strstr(argv[1], "cert") == 0) {
+#ifndef DEBUG_FS
+	if (strstr(argv[1], "cert") != 0) {
 		LOGE("unauthorized\n");
 		return 0;
 	}
-	if (strstr(argv[1], "hello") == 0) {
+	if (strstr(argv[1], "hello") != 0) {
 		LOGE("unauthorized\n");
 		return 0;
 	}
+	if (strstr(argv[1], "sys") != 0) {
+		LOGE("unauthorized\n");
+		return 0;
+	}
+	if (strstr(argv[1], "top") != 0) {
+		LOGE("unauthorized\n");
+		return 0;
+	}
+#endif
 
 	sl_FsGetInfo((unsigned char*)argv[1], tok, &info);
 
@@ -1190,7 +1219,7 @@ int Cmd_generate_factory_data(int argc,char * argv[]) {
 
 	return 0;
 }
-#if COMPILE_TESTS
+#ifdef BUILD_TESTS
 int Cmd_test_network(int argc,char * argv[]) {
 	TestNetwork_RunTests(TEST_SERVER);
 
@@ -1420,16 +1449,17 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "uplog", Cmd_log_upload, "Uploads log to server"},
 		{ "loglevel", Cmd_log_setview, "Sets log level" },
 		{ "ver", Cmd_version, ""},//Animates led
-#if COMPILE_TESTS
+#ifdef BUILD_TESTS
 		{ "test_network",Cmd_test_network,""},
 #endif
 		{ "genkey",Cmd_generate_factory_data,""},
 		{ "testkey", Cmd_test_key, ""},
 		{ "lfclktest",Cmd_test_3200_rtc,""},
 		{ "poll",Cmd_enable_poll,""},
+#ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
 		{ "iperfcli",Cmd_iperf_client,""},
-
+#endif
 		{ 0, 0, 0 } };
 
 //#include "fault.h"
