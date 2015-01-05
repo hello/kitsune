@@ -751,6 +751,8 @@ void thread_tx(void* unused) {
 	}
 }
 
+#include "audio_types.h"
+
 void sample_sensor_data(periodic_data* data)
 {
 	if(!data)
@@ -758,6 +760,7 @@ void sample_sensor_data(periodic_data* data)
 		return;
 	}
 
+	AudioOncePerMinuteData_t aud_data;
 	data->unix_time = get_time();
 	data->has_unix_time = true;
 
@@ -786,7 +789,6 @@ void sample_sensor_data(periodic_data* data)
 			{
 				data->has_dust = false;
 			}
-
 			data->has_dust_variability = false;
 			data->has_dust_max = false;
 			data->has_dust_min = false;
@@ -797,6 +799,20 @@ void sample_sensor_data(periodic_data* data)
 		xSemaphoreGive(dust_smphr);
 	} else {
 		data->has_dust = false;  // if Semaphore take failed, don't upload
+	}
+
+	//get audio -- this is thread safe
+	AudioTask_DumpOncePerMinuteStats(&aud_data);
+
+	if (aud_data.isValid) {
+		data->has_audio_num_disturbances = true;
+		data->audio_num_disturbances = aud_data.num_disturbances;
+
+		data->has_audio_peak_background_energy_db = true;
+		data->audio_peak_background_energy_db = aud_data.peak_background_energy;
+
+		data->has_audio_peak_disturbance_energy_db = true;
+		data->audio_peak_disturbance_energy_db = aud_data.peak_energy;
 	}
 
 	// copy over light values

@@ -70,7 +70,7 @@ int main(int argc, char * argv[]) {
     int64_t counter = 0;
     
     
-    AudioFeatures_Init(AudioClassifier_DataCallback);
+    AudioFeatures_Init(AudioClassifier_DataCallback,NULL);
     AudioClassifier_Init(NULL);
     AudioClassifier_SetStorageBuffers(bigbuf,sizeof(bigbuf));
     

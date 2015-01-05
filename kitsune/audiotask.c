@@ -52,10 +52,14 @@ extern tCircularBuffer * pTxBuffer;
 /* static variables  */
 static xQueueHandle _queue = NULL;
 static xSemaphoreHandle _processingTaskWait;
+static xSemaphoreHandle _statsMutex;
 
 static uint8_t _isCapturing = 0;
 static int64_t _callCounter;
 static uint32_t _filecounter;
+
+static AudioOncePerMinuteData_t _stats;
+
 
 /* CALLBACKS  */
 static void ProcessingCommandFinished(void * context) {
@@ -64,6 +68,25 @@ static void ProcessingCommandFinished(void * context) {
 
 static void DataCallback(const AudioFeatures_t * pfeats) {
 	AudioProcessingTask_AddFeaturesToQueue(pfeats);
+}
+
+static void StatsCallback(const AudioOncePerMinuteData_t * pdata) {
+
+	xSemaphoreTake(_statsMutex,portMAX_DELAY);
+
+	_stats.num_disturbances += pdata->num_disturbances;
+
+	if (pdata->peak_background_energy > _stats.peak_background_energy) {
+		_stats.peak_background_energy = pdata->peak_background_energy;
+	}
+
+	if (pdata->peak_energy > _stats.peak_energy) {
+		_stats.peak_energy = pdata->peak_energy;
+	}
+
+	_stats.isValid = 1;
+
+	xSemaphoreGive(_statsMutex);
 }
 
 static void QueueFileForUpload(const char * filename,uint8_t delete_after_upload) {
@@ -84,7 +107,13 @@ static void Init(void) {
 		_processingTaskWait = xSemaphoreCreateBinary();
 	}
 
-	AudioFeatures_Init(DataCallback);
+	if (!_statsMutex) {
+		_statsMutex = xSemaphoreCreateMutex();
+	}
+
+	memset(&_stats,0,sizeof(_stats));
+
+	AudioFeatures_Init(DataCallback,StatsCallback);
 
 }
 
@@ -625,4 +654,16 @@ void AudioTask_StopCapture(void) {
 	message.command = eAudioCaptureTurnOff;
 	AudioTask_AddMessageToQueue(&message);
 }
+
+void AudioTask_DumpOncePerMinuteStats(AudioOncePerMinuteData_t * pdata) {
+
+	xSemaphoreTake(_statsMutex,portMAX_DELAY);
+	memcpy(pdata,&_stats,sizeof(AudioOncePerMinuteData_t));
+
+	memset(&_stats,0,sizeof(_stats));
+
+	xSemaphoreGive(_statsMutex);
+
+}
+
 

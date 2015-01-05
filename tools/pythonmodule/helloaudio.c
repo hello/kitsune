@@ -29,7 +29,7 @@ void Init(void) {
     DebugLog_Initialize(NULL);
     AudioClassifier_Init(NULL);
     AudioClassifier_SetStorageBuffers((void * ) _bigbuf,sizeof(_bigbuf));
-    AudioFeatures_Init(AudioClassifier_DataCallback);
+    AudioFeatures_Init(AudioClassifier_DataCallback,NULL);
 
 }
 
