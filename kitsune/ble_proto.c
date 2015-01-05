@@ -29,11 +29,6 @@
 #include "ustdlib.h"
 
 typedef void(*task_routine_t)(void*);
-typedef enum {
-	SENSE_PAIRING_MODE = 0,
-	SENSE_ON_BOARDING_MODE,
-	SENSE_NORMAL_MODE
-} sense_mode_t;
 
 typedef enum {
 	LED_BUSY = 0,
@@ -45,7 +40,6 @@ static struct {
 	uint8_t argb[4];
 	int delay;
 	uint32_t last_hold_time;
-	sense_mode_t ble_mode;
 	led_mode_t led_status;
 } _self;
 
@@ -53,7 +47,6 @@ static uint8_t _wifi_read_index;
 static Sl_WlanNetworkEntry_t _wifi_endpoints[MAX_WIFI_EP_PER_SCAN];
 
 static void _led_busy_mode(uint8_t a, uint8_t r, uint8_t g, uint8_t b, int delay);
-static void _led_normal_mode(int operation_result);
 static void _led_fade_in_trippy();
 static void _led_fade_out(bool operation_result);
 
@@ -436,7 +429,6 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 void ble_proto_led_init()
 {
 	_self.led_status = LED_OFF;
-	_self.ble_mode = SENSE_NORMAL_MODE;
 	led_set_color_sync(0xFF, LED_MAX, LED_MAX, LED_MAX, 1, 1, 18, 0, 1);
 }
 
@@ -485,30 +477,6 @@ void _led_roll_once(int a, int r, int g, int b, int delay)
 		_self.led_status = LED_OFF;
 	}
 
-}
-
-static void _led_normal_mode(int operation_result)
-{
-	LOGI("LED NORMAL\n");
-
-	if(_self.led_status == LED_BUSY)
-	{
-		// Stop rolling
-		_led_fade_out(operation_result);
-        //vTaskDelay(18 * (12 + 1));
-	}
-
-
-	switch(_self.ble_mode)
-	{
-	case SENSE_PAIRING_MODE:
-	case SENSE_ON_BOARDING_MODE:
-		_led_fade_in_trippy();
-		break;
-	case SENSE_NORMAL_MODE:
-		_led_fade_out(operation_result);
-		break;
-	}
 }
 
 static void _led_fade_in_trippy(){
@@ -604,7 +572,6 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_PAIRING_MODE:  // Just for testing
         {
-        	_self.ble_mode = SENSE_PAIRING_MODE;
             // Light up LEDs?
 			_led_normal_mode(0);
             LOGI( "PAIRING MODE \n");
@@ -612,7 +579,6 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE:  // Just for testing
 		{
-			_self.ble_mode = SENSE_NORMAL_MODE;
 			_led_normal_mode(0);
 			LOGI( "NORMAL MODE \n");
 		}
@@ -664,14 +630,12 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_PILL:
         {
             //LOGI("PAIR PILL\n");
-            _self.ble_mode = SENSE_ON_BOARDING_MODE;
             int result = _pair_device(command, 0);
             
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_SENSE:
         {
-        	_self.ble_mode = SENSE_ON_BOARDING_MODE;
             //LOGI("PAIR SENSE\n");
             int result = _pair_device(command, 1);
         }
