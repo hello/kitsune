@@ -573,13 +573,13 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_PAIRING_MODE:  // Just for testing
         {
             // Light up LEDs?
-			_led_normal_mode(0);
+			_led_fade_in_trippy();
             LOGI( "PAIRING MODE \n");
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE:  // Just for testing
 		{
-			_led_normal_mode(0);
+			_led_fade_out(0);
 			LOGI( "NORMAL MODE \n");
 		}
 		break;
@@ -598,7 +598,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PHONE_BLE_BONDED:
         {
-        	_led_normal_mode(0);
+        	_led_fade_out(0);
         	LOGI("PHONE BONDED\n");
         }
         break;
