@@ -339,6 +339,12 @@ void led_task( void * params ) {
 			memset( colors_last, 0, sizeof(colors_last) );
 			led_array( colors_last, 20 );
 			xEventGroupClearBits(led_events, 0xffffff );
+			xSemaphoreTake(_sync_mutex, portMAX_DELAY);
+			if(_is_sync_request) {
+				led_unblock();
+			}
+			xSemaphoreGive(_sync_mutex);
+			enable_light_off_detection = 1;
 		}
 		if (evnt & LED_CUSTOM_COLOR ){
 			unsigned int colors[NUM_LED + 1];
@@ -384,12 +390,6 @@ void led_task( void * params ) {
 					xEventGroupClearBits(led_events,LED_CUSTOM_ANIMATION_BIT);
 					xEventGroupSetBits(led_events,LED_RESET_BIT);
 					xSemaphoreGive(led_smphr);
-					xSemaphoreTake(_sync_mutex, portMAX_DELAY);
-					if(_is_sync_request) {
-						led_unblock();
-					}
-					xSemaphoreGive(_sync_mutex);
-					enable_light_off_detection = 1;
 				}
 
 
@@ -478,12 +478,6 @@ void led_task( void * params ) {
 				xEventGroupSetBits(led_events,LED_RESET_BIT);
 				memset(colors, 0, sizeof(colors));
 				memcpy(colors_last, colors, sizeof(colors_last));
-				xSemaphoreTake(_sync_mutex, portMAX_DELAY);
-				if(_is_sync_request) {
-					led_unblock();
-				}
-				xSemaphoreGive(_sync_mutex);
-				enable_light_off_detection = 1;
 			} else {
 				led_brightness(colors, j);
 			}
