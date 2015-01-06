@@ -610,6 +610,7 @@ static void _on_gesture_out()
 
 void thread_fast_i2c_poll(void * unused)  {
 	gesture_init();
+	enable_light_off_detection = 1;
 	while (1) {
 		portTickType now = xTaskGetTickCount();
 		int prox=0;
