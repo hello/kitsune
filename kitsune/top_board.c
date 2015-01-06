@@ -46,7 +46,12 @@ static struct{
 
 static void
 _printchar(uint8_t c){
-	UARTCharPutNonBlocking(UARTA0_BASE, c); //basic feedback
+    char term[2] = {0};
+    term[0] = c;
+    LOGI(term);
+    /*
+	 *UARTCharPutNonBlocking(UARTA0_BASE, c); //basic feedback
+     */
 #if UART_LOGGER_MODE == UART_LOGGER_MODE_RAW
 	uart_logc(c);
 #endif
@@ -173,12 +178,7 @@ _on_dtm_event(uint16_t dtm_event){
 
 static void
 _sendchar(uint8_t c){
-    /*
-	 *UARTCharPut(UARTA1_BASE, c);
-     */
-    char term[2] = {0};
-    term[0] = c;
-    LOGI(term);
+    UARTCharPut(UARTA1_BASE, c);
 }
 
 void top_board_task(void * params){
@@ -222,7 +222,7 @@ static int _prep_file(const char * name, uint32_t * out_fsize, uint16_t * out_cr
 	SlFsFileInfo_t info;
 	sl_FsGetInfo((unsigned char*)name, tok, &info);
 	if(sl_FsOpen((unsigned char*)name, FS_MODE_OPEN_READ, &tok, &hndl)){
-		LOGI("Error opening for read %s.\r\n", name);
+		LOGI("error opening for read %s.\r\n", name);
 		return -1;
 	}else{
 		LOGI("Opened fw for top ota: %s.\r\n", name);
