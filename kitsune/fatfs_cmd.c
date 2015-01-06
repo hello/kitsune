@@ -1652,7 +1652,7 @@ void file_download_task( void * params ) {
 				strncpy( buf, serial_flash_path, 64 );
 				strncat(buf, serial_flash_name, 64 );
 
-				if (strcmp(buf, "/top/update") == 0) {
+				if (strcmp(buf, "/top/update.bin") == 0) {
 					send_top("dfu", strlen("dfu"));
 					wait_for_top_boot(120000);
 				}
