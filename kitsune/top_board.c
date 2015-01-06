@@ -222,9 +222,11 @@ static int _prep_file(const char * name, uint32_t * out_fsize, uint16_t * out_cr
 	SlFsFileInfo_t info;
 	sl_FsGetInfo((unsigned char*)name, tok, &info);
 	if(sl_FsOpen((unsigned char*)name, FS_MODE_OPEN_READ, &tok, &hndl)){
-		LOGI("error opening for read %s.\r\n", name);
+		LOGI("Error opening for read %s.\r\n", name);
 		return -1;
-	}
+	}else{
+		LOGI("Opened fw for top ota: %s.\r\n", name);
+    }
 	do{
 		status = sl_FsRead(hndl, total, buffer, sizeof(buffer));
 		if(status > 0){
@@ -266,6 +268,7 @@ int top_board_dfu_begin(const char * bin){
 			_encode_and_send((uint8_t*) primer_packet, sizeof(primer_packet));
 			self.dfu_state = DFU_INVALID_PACKET;
 		}else{
+            LOGE("Preparation of OTA file failed\r\n");
 			self.mode = TOP_NORMAL_MODE;
 			return ret;
 		}
