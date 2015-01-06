@@ -53,6 +53,7 @@
 
 #define MAX_BUFF_SIZE      512
 
+static int _sf_sha1_verify(const char * sha_truth, const char * serial_file_path, unsigned int file_size);
 unsigned char * g_buff;
 long bytesReceived = 0; // variable to store the file size
 static int dl_sock = -1;
@@ -1785,3 +1786,54 @@ bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg
 	}
 	return true;
 }
+static int _sf_sha1_verify(const char * sha_truth, const char * serial_file_path, unsigned int file_size){
+    //compute the sha of the file...
+    unsigned char * full_path;
+    unsigned char sha[SHA1_SIZE] = { 0 };
+    SHA1_CTX sha1ctx;
+    SHA1_Init(&sha1ctx);
+#define minval( a,b ) a < b ? a : b
+#define BUF_SZ 512
+    unsigned long tok = 0;
+    long hndl, err, bytes, bytes_to_read;
+    SlFsFileInfo_t info;
+    //buffer for readback
+    unsigned char* buffer = (unsigned char*)pvPortMalloc(BUF_SZ);
+
+    full_path = (unsigned char*)pvPortMalloc(256);
+    strcpy((char*)full_path, serial_file_path);
+
+    sl_FsGetInfo(full_path, tok, &info);
+    LOGI( "computing SHA of %s\n", full_path);
+    err = sl_FsOpen((unsigned char*)full_path, FS_MODE_OPEN_READ, &tok, &hndl);
+    vPortFree(full_path);
+    if (err) {
+        LOGI("error opening for read %d\n", err);
+        goto has_error;
+    }
+
+    bytes_to_read = file_size;
+    while (bytes_to_read > 0) {
+        bytes = sl_FsRead(hndl, file_size - bytes_to_read,
+                buffer,
+                minval(file_size, BUF_SZ));
+        SHA1_Update(&sha1ctx, buffer, bytes);
+        bytes_to_read -= bytes;
+    }
+    sl_FsClose(hndl, 0, 0, 0);
+
+    SHA1_Final(sha, &sha1ctx);
+
+    if (memcmp(sha, download_info.sha1.bytes, SHA1_SIZE) != 0) {
+        LOGE( "fw update SHA did not match!\n");
+        goto has_error;
+    }
+    LOGI( "SHA Match!\n");
+    vPortFree(buffer);
+    return 0;
+
+has_error:
+    vPortFree(buffer);
+    return -1;
+}
+
