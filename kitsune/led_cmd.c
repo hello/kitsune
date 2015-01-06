@@ -323,7 +323,7 @@ static uint32_t wheel(int WheelPos) {
 #define LED_CUSTOM_ANIMATION_BIT	  0x1000
 
 #define QUANT_FACTOR 6
-extern int enable_light_off_detection;
+extern int led_animation_in_progress;
 
 void led_task( void * params ) {
 	int i,j;
@@ -355,7 +355,7 @@ void led_task( void * params ) {
 				led_unblock();
 			}
 			xSemaphoreGive(_sync_mutex);
-			enable_light_off_detection = 1;
+			led_animation_in_progress = 1;
 		}
 		if (evnt & LED_CUSTOM_COLOR ){
 			unsigned int colors[NUM_LED + 1];
@@ -384,7 +384,7 @@ void led_task( void * params ) {
 				int i;
 
 				xSemaphoreTake(led_smphr, portMAX_DELAY);
-				enable_light_off_detection = 0;
+				led_animation_in_progress = 0;
 				if(user_animation_handler(r,g,b,&delay,user_context, NUM_LED)){
 					xSemaphoreGive( led_smphr );
 					for(i = 0; i <= NUM_LED; i++){
@@ -417,7 +417,7 @@ void led_task( void * params ) {
 			unsigned int color_to_use, delay;
 
 			xSemaphoreTake(led_smphr, portMAX_DELAY);
-			enable_light_off_detection = 0;
+			led_animation_in_progress = 0;
 			color_to_use = led_from_rgb(user_color.r, user_color.g, user_color.b);
 			delay = user_delay;
 			xSemaphoreGive( led_smphr );
@@ -439,11 +439,11 @@ void led_task( void * params ) {
 			++j;
 			led_array(colors, 20);
 			memcpy(colors_last, colors, sizeof(colors_last));
-			enable_light_off_detection = 0;
+			led_animation_in_progress = 0;
 		}
 		if (evnt & LED_FADE_IN_BIT) {
 			j = 0;
-			enable_light_off_detection = 0;
+			led_animation_in_progress = 0;
 			xEventGroupClearBits(led_events, LED_FADE_IN_BIT );
 			xEventGroupSetBits(led_events, LED_FADE_IN_STEP_BIT );
 			evnt|=LED_FADE_IN_STEP_BIT;
@@ -479,7 +479,7 @@ void led_task( void * params ) {
 			j = 255;
 			xEventGroupClearBits(led_events, LED_FADE_OUT_BIT );
 			xEventGroupSetBits(led_events, LED_FADE_OUT_STEP_BIT );
-			enable_light_off_detection = 0;
+			led_animation_in_progress = 0;
 			evnt|=LED_FADE_OUT_STEP_BIT;
 		}
 		if (evnt & LED_FADE_OUT_STEP_BIT) {
