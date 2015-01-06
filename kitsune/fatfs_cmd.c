@@ -932,7 +932,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
     {
     	if( 100-100*recv_size/total != percent ) {
     		percent = 100-100*recv_size/total;
-    		LOGI("dl loop %d %d\r\n", recv_size, percent );
+            LOGI("Downloading... %d %d\r", recv_size, percent );
     		set_led_progress_bar( percent );
     	}
 
