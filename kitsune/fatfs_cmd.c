@@ -53,7 +53,7 @@
 
 #define MAX_BUFF_SIZE      512
 
-static int _sf_sha1_verify(const char * sha_truth, const char * serial_file_path, unsigned int file_size);
+static int _sf_sha1_verify(const char * sha_truth, const char * serial_file_path);
 unsigned char * g_buff;
 long bytesReceived = 0; // variable to store the file size
 static int dl_sock = -1;
@@ -1786,8 +1786,8 @@ bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg
 	}
 	return true;
 }
-static int _sf_sha1_verify(const char * sha_truth, const char * serial_file_path, unsigned int file_size){
-    //compute the sha of the file...
+static int _sf_sha1_verify(const char * sha_truth, const char * serial_file_path);
+    //compute the sha of the file..
     unsigned char * full_path;
     unsigned char sha[SHA1_SIZE] = { 0 };
     SHA1_CTX sha1ctx;
@@ -1812,11 +1812,11 @@ static int _sf_sha1_verify(const char * sha_truth, const char * serial_file_path
         goto has_error;
     }
 
-    bytes_to_read = file_size;
+    bytes_to_read = info.FileLen;
     while (bytes_to_read > 0) {
-        bytes = sl_FsRead(hndl, file_size - bytes_to_read,
+        bytes = sl_FsRead(hndl, info.FileLen - bytes_to_read,
                 buffer,
-                minval(file_size, BUF_SZ));
+                minval(info.FileLen, BUF_SZ));
         SHA1_Update(&sha1ctx, buffer, bytes);
         bytes_to_read -= bytes;
     }
