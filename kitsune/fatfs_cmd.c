@@ -1654,7 +1654,6 @@ void file_download_task( void * params ) {
 
 				if (strcmp(buf, "/top/update.bin") == 0) {
 					send_top("dfu", strlen("dfu"));
-					wait_for_top_boot(120000);
 				}
 				LOGI("done, closing\n");
 			} else if (download_file(host, url, filename, path, SD_CARD) == 0) {
