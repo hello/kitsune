@@ -1716,7 +1716,7 @@ void file_download_task( void * params ) {
 						memcpy(sBootInfo.sha[_McuImageGetNewIndex()], download_info.sha1.bytes, SHA1_SIZE );
 						//sBootInfo.ucActiveImg this is set by boot loader
 						_WriteBootInfo(&sBootInfo);
-					//	mcu_reset();
+                        mcu_reset();
 					} else {
 						LOGI( "fw update SHA did not match!\n");
 						goto end_download_task;
