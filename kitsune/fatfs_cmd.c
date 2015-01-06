@@ -1682,7 +1682,7 @@ void file_download_task( void * params ) {
                 strcpy((char*)full_path, serial_flash_path );
                 strcat((char*)full_path, serial_flash_name);
 
-                res = _sf_sha1_verify(const char * sha_truth, full_path, );
+                res = _sf_sha1_verify(download_info.sha1.bytes, full_path);
 
                 vPortFree(full_path);
                 if(res){
@@ -1758,7 +1758,7 @@ bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg
 	}
 	return true;
 }
-static int _sf_sha1_verify(const char * sha_truth, const char * serial_file_path);
+static int _sf_sha1_verify(const char * sha_truth, const char * serial_file_path){
     //compute the sha of the file..
     unsigned char * full_path;
     unsigned char sha[SHA1_SIZE] = { 0 };
@@ -1796,7 +1796,7 @@ static int _sf_sha1_verify(const char * sha_truth, const char * serial_file_path
 
     SHA1_Final(sha, &sha1ctx);
 
-    if (memcmp(sha, download_info.sha1.bytes, SHA1_SIZE) != 0) {
+    if (memcmp(sha, sha_truth, SHA1_SIZE) != 0) {
         LOGE( "fw update SHA did not match!\n");
         goto has_error;
     }
