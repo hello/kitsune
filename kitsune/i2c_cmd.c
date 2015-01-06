@@ -617,6 +617,9 @@ int get_codec_NAU(int vol_codec) {
 	for (i = 0; i < 47; ++i) {
 		cmd_init[0] = reg[i][0];
 		cmd_init[1] = reg[i][1];
+		if( cmd_init[0] == 0x6c ) {
+			cmd_init[1] = vol_codec;
+		}
 		I2C_IF_Write(Codec_addr, cmd_init, 2, 1);
 		vTaskDelay(DELAY_CODEC);
 	}
