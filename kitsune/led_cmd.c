@@ -386,7 +386,6 @@ void led_task( void * params ) {
 				xSemaphoreTake(led_smphr, portMAX_DELAY);
 				enable_light_off_detection = 0;
 				if(user_animation_handler(r,g,b,&delay,user_context, NUM_LED)){
-					enable_light_off_detection = 0;
 					xSemaphoreGive( led_smphr );
 					for(i = 0; i <= NUM_LED; i++){
 						r[i] = clamp_rgb(r[i],0,LED_CLAMP_MAX);

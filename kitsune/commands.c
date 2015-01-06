@@ -554,7 +554,7 @@ static int _is_light_off(int current_light)
 	{
 		int delta = last_light - current_light;
 		//LOGI("delta: %d, current %d, last %d\n", delta, current_light, last_light);
-		if(delta >= light_off_threshold && current_light < 100)
+		if(delta >= light_off_threshold && current_light < 300)
 		{
 			//LOGI("Light off\n");
 			ret = 1;
