@@ -108,7 +108,7 @@ _on_decode_failed(void){
 }
 static void
 _on_ack_success(void){
-	vTaskDelay(50);
+	vTaskDelay(10);
 	if (self.mode == TOP_DFU_MODE) {
 		switch (self.dfu_state) {
 		case DFU_INVALID_PACKET:
