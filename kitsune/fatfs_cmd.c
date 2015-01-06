@@ -1660,6 +1660,7 @@ void file_download_task( void * params ) {
                             goto end_download_task;
                         }else{
                             send_top("dfu", strlen("dfu"));
+                            wait_for_top_boot(200000);
                         }
                     }
                 }
