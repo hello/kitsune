@@ -5,7 +5,6 @@
 // Copyright (c) 2012 Fuel7, Inc.
 //
 //*****************************************************************************
-
 #include <stdio.h>
 #include <string.h>
 #include "kit_assert.h"
