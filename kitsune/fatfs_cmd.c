@@ -1581,169 +1581,141 @@ void free_download_info(SyncResponse_FileDownload * download_info) {
 xQueueHandle download_queue = 0;
 
 void file_download_task( void * params ) {
-	SyncResponse_FileDownload download_info;
-	for(;;) while (xQueueReceive(download_queue, &(download_info), 100)) {
-		char * filename=NULL, * url=NULL, * host=NULL, * path=NULL, * serial_flash_path=NULL, * serial_flash_name=NULL;
+    SyncResponse_FileDownload download_info;
+    for(;;) while (xQueueReceive(download_queue, &(download_info), 100)) {
+        char * filename=NULL, * url=NULL, * host=NULL, * path=NULL, * serial_flash_path=NULL, * serial_flash_name=NULL;
 
-		filename = download_info.sd_card_filename.arg;
-		path = download_info.sd_card_path.arg;
-		url = download_info.url.arg;
-		host = download_info.host.arg;
-		serial_flash_name = download_info.serial_flash_filename.arg;
-		serial_flash_path = download_info.serial_flash_path.arg;
+        filename = download_info.sd_card_filename.arg;
+        path = download_info.sd_card_path.arg;
+        url = download_info.url.arg;
+        host = download_info.host.arg;
+        serial_flash_name = download_info.serial_flash_filename.arg;
+        serial_flash_path = download_info.serial_flash_path.arg;
 
-		if( strlen(filename) == 0 && strlen(serial_flash_name) == 0 ) {
-			UARTprintf( "no file name!\n");
-			goto next_one;
-		}
+        if( strlen(filename) == 0 && strlen(serial_flash_name) == 0 ) {
+            UARTprintf( "no file name!\n");
+            goto next_one;
+        }
 
-		if( filename ) {
-			LOGI( "ota - filename: %s\n", filename);
-		}
-		if( url ) {
-			LOGI( "ota - url: %s\n",url);
-		}
-		if( host ) {
-			LOGI( "ota - host: %s\n",host);
-		}
-		if( path ) {
-			LOGI( "ota - path: %s\n",path);
-		}
-		if( serial_flash_path ) {
-			LOGI( "ota - serial_flash_path: %s\n",serial_flash_path);
-		}
-		if( serial_flash_name ) {
-			LOGI( "ota - serial_flash_name: %s\n",serial_flash_name);
-		}
-		if( download_info.has_copy_to_serial_flash ) {
-			LOGI( "ota - copy_to_serial_flash: %s\n",download_info.copy_to_serial_flash);
-		}
+        if( filename ) {
+            LOGI( "ota - filename: %s\n", filename);
+        }
+        if( url ) {
+            LOGI( "ota - url: %s\n",url);
+        }
+        if( host ) {
+            LOGI( "ota - host: %s\n",host);
+        }
+        if( path ) {
+            LOGI( "ota - path: %s\n",path);
+        }
+        if( serial_flash_path ) {
+            LOGI( "ota - serial_flash_path: %s\n",serial_flash_path);
+        }
+        if( serial_flash_name ) {
+            LOGI( "ota - serial_flash_name: %s\n",serial_flash_name);
+        }
+        if( download_info.has_copy_to_serial_flash ) {
+            LOGI( "ota - copy_to_serial_flash: %s\n",download_info.copy_to_serial_flash);
+        }
 
-		if (filename && url && host && path) {
-			int exists = 0;
-			if (file_exists(filename, path)) {
-				LOGI("ota - file exists, overwriting\n");
-				exists = 1;
-			}
+        if (filename && url && host && path) {
+            int exists = 0;
+            if (file_exists(filename, path)) {
+                LOGI("ota - file exists, overwriting\n");
+                exists = 1;
+            }
 
-			if(global_filename( filename ))
-			{
-				goto end_download_task;
-			}
-			if( exists ) {
-				hello_fs_unlink(path_buff);
-			}
+            if(global_filename( filename ))
+            {
+                goto end_download_task;
+            }
+            if( exists ) {
+                hello_fs_unlink(path_buff);
+            }
 
-			if (download_info.has_copy_to_serial_flash
-					&& download_info.copy_to_serial_flash && serial_flash_name
-					&& serial_flash_path) {
-				//download it!
-				if (strstr(serial_flash_name, "mcuimgx") != 0 )
-				{
-					_ReadBootInfo(&sBootInfo);
-					serial_flash_name[6] = (_u8)_McuImageGetNewIndex() + '1'; /* mcuimg1 is for factory default, mcuimg2,3 are for OTA updates */
-					LOGI("MCU image name converted to %s \n", serial_flash_name);
-				}
+            if (download_info.has_copy_to_serial_flash
+                    && download_info.copy_to_serial_flash && serial_flash_name
+                    && serial_flash_path) {
+                //download it!
+                if (strstr(serial_flash_name, "mcuimgx") != 0 )
+                {
+                    _ReadBootInfo(&sBootInfo);
+                    serial_flash_name[6] = (_u8)_McuImageGetNewIndex() + '1'; /* mcuimg1 is for factory default, mcuimg2,3 are for OTA updates */
+                    LOGI("MCU image name converted to %s \n", serial_flash_name);
+                }
 
-				if (download_file(host, url, serial_flash_name,
-						serial_flash_path, SERIAL_FLASH) != 0) {
-					goto end_download_task;
-				}
-				char buf[64];
-				strncpy( buf, serial_flash_path, 64 );
-				strncat(buf, serial_flash_name, 64 );
+                if (download_file(host, url, serial_flash_name,
+                            serial_flash_path, SERIAL_FLASH) != 0) {
+                    goto end_download_task;
+                }
+                char buf[64];
+                strncpy( buf, serial_flash_path, 64 );
+                strncat(buf, serial_flash_name, 64 );
 
-				if (strcmp(buf, "/top/update.bin") == 0) {
-					send_top("dfu", strlen("dfu"));
-					wait_for_top_boot(200000);
-				}
-				LOGI("done, closing\n");
-			} else if (download_file(host, url, filename, path, SD_CARD) == 0) {
-				LOGI("done, closing\n");
-				hello_fs_close(&file_obj);
-			} else {
-				goto end_download_task;
-			}
-		}
-		if (download_info.has_reset_application_processor
-				&& download_info.reset_application_processor) {
-			_ReadBootInfo(&sBootInfo);
-			if (download_info.has_sha1) {
+                if (strcmp(buf, "/top/update.bin") == 0) {
+                    if (download_info.has_sha1) {
+                        if( _sf_sha1_verify(download_info.sha1.bytes, buf)){
+                            LOGE("Top DFU failed\r\n");
+                            goto end_download_task;
+                        }else{
+                            send_top("dfu", strlen("dfu"));
+                            wait_for_top_boot(200000);
+                        }
+                    }
+                }
+                LOGI("done, closing\n");
+            } else if (download_file(host, url, filename, path, SD_CARD) == 0) {
+                LOGI("done, closing\n");
+                hello_fs_close(&file_obj);
+            } else {
+                goto end_download_task;
+            }
+        }
+        if (download_info.has_reset_application_processor
+                && download_info.reset_application_processor) {
+            _ReadBootInfo(&sBootInfo);
+            if (download_info.has_sha1) {
+                unsigned char * full_path;
+                int res;
+                full_path = (unsigned char*)pvPortMalloc(256);
+                strcpy((char*)full_path, serial_flash_path );
+                strcat((char*)full_path, serial_flash_name);
 
-				//compute the sha of the file...
-					unsigned char * full_path;
-					unsigned char sha[SHA1_SIZE] = { 0 };
+                res = _sf_sha1_verify(const char * sha_truth, full_path, );
 
-					SHA1_CTX sha1ctx;
-					SHA1_Init(&sha1ctx);
-					//
-#define minval( a,b ) a < b ? a : b
-#define BUF_SZ 512
-					unsigned long tok = 0;
-					long hndl, err, bytes, bytes_to_read;
-					SlFsFileInfo_t info;
-					unsigned char* buffer = (unsigned char*)pvPortMalloc(BUF_SZ);
+                vPortFree(full_path);
+                if(res){
+                    goto end_download_task;
+                }else{
+                    LOGI("change image status to IMG_STATUS_TESTREADY\n\r");
+                    sBootInfo.ulImgStatus = IMG_STATUS_TESTREADY;
+                    memcpy(sBootInfo.sha[_McuImageGetNewIndex()], download_info.sha1.bytes, SHA1_SIZE );
+                    //sBootInfo.ucActiveImg this is set by boot loader
+                    _WriteBootInfo(&sBootInfo);
+                    mcu_reset();
+                }
+            } else {
+                LOGI( "no download SHA on fw!\n");
+                goto end_download_task;
+            }
+        }
+        if( download_info.has_reset_network_processor && download_info.reset_network_processor ) {
+            LOGI( "reset nwp\n" );
+            nwp_reset();
+        }
+next_one:
+        free_download_info(&download_info);
+        continue;
 
-					full_path = (unsigned char*)pvPortMalloc(256);
-					strcpy((char*)full_path, serial_flash_path );
-					strcat((char*)full_path, serial_flash_name);
-					sl_FsGetInfo(full_path, tok, &info);
+        //what if we get the next set before the current set finishes? How do we know which set we're on? (doesn't matter, it will just overflow the queue)
+        //what if there's an error on some but not all the files? (start over)
 
-					LOGI( "computing SHA of %s\n", full_path);
-
-					err = sl_FsOpen((unsigned char*)full_path, FS_MODE_OPEN_READ,
-							&tok, &hndl);
-					vPortFree(full_path);
-
-					if (err) {
-						LOGI("error opening for read %d\n", err);
-						goto end_download_task;
-					}
-					bytes_to_read = info.FileLen;
-					while (bytes_to_read > 0) {
-						bytes = sl_FsRead(hndl, info.FileLen - bytes_to_read,
-								buffer,
-								minval(info.FileLen, BUF_SZ));
-						SHA1_Update(&sha1ctx, buffer, bytes);
-						bytes_to_read -= bytes;
-					}
-					vPortFree(buffer);
-					sl_FsClose(hndl, 0, 0, 0);
-
-					SHA1_Final(sha, &sha1ctx);
-
-					if (memcmp(sha, download_info.sha1.bytes, SHA1_SIZE) == 0) {
-						LOGI("change image status to IMG_STATUS_TESTREADY\n\r");
-						sBootInfo.ulImgStatus = IMG_STATUS_TESTREADY;
-						memcpy(sBootInfo.sha[_McuImageGetNewIndex()], download_info.sha1.bytes, SHA1_SIZE );
-						//sBootInfo.ucActiveImg this is set by boot loader
-						_WriteBootInfo(&sBootInfo);
-                        mcu_reset();
-					} else {
-						LOGI( "fw update SHA did not match!\n");
-						goto end_download_task;
-					}
-				} else {
-					LOGI( "no download SHA on fw!\n");
-					goto end_download_task;
-				}
-			}
-			if( download_info.has_reset_network_processor && download_info.reset_network_processor ) {
-				LOGI( "reset nwp\n" );
-				nwp_reset();
-			}
-		next_one:
-		free_download_info(&download_info);
-		continue;
-
-		//what if we get the next set before the current set finishes? How do we know which set we're on? (doesn't matter, it will just overflow the queue)
-		//what if there's an error on some but not all the files? (start over)
-
-		end_download_task: //there was an error
-		while (xQueueReceive(download_queue, &download_info, 10)) {
-			free_download_info(&download_info);
-		}
-	}
+end_download_task: //there was an error
+        while (xQueueReceive(download_queue, &download_info, 10)) {
+            free_download_info(&download_info);
+        }
+    }
 }
 
 void init_download_task( int stack ){
