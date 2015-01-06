@@ -1441,7 +1441,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "led", Cmd_led, "" },
 		{ "action", Cmd_led_action, "" },
 		{ "clrled", Cmd_led_clr, "" },
-#ifdef RDIO_TEST
+#ifdef BUILD_RADIO_TEST
 		{ "rdiostats", Cmd_RadioGetStats, "" },
 		{ "rdiotxstart", Cmd_RadioStartTX, "" },
 		{ "rdiotxstop", Cmd_RadioStopTX, "" },

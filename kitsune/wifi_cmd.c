@@ -1792,7 +1792,7 @@ int Cmd_audio_test(int argc, char *argv[]) {
 }
 #endif
 //radio test functions
-#ifdef RDIO_TEST
+#ifdef BUILD_RADIO_TEST
 #define FRAME_SIZE		1500
 typedef enum
 {
