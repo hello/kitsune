@@ -1364,9 +1364,9 @@ typedef struct sBootInfo
 
   unsigned char sha[NUM_IMAGES][SHA1_SIZE];
 
-  _u8  ucActiveImgTop;
-  _u32 ulImgStatusTop;
-  unsigned char shatop[NUM_IMAGES][SHA1_SIZE];
+  _u8  ucActiveImgTop;//placeholder
+  _u32 ulImgStatusTop;//placeholder
+  unsigned char shatop[NUM_IMAGES][SHA1_SIZE];//only use 0
 }sBootInfo_t;
 
 void mcu_reset();
@@ -1637,6 +1637,7 @@ void file_download_task( void * params ) {
                     if (download_info.has_sha1) {
                         if( _sf_sha1_verify((char *)download_info.sha1.bytes, buf)){
                             LOGE("Top DFU failed\r\n");
+                            top_need_dfu = 0;
                             goto end_download_task;
                         }else{
                             top_need_dfu = 1;
