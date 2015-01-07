@@ -1527,8 +1527,15 @@ void boot_commit_ota() {
 		sBootInfo.ucActiveImg = (sBootInfo.ucActiveImg == IMG_ACT_USER1)?
 								IMG_ACT_USER2:
 								IMG_ACT_USER1;
-		_WriteBootInfo(&sBootInfo);
-		mcu_reset();
+        send_top("dfu", strlen("dfu"));
+        if(wait_for_top_boot(20000)){
+            LOGI("Top board update success\r\n");
+            _WriteBootInfo(&sBootInfo);
+        }else{
+            LOGE("Top board update failed\r\n");
+            //TODO handle failure scenario
+        }
+        mcu_reset();
 	}
 }
 
@@ -1694,8 +1701,6 @@ void file_download_task( void * params ) {
                     //sBootInfo.ucActiveImg this is set by boot loader
                     _WriteBootInfo(&sBootInfo);
                     if(top_need_dfu){
-                        send_top("dfu", strlen("dfu"));
-                        vTaskDelay(1000);
                     }
                     mcu_reset();
                 }
