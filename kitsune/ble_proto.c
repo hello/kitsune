@@ -657,9 +657,14 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_SHAKES:
         {
             LOGI("PILL SHAKES\n");
-            uint32_t color = pill_settings_get_color(command->device_id.arg);
-            uint8_t* argb = (uint8_t*)&color;
-            _led_roll_once(0xFF, argb[1], argb[2], argb[3], 18);
+
+            if(command->deviceId.arg){
+				uint32_t color = pill_settings_get_color((const char*)command->deviceId.arg);
+				uint8_t* argb = (uint8_t*)&color;
+				_led_roll_once(0xFF, argb[1], argb[2], argb[3], 18);
+            }else{
+            	LOGI("Please update topboard, no pill id\n");
+            }
         }
         break;
     	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID:

@@ -1,7 +1,12 @@
+#include "simplelink.h"
 #include "FreeRTOS.h"
 #include "task.h"
 #include "semphr.h"
 
+#include "sl_sync_include_after_simplelink_header.h"
+
+#include "uartstdio.h"
+#include "ustdlib.h"
 #include "pill_settings.h"
 
 #define MAX_BUFF_SIZE   128  // This is barely enough
@@ -9,7 +14,7 @@
 static BatchedPillSettings _settings;
 static xSemaphoreHandle _sync_mutex;
 
-static int _write_to_file(const char* path, const char* buffer, size_t buffer_size)
+static int _write_to_file(const char* path, unsigned char* buffer, size_t buffer_size)
 {
     unsigned long tok = 0;
     long hndl = 0;
@@ -45,14 +50,14 @@ int pill_settings_save(const BatchedPillSettings* pill_settings)
     }
 
     int has_change = 0;
-    int i, j;
+    int i;
     for(i = 0; i < MAX_PILL_COUNT; i++)
     {
         if(strcmp(_settings.pill_settings[i].pill_id, pill_settings->pill_settings[i].pill_id) != 0)
         {
             has_change = 1;  // pill changed
         }else{
-            if(_settings.pill_settings[i].color != pill_settings->pill_settings[i].color)
+            if(_settings.pill_settings[i].pill_color != pill_settings->pill_settings[i].pill_color)
             {
                 has_change = 1;  // color changed
             }
@@ -65,11 +70,11 @@ int pill_settings_save(const BatchedPillSettings* pill_settings)
     }
 
     const char* settings_file = PILL_SETTING_FILE;
-    char buffer[MAX_BUFF_SIZE] = {0};
+    uint8_t buffer[MAX_BUFF_SIZE] = {0};
     pb_ostream_t sizestream = { 0 };
     if(!pb_encode(&sizestream, BatchedPillSettings_fields, pill_settings)){
         LOGE("Failed to encode pill settings: ");
-        LOGE(PB_GET_ERROR(&stream));
+        LOGE(PB_GET_ERROR(&sizestream));
         LOGE("\n");
         return 0;
     }
@@ -96,11 +101,7 @@ int pill_settings_save(const BatchedPillSettings* pill_settings)
 
 int pill_settings_load_from_file()
 {
-    if(!pill_settings)
-    {
-        return 0;
-    }
-    const char* settings_file = PILL_SETTING_FILE;
+    unsigned char* settings_file = PILL_SETTING_FILE;
     long file_handle = 0;
 
     // read in aes key
@@ -110,7 +111,7 @@ int pill_settings_load_from_file()
         return 0;
     }
 
-    char buffer[MAX_BUFF_SIZE] = {0};
+    uint8_t buffer[MAX_BUFF_SIZE] = {0};
     long bytes_read = sl_FsRead(file_handle, 0, (unsigned char *)buffer, sizeof(buffer));
     LOGI("read %d bytes from file %s\n", bytes_read, settings_file);
 
@@ -143,19 +144,20 @@ uint32_t pill_settings_get_color(const char* pill_id)
         {
             if(strcmp(_settings.pill_settings[i].pill_id, pill_id) == 0)
             {
-                return _settings.pill_settings[i].pill_id;
+                return _settings.pill_settings[i].pill_color;
             }
         }
         xSemaphoreGive(_sync_mutex);
     }
 
-    return 0xFF800080;
+    return 0xFF800080;  // the default purple color
 }
 
 int pill_settings_init()
 {
     _sync_mutex = xSemaphoreCreateMutex();
-    pill_settings_load_from_file();
+    int ret = pill_settings_load_from_file();
+    return ret;
 }
 
 int pill_settings_reset_all()
