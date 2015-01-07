@@ -17,6 +17,7 @@
 #include "led_animations.h"
 #include "uart_logger.h"
 #include "stdlib.h"
+#include "ble_proto.h"
 
 typedef enum {
 	DFU_INVALID_PACKET = 0,
@@ -81,6 +82,7 @@ _on_message(uint8_t * message_body, uint32_t body_length){
 	LOGI("Got a SLIP message: %s\r\n", message_body);
 	if(!strncmp("DFUBEGIN",(char*)message_body, body_length)){
 		//delay is necessary because top board is slower.
+		ble_proto_led_fade_out(0);
 		play_led_progress_bar(30,0,0,0, portMAX_DELAY);
 		vTaskDelay(4000);
 		if(0 != top_board_dfu_begin("top_update.bin")){
