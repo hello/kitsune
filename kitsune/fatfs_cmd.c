@@ -54,7 +54,7 @@
 #define MAX_BUFF_SIZE      512
 
 static int _sf_sha1_verify(const char * sha_truth, const char * serial_file_path);
-unsigned char * g_buff;
+unsigned char g_buff[MAX_BUFF_SIZE];
 long bytesReceived = 0; // variable to store the file size
 static int dl_sock = -1;
 //end download stuff
@@ -765,8 +765,6 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 
     LOGI("Start downloading the file\r\n");
 
-    g_buff = (unsigned char*)pvPortMalloc( MAX_BUFF_SIZE );
-    assert(g_buff);
     memset(g_buff, 0, MAX_BUFF_SIZE);
 
     // Puts together the HTTP GET string.
@@ -872,7 +870,6 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
     	transfer_len -= (pBuff - g_buff);
     } else {
     	transfer_len = 0;
-        vPortFree(g_buff);
     	return -1;
     }
 
@@ -890,7 +887,6 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 		/* Open file to save the downloaded file */
 		if (global_filename(filename)) {
 			cd("/");
-		    vPortFree(g_buff);
 			return 1;
 		}
 		// Open the file for writing.
@@ -901,7 +897,6 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 		if (res != FR_OK && res != FR_EXIST) {
 			LOGI("File open %s failed: %d\n", path_buff, res);
 			cd("/");
-		    vPortFree(g_buff);
 			return res;
 		}
 	} else if( storage == SERIAL_FLASH ) {
@@ -920,7 +915,6 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 	                           _FS_FILE_OPEN_FLAG_COMMIT|_FS_FILE_PUBLIC_WRITE),
 	                           &Token, &fileHandle);
 			if (lRetVal < 0) {
-			    vPortFree(g_buff);
 				return (lRetVal);
 			}
 		}
@@ -955,12 +949,10 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 					if (res != FR_OK) {
 						cd("/");
 						stop_led_animation();
-					    vPortFree(g_buff);
 						return ((int) res);
 					}
 					hello_fs_unlink(path_buff);
 					cd("/");
-				    vPortFree(g_buff);
 					return -1;
 				}
 			} else if (storage == SERIAL_FLASH) {
@@ -972,7 +964,6 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 	            	LOGI("Failed during writing the file\n");
 	                /* Close file without saving */
 	                stop_led_animation();
-	                vPortFree(g_buff);
 	                return sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
 	            }
 			}
@@ -988,7 +979,6 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
     			} else if (storage == SERIAL_FLASH) {
     				sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
     			}
-    		    vPortFree(g_buff);
                 return r;
             }
             transfer_len -= recv_size;
@@ -1031,12 +1021,10 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
         					if (res != FR_OK) {
         						cd("/");
         						stop_led_animation();
-        					    vPortFree(g_buff);
         						return ((int) res);
         					}
         					hello_fs_unlink(path_buff);
         					cd("/");
-        				    vPortFree(g_buff);
         					return -1;
         				}
         			} else if (storage == SERIAL_FLASH) {
@@ -1049,7 +1037,6 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 							r = sl_FsClose(fileHandle, 0,
 									(unsigned char*) "A", 1);
 							stop_led_animation();
-						    vPortFree(g_buff);
 							return r;
 						}
         			}
@@ -1066,7 +1053,6 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
             			} else if (storage == SERIAL_FLASH) {
             				sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
             			}
-            		    vPortFree(g_buff);
                         return -1;
                     }
                     transfer_len -= recv_size;
@@ -1106,12 +1092,10 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
         					stop_led_animation();
         					if (res != FR_OK) {
         						cd("/");
-        					    vPortFree(g_buff);
         						return ((int) res);
         					}
         					hello_fs_unlink(path_buff);
         					cd("/");
-        				    vPortFree(g_buff);
         					return -1;
         				}
         			} else if (storage == SERIAL_FLASH) {
@@ -1124,7 +1108,6 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 							/* Close file without saving */
 							r = sl_FsClose(fileHandle, 0,
 									(unsigned char*) "A", 1);
-						    vPortFree(g_buff);
 							return r;
 						}
         			}
@@ -1141,7 +1124,6 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
             			} else if (storage == SERIAL_FLASH) {
             				sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
             			}
-            		    vPortFree(g_buff);
                         return -1;
                     }
                     recv_size -= transfer_len;
@@ -1168,12 +1150,10 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 
 					if (res != FR_OK) {
 						cd("/");
-					    vPortFree(g_buff);
 						return ((int) res);
 					}
 					hello_fs_unlink(path_buff);
 					cd("/");
-				    vPortFree(g_buff);
 					return -1;
 				}
 			} else if (storage == SERIAL_FLASH) {
@@ -1185,7 +1165,6 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 					/* Close file without saving */
 					sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
 					stop_led_animation();
-				    vPortFree(g_buff);
 					return -1;
 				}
 			}
@@ -1203,7 +1182,6 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
     				sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
     			}
     			stop_led_animation();
-    		    vPortFree(g_buff);
                 return -1;
             }
             bytesReceived +=transfer_len;
@@ -1225,7 +1203,6 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 			} else if (storage == SERIAL_FLASH) {
 				sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
 			}
-		    vPortFree(g_buff);
             return -1;
         }
 
@@ -1251,7 +1228,6 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 	        if(res != FR_OK)
 	        {
 	        	cd( "/" );
-	            vPortFree(g_buff);
 	            return((int)res);
 	        }
 	        hello_fs_unlink( path_buff );
@@ -1260,7 +1236,6 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 	        /* Close file without saving */
 			sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
 		}
-	    vPortFree(g_buff);
         return -1;
     }
     else
@@ -1274,19 +1249,16 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 	        if(res != FR_OK)
 	        {
 	        	cd( "/" );
-	            vPortFree(g_buff);
 	            return((int)res);
 	        }
 		} else if (storage == SERIAL_FLASH) {
 	        /* Save and close file */
-		    vPortFree(g_buff);
 			return sl_FsClose(fileHandle, 0, 0, 0);
 		}
     }
 	if (storage == SD_CARD) {
         cd( "/" );
 	}
-    vPortFree(g_buff);
     return 0;
 }
 
