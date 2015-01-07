@@ -1640,6 +1640,7 @@ void file_download_task( void * params ) {
                             top_need_dfu = 0;
                             goto end_download_task;
                         }else{
+                            memcpy(sBootInfo.shatop[0], download_info.sha1.bytes, SHA1_SIZE );
                             top_need_dfu = 1;
                         }
                     }
