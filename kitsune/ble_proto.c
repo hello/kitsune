@@ -27,6 +27,7 @@
 #include "sys_time.h"
 #include "sl_sync_include_after_simplelink_header.h"
 #include "ustdlib.h"
+#include "pill_settings.h"
 
 typedef void(*task_routine_t)(void*);
 
@@ -78,7 +79,8 @@ static void _factory_reset(){
     	vTaskDelay(1000);
     }
 
-	nwp_reset();
+    pill_settings_reset_all();
+    nwp_reset();
 	_ble_reply_command_with_type(MorpheusCommand_CommandType_MORPHEUS_COMMAND_FACTORY_RESET);
 
 }
@@ -653,7 +655,13 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_SHAKES:
         {
             LOGI("PILL SHAKES\n");
-            ble_proto_led_roll_once(0xFF, 128, 0, 128, 18);
+            if(command->deviceId.arg){
+				uint32_t color = pill_settings_get_color((const char*)command->deviceId.arg);
+				uint8_t* argb = (uint8_t*)&color;
+				ble_proto_led_roll_once(0xFF, argb[1], argb[2], argb[3], 18);
+            }else{
+            	LOGI("Please update topboard, no pill id\n");
+            }
         }
         break;
     	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID:

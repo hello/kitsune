@@ -48,6 +48,7 @@ int sl_mode = ROLE_INVALID;
 #include "ustdlib.h"
 
 #include "led_action.h"
+#include "pill_settings.h"
 
 void mcu_reset()
 {
@@ -1643,6 +1644,13 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
 
     if (response_protobuf->has_led_action) {
     	led_action(response_protobuf);
+    }
+
+    if(response_protobuf->pill_settings_count > 0) {
+		BatchedPillSettings settings = {0};
+		settings.pill_settings_count = response_protobuf->pill_settings_count > MAX_PILL_SETTINGS_COUNT ? MAX_PILL_SETTINGS_COUNT : response_protobuf->pill_settings_count;
+		memcpy(settings.pill_settings, response_protobuf->pill_settings, sizeof(SyncResponse_PillSettings) * settings.pill_settings_count);
+		pill_settings_save(&settings);
     }
 
     _set_led_color_based_on_room_conditions(response_protobuf);
