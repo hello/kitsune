@@ -118,7 +118,7 @@ int pill_settings_load_from_file()
 
     sl_FsClose(file_handle, NULL, NULL, 0);
 
-    pb_istream_t stream = pb_istream_from_buffer(buffer, sizeof(buffer));
+    pb_istream_t stream = pb_istream_from_buffer(buffer, bytes_read);
 
     xSemaphoreTake(_sync_mutex, portMAX_DELAY);
     ret = pb_decode(&stream, BatchedPillSettings_fields, &_settings);
@@ -126,7 +126,7 @@ int pill_settings_load_from_file()
 
     if(!ret)
     {
-        LOGI("Failed to decode pill settings\n");
+        LOGE("Failed to decode pill settings\n");
         LOGE(PB_GET_ERROR(&stream));
         LOGE("\n");
         return 0;
@@ -147,10 +147,13 @@ uint32_t pill_settings_get_color(const char* pill_id)
         {
             if(strcmp(_settings.pill_settings[i].pill_id, pill_id) == 0)
             {
+            	LOGI("%s color found %d\n", _settings.pill_settings[i].pill_id, _settings.pill_settings[i].pill_color);
+            	xSemaphoreGive(_sync_mutex);
                 return _settings.pill_settings[i].pill_color;
             }
         }
         xSemaphoreGive(_sync_mutex);
+        LOGI("%s color not found\n", _settings.pill_settings[i].pill_id);
     }
 
     uint8_t argb[4] = { 0xFF, 0x80, 0x00, 0x80 };
@@ -163,6 +166,11 @@ int pill_settings_init()
 {
     _sync_mutex = xSemaphoreCreateMutex();
     int ret = pill_settings_load_from_file();
+    int i = 0;
+    for(i = 0; i < _settings.pill_settings_count; i++)
+    {
+    	LOGI("%s color loaded %d\n", _settings.pill_settings[i].pill_id, _settings.pill_settings[i].pill_color);
+    }
     return ret;
 }
 
