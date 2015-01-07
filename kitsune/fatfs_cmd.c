@@ -1528,7 +1528,7 @@ void boot_commit_ota() {
 								IMG_ACT_USER2:
 								IMG_ACT_USER1;
         send_top("dfu", strlen("dfu"));
-        if(wait_for_top_boot(20000)){
+        if(wait_for_top_boot(60000)){
             LOGI("Top board update success\r\n");
             _WriteBootInfo(&sBootInfo);
         }else{
