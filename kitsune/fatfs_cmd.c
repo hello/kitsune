@@ -1363,6 +1363,10 @@ typedef struct sBootInfo
   _u32 ulImgStatus;
 
   unsigned char sha[NUM_IMAGES][SHA1_SIZE];
+
+  _u8  ucActiveImgTop;
+  _u32 ulImgStatusTop;
+  unsigned char shatop[NUM_IMAGES][SHA1_SIZE];
 }sBootInfo_t;
 
 void mcu_reset();
