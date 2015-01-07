@@ -930,7 +930,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
     uint32_t total = recv_size;
     int percent = 101-100*recv_size/total;
     ble_proto_led_fade_out(0);
-	//play_led_progress_bar(132, 233, 4, 0, portMAX_DELAY);
+    play_led_progress_bar(132, 233, 4, 0, portMAX_DELAY);
 
     while (0 < transfer_len)
     {
