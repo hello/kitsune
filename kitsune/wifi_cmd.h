@@ -45,9 +45,11 @@ SyncResponse_Alarm alarm;
 
 int Cmd_iperf_client(int argc, char *argv[]);
 int Cmd_iperf_server(int argc, char *argv[]);
+int Cmd_country(int argc, char *argv[]);
 
+
+#define PCB_ANT 2
 #define IFA_ANT 1
-#define CHIP_ANT 2
 void antsel(unsigned char a);
 int Cmd_antsel(int argc, char *argv[]);
 

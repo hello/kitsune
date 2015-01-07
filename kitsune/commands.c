@@ -215,9 +215,18 @@ int Cmd_fs_write(int argc, char *argv[]) {
 			return -1;
 		}
 	}
+    char* next = argv[2];
+    int cnt = 0;
+    int expected = argc - 2;
+	while( cnt != expected ) {
+        uint8_t byte = strtol(next, &next, 16);
+    	bytes = sl_FsWrite(hndl, info.FileLen + cnt, (unsigned char*)&byte, 1);
+    	assert(bytes==1);
+    	++cnt;
+    	next = next + 1;
+    }
 
-	bytes = sl_FsWrite(hndl, info.FileLen, (unsigned char*)argv[2], strlen(argv[2]));
-	LOGI("wrote to the file %d bytes\n", bytes);
+	LOGI("wrote to the file %d bytes\n", cnt);
 
 	sl_FsClose(hndl, 0, 0, 0);
 
@@ -583,7 +592,7 @@ void thread_dust(void * unused)  {
 
 static int light_m2,light_mean, light_cnt,light_log_sum,light_sf;
 static xSemaphoreHandle light_smphr;
-int enable_light_off_detection;
+int led_animation_not_in_progress;
 xSemaphoreHandle i2c_smphr;
 
 uint8_t get_alpha_from_light()
@@ -612,7 +621,7 @@ static int _is_light_off(int current_light)
 	{
 		int delta = last_light - current_light;
 		//LOGI("delta: %d, current %d, last %d\n", delta, current_light, last_light);
-		if(delta >= light_off_threshold && current_light < 100)
+		if(delta >= light_off_threshold && current_light < 300)
 		{
 			//LOGI("Light off\n");
 			ret = 1;
@@ -668,6 +677,7 @@ static void _on_gesture_out()
 
 void thread_fast_i2c_poll(void * unused)  {
 	gesture_init();
+	led_animation_not_in_progress = 1;
 	while (1) {
 		portTickType now = xTaskGetTickCount();
 		int prox=0;
@@ -713,7 +723,7 @@ void thread_fast_i2c_poll(void * unused)  {
 				//LOGI( "%d %d %d %d\n", delta, light_mean, light_m2, light_cnt);
 				xSemaphoreGive(light_smphr);
 
-				if(light_cnt % 5 == 0 && enable_light_off_detection) {
+				if(light_cnt % 5 == 0 && led_animation_not_in_progress) {
 					if(_is_light_off(light)) {
 						_show_led_status();
 					}
@@ -811,6 +821,8 @@ void thread_tx(void* unused) {
 
 #include "audio_types.h"
 
+static int _last_temp;
+static int _last_humid;
 void sample_sensor_data(periodic_data* data)
 {
 	if(!data)
@@ -916,7 +928,9 @@ void sample_sensor_data(periodic_data* data)
 		{
 			vTaskDelay(2);
 
-			int humid = get_humid();
+			int humid = led_animation_not_in_progress ? get_humid() : _last_humid;
+			_last_humid = humid;
+
 			if(humid != -1)
 			{
 				humid_sum += humid;
@@ -925,7 +939,8 @@ void sample_sensor_data(periodic_data* data)
 
 			vTaskDelay(2);
 
-			int temp = get_temp();
+			int temp = led_animation_not_in_progress ? get_temp() : _last_temp;
+			_last_temp = temp;
 
 			if(temp != -1)
 			{
@@ -983,6 +998,11 @@ void thread_sensor_poll(void* unused) {
 	//
 
 	periodic_data data = {0};
+	if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
+		_last_temp = get_temp();
+		_last_humid = get_humid();
+		xSemaphoreGive(i2c_smphr);
+	}
 
 	while (1) {
 		portTickType now = xTaskGetTickCount();
@@ -1430,7 +1450,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "led", Cmd_led, "" },
 		{ "action", Cmd_led_action, "" },
 		{ "clrled", Cmd_led_clr, "" },
-#ifdef RDIO_TEST
+#ifdef BUILD_RADIO_TEST
 		{ "rdiostats", Cmd_RadioGetStats, "" },
 		{ "rdiotxstart", Cmd_RadioStartTX, "" },
 		{ "rdiotxstop", Cmd_RadioStopTX, "" },
@@ -1455,6 +1475,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "testkey", Cmd_test_key, ""},
 		{ "lfclktest",Cmd_test_3200_rtc,""},
 		{ "poll",Cmd_enable_poll,""},
+		{ "country",Cmd_country,""},
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
 		{ "iperfcli",Cmd_iperf_client,""},
@@ -1520,8 +1541,8 @@ void vUARTTask(void *pvParameters) {
 
 	UARTprintf("Boot\n");
 
-	//default to IFA
-	antsel(IFA_ANT);
+	//default to PCB_ANT
+	antsel(PCB_ANT);
 
 	UARTprintf("*");
 	now = xTaskGetTickCount();
@@ -1581,6 +1602,7 @@ void vUARTTask(void *pvParameters) {
 	init_led_animation();
 	ble_proto_led_init();
 
+
 	data_queue = xQueueCreate(10, sizeof(periodic_data));
 	pill_queue = xQueueCreate(MAX_PILL_DATA, sizeof(pill_data));
 	vSemaphoreCreateBinary(dust_smphr);
@@ -1601,7 +1623,7 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(thread_alarm, "alarmTask", 2*1024 / 4, NULL, 4, NULL);
 
 	UARTprintf("*");
-	xTaskCreate(thread_spi, "spiTask", 3*1024 / 4, NULL, 4, NULL); //this one doesn't look like much, but has to parse all the pb from bluetooth
+	xTaskCreate(thread_spi, "spiTask", 4*1024 / 4, NULL, 4, NULL); //this one doesn't look like much, but has to parse all the pb from bluetooth
 
 	UARTprintf("*");
 	CreateDefaultDirectories();

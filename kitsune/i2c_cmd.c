@@ -565,7 +565,7 @@ int get_codec_NAU(int vol_codec) {
 	unsigned char cmd_init[2];
 	int i;
 
-	static const char reg[47][2] = {
+	static const char reg[48][2] = {
 			{0x00,0x00},
 			{0x62,0x00},
 			{0x02,0x0b},
@@ -610,13 +610,17 @@ int get_codec_NAU(int vol_codec) {
 			{0x5a,0x50},
 			{0x5f,0x00},
 			{0x64,0x01},
+			{0x6c,60},
 			{0x70,0x40},
 			{0x74,0x00},
 			{0x92,0xc1},
 	};
-	for (i = 0; i < 47; ++i) {
+	for (i = 0; i < 48; ++i) {
 		cmd_init[0] = reg[i][0];
 		cmd_init[1] = reg[i][1];
+		if( cmd_init[0] == 0x6c ) {
+			cmd_init[1] = vol_codec;
+		}
 		I2C_IF_Write(Codec_addr, cmd_init, 2, 1);
 		vTaskDelay(DELAY_CODEC);
 	}
