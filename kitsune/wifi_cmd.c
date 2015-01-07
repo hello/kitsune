@@ -2322,6 +2322,8 @@ int wifi_status_set(unsigned int status, int remove_status)
     return ret;
 }
 
+#ifdef BUILD_SERVERS
+
 #if 0
 #define SVR_LOGI LOGI
 #else
@@ -2601,3 +2603,4 @@ void httpServerTask(void *params) {
 }
 
 
+#endif

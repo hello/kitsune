@@ -79,7 +79,9 @@ _swap_and_upload(void){
 	//reset
 	self.widx = 0;
 }
+#ifdef BUILD_SERVERS
 void telnetPrint(const char * str, int len );
+#endif
 
 static void
 _logstr(const char * str, int len, bool echo, bool store){
@@ -88,8 +90,9 @@ _logstr(const char * str, int len, bool echo, bool store){
 		uart_logc(str[i]);
 	}
 	if (echo) {
+#ifdef BUILD_SERVERS
 		telnetPrint(str, len);
-
+#endif
 		UARTwrite(str, len);
 	}
 }
