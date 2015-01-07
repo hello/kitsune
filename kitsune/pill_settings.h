@@ -8,7 +8,7 @@
 #include "protobuf/sync_response.pb.h"
 
 #define PILL_SETTING_FILE   "/hello/pill_settings"
-#define MAX_PILL_COUNT      2
+#define MAX_PILL_SETTINGS_COUNT      2
 
 #ifdef __cplusplus
 extern "C" {

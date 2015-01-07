@@ -17,28 +17,27 @@ static xSemaphoreHandle _sync_mutex;
 static int _write_to_file(const char* path, unsigned char* buffer, size_t buffer_size)
 {
     unsigned long tok = 0;
-    long hndl = 0;
+    long file_handle = 0;
     SlFsFileInfo_t info = {0};
 
     sl_FsGetInfo((unsigned char*)path, tok, &info);
 
-    if (sl_FsOpen((unsigned char*)path, FS_MODE_OPEN_WRITE, &tok, &hndl)) {
+    if (sl_FsOpen((unsigned char*)path, FS_MODE_OPEN_WRITE, &tok, &file_handle)) {
         LOGI("error opening file %s, trying to create\n", path);
 
-        if (sl_FsOpen((unsigned char*)path, FS_MODE_OPEN_CREATE(65535, _FS_FILE_OPEN_FLAG_COMMIT), &tok,
-                &hndl)) {
+        if (sl_FsOpen((unsigned char*)path, FS_MODE_OPEN_CREATE(65535, _FS_FILE_OPEN_FLAG_COMMIT), &tok, &file_handle)) {
             LOGI("error opening %s for write\n", path);
             return 0;
         }else{
-            sl_FsWrite(hndl, 0, buffer, buffer_size);  // Dummy write, we don't care about the result
+            sl_FsWrite(file_handle, 0, buffer, buffer_size);  // Dummy write, we don't care about the result
         }
     }
 
-    long bytes_written = sl_FsWrite(hndl, 0, buffer, buffer_size);
+    long bytes_written = sl_FsWrite(file_handle, 0, buffer, buffer_size);
     if( bytes_written != buffer_size) {
         LOGE( "write pill settings failed %d", bytes_written);
     }
-    sl_FsClose(hndl, 0, 0, 0);
+    sl_FsClose(file_handle, 0, 0, 0);
     return bytes_written == buffer_size;
 }
 
@@ -51,7 +50,7 @@ int pill_settings_save(const BatchedPillSettings* pill_settings)
 
     int has_change = 0;
     int i;
-    for(i = 0; i < MAX_PILL_COUNT; i++)
+    for(i = 0; i < MAX_PILL_SETTINGS_COUNT; i++)
     {
         if(strcmp(_settings.pill_settings[i].pill_id, pill_settings->pill_settings[i].pill_id) != 0)
         {
@@ -95,6 +94,8 @@ int pill_settings_save(const BatchedPillSettings* pill_settings)
     memcpy(&_settings, pill_settings, sizeof(_settings));
     xSemaphoreGive(_sync_mutex);
 
+    LOGI("pill settings saved\n");
+
     return true;
 
 }
@@ -131,6 +132,8 @@ int pill_settings_load_from_file()
         return 0;
     }
 
+    LOGI("pill settings loaded\n");
+
     return 1;
 }
 
@@ -140,7 +143,7 @@ uint32_t pill_settings_get_color(const char* pill_id)
     int i = 0;
     if(xSemaphoreTake(_sync_mutex, portMAX_DELAY))
     {
-        for(i = 0; i < MAX_PILL_COUNT; i++)
+        for(i = 0; i < MAX_PILL_SETTINGS_COUNT; i++)
         {
             if(strcmp(_settings.pill_settings[i].pill_id, pill_id) == 0)
             {
