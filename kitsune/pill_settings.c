@@ -153,7 +153,10 @@ uint32_t pill_settings_get_color(const char* pill_id)
         xSemaphoreGive(_sync_mutex);
     }
 
-    return 0xFF800080;  // the default purple color
+    uint8_t argb[4] = { 0xFF, 0x80, 0x00, 0x80 };
+    uint32_t color = 0;
+    memcpy(&color, argb, sizeof(color));
+    return color;  // the default purple color
 }
 
 int pill_settings_init()
