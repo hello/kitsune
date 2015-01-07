@@ -8,6 +8,7 @@
 
 #include "wifi_cmd.h"
 #include "spi_cmd.h"
+#include "pill_settings.h"
 
 static bool _encode_bytes_fields(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 
@@ -411,6 +412,7 @@ void ble_proto_free_command(MorpheusCommand* command)
 int Cmd_factory_reset(int argc, char* argv[])
 {
     wifi_reset();
+    pill_settings_reset_all();
     nwp_reset();
 
 	MorpheusCommand morpheusCommand = {0};

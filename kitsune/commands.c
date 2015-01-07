@@ -92,6 +92,7 @@
 #include "ustdlib.h"
 
 #include "led_action.h"
+#include "pill_settings.h"
 
 
 #define ONLY_MID 0
@@ -751,6 +752,7 @@ void thread_tx(void* unused) {
 	batched_periodic_data data_batched = {0};
 	load_aes();
 	load_device_id();
+	pill_settings_init();
 	int tries = 0;
 
 	LOGI(" Start polling  \n");
@@ -772,6 +774,9 @@ void thread_tx(void* unused) {
 			}
 
 			pack_batched_periodic_data(&data_batched, &periodicdata);
+
+			data_batched.has_uptime_in_second = true;
+			data_batched.uptime_in_second = xTaskGetTickCount() / configTICK_RATE_HZ;
 
 			while (!send_periodic_data(&data_batched) == 0) {
 				LOGI("Waiting for network connection\n");
