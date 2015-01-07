@@ -1720,9 +1720,9 @@ int send_periodic_data(batched_periodic_data* data) {
         response_protobuf.has_reset_device,
         response_protobuf.has_led_action);
 
+    	boot_commit_ota(); //commit only if we hear back from the server...
 		_on_response_protobuf(&response_protobuf);
 		wifi_status_set(UPLOADING, false);
-    	boot_commit_ota(); //commit only if we hear back from the server...
         vPortFree(buffer);
         return 0;
     }
