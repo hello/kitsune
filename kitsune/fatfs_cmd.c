@@ -1659,7 +1659,7 @@ void file_download_task( void * params ) {
 
                 if (strcmp(buf, "/top/update.bin") == 0) {
                     if (download_info.has_sha1) {
-                        if( _sf_sha1_verify(download_info.sha1.bytes, buf)){
+                        if( _sf_sha1_verify((char *)download_info.sha1.bytes, buf)){
                             LOGE("Top DFU failed\r\n");
                             goto end_download_task;
                         }else{
@@ -1685,7 +1685,7 @@ void file_download_task( void * params ) {
                 strcpy((char*)full_path, serial_flash_path );
                 strcat((char*)full_path, serial_flash_name);
 
-                res = _sf_sha1_verify(download_info.sha1.bytes, full_path);
+                res = _sf_sha1_verify((char *)download_info.sha1.bytes, (char *)full_path);
 
                 vPortFree(full_path);
                 if(res){
@@ -1778,14 +1778,13 @@ static int _sf_sha1_verify(const char * sha_truth, const char * serial_file_path
     SHA1_CTX sha1ctx;
     SHA1_Init(&sha1ctx);
 #define minval( a,b ) a < b ? a : b
-#define BUF_SZ 512
     unsigned long tok = 0;
     long hndl, err, bytes, bytes_to_read;
     SlFsFileInfo_t info;
     //buffer for readback
-    unsigned char* buffer = (unsigned char*)pvPortMalloc(BUF_SZ);
 
     full_path = (unsigned char*)pvPortMalloc(256);
+    assert(full_path);
     strcpy((char*)full_path, serial_file_path);
 
     sl_FsGetInfo(full_path, tok, &info);
@@ -1794,14 +1793,16 @@ static int _sf_sha1_verify(const char * sha_truth, const char * serial_file_path
     vPortFree(full_path);
     if (err) {
         LOGI("error opening for read %d\n", err);
-        goto has_error;
+        return -1;
     }
 
+    unsigned char* buffer = (unsigned char*)pvPortMalloc(info.FileLen);
+    assert(buffer);
     bytes_to_read = info.FileLen;
     while (bytes_to_read > 0) {
         bytes = sl_FsRead(hndl, info.FileLen - bytes_to_read,
                 buffer,
-                minval(info.FileLen, BUF_SZ));
+                info.FileLen);
         SHA1_Update(&sha1ctx, buffer, bytes);
         bytes_to_read -= bytes;
     }
@@ -1809,16 +1810,12 @@ static int _sf_sha1_verify(const char * sha_truth, const char * serial_file_path
 
     SHA1_Final(sha, &sha1ctx);
 
+    vPortFree(buffer);
     if (memcmp(sha, sha_truth, SHA1_SIZE) != 0) {
         LOGE( "fw update SHA did not match!\n");
-        goto has_error;
+        return -1;
     }
     LOGI( "SHA Match!\n");
-    vPortFree(buffer);
     return 0;
-
-has_error:
-    vPortFree(buffer);
-    return -1;
 }
 

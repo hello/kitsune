@@ -285,7 +285,7 @@ int wait_for_top_boot(unsigned int timeout) {
 	unsigned int start = xTaskGetTickCount();
 	self.top_boot = false;
 	while( !self.top_boot && xTaskGetTickCount() - start < timeout ) {
-		vTaskDelay(1);
+		vTaskDelay(100);
 	}
 	return self.top_boot;
 }
