@@ -532,7 +532,9 @@ void ble_proto_end_hold()
 {
 	//configTICK_RATE_HZ
 	uint32_t current_tick = xTaskGetTickCount();
-	if((current_tick - _self.last_hold_time) * (1000 / configTICK_RATE_HZ) > 5000 && _self.last_hold_time > 0)
+	if((current_tick - _self.last_hold_time) * (1000 / configTICK_RATE_HZ) > 5000 &&
+		(current_tick - _self.last_hold_time) * (1000 / configTICK_RATE_HZ) < 10000 &&
+		_self.last_hold_time > 0)
 	{
 		LOGI("Trigger pairing mode\n");
 		MorpheusCommand response = {0};

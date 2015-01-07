@@ -592,7 +592,7 @@ void thread_dust(void * unused)  {
 }
 
 
-static int light_m2,light_mean, light_cnt,light_log_sum,light_sf;
+static int light_m2,light_mean, light_cnt,light_log_sum,light_sf,light;
 static xSemaphoreHandle light_smphr;
 int led_animation_not_in_progress;
 xSemaphoreHandle i2c_smphr;
@@ -602,7 +602,7 @@ uint8_t get_alpha_from_light()
 	int adjust_max_light = 800;
 	int adjust;
 
-	if( light_mean > adjust_max_light ) {
+	if( light > adjust_max_light ) {
 		adjust = adjust_max_light;
 	} else {
 		adjust = light_mean;
@@ -659,7 +659,7 @@ static void _show_led_status()
 	}
 }
 
-static void _on_wave(int light){
+static void _on_wave(){
 	memset(&alarm, 0, sizeof(alarm));
 	AudioTask_StopPlayback();
 	_show_led_status();
@@ -683,11 +683,10 @@ void thread_fast_i2c_poll(void * unused)  {
 	while (1) {
 		portTickType now = xTaskGetTickCount();
 		int prox=0;
-		int light;
 
 		if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
 			vTaskDelay(2);
-			light = get_light();
+			light = led_animation_not_in_progress ? get_light() : light;
 			vTaskDelay(2); //this is important! If we don't do it, then the prox will stretch the clock!
 
 			// For the black morpheus, we can detect 6mm distance max
@@ -699,7 +698,7 @@ void thread_fast_i2c_poll(void * unused)  {
 			switch(gesture_state)
 			{
 			case GESTURE_WAVE:
-				_on_wave(light_mean);
+				_on_wave();
 				break;
 			case GESTURE_HOLD:
 				_on_hold();
