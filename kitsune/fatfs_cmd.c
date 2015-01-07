@@ -1589,7 +1589,6 @@ xQueueHandle download_queue = 0;
 
 void file_download_task( void * params ) {
     SyncResponse_FileDownload download_info;
-    int top_need_dfu = 1;
     for(;;) while (xQueueReceive(download_queue, &(download_info), 100)) {
         char * filename=NULL, * url=NULL, * host=NULL, * path=NULL, * serial_flash_path=NULL, * serial_flash_name=NULL;
 
@@ -1666,8 +1665,6 @@ void file_download_task( void * params ) {
                         if( _sf_sha1_verify(download_info.sha1.bytes, buf)){
                             LOGE("Top DFU failed\r\n");
                             goto end_download_task;
-                        }else{
-                            top_need_dfu = 1;
                         }
                     }
                 }
@@ -1700,8 +1697,6 @@ void file_download_task( void * params ) {
                     memcpy(sBootInfo.sha[_McuImageGetNewIndex()], download_info.sha1.bytes, SHA1_SIZE );
                     //sBootInfo.ucActiveImg this is set by boot loader
                     _WriteBootInfo(&sBootInfo);
-                    if(top_need_dfu){
-                    }
                     mcu_reset();
                 }
             } else {
