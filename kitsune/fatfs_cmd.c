@@ -1651,15 +1651,14 @@ void file_download_task( void * params ) {
                 && download_info.reset_application_processor) {
             _ReadBootInfo(&sBootInfo);
             if (download_info.has_sha1) {
-                unsigned char * full_path;
+                static unsigned char full_path[128];
                 int res;
-                full_path = (unsigned char*)pvPortMalloc(256);
-                strcpy((char*)full_path, serial_flash_path );
-                strcat((char*)full_path, serial_flash_name);
+                strncpy((char*)full_path, serial_flash_path, sizeof(full_path)-1);
+                full_path[sizeof(full_path)-1] = 0;
+                strncat((char*)full_path, serial_flash_name, sizeof(full_path) - strlen(full_path) - 1);
 
                 res = _sf_sha1_verify((char *)download_info.sha1.bytes, (char *)full_path);
 
-                vPortFree(full_path);
                 if(res){
                     goto end_download_task;
                 }else{
