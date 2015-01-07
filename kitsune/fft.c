@@ -6,7 +6,6 @@
 #include <stdlib.h> //for abs
 #include <string.h>
 #include <stdint.h>
-#include "kit_assert.h"
 
 #define FIX_MPY(DEST,A,B) (DEST) = ((int32_t)(A) * (int32_t)(B))>>15
 
@@ -323,12 +322,12 @@ void logpsdmel(int16_t * logTotalEnergy,int16_t psd[],const int16_t fr[],const i
     ifft = 0;
     psd[0] = 0;
     for (idx = 1; idx < 32; idx++) {
-        assert(idx-1 <= 31);
+       // assert(idx-1 <= 31);
         iend = spacings[idx-1];
         utemp64 = 0;
 
         for (i = 0; i < iend; i++) {
-            assert(ifft < 128);
+          //  assert(ifft < 128);
             ufr = abs(fr[ifft]);
             ufi = abs(fi[ifft]);
             

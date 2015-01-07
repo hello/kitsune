@@ -7,8 +7,8 @@
 #include "machinelearning/linear_svm.h"
 #include "hellomath.h"
 #include "machinelearning/hmm.h"
+#include "machinelearning/audiohmm.h"
 #include <math.h>
-#include "kit_assert.h"
 #include <string.h>
 #include "rawaudiostatemachine.h"
 
@@ -17,6 +17,7 @@
 #define CIRCULAR_BUF_MASK (CIRCULAR_BUF_SIZE - 1)
 #define BUF_SIZE_IN_CHUNK (32)
 
+#define CLASSIFIER_BUF_LEN (16)
 #define MAX_NUMBER_CLASSES (5)
 #define EXPECTED_NUMBER_OF_CLASSIFIER_INPUTS (NUM_AUDIO_FEATURES)
 
@@ -45,6 +46,8 @@ typedef struct {
 } AudioFeatureChunk_t; //330 bytes
 
 typedef struct {
+    int8_t classifier_feat_buf[CLASSIFIER_BUF_LEN][NUM_AUDIO_FEATURES];
+    uint16_t classifier_feat_idx;
     
     //cicular buffer of incoming data
     uint8_t packedbuf[CIRCULAR_BUF_SIZE][NUM_AUDIO_FEATURES/2]; //32 * 8 = 256 bytes
@@ -62,6 +65,7 @@ typedef struct {
     uint16_t numincoming;
     
     uint8_t isThereAnythingInteresting;
+    uint8_t isWorthClassifying;
 
     
 } DataBuffer_t;
@@ -88,13 +92,24 @@ static uint32_t _classifierdata[128]; //0.5K
 static uint32_t _hmmdata[128]; //0.5K
 
 //Snoring, talking, null -- BEJ 10/15/2014
-static const int16_t _defaultsvmdata[3][NUM_AUDIO_FEATURES + 1] =
-{
-{-5584,299,4639,2525,-5064,-6144,5710,-6894,-8295,-697,-7778,-329,-1929,-3721,319,10,-6453},
-{6444,181,-4261,-64,5062,7000,-937,4706,2571,5085,5564,1009,1499,3564,2169,-156,4466},
-{-2728,-106,1799,-622,-240,-2879,-4268,-344,5197,-5411,697,-1083,2594,193,-2716,87,-4480}
+static const int16_t _defaultsvmdata[3][NUM_AUDIO_FEATURES + 1] = {
+{-3645,199, 3591, 3584,-6815,-4855,10221,-9171,-1125, 4113,-9067, 5806,-8592 -22812,20707,-3692,-6448},
+{1707, -372,-6653,-2349,605, 2841,-8171, 2938,-2786,-5328, 3787, 2705, 1460,-4466,-2891,11236, 1243},
+{421,982, 3607, 1947, 3123,440,465, 2990, 4954, 1256,530,-2568, 37,16843,-4484,-4695,-1641}};
     
-    };
+static const int16_t k_default_audio_hmm_A[3][3] =
+   {{1023,1,1},
+    {100,923,1},
+    {1,213,810}};
+
+static const int16_t k_default_audio_hmm_vecs[3][NUM_AUDIO_FEATURES] =
+{{-745,-162,326,-187,-227,-244,288,-343,-19,2,-94,37,1,-28,-4,-3},
+    {-690,-232,-352,290,-55,-437,291,105,-88,-38,69,38,-29,-46,15,-4},
+    {-755,-147,-198,294,-198,-375,336,33,-152,-36,91,21,-18,-20,10,-4}};
+
+static const int16_t k_default_audio_hmm_vars[3] = {381,56,40};
+
+static const AudioHmm_t k_default_audio_hmm = {3,&k_default_audio_hmm_A[0][0],&k_default_audio_hmm_vecs[0][0],&k_default_audio_hmm_vars[0]};
 
 
 /* ATTENTION!   
@@ -321,6 +336,7 @@ void AudioClassifier_DataCallback(const AudioFeatures_t * pfeats) {
     //determine if anything interesting happend, energy-wise
     if (pfeats->logenergyOverBackroundNoise > MIN_CLASSIFICATION_ENERGY) {
         _buffer.isThereAnythingInteresting = true;
+        _buffer.isWorthClassifying = true;
     }
     
     //if something interesting happend and the circular buffer is full
@@ -331,6 +347,7 @@ void AudioClassifier_DataCallback(const AudioFeatures_t * pfeats) {
         CopyCircularBufferToPermanentStorage(pfeats->samplecount);
         _buffer.numincoming = 0; //"empty" the buffer
         _buffer.incomingidx = 0;
+        _buffer.isThereAnythingInteresting = false;
     }
     
    
@@ -338,6 +355,21 @@ void AudioClassifier_DataCallback(const AudioFeatures_t * pfeats) {
      THE CLASSIFIER SECTION
      ***********************/
     
+    /* copy features  */
+    memcpy(_buffer.classifier_feat_buf[_buffer.classifier_feat_idx],pfeats->feats4bit,NUM_AUDIO_FEATURES*sizeof(int8_t));
+    _buffer.classifier_feat_idx++;
+    if (_buffer.classifier_feat_idx >= CLASSIFIER_BUF_LEN) {
+        int32_t cost = INT32_MIN;
+        _buffer.classifier_feat_idx = 0;
+        
+        if (_buffer.isWorthClassifying) {
+            cost = AudioHmm_EvaluateModel(&k_default_audio_hmm, &_buffer.classifier_feat_buf[0][0], CLASSIFIER_BUF_LEN);
+            //printf("cost = %d\n",cost);
+        }
+        
+        _buffer.isWorthClassifying = false;
+    }
+
     /* Run classifier if energy is signficant */
     if (pfeats->logenergyOverBackroundNoise > MIN_CLASSIFICATION_ENERGY) {
         if (_classifier.data && _classifier.fpClassifier) {
@@ -377,7 +409,7 @@ static uint8_t GetNextMatrixCallback(uint8_t isFirst,const_MatDesc_t * pdesc,voi
     uint16_t endidx;
     uint16_t i;
     
-    assert(encodedata->buf == &_buffer);
+    //assert(encodedata->buf == &_buffer);
     
     memset(pdesc,0,sizeof(const_MatDesc_t));
     
