@@ -41,7 +41,7 @@ static struct{
 		long handle;
 
 	}dfu_contex;
-	int top_boot;
+	volatile int top_boot;
 }self;
 
 static void
