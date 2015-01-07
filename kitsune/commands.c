@@ -1597,7 +1597,7 @@ void vUARTTask(void *pvParameters) {
 	init_download_task( 1024 / 4 );
 	networktask_init(5 * 1024 / 4);
 
-	xTaskCreate(top_board_task, "top_board_task", 1024 / 4, NULL, 2, NULL);
+	xTaskCreate(top_board_task, "top_board_task", 2048 / 4, NULL, 2, NULL);
 	xTaskCreate(thread_alarm, "alarmTask", 2*1024 / 4, NULL, 4, NULL);
 
 	UARTprintf("*");
