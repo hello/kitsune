@@ -1527,14 +1527,7 @@ void boot_commit_ota() {
 		sBootInfo.ucActiveImg = (sBootInfo.ucActiveImg == IMG_ACT_USER1)?
 								IMG_ACT_USER2:
 								IMG_ACT_USER1;
-        send_top("dfu", strlen("dfu"));
-        if(wait_for_top_boot(60000)){
-            LOGI("Top board update success\r\n");
-            _WriteBootInfo(&sBootInfo);
-        }else{
-            LOGE("Top board update failed\r\n");
-            //TODO handle failure scenario
-        }
+        _WriteBootInfo(&sBootInfo);
         mcu_reset();
 	}
 }
@@ -1589,6 +1582,7 @@ xQueueHandle download_queue = 0;
 
 void file_download_task( void * params ) {
     SyncResponse_FileDownload download_info;
+    int top_need_dfu = 0;
     for(;;) while (xQueueReceive(download_queue, &(download_info), 100)) {
         char * filename=NULL, * url=NULL, * host=NULL, * path=NULL, * serial_flash_path=NULL, * serial_flash_name=NULL;
 
@@ -1665,6 +1659,8 @@ void file_download_task( void * params ) {
                         if( _sf_sha1_verify(download_info.sha1.bytes, buf)){
                             LOGE("Top DFU failed\r\n");
                             goto end_download_task;
+                        }else{
+                            top_need_dfu = 1;
                         }
                     }
                 }
@@ -1692,6 +1688,16 @@ void file_download_task( void * params ) {
                 if(res){
                     goto end_download_task;
                 }else{
+                    if(top_need_dfu){
+                        send_top("dfu", strlen("dfu"));
+                        if(wait_for_top_boot(60000)){
+                            LOGI("Top board update success\r\n");
+                        }else{
+                            LOGE("Top board update failed\r\n");
+                            //TODO handle failure scenario
+                            mcu_reset();
+                        }
+                    }
                     LOGI("change image status to IMG_STATUS_TESTREADY\n\r");
                     sBootInfo.ulImgStatus = IMG_STATUS_TESTREADY;
                     memcpy(sBootInfo.sha[_McuImageGetNewIndex()], download_info.sha1.bytes, SHA1_SIZE );
