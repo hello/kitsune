@@ -50,6 +50,7 @@ int pill_settings_save(const BatchedPillSettings* pill_settings)
 
     int has_change = 0;
     int i;
+    xSemaphoreTake(_sync_mutex, portMAX_DELAY);
     for(i = 0; i < MAX_PILL_SETTINGS_COUNT; i++)
     {
         if(strcmp(_settings.pill_settings[i].pill_id, pill_settings->pill_settings[i].pill_id) != 0)
@@ -62,9 +63,11 @@ int pill_settings_save(const BatchedPillSettings* pill_settings)
             }
         }
     }
+    xSemaphoreGive(_sync_mutex);
 
     if(!has_change)
     {
+    	UARTprintf("Pill settings not changed\n");
         return 1;
     }
 
