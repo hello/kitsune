@@ -1748,6 +1748,10 @@ bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg
 	}
 	return true;
 }
+int verify_top_update(const char * path){
+    _ReadBootInfo(&sBootInfo);
+    return _sf_sha1_verify(sBootInfo.shatop[0], path);
+}
 static int _sf_sha1_verify(const char * sha_truth, const char * serial_file_path){
     //compute the sha of the file..
     unsigned char * full_path;
