@@ -42,12 +42,17 @@ static struct{
 		long handle;
 
 	}dfu_contex;
-	int top_boot;
+	volatile int top_boot;
 }self;
 
 static void
 _printchar(uint8_t c){
-	UARTCharPutNonBlocking(UARTA0_BASE, c); //basic feedback
+    char term[2] = {0};
+    term[0] = c;
+    LOGI(term);
+    /*
+	 *UARTCharPutNonBlocking(UARTA0_BASE, c); //basic feedback
+     */
 #if UART_LOGGER_MODE == UART_LOGGER_MODE_RAW
 	uart_logc(c);
 #endif
@@ -84,8 +89,8 @@ _on_message(uint8_t * message_body, uint32_t body_length){
 		//delay is necessary because top board is slower.
 		ble_proto_led_fade_out(0);
 		play_led_progress_bar(30,0,0,0, portMAX_DELAY);
-		vTaskDelay(4000);
-		if(0 != top_board_dfu_begin("top_update.bin")){
+		vTaskDelay(2000);
+		if(0 != top_board_dfu_begin("/top/update.bin")){
 			top_board_dfu_begin("/top/factory.bin");
 		}
 		//led_set_color(0xFF, 50,0,0,0,0,0,0);
@@ -110,7 +115,7 @@ _on_decode_failed(void){
 }
 static void
 _on_ack_success(void){
-	vTaskDelay(50);
+	vTaskDelay(10);
 	if (self.mode == TOP_DFU_MODE) {
 		switch (self.dfu_state) {
 		case DFU_INVALID_PACKET:
@@ -175,7 +180,7 @@ _on_dtm_event(uint16_t dtm_event){
 
 static void
 _sendchar(uint8_t c){
-	UARTCharPut(UARTA1_BASE, c);
+    UARTCharPut(UARTA1_BASE, c);
 }
 
 void top_board_task(void * params){
@@ -221,7 +226,9 @@ static int _prep_file(const char * name, uint32_t * out_fsize, uint16_t * out_cr
 	if(sl_FsOpen((unsigned char*)name, FS_MODE_OPEN_READ, &tok, &hndl)){
 		LOGI("error opening for read %s.\r\n", name);
 		return -1;
-	}
+	}else{
+		LOGI("Opened fw for top ota: %s.\r\n", name);
+    }
 	do{
 		status = sl_FsRead(hndl, total, buffer, sizeof(buffer));
 		if(status > 0){
@@ -263,6 +270,7 @@ int top_board_dfu_begin(const char * bin){
 			_encode_and_send((uint8_t*) primer_packet, sizeof(primer_packet));
 			self.dfu_state = DFU_INVALID_PACKET;
 		}else{
+            LOGE("Preparation of OTA file failed\r\n");
 			self.mode = TOP_NORMAL_MODE;
 			return ret;
 		}
@@ -277,7 +285,7 @@ int wait_for_top_boot(unsigned int timeout) {
 	unsigned int start = xTaskGetTickCount();
 	self.top_boot = false;
 	while( !self.top_boot && xTaskGetTickCount() - start < timeout ) {
-		vTaskDelay(1);
+		vTaskDelay(100);
 	}
 	return self.top_boot;
 }
