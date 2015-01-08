@@ -1504,7 +1504,7 @@ void boot_commit_ota() {
         DISP("\r\n-----------------------\r\n");
 		LOGI("Booted in testing mode\r\n");
         DISP("\r\n-----------------------\r\n");
-        if( !verify_top_update("/top/update.bin")){
+        if( !_sf_sha1_verify(sBootInfo.shatop[0], "/top/update.bin")){
             LOGI("Updating top board\r\n");
             send_top("dfu", strlen("dfu"));
             if(wait_for_top_boot(60000)){
@@ -1684,6 +1684,7 @@ void file_download_task( void * params ) {
                     goto end_download_task;
                 }else{
                     if(top_need_dfu){
+                        LOGI("Writing topboard SHA\r\n");
                         memcpy(sBootInfo.shatop[0], top_sha_cache, SHA1_SIZE );
                     }
                     LOGI("change image status to IMG_STATUS_TESTREADY\n\r");
@@ -1787,7 +1788,7 @@ static int _sf_sha1_verify(const char * sha_truth, const char * serial_file_path
     while (bytes_to_read > 0) {
         bytes = sl_FsRead(hndl, info.FileLen - bytes_to_read,
                 buffer,
-                minval(sizeof(buffer),info.FileLen));
+                (minval(sizeof(buffer),info.FileLen)));
         SHA1_Update(&sha1ctx, buffer, bytes);
         bytes_to_read -= bytes;
     }
