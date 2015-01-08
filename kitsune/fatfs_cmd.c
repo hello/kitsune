@@ -1640,6 +1640,8 @@ void file_download_task( void * params ) {
                     LOGI("MCU image name converted to %s \n", serial_flash_name);
                 }
 
+                //download twice to bypass serial flash bug, thanks TI
+                download_file(host, url, serial_flash_name,serial_flash_path, SERIAL_FLASH);
                 if (download_file(host, url, serial_flash_name,
                             serial_flash_path, SERIAL_FLASH) != 0) {
                     goto end_download_task;
