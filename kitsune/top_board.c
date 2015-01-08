@@ -82,6 +82,7 @@ _next_file_data_block(uint8_t * write_buf, uint32_t buffer_size, uint32_t * out_
 		return DFU_STOP_DATA_PACKET;
 	}
 }
+int verify_top_update(const char * path);
 static void
 _on_message(uint8_t * message_body, uint32_t body_length){
 	LOGI("Got a SLIP message: %s\r\n", message_body);
@@ -90,7 +91,7 @@ _on_message(uint8_t * message_body, uint32_t body_length){
 		ble_proto_led_fade_out(0);
 		play_led_progress_bar(30,0,0,0, portMAX_DELAY);
 		vTaskDelay(2000);
-		if(0 != top_board_dfu_begin("/top/update.bin")){
+		if(0 != verify_top_update("/top/update.bin") || 0 != top_board_dfu_begin("/top/update.bin")){
 			top_board_dfu_begin("/top/factory.bin");
 		}
 		//led_set_color(0xFF, 50,0,0,0,0,0,0);

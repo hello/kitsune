@@ -1363,6 +1363,8 @@ typedef struct sBootInfo
   _u32 ulImgStatus;
 
   unsigned char sha[NUM_IMAGES][SHA1_SIZE];
+
+  unsigned char shatop[1][SHA1_SIZE];//only use 0
 }sBootInfo_t;
 
 void mcu_reset();
@@ -1410,23 +1412,26 @@ static sBootInfo_t sBootInfo;
 static _i32 _WriteBootInfo(sBootInfo_t *psBootInfo)
 {
     _i32 hndl;
-    unsigned long ulBootInfoToken;
+    unsigned long ulBootInfoToken = 0;
     unsigned long ulBootInfoCreateFlag;
 
+
+    sl_FsDel((unsigned char *)IMG_BOOT_INFO,ulBootInfoToken);
     //
     // Initialize boot info file create flag
     //
-    ulBootInfoCreateFlag  = _FS_FILE_OPEN_FLAG_COMMIT|_FS_FILE_PUBLIC_WRITE;
+    ulBootInfoCreateFlag  = FS_MODE_OPEN_CREATE(256, _FS_FILE_OPEN_FLAG_COMMIT|_FS_FILE_PUBLIC_WRITE);
 
     //
     // Check if its a secure MCU
     //
     if ( IsSecureMCU() )
     {
-      ulBootInfoToken       = USER_BOOT_INFO_TOKEN;
-      ulBootInfoCreateFlag  = _FS_FILE_OPEN_FLAG_COMMIT|_FS_FILE_OPEN_FLAG_SECURE|
-                              _FS_FILE_OPEN_FLAG_NO_SIGNATURE_TEST|
-                              _FS_FILE_PUBLIC_WRITE|_FS_FILE_OPEN_FLAG_VENDOR;
+        LOGI("Boot info is secure mcu\r\n");
+        ulBootInfoToken       = USER_BOOT_INFO_TOKEN;
+        ulBootInfoCreateFlag  = _FS_FILE_OPEN_FLAG_COMMIT|_FS_FILE_OPEN_FLAG_SECURE|
+            _FS_FILE_OPEN_FLAG_NO_SIGNATURE_TEST|
+            _FS_FILE_PUBLIC_WRITE|_FS_FILE_OPEN_FLAG_VENDOR;
     }
 
 
@@ -1434,6 +1439,7 @@ static _i32 _WriteBootInfo(sBootInfo_t *psBootInfo)
 		LOGI("error opening file, trying to create\n");
 
 		if (sl_FsOpen((unsigned char *)IMG_BOOT_INFO, ulBootInfoCreateFlag, &ulBootInfoToken, &hndl)) {
+            LOGE("Boot info open failed\n");
 			return -1;
 		}
 	}
@@ -1497,7 +1503,21 @@ void boot_commit_ota() {
     /* Check only on status TESTING */
     if( IMG_STATUS_TESTING == sBootInfo.ulImgStatus )
 	{
-		LOGI("Booted in testing mode\n");
+        DISP("\r\n-----------------------\r\n");
+		LOGI("Booted in testing mode\r\n");
+        DISP("\r\n-----------------------\r\n");
+        if( !_sf_sha1_verify(sBootInfo.shatop[0], "/top/update.bin")){
+            LOGI("Updating top board\r\n");
+            send_top("dfu", strlen("dfu"));
+            if(wait_for_top_boot(60000)){
+                LOGI("Top board update success\r\n");
+            }else{
+                LOGE("Top board update failed\r\n");
+                //FORCE boot into factory next time
+            }
+        }else{
+            LOGW("TOP checksum error, skipping update\r\n");
+        }
 		sBootInfo.ulImgStatus = IMG_STATUS_NOTEST;
 		sBootInfo.ucActiveImg = (sBootInfo.ucActiveImg == IMG_ACT_USER1)?
 								IMG_ACT_USER2:
@@ -1557,6 +1577,7 @@ xQueueHandle download_queue = 0;
 
 void file_download_task( void * params ) {
     SyncResponse_FileDownload download_info;
+    unsigned char top_sha_cache[SHA1_SIZE];
     int top_need_dfu = 0;
     for(;;) while (xQueueReceive(download_queue, &(download_info), 100)) {
         char * filename=NULL, * url=NULL, * host=NULL, * path=NULL, * serial_flash_path=NULL, * serial_flash_name=NULL;
@@ -1631,8 +1652,10 @@ void file_download_task( void * params ) {
 
                 if (strcmp(buf, "/top/update.bin") == 0) {
                     if (download_info.has_sha1) {
+                        memcpy(top_sha_cache, download_info.sha1.bytes, SHA1_SIZE );
                         if( _sf_sha1_verify((char *)download_info.sha1.bytes, buf)){
-                            LOGE("Top DFU failed\r\n");
+                            LOGW("Top DFU download failed\r\n");
+                            top_need_dfu = 0;
                             goto end_download_task;
                         }else{
                             top_need_dfu = 1;
@@ -1663,14 +1686,8 @@ void file_download_task( void * params ) {
                     goto end_download_task;
                 }else{
                     if(top_need_dfu){
-                        send_top("dfu", strlen("dfu"));
-                        if(wait_for_top_boot(60000)){
-                            LOGI("Top board update success\r\n");
-                        }else{
-                            LOGE("Top board update failed\r\n");
-                            //TODO handle failure scenario
-                            mcu_reset();
-                        }
+                        LOGI("Writing topboard SHA\r\n");
+                        memcpy(sBootInfo.shatop[0], top_sha_cache, SHA1_SIZE );
                     }
                     LOGI("change image status to IMG_STATUS_TESTREADY\n\r");
                     sBootInfo.ulImgStatus = IMG_STATUS_TESTREADY;
@@ -1742,23 +1759,24 @@ bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg
 	}
 	return true;
 }
+int verify_top_update(const char * path){
+    _ReadBootInfo(&sBootInfo);
+    return _sf_sha1_verify(sBootInfo.shatop[0], path);
+}
 static int _sf_sha1_verify(const char * sha_truth, const char * serial_file_path){
     //compute the sha of the file..
+#define minval( a,b ) a < b ? a : b
     unsigned char sha[SHA1_SIZE] = { 0 };
     static unsigned char buffer[128];
     SHA1_CTX sha1ctx;
     SHA1_Init(&sha1ctx);
-#define minval( a,b ) a < b ? a : b
     unsigned long tok = 0;
     long hndl, err, bytes, bytes_to_read;
     SlFsFileInfo_t info;
-    //copy filepath
-    strncpy((char*)buffer, serial_file_path, sizeof(buffer)-1);
-    buffer[sizeof(buffer)-1] = 0;
     //fetch path info
-    LOGI( "computing SHA of %s\n", buffer);
-    sl_FsGetInfo(buffer, tok, &info);
-    err = sl_FsOpen((unsigned char*)buffer, FS_MODE_OPEN_READ, &tok, &hndl);
+    LOGI( "computing SHA of %s\n", serial_file_path);
+    sl_FsGetInfo(serial_file_path, tok, &info);
+    err = sl_FsOpen((unsigned char*)serial_file_path, FS_MODE_OPEN_READ, &tok, &hndl);
     if (err) {
         LOGI("error opening for read %d\n", err);
         return -1;
@@ -1768,7 +1786,7 @@ static int _sf_sha1_verify(const char * sha_truth, const char * serial_file_path
     while (bytes_to_read > 0) {
         bytes = sl_FsRead(hndl, info.FileLen - bytes_to_read,
                 buffer,
-                minval(sizeof(buffer),info.FileLen));
+                (minval(sizeof(buffer),bytes_to_read)));
         SHA1_Update(&sha1ctx, buffer, bytes);
         bytes_to_read -= bytes;
     }
@@ -1777,6 +1795,8 @@ static int _sf_sha1_verify(const char * sha_truth, const char * serial_file_path
     //compare
     if (memcmp(sha, sha_truth, SHA1_SIZE) != 0) {
         LOGE( "fw update SHA did not match!\n");
+        LOGI("Sha truth:      %02x ... %02x\r\n", sha_truth[0], sha_truth[SHA1_SIZE-1]);
+        LOGI("Sha calculated: %02x ... %02x\r\n", sha[0], sha[SHA1_SIZE-1]);
         return -1;
     }
 
