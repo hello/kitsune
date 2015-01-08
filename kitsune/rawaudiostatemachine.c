@@ -3,10 +3,9 @@
 #include <string.h>
 
 #define NUM_SECONDS_TO_RECORD (30)
-#define NUMBER_OF_SNORES_TO_HEAR_BEFORE_ACCEPTING (3)
+#define NUMBER_OF_SNORES_TO_HEAR_BEFORE_ACCEPTING (5)
 
 static const int32_t  k_num_samples_to_record =  (SAMPLE_RATE_IN_HZ/2 * NUM_SECONDS_TO_RECORD); //account for the feature decimation
-static const int32_t k_avg_prob_threshold_to_upload = TOFIX(0.5f,7);
 typedef enum {
 	notrecording,
 	recording
@@ -58,11 +57,7 @@ void RawAudioStateMachine_SetLogLikelihoodOfModel(int32_t lik, int32_t threshold
 
 	AudioCaptureDesc_t desc;
 
-	if (!_data.callback) {
-		return;
-	}
-
-
+	
 	switch (_data.state) {
 	case notrecording:
 	{
@@ -72,10 +67,12 @@ void RawAudioStateMachine_SetLogLikelihoodOfModel(int32_t lik, int32_t threshold
 	    	_data.state = recording;
 	    	_data.num_samples_recorded = 0;
 	    	_data.num_times_lik_exceeded_threshold = 1;
-
+      //      printf("start saving...\n");
 	    	desc.change = startSaving;
 
-			_data.callback(&desc);
+            if (_data.callback) {
+                _data.callback(&desc);
+            }
 
 	    }
 
@@ -86,6 +83,7 @@ void RawAudioStateMachine_SetLogLikelihoodOfModel(int32_t lik, int32_t threshold
 	{
         if (lik > threshold) {
             _data.num_times_lik_exceeded_threshold++;
+           // printf("got another one. now at %d\n",_data.num_times_lik_exceeded_threshold);
         }
         
         _data.num_samples_recorded += _data.num_samples_elapsed;
@@ -100,6 +98,7 @@ void RawAudioStateMachine_SetLogLikelihoodOfModel(int32_t lik, int32_t threshold
 
             if (_data.num_times_lik_exceeded_threshold >= NUMBER_OF_SNORES_TO_HEAR_BEFORE_ACCEPTING) {
                 //upload
+           //     printf("upload this!\n");
                 desc.flags |= AUDIO_TRANSFER_FLAG_UPLOAD;
 				desc.flags |= AUDIO_TRANSFER_FLAG_DELETE_AFTER_UPLOAD;
 			}
@@ -108,8 +107,10 @@ void RawAudioStateMachine_SetLogLikelihoodOfModel(int32_t lik, int32_t threshold
                 desc.flags |= AUDIO_TRANSFER_FLAG_DELETE_IMMEDIATELY;
 			}
 
-			_data.callback(&desc);
-
+//            printf("done recording...\n");
+            if (_data.callback) {
+                _data.callback(&desc);
+            }
 		}
 
 		break;

@@ -67,7 +67,7 @@
 static const int16_t k_stable_likelihood_coefficient = TOFIX(1.0,QFIXEDPOINT);
 
 //the closer this gets to zero, the more likely it is that you will be increasing or decreasing
-static const int16_t k_change_log_likelihood = TOFIX(-0.10f,QFIXEDPOINT);
+static const int16_t k_change_log_likelihood = TOFIX(-0.15f,QFIXEDPOINT);
 
 //the closer this gets to zero, the shorter the amount of time it will take to switch between modes
 //the more negative it gets, the more evidence is required before switching modes, in general
@@ -476,6 +476,7 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int64_t samplecount) {
     //only do adaptive equalization if we are starting up, or our energy level is stable
     if (isStable ||  _data.callcounter < STARTUP_EQUALIZATION_COUNTS) {
         //crappy adaptive equalization. lowpass the psd, and subtract that from the psd
+       // printf("equalizing\n");
         for (i = 0; i < PSD_SIZE; i++) {
             _data.lpfbuf[i] = MUL(_data.lpfbuf[i], TOFIX(0.99f,15), 15) + MUL(psd[i], TOFIX(0.01f,15), 15);
         }

@@ -305,12 +305,12 @@ void AudioClassifier_DataCallback(const AudioFeatures_t * pfeats) {
         
         if (_buffer.isWorthClassifying) {
             loglik = AudioHmm_EvaluateModel(&k_default_audio_hmm, &_buffer.classifier_feat_buf[0][0], CLASSIFIER_BUF_LEN);
-            //printf("loglik = %d\n",loglik);
+          //  printf("loglik = %d\n",loglik);
             
-            /* This could trigger an upload */
-            RawAudioStateMachine_SetLogLikelihoodOfModel(loglik,SNORING_LOG_LIK_THRESHOLD_Q10);
-
         }
+        
+        /* This could trigger an upload */
+        RawAudioStateMachine_SetLogLikelihoodOfModel(loglik,SNORING_LOG_LIK_THRESHOLD_Q10);
         
         _buffer.isWorthClassifying = false;
     }
