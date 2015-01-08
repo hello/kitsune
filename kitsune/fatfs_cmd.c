@@ -1502,6 +1502,19 @@ void boot_commit_ota() {
     if( IMG_STATUS_TESTING == sBootInfo.ulImgStatus )
 	{
 		LOGI("Booted in testing mode\n");
+        if( !verify_top_update("/top/update.bin")){
+            LOGI("Updating top board\r\n");
+            send_top("dfu", strlen("dfu"));
+            if(wait_for_top_boot(60000)){
+                LOGI("Top board update success\r\n");
+            }else{
+                LOGE("Top board update failed\r\n");
+                //TODO handle failure scenario
+                mcu_reset();
+            }
+        }else{
+            LOGW("TOP checksum error, skipping update\r\n");
+        }
 		sBootInfo.ulImgStatus = IMG_STATUS_NOTEST;
 		sBootInfo.ucActiveImg = (sBootInfo.ucActiveImg == IMG_ACT_USER1)?
 								IMG_ACT_USER2:
@@ -1669,14 +1682,16 @@ void file_download_task( void * params ) {
                     goto end_download_task;
                 }else{
                     if(top_need_dfu){
-                        send_top("dfu", strlen("dfu"));
-                        if(wait_for_top_boot(60000)){
-                            LOGI("Top board update success\r\n");
-                        }else{
-                            LOGE("Top board update failed\r\n");
-                            //TODO handle failure scenario
-                            mcu_reset();
-                        }
+                        /*
+                         *send_top("dfu", strlen("dfu"));
+                         *if(wait_for_top_boot(60000)){
+                         *    LOGI("Top board update success\r\n");
+                         *}else{
+                         *    LOGE("Top board update failed\r\n");
+                         *    //TODO handle failure scenario
+                         *    mcu_reset();
+                         *}
+                         */
                     }
                     LOGI("change image status to IMG_STATUS_TESTREADY\n\r");
                     sBootInfo.ulImgStatus = IMG_STATUS_TESTREADY;
