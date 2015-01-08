@@ -326,8 +326,12 @@ int Cmd_record_buff(int argc, char *argv[]) {
 int Cmd_audio_turn_on(int argc, char * argv[]) {
 
 	AudioTask_StartCapture(16000);
+
+	AudioProcessingTask_SetControl(featureUploadsOn,NULL,NULL);
+	AudioProcessingTask_SetControl(rawUploadsOn,NULL,NULL);
+
 	return 0;
-	}
+}
 
 int Cmd_audio_turn_off(int agrc, char * agrv[]) {
 	AudioTask_StopCapture();
