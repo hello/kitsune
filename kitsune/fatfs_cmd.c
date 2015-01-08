@@ -53,7 +53,7 @@
 
 #define MAX_BUFF_SIZE      512
 
-static int _sf_sha1_verify(const char * sha_truth, const char * serial_file_path);
+int sf_sha1_verify(const char * sha_truth, const char * serial_file_path);
 unsigned char g_buff[MAX_BUFF_SIZE];
 long bytesReceived = 0; // variable to store the file size
 static int dl_sock = -1;
@@ -1501,7 +1501,7 @@ static _i32 _McuImageGetNewIndex(void)
 #include "wifi_cmd.h"
 #include "FreeRTOS.h"
 #include "task.h"
-
+#include "top_board.h"
 void boot_commit_ota() {
     _ReadBootInfo(&sBootInfo);
     /* Check only on status TESTING */
@@ -1510,7 +1510,7 @@ void boot_commit_ota() {
         DISP("\r\n-----------------------\r\n");
 		LOGI("Booted in testing mode\r\n");
         DISP("\r\n-----------------------\r\n");
-        if( !_sf_sha1_verify(sBootInfo.shatop[0], "/top/update.bin")){
+        if( !verify_top_update() ){
             LOGI("Updating top board\r\n");
             send_top("dfu", strlen("dfu"));
             if(wait_for_top_boot(60000)){
@@ -1657,7 +1657,7 @@ void file_download_task( void * params ) {
                 if (strcmp(buf, "/top/update.bin") == 0) {
                     if (download_info.has_sha1) {
                         memcpy(top_sha_cache, download_info.sha1.bytes, SHA1_SIZE );
-                        if( _sf_sha1_verify((char *)download_info.sha1.bytes, buf)){
+                        if( sf_sha1_verify((char *)download_info.sha1.bytes, buf)){
                             LOGW("Top DFU download failed\r\n");
                             top_need_dfu = 0;
                             goto end_download_task;
@@ -1684,14 +1684,17 @@ void file_download_task( void * params ) {
                 full_path[sizeof(full_path)-1] = 0;
                 strncat((char*)full_path, serial_flash_name, sizeof(full_path) - strlen((char*)full_path) - 1);
 
-                res = _sf_sha1_verify((char *)download_info.sha1.bytes, (char *)full_path);
+                res = sf_sha1_verify((char *)download_info.sha1.bytes, (char *)full_path);
 
                 if(res){
                     goto end_download_task;
                 }else{
                     if(top_need_dfu){
                         LOGI("Writing topboard SHA\r\n");
-                        memcpy(sBootInfo.shatop[0], top_sha_cache, SHA1_SIZE );
+                        /*
+                         *memcpy(sBootInfo.shatop[0], top_sha_cache, SHA1_SIZE );
+                         */
+                        set_top_update_sha(top_sha_cache, 0);
                     }
                     LOGI("change image status to IMG_STATUS_TESTREADY\n\r");
                     sBootInfo.ulImgStatus = IMG_STATUS_TESTREADY;
@@ -1763,11 +1766,7 @@ bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg
 	}
 	return true;
 }
-int verify_top_update(const char * path){
-    _ReadBootInfo(&sBootInfo);
-    return _sf_sha1_verify(sBootInfo.shatop[0], path);
-}
-static int _sf_sha1_verify(const char * sha_truth, const char * serial_file_path){
+int sf_sha1_verify(const char * sha_truth, const char * serial_file_path){
     //compute the sha of the file..
 #define minval( a,b ) a < b ? a : b
     unsigned char sha[SHA1_SIZE] = { 0 };

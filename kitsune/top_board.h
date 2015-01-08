@@ -18,6 +18,11 @@ int top_board_dfu_begin(const char * binname);
 
 //call this when topboard boots
 void top_board_notify_boot_complete(void);
+//call this  when updating shasum of top update
+//
+void set_top_update_sha(const char * shasum, unsigned int imgnum);
+//verify if update is valid
+int verify_top_update(void);
 #ifdef __cplusplus
 }
 #endif
