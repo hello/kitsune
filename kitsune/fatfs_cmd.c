@@ -1797,6 +1797,8 @@ static int _sf_sha1_verify(const char * sha_truth, const char * serial_file_path
     //compare
     if (memcmp(sha, sha_truth, SHA1_SIZE) != 0) {
         LOGE( "fw update SHA did not match!\n");
+        LOGI("Sha truth:      %02x ... %02x\r\n", sha_truth[0], sha_truth[SHA1_SIZE-1]);
+        LOGI("Sha calculated: %02x ... %02x\r\n", sha[0], sha[SHA1_SIZE-1]);
         return -1;
     }
 
