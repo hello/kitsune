@@ -1655,7 +1655,7 @@ void file_download_task( void * params ) {
                 int res;
                 strncpy((char*)full_path, serial_flash_path, sizeof(full_path)-1);
                 full_path[sizeof(full_path)-1] = 0;
-                strncat((char*)full_path, serial_flash_name, sizeof(full_path) - strlen(full_path) - 1);
+                strncat((char*)full_path, serial_flash_name, sizeof(full_path) - strlen((char*)full_path) - 1);
 
                 res = _sf_sha1_verify((char *)download_info.sha1.bytes, (char *)full_path);
 
@@ -1744,7 +1744,6 @@ bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg
 }
 static int _sf_sha1_verify(const char * sha_truth, const char * serial_file_path){
     //compute the sha of the file..
-    unsigned char * full_path;
     unsigned char sha[SHA1_SIZE] = { 0 };
     static unsigned char buffer[128];
     SHA1_CTX sha1ctx;
