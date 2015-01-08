@@ -8,6 +8,7 @@
 #include <math.h>
 #include <string.h>
 #include "rawaudiostatemachine.h"
+//#include "uartstdio.h"
 
 #define CIRCULAR_FEATBUF_SIZE_2N (5)
 #define CIRCULAR_BUF_SIZE (1 << CIRCULAR_FEATBUF_SIZE_2N)
@@ -23,7 +24,7 @@
 #define RECORD_DURATION_IN_MS (10000)
 #define RECORD_DURATION_IN_FRAMES (RECORD_DURATION_IN_MS / SAMPLE_PERIOD_IN_MILLISECONDS)
 
-#define SNORING_LOG_LIK_THRESHOLD_Q10 (-5000)
+#define SNORING_LOG_LIK_THRESHOLD_Q10 (600)
 
 
 #ifndef true
@@ -85,20 +86,19 @@ static DataBuffer_t _buffer;
 static Classifier_t _classifier;
 static Classifier_t _hmm;
 
+#define NUM_HMM_STATES (2)
+static const int16_t k_default_audio_hmm_A[NUM_HMM_STATES][NUM_HMM_STATES] =
+{{1023,1},
+{1020,3}};
 
-static const int16_t k_default_audio_hmm_A[3][3] =
-   {{1023,1,1},
-    {100,923,1},
-    {1,213,810}};
+static const int16_t k_default_audio_hmm_vecs[NUM_HMM_STATES][NUM_AUDIO_FEATURES] =
+{{-897,100,-429,168,-130,8,-4,-30,-23,17,-28,-14,-2,0,-15,-3},
+{-885,95,-333,197,-140,-160,-88,-2,30,199,-86,-40,-32,15,-15,-1}};
 
-static const int16_t k_default_audio_hmm_vecs[3][NUM_AUDIO_FEATURES] =
-{{-745,-162,326,-187,-227,-244,288,-343,-19,2,-94,37,1,-28,-4,-3},
-    {-690,-232,-352,290,-55,-437,291,105,-88,-38,69,38,-29,-46,15,-4},
-    {-755,-147,-198,294,-198,-375,336,33,-152,-36,91,21,-18,-20,10,-4}};
+static const int16_t k_default_audio_hmm_vars[NUM_HMM_STATES] = {438,186};
 
-static const int16_t k_default_audio_hmm_vars[3] = {381,56,40};
 
-static const AudioHmm_t k_default_audio_hmm = {3,&k_default_audio_hmm_A[0][0],&k_default_audio_hmm_vecs[0][0],&k_default_audio_hmm_vars[0]};
+static const AudioHmm_t k_default_audio_hmm = {NUM_HMM_STATES,&k_default_audio_hmm_A[0][0],&k_default_audio_hmm_vecs[0][0],&k_default_audio_hmm_vars[0]};
 
 
 
@@ -305,7 +305,7 @@ void AudioClassifier_DataCallback(const AudioFeatures_t * pfeats) {
         
         if (_buffer.isWorthClassifying) {
             loglik = AudioHmm_EvaluateModel(&k_default_audio_hmm, &_buffer.classifier_feat_buf[0][0], CLASSIFIER_BUF_LEN);
-          //  printf("loglik = %d\n",loglik);
+         //   UARTprintf("loglik = %d\n",loglik);
             
         }
         
