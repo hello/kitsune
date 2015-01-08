@@ -1763,22 +1763,18 @@ int verify_top_update(const char * path){
 }
 static int _sf_sha1_verify(const char * sha_truth, const char * serial_file_path){
     //compute the sha of the file..
-    unsigned char * full_path;
+#define minval( a,b ) a < b ? a : b
     unsigned char sha[SHA1_SIZE] = { 0 };
     static unsigned char buffer[128];
     SHA1_CTX sha1ctx;
     SHA1_Init(&sha1ctx);
-#define minval( a,b ) a < b ? a : b
     unsigned long tok = 0;
     long hndl, err, bytes, bytes_to_read;
     SlFsFileInfo_t info;
-    //copy filepath
-    strncpy((char*)buffer, serial_file_path, sizeof(buffer)-1);
-    buffer[sizeof(buffer)-1] = 0;
     //fetch path info
-    LOGI( "computing SHA of %s\n", buffer);
-    sl_FsGetInfo(buffer, tok, &info);
-    err = sl_FsOpen((unsigned char*)buffer, FS_MODE_OPEN_READ, &tok, &hndl);
+    LOGI( "computing SHA of %s\n", serial_file_path);
+    sl_FsGetInfo(serial_file_path, tok, &info);
+    err = sl_FsOpen((unsigned char*)serial_file_path, FS_MODE_OPEN_READ, &tok, &hndl);
     if (err) {
         LOGI("error opening for read %d\n", err);
         return -1;
@@ -1788,7 +1784,7 @@ static int _sf_sha1_verify(const char * sha_truth, const char * serial_file_path
     while (bytes_to_read > 0) {
         bytes = sl_FsRead(hndl, info.FileLen - bytes_to_read,
                 buffer,
-                (minval(sizeof(buffer),info.FileLen)));
+                (minval(sizeof(buffer),bytes_to_read)));
         SHA1_Update(&sha1ctx, buffer, bytes);
         bytes_to_read -= bytes;
     }
