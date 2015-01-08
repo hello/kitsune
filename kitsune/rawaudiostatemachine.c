@@ -3,10 +3,9 @@
 #include <string.h>
 
 #define NUM_SECONDS_TO_RECORD (30)
-
+#define NUMBER_OF_SNORES_TO_HEAR_BEFORE_ACCEPTING (5)
 
 static const int32_t  k_num_samples_to_record =  (SAMPLE_RATE_IN_HZ/2 * NUM_SECONDS_TO_RECORD); //account for the feature decimation
-static const int32_t k_avg_prob_threshold_to_upload = TOFIX(0.5f,7);
 typedef enum {
 	notrecording,
 	recording
@@ -16,8 +15,9 @@ typedef enum {
 typedef struct {
 	RecordAudioCallback_t callback;
 	EState_t state;
-	int32_t probaccumulator;
+	int32_t num_times_lik_exceeded_threshold;
 	int32_t num_samples_recorded;
+    int32_t num_samples_elapsed;
 } RawAudioStateMachine_t;
 
 static RawAudioStateMachine_t _data;
@@ -46,29 +46,33 @@ void RawAudioStateMachine_Init(RecordAudioCallback_t callback) {
 	_data.callback = callback;
 }
 
-void RawAudioStateMachine_SetProbabilityOfDesiredClass(int8_t probQ7) {
+/*  This gets called every time through (32.5 hz) */
+void RawAudioStateMachine_IncrementSamples(void) {
+    _data.num_samples_elapsed++;
+}
+
+
+/*  This gets called once every second or so */
+void RawAudioStateMachine_SetLogLikelihoodOfModel(int32_t lik, int32_t threshold) {
 
 	AudioCaptureDesc_t desc;
 
-	if (!_data.callback) {
-		return;
-	}
-
-
+	
 	switch (_data.state) {
 	case notrecording:
 	{
-	    if (probQ7 > TOFIX(0.95f,7)) {
+	    if (lik > threshold) {
 	    	memset(&desc,0,sizeof(desc));
-	    //	UARTprintf("SWITCHING TO RECORD MODE--%d samples\r\n",k_num_samples_to_record);
 
 	    	_data.state = recording;
 	    	_data.num_samples_recorded = 0;
-	    	_data.probaccumulator = 0;
-
+	    	_data.num_times_lik_exceeded_threshold = 1;
+      //      printf("start saving...\n");
 	    	desc.change = startSaving;
 
-			_data.callback(&desc);
+            if (_data.callback) {
+                _data.callback(&desc);
+            }
 
 	    }
 
@@ -77,33 +81,36 @@ void RawAudioStateMachine_SetProbabilityOfDesiredClass(int8_t probQ7) {
 
 	case recording:
 	{
-		_data.probaccumulator += probQ7;
-		_data.num_samples_recorded++;
+        if (lik > threshold) {
+            _data.num_times_lik_exceeded_threshold++;
+           // printf("got another one. now at %d\n",_data.num_times_lik_exceeded_threshold);
+        }
+        
+        _data.num_samples_recorded += _data.num_samples_elapsed;
 
 		if (_data.num_samples_recorded > k_num_samples_to_record) {
-			int32_t avgprob;
 			memset(&desc,0,sizeof(desc));
 
 			_data.state = notrecording;
 
-			avgprob = _data.probaccumulator / _data.num_samples_recorded;
 
 			desc.change = stopSaving;
 
-		//	UARTprintf("STOPPING RECORDING, avgprob=%d\r\n",avgprob);
-
-			if (avgprob > k_avg_prob_threshold_to_upload) {
-			//	UARTprintf("let us upload the raw audio\r\n");
-				desc.flags |= AUDIO_TRANSFER_FLAG_UPLOAD;
+            if (_data.num_times_lik_exceeded_threshold >= NUMBER_OF_SNORES_TO_HEAR_BEFORE_ACCEPTING) {
+                //upload
+           //     printf("upload this!\n");
+                desc.flags |= AUDIO_TRANSFER_FLAG_UPLOAD;
 				desc.flags |= AUDIO_TRANSFER_FLAG_DELETE_AFTER_UPLOAD;
 			}
 			else {
-				//UARTprintf("not uploading the raw audio\r\n");
-				desc.flags |= AUDIO_TRANSFER_FLAG_DELETE_IMMEDIATELY;
+                //delete
+                desc.flags |= AUDIO_TRANSFER_FLAG_DELETE_IMMEDIATELY;
 			}
 
-			_data.callback(&desc);
-
+//            printf("done recording...\n");
+            if (_data.callback) {
+                _data.callback(&desc);
+            }
 		}
 
 		break;
@@ -117,7 +124,7 @@ void RawAudioStateMachine_SetProbabilityOfDesiredClass(int8_t probQ7) {
 
 	}
 
-
+    _data.num_samples_elapsed = 0;
 
 
 }

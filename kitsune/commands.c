@@ -326,8 +326,12 @@ int Cmd_record_buff(int argc, char *argv[]) {
 int Cmd_audio_turn_on(int argc, char * argv[]) {
 
 	AudioTask_StartCapture(16000);
+
+	AudioProcessingTask_SetControl(featureUploadsOn,NULL,NULL);
+	AudioProcessingTask_SetControl(rawUploadsOn,NULL,NULL);
+
 	return 0;
-	}
+}
 
 int Cmd_audio_turn_off(int agrc, char * agrv[]) {
 	AudioTask_StopCapture();
@@ -521,18 +525,53 @@ void thread_alarm(void * unused) {
 					memset(&desc,0,sizeof(desc));
 
 					strncpy( desc.file, AUDIO_FILE, 64 );
-					if(alarm.has_ringtone_id)
+					int has_valid_sound_file = 0;
+					char file_name[64] = {0};
+					if(alarm.has_ringtone_path)
 					{
-						char file_name[64] = {0};
-						int ringtone_id = (alarm.ringtone_id >= 0 && alarm.ringtone_id < 4) ? (alarm.ringtone_id + 1) : 1;
-						usnprintf(file_name, sizeof(file_name), "/RINGTONE/DIGO0%02X.raw", ringtone_id);
-						if(!_is_file_exists(file_name))
+						memcpy(file_name, alarm.ringtone_path, sizeof(alarm.ringtone_path) <= 64 ? sizeof(alarm.ringtone_path) : 64);
+						file_name[63] = 0;
+						if(_is_file_exists(file_name))
 						{
-							// TODO: fix this in PVT
-							usnprintf(file_name, sizeof(file_name), "/RINGTO~1/DIGO0%02X.raw", ringtone_id);
+							has_valid_sound_file = 1;
 						}
-						strncpy(desc.file, file_name, 64);
+
 					}
+
+					if(!has_valid_sound_file)
+					{
+						memset(file_name, 0, sizeof(file_name));
+						// fallback for DVT
+						char* fallback = "/RINGTONE/DIGO001.raw";
+						char* fallback_short = "/RINGTO~1/DIGO001.raw";
+						if(_is_file_exists(fallback))
+						{
+							memcpy(file_name, fallback, strlen(fallback));
+							has_valid_sound_file = 1;
+						}else if(_is_file_exists(fallback_short)){
+							memcpy(file_name, fallback_short, strlen(fallback_short));
+							has_valid_sound_file = 1;
+						}
+					}
+
+					if(!has_valid_sound_file)
+					{
+						memset(file_name, 0, sizeof(file_name));
+						// fallback for PVT
+						char* fallback = "/RINGTONE/DIG001.raw";
+						if(_is_file_exists(fallback))
+						{
+							memcpy(file_name, fallback, strlen(fallback));
+							has_valid_sound_file = 1;
+						}
+					}
+
+					if(!has_valid_sound_file)
+					{
+						LOGE("ALARM RING FAIL: NO RINGTONE FILE FOUND %s\n", file_name);
+					}
+
+					strncpy(desc.file, file_name, 64);
 					desc.durationInSeconds = alarm.ring_duration_in_second;
 					desc.volume = 57;
 					desc.onFinished = thread_alarm_on_finished;

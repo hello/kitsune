@@ -1682,7 +1682,7 @@ void file_download_task( void * params ) {
                 int res;
                 strncpy((char*)full_path, serial_flash_path, sizeof(full_path)-1);
                 full_path[sizeof(full_path)-1] = 0;
-                strncat((char*)full_path, serial_flash_name, sizeof(full_path) - strlen(full_path) - 1);
+                strncat((char*)full_path, serial_flash_name, sizeof(full_path) - strlen((char*)full_path) - 1);
 
                 res = _sf_sha1_verify((char *)download_info.sha1.bytes, (char *)full_path);
 
