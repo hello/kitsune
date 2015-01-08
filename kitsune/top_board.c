@@ -283,7 +283,7 @@ _save_top_info(const top_info_t * info){
     if (sl_FsOpen((unsigned char*)TOPBOARD_INFO_FILE, FS_MODE_OPEN_WRITE, &tok, &file_handle)) {
         LOGI("error opening file %s, trying to create\n", TOPBOARD_INFO_FILE);
         if (sl_FsOpen((unsigned char*)TOPBOARD_INFO_FILE, FS_MODE_OPEN_CREATE(1024, _FS_FILE_OPEN_FLAG_COMMIT), &tok, &file_handle)) {
-            LOGI("error opening %s for write\n", path);
+            LOGI("error opening %s for write\n", TOPBOARD_INFO_FILE);
             return -1;
         }else{
             sl_FsWrite(file_handle, 0, info, sizeof(top_info_t));  // Dummy write, we don't care about the result
