@@ -1650,12 +1650,12 @@ void file_download_task( void * params ) {
 
                 if (strcmp(buf, "/top/update.bin") == 0) {
                     if (download_info.has_sha1) {
+                        memcpy(top_sha_cache, download_info.sha1.bytes, SHA1_SIZE );
                         if( _sf_sha1_verify((char *)download_info.sha1.bytes, buf)){
                             LOGW("Top DFU download failed\r\n");
                             top_need_dfu = 0;
                             goto end_download_task;
                         }else{
-                            memcpy(top_sha_cache, download_info.sha1.bytes, SHA1_SIZE );
                             top_need_dfu = 1;
                         }
                     }
