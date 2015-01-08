@@ -1420,7 +1420,7 @@ static _i32 _WriteBootInfo(sBootInfo_t *psBootInfo)
     //
     // Initialize boot info file create flag
     //
-    ulBootInfoCreateFlag  = FS_MODE_OPEN_CREATE(256, _FS_FILE_OPEN_FLAG_COMMIT|_FS_FILE_PUBLIC_WRITE),
+    ulBootInfoCreateFlag  = FS_MODE_OPEN_CREATE(256, _FS_FILE_OPEN_FLAG_COMMIT|_FS_FILE_PUBLIC_WRITE);
 
     //
     // Check if its a secure MCU
