@@ -1412,7 +1412,7 @@ static sBootInfo_t sBootInfo;
 static _i32 _WriteBootInfo(sBootInfo_t *psBootInfo)
 {
     _i32 hndl;
-    unsigned long ulBootInfoToken;
+    unsigned long ulBootInfoToken = 0;
     unsigned long ulBootInfoCreateFlag;
 
     //
@@ -1425,10 +1425,11 @@ static _i32 _WriteBootInfo(sBootInfo_t *psBootInfo)
     //
     if ( IsSecureMCU() )
     {
-      ulBootInfoToken       = USER_BOOT_INFO_TOKEN;
-      ulBootInfoCreateFlag  = _FS_FILE_OPEN_FLAG_COMMIT|_FS_FILE_OPEN_FLAG_SECURE|
-                              _FS_FILE_OPEN_FLAG_NO_SIGNATURE_TEST|
-                              _FS_FILE_PUBLIC_WRITE|_FS_FILE_OPEN_FLAG_VENDOR;
+        LOGI("Boot info is secure mcu\r\n");
+        ulBootInfoToken       = USER_BOOT_INFO_TOKEN;
+        ulBootInfoCreateFlag  = _FS_FILE_OPEN_FLAG_COMMIT|_FS_FILE_OPEN_FLAG_SECURE|
+            _FS_FILE_OPEN_FLAG_NO_SIGNATURE_TEST|
+            _FS_FILE_PUBLIC_WRITE|_FS_FILE_OPEN_FLAG_VENDOR;
     }
 
 
