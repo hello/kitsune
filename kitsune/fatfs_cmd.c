@@ -1415,6 +1415,8 @@ static _i32 _WriteBootInfo(sBootInfo_t *psBootInfo)
     unsigned long ulBootInfoToken = 0;
     unsigned long ulBootInfoCreateFlag;
 
+
+    sl_FsDel((unsigned char *)IMG_BOOT_INFO,ulBootInfoToken);
     //
     // Initialize boot info file create flag
     //
@@ -1639,8 +1641,6 @@ void file_download_task( void * params ) {
                     LOGI("MCU image name converted to %s \n", serial_flash_name);
                 }
 
-                //download twice to bypass serial flash bug, thanks TI
-                download_file(host, url, serial_flash_name,serial_flash_path, SERIAL_FLASH);
                 if (download_file(host, url, serial_flash_name,
                             serial_flash_path, SERIAL_FLASH) != 0) {
                     goto end_download_task;
