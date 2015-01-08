@@ -1575,6 +1575,7 @@ xQueueHandle download_queue = 0;
 
 void file_download_task( void * params ) {
     SyncResponse_FileDownload download_info;
+    unsigned char top_sha_cache[SHA1_SIZE];
     int top_need_dfu = 0;
     for(;;) while (xQueueReceive(download_queue, &(download_info), 100)) {
         char * filename=NULL, * url=NULL, * host=NULL, * path=NULL, * serial_flash_path=NULL, * serial_flash_name=NULL;
@@ -1654,7 +1655,7 @@ void file_download_task( void * params ) {
                             top_need_dfu = 0;
                             goto end_download_task;
                         }else{
-                            memcpy(sBootInfo.shatop[0], download_info.sha1.bytes, SHA1_SIZE );
+                            memcpy(top_sha_cache, download_info.sha1.bytes, SHA1_SIZE );
                             top_need_dfu = 1;
                         }
                     }
@@ -1683,16 +1684,7 @@ void file_download_task( void * params ) {
                     goto end_download_task;
                 }else{
                     if(top_need_dfu){
-                        /*
-                         *send_top("dfu", strlen("dfu"));
-                         *if(wait_for_top_boot(60000)){
-                         *    LOGI("Top board update success\r\n");
-                         *}else{
-                         *    LOGE("Top board update failed\r\n");
-                         *    //TODO handle failure scenario
-                         *    mcu_reset();
-                         *}
-                         */
+                        memcpy(sBootInfo.shatop[0], top_sha_cache, SHA1_SIZE );
                     }
                     LOGI("change image status to IMG_STATUS_TESTREADY\n\r");
                     sBootInfo.ulImgStatus = IMG_STATUS_TESTREADY;
