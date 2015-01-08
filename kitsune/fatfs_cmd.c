@@ -959,6 +959,8 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 				//write to serial flash file
 	            r = sl_FsWrite(fileHandle, total - recv_size,
 	                    (unsigned char *)pBuff, transfer_len);
+	            r = sl_FsWrite(fileHandle, total - recv_size,
+	                    (unsigned char *)pBuff, transfer_len);
 	            if(r < transfer_len)
 	            {
 	            	LOGI("Failed during writing the file\n");
@@ -1441,7 +1443,9 @@ static _i32 _WriteBootInfo(sBootInfo_t *psBootInfo)
 		if (sl_FsOpen((unsigned char *)IMG_BOOT_INFO, ulBootInfoCreateFlag, &ulBootInfoToken, &hndl)) {
             LOGE("Boot info open failed\n");
 			return -1;
-		}
+		}else{
+            sl_FsWrite(file_handle, 0, (_u8 *)psBootInfo, sizeof(sBootInfo_t)));  // Dummy write, we don't care about the result
+        }
 	}
 	if( 0 < sl_FsWrite(hndl, 0, (_u8 *)psBootInfo, sizeof(sBootInfo_t)) )
 	{
