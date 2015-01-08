@@ -1728,6 +1728,8 @@ int send_periodic_data(batched_periodic_data* data) {
     }
     int len = atoi(len_str);
     
+    boot_commit_ota(); //commit only if we hear back from the server...
+
     SyncResponse response_protobuf;
     memset(&response_protobuf, 0, sizeof(response_protobuf));
     response_protobuf.files.funcs.decode = _on_file_download;
@@ -1739,7 +1741,6 @@ int send_periodic_data(batched_periodic_data* data) {
         response_protobuf.has_reset_device,
         response_protobuf.has_led_action);
 
-    	boot_commit_ota(); //commit only if we hear back from the server...
 		_on_response_protobuf(&response_protobuf);
 		wifi_status_set(UPLOADING, false);
         vPortFree(buffer);
