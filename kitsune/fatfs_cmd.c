@@ -1511,8 +1511,7 @@ void boot_commit_ota() {
                 LOGI("Top board update success\r\n");
             }else{
                 LOGE("Top board update failed\r\n");
-                //TODO handle failure scenario
-                mcu_reset();
+                //FORCE boot into factory next time
             }
         }else{
             LOGW("TOP checksum error, skipping update\r\n");
