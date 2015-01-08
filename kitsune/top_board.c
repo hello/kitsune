@@ -263,7 +263,7 @@ _load_top_info(top_info_t * info){
     // read in aes key
     int ret = sl_FsOpen((unsigned char *)TOPBOARD_INFO_FILE, FS_MODE_OPEN_READ, NULL, &file_handle);
     if (ret != 0) {
-        LOGW("failed to open file %s, setting default values\n", settings_file);
+        LOGW("failed to open file %s, setting default values\n", TOPBOARD_INFO_FILE);
         memset(info, 0, sizeof(top_info_t));
         return -1;
     }
@@ -276,13 +276,13 @@ static int
 _save_top_info(const top_info_t * info){
     unsigned long tok = 0;
     long file_handle = 0;
-    SlFsFileInfo_t info = {0};
+    SlFsFileInfo_t finfo = {0};
 
-    sl_FsGetInfo((unsigned char*)TOPBOARD_INFO_FILE, tok, &info);
+    sl_FsGetInfo((unsigned char*)TOPBOARD_INFO_FILE, tok, &finfo);
 
-    if (sl_FsOpen((unsigned char*)path, FS_MODE_OPEN_WRITE, &tok, &file_handle)) {
-        LOGI("error opening file %s, trying to create\n", path);
-        if (sl_FsOpen((unsigned char*)TOPBOARD_INFO_FILE, FS_MODE_OPEN_CREATE(512, _FS_FILE_OPEN_FLAG_COMMIT), &tok, &file_handle)) {
+    if (sl_FsOpen((unsigned char*)TOPBOARD_INFO_FILE, FS_MODE_OPEN_WRITE, &tok, &file_handle)) {
+        LOGI("error opening file %s, trying to create\n", TOPBOARD_INFO_FILE);
+        if (sl_FsOpen((unsigned char*)TOPBOARD_INFO_FILE, FS_MODE_OPEN_CREATE(1024, _FS_FILE_OPEN_FLAG_COMMIT), &tok, &file_handle)) {
             LOGI("error opening %s for write\n", path);
             return -1;
         }else{
