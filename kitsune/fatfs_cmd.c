@@ -1444,7 +1444,7 @@ static _i32 _WriteBootInfo(sBootInfo_t *psBootInfo)
             LOGE("Boot info open failed\n");
 			return -1;
 		}else{
-            sl_FsWrite(file_handle, 0, (_u8 *)psBootInfo, sizeof(sBootInfo_t)));  // Dummy write, we don't care about the result
+            sl_FsWrite(file_handle, 0, (_u8 *)psBootInfo, sizeof(sBootInfo_t));  // Dummy write, we don't care about the result
         }
 	}
 	if( 0 < sl_FsWrite(hndl, 0, (_u8 *)psBootInfo, sizeof(sBootInfo_t)) )
