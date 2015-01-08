@@ -1501,7 +1501,9 @@ void boot_commit_ota() {
     /* Check only on status TESTING */
     if( IMG_STATUS_TESTING == sBootInfo.ulImgStatus )
 	{
-		LOGI("Booted in testing mode\n");
+        DISP("\r\n-----------------------\r\n");
+		LOGI("Booted in testing mode\r\n");
+        DISP("\r\n-----------------------\r\n");
         if( !verify_top_update("/top/update.bin")){
             LOGI("Updating top board\r\n");
             send_top("dfu", strlen("dfu"));
