@@ -1636,7 +1636,7 @@ void file_download_task( void * params ) {
                 if (strcmp(buf, "/top/update.bin") == 0) {
                     if (download_info.has_sha1) {
                         if( _sf_sha1_verify((char *)download_info.sha1.bytes, buf)){
-                            LOGE("Top DFU failed\r\n");
+                            LOGW("Top DFU download failed\r\n");
                             top_need_dfu = 0;
                             goto end_download_task;
                         }else{
