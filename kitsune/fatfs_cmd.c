@@ -898,7 +898,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
     {
         r = GetChunkSize(&transfer_len, &pBuff, &recv_size);
     }
-    FRESULT res;
+    FRESULT res = 0;
 
 	if (storage == SD_CARD) {
 		mkdir(path);
@@ -997,7 +997,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 	                return sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
 	            }
 			}
-            LOGI("chunked 1 wrote:  %d %d\r\n", r, res);
+            LOGI("chunked 1 wrote:  %d / %d , %d\r\n", r,transfer_len,  res);
 
             if(r < recv_size)
             {
