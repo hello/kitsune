@@ -77,3 +77,18 @@ void AudioControlHelper_SetAudioControl(AudioControl * pcontrol) {
 	}
 
 }
+
+
+
+void AudioControlHelper_SetPillSettings(const SyncResponse_PillSettings * settings, uint16_t count) {
+
+	uint16_t i;
+
+	for (i = 0; i < count; i++) {
+		AudioTask_AddPillId(settings[i].pill_id,i==0);
+	}
+
+
+}
+
+

@@ -28,6 +28,7 @@
 #include "sl_sync_include_after_simplelink_header.h"
 #include "ustdlib.h"
 #include "pill_settings.h"
+#include "audiotask.h"
 
 typedef void(*task_routine_t)(void*);
 
@@ -618,6 +619,9 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         	}else{
         		LOGI("You may have a bug in the pill\n");
         	}
+
+        	AudioTask_SetMotionFromPill(command->pill_data.device_id);
+
     		_process_encrypted_pill_data(command);
     	}
         break;

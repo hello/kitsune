@@ -2,6 +2,7 @@
 #define _AUDIOCAPTURETASK_H_
 
 #include <stdint.h>
+#include <stdbool.h>
 #include "audio_types.h"
 
 
@@ -59,5 +60,8 @@ void AudioTask_StopCapture(void);
 void AudioTask_StartCapture(uint32_t rate);
 
 void AudioTask_DumpOncePerMinuteStats(AudioOncePerMinuteData_t * pdata);
+
+void AudioTask_AddPillId(const char * pill_id, bool reset);
+void AudioTask_SetMotionFromPill(const char * pill_id);
 
 #endif //_AUDIOCAPTURETASK_H_
