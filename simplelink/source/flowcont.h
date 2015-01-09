@@ -47,11 +47,11 @@ extern "C" {
 /*****************************************************************************/
 #define FLOW_CONT_MIN 1
 
-/*****************************************************************************/
-/* Function prototypes                                                       */
-/*****************************************************************************/
+#if 0
 extern void _SlDrvFlowContInit(void);
 extern void _SlDrvFlowContDeinit(void);
+#endif
+
 
 #ifdef  __cplusplus
 }

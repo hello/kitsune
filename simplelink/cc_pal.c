@@ -591,6 +591,7 @@ int spi_Read(Fd_t fd, unsigned char *pBuff, int len)
 	}
 	else
 	{
+		MAP_SPIWordCountSet(LSPI_BASE,0);
 		read_size += spi_Read_CPU(pBuff,len);
 	}
     return read_size;
@@ -643,6 +644,7 @@ int spi_Write(Fd_t fd, unsigned char *pBuff, int len)
 
 	else
 	{
+		MAP_SPIWordCountSet(LSPI_BASE,0);
 		write_size += spi_Write_CPU(pBuff,len);
 	}
     return write_size;

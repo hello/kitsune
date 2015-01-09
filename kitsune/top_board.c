@@ -267,7 +267,7 @@ _load_top_info(top_info_t * info){
         memset(info, 0, sizeof(top_info_t));
         return -1;
     }
-    long bytes_read = sl_FsRead(file_handle, 0, info, sizeof(top_info_t));
+    long bytes_read = sl_FsRead(file_handle, 0, (uint8_t*)info, sizeof(top_info_t));
     LOGI("read %d bytes from file %s\n", bytes_read, TOPBOARD_INFO_FILE);
     sl_FsClose(file_handle, NULL, NULL, 0);
     return 0;
@@ -286,11 +286,11 @@ _save_top_info(const top_info_t * info){
             LOGI("error opening %s for write\n", TOPBOARD_INFO_FILE);
             return -1;
         }else{
-            sl_FsWrite(file_handle, 0, info, sizeof(top_info_t));  // Dummy write, we don't care about the result
+            sl_FsWrite(file_handle, 0, (uint8_t*)info, sizeof(top_info_t));  // Dummy write, we don't care about the result
         }
     }
 
-    long bytes_written = sl_FsWrite(file_handle, 0, info, sizeof(top_info_t));
+    long bytes_written = sl_FsWrite(file_handle, 0, (uint8_t*)info, sizeof(top_info_t));
     if( bytes_written != sizeof(top_info_t)) {
         LOGE( "write pill settings failed %d", bytes_written);
         return -1;
@@ -406,5 +406,5 @@ int Cmd_top_dtm(int argc, char * argv[]){
 }
 int verify_top_update(void){
     _load_top_info(&self.info);
-    return sf_sha1_verify(self.info.update_sha, "/top/update.bin");
+    return sf_sha1_verify((uint8_t*)self.info.update_sha, "/top/update.bin");
 }

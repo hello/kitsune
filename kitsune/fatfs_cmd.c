@@ -898,7 +898,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
     {
         r = GetChunkSize(&transfer_len, &pBuff, &recv_size);
     }
-    FRESULT res = 0;
+    FRESULT res = FR_OK;
 
 	if (storage == SD_CARD) {
 		mkdir(path);
@@ -1530,6 +1530,10 @@ static _i32 _McuImageGetNewIndex(void)
 #include "FreeRTOS.h"
 #include "task.h"
 #include "top_board.h"
+
+int wait_for_top_boot(unsigned int timeout);
+int send_top(char *, int);
+
 void boot_commit_ota() {
     _ReadBootInfo(&sBootInfo);
     /* Check only on status TESTING */
@@ -1573,8 +1577,6 @@ int Cmd_version(int argc, char *argv[]) {
 	return 0;
 }
 
-int wait_for_top_boot(unsigned int timeout);
-int send_top(char *, int);
 bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, void **arg);
 void free_download_info(SyncResponse_FileDownload * download_info) {
 	char * filename=NULL, * url=NULL, * host=NULL, * path=NULL, * serial_flash_path=NULL, * serial_flash_name=NULL;
@@ -1722,7 +1724,7 @@ void file_download_task( void * params ) {
                         /*
                          *memcpy(sBootInfo.shatop[0], top_sha_cache, SHA1_SIZE );
                          */
-                        set_top_update_sha(top_sha_cache, 0);
+                        set_top_update_sha((char*)top_sha_cache, 0);
                     }
                     LOGI("change image status to IMG_STATUS_TESTREADY\n\r");
                     sBootInfo.ulImgStatus = IMG_STATUS_TESTREADY;
@@ -1806,7 +1808,7 @@ int sf_sha1_verify(const char * sha_truth, const char * serial_file_path){
     SlFsFileInfo_t info;
     //fetch path info
     LOGI( "computing SHA of %s\n", serial_file_path);
-    sl_FsGetInfo(serial_file_path, tok, &info);
+    sl_FsGetInfo((unsigned char*)serial_file_path, tok, &info);
     err = sl_FsOpen((unsigned char*)serial_file_path, FS_MODE_OPEN_READ, &tok, &hndl);
     if (err) {
         LOGI("error opening for read %d\n", err);
