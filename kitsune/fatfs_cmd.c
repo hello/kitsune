@@ -694,12 +694,23 @@ int GetChunkSize(int *len, unsigned char **p_Buff, unsigned long *chunk_size)
     {
         if(*len == 0)
         {
+            int retry = 0;
             memset(g_buff, 0, MAX_BUFF_SIZE);
-            *len = recv(dl_sock, g_buff, MAX_BUFF_SIZE, 0);
+
+            do{
+                *len = recv(dl_sock, g_buff, MAX_BUFF_SIZE, 0);
+                if(++retry > 3){
+                    break;
+                }
+                if(*len < 0 ){
+                    vTaskDelay(200);
+                }
+            }while(*len == SL_EAGAIN);
 
             LOGI( "chunked rx:\r\n%s\r\n", g_buff);
-            if(*len <= 0)
+            if(*len <= 0){
                 ASSERT_ON_ERROR(-1);
+            }
 
             *p_Buff = g_buff;
         }
@@ -751,11 +762,12 @@ typedef enum {
 
 #include "crypto.h"
 
-
+#define RETRY_COUNT 3
 int GetData(char * filename, char* url, char * host, char * path, storage_dev_t storage)
 {
     int           transfer_len = 0;
     WORD          r = 0;
+    int           retry;
     unsigned char *pBuff = 0;
     char          eof_detected = 0;
     unsigned long recv_size = 0;
@@ -788,13 +800,21 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
     memset(g_buff, 0, MAX_BUFF_SIZE);
 
     // get the reply from the server in buffer.
-    transfer_len = recv(dl_sock, &g_buff[0], MAX_BUFF_SIZE, 0);
+    retry = 0;
+    do {
+        transfer_len = recv(dl_sock, &g_buff[0], MAX_BUFF_SIZE, 0);
+        if(++retry > RETRY_COUNT){
+            break;
+        }
+        if(transfer_len < 0 ){
+            vTaskDelay(200);
+        }
+    }while(transfer_len == SL_EAGAIN);
 
-    if(transfer_len <= 0)
-    {
+    if(transfer_len < 0){
+        LOGW("Download error %d\r\n",transfer_len);
         ASSERT_ON_ERROR(-1);
     }
-
     //LOGI("recv:\r\n%s\r\n", g_buff ); don't echo binary
 
     // Check for 404 return code
