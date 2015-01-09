@@ -979,8 +979,9 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 				//write to serial flash file
 	            r = sl_FsWrite(fileHandle, total - recv_size,
 	                    (unsigned char *)pBuff, transfer_len);
-	            r = sl_FsWrite(fileHandle, total - recv_size,
-	                    (unsigned char *)pBuff, transfer_len);
+                if(r > 0 && r < transfer_len){
+	            	LOGI("\r\nFailed to write correct chunk size\r\n");
+                }
 	            if(r < transfer_len)
 	            {
 	            	LOGI("Failed during writing the file\n");
