@@ -936,6 +936,13 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 	                           &Token, &fileHandle);
 			if (lRetVal < 0) {
 				return (lRetVal);
+            }else{
+	            sl_FsWrite(fileHandle, 0, (unsigned char *)path_buff, 1);
+                sl_FsClose(fileHandle, 0, 0, 0);
+                lRetVal = sl_FsOpen((unsigned char*)path_buff, FS_MODE_OPEN_WRITE, &Token, &fileHandle);
+                if(lRetVal < 0){
+                    return (lRetVal);
+                }
             }
 		}
 	    LOGI("opening %s\n", path_buff);
