@@ -1334,7 +1334,6 @@ int download_file(char * host, char * url, char * filename, char * path, storage
 	}
 
 	r = close(dl_sock);
-    vTaskDelay(2000);
 
 	return r;
 }
