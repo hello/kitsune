@@ -1547,6 +1547,8 @@ void boot_commit_ota() {
             send_top("dfu", strlen("dfu"));
             if(wait_for_top_boot(60000)){
                 LOGI("Top board update success\r\n");
+				//delete update on success
+				sl_FsDel( "/top/update.bin", 0);
             }else{
                 LOGE("Top board update failed\r\n");
                 //FORCE boot into factory next time
