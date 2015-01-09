@@ -1001,6 +1001,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 
             if(r < recv_size)
             {
+            	LOGI("What does this even mean???\r\n");
     			stop_led_animation();
     			if (storage == SD_CARD) {
     				/* Close file without saving */
