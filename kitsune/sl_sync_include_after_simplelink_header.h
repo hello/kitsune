@@ -27,8 +27,8 @@ extern "C" {
 	({ \
 	long sl_ret; \
 	sl_enter_critical_region(); \
-	sl_exit_critical_region(); \
 	sl_ret = (call); \
+	sl_exit_critical_region(); \
 	sl_ret; \
 	})
 
