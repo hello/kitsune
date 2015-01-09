@@ -31,6 +31,14 @@ extern "C" {
 	sl_exit_critical_region(); \
 	sl_ret; \
 	})
+#define SL_BARRIER(call) \
+	({ \
+	long sl_ret; \
+	sl_enter_critical_region(); \
+	sl_exit_critical_region(); \
+	sl_ret = (call); \
+	sl_ret; \
+	})
 
 #endif
 
@@ -82,7 +90,7 @@ extern "C" {
 #define sl_NetCfgGet(...)                        SL_SYNC(sl_NetCfgGet(__VA_ARGS__))
 #define sl_Socket(...)                           SL_SYNC(sl_Socket(__VA_ARGS__))
 #define sl_Close(...)                            SL_SYNC(sl_Close(__VA_ARGS__))
-#define sl_Accept(...)                           SL_SYNC(sl_Accept(__VA_ARGS__))
+#define sl_Accept(...)                           SL_BARRIER(sl_Accept(__VA_ARGS__))
 #define sl_Bind(...)                             SL_SYNC(sl_Bind(__VA_ARGS__))
 #define sl_Listen(...)                           SL_SYNC(sl_Listen(__VA_ARGS__))
 #define sl_Connect(...)                          SL_SYNC(sl_Connect(__VA_ARGS__))
