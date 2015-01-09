@@ -49,6 +49,7 @@
 #define HTTP_CONNECTION_CLOSE  "close"  /* HTTP Connection header value */
 
 #define DNS_RETRY           5 /* No of DNS tries */
+#define SOCK_RETRY      5
 #define HTTP_END_OF_HEADER  "\r\n\r\n"  /* string marking the end of headers in response */
 
 #define MAX_BUFF_SIZE      512
@@ -699,7 +700,7 @@ int GetChunkSize(int *len, unsigned char **p_Buff, unsigned long *chunk_size)
 
             do{
                 *len = recv(dl_sock, g_buff, MAX_BUFF_SIZE, 0);
-                if(++retry > 3){
+                if(++retry > SOCK_RETRY){
                     break;
                 }
                 if(*len < 0 ){
@@ -762,7 +763,6 @@ typedef enum {
 
 #include "crypto.h"
 
-#define RETRY_COUNT 3
 int GetData(char * filename, char* url, char * host, char * path, storage_dev_t storage)
 {
     int           transfer_len = 0;
@@ -803,7 +803,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
     retry = 0;
     do {
         transfer_len = recv(dl_sock, &g_buff[0], MAX_BUFF_SIZE, 0);
-        if(++retry > RETRY_COUNT){
+        if(++retry > SOCK_RETRY){
             break;
         }
         if(transfer_len < 0 ){
@@ -936,7 +936,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 	                           &Token, &fileHandle);
 			if (lRetVal < 0) {
 				return (lRetVal);
-			}
+            }
 		}
 	    LOGI("opening %s\n", path_buff);
 
