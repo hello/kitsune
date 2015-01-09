@@ -1025,7 +1025,6 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
                 if(GetChunkSize(&transfer_len, &pBuff, &recv_size) < 0)
                 {
                     // Error
-                	LOGI("CHUNK ERROR!!!\r\n");
                     break;
                 }
 
