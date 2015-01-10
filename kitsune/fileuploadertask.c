@@ -53,7 +53,7 @@ static void Init() {
 	uint16_t i;
 
 	if (!_sem) {
-		_sem = xSemaphoreCreateCounting(NUM_UPLOADS_TRACKED,0);
+		_sem = xSemaphoreCreateCounting(NUM_UPLOADS_TRACKED,NUM_UPLOADS_TRACKED);
 	}
 
 	if (!_listMutex) {
@@ -65,7 +65,7 @@ static void Init() {
 	}
 
 	if (!_pListMem) {
-		LOGE("UNABLE TO ALLOCATE SUFFICIENT MEMORY");  //and god help you if you try to upload a file
+		LOGE("UNABLE TO ALLOCATE SUFFICIENT MEMORY\n");  //and god help you if you try to upload a file
 		return;
 	}
 
@@ -112,6 +112,9 @@ static void NetTaskResponse (const NetworkResponse_t * response, void * context)
 	FileUploadListItem_t * p = (FileUploadListItem_t *)context;
 
 	//delete even if upload was not successful
+
+	LOGI("done uploading %s\n",p->sfilepath);
+
 	if (p->deleteAfterUpload) {
 		FRESULT res;
 
@@ -234,6 +237,8 @@ static uint32_t FileEncode(pb_ostream_t * stream,void * data) {
 static void Enqueue(FileUploadListItem_t * p,uint8_t * recvbuf,uint32_t recvbuf_size) {
 	NetworkTaskServerSendMessage_t mnet;
 
+	memset(&mnet,0,sizeof(mnet));
+
 	mnet.decode_buf = recvbuf;
 	mnet.decode_buf_size = recvbuf_size;
 	mnet.endpoint = p->endpoint;
@@ -248,7 +253,7 @@ static void Enqueue(FileUploadListItem_t * p,uint8_t * recvbuf,uint32_t recvbuf_
 
 	//the network task will eventually call our encode callback
 	//and send the protobuf onwards to the server
-	if (NetworkTask_AddMessageToQueue(&mnet));
+	NetworkTask_AddMessageToQueue(&mnet);
 }
 
 void FileUploaderTask_Thread(void * data) {
@@ -262,7 +267,6 @@ void FileUploaderTask_Thread(void * data) {
 	for (; ; ) {
 		vTaskDelay(POLLING_PERIOD_IN_TICKS);
 
-
 		//guard the list
 		xSemaphoreTake(_listMutex,portMAX_DELAY);
 
@@ -272,14 +276,22 @@ void FileUploaderTask_Thread(void * data) {
 		while (p) {
 			p->delay_in_ticks -= POLLING_PERIOD_IN_TICKS;
 
+#ifdef FILUPLOADER_DEBUG_ME
+			LOGI("%s has %d ticks until upload\n",p->sfilepath,p->delay_in_ticks);
+#endif
+
 			pnext = p->next;
 
 			if (p->delay_in_ticks <= 0) {
 				//move to head of working list
 				MoveItemToFront(&_pWorkingHead,&_pCountdownHead,p);
 
+#ifdef FILUPLOADER_DEBUG_ME
+				LOGI("trying to upload %s\n",p->sfilepath);
+#endif
 				//now add to the net task
 				Enqueue(p,recvbuf,sizeof(recvbuf));
+
 			}
 
 			p = pnext;
@@ -349,7 +361,7 @@ void FileUploaderTask_CancelUploadByGroup(uint32_t group) {
 
 		if (p->group_id == group) {
 			//move to free list if group matches -- i.e. cancel this upload
-			LOGI("canceling upload of %s",p->sfilepath);
+			LOGI("canceling upload of %s\n",p->sfilepath);
 			MoveItemToFront(&_pFreeHead,&_pCountdownHead,p);
 
 			if (p->deleteAfterUpload) {

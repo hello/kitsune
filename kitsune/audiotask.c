@@ -20,6 +20,7 @@
 #include <string.h>
 #include <stdio.h>
 #include "ustdlib.h"
+#include "uart_logger.h"
 
 #if 0
 #define PRINT_TIMING
@@ -115,7 +116,11 @@ static void DumpQueuedFiles(void) {
 }
 
 static void QueueFileForUpload(const char * filename,uint8_t delete_after_upload) {
-	FileUploaderTask_Upload(filename,DATA_SERVER,RAW_AUDIO_ENDPOINT,delete_after_upload,UPLOADER_GROUP_ID_AUDIO_TASK,PILL_PERIOD_DELAY,NULL,NULL,portMAX_DELAY);
+	LOGI("queueing %s for upload\n",filename);
+
+	//don't upload, don't block if our uploader task is full
+#define WAIT_PERIOD (0)
+	FileUploaderTask_Upload(filename,DATA_SERVER,RAW_AUDIO_ENDPOINT,delete_after_upload,UPLOADER_GROUP_ID_AUDIO_TASK,PILL_PERIOD_DELAY,NULL,NULL,WAIT_PERIOD);
 }
 
 
@@ -725,6 +730,8 @@ void AudioTask_SetMotionFromPill(const char * pill_id) {
 
 void AudioTask_AddPillId(const char * pill_id,bool reset) {
 	xSemaphoreTake(_pilldataMutex,portMAX_DELAY);
+
+
 
 	//remove all strings
 	if (reset) {
