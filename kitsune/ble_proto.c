@@ -354,13 +354,18 @@ static void _send_response_to_ble(const char* buffer, size_t len)
 void sample_sensor_data(periodic_data* data);
 static int _force_data_push()
 {
-    periodic_data* data = pvPortMalloc(sizeof(periodic_data));  // Let's put this in the heap, we don't use it all the time
-    if(!data)
+    if(!wait_for_time(10))
     {
-        ble_reply_protobuf_error(ErrorType_DEVICE_NO_MEMORY);
-        return 0;
+    	ble_reply_protobuf_error(ErrorType_NETWORK_ERROR);
+		return 0;
     }
-    
+
+    periodic_data* data = pvPortMalloc(sizeof(periodic_data));  // Let's put this in the heap, we don't use it all the time
+	if(!data)
+	{
+		ble_reply_protobuf_error(ErrorType_DEVICE_NO_MEMORY);
+		return 0;
+	}
     memset(data, 0, sizeof(periodic_data));
     sample_sensor_data(data);
 

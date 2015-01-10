@@ -298,10 +298,24 @@ static void time_task( void * params ) { //exists to get the time going and cach
 	}
 }
 
-void wait_for_time() { //todo make event based, maybe use semaphore
-	while( !has_good_time() ){
-		vTaskDelay(1000);
+bool wait_for_time(int sec) { //todo make event based, maybe use semaphore
+	if(sec == WAIT_FOREVER)
+	{
+		while(!has_good_time()){
+			vTaskDelay(1000);
+		}
+	}else{
+
+		while(!has_good_time()){
+			vTaskDelay(configTICK_RATE_HZ);
+			if(--sec == 0)
+			{
+				return 0;
+			}
+		}
 	}
+
+	return 1;
 }
 
 bool has_good_time() {
