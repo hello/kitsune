@@ -2,6 +2,7 @@
 #define __SL_SYNC_H__
 
 #include <stdint.h>
+#include "socket.h"
 
 //#define SL_DEBUG_LOG
 
@@ -118,6 +119,8 @@ extern "C" {
 long sl_sync_init();
 long sl_enter_critical_region();
 long sl_exit_critical_region();
+
+long sl_AcceptNoneThreadSafe(_i16 sd, SlSockAddr_t *addr, SlSocklen_t *addrlen);
 
 #ifdef __cplusplus
 }
