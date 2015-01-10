@@ -19,6 +19,7 @@ int pill_settings_load_from_file();
 uint32_t pill_settings_get_color(const char* pill_id);
 int pill_settings_reset_all();
 int pill_settings_init();
+int pill_settings_pill_count();
 
 #ifdef __cplusplus
 }
