@@ -665,7 +665,16 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
             if(command->deviceId.arg){
 				uint32_t color = pill_settings_get_color((const char*)command->deviceId.arg);
 				uint8_t* argb = (uint8_t*)&color;
-				ble_proto_led_flash(0xFF, argb[1], argb[2], argb[3], 10, 2);
+
+				if(color)
+				{
+					ble_proto_led_flash(0xFF, argb[1], argb[2], argb[3], 10, 2);
+				}else{
+					if(_self.led_status == LED_TRIPPY || pill_settings_pill_count() == 0)
+					{
+						ble_proto_led_flash(0xFF, 0x80, 0x00, 0x80, 10, 2);
+					}
+				}
             }else{
             	LOGI("Please update topboard, no pill id\n");
             }
