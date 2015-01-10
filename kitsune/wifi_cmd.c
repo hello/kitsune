@@ -340,8 +340,9 @@ int Cmd_iperf_server(int argc, char *argv[]) {
     {
         // accepts a connection form a TCP client, if there is any
         // otherwise returns SL_EAGAIN
-        iNewSockID = sl_Accept(iSockID, ( struct SlSockAddr_t *)&sAddr,
-                                (SlSocklen_t*)&iAddrSize);
+#undef sl_Accept
+        iNewSockID = sl_Accept(iSockID, ( struct SlSockAddr_t *)&sAddr, (SlSocklen_t*)&iAddrSize);
+#define sl_Accept(...)                           SL_SYNC(sl_Accept(__VA_ARGS__))
         if( iNewSockID == SL_EAGAIN )
         {
            vTaskDelay(10);
