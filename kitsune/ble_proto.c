@@ -453,7 +453,7 @@ void ble_proto_led_busy_mode(uint8_t a, uint8_t r, uint8_t g, uint8_t b, int del
 	led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 0, _self.delay, 1);
 }
 
-void ble_proto_led_roll_once(int a, int r, int g, int b, int delay)
+void ble_proto_led_flash(int a, int r, int g, int b, int delay, int time)
 {
 	LOGI("LED ROLL ONCE\n");
 	_self.argb[0] = a;
@@ -461,17 +461,24 @@ void ble_proto_led_roll_once(int a, int r, int g, int b, int delay)
 	_self.argb[2] = g;
 	_self.argb[3] = b;
 	_self.delay = delay;
-
+	int i = 0;
 	if(_self.led_status == LED_TRIPPY)
 	{
 		ble_proto_led_fade_out(0);
 
 		_self.led_status = LED_BUSY;
-		led_set_color_sync(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 1, 1);
+		for(i = 0; i < time; i++)
+		{
+			led_set_color_sync(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 0, 1);
+		}
+		_self.led_status = LED_OFF;
 		ble_proto_led_fade_in_trippy();
 	}else if(_self.led_status == LED_OFF){
 		_self.led_status = LED_BUSY;
-		led_set_color_sync(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 1, 1);
+		for(i = 0; i < time; i++)
+		{
+			led_set_color_sync(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 0, 1);
+		}
 		_self.led_status = LED_OFF;
 	}
 
@@ -658,7 +665,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
             if(command->deviceId.arg){
 				uint32_t color = pill_settings_get_color((const char*)command->deviceId.arg);
 				uint8_t* argb = (uint8_t*)&color;
-				ble_proto_led_roll_once(0xFF, argb[1], argb[2], argb[3], 18);
+				ble_proto_led_flash(0xFF, argb[1], argb[2], argb[3], 10, 2);
             }else{
             	LOGI("Please update topboard, no pill id\n");
             }
