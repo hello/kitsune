@@ -95,7 +95,9 @@ void AudioControlHelper_SetPillSettings(const SyncResponse_PillSettings * settin
 
 	uint16_t i;
 
+	LOGI("AudioControlHelper_SetPillSettings\n");
 	for (i = 0; i < count; i++) {
+		LOGI("AudioControlHelper: add pill %s\n",settings[i].pill_id);
 		AudioTask_AddPillId(settings[i].pill_id,i==0);
 	}
 
