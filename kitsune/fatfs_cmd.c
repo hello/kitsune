@@ -1626,7 +1626,7 @@ void file_download_task( void * params ) {
         serial_flash_path = download_info.serial_flash_path.arg;
 
         if( strlen(filename) == 0 && strlen(serial_flash_name) == 0 ) {
-            UARTprintf( "no file name!\n");
+            LOGE( "no file name!\n");
             goto next_one;
         }
 

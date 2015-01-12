@@ -361,7 +361,7 @@ int Cmd_do_octogram(int argc, char * argv[]) {
     	numsamples = 500;
     }
     if (numsamples == 0) {
-    	UARTprintf("number of requested samples was zero.\r\n");
+    	LOGI("number of requested samples was zero.\r\n");
     	return 0;
     }
 
@@ -391,19 +391,19 @@ int Cmd_do_octogram(int argc, char * argv[]) {
     	avg += res.logenergy[6];
     	avg /= 4;
 
-    	UARTprintf("%d\r\n", res.logenergy[2] - avg );
+    	LOGI("%d\r\n", res.logenergy[2] - avg );
     	return 0;
     }
 	//report results
-	UARTprintf("octogram log energies: ");
+    LOGI("octogram log energies: ");
 	for (i = 0; i < OCTOGRAM_SIZE; i++) {
 		if (i != 0) {
-			UARTprintf(",");
+			LOGI(",");
 		}
-		UARTprintf("%d",res.logenergy[i]);
+		LOGI("%d",res.logenergy[i]);
 	}
 
-	UARTprintf("\r\n");
+	LOGI("\r\n");
 
 	return 0;
 
@@ -1269,7 +1269,7 @@ int Cmd_generate_factory_data(int argc,char * argv[]) {
     for(i = 1; i < enc_size; i++) {
     	usnprintf(&key_string[i * 2 - 2], 3, "%02X", enc_factory_data[i]);
     }
-    UARTprintf( "\nfactory key: %s\n", key_string);
+    LOGI( "\nfactory key: %s\n", key_string);
 
 
 #if 0 //todo DVT disable!
@@ -1397,14 +1397,14 @@ static void CreateDirectoryIfNotExist(const char * path) {
 		res2 = hello_fs_mkdir(path);
 
 		if (res2 == FR_OK) {
-			UARTprintf("Created directory %s\r\n",path);
+			LOGI("Created directory %s\r\n",path);
 		}
 		else {
-			UARTprintf("Failed to create %s\r\n",path);
+			LOGI("Failed to create %s\r\n",path);
 		}
 	}
 	else {
-		UARTprintf("%s already exists\r\n",path);
+		LOGI("%s already exists\r\n",path);
 	}
 
 }

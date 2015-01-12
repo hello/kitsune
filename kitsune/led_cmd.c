@@ -52,13 +52,13 @@ static xSemaphoreHandle _sync;
 void led_unblock()
 {
 	xSemaphoreGive(_sync);
-	UARTprintf("<");
+	LOGI("<");
 }
 
 void led_block()
 {
 	xSemaphoreTake(_sync, portMAX_DELAY);
-	UARTprintf(">");
+	LOGI(">");
 }
 
 void led_unblock_racing_task()

@@ -406,5 +406,5 @@ int Cmd_top_dtm(int argc, char * argv[]){
 }
 int verify_top_update(void){
     _load_top_info(&self.info);
-    return sf_sha1_verify((uint8_t*)self.info.update_sha, "/top/update.bin");
+    return sf_sha1_verify((char*)self.info.update_sha, "/top/update.bin");
 }

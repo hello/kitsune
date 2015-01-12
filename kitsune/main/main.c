@@ -163,7 +163,7 @@ void
 vAssertCalled( const char *pcFile, unsigned long ulLine )
 {
 
-  UARTprintf( "%s %u ASSERT", pcFile, ulLine );
+  LOGE( "%s %u ASSERT", pcFile, ulLine );
 
   mcu_reset();
 }
@@ -182,7 +182,7 @@ void vApplicationStackOverflowHook( TaskHandle_t xTask, char *pcTaskName )
     ( void ) xTask;
     ( void ) pcTaskName;
 
-    UARTprintf( "%s STACK OVERFLOW", pcTaskName );
+    LOGE( "%s STACK OVERFLOW", pcTaskName );
 
     mcu_reset();
 }

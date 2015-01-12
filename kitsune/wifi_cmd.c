@@ -239,7 +239,7 @@ int Cmd_antsel(int argc, char *argv[]) {
 }
 
 int Cmd_country(int argc, char *argv[]) {
-	UARTprintf("country <code, either US, JP, or EU>\n");
+	LOGI("country <code, either US, JP, or EU>\n");
 	if (argc != 2) {
 		return -1;
 	}
@@ -737,7 +737,7 @@ void load_device_id() {
 int Cmd_test_key(int argc, char*argv[]) {
     load_aes();
     load_device_id();
-    UARTprintf("Last two digit: %02X:%02X\n", aes_key[AES_BLOCKSIZE - 2], aes_key[AES_BLOCKSIZE - 1]);
+    LOGI("Last two digit: %02X:%02X\n", aes_key[AES_BLOCKSIZE - 2], aes_key[AES_BLOCKSIZE - 1]);
 
     MorpheusCommand test_command = {0};
     test_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_SENSE;
@@ -755,13 +755,13 @@ int Cmd_test_key(int argc, char*argv[]) {
                 1000);
 
     if(ret != 0 ) {
-        UARTprintf("Test key failed: network error %d\n", ret);
+    	LOGI("Test key failed: network error %d\n", ret);
     	return -1;
     }
 	if( http_response_ok(response_buffer) ) {
-		UARTprintf(" test key success \n");
+		LOGI(" test key success \n");
 	} else {
-		UARTprintf(" test key not valid \n");
+		LOGI(" test key not valid \n");
 	}
 
     return 0;
