@@ -104,7 +104,7 @@
 //			    GLOBAL VARIABLES
 //******************************************************************************
 
-volatile static bool enable_periodic =true;
+volatile bool enable_periodic =true;
 tCircularBuffer *pTxBuffer;
 tCircularBuffer *pRxBuffer;
 

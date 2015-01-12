@@ -53,11 +53,14 @@ static struct{
     top_info_t info;
 }self;
 
+extern volatile bool enable_periodic;
 static void
 _printchar(uint8_t c){
     char term[2] = {0};
     term[0] = c;
-    LOGI(term);
+    if( !enable_periodic ) {
+    	LOGI(term);
+    }
     /*
 	 *UARTCharPutNonBlocking(UARTA0_BASE, c); //basic feedback
      */
