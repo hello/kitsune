@@ -41,7 +41,7 @@ typedef enum {
     BLE_UNKNOWN = 0,
     BLE_PAIRING,
     BLE_NORMAL
-} ble_mode_t
+} ble_mode_t;
 
 static struct {
 	uint8_t argb[4];
