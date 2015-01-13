@@ -118,6 +118,7 @@ void PinMuxConfig_hw_dep() {
 
 	switch( hw_ver ) {
 	case DVT:
+	case PVT:
 		//DVT uses camera clock for codec's master clock
 		MAP_PRCMPeripheralClkEnable(PRCM_CAMERA, PRCM_RUN_MODE_CLK);
 		HWREG(0x44025000) = 0x0000;
