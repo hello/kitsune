@@ -1,6 +1,7 @@
 #include "audiocontrolhelper.h"
 #include "audiotask.h"
 #include "audioprocessingtask.h"
+#include "uart_logger.h"
 
 
 void AudioControlHelper_SetAudioControl(AudioControl * pcontrol) {
@@ -14,12 +15,16 @@ void AudioControlHelper_SetAudioControl(AudioControl * pcontrol) {
 		case AudioControl_AudioCaptureAction_ON:
 		{
 			AudioTask_StartCapture(16000);
+			LOGI("audio_capture_action: ON\n");
+
 			break;
 		}
 
 		case AudioControl_AudioCaptureAction_OFF:
 		{
 			AudioTask_StopCapture();
+			LOGI("audio_capture_action: OFF\n");
+
 			break;
 		}
 
@@ -36,6 +41,7 @@ void AudioControlHelper_SetAudioControl(AudioControl * pcontrol) {
 		{
 			//turn on uploading of audio MFCC features
 			AudioProcessingTask_SetControl(featureUploadsOn,NULL,NULL);
+			LOGI("audio_save_features: ON\n");
 			break;
 		}
 
@@ -43,6 +49,7 @@ void AudioControlHelper_SetAudioControl(AudioControl * pcontrol) {
 		{
 			//turn off uploading of audio MFCC features
 			AudioProcessingTask_SetControl(featureUploadsOff,NULL,NULL);
+			LOGI("audio_save_features: OFF\n");
 			break;
 		}
 
@@ -59,6 +66,8 @@ void AudioControlHelper_SetAudioControl(AudioControl * pcontrol) {
 		{
 			//turn on uploading of raw audio
 			AudioProcessingTask_SetControl(rawUploadsOn,NULL,NULL);
+			LOGI("audio_save_raw_data: ON\n");
+
 			break;
 		}
 
@@ -66,6 +75,8 @@ void AudioControlHelper_SetAudioControl(AudioControl * pcontrol) {
 		{
 			//turn off uploading of raw audio
 			AudioProcessingTask_SetControl(rawUploadsOff,NULL,NULL);
+			LOGI("audio_save_raw_data: OFF\n");
+
 			break;
 		}
 
@@ -77,3 +88,20 @@ void AudioControlHelper_SetAudioControl(AudioControl * pcontrol) {
 	}
 
 }
+
+
+
+void AudioControlHelper_SetPillSettings(const SyncResponse_PillSettings * settings, uint16_t count) {
+
+	uint16_t i;
+
+	LOGI("AudioControlHelper_SetPillSettings\n");
+	for (i = 0; i < count; i++) {
+		LOGI("AudioControlHelper: add pill %s\n",settings[i].pill_id);
+		AudioTask_AddPillId(settings[i].pill_id,i==0);
+	}
+
+
+}
+
+

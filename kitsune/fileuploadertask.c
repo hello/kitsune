@@ -2,6 +2,7 @@
 #include "queue.h"
 #include "semphr.h"
 #include "uartstdio.h"
+#include "task.h"
 
 #include "fileuploadertask.h"
 #include "networktask.h"
@@ -15,76 +16,141 @@
 
 #include <stdbool.h>
 #include <string.h>
+#include "uart_logger.h"
+#include "kit_assert.h"
 
-#define INBOX_QUEUE_LENGTH (6)
 #define RETRY_TIMEOUT_TICKS (4000)
 
-//task message type
-typedef enum {
-	eUpload,
-} EUploaderMessage_t;
+#define MAX_FILEPATH_LEN (32)
+#define NUM_UPLOADS_TRACKED (5)
 
+#define POLLING_PERIOD_IN_TICKS (1000)
 
-typedef struct {
-	char sfilepath[32]; //need buffer somewhere, as filenames are sometimes not const static
+typedef struct TFileUploadListItem {
+	struct TFileUploadListItem * next;
+	int32_t delay_in_ticks;
+	uint32_t group_id;
+
+	char sfilepath[MAX_FILEPATH_LEN]; //need buffer somewhere, as filenames are sometimes not const static
 	const char * host;
 	const char * endpoint;
 	uint8_t deleteAfterUpload;
-
-} FileUploaderMessage_t;
-
-//task message
-typedef struct {
-	EUploaderMessage_t type;
-
 	FileUploadNotification_t onFinished;
 	void * context;
+	uint32_t unix_time_of_send;
+} FileUploadListItem_t;
 
-	union {
-		FileUploaderMessage_t uploadermessage;
-	} message;
+static FileUploadListItem_t * _pListMem;
 
-} TaskMessage_t;
+static FileUploadListItem_t * _pFreeHead;
+static FileUploadListItem_t * _pWorkingHead;
+static FileUploadListItem_t * _pCountdownHead;
 
-//main context data / encode data
-typedef struct {
-	uint8_t deleteAfterUpload;
-	const char * filename;
-	uint32_t unix_time;
-} EncodeData_t;
+static xSemaphoreHandle _listMutex;
+static xSemaphoreHandle _sem;
 
-static xQueueHandle _queue = NULL;
-static xSemaphoreHandle _wait;
+static void AssertValidListItem(const FileUploadListItem_t * p) {
+	const char * const item = (const char *)p;
+	const char * const begin = (const char *)(_pListMem);
+	const char * const end = begin + NUM_UPLOADS_TRACKED * sizeof(FileUploadListItem_t);
+
+	assert(item >= begin);
+	assert(item < end);
+
+}
 
 static void Init() {
-	if (!_queue) {
-		_queue = xQueueCreate(INBOX_QUEUE_LENGTH,sizeof( TaskMessage_t ) );
+
+	uint16_t i;
+
+	if (!_sem) {
+		_sem = xSemaphoreCreateCounting(NUM_UPLOADS_TRACKED,NUM_UPLOADS_TRACKED);
 	}
 
-	if (!_wait) {
-		_wait = xSemaphoreCreateBinary();
+	if (!_listMutex) {
+		_listMutex = xSemaphoreCreateMutex();
+	}
+
+	if (!_pListMem) {
+		_pListMem = pvPortMalloc(NUM_UPLOADS_TRACKED * sizeof(FileUploadListItem_t));
+	}
+
+	if (!_pListMem) {
+		LOGE("UNABLE TO ALLOCATE SUFFICIENT MEMORY\n");  //and god help you if you try to upload a file
+		return;
+	}
+
+	memset(_pListMem,0,NUM_UPLOADS_TRACKED * sizeof(FileUploadListItem_t));
+
+	_pFreeHead = _pListMem;
+	for (i = 0; i < NUM_UPLOADS_TRACKED - 1; i++) {
+		_pFreeHead[i].next = &_pFreeHead[i+1];
 	}
 }
 
-static void NetTaskResponse (const NetworkResponse_t * response, void * context) {
-	EncodeData_t * data = (EncodeData_t *)context;
-	TaskMessage_t m;
+static uint8_t MoveItemToFront(FileUploadListItem_t ** tolist,FileUploadListItem_t ** fromlist,FileUploadListItem_t * item) {
+	FileUploadListItem_t * p = *fromlist;
+	FileUploadListItem_t * pprev = NULL;
+	uint8_t success = 0;
 
-	memset(&m,0,sizeof(m));
+	//find item in the "from" list
+	while (p) {
+		if (p == item) {
+
+			//pop
+			if (pprev) {
+				AssertValidListItem(pprev);
+				pprev->next = p->next;
+			}
+			else {
+				AssertValidListItem(*fromlist);
+				*fromlist = p->next;
+			}
+
+			//place in head of "to" list
+			AssertValidListItem(p);
+			p->next = *tolist;
+			*tolist = p;
+
+			success = 1;
+			break;
+		}
+
+		pprev = p;
+		p = p->next;
+	}
+
+	return success;
+}
+
+static void NetTaskResponse (const NetworkResponse_t * response, void * context) {
+	FileUploadListItem_t * p = (FileUploadListItem_t *)context;
 
 	//delete even if upload was not successful
-	if (data->deleteAfterUpload) {
+
+	LOGI("done uploading %s\n",p->sfilepath);
+
+	AssertValidListItem(p);
+	if (p->deleteAfterUpload) {
 		FRESULT res;
 
-		res = hello_fs_unlink(data->filename);
+		res = hello_fs_unlink(p->sfilepath);
 
 		if (res != FR_OK) {
-			LOGI("failed to delete file %s\r\n",data->filename);
+			LOGI("failed to delete file %s\r\n",p->sfilepath);
 		}
 	}
 
+	//guard the list
+	xSemaphoreTake(_listMutex,portMAX_DELAY);
 
-	xSemaphoreGive(_wait);
+	//free this up
+	MoveItemToFront(&_pFreeHead,&_pWorkingHead,p);
+
+	xSemaphoreGive(_listMutex);
+
+	//we have freed up a resource
+	xSemaphoreGive(_sem);
 }
 
 
@@ -102,8 +168,9 @@ bool encode_file (pb_ostream_t * stream, const pb_field_t * field,void * const *
 
 	bool success = false;
 
-	const EncodeData_t * encodedata = (const EncodeData_t * )(*arg);
+	const FileUploadListItem_t * p = (const FileUploadListItem_t * )(*arg);
 
+	AssertValidListItem(p);
 
 	memset(&file_info,0,sizeof(file_info));
 	memset(&file_obj,0,sizeof(file_obj));
@@ -116,15 +183,15 @@ bool encode_file (pb_ostream_t * stream, const pb_field_t * field,void * const *
 
 
 	/* open file */
-	res = hello_fs_open(&file_obj, encodedata->filename, FA_READ);
+	res = hello_fs_open(&file_obj, p->sfilepath, FA_READ);
 
 	/*  Did something horrible happen?  */
 	if(res != FR_OK){
-		LOGI("File open %s failed: %d\n", encodedata->filename, res);
+		LOGI("File open %s failed: %d\n", p->sfilepath, res);
 	}
 	else {
 		//find out size of file
-		hello_fs_stat(encodedata->filename, &file_info);
+		hello_fs_stat(p->sfilepath, &file_info);
 
 		bytes_to_be_read = file_info.fsize;
 
@@ -169,7 +236,6 @@ bool encode_file (pb_ostream_t * stream, const pb_field_t * field,void * const *
 
 static uint32_t FileEncode(pb_ostream_t * stream,void * data) {
 	FileMessage pbfile;
-	EncodeData_t * encode_data = (EncodeData_t *)data;
 
 	memset(&pbfile,0,sizeof(pbfile));
 
@@ -179,81 +245,168 @@ static uint32_t FileEncode(pb_ostream_t * stream,void * data) {
 	pbfile.has_unix_time = true;
 
 	pbfile.data.funcs.encode = encode_file;
-	pbfile.data.arg = encode_data;
+	pbfile.data.arg = data;
 
 	return pb_encode(stream,FileMessage_fields,&pbfile);
 }
 
 
-void FileUploaderTask_Thread(void * data) {
-	TaskMessage_t m;
-	FileUploaderMessage_t * p;
-	uint8_t recvbuf[256];
+static void Enqueue(FileUploadListItem_t * p,uint8_t * recvbuf,uint32_t recvbuf_size) {
 	NetworkTaskServerSendMessage_t mnet;
-	EncodeData_t encode_data;
+
+	memset(&mnet,0,sizeof(mnet));
+
+	mnet.decode_buf = recvbuf;
+	mnet.decode_buf_size = recvbuf_size;
+	mnet.endpoint = p->endpoint;
+	mnet.host = p->host;
+	mnet.response_callback = NetTaskResponse;
+
+	mnet.encode = FileEncode;
+	mnet.encodedata = p;
+
+	mnet.retry_timeout = RETRY_TIMEOUT_TICKS;
+	mnet.context = p;
+
+	//the network task will eventually call our encode callback
+	//and send the protobuf onwards to the server
+	NetworkTask_AddMessageToQueue(&mnet);
+}
+
+void FileUploaderTask_Thread(void * data) {
+	uint8_t recvbuf[256];
+	FileUploadListItem_t * p;
+	FileUploadListItem_t * pnext;
+
 
 	Init();
 
 	for (; ; ) {
-		if (xQueueReceive( _queue,(void *) &m, portMAX_DELAY )) {
+		vTaskDelay(POLLING_PERIOD_IN_TICKS);
 
-			switch (m.type) {
+		//guard the list
+		xSemaphoreTake(_listMutex,portMAX_DELAY);
 
-			case eUpload:
-			{
-				//upload file
-				p = &m.message.uploadermessage;
-				memset(&mnet,0,sizeof(mnet));
+		p = _pCountdownHead;
 
-				encode_data.filename = m.message.uploadermessage.sfilepath;
-				encode_data.deleteAfterUpload = m.message.uploadermessage.deleteAfterUpload;
-				encode_data.unix_time = get_time();
+		//service the list
+		while (p) {
 
-				mnet.decode_buf = recvbuf;
-				mnet.decode_buf_size = sizeof(recvbuf);
-				mnet.endpoint = p->endpoint;
-				mnet.host = p->host;
-				mnet.response_callback = NetTaskResponse;
+			AssertValidListItem(p);
 
-				mnet.encode = FileEncode;
-				mnet.encodedata = &encode_data;
+			p->delay_in_ticks -= POLLING_PERIOD_IN_TICKS;
 
-				mnet.retry_timeout = RETRY_TIMEOUT_TICKS;
-				mnet.context = &encode_data;
+#ifdef FILUPLOADER_DEBUG_ME
+			LOGI("%s has %d ticks until upload\n",p->sfilepath,p->delay_in_ticks);
+#endif
 
-				//the network task will eventually call our encode callback
-				//and send the protobuf onwards to the server
-				if (NetworkTask_AddMessageToQueue(&mnet)) {
-					//wait until callback, this way we can refer to items on stack (like a filename)
-					//and have a guarantee that it won't change out from under us
-					xSemaphoreTake(_wait,portMAX_DELAY);
-				}
+			pnext = p->next;
 
-				break;
+			if (p->delay_in_ticks <= 0) {
+				//move to head of working list
+				MoveItemToFront(&_pWorkingHead,&_pCountdownHead,p);
+
+#ifdef FILUPLOADER_DEBUG_ME
+				LOGI("trying to upload %s\n",p->sfilepath);
+#endif
+				//now add to the net task
+				Enqueue(p,recvbuf,sizeof(recvbuf));
+
 			}
-			}
+
+			p = pnext;
 		}
+
+
+		xSemaphoreGive(_listMutex);
+
+
 	}
 }
 
-void FileUploaderTask_Upload(const char * filepath,const char * host, const char * endpoint,uint8_t deleteAfterUpload,FileUploadNotification_t onUploaded, void * context) {
-	TaskMessage_t m;
-	FileUploaderMessage_t * p = &m.message.uploadermessage;
+uint8_t FileUploaderTask_Upload(const char * filepath,const char * host, const char * endpoint,uint8_t deleteAfterUpload,
+		uint32_t group,int32_t delayInTicks,FileUploadNotification_t onUploaded, void * context,uint32_t maxWaitIfBusy) {
 
-	memset(&m,0,sizeof(m));
-
-	strncpy(p->sfilepath,filepath,sizeof(p->sfilepath));
-	p->host = host;
-	p->endpoint = endpoint;
-	p->deleteAfterUpload = deleteAfterUpload;
-
-	m.onFinished = onUploaded;
-	m.context = context;
-	m.type = eUpload;
+	//block if we are out of resources
+	if (xSemaphoreTake(_sem,maxWaitIfBusy)) {
 
 
-	if (_queue) {
-		xQueueSend(_queue,&m,0);
+		//guard the list
+		xSemaphoreTake(_listMutex,portMAX_DELAY);
+
+		if (_pFreeHead) {
+
+			AssertValidListItem(_pFreeHead);
+
+			_pFreeHead->context = context;
+			_pFreeHead->delay_in_ticks = delayInTicks;
+			_pFreeHead->deleteAfterUpload = deleteAfterUpload;
+			_pFreeHead->endpoint = endpoint;
+			_pFreeHead->group_id = group;
+			_pFreeHead->host = host;
+			_pFreeHead->onFinished = onUploaded;
+			strncpy(_pFreeHead->sfilepath,filepath,MAX_FILEPATH_LEN);
+
+			//this pops from the free list, and moves this item to the countdown head
+			MoveItemToFront(&_pCountdownHead,&_pFreeHead,_pFreeHead);
+		}
+		else {
+			LOGE("linked list head is NULL");
+		}
+
+		xSemaphoreGive(_listMutex);
+
 	}
+	else {
+		return 0;
+	}
+
+	return 1;
+
+
+
+
+
+}
+
+void FileUploaderTask_CancelUploadByGroup(uint32_t group) {
+	FileUploadListItem_t * p;
+	FileUploadListItem_t * pnext;
+
+
+	//guard the list
+	xSemaphoreTake(_listMutex,portMAX_DELAY);
+
+	p = _pCountdownHead;
+
+	while (p) {
+		AssertValidListItem(p);
+
+		pnext = p->next;
+
+		if (p->group_id == group) {
+			//move to free list if group matches -- i.e. cancel this upload
+			LOGI("canceling upload of %s\n",p->sfilepath);
+			MoveItemToFront(&_pFreeHead,&_pCountdownHead,p);
+
+			if (p->deleteAfterUpload) {
+				FRESULT res;
+
+				res = hello_fs_unlink(p->sfilepath);
+
+				if (res != FR_OK) {
+					LOGI("failed to delete file %s",p->sfilepath);
+				}
+			}
+		}
+
+		p = pnext;
+	}
+
+
+
+	xSemaphoreGive(_listMutex);
+
+
 }
 

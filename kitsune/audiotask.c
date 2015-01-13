@@ -20,12 +20,13 @@
 #include <string.h>
 #include <stdio.h>
 #include "ustdlib.h"
+#include "uart_logger.h"
 
 #if 0
 #define PRINT_TIMING
 #endif
 
-#define INBOX_QUEUE_LENGTH (5)
+#define INBOX_QUEUE_LENGTH (10)
 
 #define NUMBER_OF_TICKS_IN_A_SECOND (1000)
 
@@ -33,6 +34,9 @@
 #define LOOP_DELAY_WHILE_WAITING_BUFFER_TO_FILL (5)
 
 #define MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP (500)
+
+//you have 90 seconds  to cancel an upload because you received motion data from a pill
+#define PILL_PERIOD_DELAY (90000)
 
 #define MAX_NUMBER_TIMES_TO_WAIT_FOR_AUDIO_BUFFER_TO_FILL (5000)
 #define MAX_FILE_SIZE_BYTES (1048576*10)
@@ -44,6 +48,12 @@
 
 #define SAVE_BASE "/usr/A"
 
+#define MAX_NUM_PILL_IDS (2)
+#define MAX_PILL_ID_LEN (32)
+
+static char _pill_ids[MAX_NUM_PILL_IDS][MAX_PILL_ID_LEN];
+static uint16_t _pill_ids_idx = 0;
+
 /* globals */
 unsigned int g_uiPlayWaterMark;
 extern tCircularBuffer * pRxBuffer;
@@ -53,6 +63,7 @@ extern tCircularBuffer * pTxBuffer;
 static xQueueHandle _queue = NULL;
 static xSemaphoreHandle _processingTaskWait;
 static xSemaphoreHandle _statsMutex;
+static xSemaphoreHandle _pilldataMutex;
 
 static uint8_t _isCapturing = 0;
 static int64_t _callCounter;
@@ -89,8 +100,27 @@ static void StatsCallback(const AudioOncePerMinuteData_t * pdata) {
 	xSemaphoreGive(_statsMutex);
 }
 
+static void DumpQueuedFiles(void) {
+	AudioMessage_t m;
+
+	//step 1) cancel current capturing and delete
+	memset(&m,0,sizeof(m));
+	m.message.capturedesc.change = stopSaving;
+	m.message.capturedesc.flags |= AUDIO_TRANSFER_FLAG_DELETE_IMMEDIATELY;
+
+	AudioTask_AddMessageToQueue(&m);
+
+	//step 2) remove all files from upload queue
+	FileUploaderTask_CancelUploadByGroup(UPLOADER_GROUP_ID_AUDIO_TASK);
+
+}
+
 static void QueueFileForUpload(const char * filename,uint8_t delete_after_upload) {
-	FileUploaderTask_Upload(filename,DATA_SERVER,RAW_AUDIO_ENDPOINT,delete_after_upload,NULL,NULL);
+	LOGI("queueing %s for upload\n",filename);
+
+	//don't upload, don't block if our uploader task is full
+#define WAIT_PERIOD (0)
+	FileUploaderTask_Upload(filename,DATA_SERVER,RAW_AUDIO_ENDPOINT,delete_after_upload,UPLOADER_GROUP_ID_AUDIO_TASK,PILL_PERIOD_DELAY,NULL,NULL,WAIT_PERIOD);
 }
 
 
@@ -111,7 +141,15 @@ static void Init(void) {
 		_statsMutex = xSemaphoreCreateMutex();
 	}
 
+	if (!_pilldataMutex) {
+		_pilldataMutex = xSemaphoreCreateMutex();
+	}
+
 	memset(&_stats,0,sizeof(_stats));
+
+	_pill_ids_idx = 0;
+	memset(&_pill_ids[0][0],0,sizeof(_pill_ids));
+
 
 	AudioFeatures_Init(DataCallback,StatsCallback);
 
@@ -664,6 +702,53 @@ void AudioTask_DumpOncePerMinuteStats(AudioOncePerMinuteData_t * pdata) {
 
 	xSemaphoreGive(_statsMutex);
 
+}
+
+void AudioTask_SetMotionFromPill(const char * pill_id) {
+	uint16_t i;
+	bool isMotionFromMatchingPill = false;
+
+	xSemaphoreTake(_pilldataMutex,portMAX_DELAY);
+
+	//does this pill id match one on our list?
+	for (i = 0; i < _pill_ids_idx; i++) {
+		if (strncmp(_pill_ids[i],pill_id,MAX_PILL_ID_LEN) == 0) {
+			isMotionFromMatchingPill = true;
+			break;
+		}
+	}
+
+	xSemaphoreGive(_pilldataMutex);
+
+	//did we find one?
+	if (isMotionFromMatchingPill) {
+
+		//yes -- so dump all our files that are slated for upload
+		DumpQueuedFiles();
+	}
+}
+
+void AudioTask_AddPillId(const char * pill_id,bool reset) {
+	xSemaphoreTake(_pilldataMutex,portMAX_DELAY);
+
+
+
+	//remove all strings
+	if (reset) {
+		_pill_ids_idx = 0;
+		memset(&_pill_ids[0][0],0,sizeof(_pill_ids));
+	}
+
+	//execeeded max number of pill ids?  fail silently
+	if (_pill_ids_idx >= MAX_NUM_PILL_IDS) {
+		return;
+	}
+
+	//copy string over and increment index
+	strncpy(_pill_ids[_pill_ids_idx],pill_id,MAX_PILL_ID_LEN);
+	_pill_ids_idx++;
+
+	xSemaphoreGive(_pilldataMutex);
 }
 
 

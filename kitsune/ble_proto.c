@@ -28,6 +28,7 @@
 #include "sl_sync_include_after_simplelink_header.h"
 #include "ustdlib.h"
 #include "pill_settings.h"
+#include "audiotask.h"
 
 typedef void(*task_routine_t)(void*);
 
@@ -347,6 +348,9 @@ static void _send_response_to_ble(const char* buffer, size_t len)
 
     if(decode_rx_data_pb((unsigned char*)content, content_len, MorpheusCommand_fields, &response) == 0)
     {
+    	if (response.has_error) {
+    		LOGE("SERVER ERROR %d (check morpheus_ble.proto ErrorType enumeration)\n",response.error);
+    	}
     	//PANG says: DO NOT EVER REMOVE THIS FUNCTION, ALTHOUGH IT MAKES NO SENSE WHY WE NEED THIS
     	ble_proto_remove_decode_funcs(&response);
     	ble_send_protobuf(&response);
@@ -354,6 +358,7 @@ static void _send_response_to_ble(const char* buffer, size_t len)
     	LOGI("Invalid response, protobuf decryption & decode failed.\n");
     	ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
     }
+
 
     ble_proto_free_command(&response);
 }
@@ -656,6 +661,9 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         	}else{
         		LOGI("You may have a bug in the pill\n");
         	}
+
+        	AudioTask_SetMotionFromPill(command->pill_data.device_id);
+
     		_process_encrypted_pill_data(command);
     	}
         break;

@@ -1650,6 +1650,9 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
 		BatchedPillSettings settings = {0};
 		settings.pill_settings_count = response_protobuf->pill_settings_count > MAX_PILL_SETTINGS_COUNT ? MAX_PILL_SETTINGS_COUNT : response_protobuf->pill_settings_count;
 		memcpy(settings.pill_settings, response_protobuf->pill_settings, sizeof(SyncResponse_PillSettings) * settings.pill_settings_count);
+
+		AudioControlHelper_SetPillSettings(response_protobuf->pill_settings,settings.pill_settings_count);
+
 		pill_settings_save(&settings);
     }
 
