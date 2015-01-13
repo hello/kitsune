@@ -1424,6 +1424,37 @@ static int Cmd_test_3200_rtc(int argc, char*argv[]) {
 	return 0;
 }
 
+#define FILE_TEST
+#ifdef FILE_TEST
+static int Cmd_generate_user_testing_files(int argc, char* argv[])
+{
+	CreateDirectoryIfNotExist("/usr");
+	int i = 0;
+	for(i = 0; i < 5; i++)
+	{
+		FIL file = {0};
+
+		char file_name[64] = {0};
+		usnprintf(file_name, 11, "/usr/test%d", i);
+		FRESULT res = hello_fs_open(&file, file_name, FA_WRITE|FA_CREATE_ALWAYS);
+		if(res != FR_OK)
+		{
+			LOGI("Cannot create file test%d\n", i);
+			continue;
+		}
+		char* buffer = {0};
+		WORD written = 0;
+		hello_fs_write(&file, buffer, 1, &written);  // dummy?
+		res = hello_fs_write(&file, buffer, 1, &written);
+		if(res != FR_OK)
+		{
+			LOGI("Write failed\n");
+		}
+		hello_fs_close(&file);
+	}
+}
+#endif
+
 static int Cmd_enable_poll(int argc, char*argv[]) {
     enable_periodic =  atoi(argv[1]);
 	return 0;
@@ -1522,6 +1553,9 @@ tCmdLineEntry g_sCmdTable[] = {
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
 		{ "iperfcli",Cmd_iperf_client,""},
+#endif
+#ifdef FILE_TEST
+		{ "test_files",Cmd_generate_user_testing_files,""},
 #endif
 		{ 0, 0, 0 } };
 
