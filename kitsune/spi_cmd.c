@@ -51,7 +51,10 @@ static int hw_ver;
 #include "hw_ver.h"
 void CS_set(int val) {
 	switch( hw_ver ) {
-	case DVT: MAP_GPIOPinWrite(GPIOA2_BASE,0x40,val?0x40:0); break;
+	case DVT:
+	case PVT:
+		MAP_GPIOPinWrite(GPIOA2_BASE,0x40,val?0x40:0);
+		break;
 	case EVT2: MAP_GPIOPinWrite(GPIOA1_BASE,0x20,val?0x20:0); break;
 	}
 }
