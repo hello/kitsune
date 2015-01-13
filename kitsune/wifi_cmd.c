@@ -2325,7 +2325,7 @@ int wifi_status_set(unsigned int status, int remove_status)
 
 #ifdef BUILD_SERVERS
 #include "ctype.h"
-#if 1
+#if 0
 #define SVR_LOGI UARTprintf
 #else
 #define SVR_LOGI(...)

@@ -203,6 +203,7 @@ Cmd_ls(int argc, char *argv[])
 
         // Print the entry information on a single line with formatting to show
         // the attributes, date, time, size, and name.
+        vTaskDelay(10);
         DISP("%c%c%c%c%c %u/%02u/%02u %02u:%02u %9u  %s\n",
                    (file_info.fattrib & AM_DIR) ? 'D' : '-',
                    (file_info.fattrib & AM_RDO) ? 'R' : '-',
@@ -216,7 +217,7 @@ Cmd_ls(int argc, char *argv[])
                    (file_info.ftime >> 5) & 63,
                    file_info.fsize,
                    file_info.fname);
-        vTaskDelay(5);
+        vTaskDelay(10);
     }
 
     // Print summary lines showing the file, dir, and size totals.
