@@ -90,7 +90,7 @@ static void _factory_reset(){
 
     pill_settings_reset_all();
     nwp_reset();
-    deleteFilesInDir(SAVE_BASE);
+    deleteFilesInDir(USER_DIR);
 	_ble_reply_command_with_type(MorpheusCommand_CommandType_MORPHEUS_COMMAND_FACTORY_RESET);
 
 }

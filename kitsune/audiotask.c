@@ -42,6 +42,7 @@
 #define FLAG_SUCCESS (0x01)
 #define FLAG_STOP    (0x02)
 
+#define SAVE_BASE "/usr/A"
 
 /* globals */
 unsigned int g_uiPlayWaterMark;

@@ -415,7 +415,7 @@ int Cmd_factory_reset(int argc, char* argv[])
     wifi_reset();
     pill_settings_reset_all();
     nwp_reset();
-    deleteFilesInDir(SAVE_BASE);
+    deleteFilesInDir(USER_DIR);
 
 	MorpheusCommand morpheusCommand = {0};
 	morpheusCommand.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_FACTORY_RESET;
