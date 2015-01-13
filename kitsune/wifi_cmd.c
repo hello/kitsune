@@ -2324,9 +2324,9 @@ int wifi_status_set(unsigned int status, int remove_status)
 }
 
 #ifdef BUILD_SERVERS
-
-#if 0
-#define SVR_LOGI LOGI
+#include "ctype.h"
+#if 1
+#define SVR_LOGI UARTprintf
 #else
 #define SVR_LOGI(...)
 #endif
@@ -2337,6 +2337,8 @@ static void make_nonblocking( volatile int * sock ) {
 	sl_SetSockOpt(*sock, SL_SOL_SOCKET, SL_SO_NONBLOCKING,
 			(_u8 *)&enableOption, sizeof(enableOption));
 }
+
+//Server only works for ascii based protocols!
 static void serv(int port, volatile int * connection_socket, int (*cb)(volatile int *, char*, int), const char * proc_on ) {
 	sockaddr local_addr;
 	sockaddr their_addr;
@@ -2353,7 +2355,7 @@ static void serv(int port, volatile int * connection_socket, int (*cb)(volatile 
 	int sock;
 	while (1) {
 		sock = socket(AF_INET, SOCK_STREAM, 0);
-		tv.tv_sec = 10;             // Seconds
+		tv.tv_sec = 1;             // Seconds
 		tv.tv_usec = 0;           // Microseconds. 10000 microseconds resolution
 		setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)); // Enable receive timeout
 
@@ -2369,23 +2371,28 @@ static void serv(int port, volatile int * connection_socket, int (*cb)(volatile 
 
 		char * buf = pvPortMalloc(64);
 		char * linebuf = pvPortMalloc(512);
-		int inbufsz = 0;
-		assert(buf && linebuf);
-		memset(buf, 0, 64);
-		memset(linebuf, 0, 512);
 		while (sock > 0) {
 			new_connection:
 			*connection_socket = -1;
 			addr_size = sizeof(their_addr);
 			SVR_LOGI( "SVR: accept\n");
+			int inbufsz = 0;
+			assert(buf && linebuf);
+			memset(buf, 0, 64);
+			memset(linebuf, 0, 512);
+
 			*connection_socket = accept(sock, &their_addr, &addr_size);
 			setsockopt(*connection_socket, SOL_SOCKET, SO_RCVTIMEO, &tv,
 					sizeof(tv)); // Enable receive timeout
+
+			make_nonblocking( connection_socket );
 
 			SVR_LOGI( "SVR: connected %d %d\n", *connection_socket, sock );
 			while (*connection_socket > 0) {
 				SVR_LOGI( "SVR: recv\n");
 				int sz = EAGAIN;
+
+				memset(buf, 0, 64);
 				while (sz == EAGAIN || sz == EWOULDBLOCK) {
 					sz = recv(*connection_socket, buf, 64, 0);
 					if ((sz <= 0 && sz != EAGAIN && sz != EWOULDBLOCK)
@@ -2403,17 +2410,27 @@ static void serv(int port, volatile int * connection_socket, int (*cb)(volatile 
 					*connection_socket = -1;
 					goto new_connection;
 				}
-				if (sz + inbufsz > 512) {
+
+				char * ptr;
+				for( ptr=buf; *ptr; ++ptr ) {
+					if(!isprint(*ptr) && *ptr != '\r' && *ptr != '\n' ) {
+						SVR_LOGI( "SVR: unprintable\n");
+						memset(buf, 0, 64);
+						sz = 0;
+						continue;
+					}
+				}
+
+				if (sz + inbufsz > 512 || strlen(buf) != sz ) {
+					SVR_LOGI( "SVR: String lengths wrong\n");
 					memset(linebuf, 0, 512);
 					inbufsz = 0;
-					close(*connection_socket);
-					*connection_socket = -1;
-					goto new_connection;
+					continue;
 				}
 				memcpy(linebuf + inbufsz, buf, sz);
 				inbufsz += sz;
+
 				if ( strstr( linebuf, proc_on ) != 0 ) {
-					make_nonblocking( connection_socket );
 					if (cb(connection_socket, linebuf, inbufsz) < 0) {
 						memset(linebuf, 0, 512);
 						inbufsz = 0;
@@ -2470,8 +2487,6 @@ static int cli_cb(volatile int *sock, char * linebuf, int inbufsz) {
 		memcpy(args, linebuf, inbufsz + 1);
 		args[inbufsz - 2] = 0;
 		xTaskCreate(CmdLineProcess, "commandTask", 5 * 1024 / 4, args, 4, NULL);
-	} else {
-		LOGI("> ");
 	}
 	return 0;
 }
