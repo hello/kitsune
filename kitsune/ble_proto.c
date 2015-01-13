@@ -37,11 +37,18 @@ typedef enum {
 	LED_OFF
 }led_mode_t;
 
+typedef enum {
+    BLE_UNKNOWN = 0,
+    BLE_PAIRING,
+    BLE_NORMAL
+} ble_mode_t;
+
 static struct {
 	uint8_t argb[4];
 	int delay;
 	uint32_t last_hold_time;
 	led_mode_t led_status;
+    ble_mode_t ble_status;
 } _self;
 
 static uint8_t _wifi_read_index;
@@ -548,11 +555,28 @@ void ble_proto_end_hold()
 		(current_tick - _self.last_hold_time) * (1000 / configTICK_RATE_HZ) < 10000 &&
 		_self.last_hold_time > 0)
 	{
-		LOGI("Trigger pairing mode\n");
-		MorpheusCommand response = {0};
-		response.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_PAIRING_MODE;
-		ble_send_protobuf(&response);
-		ble_proto_led_fade_in_trippy();
+        switch(_self.ble_status)
+        {
+            case BLE_NORMAL:
+            {
+        		LOGI("Trigger pairing mode\n");
+        		MorpheusCommand response = {0};
+        		response.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_PAIRING_MODE;
+        		ble_send_protobuf(&response);
+        		ble_proto_led_fade_in_trippy();
+            }
+            break;
+            case BLE_PAIRING:
+            {
+                // hold to cancel the pairing mode
+                LOGI("Back to normal mode\n");
+                MorpheusCommand response = {0};
+                response.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE;
+                ble_send_protobuf(&response);
+
+            }
+            break;
+        }
 	}
 	_self.last_hold_time = 0;
 }
@@ -586,12 +610,14 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         {
             // Light up LEDs?
 			ble_proto_led_fade_in_trippy();
+            _self.ble_status = BLE_PAIRING;
             LOGI( "PAIRING MODE \n");
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE:  // Just for testing
 		{
 			ble_proto_led_fade_out(0);
+            _self.ble_status = BLE_NORMAL;
 			LOGI( "NORMAL MODE \n");
 		}
 		break;
