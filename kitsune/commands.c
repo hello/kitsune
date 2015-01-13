@@ -510,7 +510,7 @@ static bool _is_file_exists(char* path)
 
 void thread_alarm(void * unused) {
 	while (1) {
-		wait_for_time();
+		wait_for_time(WAIT_FOREVER);
 
 		portTickType now = xTaskGetTickCount();
 		uint64_t time = get_time();
@@ -1052,7 +1052,7 @@ void thread_sensor_poll(void* unused) {
 
 		memset(&data, 0, sizeof(data));  // Don't forget re-init!
 
-		wait_for_time();
+		wait_for_time(WAIT_FOREVER);
 
 		sample_sensor_data(&data);
 

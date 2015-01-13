@@ -140,6 +140,25 @@ int pill_settings_load_from_file()
     return 1;
 }
 
+int pill_settings_pill_count()
+{
+	int i = 0;
+	int pill_count = 0;
+	if(xSemaphoreTake(_sync_mutex, portMAX_DELAY))
+	{
+		for(i = 0; i < MAX_PILL_SETTINGS_COUNT; i++)
+		{
+			if(strlen(_settings.pill_settings[i].pill_id) > 0)
+			{
+				pill_count++;
+			}
+		}
+		xSemaphoreGive(_sync_mutex);
+	}
+
+	return pill_count;
+}
+
 
 uint32_t pill_settings_get_color(const char* pill_id)
 {
@@ -159,10 +178,7 @@ uint32_t pill_settings_get_color(const char* pill_id)
         LOGI("%s color not found\n", _settings.pill_settings[i].pill_id);
     }
 
-    uint8_t argb[4] = { 0xFF, 0x80, 0x00, 0x80 };
-    uint32_t color = 0;
-    memcpy(&color, argb, sizeof(color));
-    return color;  // the default purple color
+    return 0;  // the default purple color
 }
 
 int pill_settings_init()
