@@ -17,6 +17,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include "uart_logger.h"
+#include "kit_assert.h"
 
 #define RETRY_TIMEOUT_TICKS (4000)
 
@@ -48,6 +49,16 @@ static FileUploadListItem_t * _pCountdownHead;
 static xSemaphoreHandle _listMutex;
 static xSemaphoreHandle _sem;
 
+static void AssertValidListItem(const FileUploadListItem_t * p) {
+	const char * const item = (const char *)p;
+	const char * const begin = (const char *)(_pListMem);
+	const char * const end = begin + NUM_UPLOADS_TRACKED * sizeof(FileUploadListItem_t);
+
+	assert(item >= begin);
+	assert(item < end);
+
+}
+
 static void Init() {
 
 	uint16_t i;
@@ -70,6 +81,7 @@ static void Init() {
 	}
 
 	memset(_pListMem,0,NUM_UPLOADS_TRACKED * sizeof(FileUploadListItem_t));
+
 	_pFreeHead = _pListMem;
 	for (i = 0; i < NUM_UPLOADS_TRACKED - 1; i++) {
 		_pFreeHead[i].next = &_pFreeHead[i+1];
@@ -87,13 +99,16 @@ static uint8_t MoveItemToFront(FileUploadListItem_t ** tolist,FileUploadListItem
 
 			//pop
 			if (pprev) {
+				AssertValidListItem(pprev);
 				pprev->next = p->next;
 			}
 			else {
+				AssertValidListItem(*fromlist);
 				*fromlist = p->next;
 			}
 
 			//place in head of "to" list
+			AssertValidListItem(p);
 			p->next = *tolist;
 			*tolist = p;
 
@@ -115,6 +130,7 @@ static void NetTaskResponse (const NetworkResponse_t * response, void * context)
 
 	LOGI("done uploading %s\n",p->sfilepath);
 
+	AssertValidListItem(p);
 	if (p->deleteAfterUpload) {
 		FRESULT res;
 
@@ -154,6 +170,7 @@ bool encode_file (pb_ostream_t * stream, const pb_field_t * field,void * const *
 
 	const FileUploadListItem_t * p = (const FileUploadListItem_t * )(*arg);
 
+	AssertValidListItem(p);
 
 	memset(&file_info,0,sizeof(file_info));
 	memset(&file_obj,0,sizeof(file_obj));
@@ -274,6 +291,9 @@ void FileUploaderTask_Thread(void * data) {
 
 		//service the list
 		while (p) {
+
+			AssertValidListItem(p);
+
 			p->delay_in_ticks -= POLLING_PERIOD_IN_TICKS;
 
 #ifdef FILUPLOADER_DEBUG_ME
@@ -315,6 +335,9 @@ uint8_t FileUploaderTask_Upload(const char * filepath,const char * host, const c
 		xSemaphoreTake(_listMutex,portMAX_DELAY);
 
 		if (_pFreeHead) {
+
+			AssertValidListItem(_pFreeHead);
+
 			_pFreeHead->context = context;
 			_pFreeHead->delay_in_ticks = delayInTicks;
 			_pFreeHead->deleteAfterUpload = deleteAfterUpload;
@@ -357,6 +380,8 @@ void FileUploaderTask_CancelUploadByGroup(uint32_t group) {
 	p = _pCountdownHead;
 
 	while (p) {
+		AssertValidListItem(p);
+
 		pnext = p->next;
 
 		if (p->group_id == group) {
