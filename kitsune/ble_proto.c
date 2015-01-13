@@ -28,6 +28,8 @@
 #include "sl_sync_include_after_simplelink_header.h"
 #include "ustdlib.h"
 #include "pill_settings.h"
+#include "audiohelper.h"
+#include "audiotask.h"
 
 typedef void(*task_routine_t)(void*);
 
@@ -88,6 +90,7 @@ static void _factory_reset(){
 
     pill_settings_reset_all();
     nwp_reset();
+    deleteFilesInDir(USER_DIR);
 	_ble_reply_command_with_type(MorpheusCommand_CommandType_MORPHEUS_COMMAND_FACTORY_RESET);
 
 }

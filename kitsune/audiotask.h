@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include "audio_types.h"
 
+#define USER_DIR "/usr"
 
 typedef enum {
 	eAudioCaptureTurnOn,
