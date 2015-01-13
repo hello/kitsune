@@ -21,6 +21,7 @@
 #include "hellofilesystem.h"
 #include "fatfs_cmd.h"
 #include "uart_logger.h"
+#include <ustdlib.h>
 
 
 /* externs */
@@ -190,6 +191,7 @@ int deleteFilesInDir(const char* dir)
 	DIR dirObject = {0};
 	FILINFO fileInfo = {0};
     FRESULT res;
+    char path[64] = {0};
 
     res = hello_fs_opendir(&dirObject, dir);
 
@@ -217,12 +219,14 @@ int deleteFilesInDir(const char* dir)
         {
             continue;
         } else {
-            res = hello_fs_unlink(fileInfo.fname);
+        	memset(path, 0, sizeof(path));
+        	usnprintf(path, sizeof(fileInfo.fname) + 5, "/usr/%s", fileInfo.fname);
+            res = hello_fs_unlink(path);
             if(res == FR_OK)
             {
-            	LOGI("User file deleted %s\n", fileInfo.fname);
+            	LOGI("User file deleted %s\n", path);
             }else{
-            	LOGE("Delete user file %s failed\n", fileInfo.fname);
+            	LOGE("Delete user file %s failed, err %d\n", path, res);
             }
         }
     }

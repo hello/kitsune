@@ -1452,6 +1452,7 @@ static int Cmd_generate_user_testing_files(int argc, char* argv[])
 		}
 		hello_fs_close(&file);
 	}
+	return 0;
 }
 #endif
 
