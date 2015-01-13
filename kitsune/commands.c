@@ -1545,7 +1545,6 @@ long nwp_reset();
 
 void vUARTTask(void *pvParameters) {
 	char cCmdBuf[512];
-	portTickType now;
 	wifi_status_init();
 	if(led_init() != 0){
 		LOGI("Failed to create the led_events.\n");
@@ -1588,7 +1587,6 @@ void vUARTTask(void *pvParameters) {
 	antsel(PCB_ANT);
 
 	UARTprintf("*");
-	now = xTaskGetTickCount();
 	sl_sync_init();  // thread safe for all sl_* calls
 	sl_mode = sl_Start(NULL, NULL, NULL);
 	UARTprintf("*");
@@ -1606,9 +1604,6 @@ void vUARTTask(void *pvParameters) {
 	unsigned char mac[6];
 	unsigned char mac_len;
 	sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
-	UARTprintf("*");
-
-	vTaskDelayUntil(&now, 1000);
 	UARTprintf("*");
 
 	if (sl_mode == ROLE_AP || !wifi_status_get(0xFFFFFFFF)) {
@@ -1629,7 +1624,7 @@ void vUARTTask(void *pvParameters) {
 			get_hw_ver()==EVT2?1000000:24000000);
 	UARTprintf("*");
 	Cmd_mnt(0, 0);
-	vTaskDelay(100);
+	vTaskDelay(10);
 	//INIT SPI
 	spi_init();
 
@@ -1643,8 +1638,6 @@ void vUARTTask(void *pvParameters) {
 	init_prox_sensor();
 
 	init_led_animation();
-	ble_proto_led_init();
-
 
 	data_queue = xQueueCreate(10, sizeof(periodic_data));
 	pill_queue = xQueueCreate(MAX_PILL_DATA, sizeof(pill_data));
@@ -1661,6 +1654,11 @@ void vUARTTask(void *pvParameters) {
 
 	init_download_task( 1024 / 4 );
 	networktask_init(5 * 1024 / 4);
+
+	xTaskCreate(AudioTask_Thread,"audioTask",4*1024/4,NULL,4,NULL);
+	UARTprintf("*");
+	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,1,NULL);
+	UARTprintf("*");
 
 	xTaskCreate(top_board_task, "top_board_task", 2048 / 4, NULL, 2, NULL);
 	xTaskCreate(thread_alarm, "alarmTask", 2*1024 / 4, NULL, 4, NULL);
@@ -1683,10 +1681,6 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("*");
 #if !ONLY_MID
 
-	xTaskCreate(AudioTask_Thread,"audioTask",4*1024/4,NULL,4,NULL);
-	UARTprintf("*");
-	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,1,NULL);
-	UARTprintf("*");
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  512 / 4, NULL, 4, NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_dust, "dustTask", 256 / 4, NULL, 3, NULL);
@@ -1700,7 +1694,18 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("*");
 	//checkFaults();
 
-
+	vTaskDelay(10);
+	{
+    AudioPlaybackDesc_t desc;
+    memset(&desc,0,sizeof(desc));
+    strncpy( desc.file, "/start.raw", strlen("/start.raw") );
+    desc.volume = 57;
+    desc.durationInSeconds = -1;
+    desc.rate = 48000;
+    AudioTask_StartPlayback(&desc);
+	}
+	vTaskDelay(200);
+	ble_proto_led_init();
 
 	UARTprintf("\n\nFreeRTOS %s, %x, %s %x%x%x%x%x%x\n",
 	tskKERNEL_VERSION_NUMBER, KIT_VER, MORPH_NAME, mac[0], mac[1], mac[2],
