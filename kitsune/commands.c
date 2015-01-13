@@ -1424,7 +1424,7 @@ static int Cmd_test_3200_rtc(int argc, char*argv[]) {
 	return 0;
 }
 
-#define FILE_TEST
+//#define FILE_TEST
 #ifdef FILE_TEST
 static int Cmd_generate_user_testing_files(int argc, char* argv[])
 {
