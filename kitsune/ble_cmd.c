@@ -408,12 +408,14 @@ void ble_proto_free_command(MorpheusCommand* command)
     }
 }
 
-
+#include "audiohelper.h"
+#include "audiotask.h"
 int Cmd_factory_reset(int argc, char* argv[])
 {
     wifi_reset();
     pill_settings_reset_all();
     nwp_reset();
+    deleteFilesInDir(SAVE_BASE);
 
 	MorpheusCommand morpheusCommand = {0};
 	morpheusCommand.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_FACTORY_RESET;

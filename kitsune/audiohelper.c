@@ -20,6 +20,7 @@
 #include "hw_memmap.h"
 #include "hellofilesystem.h"
 #include "fatfs_cmd.h"
+#include "uart_logger.h"
 
 
 /* externs */
@@ -182,5 +183,50 @@ void CloseAndDeleteFile(Filedata_t * pfiledata) {
 	hello_fs_unlink(pfiledata->file_name);
 	memset(&pfiledata->file_obj, 0, sizeof(file_obj));
 
+}
+
+int deleteFilesInDir(const char* dir)
+{
+	DIR dirObject = {0};
+	FILINFO fileInfo = {0};
+    FRESULT res;
+
+    res = hello_fs_opendir(&dirObject, dir);
+
+    if(res != FR_OK)
+    {
+        return 0;
+    }
+
+
+    for(;;)
+    {
+        res = hello_fs_readdir(&dirObject, &fileInfo);
+        if(res != FR_OK)
+        {
+            return 0;
+        }
+
+        // If the file name is blank, then this is the end of the listing.
+        if(!fileInfo.fname[0])
+        {
+            break;
+        }
+
+        if(fileInfo.fattrib & AM_DIR)  // directory
+        {
+            continue;
+        } else {
+            res = hello_fs_unlink(fileInfo.fname);
+            if(res == FR_OK)
+            {
+            	LOGI("User file deleted %s\n", fileInfo.fname);
+            }else{
+            	LOGE("Delete user file %s failed\n", fileInfo.fname);
+            }
+        }
+    }
+
+    return(0);
 }
 
