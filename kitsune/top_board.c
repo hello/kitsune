@@ -18,6 +18,13 @@
 #include "uart_logger.h"
 #include "stdlib.h"
 #include "ble_proto.h"
+#include "crypto.h"
+
+#define TOPBOARD_INFO_FILE "/top/info.bin"
+
+typedef struct{
+    uint8_t update_sha[SHA1_SIZE];
+}top_info_t;
 
 typedef enum {
 	DFU_INVALID_PACKET = 0,
@@ -43,13 +50,17 @@ static struct{
 
 	}dfu_contex;
 	volatile int top_boot;
+    top_info_t info;
 }self;
 
+extern volatile bool enable_periodic;
 static void
 _printchar(uint8_t c){
     char term[2] = {0};
     term[0] = c;
-    LOGI(term);
+    if( !enable_periodic ) {
+    	LOGI(term);
+    }
     /*
 	 *UARTCharPutNonBlocking(UARTA0_BASE, c); //basic feedback
      */
@@ -58,6 +69,9 @@ _printchar(uint8_t c){
 #endif
 
 }
+
+int sf_sha1_verify(const char * sha_truth, const char * serial_file_path);
+int verify_top_update(void);
 
 static int32_t
 _encode_and_send(uint8_t* orig, uint32_t size){
@@ -90,7 +104,7 @@ _on_message(uint8_t * message_body, uint32_t body_length){
 		ble_proto_led_fade_out(0);
 		play_led_progress_bar(30,0,0,0, portMAX_DELAY);
 		vTaskDelay(2000);
-		if(0 != top_board_dfu_begin("/top/update.bin")){
+		if(0 != verify_top_update() || 0 != top_board_dfu_begin("/top/update.bin")){
 			top_board_dfu_begin("/top/factory.bin");
 		}
 		//led_set_color(0xFF, 50,0,0,0,0,0,0);
@@ -246,6 +260,47 @@ static int _prep_file(const char * name, uint32_t * out_fsize, uint16_t * out_cr
 	return 0;
 }
 
+static int
+_load_top_info(top_info_t * info){
+    long file_handle = 0;
+    // read in aes key
+    int ret = sl_FsOpen((unsigned char *)TOPBOARD_INFO_FILE, FS_MODE_OPEN_READ, NULL, &file_handle);
+    if (ret != 0) {
+        LOGW("failed to open file %s, setting default values\n", TOPBOARD_INFO_FILE);
+        memset(info, 0, sizeof(top_info_t));
+        return -1;
+    }
+    long bytes_read = sl_FsRead(file_handle, 0, (uint8_t*)info, sizeof(top_info_t));
+    LOGI("read %d bytes from file %s\n", bytes_read, TOPBOARD_INFO_FILE);
+    sl_FsClose(file_handle, NULL, NULL, 0);
+    return 0;
+}
+static int
+_save_top_info(const top_info_t * info){
+    unsigned long tok = 0;
+    long file_handle = 0;
+    SlFsFileInfo_t finfo = {0};
+
+    sl_FsGetInfo((unsigned char*)TOPBOARD_INFO_FILE, tok, &finfo);
+
+    if (sl_FsOpen((unsigned char*)TOPBOARD_INFO_FILE, FS_MODE_OPEN_WRITE, &tok, &file_handle)) {
+        LOGI("error opening file %s, trying to create\n", TOPBOARD_INFO_FILE);
+        if (sl_FsOpen((unsigned char*)TOPBOARD_INFO_FILE, FS_MODE_OPEN_CREATE(1024, _FS_FILE_OPEN_FLAG_COMMIT), &tok, &file_handle)) {
+            LOGI("error opening %s for write\n", TOPBOARD_INFO_FILE);
+            return -1;
+        }else{
+            sl_FsWrite(file_handle, 0, (uint8_t*)info, sizeof(top_info_t));  // Dummy write, we don't care about the result
+        }
+    }
+
+    long bytes_written = sl_FsWrite(file_handle, 0, (uint8_t*)info, sizeof(top_info_t));
+    if( bytes_written != sizeof(top_info_t)) {
+        LOGE( "write pill settings failed %d", bytes_written);
+        return -1;
+    }
+    sl_FsClose(file_handle, 0, 0, 0);
+    return 0;
+}
 int top_board_dfu_begin(const char * bin){
 	int ret;
 
@@ -325,6 +380,11 @@ int Cmd_send_top(int argc, char *argv[]){
 void top_board_notify_boot_complete(void){
 	self.top_boot = true;
 }
+void set_top_update_sha(const char * shasum, unsigned int imgnum){
+    _load_top_info(&self.info);
+    memcpy(self.info.update_sha, shasum, SHA1_SIZE);
+    _save_top_info(&self.info);
+}
 
 #include "dtm.h"
 int Cmd_top_dtm(int argc, char * argv[]){
@@ -346,4 +406,8 @@ int Cmd_top_dtm(int argc, char * argv[]){
 	}
 	slip_write((uint8_t*)&slip_cmd,sizeof(slip_cmd));
 	return 0;
+}
+int verify_top_update(void){
+    _load_top_info(&self.info);
+    return sf_sha1_verify((char*)self.info.update_sha, "/top/update.bin");
 }

@@ -21,7 +21,7 @@ static NetworkResponse_t _syncsendresponse;
 #define USE_DEBUG_PRINTF
 
 #ifdef USE_DEBUG_PRINTF
-#define DEBUG_PRINTF(...)  UARTprintf(__VA_ARGS__); UARTprintf("\r\n")
+#define DEBUG_PRINTF(...)  LOGI(__VA_ARGS__); UARTprintf("\r\n")
 #else
 static void nop(const char * foo,...) {  }
 #define DEBUG_PRINTF(...) nop(__VA_ARGS__)
@@ -183,7 +183,7 @@ static void NetworkTask_Thread(void * networkdata) {
 				}
 				networktask_exit_critical_region();;
 			}else{
-				UARTprintf("NetTask::Thread enter critical region failed.\n");
+				LOGE("NetTask::Thread enter critical region failed.\n");
 			}
 
 			/* unprepare */
@@ -242,13 +242,13 @@ int NetworkTask_AddMessageToQueue(const NetworkTaskServerSendMessage_t * message
 
 int networktask_enter_critical_region()
 {
-	UARTprintf("NetTask::ENTER CRITICAL REGION\n");
+	LOGI("NetTask::ENTER CRITICAL REGION\n");
 	return xSemaphoreTake(_network_mutex, portMAX_DELAY);
 }
 
 int networktask_exit_critical_region()
 {
-	UARTprintf("NetTask::EXIT CRITICAL REGION\n");
+	LOGI("NetTask::EXIT CRITICAL REGION\n");
 	return xSemaphoreGive(_network_mutex);
 }
 

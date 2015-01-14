@@ -163,7 +163,7 @@ void
 vAssertCalled( const char *pcFile, unsigned long ulLine )
 {
 
-  UARTprintf( "%s %u ASSERT", pcFile, ulLine );
+  LOGE( "%s %u ASSERT", pcFile, ulLine );
 
   mcu_reset();
 }
@@ -182,7 +182,7 @@ void vApplicationStackOverflowHook( TaskHandle_t xTask, char *pcTaskName )
     ( void ) xTask;
     ( void ) pcTaskName;
 
-    UARTprintf( "%s STACK OVERFLOW", pcTaskName );
+    LOGE( "%s STACK OVERFLOW", pcTaskName );
 
     mcu_reset();
 }
@@ -302,7 +302,7 @@ void main()
   VStartSimpleLinkSpawnTask(SPAWN_TASK_PRIORITY);
 
   /* Create the UART processing task. */
-  xTaskCreate( vUARTTask, "UARTTask", 1024/(sizeof(portSTACK_TYPE)), NULL, 4, NULL );
+  xTaskCreate( vUARTTask, "UARTTask", 2048/(sizeof(portSTACK_TYPE)), NULL, 4, NULL );
   xTaskCreate( watchdog_thread, "wdtTask", configMINIMAL_STACK_SIZE, NULL, 1, NULL );
 
   //

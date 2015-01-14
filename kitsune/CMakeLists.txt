@@ -15,6 +15,7 @@ include_directories ("${PROJECT_SOURCE_DIR}/protobuf")
 add_library(EmbeddedAlg STATIC
 hellomath.c
 fft.c
+rawaudiostatemachine.c
 audiofeatures.c
 audioclassifier.c
 nanopb/pb_decode.c
@@ -27,6 +28,7 @@ debugutils/base64.cpp
 machinelearning/linear_svm.c
 machinelearning/classifier_factory.c
 machinelearning/hmm.c
+machinelearning/audiohmm.c
 )
 
 

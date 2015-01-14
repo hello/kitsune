@@ -347,6 +347,7 @@ bool led_action_start(led_action_t *p_la,const SyncResponse* p_rb ) {
 			p_la->alt_color.g = 0;
 			p_la->alt_color.b = 0;
 	        // fall through
+			//break
 	    case SyncResponse_LEDAction_LEDActionType_DOUBLE:
 	    	p_la->siren.idx = 0;
 	    	p_la->siren.mask = 0x40040;

@@ -37,7 +37,7 @@
 
 
 /*****************************************************************************/
-/* include files                                                             */
+/* Include files                                                             */
 /*****************************************************************************/
 #include "simplelink.h"
 #include "protocol.h"
@@ -48,6 +48,7 @@
 /*****************************************************************************/
 /* _SlDrvFlowContInit */
 /*****************************************************************************/
+#if 0
 void _SlDrvFlowContInit(void)
 {
     g_pCB->FlowContCB.TxPoolCnt = FLOW_CONT_MIN;
@@ -68,4 +69,5 @@ void _SlDrvFlowContDeinit(void)
 
     OSI_RET_OK_CHECK(sl_SyncObjDelete(&g_pCB->FlowContCB.TxSyncObj));
 }
+#endif
 

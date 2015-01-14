@@ -3,20 +3,19 @@
 #include "fft.h"
 #include "debugutils/debuglog.h"
 #include "debugutils/matmessageutils.h"
-#include "machinelearning/classifier_factory.h"
-#include "machinelearning/linear_svm.h"
 #include "hellomath.h"
-#include "machinelearning/hmm.h"
+#include "machinelearning/audiohmm.h"
 #include <math.h>
-#include "kit_assert.h"
 #include <string.h>
 #include "rawaudiostatemachine.h"
+//#include "uartstdio.h"
 
 #define CIRCULAR_FEATBUF_SIZE_2N (5)
 #define CIRCULAR_BUF_SIZE (1 << CIRCULAR_FEATBUF_SIZE_2N)
 #define CIRCULAR_BUF_MASK (CIRCULAR_BUF_SIZE - 1)
 #define BUF_SIZE_IN_CHUNK (32)
 
+#define CLASSIFIER_BUF_LEN (16)
 #define MAX_NUMBER_CLASSES (5)
 #define EXPECTED_NUMBER_OF_CLASSIFIER_INPUTS (NUM_AUDIO_FEATURES)
 
@@ -24,6 +23,8 @@
 
 #define RECORD_DURATION_IN_MS (10000)
 #define RECORD_DURATION_IN_FRAMES (RECORD_DURATION_IN_MS / SAMPLE_PERIOD_IN_MILLISECONDS)
+
+#define SNORING_LOG_LIK_THRESHOLD_Q10 (600)
 
 
 #ifndef true
@@ -45,6 +46,8 @@ typedef struct {
 } AudioFeatureChunk_t; //330 bytes
 
 typedef struct {
+    int8_t classifier_feat_buf[CLASSIFIER_BUF_LEN][NUM_AUDIO_FEATURES];
+    uint16_t classifier_feat_idx;
     
     //cicular buffer of incoming data
     uint8_t packedbuf[CIRCULAR_BUF_SIZE][NUM_AUDIO_FEATURES/2]; //32 * 8 = 256 bytes
@@ -62,6 +65,7 @@ typedef struct {
     uint16_t numincoming;
     
     uint8_t isThereAnythingInteresting;
+    uint8_t isWorthClassifying;
 
     
 } DataBuffer_t;
@@ -82,33 +86,21 @@ static DataBuffer_t _buffer;
 static Classifier_t _classifier;
 static Classifier_t _hmm;
 
-//we have 17 * N * 2 bytes for N classes if it's a linear SVM
-//N = 5, let's say, so 17*5 * 2 = 170.  1K is really safe.
-static uint32_t _classifierdata[128]; //0.5K
-static uint32_t _hmmdata[128]; //0.5K
+#define NUM_HMM_STATES (2)
+static const int16_t k_default_audio_hmm_A[NUM_HMM_STATES][NUM_HMM_STATES] =
+{{1023,1},
+{1020,3}};
 
-//Snoring, talking, null -- BEJ 10/15/2014
-static const int16_t _defaultsvmdata[3][NUM_AUDIO_FEATURES + 1] =
-{
-{-5584,299,4639,2525,-5064,-6144,5710,-6894,-8295,-697,-7778,-329,-1929,-3721,319,10,-6453},
-{6444,181,-4261,-64,5062,7000,-937,4706,2571,5085,5564,1009,1499,3564,2169,-156,4466},
-{-2728,-106,1799,-622,-240,-2879,-4268,-344,5197,-5411,697,-1083,2594,193,-2716,87,-4480}
-    
-    };
+static const int16_t k_default_audio_hmm_vecs[NUM_HMM_STATES][NUM_AUDIO_FEATURES] =
+{{-897,100,-429,168,-130,8,-4,-30,-23,17,-28,-14,-2,0,-15,-3},
+{-885,95,-333,197,-140,-160,-88,-2,30,199,-86,-40,-32,15,-15,-1}};
+
+static const int16_t k_default_audio_hmm_vars[NUM_HMM_STATES] = {438,186};
 
 
-/* ATTENTION!   
-  
-  - The conditional probablities are in Q10   
-  - The state transition matrix is in Q15 
- 
-   This info will come in handy when you send a classifier on down from the server.
- */
+static const AudioHmm_t k_default_audio_hmm = {NUM_HMM_STATES,&k_default_audio_hmm_A[0][0],&k_default_audio_hmm_vecs[0][0],&k_default_audio_hmm_vars[0]};
 
-static const int16_t _defaulthmmdata[2][5] = {
-    {TOFIX(0.7f,HMM_LOGPROB_QFIXEDPOINT),TOFIX(0.4f,HMM_LOGPROB_QFIXEDPOINT),TOFIX(0.4f,HMM_LOGPROB_QFIXEDPOINT),   TOFIX(0.98f,15),TOFIX(0.02f,15)},
-    {TOFIX(0.3f,HMM_LOGPROB_QFIXEDPOINT),TOFIX(0.6f,HMM_LOGPROB_QFIXEDPOINT),TOFIX(0.6f,HMM_LOGPROB_QFIXEDPOINT),   TOFIX(0.006f,15),TOFIX(0.994f,15)},
-};
+
 
 static inline uint8_t pack_int8_to_int4(int8_t x) {
     const uint8_t sign = x < 0;
@@ -225,26 +217,7 @@ static void CopyCircularBufferToPermanentStorage(int64_t samplecount) {
     
 }
 
-static void InitDefaultClassifier(void) {
-    
-    _classifier.data = _classifierdata;
-    _classifier.classifiertype = linearsvm;
-    _classifier.numClasses = 3;
-    _classifier.numInputs = NUM_AUDIO_FEATURES;
-    _classifier.fpClassifier = LinearSvm_Evaluate;
-    
-    LinearSvm_Init(_classifier.data, &_defaultsvmdata[0][0], 3, NUM_AUDIO_FEATURES + 1, sizeof(_classifierdata));
-    
-    
-    _hmm.data = _hmmdata;
-    _hmm.classifiertype = hmm;
-    _hmm.numClasses = 2;
-    _hmm.numInputs = 3;
-    _hmm.fpClassifier = Hmm_Evaluate;
-    
-    Hmm_Init(_hmm.data , &_defaulthmmdata[0][0], 2, 5, sizeof(_hmmdata));
-    
-}
+
 
 void AudioClassifier_SetStorageBuffers(void * buffer, uint32_t buf_size_in_bytes) {
     memset(&_buffer,0,sizeof(_buffer));
@@ -259,30 +232,12 @@ void AudioClassifier_Init(RecordAudioCallback_t recordfunc) {
     memset(&_classifier,0,sizeof(Classifier_t));
     memset(&_hmm,0,sizeof(_hmm));
     
-    InitDefaultClassifier();
-
     RawAudioStateMachine_Init(recordfunc);
 }
 
 
-void AudioClassifier_DeserializeClassifier(pb_istream_t * stream, void * data) {
-   
-    if (!ClassifierFactory_CreateFromSerializedData(_classifierdata,&_classifier,stream,sizeof(_classifierdata))) {
-        memset(&_classifier,0,sizeof(Classifier_t));
-    }
-    
-    //input sanity check
-    if (_classifier.numInputs != EXPECTED_NUMBER_OF_CLASSIFIER_INPUTS) {
-        memset(&_classifier,0,sizeof(Classifier_t));
-    }
-    
-    /* NEED GODDAMNED LOGGING.  Tyrion: Where do errors go?  Tywin: Wherever errors go. */
-   
-}
-
 void AudioClassifier_DataCallback(const AudioFeatures_t * pfeats) {
-    int8_t classes[MAX_NUMBER_CLASSES];
-    int8_t probs[2];
+
     uint16_t idx;
 
     
@@ -321,6 +276,7 @@ void AudioClassifier_DataCallback(const AudioFeatures_t * pfeats) {
     //determine if anything interesting happend, energy-wise
     if (pfeats->logenergyOverBackroundNoise > MIN_CLASSIFICATION_ENERGY) {
         _buffer.isThereAnythingInteresting = true;
+        _buffer.isWorthClassifying = true;
     }
     
     //if something interesting happend and the circular buffer is full
@@ -331,37 +287,35 @@ void AudioClassifier_DataCallback(const AudioFeatures_t * pfeats) {
         CopyCircularBufferToPermanentStorage(pfeats->samplecount);
         _buffer.numincoming = 0; //"empty" the buffer
         _buffer.incomingidx = 0;
+        _buffer.isThereAnythingInteresting = false;
     }
     
    
     /************************
      THE CLASSIFIER SECTION
      ***********************/
-    
-    /* Run classifier if energy is signficant */
-    if (pfeats->logenergyOverBackroundNoise > MIN_CLASSIFICATION_ENERGY) {
-        if (_classifier.data && _classifier.fpClassifier) {
+    RawAudioStateMachine_IncrementSamples();
 
-            _classifier.fpClassifier(_classifier.data,classes,pfeats->feats4bit,3); //4 bits feats, SQ3 feats.
-
-            /*  This is just naive Bayes */
-            _hmm.fpClassifier(_hmm.data,probs,classes,0);
-          
+    /* copy features  */
+    memcpy(_buffer.classifier_feat_buf[_buffer.classifier_feat_idx],pfeats->feats4bit,NUM_AUDIO_FEATURES*sizeof(int8_t));
+    _buffer.classifier_feat_idx++;
+    if (_buffer.classifier_feat_idx >= CLASSIFIER_BUF_LEN) {
+        int32_t loglik = INT32_MIN;
+        _buffer.classifier_feat_idx = 0;
+        
+        if (_buffer.isWorthClassifying) {
+            loglik = AudioHmm_EvaluateModel(&k_default_audio_hmm, &_buffer.classifier_feat_buf[0][0], CLASSIFIER_BUF_LEN);
+         //   UARTprintf("loglik = %d\n",loglik);
+            
         }
+        
+        /* This could trigger an upload */
+        RawAudioStateMachine_SetLogLikelihoodOfModel(loglik,SNORING_LOG_LIK_THRESHOLD_Q10);
+        
+        _buffer.isWorthClassifying = false;
     }
-    else {
-        //update the state transition matrix
-        _hmm.fpClassifier(_hmm.data,probs,NULL,0);
 
-    }
-
-    /* This could trigger an upload */
-
-    RawAudioStateMachine_SetProbabilityOfDesiredClass(probs[CLASS_OF_INTEREST_TO_ENABLE_CALLBACK]);
-
-
-    DEBUG_LOG_S8("probs", NULL, probs, 2, pfeats->samplecount, pfeats->samplecount);
-
+   
 }
 
 /* sadly this is not stateless, but was the only way to serialize chunks one at a time */
@@ -377,7 +331,7 @@ static uint8_t GetNextMatrixCallback(uint8_t isFirst,const_MatDesc_t * pdesc,voi
     uint16_t endidx;
     uint16_t i;
     
-    assert(encodedata->buf == &_buffer);
+    //assert(encodedata->buf == &_buffer);
     
     memset(pdesc,0,sizeof(const_MatDesc_t));
     

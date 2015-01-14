@@ -14,7 +14,9 @@ extern "C" {
 
 void init_time_module( int stack );
 
-void wait_for_time();
+#define WAIT_FOREVER	(0)
+
+bool wait_for_time(int wait_sec);
 bool has_good_time();
 time_t get_time();
 

@@ -21,3 +21,12 @@ long sl_exit_critical_region()
 {
     return xSemaphoreGive(_sl_mutex);
 }
+
+long sl_AcceptNoneThreadSafe(_i16 sd, SlSockAddr_t *addr, SlSocklen_t *addrlen)
+{
+#ifdef sl_Accept
+#undef sl_Accept
+#endif
+	return sl_Accept(sd, addr, addrlen);
+#define sl_Accept(...) SL_SYNC(sl_Accept(__VA_ARGS__))
+}

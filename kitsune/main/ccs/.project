@@ -81,6 +81,16 @@
 			<locationURI>PARENT-2-PROJECT_LOC/audiohelper.h</locationURI>
 		</link>
 		<link>
+			<name>audiohmm.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/machinelearning/audiohmm.c</locationURI>
+		</link>
+		<link>
+			<name>audiohmm.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/machinelearning/audiohmm.h</locationURI>
+		</link>
+		<link>
 			<name>audioprocessingtask.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/audioprocessingtask.c</locationURI>
@@ -99,6 +109,11 @@
 			<name>audiotask.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/audiotask.c</locationURI>
+		</link>
+		<link>
+			<name>audiotask.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audiotask.h</locationURI>
 		</link>
 		<link>
 			<name>bigint.c</name>
@@ -144,16 +159,6 @@
 			<name>circ_buff.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/circ_buff.h</locationURI>
-		</link>
-		<link>
-			<name>classifier_factory.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/machinelearning/classifier_factory.c</locationURI>
-		</link>
-		<link>
-			<name>classifier_factory.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/machinelearning/classifier_factory.h</locationURI>
 		</link>
 		<link>
 			<name>cmdline.c</name>
@@ -271,16 +276,6 @@
 			<locationURI>PARENT-2-PROJECT_LOC/hellomath.c</locationURI>
 		</link>
 		<link>
-			<name>hmm.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/machinelearning/hmm.c</locationURI>
-		</link>
-		<link>
-			<name>hmm.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/machinelearning/hmm.h</locationURI>
-		</link>
-		<link>
 			<name>hw_ver.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/hw_ver.c</locationURI>
@@ -339,16 +334,6 @@
 			<name>led_cmd.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/led_cmd.h</locationURI>
-		</link>
-		<link>
-			<name>linear_svm.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/machinelearning/linear_svm.c</locationURI>
-		</link>
-		<link>
-			<name>linear_svm.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/machinelearning/linear_svm.h</locationURI>
 		</link>
 		<link>
 			<name>machine_learning_types.h</name>

@@ -142,7 +142,7 @@ void set_sl_time(time_t unix_timestamp_sec) {
 			  &sz,
 			  (unsigned char *)(&sl_tm));
 
-    UARTprintf("Day %d,Mon %d,Year %d,Hour %d,Min %d,Sec %d\n",sl_tm.sl_tm_day,sl_tm.sl_tm_mon,sl_tm.sl_tm_year, sl_tm.sl_tm_hour,sl_tm.sl_tm_min,sl_tm.sl_tm_sec);
+    LOGI("Day %d,Mon %d,Year %d,Hour %d,Min %d,Sec %d\n",sl_tm.sl_tm_day,sl_tm.sl_tm_mon,sl_tm.sl_tm_year, sl_tm.sl_tm_hour,sl_tm.sl_tm_min,sl_tm.sl_tm_sec);
 }
 
 uint32_t fetch_unix_time_from_ntp() {
@@ -298,10 +298,24 @@ static void time_task( void * params ) { //exists to get the time going and cach
 	}
 }
 
-void wait_for_time() { //todo make event based, maybe use semaphore
-	while( !has_good_time() ){
-		vTaskDelay(1000);
+bool wait_for_time(int sec) { //todo make event based, maybe use semaphore
+	if(sec == WAIT_FOREVER)
+	{
+		while(!has_good_time()){
+			vTaskDelay(1000);
+		}
+	}else{
+
+		while(!has_good_time()){
+			vTaskDelay(configTICK_RATE_HZ);
+			if(--sec == 0)
+			{
+				return 0;
+			}
+		}
 	}
+
+	return 1;
 }
 
 bool has_good_time() {

@@ -49,11 +49,12 @@
 #define HTTP_CONNECTION_CLOSE  "close"  /* HTTP Connection header value */
 
 #define DNS_RETRY           5 /* No of DNS tries */
+#define SOCK_RETRY      5
 #define HTTP_END_OF_HEADER  "\r\n\r\n"  /* string marking the end of headers in response */
 
 #define MAX_BUFF_SIZE      512
 
-static int _sf_sha1_verify(const char * sha_truth, const char * serial_file_path);
+int sf_sha1_verify(const char * sha_truth, const char * serial_file_path);
 unsigned char g_buff[MAX_BUFF_SIZE];
 long bytesReceived = 0; // variable to store the file size
 static int dl_sock = -1;
@@ -202,6 +203,7 @@ Cmd_ls(int argc, char *argv[])
 
         // Print the entry information on a single line with formatting to show
         // the attributes, date, time, size, and name.
+        vTaskDelay(10);
         DISP("%c%c%c%c%c %u/%02u/%02u %02u:%02u %9u  %s\n",
                    (file_info.fattrib & AM_DIR) ? 'D' : '-',
                    (file_info.fattrib & AM_RDO) ? 'R' : '-',
@@ -215,7 +217,7 @@ Cmd_ls(int argc, char *argv[])
                    (file_info.ftime >> 5) & 63,
                    file_info.fsize,
                    file_info.fname);
-        vTaskDelay(5);
+        vTaskDelay(10);
     }
 
     // Print summary lines showing the file, dir, and size totals.
@@ -694,12 +696,23 @@ int GetChunkSize(int *len, unsigned char **p_Buff, unsigned long *chunk_size)
     {
         if(*len == 0)
         {
+            int retry = 0;
             memset(g_buff, 0, MAX_BUFF_SIZE);
-            *len = recv(dl_sock, g_buff, MAX_BUFF_SIZE, 0);
+
+            do{
+                *len = recv(dl_sock, g_buff, MAX_BUFF_SIZE, 0);
+                if(++retry > SOCK_RETRY){
+                    break;
+                }
+                if(*len < 0 ){
+                    vTaskDelay(200);
+                }
+            }while(*len == SL_EAGAIN);
 
             LOGI( "chunked rx:\r\n%s\r\n", g_buff);
-            if(*len <= 0)
+            if(*len <= 0){
                 ASSERT_ON_ERROR(-1);
+            }
 
             *p_Buff = g_buff;
         }
@@ -751,11 +764,11 @@ typedef enum {
 
 #include "crypto.h"
 
-
 int GetData(char * filename, char* url, char * host, char * path, storage_dev_t storage)
 {
     int           transfer_len = 0;
     WORD          r = 0;
+    int           retry;
     unsigned char *pBuff = 0;
     char          eof_detected = 0;
     unsigned long recv_size = 0;
@@ -788,13 +801,21 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
     memset(g_buff, 0, MAX_BUFF_SIZE);
 
     // get the reply from the server in buffer.
-    transfer_len = recv(dl_sock, &g_buff[0], MAX_BUFF_SIZE, 0);
+    retry = 0;
+    do {
+        transfer_len = recv(dl_sock, &g_buff[0], MAX_BUFF_SIZE, 0);
+        if(++retry > SOCK_RETRY){
+            break;
+        }
+        if(transfer_len < 0 ){
+            vTaskDelay(200);
+        }
+    }while(transfer_len == SL_EAGAIN);
 
-    if(transfer_len <= 0)
-    {
+    if(transfer_len < 0){
+        LOGW("Download error %d\r\n",transfer_len);
         ASSERT_ON_ERROR(-1);
     }
-
     //LOGI("recv:\r\n%s\r\n", g_buff ); don't echo binary
 
     // Check for 404 return code
@@ -878,7 +899,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
     {
         r = GetChunkSize(&transfer_len, &pBuff, &recv_size);
     }
-    FRESULT res;
+    FRESULT res = FR_OK;
 
 	if (storage == SD_CARD) {
 		mkdir(path);
@@ -916,7 +937,14 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 	                           &Token, &fileHandle);
 			if (lRetVal < 0) {
 				return (lRetVal);
-			}
+            }else{
+	            sl_FsWrite(fileHandle, 0, (unsigned char *)path_buff, 1);
+                sl_FsClose(fileHandle, 0, 0, 0);
+                lRetVal = sl_FsOpen((unsigned char*)path_buff, FS_MODE_OPEN_WRITE, &Token, &fileHandle);
+                if(lRetVal < 0){
+                    return (lRetVal);
+                }
+            }
 		}
 	    LOGI("opening %s\n", path_buff);
 
@@ -959,6 +987,9 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 				//write to serial flash file
 	            r = sl_FsWrite(fileHandle, total - recv_size,
 	                    (unsigned char *)pBuff, transfer_len);
+                if(r > 0 && r < transfer_len){
+	            	LOGI("\r\nFailed to write correct chunk size\r\n");
+                }
 	            if(r < transfer_len)
 	            {
 	            	LOGI("Failed during writing the file\n");
@@ -967,7 +998,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 	                return sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
 	            }
 			}
-            LOGI("chunked 1 wrote:  %d %d\r\n", r, res);
+            LOGI("chunked 1 wrote:  %d / %d , %d\r\n", r,transfer_len,  res);
 
             if(r < recv_size)
             {
@@ -1363,6 +1394,8 @@ typedef struct sBootInfo
   _u32 ulImgStatus;
 
   unsigned char sha[NUM_IMAGES][SHA1_SIZE];
+
+  unsigned char shatop[1][SHA1_SIZE];//only use 0
 }sBootInfo_t;
 
 void mcu_reset();
@@ -1410,23 +1443,26 @@ static sBootInfo_t sBootInfo;
 static _i32 _WriteBootInfo(sBootInfo_t *psBootInfo)
 {
     _i32 hndl;
-    unsigned long ulBootInfoToken;
+    unsigned long ulBootInfoToken = 0;
     unsigned long ulBootInfoCreateFlag;
 
+
+    sl_FsDel((unsigned char *)IMG_BOOT_INFO,ulBootInfoToken);
     //
     // Initialize boot info file create flag
     //
-    ulBootInfoCreateFlag  = _FS_FILE_OPEN_FLAG_COMMIT|_FS_FILE_PUBLIC_WRITE;
+    ulBootInfoCreateFlag  = FS_MODE_OPEN_CREATE(256, _FS_FILE_OPEN_FLAG_COMMIT|_FS_FILE_PUBLIC_WRITE);
 
     //
     // Check if its a secure MCU
     //
     if ( IsSecureMCU() )
     {
-      ulBootInfoToken       = USER_BOOT_INFO_TOKEN;
-      ulBootInfoCreateFlag  = _FS_FILE_OPEN_FLAG_COMMIT|_FS_FILE_OPEN_FLAG_SECURE|
-                              _FS_FILE_OPEN_FLAG_NO_SIGNATURE_TEST|
-                              _FS_FILE_PUBLIC_WRITE|_FS_FILE_OPEN_FLAG_VENDOR;
+        LOGI("Boot info is secure mcu\r\n");
+        ulBootInfoToken       = USER_BOOT_INFO_TOKEN;
+        ulBootInfoCreateFlag  = _FS_FILE_OPEN_FLAG_COMMIT|_FS_FILE_OPEN_FLAG_SECURE|
+            _FS_FILE_OPEN_FLAG_NO_SIGNATURE_TEST|
+            _FS_FILE_PUBLIC_WRITE|_FS_FILE_OPEN_FLAG_VENDOR;
     }
 
 
@@ -1434,8 +1470,11 @@ static _i32 _WriteBootInfo(sBootInfo_t *psBootInfo)
 		LOGI("error opening file, trying to create\n");
 
 		if (sl_FsOpen((unsigned char *)IMG_BOOT_INFO, ulBootInfoCreateFlag, &ulBootInfoToken, &hndl)) {
+            LOGE("Boot info open failed\n");
 			return -1;
-		}
+		}else{
+            sl_FsWrite(hndl, 0, (_u8 *)psBootInfo, sizeof(sBootInfo_t));  // Dummy write, we don't care about the result
+        }
 	}
 	if( 0 < sl_FsWrite(hndl, 0, (_u8 *)psBootInfo, sizeof(sBootInfo_t)) )
 	{
@@ -1491,13 +1530,33 @@ static _i32 _McuImageGetNewIndex(void)
 #include "wifi_cmd.h"
 #include "FreeRTOS.h"
 #include "task.h"
+#include "top_board.h"
+
+int wait_for_top_boot(unsigned int timeout);
+int send_top(char *, int);
 
 void boot_commit_ota() {
     _ReadBootInfo(&sBootInfo);
     /* Check only on status TESTING */
     if( IMG_STATUS_TESTING == sBootInfo.ulImgStatus )
 	{
-		LOGI("Booted in testing mode\n");
+        DISP("\r\n-----------------------\r\n");
+		LOGI("Booted in testing mode\r\n");
+        DISP("\r\n-----------------------\r\n");
+        if( !verify_top_update() ){
+            LOGI("Updating top board\r\n");
+            send_top("dfu", strlen("dfu"));
+            if(wait_for_top_boot(60000)){
+                LOGI("Top board update success\r\n");
+				//delete update on success
+				sl_FsDel( "/top/update.bin", 0);
+            }else{
+                LOGE("Top board update failed\r\n");
+                //FORCE boot into factory next time
+            }
+        }else{
+            LOGW("TOP checksum error, skipping update\r\n");
+        }
 		sBootInfo.ulImgStatus = IMG_STATUS_NOTEST;
 		sBootInfo.ucActiveImg = (sBootInfo.ucActiveImg == IMG_ACT_USER1)?
 								IMG_ACT_USER2:
@@ -1521,8 +1580,6 @@ int Cmd_version(int argc, char *argv[]) {
 	return 0;
 }
 
-int wait_for_top_boot(unsigned int timeout);
-int send_top(char *, int);
 bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, void **arg);
 void free_download_info(SyncResponse_FileDownload * download_info) {
 	char * filename=NULL, * url=NULL, * host=NULL, * path=NULL, * serial_flash_path=NULL, * serial_flash_name=NULL;
@@ -1557,6 +1614,7 @@ xQueueHandle download_queue = 0;
 
 void file_download_task( void * params ) {
     SyncResponse_FileDownload download_info;
+    unsigned char top_sha_cache[SHA1_SIZE];
     int top_need_dfu = 0;
     for(;;) while (xQueueReceive(download_queue, &(download_info), 100)) {
         char * filename=NULL, * url=NULL, * host=NULL, * path=NULL, * serial_flash_path=NULL, * serial_flash_name=NULL;
@@ -1569,7 +1627,7 @@ void file_download_task( void * params ) {
         serial_flash_path = download_info.serial_flash_path.arg;
 
         if( strlen(filename) == 0 && strlen(serial_flash_name) == 0 ) {
-            UARTprintf( "no file name!\n");
+            LOGE( "no file name!\n");
             goto next_one;
         }
 
@@ -1631,8 +1689,10 @@ void file_download_task( void * params ) {
 
                 if (strcmp(buf, "/top/update.bin") == 0) {
                     if (download_info.has_sha1) {
-                        if( _sf_sha1_verify((char *)download_info.sha1.bytes, buf)){
-                            LOGE("Top DFU failed\r\n");
+                        memcpy(top_sha_cache, download_info.sha1.bytes, SHA1_SIZE );
+                        if( sf_sha1_verify((char *)download_info.sha1.bytes, buf)){
+                            LOGW("Top DFU download failed\r\n");
+                            top_need_dfu = 0;
                             goto end_download_task;
                         }else{
                             top_need_dfu = 1;
@@ -1657,20 +1717,17 @@ void file_download_task( void * params ) {
                 full_path[sizeof(full_path)-1] = 0;
                 strncat((char*)full_path, serial_flash_name, sizeof(full_path) - strlen((char*)full_path) - 1);
 
-                res = _sf_sha1_verify((char *)download_info.sha1.bytes, (char *)full_path);
+                res = sf_sha1_verify((char *)download_info.sha1.bytes, (char *)full_path);
 
                 if(res){
                     goto end_download_task;
                 }else{
                     if(top_need_dfu){
-                        send_top("dfu", strlen("dfu"));
-                        if(wait_for_top_boot(60000)){
-                            LOGI("Top board update success\r\n");
-                        }else{
-                            LOGE("Top board update failed\r\n");
-                            //TODO handle failure scenario
-                            mcu_reset();
-                        }
+                        LOGI("Writing topboard SHA\r\n");
+                        /*
+                         *memcpy(sBootInfo.shatop[0], top_sha_cache, SHA1_SIZE );
+                         */
+                        set_top_update_sha((char*)top_sha_cache, 0);
                     }
                     LOGI("change image status to IMG_STATUS_TESTREADY\n\r");
                     sBootInfo.ulImgStatus = IMG_STATUS_TESTREADY;
@@ -1742,23 +1799,21 @@ bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg
 	}
 	return true;
 }
-static int _sf_sha1_verify(const char * sha_truth, const char * serial_file_path){
+int sf_sha1_verify(const char * sha_truth, const char * serial_file_path){
     //compute the sha of the file..
+#define minval( a,b ) a < b ? a : b
+
     unsigned char sha[SHA1_SIZE] = { 0 };
     static unsigned char buffer[128];
     SHA1_CTX sha1ctx;
     SHA1_Init(&sha1ctx);
-#define minval( a,b ) a < b ? a : b
     unsigned long tok = 0;
     long hndl, err, bytes, bytes_to_read;
     SlFsFileInfo_t info;
-    //copy filepath
-    strncpy((char*)buffer, serial_file_path, sizeof(buffer)-1);
-    buffer[sizeof(buffer)-1] = 0;
     //fetch path info
-    LOGI( "computing SHA of %s\n", buffer);
-    sl_FsGetInfo(buffer, tok, &info);
-    err = sl_FsOpen((unsigned char*)buffer, FS_MODE_OPEN_READ, &tok, &hndl);
+    LOGI( "computing SHA of %s\n", serial_file_path);
+    sl_FsGetInfo((unsigned char*)serial_file_path, tok, &info);
+    err = sl_FsOpen((unsigned char*)serial_file_path, FS_MODE_OPEN_READ, &tok, &hndl);
     if (err) {
         LOGI("error opening for read %d\n", err);
         return -1;
@@ -1768,7 +1823,7 @@ static int _sf_sha1_verify(const char * sha_truth, const char * serial_file_path
     while (bytes_to_read > 0) {
         bytes = sl_FsRead(hndl, info.FileLen - bytes_to_read,
                 buffer,
-                minval(sizeof(buffer),info.FileLen));
+                (minval(sizeof(buffer),bytes_to_read)));
         SHA1_Update(&sha1ctx, buffer, bytes);
         bytes_to_read -= bytes;
     }
@@ -1777,6 +1832,8 @@ static int _sf_sha1_verify(const char * sha_truth, const char * serial_file_path
     //compare
     if (memcmp(sha, sha_truth, SHA1_SIZE) != 0) {
         LOGE( "fw update SHA did not match!\n");
+        LOGI("Sha truth:      %02x ... %02x\r\n", sha_truth[0], sha_truth[SHA1_SIZE-1]);
+        LOGI("Sha calculated: %02x ... %02x\r\n", sha[0], sha[SHA1_SIZE-1]);
         return -1;
     }
 

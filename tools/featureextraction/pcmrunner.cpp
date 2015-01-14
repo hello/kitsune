@@ -8,10 +8,6 @@
 #include "../../kitsune/debugutils/base64.h"
 using namespace std;
 
-#define FFT_SIZE_2N (10)
-#define FFT_SIZE (1 << FFT_SIZE_2N)
-#define SAMPLE_RATE (44100)
-
 static std::string _label;
 
 
@@ -65,7 +61,7 @@ int main(int argc, char * argv[]) {
     DebugLogSingleton::Initialize_UsingFileStream(argv[2],_label);
 
     
-    char buf[2 * FFT_SIZE ];
+    char buf[sizeof(int16_t) * AUDIO_FFT_SIZE];
     const short * samples = (const short *) buf;
     int64_t counter = 0;
     

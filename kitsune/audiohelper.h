@@ -22,6 +22,8 @@ uint8_t WriteToFile(Filedata_t * pfiledata,const WORD bytes_to_write,const uint8
 void CloseFile(Filedata_t * pfiledata);
 void CloseAndDeleteFile(Filedata_t * pfiledata);
 
+int deleteFilesInDir(const char* dir);
+
 
 
 #endif

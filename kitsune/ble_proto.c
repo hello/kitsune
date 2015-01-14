@@ -19,6 +19,7 @@
 #include "stdlib.h"
 #include "stdio.h"
 #include "networktask.h"
+#include "audiotask.h"
 #include "wifi_cmd.h"
 #include "led_animations.h"
 #include "led_cmd.h"
@@ -28,6 +29,8 @@
 #include "sl_sync_include_after_simplelink_header.h"
 #include "ustdlib.h"
 #include "pill_settings.h"
+#include "audiohelper.h"
+#include "audiotask.h"
 
 typedef void(*task_routine_t)(void*);
 
@@ -37,11 +40,18 @@ typedef enum {
 	LED_OFF
 }led_mode_t;
 
+typedef enum {
+    BLE_UNKNOWN = 0,
+    BLE_PAIRING,
+    BLE_NORMAL
+} ble_mode_t;
+
 static struct {
 	uint8_t argb[4];
 	int delay;
 	uint32_t last_hold_time;
 	led_mode_t led_status;
+    ble_mode_t ble_status;
 } _self;
 
 static uint8_t _wifi_read_index;
@@ -81,6 +91,7 @@ static void _factory_reset(){
 
     pill_settings_reset_all();
     nwp_reset();
+    deleteFilesInDir(USER_DIR);
 	_ble_reply_command_with_type(MorpheusCommand_CommandType_MORPHEUS_COMMAND_FACTORY_RESET);
 
 }
@@ -354,13 +365,18 @@ static void _send_response_to_ble(const char* buffer, size_t len)
 void sample_sensor_data(periodic_data* data);
 static int _force_data_push()
 {
-    periodic_data* data = pvPortMalloc(sizeof(periodic_data));  // Let's put this in the heap, we don't use it all the time
-    if(!data)
+    if(!wait_for_time(10))
     {
-        ble_reply_protobuf_error(ErrorType_DEVICE_NO_MEMORY);
-        return 0;
+    	ble_reply_protobuf_error(ErrorType_NETWORK_ERROR);
+		return 0;
     }
-    
+
+    periodic_data* data = pvPortMalloc(sizeof(periodic_data));  // Let's put this in the heap, we don't use it all the time
+	if(!data)
+	{
+		ble_reply_protobuf_error(ErrorType_DEVICE_NO_MEMORY);
+		return 0;
+	}
     memset(data, 0, sizeof(periodic_data));
     sample_sensor_data(data);
 
@@ -453,7 +469,7 @@ void ble_proto_led_busy_mode(uint8_t a, uint8_t r, uint8_t g, uint8_t b, int del
 	led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 0, _self.delay, 1);
 }
 
-void ble_proto_led_roll_once(int a, int r, int g, int b, int delay)
+void ble_proto_led_flash(int a, int r, int g, int b, int delay, int time)
 {
 	LOGI("LED ROLL ONCE\n");
 	_self.argb[0] = a;
@@ -461,17 +477,24 @@ void ble_proto_led_roll_once(int a, int r, int g, int b, int delay)
 	_self.argb[2] = g;
 	_self.argb[3] = b;
 	_self.delay = delay;
-
+	int i = 0;
 	if(_self.led_status == LED_TRIPPY)
 	{
 		ble_proto_led_fade_out(0);
 
 		_self.led_status = LED_BUSY;
-		led_set_color_sync(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 1, 1);
+		for(i = 0; i < time; i++)
+		{
+			led_set_color_sync(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 0, 1);
+		}
+		_self.led_status = LED_OFF;
 		ble_proto_led_fade_in_trippy();
 	}else if(_self.led_status == LED_OFF){
 		_self.led_status = LED_BUSY;
-		led_set_color_sync(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 1, 1);
+		for(i = 0; i < time; i++)
+		{
+			led_set_color_sync(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 0, 1);
+		}
 		_self.led_status = LED_OFF;
 	}
 
@@ -526,6 +549,19 @@ extern volatile bool top_got_device_id; //being bad, this is only for factory
 void ble_proto_start_hold()
 {
 	_self.last_hold_time = xTaskGetTickCount();
+    switch(_self.ble_status)
+    {
+        case BLE_PAIRING:
+        {
+            // hold to cancel the pairing mode
+            LOGI("Back to normal mode\n");
+            MorpheusCommand response = {0};
+            response.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE;
+            ble_send_protobuf(&response);
+
+        }
+        break;
+    }
 }
 
 void ble_proto_end_hold()
@@ -536,11 +572,18 @@ void ble_proto_end_hold()
 		(current_tick - _self.last_hold_time) * (1000 / configTICK_RATE_HZ) < 10000 &&
 		_self.last_hold_time > 0)
 	{
-		LOGI("Trigger pairing mode\n");
-		MorpheusCommand response = {0};
-		response.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_PAIRING_MODE;
-		ble_send_protobuf(&response);
-		ble_proto_led_fade_in_trippy();
+        switch(_self.ble_status)
+        {
+            case BLE_NORMAL:
+            {
+        		LOGI("Trigger pairing mode\n");
+        		MorpheusCommand response = {0};
+        		response.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_PAIRING_MODE;
+        		ble_send_protobuf(&response);
+        		ble_proto_led_fade_in_trippy();
+            }
+            break;
+        }
 	}
 	_self.last_hold_time = 0;
 }
@@ -574,12 +617,14 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         {
             // Light up LEDs?
 			ble_proto_led_fade_in_trippy();
+            _self.ble_status = BLE_PAIRING;
             LOGI( "PAIRING MODE \n");
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE:  // Just for testing
 		{
 			ble_proto_led_fade_out(0);
+            _self.ble_status = BLE_NORMAL;
 			LOGI( "NORMAL MODE \n");
 		}
 		break;
@@ -608,6 +653,39 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
             LOGI("GET DEVICE ID\n");
             _self.led_status = LED_OFF;  // init led status
             _ble_reply_command_with_type(MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_DEVICE_ID);
+
+            if(command->has_ble_bond_count)
+            {
+            	// this command fires before MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID
+            	// and it is the 1st command you can get from top.
+            	if(!command->ble_bond_count){
+            		// If we had ble_bond_count field, boot LED animation can start from here. Visual
+            		// delay of device boot can be greatly reduced.
+					ble_proto_led_fade_in_trippy();
+
+					// TODO: Play startup sound. You will only reach here once.
+					// Now the hand hover-to-pairing mode will not delete all the bonds
+					// when the bond db is full, so you will never get zero after a phone bonds
+					// to Sense, unless user do factory reset and power cycle the device.
+
+					vTaskDelay(10);
+					{
+				    AudioPlaybackDesc_t desc;
+				    memset(&desc,0,sizeof(desc));
+				    strncpy( desc.file, "/start.raw", strlen("/start.raw") );
+				    desc.volume = 57;
+				    desc.durationInSeconds = -1;
+				    desc.rate = 48000;
+				    AudioTask_StartPlayback(&desc);
+					}
+					vTaskDelay(200);
+					ble_proto_led_init();
+
+            	}else{
+            		ble_proto_led_fade_out(0);
+            	}
+            }
+			ble_proto_led_init();
         }
         break;
     	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_DATA: 
@@ -658,7 +736,16 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
             if(command->deviceId.arg){
 				uint32_t color = pill_settings_get_color((const char*)command->deviceId.arg);
 				uint8_t* argb = (uint8_t*)&color;
-				ble_proto_led_roll_once(0xFF, argb[1], argb[2], argb[3], 18);
+
+				if(color)
+				{
+					ble_proto_led_flash(0xFF, argb[1], argb[2], argb[3], 10, 2);
+				}else{
+					if(_self.led_status == LED_TRIPPY || pill_settings_pill_count() == 0)
+					{
+						ble_proto_led_flash(0xFF, 0x80, 0x00, 0x80, 10, 2);
+					}
+				}
             }else{
             	LOGI("Please update topboard, no pill id\n");
             }
