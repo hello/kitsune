@@ -108,7 +108,7 @@ int NetworkTask_SynchronousSendProtobuf(const char * host,const char * endpoint,
 	memset(&_syncsendresponse,0,sizeof(_syncsendresponse));
 
 	//add to queue
-	if(xQueueSend( _asyncqueue, ( const void * )&message, portMAX_DELAY ) != pdTRUE)
+	if(xQueueSend( _asyncqueue, ( const void * )&message, 1000 ) != pdTRUE)
 	{
 		// If queue is full, do not block the caller.
 		xSemaphoreGive(_syncmutex);
