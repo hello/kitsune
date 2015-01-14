@@ -2,6 +2,7 @@
 #define __SL_SYNC_H__
 
 #include <stdint.h>
+#include "socket.h"
 
 //#define SL_DEBUG_LOG
 
@@ -29,14 +30,6 @@ extern "C" {
 	sl_enter_critical_region(); \
 	sl_ret = (call); \
 	sl_exit_critical_region(); \
-	sl_ret; \
-	})
-#define SL_BARRIER(call) \
-	({ \
-	long sl_ret; \
-	sl_enter_critical_region(); \
-	sl_exit_critical_region(); \
-	sl_ret = (call); \
 	sl_ret; \
 	})
 
@@ -90,7 +83,7 @@ extern "C" {
 #define sl_NetCfgGet(...)                        SL_SYNC(sl_NetCfgGet(__VA_ARGS__))
 #define sl_Socket(...)                           SL_SYNC(sl_Socket(__VA_ARGS__))
 #define sl_Close(...)                            SL_SYNC(sl_Close(__VA_ARGS__))
-#define sl_Accept(...)                           SL_BARRIER(sl_Accept(__VA_ARGS__))
+#define sl_Accept(...)                           SL_SYNC(sl_Accept(__VA_ARGS__))
 #define sl_Bind(...)                             SL_SYNC(sl_Bind(__VA_ARGS__))
 #define sl_Listen(...)                           SL_SYNC(sl_Listen(__VA_ARGS__))
 #define sl_Connect(...)                          SL_SYNC(sl_Connect(__VA_ARGS__))
@@ -126,6 +119,8 @@ extern "C" {
 long sl_sync_init();
 long sl_enter_critical_region();
 long sl_exit_critical_region();
+
+long sl_AcceptNoneThreadSafe(_i16 sd, SlSockAddr_t *addr, SlSocklen_t *addrlen);
 
 #ifdef __cplusplus
 }
