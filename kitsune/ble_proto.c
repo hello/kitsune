@@ -19,6 +19,7 @@
 #include "stdlib.h"
 #include "stdio.h"
 #include "networktask.h"
+#include "audiotask.h"
 #include "wifi_cmd.h"
 #include "led_animations.h"
 #include "led_cmd.h"
