@@ -649,9 +649,20 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 
             if(command->has_ble_bond_count)
             {
-            	// TODO: store the bond count here. Or just go ahead ring the start sound
             	// this command fires before MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID
             	// and it is the 1st command you can get from top.
+            	if(!command->ble_bond_count){
+            		// If we had ble_bond_count field, boot LED animation can start from here. Visual
+            		// delay of device boot can be greatly reduced.
+					ble_proto_led_fade_in_trippy();
+
+					// TODO: Play startup sound. You will only reach here once.
+					// Now the hand hover-to-pairing mode will not delete all the bonds
+					// when the bond db is full, so you will never get zero after a phone bonds
+					// to Sense, unless user do factory reset and power cycle the device.
+            	}else{
+            		ble_proto_led_fade_out(0);
+            	}
             }
         }
         break;
