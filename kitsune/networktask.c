@@ -95,8 +95,11 @@ int NetworkTask_SynchronousSendProtobuf(const char * host,const char * endpoint,
 	message.decode_buf = (uint8_t *)buf;
 	message.decode_buf_size = buf_size;
 
-	DEBUG_PRINTF("NetTask::SynchronousSendProtobuf -- Request endpoint %s",endpoint);
+	if( ! _syncmutex || ! _asyncqueue ) {
+		return -1;
+	}
 
+	DEBUG_PRINTF("NetTask::SynchronousSendProtobuf -- Request endpoint %s",endpoint);
 
 	//critical section
 	if(xSemaphoreTake(_syncmutex,portMAX_DELAY) != pdTRUE)
@@ -108,7 +111,7 @@ int NetworkTask_SynchronousSendProtobuf(const char * host,const char * endpoint,
 	memset(&_syncsendresponse,0,sizeof(_syncsendresponse));
 
 	//add to queue
-	if(xQueueSend( _asyncqueue, ( const void * )&message, portMAX_DELAY ) != pdTRUE)
+	if(xQueueSend( _asyncqueue, ( const void * )&message, 1000 ) != pdTRUE)
 	{
 		// If queue is full, do not block the caller.
 		xSemaphoreGive(_syncmutex);
