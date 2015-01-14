@@ -2380,7 +2380,7 @@ static void serv(int port, volatile int * connection_socket, int (*cb)(volatile 
 			memset(buf, 0, 64);
 			memset(linebuf, 0, 512);
 
-			*connection_socket = accept(sock, &their_addr, &addr_size);
+			*connection_socket = sl_AcceptNoneThreadSafe(sock, &their_addr, &addr_size);
 			setsockopt(*connection_socket, SOL_SOCKET, SO_RCVTIMEO, &tv,
 					sizeof(tv)); // Enable receive timeout
 
