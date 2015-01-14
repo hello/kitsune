@@ -682,6 +682,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
             		ble_proto_led_fade_out(0);
             	}
             }
+			ble_proto_led_init();
         }
         break;
     	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_DATA: 

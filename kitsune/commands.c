@@ -1429,6 +1429,60 @@ static int Cmd_enable_poll(int argc, char*argv[]) {
 	return 0;
 }
 
+static bool booted = false;
+
+void init_download_task( int stack );
+void init_i2c_recovery();
+
+void launch_tasks() {
+	init_download_task( 1024 / 4 );
+	networktask_init(5 * 1024 / 4);
+
+	xTaskCreate(AudioTask_Thread,"audioTask",4*1024/4,NULL,4,NULL);
+	UARTprintf("*");
+	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,1,NULL);
+	UARTprintf("*");
+
+	xTaskCreate(top_board_task, "top_board_task", 2048 / 4, NULL, 2, NULL);
+	xTaskCreate(thread_alarm, "alarmTask", 2*1024 / 4, NULL, 4, NULL);
+
+	UARTprintf("*");
+	xTaskCreate(thread_spi, "spiTask", 4*1024 / 4, NULL, 4, NULL); //this one doesn't look like much, but has to parse all the pb from bluetooth
+
+	UARTprintf("*");
+	xTaskCreate(FileUploaderTask_Thread,"fileUploadTask",1*1024/4,NULL,1,NULL);
+
+#ifdef BUILD_SERVERS //todo PVT disable!
+	xTaskCreate(telnetServerTask,"telnetServerTask",512/4,NULL,1,NULL);
+	xTaskCreate(httpServerTask,"httpServerTask",3*512/4,NULL,1,NULL);
+#endif
+
+	UARTprintf("*");
+#if !ONLY_MID
+
+	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  512 / 4, NULL, 4, NULL);
+	UARTprintf("*");
+	xTaskCreate(thread_dust, "dustTask", 256 / 4, NULL, 3, NULL);
+	UARTprintf("*");
+	xTaskCreate(thread_sensor_poll, "pollTask", 1024 / 4, NULL, 3, NULL);
+	UARTprintf("*");
+	xTaskCreate(thread_tx, "txTask", 3 * 1024 / 4, NULL, 2, NULL);
+	UARTprintf("*");
+#endif
+	//checkFaults();
+	booted = true;
+}
+
+
+int Cmd_boot(int argc, char *argv[]) {
+	if( !booted ) {
+		launch_tasks();
+	}
+	return 0;
+}
+
+
+
 // ==============================================================================
 // This is the table that holds the command names, implementing functions, and
 // brief description.
@@ -1519,6 +1573,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "lfclktest",Cmd_test_3200_rtc,""},
 		{ "poll",Cmd_enable_poll,""},
 		{ "country",Cmd_country,""},
+		{ "boot",Cmd_boot,""},
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
 		{ "iperfcli",Cmd_iperf_client,""},
@@ -1537,22 +1592,20 @@ tCmdLineEntry g_sCmdTable[] = {
 // ==============================================================================
 // This is the UARTTask.  It handles command lines received from the RX IRQ.
 // ==============================================================================
+
 extern xSemaphoreHandle g_xRxLineSemaphore;
 void UARTStdioIntHandler(void);
-void init_download_task( int stack );
-void init_i2c_recovery();
 long nwp_reset();
 
 void vUARTTask(void *pvParameters) {
 	char cCmdBuf[512];
+	bool on_charger = false;
 	wifi_status_init();
 	if(led_init() != 0){
 		LOGI("Failed to create the led_events.\n");
 	}
-
 	xTaskCreate(led_task, "ledTask", 700 / 4, NULL, 4, NULL); //todo reduce stack - jpf 512 not large enough due to large int arrays in led_task
 
-	Cmd_led_clr(0,0);
 
 	//switch the uart lines to gpios, drive tx low and see if rx goes low as well
     // Configure PIN_57 for GPIOInput
@@ -1566,10 +1619,11 @@ void vUARTTask(void *pvParameters) {
     MAP_GPIODirModeSet(GPIOA0_BASE, 0x2, GPIO_DIR_MODE_OUT);
     MAP_GPIOPinWrite(GPIOA0_BASE, 0x2, 0);
 
-    vTaskDelay(100);
+    vTaskDelay(10);
     if( MAP_GPIOPinRead(GPIOA0_BASE, 0x4) == 0 ) {
     	//drive sop2 low so we disconnect
         MAP_GPIOPinWrite(GPIOA3_BASE, 0x2, 0);
+        on_charger = true;
     }
     MAP_PinTypeUART(PIN_55, PIN_MODE_3);
     MAP_PinTypeUART(PIN_57, PIN_MODE_3);
@@ -1650,49 +1704,15 @@ void vUARTTask(void *pvParameters) {
 	if (data_queue == 0) {
 		UARTprintf("Failed to create the data_queue.\n");
 	}
-
-
-	init_download_task( 1024 / 4 );
-	networktask_init(5 * 1024 / 4);
-
-	xTaskCreate(AudioTask_Thread,"audioTask",4*1024/4,NULL,4,NULL);
 	UARTprintf("*");
-	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,1,NULL);
-	UARTprintf("*");
-
-	xTaskCreate(top_board_task, "top_board_task", 2048 / 4, NULL, 2, NULL);
-	xTaskCreate(thread_alarm, "alarmTask", 2*1024 / 4, NULL, 4, NULL);
-
-	UARTprintf("*");
-	xTaskCreate(thread_spi, "spiTask", 4*1024 / 4, NULL, 4, NULL); //this one doesn't look like much, but has to parse all the pb from bluetooth
-
-	UARTprintf("*");
+	SetupGPIOInterrupts();
 	CreateDefaultDirectories();
 
-	UARTprintf("*");
-	xTaskCreate(FileUploaderTask_Thread,"fileUploadTask",1*1024/4,NULL,1,NULL);
-
-#ifdef BUILD_SERVERS //todo PVT disable!
-	xTaskCreate(telnetServerTask,"telnetServerTask",512/4,NULL,1,NULL);
-	xTaskCreate(httpServerTask,"httpServerTask",3*512/4,NULL,1,NULL);
-#endif
-
-	SetupGPIOInterrupts();
-	UARTprintf("*");
-#if !ONLY_MID
-
-	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  512 / 4, NULL, 4, NULL);
-	UARTprintf("*");
-	xTaskCreate(thread_dust, "dustTask", 256 / 4, NULL, 3, NULL);
-	UARTprintf("*");
-	xTaskCreate(thread_sensor_poll, "pollTask", 1024 / 4, NULL, 3, NULL);
-	UARTprintf("*");
-	xTaskCreate(thread_tx, "txTask", 3 * 1024 / 4, NULL, 2, NULL);
-	UARTprintf("*");
-#endif
+	if( on_charger ) {
+		launch_tasks();
+	}
 	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 4, NULL);
 	UARTprintf("*");
-	//checkFaults();
 
 
 	UARTprintf("\n\nFreeRTOS %s, %x, %s %x%x%x%x%x%x\n",
