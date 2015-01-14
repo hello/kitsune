@@ -1438,8 +1438,6 @@ void launch_tasks() {
 	init_download_task( 1024 / 4 );
 	networktask_init(5 * 1024 / 4);
 
-	xTaskCreate(AudioTask_Thread,"audioTask",4*1024/4,NULL,4,NULL);
-	UARTprintf("*");
 	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,1,NULL);
 	UARTprintf("*");
 
@@ -1708,6 +1706,8 @@ void vUARTTask(void *pvParameters) {
 	SetupGPIOInterrupts();
 	CreateDefaultDirectories();
 
+	xTaskCreate(AudioTask_Thread,"audioTask",4*1024/4,NULL,4,NULL);
+	UARTprintf("*");
 	if( on_charger ) {
 		launch_tasks();
 	}
