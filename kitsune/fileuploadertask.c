@@ -75,10 +75,7 @@ static void Init() {
 		_pListMem = pvPortMalloc(NUM_UPLOADS_TRACKED * sizeof(FileUploadListItem_t));
 	}
 
-	if (!_pListMem) {
-		LOGE("UNABLE TO ALLOCATE SUFFICIENT MEMORY\n");  //and god help you if you try to upload a file
-		return;
-	}
+        assert(_pListMem);
 
 	memset(_pListMem,0,NUM_UPLOADS_TRACKED * sizeof(FileUploadListItem_t));
 
