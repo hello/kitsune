@@ -1710,6 +1710,8 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("*");
 	if( on_charger ) {
 		launch_tasks();
+	} else {
+		led_set_color(50, LED_MAX, LED_MAX,0, 1, 0, 10, 1 ); //spin to alert user!
 	}
 	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 4, NULL);
 	UARTprintf("*");

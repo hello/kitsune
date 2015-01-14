@@ -95,8 +95,11 @@ int NetworkTask_SynchronousSendProtobuf(const char * host,const char * endpoint,
 	message.decode_buf = (uint8_t *)buf;
 	message.decode_buf_size = buf_size;
 
-	DEBUG_PRINTF("NetTask::SynchronousSendProtobuf -- Request endpoint %s",endpoint);
+	if( ! _syncmutex || ! _asyncqueue ) {
+		return -1;
+	}
 
+	DEBUG_PRINTF("NetTask::SynchronousSendProtobuf -- Request endpoint %s",endpoint);
 
 	//critical section
 	if(xSemaphoreTake(_syncmutex,portMAX_DELAY) != pdTRUE)
