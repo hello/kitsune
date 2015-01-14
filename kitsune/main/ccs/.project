@@ -111,6 +111,11 @@
 			<locationURI>PARENT-2-PROJECT_LOC/audiotask.c</locationURI>
 		</link>
 		<link>
+			<name>audiotask.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audiotask.h</locationURI>
+		</link>
+		<link>
 			<name>bigint.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/bigint.c</locationURI>

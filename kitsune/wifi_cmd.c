@@ -1573,14 +1573,7 @@ static void _on_alarm_received( SyncResponse_Alarm* received_alarm)
 
 static void _on_factory_reset_received()
 {
-    // hehe I am going to disconnect WLAN here, don't kill me Chris
-    wifi_reset();
-    nwp_reset();
-
-    // Notify the topboard factory reset, wipe out all whitelist info
-    MorpheusCommand morpheusCommand = {0};
-    morpheusCommand.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_FACTORY_RESET;
-    ble_send_protobuf(&morpheusCommand);  // Send the protobuf to topboard
+    Cmd_factory_reset(0, 0);
 }
 
 static void _set_led_color_based_on_room_conditions(const SyncResponse* response_protobuf)
