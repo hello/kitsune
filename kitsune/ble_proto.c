@@ -545,6 +545,19 @@ extern volatile bool top_got_device_id; //being bad, this is only for factory
 void ble_proto_start_hold()
 {
 	_self.last_hold_time = xTaskGetTickCount();
+    switch(_self.ble_status)
+    {
+        case BLE_PAIRING:
+        {
+            // hold to cancel the pairing mode
+            LOGI("Back to normal mode\n");
+            MorpheusCommand response = {0};
+            response.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE;
+            ble_send_protobuf(&response);
+
+        }
+        break;
+    }
 }
 
 void ble_proto_end_hold()
@@ -564,16 +577,6 @@ void ble_proto_end_hold()
         		response.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_PAIRING_MODE;
         		ble_send_protobuf(&response);
         		ble_proto_led_fade_in_trippy();
-            }
-            break;
-            case BLE_PAIRING:
-            {
-                // hold to cancel the pairing mode
-                LOGI("Back to normal mode\n");
-                MorpheusCommand response = {0};
-                response.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE;
-                ble_send_protobuf(&response);
-
             }
             break;
         }
@@ -660,6 +663,20 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 					// Now the hand hover-to-pairing mode will not delete all the bonds
 					// when the bond db is full, so you will never get zero after a phone bonds
 					// to Sense, unless user do factory reset and power cycle the device.
+
+					vTaskDelay(10);
+					{
+				    AudioPlaybackDesc_t desc;
+				    memset(&desc,0,sizeof(desc));
+				    strncpy( desc.file, "/start.raw", strlen("/start.raw") );
+				    desc.volume = 57;
+				    desc.durationInSeconds = -1;
+				    desc.rate = 48000;
+				    AudioTask_StartPlayback(&desc);
+					}
+					vTaskDelay(200);
+					ble_proto_led_init();
+
             	}else{
             		ble_proto_led_fade_out(0);
             	}
