@@ -646,6 +646,13 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
             LOGI("GET DEVICE ID\n");
             _self.led_status = LED_OFF;  // init led status
             _ble_reply_command_with_type(MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_DEVICE_ID);
+
+            if(command->has_ble_bond_count)
+            {
+            	// TODO: store the bond count here. Or just go ahead ring the start sound
+            	// this command fires before MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID
+            	// and it is the 1st command you can get from top.
+            }
         }
         break;
     	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_DATA: 
