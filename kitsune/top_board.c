@@ -53,11 +53,14 @@ static struct{
     top_info_t info;
 }self;
 
+extern volatile bool enable_periodic;
 static void
 _printchar(uint8_t c){
     char term[2] = {0};
     term[0] = c;
-    LOGI(term);
+    if( !enable_periodic ) {
+    	LOGI(term);
+    }
     /*
 	 *UARTCharPutNonBlocking(UARTA0_BASE, c); //basic feedback
      */
@@ -406,5 +409,5 @@ int Cmd_top_dtm(int argc, char * argv[]){
 }
 int verify_top_update(void){
     _load_top_info(&self.info);
-    return sf_sha1_verify((uint8_t*)self.info.update_sha, "/top/update.bin");
+    return sf_sha1_verify((char*)self.info.update_sha, "/top/update.bin");
 }

@@ -67,7 +67,7 @@ int pill_settings_save(const BatchedPillSettings* pill_settings)
 
     if(!has_change)
     {
-    	UARTprintf("Pill settings not changed\n");
+    	LOGI("Pill settings not changed\n");
         return 1;
     }
 

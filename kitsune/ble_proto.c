@@ -19,6 +19,7 @@
 #include "stdlib.h"
 #include "stdio.h"
 #include "networktask.h"
+#include "audiotask.h"
 #include "wifi_cmd.h"
 #include "led_animations.h"
 #include "led_cmd.h"
@@ -548,6 +549,19 @@ extern volatile bool top_got_device_id; //being bad, this is only for factory
 void ble_proto_start_hold()
 {
 	_self.last_hold_time = xTaskGetTickCount();
+    switch(_self.ble_status)
+    {
+        case BLE_PAIRING:
+        {
+            // hold to cancel the pairing mode
+            LOGI("Back to normal mode\n");
+            MorpheusCommand response = {0};
+            response.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE;
+            ble_send_protobuf(&response);
+
+        }
+        break;
+    }
 }
 
 void ble_proto_end_hold()
@@ -567,16 +581,6 @@ void ble_proto_end_hold()
         		response.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_PAIRING_MODE;
         		ble_send_protobuf(&response);
         		ble_proto_led_fade_in_trippy();
-            }
-            break;
-            case BLE_PAIRING:
-            {
-                // hold to cancel the pairing mode
-                LOGI("Back to normal mode\n");
-                MorpheusCommand response = {0};
-                response.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE;
-                ble_send_protobuf(&response);
-
             }
             break;
         }
@@ -649,6 +653,39 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
             LOGI("GET DEVICE ID\n");
             _self.led_status = LED_OFF;  // init led status
             _ble_reply_command_with_type(MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_DEVICE_ID);
+
+            if(command->has_ble_bond_count)
+            {
+            	// this command fires before MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID
+            	// and it is the 1st command you can get from top.
+            	if(!command->ble_bond_count){
+            		// If we had ble_bond_count field, boot LED animation can start from here. Visual
+            		// delay of device boot can be greatly reduced.
+					ble_proto_led_fade_in_trippy();
+
+					// TODO: Play startup sound. You will only reach here once.
+					// Now the hand hover-to-pairing mode will not delete all the bonds
+					// when the bond db is full, so you will never get zero after a phone bonds
+					// to Sense, unless user do factory reset and power cycle the device.
+
+					vTaskDelay(10);
+					{
+				    AudioPlaybackDesc_t desc;
+				    memset(&desc,0,sizeof(desc));
+				    strncpy( desc.file, "/start.raw", strlen("/start.raw") );
+				    desc.volume = 57;
+				    desc.durationInSeconds = -1;
+				    desc.rate = 48000;
+				    AudioTask_StartPlayback(&desc);
+					}
+					vTaskDelay(200);
+					ble_proto_led_init();
+
+            	}else{
+            		ble_proto_led_fade_out(0);
+            	}
+            }
+			ble_proto_led_init();
         }
         break;
     	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_DATA: 

@@ -185,7 +185,7 @@ CmdLineProcess(void * line)
     // Fall through to here means that no matching command was found, so return
     // an error.
     //
-    LOGI("Bad command!\n");
+    LOGI("Bad command!\n> ");
     vPortFree(line);
     vTaskDelete( NULL );
     return;

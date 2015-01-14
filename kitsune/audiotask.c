@@ -502,7 +502,7 @@ static void DoCapture(uint32_t rate) {
 				Octogram_Update(&octogramdata,samples);
 
 				if (octogram_count == 0) {
-					UARTprintf("Finished octogram \r\n");
+					LOGI("Finished octogram \r\n");
 					Octogram_GetResult(&octogramdata,octogramdesc.result);
 
 					if (octogramdesc.onFinished) {

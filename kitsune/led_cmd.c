@@ -52,13 +52,13 @@ static xSemaphoreHandle _sync;
 void led_unblock()
 {
 	xSemaphoreGive(_sync);
-	UARTprintf("<");
+	LOGI("<");
 }
 
 void led_block()
 {
 	xSemaphoreTake(_sync, portMAX_DELAY);
-	UARTprintf(">");
+	LOGI(">");
 }
 
 void led_unblock_racing_task()
@@ -329,7 +329,6 @@ void led_task( void * params ) {
 	int i,j;
 	unsigned int colors_last[NUM_LED+1];
 	memset( colors_last, 0, sizeof(colors_last) );
-	led_array( colors_last, 20 );
 
 	vSemaphoreCreateBinary(led_smphr);
 	_sync_mutex = xSemaphoreCreateMutex();
@@ -348,7 +347,7 @@ void led_task( void * params ) {
 
 		if( evnt & LED_RESET_BIT ) {
 			memset( colors_last, 0, sizeof(colors_last) );
-			led_array( colors_last, 20 );
+			led_array( colors_last, 0 );
 			xEventGroupClearBits(led_events, 0xffffff );
 			xSemaphoreTake(_sync_mutex, portMAX_DELAY);
 			if(_is_sync_request) {

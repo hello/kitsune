@@ -104,7 +104,7 @@
 //			    GLOBAL VARIABLES
 //******************************************************************************
 
-volatile static bool enable_periodic =true;
+volatile bool enable_periodic =true;
 tCircularBuffer *pTxBuffer;
 tCircularBuffer *pRxBuffer;
 
@@ -361,7 +361,7 @@ int Cmd_do_octogram(int argc, char * argv[]) {
     	numsamples = 500;
     }
     if (numsamples == 0) {
-    	UARTprintf("number of requested samples was zero.\r\n");
+    	LOGI("number of requested samples was zero.\r\n");
     	return 0;
     }
 
@@ -391,19 +391,19 @@ int Cmd_do_octogram(int argc, char * argv[]) {
     	avg += res.logenergy[6];
     	avg /= 4;
 
-    	UARTprintf("%d\r\n", res.logenergy[2] - avg );
+    	LOGI("%d\r\n", res.logenergy[2] - avg );
     	return 0;
     }
 	//report results
-	UARTprintf("octogram log energies: ");
+    LOGI("octogram log energies: ");
 	for (i = 0; i < OCTOGRAM_SIZE; i++) {
 		if (i != 0) {
-			UARTprintf(",");
+			LOGI(",");
 		}
-		UARTprintf("%d",res.logenergy[i]);
+		LOGI("%d",res.logenergy[i]);
 	}
 
-	UARTprintf("\r\n");
+	LOGI("\r\n");
 
 	return 0;
 
@@ -1269,7 +1269,7 @@ int Cmd_generate_factory_data(int argc,char * argv[]) {
     for(i = 1; i < enc_size; i++) {
     	usnprintf(&key_string[i * 2 - 2], 3, "%02X", enc_factory_data[i]);
     }
-    UARTprintf( "\nfactory key: %s\n", key_string);
+    LOGI( "\nfactory key: %s\n", key_string);
 
 
 #if 0 //todo DVT disable!
@@ -1397,14 +1397,14 @@ static void CreateDirectoryIfNotExist(const char * path) {
 		res2 = hello_fs_mkdir(path);
 
 		if (res2 == FR_OK) {
-			UARTprintf("Created directory %s\r\n",path);
+			LOGI("Created directory %s\r\n",path);
 		}
 		else {
-			UARTprintf("Failed to create %s\r\n",path);
+			LOGI("Failed to create %s\r\n",path);
 		}
 	}
 	else {
-		UARTprintf("%s already exists\r\n",path);
+		LOGI("%s already exists\r\n",path);
 	}
 
 }
@@ -1460,6 +1460,60 @@ static int Cmd_enable_poll(int argc, char*argv[]) {
     enable_periodic =  atoi(argv[1]);
 	return 0;
 }
+
+static bool booted = false;
+
+void init_download_task( int stack );
+void init_i2c_recovery();
+
+void launch_tasks() {
+	init_download_task( 1024 / 4 );
+	networktask_init(5 * 1024 / 4);
+
+	xTaskCreate(AudioTask_Thread,"audioTask",4*1024/4,NULL,4,NULL);
+	UARTprintf("*");
+	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,1,NULL);
+	UARTprintf("*");
+
+	xTaskCreate(top_board_task, "top_board_task", 2048 / 4, NULL, 2, NULL);
+	xTaskCreate(thread_alarm, "alarmTask", 2*1024 / 4, NULL, 4, NULL);
+
+	UARTprintf("*");
+	xTaskCreate(thread_spi, "spiTask", 4*1024 / 4, NULL, 4, NULL); //this one doesn't look like much, but has to parse all the pb from bluetooth
+
+	UARTprintf("*");
+	xTaskCreate(FileUploaderTask_Thread,"fileUploadTask",1*1024/4,NULL,1,NULL);
+
+#ifdef BUILD_SERVERS //todo PVT disable!
+	xTaskCreate(telnetServerTask,"telnetServerTask",512/4,NULL,1,NULL);
+	xTaskCreate(httpServerTask,"httpServerTask",3*512/4,NULL,1,NULL);
+#endif
+
+	UARTprintf("*");
+#if !ONLY_MID
+
+	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  512 / 4, NULL, 4, NULL);
+	UARTprintf("*");
+	xTaskCreate(thread_dust, "dustTask", 256 / 4, NULL, 3, NULL);
+	UARTprintf("*");
+	xTaskCreate(thread_sensor_poll, "pollTask", 1024 / 4, NULL, 3, NULL);
+	UARTprintf("*");
+	xTaskCreate(thread_tx, "txTask", 3 * 1024 / 4, NULL, 2, NULL);
+	UARTprintf("*");
+#endif
+	//checkFaults();
+	booted = true;
+}
+
+
+int Cmd_boot(int argc, char *argv[]) {
+	if( !booted ) {
+		launch_tasks();
+	}
+	return 0;
+}
+
+
 
 // ==============================================================================
 // This is the table that holds the command names, implementing functions, and
@@ -1551,6 +1605,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "lfclktest",Cmd_test_3200_rtc,""},
 		{ "poll",Cmd_enable_poll,""},
 		{ "country",Cmd_country,""},
+		{ "boot",Cmd_boot,""},
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
 		{ "iperfcli",Cmd_iperf_client,""},
@@ -1572,23 +1627,20 @@ tCmdLineEntry g_sCmdTable[] = {
 // ==============================================================================
 // This is the UARTTask.  It handles command lines received from the RX IRQ.
 // ==============================================================================
+
 extern xSemaphoreHandle g_xRxLineSemaphore;
 void UARTStdioIntHandler(void);
-void init_download_task( int stack );
-void init_i2c_recovery();
 long nwp_reset();
 
 void vUARTTask(void *pvParameters) {
 	char cCmdBuf[512];
-	portTickType now;
+	bool on_charger = false;
 	wifi_status_init();
 	if(led_init() != 0){
 		LOGI("Failed to create the led_events.\n");
 	}
-
 	xTaskCreate(led_task, "ledTask", 700 / 4, NULL, 4, NULL); //todo reduce stack - jpf 512 not large enough due to large int arrays in led_task
 
-	Cmd_led_clr(0,0);
 
 	//switch the uart lines to gpios, drive tx low and see if rx goes low as well
     // Configure PIN_57 for GPIOInput
@@ -1602,10 +1654,11 @@ void vUARTTask(void *pvParameters) {
     MAP_GPIODirModeSet(GPIOA0_BASE, 0x2, GPIO_DIR_MODE_OUT);
     MAP_GPIOPinWrite(GPIOA0_BASE, 0x2, 0);
 
-    vTaskDelay(100);
+    vTaskDelay(10);
     if( MAP_GPIOPinRead(GPIOA0_BASE, 0x4) == 0 ) {
     	//drive sop2 low so we disconnect
         MAP_GPIOPinWrite(GPIOA3_BASE, 0x2, 0);
+        on_charger = true;
     }
     MAP_PinTypeUART(PIN_55, PIN_MODE_3);
     MAP_PinTypeUART(PIN_57, PIN_MODE_3);
@@ -1623,7 +1676,6 @@ void vUARTTask(void *pvParameters) {
 	antsel(PCB_ANT);
 
 	UARTprintf("*");
-	now = xTaskGetTickCount();
 	sl_sync_init();  // thread safe for all sl_* calls
 	sl_mode = sl_Start(NULL, NULL, NULL);
 	UARTprintf("*");
@@ -1641,9 +1693,6 @@ void vUARTTask(void *pvParameters) {
 	unsigned char mac[6];
 	unsigned char mac_len;
 	sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
-	UARTprintf("*");
-
-	vTaskDelayUntil(&now, 1000);
 	UARTprintf("*");
 
 	if (sl_mode == ROLE_AP || !wifi_status_get(0xFFFFFFFF)) {
@@ -1664,7 +1713,7 @@ void vUARTTask(void *pvParameters) {
 			get_hw_ver()==EVT2?1000000:24000000);
 	UARTprintf("*");
 	Cmd_mnt(0, 0);
-	vTaskDelay(100);
+	vTaskDelay(10);
 	//INIT SPI
 	spi_init();
 
@@ -1678,8 +1727,6 @@ void vUARTTask(void *pvParameters) {
 	init_prox_sensor();
 
 	init_led_animation();
-	ble_proto_led_init();
-
 
 	data_queue = xQueueCreate(10, sizeof(periodic_data));
 	pill_queue = xQueueCreate(MAX_PILL_DATA, sizeof(pill_data));
@@ -1692,49 +1739,15 @@ void vUARTTask(void *pvParameters) {
 	if (data_queue == 0) {
 		UARTprintf("Failed to create the data_queue.\n");
 	}
-
-
-	init_download_task( 1024 / 4 );
-	networktask_init(5 * 1024 / 4);
-
-	xTaskCreate(top_board_task, "top_board_task", 2048 / 4, NULL, 2, NULL);
-	xTaskCreate(thread_alarm, "alarmTask", 2*1024 / 4, NULL, 4, NULL);
-
 	UARTprintf("*");
-	xTaskCreate(thread_spi, "spiTask", 4*1024 / 4, NULL, 4, NULL); //this one doesn't look like much, but has to parse all the pb from bluetooth
-
-	UARTprintf("*");
+	SetupGPIOInterrupts();
 	CreateDefaultDirectories();
 
-	UARTprintf("*");
-	xTaskCreate(FileUploaderTask_Thread,"fileUploadTask",1*1024/4,NULL,1,NULL);
-
-#ifdef BUILD_SERVERS //todo PVT disable!
-	xTaskCreate(telnetServerTask,"telnetServerTask",512/4,NULL,1,NULL);
-	xTaskCreate(httpServerTask,"httpServerTask",3*512/4,NULL,1,NULL);
-#endif
-
-	SetupGPIOInterrupts();
-	UARTprintf("*");
-#if !ONLY_MID
-
-	xTaskCreate(AudioTask_Thread,"audioTask",4*1024/4,NULL,4,NULL);
-	UARTprintf("*");
-	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,1,NULL);
-	UARTprintf("*");
-	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  512 / 4, NULL, 4, NULL);
-	UARTprintf("*");
-	xTaskCreate(thread_dust, "dustTask", 256 / 4, NULL, 3, NULL);
-	UARTprintf("*");
-	xTaskCreate(thread_sensor_poll, "pollTask", 1024 / 4, NULL, 3, NULL);
-	UARTprintf("*");
-	xTaskCreate(thread_tx, "txTask", 3 * 1024 / 4, NULL, 2, NULL);
-	UARTprintf("*");
-#endif
+	if( on_charger ) {
+		launch_tasks();
+	}
 	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 4, NULL);
 	UARTprintf("*");
-	//checkFaults();
-
 
 
 	UARTprintf("\n\nFreeRTOS %s, %x, %s %x%x%x%x%x%x\n",
@@ -1742,6 +1755,7 @@ void vUARTTask(void *pvParameters) {
 			mac[3], mac[4], mac[5]);
 	UARTprintf("\n? for help\n");
 	UARTprintf("> ");
+
 
 	/* remove anything we recieved before we were ready */
 

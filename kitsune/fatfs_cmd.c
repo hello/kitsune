@@ -203,6 +203,7 @@ Cmd_ls(int argc, char *argv[])
 
         // Print the entry information on a single line with formatting to show
         // the attributes, date, time, size, and name.
+        vTaskDelay(10);
         DISP("%c%c%c%c%c %u/%02u/%02u %02u:%02u %9u  %s\n",
                    (file_info.fattrib & AM_DIR) ? 'D' : '-',
                    (file_info.fattrib & AM_RDO) ? 'R' : '-',
@@ -216,7 +217,7 @@ Cmd_ls(int argc, char *argv[])
                    (file_info.ftime >> 5) & 63,
                    file_info.fsize,
                    file_info.fname);
-        vTaskDelay(5);
+        vTaskDelay(10);
     }
 
     // Print summary lines showing the file, dir, and size totals.
@@ -1547,6 +1548,8 @@ void boot_commit_ota() {
             send_top("dfu", strlen("dfu"));
             if(wait_for_top_boot(60000)){
                 LOGI("Top board update success\r\n");
+				//delete update on success
+				sl_FsDel( "/top/update.bin", 0);
             }else{
                 LOGE("Top board update failed\r\n");
                 //FORCE boot into factory next time
@@ -1624,7 +1627,7 @@ void file_download_task( void * params ) {
         serial_flash_path = download_info.serial_flash_path.arg;
 
         if( strlen(filename) == 0 && strlen(serial_flash_name) == 0 ) {
-            UARTprintf( "no file name!\n");
+            LOGE( "no file name!\n");
             goto next_one;
         }
 
