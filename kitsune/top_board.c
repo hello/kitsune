@@ -53,12 +53,12 @@ static struct{
     top_info_t info;
 }self;
 
-extern volatile bool enable_periodic;
+extern volatile bool booted;
 static void
 _printchar(uint8_t c){
     char term[2] = {0};
     term[0] = c;
-    if( !enable_periodic ) {
+    if( booted ) {
     	LOGI(term);
     }
     /*

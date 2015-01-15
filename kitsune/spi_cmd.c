@@ -247,6 +247,8 @@ int Cmd_spi_write(int argc, char *argv[]) {
 	return SUCCESS;
 }
 
+extern volatile bool booted;
+
 int Cmd_spi_read(int argc, char *argv[]) {
 	int len;
 	unsigned char buf[256];
@@ -261,8 +263,10 @@ int Cmd_spi_read(int argc, char *argv[]) {
 	LOGI( "\r\n" );
 #endif
 
-	if( len ) {
-	    on_morpheus_protobuf_arrival(buf, len);
+	if( booted ) {
+		if( len ) {
+			on_morpheus_protobuf_arrival(buf, len);
+		}
 	}
 
 	return SUCCESS;

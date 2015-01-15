@@ -104,9 +104,10 @@
 //			    GLOBAL VARIABLES
 //******************************************************************************
 
-volatile bool enable_periodic =true;
 tCircularBuffer *pTxBuffer;
 tCircularBuffer *pRxBuffer;
+
+volatile bool booted = false;
 
 //*****************************************************************************
 //                          LOCAL DEFINES
@@ -1056,7 +1057,7 @@ void thread_sensor_poll(void* unused) {
 
 		sample_sensor_data(&data);
 
-		if( enable_periodic ) {
+		if( booted ) {
 		LOGI("collecting time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d %d %d %d\twave %d\thold %d\n",
 				data.unix_time, data.light, data.light_variability, data.light_tonality, data.temperature, data.humidity,
 				data.dust, data.dust_max, data.dust_min, data.dust_variability, data.wave_count, data.hold_count);
@@ -1456,12 +1457,6 @@ static int Cmd_generate_user_testing_files(int argc, char* argv[])
 }
 #endif
 
-static int Cmd_enable_poll(int argc, char*argv[]) {
-    enable_periodic =  atoi(argv[1]);
-	return 0;
-}
-
-static bool booted = false;
 
 void init_download_task( int stack );
 void init_i2c_recovery();
@@ -1476,8 +1471,6 @@ void launch_tasks() {
 	xTaskCreate(top_board_task, "top_board_task", 2048 / 4, NULL, 2, NULL);
 	xTaskCreate(thread_alarm, "alarmTask", 2*1024 / 4, NULL, 4, NULL);
 
-	UARTprintf("*");
-	xTaskCreate(thread_spi, "spiTask", 4*1024 / 4, NULL, 4, NULL); //this one doesn't look like much, but has to parse all the pb from bluetooth
 
 	UARTprintf("*");
 	xTaskCreate(FileUploaderTask_Thread,"fileUploadTask",1*1024/4,NULL,1,NULL);
@@ -1601,7 +1594,6 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "genkey",Cmd_generate_factory_data,""},
 		{ "testkey", Cmd_test_key, ""},
 		{ "lfclktest",Cmd_test_3200_rtc,""},
-		{ "poll",Cmd_enable_poll,""},
 		{ "country",Cmd_country,""},
 		{ "boot",Cmd_boot,""},
 #ifdef BUILD_IPERF
@@ -1748,6 +1740,8 @@ void vUARTTask(void *pvParameters) {
 	} else {
 		led_set_color(50, LED_MAX, LED_MAX,0, 1, 0, 10, 1 ); //spin to alert user!
 	}
+	xTaskCreate(thread_spi, "spiTask", 4*1024 / 4, NULL, 4, NULL); //this one doesn't look like much, but has to parse all the pb from bluetooth
+	UARTprintf("*");
 	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 4, NULL);
 	UARTprintf("*");
 
