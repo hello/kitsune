@@ -423,7 +423,7 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 				sizeof(response_buffer),
 				MorpheusCommand_fields,
 				command,
-				5000);
+				0);
 
 		// All the args are in stack, don't need to do protobuf free.
 
@@ -433,7 +433,7 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 			return 1;
 		}else{
 			LOGI("Pairing request failed, error %d\n", ret);
-			ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
+			ble_reply_protobuf_error(ErrorType_NETWORK_ERROR);
 		}
 	}
 
@@ -680,8 +680,9 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
             	if(!command->ble_bond_count){
             		// If we had ble_bond_count field, boot LED animation can start from here. Visual
             		// delay of device boot can be greatly reduced.
-					ble_proto_led_fade_in_trippy();
 					play_startup_sound();
+            		ble_proto_led_init();
+					ble_proto_led_fade_in_trippy();
             	}else{
             		ble_proto_led_fade_out(0);
             	}
