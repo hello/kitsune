@@ -1462,6 +1462,11 @@ void init_download_task( int stack );
 void init_i2c_recovery();
 
 void launch_tasks() {
+	//checkFaults();
+
+	//dear future chris: this one doesn't need a semaphore since it's only written to while threads are going during factory test boot
+	booted = true;
+
 	init_download_task( 1024 / 4 );
 	networktask_init(5 * 1024 / 4);
 
@@ -1492,8 +1497,6 @@ void launch_tasks() {
 	xTaskCreate(thread_tx, "txTask", 3 * 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
 #endif
-	//checkFaults();
-	booted = true;
 }
 
 
