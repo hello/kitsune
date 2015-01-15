@@ -661,6 +661,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
             	if(!command->ble_bond_count){
             		// If we had ble_bond_count field, boot LED animation can start from here. Visual
             		// delay of device boot can be greatly reduced.
+            		ble_proto_led_init();
 					ble_proto_led_fade_in_trippy();
 
 					// TODO: Play startup sound. You will only reach here once.
@@ -679,7 +680,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 				    AudioTask_StartPlayback(&desc);
 					}
 					vTaskDelay(200);
-					ble_proto_led_init();
+
 
             	}else{
             		ble_proto_led_fade_out(0);
