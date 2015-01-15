@@ -603,7 +603,7 @@ static void play_startup_sound() {
 	{
 		AudioPlaybackDesc_t desc;
 		memset(&desc, 0, sizeof(desc));
-		strncpy(desc.file, "/start.raw", strlen("/start.raw"));
+		strncpy(desc.file, "/ringtone/star003.raw", strlen("/ringtone/star003.raw"));
 		desc.volume = 57;
 		desc.durationInSeconds = -1;
 		desc.rate = 48000;
@@ -677,24 +677,27 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
             _self.led_status = LED_OFF;  // init led status
             _ble_reply_command_with_type(MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_DEVICE_ID);
 
-            if(command->has_ble_bond_count)
-            {
-            	LOGI("BOND COUNT %d\n", command->ble_bond_count);
-            	// this command fires before MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID
-            	// and it is the 1st command you can get from top.
-            	if(!command->ble_bond_count){
-            		// If we had ble_bond_count field, boot LED animation can start from here. Visual
-            		// delay of device boot can be greatly reduced.
+            static bool played = false;
+            if( !played ) {
+				if(command->has_ble_bond_count)
+				{
+					LOGI("BOND COUNT %d\n", command->ble_bond_count);
+					// this command fires before MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID
+					// and it is the 1st command you can get from top.
+					if(!command->ble_bond_count){
+						// If we had ble_bond_count field, boot LED animation can start from here. Visual
+						// delay of device boot can be greatly reduced.
+						play_startup_sound();
+						ble_proto_led_init();
+					}else{
+						ble_proto_led_init();
+					}
+				} else {
+					LOGI("NO BOND COUNT\n");
 					play_startup_sound();
-            		ble_proto_led_init();
-					ble_proto_led_fade_in_trippy();
-            	}else{
-            		ble_proto_led_fade_out(0);
-            	}
-            } else {
-                LOGI("NO BOND COUNT\n");
-            	play_startup_sound();
-            	ble_proto_led_init();
+					ble_proto_led_init();
+				}
+				played = true;
             }
         }
         break;
