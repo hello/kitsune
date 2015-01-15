@@ -406,7 +406,7 @@ static int _force_data_push()
 static int _pair_device( MorpheusCommand* command, int is_morpheus)
 {
 	char response_buffer[256] = {0};
-	int ret;
+	int ret = -1;
 	if(NULL == command->accountId.arg || NULL == command->deviceId.arg){
 		LOGI("*******Missing fields\n");
 		ble_reply_protobuf_error(ErrorType_INTERNAL_DATA_ERROR);
@@ -416,14 +416,19 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 		// TODO: Figure out why always get -1 when this is the 1st request
 		// after the IPv4 retrieved.
 
-		ret = NetworkTask_SynchronousSendProtobuf(
-				DATA_SERVER,
-				is_morpheus == 1 ? MORPHEUS_REGISTER_ENDPOINT : PILL_REGISTER_ENDPOINT,
-				response_buffer,
-				sizeof(response_buffer),
-				MorpheusCommand_fields,
-				command,
-				0);
+		int retry = 3;
+		while(ret != 0 && retry--)
+		{
+			ret = NetworkTask_SynchronousSendProtobuf(
+					DATA_SERVER,
+					is_morpheus == 1 ? MORPHEUS_REGISTER_ENDPOINT : PILL_REGISTER_ENDPOINT,
+					response_buffer,
+					sizeof(response_buffer),
+					MorpheusCommand_fields,
+					command,
+					0);
+			vTaskDelay(1000);
+		}
 
 		// All the args are in stack, don't need to do protobuf free.
 
