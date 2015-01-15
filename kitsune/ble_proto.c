@@ -609,7 +609,6 @@ static void play_startup_sound() {
 
 bool on_ble_protobuf_command(MorpheusCommand* command)
 {
-	
     switch(command->type)
     {
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SET_WIFI_ENDPOINT:
@@ -675,6 +674,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 
             if(command->has_ble_bond_count)
             {
+            	LOGI("BOND COUNT %d\n", command->ble_bond_count);
             	// this command fires before MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID
             	// and it is the 1st command you can get from top.
             	if(!command->ble_bond_count){
@@ -686,6 +686,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
             		ble_proto_led_fade_out(0);
             	}
             } else {
+                LOGI("NO BOND COUNT\n");
             	play_startup_sound();
             	ble_proto_led_init();
             }
