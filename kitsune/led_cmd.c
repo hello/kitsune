@@ -66,10 +66,12 @@ void led_unblock_racing_task()
 	xSemaphoreTake(_sync_mutex, portMAX_DELAY);
 	if(_is_sync_request)
 	{
-		led_unblock();
 		_is_sync_request = 0;
+		xSemaphoreGive(_sync_mutex);
+		led_unblock();
+	}else{
+		xSemaphoreGive(_sync_mutex);
 	}
-	xSemaphoreGive(_sync_mutex);
 }
 
 static int clamp_rgb(int v, int min, int max){
@@ -351,9 +353,12 @@ void led_task( void * params ) {
 			xEventGroupClearBits(led_events, 0xffffff );
 			xSemaphoreTake(_sync_mutex, portMAX_DELAY);
 			if(_is_sync_request) {
+				xSemaphoreGive(_sync_mutex);
 				led_unblock();
+			}else{
+				xSemaphoreGive(_sync_mutex);
 			}
-			xSemaphoreGive(_sync_mutex);
+
 			led_animation_not_in_progress = 1;
 		}
 		if (evnt & LED_CUSTOM_COLOR ){
@@ -462,9 +467,12 @@ void led_task( void * params ) {
 				if(!(evnt & LED_FADE_OUT_BIT)){
 					xSemaphoreTake(_sync_mutex, portMAX_DELAY);
 					if(_is_sync_request) {
+						xSemaphoreGive(_sync_mutex);
 						led_unblock();
+					}else{
+						xSemaphoreGive(_sync_mutex);
 					}
-					xSemaphoreGive(_sync_mutex);
+
 				}
 			}
 			unsigned int delay;
