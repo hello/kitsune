@@ -588,6 +588,25 @@ void ble_proto_end_hold()
 	_self.last_hold_time = 0;
 }
 
+static void play_startup_sound() {
+	// TODO: Play startup sound. You will only reach here once.
+	// Now the hand hover-to-pairing mode will not delete all the bonds
+	// when the bond db is full, so you will never get zero after a phone bonds
+	// to Sense, unless user do factory reset and power cycle the device.
+
+	vTaskDelay(10);
+	{
+		AudioPlaybackDesc_t desc;
+		memset(&desc, 0, sizeof(desc));
+		strncpy(desc.file, "/start.raw", strlen("/start.raw"));
+		desc.volume = 57;
+		desc.durationInSeconds = -1;
+		desc.rate = 48000;
+		AudioTask_StartPlayback(&desc);
+	}
+	vTaskDelay(200);
+}
+
 bool on_ble_protobuf_command(MorpheusCommand* command)
 {
 	
@@ -662,29 +681,12 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
             		// If we had ble_bond_count field, boot LED animation can start from here. Visual
             		// delay of device boot can be greatly reduced.
 					ble_proto_led_fade_in_trippy();
-
-					// TODO: Play startup sound. You will only reach here once.
-					// Now the hand hover-to-pairing mode will not delete all the bonds
-					// when the bond db is full, so you will never get zero after a phone bonds
-					// to Sense, unless user do factory reset and power cycle the device.
-
-					vTaskDelay(10);
-					{
-				    AudioPlaybackDesc_t desc;
-				    memset(&desc,0,sizeof(desc));
-				    strncpy( desc.file, "/start.raw", strlen("/start.raw") );
-				    desc.volume = 57;
-				    desc.durationInSeconds = -1;
-				    desc.rate = 48000;
-				    AudioTask_StartPlayback(&desc);
-					}
-					vTaskDelay(200);
-					ble_proto_led_init();
-
+					play_startup_sound();
             	}else{
             		ble_proto_led_fade_out(0);
             	}
             } else {
+            	play_startup_sound();
             	ble_proto_led_init();
             }
         }
