@@ -208,10 +208,9 @@ static void UpdateEnergyStats(uint8_t isStable,int16_t logTotalEnergyAvg,int16_t
 	if (isStable && !_data.statsLastIsStable) {
 		if (_data.fpOncePerMinuteDataCallback) {
 			AudioOncePerMinuteData_t data;
-
 			data.num_disturbances = 1;
-			data.peak_background_energy = logTotalEnergyAvg * 16;//mulitply by 16 to account for Hann window energy reduction, and for convert to 20*log10 from log2
-			data.peak_energy = _data.maxenergy * 16;
+			data.peak_background_energy = (logTotalEnergyAvg + TOFIX(LOG2_HANNING_WINDOW_ENERGY_MULTIPLIER,10)) * 6;//mulitply by 16 to account for Hann window energy reduction, and for convert to 20*log10 from log2
+			data.peak_energy = (_data.maxenergy + TOFIX(LOG2_HANNING_WINDOW_ENERGY_MULTIPLIER,10)) * 6;
 
 			_data.fpOncePerMinuteDataCallback(&data);
 		}
