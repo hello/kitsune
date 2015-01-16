@@ -440,6 +440,10 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 			LOGI("Pairing request failed, error %d\n", ret);
 			ble_reply_protobuf_error(ErrorType_NETWORK_ERROR);
 		}
+		if(!is_morpheus) {
+			vTaskDelay(1000);
+			_force_data_push();
+		}
 	}
 
 	return 0; // failure
