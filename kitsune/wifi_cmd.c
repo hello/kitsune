@@ -76,10 +76,14 @@ void mcu_reset()
 
 #define SL_STOP_TIMEOUT                 (30)
 long nwp_reset() {
+	long r;
+	sl_enter_critical_region();
     sl_WlanSetMode(ROLE_STA);
     sl_Stop(SL_STOP_TIMEOUT);
     wifi_status_set(0xFFFFFFFF, true);
-    return sl_Start(NULL, NULL, NULL);
+    r = sl_Start(NULL, NULL, NULL);
+    sl_exit_critical_region();
+    return r;
 }
 
 
@@ -245,6 +249,8 @@ int Cmd_country(int argc, char *argv[]) {
 	}
 	sl_WlanSet(SL_WLAN_CFG_GENERAL_PARAM_ID,
 			WLAN_GENERAL_PARAM_OPT_COUNTRY_CODE, 2, (uint8_t*)argv[1]);
+
+	nwp_reset();
 	return 0;
 }
 
