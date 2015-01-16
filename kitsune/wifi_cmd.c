@@ -76,14 +76,10 @@ void mcu_reset()
 
 #define SL_STOP_TIMEOUT                 (30)
 long nwp_reset() {
-	long r;
-	sl_enter_critical_region();
     sl_WlanSetMode(ROLE_STA);
     sl_Stop(SL_STOP_TIMEOUT);
     wifi_status_set(0xFFFFFFFF, true);
-    r = sl_Start(NULL, NULL, NULL);
-    sl_exit_critical_region();
-    return r;
+    return sl_Start(NULL, NULL, NULL);
 }
 
 
