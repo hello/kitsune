@@ -698,9 +698,13 @@ static void _show_led_status()
 	}
 }
 
-static void _on_wave(){
+void cancel_alarm() {
 	memset(&alarm, 0, sizeof(alarm));
 	AudioTask_StopPlayback();
+}
+
+static void _on_wave(){
+	cancel_alarm();
 	_show_led_status();
 }
 
