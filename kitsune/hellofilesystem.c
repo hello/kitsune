@@ -126,9 +126,12 @@ FRESULT hello_fs_rename (const char* path_old, const char*path_new) {
 	UNLOCK();
 	return res;
 }
+#include "FreeRTOS.h"
+#include "task.h"
 FRESULT hello_fs_mkfs (BYTE drv, BYTE partition, BYTE allocsize) {
 	FRESULT res;
 	LOCK();
+	vTaskDelay(1000);
 	res = f_mkfs(drv,partition,allocsize);
 	UNLOCK();
 	return res;
