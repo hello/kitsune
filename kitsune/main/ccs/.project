@@ -216,6 +216,11 @@
 			<locationURI>PARENT-2-PROJECT_LOC/dust_cmd.h</locationURI>
 		</link>
 		<link>
+			<name>endpoints.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/endpoints.h</locationURI>
+		</link>
+		<link>
 			<name>fatfs_cmd.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/fatfs_cmd.c</locationURI>
