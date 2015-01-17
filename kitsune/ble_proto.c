@@ -367,15 +367,17 @@ static int _force_data_push()
 {
     if(!wait_for_time(10))
     {
-    	ble_reply_protobuf_error(ErrorType_NETWORK_ERROR);
-		return 0;
+    	//ble_reply_protobuf_error(ErrorType_NETWORK_ERROR);
+    	LOGE("Cannot get time\n");
+		return -1;
     }
 
     periodic_data* data = pvPortMalloc(sizeof(periodic_data));  // Let's put this in the heap, we don't use it all the time
 	if(!data)
 	{
-		ble_reply_protobuf_error(ErrorType_DEVICE_NO_MEMORY);
-		return 0;
+		//ble_reply_protobuf_error(ErrorType_DEVICE_NO_MEMORY);
+		LOGE("No memory\n");
+		return -2;
 	}
     memset(data, 0, sizeof(periodic_data));
     sample_sensor_data(data);
