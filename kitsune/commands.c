@@ -477,6 +477,7 @@ void set_alarm( SyncResponse_Alarm * received_alarm ) {
             received_alarm->end_time = 0;
             received_alarm->has_start_time = false;
             received_alarm->has_end_time = false;
+            received_alarm->has_ring_offset_from_now_in_second = false;
 
             memcpy(&alarm, received_alarm, sizeof(alarm));
         }
@@ -488,10 +489,11 @@ void set_alarm( SyncResponse_Alarm * received_alarm ) {
 static void thread_alarm_on_finished(void * context) {
 	if (xSemaphoreTake(alarm_smphr, portMAX_DELAY)) {
 
-		if (alarm.has_end_time) {
+		if (alarm.has_end_time || alarm.has_ring_offset_from_now_in_second) {
 			LOGI("ALARM DONE RINGING\n");
 			alarm.has_end_time = 0;
 			alarm.has_start_time = 0;
+			alarm.has_ring_offset_from_now_in_second = false;
         }
 
         xSemaphoreGive(alarm_smphr);
@@ -699,12 +701,14 @@ static void _show_led_status()
 }
 
 void cancel_alarm() {
-	memset(&alarm, 0, sizeof(alarm));
+	int ctx;
+	thread_alarm_on_finished(&ctx);
 	AudioTask_StopPlayback();
 }
 
 static void _on_wave(){
-	cancel_alarm();
+	int ctx;
+	thread_alarm_on_finished(&ctx);
 	_show_led_status();
 }
 
