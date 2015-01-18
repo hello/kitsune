@@ -53,6 +53,7 @@ extern tCircularBuffer * pTxBuffer;
 static xQueueHandle _queue = NULL;
 static xSemaphoreHandle _processingTaskWait;
 static xSemaphoreHandle _statsMutex;
+static xSemaphoreHandle audio_playing_smphr = 0;
 
 static uint8_t _isCapturing = 0;
 static int64_t _callCounter;
@@ -111,6 +112,10 @@ static void Init(void) {
 		_statsMutex = xSemaphoreCreateMutex();
 	}
 
+	if( !audio_playing_smphr ) {
+		audio_playing_smphr = xSemaphoreCreateMutex();
+	}
+
 	memset(&_stats,0,sizeof(_stats));
 
 	AudioFeatures_Init(DataCallback,StatsCallback);
@@ -136,6 +141,13 @@ static uint8_t CheckForInterruptionDuringPlayback(void) {
 	}
 
 	return ret;
+}
+
+void lock_audio_playback() {
+	xSemaphoreTake(audio_playing_smphr,portMAX_DELAY);
+}
+void unlock_audio_playback() {
+	xSemaphoreGive(audio_playing_smphr);
 }
 
 static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
@@ -187,6 +199,8 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		DeinitAudioPlayback();
 		return returnFlags;
 	}
+
+	lock_audio_playback();
 
 	memset(speaker_data_padded,0,sizeof(speaker_data_padded));
 
@@ -279,6 +293,8 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	hello_fs_close(&fp);
 
 	DeinitAudioPlayback();
+
+	unlock_audio_playback();
 
 	LOGI("completed playback\r\n");
 
