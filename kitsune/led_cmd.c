@@ -629,7 +629,7 @@ int led_rainbow(uint8_t alpha)
 	//LED_ROTATE_RAINBOW_BIT
 	xSemaphoreTake(led_smphr, portMAX_DELAY);
 	xEventGroupClearBits( led_events, 0xffffff );
-	xEventGroupSetBits(led_events, LED_ROTATE_RAINBOW_BIT | LED_FADE_IN_BIT);
+	xEventGroupSetBits(led_events, LED_ROTATE_RAINBOW_BIT | LED_FADE_IN_BIT | LED_RESET_BIT);
 	xSemaphoreGive(led_smphr);
 	led_unblock_racing_task();
 	return 0;

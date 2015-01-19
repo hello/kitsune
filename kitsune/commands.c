@@ -510,6 +510,7 @@ static bool _is_file_exists(char* path)
 	return true;
 }
 
+uint8_t get_alpha_from_light();
 void thread_alarm(void * unused) {
 	while (1) {
 		wait_for_time(WAIT_FOREVER);
