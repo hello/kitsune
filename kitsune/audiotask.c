@@ -175,13 +175,17 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	LOGI("Starting playback\r\n");
 	LOGI("%d bytes free\n", xPortGetFreeHeapSize());
 
+	lock_audio_playback();
+
 	if (!info || !info->file) {
+		unlock_audio_playback();
 		LOGI("invalid playback info %s\n\r",info->file);
 		return returnFlags;
 	}
 
 
 	if ( !InitAudioPlayback(info->volume, info->rate ) ) {
+		unlock_audio_playback();
 		LOGI("unable to initialize audio playback.  Probably not enough memory!\r\n");
 		return returnFlags;
 
@@ -195,12 +199,11 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	res = hello_fs_open(&fp, info->file, FA_READ);
 
 	if (res != FR_OK) {
+		unlock_audio_playback();
 		LOGI("Failed to open audio file %s\n\r",info->file);
 		DeinitAudioPlayback();
 		return returnFlags;
 	}
-
-	lock_audio_playback();
 
 	memset(speaker_data_padded,0,sizeof(speaker_data_padded));
 
