@@ -495,6 +495,7 @@ static void thread_alarm_on_finished(void * context) {
         }
 
         xSemaphoreGive(alarm_smphr);
+        led_fadeout();
     }
 }
 
@@ -579,6 +580,7 @@ void thread_alarm(void * unused) {
 					desc.rate = 48000;
 
 					AudioTask_StartPlayback(&desc);
+					led_rainbow(get_alpha_from_light());
 					LOGI("ALARM RINGING RING RING RING\n");
 					alarm.has_start_time = 0;
 					alarm.start_time = 0;
