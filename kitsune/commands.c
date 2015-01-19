@@ -581,7 +581,10 @@ void thread_alarm(void * unused) {
 					desc.rate = 48000;
 
 					AudioTask_StartPlayback(&desc);
-					led_rainbow(get_alpha_from_light());
+
+					uint8_t trippy_base = {0, 25, 90};
+					play_led_trippy(trippy_base, portMAX_DELAY);
+
 					LOGI("ALARM RINGING RING RING RING\n");
 					alarm.has_start_time = 0;
 					alarm.start_time = 0;
