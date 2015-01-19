@@ -146,7 +146,7 @@ gesture gesture_input(int prox){
 		}
 		prox -= self.fsm.prox_slow;
 		self.fsm.prox_impluse  = abs( prox );
-		UARTprintf("%d ", self.fsm.prox_impluse);
+		//UARTprintf("%d ", self.fsm.prox_impluse);
 		result = _fsm(self.fsm.prox_impluse);
 	} else {
 		self.fsm.prox_slow = prox;
