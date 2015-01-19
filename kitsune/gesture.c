@@ -11,7 +11,7 @@
 #define GESTURE_FPS 10
 
 /* how much delta does it take to activate the fsm over noise floor */
-#define DETECTION_THRESH 100
+#define DETECTION_THRESH 150
 
 /* multiples GESTURE FSP, minimal frames require for the wave gesture */
 #define GESTURE_WAVE_MULTIPLIER (0.1)
@@ -146,6 +146,7 @@ gesture gesture_input(int prox){
 		}
 		prox -= self.fsm.prox_slow;
 		self.fsm.prox_impluse  = abs( prox );
+		//UARTprintf("%d ", self.fsm.prox_impluse);
 		result = _fsm(self.fsm.prox_impluse);
 	} else {
 		self.fsm.prox_slow = prox;

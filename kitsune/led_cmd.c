@@ -601,6 +601,15 @@ int led_set_color(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b, int fade_in, i
 	return led_set_color_sync(alpha, r, g, b, fade_in, fade_out, ud, rot, 0);
 }
 
+int led_fadeout()
+{
+	xSemaphoreTake(led_smphr, portMAX_DELAY);
+	xEventGroupSetBits(led_events, LED_FADE_OUT_BIT);
+	xSemaphoreGive(led_smphr);
+	led_unblock_racing_task();
+	return 0;
+}
+
 int led_start_custom_animation(led_user_animation_handler user, void * context){
 	if(!user){
 		return -1;

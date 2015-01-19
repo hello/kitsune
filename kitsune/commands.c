@@ -497,6 +497,7 @@ static void thread_alarm_on_finished(void * context) {
         }
 
         xSemaphoreGive(alarm_smphr);
+        led_fadeout();
     }
 }
 
@@ -511,6 +512,7 @@ static bool _is_file_exists(char* path)
 	return true;
 }
 
+uint8_t get_alpha_from_light();
 void thread_alarm(void * unused) {
 	while (1) {
 		wait_for_time(WAIT_FOREVER);
@@ -581,6 +583,11 @@ void thread_alarm(void * unused) {
 					desc.rate = 48000;
 
 					AudioTask_StartPlayback(&desc);
+
+					uint8_t trippy_base[3] = {0, 0, 0};
+					uint8_t trippy_range[3] = {254, 254, 254};
+					play_led_trippy(trippy_base, trippy_range, portMAX_DELAY);
+
 					LOGI("ALARM RINGING RING RING RING\n");
 					alarm.has_start_time = 0;
 					alarm.start_time = 0;
@@ -739,7 +746,9 @@ void thread_fast_i2c_poll(void * unused)  {
 			// For the black morpheus, we can detect 6mm distance max
 			// for white one, 9mm distance max.
 			prox = get_prox();  // now this thing is in um.
+
 			xSemaphoreGive(i2c_smphr);
+			//UARTprintf("%d ", prox);
 
 			gesture gesture_state = gesture_input(prox);
 			switch(gesture_state)

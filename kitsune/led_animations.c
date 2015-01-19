@@ -19,6 +19,8 @@ static struct{
 	int progress_bar_percent;
 	xSemaphoreHandle _sem;
 	xSemaphoreHandle _animate_sem;
+	uint8_t trippy_base[3];
+	uint8_t trippy_range[3];
 }self;
 
 extern void led_unblock();
@@ -93,15 +95,15 @@ static bool _animate_trippy(int * out_r, int * out_g, int * out_b, int * out_del
 	for(i = 0; i < NUM_LED; i++){
 		if(_reach_color(&self.prev_colors[i].r, self.colors[i].r)){
 			//self.colors[i].r = rand()%32 + (self.counter++)%32;
-			self.colors[i].r = ((unsigned int)rand())%65 + 65;
+			self.colors[i].r = ((unsigned int)rand()) % self.trippy_range[0] + self.trippy_base[0];  //60
 		}
 		if(_reach_color(&self.prev_colors[i].g, self.colors[i].g)){
 			//self.colors[i].g = rand()%32 + (self.counter++)%32;
-			self.colors[i].g = ((unsigned int)rand())%25 + 25;
+			self.colors[i].g = ((unsigned int)rand()) % self.trippy_range[1] + self.trippy_base[1];  //25
 		}
 		if(_reach_color(&self.prev_colors[i].b, self.colors[i].b)){
 			//self.colors[i].b = rand()%32 + (self.counter++)%32;
-			self.colors[i].b = ((unsigned int)rand())%90 + 90;
+			self.colors[i].b = ((unsigned int)rand()) % self.trippy_range[2] + self.trippy_base[2];  //90
 		}
 		/*out_r[i] = self.prev_colors[i].r * ((unsigned int)(self.counter)) / 100;
 		out_g[i] = self.prev_colors[i].g * ((unsigned int)(self.counter)) / 100;
@@ -233,9 +235,12 @@ bool play_led_animation_pulse(unsigned int timeout){
 	}
 	return false;
 }
-bool play_led_trippy(unsigned int timeout){
+bool play_led_trippy(uint8_t trippy_base[3], uint8_t trippy_range[3], unsigned int timeout){
 	int i;
 	if( _start_animation( timeout ) ) {
+		memcpy(self.trippy_base, trippy_base, 3);
+		memcpy(self.trippy_range, trippy_range, 3);
+
 		for(i = 0; i < NUM_LED; i++){
 			self.colors[i] = (struct _colors){rand()%120, rand()%120, rand()%120};
 			self.prev_colors[i] = (struct _colors){0};
@@ -296,7 +301,9 @@ int Cmd_led_animate(int argc, char *argv[]){
 			set_led_progress_bar(self.progress_bar_percent -= 5);
 			return 0;
 		}else if(strcmp(argv[1], "trippy") == 0){
-			play_led_trippy( portMAX_DELAY );
+			uint8_t trippy_base[3] = {atoi(argv[2]), atoi(argv[3]), atoi(argv[4])};
+			uint8_t trippy_range[3] = {atoi(argv[5]), atoi(argv[6]), atoi(argv[7])};
+			play_led_trippy( trippy_base, trippy_range, portMAX_DELAY );
 			return 0;
 		}else if(strcmp(argv[1], "pulse") == 0){
 			play_led_animation_pulse(portMAX_DELAY);
