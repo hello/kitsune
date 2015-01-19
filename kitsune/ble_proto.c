@@ -452,7 +452,7 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 void ble_proto_led_init()
 {
 	_self.led_status = LED_OFF;
-	led_set_color_sync(0xFF, LED_MAX, LED_MAX, LED_MAX, 1, 1, 18, 0, 1);
+	led_set_color_sync(0xFF, LED_MAX, LED_MAX, LED_MAX, 1, 1, 36, 0, 1);
 }
 
 void ble_proto_led_busy_mode(uint8_t a, uint8_t r, uint8_t g, uint8_t b, int delay)
@@ -613,8 +613,10 @@ static void play_startup_sound() {
 		desc.rate = 48000;
 		AudioTask_StartPlayback(&desc);
 	}
-	vTaskDelay(200);
+	vTaskDelay(175);
 }
+
+void cancel_alarm();
 
 bool on_ble_protobuf_command(MorpheusCommand* command)
 {
@@ -750,6 +752,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_SHAKES:
         {
             LOGI("PILL SHAKES\n");
+            cancel_alarm();
             if(command->deviceId.arg){
 				uint32_t color = pill_settings_get_color((const char*)command->deviceId.arg);
 				uint8_t* argb = (uint8_t*)&color;
