@@ -616,8 +616,6 @@ static void play_startup_sound() {
 	vTaskDelay(175);
 }
 
-void cancel_alarm();
-
 bool on_ble_protobuf_command(MorpheusCommand* command)
 {
     switch(command->type)
@@ -752,7 +750,6 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_SHAKES:
         {
             LOGI("PILL SHAKES\n");
-            cancel_alarm();
             if(command->deviceId.arg){
 				uint32_t color = pill_settings_get_color((const char*)command->deviceId.arg);
 				uint8_t* argb = (uint8_t*)&color;
