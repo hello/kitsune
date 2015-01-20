@@ -486,7 +486,10 @@ void set_alarm( SyncResponse_Alarm * received_alarm ) {
     }
 }
 static bool alarm_is_ringing = false;
-static void cancel_alarm() {
+static bool cancel_alarm() {
+	bool was_ringing = false;
+	AudioTask_StopPlayback();
+
 	if (xSemaphoreTake(alarm_smphr, portMAX_DELAY)) {
 		if (alarm_is_ringing) {
 			if (alarm.has_end_time || alarm.has_ring_offset_from_now_in_second) {
@@ -495,17 +498,19 @@ static void cancel_alarm() {
 				alarm.has_start_time = 0;
 				alarm.has_ring_offset_from_now_in_second = false;
 			}
+
+
+		    alarm_is_ringing = false;
+		    was_ringing = true;
 		}
 
 		xSemaphoreGive(alarm_smphr);
 	}
-
-	AudioTask_StopPlayback();
+	return was_ringing;
 }
 
 static void thread_alarm_on_finished(void * context) {
-	cancel_alarm();
-    led_fadeout();
+	stop_led_animation();
 }
 
 static bool _is_file_exists(char* path)
@@ -716,14 +721,13 @@ static void _show_led_status()
 }
 
 static void _on_wave(){
-	cancel_alarm();
-	_show_led_status();
+	if(	!cancel_alarm() ) {
+		_show_led_status();
+	}
 }
 
 static void _on_hold(){
-	//stop_led_animation();
-	cancel_alarm();
-	_show_led_status();
+	_on_wave();
 	ble_proto_start_hold();
 }
 
@@ -1525,7 +1529,11 @@ int Cmd_boot(int argc, char *argv[]) {
 	return 0;
 }
 
-
+int _force_data_push();
+int Cmd_sync(int argc, char *argv[]) {
+	_force_data_push();
+	return 0;
+}
 
 // ==============================================================================
 // This is the table that holds the command names, implementing functions, and
@@ -1616,6 +1624,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "testkey", Cmd_test_key, ""},
 		{ "lfclktest",Cmd_test_3200_rtc,""},
 		{ "country",Cmd_country,""},
+		{ "sync", Cmd_sync, "" },
 		{ "boot",Cmd_boot,""},
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},

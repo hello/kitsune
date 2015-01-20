@@ -363,7 +363,7 @@ static void _send_response_to_ble(const char* buffer, size_t len)
 }
 
 void sample_sensor_data(periodic_data* data);
-static int _force_data_push()
+int _force_data_push()
 {
     if(!wait_for_time(10))
     {
