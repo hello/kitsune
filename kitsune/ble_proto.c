@@ -54,7 +54,8 @@ static struct {
     ble_mode_t ble_status;
 } _self;
 
-static uint8_t _wifi_read_index;
+static int _wifi_read_index;
+static int _scanned_wifi_count = 0;
 static Sl_WlanNetworkEntry_t _wifi_endpoints[MAX_WIFI_EP_PER_SCAN];
 
 static void _ble_reply_command_with_type(MorpheusCommand_CommandType type)
@@ -98,28 +99,37 @@ static void _factory_reset(){
 
 static int _scan_wifi()
 {
+	//only scan if we've been reset, this lets us cache the scan result for later
+	if( _scanned_wifi_count != 0 ) {
+		return _scanned_wifi_count;
+	}
 	memset(_wifi_endpoints, 0, sizeof(_wifi_endpoints));
-	int scanned_wifi_count = 0;
+	_scanned_wifi_count = 0;
 	_wifi_read_index = 0;
 
 	uint8_t max_retry = 3;
 	uint8_t retry_count = max_retry;
 	wifi_status_set(SCANNING, false);
 
-	while((scanned_wifi_count = get_wifi_scan_result(_wifi_endpoints, MAX_WIFI_EP_PER_SCAN, 3000 * (max_retry - retry_count + 1))) == 0 && --retry_count)
+	while((_scanned_wifi_count = get_wifi_scan_result(_wifi_endpoints, MAX_WIFI_EP_PER_SCAN, 3000 * (max_retry - retry_count + 1))) == 0 && --retry_count)
 	{
 		LOGI("No wifi scanned, retry times remain %d\n", retry_count);
 		vTaskDelay(500);
 	}
 
 	wifi_status_set(SCANNING, true);
-	return scanned_wifi_count;
+
+	return _scanned_wifi_count;
 }
 
 static void _reply_next_wifi_ap()
 {
 	if(_wifi_read_index == MAX_WIFI_EP_PER_SCAN - 1){
 		_wifi_read_index = 0;
+	}
+	//reset so the next scan command will do a scan
+	if(_wifi_read_index == _scanned_wifi_count ) {
+		_scanned_wifi_count = 0;
 	}
 
 	MorpheusCommand reply_command = {0};
@@ -130,11 +140,10 @@ static void _reply_next_wifi_ap()
 
 static void _reply_wifi_scan_result()
 {
-    int scanned_wifi_count = _scan_wifi();
     int i = 0;
     MorpheusCommand reply_command = {0};
 
-    for(i = 0; i < scanned_wifi_count; i++)
+    for(i = 0; i < _scanned_wifi_count; i++)
     {
 		reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_START_WIFISCAN;
 		reply_command.wifi_scan_result.arg = &_wifi_endpoints[i];
@@ -143,6 +152,7 @@ static void _reply_wifi_scan_result()
         memset(&reply_command, 0, sizeof(reply_command));
     }
 
+	_scanned_wifi_count = 0;
     reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_STOP_WIFISCAN;
 	ble_send_protobuf(&reply_command);
 	LOGI(">>>>>>Send WIFI scan results done<<<<<<\n");
@@ -649,6 +659,8 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 			ble_proto_led_fade_in_trippy();
             _self.ble_status = BLE_PAIRING;
             LOGI( "PAIRING MODE \n");
+            //we are pairing so it's likely we are beginning the onboarding. This will prescan the wifi.
+            _scan_wifi();
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE:  // Just for testing
