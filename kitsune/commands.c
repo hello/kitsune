@@ -477,6 +477,7 @@ void set_alarm( SyncResponse_Alarm * received_alarm ) {
             received_alarm->end_time = 0;
             received_alarm->has_start_time = false;
             received_alarm->has_end_time = false;
+            received_alarm->has_ring_offset_from_now_in_second = false;
 
             memcpy(&alarm, received_alarm, sizeof(alarm));
         }
@@ -484,18 +485,32 @@ void set_alarm( SyncResponse_Alarm * received_alarm ) {
         xSemaphoreGive(alarm_smphr);
     }
 }
+static bool alarm_is_ringing = false;
+static bool cancel_alarm() {
+	bool was_ringing = false;
+	AudioTask_StopPlayback();
+
+	if (xSemaphoreTake(alarm_smphr, portMAX_DELAY)) {
+		if (alarm_is_ringing) {
+			if (alarm.has_end_time || alarm.has_ring_offset_from_now_in_second) {
+				LOGI("ALARM DONE RINGING\n");
+				alarm.has_end_time = 0;
+				alarm.has_start_time = 0;
+				alarm.has_ring_offset_from_now_in_second = false;
+			}
+
+
+		    alarm_is_ringing = false;
+		    was_ringing = true;
+		}
+
+		xSemaphoreGive(alarm_smphr);
+	}
+	return was_ringing;
+}
 
 static void thread_alarm_on_finished(void * context) {
-	if (xSemaphoreTake(alarm_smphr, portMAX_DELAY)) {
-
-		if (alarm.has_end_time) {
-			LOGI("ALARM DONE RINGING\n");
-			alarm.has_end_time = 0;
-			alarm.has_start_time = 0;
-        }
-
-        xSemaphoreGive(alarm_smphr);
-    }
+	stop_led_animation();
 }
 
 static bool _is_file_exists(char* path)
@@ -509,6 +524,7 @@ static bool _is_file_exists(char* path)
 	return true;
 }
 
+uint8_t get_alpha_from_light();
 void thread_alarm(void * unused) {
 	while (1) {
 		wait_for_time(WAIT_FOREVER);
@@ -579,9 +595,15 @@ void thread_alarm(void * unused) {
 					desc.rate = 48000;
 
 					AudioTask_StartPlayback(&desc);
+
+					uint8_t trippy_base[3] = {0, 0, 0};
+					uint8_t trippy_range[3] = {254, 254, 254};
+					play_led_trippy(trippy_base, trippy_range, portMAX_DELAY);
+
 					LOGI("ALARM RINGING RING RING RING\n");
 					alarm.has_start_time = 0;
 					alarm.start_time = 0;
+					alarm_is_ringing = true;
 				}
 			}
 			else {
@@ -698,21 +720,15 @@ static void _show_led_status()
 	}
 }
 
-void cancel_alarm() {
-	memset(&alarm, 0, sizeof(alarm));
-	AudioTask_StopPlayback();
-}
-
 static void _on_wave(){
-	cancel_alarm();
-	_show_led_status();
+	if(	!cancel_alarm() ) {
+		_show_led_status();
+	}
 }
 
 static void _on_hold(){
-	//stop_led_animation();
+	_on_wave();
 	ble_proto_start_hold();
-	memset(&alarm, 0, sizeof(alarm));
-	AudioTask_StopPlayback();
 }
 
 static void _on_gesture_out()
@@ -735,7 +751,9 @@ void thread_fast_i2c_poll(void * unused)  {
 			// For the black morpheus, we can detect 6mm distance max
 			// for white one, 9mm distance max.
 			prox = get_prox();  // now this thing is in um.
+
 			xSemaphoreGive(i2c_smphr);
+			//UARTprintf("%d ", prox);
 
 			gesture gesture_state = gesture_input(prox);
 			switch(gesture_state)
@@ -1511,7 +1529,11 @@ int Cmd_boot(int argc, char *argv[]) {
 	return 0;
 }
 
-
+int _force_data_push();
+int Cmd_sync(int argc, char *argv[]) {
+	_force_data_push();
+	return 0;
+}
 
 // ==============================================================================
 // This is the table that holds the command names, implementing functions, and
@@ -1602,6 +1624,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "testkey", Cmd_test_key, ""},
 		{ "lfclktest",Cmd_test_3200_rtc,""},
 		{ "country",Cmd_country,""},
+		{ "sync", Cmd_sync, "" },
 		{ "boot",Cmd_boot,""},
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
@@ -1749,7 +1772,7 @@ void vUARTTask(void *pvParameters) {
 	}
 	xTaskCreate(thread_spi, "spiTask", 4*1024 / 4, NULL, 4, NULL); //this one doesn't look like much, but has to parse all the pb from bluetooth
 	UARTprintf("*");
-	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 4, NULL);
+	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 1, NULL);
 	UARTprintf("*");
 
 

@@ -338,7 +338,7 @@ void uart_logger_task(void * params){
 			xEventGroupClearBits(self.uart_log_events,LOG_EVENT_EXIT);
 			return;
 		}
-		if( self.print_sem != NULL && evnt && xSemaphoreTake(self.print_sem, portMAX_DELAY)){
+		if( self.print_sem != NULL && evnt && pdPASS == xSemaphoreTake(self.print_sem, 0) ){
 			if( evnt & LOG_EVENT_STORE ) {
 				if(log_local_enable && FR_OK == _save_newest((char*) self.store_block, UART_LOGGER_BLOCK_SIZE)){
 					self.operation_block = self.blocks[2];

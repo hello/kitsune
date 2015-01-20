@@ -5,16 +5,24 @@
 static xSemaphoreHandle _mutex = 0;
 
 #define LOCK() \
-	xSemaphoreTake(_mutex,portMAX_DELAY);
+	xSemaphoreTakeRecursive(_mutex,portMAX_DELAY);
 
 #define UNLOCK()\
-	xSemaphoreGive(_mutex);
+	xSemaphoreGiveRecursive(_mutex);
 
 void hello_fs_init(void) {
 	if (!_mutex) {
-		_mutex = xSemaphoreCreateMutex();
+		_mutex = xSemaphoreCreateRecursiveMutex();
 	}
 }
+
+void hello_fs_lock () {
+	LOCK();
+}
+void hello_fs_unlock () {
+	UNLOCK();
+}
+
 
 FRESULT hello_fs_mount (BYTE drv,FATFS *fs) {
 

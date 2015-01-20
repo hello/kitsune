@@ -4,6 +4,8 @@
 #include "ff.h"
 
 void hello_fs_init(void);  /*  Initializes locking semaphore */
+void hello_fs_lock(); //global SD card lock
+void hello_fs_unlock();
 
 FRESULT hello_fs_mount (BYTE, FATFS*);                        /* Mount/Unmount a logical drive */
 FRESULT hello_fs_open (FIL*, const char*, BYTE);            /* Open or create a file */
