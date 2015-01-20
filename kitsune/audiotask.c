@@ -53,7 +53,6 @@ extern tCircularBuffer * pTxBuffer;
 static xQueueHandle _queue = NULL;
 static xSemaphoreHandle _processingTaskWait;
 static xSemaphoreHandle _statsMutex;
-static xSemaphoreHandle audio_playing_smphr = 0;
 
 static uint8_t _isCapturing = 0;
 static int64_t _callCounter;
@@ -112,10 +111,6 @@ static void Init(void) {
 		_statsMutex = xSemaphoreCreateMutex();
 	}
 
-	if( !audio_playing_smphr ) {
-		audio_playing_smphr = xSemaphoreCreateMutex();
-	}
-
 	memset(&_stats,0,sizeof(_stats));
 
 	AudioFeatures_Init(DataCallback,StatsCallback);
@@ -143,13 +138,6 @@ static uint8_t CheckForInterruptionDuringPlayback(void) {
 	return ret;
 }
 
-void lock_audio_playback() {
-	xSemaphoreTake(audio_playing_smphr,portMAX_DELAY);
-}
-void unlock_audio_playback() {
-	xSemaphoreGive(audio_playing_smphr);
-}
-
 static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 	//1.5K on the stack
@@ -175,17 +163,17 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	LOGI("Starting playback\r\n");
 	LOGI("%d bytes free\n", xPortGetFreeHeapSize());
 
-	lock_audio_playback();
+	hello_fs_lock();
 
 	if (!info || !info->file) {
-		unlock_audio_playback();
+		hello_fs_unlock();
 		LOGI("invalid playback info %s\n\r",info->file);
 		return returnFlags;
 	}
 
 
 	if ( !InitAudioPlayback(info->volume, info->rate ) ) {
-		unlock_audio_playback();
+		hello_fs_unlock();
 		LOGI("unable to initialize audio playback.  Probably not enough memory!\r\n");
 		return returnFlags;
 
@@ -199,7 +187,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	res = hello_fs_open(&fp, info->file, FA_READ);
 
 	if (res != FR_OK) {
-		unlock_audio_playback();
+		hello_fs_unlock();
 		LOGI("Failed to open audio file %s\n\r",info->file);
 		DeinitAudioPlayback();
 		return returnFlags;
@@ -297,7 +285,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 	DeinitAudioPlayback();
 
-	unlock_audio_playback();
+	hello_fs_unlock();
 
 	LOGI("completed playback\r\n");
 

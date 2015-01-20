@@ -485,20 +485,27 @@ void set_alarm( SyncResponse_Alarm * received_alarm ) {
         xSemaphoreGive(alarm_smphr);
     }
 }
+static bool alarm_is_ringing = false;
+static void cancel_alarm() {
+	if (xSemaphoreTake(alarm_smphr, portMAX_DELAY)) {
+		if (alarm_is_ringing) {
+			if (alarm.has_end_time || alarm.has_ring_offset_from_now_in_second) {
+				LOGI("ALARM DONE RINGING\n");
+				alarm.has_end_time = 0;
+				alarm.has_start_time = 0;
+				alarm.has_ring_offset_from_now_in_second = false;
+			}
+		}
+
+		xSemaphoreGive(alarm_smphr);
+	}
+
+	AudioTask_StopPlayback();
+}
 
 static void thread_alarm_on_finished(void * context) {
-	if (xSemaphoreTake(alarm_smphr, portMAX_DELAY)) {
-
-		if (alarm.has_end_time || alarm.has_ring_offset_from_now_in_second) {
-			LOGI("ALARM DONE RINGING\n");
-			alarm.has_end_time = 0;
-			alarm.has_start_time = 0;
-			alarm.has_ring_offset_from_now_in_second = false;
-        }
-
-        xSemaphoreGive(alarm_smphr);
-        led_fadeout();
-    }
+	cancel_alarm();
+    led_fadeout();
 }
 
 static bool _is_file_exists(char* path)
@@ -591,6 +598,7 @@ void thread_alarm(void * unused) {
 					LOGI("ALARM RINGING RING RING RING\n");
 					alarm.has_start_time = 0;
 					alarm.start_time = 0;
+					alarm_is_ringing = true;
 				}
 			}
 			else {
@@ -707,23 +715,16 @@ static void _show_led_status()
 	}
 }
 
-void cancel_alarm() {
-	int ctx;
-	thread_alarm_on_finished(&ctx);
-	AudioTask_StopPlayback();
-}
-
 static void _on_wave(){
-	int ctx;
-	thread_alarm_on_finished(&ctx);
+	cancel_alarm();
 	_show_led_status();
 }
 
 static void _on_hold(){
 	//stop_led_animation();
+	cancel_alarm();
+	_show_led_status();
 	ble_proto_start_hold();
-	memset(&alarm, 0, sizeof(alarm));
-	AudioTask_StopPlayback();
 }
 
 static void _on_gesture_out()

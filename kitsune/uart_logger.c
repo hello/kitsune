@@ -309,9 +309,6 @@ void uart_logc(uint8_t c){
     xSemaphoreGive( self.print_sem );
 }
 
-void lock_audio_playback();
-void unlock_audio_playback();
-
 void uart_logger_task(void * params){
 	uint8_t log_local_enable;
 	uart_logger_init();
@@ -341,10 +338,7 @@ void uart_logger_task(void * params){
 			xEventGroupClearBits(self.uart_log_events,LOG_EVENT_EXIT);
 			return;
 		}
-		if( self.print_sem != NULL && evnt ){
-			lock_audio_playback();
-			xSemaphoreTake(self.print_sem, portMAX_DELAY);
-
+		if( self.print_sem != NULL && evnt && pdPASS == xSemaphoreTake(self.print_sem, 0) ){
 			if( evnt & LOG_EVENT_STORE ) {
 				if(log_local_enable && FR_OK == _save_newest((char*) self.store_block, UART_LOGGER_BLOCK_SIZE)){
 					self.operation_block = self.blocks[2];
@@ -367,7 +361,6 @@ void uart_logger_task(void * params){
 					if(FR_OK != res){
 						LOGE("Unable to read log file %d\r\n",(int)res);
 						xSemaphoreGive(self.print_sem);
-						unlock_audio_playback();
 						continue;
 					}
 					ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER, SENSE_LOG_ENDPOINT,buffer,sizeof(buffer),sense_log_fields,&self.log,0);
@@ -386,7 +379,6 @@ void uart_logger_task(void * params){
 						//LOGE("Log upload failed, network code = %d\r\n", ret);
 					}
 				}
-				unlock_audio_playback();
 			}
 			if(evnt & LOG_EVENT_UPLOAD_ONLY) {
 				xEventGroupClearBits(self.uart_log_events,LOG_EVENT_UPLOAD_ONLY);
