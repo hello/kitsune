@@ -58,6 +58,8 @@
 #define TRUE (1)
 #define FALSE (0)
 
+#define MICROPHONE_NOISE_FLOOR_DB (32.0f)
+
 
 /* Have fun tuning these magic numbers!
  Perhaps eventually we will have some pre-canned
@@ -169,6 +171,24 @@ void AudioFeatures_SetParams(uint16_t psd_min_energy) {
     _data.psd_min_energy = psd_min_energy;
 }
 
+static int32_t GetAudioEnergyAsDBA(int16_t logenergy) {
+	int32_t dba = 0;
+
+	//account for hanning window energy reduction
+	dba += TOFIX(LOG2_HANNING_WINDOW_ENERGY_MULTIPLIER,10);
+
+	//add energy
+	dba += logenergy;
+
+	//convert from log2 to 10*log10 (note not 20log10, because we are already using units of energy)
+	dba *= 3;
+
+	//add microphone noise floor (measured)
+	dba += TOFIX(MICROPHONE_NOISE_FLOOR_DB,10);
+
+	return dba;
+}
+
 static int16_t MovingAverage16(uint32_t counter, const int16_t x,int16_t * buf, int32_t * accumulator,const uint32_t mask,const uint8_t shiftnum) {
     const uint16_t idx = counter & mask;
     
@@ -209,8 +229,8 @@ static void UpdateEnergyStats(uint8_t isStable,int16_t logTotalEnergyAvg,int16_t
 		if (_data.fpOncePerMinuteDataCallback) {
 			AudioOncePerMinuteData_t data;
 			data.num_disturbances = 1;
-			data.peak_background_energy = (logTotalEnergyAvg + TOFIX(LOG2_HANNING_WINDOW_ENERGY_MULTIPLIER,10)) * 6;//mulitply by 16 to account for Hann window energy reduction, and for convert to 20*log10 from log2
-			data.peak_energy = (_data.maxenergy + TOFIX(LOG2_HANNING_WINDOW_ENERGY_MULTIPLIER,10)) * 6;
+			data.peak_background_energy = GetAudioEnergyAsDBA(logTotalEnergyAvg);
+			data.peak_energy = GetAudioEnergyAsDBA(_data.maxenergy);
 
 			_data.fpOncePerMinuteDataCallback(&data);
 		}
