@@ -1495,7 +1495,6 @@ void launch_tasks() {
 	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,1,NULL);
 	UARTprintf("*");
 
-	xTaskCreate(top_board_task, "top_board_task", 2048 / 4, NULL, 2, NULL);
 	xTaskCreate(thread_alarm, "alarmTask", 2*1024 / 4, NULL, 4, NULL);
 
 
@@ -1770,6 +1769,7 @@ void vUARTTask(void *pvParameters) {
 	} else {
 		led_set_color(50, LED_MAX, LED_MAX,0, 1, 0, 10, 1 ); //spin to alert user!
 	}
+	xTaskCreate(top_board_task, "top_board_task", 2048 / 4, NULL, 2, NULL);
 	xTaskCreate(thread_spi, "spiTask", 4*1024 / 4, NULL, 4, NULL); //this one doesn't look like much, but has to parse all the pb from bluetooth
 	UARTprintf("*");
 	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 1, NULL);
