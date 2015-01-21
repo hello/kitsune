@@ -155,9 +155,11 @@ static int _scan_wifi()
 				if( endpoints_ifa[i].rssi > endpoints_pcb[p].rssi ) {
 					memmove( &endpoints_pcb[p], &endpoints_pcb[p+1], sizeof( Sl_WlanNetworkEntry_t ) * (MAX_WIFI_EP_PER_SCAN - p - 1) );
 					--scan_cnt[PCB_ANT];
+					--p;
 				} else {
 					memmove( &endpoints_ifa[i], &endpoints_ifa[i+1], sizeof( Sl_WlanNetworkEntry_t ) * (MAX_WIFI_EP_PER_SCAN - i - 1) );
 					--scan_cnt[IFA_ANT];
+					--i;
 				}
 			}
 		}
