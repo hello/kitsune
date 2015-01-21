@@ -393,7 +393,7 @@ void uart_logger_task(void * params){
 }
 int Cmd_log_setview(int argc, char * argv[]){
 	if(argc > 1){
-		self.view_tag = ((uint8_t)atoi(argv[1]))&0xF;
+		self.view_tag = ((uint8_t)atoi(argv[1]))&0xFF;
 		return 0;
 	}
 	return -1;
