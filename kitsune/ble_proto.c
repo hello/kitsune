@@ -822,6 +822,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_START_WIFISCAN:
         {
             LOGI("WIFI Scan request\n");
+            _scan_wifi();
             _reply_wifi_scan_result();
         }
         break;
