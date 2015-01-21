@@ -352,9 +352,28 @@ static void octogram_notification(void * context) {
 	xSemaphoreGive(sem);
 }
 
+static
+OctogramResult_t octorgram_result;
+static
+xSemaphoreHandle octogram_semaphore = 0;
+
+int Cmd_get_octogram(int argc, char * argv[]) {
+	xSemaphoreTake(octogram_semaphore,portMAX_DELAY);
+	xSemaphoreGive(octogram_semaphore);
+
+	int avg = 0;
+	avg += octorgram_result.logenergy[3];
+	avg += octorgram_result.logenergy[4];
+	avg += octorgram_result.logenergy[5];
+	avg += octorgram_result.logenergy[6];
+	avg /= 4;
+
+	LOGF("%d\r\n", octorgram_result.logenergy[2] - avg );
+
+	return 0;
+}
 int Cmd_do_octogram(int argc, char * argv[]) {
 	AudioMessage_t m;
-	OctogramResult_t res;
     int32_t numsamples = atoi( argv[1] );
     uint16_t i;
 
@@ -366,42 +385,34 @@ int Cmd_do_octogram(int argc, char * argv[]) {
     	return 0;
     }
 
-    xSemaphoreHandle octogramsem = xSemaphoreCreateBinary();
+    if( !octogram_semaphore ) {
+    	octogram_semaphore = xSemaphoreCreateBinary();
+    }
 
 	memset(&m,0,sizeof(m));
 
 	AudioTask_StartCapture(22050);
 
 	m.command = eAudioCaptureOctogram;
-	m.message.octogramdesc.result = &res;
+	m.message.octogramdesc.result = &octorgram_result;
 	m.message.octogramdesc.analysisduration = numsamples;
 	m.message.octogramdesc.onFinished = octogram_notification;
-	m.message.octogramdesc.context = octogramsem;
+	m.message.octogramdesc.context = octogram_semaphore;
 
 	AudioTask_AddMessageToQueue(&m);
-
-	xSemaphoreTake(octogramsem,portMAX_DELAY);
-
-	vSemaphoreDelete(octogramsem);
+	xSemaphoreTake(octogram_semaphore,portMAX_DELAY);
+	xSemaphoreGive(octogram_semaphore);
 
     if( argc == 1 ) {
-    	int avg = 0;
-    	avg += res.logenergy[3];
-    	avg += res.logenergy[4];
-    	avg += res.logenergy[5];
-    	avg += res.logenergy[6];
-    	avg /= 4;
-
-    	LOGF("%d\r\n", res.logenergy[2] - avg );
     	return 0;
     }
 	//report results
     LOGF("octogram log energies: ");
 	for (i = 0; i < OCTOGRAM_SIZE; i++) {
 		if (i != 0) {
-			LOGI(",");
+			LOGF(",");
 		}
-		LOGF("%d",res.logenergy[i]);
+		LOGF("%d",octorgram_result.logenergy[i]);
 	}
 
 	LOGF("\r\n");
@@ -1584,6 +1595,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "p", Cmd_play_buff, ""},//play sounds from SD card
 		{ "s",Cmd_stop_buff,""},
 		{ "oct",Cmd_do_octogram,""},
+		{ "getoct",Cmd_get_octogram,""},
 		{ "aon",Cmd_audio_turn_on,""},
 		{ "aoff",Cmd_audio_turn_off,""},
 
