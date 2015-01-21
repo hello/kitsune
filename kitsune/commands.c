@@ -1692,9 +1692,6 @@ void vUARTTask(void *pvParameters) {
 
 	UARTprintf("Boot\n");
 
-	//default to PCB_ANT
-	antsel(get_default_antenna());
-
 	UARTprintf("*");
 	sl_sync_init();  // thread safe for all sl_* calls
 	sl_mode = sl_Start(NULL, NULL, NULL);
@@ -1705,6 +1702,9 @@ void vUARTTask(void *pvParameters) {
 		nwp_reset();
 	}
 	UARTprintf("*");
+
+	//default to PCB_ANT
+	antsel(get_default_antenna());
 
 	// Set connection policy to Auto
 	sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0), NULL, 0);
