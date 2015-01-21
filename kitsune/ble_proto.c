@@ -130,6 +130,8 @@ static int _scan_wifi()
 	_scanned_wifi_count = 0;
 	_wifi_read_index = 0;
 
+	wifi_status_set(SCANNING, true);
+
 	scan_cnt[IFA_ANT] = scan_with_retry( &endpoints_ifa, IFA_ANT );
 	scan_cnt[PCB_ANT] = scan_with_retry( &endpoints_pcb, PCB_ANT );
 
@@ -138,7 +140,7 @@ static int _scan_wifi()
 	//however the two lists can contain repeated values... so we need to scan out the dupes with lesser signal, better to just do it ahead of time
 	for(i=0;i<scan_cnt[IFA_ANT];++i) {
 		for(p=0;p<scan_cnt[PCB_ANT];++p) {
-			if(strcmp((char*)endpoints_pcb[p].ssid, (char*)endpoints_ifa[i].ssid)==0) {
+			if(strcmp((char*)endpoints_pcb[p].bssid, (char*)endpoints_ifa[i].bssid)==0) {
 				if( endpoints_ifa[i].rssi < endpoints_pcb[p].rssi ) {
 					memmove( &endpoints_pcb[i], &endpoints_pcb[i+1], sizeof( Sl_WlanNetworkEntry_t ) * (MAX_WIFI_EP_PER_SCAN - i) );
 					--scan_cnt[PCB_ANT];
@@ -167,8 +169,6 @@ static int _scan_wifi()
 		}
 		++_scanned_wifi_count;
 	}
-
-	wifi_status_set(SCANNING, true);
 
 	vPortFree(endpoints_pcb);
 	vPortFree(endpoints_ifa);
