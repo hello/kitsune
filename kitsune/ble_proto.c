@@ -153,10 +153,10 @@ static int _scan_wifi()
 		for(p=0;p<scan_cnt[PCB_ANT];++p) {
 			if(memcmp(endpoints_pcb[p].bssid, endpoints_ifa[i].bssid, SL_BSSID_LENGTH)==0) {
 				if( endpoints_ifa[i].rssi > endpoints_pcb[p].rssi ) {
-					memmove( &endpoints_pcb[i], &endpoints_pcb[i+1], sizeof( Sl_WlanNetworkEntry_t ) * (MAX_WIFI_EP_PER_SCAN - i - 1) );
+					memmove( &endpoints_pcb[p], &endpoints_pcb[p+1], sizeof( Sl_WlanNetworkEntry_t ) * (MAX_WIFI_EP_PER_SCAN - p - 1) );
 					--scan_cnt[PCB_ANT];
 				} else {
-					memmove( &endpoints_ifa[p], &endpoints_ifa[p+1], sizeof( Sl_WlanNetworkEntry_t ) * (MAX_WIFI_EP_PER_SCAN - p - 1) );
+					memmove( &endpoints_ifa[i], &endpoints_ifa[i+1], sizeof( Sl_WlanNetworkEntry_t ) * (MAX_WIFI_EP_PER_SCAN - i - 1) );
 					--scan_cnt[IFA_ANT];
 				}
 			}
