@@ -2173,7 +2173,7 @@ int Cmd_RadioStopTX(int argc, char*argv[])
 //end radio test functions
 #endif
 
-int get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uint32_t scan_duration_ms)
+int get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uint32_t scan_duration_ms, int antenna)
 {
     if(scan_duration_ms < 1000)
     {
@@ -2184,6 +2184,10 @@ int get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uin
 
     unsigned char policyOpt = SL_CONNECTION_POLICY(0, 0, 0, 0, 0);
     int r;
+
+    if( antenna ) {
+    	antsel(antenna);
+    }
 
     r = sl_WlanPolicySet(SL_POLICY_CONNECTION , policyOpt, NULL, 0);
 

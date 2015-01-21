@@ -1195,7 +1195,7 @@ int Cmd_rssi(int argc, char *argv[]) {
 
 	Sl_WlanNetworkEntry_t g_netEntries[SCAN_TABLE_SIZE];
 
-	lCountSSID = get_wifi_scan_result(&g_netEntries[0], SCAN_TABLE_SIZE, 1000);
+	lCountSSID = get_wifi_scan_result(&g_netEntries[0], SCAN_TABLE_SIZE, 1000, 0 );
 
     SortByRSSI(&g_netEntries[0],(unsigned char)lCountSSID);
 

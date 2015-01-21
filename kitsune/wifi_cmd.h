@@ -95,7 +95,7 @@ int decode_rx_data_pb(const uint8_t * buffer, uint32_t buffer_size, const  pb_fi
 
 int http_response_ok(const char* response_buffer);
 
-int get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uint32_t scan_duration_ms);
+int get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uint32_t scan_duration_ms, int antenna);
 int connect_scanned_endpoints(const char* ssid, const char* password, 
     const Sl_WlanNetworkEntry_t* wifi_endpoints, int scanned_wifi_count, SlSecParams_t* connectedEPSecParamsPtr);
 int connect_wifi(const char* ssid, const char* password, int sec_type);

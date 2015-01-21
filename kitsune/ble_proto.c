@@ -97,8 +97,31 @@ static void _factory_reset(){
 
 }
 
+static int scan_with_retry( Sl_WlanNetworkEntry_t ** endpoints, int antenna ) {
+	int scan_cnt = 0;
+
+	*endpoints = pvPortMalloc( MAX_WIFI_EP_PER_SCAN * sizeof(Sl_WlanNetworkEntry_t) );
+	assert(*endpoints);
+	memset(*endpoints, 0, MAX_WIFI_EP_PER_SCAN * sizeof(Sl_WlanNetworkEntry_t) );
+
+	uint8_t max_retry = 3;
+	uint8_t retry_count = max_retry;
+	wifi_status_set(SCANNING, false);
+
+	while((scan_cnt = get_wifi_scan_result(*endpoints, MAX_WIFI_EP_PER_SCAN, 3000 * (max_retry - retry_count + 1), antenna)) == 0 && --retry_count)
+	{
+		LOGI("No wifi scanned, retry times remain %d\n", retry_count);
+		vTaskDelay(500);
+	}
+	return scan_cnt;
+}
+
 static int _scan_wifi()
 {
+	Sl_WlanNetworkEntry_t * endpoints_ifa;
+	Sl_WlanNetworkEntry_t * endpoints_pcb;
+	int scan_cnt[ANTENNA_CNT+1] = {0};
+
 	//only scan if we've been reset, this lets us cache the scan result for later
 	if( _scanned_wifi_count != 0 ) {
 		return _scanned_wifi_count;
@@ -107,18 +130,48 @@ static int _scan_wifi()
 	_scanned_wifi_count = 0;
 	_wifi_read_index = 0;
 
-	uint8_t max_retry = 3;
-	uint8_t retry_count = max_retry;
-	wifi_status_set(SCANNING, false);
+	scan_cnt[IFA_ANT] = scan_with_retry( &endpoints_ifa, IFA_ANT );
+	scan_cnt[PCB_ANT] = scan_with_retry( &endpoints_pcb, PCB_ANT );
 
-	while((_scanned_wifi_count = get_wifi_scan_result(_wifi_endpoints, MAX_WIFI_EP_PER_SCAN, 3000 * (max_retry - retry_count + 1))) == 0 && --retry_count)
-	{
-		LOGI("No wifi scanned, retry times remain %d\n", retry_count);
-		vTaskDelay(500);
+	int i,p;
+	//merge the lists... since they are sorted by rssi we can pop the best one
+	//however the two lists can contain repeated values... so we need to scan out the dupes with lesser signal, better to just do it ahead of time
+	for(i=0;i<scan_cnt[IFA_ANT];++i) {
+		for(p=0;p<scan_cnt[PCB_ANT];++p) {
+			if(strcmp((char*)endpoints_pcb[p].ssid, (char*)endpoints_ifa[i].ssid)==0) {
+				if( endpoints_ifa[i].rssi > endpoints_pcb[p].rssi ) {
+					memmove( &endpoints_pcb[i], &endpoints_pcb[i+1], sizeof( Sl_WlanNetworkEntry_t ) * (MAX_WIFI_EP_PER_SCAN - i) );
+					--scan_cnt[PCB_ANT];
+				} else {
+					memmove( &endpoints_ifa[p], &endpoints_ifa[p+1], sizeof( Sl_WlanNetworkEntry_t ) * (MAX_WIFI_EP_PER_SCAN - p) );
+					--scan_cnt[IFA_ANT];
+				}
+			}
+		}
+	}
+	for(i=0;i<MAX_WIFI_EP_PER_SCAN;++i) {
+		if( i < scan_cnt[IFA_ANT] && endpoints_ifa[i].rssi > endpoints_pcb[i].rssi ) {
+			memcpy( &_wifi_endpoints[i], &endpoints_ifa[i], sizeof( Sl_WlanNetworkEntry_t ) );
+			_wifi_endpoints[i].reserved[0] = IFA_ANT;
+		} else if( i < scan_cnt[PCB_ANT] && endpoints_pcb[i].rssi > endpoints_ifa[i].rssi ) {
+			memcpy( &_wifi_endpoints[i], &endpoints_pcb[i], sizeof( Sl_WlanNetworkEntry_t ) );
+			_wifi_endpoints[i].reserved[0] = PCB_ANT;
+		} else if( i < scan_cnt[IFA_ANT] ){
+			memcpy(&_wifi_endpoints[i], &endpoints_ifa[i], sizeof(Sl_WlanNetworkEntry_t));
+			_wifi_endpoints[i].reserved[0] = IFA_ANT;
+		} else if( i < scan_cnt[PCB_ANT] ){
+			memcpy(&_wifi_endpoints[i], &endpoints_pcb[i], sizeof(Sl_WlanNetworkEntry_t));
+			_wifi_endpoints[i].reserved[0] = PCB_ANT;
+		} else {
+			break;
+		}
+		++_scanned_wifi_count;
 	}
 
 	wifi_status_set(SCANNING, true);
 
+	vPortFree(endpoints_pcb);
+	vPortFree(endpoints_ifa);
 	return _scanned_wifi_count;
 }
 
@@ -162,10 +215,17 @@ static void _reply_wifi_scan_result()
 
 static bool _set_wifi(const char* ssid, const char* password, int security_type)
 {
-    int connection_ret;
+    int connection_ret, i;
 
     uint8_t max_retry = 10;
     uint8_t retry_count = max_retry;
+
+    for(i=0;i<MAX_WIFI_EP_PER_SCAN;++i) {
+    	if( !strcmp( (char*)_wifi_endpoints[i].ssid, ssid ) ) {
+    		antsel(_wifi_endpoints[i].reserved[0]);
+    		break;
+    	}
+    }
 
 	//play_led_progress_bar(0xFF, 128, 0, 128,portMAX_DELAY);
     while((connection_ret = connect_wifi(ssid, password, security_type)) == 0 && --retry_count)
