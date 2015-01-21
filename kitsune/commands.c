@@ -401,7 +401,6 @@ int Cmd_do_octogram(int argc, char * argv[]) {
 
 	AudioTask_AddMessageToQueue(&m);
 	xSemaphoreTake(octogram_semaphore,portMAX_DELAY);
-	xSemaphoreGive(octogram_semaphore);
 
     if( argc == 1 ) {
     	return 0;
