@@ -116,7 +116,17 @@ static int scan_with_retry( Sl_WlanNetworkEntry_t ** endpoints, int antenna ) {
 
 	return scan_cnt;
 }
-
+static debug_print_ssid( char * msg, Sl_WlanNetworkEntry_t * ep, int n ) {
+	int i,b;
+    LOGI( msg );
+	for(i=0;i<n;++i) {
+		LOGI( "%s %d %d", ep[i].ssid, ep[i].rssi, ep[i].reserved[0] );
+		for(b=0;b<SL_BSSID_LENGTH;++b) {
+			LOGI("%x:", ep[i].bssid[b] );
+		}
+		LOGI("\n");
+	}
+}
 static int _scan_wifi()
 {
 	Sl_WlanNetworkEntry_t * endpoints_ifa;
@@ -138,14 +148,8 @@ static int _scan_wifi()
 
 	int i,p;
 
-    LOGI( "SSID RSSI IFA\n" );
-	for(i=0;i<scan_cnt[IFA_ANT];++i) {
-		LOGI( "%s %d\n", endpoints_ifa[i].ssid, endpoints_ifa[i].rssi );
-	}
-    LOGI( "SSID RSSI PCB\n" );
-	for(i=0;i<scan_cnt[PCB_ANT];++i) {
-		LOGI( "%s %d\n", endpoints_pcb[i].ssid, endpoints_pcb[i].rssi );
-	}
+	debug_print_ssid( "SSID RSSI IFA\n", endpoints_ifa, scan_cnt[IFA_ANT] );
+	debug_print_ssid( "SSID RSSI PCB\n", endpoints_pcb, scan_cnt[PCB_ANT] );
 
 	//merge the lists... since they are sorted by rssi we can pop the best one
 	//however the two lists can contain repeated values... so we need to scan out the dupes with lesser signal, better to just do it ahead of time
@@ -165,14 +169,9 @@ static int _scan_wifi()
 		}
 	}
 
-	LOGI("SSID RSSI IFA DEDUPE\n");
-	for (i = 0; i < scan_cnt[PCB_ANT]; ++i) {
-		LOGI("%s %d\n", endpoints_pcb[i].ssid, endpoints_pcb[i].rssi);
-	}
-	LOGI("SSID RSSI PCB DEDUPE\n");
-	for (i = 0; i < scan_cnt[PCB_ANT]; ++i) {
-		LOGI("%s %d\n", endpoints_pcb[i].ssid, endpoints_pcb[i].rssi);
-	}
+	debug_print_ssid( "SSID RSSI IFA DE-DUPE\n", endpoints_ifa, scan_cnt[IFA_ANT] );
+	debug_print_ssid( "SSID RSSI PCB DE-DUPE\n", endpoints_pcb, scan_cnt[PCB_ANT] );
+
 
 	for(i=0;i<MAX_WIFI_EP_PER_SCAN;++i) {
 		if( i < scan_cnt[IFA_ANT] && endpoints_ifa[i].rssi > endpoints_pcb[i].rssi ) {
@@ -192,11 +191,7 @@ static int _scan_wifi()
 		}
 		++_scanned_wifi_count;
 	}
-
-	LOGI("SSID RSSI COMBINED\n");
-	for (i = 0; i < _scanned_wifi_count; ++i) {
-		LOGI("%s %d %d\n", _wifi_endpoints[i].ssid, _wifi_endpoints[i].rssi, _wifi_endpoints[i].reserved[0]);
-	}
+	debug_print_ssid( "SSID RSSI COMBINED\n", _wifi_endpoints, _scanned_wifi_count );
 
 	wifi_status_set(SCANNING, true);  // Remove the sanning flag
 	vPortFree(endpoints_pcb);
