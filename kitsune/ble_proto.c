@@ -137,21 +137,41 @@ static int _scan_wifi()
 	scan_cnt[PCB_ANT] = scan_with_retry( &endpoints_pcb, PCB_ANT );
 
 	int i,p;
+
+    LOGI( "SSID RSSI IFA\n" );
+	for(i=0;i<scan_cnt[IFA_ANT];++i) {
+		LOGI( "%s %d\n", endpoints_ifa[i].ssid, endpoints_ifa[i].rssi );
+	}
+    LOGI( "SSID RSSI PCB\n" );
+	for(i=0;i<scan_cnt[PCB_ANT];++i) {
+		LOGI( "%s %d\n", endpoints_pcb[i].ssid, endpoints_pcb[i].rssi );
+	}
+
 	//merge the lists... since they are sorted by rssi we can pop the best one
 	//however the two lists can contain repeated values... so we need to scan out the dupes with lesser signal, better to just do it ahead of time
 	for(i=0;i<scan_cnt[IFA_ANT];++i) {
 		for(p=0;p<scan_cnt[PCB_ANT];++p) {
 			if(memcmp(endpoints_pcb[p].bssid, endpoints_ifa[i].bssid, SL_BSSID_LENGTH)==0) {
 				if( endpoints_ifa[i].rssi > endpoints_pcb[p].rssi ) {
-					memmove( &endpoints_pcb[i], &endpoints_pcb[i+1], sizeof( Sl_WlanNetworkEntry_t ) * (MAX_WIFI_EP_PER_SCAN - i) );
+					memmove( &endpoints_pcb[i], &endpoints_pcb[i+1], sizeof( Sl_WlanNetworkEntry_t ) * (MAX_WIFI_EP_PER_SCAN - i - 1) );
 					--scan_cnt[PCB_ANT];
 				} else {
-					memmove( &endpoints_ifa[p], &endpoints_ifa[p+1], sizeof( Sl_WlanNetworkEntry_t ) * (MAX_WIFI_EP_PER_SCAN - p) );
+					memmove( &endpoints_ifa[p], &endpoints_ifa[p+1], sizeof( Sl_WlanNetworkEntry_t ) * (MAX_WIFI_EP_PER_SCAN - p - 1) );
 					--scan_cnt[IFA_ANT];
 				}
 			}
 		}
 	}
+
+	LOGI("SSID RSSI IFA DEDUPE\n");
+	for (i = 0; i < scan_cnt[PCB_ANT]; ++i) {
+		LOGI("%s %d\n", endpoints_pcb[i].ssid, endpoints_pcb[i].rssi);
+	}
+	LOGI("SSID RSSI PCB DEDUPE\n");
+	for (i = 0; i < scan_cnt[PCB_ANT]; ++i) {
+		LOGI("%s %d\n", endpoints_pcb[i].ssid, endpoints_pcb[i].rssi);
+	}
+
 	for(i=0;i<MAX_WIFI_EP_PER_SCAN;++i) {
 		if( i < scan_cnt[IFA_ANT] && endpoints_ifa[i].rssi > endpoints_pcb[i].rssi ) {
 			memcpy( &_wifi_endpoints[i], &endpoints_ifa[i], sizeof( Sl_WlanNetworkEntry_t ) );
@@ -169,6 +189,11 @@ static int _scan_wifi()
 			break;
 		}
 		++_scanned_wifi_count;
+	}
+
+	LOGI("SSID RSSI COMBINED\n");
+	for (i = 0; i < _scanned_wifi_count; ++i) {
+		LOGI("%s %d %d\n", _wifi_endpoints[i].ssid, _wifi_endpoints[i].rssi, _wifi_endpoints[i].reserved[0]);
 	}
 
 	wifi_status_set(SCANNING, true);  // Remove the sanning flag
