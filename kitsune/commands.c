@@ -1292,7 +1292,7 @@ int Cmd_generate_factory_data(int argc,char * argv[]) {
     for(i = 1; i < enc_size; i++) {
     	usnprintf(&key_string[i * 2 - 2], 3, "%02X", enc_factory_data[i]);
     }
-    LOGI( "\nfactory key: %s\n", key_string);
+    LOGF( "\nfactory key: %s\n", key_string);
 
 
 #if 0 //todo DVT disable!
