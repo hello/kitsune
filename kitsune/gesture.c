@@ -60,6 +60,12 @@ static int _fsm_reset(void){
 	self.fsm.prox_last =0;
 	return 0;
 }
+static volatile int gesture_cnt = 0;
+int Cmd_get_gesture_count(int argc, char * argv[]) {
+	LOGF("%d transitions\n", gesture_cnt );
+	gesture_cnt = 0;
+	return 0;
+}
 static gesture _fsm(int in){
 	gesture ret = GESTURE_NONE;
 	int exceeded = 0;
@@ -76,6 +82,7 @@ static gesture _fsm(int in){
 		LOGI("->0\r\n");
 		_transition_state(GFSM_IDLE_FORREALS);
 		ret = GESTURE_OUT;
+		++gesture_cnt;
 		//no break
 	case GFSM_IDLE_FORREALS:
 		//any edge triggers edge up state

@@ -1636,6 +1636,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "country",Cmd_country,""},
 		{ "sync", Cmd_sync, "" },
 		{ "boot",Cmd_boot,""},
+		{ "gesture_count",Cmd_get_gesture_count,""},
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
 		{ "iperfcli",Cmd_iperf_client,""},
