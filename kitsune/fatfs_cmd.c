@@ -105,7 +105,7 @@ int Cmd_mnt(int argc, char *argv[])
 	res = hello_fs_mount(0, &fsobj);
 	if(res != FR_OK)
 	{
-		LOGI("f_mount error: %i\n", (res));
+		LOGF("f_mount error: %i\n", (res));
 		return(1);
 	}
 	return 0;
@@ -117,10 +117,10 @@ int Cmd_umnt(int argc, char *argv[])
 	res = hello_fs_mount(0, NULL);
 	if(res != FR_OK)
 	{
-		LOGI("f_mount error: %i\n", (res));
+		LOGF("f_mount error: %i\n", (res));
 		return(1);
 	}
-	LOGI("f_mount success\n");
+	LOGF("f_mount success\n");
 	return 0;
 }
 
@@ -128,15 +128,15 @@ int Cmd_mkfs(int argc, char *argv[])
 {
     FRESULT res;
 
-	LOGI("\n\nMaking FS...\n");
+    LOGF("\n\nMaking FS...\n");
 
 	res = hello_fs_mkfs(0, 0, 64);
 	if(res != FR_OK)
 	{
-		LOGI("f_mkfs error: %i\n", (res));
+		LOGF("f_mkfs error: %i\n", (res));
 		return(1);
 	}
-	LOGI("f_mkfs success\n");
+	LOGF("f_mkfs success\n");
 	return 0;
 }
 
@@ -170,7 +170,7 @@ Cmd_ls(int argc, char *argv[])
     ui32FileCount = 0;
     ui32DirCount = 0;
 
-    DISP("\n");
+    LOGF("\n");
 
     for(;;)
     {
@@ -204,7 +204,7 @@ Cmd_ls(int argc, char *argv[])
         // Print the entry information on a single line with formatting to show
         // the attributes, date, time, size, and name.
         vTaskDelay(10);
-        DISP("%c%c%c%c%c %u/%02u/%02u %02u:%02u %9u  %s\n",
+        LOGF("%c%c%c%c%c %u/%02u/%02u %02u:%02u %9u  %s\n",
                    (file_info.fattrib & AM_DIR) ? 'D' : '-',
                    (file_info.fattrib & AM_RDO) ? 'R' : '-',
                    (file_info.fattrib & AM_HID) ? 'H' : '-',
@@ -221,7 +221,7 @@ Cmd_ls(int argc, char *argv[])
     }
 
     // Print summary lines showing the file, dir, and size totals.
-    DISP("\n%4u File(s),%10u bytes total\n%4u Dir(s)",
+    LOGF("\n%4u File(s),%10u bytes total\n%4u Dir(s)",
                 ui32FileCount, ui32TotalSize, ui32DirCount);
 
     // Get the free space.
@@ -234,7 +234,7 @@ Cmd_ls(int argc, char *argv[])
     }
 
     // Display the amount of free space that was calculated.
-    DISP(", %10uK bytes free\n", (ui32TotalSize *
+    LOGF(", %10uK bytes free\n", (ui32TotalSize *
                                         psFatFs->sects_clust / 2));
 
     return(0);
@@ -366,7 +366,7 @@ Cmd_cd(int argc, char *argv[]) {
 int
 Cmd_pwd(int argc, char *argv[])
 {
-    LOGI("%s\n", cwd_buff);
+	LOGF("%s\n", cwd_buff);
     return(0);
 }
 int global_filename(char * local_fn)
@@ -433,7 +433,7 @@ Cmd_cat(int argc, char *argv[])
         // error to the user.
         if(res != FR_OK)
         {
-            LOGI("\n");
+        	LOGF("\n");
             return((int)res);
         }
         // Null terminate the last block that was read to make it a null
@@ -441,14 +441,14 @@ Cmd_cat(int argc, char *argv[])
         path_buff[ui16BytesRead] = 0;
 
         // Print the last chunk of the file that was received.
-        LOGI("%s", path_buff);
+        LOGF("%s", path_buff);
 
     }
     while(ui16BytesRead == 4);
 
     hello_fs_close( &file_obj );
 
-    LOGI("\n");
+    LOGF("\n");
     return(0);
 }
 
@@ -465,7 +465,7 @@ Cmd_write_audio(char *argv[])
     {
     	return 1;
     }
-    LOGI("print");
+    LOGF("print");
     // Open the file for reading.
     //res = hello_fs_open(&file_obj, path_buff, FA_CREATE_NEW|FA_WRITE);
     res = hello_fs_open(&file_obj, path_buff, FA_WRITE);
@@ -491,7 +491,7 @@ Cmd_write_audio(char *argv[])
 int
 Cmd_write(int argc, char *argv[])
 {
-	LOGI("Cmd_write\n");
+	LOGF("Cmd_write\n");
 
 	WORD bytes = 0;
 	WORD bytes_written = 0;
@@ -506,10 +506,10 @@ Cmd_write(int argc, char *argv[])
 
     // Open the file for writing.
     FRESULT res = hello_fs_open(&file_obj, path_buff, FA_CREATE_NEW|FA_WRITE|FA_OPEN_ALWAYS);
-    LOGI("res :%d\n",res);
+    LOGF("res :%d\n",res);
 
     if(res != FR_OK && res != FR_EXIST){
-    	LOGI("File open %s failed: %d\n", path_buff, res);
+    	LOGF("File open %s failed: %d\n", path_buff, res);
     	return res;
     }
 
@@ -521,7 +521,7 @@ Cmd_write(int argc, char *argv[])
     do {
 		res = hello_fs_write( &file_obj, argv[2]+bytes_written, bytes_to_write-bytes_written, &bytes );
 		bytes_written+=bytes;
-		LOGI("bytes written: %d\n", bytes_written);
+		LOGF("bytes written: %d\n", bytes_written);
 
     } while( bytes_written < bytes_to_write );
 
@@ -1323,15 +1323,15 @@ int download_file(char * host, char * url, char * filename, char * path, storage
 	dl_sock = CreateConnection(ip);
 
 	if (dl_sock < 0) {
-		LOGI("Connection to server failed\n\r");
+		LOGF("Connection to server failed\n\r");
 		return -1;
 	} else {
-		LOGI("Connection to server created successfully\r\n");
+		LOGF("Connection to server created successfully\r\n");
 	}
 	// Download the file, verify the file and replace the exiting file
 	r = GetData(filename, url, host, path, storage);
 	if (r < 0) {
-		LOGI("Device couldn't download the file from the server\n\r");
+		LOGF("Device couldn't download the file from the server\n\r");
 	}
 
 	r = close(dl_sock);
@@ -1576,7 +1576,7 @@ void reset_to_factory_fw() {
 
 #include "wifi_cmd.h"
 int Cmd_version(int argc, char *argv[]) {
-	LOGI( "ver: %x\nimg: %d\nstatus: %x\n", KIT_VER, sBootInfo.ucActiveImg, sBootInfo.ulImgStatus );
+	LOGF( "ver: %x\nimg: %d\nstatus: %x\n", KIT_VER, sBootInfo.ucActiveImg, sBootInfo.ulImgStatus );
 	return 0;
 }
 

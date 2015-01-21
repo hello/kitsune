@@ -168,7 +168,7 @@ int Cmd_free(int argc, char *argv[]) {
 	//
 	// Print some header text.
 	//
-	LOGI("%d bytes free\nhigh: %d low: %d\n", xPortGetFreeHeapSize(),heap_high_mark,heap_low_mark);
+	LOGF("%d bytes free\nhigh: %d low: %d\n", xPortGetFreeHeapSize(),heap_high_mark,heap_low_mark);
 
     heap_high_mark = 0;
 	heap_low_mark = 0xffffffff;
@@ -208,12 +208,12 @@ int Cmd_fs_write(int argc, char *argv[]) {
 
 	if (sl_FsOpen((unsigned char*)argv[1],
 	FS_MODE_OPEN_WRITE, &tok, &hndl)) {
-		LOGI("error opening file, trying to create\n");
+		LOGF("error opening file, trying to create\n");
 
 		if (sl_FsOpen((unsigned char*)argv[1],
 				FS_MODE_OPEN_CREATE(65535, _FS_FILE_OPEN_FLAG_COMMIT), &tok,
 				&hndl)) {
-			LOGI("error opening for write\n");
+			LOGF("error opening for write\n");
 			return -1;
 		}
 	}
@@ -228,7 +228,7 @@ int Cmd_fs_write(int argc, char *argv[]) {
     	next = next + 1;
     }
 
-	LOGI("wrote to the file %d bytes\n", cnt);
+	LOGF("wrote to the file %d bytes\n", cnt);
 
 	sl_FsClose(hndl, 0, 0, 0);
 
@@ -248,19 +248,19 @@ int Cmd_fs_read(int argc, char *argv[]) {
 
 #ifndef DEBUG_FS
 	if (strstr(argv[1], "cert") != 0) {
-		LOGE("unauthorized\n");
+		LOGF("unauthorized\n");
 		return 0;
 	}
 	if (strstr(argv[1], "hello") != 0) {
-		LOGE("unauthorized\n");
+		LOGF("unauthorized\n");
 		return 0;
 	}
 	if (strstr(argv[1], "sys") != 0) {
-		LOGE("unauthorized\n");
+		LOGF("unauthorized\n");
 		return 0;
 	}
 	if (strstr(argv[1], "top") != 0) {
-		LOGE("unauthorized\n");
+		LOGF("unauthorized\n");
 		return 0;
 	}
 #endif
@@ -269,28 +269,28 @@ int Cmd_fs_read(int argc, char *argv[]) {
 
 	err = sl_FsOpen((unsigned char*) argv[1], FS_MODE_OPEN_READ, &tok, &hndl);
 	if (err) {
-		LOGI("error opening for read %d\n", err);
+		LOGF("error opening for read %d\n", err);
 		return -1;
 	}
 	if( argc >= 3 ){
-		bytes = sl_FsRead(hndl, atoi(argv[2]), (unsigned char*) buffer,
+		bytes = sl_FsRead(hndl, atoi(argv[2]), (unsigned char* ) buffer,
 				minval(info.FileLen, BUF_SZ));
 		if (bytes) {
-						LOGI("read %d bytes\n", bytes);
-					}
-	}else{
-		bytes = sl_FsRead(hndl, 0, (unsigned char*) buffer,
+			LOGF("read %d bytes\n", bytes);
+		}
+	} else {
+		bytes = sl_FsRead(hndl, 0, (unsigned char* ) buffer,
 				minval(info.FileLen, BUF_SZ));
 		if (bytes) {
-						LOGI("read %d bytes\n", bytes);
-					}
+			LOGF("read %d bytes\n", bytes);
+		}
 	}
 
 
 	sl_FsClose(hndl, 0, 0, 0);
 
 	for (i = 0; i < bytes; ++i) {
-		LOGI("%x", buffer[i]);
+		LOGF("%x", buffer[i]);
 	}
 
 	return 0;
@@ -362,7 +362,7 @@ int Cmd_do_octogram(int argc, char * argv[]) {
     	numsamples = 500;
     }
     if (numsamples == 0) {
-    	LOGI("number of requested samples was zero.\r\n");
+    	LOGF("number of requested samples was zero.\r\n");
     	return 0;
     }
 
@@ -392,19 +392,19 @@ int Cmd_do_octogram(int argc, char * argv[]) {
     	avg += res.logenergy[6];
     	avg /= 4;
 
-    	LOGI("%d\r\n", res.logenergy[2] - avg );
+    	LOGF("%d\r\n", res.logenergy[2] - avg );
     	return 0;
     }
 	//report results
-    LOGI("octogram log energies: ");
+    LOGF("octogram log energies: ");
 	for (i = 0; i < OCTOGRAM_SIZE; i++) {
 		if (i != 0) {
 			LOGI(",");
 		}
-		LOGI("%d",res.logenergy[i]);
+		LOGF("%d",res.logenergy[i]);
 	}
 
-	LOGI("\r\n");
+	LOGF("\r\n");
 
 	return 0;
 
@@ -431,7 +431,7 @@ int Cmd_fs_delete(int argc, char *argv[]) {
 	//
 	int err = sl_FsDel((unsigned char*)argv[1], 0);
 	if (err) {
-		LOGI("error %d\n", err);
+		LOGF("error %d\n", err);
 		return -1;
 	}
 
@@ -1106,13 +1106,13 @@ void thread_sensor_poll(void* unused) {
 int Cmd_tasks(int argc, char *argv[]) {
 	char* pBuffer;
 
-	LOGI("\t\t\t\t\tUnused\n            TaskName\tStatus\tPri\tStack\tTask ID\n");
+	LOGF("\t\t\t\t\tUnused\n            TaskName\tStatus\tPri\tStack\tTask ID\n");
 	pBuffer = pvPortMalloc(1024);
 	assert(pBuffer);
-	LOGI("==========================");
+	LOGF("==========================");
 	vTaskList(pBuffer);
-	LOGI("==========================\n");
-	LOGI("%s", pBuffer);
+	LOGF("==========================\n");
+	LOGF("%s", pBuffer);
 
 	vPortFree(pBuffer);
 	return 0;
@@ -1199,9 +1199,9 @@ int Cmd_rssi(int argc, char *argv[]) {
 
     SortByRSSI(&g_netEntries[0],(unsigned char)lCountSSID);
 
-    LOGI( "SSID RSSI\n" );
+    LOGF( "SSID RSSI\n" );
 	for(i=0;i<lCountSSID;++i) {
-		LOGI( "%s %d\n", g_netEntries[i].ssid, g_netEntries[i].rssi );
+		LOGF( "%s %d\n", g_netEntries[i].ssid, g_netEntries[i].rssi );
 	}
 	return 0;
 }
@@ -1389,11 +1389,11 @@ int Cmd_slip(int argc, char * argv[]){
 	uint32_t len;
 	if(argc >= 2){
 		uint8_t * message = hci_encode((uint8_t*)argv[1], strlen(argv[1]) + 1, &len);
-		LOGI("Decoded: %s \r\n", hci_decode(message, len, NULL));
+		LOGF("Decoded: %s \r\n", hci_decode(message, len, NULL));
 		hci_free(message);
 	}else{
 		uint8_t * message = hci_encode("hello", strlen("hello") + 1, &len);
-		LOGI("Decoded: %s \r\n", hci_decode(message, len, NULL));
+		LOGF("Decoded: %s \r\n", hci_decode(message, len, NULL));
 		hci_free(message);
 	}
 	return 0;
@@ -1403,7 +1403,7 @@ int Cmd_topdfu(int argc, char *argv[]){
 	if(argc > 1){
 		return top_board_dfu_begin(argv[1]);
 	}
-	LOGI("Usage: topdfu $full_path_to_file");
+	LOGF("Usage: topdfu $full_path_to_file");
 	return -2;
 }
 
@@ -1438,12 +1438,12 @@ static void CreateDefaultDirectories(void) {
 static int Cmd_test_3200_rtc(int argc, char*argv[]) {
     unsigned int dly = atoi(argv[1]);
 	if( argc != 2 ) {
-		dly = 5000;
+		dly = 3000;
 	}
 	set_sl_time(0);
-	LOGI("time is %u\n", get_sl_time() );
+	LOGF("time is %u\n", get_sl_time() );
 	vTaskDelay(dly);
-	LOGI("time is %u\n", get_sl_time() );
+	LOGF("time is %u\n", get_sl_time() );
 	return 0;
 }
 

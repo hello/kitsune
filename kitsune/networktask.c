@@ -21,7 +21,7 @@ static NetworkResponse_t _syncsendresponse;
 #define USE_DEBUG_PRINTF
 
 #ifdef USE_DEBUG_PRINTF
-#define DEBUG_PRINTF(...)  LOGI(__VA_ARGS__); UARTprintf("\r\n")
+#define DEBUG_PRINTF(...)  LOGI(__VA_ARGS__); LOGI("\r\n")
 #else
 static void nop(const char * foo,...) {  }
 #define DEBUG_PRINTF(...) nop(__VA_ARGS__)
