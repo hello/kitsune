@@ -49,7 +49,7 @@ int Cmd_country(int argc, char *argv[]);
 
 
 #define USER_DIR "/usr"
-#define ANTENNA_FILE ("/hello/antenna")  // usr is in sd card, let keep the original one.
+#define ANTENNA_FILE ("/hello/antenna")  // usr is in sd card, let's keep the original one.
 
 #define PCB_ANT 2
 #define IFA_ANT 1
