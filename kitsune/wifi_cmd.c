@@ -215,7 +215,7 @@ void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent) {
         break;
     }
 }
-#define ANTENNA_FILE USER_DIR "/antenna"
+
 void save_default_antenna( unsigned char a ) {
 		unsigned long tok=0;
 		long hndl, bytes;

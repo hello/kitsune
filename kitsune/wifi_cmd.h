@@ -48,6 +48,9 @@ int Cmd_iperf_server(int argc, char *argv[]);
 int Cmd_country(int argc, char *argv[]);
 
 
+#define USER_DIR "/usr"
+#define ANTENNA_FILE (USER_DIR "/antenna")
+
 #define PCB_ANT 2
 #define IFA_ANT 1
 void save_default_antenna( unsigned char a );
