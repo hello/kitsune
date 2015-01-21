@@ -173,7 +173,7 @@ static int _scan_wifi()
 	debug_print_ssid( "SSID RSSI PCB DE-DUPE\n", endpoints_pcb, scan_cnt[PCB_ANT] );
 
 
-	for(++_scanned_wifi_count = 0;_scanned_wifi_count<MAX_WIFI_EP_PER_SCAN; ++_scanned_wifi_count) {
+	for(_scanned_wifi_count = 0;_scanned_wifi_count<MAX_WIFI_EP_PER_SCAN; ++_scanned_wifi_count) {
 		if( scan_cnt[IFA_ANT] && endpoints_ifa[i].rssi > endpoints_pcb[i].rssi ) {
 			memcpy( &_wifi_endpoints[i], &endpoints_ifa[i], sizeof( Sl_WlanNetworkEntry_t ) );
 			memmove( &endpoints_ifa[i], &endpoints_ifa[i+1], sizeof( Sl_WlanNetworkEntry_t ) * (MAX_WIFI_EP_PER_SCAN - i - 1) );
