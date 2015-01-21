@@ -216,6 +216,18 @@ void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent) {
     }
 }
 
+void reset_default_antenna()
+{
+	unsigned long tok = 0;
+	SlFsFileInfo_t info = {0};
+
+	sl_FsGetInfo((unsigned char*)ANTENNA_FILE, tok, &info);
+	int err = sl_FsDel((unsigned char*)ANTENNA_FILE, tok);
+	if (err) {
+		LOGI("error %d\n", err);
+	}
+}
+
 void save_default_antenna( unsigned char a ) {
 		unsigned long tok=0;
 		long hndl, bytes;
@@ -529,6 +541,7 @@ void wifi_reset()
     }else{
         LOGI("Disconnect WIFI failed, error %d.\n", ret);
     }
+    reset_default_antenna();
 }
 
 int Cmd_disconnect(int argc, char *argv[]) {

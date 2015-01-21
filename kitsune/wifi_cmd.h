@@ -49,7 +49,7 @@ int Cmd_country(int argc, char *argv[]);
 
 
 #define USER_DIR "/usr"
-#define ANTENNA_FILE (USER_DIR "/antenna")
+#define ANTENNA_FILE ("/hello/antenna")  // usr is in sd card, let keep the original one.
 
 #define PCB_ANT 2
 #define IFA_ANT 1
@@ -109,6 +109,7 @@ void wifi_get_connected_ssid(uint8_t* ssid_buffer, size_t len);
 long nwp_reset();
 void wifi_reset();
 void free_pill_list();
+void reset_default_antenna();
 
 
 #define MORPH_NAME ""

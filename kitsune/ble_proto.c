@@ -90,6 +90,7 @@ static void _factory_reset(){
     	vTaskDelay(1000);
     }
 
+    reset_default_antenna();
     pill_settings_reset_all();
     nwp_reset();
     deleteFilesInDir(USER_DIR);
