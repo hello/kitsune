@@ -87,7 +87,7 @@ static gesture _fsm(int in){
 	case GFSM_LEVEL:
 		if (!exceeded || _hasHold() ) {
 			if (_hasHold()) {
-				LOGI("Gesture: HOLD\r\n");
+				LOGF("Gesture: HOLD\r\n");
 				if(xSemaphoreTake(self.gesture_count_semaphore, 100) == pdTRUE)
 				{
 					self.hold_count += 1;
@@ -97,7 +97,7 @@ static gesture _fsm(int in){
 				ret = GESTURE_HOLD;
 			} else if (_hasWave()) {
 				if (_hasWave()) {
-					LOGI("Gesture: WAVE\r\n");
+					LOGF("Gesture: WAVE\r\n");
 					if(xSemaphoreTake(self.gesture_count_semaphore, 100) == pdTRUE)
 					{
 						self.wave_count += 1;
