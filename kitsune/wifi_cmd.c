@@ -215,6 +215,58 @@ void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent) {
         break;
     }
 }
+#define ANTENNA_FILE "/hello/ant"
+void save_default_antenna( unsigned char a ) {
+		unsigned long tok=0;
+		long hndl, bytes;
+		SlFsFileInfo_t info;
+
+		sl_FsGetInfo((unsigned char*)ANTENNA_FILE, tok, &info);
+
+		if (sl_FsOpen((unsigned char*)ANTENNA_FILE, FS_MODE_OPEN_WRITE, &tok, &hndl)) {
+			LOGI("error opening file, trying to create\n");
+
+			if (sl_FsOpen((unsigned char*)ANTENNA_FILE,
+					FS_MODE_OPEN_CREATE(65535, _FS_FILE_OPEN_FLAG_COMMIT), &tok,
+					&hndl)) {
+				LOGI("error opening for write\n");
+				return;
+			}else{
+				sl_FsWrite(hndl, 0, &a, 1);  // Dummy write, we don't care about the result
+			}
+		}
+
+		bytes = sl_FsWrite(hndl, 0, &a, 1);
+		if( bytes != 1 ) {
+			LOGE( "writing antenna failed %d", bytes );
+		}
+		sl_FsClose(hndl, 0, 0, 0);
+
+		return;
+}
+unsigned char get_default_antenna() {
+	unsigned char a = PCB_ANT;
+	long hndl = -1;
+	int RetVal, Offset;
+
+	// read in aes key
+	RetVal = sl_FsOpen(ANTENNA_FILE, FS_MODE_OPEN_READ, NULL, &hndl);
+	if (RetVal != 0) {
+		LOGE("failed to open antenna file\n");
+		return a;
+	}
+
+	Offset = 0;
+	RetVal = sl_FsRead(hndl, Offset, (unsigned char *) a, 1);
+	if (RetVal != 1) {
+		LOGE("failed to read antenna file\n");
+		return a;
+	}
+
+	RetVal = sl_FsClose(hndl, NULL, NULL, 0);
+
+	return a;
+}
 
 void antsel(unsigned char a)
 {

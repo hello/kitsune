@@ -223,6 +223,7 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type)
     for(i=0;i<MAX_WIFI_EP_PER_SCAN;++i) {
     	if( !strcmp( (char*)_wifi_endpoints[i].ssid, ssid ) ) {
     		antsel(_wifi_endpoints[i].reserved[0]);
+    		save_default_antenna( _wifi_endpoints[i].reserved[0] );
     		break;
     	}
     }

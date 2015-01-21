@@ -1693,7 +1693,7 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("Boot\n");
 
 	//default to PCB_ANT
-	antsel(PCB_ANT);
+	antsel(get_default_antenna());
 
 	UARTprintf("*");
 	sl_sync_init();  // thread safe for all sl_* calls

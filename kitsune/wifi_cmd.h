@@ -50,6 +50,8 @@ int Cmd_country(int argc, char *argv[]);
 
 #define PCB_ANT 2
 #define IFA_ANT 1
+void save_default_antenna( unsigned char a );
+unsigned char get_default_antenna();
 void antsel(unsigned char a);
 int Cmd_antsel(int argc, char *argv[]);
 
