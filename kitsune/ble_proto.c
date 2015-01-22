@@ -254,7 +254,7 @@ static void _reply_wifi_scan_result()
 		reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_START_WIFISCAN;
 		reply_command.wifi_scan_result.arg = &_wifi_endpoints[i];
 		ble_send_protobuf(&reply_command);
-        vTaskDelay(1000);  // This number must be long enough so the BLE can get the data transmit to phone
+        vTaskDelay(250);  // This number must be long enough so the BLE can get the data transmit to phone
         memset(&reply_command, 0, sizeof(reply_command));
     }
 
