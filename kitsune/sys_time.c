@@ -174,7 +174,7 @@ uint32_t fetch_unix_time_from_ntp() {
     memset(buffer, 0, sizeof(buffer));
 
 #define NTP_SERVER "ntp.hello.is"
-    if (!(rv = gethostbyname(NTP_SERVER, strlen(NTP_SERVER), &ipaddr, AF_INET))) {
+    if (!(rv = sl_gethostbynameNoneThreadSafe(NTP_SERVER, strlen(NTP_SERVER), &ipaddr, AF_INET))) {
         LOGI(
                 "Get Host IP succeeded.\n\rHost: %s IP: %d.%d.%d.%d \n\r\n\r",
                 NTP_SERVER, SL_IPV4_BYTE(ipaddr, 3), SL_IPV4_BYTE(ipaddr, 2),

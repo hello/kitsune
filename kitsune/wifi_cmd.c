@@ -1053,7 +1053,7 @@ int start_connection() {
 
 #if !LOCAL_TEST
     if (ipaddr == 0) {
-        if (!(rv = gethostbyname(DATA_SERVER, strlen(DATA_SERVER), &ipaddr,
+        if (!(rv = sl_gethostbynameNoneThreadSafe(DATA_SERVER, strlen(DATA_SERVER), &ipaddr,
         SL_AF_INET))) {
             /*    LOGI(
              "Get Host IP succeeded.\n\rHost: %s IP: %d.%d.%d.%d \n\r\n\r",
