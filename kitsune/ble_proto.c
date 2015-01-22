@@ -125,8 +125,19 @@ static void debug_print_ssid( char * msg, Sl_WlanNetworkEntry_t * ep, int n ) {
 			LOGI("%x:", ep[i].bssid[b] );
 		}
 		LOGI("\n");
+		vTaskDelay(10);
 	}
 }
+
+static int compare_rssi (const void * a, const void * b)
+{
+  return ((Sl_WlanNetworkEntry_t*)b)->rssi - ((Sl_WlanNetworkEntry_t*)a)->rssi;
+}
+
+static void sort_on_ssid( Sl_WlanNetworkEntry_t * ep, int n ) {
+	qsort( ep, n, sizeof(Sl_WlanNetworkEntry_t), compare_rssi );
+}
+
 static int _scan_wifi()
 {
 	Sl_WlanNetworkEntry_t * endpoints_ifa;
@@ -150,6 +161,10 @@ static int _scan_wifi()
 
 	debug_print_ssid( "SSID RSSI IFA\n", endpoints_ifa, scan_cnt[IFA_ANT] );
 	debug_print_ssid( "SSID RSSI PCB\n", endpoints_pcb, scan_cnt[PCB_ANT] );
+	sort_on_ssid( endpoints_ifa, scan_cnt[IFA_ANT] );
+	sort_on_ssid( endpoints_pcb, scan_cnt[PCB_ANT] );
+	debug_print_ssid( "SSID RSSI IFA SORTED\n", endpoints_ifa, scan_cnt[IFA_ANT] );
+	debug_print_ssid( "SSID RSSI PCB SORTED\n", endpoints_pcb, scan_cnt[PCB_ANT] );
 
 	//merge the lists... since they are sorted by rssi we can pop the best one
 	//however the two lists can contain repeated values... so we need to scan out the dupes with lesser signal, better to just do it ahead of time
@@ -172,31 +187,38 @@ static int _scan_wifi()
 	debug_print_ssid( "SSID RSSI IFA DE-DUPE\n", endpoints_ifa, scan_cnt[IFA_ANT] );
 	debug_print_ssid( "SSID RSSI PCB DE-DUPE\n", endpoints_pcb, scan_cnt[PCB_ANT] );
 
-
-	for(_scanned_wifi_count = 0;_scanned_wifi_count<MAX_WIFI_EP_PER_SCAN; ++_scanned_wifi_count) {
-		if( scan_cnt[IFA_ANT] && endpoints_ifa[i].rssi > endpoints_pcb[i].rssi ) {
-			memcpy( &_wifi_endpoints[i], &endpoints_ifa[i], sizeof( Sl_WlanNetworkEntry_t ) );
-			memmove( &endpoints_ifa[i], &endpoints_ifa[i+1], sizeof( Sl_WlanNetworkEntry_t ) * (MAX_WIFI_EP_PER_SCAN - i - 1) );
-			_wifi_endpoints[i].reserved[0] = IFA_ANT;
+	for(_scanned_wifi_count = 0;_scanned_wifi_count<MAX_WIFI_EP_PER_SCAN;) {
+		if( scan_cnt[IFA_ANT] && endpoints_ifa[0].rssi > endpoints_pcb[0].rssi ) {
+			memcpy( &_wifi_endpoints[_scanned_wifi_count], &endpoints_ifa[0], sizeof( Sl_WlanNetworkEntry_t ) );
+			memmove( &endpoints_ifa[0], &endpoints_ifa[0+1], sizeof( Sl_WlanNetworkEntry_t ) * (MAX_WIFI_EP_PER_SCAN - 0 - 1) );
+			_wifi_endpoints[_scanned_wifi_count].reserved[0] = IFA_ANT;
 			--scan_cnt[IFA_ANT];
-		} else if( scan_cnt[PCB_ANT] && endpoints_pcb[i].rssi > endpoints_ifa[i].rssi ) {
-			memcpy( &_wifi_endpoints[i], &endpoints_pcb[i], sizeof( Sl_WlanNetworkEntry_t ) );
-			_wifi_endpoints[i].reserved[0] = PCB_ANT;
-			memmove( &endpoints_pcb[i], &endpoints_pcb[i+1], sizeof( Sl_WlanNetworkEntry_t ) * (MAX_WIFI_EP_PER_SCAN - i - 1) );
+			LOGI("PICKED IFA %d %d\n", _scanned_wifi_count, scan_cnt[IFA_ANT]);
+		} else if( scan_cnt[PCB_ANT] && endpoints_pcb[0].rssi > endpoints_ifa[0].rssi ) {
+			memcpy( &_wifi_endpoints[_scanned_wifi_count], &endpoints_pcb[0], sizeof( Sl_WlanNetworkEntry_t ) );
+			_wifi_endpoints[_scanned_wifi_count].reserved[0] = PCB_ANT;
+			memmove( &endpoints_pcb[0], &endpoints_pcb[0+1], sizeof( Sl_WlanNetworkEntry_t ) * (MAX_WIFI_EP_PER_SCAN - 0 - 1) );
 			--scan_cnt[PCB_ANT];
+			LOGI("PICKED PCB %d %d\n", _scanned_wifi_count, scan_cnt[IFA_ANT]);
 		} else if( scan_cnt[IFA_ANT] ){
-			memcpy(&_wifi_endpoints[i], &endpoints_ifa[i], sizeof(Sl_WlanNetworkEntry_t));
-			memmove( &endpoints_ifa[i], &endpoints_ifa[i+1], sizeof( Sl_WlanNetworkEntry_t ) * (MAX_WIFI_EP_PER_SCAN - i - 1) );
-			_wifi_endpoints[i].reserved[0] = IFA_ANT;
+			memcpy(&_wifi_endpoints[_scanned_wifi_count], &endpoints_ifa[0], sizeof(Sl_WlanNetworkEntry_t));
+			memmove( &endpoints_ifa[0], &endpoints_ifa[0+1], sizeof( Sl_WlanNetworkEntry_t ) * (MAX_WIFI_EP_PER_SCAN - 0 - 1) );
+			_wifi_endpoints[_scanned_wifi_count].reserved[0] = IFA_ANT;
 			--scan_cnt[IFA_ANT];
+			LOGI("PICKED IFA %d %d\n", _scanned_wifi_count, scan_cnt[IFA_ANT]);
 		} else if( scan_cnt[PCB_ANT] ){
-			memcpy(&_wifi_endpoints[i], &endpoints_pcb[i], sizeof(Sl_WlanNetworkEntry_t));
-			memmove( &endpoints_pcb[i], &endpoints_pcb[i+1], sizeof( Sl_WlanNetworkEntry_t ) * (MAX_WIFI_EP_PER_SCAN - i - 1) );
-			_wifi_endpoints[i].reserved[0] = PCB_ANT;
+			memcpy(&_wifi_endpoints[_scanned_wifi_count], &endpoints_pcb[0], sizeof(Sl_WlanNetworkEntry_t));
+			memmove( &endpoints_pcb[0], &endpoints_pcb[0+1], sizeof( Sl_WlanNetworkEntry_t ) * (MAX_WIFI_EP_PER_SCAN - 0 - 1) );
+			_wifi_endpoints[_scanned_wifi_count].reserved[0] = PCB_ANT;
 			--scan_cnt[PCB_ANT];
+			LOGI("PICKED PCB %d %d\n", _scanned_wifi_count, scan_cnt[IFA_ANT]);
 		} else {
 			break;
 		}
+
+		++_scanned_wifi_count;
+		debug_print_ssid( "SSID RSSI COMBINED STEP \n", _wifi_endpoints, _scanned_wifi_count );
+
 	}
 	debug_print_ssid( "SSID RSSI COMBINED\n", _wifi_endpoints, _scanned_wifi_count );
 
