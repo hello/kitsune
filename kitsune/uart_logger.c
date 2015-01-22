@@ -361,6 +361,7 @@ void uart_logger_task(void * params){
 					if(FR_OK != res){
 						LOGE("Unable to read log file %d\r\n",(int)res);
 						xSemaphoreGive(self.print_sem);
+                        vTaskDelay(5000);
 						continue;
 					}
 					ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER, SENSE_LOG_ENDPOINT,buffer,sizeof(buffer),sense_log_fields,&self.log,0);
@@ -388,6 +389,7 @@ void uart_logger_task(void * params){
 				}
 			}
 			xSemaphoreGive(self.print_sem);
+            vTaskDelay(5000);
 		}
 	}
 }
