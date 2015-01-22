@@ -708,18 +708,14 @@ void ble_proto_end_hold()
 		(current_tick - _self.last_hold_time) * (1000 / configTICK_RATE_HZ) < 10000 &&
 		_self.last_hold_time > 0)
 	{
-        switch(_self.ble_status)
-        {
-            case BLE_NORMAL:
-            {
-        		LOGI("Trigger pairing mode\n");
-        		MorpheusCommand response = {0};
-        		response.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_PAIRING_MODE;
-        		ble_send_protobuf(&response);
-        		ble_proto_led_fade_in_trippy();
-            }
-            break;
-        }
+		if (_self.ble_status != BLE_PAIRING) {
+			LOGI("Trigger pairing mode\n");
+			MorpheusCommand response = { 0 };
+			response.type =
+					MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_PAIRING_MODE;
+			ble_send_protobuf(&response);
+			ble_proto_led_fade_in_trippy();
+		}
 	}
 	_self.last_hold_time = 0;
 }
