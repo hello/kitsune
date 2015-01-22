@@ -346,12 +346,19 @@ int wait_for_top_boot(unsigned int timeout) {
 }
 int send_top(char * s, int n) {
 	int i;
+
 	if(self.mode == TOP_NORMAL_MODE){
-		for (i = 0; i < n; i++) {
-			UARTCharPut(UARTA1_BASE, *(s+i));
+		if(memcmp(s, "r ", 2) != 0)
+		{
+			for (i = 0; i < n; i++) {
+				UARTCharPut(UARTA1_BASE, *(s+i));
+			}
+			UARTCharPut(UARTA1_BASE, '\r');
+			UARTCharPut(UARTA1_BASE, '\n');
+		}else{
+			UARTCharPut(UARTA1_BASE, *s);
+			LOGI("recover send\n");
 		}
-		UARTCharPut(UARTA1_BASE, '\r');
-		UARTCharPut(UARTA1_BASE, '\n');
 		return 0;
 	}else{
 		LOGI("Top board is in DFU mode\r\n");
