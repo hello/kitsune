@@ -58,7 +58,7 @@ extern "C" {
 #define LOGW(...) uart_logf(LOG_WARNING, __VA_ARGS__)
 #define LOGE(...) uart_logf(LOG_ERROR, __VA_ARGS__)
 #define LOGF(...) uart_logf(LOG_FACTORY, __VA_ARGS__)
-#define LOGI(...) uart_logf(LOG_TOP, __VA_ARGS__)
+#define LOGT(...) uart_logf(LOG_TOP, __VA_ARGS__)
 #define DISP(...) uart_logf(LOG_VIEW_ONLY, __VA_ARGS__)
 #else
 #define LOGI(...) UARTprintf(__VA_ARGS__)
