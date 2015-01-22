@@ -231,11 +231,8 @@ static int _scan_wifi()
 
 static void _reply_next_wifi_ap()
 {
-	if(_wifi_read_index == MAX_WIFI_EP_PER_SCAN - 1){
-		_wifi_read_index = 0;
-	}
 	//reset so the next scan command will do a scan
-	if(_wifi_read_index == _scanned_wifi_count ) {
+	if(_wifi_read_index == _scanned_wifi_count || _wifi_read_index == MAX_WIFI_EP_PER_SCAN) {
 		_wifi_read_index = 0;
 		_scanned_wifi_count = 0;
 	}
