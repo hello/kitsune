@@ -214,12 +214,20 @@ _save_newest(const char * buffer, int size){
 	if(ret == 0){
 		//LOGI("NO log file exists, creating first log\r\n");
 		return _write_file("0", buffer, size);
-	}else if(ret > 0 && counter >= 0){
+	}else if(ret > 0 && ret <= UART_LOGGER_FILE_LIMIT && counter >= 0){
 		char s[16] = {0};
 		usnprintf(s,sizeof(s),"%d",++counter);
 		//LOGI("Wr log %d\r\n", counter);
 		return _write_file(s, buffer, size);
-	}else{
+	}else if(ret > 0 && ret > UART_LOGGER_FILE_LIMIT){
+        int rem;
+        LOGW("File size reached, removing oldest\r\n");
+        _remove_oldest(&rem);
+		char s[16] = {0};
+		usnprintf(s,sizeof(s),"%d",++counter);
+		//LOGI("Wr log %d\r\n", counter);
+		return _write_file(s, buffer, size);
+    }else{
 		LOGW("Write log error: %d \r\n", ret);
 	}
 	return FR_RW_ERROR;
