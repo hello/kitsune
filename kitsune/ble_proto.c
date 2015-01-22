@@ -236,6 +236,7 @@ static void _reply_next_wifi_ap()
 	}
 	//reset so the next scan command will do a scan
 	if(_wifi_read_index == _scanned_wifi_count ) {
+		_wifi_read_index = 0;
 		_scanned_wifi_count = 0;
 	}
 
