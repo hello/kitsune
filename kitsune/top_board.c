@@ -59,7 +59,7 @@ _printchar(uint8_t c){
     char term[2] = {0};
     term[0] = c;
     if( booted ) {
-    	LOGI(term);
+    	LOGT(term);
     }
     /*
 	 *UARTCharPutNonBlocking(UARTA0_BASE, c); //basic feedback
