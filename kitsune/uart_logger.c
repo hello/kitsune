@@ -214,12 +214,23 @@ _save_newest(const char * buffer, int size){
 	if(ret == 0){
 		//LOGI("NO log file exists, creating first log\r\n");
 		return _write_file("0", buffer, size);
-	}else if(ret > 0 && counter >= 0){
+	}else if(ret > 0 && ret <= UART_LOGGER_FILE_LIMIT && counter >= 0){
 		char s[16] = {0};
 		usnprintf(s,sizeof(s),"%d",++counter);
 		//LOGI("Wr log %d\r\n", counter);
 		return _write_file(s, buffer, size);
-	}else{
+	}else if(ret > 0 && ret > UART_LOGGER_FILE_LIMIT){
+        int rem;
+        LOGW("File size reached, removing oldest\r\n");
+        if(FR_OK == _remove_oldest(&rem)){
+            char s[16] = {0};
+            usnprintf(s,sizeof(s),"%d",++counter);
+            //LOGI("Wr log %d\r\n", counter);
+            return _write_file(s, buffer, size);
+        }else{
+            return FR_RW_ERROR;
+        }
+    }else{
 		LOGW("Write log error: %d \r\n", ret);
 	}
 	return FR_RW_ERROR;
@@ -361,6 +372,7 @@ void uart_logger_task(void * params){
 					if(FR_OK != res){
 						LOGE("Unable to read log file %d\r\n",(int)res);
 						xSemaphoreGive(self.print_sem);
+                        vTaskDelay(5000);
 						continue;
 					}
 					ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER, SENSE_LOG_ENDPOINT,buffer,sizeof(buffer),sense_log_fields,&self.log,0);
@@ -388,6 +400,7 @@ void uart_logger_task(void * params){
 				}
 			}
 			xSemaphoreGive(self.print_sem);
+            vTaskDelay(5000);
 		}
 	}
 }

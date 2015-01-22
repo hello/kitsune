@@ -28,7 +28,8 @@ extern "C" {
 //TAGGED: logs everything tagged with LOGX() functions
 #define UART_LOGGER_MODE	UART_LOGGER_MODE_TAGGED
 
-
+//how many files maximum to keep
+#define UART_LOGGER_FILE_LIMIT 1024
 
 /**
  * Tag level defines
