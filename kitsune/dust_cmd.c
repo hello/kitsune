@@ -157,7 +157,7 @@ int Cmd_dusttest(int argc, char *argv[]) {
 	int cnt = atoi(argv[1]);
 	if( argc == 1 ) {cnt=2;}
 	while( --cnt ) {
-		LOGI("%d\n", get_dust());
+		LOGF("%d\n", get_dust());
 		vTaskDelay(200);
 	}
 	return (0);

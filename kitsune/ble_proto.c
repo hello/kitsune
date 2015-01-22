@@ -54,7 +54,8 @@ static struct {
     ble_mode_t ble_status;
 } _self;
 
-static uint8_t _wifi_read_index;
+static int _wifi_read_index;
+static int _scanned_wifi_count = 0;
 static Sl_WlanNetworkEntry_t _wifi_endpoints[MAX_WIFI_EP_PER_SCAN];
 
 static void _ble_reply_command_with_type(MorpheusCommand_CommandType type)
@@ -89,6 +90,7 @@ static void _factory_reset(){
     	vTaskDelay(1000);
     }
 
+    reset_default_antenna();
     pill_settings_reset_all();
     nwp_reset();
     deleteFilesInDir(USER_DIR);
@@ -96,30 +98,144 @@ static void _factory_reset(){
 
 }
 
-static int _scan_wifi()
-{
-	memset(_wifi_endpoints, 0, sizeof(_wifi_endpoints));
-	int scanned_wifi_count = 0;
-	_wifi_read_index = 0;
+static int scan_with_retry( Sl_WlanNetworkEntry_t ** endpoints, int antenna ) {
+	int scan_cnt = 0;
+
+	*endpoints = pvPortMalloc( MAX_WIFI_EP_PER_SCAN * sizeof(Sl_WlanNetworkEntry_t) );
+	assert(*endpoints);
+	memset(*endpoints, 0, MAX_WIFI_EP_PER_SCAN * sizeof(Sl_WlanNetworkEntry_t) );
 
 	uint8_t max_retry = 3;
 	uint8_t retry_count = max_retry;
-	wifi_status_set(SCANNING, false);
 
-	while((scanned_wifi_count = get_wifi_scan_result(_wifi_endpoints, MAX_WIFI_EP_PER_SCAN, 3000 * (max_retry - retry_count + 1))) == 0 && --retry_count)
+	while((scan_cnt = get_wifi_scan_result(*endpoints, MAX_WIFI_EP_PER_SCAN, 3000 * (max_retry - retry_count + 1), antenna)) == 0 && --retry_count)
 	{
 		LOGI("No wifi scanned, retry times remain %d\n", retry_count);
 		vTaskDelay(500);
 	}
 
-	wifi_status_set(SCANNING, true);
-	return scanned_wifi_count;
+	return scan_cnt;
+}
+static void debug_print_ssid( char * msg, Sl_WlanNetworkEntry_t * ep, int n ) {
+	int i,b;
+    LOGI( msg );
+	for(i=0;i<n;++i) {
+		LOGI( "%s %d %d %d", ep[i].ssid, ep[i].rssi, ep[i].reserved[0] );
+		for(b=0;b<SL_BSSID_LENGTH;++b) {
+			LOGI("%x:", ep[i].bssid[b] );
+		}
+		LOGI("\n");
+		vTaskDelay(10);
+	}
+}
+
+static int compare_rssi (const void * a, const void * b)
+{
+  return ((Sl_WlanNetworkEntry_t*)b)->rssi - ((Sl_WlanNetworkEntry_t*)a)->rssi;
+}
+
+static void sort_on_ssid( Sl_WlanNetworkEntry_t * ep, int n ) {
+	qsort( ep, n, sizeof(Sl_WlanNetworkEntry_t), compare_rssi );
+}
+
+static int _scan_wifi()
+{
+	Sl_WlanNetworkEntry_t * endpoints_ifa;
+	Sl_WlanNetworkEntry_t * endpoints_pcb;
+	int scan_cnt[ANTENNA_CNT+1] = {0};
+
+	//only scan if we've been reset, this lets us cache the scan result for later
+	if( _scanned_wifi_count != 0 ) {
+		return _scanned_wifi_count;
+	}
+	memset(_wifi_endpoints, 0, sizeof(_wifi_endpoints));
+	_scanned_wifi_count = 0;
+	_wifi_read_index = 0;
+
+	wifi_status_set(SCANNING, false);  // Set the scanning flag
+
+	scan_cnt[IFA_ANT] = scan_with_retry( &endpoints_ifa, IFA_ANT );
+	scan_cnt[PCB_ANT] = scan_with_retry( &endpoints_pcb, PCB_ANT );
+
+	int i,p;
+
+	debug_print_ssid( "SSID RSSI IFA\n", endpoints_ifa, scan_cnt[IFA_ANT] );
+	debug_print_ssid( "SSID RSSI PCB\n", endpoints_pcb, scan_cnt[PCB_ANT] );
+	sort_on_ssid( endpoints_ifa, scan_cnt[IFA_ANT] );
+	sort_on_ssid( endpoints_pcb, scan_cnt[PCB_ANT] );
+	debug_print_ssid( "SSID RSSI IFA SORTED\n", endpoints_ifa, scan_cnt[IFA_ANT] );
+	debug_print_ssid( "SSID RSSI PCB SORTED\n", endpoints_pcb, scan_cnt[PCB_ANT] );
+
+	//merge the lists... since they are sorted by rssi we can pop the best one
+	//however the two lists can contain repeated values... so we need to scan out the dupes with lesser signal, better to just do it ahead of time
+	for(i=0;i<scan_cnt[IFA_ANT];++i) {
+		for(p=0;p<scan_cnt[PCB_ANT];++p) {
+			if(memcmp(endpoints_pcb[p].bssid, endpoints_ifa[i].bssid, SL_BSSID_LENGTH)==0) {
+				if( endpoints_ifa[i].rssi > endpoints_pcb[p].rssi ) {
+					memmove( &endpoints_pcb[p], &endpoints_pcb[p+1], sizeof( Sl_WlanNetworkEntry_t ) * (MAX_WIFI_EP_PER_SCAN - p - 1) );
+					--scan_cnt[PCB_ANT];
+					--p;
+				} else {
+					memmove( &endpoints_ifa[i], &endpoints_ifa[i+1], sizeof( Sl_WlanNetworkEntry_t ) * (MAX_WIFI_EP_PER_SCAN - i - 1) );
+					--scan_cnt[IFA_ANT];
+					--i;
+				}
+			}
+		}
+	}
+
+	debug_print_ssid( "SSID RSSI IFA DE-DUPE\n", endpoints_ifa, scan_cnt[IFA_ANT] );
+	debug_print_ssid( "SSID RSSI PCB DE-DUPE\n", endpoints_pcb, scan_cnt[PCB_ANT] );
+
+	for(_scanned_wifi_count = 0;_scanned_wifi_count<MAX_WIFI_EP_PER_SCAN;) {
+		if( scan_cnt[IFA_ANT] && endpoints_ifa[0].rssi > endpoints_pcb[0].rssi ) {
+			memcpy( &_wifi_endpoints[_scanned_wifi_count], &endpoints_ifa[0], sizeof( Sl_WlanNetworkEntry_t ) );
+			memmove( &endpoints_ifa[0], &endpoints_ifa[0+1], sizeof( Sl_WlanNetworkEntry_t ) * (MAX_WIFI_EP_PER_SCAN - 0 - 1) );
+			_wifi_endpoints[_scanned_wifi_count].reserved[0] = IFA_ANT;
+			--scan_cnt[IFA_ANT];
+			LOGI("PICKED IFA %d %d\n", _scanned_wifi_count, scan_cnt[IFA_ANT]);
+		} else if( scan_cnt[PCB_ANT] && endpoints_pcb[0].rssi > endpoints_ifa[0].rssi ) {
+			memcpy( &_wifi_endpoints[_scanned_wifi_count], &endpoints_pcb[0], sizeof( Sl_WlanNetworkEntry_t ) );
+			_wifi_endpoints[_scanned_wifi_count].reserved[0] = PCB_ANT;
+			memmove( &endpoints_pcb[0], &endpoints_pcb[0+1], sizeof( Sl_WlanNetworkEntry_t ) * (MAX_WIFI_EP_PER_SCAN - 0 - 1) );
+			--scan_cnt[PCB_ANT];
+			LOGI("PICKED PCB %d %d\n", _scanned_wifi_count, scan_cnt[IFA_ANT]);
+		} else if( scan_cnt[IFA_ANT] ){
+			memcpy(&_wifi_endpoints[_scanned_wifi_count], &endpoints_ifa[0], sizeof(Sl_WlanNetworkEntry_t));
+			memmove( &endpoints_ifa[0], &endpoints_ifa[0+1], sizeof( Sl_WlanNetworkEntry_t ) * (MAX_WIFI_EP_PER_SCAN - 0 - 1) );
+			_wifi_endpoints[_scanned_wifi_count].reserved[0] = IFA_ANT;
+			--scan_cnt[IFA_ANT];
+			LOGI("PICKED IFA %d %d\n", _scanned_wifi_count, scan_cnt[IFA_ANT]);
+		} else if( scan_cnt[PCB_ANT] ){
+			memcpy(&_wifi_endpoints[_scanned_wifi_count], &endpoints_pcb[0], sizeof(Sl_WlanNetworkEntry_t));
+			memmove( &endpoints_pcb[0], &endpoints_pcb[0+1], sizeof( Sl_WlanNetworkEntry_t ) * (MAX_WIFI_EP_PER_SCAN - 0 - 1) );
+			_wifi_endpoints[_scanned_wifi_count].reserved[0] = PCB_ANT;
+			--scan_cnt[PCB_ANT];
+			LOGI("PICKED PCB %d %d\n", _scanned_wifi_count, scan_cnt[IFA_ANT]);
+		} else {
+			break;
+		}
+
+		++_scanned_wifi_count;
+		debug_print_ssid( "SSID RSSI COMBINED STEP \n", _wifi_endpoints, _scanned_wifi_count );
+
+	}
+	debug_print_ssid( "SSID RSSI COMBINED\n", _wifi_endpoints, _scanned_wifi_count );
+
+	wifi_status_set(SCANNING, true);  // Remove the sanning flag
+	vPortFree(endpoints_pcb);
+	vPortFree(endpoints_ifa);
+	return _scanned_wifi_count;
 }
 
 static void _reply_next_wifi_ap()
 {
 	if(_wifi_read_index == MAX_WIFI_EP_PER_SCAN - 1){
 		_wifi_read_index = 0;
+	}
+	//reset so the next scan command will do a scan
+	if(_wifi_read_index == _scanned_wifi_count ) {
+		_scanned_wifi_count = 0;
 	}
 
 	MorpheusCommand reply_command = {0};
@@ -130,11 +246,10 @@ static void _reply_next_wifi_ap()
 
 static void _reply_wifi_scan_result()
 {
-    int scanned_wifi_count = _scan_wifi();
     int i = 0;
     MorpheusCommand reply_command = {0};
 
-    for(i = 0; i < scanned_wifi_count; i++)
+    for(i = 0; i < _scanned_wifi_count; i++)
     {
 		reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_START_WIFISCAN;
 		reply_command.wifi_scan_result.arg = &_wifi_endpoints[i];
@@ -143,6 +258,7 @@ static void _reply_wifi_scan_result()
         memset(&reply_command, 0, sizeof(reply_command));
     }
 
+	_scanned_wifi_count = 0;
     reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_STOP_WIFISCAN;
 	ble_send_protobuf(&reply_command);
 	LOGI(">>>>>>Send WIFI scan results done<<<<<<\n");
@@ -152,10 +268,18 @@ static void _reply_wifi_scan_result()
 
 static bool _set_wifi(const char* ssid, const char* password, int security_type)
 {
-    int connection_ret;
+    int connection_ret, i;
 
     uint8_t max_retry = 10;
     uint8_t retry_count = max_retry;
+
+    for(i=0;i<MAX_WIFI_EP_PER_SCAN;++i) {
+    	if( !strcmp( (char*)_wifi_endpoints[i].ssid, ssid ) ) {
+    		antsel(_wifi_endpoints[i].reserved[0]);
+    		save_default_antenna( _wifi_endpoints[i].reserved[0] );
+    		break;
+    	}
+    }
 
 	//play_led_progress_bar(0xFF, 128, 0, 128,portMAX_DELAY);
     while((connection_ret = connect_wifi(ssid, password, security_type)) == 0 && --retry_count)
@@ -363,7 +487,7 @@ static void _send_response_to_ble(const char* buffer, size_t len)
 }
 
 void sample_sensor_data(periodic_data* data);
-static int _force_data_push()
+int _force_data_push()
 {
     if(!wait_for_time(10))
     {
@@ -454,7 +578,7 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 void ble_proto_led_init()
 {
 	_self.led_status = LED_OFF;
-	led_set_color_sync(0xFF, LED_MAX, LED_MAX, LED_MAX, 1, 1, 18, 0, 1);
+	led_set_color_sync(0xFF, LED_MAX, LED_MAX, LED_MAX, 1, 1, 36, 0, 1);
 }
 
 void ble_proto_led_busy_mode(uint8_t a, uint8_t r, uint8_t g, uint8_t b, int delay)
@@ -512,18 +636,19 @@ void ble_proto_led_flash(int a, int r, int g, int b, int delay, int time)
 }
 
 void ble_proto_led_fade_in_trippy(){
+	uint8_t trippy_base[3] = {60, 25, 90};
 	switch(_self.led_status)
 	{
 	case LED_BUSY:
 		led_set_color_sync(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 0, 1, 18, 0, 1);
-		play_led_trippy(portMAX_DELAY);
+		play_led_trippy(trippy_base, trippy_base, portMAX_DELAY);
 
 		break;
 	case LED_TRIPPY:
 		break;
 	case LED_OFF:
 		//led_set_color(_self.a, _self.r, _self.g, _self.b, 1, 0, 18, 0);
-		play_led_trippy(portMAX_DELAY);
+		play_led_trippy(trippy_base, trippy_base, portMAX_DELAY);
 		break;
 	}
 
@@ -615,7 +740,7 @@ static void play_startup_sound() {
 		desc.rate = 48000;
 		AudioTask_StartPlayback(&desc);
 	}
-	vTaskDelay(200);
+	vTaskDelay(175);
 }
 
 bool on_ble_protobuf_command(MorpheusCommand* command)
@@ -648,6 +773,8 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 			ble_proto_led_fade_in_trippy();
             _self.ble_status = BLE_PAIRING;
             LOGI( "PAIRING MODE \n");
+            //we are pairing so it's likely we are beginning the onboarding. This will prescan the wifi.
+            _scan_wifi();
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE:  // Just for testing
@@ -746,6 +873,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_START_WIFISCAN:
         {
             LOGI("WIFI Scan request\n");
+            _scan_wifi();
             _reply_wifi_scan_result();
         }
         break;

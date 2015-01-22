@@ -11,7 +11,7 @@
 #define GESTURE_FPS 10
 
 /* how much delta does it take to activate the fsm over noise floor */
-#define DETECTION_THRESH 100
+#define DETECTION_THRESH 150
 
 /* multiples GESTURE FSP, minimal frames require for the wave gesture */
 #define GESTURE_WAVE_MULTIPLIER (0.1)
@@ -60,6 +60,12 @@ static int _fsm_reset(void){
 	self.fsm.prox_last =0;
 	return 0;
 }
+static volatile int gesture_cnt = 0;
+int Cmd_get_gesture_count(int argc, char * argv[]) {
+	LOGF("%d transitions\n", gesture_cnt );
+	gesture_cnt = 0;
+	return 0;
+}
 static gesture _fsm(int in){
 	gesture ret = GESTURE_NONE;
 	int exceeded = 0;
@@ -76,6 +82,7 @@ static gesture _fsm(int in){
 		LOGI("->0\r\n");
 		_transition_state(GFSM_IDLE_FORREALS);
 		ret = GESTURE_OUT;
+		++gesture_cnt;
 		//no break
 	case GFSM_IDLE_FORREALS:
 		//any edge triggers edge up state
@@ -87,7 +94,7 @@ static gesture _fsm(int in){
 	case GFSM_LEVEL:
 		if (!exceeded || _hasHold() ) {
 			if (_hasHold()) {
-				LOGI("Gesture: HOLD\r\n");
+				LOGF("Gesture: HOLD\r\n");
 				if(xSemaphoreTake(self.gesture_count_semaphore, 100) == pdTRUE)
 				{
 					self.hold_count += 1;
@@ -97,7 +104,7 @@ static gesture _fsm(int in){
 				ret = GESTURE_HOLD;
 			} else if (_hasWave()) {
 				if (_hasWave()) {
-					LOGI("Gesture: WAVE\r\n");
+					LOGF("Gesture: WAVE\r\n");
 					if(xSemaphoreTake(self.gesture_count_semaphore, 100) == pdTRUE)
 					{
 						self.wave_count += 1;
@@ -146,6 +153,7 @@ gesture gesture_input(int prox){
 		}
 		prox -= self.fsm.prox_slow;
 		self.fsm.prox_impluse  = abs( prox );
+		//UARTprintf("%d ", self.fsm.prox_impluse);
 		result = _fsm(self.fsm.prox_impluse);
 	} else {
 		self.fsm.prox_slow = prox;

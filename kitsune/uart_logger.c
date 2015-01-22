@@ -286,7 +286,7 @@ void uart_logger_init(void){
 	self.log.text.funcs.encode = _encode_text_block;
 	self.log.device_id.funcs.encode = encode_device_id_string;
 	self.log.has_unix_time = true;
-	self.view_tag = LOG_INFO | LOG_WARNING | LOG_ERROR | LOG_VIEW_ONLY;
+	self.view_tag = LOG_INFO | LOG_WARNING | LOG_ERROR | LOG_VIEW_ONLY | LOG_FACTORY;
 	self.store_tag = LOG_INFO | LOG_WARNING | LOG_ERROR;
 	vSemaphoreCreateBinary(self.print_sem);
 
@@ -338,7 +338,7 @@ void uart_logger_task(void * params){
 			xEventGroupClearBits(self.uart_log_events,LOG_EVENT_EXIT);
 			return;
 		}
-		if( self.print_sem != NULL && evnt && xSemaphoreTake(self.print_sem, portMAX_DELAY)){
+		if( self.print_sem != NULL && evnt && pdPASS == xSemaphoreTake(self.print_sem, 0) ){
 			if( evnt & LOG_EVENT_STORE ) {
 				if(log_local_enable && FR_OK == _save_newest((char*) self.store_block, UART_LOGGER_BLOCK_SIZE)){
 					self.operation_block = self.blocks[2];
@@ -391,9 +391,11 @@ void uart_logger_task(void * params){
 		}
 	}
 }
+
 int Cmd_log_setview(int argc, char * argv[]){
+    char * pend;
 	if(argc > 1){
-		self.view_tag = ((uint8_t)atoi(argv[1]))&0xF;
+		self.view_tag = ((uint8_t) strtol(argv[1],&pend,16) )&0xFF;
 		return 0;
 	}
 	return -1;

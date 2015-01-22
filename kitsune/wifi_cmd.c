@@ -216,6 +216,69 @@ void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent) {
     }
 }
 
+void reset_default_antenna()
+{
+	unsigned long tok = 0;
+	SlFsFileInfo_t info = {0};
+
+	sl_FsGetInfo((unsigned char*)ANTENNA_FILE, tok, &info);
+	int err = sl_FsDel((unsigned char*)ANTENNA_FILE, tok);
+	if (err) {
+		LOGI("error %d\n", err);
+	}
+}
+
+void save_default_antenna( unsigned char a ) {
+		unsigned long tok=0;
+		long hndl, bytes;
+		SlFsFileInfo_t info;
+
+		sl_FsGetInfo((unsigned char*)ANTENNA_FILE, tok, &info);
+
+		if (sl_FsOpen((unsigned char*)ANTENNA_FILE, FS_MODE_OPEN_WRITE, &tok, &hndl)) {
+			LOGI("error opening file, trying to create\n");
+
+			if (sl_FsOpen((unsigned char*)ANTENNA_FILE,
+					FS_MODE_OPEN_CREATE(65535, _FS_FILE_OPEN_FLAG_COMMIT), &tok,
+					&hndl)) {
+				LOGI("error opening for write\n");
+				return;
+			}else{
+				sl_FsWrite(hndl, 0, &a, 1);  // Dummy write, we don't care about the result
+			}
+		}
+
+		bytes = sl_FsWrite(hndl, 0, &a, 1);
+		if( bytes != 1 ) {
+			LOGE( "writing antenna failed %d", bytes );
+		}
+		sl_FsClose(hndl, 0, 0, 0);
+
+		return;
+}
+unsigned char get_default_antenna() {
+	unsigned char a = PCB_ANT;
+	long hndl = -1;
+	int RetVal, Offset;
+
+	// read in aes key
+	RetVal = sl_FsOpen(ANTENNA_FILE, FS_MODE_OPEN_READ, NULL, &hndl);
+	if (RetVal != 0) {
+		LOGE("failed to open antenna file\n");
+		return a;
+	}
+
+	Offset = 0;
+	RetVal = sl_FsRead(hndl, Offset, (unsigned char *) a, 1);
+	if (RetVal != 1) {
+		LOGE("failed to read antenna file\n");
+	}
+
+	RetVal = sl_FsClose(hndl, NULL, NULL, 0);
+
+	return a;
+}
+
 void antsel(unsigned char a)
 {
     if(a == 1)
@@ -230,7 +293,7 @@ void antsel(unsigned char a)
 }
 int Cmd_antsel(int argc, char *argv[]) {
     if (argc != 2) {
-        LOGI( "usage: antsel <1=IFA or 2=chip>\n\r");
+    	LOGF( "usage: antsel <1=IFA or 2=chip>\n\r");
         return -1;
     }
     antsel( *argv[1] ==  '1' ? 1 : 2 );
@@ -239,7 +302,7 @@ int Cmd_antsel(int argc, char *argv[]) {
 }
 
 int Cmd_country(int argc, char *argv[]) {
-	LOGI("country <code, either US, JP, or EU>\n");
+	LOGF("country <code, either US, JP, or EU>\n");
 	if (argc != 2) {
 		return -1;
 	}
@@ -478,6 +541,7 @@ void wifi_reset()
     }else{
         LOGI("Disconnect WIFI failed, error %d.\n", ret);
     }
+    reset_default_antenna();
 }
 
 int Cmd_disconnect(int argc, char *argv[]) {
@@ -489,7 +553,7 @@ int Cmd_connect(int argc, char *argv[]) {
     SlSecParams_t secParams;
 
     if (argc != 4) {
-        LOGI(
+    	LOGF(
                 "usage: connect <ssid> <key> <security: 0=open, 1=wep, 2=wpa>\n\r");
     }
 
@@ -518,7 +582,7 @@ int Cmd_status(int argc, char *argv[]) {
     LOGI("%x ip 0x%x submask 0x%x gateway 0x%x dns 0x%x\n\r", wifi_status_get(0xFFFFFFFF),
             ipv4.ipV4, ipv4.ipV4Mask, ipv4.ipV4Gateway, ipv4.ipV4DnsServer);
 
-    LOGI("IP=%d.%d.%d.%d\n",
+    LOGF("IP=%d.%d.%d.%d\n",
                 SL_IPV4_BYTE(ipv4.ipV4,3),
                 SL_IPV4_BYTE(ipv4.ipV4,2),
                 SL_IPV4_BYTE(ipv4.ipV4,1),
@@ -529,7 +593,7 @@ int Cmd_status(int argc, char *argv[]) {
 // callback routine
 void pingRes(SlPingReport_t* pLOGI) {
     // handle ping results
-    LOGI(
+    LOGF(
             "Ping tx:%d rx:%d min time:%d max time:%d avg time:%d test time:%d\n",
             pLOGI->PacketsSent, pLOGI->PacketsReceived,
             pLOGI->MinRoundTime, pLOGI->MaxRoundTime, pLOGI->AvgRoundTime,
@@ -555,14 +619,14 @@ int Cmd_time(int argc, char*argv[]) {
 	uint32_t unix = fetch_unix_time_from_ntp();
 	uint32_t t = get_time();
 
-    LOGI("time is %u and the ntp is %d and the diff is %d, good time? %d\n", t, unix, t-unix, has_good_time());
+    LOGF("time is %u and the ntp is %d and the diff is %d, good time? %d\n", t, unix, t-unix, has_good_time());
 
     return 0;
 }
 int Cmd_mode(int argc, char*argv[]) {
     int ap = 0;
     if (argc != 2) {
-        LOGI("mode <1=ap 0=station>\n");
+        LOGF("mode <1=ap 0=station>\n");
     }
     ap = atoi(argv[1]);
     if (ap && sl_mode != ROLE_AP) {
@@ -2173,7 +2237,7 @@ int Cmd_RadioStopTX(int argc, char*argv[])
 //end radio test functions
 #endif
 
-int get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uint32_t scan_duration_ms)
+int get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uint32_t scan_duration_ms, int antenna)
 {
     if(scan_duration_ms < 1000)
     {
@@ -2184,6 +2248,10 @@ int get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uin
 
     unsigned char policyOpt = SL_CONNECTION_POLICY(0, 0, 0, 0, 0);
     int r;
+
+    if( antenna ) {
+    	antsel(antenna);
+    }
 
     r = sl_WlanPolicySet(SL_POLICY_CONNECTION , policyOpt, NULL, 0);
 

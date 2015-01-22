@@ -295,22 +295,9 @@ static uint32_t wheel_color(int WheelPos, unsigned int color) {
 	}
 }
 
-static uint32_t wheel(int WheelPos) {
-	if (WheelPos < 85) {
-		return led_from_rgb(WheelPos * 3, 255 - WheelPos * 3, 0);
-	} else if (WheelPos < 170) {
-		WheelPos -= 85;
-		return led_from_rgb(255 - WheelPos * 3, 0, WheelPos * 3);
-	} else {
-		WheelPos -= 170;
-		return led_from_rgb(0, WheelPos * 3, 255 - WheelPos * 3);
-	}
-}
-
 #define LED_RESET_BIT 				0x01
 #define LED_SOLID_BIT 		0x02
 #define LED_ROTATE_BIT 		0x04
-#define LED_ROTATE_RAINBOW_BIT		0x08
 
 #define LED_FADE_IN_BIT			0x010
 #define LED_FADE_IN_FAST_BIT	0x020
@@ -435,16 +422,6 @@ void led_task( void * params ) {
 			}
 			memcpy(colors_last, colors, sizeof(colors_last));
 		}
-		if (evnt & LED_ROTATE_RAINBOW_BIT) {
-			unsigned int colors[NUM_LED + 1];
-			for (i = 0; i <= NUM_LED; ++i) {
-				colors[i] = wheel(((i * 256 / 12) + j) & 255);
-			}
-			++j;
-			led_array(colors, 20);
-			memcpy(colors_last, colors, sizeof(colors_last));
-			led_animation_not_in_progress = 0;
-		}
 		if (evnt & LED_FADE_IN_BIT) {
 			j = 0;
 			led_animation_not_in_progress = 0;
@@ -543,7 +520,7 @@ int Cmd_led(int argc, char *argv[]) {
 			user_color.r = clamp_rgb(atoi(argv[2]), 0, LED_CLAMP_MAX);
 			user_color.g = clamp_rgb(atoi(argv[3]), 0, LED_CLAMP_MAX);
 			user_color.b = clamp_rgb(atoi(argv[4]), 0, LED_CLAMP_MAX);
-			LOGI("Setting colors R: %d, G: %d, B: %d \r\n", user_color.r, user_color.g, user_color.b);
+			LOGF("Setting colors R: %d, G: %d, B: %d \r\n", user_color.r, user_color.g, user_color.b);
 			xEventGroupClearBits( led_events, 0xffffff );
 			xEventGroupSetBits( led_events, LED_FADE_OUT_BIT | LED_FADE_IN_BIT );
 		}
@@ -622,17 +599,6 @@ int led_set_color_sync(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b,
 
 int led_set_color(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b, int fade_in, int fade_out, unsigned int ud, int rot) {
 	return led_set_color_sync(alpha, r, g, b, fade_in, fade_out, ud, rot, 0);
-}
-
-int led_rainbow(uint8_t alpha)
-{
-	//LED_ROTATE_RAINBOW_BIT
-	xSemaphoreTake(led_smphr, portMAX_DELAY);
-	xEventGroupClearBits( led_events, 0xffffff );
-	xEventGroupSetBits(led_events, LED_ROTATE_RAINBOW_BIT | 1);
-	xSemaphoreGive(led_smphr);
-	led_unblock_racing_task();
-	return 0;
 }
 
 int led_start_custom_animation(led_user_animation_handler user, void * context){

@@ -258,7 +258,7 @@ int get_temp() {
 }
 
 int Cmd_readtemp(int argc, char *argv[]) {
-	LOGI("temp is %d\n", get_temp());
+	LOGF("temp is %d\n", get_temp());
 	return SUCCESS;
 }
 
@@ -292,7 +292,7 @@ int get_humid() {
 }
 
 int Cmd_readhumid(int argc, char *argv[]) {
-	LOGI("humid is %d\n", get_humid());
+	LOGF("humid is %d\n", get_humid());
 	return SUCCESS;
 }
 
@@ -354,7 +354,7 @@ int get_light() {
 }
 
 int Cmd_readlight(int argc, char *argv[]) {
-	LOGI(" light is %d\n", get_light());
+	LOGF(" light is %d\n", get_light());
 	if (argc > 1) {
 		int rate = atoi(argv[1]);
 		int delay = atoi(argv[2]);
@@ -431,7 +431,7 @@ int get_prox() {
 }
 extern int disp_prox;
 int Cmd_readproximity(int argc, char *argv[]) {
-	LOGI(" proximity is %d %d %s\n", get_prox(), argc, argv[1]);
+	LOGF(" proximity is %d %d %s\n", get_prox(), argc, argv[1]);
 	if( argc == 2 ) {
 		disp_prox = atoi(argv[1]);
 	}

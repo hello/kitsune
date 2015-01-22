@@ -168,7 +168,7 @@ int Cmd_free(int argc, char *argv[]) {
 	//
 	// Print some header text.
 	//
-	LOGI("%d bytes free\nhigh: %d low: %d\n", xPortGetFreeHeapSize(),heap_high_mark,heap_low_mark);
+	LOGF("%d bytes free\nhigh: %d low: %d\n", xPortGetFreeHeapSize(),heap_high_mark,heap_low_mark);
 
     heap_high_mark = 0;
 	heap_low_mark = 0xffffffff;
@@ -208,12 +208,12 @@ int Cmd_fs_write(int argc, char *argv[]) {
 
 	if (sl_FsOpen((unsigned char*)argv[1],
 	FS_MODE_OPEN_WRITE, &tok, &hndl)) {
-		LOGI("error opening file, trying to create\n");
+		LOGF("error opening file, trying to create\n");
 
 		if (sl_FsOpen((unsigned char*)argv[1],
 				FS_MODE_OPEN_CREATE(65535, _FS_FILE_OPEN_FLAG_COMMIT), &tok,
 				&hndl)) {
-			LOGI("error opening for write\n");
+			LOGF("error opening for write\n");
 			return -1;
 		}
 	}
@@ -228,7 +228,7 @@ int Cmd_fs_write(int argc, char *argv[]) {
     	next = next + 1;
     }
 
-	LOGI("wrote to the file %d bytes\n", cnt);
+	LOGF("wrote to the file %d bytes\n", cnt);
 
 	sl_FsClose(hndl, 0, 0, 0);
 
@@ -248,19 +248,19 @@ int Cmd_fs_read(int argc, char *argv[]) {
 
 #ifndef DEBUG_FS
 	if (strstr(argv[1], "cert") != 0) {
-		LOGE("unauthorized\n");
+		LOGF("unauthorized\n");
 		return 0;
 	}
 	if (strstr(argv[1], "hello") != 0) {
-		LOGE("unauthorized\n");
+		LOGF("unauthorized\n");
 		return 0;
 	}
 	if (strstr(argv[1], "sys") != 0) {
-		LOGE("unauthorized\n");
+		LOGF("unauthorized\n");
 		return 0;
 	}
 	if (strstr(argv[1], "top") != 0) {
-		LOGE("unauthorized\n");
+		LOGF("unauthorized\n");
 		return 0;
 	}
 #endif
@@ -269,28 +269,28 @@ int Cmd_fs_read(int argc, char *argv[]) {
 
 	err = sl_FsOpen((unsigned char*) argv[1], FS_MODE_OPEN_READ, &tok, &hndl);
 	if (err) {
-		LOGI("error opening for read %d\n", err);
+		LOGF("error opening for read %d\n", err);
 		return -1;
 	}
 	if( argc >= 3 ){
-		bytes = sl_FsRead(hndl, atoi(argv[2]), (unsigned char*) buffer,
+		bytes = sl_FsRead(hndl, atoi(argv[2]), (unsigned char* ) buffer,
 				minval(info.FileLen, BUF_SZ));
 		if (bytes) {
-						LOGI("read %d bytes\n", bytes);
-					}
-	}else{
-		bytes = sl_FsRead(hndl, 0, (unsigned char*) buffer,
+			LOGF("read %d bytes\n", bytes);
+		}
+	} else {
+		bytes = sl_FsRead(hndl, 0, (unsigned char* ) buffer,
 				minval(info.FileLen, BUF_SZ));
 		if (bytes) {
-						LOGI("read %d bytes\n", bytes);
-					}
+			LOGF("read %d bytes\n", bytes);
+		}
 	}
 
 
 	sl_FsClose(hndl, 0, 0, 0);
 
 	for (i = 0; i < bytes; ++i) {
-		LOGI("%x", buffer[i]);
+		LOGF("%x", buffer[i]);
 	}
 
 	return 0;
@@ -352,9 +352,28 @@ static void octogram_notification(void * context) {
 	xSemaphoreGive(sem);
 }
 
+static
+OctogramResult_t octorgram_result;
+static
+xSemaphoreHandle octogram_semaphore = 0;
+
+int Cmd_get_octogram(int argc, char * argv[]) {
+	xSemaphoreTake(octogram_semaphore,portMAX_DELAY);
+	xSemaphoreGive(octogram_semaphore);
+
+	int avg = 0;
+	avg += octorgram_result.logenergy[3];
+	avg += octorgram_result.logenergy[4];
+	avg += octorgram_result.logenergy[5];
+	avg += octorgram_result.logenergy[6];
+	avg /= 4;
+
+	LOGF("%d\r\n", octorgram_result.logenergy[2] - avg );
+
+	return 0;
+}
 int Cmd_do_octogram(int argc, char * argv[]) {
 	AudioMessage_t m;
-	OctogramResult_t res;
     int32_t numsamples = atoi( argv[1] );
     uint16_t i;
 
@@ -362,49 +381,40 @@ int Cmd_do_octogram(int argc, char * argv[]) {
     	numsamples = 500;
     }
     if (numsamples == 0) {
-    	LOGI("number of requested samples was zero.\r\n");
+    	LOGF("number of requested samples was zero.\r\n");
     	return 0;
     }
 
-    xSemaphoreHandle octogramsem = xSemaphoreCreateBinary();
+    if( !octogram_semaphore ) {
+    	octogram_semaphore = xSemaphoreCreateBinary();
+    }
 
 	memset(&m,0,sizeof(m));
 
 	AudioTask_StartCapture(22050);
 
 	m.command = eAudioCaptureOctogram;
-	m.message.octogramdesc.result = &res;
+	m.message.octogramdesc.result = &octorgram_result;
 	m.message.octogramdesc.analysisduration = numsamples;
 	m.message.octogramdesc.onFinished = octogram_notification;
-	m.message.octogramdesc.context = octogramsem;
+	m.message.octogramdesc.context = octogram_semaphore;
 
 	AudioTask_AddMessageToQueue(&m);
-
-	xSemaphoreTake(octogramsem,portMAX_DELAY);
-
-	vSemaphoreDelete(octogramsem);
+	xSemaphoreTake(octogram_semaphore,portMAX_DELAY);
 
     if( argc == 1 ) {
-    	int avg = 0;
-    	avg += res.logenergy[3];
-    	avg += res.logenergy[4];
-    	avg += res.logenergy[5];
-    	avg += res.logenergy[6];
-    	avg /= 4;
-
-    	LOGI("%d\r\n", res.logenergy[2] - avg );
     	return 0;
     }
 	//report results
-    LOGI("octogram log energies: ");
+    LOGF("octogram log energies: ");
 	for (i = 0; i < OCTOGRAM_SIZE; i++) {
 		if (i != 0) {
-			LOGI(",");
+			LOGF(",");
 		}
-		LOGI("%d",res.logenergy[i]);
+		LOGF("%d",octorgram_result.logenergy[i]);
 	}
 
-	LOGI("\r\n");
+	LOGF("\r\n");
 
 	return 0;
 
@@ -431,7 +441,7 @@ int Cmd_fs_delete(int argc, char *argv[]) {
 	//
 	int err = sl_FsDel((unsigned char*)argv[1], 0);
 	if (err) {
-		LOGI("error %d\n", err);
+		LOGF("error %d\n", err);
 		return -1;
 	}
 
@@ -477,6 +487,7 @@ void set_alarm( SyncResponse_Alarm * received_alarm ) {
             received_alarm->end_time = 0;
             received_alarm->has_start_time = false;
             received_alarm->has_end_time = false;
+            received_alarm->has_ring_offset_from_now_in_second = false;
 
             memcpy(&alarm, received_alarm, sizeof(alarm));
         }
@@ -484,18 +495,32 @@ void set_alarm( SyncResponse_Alarm * received_alarm ) {
         xSemaphoreGive(alarm_smphr);
     }
 }
+static bool alarm_is_ringing = false;
+static bool cancel_alarm() {
+	bool was_ringing = false;
+	AudioTask_StopPlayback();
+
+	if (xSemaphoreTake(alarm_smphr, portMAX_DELAY)) {
+		if (alarm_is_ringing) {
+			if (alarm.has_end_time || alarm.has_ring_offset_from_now_in_second) {
+				LOGI("ALARM DONE RINGING\n");
+				alarm.has_end_time = 0;
+				alarm.has_start_time = 0;
+				alarm.has_ring_offset_from_now_in_second = false;
+			}
+
+
+		    alarm_is_ringing = false;
+		    was_ringing = true;
+		}
+
+		xSemaphoreGive(alarm_smphr);
+	}
+	return was_ringing;
+}
 
 static void thread_alarm_on_finished(void * context) {
-	if (xSemaphoreTake(alarm_smphr, portMAX_DELAY)) {
-
-		if (alarm.has_end_time) {
-			LOGI("ALARM DONE RINGING\n");
-			alarm.has_end_time = 0;
-			alarm.has_start_time = 0;
-        }
-
-        xSemaphoreGive(alarm_smphr);
-    }
+	stop_led_animation();
 }
 
 static bool _is_file_exists(char* path)
@@ -509,6 +534,7 @@ static bool _is_file_exists(char* path)
 	return true;
 }
 
+uint8_t get_alpha_from_light();
 void thread_alarm(void * unused) {
 	while (1) {
 		wait_for_time(WAIT_FOREVER);
@@ -579,9 +605,15 @@ void thread_alarm(void * unused) {
 					desc.rate = 48000;
 
 					AudioTask_StartPlayback(&desc);
+
+					uint8_t trippy_base[3] = {0, 0, 0};
+					uint8_t trippy_range[3] = {254, 254, 254};
+					play_led_trippy(trippy_base, trippy_range, portMAX_DELAY);
+
 					LOGI("ALARM RINGING RING RING RING\n");
 					alarm.has_start_time = 0;
 					alarm.start_time = 0;
+					alarm_is_ringing = true;
 				}
 			}
 			else {
@@ -699,16 +731,14 @@ static void _show_led_status()
 }
 
 static void _on_wave(){
-	memset(&alarm, 0, sizeof(alarm));
-	AudioTask_StopPlayback();
-	_show_led_status();
+	if(	!cancel_alarm() ) {
+		_show_led_status();
+	}
 }
 
 static void _on_hold(){
-	//stop_led_animation();
+	_on_wave();
 	ble_proto_start_hold();
-	memset(&alarm, 0, sizeof(alarm));
-	AudioTask_StopPlayback();
 }
 
 static void _on_gesture_out()
@@ -731,7 +761,9 @@ void thread_fast_i2c_poll(void * unused)  {
 			// For the black morpheus, we can detect 6mm distance max
 			// for white one, 9mm distance max.
 			prox = get_prox();  // now this thing is in um.
+
 			xSemaphoreGive(i2c_smphr);
+			//UARTprintf("%d ", prox);
 
 			gesture gesture_state = gesture_input(prox);
 			switch(gesture_state)
@@ -1084,13 +1116,13 @@ void thread_sensor_poll(void* unused) {
 int Cmd_tasks(int argc, char *argv[]) {
 	char* pBuffer;
 
-	LOGI("\t\t\t\t\tUnused\n            TaskName\tStatus\tPri\tStack\tTask ID\n");
+	LOGF("\t\t\t\t\tUnused\n            TaskName\tStatus\tPri\tStack\tTask ID\n");
 	pBuffer = pvPortMalloc(1024);
 	assert(pBuffer);
-	LOGI("==========================");
+	LOGF("==========================");
 	vTaskList(pBuffer);
-	LOGI("==========================\n");
-	LOGI("%s", pBuffer);
+	LOGF("==========================\n");
+	LOGF("%s", pBuffer);
 
 	vPortFree(pBuffer);
 	return 0;
@@ -1173,13 +1205,13 @@ int Cmd_rssi(int argc, char *argv[]) {
 
 	Sl_WlanNetworkEntry_t g_netEntries[SCAN_TABLE_SIZE];
 
-	lCountSSID = get_wifi_scan_result(&g_netEntries[0], SCAN_TABLE_SIZE, 1000);
+	lCountSSID = get_wifi_scan_result(&g_netEntries[0], SCAN_TABLE_SIZE, 1000, 0 );
 
     SortByRSSI(&g_netEntries[0],(unsigned char)lCountSSID);
 
-    LOGI( "SSID RSSI\n" );
+    LOGF( "SSID RSSI\n" );
 	for(i=0;i<lCountSSID;++i) {
-		LOGI( "%s %d\n", g_netEntries[i].ssid, g_netEntries[i].rssi );
+		LOGF( "%s %d\n", g_netEntries[i].ssid, g_netEntries[i].rssi );
 	}
 	return 0;
 }
@@ -1270,7 +1302,7 @@ int Cmd_generate_factory_data(int argc,char * argv[]) {
     for(i = 1; i < enc_size; i++) {
     	usnprintf(&key_string[i * 2 - 2], 3, "%02X", enc_factory_data[i]);
     }
-    LOGI( "\nfactory key: %s\n", key_string);
+    LOGF( "\nfactory key: %s\n", key_string);
 
 
 #if 0 //todo DVT disable!
@@ -1367,11 +1399,11 @@ int Cmd_slip(int argc, char * argv[]){
 	uint32_t len;
 	if(argc >= 2){
 		uint8_t * message = hci_encode((uint8_t*)argv[1], strlen(argv[1]) + 1, &len);
-		LOGI("Decoded: %s \r\n", hci_decode(message, len, NULL));
+		LOGF("Decoded: %s \r\n", hci_decode(message, len, NULL));
 		hci_free(message);
 	}else{
 		uint8_t * message = hci_encode("hello", strlen("hello") + 1, &len);
-		LOGI("Decoded: %s \r\n", hci_decode(message, len, NULL));
+		LOGF("Decoded: %s \r\n", hci_decode(message, len, NULL));
 		hci_free(message);
 	}
 	return 0;
@@ -1381,7 +1413,7 @@ int Cmd_topdfu(int argc, char *argv[]){
 	if(argc > 1){
 		return top_board_dfu_begin(argv[1]);
 	}
-	LOGI("Usage: topdfu $full_path_to_file");
+	LOGF("Usage: topdfu $full_path_to_file");
 	return -2;
 }
 
@@ -1416,12 +1448,12 @@ static void CreateDefaultDirectories(void) {
 static int Cmd_test_3200_rtc(int argc, char*argv[]) {
     unsigned int dly = atoi(argv[1]);
 	if( argc != 2 ) {
-		dly = 5000;
+		dly = 3000;
 	}
 	set_sl_time(0);
-	LOGI("time is %u\n", get_sl_time() );
+	LOGF("time is %u\n", get_sl_time() );
 	vTaskDelay(dly);
-	LOGI("time is %u\n", get_sl_time() );
+	LOGF("time is %u\n", get_sl_time() );
 	return 0;
 }
 
@@ -1473,7 +1505,6 @@ void launch_tasks() {
 	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,1,NULL);
 	UARTprintf("*");
 
-	xTaskCreate(top_board_task, "top_board_task", 2048 / 4, NULL, 2, NULL);
 	xTaskCreate(thread_alarm, "alarmTask", 2*1024 / 4, NULL, 4, NULL);
 
 
@@ -1507,7 +1538,11 @@ int Cmd_boot(int argc, char *argv[]) {
 	return 0;
 }
 
-
+int _force_data_push();
+int Cmd_sync(int argc, char *argv[]) {
+	_force_data_push();
+	return 0;
+}
 
 // ==============================================================================
 // This is the table that holds the command names, implementing functions, and
@@ -1559,6 +1594,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "p", Cmd_play_buff, ""},//play sounds from SD card
 		{ "s",Cmd_stop_buff,""},
 		{ "oct",Cmd_do_octogram,""},
+		{ "getoct",Cmd_get_octogram,""},
 		{ "aon",Cmd_audio_turn_on,""},
 		{ "aoff",Cmd_audio_turn_off,""},
 
@@ -1598,7 +1634,9 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "testkey", Cmd_test_key, ""},
 		{ "lfclktest",Cmd_test_3200_rtc,""},
 		{ "country",Cmd_country,""},
+		{ "sync", Cmd_sync, "" },
 		{ "boot",Cmd_boot,""},
+		{ "gesture_count",Cmd_get_gesture_count,""},
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
 		{ "iperfcli",Cmd_iperf_client,""},
@@ -1665,9 +1703,6 @@ void vUARTTask(void *pvParameters) {
 
 	UARTprintf("Boot\n");
 
-	//default to PCB_ANT
-	antsel(PCB_ANT);
-
 	UARTprintf("*");
 	sl_sync_init();  // thread safe for all sl_* calls
 	sl_mode = sl_Start(NULL, NULL, NULL);
@@ -1678,6 +1713,9 @@ void vUARTTask(void *pvParameters) {
 		nwp_reset();
 	}
 	UARTprintf("*");
+
+	//default to PCB_ANT
+	antsel(get_default_antenna());
 
 	// Set connection policy to Auto
 	sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0), NULL, 0);
@@ -1743,9 +1781,10 @@ void vUARTTask(void *pvParameters) {
 	} else {
 		led_set_color(50, LED_MAX, LED_MAX,0, 1, 0, 10, 1 ); //spin to alert user!
 	}
+	xTaskCreate(top_board_task, "top_board_task", 2048 / 4, NULL, 2, NULL);
 	xTaskCreate(thread_spi, "spiTask", 4*1024 / 4, NULL, 4, NULL); //this one doesn't look like much, but has to parse all the pb from bluetooth
 	UARTprintf("*");
-	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 4, NULL);
+	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 1, NULL);
 	UARTprintf("*");
 
 

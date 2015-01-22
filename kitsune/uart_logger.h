@@ -39,6 +39,7 @@ extern "C" {
 #define LOG_TIME	0x08
 #define LOG_RADIO	0x10
 #define LOG_VIEW_ONLY 0x20
+#define LOG_FACTORY 0x40
 /**
  * Mode defines
  */
@@ -54,11 +55,13 @@ extern "C" {
 #define LOGI(...) uart_logf(LOG_INFO, __VA_ARGS__)
 #define LOGW(...) uart_logf(LOG_WARNING, __VA_ARGS__)
 #define LOGE(...) uart_logf(LOG_ERROR, __VA_ARGS__)
+#define LOGF(...) uart_logf(LOG_FACTORY, __VA_ARGS__)
 #define DISP(...) uart_logf(LOG_VIEW_ONLY, __VA_ARGS__)
 #else
 #define LOGI(...) UARTprintf(__VA_ARGS__)
 #define LOGW(...) UARTprintf(__VA_ARGS__)
 #define LOGE(...) UARTprintf(__VA_ARGS__)
+#define LOGF(...) UARTprintf(__VA_ARGS__)
 #define DISP(...) UARTprintf(__VA_ARGS__)
 #endif
 

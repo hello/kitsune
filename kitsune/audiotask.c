@@ -74,6 +74,7 @@ static void StatsCallback(const AudioOncePerMinuteData_t * pdata) {
 
 	xSemaphoreTake(_statsMutex,portMAX_DELAY);
 
+	LOGI("audio disturbance: background=%d, peak=%d\n",pdata->peak_background_energy,pdata->peak_energy);
 	_stats.num_disturbances += pdata->num_disturbances;
 
 	if (pdata->peak_background_energy > _stats.peak_background_energy) {
@@ -163,13 +164,17 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	LOGI("Starting playback\r\n");
 	LOGI("%d bytes free\n", xPortGetFreeHeapSize());
 
+	hello_fs_lock();
+
 	if (!info || !info->file) {
+		hello_fs_unlock();
 		LOGI("invalid playback info %s\n\r",info->file);
 		return returnFlags;
 	}
 
 
 	if ( !InitAudioPlayback(info->volume, info->rate ) ) {
+		hello_fs_unlock();
 		LOGI("unable to initialize audio playback.  Probably not enough memory!\r\n");
 		return returnFlags;
 
@@ -183,6 +188,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	res = hello_fs_open(&fp, info->file, FA_READ);
 
 	if (res != FR_OK) {
+		hello_fs_unlock();
 		LOGI("Failed to open audio file %s\n\r",info->file);
 		DeinitAudioPlayback();
 		return returnFlags;
@@ -279,6 +285,8 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	hello_fs_close(&fp);
 
 	DeinitAudioPlayback();
+
+	hello_fs_unlock();
 
 	LOGI("completed playback\r\n");
 
