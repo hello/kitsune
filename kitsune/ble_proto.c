@@ -213,6 +213,7 @@ static int _scan_wifi()
 			--scan_cnt[PCB_ANT];
 			LOGI("PICKED PCB %d %d\n", _scanned_wifi_count, scan_cnt[IFA_ANT]);
 		} else {
+			LOGI("PICKED NONE %d %d %d\n", _scanned_wifi_count, scan_cnt[IFA_ANT], scan_cnt[PCB_ANT]);
 			break;
 		}
 
