@@ -57,6 +57,8 @@ static struct{
 
 typedef void (file_handler)(FILINFO * info, void * ctx);
 static int _walk_log_dir(file_handler * handler, void * ctx);
+static FRESULT _remove_oldest(int * rem);
+
 static bool
 _encode_text_block(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
 	return pb_encode_tag(stream, PB_WT_STRING, field->tag)
