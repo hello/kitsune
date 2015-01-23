@@ -400,11 +400,13 @@ int Cmd_do_octogram(int argc, char * argv[]) {
 	m.message.octogramdesc.context = octogram_semaphore;
 
 	AudioTask_AddMessageToQueue(&m);
-	xSemaphoreTake(octogram_semaphore,portMAX_DELAY);
 
-    if( argc == 1 ) {
+	if( argc == 1 ) {
     	return 0;
     }
+
+	xSemaphoreTake(octogram_semaphore,portMAX_DELAY);
+
 	//report results
     LOGF("octogram log energies: ");
 	for (i = 0; i < OCTOGRAM_SIZE; i++) {
