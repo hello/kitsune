@@ -1829,7 +1829,7 @@ static struct{
 }pill_fsm;
 
 void pill_fsm_reset(void){
-	LOGF("Restart Test\r\n");
+	LOGF("Shake to start.\r\n");
 	pill_fsm.state = WAITING_FOR_SHAKE;
 	memset(pill_fsm.uut, 0, sizeof(pill_fsm.uut));
 }
@@ -1850,7 +1850,9 @@ void Cmd_pill_test_register_shake(const char * id){
 }
 void Cmd_pill_test_register_heartbeat(const char * id){
 	if(pdTRUE == xSemaphoreTake(pill_fsm.sem,10000)){
-		if(pill_fsm.state == WAITING_FOR_HEARTBEAT){
+		if(pill_fsm.state == WAITING_FOR_HEARTBEAT
+				&& 0 == strcmp(pill_fsm.uut, id, strlen(id))){
+			LOGF("Shake again.\r\n");
 			pill_fsm.state = WAITING_FOR_TIMEOUT;
 			pill_fsm.to = 500;
 		}
