@@ -1802,7 +1802,14 @@ void vUARTTask(void *pvParameters) {
 			// Pass the line from the user to the command processor.  It will be
 			// parsed and valid commands executed.
 			//
-			char * args = pvPortMalloc( sizeof(cCmdBuf) );
+			char * args = NULL;
+			while(!args) {
+				args = pvPortMalloc( sizeof(cCmdBuf) );
+				if( args == NULL ) {
+					vTaskDelay(1000);
+					LOGF("can't run command %s, no memory available!\n", cCmdBuf );
+				}
+			}
 			memcpy( args, cCmdBuf, sizeof( cCmdBuf ) );
 			xTaskCreate(CmdLineProcess, "commandTask",  5*1024 / 4, args, 4, NULL);
         }
