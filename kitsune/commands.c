@@ -1531,7 +1531,7 @@ int Cmd_sync(int argc, char *argv[]) {
 	_force_data_push();
 	return 0;
 }
-
+int Cmd_pill_test_reset(int argc, char *argv[]);
 // ==============================================================================
 // This is the table that holds the command names, implementing functions, and
 // brief description.
@@ -1625,6 +1625,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "sync", Cmd_sync, "" },
 		{ "boot",Cmd_boot,""},
 		{ "gesture_count",Cmd_get_gesture_count,""},
+		{ "pilltest",Cmd_pill_test_reset,""},
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
 		{ "iperfcli",Cmd_iperf_client,""},
@@ -1813,5 +1814,81 @@ void vUARTTask(void *pvParameters) {
 			memcpy( args, cCmdBuf, sizeof( cCmdBuf ) );
 			xTaskCreate(CmdLineProcess, "commandTask",  5*1024 / 4, args, 4, NULL);
         }
+	}
+}
+typedef  enum{
+	WAITING_FOR_SHAKE = 0,
+	WAITING_FOR_HEARTBEAT,
+	WAITING_FOR_TIMEOUT
+}pill_fsm_state;
+static struct{
+	pill_fsm_state state;
+	char uut[64];
+	xSemaphoreHandle sem;
+	int to;//in 10 ms intervals
+}pill_fsm;
+
+void pill_fsm_reset(void){
+	LOGF("Restart Test\r\n");
+	pill_fsm.state = WAITING_FOR_SHAKE;
+	memset(pill_fsm.uut, 0, sizeof(pill_fsm.uut));
+}
+
+void Cmd_pill_test_register_shake(const char * id){
+	if(pdTRUE == xSemaphoreTake(pill_fsm.sem,10000)){
+		if(pill_fsm.state == WAITING_FOR_SHAKE){
+			strcpy(pill_fsm.uut, id);
+			pill_fsm.state = WAITING_FOR_HEARTBEAT;
+			pill_fsm.to = 500;
+			LOGF("Activate Magnet\r\n");
+		}else if(pill_fsm.state == WAITING_FOR_TIMEOUT){
+			LOGF("Fail\r\n");
+			pill_fsm_reset();
+		}
+		xSemaphoreGive(pill_fsm.sem);
+	}
+}
+void Cmd_pill_test_register_heartbeat(const char * id){
+	if(pdTRUE == xSemaphoreTake(pill_fsm.sem,10000)){
+		if(pill_fsm.state == WAITING_FOR_HEARTBEAT){
+			pill_fsm.state = WAITING_FOR_TIMEOUT;
+			pill_fsm.to = 500;
+		}
+		xSemaphoreGive(pill_fsm.sem);
+	}
+}
+int Cmd_pill_test_reset(int argc, char *argv[]){
+	if(pdTRUE == xSemaphoreTake(pill_fsm.sem,10000)){
+		pill_fsm_reset();
+	}
+	return 0;
+}
+void
+PillTestThread(void * ctx){
+	pill_fsm.sem = xSemaphoreCreateBinary();
+	while(1){
+		if(pdTRUE == xSemaphoreTake(pill_fsm.sem,10000)){
+			switch(pill_fsm.state){
+				case WAITING_FOR_SHAKE:
+					break;
+				case WAITING_FOR_HEARTBEAT:
+					if(pill_fsm.to-- > 0){
+						vTaskDelay( 10 );
+					}else{
+						LOGF("Fail\r\n");
+						pill_fsm_reset();
+					}
+					break;
+				case WAITING_FOR_TIMEOUT:
+					if(pill_fsm.to-- > 0){
+						vTaskDelay( 10 );
+					}else{
+						LOGF("Pass\r\n");
+						pill_fsm_reset();
+					}
+					break;
+			}
+			xSemaphoreGive(pill_fsm.sem);
+		}
 	}
 }
