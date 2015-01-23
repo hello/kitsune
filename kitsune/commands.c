@@ -1852,7 +1852,7 @@ void Cmd_pill_test_register_shake(const char * id){
 void Cmd_pill_test_register_heartbeat(const char * id){
 	if(pdTRUE == xSemaphoreTake(pill_fsm.sem,10000)){
 		if(pill_fsm.state == WAITING_FOR_HEARTBEAT
-				&& 0 == strcmp(pill_fsm.uut, id, strlen(id))){
+				&& 0 == strcmp(pill_fsm.uut, id)){
 			LOGF("Shake again.\r\n");
 			pill_fsm.state = WAITING_FOR_TIMEOUT;
 			pill_fsm.to = 500;
