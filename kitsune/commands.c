@@ -1258,22 +1258,8 @@ int Cmd_generate_factory_data(int argc,char * argv[]) {
 	uint32_t now = xTaskGetTickCount();
 	memcpy(entropy_pool+pos, &now, 4);
 	pos+=4;
-	if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
-		vTaskDelay(2);
-		int light = get_light();
-		vTaskDelay(2);
-		memcpy(entropy_pool+pos, &light, 4);
-		pos+=4;
-		int temp = get_temp();
-		memcpy(entropy_pool+pos, &temp, 4);
-		pos+=4;
-		int prox = get_prox();
-		memcpy(entropy_pool+pos, &prox, 4);
-		pos+=4;
-		xSemaphoreGive(i2c_smphr);
-	}
 	for(pos = 0; pos < 32; ++pos){
-		int dust = get_dust_internal(256); //short one here is only for entropy
+		int dust = get_dust_internal(8); //short one here is only for entropy
 		entropy_pool[pos] ^= (uint8_t)dust;
 	}
 	RNG_custom_init(entropy_pool, pos);
