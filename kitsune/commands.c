@@ -1626,7 +1626,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "sync", Cmd_sync, "" },
 		{ "boot",Cmd_boot,""},
 		{ "gesture_count",Cmd_get_gesture_count,""},
-		{ "pilltest",Cmd_pill_test_reset,""},
+		{ "pt",Cmd_pill_test_reset,""},
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
 		{ "iperfcli",Cmd_iperf_client,""},
