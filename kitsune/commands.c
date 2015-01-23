@@ -1491,6 +1491,7 @@ void launch_tasks() {
 	networktask_init(5 * 1024 / 4);
 
 	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,1,NULL);
+	xTaskCreate(PillTestThread,"pill test",1*1024/4,NULL,1,NULL);
 	UARTprintf("*");
 
 	xTaskCreate(thread_alarm, "alarmTask", 2*1024 / 4, NULL, 4, NULL);
