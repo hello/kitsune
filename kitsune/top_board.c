@@ -61,13 +61,19 @@ extern volatile bool booted;
 static void
 _printchar(uint8_t c){
     if( booted ) {
+    	{
+    		char s[2];
+    		s[0] = c;
+    		s[1] = 0;
+    		LOGT(s);
+    	}
     	line[linepos++] = c;
     	if( c == '\n' ) {
     		line[linepos] = 0;
     		if( match( "</data>", line ) ) {
-    			LOGF(line);
+    			LOGF(line+strlen("<data>"));
+    			LOGF("\r\n");
     		}
-        	LOGT(line);
     		memset(line, 0, sizeof(line));
     		linepos = 0;
     	}
