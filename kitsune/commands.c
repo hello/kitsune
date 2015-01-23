@@ -1480,7 +1480,7 @@ static int Cmd_generate_user_testing_files(int argc, char* argv[])
 
 void init_download_task( int stack );
 void init_i2c_recovery();
-
+void PillTestThread(void * ctx);
 void launch_tasks() {
 	//checkFaults();
 
