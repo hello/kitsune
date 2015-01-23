@@ -53,13 +53,28 @@ static struct{
     top_info_t info;
 }self;
 
+#define MAX_LINE_LENGTH 128
+static char line[MAX_LINE_LENGTH] = {0};
+static int linepos=0;
+
 extern volatile bool booted;
 static void
 _printchar(uint8_t c){
-    char term[2] = {0};
-    term[0] = c;
     if( booted ) {
-    	LOGT(term);
+    	line[linepos++] = c;
+    	if( c == '\n' ) {
+    		line[linepos] = 0;
+    		if( match( "</data>", line ) ) {
+    			LOGF(line);
+    		}
+        	LOGT(line);
+    		memset(line, 0, sizeof(line));
+    		linepos = 0;
+    	}
+    	if( linepos >= MAX_LINE_LENGTH ) {
+    		memset(line, 0, sizeof(line));
+    		linepos = 0;
+    	}
     }
     /*
 	 *UARTCharPutNonBlocking(UARTA0_BASE, c); //basic feedback
