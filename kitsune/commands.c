@@ -1491,7 +1491,7 @@ void launch_tasks() {
 	networktask_init(5 * 1024 / 4);
 
 	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,1,NULL);
-	xTaskCreate(PillTestThread,"pill test",1*1024/4,NULL,1,NULL);
+
 	UARTprintf("*");
 
 	xTaskCreate(thread_alarm, "alarmTask", 2*1024 / 4, NULL, 4, NULL);
@@ -1676,11 +1676,7 @@ void vUARTTask(void *pvParameters) {
     MAP_GPIOPinWrite(GPIOA0_BASE, 0x2, 0);
 
     vTaskDelay(10);
-    if( MAP_GPIOPinRead(GPIOA0_BASE, 0x4) == 0 ) {
-    	//drive sop2 low so we disconnect
-        MAP_GPIOPinWrite(GPIOA3_BASE, 0x2, 0);
-        on_charger = true;
-    }
+    on_charger = true;
     MAP_PinTypeUART(PIN_55, PIN_MODE_3);
     MAP_PinTypeUART(PIN_57, PIN_MODE_3);
 
@@ -1772,10 +1768,12 @@ void vUARTTask(void *pvParameters) {
 		led_set_color(50, LED_MAX, LED_MAX,0, 1, 0, 10, 1 ); //spin to alert user!
 	}
 	xTaskCreate(top_board_task, "top_board_task", 2048 / 4, NULL, 2, NULL);
-	xTaskCreate(thread_spi, "spiTask", 4*1024 / 4, NULL, 4, NULL); //this one doesn't look like much, but has to parse all the pb from bluetooth
 	UARTprintf("*");
 	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 1, NULL);
 	UARTprintf("*");
+	xTaskCreate(PillTestThread,"pill test",1*1024/4,NULL,1,NULL);
+	xTaskCreate(thread_spi, "spiTask", 4*1024 / 4, NULL, 4, NULL); //this one doesn't look like much, but has to parse all the pb from bluetooth
+
 
 
 	UARTprintf("\n\nFreeRTOS %s, %x, %s %x%x%x%x%x%x\n",
@@ -1836,13 +1834,15 @@ void pill_fsm_reset(void){
 }
 
 void Cmd_pill_test_register_shake(const char * id){
-	if(pdTRUE == xSemaphoreTake(pill_fsm.sem,10000)){
+	LOGF("Shake\r\n");
+	if(pill_fsm.sem && xSemaphoreTake(pill_fsm.sem,10000)){
 		if(pill_fsm.state == WAITING_FOR_SHAKE){
 			strcpy(pill_fsm.uut, id);
 			pill_fsm.state = WAITING_FOR_HEARTBEAT;
-			pill_fsm.to = 500;
+			pill_fsm.to = 5000;
 			LOGF("Activate Magnet\r\n");
-		}else if(pill_fsm.state == WAITING_FOR_TIMEOUT){
+		}else if(pill_fsm.state == WAITING_FOR_TIMEOUT
+				&& 0 == strcmp(pill_fsm.uut, id)){
 			LOGF("Fail\r\n");
 			pill_fsm_reset();
 		}
@@ -1850,8 +1850,9 @@ void Cmd_pill_test_register_shake(const char * id){
 	}
 }
 void Cmd_pill_test_register_heartbeat(const char * id){
-	if(pdTRUE == xSemaphoreTake(pill_fsm.sem,10000)){
-		if(pill_fsm.state == WAITING_FOR_HEARTBEAT
+	LOGF("HB\r\n");
+	if( xSemaphoreTake(pill_fsm.sem,10000)){
+		if(pill_fsm.sem && pill_fsm.state == WAITING_FOR_HEARTBEAT
 				&& 0 == strcmp(pill_fsm.uut, id)){
 			LOGF("Shake again.\r\n");
 			pill_fsm.state = WAITING_FOR_TIMEOUT;
@@ -1861,22 +1862,27 @@ void Cmd_pill_test_register_heartbeat(const char * id){
 	}
 }
 int Cmd_pill_test_reset(int argc, char *argv[]){
-	if(pdTRUE == xSemaphoreTake(pill_fsm.sem,10000)){
+	if(pill_fsm.sem  && xSemaphoreTake(pill_fsm.sem,10000)){
 		pill_fsm_reset();
+		xSemaphoreGive(pill_fsm.sem);
 	}
 	return 0;
 }
 void
 PillTestThread(void * ctx){
-	pill_fsm.sem = xSemaphoreCreateBinary();
+	if(!pill_fsm.sem){
+		vSemaphoreCreateBinary(pill_fsm.sem);
+	}
+	LOGF("Pill Test Ready\r\n");
 	while(1){
-		if(pdTRUE == xSemaphoreTake(pill_fsm.sem,10000)){
+		if(xSemaphoreTake(pill_fsm.sem,10000)){
 			switch(pill_fsm.state){
+				default:
 				case WAITING_FOR_SHAKE:
 					break;
 				case WAITING_FOR_HEARTBEAT:
 					if(pill_fsm.to-- > 0){
-						vTaskDelay( 10 );
+						//wait for countdown
 					}else{
 						LOGF("Fail\r\n");
 						pill_fsm_reset();
@@ -1884,7 +1890,7 @@ PillTestThread(void * ctx){
 					break;
 				case WAITING_FOR_TIMEOUT:
 					if(pill_fsm.to-- > 0){
-						vTaskDelay( 10 );
+						//here we wait for coutndown
 					}else{
 						LOGF("Pass\r\n");
 						pill_fsm_reset();
@@ -1892,6 +1898,7 @@ PillTestThread(void * ctx){
 					break;
 			}
 			xSemaphoreGive(pill_fsm.sem);
+			vTaskDelay( 10 );
 		}
 	}
 }
