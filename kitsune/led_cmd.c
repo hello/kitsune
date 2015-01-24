@@ -455,17 +455,11 @@ int Cmd_led(int argc, char *argv[]) {
 		return 0;
 	}
 	if(argc == 2) {
-		if( led_ready() != 0 ) {
-			return -1;
-		}
 		int select = atoi(argv[1]);
 		xEventGroupClearBits( led_events, 0xffffff );
 		xEventGroupSetBits( led_events, select );
 	}else if(argc == 3){
 		if(strcmp(argv[1], "color") == 0 && argc >= 5){
-			if( led_ready() != 0 ) {
-				return -1;
-			}
 			user_color.r = clamp_rgb(atoi(argv[2]), 0, LED_CLAMP_MAX);
 			user_color.g = clamp_rgb(atoi(argv[3]), 0, LED_CLAMP_MAX);
 			user_color.b = clamp_rgb(atoi(argv[4]), 0, LED_CLAMP_MAX);
@@ -511,9 +505,6 @@ int led_set_color(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b,
 		int fade_in, int fade_out,
 		unsigned int ud,
 		int rot) {
-	if( led_ready() != 0 ) {
-		return -1;
-	}
 	xSemaphoreTake(led_smphr, portMAX_DELAY);
 	user_color.r = clamp_rgb(r, 0, LED_CLAMP_MAX) * alpha / 0xFF;
 	user_color.g = clamp_rgb(g, 0, LED_CLAMP_MAX) * alpha / 0xFF;
