@@ -20,7 +20,7 @@ static struct{
 	int progress_bar_percent;
 	xSemaphoreHandle _sem;
 	// Use mutex to indicate state is proned to race condition. We should use flag variable protected by mutex instead.
-	// In here, the sig_contiue is already a flag variable.
+	// In here, the sig_contiue is already such a flag variable.
 	//xSemaphoreHandle _animate_sem;
 	uint8_t trippy_base[3];
 	uint8_t trippy_range[3];
