@@ -522,7 +522,7 @@ static bool cancel_alarm() {
 }
 
 static void thread_alarm_on_finished(void * context) {
-	stop_led_animation();
+	ble_proto_led_fade_out(false);
 }
 
 static bool _is_file_exists(char* path)
@@ -610,7 +610,7 @@ void thread_alarm(void * unused) {
 
 					uint8_t trippy_base[3] = {0, 0, 0};
 					uint8_t trippy_range[3] = {254, 254, 254};
-					play_led_trippy(trippy_base, trippy_range, portMAX_DELAY);
+					ble_proto_led_fade_in_custom_trippy(trippy_base, trippy_range);
 
 					LOGI("ALARM RINGING RING RING RING\n");
 					alarm.has_start_time = 0;

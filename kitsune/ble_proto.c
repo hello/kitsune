@@ -676,23 +676,29 @@ void ble_proto_led_flash(int a, int r, int g, int b, int delay, int time)
 
 }
 
-void ble_proto_led_fade_in_trippy(){
-	uint8_t trippy_base[3] = {60, 25, 90};
+void ble_proto_led_fade_in_custom_trippy(uint8_t base[3], uint8_t range[3]){
 	switch(_self.led_status)
 	{
 	case LED_BUSY:
 		led_set_color_sync(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 0, 1, 18, 0);
-		play_led_trippy(trippy_base, trippy_base, portMAX_DELAY);
+		play_led_trippy(base, range, portMAX_DELAY);
 
 		break;
 	case LED_TRIPPY:
+		ble_proto_led_fade_out(false);
+		play_led_trippy(base, range, portMAX_DELAY);
 		break;
 	case LED_OFF:
-		play_led_trippy(trippy_base, trippy_base, portMAX_DELAY);
+		play_led_trippy(base, range, portMAX_DELAY);
 		break;
 	}
 
 	_self.led_status = LED_TRIPPY;
+}
+
+void ble_proto_led_fade_in_trippy(){
+	uint8_t trippy_base[3] = {60, 25, 90};
+	ble_proto_led_fade_in_custom_trippy(trippy_base, trippy_base);
 }
 
 void ble_proto_led_fade_out(bool operation_result){

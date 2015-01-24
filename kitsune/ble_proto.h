@@ -30,6 +30,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command);
 void ble_proto_led_init();
 
 void ble_proto_led_busy_mode(uint8_t a, uint8_t r, uint8_t g, uint8_t b, int delay);
+void ble_proto_led_fade_in_custom_trippy(uint8_t base[3], uint8_t range[3]);
 void ble_proto_led_fade_in_trippy();
 void ble_proto_led_fade_out(bool operation_result);
 
