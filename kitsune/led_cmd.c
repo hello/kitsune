@@ -283,7 +283,6 @@ static uint32_t wheel_color(int WheelPos, unsigned int color) {
 #define LED_CUSTOM_COLOR		  0x0800
 #define LED_CUSTOM_ANIMATION_BIT	  0x1000
 
-#define QUANT_FACTOR 6
 extern int led_animation_not_in_progress;
 
 void led_task( void * params ) {
@@ -497,16 +496,17 @@ int Cmd_led_clr(int argc, char *argv[]) {
 
 	return 0;
 }
+
 void led_fadeout(unsigned int dly) {
 	xSemaphoreTake(led_smphr, portMAX_DELAY);
 	user_delay = dly;
 	xSemaphoreGive(led_smphr);
 	xEventGroupSetBits(led_events, LED_FADE_OUT_BIT);
 
-	while(led_ready() != 0) {
-		vTaskDelay(200);
-	}
+	int fade_delay = (255 / QUANT_FACTOR + 1) * dly;
+	vTaskDelay(fade_delay);
 }
+
 int led_set_color(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b,
 		int fade_in, int fade_out,
 		unsigned int ud,
@@ -532,6 +532,32 @@ int led_set_color(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b,
 	}
 	xSemaphoreGive(led_smphr);
 	return 0;
+}
+
+int led_set_color_sync(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b,
+		int fade_in, int fade_out,
+		unsigned int ud,
+		int rot)
+{
+	led_set_color(alpha, r, g, b, fade_in, fade_out, ud, rot);
+
+	// After set color, we dont care what is the next state of LED and we shouldn't care
+	// just go ahead and block the calling thread.
+	int fade_delay = (255 / QUANT_FACTOR + 1) * ud;
+
+	int total_delay = 0;
+	if(fade_in)
+	{
+		total_delay += fade_delay;
+	}
+
+	if(fade_out)
+	{
+		total_delay += fade_delay;
+	}
+
+	vTaskDelay(total_delay);
+	return led_ready();  // may or may not ready, depends on the deplay we compute, but here we dont care.
 }
 
 int led_start_custom_animation(led_user_animation_handler user, void * context){

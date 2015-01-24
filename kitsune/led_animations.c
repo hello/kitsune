@@ -9,6 +9,7 @@
 #include "semphr.h"
 
 #include "led_animations.h"
+
 struct _colors{
 		int r,g,b;
 };
@@ -153,7 +154,7 @@ static bool _animate_trippy(int * out_r, int * out_g, int * out_b, int * out_del
 		scaler = 33 + (self.counter/3);
 		break;
 	}*/
-	*out_delay = 15;
+	*out_delay = TRIPPY_FADE_DELAY;
 
 	sig_continue = self.sig_continue;
 	unlock();
@@ -244,6 +245,9 @@ bool play_led_trippy(uint8_t trippy_base[3], uint8_t trippy_range[3], unsigned i
 			self.prev_colors[i] = (struct _colors){0};
 		}
 		led_start_custom_animation(_animate_trippy, NULL);
+
+		int fade_delay = (255 / QUANT_FACTOR + 1) * TRIPPY_FADE_DELAY;
+		vTaskDelay(fade_delay);
 		return true;
 	}
 	return false;
@@ -263,16 +267,21 @@ void set_led_progress_bar(uint8_t percent){
 	unlock();
 }
 
-int led_ready();
 void stop_led_animation(){
 	lock();
 	self.sig_continue = false;
 	unlock();
 	unlock_animation();
+}
 
-	while(led_ready() != 0) {
-		vTaskDelay(200);
-	}
+void stop_led_animation_sync(int dly){
+	lock();
+	self.sig_continue = false;
+	unlock();
+	unlock_animation();
+
+	int fade_delay = (255 / QUANT_FACTOR + 1) * dly;
+	vTaskDelay(fade_delay);
 }
 
 int Cmd_led_animate(int argc, char *argv[]){
