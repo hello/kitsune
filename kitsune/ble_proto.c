@@ -517,14 +517,14 @@ void ble_proto_led_fade_in_trippy(){
 	{
 	case LED_BUSY:
 		led_set_color_sync(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 0, 1, 18, 0, 1);
-		play_led_trippy(trippy_base, trippy_base, portMAX_DELAY);
+		play_led_trippy(trippy_base, trippy_base, 0, portMAX_DELAY);
 
 		break;
 	case LED_TRIPPY:
 		break;
 	case LED_OFF:
 		//led_set_color(_self.a, _self.r, _self.g, _self.b, 1, 0, 18, 0);
-		play_led_trippy(trippy_base, trippy_base, portMAX_DELAY);
+		play_led_trippy(trippy_base, trippy_base, 0, portMAX_DELAY);
 		break;
 	}
 
