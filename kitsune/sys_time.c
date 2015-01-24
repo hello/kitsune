@@ -158,7 +158,7 @@ uint32_t fetch_unix_time_from_ntp() {
     SlTimeval_t tv;
 
     sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    tv.tv_sec = 2;             // Seconds
+    tv.tv_sec = 30;             // Seconds
     tv.tv_usec = 0;             // Microseconds. 10000 microseconds resolution
     setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)); // Enable receive timeout
 
