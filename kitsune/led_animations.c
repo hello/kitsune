@@ -275,10 +275,7 @@ void stop_led_animation(){
 }
 
 void stop_led_animation_sync(int dly){
-	lock();
-	self.sig_continue = false;
-	unlock();
-	unlock_animation();
+	stop_led_animation();
 
 	int fade_delay = (255 / QUANT_FACTOR + 1) * dly;
 	vTaskDelay(fade_delay);
