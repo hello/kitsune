@@ -337,7 +337,7 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type)
 
 		// Wait until the disconnect event happen. If we have a WIFI connection already
 		// and the user enter the wrong password in the next WIFI setup, it will go straight to success
-		// without returning and error.
+		// without returning error.
 		vTaskDelay(3000);
 		wifi_status_set(CONNECTING, false);
 
