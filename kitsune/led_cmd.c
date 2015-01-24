@@ -562,6 +562,8 @@ int led_set_color_sync(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b,
 	if( led_ready() != 0 ) {
 		return -1;
 	}
+
+	led_unblock_racing_task();
 	xSemaphoreTake(led_smphr, portMAX_DELAY);
 	user_color.r = clamp_rgb(r, 0, LED_CLAMP_MAX) * alpha / 0xFF;
 	user_color.g = clamp_rgb(g, 0, LED_CLAMP_MAX) * alpha / 0xFF;
@@ -584,13 +586,6 @@ int led_set_color_sync(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b,
 	{
 		led_block();
 		led_set_is_sync(0);
-	}else{
-		// By the time an async LED request is scheduled, a sync
-		// LED animation might be in the middle of operation.
-		// The blocked sync request task needs to be unblocked in this
-		// case or the async request might cancel the event that is
-		// going to trigger unblocking.
-		led_unblock_racing_task();
 	}
 	return 0;
 }

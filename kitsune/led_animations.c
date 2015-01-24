@@ -228,15 +228,16 @@ void unlock_animation() {
 }
 
 bool play_led_animation_pulse(unsigned int timeout){
+	led_unblock_racing_task();
 	if( _start_animation( timeout ) ) {
 		led_start_custom_animation(_animate_pulse, NULL);
-		led_unblock_racing_task();
 		return true;
 	}
 	return false;
 }
 bool play_led_trippy(uint8_t trippy_base[3], uint8_t trippy_range[3], unsigned int timeout){
 	int i;
+	led_unblock_racing_task();
 	if( _start_animation( timeout ) ) {
 		memcpy(self.trippy_base, trippy_base, 3);
 		memcpy(self.trippy_range, trippy_range, 3);
@@ -246,17 +247,16 @@ bool play_led_trippy(uint8_t trippy_base[3], uint8_t trippy_range[3], unsigned i
 			self.prev_colors[i] = (struct _colors){0};
 		}
 		led_start_custom_animation(_animate_trippy, NULL);
-		led_unblock_racing_task();
 		return true;
 	}
 	return false;
 }
 bool play_led_progress_bar(int r, int g, int b, unsigned int options, unsigned int timeout){
+	led_unblock_racing_task();
 	if( _start_animation( timeout ) ) {
 		self.colors[0] = (struct _colors){r, g, b};
 		self.progress_bar_percent = 0;
 		led_start_custom_animation(_animate_progress, NULL);
-		led_unblock_racing_task();
 		return true;
 	}
 	return false;
@@ -268,11 +268,11 @@ void set_led_progress_bar(uint8_t percent){
 }
 
 void stop_led_animation(){
+	led_unblock_racing_task();  // This cause the alarm deadlock.
 	lock();
 	self.sig_continue = false;
 	unlock();
 	unlock_animation();
-	led_unblock_racing_task();
 }
 
 void stop_led_animation_sync(){
@@ -318,9 +318,9 @@ int Cmd_led_animate(int argc, char *argv[]){
 	return 0;
 }
 bool factory_led_test_pattern(unsigned int timeout) {
+	led_unblock_racing_task();
 	if( _start_animation( timeout ) ) {
 		led_start_custom_animation(_animate_factory_test_pattern, NULL);
-		led_unblock_racing_task();
 		return true;
 	}
 	return false;
