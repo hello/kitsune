@@ -686,6 +686,7 @@ void ble_proto_led_fade_in_custom_trippy(uint8_t base[3], uint8_t range[3]){
 		break;
 	case LED_TRIPPY:
 		ble_proto_led_fade_out(false);
+		LOGI("redo trippy\n");
 		play_led_trippy(base, range, portMAX_DELAY);
 		break;
 	case LED_OFF:
