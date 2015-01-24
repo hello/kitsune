@@ -87,9 +87,6 @@ static bool _reach_color(int * v, int target){
 	}
 	return false;
 }
-
-static bool _init_alarm_trippy(int base_num);
-
 static bool _animate_trippy(int * out_r, int * out_g, int * out_b, int * out_delay, void * user_context, int rgb_array_size){
 	int i = 0;
 	bool sig_continue;
@@ -163,51 +160,6 @@ static bool _animate_trippy(int * out_r, int * out_g, int * out_b, int * out_del
 	unlock();
 	return sig_continue;
 }
-
-
-static bool _init_alarm_trippy(int base_num){
-	int i = 0;
-	int led_between = NUM_LED / base_num;
-
-	for(i = 0; i < base_num; i++)
-	{
-		self.colors[i * led_between].r = ((unsigned int)rand()) % self.trippy_range[0] + self.trippy_base[0];
-		self.colors[i * led_between].g = ((unsigned int)rand()) % self.trippy_range[1] + self.trippy_base[1];
-		self.colors[i * led_between].b = ((unsigned int)rand()) % self.trippy_range[2] + self.trippy_base[2];
-
-		if(i == 0)
-		{
-			continue;
-		}
-
-		uint32_t prev_rgb = (self.colors[(i - 1) * led_between].r << 16 | self.colors[(i - 1) * led_between].g << 8 | self.colors[(i - 1) * led_between].b);
-		uint32_t curr_rgb = (self.colors[i * led_between].r << 16 | self.colors[i * led_between].g << 8 | self.colors[i * led_between].b);
-		int step = (curr_rgb - prev_rgb) / led_between;
-		int s = 0;
-		for(s = 1; s < led_between; s++)
-		{
-			uint32_t in_rgb = prev_rgb + step * s;
-			self.colors[i * led_between + s].r = (in_rgb & 0x00FE0000) >> 16;
-			self.colors[i * led_between + s].g = (in_rgb & 0x0000FE00) >> 8;
-			self.colors[i * led_between + s].b = in_rgb & 0x000000FE;
-		}
-
-	}
-
-	uint32_t prev_rgb = (self.colors[0].r << 16 | self.colors[0].g << 8 | self.colors[0].b);
-	uint32_t curr_rgb = (self.colors[led_between * (base_num - 1)].r << 16 | self.colors[led_between * (base_num - 1)].g << 8 | self.colors[led_between * (base_num - 1)].b);
-	int step = (curr_rgb - prev_rgb) / led_between;
-	int s = 0;
-	for(s = 1; s <= 3; s++)
-	{
-		uint32_t in_rgb = prev_rgb + step * s;
-		self.colors[led_between * (base_num - 1) + s].r = (in_rgb & 0x00FE0000) >> 16;
-		self.colors[led_between * (base_num - 1) + s].g = (in_rgb & 0x0000FE00) >> 8;
-		self.colors[led_between * (base_num - 1) + s].b = in_rgb & 0x000000FE;
-	}
-	return 1;
-}
-
 static bool _animate_progress(int * out_r, int * out_g, int * out_b, int * out_delay, void * user_context, int rgb_array_size){
 	bool sig_continue;
 	lock();
@@ -283,7 +235,7 @@ bool play_led_animation_pulse(unsigned int timeout){
 	}
 	return false;
 }
-bool play_led_trippy(uint8_t trippy_base[3], uint8_t trippy_range[3], int smooth_color, unsigned int timeout){
+bool play_led_trippy(uint8_t trippy_base[3], uint8_t trippy_range[3], unsigned int timeout){
 	int i;
 	if( _start_animation( timeout ) ) {
 		memcpy(self.trippy_base, trippy_base, 3);
@@ -292,11 +244,6 @@ bool play_led_trippy(uint8_t trippy_base[3], uint8_t trippy_range[3], int smooth
 		for(i = 0; i < NUM_LED; i++){
 			self.colors[i] = (struct _colors){rand()%120, rand()%120, rand()%120};
 			self.prev_colors[i] = (struct _colors){0};
-		}
-
-		if(smooth_color)
-		{
-			_init_alarm_trippy(3);
 		}
 		led_start_custom_animation(_animate_trippy, NULL);
 		led_unblock_racing_task();
@@ -356,12 +303,7 @@ int Cmd_led_animate(int argc, char *argv[]){
 		}else if(strcmp(argv[1], "trippy") == 0){
 			uint8_t trippy_base[3] = {atoi(argv[2]), atoi(argv[3]), atoi(argv[4])};
 			uint8_t trippy_range[3] = {atoi(argv[5]), atoi(argv[6]), atoi(argv[7])};
-			play_led_trippy( trippy_base, trippy_range, 0, portMAX_DELAY );
-			return 0;
-		}else if(strcmp(argv[1], "smth_trippy") == 0){
-			uint8_t trippy_base[3] = {atoi(argv[2]), atoi(argv[3]), atoi(argv[4])};
-			uint8_t trippy_range[3] = {atoi(argv[5]), atoi(argv[6]), atoi(argv[7])};
-			play_led_trippy( trippy_base, trippy_range, 1, portMAX_DELAY );
+			play_led_trippy( trippy_base, trippy_range, portMAX_DELAY );
 			return 0;
 		}else if(strcmp(argv[1], "pulse") == 0){
 			play_led_animation_pulse(portMAX_DELAY);

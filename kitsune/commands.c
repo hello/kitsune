@@ -598,7 +598,7 @@ void thread_alarm(void * unused) {
 
 					uint8_t trippy_base[3] = {0, 0, 0};
 					uint8_t trippy_range[3] = {254, 254, 254};
-					play_led_trippy(trippy_base, trippy_range, 1, portMAX_DELAY);
+					play_led_trippy(trippy_base, trippy_range, portMAX_DELAY);
 
 					LOGI("ALARM RINGING RING RING RING\n");
 					alarm.has_start_time = 0;
