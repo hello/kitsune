@@ -35,7 +35,6 @@
 
 //begin semaphore protect
 static xSemaphoreHandle led_smphr;
-static xSemaphoreHandle _sync_mutex;
 static EventGroupHandle_t led_events;
 static struct{
 	uint8_t r;
@@ -45,34 +44,7 @@ static struct{
 unsigned int user_delay;
 void * user_context;
 led_user_animation_handler user_animation_handler;
-static int _is_sync_request;
-static xSemaphoreHandle _sync;
 //end semaphore protect
-
-void led_unblock()
-{
-	xSemaphoreGive(_sync);
-	LOGI("<");
-}
-
-void led_block()
-{
-	xSemaphoreTake(_sync, portMAX_DELAY);
-	LOGI(">");
-}
-
-void led_unblock_racing_task()
-{
-	xSemaphoreTake(_sync_mutex, portMAX_DELAY);
-	if(_is_sync_request)
-	{
-		_is_sync_request = 0;
-		xSemaphoreGive(_sync_mutex);
-		led_unblock();
-	}else{
-		xSemaphoreGive(_sync_mutex);
-	}
-}
 
 static int clamp_rgb(int v, int min, int max){
 	if(v >= 0 && v <=max){
@@ -320,9 +292,6 @@ void led_task( void * params ) {
 	memset( colors_last, 0, sizeof(colors_last) );
 
 	vSemaphoreCreateBinary(led_smphr);
-	_sync_mutex = xSemaphoreCreateMutex();
-	_sync = xSemaphoreCreateBinary();
-	_is_sync_request = 0;
 
 	while(1) {
 		EventBits_t evnt;
@@ -338,14 +307,6 @@ void led_task( void * params ) {
 			memset( colors_last, 0, sizeof(colors_last) );
 			led_array( colors_last, 0 );
 			xEventGroupClearBits(led_events, 0xffffff );
-			xSemaphoreTake(_sync_mutex, portMAX_DELAY);
-			if(_is_sync_request) {
-				xSemaphoreGive(_sync_mutex);
-				led_unblock();
-			}else{
-				xSemaphoreGive(_sync_mutex);
-			}
-
 			led_animation_not_in_progress = 1;
 		}
 		if (evnt & LED_CUSTOM_COLOR ){
@@ -440,18 +401,7 @@ void led_task( void * params ) {
 			if (j > 255) {
 				xEventGroupClearBits(led_events, LED_FADE_IN_STEP_BIT | LED_FADE_IN_FAST_BIT);
 				memcpy(colors_last, colors, sizeof(colors_last));
-
-				if(!(evnt & LED_FADE_OUT_BIT)){
-					xSemaphoreTake(_sync_mutex, portMAX_DELAY);
-					if(_is_sync_request) {
-						xSemaphoreGive(_sync_mutex);
-						led_unblock();
-					}else{
-						xSemaphoreGive(_sync_mutex);
-					}
-
 				}
-			}
 			unsigned int delay;
 
 			xSemaphoreTake(led_smphr, portMAX_DELAY);
@@ -494,7 +444,7 @@ void led_task( void * params ) {
 
 int led_ready() {
 	//make sure the thread isn't doing something else...
-	if( xEventGroupGetBits( led_events ) & (LED_CUSTOM_ANIMATION_BIT | LED_FADE_OUT_BIT | LED_FADE_OUT_STEP_BIT ) ) {
+	if( xEventGroupGetBits( led_events ) & (LED_ROTATE_BIT | LED_CUSTOM_ANIMATION_BIT | LED_FADE_OUT_BIT | LED_FADE_OUT_STEP_BIT ) ) {
 		return -1;
 	}
 	return 0;
@@ -547,18 +497,20 @@ int Cmd_led_clr(int argc, char *argv[]) {
 
 	return 0;
 }
+void led_fadeout(unsigned int dly) {
+	xSemaphoreTake(led_smphr, portMAX_DELAY);
+	user_delay = dly;
+	xSemaphoreGive(led_smphr);
+	xEventGroupSetBits(led_events, LED_FADE_OUT_BIT);
 
-void led_set_is_sync(int is_sync) {
-	xSemaphoreTake(_sync_mutex, portMAX_DELAY);
-	_is_sync_request = is_sync;
-	xSemaphoreGive(_sync_mutex);
+	while(led_ready() != 0) {
+		vTaskDelay(200);
+	}
 }
-
-int led_set_color_sync(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b,
+int led_set_color(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b,
 		int fade_in, int fade_out,
 		unsigned int ud,
-		int rot,
-		int sync) {
+		int rot) {
 	if( led_ready() != 0 ) {
 		return -1;
 	}
@@ -579,26 +531,7 @@ int led_set_color_sync(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b,
 						| (fade_out > 0 ? LED_FADE_OUT_BIT : 0));
 	}
 	xSemaphoreGive(led_smphr);
-	led_set_is_sync(sync);
-	if(sync)
-	{
-		led_block();
-		led_set_is_sync(0);
-	}else{
-		// By the time an async LED request is scheduled, a sync
-		// LED animation might be in the middle of operation.
-		// The blocked sync request task needs to be unblocked in this
-		// case or the async request might cancel the event that is
-		// going to trigger unblocking.
-		led_unblock_racing_task();
-	}
 	return 0;
-}
-
-
-
-int led_set_color(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b, int fade_in, int fade_out, unsigned int ud, int rot) {
-	return led_set_color_sync(alpha, r, g, b, fade_in, fade_out, ud, rot, 0);
 }
 
 int led_start_custom_animation(led_user_animation_handler user, void * context){

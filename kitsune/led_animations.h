@@ -13,7 +13,6 @@ bool lock_animation();
 void unlock_animation();
 
 //call to stop all animations
-void stop_led_animation_sync();
 void stop_led_animation();
 int Cmd_led_animate(int argc, char *argv[]);
 

@@ -1522,6 +1522,7 @@ void launch_tasks() {
 int Cmd_boot(int argc, char *argv[]) {
 	if( !booted ) {
 		launch_tasks();
+		led_fadeout(18);
 	}
 	return 0;
 }

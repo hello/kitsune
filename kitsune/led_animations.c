@@ -26,7 +26,6 @@ static struct{
 extern void led_unblock();
 extern void led_block();
 extern void led_set_is_sync(int is_sync);
-extern void led_unblock_racing_task();
 
 static bool lock() {
 	return xSemaphoreTake(self._sem, portMAX_DELAY) == pdPASS;
@@ -230,7 +229,6 @@ void unlock_animation() {
 bool play_led_animation_pulse(unsigned int timeout){
 	if( _start_animation( timeout ) ) {
 		led_start_custom_animation(_animate_pulse, NULL);
-		led_unblock_racing_task();
 		return true;
 	}
 	return false;
@@ -246,7 +244,6 @@ bool play_led_trippy(uint8_t trippy_base[3], uint8_t trippy_range[3], unsigned i
 			self.prev_colors[i] = (struct _colors){0};
 		}
 		led_start_custom_animation(_animate_trippy, NULL);
-		led_unblock_racing_task();
 		return true;
 	}
 	return false;
@@ -256,7 +253,6 @@ bool play_led_progress_bar(int r, int g, int b, unsigned int options, unsigned i
 		self.colors[0] = (struct _colors){r, g, b};
 		self.progress_bar_percent = 0;
 		led_start_custom_animation(_animate_progress, NULL);
-		led_unblock_racing_task();
 		return true;
 	}
 	return false;
@@ -272,20 +268,6 @@ void stop_led_animation(){
 	self.sig_continue = false;
 	unlock();
 	unlock_animation();
-	led_unblock_racing_task();
-}
-
-void stop_led_animation_sync(){
-	led_unblock_racing_task();
-	led_set_is_sync(1);
-
-	lock();
-	self.sig_continue = false;
-	unlock();
-	unlock_animation();
-
-	led_block();
-	led_set_is_sync(0);
 }
 
 int Cmd_led_animate(int argc, char *argv[]){
@@ -320,7 +302,6 @@ int Cmd_led_animate(int argc, char *argv[]){
 bool factory_led_test_pattern(unsigned int timeout) {
 	if( _start_animation( timeout ) ) {
 		led_start_custom_animation(_animate_factory_test_pattern, NULL);
-		led_unblock_racing_task();
 		return true;
 	}
 	return false;
