@@ -636,10 +636,10 @@ void ble_proto_led_busy_mode(uint8_t a, uint8_t r, uint8_t g, uint8_t b, int del
 	}
 
 	_self.led_status = LED_BUSY;
-    led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 0, _self.delay, 1);
+    while( -1 == led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 0, _self.delay, 1) ) {vTaskDelay(100);}
 }
 
-void ble_proto_led_flash(int a, int r, int g, int b, int delay, int time)
+void ble_proto_led_flash(int a, int r, int g, int b, int delay)
 {
 	LOGI("LED ROLL ONCE\n");
 	_self.argb[0] = a;
@@ -647,24 +647,18 @@ void ble_proto_led_flash(int a, int r, int g, int b, int delay, int time)
 	_self.argb[2] = g;
 	_self.argb[3] = b;
 	_self.delay = delay;
-	int i = 0;
 	if(_self.led_status == LED_TRIPPY)
 	{
 		ble_proto_led_fade_out(0);
-
 		_self.led_status = LED_BUSY;
-		for(i = 0; i < time; i++)
-		{
-			led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 0);
-		}
+		while( -1 == led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 0) ) {vTaskDelay(100);}
+		while( -1 == led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 0) ) {vTaskDelay(100);}
 		_self.led_status = LED_OFF;
 		ble_proto_led_fade_in_trippy();
 	}else if(_self.led_status == LED_OFF){
 		_self.led_status = LED_BUSY;
-		for(i = 0; i < time; i++)
-		{
-			led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 0);
-		}
+		while( -1 == led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 0) ) {vTaskDelay(100);}
+		while( -1 == led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 0) ) {vTaskDelay(100);}
 		_self.led_status = LED_OFF;
 	}
 
@@ -693,12 +687,7 @@ void ble_proto_led_fade_out(bool operation_result){
 	switch(_self.led_status)
 	{
 	case LED_BUSY:
-        if(operation_result)
-        {
-            led_set_color(0xFF, LED_MAX, LED_MAX, LED_MAX, 0, 1, 18, 0);
-        }else{
-        	led_fadeout(18);
-        }
+        led_fadeout(18);
 		break;
 	case LED_TRIPPY:
 		stop_led_animation();
@@ -911,14 +900,10 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 				uint32_t color = pill_settings_get_color((const char*)command->deviceId.arg);
 				uint8_t* argb = (uint8_t*)&color;
 
-				if(color)
-				{
-					ble_proto_led_flash(0xFF, argb[1], argb[2], argb[3], 10, 2);
-				}else{
-					if(_self.led_status == LED_TRIPPY || pill_settings_pill_count() == 0)
-					{
-						ble_proto_led_flash(0xFF, 0x80, 0x00, 0x80, 10, 2);
-					}
+				if(color) {
+					ble_proto_led_flash(0xFF, argb[1], argb[2], argb[3], 10);
+				} else if(_self.led_status == LED_TRIPPY || pill_settings_pill_count() == 0) {
+					ble_proto_led_flash(0xFF, 0x80, 0x00, 0x80, 10);
 				}
             }else{
             	LOGI("Please update topboard, no pill id\n");
