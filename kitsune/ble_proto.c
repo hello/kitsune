@@ -641,6 +641,12 @@ void ble_proto_led_busy_mode(uint8_t a, uint8_t r, uint8_t g, uint8_t b, int del
 
 void ble_proto_led_flash(int a, int r, int g, int b, int delay)
 {
+	static uint32_t last = 0;
+	if( xTaskGetTickCount() - last < 3000 ) {
+		return;
+	}
+	last = xTaskGetTickCount();
+
 	LOGI("LED ROLL ONCE\n");
 	_self.argb[0] = a;
 	_self.argb[1] = r;
