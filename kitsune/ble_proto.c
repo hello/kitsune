@@ -335,8 +335,13 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type)
     }else{
 		uint8_t wait_time = 5;
 
+		// Wait until the disconnect event happen. If we have a WIFI connection already
+		// and the user enter the wrong password in the next WIFI setup, it will go straight to success
+		// without returning and error.
+		vTaskDelay(3000);
 		wifi_status_set(CONNECTING, false);
-		//play_led_progress_bar(30,30,0,0,portMAX_DELAY);
+
+
 		while(--wait_time && (!wifi_status_get(HAS_IP)))
 		{
             if(!wifi_status_get(CONNECTING))  // This state will be triggered magically by SL_WLAN_CONNECTION_FAILED_EVENT event
