@@ -664,17 +664,17 @@ void ble_proto_led_flash(int a, int r, int g, int b, int delay)
 		ble_proto_led_fade_out(0);
 		_self.led_status = LED_BUSY;
 		led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 0);
-	    vTaskDelay(led_delay(_self.delay));
+	    vTaskDelay(led_delay(2*_self.delay));
 		led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 0);
-	    vTaskDelay(led_delay(_self.delay));
+	    vTaskDelay(led_delay(2*_self.delay));
 		_self.led_status = LED_OFF;
 		ble_proto_led_fade_in_trippy();
 	}else if(_self.led_status == LED_OFF){
 		_self.led_status = LED_BUSY;
 		led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 0);
-	    vTaskDelay(led_delay(_self.delay));
+	    vTaskDelay(led_delay(2*_self.delay));
 		led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 0);
-	    vTaskDelay(led_delay(_self.delay));
+	    vTaskDelay(led_delay(2*_self.delay));
 
 		_self.led_status = LED_OFF;
 	}
