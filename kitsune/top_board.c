@@ -53,13 +53,34 @@ static struct{
     top_info_t info;
 }self;
 
+#define MAX_LINE_LENGTH 128
+static char line[MAX_LINE_LENGTH] = {0};
+static int linepos=0;
+
 extern volatile bool booted;
 static void
 _printchar(uint8_t c){
-    char term[2] = {0};
-    term[0] = c;
     if( booted ) {
-    	LOGI(term);
+    	{
+    		char s[2];
+    		s[0] = c;
+    		s[1] = 0;
+    		LOGT(s);
+    	}
+    	line[linepos++] = c;
+    	if( c == '\n' ) {
+    		line[linepos] = 0;
+    		if( match( "</data>", line ) ) {
+    			LOGF(line+strlen("<data>"));
+    			LOGF("\r\n");
+    		}
+    		memset(line, 0, sizeof(line));
+    		linepos = 0;
+    	}
+    	if( linepos >= MAX_LINE_LENGTH ) {
+    		memset(line, 0, sizeof(line));
+    		linepos = 0;
+    	}
     }
     /*
 	 *UARTCharPutNonBlocking(UARTA0_BASE, c); //basic feedback
@@ -346,12 +367,19 @@ int wait_for_top_boot(unsigned int timeout) {
 }
 int send_top(char * s, int n) {
 	int i;
+
 	if(self.mode == TOP_NORMAL_MODE){
-		for (i = 0; i < n; i++) {
-			UARTCharPut(UARTA1_BASE, *(s+i));
+		if(memcmp(s, "r ", 2) != 0)
+		{
+			for (i = 0; i < n; i++) {
+				UARTCharPut(UARTA1_BASE, *(s+i));
+			}
+			UARTCharPut(UARTA1_BASE, '\r');
+			UARTCharPut(UARTA1_BASE, '\n');
+		}else{
+			UARTCharPut(UARTA1_BASE, *s);
+			LOGI("recover send\n");
 		}
-		UARTCharPut(UARTA1_BASE, '\r');
-		UARTCharPut(UARTA1_BASE, '\n');
 		return 0;
 	}else{
 		LOGI("Top board is in DFU mode\r\n");

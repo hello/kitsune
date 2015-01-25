@@ -48,8 +48,13 @@ int Cmd_iperf_server(int argc, char *argv[]);
 int Cmd_country(int argc, char *argv[]);
 
 
+#define USER_DIR "/usr"
+#define ANTENNA_FILE ("/hello/antenna")  // usr is in sd card, let's keep the original one.
+
 #define PCB_ANT 2
 #define IFA_ANT 1
+void save_default_antenna( unsigned char a );
+unsigned char get_default_antenna();
 void antsel(unsigned char a);
 int Cmd_antsel(int argc, char *argv[]);
 
@@ -95,7 +100,7 @@ int decode_rx_data_pb(const uint8_t * buffer, uint32_t buffer_size, const  pb_fi
 
 int http_response_ok(const char* response_buffer);
 
-int get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uint32_t scan_duration_ms);
+int get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uint32_t scan_duration_ms, int antenna);
 int connect_scanned_endpoints(const char* ssid, const char* password, 
     const Sl_WlanNetworkEntry_t* wifi_endpoints, int scanned_wifi_count, SlSecParams_t* connectedEPSecParamsPtr);
 int connect_wifi(const char* ssid, const char* password, int sec_type);
@@ -104,6 +109,7 @@ void wifi_get_connected_ssid(uint8_t* ssid_buffer, size_t len);
 long nwp_reset();
 void wifi_reset();
 void free_pill_list();
+void reset_default_antenna();
 
 
 #define MORPH_NAME ""
