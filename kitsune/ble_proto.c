@@ -665,13 +665,15 @@ void ble_proto_led_flash(int a, int r, int g, int b, int delay)
 		ble_proto_led_fade_out(0);
 		_self.led_status = LED_BUSY;
 
-		led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 0);
-
-		LOGI("WAIT1 %d\n",led_wait_for_idle(led_delay(_self.delay) + 1000));
+		LOGI("WAIT1 %d\n", led_wait_for_idle(2000));
 
 		led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 0);
 
 		LOGI("WAIT2 %d\n",led_wait_for_idle(led_delay(_self.delay) + 1000));
+
+		led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 0);
+
+		LOGI("WAIT3 %d\n",led_wait_for_idle(led_delay(_self.delay) + 1000));
 		_self.led_status = LED_OFF;
 		ble_proto_led_fade_in_trippy();
 	}else if(_self.led_status == LED_OFF){
