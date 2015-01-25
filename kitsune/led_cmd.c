@@ -508,13 +508,14 @@ void led_fadeout(unsigned int dly) {
 	xSemaphoreGive(led_smphr);
 	xEventGroupSetBits(led_events, LED_FADE_OUT_BIT);
 
-	vTaskDelay(led_delay(dly));
+	vTaskDelay(led_delay(dly) + 100);
 }
 int led_set_color(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b,
 		int fade_in, int fade_out,
 		unsigned int ud,
 		int rot) {
 	if( led_ready() != 0 ) {
+		LOGI("LED NOT READY\n");
 		return -1;
 	}
 	xSemaphoreTake(led_smphr, portMAX_DELAY);
@@ -522,7 +523,7 @@ int led_set_color(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b,
 	user_color.g = clamp_rgb(g, 0, LED_CLAMP_MAX) * alpha / 0xFF;
 	user_color.b = clamp_rgb(b, 0, LED_CLAMP_MAX) * alpha / 0xFF;
 	user_delay = ud;
-	//LOGI("Setting colors R: %d, G: %d, B: %d \r\n", user_color.r, user_color.g, user_color.b);
+    LOGI("Setting colors R: %d, G: %d, B: %d \r\n", user_color.r, user_color.g, user_color.b);
 	xEventGroupClearBits( led_events, 0xffffff );
 	if( rot ) {
 		xEventGroupSetBits(led_events,

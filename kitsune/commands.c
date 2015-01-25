@@ -455,26 +455,6 @@ static xSemaphoreHandle alarm_smphr;
 static SyncResponse_Alarm alarm;
 #define ONE_YEAR_IN_SECONDS 0x1E13380
 
-int set_test_alarm(int argc, char *argv[]) {
-	SyncResponse_Alarm alarm;
-	unsigned int now = get_time();
-	alarm.end_time = now + 30;
-	alarm.start_time = now + 10;
-	alarm.ring_duration_in_second = 20;
-	alarm.ring_offset_from_now_in_second = 10;
-	strncpy( alarm.ringtone_path, "/ringtone/star003.raw", strlen("/ringtone/star003.raw"));
-
-	alarm.has_end_time = 1;
-	alarm.has_start_time = 1;
-	alarm.has_ring_duration_in_second = 1;
-	alarm.has_ringtone_id = 0;
-	alarm.has_ringtone_path = 1;
-	alarm.has_ring_offset_from_now_in_second = 1;
-
-	set_alarm( &alarm );
-	return 0;
-}
-
 void set_alarm( SyncResponse_Alarm * received_alarm ) {
     if (xSemaphoreTake(alarm_smphr, portMAX_DELAY)) {
         if (received_alarm->has_ring_offset_from_now_in_second
@@ -539,6 +519,26 @@ static bool cancel_alarm() {
 		xSemaphoreGive(alarm_smphr);
 	}
 	return was_ringing;
+}
+
+int set_test_alarm(int argc, char *argv[]) {
+	SyncResponse_Alarm alarm;
+	unsigned int now = get_time();
+	alarm.end_time = now + 30;
+	alarm.start_time = now + 10;
+	alarm.ring_duration_in_second = 20;
+	alarm.ring_offset_from_now_in_second = 10;
+	strncpy( alarm.ringtone_path, "/ringtone/star003.raw", strlen("/ringtone/star003.raw"));
+
+	alarm.has_end_time = 1;
+	alarm.has_start_time = 1;
+	alarm.has_ring_duration_in_second = 1;
+	alarm.has_ringtone_id = 0;
+	alarm.has_ringtone_path = 1;
+	alarm.has_ring_offset_from_now_in_second = 1;
+
+	set_alarm( &alarm );
+	return 0;
 }
 
 static void thread_alarm_on_finished(void * context) {

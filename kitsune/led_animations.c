@@ -8,6 +8,8 @@
 #include "FreeRTOS.h"
 #include "semphr.h"
 
+#include "uart_logger.h"
+
 #include "led_animations.h"
 struct _colors{
 		int r,g,b;
@@ -28,20 +30,25 @@ extern void led_block();
 extern void led_set_is_sync(int is_sync);
 
 static bool lock() {
-	return xSemaphoreTake(self._sem, portMAX_DELAY) == pdPASS;
+//	LOGI("TAKE self._sem\n");
+	return xSemaphoreTakeRecursive(self._sem, portMAX_DELAY) == pdPASS;
 }
 static void unlock() {
-	xSemaphoreGive(self._sem);
+//	LOGI("GIVE self._sem\n");
+	xSemaphoreGiveRecursive(self._sem);
 }
 
 static bool _start_animation( unsigned int timeout ) {
+	lock();
 	if( lock_animation( timeout ) ) {
-		lock();
+		LOGI("Start animation\n");
 		self.counter = 0;
 		self.sig_continue = true; //careful, to set this true requires both semaphores
 		unlock();
 		return true;
 	}
+	LOGI("start animation fail\n");
+	unlock();
 	return false;
 }
 
@@ -210,7 +217,7 @@ static bool _animate_factory_test_pattern(int * out_r, int * out_g, int * out_b,
  */
 
 void init_led_animation() {
-	vSemaphoreCreateBinary(self._sem);
+	self._sem = xSemaphoreCreateRecursiveMutex();
 	vSemaphoreCreateBinary(self._animate_sem);
 }
 bool lock_animation( unsigned int timeout ) {
@@ -266,10 +273,9 @@ void set_led_progress_bar(uint8_t percent){
 void stop_led_animation(){
 	lock();
 	self.sig_continue = false;
-	unlock();
-	unlock_animation();
-
 	vTaskDelay(led_delay(18));
+	unlock_animation();
+	unlock();
 }
 
 int Cmd_led_animate(int argc, char *argv[]){
