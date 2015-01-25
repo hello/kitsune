@@ -712,6 +712,10 @@ static int _is_light_off(int current_light)
 
 static void _show_led_status()
 {
+	if(!led_animation_not_in_progress){
+		return;
+	}
+
 	uint8_t alpha = get_alpha_from_light();
 
 	if(wifi_status_get(UPLOADING)) {
