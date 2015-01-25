@@ -455,6 +455,26 @@ static xSemaphoreHandle alarm_smphr;
 static SyncResponse_Alarm alarm;
 #define ONE_YEAR_IN_SECONDS 0x1E13380
 
+int set_test_alarm(int argc, char *argv[]) {
+	SyncResponse_Alarm alarm;
+	unsigned int now = get_time();
+	alarm.end_time = now + 30;
+	alarm.start_time = now + 10;
+	alarm.ring_duration_in_second = 20;
+	alarm.ring_offset_from_now_in_second = 10;
+	strncpy( alarm.ringtone_path, "/ringtone/star003.raw", strlen("/ringtone/star003.raw"));
+
+	alarm.has_end_time = 1;
+	alarm.has_start_time = 1;
+	alarm.has_ring_duration_in_second = 1;
+	alarm.has_ringtone_id = 0;
+	alarm.has_ringtone_path = 1;
+	alarm.has_ring_offset_from_now_in_second = 1;
+
+	set_alarm( &alarm );
+	return 0;
+}
+
 void set_alarm( SyncResponse_Alarm * received_alarm ) {
     if (xSemaphoreTake(alarm_smphr, portMAX_DELAY)) {
         if (received_alarm->has_ring_offset_from_now_in_second
@@ -737,7 +757,9 @@ static void _show_led_status()
 }
 
 static void _on_wave(){
-	if(	!cancel_alarm() ) {
+	if(	cancel_alarm() ) {
+		stop_led_animation();
+	} else {
 		_show_led_status();
 	}
 }
@@ -1136,52 +1158,6 @@ int Cmd_tasks(int argc, char *argv[]) {
 
 #endif /* configUSE_TRACE_FACILITY */
 
-// ==============================================================================
-// This function implements the "help" command.  It prints a simple list of the
-// available commands with a brief description.
-// ==============================================================================
-int Cmd_help(int argc, char *argv[]) {
-	tCmdLineEntry *pEntry;
-
-	//
-	// Print some header text.
-	//
-	LOGI("\nAvailable commands\n");
-	LOGI("------------------\n");
-
-	//
-	// Point at the beginning of the command table.
-	//
-	pEntry = &g_sCmdTable[0];
-
-	//
-	// Enter a loop to read each entry from the command table.  The end of the
-	// table has been reached when the command name is NULL.
-	//
-	while (pEntry->pcCmd) {
-		//
-		// Print the command name and the brief description.
-		//
-		LOGI("%s: %s\n", pEntry->pcCmd, pEntry->pcHelp);
-
-		vTaskDelay(10);
-		//
-		// Advance to the next entry in the table.
-		//
-		pEntry++;
-	}
-
-	//
-	// Return success.
-	//
-	return (0);
-}
-
-int Cmd_fault(int argc, char *argv[]) {
-	*(int*) (0x40001) = 1; /* error logging test... */
-	return 0;
-}
-
 
 #define SCAN_TABLE_SIZE   20
 
@@ -1542,8 +1518,6 @@ int Cmd_sync(int argc, char *argv[]) {
 // brief description.
 // ==============================================================================
 tCmdLineEntry g_sCmdTable[] = {
-		{ "help", Cmd_help, "Display list of commands" },
-		{ "?", Cmd_help,"alias for help" },
 //    { "cpu",      Cmd_cpu,      "Show CPU utilization" },
 		{ "free", Cmd_free, "" },
 		{ "connect", Cmd_connect, "" },
@@ -1630,6 +1604,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "sync", Cmd_sync, "" },
 		{ "boot",Cmd_boot,""},
 		{ "gesture_count",Cmd_get_gesture_count,""},
+		{ "alarm",set_test_alarm,""},
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
 		{ "iperfcli",Cmd_iperf_client,""},
@@ -1784,7 +1759,6 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("\n\nFreeRTOS %s, %x, %s %x%x%x%x%x%x\n",
 	tskKERNEL_VERSION_NUMBER, KIT_VER, MORPH_NAME, mac[0], mac[1], mac[2],
 			mac[3], mac[4], mac[5]);
-	UARTprintf("\n? for help\n");
 	UARTprintf("> ");
 
 

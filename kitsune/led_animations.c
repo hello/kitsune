@@ -264,13 +264,6 @@ void stop_led_animation(){
 	unlock();
 }
 
-void stop_led_animation_sync(int dly){
-	stop_led_animation();
-
-	int fade_delay = (255 / QUANT_FACTOR + 1) * dly;
-	vTaskDelay(fade_delay);
-}
-
 int Cmd_led_animate(int argc, char *argv[]){
 	//demo
 	if(argc > 1){

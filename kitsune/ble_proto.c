@@ -615,6 +615,37 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 	return 0; // failure
 }
 
+static int _sync_led_basic_animation(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b,
+        int fade_in, int fade_out,
+        unsigned int ud,
+        int rot)
+{
+    led_set_color(alpha, r, g, b, fade_in, fade_out, ud, rot);
+
+    // After set color, we dont care what is the next state of LED and we shouldn't care
+    // just go ahead and block the calling thread.
+    int fade_delay = led_delay(ud);
+
+    int total_delay = 0;
+    if(fade_in)
+    {
+        total_delay += fade_delay;
+    }
+
+    if(fade_out)
+    {
+        total_delay += fade_delay;
+    }
+
+    vTaskDelay(total_delay);
+    return led_ready();  // may or may not ready, depends on the deplay we compute, but here we dont care.
+}
+
+void _sync_stop_trippy_animation(){
+    stop_led_animation();
+    vTaskDelay(led_delay(TRIPPY_FADE_DELAY));
+}
+
 void ble_proto_led_init()
 {
 	_self.led_status = LED_OFF;
@@ -641,7 +672,7 @@ void ble_proto_led_busy_mode(uint8_t a, uint8_t r, uint8_t g, uint8_t b, int del
 	}
 
 	_self.led_status = LED_BUSY;
-    led_set_color_sync(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 0, _self.delay, 1);
+    _sync_led_basic_animation(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 0, _self.delay, 1);
 }
 
 void ble_proto_led_flash(int a, int r, int g, int b, int delay, int time)
@@ -663,18 +694,18 @@ void ble_proto_led_flash(int a, int r, int g, int b, int delay, int time)
 	{
 		ble_proto_led_fade_out(0);
 		_self.led_status = LED_BUSY;
-
 		for(i = 0; i < time; i++)
 		{
-			led_set_color_sync(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 0);
+			_sync_led_basic_animation(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 0);
 		}
+
 		_self.led_status = LED_OFF;
 		ble_proto_led_fade_in_trippy();
 	}else if(_self.led_status == LED_OFF){
 		_self.led_status = LED_BUSY;
 		for(i = 0; i < time; i++)
 		{
-			led_set_color_sync(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 0);
+			_sync_led_basic_animation(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 0);
 		}
 		_self.led_status = LED_OFF;
 	}
@@ -685,7 +716,7 @@ void ble_proto_led_fade_in_custom_trippy(uint8_t base[3], uint8_t range[3]){
 	switch(_self.led_status)
 	{
 	case LED_BUSY:
-		led_set_color_sync(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 0, 1, 18, 0);
+		_sync_led_basic_animation(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 0, 1, 18, 0);
 		play_led_trippy(base, range, portMAX_DELAY);
 
 		break;
@@ -713,13 +744,13 @@ void ble_proto_led_fade_out(bool operation_result){
 	case LED_BUSY:
 		if(operation_result)
 		{
-			led_set_color_sync(0xFF, LED_MAX, LED_MAX, LED_MAX, 0, 1, 18, 0);
+			_sync_led_basic_animation(0xFF, LED_MAX, LED_MAX, LED_MAX, 0, 1, 18, 0);
 		}else{
-			led_set_color_sync(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 0, 1, 18, 1);
+			_sync_led_basic_animation(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 0, 1, 18, 1);
 		}
 		break;
 	case LED_TRIPPY:
-		stop_led_animation_sync(TRIPPY_FADE_DELAY);
+		_sync_stop_trippy_animation();
 		break;
 	case LED_OFF:
 		break;

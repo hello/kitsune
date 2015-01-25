@@ -26,12 +26,9 @@ int led_set_color(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b,
 		int fade_in, int fade_out,
 		unsigned int ud,
 		int rot);
-int led_set_color_sync(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b,
-		int fade_in, int fade_out,
-		unsigned int ud,
-		int rot);
 int led_ready();
 void led_fadeout(unsigned int dly);
+unsigned int led_delay( unsigned int dly );
 
 #ifdef __cplusplus
 }
