@@ -299,7 +299,7 @@ void led_task( void * params ) {
 
 		evnt = xEventGroupWaitBits(
 		                led_events,   /* The event group being tested. */
-		                0xffff7f,    /* The bits within the event group to wait for. */
+		                0xfffff7,    /* The bits within the event group to wait for. */
 		                pdFALSE,        /* all bits should not be cleared before returning. */
 		                pdFALSE,       /* Don't wait for both bits, either bit will do. */
 		                portMAX_DELAY );/* Wait for any bit to be set. */
@@ -559,9 +559,9 @@ int led_start_custom_animation(led_user_animation_handler user, void * context){
 		xSemaphoreTake(led_smphr, portMAX_DELAY);
 		user_animation_handler = user;
 		user_context  = context;
+		xSemaphoreGive(led_smphr);
 		xEventGroupClearBits( led_events, 0xffffff );
 		xEventGroupSetBits( led_events, LED_CUSTOM_ANIMATION_BIT );
-		xSemaphoreGive(led_smphr);
 		return 0;
 	}
 }
