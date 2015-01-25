@@ -52,6 +52,8 @@ static struct {
 	uint32_t last_hold_time;
 	led_mode_t led_status;
     ble_mode_t ble_status;
+    uint8_t trippy_base[3];
+    uint8_t trippy_range[3];
 } _self;
 
 static int _wifi_read_index;
@@ -643,6 +645,8 @@ static int _sync_led_basic_animation(uint8_t alpha, uint8_t r, uint8_t g, uint8_
 
 void _sync_stop_trippy_animation(){
     stop_led_animation();
+    memset(_self.trippy_base, 0, sizeof(_self.trippy_base));
+    memset(_self.trippy_range, 0, sizeof(_self.trippy_range));
     vTaskDelay(led_delay(TRIPPY_FADE_DELAY));
 }
 
@@ -721,9 +725,12 @@ void ble_proto_led_fade_in_custom_trippy(uint8_t base[3], uint8_t range[3]){
 
 		break;
 	case LED_TRIPPY:
-		ble_proto_led_fade_out(false);
-		LOGI("redo trippy\n");
-		play_led_trippy(base, range, portMAX_DELAY);
+		if(memcmp(_self.trippy_base, base, 3) != 0 || memcmp(_self.trippy_range, range, 3) != 0)
+		{
+			ble_proto_led_fade_out(false);
+			LOGI("redo trippy\n");
+			play_led_trippy(base, range, portMAX_DELAY);
+		}
 		break;
 	case LED_OFF:
 		play_led_trippy(base, range, portMAX_DELAY);
