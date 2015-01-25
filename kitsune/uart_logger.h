@@ -28,7 +28,8 @@ extern "C" {
 //TAGGED: logs everything tagged with LOGX() functions
 #define UART_LOGGER_MODE	UART_LOGGER_MODE_TAGGED
 
-
+//how many files maximum to keep
+#define UART_LOGGER_FILE_LIMIT 512
 
 /**
  * Tag level defines
@@ -40,6 +41,7 @@ extern "C" {
 #define LOG_RADIO	0x10
 #define LOG_VIEW_ONLY 0x20
 #define LOG_FACTORY 0x40
+#define LOG_TOP     0x80
 /**
  * Mode defines
  */
@@ -56,6 +58,7 @@ extern "C" {
 #define LOGW(...) uart_logf(LOG_WARNING, __VA_ARGS__)
 #define LOGE(...) uart_logf(LOG_ERROR, __VA_ARGS__)
 #define LOGF(...) uart_logf(LOG_FACTORY, __VA_ARGS__)
+#define LOGT(...) uart_logf(LOG_TOP, __VA_ARGS__)
 #define DISP(...) uart_logf(LOG_VIEW_ONLY, __VA_ARGS__)
 #else
 #define LOGI(...) UARTprintf(__VA_ARGS__)

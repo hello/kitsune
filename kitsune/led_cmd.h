@@ -20,11 +20,14 @@ int led_set_color(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b, int fade_in, i
 int led_start_custom_animation(led_user_animation_handler user, void * user_context);
 void led_get_user_color(uint8_t* out_red, uint8_t* out_green, uint8_t* out_blue);
 void led_set_user_color(uint8_t red, uint8_t green, uint8_t blue);
-int led_set_color_sync(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b,
+int led_set_color(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b,
 		int fade_in, int fade_out,
 		unsigned int ud,
-		int rot,
-		int is_sync);
+		int rot);
+int led_ready();
+bool led_wait_for_idle(unsigned int wait);
+void led_fadeout(unsigned int dly);
+unsigned int led_delay( unsigned int dly );
 
 #ifdef __cplusplus
 }

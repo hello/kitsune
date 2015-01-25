@@ -676,10 +676,12 @@ int save_aes( uint8_t * key ) {
 
 	return 0;
 }
-int save_device_id( uint8_t * device_id ) {
+int save_device_id( uint8_t * new_device_id ) {
 	unsigned long tok=0;
 	long hndl, bytes;
 	SlFsFileInfo_t info;
+
+	memcpy( device_id, new_device_id, DEVICE_ID_SZ );
 
 	sl_FsGetInfo((unsigned char*)DEVICE_ID_LOC, tok, &info);
 
@@ -803,7 +805,7 @@ void load_device_id() {
 int Cmd_test_key(int argc, char*argv[]) {
     load_aes();
     load_device_id();
-    LOGI("Last two digit: %02X:%02X\n", aes_key[AES_BLOCKSIZE - 2], aes_key[AES_BLOCKSIZE - 1]);
+    //LOGI("Last two digit: %02X:%02X\n", aes_key[AES_BLOCKSIZE - 2], aes_key[AES_BLOCKSIZE - 1]);
 
     MorpheusCommand test_command = {0};
     test_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_SENSE;
@@ -821,13 +823,13 @@ int Cmd_test_key(int argc, char*argv[]) {
                 1000);
 
     if(ret != 0 ) {
-    	LOGI("Test key failed: network error %d\n", ret);
+    	LOGF("Test key failed: network error %d\n", ret);
     	return -1;
     }
 	if( http_response_ok(response_buffer) ) {
-		LOGI(" test key success \n");
+		LOGF(" test key success \n");
 	} else {
-		LOGI(" test key not valid \n");
+		LOGF(" test key not valid \n");
 	}
 
     return 0;
@@ -1053,7 +1055,7 @@ int start_connection() {
 
 #if !LOCAL_TEST
     if (ipaddr == 0) {
-        if (!(rv = gethostbyname(DATA_SERVER, strlen(DATA_SERVER), &ipaddr,
+        if (!(rv = sl_gethostbynameNoneThreadSafe(DATA_SERVER, strlen(DATA_SERVER), &ipaddr,
         SL_AF_INET))) {
             /*    LOGI(
              "Get Host IP succeeded.\n\rHost: %s IP: %d.%d.%d.%d \n\r\n\r",

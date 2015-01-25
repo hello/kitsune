@@ -400,11 +400,13 @@ int Cmd_do_octogram(int argc, char * argv[]) {
 	m.message.octogramdesc.context = octogram_semaphore;
 
 	AudioTask_AddMessageToQueue(&m);
-	xSemaphoreTake(octogram_semaphore,portMAX_DELAY);
 
-    if( argc == 1 ) {
+	if( argc == 1 ) {
     	return 0;
     }
+
+	xSemaphoreTake(octogram_semaphore,portMAX_DELAY);
+
 	//report results
     LOGF("octogram log energies: ");
 	for (i = 0; i < OCTOGRAM_SIZE; i++) {
@@ -517,6 +519,26 @@ static bool cancel_alarm() {
 		xSemaphoreGive(alarm_smphr);
 	}
 	return was_ringing;
+}
+
+int set_test_alarm(int argc, char *argv[]) {
+	SyncResponse_Alarm alarm;
+	unsigned int now = get_time();
+	alarm.end_time = now + 30;
+	alarm.start_time = now + 10;
+	alarm.ring_duration_in_second = 20;
+	alarm.ring_offset_from_now_in_second = 10;
+	strncpy( alarm.ringtone_path, "/ringtone/star003.raw", strlen("/ringtone/star003.raw"));
+
+	alarm.has_end_time = 1;
+	alarm.has_start_time = 1;
+	alarm.has_ring_duration_in_second = 1;
+	alarm.has_ringtone_id = 0;
+	alarm.has_ringtone_path = 1;
+	alarm.has_ring_offset_from_now_in_second = 1;
+
+	set_alarm( &alarm );
+	return 0;
 }
 
 static void thread_alarm_on_finished(void * context) {
@@ -731,7 +753,9 @@ static void _show_led_status()
 }
 
 static void _on_wave(){
-	if(	!cancel_alarm() ) {
+	if(	cancel_alarm() ) {
+		stop_led_animation();
+	} else {
 		_show_led_status();
 	}
 }
@@ -1130,52 +1154,6 @@ int Cmd_tasks(int argc, char *argv[]) {
 
 #endif /* configUSE_TRACE_FACILITY */
 
-// ==============================================================================
-// This function implements the "help" command.  It prints a simple list of the
-// available commands with a brief description.
-// ==============================================================================
-int Cmd_help(int argc, char *argv[]) {
-	tCmdLineEntry *pEntry;
-
-	//
-	// Print some header text.
-	//
-	LOGI("\nAvailable commands\n");
-	LOGI("------------------\n");
-
-	//
-	// Point at the beginning of the command table.
-	//
-	pEntry = &g_sCmdTable[0];
-
-	//
-	// Enter a loop to read each entry from the command table.  The end of the
-	// table has been reached when the command name is NULL.
-	//
-	while (pEntry->pcCmd) {
-		//
-		// Print the command name and the brief description.
-		//
-		LOGI("%s: %s\n", pEntry->pcCmd, pEntry->pcHelp);
-
-		vTaskDelay(10);
-		//
-		// Advance to the next entry in the table.
-		//
-		pEntry++;
-	}
-
-	//
-	// Return success.
-	//
-	return (0);
-}
-
-int Cmd_fault(int argc, char *argv[]) {
-	*(int*) (0x40001) = 1; /* error logging test... */
-	return 0;
-}
-
 
 #define SCAN_TABLE_SIZE   20
 
@@ -1218,15 +1196,15 @@ int Cmd_rssi(int argc, char *argv[]) {
 #include "crypto.h"
 static const uint8_t exponent[] = { 1,0,1 };
 static const uint8_t public_key[] = {
-		    0x00,0xa7,0x55,0x04,0x52,0x58,0x47,0x07,0x82,0x33,0xdb,0x3c,0xb3,0x01,0xf2,
-		    0x35,0x40,0xd0,0x70,0x02,0xb6,0x44,0x9e,0xd9,0x3f,0x42,0x45,0x79,0x9a,0x40,
-		    0x62,0xe0,0x5c,0x5a,0xd1,0xa8,0xa7,0x72,0x29,0x22,0x3f,0xdf,0x3c,0x9b,0x58,
-		    0xfc,0x1b,0xb2,0x53,0xa2,0xed,0xf4,0x5e,0x9a,0x1d,0xae,0x95,0x2a,0x92,0x2e,
-		    0x5f,0x12,0xa2,0xcb,0x78,0x3b,0x38,0xf6,0x5a,0x0e,0x6b,0xf0,0xd5,0xda,0xe4,
-		    0x9d,0xbc,0xb4,0x05,0xd7,0x93,0x9b,0x55,0x09,0x20,0x4a,0xbe,0x67,0x95,0xa9,
-		    0x3f,0x96,0x79,0xa7,0x7c,0xc8,0x1b,0xe0,0x6b,0x54,0x12,0xaf,0x57,0x81,0xcd,
-		    0x2f,0x10,0x88,0xf2,0x83,0x5a,0x63,0x20,0x64,0xf2,0x72,0x63,0xf4,0xae,0x61,
-		    0x74,0x9c,0x3a,0x50,0x1e,0x72,0x42,0x08,0x61
+		00,0xcc,0x94,0xc1,0xc0,0x68,0x1f,0xd2,0x19,0xa8,0xc7,0xcd,0x82,0x3f,0x4e,
+		    0x3a,0x22,0x37,0x8b,0xf3,0xa4,0x88,0xac,0xd5,0x40,0x94,0x76,0xc9,0x13,0xe5,
+		    0xef,0x20,0xc9,0xf0,0xa4,0xed,0xf8,0xda,0xc6,0x9e,0x79,0x7b,0x57,0x8b,0xfe,
+		    0x24,0x2d,0x45,0x37,0x33,0x21,0x45,0x0f,0xe4,0x94,0x82,0xc3,0xe9,0xfa,0xb7,
+		    0x3d,0x90,0x6f,0xfc,0x90,0x05,0x45,0x90,0xc6,0x11,0x9c,0xad,0x2a,0x6b,0xbe,
+		    0xf2,0xd8,0x85,0xc7,0x12,0xb5,0xb1,0x62,0xea,0x87,0xa3,0x6b,0xfb,0x9f,0xba,
+		    0x4b,0xdc,0xe5,0x24,0x1d,0x02,0x83,0x82,0x17,0xd2,0x19,0xfe,0x94,0xd3,0x48,
+		    0xe1,0xb2,0x34,0x90,0x23,0x55,0xc0,0x3d,0xbb,0x09,0xa7,0x6c,0x26,0x40,0xfb,
+		    0x54,0xe4,0x88,0xb1,0xb1,0xb4,0xde,0xe5,0xb3
 };
 uint8_t top_device_id[DEVICE_ID_SZ];
 volatile bool top_got_device_id = false; //being bad, this is only for factory
@@ -1258,22 +1236,8 @@ int Cmd_generate_factory_data(int argc,char * argv[]) {
 	uint32_t now = xTaskGetTickCount();
 	memcpy(entropy_pool+pos, &now, 4);
 	pos+=4;
-	if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
-		vTaskDelay(2);
-		int light = get_light();
-		vTaskDelay(2);
-		memcpy(entropy_pool+pos, &light, 4);
-		pos+=4;
-		int temp = get_temp();
-		memcpy(entropy_pool+pos, &temp, 4);
-		pos+=4;
-		int prox = get_prox();
-		memcpy(entropy_pool+pos, &prox, 4);
-		pos+=4;
-		xSemaphoreGive(i2c_smphr);
-	}
 	for(pos = 0; pos < 32; ++pos){
-		int dust = get_dust_internal(256); //short one here is only for entropy
+		int dust = get_dust_internal(8); //short one here is only for entropy
 		entropy_pool[pos] ^= (uint8_t)dust;
 	}
 	RNG_custom_init(entropy_pool, pos);
@@ -1534,6 +1498,7 @@ void launch_tasks() {
 int Cmd_boot(int argc, char *argv[]) {
 	if( !booted ) {
 		launch_tasks();
+		led_fadeout(18);
 	}
 	return 0;
 }
@@ -1549,8 +1514,6 @@ int Cmd_sync(int argc, char *argv[]) {
 // brief description.
 // ==============================================================================
 tCmdLineEntry g_sCmdTable[] = {
-		{ "help", Cmd_help, "Display list of commands" },
-		{ "?", Cmd_help,"alias for help" },
 //    { "cpu",      Cmd_cpu,      "Show CPU utilization" },
 		{ "free", Cmd_free, "" },
 		{ "connect", Cmd_connect, "" },
@@ -1637,6 +1600,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "sync", Cmd_sync, "" },
 		{ "boot",Cmd_boot,""},
 		{ "gesture_count",Cmd_get_gesture_count,""},
+		{ "alarm",set_test_alarm,""},
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
 		{ "iperfcli",Cmd_iperf_client,""},
@@ -1791,7 +1755,6 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("\n\nFreeRTOS %s, %x, %s %x%x%x%x%x%x\n",
 	tskKERNEL_VERSION_NUMBER, KIT_VER, MORPH_NAME, mac[0], mac[1], mac[2],
 			mac[3], mac[4], mac[5]);
-	UARTprintf("\n? for help\n");
 	UARTprintf("> ");
 
 
@@ -1814,7 +1777,14 @@ void vUARTTask(void *pvParameters) {
 			// Pass the line from the user to the command processor.  It will be
 			// parsed and valid commands executed.
 			//
-			char * args = pvPortMalloc( sizeof(cCmdBuf) );
+			char * args = NULL;
+			while(!args) {
+				args = pvPortMalloc( sizeof(cCmdBuf) );
+				if( args == NULL ) {
+					vTaskDelay(1000);
+					LOGF("can't run command %s, no memory available!\n", cCmdBuf );
+				}
+			}
 			memcpy( args, cCmdBuf, sizeof( cCmdBuf ) );
 			xTaskCreate(CmdLineProcess, "commandTask",  5*1024 / 4, args, 4, NULL);
         }

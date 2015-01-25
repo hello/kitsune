@@ -8,6 +8,8 @@
 #include "FreeRTOS.h"
 #include "semphr.h"
 
+#include "uart_logger.h"
+
 #include "led_animations.h"
 struct _colors{
 		int r,g,b;
@@ -17,6 +19,7 @@ static struct{
 	volatile bool sig_continue;
 	struct _colors colors[NUM_LED],prev_colors[NUM_LED];
 	int progress_bar_percent;
+	unsigned int dly;
 	xSemaphoreHandle _sem;
 	xSemaphoreHandle _animate_sem;
 	uint8_t trippy_base[3];
@@ -26,23 +29,27 @@ static struct{
 extern void led_unblock();
 extern void led_block();
 extern void led_set_is_sync(int is_sync);
-extern void led_unblock_racing_task();
 
 static bool lock() {
-	return xSemaphoreTake(self._sem, portMAX_DELAY) == pdPASS;
+//	LOGI("TAKE self._sem\n");
+	return xSemaphoreTakeRecursive(self._sem, portMAX_DELAY) == pdPASS;
 }
 static void unlock() {
-	xSemaphoreGive(self._sem);
+//	LOGI("GIVE self._sem\n");
+	xSemaphoreGiveRecursive(self._sem);
 }
 
 static bool _start_animation( unsigned int timeout ) {
+	lock();
 	if( lock_animation( timeout ) ) {
-		lock();
+		LOGI("Start animation\n");
 		self.counter = 0;
 		self.sig_continue = true; //careful, to set this true requires both semaphores
 		unlock();
 		return true;
 	}
+	LOGI("start animation fail\n");
+	unlock();
 	return false;
 }
 
@@ -71,7 +78,7 @@ static bool _animate_pulse(int * out_r, int * out_g, int * out_b, int * out_dela
 	out_g[(self.counter + 3) % rgb_array_size] = 40;
 	out_b[(self.counter + 3) % rgb_array_size] = 40;
 
-	*out_delay = 10;
+	*out_delay = self.dly;
 	sig_continue = self.sig_continue;
 	unlock();
 	return sig_continue;
@@ -154,7 +161,7 @@ static bool _animate_trippy(int * out_r, int * out_g, int * out_b, int * out_del
 		scaler = 33 + (self.counter/3);
 		break;
 	}*/
-	*out_delay = 15;
+	*out_delay = self.dly;
 
 	sig_continue = self.sig_continue;
 	unlock();
@@ -178,7 +185,7 @@ static bool _animate_progress(int * out_r, int * out_g, int * out_b, int * out_d
 		out_g[filled] = ((self.colors[0].g * left)>>8)&0xff ;
 		out_b[filled] = ((self.colors[0].b * left)>>8)&0xff ;
 	}
-	*out_delay = 20;
+	*out_delay = self.dly;
 	sig_continue = self.sig_continue;
 	unlock();
 	return sig_continue;
@@ -200,7 +207,7 @@ static bool _animate_factory_test_pattern(int * out_r, int * out_g, int * out_b,
 		}
 	}
 	++self.counter;
-	*out_delay = 500;
+	*out_delay = self.dly;
 	sig_continue = self.sig_continue;
 	unlock();
 	return sig_continue;
@@ -211,7 +218,7 @@ static bool _animate_factory_test_pattern(int * out_r, int * out_g, int * out_b,
  */
 
 void init_led_animation() {
-	vSemaphoreCreateBinary(self._sem);
+	self._sem = xSemaphoreCreateRecursiveMutex();
 	vSemaphoreCreateBinary(self._animate_sem);
 }
 bool lock_animation( unsigned int timeout ) {
@@ -229,8 +236,8 @@ void unlock_animation() {
 
 bool play_led_animation_pulse(unsigned int timeout){
 	if( _start_animation( timeout ) ) {
+		self.dly = 10;
 		led_start_custom_animation(_animate_pulse, NULL);
-		led_unblock_racing_task();
 		return true;
 	}
 	return false;
@@ -245,8 +252,8 @@ bool play_led_trippy(uint8_t trippy_base[3], uint8_t trippy_range[3], unsigned i
 			self.colors[i] = (struct _colors){rand()%120, rand()%120, rand()%120};
 			self.prev_colors[i] = (struct _colors){0};
 		}
+		self.dly = 15;
 		led_start_custom_animation(_animate_trippy, NULL);
-		led_unblock_racing_task();
 		return true;
 	}
 	return false;
@@ -255,8 +262,8 @@ bool play_led_progress_bar(int r, int g, int b, unsigned int options, unsigned i
 	if( _start_animation( timeout ) ) {
 		self.colors[0] = (struct _colors){r, g, b};
 		self.progress_bar_percent = 0;
+		self.dly = 20;
 		led_start_custom_animation(_animate_progress, NULL);
-		led_unblock_racing_task();
 		return true;
 	}
 	return false;
@@ -270,22 +277,10 @@ void set_led_progress_bar(uint8_t percent){
 void stop_led_animation(){
 	lock();
 	self.sig_continue = false;
-	unlock();
+	self.dly = 10;
+	led_fadeout(self.dly);
 	unlock_animation();
-	led_unblock_racing_task();
-}
-
-void stop_led_animation_sync(){
-	led_unblock_racing_task();
-	led_set_is_sync(1);
-
-	lock();
-	self.sig_continue = false;
 	unlock();
-	unlock_animation();
-
-	led_block();
-	led_set_is_sync(0);
 }
 
 int Cmd_led_animate(int argc, char *argv[]){
@@ -319,8 +314,8 @@ int Cmd_led_animate(int argc, char *argv[]){
 }
 bool factory_led_test_pattern(unsigned int timeout) {
 	if( _start_animation( timeout ) ) {
+		self.dly = 500;
 		led_start_custom_animation(_animate_factory_test_pattern, NULL);
-		led_unblock_racing_task();
 		return true;
 	}
 	return false;

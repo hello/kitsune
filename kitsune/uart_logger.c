@@ -57,6 +57,8 @@ static struct{
 
 typedef void (file_handler)(FILINFO * info, void * ctx);
 static int _walk_log_dir(file_handler * handler, void * ctx);
+static FRESULT _remove_oldest(int * rem);
+
 static bool
 _encode_text_block(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
 	return pb_encode_tag(stream, PB_WT_STRING, field->tag)
@@ -214,12 +216,23 @@ _save_newest(const char * buffer, int size){
 	if(ret == 0){
 		//LOGI("NO log file exists, creating first log\r\n");
 		return _write_file("0", buffer, size);
-	}else if(ret > 0 && counter >= 0){
+	}else if(ret > 0 && ret <= UART_LOGGER_FILE_LIMIT && counter >= 0){
 		char s[16] = {0};
 		usnprintf(s,sizeof(s),"%d",++counter);
 		//LOGI("Wr log %d\r\n", counter);
 		return _write_file(s, buffer, size);
-	}else{
+	}else if(ret > 0 && ret > UART_LOGGER_FILE_LIMIT){
+        int rem;
+        LOGW("File size reached, removing oldest\r\n");
+        if(FR_OK == _remove_oldest(&rem)){
+            char s[16] = {0};
+            usnprintf(s,sizeof(s),"%d",++counter);
+            //LOGI("Wr log %d\r\n", counter);
+            return _write_file(s, buffer, size);
+        }else{
+            return FR_RW_ERROR;
+        }
+    }else{
 		LOGW("Write log error: %d \r\n", ret);
 	}
 	return FR_RW_ERROR;
@@ -286,8 +299,8 @@ void uart_logger_init(void){
 	self.log.text.funcs.encode = _encode_text_block;
 	self.log.device_id.funcs.encode = encode_device_id_string;
 	self.log.has_unix_time = true;
-	self.view_tag = LOG_INFO | LOG_WARNING | LOG_ERROR | LOG_VIEW_ONLY | LOG_FACTORY;
-	self.store_tag = LOG_INFO | LOG_WARNING | LOG_ERROR;
+	self.view_tag = LOG_INFO | LOG_WARNING | LOG_ERROR | LOG_VIEW_ONLY | LOG_FACTORY | LOG_TOP;
+	self.store_tag = LOG_INFO | LOG_WARNING | LOG_ERROR | LOG_FACTORY | LOG_TOP;
 	vSemaphoreCreateBinary(self.print_sem);
 
 	xEventGroupSetBits(self.uart_log_events, LOG_EVENT_READY);
@@ -361,6 +374,7 @@ void uart_logger_task(void * params){
 					if(FR_OK != res){
 						LOGE("Unable to read log file %d\r\n",(int)res);
 						xSemaphoreGive(self.print_sem);
+                        vTaskDelay(5000);
 						continue;
 					}
 					ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER, SENSE_LOG_ENDPOINT,buffer,sizeof(buffer),sense_log_fields,&self.log,0);
@@ -388,6 +402,7 @@ void uart_logger_task(void * params){
 				}
 			}
 			xSemaphoreGive(self.print_sem);
+            vTaskDelay(5000);
 		}
 	}
 }
