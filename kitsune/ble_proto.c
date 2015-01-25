@@ -52,6 +52,8 @@ static struct {
 	uint32_t last_hold_time;
 	led_mode_t led_status;
     ble_mode_t ble_status;
+    uint8_t trippy_base[3];
+    uint8_t trippy_range[3];
 } _self;
 
 static int _wifi_read_index;
@@ -339,9 +341,9 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type)
 		// and the user enter the wrong password in the next WIFI setup, it will go straight to success
 		// without returning error.
 		vTaskDelay(1000);
-
 		wifi_status_set(CONNECTING, false);
-		//play_led_progress_bar(30,30,0,0,portMAX_DELAY);
+
+
 		while(--wait_time && (!wifi_status_get(HAS_IP)))
 		{
             if(!wifi_status_get(CONNECTING))  // This state will be triggered magically by SL_WLAN_CONNECTION_FAILED_EVENT event
@@ -615,6 +617,39 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 	return 0; // failure
 }
 
+static int _sync_led_basic_animation(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b,
+        int fade_in, int fade_out,
+        unsigned int ud,
+        int rot)
+{
+    led_set_color(alpha, r, g, b, fade_in, fade_out, ud, rot);
+
+    // After set color, we dont care what is the next state of LED and we shouldn't care
+    // just go ahead and block the calling thread.
+    int fade_delay = led_delay(ud);
+
+    int total_delay = 0;
+    if(fade_in)
+    {
+        total_delay += fade_delay;
+    }
+
+    if(fade_out)
+    {
+        total_delay += fade_delay;
+    }
+
+    vTaskDelay(total_delay);
+    return led_ready();  // may or may not ready, depends on the deplay we compute, but here we dont care.
+}
+
+void _sync_stop_trippy_animation(){
+    stop_led_animation();
+    memset(_self.trippy_base, 0, sizeof(_self.trippy_base));
+    memset(_self.trippy_range, 0, sizeof(_self.trippy_range));
+    vTaskDelay(led_delay(TRIPPY_FADE_DELAY));
+}
+
 void ble_proto_led_init()
 {
 	_self.led_status = LED_OFF;
@@ -641,11 +676,10 @@ void ble_proto_led_busy_mode(uint8_t a, uint8_t r, uint8_t g, uint8_t b, int del
 	}
 
 	_self.led_status = LED_BUSY;
-    led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 0, _self.delay, 1);
-    vTaskDelay(led_delay(_self.delay));
+    _sync_led_basic_animation(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 0, _self.delay, 1);
 }
 
-void ble_proto_led_flash(int a, int r, int g, int b, int delay)
+void ble_proto_led_flash(int a, int r, int g, int b, int delay, int time)
 {
 	static uint32_t last = 0;
 	if( xTaskGetTickCount() - last < 3000 ) {
@@ -659,55 +693,73 @@ void ble_proto_led_flash(int a, int r, int g, int b, int delay)
 	_self.argb[2] = g;
 	_self.argb[3] = b;
 	_self.delay = delay;
+	int i;
 	if(_self.led_status == LED_TRIPPY)
 	{
 		ble_proto_led_fade_out(0);
 		_self.led_status = LED_BUSY;
-		led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 0);
-	    vTaskDelay(led_delay(2*_self.delay));
-		led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 0);
-	    vTaskDelay(led_delay(2*_self.delay));
+		for(i = 0; i < time; i++)
+		{
+			_sync_led_basic_animation(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 0);
+		}
+
 		_self.led_status = LED_OFF;
 		ble_proto_led_fade_in_trippy();
 	}else if(_self.led_status == LED_OFF){
 		_self.led_status = LED_BUSY;
-		led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 0);
-	    vTaskDelay(led_delay(2*_self.delay));
-		led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 0);
-	    vTaskDelay(led_delay(2*_self.delay));
-
+		for(i = 0; i < time; i++)
+		{
+			_sync_led_basic_animation(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 0);
+		}
 		_self.led_status = LED_OFF;
 	}
 
 }
 
-void ble_proto_led_fade_in_trippy(){
-	uint8_t trippy_base[3] = {60, 25, 90};
+void ble_proto_led_fade_in_custom_trippy(uint8_t base[3], uint8_t range[3]){
 	switch(_self.led_status)
 	{
 	case LED_BUSY:
-    	led_fadeout(18);
-		play_led_trippy(trippy_base, trippy_base, portMAX_DELAY);
+		_sync_led_basic_animation(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 0, 1, 18, 0);
+		play_led_trippy(base, range, portMAX_DELAY);
 
 		break;
 	case LED_TRIPPY:
+		if(memcmp(_self.trippy_base, base, 3) != 0 || memcmp(_self.trippy_range, range, 3) != 0)
+		{
+			ble_proto_led_fade_out(false);
+			LOGI("redo trippy\n");
+			play_led_trippy(base, range, portMAX_DELAY);
+		}
 		break;
 	case LED_OFF:
-		play_led_trippy(trippy_base, trippy_base, portMAX_DELAY);
+		play_led_trippy(base, range, portMAX_DELAY);
 		break;
 	}
 
+	memcpy(_self.trippy_base, base, sizeof(base));
+	memcpy(_self.trippy_range, range, sizeof(range));
 	_self.led_status = LED_TRIPPY;
+}
+
+void ble_proto_led_fade_in_trippy(){
+	uint8_t trippy_base[3] = {60, 25, 90};
+	ble_proto_led_fade_in_custom_trippy(trippy_base, trippy_base);
 }
 
 void ble_proto_led_fade_out(bool operation_result){
 	switch(_self.led_status)
 	{
 	case LED_BUSY:
-        led_fadeout(18);
+		if(operation_result)
+		{
+			_sync_led_basic_animation(0xFF, LED_MAX, LED_MAX, LED_MAX, 0, 1, 18, 0);
+		}else{
+			_sync_led_basic_animation(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 0, 1, 18, 1);
+		}
 		break;
 	case LED_TRIPPY:
-		stop_led_animation();
+		_sync_stop_trippy_animation();
 		break;
 	case LED_OFF:
 		break;
@@ -918,9 +970,9 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 				uint8_t* argb = (uint8_t*)&color;
 
 				if(color) {
-					ble_proto_led_flash(0xFF, argb[1], argb[2], argb[3], 10);
+					ble_proto_led_flash(0xFF, argb[1], argb[2], argb[3], 10, 2);
 				} else if(_self.led_status == LED_TRIPPY || pill_settings_pill_count() == 0) {
-					ble_proto_led_flash(0xFF, 0x80, 0x00, 0x80, 10);
+					ble_proto_led_flash(0xFF, 0x80, 0x00, 0x80, 10, 2);
 				}
             }else{
             	LOGI("Please update topboard, no pill id\n");

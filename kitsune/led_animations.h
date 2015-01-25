@@ -4,13 +4,13 @@
 #include "stdbool.h"
 #include "led_cmd.h"
 
+#define TRIPPY_FADE_DELAY	(15)
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 void init_led_animation();
-bool lock_animation();
-void unlock_animation();
 
 //call to stop all animations
 void stop_led_animation();

@@ -9,6 +9,7 @@
 #include "semphr.h"
 
 #include "led_animations.h"
+
 struct _colors{
 		int r,g,b;
 };
@@ -18,7 +19,9 @@ static struct{
 	struct _colors colors[NUM_LED],prev_colors[NUM_LED];
 	int progress_bar_percent;
 	xSemaphoreHandle _sem;
-	xSemaphoreHandle _animate_sem;
+	// Use mutex to indicate state is proned to race condition. We should use flag variable protected by mutex instead.
+	// In here, the sig_contiue is already such a flag variable.
+	//xSemaphoreHandle _animate_sem;
 	uint8_t trippy_base[3];
 	uint8_t trippy_range[3];
 }self;
@@ -34,15 +37,17 @@ static void unlock() {
 	xSemaphoreGive(self._sem);
 }
 
-static bool _start_animation( unsigned int timeout ) {
-	if( lock_animation( timeout ) ) {
-		lock();
-		self.counter = 0;
-		self.sig_continue = true; //careful, to set this true requires both semaphores
-		unlock();
-		return true;
+static bool _can_start_animation() {
+	lock();
+	if(self.sig_continue)
+	{
+		unlock();  // some task already in LED animation, do no override, bail out
+		return false;
 	}
-	return false;
+	self.counter = 0;
+	self.sig_continue = true; // ok, we occupy the chance to do animation.
+	unlock();
+	return true;
 }
 
 static bool _animate_pulse(int * out_r, int * out_g, int * out_b, int * out_delay, void * user_context, int rgb_array_size){
@@ -153,7 +158,7 @@ static bool _animate_trippy(int * out_r, int * out_g, int * out_b, int * out_del
 		scaler = 33 + (self.counter/3);
 		break;
 	}*/
-	*out_delay = 15;
+	*out_delay = TRIPPY_FADE_DELAY;
 
 	sig_continue = self.sig_continue;
 	unlock();
@@ -210,24 +215,11 @@ static bool _animate_factory_test_pattern(int * out_r, int * out_g, int * out_b,
  */
 
 void init_led_animation() {
-	vSemaphoreCreateBinary(self._sem);
-	vSemaphoreCreateBinary(self._animate_sem);
-}
-bool lock_animation( unsigned int timeout ) {
-	bool success;
-	lock();
-	success = xSemaphoreTake(self._animate_sem, timeout) == pdPASS;
-	unlock();
-	return success;
-}
-void unlock_animation() {
-	lock();
-	xSemaphoreGive(self._animate_sem);
-	unlock();
+	self._sem = xSemaphoreCreateMutex();
 }
 
 bool play_led_animation_pulse(unsigned int timeout){
-	if( _start_animation( timeout ) ) {
+	if( _can_start_animation() ) {
 		led_start_custom_animation(_animate_pulse, NULL);
 		return true;
 	}
@@ -235,7 +227,7 @@ bool play_led_animation_pulse(unsigned int timeout){
 }
 bool play_led_trippy(uint8_t trippy_base[3], uint8_t trippy_range[3], unsigned int timeout){
 	int i;
-	if( _start_animation( timeout ) ) {
+	if( _can_start_animation() ) {
 		memcpy(self.trippy_base, trippy_base, 3);
 		memcpy(self.trippy_range, trippy_range, 3);
 
@@ -244,12 +236,15 @@ bool play_led_trippy(uint8_t trippy_base[3], uint8_t trippy_range[3], unsigned i
 			self.prev_colors[i] = (struct _colors){0};
 		}
 		led_start_custom_animation(_animate_trippy, NULL);
+
+		int fade_delay = (255 / QUANT_FACTOR + 1) * TRIPPY_FADE_DELAY;
+		vTaskDelay(fade_delay);
 		return true;
 	}
 	return false;
 }
 bool play_led_progress_bar(int r, int g, int b, unsigned int options, unsigned int timeout){
-	if( _start_animation( timeout ) ) {
+	if( _can_start_animation() ) {
 		self.colors[0] = (struct _colors){r, g, b};
 		self.progress_bar_percent = 0;
 		led_start_custom_animation(_animate_progress, NULL);
@@ -267,9 +262,6 @@ void stop_led_animation(){
 	lock();
 	self.sig_continue = false;
 	unlock();
-	unlock_animation();
-
-	vTaskDelay(led_delay(18));
 }
 
 int Cmd_led_animate(int argc, char *argv[]){
@@ -302,7 +294,7 @@ int Cmd_led_animate(int argc, char *argv[]){
 	return 0;
 }
 bool factory_led_test_pattern(unsigned int timeout) {
-	if( _start_animation( timeout ) ) {
+	if( _can_start_animation() ) {
 		led_start_custom_animation(_animate_factory_test_pattern, NULL);
 		return true;
 	}

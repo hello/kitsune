@@ -9,6 +9,8 @@ extern "C" {
 #endif
 #define NUM_LED 12
 #define LED_MAX 254
+#define QUANT_FACTOR 6
+
 int Cmd_led_clr(int argc, char *argv[]);
 int Cmd_led(int argc, char *argv[]);
 int led_init(void);
