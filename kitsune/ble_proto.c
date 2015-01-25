@@ -737,6 +737,8 @@ void ble_proto_led_fade_in_custom_trippy(uint8_t base[3], uint8_t range[3]){
 		break;
 	}
 
+	memcpy(_self.trippy_base, base, sizeof(base));
+	memcpy(_self.trippy_range, range, sizeof(range));
 	_self.led_status = LED_TRIPPY;
 }
 
