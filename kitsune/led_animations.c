@@ -263,16 +263,13 @@ void set_led_progress_bar(uint8_t percent){
 	unlock();
 }
 
-int led_ready();
 void stop_led_animation(){
 	lock();
 	self.sig_continue = false;
 	unlock();
 	unlock_animation();
 
-	while(led_ready() != 0) {
-		vTaskDelay(200);
-	}
+	vTaskDelay(led_delay(18));
 }
 
 int Cmd_led_animate(int argc, char *argv[]){

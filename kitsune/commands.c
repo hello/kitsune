@@ -733,7 +733,9 @@ static void _show_led_status()
 }
 
 static void _on_wave(){
-	if(	!cancel_alarm() ) {
+	if(	cancel_alarm() ) {
+		stop_led_animation();
+	} else {
 		_show_led_status();
 	}
 }

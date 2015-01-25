@@ -335,6 +335,11 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type)
     }else{
 		uint8_t wait_time = 5;
 
+		// Wait until the disconnect event happen. If we have a WIFI connection already
+		// and the user enter the wrong password in the next WIFI setup, it will go straight to success
+		// without returning error.
+		vTaskDelay(1000);
+
 		wifi_status_set(CONNECTING, false);
 		//play_led_progress_bar(30,30,0,0,portMAX_DELAY);
 		while(--wait_time && (!wifi_status_get(HAS_IP)))
@@ -636,7 +641,8 @@ void ble_proto_led_busy_mode(uint8_t a, uint8_t r, uint8_t g, uint8_t b, int del
 	}
 
 	_self.led_status = LED_BUSY;
-    while( -1 == led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 0, _self.delay, 1) ) {vTaskDelay(100);}
+    led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 0, _self.delay, 1);
+    vTaskDelay(led_delay(_self.delay));
 }
 
 void ble_proto_led_flash(int a, int r, int g, int b, int delay)
@@ -657,14 +663,19 @@ void ble_proto_led_flash(int a, int r, int g, int b, int delay)
 	{
 		ble_proto_led_fade_out(0);
 		_self.led_status = LED_BUSY;
-		while( -1 == led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 0) ) {vTaskDelay(100);}
-		while( -1 == led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 0) ) {vTaskDelay(100);}
+		led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 0);
+	    vTaskDelay(led_delay(_self.delay));
+		led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 0);
+	    vTaskDelay(led_delay(_self.delay));
 		_self.led_status = LED_OFF;
 		ble_proto_led_fade_in_trippy();
 	}else if(_self.led_status == LED_OFF){
 		_self.led_status = LED_BUSY;
-		while( -1 == led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 0) ) {vTaskDelay(100);}
-		while( -1 == led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 0) ) {vTaskDelay(100);}
+		led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 0);
+	    vTaskDelay(led_delay(_self.delay));
+		led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 0);
+	    vTaskDelay(led_delay(_self.delay));
+
 		_self.led_status = LED_OFF;
 	}
 
