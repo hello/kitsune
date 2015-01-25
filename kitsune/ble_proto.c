@@ -642,7 +642,7 @@ void ble_proto_led_busy_mode(uint8_t a, uint8_t r, uint8_t g, uint8_t b, int del
 
 	_self.led_status = LED_BUSY;
     led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 0, _self.delay, 1);
-    vTaskDelay(led_delay(_self.delay));
+	led_wait_for_idle(1000+led_delay(_self.delay));
 }
 
 void ble_proto_led_flash(int a, int r, int g, int b, int delay)
@@ -661,20 +661,27 @@ void ble_proto_led_flash(int a, int r, int g, int b, int delay)
 	_self.delay = delay;
 	if(_self.led_status == LED_TRIPPY)
 	{
+		LOGI("FADE OUT\n");
 		ble_proto_led_fade_out(0);
 		_self.led_status = LED_BUSY;
+
+		LOGI("WAIT1 %d\n", led_wait_for_idle(2000));
+
 		led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 0);
-	    vTaskDelay(led_delay(2*_self.delay));
+
+		LOGI("WAIT2 %d\n",led_wait_for_idle(led_delay(_self.delay) + 1000));
+
 		led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 0);
-	    vTaskDelay(led_delay(2*_self.delay));
+
+		LOGI("WAIT3 %d\n",led_wait_for_idle(led_delay(_self.delay) + 1000));
 		_self.led_status = LED_OFF;
 		ble_proto_led_fade_in_trippy();
 	}else if(_self.led_status == LED_OFF){
 		_self.led_status = LED_BUSY;
 		led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 0);
-	    vTaskDelay(led_delay(2*_self.delay));
+		led_wait_for_idle(led_delay(_self.delay) + 1000);
 		led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 0);
-	    vTaskDelay(led_delay(2*_self.delay));
+		led_wait_for_idle(led_delay(_self.delay) + 1000);
 
 		_self.led_status = LED_OFF;
 	}
@@ -686,7 +693,7 @@ void ble_proto_led_fade_in_trippy(){
 	switch(_self.led_status)
 	{
 	case LED_BUSY:
-    	led_fadeout(18);
+    	led_fadeout(10);
 		play_led_trippy(trippy_base, trippy_base, portMAX_DELAY);
 
 		break;
@@ -704,7 +711,7 @@ void ble_proto_led_fade_out(bool operation_result){
 	switch(_self.led_status)
 	{
 	case LED_BUSY:
-        led_fadeout(18);
+        led_fadeout(10);
 		break;
 	case LED_TRIPPY:
 		stop_led_animation();

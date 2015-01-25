@@ -270,6 +270,7 @@ static uint32_t wheel_color(int WheelPos, unsigned int color) {
 #define LED_RESET_BIT 				0x01
 #define LED_SOLID_BIT 		0x02
 #define LED_ROTATE_BIT 		0x04
+#define LED_IDLE_BIT        0x08
 
 #define LED_FADE_IN_BIT			0x010
 #define LED_FADE_IN_FAST_BIT	0x020
@@ -298,7 +299,7 @@ void led_task( void * params ) {
 
 		evnt = xEventGroupWaitBits(
 		                led_events,   /* The event group being tested. */
-		                0xffffff,    /* The bits within the event group to wait for. */
+		                0xffff7f,    /* The bits within the event group to wait for. */
 		                pdFALSE,        /* all bits should not be cleared before returning. */
 		                pdFALSE,       /* Don't wait for both bits, either bit will do. */
 		                portMAX_DELAY );/* Wait for any bit to be set. */
@@ -307,6 +308,7 @@ void led_task( void * params ) {
 			memset( colors_last, 0, sizeof(colors_last) );
 			led_array( colors_last, 0 );
 			xEventGroupClearBits(led_events, 0xffffff );
+			xEventGroupSetBits(led_events, LED_IDLE_BIT );
 			led_animation_not_in_progress = 1;
 		}
 		if (evnt & LED_CUSTOM_COLOR ){
@@ -450,6 +452,19 @@ int led_ready() {
 	return 0;
 }
 
+bool led_wait_for_idle(unsigned int wait) {
+	EventBits_t evnt;
+
+	evnt = xEventGroupWaitBits(
+					led_events,   /* The event group being tested. */
+					LED_IDLE_BIT,    /* The bits within the event group to wait for. */
+					pdFALSE,        /* all bits should not be cleared before returning. */
+					pdFALSE,       /* Don't wait for both bits, either bit will do. */
+					wait );/* Wait for limited time. */
+
+	return (evnt & LED_IDLE_BIT) != 0;
+}
+
 int Cmd_led(int argc, char *argv[]) {
 	if(argc == 2 && strcmp(argv[1], "stop") == 0){
 		stop_led_animation();
@@ -492,7 +507,6 @@ int Cmd_led(int argc, char *argv[]) {
 }
 
 int Cmd_led_clr(int argc, char *argv[]) {
-	xEventGroupClearBits( led_events, 0xffffff );
 	xEventGroupSetBits( led_events, LED_RESET_BIT );
 
 	return 0;
@@ -508,7 +522,7 @@ void led_fadeout(unsigned int dly) {
 	xSemaphoreGive(led_smphr);
 	xEventGroupSetBits(led_events, LED_FADE_OUT_BIT);
 
-	vTaskDelay(led_delay(dly) + 100);
+	led_wait_for_idle(1000+led_delay(dly));
 }
 int led_set_color(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b,
 		int fade_in, int fade_out,
@@ -545,9 +559,9 @@ int led_start_custom_animation(led_user_animation_handler user, void * context){
 		xSemaphoreTake(led_smphr, portMAX_DELAY);
 		user_animation_handler = user;
 		user_context  = context;
-		xSemaphoreGive(led_smphr);
 		xEventGroupClearBits( led_events, 0xffffff );
 		xEventGroupSetBits( led_events, LED_CUSTOM_ANIMATION_BIT );
+		xSemaphoreGive(led_smphr);
 		return 0;
 	}
 }
