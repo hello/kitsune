@@ -14,7 +14,6 @@ void init_led_animation();
 
 //call to stop all animations
 void stop_led_animation();
-void stop_led_animation_sync(int dly);
 int Cmd_led_animate(int argc, char *argv[]);
 
 //custom animations
