@@ -1754,7 +1754,7 @@ void vUARTTask(void *pvParameters) {
 
 	xTaskCreate(AudioTask_Thread,"audioTask",4*1024/4,NULL,4,NULL);
 	UARTprintf("*");
-	if( on_charger ) {
+	if( true ) { //hack
 		launch_tasks();
 	} else {
 		led_set_color(50, LED_MAX, LED_MAX,0, 1, 0, 10, 1 ); //spin to alert user!
