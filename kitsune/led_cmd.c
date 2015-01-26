@@ -55,11 +55,32 @@ static int clamp_rgb(int v, int min, int max){
 		return 0;
 	}
 }
+
+
+#define LED_RESET_BIT 				0x01
+#define LED_SOLID_BIT 		0x02
+#define LED_ROTATE_BIT 		0x04
+#define LED_IDLE_BIT        0x08
+
+#define LED_FADE_IN_BIT			0x010
+#define LED_FADE_IN_FAST_BIT	0x020
+#define LED_FADE_OUT_BIT		0x040
+#define LED_FADE_OUT_FAST_BIT	0x080
+
+#define LED_FADE_OUT_ROTATE_BIT 0x100
+#define LED_FADE_OUT_STEP_BIT   0x200
+#define LED_FADE_IN_STEP_BIT    0x400
+
+#define LED_CUSTOM_COLOR		  0x0800
+#define LED_CUSTOM_ANIMATION_BIT	  0x1000
+
 int led_init(void){
 	led_events = xEventGroupCreate();
 	if (led_events == NULL) {
 		return -1;
 	}
+
+	xEventGroupSetBits(led_events, LED_IDLE_BIT );
 	return 0;
 }
 
@@ -267,22 +288,6 @@ static uint32_t wheel_color(int WheelPos, unsigned int color) {
 	}
 }
 
-#define LED_RESET_BIT 				0x01
-#define LED_SOLID_BIT 		0x02
-#define LED_ROTATE_BIT 		0x04
-#define LED_IDLE_BIT        0x08
-
-#define LED_FADE_IN_BIT			0x010
-#define LED_FADE_IN_FAST_BIT	0x020
-#define LED_FADE_OUT_BIT		0x040
-#define LED_FADE_OUT_FAST_BIT	0x080
-
-#define LED_FADE_OUT_ROTATE_BIT 0x100
-#define LED_FADE_OUT_STEP_BIT   0x200
-#define LED_FADE_IN_STEP_BIT    0x400
-
-#define LED_CUSTOM_COLOR		  0x0800
-#define LED_CUSTOM_ANIMATION_BIT	  0x1000
 
 #define QUANT_FACTOR 6
 extern int led_animation_not_in_progress;
@@ -299,11 +304,16 @@ void led_task( void * params ) {
 
 		evnt = xEventGroupWaitBits(
 		                led_events,   /* The event group being tested. */
-		                0xfffff7,    /* The bits within the event group to wait for. */
+		                0xffffff,    /* The bits within the event group to wait for. */
 		                pdFALSE,        /* all bits should not be cleared before returning. */
 		                pdFALSE,       /* Don't wait for both bits, either bit will do. */
 		                portMAX_DELAY );/* Wait for any bit to be set. */
 
+		if( evnt & LED_IDLE_BIT ) {
+			memset( colors_last, 0, sizeof(colors_last) );
+			led_array( colors_last, 0 );
+			vTaskDelay(5000);
+		}
 		if( evnt & LED_RESET_BIT ) {
 			memset( colors_last, 0, sizeof(colors_last) );
 			led_array( colors_last, 0 );
