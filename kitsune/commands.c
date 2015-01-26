@@ -541,8 +541,14 @@ int set_test_alarm(int argc, char *argv[]) {
 	return 0;
 }
 
+//multiple threads can access this but they are structure to guarantee they do so at different times
+static volatile bool alarm_started_trippy = false;
+
 static void thread_alarm_on_finished(void * context) {
-	stop_led_animation();
+	if( alarm_started_trippy ) {
+		stop_led_animation();
+		alarm_started_trippy = false;
+	}
 }
 
 static bool _is_file_exists(char* path)
@@ -561,6 +567,7 @@ void thread_alarm(void * unused) {
 	while (1) {
 		wait_for_time(WAIT_FOREVER);
 
+		bool play_lights = false;
 		portTickType now = xTaskGetTickCount();
 		uint64_t time = get_time();
 		// The alarm thread should go ahead even without a valid time,
@@ -628,14 +635,10 @@ void thread_alarm(void * unused) {
 
 					AudioTask_StartPlayback(&desc);
 
-					uint8_t trippy_base[3] = {0, 0, 0};
-					uint8_t trippy_range[3] = {254, 254, 254};
-					play_led_trippy(trippy_base, trippy_range, portMAX_DELAY);
-
 					LOGI("ALARM RINGING RING RING RING\n");
 					alarm.has_start_time = 0;
 					alarm.start_time = 0;
-					alarm_is_ringing = true;
+					play_lights = alarm_is_ringing = true;
 				}
 			}
 			else {
@@ -643,6 +646,14 @@ void thread_alarm(void * unused) {
 			}
 			
 			xSemaphoreGive(alarm_smphr);
+
+			if ( led_wait_for_idle(5000) && play_lights) {
+				uint8_t trippy_base[3] = { 0, 0, 0 };
+				uint8_t trippy_range[3] = { 254, 254, 254 };
+				alarm_started_trippy = play_lights;
+				play_led_trippy(trippy_base, trippy_range, portMAX_DELAY);
+			}
+			play_lights = false;
 		}
 		vTaskDelayUntil(&now, 1000 );
 	}
@@ -754,7 +765,10 @@ static void _show_led_status()
 
 static void _on_wave(){
 	if(	cancel_alarm() ) {
-		stop_led_animation();
+		if( alarm_started_trippy ) {
+			stop_led_animation();
+			alarm_started_trippy = false;
+		}
 	} else {
 		_show_led_status();
 	}
