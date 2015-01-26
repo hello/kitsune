@@ -276,10 +276,16 @@ void set_led_progress_bar(uint8_t percent){
 
 void stop_led_animation(){
 	lock();
-	self.sig_continue = false;
-	self.dly = 10;
-	led_fadeout(self.dly);
-	unlock_animation();
+	if(self.sig_continue){
+		self.sig_continue = false;
+		self.dly = 10;
+		led_fadeout(self.dly);
+
+		// Wave gesture (cancel alarm) and audio playback on_finished callback
+		// can call this at the same time, one thread can finished another thread will
+		// be block if we don't check self.sig_continue.
+		unlock_animation();
+	}
 	unlock();
 }
 
