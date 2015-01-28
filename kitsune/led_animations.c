@@ -42,6 +42,7 @@ static void unlock() {
 static bool _start_animation( unsigned int timeout ) {
 	lock();
 	if( lock_animation( timeout ) ) {
+		led_fadeout(1);
 		LOGI("Start animation\n");
 		self.counter = 0;
 		self.sig_continue = true; //careful, to set this true requires both semaphores
