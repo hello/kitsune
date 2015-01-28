@@ -1477,27 +1477,17 @@ void launch_tasks() {
 	//dear future chris: this one doesn't need a semaphore since it's only written to while threads are going during factory test boot
 	booted = true;
 
-	init_download_task( 1024 / 4 );
-	networktask_init(5 * 1024 / 4);
-
 	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,1,NULL);
 	UARTprintf("*");
-
 	xTaskCreate(thread_alarm, "alarmTask", 2*1024 / 4, NULL, 4, NULL);
-
-
 	UARTprintf("*");
 	xTaskCreate(FileUploaderTask_Thread,"fileUploadTask",1*1024/4,NULL,1,NULL);
-
 #ifdef BUILD_SERVERS //todo PVT disable!
 	xTaskCreate(telnetServerTask,"telnetServerTask",512/4,NULL,1,NULL);
 	xTaskCreate(httpServerTask,"httpServerTask",3*512/4,NULL,1,NULL);
 #endif
-
 	UARTprintf("*");
 #if !ONLY_MID
-
-	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  512 / 4, NULL, 4, NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_dust, "dustTask", 256 / 4, NULL, 3, NULL);
 	UARTprintf("*");
@@ -1754,6 +1744,10 @@ void vUARTTask(void *pvParameters) {
 
 	xTaskCreate(AudioTask_Thread,"audioTask",4*1024/4,NULL,4,NULL);
 	UARTprintf("*");
+	init_download_task( 1024 / 4 );
+	networktask_init(5 * 1024 / 4);
+	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  512 / 4, NULL, 4, NULL);
+
 	if( true ) { //hack
 		launch_tasks();
 	} else {
