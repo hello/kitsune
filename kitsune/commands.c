@@ -1858,7 +1858,7 @@ void Cmd_pill_test_register_heartbeat(const char * id){
 			LOGF("Shake again.\r\n");
 			pill_fsm.state = WAITING_FOR_TIMEOUT;
 			pill_fsm.to = 800; //wait 8s for shake
-		}else if(pill_fsm.sem && pill.fsm.state == WAITING_FOR_END
+		}else if(pill_fsm.sem && pill_fsm.state == WAITING_FOR_END
 				&& 0 == strcmp(pill_fsm.uut, id)){
 			LOGF("Pass\r\n");
 			pill_fsm_reset();
