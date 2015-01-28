@@ -1824,7 +1824,7 @@ static struct{
 	pill_fsm_state state;
 	char uut[64];
 	xSemaphoreHandle sem;
-	int to;//in 10 ms intervals
+	int to;//in 1 ms intervals
 }pill_fsm;
 
 void pill_fsm_reset(void){
@@ -1839,7 +1839,7 @@ void Cmd_pill_test_register_shake(const char * id){
 		if(pill_fsm.state == WAITING_FOR_SHAKE){
 			strcpy(pill_fsm.uut, id);
 			pill_fsm.state = WAITING_FOR_HEARTBEAT;
-			pill_fsm.to = 5000;
+			pill_fsm.to = 6000;
 			LOGF("Activate Magnet\r\n");
 		}else if(pill_fsm.state == WAITING_FOR_TIMEOUT
 				&& 0 == strcmp(pill_fsm.uut, id)){
@@ -1856,7 +1856,7 @@ void Cmd_pill_test_register_heartbeat(const char * id){
 				&& 0 == strcmp(pill_fsm.uut, id)){
 			LOGF("Shake again.\r\n");
 			pill_fsm.state = WAITING_FOR_TIMEOUT;
-			pill_fsm.to = 500;
+			pill_fsm.to = 6000;
 		}
 		xSemaphoreGive(pill_fsm.sem);
 	}
@@ -1898,7 +1898,7 @@ PillTestThread(void * ctx){
 					break;
 			}
 			xSemaphoreGive(pill_fsm.sem);
-			vTaskDelay( 10 );
+			vTaskDelay( 1 );
 		}
 	}
 }
