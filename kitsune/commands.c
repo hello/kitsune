@@ -1835,7 +1835,7 @@ void pill_fsm_reset(void){
 
 void Cmd_pill_test_register_shake(const char * id){
 	LOGF("Shake\r\n");
-	if(pill_fsm.sem && xSemaphoreTake(pill_fsm.sem,10000)){
+	if(pill_fsm.sem && xSemaphoreTake(pill_fsm.sem,5000)){
 		if(pill_fsm.state == WAITING_FOR_SHAKE){
 			strcpy(pill_fsm.uut, id);
 			pill_fsm.state = WAITING_FOR_HEARTBEAT;
@@ -1851,7 +1851,7 @@ void Cmd_pill_test_register_shake(const char * id){
 }
 void Cmd_pill_test_register_heartbeat(const char * id){
 	LOGF("HB\r\n");
-	if( xSemaphoreTake(pill_fsm.sem,10000)){
+	if( xSemaphoreTake(pill_fsm.sem,5000)){
 		if(pill_fsm.sem && pill_fsm.state == WAITING_FOR_HEARTBEAT
 				&& 0 == strcmp(pill_fsm.uut, id)){
 			LOGF("Shake again.\r\n");
@@ -1862,7 +1862,7 @@ void Cmd_pill_test_register_heartbeat(const char * id){
 	}
 }
 int Cmd_pill_test_reset(int argc, char *argv[]){
-	if(pill_fsm.sem  && xSemaphoreTake(pill_fsm.sem,10000)){
+	if(pill_fsm.sem  && xSemaphoreTake(pill_fsm.sem,5000)){
 		pill_fsm_reset();
 		xSemaphoreGive(pill_fsm.sem);
 	}
@@ -1875,7 +1875,7 @@ PillTestThread(void * ctx){
 	}
 	LOGF("Pill Test Ready\r\n");
 	while(1){
-		if(xSemaphoreTake(pill_fsm.sem,10000)){
+		if(xSemaphoreTake(pill_fsm.sem,5000)){
 			switch(pill_fsm.state){
 				default:
 				case WAITING_FOR_SHAKE:
