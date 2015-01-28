@@ -663,11 +663,14 @@ void thread_alarm(void * unused) {
 
 static int dust_m2,dust_mean,dust_log_sum,dust_max,dust_min,dust_cnt;
 xSemaphoreHandle dust_smphr;
+void init_dust();
 
 void thread_dust(void * unused)  {
     #define maxval( a, b ) a>b ? a : b
 	dust_min = 5000;
 	dust_m2 = dust_mean = dust_cnt = dust_log_sum = dust_max = 0;
+
+	init_dust();
 	while (1) {
 		if (xSemaphoreTake(dust_smphr, portMAX_DELAY)) {
 			int dust = get_dust();
