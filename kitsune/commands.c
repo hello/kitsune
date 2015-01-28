@@ -546,7 +546,7 @@ static volatile bool alarm_started_trippy = false;
 
 static void thread_alarm_on_finished(void * context) {
 	if( alarm_started_trippy ) {
-		stop_led_animation();
+		stop_led_animation(10);
 		alarm_started_trippy = false;
 	}
 }
@@ -766,7 +766,7 @@ static void _show_led_status()
 static void _on_wave(){
 	if(	cancel_alarm() ) {
 		if( alarm_started_trippy ) {
-			stop_led_animation();
+			stop_led_animation(10);
 			alarm_started_trippy = false;
 		}
 	} else {
