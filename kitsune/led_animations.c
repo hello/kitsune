@@ -109,9 +109,9 @@ static bool _animate_trippy(int * out_r, int * out_g, int * out_b, int * out_del
 		out_g[i] = self.prev_colors[i].g * ((unsigned int)(self.counter)) / 100;
 		out_b[i] = self.prev_colors[i].b * ((unsigned int)(self.counter)) / 100;*/
 
-		out_r[i] = self.prev_colors[i].r * ((unsigned int)(scaler)) / 100;
-		out_g[i] = self.prev_colors[i].g * ((unsigned int)(scaler)) / 100;
-		out_b[i] = self.prev_colors[i].b * ((unsigned int)(scaler)) / 100;
+		out_r[i] = 0;
+		out_g[i] = 0;
+		out_b[i] = 0;
 
 		/*out_r[i] = 100  * ((unsigned int)(scaler)) / 100;
 				out_g[i] = 100  * ((unsigned int)(scaler)) / 100;
