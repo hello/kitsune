@@ -809,6 +809,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 				top_got_device_id = true;
 				_ble_reply_command_with_type(MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID);
 				top_board_notify_boot_complete();
+				vTaskDelay(200);
 			}else{
 				LOGI("device id fail from top\n");
 			}
