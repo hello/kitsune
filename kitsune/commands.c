@@ -1839,7 +1839,7 @@ void Cmd_pill_test_register_shake(const char * id){
 		if(pill_fsm.state == WAITING_FOR_SHAKE){
 			strcpy(pill_fsm.uut, id);
 			pill_fsm.state = WAITING_FOR_HEARTBEAT;
-			pill_fsm.to = 5000;
+			pill_fsm.to = 1000;	//10s timeout for heartbeat
 			LOGF("Activate Magnet\r\n");
 		}else if(pill_fsm.state == WAITING_FOR_TIMEOUT
 				&& 0 == strcmp(pill_fsm.uut, id)){
@@ -1856,7 +1856,7 @@ void Cmd_pill_test_register_heartbeat(const char * id){
 				&& 0 == strcmp(pill_fsm.uut, id)){
 			LOGF("Shake again.\r\n");
 			pill_fsm.state = WAITING_FOR_TIMEOUT;
-			pill_fsm.to = 500;
+			pill_fsm.to = 800; //wait 8s for shake
 		}
 		xSemaphoreGive(pill_fsm.sem);
 	}
