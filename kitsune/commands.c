@@ -1786,15 +1786,13 @@ void vUARTTask(void *pvParameters) {
 			// parsed and valid commands executed.
 			//
 			char * args = NULL;
-			while(!args) {
-				args = pvPortMalloc( sizeof(cCmdBuf) );
-				if( args == NULL ) {
-					vTaskDelay(1000);
-					LOGF("can't run command %s, no memory available!\n", cCmdBuf );
-				}
+			args = pvPortMalloc( sizeof(cCmdBuf) );
+			if( args == NULL ) {
+				LOGF("can't run command %s, no memory available!\n", cCmdBuf );
+			} else {
+				memcpy( args, cCmdBuf, sizeof( cCmdBuf ) );
+				xTaskCreate(CmdLineProcess, "commandTask",  5*1024 / 4, args, 4, NULL);
 			}
-			memcpy( args, cCmdBuf, sizeof( cCmdBuf ) );
-			xTaskCreate(CmdLineProcess, "commandTask",  5*1024 / 4, args, 4, NULL);
         }
 	}
 }
