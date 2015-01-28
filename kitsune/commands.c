@@ -1656,7 +1656,6 @@ void vUARTTask(void *pvParameters) {
     if( MAP_GPIOPinRead(GPIOA0_BASE, 0x4) == 0 ) {
     	//drive sop2 low so we disconnect
         MAP_GPIOPinWrite(GPIOA3_BASE, 0x2, 0);
-        on_charger = true;
     }
     MAP_PinTypeUART(PIN_55, PIN_MODE_3);
     MAP_PinTypeUART(PIN_57, PIN_MODE_3);
