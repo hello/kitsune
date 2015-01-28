@@ -236,7 +236,20 @@ bool play_led_animation_pulse(unsigned int timeout){
 	return false;
 }
 bool play_led_trippy(uint8_t trippy_base[3], uint8_t trippy_range[3], unsigned int timeout){
-	return true;
+	int i;
+	if( _start_animation( timeout ) ) {
+		memcpy(self.trippy_base, trippy_base, 3);
+		memcpy(self.trippy_range, trippy_range, 3);
+
+		for(i = 0; i < NUM_LED; i++){
+			self.colors[i] = (struct _colors){rand()%120, rand()%120, rand()%120};
+			self.prev_colors[i] = (struct _colors){0};
+		}
+		led_start_custom_animation(_animate_trippy, NULL);
+		led_unblock_racing_task();
+		return true;
+	}
+	return false;
 }
 bool play_led_progress_bar(int r, int g, int b, unsigned int options, unsigned int timeout){
 	if( _start_animation( timeout ) ) {
