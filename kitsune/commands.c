@@ -1822,7 +1822,7 @@ typedef  enum{
 }pill_fsm_state;
 static struct{
 	pill_fsm_state state;
-	char uut[64];
+	char uut[2][64];
 	xSemaphoreHandle sem;
 	int to;//in 1 ms intervals
 }pill_fsm;
@@ -1837,12 +1837,12 @@ void Cmd_pill_test_register_shake(const char * id){
 	LOGF("Shake\r\n");
 	if(pill_fsm.sem && xSemaphoreTake(pill_fsm.sem,5000)){
 		if(pill_fsm.state == WAITING_FOR_SHAKE){
-			strcpy(pill_fsm.uut, id);
+			strcpy(pill_fsm.uut[0], id);
 			pill_fsm.state = WAITING_FOR_HEARTBEAT;
 			pill_fsm.to = 6000;
 			LOGF("Activate Magnet\r\n");
 		}else if(pill_fsm.state == WAITING_FOR_TIMEOUT
-				&& 0 == strcmp(pill_fsm.uut, id)){
+				&& 0 == strcmp(pill_fsm.uut[0], id)){
 			LOGF("Fail\r\n");
 			pill_fsm_reset();
 		}
@@ -1853,7 +1853,7 @@ void Cmd_pill_test_register_heartbeat(const char * id){
 	LOGF("HB\r\n");
 	if( xSemaphoreTake(pill_fsm.sem,5000)){
 		if(pill_fsm.sem && pill_fsm.state == WAITING_FOR_HEARTBEAT
-				&& 0 == strcmp(pill_fsm.uut, id)){
+				&& 0 == strcmp(pill_fsm.uut[0], id)){
 			LOGF("Shake again.\r\n");
 			pill_fsm.state = WAITING_FOR_TIMEOUT;
 			pill_fsm.to = 6000;
