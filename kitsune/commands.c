@@ -670,7 +670,6 @@ void thread_dust(void * unused)  {
 	dust_min = 5000;
 	dust_m2 = dust_mean = dust_cnt = dust_log_sum = dust_max = 0;
 
-	init_dust();
 	while (1) {
 		if (xSemaphoreTake(dust_smphr, portMAX_DELAY)) {
 			int dust = get_dust();
@@ -694,7 +693,7 @@ void thread_dust(void * unused)  {
 			xSemaphoreGive(dust_smphr);
 		}
 
-		vTaskDelay( 100 );
+		vTaskDelay( 200 );
 	}
 }
 
@@ -1608,6 +1607,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "boot",Cmd_boot,""},
 		{ "gesture_count",Cmd_get_gesture_count,""},
 		{ "alarm",set_test_alarm,""},
+		{ "set_time",cmd_set_time,""},
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
 		{ "iperfcli",Cmd_iperf_client,""},
@@ -1751,6 +1751,7 @@ void vUARTTask(void *pvParameters) {
 	networktask_init(5 * 1024 / 4);
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  512 / 4, NULL, 4, NULL);
 
+	init_dust();
 	if( on_charger ) {
 		launch_tasks();
 	} else {

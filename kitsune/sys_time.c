@@ -257,8 +257,6 @@ uint32_t fetch_unix_time_from_ntp() {
     return ntp;
 }
 
-static xSemaphoreHandle time_smphr = NULL;
-
 static void set_cached_time( time_t t ) {
 	cached_time = t;
 	cached_ticks = xTaskGetTickCount();
@@ -267,16 +265,25 @@ static time_t get_cached_time() {
 	return  cached_time + (xTaskGetTickCount() - cached_ticks) / 1000;
 }
 
+static xSemaphoreHandle time_smphr = NULL;
+
+int cmd_set_time(int argc, char *argv[]) {
+	if (time_smphr && xSemaphoreTake(time_smphr, 0)) {
+		set_cached_time(atoi(argv[1]));
+		set_sl_time(get_cached_time());
+		xSemaphoreGive(time_smphr);
+	}
+	return -1;
+}
 
 static void time_task( void * params ) { //exists to get the time going and cache so we aren't going to NTP or RTC every time...
 	#define TIME_POLL_INTERVAL 86400000ul //one DAY
 	bool have_set_time = false;
 	TickType_t last_set = 0;
 	while (1) {
-		if ((!have_set_time || xTaskGetTickCount()- last_set > TIME_POLL_INTERVAL )
-			&& wifi_status_get(HAS_IP) && time_smphr && xSemaphoreTake(time_smphr, 0)) {
+		if ((!have_set_time || xTaskGetTickCount()- last_set > TIME_POLL_INTERVAL ) && wifi_status_get(HAS_IP) ) {
 			uint32_t ntp_time = fetch_unix_time_from_ntp();
-			if (ntp_time != INVALID_SYS_TIME) {
+			if (ntp_time != INVALID_SYS_TIME && time_smphr && xSemaphoreTake(time_smphr, 0) ) {
 				if (set_unix_time(ntp_time) != INVALID_SYS_TIME) {
 					is_time_good = true;
 					set_cached_time(ntp_time);
