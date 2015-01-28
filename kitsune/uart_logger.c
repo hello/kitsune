@@ -435,6 +435,8 @@ int Cmd_log_setview(int argc, char * argv[]){
 	return -1;
 }
 
+extern volatile bool booted;
+
 static const char * const g_pcHex = "0123456789abcdef";
 void uart_logf(uint8_t tag, const char *pcString, ...){
 	va_list vaArgP;
@@ -448,6 +450,9 @@ void uart_logf(uint8_t tag, const char *pcString, ...){
     }
     if(tag & self.store_tag){
     	store = true;
+    }
+    if( !booted ) {
+    	store = false;
     }
 #if UART_LOGGER_PREPEND_TAG > 0
     while(tag){
