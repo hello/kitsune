@@ -789,64 +789,66 @@ extern volatile bool booted;
 
 bool on_ble_protobuf_command(MorpheusCommand* command)
 {
-	switch(command->type)
-	{
-		case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID:
+	if( !top_got_device_id ) {
+		switch(command->type)
 		{
-			LOGI("MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID\n");
-			int i;
-			if(command->deviceId.arg){
-				const char * device_id_str = command->deviceId.arg;
-				for(i=0;i<DEVICE_ID_SZ;++i) {
-					char num[3] = {0};
-					memcpy( num, device_id_str+i*2, 2);
-					top_device_id[i] = strtol( num, NULL, 16 );
+			case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID:
+			{
+				LOGI("MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID\n");
+				int i;
+				if(command->deviceId.arg){
+					const char * device_id_str = command->deviceId.arg;
+					for(i=0;i<DEVICE_ID_SZ;++i) {
+						char num[3] = {0};
+						memcpy( num, device_id_str+i*2, 2);
+						top_device_id[i] = strtol( num, NULL, 16 );
+					}
+					LOGI("got id from top %x:%x:%x:%x:%x:%x:%x:%x\n",
+							top_device_id[0],top_device_id[1],top_device_id[2],
+							top_device_id[3],top_device_id[4],top_device_id[5],
+							top_device_id[6],top_device_id[7]);
+					top_got_device_id = true;
+					_ble_reply_command_with_type(MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID);
+					top_board_notify_boot_complete();
+					vTaskDelay(200);
+				}else{
+					LOGI("device id fail from top\n");
 				}
-				LOGI("got id from top %x:%x:%x:%x:%x:%x:%x:%x\n",
-						top_device_id[0],top_device_id[1],top_device_id[2],
-						top_device_id[3],top_device_id[4],top_device_id[5],
-						top_device_id[6],top_device_id[7]);
-				top_got_device_id = true;
-				_ble_reply_command_with_type(MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID);
-				top_board_notify_boot_complete();
-				vTaskDelay(200);
-			}else{
-				LOGI("device id fail from top\n");
 			}
-		}
-		break;
+			break;
 
-        case MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_DEVICE_ID:
-        {
-            // Get morpheus device id request from Nordic
-            LOGI("GET DEVICE ID\n");
-            _self.led_status = LED_OFF;  // init led status
-            _ble_reply_command_with_type(MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_DEVICE_ID);
+			case MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_DEVICE_ID:
+			{
+				// Get morpheus device id request from Nordic
+				LOGI("GET DEVICE ID\n");
+				_self.led_status = LED_OFF;  // init led status
+				_ble_reply_command_with_type(MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_DEVICE_ID);
 
-            static bool played = false;
-            if( !played ) {
-				if(command->has_ble_bond_count)
-				{
-					LOGI("BOND COUNT %d\n", command->ble_bond_count);
-					// this command fires before MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID
-					// and it is the 1st command you can get from top.
-					if(!command->ble_bond_count){
-						// If we had ble_bond_count field, boot LED animation can start from here. Visual
-						// delay of device boot can be greatly reduced.
+				static bool played = false;
+				if( !played ) {
+					if(command->has_ble_bond_count)
+					{
+						LOGI("BOND COUNT %d\n", command->ble_bond_count);
+						// this command fires before MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID
+						// and it is the 1st command you can get from top.
+						if(!command->ble_bond_count){
+							// If we had ble_bond_count field, boot LED animation can start from here. Visual
+							// delay of device boot can be greatly reduced.
+							play_startup_sound();
+							ble_proto_led_init();
+						}else{
+							ble_proto_led_init();
+						}
+					} else {
+						LOGI("NO BOND COUNT\n");
 						play_startup_sound();
 						ble_proto_led_init();
-					}else{
-						ble_proto_led_init();
 					}
-				} else {
-					LOGI("NO BOND COUNT\n");
-					play_startup_sound();
-					ble_proto_led_init();
+					played = true;
 				}
-				played = true;
-            }
-        }
-        break;
+			}
+			break;
+		}
 	}
 	if(!booted) {
 		return true;
