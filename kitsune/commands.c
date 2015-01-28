@@ -1636,6 +1636,7 @@ long nwp_reset();
 
 void vUARTTask(void *pvParameters) {
 	char cCmdBuf[512];
+	bool on_charger = false;
 	wifi_status_init();
 	if(led_init() != 0){
 		LOGI("Failed to create the led_events.\n");
@@ -1659,6 +1660,7 @@ void vUARTTask(void *pvParameters) {
     if( MAP_GPIOPinRead(GPIOA0_BASE, 0x4) == 0 ) {
     	//drive sop2 low so we disconnect
         MAP_GPIOPinWrite(GPIOA3_BASE, 0x2, 0);
+        on_charger = true;
     }
     MAP_PinTypeUART(PIN_55, PIN_MODE_3);
     MAP_PinTypeUART(PIN_57, PIN_MODE_3);
@@ -1749,7 +1751,7 @@ void vUARTTask(void *pvParameters) {
 	networktask_init(5 * 1024 / 4);
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  512 / 4, NULL, 4, NULL);
 
-	if( true ) { //hack
+	if( on_charger ) {
 		launch_tasks();
 	} else {
 		led_set_color(50, LED_MAX, LED_MAX,0, 1, 0, 10, 1 ); //spin to alert user!

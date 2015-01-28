@@ -127,7 +127,6 @@ int get_dust_internal(unsigned int samples) {
 	unsigned int uiChannel = ADC_CH_3;
 //
 	unsigned long max, min;
-	vTaskDelay(100);
 	max = 0;
 	min = 99999;
 //
