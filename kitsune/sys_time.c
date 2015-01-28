@@ -223,7 +223,7 @@ uint32_t fetch_unix_time_from_ntp() {
 
     LOGI("receiving reply\n\r\n\r");
 
-    rv = recvfrom(sock, buffer, sizeof(buffer), 0, (SlSockAddr_t *) &sLocalAddr,  (SlSocklen_t*) &iAddrSize);
+    rv = sl_recvfromNoneThreadSafe(sock, buffer, sizeof(buffer), 0, (SlSockAddr_t *) &sLocalAddr,  (SlSocklen_t*) &iAddrSize);
     if (rv <= 0) {
         LOGI("Did not receive\n\r");
         close(sock);
@@ -273,6 +273,8 @@ int cmd_set_time(int argc, char *argv[]) {
 		set_sl_time(get_cached_time());
 		xSemaphoreGive(time_smphr);
 	}
+
+    LOGF("time is %u\n", get_time());
 	return -1;
 }
 
@@ -291,8 +293,8 @@ static void time_task( void * params ) { //exists to get the time going and cach
 					have_set_time = true;
 					last_set = xTaskGetTickCount();
 				}
+				xSemaphoreGive(time_smphr);
 			}
-			xSemaphoreGive(time_smphr);
 		}
 
 		if (time_smphr && xSemaphoreTake(time_smphr, 0)) {
