@@ -1818,7 +1818,8 @@ void vUARTTask(void *pvParameters) {
 typedef  enum{
 	WAITING_FOR_SHAKE = 0,
 	WAITING_FOR_HEARTBEAT,
-	WAITING_FOR_TIMEOUT
+	WAITING_FOR_TIMEOUT,
+	WAITING_FOR_END
 }pill_fsm_state;
 static struct{
 	pill_fsm_state state;
@@ -1857,6 +1858,10 @@ void Cmd_pill_test_register_heartbeat(const char * id){
 			LOGF("Shake again.\r\n");
 			pill_fsm.state = WAITING_FOR_TIMEOUT;
 			pill_fsm.to = 800; //wait 8s for shake
+		}else if(pill_fsm.sem && pill.fsm.state == WAITING_FOR_END
+				&& 0 == strcmp(pill_fsm.uut, id)){
+			LOGF("Pass\r\n");
+			pill_fsm_reset();
 		}
 		xSemaphoreGive(pill_fsm.sem);
 	}
@@ -1892,7 +1897,16 @@ PillTestThread(void * ctx){
 					if(pill_fsm.to-- > 0){
 						//here we wait for coutndown
 					}else{
-						LOGF("Pass\r\n");
+						LOGF("Deactivate Magnet\r\n");
+						pill_fsm.to = 500;
+						pill_fsm.state = WAITING_FOR_END;
+					}
+					break;
+				case WAITING_FOR_END:
+					if(pill_fsm.to-- > 0){
+						//here we wait for coutndown
+					}else{
+						LOGF("Fail\r\n");
 						pill_fsm_reset();
 					}
 					break;
