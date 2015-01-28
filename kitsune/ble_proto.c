@@ -785,8 +785,71 @@ static void play_startup_sound() {
 	vTaskDelay(175);
 }
 
+extern volatile bool booted;
+
 bool on_ble_protobuf_command(MorpheusCommand* command)
 {
+	switch(command->type)
+	{
+		case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID:
+		{
+			LOGI("MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID\n");
+			int i;
+			if(command->deviceId.arg){
+				const char * device_id_str = command->deviceId.arg;
+				for(i=0;i<DEVICE_ID_SZ;++i) {
+					char num[3] = {0};
+					memcpy( num, device_id_str+i*2, 2);
+					top_device_id[i] = strtol( num, NULL, 16 );
+				}
+				LOGI("got id from top %x:%x:%x:%x:%x:%x:%x:%x\n",
+						top_device_id[0],top_device_id[1],top_device_id[2],
+						top_device_id[3],top_device_id[4],top_device_id[5],
+						top_device_id[6],top_device_id[7]);
+				top_got_device_id = true;
+				_ble_reply_command_with_type(MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID);
+				top_board_notify_boot_complete();
+			}else{
+				LOGI("device id fail from top\n");
+			}
+		}
+		break;
+
+        case MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_DEVICE_ID:
+        {
+            // Get morpheus device id request from Nordic
+            LOGI("GET DEVICE ID\n");
+            _self.led_status = LED_OFF;  // init led status
+            _ble_reply_command_with_type(MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_DEVICE_ID);
+
+            static bool played = false;
+            if( !played ) {
+				if(command->has_ble_bond_count)
+				{
+					LOGI("BOND COUNT %d\n", command->ble_bond_count);
+					// this command fires before MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID
+					// and it is the 1st command you can get from top.
+					if(!command->ble_bond_count){
+						// If we had ble_bond_count field, boot LED animation can start from here. Visual
+						// delay of device boot can be greatly reduced.
+						play_startup_sound();
+						ble_proto_led_init();
+					}else{
+						ble_proto_led_init();
+					}
+				} else {
+					LOGI("NO BOND COUNT\n");
+					play_startup_sound();
+					ble_proto_led_init();
+				}
+				played = true;
+            }
+        }
+        break;
+	}
+	if(!booted) {
+		return true;
+	}
     switch(command->type)
     {
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SET_WIFI_ENDPOINT:
@@ -837,43 +900,13 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         {
         	LOGI("PHONE CONNECTED\n");
         	ble_proto_led_busy_mode(0xFF, 128, 0, 128, 18);
+
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PHONE_BLE_BONDED:
         {
         	ble_proto_led_fade_out(0);
         	LOGI("PHONE BONDED\n");
-        }
-        break;
-        case MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_DEVICE_ID:
-        {
-            // Get morpheus device id request from Nordic
-            LOGI("GET DEVICE ID\n");
-            _self.led_status = LED_OFF;  // init led status
-            _ble_reply_command_with_type(MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_DEVICE_ID);
-
-            static bool played = false;
-            if( !played ) {
-				if(command->has_ble_bond_count)
-				{
-					LOGI("BOND COUNT %d\n", command->ble_bond_count);
-					// this command fires before MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID
-					// and it is the 1st command you can get from top.
-					if(!command->ble_bond_count){
-						// If we had ble_bond_count field, boot LED animation can start from here. Visual
-						// delay of device boot can be greatly reduced.
-						play_startup_sound();
-						ble_proto_led_init();
-					}else{
-						ble_proto_led_init();
-					}
-				} else {
-					LOGI("NO BOND COUNT\n");
-					play_startup_sound();
-					ble_proto_led_init();
-				}
-				played = true;
-            }
         }
         break;
     	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_DATA: 
@@ -934,31 +967,6 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
             	LOGI("Please update topboard, no pill id\n");
             }
         }
-        break;
-    	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID:
-        {
-    		LOGI("MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID\n");
-        	int i;
-        	if(command->deviceId.arg){
-#ifndef DONT_GET_ID_FROM_TOP
-        		const char * device_id_str = command->deviceId.arg;
-        		for(i=0;i<DEVICE_ID_SZ;++i) {
-        			char num[3] = {0};
-        			memcpy( num, device_id_str+i*2, 2);
-        			top_device_id[i] = strtol( num, NULL, 16 );
-        		}
-        		LOGI("got id from top %x:%x:%x:%x:%x:%x:%x:%x\n",
-        				top_device_id[0],top_device_id[1],top_device_id[2],
-        				top_device_id[3],top_device_id[4],top_device_id[5],
-        				top_device_id[6],top_device_id[7]);
-        		top_got_device_id = true;
-#endif
-        		_ble_reply_command_with_type(MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID);
-        		top_board_notify_boot_complete();
-        	}else{
-        		LOGI("device id fail from top\n");
-        	}
-    	}
         break;
     	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_LED_BUSY:
     		LOGI("MorpheusCommand_CommandType_MORPHEUS_COMMAND_LED_BUSY\n");
