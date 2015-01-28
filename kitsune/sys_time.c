@@ -271,6 +271,7 @@ int cmd_set_time(int argc, char *argv[]) {
 	if (time_smphr && xSemaphoreTake(time_smphr, 0)) {
 		set_cached_time(atoi(argv[1]));
 		set_sl_time(get_cached_time());
+		is_time_good = true;
 		xSemaphoreGive(time_smphr);
 	}
 

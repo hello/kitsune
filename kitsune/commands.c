@@ -1607,7 +1607,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "boot",Cmd_boot,""},
 		{ "gesture_count",Cmd_get_gesture_count,""},
 		{ "alarm",set_test_alarm,""},
-		{ "set_time",cmd_set_time,""},
+		{ "set-time",cmd_set_time,""},
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
 		{ "iperfcli",Cmd_iperf_client,""},
