@@ -156,7 +156,9 @@ static void led_slow(unsigned int* color) {
 				if (i != 23) {
 					UtilsDelay(5);
 				} else {
-					UtilsDelay(2);
+					UtilsDelay(2
+
+					);
 				}
 			}
 		}

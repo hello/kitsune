@@ -615,16 +615,10 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 	return 0; // failure
 }
 
-#define IMG_STATUS_TESTING      0x12344321
-unsigned int boot_mode();
-void init_ble_led() {
-	_self.led_status = LED_OFF;
-}
 void ble_proto_led_init()
 {
-	if( boot_mode() != IMG_STATUS_TESTING ) {
-		led_set_color(0xFF, LED_MAX, LED_MAX, LED_MAX, 1, 1, 36, 0);
-	}
+	_self.led_status = LED_OFF;
+	led_set_color(0xFF, LED_MAX, LED_MAX, LED_MAX, 1, 1, 36, 0);
 }
 
 void ble_proto_led_busy_mode(uint8_t a, uint8_t r, uint8_t g, uint8_t b, int delay)

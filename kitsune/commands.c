@@ -1643,7 +1643,6 @@ long nwp_reset();
 void vUARTTask(void *pvParameters) {
 	char cCmdBuf[512];
 	bool on_charger = false;
-	init_ble_led();
 	wifi_status_init();
 	if(led_init() != 0){
 		LOGI("Failed to create the led_events.\n");

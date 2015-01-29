@@ -1535,11 +1535,6 @@ static _i32 _McuImageGetNewIndex(void)
 int wait_for_top_boot(unsigned int timeout);
 int send_top(char *, int);
 
-unsigned int boot_mode() {
-    _ReadBootInfo(&sBootInfo);
-    return sBootInfo.ulImgStatus;
-}
-
 void boot_commit_ota() {
     _ReadBootInfo(&sBootInfo);
     /* Check only on status TESTING */
