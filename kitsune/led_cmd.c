@@ -287,6 +287,20 @@ static uint32_t wheel_color(int WheelPos, unsigned int color) {
 #define QUANT_FACTOR 6
 extern int led_animation_not_in_progress;
 
+void led_idle_task( void * params ) {
+	vTaskDelay(10000);
+	while(1) {
+		xEventGroupWaitBits(
+				led_events,   /* The event group being tested. */
+				LED_IDLE_BIT,    /* The bits within the event group to wait for. */
+				pdFALSE,        /* all bits should not be cleared before returning. */
+				pdFALSE,       /* Don't wait for both bits, either bit will do. */
+				portMAX_DELAY );/* Wait for any bit to be set. */
+		xEventGroupSetBits(led_events,LED_RESET_BIT);
+		vTaskDelay(10000);
+	}
+}
+
 void led_task( void * params ) {
 	int i,j;
 	unsigned int colors_last[NUM_LED+1];
