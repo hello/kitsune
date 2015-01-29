@@ -305,7 +305,7 @@ int Cmd_record_buff(int argc, char *argv[]) {
 	}
 
 	//turn on
-	AudioTask_StartCapture(16000);
+	AudioTask_StartCapture(atoi(argv[1]) : 16000);
 
 	//capture
 	memset(&m,0,sizeof(m));
@@ -846,6 +846,7 @@ void thread_fast_i2c_poll(void * unused)  {
 	}
 }
 
+#define MAX_PERIODIC_DATA 30
 #define MAX_PILL_DATA 20
 #define MAX_BATCH_PILL_DATA 10
 #define PILL_BATCH_WATERMARK 2
@@ -1130,14 +1131,18 @@ void thread_sensor_poll(void* unused) {
 		sample_sensor_data(&data);
 
 		if( booted ) {
-		LOGI("collecting time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d %d %d %d\twave %d\thold %d\n",
-				data.unix_time, data.light, data.light_variability, data.light_tonality, data.temperature, data.humidity,
-				data.dust, data.dust_max, data.dust_min, data.dust_variability, data.wave_count, data.hold_count);
+			LOGI(
+					"collecting time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d %d %d %d\twave %d\thold %d\n",
+					data.unix_time, data.light, data.light_variability,
+					data.light_tonality, data.temperature, data.humidity,
+					data.dust, data.dust_max, data.dust_min,
+					data.dust_variability, data.wave_count, data.hold_count);
 
-		if(!xQueueSend(data_queue, (void*)&data, 10) == pdPASS)
-        {
-    		LOGI("Failed to post data\n");
-    	}
+			if (!xQueueSend(data_queue, (void* )&data, 10) == pdPASS) {
+				LOGE("Failed to post data\n");
+				nwp_reset();
+				mcu_reset();
+			}
 		}
 
 		vTaskDelayUntil(&now, 60 * configTICK_RATE_HZ);
@@ -1730,7 +1735,7 @@ void vUARTTask(void *pvParameters) {
 
 	init_led_animation();
 
-	data_queue = xQueueCreate(10, sizeof(periodic_data));
+	data_queue = xQueueCreate(MAX_PERIODIC_DATA, sizeof(periodic_data));
 	pill_queue = xQueueCreate(MAX_PILL_DATA, sizeof(pill_data));
 	vSemaphoreCreateBinary(dust_smphr);
 	vSemaphoreCreateBinary(light_smphr);
