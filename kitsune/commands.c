@@ -305,7 +305,7 @@ int Cmd_record_buff(int argc, char *argv[]) {
 	}
 
 	//turn on
-	AudioTask_StartCapture(atoi(argv[1]) : 16000);
+	AudioTask_StartCapture(atoi(argv[1]) : 16000));
 
 	//capture
 	memset(&m,0,sizeof(m));
