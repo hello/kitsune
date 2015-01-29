@@ -973,10 +973,10 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 					/* Close file without saving */
 					res = hello_fs_close(&file_obj);
 
-					stop_led_animation();
+					stop_led_animation(10);
 					if (res != FR_OK) {
 						cd("/");
-						stop_led_animation();
+						stop_led_animation(10);
 						return ((int) res);
 					}
 					hello_fs_unlink(path_buff);
@@ -994,7 +994,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 	            {
 	            	LOGI("Failed during writing the file\n");
 	                /* Close file without saving */
-	                stop_led_animation();
+	                stop_led_animation(10);
 	                return sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
 	            }
 			}
@@ -1002,7 +1002,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 
             if(r < recv_size)
             {
-    			stop_led_animation();
+    			stop_led_animation(10);
     			if (storage == SD_CARD) {
     				/* Close file without saving */
     				res = hello_fs_close(&file_obj);
@@ -1047,11 +1047,11 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
         					LOGI("Failed during writing the file\n");
         					/* Close file without saving */
         					res = hello_fs_close(&file_obj);
-        					stop_led_animation();
+        					stop_led_animation(10);
 
         					if (res != FR_OK) {
         						cd("/");
-        						stop_led_animation();
+        						stop_led_animation(10);
         						return ((int) res);
         					}
         					hello_fs_unlink(path_buff);
@@ -1067,7 +1067,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 							/* Close file without saving */
 							r = sl_FsClose(fileHandle, 0,
 									(unsigned char*) "A", 1);
-							stop_led_animation();
+							stop_led_animation(10);
 							return r;
 						}
         			}
@@ -1076,7 +1076,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 
                     if(r < recv_size)
                     {
-            			stop_led_animation();
+            			stop_led_animation(10);
             			if (storage == SD_CARD) {
             				/* Close file without saving */
             				res = hello_fs_close(&file_obj);
@@ -1120,7 +1120,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
         					/* Close file without saving */
         					res = hello_fs_close(&file_obj);
 
-        					stop_led_animation();
+        					stop_led_animation(10);
         					if (res != FR_OK) {
         						cd("/");
         						return ((int) res);
@@ -1134,7 +1134,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 						r = sl_FsWrite(fileHandle, total - recv_size,
 								(unsigned char *) pBuff, transfer_len);
 						if (r < transfer_len) {
-							stop_led_animation();
+							stop_led_animation(10);
 							LOGI("Failed during writing the file\n");
 							/* Close file without saving */
 							r = sl_FsClose(fileHandle, 0,
@@ -1147,7 +1147,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 
                     if(r < transfer_len)
                     {
-            			stop_led_animation();
+            			stop_led_animation(10);
             			if (storage == SD_CARD) {
             				/* Close file without saving */
             				res = hello_fs_close(&file_obj);
@@ -1177,7 +1177,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 					LOGI("Failed during writing the file\n");
 					/* Close file without saving */
 					res = hello_fs_close(&file_obj);
-					stop_led_animation();
+					stop_led_animation(10);
 
 					if (res != FR_OK) {
 						cd("/");
@@ -1195,7 +1195,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 					LOGI("Failed during writing the file\n");
 					/* Close file without saving */
 					sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
-					stop_led_animation();
+					stop_led_animation(10);
 					return -1;
 				}
 			}
@@ -1204,7 +1204,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 
             if (r != transfer_len )
             {
-    			stop_led_animation();
+    			stop_led_animation(10);
     			if (storage == SD_CARD) {
     				/* Close file without saving */
     				res = hello_fs_close(&file_obj);
@@ -1212,7 +1212,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
     			} else if (storage == SERIAL_FLASH) {
     				sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
     			}
-    			stop_led_animation();
+    			stop_led_animation(10);
                 return -1;
             }
             bytesReceived +=transfer_len;
@@ -1226,7 +1226,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
         if(transfer_len <= 0) {
         	LOGI("TCP_RECV_ERROR\r\n" );
         	cd( "/" );
-			stop_led_animation();
+			stop_led_animation(10);
 			if (storage == SD_CARD) {
 				/* Close file without saving */
 				res = hello_fs_close(&file_obj);
@@ -1240,7 +1240,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
         pBuff = g_buff;
     }
 
-	stop_led_animation();
+	stop_led_animation(10);
 
     //
     // If user file has checksum which can be used to verify the temporary

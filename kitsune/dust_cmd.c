@@ -68,20 +68,14 @@ void SetupTimerPWMMode(unsigned long ulBase, unsigned long ulTimer,
 	// Match value set so as to output level 0
 	//
 	MAP_TimerMatchSet(ulBase, ulTimer, TIMER_INTERVAL_RELOAD);
-
 }
 
-int get_dust_internal(unsigned int samples) {
+void init_dust() {
 	unsigned long uiAdcInputPin;
 	unsigned int uiChannel;
-	unsigned int uiIndex = 0;
-	unsigned long ulSample;
-
-	unsigned long max, min;
 
 	uiAdcInputPin = 0x3b;
 	uiChannel = ADC_CH_3;
-
 //
 // Pinmux for the selected ADC input pin
 //
@@ -124,8 +118,15 @@ int get_dust_internal(unsigned int samples) {
 // Enable ADC module
 //
 	ADCEnable(ADC_BASE);
+}
 
-	vTaskDelay(100);
+int get_dust_internal(unsigned int samples) {
+	unsigned int uiIndex = 0;
+	unsigned long ulSample;
+
+	unsigned int uiChannel = ADC_CH_3;
+//
+	unsigned long max, min;
 	max = 0;
 	min = 99999;
 //
@@ -146,8 +147,6 @@ int get_dust_internal(unsigned int samples) {
 	}
 
 	uiIndex = 0;
-
-	MAP_TimerDisable(TIMERA2_BASE, TIMER_B);
 	return max;
 }
 int get_dust() {

@@ -305,7 +305,7 @@ int Cmd_record_buff(int argc, char *argv[]) {
 	}
 
 	//turn on
-	AudioTask_StartCapture(16000);
+	AudioTask_StartCapture(atoi(argv[1]));
 
 	//capture
 	memset(&m,0,sizeof(m));
@@ -546,7 +546,7 @@ static volatile bool alarm_started_trippy = false;
 
 static void thread_alarm_on_finished(void * context) {
 	if( alarm_started_trippy ) {
-		stop_led_animation();
+		stop_led_animation(10);
 		alarm_started_trippy = false;
 	}
 }
@@ -663,11 +663,13 @@ void thread_alarm(void * unused) {
 
 static int dust_m2,dust_mean,dust_log_sum,dust_max,dust_min,dust_cnt;
 xSemaphoreHandle dust_smphr;
+void init_dust();
 
 void thread_dust(void * unused)  {
     #define maxval( a, b ) a>b ? a : b
 	dust_min = 5000;
 	dust_m2 = dust_mean = dust_cnt = dust_log_sum = dust_max = 0;
+
 	while (1) {
 		if (xSemaphoreTake(dust_smphr, portMAX_DELAY)) {
 			int dust = get_dust();
@@ -691,7 +693,7 @@ void thread_dust(void * unused)  {
 			xSemaphoreGive(dust_smphr);
 		}
 
-		vTaskDelay( 100 );
+		vTaskDelay( 200 );
 	}
 }
 
@@ -766,7 +768,7 @@ static void _show_led_status()
 static void _on_wave(){
 	if(	cancel_alarm() ) {
 		if( alarm_started_trippy ) {
-			stop_led_animation();
+			stop_led_animation(10);
 			alarm_started_trippy = false;
 		}
 	} else {
@@ -844,6 +846,7 @@ void thread_fast_i2c_poll(void * unused)  {
 	}
 }
 
+#define MAX_PERIODIC_DATA 30
 #define MAX_PILL_DATA 20
 #define MAX_BATCH_PILL_DATA 10
 #define PILL_BATCH_WATERMARK 2
@@ -1128,14 +1131,18 @@ void thread_sensor_poll(void* unused) {
 		sample_sensor_data(&data);
 
 		if( booted ) {
-		LOGI("collecting time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d %d %d %d\twave %d\thold %d\n",
-				data.unix_time, data.light, data.light_variability, data.light_tonality, data.temperature, data.humidity,
-				data.dust, data.dust_max, data.dust_min, data.dust_variability, data.wave_count, data.hold_count);
+			LOGI(
+					"collecting time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d %d %d %d\twave %d\thold %d\n",
+					data.unix_time, data.light, data.light_variability,
+					data.light_tonality, data.temperature, data.humidity,
+					data.dust, data.dust_max, data.dust_min,
+					data.dust_variability, data.wave_count, data.hold_count);
 
-		if(!xQueueSend(data_queue, (void*)&data, 10) == pdPASS)
-        {
-    		LOGI("Failed to post data\n");
-    	}
+			if (!xQueueSend(data_queue, (void* )&data, 10) == pdPASS) {
+				LOGE("Failed to post data\n");
+				nwp_reset();
+				mcu_reset();
+			}
 		}
 
 		vTaskDelayUntil(&now, 60 * configTICK_RATE_HZ);
@@ -1477,27 +1484,17 @@ void launch_tasks() {
 	//dear future chris: this one doesn't need a semaphore since it's only written to while threads are going during factory test boot
 	booted = true;
 
-	init_download_task( 1024 / 4 );
-	networktask_init(5 * 1024 / 4);
-
 	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,1,NULL);
 	UARTprintf("*");
-
 	xTaskCreate(thread_alarm, "alarmTask", 2*1024 / 4, NULL, 4, NULL);
-
-
 	UARTprintf("*");
 	xTaskCreate(FileUploaderTask_Thread,"fileUploadTask",1*1024/4,NULL,1,NULL);
-
 #ifdef BUILD_SERVERS //todo PVT disable!
 	xTaskCreate(telnetServerTask,"telnetServerTask",512/4,NULL,1,NULL);
 	xTaskCreate(httpServerTask,"httpServerTask",3*512/4,NULL,1,NULL);
 #endif
-
 	UARTprintf("*");
 #if !ONLY_MID
-
-	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  512 / 4, NULL, 4, NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_dust, "dustTask", 256 / 4, NULL, 3, NULL);
 	UARTprintf("*");
@@ -1615,6 +1612,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "boot",Cmd_boot,""},
 		{ "gesture_count",Cmd_get_gesture_count,""},
 		{ "alarm",set_test_alarm,""},
+		{ "set-time",cmd_set_time,""},
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
 		{ "iperfcli",Cmd_iperf_client,""},
@@ -1649,7 +1647,7 @@ void vUARTTask(void *pvParameters) {
 		LOGI("Failed to create the led_events.\n");
 	}
 	xTaskCreate(led_task, "ledTask", 700 / 4, NULL, 4, NULL); //todo reduce stack - jpf 512 not large enough due to large int arrays in led_task
-
+	xTaskCreate(led_idle_task, "led_idle_task", 256 / 4, NULL, 4, NULL); //todo reduce stack - jpf 512 not large enough due to large int arrays in led_task
 
 	//switch the uart lines to gpios, drive tx low and see if rx goes low as well
     // Configure PIN_57 for GPIOInput
@@ -1737,7 +1735,7 @@ void vUARTTask(void *pvParameters) {
 
 	init_led_animation();
 
-	data_queue = xQueueCreate(10, sizeof(periodic_data));
+	data_queue = xQueueCreate(MAX_PERIODIC_DATA, sizeof(periodic_data));
 	pill_queue = xQueueCreate(MAX_PILL_DATA, sizeof(pill_data));
 	vSemaphoreCreateBinary(dust_smphr);
 	vSemaphoreCreateBinary(light_smphr);
@@ -1754,6 +1752,11 @@ void vUARTTask(void *pvParameters) {
 
 	xTaskCreate(AudioTask_Thread,"audioTask",4*1024/4,NULL,4,NULL);
 	UARTprintf("*");
+	init_download_task( 1024 / 4 );
+	networktask_init(5 * 1024 / 4);
+	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  512 / 4, NULL, 4, NULL);
+
+	init_dust();
 	if( on_charger ) {
 		launch_tasks();
 	} else {
@@ -1792,15 +1795,13 @@ void vUARTTask(void *pvParameters) {
 			// parsed and valid commands executed.
 			//
 			char * args = NULL;
-			while(!args) {
-				args = pvPortMalloc( sizeof(cCmdBuf) );
-				if( args == NULL ) {
-					vTaskDelay(1000);
-					LOGF("can't run command %s, no memory available!\n", cCmdBuf );
-				}
+			args = pvPortMalloc( sizeof(cCmdBuf) );
+			if( args == NULL ) {
+				LOGF("can't run command %s, no memory available!\n", cCmdBuf );
+			} else {
+				memcpy( args, cCmdBuf, sizeof( cCmdBuf ) );
+				xTaskCreate(CmdLineProcess, "commandTask",  5*1024 / 4, args, 4, NULL);
 			}
-			memcpy( args, cCmdBuf, sizeof( cCmdBuf ) );
-			xTaskCreate(CmdLineProcess, "commandTask",  5*1024 / 4, args, 4, NULL);
         }
 	}
 }
