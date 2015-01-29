@@ -193,7 +193,7 @@ _on_ack_success(void){
 			_encode_and_send((uint8_t*)end_packet, sizeof(end_packet));
 			self.dfu_state = DFU_IDLE;
 			LOGI("Attempting to boot top board...\r\n");
-			stop_led_animation();
+			stop_led_animation(10);
 			led_set_color(0xFF, 0,10,0,1,1,200,0);
 			}
 			break;

@@ -223,7 +223,7 @@ uint32_t fetch_unix_time_from_ntp() {
 
     LOGI("receiving reply\n\r\n\r");
 
-    rv = recvfrom(sock, buffer, sizeof(buffer), 0, (SlSockAddr_t *) &sLocalAddr,  (SlSocklen_t*) &iAddrSize);
+    rv = sl_recvfromNoneThreadSafe(sock, buffer, sizeof(buffer), 0, (SlSockAddr_t *) &sLocalAddr,  (SlSocklen_t*) &iAddrSize);
     if (rv <= 0) {
         LOGI("Did not receive\n\r");
         close(sock);
@@ -257,8 +257,6 @@ uint32_t fetch_unix_time_from_ntp() {
     return ntp;
 }
 
-static xSemaphoreHandle time_smphr = NULL;
-
 static void set_cached_time( time_t t ) {
 	cached_time = t;
 	cached_ticks = xTaskGetTickCount();
@@ -267,16 +265,28 @@ static time_t get_cached_time() {
 	return  cached_time + (xTaskGetTickCount() - cached_ticks) / 1000;
 }
 
+static xSemaphoreHandle time_smphr = NULL;
+
+int cmd_set_time(int argc, char *argv[]) {
+	if (time_smphr && xSemaphoreTake(time_smphr, 0)) {
+		set_cached_time(atoi(argv[1]));
+		set_sl_time(get_cached_time());
+		is_time_good = true;
+		xSemaphoreGive(time_smphr);
+	}
+
+    LOGF("time is %u\n", get_time());
+	return -1;
+}
 
 static void time_task( void * params ) { //exists to get the time going and cache so we aren't going to NTP or RTC every time...
 	#define TIME_POLL_INTERVAL 86400000ul //one DAY
 	bool have_set_time = false;
 	TickType_t last_set = 0;
 	while (1) {
-		if ((!have_set_time || xTaskGetTickCount()- last_set > TIME_POLL_INTERVAL )
-			&& wifi_status_get(HAS_IP) && time_smphr && xSemaphoreTake(time_smphr, 0)) {
+		if ((!have_set_time || xTaskGetTickCount()- last_set > TIME_POLL_INTERVAL ) && wifi_status_get(HAS_IP) ) {
 			uint32_t ntp_time = fetch_unix_time_from_ntp();
-			if (ntp_time != INVALID_SYS_TIME) {
+			if (ntp_time != INVALID_SYS_TIME && time_smphr && xSemaphoreTake(time_smphr, 0) ) {
 				if (set_unix_time(ntp_time) != INVALID_SYS_TIME) {
 					is_time_good = true;
 					set_cached_time(ntp_time);
@@ -284,8 +294,8 @@ static void time_task( void * params ) { //exists to get the time going and cach
 					have_set_time = true;
 					last_set = xTaskGetTickCount();
 				}
+				xSemaphoreGive(time_smphr);
 			}
-			xSemaphoreGive(time_smphr);
 		}
 
 		if (time_smphr && xSemaphoreTake(time_smphr, 0)) {
@@ -348,5 +358,7 @@ void init_time_module(int stack)
 	cached_ticks = 0;
 	cached_time = INVALID_SYS_TIME;
 	vSemaphoreCreateBinary(time_smphr);
+	set_cached_time(1422504361); //default time gets us in jan 29th 2015
+	set_sl_time(get_cached_time());
 	xTaskCreate(time_task, "time_task", stack / 4, NULL, 4, NULL); //todo reduce stack
 }
