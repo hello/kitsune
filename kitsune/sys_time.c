@@ -358,5 +358,7 @@ void init_time_module(int stack)
 	cached_ticks = 0;
 	cached_time = INVALID_SYS_TIME;
 	vSemaphoreCreateBinary(time_smphr);
+	set_cached_time(1422504361); //default time gets us in jan 29th 2015
+	set_sl_time(get_cached_time());
 	xTaskCreate(time_task, "time_task", stack / 4, NULL, 4, NULL); //todo reduce stack
 }
