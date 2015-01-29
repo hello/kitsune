@@ -1,0 +1,52 @@
+MP Release notes:
+
+Added time control commands
+LED will periodically zero when idle
+Make sure LED fades out when starting animation
+Reset if server doesn’t respond for 30 minutes
+Don’t store logs on a debug cable (so factory units don’t try to upload)
+LED commands (i.e. led 254 254 254 1 0 1 0) working again on debug cable
+LED animate stop sped up
+Get the top device ID without requiring full boot (so the top doesn’t trigger pairing mode and scan RSSI)
+
+PVT Release notes:
+
+Added factory test commands
+  Log level 40 for only factory relevant outputs
+  Boot command for starting background tasks on programming cables
+
+PVT changes
+  Switch to PVT key
+  Switch to production endpoint
+  Switch to hello NTP server
+
+LED animation logic
+  Added startup sound and pulse
+  Add pill flash user colors
+  Animation on alarm
+  Animation on pairing mode
+  Wave cancels alarm/animation but not pairing animation unless in alarm
+  Alarm plays when pairing animation but wave does not remove the animation in this state
+  On idle clear the LED every 5 seconds in case the shifter breaks down
+  Glow when the lights turn off
+  Server LED control via sync response
+
+Wifi changes
+  Prescan on pairing mode so the results are ready to transmit on bluetooth as soon as requested
+  Sped up bluetooth transmission of access point information
+  User wifi scan uses both antennas and presents the best SSID on either to user
+
+Audio
+  Classification model updated
+  Upload sound levels
+
+Top board changes
+  Echo <data> tags as factory log level
+  Get bond count for boot sound
+  Hold to cancel pairing mode
+  Top board OTA works
+
+Logging changes
+  Limit max number of logs
+  Rate limit log uploads
+
