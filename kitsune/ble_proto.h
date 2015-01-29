@@ -28,6 +28,7 @@ void ble_proto_start_hold();
 void ble_proto_end_hold();
 bool on_ble_protobuf_command(MorpheusCommand* command);
 void ble_proto_led_init();
+void init_ble_led(); //haha pang, take that
 
 void ble_proto_led_busy_mode(uint8_t a, uint8_t r, uint8_t g, uint8_t b, int delay);
 void ble_proto_led_fade_in_trippy();
