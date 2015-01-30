@@ -12,6 +12,8 @@ extern "C" {
 int Cmd_led_clr(int argc, char *argv[]);
 int Cmd_led(int argc, char *argv[]);
 int led_init(void);
+
+void led_idle_task( void * params );
 void led_task( void * params );
 
 typedef bool (*led_user_animation_handler)(int * out_r, int * out_g, int * out_b, int * out_delay, void * user_context, int rgb_array_size);

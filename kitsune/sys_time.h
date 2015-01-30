@@ -24,7 +24,7 @@ void set_sl_time( time_t unix_timestamp_sec );
 time_t get_sl_time( );
 
 uint32_t fetch_unix_time_from_ntp(); //DO NOT CALL THIS ONE EXCEPT IN TESTS
-
+int cmd_set_time(int argc, char *argv[]);
 
 #ifdef __cplusplus
 }

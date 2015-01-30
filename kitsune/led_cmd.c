@@ -287,6 +287,20 @@ static uint32_t wheel_color(int WheelPos, unsigned int color) {
 #define QUANT_FACTOR 6
 extern int led_animation_not_in_progress;
 
+void led_idle_task( void * params ) {
+	vTaskDelay(10000);
+	while(1) {
+		xEventGroupWaitBits(
+				led_events,   /* The event group being tested. */
+				LED_IDLE_BIT,    /* The bits within the event group to wait for. */
+				pdFALSE,        /* all bits should not be cleared before returning. */
+				pdFALSE,       /* Don't wait for both bits, either bit will do. */
+				portMAX_DELAY );/* Wait for any bit to be set. */
+		xEventGroupSetBits(led_events,LED_RESET_BIT);
+		vTaskDelay(10000);
+	}
+}
+
 void led_task( void * params ) {
 	int i,j;
 	unsigned int colors_last[NUM_LED+1];
@@ -467,21 +481,15 @@ bool led_wait_for_idle(unsigned int wait) {
 
 int Cmd_led(int argc, char *argv[]) {
 	if(argc == 2 && strcmp(argv[1], "stop") == 0){
-		stop_led_animation();
+		stop_led_animation(1);
 		return 0;
 	}
 	if(argc == 2) {
-		if( led_ready() != 0 ) {
-			return -1;
-		}
 		int select = atoi(argv[1]);
 		xEventGroupClearBits( led_events, 0xffffff );
 		xEventGroupSetBits( led_events, select );
 	}else if(argc == 3){
 		if(strcmp(argv[1], "color") == 0 && argc >= 5){
-			if( led_ready() != 0 ) {
-				return -1;
-			}
 			user_color.r = clamp_rgb(atoi(argv[2]), 0, LED_CLAMP_MAX);
 			user_color.g = clamp_rgb(atoi(argv[3]), 0, LED_CLAMP_MAX);
 			user_color.b = clamp_rgb(atoi(argv[4]), 0, LED_CLAMP_MAX);

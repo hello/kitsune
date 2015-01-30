@@ -42,6 +42,7 @@ static void unlock() {
 static bool _start_animation( unsigned int timeout ) {
 	lock();
 	if( lock_animation( timeout ) ) {
+		led_fadeout(1);
 		LOGI("Start animation\n");
 		self.counter = 0;
 		self.sig_continue = true; //careful, to set this true requires both semaphores
@@ -274,11 +275,11 @@ void set_led_progress_bar(uint8_t percent){
 	unlock();
 }
 
-void stop_led_animation(){
+void stop_led_animation(unsigned int delay){
 	lock();
 	if(self.sig_continue){
 		self.sig_continue = false;
-		self.dly = 10;
+		self.dly = delay;
 		led_fadeout(self.dly);
 
 		// Wave gesture (cancel alarm) and audio playback on_finished callback
@@ -293,7 +294,7 @@ int Cmd_led_animate(int argc, char *argv[]){
 	//demo
 	if(argc > 1){
 		if(strcmp(argv[1], "stop") == 0){
-			stop_led_animation();
+			stop_led_animation(1);
 			return 0;
 		}else if(strcmp(argv[1], "+") == 0){
 			set_led_progress_bar(self.progress_bar_percent += 5);
