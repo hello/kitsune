@@ -278,9 +278,9 @@ PinMuxConfig(void)
     //
     MAP_PinTypeGPIO(PIN_17, PIN_MODE_0, false);
     MAP_GPIODirModeSet(GPIOA3_BASE, 0x1, GPIO_DIR_MODE_OUT);
-    {
-    	(*((unsigned volatile int*)0x4402E0E4)) |= 0x6F0;
-    }
+    //{
+    //	(*((unsigned volatile int*)0x4402E0E4)) |= 0x6F0;
+    //}
 
     //SOP2
     //
