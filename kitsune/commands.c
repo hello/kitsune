@@ -1846,6 +1846,10 @@ void Cmd_pill_test_register_shake(const char * id){
 				&& 0 == strcmp(pill_fsm.uut, id)){
 			LOGF("Fail\r\n");
 			pill_fsm_reset();
+		}else if(pill_fsm.state == WAITING_FOR_END
+				&& 0 == strcmp(pill_fsm.uut, id)){
+			LOGF("Pass\r\n");
+			pill_fsm_reset();
 		}
 		xSemaphoreGive(pill_fsm.sem);
 	}
@@ -1857,11 +1861,7 @@ void Cmd_pill_test_register_heartbeat(const char * id){
 				&& 0 == strcmp(pill_fsm.uut, id)){
 			LOGF("Shake again.\r\n");
 			pill_fsm.state = WAITING_FOR_TIMEOUT;
-			pill_fsm.to = 400; //wait 8s for shake
-		}else if(pill_fsm.sem && pill_fsm.state == WAITING_FOR_END
-				&& 0 == strcmp(pill_fsm.uut, id)){
-			LOGF("Pass\r\n");
-			pill_fsm_reset();
+			pill_fsm.to = 400; //wait 4s for shake
 		}
 		xSemaphoreGive(pill_fsm.sem);
 	}
