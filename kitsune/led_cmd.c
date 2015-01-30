@@ -458,14 +458,6 @@ void led_task( void * params ) {
 	}
 }
 
-int led_ready() {
-	//make sure the thread isn't doing something else...
-	if( xEventGroupGetBits( led_events ) & (LED_ROTATE_BIT | LED_CUSTOM_ANIMATION_BIT | LED_FADE_OUT_BIT | LED_FADE_OUT_STEP_BIT ) ) {
-		return -1;
-	}
-	return 0;
-}
-
 bool led_wait_for_idle(unsigned int wait) {
 	EventBits_t evnt;
 
@@ -476,7 +468,7 @@ bool led_wait_for_idle(unsigned int wait) {
 					pdFALSE,       /* Don't wait for both bits, either bit will do. */
 					wait );/* Wait for limited time. */
 
-	return (evnt & LED_IDLE_BIT) != 0;
+	return (evnt & LED_IDLE_BIT) == 0;
 }
 
 int Cmd_led(int argc, char *argv[]) {
@@ -532,14 +524,12 @@ void led_fadeout(unsigned int dly) {
 
 	led_wait_for_idle(1000+led_delay(dly));
 }
+
 int led_set_color(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b,
 		int fade_in, int fade_out,
 		unsigned int ud,
 		int rot) {
-	if( led_ready() != 0 ) {
-		LOGI("LED NOT READY\n");
-		return -1;
-	}
+	stop_led_animation(10);
 	xSemaphoreTake(led_smphr, portMAX_DELAY);
 	user_color.r = clamp_rgb(r, 0, LED_CLAMP_MAX) * alpha / 0xFF;
 	user_color.g = clamp_rgb(g, 0, LED_CLAMP_MAX) * alpha / 0xFF;
