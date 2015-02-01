@@ -468,7 +468,7 @@ bool led_wait_for_idle(unsigned int wait) {
 					pdFALSE,       /* Don't wait for both bits, either bit will do. */
 					wait );/* Wait for limited time. */
 
-	return (evnt & LED_IDLE_BIT) == 0;
+	return (evnt & LED_IDLE_BIT) == LED_IDLE_BIT;
 }
 
 int Cmd_led(int argc, char *argv[]) {
