@@ -647,11 +647,13 @@ void thread_alarm(void * unused) {
 			
 			xSemaphoreGive(alarm_smphr);
 
-			if ( led_wait_for_idle(5000) && play_lights) {
-				uint8_t trippy_base[3] = { 0, 0, 0 };
-				uint8_t trippy_range[3] = { 254, 254, 254 };
-				alarm_started_trippy = play_lights;
-				play_led_trippy(trippy_base, trippy_range, portMAX_DELAY);
+			if( play_lights ) {
+				if ( led_wait_for_idle(5000) ) {
+					uint8_t trippy_base[3] = { 0, 0, 0 };
+					uint8_t trippy_range[3] = { 254, 254, 254 };
+					alarm_started_trippy = play_lights;
+					play_led_trippy(trippy_base, trippy_range, portMAX_DELAY);
+				}
 			}
 			play_lights = false;
 		}
