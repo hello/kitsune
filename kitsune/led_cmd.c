@@ -578,6 +578,21 @@ int led_start_custom_animation(led_user_animation_handler user, void * context){
 int led_transition_custom_animation(led_user_animation_handler user, void * context, const uint32_t * initial_colors){
 	if(!user){
 		return -1;
+	}else{
+		xSemaphoreTake(led_smphr, portMAX_DELAY);
+
+		if(!initial_colors){
+			//memset(next_colors, 0, NUM_LED);
+		}else{
+			//memset(next_colors, initial_colors, NUM_LED);
+		}
+		user_animation_handler = user;
+		user_context  = context;
+		xEventGroupClearBits( led_events, 0xffffff );
+		xEventGroupSetBits( led_events, LED_CUSTOM_TRANSITION );
+
+		xSemaphoreGive(led_smphr);
+		return 0;
 	}
 }
 
