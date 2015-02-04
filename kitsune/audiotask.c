@@ -16,6 +16,7 @@
 #include "circ_buff.h"
 #include "network.h"
 #include "octogram.h"
+#include "i2c_cmd.h"
 
 #include <string.h>
 #include <stdio.h>
@@ -138,7 +139,7 @@ static uint8_t CheckForInterruptionDuringPlayback(void) {
 
 	return ret;
 }
-
+#include "stdbool.h"
 static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 	//1.5K on the stack
@@ -158,6 +159,11 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	int32_t desired_ticks_elapsed;
 	portTickType t0;
 	uint32_t iBufWaitingCount;
+
+	unsigned int fade_counter=0;
+	unsigned int fade_time=0;
+	bool fade_in = true;
+	unsigned int last_vol = 0;
 
 	desired_ticks_elapsed = info->durationInSeconds * NUMBER_OF_TICKS_IN_A_SECOND;
 
@@ -197,11 +203,28 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	memset(speaker_data_padded,0,sizeof(speaker_data_padded));
 
 	g_uiPlayWaterMark = 1;
-	t0 = xTaskGetTickCount();
+	fade_time = t0 = xTaskGetTickCount();
+#define FADE_TIME 3000
+#define FADE_SPAN 15
 
 	//loop until either a) done playing file for specified duration or b) our message queue gets a message that tells us to stop
 	for (; ;) {
 
+		fade_counter = xTaskGetTickCount() - fade_time;
+
+		if( fade_counter <= FADE_TIME && xTaskGetTickCount() - last_vol > 100 ) {
+			last_vol = xTaskGetTickCount();
+			if( fade_in ) {
+				UARTprintf("%d ",fade_counter * FADE_SPAN / FADE_TIME + info->volume - FADE_SPAN);
+			    set_volume(fade_counter * FADE_SPAN / FADE_TIME + info->volume - FADE_SPAN);
+			} else {
+				UARTprintf("%d ",info->volume - fade_counter * FADE_SPAN / FADE_TIME );
+			    set_volume( info->volume - fade_counter * FADE_SPAN / FADE_TIME );
+			}
+		} else if ( !fade_in && fade_counter > FADE_TIME ) {
+			LOGI("stopping playback");
+			break;
+		}
 		/* Read always in block of 512 Bytes or less else it will stuck in hello_fs_read() */
 
 		res = hello_fs_read(&fp, speaker_data, sizeof(speaker_data), &size);
@@ -241,10 +264,10 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 			returnFlags |= CheckForInterruptionDuringPlayback();
 
 
-			if (returnFlags) {
+			if (returnFlags && fade_in) {
 				//ruh-roh, gotta stop.
-				LOGI("stopping playback");
-				break;
+				fade_time = xTaskGetTickCount();
+				fade_in = false;
 			}
 
 		}
@@ -273,8 +296,9 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		//if time elapsed is greater than desired, we quit.
 		//UNLESS anddesired_ticks_elapsed is a negative number
 		//instead, we will quit when the file is done playing
-		if ( (xTaskGetTickCount() - t0) > desired_ticks_elapsed && desired_ticks_elapsed >= 0) {
-			break;
+		if ( fade_in && (xTaskGetTickCount() - t0 ) > desired_ticks_elapsed && desired_ticks_elapsed >= 0) {
+			fade_time = xTaskGetTickCount();
+			fade_in = false;
 		}
 
 

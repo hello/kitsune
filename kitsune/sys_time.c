@@ -266,7 +266,19 @@ static void set_cached_time( time_t t ) {
 static time_t get_cached_time() {
 	return  cached_time + (xTaskGetTickCount() - cached_ticks) / 1000;
 }
+static xSemaphoreHandle time_smphr = NULL;
 
+int cmd_set_time(int argc, char *argv[]) {
+	if (time_smphr && xSemaphoreTake(time_smphr, portMAX_DELAY)) {
+		set_cached_time(atoi(argv[1]));
+		set_sl_time(get_cached_time());
+		is_time_good = true;
+		xSemaphoreGive(time_smphr);
+	}
+
+    LOGF("time is %u\n", get_time());
+	return -1;
+}
 
 static void time_task( void * params ) { //exists to get the time going and cache so we aren't going to NTP or RTC every time...
 	#define TIME_POLL_INTERVAL 86400000ul //one DAY
@@ -289,7 +301,7 @@ static void time_task( void * params ) { //exists to get the time going and cach
 		}
 
 		if (time_smphr && xSemaphoreTake(time_smphr, 0)) {
-			if( !is_time_good || xTaskGetTickCount() - cached_ticks > 30000 ) {
+			if( xTaskGetTickCount() - cached_ticks > 30000 ) {
 				set_cached_time(get_unix_time());
 			}
 			xSemaphoreGive(time_smphr);
