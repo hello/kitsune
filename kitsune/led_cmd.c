@@ -282,7 +282,8 @@ static uint32_t wheel_color(int WheelPos, unsigned int color) {
 #define LED_FADE_IN_STEP_BIT    0x400
 
 #define LED_CUSTOM_COLOR		  0x0800
-#define LED_CUSTOM_ANIMATION_BIT	  0x1000
+#define LED_CUSTOM_ANIMATION_BIT  0x1000
+#define LED_CUSTOM_TRANSITION	  0x2000
 
 #define QUANT_FACTOR 6
 extern int led_animation_not_in_progress;
