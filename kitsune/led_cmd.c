@@ -575,6 +575,12 @@ int led_start_custom_animation(led_user_animation_handler user, void * context){
 	}
 }
 
+int led_transition_custom_animation(led_user_animation_handler user, void * context, const uint32_t * initial_colors){
+	if(!user){
+		return -1;
+	}
+}
+
 static uint8_t _rgb[3];
 
 void led_get_user_color(uint8_t* out_red, uint8_t* out_green, uint8_t* out_blue)
