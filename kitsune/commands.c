@@ -1487,9 +1487,9 @@ void launch_tasks() {
 
 	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,1,NULL);
 	UARTprintf("*");
-	//xTaskCreate(thread_alarm, "alarmTask", 2*1024 / 4, NULL, 4, NULL);
+	xTaskCreate(thread_alarm, "alarmTask", 2*1024 / 4, NULL, 4, NULL);
 	UARTprintf("*");
-	//xTaskCreate(FileUploaderTask_Thread,"fileUploadTask",1*1024/4,NULL,1,NULL);
+	xTaskCreate(FileUploaderTask_Thread,"fileUploadTask",1*1024/4,NULL,1,NULL);
 #ifdef BUILD_SERVERS //todo PVT disable!
 	xTaskCreate(telnetServerTask,"telnetServerTask",512/4,NULL,1,NULL);
 	xTaskCreate(httpServerTask,"httpServerTask",3*512/4,NULL,1,NULL);
@@ -1497,11 +1497,11 @@ void launch_tasks() {
 	UARTprintf("*");
 #if !ONLY_MID
 	UARTprintf("*");
-	//xTaskCreate(thread_dust, "dustTask", 256 / 4, NULL, 3, NULL);
-	//UARTprintf("*");
-	//xTaskCreate(thread_sensor_poll, "pollTask", 1024 / 4, NULL, 3, NULL);
+	xTaskCreate(thread_dust, "dustTask", 256 / 4, NULL, 3, NULL);
 	UARTprintf("*");
-	//xTaskCreate(thread_tx, "txTask", 3 * 1024 / 4, NULL, 2, NULL);
+	xTaskCreate(thread_sensor_poll, "pollTask", 1024 / 4, NULL, 3, NULL);
+	UARTprintf("*");
+	xTaskCreate(thread_tx, "txTask", 3 * 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
 #endif
 }
@@ -1648,8 +1648,8 @@ void vUARTTask(void *pvParameters) {
 	if(led_init() != 0){
 		LOGI("Failed to create the led_events.\n");
 	}
-	//xTaskCreate(led_task, "ledTask", 700 / 4, NULL, 4, NULL); //todo reduce stack - jpf 512 not large enough due to large int arrays in led_task
-	//xTaskCreate(led_idle_task, "led_idle_task", 256 / 4, NULL, 4, NULL); //todo reduce stack - jpf 512 not large enough due to large int arrays in led_task
+	xTaskCreate(led_task, "ledTask", 700 / 4, NULL, 4, NULL); //todo reduce stack - jpf 512 not large enough due to large int arrays in led_task
+	xTaskCreate(led_idle_task, "led_idle_task", 256 / 4, NULL, 4, NULL); //todo reduce stack - jpf 512 not large enough due to large int arrays in led_task
 
 	//switch the uart lines to gpios, drive tx low and see if rx goes low as well
     // Configure PIN_57 for GPIOInput
@@ -1697,8 +1697,6 @@ void vUARTTask(void *pvParameters) {
 
 	// Set connection policy to Auto
 	sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0), NULL, 0);
-
-    wifi_reset(); //force off for gold units
 
 	UARTprintf("*");
 	unsigned char mac[6];
