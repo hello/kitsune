@@ -1684,10 +1684,8 @@ void file_download_task( void * params ) {
                     LOGI("MCU image name converted to %s \n", serial_flash_name);
                 }
 
-                if (download_file(host, url, serial_flash_name,
-                            serial_flash_path, SERIAL_FLASH) != 0) {
-                    goto end_download_task;
-                }
+                while (download_file(host, url, serial_flash_name,
+                            serial_flash_path, SERIAL_FLASH) != 0) {}
                 char buf[64];
                 strncpy( buf, serial_flash_path, 64 );
                 strncat(buf, serial_flash_name, 64 );
@@ -1705,11 +1703,10 @@ void file_download_task( void * params ) {
                     }
                 }
                 LOGI("done, closing\n");
-            } else if (download_file(host, url, filename, path, SD_CARD) == 0) {
+            } else {
+            	while (download_file(host, url, filename, path, SD_CARD) == 0) {}
                 LOGI("done, closing\n");
                 hello_fs_close(&file_obj);
-            } else {
-                goto end_download_task;
             }
         }
         if (download_info.has_reset_application_processor
