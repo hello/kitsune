@@ -312,7 +312,6 @@ int Cmd_country(int argc, char *argv[]) {
 		return 0;
 	}
 
-
 	sl_WlanSet(SL_WLAN_CFG_GENERAL_PARAM_ID,
 			WLAN_GENERAL_PARAM_OPT_COUNTRY_CODE, 2, (uint8_t*)argv[1]);
 
