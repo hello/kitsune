@@ -172,24 +172,8 @@ static void led_slow(unsigned int* color) {
 #define LED_GPIO_BASE_DOUT GPIOA2_BASE
 #define LED_GPIO_BIT_DOUT 0x80
 static void led_array(unsigned int * colors, int delay) {
-	unsigned long ulInt;
-	//
-
-	// Temporarily turn off interrupts.
-	//
-	bool fast = MAP_GPIOPinRead(LED_GPIO_BASE_DOUT, LED_GPIO_BIT_DOUT);
-
+//golden unit makes no lights
 	vTaskDelay(delay);
-	ulInt = MAP_IntMasterDisable();
-	if (fast) {
-		led_fast(colors);
-	} else {
-		led_slow(colors);
-	}
-	if (!ulInt) {
-		MAP_IntMasterEnable();
-	}
-	vTaskDelay(0);
 }
 static void led_brightness(unsigned int * colors, unsigned int brightness ) {
 	int l;
