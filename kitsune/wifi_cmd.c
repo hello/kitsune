@@ -304,8 +304,15 @@ int Cmd_antsel(int argc, char *argv[]) {
 int Cmd_country(int argc, char *argv[]) {
 	LOGF("country <code, either US, JP, or EU>\n");
 	if (argc != 2) {
-		return -1;
+	    _u16 len = 4;
+	    _u16  config_opt = WLAN_GENERAL_PARAM_OPT_COUNTRY_CODE;
+	    _u8 cc[4];
+	    sl_WlanGet(SL_WLAN_CFG_GENERAL_PARAM_ID, &config_opt, &len, (_u8* )cc);
+		LOGF("Country code %s\n",cc);
+		return 0;
 	}
+
+
 	sl_WlanSet(SL_WLAN_CFG_GENERAL_PARAM_ID,
 			WLAN_GENERAL_PARAM_OPT_COUNTRY_CODE, 2, (uint8_t*)argv[1]);
 
