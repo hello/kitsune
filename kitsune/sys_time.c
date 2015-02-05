@@ -266,7 +266,6 @@ static void set_cached_time( time_t t ) {
 static time_t get_cached_time() {
 	return  cached_time + (xTaskGetTickCount() - cached_ticks) / 1000;
 }
-static xSemaphoreHandle time_smphr = NULL;
 
 int cmd_set_time(int argc, char *argv[]) {
 	if (time_smphr && xSemaphoreTake(time_smphr, portMAX_DELAY)) {
