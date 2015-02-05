@@ -164,8 +164,6 @@ void on_morpheus_protobuf_arrival(uint8_t* protobuf, size_t len)
 
     MorpheusCommand command;
     memset(&command, 0, sizeof(command));
-    LOGI("proto arrv\n");
-
 
     ble_proto_assign_decode_funcs(&command);
 
