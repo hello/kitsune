@@ -1699,7 +1699,7 @@ void file_download_task( void * params ) {
                 }
                 LOGI("done, closing\n");
             } else {
-            	while (download_file(host, url, filename, path, SD_CARD) == 0) {}
+            	while (download_file(host, url, filename, path, SD_CARD) != 0) {}
                 LOGI("done, closing\n");
                 hello_fs_close(&file_obj);
             }
