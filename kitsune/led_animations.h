@@ -20,6 +20,7 @@ bool play_led_progress_bar(int r, int g, int b, unsigned int options, unsigned i
 bool play_led_animation_solid(int r, int g, int b);
 void set_led_progress_bar(uint8_t percent);
 bool factory_led_test_pattern(unsigned int timeout);
+bool play_led_animation_stop(void);
 
 #ifdef __cplusplus
 }
