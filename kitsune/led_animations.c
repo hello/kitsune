@@ -38,7 +38,7 @@ static void unlock() {
 	xSemaphoreGiveRecursive(self._sem);
 }
 
-static bool _start_animation( unsigned int timeout ) {
+static bool _signal_start_animation(void) {
 	lock();
 
 	LOGI("Start animation\n");
@@ -174,38 +174,33 @@ void init_led_animation() {
 
 
 bool play_led_animation_pulse(unsigned int timeout){
-	if( _start_animation( timeout ) ) {
-		self.dly = 10;
-		led_start_custom_animation(_animate_pulse, NULL);
-		return true;
-	}
-	return false;
+	self.dly = 10;
+	led_start_custom_animation(_animate_pulse, NULL);
+	_signal_start_animation();
+	return true;
 }
 bool play_led_trippy(uint8_t trippy_base[3], uint8_t trippy_range[3], unsigned int timeout){
 	int i;
-	if( _start_animation( timeout ) ) {
-		memcpy(self.trippy_base, trippy_base, 3);
-		memcpy(self.trippy_range, trippy_range, 3);
+	memcpy(self.trippy_base, trippy_base, 3);
+	memcpy(self.trippy_range, trippy_range, 3);
 
-		for(i = 0; i < NUM_LED; i++){
-			self.colors[i] = (struct _colors){rand()%120, rand()%120, rand()%120};
-			self.prev_colors[i] = (struct _colors){0};
-		}
-		self.dly = 15;
-		led_start_custom_animation(_animate_trippy, NULL);
-		return true;
+	for(i = 0; i < NUM_LED; i++){
+		self.colors[i] = (struct _colors){rand()%120, rand()%120, rand()%120};
+		self.prev_colors[i] = (struct _colors){0};
 	}
-	return false;
+	self.dly = 15;
+	led_start_custom_animation(_animate_trippy, NULL);
+	_signal_start_animation();
+	return true;
+
 }
 bool play_led_progress_bar(int r, int g, int b, unsigned int options, unsigned int timeout){
-	if( _start_animation( timeout ) ) {
-		self.colors[0] = (struct _colors){r, g, b};
-		self.progress_bar_percent = 0;
-		self.dly = 20;
-		led_start_custom_animation(_animate_progress, NULL);
-		return true;
-	}
-	return false;
+	self.colors[0] = (struct _colors){r, g, b};
+	self.progress_bar_percent = 0;
+	self.dly = 20;
+	led_start_custom_animation(_animate_progress, NULL);
+	_signal_start_animation();
+	return true;
 }
 void set_led_progress_bar(uint8_t percent){
 	lock();
@@ -254,10 +249,8 @@ int Cmd_led_animate(int argc, char *argv[]){
 	return 0;
 }
 bool factory_led_test_pattern(unsigned int timeout) {
-	if( _start_animation( timeout ) ) {
 		self.dly = 500;
 		led_start_custom_animation(_animate_factory_test_pattern, NULL);
+		_signal_start_animation();
 		return true;
-	}
-	return false;
 }
