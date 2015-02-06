@@ -51,6 +51,25 @@ typedef struct{
 
 static user_animation_t user_animation;
 
+static int _set_user_animation(
+		user_animation_t * animation,
+		led_user_animation_handler handler,
+		void * context,
+		uint8_t priority,
+		uint32_t * initial_state){
+
+	if(!animation){
+		return -1;
+	}
+	animation->handler = handler;
+	animation->context = context;
+	animation->priority = priority;
+	if(initial_state){
+		memset(animation->initial_state, initial_state, sizeof(animation->initial_state));
+	}else{
+		memset(animation->initial_state, 0, sizeof(animation->initial_state));
+	}
+}
 
 static int clamp_rgb(int v, int min, int max){
 	if(v >= 0 && v <=max){
@@ -572,8 +591,7 @@ int led_start_custom_animation(led_user_animation_handler user, void * context){
 		return -1;
 	}else{
 		xSemaphoreTake(led_smphr, portMAX_DELAY);
-		user_animation.handler = user;
-		user_animation.context  = context;
+		_set_user_animation(&user_animation)
 		xSemaphoreGive(led_smphr);
 		xEventGroupClearBits( led_events, 0xffffff );
 		xEventGroupSetBits( led_events, LED_CUSTOM_ANIMATION_BIT );
