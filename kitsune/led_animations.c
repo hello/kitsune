@@ -181,6 +181,12 @@ bool play_led_animation_pulse(unsigned int timeout){
 }
 bool play_led_trippy(uint8_t trippy_base[3], uint8_t trippy_range[3], unsigned int timeout){
 	int i;
+	user_animation_t anim = (user_animation_t){
+		.handler = _animate_trippy,
+		.context = NULL,
+		.priority = 1,
+		.initial_state = {0},
+	};
 	memcpy(self.trippy_base, trippy_base, 3);
 	memcpy(self.trippy_range, trippy_range, 3);
 
@@ -189,7 +195,8 @@ bool play_led_trippy(uint8_t trippy_base[3], uint8_t trippy_range[3], unsigned i
 		self.prev_colors[i] = (struct _colors){0};
 	}
 	self.dly = 15;
-	led_start_custom_animation(_animate_trippy, NULL);
+	//led_start_custom_animation(_animate_trippy, NULL);
+	led_transition_custom_animation(&anim);
 	_signal_start_animation();
 	return true;
 

@@ -608,7 +608,7 @@ int led_start_custom_animation(led_user_animation_handler user, void * context){
 	return -1;
 }
 
-int led_transition_custom_animation(const user_animation_t * user, void * context, const uint32_t * initial_colors){
+int led_transition_custom_animation(const user_animation_t * user){
 	if(!user){
 		return -1;
 	}else{
