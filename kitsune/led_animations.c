@@ -270,8 +270,14 @@ int Cmd_led_animate(int argc, char *argv[]){
 	}
 }
 bool factory_led_test_pattern(unsigned int timeout) {
+		user_animation_t anim = (user_animation_t){
+			.handler = _animate_factory_test_pattern,
+			.context = NULL,
+			.priority = 2,
+			.initial_state = {0},
+		};
 		self.dly = 500;
-		led_start_custom_animation(_animate_factory_test_pattern, NULL);
+		led_transition_custom_animation(&anim);
 		_signal_start_animation();
 		return true;
 }
