@@ -690,38 +690,11 @@ void ble_proto_led_flash(int a, int r, int g, int b, int delay)
 
 void ble_proto_led_fade_in_trippy(){
 	uint8_t trippy_base[3] = {60, 25, 90};
-	switch(_self.led_status)
-	{
-	case LED_BUSY:
-    	led_fadeout(_self.delay);
-		play_led_trippy(trippy_base, trippy_base, portMAX_DELAY);
-
-		break;
-	case LED_TRIPPY:
-		break;
-	case LED_OFF:
-		play_led_trippy(trippy_base, trippy_base, portMAX_DELAY);
-		break;
-	}
-
-	_self.led_status = LED_TRIPPY;
+	play_led_trippy(trippy_base, trippy_base, portMAX_DELAY);
 }
 
 void ble_proto_led_fade_out(bool operation_result){
-	switch(_self.led_status)
-	{
-	case LED_BUSY:
-        led_fadeout(_self.delay);
-		break;
-	case LED_TRIPPY:
-		stop_led_animation(10);
-		led_wait_for_idle(led_delay(15) + 1000);  // The trippy delay is 15, 10 by default is not enough and will prevent the next rolling to present
-		break;
-	case LED_OFF:
-		break;
-	}
-
-	_self.led_status = LED_OFF;
+	play_led_animation_stop();
 }
 
 #include "top_board.h"

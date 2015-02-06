@@ -243,7 +243,6 @@ void stop_led_animation(unsigned int delay){
 	if(self.sig_continue){
 		self.sig_continue = false;
 		self.dly = delay;
-		led_fadeout(self.dly);
 	}
 	unlock();
 }

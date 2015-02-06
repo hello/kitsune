@@ -559,14 +559,6 @@ unsigned int led_delay( unsigned int dly ) {
 	return (255 / QUANT_FACTOR + 1) * dly;
 }
 
-void led_fadeout(unsigned int dly) {
-	xSemaphoreTake(led_smphr, portMAX_DELAY);
-	user_delay = dly;
-	xSemaphoreGive(led_smphr);
-	xEventGroupSetBits(led_events, LED_FADE_OUT_BIT);
-
-	led_wait_for_idle(1000+led_delay(dly));
-}
 int led_set_color(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b,
 		int fade_in, int fade_out,
 		unsigned int ud,
