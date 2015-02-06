@@ -15,7 +15,6 @@ void stop_led_animation(unsigned int delay);
 int Cmd_led_animate(int argc, char *argv[]);
 
 //custom animations
-bool play_led_animation_pulse(unsigned int timeout);
 bool play_led_trippy(uint8_t trippy_base[3], uint8_t range[3], unsigned int timeout);
 bool play_led_progress_bar(int r, int g, int b, unsigned int options, unsigned int timeout);
 bool play_led_animation_solid(int r, int g, int b);
