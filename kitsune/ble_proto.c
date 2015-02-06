@@ -57,6 +57,7 @@ static struct {
 static int _wifi_read_index;
 static int _scanned_wifi_count = 0;
 static Sl_WlanNetworkEntry_t _wifi_endpoints[MAX_WIFI_EP_PER_SCAN];
+static xSemaphoreHandle _wifi_smphr;
 
 static void _ble_reply_command_with_type(MorpheusCommand_CommandType type)
 {
@@ -159,20 +160,20 @@ static void dedupe_ssid( Sl_WlanNetworkEntry_t * ep, int * c){
 	}
 }
 
-static int _scan_wifi()
+void ble_proto_init() {
+	vSemaphoreCreateBinary(_wifi_smphr);
+}
+
+static void _scan_wifi( void * params )
 {
 	Sl_WlanNetworkEntry_t * endpoints_ifa;
 	Sl_WlanNetworkEntry_t * endpoints_pcb;
 	int scan_cnt[ANTENNA_CNT+1] = {0};
 
-	//only scan if we've been reset, this lets us cache the scan result for later
-	if( _scanned_wifi_count != 0 ) {
-		return _scanned_wifi_count;
-	}
+	xSemaphoreTake(_wifi_smphr, portMAX_DELAY);
 	memset(_wifi_endpoints, 0, sizeof(_wifi_endpoints));
 	_scanned_wifi_count = 0;
 	_wifi_read_index = 0;
-
 	wifi_status_set(SCANNING, false);  // Set the scanning flag
 
 	scan_cnt[IFA_ANT] = scan_with_retry( &endpoints_ifa, IFA_ANT );
@@ -262,11 +263,28 @@ static int _scan_wifi()
 	wifi_status_set(SCANNING, true);  // Remove the sanning flag
 	vPortFree(endpoints_pcb);
 	vPortFree(endpoints_ifa);
-	return _scanned_wifi_count;
+
+	xSemaphoreGive(_wifi_smphr);
+
+	vTaskDelete(NULL);
+}
+
+static void _scan_wifi_mostly_nonblocking() {
+	//need to get the semaphore so we block in case there's already a scan we don't want to spawn many threads and possibly run short of memory.
+	xSemaphoreTake(_wifi_smphr, portMAX_DELAY);
+	//only scan if we've been reset, this lets us cache the scan result for later
+	if( _scanned_wifi_count != 0 ) {
+		xSemaphoreGive(_wifi_smphr);
+		return;
+	}
+	xSemaphoreGive(_wifi_smphr);
+
+	xTaskCreate( _scan_wifi, "wifi_scan", configMINIMAL_STACK_SIZE, NULL, 1, NULL );
 }
 
 static void _reply_next_wifi_ap()
 {
+	xSemaphoreTake(_wifi_smphr, portMAX_DELAY);
 	//reset so the next scan command will do a scan
 	if(_wifi_read_index == _scanned_wifi_count || _wifi_read_index == MAX_WIFI_EP_PER_SCAN) {
 		_wifi_read_index = 0;
@@ -276,6 +294,8 @@ static void _reply_next_wifi_ap()
 	MorpheusCommand reply_command = {0};
 	reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_NEXT_WIFI_AP;
 	reply_command.wifi_scan_result.arg = &_wifi_endpoints[_wifi_read_index++];
+	xSemaphoreGive(_wifi_smphr);
+
 	ble_send_protobuf(&reply_command);
 }
 
@@ -284,16 +304,20 @@ static void _reply_wifi_scan_result()
     int i = 0;
     MorpheusCommand reply_command = {0};
 
+	xSemaphoreTake(_wifi_smphr, portMAX_DELAY);
     for(i = 0; i < _scanned_wifi_count; i++)
     {
 		reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_START_WIFISCAN;
 		reply_command.wifi_scan_result.arg = &_wifi_endpoints[i];
 		ble_send_protobuf(&reply_command);
+		xSemaphoreGive(_wifi_smphr); //don't hold a semaphore across a delay, it's bad manners
         vTaskDelay(250);  // This number must be long enough so the BLE can get the data transmit to phone
         memset(&reply_command, 0, sizeof(reply_command));
+    	xSemaphoreTake(_wifi_smphr, portMAX_DELAY);
     }
 
 	_scanned_wifi_count = 0;
+	xSemaphoreGive(_wifi_smphr);
     reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_STOP_WIFISCAN;
 	ble_send_protobuf(&reply_command);
 	LOGI(">>>>>>Send WIFI scan results done<<<<<<\n");
@@ -308,6 +332,7 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type)
     uint8_t max_retry = 10;
     uint8_t retry_count = max_retry;
 
+	xSemaphoreTake(_wifi_smphr, portMAX_DELAY);
     for(i=0;i<MAX_WIFI_EP_PER_SCAN;++i) {
     	if( !strcmp( (char*)_wifi_endpoints[i].ssid, ssid ) ) {
     		antsel(_wifi_endpoints[i].reserved[0]);
@@ -315,6 +340,7 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type)
     		break;
     	}
     }
+	xSemaphoreGive(_wifi_smphr);
 
 	//play_led_progress_bar(0xFF, 128, 0, 128,portMAX_DELAY);
     while((connection_ret = connect_wifi(ssid, password, security_type)) == 0 && --retry_count)
@@ -881,8 +907,8 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 			ble_proto_led_fade_in_trippy();
             _self.ble_status = BLE_PAIRING;
             LOGI( "PAIRING MODE \n");
-            //we are pairing so it's likely we are beginning the onboarding. This will prescan the wifi.
-            _scan_wifi();
+            //wifi prescan, forked so we don't block the BLE and it just happens in the background
+            _scan_wifi_mostly_nonblocking();
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE:  // Just for testing
@@ -950,7 +976,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_START_WIFISCAN:
         {
             LOGI("WIFI Scan request\n");
-            _scan_wifi();
+            _scan_wifi_mostly_nonblocking();
             _reply_wifi_scan_result();
         }
         break;
@@ -993,7 +1019,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
     		break;
     	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SCAN_WIFI:
     		LOGI("MorpheusCommand_CommandType_MORPHEUS_COMMAND_SCAN_WIFI\n");
-    		_scan_wifi();
+    		_scan_wifi_mostly_nonblocking();
     		_ble_reply_command_with_type(command->type);
     		break;
     	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_NEXT_WIFI_AP:
