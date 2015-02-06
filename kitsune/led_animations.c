@@ -208,10 +208,16 @@ bool play_led_animation_solid(int r, int g, int b){
 	return true;
 }
 bool play_led_progress_bar(int r, int g, int b, unsigned int options, unsigned int timeout){
+	user_animation_t anim = (user_animation_t){
+		.handler = _animate_solid,
+		.context = NULL,
+		.priority = 2,
+		.initial_state = {0},
+	};
 	self.colors[0] = (struct _colors){r, g, b};
 	self.progress_bar_percent = 0;
 	self.dly = 20;
-	led_start_custom_animation(_animate_progress, NULL);
+	led_transition_custom_animation(&anim);
 	_signal_start_animation();
 	return true;
 }
