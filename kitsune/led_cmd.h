@@ -9,6 +9,7 @@ extern "C" {
 #endif
 #define NUM_LED 12
 #define LED_MAX 254
+typedef bool (*led_user_animation_handler)(int * out_r, int * out_g, int * out_b, int * out_delay, void * user_context, int rgb_array_size);
 
 typedef struct{
 	led_user_animation_handler handler;
@@ -24,7 +25,6 @@ int led_init(void);
 void led_idle_task( void * params );
 void led_task( void * params );
 
-typedef bool (*led_user_animation_handler)(int * out_r, int * out_g, int * out_b, int * out_delay, void * user_context, int rgb_array_size);
 //helper api
 int led_set_color(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b, int fade_in, int fade_out, unsigned int ud, int rot);
 int led_transition_custom_animation(const user_animation_t * user, void * context, const uint32_t * initial_colors);

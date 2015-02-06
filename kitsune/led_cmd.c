@@ -44,25 +44,6 @@ unsigned int user_delay;
 
 static user_animation_t user_animation;
 
-static int _set_user_animation(
-		user_animation_t * animation,
-		led_user_animation_handler handler,
-		void * context,
-		uint8_t priority,
-		uint32_t * initial_state){
-
-	if(!animation){
-		return -1;
-	}
-	animation->handler = handler;
-	animation->context = context;
-	animation->priority = priority;
-	if(initial_state){
-		memset(animation->initial_state, initial_state, sizeof(animation->initial_state));
-	}else{
-		memset(animation->initial_state, 0, sizeof(animation->initial_state));
-	}
-}
 
 static int clamp_rgb(int v, int min, int max){
 	if(v >= 0 && v <=max){
@@ -319,7 +300,23 @@ void led_idle_task( void * params ) {
 		vTaskDelay(10000);
 	}
 }
+static int _transition_color(int from, int to, int quant){
+	int diff = to - from;
+	if(diff <= 1 && diff >= -1){
+		return to;
+	}
+	return from + diff / 2;
+}
+static void _transition(uint32_t * out, unsigned int * from, unsigned int * to){
+	unsigned int r0,g0,b0,r1,g1,b1;
+	led_to_rgb(from, &r0, &g0, &b0);
+	led_to_rgb(to, &r1,&g1,&b1);
+	*out = led_from_rgb(
+			_transition_color((int)r0, (int)r1, 6),
+			_transition_color((int)g0, (int)g1, 6),
+			_transition_color((int)b0, (int)b1, 6));
 
+}
 void led_task( void * params ) {
 	int i,j;
 	unsigned int colors_last[NUM_LED+1];
@@ -360,6 +357,23 @@ void led_task( void * params ) {
 				led_array(colors, delay);
 			}
 			memcpy(colors_last, colors, sizeof(colors_last));
+		}
+		if(evnt & LED_CUSTOM_TRANSITION){
+			unsigned int colors[NUM_LED + 1];
+			int i;
+			xSemaphoreTake(led_smphr, portMAX_DELAY);
+			for(i = 0; i < NUM_LED; i++){
+				_transition(&colors[i], &colors_last[i], &user_animation.initial_state[i]);
+			}
+			led_array(colors, 16);
+			memcpy(colors_last,colors, sizeof(colors_last));
+			if(0 == memcmp(user_animation.initial_state,colors,sizeof(user_animation.initial_state))){
+				xEventGroupClearBits(led_events,LED_CUSTOM_TRANSITION);
+				if(user_animation.handler){
+					xEventGroupSetBits(led_events, LED_CUSTOM_ANIMATION_BIT);
+				}
+			}
+			xSemaphoreGive( led_smphr );
 		}
 		if(evnt & LED_CUSTOM_ANIMATION_BIT){
 			unsigned int colors[NUM_LED + 1];
