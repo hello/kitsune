@@ -209,7 +209,7 @@ bool play_led_animation_solid(int r, int g, int b){
 }
 bool play_led_progress_bar(int r, int g, int b, unsigned int options, unsigned int timeout){
 	user_animation_t anim = (user_animation_t){
-		.handler = _animate_solid,
+		.handler = _animate_progress,
 		.context = NULL,
 		.priority = 2,
 		.initial_state = {0},
@@ -268,9 +268,6 @@ int Cmd_led_animate(int argc, char *argv[]){
 	}else{
 		return -1;
 	}
-	//play_led_trippy( portMAX_DELAY );
-	//play_led_progress_bar(20, 20, 20, 0, portMAX_DELAY);
-	return 0;
 }
 bool factory_led_test_pattern(unsigned int timeout) {
 		self.dly = 500;
