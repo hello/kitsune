@@ -33,7 +33,6 @@
 #endif
 
 
-//begin semaphore protect
 static xSemaphoreHandle led_smphr;
 static EventGroupHandle_t led_events;
 static struct{
@@ -52,7 +51,6 @@ typedef struct{
 
 static user_animation_t user_animation;
 
-//end semaphore protect
 
 static int clamp_rgb(int v, int min, int max){
 	if(v >= 0 && v <=max){
