@@ -30,7 +30,6 @@ void led_to_rgb( unsigned int * c, unsigned int *r, unsigned int* g, unsigned in
 unsigned int led_from_rgb( int r, int g, int b);
 int led_set_color(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b, int fade_in, int fade_out, unsigned int ud, int rot);
 int led_transition_custom_animation(const user_animation_t * user);
-int led_start_custom_animation(led_user_animation_handler user, void * user_context);
 void led_get_user_color(uint8_t* out_red, uint8_t* out_green, uint8_t* out_blue);
 void led_set_user_color(uint8_t red, uint8_t green, uint8_t blue);
 int led_set_color(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b,
