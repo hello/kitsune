@@ -26,6 +26,8 @@ void led_idle_task( void * params );
 void led_task( void * params );
 
 //helper api
+void led_to_rgb( unsigned int * c, unsigned int *r, unsigned int* g, unsigned int* b);
+unsigned int led_from_rgb( int r, int g, int b);
 int led_set_color(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b, int fade_in, int fade_out, unsigned int ud, int rot);
 int led_transition_custom_animation(const user_animation_t * user);
 int led_start_custom_animation(led_user_animation_handler user, void * user_context);

@@ -240,12 +240,12 @@ static void led_cw( unsigned int * colors) {
 	}
 }
 #endif
-static void led_to_rgb( unsigned int * c, unsigned int *r, unsigned int* g, unsigned int* b) {
+void led_to_rgb( unsigned int * c, unsigned int *r, unsigned int* g, unsigned int* b) {
 	*b = (( *c & ~0xffff00 ))&0xff;
 	*r = (( *c & ~0xff00ff )>>8)&0xff;
 	*g = (( *c & ~0x00ffff )>>16)&0xff;
 }
-static unsigned int led_from_rgb( int r, int g, int b) {
+unsigned int led_from_rgb( int r, int g, int b) {
 	return (b&0xff) | ((r&0xff)<<8) | ((g&0xff)<<16);
 }
 static uint32_t wheel_color(int WheelPos, unsigned int color) {
