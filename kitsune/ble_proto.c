@@ -50,7 +50,6 @@ static struct {
 	uint8_t argb[4];
 	int delay;
 	uint32_t last_hold_time;
-	led_mode_t led_status;
     ble_mode_t ble_status;
 } _self;
 
@@ -617,7 +616,6 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 
 void ble_proto_led_init()
 {
-	_self.led_status = LED_OFF;
 	led_set_color(0xFF, LED_MAX, LED_MAX, LED_MAX, 1, 1, 36, 0);
 }
 
@@ -630,17 +628,8 @@ void ble_proto_led_busy_mode(uint8_t a, uint8_t r, uint8_t g, uint8_t b, int del
 	_self.argb[3] = b;
 	_self.delay = delay;
 
-	if(_self.led_status == LED_TRIPPY)
-	{
-		ble_proto_led_fade_out(0);
-	}
-
-	if(_self.led_status == LED_BUSY && _self.argb[0] == a && _self.argb[1] == r && _self.argb[2] == g && _self.argb[3] == g)
-	{
-		return;
-	}
-
-	_self.led_status = LED_BUSY;
+	play_led_animation_stop();
+	led_wait_for_idle(1000+led_delay(_self.delay));
     led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 0, _self.delay, 1);
 	led_wait_for_idle(1000+led_delay(_self.delay));
 }
@@ -659,32 +648,14 @@ void ble_proto_led_flash(int a, int r, int g, int b, int delay)
 	_self.argb[2] = g;
 	_self.argb[3] = b;
 	_self.delay = delay;
-	if(_self.led_status == LED_TRIPPY)
-	{
-		LOGI("FADE OUT\n");
-		ble_proto_led_fade_out(0);
-		_self.led_status = LED_BUSY;
 
-		LOGI("WAIT1 %d\n", led_wait_for_idle(2000));
+	play_led_animation_stop();
+	led_wait_for_idle(2000);
+	led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 0);
+	led_wait_for_idle(led_delay(_self.delay) + 1000);
+	led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 0);
+	led_wait_for_idle(led_delay(_self.delay) + 1000);
 
-		led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 0);
-
-		LOGI("WAIT2 %d\n",led_wait_for_idle(led_delay(_self.delay) + 1000));
-
-		led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 0);
-
-		LOGI("WAIT3 %d\n",led_wait_for_idle(led_delay(_self.delay) + 1000));
-		_self.led_status = LED_OFF;
-		ble_proto_led_fade_in_trippy();
-	}else if(_self.led_status == LED_OFF){
-		_self.led_status = LED_BUSY;
-		led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 0);
-		led_wait_for_idle(led_delay(_self.delay) + 1000);
-		led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 0);
-		led_wait_for_idle(led_delay(_self.delay) + 1000);
-
-		_self.led_status = LED_OFF;
-	}
 
 }
 
@@ -794,7 +765,6 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 			{
 				// Get morpheus device id request from Nordic
 				LOGI("GET DEVICE ID\n");
-				_self.led_status = LED_OFF;  // init led status
 				_ble_reply_command_with_type(MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_DEVICE_ID);
 
 				static bool played = false;
@@ -936,7 +906,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 
 				if(color) {
 					ble_proto_led_flash(0xFF, argb[1], argb[2], argb[3], 10);
-				} else if(_self.led_status == LED_TRIPPY || pill_settings_pill_count() == 0) {
+				} else if(pill_settings_pill_count() == 0) {
 					ble_proto_led_flash(0xFF, 0x80, 0x00, 0x80, 10);
 				}
             }else{
