@@ -192,8 +192,11 @@ bool play_led_trippy(uint8_t trippy_base[3], uint8_t trippy_range[3], unsigned i
 
 	for(i = 0; i < NUM_LED; i++){
 		self.colors[i] = (struct _colors){rand()%120, rand()%120, rand()%120};
-
-		//self.prev_colors[i] = (struct _colors){0};
+		anim.initial_state[i] = led_from_rgb(
+				self.colors[i].r,
+				self.colors[i].g,
+				self.colors[i].b);
+		self.prev_colors[i] = self.colors[i];
 	}
 	self.dly = 15;
 	//led_start_custom_animation(_animate_trippy, NULL);
