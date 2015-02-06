@@ -735,6 +735,7 @@ static int _is_light_off(int current_light)
 		{
 			//LOGI("Light off\n");
 			ret = 1;
+			light_mean = current_light; //so the led alpha will be at the lights off level
 		}
 	}
 
