@@ -42,13 +42,6 @@ static struct{
 }user_color;
 unsigned int user_delay;
 
-typedef struct{
-	led_user_animation_handler handler;
-	void * context;
-	uint8_t priority;
-	uint32_t initial_state[NUM_LED];
-}user_animation_t;
-
 static user_animation_t user_animation;
 
 static int _set_user_animation(

@@ -9,6 +9,14 @@ extern "C" {
 #endif
 #define NUM_LED 12
 #define LED_MAX 254
+
+typedef struct{
+	led_user_animation_handler handler;
+	void * context;
+	uint8_t priority;
+	uint32_t initial_state[NUM_LED];
+}user_animation_t;
+
 int Cmd_led_clr(int argc, char *argv[]);
 int Cmd_led(int argc, char *argv[]);
 int led_init(void);
