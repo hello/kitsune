@@ -495,7 +495,7 @@ void led_task( void * params ) {
 
 int led_ready() {
 	//make sure the thread isn't doing something else...
-	if( xEventGroupGetBits( led_events ) & (LED_ROTATE_BIT | LED_CUSTOM_ANIMATION_BIT | LED_FADE_OUT_BIT | LED_FADE_OUT_STEP_BIT ) ) {
+	if( xEventGroupGetBits( led_events ) & (LED_ROTATE_BIT | LED_CUSTOM_TRANSITION | LED_CUSTOM_ANIMATION_BIT | LED_FADE_OUT_BIT | LED_FADE_OUT_STEP_BIT ) ) {
 		return -1;
 	}
 	return 0;
