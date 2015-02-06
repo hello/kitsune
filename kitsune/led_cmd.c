@@ -605,6 +605,7 @@ int led_start_custom_animation(led_user_animation_handler user, void * context){
 		xEventGroupSetBits( led_events, LED_CUSTOM_ANIMATION_BIT );
 		return 0;
 	}*/
+	return -1;
 }
 
 int led_transition_custom_animation(const user_animation_t * user, void * context, const uint32_t * initial_colors){

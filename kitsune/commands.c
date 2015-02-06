@@ -1581,7 +1581,6 @@ tCmdLineEntry g_sCmdTable[] = {
 
 		{ "antsel", Cmd_antsel, "" }, //select antenna
 		{ "led", Cmd_led, "" },
-		{ "action", Cmd_led_action, "" },
 		{ "clrled", Cmd_led_clr, "" },
 #ifdef BUILD_RADIO_TEST
 		{ "rdiostats", Cmd_RadioGetStats, "" },

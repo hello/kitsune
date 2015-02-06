@@ -21,7 +21,6 @@ static struct{
 	int progress_bar_percent;
 	unsigned int dly;
 	xSemaphoreHandle _sem;
-	xSemaphoreHandle _animate_sem;
 	uint8_t trippy_base[3];
 	uint8_t trippy_range[3];
 }self;
@@ -41,17 +40,14 @@ static void unlock() {
 
 static bool _start_animation( unsigned int timeout ) {
 	lock();
-	if( lock_animation( timeout ) ) {
-		led_fadeout(1);
-		LOGI("Start animation\n");
-		self.counter = 0;
-		self.sig_continue = true; //careful, to set this true requires both semaphores
-		unlock();
-		return true;
-	}
-	LOGI("start animation fail\n");
+
+	led_fadeout(1);
+	LOGI("Start animation\n");
+	self.counter = 0;
+	self.sig_continue = true; //careful, to set this true requires both semaphores
+
 	unlock();
-	return false;
+	return true;
 }
 
 static bool _animate_pulse(int * out_r, int * out_g, int * out_b, int * out_delay, void * user_context, int rgb_array_size){
@@ -174,20 +170,9 @@ static bool _animate_factory_test_pattern(int * out_r, int * out_g, int * out_b,
 
 void init_led_animation() {
 	self._sem = xSemaphoreCreateRecursiveMutex();
-	vSemaphoreCreateBinary(self._animate_sem);
 }
-bool lock_animation( unsigned int timeout ) {
-	bool success;
-	lock();
-	success = xSemaphoreTake(self._animate_sem, timeout) == pdPASS;
-	unlock();
-	return success;
-}
-void unlock_animation() {
-	lock();
-	xSemaphoreGive(self._animate_sem);
-	unlock();
-}
+
+
 
 bool play_led_animation_pulse(unsigned int timeout){
 	if( _start_animation( timeout ) ) {
@@ -236,10 +221,6 @@ void stop_led_animation(unsigned int delay){
 		self.dly = delay;
 		led_fadeout(self.dly);
 
-		// Wave gesture (cancel alarm) and audio playback on_finished callback
-		// can call this at the same time, one thread can finished another thread will
-		// be block if we don't check self.sig_continue.
-		unlock_animation();
 	}
 	unlock();
 }

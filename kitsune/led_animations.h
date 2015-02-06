@@ -9,8 +9,6 @@ extern "C" {
 #endif
 
 void init_led_animation();
-bool lock_animation();
-void unlock_animation();
 
 //call to stop all animations
 void stop_led_animation(unsigned int delay);
