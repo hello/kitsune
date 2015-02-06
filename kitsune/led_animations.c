@@ -237,13 +237,10 @@ int Cmd_led_animate(int argc, char *argv[]){
 	if(argc > 1){
 		if(strcmp(argv[1], "stop") == 0){
 			stop_led_animation(1);
-			return 0;
 		}else if(strcmp(argv[1], "+") == 0){
 			set_led_progress_bar(self.progress_bar_percent += 5);
-			return 0;
 		}else if(strcmp(argv[1], "-") == 0){
 			set_led_progress_bar(self.progress_bar_percent -= 5);
-			return 0;
 		}else if(strcmp(argv[1], "trippy") == 0){
 			if(argc >= 8){
 				uint8_t trippy_base[3] = {atoi(argv[2]), atoi(argv[3]), atoi(argv[4])};
@@ -254,14 +251,16 @@ int Cmd_led_animate(int argc, char *argv[]){
 				uint8_t trippy_range[3] = {rand()%120, rand()%120, rand()%120};
 				play_led_trippy( trippy_base, trippy_range, portMAX_DELAY );
 			}
-			return 0;
 		}else if(strcmp(argv[1], "wheel") == 0){
 			led_set_color(100, 88,0,150, 1, 1, 18, 1 );
-			return 0;
 		}else if(strcmp(argv[1], "solid") == 0){
 			play_led_animation_solid(rand()%120, rand()%120, rand()%120);
-			return 0;
+		}else if(strcmp(argv[1], "prog") == 0){
+			play_led_progress_bar(20, 20, 20, 0, portMAX_DELAY);
 		}
+		return 0;
+	}else{
+		return -1;
 	}
 	//play_led_trippy( portMAX_DELAY );
 	//play_led_progress_bar(20, 20, 20, 0, portMAX_DELAY);
