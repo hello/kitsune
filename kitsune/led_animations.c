@@ -184,6 +184,17 @@ bool play_led_trippy(uint8_t trippy_base[3], uint8_t trippy_range[3], unsigned i
 	return true;
 
 }
+bool play_led_animation_stop(void){
+	user_animation_t anim = (user_animation_t){
+				.handler = NULL,
+				.context = NULL,
+				.priority = 0,
+				.initial_state = {0},
+	};
+	led_transition_custom_animation(&anim);
+	_signal_start_animation();
+	return true;
+}
 bool play_led_animation_solid(int r, int g, int b){
 	int i;
 	user_animation_t anim = (user_animation_t){
@@ -233,7 +244,6 @@ void stop_led_animation(unsigned int delay){
 		self.sig_continue = false;
 		self.dly = delay;
 		led_fadeout(self.dly);
-
 	}
 	unlock();
 }
@@ -242,7 +252,7 @@ int Cmd_led_animate(int argc, char *argv[]){
 	//demo
 	if(argc > 1){
 		if(strcmp(argv[1], "stop") == 0){
-			stop_led_animation(1);
+			play_led_animation_stop();
 		}else if(strcmp(argv[1], "+") == 0){
 			set_led_progress_bar(self.progress_bar_percent += 5);
 		}else if(strcmp(argv[1], "-") == 0){
@@ -263,6 +273,8 @@ int Cmd_led_animate(int argc, char *argv[]){
 			play_led_animation_solid(rand()%120, rand()%120, rand()%120);
 		}else if(strcmp(argv[1], "prog") == 0){
 			play_led_progress_bar(20, 20, 20, 0, portMAX_DELAY);
+		}else if(strcmp(argv[1], "kill") == 0){
+			stop_led_animation(1);
 		}
 		return 0;
 	}else{
