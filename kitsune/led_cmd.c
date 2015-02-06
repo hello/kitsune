@@ -302,19 +302,23 @@ void led_idle_task( void * params ) {
 }
 static int _transition_color(int from, int to, int quant){
 	int diff = to - from;
-	if(diff <= 1 && diff >= -1){
+	if(diff <= quant && diff >= -quant){
 		return to;
+	}else{
+		if(diff > 0){
+			return from + quant;
+		}
+		return from - quant;
 	}
-	return from + diff / 2;
 }
 static void _transition(uint32_t * out, unsigned int * from, unsigned int * to){
 	unsigned int r0,g0,b0,r1,g1,b1;
 	led_to_rgb(from, &r0, &g0, &b0);
 	led_to_rgb(to, &r1,&g1,&b1);
 	*out = led_from_rgb(
-			_transition_color((int)r0, (int)r1, 6),
-			_transition_color((int)g0, (int)g1, 6),
-			_transition_color((int)b0, (int)b1, 6));
+			_transition_color((int)r0, (int)r1, 3),
+			_transition_color((int)g0, (int)g1, 3),
+			_transition_color((int)b0, (int)b1, 3));
 
 }
 void led_task( void * params ) {
@@ -369,9 +373,7 @@ void led_task( void * params ) {
 			memcpy(colors_last,colors, sizeof(colors_last));
 			if(0 == memcmp(user_animation.initial_state,colors,sizeof(user_animation.initial_state))){
 				xEventGroupClearBits(led_events,LED_CUSTOM_TRANSITION);
-				if(user_animation.handler){
-					xEventGroupSetBits(led_events, LED_CUSTOM_ANIMATION_BIT);
-				}
+				xEventGroupSetBits(led_events, LED_CUSTOM_ANIMATION_BIT);
 			}
 			xSemaphoreGive( led_smphr );
 		}
