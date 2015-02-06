@@ -591,7 +591,8 @@ int led_start_custom_animation(led_user_animation_handler user, void * context){
 		return -1;
 	}else{
 		xSemaphoreTake(led_smphr, portMAX_DELAY);
-		_set_user_animation(&user_animation)
+		user_animation.handler = user;
+		user_animation.context  = context;
 		xSemaphoreGive(led_smphr);
 		xEventGroupClearBits( led_events, 0xffffff );
 		xEventGroupSetBits( led_events, LED_CUSTOM_ANIMATION_BIT );
@@ -604,17 +605,8 @@ int led_transition_custom_animation(led_user_animation_handler user, void * cont
 		return -1;
 	}else{
 		xSemaphoreTake(led_smphr, portMAX_DELAY);
-
-		if(!initial_colors){
-			//memset(next_colors, 0, NUM_LED);
-		}else{
-			//memset(next_colors, initial_colors, NUM_LED);
-		}
-		user_animation.handler = user;
-		user_animation.context  = context;
 		xEventGroupClearBits( led_events, 0xffffff );
 		xEventGroupSetBits( led_events, LED_CUSTOM_TRANSITION );
-
 		xSemaphoreGive(led_smphr);
 		return 0;
 	}
