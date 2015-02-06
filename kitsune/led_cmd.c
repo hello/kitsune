@@ -42,8 +42,16 @@ static struct{
 	uint8_t b;
 }user_color;
 unsigned int user_delay;
-void * user_context;
-led_user_animation_handler user_animation_handler;
+
+typedef struct{
+	led_user_animation_handler handler;
+	void * context;
+	uint8_t priority;
+	uint32_t initial_state[NUM_LED];
+}user_animation_t;
+
+static user_animation_t user_animation;
+
 //end semaphore protect
 
 static int clamp_rgb(int v, int min, int max){
@@ -345,7 +353,7 @@ void led_task( void * params ) {
 		}
 		if(evnt & LED_CUSTOM_ANIMATION_BIT){
 			unsigned int colors[NUM_LED + 1];
-			if(user_animation_handler){
+			if(user_animation.handler){
 				int r[NUM_LED] = {0};
 				int g[NUM_LED] = {0};
 				int b[NUM_LED] = {0};
@@ -354,7 +362,7 @@ void led_task( void * params ) {
 
 				xSemaphoreTake(led_smphr, portMAX_DELAY);
 				led_animation_not_in_progress = 0;
-				if(user_animation_handler(r,g,b,&delay,user_context, NUM_LED)){
+				if(user_animation.handler(r,g,b,&delay,user_animation.context, NUM_LED)){
 					xSemaphoreGive( led_smphr );
 					for(i = 0; i <= NUM_LED; i++){
 						r[i] = clamp_rgb(r[i],0,LED_CLAMP_MAX);
@@ -566,8 +574,8 @@ int led_start_custom_animation(led_user_animation_handler user, void * context){
 		return -1;
 	}else{
 		xSemaphoreTake(led_smphr, portMAX_DELAY);
-		user_animation_handler = user;
-		user_context  = context;
+		user_animation.handler = user;
+		user_animation.context  = context;
 		xSemaphoreGive(led_smphr);
 		xEventGroupClearBits( led_events, 0xffffff );
 		xEventGroupSetBits( led_events, LED_CUSTOM_ANIMATION_BIT );
@@ -586,8 +594,8 @@ int led_transition_custom_animation(led_user_animation_handler user, void * cont
 		}else{
 			//memset(next_colors, initial_colors, NUM_LED);
 		}
-		user_animation_handler = user;
-		user_context  = context;
+		user_animation.handler = user;
+		user_animation.context  = context;
 		xEventGroupClearBits( led_events, 0xffffff );
 		xEventGroupSetBits( led_events, LED_CUSTOM_TRANSITION );
 
