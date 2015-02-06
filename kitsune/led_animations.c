@@ -93,6 +93,19 @@ static bool _reach_color(int * v, int target){
 static int _new_random_color(uint8_t range, uint8_t base){
 	return ((unsigned int)rand()) % range + base;
 }
+static bool _animate_solid(int * out_r, int * out_g, int * out_b, int * out_delay, void * user_context, int rgb_array_size){
+	int i;
+	bool sig_continue;
+	lock();
+	for(i = 0; i < NUM_LED; i++){
+		out_r[i] = self.colors[i].r;
+		out_g[i] = self.colors[i].g;
+		out_b[i] = self.colors[i].b;
+	}
+	sig_continue = self.sig_continue;
+	unlock();
+	return sig_continue;
+}
 static bool _animate_trippy(int * out_r, int * out_g, int * out_b, int * out_delay, void * user_context, int rgb_array_size){
 	int i = 0;
 	bool sig_continue;
@@ -210,6 +223,29 @@ bool play_led_trippy(uint8_t trippy_base[3], uint8_t trippy_range[3], unsigned i
 	return true;
 
 }
+bool play_led_animation_solid(int r, int g, int b){
+	int i;
+	user_animation_t anim = (user_animation_t){
+			.handler = _animate_solid,
+			.context = NULL,
+			.priority = 2,
+			.initial_state = {0},
+	};
+	for(i = 0; i < NUM_LED; i++){
+			self.colors[i].r = r;
+			self.colors[i].g = g;
+			self.colors[i].b = b;
+			anim.initial_state[i] = led_from_rgb(
+					self.colors[i].r,
+					self.colors[i].g,
+					self.colors[i].b);
+			self.prev_colors[i] = self.colors[i];
+	}
+	self.dly = 33;
+	led_transition_custom_animation(&anim);
+	_signal_start_animation();
+	return true;
+}
 bool play_led_progress_bar(int r, int g, int b, unsigned int options, unsigned int timeout){
 	self.colors[0] = (struct _colors){r, g, b};
 	self.progress_bar_percent = 0;
@@ -263,6 +299,9 @@ int Cmd_led_animate(int argc, char *argv[]){
 			return 0;
 		}else if(strcmp(argv[1], "wheel") == 0){
 			led_set_color(100, 88,0,150, 1, 1, 18, 1 );
+			return 0;
+		}else if(strcmp(argv[1], "solid") == 0){
+			play_led_animation_solid(rand()%120, rand()%120, rand()%120);
 			return 0;
 		}
 	}
