@@ -102,66 +102,20 @@ static bool _animate_trippy(int * out_r, int * out_g, int * out_b, int * out_del
 	lock();
 	for(i = 0; i < NUM_LED; i++){
 		if(_reach_color(&self.prev_colors[i].r, self.colors[i].r)){
-			//self.colors[i].r = rand()%32 + (self.counter++)%32;
 			self.colors[i].r = ((unsigned int)rand()) % self.trippy_range[0] + self.trippy_base[0];  //60
 		}
 		if(_reach_color(&self.prev_colors[i].g, self.colors[i].g)){
-			//self.colors[i].g = rand()%32 + (self.counter++)%32;
 			self.colors[i].g = ((unsigned int)rand()) % self.trippy_range[1] + self.trippy_base[1];  //25
 		}
 		if(_reach_color(&self.prev_colors[i].b, self.colors[i].b)){
-			//self.colors[i].b = rand()%32 + (self.counter++)%32;
 			self.colors[i].b = ((unsigned int)rand()) % self.trippy_range[2] + self.trippy_base[2];  //90
 		}
-		/*out_r[i] = self.prev_colors[i].r * ((unsigned int)(self.counter)) / 100;
-		out_g[i] = self.prev_colors[i].g * ((unsigned int)(self.counter)) / 100;
-		out_b[i] = self.prev_colors[i].b * ((unsigned int)(self.counter)) / 100;*/
 
 		out_r[i] = self.prev_colors[i].r * ((unsigned int)(scaler)) / 100;
 		out_g[i] = self.prev_colors[i].g * ((unsigned int)(scaler)) / 100;
 		out_b[i] = self.prev_colors[i].b * ((unsigned int)(scaler)) / 100;
 
-		/*out_r[i] = 100  * ((unsigned int)(scaler)) / 100;
-				out_g[i] = 100  * ((unsigned int)(scaler)) / 100;
-				out_b[i] = 100  * ((unsigned int)(scaler)) / 100;*/
 	}
-/*
-	self.counter += reach;
-	if(self.counter >= 100){
-		reach = -1;
-	}else if(self.counter == 50){
-		reach = 1;
-	}
-	*/
-	/*self.counter = (self.counter + 1) % 200;
-	switch(state){
-	case 0:
-		if (self.counter == 20) {
-			state = 1;
-			self.counter = 0;
-		}
-		scaler = 100;
-		break;
-	case 1:
-		if (self.counter == 199) {
-			state = 2;
-		}
-		scaler = 100 - (self.counter/3);
-		break;
-	case 2:
-		if (self.counter == 20) {
-			state = 3;
-			self.counter = 0;
-		}
-		scaler = 33;
-		break;
-	case 3:
-		if(self.counter == 199){
-			state = 0;
-		}
-		scaler = 33 + (self.counter/3);
-		break;
-	}*/
 	*out_delay = self.dly;
 
 	sig_continue = self.sig_continue;

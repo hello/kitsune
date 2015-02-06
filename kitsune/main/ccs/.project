@@ -311,16 +311,6 @@
 			<locationURI>PARENT-2-PROJECT_LOC/kitsune_version.h</locationURI>
 		</link>
 		<link>
-			<name>led_action.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/led_action.c</locationURI>
-		</link>
-		<link>
-			<name>led_action.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/led_action.h</locationURI>
-		</link>
-		<link>
 			<name>led_animations.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/led_animations.c</locationURI>
