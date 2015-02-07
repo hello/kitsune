@@ -345,23 +345,6 @@ void led_task( void * params ) {
 			xEventGroupSetBits(led_events, LED_IDLE_BIT );
 			led_animation_not_in_progress = 1;
 		}
-		if (evnt & LED_CUSTOM_COLOR ){
-			unsigned int colors[NUM_LED + 1];
-			unsigned int color_to_use, delay;
-
-			xSemaphoreTake(led_smphr, portMAX_DELAY);
-			color_to_use = led_from_rgb(user_color.r, user_color.g, user_color.b);
-			delay = user_delay;
-			xSemaphoreGive( led_smphr );
-
-			for (i = 0; i <= NUM_LED; ++i) {
-				colors[i] = color_to_use;
-			}
-			if( !(evnt & (LED_FADE_IN_BIT|LED_FADE_OUT_BIT|LED_FADE_IN_STEP_BIT|LED_FADE_OUT_STEP_BIT)) ){
-				led_array(colors, delay);
-			}
-			memcpy(colors_last, colors, sizeof(colors_last));
-		}
 		if(evnt & LED_CUSTOM_TRANSITION){
 			unsigned int colors[NUM_LED + 1];
 			int i;
