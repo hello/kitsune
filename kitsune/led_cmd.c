@@ -602,7 +602,9 @@ int led_transition_custom_animation(const user_animation_t * user){
 		return ret;
 	}
 }
-
+int led_get_animation_id(void){
+	return animation_id;
+}
 static uint8_t _rgb[3];
 
 void led_get_user_color(uint8_t* out_red, uint8_t* out_green, uint8_t* out_blue)

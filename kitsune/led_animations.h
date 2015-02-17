@@ -22,6 +22,21 @@ void set_led_progress_bar(uint8_t percent);
 bool factory_led_test_pattern(unsigned int timeout);
 bool play_led_animation_stop(void);
 
+/*
+ * this macro invokes one of the play_led_* animation
+ * and blocks until either a higher animation overwrites it, or the animation ends by itself.
+ */
+#define ANIMATE_BLOCKING(anim, timeout) do{\
+	int ret = anim;\
+	while(ret >= 0 && timeout){\
+		if(led_wait_for_idle(0) || ret != led_get_animation_id()){\
+			break;\
+		}else{\
+			timeout--;\
+			vTaskDelay(1);\
+		}\
+	}\
+}while(0)
 #ifdef __cplusplus
 }
 #endif

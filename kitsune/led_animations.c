@@ -178,7 +178,6 @@ bool play_led_trippy(uint8_t trippy_base[3], uint8_t trippy_range[3], unsigned i
 		self.prev_colors[i] = self.colors[i];
 	}
 	self.dly = 15;
-	//led_start_custom_animation(_animate_trippy, NULL);
 	led_transition_custom_animation(&anim);
 	_signal_start_animation();
 	return true;
