@@ -397,12 +397,6 @@ void led_task( void * params ) {
 				led_animation_not_in_progress = 0;
 				if(user_animation.handler(colors,&delay,user_animation.context, NUM_LED)){
 					xSemaphoreGive( led_smphr );
-					/*for(i = 0; i <= NUM_LED; i++){
-						r[i] = clamp_rgb(r[i],0,LED_CLAMP_MAX);
-						g[i] = clamp_rgb(g[i],0,LED_CLAMP_MAX);
-						b[i] = clamp_rgb(b[i],0,LED_CLAMP_MAX);
-						colors[i] = led_from_rgb(r[i],g[i],b[i]);
-					}*/
 					led_array(colors, delay);
 					memcpy(colors_last,colors, sizeof(colors_last));
 					//delay capped at 500 ms to improve task responsiveness

@@ -88,10 +88,12 @@ static bool _animate_trippy(led_color_t * out, int * out_delay, void * user_cont
 		if(_reach_color(&b0, b1)){
 			b1 = _new_random_color(self.trippy_range[2], self.trippy_base[2]);
 		}
+		self.colors[i] = led_from_rgb(r1,g1,b1);
 		out[i] = led_from_rgb(
 				r0 * ((unsigned int)(scaler)) / 100,
 				g0 * ((unsigned int)(scaler)) / 100,
 				b0 * ((unsigned int)(scaler)) / 100);
+		self.prev_colors[i] = out[i];
 	}
 	*out_delay = self.dly;
 
