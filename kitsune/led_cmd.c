@@ -63,13 +63,13 @@ int led_init(void){
 	return 0;
 }
 
-static void led_fast( unsigned int* color ) {
+static void led_fast(led_color_t * color ) {
 	int i;
-	unsigned int * end = color + NUM_LED;
+	led_color_t * end = &color[NUM_LED];
 
 	for( ;; ) {
 		for (i = 0; i < 24; ++i) {
-			if ((*color << i) & 0x800000 ) {
+			if ((color->rgb << i) & 0x800000 ) {
 				//1
 				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_HIGH_FAST);
 				__asm( " nop");__asm( " nop");__asm( " nop");__asm( " nop");
@@ -130,12 +130,13 @@ static void led_fast( unsigned int* color ) {
 		}
 	}
 }
-static void led_slow(unsigned int* color) {
+static void led_slow(led_color_t * color) {
 	int i;
-	unsigned int * end = color + NUM_LED;
+	led_color_t * end = &color[NUM_LED];
+
 	for (;;) {
 		for (i = 0; i < 24; ++i) {
-			if ((*color << i) & 0x800000) {
+			if ((color->rgb << i) & 0x800000) {
 				//1
 				MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_HIGH_SLOW);
 				UtilsDelay(5);
@@ -167,7 +168,7 @@ static void led_slow(unsigned int* color) {
 
 #define LED_GPIO_BASE_DOUT GPIOA2_BASE
 #define LED_GPIO_BIT_DOUT 0x80
-static void led_array(unsigned int * colors, int delay) {
+static void led_array(led_color_t * colors, int delay) {
 	unsigned long ulInt;
 	//
 
@@ -187,19 +188,19 @@ static void led_array(unsigned int * colors, int delay) {
 	}
 	vTaskDelay(0);
 }
-static void led_brightness(unsigned int * colors, unsigned int brightness ) {
+static void led_brightness(led_color_t * colors, unsigned int brightness ) {
 	int l;
 	unsigned int blue,red,green;
 
 	for (l = 0; l < NUM_LED; ++l) {
-		blue = ( colors[l] & ~0xffff00 );
-		red = ( colors[l] & ~0xff00ff )>>8;
-		green = ( colors[l] & ~0x00ffff )>>16;
+		blue = ( colors[l].rgb & ~0xffff00 );
+		red = ( colors[l].rgb & ~0xff00ff )>>8;
+		green = ( colors[l].rgb & ~0x00ffff )>>16;
 
 		blue = ((brightness * blue)>>8)&0xff;
 		red = ((brightness * red)>>8)&0xff;
 		green = ((brightness * green)>>8)&0xff;
-		colors[l] = (blue) | (red<<8) | (green<<16);
+		colors[l].rgb = (blue) | (red<<8) | (green<<16);
 	}
 }
 #if 0
@@ -241,15 +242,18 @@ static void led_cw( unsigned int * colors) {
 	}
 }
 #endif
-void led_to_rgb( unsigned int * c, unsigned int *r, unsigned int* g, unsigned int* b) {
-	*b = (( *c & ~0xffff00 ))&0xff;
-	*r = (( *c & ~0xff00ff )>>8)&0xff;
-	*g = (( *c & ~0x00ffff )>>16)&0xff;
+void led_to_rgb(const led_color_t * c, unsigned int *r, unsigned int* g, unsigned int* b) {
+	*b = (( c->rgb & ~0xffff00 ))&0xff;
+	*r = (( c->rgb & ~0xff00ff )>>8)&0xff;
+	*g = (( c->rgb & ~0x00ffff )>>16)&0xff;
 }
-unsigned int led_from_rgb( int r, int g, int b) {
-	return (b&0xff) | ((r&0xff)<<8) | ((g&0xff)<<16);
+led_color_t led_from_rgb( int r, int g, int b) {
+	led_color_t ret = (led_color_t){
+			.rgb =  (b&0xff) | ((r&0xff)<<8) | ((g&0xff)<<16),
+	};
+	return ret;
 }
-static uint32_t wheel_color(int WheelPos, unsigned int color) {
+static led_color_t wheel_color(int WheelPos, led_color_t color) {
 	unsigned int r, g, b;
 	led_to_rgb(&color, &r, &g, &b);
 
@@ -312,7 +316,7 @@ static int _transition_color(int from, int to, int quant){
 		return from - quant;
 	}
 }
-static void _transition(uint32_t * out, unsigned int * from, unsigned int * to){
+static void _transition(led_color_t * out, led_color_t * from, led_color_t * to){
 	unsigned int r0,g0,b0,r1,g1,b1;
 	led_to_rgb(from, &r0, &g0, &b0);
 	led_to_rgb(to, &r1,&g1,&b1);
@@ -329,7 +333,7 @@ _reset_user_animation(user_animation_t * anim){
 
 void led_task( void * params ) {
 	int i,j;
-	unsigned int colors_last[NUM_LED+1];
+	led_color_t colors_last[NUM_LED+1];
 	memset( colors_last, 0, sizeof(colors_last) );
 	_reset_user_animation(&user_animation);
 	vSemaphoreCreateBinary(led_smphr);
@@ -352,8 +356,9 @@ void led_task( void * params ) {
 			led_animation_not_in_progress = 1;
 		}
 		if (evnt & LED_CUSTOM_COLOR ){
-			unsigned int colors[NUM_LED + 1];
-			unsigned int color_to_use, delay;
+			led_color_t colors[NUM_LED + 1];
+			led_color_t color_to_use;
+			int delay;
 
 			xSemaphoreTake(led_smphr, portMAX_DELAY);
 			color_to_use = led_from_rgb(user_color.r, user_color.g, user_color.b);
@@ -369,7 +374,7 @@ void led_task( void * params ) {
 			memcpy(colors_last, colors, sizeof(colors_last));
 		}
 		if(evnt & LED_CUSTOM_TRANSITION){
-			unsigned int colors[NUM_LED + 1];
+			led_color_t colors[NUM_LED + 1];
 			int i;
 			xSemaphoreTake(led_smphr, portMAX_DELAY);
 			for(i = 0; i < NUM_LED; i++){
@@ -384,24 +389,20 @@ void led_task( void * params ) {
 			xSemaphoreGive( led_smphr );
 		}
 		if(evnt & LED_CUSTOM_ANIMATION_BIT){
-			unsigned int colors[NUM_LED + 1];
+			led_color_t colors[NUM_LED + 1];
 			if(user_animation.handler){
-				int r[NUM_LED] = {0};
-				int g[NUM_LED] = {0};
-				int b[NUM_LED] = {0};
 				int delay = 10;
-				int i;
 
 				xSemaphoreTake(led_smphr, portMAX_DELAY);
 				led_animation_not_in_progress = 0;
-				if(user_animation.handler(r,g,b,&delay,user_animation.context, NUM_LED)){
+				if(user_animation.handler(colors,&delay,user_animation.context, NUM_LED)){
 					xSemaphoreGive( led_smphr );
-					for(i = 0; i <= NUM_LED; i++){
+					/*for(i = 0; i <= NUM_LED; i++){
 						r[i] = clamp_rgb(r[i],0,LED_CLAMP_MAX);
 						g[i] = clamp_rgb(g[i],0,LED_CLAMP_MAX);
 						b[i] = clamp_rgb(b[i],0,LED_CLAMP_MAX);
 						colors[i] = led_from_rgb(r[i],g[i],b[i]);
-					}
+					}*/
 					led_array(colors, delay);
 					memcpy(colors_last,colors, sizeof(colors_last));
 					//delay capped at 500 ms to improve task responsiveness
@@ -423,8 +424,9 @@ void led_task( void * params ) {
 		}
 		if (evnt & LED_ROTATE_BIT) {
 			static unsigned int p;
-			unsigned int colors[NUM_LED + 1];
-			unsigned int color_to_use, delay;
+			led_color_t colors[NUM_LED + 1];
+			led_color_t color_to_use;
+			int delay;
 
 			xSemaphoreTake(led_smphr, portMAX_DELAY);
 			led_animation_not_in_progress = 0;
@@ -434,7 +436,7 @@ void led_task( void * params ) {
 
 			p+=QUANT_FACTOR;
 			for (i = 0; i <= NUM_LED; ++i) {
-				colors[i] = wheel_color(((i * 256 / 12) + p) & 255, color_to_use);
+				//colors[i] = wheel_color(((i * 256 / 12) + p) & 255, color_to_use);
 			}
 			if( !(evnt & (LED_FADE_IN_BIT|LED_FADE_OUT_BIT|LED_FADE_IN_STEP_BIT|LED_FADE_OUT_STEP_BIT)) ){
 				led_array(colors, delay);
@@ -449,7 +451,7 @@ void led_task( void * params ) {
 			evnt|=LED_FADE_IN_STEP_BIT;
 		}
 		if (evnt & LED_FADE_IN_STEP_BIT) { //set j to 0 first
-			unsigned int colors[NUM_LED + 1];
+			led_color_t colors[NUM_LED + 1];
 			for (i = 0; i <= NUM_LED; i++) {
 				colors[i] = colors_last[i];
 			}
@@ -475,7 +477,7 @@ void led_task( void * params ) {
 			evnt|=LED_FADE_OUT_STEP_BIT;
 		}
 		if (evnt & LED_FADE_OUT_STEP_BIT) {
-			unsigned int colors[NUM_LED + 1];
+			led_color_t colors[NUM_LED + 1];
 			for (i = 0; i <= NUM_LED; i++) {
 				colors[i] = colors_last[i];
 			}
