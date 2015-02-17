@@ -253,6 +253,18 @@ led_color_t led_from_rgb( int r, int g, int b) {
 	};
 	return ret;
 }
+void led_set(led_color_t * dst, led_color_t src, int copies){
+	int i;
+	for(i = 0; i < copies; i++){
+		dst[i] = src;
+	}
+}
+void led_copy(led_color_t * dst, const led_color_t * src, int num){
+	int i;
+	for(i = 0; i < num; i++){
+		dst[i] = src[i];
+	}
+}
 static led_color_t wheel_color(int WheelPos, led_color_t color) {
 	unsigned int r, g, b;
 	led_to_rgb(&color, &r, &g, &b);
