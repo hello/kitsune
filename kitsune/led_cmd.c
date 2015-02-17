@@ -415,9 +415,8 @@ void led_task( void * params ) {
 					xEventGroupSetBits(led_events, LED_FADE_OUT_STEP_BIT );  // always fade out animation
 					xSemaphoreGive( led_smphr );
 				}
-
-
 			}else{
+				_reset_user_animation(&user_animation);
 				xEventGroupClearBits(led_events,LED_CUSTOM_ANIMATION_BIT);
 				xEventGroupSetBits(led_events,LED_RESET_BIT);
 			}
@@ -607,6 +606,8 @@ int led_transition_custom_animation(const user_animation_t * user){
 			ret = animation_id++;
 			xEventGroupClearBits( led_events, 0xffffff );
 			xEventGroupSetBits( led_events, LED_CUSTOM_TRANSITION );
+		}else{
+			ret = -2;
 		}
 		xSemaphoreGive(led_smphr);
 		return ret;
