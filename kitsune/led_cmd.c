@@ -41,6 +41,7 @@ static struct{
 	uint8_t b;
 }user_color;
 unsigned int user_delay;
+static int animation_id;
 
 static user_animation_t user_animation;
 
@@ -588,15 +589,17 @@ int led_set_color(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b,
 }
 
 int led_transition_custom_animation(const user_animation_t * user){
+	int ret = -1;
 	if(!user){
-		return -1;
+		return ret;
 	}else{
 		xSemaphoreTake(led_smphr, portMAX_DELAY);
 		user_animation = *user;
+		ret = animation_id++;
 		xEventGroupClearBits( led_events, 0xffffff );
 		xEventGroupSetBits( led_events, LED_CUSTOM_TRANSITION );
 		xSemaphoreGive(led_smphr);
-		return 0;
+		return ret;
 	}
 }
 
