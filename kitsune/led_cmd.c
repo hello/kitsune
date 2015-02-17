@@ -601,7 +601,7 @@ int led_transition_custom_animation(const user_animation_t * user){
 		return ret;
 	}else{
 		xSemaphoreTake(led_smphr, portMAX_DELAY);
-		if(user->priority < user_animation.priority){
+		if(user->priority <= user_animation.priority){
 			user_animation = *user;
 			ret = animation_id++;
 			xEventGroupClearBits( led_events, 0xffffff );
