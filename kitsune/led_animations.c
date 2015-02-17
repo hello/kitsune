@@ -184,7 +184,7 @@ bool play_led_animation_stop(void){
 	};
 	led_transition_custom_animation(&anim);
 	_signal_start_animation();
-	return false;
+	return true;
 }
 bool play_led_animation_solid(int r, int g, int b){
 	int i;
