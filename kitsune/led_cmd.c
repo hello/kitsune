@@ -322,11 +322,16 @@ static void _transition(uint32_t * out, unsigned int * from, unsigned int * to){
 			_transition_color((int)b0, (int)b1, 3));
 
 }
+static void
+_reset_user_animation(user_animation_t * anim){
+	anim->priority = 0xff;
+}
+
 void led_task( void * params ) {
 	int i,j;
 	unsigned int colors_last[NUM_LED+1];
 	memset( colors_last, 0, sizeof(colors_last) );
-
+	_reset_user_animation(&user_animation);
 	vSemaphoreCreateBinary(led_smphr);
 
 	while(1) {
@@ -405,6 +410,7 @@ void led_task( void * params ) {
 					xEventGroupClearBits(led_events,LED_CUSTOM_ANIMATION_BIT);
 					//xEventGroupSetBits(led_events,LED_RESET_BIT);
 					j = 255;
+					_reset_user_animation(&user_animation);
 					xEventGroupSetBits(led_events, LED_FADE_OUT_STEP_BIT );  // always fade out animation
 					xSemaphoreGive( led_smphr );
 				}
@@ -594,10 +600,12 @@ int led_transition_custom_animation(const user_animation_t * user){
 		return ret;
 	}else{
 		xSemaphoreTake(led_smphr, portMAX_DELAY);
-		user_animation = *user;
-		ret = animation_id++;
-		xEventGroupClearBits( led_events, 0xffffff );
-		xEventGroupSetBits( led_events, LED_CUSTOM_TRANSITION );
+		if(user->priority < user_animation.priority){
+			user_animation = *user;
+			ret = animation_id++;
+			xEventGroupClearBits( led_events, 0xffffff );
+			xEventGroupSetBits( led_events, LED_CUSTOM_TRANSITION );
+		}
 		xSemaphoreGive(led_smphr);
 		return ret;
 	}
