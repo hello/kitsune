@@ -273,7 +273,6 @@ int play_led_wheel(int r, int g, int b, int repeat){
 		.initial_state = {0},
 	};
 	self.dly = 33;
-	self.counter = 0;
 	ret = led_transition_custom_animation(&anim);
 	_signal_start_animation();
 	return ret;
