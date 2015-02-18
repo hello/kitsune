@@ -19,7 +19,7 @@ int play_led_trippy(uint8_t trippy_base[3], uint8_t range[3], unsigned int timeo
 int play_led_progress_bar(int r, int g, int b, unsigned int options, unsigned int timeout);
 int play_led_animation_solid(int r, int g, int b, int ramp_down_step);
 int factory_led_test_pattern(unsigned int timeout);
-int play_led_wheel(int r, int g, int b, int repeat);
+int play_led_wheel(int r, int g, int b, int repeat,int delay);
 int play_led_animation_stop(void);
 
 void set_led_progress_bar(uint8_t percent);

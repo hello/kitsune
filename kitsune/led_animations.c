@@ -22,6 +22,10 @@ static struct{
 	uint8_t trippy_range[3];
 }self;
 
+typedef struct{
+	led_color_t color;
+	int repeat;
+}wheel_context;
 extern void led_unblock();
 extern void led_block();
 extern void led_set_is_sync(int is_sync);
@@ -165,10 +169,20 @@ static led_color_t wheel_color(int WheelPos, led_color_t color) {
 static bool _animate_wheel(const led_color_t * prev, led_color_t * out, int * out_delay, void * user_context, int rgb_array_size){
 	if(user_context){
 		int i;
-		led_color_t color_to_use = *((led_color_t*)user_context);
+		wheel_context * ctx = user_context;
 		self.counter += 6;
 		for(i = 0; i < rgb_array_size; i++){
-			out[i] = wheel_color(((i * 256 / 12) + self.counter) & 255, color_to_use);
+			out[i] = wheel_color(((i * 256 / 12) + self.counter) & 255, ctx->color);
+			if(ctx->repeat){
+				int fade = 255;
+				if(ctx->repeself.counter > ((ctx->repeat - 1) * 256)){
+					fade =  (self.counter >= ctx->repeat * 256)?0:(256 - self.counter % 256);
+				}
+				if(fade == 0){
+					self.sig_continue = false;
+				}
+				out[i] = led_from_brightness(&out[i],fade);
+			}
 		}
 	}
 	return self.sig_continue;
@@ -262,17 +276,18 @@ int factory_led_test_pattern(unsigned int timeout) {
 		_signal_start_animation();
 		return ret;
 }
-int play_led_wheel(int r, int g, int b, int repeat){
+int play_led_wheel(int r, int g, int b, int repeat, int delay){
 	int ret;
-	static led_color_t color;
-	color = led_from_rgb(r,g,b);
+	static wheel_context ctx;
+	ctx.color = led_from_rgb(r,g,b);
+	ctx.repeat = repeat;
 	user_animation_t anim = (user_animation_t){
 		.handler = _animate_wheel,
-		.context = &color,
+		.context = &ctx,
 		.priority = 2,
 		.initial_state = {0},
 	};
-	self.dly = 33;
+	self.dly = delay;
 	ret = led_transition_custom_animation(&anim);
 	_signal_start_animation();
 	return ret;
@@ -312,7 +327,7 @@ int Cmd_led_animate(int argc, char *argv[]){
 				play_led_trippy( trippy_base, trippy_range, portMAX_DELAY );
 			}
 		}else if(strcmp(argv[1], "wheel") == 0){
-			play_led_wheel(rand()%120, rand()%120, rand()%120, 2);
+			play_led_wheel(rand()%120, rand()%120, rand()%120, 2, 33);
 		}else if(strcmp(argv[1], "solid") == 0){
 			play_led_animation_solid(rand()%120, rand()%120, rand()%120, 2);
 		}else if(strcmp(argv[1], "prog") == 0){
