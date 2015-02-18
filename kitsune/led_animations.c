@@ -12,7 +12,6 @@
 
 #include "led_animations.h"
 static struct{
-	int counter;
 	volatile bool sig_continue;
 	led_color_t colors[NUM_LED];
 	int progress_bar_percent;
@@ -43,9 +42,7 @@ static bool _signal_start_animation(void) {
 	lock();
 
 	LOGI("Start animation\n");
-	self.counter = 0;
 	self.sig_continue = true; //careful, to set this true requires both semaphores
-
 	unlock();
 	return true;
 }
@@ -63,8 +60,8 @@ static bool _reach_color(unsigned int * v, unsigned int target, int step_size){
 static int _new_random_color(uint8_t range, uint8_t base){
 	return ((unsigned int)rand()) % range + base;
 }
-static bool _animate_solid(const led_color_t * prev, led_color_t * out, int * out_delay, void * user_context, int rgb_array_size){
-	ledcpy(out,prev, rgb_array_size);
+static bool _animate_solid(const led_color_t * prev, led_color_t * out, int * out_delay, void * user_context, unsigned int counter){
+	ledcpy(out,prev, NUM_LED);
 	if(user_context){
 		int ramp = *((int*)user_context);
 		if(ramp){
@@ -76,7 +73,7 @@ static bool _animate_solid(const led_color_t * prev, led_color_t * out, int * ou
 	}
 	return self.sig_continue;
 }
-static bool _animate_trippy(const led_color_t * prev, led_color_t * out, int * out_delay, void * user_context, int rgb_array_size){
+static bool _animate_trippy(const led_color_t * prev, led_color_t * out, int * out_delay, void * user_context, unsigned int counter){
 	int i = 0;
 	bool sig_continue;
 	static int scaler = 100;
@@ -106,18 +103,18 @@ static bool _animate_trippy(const led_color_t * prev, led_color_t * out, int * o
 	unlock();
 	return sig_continue;
 }
-static bool _animate_progress(const led_color_t * prev, led_color_t * out, int * out_delay, void * user_context, int rgb_array_size){
+static bool _animate_progress(const led_color_t * prev, led_color_t * out, int * out_delay, void * user_context, unsigned int counter){
 	bool sig_continue;
 	lock();
-	int prog = self.progress_bar_percent * rgb_array_size;
+	int prog = self.progress_bar_percent * NUM_LED;
 	int filled = prog / 100;
 	int left = ((prog % 100)*254)>>8;
 
 	int i;
-	for(i = 0; i < filled && i < rgb_array_size; i++){
+	for(i = 0; i < filled && i < NUM_LED; i++){
 		out[i] = self.colors[0];
 	}
-	if(filled < rgb_array_size ){
+	if(filled < NUM_LED ){
 		unsigned int r,g,b;
 		led_to_rgb(&self.colors[0], &r, &g, &b);
 		out[filled] = led_from_rgb(
@@ -130,19 +127,18 @@ static bool _animate_progress(const led_color_t * prev, led_color_t * out, int *
 	unlock();
 	return sig_continue;
 }
-static bool _animate_factory_test_pattern(const led_color_t * prev, led_color_t * out, int * out_delay, void * user_context, int rgb_array_size){
+static bool _animate_factory_test_pattern(const led_color_t * prev, led_color_t * out, int * out_delay, void * user_context, unsigned int counter){
 	bool sig_continue;
 	lock();
 
 	int i;
-	for(i = 0; i < rgb_array_size; i++){
-		if( ( (i+self.counter) % 3 ) == 0 ) {
+	for(i = 0; i < NUM_LED; i++){
+		if( ( (i+counter) % 3 ) == 0 ) {
 			out[i] = led_from_rgb(255,255,255);
 		} else {
 			out[i] = led_from_rgb(0,0,0);
 		}
 	}
-	++self.counter;
 	*out_delay = self.dly;
 	sig_continue = self.sig_continue;
 	unlock();
@@ -166,17 +162,18 @@ static led_color_t wheel_color(int WheelPos, led_color_t color) {
 	}
 }
 
-static bool _animate_wheel(const led_color_t * prev, led_color_t * out, int * out_delay, void * user_context, int rgb_array_size){
+static bool _animate_wheel(const led_color_t * prev, led_color_t * out, int * out_delay, void * user_context, unsigned int counter){
 	if(user_context){
 		int i;
+		unsigned int ctr;
 		wheel_context * ctx = user_context;
-		self.counter += 6;
-		for(i = 0; i < rgb_array_size; i++){
-			out[i] = wheel_color(((i * 256 / 12) + self.counter) & 255, ctx->color);
+		ctr = counter * 6;
+		for(i = 0; i < NUM_LED; i++){
+			out[i] = wheel_color(((i * 256 / 12) + ctr) & 255, ctx->color);
 			if(ctx->repeat){
 				int fade = 255;
-				if(self.counter > ((ctx->repeat - 1) * 256)){
-					fade =  (self.counter >= ctx->repeat * 256)?0:(256 - self.counter % 256);
+				if(ctr > ((ctx->repeat - 1) * 256)){
+					fade =  (ctr >= ctx->repeat * 256)?0:(256 - ctr % 256);
 				}
 				if(fade == 0){
 					self.sig_continue = false;

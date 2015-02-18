@@ -42,6 +42,7 @@ static struct{
 }user_color;
 unsigned int user_delay;
 static int animation_id;
+static unsigned int animation_counter;
 
 static user_animation_t user_animation;
 
@@ -358,7 +359,7 @@ void led_task( void * params ) {
 				int delay = 10;
 
 				xSemaphoreTake(led_smphr, portMAX_DELAY);
-				if(user_animation.handler(colors_last, colors,&delay,user_animation.context, NUM_LED)){
+				if(user_animation.handler(colors_last, colors,&delay,user_animation.context, animation_counter++)){
 					xSemaphoreGive( led_smphr );
 					led_array(colors, delay);
 					memcpy(colors_last,colors, sizeof(colors_last));
@@ -503,6 +504,7 @@ int led_transition_custom_animation(const user_animation_t * user){
 		if(user->priority <= user_animation.priority){
 			user_animation = *user;
 			ret = ++animation_id;
+			animation_counter = 0;
 			xEventGroupClearBits( led_events, 0xffffff );
 			xEventGroupSetBits( led_events, LED_CUSTOM_TRANSITION );
 		}else{
