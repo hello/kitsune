@@ -407,7 +407,7 @@ void led_task( void * params ) {
 
 				xSemaphoreTake(led_smphr, portMAX_DELAY);
 				led_animation_not_in_progress = 0;
-				if(user_animation.handler(colors,&delay,user_animation.context, NUM_LED)){
+				if(user_animation.handler(colors_last, colors,&delay,user_animation.context, NUM_LED)){
 					xSemaphoreGive( led_smphr );
 					led_array(colors, delay);
 					memcpy(colors_last,colors, sizeof(colors_last));

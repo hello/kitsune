@@ -19,7 +19,7 @@ led_color_t led_from_rgb( int r, int g, int b);
 void led_set(led_color_t * dst, led_color_t src, int num);
 void led_copy(led_color_t * dst, const led_color_t * src, int num);
 
-typedef bool (*led_user_animation_handler)(led_color_t * out, int * out_delay, void * user_context, int rgb_array_size);
+typedef bool (*led_user_animation_handler)(const led_color_t * prev, led_color_t * out, int * out_delay, void * user_context, int rgb_array_size);
 typedef struct{
 	led_user_animation_handler handler;
 	void * context;
