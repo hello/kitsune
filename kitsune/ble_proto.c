@@ -616,7 +616,7 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 
 void ble_proto_led_init()
 {
-	led_set_color(0xFF, LED_MAX, LED_MAX, LED_MAX, 1, 1, 36, 0);
+	play_led_animation_solid(LED_MAX, LED_MAX,LED_MAX,1);
 }
 
 void ble_proto_led_busy_mode(uint8_t a, uint8_t r, uint8_t g, uint8_t b, int delay)
