@@ -189,9 +189,9 @@ static void led_array(led_color_t * colors, int delay) {
 	vTaskDelay(0);
 }
 static void led_brightness_all(led_color_t * colors, unsigned int brightness ) {
-	int i;
+	int l;
 	for (l = 0; l < NUM_LED; ++l) {
-		colors[i] = led_from_brightness(&colors[i], brightness);
+		colors[l] = led_from_brightness(&colors[l], brightness);
 	}
 }
 #if 0
