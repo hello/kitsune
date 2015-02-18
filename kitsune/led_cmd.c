@@ -268,7 +268,6 @@ void ledcpy(led_color_t * dst, const led_color_t * src, int num){
 #define LED_RESET_BIT 		0x01
 #define LED_IDLE_BIT        0x08
 
-#define LED_FADE_OUT_BIT		0x040
 #define LED_FADE_OUT_STEP_BIT   0x200
 
 #define LED_CUSTOM_ANIMATION_BIT  0x1000
@@ -382,14 +381,6 @@ void led_task( void * params ) {
 				xEventGroupSetBits(led_events,LED_RESET_BIT);
 			}
 		}
-
-		if ((evnt & LED_FADE_OUT_BIT)) {
-			j = 255;
-			xEventGroupClearBits(led_events, LED_FADE_OUT_BIT );
-			xEventGroupSetBits(led_events, LED_FADE_OUT_STEP_BIT );
-			led_animation_not_in_progress = 0;
-			evnt|=LED_FADE_OUT_STEP_BIT;
-		}
 		if (evnt & LED_FADE_OUT_STEP_BIT) {
 			led_color_t colors[NUM_LED + 1];
 			ledcpy(colors_last, colors, NUM_LED);
@@ -416,7 +407,7 @@ void led_task( void * params ) {
 
 int led_ready() {
 	//make sure the thread isn't doing something else...
-	if( xEventGroupGetBits( led_events ) & (LED_CUSTOM_TRANSITION | LED_CUSTOM_ANIMATION_BIT | LED_FADE_OUT_BIT | LED_FADE_OUT_STEP_BIT ) ) {
+	if( xEventGroupGetBits( led_events ) & (LED_CUSTOM_TRANSITION | LED_CUSTOM_ANIMATION_BIT | LED_FADE_OUT_STEP_BIT ) ) {
 		return -1;
 	}
 	return 0;
