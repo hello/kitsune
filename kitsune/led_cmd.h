@@ -16,7 +16,7 @@ typedef struct{
 
 void led_to_rgb(const led_color_t * c, unsigned int *r, unsigned int* g, unsigned int* b);
 led_color_t led_from_rgb( int r, int g, int b);
-led_color_t led_from_brightness(led_color_t c, unsigned int br);
+led_color_t led_from_brightness(const led_color_t * c, unsigned int br);
 void ledset(led_color_t * dst, led_color_t src, int num);
 void ledcpy(led_color_t * dst, const led_color_t * src, int num);
 
