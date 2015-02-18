@@ -283,13 +283,10 @@ static led_color_t wheel_color(int WheelPos, led_color_t color) {
 	}
 }
 
-#define LED_RESET_BIT 				0x01
-#define LED_SOLID_BIT 		0x02
+#define LED_RESET_BIT 		0x01
 #define LED_ROTATE_BIT 		0x04
 #define LED_IDLE_BIT        0x08
 
-#define LED_FADE_IN_BIT			0x010
-#define LED_FADE_IN_FAST_BIT	0x020
 #define LED_FADE_OUT_BIT		0x040
 #define LED_FADE_OUT_FAST_BIT	0x080
 
@@ -297,7 +294,6 @@ static led_color_t wheel_color(int WheelPos, led_color_t color) {
 #define LED_FADE_OUT_STEP_BIT   0x200
 #define LED_FADE_IN_STEP_BIT    0x400
 
-#define LED_CUSTOM_COLOR		  0x0800
 #define LED_CUSTOM_ANIMATION_BIT  0x1000
 #define LED_CUSTOM_TRANSITION	  0x2000
 
@@ -367,24 +363,6 @@ void led_task( void * params ) {
 			xEventGroupSetBits(led_events, LED_IDLE_BIT );
 			led_animation_not_in_progress = 1;
 		}
-		if (evnt & LED_CUSTOM_COLOR ){
-			led_color_t colors[NUM_LED + 1];
-			led_color_t color_to_use;
-			int delay;
-
-			xSemaphoreTake(led_smphr, portMAX_DELAY);
-			color_to_use = led_from_rgb(user_color.r, user_color.g, user_color.b);
-			delay = user_delay;
-			xSemaphoreGive( led_smphr );
-
-			for (i = 0; i <= NUM_LED; ++i) {
-				colors[i] = color_to_use;
-			}
-			if( !(evnt & (LED_FADE_IN_BIT|LED_FADE_OUT_BIT|LED_FADE_IN_STEP_BIT|LED_FADE_OUT_STEP_BIT)) ){
-				led_array(colors, delay);
-			}
-			memcpy(colors_last, colors, sizeof(colors_last));
-		}
 		if(evnt & LED_CUSTOM_TRANSITION){
 			led_color_t colors[NUM_LED + 1];
 			int i;
@@ -443,38 +421,12 @@ void led_task( void * params ) {
 			for (i = 0; i <= NUM_LED; ++i) {
 				//colors[i] = wheel_color(((i * 256 / 12) + p) & 255, color_to_use);
 			}
-			if( !(evnt & (LED_FADE_IN_BIT|LED_FADE_OUT_BIT|LED_FADE_IN_STEP_BIT|LED_FADE_OUT_STEP_BIT)) ){
+			if( !(evnt & (LED_FADE_OUT_BIT|LED_FADE_OUT_STEP_BIT)) ){
 				led_array(colors, delay);
 			}
 			memcpy(colors_last, colors, sizeof(colors_last));
 		}
-		if (evnt & LED_FADE_IN_BIT) {
-			j = 0;
-			led_animation_not_in_progress = 0;
-			xEventGroupClearBits(led_events, LED_FADE_IN_BIT );
-			xEventGroupSetBits(led_events, LED_FADE_IN_STEP_BIT );
-			evnt|=LED_FADE_IN_STEP_BIT;
-		}
-		if (evnt & LED_FADE_IN_STEP_BIT) { //set j to 0 first
-			led_color_t colors[NUM_LED + 1];
-			for (i = 0; i <= NUM_LED; i++) {
-				colors[i] = colors_last[i];
-			}
-			j+=QUANT_FACTOR;
-			led_brightness(colors, j);
-
-			if (j > 255) {
-				xEventGroupClearBits(led_events, LED_FADE_IN_STEP_BIT | LED_FADE_IN_FAST_BIT);
-				memcpy(colors_last, colors, sizeof(colors_last));
-				}
-			unsigned int delay;
-
-			xSemaphoreTake(led_smphr, portMAX_DELAY);
-			delay = user_delay;
-			xSemaphoreGive( led_smphr );
-			led_array(colors, delay);
-		}
-		if ((evnt & LED_FADE_OUT_BIT) && !(evnt & (LED_FADE_IN_STEP_BIT|LED_FADE_IN_BIT) ) ) {
+		if ((evnt & LED_FADE_OUT_BIT)) {
 			j = 255;
 			xEventGroupClearBits(led_events, LED_FADE_OUT_BIT );
 			xEventGroupSetBits(led_events, LED_FADE_OUT_STEP_BIT );
@@ -539,12 +491,13 @@ int Cmd_led(int argc, char *argv[]) {
 		xEventGroupSetBits( led_events, select );
 	}else if(argc == 3){
 		if(strcmp(argv[1], "color") == 0 && argc >= 5){
-			user_color.r = clamp_rgb(atoi(argv[2]), 0, LED_CLAMP_MAX);
-			user_color.g = clamp_rgb(atoi(argv[3]), 0, LED_CLAMP_MAX);
-			user_color.b = clamp_rgb(atoi(argv[4]), 0, LED_CLAMP_MAX);
-			LOGF("Setting colors R: %d, G: %d, B: %d \r\n", user_color.r, user_color.g, user_color.b);
-			xEventGroupClearBits( led_events, 0xffffff );
-			xEventGroupSetBits( led_events, LED_FADE_OUT_BIT | LED_FADE_IN_BIT );
+			unsigned int r,g,b;
+			r = clamp_rgb(atoi(argv[2]), 0, LED_CLAMP_MAX);
+			g = clamp_rgb(atoi(argv[3]), 0, LED_CLAMP_MAX);
+			b = clamp_rgb(atoi(argv[4]), 0, LED_CLAMP_MAX);
+			ANIMATE_BLOCKING(play_led_animation_stop(),500);
+			LOGF("Setting colors R: %d, G: %d, B: %d \r\n", r, g, b);
+			play_led_animation_solid(r,g,b);
 		}
 	} else if( argc > 3){
 		int r,g,b,fi,fo,ud,rot;
@@ -590,12 +543,9 @@ int led_set_color(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b,
 	xEventGroupClearBits( led_events, 0xffffff );
 	if( rot ) {
 		xEventGroupSetBits(led_events,
-				LED_ROTATE_BIT | (fade_in > 0 ? LED_FADE_IN_BIT : 0)
-						| (fade_out > 0 ? LED_FADE_OUT_BIT : 0));
+				LED_ROTATE_BIT 	| (fade_out > 0 ? LED_FADE_OUT_BIT : 0));
 	} else {
-		xEventGroupSetBits(led_events,
-				LED_CUSTOM_COLOR | (fade_in > 0 ? LED_FADE_IN_BIT : 0)
-						| (fade_out > 0 ? LED_FADE_OUT_BIT : 0));
+		//play custom animation here
 	}
 	xSemaphoreGive(led_smphr);
 	return 0;
