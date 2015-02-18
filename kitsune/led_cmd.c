@@ -266,15 +266,10 @@ void ledcpy(led_color_t * dst, const led_color_t * src, int num){
 }
 
 #define LED_RESET_BIT 		0x01
-#define LED_ROTATE_BIT 		0x04
 #define LED_IDLE_BIT        0x08
 
 #define LED_FADE_OUT_BIT		0x040
-#define LED_FADE_OUT_FAST_BIT	0x080
-
-#define LED_FADE_OUT_ROTATE_BIT 0x100
 #define LED_FADE_OUT_STEP_BIT   0x200
-#define LED_FADE_IN_STEP_BIT    0x400
 
 #define LED_CUSTOM_ANIMATION_BIT  0x1000
 #define LED_CUSTOM_TRANSITION	  0x2000
@@ -421,7 +416,7 @@ void led_task( void * params ) {
 
 int led_ready() {
 	//make sure the thread isn't doing something else...
-	if( xEventGroupGetBits( led_events ) & (LED_ROTATE_BIT | LED_CUSTOM_TRANSITION | LED_CUSTOM_ANIMATION_BIT | LED_FADE_OUT_BIT | LED_FADE_OUT_STEP_BIT ) ) {
+	if( xEventGroupGetBits( led_events ) & (LED_CUSTOM_TRANSITION | LED_CUSTOM_ANIMATION_BIT | LED_FADE_OUT_BIT | LED_FADE_OUT_STEP_BIT ) ) {
 		return -1;
 	}
 	return 0;
@@ -501,12 +496,7 @@ int led_set_color(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b,
 	user_delay = ud;
     LOGI("Setting colors R: %d, G: %d, B: %d \r\n", user_color.r, user_color.g, user_color.b);
 	xEventGroupClearBits( led_events, 0xffffff );
-	if( rot ) {
-		xEventGroupSetBits(led_events,
-				LED_ROTATE_BIT 	| (fade_out > 0 ? LED_FADE_OUT_BIT : 0));
-	} else {
-		//play custom animation here
-	}
+
 	xSemaphoreGive(led_smphr);
 	return 0;
 }
