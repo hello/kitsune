@@ -566,7 +566,6 @@ void thread_alarm(void * unused) {
 	while (1) {
 		wait_for_time(WAIT_FOREVER);
 
-		bool play_lights = false;
 		portTickType now = xTaskGetTickCount();
 		uint64_t time = get_time();
 		// The alarm thread should go ahead even without a valid time,
@@ -637,7 +636,12 @@ void thread_alarm(void * unused) {
 					LOGI("ALARM RINGING RING RING RING\n");
 					alarm.has_start_time = 0;
 					alarm.start_time = 0;
-					play_lights = alarm_is_ringing = true;
+					alarm_is_ringing = true;
+
+					uint8_t trippy_base[3] = { 0, 0, 0 };
+					uint8_t trippy_range[3] = { 254, 254, 254 };
+					ANIMATE_BLOCKING(play_led_animation_stop(),500);
+					play_led_trippy(trippy_base, trippy_range,0);
 				}
 			}
 			else {
@@ -645,14 +649,6 @@ void thread_alarm(void * unused) {
 			}
 			
 			xSemaphoreGive(alarm_smphr);
-
-			if ( led_wait_for_idle(5000) && play_lights) {
-				uint8_t trippy_base[3] = { 0, 0, 0 };
-				uint8_t trippy_range[3] = { 254, 254, 254 };
-				alarm_started_trippy = play_lights;
-				play_led_trippy(trippy_base, trippy_range, portMAX_DELAY);
-			}
-			play_lights = false;
 		}
 		vTaskDelayUntil(&now, 1000 );
 	}

@@ -628,10 +628,8 @@ void ble_proto_led_busy_mode(uint8_t a, uint8_t r, uint8_t g, uint8_t b, int del
 	_self.argb[3] = b;
 	_self.delay = delay;
 
-	play_led_animation_stop();
-	led_wait_for_idle(1000+led_delay(_self.delay));
-    led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 0, _self.delay, 1);
-	led_wait_for_idle(1000+led_delay(_self.delay));
+	ANIMATE_BLOCKING(play_led_animation_stop(), 500);
+	ANIMATE_BLOCKING(play_led_wheel(r,g,b,1,delay), 1000);
 }
 
 void ble_proto_led_flash(int a, int r, int g, int b, int delay)
