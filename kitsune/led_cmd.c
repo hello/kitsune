@@ -264,23 +264,6 @@ void ledcpy(led_color_t * dst, const led_color_t * src, int num){
 		dst[i] = src[i];
 	}
 }
-static led_color_t wheel_color(int WheelPos, led_color_t color) {
-	unsigned int r, g, b;
-	led_to_rgb(&color, &r, &g, &b);
-
-	if (WheelPos < 85) {
-		return led_from_rgb(0, 0, 0);
-	} else if (WheelPos < 170) {
-		WheelPos -= 85;
-		return led_from_rgb((r * (WheelPos * 3)) >> 8,
-				(g * (WheelPos * 3)) >> 8, (b * (WheelPos * 3)) >> 8);
-	} else {
-		WheelPos -= 170;
-		return led_from_rgb((r * (255 - WheelPos * 3)) >> 8,
-				(g * (255 - WheelPos * 3)) >> 8,
-				(b * (255 - WheelPos * 3)) >> 8);
-	}
-}
 
 #define LED_RESET_BIT 		0x01
 #define LED_ROTATE_BIT 		0x04
@@ -404,27 +387,7 @@ void led_task( void * params ) {
 				xEventGroupSetBits(led_events,LED_RESET_BIT);
 			}
 		}
-		if (evnt & LED_ROTATE_BIT) {
-			static unsigned int p;
-			led_color_t colors[NUM_LED + 1];
-			led_color_t color_to_use;
-			int delay;
 
-			xSemaphoreTake(led_smphr, portMAX_DELAY);
-			led_animation_not_in_progress = 0;
-			color_to_use = led_from_rgb(user_color.r, user_color.g, user_color.b);
-			delay = user_delay;
-			xSemaphoreGive( led_smphr );
-
-			p+=QUANT_FACTOR;
-			for (i = 0; i <= NUM_LED; ++i) {
-				//colors[i] = wheel_color(((i * 256 / 12) + p) & 255, color_to_use);
-			}
-			if( !(evnt & (LED_FADE_OUT_BIT|LED_FADE_OUT_STEP_BIT)) ){
-				led_array(colors, delay);
-			}
-			memcpy(colors_last, colors, sizeof(colors_last));
-		}
 		if ((evnt & LED_FADE_OUT_BIT)) {
 			j = 255;
 			xEventGroupClearBits(led_events, LED_FADE_OUT_BIT );

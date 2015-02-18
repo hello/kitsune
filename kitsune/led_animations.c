@@ -144,8 +144,34 @@ static bool _animate_factory_test_pattern(const led_color_t * prev, led_color_t 
 	unlock();
 	return sig_continue;
 }
+static led_color_t wheel_color(int WheelPos, led_color_t color) {
+	unsigned int r, g, b;
+	led_to_rgb(&color, &r, &g, &b);
+
+	if (WheelPos < 85) {
+		return led_from_rgb(0, 0, 0);
+	} else if (WheelPos < 170) {
+		WheelPos -= 85;
+		return led_from_rgb((r * (WheelPos * 3)) >> 8,
+				(g * (WheelPos * 3)) >> 8, (b * (WheelPos * 3)) >> 8);
+	} else {
+		WheelPos -= 170;
+		return led_from_rgb((r * (255 - WheelPos * 3)) >> 8,
+				(g * (255 - WheelPos * 3)) >> 8,
+				(b * (255 - WheelPos * 3)) >> 8);
+	}
+}
+
 static bool _animate_wheel(const led_color_t * prev, led_color_t * out, int * out_delay, void * user_context, int rgb_array_size){
-	return false;
+	if(user_context){
+		int i;
+		led_color_t color_to_use = *((led_color_t*)user_context);
+		self.counter += 6;
+		for(i = 0; i < rgb_array_size; i++){
+			out[i] = wheel_color(((i * 256 / 12) + self.counter) & 255, color_to_use);
+		}
+	}
+	return self.sig_continue;
 }
 
 /*
@@ -238,13 +264,16 @@ int factory_led_test_pattern(unsigned int timeout) {
 }
 int play_led_wheel(int r, int g, int b, int repeat){
 	int ret;
+	static led_color_t color;
+	color = led_from_rgb(r,g,b);
 	user_animation_t anim = (user_animation_t){
 		.handler = _animate_wheel,
-		.context = NULL,
+		.context = &color,
 		.priority = 2,
 		.initial_state = {0},
 	};
 	self.dly = 33;
+	self.counter = 0;
 	ret = led_transition_custom_animation(&anim);
 	_signal_start_animation();
 	return ret;
@@ -284,7 +313,7 @@ int Cmd_led_animate(int argc, char *argv[]){
 				play_led_trippy( trippy_base, trippy_range, portMAX_DELAY );
 			}
 		}else if(strcmp(argv[1], "wheel") == 0){
-			led_set_color(100, 88,0,150, 1, 1, 18, 1 );
+			play_led_wheel(rand()%120, rand()%120, rand()%120, 2);
 		}else if(strcmp(argv[1], "solid") == 0){
 			play_led_animation_solid(rand()%120, rand()%120, rand()%120, 2);
 		}else if(strcmp(argv[1], "prog") == 0){
