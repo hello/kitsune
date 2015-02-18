@@ -12,7 +12,6 @@
 
 #include "led_animations.h"
 static struct{
-	volatile bool sig_continue;
 	led_color_t colors[NUM_LED];
 	int progress_bar_percent;
 	xSemaphoreHandle _sem;
@@ -39,15 +38,6 @@ static void unlock() {
 	xSemaphoreGiveRecursive(self._sem);
 }
 
-static bool _signal_start_animation(void) {
-	lock();
-
-	LOGI("Start animation\n");
-	self.sig_continue = true; //careful, to set this true requires both semaphores
-	unlock();
-	return true;
-}
-
 static bool _reach_color(unsigned int * v, unsigned int target, int step_size){
 	if(*v == target){
 		return true;
@@ -67,16 +57,13 @@ static bool _animate_solid(const led_color_t * prev, led_color_t * out, void * u
 		int ramp = *((int*)user_context);
 		if(ramp){
 			//hack to fade out and ignore ramp down size
-			lock();
-			self.sig_continue = false;
-			unlock();
+			return false;
 		}
 	}
-	return self.sig_continue;
+	return true;
 }
 static bool _animate_trippy(const led_color_t * prev, led_color_t * out, void * user_context, unsigned int counter){
 	int i = 0;
-	bool sig_continue;
 	static int scaler = 100;
 	lock();
 	for(i = 0; i < NUM_LED; i++){
@@ -98,12 +85,10 @@ static bool _animate_trippy(const led_color_t * prev, led_color_t * out, void * 
 				g0 * ((unsigned int)(scaler)) / 100,
 				b0 * ((unsigned int)(scaler)) / 100);
 	}
-	sig_continue = self.sig_continue;
 	unlock();
-	return sig_continue;
+	return true;
 }
 static bool _animate_progress(const led_color_t * prev, led_color_t * out, void * user_context, unsigned int counter){
-	bool sig_continue;
 	lock();
 	int prog = self.progress_bar_percent * NUM_LED;
 	int filled = prog / 100;
@@ -121,12 +106,10 @@ static bool _animate_progress(const led_color_t * prev, led_color_t * out, void 
 				 ((g * left)>>8)&0xff,
 				 ((b * left)>>8)&0xff);
 	}
-	sig_continue = self.sig_continue;
 	unlock();
-	return sig_continue;
+	return true;
 }
 static bool _animate_factory_test_pattern(const led_color_t * prev, led_color_t * out, void * user_context, unsigned int counter){
-	bool sig_continue;
 	lock();
 
 	int i;
@@ -137,9 +120,8 @@ static bool _animate_factory_test_pattern(const led_color_t * prev, led_color_t 
 			out[i] = led_from_rgb(0,0,0);
 		}
 	}
-	sig_continue = self.sig_continue;
 	unlock();
-	return sig_continue;
+	return true;
 }
 static led_color_t wheel_color(int WheelPos, led_color_t color) {
 	unsigned int r, g, b;
@@ -160,6 +142,7 @@ static led_color_t wheel_color(int WheelPos, led_color_t color) {
 }
 
 static bool _animate_wheel(const led_color_t * prev, led_color_t * out, void * user_context, unsigned int counter){
+	bool ret = true;
 	if(user_context){
 		int i;
 		unsigned int ctr;
@@ -173,13 +156,13 @@ static bool _animate_wheel(const led_color_t * prev, led_color_t * out, void * u
 					fade =  (ctr >= ctx->repeat * 256)?0:(256 - ctr % 256);
 				}
 				if(fade == 0){
-					self.sig_continue = false;
+					ret = false;
 				}
 				out[i] = led_from_brightness(&out[i],fade);
 			}
 		}
 	}
-	return self.sig_continue;
+	return ret;
 }
 
 /*
@@ -210,7 +193,6 @@ int play_led_trippy(uint8_t trippy_base[3], uint8_t trippy_range[3], unsigned in
 		anim.initial_state[i] = self.colors[i];
 	}
 	ret = led_transition_custom_animation(&anim);
-	_signal_start_animation();
 	return ret;
 
 }
@@ -224,7 +206,6 @@ int play_led_animation_stop(void){
 				.cycle_time = 33,
 	};
 	ret = led_transition_custom_animation(&anim);
-	_signal_start_animation();
 	return ret;
 }
 int play_led_animation_solid(int r, int g, int b, int ramp_down_step){
@@ -240,7 +221,6 @@ int play_led_animation_solid(int r, int g, int b, int ramp_down_step){
 	};
 	ledset(anim.initial_state, led_from_rgb(r,g,b), NUM_LED);
 	ret = led_transition_custom_animation(&anim);
-	_signal_start_animation();
 	return ret;
 }
 int play_led_progress_bar(int r, int g, int b, unsigned int options, unsigned int timeout){
@@ -255,7 +235,6 @@ int play_led_progress_bar(int r, int g, int b, unsigned int options, unsigned in
 	self.colors[0] = led_from_rgb(r, g, b);
 	self.progress_bar_percent = 0;
 	ret = led_transition_custom_animation(&anim);
-	_signal_start_animation();
 	return ret;
 }
 int factory_led_test_pattern(unsigned int timeout) {
@@ -268,7 +247,6 @@ int factory_led_test_pattern(unsigned int timeout) {
 			.cycle_time = 500,
 		};
 		ret = led_transition_custom_animation(&anim);
-		_signal_start_animation();
 		return ret;
 }
 int play_led_wheel(int r, int g, int b, int repeat, int delay){
@@ -284,7 +262,6 @@ int play_led_wheel(int r, int g, int b, int repeat, int delay){
 	};
 	anim.cycle_time = delay;
 	ret = led_transition_custom_animation(&anim);
-	_signal_start_animation();
 	return ret;
 }
 void set_led_progress_bar(uint8_t percent){
@@ -294,11 +271,7 @@ void set_led_progress_bar(uint8_t percent){
 }
 
 void stop_led_animation(unsigned int delay){
-	lock();
-	if(self.sig_continue){
-		self.sig_continue = false;
-	}
-	unlock();
+	play_led_animation_stop();
 }
 
 int Cmd_led_animate(int argc, char *argv[]){
