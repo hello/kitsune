@@ -405,11 +405,11 @@ bool led_is_idle(void){
 	EventBits_t evnt;
 	evnt = xEventGroupWaitBits(
 					led_events,   /* The event group being tested. */
-					LED_IDLE_BIT | LED_FADE_OUT_STEP_BIT,    /* The bits within the event group to wait for. */
+					LED_IDLE_BIT,    /* The bits within the event group to wait for. */
 					pdFALSE,        /* all bits should not be cleared before returning. */
 					pdFALSE,       /* Don't wait for both bits, either bit will do. */
 					0 );/* Wait for limited time. */
-	return (evnt & (LED_IDLE_BIT | LED_FADE_OUT_STEP_BIT)) != 0;
+	return (evnt & LED_IDLE_BIT) != 0;
 }
 
 int Cmd_led(int argc, char *argv[]) {
