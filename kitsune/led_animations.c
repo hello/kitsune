@@ -14,7 +14,7 @@
 static struct{
 	int counter;
 	volatile bool sig_continue;
-	led_color_t colors[NUM_LED],prev_colors[NUM_LED];
+	led_color_t colors[NUM_LED];
 	int progress_bar_percent;
 	unsigned int dly;
 	xSemaphoreHandle _sem;
@@ -59,25 +59,23 @@ static bool _reach_color(unsigned int * v, unsigned int target){
 static int _new_random_color(uint8_t range, uint8_t base){
 	return ((unsigned int)rand()) % range + base;
 }
-static bool _animate_solid(led_color_t * out, int * out_delay, void * user_context, int rgb_array_size){
+static bool _animate_solid(const led_color_t * prev, led_color_t * out, int * out_delay, void * user_context, int rgb_array_size){
 	int i;
 	bool sig_continue;
 	lock();
-	for(i = 0; i < NUM_LED; i++){
-		out[i] = self.colors[i];
-	}
+	ledcpy(out,prev, rgb_array_size);
 	sig_continue = self.sig_continue;
 	unlock();
 	return sig_continue;
 }
-static bool _animate_trippy(led_color_t * out, int * out_delay, void * user_context, int rgb_array_size){
+static bool _animate_trippy(const led_color_t * prev, led_color_t * out, int * out_delay, void * user_context, int rgb_array_size){
 	int i = 0;
 	bool sig_continue;
 	static int scaler = 100;
 	lock();
 	for(i = 0; i < NUM_LED; i++){
 		unsigned int r0,r1,g0,g1,b0,b1;
-		led_to_rgb(&self.prev_colors[i], &r0, &g0, &b0);
+		led_to_rgb(&prev[i], &r0, &g0, &b0);
 		led_to_rgb(&self.colors[i],&r1, &g1, &b1);
 		if(_reach_color(&r0, r1)){
 			r1 = _new_random_color(self.trippy_range[0], self.trippy_base[0]);
@@ -93,7 +91,6 @@ static bool _animate_trippy(led_color_t * out, int * out_delay, void * user_cont
 				r0 * ((unsigned int)(scaler)) / 100,
 				g0 * ((unsigned int)(scaler)) / 100,
 				b0 * ((unsigned int)(scaler)) / 100);
-		self.prev_colors[i] = out[i];
 	}
 	*out_delay = self.dly;
 
@@ -101,7 +98,7 @@ static bool _animate_trippy(led_color_t * out, int * out_delay, void * user_cont
 	unlock();
 	return sig_continue;
 }
-static bool _animate_progress(led_color_t * out, int * out_delay, void * user_context, int rgb_array_size){
+static bool _animate_progress(const led_color_t * prev, led_color_t * out, int * out_delay, void * user_context, int rgb_array_size){
 	bool sig_continue;
 	lock();
 	int prog = self.progress_bar_percent * rgb_array_size;
@@ -125,7 +122,7 @@ static bool _animate_progress(led_color_t * out, int * out_delay, void * user_co
 	unlock();
 	return sig_continue;
 }
-static bool _animate_factory_test_pattern(led_color_t * out, int * out_delay, void * user_context, int rgb_array_size){
+static bool _animate_factory_test_pattern(const led_color_t * prev, led_color_t * out, int * out_delay, void * user_context, int rgb_array_size){
 	bool sig_continue;
 	lock();
 
@@ -169,7 +166,6 @@ bool play_led_trippy(uint8_t trippy_base[3], uint8_t trippy_range[3], unsigned i
 				_new_random_color(trippy_range[1],trippy_base[1]),
 				_new_random_color(trippy_range[2],trippy_base[2]));
 		anim.initial_state[i] = self.colors[i];
-		self.prev_colors[i] = self.colors[i];
 	}
 	self.dly = 15;
 	led_transition_custom_animation(&anim);
@@ -189,19 +185,14 @@ bool play_led_animation_stop(void){
 	return true;
 }
 bool play_led_animation_solid(int r, int g, int b){
-	int i;
 	user_animation_t anim = (user_animation_t){
 			.handler = _animate_solid,
 			.context = NULL,
 			.priority = 2,
 			.initial_state = {0},
 	};
-	for(i = 0; i < NUM_LED; i++){
-		self.colors[i] = led_from_rgb(r,g,b);
-		anim.initial_state[i] = self.colors[i];
-		self.prev_colors[i] = self.colors[i];
-	}
 	self.dly = 33;
+	ledset(anim.initial_state, led_from_rgb(r,g,b), NUM_LED);
 	led_transition_custom_animation(&anim);
 	_signal_start_animation();
 	return true;
