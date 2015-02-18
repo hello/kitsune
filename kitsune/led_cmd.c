@@ -389,13 +389,7 @@ void led_task( void * params ) {
 			} else {
 				led_brightness_all(colors, j);
 			}
-			unsigned int delay;
-
-			xSemaphoreTake(led_smphr, portMAX_DELAY);
-			delay = user_delay;
-			xSemaphoreGive( led_smphr );
-
-			led_array(colors, delay);
+			led_array(colors, clamp_rgb(user_animation.cycle_time,10,500));
 		}
 	}
 }
