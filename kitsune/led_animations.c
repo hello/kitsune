@@ -179,10 +179,11 @@ bool play_led_animation_stop(void){
 	_signal_start_animation();
 	return true;
 }
-bool play_led_animation_solid(int r, int g, int b){
+bool play_led_animation_solid(int r, int g, int b, int ramp_down_step){
+	static int down_step = ramp_down_step;
 	user_animation_t anim = (user_animation_t){
 			.handler = _animate_solid,
-			.context = NULL,
+			.context = &down_step,
 			.priority = 2,
 			.initial_state = {0},
 	};
