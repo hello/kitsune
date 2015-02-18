@@ -175,7 +175,7 @@ static bool _animate_wheel(const led_color_t * prev, led_color_t * out, int * ou
 			out[i] = wheel_color(((i * 256 / 12) + self.counter) & 255, ctx->color);
 			if(ctx->repeat){
 				int fade = 255;
-				if(ctx->repeself.counter > ((ctx->repeat - 1) * 256)){
+				if(self.counter > ((ctx->repeat - 1) * 256)){
 					fade =  (self.counter >= ctx->repeat * 256)?0:(256 - self.counter % 256);
 				}
 				if(fade == 0){
