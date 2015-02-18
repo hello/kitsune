@@ -24,11 +24,6 @@ typedef struct{
 	int repeat;
 }wheel_context;
 
-
-extern void led_unblock();
-extern void led_block();
-extern void led_set_is_sync(int is_sync);
-
 static bool lock() {
 //	LOGI("TAKE self._sem\n");
 	return xSemaphoreTakeRecursive(self._sem, portMAX_DELAY) == pdPASS;
@@ -166,7 +161,7 @@ static bool _animate_wheel(const led_color_t * prev, led_color_t * out, void * u
 }
 
 /*
- * Pubic:
+ * Pubic, call these to set up animationz
  */
 
 void init_led_animation() {
