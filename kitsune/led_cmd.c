@@ -305,9 +305,9 @@ static void _transition(led_color_t * out, led_color_t * from, led_color_t * to)
 	led_to_rgb(from, &r0, &g0, &b0);
 	led_to_rgb(to, &r1,&g1,&b1);
 	*out = led_from_rgb(
-			_transition_color((int)r0, (int)r1, 3),
-			_transition_color((int)g0, (int)g1, 3),
-			_transition_color((int)b0, (int)b1, 3));
+			_transition_color((int)r0, (int)r1, 6),
+			_transition_color((int)g0, (int)g1, 6),
+			_transition_color((int)b0, (int)b1, 6));
 
 }
 static void
@@ -345,7 +345,7 @@ void led_task( void * params ) {
 			for(i = 0; i < NUM_LED; i++){
 				_transition(&colors[i], &colors_last[i], &user_animation.initial_state[i]);
 			}
-			led_array(colors, 16);
+			led_array(colors, clamp_rgb(user_animation.cycle_time,10,500));
 			memcpy(colors_last,colors, sizeof(colors_last));
 			if(0 == memcmp(user_animation.initial_state,colors,sizeof(user_animation.initial_state))){
 				xEventGroupClearBits(led_events,LED_CUSTOM_TRANSITION);
@@ -361,8 +361,7 @@ void led_task( void * params ) {
 					xSemaphoreGive( led_smphr );
 					memcpy(colors_last,colors, sizeof(colors_last));
 					//delay capped at 500 ms to improve task responsiveness
-					int delay = clamp_rgb(user_animation.cycle_time,10,500);
-					led_array(colors, delay);
+					led_array(colors, clamp_rgb(user_animation.cycle_time,10,500));
 				}else{
 					xEventGroupClearBits(led_events,LED_CUSTOM_ANIMATION_BIT);
 					//xEventGroupSetBits(led_events,LED_RESET_BIT);
