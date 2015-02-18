@@ -253,6 +253,14 @@ led_color_t led_from_rgb( int r, int g, int b) {
 	};
 	return ret;
 }
+led_color_t led_from_brightness(const led_color_t * c, unsigned int br){
+		unsigned int r,g,b;
+		led_to_rgb(c, &r,&g,&b);
+		b = ((br * b)>>8)&0xff;
+		r = ((br * r)>>8)&0xff;
+		g = ((br * g)>>8)&0xff;
+		return led_from_rgb(r,g,b);
+}
 void ledset(led_color_t * dst, led_color_t src, int copies){
 	int i;
 	for(i = 0; i < copies; i++){
