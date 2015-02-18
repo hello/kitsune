@@ -357,30 +357,23 @@ void led_task( void * params ) {
 		}
 		if(evnt & LED_CUSTOM_ANIMATION_BIT){
 			led_color_t colors[NUM_LED + 1];
-			if(user_animation.handler){
-				int delay = 10;
+			int delay = 10;
 
-				xSemaphoreTake(led_smphr, portMAX_DELAY);
-				led_animation_not_in_progress = 0;
-				if(user_animation.handler(colors_last, colors,&delay,user_animation.context, NUM_LED)){
-					xSemaphoreGive( led_smphr );
-					led_array(colors, delay);
-					memcpy(colors_last,colors, sizeof(colors_last));
-					//delay capped at 500 ms to improve task responsiveness
-					delay = clamp_rgb(delay,0,500);
-				}else{
-					xEventGroupClearBits(led_events,LED_CUSTOM_ANIMATION_BIT);
-					//xEventGroupSetBits(led_events,LED_RESET_BIT);
-					j = 255;
-					_reset_user_animation(&user_animation);
-					xEventGroupSetBits(led_events, LED_FADE_OUT_STEP_BIT );  // always fade out animation
-					xSemaphoreGive( led_smphr );
-				}
+			xSemaphoreTake(led_smphr, portMAX_DELAY);
+			led_animation_not_in_progress = 0;
+			if(user_animation.handler && user_animation.handler(colors_last, colors,&delay,user_animation.context, NUM_LED)){
+				led_array(colors, delay);
+				memcpy(colors_last,colors, sizeof(colors_last));
+				//delay capped at 500 ms to improve task responsiveness
+				delay = clamp_rgb(delay,0,500);
 			}else{
-				_reset_user_animation(&user_animation);
 				xEventGroupClearBits(led_events,LED_CUSTOM_ANIMATION_BIT);
-				xEventGroupSetBits(led_events,LED_RESET_BIT);
+				//xEventGroupSetBits(led_events,LED_RESET_BIT);
+				j = 255;
+				_reset_user_animation(&user_animation);
+				xEventGroupSetBits(led_events, LED_FADE_OUT_STEP_BIT );  // always fade out animation
 			}
+			xSemaphoreGive( led_smphr );
 		}
 
 		if ((evnt & LED_FADE_OUT_BIT)) {
@@ -516,6 +509,7 @@ int led_transition_custom_animation(const user_animation_t * user){
 			ret = -2;
 		}
 		xSemaphoreGive(led_smphr);
+		LOGF("Anim ID=%d\r\n", ret);
 		return ret;
 	}
 }
