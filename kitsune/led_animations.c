@@ -60,13 +60,8 @@ static int _new_random_color(uint8_t range, uint8_t base){
 	return ((unsigned int)rand()) % range + base;
 }
 static bool _animate_solid(const led_color_t * prev, led_color_t * out, int * out_delay, void * user_context, int rgb_array_size){
-	int i;
-	bool sig_continue;
-	lock();
 	ledcpy(out,prev, rgb_array_size);
-	sig_continue = self.sig_continue;
-	unlock();
-	return sig_continue;
+	return self.sig_continue;
 }
 static bool _animate_trippy(const led_color_t * prev, led_color_t * out, int * out_delay, void * user_context, int rgb_array_size){
 	int i = 0;
