@@ -31,7 +31,7 @@ void set_led_progress_bar(uint8_t percent);
 	int ret = anim;\
 	int to = timeout;\
 	while(ret >= 0 && to){\
-		if(led_wait_for_idle(0) || ret != led_get_animation_id()){\
+		if(led_is_idle() || ret != led_get_animation_id()){\
 			break;\
 		}else{\
 			to--;\
