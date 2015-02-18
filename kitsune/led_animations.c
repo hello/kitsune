@@ -38,20 +38,14 @@ static void unlock() {
 static bool _signal_start_animation(void) {
 	lock();
 
-	LOGI("Start animation\r\n");
+	LOGI("Start animation\n");
 	self.counter = 0;
 	self.sig_continue = true; //careful, to set this true requires both semaphores
 
 	unlock();
 	return true;
 }
-static bool _signal_stop_animation(void){
-	lock();
-	LOGI("Stop animation\r\n");
-	self.sig_continue = false;
-	unlock;
-	return true;
-}
+
 static bool _reach_color(unsigned int * v, unsigned int target, int step_size){
 	if(*v == target){
 		return true;
@@ -71,7 +65,9 @@ static bool _animate_solid(const led_color_t * prev, led_color_t * out, int * ou
 		int ramp = *((int*)user_context);
 		if(ramp){
 			//hack to fade out and ignore ramp down size
-			_signal_stop_animation();
+			lock();
+			self.sig_continue = false;
+			unlock();
 		}
 	}
 	return self.sig_continue;
@@ -287,6 +283,14 @@ void set_led_progress_bar(uint8_t percent){
 	unlock();
 }
 
+void stop_led_animation(unsigned int delay){
+	lock();
+	if(self.sig_continue){
+		self.sig_continue = false;
+		self.dly = delay;
+	}
+	unlock();
+}
 
 int Cmd_led_animate(int argc, char *argv[]){
 	//demo
@@ -314,7 +318,7 @@ int Cmd_led_animate(int argc, char *argv[]){
 		}else if(strcmp(argv[1], "prog") == 0){
 			play_led_progress_bar(20, 20, 20, 0, portMAX_DELAY);
 		}else if(strcmp(argv[1], "kill") == 0){
-			_signal_stop_animation();
+			stop_led_animation(1);
 		}
 		return 0;
 	}else{
