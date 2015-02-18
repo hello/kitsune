@@ -245,7 +245,7 @@ int factory_led_test_pattern(unsigned int timeout) {
 		return ret;
 }
 int play_led_wheel(int r, int g, int b, int repeat, int delay){
-	int ret;
+	int ret,i;
 	static wheel_context ctx;
 	ctx.color = led_from_rgb(r,g,b);
 	ctx.repeat = repeat;
@@ -255,6 +255,9 @@ int play_led_wheel(int r, int g, int b, int repeat, int delay){
 		.priority = 2,
 		.initial_state = {0},
 	};
+	for(i = 0; i < NUM_LED; i++){
+		anim.initial_state[i] = wheel_color(((i * 256 / 12)) & 255, ctx.color);
+	}
 	anim.cycle_time = delay;
 	ret = led_transition_custom_animation(&anim);
 	return ret;
