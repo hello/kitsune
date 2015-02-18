@@ -362,10 +362,10 @@ void led_task( void * params ) {
 			xSemaphoreTake(led_smphr, portMAX_DELAY);
 			led_animation_not_in_progress = 0;
 			if(user_animation.handler && user_animation.handler(colors_last, colors,&delay,user_animation.context, NUM_LED)){
+				led_array(colors, delay);
 				memcpy(colors_last,colors, sizeof(colors_last));
 				//delay capped at 500 ms to improve task responsiveness
 				delay = clamp_rgb(delay,0,500);
-				led_array(colors, delay);
 			}else{
 				xEventGroupClearBits(led_events,LED_CUSTOM_ANIMATION_BIT);
 				//xEventGroupSetBits(led_events,LED_RESET_BIT);
