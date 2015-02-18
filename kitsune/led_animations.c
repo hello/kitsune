@@ -156,8 +156,8 @@ void init_led_animation() {
 	self._sem = xSemaphoreCreateRecursiveMutex();
 }
 
-bool play_led_trippy(uint8_t trippy_base[3], uint8_t trippy_range[3], unsigned int timeout){
-	int i;
+int play_led_trippy(uint8_t trippy_base[3], uint8_t trippy_range[3], unsigned int timeout){
+	int i, ret;
 	user_animation_t anim = (user_animation_t){
 		.handler = _animate_trippy,
 		.context = NULL,
@@ -175,24 +175,26 @@ bool play_led_trippy(uint8_t trippy_base[3], uint8_t trippy_range[3], unsigned i
 		anim.initial_state[i] = self.colors[i];
 	}
 	self.dly = 15;
-	led_transition_custom_animation(&anim);
+	ret = led_transition_custom_animation(&anim);
 	_signal_start_animation();
-	return true;
+	return ret;
 
 }
-bool play_led_animation_stop(void){
+int play_led_animation_stop(void){
+	int ret;
 	user_animation_t anim = (user_animation_t){
 				.handler = NULL,
 				.context = NULL,
 				.priority = 0,
 				.initial_state = {0},
 	};
-	led_transition_custom_animation(&anim);
+	ret = led_transition_custom_animation(&anim);
 	_signal_start_animation();
-	return true;
+	return ret;
 }
-bool play_led_animation_solid(int r, int g, int b, int ramp_down_step){
+int play_led_animation_solid(int r, int g, int b, int ramp_down_step){
 	static int down_step;
+	int ret;
 	down_step = ramp_down_step;
 	user_animation_t anim = (user_animation_t){
 			.handler = _animate_solid,
@@ -202,11 +204,12 @@ bool play_led_animation_solid(int r, int g, int b, int ramp_down_step){
 	};
 	self.dly = 33;
 	ledset(anim.initial_state, led_from_rgb(r,g,b), NUM_LED);
-	led_transition_custom_animation(&anim);
+	ret = led_transition_custom_animation(&anim);
 	_signal_start_animation();
-	return true;
+	return ret;
 }
-bool play_led_progress_bar(int r, int g, int b, unsigned int options, unsigned int timeout){
+int play_led_progress_bar(int r, int g, int b, unsigned int options, unsigned int timeout){
+	int ret;
 	user_animation_t anim = (user_animation_t){
 		.handler = _animate_progress,
 		.context = NULL,
@@ -216,9 +219,35 @@ bool play_led_progress_bar(int r, int g, int b, unsigned int options, unsigned i
 	self.colors[0] = led_from_rgb(r, g, b);
 	self.progress_bar_percent = 0;
 	self.dly = 20;
-	led_transition_custom_animation(&anim);
+	ret = led_transition_custom_animation(&anim);
 	_signal_start_animation();
-	return true;
+	return ret;
+}
+int factory_led_test_pattern(unsigned int timeout) {
+	int ret;
+		user_animation_t anim = (user_animation_t){
+			.handler = _animate_factory_test_pattern,
+			.context = NULL,
+			.priority = 2,
+			.initial_state = {0},
+		};
+		self.dly = 500;
+		ret = led_transition_custom_animation(&anim);
+		_signal_start_animation();
+		return ret;
+}
+int play_led_wheel(int r, int g, int b, int repeat){
+	int ret;
+	user_animation_t anim = (user_animation_t){
+		.handler = _animate_wheel,
+		.context = NULL,
+		.priority = 2,
+		.initial_state = {0},
+	};
+	self.dly = 33;
+	ret = led_transition_custom_animation(&anim);
+	_signal_start_animation();
+	return ret;
 }
 void set_led_progress_bar(uint8_t percent){
 	lock();
@@ -268,27 +297,4 @@ int Cmd_led_animate(int argc, char *argv[]){
 		return -1;
 	}
 }
-bool factory_led_test_pattern(unsigned int timeout) {
-		user_animation_t anim = (user_animation_t){
-			.handler = _animate_factory_test_pattern,
-			.context = NULL,
-			.priority = 2,
-			.initial_state = {0},
-		};
-		self.dly = 500;
-		led_transition_custom_animation(&anim);
-		_signal_start_animation();
-		return true;
-}
-bool play_led_wheel(int r, int g, int b, int repeat){
-	user_animation_t anim = (user_animation_t){
-		.handler = _animate_wheel,
-		.context = NULL,
-		.priority = 2,
-		.initial_state = {0},
-	};
-	self.dly = 33;
-	led_transition_custom_animation(&anim);
-	_signal_start_animation();
-	return true;
-}
+

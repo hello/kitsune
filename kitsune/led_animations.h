@@ -15,13 +15,13 @@ void stop_led_animation(unsigned int delay);
 int Cmd_led_animate(int argc, char *argv[]);
 
 //custom animations
-bool play_led_trippy(uint8_t trippy_base[3], uint8_t range[3], unsigned int timeout);
-bool play_led_progress_bar(int r, int g, int b, unsigned int options, unsigned int timeout);
-bool play_led_animation_solid(int r, int g, int b, int ramp_down_step);
+int play_led_trippy(uint8_t trippy_base[3], uint8_t range[3], unsigned int timeout);
+int play_led_progress_bar(int r, int g, int b, unsigned int options, unsigned int timeout);
+int play_led_animation_solid(int r, int g, int b, int ramp_down_step);
 void set_led_progress_bar(uint8_t percent);
-bool factory_led_test_pattern(unsigned int timeout);
-bool play_led_wheel(int r, int g, int b, int repeat);
-bool play_led_animation_stop(void);
+int factory_led_test_pattern(unsigned int timeout);
+int play_led_wheel(int r, int g, int b, int repeat);
+int play_led_animation_stop(void);
 
 
 /*
