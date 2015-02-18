@@ -64,8 +64,10 @@ static bool _animate_solid(const led_color_t * prev, led_color_t * out, int * ou
 	if(user_context){
 		int ramp = *((int*)user_context);
 		if(ramp){
-			//hack ignore custom ramp down for now
-			return false;
+			//hack to fade out and ignore ramp down size
+			lock();
+			self.sig_continue = false;
+			unlock();
 		}
 	}
 	return self.sig_continue;
