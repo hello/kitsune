@@ -61,6 +61,13 @@ static int _new_random_color(uint8_t range, uint8_t base){
 }
 static bool _animate_solid(const led_color_t * prev, led_color_t * out, int * out_delay, void * user_context, int rgb_array_size){
 	ledcpy(out,prev, rgb_array_size);
+	if(user_context){
+		int ramp = *((int*)user_context);
+		if(ramp){
+			//hack ignore custom ramp down for now
+			return false;
+		}
+	}
 	return self.sig_continue;
 }
 static bool _animate_trippy(const led_color_t * prev, led_color_t * out, int * out_delay, void * user_context, int rgb_array_size){
