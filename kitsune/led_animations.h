@@ -28,11 +28,12 @@ bool play_led_animation_stop(void);
  */
 #define ANIMATE_BLOCKING(anim, timeout) do{\
 	int ret = anim;\
-	while(ret >= 0 && timeout){\
+	int to = timeout;\
+	while(ret >= 0 && to){\
 		if(led_wait_for_idle(0) || ret != led_get_animation_id()){\
 			break;\
 		}else{\
-			timeout--;\
+			to--;\
 			vTaskDelay(1);\
 		}\
 	}\
