@@ -649,14 +649,9 @@ void ble_proto_led_flash(int a, int r, int g, int b, int delay)
 	_self.argb[3] = b;
 	_self.delay = delay;
 
-	play_led_animation_stop();
-	led_wait_for_idle(2000);
-	led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 0);
-	led_wait_for_idle(led_delay(_self.delay) + 1000);
-	led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 0);
-	led_wait_for_idle(led_delay(_self.delay) + 1000);
-
-
+	//play_led_animation_stop();
+	ANIMATE_BLOCKING(play_led_animation_solid(r,g,b,1),2000);
+	ANIMATE_BLOCKING(play_led_animation_solid(r,g,b,1),2000);
 }
 
 void ble_proto_led_fade_in_trippy(){

@@ -752,15 +752,15 @@ static void _show_led_status()
 		led_set_color(alpha, rgb[0], rgb[1], rgb[2], 1, 1, 18, 0);
 	}
 	else if(wifi_status_get(HAS_IP)) {
-		led_set_color(alpha, LED_MAX, 0, 0, 1, 1, 18, 1); //blue
+		play_led_wheel(LED_MAX,0,0,1,18);
 	}
 	else if(wifi_status_get(CONNECTING)) {
-		led_set_color(alpha, LED_MAX,LED_MAX,0, 1, 1, 18, 1); //yellow
+		play_led_wheel(LED_MAX,LED_MAX,0,1,18);
 	}
 	else if(wifi_status_get(SCANNING)) {
-		led_set_color(alpha, LED_MAX,0,0, 1, 1, 18, 1 ); //red
+		play_led_wheel(LED_MAX,0,0,1,18);
 	} else {
-		led_set_color(alpha, LED_MAX, LED_MAX, LED_MAX, 1, 1, 18, 1 ); //white
+		play_led_wheel(LED_MAX,LED_MAX,LED_MAX,1,18);
 	}
 }
 
@@ -1757,7 +1757,7 @@ void vUARTTask(void *pvParameters) {
 	if( on_charger ) {
 		launch_tasks();
 	} else {
-		led_set_color(50, LED_MAX, LED_MAX,0, 1, 0, 10, 1 ); //spin to alert user!
+		play_led_wheel(50, LED_MAX, LED_MAX,0,10);
 	}
 	xTaskCreate(top_board_task, "top_board_task", 2048 / 4, NULL, 2, NULL);
 	xTaskCreate(thread_spi, "spiTask", 4*1024 / 4, NULL, 4, NULL); //this one doesn't look like much, but has to parse all the pb from bluetooth
