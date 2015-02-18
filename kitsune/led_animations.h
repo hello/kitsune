@@ -14,16 +14,15 @@ void init_led_animation();
 void stop_led_animation(unsigned int delay);
 int Cmd_led_animate(int argc, char *argv[]);
 
-//custom animations
+//custom animations, stick them in the ANIMATE_BLOCKING macro for blocking version
 int play_led_trippy(uint8_t trippy_base[3], uint8_t range[3], unsigned int timeout);
 int play_led_progress_bar(int r, int g, int b, unsigned int options, unsigned int timeout);
 int play_led_animation_solid(int r, int g, int b, int ramp_down_step);
-void set_led_progress_bar(uint8_t percent);
 int factory_led_test_pattern(unsigned int timeout);
 int play_led_wheel(int r, int g, int b, int repeat);
 int play_led_animation_stop(void);
 
-
+void set_led_progress_bar(uint8_t percent);
 /*
  * this macro invokes one of the play_led_* animation
  * and blocks until either a higher animation overwrites it, or the animation ends by itself.
