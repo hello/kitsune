@@ -144,6 +144,9 @@ static bool _animate_factory_test_pattern(const led_color_t * prev, led_color_t 
 	unlock();
 	return sig_continue;
 }
+static bool _animate_wheel(const led_color_t * prev, led_color_t * out, int * out_delay, void * user_context, int rgb_array_size){
+	return false;
+}
 
 /*
  * Pubic:
@@ -276,4 +279,16 @@ bool factory_led_test_pattern(unsigned int timeout) {
 		led_transition_custom_animation(&anim);
 		_signal_start_animation();
 		return true;
+}
+bool play_led_wheel(int r, int g, int b, int repeat){
+	user_animation_t anim = (user_animation_t){
+		.handler = _animate_wheel,
+		.context = NULL,
+		.priority = 2,
+		.initial_state = {0},
+	};
+	self.dly = 33;
+	led_transition_custom_animation(&anim);
+	_signal_start_animation();
+	return true;
 }
