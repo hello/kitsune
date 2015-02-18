@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include "FreeRTOS.h"
 #include "semphr.h"
-
+#include "bigint_impl.h"
 #include "uart_logger.h"
 
 #include "led_animations.h"
@@ -46,13 +46,13 @@ static bool _signal_start_animation(void) {
 	return true;
 }
 
-static bool _reach_color(unsigned int * v, unsigned int target){
+static bool _reach_color(unsigned int * v, unsigned int target, int step_size){
 	if(*v == target){
 		return true;
 	}else if(*v < target){
-		*v = *v + 1;
+		*v = *v + min(step_size, (target-*v));
 	}else{
-		*v = *v - 1;
+		*v = *v - min(step_size, (*v - target));
 	}
 	return false;
 }
@@ -72,13 +72,13 @@ static bool _animate_trippy(const led_color_t * prev, led_color_t * out, int * o
 		unsigned int r0,r1,g0,g1,b0,b1;
 		led_to_rgb(&prev[i], &r0, &g0, &b0);
 		led_to_rgb(&self.colors[i],&r1, &g1, &b1);
-		if(_reach_color(&r0, r1)){
+		if(_reach_color(&r0, r1, 1)){
 			r1 = _new_random_color(self.trippy_range[0], self.trippy_base[0]);
 		}
-		if(_reach_color(&g0, g1)){
+		if(_reach_color(&g0, g1, 1)){
 			g1 = _new_random_color(self.trippy_range[1], self.trippy_base[1]);
 		}
-		if(_reach_color(&b0, b1)){
+		if(_reach_color(&b0, b1, 1)){
 			b1 = _new_random_color(self.trippy_range[2], self.trippy_base[2]);
 		}
 		self.colors[i] = led_from_rgb(r1,g1,b1);
@@ -180,7 +180,8 @@ bool play_led_animation_stop(void){
 	return true;
 }
 bool play_led_animation_solid(int r, int g, int b, int ramp_down_step){
-	static int down_step = ramp_down_step;
+	static int down_step;
+	down_step = ramp_down_step;
 	user_animation_t anim = (user_animation_t){
 			.handler = _animate_solid,
 			.context = &down_step,
@@ -244,7 +245,7 @@ int Cmd_led_animate(int argc, char *argv[]){
 		}else if(strcmp(argv[1], "wheel") == 0){
 			led_set_color(100, 88,0,150, 1, 1, 18, 1 );
 		}else if(strcmp(argv[1], "solid") == 0){
-			play_led_animation_solid(rand()%120, rand()%120, rand()%120);
+			play_led_animation_solid(rand()%120, rand()%120, rand()%120, 2);
 		}else if(strcmp(argv[1], "prog") == 0){
 			play_led_progress_bar(20, 20, 20, 0, portMAX_DELAY);
 		}else if(strcmp(argv[1], "kill") == 0){
