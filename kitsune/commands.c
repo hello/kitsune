@@ -787,14 +787,13 @@ static void _on_gesture_out()
 
 void thread_fast_i2c_poll(void * unused)  {
 	gesture_init();
-	led_animation_not_in_progress = 1;
 	while (1) {
 		portTickType now = xTaskGetTickCount();
 		int prox=0;
 
 		if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
 			vTaskDelay(2);
-			light = led_animation_not_in_progress ? get_light() : light;
+			light = led_is_idle() ? get_light() : light;
 			vTaskDelay(2); //this is important! If we don't do it, then the prox will stretch the clock!
 
 			// For the black morpheus, we can detect 6mm distance max

@@ -50,7 +50,7 @@ int led_set_color(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b,
 		int fade_in, int fade_out,
 		unsigned int ud,
 		int rot);
-int led_ready();
+bool led_is_idle(void);
 bool led_wait_for_idle(unsigned int wait);
 unsigned int led_delay( unsigned int dly );
 

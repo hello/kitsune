@@ -274,7 +274,6 @@ void ledcpy(led_color_t * dst, const led_color_t * src, int num){
 #define LED_CUSTOM_TRANSITION	  0x2000
 
 #define QUANT_FACTOR 6
-extern int led_animation_not_in_progress;
 
 void led_idle_task( void * params ) {
 	vTaskDelay(10000);
@@ -316,7 +315,7 @@ _reset_user_animation(user_animation_t * anim){
 }
 
 void led_task( void * params ) {
-	int i,j;
+	int j;
 	led_color_t colors_last[NUM_LED+1];
 	memset( colors_last, 0, sizeof(colors_last) );
 	_reset_user_animation(&user_animation);
@@ -337,7 +336,6 @@ void led_task( void * params ) {
 			led_array( colors_last, 0 );
 			xEventGroupClearBits(led_events, 0xffffff );
 			xEventGroupSetBits(led_events, LED_IDLE_BIT );
-			led_animation_not_in_progress = 1;
 		}
 		if(evnt & LED_CUSTOM_TRANSITION){
 			led_color_t colors[NUM_LED + 1];
@@ -360,7 +358,6 @@ void led_task( void * params ) {
 				int delay = 10;
 
 				xSemaphoreTake(led_smphr, portMAX_DELAY);
-				led_animation_not_in_progress = 0;
 				if(user_animation.handler(colors_last, colors,&delay,user_animation.context, NUM_LED)){
 					xSemaphoreGive( led_smphr );
 					led_array(colors, delay);
@@ -412,7 +409,16 @@ int led_ready() {
 	}
 	return 0;
 }
-
+bool led_is_idle(void){
+	EventBits_t evnt;
+	evnt = xEventGroupWaitBits(
+					led_events,   /* The event group being tested. */
+					LED_IDLE_BIT,    /* The bits within the event group to wait for. */
+					pdFALSE,        /* all bits should not be cleared before returning. */
+					pdFALSE,       /* Don't wait for both bits, either bit will do. */
+					0 );/* Wait for limited time. */
+	return (evnt & LED_IDLE_BIT) != 0;
+}
 bool led_wait_for_idle(unsigned int wait) {
 	EventBits_t evnt;
 
@@ -476,10 +482,6 @@ int led_set_color(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b,
 		int fade_in, int fade_out,
 		unsigned int ud,
 		int rot) {
-	if( led_ready() != 0 ) {
-		LOGI("LED NOT READY\n");
-		return -1;
-	}
 	xSemaphoreTake(led_smphr, portMAX_DELAY);
 	user_color.r = clamp_rgb(r, 0, LED_CLAMP_MAX) * alpha / 0xFF;
 	user_color.g = clamp_rgb(g, 0, LED_CLAMP_MAX) * alpha / 0xFF;
