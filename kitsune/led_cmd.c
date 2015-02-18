@@ -188,19 +188,10 @@ static void led_array(led_color_t * colors, int delay) {
 	}
 	vTaskDelay(0);
 }
-static void led_brightness(led_color_t * colors, unsigned int brightness ) {
-	int l;
-	unsigned int blue,red,green;
-
+static void led_brightness_all(led_color_t * colors, unsigned int brightness ) {
+	int i;
 	for (l = 0; l < NUM_LED; ++l) {
-		blue = ( colors[l].rgb & ~0xffff00 );
-		red = ( colors[l].rgb & ~0xff00ff )>>8;
-		green = ( colors[l].rgb & ~0x00ffff )>>16;
-
-		blue = ((brightness * blue)>>8)&0xff;
-		red = ((brightness * red)>>8)&0xff;
-		green = ((brightness * green)>>8)&0xff;
-		colors[l].rgb = (blue) | (red<<8) | (green<<16);
+		colors[i] = led_from_brightness(&colors[i], brightness);
 	}
 }
 #if 0
@@ -443,9 +434,7 @@ void led_task( void * params ) {
 		}
 		if (evnt & LED_FADE_OUT_STEP_BIT) {
 			led_color_t colors[NUM_LED + 1];
-			for (i = 0; i <= NUM_LED; i++) {
-				colors[i] = colors_last[i];
-			}
+			ledcpy(colors_last, colors, NUM_LED);
 			j-=QUANT_FACTOR;
 
 			if (j < 0) {
@@ -454,7 +443,7 @@ void led_task( void * params ) {
 				memset(colors, 0, sizeof(colors));
 				memcpy(colors_last, colors, sizeof(colors_last));
 			} else {
-				led_brightness(colors, j);
+				led_brightness_all(colors, j);
 			}
 			unsigned int delay;
 
