@@ -440,7 +440,12 @@ int Cmd_led(int argc, char *argv[]) {
 		fo = atoi(argv[5]);
 		ud = atoi(argv[6]);
 		rot = atoi(argv[7]);
-		led_set_color(0xFF, r,g,b,fi,fo,ud,rot);
+		if(rot){
+			play_led_animation_solid(r,g,b,fo);
+		}else{
+			play_led_wheel(r,g,b,1,ud);
+
+		}
 	} else {
 		factory_led_test_pattern(portMAX_DELAY);
 	}
