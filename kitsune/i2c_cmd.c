@@ -727,12 +727,21 @@ int get_codec_NAU(int vol_codec) {
 	//     0     0     0  0  0  1     0  0  0
 	cmd_init[0] = 0x1e ; cmd_init[1] = 0xff ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // ADC Gain control reg
 
+<<<<<<< HEAD
 	cmd_init[0] = 0x24 ; cmd_init[1] = 0x6C ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // EQ1
 	// Address D8  D7 D6   D5     D4 D3 D2 D1 D0
 	// 0x12    EQM 0  EQ1CF[1:0]  EQ1GC[4:0]
 	// set     1   0  1    1      0  0  0  0  1
 	cmd_init[0] = 0x27 ; cmd_init[1] = 0x42 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // EQ2
 	// Address D8    D7 D6   D5     D4 D3 D2 D1 D0
+=======
+	cmd_init[0] = 0x25 ; cmd_init[1] = 0x6C ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // EQ1
+	// Address D8  D7 D6   D5     D4 D3 D2 D1 D0
+	// 0x12    EQM 0  EQ1CF[1:0]  EQ1GC[4:0]
+	// set     1   0  1    1      0  0  0  0  1
+	cmd_init[0] = 0x27 ; cmd_init[1] = 0x42 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(delay_codec); // EQ2
+	// Address D8    D7 D6   D5     D4 D3 D2 D1 D0 00100110
+>>>>>>> origin/Reliability_stress_Wifi
 	// 0x13    EQ2BW 0  EQ2CF[1:0]  EQ2GC[4:0]
 	// set     1     0  1    0      0  0  0  1  0
 	cmd_init[0] = 0x29 ; cmd_init[1] = 0x48 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // EQ3

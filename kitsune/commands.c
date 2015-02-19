@@ -109,6 +109,8 @@ tCircularBuffer *pRxBuffer;
 
 volatile bool booted = false;
 
+extern unsigned int g_uiPlayWaterMark;
+
 //*****************************************************************************
 //                          LOCAL DEFINES
 //*****************************************************************************
@@ -1191,6 +1193,114 @@ static void SortByRSSI(Sl_WlanNetworkEntry_t* netEntries,
      }while(ucSwapped);
 }
 
+int Cmd_AP(int argc, char *argv[]){
+	   char *args[] = {
+				" ",
+				"NETGEAR58",
+				"12345678",
+				"2"
+		};
+	   connect_wifi( "NETGEAR58", "12345678", 2);
+	   UARTprintf("AP is connected now\n\r");
+	   //Cmd_connect(4,args); UARTprintf("Connect AP! \n\r");
+
+	   return 0;
+}
+
+int TEST_BREAK;
+int Cmd_factory_test(int argc, char *argv[]){
+	TEST_BREAK = 0;
+/*
+	SlSecParams_t secParams;
+	secParams.Key = "godsavethequeen";
+	secParams.KeyLen = strlen("godsavethequeen");
+	secParams.Type = 2;
+	sl_WlanConnect("Hello", strlen("Hello"), NULL, &secParams, 0);
+    UARTprintf("AP is connected now\n\r");
+    vTaskDelay(1000);
+    char *args[] = {
+			" ",
+			"joycemcmurtrey.com",
+			"DIGIAUX2.raw",
+			"/yoyo.raw"
+	};
+    Cmd_download(4, args); UARTprintf("Ringtone downloaded \n\r");
+*/
+//    download_file( "joycemcmurtrey.com", "/yoyo.raw", "DIGIAUX2.raw", "/" );  UARTprintf("Ringtone downloaded \n\r");
+	   char *args[] = {
+				" ",
+				"57",
+				"RINGTONE/NEW001.raw"
+				//"RINGTONE/NEW001.raw"
+		};
+
+/*	   char *argss[] = {
+				" ",
+				"Neutron966",
+				"0123456789",
+				"1"
+		};//
+
+	   Cmd_connect(4,argss);
+*/
+    while(1){
+    if(TEST_BREAK) break;
+	vTaskDelay(1000);
+	if(TEST_BREAK) break;
+	led_set_color(0xFF, LED_MAX, 0,      0, 1, 1, 18, 1 );  UARTprintf("LED red color test! \n\r");
+	if(TEST_BREAK) break;
+	vTaskDelay(2000);
+	if(TEST_BREAK) break;
+	led_set_color(0xFF, 0      , LED_MAX,0, 1, 1, 18, 1 ); UARTprintf("LED green color test! \n\r");
+	if(TEST_BREAK) break;
+	vTaskDelay(2000);
+	if(TEST_BREAK) break;
+#if 0
+	led_set_color(0xFF, LED_MAX,LED_MAX,LED_MAX,1,1,18,1); UARTprintf("LED white color test! \n\r");
+	if(TEST_BREAK) break;
+	vTaskDelay(2000);
+	if(TEST_BREAK) break;
+	factory_led_test_pattern(portMAX_DELAY); UARTprintf("LED factory_testing! \n\r");
+#endif
+	play_led_animation_pulse(2000); UARTprintf("LED spinning \n\r");
+	vTaskDelay(13000);
+	if(TEST_BREAK) break;
+	stop_led_animation(); UARTprintf("LED color test done! \n\r");
+	vTaskDelay(2000);
+	if(TEST_BREAK) break;
+	vTaskDelay(2000);
+	if(TEST_BREAK) break;
+	Cmd_readhumid(0,0); UARTprintf("Read humid! \n\r");
+	if(TEST_BREAK) break;
+	vTaskDelay(2000);
+	if(TEST_BREAK) break;
+	Cmd_readlight(0,0); UARTprintf("Read light! \n\r");
+	if(TEST_BREAK) break;
+	vTaskDelay(2000);
+	if(TEST_BREAK) break;
+	Cmd_readproximity(0,0); UARTprintf("Read proximity! \n\r");
+	if(TEST_BREAK) break;
+	vTaskDelay(2000);
+	if(TEST_BREAK) break;
+	Cmd_dusttest(1,0); UARTprintf("Read dust! \n\r");
+	vTaskDelay(2000);
+	if(TEST_BREAK) break;
+	Cmd_readtemp(0,0); UARTprintf("Read temperature! \n\r");
+	if(TEST_BREAK) break;
+	vTaskDelay(2000);
+	if(TEST_BREAK) break;
+	Cmd_play_buff(3,args); UARTprintf("Ringtone playing! \n\r");
+	}
+	UARTprintf("Factory test done!"); return 0;
+}
+
+int Cmd_break(int argc, char *argv[]){
+	TEST_BREAK = 1;
+	g_uiPlayWaterMark = 0;
+	Cmd_stop_buff(0,0);
+	Cmd_stop_buff(0,0);
+	return 0;
+}
 
 int Cmd_rssi(int argc, char *argv[]) {
 	int lCountSSID,i;
@@ -1622,6 +1732,9 @@ tCmdLineEntry g_sCmdTable[] = {
 #ifdef FILE_TEST
 		{ "test_files",Cmd_generate_user_testing_files,""},
 #endif
+		{"dft", Cmd_factory_test, "run basic peripheral testing"},
+		{"AP", Cmd_AP, "APAP"},
+	    {"break", Cmd_break, "break any process"},
 		{ 0, 0, 0 } };
 
 //#include "fault.h"
@@ -1770,11 +1883,16 @@ void vUARTTask(void *pvParameters) {
 	tskKERNEL_VERSION_NUMBER, KIT_VER, MORPH_NAME, mac[0], mac[1], mac[2],
 			mac[3], mac[4], mac[5]);
 	UARTprintf("> ");
+	Cmd_AP(0,0);
+	vTaskDelay(2000);
+	Cmd_status(0,0);
+
+	Cmd_factory_test(0,0);
 
 
 	/* remove anything we recieved before we were ready */
 
-	/* Loop forever */
+	/* Loop forever *///
 	while (1) {
 		/* Wait for a signal indicating we have an RX line to process */
 		xSemaphoreTake(g_xRxLineSemaphore, portMAX_DELAY);

@@ -79,7 +79,7 @@ static gesture _fsm(int in){
 	switch(self.fsm.state){
 	case GFSM_IDLE:
 		//any edge triggers edge up state
-		LOGI("->0\r\n");
+		//LOGI("->0\r\n");
 		_transition_state(GFSM_IDLE_FORREALS);
 		ret = GESTURE_OUT;
 		++gesture_cnt;
@@ -87,7 +87,7 @@ static gesture _fsm(int in){
 	case GFSM_IDLE_FORREALS:
 		//any edge triggers edge up state
 		if( exceeded > 0 ){
-			LOGI("->1\r\n");
+			//LOGI("->1\r\n");
 			_transition_state(GFSM_LEVEL);
 		}
 		break;

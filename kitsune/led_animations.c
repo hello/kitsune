@@ -79,6 +79,7 @@ static bool _animate_pulse(int * out_r, int * out_g, int * out_b, int * out_dela
 	out_b[(self.counter + 3) % rgb_array_size] = 40;
 
 	*out_delay = self.dly;
+
 	sig_continue = self.sig_continue;
 	unlock();
 	return sig_continue;
