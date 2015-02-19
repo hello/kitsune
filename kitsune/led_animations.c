@@ -292,7 +292,7 @@ int Cmd_led_animate(int argc, char *argv[]){
 				play_led_trippy( trippy_base, trippy_range, portMAX_DELAY );
 			}
 		}else if(strcmp(argv[1], "wheel") == 0){
-			play_led_wheel(rand()%120, rand()%120, rand()%120, 2, 33);
+			play_led_wheel(rand()%120, rand()%120, rand()%120, 2, 16);
 		}else if(strcmp(argv[1], "solid") == 0){
 			play_led_animation_solid(rand()%120, rand()%120, rand()%120, 2);
 		}else if(strcmp(argv[1], "prog") == 0){
