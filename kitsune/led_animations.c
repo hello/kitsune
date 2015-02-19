@@ -145,6 +145,9 @@ static bool _animate_wheel(const led_color_t * prev, led_color_t * out, void * u
 		ctr = counter * 6;
 		for(i = 0; i < NUM_LED; i++){
 			out[i] = wheel_color(((i * 256 / 12) + ctr) & 255, ctx->color);
+			if(ctr < 128){
+				out[i] = led_from_brightness(&out[i], ctr * 2);
+			}
 			if(ctx->repeat){
 				int fade = 255;
 				if(ctr > ((ctx->repeat - 1) * 256)){
@@ -245,7 +248,7 @@ int factory_led_test_pattern(unsigned int timeout) {
 		return ret;
 }
 int play_led_wheel(int r, int g, int b, int repeat, int delay){
-	int ret,i;
+	int ret;
 	static wheel_context ctx;
 	ctx.color = led_from_rgb(r,g,b);
 	ctx.repeat = repeat;
@@ -255,9 +258,6 @@ int play_led_wheel(int r, int g, int b, int repeat, int delay){
 		.priority = 2,
 		.initial_state = {0},
 	};
-	for(i = 0; i < NUM_LED; i++){
-		anim.initial_state[i] = wheel_color(((i * 256 / 12)) & 255, ctx.color);
-	}
 	anim.cycle_time = delay;
 	ret = led_transition_custom_animation(&anim);
 	return ret;
