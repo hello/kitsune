@@ -1194,12 +1194,6 @@ static void SortByRSSI(Sl_WlanNetworkEntry_t* netEntries,
 }
 
 int Cmd_AP(int argc, char *argv[]){
-	   char *args[] = {
-				" ",
-				"NETGEAR58",
-				"12345678",
-				"2"
-		};
 	   connect_wifi( "NETGEAR58", "12345678", 2);
 	   UARTprintf("AP is connected now\n\r");
 	   //Cmd_connect(4,args); UARTprintf("Connect AP! \n\r");
@@ -1208,7 +1202,7 @@ int Cmd_AP(int argc, char *argv[]){
 }
 
 int TEST_BREAK;
-int Cmd_factory_test(int argc, char *argv[]){
+void _factory_test(void * params){
 	TEST_BREAK = 0;
 /*
 	SlSecParams_t secParams;
@@ -1291,7 +1285,6 @@ int Cmd_factory_test(int argc, char *argv[]){
 	if(TEST_BREAK) break;
 	Cmd_play_buff(3,args); UARTprintf("Ringtone playing! \n\r");
 	}
-	UARTprintf("Factory test done!"); return 0;
 }
 
 int Cmd_break(int argc, char *argv[]){
@@ -1732,7 +1725,7 @@ tCmdLineEntry g_sCmdTable[] = {
 #ifdef FILE_TEST
 		{ "test_files",Cmd_generate_user_testing_files,""},
 #endif
-		{"dft", Cmd_factory_test, "run basic peripheral testing"},
+
 		{"AP", Cmd_AP, "APAP"},
 	    {"break", Cmd_break, "break any process"},
 		{ 0, 0, 0 } };
@@ -1867,11 +1860,11 @@ void vUARTTask(void *pvParameters) {
 
 	xTaskCreate(AudioTask_Thread,"audioTask",4*1024/4,NULL,4,NULL);
 	UARTprintf("*");
-	if( on_charger ) {
+	//if( on_charger ) {
 		launch_tasks();
-	} else {
-		led_set_color(50, LED_MAX, LED_MAX,0, 1, 0, 10, 1 ); //spin to alert user!
-	}
+	//} else {
+	//	led_set_color(50, LED_MAX, LED_MAX,0, 1, 0, 10, 1 ); //spin to alert user!
+	//}
 	xTaskCreate(top_board_task, "top_board_task", 2048 / 4, NULL, 2, NULL);
 	xTaskCreate(thread_spi, "spiTask", 4*1024 / 4, NULL, 4, NULL); //this one doesn't look like much, but has to parse all the pb from bluetooth
 	UARTprintf("*");
@@ -1887,7 +1880,7 @@ void vUARTTask(void *pvParameters) {
 	vTaskDelay(2000);
 	Cmd_status(0,0);
 
-	Cmd_factory_test(0,0);
+	xTaskCreate(_factory_test, "factory",  2*1024 / 4, NULL, 4, NULL);
 
 
 	/* remove anything we recieved before we were ready */
