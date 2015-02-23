@@ -671,6 +671,9 @@ void thread_dust(void * unused)  {
     #define maxval( a, b ) a>b ? a : b
 	dust_min = 5000;
 	dust_m2 = dust_mean = dust_cnt = dust_log_sum = dust_max = 0;
+#if DEBUG_DUST
+	int dust_variability=0;
+#endif
 
 	while (1) {
 		if (xSemaphoreTake(dust_smphr, portMAX_DELAY)) {
@@ -691,6 +694,14 @@ void thread_dust(void * unused)  {
 			if(dust < dust_min) {
 				dust_min = dust;
 			}
+
+#if DEBUG_DUST
+			if(dust_cnt > 1)
+			{
+				dust_variability = dust_m2 / (dust_cnt - 1);  // devide by zero again, add if
+			}
+			LOGF("%u,%u,%u,%u,%u,%u\n", xTaskGetTickCount(), dust, dust_mean, dust_max, dust_min, dust_variability );
+#endif
 
 			xSemaphoreGive(dust_smphr);
 		}
@@ -1498,7 +1509,7 @@ void launch_tasks() {
 	UARTprintf("*");
 #if !ONLY_MID
 	UARTprintf("*");
-	xTaskCreate(thread_dust, "dustTask", 256 / 4, NULL, 3, NULL);
+	xTaskCreate(thread_dust, "dustTask", 1024 / 4, NULL, 3, NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_sensor_poll, "pollTask", 1024 / 4, NULL, 3, NULL);
 	UARTprintf("*");

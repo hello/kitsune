@@ -132,10 +132,21 @@ int get_dust_internal(unsigned int samples) {
 //
 // Read BUFFER_SZ ADC samples
 //
+#define DEBUG_DUST 0
+
+#if DEBUG_DUST
+	unsigned short * smplbuf = (unsigned short*)pvPortMalloc(samples*sizeof(short));
+#endif
+
 	while (uiIndex < samples) {
 		if (ADCFIFOLvlGet(ADC_BASE, uiChannel)) {
-			++uiIndex;
 			ulSample = (ADCFIFORead(ADC_BASE, uiChannel) & 0x3FFC ) >> 2;
+#if DEBUG_DUST
+			if( smplbuf ){
+				smplbuf[uiIndex] = ulSample;
+			}
+#endif
+			++uiIndex;
 			if (ulSample > max) {
 				max = ulSample;
 			}
@@ -145,6 +156,19 @@ int get_dust_internal(unsigned int samples) {
 			//LOGI("%d\n", ulSample);
 		}
 	}
+#if DEBUG_DUST
+	if( smplbuf ){
+		int i;
+		LOGF("0,%u\n", xTaskGetTickCount() );
+		for(i=0;i<samples;++i) {
+			LOGF("%u,\n", smplbuf[i]);
+			if(i%100) {
+				vTaskDelay(1);
+			}
+		}
+		vPortFree(smplbuf);
+	}
+#endif
 
 	uiIndex = 0;
 	return max;
