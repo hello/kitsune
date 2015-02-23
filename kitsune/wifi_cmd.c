@@ -47,7 +47,6 @@ int sl_mode = ROLE_INVALID;
 #include "proto_utils.h"
 #include "ustdlib.h"
 
-#include "led_action.h"
 #include "pill_settings.h"
 
 void mcu_reset()
@@ -1709,7 +1708,6 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
     }
 
     if (response_protobuf->has_led_action) {
-    	led_action(response_protobuf);
     }
 
     if(response_protobuf->pill_settings_count > 0) {

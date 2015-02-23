@@ -90,7 +90,6 @@
 #include "proto_utils.h"
 #include "ustdlib.h"
 
-#include "led_action.h"
 #include "pill_settings.h"
 
 
@@ -567,7 +566,6 @@ void thread_alarm(void * unused) {
 	while (1) {
 		wait_for_time(WAIT_FOREVER);
 
-		bool play_lights = false;
 		portTickType now = xTaskGetTickCount();
 		uint64_t time = get_time();
 		// The alarm thread should go ahead even without a valid time,
@@ -638,7 +636,12 @@ void thread_alarm(void * unused) {
 					LOGI("ALARM RINGING RING RING RING\n");
 					alarm.has_start_time = 0;
 					alarm.start_time = 0;
-					play_lights = alarm_is_ringing = true;
+					alarm_is_ringing = true;
+
+					uint8_t trippy_base[3] = { 0, 0, 0 };
+					uint8_t trippy_range[3] = { 254, 254, 254 };
+					ANIMATE_BLOCKING(play_led_animation_stop(),500);
+					play_led_trippy(trippy_base, trippy_range,0);
 				}
 			}
 			else {
@@ -646,16 +649,6 @@ void thread_alarm(void * unused) {
 			}
 			
 			xSemaphoreGive(alarm_smphr);
-
-			if( play_lights ) {
-				if ( led_wait_for_idle(5000) ) {
-					uint8_t trippy_base[3] = { 0, 0, 0 };
-					uint8_t trippy_range[3] = { 254, 254, 254 };
-					alarm_started_trippy = play_lights;
-					play_led_trippy(trippy_base, trippy_range, portMAX_DELAY);
-				}
-			}
-			play_lights = false;
 		}
 		vTaskDelayUntil(&now, 1000 );
 	}
@@ -762,20 +755,21 @@ static void _show_led_status()
 	uint8_t alpha = get_alpha_from_light();
 
 	if(wifi_status_get(UPLOADING)) {
+		//TODO: wtf is this?
 		uint8_t rgb[3] = { LED_MAX };
 		led_get_user_color(&rgb[0], &rgb[1], &rgb[2]);
 		led_set_color(alpha, rgb[0], rgb[1], rgb[2], 1, 1, 18, 0);
 	}
 	else if(wifi_status_get(HAS_IP)) {
-		led_set_color(alpha, LED_MAX, 0, 0, 1, 1, 18, 1); //blue
+		play_led_wheel(LED_MAX,0,0,1,18);
 	}
 	else if(wifi_status_get(CONNECTING)) {
-		led_set_color(alpha, LED_MAX,LED_MAX,0, 1, 1, 18, 1); //yellow
+		play_led_wheel(LED_MAX,LED_MAX,0,1,18);
 	}
 	else if(wifi_status_get(SCANNING)) {
-		led_set_color(alpha, LED_MAX,0,0, 1, 1, 18, 1 ); //red
+		play_led_wheel(LED_MAX,0,0,1,18);
 	} else {
-		led_set_color(alpha, LED_MAX, LED_MAX, LED_MAX, 1, 1, 18, 1 ); //white
+		play_led_wheel(LED_MAX,LED_MAX,LED_MAX,1,18);
 	}
 }
 
@@ -802,14 +796,13 @@ static void _on_gesture_out()
 
 void thread_fast_i2c_poll(void * unused)  {
 	gesture_init();
-	led_animation_not_in_progress = 1;
 	while (1) {
 		portTickType now = xTaskGetTickCount();
 		int prox=0;
 
 		if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
 			vTaskDelay(2);
-			light = led_animation_not_in_progress ? get_light() : light;
+			light = led_is_idle() ? get_light() : light;
 			vTaskDelay(2); //this is important! If we don't do it, then the prox will stretch the clock!
 
 			// For the black morpheus, we can detect 6mm distance max
@@ -1522,7 +1515,7 @@ void launch_tasks() {
 int Cmd_boot(int argc, char *argv[]) {
 	if( !booted ) {
 		launch_tasks();
-		led_fadeout(18);
+		play_led_animation_stop();
 	}
 	return 0;
 }
@@ -1594,7 +1587,6 @@ tCmdLineEntry g_sCmdTable[] = {
 
 		{ "antsel", Cmd_antsel, "" }, //select antenna
 		{ "led", Cmd_led, "" },
-		{ "action", Cmd_led_action, "" },
 		{ "clrled", Cmd_led_clr, "" },
 #ifdef BUILD_RADIO_TEST
 		{ "rdiostats", Cmd_RadioGetStats, "" },
@@ -1773,7 +1765,7 @@ void vUARTTask(void *pvParameters) {
 	if( on_charger ) {
 		launch_tasks();
 	} else {
-		led_set_color(50, LED_MAX, LED_MAX,0, 1, 0, 10, 1 ); //spin to alert user!
+		play_led_wheel(50, LED_MAX, LED_MAX,0,10);
 	}
 	ble_proto_init();
 	xTaskCreate(top_board_task, "top_board_task", 2048 / 4, NULL, 2, NULL);
