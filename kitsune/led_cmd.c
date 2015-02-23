@@ -378,7 +378,7 @@ void led_task( void * params ) {
 
 			p+=QUANT_FACTOR;
 			for (i = 0; i <= NUM_LED; ++i) {
-				colors[i] = wheel_color(((i * 256 / 12) + p) & 255, color_to_use);
+				colors[i] = wheel_color(((i * 256 / 12) - p) & 255, color_to_use);
 			}
 			if( !(evnt & (LED_FADE_IN_BIT|LED_FADE_OUT_BIT|LED_FADE_IN_STEP_BIT|LED_FADE_OUT_STEP_BIT)) ){
 				led_array(colors, delay);
