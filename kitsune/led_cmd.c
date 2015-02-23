@@ -432,11 +432,11 @@ int Cmd_led(int argc, char *argv[]) {
 			play_led_animation_solid(r,g,b, 1);
 		}
 	} else if( argc > 3){
-		int r,g,b,fi,fo,ud,rot;
+		int r,g,b/*,fi*/,fo,ud,rot;
 		r = atoi(argv[1]);
 		g = atoi(argv[2]);
 		b = atoi(argv[3]);
-		fi = atoi(argv[4]);
+		/*fi = atoi(argv[4]);*/
 		fo = atoi(argv[5]);
 		ud = atoi(argv[6]);
 		rot = atoi(argv[7]);
