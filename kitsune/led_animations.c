@@ -197,7 +197,7 @@ static bool _animate_factory_test_pattern(int * out_r, int * out_g, int * out_b,
 
 	int i;
 	for(i = 0; i < rgb_array_size; i++){
-		if( ( (i+self.counter) % 3 ) == 0 ) {
+		if( ( (i==(self.counter%rgb_array_size)) ) ) {
 			out_r[i] = 255;
 			out_g[i] = 255;
 			out_b[i] = 255;

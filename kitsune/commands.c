@@ -1250,8 +1250,8 @@ void _factory_test(void * params){
 	if(TEST_BREAK) break;
 	factory_led_test_pattern(portMAX_DELAY); LOGI("LED factory_testing! \n\r");
 #endif
-	play_led_animation_pulse(2000); LOGI("LED spinning \n\r");
-	vTaskDelay(13000);
+	factory_led_test_pattern(2000); LOGI("LED spinning \n\r");
+	vTaskDelay(7000);
 	if(TEST_BREAK) break;
 	stop_led_animation(); LOGI("LED color test done! \n\r");
 	vTaskDelay(2000);
