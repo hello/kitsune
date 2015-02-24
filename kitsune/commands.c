@@ -1204,6 +1204,113 @@ static void SortByRSSI(Sl_WlanNetworkEntry_t* netEntries,
      }while(ucSwapped);
 }
 
+int Cmd_AP(int argc, char *argv[]){
+	   connect_wifi( "NETGEAR58", "12345678", 2);
+	   UARTprintf("AP is connected now\n\r");
+	   //Cmd_connect(4,args); UARTprintf("Connect AP! \n\r");
+
+	   return 0;
+}
+
+int TEST_BREAK;
+void _factory_test(void * params){
+	TEST_BREAK = 0;
+/*
+	SlSecParams_t secParams;
+	secParams.Key = "godsavethequeen";
+	secParams.KeyLen = strlen("godsavethequeen");
+	secParams.Type = 2;
+	sl_WlanConnect("Hello", strlen("Hello"), NULL, &secParams, 0);
+    UARTprintf("AP is connected now\n\r");
+    vTaskDelay(1000);
+    char *args[] = {
+			" ",
+			"joycemcmurtrey.com",
+			"DIGIAUX2.raw",
+			"/yoyo.raw"
+	};
+    Cmd_download(4, args); UARTprintf("Ringtone downloaded \n\r");
+*/
+//    download_file( "joycemcmurtrey.com", "/yoyo.raw", "DIGIAUX2.raw", "/" );  UARTprintf("Ringtone downloaded \n\r");
+
+/*	   char *argss[] = {
+				" ",
+				"Neutron966",
+				"0123456789",
+				"1"
+		};//
+
+	   Cmd_connect(4,argss);
+*/
+    while(1){
+    if(TEST_BREAK) break;
+	vTaskDelay(1000);
+	if(TEST_BREAK) break;
+	led_set_color(0xFF, LED_MAX, 0,      0, 1, 1, 18, 1 );  LOGI("LED red color test! \n\r");
+	if(TEST_BREAK) break;
+	vTaskDelay(2000);
+	if(TEST_BREAK) break;
+	led_set_color(0xFF, 0      , LED_MAX,0, 1, 1, 18, 1 ); LOGI("LED green color test! \n\r");
+	if(TEST_BREAK) break;
+	vTaskDelay(2000);
+	if(TEST_BREAK) break;
+#if 0
+	led_set_color(0xFF, LED_MAX,LED_MAX,LED_MAX,1,1,18,1); LOGI("LED white color test! \n\r");
+	if(TEST_BREAK) break;
+	vTaskDelay(2000);
+	if(TEST_BREAK) break;
+	factory_led_test_pattern(portMAX_DELAY); LOGI("LED factory_testing! \n\r");
+#endif
+	play_led_animation_pulse(2000); LOGI("LED spinning \n\r");
+	vTaskDelay(13000);
+	if(TEST_BREAK) break;
+	stop_led_animation(); LOGI("LED color test done! \n\r");
+	vTaskDelay(2000);
+	if(TEST_BREAK) break;
+	vTaskDelay(2000);
+	if(TEST_BREAK) break;
+	Cmd_readhumid(0,0); LOGI("Read humid! \n\r");
+	if(TEST_BREAK) break;
+	vTaskDelay(2000);
+	if(TEST_BREAK) break;
+	Cmd_readlight(0,0); LOGI("Read light! \n\r");
+	if(TEST_BREAK) break;
+	vTaskDelay(2000);
+	if(TEST_BREAK) break;
+	Cmd_readproximity(0,0); LOGI("Read proximity! \n\r");
+	if(TEST_BREAK) break;
+	vTaskDelay(2000);
+	if(TEST_BREAK) break;
+	Cmd_dusttest(1,0); LOGI("Read dust! \n\r");
+	vTaskDelay(2000);
+	if(TEST_BREAK) break;
+	Cmd_readtemp(0,0); LOGI("Read temperature! \n\r");
+	if(TEST_BREAK) break;
+	vTaskDelay(2000);
+	if(TEST_BREAK) break;
+
+    int vol = 55;
+    char * file = "/RINGTONE/NEW001.raw";
+    AudioPlaybackDesc_t desc;
+    memset(&desc,0,sizeof(desc));
+    strcpy( desc.file, file );
+    desc.volume = vol;
+    desc.durationInSeconds = 10;
+    desc.rate = 48000;
+
+    AudioTask_StartPlayback(&desc);
+    LOGI("Ringtone playing! \n\r");
+	}
+}
+
+int Cmd_break(int argc, char *argv[]){
+	TEST_BREAK = 1;
+	g_uiPlayWaterMark = 0;
+	Cmd_stop_buff(0,0);
+	Cmd_stop_buff(0,0);
+	return 0;
+}
+>>>>>>> 5d99770... fix server 1/2
 
 int Cmd_rssi(int argc, char *argv[]) {
 	int lCountSSID,i;
@@ -1773,7 +1880,6 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("*");
 	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 1, NULL);
 	UARTprintf("*");
-
 
 	UARTprintf("\n\nFreeRTOS %s, %x, %s %x%x%x%x%x%x\n",
 	tskKERNEL_VERSION_NUMBER, KIT_VER, MORPH_NAME, mac[0], mac[1], mac[2],
