@@ -87,10 +87,10 @@ void telnetPrint(const char * str, int len );
 
 static void
 _logstr(const char * str, int len, bool echo, bool store){
-	int i;
+	/*int i;
 	for(i = 0; i < len && store; i++){
 		uart_logc(str[i]);
-	}
+	} no log storage/upload for MBTF */
 	if (echo) {
 #ifdef BUILD_SERVERS
 		telnetPrint(str, len);
