@@ -1221,12 +1221,6 @@ void _factory_test(void * params){
     Cmd_download(4, args); UARTprintf("Ringtone downloaded \n\r");
 */
 //    download_file( "joycemcmurtrey.com", "/yoyo.raw", "DIGIAUX2.raw", "/" );  UARTprintf("Ringtone downloaded \n\r");
-	   char *args[] = {
-				" ",
-				"57",
-				"RINGTONE/NEW001.raw"
-				//"RINGTONE/NEW001.raw"
-		};
 
 /*	   char *argss[] = {
 				" ",
@@ -1241,49 +1235,60 @@ void _factory_test(void * params){
     if(TEST_BREAK) break;
 	vTaskDelay(1000);
 	if(TEST_BREAK) break;
-	led_set_color(0xFF, LED_MAX, 0,      0, 1, 1, 18, 1 );  UARTprintf("LED red color test! \n\r");
+	led_set_color(0xFF, LED_MAX, 0,      0, 1, 1, 18, 1 );  LOGI("LED red color test! \n\r");
 	if(TEST_BREAK) break;
 	vTaskDelay(2000);
 	if(TEST_BREAK) break;
-	led_set_color(0xFF, 0      , LED_MAX,0, 1, 1, 18, 1 ); UARTprintf("LED green color test! \n\r");
+	led_set_color(0xFF, 0      , LED_MAX,0, 1, 1, 18, 1 ); LOGI("LED green color test! \n\r");
 	if(TEST_BREAK) break;
 	vTaskDelay(2000);
 	if(TEST_BREAK) break;
 #if 0
-	led_set_color(0xFF, LED_MAX,LED_MAX,LED_MAX,1,1,18,1); UARTprintf("LED white color test! \n\r");
+	led_set_color(0xFF, LED_MAX,LED_MAX,LED_MAX,1,1,18,1); LOGI("LED white color test! \n\r");
 	if(TEST_BREAK) break;
 	vTaskDelay(2000);
 	if(TEST_BREAK) break;
-	factory_led_test_pattern(portMAX_DELAY); UARTprintf("LED factory_testing! \n\r");
+	factory_led_test_pattern(portMAX_DELAY); LOGI("LED factory_testing! \n\r");
 #endif
-	play_led_animation_pulse(2000); UARTprintf("LED spinning \n\r");
+	play_led_animation_pulse(2000); LOGI("LED spinning \n\r");
 	vTaskDelay(13000);
 	if(TEST_BREAK) break;
-	stop_led_animation(); UARTprintf("LED color test done! \n\r");
+	stop_led_animation(); LOGI("LED color test done! \n\r");
 	vTaskDelay(2000);
 	if(TEST_BREAK) break;
 	vTaskDelay(2000);
 	if(TEST_BREAK) break;
-	Cmd_readhumid(0,0); UARTprintf("Read humid! \n\r");
+	Cmd_readhumid(0,0); LOGI("Read humid! \n\r");
 	if(TEST_BREAK) break;
 	vTaskDelay(2000);
 	if(TEST_BREAK) break;
-	Cmd_readlight(0,0); UARTprintf("Read light! \n\r");
+	Cmd_readlight(0,0); LOGI("Read light! \n\r");
 	if(TEST_BREAK) break;
 	vTaskDelay(2000);
 	if(TEST_BREAK) break;
-	Cmd_readproximity(0,0); UARTprintf("Read proximity! \n\r");
+	Cmd_readproximity(0,0); LOGI("Read proximity! \n\r");
 	if(TEST_BREAK) break;
 	vTaskDelay(2000);
 	if(TEST_BREAK) break;
-	Cmd_dusttest(1,0); UARTprintf("Read dust! \n\r");
+	Cmd_dusttest(1,0); LOGI("Read dust! \n\r");
 	vTaskDelay(2000);
 	if(TEST_BREAK) break;
-	Cmd_readtemp(0,0); UARTprintf("Read temperature! \n\r");
+	Cmd_readtemp(0,0); LOGI("Read temperature! \n\r");
 	if(TEST_BREAK) break;
 	vTaskDelay(2000);
 	if(TEST_BREAK) break;
-	Cmd_play_buff(3,args); UARTprintf("Ringtone playing! \n\r");
+
+    int vol = 55;
+    char * file = "/RINGTONE/NEW001.raw";
+    AudioPlaybackDesc_t desc;
+    memset(&desc,0,sizeof(desc));
+    strcpy( desc.file, file );
+    desc.volume = vol;
+    desc.durationInSeconds = 10;
+    desc.rate = 48000;
+
+    AudioTask_StartPlayback(&desc);
+    LOGI("Ringtone playing! \n\r");
 	}
 }
 
@@ -1871,6 +1876,7 @@ void vUARTTask(void *pvParameters) {
 	//xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 1, NULL); no log storage/upload for MBTF
 	UARTprintf("*");
 
+	uart_logger_init();
 
 	UARTprintf("\n\nFreeRTOS %s, %x, %s %x%x%x%x%x%x\n",
 	tskKERNEL_VERSION_NUMBER, KIT_VER, MORPH_NAME, mac[0], mac[1], mac[2],

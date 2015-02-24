@@ -2526,7 +2526,8 @@ static int send_buffer( volatile int* sock, const char * str, int len ) {
 			return -1;
 		}
 		if( sz == EWOULDBLOCK ) {
-			vTaskDelay(100);
+			//vTaskDelay(100);
+			return 0; //can't stop will interrupt calling thread!
 		}
 		sent += sz;
 	}
