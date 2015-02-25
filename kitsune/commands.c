@@ -1869,10 +1869,8 @@ void Cmd_pill_test_register_heartbeat(const char * id, int32_t bat){
 	if(pill_fsm.sem && xSemaphoreTake(pill_fsm.sem,5000)){
 		if(fill_fsm.state != WAITING_FOR_SHAKE
 				&& 0 == strcmp(pill_fsm.uut, id)){
-			if(pill_fsm.bat > 0 && bat <= 100){
-				//if already has a value and the value is valid, overwrite
-				pill_fsm.bat = bat;
-			}else if(pill_fsm.bat == 0){
+			if(pill_fsm.bat < bat){
+				//always take the lowest value
 				pill_fsm.bat = bat;
 			}
 		}
