@@ -1826,6 +1826,7 @@ static struct{
 	char uut[64];
 	xSemaphoreHandle sem;
 	int to;//in 10 ms intervals
+	int32_t bat;
 }pill_fsm;
 
 void pill_fsm_reset(void){
@@ -1835,7 +1836,7 @@ void pill_fsm_reset(void){
 }
 
 void Cmd_pill_test_register_shake(const char * id){
-	LOGF("Shake\r\n");
+	LOGF("Pill Shaking\r\n");
 	if(pill_fsm.sem && xSemaphoreTake(pill_fsm.sem,5000)){
 		if(pill_fsm.state == WAITING_FOR_SHAKE){
 			strcpy(pill_fsm.uut, id);
@@ -1844,18 +1845,39 @@ void Cmd_pill_test_register_shake(const char * id){
 			LOGF("Activate Magnet\r\n");
 		}else if(pill_fsm.state == WAITING_FOR_TIMEOUT
 				&& 0 == strcmp(pill_fsm.uut, id)){
-			LOGF("Fail\r\n");
+			LOGF("Fail Magnet On+Shake\r\n");
 			pill_fsm_reset();
 		}else if(pill_fsm.state == WAITING_FOR_END
 				&& 0 == strcmp(pill_fsm.uut, id)){
-			LOGF("Pass\r\n");
+			if(pill_fsm.bat >= 120){
+				LOGF("Fail Retest Error: %d\r\n", pill_fsm.bat);
+			}else if(pill_fsm.bat >= 97){
+				LOGF("Pass\r\n");
+			}else if(pill_fsm.bat == 0){
+				LOGF("Fail Retest No HB\r\n");
+			}else{
+				LOGF("Fail Low Bat\r\n");
+			}
+
 			pill_fsm_reset();
 		}
 		xSemaphoreGive(pill_fsm.sem);
 	}
 }
 void Cmd_pill_test_register_heartbeat(const char * id, int32_t bat){
-	LOGF("HB\r\n");
+	LOGF("Pill Heartbeat\r\n");
+	if(pill_fsm.sem && xSemaphoreTake(pill_fsm.sem,5000)){
+		if(fill_fsm.state != WAITING_FOR_SHAKE
+				&& 0 == strcmp(pill_fsm.uut, id)){
+			if(pill_fsm.bat > 0 && bat <= 100){
+				//if already has a value and the value is valid, overwrite
+				pill_fsm.bat = bat;
+			}else if(pill_fsm.bat == 0){
+				pill_fsm.bat = bat;
+			}
+		}
+		xSemaphoreGive(pill_fsm.sem);
+	}
 }
 int Cmd_pill_test_reset(int argc, char *argv[]){
 	if(pill_fsm.sem  && xSemaphoreTake(pill_fsm.sem,5000)){
@@ -1898,7 +1920,7 @@ PillTestThread(void * ctx){
 					if(pill_fsm.to-- > 0){
 						//here we wait for coutndown
 					}else{
-						LOGF("Fail\r\n");
+						LOGF("Fail Magnet Off+Shake\r\n");
 						pill_fsm_reset();
 					}
 					break;
