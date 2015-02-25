@@ -144,7 +144,7 @@ static bool _animate_wheel(const led_color_t * prev, led_color_t * out, void * u
 		wheel_context * ctx = user_context;
 		ctr = counter * 6;
 		for(i = 0; i < NUM_LED; i++){
-			out[i] = wheel_color(((i * 256 / 12) + ctr) & 255, ctx->color);
+			out[i] = wheel_color(((i * 256 / 12) - ctr) & 255, ctx->color);
 			if(ctr < 128){
 				out[i] = led_from_brightness(&out[i], ctr * 2);
 			}
