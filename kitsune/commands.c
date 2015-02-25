@@ -1861,7 +1861,7 @@ void Cmd_pill_test_register_shake(const char * id){
 			}else if(pill_fsm.bat == 0){
 				LOGF("Fail Retest No HB\r\n");
 			}else{
-				LOGF("Fail Low Bat\r\n");
+				LOGF("Fail Low Bat: %d\r\n", pill_fsm.bat);
 			}
 
 			pill_fsm_reset();
