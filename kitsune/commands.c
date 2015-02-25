@@ -758,18 +758,19 @@ static void _show_led_status()
 		//TODO: wtf is this?
 		uint8_t rgb[3] = { LED_MAX };
 		led_get_user_color(&rgb[0], &rgb[1], &rgb[2]);
-		led_set_color(alpha, rgb[0], rgb[1], rgb[2], 1, 1, 18, 0);
+		//led_set_color(alpha, rgb[0], rgb[1], rgb[2], 1, 1, 18, 0);
+		play_led_animation_solid(alpha, rgb[0], rgb[1], rgb[2], 2000);
 	}
 	else if(wifi_status_get(HAS_IP)) {
-		play_led_wheel(LED_MAX,0,0,1,18);
+		play_led_wheel(alpha, LED_MAX,0,0,1,18);
 	}
 	else if(wifi_status_get(CONNECTING)) {
-		play_led_wheel(LED_MAX,LED_MAX,0,1,18);
+		play_led_wheel(alpha, LED_MAX,LED_MAX,0,1,18);
 	}
 	else if(wifi_status_get(SCANNING)) {
-		play_led_wheel(LED_MAX,0,0,1,18);
+		play_led_wheel(alpha, LED_MAX,0,0,1,18);
 	} else {
-		play_led_wheel(LED_MAX,LED_MAX,LED_MAX,1,18);
+		play_led_wheel(alpha, LED_MAX,LED_MAX,LED_MAX,1,18);
 	}
 }
 
@@ -1765,7 +1766,7 @@ void vUARTTask(void *pvParameters) {
 	if( on_charger ) {
 		launch_tasks();
 	} else {
-		play_led_wheel(50, LED_MAX, LED_MAX,0,10);
+		play_led_wheel(LED_MAX, 50, LED_MAX, LED_MAX,0,10);
 	}
 	ble_proto_init();
 	xTaskCreate(top_board_task, "top_board_task", 2048 / 4, NULL, 2, NULL);

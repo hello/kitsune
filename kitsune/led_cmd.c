@@ -428,7 +428,7 @@ int Cmd_led(int argc, char *argv[]) {
 			b = clamp_rgb(atoi(argv[4]), 0, LED_CLAMP_MAX);
 			ANIMATE_BLOCKING(play_led_animation_stop(),500);
 			LOGF("Setting colors R: %d, G: %d, B: %d \r\n", r, g, b);
-			play_led_animation_solid(r,g,b, 1);
+			play_led_animation_solid(LED_MAX, r,g,b, 1);
 		}
 	} else if( argc > 3){
 		int r,g,b/*,fi*/,fo,ud,rot;
@@ -440,9 +440,9 @@ int Cmd_led(int argc, char *argv[]) {
 		ud = atoi(argv[6]);
 		rot = atoi(argv[7]);
 		if(rot){
-			play_led_animation_solid(r,g,b,fo);
+			play_led_animation_solid(LED_MAX, r,g,b,fo);
 		}else{
-			play_led_wheel(r,g,b,1,ud);
+			play_led_wheel(LED_MAX, r,g,b,1,ud);
 
 		}
 	} else {

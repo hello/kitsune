@@ -194,7 +194,7 @@ _on_ack_success(void){
 			self.dfu_state = DFU_IDLE;
 			LOGI("Attempting to boot top board...\r\n");
 			ANIMATE_BLOCKING(play_led_animation_stop(),500);
-			play_led_animation_solid(0,10,0,1);
+			play_led_animation_solid(LED_MAX, 0,10,0,1);
 			}
 			break;
 		default:

@@ -206,7 +206,7 @@ int play_led_animation_stop(void){
 	ret = led_transition_custom_animation(&anim);
 	return ret;
 }
-int play_led_animation_solid(int r, int g, int b, int ramp_down_step){
+int play_led_animation_solid(int a, int r, int g, int b, int ramp_down_step){
 	static int down_step;
 	int ret;
 	down_step = ramp_down_step;
@@ -217,7 +217,9 @@ int play_led_animation_solid(int r, int g, int b, int ramp_down_step){
 			.initial_state = {0},
 			.cycle_time = 33,
 	};
-	ledset(anim.initial_state, led_from_rgb(r,g,b), NUM_LED);
+	led_color_t color = led_from_rgb(r,g,b);
+	color = led_from_brightness( &color, a );
+	ledset(anim.initial_state, color, NUM_LED);
 	ret = led_transition_custom_animation(&anim);
 	return ret;
 }
@@ -247,10 +249,13 @@ int factory_led_test_pattern(unsigned int timeout) {
 		ret = led_transition_custom_animation(&anim);
 		return ret;
 }
-int play_led_wheel(int r, int g, int b, int repeat, int delay){
+int play_led_wheel(int a, int r, int g, int b, int repeat, int delay){
 	int ret;
 	static wheel_context ctx;
-	ctx.color = led_from_rgb(r,g,b);
+	led_color_t color = led_from_rgb(r,g,b);
+	color = led_from_brightness( &color, a );
+
+	ctx.color =  color;
 	ctx.repeat = repeat;
 	user_animation_t anim = (user_animation_t){
 		.handler = _animate_wheel,
@@ -292,9 +297,9 @@ int Cmd_led_animate(int argc, char *argv[]){
 				play_led_trippy( trippy_base, trippy_range, portMAX_DELAY );
 			}
 		}else if(strcmp(argv[1], "wheel") == 0){
-			play_led_wheel(rand()%120, rand()%120, rand()%120, 2, 16);
+			play_led_wheel(LED_MAX, rand()%120, rand()%120, rand()%120, 2, 16);
 		}else if(strcmp(argv[1], "solid") == 0){
-			play_led_animation_solid(rand()%120, rand()%120, rand()%120, 2);
+			play_led_animation_solid(LED_MAX, rand()%120, rand()%120, rand()%120, 2);
 		}else if(strcmp(argv[1], "prog") == 0){
 			play_led_progress_bar(20, 20, 20, 0, portMAX_DELAY);
 		}else if(strcmp(argv[1], "kill") == 0){
