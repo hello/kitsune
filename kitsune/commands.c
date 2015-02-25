@@ -1854,7 +1854,7 @@ void Cmd_pill_test_register_shake(const char * id){
 		xSemaphoreGive(pill_fsm.sem);
 	}
 }
-void Cmd_pill_test_register_heartbeat(const char * id){
+void Cmd_pill_test_register_heartbeat(const char * id, int32_t bat){
 	LOGF("HB\r\n");
 }
 int Cmd_pill_test_reset(int argc, char *argv[]){
