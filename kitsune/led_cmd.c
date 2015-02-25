@@ -337,6 +337,7 @@ void led_task( void * params ) {
 			led_array( colors_last, 0 );
 			xEventGroupClearBits(led_events, 0xffffff );
 			xEventGroupSetBits(led_events, LED_IDLE_BIT );
+			_reset_user_animation(&user_animation);
 		}
 		if(evnt & LED_CUSTOM_TRANSITION){
 			led_color_t colors[NUM_LED + 1];
@@ -366,12 +367,10 @@ void led_task( void * params ) {
 					xEventGroupClearBits(led_events,LED_CUSTOM_ANIMATION_BIT);
 					//xEventGroupSetBits(led_events,LED_RESET_BIT);
 					j = 255;
-					_reset_user_animation(&user_animation);
 					xEventGroupSetBits(led_events, LED_FADE_OUT_STEP_BIT );  // always fade out animation
 					xSemaphoreGive( led_smphr );
 				}
 			}else{
-				_reset_user_animation(&user_animation);
 				xEventGroupClearBits(led_events,LED_CUSTOM_ANIMATION_BIT);
 				xEventGroupSetBits(led_events,LED_RESET_BIT);
 			}
