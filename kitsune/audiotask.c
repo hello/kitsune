@@ -215,8 +215,10 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		if( fade_counter <= FADE_TIME && xTaskGetTickCount() - last_vol > 100 ) {
 			last_vol = xTaskGetTickCount();
 			if( fade_in ) {
+				UARTprintf("%d ",fade_counter * FADE_SPAN / FADE_TIME + info->volume - FADE_SPAN);
 			    set_volume(fade_counter * FADE_SPAN / FADE_TIME + info->volume - FADE_SPAN);
 			} else {
+				UARTprintf("%d ",info->volume - fade_counter * FADE_SPAN / FADE_TIME );
 			    set_volume( info->volume - fade_counter * FADE_SPAN / FADE_TIME );
 			}
 		} else if ( !fade_in && fade_counter > FADE_TIME ) {
