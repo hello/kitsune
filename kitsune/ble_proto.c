@@ -738,7 +738,7 @@ static void play_startup_sound() {
 	vTaskDelay(175);
 }
 void Cmd_pill_test_register_shake(const char * id);
-void Cmd_pill_test_register_heartbeat(const char * id, int32_t bat);
+void Cmd_pill_test_register_heartbeat(const char * id, int32_t bat, int32_t uptime);
 bool on_ble_protobuf_command(MorpheusCommand* command)
 {
     switch(command->type)
@@ -844,7 +844,9 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
     	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_HEARTBEAT: 
         {
             LOGI("PILL HEARTBEAT\n");
-            Cmd_pill_test_register_heartbeat(command->pill_data.device_id, command->pill_data.battery_level);
+            Cmd_pill_test_register_heartbeat(command->pill_data.device_id,
+            		command->pill_data.battery_level,
+            		command->pill_data.uptime);
     		_process_pill_heartbeat(command);
         }
         break;

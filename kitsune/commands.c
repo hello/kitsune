@@ -1827,12 +1827,15 @@ static struct{
 	xSemaphoreHandle sem;
 	int to;//in 10 ms intervals
 	int32_t bat;
+	int32_t uptime;
 }pill_fsm;
 
 void pill_fsm_reset(void){
 	LOGF("Shake to start.\r\n");
 	pill_fsm.state = WAITING_FOR_SHAKE;
 	memset(pill_fsm.uut, 0, sizeof(pill_fsm.uut));
+	pill_fsm.bat = 0;
+	pill_fsm.uptime = 0;
 }
 
 void Cmd_pill_test_register_shake(const char * id){
@@ -1849,7 +1852,9 @@ void Cmd_pill_test_register_shake(const char * id){
 			pill_fsm_reset();
 		}else if(pill_fsm.state == WAITING_FOR_END
 				&& 0 == strcmp(pill_fsm.uut, id)){
-			if(pill_fsm.bat >= 120){
+			if(pill_fsm.uptime < 3600){
+				LOGF("Fail Uptime\r\n");
+			}else if(pill_fsm.bat >= 120){
 				LOGF("Fail Retest Error: %d\r\n", pill_fsm.bat);
 			}else if(pill_fsm.bat >= 97){
 				LOGF("Pass\r\n");
@@ -1864,7 +1869,7 @@ void Cmd_pill_test_register_shake(const char * id){
 		xSemaphoreGive(pill_fsm.sem);
 	}
 }
-void Cmd_pill_test_register_heartbeat(const char * id, int32_t bat){
+void Cmd_pill_test_register_heartbeat(const char * id, int32_t bat, int32_t uptime){
 	LOGF("Pill Heartbeat\r\n");
 	if(pill_fsm.sem && xSemaphoreTake(pill_fsm.sem,5000)){
 		if(pill_fsm.state != WAITING_FOR_SHAKE
@@ -1872,6 +1877,9 @@ void Cmd_pill_test_register_heartbeat(const char * id, int32_t bat){
 			if(pill_fsm.bat < bat){
 				//always take the lowest value
 				pill_fsm.bat = bat;
+			}
+			if(pill_fsm.uptime < uptime){
+				pill_fsm.uptime = uptime;
 			}
 		}
 		xSemaphoreGive(pill_fsm.sem);
