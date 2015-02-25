@@ -1055,13 +1055,10 @@ int start_connection() {
 
 #if !LOCAL_TEST
     if (ipaddr == 0) {
-        if (!(rv = sl_gethostbynameNoneThreadSafe(DATA_SERVER, strlen(DATA_SERVER), &ipaddr,
-        SL_AF_INET))) {
-            /*    LOGI(
-             "Get Host IP succeeded.\n\rHost: %s IP: %d.%d.%d.%d \n\r\n\r",
-             DATA_SERVER, SL_IPV4_BYTE(ipaddr, 3), SL_IPV4_BYTE(ipaddr, 2),
-             SL_IPV4_BYTE(ipaddr, 1), SL_IPV4_BYTE(ipaddr, 0));
-             */
+        if (!(rv = sl_gethostbynameNoneThreadSafe(DATA_SERVER, strlen(DATA_SERVER), &ipaddr, SL_AF_INET))) {
+             LOGI("Get Host IP succeeded.\n\rHost: %s IP: %d.%d.%d.%d \n\r\n\r",
+				   DATA_SERVER, SL_IPV4_BYTE(ipaddr, 3), SL_IPV4_BYTE(ipaddr, 2),
+				   SL_IPV4_BYTE(ipaddr, 1), SL_IPV4_BYTE(ipaddr, 0));
         } else {
             LOGI("failed to resolve ntp addr rv %d\n");
             return -1;
@@ -1097,6 +1094,7 @@ int start_connection() {
             LOGI("Could not connect %d\n\r\n\r", rv);
             return stop_connection();    // could not send SNTP request
         }
+        ipaddr = 0;
     }
     return 0;
 }
