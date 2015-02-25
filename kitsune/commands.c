@@ -1867,7 +1867,7 @@ void Cmd_pill_test_register_shake(const char * id){
 void Cmd_pill_test_register_heartbeat(const char * id, int32_t bat){
 	LOGF("Pill Heartbeat\r\n");
 	if(pill_fsm.sem && xSemaphoreTake(pill_fsm.sem,5000)){
-		if(fill_fsm.state != WAITING_FOR_SHAKE
+		if(pill_fsm.state != WAITING_FOR_SHAKE
 				&& 0 == strcmp(pill_fsm.uut, id)){
 			if(pill_fsm.bat < bat){
 				//always take the lowest value

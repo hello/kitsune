@@ -844,7 +844,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
     	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_HEARTBEAT: 
         {
             LOGI("PILL HEARTBEAT\n");
-            Cmd_pill_test_register_heartbeat(command->pill_data.device_id, command->batteryLevel);
+            Cmd_pill_test_register_heartbeat(command->pill_data.device_id, command->pill_data.battery_level);
     		_process_pill_heartbeat(command);
         }
         break;
