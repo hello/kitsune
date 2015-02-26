@@ -28,6 +28,8 @@
 #include "hw_adc.h"
 #include "adc.h"
 
+#include "led_cmd.h"
+
 #define UART_PRINT               LOGI
 
 #define TIMER_INTERVAL_RELOAD   65535
@@ -146,14 +148,17 @@ int get_dust_internal(unsigned int samples) {
 				smplbuf[uiIndex] = ulSample;
 			}
 #endif
-			++uiIndex;
-			if (ulSample > max) {
-				max = ulSample;
+
+			if (led_is_idle()) {
+				++uiIndex;
+				if (ulSample > max) {
+					max = ulSample;
+				}
+				if (ulSample < min) {
+					min = ulSample;
+				}
+				//LOGI("%d\n", ulSample);
 			}
-			if (ulSample < min) {
-				min = ulSample;
-			}
-			//LOGI("%d\n", ulSample);
 		}
 	}
 #if DEBUG_DUST

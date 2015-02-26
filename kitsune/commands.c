@@ -706,7 +706,6 @@ void thread_dust(void * unused)  {
 
 static int light_m2,light_mean, light_cnt,light_log_sum,light_sf,light;
 static xSemaphoreHandle light_smphr;
-int led_animation_not_in_progress;
 xSemaphoreHandle i2c_smphr;
 
 uint8_t get_alpha_from_light()
@@ -843,7 +842,7 @@ void thread_fast_i2c_poll(void * unused)  {
 				//LOGI( "%d %d %d %d\n", delta, light_mean, light_m2, light_cnt);
 				xSemaphoreGive(light_smphr);
 
-				if(light_cnt % 5 == 0 && led_animation_not_in_progress) {
+				if(light_cnt % 5 == 0 && led_is_idle() ) {
 					if(_is_light_off(light)) {
 						_show_led_status();
 					}
@@ -1053,7 +1052,7 @@ void sample_sensor_data(periodic_data* data)
 		{
 			vTaskDelay(2);
 
-			int humid = led_animation_not_in_progress ? get_humid() : _last_humid;
+			int humid = led_is_idle() ? get_humid() : _last_humid;
 			_last_humid = humid;
 
 			if(humid != -1)
@@ -1064,7 +1063,7 @@ void sample_sensor_data(periodic_data* data)
 
 			vTaskDelay(2);
 
-			int temp = led_animation_not_in_progress ? get_temp() : _last_temp;
+			int temp = led_is_idle() ? get_temp() : _last_temp;
 			_last_temp = temp;
 
 			if(temp != -1)
