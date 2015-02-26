@@ -202,7 +202,6 @@ void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent) {
 			LOGI("seeding %d\r\n", seed);
 			srand(seed); //seed with low bits of lf clock when connecting(not sure when it happens, gives some more entropy).
 		}
-		Cmd_status(0,0); //announce IP to server...
 
 		wifi_status_set(HAS_IP, false);
 
