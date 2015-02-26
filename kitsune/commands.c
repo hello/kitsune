@@ -1852,14 +1852,14 @@ void Cmd_pill_test_register_shake(const char * id){
 			pill_fsm_reset();
 		}else if(pill_fsm.state == WAITING_FOR_END
 				&& 0 == strcmp(pill_fsm.uut, id)){
-			if(pill_fsm.uptime < 900){
-				LOGF("Fail Uptime\r\n");
+			if(pill_fsm.bat == 0){
+				LOGF("Fail Retest No HB\r\n");
+			}else if(pill_fsm.uptime < 900){
+				LOGF("Fail Uptime: %d\r\n", pill_fsm.uptime);
 			}else if(pill_fsm.bat >= 120){
 				LOGF("Fail Retest Error: %d\r\n", pill_fsm.bat);
 			}else if(pill_fsm.bat >= 97){
-				LOGF("Pass\r\n");
-			}else if(pill_fsm.bat == 0){
-				LOGF("Fail Retest No HB\r\n");
+				LOGF("Pass %d\r\n", pill_fsm.bat);
 			}else{
 				LOGF("Fail Low Bat: %d\r\n", pill_fsm.bat);
 			}
