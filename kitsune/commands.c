@@ -1515,7 +1515,6 @@ void launch_tasks() {
 int Cmd_boot(int argc, char *argv[]) {
 	if( !booted ) {
 		launch_tasks();
-		play_led_animation_stop();
 	}
 	return 0;
 }

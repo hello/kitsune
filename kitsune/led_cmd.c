@@ -33,7 +33,7 @@
 #endif
 
 
-static xSemaphoreHandle led_smphr;
+xSemaphoreHandle led_smphr;
 static EventGroupHandle_t led_events;
 static struct{
 	uint8_t r;

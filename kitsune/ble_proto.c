@@ -684,7 +684,7 @@ void ble_proto_led_fade_in_trippy(){
 }
 
 void ble_proto_led_fade_out(bool operation_result){
-	play_led_animation_stop();
+	ANIMATE_BLOCKING(play_led_animation_stop(),2147483648);
 }
 
 #include "top_board.h"

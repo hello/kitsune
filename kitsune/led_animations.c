@@ -14,7 +14,6 @@
 static struct{
 	led_color_t colors[NUM_LED];
 	int progress_bar_percent;
-	xSemaphoreHandle _sem;
 	uint8_t trippy_base[3];
 	uint8_t trippy_range[3];
 }self;
@@ -24,14 +23,7 @@ typedef struct{
 	int repeat;
 }wheel_context;
 
-static bool lock() {
-//	LOGI("TAKE self._sem\n");
-	return xSemaphoreTakeRecursive(self._sem, portMAX_DELAY) == pdPASS;
-}
-static void unlock() {
-//	LOGI("GIVE self._sem\n");
-	xSemaphoreGiveRecursive(self._sem);
-}
+extern xSemaphoreHandle led_smphr;
 
 static bool _reach_color(unsigned int * v, unsigned int target, int step_size){
 	if(*v == target){
@@ -60,7 +52,6 @@ static bool _animate_solid(const led_color_t * prev, led_color_t * out, void * u
 static bool _animate_trippy(const led_color_t * prev, led_color_t * out, void * user_context, unsigned int counter){
 	int i = 0;
 	static int scaler = 100;
-	lock();
 	for(i = 0; i < NUM_LED; i++){
 		unsigned int r0,r1,g0,g1,b0,b1;
 		led_to_rgb(&prev[i], &r0, &g0, &b0);
@@ -80,11 +71,9 @@ static bool _animate_trippy(const led_color_t * prev, led_color_t * out, void * 
 				g0 * ((unsigned int)(scaler)) / 100,
 				b0 * ((unsigned int)(scaler)) / 100);
 	}
-	unlock();
 	return true;
 }
 static bool _animate_progress(const led_color_t * prev, led_color_t * out, void * user_context, unsigned int counter){
-	lock();
 	int prog = self.progress_bar_percent * NUM_LED;
 	int filled = prog / 100;
 	int left = ((prog % 100)*254)>>8;
@@ -101,12 +90,9 @@ static bool _animate_progress(const led_color_t * prev, led_color_t * out, void 
 				 ((g * left)>>8)&0xff,
 				 ((b * left)>>8)&0xff);
 	}
-	unlock();
 	return true;
 }
 static bool _animate_factory_test_pattern(const led_color_t * prev, led_color_t * out, void * user_context, unsigned int counter){
-	lock();
-
 	int i;
 	for(i = 0; i < NUM_LED; i++){
 		if( ( (i+counter) % 3 ) == 0 ) {
@@ -115,7 +101,6 @@ static bool _animate_factory_test_pattern(const led_color_t * prev, led_color_t 
 			out[i] = led_from_rgb(0,0,0);
 		}
 	}
-	unlock();
 	return true;
 }
 static led_color_t wheel_color(int WheelPos, led_color_t color) {
@@ -168,7 +153,7 @@ static bool _animate_wheel(const led_color_t * prev, led_color_t * out, void * u
  */
 
 void init_led_animation() {
-	self._sem = xSemaphoreCreateRecursiveMutex();
+	//self._sem = xSemaphoreCreateRecursiveMutex();
 }
 
 int play_led_trippy(uint8_t trippy_base[3], uint8_t trippy_range[3], unsigned int timeout){
@@ -180,17 +165,24 @@ int play_led_trippy(uint8_t trippy_base[3], uint8_t trippy_range[3], unsigned in
 		.initial_state = {0},
 		.cycle_time = 15,
 	};
-	memcpy(self.trippy_base, trippy_base, 3);
-	memcpy(self.trippy_range, trippy_range, 3);
 
 	for(i = 0; i < NUM_LED; i++){
-		self.colors[i] = led_from_rgb(
+		anim.initial_state[i] = led_from_rgb(
 				_new_random_color(trippy_range[0],trippy_base[0]),
 				_new_random_color(trippy_range[1],trippy_base[1]),
 				_new_random_color(trippy_range[2],trippy_base[2]));
-		anim.initial_state[i] = self.colors[i];
 	}
 	ret = led_transition_custom_animation(&anim);
+	if( ret > 0 ) {
+		xSemaphoreTake(led_smphr, portMAX_DELAY);
+		memcpy(self.trippy_base, trippy_base, 3);
+		memcpy(self.trippy_range, trippy_range, 3);
+
+		for(i = 0; i < NUM_LED; i++){
+			self.colors[i] = anim.initial_state[i];
+		}
+		xSemaphoreGive(led_smphr);
+	}
 	return ret;
 
 }
@@ -232,9 +224,13 @@ int play_led_progress_bar(int r, int g, int b, unsigned int options, unsigned in
 		.initial_state = {0},
 		.cycle_time = 20,
 	};
-	self.colors[0] = led_from_rgb(r, g, b);
-	self.progress_bar_percent = 0;
 	ret = led_transition_custom_animation(&anim);
+	if( ret > 0 ) {
+		xSemaphoreTake(led_smphr, portMAX_DELAY);
+		self.colors[0] = led_from_rgb(r, g, b);
+		self.progress_bar_percent = 0;
+		xSemaphoreGive(led_smphr);
+	}
 	return ret;
 }
 int factory_led_test_pattern(unsigned int timeout) {
@@ -268,13 +264,13 @@ int play_led_wheel(int a, int r, int g, int b, int repeat, int delay){
 	return ret;
 }
 void set_led_progress_bar(uint8_t percent){
-	lock();
+	xSemaphoreTake(led_smphr, portMAX_DELAY);
 	self.progress_bar_percent =  percent > 100?100:percent;
-	unlock();
+	xSemaphoreGive(led_smphr);
 }
 
 void stop_led_animation(unsigned int delay){
-	play_led_animation_stop();
+	ANIMATE_BLOCKING(play_led_animation_stop(),delay);
 }
 
 int Cmd_led_animate(int argc, char *argv[]){
