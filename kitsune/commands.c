@@ -1918,7 +1918,7 @@ PillTestThread(void * ctx){
 						//here we wait for coutndown
 					}else{
 						LOGF("Deactivate Magnet\r\n");
-						pill_fsm.to = 1200;
+						pill_fsm.to = 1500;
 						pill_fsm.state = WAITING_FOR_END;
 					}
 					break;
