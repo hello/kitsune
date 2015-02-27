@@ -136,7 +136,7 @@ int get_dust_internal(unsigned int samples) {
 	while (uiIndex < samples) {
 		if (ADCFIFOLvlGet(ADC_BASE, uiChannel)) {
 			ulSample = (ADCFIFORead(ADC_BASE, uiChannel) & 0x3FFC ) >> 2;
-			if (led_ready()) {
+			if ( led_wait_for_idle(0) ) {
 				if (ulSample > max) {
 					max = ulSample;
 				}
