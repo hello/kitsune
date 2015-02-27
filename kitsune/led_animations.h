@@ -34,8 +34,8 @@ void set_led_progress_bar(uint8_t percent);
 		if(led_is_idle() || ret != led_get_animation_id()){\
 			break;\
 		}else{\
-			to--;\
-			vTaskDelay(1);\
+			to-=10;\
+			vTaskDelay(10);\
 		}\
 	}\
 }while(0)

@@ -174,14 +174,14 @@ int play_led_trippy(uint8_t trippy_base[3], uint8_t trippy_range[3], unsigned in
 	}
 	ret = led_transition_custom_animation(&anim);
 	if( ret > 0 ) {
-		xSemaphoreTake(led_smphr, portMAX_DELAY);
+		xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
 		memcpy(self.trippy_base, trippy_base, 3);
 		memcpy(self.trippy_range, trippy_range, 3);
 
 		for(i = 0; i < NUM_LED; i++){
 			self.colors[i] = anim.initial_state[i];
 		}
-		xSemaphoreGive(led_smphr);
+		xSemaphoreGiveRecursive(led_smphr);
 	}
 	return ret;
 
@@ -226,10 +226,10 @@ int play_led_progress_bar(int r, int g, int b, unsigned int options, unsigned in
 	};
 	ret = led_transition_custom_animation(&anim);
 	if( ret > 0 ) {
-		xSemaphoreTake(led_smphr, portMAX_DELAY);
+		xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
 		self.colors[0] = led_from_rgb(r, g, b);
 		self.progress_bar_percent = 0;
-		xSemaphoreGive(led_smphr);
+		xSemaphoreGiveRecursive(led_smphr);
 	}
 	return ret;
 }
@@ -264,9 +264,9 @@ int play_led_wheel(int a, int r, int g, int b, int repeat, int delay){
 	return ret;
 }
 void set_led_progress_bar(uint8_t percent){
-	xSemaphoreTake(led_smphr, portMAX_DELAY);
+	xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
 	self.progress_bar_percent =  percent > 100?100:percent;
-	xSemaphoreGive(led_smphr);
+	xSemaphoreGiveRecursive(led_smphr);
 }
 
 void stop_led_animation(unsigned int delay){
