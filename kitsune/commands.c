@@ -540,14 +540,8 @@ int set_test_alarm(int argc, char *argv[]) {
 	return 0;
 }
 
-//multiple threads can access this but they are structure to guarantee they do so at different times
-static volatile bool alarm_started_trippy = false;
-
 static void thread_alarm_on_finished(void * context) {
-	if( alarm_started_trippy ) {
-		stop_led_animation(10);
-		alarm_started_trippy = false;
-	}
+	stop_led_animation(10);
 }
 
 static bool _is_file_exists(char* path)
@@ -775,10 +769,7 @@ static void _show_led_status()
 
 static void _on_wave(){
 	if(	cancel_alarm() ) {
-		if( alarm_started_trippy ) {
-			stop_led_animation(10);
-			alarm_started_trippy = false;
-		}
+		stop_led_animation(10);
 	} else {
 		_show_led_status();
 	}

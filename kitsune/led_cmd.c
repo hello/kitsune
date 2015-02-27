@@ -45,6 +45,7 @@ static int animation_id;
 static unsigned int animation_counter;
 
 static user_animation_t user_animation;
+static user_animation_t prev_user_animation;
 
 
 static int clamp_rgb(int v, int min, int max){
@@ -338,6 +339,10 @@ void led_task( void * params ) {
 			xEventGroupClearBits(led_events, 0xffffff );
 			xEventGroupSetBits(led_events, LED_IDLE_BIT );
 			_reset_user_animation(&user_animation);
+			//if the last one wasn't a stop and was something different from the current one...
+			if( prev_user_animation.priority != 0 && prev_user_animation.handler != user_animation.handler ) {
+				led_transition_custom_animation(&prev_user_animation);
+			}
 		}
 		if(evnt & LED_CUSTOM_TRANSITION){
 			led_color_t colors[NUM_LED + 1];
@@ -485,6 +490,7 @@ int led_transition_custom_animation(const user_animation_t * user){
 	}else{
 		xSemaphoreTake(led_smphr, portMAX_DELAY);
 		if(user->priority <= user_animation.priority){
+			prev_user_animation = user_animation;
 			user_animation = *user;
 			ret = ++animation_id;
 			animation_counter = 0;
