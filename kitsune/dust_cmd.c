@@ -96,7 +96,7 @@ int get_dust_internal(unsigned int samples) {
 // TIMERA2 (TIMER B) (red led on launchpad) GPIO 9 --> PWM_5
 //
 	SetupTimerPWMMode(TIMERA2_BASE, TIMER_B,
-			(TIMER_CFG_SPLIT_PAIR | TIMER_CFG_B_PWM), 0);
+			(TIMER_CFG_SPLIT_PAIR | TIMER_CFG_B_PWM), 1);
 
 	MAP_TimerPrescaleSet(TIMERA2_BASE, TIMER_B, 11); //prescale to 10ms
 
