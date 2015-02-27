@@ -205,7 +205,7 @@ int play_led_animation_solid(int a, int r, int g, int b, int ramp_down_step){
 	user_animation_t anim = (user_animation_t){
 			.handler = _animate_solid,
 			.context = &down_step,
-			.priority = 2,
+			.priority = 1,
 			.initial_state = {0},
 			.cycle_time = 33,
 	};

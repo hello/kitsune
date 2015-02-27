@@ -1642,7 +1642,7 @@ void vUARTTask(void *pvParameters) {
 		LOGI("Failed to create the led_events.\n");
 	}
 	xTaskCreate(led_task, "ledTask", 700 / 4, NULL, 4, NULL); //todo reduce stack - jpf 512 not large enough due to large int arrays in led_task
-	xTaskCreate(led_idle_task, "led_idle_task", 256 / 4, NULL, 4, NULL); //todo reduce stack - jpf 512 not large enough due to large int arrays in led_task
+	//xTaskCreate(led_idle_task, "led_idle_task", 256 / 4, NULL, 4, NULL); //todo reduce stack - jpf 512 not large enough due to large int arrays in led_task
 
 	//switch the uart lines to gpios, drive tx low and see if rx goes low as well
     // Configure PIN_57 for GPIOInput

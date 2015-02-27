@@ -675,7 +675,6 @@ void ble_proto_led_flash(int a, int r, int g, int b, int delay)
 
 	//play_led_animation_stop();
 	ANIMATE_BLOCKING(play_led_animation_solid(a,r,g,b,1),2000);
-	ANIMATE_BLOCKING(play_led_animation_solid(a,r,g,b,1),2000);
 }
 
 void ble_proto_led_fade_in_trippy(){
