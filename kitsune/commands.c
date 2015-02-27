@@ -1854,7 +1854,7 @@ void Cmd_pill_test_register_shake(const char * id){
 				&& 0 == strcmp(pill_fsm.uut, id)){
 			if(pill_fsm.bat == 0){
 				LOGF("Fail Retest No HB\r\n");
-			}else if(pill_fsm.uptime < 900){
+			}else if(pill_fsm.uptime < 1800){
 				LOGF("Fail Uptime: %d\r\n", pill_fsm.uptime);
 			}else if(pill_fsm.bat >= 120){
 				LOGF("Fail Retest Error: %d\r\n", pill_fsm.bat);
