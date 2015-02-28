@@ -145,6 +145,8 @@ int get_dust_internal(unsigned int samples) {
 				}
 				//LOGI("%d\n", ulSample);
 				++uiIndex;
+			} else {
+				vTaskDelay(200);
 			}
 		}
 	}
