@@ -1861,7 +1861,7 @@ void Cmd_pill_test_register_shake(const char * id){
 			}else if(pill_fsm.bat >= 97){
 				LOGF("Pass %d\r\n", pill_fsm.bat);
 			}else{
-				LOGF("Fail Low Bat: %d\r\n", pill_fsm.bat);
+				LOGF("Fail Low Bat: %d %d\r\n", pill_fsm.bat, pill_fsm.uptime);
 			}
 
 			pill_fsm_reset();
