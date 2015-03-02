@@ -269,7 +269,7 @@ void DMAPingPongCompleteAppCB_opt()
                 {
                     g_uiPlayWaterMark = 0;
                     guiDMAEmptyCount++;
-                    LOGI("Buffer Empty %d\n\r",guiDMAEmptyCount );
+                   // LOGI("Buffer Empty %d\n\r",guiDMAEmptyCount );
                 }
                 guiDMATransferCountRx = 0;
                 iCount3++;
@@ -298,7 +298,7 @@ void DMAPingPongCompleteAppCB_opt()
                     {
                       g_uiPlayWaterMark = 0;
                       guiDMAEmptyCount++;
-                      LOGI("Buffer Empty %d\n\r",guiDMAEmptyCount );
+                     // LOGI("Buffer Empty %d\n\r",guiDMAEmptyCount );
                     }
                     guiDMATransferCountRx = 0;
                 }

@@ -18,17 +18,17 @@
 
 /* multiples GESTURE FSP, minimal frames require for the hold gesture */
 #define GESTURE_HOLD_MULTIPLIER (1)
-
+typedef enum {
+	GFSM_IDLE = 0,
+	GFSM_IDLE_FORREALS,
+	GFSM_LEVEL,
+	GFSM_HOLD,
+	GFSM_SLIDE,
+} fsm_state;
 
 static struct{
 	struct{
-		enum fsm_state{
-			GFSM_IDLE = 0,
-			GFSM_IDLE_FORREALS,
-			GFSM_LEVEL,
-			GFSM_HOLD,
-			GFSM_SLIDE,
-		}state;
+		fsm_state state;
 
 		int exceed_thresh_count;
 		int prox_impluse;
@@ -47,7 +47,7 @@ static bool _hasHold(void){
 	return (self.fsm.exceed_thresh_count > GESTURE_FPS * GESTURE_HOLD_MULTIPLIER);
 }
 
-static void _transition_state(enum fsm_state s){
+static void _transition_state( fsm_state s){
 	self.fsm.exceed_thresh_count = 0;
 	self.fsm.state = s;
 }
@@ -115,6 +115,8 @@ static gesture _fsm(int in){
 				_transition_state(GFSM_IDLE);
 				LOGI("\r\n");
 			} else {
+				//noise?
+
 				_transition_state(GFSM_IDLE);
 			}
 		}
@@ -141,6 +143,7 @@ void gesture_init(){
 
 int disp_prox;
 gesture gesture_input(int prox){
+	fsm_state state = self.fsm.state;
 	if( disp_prox ) {
 		LOGI( "%d %d\t", prox, self.fsm.prox_impluse );
 	}
@@ -155,6 +158,11 @@ gesture gesture_input(int prox){
 		self.fsm.prox_impluse  = abs( prox );
 		//UARTprintf("%d ", self.fsm.prox_impluse);
 		result = _fsm(self.fsm.prox_impluse);
+
+		//reset the filter also on any 0 transition
+		if( state != GFSM_IDLE && self.fsm.state == GFSM_IDLE ) {
+			self.fsm.prox_slow = prox;
+		}
 	} else {
 		self.fsm.prox_slow = prox;
 	}

@@ -16,7 +16,7 @@ int Cmd_readproximity(int argc, char *argv[]);
 int get_codec_NAU(int vol);
 int close_codec_NAU();
 int get_codec_mic_NAU();
-
+void set_volume(int v);
 
 
 int get_temp();

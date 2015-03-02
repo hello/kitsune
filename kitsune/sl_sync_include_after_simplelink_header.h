@@ -24,12 +24,17 @@ extern "C" {
 	})
 #else
 
+#include "uartstdio.h"
+
 #define SL_SYNC(call) \
 	({ \
 	long sl_ret; \
+	/*UARTprintf("TRY %s %u\n", __FILE__, __LINE__);\*/\
 	sl_enter_critical_region(); \
+	/*UARTprintf("GOT %u\n" , __LINE__);\*/\
 	sl_ret = (call); \
 	sl_exit_critical_region(); \
+	/*UARTprintf("DONE %u\n", __LINE__);\*/\
 	sl_ret; \
 	})
 

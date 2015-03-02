@@ -28,6 +28,8 @@
 #include "hw_adc.h"
 #include "adc.h"
 
+#include "led_cmd.h"
+
 #define UART_PRINT               LOGI
 
 #define TIMER_INTERVAL_RELOAD   65535
@@ -90,7 +92,7 @@ void init_dust() {
 // TIMERA2 (TIMER B) (red led on launchpad) GPIO 9 --> PWM_5
 //
 	SetupTimerPWMMode(TIMERA2_BASE, TIMER_B,
-			(TIMER_CFG_SPLIT_PAIR | TIMER_CFG_B_PWM), 0);
+			(TIMER_CFG_SPLIT_PAIR | TIMER_CFG_B_PWM), 1);
 
 	MAP_TimerPrescaleSet(TIMERA2_BASE, TIMER_B, 11); //prescale to 10ms
 
@@ -132,19 +134,46 @@ int get_dust_internal(unsigned int samples) {
 //
 // Read BUFFER_SZ ADC samples
 //
+#define DEBUG_DUST 0
+
+#if DEBUG_DUST
+	unsigned short * smplbuf = (unsigned short*)pvPortMalloc(samples*sizeof(short));
+#endif
+
 	while (uiIndex < samples) {
 		if (ADCFIFOLvlGet(ADC_BASE, uiChannel)) {
-			++uiIndex;
 			ulSample = (ADCFIFORead(ADC_BASE, uiChannel) & 0x3FFC ) >> 2;
-			if (ulSample > max) {
-				max = ulSample;
+#if DEBUG_DUST
+			if( smplbuf ){
+				smplbuf[uiIndex] = ulSample;
 			}
-			if (ulSample < min) {
-				min = ulSample;
+#endif
+
+			if (led_is_idle(portMAX_DELAY)) {
+				++uiIndex;
+				if (ulSample > max) {
+					max = ulSample;
+				}
+				if (ulSample < min) {
+					min = ulSample;
+				}
+				//LOGI("%d\n", ulSample);
 			}
-			//LOGI("%d\n", ulSample);
 		}
 	}
+#if DEBUG_DUST
+	if( smplbuf ){
+		int i;
+		LOGF("0,%u\n", xTaskGetTickCount() );
+		for(i=0;i<samples;++i) {
+			LOGF("%u,\n", smplbuf[i]);
+			if(i%100) {
+				vTaskDelay(1);
+			}
+		}
+		vPortFree(smplbuf);
+	}
+#endif
 
 	uiIndex = 0;
 	return max;

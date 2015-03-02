@@ -47,7 +47,6 @@ int sl_mode = ROLE_INVALID;
 #include "proto_utils.h"
 #include "ustdlib.h"
 
-#include "led_action.h"
 #include "pill_settings.h"
 
 void mcu_reset()
@@ -304,8 +303,14 @@ int Cmd_antsel(int argc, char *argv[]) {
 int Cmd_country(int argc, char *argv[]) {
 	LOGF("country <code, either US, JP, or EU>\n");
 	if (argc != 2) {
-		return -1;
+	    _u16 len = 4;
+	    _u16  config_opt = WLAN_GENERAL_PARAM_OPT_COUNTRY_CODE;
+	    _u8 cc[4];
+	    sl_WlanGet(SL_WLAN_CFG_GENERAL_PARAM_ID, &config_opt, &len, (_u8* )cc);
+		LOGF("Country code %s\n",cc);
+		return 0;
 	}
+
 	sl_WlanSet(SL_WLAN_CFG_GENERAL_PARAM_ID,
 			WLAN_GENERAL_PARAM_OPT_COUNTRY_CODE, 2, (uint8_t*)argv[1]);
 
@@ -1055,13 +1060,10 @@ int start_connection() {
 
 #if !LOCAL_TEST
     if (ipaddr == 0) {
-        if (!(rv = sl_gethostbynameNoneThreadSafe(DATA_SERVER, strlen(DATA_SERVER), &ipaddr,
-        SL_AF_INET))) {
-            /*    LOGI(
-             "Get Host IP succeeded.\n\rHost: %s IP: %d.%d.%d.%d \n\r\n\r",
-             DATA_SERVER, SL_IPV4_BYTE(ipaddr, 3), SL_IPV4_BYTE(ipaddr, 2),
-             SL_IPV4_BYTE(ipaddr, 1), SL_IPV4_BYTE(ipaddr, 0));
-             */
+        if (!(rv = sl_gethostbynameNoneThreadSafe(DATA_SERVER, strlen(DATA_SERVER), &ipaddr, SL_AF_INET))) {
+             LOGI("Get Host IP succeeded.\n\rHost: %s IP: %d.%d.%d.%d \n\r\n\r",
+				   DATA_SERVER, SL_IPV4_BYTE(ipaddr, 3), SL_IPV4_BYTE(ipaddr, 2),
+				   SL_IPV4_BYTE(ipaddr, 1), SL_IPV4_BYTE(ipaddr, 0));
         } else {
             LOGI("failed to resolve ntp addr rv %d\n");
             return -1;
@@ -1097,6 +1099,7 @@ int start_connection() {
             LOGI("Could not connect %d\n\r\n\r", rv);
             return stop_connection();    // could not send SNTP request
         }
+        ipaddr = 0;
     }
     return 0;
 }
@@ -1703,7 +1706,6 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
     }
 
     if (response_protobuf->has_led_action) {
-    	led_action(response_protobuf);
     }
 
     if(response_protobuf->pill_settings_count > 0) {
@@ -2526,7 +2528,8 @@ static int send_buffer( volatile int* sock, const char * str, int len ) {
 			return -1;
 		}
 		if( sz == EWOULDBLOCK ) {
-			vTaskDelay(100);
+			//vTaskDelay(100);
+			return 0; //can't stop will interrupt calling thread!
 		}
 		sent += sz;
 	}

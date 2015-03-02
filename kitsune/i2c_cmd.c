@@ -437,7 +437,17 @@ int Cmd_readproximity(int argc, char *argv[]) {
 	}
 	return SUCCESS;
 }
+extern xSemaphoreHandle i2c_smphr;
+void set_volume(int v) {
+	unsigned char cmd_init[2];
 
+	cmd_init[0] = 0x6c;
+	cmd_init[1] = v;
+
+	//xSemaphoreTake(i2c_smphr, 0);
+	I2C_IF_Write(Codec_addr, cmd_init, 2, 1);
+	//xSemaphoreGive(i2c_smphr);
+}
 int get_codec_mic_NAU(int argc, char *argv[]) {
 	unsigned char cmd_init[2];
 	int i;

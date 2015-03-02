@@ -90,7 +90,6 @@
 #include "proto_utils.h"
 #include "ustdlib.h"
 
-#include "led_action.h"
 #include "pill_settings.h"
 
 
@@ -541,14 +540,8 @@ int set_test_alarm(int argc, char *argv[]) {
 	return 0;
 }
 
-//multiple threads can access this but they are structure to guarantee they do so at different times
-static volatile bool alarm_started_trippy = false;
-
 static void thread_alarm_on_finished(void * context) {
-	if( alarm_started_trippy ) {
-		stop_led_animation(10);
-		alarm_started_trippy = false;
-	}
+	stop_led_animation(10);
 }
 
 static bool _is_file_exists(char* path)
@@ -567,7 +560,6 @@ void thread_alarm(void * unused) {
 	while (1) {
 		wait_for_time(WAIT_FOREVER);
 
-		bool play_lights = false;
 		portTickType now = xTaskGetTickCount();
 		uint64_t time = get_time();
 		// The alarm thread should go ahead even without a valid time,
@@ -638,7 +630,12 @@ void thread_alarm(void * unused) {
 					LOGI("ALARM RINGING RING RING RING\n");
 					alarm.has_start_time = 0;
 					alarm.start_time = 0;
-					play_lights = alarm_is_ringing = true;
+					alarm_is_ringing = true;
+
+					uint8_t trippy_base[3] = { 0, 0, 0 };
+					uint8_t trippy_range[3] = { 254, 254, 254 };
+					ANIMATE_BLOCKING(play_led_animation_stop(),500);
+					play_led_trippy(trippy_base, trippy_range,0);
 				}
 			}
 			else {
@@ -646,14 +643,6 @@ void thread_alarm(void * unused) {
 			}
 			
 			xSemaphoreGive(alarm_smphr);
-
-			if ( led_wait_for_idle(5000) && play_lights) {
-				uint8_t trippy_base[3] = { 0, 0, 0 };
-				uint8_t trippy_range[3] = { 254, 254, 254 };
-				alarm_started_trippy = play_lights;
-				play_led_trippy(trippy_base, trippy_range, portMAX_DELAY);
-			}
-			play_lights = false;
 		}
 		vTaskDelayUntil(&now, 1000 );
 	}
@@ -669,6 +658,9 @@ void thread_dust(void * unused)  {
     #define maxval( a, b ) a>b ? a : b
 	dust_min = 5000;
 	dust_m2 = dust_mean = dust_cnt = dust_log_sum = dust_max = 0;
+#if DEBUG_DUST
+	int dust_variability=0;
+#endif
 
 	while (1) {
 		if (xSemaphoreTake(dust_smphr, portMAX_DELAY)) {
@@ -690,6 +682,14 @@ void thread_dust(void * unused)  {
 				dust_min = dust;
 			}
 
+#if DEBUG_DUST
+			if(dust_cnt > 1)
+			{
+				dust_variability = dust_m2 / (dust_cnt - 1);  // devide by zero again, add if
+			}
+			LOGF("%u,%u,%u,%u,%u,%u\n", xTaskGetTickCount(), dust, dust_mean, dust_max, dust_min, dust_variability );
+#endif
+
 			xSemaphoreGive(dust_smphr);
 		}
 
@@ -700,7 +700,6 @@ void thread_dust(void * unused)  {
 
 static int light_m2,light_mean, light_cnt,light_log_sum,light_sf,light;
 static xSemaphoreHandle light_smphr;
-int led_animation_not_in_progress;
 xSemaphoreHandle i2c_smphr;
 
 uint8_t get_alpha_from_light()
@@ -733,6 +732,7 @@ static int _is_light_off(int current_light)
 		{
 			//LOGI("Light off\n");
 			ret = 1;
+			light_mean = current_light; //so the led alpha will be at the lights off level
 		}
 	}
 
@@ -748,29 +748,28 @@ static void _show_led_status()
 	uint8_t alpha = get_alpha_from_light();
 
 	if(wifi_status_get(UPLOADING)) {
+		//TODO: wtf is this?
 		uint8_t rgb[3] = { LED_MAX };
 		led_get_user_color(&rgb[0], &rgb[1], &rgb[2]);
-		led_set_color(alpha, rgb[0], rgb[1], rgb[2], 1, 1, 18, 0);
+		//led_set_color(alpha, rgb[0], rgb[1], rgb[2], 1, 1, 18, 0);
+		play_led_animation_solid(alpha, rgb[0], rgb[1], rgb[2],1, 18);
 	}
 	else if(wifi_status_get(HAS_IP)) {
-		led_set_color(alpha, LED_MAX, 0, 0, 1, 1, 18, 1); //blue
+		play_led_wheel(alpha, LED_MAX,0,0,2,18);
 	}
 	else if(wifi_status_get(CONNECTING)) {
-		led_set_color(alpha, LED_MAX,LED_MAX,0, 1, 1, 18, 1); //yellow
+		play_led_wheel(alpha, LED_MAX,LED_MAX,0,2,18);
 	}
 	else if(wifi_status_get(SCANNING)) {
-		led_set_color(alpha, LED_MAX,0,0, 1, 1, 18, 1 ); //red
+		play_led_wheel(alpha, LED_MAX,0,0,1,18);
 	} else {
-		led_set_color(alpha, LED_MAX, LED_MAX, LED_MAX, 1, 1, 18, 1 ); //white
+		play_led_wheel(alpha, LED_MAX,LED_MAX,LED_MAX,2,18);
 	}
 }
 
 static void _on_wave(){
 	if(	cancel_alarm() ) {
-		if( alarm_started_trippy ) {
-			stop_led_animation(10);
-			alarm_started_trippy = false;
-		}
+		stop_led_animation(10);
 	} else {
 		_show_led_status();
 	}
@@ -788,14 +787,13 @@ static void _on_gesture_out()
 
 void thread_fast_i2c_poll(void * unused)  {
 	gesture_init();
-	led_animation_not_in_progress = 1;
 	while (1) {
 		portTickType now = xTaskGetTickCount();
 		int prox=0;
 
 		if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
 			vTaskDelay(2);
-			light = led_animation_not_in_progress ? get_light() : light;
+			light = led_is_idle(0) ? get_light() : light;
 			vTaskDelay(2); //this is important! If we don't do it, then the prox will stretch the clock!
 
 			// For the black morpheus, we can detect 6mm distance max
@@ -835,7 +833,7 @@ void thread_fast_i2c_poll(void * unused)  {
 				//LOGI( "%d %d %d %d\n", delta, light_mean, light_m2, light_cnt);
 				xSemaphoreGive(light_smphr);
 
-				if(light_cnt % 5 == 0 && led_animation_not_in_progress) {
+				if(light_cnt % 5 == 0 && led_is_idle(0) ) {
 					if(_is_light_off(light)) {
 						_show_led_status();
 					}
@@ -1045,7 +1043,7 @@ void sample_sensor_data(periodic_data* data)
 		{
 			vTaskDelay(2);
 
-			int humid = led_animation_not_in_progress ? get_humid() : _last_humid;
+			int humid = led_is_idle(0) ? get_humid() : _last_humid;
 			_last_humid = humid;
 
 			if(humid != -1)
@@ -1056,7 +1054,7 @@ void sample_sensor_data(periodic_data* data)
 
 			vTaskDelay(2);
 
-			int temp = led_animation_not_in_progress ? get_temp() : _last_temp;
+			int temp = led_is_idle(0) ? get_temp() : _last_temp;
 			_last_temp = temp;
 
 			if(temp != -1)
@@ -1495,7 +1493,7 @@ void launch_tasks() {
 	UARTprintf("*");
 #if !ONLY_MID
 	UARTprintf("*");
-	xTaskCreate(thread_dust, "dustTask", 256 / 4, NULL, 3, NULL);
+	xTaskCreate(thread_dust, "dustTask", 1024 / 4, NULL, 3, NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_sensor_poll, "pollTask", 1024 / 4, NULL, 3, NULL);
 	UARTprintf("*");
@@ -1508,7 +1506,6 @@ void launch_tasks() {
 int Cmd_boot(int argc, char *argv[]) {
 	if( !booted ) {
 		launch_tasks();
-		led_fadeout(18);
 	}
 	return 0;
 }
@@ -1580,7 +1577,6 @@ tCmdLineEntry g_sCmdTable[] = {
 
 		{ "antsel", Cmd_antsel, "" }, //select antenna
 		{ "led", Cmd_led, "" },
-		{ "action", Cmd_led_action, "" },
 		{ "clrled", Cmd_led_clr, "" },
 #ifdef BUILD_RADIO_TEST
 		{ "rdiostats", Cmd_RadioGetStats, "" },
@@ -1641,13 +1637,12 @@ long nwp_reset();
 void vUARTTask(void *pvParameters) {
 	char cCmdBuf[512];
 	bool on_charger = false;
-	init_ble_led();
 	wifi_status_init();
 	if(led_init() != 0){
 		LOGI("Failed to create the led_events.\n");
 	}
 	xTaskCreate(led_task, "ledTask", 700 / 4, NULL, 4, NULL); //todo reduce stack - jpf 512 not large enough due to large int arrays in led_task
-	xTaskCreate(led_idle_task, "led_idle_task", 256 / 4, NULL, 4, NULL); //todo reduce stack - jpf 512 not large enough due to large int arrays in led_task
+	//xTaskCreate(led_idle_task, "led_idle_task", 256 / 4, NULL, 4, NULL); //todo reduce stack - jpf 512 not large enough due to large int arrays in led_task
 
 	//switch the uart lines to gpios, drive tx low and see if rx goes low as well
     // Configure PIN_57 for GPIOInput
@@ -1754,22 +1749,22 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("*");
 	init_download_task( 1024 / 4 );
 	networktask_init(5 * 1024 / 4);
-	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  512 / 4, NULL, 4, NULL);
+	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 4, NULL);
 
 	init_dust();
 	if( on_charger ) {
 		launch_tasks();
 	} else {
-		led_set_color(50, LED_MAX, LED_MAX,0, 1, 0, 10, 1 ); //spin to alert user!
+		play_led_wheel( 50, LED_MAX, LED_MAX, 0,0,10);
 	}
+	ble_proto_init();
 	xTaskCreate(top_board_task, "top_board_task", 2048 / 4, NULL, 2, NULL);
 	xTaskCreate(thread_spi, "spiTask", 4*1024 / 4, NULL, 4, NULL); //this one doesn't look like much, but has to parse all the pb from bluetooth
 	UARTprintf("*");
 	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 1, NULL);
 	UARTprintf("*");
 
-
-	UARTprintf("\n\nFreeRTOS %s, %x, %s %x%x%x%x%x%x\n",
+	UARTprintf("\n\nFreeRTOS %s, %x, %s %x:%x:%x:%x:%x:%x\n",
 	tskKERNEL_VERSION_NUMBER, KIT_VER, MORPH_NAME, mac[0], mac[1], mac[2],
 			mac[3], mac[4], mac[5]);
 	UARTprintf("> ");

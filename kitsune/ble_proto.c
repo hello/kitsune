@@ -50,13 +50,13 @@ static struct {
 	uint8_t argb[4];
 	int delay;
 	uint32_t last_hold_time;
-	led_mode_t led_status;
     ble_mode_t ble_status;
 } _self;
 
 static int _wifi_read_index;
 static int _scanned_wifi_count = 0;
 static Sl_WlanNetworkEntry_t _wifi_endpoints[MAX_WIFI_EP_PER_SCAN];
+static xSemaphoreHandle _wifi_smphr;
 
 static void _ble_reply_command_with_type(MorpheusCommand_CommandType type)
 {
@@ -159,23 +159,26 @@ static void dedupe_ssid( Sl_WlanNetworkEntry_t * ep, int * c){
 	}
 }
 
-static int _scan_wifi()
+void ble_proto_init() {
+	vSemaphoreCreateBinary(_wifi_smphr);
+}
+
+static void _scan_wifi( void * params )
 {
 	Sl_WlanNetworkEntry_t * endpoints_ifa;
 	Sl_WlanNetworkEntry_t * endpoints_pcb;
 	int scan_cnt[ANTENNA_CNT+1] = {0};
 
-	//only scan if we've been reset, this lets us cache the scan result for later
-	if( _scanned_wifi_count != 0 ) {
-		return _scanned_wifi_count;
-	}
+	xSemaphoreTake(_wifi_smphr, portMAX_DELAY);
 	memset(_wifi_endpoints, 0, sizeof(_wifi_endpoints));
 	_scanned_wifi_count = 0;
 	_wifi_read_index = 0;
-
 	wifi_status_set(SCANNING, false);  // Set the scanning flag
 
+	LOGI( "SCAN IFA\n");
 	scan_cnt[IFA_ANT] = scan_with_retry( &endpoints_ifa, IFA_ANT );
+
+	LOGI( "SCAN PCB\n");
 	scan_cnt[PCB_ANT] = scan_with_retry( &endpoints_pcb, PCB_ANT );
 
 	int i,p;
@@ -262,11 +265,28 @@ static int _scan_wifi()
 	wifi_status_set(SCANNING, true);  // Remove the sanning flag
 	vPortFree(endpoints_pcb);
 	vPortFree(endpoints_ifa);
-	return _scanned_wifi_count;
+
+	xSemaphoreGive(_wifi_smphr);
+
+	vTaskDelete(NULL);
+}
+
+static void _scan_wifi_mostly_nonblocking() {
+	//need to get the semaphore so we block in case there's already a scan we don't want to spawn many threads and possibly run short of memory.
+	xSemaphoreTake(_wifi_smphr, portMAX_DELAY);
+	//only scan if we've been reset, this lets us cache the scan result for later
+	if( _scanned_wifi_count != 0 ) {
+		xSemaphoreGive(_wifi_smphr);
+		return;
+	}
+	xSemaphoreGive(_wifi_smphr);
+
+	xTaskCreate( _scan_wifi, "wifi_scan", 512 / 4, NULL, 1, NULL );
 }
 
 static void _reply_next_wifi_ap()
 {
+	xSemaphoreTake(_wifi_smphr, portMAX_DELAY);
 	//reset so the next scan command will do a scan
 	if(_wifi_read_index == _scanned_wifi_count || _wifi_read_index == MAX_WIFI_EP_PER_SCAN) {
 		_wifi_read_index = 0;
@@ -276,6 +296,8 @@ static void _reply_next_wifi_ap()
 	MorpheusCommand reply_command = {0};
 	reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_NEXT_WIFI_AP;
 	reply_command.wifi_scan_result.arg = &_wifi_endpoints[_wifi_read_index++];
+	xSemaphoreGive(_wifi_smphr);
+
 	ble_send_protobuf(&reply_command);
 }
 
@@ -284,16 +306,20 @@ static void _reply_wifi_scan_result()
     int i = 0;
     MorpheusCommand reply_command = {0};
 
+	xSemaphoreTake(_wifi_smphr, portMAX_DELAY);
     for(i = 0; i < _scanned_wifi_count; i++)
     {
 		reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_START_WIFISCAN;
 		reply_command.wifi_scan_result.arg = &_wifi_endpoints[i];
 		ble_send_protobuf(&reply_command);
+		xSemaphoreGive(_wifi_smphr); //don't hold a semaphore across a delay, it's bad manners
         vTaskDelay(250);  // This number must be long enough so the BLE can get the data transmit to phone
         memset(&reply_command, 0, sizeof(reply_command));
+    	xSemaphoreTake(_wifi_smphr, portMAX_DELAY);
     }
 
 	_scanned_wifi_count = 0;
+	xSemaphoreGive(_wifi_smphr);
     reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_STOP_WIFISCAN;
 	ble_send_protobuf(&reply_command);
 	LOGI(">>>>>>Send WIFI scan results done<<<<<<\n");
@@ -308,6 +334,7 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type)
     uint8_t max_retry = 10;
     uint8_t retry_count = max_retry;
 
+	xSemaphoreTake(_wifi_smphr, portMAX_DELAY);
     for(i=0;i<MAX_WIFI_EP_PER_SCAN;++i) {
     	if( !strcmp( (char*)_wifi_endpoints[i].ssid, ssid ) ) {
     		antsel(_wifi_endpoints[i].reserved[0]);
@@ -315,6 +342,7 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type)
     		break;
     	}
     }
+	xSemaphoreGive(_wifi_smphr);
 
 	//play_led_progress_bar(0xFF, 128, 0, 128,portMAX_DELAY);
     while((connection_ret = connect_wifi(ssid, password, security_type)) == 0 && --retry_count)
@@ -615,16 +643,9 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 	return 0; // failure
 }
 
-#define IMG_STATUS_TESTING      0x12344321
-unsigned int boot_mode();
-void init_ble_led() {
-	_self.led_status = LED_OFF;
-}
 void ble_proto_led_init()
 {
-	if( boot_mode() != IMG_STATUS_TESTING ) {
-		led_set_color(0xFF, LED_MAX, LED_MAX, LED_MAX, 1, 1, 36, 0);
-	}
+	play_led_animation_solid(LED_MAX, LED_MAX, LED_MAX,LED_MAX,1, 33);
 }
 
 void ble_proto_led_busy_mode(uint8_t a, uint8_t r, uint8_t g, uint8_t b, int delay)
@@ -636,19 +657,8 @@ void ble_proto_led_busy_mode(uint8_t a, uint8_t r, uint8_t g, uint8_t b, int del
 	_self.argb[3] = b;
 	_self.delay = delay;
 
-	if(_self.led_status == LED_TRIPPY)
-	{
-		ble_proto_led_fade_out(0);
-	}
-
-	if(_self.led_status == LED_BUSY && _self.argb[0] == a && _self.argb[1] == r && _self.argb[2] == g && _self.argb[3] == g)
-	{
-		return;
-	}
-
-	_self.led_status = LED_BUSY;
-    led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 0, _self.delay, 1);
-	led_wait_for_idle(1000+led_delay(_self.delay));
+	ANIMATE_BLOCKING(play_led_animation_stop(), 500);
+	ANIMATE_BLOCKING(play_led_wheel(a,r,g,b,0,delay), 1000);
 }
 
 void ble_proto_led_flash(int a, int r, int g, int b, int delay)
@@ -665,69 +675,17 @@ void ble_proto_led_flash(int a, int r, int g, int b, int delay)
 	_self.argb[2] = g;
 	_self.argb[3] = b;
 	_self.delay = delay;
-	if(_self.led_status == LED_TRIPPY)
-	{
-		LOGI("FADE OUT\n");
-		ble_proto_led_fade_out(0);
-		_self.led_status = LED_BUSY;
 
-		LOGI("WAIT1 %d\n", led_wait_for_idle(2000));
-
-		led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 0);
-
-		LOGI("WAIT2 %d\n",led_wait_for_idle(led_delay(_self.delay) + 1000));
-
-		led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 0);
-
-		LOGI("WAIT3 %d\n",led_wait_for_idle(led_delay(_self.delay) + 1000));
-		_self.led_status = LED_OFF;
-		ble_proto_led_fade_in_trippy();
-	}else if(_self.led_status == LED_OFF){
-		_self.led_status = LED_BUSY;
-		led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 0);
-		led_wait_for_idle(led_delay(_self.delay) + 1000);
-		led_set_color(_self.argb[0], _self.argb[1], _self.argb[2], _self.argb[3], 1, 1, _self.delay, 0);
-		led_wait_for_idle(led_delay(_self.delay) + 1000);
-
-		_self.led_status = LED_OFF;
-	}
-
+	ANIMATE_BLOCKING(play_led_animation_solid(a,r,g,b,2,18), 2000);
 }
 
 void ble_proto_led_fade_in_trippy(){
 	uint8_t trippy_base[3] = {60, 25, 90};
-	switch(_self.led_status)
-	{
-	case LED_BUSY:
-    	led_fadeout(_self.delay);
-		play_led_trippy(trippy_base, trippy_base, portMAX_DELAY);
-
-		break;
-	case LED_TRIPPY:
-		break;
-	case LED_OFF:
-		play_led_trippy(trippy_base, trippy_base, portMAX_DELAY);
-		break;
-	}
-
-	_self.led_status = LED_TRIPPY;
+	play_led_trippy(trippy_base, trippy_base, portMAX_DELAY);
 }
 
 void ble_proto_led_fade_out(bool operation_result){
-	switch(_self.led_status)
-	{
-	case LED_BUSY:
-        led_fadeout(_self.delay);
-		break;
-	case LED_TRIPPY:
-		stop_led_animation(10);
-		led_wait_for_idle(led_delay(15) + 1000);  // The trippy delay is 15, 10 by default is not enough and will prevent the next rolling to present
-		break;
-	case LED_OFF:
-		break;
-	}
-
-	_self.led_status = LED_OFF;
+	ANIMATE_BLOCKING(play_led_animation_stop(),2000000000);
 }
 
 #include "top_board.h"
@@ -827,11 +785,10 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 			{
 				// Get morpheus device id request from Nordic
 				LOGI("GET DEVICE ID\n");
-				_self.led_status = LED_OFF;  // init led status
 				_ble_reply_command_with_type(MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_DEVICE_ID);
 
 				static bool played = false;
-				if( !played ) {
+				if( !played && booted) {
 					if(command->has_ble_bond_count)
 					{
 						LOGI("BOND COUNT %d\n", command->ble_bond_count);
@@ -887,8 +844,8 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 			ble_proto_led_fade_in_trippy();
             _self.ble_status = BLE_PAIRING;
             LOGI( "PAIRING MODE \n");
-            //we are pairing so it's likely we are beginning the onboarding. This will prescan the wifi.
-            _scan_wifi();
+            //wifi prescan, forked so we don't block the BLE and it just happens in the background
+            _scan_wifi_mostly_nonblocking();
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE:  // Just for testing
@@ -956,7 +913,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_START_WIFISCAN:
         {
             LOGI("WIFI Scan request\n");
-            _scan_wifi();
+            _scan_wifi_mostly_nonblocking();
             _reply_wifi_scan_result();
         }
         break;
@@ -969,7 +926,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 
 				if(color) {
 					ble_proto_led_flash(0xFF, argb[1], argb[2], argb[3], 10);
-				} else if(_self.led_status == LED_TRIPPY || pill_settings_pill_count() == 0) {
+				} else if(pill_settings_pill_count() == 0) {
 					ble_proto_led_flash(0xFF, 0x80, 0x00, 0x80, 10);
 				}
             }else{
@@ -999,7 +956,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
     		break;
     	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SCAN_WIFI:
     		LOGI("MorpheusCommand_CommandType_MORPHEUS_COMMAND_SCAN_WIFI\n");
-    		_scan_wifi();
+    		_scan_wifi_mostly_nonblocking();
     		_ble_reply_command_with_type(command->type);
     		break;
     	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_NEXT_WIFI_AP:
