@@ -175,7 +175,10 @@ static void _scan_wifi( void * params )
 	_wifi_read_index = 0;
 	wifi_status_set(SCANNING, false);  // Set the scanning flag
 
+	LOGI( "SCAN IFA\n");
 	scan_cnt[IFA_ANT] = scan_with_retry( &endpoints_ifa, IFA_ANT );
+
+	LOGI( "SCAN PCB\n");
 	scan_cnt[PCB_ANT] = scan_with_retry( &endpoints_pcb, PCB_ANT );
 
 	int i,p;
@@ -278,7 +281,7 @@ static void _scan_wifi_mostly_nonblocking() {
 	}
 	xSemaphoreGive(_wifi_smphr);
 
-	xTaskCreate( _scan_wifi, "wifi_scan", configMINIMAL_STACK_SIZE, NULL, 1, NULL );
+	xTaskCreate( _scan_wifi, "wifi_scan", 512 / 4, NULL, 1, NULL );
 }
 
 static void _reply_next_wifi_ap()
@@ -642,7 +645,7 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 
 void ble_proto_led_init()
 {
-	play_led_animation_solid(LED_MAX, LED_MAX, LED_MAX,LED_MAX,1);
+	play_led_animation_solid(LED_MAX, LED_MAX, LED_MAX,LED_MAX,1, 33);
 }
 
 void ble_proto_led_busy_mode(uint8_t a, uint8_t r, uint8_t g, uint8_t b, int delay)
@@ -655,7 +658,7 @@ void ble_proto_led_busy_mode(uint8_t a, uint8_t r, uint8_t g, uint8_t b, int del
 	_self.delay = delay;
 
 	ANIMATE_BLOCKING(play_led_animation_stop(), 500);
-	ANIMATE_BLOCKING(play_led_wheel(a,r,g,b,1,delay), 1000);
+	ANIMATE_BLOCKING(play_led_wheel(a,r,g,b,0,delay), 1000);
 }
 
 void ble_proto_led_flash(int a, int r, int g, int b, int delay)
@@ -673,8 +676,7 @@ void ble_proto_led_flash(int a, int r, int g, int b, int delay)
 	_self.argb[3] = b;
 	_self.delay = delay;
 
-	//play_led_animation_stop();
-	ANIMATE_BLOCKING(play_led_animation_solid(a,r,g,b,1),2000);
+	ANIMATE_BLOCKING(play_led_animation_solid(a,r,g,b,2,18), 2000);
 }
 
 void ble_proto_led_fade_in_trippy(){

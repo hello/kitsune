@@ -38,14 +38,40 @@ static bool _reach_color(unsigned int * v, unsigned int target, int step_size){
 static int _new_random_color(uint8_t range, uint8_t base){
 	return ((unsigned int)rand()) % range + base;
 }
+
+//#include "uartstdio.h"
+typedef struct {
+	led_color_t color;
+	int alpha;
+	int repeat;
+	int ctr;
+} _animate_solid_ctx;
 static bool _animate_solid(const led_color_t * prev, led_color_t * out, void * user_context, unsigned int counter){
-	ledcpy(out,prev, NUM_LED);
+	int i;
+	out->rgb = 0;
 	if(user_context){
-		int ramp = *((int*)user_context);
-		if(ramp){
-			//hack to fade out and ignore ramp down size
-			return false;
+		_animate_solid_ctx * ctx = ((_animate_solid_ctx *)user_context);
+		led_color_t color = led_from_brightness(&ctx->color, ctx->alpha);
+		if(ctx->ctr < 254) {
+			//UARTprintf("fi %d\n", ctx->ctr);
+			color = led_from_brightness(&ctx->color, ctx->ctr);
+		} else if(ctx->ctr < 508 ) {
+			//UARTprintf("fo %d\n", ctx->ctr);
+			color = led_from_brightness(&ctx->color, 508-ctx->ctr);
+		} else {
+			color.rgb = 0;
+			//UARTprintf("ovr %d %d\n", ctx->ctr, ctx->repeat);
+			ctx->ctr = 0;
+			if (--ctx->repeat <= 0) {
+				return false;
+			}
 		}
+
+		for(i = 0; i < NUM_LED; i++){
+			out[i] = color;
+		}
+		ctx->ctr += 6;
+		//UARTprintf("roll %d\n", ctx->ctr);
 	}
 	return true;
 }
@@ -163,7 +189,7 @@ int play_led_trippy(uint8_t trippy_base[3], uint8_t trippy_range[3], unsigned in
 		.context = NULL,
 		.priority = 1,
 		.initial_state = {0},
-		.cycle_time = 15,
+		.cycle_time = 30,
 	};
 
 	for(i = 0; i < NUM_LED; i++){
@@ -172,17 +198,17 @@ int play_led_trippy(uint8_t trippy_base[3], uint8_t trippy_range[3], unsigned in
 				_new_random_color(trippy_range[1],trippy_base[1]),
 				_new_random_color(trippy_range[2],trippy_base[2]));
 	}
+	xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
 	ret = led_transition_custom_animation(&anim);
 	if( ret > 0 ) {
-		xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
 		memcpy(self.trippy_base, trippy_base, 3);
 		memcpy(self.trippy_range, trippy_range, 3);
 
 		for(i = 0; i < NUM_LED; i++){
 			self.colors[i] = anim.initial_state[i];
 		}
-		xSemaphoreGiveRecursive(led_smphr);
 	}
+	xSemaphoreGiveRecursive(led_smphr);
 	return ret;
 
 }
@@ -198,20 +224,21 @@ int play_led_animation_stop(void){
 	ret = led_transition_custom_animation(&anim);
 	return ret;
 }
-int play_led_animation_solid(int a, int r, int g, int b, int ramp_down_step){
-	static int down_step;
+int play_led_animation_solid(int a, int r, int g, int b, int repeat, int delay){
+	static _animate_solid_ctx ctx;
 	int ret;
-	down_step = ramp_down_step;
+
+	ctx.color = led_from_rgb(r, g, b);
+	ctx.alpha = a;
+	ctx.ctr = 0;
+	ctx.repeat = repeat;
 	user_animation_t anim = (user_animation_t){
 			.handler = _animate_solid,
-			.context = &down_step,
+			.context = &ctx,
 			.priority = 1,
 			.initial_state = {0},
-			.cycle_time = 33,
+			.cycle_time = delay,
 	};
-	led_color_t color = led_from_rgb(r,g,b);
-	color = led_from_brightness( &color, a );
-	ledset(anim.initial_state, color, NUM_LED);
 	ret = led_transition_custom_animation(&anim);
 	return ret;
 }
@@ -224,13 +251,13 @@ int play_led_progress_bar(int r, int g, int b, unsigned int options, unsigned in
 		.initial_state = {0},
 		.cycle_time = 20,
 	};
+	xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
 	ret = led_transition_custom_animation(&anim);
 	if( ret > 0 ) {
-		xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
 		self.colors[0] = led_from_rgb(r, g, b);
 		self.progress_bar_percent = 0;
-		xSemaphoreGiveRecursive(led_smphr);
 	}
+	xSemaphoreGiveRecursive(led_smphr);
 	return ret;
 }
 int factory_led_test_pattern(unsigned int timeout) {
@@ -258,8 +285,8 @@ int play_led_wheel(int a, int r, int g, int b, int repeat, int delay){
 		.context = &ctx,
 		.priority = 2,
 		.initial_state = {0},
+		.cycle_time = delay,
 	};
-	anim.cycle_time = delay;
 	ret = led_transition_custom_animation(&anim);
 	return ret;
 }
@@ -293,9 +320,9 @@ int Cmd_led_animate(int argc, char *argv[]){
 				play_led_trippy( trippy_base, trippy_range, portMAX_DELAY );
 			}
 		}else if(strcmp(argv[1], "wheel") == 0){
-			play_led_wheel(LED_MAX, rand()%120, rand()%120, rand()%120, 2, 16);
+			play_led_wheel(rand()%LED_MAX, rand()%LED_MAX, rand()%LED_MAX, rand()%LED_MAX, 2, 16);
 		}else if(strcmp(argv[1], "solid") == 0){
-			play_led_animation_solid(LED_MAX, rand()%120, rand()%120, rand()%120, 2);
+			play_led_animation_solid(rand()%LED_MAX, rand()%LED_MAX, rand()%LED_MAX, rand()%LED_MAX, 1,18);
 		}else if(strcmp(argv[1], "prog") == 0){
 			play_led_progress_bar(20, 20, 20, 0, portMAX_DELAY);
 		}else if(strcmp(argv[1], "kill") == 0){

@@ -149,7 +149,7 @@ int get_dust_internal(unsigned int samples) {
 			}
 #endif
 
-			if (led_is_idle()) {
+			if (led_is_idle(portMAX_DELAY)) {
 				++uiIndex;
 				if (ulSample > max) {
 					max = ulSample;

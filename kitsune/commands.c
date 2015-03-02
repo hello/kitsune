@@ -752,18 +752,18 @@ static void _show_led_status()
 		uint8_t rgb[3] = { LED_MAX };
 		led_get_user_color(&rgb[0], &rgb[1], &rgb[2]);
 		//led_set_color(alpha, rgb[0], rgb[1], rgb[2], 1, 1, 18, 0);
-		play_led_animation_solid(alpha, rgb[0], rgb[1], rgb[2], 2000);
+		play_led_animation_solid(alpha, rgb[0], rgb[1], rgb[2],1, 18);
 	}
 	else if(wifi_status_get(HAS_IP)) {
-		play_led_wheel(alpha, LED_MAX,0,0,1,18);
+		play_led_wheel(alpha, LED_MAX,0,0,2,18);
 	}
 	else if(wifi_status_get(CONNECTING)) {
-		play_led_wheel(alpha, LED_MAX,LED_MAX,0,1,18);
+		play_led_wheel(alpha, LED_MAX,LED_MAX,0,2,18);
 	}
 	else if(wifi_status_get(SCANNING)) {
 		play_led_wheel(alpha, LED_MAX,0,0,1,18);
 	} else {
-		play_led_wheel(alpha, LED_MAX,LED_MAX,LED_MAX,1,18);
+		play_led_wheel(alpha, LED_MAX,LED_MAX,LED_MAX,2,18);
 	}
 }
 
@@ -793,7 +793,7 @@ void thread_fast_i2c_poll(void * unused)  {
 
 		if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
 			vTaskDelay(2);
-			light = led_is_idle() ? get_light() : light;
+			light = led_is_idle(0) ? get_light() : light;
 			vTaskDelay(2); //this is important! If we don't do it, then the prox will stretch the clock!
 
 			// For the black morpheus, we can detect 6mm distance max
@@ -833,7 +833,7 @@ void thread_fast_i2c_poll(void * unused)  {
 				//LOGI( "%d %d %d %d\n", delta, light_mean, light_m2, light_cnt);
 				xSemaphoreGive(light_smphr);
 
-				if(light_cnt % 5 == 0 && led_is_idle() ) {
+				if(light_cnt % 5 == 0 && led_is_idle(0) ) {
 					if(_is_light_off(light)) {
 						_show_led_status();
 					}
@@ -1043,7 +1043,7 @@ void sample_sensor_data(periodic_data* data)
 		{
 			vTaskDelay(2);
 
-			int humid = led_is_idle() ? get_humid() : _last_humid;
+			int humid = led_is_idle(0) ? get_humid() : _last_humid;
 			_last_humid = humid;
 
 			if(humid != -1)
@@ -1054,7 +1054,7 @@ void sample_sensor_data(periodic_data* data)
 
 			vTaskDelay(2);
 
-			int temp = led_is_idle() ? get_temp() : _last_temp;
+			int temp = led_is_idle(0) ? get_temp() : _last_temp;
 			_last_temp = temp;
 
 			if(temp != -1)
@@ -1749,13 +1749,13 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("*");
 	init_download_task( 1024 / 4 );
 	networktask_init(5 * 1024 / 4);
-	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  512 / 4, NULL, 4, NULL);
+	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 4, NULL);
 
 	init_dust();
 	if( on_charger ) {
 		launch_tasks();
 	} else {
-		play_led_wheel(LED_MAX, 50, LED_MAX, LED_MAX,0,10);
+		play_led_wheel( 50, LED_MAX, LED_MAX, 0,0,10);
 	}
 	ble_proto_init();
 	xTaskCreate(top_board_task, "top_board_task", 2048 / 4, NULL, 2, NULL);

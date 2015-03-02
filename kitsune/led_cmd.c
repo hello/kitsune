@@ -60,10 +60,12 @@ static user_animation_t prev_user_animation;
 
 
 static int clamp_rgb(int v, int min, int max){
-	if(v >= 0 && v <=max){
+	if(v >= min && v <=max){
 		return v;
-	}else if(v >= max){
+	}else if(v > max){
 		return max;
+	}else if(v < min){
+		return min;
 	}else{
 		return 0;
 	}
@@ -328,6 +330,13 @@ _reset_user_animation(user_animation_t * anim){
 	anim->priority = 0xff;
 }
 
+static int get_cycle_time() {
+	xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
+	int cycle_time = user_animation.cycle_time;
+	xSemaphoreGiveRecursive( led_smphr );
+	return cycle_time;
+}
+
 void led_task( void * params ) {
 	int j;
 	led_color_t colors_last[NUM_LED+1];
@@ -348,24 +357,26 @@ void led_task( void * params ) {
 
 		MAP_WatchdogIntClear(WDT_BASE); //clear wdt... this task spends a lot of time with interrupts disabled....
 
-		UARTprintf("%x\t%x\n", user_animation.handler, evnt );
+		//UARTprintf("%x\t%x\n", user_animation.handler, evnt );
 
 		if( evnt & LED_RESET_BIT ) {
 			memset( colors_last, 0, sizeof(colors_last) );
-			led_array( colors_last, 0 );
+			led_array( colors_last, get_cycle_time() );
 			xEventGroupClearBits(led_events, 0xffffff );
 			xEventGroupSetBits(led_events, LED_IDLE_BIT );
 			xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
 			UARTprintf("reset bit for %x\n", user_animation.handler );
 			//if the last one wasn't a stop and was something different from the current one...
 			if( user_animation.priority != 0 &&  user_animation.priority != 0xff &&
-					prev_user_animation.handler != user_animation.handler ) {
+					prev_user_animation.handler != user_animation.handler &&
+					prev_user_animation.handler != NULL ) {
 				UARTprintf("reverting to animation %x\n", prev_user_animation.handler );
 				led_transition_custom_animation(&prev_user_animation);
 			} else {
 				_reset_user_animation(&user_animation);
 			}
 			xSemaphoreGiveRecursive(led_smphr);
+			UARTprintf("done with reset\n" );
 			continue;
 		}
 		if(evnt & LED_CUSTOM_TRANSITION){
@@ -375,7 +386,10 @@ void led_task( void * params ) {
 			for(i = 0; i < NUM_LED; i++){
 				_transition(&colors[i], &colors_last[i], &user_animation.initial_state[i]);
 			}
-			led_array(colors, clamp_rgb(user_animation.cycle_time,10,500));
+			xSemaphoreGiveRecursive( led_smphr );
+			led_array(colors, get_cycle_time());
+			xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
+
 			memcpy(colors_last,colors, sizeof(colors_last));
 			if(0 == memcmp(user_animation.initial_state,colors,sizeof(user_animation.initial_state))){
 				xEventGroupClearBits(led_events,LED_CUSTOM_TRANSITION);
@@ -392,11 +406,11 @@ void led_task( void * params ) {
 				if(user_animation.handler(colors_last, colors,user_animation.context, animation_counter++)){
 					memcpy(colors_last,colors, sizeof(colors_last));
 					//delay capped at 500 ms to improve task responsiveness
-					int cycle_time = user_animation.cycle_time;
 					xSemaphoreGiveRecursive( led_smphr );
-					led_array(colors, clamp_rgb(cycle_time,10,500));
+					led_array(colors, get_cycle_time());
 					xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
 				}else{
+					vTaskDelay( user_animation.cycle_time );
 					xEventGroupClearBits(led_events,LED_CUSTOM_ANIMATION_BIT);
 					//xEventGroupSetBits(led_events,LED_RESET_BIT);
 					j = 255;
@@ -404,6 +418,7 @@ void led_task( void * params ) {
 					UARTprintf("animation done %x\n", user_animation.handler);
 				}
 			}else{
+				vTaskDelay( user_animation.cycle_time );
 				xEventGroupClearBits(led_events,LED_CUSTOM_ANIMATION_BIT);
 				xEventGroupSetBits(led_events,LED_RESET_BIT);
 				UARTprintf("animation no handler\n");
@@ -424,10 +439,7 @@ void led_task( void * params ) {
 			} else {
 				led_brightness_all(colors, j);
 			}
-			xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
-			int cycle_time = user_animation.cycle_time;
-			xSemaphoreGiveRecursive( led_smphr );
-			led_array(colors, clamp_rgb(cycle_time,10,500));
+			led_array(colors, get_cycle_time());
 		}
 	}
 }
@@ -439,14 +451,14 @@ int led_ready() {
 	}
 	return 0;
 }
-bool led_is_idle(void){
+bool led_is_idle(unsigned int wait){
 	EventBits_t evnt;
 	evnt = xEventGroupWaitBits(
 					led_events,   /* The event group being tested. */
 					LED_IDLE_BIT,    /* The bits within the event group to wait for. */
 					pdFALSE,        /* all bits should not be cleared before returning. */
 					pdFALSE,       /* Don't wait for both bits, either bit will do. */
-					0 );/* Wait for limited time. */
+					wait );/* Wait for limited time. */
 	return (evnt & LED_IDLE_BIT) != 0;
 }
 
@@ -467,22 +479,24 @@ int Cmd_led(int argc, char *argv[]) {
 			b = clamp_rgb(atoi(argv[4]), 0, LED_CLAMP_MAX);
 			ANIMATE_BLOCKING(play_led_animation_stop(),500);
 			LOGF("Setting colors R: %d, G: %d, B: %d \r\n", r, g, b);
-			play_led_animation_solid(LED_MAX, r,g,b, 1);
+			play_led_animation_solid(LED_MAX, r,g,b,1, 18);
 		}
 	} else if( argc > 3){
-		int r,g,b/*,fi*/,fo,ud,rot;
+		int r,g,b,a,rp/*,fi,fo*/,ud,rot;
 		r = atoi(argv[1]);
 		g = atoi(argv[2]);
 		b = atoi(argv[3]);
+		a = atoi(argv[4]);
 		/*fi = atoi(argv[4]);*/
-		fo = atoi(argv[5]);
+		/*fo = atoi(argv[5]);*/
+		rp = atoi(argv[5]);
 		ud = atoi(argv[6]);
 		rot = atoi(argv[7]);
+		LOGF("R: %d, G: %d, B: %d A:%d Rot:%d\r\n", r, g, b, a, rot);
 		if(rot){
-			play_led_animation_solid(LED_MAX, r,g,b,fo);
+			play_led_animation_solid(a, r,g,b, rp,ud);
 		}else{
-			play_led_wheel(LED_MAX, r,g,b,1,ud);
-
+			play_led_wheel(a, r,g,b,rp,ud);
 		}
 	} else {
 		factory_led_test_pattern(portMAX_DELAY);
@@ -532,13 +546,15 @@ int led_transition_custom_animation(const user_animation_t * user){
 			temp = *user;
 			UARTprintf("t1 animation %x %x\n", temp.handler, temp.priority );
 
-			if( user_animation.priority > 0  && user_animation.priority != 0xff ) {
-				UARTprintf("saving new %x old %x older %x\n", user->handler, user_animation.handler, prev_user_animation.handler );
-				prev_user_animation = user_animation;
-			}
+    		UARTprintf("saving new %x old %x older %x\n", user->handler, user_animation.handler, prev_user_animation.handler );
+			prev_user_animation = user_animation;
+
 			UARTprintf("t2 animation %x %x\n", temp.handler, temp.priority );
 			user_animation = temp;
 			UARTprintf("set animation %x %x\n", user_animation.handler, user_animation.priority );
+
+			user_animation.cycle_time = clamp_rgb(user_animation.cycle_time,10,500);
+			UARTprintf("cycle time %d\n", user_animation.cycle_time );
 
 			ret = ++animation_id;
 			animation_counter = 0;
