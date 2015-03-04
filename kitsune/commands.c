@@ -691,7 +691,7 @@ void thread_dust(void * unused)  {
 			xSemaphoreGive(dust_smphr);
 		}
 
-		vTaskDelay( 100 );
+		vTaskDelay( 1000 ); //Sample once a second
 	}
 }
 
