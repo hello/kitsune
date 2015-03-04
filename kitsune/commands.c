@@ -693,7 +693,7 @@ void thread_dust(void * unused)  {
 			xSemaphoreGive(dust_smphr);
 		}
 
-		vTaskDelay( 200 );
+		vTaskDelay( 1000 );
 	}
 }
 

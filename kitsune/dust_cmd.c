@@ -33,9 +33,13 @@
 #define UART_PRINT               LOGI
 
 #define TIMER_INTERVAL_RELOAD   65535
-#define PULSE_WIDTH             20000//8192//2097
+//#define PULSE_WIDTH             20000//8192//2097
+//Pulse is supposed to be 320us
+#define PULSE_WIDTH             25600//8192//2097
 
-#define SAMPLES 4096u
+//#define SAMPLES 4096u
+#define SAMPLES 1024u	//grab fewer samples.  This will still encompass
+						//at least one dust sensor window
 
 //****************************************************************************
 //
