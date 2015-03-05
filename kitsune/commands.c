@@ -672,20 +672,23 @@ void thread_dust(void * unused)  {
 		if (xSemaphoreTake(dust_smphr, portMAX_DELAY)) {
 			int dust = get_dust();
 
-			dust_log_sum += bitlog(dust);
-			++dust_cnt;
+			if(dust != DUST_SENSOR_NOT_READY)
+			{
+				dust_log_sum += bitlog(dust);
+				++dust_cnt;
 
-			int delta = dust - dust_mean;
-			dust_mean = dust_mean + delta/dust_cnt;
-			dust_m2 = dust_m2 + delta * ( dust - dust_mean);
-			if( dust_m2 < 0 ) {
-				dust_m2 = 0x7FFFFFFF;
-			}
-			if(dust > dust_max) {
-				dust_max = dust;
-			}
-			if(dust < dust_min) {
-				dust_min = dust;
+				int delta = dust - dust_mean;
+				dust_mean = dust_mean + delta/dust_cnt;
+				dust_m2 = dust_m2 + delta * ( dust - dust_mean);
+				if( dust_m2 < 0 ) {
+					dust_m2 = 0x7FFFFFFF;
+				}
+				if(dust > dust_max) {
+					dust_max = dust;
+				}
+				if(dust < dust_min) {
+					dust_min = dust;
+				}
 			}
 
 			xSemaphoreGive(dust_smphr);
@@ -970,7 +973,7 @@ void sample_sensor_data(periodic_data* data)
 		} else {
 			// We don't have any dust data since we were last here
 			data->dust = get_dust();
-			if(data->dust == 0)  // This means we got an error?
+			if(data->dust == DUST_SENSOR_NOT_READY)  // This means we got an error?
 			{
 				data->has_dust = false;
 			}

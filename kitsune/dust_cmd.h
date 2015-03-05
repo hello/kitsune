@@ -7,6 +7,7 @@
 
 #ifndef DUST_CMD_H_
 #define DUST_CMD_H_
+#define DUST_SENSOR_NOT_READY		(-1)  // Assume dust output is positive
 
 int get_dust();
 int get_dust_internal(unsigned int samples);
