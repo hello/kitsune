@@ -40,7 +40,7 @@
 //#define SAMPLES 4096u
 #define SAMPLES 1024u	//grab fewer samples.  This will still encompass
 						//at least one dust sensor window
-
+#define DUST_SENSOR_NOT_READY		(-1)  // Assume dust output is positive
 //****************************************************************************
 //
 //! Setup the timer in PWM mode
@@ -87,6 +87,12 @@ int get_dust_internal(unsigned int samples) {
 
 	uiAdcInputPin = 0x3b;
 	uiChannel = ADC_CH_3;
+
+	if(!led_wait_for_idle(0)){
+		return DUST_SENSOR_NOT_READY;
+		// This will has a race condition here, LED might turns on after this check
+		// and we will get one noisy reading.
+	}
 
 //
 // Pinmux for the selected ADC input pin
@@ -140,18 +146,14 @@ int get_dust_internal(unsigned int samples) {
 	while (uiIndex < samples) {
 		if (ADCFIFOLvlGet(ADC_BASE, uiChannel)) {
 			ulSample = (ADCFIFORead(ADC_BASE, uiChannel) & 0x3FFC ) >> 2;
-			if ( led_wait_for_idle(0) ) {
-				if (ulSample > max) {
-					max = ulSample;
-				}
-				if (ulSample < min) {
-					min = ulSample;
-				}
-				//LOGI("%d\n", ulSample);
-				++uiIndex;
-			} else {
-				vTaskDelay(200);
+			if (ulSample > max) {
+				max = ulSample;
 			}
+			if (ulSample < min) {
+				min = ulSample;
+			}
+			//LOGI("%d\n", ulSample);
+			++uiIndex;
 		}
 	}
 
