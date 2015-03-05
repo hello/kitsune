@@ -663,6 +663,7 @@ void thread_dust(void * unused)  {
 #endif
 
 	while (1) {
+		uint32 now = xTaskGetTickCount();
 		if (xSemaphoreTake(dust_smphr, portMAX_DELAY)) {
 			int dust = get_dust();
 
@@ -692,8 +693,7 @@ void thread_dust(void * unused)  {
 
 			xSemaphoreGive(dust_smphr);
 		}
-
-		vTaskDelay( 1000 );
+		vTaskDelayUntil(&now, 1000);
 	}
 }
 
