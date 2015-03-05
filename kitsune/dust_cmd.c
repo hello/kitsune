@@ -145,6 +145,10 @@ int get_dust_internal(unsigned int samples) {
 	while (uiIndex < samples) {
 		if (ADCFIFOLvlGet(ADC_BASE, uiChannel)) {
 			ulSample = (ADCFIFORead(ADC_BASE, uiChannel) & 0x3FFC ) >> 2;
+			if(!led_wait_for_idle(0)){
+				MAP_TimerDisable(TIMERA2_BASE, TIMER_B);
+				return DUST_SENSOR_NOT_READY;
+			}
 			if (ulSample > max) {
 				max = ulSample;
 			}
