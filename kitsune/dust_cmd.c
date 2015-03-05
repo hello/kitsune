@@ -40,7 +40,6 @@
 //#define SAMPLES 4096u
 #define SAMPLES 1024u	//grab fewer samples.  This will still encompass
 						//at least one dust sensor window
-#define DUST_SENSOR_NOT_READY		(-1)  // Assume dust output is positive
 //****************************************************************************
 //
 //! Setup the timer in PWM mode
