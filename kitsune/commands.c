@@ -663,34 +663,36 @@ void thread_dust(void * unused)  {
 #endif
 
 	while (1) {
-		uint32 now = xTaskGetTickCount();
+		uint32_t now = xTaskGetTickCount();
 		if (xSemaphoreTake(dust_smphr, portMAX_DELAY)) {
 			int dust = get_dust();
 
-			dust_log_sum += bitlog(dust);
-			++dust_cnt;
+			if( dust != -1 ) {
+				dust_log_sum += bitlog(dust);
+				++dust_cnt;
 
-			int delta = dust - dust_mean;
-			dust_mean = dust_mean + delta/dust_cnt;
-			dust_m2 = dust_m2 + delta * ( dust - dust_mean);
-			if( dust_m2 < 0 ) {
-				dust_m2 = 0x7FFFFFFF;
-			}
-			if(dust > dust_max) {
-				dust_max = dust;
-			}
-			if(dust < dust_min) {
-				dust_min = dust;
-			}
+				int delta = dust - dust_mean;
+				dust_mean = dust_mean + delta/dust_cnt;
+				dust_m2 = dust_m2 + delta * ( dust - dust_mean);
+				if( dust_m2 < 0 ) {
+					dust_m2 = 0x7FFFFFFF;
+				}
+				if(dust > dust_max) {
+					dust_max = dust;
+				}
+				if(dust < dust_min) {
+					dust_min = dust;
+				}
 
 #if DEBUG_DUST
-			if(dust_cnt > 1)
-			{
-				dust_variability = dust_m2 / (dust_cnt - 1);  // devide by zero again, add if
-			}
-			LOGF("%u,%u,%u,%u,%u,%u\n", xTaskGetTickCount(), dust, dust_mean, dust_max, dust_min, dust_variability );
+				if(dust_cnt > 1)
+				{
+					dust_variability = dust_m2 / (dust_cnt - 1);  // devide by zero again, add if
+				}
+				LOGF("%u,%u,%u,%u,%u,%u\n", xTaskGetTickCount(), dust, dust_mean, dust_max, dust_min, dust_variability );
 #endif
 
+			}
 			xSemaphoreGive(dust_smphr);
 		}
 		vTaskDelayUntil(&now, 1000);
@@ -966,11 +968,9 @@ void sample_sensor_data(periodic_data* data)
 
 			data->has_dust_min = true;
 			data->dust_min = dust_min;
-
-			
 		} else {
 			data->dust = get_dust();
-			if(data->dust == 0)  // This means we get some error?
+			if(data->dust == -1)  // This means we get some error?
 			{
 				data->has_dust = false;
 			}

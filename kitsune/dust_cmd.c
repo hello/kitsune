@@ -143,6 +143,9 @@ int get_dust_internal(unsigned int samples) {
 #if DEBUG_DUST
 	unsigned short * smplbuf = (unsigned short*)pvPortMalloc(samples*sizeof(short));
 #endif
+	if (!led_is_idle(0)) {
+		return -1;
+	}
 
 	while (uiIndex < samples) {
 		if (ADCFIFOLvlGet(ADC_BASE, uiChannel)) {
@@ -153,16 +156,18 @@ int get_dust_internal(unsigned int samples) {
 			}
 #endif
 
-			if (led_is_idle(portMAX_DELAY)) {
-				++uiIndex;
-				if (ulSample > max) {
-					max = ulSample;
-				}
-				if (ulSample < min) {
-					min = ulSample;
-				}
-				//LOGI("%d\n", ulSample);
+			if (!led_is_idle(0)) {
+				max = -1;
+				break;
 			}
+			++uiIndex;
+			if (ulSample > max) {
+				max = ulSample;
+			}
+			if (ulSample < min) {
+				min = ulSample;
+			}
+			//LOGI("%d\n", ulSample);
 		}
 	}
 #if DEBUG_DUST
