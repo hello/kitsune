@@ -1837,7 +1837,20 @@ void pill_fsm_reset(void){
 	pill_fsm.bat = 0;
 	pill_fsm.uptime = 0;
 }
-
+bool check_battery(int bat, int uptime){
+	bool ret = false;
+	int mod = bat % 3;
+	if(uptime < (60 * 50)){
+		if(bat >= 84 && (mod == 0 || mod == 2)){
+			ret = true;
+		}
+	}else{
+		if(bat >= 75 && (mod == 0 || mod == 2)){
+			ret = true;
+		}
+	}
+	return ret;
+}
 void Cmd_pill_test_register_shake(const char * id){
 	LOGF("Pill Shaking\r\n");
 	if(pill_fsm.sem && xSemaphoreTake(pill_fsm.sem,5000)){
@@ -1858,7 +1871,7 @@ void Cmd_pill_test_register_shake(const char * id){
 				LOGF("Fail Uptime: %d\r\n", pill_fsm.uptime);
 			}else if(pill_fsm.bat >= 120){
 				LOGF("Fail Retest Error: %d\r\n", pill_fsm.bat);
-			}else if(pill_fsm.bat >= 97){
+			}else if(check_battery(pill_fsm.bat, pill_fsm.uptime)){
 				LOGF("Pass %d\r\n", pill_fsm.bat);
 			}else{
 				LOGF("Fail Low Bat: %d %d\r\n", pill_fsm.bat, pill_fsm.uptime);
