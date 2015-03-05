@@ -202,9 +202,15 @@ PinMuxConfig(void)
     MAP_PinTypeI2S(PIN_63, PIN_MODE_7);
 
     //
-    // Configure PIN_64 for TIMERPWM5 GT_PWM05
+    // Configure PIN_64 for GPIOOutput
     //
-    MAP_PinTypeTimer(PIN_64, PIN_MODE_3);
+    MAP_PinTypeGPIO(PIN_64, PIN_MODE_0, false);
+    MAP_GPIODirModeSet(GPIOA1_BASE, 0x2, GPIO_DIR_MODE_OUT);
+#if 0
+    {
+        (*((unsigned volatile int*)0x4402E0C4)) = 0; //see page 498 of the cc3200 trm section 16.8.1.1.1
+    }
+#endif
 
     //
     // Configure PIN_01 for I2C0 I2C_SCL
@@ -279,7 +285,7 @@ PinMuxConfig(void)
     MAP_PinTypeGPIO(PIN_17, PIN_MODE_0, false);
     MAP_GPIODirModeSet(GPIOA3_BASE, 0x1, GPIO_DIR_MODE_OUT);
     {
-        (*((unsigned volatile int*)0x4402E100)) |= 0x670;
+        (*((unsigned volatile int*)0x4402E100)) |= 0x670; //see page 498 of the cc3200 trm section 16.8.1.1.1
     }
 
     //SOP2

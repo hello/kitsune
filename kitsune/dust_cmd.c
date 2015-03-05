@@ -15,6 +15,13 @@
 #include <uart.h>
 #include <stdarg.h>
 #include <stdlib.h>
+
+#include "hw_types.h"
+#include "hw_ints.h"
+#include "rom.h"
+#include "gpio.h"
+#include "interrupt.h"
+#include "utils.h"
 #include "rom_map.h"
 
 #include "ustdlib.h"
@@ -41,41 +48,6 @@
 #define SAMPLES 1024u	//grab fewer samples.  This will still encompass
 						//at least one dust sensor window
 
-//****************************************************************************
-//
-//! Setup the timer in PWM mode
-//!
-//! \param ulBase is the base address of the timer to be configured
-//! \param ulTimer is the timer to be setup (TIMER_A or  TIMER_B)
-//! \param ulConfig is the timer configuration setting
-//! \param ucInvert is to select the inversion of the output
-//!
-//! This function
-//!    1. The specified timer is setup to operate as PWM
-//!
-//! \return None.
-//
-//****************************************************************************
-void SetupTimerPWMMode(unsigned long ulBase, unsigned long ulTimer,
-		unsigned long ulConfig, unsigned char ucInvert) {
-	//
-	// Set GPT - Configured Timer in PWM mode.
-	//
-	MAP_TimerConfigure(ulBase, ulConfig);
-	//
-	// Inverting the timer output if required
-	//
-	MAP_TimerControlLevel(ulBase, ulTimer, ucInvert);
-	//
-	// Load value set to ~10 ms time period
-	//
-	MAP_TimerLoadSet(ulBase, ulTimer, TIMER_INTERVAL_RELOAD);
-	//
-	// Match value set so as to output level 0
-	//
-	MAP_TimerMatchSet(ulBase, ulTimer, TIMER_INTERVAL_RELOAD);
-}
-
 void init_dust() {
 	unsigned long uiAdcInputPin;
 	unsigned int uiChannel;
@@ -87,24 +59,6 @@ void init_dust() {
 //
 	PinTypeADC(uiAdcInputPin, 0xFF);
 
-//PWM stuff...
-//
-// Initialization of timers to generate PWM output
-//
-	MAP_PRCMPeripheralClkEnable(PRCM_TIMERA2, PRCM_RUN_MODE_CLK);
-//
-// TIMERA2 (TIMER B) (red led on launchpad) GPIO 9 --> PWM_5
-//
-	SetupTimerPWMMode(TIMERA2_BASE, TIMER_B,
-			(TIMER_CFG_SPLIT_PAIR | TIMER_CFG_B_PWM), 1);
-
-	MAP_TimerPrescaleSet(TIMERA2_BASE, TIMER_B, 11); //prescale to 10ms
-
-	MAP_TimerEnable(TIMERA2_BASE, TIMER_B);
-
-	MAP_TimerMatchSet(TIMERA2_BASE, TIMER_B, PULSE_WIDTH);
-//end pwm
-
 //
 // Enable ADC channel
 //
@@ -115,17 +69,7 @@ void init_dust() {
 //
 	ADCTimerConfig(ADC_BASE, 2 ^ 17);
 
-//
-// Enable ADC timer which is used to timestamp the ADC data samples
-//
-	ADCTimerEnable(ADC_BASE);
-
-//
-// Enable ADC module
-//
-	ADCEnable(ADC_BASE);
 }
-
 static unsigned int get_dust_internal(unsigned int samples) {
 	unsigned int uiIndex = 0;
 	unsigned long ulSample;
@@ -145,6 +89,20 @@ static unsigned int get_dust_internal(unsigned int samples) {
 #endif
 	if (!led_is_idle(0)) {
 		return DUST_SENSOR_NOT_READY;
+	}
+
+	MAP_GPIOPinWrite(GPIOA1_BASE, 0x2, 0);
+	ADCEnable(ADC_BASE);
+
+	unsigned int flags = MAP_IntMasterDisable();
+	int i;
+	for(i=200;i>0;--i) { //.32ms of increasing pulse density...
+		MAP_GPIOPinWrite(GPIOA1_BASE, 0x2, 0x2);
+		MAP_GPIOPinWrite(GPIOA1_BASE, 0x2, 0);
+		UtilsDelay(i);
+	}
+	if (!flags) {
+		MAP_IntMasterEnable();
 	}
 
 	while (uiIndex < samples) {
@@ -185,6 +143,9 @@ static unsigned int get_dust_internal(unsigned int samples) {
 #endif
 
 	uiIndex = 0;
+
+	ADCDisable(ADC_BASE);
+
 	return max;
 }
 unsigned int get_dust() {
