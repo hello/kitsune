@@ -1840,6 +1840,9 @@ void pill_fsm_reset(void){
 bool check_battery(int bat, int uptime){
 	bool ret = false;
 	int mod = bat % 3;
+	if(bat >= 98){
+		return true;
+	}
 	if(uptime < (60 * 50)){
 		if(bat >= 84 && (mod == 0 || mod == 2)){
 			ret = true;
