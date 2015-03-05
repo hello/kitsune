@@ -157,7 +157,7 @@ int get_dust_internal(unsigned int samples) {
 #endif
 
 			if (!led_is_idle(0)) {
-				max = -1;
+				max = (unsigned)-1;
 				break;
 			}
 			++uiIndex;
