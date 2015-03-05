@@ -144,7 +144,7 @@ int get_dust_internal(unsigned int samples) {
 	unsigned short * smplbuf = (unsigned short*)pvPortMalloc(samples*sizeof(short));
 #endif
 	if (!led_is_idle(0)) {
-		return -1;
+		return DUST_SENSOR_NOT_READY;
 	}
 
 	while (uiIndex < samples) {
@@ -157,7 +157,7 @@ int get_dust_internal(unsigned int samples) {
 #endif
 
 			if (!led_is_idle(0)) {
-				max = (unsigned)-1;
+				max = DUST_SENSOR_NOT_READY;
 				break;
 			}
 			++uiIndex;

@@ -667,7 +667,7 @@ void thread_dust(void * unused)  {
 		if (xSemaphoreTake(dust_smphr, portMAX_DELAY)) {
 			int dust = get_dust();
 
-			if( dust != -1 ) {
+			if( dust != DUST_SENSOR_NOT_READY ) {
 				dust_log_sum += bitlog(dust);
 				++dust_cnt;
 
@@ -970,7 +970,7 @@ void sample_sensor_data(periodic_data* data)
 			data->dust_min = dust_min;
 		} else {
 			data->dust = get_dust();
-			if(data->dust == -1)  // This means we get some error?
+			if(data->dust == DUST_SENSOR_NOT_READY)  // This means we get some error?
 			{
 				data->has_dust = false;
 			}
