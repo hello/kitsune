@@ -968,8 +968,9 @@ void sample_sensor_data(periodic_data* data)
 
 			
 		} else {
+			// We don't have any dust data since we were last here
 			data->dust = get_dust();
-			if(data->dust == 0)  // This means we get some error?
+			if(data->dust == 0)  // This means we got an error?
 			{
 				data->has_dust = false;
 			}
