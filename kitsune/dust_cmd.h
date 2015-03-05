@@ -10,8 +10,7 @@
 
 #define DUST_SENSOR_NOT_READY ((unsigned)-1)
 
-int get_dust();
-int get_dust_internal(unsigned int samples);
+unsigned int get_dust();
 int Cmd_dusttest(int argc, char *argv[]);
 
 #endif /* ADC_CMD_H_ */

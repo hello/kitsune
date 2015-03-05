@@ -126,7 +126,7 @@ void init_dust() {
 	ADCEnable(ADC_BASE);
 }
 
-int get_dust_internal(unsigned int samples) {
+static unsigned int get_dust_internal(unsigned int samples) {
 	unsigned int uiIndex = 0;
 	unsigned long ulSample;
 
@@ -187,7 +187,7 @@ int get_dust_internal(unsigned int samples) {
 	uiIndex = 0;
 	return max;
 }
-int get_dust() {
+unsigned int get_dust() {
 	return get_dust_internal(SAMPLES);
 }
 int Cmd_dusttest(int argc, char *argv[]) {

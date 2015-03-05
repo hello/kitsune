@@ -665,7 +665,7 @@ void thread_dust(void * unused)  {
 	while (1) {
 		uint32_t now = xTaskGetTickCount();
 		if (xSemaphoreTake(dust_smphr, portMAX_DELAY)) {
-			int dust = get_dust();
+			unsigned int dust = get_dust();
 
 			if( dust != DUST_SENSOR_NOT_READY ) {
 				dust_log_sum += bitlog(dust);
@@ -969,7 +969,7 @@ void sample_sensor_data(periodic_data* data)
 			data->has_dust_min = true;
 			data->dust_min = dust_min;
 		} else {
-			data->dust = get_dust();
+			data->dust = (int)get_dust();
 			if(data->dust == DUST_SENSOR_NOT_READY)  // This means we get some error?
 			{
 				data->has_dust = false;
@@ -1254,8 +1254,8 @@ int Cmd_generate_factory_data(int argc,char * argv[]) {
 	uint32_t now = xTaskGetTickCount();
 	memcpy(entropy_pool+pos, &now, 4);
 	pos+=4;
-	for(pos = 0; pos < 32; ++pos){
-		int dust = get_dust_internal(8); //short one here is only for entropy
+	for(; pos < 32; ++pos){
+		unsigned int dust = get_dust();
 		entropy_pool[pos] ^= (uint8_t)dust;
 	}
 	RNG_custom_init(entropy_pool, pos);
