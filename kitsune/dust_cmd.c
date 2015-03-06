@@ -113,9 +113,9 @@ unsigned int get_dust() {
 				if (ulSample < min) {
 					min = ulSample;
 				}
-				UtilsDelay(110);
 				//LOGI("%d\n", ulSample);
 			}
+			UtilsDelay(12);
 		} else {
 			volatile int dly = i>>4;
 			while( dly != 0 ) {--dly;}
