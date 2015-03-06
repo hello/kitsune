@@ -70,8 +70,7 @@ void init_dust() {
 	ADCTimerConfig(ADC_BASE, 2 ^ 17);
 
 }
-static unsigned int get_dust_internal(unsigned int samples) {
-	unsigned int uiIndex = 0;
+unsigned int get_dust() {
 	unsigned long ulSample;
 
 	unsigned int uiChannel = ADC_CH_3;
@@ -87,47 +86,49 @@ static unsigned int get_dust_internal(unsigned int samples) {
 #if DEBUG_DUST
 	unsigned short * smplbuf = (unsigned short*)pvPortMalloc(samples*sizeof(short));
 #endif
+	vTaskDelay(1);//yield before we disable the interrupts in case a higher priority task needs to run...
+	unsigned int flags = MAP_IntMasterDisable();
+
 	if (!led_is_idle(0)) {
+		if (!flags) {
+			MAP_IntMasterEnable();
+		}
 		return DUST_SENSOR_NOT_READY;
 	}
 
 	MAP_GPIOPinWrite(GPIOA1_BASE, 0x2, 0);
 	ADCEnable(ADC_BASE);
 
-	unsigned int flags = MAP_IntMasterDisable();
+	#define ITER 250
 	int i;
-	for(i=200;i>0;--i) { //.32ms of increasing pulse density...
-		MAP_GPIOPinWrite(GPIOA1_BASE, 0x2, 0x2);
-		MAP_GPIOPinWrite(GPIOA1_BASE, 0x2, 0);
-		UtilsDelay(i);
+	for(i=1;i!=ITER;++i) { //.32ms of increasing pulse density...
+		HWREG(GPIOA1_BASE + (0x2 << 2)) = 0x2; //avoid the overhead of a function...
+
+		if (i > (ITER/4)) {
+			if (ADCFIFOLvlGet(ADC_BASE, uiChannel)) {
+				ulSample = (ADCFIFORead(ADC_BASE, uiChannel) & 0x3FFC) >> 2;
+				if (ulSample > max) {
+					max = ulSample;
+				}
+				if (ulSample < min) {
+					min = ulSample;
+				}
+				UtilsDelay(110);
+				//LOGI("%d\n", ulSample);
+			}
+		} else {
+			volatile int dly = i>>4;
+			while( dly != 0 ) {--dly;}
+			HWREG(GPIOA1_BASE + (0x2 << 2)) = 0;
+		}
 	}
+
+	MAP_GPIOPinWrite(GPIOA1_BASE, 0x2, 0);
 	if (!flags) {
 		MAP_IntMasterEnable();
 	}
+	ADCDisable(ADC_BASE);
 
-	while (uiIndex < samples) {
-		if (ADCFIFOLvlGet(ADC_BASE, uiChannel)) {
-			ulSample = (ADCFIFORead(ADC_BASE, uiChannel) & 0x3FFC ) >> 2;
-#if DEBUG_DUST
-			if( smplbuf ){
-				smplbuf[uiIndex] = ulSample;
-			}
-#endif
-
-			if (!led_is_idle(0)) {
-				max = DUST_SENSOR_NOT_READY;
-				break;
-			}
-			++uiIndex;
-			if (ulSample > max) {
-				max = ulSample;
-			}
-			if (ulSample < min) {
-				min = ulSample;
-			}
-			//LOGI("%d\n", ulSample);
-		}
-	}
 #if DEBUG_DUST
 	if( smplbuf ){
 		int i;
@@ -142,14 +143,7 @@ static unsigned int get_dust_internal(unsigned int samples) {
 	}
 #endif
 
-	uiIndex = 0;
-
-	ADCDisable(ADC_BASE);
-
 	return max;
-}
-unsigned int get_dust() {
-	return get_dust_internal(SAMPLES);
 }
 int Cmd_dusttest(int argc, char *argv[]) {
 	int cnt = atoi(argv[1]);
