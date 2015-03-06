@@ -657,8 +657,8 @@ void ble_proto_led_busy_mode(uint8_t a, uint8_t r, uint8_t g, uint8_t b, int del
 	_self.argb[3] = b;
 	_self.delay = delay;
 
-	ANIMATE_BLOCKING(play_led_animation_stop(), 500);
-	ANIMATE_BLOCKING(play_led_wheel(a,r,g,b,0,delay), 1000);
+	ble_proto_led_fade_out(false);
+	ANIMATE_BLOCKING(play_led_wheel(a,r,g,b,0,delay), 4000);
 }
 
 void ble_proto_led_flash(int a, int r, int g, int b, int delay)
@@ -676,7 +676,7 @@ void ble_proto_led_flash(int a, int r, int g, int b, int delay)
 	_self.argb[3] = b;
 	_self.delay = delay;
 
-	ANIMATE_BLOCKING(play_led_animation_solid(a,r,g,b,2,18), 2000);
+	ANIMATE_BLOCKING(play_led_animation_solid(a,r,g,b,2,18), 4000);
 }
 
 void ble_proto_led_fade_in_trippy(){
@@ -686,6 +686,9 @@ void ble_proto_led_fade_in_trippy(){
 
 void ble_proto_led_fade_out(bool operation_result){
 	ANIMATE_BLOCKING(play_led_animation_stop(),2000000000);
+	if(operation_result) {
+		ANIMATE_BLOCKING(play_led_animation_solid(LED_MAX,LED_MAX,LED_MAX,LED_MAX,1,11), 4000);
+	}
 }
 
 #include "top_board.h"
