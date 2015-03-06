@@ -15,6 +15,13 @@
 #include <uart.h>
 #include <stdarg.h>
 #include <stdlib.h>
+
+#include "hw_types.h"
+#include "hw_ints.h"
+#include "rom.h"
+#include "gpio.h"
+#include "interrupt.h"
+#include "utils.h"
 #include "rom_map.h"
 
 #include "ustdlib.h"
@@ -33,44 +40,13 @@
 #define UART_PRINT               LOGI
 
 #define TIMER_INTERVAL_RELOAD   65535
-#define PULSE_WIDTH             20000//8192//2097
+//#define PULSE_WIDTH             20000//8192//2097
+//Pulse is supposed to be 320us
+#define PULSE_WIDTH             25600//8192//2097
 
-#define SAMPLES 4096u
-
-//****************************************************************************
-//
-//! Setup the timer in PWM mode
-//!
-//! \param ulBase is the base address of the timer to be configured
-//! \param ulTimer is the timer to be setup (TIMER_A or  TIMER_B)
-//! \param ulConfig is the timer configuration setting
-//! \param ucInvert is to select the inversion of the output
-//!
-//! This function
-//!    1. The specified timer is setup to operate as PWM
-//!
-//! \return None.
-//
-//****************************************************************************
-void SetupTimerPWMMode(unsigned long ulBase, unsigned long ulTimer,
-		unsigned long ulConfig, unsigned char ucInvert) {
-	//
-	// Set GPT - Configured Timer in PWM mode.
-	//
-	MAP_TimerConfigure(ulBase, ulConfig);
-	//
-	// Inverting the timer output if required
-	//
-	MAP_TimerControlLevel(ulBase, ulTimer, ucInvert);
-	//
-	// Load value set to ~10 ms time period
-	//
-	MAP_TimerLoadSet(ulBase, ulTimer, TIMER_INTERVAL_RELOAD);
-	//
-	// Match value set so as to output level 0
-	//
-	MAP_TimerMatchSet(ulBase, ulTimer, TIMER_INTERVAL_RELOAD);
-}
+//#define SAMPLES 4096u
+#define SAMPLES 1024u	//grab fewer samples.  This will still encompass
+						//at least one dust sensor window
 
 void init_dust() {
 	unsigned long uiAdcInputPin;
@@ -83,24 +59,6 @@ void init_dust() {
 //
 	PinTypeADC(uiAdcInputPin, 0xFF);
 
-//PWM stuff...
-//
-// Initialization of timers to generate PWM output
-//
-	MAP_PRCMPeripheralClkEnable(PRCM_TIMERA2, PRCM_RUN_MODE_CLK);
-//
-// TIMERA2 (TIMER B) (red led on launchpad) GPIO 9 --> PWM_5
-//
-	SetupTimerPWMMode(TIMERA2_BASE, TIMER_B,
-			(TIMER_CFG_SPLIT_PAIR | TIMER_CFG_B_PWM), 1);
-
-	MAP_TimerPrescaleSet(TIMERA2_BASE, TIMER_B, 11); //prescale to 10ms
-
-	MAP_TimerEnable(TIMERA2_BASE, TIMER_B);
-
-	MAP_TimerMatchSet(TIMERA2_BASE, TIMER_B, PULSE_WIDTH);
-//end pwm
-
 //
 // Enable ADC channel
 //
@@ -111,19 +69,8 @@ void init_dust() {
 //
 	ADCTimerConfig(ADC_BASE, 2 ^ 17);
 
-//
-// Enable ADC timer which is used to timestamp the ADC data samples
-//
-	ADCTimerEnable(ADC_BASE);
-
-//
-// Enable ADC module
-//
-	ADCEnable(ADC_BASE);
 }
-
-int get_dust_internal(unsigned int samples) {
-	unsigned int uiIndex = 0;
+unsigned int get_dust() {
 	unsigned long ulSample;
 
 	unsigned int uiChannel = ADC_CH_3;
@@ -139,18 +86,27 @@ int get_dust_internal(unsigned int samples) {
 #if DEBUG_DUST
 	unsigned short * smplbuf = (unsigned short*)pvPortMalloc(samples*sizeof(short));
 #endif
+	vTaskDelay(1);//yield before we disable the interrupts in case a higher priority task needs to run...
+	unsigned int flags = MAP_IntMasterDisable();
 
-	while (uiIndex < samples) {
-		if (ADCFIFOLvlGet(ADC_BASE, uiChannel)) {
-			ulSample = (ADCFIFORead(ADC_BASE, uiChannel) & 0x3FFC ) >> 2;
-#if DEBUG_DUST
-			if( smplbuf ){
-				smplbuf[uiIndex] = ulSample;
-			}
-#endif
+	if (!led_is_idle(0)) {
+		if (!flags) {
+			MAP_IntMasterEnable();
+		}
+		return DUST_SENSOR_NOT_READY;
+	}
 
-			if (led_is_idle(portMAX_DELAY)) {
-				++uiIndex;
+	MAP_GPIOPinWrite(GPIOA1_BASE, 0x2, 0);
+	ADCEnable(ADC_BASE);
+
+	#define ITER 250
+	int i;
+	for(i=1;i!=ITER;++i) { //.32ms of increasing pulse density...
+		HWREG(GPIOA1_BASE + (0x2 << 2)) = 0x2; //avoid the overhead of a function...
+
+		if (i > (ITER/4)) {
+			if (ADCFIFOLvlGet(ADC_BASE, uiChannel)) {
+				ulSample = (ADCFIFORead(ADC_BASE, uiChannel) & 0x3FFC) >> 2;
 				if (ulSample > max) {
 					max = ulSample;
 				}
@@ -159,8 +115,20 @@ int get_dust_internal(unsigned int samples) {
 				}
 				//LOGI("%d\n", ulSample);
 			}
+			UtilsDelay(12);
+		} else {
+			volatile int dly = i>>4;
+			while( dly != 0 ) {--dly;}
+			HWREG(GPIOA1_BASE + (0x2 << 2)) = 0;
 		}
 	}
+
+	MAP_GPIOPinWrite(GPIOA1_BASE, 0x2, 0);
+	if (!flags) {
+		MAP_IntMasterEnable();
+	}
+	ADCDisable(ADC_BASE);
+
 #if DEBUG_DUST
 	if( smplbuf ){
 		int i;
@@ -175,11 +143,7 @@ int get_dust_internal(unsigned int samples) {
 	}
 #endif
 
-	uiIndex = 0;
 	return max;
-}
-int get_dust() {
-	return get_dust_internal(SAMPLES);
 }
 int Cmd_dusttest(int argc, char *argv[]) {
 	int cnt = atoi(argv[1]);

@@ -663,37 +663,39 @@ void thread_dust(void * unused)  {
 #endif
 
 	while (1) {
+		uint32_t now = xTaskGetTickCount();
 		if (xSemaphoreTake(dust_smphr, portMAX_DELAY)) {
-			int dust = get_dust();
+			unsigned int dust = get_dust();
 
-			dust_log_sum += bitlog(dust);
-			++dust_cnt;
+			if( dust != DUST_SENSOR_NOT_READY ) {
+				dust_log_sum += bitlog(dust);
+				++dust_cnt;
 
-			int delta = dust - dust_mean;
-			dust_mean = dust_mean + delta/dust_cnt;
-			dust_m2 = dust_m2 + delta * ( dust - dust_mean);
-			if( dust_m2 < 0 ) {
-				dust_m2 = 0x7FFFFFFF;
-			}
-			if(dust > dust_max) {
-				dust_max = dust;
-			}
-			if(dust < dust_min) {
-				dust_min = dust;
-			}
+				int delta = dust - dust_mean;
+				dust_mean = dust_mean + delta/dust_cnt;
+				dust_m2 = dust_m2 + delta * ( dust - dust_mean);
+				if( dust_m2 < 0 ) {
+					dust_m2 = 0x7FFFFFFF;
+				}
+				if(dust > dust_max) {
+					dust_max = dust;
+				}
+				if(dust < dust_min) {
+					dust_min = dust;
+				}
 
 #if DEBUG_DUST
-			if(dust_cnt > 1)
-			{
-				dust_variability = dust_m2 / (dust_cnt - 1);  // devide by zero again, add if
-			}
-			LOGF("%u,%u,%u,%u,%u,%u\n", xTaskGetTickCount(), dust, dust_mean, dust_max, dust_min, dust_variability );
+				if(dust_cnt > 1)
+				{
+					dust_variability = dust_m2 / (dust_cnt - 1);  // devide by zero again, add if
+				}
+				LOGF("%u,%u,%u,%u,%u,%u\n", xTaskGetTickCount(), dust, dust_mean, dust_max, dust_min, dust_variability );
 #endif
 
+			}
 			xSemaphoreGive(dust_smphr);
 		}
-
-		vTaskDelay( 200 );
+		vTaskDelayUntil(&now, 200);
 	}
 }
 
@@ -966,11 +968,9 @@ void sample_sensor_data(periodic_data* data)
 
 			data->has_dust_min = true;
 			data->dust_min = dust_min;
-
-			
 		} else {
-			data->dust = get_dust();
-			if(data->dust == 0)  // This means we get some error?
+			data->dust = (int)get_dust();
+			if(data->dust == DUST_SENSOR_NOT_READY)  // This means we get some error?
 			{
 				data->has_dust = false;
 			}
@@ -1254,8 +1254,8 @@ int Cmd_generate_factory_data(int argc,char * argv[]) {
 	uint32_t now = xTaskGetTickCount();
 	memcpy(entropy_pool+pos, &now, 4);
 	pos+=4;
-	for(pos = 0; pos < 32; ++pos){
-		int dust = get_dust_internal(8); //short one here is only for entropy
+	for(; pos < 32; ++pos){
+		unsigned int dust = get_dust();
 		entropy_pool[pos] ^= (uint8_t)dust;
 	}
 	RNG_custom_init(entropy_pool, pos);

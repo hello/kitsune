@@ -8,8 +8,9 @@
 #ifndef DUST_CMD_H_
 #define DUST_CMD_H_
 
-int get_dust();
-int get_dust_internal(unsigned int samples);
+#define DUST_SENSOR_NOT_READY ((unsigned)-1)
+
+unsigned int get_dust();
 int Cmd_dusttest(int argc, char *argv[]);
 
 #endif /* ADC_CMD_H_ */
