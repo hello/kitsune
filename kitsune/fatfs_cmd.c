@@ -795,6 +795,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
     if (transfer_len < 0)
     {
         // error
+    	LOGW("Sending error %d\r\n",transfer_len);
         ASSERT_ON_ERROR(-1);
     }
 
@@ -821,12 +822,14 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
     // Check for 404 return code
     if(strstr((const char *)g_buff, HTTP_FILE_NOT_FOUND) != 0)
     {
+    	LOGW("HTTP_FILE_NOT_FOUND\r\n");
         ASSERT_ON_ERROR(-1);
     }
 
     // if not "200 OK" return error
     if(strstr((const char *)g_buff, HTTP_STATUS_OK) == 0)
     {
+    	LOGW("NO 200!\r\n");
         ASSERT_ON_ERROR(-1);
     }
 
@@ -1332,6 +1335,8 @@ int download_file(char * host, char * url, char * filename, char * path, storage
 	r = GetData(filename, url, host, path, storage);
 	if (r < 0) {
 		LOGF("Device couldn't download the file from the server\n\r");
+		close(dl_sock);
+		return r;
 	}
 
 	r = close(dl_sock);
@@ -1679,8 +1684,13 @@ void file_download_task( void * params ) {
                     LOGI("MCU image name converted to %s \n", serial_flash_name);
                 }
 
-                while (download_file(host, url, serial_flash_name,
-                            serial_flash_path, SERIAL_FLASH) != 0) {}
+                int retries = 0;
+                while(download_file(host, url, serial_flash_name,
+                            serial_flash_path, SERIAL_FLASH) != 0) {
+                	if( ++retries > 10 ) {
+                		goto end_download_task;
+                	}
+                }
                 char buf[64];
                 strncpy( buf, serial_flash_path, 64 );
                 strncat(buf, serial_flash_name, 64 );
@@ -1698,10 +1708,16 @@ void file_download_task( void * params ) {
                     }
                 }
                 LOGI("done, closing\n");
-            } else {
-            	while (download_file(host, url, filename, path, SD_CARD) != 0) {}
-                LOGI("done, closing\n");
-                hello_fs_close(&file_obj);
+			} else {
+					int retries = 0;
+					while (download_file(host, url, filename, path, SD_CARD)
+							!= 0) {
+						if (++retries > 10) {
+							goto end_download_task;
+						}
+					}
+					LOGI("done, closing\n");
+					hello_fs_close(&file_obj);
             }
         }
         if (download_info.has_reset_application_processor
