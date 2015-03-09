@@ -139,6 +139,19 @@ static uint8_t CheckForInterruptionDuringPlayback(void) {
 
 	return ret;
 }
+
+
+#define FADE_TIME 30000
+#define MIN_VOL 1
+#define FADE_SPAN (volume - MIN_VOL)
+
+static unsigned int fade_in_vol(unsigned int fade_counter, unsigned int volume, unsigned int fadeout_length) {
+	return fade_counter * FADE_SPAN / fadeout_length + volume - FADE_SPAN;
+}
+static unsigned int fade_out_vol(unsigned int fade_counter, unsigned int volume, unsigned int fadeout_length) {
+    return volume - fade_counter * FADE_SPAN / fadeout_length;
+}
+
 #include "stdbool.h"
 static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
@@ -164,6 +177,8 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	unsigned int fade_time=0;
 	bool fade_in = true;
 	unsigned int last_vol = 0;
+	unsigned int volume = info->volume;
+	unsigned int fadeout_length = FADE_TIME;
 
 	desired_ticks_elapsed = info->durationInSeconds * NUMBER_OF_TICKS_IN_A_SECOND;
 
@@ -179,7 +194,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	}
 
 
-	if ( !InitAudioPlayback(info->volume, info->rate ) ) {
+	if ( !InitAudioPlayback(volume, info->rate ) ) {
 		hello_fs_unlock();
 		LOGI("unable to initialize audio playback.  Probably not enough memory!\r\n");
 		return returnFlags;
@@ -204,24 +219,22 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 	g_uiPlayWaterMark = 1;
 	fade_time = t0 = xTaskGetTickCount();
-#define FADE_TIME 30000
-#define FADE_SPAN 15
 
 	//loop until either a) done playing file for specified duration or b) our message queue gets a message that tells us to stop
 	for (; ;) {
 
 		fade_counter = xTaskGetTickCount() - fade_time;
 
-		if( fade_counter <= FADE_TIME && xTaskGetTickCount() - last_vol > 100 ) {
+		if( fade_counter <= fadeout_length && xTaskGetTickCount() - last_vol > 100 ) {
 			last_vol = xTaskGetTickCount();
 			if( fade_in ) {
-				UARTprintf("%d ",fade_counter * FADE_SPAN / FADE_TIME + info->volume - FADE_SPAN);
-			    set_volume(fade_counter * FADE_SPAN / FADE_TIME + info->volume - FADE_SPAN);
+				UARTprintf("FI %d\n", fade_in_vol(fade_counter, volume, fadeout_length));
+				set_volume(fade_in_vol(fade_counter, volume, fadeout_length));
 			} else {
-				UARTprintf("%d ",info->volume - fade_counter * FADE_SPAN / FADE_TIME );
-			    set_volume( info->volume - fade_counter * FADE_SPAN / FADE_TIME );
+				UARTprintf("FO %d\n", fade_out_vol(fade_counter, volume, fadeout_length));
+				set_volume(fade_out_vol(fade_counter, volume, fadeout_length));
 			}
-		} else if ( !fade_in && fade_counter > FADE_TIME ) {
+		} else if ( !fade_in && fade_counter > fadeout_length ) {
 			LOGI("stopping playback");
 			break;
 		}
@@ -265,6 +278,11 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 
 			if (returnFlags && fade_in) {
+				if (fade_counter <= FADE_TIME) {
+					//interrupted before we can get to max volume...
+					volume = fade_in_vol(fade_counter, volume, fadeout_length);
+					fadeout_length = fade_counter;
+				}
 				//ruh-roh, gotta stop.
 				fade_time = xTaskGetTickCount();
 				fade_in = false;
