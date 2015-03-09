@@ -142,7 +142,7 @@ static uint8_t CheckForInterruptionDuringPlayback(void) {
 
 
 #define FADE_IN_TIME 30000
-#define FADE_OUT_TIME 5000
+#define FADE_OUT_TIME 3000
 #define MIN_VOL 1
 #define FADE_SPAN (volume - MIN_VOL)
 

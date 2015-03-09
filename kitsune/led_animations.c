@@ -182,14 +182,14 @@ void init_led_animation() {
 	//self._sem = xSemaphoreCreateRecursiveMutex();
 }
 
-int play_led_trippy(uint8_t trippy_base[3], uint8_t trippy_range[3], unsigned int timeout){
+int play_led_trippy(uint8_t trippy_base[3], uint8_t trippy_range[3], unsigned int timeout, unsigned int delay ){
 	int i, ret;
 	user_animation_t anim = (user_animation_t){
 		.handler = _animate_trippy,
 		.context = NULL,
 		.priority = 1,
 		.initial_state = {0},
-		.cycle_time = 30,
+		.cycle_time = delay,
 	};
 
 	for(i = 0; i < NUM_LED; i++){
@@ -212,14 +212,14 @@ int play_led_trippy(uint8_t trippy_base[3], uint8_t trippy_range[3], unsigned in
 	return ret;
 
 }
-int play_led_animation_stop(void){
+int play_led_animation_stop(unsigned int fadeout){
 	int ret;
 	user_animation_t anim = (user_animation_t){
 				.handler = NULL,
 				.context = NULL,
 				.priority = 0,
 				.initial_state = {0},
-				.cycle_time = 33,
+				.cycle_time = fadeout,
 	};
 	ret = led_transition_custom_animation(&anim);
 	return ret;
@@ -296,15 +296,15 @@ void set_led_progress_bar(uint8_t percent){
 	xSemaphoreGiveRecursive(led_smphr);
 }
 
-void stop_led_animation(unsigned int delay){
-	ANIMATE_BLOCKING(play_led_animation_stop(),delay);
+void stop_led_animation(unsigned int delay, unsigned int fadeout){
+	ANIMATE_BLOCKING(play_led_animation_stop(fadeout),delay);
 }
 
 int Cmd_led_animate(int argc, char *argv[]){
 	//demo
 	if(argc > 1){
 		if(strcmp(argv[1], "stop") == 0){
-			play_led_animation_stop();
+			play_led_animation_stop(33);
 		}else if(strcmp(argv[1], "+") == 0){
 			set_led_progress_bar(self.progress_bar_percent += 5);
 		}else if(strcmp(argv[1], "-") == 0){
@@ -313,11 +313,11 @@ int Cmd_led_animate(int argc, char *argv[]){
 			if(argc >= 8){
 				uint8_t trippy_base[3] = {atoi(argv[2]), atoi(argv[3]), atoi(argv[4])};
 				uint8_t trippy_range[3] = {atoi(argv[5]), atoi(argv[6]), atoi(argv[7])};
-				play_led_trippy( trippy_base, trippy_range, portMAX_DELAY );
+				play_led_trippy( trippy_base, trippy_range, portMAX_DELAY, 30 );
 			}else{
 				uint8_t trippy_base[3] = {rand()%120, rand()%120, rand()%120};
 				uint8_t trippy_range[3] = {rand()%120, rand()%120, rand()%120};
-				play_led_trippy( trippy_base, trippy_range, portMAX_DELAY );
+				play_led_trippy( trippy_base, trippy_range, portMAX_DELAY, 30 );
 			}
 		}else if(strcmp(argv[1], "wheel") == 0){
 			play_led_wheel(rand()%LED_MAX, rand()%LED_MAX, rand()%LED_MAX, rand()%LED_MAX, 2, 16);
@@ -326,7 +326,7 @@ int Cmd_led_animate(int argc, char *argv[]){
 		}else if(strcmp(argv[1], "prog") == 0){
 			play_led_progress_bar(20, 20, 20, 0, portMAX_DELAY);
 		}else if(strcmp(argv[1], "kill") == 0){
-			stop_led_animation(1);
+			stop_led_animation(1,1);
 		}
 		return 0;
 	}else{

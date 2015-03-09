@@ -523,10 +523,10 @@ static bool cancel_alarm() {
 int set_test_alarm(int argc, char *argv[]) {
 	SyncResponse_Alarm alarm;
 	unsigned int now = get_time();
-	alarm.end_time = now + 30;
-	alarm.start_time = now + 10;
-	alarm.ring_duration_in_second = 20;
-	alarm.ring_offset_from_now_in_second = 10;
+	alarm.end_time = now + 120;
+	alarm.start_time = now + 1;
+	alarm.ring_duration_in_second = 120;
+	alarm.ring_offset_from_now_in_second = 1;
 	strncpy( alarm.ringtone_path, "/ringtone/star003.raw", strlen("/ringtone/star003.raw"));
 
 	alarm.has_end_time = 1;
@@ -541,7 +541,7 @@ int set_test_alarm(int argc, char *argv[]) {
 }
 
 static void thread_alarm_on_finished(void * context) {
-	stop_led_animation(10);
+	stop_led_animation(10, 60);
 }
 
 static bool _is_file_exists(char* path)
@@ -634,8 +634,8 @@ void thread_alarm(void * unused) {
 
 					uint8_t trippy_base[3] = { 0, 0, 0 };
 					uint8_t trippy_range[3] = { 254, 254, 254 };
-					ANIMATE_BLOCKING(play_led_animation_stop(),500);
-					play_led_trippy(trippy_base, trippy_range,0);
+					ANIMATE_BLOCKING(play_led_animation_stop(33),500);
+					play_led_trippy(trippy_base, trippy_range,0, 333);
 				}
 			}
 			else {
@@ -771,7 +771,7 @@ static void _show_led_status()
 
 static void _on_wave(){
 	if(	cancel_alarm() ) {
-		stop_led_animation(10);
+		stop_led_animation(10, 18);
 	} else {
 		_show_led_status();
 	}

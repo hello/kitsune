@@ -319,9 +319,9 @@ static void _transition(led_color_t * out, led_color_t * from, led_color_t * to)
 	led_to_rgb(from, &r0, &g0, &b0);
 	led_to_rgb(to, &r1,&g1,&b1);
 	*out = led_from_rgb(
-			_transition_color((int)r0, (int)r1, 6),
-			_transition_color((int)g0, (int)g1, 6),
-			_transition_color((int)b0, (int)b1, 6));
+			_transition_color((int)r0, (int)r1, 1),
+			_transition_color((int)g0, (int)g1, 1),
+			_transition_color((int)b0, (int)b1, 1));
 
 }
 static void
@@ -464,7 +464,7 @@ bool led_is_idle(unsigned int wait){
 
 int Cmd_led(int argc, char *argv[]) {
 	if(argc == 2 && strcmp(argv[1], "stop") == 0){
-		stop_led_animation(1);
+		stop_led_animation(1,33);
 		return 0;
 	}
 	if(argc == 2) {
@@ -477,7 +477,7 @@ int Cmd_led(int argc, char *argv[]) {
 			r = clamp_rgb(atoi(argv[2]), 0, LED_CLAMP_MAX);
 			g = clamp_rgb(atoi(argv[3]), 0, LED_CLAMP_MAX);
 			b = clamp_rgb(atoi(argv[4]), 0, LED_CLAMP_MAX);
-			ANIMATE_BLOCKING(play_led_animation_stop(),500);
+			ANIMATE_BLOCKING(play_led_animation_stop(33),500);
 			LOGF("Setting colors R: %d, G: %d, B: %d \r\n", r, g, b);
 			play_led_animation_solid(LED_MAX, r,g,b,1, 18);
 		}
