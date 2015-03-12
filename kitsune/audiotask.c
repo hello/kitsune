@@ -141,7 +141,8 @@ static uint8_t CheckForInterruptionDuringPlayback(void) {
 }
 
 
-#define FADE_TIME 30000
+#define FADE_IN_TIME 30000
+#define FADE_OUT_TIME 3000
 #define MIN_VOL 1
 #define FADE_SPAN (volume - MIN_VOL)
 
@@ -178,7 +179,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	bool fade_in = true;
 	unsigned int last_vol = 0;
 	unsigned int volume = info->volume;
-	unsigned int fadeout_length = FADE_TIME;
+	unsigned int fadeout_length = FADE_IN_TIME;
 
 	desired_ticks_elapsed = info->durationInSeconds * NUMBER_OF_TICKS_IN_A_SECOND;
 
@@ -278,14 +279,14 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 
 			if (returnFlags && fade_in) {
-				if (fade_counter <= FADE_TIME) {
+				if (fade_counter <= FADE_IN_TIME) {
 					//interrupted before we can get to max volume...
 					volume = fade_in_vol(fade_counter, volume, fadeout_length);
-					fadeout_length = fade_counter;
 				}
 				//ruh-roh, gotta stop.
 				fade_time = xTaskGetTickCount();
 				fade_in = false;
+				fadeout_length = FADE_OUT_TIME;
 			}
 
 		}
