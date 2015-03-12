@@ -21,6 +21,7 @@ static struct{
 typedef struct{
 	led_color_t color;
 	int repeat;
+	int ctr;
 }wheel_context;
 
 extern xSemaphoreHandle led_smphr;
@@ -46,7 +47,7 @@ typedef struct {
 	int repeat;
 	int ctr;
 } _animate_solid_ctx;
-static bool _animate_solid(const led_color_t * prev, led_color_t * out, void * user_context, unsigned int counter){
+static bool _animate_solid(const led_color_t * prev, led_color_t * out, void * user_context){
 	int i;
 	out->rgb = 0;
 	if(user_context){
@@ -75,7 +76,7 @@ static bool _animate_solid(const led_color_t * prev, led_color_t * out, void * u
 	}
 	return true;
 }
-static bool _animate_trippy(const led_color_t * prev, led_color_t * out, void * user_context, unsigned int counter){
+static bool _animate_trippy(const led_color_t * prev, led_color_t * out, void * user_context){
 	int i = 0;
 	static int scaler = 100;
 	for(i = 0; i < NUM_LED; i++){
@@ -99,7 +100,7 @@ static bool _animate_trippy(const led_color_t * prev, led_color_t * out, void * 
 	}
 	return true;
 }
-static bool _animate_progress(const led_color_t * prev, led_color_t * out, void * user_context, unsigned int counter){
+static bool _animate_progress(const led_color_t * prev, led_color_t * out, void * user_context){
 	int prog = self.progress_bar_percent * NUM_LED;
 	int filled = prog / 100;
 	int left = ((prog % 100)*254)>>8;
@@ -118,8 +119,9 @@ static bool _animate_progress(const led_color_t * prev, led_color_t * out, void 
 	}
 	return true;
 }
-static bool _animate_factory_test_pattern(const led_color_t * prev, led_color_t * out, void * user_context, unsigned int counter){
+static bool _animate_factory_test_pattern(const led_color_t * prev, led_color_t * out, void * user_context ){
 	int i;
+	int counter = *(int*)user_context;
 	for(i = 0; i < NUM_LED; i++){
 		if( ( (i+counter) % 3 ) == 0 ) {
 			out[i] = led_from_rgb(255,255,255);
@@ -147,22 +149,21 @@ static led_color_t wheel_color(int WheelPos, led_color_t color) {
 	}
 }
 
-static bool _animate_wheel(const led_color_t * prev, led_color_t * out, void * user_context, unsigned int counter){
+static bool _animate_wheel(const led_color_t * prev, led_color_t * out, void * user_context ){
 	bool ret = true;
 	if(user_context){
 		int i;
-		unsigned int ctr;
 		wheel_context * ctx = user_context;
-		ctr = counter * 6;
+		ctx->ctr += 6;
 		for(i = 0; i < NUM_LED; i++){
-			out[i] = wheel_color(((i * 256 / 12) - ctr) & 255, ctx->color);
-			if(ctr < 128){
-				out[i] = led_from_brightness(&out[i], ctr * 2);
+			out[i] = wheel_color(((i * 256 / 12) - ctx->ctr) & 255, ctx->color);
+			if(ctx->ctr < 128){
+				out[i] = led_from_brightness(&out[i], ctx->ctr * 2);
 			}
 			if(ctx->repeat){
 				int fade = 255;
-				if(ctr > ((ctx->repeat - 1) * 256)){
-					fade =  (ctr >= ctx->repeat * 256)?0:(256 - ctr % 256);
+				if(ctx->ctr > ((ctx->repeat - 1) * 256)){
+					fade =  (ctx->ctr >= ctx->repeat * 256)?0:(256 - ctx->ctr % 256);
 				}
 				if(fade == 0){
 					ret = false;
@@ -262,15 +263,17 @@ int play_led_progress_bar(int r, int g, int b, unsigned int options, unsigned in
 }
 int factory_led_test_pattern(unsigned int timeout) {
 	int ret;
-		user_animation_t anim = (user_animation_t){
-			.handler = _animate_factory_test_pattern,
-			.context = NULL,
-			.priority = 2,
-			.initial_state = {0},
-			.cycle_time = 500,
-		};
-		ret = led_transition_custom_animation(&anim);
-		return ret;
+	static int counter;
+	counter = 0;
+	user_animation_t anim = (user_animation_t){
+		.handler = _animate_factory_test_pattern,
+		.context = (void*)&counter,
+		.priority = 2,
+		.initial_state = {0},
+		.cycle_time = 500,
+	};
+	ret = led_transition_custom_animation(&anim);
+	return ret;
 }
 int play_led_wheel(int a, int r, int g, int b, int repeat, int delay){
 	int ret;
@@ -279,6 +282,7 @@ int play_led_wheel(int a, int r, int g, int b, int repeat, int delay){
 	color = led_from_brightness( &color, a );
 
 	ctx.color =  color;
+	ctx.ctr = 0;
 	ctx.repeat = repeat;
 	user_animation_t anim = (user_animation_t){
 		.handler = _animate_wheel,
