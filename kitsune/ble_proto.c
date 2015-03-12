@@ -826,15 +826,23 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 
             // I can get the Mac address as well, but not sure it is necessary.
 
-            // Just call API to connect to WIFI.
-            LOGI("Wifi SSID %s, pswd %s \n", ssid, password);
 
             int sec_type = SL_SEC_TYPE_WPA_WPA2;
             if(command->has_security_type)
             {
             	sec_type = command->security_type == wifi_endpoint_sec_type_SL_SCAN_SEC_TYPE_WPA2 ? SL_SEC_TYPE_WPA_WPA2 : command->security_type;
             }
-
+            // Just call API to connect to WIFI.
+        	LOGI("Wifi SSID %s pswd ", ssid, password);
+            if( sec_type == SL_SEC_TYPE_WEP ) {
+            	int i;
+            	for(i=0;i<strlen(password);++i) {
+            		LOGI("%x:", password[i]);
+            	}
+        		LOGI("\n" );
+            } else {
+            	LOGI("%s\n", ssid, password);
+            }
             int result = _set_wifi(ssid, (char*)password, sec_type);
 
         }
