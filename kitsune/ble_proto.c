@@ -648,6 +648,8 @@ void ble_proto_led_init()
 	play_led_animation_solid(LED_MAX, LED_MAX, LED_MAX,LED_MAX,1, 33);
 }
 
+static int wheel_id;//used to tell when we fade out if we need to spin down the leds or jsut transition to stopped
+
 void ble_proto_led_busy_mode(uint8_t a, uint8_t r, uint8_t g, uint8_t b, int delay)
 {
 	LOGI("LED BUSY\n");
@@ -658,7 +660,7 @@ void ble_proto_led_busy_mode(uint8_t a, uint8_t r, uint8_t g, uint8_t b, int del
 	_self.delay = delay;
 
 	ble_proto_led_fade_out(false);
-	ANIMATE_BLOCKING(play_led_wheel(a,r,g,b,0,delay), 4000);
+	wheel_id = play_led_wheel(a,r,g,b,0,delay);
 }
 
 void ble_proto_led_flash(int a, int r, int g, int b, int delay)
@@ -685,7 +687,12 @@ void ble_proto_led_fade_in_trippy(){
 }
 
 void ble_proto_led_fade_out(bool operation_result){
-	ANIMATE_BLOCKING(play_led_animation_stop(33),2000000000);
+	if( led_get_animation_id() == wheel_id ) {
+		stop_led_wheel();
+		led_is_idle(10000);
+	}
+	stop_led_animation(33, 10000);
+
 	if(operation_result) {
 		ANIMATE_BLOCKING(play_led_animation_solid(LED_MAX,LED_MAX,LED_MAX,LED_MAX,1,11), 4000);
 	}
@@ -756,65 +763,63 @@ extern volatile bool booted;
 
 bool on_ble_protobuf_command(MorpheusCommand* command)
 {
-	if( !top_got_device_id ) {
-		switch(command->type)
+	switch(command->type)
+	{
+		case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID:
 		{
-			case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID:
-			{
-				LOGI("MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID\n");
-				int i;
-				if(command->deviceId.arg){
-					const char * device_id_str = command->deviceId.arg;
-					for(i=0;i<DEVICE_ID_SZ;++i) {
-						char num[3] = {0};
-						memcpy( num, device_id_str+i*2, 2);
-						top_device_id[i] = strtol( num, NULL, 16 );
-					}
-					LOGI("got id from top %x:%x:%x:%x:%x:%x:%x:%x\n",
-							top_device_id[0],top_device_id[1],top_device_id[2],
-							top_device_id[3],top_device_id[4],top_device_id[5],
-							top_device_id[6],top_device_id[7]);
-					top_got_device_id = true;
-					_ble_reply_command_with_type(MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID);
-					top_board_notify_boot_complete();
-					vTaskDelay(200);
-				}else{
-					LOGI("device id fail from top\n");
+			LOGI("MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID\n");
+			int i;
+			if(command->deviceId.arg){
+				const char * device_id_str = command->deviceId.arg;
+				for(i=0;i<DEVICE_ID_SZ;++i) {
+					char num[3] = {0};
+					memcpy( num, device_id_str+i*2, 2);
+					top_device_id[i] = strtol( num, NULL, 16 );
 				}
+				LOGI("got id from top %x:%x:%x:%x:%x:%x:%x:%x\n",
+						top_device_id[0],top_device_id[1],top_device_id[2],
+						top_device_id[3],top_device_id[4],top_device_id[5],
+						top_device_id[6],top_device_id[7]);
+				top_got_device_id = true;
+				_ble_reply_command_with_type(MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID);
+				top_board_notify_boot_complete();
+				vTaskDelay(200);
+			}else{
+				LOGI("device id fail from top\n");
 			}
-			break;
+		}
+		break;
 
-			case MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_DEVICE_ID:
-			{
-				// Get morpheus device id request from Nordic
-				LOGI("GET DEVICE ID\n");
-				_ble_reply_command_with_type(MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_DEVICE_ID);
+		case MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_DEVICE_ID:
+		{
+			// Get morpheus device id request from Nordic
+			LOGI("GET DEVICE ID\n");
+			_ble_reply_command_with_type(MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_DEVICE_ID);
 
-				static bool played = false;
-				if( !played && booted) {
-					if(command->has_ble_bond_count)
-					{
-						LOGI("BOND COUNT %d\n", command->ble_bond_count);
-						// this command fires before MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID
-						// and it is the 1st command you can get from top.
-						if(!command->ble_bond_count){
-							// If we had ble_bond_count field, boot LED animation can start from here. Visual
-							// delay of device boot can be greatly reduced.
-							play_startup_sound();
-							ble_proto_led_init();
-						}else{
-							ble_proto_led_init();
-						}
-					} else {
-						LOGI("NO BOND COUNT\n");
+			static bool played = false;
+			if( !played && booted) {
+				if(command->has_ble_bond_count)
+				{
+					LOGI("BOND COUNT %d\n", command->ble_bond_count);
+					// this command fires before MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID
+					// and it is the 1st command you can get from top.
+					if(!command->ble_bond_count){
+						// If we had ble_bond_count field, boot LED animation can start from here. Visual
+						// delay of device boot can be greatly reduced.
 						play_startup_sound();
 						ble_proto_led_init();
+					}else{
+						ble_proto_led_init();
 					}
-					played = true;
+				} else {
+					LOGI("NO BOND COUNT\n");
+					play_startup_sound();
+					ble_proto_led_init();
 				}
+				played = true;
 			}
-			break;
 		}
+		break;
 	}
 	if(!booted) {
 		return true;
@@ -828,15 +833,23 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 
             // I can get the Mac address as well, but not sure it is necessary.
 
-            // Just call API to connect to WIFI.
-            LOGI("Wifi SSID %s, pswd %s \n", ssid, password);
 
             int sec_type = SL_SEC_TYPE_WPA_WPA2;
             if(command->has_security_type)
             {
             	sec_type = command->security_type == wifi_endpoint_sec_type_SL_SCAN_SEC_TYPE_WPA2 ? SL_SEC_TYPE_WPA_WPA2 : command->security_type;
             }
-
+            // Just call API to connect to WIFI.
+        	LOGI("Wifi SSID %s pswd ", ssid, password);
+            if( sec_type == SL_SEC_TYPE_WEP ) {
+            	int i;
+            	for(i=0;i<strlen(password);++i) {
+            		LOGI("%x:", password[i]);
+            	}
+        		LOGI("\n" );
+            } else {
+            	LOGI("%s\n", ssid, password);
+            }
             int result = _set_wifi(ssid, (char*)password, sec_type);
 
         }

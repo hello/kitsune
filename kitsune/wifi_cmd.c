@@ -566,6 +566,25 @@ int Cmd_connect(int argc, char *argv[]) {
     secParams.KeyLen = strlen(argv[2]);
     secParams.Type = atoi(argv[3]);
 
+    if( secParams.Type == 1 ) {
+    	uint8_t wep_hex[128];
+    	int i;
+
+		for(i=0;i<strlen((char*)secParams.Key)/2;++i) {
+			char num[3] = {0};
+			memcpy( num, secParams.Key+i*2, 2);
+			wep_hex[i] = strtol( num, NULL, 16 );
+		}
+		secParams.KeyLen = i;
+		wep_hex[i++] = 0;
+
+		for(i=0;i<secParams.KeyLen;++i) {
+			UARTprintf("%x:", wep_hex[i] );
+		}
+		UARTprintf("\n" );
+		memcpy( secParams.Key, wep_hex, i );
+    }
+
     sl_WlanConnect((_i8*)argv[1], strlen(argv[1]), NULL, &secParams, 0);
     sl_WlanProfileAdd((_i8*)argv[1], strlen(argv[1]), NULL, &secParams, NULL, 0, 0 );
     return (0);
