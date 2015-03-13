@@ -1875,7 +1875,7 @@ void Cmd_pill_test_register_shake(const char * id){
 			}else if(pill_fsm.bat >= 120){
 				LOGF("Fail Retest Error: %d\r\n", pill_fsm.bat);
 			}else if(check_battery(pill_fsm.bat, pill_fsm.uptime)){
-				LOGF("Pass %d\r\n", pill_fsm.bat);
+				LOGF("Pass %d %d\r\n", pill_fsm.bat, pill_fsm.uptime);
 			}else{
 				LOGF("Fail Low Bat: %d %d\r\n", pill_fsm.bat, pill_fsm.uptime);
 			}
