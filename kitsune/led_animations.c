@@ -11,18 +11,21 @@
 #include "uart_logger.h"
 
 #include "led_animations.h"
+typedef struct{
+	led_color_t color;
+	int repeat;
+	int ctr;
+	int fade;
+}wheel_context;
+
 static struct{
 	led_color_t colors[NUM_LED];
 	int progress_bar_percent;
 	uint8_t trippy_base[3];
 	uint8_t trippy_range[3];
+	wheel_context wheel_ctx;
 }self;
 
-typedef struct{
-	led_color_t color;
-	int repeat;
-	int ctr;
-}wheel_context;
 
 extern xSemaphoreHandle led_smphr;
 
@@ -154,7 +157,10 @@ static bool _animate_wheel(const led_color_t * prev, led_color_t * out, void * u
 	if(user_context){
 		int i;
 		wheel_context * ctx = user_context;
+
+		xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
 		ctx->ctr += 6;
+		ctx->fade += 6;
 		for(i = 0; i < NUM_LED; i++){
 			out[i] = wheel_color(((i * 256 / 12) - ctx->ctr) & 255, ctx->color);
 			if(ctx->ctr < 128){
@@ -162,8 +168,8 @@ static bool _animate_wheel(const led_color_t * prev, led_color_t * out, void * u
 			}
 			if(ctx->repeat){
 				int fade = 255;
-				if(ctx->ctr > ((ctx->repeat - 1) * 256)){
-					fade =  (ctx->ctr >= ctx->repeat * 256)?0:(256 - ctx->ctr % 256);
+				if(ctx->fade > ((ctx->repeat - 1) * 256)){
+					fade =  (ctx->fade >= ctx->repeat * 256)?0:(256 - ctx->fade % 256);
 				}
 				if(fade == 0){
 					ret = false;
@@ -171,6 +177,7 @@ static bool _animate_wheel(const led_color_t * prev, led_color_t * out, void * u
 				out[i] = led_from_brightness(&out[i],fade);
 			}
 		}
+		xSemaphoreGiveRecursive(led_smphr);
 	}
 	return ret;
 }
@@ -275,18 +282,29 @@ int factory_led_test_pattern(unsigned int timeout) {
 	ret = led_transition_custom_animation(&anim);
 	return ret;
 }
+
+int stop_led_wheel() {
+	xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
+	self.wheel_ctx.repeat = 1;
+	self.wheel_ctx.fade = 0;
+	xSemaphoreGiveRecursive(led_smphr);
+	return 0;
+}
 int play_led_wheel(int a, int r, int g, int b, int repeat, int delay){
 	int ret;
-	static wheel_context ctx;
 	led_color_t color = led_from_rgb(r,g,b);
 	color = led_from_brightness( &color, a );
 
-	ctx.color =  color;
-	ctx.ctr = 0;
-	ctx.repeat = repeat;
+	xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
+	self.wheel_ctx.color =  color;
+	self.wheel_ctx.ctr = 0;
+	self.wheel_ctx.repeat = repeat;
+	self.wheel_ctx.fade = 0;
+	xSemaphoreGiveRecursive(led_smphr);
+
 	user_animation_t anim = (user_animation_t){
 		.handler = _animate_wheel,
-		.context = &ctx,
+		.context = &self.wheel_ctx,
 		.priority = 2,
 		.initial_state = {0},
 		.cycle_time = delay,
@@ -325,6 +343,10 @@ int Cmd_led_animate(int argc, char *argv[]){
 			}
 		}else if(strcmp(argv[1], "wheel") == 0){
 			play_led_wheel(rand()%LED_MAX, rand()%LED_MAX, rand()%LED_MAX, rand()%LED_MAX, 2, 16);
+		}else if(strcmp(argv[1], "wheelr") == 0){
+			play_led_wheel(rand()%LED_MAX, rand()%LED_MAX, rand()%LED_MAX, rand()%LED_MAX, 0, 16);
+		}else if(strcmp(argv[1], "wheels") == 0){
+			stop_led_wheel();
 		}else if(strcmp(argv[1], "solid") == 0){
 			play_led_animation_solid(rand()%LED_MAX, rand()%LED_MAX, rand()%LED_MAX, rand()%LED_MAX, 1,18);
 		}else if(strcmp(argv[1], "prog") == 0){
