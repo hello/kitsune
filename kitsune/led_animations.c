@@ -11,17 +11,21 @@
 #include "uart_logger.h"
 
 #include "led_animations.h"
+typedef struct{
+	led_color_t color;
+	int repeat;
+	int ctr;
+	int fade;
+}wheel_context;
+
 static struct{
 	led_color_t colors[NUM_LED];
 	int progress_bar_percent;
 	uint8_t trippy_base[3];
 	uint8_t trippy_range[3];
+	wheel_context wheel_ctx;
 }self;
 
-typedef struct{
-	led_color_t color;
-	int repeat;
-}wheel_context;
 
 extern xSemaphoreHandle led_smphr;
 
@@ -46,7 +50,7 @@ typedef struct {
 	int repeat;
 	int ctr;
 } _animate_solid_ctx;
-static bool _animate_solid(const led_color_t * prev, led_color_t * out, void * user_context, unsigned int counter){
+static bool _animate_solid(const led_color_t * prev, led_color_t * out, void * user_context){
 	int i;
 	out->rgb = 0;
 	if(user_context){
@@ -75,7 +79,7 @@ static bool _animate_solid(const led_color_t * prev, led_color_t * out, void * u
 	}
 	return true;
 }
-static bool _animate_trippy(const led_color_t * prev, led_color_t * out, void * user_context, unsigned int counter){
+static bool _animate_trippy(const led_color_t * prev, led_color_t * out, void * user_context){
 	int i = 0;
 	static int scaler = 100;
 	for(i = 0; i < NUM_LED; i++){
@@ -99,7 +103,7 @@ static bool _animate_trippy(const led_color_t * prev, led_color_t * out, void * 
 	}
 	return true;
 }
-static bool _animate_progress(const led_color_t * prev, led_color_t * out, void * user_context, unsigned int counter){
+static bool _animate_progress(const led_color_t * prev, led_color_t * out, void * user_context){
 	int prog = self.progress_bar_percent * NUM_LED;
 	int filled = prog / 100;
 	int left = ((prog % 100)*254)>>8;
@@ -118,8 +122,9 @@ static bool _animate_progress(const led_color_t * prev, led_color_t * out, void 
 	}
 	return true;
 }
-static bool _animate_factory_test_pattern(const led_color_t * prev, led_color_t * out, void * user_context, unsigned int counter){
+static bool _animate_factory_test_pattern(const led_color_t * prev, led_color_t * out, void * user_context ){
 	int i;
+	int counter = *(int*)user_context;
 	for(i = 0; i < NUM_LED; i++){
 		if( ( (i+counter) % 3 ) == 0 ) {
 			out[i] = led_from_rgb(255,255,255);
@@ -147,22 +152,24 @@ static led_color_t wheel_color(int WheelPos, led_color_t color) {
 	}
 }
 
-static bool _animate_wheel(const led_color_t * prev, led_color_t * out, void * user_context, unsigned int counter){
+static bool _animate_wheel(const led_color_t * prev, led_color_t * out, void * user_context ){
 	bool ret = true;
 	if(user_context){
 		int i;
-		unsigned int ctr;
 		wheel_context * ctx = user_context;
-		ctr = counter * 6;
+
+		xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
+		ctx->ctr += 6;
+		ctx->fade += 6;
 		for(i = 0; i < NUM_LED; i++){
-			out[i] = wheel_color(((i * 256 / 12) - ctr) & 255, ctx->color);
-			if(ctr < 128){
-				out[i] = led_from_brightness(&out[i], ctr * 2);
+			out[i] = wheel_color(((i * 256 / 12) - ctx->ctr) & 255, ctx->color);
+			if(ctx->ctr < 128){
+				out[i] = led_from_brightness(&out[i], ctx->ctr * 2);
 			}
 			if(ctx->repeat){
 				int fade = 255;
-				if(ctr > ((ctx->repeat - 1) * 256)){
-					fade =  (ctr >= ctx->repeat * 256)?0:(256 - ctr % 256);
+				if(ctx->fade > ((ctx->repeat - 1) * 256)){
+					fade =  (ctx->fade >= ctx->repeat * 256)?0:(256 - ctx->fade % 256);
 				}
 				if(fade == 0){
 					ret = false;
@@ -170,6 +177,7 @@ static bool _animate_wheel(const led_color_t * prev, led_color_t * out, void * u
 				out[i] = led_from_brightness(&out[i],fade);
 			}
 		}
+		xSemaphoreGiveRecursive(led_smphr);
 	}
 	return ret;
 }
@@ -182,14 +190,14 @@ void init_led_animation() {
 	//self._sem = xSemaphoreCreateRecursiveMutex();
 }
 
-int play_led_trippy(uint8_t trippy_base[3], uint8_t trippy_range[3], unsigned int timeout){
+int play_led_trippy(uint8_t trippy_base[3], uint8_t trippy_range[3], unsigned int timeout, unsigned int delay ){
 	int i, ret;
 	user_animation_t anim = (user_animation_t){
 		.handler = _animate_trippy,
 		.context = NULL,
 		.priority = 1,
 		.initial_state = {0},
-		.cycle_time = 30,
+		.cycle_time = delay,
 	};
 
 	for(i = 0; i < NUM_LED; i++){
@@ -212,14 +220,14 @@ int play_led_trippy(uint8_t trippy_base[3], uint8_t trippy_range[3], unsigned in
 	return ret;
 
 }
-int play_led_animation_stop(void){
+int play_led_animation_stop(unsigned int fadeout){
 	int ret;
 	user_animation_t anim = (user_animation_t){
 				.handler = NULL,
 				.context = NULL,
 				.priority = 0,
 				.initial_state = {0},
-				.cycle_time = 33,
+				.cycle_time = fadeout,
 	};
 	ret = led_transition_custom_animation(&anim);
 	return ret;
@@ -262,27 +270,41 @@ int play_led_progress_bar(int r, int g, int b, unsigned int options, unsigned in
 }
 int factory_led_test_pattern(unsigned int timeout) {
 	int ret;
-		user_animation_t anim = (user_animation_t){
-			.handler = _animate_factory_test_pattern,
-			.context = NULL,
-			.priority = 2,
-			.initial_state = {0},
-			.cycle_time = 500,
-		};
-		ret = led_transition_custom_animation(&anim);
-		return ret;
+	static int counter;
+	counter = 0;
+	user_animation_t anim = (user_animation_t){
+		.handler = _animate_factory_test_pattern,
+		.context = (void*)&counter,
+		.priority = 2,
+		.initial_state = {0},
+		.cycle_time = 500,
+	};
+	ret = led_transition_custom_animation(&anim);
+	return ret;
+}
+
+int stop_led_wheel() {
+	xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
+	self.wheel_ctx.repeat = 1;
+	self.wheel_ctx.fade = 0;
+	xSemaphoreGiveRecursive(led_smphr);
+	return 0;
 }
 int play_led_wheel(int a, int r, int g, int b, int repeat, int delay){
 	int ret;
-	static wheel_context ctx;
 	led_color_t color = led_from_rgb(r,g,b);
 	color = led_from_brightness( &color, a );
 
-	ctx.color =  color;
-	ctx.repeat = repeat;
+	xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
+	self.wheel_ctx.color =  color;
+	self.wheel_ctx.ctr = 0;
+	self.wheel_ctx.repeat = repeat;
+	self.wheel_ctx.fade = 0;
+	xSemaphoreGiveRecursive(led_smphr);
+
 	user_animation_t anim = (user_animation_t){
 		.handler = _animate_wheel,
-		.context = &ctx,
+		.context = &self.wheel_ctx,
 		.priority = 2,
 		.initial_state = {0},
 		.cycle_time = delay,
@@ -296,15 +318,15 @@ void set_led_progress_bar(uint8_t percent){
 	xSemaphoreGiveRecursive(led_smphr);
 }
 
-void stop_led_animation(unsigned int delay){
-	ANIMATE_BLOCKING(play_led_animation_stop(),delay);
+void stop_led_animation(unsigned int delay, unsigned int fadeout){
+	ANIMATE_BLOCKING(play_led_animation_stop(fadeout),delay);
 }
 
 int Cmd_led_animate(int argc, char *argv[]){
 	//demo
 	if(argc > 1){
 		if(strcmp(argv[1], "stop") == 0){
-			play_led_animation_stop();
+			play_led_animation_stop(33);
 		}else if(strcmp(argv[1], "+") == 0){
 			set_led_progress_bar(self.progress_bar_percent += 5);
 		}else if(strcmp(argv[1], "-") == 0){
@@ -313,20 +335,24 @@ int Cmd_led_animate(int argc, char *argv[]){
 			if(argc >= 8){
 				uint8_t trippy_base[3] = {atoi(argv[2]), atoi(argv[3]), atoi(argv[4])};
 				uint8_t trippy_range[3] = {atoi(argv[5]), atoi(argv[6]), atoi(argv[7])};
-				play_led_trippy( trippy_base, trippy_range, portMAX_DELAY );
+				play_led_trippy( trippy_base, trippy_range, portMAX_DELAY, 30 );
 			}else{
 				uint8_t trippy_base[3] = {rand()%120, rand()%120, rand()%120};
 				uint8_t trippy_range[3] = {rand()%120, rand()%120, rand()%120};
-				play_led_trippy( trippy_base, trippy_range, portMAX_DELAY );
+				play_led_trippy( trippy_base, trippy_range, portMAX_DELAY, 30 );
 			}
 		}else if(strcmp(argv[1], "wheel") == 0){
 			play_led_wheel(rand()%LED_MAX, rand()%LED_MAX, rand()%LED_MAX, rand()%LED_MAX, 2, 16);
+		}else if(strcmp(argv[1], "wheelr") == 0){
+			play_led_wheel(rand()%LED_MAX, rand()%LED_MAX, rand()%LED_MAX, rand()%LED_MAX, 0, 16);
+		}else if(strcmp(argv[1], "wheels") == 0){
+			stop_led_wheel();
 		}else if(strcmp(argv[1], "solid") == 0){
 			play_led_animation_solid(rand()%LED_MAX, rand()%LED_MAX, rand()%LED_MAX, rand()%LED_MAX, 1,18);
 		}else if(strcmp(argv[1], "prog") == 0){
 			play_led_progress_bar(20, 20, 20, 0, portMAX_DELAY);
 		}else if(strcmp(argv[1], "kill") == 0){
-			stop_led_animation(1);
+			stop_led_animation(1,1);
 		}
 		return 0;
 	}else{

@@ -53,7 +53,6 @@ static struct{
 }user_color;
 unsigned int user_delay;
 static int animation_id;
-static unsigned int animation_counter;
 
 static user_animation_t user_animation;
 static user_animation_t prev_user_animation;
@@ -319,9 +318,9 @@ static void _transition(led_color_t * out, led_color_t * from, led_color_t * to)
 	led_to_rgb(from, &r0, &g0, &b0);
 	led_to_rgb(to, &r1,&g1,&b1);
 	*out = led_from_rgb(
-			_transition_color((int)r0, (int)r1, 6),
-			_transition_color((int)g0, (int)g1, 6),
-			_transition_color((int)b0, (int)b1, 6));
+			_transition_color((int)r0, (int)r1, 1),
+			_transition_color((int)g0, (int)g1, 1),
+			_transition_color((int)b0, (int)b1, 1));
 
 }
 static void
@@ -403,7 +402,7 @@ void led_task( void * params ) {
 			led_color_t colors[NUM_LED + 1];
 			xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
 			if(user_animation.handler){
-				if(user_animation.handler(colors_last, colors,user_animation.context, animation_counter++)){
+				if(user_animation.handler(colors_last, colors,user_animation.context )){
 					memcpy(colors_last,colors, sizeof(colors_last));
 					//delay capped at 500 ms to improve task responsiveness
 					xSemaphoreGiveRecursive( led_smphr );
@@ -464,7 +463,7 @@ bool led_is_idle(unsigned int wait){
 
 int Cmd_led(int argc, char *argv[]) {
 	if(argc == 2 && strcmp(argv[1], "stop") == 0){
-		stop_led_animation(1);
+		stop_led_animation(1,33);
 		return 0;
 	}
 	if(argc == 2) {
@@ -477,7 +476,7 @@ int Cmd_led(int argc, char *argv[]) {
 			r = clamp_rgb(atoi(argv[2]), 0, LED_CLAMP_MAX);
 			g = clamp_rgb(atoi(argv[3]), 0, LED_CLAMP_MAX);
 			b = clamp_rgb(atoi(argv[4]), 0, LED_CLAMP_MAX);
-			ANIMATE_BLOCKING(play_led_animation_stop(),500);
+			ANIMATE_BLOCKING(play_led_animation_stop(33),500);
 			LOGF("Setting colors R: %d, G: %d, B: %d \r\n", r, g, b);
 			play_led_animation_solid(LED_MAX, r,g,b,1, 18);
 		}
@@ -557,7 +556,6 @@ int led_transition_custom_animation(const user_animation_t * user){
 			UARTprintf("cycle time %d\n", user_animation.cycle_time );
 
 			ret = ++animation_id;
-			animation_counter = 0;
 			xEventGroupClearBits( led_events, 0xffffff );
 			xEventGroupSetBits( led_events, LED_CUSTOM_TRANSITION );
 		}else{
