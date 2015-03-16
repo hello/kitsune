@@ -426,6 +426,7 @@ void led_task( void * params ) {
 		}
 		if (evnt & LED_FADE_OUT_STEP_BIT) {
 			led_color_t colors[NUM_LED + 1];
+			ledset(colors, led_from_rgb(0,0,0), NUM_LED);
 			xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
 			if(user_animation.handler
 					&& user_animation.handler(colors_last, colors, user_animation.context)){
