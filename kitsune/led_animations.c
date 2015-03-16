@@ -23,7 +23,6 @@ static struct{
 	int progress_bar_percent;
 	uint8_t trippy_base[3];
 	uint8_t trippy_range[3];
-	wheel_context wheel_ctx;
 }self;
 
 
@@ -53,29 +52,33 @@ typedef struct {
 static bool _animate_solid(const led_color_t * prev, led_color_t * out, void * user_context){
 	int i;
 	out->rgb = 0;
-	if(user_context){
-		_animate_solid_ctx * ctx = ((_animate_solid_ctx *)user_context);
-		led_color_t color = led_from_brightness(&ctx->color, ctx->alpha);
-		if(ctx->ctr < 254) {
-			//UARTprintf("fi %d\n", ctx->ctr);
-			color = led_from_brightness(&ctx->color, ctx->ctr);
-		} else if(ctx->ctr < 508 ) {
-			//UARTprintf("fo %d\n", ctx->ctr);
-			color = led_from_brightness(&ctx->color, 508-ctx->ctr);
-		} else {
-			color.rgb = 0;
-			//UARTprintf("ovr %d %d\n", ctx->ctr, ctx->repeat);
-			ctx->ctr = 0;
-			if (--ctx->repeat <= 0) {
-				return false;
+	if (user_context) {
+		_animate_solid_ctx * ctx = (*(_animate_solid_ctx **) user_context);
+		if (ctx) {
+			led_color_t color = led_from_brightness(&ctx->color, ctx->alpha);
+			if (ctx->ctr < 254) {
+				//UARTprintf("fi %d\n", ctx->ctr);
+				color = led_from_brightness(&ctx->color, ctx->ctr);
+			} else if (ctx->ctr < 508) {
+				//UARTprintf("fo %d\n", ctx->ctr);
+				color = led_from_brightness(&ctx->color, 508 - ctx->ctr);
+			} else {
+				color.rgb = 0;
+				//UARTprintf("ovr %d %d\n", ctx->ctr, ctx->repeat);
+				ctx->ctr = 0;
+				if (--ctx->repeat <= 0) {
+					vPortFree(ctx);
+					ctx = NULL;
+					return false;
+				}
 			}
-		}
 
-		for(i = 0; i < NUM_LED; i++){
-			out[i] = color;
+			for (i = 0; i < NUM_LED; i++) {
+				out[i] = color;
+			}
+			ctx->ctr += 6;
+			//UARTprintf("roll %d\n", ctx->ctr);
 		}
-		ctx->ctr += 6;
-		//UARTprintf("roll %d\n", ctx->ctr);
 	}
 	return true;
 }
@@ -152,32 +155,41 @@ static led_color_t wheel_color(int WheelPos, led_color_t color) {
 	}
 }
 
-static bool _animate_wheel(const led_color_t * prev, led_color_t * out, void * user_context ){
+static bool _animate_wheel(const led_color_t * prev, led_color_t * out, void * user_context) {
 	bool ret = true;
-	if(user_context){
-		int i;
-		wheel_context * ctx = user_context;
+	if (user_context) {
+		wheel_context * ctx = (*(wheel_context **) user_context);
 
-		xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
-		ctx->ctr += 6;
-		ctx->fade += 6;
-		for(i = 0; i < NUM_LED; i++){
-			out[i] = wheel_color(((i * 256 / 12) - ctx->ctr) & 255, ctx->color);
-			if(ctx->ctr < 128){
-				out[i] = led_from_brightness(&out[i], ctx->ctr * 2);
+		if (ctx) {
+			int i;
+			xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
+			ctx->ctr += 6;
+			ctx->fade += 6;
+			for (i = 0; i < NUM_LED; i++) {
+				out[i] = wheel_color(((i * 256 / 12) - ctx->ctr) & 255,
+						ctx->color);
+				if (ctx->ctr < 128) {
+					out[i] = led_from_brightness(&out[i], ctx->ctr * 2);
+				}
+				if (ctx->repeat) {
+					int fade = 255;
+					if (ctx->fade > ((ctx->repeat - 1) * 256)) {
+						fade = (ctx->fade >= ctx->repeat * 256) ?
+								0 : (256 - ctx->fade % 256);
+					}
+					if (fade == 0) {
+						ret = false;
+					}
+					out[i] = led_from_brightness(&out[i], fade);
+				}
 			}
-			if(ctx->repeat){
-				int fade = 255;
-				if(ctx->fade > ((ctx->repeat - 1) * 256)){
-					fade =  (ctx->fade >= ctx->repeat * 256)?0:(256 - ctx->fade % 256);
-				}
-				if(fade == 0){
-					ret = false;
-				}
-				out[i] = led_from_brightness(&out[i],fade);
+			xSemaphoreGiveRecursive(led_smphr);
+
+			if (!ret) {
+				vPortFree(ctx);
+				ctx = NULL;
 			}
 		}
-		xSemaphoreGiveRecursive(led_smphr);
 	}
 	return ret;
 }
@@ -233,16 +245,17 @@ int play_led_animation_stop(unsigned int fadeout){
 	return ret;
 }
 int play_led_animation_solid(int a, int r, int g, int b, int repeat, int delay){
-	static _animate_solid_ctx ctx;
+	_animate_solid_ctx ** ctx = pvPortMalloc(sizeof(_animate_solid_ctx)+sizeof(void*));
+	_animate_solid_ctx * solid_ctx = *ctx = (_animate_solid_ctx*)((char*)ctx+sizeof(void*));
 	int ret;
 
-	ctx.color = led_from_rgb(r, g, b);
-	ctx.alpha = a;
-	ctx.ctr = 0;
-	ctx.repeat = repeat;
+	solid_ctx->color = led_from_rgb(r, g, b);
+	solid_ctx->alpha = a;
+	solid_ctx->ctr = 0;
+	solid_ctx->repeat = repeat;
 	user_animation_t anim = (user_animation_t){
 			.handler = _animate_solid,
-			.context = &ctx,
+			.context = ctx,
 			.priority = 1,
 			.initial_state = {0},
 			.cycle_time = delay,
@@ -263,7 +276,7 @@ int play_led_progress_bar(int r, int g, int b, unsigned int options, unsigned in
 	ret = led_transition_custom_animation(&anim);
 	if( ret > 0 ) {
 		self.colors[0] = led_from_rgb(r, g, b);
-		self.progress_bar_percent = 0;
+		self.progress_bar_percent = 0; //todo move this into a context
 	}
 	xSemaphoreGiveRecursive(led_smphr);
 	return ret;
@@ -283,28 +296,22 @@ int factory_led_test_pattern(unsigned int timeout) {
 	return ret;
 }
 
-int stop_led_wheel() {
-	xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
-	self.wheel_ctx.repeat = 1;
-	self.wheel_ctx.fade = 0;
-	xSemaphoreGiveRecursive(led_smphr);
-	return 0;
-}
 int play_led_wheel(int a, int r, int g, int b, int repeat, int delay){
 	int ret;
 	led_color_t color = led_from_rgb(r,g,b);
 	color = led_from_brightness( &color, a );
 
-	xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
-	self.wheel_ctx.color =  color;
-	self.wheel_ctx.ctr = 0;
-	self.wheel_ctx.repeat = repeat;
-	self.wheel_ctx.fade = 0;
-	xSemaphoreGiveRecursive(led_smphr);
+	wheel_context ** ctx = pvPortMalloc(sizeof(wheel_context)+sizeof(void*));
+	wheel_context * wheel_ctx = *ctx = (wheel_context*)((char*)ctx+sizeof(void*));
+
+	wheel_ctx->color =  color;
+	wheel_ctx->ctr = 0;
+	wheel_ctx->repeat = repeat;
+	wheel_ctx->fade = 0;
 
 	user_animation_t anim = (user_animation_t){
 		.handler = _animate_wheel,
-		.context = &self.wheel_ctx,
+		.context = ctx,
 		.priority = 2,
 		.initial_state = {0},
 		.cycle_time = delay,
@@ -345,8 +352,6 @@ int Cmd_led_animate(int argc, char *argv[]){
 			play_led_wheel(rand()%LED_MAX, rand()%LED_MAX, rand()%LED_MAX, rand()%LED_MAX, 2, 16);
 		}else if(strcmp(argv[1], "wheelr") == 0){
 			play_led_wheel(rand()%LED_MAX, rand()%LED_MAX, rand()%LED_MAX, rand()%LED_MAX, 0, 16);
-		}else if(strcmp(argv[1], "wheels") == 0){
-			stop_led_wheel();
 		}else if(strcmp(argv[1], "solid") == 0){
 			play_led_animation_solid(rand()%LED_MAX, rand()%LED_MAX, rand()%LED_MAX, rand()%LED_MAX, 1,18);
 		}else if(strcmp(argv[1], "prog") == 0){
