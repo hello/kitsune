@@ -426,23 +426,22 @@ void led_task( void * params ) {
 		}
 		if (evnt & LED_FADE_OUT_STEP_BIT) {
 			led_color_t colors[NUM_LED + 1];
-			ledset(colors, led_from_rgb(0,0,0), NUM_LED);
+			ledcpy(colors, colors_last, NUM_LED);
 			xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
-			if(user_animation.handler
-					&& user_animation.handler(colors_last, colors, user_animation.context)){
-				ledcpy(colors_last, colors, NUM_LED);
-				j-=QUANT_FACTOR;
-				if (j < 0) {
-					xEventGroupClearBits(led_events, 0xffffff);
-					xEventGroupSetBits(led_events,LED_RESET_BIT);
-					memset(colors, 0, sizeof(colors));
-					memcpy(colors_last, colors, sizeof(colors_last));
-					UARTprintf("led faded out\n");
-				} else {
-					led_brightness_all(colors, j);
-					led_array(colors, get_cycle_time());
-				}
+			if(user_animation.handler){
+				user_animation.handler(colors_last, colors, user_animation.context);
 			}
+			j-=QUANT_FACTOR;
+			if (j < 0) {
+				xEventGroupClearBits(led_events, 0xffffff);
+				xEventGroupSetBits(led_events,LED_RESET_BIT);
+				ledset(colors, led_from_rgb(0,0,0), NUM_LED);
+				UARTprintf("led faded out\n");
+			} else {
+				led_brightness_all(colors, j);
+				led_array(colors, get_cycle_time());
+			}
+			ledcpy(colors_last, colors, NUM_LED);
 			xSemaphoreGiveRecursive( led_smphr );
 		}
 	}
