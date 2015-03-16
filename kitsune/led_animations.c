@@ -62,11 +62,12 @@ static bool _animate_solid(const led_color_t * prev, led_color_t * out, void * u
 			//UARTprintf("fo %d\n", ctx->ctr);
 			color = led_from_brightness(&ctx->color, 508-ctx->ctr);
 		} else {
-			color.rgb = 0;
-			//UARTprintf("ovr %d %d\n", ctx->ctr, ctx->repeat);
-			ctx->ctr = 0;
 			if (--ctx->repeat <= 0) {
 				return false;
+			}else{
+				color.rgb = 0;
+				//UARTprintf("ovr %d %d\n", ctx->ctr, ctx->repeat);
+				ctx->ctr = 0;
 			}
 		}
 
