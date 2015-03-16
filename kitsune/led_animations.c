@@ -53,7 +53,7 @@ typedef struct {
 static bool _animate_solid(const led_color_t * prev, led_color_t * out, void * user_context){
 	out->rgb = 0;
 	if(user_context){
-		_animate_solid_ctx * ctx = ((_animate_solid_ctx *)user_context);
+		_animate_solid_ctx * ctx = (_animate_solid_ctx *) user_context;
 		led_color_t color = led_from_brightness(&ctx->color, ctx->alpha);
 		if(ctx->ctr < 254) {
 			//UARTprintf("fi %d\n", ctx->ctr);
@@ -152,6 +152,7 @@ static led_color_t wheel_color(int WheelPos, led_color_t color) {
 static bool _animate_wheel(const led_color_t * prev, led_color_t * out, void * user_context ){
 	bool ret = true;
 	if(user_context){
+		wheel_context * ctx = (wheel_context *) user_context;
 		int i;
 		wheel_context * ctx = user_context;
 
@@ -175,8 +176,23 @@ static bool _animate_wheel(const led_color_t * prev, led_color_t * out, void * u
  * Pubic, call these to set up animationz
  */
 
+static xQueueHandle allocation_queue = 0;
+
 void init_led_animation() {
 	//self._sem = xSemaphoreCreateRecursiveMutex();
+	allocation_queue = xQueueCreate(4, sizeof(void*));
+}
+static push_memory_queue(void * new){
+	while(xQueueSend(allocation_queue, &new, 0) != pdPASS) {
+		void * eldest;
+		if( xQueueReceive(allocation_queue, &eldest, portMAX_DELAY) ) {
+			void * second_eldest;
+			if( xQueueReceive(allocation_queue, &second_eldest, portMAX_DELAY) ) {
+				vPortFree(second_eldest);
+			}
+			push_memory_queue(eldest);
+		}
+	}
 }
 
 int play_led_trippy(uint8_t trippy_base[3], uint8_t trippy_range[3], unsigned int timeout, unsigned int delay ){
@@ -222,7 +238,7 @@ int play_led_animation_stop(unsigned int fadeout){
 	return ret;
 }
 int play_led_animation_solid(int a, int r, int g, int b, int repeat, int delay){
-	static _animate_solid_ctx ctx;
+	_animate_solid_ctx * solid_ctx = pvPortMalloc(sizeof(_animate_solid_ctx));
 	int ret;
 
 	ctx.color = led_from_rgb(r, g, b);
@@ -231,12 +247,17 @@ int play_led_animation_solid(int a, int r, int g, int b, int repeat, int delay){
 	ctx.repeat = repeat;
 	user_animation_t anim = (user_animation_t){
 			.handler = _animate_solid,
-			.context = &ctx,
+			.context = solid_ctx,
 			.priority = 1,
 			.initial_state = {0},
 			.cycle_time = delay,
 	};
 	ret = led_transition_custom_animation(&anim);
+	if( ret > 0 ) {
+		push_memory_queue((void*)solid_ctx);
+	} else {
+		free(solid_ctx);
+	}
 	return ret;
 }
 int play_led_progress_bar(int r, int g, int b, unsigned int options, unsigned int timeout){
@@ -284,8 +305,7 @@ int play_led_wheel(int a, int r, int g, int b, int repeat, int delay){
 	led_color_t color = led_from_rgb(r,g,b);
 	color = led_from_brightness( &color, a );
 
-	xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
-	self.wheel_ctx.color =  color;
+	wheel_context * wheel_ctx =  pvPortMalloc(sizeof(wheel_context));
 	self.wheel_ctx.ctr = 0;
 	self.wheel_ctx.repeat = repeat;
 	self.wheel_ctx.fade = 0;
@@ -293,12 +313,18 @@ int play_led_wheel(int a, int r, int g, int b, int repeat, int delay){
 
 	user_animation_t anim = (user_animation_t){
 		.handler = _animate_wheel,
-		.context = &self.wheel_ctx,
+		.context = wheel_ctx,
 		.priority = 2,
 		.initial_state = {0},
 		.cycle_time = delay,
 	};
 	ret = led_transition_custom_animation(&anim);
+
+	if( ret > 0 ) {
+		push_memory_queue((void*)wheel_ctx);
+	} else {
+		free(wheel_ctx);
+	}
 	return ret;
 }
 void set_led_progress_bar(uint8_t percent){
