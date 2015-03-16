@@ -190,7 +190,7 @@ static void led_array(led_color_t * colors, int delay) {
 	//
 	bool fast = MAP_GPIOPinRead(LED_GPIO_BASE_DOUT, LED_GPIO_BIT_DOUT);
 
-	vTaskDelay(clamp_rgb(delay,10,500)); //just to be sure...
+	vTaskDelay(clamp_rgb(delay,0,500)); //just to be sure...
 	ulInt = MAP_IntMasterDisable();
 	if (fast) {
 		led_fast(colors);
@@ -386,7 +386,7 @@ void led_task( void * params ) {
 				_transition(&colors[i], &colors_last[i], &user_animation.initial_state[i]);
 			}
 			xSemaphoreGiveRecursive( led_smphr );
-			led_array(colors, get_cycle_time());
+			led_array(colors, get_cycle_time()/QUANT_FACTOR);
 			xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
 
 			memcpy(colors_last,colors, sizeof(colors_last));
@@ -552,7 +552,7 @@ int led_transition_custom_animation(const user_animation_t * user){
 			user_animation = temp;
 			UARTprintf("set animation %x %x\n", user_animation.handler, user_animation.priority );
 
-			user_animation.cycle_time = clamp_rgb(user_animation.cycle_time,10,500);
+			user_animation.cycle_time = clamp_rgb(user_animation.cycle_time,0,500);
 			UARTprintf("cycle time %d\n", user_animation.cycle_time );
 
 			ret = ++animation_id;
