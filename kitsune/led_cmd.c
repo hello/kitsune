@@ -438,11 +438,11 @@ void led_task( void * params ) {
 				xEventGroupClearBits(led_events, 0xffffff);
 				xEventGroupSetBits(led_events,LED_RESET_BIT);
 				ledset(colors, led_from_rgb(0,0,0), NUM_LED);
-				DISP("led faded out\n");
+				//DISP("led faded out\n");
 			} else {
 				led_brightness_all(colors, j);
 				led_array(colors, get_cycle_time());
-				DISP("led fading\n");
+				//DISP("led fading\n");
 			}
 			ledcpy(colors_last, colors, NUM_LED);
 			xSemaphoreGiveRecursive( led_smphr );
