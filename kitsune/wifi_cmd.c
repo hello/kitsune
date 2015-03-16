@@ -582,7 +582,7 @@ int Cmd_connect(int argc, char *argv[]) {
 			UARTprintf("%x:", wep_hex[i] );
 		}
 		UARTprintf("\n" );
-		memcpy( secParams.Key, wep_hex, i );
+		memcpy( secParams.Key, wep_hex, secParams.KeyLen + 1 );
     }
 
     sl_WlanConnect((_i8*)argv[1], strlen(argv[1]), NULL, &secParams, 0);

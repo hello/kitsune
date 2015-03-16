@@ -140,17 +140,14 @@ static uint8_t CheckForInterruptionDuringPlayback(void) {
 	return ret;
 }
 
-
-#define FADE_IN_TIME 30000
-#define FADE_OUT_TIME 3000
 #define MIN_VOL 1
 #define FADE_SPAN (volume - MIN_VOL)
 
-static unsigned int fade_in_vol(unsigned int fade_counter, unsigned int volume, unsigned int fadeout_length) {
-	return fade_counter * FADE_SPAN / fadeout_length + volume - FADE_SPAN;
+static unsigned int fade_in_vol(unsigned int fade_counter, unsigned int volume, unsigned int fade_length) {
+	return fade_counter * FADE_SPAN / fade_length + volume - FADE_SPAN;
 }
-static unsigned int fade_out_vol(unsigned int fade_counter, unsigned int volume, unsigned int fadeout_length) {
-    return volume - fade_counter * FADE_SPAN / fadeout_length;
+static unsigned int fade_out_vol(unsigned int fade_counter, unsigned int volume, unsigned int fade_length) {
+    return volume - fade_counter * FADE_SPAN / fade_length;
 }
 
 #include "stdbool.h"
@@ -179,7 +176,8 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	bool fade_in = true;
 	unsigned int last_vol = 0;
 	unsigned int volume = info->volume;
-	unsigned int fadeout_length = FADE_IN_TIME;
+	unsigned int fade_length = info->fade_in_ms;
+	bool has_fade = fade_length != 0;
 
 	desired_ticks_elapsed = info->durationInSeconds * NUMBER_OF_TICKS_IN_A_SECOND;
 
@@ -218,26 +216,29 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 	memset(speaker_data_padded,0,sizeof(speaker_data_padded));
 
-	g_uiPlayWaterMark = 1;
-	fade_time = t0 = xTaskGetTickCount();
+	if( has_fade ) {
+		g_uiPlayWaterMark = 1;
+		fade_time = t0 = xTaskGetTickCount();
+	}
 
 	//loop until either a) done playing file for specified duration or b) our message queue gets a message that tells us to stop
 	for (; ;) {
 
-		fade_counter = xTaskGetTickCount() - fade_time;
-
-		if( fade_counter <= fadeout_length && xTaskGetTickCount() - last_vol > 100 ) {
-			last_vol = xTaskGetTickCount();
-			if( fade_in ) {
-				UARTprintf("FI %d\n", fade_in_vol(fade_counter, volume, fadeout_length));
-				set_volume(fade_in_vol(fade_counter, volume, fadeout_length));
-			} else {
-				UARTprintf("FO %d\n", fade_out_vol(fade_counter, volume, fadeout_length));
-				set_volume(fade_out_vol(fade_counter, volume, fadeout_length));
+		if( has_fade ) {
+			fade_counter = xTaskGetTickCount() - fade_time;
+			if( fade_counter <= fade_length && xTaskGetTickCount() - last_vol > 100 ) {
+				last_vol = xTaskGetTickCount();
+				if( fade_in ) {
+					UARTprintf("FI %d\n", fade_in_vol(fade_counter, volume, fade_length));
+					set_volume(fade_in_vol(fade_counter, volume, fade_length));
+				} else {
+					UARTprintf("FO %d\n", fade_out_vol(fade_counter, volume, fade_length));
+					set_volume(fade_out_vol(fade_counter, volume, fade_length));
+				}
+			} else if ( !fade_in && fade_counter > fade_length ) {
+				LOGI("stopping playback");
+				break;
 			}
-		} else if ( !fade_in && fade_counter > fadeout_length ) {
-			LOGI("stopping playback");
-			break;
 		}
 		/* Read always in block of 512 Bytes or less else it will stuck in hello_fs_read() */
 
@@ -277,16 +278,20 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 			returnFlags |= CheckForInterruptionDuringPlayback();
 
-
-			if (returnFlags && fade_in) {
-				if (fade_counter <= FADE_IN_TIME) {
-					//interrupted before we can get to max volume...
-					volume = fade_in_vol(fade_counter, volume, fadeout_length);
+			if( has_fade ) {
+				if (returnFlags && fade_in) {
+					if (fade_counter <= info->fade_in_ms) {
+						//interrupted before we can get to max volume...
+						volume = fade_in_vol(fade_counter, volume, fade_length);
+					}
+					//ruh-roh, gotta stop.
+					fade_time = xTaskGetTickCount();
+					fade_in = false;
+					fade_length = info->fade_out_ms;
 				}
-				//ruh-roh, gotta stop.
-				fade_time = xTaskGetTickCount();
-				fade_in = false;
-				fadeout_length = FADE_OUT_TIME;
+			} else if( returnFlags) {
+				LOGI("stopping playback");
+				break;
 			}
 
 		}
@@ -311,13 +316,14 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		}
 		iReceiveCount++;
 
-
-		//if time elapsed is greater than desired, we quit.
-		//UNLESS anddesired_ticks_elapsed is a negative number
-		//instead, we will quit when the file is done playing
-		if ( fade_in && (xTaskGetTickCount() - t0 ) > desired_ticks_elapsed && desired_ticks_elapsed >= 0) {
-			fade_time = xTaskGetTickCount();
-			fade_in = false;
+		if (has_fade) {
+			//if time elapsed is greater than desired, we quit.
+			//UNLESS anddesired_ticks_elapsed is a negative number
+			//instead, we will quit when the file is done playing
+			if (fade_in && (xTaskGetTickCount() - t0) > desired_ticks_elapsed && desired_ticks_elapsed >= 0) {
+				fade_time = xTaskGetTickCount();
+				fade_in = false;
+			}
 		}
 
 

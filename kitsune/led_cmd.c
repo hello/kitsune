@@ -190,7 +190,7 @@ static void led_array(led_color_t * colors, int delay) {
 	//
 	bool fast = MAP_GPIOPinRead(LED_GPIO_BASE_DOUT, LED_GPIO_BIT_DOUT);
 
-	vTaskDelay(delay);
+	vTaskDelay(clamp_rgb(delay,10,500)); //just to be sure...
 	ulInt = MAP_IntMasterDisable();
 	if (fast) {
 		led_fast(colors);
