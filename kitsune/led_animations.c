@@ -169,7 +169,6 @@ static bool _animate_wheel(const led_color_t * prev, led_color_t * out, void * u
 				if (ctx->ctr < 128) {
 					out[i] = led_from_brightness(&out[i], ctx->ctr * 2);
 				}
-								0 : (256 - ctx->fade % 256);
 			}
 			xSemaphoreGiveRecursive(led_smphr);
 		}
