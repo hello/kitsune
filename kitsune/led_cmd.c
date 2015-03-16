@@ -364,18 +364,18 @@ void led_task( void * params ) {
 			xEventGroupClearBits(led_events, 0xffffff );
 			xEventGroupSetBits(led_events, LED_IDLE_BIT );
 			xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
-			UARTprintf("reset bit for %x\n", user_animation.handler );
+			DISP("reset bit for %x\n", user_animation.handler );
 			//if the last one wasn't a stop and was something different from the current one...
 			if( user_animation.priority != 0 &&  user_animation.priority != 0xff &&
 					prev_user_animation.handler != user_animation.handler &&
 					prev_user_animation.handler != NULL ) {
-				UARTprintf("reverting to animation %x\n", prev_user_animation.handler );
+				DISP("reverting to animation %x\n", prev_user_animation.handler );
 				led_transition_custom_animation(&prev_user_animation);
 			} else {
 				_reset_user_animation(&user_animation);
 			}
 			xSemaphoreGiveRecursive(led_smphr);
-			UARTprintf("done with reset\n" );
+			DISP("done with reset\n" );
 			continue;
 		}
 		if(evnt & LED_CUSTOM_TRANSITION){
@@ -436,10 +436,11 @@ void led_task( void * params ) {
 				xEventGroupClearBits(led_events, 0xffffff);
 				xEventGroupSetBits(led_events,LED_RESET_BIT);
 				ledset(colors, led_from_rgb(0,0,0), NUM_LED);
-				UARTprintf("led faded out\n");
+				DISP("led faded out\n");
 			} else {
 				led_brightness_all(colors, j);
 				led_array(colors, get_cycle_time());
+				DISP("led fading\n");
 			}
 			ledcpy(colors_last, colors, NUM_LED);
 			xSemaphoreGiveRecursive( led_smphr );
