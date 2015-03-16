@@ -150,23 +150,24 @@ static led_color_t wheel_color(int WheelPos, led_color_t color) {
 }
 
 static bool _animate_wheel(const led_color_t * prev, led_color_t * out, void * user_context ){
-	bool ret = true;
 	if(user_context){
 		int i;
 		wheel_context * ctx = user_context;
 
 		xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
 		ctx->ctr += 6;
-		ctx->fade += 6;
 		for(i = 0; i < NUM_LED; i++){
 			out[i] = wheel_color(((i * 256 / 12) - ctx->ctr) & 255, ctx->color);
 			if(ctx->ctr < 128){
 				out[i] = led_from_brightness(&out[i], ctx->ctr * 2);
 			}
 		}
+		if(ctx->fade){
+			return false;
+		}
 		xSemaphoreGiveRecursive(led_smphr);
 	}
-	return ret;
+	return true;
 }
 
 /*
@@ -273,7 +274,7 @@ int factory_led_test_pattern(unsigned int timeout) {
 int stop_led_wheel() {
 	xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
 	self.wheel_ctx.repeat = 1;
-	self.wheel_ctx.fade = 0;
+	self.wheel_ctx.fade = 1;
 	xSemaphoreGiveRecursive(led_smphr);
 	return 0;
 }
