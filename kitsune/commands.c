@@ -429,6 +429,8 @@ int Cmd_play_buff(int argc, char *argv[]) {
     strncpy( desc.file, file, 64 );
     desc.volume = vol;
     desc.durationInSeconds = -1;
+	desc.fade_in_ms = 0;
+	desc.fade_out_ms = 0;
     desc.rate = atoi(argv[2]);
 
     AudioTask_StartPlayback(&desc);
@@ -572,6 +574,8 @@ void thread_alarm(void * unused) {
 					AudioPlaybackDesc_t desc;
 					memset(&desc,0,sizeof(desc));
 
+					desc.fade_in_ms = 30000;
+					desc.fade_out_ms = 3000;
 					strncpy( desc.file, AUDIO_FILE, 64 );
 					int has_valid_sound_file = 0;
 					char file_name[64] = {0};

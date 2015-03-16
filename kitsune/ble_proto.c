@@ -754,6 +754,8 @@ static void play_startup_sound() {
 		desc.volume = 57;
 		desc.durationInSeconds = -1;
 		desc.rate = 48000;
+		desc.fade_in_ms = 0;
+		desc.fade_out_ms = 0;
 		AudioTask_StartPlayback(&desc);
 	}
 	vTaskDelay(175);
