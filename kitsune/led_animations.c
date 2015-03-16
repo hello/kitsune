@@ -71,9 +71,7 @@ static bool _animate_solid(const led_color_t * prev, led_color_t * out, void * u
 			}
 		}
 
-		for(i = 0; i < NUM_LED; i++){
-			out[i] = color;
-		}
+		led_set(out, color, NUM_LED);
 		ctx->ctr += 6;
 		//UARTprintf("roll %d\n", ctx->ctr);
 	}
