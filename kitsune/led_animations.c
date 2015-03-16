@@ -50,7 +50,6 @@ typedef struct {
 	int ctr;
 } _animate_solid_ctx;
 static bool _animate_solid(const led_color_t * prev, led_color_t * out, void * user_context){
-	int i;
 	out->rgb = 0;
 	if (user_context) {
 		_animate_solid_ctx * ctx = (*(_animate_solid_ctx **) user_context);
@@ -73,7 +72,7 @@ static bool _animate_solid(const led_color_t * prev, led_color_t * out, void * u
 				}
 			}
 
-		led_set(out, color, NUM_LED);
+		ledset(out, color, NUM_LED);
 			ctx->ctr += 6;
 			//UARTprintf("roll %d\n", ctx->ctr);
 		}
