@@ -172,11 +172,6 @@ static bool _animate_wheel(const led_color_t * prev, led_color_t * out, void * u
 								0 : (256 - ctx->fade % 256);
 			}
 			xSemaphoreGiveRecursive(led_smphr);
-
-			if (!ret) {
-				vPortFree(ctx);
-				ctx = NULL;
-			}
 		}
 	}
 	return ret;
