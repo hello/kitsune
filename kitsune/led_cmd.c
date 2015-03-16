@@ -298,7 +298,9 @@ void led_idle_task( void * params ) {
 				pdFALSE,        /* all bits should not be cleared before returning. */
 				pdFALSE,       /* Don't wait for both bits, either bit will do. */
 				portMAX_DELAY );/* Wait for any bit to be set. */
-		xEventGroupSetBits(led_events,LED_RESET_BIT);
+		led_color_t colors_last[NUM_LED+1];
+		memset( colors_last, 0, sizeof(colors_last) );
+		led_array( colors_last, 0 );
 		vTaskDelay(10000);
 	}
 }
