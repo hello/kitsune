@@ -56,7 +56,7 @@ static int animation_id;
 static int fade_alpha;
 
 static user_animation_t user_animation;
-
+static user_animation_t prev_user_animation;
 
 
 static int clamp_rgb(int v, int min, int max){
@@ -375,9 +375,14 @@ void led_task( void * params ) {
 			xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
 			DISP("reset bit for %x\n", user_animation.handler );
 			//if the last one wasn't a stop and was something different from the current one...
-
-			_reset_animation_priority(&user_animation);
-
+			if( user_animation.priority != 0 &&  user_animation.priority != 0xff &&
+					prev_user_animation.handler != user_animation.handler &&
+					prev_user_animation.handler != NULL ) {
+				DISP("reverting to animation %x\n", prev_user_animation.handler );
+				led_transition_custom_animation(&prev_user_animation);
+			} else {
+				_reset_animation_priority(&user_animation);
+			}
 			xSemaphoreGiveRecursive(led_smphr);
 			DISP("done with reset\n" );
 			continue;
@@ -551,6 +556,9 @@ int led_transition_custom_animation(const user_animation_t * user){
 			UARTprintf("new animation %x %x\n", user->handler, user->priority );
 			temp = *user;
 			UARTprintf("t1 animation %x %x\n", temp.handler, temp.priority );
+
+    		UARTprintf("saving new %x old %x older %x\n", user->handler, user_animation.handler, prev_user_animation.handler );
+			prev_user_animation = user_animation;
 
 			UARTprintf("t2 animation %x %x\n", temp.handler, temp.priority );
 			user_animation = temp;
