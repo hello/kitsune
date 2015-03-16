@@ -152,7 +152,6 @@ static led_color_t wheel_color(int WheelPos, led_color_t color) {
 static bool _animate_wheel(const led_color_t * prev, led_color_t * out, void * user_context ){
 	bool ret = true;
 	if(user_context){
-		wheel_context * ctx = (wheel_context *) user_context;
 		int i;
 		wheel_context * ctx = user_context;
 
@@ -238,25 +237,25 @@ int play_led_animation_stop(unsigned int fadeout){
 	return ret;
 }
 int play_led_animation_solid(int a, int r, int g, int b, int repeat, int delay){
-	_animate_solid_ctx * solid_ctx = pvPortMalloc(sizeof(_animate_solid_ctx));
+	_animate_solid_ctx * ctx = pvPortMalloc(sizeof(_animate_solid_ctx));
 	int ret;
 
-	ctx.color = led_from_rgb(r, g, b);
-	ctx.alpha = a;
-	ctx.ctr = 0;
-	ctx.repeat = repeat;
+	ctx->color = led_from_rgb(r, g, b);
+	ctx->alpha = a;
+	ctx->ctr = 0;
+	ctx->repeat = repeat;
 	user_animation_t anim = (user_animation_t){
 			.handler = _animate_solid,
-			.context = solid_ctx,
+			.context = ctx,
 			.priority = 1,
 			.initial_state = {0},
 			.cycle_time = delay,
 	};
 	ret = led_transition_custom_animation(&anim);
 	if( ret > 0 ) {
-		push_memory_queue((void*)solid_ctx);
+		push_memory_queue((void*)ctx);
 	} else {
-		free(solid_ctx);
+		free(ctx);
 	}
 	return ret;
 }
