@@ -535,10 +535,13 @@ int led_set_color(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b,
 	return 0;
 }
 int led_fade_out_custom_animation(void){
+	int ret;
 	xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
 	xEventGroupClearBits( led_events, 0xffffff );
 	xEventGroupSetBits( led_events, LED_FADE_OUT_STEP_BIT );
-	xSemaphoreGiveRecursive(led_smphr)
+	ret = animation_id;
+	xSemaphoreGiveRecursive(led_smphr);
+	return ret;
 }
 int led_transition_custom_animation(const user_animation_t * user){
 	user_animation_t temp;
