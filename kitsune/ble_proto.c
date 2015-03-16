@@ -648,7 +648,6 @@ void ble_proto_led_init()
 	play_led_animation_solid(LED_MAX, LED_MAX, LED_MAX,LED_MAX,1, 33);
 }
 
-static int wheel_id;//used to tell when we fade out if we need to spin down the leds or jsut transition to stopped
 
 void ble_proto_led_busy_mode(uint8_t a, uint8_t r, uint8_t g, uint8_t b, int delay)
 {
@@ -660,7 +659,7 @@ void ble_proto_led_busy_mode(uint8_t a, uint8_t r, uint8_t g, uint8_t b, int del
 	_self.delay = delay;
 
 	ble_proto_led_fade_out(false);
-	wheel_id = play_led_wheel(a,r,g,b,0,delay);
+	play_led_wheel(a,r,g,b,0,delay);
 }
 
 void ble_proto_led_flash(int a, int r, int g, int b, int delay)
@@ -687,15 +686,17 @@ void ble_proto_led_fade_in_trippy(){
 }
 
 void ble_proto_led_fade_out(bool operation_result){
-	if( led_get_animation_id() == wheel_id ) {
-		stop_led_wheel();
-		led_is_idle(10000);
-	}
 	stop_led_animation(33, 10000);
 
 	if(operation_result) {
 		ANIMATE_BLOCKING(play_led_animation_solid(LED_MAX,LED_MAX,LED_MAX,LED_MAX,1,11), 4000);
 	}
+}
+
+void ble_proto_charger_detect_begin () {
+MorpheusCommand response = {0};
+response.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE;
+ble_send_protobuf(&response);
 }
 
 #include "top_board.h"
