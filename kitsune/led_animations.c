@@ -150,6 +150,7 @@ static led_color_t wheel_color(int WheelPos, led_color_t color) {
 }
 
 static bool _animate_wheel(const led_color_t * prev, led_color_t * out, void * user_context ){
+	bool ret = true;
 	if(user_context){
 		int i;
 		wheel_context * ctx = user_context;
@@ -163,11 +164,11 @@ static bool _animate_wheel(const led_color_t * prev, led_color_t * out, void * u
 			}
 		}
 		if(ctx->fade){
-			return false;
+			ret =  false;
 		}
 		xSemaphoreGiveRecursive(led_smphr);
 	}
-	return true;
+	return ret;
 }
 
 /*
