@@ -345,6 +345,7 @@ static int get_cycle_time() {
 }
 
 void led_task( void * params ) {
+	bool keep_alive;
 	led_color_t colors_last[NUM_LED+1];
 	memset( colors_last, 0, sizeof(colors_last) );
 	_reset_animation_priority(&user_animation);
@@ -409,7 +410,7 @@ void led_task( void * params ) {
 			led_color_t colors[NUM_LED + 1];
 			xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
 			if(user_animation.handler){
-				if(user_animation.handler(colors_last, colors,user_animation.context )){
+				if( (keep_alive = user_animation.handler(colors_last, colors,user_animation.context )) ){
 					memcpy(colors_last,colors, sizeof(colors_last));
 					//delay capped at 500 ms to improve task responsiveness
 					xSemaphoreGiveRecursive( led_smphr );
@@ -418,7 +419,6 @@ void led_task( void * params ) {
 				}else{
 					vTaskDelay( user_animation.cycle_time );
 					xEventGroupClearBits(led_events,LED_CUSTOM_ANIMATION_BIT);
-					//xEventGroupSetBits(led_events,LED_RESET_BIT);
 					_start_fade_out();
 					UARTprintf("animation done %x\n", user_animation.handler);
 				}
@@ -434,7 +434,7 @@ void led_task( void * params ) {
 			led_color_t colors[NUM_LED + 1];
 			ledcpy(colors, colors_last, NUM_LED);
 			xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
-			if(user_animation.handler){
+			if(keep_alive && user_animation.handler){
 				user_animation.handler(colors_last, colors, user_animation.context);
 			}
 			fade_alpha-=QUANT_FACTOR;
