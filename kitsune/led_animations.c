@@ -163,9 +163,6 @@ static bool _animate_wheel(const led_color_t * prev, led_color_t * out, void * u
 				out[i] = led_from_brightness(&out[i], ctx->ctr * 2);
 			}
 		}
-		if(ctx->fade){
-			ret =  false;
-		}
 		xSemaphoreGiveRecursive(led_smphr);
 	}
 	return ret;
@@ -225,16 +222,7 @@ int play_led_trippy(uint8_t trippy_base[3], uint8_t trippy_range[3], unsigned in
 
 }
 int play_led_animation_stop(unsigned int fadeout){
-	int ret;
-	user_animation_t anim = (user_animation_t){
-				.handler = NULL,
-				.context = NULL,
-				.priority = 0,
-				.initial_state = {0},
-				.cycle_time = fadeout,
-	};
-	ret = led_transition_custom_animation(&anim);
-	return ret;
+	return led_fade_custom_animation();
 }
 int play_led_animation_solid(int a, int r, int g, int b, int repeat, int delay){
 	_animate_solid_ctx * ctx = pvPortMalloc(sizeof(_animate_solid_ctx));
@@ -293,10 +281,7 @@ int factory_led_test_pattern(unsigned int timeout) {
 }
 
 int stop_led_wheel() {
-	xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
-	self.wheel_ctx.repeat = 1;
-	self.wheel_ctx.fade = 1;
-	xSemaphoreGiveRecursive(led_smphr);
+	led_fade_custom_animation();
 	return 0;
 }
 int play_led_wheel(int a, int r, int g, int b, int repeat, int delay){
