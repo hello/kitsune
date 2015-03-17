@@ -23,7 +23,6 @@ static struct{
 	int progress_bar_percent;
 	uint8_t trippy_base[3];
 	uint8_t trippy_range[3];
-	wheel_context wheel_ctx;
 }self;
 
 
@@ -290,9 +289,9 @@ int play_led_wheel(int a, int r, int g, int b, int repeat, int delay){
 	color = led_from_brightness( &color, a );
 
 	wheel_context * wheel_ctx =  pvPortMalloc(sizeof(wheel_context));
-	self.wheel_ctx.ctr = 0;
-	self.wheel_ctx.repeat = repeat;
-	self.wheel_ctx.fade = 0;
+	wheel_ctx->ctr = 0;
+	wheel_ctx->repeat = repeat;
+	wheel_ctx->fade = 0;
 	xSemaphoreGiveRecursive(led_smphr);
 
 	user_animation_t anim = (user_animation_t){
