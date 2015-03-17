@@ -332,7 +332,7 @@ _start_fade_out(){
 	xEventGroupSetBits(led_events, LED_FADE_OUT_STEP_BIT );  // always fade out animation
 }
 static void
-_reset_user_animation(user_animation_t * anim){
+_reset_animation_priority(user_animation_t * anim){
 	UARTprintf("resetting animation %x\n", anim->handler );
 	anim->priority = 0xff;
 }
@@ -347,7 +347,7 @@ static int get_cycle_time() {
 void led_task( void * params ) {
 	led_color_t colors_last[NUM_LED+1];
 	memset( colors_last, 0, sizeof(colors_last) );
-	_reset_user_animation(&user_animation);
+	_reset_animation_priority(&user_animation);
 	led_smphr = xSemaphoreCreateRecursiveMutex();
 	assert(led_smphr);
 
@@ -379,7 +379,7 @@ void led_task( void * params ) {
 				DISP("reverting to animation %x\n", prev_user_animation.handler );
 				led_transition_custom_animation(&prev_user_animation);
 			} else {
-				_reset_user_animation(&user_animation);
+				_reset_animation_priority(&user_animation);
 			}
 			xSemaphoreGiveRecursive(led_smphr);
 			DISP("done with reset\n" );
