@@ -15,7 +15,6 @@ typedef struct{
 	led_color_t color;
 	int repeat;
 	int ctr;
-	int fade;
 }wheel_context;
 
 static struct{
@@ -291,7 +290,6 @@ int play_led_wheel(int a, int r, int g, int b, int repeat, int delay){
 	wheel_context * wheel_ctx =  pvPortMalloc(sizeof(wheel_context));
 	wheel_ctx->ctr = 0;
 	wheel_ctx->repeat = repeat;
-	wheel_ctx->fade = 0;
 	xSemaphoreGiveRecursive(led_smphr);
 
 	user_animation_t anim = (user_animation_t){
