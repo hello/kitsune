@@ -329,6 +329,7 @@ static void _transition(led_color_t * out, led_color_t * from, led_color_t * to)
 static void
 _start_fade_out(){
 	fade_alpha = 255;
+	xEventGroupClearBits(led_events,LED_CUSTOM_TRANSITION);
 	xEventGroupClearBits(led_events,LED_CUSTOM_ANIMATION_BIT);
 	xEventGroupSetBits(led_events, LED_FADE_OUT_STEP_BIT );  // always fade out animation
 }
@@ -364,7 +365,6 @@ void led_task( void * params ) {
 		                portMAX_DELAY );/* Wait for any bit to be set. */
 
 		MAP_WatchdogIntClear(WDT_BASE); //clear wdt... this task spends a lot of time with interrupts disabled....
-
 		//UARTprintf("%x\t%x\n", user_animation.handler, evnt );
 
 		if( evnt & LED_RESET_BIT ) {
@@ -608,7 +608,7 @@ void led_set_user_color(uint8_t red, uint8_t green, uint8_t blue)
 }
 int led_fade_custom_animation(void){
 	xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
-	if( xEventGroupGetBits( led_events ) & LED_CUSTOM_ANIMATION_BIT ) {
+	if( xEventGroupGetBits( led_events ) & (LED_CUSTOM_TRANSITION | LED_CUSTOM_ANIMATION_BIT) ) {
 		_start_fade_out();
 	}
 	xSemaphoreGiveRecursive(led_smphr);
