@@ -327,6 +327,11 @@ static void _transition(led_color_t * out, led_color_t * from, led_color_t * to)
 
 }
 static void
+_start_fade_out(){
+	fade_alpha = 255;
+	xEventGroupSetBits(led_events, LED_FADE_OUT_STEP_BIT );  // always fade out animation
+}
+static void
 _reset_user_animation(user_animation_t * anim){
 	UARTprintf("resetting animation %x\n", anim->handler );
 	anim->priority = 0xff;
@@ -414,8 +419,7 @@ void led_task( void * params ) {
 					vTaskDelay( user_animation.cycle_time );
 					xEventGroupClearBits(led_events,LED_CUSTOM_ANIMATION_BIT);
 					//xEventGroupSetBits(led_events,LED_RESET_BIT);
-					fade_alpha = 255;
-					xEventGroupSetBits(led_events, LED_FADE_OUT_STEP_BIT );  // always fade out animation
+					_start_fade_out();
 					UARTprintf("animation done %x\n", user_animation.handler);
 				}
 			}else{
