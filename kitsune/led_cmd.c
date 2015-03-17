@@ -549,26 +549,28 @@ int led_transition_custom_animation(const user_animation_t * user){
 	user_animation_t temp;
 	int ret = -1;
 	if(!user){
-		UARTprintf("no user\n");
+		DISP("no user\n");
 		return ret;
 	}else{
 		xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
-		UARTprintf("priority check %x %x\n", user->handler, user_animation.handler );
+		DISP("priority check %x %x\n", user->handler, user_animation.handler );
 		if(user->priority <= user_animation.priority){
 
-			UARTprintf("new animation %x %x\n", user->handler, user->priority );
+			DISP("new animation %x %x\n", user->handler, user->priority );
 			temp = *user;
-			UARTprintf("t1 animation %x %x\n", temp.handler, temp.priority );
+			DISP("t1 animation %x %x\n", temp.handler, temp.priority );
 
-    		UARTprintf("saving new %x old %x older %x\n", user->handler, user_animation.handler, prev_user_animation.handler );
-			prev_user_animation = user_animation;
+			DISP("saving new %x old %x older %x\n", user->handler, user_animation.handler, prev_user_animation.handler );
+			if( user_animation.handler != user->handler ) {
+				prev_user_animation = user_animation;
+			}
 
-			UARTprintf("t2 animation %x %x\n", temp.handler, temp.priority );
+			DISP("t2 animation %x %x\n", temp.handler, temp.priority );
 			user_animation = temp;
-			UARTprintf("set animation %x %x\n", user_animation.handler, user_animation.priority );
+			DISP("set animation %x %x\n", user_animation.handler, user_animation.priority );
 
 			user_animation.cycle_time = clamp_rgb(user_animation.cycle_time,0,500);
-			UARTprintf("cycle time %d\n", user_animation.cycle_time );
+			DISP("cycle time %d\n", user_animation.cycle_time );
 
 			ret = ++animation_id;
 			xEventGroupClearBits( led_events, 0xffffff );
