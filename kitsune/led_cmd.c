@@ -329,6 +329,7 @@ static void _transition(led_color_t * out, led_color_t * from, led_color_t * to)
 static void
 _start_fade_out(){
 	fade_alpha = 255;
+	xEventGroupClearBits(led_events,LED_CUSTOM_ANIMATION_BIT);
 	xEventGroupSetBits(led_events, LED_FADE_OUT_STEP_BIT );  // always fade out animation
 }
 static void
@@ -418,7 +419,6 @@ void led_task( void * params ) {
 					xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
 				}else{
 					vTaskDelay( user_animation.cycle_time );
-					xEventGroupClearBits(led_events,LED_CUSTOM_ANIMATION_BIT);
 					_start_fade_out();
 					UARTprintf("animation done %x\n", user_animation.handler);
 				}
