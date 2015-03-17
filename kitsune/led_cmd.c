@@ -347,7 +347,7 @@ static int get_cycle_time() {
 }
 
 void led_task( void * params ) {
-	bool keep_alive;
+	bool keep_alive = false;
 	led_color_t colors_last[NUM_LED+1];
 	memset( colors_last, 0, sizeof(colors_last) );
 	_reset_animation_priority(&user_animation);
@@ -391,6 +391,7 @@ void led_task( void * params ) {
 			led_color_t colors[NUM_LED + 1];
 			int i;
 			xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
+			keep_alive = false;
 			for(i = 0; i < NUM_LED; i++){
 				_transition(&colors[i], &colors_last[i], &user_animation.initial_state[i]);
 			}
