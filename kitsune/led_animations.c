@@ -284,10 +284,6 @@ int factory_led_test_pattern(unsigned int timeout) {
 	return ret;
 }
 
-int stop_led_wheel() {
-	led_fade_custom_animation();
-	return 0;
-}
 int play_led_wheel(int a, int r, int g, int b, int repeat, int delay){
 	int ret;
 	led_color_t color = led_from_rgb(r,g,b);
@@ -347,8 +343,6 @@ int Cmd_led_animate(int argc, char *argv[]){
 			play_led_wheel(rand()%LED_MAX, rand()%LED_MAX, rand()%LED_MAX, rand()%LED_MAX, 2, 16);
 		}else if(strcmp(argv[1], "wheelr") == 0){
 			play_led_wheel(rand()%LED_MAX, rand()%LED_MAX, rand()%LED_MAX, rand()%LED_MAX, 0, 16);
-		}else if(strcmp(argv[1], "wheels") == 0){
-			stop_led_wheel();
 		}else if(strcmp(argv[1], "solid") == 0){
 			play_led_animation_solid(rand()%LED_MAX, rand()%LED_MAX, rand()%LED_MAX, rand()%LED_MAX, 1,18);
 		}else if(strcmp(argv[1], "prog") == 0){
