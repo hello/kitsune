@@ -321,7 +321,7 @@ void set_led_progress_bar(uint8_t percent){
 }
 
 void stop_led_animation(unsigned int delay, unsigned int fadeout){
-	led_fade_custom_animation();
+	ANIMATE_BLOCKING(play_led_animation_stop(fadeout),delay);
 }
 
 int Cmd_led_animate(int argc, char *argv[]){
