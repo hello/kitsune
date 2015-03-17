@@ -608,9 +608,12 @@ void led_set_user_color(uint8_t red, uint8_t green, uint8_t blue)
 	xSemaphoreGiveRecursive(led_smphr);
 }
 int led_fade_custom_animation(void){
+	int ret = 0;
 	xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
 	if( xEventGroupGetBits( led_events ) & (LED_CUSTOM_TRANSITION | LED_CUSTOM_ANIMATION_BIT) ) {
 		_start_fade_out();
 	}
+	ret = animation_id;
 	xSemaphoreGiveRecursive(led_smphr);
+	return ret;
 }
