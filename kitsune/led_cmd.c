@@ -54,7 +54,7 @@ static struct{
 unsigned int user_delay;
 static int animation_id;
 static int fade_alpha;
-
+static const user_animation_t null_animation;
 static user_animation_t user_animation;
 static user_animation_t prev_user_animation;
 
@@ -418,8 +418,7 @@ void led_task( void * params ) {
 				}else{
 					vTaskDelay( user_animation.cycle_time );
 					xEventGroupClearBits(led_events,LED_CUSTOM_ANIMATION_BIT);
-					//xEventGroupSetBits(led_events,LED_RESET_BIT);
-					_start_fade_out();
+					led_transition_custom_animation(&null_animation);
 					UARTprintf("animation done %x\n", user_animation.handler);
 				}
 			}else{
