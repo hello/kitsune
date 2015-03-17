@@ -53,6 +53,7 @@ static struct{
 }user_color;
 unsigned int user_delay;
 static int animation_id;
+static int fade_alpha;
 
 static user_animation_t user_animation;
 static user_animation_t prev_user_animation;
@@ -339,7 +340,6 @@ static int get_cycle_time() {
 }
 
 void led_task( void * params ) {
-	int j;
 	led_color_t colors_last[NUM_LED+1];
 	memset( colors_last, 0, sizeof(colors_last) );
 	_reset_user_animation(&user_animation);
@@ -414,7 +414,7 @@ void led_task( void * params ) {
 					vTaskDelay( user_animation.cycle_time );
 					xEventGroupClearBits(led_events,LED_CUSTOM_ANIMATION_BIT);
 					//xEventGroupSetBits(led_events,LED_RESET_BIT);
-					j = 255;
+					fade_alpha = 255;
 					xEventGroupSetBits(led_events, LED_FADE_OUT_STEP_BIT );  // always fade out animation
 					UARTprintf("animation done %x\n", user_animation.handler);
 				}
@@ -433,14 +433,14 @@ void led_task( void * params ) {
 			if(user_animation.handler){
 				user_animation.handler(colors_last, colors, user_animation.context);
 			}
-			j-=QUANT_FACTOR;
-			if (j < 0) {
+			fade_alpha-=QUANT_FACTOR;
+			if (fade_alpha < 0) {
 				xEventGroupClearBits(led_events, 0xffffff);
 				xEventGroupSetBits(led_events,LED_RESET_BIT);
 				ledset(colors, led_from_rgb(0,0,0), NUM_LED);
 				//DISP("led faded out\n");
 			} else {
-				led_brightness_all(colors, j);
+				led_brightness_all(colors, fade_alpha);
 				led_array(colors, get_cycle_time());
 				//DISP("led fading\n");
 			}
