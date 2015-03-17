@@ -292,8 +292,6 @@ int play_led_wheel(int a, int r, int g, int b, int repeat, int delay){
 	wheel_context * wheel_ctx =  pvPortMalloc(sizeof(wheel_context));
 	wheel_ctx->ctr = 0;
 	wheel_ctx->repeat = repeat;
-	xSemaphoreGiveRecursive(led_smphr);
-
 	user_animation_t anim = (user_animation_t){
 		.handler = _animate_wheel,
 		.context = wheel_ctx,
