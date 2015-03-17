@@ -59,7 +59,7 @@ static user_animation_t user_animation;
 static user_animation_t prev_user_animation;
 
 
-static int clamp_rgb(int v, int min, int max){
+static int _clamp(int v, int min, int max){
 	if(v >= min && v <=max){
 		return v;
 	}else if(v > max){
@@ -191,7 +191,7 @@ static void led_array(led_color_t * colors, int delay) {
 	//
 	bool fast = MAP_GPIOPinRead(LED_GPIO_BASE_DOUT, LED_GPIO_BIT_DOUT);
 
-	vTaskDelay(clamp_rgb(delay,0,500)); //just to be sure...
+	vTaskDelay(_clamp(delay,0,500)); //just to be sure...
 	ulInt = MAP_IntMasterDisable();
 	if (fast) {
 		led_fast(colors);
@@ -488,9 +488,9 @@ int Cmd_led(int argc, char *argv[]) {
 	}else if(argc == 3){
 		if(strcmp(argv[1], "color") == 0 && argc >= 5){
 			unsigned int r,g,b;
-			r = clamp_rgb(atoi(argv[2]), 0, LED_CLAMP_MAX);
-			g = clamp_rgb(atoi(argv[3]), 0, LED_CLAMP_MAX);
-			b = clamp_rgb(atoi(argv[4]), 0, LED_CLAMP_MAX);
+			r = _clamp(atoi(argv[2]), 0, LED_CLAMP_MAX);
+			g = _clamp(atoi(argv[3]), 0, LED_CLAMP_MAX);
+			b = _clamp(atoi(argv[4]), 0, LED_CLAMP_MAX);
 			ANIMATE_BLOCKING(play_led_animation_stop(33),500);
 			LOGF("Setting colors R: %d, G: %d, B: %d \r\n", r, g, b);
 			play_led_animation_solid(LED_MAX, r,g,b,1, 18);
@@ -534,9 +534,9 @@ int led_set_color(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b,
 		unsigned int ud,
 		int rot) {
 	xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
-	user_color.r = clamp_rgb(r, 0, LED_CLAMP_MAX) * alpha / 0xFF;
-	user_color.g = clamp_rgb(g, 0, LED_CLAMP_MAX) * alpha / 0xFF;
-	user_color.b = clamp_rgb(b, 0, LED_CLAMP_MAX) * alpha / 0xFF;
+	user_color.r = _clamp(r, 0, LED_CLAMP_MAX) * alpha / 0xFF;
+	user_color.g = _clamp(g, 0, LED_CLAMP_MAX) * alpha / 0xFF;
+	user_color.b = _clamp(b, 0, LED_CLAMP_MAX) * alpha / 0xFF;
 	user_delay = ud;
     LOGI("Setting colors R: %d, G: %d, B: %d \r\n", user_color.r, user_color.g, user_color.b);
 	xEventGroupClearBits( led_events, 0xffffff );
@@ -569,7 +569,7 @@ int led_transition_custom_animation(const user_animation_t * user){
 			user_animation = temp;
 			DISP("set animation %x %x\n", user_animation.handler, user_animation.priority );
 
-			user_animation.cycle_time = clamp_rgb(user_animation.cycle_time,0,500);
+			user_animation.cycle_time = _clamp(user_animation.cycle_time,0,500);
 			DISP("cycle time %d\n", user_animation.cycle_time );
 
 			ret = ++animation_id;
