@@ -10,7 +10,7 @@ extern "C" {
 
 void init_led_animation();
 
-//call to stop all animations
+//call to stop *all* animation
 void stop_led_animation(unsigned int delay, unsigned int fadeout);
 int Cmd_led_animate(int argc, char *argv[]);
 
@@ -20,6 +20,7 @@ int play_led_progress_bar(int r, int g, int b, unsigned int options, unsigned in
 int play_led_animation_solid(int a, int r, int g, int b, int repeat, int delay);
 int factory_led_test_pattern(unsigned int timeout);
 int play_led_wheel(int a, int r, int g, int b, int repeat,int delay);
+//call to stop *current* animation
 int play_led_animation_stop();
 
 void set_led_progress_bar(uint8_t percent);
