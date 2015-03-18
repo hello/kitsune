@@ -48,6 +48,14 @@ typedef struct {
 	int repeat;
 	int ctr;
 } _animate_solid_ctx;
+static bool _reinit_animate_solid( void * user_context){
+	if(user_context){
+		_animate_solid_ctx * ctx = (_animate_solid_ctx *) user_context;
+		ctx->ctr = 0;
+		return true;
+	}
+	return false;
+}
 static bool _animate_solid(const led_color_t * prev, led_color_t * out, void * user_context){
 	out->rgb = 0;
 	if(user_context){
@@ -146,7 +154,14 @@ static led_color_t wheel_color(int WheelPos, led_color_t color) {
 				(b * (255 - WheelPos * 3)) >> 8);
 	}
 }
-
+static bool _reinit_animate_wheel( void * user_context){
+	if(user_context){
+		wheel_context * ctx = (wheel_context *) user_context;
+		ctx->ctr = 0;
+		return true;
+	}
+	return false;
+}
 static bool _animate_wheel(const led_color_t * prev, led_color_t * out, void * user_context ){
 	bool ret = true;
 	if(user_context){
@@ -199,7 +214,9 @@ int play_led_trippy(uint8_t trippy_base[3], uint8_t trippy_range[3], unsigned in
 	int i, ret;
 	user_animation_t anim = (user_animation_t){
 		.handler = _animate_trippy,
+		.reinit_handler = NULL,
 		.context = NULL,
+		.reinit_handler = NULL,
 		.priority = 1,
 		.initial_state = {0},
 		.cycle_time = delay,
@@ -235,6 +252,7 @@ int play_led_animation_solid(int a, int r, int g, int b, int repeat, int delay){
 	ctx->repeat = repeat;
 	user_animation_t anim = (user_animation_t){
 			.handler = _animate_solid,
+			.reinit_handler = _reinit_animate_solid,
 			.context = ctx,
 			.priority = 1,
 			.initial_state = {0},
@@ -252,6 +270,7 @@ int play_led_progress_bar(int r, int g, int b, unsigned int options, unsigned in
 	int ret;
 	user_animation_t anim = (user_animation_t){
 		.handler = _animate_progress,
+		.reinit_handler = NULL,
 		.context = NULL,
 		.priority = 1,
 		.initial_state = {0},
@@ -272,6 +291,7 @@ int factory_led_test_pattern(unsigned int timeout) {
 	counter = 0;
 	user_animation_t anim = (user_animation_t){
 		.handler = _animate_factory_test_pattern,
+		.reinit_handler = NULL,
 		.context = (void*)&counter,
 		.priority = 2,
 		.initial_state = {0},
@@ -292,6 +312,7 @@ int play_led_wheel(int a, int r, int g, int b, int repeat, int delay){
 	wheel_ctx->color = color;
 	user_animation_t anim = (user_animation_t){
 		.handler = _animate_wheel,
+		.reinit_handler = _reinit_animate_wheel,
 		.context = wheel_ctx,
 		.priority = 2,
 		.initial_state = {0},

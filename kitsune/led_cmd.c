@@ -346,6 +346,9 @@ _hist_pop(user_animation_t * out_anim){
 	if(hist_idx > 0 && hist_idx <= ANIMATION_HISTORY_SIZE ){
 		DISP("Pop  anim %x i %d\r\n", hist[hist_idx-1], hist_idx-1 );
 		*out_anim = hist[--hist_idx];
+		if( out_anim->reinit_handler ) {
+			out_anim->reinit_handler(out_anim->context);
+		}
 		return true;
 	}
 	return false;
@@ -590,7 +593,9 @@ int led_transition_custom_animation(const user_animation_t * user){
 		xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
 		DISP("priority check %x %x\n", user->handler, user_animation.handler );
 		if( user->priority <= user_animation.priority ){
-			_hist_push(&user_animation);
+			if( user->handler != user_animation.handler ) { //don't push repeats
+				_hist_push(&user_animation);
+			}
 			user_animation = *user;
 
 			_start_animation();
