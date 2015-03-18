@@ -39,10 +39,11 @@
 
 #endif
 
+
 #ifndef minval
 #define minval( a,b ) a < b ? a : b
 #endif
-
+#define ANIMATION_HISTORY_SIZE 3
 
 xSemaphoreHandle led_smphr;
 static EventGroupHandle_t led_events;
@@ -57,7 +58,31 @@ static int fade_alpha;
 
 static user_animation_t user_animation;
 static user_animation_t prev_user_animation;
+static user_animation_t hist[ANIMATION_HISTORY_SIZE];
+static int hist_idx;
 
+
+static bool
+_hist_push(const user_animation_t * anim){
+	if(hist_idx <ANIMATION_HISTORY_SIZE){
+		hist[hist_idx++] = *anim;
+		return true;
+	}
+	return false;
+}
+static bool
+_hist_pop(user_animation_t * out_anim){
+	if(hist_idx){
+		*out_anim = hist[hist_idx--];
+		return true;
+	}
+	return false;
+}
+static int
+_hist_flush(void){
+	hist_idx = 0;
+	return hist_idx;
+}
 
 static int _clamp(int v, int min, int max){
 	if(v >= min && v <=max){
@@ -375,11 +400,8 @@ void led_task( void * params ) {
 			xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
 			DISP("reset bit for %x\n", user_animation.handler );
 			//if the last one was something different from the current one and the current one didn't cancel itself
-			if( prev_user_animation.handler != user_animation.handler &&
-				prev_user_animation.handler != NULL &&
-				prev_user_animation.priority != 0xff ) {
-				DISP("reverting to animation %x\n", prev_user_animation.handler );
-				led_transition_custom_animation(&prev_user_animation);
+			if( _hist_pop(&user_animation) ){
+				led_transition_custom_animation(&user_animation);
 			} else {
 				_reset_animation_priority(&user_animation);
 			}
@@ -555,8 +577,9 @@ int led_transition_custom_animation(const user_animation_t * user){
 		xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
 		DISP("priority check %x %x\n", user->handler, user_animation.handler );
 		if(user->priority <= user_animation.priority){
-
-			DISP("new animation %x %x\n", user->handler, user->priority );
+			_hist_push(&user_animation);
+			user_animation = *user;
+			/*DISP("new animation %x %x\n", user->handler, user->priority );
 			temp = *user;
 			DISP("t1 animation %x %x\n", temp.handler, temp.priority );
 
@@ -571,7 +594,7 @@ int led_transition_custom_animation(const user_animation_t * user){
 
 			user_animation.cycle_time = _clamp(user_animation.cycle_time,0,500);
 			DISP("cycle time %d\n", user_animation.cycle_time );
-
+			*/
 			ret = ++animation_id;
 			xEventGroupClearBits( led_events, 0xffffff );
 			xEventGroupSetBits( led_events, LED_CUSTOM_TRANSITION );
