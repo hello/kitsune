@@ -843,7 +843,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
             	sec_type = command->security_type == wifi_endpoint_sec_type_SL_SCAN_SEC_TYPE_WPA2 ? SL_SEC_TYPE_WPA_WPA2 : command->security_type;
             }
             // Just call API to connect to WIFI.
-        	LOGI("Wifi SSID %s pswd ", ssid, password);
+        	//LOGI("Wifi SSID %s pswd ", ssid, password);
             if( sec_type == SL_SEC_TYPE_WEP ) {
             	int i;
             	for(i=0;i<strlen(password);++i) {

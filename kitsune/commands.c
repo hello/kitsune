@@ -698,7 +698,7 @@ void thread_dust(void * unused)  {
 			}
 			xSemaphoreGive(dust_smphr);
 		}
-		vTaskDelayUntil(&now, 3000);
+		vTaskDelayUntil(&now, 2500+(rand()%1000));
 	}
 }
 
@@ -1800,7 +1800,7 @@ void vUARTTask(void *pvParameters) {
 				LOGF("can't run command %s, no memory available!\n", cCmdBuf );
 			} else {
 				memcpy( args, cCmdBuf, sizeof( cCmdBuf ) );
-				xTaskCreate(CmdLineProcess, "commandTask",  5*1024 / 4, args, 4, NULL);
+				xTaskCreate(CmdLineProcess, "commandTask",  2*1024 / 4, args, 4, NULL);
 			}
         }
 	}
