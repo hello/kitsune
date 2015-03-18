@@ -163,7 +163,7 @@ static bool _animate_wheel(const led_color_t * prev, led_color_t * out, void * u
 		}
 		if(ctx->repeat){
 			if(ctx->ctr > (ctx->repeat * 255 - 128)){
-				led_fade_custom_animation();
+				led_fade_current_animation();
 			}
 		}
 
@@ -226,7 +226,7 @@ int play_led_trippy(uint8_t trippy_base[3], uint8_t trippy_range[3], unsigned in
 
 }
 int play_led_animation_stop(unsigned int fadeout){
-	return led_fade_custom_animation();
+	return led_fade_current_animation();
 }
 int play_led_animation_solid(int a, int r, int g, int b, int repeat, int delay){
 	_animate_solid_ctx * ctx = pvPortMalloc(sizeof(_animate_solid_ctx));
