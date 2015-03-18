@@ -450,15 +450,10 @@ void led_task( void * params ) {
 					led_array(colors, get_cycle_time());
 					xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
 				}else{
-					if( _hist_pop(&user_animation) ){
-						DISP("Popping animation.\r\n");
-						_start_animation();
-					} else {
-						vTaskDelay( user_animation.cycle_time );
-						_start_fade_out();
-						UARTprintf("animation done %x\n", user_animation.handler);
-						_reset_animation_priority(&user_animation);
-					}
+					vTaskDelay( user_animation.cycle_time );
+					_start_fade_out();
+					UARTprintf("animation done %x\n", user_animation.handler);
+					_reset_animation_priority(&user_animation);
 				}
 			}else{
 				vTaskDelay( user_animation.cycle_time );
