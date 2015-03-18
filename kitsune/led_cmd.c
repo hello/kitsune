@@ -61,28 +61,6 @@ static user_animation_t hist[ANIMATION_HISTORY_SIZE];
 static int hist_idx;
 
 
-static bool
-_hist_push(const user_animation_t * anim){
-	if(hist_idx <ANIMATION_HISTORY_SIZE){
-		hist[hist_idx++] = *anim;
-		return true;
-	}
-	return false;
-}
-static bool
-_hist_pop(user_animation_t * out_anim){
-	if(hist_idx){
-		*out_anim = hist[--hist_idx];
-		return true;
-	}
-	return false;
-}
-static int
-_hist_flush(void){
-	hist_idx = 0;
-	return hist_idx;
-}
-
 
 static int _clamp(int v, int min, int max){
 	if(v >= min && v <=max){
@@ -351,6 +329,29 @@ static void _transition(led_color_t * out, led_color_t * from, led_color_t * to)
 			_transition_color((int)b0, (int)b1, 1));
 
 }
+
+static bool
+_hist_push(const user_animation_t * anim){
+	if(hist_idx <ANIMATION_HISTORY_SIZE){
+		hist[hist_idx++] = *anim;
+		return true;
+	}
+	return false;
+}
+static bool
+_hist_pop(user_animation_t * out_anim){
+	if(hist_idx){
+		*out_anim = hist[--hist_idx];
+		return true;
+	}
+	return false;
+}
+static int
+_hist_flush(void){
+	hist_idx = 0;
+	return hist_idx;
+}
+
 static void
 _start_fade_out(){
 	fade_alpha = 255;
@@ -585,27 +586,10 @@ int led_transition_custom_animation(const user_animation_t * user){
 		xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
 		DISP("priority check %x %x\n", user->handler, user_animation.handler );
 		if( user->priority <= user_animation.priority ){
-
 			DISP("Pushing...\r\n");
 			_hist_push(&user_animation);
-
 			user_animation = *user;
-			/*DISP("new animation %x %x\n", user->handler, user->priority );
-			temp = *user;
-			DISP("t1 animation %x %x\n", temp.handler, temp.priority );
 
-			DISP("saving new %x old %x older %x\n", user->handler, user_animation.handler, prev_user_animation.handler );
-			if( user_animation.handler != user->handler ) {
-				prev_user_animation = user_animation;
-			}
-
-			DISP("t2 animation %x %x\n", temp.handler, temp.priority );
-			user_animation = temp;
-			DISP("set animation %x %x\n", user_animation.handler, user_animation.priority );
-
-			user_animation.cycle_time = _clamp(user_animation.cycle_time,0,500);
-			DISP("cycle time %d\n", user_animation.cycle_time );
-			*/
 			_start_animation();
 			ret = ++animation_id;
 		}else{
