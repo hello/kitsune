@@ -122,7 +122,7 @@ _on_message(uint8_t * message_body, uint32_t body_length){
 	LOGI("Got a SLIP message: %s\r\n", message_body);
 	if(!strncmp("DFUBEGIN",(char*)message_body, body_length)){
 		//delay is necessary because top board is slower.
-		ANIMATE_BLOCKING(led_fade_current_animation(), 500);
+		ANIMATE_BLOCKING(play_led_animation_stop(33), 500);
 		play_led_progress_bar(30,0,0,0, portMAX_DELAY);
 		vTaskDelay(2000);
 		if(0 != verify_top_update() || 0 != top_board_dfu_begin("/top/update.bin")){
