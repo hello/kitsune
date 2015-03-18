@@ -10,6 +10,8 @@
 #include "bigint_impl.h"
 #include "uart_logger.h"
 
+#include "assert.h"
+
 #include "led_animations.h"
 typedef struct{
 	led_color_t color;
@@ -235,6 +237,8 @@ int play_led_animation_solid(int a, int r, int g, int b, int repeat, int delay){
 	_animate_solid_ctx * ctx = pvPortMalloc(sizeof(_animate_solid_ctx));
 	int ret;
 
+	assert(ctx);
+
 	ctx->color = led_from_rgb(r, g, b);
 	ctx->alpha = a;
 	ctx->ctr = 0;
@@ -293,9 +297,11 @@ int play_led_wheel(int a, int r, int g, int b, int repeat, int delay){
 	color = led_from_brightness( &color, a );
 
 	wheel_context * wheel_ctx =  pvPortMalloc(sizeof(wheel_context));
+	assert(wheel_ctx);
 	wheel_ctx->ctr = 0;
 	wheel_ctx->repeat = repeat;
 	wheel_ctx->color = color;
+
 	user_animation_t anim = (user_animation_t){
 		.handler = _animate_wheel,
 		.reinit_handler = _reinit_animate_wheel,
