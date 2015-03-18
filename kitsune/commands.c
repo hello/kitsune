@@ -1481,6 +1481,8 @@ void init_i2c_recovery();
 void launch_tasks() {
 	//checkFaults();
 
+	stop_led_animation(1,1);
+
 	//dear future chris: this one doesn't need a semaphore since it's only written to while threads are going during factory test boot
 	booted = true;
 

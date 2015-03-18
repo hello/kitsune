@@ -332,15 +332,19 @@ static void _transition(led_color_t * out, led_color_t * from, led_color_t * to)
 
 static bool
 _hist_push(const user_animation_t * anim){
-	if(hist_idx <ANIMATION_HISTORY_SIZE){
-		hist[hist_idx++] = *anim;
-		return true;
+	if(hist_idx <ANIMATION_HISTORY_SIZE && anim->priority != 0xff ){
+		if( hist_idx == 0 || ( hist[hist_idx-1].handler != anim->handler ) ) {
+			DISP("Push anim %x i %d\r\n", anim->handler, hist_idx );
+			hist[hist_idx++] = *anim;
+			return true;
+		}
 	}
 	return false;
 }
 static bool
 _hist_pop(user_animation_t * out_anim){
-	if(hist_idx){
+	if(hist_idx > 0 && hist_idx <= ANIMATION_HISTORY_SIZE ){
+		DISP("Pop  anim %x i %d\r\n", hist[hist_idx-1], hist_idx-1 );
 		*out_anim = hist[--hist_idx];
 		return true;
 	}
@@ -349,6 +353,7 @@ _hist_pop(user_animation_t * out_anim){
 static int
 _hist_flush(void){
 	hist_idx = 0;
+	DISP("flush anim\r\n" );
 	return hist_idx;
 }
 
@@ -406,8 +411,7 @@ void led_task( void * params ) {
 			xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
 			DISP("reset bit for %x\n", user_animation.handler );
 			//if the last one was something different from the current one and the current one didn't cancel itself
-			if( _hist_pop(&user_animation) ){
-					DISP("Popping animation.\r\n");
+			if( _hist_pop(&user_animation)  ){
 					_start_animation();
 			}else{
 					_reset_animation_priority(&user_animation);
@@ -586,7 +590,6 @@ int led_transition_custom_animation(const user_animation_t * user){
 		xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
 		DISP("priority check %x %x\n", user->handler, user_animation.handler );
 		if( user->priority <= user_animation.priority ){
-			DISP("Pushing...\r\n");
 			_hist_push(&user_animation);
 			user_animation = *user;
 
