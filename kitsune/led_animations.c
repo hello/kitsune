@@ -256,7 +256,7 @@ int play_led_progress_bar(int r, int g, int b, unsigned int options, unsigned in
 	user_animation_t anim = (user_animation_t){
 		.handler = _animate_progress,
 		.context = NULL,
-		.priority = 2,
+		.priority = 1,
 		.initial_state = {0},
 		.cycle_time = 20,
 	};
