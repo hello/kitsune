@@ -56,7 +56,7 @@ static bool _reinit_animate_solid( void * user_context){
 	}
 	return false;
 }
-static bool _animate_solid(const led_color_t * prev, led_color_t * out, void * user_context){
+static int _animate_solid(const led_color_t * prev, led_color_t * out, void * user_context){
 	out->rgb = 0;
 	if(user_context){
 		_animate_solid_ctx * ctx = (_animate_solid_ctx *) user_context;
@@ -72,7 +72,7 @@ static bool _animate_solid(const led_color_t * prev, led_color_t * out, void * u
 			//UARTprintf("ovr %d %d\n", ctx->ctr, ctx->repeat);
 			ctx->ctr = 0;
 			if (--ctx->repeat <= 0) {
-				return false;
+				return ANIMATION_STOP;
 			}
 		}
 
@@ -80,9 +80,9 @@ static bool _animate_solid(const led_color_t * prev, led_color_t * out, void * u
 		ctx->ctr += 6;
 		//UARTprintf("roll %d\n", ctx->ctr);
 	}
-	return true;
+	return ANIMATION_CONTINUE;
 }
-static bool _animate_trippy(const led_color_t * prev, led_color_t * out, void * user_context){
+static int _animate_trippy(const led_color_t * prev, led_color_t * out, void * user_context){
 	int i = 0;
 	static int scaler = 100;
 	for(i = 0; i < NUM_LED; i++){
@@ -104,9 +104,9 @@ static bool _animate_trippy(const led_color_t * prev, led_color_t * out, void * 
 				g0 * ((unsigned int)(scaler)) / 100,
 				b0 * ((unsigned int)(scaler)) / 100);
 	}
-	return true;
+	return ANIMATION_CONTINUE;
 }
-static bool _animate_progress(const led_color_t * prev, led_color_t * out, void * user_context){
+static int _animate_progress(const led_color_t * prev, led_color_t * out, void * user_context){
 	int prog = self.progress_bar_percent * NUM_LED;
 	int filled = prog / 100;
 	int left = ((prog % 100)*254)>>8;
@@ -123,9 +123,9 @@ static bool _animate_progress(const led_color_t * prev, led_color_t * out, void 
 				 ((g * left)>>8)&0xff,
 				 ((b * left)>>8)&0xff);
 	}
-	return true;
+	return ANIMATION_CONTINUE;
 }
-static bool _animate_factory_test_pattern(const led_color_t * prev, led_color_t * out, void * user_context ){
+static int _animate_factory_test_pattern(const led_color_t * prev, led_color_t * out, void * user_context ){
 	int i;
 	int counter = *(int*)user_context;
 	for(i = 0; i < NUM_LED; i++){
@@ -135,7 +135,7 @@ static bool _animate_factory_test_pattern(const led_color_t * prev, led_color_t 
 			out[i] = led_from_rgb(0,0,0);
 		}
 	}
-	return true;
+	return ANIMATION_CONTINUE;
 }
 static led_color_t wheel_color(int WheelPos, led_color_t color) {
 	unsigned int r, g, b;
@@ -162,8 +162,8 @@ static bool _reinit_animate_wheel( void * user_context){
 	}
 	return false;
 }
-static bool _animate_wheel(const led_color_t * prev, led_color_t * out, void * user_context ){
-	bool ret = true;
+static int _animate_wheel(const led_color_t * prev, led_color_t * out, void * user_context ){
+	int ret = ANIMATION_CONTINUE;
 	if(user_context){
 		int i;
 		wheel_context * ctx = user_context;
@@ -178,7 +178,7 @@ static bool _animate_wheel(const led_color_t * prev, led_color_t * out, void * u
 		}
 		if(ctx->repeat){
 			if(ctx->ctr > (ctx->repeat * 255 - 128)){
-				led_fade_current_animation();
+				ret = ANIMATION_FADEOUT;
 			}
 		}
 
@@ -262,7 +262,7 @@ int play_led_animation_solid(int a, int r, int g, int b, int repeat, int delay){
 	if( ret > 0 ) {
 		push_memory_queue((void*)ctx);
 	} else {
-		free(ctx);
+		vPortFree(ctx);
 	}
 	return ret;
 }
@@ -323,7 +323,7 @@ int play_led_wheel(int a, int r, int g, int b, int repeat, int delay){
 	if( ret > 0 ) {
 		push_memory_queue((void*)wheel_ctx);
 	} else {
-		free(wheel_ctx);
+		vPortFree(wheel_ctx);
 	}
 	return ret;
 }

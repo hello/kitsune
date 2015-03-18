@@ -57,6 +57,7 @@ static int animation_id;
 static int fade_alpha;
 
 static user_animation_t user_animation;
+static user_animation_t fadeout_animation;
 static user_animation_t hist[ANIMATION_HISTORY_SIZE];
 static int hist_idx;
 
@@ -308,6 +309,7 @@ void led_idle_task( void * params ) {
 		vTaskDelay(10000);
 	}
 }
+#if 0
 static int _transition_color(int from, int to, int quant){
 	int diff = to - from;
 	if(diff <= quant && diff >= -quant){
@@ -329,6 +331,7 @@ static void _transition(led_color_t * out, led_color_t * from, led_color_t * to)
 			_transition_color((int)b0, (int)b1, 1));
 
 }
+#endif
 
 static bool
 _hist_push(const user_animation_t * anim){
@@ -353,6 +356,15 @@ _hist_pop(user_animation_t * out_anim){
 	}
 	return false;
 }
+#if 0
+static user_animation_t *
+_hist_peep() {
+	if(hist_idx > 0 && hist_idx <= ANIMATION_HISTORY_SIZE ){
+		return &hist[hist_idx-1];
+	}
+	return NULL;
+}
+#endif
 static int
 _hist_flush(void){
 	hist_idx = 0;
@@ -363,13 +375,18 @@ _hist_flush(void){
 static void
 _start_fade_out(){
 	fade_alpha = 255;
-	xEventGroupClearBits(led_events,LED_CUSTOM_TRANSITION);
 	xEventGroupClearBits(led_events,LED_CUSTOM_ANIMATION_BIT);
 	xEventGroupSetBits(led_events, LED_FADE_OUT_STEP_BIT );  // always fade out animation
 }
 static void
+_fade_out_for_new() {
+	fade_alpha = 255;
+	xEventGroupClearBits(led_events,LED_CUSTOM_ANIMATION_BIT);
+	xEventGroupSetBits( led_events, LED_FADE_OUT_STEP_BIT | LED_CUSTOM_TRANSITION );
+}
+static void
 _reset_animation_priority(user_animation_t * anim){
-	UARTprintf("resetting animation %x\n", anim->handler );
+//	DISP("resetting animation %x\n", anim->handler );
 	anim->priority = 0xff;
 }
 
@@ -382,14 +399,14 @@ static int get_cycle_time() {
 static void
 _start_animation(void){
 	xEventGroupClearBits( led_events, 0xffffff );
-	xEventGroupSetBits( led_events, LED_CUSTOM_TRANSITION );
+	xEventGroupSetBits(led_events,LED_CUSTOM_ANIMATION_BIT);
 
 }
 void led_task( void * params ) {
-	bool keep_alive = false;
 	led_color_t colors_last[NUM_LED+1];
 	memset( colors_last, 0, sizeof(colors_last) );
 	_reset_animation_priority(&user_animation);
+	_reset_animation_priority(&fadeout_animation);
 	led_smphr = xSemaphoreCreateRecursiveMutex();
 	assert(led_smphr);
 
@@ -425,65 +442,65 @@ void led_task( void * params ) {
 			DISP("done with reset\n" );
 			continue;
 		}
-		if(evnt & LED_CUSTOM_TRANSITION){
-			led_color_t colors[NUM_LED + 1];
-			int i;
-			xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
-			keep_alive = false;
-			for(i = 0; i < NUM_LED; i++){
-				_transition(&colors[i], &colors_last[i], &user_animation.initial_state[i]);
-			}
-			xSemaphoreGiveRecursive( led_smphr );
-			led_array(colors, get_cycle_time()/QUANT_FACTOR);
-			xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
-
-			memcpy(colors_last,colors, sizeof(colors_last));
-			if(0 == memcmp(user_animation.initial_state,colors,sizeof(user_animation.initial_state))){
-				xEventGroupClearBits(led_events,LED_CUSTOM_TRANSITION);
-				xEventGroupSetBits(led_events, LED_CUSTOM_ANIMATION_BIT);
-
-				UARTprintf("transition done\n");
-			}
-			xSemaphoreGiveRecursive( led_smphr );
-		}
 		if(evnt & LED_CUSTOM_ANIMATION_BIT){
 			led_color_t colors[NUM_LED + 1];
 			xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
 			if(user_animation.handler){
-				if( (keep_alive = user_animation.handler(colors_last, colors,user_animation.context )) ){
+				int animation_result = user_animation.handler(colors_last, colors,user_animation.context );
+				if( animation_result == ANIMATION_CONTINUE ) {
 					ledcpy(colors_last, colors, NUM_LED);
 					ledcpy(user_animation.initial_state, colors, NUM_LED);
 					//delay capped at 500 ms to improve task responsiveness
 					xSemaphoreGiveRecursive( led_smphr );
 					led_array(colors, get_cycle_time());
 					xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
-				}else{
+				}else if( animation_result == ANIMATION_FADEOUT ){
 					vTaskDelay( user_animation.cycle_time );
 					_start_fade_out();
-					UARTprintf("animation done %x\n", user_animation.handler);
+					DISP("animation done %x\n", user_animation.handler);
 					_reset_animation_priority(&user_animation);
+				} else if( animation_result == ANIMATION_STOP ) {
+					xEventGroupClearBits(led_events, 0xffffff);
+					xEventGroupSetBits(led_events,LED_RESET_BIT);
 				}
 			}else{
 				vTaskDelay( user_animation.cycle_time );
 				xEventGroupClearBits(led_events,LED_CUSTOM_ANIMATION_BIT);
 				xEventGroupSetBits(led_events,LED_RESET_BIT);
-				UARTprintf("animation no handler\n");
+				DISP("animation no handler\n");
 			}
 			xSemaphoreGiveRecursive( led_smphr );
 		}
-		if (evnt & LED_FADE_OUT_STEP_BIT) {
+		if (evnt & ( LED_FADE_OUT_STEP_BIT | LED_CUSTOM_TRANSITION ) ) {
 			led_color_t colors[NUM_LED + 1];
 			ledcpy(colors, colors_last, NUM_LED);
 			xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
-			if(keep_alive && user_animation.handler){
-				if( !user_animation.handler(colors_last, colors, user_animation.context) ) {
-					_reset_animation_priority(&user_animation);
+
+			if( evnt & LED_CUSTOM_TRANSITION ) {
+				if( fadeout_animation.priority != 0xff && fadeout_animation.handler ){
+					if( fadeout_animation.handler(colors_last, colors, fadeout_animation.context) == ANIMATION_STOP ) {
+						fade_alpha = 0;
+					}
+				}
+			} else {
+				if(user_animation.handler){
+					if (user_animation.handler(colors_last, colors,user_animation.context ) == ANIMATION_STOP) {
+						fade_alpha = 0;
+					}
 				}
 			}
 			fade_alpha-=QUANT_FACTOR;
 			if (fade_alpha < 0) {
-				xEventGroupClearBits(led_events, 0xffffff);
-				xEventGroupSetBits(led_events,LED_RESET_BIT);
+				_reset_animation_priority(&fadeout_animation);
+				if( evnt & LED_CUSTOM_TRANSITION ) {
+					xEventGroupClearBits(led_events,LED_CUSTOM_TRANSITION);
+					xEventGroupClearBits(led_events,LED_FADE_OUT_STEP_BIT);
+					xEventGroupSetBits(led_events, LED_CUSTOM_ANIMATION_BIT);
+					DISP("transition done\n");
+				} else {
+					xEventGroupClearBits(led_events, 0xffffff);
+					xEventGroupSetBits(led_events,LED_RESET_BIT);
+				}
 				ledset(colors, led_from_rgb(0,0,0), NUM_LED);
 				//DISP("led faded out\n");
 			} else {
@@ -596,9 +613,14 @@ int led_transition_custom_animation(const user_animation_t * user){
 			if( user->handler != user_animation.handler ) { //don't push repeats
 				_hist_push(&user_animation);
 			}
+			fadeout_animation = user_animation;
 			user_animation = *user;
 
-			_start_animation();
+			if( !led_is_idle(0) ) {
+				_fade_out_for_new();
+			} else {
+				_start_animation();
+			}
 			ret = ++animation_id;
 		}else{
 			ret = -2;

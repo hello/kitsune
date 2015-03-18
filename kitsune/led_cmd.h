@@ -20,7 +20,13 @@ led_color_t led_from_brightness(const led_color_t * c, unsigned int br);
 void ledset(led_color_t * dst, led_color_t src, int num);
 void ledcpy(led_color_t * dst, const led_color_t * src, int num);
 
-typedef bool (*led_user_animation_handler)(const led_color_t * prev, led_color_t * out, void * user_context );
+enum {
+	ANIMATION_STOP,
+	ANIMATION_CONTINUE,
+	ANIMATION_FADEOUT,
+};
+
+typedef int (*led_user_animation_handler)(const led_color_t * prev, led_color_t * out, void * user_context );
 typedef bool (*led_user_animation_reinit_handler)( void * user_context );
 typedef struct{
 	led_user_animation_handler handler;
