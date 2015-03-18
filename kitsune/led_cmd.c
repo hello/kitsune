@@ -57,7 +57,6 @@ static int animation_id;
 static int fade_alpha;
 
 static user_animation_t user_animation;
-static user_animation_t prev_user_animation;
 static user_animation_t hist[ANIMATION_HISTORY_SIZE];
 static int hist_idx;
 
