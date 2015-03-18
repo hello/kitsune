@@ -11,7 +11,7 @@
 #include "wifi_cmd.h"
 #include "kitsune_version.h"
 
-#define PROTOBUF_VERSION            0
+#define PROTOBUF_VERSION            1
 #define FIRMWARE_VERSION_INTERNAL   KIT_VER  //
 
 //*****************************************************************************

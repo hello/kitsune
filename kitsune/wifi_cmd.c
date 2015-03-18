@@ -2310,6 +2310,26 @@ int connect_wifi(const char* ssid, const char* password, int sec_type)
 	secParam.KeyLen = password == NULL ? 0 : strlen(password);
 	secParam.Type = sec_type;
 
+    if( secParam.Type == 1 ) {
+    	uint8_t wep_hex[14];
+    	int i;
+
+		for(i=0;i<strlen((char*)secParam.Key)/2;++i) {
+			char num[3] = {0};
+			memcpy( num, secParam.Key+i*2, 2);
+			wep_hex[i] = strtol( num, NULL, 16 );
+		}
+		secParam.KeyLen = i;
+		wep_hex[i++] = 0;
+
+		for(i=0;i<secParam.KeyLen;++i) {
+			UARTprintf("%x:", wep_hex[i] );
+		}
+		UARTprintf("\n" );
+		memcpy( secParam.Key, wep_hex, secParam.KeyLen + 1 );
+    }
+
+
 	int16_t index = 0;
 	int16_t ret = 0;
 	uint8_t retry = 5;
