@@ -582,8 +582,10 @@ int led_transition_custom_animation(const user_animation_t * user){
 	}else{
 		xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
 		DISP("priority check %x %x\n", user->handler, user_animation.handler );
-		if(user->priority <= user_animation.priority){
-			_hist_push(&user_animation);
+		if( user->priority <= user_animation.priority ){
+			if( led_is_animating() ){
+				_hist_push(&user_animation);
+			}
 			user_animation = *user;
 			/*DISP("new animation %x %x\n", user->handler, user->priority );
 			temp = *user;
