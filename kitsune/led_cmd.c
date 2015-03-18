@@ -405,8 +405,13 @@ void led_task( void * params ) {
 			xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
 			DISP("reset bit for %x\n", user_animation.handler );
 			//if the last one was something different from the current one and the current one didn't cancel itself
+			if( _hist_pop(&user_animation) ){
+					DISP("Popping animation.\r\n");
+					_start_animation();
+			}else{
+					_reset_animation_priority(&user_animation);
+			}
 
-			_reset_animation_priority(&user_animation);
 
 			xSemaphoreGiveRecursive(led_smphr);
 			DISP("done with reset\n" );
