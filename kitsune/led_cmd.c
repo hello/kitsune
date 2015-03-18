@@ -72,7 +72,7 @@ _hist_push(const user_animation_t * anim){
 static bool
 _hist_pop(user_animation_t * out_anim){
 	if(hist_idx){
-		*out_anim = hist[hist_idx--];
+		*out_anim = hist[--hist_idx];
 		return true;
 	}
 	return false;
