@@ -639,7 +639,7 @@ int led_fade_current_animation(void){
 	xSemaphoreGiveRecursive(led_smphr);
 	return ret;
 }
-int led_stop_all_animation(void){
+int led_fade_all_animation(void){
 	int ret = 0;
 	xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
 	_hist_flush();
