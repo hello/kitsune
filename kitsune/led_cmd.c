@@ -650,6 +650,7 @@ int led_fade_custom_animation(void){
 		_start_fade_out();
 	}
 	ret = animation_id;
+	_hist_flush();
 	xSemaphoreGiveRecursive(led_smphr);
 	return ret;
 }
