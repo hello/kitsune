@@ -442,7 +442,8 @@ void led_task( void * params ) {
 			xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
 			if(user_animation.handler){
 				if( (keep_alive = user_animation.handler(colors_last, colors,user_animation.context )) ){
-					memcpy(colors_last,colors, sizeof(colors_last));
+					ledcpy(colors_last, colors, NUM_LED);
+					ledcpy(user_animation.initial_state, colors, NUM_LED);
 					//delay capped at 500 ms to improve task responsiveness
 					xSemaphoreGiveRecursive( led_smphr );
 					led_array(colors, get_cycle_time());
