@@ -84,6 +84,7 @@ _hist_flush(void){
 	return hist_idx;
 }
 
+
 static int _clamp(int v, int min, int max){
 	if(v >= min && v <=max){
 		return v;
@@ -370,7 +371,13 @@ static int get_cycle_time() {
 	xSemaphoreGiveRecursive( led_smphr );
 	return cycle_time;
 }
+static int
+_start_animation(void){
+	xEventGroupClearBits( led_events, 0xffffff );
+	xEventGroupSetBits( led_events, LED_CUSTOM_TRANSITION );
+	return ++animation_id;
 
+}
 void led_task( void * params ) {
 	bool keep_alive = false;
 	led_color_t colors_last[NUM_LED+1];
@@ -401,7 +408,7 @@ void led_task( void * params ) {
 			DISP("reset bit for %x\n", user_animation.handler );
 			//if the last one was something different from the current one and the current one didn't cancel itself
 			if( _hist_pop(&user_animation) ){
-				led_transition_custom_animation(&user_animation);
+				_start_animation();
 			} else {
 				_reset_animation_priority(&user_animation);
 			}
@@ -568,7 +575,6 @@ int led_set_color(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b,
 }
 
 int led_transition_custom_animation(const user_animation_t * user){
-	user_animation_t temp;
 	int ret = -1;
 	if(!user){
 		DISP("no user\n");
@@ -595,9 +601,7 @@ int led_transition_custom_animation(const user_animation_t * user){
 			user_animation.cycle_time = _clamp(user_animation.cycle_time,0,500);
 			DISP("cycle time %d\n", user_animation.cycle_time );
 			*/
-			ret = ++animation_id;
-			xEventGroupClearBits( led_events, 0xffffff );
-			xEventGroupSetBits( led_events, LED_CUSTOM_TRANSITION );
+			ret =_start_animation();
 		}else{
 			ret = -2;
 		}
