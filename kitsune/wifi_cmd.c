@@ -2299,7 +2299,7 @@ int get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uin
 
 }
 
-int connect_wifi(const char* ssid, const char* password, int sec_type)
+int connect_wifi(const char* ssid, const char* password, int sec_type, int version)
 {
 	SlSecParams_t secParam = {0};
 
@@ -2309,6 +2309,26 @@ int connect_wifi(const char* ssid, const char* password, int sec_type)
 	secParam.Key = (signed char*)password;
 	secParam.KeyLen = password == NULL ? 0 : strlen(password);
 	secParam.Type = sec_type;
+
+    if( version > 0 && secParam.Type == 1 ) {
+    	uint8_t wep_hex[14];
+    	int i;
+
+		for(i=0;i<strlen((char*)secParam.Key)/2;++i) {
+			char num[3] = {0};
+			memcpy( num, secParam.Key+i*2, 2);
+			wep_hex[i] = strtol( num, NULL, 16 );
+		}
+		secParam.KeyLen = i;
+		wep_hex[i++] = 0;
+
+		for(i=0;i<secParam.KeyLen;++i) {
+			UARTprintf("%x:", wep_hex[i] );
+		}
+		UARTprintf("\n" );
+		memcpy( secParam.Key, wep_hex, secParam.KeyLen + 1 );
+    }
+
 
 	int16_t index = 0;
 	int16_t ret = 0;
@@ -2335,40 +2355,6 @@ int connect_wifi(const char* ssid, const char* password, int sec_type)
 
 	return 0;
 }
-
-int connect_scanned_endpoints(const char* ssid, const char* password, 
-    const Sl_WlanNetworkEntry_t* wifi_endpoints, int scanned_wifi_count, SlSecParams_t* connectedEPSecParamsPtr)
-{
-	int16_t ret;
-	if(!connectedEPSecParamsPtr)
-	{
-		return 0;
-	}
-
-	if(!wifi_endpoints)
-	{
-		return connect_wifi(ssid, password, connectedEPSecParamsPtr->Type);
-	}
-
-    int i = 0;
-
-    for(i = 0; i < scanned_wifi_count; i++)
-    {
-        Sl_WlanNetworkEntry_t wifi_endpoint = wifi_endpoints[i];
-        if(strcmp((const char*)wifi_endpoint.ssid, ssid) == 0)
-        {
-			ret = connect_wifi(ssid, password, wifi_endpoint.sec_type);
-			if(ret)
-			{
-				return 1;
-			}
-
-        }
-    }
-
-    return 0;
-}
-
 static xSemaphoreHandle _sl_status_mutex;
 static unsigned int _wifi_status;
 
