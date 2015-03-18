@@ -655,12 +655,3 @@ int led_fade_custom_animation(void){
 	xSemaphoreGiveRecursive(led_smphr);
 	return ret;
 }
-bool led_is_animating(void){
-	bool ret = false;
-	xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
-	if( xEventGroupGetBits( led_events ) & (LED_CUSTOM_TRANSITION | LED_CUSTOM_ANIMATION_BIT) ) {
-		ret = true;
-	}
-	xSemaphoreGiveRecursive(led_smphr);
-	return ret;
-}
