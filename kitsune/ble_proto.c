@@ -327,7 +327,7 @@ static void _reply_wifi_scan_result()
 }
 
 
-static bool _set_wifi(const char* ssid, const char* password, int security_type)
+static bool _set_wifi(const char* ssid, const char* password, int security_type, int version)
 {
     int connection_ret, i;
 
@@ -345,7 +345,7 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type)
 	xSemaphoreGive(_wifi_smphr);
 
 	//play_led_progress_bar(0xFF, 128, 0, 128,portMAX_DELAY);
-    while((connection_ret = connect_wifi(ssid, password, security_type)) == 0 && --retry_count)
+    while((connection_ret = connect_wifi(ssid, password, security_type, version)) == 0 && --retry_count)
     {
         //Cmd_led(0,0);
         LOGI("Failed to connect, retry times remain %d\n", retry_count);
@@ -843,7 +843,8 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
             	sec_type = command->security_type == wifi_endpoint_sec_type_SL_SCAN_SEC_TYPE_WPA2 ? SL_SEC_TYPE_WPA_WPA2 : command->security_type;
             }
             // Just call API to connect to WIFI.
-        	//LOGI("Wifi SSID %s pswd ", ssid, password);
+#if 0
+        	LOGI("Wifi SSID %s pswd ", ssid, password);
             if( sec_type == SL_SEC_TYPE_WEP ) {
             	int i;
             	for(i=0;i<strlen(password);++i) {
@@ -853,7 +854,8 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
             } else {
             	LOGI("%s\n", ssid, password);
             }
-            int result = _set_wifi(ssid, (char*)password, sec_type);
+#endif
+            int result = _set_wifi(ssid, (char*)password, sec_type, command->version );
 
         }
         break;
