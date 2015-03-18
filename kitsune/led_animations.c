@@ -218,25 +218,14 @@ int play_led_trippy(uint8_t trippy_base[3], uint8_t trippy_range[3], unsigned in
 		.context = NULL,
 		.reinit_handler = NULL,
 		.priority = 1,
-		.initial_state = {0},
 		.cycle_time = delay,
 	};
 
-	for(i = 0; i < NUM_LED; i++){
-		anim.initial_state[i] = led_from_rgb(
-				_new_random_color(trippy_range[0],trippy_base[0]),
-				_new_random_color(trippy_range[1],trippy_base[1]),
-				_new_random_color(trippy_range[2],trippy_base[2]));
-	}
 	xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
 	ret = led_transition_custom_animation(&anim);
 	if( ret > 0 ) {
 		memcpy(self.trippy_base, trippy_base, 3);
 		memcpy(self.trippy_range, trippy_range, 3);
-
-		for(i = 0; i < NUM_LED; i++){
-			self.colors[i] = anim.initial_state[i];
-		}
 	}
 	xSemaphoreGiveRecursive(led_smphr);
 	return ret;
@@ -255,7 +244,6 @@ int play_led_animation_solid(int a, int r, int g, int b, int repeat, int delay){
 			.reinit_handler = _reinit_animate_solid,
 			.context = ctx,
 			.priority = 1,
-			.initial_state = {0},
 			.cycle_time = delay,
 	};
 	ret = led_transition_custom_animation(&anim);
@@ -273,7 +261,6 @@ int play_led_progress_bar(int r, int g, int b, unsigned int options, unsigned in
 		.reinit_handler = NULL,
 		.context = NULL,
 		.priority = 1,
-		.initial_state = {0},
 		.cycle_time = 20,
 	};
 	xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
@@ -294,7 +281,6 @@ int factory_led_test_pattern(unsigned int timeout) {
 		.reinit_handler = NULL,
 		.context = (void*)&counter,
 		.priority = 2,
-		.initial_state = {0},
 		.cycle_time = 500,
 	};
 	ret = led_transition_custom_animation(&anim);
@@ -315,7 +301,6 @@ int play_led_wheel(int a, int r, int g, int b, int repeat, int delay){
 		.reinit_handler = _reinit_animate_wheel,
 		.context = wheel_ctx,
 		.priority = 2,
-		.initial_state = {0},
 		.cycle_time = delay,
 	};
 	ret = led_transition_custom_animation(&anim);

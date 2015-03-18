@@ -33,7 +33,6 @@ typedef struct{
 	led_user_animation_reinit_handler reinit_handler;
 	void * context;
 	uint8_t priority;
-	led_color_t initial_state[NUM_LED];
 	int cycle_time;
 }user_animation_t;
 
