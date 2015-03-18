@@ -1481,8 +1481,6 @@ void init_i2c_recovery();
 void launch_tasks() {
 	//checkFaults();
 
-	stop_led_animation(1,1);
-
 	//dear future chris: this one doesn't need a semaphore since it's only written to while threads are going during factory test boot
 	booted = true;
 
@@ -1757,17 +1755,18 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 4, NULL);
 
 	init_dust();
-	if( on_charger ) {
-		launch_tasks();
-	} else {
-		play_led_wheel( 50, LED_MAX, LED_MAX, 0,0,10);
-	}
 	ble_proto_init();
 	xTaskCreate(top_board_task, "top_board_task", 2048 / 4, NULL, 2, NULL);
 	xTaskCreate(thread_spi, "spiTask", 4*1024 / 4, NULL, 4, NULL); //this one doesn't look like much, but has to parse all the pb from bluetooth
 	UARTprintf("*");
 	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 1, NULL);
 	UARTprintf("*");
+
+	if( on_charger ) {
+		launch_tasks();
+	} else {
+		play_led_wheel( 50, LED_MAX, LED_MAX, 0,0,10);
+	}
 
 	UARTprintf("\n\nFreeRTOS %s, %x, %s %x:%x:%x:%x:%x:%x\n",
 	tskKERNEL_VERSION_NUMBER, KIT_VER, MORPH_NAME, mac[0], mac[1], mac[2],
