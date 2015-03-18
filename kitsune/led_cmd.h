@@ -53,6 +53,7 @@ int led_set_color(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b,
 		unsigned int ud,
 		int rot);
 bool led_is_idle(unsigned int wait);
+bool led_is_animating(void);
 unsigned int led_delay( unsigned int dly );
 
 #ifdef __cplusplus
