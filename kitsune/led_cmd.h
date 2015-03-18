@@ -43,7 +43,7 @@ int led_set_color(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b, int fade_in, i
  * returns -1 if error, else animation id
  */
 int led_transition_custom_animation(const user_animation_t * user);
-int led_fade_custom_animation(void);
+int led_fade_current_animation(void);
 int led_stop_all_animation(void);
 int led_get_animation_id(void);
 
