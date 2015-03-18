@@ -213,7 +213,7 @@ static push_memory_queue(void * new){
 }
 
 int play_led_trippy(uint8_t trippy_base[3], uint8_t trippy_range[3], unsigned int timeout, unsigned int delay ){
-	int i, ret;
+	int ret;
 	user_animation_t anim = (user_animation_t){
 		.handler = _animate_trippy,
 		.reinit_handler = NULL,

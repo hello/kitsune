@@ -698,7 +698,7 @@ void thread_dust(void * unused)  {
 			}
 			xSemaphoreGive(dust_smphr);
 		}
-		vTaskDelayUntil(&now, 3000);
+		vTaskDelayUntil(&now, 2500+(rand()%1000));
 	}
 }
 
