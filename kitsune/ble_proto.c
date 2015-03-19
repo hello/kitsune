@@ -148,7 +148,7 @@ static void dedupe_ssid( Sl_WlanNetworkEntry_t * ep, int * c){
 			vTaskDelay(10);
 			//LOGI( "INNER %d %d %d\n", i, j, *c);
 			if(!strcmp((char*)ep[i].ssid, (char*)ep[j].ssid)) {
-				LOGI( "MATCH %s %s\n", ep[i].ssid, ep[j].ssid);
+				//LOGI( "MATCH %s %s\n", ep[i].ssid, ep[j].ssid);
 				vTaskDelay(10);
 				memcpy( ep+j, ep+j+1, *c - j - 1 );
 				--*c;
@@ -192,18 +192,18 @@ static void _scan_wifi( void * params )
 	debug_print_ssid( "SSID RSSI IFA SORTED\n", endpoints_ifa, scan_cnt[IFA_ANT] );
 	debug_print_ssid( "SSID RSSI PCB SORTED\n", endpoints_pcb, scan_cnt[PCB_ANT] );
 	dedupe_ssid(  endpoints_ifa, &scan_cnt[IFA_ANT]);
-	LOGI("DEDUPE BARRIER\n");
+	//LOGI("DEDUPE BARRIER\n");
 	dedupe_ssid(  endpoints_pcb, &scan_cnt[PCB_ANT]);
 	debug_print_ssid( "SSID RSSI IFA UNIQUE\n", endpoints_ifa, scan_cnt[IFA_ANT] );
 	debug_print_ssid( "SSID RSSI PCB UNIQUE\n", endpoints_pcb, scan_cnt[PCB_ANT] );
 
-	LOGI("BEGIN MERGE\n");
+	//LOGI("BEGIN MERGE\n");
 	//merge the lists... since they are sorted by rssi we can pop the best one
 	//however the two lists can contain repeated values... so we need to scan out the dupes with lesser signal, better to just do it ahead of time
 	for(i=0;i<scan_cnt[IFA_ANT];++i) {
 		for(p=0;p<scan_cnt[PCB_ANT];++p) {
 			if(!strcmp((char*)endpoints_pcb[p].ssid, (char*)endpoints_ifa[i].ssid)) {
-				LOGI("MATCH\n");
+				//LOGI("MATCH\n");
 				if( endpoints_ifa[i].rssi > endpoints_pcb[p].rssi ) {
 #if 0
 					LOGI("%s %d\n", endpoints_ifa[i].ssid, endpoints_ifa[i].rssi);
@@ -290,7 +290,7 @@ static void _scan_wifi_mostly_nonblocking() {
 	xTaskCreate( _scan_wifi, "wifi_scan", 512 / 4, NULL, 1, NULL );
 }
 
-static Sl_WlanNetworkEntry_t * _find_scanned_wifi(char * ssid) {
+static Sl_WlanNetworkEntry_t * _find_scanned_wifi(const char * ssid) {
 	int i;
 	for (i = 0; i < MAX_WIFI_EP_PER_SCAN; ++i) {
 		if (!strcmp((char*) _wifi_endpoints[i].ssid, ssid)) {
@@ -300,8 +300,7 @@ static Sl_WlanNetworkEntry_t * _find_scanned_wifi(char * ssid) {
 	return NULL;
 }
 
-int check_best_antenna() {
-	_i16 i;
+void check_best_antenna() {
 	_i8 ssid[32];
 	_i16 ssidLen;
 	_u8 macAddr[6];
@@ -314,6 +313,7 @@ int check_best_antenna() {
 		ap = _find_scanned_wifi((char*)ssid);
 		if( ap != NULL ) {
 			if( get_default_antenna() != ap->reserved[0] ) {
+				LOGI("switched ant from %d to %d ssid %s\r\n", get_default_antenna(), ap->reserved[0], (char*)ssid );
 				antsel(ap->reserved[0]);
 				save_default_antenna(ap->reserved[0]);
 			}
@@ -367,7 +367,7 @@ static void _reply_wifi_scan_result()
 
 static bool _set_wifi(const char* ssid, const char* password, int security_type, int version)
 {
-    int connection_ret, i;
+    int connection_ret;
     Sl_WlanNetworkEntry_t * ap;
 
     uint8_t max_retry = 10;

@@ -1109,7 +1109,7 @@ void sample_sensor_data(periodic_data* data)
 	gesture_counter_reset();
 }
 
-int check_best_antenna();
+void check_best_antenna();
 
 void thread_sensor_poll(void* unused) {
 
@@ -1148,6 +1148,7 @@ void thread_sensor_poll(void* unused) {
 		}
 
 		//check if the current antenna is still best
+
 		check_best_antenna();
 
 		vTaskDelayUntil(&now, 60 * configTICK_RATE_HZ);
