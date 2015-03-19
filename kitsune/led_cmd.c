@@ -368,6 +368,8 @@ _hist_peep() {
 static int
 _hist_flush(void){
 	hist_idx = 0;
+	_reset_animation_priority(&user_animation);
+	_reset_animation_priority(&fadeout_animation);
 	DISP("flush anim\r\n" );
 	return hist_idx;
 }

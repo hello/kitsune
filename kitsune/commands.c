@@ -774,7 +774,7 @@ static void _show_led_status()
 
 static void _on_wave(){
 	if(	cancel_alarm() ) {
-		stop_led_animation(10, 18);
+		stop_led_animation(10000, 18);
 	} else {
 		_show_led_status();
 	}
@@ -1799,7 +1799,7 @@ void vUARTTask(void *pvParameters) {
 				LOGF("can't run command %s, no memory available!\n", cCmdBuf );
 			} else {
 				memcpy( args, cCmdBuf, sizeof( cCmdBuf ) );
-				xTaskCreate(CmdLineProcess, "commandTask",  2*1024 / 4, args, 4, NULL);
+				xTaskCreate(CmdLineProcess, "commandTask",  3*1024 / 4, args, 4, NULL);
 			}
         }
 	}
