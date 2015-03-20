@@ -228,54 +228,49 @@ void reset_default_antenna()
 }
 
 void save_default_antenna( unsigned char a ) {
-		unsigned long tok=0;
-		long hndl, bytes;
-		SlFsFileInfo_t info;
+	unsigned long tok = 0;
+	long hndl, bytes;
+	SlFsFileInfo_t info;
 
-		sl_FsGetInfo((unsigned char*)ANTENNA_FILE, tok, &info);
+	sl_FsDel((unsigned char*)ANTENNA_FILE, 0);
+	sl_FsGetInfo((unsigned char*)ANTENNA_FILE, tok, &info);
 
-		if (sl_FsOpen((unsigned char*)ANTENNA_FILE, FS_MODE_OPEN_WRITE, &tok, &hndl)) {
-			LOGI("error opening file, trying to create\n");
-
-			if (sl_FsOpen((unsigned char*)ANTENNA_FILE,
-					FS_MODE_OPEN_CREATE(65535, _FS_FILE_OPEN_FLAG_COMMIT), &tok,
-					&hndl)) {
-				LOGI("error opening for write\n");
-				return;
-			}else{
-				sl_FsWrite(hndl, 0, &a, 1);  // Dummy write, we don't care about the result
-			}
-		}
-
-		bytes = sl_FsWrite(hndl, 0, &a, 1);
-		if( bytes != 1 ) {
-			LOGE( "writing antenna failed %d", bytes );
-		}
-		sl_FsClose(hndl, 0, 0, 0);
-
+	if (sl_FsOpen((unsigned char*)ANTENNA_FILE, FS_MODE_OPEN_CREATE(8, _FS_FILE_OPEN_FLAG_COMMIT), &tok, &hndl)) {
+		LOGI("error opening for write\n");
 		return;
+	}
+	bytes = sl_FsWrite(hndl, 0, &a, 1); //double write, thanks ti
+	bytes = sl_FsWrite(hndl, 0, &a, 1);
+	if (bytes != 1) {
+		LOGE("writing antenna failed %d", bytes);
+	}
+	sl_FsClose(hndl, 0, 0, 0);
+
+	return;
 }
 unsigned char get_default_antenna() {
-	unsigned char a = PCB_ANT;
+	unsigned char a[2] = {0};
 	long hndl = -1;
-	int RetVal, Offset;
+	int err;
+	unsigned long tok=0;
+	SlFsFileInfo_t info;
 
-	// read in aes key
-	RetVal = sl_FsOpen(ANTENNA_FILE, FS_MODE_OPEN_READ, NULL, &hndl);
-	if (RetVal != 0) {
+	sl_FsGetInfo((unsigned char*)ANTENNA_FILE, tok, &info);
+
+	err = sl_FsOpen((unsigned char*) ANTENNA_FILE, FS_MODE_OPEN_READ, &tok, &hndl);
+	if (err != 0) {
 		LOGE("failed to open antenna file\n");
-		return a;
+		return PCB_ANT;
 	}
 
-	Offset = 0;
-	RetVal = sl_FsRead(hndl, Offset, (unsigned char *) a, 1);
-	if (RetVal != 1) {
+	err = sl_FsRead(hndl, 0, (unsigned char *) a, 2);
+	if (err != 1) {
 		LOGE("failed to read antenna file\n");
 	}
 
-	RetVal = sl_FsClose(hndl, NULL, NULL, 0);
+	sl_FsClose(hndl, 0, 0, 0);
 
-	return a;
+	return a[0] == 0 ? PCB_ANT : a[0];
 }
 
 void antsel(unsigned char a)

@@ -171,16 +171,15 @@ static void _scan_wifi( void * params )
 	Sl_WlanNetworkEntry_t * endpoints_pcb;
 	int scan_cnt[ANTENNA_CNT+1] = {0};
 
+	LOGI( "SCANBEGIN\n");
+
 	xSemaphoreTake(_wifi_smphr, portMAX_DELAY);
 	memset(_wifi_endpoints, 0, sizeof(_wifi_endpoints));
 	_scanned_wifi_count = 0;
 	_wifi_read_index = 0;
 	wifi_status_set(SCANNING, false);  // Set the scanning flag
 
-//	LOGI( "SCAN IFA\n");
 	scan_cnt[IFA_ANT] = scan_with_retry( &endpoints_ifa, IFA_ANT );
-
-//	LOGI( "SCAN PCB\n");
 	scan_cnt[PCB_ANT] = scan_with_retry( &endpoints_pcb, PCB_ANT );
 
 	int i,p;
@@ -273,6 +272,7 @@ static void _scan_wifi( void * params )
 	vPortFree(endpoints_ifa);
 
 	xSemaphoreGive(_wifi_smphr);
+	LOGI( "SCANEND\n");
 
 	vTaskDelete(NULL);
 }
@@ -313,7 +313,7 @@ void check_best_antenna() {
 		ap = _find_scanned_wifi((char*)ssid);
 		if( ap != NULL ) {
 			if( get_default_antenna() != ap->reserved[0] ) {
-				LOGI("switched ant from %d to %d ssid %s\r\n", get_default_antenna(), ap->reserved[0], (char*)ssid );
+				LOGI("switched ant from %d to %d (%d) ssid %s\r\n", get_default_antenna(), ap->reserved[0], ap->rssi, (char*)ssid );
 				antsel(ap->reserved[0]);
 				save_default_antenna(ap->reserved[0]);
 			}
