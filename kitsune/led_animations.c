@@ -65,10 +65,10 @@ static int _animate_solid(const led_color_t * prev, led_color_t * out, void * us
 		led_color_t color = led_from_brightness(&ctx->color, ctx->alpha);
 		if(ctx->ctr < 254) {
 			//UARTprintf("fi %d\n", ctx->ctr);
-			color = led_from_brightness(&ctx->color, ctx->ctr);
+			color = led_from_brightness(&color, ctx->ctr);
 		} else if(ctx->ctr < 508 ) {
 			//UARTprintf("fo %d\n", ctx->ctr);
-			color = led_from_brightness(&ctx->color, 508-ctx->ctr);
+			color = led_from_brightness(&color, 508-ctx->ctr);
 		} else {
 			color.rgb = 0;
 			//UARTprintf("ovr %d %d\n", ctx->ctr, ctx->repeat);
@@ -77,7 +77,6 @@ static int _animate_solid(const led_color_t * prev, led_color_t * out, void * us
 				return ANIMATION_STOP;
 			}
 		}
-
 		ledset(out, color, NUM_LED);
 		ctx->ctr += 6;
 		//UARTprintf("roll %d\n", ctx->ctr);
