@@ -1504,7 +1504,7 @@ void launch_tasks() {
 	UARTprintf("*");
 	xTaskCreate(thread_dust, "dustTask", 1024 / 4, NULL, 3, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_sensor_poll, "pollTask", 1024 / 4, NULL, 3, NULL);
+	xTaskCreate(thread_sensor_poll, "pollTask", 1536 / 4, NULL, 3, NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_tx, "txTask", 3 * 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
