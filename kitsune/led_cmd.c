@@ -552,7 +552,7 @@ int Cmd_led(int argc, char *argv[]) {
 			r = _clamp(atoi(argv[2]), 0, LED_CLAMP_MAX);
 			g = _clamp(atoi(argv[3]), 0, LED_CLAMP_MAX);
 			b = _clamp(atoi(argv[4]), 0, LED_CLAMP_MAX);
-			ANIMATE_BLOCKING(led_fade_all_animation(),500);
+			ANIMATE_BLOCKING(led_fade_all_animation(-1),500);
 			LOGF("Setting colors R: %d, G: %d, B: %d \r\n", r, g, b);
 			play_led_animation_solid(LED_MAX, r,g,b,1, 18);
 		}
@@ -674,9 +674,12 @@ int led_fade_current_animation(void){
 	xSemaphoreGiveRecursive(led_smphr);
 	return ret;
 }
-int led_fade_all_animation(void){
+int led_fade_all_animation(int fadeout){
 	int ret = 0;
 	xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
+	if( fadeout >=  0 ) {
+		user_animation.cycle_time = fadeout;
+	}
 	_hist_flush();
 	ret = led_fade_current_animation();
 	xSemaphoreGiveRecursive(led_smphr);
