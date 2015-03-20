@@ -315,7 +315,6 @@ void check_best_antenna() {
 			if( get_default_antenna() != ap->reserved[0] ) {
 				LOGI("switched ant from %d to %d (%d) ssid %s\r\n", get_default_antenna(), ap->reserved[0], ap->rssi, (char*)ssid );
 				antsel(ap->reserved[0]);
-				save_default_antenna(ap->reserved[0]);
 			}
 		}
 	}
@@ -376,7 +375,6 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type,
 	xSemaphoreTake(_wifi_smphr, portMAX_DELAY);
 	ap = _find_scanned_wifi(ssid);
 	antsel(ap->reserved[0]);
-	save_default_antenna(ap->reserved[0]);
 	xSemaphoreGive(_wifi_smphr);
 
 	//play_led_progress_bar(0xFF, 128, 0, 128,portMAX_DELAY);

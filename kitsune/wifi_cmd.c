@@ -283,6 +283,8 @@ void antsel(unsigned char a)
     {
         MAP_GPIOPinWrite(GPIOA3_BASE, 0xC, 0x4);
     }
+
+	save_default_antenna(a);
     return;
 }
 int Cmd_antsel(int argc, char *argv[]) {
