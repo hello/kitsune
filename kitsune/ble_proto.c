@@ -784,6 +784,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 						top_device_id[3],top_device_id[4],top_device_id[5],
 						top_device_id[6],top_device_id[7]);
 				top_got_device_id = true;
+			    save_device_id(top_device_id);
 				_ble_reply_command_with_type(MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID);
 				top_board_notify_boot_complete();
 				vTaskDelay(200);
