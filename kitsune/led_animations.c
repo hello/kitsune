@@ -240,6 +240,7 @@ int play_led_animation_solid(int a, int r, int g, int b, int repeat, int delay){
 	assert(ctx);
 
 	ctx->color = led_from_rgb(r, g, b);
+	ctx->color = led_from_brightness( &ctx->color, a );
 	ctx->alpha = a;
 	ctx->ctr = 0;
 	ctx->repeat = repeat;
