@@ -686,7 +686,7 @@ void ble_proto_led_fade_in_trippy(){
 }
 
 void ble_proto_led_fade_out(bool operation_result){
-	stop_led_animation(33, 10000);
+	stop_led_animation(18, 10000);
 
 	if(operation_result) {
 		ANIMATE_BLOCKING(play_led_animation_solid(LED_MAX,LED_MAX,LED_MAX,LED_MAX,1,11), 4000);
