@@ -866,7 +866,6 @@ void thread_tx(void* unused) {
 	batched_periodic_data data_batched = {0};
 	load_aes();
 	load_device_id();
-
 	pill_settings_init();
 	int tries = 0;
 
@@ -1504,8 +1503,6 @@ void launch_tasks() {
 	xTaskCreate(thread_tx, "txTask", 3 * 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
 #endif
-	//reset top since middle rebooted and we want to get top's id
-    send_top("rst", sizeof("rst"));
 }
 
 
