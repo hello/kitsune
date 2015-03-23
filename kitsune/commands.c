@@ -1527,6 +1527,7 @@ int cmd_memfrag(int argc, char *argv[]) {
 	else if (strstr(argv[1], "f") != 0) {
 		vPortFree(ptr);
 	}
+	return 0;
 }
 
 // ==============================================================================
