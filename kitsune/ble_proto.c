@@ -571,7 +571,6 @@ int _force_data_push()
 
 static int _pair_device( MorpheusCommand* command, int is_morpheus)
 {
-	char response_buffer[256] = {0};
 	int ret = -1;
 	if(NULL == command->accountId.arg || NULL == command->deviceId.arg){
 		LOGI("*******Missing fields\n");
@@ -582,8 +581,15 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 		// TODO: Figure out why always get -1 when this is the 1st request
 		// after the IPv4 retrieved.
 
+	    char *  response_buffer = pvPortMalloc(SERVER_REPLY_BUFSZ);
+
+	    int ret;
+
+	    assert(buffer);
+	    memset(buffer, 0, SERVER_REPLY_BUFSZ);
+
 		int retry = 3;
-		while(ret != 0 && retry--)
+		while(retry--)
 		{
 			ret = NetworkTask_SynchronousSendProtobuf(
 					DATA_SERVER,
@@ -593,6 +599,17 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 					MorpheusCommand_fields,
 					command,
 					0);
+
+			if(ret != 0) {
+		        LOGI("network error %d\n", ret);
+		    }
+		    if(validate_signatures(response_buffer, MorpheusCommand_fields, &command) == 0) {
+		    	LOGF("pairing validated\r\n");
+		    	break;
+		    } else {
+		        LOGF("pairing validation fail\r\n");
+		        ret = -1000;
+		    }
 			vTaskDelay(1000);
 		}
 
@@ -601,15 +618,18 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 		if(ret == 0)
 		{
 			_send_response_to_ble(response_buffer, sizeof(response_buffer));
+		    vPortFree(response_buffer);
 			return 1;
 		}else{
 			LOGI("Pairing request failed, error %d\n", ret);
 			ble_reply_protobuf_error(ErrorType_NETWORK_ERROR);
+		    vPortFree(response_buffer);
 		}
 		if(!is_morpheus) {
 			vTaskDelay(1000);
 			_force_data_push();
 		}
+
 	}
 
 	return 0; // failure
