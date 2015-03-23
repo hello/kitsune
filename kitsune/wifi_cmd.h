@@ -35,6 +35,8 @@ int sl_mode;
 #define DEVICE_ID_LOC "/hello/deviceid"
 #define DEVICE_ID_SZ 8
 
+#define SERVER_REPLY_BUFSZ 2048
+
 #include "stdint.h"
 #include "sync_response.pb.h"
 
@@ -97,6 +99,7 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
 int decode_rx_data_pb_callback(const uint8_t * buffer, uint32_t buffer_size, void * decodedata,network_decode_callback_t decoder);
 int decode_rx_data_pb(const uint8_t * buffer, uint32_t buffer_size, const  pb_field_t fields[],void * structdata);
 
+bool validate_signatures( char * buffer, const pb_field_t fields[], void * structdata);
 
 int http_response_ok(const char* response_buffer);
 

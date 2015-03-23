@@ -16,7 +16,6 @@
 #include "wifi_cmd.h"
 #include "networktask.h"
 
-#define SERVER_REPLY_BUFSZ 2048
 
 #define ROLE_INVALID (-5)
 
