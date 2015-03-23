@@ -16,6 +16,8 @@
 #include "wifi_cmd.h"
 #include "networktask.h"
 
+#define SERVER_REPLY_BUFSZ 2048
+
 #define ROLE_INVALID (-5)
 
 int sl_mode = ROLE_INVALID;
@@ -802,37 +804,71 @@ void load_device_id() {
 }
 
 #include "ble_proto.h"
+
+bool validate_signatures( char * buffer, const pb_field_t fields[], void * structdata) {
+
+    // Parse the response
+    //LOGI("Reply is:\n\r%s\n\r", buffer);
+
+    const char* header_content_len = "Content-Length: ";
+    char * content = strstr(buffer, "\r\n\r\n") + 4;
+    char * len_str = strstr(buffer, header_content_len) + strlen(header_content_len);
+    if (http_response_ok(buffer) != 1) {
+    	wifi_status_set(UPLOADING, true);
+        LOGI("Invalid response, endpoint return failure.\n");
+        vPortFree(buffer);
+        return -1;
+    }
+
+    if (len_str == NULL) {
+    	wifi_status_set(UPLOADING, true);
+        LOGI("Failed to find Content-Length header\n");
+        vPortFree(buffer);
+        return -1;
+    }
+    int len = atoi(len_str);
+
+    return decode_rx_data_pb((unsigned char*) content, len, fields, structdata);
+}
+
 int Cmd_test_key(int argc, char*argv[]) {
     load_aes();
     load_device_id();
     //LOGI("Last two digit: %02X:%02X\n", aes_key[AES_BLOCKSIZE - 2], aes_key[AES_BLOCKSIZE - 1]);
 
+    char *  buffer = pvPortMalloc(SERVER_REPLY_BUFSZ);
+
+    int ret;
+
+    assert(buffer);
+    memset(buffer, 0, SERVER_REPLY_BUFSZ);
+
     MorpheusCommand test_command = {0};
     test_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_SENSE;
     test_command.version = PROTOBUF_VERSION;
 
-    char response_buffer[256] = {0};
-
-    int ret = NetworkTask_SynchronousSendProtobuf(
-                DATA_SERVER,
-                CHECK_KEY_ENDPOINT,
-                response_buffer,
-                sizeof(response_buffer),
-                MorpheusCommand_fields,
-                &test_command,
-                1000);
-
-    if(ret != 0 ) {
-    	LOGF("Test key failed: network error %d\n", ret);
-    	return -1;
+    ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER,CHECK_KEY_ENDPOINT, buffer, SERVER_REPLY_BUFSZ, MorpheusCommand_fields, &test_command, 0);
+    if(ret != 0)
+    {
+        // network error
+    	wifi_status_set(UPLOADING, true);
+        LOGI("Send data failed, network error %d\n", ret);
+        vPortFree(buffer);
+        return ret;
     }
-	if( http_response_ok(response_buffer) ) {
-		LOGF(" test key success \n");
-	} else {
-		LOGF(" test key not valid \n");
-	}
 
-    return 0;
+
+    MorpheusCommand response_protobuf;
+    memset(&response_protobuf, 0, sizeof(response_protobuf));
+
+    if(validate_signatures(buffer, MorpheusCommand_fields, &response_protobuf) == 0) {
+    	LOGF("test key validated\r\n");
+    } else {
+        LOGF("test key fail\r\n");
+    }
+
+    vPortFree(buffer);
+    return -1;
 }
 
 /* protobuf includes */
@@ -1717,7 +1753,6 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
     
 }
 
-#define SERVER_REPLY_BUFSZ 1024
 //retry logic is handled elsewhere
 int send_pill_data(batched_pill_data * pill_data) {
     char *  buffer = pvPortMalloc(SERVER_REPLY_BUFSZ);
@@ -1736,16 +1771,22 @@ int send_pill_data(batched_pill_data * pill_data) {
     // Parse the response
     //LOGI("Reply is:\n\r%s\n\r", buffer);
 
-    const char* header_content_len = "Content-Length: ";
-    char * content = strstr(buffer, "\r\n\r\n") + 4;
-    char * len_str = strstr(buffer, header_content_len) + strlen(header_content_len);
-    if (http_response_ok(buffer) != 1) {
-        LOGI("Invalid response, endpoint return failure.\n");
+
+    SyncResponse response_protobuf;
+    memset(&response_protobuf, 0, sizeof(response_protobuf));
+    response_protobuf.files.funcs.decode = _on_file_download;
+
+    if(validate_signatures(buffer, SyncResponse_fields, &response_protobuf) == 0)
+    {
+        LOGI("Pill decode OK\n");
+		_on_response_protobuf(&response_protobuf);
+		wifi_status_set(UPLOADING, false);
         vPortFree(buffer);
-        return -1;
+        return 0;
     }
+    LOGI("Pill decoder fail\n");
     vPortFree(buffer);
-    return 0;
+    return -1;
 }
 void boot_commit_ota();
 
@@ -1767,45 +1808,25 @@ int send_periodic_data(batched_periodic_data* data) {
         return ret;
     }
 
-    // Parse the response
-    //LOGI("Reply is:\n\r%s\n\r", buffer);
-    
-    const char* header_content_len = "Content-Length: ";
-    char * content = strstr(buffer, "\r\n\r\n") + 4;
-    char * len_str = strstr(buffer, header_content_len) + strlen(header_content_len);
-    if (http_response_ok(buffer) != 1) {
-    	wifi_status_set(UPLOADING, true);
-        LOGI("Invalid response, endpoint return failure.\n");
-        vPortFree(buffer);
-        return -1;
-    }
-    
-    if (len_str == NULL) {
-    	wifi_status_set(UPLOADING, true);
-        LOGI("Failed to find Content-Length header\n");
-        vPortFree(buffer);
-        return -1;
-    }
-    int len = atoi(len_str);
-    
-    boot_commit_ota(); //commit only if we hear back from the server...
-
     SyncResponse response_protobuf;
     memset(&response_protobuf, 0, sizeof(response_protobuf));
     response_protobuf.files.funcs.decode = _on_file_download;
 
-    if(decode_rx_data_pb((unsigned char*) content, len, SyncResponse_fields, &response_protobuf) == 0)
+    if(validate_signatures(buffer, SyncResponse_fields, &response_protobuf) == 0)
     {
         LOGI("Decoding success: %d %d %d\n",
         response_protobuf.has_alarm,
         response_protobuf.has_reset_device,
         response_protobuf.has_led_action);
 
+        boot_commit_ota(); //commit only if we hear back from the server...
+
 		_on_response_protobuf(&response_protobuf);
 		wifi_status_set(UPLOADING, false);
         vPortFree(buffer);
         return 0;
     }
+    LOGI("decoder fail\n");
 
     vPortFree(buffer);
     return -1;
