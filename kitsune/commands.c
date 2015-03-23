@@ -1519,6 +1519,16 @@ int Cmd_sync(int argc, char *argv[]) {
 	return 0;
 }
 
+int cmd_memfrag(int argc, char *argv[]) {
+	static void * ptr;
+	if (strstr(argv[1], "a") != 0) {
+		ptr = pvPortMalloc(atoi(argv[2]));
+	}
+	else if (strstr(argv[1], "f") != 0) {
+		vPortFree(ptr);
+	}
+}
+
 // ==============================================================================
 // This is the table that holds the command names, implementing functions, and
 // brief description.
@@ -1611,6 +1621,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "gesture_count",Cmd_get_gesture_count,""},
 		{ "alarm",set_test_alarm,""},
 		{ "set-time",cmd_set_time,""},
+		{ "frag",cmd_memfrag,""},
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
 		{ "iperfcli",Cmd_iperf_client,""},
