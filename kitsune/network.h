@@ -73,7 +73,7 @@ extern "C"
 //*****************************************************************************
 #define PING_PONG_CHUNK_SIZE (2048)
 
-#define RX_BUFFER_SIZE          (4*PING_PONG_CHUNK_SIZE)
+#define RX_BUFFER_SIZE          (8*PING_PONG_CHUNK_SIZE)
 #define PLAY_WATERMARK          ((RX_BUFFER_SIZE) - PING_PONG_CHUNK_SIZE)
 
 #define TX_BUFFER_SIZE          (4*PING_PONG_CHUNK_SIZE)
