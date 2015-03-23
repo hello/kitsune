@@ -571,7 +571,6 @@ int _force_data_push()
 
 static int _pair_device( MorpheusCommand* command, int is_morpheus)
 {
-	int ret = -1;
 	if(NULL == command->accountId.arg || NULL == command->deviceId.arg){
 		LOGI("*******Missing fields\n");
 		ble_reply_protobuf_error(ErrorType_INTERNAL_DATA_ERROR);
@@ -585,8 +584,8 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 
 	    int ret;
 
-	    assert(buffer);
-	    memset(buffer, 0, SERVER_REPLY_BUFSZ);
+	    assert(response_buffer);
+	    memset(response_buffer, 0, SERVER_REPLY_BUFSZ);
 
 		int retry = 3;
 		while(retry--)
