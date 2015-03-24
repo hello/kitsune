@@ -322,6 +322,27 @@ void uart_logc(uint8_t c){
     xSemaphoreGive( self.print_sem );
 }
 
+static int send_log() {
+	self.log.has_unix_time = false;
+#if 0 // if we want this we need to add a file header so stored files will get the origin timestamp and not the uploading timestamp
+	if( has_good_time() ) {
+		self.log.has_unix_time = true;
+		self.log.unix_time = get_time();
+	}
+#endif
+
+    char *  buffer = pvPortMalloc(SERVER_REPLY_BUFSZ);
+    int ret;
+
+    if(buffer == NULL) {
+    	return 0; //nonessential
+    }
+    memset(buffer, 0, SERVER_REPLY_BUFSZ);
+
+	ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER, SENSE_LOG_ENDPOINT,buffer,SERVER_REPLY_BUFSZ,sense_log_fields,&self.log,0);
+	vPortFree(buffer);
+	return ret;
+}
 void uart_logger_task(void * params){
 	uint8_t log_local_enable;
 	uart_logger_init();
@@ -336,7 +357,6 @@ void uart_logger_task(void * params){
 		log_local_enable = 1;
 	}
 	while(1){
-		char buffer[UART_LOGGER_BLOCK_SIZE + UART_LOGGER_RESERVED_SIZE] = {0};
 		int ret;
 
 		xEventGroupSetBits(self.uart_log_events, LOG_EVENT_READY);
@@ -377,7 +397,7 @@ void uart_logger_task(void * params){
                         vTaskDelay(5000);
 						continue;
 					}
-					ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER, SENSE_LOG_ENDPOINT,buffer,sizeof(buffer),sense_log_fields,&self.log,0);
+					ret = send_log();
 					if(ret == 0){
 						int rem = -1;
 						//LOGI("Log upload succeeded\r\n");
@@ -397,8 +417,7 @@ void uart_logger_task(void * params){
 			if(evnt & LOG_EVENT_UPLOAD_ONLY) {
 				xEventGroupClearBits(self.uart_log_events,LOG_EVENT_UPLOAD_ONLY);
 				if(wifi_status_get(HAS_IP)){
-					self.log.has_unix_time = false;
-					NetworkTask_SynchronousSendProtobuf(DATA_SERVER, SENSE_LOG_ENDPOINT,buffer,sizeof(buffer),sense_log_fields,&self.log,0);
+					send_log();
 				}
 			}
 			xSemaphoreGive(self.print_sem);
