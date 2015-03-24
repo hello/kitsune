@@ -622,7 +622,7 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 					DATA_SERVER,
 					is_morpheus == 1 ? MORPHEUS_REGISTER_ENDPOINT : PILL_REGISTER_ENDPOINT,
 					response_buffer,
-					sizeof(response_buffer),
+					SERVER_REPLY_BUFSZ,
 					MorpheusCommand_fields,
 					command,
 					0);

@@ -323,7 +323,6 @@ void uart_logc(uint8_t c){
 }
 
 static int send_log() {
-	char buffer[UART_LOGGER_BLOCK_SIZE + UART_LOGGER_RESERVED_SIZE] = {0};
 	self.log.has_unix_time = false;
 #if 0 // if we want this we need to add a file header so stored files will get the origin timestamp and not the uploading timestamp
 	if( has_good_time() ) {
@@ -331,7 +330,18 @@ static int send_log() {
 		self.log.unix_time = get_time();
 	}
 #endif
-	return NetworkTask_SynchronousSendProtobuf(DATA_SERVER, SENSE_LOG_ENDPOINT,buffer,sizeof(buffer),sense_log_fields,&self.log,0);
+
+    char *  buffer = pvPortMalloc(SERVER_REPLY_BUFSZ);
+    int ret;
+
+    if(buffer == NULL) {
+    	return 0; //nonessential
+    }
+    memset(buffer, 0, SERVER_REPLY_BUFSZ);
+
+	ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER, SENSE_LOG_ENDPOINT,buffer,SERVER_REPLY_BUFSZ,sense_log_fields,&self.log,0);
+	vPortFree(buffer);
+	return ret;
 }
 
 void uart_logger_task(void * params){
