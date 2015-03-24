@@ -877,6 +877,7 @@ int Cmd_test_key(int argc, char*argv[]) {
 
     MorpheusCommand response_protobuf;
     memset(&response_protobuf, 0, sizeof(response_protobuf));
+    ble_proto_assign_decode_funcs(&response_protobuf);
 
     if(validate_signatures(buffer, MorpheusCommand_fields, &response_protobuf) == 0) {
     	LOGF("test key validated\r\n");
