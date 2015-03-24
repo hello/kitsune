@@ -1734,6 +1734,8 @@ void file_download_task( void * params ) {
                     memcpy(sBootInfo.sha[_McuImageGetNewIndex()], download_info.sha1.bytes, SHA1_SIZE );
                     //sBootInfo.ucActiveImg this is set by boot loader
                     _WriteBootInfo(&sBootInfo);
+
+                    send_top("rst ", sizeof("rst "));
                     mcu_reset();
                 }
             } else {
