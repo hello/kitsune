@@ -629,15 +629,21 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 
 			if(ret != 0) {
 		        LOGI("network error %d\n", ret);
+				vTaskDelay(1000);
+		        continue;
 		    }
-		    if(validate_signatures(response_buffer, MorpheusCommand_fields, &command) == 0) {
+			MorpheusCommand reply;
+			memset(&reply, 0, sizeof(reply));
+			ble_proto_assign_decode_funcs(&reply);
+		    if(validate_signatures(response_buffer, MorpheusCommand_fields, &reply) == 0) {
+		    	ble_proto_free_command(&reply);
 		    	LOGF("pairing validated\r\n");
 		    	break;
 		    } else {
 		        LOGF("pairing validation fail\r\n");
 		        ret = -1000;
 		    }
-			vTaskDelay(1000);
+		    ble_proto_free_command(&reply);
 		}
 
 		// All the args are in stack, don't need to do protobuf free.

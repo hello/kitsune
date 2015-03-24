@@ -245,6 +245,34 @@ void ble_proto_remove_decode_funcs(MorpheusCommand* command)
     }
 
 }
+void ble_proto_remove_encode_funcs(MorpheusCommand* command)
+{
+    if(command->accountId.funcs.encode)
+    {
+        command->accountId.funcs.encode = NULL;
+    }
+
+    if(command->deviceId.funcs.encode)
+    {
+        command->deviceId.funcs.encode = NULL;
+    }
+
+    if(command->wifiName.funcs.encode)
+    {
+        command->wifiName.funcs.encode = NULL;
+    }
+
+    if(command->wifiSSID.funcs.encode)
+    {
+        command->wifiSSID.funcs.encode = NULL;
+    }
+
+    if(command->wifiPassword.funcs.encode)
+    {
+        command->wifiPassword.funcs.encode = NULL;
+    }
+
+}
 
 void ble_proto_assign_encode_funcs( MorpheusCommand* command)
 {
