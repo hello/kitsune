@@ -835,14 +835,12 @@ bool validate_signatures( char * buffer, const pb_field_t fields[], void * struc
     if (http_response_ok(buffer) != 1) {
     	wifi_status_set(UPLOADING, true);
         LOGI("Invalid response, endpoint return failure.\n");
-        vPortFree(buffer);
         return -1;
     }
 
     if (len_str == NULL) {
     	wifi_status_set(UPLOADING, true);
         LOGI("Failed to find Content-Length header\n");
-        vPortFree(buffer);
         return -1;
     }
     int len = atoi(len_str);
