@@ -33,6 +33,7 @@ void ble_proto_led_busy_mode(uint8_t a, uint8_t r, uint8_t g, uint8_t b, int del
 void ble_proto_led_fade_in_trippy();
 void ble_proto_led_fade_out(bool operation_result);
 
+
 //*****************************************************************************
 //
 // Mark the end of the C bindings section for C++ compilers.
