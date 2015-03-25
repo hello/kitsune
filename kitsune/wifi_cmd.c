@@ -1607,7 +1607,7 @@ int http_response_ok(const char* response_buffer)
 {
 	char* first_line = strstr(response_buffer, "\r\n") + 2;
 	uint16_t first_line_len = first_line - response_buffer;
-	if(!first_line_len > 0)
+	if(!first_line_len > 0 || (first_line_len > strlen(response_buffer)))
 	{
 		LOGI("Cannot get response first line.\n");
 		return -1;

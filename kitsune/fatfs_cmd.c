@@ -754,8 +754,6 @@ int GetChunkSize(int *len, unsigned char **p_Buff, unsigned long *chunk_size)
 
 //****************************************************************************
 #include "stdlib.h"
-#include "led_animations.h"
-#include "ble_proto.h"
 
 typedef enum {
 	SERIAL_FLASH,
@@ -954,15 +952,12 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 	}
     uint32_t total = recv_size;
     int percent = 101-100*recv_size/total;
-    ble_proto_led_fade_out(0);
-    play_led_progress_bar(132, 233, 4, 0, portMAX_DELAY);
 
     while (0 < transfer_len)
     {
     	if( 100-100*recv_size/total != percent ) {
     		percent = 100-100*recv_size/total;
             LOGI("Downloading... %d %d\r", recv_size, percent );
-    		set_led_progress_bar( percent );
     	}
 
         // For chunked data recv_size contains the chunk size to be received
@@ -976,10 +971,8 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 					/* Close file without saving */
 					res = hello_fs_close(&file_obj);
 
-					stop_led_animation(10,33);
 					if (res != FR_OK) {
 						cd("/");
-						stop_led_animation(10,33);
 						return ((int) res);
 					}
 					hello_fs_unlink(path_buff);
@@ -997,7 +990,6 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 	            {
 	            	LOGI("Failed during writing the file\n");
 	                /* Close file without saving */
-	                stop_led_animation(10,33);
 	                return sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
 	            }
 			}
@@ -1005,7 +997,6 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 
             if(r < recv_size)
             {
-    			stop_led_animation(10,33);
     			if (storage == SD_CARD) {
     				/* Close file without saving */
     				res = hello_fs_close(&file_obj);
@@ -1050,11 +1041,9 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
         					LOGI("Failed during writing the file\n");
         					/* Close file without saving */
         					res = hello_fs_close(&file_obj);
-        					stop_led_animation(10,33);
 
         					if (res != FR_OK) {
         						cd("/");
-        						stop_led_animation(10,33);
         						return ((int) res);
         					}
         					hello_fs_unlink(path_buff);
@@ -1070,7 +1059,6 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 							/* Close file without saving */
 							r = sl_FsClose(fileHandle, 0,
 									(unsigned char*) "A", 1);
-							stop_led_animation(10,33);
 							return r;
 						}
         			}
@@ -1079,7 +1067,6 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 
                     if(r < recv_size)
                     {
-            			stop_led_animation(10,33);
             			if (storage == SD_CARD) {
             				/* Close file without saving */
             				res = hello_fs_close(&file_obj);
@@ -1123,7 +1110,6 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
         					/* Close file without saving */
         					res = hello_fs_close(&file_obj);
 
-        					stop_led_animation(10,33);
         					if (res != FR_OK) {
         						cd("/");
         						return ((int) res);
@@ -1137,7 +1123,6 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 						r = sl_FsWrite(fileHandle, total - recv_size,
 								(unsigned char *) pBuff, transfer_len);
 						if (r < transfer_len) {
-							stop_led_animation(10,33);
 							LOGI("Failed during writing the file\n");
 							/* Close file without saving */
 							r = sl_FsClose(fileHandle, 0,
@@ -1150,7 +1135,6 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 
                     if(r < transfer_len)
                     {
-            			stop_led_animation(10,33);
             			if (storage == SD_CARD) {
             				/* Close file without saving */
             				res = hello_fs_close(&file_obj);
@@ -1180,7 +1164,6 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 					LOGI("Failed during writing the file\n");
 					/* Close file without saving */
 					res = hello_fs_close(&file_obj);
-					stop_led_animation(10,33);
 
 					if (res != FR_OK) {
 						cd("/");
@@ -1198,7 +1181,6 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 					LOGI("Failed during writing the file\n");
 					/* Close file without saving */
 					sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
-					stop_led_animation(10,33);
 					return -1;
 				}
 			}
@@ -1207,7 +1189,6 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 
             if (r != transfer_len )
             {
-    			stop_led_animation(10,33);
     			if (storage == SD_CARD) {
     				/* Close file without saving */
     				res = hello_fs_close(&file_obj);
@@ -1215,7 +1196,6 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
     			} else if (storage == SERIAL_FLASH) {
     				sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
     			}
-    			stop_led_animation(10,33);
                 return -1;
             }
             bytesReceived +=transfer_len;
@@ -1229,7 +1209,6 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
         if(transfer_len <= 0) {
         	LOGI("TCP_RECV_ERROR\r\n" );
         	cd( "/" );
-			stop_led_animation(10,33);
 			if (storage == SD_CARD) {
 				/* Close file without saving */
 				res = hello_fs_close(&file_obj);
@@ -1242,8 +1221,6 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 
         pBuff = g_buff;
     }
-
-	stop_led_animation(10,33);
 
     //
     // If user file has checksum which can be used to verify the temporary
@@ -1567,7 +1544,7 @@ void boot_commit_ota() {
 								IMG_ACT_USER2:
 								IMG_ACT_USER1;
         _WriteBootInfo(&sBootInfo);
-        send_top("rst ", sizeof("rst "));
+        //send_top("rst ", sizeof("rst "));
         mcu_reset();
 	}
 }
