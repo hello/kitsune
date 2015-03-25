@@ -91,10 +91,13 @@ void telnetPrint(const char * str, int len );
 
 static void
 _logstr(const char * str, int len, bool echo, bool store){
+#ifndef BUILD_SERVERS
 	int i;
 	for(i = 0; i < len && store; i++){
 		uart_logc(str[i]);
 	}
+#endif
+
 	if (echo) {
 #ifdef BUILD_SERVERS
 		telnetPrint(str, len);
