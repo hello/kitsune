@@ -55,6 +55,10 @@ static struct{
 	DIR logdir;
 }self = {0};
 
+void set_loglevel(uint8_t loglevel) {
+	self.store_tag = loglevel;
+}
+
 typedef void (file_handler)(FILINFO * info, void * ctx);
 static int _walk_log_dir(file_handler * handler, void * ctx);
 static FRESULT _remove_oldest(int * rem);

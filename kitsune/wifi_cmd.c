@@ -1764,6 +1764,14 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
 		pill_settings_save(&settings);
     }
 
+    if(response_protobuf->has_upload_log_level) {
+    	set_loglevel(response_protobuf->upload_log_level);
+    }
+    if(response_protobuf->has_reset_mcu) {
+    	if(response_protobuf->reset_mcu) {
+    		mcu_reset();
+    	}
+	}
     _set_led_color_based_on_room_conditions(response_protobuf);
     
 }
