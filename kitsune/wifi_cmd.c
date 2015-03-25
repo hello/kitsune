@@ -218,13 +218,9 @@ void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent) {
 
 void reset_default_antenna()
 {
-	unsigned long tok = 0;
-	SlFsFileInfo_t info = {0};
-
-	sl_FsGetInfo((unsigned char*)ANTENNA_FILE, tok, &info);
-	int err = sl_FsDel((unsigned char*)ANTENNA_FILE, tok);
+	int err = sl_FsDel((unsigned char*)ANTENNA_FILE, 0);
 	if (err) {
-		LOGI("error %d\n", err);
+		LOGI("226error %d\n", err);
 	}
 }
 
