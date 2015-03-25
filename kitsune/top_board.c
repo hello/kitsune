@@ -13,8 +13,8 @@
 
 #include "FreeRTOS.h"
 #include "task.h"
-#include "led_cmd.h"
-#include "led_animations.h"
+//#include "led_cmd.h"
+//#include "led_animations.h"
 #include "uart_logger.h"
 #include "stdlib.h"
 #include "ble_proto.h"
@@ -121,7 +121,7 @@ static void
 _on_message(uint8_t * message_body, uint32_t body_length){
 	LOGI("Got a SLIP message: %s\r\n", message_body);
 	if(!strncmp("DFUBEGIN",(char*)message_body, body_length)){
-		play_led_progress_bar(30,0,0,0, portMAX_DELAY);
+		//play_led_progress_bar(30,0,0,0, portMAX_DELAY);
 		vTaskDelay(2000);
 		if(0 != verify_top_update() || 0 != top_board_dfu_begin("/top/update.bin")){
 			top_board_dfu_begin("/top/factory.bin");
@@ -178,7 +178,7 @@ _on_ack_success(void){
 			if(written){
 				_encode_and_send((uint8_t*)block, written + sizeof(block[0]));
 				LOGI("Wrote %u / %d (%u)%%\r", self.dfu_contex.offset, self.dfu_contex.len, (self.dfu_contex.offset*100/self.dfu_contex.len));
-				set_led_progress_bar((self.dfu_contex.offset*100/self.dfu_contex.len));
+				//set_led_progress_bar((self.dfu_contex.offset*100/self.dfu_contex.len));
 			}else{
 				uint32_t primer_packet[] = { DFU_INVALID_PACKET };
 				_encode_and_send((uint8_t*) primer_packet,sizeof(primer_packet));
@@ -191,7 +191,7 @@ _on_ack_success(void){
 			_encode_and_send((uint8_t*)end_packet, sizeof(end_packet));
 			self.dfu_state = DFU_IDLE;
 			LOGI("Attempting to boot top board...\r\n");
-			play_led_animation_solid(LED_MAX, 0,10,0,1,18);
+			//play_led_animation_solid(LED_MAX, 0,10,0,1,18);
 			}
 			break;
 		default:
