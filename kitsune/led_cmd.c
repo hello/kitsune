@@ -494,7 +494,7 @@ void led_task( void * params ) {
 					}
 				}
 			}
-			fade_alpha-=1;
+			fade_alpha-=QUANT_FACTOR;
 			if (fade_alpha < 0) {
 				_reset_animation_priority(&fadeout_animation);
 				if( evnt & LED_CUSTOM_TRANSITION ) {
@@ -510,7 +510,7 @@ void led_task( void * params ) {
 				//DISP("led faded out\n");
 			} else {
 				led_brightness_all(colors, fade_alpha);
-				led_array(colors, get_cycle_time()/QUANT_FACTOR);
+				led_array(colors, get_cycle_time());
 				//DISP("led fading\n");
 			}
 			ledcpy(colors_last, colors, NUM_LED);
