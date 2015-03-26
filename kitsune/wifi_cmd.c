@@ -224,54 +224,76 @@ void reset_default_antenna()
 	}
 }
 
-void save_default_antenna( unsigned char a ) {
-		unsigned long tok=0;
-		long hndl, bytes;
-		SlFsFileInfo_t info;
+static int _save( char* file, void* data, int len) {
+	unsigned long tok=0;
+	long hndl, bytes;
+	SlFsFileInfo_t info;
 
-		sl_FsGetInfo((unsigned char*)ANTENNA_FILE, tok, &info);
+	sl_FsGetInfo((unsigned char*)file, tok, &info);
 
-		if (sl_FsOpen((unsigned char*)ANTENNA_FILE, FS_MODE_OPEN_WRITE, &tok, &hndl)) {
-			LOGI("error opening file, trying to create\n");
+	if (sl_FsOpen((unsigned char*)file, FS_MODE_OPEN_WRITE, &tok, &hndl)) {
+		LOGI("error opening file, trying to create\n");
 
-			if (sl_FsOpen((unsigned char*)ANTENNA_FILE,
-					FS_MODE_OPEN_CREATE(65535, _FS_FILE_OPEN_FLAG_COMMIT), &tok,
-					&hndl)) {
-				LOGI("error opening for write\n");
-				return;
-			}else{
-				sl_FsWrite(hndl, 0, &a, 1);  // Dummy write, we don't care about the result
-			}
+		if (sl_FsOpen((unsigned char*)file,
+				FS_MODE_OPEN_CREATE(65535, _FS_FILE_OPEN_FLAG_COMMIT), &tok,
+				&hndl)) {
+			LOGI("error opening for write\n");
+			return -1;
+		}else{
+			sl_FsWrite(hndl, 0, data, 1);  // Dummy write, we don't care about the result
 		}
+	}
 
-		bytes = sl_FsWrite(hndl, 0, &a, 1);
-		if( bytes != 1 ) {
-			LOGE( "writing antenna failed %d", bytes );
-		}
-		sl_FsClose(hndl, 0, 0, 0);
-
-		return;
+	bytes = sl_FsWrite(hndl, 0, (_u8*)data, len);
+	if( bytes != 1 ) {
+		LOGE( "writing %s failed %d", file, bytes );
+		return -2;
+	}
+	sl_FsClose(hndl, 0, 0, 0);
+	return 0;
 }
-unsigned char get_default_antenna() {
-	unsigned char a = PCB_ANT;
+
+void save_account_id( char * acct ) {
+	_save( ACCOUNT_ID_FILE, acct, strlen(acct)+1 );
+}
+
+void save_default_antenna( unsigned char a ) {
+	_save(ANTENNA_FILE, &a, 1);
+}
+
+static int _get( char * file, void * data, int * len ) {
 	long hndl = -1;
 	int RetVal, Offset;
 
 	// read in aes key
-	RetVal = sl_FsOpen(ANTENNA_FILE, FS_MODE_OPEN_READ, NULL, &hndl);
+	RetVal = sl_FsOpen((const _u8*)file, FS_MODE_OPEN_READ, NULL, &hndl);
 	if (RetVal != 0) {
-		LOGE("failed to open antenna file\n");
-		return a;
+		LOGE("failed to open %s\n", file);
+		return RetVal;
 	}
 
 	Offset = 0;
-	RetVal = sl_FsRead(hndl, Offset, (unsigned char *) a, 1);
-	if (RetVal != 1) {
-		LOGE("failed to read antenna file\n");
+	RetVal = sl_FsRead(hndl, Offset, data, 1);
+	if ( 0 > RetVal ) {
+		LOGE("failed to read %s\n", file);
+		return RetVal;
 	}
+	if( len ) {
+		*len = RetVal;
+	}
+	return sl_FsClose(hndl, NULL, NULL, 0);
+}
 
-	RetVal = sl_FsClose(hndl, NULL, NULL, 0);
+int get_account_id( char * acct, int * len ) {
+	return _get( ACCOUNT_ID_FILE, acct, len );
+}
 
+unsigned char get_default_antenna() {
+	unsigned char a = PCB_ANT;
+
+	if( 0 > _get( ANTENNA_FILE, &a, NULL ) ) {
+		return PCB_ANT;
+	}
 	return a;
 }
 
@@ -667,66 +689,10 @@ static uint8_t aes_key[AES_BLOCKSIZE + 1] = "1234567891234567";
 static uint8_t device_id[DEVICE_ID_SZ + 1];
 
 int save_aes( uint8_t * key ) {
-	unsigned long tok=0;
-	long hndl, bytes;
-	SlFsFileInfo_t info;
-
-	memcpy( aes_key, key, AES_BLOCKSIZE);
-
-	sl_FsGetInfo((unsigned char*)AES_KEY_LOC, tok, &info);
-
-	if (sl_FsOpen((unsigned char*)AES_KEY_LOC,
-	FS_MODE_OPEN_WRITE, &tok, &hndl)) {
-		LOGI("error opening file, trying to create\n");
-
-		if (sl_FsOpen((unsigned char*)AES_KEY_LOC,
-				FS_MODE_OPEN_CREATE(65535, _FS_FILE_OPEN_FLAG_COMMIT), &tok,
-				&hndl)) {
-			LOGI("error opening for write\n");
-			return -1;
-		}else{
-			sl_FsWrite(hndl, 0, key, AES_BLOCKSIZE);  // Dummy write, we don't care about the result
-		}
-	}
-
-	bytes = sl_FsWrite(hndl, 0, key, AES_BLOCKSIZE);
-	if( bytes != AES_BLOCKSIZE) {
-		LOGE( "writing keyfile failed %d", bytes );
-	}
-	sl_FsClose(hndl, 0, 0, 0);
-
-	return 0;
+	return _save( AES_KEY_LOC, key, AES_BLOCKSIZE);
 }
 int save_device_id( uint8_t * new_device_id ) {
-	unsigned long tok=0;
-	long hndl, bytes;
-	SlFsFileInfo_t info;
-
-	memcpy( device_id, new_device_id, DEVICE_ID_SZ );
-
-	sl_FsGetInfo((unsigned char*)DEVICE_ID_LOC, tok, &info);
-
-	if (sl_FsOpen((unsigned char*)DEVICE_ID_LOC,
-	FS_MODE_OPEN_WRITE, &tok, &hndl)) {
-		LOGI("error opening file, trying to create\n");
-
-		if (sl_FsOpen((unsigned char*)DEVICE_ID_LOC,
-				FS_MODE_OPEN_CREATE(65535, _FS_FILE_OPEN_FLAG_COMMIT), &tok,
-				&hndl)) {
-			LOGI("error opening for write\n");
-			return -1;
-		}else{
-			sl_FsWrite(hndl, 0, device_id, DEVICE_ID_SZ);  // Dummy write, we don't care about the result
-		}
-	}
-
-	bytes = sl_FsWrite(hndl, 0, device_id, DEVICE_ID_SZ);
-	if( bytes != DEVICE_ID_SZ) {
-		LOGE( "writing keyfile failed %d", bytes );
-	}
-	sl_FsClose(hndl, 0, 0, 0);
-
-	return 0;
+	return _save( DEVICE_ID_LOC, new_device_id, DEVICE_ID_SZ);
 }
 
 #if 1
@@ -758,25 +724,15 @@ int Cmd_set_mac(int argc, char*argv[]) {
 }
 
 void load_aes() {
-	long DeviceFileHandle = -1;
-	int RetVal, Offset;
+	int r;
 
-	// read in aes key
-	RetVal = sl_FsOpen(AES_KEY_LOC, FS_MODE_OPEN_READ, NULL,
-			&DeviceFileHandle);
-	if (RetVal != 0) {
-		LOGE("failed to open aes key file\n");
-		return;
-	}
+	_get( AES_KEY_LOC, aes_key, &r );
+	aes_key[AES_BLOCKSIZE] = 0;
 
-	Offset = 0;
-	RetVal = sl_FsRead(DeviceFileHandle, Offset, (unsigned char *) aes_key,
-			AES_BLOCKSIZE);
-	if (RetVal != AES_BLOCKSIZE) {
+	if (r != AES_BLOCKSIZE) {
 		LOGE("failed to read aes key file\n");
 		return;
 	}
-	aes_key[AES_BLOCKSIZE] = 0;
 
 	/*
 	int i;
@@ -786,29 +742,17 @@ void load_aes() {
 	}
 	UARTprintf("\n");
 	*/
-
-	RetVal = sl_FsClose(DeviceFileHandle, NULL, NULL, 0);
 }
 void load_device_id() {
-	long DeviceFileHandle = -1;
-	int RetVal, Offset;
+	int r;
 
-	// read in aes key
-	RetVal = sl_FsOpen(DEVICE_ID_LOC, FS_MODE_OPEN_READ, NULL,
-			&DeviceFileHandle);
-	if (RetVal != 0) {
-		LOGE("failed to open device id file\n");
-		return;
-	}
+	_get( DEVICE_ID_LOC, device_id, &r );
+	device_id[DEVICE_ID_SZ] = 0;
 
-	Offset = 0;
-	RetVal = sl_FsRead(DeviceFileHandle, Offset, (unsigned char *) device_id,
-			DEVICE_ID_SZ);
-	if (RetVal != DEVICE_ID_SZ) {
+	if (r != DEVICE_ID_SZ) {
 		LOGE("failed to read device id file\n");
 		return;
 	}
-	device_id[DEVICE_ID_SZ] = 0;
 	/*
 	UARTprintf("device id loaded from file: ");
 	int i;
@@ -819,7 +763,6 @@ void load_device_id() {
 
 	UARTprintf("\n");
 	*/
-	RetVal = sl_FsClose(DeviceFileHandle, NULL, NULL, 0);
 }
 
 #include "ble_proto.h"

@@ -603,6 +603,7 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 		LOGI("*******Missing fields\n");
 		ble_reply_protobuf_error(ErrorType_INTERNAL_DATA_ERROR);
 	}else{
+		save_account_id( command->accountId.arg );
 
 		ble_proto_assign_encode_funcs(command);
 		// TODO: Figure out why always get -1 when this is the 1st request
