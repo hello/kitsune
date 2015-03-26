@@ -10,7 +10,7 @@
 #include "bigint_impl.h"
 #include "uart_logger.h"
 
-#include "assert.h"
+#include "kit_assert.h"
 
 #include "led_animations.h"
 typedef struct{
