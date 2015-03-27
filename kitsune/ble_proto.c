@@ -744,6 +744,7 @@ void ble_proto_start_hold()
             response.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE;
             ble_send_protobuf(&response);
 
+			analytics_event( "{ble: normal}" );
         }
         break;
     }
@@ -764,6 +765,7 @@ void ble_proto_end_hold()
 					MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_PAIRING_MODE;
 			ble_send_protobuf(&response);
 			ble_proto_led_fade_in_trippy();
+			analytics_event( "{ble: pairing}" );
 		}
 	}
 	_self.last_hold_time = 0;

@@ -252,7 +252,7 @@ static int _save( char* file, void* data, int len) {
 	sl_FsClose(hndl, 0, 0, 0);
 	return 0;
 }
-static char account_id[40] = {0};
+static char account_id[40] = "nolinkedaccount";
 
 void save_account_id( char * acct ) {
 	memcpy(account_id, acct, strlen(acct)+1);

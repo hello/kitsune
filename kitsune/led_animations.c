@@ -240,6 +240,7 @@ int play_led_animation_solid(int a, int r, int g, int b, int repeat, int delay){
 
 	ctx->color = led_from_rgb(r, g, b);
 	ctx->alpha = a;
+	analytics_event( "{led: solid, color: %x, alpha: %d}", ctx->color, ctx->alpha );
 	ctx->ctr = 0;
 	ctx->repeat = repeat;
 	user_animation_t anim = (user_animation_t){
@@ -293,6 +294,7 @@ int factory_led_test_pattern(unsigned int timeout) {
 int play_led_wheel(int a, int r, int g, int b, int repeat, int delay){
 	int ret;
 	led_color_t color = led_from_rgb(r,g,b);
+	analytics_event( "{led: wheel, color: %x, alpha: %d}", color, a );
 	color = led_from_brightness( &color, a );
 
 	wheel_context * wheel_ctx =  pvPortMalloc(sizeof(wheel_context));
