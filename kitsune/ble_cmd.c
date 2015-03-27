@@ -418,6 +418,8 @@ void ble_proto_free_command(MorpheusCommand* command)
     }
 }
 
+void mcu_reset();
+
 #include "audiohelper.h"
 #include "audiotask.h"
 int Cmd_factory_reset(int argc, char* argv[])
@@ -427,9 +429,12 @@ int Cmd_factory_reset(int argc, char* argv[])
     nwp_reset();
     deleteFilesInDir(USER_DIR);
 
-	MorpheusCommand morpheusCommand = {0};
+    sl_FsDel((unsigned char*)ACCOUNT_ID_FILE, 0);
+
+    MorpheusCommand morpheusCommand = {0};
 	morpheusCommand.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_FACTORY_RESET;
 	ble_send_protobuf(&morpheusCommand);  // Send the protobuf to topboard
 
+	mcu_reset();
 	return 0;
 }
