@@ -71,6 +71,7 @@ _encode_text_block(pb_ostream_t *stream, const pb_field_t *field, void * const *
 			&& pb_encode_string(stream, (uint8_t*)self.operation_block,
 					UART_LOGGER_BLOCK_SIZE);
 }
+
 static void
 _swap_and_upload(void){
 	if (!(xEventGroupGetBitsFromISR(self.uart_log_events) & LOG_EVENT_STORE)) {
@@ -502,12 +503,6 @@ convert:
 
 }
 
-static bool
-_encode_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
-	return pb_encode_tag(stream, PB_WT_STRING, field->tag)
-			&& pb_encode_string(stream, (uint8_t*)arg, strlen((char*)arg));
-}
-
 static int _send_pb( const pb_field_t fields[], const void * structdata ) {
     char *  buffer = pvPortMalloc(SERVER_REPLY_BUFSZ);
     int ret;
@@ -530,15 +525,15 @@ int analytics_event( const char *pcString, ...) {
 
 	ctx.pos = 0;
 	ctx.ptr = pvPortMalloc(512);
+	memset(ctx.ptr, 0, 512);
 
     va_start(vaArgP, pcString);
     _va_printf( vaArgP, pcString, _encode_wrapper, &ctx );
     va_end(vaArgP);
 
-	log.text.funcs.encode = _encode_string;
+	log.text.funcs.encode = _encode_string_fields;
 	log.text.arg = ctx.ptr;
-	log.device_id.funcs.encode = _encode_string;
-	log.device_id.arg = get_account_id();
+	log.device_id.funcs.encode = encode_device_id_string;
 
 	log.has_unix_time = true;
 	log.unix_time = get_time();

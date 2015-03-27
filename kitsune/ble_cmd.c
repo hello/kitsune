@@ -9,27 +9,10 @@
 #include "wifi_cmd.h"
 #include "spi_cmd.h"
 #include "pill_settings.h"
+#include "proto_utils.h"
 
 static bool _encode_bytes_fields(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 
-static bool _encode_string_fields(pb_ostream_t *stream, const pb_field_t *field, void * const *arg)
-{
-    char* str = *arg;
-    if(!str)
-    {
-    	LOGI("_encode_string_fields: No string to encode\n");
-        return false;
-    }
-
-    //write tag
-    //if (!pb_encode_tag(stream, PB_WT_STRING, field->tag)) { // Not sure should do this,
-                                                              // This is for encoding byte array
-    if (!pb_encode_tag_for_field(stream, field)){
-        return 0;
-    }
-
-    return pb_encode_string(stream, (uint8_t*)str, strlen(str));
-}
 
 static bool _encode_wifi_scan_result_fields(pb_ostream_t *stream, const pb_field_t *field, void * const *arg)
 {
