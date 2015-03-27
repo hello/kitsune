@@ -18,6 +18,7 @@
 #include "proto_utils.h"
 #include "ustdlib.h"
 
+#include "kit_assert.h"
 #include "sys_time.h"
 
 #define SENSE_LOG_ENDPOINT		"/logs"
@@ -517,31 +518,60 @@ static int _send_pb( const pb_field_t fields[], const void * structdata ) {
 
 	return ret;
 }
+
+
+typedef struct {
+	void * pb;
+	char * reply_buf;
+	void * structdata;
+}async_context_t;
+
+void free_pb_cb(const NetworkResponse_t * response, void * context){
+	async_context_t * ctx = (async_context_t*)context;
+	vPortFree(ctx->pb);
+	vPortFree(ctx->reply_buf);
+	vPortFree(ctx->structdata);
+	vPortFree(ctx);
+}
+
+static int _send_pb_async( const pb_field_t fields[], void * structdata, NetworkResponseCallback_t func, void * data) {
+	async_context_t * ctx  = pvPortMalloc(sizeof(async_context_t));
+	assert(ctx);
+	ctx->reply_buf = pvPortMalloc(SERVER_REPLY_BUFSZ);
+    ctx->pb = data;
+    ctx->structdata = structdata;
+    assert(ctx->reply_buf);
+
+    memset(ctx->reply_buf, 0, SERVER_REPLY_BUFSZ);
+
+	return NetworkTask_AsynchronousSendProtobuf(DATA_SERVER, SENSE_LOG_ENDPOINT,ctx->reply_buf,SERVER_REPLY_BUFSZ,fields,structdata,0, func, &ctx);
+}
+
 int analytics_event( const char *pcString, ...) {
 	va_list vaArgP;
-	sense_log log;
+	sense_log * log = pvPortMalloc(sizeof(sense_log));
 	int r = 0;
 	event_ctx_t ctx;
 
 	ctx.pos = 0;
 	ctx.ptr = pvPortMalloc(512);
+	assert(ctx.ptr);
 	memset(ctx.ptr, 0, 512);
 
     va_start(vaArgP, pcString);
     _va_printf( vaArgP, pcString, _encode_wrapper, &ctx );
     va_end(vaArgP);
 
-	log.text.funcs.encode = _encode_string_fields;
-	log.text.arg = ctx.ptr;
-	log.device_id.funcs.encode = encode_device_id_string;
+	log->text.funcs.encode = _encode_string_fields;
+	log->text.arg = ctx.ptr;
+	log->device_id.funcs.encode = encode_device_id_string;
 
-	log.has_unix_time = true;
-	log.unix_time = get_time();
-	log.has_property = true;
-	log.property = LogType_KEY_VALUE;
+	log->has_unix_time = true;
+	log->unix_time = get_time();
+	log->has_property = true;
+	log->property = LogType_KEY_VALUE;
 
-    r = _send_pb(sense_log_fields,&log);
-    vPortFree(ctx.ptr);
+    r = _send_pb_async(sense_log_fields, log, free_pb_cb, ctx.ptr);
     return r;
 }
 

@@ -7,6 +7,8 @@
 #include <pb_encode.h>
 #include "uartstdio.h"
 
+#include "kit_assert.h"
+
 #define NETWORK_TASK_QUEUE_DEPTH (10)
 #define INITIAL_RETRY_PERIOD_COUNTS (1024)
 #define NUM_RECEIVE_RETRIES (10)
@@ -71,6 +73,51 @@ static uint32_t EncodePb(pb_ostream_t * stream, void * data) {
 
 
 	return ret;
+}
+
+
+int NetworkTask_AsynchronousSendProtobuf(
+		const char * host,const char * endpoint, char * buf,
+		uint32_t buf_size, const pb_field_t fields[],
+		const void * structdata,int32_t retry_time_in_counts,
+		NetworkResponseCallback_t func, void * data ) {
+	NetworkTaskServerSendMessage_t message;
+	network_encode_data_t encodedata = {0};
+	int retcode = -1;
+
+	memset(&message,0,sizeof(message));
+
+	encodedata.fields = fields;
+	encodedata.encodedata = structdata;
+
+	//craft message
+	message.host = host;
+	message.endpoint = endpoint;
+	message.response_callback = func;
+	message.retry_timeout = retry_time_in_counts;
+	message.context = data;
+
+	message.encode = EncodePb;
+	message.encodedata = &encodedata;
+
+	message.decode_buf = (uint8_t *)buf;
+	message.decode_buf_size = buf_size;
+
+	assert( _asyncqueue );
+
+	DEBUG_PRINTF("NetTask::SendProtobuf -- Request endpoint %s",endpoint);
+
+	//add to queue
+	if(xQueueSend( _asyncqueue, ( const void * )&message, 1000 ) != pdTRUE)
+	{
+		// If queue is full, do not block the caller.
+		xSemaphoreGive(_syncmutex);
+		LOGE("Cannot send request to _asyncqueue\n");
+		return retcode;
+	}
+
+	return retcode;
+
 }
 
 int NetworkTask_SynchronousSendProtobuf(const char * host,const char * endpoint, char * buf, uint32_t buf_size, const pb_field_t fields[], const void * structdata,int32_t retry_time_in_counts) {
