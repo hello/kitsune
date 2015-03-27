@@ -866,6 +866,7 @@ void thread_tx(void* unused) {
 	batched_periodic_data data_batched = {0};
 	load_aes();
 	load_device_id();
+	load_account_id();
 	pill_settings_init();
 	int tries = 0;
 

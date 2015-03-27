@@ -58,6 +58,9 @@ int Cmd_country(int argc, char *argv[]);
 #define IFA_ANT 1
 void save_default_antenna( unsigned char a );
 unsigned char get_default_antenna();
+int load_account_id();
+void save_account_id( char * acct );
+char * get_account_id();
 void antsel(unsigned char a);
 int Cmd_antsel(int argc, char *argv[]);
 

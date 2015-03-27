@@ -597,6 +597,8 @@ int _force_data_push()
     return ret;
 }
 
+void save_account_id( char * acct );
+
 static int _pair_device( MorpheusCommand* command, int is_morpheus)
 {
 	if(NULL == command->accountId.arg || NULL == command->deviceId.arg){

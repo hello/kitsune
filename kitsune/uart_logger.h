@@ -89,6 +89,9 @@ int Cmd_log_upload(int argc, char *argv[]);
 int Cmd_log_setview(int argc, char * argv[]);
 void set_loglevel(uint8_t loglevel);
 void uart_logc(uint8_t c);	//advanced: directly dumps character to tx block
+
+int analytics_event( const char *pcString, ...);
+
 #ifdef __cplusplus
 }
 #endif
