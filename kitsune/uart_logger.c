@@ -521,37 +521,56 @@ static int _send_pb( const pb_field_t fields[], const void * structdata ) {
 
 
 typedef struct {
-	void * pb;
+	void * text_buffer;
 	char * reply_buf;
 	void * structdata;
 }async_context_t;
 
 void free_pb_cb(const NetworkResponse_t * response, void * context){
 	async_context_t * ctx = (async_context_t*)context;
-	vPortFree(ctx->pb);
-	vPortFree(ctx->reply_buf);
-	vPortFree(ctx->structdata);
-	vPortFree(ctx);
+	if (ctx) {
+		if (ctx->text_buffer) {
+			vPortFree(ctx->text_buffer);
+		}
+		if (ctx->reply_buf) {
+			vPortFree(ctx->reply_buf);
+		}
+		if (ctx->structdata) {
+			vPortFree(ctx->structdata);
+		}
+		vPortFree(ctx);
+	}
 }
 
 static int _send_pb_async( const pb_field_t fields[], void * structdata, NetworkResponseCallback_t func, void * data) {
 	async_context_t * ctx  = pvPortMalloc(sizeof(async_context_t));
 	assert(ctx);
+	memset(ctx, 0, sizeof(async_context_t));
 	ctx->reply_buf = pvPortMalloc(SERVER_REPLY_BUFSZ);
-    ctx->pb = data;
+	if (data) {
+		ctx->text_buffer = data;
+	}
     ctx->structdata = structdata;
     assert(ctx->reply_buf);
 
     memset(ctx->reply_buf, 0, SERVER_REPLY_BUFSZ);
 
-	return NetworkTask_AsynchronousSendProtobuf(DATA_SERVER, SENSE_LOG_ENDPOINT,ctx->reply_buf,SERVER_REPLY_BUFSZ,fields,structdata,0, func, &ctx);
+	return NetworkTask_AsynchronousSendProtobuf(DATA_SERVER, SENSE_LOG_ENDPOINT,ctx->reply_buf,SERVER_REPLY_BUFSZ,fields,structdata,0, func, ctx);
 }
 
 int analytics_event( const char *pcString, ...) {
 	va_list vaArgP;
-	sense_log * log = pvPortMalloc(sizeof(sense_log));
 	int r = 0;
 	event_ctx_t ctx;
+
+    char hex_device_id[2*DEVICE_ID_SZ+1] = {0};
+    if(!get_device_id(hex_device_id, sizeof(hex_device_id)))
+    {
+        return false;
+    }
+	sense_log * log = pvPortMalloc(sizeof(sense_log));
+	assert(log);
+    memset( log, 0, sizeof(sense_log));
 
 	ctx.pos = 0;
 	ctx.ptr = pvPortMalloc(512);
