@@ -154,8 +154,8 @@ static unsigned int fade_out_vol(unsigned int fade_counter, unsigned int volume,
 static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 	//1.5K on the stack
-	uint16_t speaker_data_padded[512];
-	uint16_t speaker_data[256];
+	uint16_t * speaker_data_padded = pvPortMalloc(1024);
+	uint16_t * speaker_data = pvPortMalloc(512);
 
 
 	FIL fp = {0};
@@ -214,7 +214,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		return returnFlags;
 	}
 
-	memset(speaker_data_padded,0,sizeof(speaker_data_padded));
+	memset(speaker_data_padded,0,1024);
 
 	if( has_fade ) {
 		g_uiPlayWaterMark = 1;
@@ -242,7 +242,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		}
 		/* Read always in block of 512 Bytes or less else it will stuck in hello_fs_read() */
 
-		res = hello_fs_read(&fp, speaker_data, sizeof(speaker_data), &size);
+		res = hello_fs_read(&fp, speaker_data, 512, &size);
 		totBytesRead += size;
 
 		/* Wait to avoid buffer overflow as reading speed is faster than playback */
@@ -330,6 +330,9 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		vTaskDelay(0);
 	}
 
+	vPortFree(speaker_data);
+	vPortFree(speaker_data_padded);
+
 	///CLEANUP
 	hello_fs_close(&fp);
 
@@ -352,7 +355,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 
 static void DoCapture(uint32_t rate) {
-	int16_t samples[MONO_BUF_LENGTH*2]; //256 * 2bytes * 2 = 1KB
+	int16_t * samples = pvPortMalloc(MONO_BUF_LENGTH*2*2); //256 * 2bytes * 2 = 1KB
 	uint16_t i;
 	char filepath[32];
 
@@ -505,7 +508,7 @@ static void DoCapture(uint32_t rate) {
 			uint16_t * pu16 = (uint16_t *)samples;
 
 			//dump buffer out
-			ReadBuffer(pTxBuffer,(uint8_t *)samples,sizeof(samples));
+			ReadBuffer(pTxBuffer,(uint8_t *)samples,1024);
 
 			for (i = 0; i < MONO_BUF_LENGTH; i++) {
 				samples[i] = samples[2*i + 1];//because it goes right, left,right left, and we want the left channel.
@@ -576,6 +579,7 @@ static void DoCapture(uint32_t rate) {
 
 
 	CAPTURE_CLEANUP:
+	vPortFree(samples);
 
 	if (isSavingToFile) {
 		CloseAndDeleteFile(&filedata);

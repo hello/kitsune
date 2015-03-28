@@ -245,8 +245,9 @@ static int _save( char* file, void* data, int len) {
 	}
 
 	bytes = sl_FsWrite(hndl, 0, (_u8*)data, len);
-	if( bytes != 1 ) {
+	if( bytes != len ) {
 		LOGE( "writing %s failed %d", file, bytes );
+		sl_FsClose(hndl, 0, 0, 0);
 		return -2;
 	}
 	sl_FsClose(hndl, 0, 0, 0);
@@ -278,6 +279,7 @@ static int _get( char * file, void * data, int max_rd, int * len ) {
 	RetVal = sl_FsRead(hndl, Offset, data, max_rd);
 	if ( 0 > RetVal ) {
 		LOGE("failed to read %s\n", file);
+		sl_FsClose(hndl, NULL, NULL, 0);
 		return RetVal;
 	}
 	if( len ) {
@@ -1210,25 +1212,18 @@ int decode_rx_data_pb_callback(const uint8_t * buffer, uint32_t buffer_size, voi
 
 
 	//memset( aesctx.iv, 0, sizeof( aesctx.iv ) );
-
-	LOGI("iv ");
 	for (i = 0; i < AES_IV_SIZE; ++i) {
 		aesctx.iv[i] = *buf_pos++;
-		LOGI("%02x", aesctx.iv[i]);
 		if (buf_pos > (buffer + buffer_size)) {
 			return -1;
 		}
 	}
-	LOGI("\n");
-	LOGI("sig");
 	for (i = 0; i < SIG_SIZE; ++i) {
 		sig[i] = *buf_pos++;
-		LOGI("%02x", sig[i]);
 		if (buf_pos > (buffer + buffer_size)) {
 			return -1;
 		}
 	}
-	LOGI("\n");
 	buffer_size -= (SIG_SIZE + AES_IV_SIZE);
 
 	AES_set_key(&aesctx, aes_key, aesctx.iv, AES_MODE_128); //TODO: real key
@@ -1241,6 +1236,7 @@ int decode_rx_data_pb_callback(const uint8_t * buffer, uint32_t buffer_size, voi
 	SHA1_Final(sig_test, &sha1ctx);
 	if (memcmp(sig, sig_test, SHA1_SIZE) != 0) {
 		LOGI("signatures do not match\n");
+#if 0
 		for (i = 0; i < SHA1_SIZE; ++i) {
 			LOGI("%02x", sig[i]);
 		}
@@ -1249,7 +1245,7 @@ int decode_rx_data_pb_callback(const uint8_t * buffer, uint32_t buffer_size, voi
 			LOGI("%02x", sig_test[i]);
 		}
 		LOGI("\n");
-
+#endif
 		return -1; //todo uncomment
 	}
 
