@@ -779,7 +779,7 @@ static void _show_led_status()
 static void _on_wave(){
 	analytics_event( "{led: wave}" );
 	if(	cancel_alarm() ) {
-		stop_led_animation( 10000, 18 );
+		stop_led_animation( 10000, 33 );
 	} else {
 		_show_led_status();
 	}
