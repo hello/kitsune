@@ -348,7 +348,7 @@ time_t get_time() { //all accesses go to cache...
 			xSemaphoreGive(time_smphr);
 		}
 	}
-	return t;
+	return t - 2208988800UL; //reset to 1970....
 }
 
 void init_time_module(int stack)
