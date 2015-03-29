@@ -655,6 +655,10 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 
 		// All the args are in stack, don't need to do protobuf free.
 
+		if(!is_morpheus) {
+			vTaskDelay(1000);
+			_force_data_push();
+		}
 		if(ret == 0)
 		{
 			_send_response_to_ble(response_buffer, sizeof(response_buffer));
@@ -664,10 +668,6 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 			LOGI("Pairing request failed, error %d\n", ret);
 			ble_reply_protobuf_error(ErrorType_NETWORK_ERROR);
 		    vPortFree(response_buffer);
-		}
-		if(!is_morpheus) {
-			vTaskDelay(1000);
-			_force_data_push();
 		}
 
 	}
