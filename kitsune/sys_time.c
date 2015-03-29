@@ -121,6 +121,7 @@ void set_sl_time(time_t unix_timestamp_sec) {
 
     struct tm * dt;
     dt = localtime(&unix_timestamp_sec);
+    mktime(dt); //make sure the wday and yday are set...
 
     sl_tm.sl_tm_day = dt->tm_mday;
     sl_tm.sl_tm_hour = dt->tm_hour;
