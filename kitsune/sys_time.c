@@ -90,6 +90,7 @@ static time_t get_unix_time()
 static uint32_t set_unix_time(time_t unix_timestamp_sec)
 {
 	if(unix_timestamp_sec > 0) {
+	    unix_timestamp_sec += 2208988800UL; //convert from base of 1970 to 1900
 		//set the RTC
 		set_rtc_time(localtime(&unix_timestamp_sec));
 	}
@@ -120,8 +121,8 @@ void set_sl_time(time_t unix_timestamp_sec) {
 	SlDateTime_t sl_tm;
 
     struct tm * dt;
+    unix_timestamp_sec += 2208988800UL; //convert from base of 1970 to 1900
     dt = localtime(&unix_timestamp_sec);
-    mktime(dt); //make sure the wday and yday are set...
 
     sl_tm.sl_tm_day = dt->tm_mday;
     sl_tm.sl_tm_hour = dt->tm_hour;
@@ -130,7 +131,7 @@ void set_sl_time(time_t unix_timestamp_sec) {
     sl_tm.sl_tm_mon+=1;
     sl_tm.sl_tm_mon = sl_tm.sl_tm_mon > 12 ? sl_tm.sl_tm_mon -= 12 : sl_tm.sl_tm_mon;
     sl_tm.sl_tm_sec = dt->tm_sec;
-    sl_tm.sl_tm_year = dt->tm_year + 1970;
+    sl_tm.sl_tm_year = dt->tm_year + 1900;
 
 	sl_DevSet(SL_DEVICE_GENERAL_CONFIGURATION,
 			  SL_DEVICE_GENERAL_CONFIGURATION_DATE_TIME,
