@@ -1536,6 +1536,16 @@ int cmd_memfrag(int argc, char *argv[]) {
 	return 0;
 }
 
+int Cmd_fault(int argc, char *argv[]) {
+	int i;
+	int buffer[9999]; //guaranteed overflow
+	for(i=0;i<sizeof(buffer);++i) {
+		buffer[i] = 0;
+	}
+	LOGE("%d", buffer[i]);
+	return 0;
+}
+
 // ==============================================================================
 // This is the table that holds the command names, implementing functions, and
 // brief description.
@@ -1543,6 +1553,7 @@ int cmd_memfrag(int argc, char *argv[]) {
 tCmdLineEntry g_sCmdTable[] = {
 //    { "cpu",      Cmd_cpu,      "Show CPU utilization" },
 		{ "free", Cmd_free, "" },
+		{ "fault", Cmd_fault, "" },
 		{ "connect", Cmd_connect, "" },
 		{ "disconnect", Cmd_disconnect, "" },
 		{ "mac", Cmd_set_mac, "" },

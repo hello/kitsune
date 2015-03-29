@@ -4,6 +4,7 @@
 //top of sram
 #define SHUTDOWN_MEM ((void*)((0x20004000-sizeof(faultInfo))))
 #define SHUTDOWN_MAGIC 0xDEAD0BAD
+#define TRACE_DONE 0xBEEFCAFE
 typedef struct {
 
     unsigned long magic;
@@ -12,6 +13,7 @@ typedef struct {
     unsigned long busFaultAddr;
     unsigned long mmuAddr;
     unsigned long exceptionFrame[8];
+    unsigned long stack_trace[64];
 /* only whole words here ! */
 } faultInfo;
 

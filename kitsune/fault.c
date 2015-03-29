@@ -25,6 +25,8 @@ typedef struct
 }
 tFaultMap;
 
+void main();
+
 //*****************************************************************************
 //
 // Text mapping for the usage, bus, and memory faults.
@@ -69,12 +71,12 @@ void faultPrinter( faultInfo* f ) {
     //
     if(f->faultStatus & 0xffff0000)
     {
-        LOGI("\nUSAGE FAULT:\n");
+        LOGE("\nUSAGE FAULT:\n");
         for(i = 0; i < 6; i++)
         {
             if(f->faultStatus & sUsageFaultMap[i].ulFaultBits)
             {
-                LOGI(" %s\n", sUsageFaultMap[i].cFaultText);
+                LOGE(" %s\n", sUsageFaultMap[i].cFaultText);
             }
         }
     }
@@ -85,12 +87,12 @@ void faultPrinter( faultInfo* f ) {
     //
     if(f->faultStatus & 0x0000ff00)
     {
-        LOGI("\nBUS FAULT:\n");
+        LOGE("\nBUS FAULT:\n");
         for(i = 0; i < 5; i++)
         {
             if(f->faultStatus & sBusFaultMap[i].ulFaultBits)
             {
-                LOGI(" %s\n", sBusFaultMap[i].cFaultText);
+                LOGE(" %s\n", sBusFaultMap[i].cFaultText);
             }
         }
 
@@ -99,7 +101,7 @@ void faultPrinter( faultInfo* f ) {
         //
         if(f->faultStatus & NVIC_FAULT_STAT_BFARV)
         {
-            LOGI("BFAR = %08X\n", f->busFaultAddr);
+            LOGE("BFAR = %08X\n", f->busFaultAddr);
         }
     }
 
@@ -109,12 +111,12 @@ void faultPrinter( faultInfo* f ) {
     //
     if(f->faultStatus & 0x000000ff)
     {
-        LOGI("\nMEMORY MANAGE FAULT:\n");
+        LOGE("\nMEMORY MANAGE FAULT:\n");
         for(i = 0; i < 4; i++)
         {
             if(f->faultStatus & sMemFaultMap[i].ulFaultBits)
             {
-                LOGI(" %s\n", sMemFaultMap[i].cFaultText);
+                LOGE(" %s\n", sMemFaultMap[i].cFaultText);
             }
         }
 
@@ -123,23 +125,28 @@ void faultPrinter( faultInfo* f ) {
         //
         if(f->faultStatus & NVIC_FAULT_STAT_MMARV)
         {
-            LOGI("MMAR = %08X\n", f->mmuAddr);
+            LOGE("MMAR = %08X\n", f->mmuAddr);
         }
     }
 
     //
     // Print the context of the exception stack frame.
     //
-    LOGI("\nException Frame\n---------------\n");
-    LOGI("R0   = 0x%08X\n", f->exceptionFrame[0]);
-    LOGI("R1   = 0x%08X\n", f->exceptionFrame[1]);
-    LOGI("R2   = 0x%08X\n", f->exceptionFrame[2]);
-    LOGI("R3   = 0x%08X\n", f->exceptionFrame[3]);
-    LOGI("R12  = 0x%08X\n", f->exceptionFrame[4]);
-    LOGI("LR   = 0x%08X\n", f->exceptionFrame[5]);
-    LOGI("PC   = 0x%08X\n", f->exceptionFrame[6]);
-    LOGI("xPSR = 0x%08X\n", f->exceptionFrame[7]);
+    LOGE("\nException Frame\n---------------\n");
+    LOGE("R0   = 0x%08X\n", f->exceptionFrame[0]);
+    LOGE("R1   = 0x%08X\n", f->exceptionFrame[1]);
+    LOGE("R2   = 0x%08X\n", f->exceptionFrame[2]);
+    LOGE("R3   = 0x%08X\n", f->exceptionFrame[3]);
+    LOGE("R12  = 0x%08X\n", f->exceptionFrame[4]);
+    LOGE("LR   = 0x%08X\n", f->exceptionFrame[5]);
+    LOGE("PC   = 0x%08X\n", f->exceptionFrame[6]);
+    LOGE("xPSR = 0x%08X\n", f->exceptionFrame[7]);
 
+    LOGE("TRACE:");
+    for( i=0; i < 64 || f->stack_trace[i] != TRACE_DONE; ++i ) {
+        LOGE( "0x%08X\n", f->stack_trace[i]);
+    }
+    LOGE("END\n");
 }
 
 int mcu_reset();
@@ -184,6 +191,9 @@ FaultDecoder(unsigned long *pulExceptionFrame)
 
     for( i=0;i<8;++i )
         f->exceptionFrame[i] = pulExceptionFrame[i];
+    for( i=8;i<(64+8) && pulExceptionFrame[i] != (unsigned long)main; ++i )
+    	f->stack_trace[i-8] = pulExceptionFrame[i];
+    f->stack_trace[i-8] = TRACE_DONE;
 
     f->magic = SHUTDOWN_MAGIC;
 
