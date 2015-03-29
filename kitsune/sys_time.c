@@ -57,7 +57,7 @@ static int get_rtc_time( struct tm * dt ) {
 	dt->tm_wday = bcd_to_int(data[3] & 0xf);
 	dt->tm_mday = bcd_to_int(data[4]);
 	dt->tm_mon = bcd_to_int((data[5]-1) & 0x3f);
-	dt->tm_year = bcd_to_int(data[6]) + 30;
+	dt->tm_year = bcd_to_int(data[6]);
 	return 0;
 }
 
@@ -71,7 +71,7 @@ static int set_rtc_time(struct tm * dt) {
 	data[4] = int_to_bcd(dt->tm_wday)|0x10; //the first 4 bits here need to be 1 always
     data[5] = int_to_bcd(dt->tm_mday);
     data[6] = int_to_bcd((dt->tm_mon+1) & 0x3f );
-    data[7] = int_to_bcd(dt->tm_year - 30);
+    data[7] = int_to_bcd(dt->tm_year);
 
 	if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
 		TRY_OR_GOTOFAIL(I2C_IF_Write(0x68, data, 8, 1));
