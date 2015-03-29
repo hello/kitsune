@@ -17,8 +17,7 @@ extern "C" {
 //for reserved txbuf in the task for protobuf object
 #define UART_LOGGER_RESERVED_SIZE 128
 
-//needs to be sufficiently large to hold buffer for tx 2432
-#define UART_LOGGER_THREAD_STACK_SIZE	(UART_LOGGER_BLOCK_SIZE + UART_LOGGER_RESERVED_SIZE + 2048)
+#define UART_LOGGER_THREAD_STACK_SIZE	(1280)
 
 //if you want to prepend a tag when calling LOGX() functions with TAGGED MODE
 #define UART_LOGGER_PREPEND_TAG 0
@@ -87,7 +86,11 @@ void uart_logger_flush(void);
 void uart_logger_task(void * params);
 int Cmd_log_upload(int argc, char *argv[]);
 int Cmd_log_setview(int argc, char * argv[]);
+void set_loglevel(uint8_t loglevel);
 void uart_logc(uint8_t c);	//advanced: directly dumps character to tx block
+
+int analytics_event( const char *pcString, ...);
+
 #ifdef __cplusplus
 }
 #endif

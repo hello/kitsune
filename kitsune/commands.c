@@ -506,6 +506,7 @@ static bool cancel_alarm() {
 	if (xSemaphoreTake(alarm_smphr, portMAX_DELAY)) {
 		if (alarm_is_ringing) {
 			if (alarm.has_end_time || alarm.has_ring_offset_from_now_in_second) {
+				analytics_event( "{alarm: dismissed}" );
 				LOGI("ALARM DONE RINGING\n");
 				alarm.has_end_time = 0;
 				alarm.has_start_time = 0;
@@ -632,6 +633,7 @@ void thread_alarm(void * unused) {
 					AudioTask_StartPlayback(&desc);
 
 					LOGI("ALARM RINGING RING RING RING\n");
+					analytics_event( "{alarm: ring}" );
 					alarm.has_start_time = 0;
 					alarm.start_time = 0;
 					alarm_is_ringing = true;
@@ -752,6 +754,8 @@ static void _show_led_status()
 {
 	uint8_t alpha = get_alpha_from_light();
 
+	analytics_event( "{led: status, alpha: %d}", alpha );
+
 	if(wifi_status_get(UPLOADING)) {
 		//TODO: wtf is this?
 		uint8_t rgb[3] = { LED_MAX };
@@ -773,8 +777,9 @@ static void _show_led_status()
 }
 
 static void _on_wave(){
+	analytics_event( "{led: wave}" );
 	if(	cancel_alarm() ) {
-		stop_led_animation(10, 18);
+		stop_led_animation( 10000, 33 );
 	} else {
 		_show_led_status();
 	}
@@ -866,6 +871,7 @@ void thread_tx(void* unused) {
 	batched_periodic_data data_batched = {0};
 	load_aes();
 	load_device_id();
+	load_account_id();
 	pill_settings_init();
 	int tries = 0;
 
@@ -1481,14 +1487,12 @@ void init_i2c_recovery();
 void launch_tasks() {
 	//checkFaults();
 
-	stop_led_animation(1,1);
-
 	//dear future chris: this one doesn't need a semaphore since it's only written to while threads are going during factory test boot
 	booted = true;
 
 	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,1,NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_alarm, "alarmTask", 2*1024 / 4, NULL, 4, NULL);
+	xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 4, NULL);
 	UARTprintf("*");
 	xTaskCreate(FileUploaderTask_Thread,"fileUploadTask",1*1024/4,NULL,1,NULL);
 #ifdef BUILD_SERVERS //todo PVT disable!
@@ -1518,6 +1522,17 @@ int Cmd_boot(int argc, char *argv[]) {
 int _force_data_push();
 int Cmd_sync(int argc, char *argv[]) {
 	_force_data_push();
+	return 0;
+}
+
+int cmd_memfrag(int argc, char *argv[]) {
+	static void * ptr;
+	if (strstr(argv[1], "a") != 0) {
+		ptr = pvPortMalloc(atoi(argv[2]));
+	}
+	else if (strstr(argv[1], "f") != 0) {
+		vPortFree(ptr);
+	}
 	return 0;
 }
 
@@ -1613,6 +1628,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "gesture_count",Cmd_get_gesture_count,""},
 		{ "alarm",set_test_alarm,""},
 		{ "set-time",cmd_set_time,""},
+		{ "frag",cmd_memfrag,""},
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
 		{ "iperfcli",Cmd_iperf_client,""},
@@ -1750,24 +1766,27 @@ void vUARTTask(void *pvParameters) {
 	SetupGPIOInterrupts();
 	CreateDefaultDirectories();
 
-	xTaskCreate(AudioTask_Thread,"audioTask",4*1024/4,NULL,4,NULL);
+	xTaskCreate(AudioTask_Thread,"audioTask",2560/4,NULL,4,NULL);
 	UARTprintf("*");
 	init_download_task( 1024 / 4 );
-	networktask_init(5 * 1024 / 4);
+	networktask_init(2 * 1024 / 4);
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 4, NULL);
 
 	init_dust();
+	ble_proto_init();
+	xTaskCreate(top_board_task, "top_board_task", 1280 / 4, NULL, 2, NULL);
+	xTaskCreate(thread_spi, "spiTask", 1536 / 4, NULL, 4, NULL); //this one doesn't look like much, but has to parse all the pb from bluetooth
+	UARTprintf("*");
+#ifndef BUILD_SERVERS
+	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 1, NULL);
+	UARTprintf("*");
+#endif
+
 	if( on_charger ) {
 		launch_tasks();
 	} else {
 		play_led_wheel( 50, LED_MAX, LED_MAX, 0,0,10);
 	}
-	ble_proto_init();
-	xTaskCreate(top_board_task, "top_board_task", 2048 / 4, NULL, 2, NULL);
-	xTaskCreate(thread_spi, "spiTask", 4*1024 / 4, NULL, 4, NULL); //this one doesn't look like much, but has to parse all the pb from bluetooth
-	UARTprintf("*");
-	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 1, NULL);
-	UARTprintf("*");
 
 	UARTprintf("\n\nFreeRTOS %s, %x, %s %x:%x:%x:%x:%x:%x\n",
 	tskKERNEL_VERSION_NUMBER, KIT_VER, MORPH_NAME, mac[0], mac[1], mac[2],
@@ -1800,7 +1819,7 @@ void vUARTTask(void *pvParameters) {
 				LOGF("can't run command %s, no memory available!\n", cCmdBuf );
 			} else {
 				memcpy( args, cCmdBuf, sizeof( cCmdBuf ) );
-				xTaskCreate(CmdLineProcess, "commandTask",  2*1024 / 4, args, 4, NULL);
+				xTaskCreate(CmdLineProcess, "commandTask",  3*1024 / 4, args, 4, NULL);
 			}
         }
 	}

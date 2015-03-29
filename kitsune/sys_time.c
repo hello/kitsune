@@ -56,8 +56,8 @@ static int get_rtc_time( struct tm * dt ) {
 	dt->tm_hour = bcd_to_int(data[2]);
 	dt->tm_wday = bcd_to_int(data[3] & 0xf);
 	dt->tm_mday = bcd_to_int(data[4]);
-	dt->tm_mon = bcd_to_int(data[5] & 0x3f);
-	dt->tm_year = bcd_to_int(data[6]) + 30;
+	dt->tm_mon = bcd_to_int((data[5]-1) & 0x3f);
+	dt->tm_year = bcd_to_int(data[6])+100;
 	return 0;
 }
 
@@ -70,8 +70,8 @@ static int set_rtc_time(struct tm * dt) {
 	data[3] = int_to_bcd(dt->tm_hour);
 	data[4] = int_to_bcd(dt->tm_wday)|0x10; //the first 4 bits here need to be 1 always
     data[5] = int_to_bcd(dt->tm_mday);
-    data[6] = int_to_bcd(dt->tm_mon & 0x3f);
-    data[7] = int_to_bcd(dt->tm_year - 30);
+    data[6] = int_to_bcd((dt->tm_mon+1) & 0x3f );
+    data[7] = int_to_bcd(dt->tm_year-100);
 
 	if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
 		TRY_OR_GOTOFAIL(I2C_IF_Write(0x68, data, 8, 1));
@@ -90,7 +90,7 @@ static time_t get_unix_time()
 static uint32_t set_unix_time(time_t unix_timestamp_sec)
 {
 	if(unix_timestamp_sec > 0) {
-		//set the RTC
+	    //set the RTC
 		set_rtc_time(localtime(&unix_timestamp_sec));
 	}
 	return unix_timestamp_sec;
@@ -112,7 +112,7 @@ time_t get_sl_time() {
 	dt.tm_mon = sl_tm.sl_tm_mon;
 	dt.tm_mon = sl_tm.sl_tm_mon == 0 ? 12 : sl_tm.sl_tm_mon - 1;
 	dt.tm_sec = sl_tm.sl_tm_sec;
-	dt.tm_year = sl_tm.sl_tm_year - 1970;
+	dt.tm_year = sl_tm.sl_tm_year;
 
 	return mktime(&dt);
 }
@@ -129,7 +129,7 @@ void set_sl_time(time_t unix_timestamp_sec) {
     sl_tm.sl_tm_mon+=1;
     sl_tm.sl_tm_mon = sl_tm.sl_tm_mon > 12 ? sl_tm.sl_tm_mon -= 12 : sl_tm.sl_tm_mon;
     sl_tm.sl_tm_sec = dt->tm_sec;
-    sl_tm.sl_tm_year = dt->tm_year + 1970;
+    sl_tm.sl_tm_year = dt->tm_year + 1900;
 
 	sl_DevSet(SL_DEVICE_GENERAL_CONFIGURATION,
 			  SL_DEVICE_GENERAL_CONFIGURATION_DATE_TIME,
@@ -250,8 +250,6 @@ uint32_t fetch_unix_time_from_ntp() {
         ntp += buffer[42];
         ntp <<= 8;
         ntp += buffer[43];
-
-        ntp -= 2208988800UL;
     }
     close(sock);
     return ntp;
@@ -272,6 +270,7 @@ int cmd_set_time(int argc, char *argv[]) {
 		set_cached_time(atoi(argv[1]));
 		set_sl_time(get_cached_time());
 		is_time_good = true;
+		set_unix_time(get_cached_time());
 		xSemaphoreGive(time_smphr);
 	}
 
@@ -358,7 +357,7 @@ void init_time_module(int stack)
 	cached_ticks = 0;
 	cached_time = INVALID_SYS_TIME;
 	vSemaphoreCreateBinary(time_smphr);
-	set_cached_time(1422504361); //default time gets us in jan 29th 2015
+	set_cached_time(1422504361UL+2208988800UL); //default time gets us in jan 29th 2015
 	set_sl_time(get_cached_time());
 	xTaskCreate(time_task, "time_task", stack / 4, NULL, 4, NULL); //todo reduce stack
 }

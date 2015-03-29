@@ -13,8 +13,8 @@ typedef struct {
 	uint32_t flags;
 } NetworkResponse_t;
 
-typedef void (*NetworkResponseCallback_t)(const NetworkResponse_t * response, void * context);
-
+typedef void (*NetworkResponseCallback_t)(const NetworkResponse_t * response,
+		void * context);
 
 typedef struct {
 	/* This will be called before you encode or decode */
@@ -46,8 +46,17 @@ typedef struct {
 } NetworkTaskData_t;
 
 void networktask_init(uint16_t stack_size);
-int NetworkTask_SynchronousSendProtobuf(const char * host, const char * endpoint, char * buf, uint32_t buf_size, const pb_field_t fields[], const void * structdata,int32_t retry_time_in_counts);
-int NetworkTask_AddMessageToQueue(const NetworkTaskServerSendMessage_t * message);
+int NetworkTask_SynchronousSendProtobuf(const char * host,
+		const char * endpoint, char * buf, uint32_t buf_size,
+		const pb_field_t fields[], const void * structdata,
+		int32_t retry_time_in_counts);
+int NetworkTask_AsynchronousSendProtobuf(const char * host,
+		const char * endpoint, char * buf, uint32_t buf_size,
+		const pb_field_t fields[], const void * structdata,
+		int32_t retry_time_in_counts, NetworkResponseCallback_t func,
+		void * data);
+int NetworkTask_AddMessageToQueue(
+		const NetworkTaskServerSendMessage_t * message);
 int networktask_enter_critical_region();
 int networktask_exit_critical_region();
 

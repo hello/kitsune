@@ -18,6 +18,9 @@
 #include "proto_utils.h"
 #include "ustdlib.h"
 
+#include "kit_assert.h"
+#include "sys_time.h"
+
 #define SENSE_LOG_ENDPOINT		"/logs"
 #define SENSE_LOG_FOLDER		"logs"
 #define SENSE_LOG_RW_SIZE		128
@@ -55,6 +58,10 @@ static struct{
 	DIR logdir;
 }self = {0};
 
+void set_loglevel(uint8_t loglevel) {
+	self.store_tag = loglevel;
+}
+
 typedef void (file_handler)(FILINFO * info, void * ctx);
 static int _walk_log_dir(file_handler * handler, void * ctx);
 static FRESULT _remove_oldest(int * rem);
@@ -65,6 +72,7 @@ _encode_text_block(pb_ostream_t *stream, const pb_field_t *field, void * const *
 			&& pb_encode_string(stream, (uint8_t*)self.operation_block,
 					UART_LOGGER_BLOCK_SIZE);
 }
+
 static void
 _swap_and_upload(void){
 	if (!(xEventGroupGetBitsFromISR(self.uart_log_events) & LOG_EVENT_STORE)) {
@@ -87,10 +95,13 @@ void telnetPrint(const char * str, int len );
 
 static void
 _logstr(const char * str, int len, bool echo, bool store){
+#ifndef BUILD_SERVERS
 	int i;
 	for(i = 0; i < len && store; i++){
 		uart_logc(str[i]);
 	}
+#endif
+
 	if (echo) {
 #ifdef BUILD_SERVERS
 		telnetPrint(str, len);
@@ -305,6 +316,284 @@ void uart_logger_init(void){
 
 	xEventGroupSetBits(self.uart_log_events, LOG_EVENT_READY);
 }
+
+extern volatile bool booted;
+
+static const char * const g_pcHex = "0123456789abcdef";
+
+typedef void (*out_func_t)(const char * str, int len, void * data);
+
+void _logstr_wrapper(const char * str, int len, void * data ) {
+	uint8_t tag = *(uint8_t*)data;
+    bool echo = false;
+    bool store = false;
+    if(tag & self.view_tag){
+    	echo = true;
+    }
+    if(tag & self.store_tag){
+    	store = true;
+    }
+    if( !booted ) {
+    	store = false;
+    }
+    _logstr(str, len, echo, store);
+}
+
+typedef struct {
+	char * ptr;
+	int pos;
+} event_ctx_t;
+
+void _encode_wrapper(const char * str, int len, void * data ) {
+	event_ctx_t * ctx = (event_ctx_t*)data;
+    memcpy( ctx->ptr + ctx->pos, str, len );
+    ctx->pos+=len;
+}
+
+void _va_printf( va_list vaArgP, const char * pcString, out_func_t func, void * data ) {
+	unsigned long ulIdx, ulValue, ulPos, ulCount, ulBase, ulNeg;
+    char *pcStr, pcBuf[16], cFill;
+
+    while(*pcString)
+    {
+        for(ulIdx = 0; (pcString[ulIdx] != '%') && (pcString[ulIdx] != '\0');
+            ulIdx++)
+        {
+        }
+        func(pcString, ulIdx, data);
+        pcString += ulIdx;
+        if(*pcString == '%')
+        {
+            pcString++;
+            ulCount = 0;
+            cFill = ' ';
+again:
+            switch(*pcString++)
+            {
+                case '0':
+                case '1':
+                case '2':
+                case '3':
+                case '4':
+                case '5':
+                case '6':
+                case '7':
+                case '8':
+                case '9':
+                {
+                    if((pcString[-1] == '0') && (ulCount == 0))
+                    {
+                        cFill = '0';
+                    }
+                    ulCount *= 10;
+                    ulCount += pcString[-1] - '0';
+
+                    goto again;
+                }
+                case 'c':
+                {
+                    ulValue = va_arg(vaArgP, unsigned long);
+
+                    func((char *)&ulValue, 1, data);
+
+                    break;
+                }
+                case 'd':
+                {
+                    ulValue = va_arg(vaArgP, unsigned long);
+                    ulPos = 0;
+                    if((long)ulValue < 0)
+                    {
+                        ulValue = -(long)ulValue;
+                        ulNeg = 1;
+                    }
+                    else
+                    {
+                        ulNeg = 0;
+                    }
+
+                    ulBase = 10;
+                    goto convert;
+                }
+
+                case 's':
+                {
+                    pcStr = va_arg(vaArgP, char *);
+                    for(ulIdx = 0; pcStr[ulIdx] != '\0'; ulIdx++)
+                    {
+                    }
+                    func(pcStr, ulIdx, data);
+                    if(ulCount > ulIdx)
+                    {
+                        ulCount -= ulIdx;
+                        while(ulCount--)
+                        {
+                            func(" ", 1, data);
+                        }
+                    }
+                    break;
+                }
+                case 'u':
+                {
+                    ulValue = va_arg(vaArgP, unsigned long);
+                    ulPos = 0;
+                    ulBase = 10;
+                    ulNeg = 0;
+                    goto convert;
+                }
+                case 'x':
+                case 'X':
+                case 'p':
+                {
+                    ulValue = va_arg(vaArgP, unsigned long);
+                    ulPos = 0;
+                    ulBase = 16;
+                    ulNeg = 0;
+convert:
+                    for(ulIdx = 1;
+                        (((ulIdx * ulBase) <= ulValue) &&
+                         (((ulIdx * ulBase) / ulBase) == ulIdx));
+                        ulIdx *= ulBase, ulCount--)
+                    {
+                    }
+                    if(ulNeg)
+                    {
+                        ulCount--;
+                    }
+
+                    if(ulNeg && (cFill == '0'))
+                    {
+
+                        pcBuf[ulPos++] = '-';
+                        ulNeg = 0;
+                    }
+
+                    if((ulCount > 1) && (ulCount < 16))
+                    {
+                        for(ulCount--; ulCount; ulCount--)
+                        {
+                            pcBuf[ulPos++] = cFill;
+                        }
+                    }
+                    if(ulNeg)
+                    {
+                        pcBuf[ulPos++] = '-';
+                    }
+
+                    for(; ulIdx; ulIdx /= ulBase)
+                    {
+                        pcBuf[ulPos++] = g_pcHex[(ulValue / ulIdx) % ulBase];
+                    }
+                    func(pcBuf, ulPos, data);
+
+                    break;
+                }
+                case '%':
+                {
+                    func(pcString - 1, 1, data);
+
+                    break;
+                }
+                default:
+                {
+                    break;
+                }
+            }
+        }
+    }
+
+}
+
+static int _send_pb( const pb_field_t fields[], const void * structdata ) {
+    char *  buffer = pvPortMalloc(SERVER_REPLY_BUFSZ);
+    int ret;
+
+    if(buffer == NULL) {
+    	return 0; //nonessential
+    }
+    memset(buffer, 0, SERVER_REPLY_BUFSZ);
+
+	ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER, SENSE_LOG_ENDPOINT,buffer,SERVER_REPLY_BUFSZ,fields,structdata,0);
+	vPortFree(buffer);
+
+	return ret;
+}
+
+
+typedef struct {
+	void * text_buffer;
+	char * reply_buf;
+	void * structdata;
+}async_context_t;
+
+void free_pb_cb(const NetworkResponse_t * response, void * context){
+	async_context_t * ctx = (async_context_t*)context;
+	if (ctx) {
+		if (ctx->text_buffer) {
+			vPortFree(ctx->text_buffer);
+		}
+		if (ctx->reply_buf) {
+			vPortFree(ctx->reply_buf);
+		}
+		if (ctx->structdata) {
+			vPortFree(ctx->structdata);
+		}
+		vPortFree(ctx);
+	}
+}
+
+static int _send_pb_async( const pb_field_t fields[], void * structdata, NetworkResponseCallback_t func, void * data) {
+	async_context_t * ctx  = pvPortMalloc(sizeof(async_context_t));
+	assert(ctx);
+	memset(ctx, 0, sizeof(async_context_t));
+	ctx->reply_buf = pvPortMalloc(SERVER_REPLY_BUFSZ);
+	if (data) {
+		ctx->text_buffer = data;
+	}
+    ctx->structdata = structdata;
+    assert(ctx->reply_buf);
+
+    memset(ctx->reply_buf, 0, SERVER_REPLY_BUFSZ);
+
+	return NetworkTask_AsynchronousSendProtobuf(DATA_SERVER, SENSE_LOG_ENDPOINT,ctx->reply_buf,SERVER_REPLY_BUFSZ,fields,structdata,0, func, ctx);
+}
+
+int analytics_event( const char *pcString, ...) {
+	va_list vaArgP;
+	int r = 0;
+	event_ctx_t ctx;
+
+    char hex_device_id[2*DEVICE_ID_SZ+1] = {0};
+    if(!get_device_id(hex_device_id, sizeof(hex_device_id)))
+    {
+        return false;
+    }
+	sense_log * log = pvPortMalloc(sizeof(sense_log));
+	assert(log);
+    memset( log, 0, sizeof(sense_log));
+
+	ctx.pos = 0;
+	ctx.ptr = pvPortMalloc(512);
+	assert(ctx.ptr);
+	memset(ctx.ptr, 0, 512);
+
+    va_start(vaArgP, pcString);
+    _va_printf( vaArgP, pcString, _encode_wrapper, &ctx );
+    va_end(vaArgP);
+
+	log->text.funcs.encode = _encode_string_fields;
+	log->text.arg = ctx.ptr;
+	log->device_id.funcs.encode = encode_device_id_string;
+
+	log->has_unix_time = true;
+	log->unix_time = get_time();
+	log->has_property = true;
+	log->property = LogType_KEY_VALUE;
+
+    r = _send_pb_async(sense_log_fields, log, free_pb_cb, ctx.ptr);
+    return r;
+}
+
 void uart_logc(uint8_t c){
 	if( self.print_sem == NULL) {
 		return;
@@ -323,7 +612,6 @@ void uart_logc(uint8_t c){
 }
 
 static int send_log() {
-	char buffer[UART_LOGGER_BLOCK_SIZE + UART_LOGGER_RESERVED_SIZE] = {0};
 	self.log.has_unix_time = false;
 #if 0 // if we want this we need to add a file header so stored files will get the origin timestamp and not the uploading timestamp
 	if( has_good_time() ) {
@@ -331,7 +619,8 @@ static int send_log() {
 		self.log.unix_time = get_time();
 	}
 #endif
-	return NetworkTask_SynchronousSendProtobuf(DATA_SERVER, SENSE_LOG_ENDPOINT,buffer,sizeof(buffer),sense_log_fields,&self.log,0);
+
+    return _send_pb(sense_log_fields,&self.log);
 }
 
 void uart_logger_task(void * params){
@@ -426,25 +715,10 @@ int Cmd_log_setview(int argc, char * argv[]){
 	return -1;
 }
 
-extern volatile bool booted;
 
-static const char * const g_pcHex = "0123456789abcdef";
 void uart_logf(uint8_t tag, const char *pcString, ...){
 	va_list vaArgP;
-	unsigned long ulIdx, ulValue, ulPos, ulCount, ulBase, ulNeg;
-    char *pcStr, pcBuf[16], cFill;
-    bool echo = false;
-    bool store = false;
-    ASSERT(pcString != 0);
-    if(tag & self.view_tag){
-    	echo = true;
-    }
-    if(tag & self.store_tag){
-    	store = true;
-    }
-    if( !booted ) {
-    	store = false;
-    }
+
 #if UART_LOGGER_PREPEND_TAG > 0
     while(tag){
     	if(tag & LOG_INFO){
@@ -463,154 +737,8 @@ void uart_logf(uint8_t tag, const char *pcString, ...){
     	}
     }
 #endif
+
     va_start(vaArgP, pcString);
-    while(*pcString)
-    {
-        for(ulIdx = 0; (pcString[ulIdx] != '%') && (pcString[ulIdx] != '\0');
-            ulIdx++)
-        {
-        }
-        _logstr(pcString, ulIdx, echo, store);
-        pcString += ulIdx;
-        if(*pcString == '%')
-        {
-            pcString++;
-            ulCount = 0;
-            cFill = ' ';
-again:
-            switch(*pcString++)
-            {
-                case '0':
-                case '1':
-                case '2':
-                case '3':
-                case '4':
-                case '5':
-                case '6':
-                case '7':
-                case '8':
-                case '9':
-                {
-                    if((pcString[-1] == '0') && (ulCount == 0))
-                    {
-                        cFill = '0';
-                    }
-                    ulCount *= 10;
-                    ulCount += pcString[-1] - '0';
-
-                    goto again;
-                }
-                case 'c':
-                {
-                    ulValue = va_arg(vaArgP, unsigned long);
-
-                    _logstr((char *)&ulValue, 1, echo, store);
-
-                    break;
-                }
-                case 'd':
-                {
-                    ulValue = va_arg(vaArgP, unsigned long);
-                    ulPos = 0;
-                    if((long)ulValue < 0)
-                    {
-                        ulValue = -(long)ulValue;
-                        ulNeg = 1;
-                    }
-                    else
-                    {
-                        ulNeg = 0;
-                    }
-
-                    ulBase = 10;
-                    goto convert;
-                }
-
-                case 's':
-                {
-                    pcStr = va_arg(vaArgP, char *);
-                    for(ulIdx = 0; pcStr[ulIdx] != '\0'; ulIdx++)
-                    {
-                    }
-                    _logstr(pcStr, ulIdx, echo, store);
-                    if(ulCount > ulIdx)
-                    {
-                        ulCount -= ulIdx;
-                        while(ulCount--)
-                        {
-                            _logstr(" ", 1, echo, store);
-                        }
-                    }
-                    break;
-                }
-                case 'u':
-                {
-                    ulValue = va_arg(vaArgP, unsigned long);
-                    ulPos = 0;
-                    ulBase = 10;
-                    ulNeg = 0;
-                    goto convert;
-                }
-                case 'x':
-                case 'X':
-                case 'p':
-                {
-                    ulValue = va_arg(vaArgP, unsigned long);
-                    ulPos = 0;
-                    ulBase = 16;
-                    ulNeg = 0;
-convert:
-                    for(ulIdx = 1;
-                        (((ulIdx * ulBase) <= ulValue) &&
-                         (((ulIdx * ulBase) / ulBase) == ulIdx));
-                        ulIdx *= ulBase, ulCount--)
-                    {
-                    }
-                    if(ulNeg)
-                    {
-                        ulCount--;
-                    }
-
-                    if(ulNeg && (cFill == '0'))
-                    {
-
-                        pcBuf[ulPos++] = '-';
-                        ulNeg = 0;
-                    }
-
-                    if((ulCount > 1) && (ulCount < 16))
-                    {
-                        for(ulCount--; ulCount; ulCount--)
-                        {
-                            pcBuf[ulPos++] = cFill;
-                        }
-                    }
-                    if(ulNeg)
-                    {
-                        pcBuf[ulPos++] = '-';
-                    }
-
-                    for(; ulIdx; ulIdx /= ulBase)
-                    {
-                        pcBuf[ulPos++] = g_pcHex[(ulValue / ulIdx) % ulBase];
-                    }
-                    _logstr(pcBuf, ulPos, echo, store);
-
-                    break;
-                }
-                case '%':
-                {
-                    _logstr(pcString - 1, 1, echo, store);
-
-                    break;
-                }
-                default:
-                {
-                    break;
-                }
-            }
-        }
-    }
-
+    _va_printf( vaArgP, pcString, _logstr_wrapper, &tag );
     va_end(vaArgP);
 }

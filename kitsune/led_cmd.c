@@ -333,6 +333,13 @@ static void _transition(led_color_t * out, led_color_t * from, led_color_t * to)
 }
 #endif
 
+static void
+_reset_animation_priority(user_animation_t * anim){
+//	DISP("resetting animation %x\n", anim->handler );
+	anim->priority = 0xff;
+}
+
+
 static bool
 _hist_push(const user_animation_t * anim){
 	if(hist_idx <ANIMATION_HISTORY_SIZE && anim->priority != 0xff ){
@@ -365,9 +372,12 @@ _hist_peep() {
 	return NULL;
 }
 #endif
+
 static int
 _hist_flush(void){
 	hist_idx = 0;
+	_reset_animation_priority(&user_animation);
+	_reset_animation_priority(&fadeout_animation);
 	DISP("flush anim\r\n" );
 	return hist_idx;
 }
@@ -384,12 +394,6 @@ _fade_out_for_new() {
 	xEventGroupClearBits(led_events,LED_CUSTOM_ANIMATION_BIT);
 	xEventGroupSetBits( led_events, LED_FADE_OUT_STEP_BIT | LED_CUSTOM_TRANSITION );
 }
-static void
-_reset_animation_priority(user_animation_t * anim){
-//	DISP("resetting animation %x\n", anim->handler );
-	anim->priority = 0xff;
-}
-
 static int get_cycle_time() {
 	xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
 	int cycle_time = user_animation.cycle_time;
@@ -409,6 +413,8 @@ void led_task( void * params ) {
 	_reset_animation_priority(&fadeout_animation);
 	led_smphr = xSemaphoreCreateRecursiveMutex();
 	assert(led_smphr);
+
+	xEventGroupSetBits(led_events, LED_IDLE_BIT );
 
 	while(1) {
 		EventBits_t evnt;
@@ -546,7 +552,7 @@ int Cmd_led(int argc, char *argv[]) {
 			r = _clamp(atoi(argv[2]), 0, LED_CLAMP_MAX);
 			g = _clamp(atoi(argv[3]), 0, LED_CLAMP_MAX);
 			b = _clamp(atoi(argv[4]), 0, LED_CLAMP_MAX);
-			ANIMATE_BLOCKING(led_fade_all_animation(),500);
+			ANIMATE_BLOCKING(led_fade_all_animation(-1),500);
 			LOGF("Setting colors R: %d, G: %d, B: %d \r\n", r, g, b);
 			play_led_animation_solid(LED_MAX, r,g,b,1, 18);
 		}
@@ -668,9 +674,12 @@ int led_fade_current_animation(void){
 	xSemaphoreGiveRecursive(led_smphr);
 	return ret;
 }
-int led_fade_all_animation(void){
+int led_fade_all_animation(int fadeout){
 	int ret = 0;
 	xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
+	if( fadeout >=  0 ) {
+		user_animation.cycle_time = fadeout;
+	}
 	_hist_flush();
 	ret = led_fade_current_animation();
 	xSemaphoreGiveRecursive(led_smphr);

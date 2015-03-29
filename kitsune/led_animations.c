@@ -10,7 +10,7 @@
 #include "bigint_impl.h"
 #include "uart_logger.h"
 
-#include "assert.h"
+#include "kit_assert.h"
 
 #include "led_animations.h"
 typedef struct{
@@ -65,10 +65,10 @@ static int _animate_solid(const led_color_t * prev, led_color_t * out, void * us
 		led_color_t color = led_from_brightness(&ctx->color, ctx->alpha);
 		if(ctx->ctr < 254) {
 			//UARTprintf("fi %d\n", ctx->ctr);
-			color = led_from_brightness(&ctx->color, ctx->ctr);
+			color = led_from_brightness(&color, ctx->ctr);
 		} else if(ctx->ctr < 508 ) {
 			//UARTprintf("fo %d\n", ctx->ctr);
-			color = led_from_brightness(&ctx->color, 508-ctx->ctr);
+			color = led_from_brightness(&color, 508-ctx->ctr);
 		} else {
 			color.rgb = 0;
 			//UARTprintf("ovr %d %d\n", ctx->ctr, ctx->repeat);
@@ -77,7 +77,6 @@ static int _animate_solid(const led_color_t * prev, led_color_t * out, void * us
 				return ANIMATION_STOP;
 			}
 		}
-
 		ledset(out, color, NUM_LED);
 		ctx->ctr += 6;
 		//UARTprintf("roll %d\n", ctx->ctr);
@@ -241,6 +240,7 @@ int play_led_animation_solid(int a, int r, int g, int b, int repeat, int delay){
 
 	ctx->color = led_from_rgb(r, g, b);
 	ctx->alpha = a;
+	analytics_event( "{led: solid, color: %x, alpha: %d}", ctx->color, ctx->alpha );
 	ctx->ctr = 0;
 	ctx->repeat = repeat;
 	user_animation_t anim = (user_animation_t){
@@ -294,6 +294,7 @@ int factory_led_test_pattern(unsigned int timeout) {
 int play_led_wheel(int a, int r, int g, int b, int repeat, int delay){
 	int ret;
 	led_color_t color = led_from_rgb(r,g,b);
+	analytics_event( "{led: wheel, color: %x, alpha: %d}", color, a );
 	color = led_from_brightness( &color, a );
 
 	wheel_context * wheel_ctx =  pvPortMalloc(sizeof(wheel_context));
@@ -325,7 +326,7 @@ void set_led_progress_bar(uint8_t percent){
 }
 
 void stop_led_animation(unsigned int delay, unsigned int fadeout){
-	ANIMATE_BLOCKING(led_fade_all_animation(),delay);
+	ANIMATE_BLOCKING(led_fade_all_animation(fadeout),delay);
 }
 
 int Cmd_led_animate(int argc, char *argv[]){

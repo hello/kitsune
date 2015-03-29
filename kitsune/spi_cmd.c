@@ -40,6 +40,7 @@ typedef struct {
 	unsigned short addr;
 } ctx_t;
 
+static xSemaphoreHandle _spi_smphr;
 static int hw_ver;
 
 #define READ 0
@@ -61,7 +62,7 @@ void CS_set(int val) {
 
 void spi_init() {
       hw_ver = get_hw_ver();
-
+      vSemaphoreCreateBinary(_spi_smphr);
 	  //
 	  // Reset SPI
 	  //
@@ -92,6 +93,8 @@ void spi_init() {
 }
 int spi_reset(){
 	unsigned char reset = 0xFF;
+
+	xSemaphoreTake(_spi_smphr, portMAX_DELAY);
 	CS_set(0);
 	vTaskDelay(8*10);
 //	MAP_SPITransfer(GSPI_BASE,&reset,&reset,1,SPI_CS_ENABLE|SPI_CS_DISABLE);
@@ -116,6 +119,7 @@ int spi_reset(){
 	CS_set(1);
 	vTaskDelay(8*5);
 
+	xSemaphoreGive(_spi_smphr);
 	return SUCCESS;
 }
 
@@ -128,6 +132,7 @@ int spi_write_step( int len, unsigned char * buf ) {
 		return FAILURE;
 	}
 	//MAP_SPICSEnable(GSPI_BASE);
+
 	CS_set(0);
 	vTaskDelay(8*10);
 	for (i = 0; i < len; i++) {
@@ -143,6 +148,7 @@ int spi_write_step( int len, unsigned char * buf ) {
 #ifdef SPI_DEBUG_PRINT
 	LOGI("\r\n");
 #endif
+
 	return SUCCESS;
 }
 
@@ -176,6 +182,7 @@ int spi_write( int len, unsigned char * buf ) {
 	unsigned char mode = WRITE;
 	ctx_t ctx;
 
+	xSemaphoreTake(_spi_smphr, portMAX_DELAY);
 	spi_write_step( 1, &mode );
 	vTaskDelay(8*10);
 	ctx.len = len;
@@ -187,6 +194,7 @@ int spi_write( int len, unsigned char * buf ) {
 #endif
 	spi_write_step( len, buf );
 	vTaskDelay(8*10);
+	xSemaphoreGive(_spi_smphr);
 
 	return SUCCESS;
 }
@@ -195,6 +203,7 @@ int spi_read( int * len, unsigned char * buf ) {
 	ctx_t ctx;
 	int i;
 
+	xSemaphoreTake(_spi_smphr, portMAX_DELAY);
 	spi_write_step( 1, &mode );
 	vTaskDelay(8*10);
 	spi_read_step( 4,  (unsigned char*)&ctx );
@@ -223,6 +232,8 @@ int spi_read( int * len, unsigned char * buf ) {
 		spi_read_step(0, buf);
 	}
 	vTaskDelay(8*10);
+
+	xSemaphoreGive(_spi_smphr );
 	return SUCCESS;
 }
 

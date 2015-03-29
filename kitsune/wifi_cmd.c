@@ -16,6 +16,7 @@
 #include "wifi_cmd.h"
 #include "networktask.h"
 
+
 #define ROLE_INVALID (-5)
 
 int sl_mode = ROLE_INVALID;
@@ -217,64 +218,90 @@ void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent) {
 
 void reset_default_antenna()
 {
-	unsigned long tok = 0;
-	SlFsFileInfo_t info = {0};
-
-	sl_FsGetInfo((unsigned char*)ANTENNA_FILE, tok, &info);
-	int err = sl_FsDel((unsigned char*)ANTENNA_FILE, tok);
+	int err = sl_FsDel((unsigned char*)ANTENNA_FILE, 0);
 	if (err) {
-		LOGI("error %d\n", err);
+		LOGI("226error %d\n", err);
 	}
 }
 
-void save_default_antenna( unsigned char a ) {
-		unsigned long tok=0;
-		long hndl, bytes;
-		SlFsFileInfo_t info;
+static int _save( char* file, void* data, int len) {
+	unsigned long tok=0;
+	long hndl, bytes;
+	SlFsFileInfo_t info;
 
-		sl_FsGetInfo((unsigned char*)ANTENNA_FILE, tok, &info);
+	sl_FsGetInfo((unsigned char*)file, tok, &info);
 
-		if (sl_FsOpen((unsigned char*)ANTENNA_FILE, FS_MODE_OPEN_WRITE, &tok, &hndl)) {
-			LOGI("error opening file, trying to create\n");
+	if (sl_FsOpen((unsigned char*)file, FS_MODE_OPEN_WRITE, &tok, &hndl)) {
+		LOGI("error opening file, trying to create\n");
 
-			if (sl_FsOpen((unsigned char*)ANTENNA_FILE,
-					FS_MODE_OPEN_CREATE(65535, _FS_FILE_OPEN_FLAG_COMMIT), &tok,
-					&hndl)) {
-				LOGI("error opening for write\n");
-				return;
-			}else{
-				sl_FsWrite(hndl, 0, &a, 1);  // Dummy write, we don't care about the result
-			}
+		if (sl_FsOpen((unsigned char*)file,
+				FS_MODE_OPEN_CREATE(65535, _FS_FILE_OPEN_FLAG_COMMIT), &tok,
+				&hndl)) {
+			LOGI("error opening for write\n");
+			return -1;
+		}else{
+			sl_FsWrite(hndl, 0, data, 1);  // Dummy write, we don't care about the result
 		}
+	}
 
-		bytes = sl_FsWrite(hndl, 0, &a, 1);
-		if( bytes != 1 ) {
-			LOGE( "writing antenna failed %d", bytes );
-		}
+	bytes = sl_FsWrite(hndl, 0, (_u8*)data, len);
+	if( bytes != len ) {
+		LOGE( "writing %s failed %d", file, bytes );
 		sl_FsClose(hndl, 0, 0, 0);
-
-		return;
+		return -2;
+	}
+	sl_FsClose(hndl, 0, 0, 0);
+	return 0;
 }
-unsigned char get_default_antenna() {
-	unsigned char a = PCB_ANT;
+static char account_id[40] = "nolinkedaccount";
+
+void save_account_id( char * acct ) {
+	memcpy(account_id, acct, strlen(acct)+1);
+	_save( ACCOUNT_ID_FILE, acct, strlen(acct)+1 );
+}
+
+void save_default_antenna( unsigned char a ) {
+	_save(ANTENNA_FILE, &a, 1);
+}
+
+static int _get( char * file, void * data, int max_rd, int * len ) {
 	long hndl = -1;
 	int RetVal, Offset;
 
 	// read in aes key
-	RetVal = sl_FsOpen(ANTENNA_FILE, FS_MODE_OPEN_READ, NULL, &hndl);
+	RetVal = sl_FsOpen((const _u8*)file, FS_MODE_OPEN_READ, NULL, &hndl);
 	if (RetVal != 0) {
-		LOGE("failed to open antenna file\n");
-		return a;
+		LOGE("failed to open %s\n", file);
+		return RetVal;
 	}
 
 	Offset = 0;
-	RetVal = sl_FsRead(hndl, Offset, (unsigned char *) a, 1);
-	if (RetVal != 1) {
-		LOGE("failed to read antenna file\n");
+	RetVal = sl_FsRead(hndl, Offset, data, max_rd);
+	if ( 0 > RetVal ) {
+		LOGE("failed to read %s\n", file);
+		sl_FsClose(hndl, NULL, NULL, 0);
+		return RetVal;
 	}
+	if( len ) {
+		*len = RetVal;
+	}
+	return sl_FsClose(hndl, NULL, NULL, 0);
+}
 
-	RetVal = sl_FsClose(hndl, NULL, NULL, 0);
+int load_account_id( ) {
+	return _get( ACCOUNT_ID_FILE, account_id, sizeof(account_id), NULL );
+}
 
+char * get_account_id() {
+	return account_id;
+}
+
+unsigned char get_default_antenna() {
+	unsigned char a = PCB_ANT;
+
+	if( 0 > _get( ANTENNA_FILE, &a, 1, NULL ) ) {
+		return PCB_ANT;
+	}
 	return a;
 }
 
@@ -643,7 +670,7 @@ int Cmd_time(int argc, char*argv[]) {
 	uint32_t unix = fetch_unix_time_from_ntp();
 	uint32_t t = get_time();
 
-    LOGF("time is %u and the ntp is %d and the diff is %d, good time? %d\n", t, unix, t-unix, has_good_time());
+    LOGF("time is %u and the ntp is %u and the diff is %d, good time? %d\n", t, unix, (int)(t-unix), has_good_time());
 
     return 0;
 }
@@ -670,66 +697,10 @@ static uint8_t aes_key[AES_BLOCKSIZE + 1] = "1234567891234567";
 static uint8_t device_id[DEVICE_ID_SZ + 1];
 
 int save_aes( uint8_t * key ) {
-	unsigned long tok=0;
-	long hndl, bytes;
-	SlFsFileInfo_t info;
-
-	memcpy( aes_key, key, AES_BLOCKSIZE);
-
-	sl_FsGetInfo((unsigned char*)AES_KEY_LOC, tok, &info);
-
-	if (sl_FsOpen((unsigned char*)AES_KEY_LOC,
-	FS_MODE_OPEN_WRITE, &tok, &hndl)) {
-		LOGI("error opening file, trying to create\n");
-
-		if (sl_FsOpen((unsigned char*)AES_KEY_LOC,
-				FS_MODE_OPEN_CREATE(65535, _FS_FILE_OPEN_FLAG_COMMIT), &tok,
-				&hndl)) {
-			LOGI("error opening for write\n");
-			return -1;
-		}else{
-			sl_FsWrite(hndl, 0, key, AES_BLOCKSIZE);  // Dummy write, we don't care about the result
-		}
-	}
-
-	bytes = sl_FsWrite(hndl, 0, key, AES_BLOCKSIZE);
-	if( bytes != AES_BLOCKSIZE) {
-		LOGE( "writing keyfile failed %d", bytes );
-	}
-	sl_FsClose(hndl, 0, 0, 0);
-
-	return 0;
+	return _save( AES_KEY_LOC, key, AES_BLOCKSIZE);
 }
 int save_device_id( uint8_t * new_device_id ) {
-	unsigned long tok=0;
-	long hndl, bytes;
-	SlFsFileInfo_t info;
-
-	memcpy( device_id, new_device_id, DEVICE_ID_SZ );
-
-	sl_FsGetInfo((unsigned char*)DEVICE_ID_LOC, tok, &info);
-
-	if (sl_FsOpen((unsigned char*)DEVICE_ID_LOC,
-	FS_MODE_OPEN_WRITE, &tok, &hndl)) {
-		LOGI("error opening file, trying to create\n");
-
-		if (sl_FsOpen((unsigned char*)DEVICE_ID_LOC,
-				FS_MODE_OPEN_CREATE(65535, _FS_FILE_OPEN_FLAG_COMMIT), &tok,
-				&hndl)) {
-			LOGI("error opening for write\n");
-			return -1;
-		}else{
-			sl_FsWrite(hndl, 0, device_id, DEVICE_ID_SZ);  // Dummy write, we don't care about the result
-		}
-	}
-
-	bytes = sl_FsWrite(hndl, 0, device_id, DEVICE_ID_SZ);
-	if( bytes != DEVICE_ID_SZ) {
-		LOGE( "writing keyfile failed %d", bytes );
-	}
-	sl_FsClose(hndl, 0, 0, 0);
-
-	return 0;
+	return _save( DEVICE_ID_LOC, new_device_id, DEVICE_ID_SZ);
 }
 
 #if 1
@@ -761,25 +732,15 @@ int Cmd_set_mac(int argc, char*argv[]) {
 }
 
 void load_aes() {
-	long DeviceFileHandle = -1;
-	int RetVal, Offset;
+	int r;
 
-	// read in aes key
-	RetVal = sl_FsOpen(AES_KEY_LOC, FS_MODE_OPEN_READ, NULL,
-			&DeviceFileHandle);
-	if (RetVal != 0) {
-		LOGE("failed to open aes key file\n");
-		return;
-	}
+	_get( AES_KEY_LOC, aes_key, AES_BLOCKSIZE, &r );
+	aes_key[AES_BLOCKSIZE] = 0;
 
-	Offset = 0;
-	RetVal = sl_FsRead(DeviceFileHandle, Offset, (unsigned char *) aes_key,
-			AES_BLOCKSIZE);
-	if (RetVal != AES_BLOCKSIZE) {
+	if (r != AES_BLOCKSIZE) {
 		LOGE("failed to read aes key file\n");
 		return;
 	}
-	aes_key[AES_BLOCKSIZE] = 0;
 
 	/*
 	int i;
@@ -789,29 +750,17 @@ void load_aes() {
 	}
 	UARTprintf("\n");
 	*/
-
-	RetVal = sl_FsClose(DeviceFileHandle, NULL, NULL, 0);
 }
 void load_device_id() {
-	long DeviceFileHandle = -1;
-	int RetVal, Offset;
+	int r;
 
-	// read in aes key
-	RetVal = sl_FsOpen(DEVICE_ID_LOC, FS_MODE_OPEN_READ, NULL,
-			&DeviceFileHandle);
-	if (RetVal != 0) {
-		LOGE("failed to open device id file\n");
-		return;
-	}
+	_get( DEVICE_ID_LOC, device_id, DEVICE_ID_SZ, &r );
+	device_id[DEVICE_ID_SZ] = 0;
 
-	Offset = 0;
-	RetVal = sl_FsRead(DeviceFileHandle, Offset, (unsigned char *) device_id,
-			DEVICE_ID_SZ);
-	if (RetVal != DEVICE_ID_SZ) {
+	if (r != DEVICE_ID_SZ) {
 		LOGE("failed to read device id file\n");
 		return;
 	}
-	device_id[DEVICE_ID_SZ] = 0;
 	/*
 	UARTprintf("device id loaded from file: ");
 	int i;
@@ -822,41 +771,73 @@ void load_device_id() {
 
 	UARTprintf("\n");
 	*/
-	RetVal = sl_FsClose(DeviceFileHandle, NULL, NULL, 0);
 }
 
 #include "ble_proto.h"
+
+bool validate_signatures( char * buffer, const pb_field_t fields[], void * structdata) {
+
+    // Parse the response
+    //LOGI("Reply is:\n\r%s\n\r", buffer);
+
+    const char* header_content_len = "Content-Length: ";
+    char * content = strstr(buffer, "\r\n\r\n") + 4;
+    char * len_str = strstr(buffer, header_content_len) + strlen(header_content_len);
+    if (http_response_ok(buffer) != 1) {
+    	wifi_status_set(UPLOADING, true);
+        LOGI("Invalid response, endpoint return failure.\n");
+        return -1;
+    }
+
+    if (len_str == NULL) {
+    	wifi_status_set(UPLOADING, true);
+        LOGI("Failed to find Content-Length header\n");
+        return -1;
+    }
+    int len = atoi(len_str);
+
+    return decode_rx_data_pb((unsigned char*) content, len, fields, structdata);
+}
+
 int Cmd_test_key(int argc, char*argv[]) {
     load_aes();
     load_device_id();
     //LOGI("Last two digit: %02X:%02X\n", aes_key[AES_BLOCKSIZE - 2], aes_key[AES_BLOCKSIZE - 1]);
 
+    char *  buffer = pvPortMalloc(SERVER_REPLY_BUFSZ);
+
+    int ret;
+
+    assert(buffer);
+    memset(buffer, 0, SERVER_REPLY_BUFSZ);
+
     MorpheusCommand test_command = {0};
     test_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_SENSE;
     test_command.version = PROTOBUF_VERSION;
 
-    char response_buffer[256] = {0};
-
-    int ret = NetworkTask_SynchronousSendProtobuf(
-                DATA_SERVER,
-                CHECK_KEY_ENDPOINT,
-                response_buffer,
-                sizeof(response_buffer),
-                MorpheusCommand_fields,
-                &test_command,
-                1000);
-
-    if(ret != 0 ) {
-    	LOGF("Test key failed: network error %d\n", ret);
-    	return -1;
+    ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER,CHECK_KEY_ENDPOINT, buffer, SERVER_REPLY_BUFSZ, MorpheusCommand_fields, &test_command, 0);
+    if(ret != 0)
+    {
+        // network error
+    	wifi_status_set(UPLOADING, true);
+        LOGI("Send data failed, network error %d\n", ret);
+        vPortFree(buffer);
+        return ret;
     }
-	if( http_response_ok(response_buffer) ) {
-		LOGF(" test key success \n");
-	} else {
-		LOGF(" test key not valid \n");
-	}
 
-    return 0;
+
+    MorpheusCommand response_protobuf;
+    memset(&response_protobuf, 0, sizeof(response_protobuf));
+    ble_proto_assign_decode_funcs(&response_protobuf);
+
+    if(validate_signatures(buffer, MorpheusCommand_fields, &response_protobuf) == 0) {
+    	LOGF("test key validated\r\n");
+    } else {
+        LOGF("test key fail\r\n");
+    }
+
+    vPortFree(buffer);
+    return -1;
 }
 
 /* protobuf includes */
@@ -1231,25 +1212,18 @@ int decode_rx_data_pb_callback(const uint8_t * buffer, uint32_t buffer_size, voi
 
 
 	//memset( aesctx.iv, 0, sizeof( aesctx.iv ) );
-
-	LOGI("iv ");
 	for (i = 0; i < AES_IV_SIZE; ++i) {
 		aesctx.iv[i] = *buf_pos++;
-		LOGI("%02x", aesctx.iv[i]);
 		if (buf_pos > (buffer + buffer_size)) {
 			return -1;
 		}
 	}
-	LOGI("\n");
-	LOGI("sig");
 	for (i = 0; i < SIG_SIZE; ++i) {
 		sig[i] = *buf_pos++;
-		LOGI("%02x", sig[i]);
 		if (buf_pos > (buffer + buffer_size)) {
 			return -1;
 		}
 	}
-	LOGI("\n");
 	buffer_size -= (SIG_SIZE + AES_IV_SIZE);
 
 	AES_set_key(&aesctx, aes_key, aesctx.iv, AES_MODE_128); //TODO: real key
@@ -1262,6 +1236,7 @@ int decode_rx_data_pb_callback(const uint8_t * buffer, uint32_t buffer_size, voi
 	SHA1_Final(sig_test, &sha1ctx);
 	if (memcmp(sig, sig_test, SHA1_SIZE) != 0) {
 		LOGI("signatures do not match\n");
+#if 0
 		for (i = 0; i < SHA1_SIZE; ++i) {
 			LOGI("%02x", sig[i]);
 		}
@@ -1270,7 +1245,7 @@ int decode_rx_data_pb_callback(const uint8_t * buffer, uint32_t buffer_size, voi
 			LOGI("%02x", sig_test[i]);
 		}
 		LOGI("\n");
-
+#endif
 		return -1; //todo uncomment
 	}
 
@@ -1577,7 +1552,7 @@ int http_response_ok(const char* response_buffer)
 {
 	char* first_line = strstr(response_buffer, "\r\n") + 2;
 	uint16_t first_line_len = first_line - response_buffer;
-	if(!first_line_len > 0)
+	if(!first_line_len > 0 || (first_line_len > strlen(response_buffer)))
 	{
 		LOGI("Cannot get response first line.\n");
 		return -1;
@@ -1734,11 +1709,18 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
 		pill_settings_save(&settings);
     }
 
+    if(response_protobuf->has_upload_log_level) {
+    	set_loglevel(response_protobuf->upload_log_level);
+    }
+    if(response_protobuf->has_reset_mcu) {
+    	if(response_protobuf->reset_mcu) {
+    		mcu_reset();
+    	}
+	}
     _set_led_color_based_on_room_conditions(response_protobuf);
     
 }
 
-#define SERVER_REPLY_BUFSZ 1024
 //retry logic is handled elsewhere
 int send_pill_data(batched_pill_data * pill_data) {
     char *  buffer = pvPortMalloc(SERVER_REPLY_BUFSZ);
@@ -1757,16 +1739,22 @@ int send_pill_data(batched_pill_data * pill_data) {
     // Parse the response
     //LOGI("Reply is:\n\r%s\n\r", buffer);
 
-    const char* header_content_len = "Content-Length: ";
-    char * content = strstr(buffer, "\r\n\r\n") + 4;
-    char * len_str = strstr(buffer, header_content_len) + strlen(header_content_len);
-    if (http_response_ok(buffer) != 1) {
-        LOGI("Invalid response, endpoint return failure.\n");
+
+    SyncResponse response_protobuf;
+    memset(&response_protobuf, 0, sizeof(response_protobuf));
+    response_protobuf.files.funcs.decode = _on_file_download;
+
+    if(validate_signatures(buffer, SyncResponse_fields, &response_protobuf) == 0)
+    {
+        LOGI("Pill decode OK\n");
+		_on_response_protobuf(&response_protobuf);
+		wifi_status_set(UPLOADING, false);
         vPortFree(buffer);
-        return -1;
+        return 0;
     }
+    LOGI("Pill decoder fail\n");
     vPortFree(buffer);
-    return 0;
+    return -1;
 }
 void boot_commit_ota();
 
@@ -1788,45 +1776,25 @@ int send_periodic_data(batched_periodic_data* data) {
         return ret;
     }
 
-    // Parse the response
-    //LOGI("Reply is:\n\r%s\n\r", buffer);
-    
-    const char* header_content_len = "Content-Length: ";
-    char * content = strstr(buffer, "\r\n\r\n") + 4;
-    char * len_str = strstr(buffer, header_content_len) + strlen(header_content_len);
-    if (http_response_ok(buffer) != 1) {
-    	wifi_status_set(UPLOADING, true);
-        LOGI("Invalid response, endpoint return failure.\n");
-        vPortFree(buffer);
-        return -1;
-    }
-    
-    if (len_str == NULL) {
-    	wifi_status_set(UPLOADING, true);
-        LOGI("Failed to find Content-Length header\n");
-        vPortFree(buffer);
-        return -1;
-    }
-    int len = atoi(len_str);
-    
-    boot_commit_ota(); //commit only if we hear back from the server...
-
     SyncResponse response_protobuf;
     memset(&response_protobuf, 0, sizeof(response_protobuf));
     response_protobuf.files.funcs.decode = _on_file_download;
 
-    if(decode_rx_data_pb((unsigned char*) content, len, SyncResponse_fields, &response_protobuf) == 0)
+    if(validate_signatures(buffer, SyncResponse_fields, &response_protobuf) == 0)
     {
         LOGI("Decoding success: %d %d %d\n",
         response_protobuf.has_alarm,
         response_protobuf.has_reset_device,
         response_protobuf.has_led_action);
 
+        boot_commit_ota(); //commit only if we hear back from the server...
+
 		_on_response_protobuf(&response_protobuf);
 		wifi_status_set(UPLOADING, false);
         vPortFree(buffer);
         return 0;
     }
+    LOGI("decoder fail\n");
 
     vPortFree(buffer);
     return -1;
