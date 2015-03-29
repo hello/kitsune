@@ -559,6 +559,7 @@ static void _send_response_to_ble(const char* buffer, size_t len)
 }
 
 void sample_sensor_data(periodic_data* data);
+extern xQueueHandle force_data_queue;
 int _force_data_push()
 {
     if(!wait_for_time(10))
@@ -577,28 +578,10 @@ int _force_data_push()
 	}
     memset(data, 0, sizeof(periodic_data));
     sample_sensor_data(data);
-
-    periodic_data_to_encode periodicdata;
-    periodicdata.num_data = 1;
-    periodicdata.data = data;
-
-    batched_periodic_data data_batched = {0};
-    pack_batched_periodic_data(&data_batched, &periodicdata);
-
-    uint8_t retry = 3;
-    int ret = 0;
-    while ((ret = send_periodic_data(&data_batched)) != 0) {
-        LOGI("Retry\n");
-        vTaskDelay(1 * configTICK_RATE_HZ);
-        --retry;
-        if(!retry)
-        {
-            LOGI("Force post data failed\n");
-            break;
-        }
-    }
+    xQueueSend(force_data_queue, (void* )data, 0); //queues copy so this is safe to free
     vPortFree(data);
-    return ret;
+
+    return 0;
 }
 
 void save_account_id( char * acct );
