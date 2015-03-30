@@ -884,6 +884,8 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 			ble_proto_led_fade_in_trippy();
             _self.ble_status = BLE_PAIRING;
             LOGI( "PAIRING MODE \n");
+
+			analytics_event( "{ble: pairing}" );
             //wifi prescan, forked so we don't block the BLE and it just happens in the background
             _scan_wifi_mostly_nonblocking();
         }
