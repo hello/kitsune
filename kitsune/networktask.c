@@ -73,20 +73,11 @@ static uint32_t EncodePb(pb_ostream_t * stream, void * data) {
 
 	return ret;
 }
-static uint32_t EncodePbFree(pb_ostream_t * stream, void * data) {
-	network_encode_data_t * encodedata = (network_encode_data_t *)data;
-	uint32_t ret = false;
-
-	if (encodedata && encodedata->encodedata) {
-	ret = pb_encode(stream,encodedata->fields,encodedata->encodedata);
+static void FreeMe(void * data) {
+	if(data) {
+		vPortFree(data);
 	}
-
-//	DEBUG_PRINTF("NT::EncodePb -- got callback");
-
-    vPortFree(data);
-	return ret;
 }
-
 
 int NetworkTask_AsynchronousSendProtobuf(
 		const char * host,const char * endpoint, char * buf,
@@ -109,8 +100,11 @@ int NetworkTask_AsynchronousSendProtobuf(
 	message.retry_timeout = retry_time_in_counts;
 	message.context = data;
 
-	message.encode = EncodePbFree;
+	message.encode = EncodePb;
 	message.encodedata = encodedata;
+
+	message.unprepare = FreeMe;
+	message.prepdata = encodedata;
 
 	message.decode_buf = (uint8_t *)buf;
 	message.decode_buf_size = buf_size;
