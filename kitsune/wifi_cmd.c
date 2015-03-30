@@ -784,7 +784,7 @@ bool validate_signatures( char * buffer, const pb_field_t fields[], void * struc
     char * content = strstr(buffer, "\r\n\r\n") + 4;
     char * len_str = strstr(buffer, header_content_len) + strlen(header_content_len);
     if (http_response_ok(buffer) != 1) {
-    	wifi_status_set(UPLOADING, true);
+    	wifi_status_set(UPLOADING, false);
         LOGI("Invalid response, endpoint return failure.\n");
         return -1;
     }
