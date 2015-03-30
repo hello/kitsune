@@ -50,6 +50,8 @@ int sl_mode = ROLE_INVALID;
 
 #include "pill_settings.h"
 
+#include "fs_utils.h"
+
 void mcu_reset()
 {
 	vTaskDelay(1000);
@@ -224,72 +226,19 @@ void reset_default_antenna()
 	}
 }
 
-static int _save( char* file, void* data, int len) {
-	unsigned long tok=0;
-	long hndl, bytes;
-	SlFsFileInfo_t info;
-
-	sl_FsGetInfo((unsigned char*)file, tok, &info);
-
-	if (sl_FsOpen((unsigned char*)file, FS_MODE_OPEN_WRITE, &tok, &hndl)) {
-		LOGI("error opening file, trying to create\n");
-
-		if (sl_FsOpen((unsigned char*)file,
-				FS_MODE_OPEN_CREATE(65535, _FS_FILE_OPEN_FLAG_COMMIT), &tok,
-				&hndl)) {
-			LOGI("error opening for write\n");
-			return -1;
-		}else{
-			sl_FsWrite(hndl, 0, data, 1);  // Dummy write, we don't care about the result
-		}
-	}
-
-	bytes = sl_FsWrite(hndl, 0, (_u8*)data, len);
-	if( bytes != len ) {
-		LOGE( "writing %s failed %d", file, bytes );
-		sl_FsClose(hndl, 0, 0, 0);
-		return -2;
-	}
-	sl_FsClose(hndl, 0, 0, 0);
-	return 0;
-}
 static char account_id[40] = "nolinkedaccount";
 
 void save_account_id( char * acct ) {
 	memcpy(account_id, acct, strlen(acct)+1);
-	_save( ACCOUNT_ID_FILE, acct, strlen(acct)+1 );
+	fs_save( ACCOUNT_ID_FILE, acct, strlen(acct)+1 );
 }
 
 void save_default_antenna( unsigned char a ) {
-	_save(ANTENNA_FILE, &a, 1);
-}
-
-static int _get( char * file, void * data, int max_rd, int * len ) {
-	long hndl = -1;
-	int RetVal, Offset;
-
-	// read in aes key
-	RetVal = sl_FsOpen((const _u8*)file, FS_MODE_OPEN_READ, NULL, &hndl);
-	if (RetVal != 0) {
-		LOGE("failed to open %s\n", file);
-		return RetVal;
-	}
-
-	Offset = 0;
-	RetVal = sl_FsRead(hndl, Offset, data, max_rd);
-	if ( 0 > RetVal ) {
-		LOGE("failed to read %s\n", file);
-		sl_FsClose(hndl, NULL, NULL, 0);
-		return RetVal;
-	}
-	if( len ) {
-		*len = RetVal;
-	}
-	return sl_FsClose(hndl, NULL, NULL, 0);
+	fs_save(ANTENNA_FILE, &a, 1);
 }
 
 int load_account_id( ) {
-	return _get( ACCOUNT_ID_FILE, account_id, sizeof(account_id), NULL );
+	return fs_get( ACCOUNT_ID_FILE, account_id, sizeof(account_id), NULL );
 }
 
 char * get_account_id() {
@@ -299,7 +248,7 @@ char * get_account_id() {
 unsigned char get_default_antenna() {
 	unsigned char a = PCB_ANT;
 
-	if( 0 > _get( ANTENNA_FILE, &a, 1, NULL ) ) {
+	if( 0 > fs_get( ANTENNA_FILE, &a, 1, NULL ) ) {
 		return PCB_ANT;
 	}
 	return a;
@@ -697,10 +646,10 @@ static uint8_t aes_key[AES_BLOCKSIZE + 1] = "1234567891234567";
 static uint8_t device_id[DEVICE_ID_SZ + 1];
 
 int save_aes( uint8_t * key ) {
-	return _save( AES_KEY_LOC, key, AES_BLOCKSIZE);
+	return fs_save( AES_KEY_LOC, key, AES_BLOCKSIZE);
 }
 int save_device_id( uint8_t * new_device_id ) {
-	return _save( DEVICE_ID_LOC, new_device_id, DEVICE_ID_SZ);
+	return fs_save( DEVICE_ID_LOC, new_device_id, DEVICE_ID_SZ);
 }
 
 #if 1
@@ -734,7 +683,7 @@ int Cmd_set_mac(int argc, char*argv[]) {
 void load_aes() {
 	int r;
 
-	_get( AES_KEY_LOC, aes_key, AES_BLOCKSIZE, &r );
+	fs_get( AES_KEY_LOC, aes_key, AES_BLOCKSIZE, &r );
 	aes_key[AES_BLOCKSIZE] = 0;
 
 	if (r != AES_BLOCKSIZE) {
@@ -754,7 +703,7 @@ void load_aes() {
 void load_device_id() {
 	int r;
 
-	_get( DEVICE_ID_LOC, device_id, DEVICE_ID_SZ, &r );
+	fs_get( DEVICE_ID_LOC, device_id, DEVICE_ID_SZ, &r );
 	device_id[DEVICE_ID_SZ] = 0;
 
 	if (r != DEVICE_ID_SZ) {

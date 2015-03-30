@@ -256,6 +256,16 @@
 			<locationURI>PARENT-2-PROJECT_LOC/fileuploadertask.c</locationURI>
 		</link>
 		<link>
+			<name>fs_utils.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/fs_utils.c</locationURI>
+		</link>
+		<link>
+			<name>fs_utils.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/fs_utils.h</locationURI>
+		</link>
+		<link>
 			<name>gesture.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/gesture.c</locationURI>

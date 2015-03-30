@@ -560,6 +560,7 @@ static int _send_pb_async( const pb_field_t fields[], void * structdata, Network
 
 int analytics_event( const char *pcString, ...) {
 	return false;
+
 	//todo make this fail more gracefully if the allocations don't succeed...
 	va_list vaArgP;
 	event_ctx_t ctx;

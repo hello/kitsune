@@ -14,34 +14,9 @@
 static BatchedPillSettings _settings;
 static xSemaphoreHandle _sync_mutex;
 
-static int _write_to_file(const char* path, unsigned char* buffer, size_t buffer_size)
-{
-    unsigned long tok = 0;
-    long file_handle = 0;
-    SlFsFileInfo_t info = {0};
+#include "fs_utils.h"
 
-    sl_FsGetInfo((unsigned char*)path, tok, &info);
-
-    if (sl_FsOpen((unsigned char*)path, FS_MODE_OPEN_WRITE, &tok, &file_handle)) {
-        LOGI("error opening file %s, trying to create\n", path);
-
-        if (sl_FsOpen((unsigned char*)path, FS_MODE_OPEN_CREATE(65535, _FS_FILE_OPEN_FLAG_COMMIT), &tok, &file_handle)) {
-            LOGI("error opening %s for write\n", path);
-            return 0;
-        }else{
-            sl_FsWrite(file_handle, 0, buffer, buffer_size);  // Dummy write, we don't care about the result
-        }
-    }
-
-    long bytes_written = sl_FsWrite(file_handle, 0, buffer, buffer_size);
-    if( bytes_written != buffer_size) {
-        LOGE( "write pill settings failed %d", bytes_written);
-    }
-    sl_FsClose(file_handle, 0, 0, 0);
-    return bytes_written == buffer_size;
-}
-
-int pill_settings_save(const BatchedPillSettings* pill_settings)
+int pill_settings_save(BatchedPillSettings* pill_settings)
 {
     if(!pill_settings)
     {
@@ -71,7 +46,7 @@ int pill_settings_save(const BatchedPillSettings* pill_settings)
         return 1;
     }
 
-    const char* settings_file = PILL_SETTING_FILE;
+    char* settings_file = PILL_SETTING_FILE;
     uint8_t buffer[MAX_BUFF_SIZE] = {0};
     pb_ostream_t sizestream = { 0 };
     if(!pb_encode(&sizestream, BatchedPillSettings_fields, pill_settings)){
@@ -88,7 +63,7 @@ int pill_settings_save(const BatchedPillSettings* pill_settings)
         return 0;
     }
 
-    if(!_write_to_file(settings_file, buffer, stream.bytes_written))
+    if(0 != fs_save(settings_file, buffer, stream.bytes_written))
     {
         return 0;
     }
@@ -102,24 +77,18 @@ int pill_settings_save(const BatchedPillSettings* pill_settings)
     return true;
 
 }
-
 int pill_settings_load_from_file()
 {
-    unsigned char* settings_file = PILL_SETTING_FILE;
-    long file_handle = 0;
+    char* settings_file = PILL_SETTING_FILE;
+    uint8_t buffer[MAX_BUFF_SIZE] = {0};
+    int bytes_read;
 
-    // read in aes key
-    int ret = sl_FsOpen(settings_file, FS_MODE_OPEN_READ, NULL, &file_handle);
+    int ret = fs_get( settings_file, (void*)buffer, sizeof(buffer), &bytes_read );
     if (ret != 0) {
         LOGE("failed to open file %s\n", settings_file);
         return 0;
     }
-
-    uint8_t buffer[MAX_BUFF_SIZE] = {0};
-    long bytes_read = sl_FsRead(file_handle, 0, (unsigned char *)buffer, sizeof(buffer));
     LOGI("read %d bytes from file %s\n", bytes_read, settings_file);
-
-    sl_FsClose(file_handle, NULL, NULL, 0);
 
     pb_istream_t stream = pb_istream_from_buffer(buffer, bytes_read);
 
