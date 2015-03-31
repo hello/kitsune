@@ -1648,9 +1648,6 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
     	data_queue_batch_size = response_protobuf->batch_size;
     }
 
-    if (response_protobuf->has_led_action) {
-    }
-
     if(response_protobuf->pill_settings_count > 0) {
 		BatchedPillSettings settings = {0};
 		settings.pill_settings_count = response_protobuf->pill_settings_count > MAX_PILL_SETTINGS_COUNT ? MAX_PILL_SETTINGS_COUNT : response_protobuf->pill_settings_count;
@@ -1731,10 +1728,7 @@ int send_periodic_data(batched_periodic_data* data) {
 
     if(validate_signatures(buffer, SyncResponse_fields, &response_protobuf) == 0)
     {
-        LOGI("Decoding success: %d %d %d\n",
-        response_protobuf.has_alarm,
-        response_protobuf.has_reset_device,
-        response_protobuf.has_led_action);
+        LOGI("Decoding success\n");
 
         boot_commit_ota(); //commit only if we hear back from the server...
 
