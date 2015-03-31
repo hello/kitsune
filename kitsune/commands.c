@@ -860,6 +860,7 @@ void thread_fast_i2c_poll(void * unused)  {
 #define PILL_BATCH_WATERMARK 2
 
 xQueueHandle data_queue = 0;
+xQueueHandle force_data_queue = 0;
 xQueueHandle pill_queue = 0;
 
 
@@ -873,11 +874,14 @@ void thread_tx(void* unused) {
 	load_device_id();
 	load_account_id();
 	pill_settings_init();
+	periodic_data forced_data;
+	bool got_forced_data = false;
 	int tries = 0;
 
 	LOGI(" Start polling  \n");
 	while (1) {
-		if (uxQueueMessagesWaiting(data_queue) >= data_queue_batch_size) {
+		if (uxQueueMessagesWaiting(data_queue) >= data_queue_batch_size
+		 || got_forced_data ) {
 			LOGI(	"sending data" );
 			periodic_data_to_encode periodicdata;
 			periodicdata.num_data = 0;
@@ -888,7 +892,11 @@ void thread_tx(void* unused) {
 				vTaskDelay(1000);
 				continue;
 			}
-
+			if( got_forced_data ) {
+				got_forced_data = false;
+				memcpy( &periodicdata.data[periodicdata.num_data], &forced_data, sizeof(forced_data) );
+				++periodicdata.num_data;
+			}
 			while( periodicdata.num_data < data_queue_batch_size && xQueueReceive(data_queue, &periodicdata.data[periodicdata.num_data], 1 ) ) {
 				++periodicdata.num_data;
 			}
@@ -940,7 +948,9 @@ void thread_tx(void* unused) {
 			vPortFree( pilldata.pills );
 		}
 		do {
-			vTaskDelay(1000);
+			if( xQueueReceive(force_data_queue, &forced_data, 1000 ) ) {
+				got_forced_data = true;
+			}
 		} while (!wifi_status_get(HAS_IP));
 	}
 }
@@ -1536,6 +1546,16 @@ int cmd_memfrag(int argc, char *argv[]) {
 	return 0;
 }
 
+int Cmd_fault(int argc, char *argv[]) {
+	int i;
+	int buffer[9999]; //guaranteed overflow
+	for(i=0;i<sizeof(buffer);++i) {
+		buffer[i] = 0;
+	}
+	LOGE("%d", buffer[i]);
+	return 0;
+}
+
 // ==============================================================================
 // This is the table that holds the command names, implementing functions, and
 // brief description.
@@ -1543,6 +1563,7 @@ int cmd_memfrag(int argc, char *argv[]) {
 tCmdLineEntry g_sCmdTable[] = {
 //    { "cpu",      Cmd_cpu,      "Show CPU utilization" },
 		{ "free", Cmd_free, "" },
+		{ "fault", Cmd_fault, "" },
 		{ "connect", Cmd_connect, "" },
 		{ "disconnect", Cmd_disconnect, "" },
 		{ "mac", Cmd_set_mac, "" },
@@ -1752,6 +1773,7 @@ void vUARTTask(void *pvParameters) {
 	init_led_animation();
 
 	data_queue = xQueueCreate(MAX_PERIODIC_DATA, sizeof(periodic_data));
+	force_data_queue = xQueueCreate(1, sizeof(periodic_data));
 	pill_queue = xQueueCreate(MAX_PILL_DATA, sizeof(pill_data));
 	vSemaphoreCreateBinary(dust_smphr);
 	vSemaphoreCreateBinary(light_smphr);
@@ -1775,7 +1797,7 @@ void vUARTTask(void *pvParameters) {
 	init_dust();
 	ble_proto_init();
 	xTaskCreate(top_board_task, "top_board_task", 1280 / 4, NULL, 2, NULL);
-	xTaskCreate(thread_spi, "spiTask", 1536 / 4, NULL, 4, NULL); //this one doesn't look like much, but has to parse all the pb from bluetooth
+	xTaskCreate(thread_spi, "spiTask", 3*1024 / 4, NULL, 4, NULL); //this one doesn't look like much, but has to parse all the pb from bluetooth
 	UARTprintf("*");
 #ifndef BUILD_SERVERS
 	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 1, NULL);

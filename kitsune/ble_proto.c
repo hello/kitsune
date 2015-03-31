@@ -559,6 +559,7 @@ static void _send_response_to_ble(const char* buffer, size_t len)
 }
 
 void sample_sensor_data(periodic_data* data);
+extern xQueueHandle force_data_queue;
 int _force_data_push()
 {
     if(!wait_for_time(10))
@@ -577,28 +578,10 @@ int _force_data_push()
 	}
     memset(data, 0, sizeof(periodic_data));
     sample_sensor_data(data);
-
-    periodic_data_to_encode periodicdata;
-    periodicdata.num_data = 1;
-    periodicdata.data = data;
-
-    batched_periodic_data data_batched = {0};
-    pack_batched_periodic_data(&data_batched, &periodicdata);
-
-    uint8_t retry = 3;
-    int ret = 0;
-    while ((ret = send_periodic_data(&data_batched)) != 0) {
-        LOGI("Retry\n");
-        vTaskDelay(1 * configTICK_RATE_HZ);
-        --retry;
-        if(!retry)
-        {
-            LOGI("Force post data failed\n");
-            break;
-        }
-    }
+    xQueueSend(force_data_queue, (void* )data, 0); //queues copy so this is safe to free
     vPortFree(data);
-    return ret;
+
+    return 0;
 }
 
 void save_account_id( char * acct );
@@ -655,6 +638,10 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 
 		// All the args are in stack, don't need to do protobuf free.
 
+		if(!is_morpheus) {
+			vTaskDelay(1000);
+			_force_data_push();
+		}
 		if(ret == 0)
 		{
 			_send_response_to_ble(response_buffer, sizeof(response_buffer));
@@ -664,10 +651,6 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 			LOGI("Pairing request failed, error %d\n", ret);
 			ble_reply_protobuf_error(ErrorType_NETWORK_ERROR);
 		    vPortFree(response_buffer);
-		}
-		if(!is_morpheus) {
-			vTaskDelay(1000);
-			_force_data_push();
 		}
 
 	}
@@ -901,6 +884,8 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 			ble_proto_led_fade_in_trippy();
             _self.ble_status = BLE_PAIRING;
             LOGI( "PAIRING MODE \n");
+
+			analytics_event( "{ble: pairing}" );
             //wifi prescan, forked so we don't block the BLE and it just happens in the background
             _scan_wifi_mostly_nonblocking();
         }

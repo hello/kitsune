@@ -559,8 +559,9 @@ static int _send_pb_async( const pb_field_t fields[], void * structdata, Network
 }
 
 int analytics_event( const char *pcString, ...) {
+	return false;
+	//todo make this fail more gracefully if the allocations don't succeed...
 	va_list vaArgP;
-	int r = 0;
 	event_ctx_t ctx;
 
     char hex_device_id[2*DEVICE_ID_SZ+1] = {0};
@@ -590,8 +591,7 @@ int analytics_event( const char *pcString, ...) {
 	log->has_property = true;
 	log->property = LogType_KEY_VALUE;
 
-    r = _send_pb_async(sense_log_fields, log, free_pb_cb, ctx.ptr);
-    return r;
+    return _send_pb_async(sense_log_fields, log, free_pb_cb, ctx.ptr);
 }
 
 void uart_logc(uint8_t c){
