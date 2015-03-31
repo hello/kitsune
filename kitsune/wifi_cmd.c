@@ -1597,17 +1597,23 @@ static void _on_key_command(SyncResponse_KeyCommand cmd) {
 	switch(cmd) {
 	case SyncResponse_KeyCommand_CHECK_KEY:
 		if( 0==Cmd_test_key(0,NULL) ) {
+			//green!
 			play_led_wheel( LED_MAX, 0, LED_MAX, 0, 0, 33 );
 		} else {
+			//red!
 			play_led_wheel( LED_MAX, LED_MAX, 0, 0, 0, 33 );
 		}
 		break;
 	case SyncResponse_KeyCommand_INDICATE_GOOD:
+		//green!
 		play_led_wheel( LED_MAX, 0, LED_MAX, 0, 0, 33 );
 		break;
 	default:
+		//just in case we get something we don't expect....
+		play_led_wheel( LED_MAX, LED_MAX, LED_MAX, LED_MAX, 0, 33 );
 		break;
 	}
+	wifi_reset(); //whateve happens we want to clear wifi now...
 }
 
 static void _set_led_color_based_on_room_conditions(const SyncResponse* response_protobuf)
