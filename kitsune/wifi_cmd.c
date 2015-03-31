@@ -781,6 +781,8 @@ int Cmd_test_key(int argc, char*argv[]) {
 
     if(validate_signatures(buffer, MorpheusCommand_fields, &response_protobuf) == 0) {
     	LOGF("test key validated\r\n");
+        vPortFree(buffer);
+    	return 0;
     } else {
         LOGF("test key fail\r\n");
     }
@@ -1589,6 +1591,24 @@ static void _on_factory_reset_received()
 {
     Cmd_factory_reset(0, 0);
 }
+#include "led_animations.h"
+
+static void _on_key_command(SyncResponse_KeyCommand cmd) {
+	switch(cmd) {
+	case SyncResponse_KeyCommand_CHECK_KEY:
+		if( 0==Cmd_test_key(0,NULL) ) {
+			play_led_wheel( LED_MAX, 0, LED_MAX, 0, 0, 33 );
+		} else {
+			play_led_wheel( LED_MAX, LED_MAX, 0, 0, 0, 33 );
+		}
+		break;
+	case SyncResponse_KeyCommand_INDICATE_GOOD:
+		play_led_wheel( LED_MAX, 0, LED_MAX, 0, 0, 33 );
+		break;
+	default:
+		break;
+	}
+}
 
 static void _set_led_color_based_on_room_conditions(const SyncResponse* response_protobuf)
 {
@@ -1665,6 +1685,9 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
 	}
     _set_led_color_based_on_room_conditions(response_protobuf);
     
+    if( response_protobuf->has_key_command ) {
+    	_on_key_command(response_protobuf->key_command);
+    }
 }
 
 //retry logic is handled elsewhere
