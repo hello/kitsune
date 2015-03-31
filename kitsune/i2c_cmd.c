@@ -452,7 +452,7 @@ int get_codec_mic_NAU(int argc, char *argv[]) {
 	unsigned char cmd_init[2];
 	int i;
 
-	static const char reg[52][2] = {
+	static const char reg[50][2] = {
 			{0x00,0x00},
 			{0x03,0x2d},
 			{0x04,0x15},
@@ -460,14 +460,14 @@ int get_codec_mic_NAU(int argc, char *argv[]) {
 			{0x09,0x18},
 			{0x0a,0x01},
 			{0x0d,0x48},
-			{0x0e,0x00},
+			{0x0e,0x06},
 			{0x10,0x00},
 			{0x12,0x00},
 			{0x14,0x08},
 			{0x17,0xff},
-			{0x18,0x00},
-			{0x1a,0x00},
-			{0x1d,0xf8},
+			//{0x18,0x00},
+			//{0x1a,0x00},
+			{0x1d,0x88},
 			{0x1e,0xff},
 			{0x25,0x2c},
 			{0x26,0x2c},
@@ -476,8 +476,8 @@ int get_codec_mic_NAU(int argc, char *argv[]) {
 			{0x2c,0x2c},
 			{0x30,0x32},
 			{0x32,0x00},
-			{0x37,0xc0},
-			{0x39,0xeb},
+			{0x37,0x40},//{0x37,0xc0} Notch filter is on; {0x37,0x40} Notch filter is off
+			{0x39,0xeb}, //Notch @ 1kHz
 			{0x3b,0xbf},
 			{0x3d,0x85},
 			{0x40,0x38},
@@ -489,8 +489,8 @@ int get_codec_mic_NAU(int argc, char *argv[]) {
 			{0x4c,0x93},
 			{0x4e,0xe9},
 			{0x50,0x00},
-			{0x58,0x02},
-			{0x5a,0x08},
+			{0x58,0x02}, //{0x58,0x02}
+			{0x5a,0x00}, //{0x5a,0x08}
 			{0x5c,0x00},
 			{0x5e,0x50},
 			{0x60,0x00},
@@ -506,7 +506,7 @@ int get_codec_mic_NAU(int argc, char *argv[]) {
 			{0x74,0x00},
 			{0x78,0x88},
 	};
-	for( i=0;i<52;++i) {
+	for( i=0;i<50;++i) {
 		cmd_init[0] = reg[i][0];
 		cmd_init[1] = reg[i][1];
 		I2C_IF_Write(Codec_addr, cmd_init, 2, 1);
@@ -520,16 +520,20 @@ cmd_init[0] = 0x06 ; cmd_init[1] = 0xf9 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 
 cmd_init[0] = 0x09 ; cmd_init[1] = 0x18 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // Audio interface
 cmd_init[0] = 0x0a ; cmd_init[1] = 0x01 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // Companding
 cmd_init[0] = 0x0d ; cmd_init[1] = 0x48 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // CLK control 1
-cmd_init[0] = 0x0e ; cmd_init[1] = 0x00 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // CLK control 2
+cmd_init[0] = 0x0e ; cmd_init[1] = 0x06 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // CLK control 2
+// CHANGE from 48k Sampling rate to 16k sampling rate
+
 cmd_init[0] = 0x10 ; cmd_init[1] = 0x00 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // GPIO contrl
 //cmd_init[0] = 0x12 ; cmd_init[1] = 0x00 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC);
 cmd_init[0] = 0x14 ; cmd_init[1] = 0x08 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // DAC control
 cmd_init[0] = 0x17 ; cmd_init[1] = 0xff ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // DAC volume
 //cmd_init[0] = 0x18 ; cmd_init[1] = 0x00 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); //
 //cmd_init[0] = 0x1a ; cmd_init[1] = 0x00 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); //
-cmd_init[0] = 0x1d ; cmd_init[1] = 0xf8 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // ADC control
+cmd_init[0] = 0x1d ; cmd_init[1] = 0x88 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // ADC control
+// CHANGE from 408 kHz HP cutoff to 82 kHz HP cutoff
+
 cmd_init[0] = 0x1e ; cmd_init[1] = 0xff ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // ADC Volume
-cmd_init[0] = 0x25 ; cmd_init[1] = 0x2c ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // EQ1-Low cutoff
+cmd_init[0] = 0x25 ; cmd_init[1] = 0x2c ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // EQ1-Low cutoff (0x24 ADC path; 0x25 DAC path)
 cmd_init[0] = 0x26 ; cmd_init[1] = 0x2c ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // EQ2- Peak1
 cmd_init[0] = 0x28 ; cmd_init[1] = 0x2c ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // EQ3- Peak2
 cmd_init[0] = 0x2a ; cmd_init[1] = 0x2c ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // EQ4- Peak3
@@ -563,7 +567,7 @@ cmd_init[0] = 0x6c ; cmd_init[1] = 0xb9 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 
 cmd_init[0] = 0x6e ; cmd_init[1] = 0x40 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC);
 cmd_init[0] = 0x70 ; cmd_init[1] = 0x40 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // MONO Mixer Control
 cmd_init[0] = 0x72 ; cmd_init[1] = 0x40 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC);
-cmd_init[0] = 0x74 ; cmd_init[1] = 0x00 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // Power Management 4
+cmd_init[0] = 0x74 ; cmd_init[1] = 0x10 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // Power Management 4
 cmd_init[0] = 0x78 ; cmd_init[1] = 0x88 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC);// 8C : high Z // ADCOUTDrive
 	//LOGI(" Mic codec is testing \n\r");
 #endif
