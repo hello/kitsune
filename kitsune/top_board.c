@@ -285,7 +285,7 @@ _load_top_info(top_info_t * info){
 }
 static int
 _save_top_info(const top_info_t * info){
-	return fs_save( TOPBOARD_INFO_FILE, (void*)&info,  sizeof(top_info_t));
+	return fs_save( TOPBOARD_INFO_FILE, (void*)info,  sizeof(top_info_t));
 }
 int top_board_dfu_begin(const char * bin){
 	int ret;

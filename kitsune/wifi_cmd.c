@@ -1756,8 +1756,9 @@ int send_periodic_data(batched_periodic_data* data) {
 
     if(validate_signatures(buffer, SyncResponse_fields, &response_protobuf) == 0)
     {
-        LOGI("Decoding success\n");
-
+		LOGI("Decoding success %d %d\n",
+				response_protobuf.has_alarm,
+				response_protobuf.has_reset_device );
         boot_commit_ota(); //commit only if we hear back from the server...
 
 		_on_response_protobuf(&response_protobuf);
