@@ -460,11 +460,17 @@ volatile bool provisioning_mode = false;
 
 void check_provision() {
 	char buf[64] = {0};
+	uint8_t default_key[AES_BLOCKSIZE + 1] = DEFAULT_KEY;
+	uint8_t current_key[AES_BLOCKSIZE + 1] = {0};
 	int read = 0;
 	provisioning_mode = false;
-	if (fs_get( PROVISION_FILE, buf, sizeof(buf), &read )) {
-		if( 0 == strncmp(buf, PROV_CODE, read) ) {
-			provisioning_mode = true;
+
+	fs_get( AES_KEY_LOC, current_key, AES_BLOCKSIZE, &read);
+	if (read == 0 || 0 == memcmp(current_key, default_key, AES_BLOCKSIZE)) {
+		if (fs_get( PROVISION_FILE, buf, sizeof(buf), &read)) {
+			if (0 == strncmp(buf, PROV_CODE, read)) {
+				provisioning_mode = true;
+			}
 		}
 	}
 }

@@ -99,6 +99,11 @@ int wifi_status_get(unsigned int status);
 int send_periodic_data(batched_periodic_data* data);
 int send_pill_data(batched_pill_data * pill_data);
 int send_provision_request(ProvisonRequest* req);
+#define DEFAULT_KEY "1234567891234567"
+
+#define AES_MAXROUNDS			14
+#define AES_BLOCKSIZE           16
+#define AES_IV_SIZE             16
 
 void thread_ota( void * unused );
 

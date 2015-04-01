@@ -642,7 +642,7 @@ int Cmd_mode(int argc, char*argv[]) {
     return 0;
 }
 #include "crypto.h"
-static uint8_t aes_key[AES_BLOCKSIZE + 1] = "1234567891234567";
+static uint8_t aes_key[AES_BLOCKSIZE + 1] = DEFAULT_KEY;
 static uint8_t device_id[DEVICE_ID_SZ + 1];
 
 int save_aes( uint8_t * key ) {
