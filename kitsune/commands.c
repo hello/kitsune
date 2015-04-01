@@ -457,6 +457,7 @@ int Cmd_fs_delete(int argc, char *argv[]) {
 #include "fs_utils.h"
 #define PROV_CODE "provision"
 volatile bool provisioning_mode = false;
+#include "crypto.h"
 
 void check_provision() {
 	char buf[64] = {0};
