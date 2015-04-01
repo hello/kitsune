@@ -1593,33 +1593,26 @@ static void _on_factory_reset_received()
 }
 #include "led_animations.h"
 
+extern volatile bool provisioning_mode;
 
 static void _on_key(uint8_t * key) {
-
-
-#if 0
-	switch(cmd) {
-	case SyncResponse_KeyCommand_CHECK_KEY:
-		if( 0==Cmd_test_key(0,NULL) ) { <- kind of pointless, need to check after OTA has completed, i.e. on next boot
+	if( provisioning_mode ) {
+		save_aes(key);
+		load_aes();
+		if (0 == Cmd_test_key(0, NULL)) {
+			provisioning_mode = false;
+			sl_FsDel((unsigned char*)PROVISION_FILE, 0);
 			//green!
-			play_led_wheel( LED_MAX, 0, LED_MAX, 0, 0, 33 );
+			play_led_wheel( LED_MAX, 0, LED_MAX, 0, 3600, 33);
 		} else {
 			//red!
-			play_led_wheel( LED_MAX, LED_MAX, 0, 0, 0, 33 );
+			play_led_wheel( LED_MAX, LED_MAX, 0, 0, 3600, 33);
 		}
 		wifi_reset();
-		break;
-	case SyncResponse_KeyCommand_INDICATE_GOOD:
-		//green!
-		play_led_wheel( LED_MAX, 0, LED_MAX, 0, 0, 33 );
-		wifi_reset();
-		break;
-	default:
+	} else {
 		//just in case we get something we don't expect....
-		play_led_wheel( LED_MAX, LED_MAX, LED_MAX, LED_MAX, 0, 33 );
-		break;
+		play_led_wheel( LED_MAX, LED_MAX, LED_MAX, LED_MAX, 3600, 33);
 	}
-#endif
 }
 
 static void _set_led_color_based_on_room_conditions(const SyncResponse* response_protobuf)

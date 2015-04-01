@@ -452,6 +452,41 @@ int Cmd_fs_delete(int argc, char *argv[]) {
 	return (0);
 }
 
+#include "fs_utils.h"
+#define PROV_CODE "provision"
+volatile bool provisioning_mode = false;
+
+void check_provision() {
+	char buf[64] = {0};
+	int read = 0;
+	provisioning_mode = false;
+	if (fs_get( PROVISION_FILE, buf, sizeof(buf), &read )) {
+		if( 0 == strncmp(buf, PROV_CODE, read) ) {
+			provisioning_mode = true;
+		}
+	}
+}
+int Cmd_prov_set(int argc, char *argv[]) {
+	return fs_save(PROVISION_FILE, PROV_CODE, sizeof(PROV_CODE));
+}
+int Cmd_serial_set(int argc, char *argv[]) {
+	//
+	// Print some header text.
+	//
+	if( argc != 2 ) {
+		LOGE("usage: serial <SN>\n");
+		return -5;
+	}
+	return fs_save(SERIAL_FILE, argv[1], 1+strlen(argv[1]));
+}
+static char serial[64];
+
+void load_serial() {
+	memset(serial, 0, sizeof(serial));
+	fs_get(SERIAL_FILE, serial, sizeof(serial), NULL);
+}
+
+
 static xSemaphoreHandle alarm_smphr;
 static SyncResponse_Alarm alarm;
 #define ONE_YEAR_IN_SECONDS 0x1E13380
@@ -870,6 +905,7 @@ int data_queue_batch_size = 1;
 void thread_tx(void* unused) {
 	batched_pill_data pill_data_batched = {0};
 	batched_periodic_data data_batched = {0};
+	load_serial();
 	load_aes();
 	load_device_id();
 	load_account_id();
@@ -905,6 +941,13 @@ void thread_tx(void* unused) {
 
 			data_batched.has_uptime_in_second = true;
 			data_batched.uptime_in_second = xTaskGetTickCount() / configTICK_RATE_HZ;
+
+			if( provisioning_mode ) {
+				data_batched.has_need_key = true;
+				data_batched.need_key = true;
+			}
+			data_batched.serial.funcs.encode = _encode_string_fields;
+			data_batched.serial.arg = serial;
 
 			while (!send_periodic_data(&data_batched) == 0) {
 				LOGI("Waiting for network connection\n");
@@ -1601,6 +1644,9 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "fsrd", Cmd_fs_read, "" },
 		{ "fsdl", Cmd_fs_delete, "" },
 
+		{ "prov", Cmd_prov_set, "" },
+		{ "serial", Cmd_serial_set, "" },
+
 		{ "r", Cmd_record_buff,""}, //record sounds into SD card
 		{ "p", Cmd_play_buff, ""},//play sounds from SD card
 		{ "s",Cmd_stop_buff,""},
@@ -1805,6 +1851,7 @@ void vUARTTask(void *pvParameters) {
 #endif
 
 	if( on_charger ) {
+		check_provision();
 		launch_tasks();
 	} else {
 		play_led_wheel( 50, LED_MAX, LED_MAX, 0,0,10);
