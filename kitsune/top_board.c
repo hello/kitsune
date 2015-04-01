@@ -281,6 +281,7 @@ static int _prep_file(const char * name, uint32_t * out_fsize, uint16_t * out_cr
 #include "fs_utils.h"
 static int
 _load_top_info(top_info_t * info){
+	memset(info, 0, sizeof(top_info_t));
     return fs_get( TOPBOARD_INFO_FILE, (void*)info, sizeof(top_info_t), NULL );
 }
 static int

@@ -1594,7 +1594,11 @@ static void _on_factory_reset_received()
 #include "led_animations.h"
 
 extern volatile bool provisioning_mode;
-
+#if 0
+if( response_protobuf->has_key ) {
+	_on_key(response_protobuf->key.bytes);
+}
+#endif
 static void _on_key(uint8_t * key) {
 	if( provisioning_mode ) {
 		save_aes(key);
@@ -1689,10 +1693,6 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
     	}
 	}
     _set_led_color_based_on_room_conditions(response_protobuf);
-    
-    if( response_protobuf->has_key ) {
-    	_on_key(response_protobuf->key.bytes);
-    }
 }
 
 //retry logic is handled elsewhere
