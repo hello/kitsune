@@ -1604,13 +1604,13 @@ static void _on_key(uint8_t * key) {
 		if (0 == Cmd_test_key(0, NULL)) {
 			provisioning_mode = false;
 			sl_FsDel((unsigned char*)PROVISION_FILE, 0);
+			wifi_reset();
 			//green!
 			play_led_wheel( LED_MAX, 0, LED_MAX, 0, 3600, 33);
 		} else {
 			//red!
 			play_led_wheel( LED_MAX, LED_MAX, 0, 0, 3600, 33);
 		}
-		wifi_reset();
 	} else {
 		//just in case we get something we don't expect....
 		play_led_wheel( LED_MAX, LED_MAX, LED_MAX, LED_MAX, 3600, 33);
