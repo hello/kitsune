@@ -1796,7 +1796,6 @@ int send_provision_request(ProvisonRequest* req) {
 		LOGI("Decoding PR %d %d\n",
 				response_protobuf.has_key,
 				response_protobuf.has_retry );
-        boot_commit_ota(); //commit only if we hear back from the server...
 
         if( response_protobuf.has_key ) {
         	_on_key(response_protobuf.key.bytes);
