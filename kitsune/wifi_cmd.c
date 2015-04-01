@@ -733,7 +733,7 @@ bool validate_signatures( char * buffer, const pb_field_t fields[], void * struc
     char * content = strstr(buffer, "\r\n\r\n") + 4;
     char * len_str = strstr(buffer, header_content_len) + strlen(header_content_len);
     if (http_response_ok(buffer) != 1) {
-    	wifi_status_set(UPLOADING, false);
+    	wifi_status_set(UPLOADING, true);
         LOGI("Invalid response, endpoint return failure.\n");
         return -1;
     }
@@ -797,6 +797,8 @@ int Cmd_test_key(int argc, char*argv[]) {
 #include <pb_decode.h>
 #include "periodic.pb.h"
 #include "audio_data.pb.h"
+#include "ProvisionRequest.pb.h"
+#include "ProvisionResponse.pb.h"
 
 static SHA1_CTX sha1ctx;
 
@@ -1594,11 +1596,7 @@ static void _on_factory_reset_received()
 #include "led_animations.h"
 
 extern volatile bool provisioning_mode;
-#if 0
-if( response_protobuf->has_key ) {
-	_on_key(response_protobuf->key.bytes);
-}
-#endif
+
 static void _on_key(uint8_t * key) {
 	if( provisioning_mode ) {
 		save_aes(key);
@@ -1762,6 +1760,51 @@ int send_periodic_data(batched_periodic_data* data) {
         boot_commit_ota(); //commit only if we hear back from the server...
 
 		_on_response_protobuf(&response_protobuf);
+		wifi_status_set(UPLOADING, false);
+        vPortFree(buffer);
+        return 0;
+    }
+    LOGI("decoder fail\n");
+
+    vPortFree(buffer);
+    return -1;
+}
+
+int send_provision_request(ProvisonRequest* req) {
+    char *  buffer = pvPortMalloc(SERVER_REPLY_BUFSZ);
+
+    int ret;
+
+    assert(buffer);
+    memset(buffer, 0, SERVER_REPLY_BUFSZ);
+
+    ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER,PROVISION_ENDPOINT, buffer, SERVER_REPLY_BUFSZ, ProvisonRequest_fields, req, 0);
+    if(ret != 0)
+    {
+        // network error
+    	wifi_status_set(UPLOADING, true);
+        LOGI("Send data failed, network error %d\n", ret);
+        vPortFree(buffer);
+        return ret;
+    }
+
+    ProvisionResponse response_protobuf;
+    memset(&response_protobuf, 0, sizeof(response_protobuf));
+
+    if(validate_signatures(buffer, ProvisionResponse_fields, &response_protobuf) == 0)
+    {
+		LOGI("Decoding PR %d %d\n",
+				response_protobuf.has_key,
+				response_protobuf.has_retry );
+        boot_commit_ota(); //commit only if we hear back from the server...
+
+        if( response_protobuf.has_key ) {
+        	_on_key(response_protobuf.key.bytes);
+        }
+        if( response_protobuf.has_retry && response_protobuf.retry ) {
+        	provisioning_mode = true;
+        }
+
 		wifi_status_set(UPLOADING, false);
         vPortFree(buffer);
         return 0;

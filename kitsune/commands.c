@@ -92,6 +92,8 @@
 
 #include "pill_settings.h"
 
+#include "ProvisionRequest.pb.h"
+#include "ProvisionResponse.pb.h"
 
 #define ONLY_MID 0
 
@@ -898,18 +900,6 @@ xQueueHandle data_queue = 0;
 xQueueHandle force_data_queue = 0;
 xQueueHandle pill_queue = 0;
 
-#if 0
-
-data_batched.serial.funcs.encode = _encode_string_fields;
-data_batched.serial.arg = serial;
-
-if( provisioning_mode ) {
-	data_batched.has_need_key = true;
-	data_batched.need_key = true;
-}
-#endif
-
-
 int load_device_id();
 //no need for semaphore, only thread_tx uses this one
 int data_queue_batch_size = 1;
@@ -952,6 +942,15 @@ void thread_tx(void* unused) {
 
 			data_batched.has_uptime_in_second = true;
 			data_batched.uptime_in_second = xTaskGetTickCount() / configTICK_RATE_HZ;
+
+			if( provisioning_mode ) {
+				ProvisonRequest pr;
+				memset(&pr, 0, sizeof(pr));
+				pr.serial.funcs.encode = _encode_string_fields;
+				pr.serial.arg = serial;
+				pr.need_key = true;
+				send_provision_request(&pr);
+			}
 
 			while (!send_periodic_data(&data_batched) == 0) {
 				LOGI("Waiting for network connection\n");
