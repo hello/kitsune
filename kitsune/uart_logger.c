@@ -526,14 +526,21 @@ typedef struct {
 	void * structdata;
 }async_context_t;
 
-void free_pb_cb(const NetworkResponse_t * response, void * context){
+static void _allocate_reply_buf(void * context) {
+	async_context_t * ctx = (async_context_t*)context;
+	ctx->reply_buf = pvPortMalloc(SERVER_REPLY_BUFSZ);
+    assert(ctx->reply_buf);
+    memset(ctx->reply_buf, 0, SERVER_REPLY_BUFSZ);
+}
+static void _free_reply_buf(void * context) {
+	async_context_t * ctx = (async_context_t*)context;
+	vPortFree(ctx->reply_buf);
+}
+static void _free_pb(const NetworkResponse_t * response, void * context){
 	async_context_t * ctx = (async_context_t*)context;
 	if (ctx) {
 		if (ctx->text_buffer) {
 			vPortFree(ctx->text_buffer);
-		}
-		if (ctx->reply_buf) {
-			vPortFree(ctx->reply_buf);
 		}
 		if (ctx->structdata) {
 			vPortFree(ctx->structdata);
@@ -541,43 +548,33 @@ void free_pb_cb(const NetworkResponse_t * response, void * context){
 		vPortFree(ctx);
 	}
 }
-
 static int _send_pb_async( const pb_field_t fields[], void * structdata, NetworkResponseCallback_t func, void * data) {
 	async_context_t * ctx  = pvPortMalloc(sizeof(async_context_t));
 	assert(ctx);
 	memset(ctx, 0, sizeof(async_context_t));
-	ctx->reply_buf = pvPortMalloc(SERVER_REPLY_BUFSZ);
 	if (data) {
 		ctx->text_buffer = data;
 	}
     ctx->structdata = structdata;
-    assert(ctx->reply_buf);
 
-    memset(ctx->reply_buf, 0, SERVER_REPLY_BUFSZ);
-
-	return NetworkTask_AsynchronousSendProtobuf(DATA_SERVER, SENSE_LOG_ENDPOINT,ctx->reply_buf,SERVER_REPLY_BUFSZ,fields,structdata,0, func, ctx);
+	return NetworkTask_AsynchronousSendProtobuf(DATA_SERVER, SENSE_LOG_ENDPOINT,
+			ctx->reply_buf, SERVER_REPLY_BUFSZ, fields, structdata, 0, func,
+			_allocate_reply_buf, _free_reply_buf, ctx);
 }
 
 int analytics_event( const char *pcString, ...) {
-	return false;
-
 	//todo make this fail more gracefully if the allocations don't succeed...
 	va_list vaArgP;
 	event_ctx_t ctx;
 
-    char hex_device_id[2*DEVICE_ID_SZ+1] = {0};
-    if(!get_device_id(hex_device_id, sizeof(hex_device_id)))
-    {
-        return false;
-    }
 	sense_log * log = pvPortMalloc(sizeof(sense_log));
 	assert(log);
     memset( log, 0, sizeof(sense_log));
 
 	ctx.pos = 0;
-	ctx.ptr = pvPortMalloc(512);
+	ctx.ptr = pvPortMalloc(128);
 	assert(ctx.ptr);
-	memset(ctx.ptr, 0, 512);
+	memset(ctx.ptr, 0, 128);
 
     va_start(vaArgP, pcString);
     _va_printf( vaArgP, pcString, _encode_wrapper, &ctx );
@@ -592,7 +589,7 @@ int analytics_event( const char *pcString, ...) {
 	log->has_property = true;
 	log->property = LogType_KEY_VALUE;
 
-    return _send_pb_async(sense_log_fields, log, free_pb_cb, ctx.ptr);
+    return _send_pb_async(sense_log_fields, log, _free_pb, ctx.ptr);
 }
 
 void uart_logc(uint8_t c){

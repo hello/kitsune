@@ -83,7 +83,9 @@ int NetworkTask_AsynchronousSendProtobuf(
 		const char * host,const char * endpoint, char * buf,
 		uint32_t buf_size, const pb_field_t fields[],
 		const void * structdata,int32_t retry_time_in_counts,
-		NetworkResponseCallback_t func, void * data ) {
+		NetworkResponseCallback_t func,
+		network_prep_callback_t begin, network_prep_callback_t end,
+		void * data ) {
 	NetworkTaskServerSendMessage_t message;
 
 	network_encode_data_t * encodedata = pvPortMalloc(sizeof(network_encode_data_t));
@@ -102,6 +104,9 @@ int NetworkTask_AsynchronousSendProtobuf(
 
 	message.encode = EncodePb;
 	message.encodedata = encodedata;
+
+	message.begin = begin;
+	message.end = end;
 
 	message.unprepare = FreeMe;
 	message.prepdata = encodedata;
@@ -209,7 +214,9 @@ static void NetworkTask_Thread(void * networkdata) {
 		while (1) {
 
 			DEBUG_PRINTF("NT %s%s -- %d",message.host,message.endpoint,attempt_count);
-
+			if (message.begin) {
+				message.begin(message.context);
+			}
 			/* prepare to prepare */
 			if (message.prepare) {
 				message.prepare(message.prepdata);
@@ -239,6 +246,9 @@ static void NetworkTask_Thread(void * networkdata) {
 			/* unprepare */
 			if (message.unprepare) {
 				message.unprepare(message.prepdata);
+			}
+			if( message.end ) {
+				message.end(message.context);
 			}
 
 

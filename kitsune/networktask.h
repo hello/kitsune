@@ -38,6 +38,7 @@ typedef struct {
 	int32_t retry_timeout;
 
 	NetworkResponseCallback_t response_callback;
+	network_prep_callback_t begin, end;
 	void * context;
 
 } NetworkTaskServerSendMessage_t;
@@ -54,6 +55,7 @@ int NetworkTask_AsynchronousSendProtobuf(const char * host,
 		const char * endpoint, char * buf, uint32_t buf_size,
 		const pb_field_t fields[], const void * structdata,
 		int32_t retry_time_in_counts, NetworkResponseCallback_t func,
+		network_prep_callback_t begin, network_prep_callback_t end,
 		void * data);
 int NetworkTask_AddMessageToQueue(
 		const NetworkTaskServerSendMessage_t * message);
