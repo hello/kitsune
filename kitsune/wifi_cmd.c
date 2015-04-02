@@ -1019,6 +1019,7 @@ int start_connection() {
 				   SL_IPV4_BYTE(ipaddr, 1), SL_IPV4_BYTE(ipaddr, 0));
         } else {
             LOGI("failed to resolve ntp addr rv %d\n");
+            ipaddr = 0;
             return -1;
         }
     }
@@ -1047,12 +1048,12 @@ int start_connection() {
     //connect it up
     //LOGI("Connecting \n\r\n\r");
     if (sock > 0 && sock_begin < 0 && (rv = connect(sock, &sAddr, sizeof(sAddr)))) {
+        ipaddr = 0;
         LOGI("connect returned %d\n\r\n\r", rv);
         if (rv != SL_ESECSNOVERIFY) {
             LOGI("Could not connect %d\n\r\n\r", rv);
             return stop_connection();    // could not send SNTP request
         }
-        ipaddr = 0;
     }
     return 0;
 }
