@@ -1596,22 +1596,27 @@ static void _on_factory_reset_received()
 #include "led_animations.h"
 
 extern volatile bool provisioning_mode;
+extern volatile bool has_default_key;
 
 static void _on_key(uint8_t * key) {
-	if( provisioning_mode ) {
+	if( has_default_key ) {
 		save_aes(key);
 		load_aes();
 		if (0 == Cmd_test_key(0, NULL)) {
+			if (provisioning_mode) {
+				sl_FsDel((unsigned char*)PROVISION_FILE, 0);
+				wifi_reset();
+				//green!
+				play_led_wheel( LED_MAX, 0, LED_MAX, 0, 3600, 33);
+			}
+
 			provisioning_mode = false;
-			sl_FsDel((unsigned char*)PROVISION_FILE, 0);
-			wifi_reset();
-			//green!
-			play_led_wheel( LED_MAX, 0, LED_MAX, 0, 3600, 33);
-		} else {
+			has_default_key = false;
+		} else if(provisioning_mode) {
 			//red!
 			play_led_wheel( LED_MAX, LED_MAX, 0, 0, 3600, 33);
 		}
-	} else {
+	} else if(provisioning_mode)  {
 		//just in case we get something we don't expect....
 		play_led_wheel( LED_MAX, LED_MAX, LED_MAX, LED_MAX, 3600, 33);
 	}

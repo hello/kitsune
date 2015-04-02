@@ -457,6 +457,7 @@ int Cmd_fs_delete(int argc, char *argv[]) {
 #include "fs_utils.h"
 #define PROV_CODE "provision"
 volatile bool provisioning_mode = false;
+volatile bool has_default_key = false;
 #include "crypto.h"
 
 void check_provision() {
@@ -468,6 +469,7 @@ void check_provision() {
 
 	fs_get( AES_KEY_LOC, current_key, AES_BLOCKSIZE, &read);
 	if (read == 0 || 0 == memcmp(current_key, default_key, AES_BLOCKSIZE)) {
+		has_default_key = true;
 		if (fs_get( PROVISION_FILE, buf, sizeof(buf), &read)) {
 			if (0 == strncmp(buf, PROV_CODE, read)) {
 				provisioning_mode = true;
@@ -950,7 +952,7 @@ void thread_tx(void* unused) {
 			data_batched.has_uptime_in_second = true;
 			data_batched.uptime_in_second = xTaskGetTickCount() / configTICK_RATE_HZ;
 
-			if( provisioning_mode ) {
+			if( has_default_key ) {
 				ProvisonRequest pr;
 				memset(&pr, 0, sizeof(pr));
 				pr.serial.funcs.encode = _encode_string_fields;
