@@ -40,14 +40,6 @@ typedef enum {
 	LED_OFF
 }led_mode_t;
 
-typedef enum {
-    BLE_UNKNOWN = 0,
-    BLE_CONNECTED,
-    BLE_WIFI_REQUESTED,
-    BLE_PAIRING,
-    BLE_NORMAL
-} ble_mode_t;
-
 static struct {
 	uint8_t argb[4];
 	int delay;
@@ -61,7 +53,7 @@ static int _scanned_wifi_count = 0;
 static Sl_WlanNetworkEntry_t _wifi_endpoints[MAX_WIFI_EP_PER_SCAN];
 static xSemaphoreHandle _wifi_smphr;
 
-static ble_mode_t get_ble_mode() {
+ble_mode_t get_ble_mode() {
 	ble_mode_t status;
 	xSemaphoreTake( _self.smphr, portMAX_DELAY );
 	status = _self.ble_status;
