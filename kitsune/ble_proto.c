@@ -159,14 +159,13 @@ static void dedupe_ssid( Sl_WlanNetworkEntry_t * ep, int * c){
 	for (i = 0; i < *c - 1; ++i) {
 		//LOGI( "OUTER %d %d %d\n", i, j, *c);
 		for (j = i + 1; j < *c; ++j) {
-			vTaskDelay(10);
+			//vTaskDelay(10);
 			//LOGI( "INNER %d %d %d\n", i, j, *c);
 			if(!strcmp((char*)ep[i].ssid, (char*)ep[j].ssid)) {
-				LOGI( "MATCH %s %s\n", ep[i].ssid, ep[j].ssid);
-				vTaskDelay(10);
-				memcpy( ep+j, ep+j+1, *c - j - 1 );
+				//LOGI( "MATCH %s %s\n", ep[i].ssid, ep[j].ssid);
+				//vTaskDelay(10);
+				memcpy( ep+j, ep+j+1, (*c - j - 1) * sizeof(Sl_WlanNetworkEntry_t) );
 				--*c;
-				i = -1;
 
 				//debug_print_ssid( "UPDATED ", ep, *c );
 				break;
