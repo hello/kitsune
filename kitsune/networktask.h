@@ -20,10 +20,17 @@ typedef struct {
 	/* This will be called before you encode or decode */
 	network_prep_callback_t prepare;
 
-	/* This will called AFTER you encode or decode, including during timeouts  */
+	/* This will called AFTER you encode or decode, including during RETRIES  */
 	network_prep_callback_t unprepare;
-
 	void * prepdata;
+
+	/* Called at the start of the session and after all retries, get context as arg */
+	network_prep_callback_t begin, end;
+	void * context;
+
+	/* Called after end */
+	network_prep_callback_t terminate;
+	void * terminate_data;
 
 	//optional encode and decode callbacks.  You can have one or both enabled.
 	network_encode_callback_t encode; //optional encode callback.  If you're just polling, you don't need this
@@ -38,8 +45,6 @@ typedef struct {
 	int32_t retry_timeout;
 
 	NetworkResponseCallback_t response_callback;
-	network_prep_callback_t begin, end;
-	void * context;
 
 } NetworkTaskServerSendMessage_t;
 

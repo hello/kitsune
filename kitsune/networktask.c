@@ -108,8 +108,8 @@ int NetworkTask_AsynchronousSendProtobuf(
 	message.begin = begin;
 	message.end = end;
 
-	message.unprepare = FreeMe;
-	message.prepdata = encodedata;
+	message.terminate = FreeMe;
+	message.terminate_data = encodedata;
 
 	message.decode_buf = (uint8_t *)buf;
 	message.decode_buf_size = buf_size;
@@ -286,6 +286,9 @@ static void NetworkTask_Thread(void * networkdata) {
 
 		if( message.end ) {
 			message.end(message.context);
+		}
+		if( message.terminate ) {
+			message.terminate(message.terminate_data);
 		}
 		vTaskDelay(100);
 
