@@ -462,13 +462,12 @@ volatile bool has_default_key = false;
 
 void check_provision() {
 	char buf[64] = {0};
-	uint8_t default_key[AES_BLOCKSIZE + 1] = DEFAULT_KEY;
 	uint8_t current_key[AES_BLOCKSIZE + 1] = {0};
 	int read = 0;
 	provisioning_mode = false;
 
 	fs_get( AES_KEY_LOC, current_key, AES_BLOCKSIZE, &read);
-	if (read == 0 || 0 == memcmp(current_key, default_key, AES_BLOCKSIZE)) {
+	if (read == 0 || 0 == memcmp(current_key, DEFAULT_KEY, AES_BLOCKSIZE)) {
 		has_default_key = true;
 		if (fs_get( PROVISION_FILE, buf, sizeof(buf), &read)) {
 			if (0 == strncmp(buf, PROV_CODE, read)) {

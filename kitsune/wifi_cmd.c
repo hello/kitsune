@@ -1612,9 +1612,13 @@ static void _on_key(uint8_t * key) {
 
 			provisioning_mode = false;
 			has_default_key = false;
-		} else if(provisioning_mode) {
-			//red!
-			play_led_wheel( LED_MAX, LED_MAX, 0, 0, 3600, 33);
+		} else {
+			save_aes(DEFAULT_KEY);
+			load_aes();
+			if(provisioning_mode) {
+				//red!
+				play_led_wheel( LED_MAX, LED_MAX, 0, 0, 3600, 33);
+			}
 		}
 	} else if(provisioning_mode)  {
 		//just in case we get something we don't expect....
