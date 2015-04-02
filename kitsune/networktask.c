@@ -204,6 +204,9 @@ static void NetworkTask_Thread(void * networkdata) {
 			continue; //LOOP FOREVEREVEREVEREVER
 		}
 
+		if (message.begin) {
+			message.begin(message.context);
+		}
 
 		memset(&response,0,sizeof(response));
 
@@ -214,9 +217,7 @@ static void NetworkTask_Thread(void * networkdata) {
 		while (1) {
 
 			DEBUG_PRINTF("NT %s%s -- %d",message.host,message.endpoint,attempt_count);
-			if (message.begin) {
-				message.begin(message.context);
-			}
+
 			/* prepare to prepare */
 			if (message.prepare) {
 				message.prepare(message.prepdata);
@@ -246,9 +247,6 @@ static void NetworkTask_Thread(void * networkdata) {
 			/* unprepare */
 			if (message.unprepare) {
 				message.unprepare(message.prepdata);
-			}
-			if( message.end ) {
-				message.end(message.context);
 			}
 
 
@@ -284,6 +282,10 @@ static void NetworkTask_Thread(void * networkdata) {
 		//let the requester know we are done
 		if (message.response_callback) {
 			message.response_callback(&response,message.context);
+		}
+
+		if( message.end ) {
+			message.end(message.context);
 		}
 		vTaskDelay(100);
 
