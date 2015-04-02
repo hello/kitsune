@@ -148,7 +148,7 @@ static void dedupe_ssid( Sl_WlanNetworkEntry_t * ep, int * c){
 			if(!strcmp((char*)ep[i].ssid, (char*)ep[j].ssid)) {
 				LOGI( "MATCH %s %s\n", ep[i].ssid, ep[j].ssid);
 				vTaskDelay(10);
-				memcpy( ep+j, ep+j+1, *c - j - 1 );
+				memcpy( ep+j, ep+j+1, sizeof(Sl_WlanNetworkEntry_t));
 				--*c;
 				i = -1;
 
