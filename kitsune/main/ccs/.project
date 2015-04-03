@@ -256,6 +256,16 @@
 			<locationURI>PARENT-2-PROJECT_LOC/fileuploadertask.c</locationURI>
 		</link>
 		<link>
+			<name>fs_utils.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/fs_utils.c</locationURI>
+		</link>
+		<link>
+			<name>fs_utils.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/fs_utils.h</locationURI>
+		</link>
+		<link>
 			<name>gesture.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/gesture.c</locationURI>
@@ -689,6 +699,26 @@
 			<name>nanopb/pb_encode.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/nanopb/pb_encode.h</locationURI>
+		</link>
+		<link>
+			<name>protobuf/ProvisionRequest.pb.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/ProvisionRequest.pb.c</locationURI>
+		</link>
+		<link>
+			<name>protobuf/ProvisionRequest.pb.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/ProvisionRequest.pb.h</locationURI>
+		</link>
+		<link>
+			<name>protobuf/ProvisionResponse.pb.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/ProvisionResponse.pb.c</locationURI>
+		</link>
+		<link>
+			<name>protobuf/ProvisionResponse.pb.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/ProvisionResponse.pb.h</locationURI>
 		</link>
 		<link>
 			<name>protobuf/audio_control.pb.c</name>

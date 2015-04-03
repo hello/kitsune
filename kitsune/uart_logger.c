@@ -504,79 +504,58 @@ convert:
 
 }
 
-static int _send_pb( const pb_field_t fields[], const void * structdata ) {
-    char *  buffer = pvPortMalloc(SERVER_REPLY_BUFSZ);
-    int ret;
-
-    if(buffer == NULL) {
-    	return 0; //nonessential
-    }
-    memset(buffer, 0, SERVER_REPLY_BUFSZ);
-
-	ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER, SENSE_LOG_ENDPOINT,buffer,SERVER_REPLY_BUFSZ,fields,structdata,0);
-	vPortFree(buffer);
-
-	return ret;
-}
-
-
 typedef struct {
-	void * text_buffer;
-	char * reply_buf;
+	void * buffer;
 	void * structdata;
 }async_context_t;
 
-void free_pb_cb(const NetworkResponse_t * response, void * context){
+static void _free_pb(const NetworkResponse_t * response, uint8_t * reply_buf, int reply_sz, void * context){
 	async_context_t * ctx = (async_context_t*)context;
-	if (ctx) {
-		if (ctx->text_buffer) {
-			vPortFree(ctx->text_buffer);
+
+	if( !http_response_ok((const char*)reply_buf) ) {
+		LOGE("failed up upload analytics\n");
+		if (ctx->buffer) {
+			LOGE("%s\n", ctx->buffer );
 		}
-		if (ctx->reply_buf) {
-			vPortFree(ctx->reply_buf);
+	}
+
+	if (ctx) {
+		if (ctx->buffer) {
+			vPortFree(ctx->buffer);
 		}
 		if (ctx->structdata) {
 			vPortFree(ctx->structdata);
 		}
 		vPortFree(ctx);
 	}
-}
 
+}
 static int _send_pb_async( const pb_field_t fields[], void * structdata, NetworkResponseCallback_t func, void * data) {
 	async_context_t * ctx  = pvPortMalloc(sizeof(async_context_t));
 	assert(ctx);
 	memset(ctx, 0, sizeof(async_context_t));
-	ctx->reply_buf = pvPortMalloc(SERVER_REPLY_BUFSZ);
 	if (data) {
-		ctx->text_buffer = data;
+		ctx->buffer = data;
 	}
     ctx->structdata = structdata;
-    assert(ctx->reply_buf);
 
-    memset(ctx->reply_buf, 0, SERVER_REPLY_BUFSZ);
-
-	return NetworkTask_AsynchronousSendProtobuf(DATA_SERVER, SENSE_LOG_ENDPOINT,ctx->reply_buf,SERVER_REPLY_BUFSZ,fields,structdata,0, func, ctx);
+	return NetworkTask_AsynchronousSendProtobuf(DATA_SERVER, SENSE_LOG_ENDPOINT,
+			fields, structdata, 0, func, ctx);
 }
 
 int analytics_event( const char *pcString, ...) {
-	return false;
 	//todo make this fail more gracefully if the allocations don't succeed...
 	va_list vaArgP;
 	event_ctx_t ctx;
 
-    char hex_device_id[2*DEVICE_ID_SZ+1] = {0};
-    if(!get_device_id(hex_device_id, sizeof(hex_device_id)))
-    {
-        return false;
-    }
 	sense_log * log = pvPortMalloc(sizeof(sense_log));
 	assert(log);
     memset( log, 0, sizeof(sense_log));
 
 	ctx.pos = 0;
-	ctx.ptr = pvPortMalloc(512);
+	ctx.ptr = pvPortMalloc(128);
 	assert(ctx.ptr);
-	memset(ctx.ptr, 0, 512);
+	memset(ctx.ptr, 0, 128);
 
     va_start(vaArgP, pcString);
     _va_printf( vaArgP, pcString, _encode_wrapper, &ctx );
@@ -591,7 +570,7 @@ int analytics_event( const char *pcString, ...) {
 	log->has_property = true;
 	log->property = LogType_KEY_VALUE;
 
-    return _send_pb_async(sense_log_fields, log, free_pb_cb, ctx.ptr);
+    return _send_pb_async(sense_log_fields, log, _free_pb, ctx.ptr);
 }
 
 void uart_logc(uint8_t c){
@@ -620,7 +599,7 @@ static int send_log() {
 	}
 #endif
 
-    return _send_pb(sense_log_fields,&self.log);
+    return _send_pb_async(sense_log_fields,&self.log, NULL, NULL);
 }
 
 void uart_logger_task(void * params){

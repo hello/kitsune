@@ -9,6 +9,7 @@
 #define RAW_AUDIO_ENDPOINT                 "/audio/raw"
 #define PILL_DATA_RECEIVE_ENDPOINT          "/in/pill"
 #define CHECK_KEY_ENDPOINT                  "/check"
+#define PROVISION_ENDPOINT					"/provision/keys"
 
 #define TEST_NETWORK_ENDPOINT               "/"
 #define TEST_SERVER                         "stress-in.hello.is"

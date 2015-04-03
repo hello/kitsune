@@ -1754,10 +1754,15 @@ void init_download_task( int stack ){
 	download_queue = xQueueCreate(10, sizeof(SyncResponse_FileDownload));
 	xTaskCreate(file_download_task, "file_download_task", stack, NULL, 2, NULL);
 }
-
+#include "ble_proto.h"
 bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg)
 {
 	SyncResponse_FileDownload download_info;
+
+	if( get_ble_mode() != BLE_NORMAL ) {
+		LOGI("ota - ble active \n" );
+		return true;
+	}
 
 	download_info.sd_card_filename.funcs.decode = _decode_string_field;
 	download_info.sd_card_filename.arg = NULL;
@@ -1780,9 +1785,9 @@ bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg
 	LOGI("ota - parsing\n" );
 	if( !pb_decode(stream,SyncResponse_FileDownload_fields,&download_info) ) {
 		LOGI("ota - parse fail \n" );
+		free_download_info( &download_info );
 		return false;
 	}
-
 	if( download_queue ) {
 		if( xQueueSend(download_queue, (void*)&download_info, 10) != pdPASS ) {
 			free_download_info( &download_info );

@@ -66,7 +66,7 @@ static void Init() {
 	}
 }
 
-static void NetTaskResponse (const NetworkResponse_t * response, void * context) {
+static void NetTaskResponse (const NetworkResponse_t * response, uint8_t * reply_buf, int reply_sz, void * context) {
 	EncodeData_t * data = (EncodeData_t *)context;
 	TaskMessage_t m;
 

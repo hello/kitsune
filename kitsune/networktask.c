@@ -51,7 +51,7 @@ static void Init(NetworkTaskData_t * info) {
 
 }
 
-static void SynchronousSendNetworkResponseCallback(const NetworkResponse_t * response,void * context) {
+static void SynchronousSendNetworkResponseCallback(const NetworkResponse_t * response, uint8_t * reply_buf, int reply_sz, void * context) {
 	memcpy(&_syncsendresponse,response,sizeof(NetworkResponse_t));
 
 //	DEBUG_PRINTF("NT::SynchronousSendNetworkResponseCallback -- got callback");
@@ -79,11 +79,22 @@ static void FreeMe(void * data) {
 	}
 }
 
-int NetworkTask_AsynchronousSendProtobuf(
-		const char * host,const char * endpoint, char * buf,
-		uint32_t buf_size, const pb_field_t fields[],
-		const void * structdata,int32_t retry_time_in_counts,
-		NetworkResponseCallback_t func, void * data ) {
+static void _allocate_reply_buf(void * context) {
+	NetworkTaskServerSendMessage_t * msg = (NetworkTaskServerSendMessage_t*)context;
+	msg->decode_buf = pvPortMalloc(SERVER_REPLY_BUFSZ);
+    assert(msg->decode_buf);
+    memset(msg->decode_buf, 0, SERVER_REPLY_BUFSZ);
+    msg->decode_buf_size = SERVER_REPLY_BUFSZ;
+}
+static void _free_reply_buf(void * context) {
+	NetworkTaskServerSendMessage_t * msg = (NetworkTaskServerSendMessage_t*)context;
+	vPortFree(msg->decode_buf);
+}
+
+int NetworkTask_AsynchronousSendProtobuf(const char * host,
+		const char * endpoint, const pb_field_t fields[],
+		const void * structdata, int32_t retry_time_in_counts,
+		NetworkResponseCallback_t func, void * data) {
 	NetworkTaskServerSendMessage_t message;
 
 	network_encode_data_t * encodedata = pvPortMalloc(sizeof(network_encode_data_t));
@@ -103,11 +114,11 @@ int NetworkTask_AsynchronousSendProtobuf(
 	message.encode = EncodePb;
 	message.encodedata = encodedata;
 
-	message.unprepare = FreeMe;
-	message.prepdata = encodedata;
+	message.begin = _allocate_reply_buf;
+	message.end = _free_reply_buf;
 
-	message.decode_buf = (uint8_t *)buf;
-	message.decode_buf_size = buf_size;
+	message.terminate = FreeMe;
+	message.terminate_data = encodedata;
 
 	assert( _asyncqueue );
 
@@ -124,7 +135,10 @@ int NetworkTask_AsynchronousSendProtobuf(
 
 }
 
-int NetworkTask_SynchronousSendProtobuf(const char * host,const char * endpoint, char * buf, uint32_t buf_size, const pb_field_t fields[], const void * structdata,int32_t retry_time_in_counts) {
+int NetworkTask_SynchronousSendProtobuf(const char * host,
+		const char * endpoint, const pb_field_t fields[],
+		const void * structdata, int32_t retry_time_in_counts,
+		NetworkResponseCallback_t func, void * context) {
 	NetworkTaskServerSendMessage_t message;
 	network_encode_data_t encodedata = {0};
 	int retcode = -1;
@@ -137,14 +151,17 @@ int NetworkTask_SynchronousSendProtobuf(const char * host,const char * endpoint,
 	//craft message
 	message.host = host;
 	message.endpoint = endpoint;
-	message.response_callback = SynchronousSendNetworkResponseCallback;
+	message.response_callback = func;
+	message.internal_response_callback = SynchronousSendNetworkResponseCallback;
+	message.context = context;
+
 	message.retry_timeout = retry_time_in_counts;
 
 	message.encode = EncodePb;
 	message.encodedata = &encodedata;
 
-	message.decode_buf = (uint8_t *)buf;
-	message.decode_buf_size = buf_size;
+	message.begin = _allocate_reply_buf;
+	message.end = _free_reply_buf;
 
 	if( ! _syncmutex || ! _asyncqueue ) {
 		return -1;
@@ -199,6 +216,9 @@ static void NetworkTask_Thread(void * networkdata) {
 			continue; //LOOP FOREVEREVEREVEREVER
 		}
 
+		if (message.begin) {
+			message.begin(&message);
+		}
 
 		memset(&response,0,sizeof(response));
 
@@ -271,9 +291,20 @@ static void NetworkTask_Thread(void * networkdata) {
 		else {
 			DEBUG_PRINTF("NT %s%s (failure)",message.host,message.endpoint);
 		}
+		if (message.internal_response_callback) {
+			message.internal_response_callback(&response, message.decode_buf, message.decode_buf_size,message.context);
+		}
+
 		//let the requester know we are done
 		if (message.response_callback) {
-			message.response_callback(&response,message.context);
+			message.response_callback(&response, message.decode_buf, message.decode_buf_size,message.context);
+		}
+
+		if( message.end ) {
+			message.end(&message);
+		}
+		if( message.terminate ) {
+			message.terminate(message.terminate_data);
 		}
 		vTaskDelay(100);
 

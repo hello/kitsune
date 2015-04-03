@@ -92,6 +92,8 @@
 
 #include "pill_settings.h"
 
+#include "ProvisionRequest.pb.h"
+#include "ProvisionResponse.pb.h"
 
 #define ONLY_MID 0
 
@@ -452,6 +454,49 @@ int Cmd_fs_delete(int argc, char *argv[]) {
 	return (0);
 }
 
+#include "fs_utils.h"
+#define PROV_CODE "provision"
+volatile bool provisioning_mode = false;
+volatile bool has_default_key = false;
+#include "crypto.h"
+
+void check_provision() {
+	char buf[64] = {0};
+	uint8_t current_key[AES_BLOCKSIZE + 1] = {0};
+	int read = 0;
+	provisioning_mode = false;
+
+	fs_get( AES_KEY_LOC, current_key, AES_BLOCKSIZE, &read);
+	if (read == 0 || 0 == memcmp(current_key, DEFAULT_KEY, AES_BLOCKSIZE)) {
+		has_default_key = true;
+		if (fs_get( PROVISION_FILE, buf, sizeof(buf), &read)) {
+			if (0 == strncmp(buf, PROV_CODE, read)) {
+				provisioning_mode = true;
+			}
+		}
+	}
+}
+int Cmd_prov_set(int argc, char *argv[]) {
+	return fs_save(PROVISION_FILE, PROV_CODE, sizeof(PROV_CODE));
+}
+int Cmd_serial_set(int argc, char *argv[]) {
+	//
+	// Print some header text.
+	//
+	if( argc != 2 ) {
+		LOGE("usage: serial <SN>\n");
+		return -5;
+	}
+	return fs_save(SERIAL_FILE, argv[1], 1+strlen(argv[1]));
+}
+static char serial[64];
+
+void load_serial() {
+	memset(serial, 0, sizeof(serial));
+	fs_get(SERIAL_FILE, serial, sizeof(serial), NULL);
+}
+
+
 static xSemaphoreHandle alarm_smphr;
 static SyncResponse_Alarm alarm;
 #define ONE_YEAR_IN_SECONDS 0x1E13380
@@ -754,8 +799,6 @@ static void _show_led_status()
 {
 	uint8_t alpha = get_alpha_from_light();
 
-	analytics_event( "{led: status, alpha: %d}", alpha );
-
 	if(wifi_status_get(UPLOADING)) {
 		//TODO: wtf is this?
 		uint8_t rgb[3] = { LED_MAX };
@@ -777,7 +820,6 @@ static void _show_led_status()
 }
 
 static void _on_wave(){
-	analytics_event( "{led: wave}" );
 	if(	cancel_alarm() ) {
 		stop_led_animation( 10000, 33 );
 	} else {
@@ -863,13 +905,13 @@ xQueueHandle data_queue = 0;
 xQueueHandle force_data_queue = 0;
 xQueueHandle pill_queue = 0;
 
-
 int load_device_id();
 //no need for semaphore, only thread_tx uses this one
 int data_queue_batch_size = 1;
 void thread_tx(void* unused) {
 	batched_pill_data pill_data_batched = {0};
 	batched_periodic_data data_batched = {0};
+	load_serial();
 	load_aes();
 	load_device_id();
 	load_account_id();
@@ -905,6 +947,15 @@ void thread_tx(void* unused) {
 
 			data_batched.has_uptime_in_second = true;
 			data_batched.uptime_in_second = xTaskGetTickCount() / configTICK_RATE_HZ;
+
+			if( has_default_key ) {
+				ProvisonRequest pr;
+				memset(&pr, 0, sizeof(pr));
+				pr.serial.funcs.encode = _encode_string_fields;
+				pr.serial.arg = serial;
+				pr.need_key = true;
+				send_provision_request(&pr);
+			}
 
 			while (!send_periodic_data(&data_batched) == 0) {
 				LOGI("Waiting for network connection\n");
@@ -1516,7 +1567,7 @@ void launch_tasks() {
 	UARTprintf("*");
 	xTaskCreate(thread_sensor_poll, "pollTask", 1024 / 4, NULL, 3, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_tx, "txTask", 3 * 1024 / 4, NULL, 2, NULL);
+	xTaskCreate(thread_tx, "txTask", 1 * 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
 #endif
 }
@@ -1600,6 +1651,9 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "fswr", Cmd_fs_write, "" }, //serial flash commands
 		{ "fsrd", Cmd_fs_read, "" },
 		{ "fsdl", Cmd_fs_delete, "" },
+
+		{ "prov", Cmd_prov_set, "" },
+		{ "serial", Cmd_serial_set, "" },
 
 		{ "r", Cmd_record_buff,""}, //record sounds into SD card
 		{ "p", Cmd_play_buff, ""},//play sounds from SD card
@@ -1791,7 +1845,7 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(AudioTask_Thread,"audioTask",2560/4,NULL,4,NULL);
 	UARTprintf("*");
 	init_download_task( 1024 / 4 );
-	networktask_init(2 * 1024 / 4);
+	networktask_init(4 * 1024 / 4);
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 4, NULL);
 
 	init_dust();
@@ -1805,6 +1859,7 @@ void vUARTTask(void *pvParameters) {
 #endif
 
 	if( on_charger ) {
+		check_provision();
 		launch_tasks();
 	} else {
 		play_led_wheel( 50, LED_MAX, LED_MAX, 0,0,10);

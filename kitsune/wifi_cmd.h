@@ -39,6 +39,8 @@ int sl_mode;
 
 #include "stdint.h"
 #include "sync_response.pb.h"
+#include "ProvisionRequest.pb.h"
+#include "ProvisionResponse.pb.h"
 
 #define INV_TIME 0xffffffff
 extern
@@ -53,6 +55,8 @@ int Cmd_country(int argc, char *argv[]);
 #define USER_DIR "/usr"
 #define ANTENNA_FILE ("/hello/antenna")  // usr is in sd card, let's keep the original one.
 #define ACCOUNT_ID_FILE "/hello/acct"
+#define PROVISION_FILE "/pch/prov"
+#define SERIAL_FILE "/pch/serial"
 
 #define PCB_ANT 2
 #define IFA_ANT 1
@@ -94,6 +98,8 @@ int wifi_status_get(unsigned int status);
 
 int send_periodic_data(batched_periodic_data* data);
 int send_pill_data(batched_pill_data * pill_data);
+int send_provision_request(ProvisonRequest* req);
+#define DEFAULT_KEY "1234567891234567"
 
 void thread_ota( void * unused );
 

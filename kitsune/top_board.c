@@ -278,46 +278,15 @@ static int _prep_file(const char * name, uint32_t * out_fsize, uint16_t * out_cr
 	return 0;
 }
 
+#include "fs_utils.h"
 static int
 _load_top_info(top_info_t * info){
-    long file_handle = 0;
-    // read in aes key
-    int ret = sl_FsOpen((unsigned char *)TOPBOARD_INFO_FILE, FS_MODE_OPEN_READ, NULL, &file_handle);
-    if (ret != 0) {
-        LOGW("failed to open file %s, setting default values\n", TOPBOARD_INFO_FILE);
-        memset(info, 0, sizeof(top_info_t));
-        return -1;
-    }
-    long bytes_read = sl_FsRead(file_handle, 0, (uint8_t*)info, sizeof(top_info_t));
-    LOGI("read %d bytes from file %s\n", bytes_read, TOPBOARD_INFO_FILE);
-    sl_FsClose(file_handle, NULL, NULL, 0);
-    return 0;
+	memset(info, 0, sizeof(top_info_t));
+    return fs_get( TOPBOARD_INFO_FILE, (void*)info, sizeof(top_info_t), NULL );
 }
 static int
 _save_top_info(const top_info_t * info){
-    unsigned long tok = 0;
-    long file_handle = 0;
-    SlFsFileInfo_t finfo = {0};
-
-    sl_FsGetInfo((unsigned char*)TOPBOARD_INFO_FILE, tok, &finfo);
-
-    if (sl_FsOpen((unsigned char*)TOPBOARD_INFO_FILE, FS_MODE_OPEN_WRITE, &tok, &file_handle)) {
-        LOGI("error opening file %s, trying to create\n", TOPBOARD_INFO_FILE);
-        if (sl_FsOpen((unsigned char*)TOPBOARD_INFO_FILE, FS_MODE_OPEN_CREATE(1024, _FS_FILE_OPEN_FLAG_COMMIT), &tok, &file_handle)) {
-            LOGI("error opening %s for write\n", TOPBOARD_INFO_FILE);
-            return -1;
-        }else{
-            sl_FsWrite(file_handle, 0, (uint8_t*)info, sizeof(top_info_t));  // Dummy write, we don't care about the result
-        }
-    }
-
-    long bytes_written = sl_FsWrite(file_handle, 0, (uint8_t*)info, sizeof(top_info_t));
-    if( bytes_written != sizeof(top_info_t)) {
-        LOGE( "write pill settings failed %d", bytes_written);
-        return -1;
-    }
-    sl_FsClose(file_handle, 0, 0, 0);
-    return 0;
+	return fs_save( TOPBOARD_INFO_FILE, (void*)info,  sizeof(top_info_t));
 }
 int top_board_dfu_begin(const char * bin){
 	int ret;

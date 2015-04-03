@@ -40,23 +40,31 @@ typedef enum {
 	LED_OFF
 }led_mode_t;
 
-typedef enum {
-    BLE_UNKNOWN = 0,
-    BLE_PAIRING,
-    BLE_NORMAL
-} ble_mode_t;
-
 static struct {
 	uint8_t argb[4];
 	int delay;
 	uint32_t last_hold_time;
     ble_mode_t ble_status;
+    xSemaphoreHandle smphr;
 } _self;
 
 static int _wifi_read_index;
 static int _scanned_wifi_count = 0;
 static Sl_WlanNetworkEntry_t _wifi_endpoints[MAX_WIFI_EP_PER_SCAN];
 static xSemaphoreHandle _wifi_smphr;
+
+ble_mode_t get_ble_mode() {
+	ble_mode_t status;
+	xSemaphoreTake( _self.smphr, portMAX_DELAY );
+	status = _self.ble_status;
+	xSemaphoreGive( _self.smphr );
+	return status;
+}
+static void set_ble_mode(ble_mode_t status) {
+	xSemaphoreTake( _self.smphr, portMAX_DELAY );
+	_self.ble_status = status;
+	xSemaphoreGive( _self.smphr );
+}
 
 static void _ble_reply_command_with_type(MorpheusCommand_CommandType type)
 {
@@ -143,14 +151,13 @@ static void dedupe_ssid( Sl_WlanNetworkEntry_t * ep, int * c){
 	for (i = 0; i < *c - 1; ++i) {
 		//LOGI( "OUTER %d %d %d\n", i, j, *c);
 		for (j = i + 1; j < *c; ++j) {
-			vTaskDelay(10);
+			//vTaskDelay(10);
 			//LOGI( "INNER %d %d %d\n", i, j, *c);
 			if(!strcmp((char*)ep[i].ssid, (char*)ep[j].ssid)) {
-				LOGI( "MATCH %s %s\n", ep[i].ssid, ep[j].ssid);
-				vTaskDelay(10);
-				memcpy( ep+j, ep+j+1, *c - j - 1 );
+				//LOGI( "MATCH %s %s\n", ep[i].ssid, ep[j].ssid);
+				//vTaskDelay(10);
+				memcpy( ep+j, ep+j+1, (*c - j - 1) * sizeof(Sl_WlanNetworkEntry_t) );
 				--*c;
-				i = -1;
 
 				//debug_print_ssid( "UPDATED ", ep, *c );
 				break;
@@ -160,6 +167,7 @@ static void dedupe_ssid( Sl_WlanNetworkEntry_t * ep, int * c){
 }
 
 void ble_proto_init() {
+	vSemaphoreCreateBinary(_self.smphr);
 	vSemaphoreCreateBinary(_wifi_smphr);
 }
 
@@ -187,8 +195,6 @@ static void _reply_wifi_scan_result()
 	LOGI(">>>>>>Send WIFI scan results done<<<<<<\n");
 
 }
-
-
 
 static void _scan_wifi( void * params )
 {
@@ -295,7 +301,12 @@ static void _scan_wifi( void * params )
 
 	xSemaphoreGive(_wifi_smphr);
 
-	_reply_wifi_scan_result();
+	if( get_ble_mode() == BLE_WIFI_REQUESTED ) {
+		//possible race condition here, if the phone disconnects
+		//we can't stop the disconnnect as it happens on the other micro
+		//but we don't care because this isn't the bad case (phone connected and not expecting the wifi list)
+		_reply_wifi_scan_result();
+	}
 
 	vTaskDelete(NULL);
 }
@@ -521,43 +532,6 @@ static void _process_pill_heartbeat( MorpheusCommand* command)
 	
 }
 
-static void _send_response_to_ble(const char* buffer, size_t len)
-{
-    const char* header_content_len = "Content-Length: ";
-    char * content = strstr(buffer, "\r\n\r\n") + 4;
-    char * len_str = strstr(buffer, header_content_len) + strlen(header_content_len);
-    if (len_str == NULL) {
-        LOGI("Invalid response, Content-Length header not found.\n");
-        ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
-        return;
-    }
-
-    if (http_response_ok(buffer) != 1) {
-        LOGI("Invalid response, %s endpoint return failure.\n", PILL_REGISTER_ENDPOINT);
-        ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
-        return;
-    }
-
-    int content_len = atoi(len_str);
-    LOGI("Content length %d\n", content_len);
-    
-    MorpheusCommand response;
-    memset(&response, 0, sizeof(response));
-    ble_proto_assign_decode_funcs(&response);
-
-    if(decode_rx_data_pb((unsigned char*)content, content_len, MorpheusCommand_fields, &response) == 0)
-    {
-    	//PANG says: DO NOT EVER REMOVE THIS FUNCTION, ALTHOUGH IT MAKES NO SENSE WHY WE NEED THIS
-    	ble_proto_remove_decode_funcs(&response);
-    	ble_send_protobuf(&response);
-    }else{
-    	LOGI("Invalid response, protobuf decryption & decode failed.\n");
-    	ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
-    }
-
-    ble_proto_free_command(&response);
-}
-
 void sample_sensor_data(periodic_data* data);
 extern xQueueHandle force_data_queue;
 int _force_data_push()
@@ -586,6 +560,27 @@ int _force_data_push()
 
 void save_account_id( char * acct );
 
+static void _morpheus_command_reply(const NetworkResponse_t * response, uint8_t * reply_buf, int reply_sz, void * context) {
+	MorpheusCommand reply;
+	bool * success = (bool*)context;
+	memset(&reply, 0, sizeof(reply));
+	ble_proto_assign_decode_funcs(&reply);
+    if(validate_signatures((char*)reply_buf, MorpheusCommand_fields, &reply) == 0) {
+		ble_proto_remove_decode_funcs(&reply);
+		ble_send_protobuf(&reply);
+    	LOGF("signature validated\r\n");
+    	if( success ) {
+    		*success = true;
+    	}
+    } else {
+        LOGF("signature validation fail\r\n");
+    	if( success ) {
+    		*success = false;
+    	}
+    }
+    ble_proto_free_command(&reply);
+}
+
 static int _pair_device( MorpheusCommand* command, int is_morpheus)
 {
 	if(NULL == command->accountId.arg || NULL == command->deviceId.arg){
@@ -597,43 +592,29 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 		ble_proto_assign_encode_funcs(command);
 		// TODO: Figure out why always get -1 when this is the 1st request
 		// after the IPv4 retrieved.
-
-	    char *  response_buffer = pvPortMalloc(SERVER_REPLY_BUFSZ);
-
 	    int ret;
-
-	    assert(response_buffer);
-	    memset(response_buffer, 0, SERVER_REPLY_BUFSZ);
 
 		int retry = 3;
 		while(retry--)
 		{
+			bool success = false;
 			ret = NetworkTask_SynchronousSendProtobuf(
 					DATA_SERVER,
 					is_morpheus == 1 ? MORPHEUS_REGISTER_ENDPOINT : PILL_REGISTER_ENDPOINT,
-					response_buffer,
-					SERVER_REPLY_BUFSZ,
 					MorpheusCommand_fields,
 					command,
-					0);
+					0,
+					_morpheus_command_reply, &success);
 
 			if(ret != 0) {
 		        LOGI("network error %d\n", ret);
 				vTaskDelay(1000);
 		        continue;
 		    }
-			MorpheusCommand reply;
-			memset(&reply, 0, sizeof(reply));
-			ble_proto_assign_decode_funcs(&reply);
-		    if(validate_signatures(response_buffer, MorpheusCommand_fields, &reply) == 0) {
-		    	ble_proto_free_command(&reply);
-		    	LOGF("pairing validated\r\n");
-		    	break;
-		    } else {
-		        LOGF("pairing validation fail\r\n");
-		        ret = -1000;
-		    }
-		    ble_proto_free_command(&reply);
+			if( success ) {
+				break;
+			}
+
 		}
 
 		// All the args are in stack, don't need to do protobuf free.
@@ -644,13 +625,10 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 		}
 		if(ret == 0)
 		{
-			_send_response_to_ble(response_buffer, sizeof(response_buffer));
-		    vPortFree(response_buffer);
 			return 1;
 		}else{
 			LOGI("Pairing request failed, error %d\n", ret);
 			ble_reply_protobuf_error(ErrorType_NETWORK_ERROR);
-		    vPortFree(response_buffer);
 		}
 
 	}
@@ -721,7 +699,7 @@ extern volatile bool top_got_device_id; //being bad, this is only for factory
 void ble_proto_start_hold()
 {
 	_self.last_hold_time = xTaskGetTickCount();
-    switch(_self.ble_status)
+    switch(get_ble_mode())
     {
         case BLE_PAIRING:
         {
@@ -745,7 +723,7 @@ void ble_proto_end_hold()
 		(current_tick - _self.last_hold_time) * (1000 / configTICK_RATE_HZ) < 10000 &&
 		_self.last_hold_time > 0)
 	{
-		if (_self.ble_status != BLE_PAIRING) {
+		if (get_ble_mode() != BLE_PAIRING) {
 			LOGI("Trigger pairing mode\n");
 			MorpheusCommand response = { 0 };
 			response.type =
@@ -846,6 +824,11 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 	if(!booted) {
 		return true;
 	}
+	if( command->type != MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_PAIRING_MODE &&
+			command->type != MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE &&
+			command->type != MorpheusCommand_CommandType_MORPHEUS_COMMAND_START_WIFISCAN ) {
+		set_ble_mode(BLE_CONNECTED);
+	}
     switch(command->type)
     {
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SET_WIFI_ENDPOINT:
@@ -882,7 +865,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         {
             // Light up LEDs?
 			ble_proto_led_fade_in_trippy();
-            _self.ble_status = BLE_PAIRING;
+            set_ble_mode(BLE_PAIRING);
             LOGI( "PAIRING MODE \n");
 
 			analytics_event( "{ble: pairing}" );
@@ -893,7 +876,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE:  // Just for testing
 		{
 			ble_proto_led_fade_out(0);
-            _self.ble_status = BLE_NORMAL;
+            set_ble_mode(BLE_NORMAL);
 			LOGI( "NORMAL MODE \n");
 		}
 		break;
@@ -958,6 +941,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
             if(_scan_wifi_mostly_nonblocking()) {
             	_reply_wifi_scan_result();
             }
+            set_ble_mode( BLE_WIFI_REQUESTED );
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_SHAKES:

@@ -12,7 +12,7 @@
 #include "protocol.h"
 #include "sl_sync_include_after_simplelink_header.h"
 
-
+#include "ble_proto.h"
 #include "wifi_cmd.h"
 #include "networktask.h"
 
@@ -49,6 +49,8 @@ int sl_mode = ROLE_INVALID;
 #include "ustdlib.h"
 
 #include "pill_settings.h"
+
+#include "fs_utils.h"
 
 void mcu_reset()
 {
@@ -224,72 +226,19 @@ void reset_default_antenna()
 	}
 }
 
-static int _save( char* file, void* data, int len) {
-	unsigned long tok=0;
-	long hndl, bytes;
-	SlFsFileInfo_t info;
-
-	sl_FsGetInfo((unsigned char*)file, tok, &info);
-
-	if (sl_FsOpen((unsigned char*)file, FS_MODE_OPEN_WRITE, &tok, &hndl)) {
-		LOGI("error opening file, trying to create\n");
-
-		if (sl_FsOpen((unsigned char*)file,
-				FS_MODE_OPEN_CREATE(65535, _FS_FILE_OPEN_FLAG_COMMIT), &tok,
-				&hndl)) {
-			LOGI("error opening for write\n");
-			return -1;
-		}else{
-			sl_FsWrite(hndl, 0, data, 1);  // Dummy write, we don't care about the result
-		}
-	}
-
-	bytes = sl_FsWrite(hndl, 0, (_u8*)data, len);
-	if( bytes != len ) {
-		LOGE( "writing %s failed %d", file, bytes );
-		sl_FsClose(hndl, 0, 0, 0);
-		return -2;
-	}
-	sl_FsClose(hndl, 0, 0, 0);
-	return 0;
-}
 static char account_id[40] = "nolinkedaccount";
 
 void save_account_id( char * acct ) {
 	memcpy(account_id, acct, strlen(acct)+1);
-	_save( ACCOUNT_ID_FILE, acct, strlen(acct)+1 );
+	fs_save( ACCOUNT_ID_FILE, acct, strlen(acct)+1 );
 }
 
 void save_default_antenna( unsigned char a ) {
-	_save(ANTENNA_FILE, &a, 1);
-}
-
-static int _get( char * file, void * data, int max_rd, int * len ) {
-	long hndl = -1;
-	int RetVal, Offset;
-
-	// read in aes key
-	RetVal = sl_FsOpen((const _u8*)file, FS_MODE_OPEN_READ, NULL, &hndl);
-	if (RetVal != 0) {
-		LOGE("failed to open %s\n", file);
-		return RetVal;
-	}
-
-	Offset = 0;
-	RetVal = sl_FsRead(hndl, Offset, data, max_rd);
-	if ( 0 > RetVal ) {
-		LOGE("failed to read %s\n", file);
-		sl_FsClose(hndl, NULL, NULL, 0);
-		return RetVal;
-	}
-	if( len ) {
-		*len = RetVal;
-	}
-	return sl_FsClose(hndl, NULL, NULL, 0);
+	fs_save(ANTENNA_FILE, &a, 1);
 }
 
 int load_account_id( ) {
-	return _get( ACCOUNT_ID_FILE, account_id, sizeof(account_id), NULL );
+	return fs_get( ACCOUNT_ID_FILE, account_id, sizeof(account_id), NULL );
 }
 
 char * get_account_id() {
@@ -299,7 +248,7 @@ char * get_account_id() {
 unsigned char get_default_antenna() {
 	unsigned char a = PCB_ANT;
 
-	if( 0 > _get( ANTENNA_FILE, &a, 1, NULL ) ) {
+	if( 0 > fs_get( ANTENNA_FILE, &a, 1, NULL ) ) {
 		return PCB_ANT;
 	}
 	return a;
@@ -693,14 +642,14 @@ int Cmd_mode(int argc, char*argv[]) {
     return 0;
 }
 #include "crypto.h"
-static uint8_t aes_key[AES_BLOCKSIZE + 1] = "1234567891234567";
+static uint8_t aes_key[AES_BLOCKSIZE + 1] = DEFAULT_KEY;
 static uint8_t device_id[DEVICE_ID_SZ + 1];
 
 int save_aes( uint8_t * key ) {
-	return _save( AES_KEY_LOC, key, AES_BLOCKSIZE);
+	return fs_save( AES_KEY_LOC, key, AES_BLOCKSIZE);
 }
 int save_device_id( uint8_t * new_device_id ) {
-	return _save( DEVICE_ID_LOC, new_device_id, DEVICE_ID_SZ);
+	return fs_save( DEVICE_ID_LOC, new_device_id, DEVICE_ID_SZ);
 }
 
 #if 1
@@ -734,7 +683,7 @@ int Cmd_set_mac(int argc, char*argv[]) {
 void load_aes() {
 	int r;
 
-	_get( AES_KEY_LOC, aes_key, AES_BLOCKSIZE, &r );
+	fs_get( AES_KEY_LOC, aes_key, AES_BLOCKSIZE, &r );
 	aes_key[AES_BLOCKSIZE] = 0;
 
 	if (r != AES_BLOCKSIZE) {
@@ -754,7 +703,7 @@ void load_aes() {
 void load_device_id() {
 	int r;
 
-	_get( DEVICE_ID_LOC, device_id, DEVICE_ID_SZ, &r );
+	fs_get( DEVICE_ID_LOC, device_id, DEVICE_ID_SZ, &r );
 	device_id[DEVICE_ID_SZ] = 0;
 
 	if (r != DEVICE_ID_SZ) {
@@ -773,7 +722,6 @@ void load_device_id() {
 	*/
 }
 
-#include "ble_proto.h"
 
 bool validate_signatures( char * buffer, const pb_field_t fields[], void * structdata) {
 
@@ -799,45 +747,44 @@ bool validate_signatures( char * buffer, const pb_field_t fields[], void * struc
     return decode_rx_data_pb((unsigned char*) content, len, fields, structdata);
 }
 
+
+static void _morpheus_command_reply(const NetworkResponse_t * response, uint8_t * reply_buf, int reply_sz, void * context) {
+	MorpheusCommand reply;
+	bool * success = (bool*)context;
+	memset(&reply, 0, sizeof(reply));
+	ble_proto_assign_decode_funcs(&reply);
+    if(validate_signatures((char*)reply_buf, MorpheusCommand_fields, &reply) == 0) {
+    	LOGF("signature validated\r\n");
+    	if( success ) {
+    		*success = true;
+    	}
+    } else {
+        LOGF("signature validation fail\r\n");
+    	if( success ) {
+    		*success = false;
+    	}
+    }
+    ble_proto_free_command(&reply);
+}
+
 int Cmd_test_key(int argc, char*argv[]) {
     load_aes();
     load_device_id();
     //LOGI("Last two digit: %02X:%02X\n", aes_key[AES_BLOCKSIZE - 2], aes_key[AES_BLOCKSIZE - 1]);
-
-    char *  buffer = pvPortMalloc(SERVER_REPLY_BUFSZ);
-
     int ret;
-
-    assert(buffer);
-    memset(buffer, 0, SERVER_REPLY_BUFSZ);
 
     MorpheusCommand test_command = {0};
     test_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_SENSE;
     test_command.version = PROTOBUF_VERSION;
 
-    ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER,CHECK_KEY_ENDPOINT, buffer, SERVER_REPLY_BUFSZ, MorpheusCommand_fields, &test_command, 0);
+    ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER,CHECK_KEY_ENDPOINT, MorpheusCommand_fields, &test_command, 0, _morpheus_command_reply, NULL );
     if(ret != 0)
     {
         // network error
     	wifi_status_set(UPLOADING, true);
         LOGI("Send data failed, network error %d\n", ret);
-        vPortFree(buffer);
-        return ret;
     }
-
-
-    MorpheusCommand response_protobuf;
-    memset(&response_protobuf, 0, sizeof(response_protobuf));
-    ble_proto_assign_decode_funcs(&response_protobuf);
-
-    if(validate_signatures(buffer, MorpheusCommand_fields, &response_protobuf) == 0) {
-    	LOGF("test key validated\r\n");
-    } else {
-        LOGF("test key fail\r\n");
-    }
-
-    vPortFree(buffer);
-    return -1;
+    return ret;
 }
 
 /* protobuf includes */
@@ -846,6 +793,8 @@ int Cmd_test_key(int argc, char*argv[]) {
 #include <pb_decode.h>
 #include "periodic.pb.h"
 #include "audio_data.pb.h"
+#include "ProvisionRequest.pb.h"
+#include "ProvisionResponse.pb.h"
 
 static SHA1_CTX sha1ctx;
 
@@ -1066,6 +1015,7 @@ int start_connection() {
 				   SL_IPV4_BYTE(ipaddr, 1), SL_IPV4_BYTE(ipaddr, 0));
         } else {
             LOGI("failed to resolve ntp addr rv %d\n");
+            ipaddr = 0;
             return -1;
         }
     }
@@ -1094,12 +1044,12 @@ int start_connection() {
     //connect it up
     //LOGI("Connecting \n\r\n\r");
     if (sock > 0 && sock_begin < 0 && (rv = connect(sock, &sAddr, sizeof(sAddr)))) {
+        ipaddr = 0;
         LOGI("connect returned %d\n\r\n\r", rv);
         if (rv != SL_ESECSNOVERIFY) {
             LOGI("Could not connect %d\n\r\n\r", rv);
             return stop_connection();    // could not send SNTP request
         }
-        ipaddr = 0;
     }
     return 0;
 }
@@ -1510,9 +1460,6 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
 
     } while (rv == SL_EAGAIN);
 
-
-
-
     if (rv <= 0) {
         LOGI("recv error %d\n\r\n\r", rv);
         return stop_connection();
@@ -1552,15 +1499,15 @@ int http_response_ok(const char* response_buffer)
 {
 	char* first_line = strstr(response_buffer, "\r\n") + 2;
 	uint16_t first_line_len = first_line - response_buffer;
-	if(!first_line_len > 0 || (first_line_len > strlen(response_buffer)))
+	if( first_line_len > SERVER_REPLY_BUFSZ || first_line_len > strlen(response_buffer ) )
 	{
-		LOGI("Cannot get response first line.\n");
-		return -1;
+		LOGE("Invalid headers\n");
+		return -2;
 	}
 	first_line = pvPortMalloc(first_line_len + 1);
 	if(!first_line)
 	{
-		LOGI("No memory\n");
+		LOGE("No memory\n");
 		return -2;
 	}
 
@@ -1640,6 +1587,38 @@ static void _on_factory_reset_received()
 {
     Cmd_factory_reset(0, 0);
 }
+#include "led_animations.h"
+
+extern volatile bool provisioning_mode;
+extern volatile bool has_default_key;
+
+static void _on_key(uint8_t * key) {
+	if( has_default_key ) {
+		save_aes(key);
+		load_aes();
+		if (0 == Cmd_test_key(0, NULL)) {
+			if (provisioning_mode) {
+				sl_FsDel((unsigned char*)PROVISION_FILE, 0);
+				wifi_reset();
+				//green!
+				play_led_wheel( LED_MAX, 0, LED_MAX, 0, 3600, 33);
+			}
+
+			provisioning_mode = false;
+			has_default_key = false;
+		} else {
+			save_aes(DEFAULT_KEY);
+			load_aes();
+			if(provisioning_mode) {
+				//red!
+				play_led_wheel( LED_MAX, LED_MAX, 0, 0, 3600, 33);
+			}
+		}
+	} else if(provisioning_mode)  {
+		//just in case we get something we don't expect....
+		play_led_wheel( LED_MAX, LED_MAX, LED_MAX, LED_MAX, 3600, 33);
+	}
+}
 
 static void _set_led_color_based_on_room_conditions(const SyncResponse* response_protobuf)
 {
@@ -1699,9 +1678,6 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
     	data_queue_batch_size = response_protobuf->batch_size;
     }
 
-    if (response_protobuf->has_led_action) {
-    }
-
     if(response_protobuf->pill_settings_count > 0) {
 		BatchedPillSettings settings = {0};
 		settings.pill_settings_count = response_protobuf->pill_settings_count > MAX_PILL_SETTINGS_COUNT ? MAX_PILL_SETTINGS_COUNT : response_protobuf->pill_settings_count;
@@ -1718,86 +1694,81 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
     	}
 	}
     _set_led_color_based_on_room_conditions(response_protobuf);
-    
 }
 
-//retry logic is handled elsewhere
-int send_pill_data(batched_pill_data * pill_data) {
-    char *  buffer = pvPortMalloc(SERVER_REPLY_BUFSZ);
-
-    assert(buffer);
-    memset(buffer, 0, SERVER_REPLY_BUFSZ);
-
-    int ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER,PILL_DATA_RECEIVE_ENDPOINT, buffer, SERVER_REPLY_BUFSZ, batched_pill_data_fields, pill_data, 0);
-    if(ret != 0)
-    {
-        // network error
-        LOGI("Send pill data failed, network error %d\n", ret);
-        vPortFree(buffer);
-        return ret;
-    }
-    // Parse the response
-    //LOGI("Reply is:\n\r%s\n\r", buffer);
-
-
+void sync_response_reply(const NetworkResponse_t * response, uint8_t * reply_buf, int reply_sz, void * context) {
     SyncResponse response_protobuf;
     memset(&response_protobuf, 0, sizeof(response_protobuf));
     response_protobuf.files.funcs.decode = _on_file_download;
 
-    if(validate_signatures(buffer, SyncResponse_fields, &response_protobuf) == 0)
-    {
-        LOGI("Pill decode OK\n");
+    if(validate_signatures((char*)reply_buf, SyncResponse_fields, &response_protobuf) == 0) {
+    	LOGF("signatures validated\r\n");
 		_on_response_protobuf(&response_protobuf);
 		wifi_status_set(UPLOADING, false);
-        vPortFree(buffer);
-        return 0;
+    } else {
+        LOGF("signature validation fail\r\n");
+        wifi_status_set(UPLOADING, true);
     }
-    LOGI("Pill decoder fail\n");
-    vPortFree(buffer);
-    return -1;
+}
+
+//retry logic is handled elsewhere
+int send_pill_data(batched_pill_data * pill_data) {
+    int ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER,PILL_DATA_RECEIVE_ENDPOINT, batched_pill_data_fields, pill_data, 0, sync_response_reply, NULL);
+    if(ret != 0)
+    {
+        // network error
+        LOGI("Send pill data failed, network error %d\n", ret);
+    }
+    return ret;
 }
 void boot_commit_ota();
 
 int send_periodic_data(batched_periodic_data* data) {
-    char *  buffer = pvPortMalloc(SERVER_REPLY_BUFSZ);
-
     int ret;
 
-    assert(buffer);
-    memset(buffer, 0, SERVER_REPLY_BUFSZ);
-
-    ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER,DATA_RECEIVE_ENDPOINT, buffer, SERVER_REPLY_BUFSZ, batched_periodic_data_fields, data, 0);
+    ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER,DATA_RECEIVE_ENDPOINT, batched_periodic_data_fields, data, 0, sync_response_reply, NULL);
     if(ret != 0)
     {
         // network error
     	wifi_status_set(UPLOADING, true);
         LOGI("Send data failed, network error %d\n", ret);
-        vPortFree(buffer);
-        return ret;
     }
+    return ret;
+}
 
-    SyncResponse response_protobuf;
+void provision_request_reply(const NetworkResponse_t * response, uint8_t * reply_buf, int reply_sz, void * context) {
+	ProvisionResponse response_protobuf;
     memset(&response_protobuf, 0, sizeof(response_protobuf));
-    response_protobuf.files.funcs.decode = _on_file_download;
 
-    if(validate_signatures(buffer, SyncResponse_fields, &response_protobuf) == 0)
-    {
-        LOGI("Decoding success: %d %d %d\n",
-        response_protobuf.has_alarm,
-        response_protobuf.has_reset_device,
-        response_protobuf.has_led_action);
+    if(validate_signatures((char*)reply_buf, ProvisionResponse_fields, &response_protobuf) == 0) {
+		LOGI("Decoding PR %d %d\n",
+				response_protobuf.has_key,
+				response_protobuf.has_retry );
 
-        boot_commit_ota(); //commit only if we hear back from the server...
-
-		_on_response_protobuf(&response_protobuf);
+        if( response_protobuf.has_key ) {
+        	_on_key(response_protobuf.key.bytes);
+        }
+        if( response_protobuf.has_retry && response_protobuf.retry ) {
+        	provisioning_mode = true;
+        }
 		wifi_status_set(UPLOADING, false);
-        vPortFree(buffer);
-        return 0;
+    } else {
+        LOGF("signature validation fail\r\n");
+        wifi_status_set(UPLOADING, true);
     }
-    LOGI("decoder fail\n");
+}
 
-    vPortFree(buffer);
-    return -1;
+int send_provision_request(ProvisonRequest* req) {
+    int ret;
+
+    ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER,PROVISION_ENDPOINT, ProvisonRequest_fields, req, 0, provision_request_reply, NULL);
+    if(ret != 0)
+    {
+        // network error
+    	wifi_status_set(UPLOADING, true);
+        LOGI("Send data failed, network error %d\n", ret);
+    }
+    return ret;
 }
 
 int Cmd_sl(int argc, char*argv[]) {

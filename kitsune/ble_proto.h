@@ -24,6 +24,17 @@
 extern "C"
 {
 #endif
+
+typedef enum {
+    BLE_UNKNOWN = 0,
+    BLE_CONNECTED,
+    BLE_WIFI_REQUESTED,
+    BLE_PAIRING,
+    BLE_NORMAL
+} ble_mode_t;
+
+ble_mode_t get_ble_mode();
+
 void ble_proto_start_hold();
 void ble_proto_end_hold();
 bool on_ble_protobuf_command(MorpheusCommand* command);
