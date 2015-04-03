@@ -13,7 +13,8 @@ typedef struct {
 	uint32_t flags;
 } NetworkResponse_t;
 
-typedef void (*NetworkResponseCallback_t)(const NetworkResponse_t * response,
+typedef void (*NetworkResponseCallback_t)(
+		const NetworkResponse_t * response, uint8_t * reply_buf, int reply_sz,
 		void * context);
 
 typedef struct {

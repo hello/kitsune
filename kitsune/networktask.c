@@ -51,7 +51,7 @@ static void Init(NetworkTaskData_t * info) {
 
 }
 
-static void SynchronousSendNetworkResponseCallback(const NetworkResponse_t * response,void * context) {
+static void SynchronousSendNetworkResponseCallback(const NetworkResponse_t * response, uint8_t * reply_buf, int reply_sz, void * context) {
 	memcpy(&_syncsendresponse,response,sizeof(NetworkResponse_t));
 
 //	DEBUG_PRINTF("NT::SynchronousSendNetworkResponseCallback -- got callback");
@@ -287,7 +287,7 @@ static void NetworkTask_Thread(void * networkdata) {
 		}
 		//let the requester know we are done
 		if (message.response_callback) {
-			message.response_callback(&response,message.context);
+			message.response_callback(&response, message.decode_buf, message.decode_buf_size,message.context);
 		}
 
 		if( message.end ) {

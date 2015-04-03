@@ -131,11 +131,10 @@ void AudioProcessingTask_SetControl(EAudioProcessingCommand_t cmd,NotificationCa
 	}
 }
 
-static void NetworkResponseFunc(const NetworkResponse_t * response,void * context) {
-    uint8_t * _decodebuf = (uint8_t*)context;
-	LOGI("AUDIO RESPONSE:\r\n%s",_decodebuf);
+static void NetworkResponseFunc(const NetworkResponse_t * response, uint8_t * reply_buf, int reply_buf_sz,void * context) {
+	LOGI("AUDIO RESPONSE:\r\n%s",reply_buf);
 
-	vPortFree( _decodebuf );
+	vPortFree( reply_buf );
 
 	if (response->success) {
     	xSemaphoreTake(_mutex,portMAX_DELAY);

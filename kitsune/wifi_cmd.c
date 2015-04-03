@@ -1506,15 +1506,15 @@ int http_response_ok(const char* response_buffer)
 {
 	char* first_line = strstr(response_buffer, "\r\n") + 2;
 	uint16_t first_line_len = first_line - response_buffer;
-	if(!first_line_len > 0 || (first_line_len > strlen(response_buffer)))
+	if( first_line_len > SERVER_REPLY_BUFSZ || first_line_len > strlen(response_buffer ) )
 	{
-		LOGI("Cannot get response first line.\n");
-		return -1;
+		LOGE("Invalid content length in header %d\n", first_line_len);
+		return -2;
 	}
 	first_line = pvPortMalloc(first_line_len + 1);
 	if(!first_line)
 	{
-		LOGI("No memory\n");
+		LOGE("No memory\n");
 		return -2;
 	}
 

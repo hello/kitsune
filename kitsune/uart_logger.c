@@ -525,8 +525,16 @@ typedef struct {
 	void * structdata;
 }async_context_t;
 
-static void _free_pb(const NetworkResponse_t * response, void * context){
+static void _free_pb(const NetworkResponse_t * response, uint8_t reply_buf, int reply_sz, void * context){
 	async_context_t * ctx = (async_context_t*)context;
+
+	if( !http_response_ok(reply_buf) ) {
+		LOGE("failed up upload analytics\n");
+		if (ctx->text_buffer) {
+			LOGE("%s\n", ctx->text_buffer );
+		}
+	}
+
 	if (ctx) {
 		if (ctx->text_buffer) {
 			vPortFree(ctx->text_buffer);
@@ -536,6 +544,7 @@ static void _free_pb(const NetworkResponse_t * response, void * context){
 		}
 		vPortFree(ctx);
 	}
+
 }
 static int _send_pb_async( const pb_field_t fields[], void * structdata, NetworkResponseCallback_t func, void * data) {
 	async_context_t * ctx  = pvPortMalloc(sizeof(async_context_t));
