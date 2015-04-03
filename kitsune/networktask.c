@@ -79,13 +79,22 @@ static void FreeMe(void * data) {
 	}
 }
 
-int NetworkTask_AsynchronousSendProtobuf(
-		const char * host,const char * endpoint, char * buf,
-		uint32_t buf_size, const pb_field_t fields[],
-		const void * structdata,int32_t retry_time_in_counts,
-		NetworkResponseCallback_t func,
-		network_prep_callback_t begin, network_prep_callback_t end,
-		void * data ) {
+static void _allocate_reply_buf(void * context) {
+	NetworkTaskServerSendMessage_t * msg = (NetworkTaskServerSendMessage_t*)context;
+	msg->decode_buf = pvPortMalloc(SERVER_REPLY_BUFSZ);
+    assert(msg->decode_buf);
+    memset(msg->decode_buf, 0, SERVER_REPLY_BUFSZ);
+    msg->decode_buf_size = SERVER_REPLY_BUFSZ;
+}
+static void _free_reply_buf(void * context) {
+	NetworkTaskServerSendMessage_t * msg = (NetworkTaskServerSendMessage_t*)context;
+	vPortFree(msg->decode_buf);
+}
+
+int NetworkTask_AsynchronousSendProtobuf(const char * host,
+		const char * endpoint, const pb_field_t fields[],
+		const void * structdata, int32_t retry_time_in_counts,
+		NetworkResponseCallback_t func, void * data) {
 	NetworkTaskServerSendMessage_t message;
 
 	network_encode_data_t * encodedata = pvPortMalloc(sizeof(network_encode_data_t));
@@ -105,14 +114,11 @@ int NetworkTask_AsynchronousSendProtobuf(
 	message.encode = EncodePb;
 	message.encodedata = encodedata;
 
-	message.begin = begin;
-	message.end = end;
+	message.begin = _allocate_reply_buf;
+	message.end = _free_reply_buf;
 
 	message.terminate = FreeMe;
 	message.terminate_data = encodedata;
-
-	message.decode_buf = (uint8_t *)buf;
-	message.decode_buf_size = buf_size;
 
 	assert( _asyncqueue );
 
@@ -205,7 +211,7 @@ static void NetworkTask_Thread(void * networkdata) {
 		}
 
 		if (message.begin) {
-			message.begin(message.context);
+			message.begin(&message);
 		}
 
 		memset(&response,0,sizeof(response));
@@ -285,7 +291,7 @@ static void NetworkTask_Thread(void * networkdata) {
 		}
 
 		if( message.end ) {
-			message.end(message.context);
+			message.end(&message);
 		}
 		if( message.terminate ) {
 			message.terminate(message.terminate_data);

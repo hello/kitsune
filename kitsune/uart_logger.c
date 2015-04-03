@@ -522,20 +522,9 @@ static int _send_pb( const pb_field_t fields[], const void * structdata ) {
 
 typedef struct {
 	void * text_buffer;
-	char * reply_buf;
 	void * structdata;
 }async_context_t;
 
-static void _allocate_reply_buf(void * context) {
-	async_context_t * ctx = (async_context_t*)context;
-	ctx->reply_buf = pvPortMalloc(SERVER_REPLY_BUFSZ);
-    assert(ctx->reply_buf);
-    memset(ctx->reply_buf, 0, SERVER_REPLY_BUFSZ);
-}
-static void _free_reply_buf(void * context) {
-	async_context_t * ctx = (async_context_t*)context;
-	vPortFree(ctx->reply_buf);
-}
 static void _free_pb(const NetworkResponse_t * response, void * context){
 	async_context_t * ctx = (async_context_t*)context;
 	if (ctx) {
@@ -558,8 +547,7 @@ static int _send_pb_async( const pb_field_t fields[], void * structdata, Network
     ctx->structdata = structdata;
 
 	return NetworkTask_AsynchronousSendProtobuf(DATA_SERVER, SENSE_LOG_ENDPOINT,
-			ctx->reply_buf, SERVER_REPLY_BUFSZ, fields, structdata, 0, func,
-			_allocate_reply_buf, _free_reply_buf, ctx);
+			fields, structdata, 0, func, ctx);
 }
 
 int analytics_event( const char *pcString, ...) {
