@@ -799,8 +799,6 @@ static void _show_led_status()
 {
 	uint8_t alpha = get_alpha_from_light();
 
-	analytics_event( "{led: status, alpha: %d}", alpha );
-
 	if(wifi_status_get(UPLOADING)) {
 		//TODO: wtf is this?
 		uint8_t rgb[3] = { LED_MAX };
@@ -822,7 +820,6 @@ static void _show_led_status()
 }
 
 static void _on_wave(){
-	analytics_event( "{led: wave}" );
 	if(	cancel_alarm() ) {
 		stop_led_animation( 10000, 33 );
 	} else {
