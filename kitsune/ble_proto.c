@@ -532,43 +532,6 @@ static void _process_pill_heartbeat( MorpheusCommand* command)
 	
 }
 
-static void _send_response_to_ble(const char* buffer, size_t len)
-{
-    const char* header_content_len = "Content-Length: ";
-    char * content = strstr(buffer, "\r\n\r\n") + 4;
-    char * len_str = strstr(buffer, header_content_len) + strlen(header_content_len);
-    if (len_str == NULL) {
-        LOGI("Invalid response, Content-Length header not found.\n");
-        ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
-        return;
-    }
-
-    if (http_response_ok(buffer) != 1) {
-        LOGI("Invalid response, %s endpoint return failure.\n", PILL_REGISTER_ENDPOINT);
-        ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
-        return;
-    }
-
-    int content_len = atoi(len_str);
-    LOGI("Content length %d\n", content_len);
-    
-    MorpheusCommand response;
-    memset(&response, 0, sizeof(response));
-    ble_proto_assign_decode_funcs(&response);
-
-    if(decode_rx_data_pb((unsigned char*)content, content_len, MorpheusCommand_fields, &response) == 0)
-    {
-    	//PANG says: DO NOT EVER REMOVE THIS FUNCTION, ALTHOUGH IT MAKES NO SENSE WHY WE NEED THIS
-    	ble_proto_remove_decode_funcs(&response);
-    	ble_send_protobuf(&response);
-    }else{
-    	LOGI("Invalid response, protobuf decryption & decode failed.\n");
-    	ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
-    }
-
-    ble_proto_free_command(&response);
-}
-
 void sample_sensor_data(periodic_data* data);
 extern xQueueHandle force_data_queue;
 int _force_data_push()
@@ -597,6 +560,27 @@ int _force_data_push()
 
 void save_account_id( char * acct );
 
+static void _morpheus_command_reply(const NetworkResponse_t * response, uint8_t * reply_buf, int reply_sz, void * context) {
+	MorpheusCommand reply;
+	bool * success = (bool*)context;
+	memset(&reply, 0, sizeof(reply));
+	ble_proto_assign_decode_funcs(&reply);
+    if(validate_signatures((char*)reply_buf, MorpheusCommand_fields, &reply) == 0) {
+		ble_proto_remove_decode_funcs(&reply);
+		ble_send_protobuf(&reply);
+    	LOGF("signature validated\r\n");
+    	if( success ) {
+    		*success = true;
+    	}
+    } else {
+        LOGF("signature validation fail\r\n");
+    	if( success ) {
+    		*success = false;
+    	}
+    }
+    ble_proto_free_command(&reply);
+}
+
 static int _pair_device( MorpheusCommand* command, int is_morpheus)
 {
 	if(NULL == command->accountId.arg || NULL == command->deviceId.arg){
@@ -608,43 +592,29 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 		ble_proto_assign_encode_funcs(command);
 		// TODO: Figure out why always get -1 when this is the 1st request
 		// after the IPv4 retrieved.
-
-	    char *  response_buffer = pvPortMalloc(SERVER_REPLY_BUFSZ);
-
 	    int ret;
-
-	    assert(response_buffer);
-	    memset(response_buffer, 0, SERVER_REPLY_BUFSZ);
 
 		int retry = 3;
 		while(retry--)
 		{
+			bool success = false;
 			ret = NetworkTask_SynchronousSendProtobuf(
 					DATA_SERVER,
 					is_morpheus == 1 ? MORPHEUS_REGISTER_ENDPOINT : PILL_REGISTER_ENDPOINT,
-					response_buffer,
-					SERVER_REPLY_BUFSZ,
 					MorpheusCommand_fields,
 					command,
-					0);
+					0,
+					_morpheus_command_reply, &success);
 
 			if(ret != 0) {
 		        LOGI("network error %d\n", ret);
 				vTaskDelay(1000);
 		        continue;
 		    }
-			MorpheusCommand reply;
-			memset(&reply, 0, sizeof(reply));
-			ble_proto_assign_decode_funcs(&reply);
-		    if(validate_signatures(response_buffer, MorpheusCommand_fields, &reply) == 0) {
-		    	ble_proto_free_command(&reply);
-		    	LOGF("pairing validated\r\n");
-		    	break;
-		    } else {
-		        LOGF("pairing validation fail\r\n");
-		        ret = -1000;
-		    }
-		    ble_proto_free_command(&reply);
+			if( success ) {
+				break;
+			}
+
 		}
 
 		// All the args are in stack, don't need to do protobuf free.
@@ -655,13 +625,10 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 		}
 		if(ret == 0)
 		{
-			_send_response_to_ble(response_buffer, sizeof(response_buffer));
-		    vPortFree(response_buffer);
 			return 1;
 		}else{
 			LOGI("Pairing request failed, error %d\n", ret);
 			ble_reply_protobuf_error(ErrorType_NETWORK_ERROR);
-		    vPortFree(response_buffer);
 		}
 
 	}

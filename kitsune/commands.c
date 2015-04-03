@@ -1567,7 +1567,7 @@ void launch_tasks() {
 	UARTprintf("*");
 	xTaskCreate(thread_sensor_poll, "pollTask", 1024 / 4, NULL, 3, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_tx, "txTask", 3 * 1024 / 4, NULL, 2, NULL);
+	xTaskCreate(thread_tx, "txTask", 1 * 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
 #endif
 }
@@ -1845,7 +1845,7 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(AudioTask_Thread,"audioTask",2560/4,NULL,4,NULL);
 	UARTprintf("*");
 	init_download_task( 1024 / 4 );
-	networktask_init(2 * 1024 / 4);
+	networktask_init(4 * 1024 / 4);
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 4, NULL);
 
 	init_dust();

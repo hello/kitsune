@@ -46,6 +46,7 @@ typedef struct {
 	int32_t retry_timeout;
 
 	NetworkResponseCallback_t response_callback;
+	NetworkResponseCallback_t internal_response_callback;
 
 } NetworkTaskServerSendMessage_t;
 
@@ -54,9 +55,9 @@ typedef struct {
 
 void networktask_init(uint16_t stack_size);
 int NetworkTask_SynchronousSendProtobuf(const char * host,
-		const char * endpoint, char * buf, uint32_t buf_size,
-		const pb_field_t fields[], const void * structdata,
-		int32_t retry_time_in_counts);
+		const char * endpoint, const pb_field_t fields[],
+		const void * structdata, int32_t retry_time_in_counts,
+		NetworkResponseCallback_t func, void * context);
 int NetworkTask_AsynchronousSendProtobuf(const char * host,
 		const char * endpoint, const pb_field_t fields[],
 		const void * structdata, int32_t retry_time_in_counts,

@@ -12,7 +12,7 @@
 #include "protocol.h"
 #include "sl_sync_include_after_simplelink_header.h"
 
-
+#include "ble_proto.h"
 #include "wifi_cmd.h"
 #include "networktask.h"
 
@@ -722,7 +722,6 @@ void load_device_id() {
 	*/
 }
 
-#include "ble_proto.h"
 
 bool validate_signatures( char * buffer, const pb_field_t fields[], void * structdata) {
 
@@ -748,47 +747,44 @@ bool validate_signatures( char * buffer, const pb_field_t fields[], void * struc
     return decode_rx_data_pb((unsigned char*) content, len, fields, structdata);
 }
 
+
+static void _morpheus_command_reply(const NetworkResponse_t * response, uint8_t * reply_buf, int reply_sz, void * context) {
+	MorpheusCommand reply;
+	bool * success = (bool*)context;
+	memset(&reply, 0, sizeof(reply));
+	ble_proto_assign_decode_funcs(&reply);
+    if(validate_signatures((char*)reply_buf, MorpheusCommand_fields, &reply) == 0) {
+    	LOGF("signature validated\r\n");
+    	if( success ) {
+    		*success = true;
+    	}
+    } else {
+        LOGF("signature validation fail\r\n");
+    	if( success ) {
+    		*success = false;
+    	}
+    }
+    ble_proto_free_command(&reply);
+}
+
 int Cmd_test_key(int argc, char*argv[]) {
     load_aes();
     load_device_id();
     //LOGI("Last two digit: %02X:%02X\n", aes_key[AES_BLOCKSIZE - 2], aes_key[AES_BLOCKSIZE - 1]);
-
-    char *  buffer = pvPortMalloc(SERVER_REPLY_BUFSZ);
-
     int ret;
-
-    assert(buffer);
-    memset(buffer, 0, SERVER_REPLY_BUFSZ);
 
     MorpheusCommand test_command = {0};
     test_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_SENSE;
     test_command.version = PROTOBUF_VERSION;
 
-    ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER,CHECK_KEY_ENDPOINT, buffer, SERVER_REPLY_BUFSZ, MorpheusCommand_fields, &test_command, 0);
+    ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER,CHECK_KEY_ENDPOINT, MorpheusCommand_fields, &test_command, 0, _morpheus_command_reply, NULL );
     if(ret != 0)
     {
         // network error
     	wifi_status_set(UPLOADING, true);
         LOGI("Send data failed, network error %d\n", ret);
-        vPortFree(buffer);
-        return ret;
     }
-
-
-    MorpheusCommand response_protobuf;
-    memset(&response_protobuf, 0, sizeof(response_protobuf));
-    ble_proto_assign_decode_funcs(&response_protobuf);
-
-    if(validate_signatures(buffer, MorpheusCommand_fields, &response_protobuf) == 0) {
-    	LOGF("test key validated\r\n");
-        vPortFree(buffer);
-    	return 0;
-    } else {
-        LOGF("test key fail\r\n");
-    }
-
-    vPortFree(buffer);
-    return -1;
+    return ret;
 }
 
 /* protobuf includes */
@@ -1464,9 +1460,6 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
 
     } while (rv == SL_EAGAIN);
 
-
-
-
     if (rv <= 0) {
         LOGI("recv error %d\n\r\n\r", rv);
         return stop_connection();
@@ -1508,7 +1501,7 @@ int http_response_ok(const char* response_buffer)
 	uint16_t first_line_len = first_line - response_buffer;
 	if( first_line_len > SERVER_REPLY_BUFSZ || first_line_len > strlen(response_buffer ) )
 	{
-		LOGE("Invalid content length in header %d\n", first_line_len);
+		LOGE("Invalid headers\n");
 		return -2;
 	}
 	first_line = pvPortMalloc(first_line_len + 1);
@@ -1703,106 +1696,51 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
     _set_led_color_based_on_room_conditions(response_protobuf);
 }
 
+void sync_response_reply(const NetworkResponse_t * response, uint8_t * reply_buf, int reply_sz, void * context) {
+    SyncResponse response_protobuf;
+    memset(&response_protobuf, 0, sizeof(response_protobuf));
+    response_protobuf.files.funcs.decode = _on_file_download;
+
+    if(validate_signatures((char*)reply_buf, SyncResponse_fields, &response_protobuf) == 0) {
+    	LOGF("signatures validated\r\n");
+		_on_response_protobuf(&response_protobuf);
+		wifi_status_set(UPLOADING, false);
+    } else {
+        LOGF("signature validation fail\r\n");
+        wifi_status_set(UPLOADING, true);
+    }
+}
+
 //retry logic is handled elsewhere
 int send_pill_data(batched_pill_data * pill_data) {
-    char *  buffer = pvPortMalloc(SERVER_REPLY_BUFSZ);
-
-    assert(buffer);
-    memset(buffer, 0, SERVER_REPLY_BUFSZ);
-
-    int ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER,PILL_DATA_RECEIVE_ENDPOINT, buffer, SERVER_REPLY_BUFSZ, batched_pill_data_fields, pill_data, 0);
+    int ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER,PILL_DATA_RECEIVE_ENDPOINT, batched_pill_data_fields, pill_data, 0, sync_response_reply, NULL);
     if(ret != 0)
     {
         // network error
         LOGI("Send pill data failed, network error %d\n", ret);
-        vPortFree(buffer);
-        return ret;
     }
-    // Parse the response
-    //LOGI("Reply is:\n\r%s\n\r", buffer);
-
-
-    SyncResponse response_protobuf;
-    memset(&response_protobuf, 0, sizeof(response_protobuf));
-    response_protobuf.files.funcs.decode = _on_file_download;
-
-    if(validate_signatures(buffer, SyncResponse_fields, &response_protobuf) == 0)
-    {
-        LOGI("Pill decode OK\n");
-		_on_response_protobuf(&response_protobuf);
-		wifi_status_set(UPLOADING, false);
-        vPortFree(buffer);
-        return 0;
-    }
-    LOGI("Pill decoder fail\n");
-    vPortFree(buffer);
-    return -1;
+    return ret;
 }
 void boot_commit_ota();
 
 int send_periodic_data(batched_periodic_data* data) {
-    char *  buffer = pvPortMalloc(SERVER_REPLY_BUFSZ);
-
     int ret;
 
-    assert(buffer);
-    memset(buffer, 0, SERVER_REPLY_BUFSZ);
-
-    ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER,DATA_RECEIVE_ENDPOINT, buffer, SERVER_REPLY_BUFSZ, batched_periodic_data_fields, data, 0);
+    ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER,DATA_RECEIVE_ENDPOINT, batched_periodic_data_fields, data, 0, sync_response_reply, NULL);
     if(ret != 0)
     {
         // network error
     	wifi_status_set(UPLOADING, true);
         LOGI("Send data failed, network error %d\n", ret);
-        vPortFree(buffer);
-        return ret;
     }
-
-    SyncResponse response_protobuf;
-    memset(&response_protobuf, 0, sizeof(response_protobuf));
-    response_protobuf.files.funcs.decode = _on_file_download;
-
-    if(validate_signatures(buffer, SyncResponse_fields, &response_protobuf) == 0)
-    {
-		LOGI("Decoding success %d %d\n",
-				response_protobuf.has_alarm,
-				response_protobuf.has_reset_device );
-        boot_commit_ota(); //commit only if we hear back from the server...
-
-		_on_response_protobuf(&response_protobuf);
-		wifi_status_set(UPLOADING, false);
-        vPortFree(buffer);
-        return 0;
-    }
-    LOGI("decoder fail\n");
-
-    vPortFree(buffer);
-    return -1;
+    return ret;
 }
 
-int send_provision_request(ProvisonRequest* req) {
-    char *  buffer = pvPortMalloc(SERVER_REPLY_BUFSZ);
-
-    int ret;
-
-    assert(buffer);
-    memset(buffer, 0, SERVER_REPLY_BUFSZ);
-
-    ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER,PROVISION_ENDPOINT, buffer, SERVER_REPLY_BUFSZ, ProvisonRequest_fields, req, 0);
-    if(ret != 0)
-    {
-        // network error
-    	wifi_status_set(UPLOADING, true);
-        LOGI("Send data failed, network error %d\n", ret);
-        vPortFree(buffer);
-        return ret;
-    }
-
-    ProvisionResponse response_protobuf;
+void provision_request_reply(const NetworkResponse_t * response, uint8_t * reply_buf, int reply_sz, void * context) {
+	ProvisionResponse response_protobuf;
     memset(&response_protobuf, 0, sizeof(response_protobuf));
 
-    if(validate_signatures(buffer, ProvisionResponse_fields, &response_protobuf) == 0)
-    {
+    if(validate_signatures((char*)reply_buf, ProvisionResponse_fields, &response_protobuf) == 0) {
 		LOGI("Decoding PR %d %d\n",
 				response_protobuf.has_key,
 				response_protobuf.has_retry );
@@ -1813,15 +1751,24 @@ int send_provision_request(ProvisonRequest* req) {
         if( response_protobuf.has_retry && response_protobuf.retry ) {
         	provisioning_mode = true;
         }
-
 		wifi_status_set(UPLOADING, false);
-        vPortFree(buffer);
-        return 0;
+    } else {
+        LOGF("signature validation fail\r\n");
+        wifi_status_set(UPLOADING, true);
     }
-    LOGI("decoder fail\n");
+}
 
-    vPortFree(buffer);
-    return -1;
+int send_provision_request(ProvisonRequest* req) {
+    int ret;
+
+    ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER,PROVISION_ENDPOINT, ProvisonRequest_fields, req, 0, provision_request_reply, NULL);
+    if(ret != 0)
+    {
+        // network error
+    	wifi_status_set(UPLOADING, true);
+        LOGI("Send data failed, network error %d\n", ret);
+    }
+    return ret;
 }
 
 int Cmd_sl(int argc, char*argv[]) {
