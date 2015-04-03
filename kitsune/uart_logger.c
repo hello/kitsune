@@ -504,40 +504,24 @@ convert:
 
 }
 
-static int _send_pb( const pb_field_t fields[], const void * structdata ) {
-    char *  buffer = pvPortMalloc(SERVER_REPLY_BUFSZ);
-    int ret;
-
-    if(buffer == NULL) {
-    	return 0; //nonessential
-    }
-    memset(buffer, 0, SERVER_REPLY_BUFSZ);
-
-	ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER, SENSE_LOG_ENDPOINT,buffer,SERVER_REPLY_BUFSZ,fields,structdata,0);
-	vPortFree(buffer);
-
-	return ret;
-}
-
-
 typedef struct {
-	void * text_buffer;
+	void * buffer;
 	void * structdata;
 }async_context_t;
 
-static void _free_pb(const NetworkResponse_t * response, uint8_t reply_buf, int reply_sz, void * context){
+static void _free_pb(const NetworkResponse_t * response, uint8_t * reply_buf, int reply_sz, void * context){
 	async_context_t * ctx = (async_context_t*)context;
 
-	if( !http_response_ok(reply_buf) ) {
+	if( !http_response_ok((const char*)reply_buf) ) {
 		LOGE("failed up upload analytics\n");
-		if (ctx->text_buffer) {
-			LOGE("%s\n", ctx->text_buffer );
+		if (ctx->buffer) {
+			LOGE("%s\n", ctx->buffer );
 		}
 	}
 
 	if (ctx) {
-		if (ctx->text_buffer) {
-			vPortFree(ctx->text_buffer);
+		if (ctx->buffer) {
+			vPortFree(ctx->buffer);
 		}
 		if (ctx->structdata) {
 			vPortFree(ctx->structdata);
@@ -551,7 +535,7 @@ static int _send_pb_async( const pb_field_t fields[], void * structdata, Network
 	assert(ctx);
 	memset(ctx, 0, sizeof(async_context_t));
 	if (data) {
-		ctx->text_buffer = data;
+		ctx->buffer = data;
 	}
     ctx->structdata = structdata;
 
@@ -615,7 +599,7 @@ static int send_log() {
 	}
 #endif
 
-    return _send_pb(sense_log_fields,&self.log);
+    return _send_pb_async(sense_log_fields,&self.log, NULL, NULL);
 }
 
 void uart_logger_task(void * params){
