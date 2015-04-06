@@ -469,6 +469,7 @@ void check_provision() {
 	fs_get( AES_KEY_LOC, current_key, AES_BLOCKSIZE, &read);
 	if (read == 0 || 0 == memcmp(current_key, DEFAULT_KEY, AES_BLOCKSIZE)) {
 		has_default_key = true;
+		LOGI("default key mode!\n");
 		if (fs_get( PROVISION_FILE, buf, sizeof(buf), &read)) {
 			if (0 == strncmp(buf, PROV_CODE, read)) {
 				provisioning_mode = true;
@@ -476,19 +477,6 @@ void check_provision() {
 			}
 		}
 	}
-}
-int Cmd_prov_set(int argc, char *argv[]) {
-	return fs_save(PROVISION_FILE, PROV_CODE, sizeof(PROV_CODE));
-}
-int Cmd_serial_set(int argc, char *argv[]) {
-	//
-	// Print some header text.
-	//
-	if( argc != 2 ) {
-		LOGE("usage: serial <SN>\n");
-		return -5;
-	}
-	return fs_save(SERIAL_FILE, argv[1], 1+strlen(argv[1]));
 }
 static char serial[64];
 
@@ -1652,9 +1640,6 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "fswr", Cmd_fs_write, "" }, //serial flash commands
 		{ "fsrd", Cmd_fs_read, "" },
 		{ "fsdl", Cmd_fs_delete, "" },
-
-		{ "prov", Cmd_prov_set, "" },
-		{ "serial", Cmd_serial_set, "" },
 
 		{ "r", Cmd_record_buff,""}, //record sounds into SD card
 		{ "p", Cmd_play_buff, ""},//play sounds from SD card
