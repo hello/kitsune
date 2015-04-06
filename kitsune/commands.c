@@ -472,6 +472,7 @@ void check_provision() {
 		if (fs_get( PROVISION_FILE, buf, sizeof(buf), &read)) {
 			if (0 == strncmp(buf, PROV_CODE, read)) {
 				provisioning_mode = true;
+				LOGI("povisioning mode!\n");
 			}
 		}
 	}
@@ -1858,8 +1859,9 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("*");
 #endif
 
+	check_provision();
+
 	if( on_charger ) {
-		check_provision();
 		launch_tasks();
 	} else {
 		play_led_wheel( 50, LED_MAX, LED_MAX, 0,0,10);
