@@ -454,7 +454,7 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int64_t samplecount) {
 
     EChangeModes_t currentMode;
     uint8_t isStable;
-    static uint8_t c = 0;
+    //static uint8_t c = 0;
 
     
     /* Copy in raw samples, zero out complex part of fft input*/
@@ -490,9 +490,9 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int64_t samplecount) {
 
     isStable = IsStable(currentMode,logTotalEnergyAvg);
     
-    if (c++ == 255) {
-    	LOGI("background=%d\r\n",GetAudioEnergyAsDBA(logTotalEnergyAvg));
-    }
+    //if (c++ == 255) {
+    //	LOGI("background=%d\r\n",GetAudioEnergyAsDBA(logTotalEnergyAvg));
+    //}
 
 
     UpdateEnergyStats(isStable,logTotalEnergyAvg,logTotalEnergy,samplecount);

@@ -469,25 +469,14 @@ void check_provision() {
 	fs_get( AES_KEY_LOC, current_key, AES_BLOCKSIZE, &read);
 	if (read == 0 || 0 == memcmp(current_key, DEFAULT_KEY, AES_BLOCKSIZE)) {
 		has_default_key = true;
+		LOGI("default key mode!\n");
 		if (fs_get( PROVISION_FILE, buf, sizeof(buf), &read)) {
 			if (0 == strncmp(buf, PROV_CODE, read)) {
 				provisioning_mode = true;
+				LOGI("povisioning mode!\n");
 			}
 		}
 	}
-}
-int Cmd_prov_set(int argc, char *argv[]) {
-	return fs_save(PROVISION_FILE, PROV_CODE, sizeof(PROV_CODE));
-}
-int Cmd_serial_set(int argc, char *argv[]) {
-	//
-	// Print some header text.
-	//
-	if( argc != 2 ) {
-		LOGE("usage: serial <SN>\n");
-		return -5;
-	}
-	return fs_save(SERIAL_FILE, argv[1], 1+strlen(argv[1]));
 }
 static char serial[64];
 
@@ -1541,12 +1530,20 @@ static int Cmd_generate_user_testing_files(int argc, char* argv[])
 }
 #endif
 
+#include "fault.h"
+static void checkFaults() {
+    faultInfo f;
+    memcpy( (void*)&f, SHUTDOWN_MEM, sizeof(f) );
+    if( f.magic == SHUTDOWN_MAGIC ) {
+        faultPrinter(&f);
+    }
+}
 
 void init_download_task( int stack );
 void init_i2c_recovery();
 
 void launch_tasks() {
-	//checkFaults();
+	checkFaults();
 
 	//dear future chris: this one doesn't need a semaphore since it's only written to while threads are going during factory test boot
 	booted = true;
@@ -1598,12 +1595,7 @@ int cmd_memfrag(int argc, char *argv[]) {
 }
 
 int Cmd_fault(int argc, char *argv[]) {
-	int i;
-	int buffer[9999]; //guaranteed overflow
-	for(i=0;i<sizeof(buffer);++i) {
-		buffer[i] = 0;
-	}
-	LOGE("%d", buffer[i]);
+	*(volatile int*)0xFFFFFFFF = 0xdead;
 	return 0;
 }
 
@@ -1651,9 +1643,6 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "fswr", Cmd_fs_write, "" }, //serial flash commands
 		{ "fsrd", Cmd_fs_read, "" },
 		{ "fsdl", Cmd_fs_delete, "" },
-
-		{ "prov", Cmd_prov_set, "" },
-		{ "serial", Cmd_serial_set, "" },
 
 		{ "r", Cmd_record_buff,""}, //record sounds into SD card
 		{ "p", Cmd_play_buff, ""},//play sounds from SD card
@@ -1713,14 +1702,6 @@ tCmdLineEntry g_sCmdTable[] = {
 #endif
 		{ 0, 0, 0 } };
 
-//#include "fault.h"
-//static void checkFaults() {
-//    faultInfo f;
-//    memcpy( (void*)&f, SHUTDOWN_MEM, sizeof(f) );
-//    if( f.magic == SHUTDOWN_MAGIC ) {
-//        faultPrinter(&f);
-//    }
-//}
 
 // ==============================================================================
 // This is the UARTTask.  It handles command lines received from the RX IRQ.
@@ -1858,8 +1839,9 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("*");
 #endif
 
+	check_provision();
+
 	if( on_charger ) {
-		check_provision();
 		launch_tasks();
 	} else {
 		play_led_wheel( 50, LED_MAX, LED_MAX, 0,0,10);

@@ -1696,6 +1696,8 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
     _set_led_color_based_on_room_conditions(response_protobuf);
 }
 
+void boot_commit_ota();
+
 void sync_response_reply(const NetworkResponse_t * response, uint8_t * reply_buf, int reply_sz, void * context) {
     SyncResponse response_protobuf;
     memset(&response_protobuf, 0, sizeof(response_protobuf));
@@ -1703,6 +1705,7 @@ void sync_response_reply(const NetworkResponse_t * response, uint8_t * reply_buf
 
     if(validate_signatures((char*)reply_buf, SyncResponse_fields, &response_protobuf) == 0) {
     	LOGF("signatures validated\r\n");
+		boot_commit_ota();
 		_on_response_protobuf(&response_protobuf);
 		wifi_status_set(UPLOADING, false);
     } else {
@@ -1721,7 +1724,6 @@ int send_pill_data(batched_pill_data * pill_data) {
     }
     return ret;
 }
-void boot_commit_ota();
 
 int send_periodic_data(batched_periodic_data* data) {
     int ret;
@@ -1747,9 +1749,8 @@ void provision_request_reply(const NetworkResponse_t * response, uint8_t * reply
 
         if( response_protobuf.has_key ) {
         	_on_key(response_protobuf.key.bytes);
-        }
-        if( response_protobuf.has_retry && response_protobuf.retry ) {
-        	provisioning_mode = true;
+        } else if( response_protobuf.has_retry && response_protobuf.retry ) {
+        	has_default_key = true;
         }
 		wifi_status_set(UPLOADING, false);
     } else {
