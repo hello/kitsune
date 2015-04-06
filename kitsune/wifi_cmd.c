@@ -1747,9 +1747,8 @@ void provision_request_reply(const NetworkResponse_t * response, uint8_t * reply
 
         if( response_protobuf.has_key ) {
         	_on_key(response_protobuf.key.bytes);
-        }
-        if( response_protobuf.has_retry && response_protobuf.retry ) {
-        	provisioning_mode = true;
+        } else if( response_protobuf.has_retry && response_protobuf.retry ) {
+        	has_default_key = true;
         }
 		wifi_status_set(UPLOADING, false);
     } else {
