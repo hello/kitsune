@@ -1705,9 +1705,9 @@ void sync_response_reply(const NetworkResponse_t * response, uint8_t * reply_buf
 
     if(validate_signatures((char*)reply_buf, SyncResponse_fields, &response_protobuf) == 0) {
     	LOGF("signatures validated\r\n");
+		boot_commit_ota();
 		_on_response_protobuf(&response_protobuf);
 		wifi_status_set(UPLOADING, false);
-		boot_commit_ota();
     } else {
         LOGF("signature validation fail\r\n");
         wifi_status_set(UPLOADING, true);
