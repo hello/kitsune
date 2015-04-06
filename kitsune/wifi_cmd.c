@@ -1696,6 +1696,8 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
     _set_led_color_based_on_room_conditions(response_protobuf);
 }
 
+void boot_commit_ota();
+
 void sync_response_reply(const NetworkResponse_t * response, uint8_t * reply_buf, int reply_sz, void * context) {
     SyncResponse response_protobuf;
     memset(&response_protobuf, 0, sizeof(response_protobuf));
@@ -1705,6 +1707,7 @@ void sync_response_reply(const NetworkResponse_t * response, uint8_t * reply_buf
     	LOGF("signatures validated\r\n");
 		_on_response_protobuf(&response_protobuf);
 		wifi_status_set(UPLOADING, false);
+		boot_commit_ota();
     } else {
         LOGF("signature validation fail\r\n");
         wifi_status_set(UPLOADING, true);
@@ -1721,7 +1724,6 @@ int send_pill_data(batched_pill_data * pill_data) {
     }
     return ret;
 }
-void boot_commit_ota();
 
 int send_periodic_data(batched_periodic_data* data) {
     int ret;
