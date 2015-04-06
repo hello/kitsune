@@ -169,6 +169,7 @@ static void dedupe_ssid( Sl_WlanNetworkEntry_t * ep, int * c){
 void ble_proto_init() {
 	vSemaphoreCreateBinary(_self.smphr);
 	vSemaphoreCreateBinary(_wifi_smphr);
+	set_ble_mode(BLE_NORMAL);
 }
 
 static void _reply_wifi_scan_result()
@@ -783,6 +784,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 			    save_device_id(top_device_id);
 				_ble_reply_command_with_type(MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID);
 				top_board_notify_boot_complete();
+				set_ble_mode(BLE_NORMAL);
 				vTaskDelay(200);
 			}else{
 				LOGI("device id fail from top\n");
@@ -824,15 +826,11 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 	if(!booted) {
 		return true;
 	}
-	if( command->type != MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_PAIRING_MODE &&
-			command->type != MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE &&
-			command->type != MorpheusCommand_CommandType_MORPHEUS_COMMAND_START_WIFISCAN ) {
-		set_ble_mode(BLE_CONNECTED);
-	}
     switch(command->type)
     {
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SET_WIFI_ENDPOINT:
         {
+        	set_ble_mode(BLE_CONNECTED);
             const char* ssid = command->wifiSSID.arg;
             char* password = command->wifiPassword.arg;
 
@@ -873,8 +871,9 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
             _scan_wifi_mostly_nonblocking();
         }
         break;
-        case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE:  // Just for testing
+        case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE:
 		{
+			//given on phone disconnect
 			ble_proto_led_fade_out(0);
             set_ble_mode(BLE_NORMAL);
 			LOGI( "NORMAL MODE \n");
@@ -889,6 +888,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PHONE_BLE_CONNECTED:
         {
+        	set_ble_mode(BLE_CONNECTED);
         	LOGI("PHONE CONNECTED\n");
         	ble_proto_led_busy_mode(0xFF, 128, 0, 128, 18);
 
