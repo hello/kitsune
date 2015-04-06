@@ -793,8 +793,6 @@ int Cmd_test_key(int argc, char*argv[]) {
 #include <pb_decode.h>
 #include "periodic.pb.h"
 #include "audio_data.pb.h"
-#include "ProvisionRequest.pb.h"
-#include "ProvisionResponse.pb.h"
 
 static SHA1_CTX sha1ctx;
 
@@ -1759,10 +1757,10 @@ void provision_request_reply(const NetworkResponse_t * response, uint8_t * reply
     }
 }
 
-int send_provision_request(ProvisonRequest* req) {
+int send_provision_request(ProvisionRequest* req) {
     int ret;
 
-    ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER,PROVISION_ENDPOINT, ProvisonRequest_fields, req, 0, provision_request_reply, NULL);
+    ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER,PROVISION_ENDPOINT, ProvisionRequest_fields, req, 0, provision_request_reply, NULL);
     if(ret != 0)
     {
         // network error

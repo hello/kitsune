@@ -92,9 +92,6 @@
 
 #include "pill_settings.h"
 
-#include "ProvisionRequest.pb.h"
-#include "ProvisionResponse.pb.h"
-
 #define ONLY_MID 0
 
 //******************************************************************************
@@ -938,7 +935,7 @@ void thread_tx(void* unused) {
 			data_batched.uptime_in_second = xTaskGetTickCount() / configTICK_RATE_HZ;
 
 			if( has_default_key ) {
-				ProvisonRequest pr;
+				ProvisionRequest pr;
 				memset(&pr, 0, sizeof(pr));
 				pr.serial.funcs.encode = _encode_string_fields;
 				pr.serial.arg = serial;
