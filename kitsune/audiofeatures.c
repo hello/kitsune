@@ -490,9 +490,9 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int64_t samplecount) {
 
     isStable = IsStable(currentMode,logTotalEnergyAvg);
     
-    if (c++ == 255) {
-    	LOGI("background=%d\r\n",GetAudioEnergyAsDBA(logTotalEnergyAvg));
-    }
+    //if (c++ == 255) {
+    //	LOGI("background=%d\r\n",GetAudioEnergyAsDBA(logTotalEnergyAvg));
+    //}
 
 
     UpdateEnergyStats(isStable,logTotalEnergyAvg,logTotalEnergy,samplecount);
