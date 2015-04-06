@@ -1530,12 +1530,20 @@ static int Cmd_generate_user_testing_files(int argc, char* argv[])
 }
 #endif
 
+#include "fault.h"
+static void checkFaults() {
+    faultInfo f;
+    memcpy( (void*)&f, SHUTDOWN_MEM, sizeof(f) );
+    if( f.magic == SHUTDOWN_MAGIC ) {
+        faultPrinter(&f);
+    }
+}
 
 void init_download_task( int stack );
 void init_i2c_recovery();
 
 void launch_tasks() {
-	//checkFaults();
+	checkFaults();
 
 	//dear future chris: this one doesn't need a semaphore since it's only written to while threads are going during factory test boot
 	booted = true;
@@ -1587,12 +1595,7 @@ int cmd_memfrag(int argc, char *argv[]) {
 }
 
 int Cmd_fault(int argc, char *argv[]) {
-	int i;
-	int buffer[9999]; //guaranteed overflow
-	for(i=0;i<sizeof(buffer);++i) {
-		buffer[i] = 0;
-	}
-	LOGE("%d", buffer[i]);
+	*(volatile int*)0xFFFFFFFF = 0xdead;
 	return 0;
 }
 
@@ -1699,14 +1702,6 @@ tCmdLineEntry g_sCmdTable[] = {
 #endif
 		{ 0, 0, 0 } };
 
-//#include "fault.h"
-//static void checkFaults() {
-//    faultInfo f;
-//    memcpy( (void*)&f, SHUTDOWN_MEM, sizeof(f) );
-//    if( f.magic == SHUTDOWN_MAGIC ) {
-//        faultPrinter(&f);
-//    }
-//}
 
 // ==============================================================================
 // This is the UARTTask.  It handles command lines received from the RX IRQ.

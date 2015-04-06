@@ -143,7 +143,7 @@ void faultPrinter( faultInfo* f ) {
     LOGE("xPSR = 0x%08X\n", f->exceptionFrame[7]);
 
     LOGE("TRACE:");
-    for( i=0; i < 64 || f->stack_trace[i] != TRACE_DONE; ++i ) {
+    for( i=0; i < 64 && f->stack_trace[i] != TRACE_DONE; ++i ) {
         LOGE( "0x%08X\n", f->stack_trace[i]);
     }
     LOGE("END\n");
@@ -200,7 +200,8 @@ FaultDecoder(unsigned long *pulExceptionFrame)
     faultPrinter(f);
     //todo save the UART log buffers to sd, send them to server on next boot...
     uart_logger_flush();
-    mcu_reset();
+
+    PRCMMCUReset(true);
 }
 
 //*****************************************************************************
