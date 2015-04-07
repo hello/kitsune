@@ -459,7 +459,7 @@ volatile bool has_default_key = false;
 
 void check_provision() {
 	char buf[64] = {0};
-	uint8_t current_key[AES_BLOCKSIZE + 1] = {0};
+	uint8_t current_key[AES_BLOCKSIZE + 1] = DEFAULT_KEY;
 	int read = 0;
 	provisioning_mode = false;
 
