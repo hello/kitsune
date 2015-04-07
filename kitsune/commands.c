@@ -474,6 +474,17 @@ void check_provision() {
 				LOGI("povisioning mode!\n");
 			}
 		}
+	} else {
+		//have key, see if we also have prosivioning file (i.e. pch is re-running units)
+		fs_get( PROVISION_FILE, buf, sizeof(buf), &read);
+		if (read == strlen(PROV_CODE)) {
+			if (0 == strncmp(buf, PROV_CODE, read)) {
+				sl_FsDel((unsigned char*)PROVISION_FILE, 0);
+				wifi_reset();
+				//green!
+				play_led_wheel( LED_MAX, 0, LED_MAX, 0, 3600, 33);
+			}
+		}
 	}
 }
 static char serial[64];
