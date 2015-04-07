@@ -838,8 +838,10 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 		}
 		break;
 	}
-
-	switch(command->type)
+	if(!booted) {
+		return true;
+	}
+    switch(command->type)
     {
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SET_WIFI_ENDPOINT:
         {
