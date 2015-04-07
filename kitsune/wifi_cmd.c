@@ -648,6 +648,14 @@ static uint8_t device_id[DEVICE_ID_SZ + 1];
 int save_aes( uint8_t * key ) {
 	return fs_save( AES_KEY_LOC, key, AES_BLOCKSIZE);
 }
+int save_aes_in_memory(const uint8_t * key ) {
+	memcpy( aes_key, key, AES_BLOCKSIZE);
+	return 0;
+}
+int get_aes(uint8_t * dst){
+	memcpy(dst, aes_key, AES_BLOCKSIZE);
+	return 0;
+}
 int save_device_id( uint8_t * new_device_id ) {
 	return fs_save( DEVICE_ID_LOC, new_device_id, DEVICE_ID_SZ);
 }
