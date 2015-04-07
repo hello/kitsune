@@ -272,8 +272,10 @@ int Cmd_spi_read(int argc, char *argv[]) {
 	LOGI( "\r\n" );
 #endif
 
-	if( len ) {
-		on_morpheus_protobuf_arrival(buf, len);
+	if( booted ) {
+		if( len ) {
+			on_morpheus_protobuf_arrival(buf, len);
+		}
 	}
 	return SUCCESS;
 
