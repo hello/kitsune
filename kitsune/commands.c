@@ -903,6 +903,7 @@ xQueueHandle data_queue = 0;
 xQueueHandle force_data_queue = 0;
 xQueueHandle pill_queue = 0;
 
+extern volatile bool top_got_device_id;
 int load_device_id();
 //no need for semaphore, only thread_tx uses this one
 int data_queue_batch_size = 1;
@@ -946,18 +947,29 @@ void thread_tx(void* unused) {
 			data_batched.has_uptime_in_second = true;
 			data_batched.uptime_in_second = xTaskGetTickCount() / configTICK_RATE_HZ;
 
-			if( has_default_key ) {
-				ProvisionRequest pr;
-				memset(&pr, 0, sizeof(pr));
-				pr.device_id.funcs.encode = encode_device_id_string;
-				pr.serial.funcs.encode = _encode_string_fields;
-				pr.serial.arg = serial;
-				pr.need_key = true;
-				while (!send_provision_request(&pr) == 0) {
-					LOGI("Waiting for network connection\n");
-					vTaskDelay((1 << tries) * 1000);
-					if (tries++ > 3) {
-						break;
+			if( provisioning_mode ) {
+				//wait for top to boot...
+				while( !top_got_device_id ) {
+					vTaskDelay(1000);
+				}
+				//try a testkey if we got a key from top
+				if( !has_default_key ) {
+					uint8_t current_key[AES_BLOCKSIZE] = {0};
+					get_aes(current_key);
+					on_key(current_key);
+				} else {
+					ProvisionRequest pr;
+					memset(&pr, 0, sizeof(pr));
+					pr.device_id.funcs.encode = encode_device_id_string;
+					pr.serial.funcs.encode = _encode_string_fields;
+					pr.serial.arg = serial;
+					pr.need_key = true;
+					while (!send_provision_request(&pr) == 0) {
+						LOGI("Waiting for network connection\n");
+						vTaskDelay((1 << tries) * 1000);
+						if (tries++ > 3) {
+							break;
+						}
 					}
 				}
 			}

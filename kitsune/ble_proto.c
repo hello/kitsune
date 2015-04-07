@@ -760,8 +760,9 @@ static void play_startup_sound() {
 
 #include "crypto.h"
 extern volatile bool booted;
-extern uint8_t aes_key[AES_BLOCKSIZE + 1];
+extern volatile bool provisioning_mode;
 extern volatile bool has_default_key;
+extern uint8_t aes_key[AES_BLOCKSIZE + 1];
 int save_device_id( uint8_t * device_id );
 
 bool on_ble_protobuf_command(MorpheusCommand* command)
@@ -783,7 +784,6 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 						top_device_id[0],top_device_id[1],top_device_id[2],
 						top_device_id[3],top_device_id[4],top_device_id[5],
 						top_device_id[6],top_device_id[7]);
-				top_got_device_id = true;
 			    save_device_id(top_device_id);
 				_ble_reply_command_with_type(MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID);
 				top_board_notify_boot_complete();
@@ -791,7 +791,10 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 				if(command->has_aes_key && has_default_key){
 					uint8_t testkey[AES_BLOCKSIZE] = {0};
 #if 1
-					save_aes_in_memory(command->aes_key.bytes);
+					if( provisioning_mode ) {
+						save_aes_in_memory(command->aes_key.bytes);
+						has_default_key = false;
+					}
 #endif
 					get_aes(testkey);
 					LOGI("\r\nUsing Key: %02X%02X ... %02X%02X\r\n",
@@ -800,6 +803,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 							testkey[14],
 							testkey[15]);
 				}
+				top_got_device_id = true;
 				vTaskDelay(200);
 			}else{
 				LOGI("device id fail from top\n");

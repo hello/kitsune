@@ -103,6 +103,7 @@ int send_provision_request(ProvisionRequest* req);
 void thread_ota( void * unused );
 int save_aes_in_memory(const uint8_t * key );
 int get_aes(uint8_t * dst);
+void on_key(uint8_t * key);
 
 int send_data_pb_callback(const char* host, const char* path,char * recv_buf, uint32_t recv_buf_size, void * encodedata,network_encode_callback_t encoder,uint16_t num_receive_retries);
 

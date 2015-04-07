@@ -1617,28 +1617,28 @@ static void _key_check_reply(const NetworkResponse_t * response, uint8_t * reply
 		LOGF("signature validation fail\r\n");
 		save_aes(DEFAULT_KEY);
 		load_aes();
-		if (provisioning_mode) {
+		//light up if we're in provisioning mode but not if we're testing the key from top
+		//this handles the overlap case where we want to get keys from top but the server doesn't yet have the blobs
+		//allowing us to fall back to the key handshake with the server
+		if (provisioning_mode && !has_default_key) {
 			//red!
 			play_led_wheel( LED_MAX, LED_MAX, 0, 0, 3600, 33);
 		}
+		has_default_key = true; //allow for retries (fallback to request/response)
+
     }
     ble_proto_free_command(&reply);
 }
 
-static void _on_key(uint8_t * key) {
-	if( has_default_key ) {
-		save_aes(key);
-		load_aes();
+void on_key(uint8_t * key) {
+	save_aes(key);
+	load_aes();
 
-	    MorpheusCommand test_command = {0};
-	    test_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_SENSE;
-	    test_command.version = PROTOBUF_VERSION;
+	MorpheusCommand test_command = {0};
+	test_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_SENSE;
+	test_command.version = PROTOBUF_VERSION;
 
-	    NetworkTask_AsynchronousSendProtobuf(DATA_SERVER,CHECK_KEY_ENDPOINT, MorpheusCommand_fields, &test_command, 0, _key_check_reply, NULL );
-	} else if(provisioning_mode)  {
-		//just in case we get something we don't expect....
-		play_led_wheel( LED_MAX, LED_MAX, LED_MAX, LED_MAX, 3600, 33);
-	}
+	NetworkTask_AsynchronousSendProtobuf(DATA_SERVER,CHECK_KEY_ENDPOINT, MorpheusCommand_fields, &test_command, 0, _key_check_reply, NULL );
 }
 
 static void _set_led_color_based_on_room_conditions(const SyncResponse* response_protobuf)
@@ -1769,7 +1769,7 @@ void provision_request_reply(const NetworkResponse_t * response, uint8_t * reply
 				response_protobuf.has_retry );
 
         if( response_protobuf.has_key ) {
-        	_on_key(response_protobuf.key.bytes);
+        	on_key(response_protobuf.key.bytes);
         } else if( response_protobuf.has_retry && response_protobuf.retry ) {
         	has_default_key = true;
         }
