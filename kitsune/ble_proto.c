@@ -785,6 +785,13 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 				_ble_reply_command_with_type(MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID);
 				top_board_notify_boot_complete();
 				set_ble_mode(BLE_NORMAL);
+				if(command->has_aes_key){
+					LOGI("\r\nReceived Key: %02X%02X ... %02X%02X\r\n",
+							command->aes_key.bytes[0],
+							command->aes_key.bytes[1],
+							command->aes_key.bytes[14],
+							command->aes_key.bytes[15]);
+				}
 				vTaskDelay(200);
 			}else{
 				LOGI("device id fail from top\n");
