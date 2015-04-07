@@ -125,7 +125,8 @@ void PinMuxConfig_hw_dep() {
 		MAP_CameraXClkConfig(CAMERA_BASE, 120000000ul,12000000ul);
 
 		// Configure PIN_02 for CAMERA0 CAM_pXCLK
-		MAP_PinTypeCamera(PIN_02, PIN_MODE_4);
+	    PinModeSet(PIN_02,PIN_MODE_4);
+	    PinConfigSet(PIN_02,PIN_STRENGTH_6MA|PIN_STRENGTH_2MA|PIN_STRENGTH_4MA,PIN_TYPE_STD);
 
 		//i2c on pin 4
 		MAP_PinTypeI2C(PIN_04, PIN_MODE_5);
