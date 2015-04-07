@@ -1193,6 +1193,28 @@ void sample_sensor_data(periodic_data* data)
 	gesture_counter_reset();
 }
 
+int force_data_push()
+{
+    if(!wait_for_time(10))
+    {
+    	LOGE("Cannot get time\n");
+		return -1;
+    }
+
+    periodic_data* data = pvPortMalloc(sizeof(periodic_data));  // Let's put this in the heap, we don't use it all the time
+	if(!data)
+	{
+		LOGE("No memory\n");
+		return -2;
+	}
+    memset(data, 0, sizeof(periodic_data));
+    sample_sensor_data(data);
+    xQueueSend(force_data_queue, (void* )data, 0); //queues copy so this is safe to free
+    vPortFree(data);
+
+    return 0;
+}
+
 void thread_sensor_poll(void* unused) {
 
 	//
@@ -1605,9 +1627,8 @@ int Cmd_boot(int argc, char *argv[]) {
 	return 0;
 }
 
-int _force_data_push();
 int Cmd_sync(int argc, char *argv[]) {
-	_force_data_push();
+	force_data_push();
 	return 0;
 }
 

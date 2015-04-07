@@ -533,33 +533,6 @@ static void _process_pill_heartbeat( MorpheusCommand* command)
 	
 }
 
-void sample_sensor_data(periodic_data* data);
-extern xQueueHandle force_data_queue;
-int _force_data_push()
-{
-    if(!wait_for_time(10))
-    {
-    	//ble_reply_protobuf_error(ErrorType_NETWORK_ERROR);
-    	LOGE("Cannot get time\n");
-		return -1;
-    }
-
-    periodic_data* data = pvPortMalloc(sizeof(periodic_data));  // Let's put this in the heap, we don't use it all the time
-	if(!data)
-	{
-		//ble_reply_protobuf_error(ErrorType_DEVICE_NO_MEMORY);
-		LOGE("No memory\n");
-		return -2;
-	}
-    memset(data, 0, sizeof(periodic_data));
-    sample_sensor_data(data);
-    xQueueSend(force_data_queue, (void* )data, 0); //queues copy so this is safe to free
-    vPortFree(data);
-
-    return 0;
-}
-
-void save_account_id( char * acct );
 
 static void _morpheus_command_reply(const NetworkResponse_t * response, uint8_t * reply_buf, int reply_sz, void * context) {
 	MorpheusCommand reply;
@@ -582,6 +555,8 @@ static void _morpheus_command_reply(const NetworkResponse_t * response, uint8_t 
     ble_proto_free_command(&reply);
 }
 
+void save_account_id( char * acct );
+int force_data_push();
 static int _pair_device( MorpheusCommand* command, int is_morpheus)
 {
 	if(NULL == command->accountId.arg || NULL == command->deviceId.arg){
@@ -622,7 +597,7 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 
 		if(!is_morpheus) {
 			vTaskDelay(1000);
-			_force_data_push();
+			force_data_push();
 		}
 		if(ret == 0)
 		{
@@ -1012,7 +987,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PUSH_DATA_AFTER_SET_TIMEZONE:
         {
             LOGI("Push data\n");
-            if(_force_data_push() != 0)
+            if(force_data_push() != 0)
             {
                 ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
             }else{

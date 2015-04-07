@@ -1595,6 +1595,7 @@ static void _on_factory_reset_received()
 }
 #include "led_animations.h"
 
+int force_data_push();
 extern volatile bool provisioning_mode;
 extern volatile bool has_default_key;
 
@@ -1625,7 +1626,7 @@ static void _key_check_reply(const NetworkResponse_t * response, uint8_t * reply
 			play_led_wheel( LED_MAX, LED_MAX, 0, 0, 3600, 33);
 		}
 		has_default_key = true; //allow for retries (fallback to request/response)
-
+		force_data_push(); //and make sure the retry happens right away
     }
     ble_proto_free_command(&reply);
 }
