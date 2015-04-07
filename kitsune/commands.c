@@ -92,9 +92,6 @@
 
 #include "pill_settings.h"
 
-#include "ProvisionRequest.pb.h"
-#include "ProvisionResponse.pb.h"
-
 #define ONLY_MID 0
 
 //******************************************************************************
@@ -470,10 +467,22 @@ void check_provision() {
 	if (read == 0 || 0 == memcmp(current_key, DEFAULT_KEY, AES_BLOCKSIZE)) {
 		has_default_key = true;
 		LOGI("default key mode!\n");
-		if (fs_get( PROVISION_FILE, buf, sizeof(buf), &read)) {
+		fs_get( PROVISION_FILE, buf, sizeof(buf), &read);
+		if (read == strlen(PROV_CODE)) {
 			if (0 == strncmp(buf, PROV_CODE, read)) {
 				provisioning_mode = true;
 				LOGI("povisioning mode!\n");
+			}
+		}
+	} else {
+		//have key, see if we also have prosivioning file (i.e. pch is re-running units)
+		fs_get( PROVISION_FILE, buf, sizeof(buf), &read);
+		if (read == strlen(PROV_CODE)) {
+			if (0 == strncmp(buf, PROV_CODE, read)) {
+				sl_FsDel((unsigned char*)PROVISION_FILE, 0);
+				wifi_reset();
+				//green!
+				play_led_wheel( LED_MAX, 0, LED_MAX, 0, 3600, 33);
 			}
 		}
 	}
@@ -938,12 +947,19 @@ void thread_tx(void* unused) {
 			data_batched.uptime_in_second = xTaskGetTickCount() / configTICK_RATE_HZ;
 
 			if( has_default_key ) {
-				ProvisonRequest pr;
+				ProvisionRequest pr;
 				memset(&pr, 0, sizeof(pr));
+				pr.device_id.funcs.encode = encode_device_id_string;
 				pr.serial.funcs.encode = _encode_string_fields;
 				pr.serial.arg = serial;
 				pr.need_key = true;
-				send_provision_request(&pr);
+				while (!send_provision_request(&pr) == 0) {
+					LOGI("Waiting for network connection\n");
+					vTaskDelay((1 << tries) * 1000);
+					if (tries++ > 3) {
+						break;
+					}
+				}
 			}
 
 			while (!send_periodic_data(&data_batched) == 0) {
