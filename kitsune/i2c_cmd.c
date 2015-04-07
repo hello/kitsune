@@ -454,32 +454,76 @@ int get_codec_mic_NAU(int argc, char *argv[]) {
 
 	static const char reg[50][2] = {
 			{0x00,0x00},
-			{0x03,0x2d},
+			//cmd_init[0] = 0x00 ; cmd_init[1] = 0x00 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // Software reset
+			{0x03,0x3b},
+			// Addr D8 		D7 D6    D5    D4        D3      D2     D1,D0
+			// 0x01 DCBUFEN 0  AUXEN PLLEN MICBIASEN ABIASEN IOBUFEN REFIMP[1:0]
+			// set  1       0  0     1     1         1       0      1  1
 			{0x04,0x15},
-			{0x06,0xf9},
-			{0x08,0x90}, //
-			{0x0a,0x01},
+			// Addr D8  D7 D6    D5    D4      D3   D2     D1 D0
+			// 0x02 0   0  0     0     BSTEN   0    PGAEN  0  ADCEN
+			// set  0   0  0     0     1       0    1      0  1
+			{0x06,0x00},
+			// Addr D8 D7     D6     D5     D4      D3       D2      D1 D0
+			// 0x03 0  MOUTEN NSPKEN PSPKEN BIASGEN MOUTMXEN SPKMXEN 0  DACEN
+			// set  0  0      0      0      0       0        0       0  0
+			{0x08,0x90},
+			// Addr D8    D7   D6    D5    D4 D3         D2      D1      D0  Default
+			// 0x04 BCLKP FSP  WLEN[1:0]   AIFMT[1:0]    DACPHS  ADCPHS  0   0x050
+			// set  0     1    0     0     1  0          0       0       0
+			{0x0a,0x00},
+			// Addr D8    D7   D6    D5    D4 D3         D2   D1      D0     Default
+			// 0x05 0     0    0     CMB8  DACCM[1:0]    ADCCM[1:0]   ADDA
+			// set  0     0    0     1     1  0           0    0      0
 			{0x0d,0x48},
+			//Addr D8   D7 D6 D5     D4 D3 D2     D1 D0
+			//0x06 CLKM MCLKSEL[2:0] BCLKSEL[2:0] 0  CLKIOEN
+			//set  1    0  1  0       0  1 0      0  0
 			{0x0e,0x06},
+			// Addr D8    D7 D6 D5 D4 D3 D2 D1   D0
+			// 0x07 SPIEN 0  0  0  0  SMPLR[2:0] SCLKEN
+			// set  0     0  0  0  0  0  1  1    0
 			{0x10,0x00},
+			// Addr D8    D7 D6 D5 D4 			D3     D2 D1  D0
+			//0x08  0     0  0  GPIOPLL[4:5]    GPIOPL GPIOSEL[2:0]
+			//      0     0  0  0  0            0      1  0   0
+			// General Purpose I/O Selection
+			// GPIOSEL [2]  GPIOSEL [1]  GPIOSEL [0]   Mode (Hz)
+			//	 0             0             0         CSb Input
+			//   0     		   0   			 1         Jack Insert Detect
+			//   0   		   1   			 0  	   Temperature OK
+			//   0			   1		     1		   AMUTE Active
+			//   1  		   0  			 0	       PLL CLK Output
+			//   1			   0			 1         PLL Lock
+			//   1             1             0         1
+			//   1             1             1         0
 			{0x12,0x00},
 			{0x14,0x08},
+			// Addr D8 D7  D6                  D5,D4      D3     D2      D1 D0
+			// 0x0A 0  0   DACMT/0: Disable    DEEMP[1:0] DACOS  AUTOMT  0  DACPL
+			// set  0  0   0                   0  0       1      0       0  0
 			{0x17,0xff},
 			//{0x18,0x00},
 			//{0x1a,0x00},
 			{0x1d,0x88},
+			//Addr D8    D7    D6 D5 D4 D3    D2 D1 D0      Default
+			//0x0E HPFEN HPFAM HPF[2:0] ADCOS 0  0  ADCPL   0x100
+			//     1     1     0  0  0  1     0  0  0
 			{0x1e,0xff},
-			{0x25,0x2c},
-			{0x26,0x2c},
-			{0x28,0x2c},
-			{0x2a,0x2c},
-			{0x2c,0x2c},
+			{0x25,0x2c}, // EQualizer (EQM = 0 ADC path/ 1 DAC path)
+			// Address D8  D7 D6   D5     D4 D3 D2 D1 D0
+			// 0x12    EQM 0  EQ1CF[1:0]  EQ1GC[4:0]
+			// set     1   0  1    1      0  0  0  0  1
+			{0x26,0x2c}, // EQ2
+			{0x28,0x2c}, // EQ3
+			{0x2a,0x2c}, // EQ4
+			{0x2c,0x2c}, // EQ5
 			{0x30,0x32},
 			{0x32,0x00},
 			{0x37,0x40},//{0x37,0xc0} Notch filter is on; {0x37,0x40} Notch filter is off
 			{0x39,0xeb}, //Notch @ 1kHz
-			{0x3b,0xbf},
-			{0x3d,0x85},
+			{0x3b,0xbf}, // Notch 3
+			{0x3d,0x85}, // Notch 4
 			{0x40,0x38},
 			{0x42,0x0b},
 			{0x44,0x32},
@@ -489,22 +533,43 @@ int get_codec_mic_NAU(int argc, char *argv[]) {
 			{0x4c,0x93},
 			{0x4e,0xe9},
 			{0x50,0x00},
-			{0x58,0x02}, //{0x58,0x02}
-			{0x5a,0x00}, //{0x5a,0x08}
+			{0x58,0x03}, //{0x58,0x02}
+			// Addr       D8    D7 D6  D5 D4   D3     D2       D1       D0      Default
+			// 0x2C       MICBIASV 0   0  0    AUXM   AUXPGA   NMICPGA  PMICPGA
+			// set        0     0  0   0  0    0      0        1        1
+			{0x5a,0x08}, //{0x5a,0x08}
 			{0x5c,0x00},
-			{0x5e,0x50},
+			{0x5e,0x00},
 			{0x60,0x00},
 			{0x62,0x02},
 			{0x64,0x00},
+			// Address D8    D7  D6   D5     D4 D3 D2 D1       D0
+			// 0x32    0     0   0    AUXSPK 0  0  0  BYPSPK   DACSPK
+			// set     0     0   0    0      0  0  0  0        0
 			{0x66,0x00},
 			{0x68,0x40},
 			{0x6a,0x40},
-			{0x6c,0xb9},
+			{0x6c,0x79},
+			// Address D8    D7      D6       D5 D4 D3 D2 D1 D0
+			// 0x36    0     SPKZC   SPKMT    SPKGAIN[5:0]
+			// set     0     0       1        1  1  1  1  1  1
+			// 								  1  1  1  0  0  1  0dB
+			// 								  1  1  1  0  1  0 +1.0
+			// 								  1  1  1  1  1  1 +6.0
 			{0x6e,0x40},
 			{0x70,0x40},
+			// Address D8    D7      D6       D5 D4 D3 D2      D1      D0
+			// 0x38    0     0       MOUTMXMT 0  0  0  AUXMOUT BYPMOUT DACMOUT
+			// set     0     0       1        0  0  0  0       0       0
 			{0x72,0x40},
-			{0x74,0x00},
-			{0x78,0x88}, // Changed from 0x88 to 0x8c
+			{0x74,0x10},
+			//Addr  D8      D7    D6     D5    D4        D3   D2     D1 D0
+			// 0x3A LPIPBST LPADC LPSPKD LPDAC MICBIASM TRIMREG[3:2] IBADJ[1:0]
+			// set  0       0     0      0     1         0    0      0  0
+			{0x78,0xa8},
+			//Addr  D8      D7    D6     D5    D4        D3   D2     D1     D0
+			// 0x3C PCMTSEN TRI PCM8BIT PUDOEN PUDPE    PUDPS LOUTR  PCMB TSLOT
+			// set  0       1     0      1     0         1    0      0      0
 	};
 	for( i=0;i<50;++i) {
 		cmd_init[0] = reg[i][0];
@@ -512,65 +577,6 @@ int get_codec_mic_NAU(int argc, char *argv[]) {
 		I2C_IF_Write(Codec_addr, cmd_init, 2, 1);
 		vTaskDelay(DELAY_CODEC);
 	}
-#if 0
-cmd_init[0] = 0x00 ; cmd_init[1] = 0x00 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // Software reset
-cmd_init[0] = 0x03 ; cmd_init[1] = 0x2d ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // PWR 1 // 7d
-cmd_init[0] = 0x04 ; cmd_init[1] = 0x15 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // PWR 2
-cmd_init[0] = 0x06 ; cmd_init[1] = 0xf9 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // PWR 3
-cmd_init[0] = 0x09 ; cmd_init[1] = 0x18 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // Audio interface
-cmd_init[0] = 0x0a ; cmd_init[1] = 0x01 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // Companding
-cmd_init[0] = 0x0d ; cmd_init[1] = 0x48 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // CLK control 1
-cmd_init[0] = 0x0e ; cmd_init[1] = 0x06 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // CLK control 2
-// CHANGE from 48k Sampling rate to 16k sampling rate
-
-cmd_init[0] = 0x10 ; cmd_init[1] = 0x00 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // GPIO contrl
-//cmd_init[0] = 0x12 ; cmd_init[1] = 0x00 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC);
-cmd_init[0] = 0x14 ; cmd_init[1] = 0x08 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // DAC control
-cmd_init[0] = 0x17 ; cmd_init[1] = 0xff ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // DAC volume
-//cmd_init[0] = 0x18 ; cmd_init[1] = 0x00 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); //
-//cmd_init[0] = 0x1a ; cmd_init[1] = 0x00 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); //
-cmd_init[0] = 0x1d ; cmd_init[1] = 0x88 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // ADC control
-// CHANGE from 408 kHz HP cutoff to 82 kHz HP cutoff
-
-cmd_init[0] = 0x1e ; cmd_init[1] = 0xff ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // ADC Volume
-cmd_init[0] = 0x25 ; cmd_init[1] = 0x2c ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // EQ1-Low cutoff (0x24 ADC path; 0x25 DAC path)
-cmd_init[0] = 0x26 ; cmd_init[1] = 0x2c ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // EQ2- Peak1
-cmd_init[0] = 0x28 ; cmd_init[1] = 0x2c ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // EQ3- Peak2
-cmd_init[0] = 0x2a ; cmd_init[1] = 0x2c ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // EQ4- Peak3
-cmd_init[0] = 0x2c ; cmd_init[1] = 0x2c ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // EQ5- High cutoff
-cmd_init[0] = 0x30 ; cmd_init[1] = 0x32 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // DAC Limiter 1
-cmd_init[0] = 0x32 ; cmd_init[1] = 0x00 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // DAC Limiter 2
-cmd_init[0] = 0x37 ; cmd_init[1] = 0xc0 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // Notch filter 1B (0x36)
-cmd_init[0] = 0x39 ; cmd_init[1] = 0xeb ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // Notch filter 1C (0x38)
-cmd_init[0] = 0x3b ; cmd_init[1] = 0xbf ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // Notch filter 1D (0x3a)
-cmd_init[0] = 0x3d ; cmd_init[1] = 0x85 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // Notch filter 1E (0x3c)
-cmd_init[0] = 0x40 ; cmd_init[1] = 0x38 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // ALC CTRL 1
-cmd_init[0] = 0x42 ; cmd_init[1] = 0x0b ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // ALC CTRL 2
-cmd_init[0] = 0x44 ; cmd_init[1] = 0x32 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // ALC CTRL 3
-cmd_init[0] = 0x46 ; cmd_init[1] = 0x00 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // Noise Gate
-cmd_init[0] = 0x48 ; cmd_init[1] = 0x08 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // PLL N CTRL
-cmd_init[0] = 0x4a ; cmd_init[1] = 0x0c ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // PLL K 1
-cmd_init[0] = 0x4c ; cmd_init[1] = 0x93 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // PLL K 2
-cmd_init[0] = 0x4e ; cmd_init[1] = 0xe9 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // PLL K 3
-cmd_init[0] = 0x50 ; cmd_init[1] = 0x00 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // Attenuation CTRL
-cmd_init[0] = 0x58 ; cmd_init[1] = 0x02 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // Input CTRL MICBIASV
-cmd_init[0] = 0x5a ; cmd_init[1] = 0x08 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // PGA Gain //0x10 ->0dB
-//cmd_init[0] = 0x5c ; cmd_init[1] = 0x00 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC);
-cmd_init[0] = 0x5e ; cmd_init[1] = 0x50 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // ADC Boost
-//cmd_init[0] = 0x60 ; cmd_init[1] = 0x00 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC);
-cmd_init[0] = 0x62 ; cmd_init[1] = 0x02 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // Output CTRL
-cmd_init[0] = 0x64 ; cmd_init[1] = 0x00 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // MixerCTRL
-//cmd_init[0] = 0x66 ; cmd_init[1] = 0x00 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC);
-cmd_init[0] = 0x68 ; cmd_init[1] = 0x40 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC);
-cmd_init[0] = 0x6a ; cmd_init[1] = 0x40 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC);
-cmd_init[0] = 0x6c ; cmd_init[1] = 0xb9 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // SPKOUT Volume
-cmd_init[0] = 0x6e ; cmd_init[1] = 0x40 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC);
-cmd_init[0] = 0x70 ; cmd_init[1] = 0x40 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // MONO Mixer Control
-cmd_init[0] = 0x72 ; cmd_init[1] = 0x40 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC);
-cmd_init[0] = 0x74 ; cmd_init[1] = 0x10 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // Power Management 4
-cmd_init[0] = 0x78 ; cmd_init[1] = 0x88 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC);// 8C : high Z // ADCOUTDrive
-	//LOGI(" Mic codec is testing \n\r");
-#endif
 	return SUCCESS;
 }
 
