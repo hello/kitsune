@@ -777,7 +777,7 @@ int Cmd_test_key(int argc, char*argv[]) {
     test_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_SENSE;
     test_command.version = PROTOBUF_VERSION;
 
-    ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER,CHECK_KEY_ENDPOINT, MorpheusCommand_fields, &test_command, 0, _morpheus_command_reply, NULL );
+    ret = NetworkTask_AsynchronousSendProtobuf(DATA_SERVER,CHECK_KEY_ENDPOINT, MorpheusCommand_fields, &test_command, 0, _morpheus_command_reply, NULL );
     if(ret != 0)
     {
         // network error
@@ -1590,28 +1590,43 @@ static void _on_factory_reset_received()
 extern volatile bool provisioning_mode;
 extern volatile bool has_default_key;
 
+static void _key_check_reply(const NetworkResponse_t * response, uint8_t * reply_buf, int reply_sz, void * context) {
+	MorpheusCommand reply;
+	memset(&reply, 0, sizeof(reply));
+	ble_proto_assign_decode_funcs(&reply);
+	if (validate_signatures((char*) reply_buf, MorpheusCommand_fields, &reply) == 0) {
+		LOGF("signature validated\r\n");
+		if (provisioning_mode) {
+			sl_FsDel((unsigned char*)PROVISION_FILE, 0);
+			wifi_reset();
+			//green!
+			play_led_wheel( LED_MAX, 0, LED_MAX, 0, 3600, 33);
+		}
+
+		provisioning_mode = false;
+		has_default_key = false;
+	} else {
+		LOGF("signature validation fail\r\n");
+		save_aes(DEFAULT_KEY);
+		load_aes();
+		if (provisioning_mode) {
+			//red!
+			play_led_wheel( LED_MAX, LED_MAX, 0, 0, 3600, 33);
+		}
+    }
+    ble_proto_free_command(&reply);
+}
+
 static void _on_key(uint8_t * key) {
 	if( has_default_key ) {
 		save_aes(key);
 		load_aes();
-		if (0 == Cmd_test_key(0, NULL)) {
-			if (provisioning_mode) {
-				sl_FsDel((unsigned char*)PROVISION_FILE, 0);
-				wifi_reset();
-				//green!
-				play_led_wheel( LED_MAX, 0, LED_MAX, 0, 3600, 33);
-			}
 
-			provisioning_mode = false;
-			has_default_key = false;
-		} else {
-			save_aes(DEFAULT_KEY);
-			load_aes();
-			if(provisioning_mode) {
-				//red!
-				play_led_wheel( LED_MAX, LED_MAX, 0, 0, 3600, 33);
-			}
-		}
+	    MorpheusCommand test_command = {0};
+	    test_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_SENSE;
+	    test_command.version = PROTOBUF_VERSION;
+
+	    NetworkTask_AsynchronousSendProtobuf(DATA_SERVER,CHECK_KEY_ENDPOINT, MorpheusCommand_fields, &test_command, 0, _key_check_reply, NULL );
 	} else if(provisioning_mode)  {
 		//just in case we get something we don't expect....
 		play_led_wheel( LED_MAX, LED_MAX, LED_MAX, LED_MAX, 3600, 33);
