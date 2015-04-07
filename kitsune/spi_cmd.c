@@ -258,6 +258,8 @@ int Cmd_spi_write(int argc, char *argv[]) {
 	return SUCCESS;
 }
 
+extern volatile bool booted;
+
 int Cmd_spi_read(int argc, char *argv[]) {
 	int len;
 	unsigned char buf[256];
