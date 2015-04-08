@@ -454,8 +454,8 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int64_t samplecount) {
 
     EChangeModes_t currentMode;
     uint8_t isStable;
-    //static uint8_t c = 0;
 
+    //static uint8_t c = 0;
     
     /* Copy in raw samples, zero out complex part of fft input*/
     memcpy(fr,samples,AUDIO_FFT_SIZE*sizeof(int16_t));

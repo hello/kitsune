@@ -305,7 +305,7 @@ void logpsdmel(int16_t * logTotalEnergy,int16_t psd[],const int16_t fr[],const i
     uint64_t accumulator64 = 0;
     int32_t temp32;
     static const uint8_t spacings[31] = {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
-                                         2,3,3,4,4,5,5,6,7,8,10,11,13,14,17};
+                                         2,3,3,4,4,5,5,6,7,8,10,11,13,14,15};
     
     static const int16_t binaveragingcoeff[18] = {0,0,-1024,-1623,-2048,-2378,-2647,
                                                 -2875,-3072,-3246,-3402,-3542,-3671,
@@ -319,7 +319,7 @@ void logpsdmel(int16_t * logTotalEnergy,int16_t psd[],const int16_t fr[],const i
     accumulator64 = 0;
     
 
-    ifft = 0;
+    ifft = 2;
     psd[0] = 0;
     for (idx = 1; idx < 32; idx++) {
        // assert(idx-1 <= 31);
