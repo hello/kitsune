@@ -471,7 +471,7 @@ void check_provision() {
 		if (read == strlen(PROV_CODE)) {
 			if (0 == strncmp(buf, PROV_CODE, read)) {
 				provisioning_mode = true;
-				LOGI("povisioning mode!\n");
+				LOGI("provisioning mode!\n");
 			}
 		}
 	} else {
