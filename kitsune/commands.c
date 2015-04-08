@@ -458,36 +458,18 @@ int Cmd_fs_delete(int argc, char *argv[]) {
 #include "fs_utils.h"
 #define PROV_CODE "provision"
 volatile bool provisioning_mode = false;
-volatile bool has_default_key = false;
 #include "crypto.h"
 
 void check_provision() {
 	char buf[64] = {0};
-	uint8_t current_key[AES_BLOCKSIZE + 1] = DEFAULT_KEY;
 	int read = 0;
 	provisioning_mode = false;
 
-	fs_get( AES_KEY_LOC, current_key, AES_BLOCKSIZE, &read);
-	if (read == 0 || 0 == memcmp(current_key, DEFAULT_KEY, AES_BLOCKSIZE)) {
-		has_default_key = true;
-		LOGI("default key mode!\n");
-		fs_get( PROVISION_FILE, buf, sizeof(buf), &read);
-		if (read == strlen(PROV_CODE)) {
-			if (0 == strncmp(buf, PROV_CODE, read)) {
-				provisioning_mode = true;
-				LOGI("provisioning mode!\n");
-			}
-		}
-	} else {
-		//have key, see if we also have prosivioning file (i.e. pch is re-running units)
-		fs_get( PROVISION_FILE, buf, sizeof(buf), &read);
-		if (read == strlen(PROV_CODE)) {
-			if (0 == strncmp(buf, PROV_CODE, read)) {
-				sl_FsDel((unsigned char*)PROVISION_FILE, 0);
-				wifi_reset();
-				//green!
-				play_led_wheel( LED_MAX, 0, LED_MAX, 0, 3600, 33);
-			}
+	fs_get( PROVISION_FILE, buf, sizeof(buf), &read);
+	if (read == strlen(PROV_CODE)) {
+		if (0 == strncmp(buf, PROV_CODE, read)) {
+			provisioning_mode = true;
+			LOGI("provisioning mode!\n");
 		}
 	}
 }
@@ -914,11 +896,6 @@ int data_queue_batch_size = 1;
 void thread_tx(void* unused) {
 	batched_pill_data pill_data_batched = {0};
 	batched_periodic_data data_batched = {0};
-	load_serial();
-	load_aes();
-	load_device_id();
-	load_account_id();
-	pill_settings_init();
 	periodic_data forced_data;
 	bool got_forced_data = false;
 	int tries = 0;
@@ -956,8 +933,8 @@ void thread_tx(void* unused) {
 				while( !top_got_device_id ) {
 					vTaskDelay(1000);
 				}
-				//try a testkey if we got a key from top
-				if( !has_default_key ) {
+				//try a test key with whatever we have so long as it is not the default
+				if( !has_default_key() ) {
 					uint8_t current_key[AES_BLOCKSIZE] = {0};
 					get_aes(current_key);
 					on_key(current_key);
@@ -1882,6 +1859,11 @@ void vUARTTask(void *pvParameters) {
 	networktask_init(4 * 1024 / 4);
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 4, NULL);
 
+	load_serial();
+	load_aes();
+	load_device_id();
+	load_account_id();
+	pill_settings_init();
 	check_provision();
 
 	init_dust();

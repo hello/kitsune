@@ -652,6 +652,10 @@ int save_aes_in_memory(const uint8_t * key ) {
 	memcpy( aes_key, key, AES_BLOCKSIZE);
 	return 0;
 }
+bool has_default_key() {
+	return 0 == memcmp(aes_key, DEFAULT_KEY, AES_BLOCKSIZE);
+}
+
 int get_aes(uint8_t * dst){
 	memcpy(dst, aes_key, AES_BLOCKSIZE);
 	return 0;
@@ -1597,7 +1601,6 @@ static void _on_factory_reset_received()
 
 int force_data_push();
 extern volatile bool provisioning_mode;
-extern volatile bool has_default_key;
 
 static void _key_check_reply(const NetworkResponse_t * response, uint8_t * reply_buf, int reply_sz, void * context) {
 	MorpheusCommand reply;
@@ -1613,11 +1616,9 @@ static void _key_check_reply(const NetworkResponse_t * response, uint8_t * reply
 		}
 
 		provisioning_mode = false;
-		has_default_key = false;
 	} else {
 		LOGF("signature validation fail\r\n");
-		save_aes(DEFAULT_KEY);
-		load_aes();
+		save_aes_in_memory(DEFAULT_KEY);
 		//light up if we're in provisioning mode but not if we're testing the key from top
 		//this handles the overlap case where we want to get keys from top but the server doesn't yet have the blobs
 		//allowing us to fall back to the key handshake with the server
@@ -1625,7 +1626,6 @@ static void _key_check_reply(const NetworkResponse_t * response, uint8_t * reply
 			//red!
 			play_led_wheel( LED_MAX, LED_MAX, 0, 0, 3600, 33);
 		}
-		has_default_key = true; //allow for retries (fallback to request/response)
 		force_data_push(); //and make sure the retry happens right away
     }
     ble_proto_free_command(&reply);
@@ -1772,7 +1772,8 @@ void provision_request_reply(const NetworkResponse_t * response, uint8_t * reply
         if( response_protobuf.has_key ) {
         	on_key(response_protobuf.key.bytes);
         } else if( response_protobuf.has_retry && response_protobuf.retry ) {
-        	has_default_key = true;
+        	//reset to known state
+        	save_aes_in_memory(DEFAULT_KEY);
         }
 		wifi_status_set(UPLOADING, false);
     } else {

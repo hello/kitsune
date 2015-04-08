@@ -736,7 +736,6 @@ static void play_startup_sound() {
 #include "crypto.h"
 extern volatile bool booted;
 extern volatile bool provisioning_mode;
-extern volatile bool has_default_key;
 extern uint8_t aes_key[AES_BLOCKSIZE + 1];
 int save_device_id( uint8_t * device_id );
 
@@ -763,12 +762,11 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 				_ble_reply_command_with_type(MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID);
 				top_board_notify_boot_complete();
 				set_ble_mode(BLE_NORMAL);
-				if(command->has_aes_key && has_default_key){
+				if(command->has_aes_key && has_default_key()){
 					uint8_t testkey[AES_BLOCKSIZE] = {0};
 #if 1
 					if( provisioning_mode ) {
 						save_aes_in_memory(command->aes_key.bytes);
-						has_default_key = false;
 					}
 #endif
 					get_aes(testkey);

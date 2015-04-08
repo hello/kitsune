@@ -57,7 +57,7 @@ void networktask_init(uint16_t stack_size);
 
 /*
  * WARNING changing the host name here will only affect the Host
- * field in the HTTP headers, the socket it will transmit on will
+ * field in the HTTP headers, the socket it will talk on will
  * always connect to DATA_SERVER
  */
 int NetworkTask_SynchronousSendProtobuf(const char * host,
