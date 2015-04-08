@@ -1621,7 +1621,7 @@ static void _key_check_reply(const NetworkResponse_t * response, uint8_t * reply
 		//light up if we're in provisioning mode but not if we're testing the key from top
 		//this handles the overlap case where we want to get keys from top but the server doesn't yet have the blobs
 		//allowing us to fall back to the key handshake with the server
-		if (provisioning_mode && !has_default_key) {
+		if (provisioning_mode && has_default_key) {
 			//red!
 			play_led_wheel( LED_MAX, LED_MAX, 0, 0, 3600, 33);
 		}
