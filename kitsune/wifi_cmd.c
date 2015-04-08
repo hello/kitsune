@@ -762,21 +762,15 @@ bool validate_signatures( char * buffer, const pb_field_t fields[], void * struc
 
 static void _morpheus_command_reply(const NetworkResponse_t * response, uint8_t * reply_buf, int reply_sz, void * context) {
 	MorpheusCommand reply;
-	bool * success = (bool*)context;
 	memset(&reply, 0, sizeof(reply));
 	ble_proto_assign_decode_funcs(&reply);
     if(validate_signatures((char*)reply_buf, MorpheusCommand_fields, &reply) == 0) {
     	LOGF("signature validated\r\n");
-    	if( success ) {
-    		*success = true;
-    	}
     } else {
         LOGF("signature validation fail\r\n");
-    	if( success ) {
-    		*success = false;
-    	}
     }
     ble_proto_free_command(&reply);
+    vPortFree(context);
 }
 
 int Cmd_test_key(int argc, char*argv[]) {
@@ -785,11 +779,12 @@ int Cmd_test_key(int argc, char*argv[]) {
     //LOGI("Last two digit: %02X:%02X\n", aes_key[AES_BLOCKSIZE - 2], aes_key[AES_BLOCKSIZE - 1]);
     int ret;
 
-    MorpheusCommand test_command = {0};
-    test_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_SENSE;
-    test_command.version = PROTOBUF_VERSION;
+	MorpheusCommand * test_command = (MorpheusCommand*)pvPortMalloc(sizeof(MorpheusCommand));
+	memset(test_command, 0, sizeof(MorpheusCommand));
+	test_command->type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_SENSE;
+	test_command->version = PROTOBUF_VERSION;
 
-    ret = NetworkTask_AsynchronousSendProtobuf(DATA_SERVER,CHECK_KEY_ENDPOINT, MorpheusCommand_fields, &test_command, 0, _morpheus_command_reply, NULL );
+    ret = NetworkTask_AsynchronousSendProtobuf(DATA_SERVER,CHECK_KEY_ENDPOINT, MorpheusCommand_fields, test_command, 0, _morpheus_command_reply, test_command );
     if(ret != 0)
     {
         // network error
@@ -1613,33 +1608,37 @@ static void _key_check_reply(const NetworkResponse_t * response, uint8_t * reply
 			wifi_reset();
 			//green!
 			play_led_wheel( LED_MAX, 0, LED_MAX, 0, 3600, 33);
+			while(1) {vTaskDelay(100);}
 		}
 
 		provisioning_mode = false;
 	} else {
 		LOGF("signature validation fail\r\n");
-		save_aes_in_memory(DEFAULT_KEY);
 		//light up if we're in provisioning mode but not if we're testing the key from top
 		//this handles the overlap case where we want to get keys from top but the server doesn't yet have the blobs
 		//allowing us to fall back to the key handshake with the server
-		if (provisioning_mode && has_default_key) {
+		if (provisioning_mode && has_default_key()) {
 			//red!
 			play_led_wheel( LED_MAX, LED_MAX, 0, 0, 3600, 33);
+			while(1) {vTaskDelay(100);}
 		}
+		save_aes_in_memory(DEFAULT_KEY);
 		force_data_push(); //and make sure the retry happens right away
     }
     ble_proto_free_command(&reply);
+    vPortFree(context);
 }
 
 void on_key(uint8_t * key) {
 	save_aes(key);
 	load_aes();
 
-	MorpheusCommand test_command = {0};
-	test_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_SENSE;
-	test_command.version = PROTOBUF_VERSION;
+	MorpheusCommand * test_command = (MorpheusCommand*)pvPortMalloc(sizeof(MorpheusCommand));
+	memset(test_command, 0, sizeof(MorpheusCommand));
+	test_command->type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_SENSE;
+	test_command->version = PROTOBUF_VERSION;
 
-	NetworkTask_AsynchronousSendProtobuf(DATA_SERVER,CHECK_KEY_ENDPOINT, MorpheusCommand_fields, &test_command, 86400000, _key_check_reply, NULL );
+	NetworkTask_AsynchronousSendProtobuf(DATA_SERVER,CHECK_KEY_ENDPOINT, MorpheusCommand_fields, test_command, 86400000, _key_check_reply, test_command );
 }
 
 static void _set_led_color_based_on_room_conditions(const SyncResponse* response_protobuf)
