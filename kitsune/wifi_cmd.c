@@ -1778,6 +1778,10 @@ void provision_request_reply(const NetworkResponse_t * response, uint8_t * reply
     } else {
         LOGF("signature validation fail\r\n");
         wifi_status_set(UPLOADING, true);
+
+        //this is bad... the device key has gone out of sync with the server...
+        //reset to default key...
+        save_aes_in_memory(DEFAULT_KEY);
     }
 }
 
