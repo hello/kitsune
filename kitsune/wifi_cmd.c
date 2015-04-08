@@ -648,6 +648,18 @@ static uint8_t device_id[DEVICE_ID_SZ + 1];
 int save_aes( uint8_t * key ) {
 	return fs_save( AES_KEY_LOC, key, AES_BLOCKSIZE);
 }
+int save_aes_in_memory(const uint8_t * key ) {
+	memcpy( aes_key, key, AES_BLOCKSIZE);
+	return 0;
+}
+bool has_default_key() {
+	return 0 == memcmp(aes_key, DEFAULT_KEY, AES_BLOCKSIZE);
+}
+
+int get_aes(uint8_t * dst){
+	memcpy(dst, aes_key, AES_BLOCKSIZE);
+	return 0;
+}
 int save_device_id( uint8_t * new_device_id ) {
 	return fs_save( DEVICE_ID_LOC, new_device_id, DEVICE_ID_SZ);
 }
@@ -750,21 +762,15 @@ bool validate_signatures( char * buffer, const pb_field_t fields[], void * struc
 
 static void _morpheus_command_reply(const NetworkResponse_t * response, uint8_t * reply_buf, int reply_sz, void * context) {
 	MorpheusCommand reply;
-	bool * success = (bool*)context;
 	memset(&reply, 0, sizeof(reply));
 	ble_proto_assign_decode_funcs(&reply);
     if(validate_signatures((char*)reply_buf, MorpheusCommand_fields, &reply) == 0) {
     	LOGF("signature validated\r\n");
-    	if( success ) {
-    		*success = true;
-    	}
     } else {
         LOGF("signature validation fail\r\n");
-    	if( success ) {
-    		*success = false;
-    	}
     }
     ble_proto_free_command(&reply);
+    vPortFree(context);
 }
 
 int Cmd_test_key(int argc, char*argv[]) {
@@ -773,11 +779,12 @@ int Cmd_test_key(int argc, char*argv[]) {
     //LOGI("Last two digit: %02X:%02X\n", aes_key[AES_BLOCKSIZE - 2], aes_key[AES_BLOCKSIZE - 1]);
     int ret;
 
-    MorpheusCommand test_command = {0};
-    test_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_SENSE;
-    test_command.version = PROTOBUF_VERSION;
+	MorpheusCommand * test_command = (MorpheusCommand*)pvPortMalloc(sizeof(MorpheusCommand));
+	memset(test_command, 0, sizeof(MorpheusCommand));
+	test_command->type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_SENSE;
+	test_command->version = PROTOBUF_VERSION;
 
-    ret = NetworkTask_AsynchronousSendProtobuf(DATA_SERVER,CHECK_KEY_ENDPOINT, MorpheusCommand_fields, &test_command, 0, _morpheus_command_reply, NULL );
+    ret = NetworkTask_AsynchronousSendProtobuf(DATA_SERVER,CHECK_KEY_ENDPOINT, MorpheusCommand_fields, test_command, 0, _morpheus_command_reply, test_command );
     if(ret != 0)
     {
         // network error
@@ -1587,8 +1594,8 @@ static void _on_factory_reset_received()
 }
 #include "led_animations.h"
 
+int force_data_push();
 extern volatile bool provisioning_mode;
-extern volatile bool has_default_key;
 
 static void _key_check_reply(const NetworkResponse_t * response, uint8_t * reply_buf, int reply_sz, void * context) {
 	MorpheusCommand reply;
@@ -1601,36 +1608,37 @@ static void _key_check_reply(const NetworkResponse_t * response, uint8_t * reply
 			wifi_reset();
 			//green!
 			play_led_wheel( LED_MAX, 0, LED_MAX, 0, 3600, 33);
+			while(1) {vTaskDelay(100);}
 		}
 
 		provisioning_mode = false;
-		has_default_key = false;
 	} else {
 		LOGF("signature validation fail\r\n");
-		save_aes(DEFAULT_KEY);
-		load_aes();
-		if (provisioning_mode) {
+		//light up if we're in provisioning mode but not if we're testing the key from top
+		//this handles the overlap case where we want to get keys from top but the server doesn't yet have the blobs
+		//allowing us to fall back to the key handshake with the server
+		if (provisioning_mode && has_default_key()) {
 			//red!
 			play_led_wheel( LED_MAX, LED_MAX, 0, 0, 3600, 33);
+			while(1) {vTaskDelay(100);}
 		}
+		save_aes_in_memory(DEFAULT_KEY);
+		force_data_push(); //and make sure the retry happens right away
     }
     ble_proto_free_command(&reply);
+    vPortFree(context);
 }
 
-static void _on_key(uint8_t * key) {
-	if( has_default_key ) {
-		save_aes(key);
-		load_aes();
+void on_key(uint8_t * key) {
+	save_aes(key);
+	load_aes();
 
-	    MorpheusCommand test_command = {0};
-	    test_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_SENSE;
-	    test_command.version = PROTOBUF_VERSION;
+	MorpheusCommand * test_command = (MorpheusCommand*)pvPortMalloc(sizeof(MorpheusCommand));
+	memset(test_command, 0, sizeof(MorpheusCommand));
+	test_command->type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_SENSE;
+	test_command->version = PROTOBUF_VERSION;
 
-	    NetworkTask_AsynchronousSendProtobuf(DATA_SERVER,CHECK_KEY_ENDPOINT, MorpheusCommand_fields, &test_command, 0, _key_check_reply, NULL );
-	} else if(provisioning_mode)  {
-		//just in case we get something we don't expect....
-		play_led_wheel( LED_MAX, LED_MAX, LED_MAX, LED_MAX, 3600, 33);
-	}
+	NetworkTask_AsynchronousSendProtobuf(DATA_SERVER,CHECK_KEY_ENDPOINT, MorpheusCommand_fields, test_command, 86400000, _key_check_reply, test_command );
 }
 
 static void _set_led_color_based_on_room_conditions(const SyncResponse* response_protobuf)
@@ -1761,21 +1769,26 @@ void provision_request_reply(const NetworkResponse_t * response, uint8_t * reply
 				response_protobuf.has_retry );
 
         if( response_protobuf.has_key ) {
-        	_on_key(response_protobuf.key.bytes);
+        	on_key(response_protobuf.key.bytes);
         } else if( response_protobuf.has_retry && response_protobuf.retry ) {
-        	has_default_key = true;
+        	//reset to known state
+        	save_aes_in_memory(DEFAULT_KEY);
         }
 		wifi_status_set(UPLOADING, false);
     } else {
         LOGF("signature validation fail\r\n");
         wifi_status_set(UPLOADING, true);
+
+        //this is bad... the device key has gone out of sync with the server...
+        //reset to default key...
+        save_aes_in_memory(DEFAULT_KEY);
     }
 }
 
 int send_provision_request(ProvisionRequest* req) {
     int ret;
 
-    ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER,PROVISION_ENDPOINT, ProvisionRequest_fields, req, 0, provision_request_reply, NULL);
+    ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER,PROVISION_ENDPOINT, ProvisionRequest_fields, req, 86400000, provision_request_reply, NULL);
     if(ret != 0)
     {
         // network error

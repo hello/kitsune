@@ -533,33 +533,6 @@ static void _process_pill_heartbeat( MorpheusCommand* command)
 	
 }
 
-void sample_sensor_data(periodic_data* data);
-extern xQueueHandle force_data_queue;
-int _force_data_push()
-{
-    if(!wait_for_time(10))
-    {
-    	//ble_reply_protobuf_error(ErrorType_NETWORK_ERROR);
-    	LOGE("Cannot get time\n");
-		return -1;
-    }
-
-    periodic_data* data = pvPortMalloc(sizeof(periodic_data));  // Let's put this in the heap, we don't use it all the time
-	if(!data)
-	{
-		//ble_reply_protobuf_error(ErrorType_DEVICE_NO_MEMORY);
-		LOGE("No memory\n");
-		return -2;
-	}
-    memset(data, 0, sizeof(periodic_data));
-    sample_sensor_data(data);
-    xQueueSend(force_data_queue, (void* )data, 0); //queues copy so this is safe to free
-    vPortFree(data);
-
-    return 0;
-}
-
-void save_account_id( char * acct );
 
 static void _morpheus_command_reply(const NetworkResponse_t * response, uint8_t * reply_buf, int reply_sz, void * context) {
 	MorpheusCommand reply;
@@ -582,6 +555,8 @@ static void _morpheus_command_reply(const NetworkResponse_t * response, uint8_t 
     ble_proto_free_command(&reply);
 }
 
+void save_account_id( char * acct );
+int force_data_push();
 static int _pair_device( MorpheusCommand* command, int is_morpheus)
 {
 	if(NULL == command->accountId.arg || NULL == command->deviceId.arg){
@@ -622,7 +597,7 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 
 		if(!is_morpheus) {
 			vTaskDelay(1000);
-			_force_data_push();
+			force_data_push();
 		}
 		if(ret == 0)
 		{
@@ -758,7 +733,10 @@ static void play_startup_sound() {
 	vTaskDelay(175);
 }
 
+#include "crypto.h"
 extern volatile bool booted;
+extern volatile bool provisioning_mode;
+extern uint8_t aes_key[AES_BLOCKSIZE + 1];
 int save_device_id( uint8_t * device_id );
 
 bool on_ble_protobuf_command(MorpheusCommand* command)
@@ -780,11 +758,25 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 						top_device_id[0],top_device_id[1],top_device_id[2],
 						top_device_id[3],top_device_id[4],top_device_id[5],
 						top_device_id[6],top_device_id[7]);
-				top_got_device_id = true;
 			    save_device_id(top_device_id);
 				_ble_reply_command_with_type(MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID);
 				top_board_notify_boot_complete();
 				set_ble_mode(BLE_NORMAL);
+				if(command->has_aes_key && has_default_key()){
+					uint8_t testkey[AES_BLOCKSIZE] = {0};
+#if 1
+					if( provisioning_mode ) {
+						save_aes_in_memory(command->aes_key.bytes);
+					}
+#endif
+					get_aes(testkey);
+					LOGI("\r\nUsing Key: %02X%02X ... %02X%02X\r\n",
+							testkey[0],
+							testkey[1],
+							testkey[14],
+							testkey[15]);
+				}
+				top_got_device_id = true;
 				vTaskDelay(200);
 			}else{
 				LOGI("device id fail from top\n");
@@ -823,8 +815,10 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 		}
 		break;
 	}
-
-	switch(command->type)
+	if(!booted) {
+		return true;
+	}
+    switch(command->type)
     {
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SET_WIFI_ENDPOINT:
         {
@@ -991,7 +985,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PUSH_DATA_AFTER_SET_TIMEZONE:
         {
             LOGI("Push data\n");
-            if(_force_data_push() != 0)
+            if(force_data_push() != 0)
             {
                 ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
             }else{
