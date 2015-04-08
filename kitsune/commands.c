@@ -317,6 +317,9 @@ int Cmd_record_buff(int argc, char *argv[]) {
 	m.message.capturedesc.change = stopSaving;
 	AudioTask_AddMessageToQueue(&m);
 
+	m.command = eAudioCaptureTurnOff;
+	AudioTask_AddMessageToQueue(&m);
+
 	return 0;
 
 }
