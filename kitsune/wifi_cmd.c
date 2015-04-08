@@ -1639,7 +1639,7 @@ void on_key(uint8_t * key) {
 	test_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_SENSE;
 	test_command.version = PROTOBUF_VERSION;
 
-	NetworkTask_AsynchronousSendProtobuf(DATA_SERVER,CHECK_KEY_ENDPOINT, MorpheusCommand_fields, &test_command, 0, _key_check_reply, NULL );
+	NetworkTask_AsynchronousSendProtobuf(DATA_SERVER,CHECK_KEY_ENDPOINT, MorpheusCommand_fields, &test_command, 86400000, _key_check_reply, NULL );
 }
 
 static void _set_led_color_based_on_room_conditions(const SyncResponse* response_protobuf)
@@ -1784,7 +1784,7 @@ void provision_request_reply(const NetworkResponse_t * response, uint8_t * reply
 int send_provision_request(ProvisionRequest* req) {
     int ret;
 
-    ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER,PROVISION_ENDPOINT, ProvisionRequest_fields, req, 0, provision_request_reply, NULL);
+    ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER,PROVISION_ENDPOINT, ProvisionRequest_fields, req, 86400000, provision_request_reply, NULL);
     if(ret != 0)
     {
         // network error
