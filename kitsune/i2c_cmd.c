@@ -452,10 +452,9 @@ int get_codec_mic_NAU(int argc, char *argv[]) {
 	unsigned char cmd_init[2];
 	int i;
 
-	static const char reg[50][2] = {
+	static const char reg[52][2] = {
 			{0x00,0x00},
-			//cmd_init[0] = 0x00 ; cmd_init[1] = 0x00 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC); // Software reset
-			{0x03,0x3b},
+			{0x03,0x3d},
 			// Addr D8 		D7 D6    D5    D4        D3      D2     D1,D0
 			// 0x01 DCBUFEN 0  AUXEN PLLEN MICBIASEN ABIASEN IOBUFEN REFIMP[1:0]
 			// set  1       0  0     1     1         1       0      1  1
@@ -467,10 +466,10 @@ int get_codec_mic_NAU(int argc, char *argv[]) {
 			// Addr D8 D7     D6     D5     D4      D3       D2      D1 D0
 			// 0x03 0  MOUTEN NSPKEN PSPKEN BIASGEN MOUTMXEN SPKMXEN 0  DACEN
 			// set  0  0      0      0      0       0        0       0  0
-			{0x08,0x90},
+			{0x09,0x90}, // Can be BCLKP or BCLKP_BAR {0x09 0x90}
 			// Addr D8    D7   D6    D5    D4 D3         D2      D1      D0  Default
 			// 0x04 BCLKP FSP  WLEN[1:0]   AIFMT[1:0]    DACPHS  ADCPHS  0   0x050
-			// set  0     1    0     0     1  0          0       0       0
+			// set  1     1    0     0     1  0           0       0       0
 			{0x0a,0x00},
 			// Addr D8    D7   D6    D5    D4 D3         D2   D1      D0     Default
 			// 0x05 0     0    0     CMB8  DACCM[1:0]    ADCCM[1:0]   ADDA
@@ -486,7 +485,7 @@ int get_codec_mic_NAU(int argc, char *argv[]) {
 			{0x10,0x00},
 			// Addr D8    D7 D6 D5 D4 			D3     D2 D1  D0
 			//0x08  0     0  0  GPIOPLL[4:5]    GPIOPL GPIOSEL[2:0]
-			//      0     0  0  0  0            0      1  0   0
+			//      0     0  0  0  0            0      0  0   0
 			// General Purpose I/O Selection
 			// GPIOSEL [2]  GPIOSEL [1]  GPIOSEL [0]   Mode (Hz)
 			//	 0             0             0         CSb Input
@@ -503,27 +502,24 @@ int get_codec_mic_NAU(int argc, char *argv[]) {
 			// 0x0A 0  0   DACMT/0: Disable    DEEMP[1:0] DACOS  AUTOMT  0  DACPL
 			// set  0  0   0                   0  0       1      0       0  0
 			{0x17,0xff},
-			//{0x18,0x00},
-			//{0x1a,0x00},
+			{0x18,0x00},
+			{0x1a,0x00},
 			{0x1d,0x88},
 			//Addr D8    D7    D6 D5 D4 D3    D2 D1 D0      Default
 			//0x0E HPFEN HPFAM HPF[2:0] ADCOS 0  0  ADCPL   0x100
 			//     1     1     0  0  0  1     0  0  0
 			{0x1e,0xff},
-			{0x25,0x2c}, // EQualizer (EQM = 0 ADC path/ 1 DAC path)
-			// Address D8  D7 D6   D5     D4 D3 D2 D1 D0
-			// 0x12    EQM 0  EQ1CF[1:0]  EQ1GC[4:0]
-			// set     1   0  1    1      0  0  0  0  1
-			{0x26,0x2c}, // EQ2
-			{0x28,0x2c}, // EQ3
-			{0x2a,0x2c}, // EQ4
-			{0x2c,0x2c}, // EQ5
+			{0x25,0x2c},
+			{0x26,0x2c},
+			{0x28,0x2c},
+			{0x2a,0x2c},
+			{0x2c,0x2c},
 			{0x30,0x32},
 			{0x32,0x00},
 			{0x37,0x40},//{0x37,0xc0} Notch filter is on; {0x37,0x40} Notch filter is off
-			{0x39,0xeb}, //Notch @ 1kHz
-			{0x3b,0xbf}, // Notch 3
-			{0x3d,0x85}, // Notch 4
+			{0x39,0xeb},
+			{0x3b,0xbf},
+			{0x3d,0x85},
 			{0x40,0x38},
 			{0x42,0x0b},
 			{0x44,0x32},
@@ -533,13 +529,13 @@ int get_codec_mic_NAU(int argc, char *argv[]) {
 			{0x4c,0x93},
 			{0x4e,0xe9},
 			{0x50,0x00},
-			{0x58,0x03}, //{0x58,0x02}
+			{0x58,0x02},
 			// Addr       D8    D7 D6  D5 D4   D3     D2       D1       D0      Default
 			// 0x2C       MICBIASV 0   0  0    AUXM   AUXPGA   NMICPGA  PMICPGA
-			// set        0     0  0   0  0    0      0        1        1
-			{0x5a,0x08}, //{0x5a,0x08}
+			// set        0     0  0   0  0    0      0        1        0
+			{0x5a,0x08},
 			{0x5c,0x00},
-			{0x5e,0x00},
+			{0x5e,0x50},
 			{0x60,0x00},
 			{0x62,0x02},
 			{0x64,0x00},
@@ -562,16 +558,16 @@ int get_codec_mic_NAU(int argc, char *argv[]) {
 			// 0x38    0     0       MOUTMXMT 0  0  0  AUXMOUT BYPMOUT DACMOUT
 			// set     0     0       1        0  0  0  0       0       0
 			{0x72,0x40},
-			{0x74,0x10},
+			{0x74,0x10}, //Power Management 4
 			//Addr  D8      D7    D6     D5    D4        D3   D2     D1 D0
 			// 0x3A LPIPBST LPADC LPSPKD LPDAC MICBIASM TRIMREG[3:2] IBADJ[1:0]
 			// set  0       0     0      0     1         0    0      0  0
-			{0x78,0xa8},
+			{0x78,0xa8}, // 0xa8
 			//Addr  D8      D7    D6     D5    D4        D3   D2     D1     D0
 			// 0x3C PCMTSEN TRI PCM8BIT PUDOEN PUDPE    PUDPS LOUTR  PCMB TSLOT
 			// set  0       1     0      1     0         1    0      0      0
 	};
-	for( i=0;i<50;++i) {
+	for( i=0;i<52;++i) {
 		cmd_init[0] = reg[i][0];
 		cmd_init[1] = reg[i][1];
 		I2C_IF_Write(Codec_addr, cmd_init, 2, 1);
