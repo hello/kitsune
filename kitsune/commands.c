@@ -317,6 +317,10 @@ int Cmd_record_buff(int argc, char *argv[]) {
 	m.message.capturedesc.change = stopSaving;
 	AudioTask_AddMessageToQueue(&m);
 
+
+	m.command = eAudioCaptureTurnOff;
+	AudioTask_AddMessageToQueue(&m);
+
 	return 0;
 
 }
@@ -454,36 +458,18 @@ int Cmd_fs_delete(int argc, char *argv[]) {
 #include "fs_utils.h"
 #define PROV_CODE "provision"
 volatile bool provisioning_mode = false;
-volatile bool has_default_key = false;
 #include "crypto.h"
 
 void check_provision() {
 	char buf[64] = {0};
-	uint8_t current_key[AES_BLOCKSIZE + 1] = {0};
 	int read = 0;
 	provisioning_mode = false;
 
-	fs_get( AES_KEY_LOC, current_key, AES_BLOCKSIZE, &read);
-	if (read == 0 || 0 == memcmp(current_key, DEFAULT_KEY, AES_BLOCKSIZE)) {
-		has_default_key = true;
-		LOGI("default key mode!\n");
-		fs_get( PROVISION_FILE, buf, sizeof(buf), &read);
-		if (read == strlen(PROV_CODE)) {
-			if (0 == strncmp(buf, PROV_CODE, read)) {
-				provisioning_mode = true;
-				LOGI("povisioning mode!\n");
-			}
-		}
-	} else {
-		//have key, see if we also have prosivioning file (i.e. pch is re-running units)
-		fs_get( PROVISION_FILE, buf, sizeof(buf), &read);
-		if (read == strlen(PROV_CODE)) {
-			if (0 == strncmp(buf, PROV_CODE, read)) {
-				sl_FsDel((unsigned char*)PROVISION_FILE, 0);
-				wifi_reset();
-				//green!
-				play_led_wheel( LED_MAX, 0, LED_MAX, 0, 3600, 33);
-			}
+	fs_get( PROVISION_FILE, buf, sizeof(buf), &read);
+	if (read == strlen(PROV_CODE)) {
+		if (0 == strncmp(buf, PROV_CODE, read)) {
+			provisioning_mode = true;
+			LOGI("provisioning mode!\n");
 		}
 	}
 }
@@ -903,17 +889,13 @@ xQueueHandle data_queue = 0;
 xQueueHandle force_data_queue = 0;
 xQueueHandle pill_queue = 0;
 
+extern volatile bool top_got_device_id;
 int load_device_id();
 //no need for semaphore, only thread_tx uses this one
 int data_queue_batch_size = 1;
 void thread_tx(void* unused) {
 	batched_pill_data pill_data_batched = {0};
 	batched_periodic_data data_batched = {0};
-	load_serial();
-	load_aes();
-	load_device_id();
-	load_account_id();
-	pill_settings_init();
 	periodic_data forced_data;
 	bool got_forced_data = false;
 	int tries = 0;
@@ -946,18 +928,29 @@ void thread_tx(void* unused) {
 			data_batched.has_uptime_in_second = true;
 			data_batched.uptime_in_second = xTaskGetTickCount() / configTICK_RATE_HZ;
 
-			if( has_default_key ) {
-				ProvisionRequest pr;
-				memset(&pr, 0, sizeof(pr));
-				pr.device_id.funcs.encode = encode_device_id_string;
-				pr.serial.funcs.encode = _encode_string_fields;
-				pr.serial.arg = serial;
-				pr.need_key = true;
-				while (!send_provision_request(&pr) == 0) {
-					LOGI("Waiting for network connection\n");
-					vTaskDelay((1 << tries) * 1000);
-					if (tries++ > 3) {
-						break;
+			if( provisioning_mode ) {
+				//wait for top to boot...
+				while( !top_got_device_id ) {
+					vTaskDelay(1000);
+				}
+				//try a test key with whatever we have so long as it is not the default
+				if( !has_default_key() ) {
+					uint8_t current_key[AES_BLOCKSIZE] = {0};
+					get_aes(current_key);
+					on_key(current_key);
+				} else {
+					ProvisionRequest pr;
+					memset(&pr, 0, sizeof(pr));
+					pr.device_id.funcs.encode = encode_device_id_string;
+					pr.serial.funcs.encode = _encode_string_fields;
+					pr.serial.arg = serial;
+					pr.need_key = true;
+					while (!send_provision_request(&pr) == 0) {
+						LOGI("Waiting for network connection\n");
+						vTaskDelay((1 << tries) * 1000);
+						if (tries++ > 3) {
+							break;
+						}
 					}
 				}
 			}
@@ -1179,6 +1172,28 @@ void sample_sensor_data(periodic_data* data)
 	}
 
 	gesture_counter_reset();
+}
+
+int force_data_push()
+{
+    if(!wait_for_time(10))
+    {
+    	LOGE("Cannot get time\n");
+		return -1;
+    }
+
+    periodic_data* data = pvPortMalloc(sizeof(periodic_data));  // Let's put this in the heap, we don't use it all the time
+	if(!data)
+	{
+		LOGE("No memory\n");
+		return -2;
+	}
+    memset(data, 0, sizeof(periodic_data));
+    sample_sensor_data(data);
+    xQueueSend(force_data_queue, (void* )data, 0); //queues copy so this is safe to free
+    vPortFree(data);
+
+    return 0;
 }
 
 void thread_sensor_poll(void* unused) {
@@ -1593,9 +1608,8 @@ int Cmd_boot(int argc, char *argv[]) {
 	return 0;
 }
 
-int _force_data_push();
 int Cmd_sync(int argc, char *argv[]) {
-	_force_data_push();
+	force_data_push();
 	return 0;
 }
 
@@ -1845,6 +1859,13 @@ void vUARTTask(void *pvParameters) {
 	networktask_init(4 * 1024 / 4);
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 4, NULL);
 
+	load_serial();
+	load_aes();
+	load_device_id();
+	load_account_id();
+	pill_settings_init();
+	check_provision();
+
 	init_dust();
 	ble_proto_init();
 	xTaskCreate(top_board_task, "top_board_task", 1280 / 4, NULL, 2, NULL);
@@ -1855,7 +1876,6 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("*");
 #endif
 
-	check_provision();
 
 	if( on_charger ) {
 		launch_tasks();
