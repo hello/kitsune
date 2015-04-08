@@ -317,6 +317,7 @@ int Cmd_record_buff(int argc, char *argv[]) {
 	m.message.capturedesc.change = stopSaving;
 	AudioTask_AddMessageToQueue(&m);
 
+
 	m.command = eAudioCaptureTurnOff;
 	AudioTask_AddMessageToQueue(&m);
 
@@ -1881,6 +1882,8 @@ void vUARTTask(void *pvParameters) {
 	networktask_init(4 * 1024 / 4);
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 4, NULL);
 
+	check_provision();
+
 	init_dust();
 	ble_proto_init();
 	xTaskCreate(top_board_task, "top_board_task", 1280 / 4, NULL, 2, NULL);
@@ -1891,7 +1894,6 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("*");
 #endif
 
-	check_provision();
 
 	if( on_charger ) {
 		launch_tasks();
