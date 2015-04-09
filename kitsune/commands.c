@@ -1631,7 +1631,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "boot",Cmd_boot,""},
 		{ "gesture_count",Cmd_get_gesture_count,""},
 		{ "pt",Cmd_pill_test_reset,""},
-		{ "shake",Cmd_shake_count,""},
+		{ "count",Cmd_shake_count,""},
 		{ "bat",Cmd_show_battery,""},
 		{ "clr",Cmd_clear_shake,""},
 #ifdef BUILD_IPERF
