@@ -1532,7 +1532,11 @@ int Cmd_sync(int argc, char *argv[]) {
 	_force_data_push();
 	return 0;
 }
+int Cmd_shake_count(int argc, char *argv[]);
+int Cmd_show_battery(int argc, char *argv[]);
+int Cmd_clear_shake(int argc, char *argv[]);
 int Cmd_pill_test_reset(int argc, char *argv[]);
+
 // ==============================================================================
 // This is the table that holds the command names, implementing functions, and
 // brief description.
@@ -1628,8 +1632,8 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "gesture_count",Cmd_get_gesture_count,""},
 		{ "pt",Cmd_pill_test_reset,""},
 		{ "shake",Cmd_shake_count,""},
-		{ "bat",Cmd_heartbeat,""},
-		{ "clr",Cmd_cler,""},
+		{ "bat",Cmd_show_battery,""},
+		{ "clr",Cmd_clear_shake,""},
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
 		{ "iperfcli",Cmd_iperf_client,""},
@@ -1860,7 +1864,8 @@ bool check_battery(int bat, int uptime){
 	return ret;
 }
 void Cmd_pill_test_register_shake(const char * id){
-	LOGF("Pill Shaking\r\n");
+	LOGI("Pill Shaking\r\n");
+#if 0
 	if(pill_fsm.sem && xSemaphoreTake(pill_fsm.sem,5000)){
 		if(pill_fsm.state == WAITING_FOR_SHAKE){
 			strcpy(pill_fsm.uut, id);
@@ -1889,10 +1894,16 @@ void Cmd_pill_test_register_shake(const char * id){
 		}
 		xSemaphoreGive(pill_fsm.sem);
 	}
+#else
+	if(pill_fsm.sem && xSemaphoreTake(pill_fsm.sem,5000)){
+		pill_fsm.shake_count++;
+	}
+#endif
 }
 void Cmd_pill_test_register_heartbeat(const char * id, int32_t bat, int32_t uptime){
-	LOGF("Pill Heartbeat\r\n");
+	LOGI("Pill Heartbeat\r\n");
 	if(pill_fsm.sem && xSemaphoreTake(pill_fsm.sem,5000)){
+#if 0
 		if(pill_fsm.state != WAITING_FOR_SHAKE
 				&& 0 == strcmp(pill_fsm.uut, id)){
 			if(pill_fsm.bat < bat){
@@ -1903,6 +1914,15 @@ void Cmd_pill_test_register_heartbeat(const char * id, int32_t bat, int32_t upti
 				pill_fsm.uptime = uptime;
 			}
 		}
+#else
+		if(pill_fsm.bat < bat){
+			//always take the lowest value
+			pill_fsm.bat = bat;
+		}
+		if(pill_fsm.uptime < uptime){
+			pill_fsm.uptime = uptime;
+		}
+#endif
 		xSemaphoreGive(pill_fsm.sem);
 	}
 }
@@ -1914,13 +1934,24 @@ int Cmd_pill_test_reset(int argc, char *argv[]){
 	return 0;
 }
 int Cmd_shake_count(int argc, char *argv[]){
-
+	LOGF("%d\r\n", pill_fsm.shake_count);
 	return 0;
 }
-int Cmd_heartbeat(int argc, char *argv[]){
+int Cmd_show_battery(int argc, char *argv[]){
+	if(pill_fsm.bat == 0){
+		LOGF("Fail Retest No HB\r\n");
+	}else if(pill_fsm.uptime < 1800){
+		LOGF("Fail Uptime: %d\r\n", pill_fsm.uptime);
+	}else if(pill_fsm.bat >= 120){
+		LOGF("Fail Retest Error: %d\r\n", pill_fsm.bat);
+	}else if(check_battery(pill_fsm.bat, pill_fsm.uptime)){
+		LOGF("Pass %d %d\r\n", pill_fsm.bat, pill_fsm.uptime);
+	}else{
+		LOGF("Fail Low Bat: %d %d\r\n", pill_fsm.bat, pill_fsm.uptime);
+	}
 	return 0;
 }
-int Cmd_cler(int argc, char *argv[]){
+int Cmd_clear_shake(int argc, char *argv[]){
 	if(pill_fsm.sem && xSemaphoreTake(pill_fsm.sem,5000)){
 			pill_fsm.shake_count = 0;
 	}
@@ -1933,6 +1964,7 @@ PillTestThread(void * ctx){
 	}
 	LOGF("Pill Test Ready\r\n");
 	while(1){
+#if 0
 		if(xSemaphoreTake(pill_fsm.sem,5000)){
 			switch(pill_fsm.state){
 				default:
@@ -1968,5 +2000,8 @@ PillTestThread(void * ctx){
 			xSemaphoreGive(pill_fsm.sem);
 			vTaskDelay( 10 );
 		}
+#else
+		vTaskDelay( 100 );
+#endif
 	}
 }
