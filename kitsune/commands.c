@@ -1627,6 +1627,9 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "boot",Cmd_boot,""},
 		{ "gesture_count",Cmd_get_gesture_count,""},
 		{ "pt",Cmd_pill_test_reset,""},
+		{ "shake",Cmd_shake_count,""},
+		{ "bat",Cmd_heartbeat,""},
+		{ "clr",Cmd_cler,""},
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
 		{ "iperfcli",Cmd_iperf_client,""},
@@ -1906,6 +1909,15 @@ int Cmd_pill_test_reset(int argc, char *argv[]){
 		pill_fsm_reset();
 		xSemaphoreGive(pill_fsm.sem);
 	}
+	return 0;
+}
+int Cmd_shake_count(int argc, char *argv[]){
+	return 0;
+}
+int Cmd_heartbeat(int argc, char *argv[]){
+	return 0;
+}
+int Cmd_cler(int argc, char *argv[]){
 	return 0;
 }
 void
