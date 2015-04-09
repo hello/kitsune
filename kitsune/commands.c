@@ -1955,6 +1955,7 @@ int Cmd_show_battery(int argc, char *argv[]){
 int Cmd_clear_shake(int argc, char *argv[]){
 	if(pill_fsm.sem && xSemaphoreTake(pill_fsm.sem,5000)){
 			pill_fsm.shake_count = 0;
+			xSemaphoreGive(pill_fsm.sem);
 	}
 	return 0;
 }
