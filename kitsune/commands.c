@@ -1831,6 +1831,7 @@ static struct{
 	int to;//in 10 ms intervals
 	int32_t bat;
 	int32_t uptime;
+	int32_t shake_count;
 }pill_fsm;
 
 void pill_fsm_reset(void){
@@ -1838,6 +1839,7 @@ void pill_fsm_reset(void){
 	pill_fsm.state = WAITING_FOR_SHAKE;
 	memset(pill_fsm.uut, 0, sizeof(pill_fsm.uut));
 	pill_fsm.bat = 0;
+	pill_fsm.shake_count = 0;
 	pill_fsm.uptime = 0;
 }
 bool check_battery(int bat, int uptime){
@@ -1912,12 +1914,16 @@ int Cmd_pill_test_reset(int argc, char *argv[]){
 	return 0;
 }
 int Cmd_shake_count(int argc, char *argv[]){
+
 	return 0;
 }
 int Cmd_heartbeat(int argc, char *argv[]){
 	return 0;
 }
 int Cmd_cler(int argc, char *argv[]){
+	if(pill_fsm.sem && xSemaphoreTake(pill_fsm.sem,5000)){
+			pill_fsm.shake_count = 0;
+	}
 	return 0;
 }
 void
