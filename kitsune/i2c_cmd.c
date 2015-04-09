@@ -474,10 +474,10 @@ int get_codec_mic_NAU(int argc, char *argv[]) {
 			// Addr D8    D7   D6    D5    D4 D3         D2   D1      D0     Default
 			// 0x05 0     0    0     CMB8  DACCM[1:0]    ADCCM[1:0]   ADDA
 			// set  0     0    0     1     1  0           0    0      0
-			{0x0d,0x48},
+			{0x0d,0x08},
 			//Addr D8   D7 D6 D5     D4 D3 D2     D1 D0
 			//0x06 CLKM MCLKSEL[2:0] BCLKSEL[2:0] 0  CLKIOEN
-			//set  1    0  1  0       0  1 0      0  0
+			//set  1    0  0  0       0  1 0      0  0
 			{0x0e,0x00},
 			// Addr D8    D7 D6 D5 D4 D3 D2 D1   D0
 			// 0x07 SPIEN 0  0  0  0  SMPLR[2:0] SCLKEN
