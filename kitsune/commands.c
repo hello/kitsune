@@ -1897,6 +1897,7 @@ void Cmd_pill_test_register_shake(const char * id){
 #else
 	if(pill_fsm.sem && xSemaphoreTake(pill_fsm.sem,5000)){
 		pill_fsm.shake_count++;
+		xSemaphoreGive(pill_fsm.sem);
 	}
 #endif
 }
