@@ -835,10 +835,10 @@ static int _avg_bins(const int * arr, unsigned int size){
 #define I2C_BINS 10
 void thread_fast_i2c_poll(void * unused)  {
 	gesture_init();
-	static int prox_measurements[I2C_BINS] = {0};
-	static int light_measurements[I2C_BINS] = {0};
-	static int filter_idx = 0;
-	uint32_t new_light = 0;
+	static int prox_measurements[I2C_BINS];
+	static int light_measurements[I2C_BINS];
+	static int filter_idx;
+	static uint32_t new_light;
 	while (1) {
 		portTickType now = xTaskGetTickCount();
 		int prox=0;
