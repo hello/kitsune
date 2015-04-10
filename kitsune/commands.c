@@ -854,7 +854,7 @@ void thread_fast_i2c_poll(void * unused)  {
 			xSemaphoreGive(i2c_smphr);
 			prox_measurements[filter_idx] = prox;
 			light_measurements[filter_idx] = light;
-			if(++prox_idx == I2C_BINS){
+			if(++filter_idx == I2C_BINS){
 
 				gesture gesture_state = gesture_input(_avg_bins(prox_measurements, I2C_BINS));
 				switch(gesture_state)
@@ -871,13 +871,14 @@ void thread_fast_i2c_poll(void * unused)  {
 				default:
 					break;
 				}
+				uint32_t new_light = _avg_bins(light_measurements, I2C_BINS);
 				if (xSemaphoreTake(light_smphr, portMAX_DELAY)) {
-					light_log_sum += bitlog(light);
+					light_log_sum += bitlog(new_light);
 					++light_cnt;
 
-					int delta = light - light_mean;
+					int delta = new_light - light_mean;
 					light_mean = light_mean + delta/light_cnt;
-					light_m2 = light_m2 + delta * (light - light_mean);
+					light_m2 = light_m2 + delta * (new_light - light_mean);
 					if( light_m2 < 0 ) {
 						light_m2 = 0x7FFFFFFF;
 					}
@@ -885,12 +886,12 @@ void thread_fast_i2c_poll(void * unused)  {
 					xSemaphoreGive(light_smphr);
 
 					if(light_cnt % 5 == 0 && led_is_idle(0) ) {
-						if(_is_light_off(light)) {
+						if(_is_light_off(new_light)) {
 							_show_led_status();
 						}
 					}
 				}
-				prox_idx = 0;
+				filter_idx = 0;
 			}
 		}
 		vTaskDelayUntil(&now, 10);
