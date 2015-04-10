@@ -25,8 +25,6 @@ typedef struct
 }
 tFaultMap;
 
-void main();
-
 //*****************************************************************************
 //
 // Text mapping for the usage, bus, and memory faults.
@@ -143,7 +141,7 @@ void faultPrinter( faultInfo* f ) {
     LOGE("xPSR = 0x%08X\n", f->exceptionFrame[7]);
 
     LOGE("TRACE:");
-    for( i=0; i < 64 && f->stack_trace[i] != TRACE_DONE; ++i ) {
+    for( i=0; i < MAX_TRACE_DEPTH && f->stack_trace[i] != TRACE_DONE; ++i ) {
         LOGE( "0x%08X\n", f->stack_trace[i]);
     }
     LOGE("END\n");
@@ -151,6 +149,13 @@ void faultPrinter( faultInfo* f ) {
 
 int mcu_reset();
 void uart_logger_flush();
+
+//*****************************************************************************
+//
+// Linker variable that marks the top of the stack.
+//
+//*****************************************************************************
+extern unsigned long * __STACK_END;
 
 void
 FaultDecoder(unsigned long *pulExceptionFrame)
@@ -191,7 +196,7 @@ FaultDecoder(unsigned long *pulExceptionFrame)
 
     for( i=0;i<8;++i )
         f->exceptionFrame[i] = pulExceptionFrame[i];
-    for( i=8;i<(64+8) && pulExceptionFrame[i] != (unsigned long)main; ++i )
+    for( i=8;i<(MAX_TRACE_DEPTH+8) && &pulExceptionFrame[i] <= __STACK_END; ++i )
     	f->stack_trace[i-8] = pulExceptionFrame[i];
     f->stack_trace[i-8] = TRACE_DONE;
 
