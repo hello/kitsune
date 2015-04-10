@@ -820,9 +820,24 @@ static void _on_gesture_out()
 {
 	ble_proto_end_hold();
 }
+static int _avg_bins(int * arr, int size){
+	int sum = 0;
+	int i;
+	if(0 == size){
+		return 0;
+	}
+	for(i = 0; i < size; i++){
+		sum += arr[i];
+	}
+	return sum/size;
+}
 
+#define I2C_BINS 10
 void thread_fast_i2c_poll(void * unused)  {
 	gesture_init();
+	static int prox_measurements[I2C_BINS] = {0};
+	static int light_measurements[I2C_BINS] = {0};
+	static int filter_idx = 0;
 	while (1) {
 		portTickType now = xTaskGetTickCount();
 		int prox=0;
@@ -837,46 +852,48 @@ void thread_fast_i2c_poll(void * unused)  {
 			prox = get_prox();  // now this thing is in um.
 
 			xSemaphoreGive(i2c_smphr);
-			//UARTprintf("%d ", prox);
+			prox_measurements[filter_idx] = prox;
+			light_measurements[filter_idx] = light;
+			if(++prox_idx == I2C_BINS){
 
-			gesture gesture_state = gesture_input(prox);
-			switch(gesture_state)
-			{
-			case GESTURE_WAVE:
-				_on_wave();
-				break;
-			case GESTURE_HOLD:
-				_on_hold();
-				break;
-			case GESTURE_OUT:
-				_on_gesture_out();
-				break;
-			default:
-				break;
-			}
-
-
-			if (xSemaphoreTake(light_smphr, portMAX_DELAY)) {
-				light_log_sum += bitlog(light);
-				++light_cnt;
-
-				int delta = light - light_mean;
-				light_mean = light_mean + delta/light_cnt;
-				light_m2 = light_m2 + delta * (light - light_mean);
-				if( light_m2 < 0 ) {
-					light_m2 = 0x7FFFFFFF;
+				gesture gesture_state = gesture_input(_avg_bins(prox_measurements, I2C_BINS));
+				switch(gesture_state)
+				{
+				case GESTURE_WAVE:
+					_on_wave();
+					break;
+				case GESTURE_HOLD:
+					_on_hold();
+					break;
+				case GESTURE_OUT:
+					_on_gesture_out();
+					break;
+				default:
+					break;
 				}
-				//LOGI( "%d %d %d %d\n", delta, light_mean, light_m2, light_cnt);
-				xSemaphoreGive(light_smphr);
+				if (xSemaphoreTake(light_smphr, portMAX_DELAY)) {
+					light_log_sum += bitlog(light);
+					++light_cnt;
 
-				if(light_cnt % 5 == 0 && led_is_idle(0) ) {
-					if(_is_light_off(light)) {
-						_show_led_status();
+					int delta = light - light_mean;
+					light_mean = light_mean + delta/light_cnt;
+					light_m2 = light_m2 + delta * (light - light_mean);
+					if( light_m2 < 0 ) {
+						light_m2 = 0x7FFFFFFF;
+					}
+					//LOGI( "%d %d %d %d\n", delta, light_mean, light_m2, light_cnt);
+					xSemaphoreGive(light_smphr);
+
+					if(light_cnt % 5 == 0 && led_is_idle(0) ) {
+						if(_is_light_off(light)) {
+							_show_led_status();
+						}
 					}
 				}
+				prox_idx = 0;
 			}
 		}
-		vTaskDelayUntil(&now, 100);
+		vTaskDelayUntil(&now, 10);
 	}
 }
 
