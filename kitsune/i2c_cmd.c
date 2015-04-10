@@ -474,18 +474,18 @@ int get_codec_mic_NAU(int argc, char *argv[]) {
 			// Addr D8    D7   D6    D5    D4 D3         D2   D1      D0     Default
 			// 0x05 0     0    0     CMB8  DACCM[1:0]    ADCCM[1:0]   ADDA
 			// set  0     0    0     1     1  0           0    0      0
-			{0x0d,0x48},
+			{0x0d,0x08},
 			//Addr D8   D7 D6 D5     D4 D3 D2     D1 D0
 			//0x06 CLKM MCLKSEL[2:0] BCLKSEL[2:0] 0  CLKIOEN
-			//set  1    0  1  0       0  1 0      0  0
+			//set  1    0  0  0       0  1 0      0  0
 			{0x0e,0x00},
 			// Addr D8    D7 D6 D5 D4 D3 D2 D1   D0
 			// 0x07 SPIEN 0  0  0  0  SMPLR[2:0] SCLKEN
 			// set  0     0  0  0  0  0  1  1    0
-			{0x10,0x00},
+			{0x10,0x04},
 			// Addr D8    D7 D6 D5 D4 			D3     D2 D1  D0
 			//0x08  0     0  0  GPIOPLL[4:5]    GPIOPL GPIOSEL[2:0]
-			//      0     0  0  0  0            0      0  0   0
+			//      0     0  0  0  0            0      1  0   0
 			// General Purpose I/O Selection
 			// GPIOSEL [2]  GPIOSEL [1]  GPIOSEL [0]   Mode (Hz)
 			//	 0             0             0         CSb Input
@@ -517,22 +517,25 @@ int get_codec_mic_NAU(int argc, char *argv[]) {
 			{0x30,0x32},
 			{0x32,0x00},
 			{0x37,0x40},//{0x37,0xc0} Notch filter is on; {0x37,0x40} Notch filter is off
-			{0x39,0xeb},
-			{0x3b,0xbf},
-			{0x3d,0x85},
+			{0x39,0x15},//Notch 2
+			{0x3b,0x3f},//Notch 3
+			{0x3d,0x75},//Notch 4
 			{0x40,0x38},
 			{0x42,0x0b},
 			{0x44,0x32},
 			{0x46,0x00},
-			{0x48,0x08},
+			{0x48,0x18},
+			// Addr D8    D7 D6 D5 D4       D3 D2 D1 D0 Default
+			// 0x24 0     0  0  0  PLLMCLK  PLLN[3:0]
+			//  set 0     0  0  0  1        1  0  0  0
 			{0x4a,0x0c},
 			{0x4c,0x93},
 			{0x4e,0xe9},
 			{0x50,0x00},
-			{0x58,0x02},
+			{0x59,0x82},
 			// Addr       D8    D7 D6  D5 D4   D3     D2       D1       D0      Default
 			// 0x2C       MICBIASV 0   0  0    AUXM   AUXPGA   NMICPGA  PMICPGA
-			// set        0     0  0   0  0    0      0        1        0
+			// set        1     1  0   0  0    0      0        1        0
 			{0x5a,0x08},
 			{0x5c,0x00},
 			{0x5e,0x50},
