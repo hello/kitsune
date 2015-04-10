@@ -820,10 +820,10 @@ static void _on_gesture_out()
 {
 	ble_proto_end_hold();
 }
-static int _avg_bins(const int * arr, int size){
+static int _avg_bins(const int * arr, unsigned int size){
 	int sum = 0;
 	int i;
-	if(0 == size){
+	if(0 == size || !arr){
 		return 0;
 	}
 	for(i = 0; i < size; i++){
