@@ -150,13 +150,6 @@ void faultPrinter( faultInfo* f ) {
 int mcu_reset();
 void uart_logger_flush();
 
-//*****************************************************************************
-//
-// Linker variable that marks the top of the stack.
-//
-//*****************************************************************************
-extern unsigned long * __STACK_END;
-
 void
 FaultDecoder(unsigned long *pulExceptionFrame)
 {
@@ -196,7 +189,7 @@ FaultDecoder(unsigned long *pulExceptionFrame)
 
     for( i=0;i<8;++i )
         f->exceptionFrame[i] = pulExceptionFrame[i];
-    for( i=8;i<(MAX_TRACE_DEPTH+8) && &pulExceptionFrame[i] <= __STACK_END; ++i )
+    for( i=8;i<(MAX_TRACE_DEPTH+8) && pulExceptionFrame+i <= (unsigned long *)0x2003FFFF; ++i )
     	f->stack_trace[i-8] = pulExceptionFrame[i];
     f->stack_trace[i-8] = TRACE_DONE;
 
