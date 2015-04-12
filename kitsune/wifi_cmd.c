@@ -764,7 +764,7 @@ static void _morpheus_command_reply(const NetworkResponse_t * response, uint8_t 
 	MorpheusCommand reply;
 	memset(&reply, 0, sizeof(reply));
 	ble_proto_assign_decode_funcs(&reply);
-    if(validate_signatures((char*)reply_buf, MorpheusCommand_fields, &reply) == 0) {
+    if( response->success && validate_signatures((char*)reply_buf, MorpheusCommand_fields, &reply) == 0) {
     	LOGF("signature validated\r\n");
     } else {
         LOGF("signature validation fail\r\n");
@@ -1724,7 +1724,7 @@ void sync_response_reply(const NetworkResponse_t * response, uint8_t * reply_buf
     memset(&response_protobuf, 0, sizeof(response_protobuf));
     response_protobuf.files.funcs.decode = _on_file_download;
 
-    if(validate_signatures((char*)reply_buf, SyncResponse_fields, &response_protobuf) == 0) {
+    if( response->success && validate_signatures((char*)reply_buf, SyncResponse_fields, &response_protobuf) == 0) {
     	LOGF("signatures validated\r\n");
 		boot_commit_ota();
 		_on_response_protobuf(&response_protobuf);
@@ -1763,7 +1763,7 @@ void provision_request_reply(const NetworkResponse_t * response, uint8_t * reply
 	ProvisionResponse response_protobuf;
     memset(&response_protobuf, 0, sizeof(response_protobuf));
 
-    if(validate_signatures((char*)reply_buf, ProvisionResponse_fields, &response_protobuf) == 0) {
+    if( response->success && validate_signatures((char*)reply_buf, ProvisionResponse_fields, &response_protobuf) == 0) {
 		LOGI("Decoding PR %d %d\n",
 				response_protobuf.has_key,
 				response_protobuf.has_retry );

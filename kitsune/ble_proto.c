@@ -539,7 +539,7 @@ static void _morpheus_command_reply(const NetworkResponse_t * response, uint8_t 
 	bool * success = (bool*)context;
 	memset(&reply, 0, sizeof(reply));
 	ble_proto_assign_decode_funcs(&reply);
-    if(validate_signatures((char*)reply_buf, MorpheusCommand_fields, &reply) == 0) {
+    if( response->success && validate_signatures((char*)reply_buf, MorpheusCommand_fields, &reply) == 0) {
 		ble_proto_remove_decode_funcs(&reply);
 		ble_send_protobuf(&reply);
     	LOGF("signature validated\r\n");
