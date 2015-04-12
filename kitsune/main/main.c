@@ -267,8 +267,18 @@ void start_wdt() {
     }
 }
 void mcu_reset();
+#include "kit_assert.h"
+
 void watchdog_thread(void* unused) {
+	int no_connection_cnt = 0;
 	while (1) {
+		if( !wifi_status_get(UPLOADING) ) {
+			++no_connection_cnt;
+		} else {
+			no_connection_cnt = 0;
+		}
+		assert( no_connection_cnt < 3600 );
+
 		MAP_WatchdogIntClear(WDT_BASE); //clear wdt
 		vTaskDelay(1000);
 	}
@@ -300,6 +310,8 @@ void main()
   //
 
   VStartSimpleLinkSpawnTask(SPAWN_TASK_PRIORITY);
+
+  wifi_status_init();
 
   /* Create the UART processing task. */
   xTaskCreate( vUARTTask, "UARTTask", 2048/(sizeof(portSTACK_TYPE)), NULL, 4, NULL );
