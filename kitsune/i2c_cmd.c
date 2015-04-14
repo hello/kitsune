@@ -504,7 +504,7 @@ int get_codec_mic_NAU(int argc, char *argv[]) {
 			{0x17,0xff},
 			{0x18,0x00},
 			{0x1a,0x00},
-			{0x1d,0x88},
+			{0x1d,0xc8},
 			//Addr D8    D7    D6 D5 D4 D3    D2 D1 D0      Default
 			//0x0E HPFEN HPFAM HPF[2:0] ADCOS 0  0  ADCPL   0x100
 			//     1     1     0  0  0  1     0  0  0
