@@ -820,32 +820,16 @@ static void _on_gesture_out()
 {
 	ble_proto_end_hold();
 }
-static int _avg_bins(const int * arr, unsigned int size){
-	int sum = 0;
-	int i;
-	if(0 == size || !arr){
-		return 0;
-	}
-	for(i = 0; i < size; i++){
-		sum += arr[i];
-	}
-	return sum/size;
-}
 
-#define I2C_BINS 10
 void thread_fast_i2c_poll(void * unused)  {
 	gesture_init();
-	static int prox_measurements[I2C_BINS];
-	static int light_measurements[I2C_BINS];
-	static int filter_idx;
-	static uint32_t new_light;
 	while (1) {
 		portTickType now = xTaskGetTickCount();
 		int prox=0;
 
 		if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
 			vTaskDelay(2);
-			new_light = led_is_idle(0) ? get_light() : new_light;
+			light = led_is_idle(0) ? get_light() : light;
 			vTaskDelay(2); //this is important! If we don't do it, then the prox will stretch the clock!
 
 			// For the black morpheus, we can detect 6mm distance max
@@ -853,48 +837,46 @@ void thread_fast_i2c_poll(void * unused)  {
 			prox = get_prox();  // now this thing is in um.
 
 			xSemaphoreGive(i2c_smphr);
-			prox_measurements[filter_idx] = prox;
-			light_measurements[filter_idx] = new_light;
-			if(++filter_idx == I2C_BINS){
-				gesture gesture_state = gesture_input(_avg_bins(prox_measurements, I2C_BINS));
-				switch(gesture_state)
-				{
-				case GESTURE_WAVE:
-					_on_wave();
-					break;
-				case GESTURE_HOLD:
-					_on_hold();
-					break;
-				case GESTURE_OUT:
-					_on_gesture_out();
-					break;
-				default:
-					break;
-				}
-				light = _avg_bins(light_measurements, I2C_BINS);
-				if (xSemaphoreTake(light_smphr, portMAX_DELAY)) {
-					light_log_sum += bitlog(light);
-					++light_cnt;
+			//UARTprintf("%d ", prox);
 
-					int delta = light - light_mean;
-					light_mean = light_mean + delta/light_cnt;
-					light_m2 = light_m2 + delta * (light - light_mean);
-					if( light_m2 < 0 ) {
-						light_m2 = 0x7FFFFFFF;
-					}
-					//LOGI( "%d %d %d %d\n", delta, light_mean, light_m2, light_cnt);
-					xSemaphoreGive(light_smphr);
+			gesture gesture_state = gesture_input(prox);
+			switch(gesture_state)
+			{
+			case GESTURE_WAVE:
+				_on_wave();
+				break;
+			case GESTURE_HOLD:
+				_on_hold();
+				break;
+			case GESTURE_OUT:
+				_on_gesture_out();
+				break;
+			default:
+				break;
+			}
 
-					if(light_cnt % 5 == 0 && led_is_idle(0) ) {
-						if(_is_light_off(light)) {
-							_show_led_status();
-						}
+
+			if (xSemaphoreTake(light_smphr, portMAX_DELAY)) {
+				light_log_sum += bitlog(light);
+				++light_cnt;
+
+				int delta = light - light_mean;
+				light_mean = light_mean + delta/light_cnt;
+				light_m2 = light_m2 + delta * (light - light_mean);
+				if( light_m2 < 0 ) {
+					light_m2 = 0x7FFFFFFF;
+				}
+				//LOGI( "%d %d %d %d\n", delta, light_mean, light_m2, light_cnt);
+				xSemaphoreGive(light_smphr);
+
+				if(light_cnt % 5 == 0 && led_is_idle(0) ) {
+					if(_is_light_off(light)) {
+						_show_led_status();
 					}
 				}
-				filter_idx = 0;
 			}
 		}
-		vTaskDelayUntil(&now, 10);
+		vTaskDelayUntil(&now, 100);
 	}
 }
 
