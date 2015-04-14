@@ -820,7 +820,7 @@ static void _on_gesture_out()
 {
 	ble_proto_end_hold();
 }
-static int _avg_bins(const int * arr, int size){
+static int _avg_bins(int * arr, int size){
 	int sum = 0;
 	int i;
 	if(0 == size){
