@@ -945,7 +945,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 
 				if(color) {
 					ble_proto_led_flash(0xFF, argb[1], argb[2], argb[3], 10);
-				} else if(pill_settings_pill_count() == 0) {
+				} else /*if(pill_settings_pill_count() == 0)*/ {
 					ble_proto_led_flash(0xFF, 0x80, 0x00, 0x80, 10);
 				}
             }else{
