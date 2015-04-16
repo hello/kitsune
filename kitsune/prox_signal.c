@@ -14,8 +14,11 @@
 
 #define PROX_SIGNAL_SAMPLE_PERIOD_MS (10)
 
-#define PROX_HOLD_GESTURE_PERIOD_MS (3000)
-#define PROX_WAVE_GESTURE_PERIOD_MS (100)
+#define PROX_HOLD_GESTURE_PERIOD_MS (1000)
+#define PROX_WAVE_GESTURE_PERIOD_MS (50)
+
+#define PROX_HOLD_COUNT_THRESHOLD (PROX_HOLD_GESTURE_PERIOD_MS / PROX_SIGNAL_SAMPLE_PERIOD_MS)
+#define PROX_WAVE_COUNT_THRESHOLD (PROX_WAVE_GESTURE_PERIOD_MS / PROX_SIGNAL_SAMPLE_PERIOD_MS)
 
 #define MAX_COUNTER (32767)
 
@@ -41,7 +44,9 @@ typedef struct {
 	uint8_t medianFilterCount;
 	uint32_t stablecount;
 	int32_t maxStable;
-	uint32_t changecount;
+	int32_t minHeldStable;
+	uint32_t increasingCount;
+	uint32_t decreasingCount;
 	uint8_t isWaved;
 	uint8_t isHeld;
 } ProxSignal_t;
@@ -63,6 +68,7 @@ static const int32_t k_change_log_likelihood = TOFIX(-0.15f,QFIXEDPOINT);
 static const int32_t k_min_log_prob = TOFIX(-0.25f,QFIXEDPOINT);
 
 static const int32_t k_hold_threshold = 10000; //difference between max and held stable value before we say we are holding
+static const int32_t k_release_threshold = 10000; //difference between min and held stable value before we say we are released
 
 void ProxSignal_Init(void) {
 	memset(&_data,0,sizeof(_data));
@@ -94,37 +100,54 @@ int32_t ProxSignal_MedianFilter(const int32_t x) {
 
 }
 
-static ProxGesture_t GetGesture(EChangeModes_t mode,uint8_t hasStableMeas,const int32_t maxStable,const int32_t stablex) {
+static ProxGesture_t GetGesture(EChangeModes_t mode,uint8_t hasStableMeas,const int32_t maxStable,const int32_t stablex,const int32_t currentx) {
 
-	if (_data.changecount > PROX_WAVE_GESTURE_PERIOD_MS / PROX_SIGNAL_SAMPLE_PERIOD_MS) {
-		/* output one wave */
-		if (!_data.isWaved) {
-			LOGI("WAVING\n");
-			_data.isWaved = 1;
-			return proxGestureWave;
-		}
-	}
-	else {
-		_data.isWaved = 0;
-	}
 
 	if (hasStableMeas) {
-		int32_t diff = maxStable - stablex;
+		const int32_t diff = maxStable - stablex;
 
 		if (diff > k_hold_threshold) {
-			if (_data.stablecount > PROX_HOLD_GESTURE_PERIOD_MS / PROX_SIGNAL_SAMPLE_PERIOD_MS) {
+			if (_data.stablecount > PROX_HOLD_COUNT_THRESHOLD) {
 				//output one hold
 				if (!_data.isHeld) {
-					LOGI("HOLDING\n");
+					LOGI("ProxSignal: HOLDING\n");
 					_data.isHeld = 1;
+					_data.minHeldStable = stablex;
 					return proxGestureHold;
 				}
 			}
 
 		}
 	}
-	else {
-		_data.isHeld = 0;
+
+	//if you are held, then evaluate if you should not be held
+	if (_data.isHeld) {
+		const int32_t diff = currentx - _data.minHeldStable;
+		//LOGI("current=%d,min=%d,diff=%d\n",currentx,_data.minHeldStable,diff);
+		if (diff > k_release_threshold) {
+			_data.isHeld = 0;
+			LOGI("ProxSignal: RELEASE\n");
+			return proxGestureRelease;
+		}
+	}
+
+
+
+
+	//make sure that holds take precedence over waves
+	//so if we are holding, we are definitely not waving
+	if (!_data.isHeld) {
+		if (_data.increasingCount > PROX_WAVE_COUNT_THRESHOLD && _data.decreasingCount > PROX_WAVE_COUNT_THRESHOLD) {
+			/* output one wave */
+			if (!_data.isWaved) {
+				LOGI("ProxSignal: WAVING\n");
+				_data.isWaved = 1;
+				return proxGestureWave;
+			}
+		}
+		else {
+			_data.isWaved = 0;
+		}
 	}
 
 	return proxGestureNone;
@@ -280,9 +303,10 @@ ProxGesture_t ProxSignal_UpdateChangeSignals(const int32_t newx) {
 
 	if (mode == stable) {
 		_data.stablecount++;
-		_data.changecount = 0;
+		_data.decreasingCount = 0;
+		_data.increasingCount = 0;
 
-		if (_data.stablecount >= CHANGE_SIGNAL_BUF_SIZE) {
+		if (_data.stablecount > CHANGE_SIGNAL_BUF_SIZE) {
 			// update accumulator -- it's a moving average filter
 			_data.accumulator += newx;
 			_data.accumulator -= oldx;
@@ -295,10 +319,10 @@ ProxGesture_t ProxSignal_UpdateChangeSignals(const int32_t newx) {
 			}
 
 			hasStableMeas = 1;
-			//print, for fun you know
-			if (_data.stablecount == 2*CHANGE_SIGNAL_BUF_SIZE) {
-				LOGI("diff=%d\n",_data.maxStable - stablex);
-			}
+			////print, for fun you know
+			//if (_data.stablecount == 2*CHANGE_SIGNAL_BUF_SIZE) {
+			//	LOGI("diff=%d\n",_data.maxStable - stablex);
+			//}
 		}
 		else {
 			//fill up accumulator
@@ -309,13 +333,23 @@ ProxGesture_t ProxSignal_UpdateChangeSignals(const int32_t newx) {
 		//reset, we are not stable
 		_data.accumulator = 0;
 		_data.stablecount = 0;
-		_data.changecount++;
+
+		if (mode == increasing) {
+			_data.increasingCount++;
+		}
+		else {
+			_data.decreasingCount++;
+		}
 	}
 
 
 	//make sure counters never roll over
-	if (_data.changecount > MAX_COUNTER) {
-		_data.changecount = MAX_COUNTER;
+	if (_data.increasingCount > MAX_COUNTER) {
+		_data.increasingCount = MAX_COUNTER;
+	}
+
+	if (_data.decreasingCount > MAX_COUNTER) {
+		_data.decreasingCount = MAX_COUNTER;
 	}
 
 	if (_data.stablecount > MAX_COUNTER) {
@@ -344,6 +378,6 @@ ProxGesture_t ProxSignal_UpdateChangeSignals(const int32_t newx) {
 
 #endif
 
-	return GetGesture(mode,hasStableMeas,_data.maxStable,stablex);
+	return GetGesture(mode,hasStableMeas,_data.maxStable,stablex,newx);
 
 }

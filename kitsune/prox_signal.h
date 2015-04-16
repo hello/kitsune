@@ -6,7 +6,8 @@
 typedef enum {
 	proxGestureNone,
 	proxGestureWave,
-	proxGestureHold
+	proxGestureHold,
+	proxGestureRelease
 } ProxGesture_t;
 
 void ProxSignal_Init(void);
