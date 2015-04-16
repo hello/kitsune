@@ -21,6 +21,7 @@ void gesture_init(){
 
 void gesture_increment_wave_count()
 {
+	analytics_event( "{gesture: wave}" );
 	if(xSemaphoreTake(self.gesture_count_semaphore, 100) == pdTRUE)
 	{
 		self.wave_count++;
@@ -31,6 +32,7 @@ void gesture_increment_wave_count()
 
 void gesture_increment_hold_count()
 {
+	analytics_event( "{gesture: hold}" );
 	if(xSemaphoreTake(self.gesture_count_semaphore, 100) == pdTRUE)
 	{
 		self.hold_count++;
