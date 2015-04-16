@@ -1596,6 +1596,7 @@ static void _on_factory_reset_received()
 
 int force_data_push();
 extern volatile bool provisioning_mode;
+void boot_commit_ota();
 
 static void _key_check_reply(const NetworkResponse_t * response, uint8_t * reply_buf, int reply_sz, void * context) {
 	MorpheusCommand reply;
@@ -1604,6 +1605,7 @@ static void _key_check_reply(const NetworkResponse_t * response, uint8_t * reply
 	if (validate_signatures((char*) reply_buf, MorpheusCommand_fields, &reply) == 0) {
 		LOGF("signature validated\r\n");
 		if (provisioning_mode) {
+			boot_commit_ota()
 			sl_FsDel((unsigned char*)PROVISION_FILE, 0);
 			wifi_reset();
 			//green!
