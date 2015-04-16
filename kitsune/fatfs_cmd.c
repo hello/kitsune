@@ -1517,7 +1517,7 @@ static _i32 _McuImageGetNewIndex(void)
 int wait_for_top_boot(unsigned int timeout);
 int send_top(char *, int);
 
-void boot_commit_ota() {
+void boot_commit_ota(bool reset) {
     _ReadBootInfo(&sBootInfo);
     /* Check only on status TESTING */
     if( IMG_STATUS_TESTING == sBootInfo.ulImgStatus )
@@ -1544,8 +1544,10 @@ void boot_commit_ota() {
 								IMG_ACT_USER2:
 								IMG_ACT_USER1;
         _WriteBootInfo(&sBootInfo);
-        //send_top("rst ", sizeof("rst "));
-        mcu_reset();
+        if( reset ) {
+        	//send_top("rst ", sizeof("rst "));
+        	mcu_reset();
+        }
 	}
 }
 

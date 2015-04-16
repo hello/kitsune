@@ -1596,7 +1596,7 @@ static void _on_factory_reset_received()
 
 int force_data_push();
 extern volatile bool provisioning_mode;
-void boot_commit_ota();
+void boot_commit_ota(bool reset);
 
 static void _key_check_reply(const NetworkResponse_t * response, uint8_t * reply_buf, int reply_sz, void * context) {
 	MorpheusCommand reply;
@@ -1605,7 +1605,7 @@ static void _key_check_reply(const NetworkResponse_t * response, uint8_t * reply
 	if (validate_signatures((char*) reply_buf, MorpheusCommand_fields, &reply) == 0) {
 		LOGF("signature validated\r\n");
 		if (provisioning_mode) {
-			boot_commit_ota()
+			boot_commit_ota(!provisioning_mode);
 			sl_FsDel((unsigned char*)PROVISION_FILE, 0);
 			wifi_reset();
 			//green!
@@ -1719,8 +1719,6 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
     _set_led_color_based_on_room_conditions(response_protobuf);
 }
 
-void boot_commit_ota();
-
 void sync_response_reply(const NetworkResponse_t * response, uint8_t * reply_buf, int reply_sz, void * context) {
     SyncResponse response_protobuf;
     memset(&response_protobuf, 0, sizeof(response_protobuf));
@@ -1728,7 +1726,7 @@ void sync_response_reply(const NetworkResponse_t * response, uint8_t * reply_buf
 
     if( response->success && validate_signatures((char*)reply_buf, SyncResponse_fields, &response_protobuf) == 0) {
     	LOGF("signatures validated\r\n");
-		boot_commit_ota();
+		boot_commit_ota(!provisioning_mode);
 		_on_response_protobuf(&response_protobuf);
 		wifi_status_set(UPLOADING, false);
     } else {
