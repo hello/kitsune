@@ -429,12 +429,10 @@ int get_prox() {
 	return 200000 - proximity_raw * 200000 / 65536;
 
 }
-extern int disp_prox;
+
 int Cmd_readproximity(int argc, char *argv[]) {
 	LOGF("%d\n", get_prox());
-	if( argc == 2 ) {
-		disp_prox = atoi(argv[1]);
-	}
+
 	return SUCCESS;
 }
 extern xSemaphoreHandle i2c_smphr;

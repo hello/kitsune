@@ -20,12 +20,11 @@ typedef enum
 } gesture;
 
 void gesture_init();
-gesture gesture_input(int prox);
 int gesture_get_wave_count();
 int gesture_get_hold_count();
 void gesture_counter_reset();
-int Cmd_get_gesture_count(int argc, char * argv[]);
-
+void gesture_increment_wave_count();
+void gesture_increment_hold_count();
 #ifdef __cplusplus
 }
 #endif

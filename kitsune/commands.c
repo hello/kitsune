@@ -825,6 +825,7 @@ static void _on_gesture_out()
 void thread_fast_i2c_poll(void * unused)  {
 	gesture_init();
 	ProxSignal_Init();
+	ProxGesture_t gesture;
 
 	uint32_t counter = 0;
 
@@ -841,34 +842,33 @@ void thread_fast_i2c_poll(void * unused)  {
 			// for white one, 9mm distance max.
 			prox = get_prox();  // now this thing is in um.
 
+			xSemaphoreGive(i2c_smphr);
+
 			prox = ProxSignal_MedianFilter(prox);
 
-			ProxSignal_UpdateChangeSignals(prox);
+			gesture = ProxSignal_UpdateChangeSignals(prox);
 
-			//LOGI("prx,%d\n",prox);
 
-			xSemaphoreGive(i2c_smphr);
-			//UARTprintf("%d ", prox);
+			//gesture gesture_state = gesture_input(prox);
+			switch(gesture)
+			{
+			case proxGestureWave:
+				_on_wave();
+				gesture_increment_wave_count();
+				break;
+			case proxGestureHold:
+				_on_hold();
+				gesture_increment_hold_count();
+				break;
+			case proxGestureRelease:
+				_on_gesture_out();
+				break;
+			default:
+				break;
+			}
 
 			if (++counter > 10) {
 				counter = 0;
-
-				gesture gesture_state = gesture_input(prox);
-				switch(gesture_state)
-				{
-				case GESTURE_WAVE:
-					_on_wave();
-					break;
-				case GESTURE_HOLD:
-					_on_hold();
-					break;
-				case GESTURE_OUT:
-					_on_gesture_out();
-					break;
-				default:
-					break;
-				}
-
 
 				if (xSemaphoreTake(light_smphr, portMAX_DELAY)) {
 					light_log_sum += bitlog(light);
@@ -1734,7 +1734,6 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "country",Cmd_country,""},
 		{ "sync", Cmd_sync, "" },
 		{ "boot",Cmd_boot,""},
-		{ "gesture_count",Cmd_get_gesture_count,""},
 		{ "alarm",set_test_alarm,""},
 		{ "set-time",cmd_set_time,""},
 		{ "frag",cmd_memfrag,""},
