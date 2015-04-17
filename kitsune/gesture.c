@@ -12,11 +12,15 @@
 static struct{
 	int wave_count;
 	int hold_count;
+	int all_counts_for_diagnostics;
 	xSemaphoreHandle gesture_count_semaphore;
 }self;
 
 void gesture_init(){
+	memset(&self,0,sizeof(self));
+
 	self.gesture_count_semaphore = xSemaphoreCreateMutex();
+
 }
 
 void gesture_increment_wave_count()
@@ -25,6 +29,7 @@ void gesture_increment_wave_count()
 	if(xSemaphoreTake(self.gesture_count_semaphore, 100) == pdTRUE)
 	{
 		self.wave_count++;
+		self.all_counts_for_diagnostics++;
 		xSemaphoreGive(self.gesture_count_semaphore);
 	}
 
@@ -36,6 +41,7 @@ void gesture_increment_hold_count()
 	if(xSemaphoreTake(self.gesture_count_semaphore, 100) == pdTRUE)
 	{
 		self.hold_count++;
+		self.all_counts_for_diagnostics++;
 		xSemaphoreGive(self.gesture_count_semaphore);
 	}
 
@@ -59,6 +65,18 @@ int gesture_get_hold_count()
 	if(xSemaphoreTake(self.gesture_count_semaphore, 100) == pdTRUE)
 	{
 		int ret = self.hold_count;
+		xSemaphoreGive(self.gesture_count_semaphore);
+		return ret;
+	}
+
+	return 0;
+}
+
+int gesture_get_and_reset_all_diagnostic_counts() {
+	if(xSemaphoreTake(self.gesture_count_semaphore, 100) == pdTRUE)
+	{
+		int ret = self.all_counts_for_diagnostics;
+		self.all_counts_for_diagnostics = 0;
 		xSemaphoreGive(self.gesture_count_semaphore);
 		return ret;
 	}

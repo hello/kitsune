@@ -25,6 +25,8 @@ int gesture_get_hold_count();
 void gesture_counter_reset();
 void gesture_increment_wave_count();
 void gesture_increment_hold_count();
+int gesture_get_and_reset_all_diagnostic_counts();
+
 #ifdef __cplusplus
 }
 #endif

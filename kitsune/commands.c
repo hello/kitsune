@@ -1625,10 +1625,7 @@ int Cmd_boot(int argc, char *argv[]) {
 
 int Cmd_get_gesture_count(int argc, char * argv[]) {
 
-	int count = 0;
-
-	count += gesture_get_hold_count();
-	count += gesture_get_wave_count();
+	const int count = gesture_get_and_reset_all_diagnostic_counts();
 
 	LOGI("%d transitions\n",count);
 
