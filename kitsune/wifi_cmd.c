@@ -756,7 +756,7 @@ bool validate_signatures( char * buffer, const pb_field_t fields[], void * struc
     }
     int len = atoi(len_str);
 
-    return decode_rx_data_pb((unsigned char*) content, len, fields, structdata);
+    return (0 == decode_rx_data_pb((unsigned char*) content, len, fields, structdata));
 }
 
 
