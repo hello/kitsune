@@ -933,12 +933,18 @@ void thread_tx(void* unused) {
 
 			if( !is_test_boot() && provisioning_mode ) {
 				//wait for top to boot...
+#if 0
 				top_got_device_id = false;
-				send_top( "rst", strlen("rst"));
+#endif
+				if( !top_got_device_id ) {
+					send_top( "rst", strlen("rst"));
+				}
 				while( !top_got_device_id ) {
 					vTaskDelay(1000);
 				}
+#if 0
 				save_aes_in_memory(DEFAULT_KEY);
+#endif
 
 				//try a test key with whatever we have so long as it is not the default
 				if( !has_default_key() ) {

@@ -763,13 +763,12 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 				_ble_reply_command_with_type(MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID);
 				top_board_notify_boot_complete();
 				set_ble_mode(BLE_NORMAL);
+#if 0
 				if(command->has_aes_key && has_default_key()){
 					uint8_t testkey[AES_BLOCKSIZE] = {0};
-#if 1
 					if( provisioning_mode ) {
 						save_aes_in_memory(command->aes_key.bytes);
 					}
-#endif
 					get_aes(testkey);
 					LOGI("\r\nUsing Key: %02X%02X ... %02X%02X\r\n",
 							testkey[0],
@@ -777,6 +776,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 							testkey[14],
 							testkey[15]);
 				}
+#endif
 				top_got_device_id = true;
 				vTaskDelay(200);
 			}else{
