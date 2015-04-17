@@ -933,6 +933,7 @@ void thread_tx(void* unused) {
 
 			if( !is_test_boot() && provisioning_mode ) {
 				//wait for top to boot...
+				top_got_device_id = false;
 				send_top( "rst", strlen("rst"));
 				while( !top_got_device_id ) {
 					vTaskDelay(1000);

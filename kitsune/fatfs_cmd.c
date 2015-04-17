@@ -1523,7 +1523,7 @@ bool is_test_boot() {
 	return IMG_STATUS_TESTING == sBootInfo.ulImgStatus;
 }
 
-void boot_commit_ota(bool reset) {
+void boot_commit_ota() {
     _ReadBootInfo(&sBootInfo);
     /* Check only on status TESTING */
     if( IMG_STATUS_TESTING == sBootInfo.ulImgStatus )
@@ -1550,10 +1550,8 @@ void boot_commit_ota(bool reset) {
 								IMG_ACT_USER2:
 								IMG_ACT_USER1;
         _WriteBootInfo(&sBootInfo);
-        if( reset ) {
-        	//send_top("rst ", sizeof("rst "));
-        	mcu_reset();
-        }
+		//send_top("rst ", sizeof("rst "));
+		mcu_reset();
 	}
 }
 
