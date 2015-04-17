@@ -1784,7 +1784,7 @@ bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg
 		return false;
 	}
 
-	if( get_ble_mode() != BLE_NORMAL ) {
+	if(  get_ble_mode() != BLE_CONNECTED ) {
 		LOGI("ota - ble active \n" );
 		free_download_info( &download_info );
 		return true;
