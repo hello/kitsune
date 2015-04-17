@@ -648,8 +648,12 @@ void ble_proto_led_flash(int a, int r, int g, int b, int delay)
 
 	ANIMATE_BLOCKING(play_led_animation_solid(a,r,g,b,2,18), 4000);
 }
+extern volatile bool provisioning_mode;
 
 void ble_proto_led_fade_in_trippy(){
+	if( provisioning_mode ) {
+		return;
+	}
 	uint8_t trippy_base[3] = {60, 25, 90};
 	play_led_trippy(trippy_base, trippy_base, portMAX_DELAY, 30);
 }
