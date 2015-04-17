@@ -914,18 +914,12 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         {
             LOGI("PAIR PILL\n");
             int result = _pair_device(command, 0);
-            if(result == 1){
-            	_ble_reply_command_with_type(command->type);
-            }
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_SENSE:
         {
             LOGI("PAIR SENSE\n");
             int result = _pair_device(command, 1);
-            if(result == 1){
-            	_ble_reply_command_with_type(command->type);
-            }
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_FACTORY_RESET:
