@@ -1623,6 +1623,18 @@ int Cmd_boot(int argc, char *argv[]) {
 	return 0;
 }
 
+int Cmd_get_gesture_count(int argc, char * argv[]) {
+
+	int count = 0;
+
+	count += gesture_get_hold_count();
+	count += gesture_get_wave_count();
+
+	LOGI("%d transitions\n",count);
+
+	return 0;
+}
+
 int Cmd_sync(int argc, char *argv[]) {
 	force_data_push();
 	return 0;
@@ -1734,6 +1746,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "country",Cmd_country,""},
 		{ "sync", Cmd_sync, "" },
 		{ "boot",Cmd_boot,""},
+		{ "gesture_count",Cmd_get_gesture_count,""},
 		{ "alarm",set_test_alarm,""},
 		{ "set-time",cmd_set_time,""},
 		{ "frag",cmd_memfrag,""},
