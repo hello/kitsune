@@ -559,6 +559,7 @@ void save_account_id( char * acct );
 int force_data_push();
 static int _pair_device( MorpheusCommand* command, int is_morpheus)
 {
+	bool success = false;
 	if(NULL == command->accountId.arg || NULL == command->deviceId.arg){
 		LOGI("*******Missing fields\n");
 		ble_reply_protobuf_error(ErrorType_INTERNAL_DATA_ERROR);
@@ -573,7 +574,6 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 		int retry = 3;
 		while(retry--)
 		{
-			bool success = false;
 			ret = NetworkTask_SynchronousSendProtobuf(
 					DATA_SERVER,
 					is_morpheus == 1 ? MORPHEUS_REGISTER_ENDPOINT : PILL_REGISTER_ENDPOINT,
