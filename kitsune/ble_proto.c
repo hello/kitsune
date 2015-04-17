@@ -651,9 +651,6 @@ void ble_proto_led_flash(int a, int r, int g, int b, int delay)
 extern volatile bool provisioning_mode;
 
 void ble_proto_led_fade_in_trippy(){
-	if( provisioning_mode ) {
-		return;
-	}
 	uint8_t trippy_base[3] = {60, 25, 90};
 	play_led_trippy(trippy_base, trippy_base, portMAX_DELAY, 30);
 }
@@ -819,7 +816,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 		}
 		break;
 	}
-	if(!booted) {
+	if(!booted || provisioning_mode) {
 		return true;
 	}
     switch(command->type)
