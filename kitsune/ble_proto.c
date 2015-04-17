@@ -599,7 +599,7 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 			vTaskDelay(1000);
 			force_data_push();
 		}
-		if(ret == 0)
+		if(ret == 0 && success )
 		{
 			return 1;
 		}else{
