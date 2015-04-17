@@ -892,6 +892,7 @@ xQueueHandle pill_queue = 0;
 extern volatile bool top_got_device_id;
 int send_top(char * s, int n) ;
 int load_device_id();
+bool is_test_boot();
 //no need for semaphore, only thread_tx uses this one
 int data_queue_batch_size = 1;
 
@@ -930,7 +931,7 @@ void thread_tx(void* unused) {
 			data_batched.has_uptime_in_second = true;
 			data_batched.uptime_in_second = xTaskGetTickCount() / configTICK_RATE_HZ;
 
-			if( provisioning_mode ) {
+			if( !is_test_boot() && provisioning_mode ) {
 				//wait for top to boot...
 				send_top( "rst", strlen("rst"));
 				while( !top_got_device_id ) {
