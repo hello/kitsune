@@ -147,11 +147,14 @@ unsigned int get_dust() {
 }
 int Cmd_dusttest(int argc, char *argv[]) {
 	int cnt = atoi(argv[1]);
-	if( argc == 1 ) {cnt=2;}
+	if( argc == 1 ) {cnt=100;}
+	int total = cnt;
+	int sum = 0;
 	while( --cnt ) {
-		LOGF("%d\n", get_dust());
-		vTaskDelay(200);
+		sum += get_dust();
+		vTaskDelay(10);
 	}
+	LOGF("%d\n", sum / total );
 	return (0);
 }
 
