@@ -655,6 +655,20 @@ int save_aes_in_memory(const uint8_t * key ) {
 bool has_default_key() {
 	return 0 == memcmp(aes_key, DEFAULT_KEY, AES_BLOCKSIZE);
 }
+static volatile bool burn_top_key = false;
+bool should_burn_top_key() {
+	return burn_top_key;
+}
+extern volatile bool top_got_device_id;
+int send_top(char *, int);
+int Cmd_burn_top(int argc, char *argv[]) {
+	burn_top_key = true;
+	if (top_got_device_id) {
+		send_top("rst", strlen("rst"));
+	}
+	return 0;
+}
+
 
 int get_aes(uint8_t * dst){
 	memcpy(dst, aes_key, AES_BLOCKSIZE);
