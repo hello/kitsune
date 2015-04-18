@@ -1736,6 +1736,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "alarm",set_test_alarm,""},
 		{ "set-time",cmd_set_time,""},
 		{ "frag",cmd_memfrag,""},
+		{ "burntopkey",Cmd_burn_top,""},
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
 		{ "iperfcli",Cmd_iperf_client,""},
