@@ -110,16 +110,12 @@ uint8_t InitAudioPlayback(int32_t vol, uint32_t rate ) {
 	AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
 	AudioCaptureRendererConfigure(I2S_PORT_DMA, rate);
 
-	//do whatever this function does
-	Audio_Start();
-
 	return 1;
 
 }
 
 void DeinitAudioPlayback(void) {
 	close_codec_NAU();
-	Audio_Stop();
 
 	McASPDeInit();
 
