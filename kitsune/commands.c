@@ -890,9 +890,12 @@ xQueueHandle force_data_queue = 0;
 xQueueHandle pill_queue = 0;
 
 extern volatile bool top_got_device_id;
+int send_top(char * s, int n) ;
 int load_device_id();
+bool is_test_boot();
 //no need for semaphore, only thread_tx uses this one
 int data_queue_batch_size = 1;
+
 void thread_tx(void* unused) {
 	batched_pill_data pill_data_batched = {0};
 	batched_periodic_data data_batched = {0};
@@ -928,11 +931,21 @@ void thread_tx(void* unused) {
 			data_batched.has_uptime_in_second = true;
 			data_batched.uptime_in_second = xTaskGetTickCount() / configTICK_RATE_HZ;
 
-			if( provisioning_mode ) {
+			if( !is_test_boot() && provisioning_mode ) {
 				//wait for top to boot...
+#if 0
+				top_got_device_id = false;
+#endif
+				if( !top_got_device_id ) {
+					send_top( "rst", strlen("rst"));
+				}
 				while( !top_got_device_id ) {
 					vTaskDelay(1000);
 				}
+#if 0
+				save_aes_in_memory(DEFAULT_KEY);
+#endif
+
 				//try a test key with whatever we have so long as it is not the default
 				if( !has_default_key() ) {
 					uint8_t current_key[AES_BLOCKSIZE] = {0};

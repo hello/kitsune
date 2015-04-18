@@ -1596,6 +1596,7 @@ static void _on_factory_reset_received()
 
 int force_data_push();
 extern volatile bool provisioning_mode;
+void boot_commit_ota();
 
 static void _key_check_reply(const NetworkResponse_t * response, uint8_t * reply_buf, int reply_sz, void * context) {
 	MorpheusCommand reply;
@@ -1716,8 +1717,6 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
 	}
     _set_led_color_based_on_room_conditions(response_protobuf);
 }
-
-void boot_commit_ota();
 
 void sync_response_reply(const NetworkResponse_t * response, uint8_t * reply_buf, int reply_sz, void * context) {
     SyncResponse response_protobuf;

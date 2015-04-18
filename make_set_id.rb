@@ -24,4 +24,8 @@ File.open("kitsune/kitsune_version.h", 'w') { |f|
           "#endif\n"
 }
 
+File.open("./exe/version-#{version.to_s(16)}.txt", 'w') { |f|
+  f.write "#{ENV['TRAVIS_BRANCH']}\n"
+}
+
 puts "Labelled as KIT_VER 0x"+version.to_s(16)+"\n"

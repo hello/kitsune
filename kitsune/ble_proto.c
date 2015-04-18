@@ -559,6 +559,7 @@ void save_account_id( char * acct );
 int force_data_push();
 static int _pair_device( MorpheusCommand* command, int is_morpheus)
 {
+	bool success = false;
 	if(NULL == command->accountId.arg || NULL == command->deviceId.arg){
 		LOGI("*******Missing fields\n");
 		ble_reply_protobuf_error(ErrorType_INTERNAL_DATA_ERROR);
@@ -573,7 +574,6 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 		int retry = 3;
 		while(retry--)
 		{
-			bool success = false;
 			ret = NetworkTask_SynchronousSendProtobuf(
 					DATA_SERVER,
 					is_morpheus == 1 ? MORPHEUS_REGISTER_ENDPOINT : PILL_REGISTER_ENDPOINT,
@@ -648,6 +648,7 @@ void ble_proto_led_flash(int a, int r, int g, int b, int delay)
 
 	ANIMATE_BLOCKING(play_led_animation_solid(a,r,g,b,2,18), 4000);
 }
+extern volatile bool provisioning_mode;
 
 void ble_proto_led_fade_in_trippy(){
 	uint8_t trippy_base[3] = {60, 25, 90};
@@ -762,13 +763,12 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 				_ble_reply_command_with_type(MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID);
 				top_board_notify_boot_complete();
 				set_ble_mode(BLE_NORMAL);
+#if 0
 				if(command->has_aes_key && has_default_key()){
 					uint8_t testkey[AES_BLOCKSIZE] = {0};
-#if 1
 					if( provisioning_mode ) {
 						save_aes_in_memory(command->aes_key.bytes);
 					}
-#endif
 					get_aes(testkey);
 					LOGI("\r\nUsing Key: %02X%02X ... %02X%02X\r\n",
 							testkey[0],
@@ -776,6 +776,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 							testkey[14],
 							testkey[15]);
 				}
+#endif
 				top_got_device_id = true;
 				vTaskDelay(200);
 			}else{
@@ -815,7 +816,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 		}
 		break;
 	}
-	if(!booted) {
+	if(!booted || provisioning_mode) {
 		return true;
 	}
     switch(command->type)
@@ -945,7 +946,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 
 				if(color) {
 					ble_proto_led_flash(0xFF, argb[1], argb[2], argb[3], 10);
-				} else if(pill_settings_pill_count() == 0) {
+				} else /*if(pill_settings_pill_count() == 0)*/ {
 					ble_proto_led_flash(0xFF, 0x80, 0x00, 0x80, 10);
 				}
             }else{
