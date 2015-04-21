@@ -72,6 +72,7 @@
  * memory management pages of http://www.FreeRTOS.org for more information.
  */
 #include <stdlib.h>
+void * memmove ( void * destination, const void * source, size_t num );
 
 /* Defining MPU_WRAPPERS_INCLUDED_FROM_API_FILE prevents task.h from redefining
 all the API functions to use the MPU wrappers.  That should only be done when
@@ -143,6 +144,104 @@ space. */
 static size_t xBlockAllocatedBit = 0;
 
 /*-----------------------------------------------------------*/
+void *pvPortRealloc( void *pv, size_t xWantedSize )
+{
+uint8_t *puc = ( uint8_t * ) pv;
+BlockLink_t *pxLink, *pxNewBlockLink;
+
+	if( xWantedSize == 0 ) {
+		vPortFree(pv);
+		return NULL;
+	}
+
+	if( pv != NULL )
+	{
+		vTaskSuspendAll();
+
+		/* The memory will have an BlockLink_t structure immediately
+		before it. */
+		puc -= heapSTRUCT_SIZE;
+
+		/* This casting is to keep the compiler from issuing warnings. */
+		pxLink = ( void * ) puc;
+
+		/* Check the block is actually allocated. */
+		configASSERT( ( pxLink->xBlockSize & xBlockAllocatedBit ) != 0 );
+		configASSERT( pxLink->pxNextFreeBlock == NULL );
+
+		xWantedSize += heapSTRUCT_SIZE;
+
+		/* Ensure that blocks are always aligned to the required number
+		of bytes. */
+		if( ( xWantedSize & portBYTE_ALIGNMENT_MASK ) != 0x00 )
+		{
+			/* Byte alignment required. */
+			xWantedSize += ( portBYTE_ALIGNMENT - ( xWantedSize & portBYTE_ALIGNMENT_MASK ) );
+		}
+		else
+		{
+			mtCOVERAGE_TEST_MARKER();
+		}
+
+		size_t allocated_size = pxLink->xBlockSize & ~xBlockAllocatedBit;
+
+		if( xWantedSize < allocated_size ) { //realloc'ing down (or maybe reallocing up but was given a really large block to start, consider tracking used size as well as block size)
+			if(xWantedSize < heapMINIMUM_BLOCK_SIZE || allocated_size - xWantedSize < heapMINIMUM_BLOCK_SIZE) {
+				//don't change anything - the block is already too small and there's not enough space being freed to make a new block
+				( void ) xTaskResumeAll();
+				return pv;
+			}
+			//split the block and insert the new one into the free list
+			pxNewBlockLink = ( void * ) ( ( ( uint8_t * ) pxLink ) + xWantedSize );
+
+			/* Calculate the sizes of two blocks split from the
+			single block. */
+			pxNewBlockLink->xBlockSize = allocated_size - xWantedSize;
+			pxLink->xBlockSize = xWantedSize;
+
+			/* Insert the new block into the list of free blocks. */
+			prvInsertBlockIntoFreeList( ( pxNewBlockLink ) );
+		} else {
+			//increasing size...
+			while( (puc+pxLink->xBlockSize) == (uint8_t*)pxLink->pxNextFreeBlock  ) //see if we can grab the next block...
+			{
+				if( pxLink->pxNextFreeBlock == pxEnd )
+				{
+					//ruh rho ran off end of heap...
+					break;
+				}
+				pxNewBlockLink = pxLink->pxNextFreeBlock;
+				if( pxNewBlockLink->xBlockSize + pxLink->xBlockSize > xWantedSize ) {
+					//got enough memory! yay!
+					pxLink->xBlockSize += pxNewBlockLink->xBlockSize;
+					pxLink->pxNextFreeBlock = pxNewBlockLink->pxNextFreeBlock;
+
+					traceMALLOC( pv, xWantedSize );
+					( void ) xTaskResumeAll();
+					return pv;
+				} else {
+					//link the blocks...
+					pxLink->xBlockSize += pxNewBlockLink->xBlockSize;
+					pxLink->pxNextFreeBlock = pxNewBlockLink->pxNextFreeBlock;
+				}
+			}
+
+			( void ) xTaskResumeAll();
+			//got to memmove... didn't find enough contiguous blocks
+			{
+				void * mem = pvPortMalloc(xWantedSize);
+				if( mem ) {
+					memmove(mem, pv, pxLink->xBlockSize - heapSTRUCT_SIZE);
+					vPortFree(pv);
+					return mem;
+				}
+				return NULL;
+			}
+		}
+	} else {
+		return pvPortMalloc(xWantedSize);
+	}
+}
 
 void *pvPortMalloc( size_t xWantedSize )
 {

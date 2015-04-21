@@ -366,6 +366,7 @@ extern "C" {
 /*
  * Map to the memory management routines required for the port.
  */
+void *pvPortRealloc( void *pv, size_t xWantedSize ) PRIVILEGED_FUNCTION;
 void *pvPortMalloc( size_t xSize ) PRIVILEGED_FUNCTION;
 void vPortFree( void *pv ) PRIVILEGED_FUNCTION;
 void vPortInitialiseBlocks( void ) PRIVILEGED_FUNCTION;
