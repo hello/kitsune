@@ -1517,6 +1517,12 @@ static _i32 _McuImageGetNewIndex(void)
 int wait_for_top_boot(unsigned int timeout);
 int send_top(char *, int);
 
+bool is_test_boot() {
+	_ReadBootInfo(&sBootInfo);
+	/* Check only on status TESTING */
+	return IMG_STATUS_TESTING == sBootInfo.ulImgStatus;
+}
+
 void boot_commit_ota() {
     _ReadBootInfo(&sBootInfo);
     /* Check only on status TESTING */
@@ -1544,8 +1550,8 @@ void boot_commit_ota() {
 								IMG_ACT_USER2:
 								IMG_ACT_USER1;
         _WriteBootInfo(&sBootInfo);
-        //send_top("rst ", sizeof("rst "));
-        mcu_reset();
+		//send_top("rst ", sizeof("rst "));
+		mcu_reset();
 	}
 }
 
@@ -1784,11 +1790,13 @@ bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg
 		return false;
 	}
 
-	if( get_ble_mode() != BLE_NORMAL ) {
+#if 0 //not reliable
+	if(  get_ble_mode() != BLE_CONNECTED ) {
 		LOGI("ota - ble active \n" );
 		free_download_info( &download_info );
 		return true;
 	}
+#endif
 	if( download_queue ) {
 		if( xQueueSend(download_queue, (void*)&download_info, 10) != pdPASS ) {
 			free_download_info( &download_info );

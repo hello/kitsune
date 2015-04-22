@@ -83,7 +83,7 @@
 								<option id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.linkerID.OUTPUT_FILE.150478808" name="Specify output file name (--output_file, -o)" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.linkerID.OUTPUT_FILE" value="&quot;${PROJECT_LOC}/exe/${ProjName}.out&quot;" valueType="string"/>
 								<option id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.linkerID.MAP_FILE.190289912" name="Input and output sections listed into &lt;file&gt; (--map_file, -m)" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.linkerID.MAP_FILE" value="&quot;${ProjName}.map&quot;" valueType="string"/>
 								<option id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.linkerID.HEAP_SIZE.1744710050" name="Heap size for C/C++ dynamic memory allocation (--heap_size, -heap)" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.linkerID.HEAP_SIZE" value="0x1000" valueType="string"/>
-								<option id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.linkerID.STACK_SIZE.361793666" name="Set C system stack size (--stack_size, -stack)" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.linkerID.STACK_SIZE" value="0x500" valueType="string"/>
+								<option id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.linkerID.STACK_SIZE.361793666" name="Set C system stack size (--stack_size, -stack)" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.linkerID.STACK_SIZE" value="0x800" valueType="string"/>
 								<option id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.linkerID.LIBRARY.177161774" name="Include library file or command file as input (--library, -l)" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.linkerID.LIBRARY" valueType="libs">
 									<listOptionValue builtIn="false" value="&quot;${PROJECT_LOC}/../../../third_party/fatfs/ccs/Release/fatfs.a&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${PROJECT_LOC}/../../../oslib/ccs/exe/FreeRTOS.a&quot;"/>
@@ -116,16 +116,6 @@
 							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM2_SRCS.686725753" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM2_SRCS"/>
 						</tool>
 					</fileInfo>
-					<fileInfo id="com.ti.ccstudio.buildDefinitions.TMS470.Debug.381449393.commands.c" name="commands.c" rcbsApplicability="disable" resourcePath="commands.c" toolsToInvoke="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1834841915.1536111751">
-						<tool id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1834841915.1536111751" name="ARM Compiler" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1834841915">
-							<option id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_LEVEL.1582430028" name="Optimization level (--opt_level, -O)" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_LEVEL" value="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_LEVEL.off" valueType="enumerated"/>
-							<option id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_FOR_SPEED.587136297" name="Speed vs. size trade-offs (--opt_for_speed, -mf)" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_FOR_SPEED" value="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_FOR_SPEED.0" valueType="enumerated"/>
-							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__C_SRCS.1449928423" name="C Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__C_SRCS"/>
-							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__CPP_SRCS.1982185267" name="C++ Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__CPP_SRCS"/>
-							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM_SRCS.1705494229" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM_SRCS"/>
-							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM2_SRCS.475946494" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM2_SRCS"/>
-						</tool>
-					</fileInfo>
 					<fileInfo id="com.ti.ccstudio.buildDefinitions.TMS470.Debug.381449393.235597089" name="sys_time.c" rcbsApplicability="disable" resourcePath="sys_time.c" toolsToInvoke="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1834841915.688901481">
 						<tool id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1834841915.688901481" name="ARM Compiler" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1834841915">
 							<option id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_FOR_SPEED.2065200446" name="Speed vs. size trade-offs (--opt_for_speed, -mf)" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_FOR_SPEED" value="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_FOR_SPEED.0" valueType="enumerated"/>
@@ -134,6 +124,16 @@
 							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__CPP_SRCS.252129833" name="C++ Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__CPP_SRCS"/>
 							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM_SRCS.1717267545" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM_SRCS"/>
 							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM2_SRCS.497841168" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM2_SRCS"/>
+						</tool>
+					</fileInfo>
+					<fileInfo id="com.ti.ccstudio.buildDefinitions.TMS470.Debug.381449393.commands.c" name="commands.c" rcbsApplicability="disable" resourcePath="commands.c" toolsToInvoke="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1834841915.1536111751">
+						<tool id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1834841915.1536111751" name="ARM Compiler" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1834841915">
+							<option id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_LEVEL.1582430028" name="Optimization level (--opt_level, -O)" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_LEVEL" value="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_LEVEL.off" valueType="enumerated"/>
+							<option id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_FOR_SPEED.587136297" name="Speed vs. size trade-offs (--opt_for_speed, -mf)" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_FOR_SPEED" value="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compilerID.OPT_FOR_SPEED.0" valueType="enumerated"/>
+							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__C_SRCS.1449928423" name="C Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__C_SRCS"/>
+							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__CPP_SRCS.1982185267" name="C++ Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__CPP_SRCS"/>
+							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM_SRCS.1705494229" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM_SRCS"/>
+							<inputType id="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM2_SRCS.475946494" name="Assembly Sources" superClass="com.ti.ccstudio.buildDefinitions.TMS470_5.1.compiler.inputType__ASM2_SRCS"/>
 						</tool>
 					</fileInfo>
 					<fileInfo id="com.ti.ccstudio.buildDefinitions.TMS470.Debug.381449393.11888432" name="wifi_cmd.c" rcbsApplicability="disable" resourcePath="wifi_cmd.c" toolsToInvoke="com.ti.ccstudio.buildDefinitions.TMS470_5.1.exe.compilerDebug.1834841915.1619741692">

@@ -22,6 +22,8 @@
 #include <stdio.h>
 #include "ustdlib.h"
 
+#include "mcasp_if.h"
+
 #if 0
 #define PRINT_TIMING
 #endif
@@ -202,7 +204,6 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 	LOGI("%d bytes free\n", xPortGetFreeHeapSize());
 
-
 	//open file for playback
 	LOGI("Opening %s for playback\r\n",info->file);
 	res = hello_fs_open(&fp, info->file, FA_READ);
@@ -221,6 +222,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		fade_time = t0 = xTaskGetTickCount();
 	}
 
+	bool started = false;
 	//loop until either a) done playing file for specified duration or b) our message queue gets a message that tells us to stop
 	for (; ;) {
 
@@ -253,6 +255,10 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 			iBufWaitingCount++;
 
+			if( !started ) {
+				Audio_Start();
+				started = true;
+			}
 		};
 
 
@@ -328,6 +334,10 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 
 		vTaskDelay(0);
+	}
+
+	if( started ) {
+		Audio_Stop();
 	}
 
 	vPortFree(speaker_data);

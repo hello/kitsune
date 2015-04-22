@@ -890,9 +890,12 @@ xQueueHandle force_data_queue = 0;
 xQueueHandle pill_queue = 0;
 
 extern volatile bool top_got_device_id;
+int send_top(char * s, int n) ;
 int load_device_id();
+bool is_test_boot();
 //no need for semaphore, only thread_tx uses this one
 int data_queue_batch_size = 1;
+
 void thread_tx(void* unused) {
 	batched_pill_data pill_data_batched = {0};
 	batched_periodic_data data_batched = {0};
@@ -928,11 +931,21 @@ void thread_tx(void* unused) {
 			data_batched.has_uptime_in_second = true;
 			data_batched.uptime_in_second = xTaskGetTickCount() / configTICK_RATE_HZ;
 
-			if( provisioning_mode ) {
+			if( !is_test_boot() && provisioning_mode ) {
 				//wait for top to boot...
+#if 0
+				top_got_device_id = false;
+#endif
+				if( !top_got_device_id ) {
+					send_top( "rst", strlen("rst"));
+				}
 				while( !top_got_device_id ) {
 					vTaskDelay(1000);
 				}
+#if 0
+				save_aes_in_memory(DEFAULT_KEY);
+#endif
+
 				//try a test key with whatever we have so long as it is not the default
 				if( !has_default_key() ) {
 					uint8_t current_key[AES_BLOCKSIZE] = {0};
@@ -945,7 +958,7 @@ void thread_tx(void* unused) {
 					pr.serial.funcs.encode = _encode_string_fields;
 					pr.serial.arg = serial;
 					pr.need_key = true;
-					while (!send_provision_request(&pr) == 0) {
+					while (!send_provision_request(&pr)) {
 						LOGI("Waiting for network connection\n");
 						vTaskDelay((1 << tries) * 1000);
 						if (tries++ > 3) {
@@ -955,7 +968,7 @@ void thread_tx(void* unused) {
 				}
 			}
 
-			while (!send_periodic_data(&data_batched) == 0) {
+			while (!send_periodic_data(&data_batched)) {
 				LOGI("Waiting for network connection\n");
 				vTaskDelay((1 << tries) * 1000);
 				if (tries++ > 5) {
@@ -987,7 +1000,7 @@ void thread_tx(void* unused) {
 			pill_data_batched.pills.arg = &pilldata;
 			pill_data_batched.device_id.funcs.encode = encode_device_id_string;
 
-			while (!send_pill_data(&pill_data_batched) == 0) {
+			while (!send_pill_data(&pill_data_batched)) {
 				LOGI("  Waiting for WIFI connection  \n");
 				vTaskDelay((1 << tries) * 1000);
 				if (tries++ > 5) {
@@ -1595,7 +1608,7 @@ void launch_tasks() {
 	UARTprintf("*");
 	xTaskCreate(thread_sensor_poll, "pollTask", 1024 / 4, NULL, 3, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_tx, "txTask", 1 * 1024 / 4, NULL, 2, NULL);
+	xTaskCreate(thread_tx, "txTask", 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
 #endif
 }
@@ -1723,6 +1736,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "alarm",set_test_alarm,""},
 		{ "set-time",cmd_set_time,""},
 		{ "frag",cmd_memfrag,""},
+		{ "burntopkey",Cmd_burn_top,""},
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
 		{ "iperfcli",Cmd_iperf_client,""},
@@ -1744,7 +1758,6 @@ long nwp_reset();
 void vUARTTask(void *pvParameters) {
 	char cCmdBuf[512];
 	bool on_charger = false;
-	wifi_status_init();
 	if(led_init() != 0){
 		LOGI("Failed to create the led_events.\n");
 	}

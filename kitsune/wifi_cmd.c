@@ -655,6 +655,20 @@ int save_aes_in_memory(const uint8_t * key ) {
 bool has_default_key() {
 	return 0 == memcmp(aes_key, DEFAULT_KEY, AES_BLOCKSIZE);
 }
+static volatile bool burn_top_key = false;
+bool should_burn_top_key() {
+	return burn_top_key;
+}
+extern volatile bool top_got_device_id;
+int send_top(char *, int);
+int Cmd_burn_top(int argc, char *argv[]) {
+	burn_top_key = true;
+	if (top_got_device_id) {
+		send_top("rst", strlen("rst"));
+	}
+	return 0;
+}
+
 
 int get_aes(uint8_t * dst){
 	memcpy(dst, aes_key, AES_BLOCKSIZE);
@@ -764,7 +778,7 @@ static void _morpheus_command_reply(const NetworkResponse_t * response, uint8_t 
 	MorpheusCommand reply;
 	memset(&reply, 0, sizeof(reply));
 	ble_proto_assign_decode_funcs(&reply);
-    if(validate_signatures((char*)reply_buf, MorpheusCommand_fields, &reply) == 0) {
+    if( response->success && validate_signatures((char*)reply_buf, MorpheusCommand_fields, &reply) == 0) {
     	LOGF("signature validated\r\n");
     } else {
         LOGF("signature validation fail\r\n");
@@ -1596,6 +1610,7 @@ static void _on_factory_reset_received()
 
 int force_data_push();
 extern volatile bool provisioning_mode;
+void boot_commit_ota();
 
 static void _key_check_reply(const NetworkResponse_t * response, uint8_t * reply_buf, int reply_sz, void * context) {
 	MorpheusCommand reply;
@@ -1717,14 +1732,12 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
     _set_led_color_based_on_room_conditions(response_protobuf);
 }
 
-void boot_commit_ota();
-
 void sync_response_reply(const NetworkResponse_t * response, uint8_t * reply_buf, int reply_sz, void * context) {
     SyncResponse response_protobuf;
     memset(&response_protobuf, 0, sizeof(response_protobuf));
     response_protobuf.files.funcs.decode = _on_file_download;
 
-    if(validate_signatures((char*)reply_buf, SyncResponse_fields, &response_protobuf) == 0) {
+    if( response->success && validate_signatures((char*)reply_buf, SyncResponse_fields, &response_protobuf) == 0) {
     	LOGF("signatures validated\r\n");
 		boot_commit_ota();
 		_on_response_protobuf(&response_protobuf);
@@ -1736,34 +1749,18 @@ void sync_response_reply(const NetworkResponse_t * response, uint8_t * reply_buf
 }
 
 //retry logic is handled elsewhere
-int send_pill_data(batched_pill_data * pill_data) {
-    int ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER,PILL_DATA_RECEIVE_ENDPOINT, batched_pill_data_fields, pill_data, 0, sync_response_reply, NULL);
-    if(ret != 0)
-    {
-        // network error
-        LOGI("Send pill data failed, network error %d\n", ret);
-    }
-    return ret;
+bool send_pill_data(batched_pill_data * pill_data) {
+    return NetworkTask_SynchronousSendProtobuf(DATA_SERVER,PILL_DATA_RECEIVE_ENDPOINT, batched_pill_data_fields, pill_data, 0, sync_response_reply, NULL);
 }
-
-int send_periodic_data(batched_periodic_data* data) {
-    int ret;
-
-    ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER,DATA_RECEIVE_ENDPOINT, batched_periodic_data_fields, data, 0, sync_response_reply, NULL);
-    if(ret != 0)
-    {
-        // network error
-    	wifi_status_set(UPLOADING, true);
-        LOGI("Send data failed, network error %d\n", ret);
-    }
-    return ret;
+bool send_periodic_data(batched_periodic_data* data) {
+    return NetworkTask_SynchronousSendProtobuf(DATA_SERVER,DATA_RECEIVE_ENDPOINT, batched_periodic_data_fields, data, 0, sync_response_reply, NULL);
 }
 
 void provision_request_reply(const NetworkResponse_t * response, uint8_t * reply_buf, int reply_sz, void * context) {
 	ProvisionResponse response_protobuf;
     memset(&response_protobuf, 0, sizeof(response_protobuf));
 
-    if(validate_signatures((char*)reply_buf, ProvisionResponse_fields, &response_protobuf) == 0) {
+    if( response->success && validate_signatures((char*)reply_buf, ProvisionResponse_fields, &response_protobuf) == 0) {
 		LOGI("Decoding PR %d %d\n",
 				response_protobuf.has_key,
 				response_protobuf.has_retry );
@@ -1785,17 +1782,8 @@ void provision_request_reply(const NetworkResponse_t * response, uint8_t * reply
     }
 }
 
-int send_provision_request(ProvisionRequest* req) {
-    int ret;
-
-    ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER,PROVISION_ENDPOINT, ProvisionRequest_fields, req, 86400000, provision_request_reply, NULL);
-    if(ret != 0)
-    {
-        // network error
-    	wifi_status_set(UPLOADING, true);
-        LOGI("Send data failed, network error %d\n", ret);
-    }
-    return ret;
+bool send_provision_request(ProvisionRequest* req) {
+    return NetworkTask_SynchronousSendProtobuf(DATA_SERVER,PROVISION_ENDPOINT, ProvisionRequest_fields, req, 86400000, provision_request_reply, NULL);
 }
 
 int Cmd_sl(int argc, char*argv[]) {

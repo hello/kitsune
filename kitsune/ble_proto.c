@@ -539,7 +539,7 @@ static void _morpheus_command_reply(const NetworkResponse_t * response, uint8_t 
 	bool * success = (bool*)context;
 	memset(&reply, 0, sizeof(reply));
 	ble_proto_assign_decode_funcs(&reply);
-    if(validate_signatures((char*)reply_buf, MorpheusCommand_fields, &reply) == 0) {
+    if( response->success && validate_signatures((char*)reply_buf, MorpheusCommand_fields, &reply) == 0) {
 		ble_proto_remove_decode_funcs(&reply);
 		ble_send_protobuf(&reply);
     	LOGF("signature validated\r\n");
@@ -559,6 +559,7 @@ void save_account_id( char * acct );
 int force_data_push();
 static int _pair_device( MorpheusCommand* command, int is_morpheus)
 {
+	bool success = false;
 	if(NULL == command->accountId.arg || NULL == command->deviceId.arg){
 		LOGI("*******Missing fields\n");
 		ble_reply_protobuf_error(ErrorType_INTERNAL_DATA_ERROR);
@@ -566,47 +567,25 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 		save_account_id( command->accountId.arg );
 
 		ble_proto_assign_encode_funcs(command);
-		// TODO: Figure out why always get -1 when this is the 1st request
-		// after the IPv4 retrieved.
-	    int ret;
 
-		int retry = 3;
-		while(retry--)
-		{
-			bool success = false;
-			ret = NetworkTask_SynchronousSendProtobuf(
+	    bool  ret = NetworkTask_SynchronousSendProtobuf(
 					DATA_SERVER,
 					is_morpheus == 1 ? MORPHEUS_REGISTER_ENDPOINT : PILL_REGISTER_ENDPOINT,
 					MorpheusCommand_fields,
 					command,
-					0,
+					30000,
 					_morpheus_command_reply, &success);
 
-			if(ret != 0) {
-		        LOGI("network error %d\n", ret);
-				vTaskDelay(1000);
-		        continue;
-		    }
-			if( success ) {
-				break;
-			}
-
-		}
-
 		// All the args are in stack, don't need to do protobuf free.
-
 		if(!is_morpheus) {
 			vTaskDelay(1000);
 			force_data_push();
 		}
-		if(ret == 0)
+		if(!ret || !success )
 		{
-			return 1;
-		}else{
 			LOGI("Pairing request failed, error %d\n", ret);
 			ble_reply_protobuf_error(ErrorType_NETWORK_ERROR);
 		}
-
 	}
 
 	return 0; // failure
@@ -648,6 +627,7 @@ void ble_proto_led_flash(int a, int r, int g, int b, int delay)
 
 	ANIMATE_BLOCKING(play_led_animation_solid(a,r,g,b,2,18), 4000);
 }
+extern volatile bool provisioning_mode;
 
 void ble_proto_led_fade_in_trippy(){
 	uint8_t trippy_base[3] = {60, 25, 90};
@@ -738,6 +718,7 @@ extern volatile bool booted;
 extern volatile bool provisioning_mode;
 extern uint8_t aes_key[AES_BLOCKSIZE + 1];
 int save_device_id( uint8_t * device_id );
+int save_aes( uint8_t * key ) ;
 
 bool on_ble_protobuf_command(MorpheusCommand* command)
 {
@@ -762,20 +743,12 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 				_ble_reply_command_with_type(MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID);
 				top_board_notify_boot_complete();
 				set_ble_mode(BLE_NORMAL);
-				if(command->has_aes_key && has_default_key()){
-					uint8_t testkey[AES_BLOCKSIZE] = {0};
-#if 1
-					if( provisioning_mode ) {
-						save_aes_in_memory(command->aes_key.bytes);
-					}
-#endif
-					get_aes(testkey);
-					LOGI("\r\nUsing Key: %02X%02X ... %02X%02X\r\n",
-							testkey[0],
-							testkey[1],
-							testkey[14],
-							testkey[15]);
+
+				if(command->has_aes_key && should_burn_top_key()){
+					save_aes(command->aes_key.bytes);
+					LOGF("topkey burned\n");
 				}
+
 				top_got_device_id = true;
 				vTaskDelay(200);
 			}else{
@@ -815,7 +788,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 		}
 		break;
 	}
-	if(!booted) {
+	if(!booted || provisioning_mode) {
 		return true;
 	}
     switch(command->type)
@@ -945,7 +918,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 
 				if(color) {
 					ble_proto_led_flash(0xFF, argb[1], argb[2], argb[3], 10);
-				} else if(pill_settings_pill_count() == 0) {
+				} else /*if(pill_settings_pill_count() == 0)*/ {
 					ble_proto_led_flash(0xFF, 0x80, 0x00, 0x80, 10);
 				}
             }else{

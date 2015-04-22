@@ -95,9 +95,9 @@ void wifi_status_init();
 int wifi_status_set(unsigned int status, int remove_status);
 int wifi_status_get(unsigned int status);
 
-int send_periodic_data(batched_periodic_data* data);
-int send_pill_data(batched_pill_data * pill_data);
-int send_provision_request(ProvisionRequest* req);
+bool send_periodic_data(batched_periodic_data* data);
+bool send_pill_data(batched_pill_data * pill_data);
+bool send_provision_request(ProvisionRequest* req);
 #define DEFAULT_KEY "1234567891234567"
 
 void thread_ota( void * unused );
@@ -105,6 +105,8 @@ int save_aes_in_memory(const uint8_t * key );
 int get_aes(uint8_t * dst);
 void on_key(uint8_t * key);
 bool has_default_key();
+bool should_burn_top_key();
+int Cmd_burn_top(int argc, char *argv[]);
 
 int send_data_pb_callback(const char* host, const char* path,char * recv_buf, uint32_t recv_buf_size, void * encodedata,network_encode_callback_t encoder,uint16_t num_receive_retries);
 
