@@ -567,46 +567,25 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 		save_account_id( command->accountId.arg );
 
 		ble_proto_assign_encode_funcs(command);
-		// TODO: Figure out why always get -1 when this is the 1st request
-		// after the IPv4 retrieved.
-	    int ret;
 
-		int retry = 3;
-		while(retry--)
-		{
-			ret = NetworkTask_SynchronousSendProtobuf(
+	    int ret = NetworkTask_SynchronousSendProtobuf(
 					DATA_SERVER,
 					is_morpheus == 1 ? MORPHEUS_REGISTER_ENDPOINT : PILL_REGISTER_ENDPOINT,
 					MorpheusCommand_fields,
 					command,
-					0,
+					30000,
 					_morpheus_command_reply, &success);
 
-			if(ret != 0) {
-		        LOGI("network error %d\n", ret);
-				vTaskDelay(1000);
-		        continue;
-		    }
-			if( success ) {
-				break;
-			}
-
-		}
-
 		// All the args are in stack, don't need to do protobuf free.
-
 		if(!is_morpheus) {
 			vTaskDelay(1000);
 			force_data_push();
 		}
-		if(ret == 0 && success )
+		if(ret != 0 || !success )
 		{
-			return 1;
-		}else{
 			LOGI("Pairing request failed, error %d\n", ret);
 			ble_reply_protobuf_error(ErrorType_NETWORK_ERROR);
 		}
-
 	}
 
 	return 0; // failure

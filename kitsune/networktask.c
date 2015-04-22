@@ -14,11 +14,7 @@
 #define NUM_RECEIVE_RETRIES (10)
 
 static xQueueHandle _asyncqueue = NULL;
-static xSemaphoreHandle _waiter = NULL;
-static xSemaphoreHandle _syncmutex = NULL;
 static xSemaphoreHandle _network_mutex = NULL;
-
-static NetworkResponse_t _syncsendresponse;
 
 #define USE_DEBUG_PRINTF
 
@@ -35,28 +31,10 @@ static void Init(NetworkTaskData_t * info) {
 		_asyncqueue = xQueueCreate(NETWORK_TASK_QUEUE_DEPTH,sizeof(NetworkTaskServerSendMessage_t));
 	}
 
-	if (!_waiter) {
-		_waiter = xSemaphoreCreateBinary();
-	}
-
-	if (!_syncmutex) {
-		_syncmutex = xSemaphoreCreateMutex();
-	}
-
 	if(!_network_mutex)
 	{
 		_network_mutex = xSemaphoreCreateMutex();
 	}
-
-
-}
-
-static void SynchronousSendNetworkResponseCallback(const NetworkResponse_t * response, uint8_t * reply_buf, int reply_sz, void * context) {
-	memcpy(&_syncsendresponse,response,sizeof(NetworkResponse_t));
-
-//	DEBUG_PRINTF("NT::SynchronousSendNetworkResponseCallback -- got callback");
-
-	xSemaphoreGive(_waiter);
 
 
 }
@@ -135,13 +113,115 @@ int NetworkTask_AsynchronousSendProtobuf(const char * host,
 
 }
 
+
+
+static NetworkResponse_t nettask_send(NetworkTaskServerSendMessage_t * message) {
+	NetworkResponse_t response;
+	int32_t timeout_counts;
+	int32_t retry_period;
+	uint32_t attempt_count;
+
+	memset(&response,0,sizeof(response));
+
+	if(networktask_enter_critical_region() != pdTRUE)
+	{
+		LOGE("Cannot networktask_enter_critical_region\n");
+		return response;
+	}
+
+	if (message->begin) {
+		message->begin(message);
+	}
+
+
+	retry_period = INITIAL_RETRY_PERIOD_COUNTS;
+	attempt_count = 0;
+	timeout_counts = message->retry_timeout;
+
+	while (1) {
+
+		DEBUG_PRINTF("NT %s%s -- %d",message->host,message->endpoint,attempt_count);
+
+		/* prepare to prepare */
+		if (message->prepare) {
+			message->prepare(message->prepdata);
+		}
+
+		//push to server
+		if (send_data_pb_callback(message->host,
+				message->endpoint,
+				(char*)message->decode_buf,
+				message->decode_buf_size,
+				message->encodedata,
+				message->encode,
+				NUM_RECEIVE_RETRIES) == 0) {
+			response.success = true;
+		} else {
+			//failed to push, now what?
+			response.success = false;
+			response.flags |= NETWORK_RESPONSE_FLAG_NO_CONNECTION;
+		}
+
+		/* unprepare */
+		if (message->unprepare) {
+			message->unprepare(message->prepdata);
+		}
+
+
+		//if failed response and there's some timeout time left, go delay and try again.
+		if (!response.success && timeout_counts > 0) {
+
+			if (timeout_counts < retry_period) {
+				DEBUG_PRINTF("NT waiting %d ticks",retry_period);
+				vTaskDelay(retry_period);
+				timeout_counts = 0;
+			}
+			else {
+				DEBUG_PRINTF("NT waiting %d ticks",retry_period);
+				vTaskDelay(retry_period);
+				timeout_counts -= retry_period;
+				retry_period <<= 1;
+			}
+		}
+		else {
+			break;
+		}
+
+		attempt_count++;
+
+	}
+
+	if (response.success) {
+		DEBUG_PRINTF("NT %s%s (success)",message->host,message->endpoint);
+	}
+	else {
+		DEBUG_PRINTF("NT %s%s (failure)",message->host,message->endpoint);
+	}
+
+	//let the requester know we are done
+	if (message->response_callback) {
+		message->response_callback(&response, message->decode_buf, message->decode_buf_size,message->context);
+	}
+
+	if( message->end ) {
+		message->end(message);
+	}
+	if( message->terminate ) {
+		message->terminate(message->terminate_data);
+	}
+
+
+	networktask_exit_critical_region();;
+
+	return response;
+}
+
 int NetworkTask_SynchronousSendProtobuf(const char * host,
 		const char * endpoint, const pb_field_t fields[],
 		const void * structdata, int32_t retry_time_in_counts,
 		NetworkResponseCallback_t func, void * context) {
 	NetworkTaskServerSendMessage_t message;
 	network_encode_data_t encodedata = {0};
-	int retcode = -1;
 
 	memset(&message,0,sizeof(message));
 
@@ -152,7 +232,6 @@ int NetworkTask_SynchronousSendProtobuf(const char * host,
 	message.host = host;
 	message.endpoint = endpoint;
 	message.response_callback = func;
-	message.internal_response_callback = SynchronousSendNetworkResponseCallback;
 	message.context = context;
 
 	message.retry_timeout = retry_time_in_counts;
@@ -163,51 +242,13 @@ int NetworkTask_SynchronousSendProtobuf(const char * host,
 	message.begin = _allocate_reply_buf;
 	message.end = _free_reply_buf;
 
-	if( ! _syncmutex || ! _asyncqueue ) {
-		return -1;
-	}
-
 	DEBUG_PRINTF("NT sync %s",endpoint);
 
-	//critical section
-	if(xSemaphoreTake(_syncmutex,portMAX_DELAY) != pdTRUE)
-	{
-		LOGE("Cannot take _syncmutex\n");
-		return retcode;
-	}
-
-	memset(&_syncsendresponse,0,sizeof(_syncsendresponse));
-
-	//add to queue
-	if(xQueueSend( _asyncqueue, ( const void * )&message, 1000 ) != pdTRUE)
-	{
-		// If queue is full, do not block the caller.
-		xSemaphoreGive(_syncmutex);
-		LOGE("Cannot send request to _asyncqueue\n");
-		return retcode;
-	}
-
-	//worry: what if callback happens before I get here?
-	//wait until network callback happens
-	xSemaphoreTake(_waiter,portMAX_DELAY);
-
-	if (_syncsendresponse.success) {
-		retcode = 0;
-	}
-
-	//end critical section
-	xSemaphoreGive(_syncmutex);
-
-	return retcode;
-
+	return nettask_send(&message).success;
 }
 
 static void NetworkTask_Thread(void * networkdata) {
 	NetworkTaskServerSendMessage_t message;
-	NetworkResponse_t response;
-	int32_t timeout_counts;
-	int32_t retry_period;
-	uint32_t attempt_count;
 
 	for (; ;) {
 
@@ -216,98 +257,8 @@ static void NetworkTask_Thread(void * networkdata) {
 			continue; //LOOP FOREVEREVEREVEREVER
 		}
 
-		if (message.begin) {
-			message.begin(&message);
-		}
-
-		memset(&response,0,sizeof(response));
-
-		retry_period = INITIAL_RETRY_PERIOD_COUNTS;
-		attempt_count = 0;
-		timeout_counts = message.retry_timeout;
-
-		while (1) {
-
-			DEBUG_PRINTF("NT %s%s -- %d",message.host,message.endpoint,attempt_count);
-
-			/* prepare to prepare */
-			if (message.prepare) {
-				message.prepare(message.prepdata);
-			}
-
-			if(networktask_enter_critical_region() == pdTRUE)
-			{
-				//push to server
-				if (send_data_pb_callback(message.host,
-						message.endpoint,
-						(char*)message.decode_buf,
-						message.decode_buf_size,
-						message.encodedata,
-						message.encode,
-						NUM_RECEIVE_RETRIES) == 0) {
-					response.success = true;
-				} else {
-					//failed to push, now what?
-					response.success = false;
-					response.flags |= NETWORK_RESPONSE_FLAG_NO_CONNECTION;
-				}
-				networktask_exit_critical_region();;
-			}else{
-				LOGE("NT critical region failed.\n");
-			}
-
-			/* unprepare */
-			if (message.unprepare) {
-				message.unprepare(message.prepdata);
-			}
-
-
-			//if failed response and there's some timeout time left, go delay and try again.
-			if (!response.success && timeout_counts > 0) {
-
-				if (timeout_counts < retry_period) {
-					DEBUG_PRINTF("NT waiting %d ticks",retry_period);
-					vTaskDelay(retry_period);
-					timeout_counts = 0;
-				}
-				else {
-					DEBUG_PRINTF("NT waiting %d ticks",retry_period);
-					vTaskDelay(retry_period);
-					timeout_counts -= retry_period;
-					retry_period <<= 1;
-				}
-			}
-			else {
-				break;
-			}
-
-			attempt_count++;
-
-		}
-
-		if (response.success) {
-			DEBUG_PRINTF("NT %s%s (success)",message.host,message.endpoint);
-		}
-		else {
-			DEBUG_PRINTF("NT %s%s (failure)",message.host,message.endpoint);
-		}
-		if (message.internal_response_callback) {
-			message.internal_response_callback(&response, message.decode_buf, message.decode_buf_size,message.context);
-		}
-
-		//let the requester know we are done
-		if (message.response_callback) {
-			message.response_callback(&response, message.decode_buf, message.decode_buf_size,message.context);
-		}
-
-		if( message.end ) {
-			message.end(&message);
-		}
-		if( message.terminate ) {
-			message.terminate(message.terminate_data);
-		}
+		nettask_send(&message);
 		vTaskDelay(100);
-
 	}
 
 }

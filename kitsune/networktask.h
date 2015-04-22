@@ -46,7 +46,6 @@ typedef struct {
 	int32_t retry_timeout;
 
 	NetworkResponseCallback_t response_callback;
-	NetworkResponseCallback_t internal_response_callback;
 
 } NetworkTaskServerSendMessage_t;
 

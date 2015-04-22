@@ -958,7 +958,7 @@ void thread_tx(void* unused) {
 					pr.serial.funcs.encode = _encode_string_fields;
 					pr.serial.arg = serial;
 					pr.need_key = true;
-					while (!send_provision_request(&pr) == 0) {
+					while (send_provision_request(&pr) == 0) {
 						LOGI("Waiting for network connection\n");
 						vTaskDelay((1 << tries) * 1000);
 						if (tries++ > 3) {
@@ -968,7 +968,7 @@ void thread_tx(void* unused) {
 				}
 			}
 
-			while (!send_periodic_data(&data_batched) == 0) {
+			while (send_periodic_data(&data_batched) == 0) {
 				LOGI("Waiting for network connection\n");
 				vTaskDelay((1 << tries) * 1000);
 				if (tries++ > 5) {
@@ -1000,7 +1000,7 @@ void thread_tx(void* unused) {
 			pill_data_batched.pills.arg = &pilldata;
 			pill_data_batched.device_id.funcs.encode = encode_device_id_string;
 
-			while (!send_pill_data(&pill_data_batched) == 0) {
+			while (send_pill_data(&pill_data_batched) == 0) {
 				LOGI("  Waiting for WIFI connection  \n");
 				vTaskDelay((1 << tries) * 1000);
 				if (tries++ > 5) {
@@ -1608,7 +1608,7 @@ void launch_tasks() {
 	UARTprintf("*");
 	xTaskCreate(thread_sensor_poll, "pollTask", 1024 / 4, NULL, 3, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_tx, "txTask", 1 * 1024 / 4, NULL, 2, NULL);
+	xTaskCreate(thread_tx, "txTask", 4 * 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
 #endif
 }
@@ -1882,7 +1882,7 @@ void vUARTTask(void *pvParameters) {
 	init_dust();
 	ble_proto_init();
 	xTaskCreate(top_board_task, "top_board_task", 1280 / 4, NULL, 2, NULL);
-	xTaskCreate(thread_spi, "spiTask", 3*1024 / 4, NULL, 4, NULL); //this one doesn't look like much, but has to parse all the pb from bluetooth
+	xTaskCreate(thread_spi, "spiTask", 4*1024 / 4, NULL, 4, NULL); //this one doesn't look like much, but has to parse all the pb from bluetooth
 	UARTprintf("*");
 #ifndef BUILD_SERVERS
 	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 1, NULL);
