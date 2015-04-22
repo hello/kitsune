@@ -646,6 +646,7 @@ static uint8_t aes_key[AES_BLOCKSIZE + 1] = DEFAULT_KEY;
 static uint8_t device_id[DEVICE_ID_SZ + 1];
 
 int save_aes( uint8_t * key ) {
+	save_aes_in_memory(key);
 	return fs_save( AES_KEY_LOC, key, AES_BLOCKSIZE);
 }
 int save_aes_in_memory(const uint8_t * key ) {

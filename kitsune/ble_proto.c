@@ -911,8 +911,14 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_SHAKES:
         {
+			#define MIN_SHAKE_INTERVAL 3000
+            static portTickType last_shake = 0;
+            portTickType now = xTaskGetTickCount();
+
             LOGI("PILL SHAKES\n");
-            if(command->deviceId.arg){
+            if( now - last_shake < MIN_SHAKE_INTERVAL ) {
+                LOGI("PILL SHAKE THROTTLE\n");
+            } else if(command->deviceId.arg){
 				uint32_t color = pill_settings_get_color((const char*)command->deviceId.arg);
 				uint8_t* argb = (uint8_t*)&color;
 
@@ -921,6 +927,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 				} else /*if(pill_settings_pill_count() == 0)*/ {
 					ble_proto_led_flash(0xFF, 0x80, 0x00, 0x80, 10);
 				}
+				last_shake = xTaskGetTickCount();
             }else{
             	LOGI("Please update topboard, no pill id\n");
             }
