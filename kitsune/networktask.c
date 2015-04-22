@@ -36,7 +36,6 @@ static void Init(NetworkTaskData_t * info) {
 		_network_mutex = xSemaphoreCreateMutex();
 	}
 
-
 }
 
 static uint32_t EncodePb(pb_ostream_t * stream, void * data) {
@@ -55,18 +54,6 @@ static void FreeMe(void * data) {
 	if(data) {
 		vPortFree(data);
 	}
-}
-
-static void _allocate_reply_buf(void * context) {
-	NetworkTaskServerSendMessage_t * msg = (NetworkTaskServerSendMessage_t*)context;
-	msg->decode_buf = pvPortMalloc(SERVER_REPLY_BUFSZ);
-    assert(msg->decode_buf);
-    memset(msg->decode_buf, 0, SERVER_REPLY_BUFSZ);
-    msg->decode_buf_size = SERVER_REPLY_BUFSZ;
-}
-static void _free_reply_buf(void * context) {
-	NetworkTaskServerSendMessage_t * msg = (NetworkTaskServerSendMessage_t*)context;
-	vPortFree(msg->decode_buf);
 }
 
 int NetworkTask_AsynchronousSendProtobuf(const char * host,
@@ -92,9 +79,6 @@ int NetworkTask_AsynchronousSendProtobuf(const char * host,
 	message.encode = EncodePb;
 	message.encodedata = encodedata;
 
-	message.begin = _allocate_reply_buf;
-	message.end = _free_reply_buf;
-
 	message.terminate = FreeMe;
 	message.terminate_data = encodedata;
 
@@ -113,8 +97,6 @@ int NetworkTask_AsynchronousSendProtobuf(const char * host,
 
 }
 
-
-
 static NetworkResponse_t nettask_send(NetworkTaskServerSendMessage_t * message) {
 	NetworkResponse_t response;
 	int32_t timeout_counts;
@@ -128,6 +110,10 @@ static NetworkResponse_t nettask_send(NetworkTaskServerSendMessage_t * message) 
 		LOGE("Cannot networktask_enter_critical_region\n");
 		return response;
 	}
+	message->decode_buf = pvPortMalloc(SERVER_REPLY_BUFSZ);
+    assert(message->decode_buf);
+    memset(message->decode_buf, 0, SERVER_REPLY_BUFSZ);
+    message->decode_buf_size = SERVER_REPLY_BUFSZ;
 
 	if (message->begin) {
 		message->begin(message);
@@ -206,6 +192,8 @@ static NetworkResponse_t nettask_send(NetworkTaskServerSendMessage_t * message) 
 	if( message->end ) {
 		message->end(message);
 	}
+	vPortFree(message->decode_buf);
+
 	if( message->terminate ) {
 		message->terminate(message->terminate_data);
 	}
@@ -216,11 +204,17 @@ static NetworkResponse_t nettask_send(NetworkTaskServerSendMessage_t * message) 
 	return response;
 }
 
+void unblock_sync(void * data) {
+	NetworkTaskServerSendMessage_t * msg = (NetworkTaskServerSendMessage_t*)data;
+    xSemaphoreGive(msg->sync);
+}
+
 bool NetworkTask_SynchronousSendProtobuf(const char * host,
 		const char * endpoint, const pb_field_t fields[],
 		const void * structdata, int32_t retry_time_in_counts,
 		NetworkResponseCallback_t func, void * context) {
 	NetworkTaskServerSendMessage_t message;
+	NetworkResponse_t response;
 	network_encode_data_t encodedata = {0};
 
 	memset(&message,0,sizeof(message));
@@ -239,12 +233,26 @@ bool NetworkTask_SynchronousSendProtobuf(const char * host,
 	message.encode = EncodePb;
 	message.encodedata = &encodedata;
 
-	message.begin = _allocate_reply_buf;
-	message.end = _free_reply_buf;
+	message.sync = xSemaphoreCreateBinary();
+	message.end = unblock_sync;
+	message.response_handle = &response;
 
 	DEBUG_PRINTF("NT sync %s",endpoint);
 
-	return nettask_send(&message).success;
+	assert( _asyncqueue );
+
+	//add to queue
+	if(xQueueSend( _asyncqueue, ( const void * )&message, portMAX_DELAY ) != pdTRUE)
+	{
+		LOGE("Cannot send request to _asyncqueue\n");
+	    vSemaphoreDelete(message.sync);
+		return -1;
+	}
+
+    xSemaphoreTake(message.sync, portMAX_DELAY);
+    vSemaphoreDelete(message.sync);
+
+	return response.success;
 }
 
 static void NetworkTask_Thread(void * networkdata) {
@@ -257,7 +265,11 @@ static void NetworkTask_Thread(void * networkdata) {
 			continue; //LOOP FOREVEREVEREVEREVER
 		}
 
-		nettask_send(&message);
+		if( message.response_handle ) {
+			*message.response_handle = nettask_send(&message);
+		} else {
+			nettask_send(&message);
+		}
 		vTaskDelay(100);
 	}
 

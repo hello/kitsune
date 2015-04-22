@@ -1608,7 +1608,7 @@ void launch_tasks() {
 	UARTprintf("*");
 	xTaskCreate(thread_sensor_poll, "pollTask", 1024 / 4, NULL, 3, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_tx, "txTask", 4 * 1024 / 4, NULL, 2, NULL);
+	xTaskCreate(thread_tx, "txTask", 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
 #endif
 }
@@ -1882,7 +1882,7 @@ void vUARTTask(void *pvParameters) {
 	init_dust();
 	ble_proto_init();
 	xTaskCreate(top_board_task, "top_board_task", 1280 / 4, NULL, 2, NULL);
-	xTaskCreate(thread_spi, "spiTask", 4*1024 / 4, NULL, 4, NULL); //this one doesn't look like much, but has to parse all the pb from bluetooth
+	xTaskCreate(thread_spi, "spiTask", 3*1024 / 4, NULL, 4, NULL); //this one doesn't look like much, but has to parse all the pb from bluetooth
 	UARTprintf("*");
 #ifndef BUILD_SERVERS
 	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 1, NULL);
