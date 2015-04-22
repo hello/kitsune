@@ -115,11 +115,6 @@ static NetworkResponse_t nettask_send(NetworkTaskServerSendMessage_t * message) 
     memset(message->decode_buf, 0, SERVER_REPLY_BUFSZ);
     message->decode_buf_size = SERVER_REPLY_BUFSZ;
 
-	if (message->begin) {
-		message->begin(message);
-	}
-
-
 	retry_period = INITIAL_RETRY_PERIOD_COUNTS;
 	attempt_count = 0;
 	timeout_counts = message->retry_timeout;
@@ -189,15 +184,11 @@ static NetworkResponse_t nettask_send(NetworkTaskServerSendMessage_t * message) 
 		message->response_callback(&response, message->decode_buf, message->decode_buf_size,message->context);
 	}
 
-	if( message->end ) {
-		message->end(message);
-	}
 	vPortFree(message->decode_buf);
 
 	if( message->terminate ) {
 		message->terminate(message->terminate_data);
 	}
-
 
 	networktask_exit_critical_region();;
 
@@ -265,11 +256,18 @@ static void NetworkTask_Thread(void * networkdata) {
 			vTaskDelay(1000);
 			continue; //LOOP FOREVEREVEREVEREVER
 		}
+		if (message.begin) {
+			message.begin(&message);
+		}
 
 		if( message.response_handle ) {
 			*message.response_handle = nettask_send(&message);
 		} else {
 			nettask_send(&message);
+		}
+
+		if( message.end ) {
+			message.end(&message);
 		}
 		vTaskDelay(100);
 	}
