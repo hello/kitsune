@@ -234,6 +234,7 @@ bool NetworkTask_SynchronousSendProtobuf(const char * host,
 	message.encodedata = &encodedata;
 
 	message.sync = xSemaphoreCreateBinary();
+	assert( message.sync );
 	message.end = unblock_sync;
 	message.response_handle = &response;
 
@@ -246,7 +247,7 @@ bool NetworkTask_SynchronousSendProtobuf(const char * host,
 	{
 		LOGE("Cannot send request to _asyncqueue\n");
 	    vSemaphoreDelete(message.sync);
-		return -1;
+		return false;
 	}
 
     xSemaphoreTake(message.sync, portMAX_DELAY);
