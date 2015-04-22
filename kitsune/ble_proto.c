@@ -567,46 +567,25 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 		save_account_id( command->accountId.arg );
 
 		ble_proto_assign_encode_funcs(command);
-		// TODO: Figure out why always get -1 when this is the 1st request
-		// after the IPv4 retrieved.
-	    int ret;
 
-		int retry = 3;
-		while(retry--)
-		{
-			ret = NetworkTask_SynchronousSendProtobuf(
+	    bool  ret = NetworkTask_SynchronousSendProtobuf(
 					DATA_SERVER,
 					is_morpheus == 1 ? MORPHEUS_REGISTER_ENDPOINT : PILL_REGISTER_ENDPOINT,
 					MorpheusCommand_fields,
 					command,
-					0,
+					30000,
 					_morpheus_command_reply, &success);
 
-			if(ret != 0) {
-		        LOGI("network error %d\n", ret);
-				vTaskDelay(1000);
-		        continue;
-		    }
-			if( success ) {
-				break;
-			}
-
-		}
-
 		// All the args are in stack, don't need to do protobuf free.
-
 		if(!is_morpheus) {
 			vTaskDelay(1000);
 			force_data_push();
 		}
-		if(ret == 0 && success )
+		if(!ret || !success )
 		{
-			return 1;
-		}else{
 			LOGI("Pairing request failed, error %d\n", ret);
 			ble_reply_protobuf_error(ErrorType_NETWORK_ERROR);
 		}
-
 	}
 
 	return 0; // failure
@@ -932,8 +911,14 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_SHAKES:
         {
+			#define MIN_SHAKE_INTERVAL 3000
+            static portTickType last_shake = 0;
+            portTickType now = xTaskGetTickCount();
+
             LOGI("PILL SHAKES\n");
-            if(command->deviceId.arg){
+            if( now - last_shake < MIN_SHAKE_INTERVAL ) {
+                LOGI("PILL SHAKE THROTTLE\n");
+            } else if(command->deviceId.arg){
 				uint32_t color = pill_settings_get_color((const char*)command->deviceId.arg);
 				uint8_t* argb = (uint8_t*)&color;
 
@@ -942,6 +927,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 				} else /*if(pill_settings_pill_count() == 0)*/ {
 					ble_proto_led_flash(0xFF, 0x80, 0x00, 0x80, 10);
 				}
+				last_shake = xTaskGetTickCount();
             }else{
             	LOGI("Please update topboard, no pill id\n");
             }

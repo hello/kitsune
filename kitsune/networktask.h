@@ -5,6 +5,8 @@
 #include "ble_cmd.h"
 #include "network_types.h"
 #include "endpoints.h"
+#include "FreeRTOS.h"
+#include "semphr.h"
 
 #define NETWORK_RESPONSE_FLAG_NO_CONNECTION (0x00000001)
 
@@ -45,9 +47,9 @@ typedef struct {
 
 	int32_t retry_timeout;
 
+	xSemaphoreHandle sync;
 	NetworkResponseCallback_t response_callback;
-	NetworkResponseCallback_t internal_response_callback;
-
+	NetworkResponse_t * response_handle;
 } NetworkTaskServerSendMessage_t;
 
 typedef struct {
@@ -60,7 +62,7 @@ void networktask_init(uint16_t stack_size);
  * field in the HTTP headers, the socket it will talk on will
  * always connect to DATA_SERVER
  */
-int NetworkTask_SynchronousSendProtobuf(const char * host,
+bool NetworkTask_SynchronousSendProtobuf(const char * host,
 		const char * endpoint, const pb_field_t fields[],
 		const void * structdata, int32_t retry_time_in_counts,
 		NetworkResponseCallback_t func, void * context);
