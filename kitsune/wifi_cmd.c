@@ -1749,27 +1749,11 @@ void sync_response_reply(const NetworkResponse_t * response, uint8_t * reply_buf
 }
 
 //retry logic is handled elsewhere
-int send_pill_data(batched_pill_data * pill_data) {
-    int ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER,PILL_DATA_RECEIVE_ENDPOINT, batched_pill_data_fields, pill_data, 0, sync_response_reply, NULL);
-    if(ret != 0)
-    {
-        // network error
-        LOGI("Send pill data failed, network error %d\n", ret);
-    }
-    return ret;
+bool send_pill_data(batched_pill_data * pill_data) {
+    return NetworkTask_SynchronousSendProtobuf(DATA_SERVER,PILL_DATA_RECEIVE_ENDPOINT, batched_pill_data_fields, pill_data, 0, sync_response_reply, NULL);
 }
-
-int send_periodic_data(batched_periodic_data* data) {
-    int ret;
-
-    ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER,DATA_RECEIVE_ENDPOINT, batched_periodic_data_fields, data, 0, sync_response_reply, NULL);
-    if(ret != 0)
-    {
-        // network error
-    	wifi_status_set(UPLOADING, true);
-        LOGI("Send data failed, network error %d\n", ret);
-    }
-    return ret;
+bool send_periodic_data(batched_periodic_data* data) {
+    return NetworkTask_SynchronousSendProtobuf(DATA_SERVER,DATA_RECEIVE_ENDPOINT, batched_periodic_data_fields, data, 0, sync_response_reply, NULL);
 }
 
 void provision_request_reply(const NetworkResponse_t * response, uint8_t * reply_buf, int reply_sz, void * context) {
@@ -1798,17 +1782,8 @@ void provision_request_reply(const NetworkResponse_t * response, uint8_t * reply
     }
 }
 
-int send_provision_request(ProvisionRequest* req) {
-    int ret;
-
-    ret = NetworkTask_SynchronousSendProtobuf(DATA_SERVER,PROVISION_ENDPOINT, ProvisionRequest_fields, req, 86400000, provision_request_reply, NULL);
-    if(ret != 0)
-    {
-        // network error
-    	wifi_status_set(UPLOADING, true);
-        LOGI("Send data failed, network error %d\n", ret);
-    }
-    return ret;
+bool send_provision_request(ProvisionRequest* req) {
+    return NetworkTask_SynchronousSendProtobuf(DATA_SERVER,PROVISION_ENDPOINT, ProvisionRequest_fields, req, 86400000, provision_request_reply, NULL);
 }
 
 int Cmd_sl(int argc, char*argv[]) {

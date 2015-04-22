@@ -216,7 +216,7 @@ static NetworkResponse_t nettask_send(NetworkTaskServerSendMessage_t * message) 
 	return response;
 }
 
-int NetworkTask_SynchronousSendProtobuf(const char * host,
+bool NetworkTask_SynchronousSendProtobuf(const char * host,
 		const char * endpoint, const pb_field_t fields[],
 		const void * structdata, int32_t retry_time_in_counts,
 		NetworkResponseCallback_t func, void * context) {

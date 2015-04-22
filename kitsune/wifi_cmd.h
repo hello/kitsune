@@ -95,9 +95,9 @@ void wifi_status_init();
 int wifi_status_set(unsigned int status, int remove_status);
 int wifi_status_get(unsigned int status);
 
-int send_periodic_data(batched_periodic_data* data);
-int send_pill_data(batched_pill_data * pill_data);
-int send_provision_request(ProvisionRequest* req);
+bool send_periodic_data(batched_periodic_data* data);
+bool send_pill_data(batched_pill_data * pill_data);
+bool send_provision_request(ProvisionRequest* req);
 #define DEFAULT_KEY "1234567891234567"
 
 void thread_ota( void * unused );

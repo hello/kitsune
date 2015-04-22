@@ -59,7 +59,7 @@ void networktask_init(uint16_t stack_size);
  * field in the HTTP headers, the socket it will talk on will
  * always connect to DATA_SERVER
  */
-int NetworkTask_SynchronousSendProtobuf(const char * host,
+bool NetworkTask_SynchronousSendProtobuf(const char * host,
 		const char * endpoint, const pb_field_t fields[],
 		const void * structdata, int32_t retry_time_in_counts,
 		NetworkResponseCallback_t func, void * context);

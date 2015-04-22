@@ -568,7 +568,7 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 
 		ble_proto_assign_encode_funcs(command);
 
-	    int ret = NetworkTask_SynchronousSendProtobuf(
+	    bool  ret = NetworkTask_SynchronousSendProtobuf(
 					DATA_SERVER,
 					is_morpheus == 1 ? MORPHEUS_REGISTER_ENDPOINT : PILL_REGISTER_ENDPOINT,
 					MorpheusCommand_fields,
@@ -581,7 +581,7 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 			vTaskDelay(1000);
 			force_data_push();
 		}
-		if(ret != 0 || !success )
+		if(!ret || !success )
 		{
 			LOGI("Pairing request failed, error %d\n", ret);
 			ble_reply_protobuf_error(ErrorType_NETWORK_ERROR);
