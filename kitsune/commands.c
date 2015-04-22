@@ -91,6 +91,7 @@
 #include "ustdlib.h"
 
 #include "pill_settings.h"
+#include "prox_signal.h"
 
 #define ONLY_MID 0
 
@@ -823,6 +824,11 @@ static void _on_gesture_out()
 
 void thread_fast_i2c_poll(void * unused)  {
 	gesture_init();
+	ProxSignal_Init();
+	ProxGesture_t gesture;
+
+	uint32_t counter = 0;
+
 	while (1) {
 		portTickType now = xTaskGetTickCount();
 		int prox=0;
@@ -837,46 +843,55 @@ void thread_fast_i2c_poll(void * unused)  {
 			prox = get_prox();  // now this thing is in um.
 
 			xSemaphoreGive(i2c_smphr);
-			//UARTprintf("%d ", prox);
 
-			gesture gesture_state = gesture_input(prox);
-			switch(gesture_state)
+			prox = ProxSignal_MedianFilter(prox);
+
+			gesture = ProxSignal_UpdateChangeSignals(prox);
+
+
+			//gesture gesture_state = gesture_input(prox);
+			switch(gesture)
 			{
-			case GESTURE_WAVE:
+			case proxGestureWave:
 				_on_wave();
+				gesture_increment_wave_count();
 				break;
-			case GESTURE_HOLD:
+			case proxGestureHold:
 				_on_hold();
+				gesture_increment_hold_count();
 				break;
-			case GESTURE_OUT:
+			case proxGestureRelease:
 				_on_gesture_out();
 				break;
 			default:
 				break;
 			}
 
+			if (++counter > 10) {
+				counter = 0;
 
-			if (xSemaphoreTake(light_smphr, portMAX_DELAY)) {
-				light_log_sum += bitlog(light);
-				++light_cnt;
+				if (xSemaphoreTake(light_smphr, portMAX_DELAY)) {
+					light_log_sum += bitlog(light);
+					++light_cnt;
 
-				int delta = light - light_mean;
-				light_mean = light_mean + delta/light_cnt;
-				light_m2 = light_m2 + delta * (light - light_mean);
-				if( light_m2 < 0 ) {
-					light_m2 = 0x7FFFFFFF;
-				}
-				//LOGI( "%d %d %d %d\n", delta, light_mean, light_m2, light_cnt);
-				xSemaphoreGive(light_smphr);
+					int delta = light - light_mean;
+					light_mean = light_mean + delta/light_cnt;
+					light_m2 = light_m2 + delta * (light - light_mean);
+					if( light_m2 < 0 ) {
+						light_m2 = 0x7FFFFFFF;
+					}
+					//LOGI( "%d %d %d %d\n", delta, light_mean, light_m2, light_cnt);
+					xSemaphoreGive(light_smphr);
 
-				if(light_cnt % 5 == 0 && led_is_idle(0) ) {
-					if(_is_light_off(light)) {
-						_show_led_status();
+					if(light_cnt % 5 == 0 && led_is_idle(0) ) {
+						if(_is_light_off(light)) {
+							_show_led_status();
+						}
 					}
 				}
 			}
 		}
-		vTaskDelayUntil(&now, 100);
+		vTaskDelayUntil(&now, 10);
 	}
 }
 
@@ -1618,6 +1633,15 @@ int Cmd_boot(int argc, char *argv[]) {
 	if( !booted ) {
 		launch_tasks();
 	}
+	return 0;
+}
+
+int Cmd_get_gesture_count(int argc, char * argv[]) {
+
+	const int count = gesture_get_and_reset_all_diagnostic_counts();
+
+	LOGI("%d transitions\n",count);
+
 	return 0;
 }
 
