@@ -16,7 +16,7 @@ typedef struct {
 } NetworkResponse_t;
 
 typedef void (*NetworkResponseCallback_t)(
-		const NetworkResponse_t * response, uint8_t * reply_buf, int reply_sz,
+		const NetworkResponse_t * response, char * reply_buf, int reply_sz,
 		void * context);
 
 typedef struct {
@@ -42,7 +42,7 @@ typedef struct {
 	const char * host; //the server to which you wish to communicate
 	const char * endpoint; //where on the server you wish to communicate to.  eg /audio/features
 
-	uint8_t * decode_buf; //the buffer we dump our server response to
+	char * decode_buf; //the buffer we dump our server response to
 	uint32_t decode_buf_size;
 
 	int32_t retry_timeout;

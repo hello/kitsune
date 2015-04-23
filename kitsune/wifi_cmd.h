@@ -35,7 +35,7 @@ int sl_mode;
 #define DEVICE_ID_LOC "/hello/deviceid"
 #define DEVICE_ID_SZ 8
 
-#define SERVER_REPLY_BUFSZ 2048
+#define SERVER_REPLY_BUFSZ 32
 
 #include "stdint.h"
 #include "sync_response.pb.h"
@@ -108,7 +108,9 @@ bool has_default_key();
 bool should_burn_top_key();
 int Cmd_burn_top(int argc, char *argv[]);
 
-int send_data_pb_callback(const char* host, const char* path,char * recv_buf, uint32_t recv_buf_size, void * encodedata,network_encode_callback_t encoder,uint16_t num_receive_retries);
+int send_data_pb_callback(const char* host, const char* path, char ** recv_buf_ptr,
+		uint32_t * recv_buf_size_ptr, void * encodedata,
+		network_encode_callback_t encoder, uint16_t num_receive_retries);
 
 int decode_rx_data_pb_callback(const uint8_t * buffer, uint32_t buffer_size, void * decodedata,network_decode_callback_t decoder);
 int decode_rx_data_pb(const uint8_t * buffer, uint32_t buffer_size, const  pb_field_t fields[],void * structdata);

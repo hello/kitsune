@@ -475,8 +475,8 @@ static void _process_pill_heartbeat( MorpheusCommand* command)
 	
 }
 
-
-static void _morpheus_command_reply(const NetworkResponse_t * response, uint8_t * reply_buf, int reply_sz, void * context) {
+static void _morpheus_command_reply(const NetworkResponse_t * response,
+		char * reply_buf, int reply_sz, void * context) {
 	MorpheusCommand reply;
 	bool * success = (bool*)context;
 	memset(&reply, 0, sizeof(reply));

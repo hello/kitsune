@@ -131,8 +131,9 @@ void AudioProcessingTask_SetControl(EAudioProcessingCommand_t cmd,NotificationCa
 	}
 }
 
-static void NetworkResponseFunc(const NetworkResponse_t * response, uint8_t * reply_buf, int reply_buf_sz,void * context) {
-	LOGI("AUDIO RESPONSE:\r\n%s",reply_buf);
+static void NetworkResponseFunc(const NetworkResponse_t * response,
+		char * reply_buf, int reply_buf_sz, void * context) {
+	LOGI("AUDIO RESPONSE:\r\n%s", reply_buf);
 
 	vPortFree( reply_buf );
 
@@ -153,7 +154,7 @@ static void SetUpUpload(void) {
 	NetworkTaskServerSendMessage_t message;
 	memset(&message,0,sizeof(message));
 #define DECODE_BUF_SZ 1024
-	uint8_t * _decodebuf = pvPortMalloc(DECODE_BUF_SZ);
+	char * _decodebuf = pvPortMalloc(DECODE_BUF_SZ);
 	assert(_decodebuf);
 	memset(_decodebuf,0,DECODE_BUF_SZ);
 

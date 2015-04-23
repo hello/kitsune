@@ -774,8 +774,8 @@ bool validate_signatures( char * buffer, const pb_field_t fields[], void * struc
     return decode_rx_data_pb((unsigned char*) content, len, fields, structdata);
 }
 
-
-static void _morpheus_command_reply(const NetworkResponse_t * response, uint8_t * reply_buf, int reply_sz, void * context) {
+static void _morpheus_command_reply(const NetworkResponse_t * response,
+		char * reply_buf, int reply_sz, void * context) {
 	MorpheusCommand reply;
 	memset(&reply, 0, sizeof(reply));
 	ble_proto_assign_decode_funcs(&reply);
@@ -799,7 +799,9 @@ int Cmd_test_key(int argc, char*argv[]) {
 	test_command->type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_SENSE;
 	test_command->version = PROTOBUF_VERSION;
 
-    ret = NetworkTask_AsynchronousSendProtobuf(DATA_SERVER,CHECK_KEY_ENDPOINT, MorpheusCommand_fields, test_command, 0, _morpheus_command_reply, test_command );
+	ret = NetworkTask_AsynchronousSendProtobuf(DATA_SERVER, CHECK_KEY_ENDPOINT,
+			MorpheusCommand_fields, test_command, 0, _morpheus_command_reply,
+			test_command);
     if(ret != 0)
     {
         // network error
@@ -1300,12 +1302,17 @@ int match(char *regexp, char *text)
 }
 
 //buffer needs to be at least 128 bytes...
-int send_data_pb_callback(const char* host, const char* path,char * recv_buf, uint32_t recv_buf_size, void * encodedata,network_encode_callback_t encoder,uint16_t num_receive_retries) {
+int send_data_pb_callback(const char* host, const char* path, char ** recv_buf_ptr,
+		uint32_t * recv_buf_size_ptr, void * encodedata,
+		network_encode_callback_t encoder, uint16_t num_receive_retries) {
     int send_length = 0;
     int rv = 0;
     uint8_t sig[32]={0};
     bool status;
     uint16_t iretry;
+
+    uint32_t recv_buf_size = *recv_buf_size_ptr;
+    char * recv_buf = *recv_buf_ptr;
 
     if (!recv_buf) {
     	LOGI("send_data_pb_callback needs a buffer\r\n");
@@ -1468,6 +1475,13 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
         LOGI("Waiting for reply, attempt %d\r\n",iretry);
 
     	rv = recv(sock, recv_buf, recv_buf_size, 0);
+    	if( rv == recv_buf_size ) {
+    		 recv_buf = pvPortRealloc( recv_buf, SERVER_REPLY_BUFSZ + recv_buf_size );
+    		 assert(recv_buf);
+    		 *recv_buf_ptr = recv_buf;
+    		 *recv_buf_size_ptr = 2*recv_buf_size;
+    		 continue;
+    	}
 
     	if (iretry >= num_receive_retries) {
     		break;
@@ -1613,7 +1627,8 @@ int force_data_push();
 extern volatile bool provisioning_mode;
 void boot_commit_ota();
 
-static void _key_check_reply(const NetworkResponse_t * response, uint8_t * reply_buf, int reply_sz, void * context) {
+static void _key_check_reply(const NetworkResponse_t * response,
+		char * reply_buf, int reply_sz, void * context) {
 	MorpheusCommand reply;
 	memset(&reply, 0, sizeof(reply));
 	ble_proto_assign_decode_funcs(&reply);
@@ -1654,7 +1669,9 @@ void on_key(uint8_t * key) {
 	test_command->type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_SENSE;
 	test_command->version = PROTOBUF_VERSION;
 
-	NetworkTask_AsynchronousSendProtobuf(DATA_SERVER,CHECK_KEY_ENDPOINT, MorpheusCommand_fields, test_command, 86400000, _key_check_reply, test_command );
+	NetworkTask_AsynchronousSendProtobuf(DATA_SERVER, CHECK_KEY_ENDPOINT,
+			MorpheusCommand_fields, test_command, 86400000, _key_check_reply,
+			test_command);
 }
 
 static void _set_led_color_based_on_room_conditions(const SyncResponse* response_protobuf)
@@ -1733,8 +1750,9 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
     _set_led_color_based_on_room_conditions(response_protobuf);
 }
 
-void sync_response_reply(const NetworkResponse_t * response, uint8_t * reply_buf, int reply_sz, void * context) {
-    SyncResponse response_protobuf;
+void sync_response_reply(const NetworkResponse_t * response,
+		char * reply_buf, int reply_sz, void * context) {
+	SyncResponse response_protobuf;
     memset(&response_protobuf, 0, sizeof(response_protobuf));
     response_protobuf.files.funcs.decode = _on_file_download;
 
@@ -1751,13 +1769,18 @@ void sync_response_reply(const NetworkResponse_t * response, uint8_t * reply_buf
 
 //retry logic is handled elsewhere
 bool send_pill_data(batched_pill_data * pill_data) {
-    return NetworkTask_SynchronousSendProtobuf(DATA_SERVER,PILL_DATA_RECEIVE_ENDPOINT, batched_pill_data_fields, pill_data, 0, sync_response_reply, NULL);
+	return NetworkTask_SynchronousSendProtobuf(DATA_SERVER,
+			PILL_DATA_RECEIVE_ENDPOINT, batched_pill_data_fields, pill_data, 0,
+			sync_response_reply, NULL);
 }
 bool send_periodic_data(batched_periodic_data* data) {
-    return NetworkTask_SynchronousSendProtobuf(DATA_SERVER,DATA_RECEIVE_ENDPOINT, batched_periodic_data_fields, data, 0, sync_response_reply, NULL);
+	return NetworkTask_SynchronousSendProtobuf(DATA_SERVER,
+			DATA_RECEIVE_ENDPOINT, batched_periodic_data_fields, data, 0,
+			sync_response_reply, NULL);
 }
 
-void provision_request_reply(const NetworkResponse_t * response, uint8_t * reply_buf, int reply_sz, void * context) {
+void provision_request_reply(const NetworkResponse_t * response,
+		char * reply_buf, int reply_sz, void * context) {
 	ProvisionResponse response_protobuf;
     memset(&response_protobuf, 0, sizeof(response_protobuf));
 
@@ -1784,7 +1807,9 @@ void provision_request_reply(const NetworkResponse_t * response, uint8_t * reply
 }
 
 bool send_provision_request(ProvisionRequest* req) {
-    return NetworkTask_SynchronousSendProtobuf(DATA_SERVER,PROVISION_ENDPOINT, ProvisionRequest_fields, req, 86400000, provision_request_reply, NULL);
+	return NetworkTask_SynchronousSendProtobuf(DATA_SERVER, PROVISION_ENDPOINT,
+			ProvisionRequest_fields, req, 86400000, provision_request_reply,
+			NULL);
 }
 
 int Cmd_sl(int argc, char*argv[]) {

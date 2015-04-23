@@ -66,7 +66,8 @@ static void Init() {
 	}
 }
 
-static void NetTaskResponse (const NetworkResponse_t * response, uint8_t * reply_buf, int reply_sz, void * context) {
+static void NetTaskResponse(const NetworkResponse_t * response,
+		char * reply_buf, int reply_sz, void * context) {
 	EncodeData_t * data = (EncodeData_t *)context;
 	TaskMessage_t m;
 
@@ -188,7 +189,7 @@ static uint32_t FileEncode(pb_ostream_t * stream,void * data) {
 void FileUploaderTask_Thread(void * data) {
 	TaskMessage_t m;
 	FileUploaderMessage_t * p;
-	uint8_t recvbuf[256];
+	char recvbuf[256];
 	NetworkTaskServerSendMessage_t mnet;
 	EncodeData_t encode_data;
 

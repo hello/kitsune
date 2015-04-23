@@ -131,8 +131,8 @@ static NetworkResponse_t nettask_send(NetworkTaskServerSendMessage_t * message) 
 		//push to server
 		if (send_data_pb_callback(message->host,
 				message->endpoint,
-				(char*)message->decode_buf,
-				message->decode_buf_size,
+				&message->decode_buf,
+				&message->decode_buf_size,
 				message->encodedata,
 				message->encode,
 				NUM_RECEIVE_RETRIES) == 0) {
