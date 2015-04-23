@@ -326,6 +326,12 @@ static bool _scan_wifi_mostly_nonblocking() {
 	return false;
 }
 
+int Cmd_scan_wifi_mostly_nonblocking(int argc, char *argv[]) {
+	_scanned_wifi_count = 0;
+	_scan_wifi_mostly_nonblocking();
+	return 0;
+}
+
 static void _reply_next_wifi_ap()
 {
 	xSemaphoreTake(_wifi_smphr, portMAX_DELAY);

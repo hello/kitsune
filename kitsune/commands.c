@@ -1650,6 +1650,8 @@ int Cmd_test_realloc(int argc, char *argv[]) {
 
 }
 
+
+int Cmd_scan_wifi_mostly_nonblocking(int argc, char *argv[]);
 // ==============================================================================
 // This is the table that holds the command names, implementing functions, and
 // brief description.
@@ -1746,6 +1748,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "set-time",cmd_set_time,""},
 		{ "frag",cmd_memfrag,""},
 		{ "burntopkey",Cmd_burn_top,""},
+		{ "scan",Cmd_scan_wifi_mostly_nonblocking,""},
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
 		{ "iperfcli",Cmd_iperf_client,""},
