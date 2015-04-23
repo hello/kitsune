@@ -218,17 +218,7 @@ BlockLink_t *pxLink, *pxNewBlockLink;
 				return NULL;
 			}
 
-			size_t diff = xWantedSize - B(pxLink->xBlockSize);
-
-			if( pxLink->pxNextFreeBlock == NULL )
-			{
-				//just grow current block
-				pxLink->xBlockSize = xWantedSize|xBlockAllocatedBit;
-				xFreeBytesRemaining -= diff;
-				traceMALLOC( pv, diff );
-				( void ) xTaskResumeAll();
-				return pv;
-			}
+			size_t original_size = B(pxLink->xBlockSize);
 
 			//increasing size...
 			size_t next_size = puc+B(pxLink->xBlockSize);
@@ -244,15 +234,14 @@ BlockLink_t *pxLink, *pxNewBlockLink;
 					pxPreviousBlock = pxBlock;
 					pxBlock = pxBlock->pxNextFreeBlock;
 				}
-				pxPreviousBlock->pxNextFreeBlock = pxNewBlockLink->pxNextFreeBlock;
+				pxPreviousBlock->pxNextFreeBlock = pxPreviousBlock->pxNextFreeBlock->pxNextFreeBlock;
 
-				pxNewBlockLink = (puc+B(pxLink->xBlockSize));
 				pxLink->xBlockSize += B(pxNewBlockLink->xBlockSize);
+				xFreeBytesRemaining -= B(pxNewBlockLink->xBlockSize);
 
-				if( B(pxNewBlockLink->xBlockSize) + B(pxLink->xBlockSize) > xWantedSize ) {
+				if( B(pxLink->xBlockSize) > xWantedSize ) {
 					//got enough memory! yay!
-					xFreeBytesRemaining -= diff;
-					diff = B(pxLink->xBlockSize) - xWantedSize;
+					size_t diff = B(pxLink->xBlockSize) - xWantedSize;
 					//but maybe it was too much, let's free some if possible...
 					if( diff < heapMINIMUM_BLOCK_SIZE) {
 						//don't change anything - the block is already too small and there's not enough space being freed to make a new block
@@ -272,7 +261,7 @@ BlockLink_t *pxLink, *pxNewBlockLink;
 					/* Insert the new block into the list of free blocks. */
 					prvInsertBlockIntoFreeList( ( pxNewBlockLink ) );
 
-					traceMALLOC( pv, diff );
+					traceMALLOC( pv, B(pxLink->xBlockSize) - original_size );
 					( void ) xTaskResumeAll();
 					return pv;
 				}
