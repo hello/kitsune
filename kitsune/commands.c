@@ -1459,12 +1459,12 @@ void SetupGPIOInterrupts() {
 void thread_spi(void * data) {
 	Cmd_spi_read(0, 0);
 	while(1) {
-		if (xSemaphoreTake(spi_smphr, 10000) ) {
+		if (xSemaphoreTake(spi_smphr, 1000) ) {
 			vTaskDelay(8*10);
 			Cmd_spi_read(0, 0);
 			MAP_GPIOIntEnable(GPIO_PORT,GSPI_INT_PIN);
 		} else {
-			MAP_GPIOIntEnable(GPIO_PORT,GSPI_INT_PIN);
+			Cmd_spi_read(0, 0);
 		}
 	}
 
@@ -1647,7 +1647,6 @@ int Cmd_test_realloc(int argc, char *argv[]) {
 	LOGI("\n\nrealloc %d\n", atoi(argv[1]));
 	test = pvPortRealloc( test, atoi(argv[1]) );
 	return 0;
-
 }
 
 
