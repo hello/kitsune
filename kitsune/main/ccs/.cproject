@@ -52,6 +52,7 @@
 									<listOptionValue builtIn="false" value="&quot;${PROJECT_LOC}/../../tests&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${PROJECT_LOC}/../../debugutils&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${PROJECT_LOC}/../../&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${PROJECT_LOC}/../../hashtable&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${PROJECT_LOC}/../../nanopb&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${PROJECT_LOC}/../../protobuf&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${PROJECT_LOC}/../&quot;"/>
