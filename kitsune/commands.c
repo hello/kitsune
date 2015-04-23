@@ -1641,6 +1641,14 @@ int Cmd_fault(int argc, char *argv[]) {
 	*(volatile int*)0xFFFFFFFF = 0xdead;
 	return 0;
 }
+int Cmd_test_realloc(int argc, char *argv[]) {
+	static void * test = NULL;
+
+	LOGI("\n\nrealloc %d\n", atoi(argv[1]));
+	test = pvPortRealloc( test, atoi(argv[1]) );
+	return 0;
+
+}
 
 // ==============================================================================
 // This is the table that holds the command names, implementing functions, and
@@ -1649,6 +1657,7 @@ int Cmd_fault(int argc, char *argv[]) {
 tCmdLineEntry g_sCmdTable[] = {
 //    { "cpu",      Cmd_cpu,      "Show CPU utilization" },
 		{ "free", Cmd_free, "" },
+		{ "realloc", Cmd_test_realloc, "" },
 		{ "fault", Cmd_fault, "" },
 		{ "connect", Cmd_connect, "" },
 		{ "disconnect", Cmd_disconnect, "" },
