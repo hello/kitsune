@@ -1,7 +1,12 @@
+#include "stdbool.h"
 
 #ifndef boolean
-#define boolean unsigned char
-#define TRUE 1
-#define FALSE 0
+#define boolean bool
+#endif
+#ifndef TRUE
+#define TRUE true
+#endif
+#ifndef FALSE
+#define FALSE false
 #endif
 
