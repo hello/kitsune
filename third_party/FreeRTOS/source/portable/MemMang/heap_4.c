@@ -144,6 +144,20 @@ space. */
 static size_t xBlockAllocatedBit = 0;
 
 /*-----------------------------------------------------------*/
+void pvPortHeapViz( char * c, int n ) {
+	int i,blocksz = heapADJUSTED_HEAP_SIZE / (n-1);
+	vTaskSuspendAll();
+	BlockLink_t * pxBlock = xStart.pxNextFreeBlock;
+	while(  ( pxBlock->pxNextFreeBlock != NULL ) )
+	{
+		for(i=(pxBlock-&xStart)/blocksz;i<(pxBlock-&xStart+pxBlock->xBlockSize)/blocksz;++i){
+			c[i] = ' ';
+		}
+		pxBlock = pxBlock->pxNextFreeBlock;
+	}
+	( void ) xTaskResumeAll();
+}
+
 void *pvPortRealloc( void *pv, size_t xWantedSize )
 {
 uint8_t *puc = ( uint8_t * ) pv;

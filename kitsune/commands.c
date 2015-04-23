@@ -1649,6 +1649,23 @@ int Cmd_test_realloc(int argc, char *argv[]) {
 	return 0;
 }
 
+int Cmd_heapviz(int argc, char *argv[]) {
+	int i;
+	#define VIZ_LINE 2500
+    char line[VIZ_LINE];
+
+	memset(line, 'x', VIZ_LINE);
+	pvPortHeapViz( line, VIZ_LINE );
+
+	LOGF("|");
+	for(i=1;i<VIZ_LINE-1;++i) {
+		LOGF("%c", line[i]);
+		vTaskDelay(1);
+	}
+	LOGF("|\r\n");
+
+	return 0;
+}
 
 int Cmd_scan_wifi_mostly_nonblocking(int argc, char *argv[]);
 // ==============================================================================
@@ -1658,6 +1675,7 @@ int Cmd_scan_wifi_mostly_nonblocking(int argc, char *argv[]);
 tCmdLineEntry g_sCmdTable[] = {
 //    { "cpu",      Cmd_cpu,      "Show CPU utilization" },
 		{ "free", Cmd_free, "" },
+		{ "heapviz", Cmd_heapviz, "" },
 		{ "realloc", Cmd_test_realloc, "" },
 		{ "fault", Cmd_fault, "" },
 		{ "connect", Cmd_connect, "" },
