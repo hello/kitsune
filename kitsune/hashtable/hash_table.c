@@ -57,7 +57,7 @@ void hash_resize(hash_table* table, unsigned int size) {
 boolean hash_remove(hash_table* table, key_t key) {
   HASH_LOOKUP(name, table, key, key_t,
     sparse_multi_remove(&table->sparse_table, idx);
-    if( ((float)--table->filled_buckets+2) / (float) table->bucket_size < 0.2f )
+    if( 10*(--table->filled_buckets+2) / table->bucket_size < 2 )
         hash_resize(table, table->bucket_size / 2); );
 }
 boolean hash_lookup(hash_table* table, key_t key, val_t value) {
@@ -72,7 +72,7 @@ void hash_add(hash_table* table, key_t key, val_t value) {
   } );
   
   sparse_multi_update(&table->sparse_table, &in_bucket, idx);
-  if( ((float)++table->filled_buckets+2) / (float) table->bucket_size > 0.6f )
+  if( 10*(++table->filled_buckets+2) / table->bucket_size > 6 )
     hash_resize(table, table->bucket_size * 2);
 }
 void hash_apply(hash_table* table, boolean(*fp)(sparse_table_entry const*, void * ), void * data ) {
