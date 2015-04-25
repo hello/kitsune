@@ -1442,15 +1442,16 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     //keep looping while our socket error code is telling us to try again
     iretry = 0;
     do {
-
-        LOGI("Waiting for reply, attempt %d\r\n",iretry);
-
-    	rv = recv(sock, recv_buf, recv_buf_size, 0);
-    	if( rv == recv_buf_size ) {
-    		 recv_buf = pvPortRealloc( recv_buf, SERVER_REPLY_BUFSZ + recv_buf_size );
+    	rv = recv(sock, recv_buf+recv_buf_size-SERVER_REPLY_BUFSZ, SERVER_REPLY_BUFSZ, 0);
+    	if( rv == SERVER_REPLY_BUFSZ ) {
+             recv_buf_size += SERVER_REPLY_BUFSZ;
+    		 recv_buf = pvPortRealloc( recv_buf, recv_buf_size );
     		 assert(recv_buf);
+    		 memset( recv_buf+recv_buf_size-SERVER_REPLY_BUFSZ, 0, SERVER_REPLY_BUFSZ);
     		 *recv_buf_ptr = recv_buf;
-    		 *recv_buf_size_ptr = 2*recv_buf_size;
+    		 *recv_buf_size_ptr = recv_buf_size;
+
+    		 rv = SL_EAGAIN;
     		 continue;
     	}
 
@@ -1458,6 +1459,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     		break;
     	}
 
+        LOGI("Waiting for reply, attempt %d\r\n",iretry);
     	iretry++;
 
     	//delay 200ms
