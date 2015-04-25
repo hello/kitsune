@@ -510,7 +510,7 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 
 		ble_proto_assign_encode_funcs(command);
 
-	    bool  ret = NetworkTask_SynchronousSendProtobuf(
+	    bool  ret = NetworkTask_SendProtobuf( true,
 					DATA_SERVER,
 					is_morpheus == 1 ? MORPHEUS_REGISTER_ENDPOINT : PILL_REGISTER_ENDPOINT,
 					MorpheusCommand_fields,

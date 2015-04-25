@@ -426,41 +426,40 @@ static uint8_t GetNextMatrixCallback(uint8_t isFirst,const_MatDesc_t * pdesc,voi
     return true;
 }
 
-
-uint32_t AudioClassifier_EncodeAudioFeatures(pb_ostream_t * stream,void * encode_data) {
-    
-    uint32_t size = 0;
-    uint8_t macbytes[6] = {0};
-    char device_id[32] = {0};
-    uint32_t unix_time = 0;
-
-    if (encode_data) {
-        DeviceCurrentInfo_t * pinfo = (DeviceCurrentInfo_t *) encode_data; //passing in mac address
-        memcpy(macbytes,pinfo->mac,6);
-        strncpy(device_id,pinfo->device_id,sizeof(device_id));
-        unix_time = pinfo->unix_time;
-    }
-
-    MatrixListEncodeContext_t context;
-    Encoder_t encoderstruct;
-    
-    memset(&context,0,sizeof(context));
-    context.data = &encoderstruct;
-    context.func = GetNextMatrixCallback;
-    
-    memset(&encoderstruct,0,sizeof(encoderstruct));
-    encoderstruct.buf = &_buffer;
-    
-    size = SetMatrixMessage(stream, macbytes,device_id, unix_time,&context);
-    
-
-    return size;
-
-}
-
 void AudioClassifier_ResetStorageBuffer(void) {
 	/* Buffer read out?  Great, let's reset it */
 
 	_buffer.chunkbufidx = 0;
 	_buffer.numchunkbuf = 0;
+}
+
+#include "proto_utils.h"
+#include "proto_utils.h"
+#include "sys_time.h"
+#include "matrix.pb.h"
+#include "debugutils/matmessageutils.h"
+void * getMatrixClientMessage() {
+	//this code leaks references to these, can't have them on the stack
+	//also makes this function non reentrant
+	static Encoder_t encoderstruct;
+	static MatrixClientMessage mess;
+	static MatrixListEncodeContext_t matrix_list_context;
+
+	memset(&mess, 0, sizeof(mess));
+	mess.unix_time = get_time();
+	mess.has_unix_time = 1;
+	mess.has_matrix_payload = 0;
+
+	memset(&matrix_list_context, 0, sizeof(matrix_list_context));
+	memset(&encoderstruct, 0, sizeof(encoderstruct));
+	encoderstruct.buf = &_buffer;
+
+	matrix_list_context.data = &encoderstruct;
+	matrix_list_context.func = GetNextMatrixCallback;
+
+	mess.matrix_list.funcs.encode = write_mat_array;
+	mess.matrix_list.arg = (void *) &matrix_list_context;
+	mess.device_id.funcs.encode = encode_device_id_string;
+
+	return &mess;
 }

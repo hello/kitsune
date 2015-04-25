@@ -539,7 +539,7 @@ static int _send_pb_async( const pb_field_t fields[], void * structdata, Network
 	}
     ctx->structdata = structdata;
 
-	return NetworkTask_AsynchronousSendProtobuf(DATA_SERVER, SENSE_LOG_ENDPOINT,
+	return NetworkTask_SendProtobuf(false, DATA_SERVER, SENSE_LOG_ENDPOINT,
 			fields, structdata, 0, func, ctx);
 }
 
