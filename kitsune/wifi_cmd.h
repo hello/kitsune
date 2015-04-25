@@ -35,7 +35,7 @@ int sl_mode;
 #define DEVICE_ID_LOC "/hello/deviceid"
 #define DEVICE_ID_SZ 8
 
-#define SERVER_REPLY_BUFSZ 32
+#define SERVER_REPLY_BUFSZ 256
 
 #include "stdint.h"
 #include "sync_response.pb.h"
