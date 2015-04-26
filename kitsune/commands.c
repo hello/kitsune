@@ -589,11 +589,13 @@ static bool _is_file_exists(char* path)
 
 uint8_t get_alpha_from_light();
 void thread_alarm(void * unused) {
+	int delay = 1;
 	while (1) {
 		wait_for_time(WAIT_FOREVER);
 
 		portTickType now = xTaskGetTickCount();
 		uint64_t time = get_time();
+		delay = 1;
 		// The alarm thread should go ahead even without a valid time,
 		// because we don't need a correct time to fire alarm, we just need the offset.
 
@@ -670,6 +672,8 @@ void thread_alarm(void * unused) {
 					uint8_t trippy_base[3] = { 0, 0, 0 };
 					uint8_t trippy_range[3] = { 254, 254, 254 };
 					play_led_trippy(trippy_base, trippy_range,0, 333);
+
+					delay = 2*alarm.ring_duration_in_second;
 				}
 			}
 			else {
@@ -678,7 +682,7 @@ void thread_alarm(void * unused) {
 			
 			xSemaphoreGive(alarm_smphr);
 		}
-		vTaskDelayUntil(&now, 1000 );
+		vTaskDelayUntil(&now, 1000*delay );
 	}
 }
 
