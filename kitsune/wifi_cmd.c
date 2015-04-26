@@ -887,33 +887,40 @@ static bool flush_out_buffer(ostream_buffered_desc_t * desc ) {
 
 static bool write_buffered_callback_sha(pb_ostream_t *stream, const uint8_t * inbuf, size_t count) {
 	ostream_buffered_desc_t * desc = (ostream_buffered_desc_t *) stream->state;
-
 	bool ret = true;
-
+	bool overflow =  (desc->buf_pos + count ) >= desc->buf_size;
+	int leftovers = (desc->buf_pos + count ) % desc->buf_size;
 	desc->bytes_that_should_have_been_written += count;
 
-	/* Will I exceed the buffer size? then send buffer */
-	if ( (desc->buf_pos + count ) >= desc->buf_size) {
+	if (overflow) {
+		/* Will I exceed the buffer size? then send buffer */
+		while ((desc->buf_pos + count) >= desc->buf_size) {
+			//copy over
+			memcpy(desc->buf + desc->buf_pos, inbuf,
+					desc->buf_size - desc->buf_pos);
+			//encrypt
+			SHA1_Update(desc->ctx, desc->buf, desc->buf_size);
 
-		//encrypt
-		SHA1_Update(desc->ctx, desc->buf, desc->buf_pos);
+			//send
+			if (send_chunk_len(desc->buf_size, sock) != 0) {
+				return false;
+			}
+			ret = send(desc->fd, desc->buf, desc->buf_size, 0)
+					== desc->buf_size;
 
-		//send
-        if( send_chunk_len( desc->buf_pos, sock ) != 0 ) {
-        	return false;
-        }
-		ret = send(desc->fd, desc->buf, desc->buf_pos, 0) == desc->buf_pos;
+			desc->bytes_written += desc->buf_size;
 
-		desc->bytes_written += desc->buf_pos;
-
-		desc->buf_pos = 0;
-
+			desc->buf_pos = 0;
+			count -= desc->buf_size;
+		}
+		//copy to our buffer
+		memcpy(desc->buf, inbuf, leftovers);
+		desc->buf_pos += leftovers;
+	} else {
+		//copy to our buffer
+		memcpy(desc->buf + desc->buf_pos, inbuf, count);
+		desc->buf_pos += count;
 	}
-
-	//copy to our buffer
-	memcpy(desc->buf + desc->buf_pos,inbuf,count);
-	desc->buf_pos += count;
-
     return ret;
 }
 
