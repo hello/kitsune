@@ -1304,12 +1304,11 @@ int match(char *regexp, char *text)
 //buffer needs to be at least 128 bytes...
 int send_data_pb_callback(const char* host, const char* path, char ** recv_buf_ptr,
 		uint32_t * recv_buf_size_ptr, void * encodedata,
-		network_encode_callback_t encoder, uint16_t num_receive_retries) {
+		network_encode_callback_t encoder) {
     int send_length = 0;
     int rv = 0;
     uint8_t sig[32]={0};
     bool status;
-    uint16_t iretry;
 
     uint32_t recv_buf_size = *recv_buf_size_ptr;
     char * recv_buf = *recv_buf_ptr;
@@ -1469,9 +1468,9 @@ int send_data_pb_callback(const char* host, const char* path, char ** recv_buf_p
     memset(recv_buf, 0, recv_buf_size);
 
     //keep looping while our socket error code is telling us to try again
-    iretry = 0;
     do {
     	rv = recv(sock, recv_buf+recv_buf_size-SERVER_REPLY_BUFSZ, SERVER_REPLY_BUFSZ, 0);
+#if 1
     	if( rv == SERVER_REPLY_BUFSZ ) {
              recv_buf_size += SERVER_REPLY_BUFSZ;
     		 recv_buf = pvPortRealloc( recv_buf, recv_buf_size );
@@ -1481,19 +1480,8 @@ int send_data_pb_callback(const char* host, const char* path, char ** recv_buf_p
     		 *recv_buf_size_ptr = recv_buf_size;
 
     		 rv = SL_EAGAIN;
-    		 continue;
     	}
-
-    	if (iretry >= num_receive_retries) {
-    		break;
-    	}
-
-        LOGI("Waiting for reply, attempt %d\r\n",iretry);
-    	iretry++;
-
-    	//delay 200ms
-    	vTaskDelay(200);
-
+#endif
     } while (rv == SL_EAGAIN);
 
     if (rv <= 0) {
