@@ -687,21 +687,38 @@ void thread_alarm(void * unused) {
 static int dust_m2,dust_mean,dust_log_sum,dust_max,dust_min,dust_cnt;
 xSemaphoreHandle dust_smphr;
 void init_dust();
-
-void thread_dust(void * unused)  {
-    #define maxval( a, b ) a>b ? a : b
+static unsigned int median_filter(unsigned int x, unsigned int * buf,unsigned int * p) {
+	buf[(*p)++%3] = x;
+	if( *p < 3 ) {
+		return x;
+	}
+	if (buf[0] > buf[1]) {
+		if (buf[1] > buf[2]) {
+			return buf[1];
+		}
+	} else if (buf[2] < buf[0]) {
+		return buf[0];
+	}
+	return buf[2];
+}
+static void thread_dust(void * unused) {
+#define maxval( a, b ) a>b ? a : b
 	dust_min = 5000;
 	dust_m2 = dust_mean = dust_cnt = dust_log_sum = dust_max = 0;
 #if DEBUG_DUST
 	int dust_variability=0;
 #endif
+	unsigned int filter_buf[3];
+	unsigned int filter_idx=0;
 
 	while (1) {
 		uint32_t now = xTaskGetTickCount();
 		if (xSemaphoreTake(dust_smphr, portMAX_DELAY)) {
 			unsigned int dust = get_dust();
 
-			if( dust != DUST_SENSOR_NOT_READY ) {
+			if (dust != DUST_SENSOR_NOT_READY) {
+				dust = median_filter(dust, filter_buf, &filter_idx);
+
 				dust_log_sum += bitlog(dust);
 				++dust_cnt;
 
