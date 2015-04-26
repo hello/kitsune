@@ -687,7 +687,7 @@ void thread_alarm(void * unused) {
 static int dust_m2,dust_mean,dust_log_sum,dust_max,dust_min,dust_cnt;
 xSemaphoreHandle dust_smphr;
 void init_dust();
-static unsigned int median_filter(unsigned int x, unsigned int * buf,unsigned int * p) {
+unsigned int median_filter(unsigned int x, unsigned int * buf,unsigned int * p) {
 	buf[(*p)++%3] = x;
 	if( *p < 3 ) {
 		return x;
@@ -839,6 +839,9 @@ static void _on_gesture_out()
 }
 
 void thread_fast_i2c_poll(void * unused)  {
+	unsigned int filter_buf[3];
+	unsigned int filter_idx=0;
+
 	gesture_init();
 	while (1) {
 		portTickType now = xTaskGetTickCount();
@@ -851,7 +854,7 @@ void thread_fast_i2c_poll(void * unused)  {
 
 			// For the black morpheus, we can detect 6mm distance max
 			// for white one, 9mm distance max.
-			prox = get_prox();  // now this thing is in um.
+			prox = median_filter(get_prox(), filter_buf, &filter_idx);
 
 			xSemaphoreGive(i2c_smphr);
 			//UARTprintf("%d ", prox);
