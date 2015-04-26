@@ -24,6 +24,8 @@ extern "C" {
     
 	bool read_string(pb_istream_t *stream, const pb_field_t *field, void **arg);
 
+    bool write_mat_array(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
+
     typedef enum {
         euint8,
         esint8,
@@ -94,7 +96,6 @@ extern "C" {
         GetNextMatrixFunc_t func;
     } MatrixListEncodeContext_t;
     
-    
     size_t SetIntMatrix(pb_ostream_t * stream,
                         const char * id,
                         const char * tags,
@@ -105,9 +106,6 @@ extern "C" {
                         int64_t t1,
                         int64_t t2);
     
-    
-    
-    
     size_t SetMatrixMessage(pb_ostream_t * stream,
             				uint8_t * macbytes,
                             const char * device_id,
@@ -115,7 +113,6 @@ extern "C" {
                             MatrixListEncodeContext_t * matrix_list_context);
     
     uint8_t GetIntMatrix(MatDesc_t * mymat, pb_istream_t * stream,size_t maxsize);
-    
     
 #ifdef __cplusplus
 }

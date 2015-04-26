@@ -799,7 +799,7 @@ int Cmd_test_key(int argc, char*argv[]) {
 	test_command->type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_SENSE;
 	test_command->version = PROTOBUF_VERSION;
 
-	ret = NetworkTask_AsynchronousSendProtobuf(DATA_SERVER, CHECK_KEY_ENDPOINT,
+	ret = NetworkTask_SendProtobuf(false, DATA_SERVER, CHECK_KEY_ENDPOINT,
 			MorpheusCommand_fields, test_command, 0, _morpheus_command_reply,
 			test_command);
     if(ret != 0)
@@ -887,33 +887,40 @@ static bool flush_out_buffer(ostream_buffered_desc_t * desc ) {
 
 static bool write_buffered_callback_sha(pb_ostream_t *stream, const uint8_t * inbuf, size_t count) {
 	ostream_buffered_desc_t * desc = (ostream_buffered_desc_t *) stream->state;
-
 	bool ret = true;
-
+	bool overflow =  (desc->buf_pos + count ) >= desc->buf_size;
+	int leftovers = (desc->buf_pos + count ) % desc->buf_size;
 	desc->bytes_that_should_have_been_written += count;
 
-	/* Will I exceed the buffer size? then send buffer */
-	if ( (desc->buf_pos + count ) >= desc->buf_size) {
+	if (overflow) {
+		/* Will I exceed the buffer size? then send buffer */
+		while ((desc->buf_pos + count) >= desc->buf_size) {
+			//copy over
+			memcpy(desc->buf + desc->buf_pos, inbuf,
+					desc->buf_size - desc->buf_pos);
+			//encrypt
+			SHA1_Update(desc->ctx, desc->buf, desc->buf_size);
 
-		//encrypt
-		SHA1_Update(desc->ctx, desc->buf, desc->buf_pos);
+			//send
+			if (send_chunk_len(desc->buf_size, sock) != 0) {
+				return false;
+			}
+			ret = send(desc->fd, desc->buf, desc->buf_size, 0)
+					== desc->buf_size;
 
-		//send
-        if( send_chunk_len( desc->buf_pos, sock ) != 0 ) {
-        	return false;
-        }
-		ret = send(desc->fd, desc->buf, desc->buf_pos, 0) == desc->buf_pos;
+			desc->bytes_written += desc->buf_size;
 
-		desc->bytes_written += desc->buf_pos;
-
-		desc->buf_pos = 0;
-
+			desc->buf_pos = 0;
+			count -= desc->buf_size;
+		}
+		//copy to our buffer
+		memcpy(desc->buf, inbuf, leftovers);
+		desc->buf_pos += leftovers;
+	} else {
+		//copy to our buffer
+		memcpy(desc->buf + desc->buf_pos, inbuf, count);
+		desc->buf_pos += count;
 	}
-
-	//copy to our buffer
-	memcpy(desc->buf + desc->buf_pos,inbuf,count);
-	desc->buf_pos += count;
-
     return ret;
 }
 
@@ -1168,7 +1175,7 @@ int send_audio_wifi(char * buffer, int buffer_size, audio_read_cb arcb) {
 #include "sync_response.pb.h"
 
 
-int decode_rx_data_pb_callback(const uint8_t * buffer, uint32_t buffer_size, void * decodedata,network_decode_callback_t decoder) {
+int decode_rx_data_pb(const uint8_t * buffer, uint32_t buffer_size, const pb_field_t fields[],void * structdata) {
 	AES_CTX aesctx;
 	unsigned char * buf_pos = (unsigned char*)buffer;
 	unsigned char sig[SIG_SIZE] = {0};
@@ -1176,12 +1183,6 @@ int decode_rx_data_pb_callback(const uint8_t * buffer, uint32_t buffer_size, voi
 	int i;
 	int status;
 	pb_istream_t stream;
-
-
-	if (!decoder) {
-		return -1;
-	}
-
 
 	//memset( aesctx.iv, 0, sizeof( aesctx.iv ) );
 	for (i = 0; i < AES_IV_SIZE; ++i) {
@@ -1225,9 +1226,8 @@ int decode_rx_data_pb_callback(const uint8_t * buffer, uint32_t buffer_size, voi
 	stream = pb_istream_from_buffer(buf_pos, buffer_size);
 	/* Now we are ready to decode the message! */
 
-	LOGI("data ");
-	status = decoder(&stream,decodedata);
-	LOGI("\n");
+	LOGI("data:\n");
+	status = pb_decode(&stream,fields,structdata);
 
 	/* Then just check for any errors.. */
 	if (!status) {
@@ -1237,27 +1237,6 @@ int decode_rx_data_pb_callback(const uint8_t * buffer, uint32_t buffer_size, voi
 
 	return 0;
 }
-
-
-
-
-static uint32_t default_decode_callback(pb_istream_t * stream, void * data) {
-	network_decode_data_t * decoderinfo = (network_decode_data_t *) data;
-	return pb_decode(stream,decoderinfo->fields,decoderinfo->decodedata);
-}
-
-int decode_rx_data_pb(const uint8_t * buffer, uint32_t buffer_size, const pb_field_t fields[],void * structdata) {
-	network_decode_data_t decode_data;
-	int ret;
-
-	decode_data.fields = fields;
-	decode_data.decodedata = structdata;
-
-	ret = decode_rx_data_pb_callback(buffer,buffer_size,&decode_data,default_decode_callback);
-
-	return ret;
-}
-
 
 
 #endif
@@ -1302,14 +1281,13 @@ int match(char *regexp, char *text)
 }
 
 //buffer needs to be at least 128 bytes...
-int send_data_pb_callback(const char* host, const char* path, char ** recv_buf_ptr,
-		uint32_t * recv_buf_size_ptr, void * encodedata,
-		network_encode_callback_t encoder, uint16_t num_receive_retries) {
+int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
+		uint32_t * recv_buf_size_ptr, const pb_field_t fields[],
+		const void * structdata) {
     int send_length = 0;
     int rv = 0;
     uint8_t sig[32]={0};
     bool status;
-    uint16_t iretry;
 
     uint32_t recv_buf_size = *recv_buf_size_ptr;
     char * recv_buf = *recv_buf_ptr;
@@ -1353,113 +1331,112 @@ int send_data_pb_callback(const char* host, const char* path, char ** recv_buf_p
 
 #endif
 
-    if (encoder) {
-        ostream_buffered_desc_t desc;
+	ostream_buffered_desc_t desc;
 
-        SHA1_CTX ctx;
-        AES_CTX aesctx;
-        pb_ostream_t stream = {0};
-        int i;
+	SHA1_CTX ctx;
+	AES_CTX aesctx;
+	pb_ostream_t stream = {0};
+	int i;
 
-        memset(&desc,0,sizeof(desc));
-        memset(&ctx,0,sizeof(ctx));
-        memset(&aesctx,0,sizeof(aesctx));
+	memset(&desc,0,sizeof(desc));
+	memset(&ctx,0,sizeof(ctx));
+	memset(&aesctx,0,sizeof(aesctx));
 
-        desc.buf = (uint8_t *)recv_buf;
-        desc.buf_size = recv_buf_size;
-        desc.ctx = &ctx;
-        desc.fd = (intptr_t) sock;
+	desc.buf = (uint8_t *)recv_buf;
+	desc.buf_size = recv_buf_size;
+	desc.ctx = &ctx;
+	desc.fd = (intptr_t) sock;
 
-        SHA1_Init(&ctx);
+	SHA1_Init(&ctx);
 
-        /* Create a stream that will write to our buffer. */
-        stream = pb_ostream_from_sha_socket(&desc);
+	/* Create a stream that will write to our buffer. */
+	stream = pb_ostream_from_sha_socket(&desc);
 
-        /* Now we are ready to encode the message! Let's go encode. */
-        LOGI("data ");
-        status = encoder(&stream,encodedata);
-        if( !flush_out_buffer(&desc) ) {
-            LOGI("Flush failed\n");
-        	return -1;
-        }
-        LOGI("\n");
+	/* Now we are ready to encode the message! Let's go encode. */
+	LOGI("data ");
+	status = pb_encode(&stream,fields,structdata);
 
-        /* sanity checks  */
-        if (desc.bytes_written != desc.bytes_that_should_have_been_written) {
-        	LOGI("ERROR only %d of %d bytes written\r\n",desc.bytes_written,desc.bytes_that_should_have_been_written);
-        }
+	if( !flush_out_buffer(&desc) ) {
+		LOGI("Flush failed\n");
+		return -1;
+	}
+	LOGI("\n");
 
-        /* Then just check for any errors.. */
-        if (!status) {
-            LOGI("Encoding failed: %s\n", PB_GET_ERROR(&stream));
-            return -1;
-        }
+	/* sanity checks  */
+	if (desc.bytes_written != desc.bytes_that_should_have_been_written) {
+		LOGI("ERROR only %d of %d bytes written\r\n",desc.bytes_written,desc.bytes_that_should_have_been_written);
+	}
 
-        //now sign it
-        SHA1_Final(sig, &ctx);
+	/* Then just check for any errors.. */
+	if (!status) {
+		LOGI("Encoding failed: %s\n", PB_GET_ERROR(&stream));
+		return -1;
+	}
 
-        /*  fill in rest of signature with random numbers (eh?) */
-        for (i = SHA1_SIZE; i < sizeof(sig); ++i) {
-            sig[i] = (uint8_t)rand();
-        }
+	//now sign it
+	SHA1_Final(sig, &ctx);
 
-#if 0
-        LOGI("SHA ");
-        for (i = 0; i < sizeof(sig); ++i) {
-            LOGI("%x", sig[i]);
-        }
-        LOGI("\n");
-
-#endif
-        //memset( aesctx.iv, 0, sizeof( aesctx.iv ) );
-
-        /*  create AES initialization vector */
-#if 0
-        LOGI("iv ");
-#endif
-        for (i = 0; i < sizeof(aesctx.iv); ++i) {
-            aesctx.iv[i] = (uint8_t)rand();
-#if 0
-            LOGI("%x", aesctx.iv[i]);
-#endif
-        }
-#if 0
-        LOGI("\n");
-#endif
-
-        /*  send AES initialization vector */
-        if( send_chunk_len( AES_IV_SIZE, sock) != 0 ) {
-        	return -1;
-        }
-        rv = send(sock, aesctx.iv, AES_IV_SIZE, 0);
-
-        if (rv != AES_IV_SIZE) {
-            LOGI("Sending IV failed: %d\n", rv);
-            return -1;
-        }
-
-        AES_set_key(&aesctx, aes_key, aesctx.iv, AES_MODE_128); //todo real key
-        AES_cbc_encrypt(&aesctx, sig, sig, sizeof(sig));
-
-        /* send signature */
-        if( send_chunk_len( sizeof(sig), sock) != 0 ) {
-        	return -1;
-        }
-        rv = send(sock, sig, sizeof(sig), 0);
-
-        if (rv != sizeof(sig)) {
-            LOGI("Sending SHA failed: %d\n", rv);
-            return -1;
-        }
+	/*  fill in rest of signature with random numbers (eh?) */
+	for (i = SHA1_SIZE; i < sizeof(sig); ++i) {
+		sig[i] = (uint8_t)rand();
+	}
 
 #if 0
-        LOGI("sig ");
-        for (i = 0; i < sizeof(sig); ++i) {
-            LOGI("%x", sig[i]);
-        }
-        LOGI("\n");
+	LOGI("SHA ");
+	for (i = 0; i < sizeof(sig); ++i) {
+		LOGI("%x", sig[i]);
+	}
+	LOGI("\n");
+
 #endif
-    }
+	//memset( aesctx.iv, 0, sizeof( aesctx.iv ) );
+
+	/*  create AES initialization vector */
+#if 0
+	LOGI("iv ");
+#endif
+	for (i = 0; i < sizeof(aesctx.iv); ++i) {
+		aesctx.iv[i] = (uint8_t)rand();
+#if 0
+		LOGI("%x", aesctx.iv[i]);
+#endif
+	}
+#if 0
+	LOGI("\n");
+#endif
+
+	/*  send AES initialization vector */
+	if( send_chunk_len( AES_IV_SIZE, sock) != 0 ) {
+		return -1;
+	}
+	rv = send(sock, aesctx.iv, AES_IV_SIZE, 0);
+
+	if (rv != AES_IV_SIZE) {
+		LOGI("Sending IV failed: %d\n", rv);
+		return -1;
+	}
+
+	AES_set_key(&aesctx, aes_key, aesctx.iv, AES_MODE_128); //todo real key
+	AES_cbc_encrypt(&aesctx, sig, sig, sizeof(sig));
+
+	/* send signature */
+	if( send_chunk_len( sizeof(sig), sock) != 0 ) {
+		return -1;
+	}
+	rv = send(sock, sig, sizeof(sig), 0);
+
+	if (rv != sizeof(sig)) {
+		LOGI("Sending SHA failed: %d\n", rv);
+		return -1;
+	}
+
+#if 0
+	LOGI("sig ");
+	for (i = 0; i < sizeof(sig); ++i) {
+		LOGI("%x", sig[i]);
+	}
+	LOGI("\n");
+#endif
 
 
     if( send_chunk_len(0, sock) != 0 ) {
@@ -1469,29 +1446,17 @@ int send_data_pb_callback(const char* host, const char* path, char ** recv_buf_p
     memset(recv_buf, 0, recv_buf_size);
 
     //keep looping while our socket error code is telling us to try again
-    iretry = 0;
     do {
-
-        LOGI("Waiting for reply, attempt %d\r\n",iretry);
-
-    	rv = recv(sock, recv_buf, recv_buf_size, 0);
-    	if( rv == recv_buf_size ) {
-    		 recv_buf = pvPortRealloc( recv_buf, SERVER_REPLY_BUFSZ + recv_buf_size );
+    	rv = recv(sock, recv_buf+recv_buf_size-SERVER_REPLY_BUFSZ, SERVER_REPLY_BUFSZ, 0);
+    	if( rv == SERVER_REPLY_BUFSZ ) {
+             recv_buf_size += SERVER_REPLY_BUFSZ;
+    		 recv_buf = pvPortRealloc( recv_buf, recv_buf_size );
     		 assert(recv_buf);
+    		 memset( recv_buf+recv_buf_size-SERVER_REPLY_BUFSZ, 0, SERVER_REPLY_BUFSZ);
     		 *recv_buf_ptr = recv_buf;
-    		 *recv_buf_size_ptr = 2*recv_buf_size;
-    		 continue;
+    		 *recv_buf_size_ptr = recv_buf_size;
+    		 rv = SL_EAGAIN;
     	}
-
-    	if (iretry >= num_receive_retries) {
-    		break;
-    	}
-
-    	iretry++;
-
-    	//delay 200ms
-    	vTaskDelay(200);
-
     } while (rv == SL_EAGAIN);
 
     if (rv <= 0) {
@@ -1669,7 +1634,7 @@ void on_key(uint8_t * key) {
 	test_command->type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_SENSE;
 	test_command->version = PROTOBUF_VERSION;
 
-	NetworkTask_AsynchronousSendProtobuf(DATA_SERVER, CHECK_KEY_ENDPOINT,
+	NetworkTask_SendProtobuf(false, DATA_SERVER, CHECK_KEY_ENDPOINT,
 			MorpheusCommand_fields, test_command, 86400000, _key_check_reply,
 			test_command);
 }
@@ -1769,12 +1734,12 @@ void sync_response_reply(const NetworkResponse_t * response,
 
 //retry logic is handled elsewhere
 bool send_pill_data(batched_pill_data * pill_data) {
-	return NetworkTask_SynchronousSendProtobuf(DATA_SERVER,
+	return NetworkTask_SendProtobuf(true, DATA_SERVER,
 			PILL_DATA_RECEIVE_ENDPOINT, batched_pill_data_fields, pill_data, 0,
 			sync_response_reply, NULL);
 }
 bool send_periodic_data(batched_periodic_data* data) {
-	return NetworkTask_SynchronousSendProtobuf(DATA_SERVER,
+	return NetworkTask_SendProtobuf(true, DATA_SERVER,
 			DATA_RECEIVE_ENDPOINT, batched_periodic_data_fields, data, 0,
 			sync_response_reply, NULL);
 }
@@ -1807,7 +1772,7 @@ void provision_request_reply(const NetworkResponse_t * response,
 }
 
 bool send_provision_request(ProvisionRequest* req) {
-	return NetworkTask_SynchronousSendProtobuf(DATA_SERVER, PROVISION_ENDPOINT,
+	return NetworkTask_SendProtobuf(true, DATA_SERVER, PROVISION_ENDPOINT,
 			ProvisionRequest_fields, req, 86400000, provision_request_reply,
 			NULL);
 }

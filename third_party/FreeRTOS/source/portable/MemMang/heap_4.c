@@ -231,65 +231,45 @@ BlockLink_t *pxLink, *pxNewBlockLink;
 				( void ) xTaskResumeAll();
 				return NULL;
 			}
-
 			size_t original_size = B(pxLink->xBlockSize);
+			size_t diff = xWantedSize - original_size;
 
 			//increasing size...
-			size_t next_size = puc+B(pxLink->xBlockSize);
-			while( !(next_size&xBlockAllocatedBit) ) //see if we can grab the next block...
+			pxNewBlockLink = (puc+B(pxLink->xBlockSize));
+			if( !(pxNewBlockLink->xBlockSize&xBlockAllocatedBit)
+					&& xWantedSize<B(pxLink->xBlockSize)+B(pxNewBlockLink->xBlockSize) ) //see if we can grab the next block...
 			{
 				/*  Walk the free list to find the previous link so we can remove the next block from the list */
 				BlockLink_t * pxPreviousBlock = &xStart;
 				BlockLink_t * pxBlock = xStart.pxNextFreeBlock;
+				BlockLink_t * pxDest = (puc+xWantedSize);
 
-				pxNewBlockLink = (puc+B(pxLink->xBlockSize));
 				while( ( pxBlock !=  pxNewBlockLink) && ( pxBlock->pxNextFreeBlock != NULL ) )
 				{
 					pxPreviousBlock = pxBlock;
 					pxBlock = pxBlock->pxNextFreeBlock;
 				}
-				pxPreviousBlock->pxNextFreeBlock = pxPreviousBlock->pxNextFreeBlock->pxNextFreeBlock;
+				*pxDest = *pxNewBlockLink;
+				pxDest->xBlockSize -= diff;
+				pxPreviousBlock->pxNextFreeBlock = pxDest;
 
-				pxLink->xBlockSize += B(pxNewBlockLink->xBlockSize);
-				xFreeBytesRemaining -= B(pxNewBlockLink->xBlockSize);
+				pxLink->xBlockSize = xWantedSize|xBlockAllocatedBit;
+				xFreeBytesRemaining -= diff;
 
-				if( B(pxLink->xBlockSize) > xWantedSize ) {
-					//got enough memory! yay!
-					size_t diff = B(pxLink->xBlockSize) - xWantedSize;
-					//but maybe it was too much, let's free some if possible...
-					if( diff < heapMINIMUM_BLOCK_SIZE) {
-						//don't change anything - the block is already too small and there's not enough space being freed to make a new block
-						traceMALLOC( pv, diff );
-						( void ) xTaskResumeAll();
-						return pv;
-					}
-					//split the block and insert the new one into the free list
-					pxNewBlockLink = ( void * ) ( ( ( uint8_t * ) pxLink ) + xWantedSize );
-
-					/* Calculate the sizes of two blocks split from the
-					single block. */
-					pxNewBlockLink->xBlockSize = diff;
-					xFreeBytesRemaining += diff;
-					pxLink->xBlockSize = xWantedSize|xBlockAllocatedBit;
-
-					/* Insert the new block into the list of free blocks. */
-					prvInsertBlockIntoFreeList( ( pxNewBlockLink ) );
-
-					traceMALLOC( pv, B(pxLink->xBlockSize) - original_size );
-					( void ) xTaskResumeAll();
-					return pv;
-				}
+				traceMALLOC( pv, diff );
+				( void ) xTaskResumeAll();
+				return pv;
 			}
-
-			( void ) xTaskResumeAll();
 			//got to memmove... didn't find enough contiguous blocks
 			{
 				void * mem = pvPortMalloc(xWantedSize);
 				if( mem ) {
 					memmove(mem, pv, B(pxLink->xBlockSize) - heapSTRUCT_SIZE);
 					vPortFree(pv);
+					( void ) xTaskResumeAll();
 					return mem;
 				}
+				( void ) xTaskResumeAll();
 				return NULL;
 			}
 #undef B

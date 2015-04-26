@@ -168,30 +168,12 @@ bool encode_file (pb_ostream_t * stream, const pb_field_t * field,void * const *
 }
 
 
-static uint32_t FileEncode(pb_ostream_t * stream,void * data) {
-	FileMessage pbfile;
-	EncodeData_t * encode_data = (EncodeData_t *)data;
-
-	memset(&pbfile,0,sizeof(pbfile));
-
-	pbfile.device_id.funcs.encode = encode_device_id_string;
-
-	pbfile.unix_time = get_time();
-	pbfile.has_unix_time = true;
-
-	pbfile.data.funcs.encode = encode_file;
-	pbfile.data.arg = encode_data;
-
-	return pb_encode(stream,FileMessage_fields,&pbfile);
-}
-
-
 void FileUploaderTask_Thread(void * data) {
 	TaskMessage_t m;
 	FileUploaderMessage_t * p;
-	char recvbuf[256];
 	NetworkTaskServerSendMessage_t mnet;
 	EncodeData_t encode_data;
+	FileMessage pbfile;
 
 	Init();
 
@@ -210,14 +192,19 @@ void FileUploaderTask_Thread(void * data) {
 				encode_data.deleteAfterUpload = m.message.uploadermessage.deleteAfterUpload;
 				encode_data.unix_time = get_time();
 
-				mnet.decode_buf = recvbuf;
-				mnet.decode_buf_size = sizeof(recvbuf);
 				mnet.endpoint = p->endpoint;
 				mnet.host = p->host;
 				mnet.response_callback = NetTaskResponse;
 
-				mnet.encode = FileEncode;
-				mnet.encodedata = &encode_data;
+				memset(&pbfile,0,sizeof(pbfile));
+				pbfile.device_id.funcs.encode = encode_device_id_string;
+				pbfile.unix_time = get_time();
+				pbfile.has_unix_time = true;
+				pbfile.data.funcs.encode = encode_file;
+				pbfile.data.arg = &encode_data;
+
+				mnet.structdata = &pbfile;
+				mnet.fields = FileMessage_fields;
 
 				mnet.retry_timeout = RETRY_TIMEOUT_TICKS;
 				mnet.context = &encode_data;

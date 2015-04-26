@@ -31,19 +31,12 @@ typedef struct {
 	network_prep_callback_t begin, end;
 	void * context;
 
-	/* Called after end */
-	network_prep_callback_t terminate;
-	void * terminate_data;
-
-	//optional encode and decode callbacks.  You can have one or both enabled.
-	network_encode_callback_t encode; //optional encode callback.  If you're just polling, you don't need this
-	void * encodedata; //optional extra data passed to your encode callback
+	//protobuf
+	const pb_field_t * fields;
+	const void * structdata;
 
 	const char * host; //the server to which you wish to communicate
 	const char * endpoint; //where on the server you wish to communicate to.  eg /audio/features
-
-	char * decode_buf; //the buffer we dump our server response to
-	uint32_t decode_buf_size;
 
 	int32_t retry_timeout;
 
@@ -62,14 +55,10 @@ void networktask_init(uint16_t stack_size);
  * field in the HTTP headers, the socket it will talk on will
  * always connect to DATA_SERVER
  */
-bool NetworkTask_SynchronousSendProtobuf(const char * host,
+bool NetworkTask_SendProtobuf(bool blocking, const char * host,
 		const char * endpoint, const pb_field_t fields[],
 		const void * structdata, int32_t retry_time_in_counts,
 		NetworkResponseCallback_t func, void * context);
-int NetworkTask_AsynchronousSendProtobuf(const char * host,
-		const char * endpoint, const pb_field_t fields[],
-		const void * structdata, int32_t retry_time_in_counts,
-		NetworkResponseCallback_t func, void * data);
 int NetworkTask_AddMessageToQueue(
 		const NetworkTaskServerSendMessage_t * message);
 int networktask_enter_critical_region();
