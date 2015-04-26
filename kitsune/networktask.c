@@ -11,7 +11,6 @@
 
 #define NETWORK_TASK_QUEUE_DEPTH (10)
 #define INITIAL_RETRY_PERIOD_COUNTS (1024)
-#define NUM_RECEIVE_RETRIES (10)
 
 static xQueueHandle _asyncqueue = NULL;
 static xSemaphoreHandle _network_mutex = NULL;
@@ -129,8 +128,7 @@ static NetworkResponse_t nettask_send(NetworkTaskServerSendMessage_t * message) 
 				&decode_buf,
 				&decode_buf_size,
 				message->fields,
-				message->structdata,
-				NUM_RECEIVE_RETRIES) == 0) {
+				message->structdata) == 0) {
 			response.success = true;
 		} else {
 			//failed to push, now what?

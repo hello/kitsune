@@ -35,7 +35,7 @@ int sl_mode;
 #define DEVICE_ID_LOC "/hello/deviceid"
 #define DEVICE_ID_SZ 8
 
-#define SERVER_REPLY_BUFSZ 256
+#define SERVER_REPLY_BUFSZ 512
 
 #include "stdint.h"
 #include "sync_response.pb.h"
@@ -110,7 +110,7 @@ int Cmd_burn_top(int argc, char *argv[]);
 
 int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
 		uint32_t * recv_buf_size_ptr, const pb_field_t fields[],
-		const void * structdata, uint16_t num_receive_retries);
+		const void * structdata);
 
 int decode_rx_data_pb(const uint8_t * buffer, uint32_t buffer_size,
 		const pb_field_t fields[], void * structdata);
