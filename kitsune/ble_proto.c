@@ -53,17 +53,6 @@ static int _scanned_wifi_count = 0;
 static Sl_WlanNetworkEntry_t _wifi_endpoints[MAX_WIFI_EP_PER_SCAN];
 static xSemaphoreHandle _wifi_smphr;
 
-#include "hash_table.h"
-static boolean eq_func(void* a,void* b)
-    {
-    return memcmp( a, b, sizeof( int ) )==0;
-    }
-static unsigned int hash_func(void* a)
-    {
-    //return *(int*)a; //for very random data...
-    return hash( (char*)a, sizeof(int), 0xbeefcafe );
-    }
-
 ble_mode_t get_ble_mode() {
 	ble_mode_t status;
 	xSemaphoreTake( _self.smphr, portMAX_DELAY );
@@ -179,6 +168,8 @@ static void _reply_wifi_scan_result()
 
 }
 
+#include "hash_table.h"
+
 static boolean fill_endpoints( sparse_table_entry const* endpoint, void * unused) {
 	_wifi_endpoints[_scanned_wifi_count++] = *(Sl_WlanNetworkEntry_t*)(((hash_bucket*)endpoint)->value);
 	return TRUE;
@@ -200,7 +191,7 @@ static void _scan_wifi( void * params )
 	int i;
 
 	xSemaphoreTake(_wifi_smphr, portMAX_DELAY);
-	hash_init( &wifi_hash, hash_func, eq_func );
+	hash_init( &wifi_hash, str_hash_func, str_eq_func );
 
 	_scanned_wifi_count = 0;
 	_wifi_read_index = 0;
@@ -213,13 +204,13 @@ static void _scan_wifi( void * params )
 
 	for( i=0;i<scan_cnt[IFA_ANT];++i ) {
 		endpoints_ifa[i].reserved[0] = IFA_ANT;
-		hash_add( &wifi_hash, &endpoints_ifa[i].ssid, &endpoints_ifa[i] );
+		hash_add( &wifi_hash, endpoints_ifa[i].ssid, &endpoints_ifa[i] );
 	}
 	for( i=0;i<scan_cnt[PCB_ANT];++i ) {
-		Sl_WlanNetworkEntry_t endpoint;
+		Sl_WlanNetworkEntry_t * endpoint_ifa;
 		endpoints_pcb[i].reserved[0] = PCB_ANT;
-		if( hash_lookup( &wifi_hash, &endpoints_pcb[i].ssid, &endpoint ) ) {
-			if( endpoints_pcb[i].rssi > endpoint.rssi ) {
+		if( hash_lookup( &wifi_hash, endpoints_pcb[i].ssid, &endpoint_ifa ) ) {
+			if( endpoints_pcb[i].rssi > endpoint_ifa->rssi ) {
 				hash_add( &wifi_hash, &endpoints_pcb[i].ssid, &endpoints_pcb[i] );
 			}
 		} else {

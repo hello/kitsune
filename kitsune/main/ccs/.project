@@ -701,6 +701,11 @@
 			<locationURI>PARENT-2-PROJECT_LOC/hashtable/dump_xsum.h</locationURI>
 		</link>
 		<link>
+			<name>hashtable/hash_functions.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hashtable/hash_functions.c</locationURI>
+		</link>
+		<link>
 			<name>hashtable/hash_functions.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/hashtable/hash_functions.h</locationURI>

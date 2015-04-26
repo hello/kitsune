@@ -61,7 +61,9 @@ boolean hash_remove(hash_table* table, key_t key) {
         hash_resize(table, table->bucket_size / 2); );
 }
 boolean hash_lookup(hash_table* table, key_t key, val_t value) {
-  HASH_LOOKUP(name, table, key, key_t, memcpy( value, bucket.value, sizeof(void*) ) );
+  HASH_LOOKUP(name, table, key, key_t,
+		  memcpy( value, &bucket.value, sizeof(void*) )
+  );
 }
 void hash_add(hash_table* table, key_t key, val_t value) {
   hash_bucket in_bucket = {key, value};
