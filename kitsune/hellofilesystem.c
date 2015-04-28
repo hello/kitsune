@@ -153,7 +153,7 @@ FRESULT hello_fs_append(const char* file_name, const unsigned char* content, int
 }
 
 ////==========================================================
-//example fifo stream below, no thread safety, no optimization
+//fs stream impl
 static int fs_write(void * ctx, const void * buf, size_t size){
 	return 0;
 }
