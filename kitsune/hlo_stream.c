@@ -5,6 +5,7 @@
 #include "socket.h"
 
 
+
 int hlo_stream_write(hlo_stream_t * stream, void * buf, size_t size){
 	assert(stream);
 	assert(stream->impl.write);
@@ -43,6 +44,8 @@ hlo_stream_t * hlo_stream_new(const hlo_stream_vftbl * impl, void * ctx){
 
 	return ret;
 }
+
+
 ////==========================================================
 //example fifo stream below, no thread safety, no optimization
 typedef struct{
@@ -118,4 +121,31 @@ hlo_stream_t * fifo_stream_open(size_t capacity){
 		return NULL;
 	}
 
+}
+
+////==========================================================
+//test commands
+#include "uart_logger.h"
+static hlo_stream_t *user_streams[3];
+
+int Cmd_make_stream(int argc, char *argv[]){
+	DISP("Test: Making fifo 0");
+	user_streams[0] = fifo_stream_open(16);
+	return 0;
+}
+int Cmd_write_stream(int argc, char *argv[]){
+	DISP("Test: Writing fifo 0");
+	if(argc > 1){
+		int ret = hlo_stream_write(user_streams[0], argv[1], strlen(argv[1]));
+		DISP("write %s, return code %d\r\n",argv[1], ret);
+	}
+	return 0;
+}
+int Cmd_read_stream(int argc, char *argv[]){
+	if(argc > 0){
+		uint8_t temp[9] = {0};
+		int ret = hlo_stream_read(user_streams[0], temp, 8);
+		DISP("read %s, return code %d\r\n", temp, ret);
+	}
+	return 0;
 }

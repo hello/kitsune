@@ -90,6 +90,7 @@
 #include "proto_utils.h"
 #include "ustdlib.h"
 
+#include "hlo_stream.h"
 #include "pill_settings.h"
 
 #define ONLY_MID 0
@@ -1737,6 +1738,9 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "set-time",cmd_set_time,""},
 		{ "frag",cmd_memfrag,""},
 		{ "burntopkey",Cmd_burn_top,""},
+		{ "mks",Cmd_make_stream,""},
+		{ "wrs",Cmd_write_stream,""},
+		{ "rds",Cmd_read_stream,""},
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
 		{ "iperfcli",Cmd_iperf_client,""},

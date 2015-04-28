@@ -37,7 +37,9 @@ int hlo_stream_close(hlo_stream_t * stream);
 //implementation specific, do not call this directly
 hlo_stream_t * hlo_stream_new(const hlo_stream_vftbl * impl, void * ctx);
 
-
+int Cmd_make_stream(int argc, char *argv[]);
+int Cmd_write_stream(int argc, char *argv[]);
+int Cmd_read_stream(int argc, char *argv[]);
 /**
  * example in-memory implementation
  */
