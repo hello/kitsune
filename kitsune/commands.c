@@ -674,7 +674,7 @@ void thread_alarm(void * unused) {
 					uint8_t trippy_range[3] = { 254, 254, 254 };
 					play_led_trippy(trippy_base, trippy_range,0, 333);
 
-					delay = 2*alarm.ring_duration_in_second;
+					delay = 90;
 				}
 			}
 			else {
