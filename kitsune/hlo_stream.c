@@ -9,15 +9,21 @@
 int hlo_stream_write(hlo_stream_t * stream, void * buf, size_t size){
 	assert(stream);
 	assert(stream->impl.write);
-
-	return stream->impl.write(stream->ctx, buf, size);
+	int ret = stream->impl.write(stream->ctx, buf, size);
+	if(ret > 0){
+		stream->info.bytes_written += ret;
+	}
+	return ret;
 }
 
 int hlo_stream_read(hlo_stream_t * stream, void * buf, size_t size){
 	assert(stream);
 	assert(stream->impl.read);
-
-	return stream->impl.read(stream->ctx, buf, size);
+	int ret = stream->impl.read(stream->ctx, buf, size);
+	if(ret > 0){
+		stream->info.bytes_read += ret;
+	}
+	return ret;
 }
 
 int hlo_stream_close(hlo_stream_t * stream){
