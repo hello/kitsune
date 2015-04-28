@@ -159,7 +159,7 @@ typedef struct{
 }fs_stream_t;
 
 static int fs_write(void * ctx, const void * buf, size_t size){
-	fs_stream_t * fs = (fs_stream_t*)ctx;
+	//fs_stream_t * fs = (fs_stream_t*)ctx;
 	return 0;
 }
 

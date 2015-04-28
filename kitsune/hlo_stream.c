@@ -2,9 +2,17 @@
 #include <assert.h>
 #include <strings.h>
 #include "FreeRTOS.h"
+#include "uart_logger.h"
 
 
+void hlo_stream_info(const hlo_stream_t * stream){
+	if(stream){
+		DISP("Stream\r\n");
+		DISP("Written: %u\r\n",stream->info.bytes_written);
+		DISP("Read   : %u\r\n",stream->info.bytes_read);
+	}
 
+}
 
 int hlo_stream_write(hlo_stream_t * stream, void * buf, size_t size){
 	assert(stream);
@@ -131,13 +139,12 @@ hlo_stream_t * fifo_stream_open(size_t capacity){
 
 ////==========================================================
 //test commands
-#include "uart_logger.h"
+
 #include "hellofilesystem.h"
 static hlo_stream_t *user_streams[3];
 
 int Cmd_make_stream(int argc, char *argv[]){
 	DISP("Test: Making fifo 0");
-	int ret;
 	//user_streams[0] = fifo_stream_open(16);
 	if(argc > 1){
 		user_streams[0] = fs_stream_open(argv[1], 0);
@@ -147,16 +154,22 @@ int Cmd_make_stream(int argc, char *argv[]){
 int Cmd_write_stream(int argc, char *argv[]){
 	DISP("Test: Writing fifo 0");
 	if(argc > 1){
-		int ret = hlo_stream_write(user_streams[0], argv[1], strlen(argv[1]));
+		hlo_stream_t * stream = user_streams[0];
+
+		int ret = hlo_stream_write(stream, argv[1], strlen(argv[1]));
 		DISP("write %s, return code %d\r\n",argv[1], ret);
+		hlo_stream_info(stream);
 	}
 	return 0;
 }
 int Cmd_read_stream(int argc, char *argv[]){
 	if(argc > 0){
 		uint8_t temp[9] = {0};
-		int ret = hlo_stream_read(user_streams[0], temp, 8);
+		hlo_stream_t * stream = user_streams[0];
+
+		int ret = hlo_stream_read(stream, temp, 8);
 		DISP("read %s, return code %d\r\n", temp, ret);
+		hlo_stream_info(stream);
 	}
 	return 0;
 }
