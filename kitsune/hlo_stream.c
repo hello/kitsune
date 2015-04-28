@@ -9,9 +9,6 @@ int hlo_stream_write(hlo_stream_t * stream, void * buf, size_t size){
 	assert(stream);
 	assert(stream->impl.write);
 
-	//do something with stream->info here
-
-	//do something with impl here
 	return stream->impl.write(stream->ctx, buf, size);
 }
 
@@ -19,9 +16,6 @@ int hlo_stream_read(hlo_stream_t * stream, void * buf, size_t size){
 	assert(stream);
 	assert(stream->impl.read);
 
-	//do something with stream->info here
-
-	//do something with impl here
 	return stream->impl.read(stream->ctx, buf, size);
 }
 
@@ -31,9 +25,6 @@ int hlo_stream_close(hlo_stream_t * stream){
 	assert(stream);
 	assert(stream->impl.close);
 
-	//do something with stream->info here
-
-	//do something with impl here
 	ret = stream->impl.close(stream->ctx);
 	if(ret == 0){
 		vPortFree(stream);
