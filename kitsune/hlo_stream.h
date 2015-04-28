@@ -5,6 +5,7 @@
 #ifndef HLO_STREAM_H
 #define HLO_STREAM_H
 #include <stddef.h>
+#include "socket.h"
 
 //meta info for the parent api
 typedef struct hlo_stream_info_t{

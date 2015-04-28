@@ -154,14 +154,28 @@ FRESULT hello_fs_append(const char* file_name, const unsigned char* content, int
 
 ////==========================================================
 //fs stream impl
+typedef struct{
+	FIL f;
+}fs_stream_t;
+
 static int fs_write(void * ctx, const void * buf, size_t size){
+	fs_stream_t * fs = (fs_stream_t*)ctx;
 	return 0;
 }
 
 static int fs_read(void * ctx, void * buf, size_t size){
-	return 0;
+	fs_stream_t * fs = (fs_stream_t*)ctx;
+	WORD read;
+	FRESULT res = hello_fs_read(&fs->f, buf, size, &read);
+	if(res != FR_OK){
+		return ERROR;
+	}
+	return read;
 }
 static int fs_close(void * ctx){
+	fs_stream_t * fs = (fs_stream_t*)ctx;
+	hello_fs_close(&fs->f);
+	vPortFree(fs);
 	return 0;
 }
 
@@ -170,14 +184,18 @@ static hlo_stream_vftbl_t fs_stream_impl = {
 		.read = fs_read,
 		.close = fs_close
 };
-typedef struct{
 
-}fs_stream_t;
 
-hlo_stream_t * fs_stream_open(const char * filepath, uint32_t options){
+hlo_stream_t * fs_stream_open(const char * path, uint32_t options){
 	fs_stream_t * fs = pvPortMalloc(sizeof(fs_stream_t));
 	if(fs){
+		FRESULT res;
 		memset(fs, 0, size);
+		res = hello_fs_open(&fs->f, path, FA_READ);
+		if(res != FR_OK){
+			vPortFree(fs);
+			return NULL;
+		}
 		return hlo_stream_new(&fs_stream_impl, fs);
 	}else{
 		return NULL;
