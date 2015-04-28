@@ -152,3 +152,35 @@ FRESULT hello_fs_append(const char* file_name, const unsigned char* content, int
 	return res;
 }
 
+////==========================================================
+//example fifo stream below, no thread safety, no optimization
+static int fs_write(void * ctx, const void * buf, size_t size){
+	return 0;
+}
+
+static int fs_read(void * ctx, void * buf, size_t size){
+	return 0;
+}
+static int fs_close(void * ctx){
+	return 0;
+}
+
+static hlo_stream_vftbl_t fs_stream_impl = {
+		.write = fs_write,
+		.read = fs_read,
+		.close = fs_close
+};
+typedef struct{
+
+}fs_stream_t;
+
+hlo_stream_t * fs_stream_open(const char * filepath){
+	fs_stream_t * fs = pvPortMalloc(sizeof(fs_stream_t));
+	if(fs){
+		memset(fs, 0, size);
+		return hlo_stream_new(&fs_stream_impl, fs);
+	}else{
+		return NULL;
+	}
+
+}
