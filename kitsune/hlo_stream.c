@@ -64,7 +64,7 @@ static int fifo_read_byte(fifo_stream_t * ctx, uint8_t * buf){
 }
 
 static int fifo_write_byte(fifo_stream_t * ctx, uint8_t * buf){
-	*buf = ctx->buf[ctx->write_idx];
+	ctx->buf[ctx->write_idx] = *buf;
 	ctx->write_idx = (ctx->write_idx + 1)%ctx->capacity;
 	ctx->filled++;
 	return ctx->filled;
@@ -75,7 +75,7 @@ static int fifo_write(void * ctx, const void * buf, size_t size){
 	if(fifo->filled < fifo->capacity){
 		int written = 0;
 		while(size && fifo->filled < fifo->capacity){
-			fifo_write_byte(fifo, (uint8_t*)buf+written);
+			fifo_write_byte(fifo, (uint8_t*)(buf+written));
 			written++;
 			size--;
 		}
@@ -88,8 +88,8 @@ static int fifo_read(void * ctx, void * buf, size_t size){
 	fifo_stream_t * fifo = (fifo_stream_t*)ctx;
 	if(fifo->filled){
 		int read = 0;
-		while(read <= size && fifo->filled){
-			fifo_read_byte(fifo, (uint8_t*)buf+read);
+		while(read < size && fifo->filled){
+			fifo_read_byte(fifo, (uint8_t*)(buf+read));
 			read++;
 		}
 		return read;
