@@ -27,6 +27,6 @@ FRESULT hello_fs_mkfs (BYTE, BYTE, BYTE);                    /* Create a file sy
 FRESULT hello_fs_append(const char* file_name, const unsigned char* content, int length);
 
 //read only implementation for now
-hlo_stream_t * fs_stream_open(const char * filepath);
+hlo_stream_t * fs_stream_open(const char * filepath, uint32_t options);
 #endif //_HELLOFILESYSTEM_H_
 

@@ -174,7 +174,7 @@ typedef struct{
 
 }fs_stream_t;
 
-hlo_stream_t * fs_stream_open(const char * filepath){
+hlo_stream_t * fs_stream_open(const char * filepath, uint32_t options){
 	fs_stream_t * fs = pvPortMalloc(sizeof(fs_stream_t));
 	if(fs){
 		memset(fs, 0, size);
