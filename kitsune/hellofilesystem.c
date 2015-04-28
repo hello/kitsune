@@ -190,7 +190,7 @@ hlo_stream_t * fs_stream_open(const char * path, uint32_t options){
 	fs_stream_t * fs = pvPortMalloc(sizeof(fs_stream_t));
 	if(fs){
 		FRESULT res;
-		memset(fs, 0, size);
+		memset(fs, 0, sizeof(*fs));
 		res = hello_fs_open(&fs->f, path, FA_READ);
 		if(res != FR_OK){
 			vPortFree(fs);

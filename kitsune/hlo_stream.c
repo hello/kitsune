@@ -126,11 +126,16 @@ hlo_stream_t * fifo_stream_open(size_t capacity){
 ////==========================================================
 //test commands
 #include "uart_logger.h"
+#include "hellofilesystem.h"
 static hlo_stream_t *user_streams[3];
 
 int Cmd_make_stream(int argc, char *argv[]){
 	DISP("Test: Making fifo 0");
-	user_streams[0] = fifo_stream_open(16);
+	int ret;
+	//user_streams[0] = fifo_stream_open(16);
+	if(argc > 1){
+		user_streams[0] = fs_stream_open(argv[1], 0);
+	}
 	return 0;
 }
 int Cmd_write_stream(int argc, char *argv[]){
