@@ -715,7 +715,7 @@ static void thread_dust(void * unused) {
 #endif
 	unsigned int filter_buf[3];
 	unsigned int filter_idx=0;
-
+	unsigned int median_filter(unsigned int x, unsigned int * buf,unsigned int * p)
 	while (1) {
 		uint32_t now = xTaskGetTickCount();
 		if (xSemaphoreTake(dust_smphr, portMAX_DELAY)) {
@@ -867,8 +867,6 @@ void thread_fast_i2c_poll(void * unused)  {
 			prox = median_filter(get_prox(), filter_buf, &filter_idx);
 
 			xSemaphoreGive(i2c_smphr);
-
-			prox = ProxSignal_MedianFilter(prox);
 
 			gesture = ProxSignal_UpdateChangeSignals(prox);
 
