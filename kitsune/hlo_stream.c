@@ -33,7 +33,7 @@ int hlo_stream_close(hlo_stream_t * stream){
 	return ret;
 }
 
-hlo_stream_t * hlo_stream_new(const hlo_stream_vftbl * impl, void * ctx){
+hlo_stream_t * hlo_stream_new(const hlo_stream_vftbl_t * impl, void * ctx){
 	hlo_stream_t * ret  = pvPortMalloc(sizeof(hlo_stream_t));
 
 	assert(ret);
@@ -103,7 +103,7 @@ static int fifo_close(void * ctx){
 	return 0;
 }
 
-static hlo_stream_vftbl fifo_stream_impl = {
+static hlo_stream_vftbl_t fifo_stream_impl = {
 		.write = fifo_write,
 		.read = fifo_read,
 		.close = fifo_close

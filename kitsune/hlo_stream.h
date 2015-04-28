@@ -16,10 +16,10 @@ typedef struct{
 	int (*write)(void * ctx, const void * buf, size_t size);
 	int (*read)(void * ctx, void * buf, size_t size);
 	int (*close)(void * ctx);
-}hlo_stream_vftbl;
+}hlo_stream_vftbl_t;
 
 typedef struct{
-	hlo_stream_vftbl impl;
+	hlo_stream_vftbl_t impl;
 	hlo_stream_info_t info;
 	void * ctx;
 }hlo_stream_t;
@@ -35,7 +35,7 @@ int hlo_stream_read(hlo_stream_t * stream, void * buf, size_t size);
 int hlo_stream_close(hlo_stream_t * stream);
 
 //implementation specific, do not call this directly
-hlo_stream_t * hlo_stream_new(const hlo_stream_vftbl * impl, void * ctx);
+hlo_stream_t * hlo_stream_new(const hlo_stream_vftbl_t * impl, void * ctx);
 
 int Cmd_make_stream(int argc, char *argv[]);
 int Cmd_write_stream(int argc, char *argv[]);
