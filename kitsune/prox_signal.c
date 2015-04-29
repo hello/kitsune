@@ -40,8 +40,6 @@ typedef struct {
 	int32_t changebuf[CHANGE_SIGNAL_BUF_SIZE];
 	int32_t logProbOfModes[numChangeModes];
 	uint32_t counter;
-	int32_t medianFilterBuf[3];
-	uint8_t medianFilterCount;
 	uint32_t stablecount;
 	int32_t maxStable;
 	int32_t minHeldStable;
@@ -72,32 +70,6 @@ static const int32_t k_release_threshold = 10000; //difference between min and h
 
 void ProxSignal_Init(void) {
 	memset(&_data,0,sizeof(_data));
-}
-
-int32_t ProxSignal_MedianFilter(const int32_t x) {
-	//3 tap
-	int32_t * buf = _data.medianFilterBuf;
-	buf[_data.medianFilterCount] = x;
-
-	_data.medianFilterCount++;
-
-	if (_data.medianFilterCount >= 3) {
-		_data.medianFilterCount = 0;
-	}
-
-	if (buf[0] > buf[1]) {
-		if (buf[1] > buf[2]) {
-			return buf[1];
-		}
-	}
-	else {
-		if (buf[2] > buf[0]) {
-			return buf[0];
-		}
-	}
-
-	return buf[2];
-
 }
 
 static ProxGesture_t GetGesture(EChangeModes_t mode,uint8_t hasStableMeas,const int32_t maxStable,const int32_t stablex,const int32_t currentx) {
