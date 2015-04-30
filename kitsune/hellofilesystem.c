@@ -172,7 +172,7 @@ static int fs_read(void * ctx, void * buf, size_t size){
 	fs_stream_t * fs = (fs_stream_t*)ctx;
 	WORD read;
 	FRESULT res = hello_fs_read(&fs->f, buf, size, &read);
-	if(res != FR_OK){
+	if(res != FR_OK || read == 0){
 		return ERROR;
 	}
 	return read;
