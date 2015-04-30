@@ -15,7 +15,7 @@
 #include "network_types.h"
 
 #ifndef MAX_SSID_LEN
-#define MAX_SSID_LEN	(32)
+#define MAX_SSID_LEN	(33)
 #endif
 
 extern xSemaphoreHandle pill_smphr;

@@ -23,17 +23,9 @@ static bool _encode_wifi_scan_result_fields(pb_ostream_t *stream, const pb_field
         return false;
     }
 
-
-	if(wifi_ap->ssid_len == 0)
-	{
-		return false;  // Skip empty SSID, or null item
-	}
-
-
-
 	wifi_endpoint data = {0};
 	char ssid[MAXIMAL_SSID_LENGTH + 1] = {0};
-	memcpy(ssid, wifi_ap->ssid, wifi_ap->ssid_len);
+	strncpy(ssid, wifi_ap->ssid, MAXIMAL_SSID_LENGTH + 1);
 	data.ssid.funcs.encode = _encode_string_fields;
 	data.ssid.arg = ssid;
 

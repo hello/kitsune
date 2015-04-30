@@ -203,11 +203,15 @@ static void _scan_wifi( void * params )
 	scan_cnt[PCB_ANT] = scan_with_retry( &endpoints_pcb, PCB_ANT );
 
 	for( i=0;i<scan_cnt[IFA_ANT];++i ) {
+		 //don't remove workaround for 32 char long ssid bug in SL, wipes out the ssid length but we dont' care
+		endpoints_ifa[i].ssid_len = 0;
 		endpoints_ifa[i].reserved[0] = IFA_ANT;
 		hash_add( &wifi_hash, endpoints_ifa[i].ssid, &endpoints_ifa[i] );
 	}
 	for( i=0;i<scan_cnt[PCB_ANT];++i ) {
 		Sl_WlanNetworkEntry_t * endpoint_ifa;
+		 //don't remove workaround for 32 char long ssid bug in SL, wipes out the ssid length but we dont' care
+		endpoints_pcb[i].ssid_len = 0;
 		endpoints_pcb[i].reserved[0] = PCB_ANT;
 		if( hash_lookup( &wifi_hash, endpoints_pcb[i].ssid, &endpoint_ifa ) ) {
 			if( endpoints_pcb[i].rssi > endpoint_ifa->rssi ) {
