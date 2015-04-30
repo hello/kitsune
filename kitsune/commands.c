@@ -715,7 +715,6 @@ static void thread_dust(void * unused) {
 #endif
 	unsigned int filter_buf[3];
 	unsigned int filter_idx=0;
-	unsigned int median_filter(unsigned int x, unsigned int * buf,unsigned int * p)
 	while (1) {
 		uint32_t now = xTaskGetTickCount();
 		if (xSemaphoreTake(dust_smphr, portMAX_DELAY)) {
