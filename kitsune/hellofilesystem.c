@@ -163,7 +163,7 @@ static int fs_write(void * ctx, const void * buf, size_t size){
 	fs_stream_t * fs = (fs_stream_t*)ctx;
 	FRESULT res = hello_fs_append(fs->fname, buf, size);
 	if(res != FR_OK){
-		return ERROR;
+		return HLO_STREAM_ERROR;
 	}
 	return size;
 }
@@ -172,8 +172,11 @@ static int fs_read(void * ctx, void * buf, size_t size){
 	fs_stream_t * fs = (fs_stream_t*)ctx;
 	WORD read;
 	FRESULT res = hello_fs_read(&fs->f, buf, size, &read);
-	if(res != FR_OK || read == 0){
-		return ERROR;
+	if(read == 0){
+		return HLO_STREAM_EOF;
+	}
+	if(res != FR_OK){
+		return HLO_STREAM_ERROR;
 	}
 	return read;
 }
