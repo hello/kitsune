@@ -1711,6 +1711,27 @@ int Cmd_heapviz(int argc, char *argv[]) {
 
 	return 0;
 }
+int Cmd_dmdp(int argc, char *argv[]) {
+	//turn off the CLI...
+	//drive sop2 low so we disconnect
+    MAP_GPIOPinWrite(GPIOA3_BASE, 0x2, 0);
+
+    //turn off the CCU...
+    //make the pins gpios with no driver to make them hi-z
+    PinConfigSet(PIN_58,/*PIN_STRENGTH_2MA*/0,PIN_TYPE_STD);
+    PinConfigSet(PIN_59,/*PIN_STRENGTH_2MA*/0,PIN_TYPE_STD);
+
+    //todo send message to top to indicate the success
+    //todo parse response
+
+#if 0 //todo enable turn on the CLIs...
+    MAP_GPIOPinWrite(GPIOA3_BASE, 0x2, 0x2);
+    MAP_PinTypeUART(PIN_58, PIN_MODE_6);
+    MAP_PinTypeUART(PIN_59, PIN_MODE_6);
+#endif
+
+	return 0;
+}
 
 int Cmd_scan_wifi_mostly_nonblocking(int argc, char *argv[]);
 // ==============================================================================
@@ -1731,6 +1752,8 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "ping", Cmd_ping, "" },
 		{ "time", Cmd_time, "" },
 		{ "status", Cmd_status, "" },
+
+		{ "dmdp", Cmd_dmdp, "" },
 
     { "mnt",      Cmd_mnt,      "" },
     { "umnt",     Cmd_umnt,     "" },
