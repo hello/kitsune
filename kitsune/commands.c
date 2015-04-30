@@ -1794,8 +1794,8 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "download", Cmd_download, ""},//download test function.
 		{ "dtm", Cmd_top_dtm, "" },//Sends Direct Test Mode command
 		{ "animate", Cmd_led_animate, ""},//Animates led
-		{ "uplog", Cmd_log_upload, "Uploads log to server"},
-		{ "loglevel", Cmd_log_setview, "Sets log level" },
+		{ "uplog", Cmd_log_upload, ""},
+		{ "loglevel", Cmd_log_setview, "" },
 		{ "ver", Cmd_version, ""},//Animates led
 #ifdef BUILD_TESTS
 		{ "test_network",Cmd_test_network,""},

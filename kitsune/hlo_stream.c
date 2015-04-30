@@ -1,5 +1,5 @@
 #include "hlo_stream.h"
-#include <assert.h>
+#include "kit_assert.h"
 #include <strings.h>
 #include "uart_logger.h"
 
