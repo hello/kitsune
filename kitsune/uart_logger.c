@@ -740,7 +740,7 @@ static hlo_stream_vftbl_t uart_stream_impl = {
 hlo_stream_t * uart_stream(void){
 	static hlo_stream_t * stream;
 	if(!stream){
-		stream = hlo_stream_new(&uart_stream_impl,NULL,HLO_STREAM_IN_OUT);
+		stream = hlo_stream_new(&uart_stream_impl,NULL,HLO_STREAM_READ_WRITE);
 	}
 	return stream;
 }

@@ -205,13 +205,13 @@ hlo_stream_t * fs_stream_open(const char * path, uint32_t options){
 		}
 		strcpy(fs->fname,path);
 		switch(options){
-		case HLO_STREAM_IN:
+		case HLO_STREAM_WRITE:
 			res = hello_fs_open(&fs->f, path, FA_OPEN_ALWAYS);
 			break;
-		case HLO_STREAM_OUT:
+		case HLO_STREAM_READ:
 			res = hello_fs_open(&fs->f, path, FA_READ);
 			break;
-		case HLO_STREAM_IN_OUT:
+		case HLO_STREAM_READ_WRITE:
 			//not supported yet
 		default:
 			goto fail;

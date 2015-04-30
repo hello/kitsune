@@ -413,10 +413,10 @@ Cmd_cat(int argc, char *argv[])
 
     int ret = -2;
     global_filename( argv[1] );
-    src = fs_stream_open(path_buff,HLO_STREAM_OUT);
+    src = fs_stream_open(path_buff,HLO_STREAM_READ);
     if(argc > 2){
     	global_filename( argv[2] );
-    	dst = fs_stream_open(path_buff, HLO_STREAM_IN);
+    	dst = fs_stream_open(path_buff, HLO_STREAM_WRITE);
     }else{
     	DISP("using uart pipe");
     	dst = uart_stream();

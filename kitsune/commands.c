@@ -437,7 +437,7 @@ int Cmd_play_buff(int argc, char *argv[]) {
 	desc.fade_in_ms = 0;
 	desc.fade_out_ms = 0;
     desc.rate = atoi(argv[2]);
-
+    desc.stream = fs_stream_open(desc.file,HLO_STREAM_READ);
     AudioTask_StartPlayback(&desc);
 
     return 0;

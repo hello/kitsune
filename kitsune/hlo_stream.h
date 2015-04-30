@@ -10,9 +10,9 @@
 #include "semphr.h"
 
 //options
-#define HLO_STREAM_IN	 		1
-#define HLO_STREAM_OUT	 		2
-#define HLO_STREAM_IN_OUT		(HLO_STREAM_IN + HLO_STREAM_OUT)
+#define HLO_STREAM_WRITE		1
+#define HLO_STREAM_READ	 		2
+#define HLO_STREAM_READ_WRITE	(HLO_STREAM_WRITE + HLO_STREAM_READ)
 
 //steam return codes
 #define HLO_STREAM_ERROR		-1
