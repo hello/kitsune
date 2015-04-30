@@ -159,8 +159,9 @@ static hlo_stream_vftbl_t random_stream_impl = {
 hlo_stream_t * random_stream_open(void){
 	static hlo_stream_t * rng;
 	if(!rng){
-		return hlo_stream_new(&rng,NULL,HLO_STREAM_OUT | HLO_STREAM_IN);
+		rng = hlo_stream_new(&random_stream_impl,NULL,HLO_STREAM_OUT | HLO_STREAM_IN);
 	}
+	return rng;
 }
 ////==========================================================
 //test commands
