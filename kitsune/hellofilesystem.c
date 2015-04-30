@@ -190,16 +190,16 @@ static hlo_stream_vftbl_t fs_stream_impl = {
 		.close = fs_close
 };
 
-
 hlo_stream_t * fs_stream_open(const char * path, uint32_t options){
 	fs_stream_t * fs = pvPortMalloc(sizeof(fs_stream_t));
 	if(fs){
 		FRESULT res;
 		memset(fs, 0, sizeof(*fs));
-		if(strlen(path) >= (sizeof(fs->fname))){
+		//file name to long maybe
+		if(strlen(path) >= sizeof(fs->fname)){
 			goto fail;
 		}
-		strncpy(fs->fname,path,strlen(path));
+		strcpy(fs->fname,path);
 		switch(options){
 		case HLO_STREAM_IN:
 			res = hello_fs_open(&fs->f, path, FA_CREATE_NEW|FA_WRITE|FA_OPEN_ALWAYS);
@@ -217,7 +217,7 @@ fail:
 			vPortFree(fs);
 			return NULL;
 		}
-		return hlo_stream_new(&fs_stream_impl, fs, HLO_STREAM_OUT);
+		return hlo_stream_new(&fs_stream_impl, fs, options);
 	}else{
 		return NULL;
 	}
