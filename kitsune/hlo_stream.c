@@ -71,7 +71,7 @@ hlo_stream_t * hlo_stream_new(const hlo_stream_vftbl_t * impl, void * ctx, uint3
 
 
 ////==========================================================
-//example fifo stream below, no thread safety, no optimization
+//Fifo stream, no optimization, no thread safety
 typedef struct{
 	volatile int write_idx;
 	volatile int read_idx;
@@ -146,7 +146,22 @@ hlo_stream_t * fifo_stream_open(size_t capacity){
 	}
 
 }
-
+////==========================================================
+//Random Stream
+void get_random(int num_rand_bytes, uint8_t *rand_data);
+static int random_read(void * ctx, void * buf, size_t size){
+	get_random(size,(uint8_t*)buf);
+	return size;
+}
+static hlo_stream_vftbl_t random_stream_impl = {
+		.read = random_read,
+};
+hlo_stream_t * random_stream_open(void){
+	static hlo_stream_t * rng;
+	if(!rng){
+		return hlo_stream_new(&rng,NULL,HLO_STREAM_OUT | HLO_STREAM_IN);
+	}
+}
 ////==========================================================
 //test commands
 

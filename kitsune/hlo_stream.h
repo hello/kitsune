@@ -62,9 +62,10 @@ hlo_stream_t * hlo_stream_new(const hlo_stream_vftbl_t * impl, void * ctx, uint3
 int Cmd_make_stream(int argc, char *argv[]);
 int Cmd_write_stream(int argc, char *argv[]);
 int Cmd_read_stream(int argc, char *argv[]);
-/**
- * example in-memory implementation
- */
+
+//fifo buffer stream
 hlo_stream_t * fifo_stream_open(size_t capacity);
+//random stream
+hlo_stream_t * random_stream_open(void);
 
 #endif
