@@ -4,6 +4,9 @@
 #include "FreeRTOS.h"
 #include "uart_logger.h"
 
+#define LOCK(stream) xSemaphoreTake(stream->info.lock)
+#define UNLOCK(stream) xSemaphoreGive(stream->info.lock)
+
 
 void hlo_stream_info(const hlo_stream_t * stream){
 	if(stream){
@@ -18,9 +21,11 @@ int hlo_stream_write(hlo_stream_t * stream, void * buf, size_t size){
 	assert(stream);
 	assert(stream->impl.write);
 	int ret = stream->impl.write(stream->ctx, buf, size);
+	LOCK(stream);
 	if(ret > 0){
 		stream->info.bytes_written += ret;
 	}
+	UNLOCK(stream);
 	return ret;
 }
 
@@ -28,9 +33,11 @@ int hlo_stream_read(hlo_stream_t * stream, void * buf, size_t size){
 	assert(stream);
 	assert(stream->impl.read);
 	int ret = stream->impl.read(stream->ctx, buf, size);
+	LOCK(stream);
 	if(ret > 0){
 		stream->info.bytes_read += ret;
 	}
+	UNLOCK(stream);
 	return ret;
 }
 
@@ -47,7 +54,7 @@ int hlo_stream_close(hlo_stream_t * stream){
 	return ret;
 }
 
-hlo_stream_t * hlo_stream_new(const hlo_stream_vftbl_t * impl, void * ctx){
+hlo_stream_t * hlo_stream_new(const hlo_stream_vftbl_t * impl, void * ctx, uint32_t options){
 	hlo_stream_t * ret  = pvPortMalloc(sizeof(hlo_stream_t));
 
 	assert(ret);
@@ -55,6 +62,10 @@ hlo_stream_t * hlo_stream_new(const hlo_stream_vftbl_t * impl, void * ctx){
 	memset(ret, 0, sizeof(*ret));
 	ret->ctx = ctx;
 	ret->impl = *impl;
+	ret->info.options = options;
+	vSemaphoreCreateBinary(ret->info->lock);
+
+	assert(ret->info->lock);
 
 	return ret;
 }
@@ -130,7 +141,7 @@ hlo_stream_t * fifo_stream_open(size_t capacity){
 	if(fifo){
 		memset(fifo, 0, size);
 		fifo->capacity = capacity;
-		return hlo_stream_new(&fifo_stream_impl, fifo);
+		return hlo_stream_new(&fifo_stream_impl, fifo, HLO_STREAM_OUT | HLO_STREAM_IN);
 	}else{
 		return NULL;
 	}

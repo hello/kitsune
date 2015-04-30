@@ -196,7 +196,7 @@ hlo_stream_t * fs_stream_open(const char * path, uint32_t options){
 			vPortFree(fs);
 			return NULL;
 		}
-		return hlo_stream_new(&fs_stream_impl, fs);
+		return hlo_stream_new(&fs_stream_impl, fs, HLO_STREAM_OUT);
 	}else{
 		return NULL;
 	}

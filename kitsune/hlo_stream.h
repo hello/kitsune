@@ -8,10 +8,17 @@
 #include <stdint.h>
 #include "socket.h"
 
+//options
+#define HLO_STREAM_IN	 		1
+#define HLO_STREAM_OUT	 		2
+#define HLO_STREAM_SYNCHRONIZED 4
+
 //meta info for the parent api
 typedef struct hlo_stream_info_t{
 	uint32_t bytes_written;
 	uint32_t bytes_read;
+	uint32_t options;
+	xSemaphoreHandle lock;
 }hlo_stream_info_t;
 
 
@@ -42,7 +49,7 @@ int hlo_stream_read(hlo_stream_t * stream, void * buf, size_t size);
 int hlo_stream_close(hlo_stream_t * stream);
 
 //implementation specific, do not call this directly
-hlo_stream_t * hlo_stream_new(const hlo_stream_vftbl_t * impl, void * ctx);
+hlo_stream_t * hlo_stream_new(const hlo_stream_vftbl_t * impl, void * ctx, uint32_t options);
 
 int Cmd_make_stream(int argc, char *argv[]);
 int Cmd_write_stream(int argc, char *argv[]);
