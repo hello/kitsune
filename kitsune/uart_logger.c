@@ -509,7 +509,7 @@ typedef struct {
 	void * structdata;
 }async_context_t;
 
-static void _free_pb(const NetworkResponse_t * response, uint8_t * reply_buf, int reply_sz, void * context){
+static void _free_pb(const NetworkResponse_t * response, char * reply_buf, int reply_sz, void * context){
 	async_context_t * ctx = (async_context_t*)context;
 
 	if( !http_response_ok((const char*)reply_buf) ) {
@@ -539,7 +539,7 @@ static int _send_pb_async( const pb_field_t fields[], void * structdata, Network
 	}
     ctx->structdata = structdata;
 
-	return NetworkTask_AsynchronousSendProtobuf(DATA_SERVER, SENSE_LOG_ENDPOINT,
+	return NetworkTask_SendProtobuf(false, DATA_SERVER, SENSE_LOG_ENDPOINT,
 			fields, structdata, 0, func, ctx);
 }
 

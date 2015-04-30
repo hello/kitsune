@@ -19,7 +19,8 @@ uint32_t AudioClassifier_EncodeAudioFeatures(pb_ostream_t * stream, void * encod
 
 void AudioClassifier_ResetStorageBuffer(void);
 
-    
+void * getMatrixClientMessage();
+
 #ifdef __cplusplus
 }
 #endif

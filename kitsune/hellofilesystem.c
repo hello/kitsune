@@ -152,3 +152,74 @@ FRESULT hello_fs_append(const char* file_name, const unsigned char* content, int
 	return res;
 }
 
+////==========================================================
+//fs stream impl
+typedef struct{
+	FIL f;
+	char fname[8+1+3+1];
+}fs_stream_t;
+
+static int fs_write(void * ctx, const void * buf, size_t size){
+	fs_stream_t * fs = (fs_stream_t*)ctx;
+	FRESULT res = hello_fs_append(fs->fname, buf, size);
+	if(res != FR_OK){
+		return ERROR;
+	}
+	return size;
+}
+
+static int fs_read(void * ctx, void * buf, size_t size){
+	fs_stream_t * fs = (fs_stream_t*)ctx;
+	WORD read;
+	FRESULT res = hello_fs_read(&fs->f, buf, size, &read);
+	if(res != FR_OK || read == 0){
+		return ERROR;
+	}
+	return read;
+}
+static int fs_close(void * ctx){
+	fs_stream_t * fs = (fs_stream_t*)ctx;
+	hello_fs_close(&fs->f);
+	vPortFree(fs);
+	return 0;
+}
+
+static hlo_stream_vftbl_t fs_stream_impl = {
+		.write = fs_write,
+		.read = fs_read,
+		.close = fs_close
+};
+
+hlo_stream_t * fs_stream_open(const char * path, uint32_t options){
+	fs_stream_t * fs = pvPortMalloc(sizeof(fs_stream_t));
+	if(fs){
+		FRESULT res;
+		memset(fs, 0, sizeof(*fs));
+		//file name to long maybe
+		if(strlen(path) >= sizeof(fs->fname)){
+			goto fail;
+		}
+		strcpy(fs->fname,path);
+		switch(options){
+		case HLO_STREAM_IN:
+			res = hello_fs_open(&fs->f, path, FA_CREATE_NEW|FA_WRITE|FA_OPEN_ALWAYS);
+			break;
+		case HLO_STREAM_OUT:
+			res = hello_fs_open(&fs->f, path, FA_READ);
+			break;
+		case HLO_STREAM_IN_OUT:
+			//not supported yet
+		default:
+			goto fail;
+		}
+		if(res != FR_OK){
+fail:
+			vPortFree(fs);
+			return NULL;
+		}
+		return hlo_stream_new(&fs_stream_impl, fs, options);
+	}else{
+		return NULL;
+	}
+
+}

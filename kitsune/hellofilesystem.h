@@ -2,6 +2,7 @@
 #define _HELLOFILESYSTEM_H_
 
 #include "ff.h"
+#include "hlo_stream.h"
 
 void hello_fs_init(void);  /*  Initializes locking semaphore */
 void hello_fs_lock(); //global SD card lock
@@ -25,6 +26,7 @@ FRESULT hello_fs_rename (const char*, const char*);        /* Rename/Move a file
 FRESULT hello_fs_mkfs (BYTE, BYTE, BYTE);                    /* Create a file system on the drive */
 FRESULT hello_fs_append(const char* file_name, const unsigned char* content, int length);
 
-
+//read only implementation for now
+hlo_stream_t * fs_stream_open(const char * filepath, uint32_t options);
 #endif //_HELLOFILESYSTEM_H_
 
