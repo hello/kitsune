@@ -406,50 +406,23 @@ int global_filename(char * local_fn)
 int
 Cmd_cat(int argc, char *argv[])
 {
-    FRESULT res;
-    uint16_t ui16BytesRead;
-
-    if(global_filename( argv[1] ))
-    {
-    	return 1;
+	hlo_stream_t * src;
+    int ret = 0;
+    global_filename( argv[1] );
+    src = fs_stream_open(path_buff,HLO_STREAM_OUT);
+    if(!src){
+    	return 2;
     }
-
-    res = hello_fs_open(&file_obj, path_buff, FA_READ);
-    if(res != FR_OK)
-    {
-        return((int)res);
+    while( (ret =hlo_stream_read(src,path_buff,sizeof(path_buff)-1)) != ERROR ){
+    	path_buff[ret] = 0;
+    	DISP("%s",path_buff);
+    	vTaskDelay(10);
     }
-
-    // Enter a loop to repeatedly read data from the file and display it, until
-    // the end of the file is reached.
-    do
-    {
-        // Read a block of data from the file.  Read as much as can fit in the
-        // temporary buffer, including a space for the trailing null.
-        res = hello_fs_read(&file_obj, path_buff, 4,
-                         &ui16BytesRead);
-
-        // If there was an error reading, then print a newline and return the
-        // error to the user.
-        if(res != FR_OK)
-        {
-        	LOGF("\n");
-            return((int)res);
-        }
-        // Null terminate the last block that was read to make it a null
-        // terminated string that can be used with printf.
-        path_buff[ui16BytesRead] = 0;
-
-        // Print the last chunk of the file that was received.
-        LOGF("%s", path_buff);
-
+    if(src){
+    	hlo_stream_close(src);
     }
-    while(ui16BytesRead == 4);
-
-    hello_fs_close( &file_obj );
-
-    LOGF("\n");
-    return(0);
+    DISP("\r\n");
+    return 0;
 }
 
 int
