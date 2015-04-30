@@ -291,6 +291,16 @@
 			<locationURI>PARENT-2-PROJECT_LOC/hellomath.c</locationURI>
 		</link>
 		<link>
+			<name>hlo_audio.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hlo_audio.c</locationURI>
+		</link>
+		<link>
+			<name>hlo_audio.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hlo_audio.h</locationURI>
+		</link>
+		<link>
 			<name>hlo_pipe.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/hlo_pipe.c</locationURI>
