@@ -403,42 +403,44 @@ int global_filename(char * local_fn)
 // the console.
 //
 //*****************************************************************************
+#include "hlo_pipe.h"
 int
 Cmd_cat(int argc, char *argv[])
 {
 	hlo_stream_t * src = NULL;
 	hlo_stream_t * dst = NULL;
-    int read = 0;
+    hlo_pipe_t *  pipe = NULL;
+
+    int ret = -2;
     global_filename( argv[1] );
     src = fs_stream_open(path_buff,HLO_STREAM_OUT);
     if(argc > 2){
     	global_filename( argv[2] );
     	dst = fs_stream_open(path_buff, HLO_STREAM_IN);
+    }else{
+    	DISP("using fifo pipe");
+    	dst = fifo_stream_open(64);
     }
-    if(!src){
-    	return 2;
+    if(!src || !dst){
+    	goto exit;
     }
-    while( (read =hlo_stream_read(src,path_buff,sizeof(path_buff)-1)) != ERROR ){
-    	path_buff[read] = 0;
-    	if(dst){
-    		int written = hlo_stream_write(dst,path_buff,read);
-    		if(written != read){
-    			goto exit;
-    		}
-    	}else{
-    		DISP("%s",path_buff);
-    	}
-    	vTaskDelay(10);
+    pipe = hlo_pipe_new(src,dst,32,10);
+    if(pipe){
+    	hlo_pipe_run(pipe);
     }
 exit:
-    if(src){
-    	hlo_stream_close(src);
-    }
-    if(dst){
-    	hlo_stream_close(dst);
-    }
+	if(pipe){
+		hlo_pipe_destroy(pipe);
+	}else{
+	    if(src){
+	    	hlo_stream_close(src);
+	    }
+	    if(dst){
+	    	hlo_stream_close(dst);
+	    }
+	}
     DISP("\r\n");
-    return 0;
+    return ret;
 }
 
 int
