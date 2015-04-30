@@ -12,6 +12,8 @@
 
 #include "kit_assert.h"
 
+#include "matrix.pb.h"
+
 #define INBOX_QUEUE_LENGTH (6)
 static xQueueHandle _queue = NULL;
 static xSemaphoreHandle _mutex = NULL;
@@ -22,7 +24,6 @@ static uint32_t samplecounter;
 
 #define DESIRED_BUFFER_SIZE_IN_BYTES (20000)
 
-static DeviceCurrentInfo_t _deviceCurrentInfo;
 static void * _longTermStorageBuffer = NULL;
 
 static uint8_t _isUploadingRawData = 0;
@@ -131,8 +132,9 @@ void AudioProcessingTask_SetControl(EAudioProcessingCommand_t cmd,NotificationCa
 	}
 }
 
-static void NetworkResponseFunc(const NetworkResponse_t * response, uint8_t * reply_buf, int reply_buf_sz,void * context) {
-	LOGI("AUDIO RESPONSE:\r\n%s",reply_buf);
+static void NetworkResponseFunc(const NetworkResponse_t * response,
+		char * reply_buf, int reply_buf_sz, void * context) {
+	LOGI("AUDIO RESPONSE:\r\n%s", reply_buf);
 
 	vPortFree( reply_buf );
 
@@ -143,7 +145,7 @@ static void NetworkResponseFunc(const NetworkResponse_t * response, uint8_t * re
 	}
 }
 
-static void SetUpUpload(void) {
+static void SetUpUpload(void) {  //WARNING NONREENTRANT
 	if(!has_good_time())
 	{
 		// This function requires a valid time
@@ -152,14 +154,6 @@ static void SetUpUpload(void) {
 
 	NetworkTaskServerSendMessage_t message;
 	memset(&message,0,sizeof(message));
-#define DECODE_BUF_SZ 1024
-	uint8_t * _decodebuf = pvPortMalloc(DECODE_BUF_SZ);
-	assert(_decodebuf);
-	memset(_decodebuf,0,DECODE_BUF_SZ);
-
-	message.decode_buf = _decodebuf;
-	message.context = _decodebuf;
-	message.decode_buf_size = 1024;
 
 	message.host = DATA_SERVER;
 	message.endpoint = AUDIO_FEATURES_ENDPOINT;
@@ -168,13 +162,8 @@ static void SetUpUpload(void) {
 	message.prepare = Prepare;
 	message.unprepare = Unprepare;
 
-	message.encode = AudioClassifier_EncodeAudioFeatures;
-
-	get_mac(_deviceCurrentInfo.mac); //todo switch to device id, will not be mac
-	get_device_id(_deviceCurrentInfo.device_id,sizeof(_deviceCurrentInfo.device_id));
-	_deviceCurrentInfo.unix_time = get_time();
-
-	message.encodedata = (void *) &_deviceCurrentInfo;
+    message.fields = MatrixClientMessage_fields;
+    message.structdata = getMatrixClientMessage();
 
 	NetworkTask_AddMessageToQueue(&message);
 }

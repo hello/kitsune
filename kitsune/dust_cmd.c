@@ -145,13 +145,17 @@ unsigned int get_dust() {
 
 	return max;
 }
+unsigned int median_filter(unsigned int x, unsigned int * buf,unsigned int * p);
 int Cmd_dusttest(int argc, char *argv[]) {
-	int cnt = atoi(argv[1]);
+	unsigned int cnt = atoi(argv[1]);
 	if( argc == 1 ) {cnt=100;}
-	int total = cnt;
-	int sum = 0;
+	unsigned int total = cnt;
+	unsigned int sum = 0;
+	unsigned int filter_buf[3];
+	unsigned int filter_idx=0;
+
 	while( --cnt ) {
-		sum += get_dust();
+		sum += median_filter(get_dust(), filter_buf, &filter_idx);
 		vTaskDelay(10);
 	}
 	LOGF("%d\n", sum / total );

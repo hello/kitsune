@@ -11,7 +11,6 @@
 
 #define NETWORK_TASK_QUEUE_DEPTH (10)
 #define INITIAL_RETRY_PERIOD_COUNTS (1024)
-#define NUM_RECEIVE_RETRIES (10)
 
 static xQueueHandle _asyncqueue = NULL;
 static xSemaphoreHandle _network_mutex = NULL;
@@ -38,63 +37,58 @@ static void Init(NetworkTaskData_t * info) {
 
 }
 
-static uint32_t EncodePb(pb_ostream_t * stream, void * data) {
-	network_encode_data_t * encodedata = (network_encode_data_t *)data;
-	uint32_t ret = false;
-
-	if (encodedata && encodedata->encodedata) {
-	ret = pb_encode(stream,encodedata->fields,encodedata->encodedata);
-	}
-
-//	DEBUG_PRINTF("NT::EncodePb -- got callback");
-
-	return ret;
-}
-static void FreeMe(void * data) {
-	if(data) {
-		vPortFree(data);
-	}
+void unblock_sync(void * data) {
+	NetworkTaskServerSendMessage_t * msg = (NetworkTaskServerSendMessage_t*)data;
+    xSemaphoreGive(msg->sync);
 }
 
-int NetworkTask_AsynchronousSendProtobuf(const char * host,
+bool NetworkTask_SendProtobuf(bool blocking, const char * host,
 		const char * endpoint, const pb_field_t fields[],
 		const void * structdata, int32_t retry_time_in_counts,
-		NetworkResponseCallback_t func, void * data) {
+		NetworkResponseCallback_t func, void * context) {
 	NetworkTaskServerSendMessage_t message;
-
-	network_encode_data_t * encodedata = pvPortMalloc(sizeof(network_encode_data_t));
-	assert(encodedata);
+	NetworkResponse_t response;
 	memset(&message,0,sizeof(message));
-
-	encodedata->fields = fields;
-	encodedata->encodedata = structdata;
 
 	//craft message
 	message.host = host;
 	message.endpoint = endpoint;
 	message.response_callback = func;
 	message.retry_timeout = retry_time_in_counts;
-	message.context = data;
+	message.context = context;
 
-	message.encode = EncodePb;
-	message.encodedata = encodedata;
-
-	message.terminate = FreeMe;
-	message.terminate_data = encodedata;
+	message.fields = fields;
+	message.structdata = structdata;
 
 	assert( _asyncqueue );
 
-	DEBUG_PRINTF("NT async %s",endpoint);
+	if( blocking ) {
+		message.sync = xSemaphoreCreateBinary();
+		assert( message.sync );
+		message.end = unblock_sync;
+		message.response_handle = &response;
+	}
+	DEBUG_PRINTF("NT %s",endpoint);
+
+	assert( _asyncqueue );
 
 	//add to queue
-	if(xQueueSend( _asyncqueue, ( const void * )&message, 1000 ) != pdTRUE)
+	if(xQueueSend( _asyncqueue, ( const void * )&message, portMAX_DELAY ) != pdTRUE)
 	{
 		LOGE("Cannot send request to _asyncqueue\n");
-		return -1;
+
+		if( message.sync ) {
+			vSemaphoreDelete(message.sync);
+		}
+		return false;
 	}
 
-	return 0;
-
+	if( message.sync ) {
+	    xSemaphoreTake(message.sync, portMAX_DELAY);
+	    vSemaphoreDelete(message.sync);
+		return response.success;
+	}
+	return false;
 }
 
 static NetworkResponse_t nettask_send(NetworkTaskServerSendMessage_t * message) {
@@ -110,10 +104,10 @@ static NetworkResponse_t nettask_send(NetworkTaskServerSendMessage_t * message) 
 		LOGE("Cannot networktask_enter_critical_region\n");
 		return response;
 	}
-	message->decode_buf = pvPortMalloc(SERVER_REPLY_BUFSZ);
-    assert(message->decode_buf);
-    memset(message->decode_buf, 0, SERVER_REPLY_BUFSZ);
-    message->decode_buf_size = SERVER_REPLY_BUFSZ;
+	char * decode_buf = pvPortMalloc(SERVER_REPLY_BUFSZ);
+    assert(decode_buf);
+    memset(decode_buf, 0, SERVER_REPLY_BUFSZ);
+    size_t decode_buf_size = SERVER_REPLY_BUFSZ;
 
 	retry_period = INITIAL_RETRY_PERIOD_COUNTS;
 	attempt_count = 0;
@@ -129,13 +123,12 @@ static NetworkResponse_t nettask_send(NetworkTaskServerSendMessage_t * message) 
 		}
 
 		//push to server
-		if (send_data_pb_callback(message->host,
+		if (send_data_pb(message->host,
 				message->endpoint,
-				(char*)message->decode_buf,
-				message->decode_buf_size,
-				message->encodedata,
-				message->encode,
-				NUM_RECEIVE_RETRIES) == 0) {
+				&decode_buf,
+				&decode_buf_size,
+				message->fields,
+				message->structdata) == 0) {
 			response.success = true;
 		} else {
 			//failed to push, now what?
@@ -181,70 +174,14 @@ static NetworkResponse_t nettask_send(NetworkTaskServerSendMessage_t * message) 
 
 	//let the requester know we are done
 	if (message->response_callback) {
-		message->response_callback(&response, message->decode_buf, message->decode_buf_size,message->context);
+		message->response_callback(&response, decode_buf, decode_buf_size,message->context);
 	}
 
-	vPortFree(message->decode_buf);
-
-	if( message->terminate ) {
-		message->terminate(message->terminate_data);
-	}
+	vPortFree(decode_buf);
 
 	networktask_exit_critical_region();;
 
 	return response;
-}
-
-void unblock_sync(void * data) {
-	NetworkTaskServerSendMessage_t * msg = (NetworkTaskServerSendMessage_t*)data;
-    xSemaphoreGive(msg->sync);
-}
-
-bool NetworkTask_SynchronousSendProtobuf(const char * host,
-		const char * endpoint, const pb_field_t fields[],
-		const void * structdata, int32_t retry_time_in_counts,
-		NetworkResponseCallback_t func, void * context) {
-	NetworkTaskServerSendMessage_t message;
-	NetworkResponse_t response;
-	network_encode_data_t encodedata = {0};
-
-	memset(&message,0,sizeof(message));
-
-	encodedata.fields = fields;
-	encodedata.encodedata = structdata;
-
-	//craft message
-	message.host = host;
-	message.endpoint = endpoint;
-	message.response_callback = func;
-	message.context = context;
-
-	message.retry_timeout = retry_time_in_counts;
-
-	message.encode = EncodePb;
-	message.encodedata = &encodedata;
-
-	message.sync = xSemaphoreCreateBinary();
-	assert( message.sync );
-	message.end = unblock_sync;
-	message.response_handle = &response;
-
-	DEBUG_PRINTF("NT sync %s",endpoint);
-
-	assert( _asyncqueue );
-
-	//add to queue
-	if(xQueueSend( _asyncqueue, ( const void * )&message, portMAX_DELAY ) != pdTRUE)
-	{
-		LOGE("Cannot send request to _asyncqueue\n");
-	    vSemaphoreDelete(message.sync);
-		return false;
-	}
-
-    xSemaphoreTake(message.sync, portMAX_DELAY);
-    vSemaphoreDelete(message.sync);
-
-	return response.success;
 }
 
 static void NetworkTask_Thread(void * networkdata) {

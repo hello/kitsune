@@ -114,7 +114,7 @@ static bool write_int_mat(pb_ostream_t *stream, const pb_field_t *field, void * 
     
 }
 
-static bool write_mat_array(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
+bool write_mat_array(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
     MatrixListEncodeContext_t * context = (MatrixListEncodeContext_t  * )(*arg);
     const_MatDesc_t desc;
     pb_ostream_t sizestream;
@@ -330,43 +330,6 @@ uint8_t GetIntMatrix(MatDesc_t * matdesc, pb_istream_t * stream,size_t string_ma
     }
     
     return false;
-}
-
-
-size_t SetMatrixMessage(pb_ostream_t * stream,
-                        uint8_t * macbytes,
-                        const char * device_id,
-                        uint32_t unix_time,
-                        MatrixListEncodeContext_t * matrix_list_context) {
-    
-    size_t size = 0;
-    bytes_desc_t bytedesc;
-    MatrixClientMessage mess;
-    
-    bytedesc.bytes = (uint8_t *)macbytes;
-    bytedesc.len = 6;
-
-    mess.unix_time = unix_time;
-    mess.has_unix_time = 1;
-    
-    mess.mac.funcs.encode = write_bytes;
-    mess.mac.arg = (void*)&bytedesc;
-    
-    mess.has_matrix_payload = 0;
-    
-    mess.matrix_list.funcs.encode = write_mat_array;
-    mess.matrix_list.arg = (void *)matrix_list_context;
-    
-    mess.device_id.funcs.encode = write_string;
-    mess.device_id.arg = (void *)device_id;
-
-    pb_get_encoded_size(&size,MatrixClientMessage_fields,&mess);
-    
-    if (stream) {
-        pb_encode(stream,MatrixClientMessage_fields,&mess);
-    }
-    
-    return size;
 }
 
 

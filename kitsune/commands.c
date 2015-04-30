@@ -92,6 +92,7 @@
 
 #include "hlo_stream.h"
 #include "pill_settings.h"
+#include "prox_signal.h"
 
 #define ONLY_MID 0
 
@@ -590,11 +591,13 @@ static bool _is_file_exists(char* path)
 
 uint8_t get_alpha_from_light();
 void thread_alarm(void * unused) {
+	int delay = 1;
 	while (1) {
 		wait_for_time(WAIT_FOREVER);
 
 		portTickType now = xTaskGetTickCount();
 		uint64_t time = get_time();
+		delay = 1;
 		// The alarm thread should go ahead even without a valid time,
 		// because we don't need a correct time to fire alarm, we just need the offset.
 
@@ -671,6 +674,8 @@ void thread_alarm(void * unused) {
 					uint8_t trippy_base[3] = { 0, 0, 0 };
 					uint8_t trippy_range[3] = { 254, 254, 254 };
 					play_led_trippy(trippy_base, trippy_range,0, 333);
+
+					delay = 90;
 				}
 			}
 			else {
@@ -679,7 +684,7 @@ void thread_alarm(void * unused) {
 			
 			xSemaphoreGive(alarm_smphr);
 		}
-		vTaskDelayUntil(&now, 1000 );
+		vTaskDelayUntil(&now, 1000*delay );
 	}
 }
 
@@ -688,21 +693,37 @@ void thread_alarm(void * unused) {
 static int dust_m2,dust_mean,dust_log_sum,dust_max,dust_min,dust_cnt;
 xSemaphoreHandle dust_smphr;
 void init_dust();
-
-void thread_dust(void * unused)  {
-    #define maxval( a, b ) a>b ? a : b
+unsigned int median_filter(unsigned int x, unsigned int * buf,unsigned int * p) {
+	buf[(*p)++%3] = x;
+	if( *p < 3 ) {
+		return x;
+	}
+	if (buf[0] > buf[1]) {
+		if (buf[1] > buf[2]) {
+			return buf[1];
+		}
+	} else if (buf[2] < buf[0]) {
+		return buf[0];
+	}
+	return buf[2];
+}
+static void thread_dust(void * unused) {
+#define maxval( a, b ) a>b ? a : b
 	dust_min = 5000;
 	dust_m2 = dust_mean = dust_cnt = dust_log_sum = dust_max = 0;
 #if DEBUG_DUST
 	int dust_variability=0;
 #endif
-
+	unsigned int filter_buf[3];
+	unsigned int filter_idx=0;
 	while (1) {
 		uint32_t now = xTaskGetTickCount();
 		if (xSemaphoreTake(dust_smphr, portMAX_DELAY)) {
 			unsigned int dust = get_dust();
 
-			if( dust != DUST_SENSOR_NOT_READY ) {
+			if (dust != DUST_SENSOR_NOT_READY) {
+				dust = median_filter(dust, filter_buf, &filter_idx);
+
 				dust_log_sum += bitlog(dust);
 				++dust_cnt;
 
@@ -823,7 +844,15 @@ static void _on_gesture_out()
 }
 
 void thread_fast_i2c_poll(void * unused)  {
+	unsigned int filter_buf[3];
+	unsigned int filter_idx=0;
+
 	gesture_init();
+	ProxSignal_Init();
+	ProxGesture_t gesture;
+
+	uint32_t counter = 0;
+
 	while (1) {
 		portTickType now = xTaskGetTickCount();
 		int prox=0;
@@ -835,49 +864,56 @@ void thread_fast_i2c_poll(void * unused)  {
 
 			// For the black morpheus, we can detect 6mm distance max
 			// for white one, 9mm distance max.
-			prox = get_prox();  // now this thing is in um.
+			prox = median_filter(get_prox(), filter_buf, &filter_idx);
 
 			xSemaphoreGive(i2c_smphr);
-			//UARTprintf("%d ", prox);
 
-			gesture gesture_state = gesture_input(prox);
-			switch(gesture_state)
+			gesture = ProxSignal_UpdateChangeSignals(prox);
+
+
+			//gesture gesture_state = gesture_input(prox);
+			switch(gesture)
 			{
-			case GESTURE_WAVE:
+			case proxGestureWave:
 				_on_wave();
+				gesture_increment_wave_count();
 				break;
-			case GESTURE_HOLD:
+			case proxGestureHold:
 				_on_hold();
+				gesture_increment_hold_count();
 				break;
-			case GESTURE_OUT:
+			case proxGestureRelease:
 				_on_gesture_out();
 				break;
 			default:
 				break;
 			}
 
+			if (++counter > 10) {
+				counter = 0;
 
-			if (xSemaphoreTake(light_smphr, portMAX_DELAY)) {
-				light_log_sum += bitlog(light);
-				++light_cnt;
+				if (xSemaphoreTake(light_smphr, portMAX_DELAY)) {
+					light_log_sum += bitlog(light);
+					++light_cnt;
 
-				int delta = light - light_mean;
-				light_mean = light_mean + delta/light_cnt;
-				light_m2 = light_m2 + delta * (light - light_mean);
-				if( light_m2 < 0 ) {
-					light_m2 = 0x7FFFFFFF;
-				}
-				//LOGI( "%d %d %d %d\n", delta, light_mean, light_m2, light_cnt);
-				xSemaphoreGive(light_smphr);
+					int delta = light - light_mean;
+					light_mean = light_mean + delta/light_cnt;
+					light_m2 = light_m2 + delta * (light - light_mean);
+					if( light_m2 < 0 ) {
+						light_m2 = 0x7FFFFFFF;
+					}
+					//LOGI( "%d %d %d %d\n", delta, light_mean, light_m2, light_cnt);
+					xSemaphoreGive(light_smphr);
 
-				if(light_cnt % 5 == 0 && led_is_idle(0) ) {
-					if(_is_light_off(light)) {
-						_show_led_status();
+					if(light_cnt % 5 == 0 && led_is_idle(0) ) {
+						if(_is_light_off(light)) {
+							_show_led_status();
+						}
 					}
 				}
 			}
 		}
-		vTaskDelayUntil(&now, 100);
+		vTaskDelayUntil(&now, 10);
 	}
 }
 
@@ -1460,12 +1496,12 @@ void SetupGPIOInterrupts() {
 void thread_spi(void * data) {
 	Cmd_spi_read(0, 0);
 	while(1) {
-		if (xSemaphoreTake(spi_smphr, 10000) ) {
+		if (xSemaphoreTake(spi_smphr, 1000) ) {
 			vTaskDelay(8*10);
 			Cmd_spi_read(0, 0);
 			MAP_GPIOIntEnable(GPIO_PORT,GSPI_INT_PIN);
 		} else {
-			MAP_GPIOIntEnable(GPIO_PORT,GSPI_INT_PIN);
+			Cmd_spi_read(0, 0);
 		}
 	}
 
@@ -1622,6 +1658,15 @@ int Cmd_boot(int argc, char *argv[]) {
 	return 0;
 }
 
+int Cmd_get_gesture_count(int argc, char * argv[]) {
+
+	const int count = gesture_get_and_reset_all_diagnostic_counts();
+
+	LOGI("%d transitions\n",count);
+
+	return 0;
+}
+
 int Cmd_sync(int argc, char *argv[]) {
 	force_data_push();
 	return 0;
@@ -1642,7 +1687,33 @@ int Cmd_fault(int argc, char *argv[]) {
 	*(volatile int*)0xFFFFFFFF = 0xdead;
 	return 0;
 }
+int Cmd_test_realloc(int argc, char *argv[]) {
+	static void * test = NULL;
 
+	LOGI("\n\nrealloc %d\n", atoi(argv[1]));
+	test = pvPortRealloc( test, atoi(argv[1]) );
+	return 0;
+}
+
+int Cmd_heapviz(int argc, char *argv[]) {
+	int i;
+	#define VIZ_LINE 2500
+    char line[VIZ_LINE];
+
+	memset(line, 'x', VIZ_LINE);
+	pvPortHeapViz( line, VIZ_LINE );
+
+	LOGF("|");
+	for(i=1;i<VIZ_LINE-1;++i) {
+		LOGF("%c", line[i]);
+		vTaskDelay(1);
+	}
+	LOGF("|\r\n");
+
+	return 0;
+}
+
+int Cmd_scan_wifi_mostly_nonblocking(int argc, char *argv[]);
 // ==============================================================================
 // This is the table that holds the command names, implementing functions, and
 // brief description.
@@ -1650,6 +1721,8 @@ int Cmd_fault(int argc, char *argv[]) {
 tCmdLineEntry g_sCmdTable[] = {
 //    { "cpu",      Cmd_cpu,      "Show CPU utilization" },
 		{ "free", Cmd_free, "" },
+		{ "heapviz", Cmd_heapviz, "" },
+		{ "realloc", Cmd_test_realloc, "" },
 		{ "fault", Cmd_fault, "" },
 		{ "connect", Cmd_connect, "" },
 		{ "disconnect", Cmd_disconnect, "" },
@@ -1741,6 +1814,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "mks",Cmd_make_stream,""},
 		{ "wrs",Cmd_write_stream,""},
 		{ "rds",Cmd_read_stream,""},
+		{ "scan",Cmd_scan_wifi_mostly_nonblocking,""},
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
 		{ "iperfcli",Cmd_iperf_client,""},

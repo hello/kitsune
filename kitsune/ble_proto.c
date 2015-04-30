@@ -137,35 +137,6 @@ static void debug_print_ssid( char * msg, Sl_WlanNetworkEntry_t * ep, int n ) {
 	}
 }
 
-static int compare_rssi (const void * a, const void * b)
-{
-  return ((Sl_WlanNetworkEntry_t*)b)->rssi - ((Sl_WlanNetworkEntry_t*)a)->rssi;
-}
-
-static void sort_on_ssid( Sl_WlanNetworkEntry_t * ep, int n ) {
-	qsort( ep, n, sizeof(Sl_WlanNetworkEntry_t), compare_rssi );
-}
-
-static void dedupe_ssid( Sl_WlanNetworkEntry_t * ep, int * c){
-	int j,i;
-	for (i = 0; i < *c - 1; ++i) {
-		//LOGI( "OUTER %d %d %d\n", i, j, *c);
-		for (j = i + 1; j < *c; ++j) {
-			//vTaskDelay(10);
-			//LOGI( "INNER %d %d %d\n", i, j, *c);
-			if(!strcmp((char*)ep[i].ssid, (char*)ep[j].ssid)) {
-				//LOGI( "MATCH %s %s\n", ep[i].ssid, ep[j].ssid);
-				//vTaskDelay(10);
-				memcpy( ep+j, ep+j+1, (*c - j - 1) * sizeof(Sl_WlanNetworkEntry_t) );
-				--*c;
-
-				//debug_print_ssid( "UPDATED ", ep, *c );
-				break;
-			}
-		}
-	}
-}
-
 void ble_proto_init() {
 	vSemaphoreCreateBinary(_self.smphr);
 	vSemaphoreCreateBinary(_wifi_smphr);
@@ -197,103 +168,59 @@ static void _reply_wifi_scan_result()
 
 }
 
+#include "hash_table.h"
+
+static boolean fill_endpoints( sparse_table_entry const* endpoint, void * unused) {
+	_wifi_endpoints[_scanned_wifi_count++] = *(Sl_WlanNetworkEntry_t*)(((hash_bucket*)endpoint)->value);
+	return TRUE;
+}
+static int compare_rssi (const void * a, const void * b)
+{
+  return ((Sl_WlanNetworkEntry_t*)b)->rssi - ((Sl_WlanNetworkEntry_t*)a)->rssi;
+}
+static void sort_on_ssid( Sl_WlanNetworkEntry_t * ep, int n ) {
+	qsort( ep, n, sizeof(Sl_WlanNetworkEntry_t), compare_rssi );
+}
+
 static void _scan_wifi( void * params )
 {
 	Sl_WlanNetworkEntry_t * endpoints_ifa;
 	Sl_WlanNetworkEntry_t * endpoints_pcb;
+	hash_table wifi_hash;
 	int scan_cnt[ANTENNA_CNT+1] = {0};
+	int i;
 
 	xSemaphoreTake(_wifi_smphr, portMAX_DELAY);
-	memset(_wifi_endpoints, 0, sizeof(_wifi_endpoints));
+	hash_init( &wifi_hash, str_hash_func, str_eq_func );
+
 	_scanned_wifi_count = 0;
 	_wifi_read_index = 0;
 	wifi_status_set(SCANNING, false);  // Set the scanning flag
 
 	//LOGI( "SCAN IFA\n");
 	scan_cnt[IFA_ANT] = scan_with_retry( &endpoints_ifa, IFA_ANT );
-
 	//LOGI( "SCAN PCB\n");
 	scan_cnt[PCB_ANT] = scan_with_retry( &endpoints_pcb, PCB_ANT );
 
-	int i,p;
-
-	//debug_print_ssid( "SSID RSSI IFA\n", endpoints_ifa, scan_cnt[IFA_ANT] );
-	//debug_print_ssid( "SSID RSSI PCB\n", endpoints_pcb, scan_cnt[PCB_ANT] );
-	sort_on_ssid( endpoints_ifa, scan_cnt[IFA_ANT] );
-	sort_on_ssid( endpoints_pcb, scan_cnt[PCB_ANT] );
-	//debug_print_ssid( "SSID RSSI IFA SORTED\n", endpoints_ifa, scan_cnt[IFA_ANT] );
-	//debug_print_ssid( "SSID RSSI PCB SORTED\n", endpoints_pcb, scan_cnt[PCB_ANT] );
-	dedupe_ssid(  endpoints_ifa, &scan_cnt[IFA_ANT]);
-	//LOGI("DEDUPE BARRIER\n");
-	dedupe_ssid(  endpoints_pcb, &scan_cnt[PCB_ANT]);
-	//debug_print_ssid( "SSID RSSI IFA UNIQUE\n", endpoints_ifa, scan_cnt[IFA_ANT] );
-	//debug_print_ssid( "SSID RSSI PCB UNIQUE\n", endpoints_pcb, scan_cnt[PCB_ANT] );
-
-	//LOGI("BEGIN MERGE\n");
-	//merge the lists... since they are sorted by rssi we can pop the best one
-	//however the two lists can contain repeated values... so we need to scan out the dupes with lesser signal, better to just do it ahead of time
-	for(i=0;i<scan_cnt[IFA_ANT];++i) {
-		for(p=0;p<scan_cnt[PCB_ANT];++p) {
-			if(!strcmp((char*)endpoints_pcb[p].ssid, (char*)endpoints_ifa[i].ssid)) {
-				//LOGI("MATCH\n");
-				if( endpoints_ifa[i].rssi > endpoints_pcb[p].rssi ) {
-					//LOGI("%s %d\n", endpoints_ifa[i].ssid, endpoints_ifa[i].rssi);
-		            //LOGI("%s %d\n", endpoints_pcb[p].ssid, endpoints_pcb[p].rssi);
-					//LOGI("REMOVE PCB %d %d %d %d\n", i,p,scan_cnt[IFA_ANT],scan_cnt[PCB_ANT]);
-					memmove( &endpoints_pcb[p], &endpoints_pcb[p+1], sizeof( Sl_WlanNetworkEntry_t ) * (MAX_WIFI_EP_PER_SCAN - p - 1) );
-					--scan_cnt[PCB_ANT];
-					--p;
-				} else {
-					//LOGI("%s %d\n", endpoints_ifa[i].ssid, endpoints_ifa[i].rssi);
-		            //LOGI("%s %d\n", endpoints_pcb[p].ssid, endpoints_pcb[p].rssi);
-					//LOGI("REMOVE IFA %d %d %d %d\n", i,p,scan_cnt[IFA_ANT],scan_cnt[PCB_ANT]);
-					memmove( &endpoints_ifa[i], &endpoints_ifa[i+1], sizeof( Sl_WlanNetworkEntry_t ) * (MAX_WIFI_EP_PER_SCAN - i - 1) );
-					--scan_cnt[IFA_ANT];
-					--i;
-				}
+	for( i=0;i<scan_cnt[IFA_ANT];++i ) {
+		endpoints_ifa[i].reserved[0] = IFA_ANT;
+		hash_add( &wifi_hash, endpoints_ifa[i].ssid, &endpoints_ifa[i] );
+	}
+	for( i=0;i<scan_cnt[PCB_ANT];++i ) {
+		Sl_WlanNetworkEntry_t * endpoint_ifa;
+		endpoints_pcb[i].reserved[0] = PCB_ANT;
+		if( hash_lookup( &wifi_hash, endpoints_pcb[i].ssid, &endpoint_ifa ) ) {
+			if( endpoints_pcb[i].rssi > endpoint_ifa->rssi ) {
+				hash_add( &wifi_hash, &endpoints_pcb[i].ssid, &endpoints_pcb[i] );
 			}
-		}
-	}
-
-	//debug_print_ssid( "SSID RSSI IFA MERGED\n", endpoints_ifa, scan_cnt[IFA_ANT] );
-	//debug_print_ssid( "SSID RSSI PCB MERGED\n", endpoints_pcb, scan_cnt[PCB_ANT] );
-
-	for(_scanned_wifi_count = 0;_scanned_wifi_count<MAX_WIFI_EP_PER_SCAN;) {
-		if( scan_cnt[IFA_ANT] && endpoints_ifa[0].rssi > endpoints_pcb[0].rssi ) {
-			memcpy( &_wifi_endpoints[_scanned_wifi_count], &endpoints_ifa[0], sizeof( Sl_WlanNetworkEntry_t ) );
-			memmove( &endpoints_ifa[0], &endpoints_ifa[0+1], sizeof( Sl_WlanNetworkEntry_t ) * (MAX_WIFI_EP_PER_SCAN - 0 - 1) );
-			_wifi_endpoints[_scanned_wifi_count].reserved[0] = IFA_ANT;
-			--scan_cnt[IFA_ANT];
-			//LOGI("PICKED IFA %d %d\n", _scanned_wifi_count, scan_cnt[IFA_ANT]);
-		} else if( scan_cnt[PCB_ANT] && endpoints_pcb[0].rssi > endpoints_ifa[0].rssi ) {
-			memcpy( &_wifi_endpoints[_scanned_wifi_count], &endpoints_pcb[0], sizeof( Sl_WlanNetworkEntry_t ) );
-			_wifi_endpoints[_scanned_wifi_count].reserved[0] = PCB_ANT;
-			memmove( &endpoints_pcb[0], &endpoints_pcb[0+1], sizeof( Sl_WlanNetworkEntry_t ) * (MAX_WIFI_EP_PER_SCAN - 0 - 1) );
-			--scan_cnt[PCB_ANT];
-			//LOGI("PICKED PCB %d %d\n", _scanned_wifi_count, scan_cnt[PCB_ANT]);
-		} else if( scan_cnt[IFA_ANT] ){
-			memcpy(&_wifi_endpoints[_scanned_wifi_count], &endpoints_ifa[0], sizeof(Sl_WlanNetworkEntry_t));
-			memmove( &endpoints_ifa[0], &endpoints_ifa[0+1], sizeof( Sl_WlanNetworkEntry_t ) * (MAX_WIFI_EP_PER_SCAN - 0 - 1) );
-			_wifi_endpoints[_scanned_wifi_count].reserved[0] = IFA_ANT;
-			--scan_cnt[IFA_ANT];
-			//LOGI("PICKED IFA %d %d\n", _scanned_wifi_count, scan_cnt[IFA_ANT]);
-		} else if( scan_cnt[PCB_ANT] ){
-			memcpy(&_wifi_endpoints[_scanned_wifi_count], &endpoints_pcb[0], sizeof(Sl_WlanNetworkEntry_t));
-			memmove( &endpoints_pcb[0], &endpoints_pcb[0+1], sizeof( Sl_WlanNetworkEntry_t ) * (MAX_WIFI_EP_PER_SCAN - 0 - 1) );
-			_wifi_endpoints[_scanned_wifi_count].reserved[0] = PCB_ANT;
-			--scan_cnt[PCB_ANT];
-			//LOGI("PICKED PCB %d %d\n", _scanned_wifi_count, scan_cnt[PCB_ANT]);
 		} else {
-			//LOGI("PICKED NONE %d %d %d\n", _scanned_wifi_count, scan_cnt[IFA_ANT], scan_cnt[PCB_ANT]);
-			break;
+			hash_add( &wifi_hash, &endpoints_pcb[i].ssid, &endpoints_pcb[i] );
 		}
-
-		++_scanned_wifi_count;
-		//debug_print_ssid( "SSID RSSI COMBINED STEP \n", _wifi_endpoints, _scanned_wifi_count );
-
 	}
-	//debug_print_ssid( "SSID RSSI COMBINED\n", _wifi_endpoints, _scanned_wifi_count );
-	dedupe_ssid(  _wifi_endpoints, &_scanned_wifi_count );
+	hash_apply( &wifi_hash, fill_endpoints, NULL );
+	hash_dispose( &wifi_hash );
+	sort_on_ssid(_wifi_endpoints, _scanned_wifi_count);
+
 	debug_print_ssid( "SSID RSSI UNIQUE\n", _wifi_endpoints, _scanned_wifi_count );
 
 	wifi_status_set(SCANNING, true);  // Remove the sanning flag
@@ -324,6 +251,12 @@ static bool _scan_wifi_mostly_nonblocking() {
 
 	xTaskCreate( _scan_wifi, "wifi_scan", 1536 / 4, NULL, 1, NULL );
 	return false;
+}
+
+int Cmd_scan_wifi_mostly_nonblocking(int argc, char *argv[]) {
+	_scanned_wifi_count = 0;
+	_scan_wifi_mostly_nonblocking();
+	return 0;
 }
 
 static void _reply_next_wifi_ap()
@@ -533,8 +466,8 @@ static void _process_pill_heartbeat( MorpheusCommand* command)
 	
 }
 
-
-static void _morpheus_command_reply(const NetworkResponse_t * response, uint8_t * reply_buf, int reply_sz, void * context) {
+static void _morpheus_command_reply(const NetworkResponse_t * response,
+		char * reply_buf, int reply_sz, void * context) {
 	MorpheusCommand reply;
 	bool * success = (bool*)context;
 	memset(&reply, 0, sizeof(reply));
@@ -568,7 +501,7 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 
 		ble_proto_assign_encode_funcs(command);
 
-	    bool  ret = NetworkTask_SynchronousSendProtobuf(
+	    bool  ret = NetworkTask_SendProtobuf( true,
 					DATA_SERVER,
 					is_morpheus == 1 ? MORPHEUS_REGISTER_ENDPOINT : PILL_REGISTER_ENDPOINT,
 					MorpheusCommand_fields,
@@ -911,8 +844,14 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_SHAKES:
         {
+			#define MIN_SHAKE_INTERVAL 3000
+            static portTickType last_shake = 0;
+            portTickType now = xTaskGetTickCount();
+
             LOGI("PILL SHAKES\n");
-            if(command->deviceId.arg){
+            if( now - last_shake < MIN_SHAKE_INTERVAL ) {
+                LOGI("PILL SHAKE THROTTLE\n");
+            } else if(command->deviceId.arg){
 				uint32_t color = pill_settings_get_color((const char*)command->deviceId.arg);
 				uint8_t* argb = (uint8_t*)&color;
 
@@ -921,6 +860,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 				} else /*if(pill_settings_pill_count() == 0)*/ {
 					ble_proto_led_flash(0xFF, 0x80, 0x00, 0x80, 10);
 				}
+				last_shake = xTaskGetTickCount();
             }else{
             	LOGI("Please update topboard, no pill id\n");
             }

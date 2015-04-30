@@ -132,6 +132,8 @@ bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, void **
         vPortFree(str);  // Remember to vPortFree if read failed.
         return false;
     }
+    str = (uint8_t*)pvPortRealloc( str, strlen((const char*)str)+1);
+
     *arg = str;
 
     return true;
