@@ -1718,7 +1718,9 @@ int Cmd_dmdp(int argc, char *argv[]) {
 
     //turn off the CCU...
     //make the pins gpios with no driver to make them hi-z
+    PinModeSet(PIN_58, 0);
     PinConfigSet(PIN_58,/*PIN_STRENGTH_2MA*/0,PIN_TYPE_STD);
+    PinModeSet(PIN_59, 0);
     PinConfigSet(PIN_59,/*PIN_STRENGTH_2MA*/0,PIN_TYPE_STD);
 
     //todo send message to top to indicate the success
