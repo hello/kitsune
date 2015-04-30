@@ -5,7 +5,7 @@
 
 #define LOCK(stream) xSemaphoreTake(stream->info.lock, portMAX_DELAY)
 #define UNLOCK(stream) xSemaphoreGive(stream->info.lock)
-
+#define HAS_IMPL_OR_FAIL(stream, method) if(!stream->impl.method){return HLO_STREAM_NO_IMPL;}
 
 void hlo_stream_info(const hlo_stream_t * stream){
 	if(stream){
@@ -18,7 +18,7 @@ void hlo_stream_info(const hlo_stream_t * stream){
 
 int hlo_stream_write(hlo_stream_t * stream, void * buf, size_t size){
 	assert(stream);
-	assert(stream->impl.write);
+	HAS_IMPL_OR_FAIL(stream,write);
 	int ret = stream->impl.write(stream->ctx, buf, size);
 	LOCK(stream);
 	if(ret > 0){
@@ -30,7 +30,7 @@ int hlo_stream_write(hlo_stream_t * stream, void * buf, size_t size){
 
 int hlo_stream_read(hlo_stream_t * stream, void * buf, size_t size){
 	assert(stream);
-	assert(stream->impl.read);
+	HAS_IMPL_OR_FAIL(stream,read);
 	int ret = stream->impl.read(stream->ctx, buf, size);
 	LOCK(stream);
 	if(ret > 0){
@@ -44,7 +44,7 @@ int hlo_stream_close(hlo_stream_t * stream){
 	int ret = 0;
 
 	assert(stream);
-	assert(stream->impl.close);
+	HAS_IMPL_OR_FAIL(stream,close);
 
 	ret = stream->impl.close(stream->ctx);
 	if(ret == 0){

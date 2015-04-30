@@ -418,8 +418,8 @@ Cmd_cat(int argc, char *argv[])
     	global_filename( argv[2] );
     	dst = fs_stream_open(path_buff, HLO_STREAM_IN);
     }else{
-    	DISP("using fifo pipe");
-    	dst = fifo_stream_open(64);
+    	DISP("using uart pipe");
+    	dst = uart_stream();
     }
     if(!src || !dst){
     	goto exit;
