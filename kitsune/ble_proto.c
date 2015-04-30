@@ -202,6 +202,7 @@ static void _scan_wifi( void * params )
 	Sl_WlanNetworkEntry_t * endpoints_ifa;
 	Sl_WlanNetworkEntry_t * endpoints_pcb;
 	int scan_cnt[ANTENNA_CNT+1] = {0};
+	int i,p;
 
 	xSemaphoreTake(_wifi_smphr, portMAX_DELAY);
 	memset(_wifi_endpoints, 0, sizeof(_wifi_endpoints));
@@ -215,7 +216,16 @@ static void _scan_wifi( void * params )
 	//LOGI( "SCAN PCB\n");
 	scan_cnt[PCB_ANT] = scan_with_retry( &endpoints_pcb, PCB_ANT );
 
-	int i,p;
+	for( i=0;i<scan_cnt[IFA_ANT];++i ) {
+		 //don't remove workaround for 32 char long ssid bug in SL, wipes out the ssid length but we dont' care
+		endpoints_ifa[i].ssid_len = 0;
+		endpoints_ifa[i].reserved[0] = IFA_ANT;
+	}
+	for( i=0;i<scan_cnt[PCB_ANT];++i ) {
+		 //don't remove workaround for 32 char long ssid bug in SL, wipes out the ssid length but we dont' care
+		endpoints_pcb[i].ssid_len = 0;
+		endpoints_pcb[i].reserved[0] = PCB_ANT;
+	}
 
 	//debug_print_ssid( "SSID RSSI IFA\n", endpoints_ifa, scan_cnt[IFA_ANT] );
 	//debug_print_ssid( "SSID RSSI PCB\n", endpoints_pcb, scan_cnt[PCB_ANT] );
