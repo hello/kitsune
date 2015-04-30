@@ -15,6 +15,13 @@
 #define HLO_STREAM_OUT	 		2
 #define HLO_STREAM_IN_OUT		(HLO_STREAM_IN + HLO_STREAM_OUT)
 
+//steam return codes
+#define HLO_STREAM_ERROR		-1
+#define HLO_STREAM_EOF			-2
+#define HLO_STREAM_EAGAIN		-11
+#define HLO_STREAM_NO_IMPL		-20
+
+
 //meta info for the parent api
 typedef struct hlo_stream_info_t{
 	uint32_t bytes_written;
