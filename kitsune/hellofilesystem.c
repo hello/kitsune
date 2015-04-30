@@ -156,11 +156,16 @@ FRESULT hello_fs_append(const char* file_name, const unsigned char* content, int
 //fs stream impl
 typedef struct{
 	FIL f;
+	char fname[8+1+3+1];
 }fs_stream_t;
 
 static int fs_write(void * ctx, const void * buf, size_t size){
-	//fs_stream_t * fs = (fs_stream_t*)ctx;
-	return 0;
+	fs_stream_t * fs = (fs_stream_t*)ctx;
+	FRESULT res = hello_fs_append(fs->fname, buf, size);
+	if(res != FR_OK){
+		return ERROR;
+	}
+	return size;
 }
 
 static int fs_read(void * ctx, void * buf, size_t size){
@@ -191,8 +196,24 @@ hlo_stream_t * fs_stream_open(const char * path, uint32_t options){
 	if(fs){
 		FRESULT res;
 		memset(fs, 0, sizeof(*fs));
-		res = hello_fs_open(&fs->f, path, FA_READ);
+		if(strlen(path) >= (sizeof(fs->fname))){
+			goto fail;
+		}
+		strncpy(fs->fname,path,strlen(path));
+		switch(options){
+		case HLO_STREAM_IN:
+			res = hello_fs_open(&fs->f, path, FA_CREATE_NEW|FA_WRITE|FA_OPEN_ALWAYS);
+			break;
+		case HLO_STREAM_OUT:
+			res = hello_fs_open(&fs->f, path, FA_READ);
+			break;
+		case HLO_STREAM_IN_OUT:
+			//not supported yet
+		default:
+			goto fail;
+		}
 		if(res != FR_OK){
+fail:
 			vPortFree(fs);
 			return NULL;
 		}
