@@ -6,7 +6,6 @@
 #define HLO_STREAM_H
 #include <stddef.h>
 #include <stdint.h>
-#include "socket.h"
 #include "FreeRTOS.h"
 #include "semphr.h"
 

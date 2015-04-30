@@ -40,7 +40,7 @@ hlo_pipe_t * hlo_pipe_new(hlo_stream_t * from, hlo_stream_t * to, uint32_t buf_s
 
 int hlo_pipe_run(hlo_pipe_t * pipe){
 	if(!pipe || !pipe->from || !pipe->to){
-		return ERROR;
+		return HLO_STREAM_NO_IMPL;
 	}
 	uint8_t * buf = pvPortMalloc(pipe->buf_size);
 	if(buf){
@@ -55,7 +55,7 @@ int hlo_pipe_run(hlo_pipe_t * pipe){
 		return 0;
 	}
 
-	return ERROR;
+	return HLO_STREAM_ERROR;
 }
 
 void hlo_pipe_destroy(hlo_pipe_t * pipe){
