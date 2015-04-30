@@ -154,6 +154,7 @@ FRESULT hello_fs_append(const char* file_name, const unsigned char* content, int
 
 ////==========================================================
 //fs stream impl
+#include <string.h>
 typedef struct{
 	FIL f;
 	char fname[8+1+3+1];
@@ -205,7 +206,7 @@ hlo_stream_t * fs_stream_open(const char * path, uint32_t options){
 		strcpy(fs->fname,path);
 		switch(options){
 		case HLO_STREAM_IN:
-			res = hello_fs_open(&fs->f, path, FA_CREATE_NEW|FA_WRITE|FA_OPEN_ALWAYS);
+			res = hello_fs_open(&fs->f, path, FA_OPEN_ALWAYS);
 			break;
 		case HLO_STREAM_OUT:
 			res = hello_fs_open(&fs->f, path, FA_READ);
