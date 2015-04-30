@@ -1,10 +1,9 @@
 #include "hlo_stream.h"
 #include <assert.h>
 #include <strings.h>
-#include "FreeRTOS.h"
 #include "uart_logger.h"
 
-#define LOCK(stream) xSemaphoreTake(stream->info.lock)
+#define LOCK(stream) xSemaphoreTake(stream->info.lock, portMAX_DELAY)
 #define UNLOCK(stream) xSemaphoreGive(stream->info.lock)
 
 
@@ -63,9 +62,9 @@ hlo_stream_t * hlo_stream_new(const hlo_stream_vftbl_t * impl, void * ctx, uint3
 	ret->ctx = ctx;
 	ret->impl = *impl;
 	ret->info.options = options;
-	vSemaphoreCreateBinary(ret->info->lock);
+	vSemaphoreCreateBinary(ret->info.lock);
 
-	assert(ret->info->lock);
+	assert(ret->info.lock);
 
 	return ret;
 }
@@ -158,7 +157,7 @@ int Cmd_make_stream(int argc, char *argv[]){
 	DISP("Test: Making fifo 0");
 	//user_streams[0] = fifo_stream_open(16);
 	if(argc > 1){
-		user_streams[0] = fs_stream_open(argv[1], 0);
+		user_streams[0] = fs_stream_open(argv[1], HLO_STREAM_OUT);
 	}
 	return 0;
 }

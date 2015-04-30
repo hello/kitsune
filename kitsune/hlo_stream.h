@@ -7,11 +7,14 @@
 #include <stddef.h>
 #include <stdint.h>
 #include "socket.h"
+#include "FreeRTOS.h"
+#include "semphr.h"
 
 //options
 #define HLO_STREAM_IN	 		1
 #define HLO_STREAM_OUT	 		2
-#define HLO_STREAM_SYNCHRONIZED 4
+#define HLO_STREAM_IN_OUT		(HLO_STREAM_IN + HLO_STREAM_OUT)
+#define HLO_STREAM_BLOCKING 	4
 
 //meta info for the parent api
 typedef struct hlo_stream_info_t{
