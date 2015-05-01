@@ -428,10 +428,10 @@ int Cmd_do_octogram(int argc, char * argv[]) {
 
 int Cmd_play_buff(int argc, char *argv[]) {
     int vol = atoi( argv[1] );
-    char * file = argv[3];
+    //char * file = argv[3];
     AudioPlaybackDesc_t desc;
     memset(&desc,0,sizeof(desc));
-    strncpy( desc.file, file, 64 );
+   //strncpy( desc.file, file, 64 );
     desc.volume = vol;
     desc.durationInSeconds = -1;
 	desc.fade_in_ms = 0;
@@ -588,10 +588,11 @@ static bool _is_file_exists(char* path)
 	}
 	return true;
 }
-
+#include "hellofilesystem.h"
 uint8_t get_alpha_from_light();
 void thread_alarm(void * unused) {
 	int delay = 1;
+	char alarm_file[64] = {0};
 	while (1) {
 		wait_for_time(WAIT_FOREVER);
 
@@ -610,7 +611,8 @@ void thread_alarm(void * unused) {
 
 					desc.fade_in_ms = 30000;
 					desc.fade_out_ms = 3000;
-					strncpy( desc.file, AUDIO_FILE, 64 );
+
+					strncpy( alarm_file, AUDIO_FILE, 64 );
 					int has_valid_sound_file = 0;
 					char file_name[64] = {0};
 					if(alarm.has_ringtone_path)
@@ -657,7 +659,8 @@ void thread_alarm(void * unused) {
 						LOGE("ALARM RING FAIL: NO RINGTONE FILE FOUND %s\n", file_name);
 					}
 
-					strncpy(desc.file, file_name, 64);
+					strncpy(alarm_file, file_name, 64);
+					desc.stream = fs_stream_open(alarm_file,HLO_STREAM_READ);
 					desc.durationInSeconds = alarm.ring_duration_in_second;
 					desc.volume = 57;
 					desc.onFinished = thread_alarm_on_finished;
