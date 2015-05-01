@@ -159,7 +159,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	uint16_t * speaker_data_padded = pvPortMalloc(1024);
 	uint16_t * stream_data = pvPortMalloc(512);
 
-	WORD size;
+	int size;
 	uint32_t iReceiveCount = 0;
 
 	int32_t iRetVal = -1;
@@ -188,7 +188,6 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		return returnFlags;
 
 	}
-
 	LOGI("%d bytes free\n", xPortGetFreeHeapSize());
 
 
@@ -246,14 +245,15 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 
 		if (size > 0) {
+			//LOGI("Read %d\r\n", size);
 			unsigned int i;
 
-			for (i = 0; i != (size>>1); ++i) {
+			for (i = 0; i != (size/2); ++i) {
 				//the odd ones are zeroed already
 				speaker_data_padded[i<<1] = stream_data[i];
 			}
 
-			iRetVal = FillBuffer(pRxBuffer, (unsigned char*) (speaker_data_padded), size<<1);
+			iRetVal = FillBuffer(pRxBuffer, (unsigned char*) (speaker_data_padded), size * 2);
 
 			if (iRetVal < 0) {
 				LOGI("Unable to fill buffer");
@@ -279,7 +279,8 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 		}else {
 			//stream error, what do?
-
+			LOGE("Stream ended\r\n");
+			break;
 		}
 
 		if (g_uiPlayWaterMark == 0) {
@@ -309,7 +310,6 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 	vPortFree(stream_data);
 	vPortFree(speaker_data_padded);
-
 
 	DeinitAudioPlayback();
 
