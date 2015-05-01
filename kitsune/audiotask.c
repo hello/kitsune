@@ -277,18 +277,8 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 				break;
 			}
 
-		}
-		else {
-			if (desired_ticks_elapsed >= 0) {
-				//LOOP THE FILE -- start over
-				//hello_fs_lseek(&fp,0);
-			}
-			else {
-				//someone passed in a negative number--which means after one
-				//play through the file, we quit.
-
-				break;
-			}
+		}else {
+			//stream error, what do?
 
 		}
 

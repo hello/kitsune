@@ -15,7 +15,6 @@ typedef enum {
 } EAudioCommand_t;
 
 typedef struct {
-	char file[64];
 	int32_t volume;
 	int32_t durationInSeconds;
 	uint32_t fade_in_ms;
@@ -24,7 +23,6 @@ typedef struct {
 	hlo_stream_t * stream;
 	NotificationCallback_t onFinished;
 	void * context;
-
 } AudioPlaybackDesc_t;
 
 
