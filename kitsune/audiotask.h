@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 #include "audio_types.h"
-
+#include "hlo_stream.h"
 
 typedef enum {
 	eAudioCaptureTurnOn,
@@ -21,7 +21,7 @@ typedef struct {
 	uint32_t fade_in_ms;
 	uint32_t fade_out_ms;
 	uint32_t rate;
-
+	hlo_stream_t * stream;
 	NotificationCallback_t onFinished;
 	void * context;
 

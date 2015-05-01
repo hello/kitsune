@@ -159,11 +159,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	uint16_t * speaker_data_padded = pvPortMalloc(1024);
 	uint16_t * speaker_data = pvPortMalloc(512);
 
-
-	FIL fp = {0};
 	WORD size;
-	FRESULT res;
-	uint32_t totBytesRead = 0;
 	uint32_t iReceiveCount = 0;
 
 	int32_t iRetVal = -1;
@@ -186,17 +182,8 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	LOGI("Starting playback\r\n");
 	LOGI("%d bytes free\n", xPortGetFreeHeapSize());
 
-	hello_fs_lock();
-
-	if (!info || !info->file) {
-		hello_fs_unlock();
-		LOGI("invalid playback info %s\n\r",info->file);
-		return returnFlags;
-	}
-
 
 	if ( !InitAudioPlayback(volume, info->rate ) ) {
-		hello_fs_unlock();
 		LOGI("unable to initialize audio playback.  Probably not enough memory!\r\n");
 		return returnFlags;
 
@@ -204,16 +191,6 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 	LOGI("%d bytes free\n", xPortGetFreeHeapSize());
 
-	//open file for playback
-	LOGI("Opening %s for playback\r\n",info->file);
-	res = hello_fs_open(&fp, info->file, FA_READ);
-
-	if (res != FR_OK) {
-		hello_fs_unlock();
-		LOGI("Failed to open audio file %s\n\r",info->file);
-		DeinitAudioPlayback();
-		return returnFlags;
-	}
 
 	memset(speaker_data_padded,0,1024);
 
@@ -244,8 +221,8 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		}
 		/* Read always in block of 512 Bytes or less else it will stuck in hello_fs_read() */
 
-		res = hello_fs_read(&fp, speaker_data, 512, &size);
-		totBytesRead += size;
+		size = hlo_stream_read(info->stream,speaker_data, 512);
+
 
 		/* Wait to avoid buffer overflow as reading speed is faster than playback */
 		iBufWaitingCount = 0;
@@ -304,7 +281,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		else {
 			if (desired_ticks_elapsed >= 0) {
 				//LOOP THE FILE -- start over
-				hello_fs_lseek(&fp,0);
+				//hello_fs_lseek(&fp,0);
 			}
 			else {
 				//someone passed in a negative number--which means after one
@@ -343,12 +320,8 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	vPortFree(speaker_data);
 	vPortFree(speaker_data_padded);
 
-	///CLEANUP
-	hello_fs_close(&fp);
 
 	DeinitAudioPlayback();
-
-	hello_fs_unlock();
 
 	LOGI("completed playback\r\n");
 
