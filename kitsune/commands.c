@@ -437,7 +437,7 @@ int Cmd_play_buff(int argc, char *argv[]) {
 	desc.fade_in_ms = 0;
 	desc.fade_out_ms = 0;
     desc.rate = atoi(argv[2]);
-    desc.stream = fs_stream_open(desc.file,HLO_STREAM_READ);
+    desc.stream = random_stream_open();//fs_stream_open(desc.file,HLO_STREAM_READ);
     AudioTask_StartPlayback(&desc);
 
     return 0;
@@ -1944,7 +1944,7 @@ void vUARTTask(void *pvParameters) {
 	SetupGPIOInterrupts();
 	CreateDefaultDirectories();
 
-	//xTaskCreate(AudioTask_Thread,"audioTask",2560/4,NULL,4,NULL);
+	xTaskCreate(AudioTask_Thread,"audioTask",2560/4,NULL,4,NULL);
 	UARTprintf("*");
 	init_download_task( 1024 / 4 );
 	networktask_init(4 * 1024 / 4);
