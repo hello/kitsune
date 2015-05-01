@@ -157,7 +157,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 	//1.5K on the stack
 	uint16_t * speaker_data_padded = pvPortMalloc(1024);
-	uint16_t * speaker_data = pvPortMalloc(512);
+	uint16_t * stream_data = pvPortMalloc(512);
 
 	WORD size;
 	uint32_t iReceiveCount = 0;
@@ -221,7 +221,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		}
 		/* Read always in block of 512 Bytes or less else it will stuck in hello_fs_read() */
 
-		size = hlo_stream_read(info->stream,speaker_data, 512);
+		size = hlo_stream_read(info->stream,stream_data, 512);
 
 
 		/* Wait to avoid buffer overflow as reading speed is faster than playback */
@@ -250,7 +250,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 			for (i = 0; i != (size>>1); ++i) {
 				//the odd ones are zeroed already
-				speaker_data_padded[i<<1] = speaker_data[i];
+				speaker_data_padded[i<<1] = stream_data[i];
 			}
 
 			iRetVal = FillBuffer(pRxBuffer, (unsigned char*) (speaker_data_padded), size<<1);
@@ -307,7 +307,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		Audio_Stop();
 	}
 
-	vPortFree(speaker_data);
+	vPortFree(stream_data);
 	vPortFree(speaker_data_padded);
 
 
