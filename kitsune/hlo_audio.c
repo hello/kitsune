@@ -5,10 +5,17 @@
 #include "network.h"
 #include "mcasp_if.h"
 #include "uart_logger.h"
+
+/* do not change PADDED_STREAM_SIZE without checking what the watermark size is, otherwise it'll overflow */
+#define PADDED_STREAM_SIZE 1024
+
+extern unsigned int g_uiPlayWaterMark;
 extern tCircularBuffer * pRxBuffer;
 extern tCircularBuffer * pTxBuffer;
-#define PADDED_STREAM_SIZE 1024
-extern unsigned int g_uiPlayWaterMark;
+
+typedef struct{
+
+}hlo_audio_t;
 
 ////------------------------------
 // playback stream driver
@@ -21,7 +28,7 @@ static int _close_playback(void * ctx){
 static int _write_playback_mono(void * ctx, const void * buf, size_t size){
 	uint16_t * speaker_data_padded = (uint16_t *)ctx;
 	uint16_t * buf16 = (uint16_t*)buf;
-	int bytes_to_fill = min(PADDED_STREAM_SIZE, size);
+	int bytes_to_fill = min((PADDED_STREAM_SIZE/2), size);//we can only fill half of the padded stream
 
 	if(IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) == TRUE){
 		return 0;
