@@ -4,45 +4,52 @@
 #include "circ_buff.h"
 #include "network.h"
 #include "mcasp_if.h"
+#include "uart_logger.h"
 extern tCircularBuffer * pRxBuffer;
 extern tCircularBuffer * pTxBuffer;
-static uint8_t zeroes[2];
+#define PADDED_STREAM_SIZE 1024
 extern unsigned int g_uiPlayWaterMark;
 
 ////------------------------------
 // playback stream driver
 static int _close_playback(void * ctx){
+	vPortFree(ctx);
 	Audio_Stop();
 	DeinitAudioPlayback();
+	return 0;
 }
 static int _write_playback_mono(void * ctx, const void * buf, size_t size){
-	//incoming data is in mono bytes, need to convert to uint16, then to uint32 with high bytes zeroed
-	int empty_bytes = GetBufferEmptySize(pRxBuffer);
-	int bytes_to_fill = min(size, empty_bytes);
-	int written = 0;
+	uint16_t * speaker_data_padded = (uint16_t *)ctx;
+	uint16_t * buf16 = (uint16_t*)buf;
+	int bytes_to_fill = min(PADDED_STREAM_SIZE, size);
+
 	if(IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) == TRUE){
-		//do not need to fill any more
 		return 0;
+	}else if(bytes_to_fill %2){
+		return HLO_STREAM_ERROR;
 	}
-	while(bytes_to_fill >= 4){
-		FillBuffer(pRxBuffer, (uint8_t*)buf + written, 2);
-		//FillBuffer(pRxBuffer, (uint8_t*)buf + written, 2);
-		FillBuffer(pRxBuffer, zeroes, 2);
-		bytes_to_fill -= 4;
-		written += 2;
-	}
-	if (g_uiPlayWaterMark == 0) {
-		if (IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) == TRUE) {
-			g_uiPlayWaterMark = 1;
+	if(bytes_to_fill > 0){
+		unsigned int i;
+		for (i = 0; i != (bytes_to_fill/2); ++i) {
+			//the odd ones are zeroed already
+			speaker_data_padded[i<<1] = buf16[i];
 		}
+		FillBuffer(pRxBuffer, (unsigned char*) (speaker_data_padded), bytes_to_fill * 2);
+		if (g_uiPlayWaterMark == 0) {
+			if (IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) == TRUE) {
+				g_uiPlayWaterMark = 1;
+			}
+		}
+		return bytes_to_fill;
 	}
-	return written;
+
+	return 0;
 }
 static int _open_playback(uint32_t sr, uint8_t vol){
 	if(!InitAudioPlayback(vol, sr)){
 		return -1;
 	}else{
-		g_uiPlayWaterMark = 1;
+		g_uiPlayWaterMark = 0;
 		return 0;
 	}
 }
@@ -55,8 +62,10 @@ hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint8_t vol, uint32_t direction)
 		tbl.write = _write_playback_mono;
 		tbl.close = _close_playback;
 		if(0 == _open_playback(sr,vol)){
+			uint16_t * speaker_data_padded = pvPortMalloc(PADDED_STREAM_SIZE);
+			memset(speaker_data_padded,0,PADDED_STREAM_SIZE);
 			Audio_Start();
-			return hlo_stream_new(&tbl,NULL,HLO_STREAM_WRITE);
+			return hlo_stream_new(&tbl,speaker_data_padded,HLO_STREAM_WRITE);
 		}
 	}
 	return NULL;
