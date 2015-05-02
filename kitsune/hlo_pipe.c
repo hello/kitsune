@@ -19,6 +19,9 @@ static int pipe_loop_polling(hlo_pipe_t * pipe, uint8_t * buf){
 			return ret;
 		}else{
 			idx += ret;
+			if(idx == read){
+				break;
+			}
 			//TODO either poll on consumer or delay
 			vTaskDelay((TickType_t)pipe->poll_delay);
 		}
@@ -43,7 +46,7 @@ int hlo_pipe_run(hlo_pipe_t * pipe){
 		return HLO_STREAM_NO_IMPL;
 	}
 	uint8_t * buf = pvPortMalloc(pipe->buf_size);
-	if(buf){
+	if(buf && pipe->from && pipe->to){
 		int ret;
 		while((ret =  pipe_loop_polling(pipe, buf)) >= 0){
 			//do control stuff here

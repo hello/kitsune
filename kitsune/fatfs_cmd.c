@@ -404,6 +404,7 @@ int global_filename(char * local_fn)
 //
 //*****************************************************************************
 #include "hlo_pipe.h"
+#include "hlo_audio.h"
 int
 Cmd_cat(int argc, char *argv[])
 {
@@ -419,12 +420,14 @@ Cmd_cat(int argc, char *argv[])
     	dst = fs_stream_open(path_buff, HLO_STREAM_WRITE);
     }else{
     	DISP("using uart pipe");
-    	dst = uart_stream();
+    	//dst = uart_stream();
+    	src = random_stream_open();
+    	dst = hlo_audio_open_mono(48000,54,HLO_AUDIO_PLAYBACK);
     }
     if(!src || !dst){
     	goto exit;
     }
-    pipe = hlo_pipe_new(src,dst,32,10);
+    pipe = hlo_pipe_new(src,dst,512,2);
     if(pipe){
     	hlo_pipe_run(pipe);
     }
