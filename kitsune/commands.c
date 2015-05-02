@@ -2014,7 +2014,7 @@ void vUARTTask(void *pvParameters) {
 				LOGF("can't run command %s, no memory available!\n", cCmdBuf );
 			} else {
 				memcpy( args, cCmdBuf, sizeof( cCmdBuf ) );
-				xTaskCreate(CmdLineProcess, "commandTask",  3*1024 / 4, args, 1, NULL);
+				xTaskCreate(CmdLineProcess, "commandTask",  3*1024 / 4, args, 4, NULL);
 			}
         }
 	}
