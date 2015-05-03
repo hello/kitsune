@@ -1364,6 +1364,13 @@ int send_data_pb_callback(const char* host, const char* path,char * recv_buf, ui
         return -1;
     }
 
+    //check that it's still secure...
+    rv = recv(sock, recv_buf, SERVER_REPLY_BUFSZ, 0);
+    if (rv != SL_EAGAIN ) {
+        LOGI("start recv error %d\n\r\n\r", rv);
+        return stop_connection();
+    }
+
     //LOGI("Sending request\n\r%s\n\r", recv_buf);
     rv = send(sock, recv_buf, send_length, 0);
     if (rv <= 0) {
