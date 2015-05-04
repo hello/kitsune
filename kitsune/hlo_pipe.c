@@ -3,7 +3,6 @@
 #include "uart_logger.h"
 
 
-static int pipe_transfer(hlo_pipe_t * pipe, uint8_t * buf){
 	int read = 0;
 	int idx = 0;
 	while(read == 0){
@@ -49,7 +48,7 @@ int hlo_pipe_run(hlo_pipe_t * pipe){
 	uint8_t * buf = pvPortMalloc(pipe->buf_size);
 	if(buf && pipe->from && pipe->to){
 		int ret;
-		while((ret =  pipe_transfer(pipe, buf)) >= 0){
+		while((ret =  pipe_transfer_step(pipe, buf)) >= 0){
 			//do control stuff here
 		}
 		if(ret < 0){
