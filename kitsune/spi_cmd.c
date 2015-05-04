@@ -96,28 +96,28 @@ int spi_reset(){
 
 	xSemaphoreTake(_spi_smphr, portMAX_DELAY);
 	CS_set(0);
-	vTaskDelay(8*10);
+	vTaskDelay(8*2);
 //	MAP_SPITransfer(GSPI_BASE,&reset,&reset,1,SPI_CS_ENABLE|SPI_CS_DISABLE);
 	MAP_SPITransfer(GSPI_BASE,&reset,&reset,1,0);
 
 	CS_set(1);
-	vTaskDelay(8*10);
+	vTaskDelay(8*2);
 	reset = 0xFF;
 	CS_set(0);
-	vTaskDelay(8*10);
+	vTaskDelay(8*2);
 //	MAP_SPITransfer(GSPI_BASE,&reset,&reset,1,SPI_CS_ENABLE|SPI_CS_DISABLE);
 	MAP_SPITransfer(GSPI_BASE,&reset,&reset,1,0);
 
 	CS_set(1);
-	vTaskDelay(8*10);
+	vTaskDelay(8*2);
 	reset = 0xFF;
 	CS_set(0);
-	vTaskDelay(8*10);
+	vTaskDelay(8*2);
 //	MAP_SPITransfer(GSPI_BASE,&reset,&reset,1,SPI_CS_ENABLE|SPI_CS_DISABLE);
 	MAP_SPITransfer(GSPI_BASE,&reset,&reset,1,0);
 
 	CS_set(1);
-	vTaskDelay(8*5);
+	vTaskDelay(8*2);
 
 	xSemaphoreGive(_spi_smphr);
 	return SUCCESS;
@@ -134,7 +134,7 @@ int spi_write_step( int len, unsigned char * buf ) {
 	//MAP_SPICSEnable(GSPI_BASE);
 
 	CS_set(0);
-	vTaskDelay(8*10);
+	vTaskDelay(8*2);
 	for (i = 0; i < len; i++) {
 		MAP_SPIDataPut(GSPI_BASE, buf[i]);
 		MAP_SPIDataGet(GSPI_BASE, &dud);
@@ -144,7 +144,7 @@ int spi_write_step( int len, unsigned char * buf ) {
 	}
 	//MAP_SPICSDisable(GSPI_BASE);
 	CS_set(1);
-	vTaskDelay(8*5);
+	vTaskDelay(8*2);
 #ifdef SPI_DEBUG_PRINT
 	LOGI("\r\n");
 #endif
@@ -162,10 +162,10 @@ int spi_read_step( int len, unsigned char * buf ) {
 #endif
 	//	MAP_SPITransfer(GSPI_BASE,rx_buf,rx_buf,len,SPI_CS_ENABLE|SPI_CS_DISABLE);
 	CS_set(0);
-	vTaskDelay(8*10);
+	vTaskDelay(8*2);
 	len = MAP_SPITransfer(GSPI_BASE, buf, buf, len, 0);
 	CS_set(1);
-	vTaskDelay(8*5);
+	vTaskDelay(8*2);
 #ifdef SPI_DEBUG_PRINT
 	LOGI("Read %d bytes \r\n", len);
 	int i;
@@ -184,16 +184,16 @@ int spi_write( int len, unsigned char * buf ) {
 
 	xSemaphoreTake(_spi_smphr, portMAX_DELAY);
 	spi_write_step( 1, &mode );
-	vTaskDelay(8*10);
+	vTaskDelay(8*2);
 	ctx.len = len;
 	ctx.addr = 0xcc;
 	spi_write_step( 4, (unsigned char*)&ctx );
-	vTaskDelay(8*10);
+	vTaskDelay(8*2);
 #ifdef SPI_DEBUG_PRINT
 	LOGI("Ctx len %u, address %u\r\n",ctx.len, ctx.addr);
 #endif
 	spi_write_step( len, buf );
-	vTaskDelay(8*10);
+	vTaskDelay(8*2);
 	xSemaphoreGive(_spi_smphr);
 
 	return SUCCESS;
@@ -205,14 +205,16 @@ int spi_read( int * len, unsigned char * buf ) {
 
 	xSemaphoreTake(_spi_smphr, portMAX_DELAY);
 	spi_write_step( 1, &mode );
-	vTaskDelay(8*10);
+	vTaskDelay(8*2);
 	spi_read_step( 4,  (unsigned char*)&ctx );
-	vTaskDelay(8*10);
+	vTaskDelay(8*2);
 #ifdef SPI_DEBUG_PRINT
 	LOGI("Ctx len %u, address %u\r\n",ctx.len, ctx.addr);
 #endif
 	if( ctx.addr == 0xAAAA || ctx.addr == 0x5500 || ctx.addr == 0x5555 ) {
+		xSemaphoreGive(_spi_smphr );
 		spi_reset();
+		xSemaphoreTake(_spi_smphr, portMAX_DELAY);
 		ctx.len = 0;
 	}
 	*len = ctx.len;
@@ -231,7 +233,7 @@ int spi_read( int * len, unsigned char * buf ) {
 	}else{
 		spi_read_step(0, buf);
 	}
-	vTaskDelay(8*10);
+	vTaskDelay(8*2);
 
 	xSemaphoreGive(_spi_smphr );
 	return SUCCESS;
@@ -259,12 +261,23 @@ int Cmd_spi_write(int argc, char *argv[]) {
 }
 
 extern volatile bool booted;
+typedef struct {
+	int len;
+	unsigned char buf[];
+} pb_task_params;
+void task_process_pb(void* params) {
+	pb_task_params * p = (pb_task_params*)params;
+	on_morpheus_protobuf_arrival(p->buf, p->len);
+	vPortFree(p);
+	vTaskDelete(NULL);
+}
 
 int Cmd_spi_read(int argc, char *argv[]) {
-	int len;
-	unsigned char buf[256];
+#define SPI_BUFSZ 256
+	pb_task_params *p = pvPortMalloc(sizeof(pb_task_params)+SPI_BUFSZ);
+	assert(p);
 
-	spi_read( &len, buf );
+	spi_read( &p->len, p->buf );
 #ifdef SPI_DEBUG_PRINT
 	LOGI("read %u\r\n", len);
 	int i;
@@ -274,8 +287,10 @@ int Cmd_spi_read(int argc, char *argv[]) {
 	LOGI( "\r\n" );
 #endif
 
-	if( len ) {
-		on_morpheus_protobuf_arrival(buf, len);
+	if( p->len ) {
+		xTaskCreate(task_process_pb, "task_process_pb", 3*1024 / 4, p, 4, NULL); //this one doesn't look like much, but has to parse all the pb from bluetooth
+	} else {
+		vPortFree(p);
 	}
 	return SUCCESS;
 

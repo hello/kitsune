@@ -1460,10 +1460,10 @@ void thread_spi(void * data) {
 	Cmd_spi_read(0, 0);
 	while(1) {
 		if (xSemaphoreTake(spi_smphr, 10000) ) {
-			vTaskDelay(8*10);
 			Cmd_spi_read(0, 0);
 			MAP_GPIOIntEnable(GPIO_PORT,GSPI_INT_PIN);
 		} else {
+			Cmd_spi_read(0, 0);
 			MAP_GPIOIntEnable(GPIO_PORT,GSPI_INT_PIN);
 		}
 	}
@@ -1882,7 +1882,7 @@ void vUARTTask(void *pvParameters) {
 	init_dust();
 	ble_proto_init();
 	xTaskCreate(top_board_task, "top_board_task", 1280 / 4, NULL, 2, NULL);
-	xTaskCreate(thread_spi, "spiTask", 3*1024 / 4, NULL, 4, NULL); //this one doesn't look like much, but has to parse all the pb from bluetooth
+	xTaskCreate(thread_spi, "spiTask", 512 / 4, NULL, 4, NULL);
 	UARTprintf("*");
 #ifndef BUILD_SERVERS
 	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 1, NULL);
