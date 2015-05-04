@@ -67,5 +67,7 @@ int Cmd_read_stream(int argc, char *argv[]);
 hlo_stream_t * fifo_stream_open(size_t capacity);
 //random stream
 hlo_stream_t * random_stream_open(void);
+//debug stream
+hlo_stream_t * debug_stream_open(void);
 
 #endif

@@ -164,6 +164,29 @@ hlo_stream_t * random_stream_open(void){
 	return rng;
 }
 ////==========================================================
+//Debugging Stream, prints things out
+static int debug_write(void * ctx, const void * buf, size_t size){
+	DISP("Wrote %d bytes\r\n", size);
+	vTaskDelay(2);
+	return size;
+}
+static int debug_read(void * ctx, void * buf, size_t size){
+	DISP("Read %d bytes\r\n", size);
+	vTaskDelay(2);
+	return size;
+}
+static hlo_stream_vftbl_t debug_stream_impl = {
+		.read = debug_read,
+		.write = debug_write,
+};
+hlo_stream_t * debug_stream_open(void){
+	static hlo_stream_t * debug;
+	if(!debug){
+		debug = hlo_stream_new(&debug_stream_impl,NULL,HLO_STREAM_READ_WRITE);
+	}
+	return debug;
+}
+////==========================================================
 //test commands
 
 #include "hellofilesystem.h"
