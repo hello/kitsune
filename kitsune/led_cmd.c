@@ -187,6 +187,16 @@ static void led_slow(led_color_t * color) {
 
 #define LED_GPIO_BASE_DOUT GPIOA2_BASE
 #define LED_GPIO_BIT_DOUT 0x80
+static void set_low() {
+	bool fast = MAP_GPIOPinRead(LED_GPIO_BASE_DOUT, LED_GPIO_BIT_DOUT);
+
+	if (fast) {
+		MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_LOW_FAST);
+	} else {
+		MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_LOW_SLOW);
+	}
+}
+
 static void led_array(led_color_t * colors, int delay) {
 	unsigned long ulInt;
 	//
@@ -198,8 +208,10 @@ static void led_array(led_color_t * colors, int delay) {
 	vTaskDelay(_clamp(delay,0,500)); //just to be sure...
 	ulInt = MAP_IntMasterDisable();
 	if (fast) {
+		MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_LOW_FAST);
 		led_fast(colors);
 	} else {
+		MAP_GPIOPinWrite(LED_GPIO_BASE, LED_GPIO_BIT, LED_LOGIC_LOW_SLOW);
 		led_slow(colors);
 	}
 	if (!ulInt) {
@@ -295,6 +307,7 @@ void ledcpy(led_color_t * dst, const led_color_t * src, int num){
 #define QUANT_FACTOR 6
 
 void led_idle_task( void * params ) {
+	set_low();
 	vTaskDelay(10000);
 	while(1) {
 		xEventGroupWaitBits(
