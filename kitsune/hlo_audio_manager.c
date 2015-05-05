@@ -38,7 +38,13 @@ static int copy_to_client(void * ctx, void * buf, size_t size){
 		return 0;
 	}else{
 		int bytes_to_fill = min(filled, size);
-		ReadBuffer(client->buf,(uint8_t*)buf,bytes_to_fill);
+		if(!buf){
+			//This is an optimization hack that skips reading to buffer to save cpu cycle
+			//but still increments the read ptr to
+			UpdateReadPtr(client->buf, bytes_to_fill);
+		}else{
+			ReadBuffer(client->buf,(uint8_t*)buf,bytes_to_fill);
+		}
 		return bytes_to_fill;
 	}
 }
@@ -78,18 +84,18 @@ hlo_stream_t * hlo_open_mic_stream(size_t buffer_size, size_t opt_water_mark){
 
 }
 void hlo_audio_manager_thread(void * data){
-	uint8_t record_buffer[512];
+	uint8_t master_buffer[512];
 	while(1){
 		//playback task
 		//todo impl
 		//mic task
-		int mic_in_bytes = hlo_stream_read(self.master,record_buffer,sizeof(record_buffer));
+		int mic_in_bytes = hlo_stream_read(self.master,master_buffer,sizeof(master_buffer));
 		if(mic_in_bytes > 0){
 			//dispatch to clients, todo thread safety
 			int i;
 			for(i = 0; i < NUM_MAX_MIC_CHANNELS; i++){
 				if(self.mic_clients[i]){
-					int res = hlo_stream_write(self.mic_clients[i], record_buffer, sizeof(record_buffer));
+					int res = hlo_stream_write(self.mic_clients[i], master_buffer, sizeof(master_buffer));
 					if(res ==  0){
 						//handle buffer overflow
 					}else if(res < 0){
