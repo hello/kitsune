@@ -64,6 +64,8 @@ static int _open_playback(uint32_t sr, uint8_t vol){
 ////------------------------------
 //record stream driver
 static int _close_record(void * ctx){
+	Audio_Stop();
+	DeinitAudioCapture();
 	return 0;
 }
 static int _read_record_mono(void * ctx, void * buf, size_t size){
