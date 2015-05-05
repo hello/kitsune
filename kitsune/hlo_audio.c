@@ -68,7 +68,7 @@ static int _close_record(void * ctx){
 }
 static int _read_record_mono(void * ctx, void * buf, size_t size){
 	int i,raw_buff_size =  GetBufferSize(pTxBuffer);
-	if(raw_buff_size < size) {
+	if(raw_buff_size < 2*PING_PONG_CHUNK_SIZE) {
 		//todo remove and completely empty buffer on demand
 		return 0;
 	}else{
