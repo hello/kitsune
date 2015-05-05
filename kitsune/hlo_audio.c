@@ -75,19 +75,6 @@ static int _read_record_mono(void * ctx, void * buf, size_t size){
 		//todo remove and completely empty buffer on demand
 		return 0;
 	}else{
-#if 0
-		int bytes_to_fill = min( (size * 2), PADDED_RECORD_STREAM_SIZE);
-		int i;
-		uint16_t * dst16 = (uint16_t*)buf;
-		uint16_t * src16 = (uint16_t *)ctx;
-		ReadBuffer(pTxBuffer,(uint8_t *)src16,bytes_to_fill);
-		//compress half of it
-		for(i = 0; i < bytes_to_fill/4; i++){
-			dst16[i] = src16[2*i + 1];//because it goes right, left,right left, and we want the left channel.
-			dst16[i] = ( (dst16[i]) << 8) | ((dst16[i]) >> 8);
-		}
-		return bytes_to_fill/2;
-#else
 		uint16_t * dst16 = (uint16_t*)buf;
 		int i;
 		ReadBuffer(pTxBuffer,(uint8_t *)dst16,size);
@@ -96,7 +83,6 @@ static int _read_record_mono(void * ctx, void * buf, size_t size){
 			dst16[i] = ( (dst16[i]) << 8) | ((dst16[i]) >> 8);
 		}
 		return size/2;
-#endif
 	}
 
 }
