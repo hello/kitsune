@@ -154,6 +154,7 @@ FRESULT hello_fs_append(const char* file_name, const unsigned char* content, int
 
 ////==========================================================
 //fs stream impl
+#define FS_IO_CAP 512
 #include <string.h>
 typedef struct{
 	FIL f;
@@ -161,18 +162,21 @@ typedef struct{
 }fs_stream_t;
 
 static int fs_write(void * ctx, const void * buf, size_t size){
+	//due to a bug in the driver, only up to 512 works, so we cap it here
 	fs_stream_t * fs = (fs_stream_t*)ctx;
-	FRESULT res = hello_fs_append(fs->fname, buf, size);
+	WORD size_to_write = (size > FS_IO_CAP)?FS_IO_CAP:size;
+	FRESULT res = hello_fs_write(&fs->f,buf,size_to_write,&size_to_write);
 	if(res != FR_OK){
 		return HLO_STREAM_ERROR;
 	}
-	return size;
+	return (int)size_to_write;
 }
 
 static int fs_read(void * ctx, void * buf, size_t size){
 	fs_stream_t * fs = (fs_stream_t*)ctx;
 	WORD read;
-	FRESULT res = hello_fs_read(&fs->f, buf, size, &read);
+	int size_to_read = (size > FS_IO_CAP)?FS_IO_CAP:size;
+	FRESULT res = hello_fs_read(&fs->f, buf, size_to_read, &read);
 	if(read == 0){
 		return HLO_STREAM_EOF;
 	}
@@ -206,7 +210,8 @@ hlo_stream_t * fs_stream_open(const char * path, uint32_t options){
 		strcpy(fs->fname,path);
 		switch(options){
 		case HLO_STREAM_WRITE:
-			res = hello_fs_open(&fs->f, path, FA_OPEN_ALWAYS);
+			res = hello_fs_open(&fs->f, path, FA_WRITE|FA_OPEN_ALWAYS);
+			//todo fseek to end
 			break;
 		case HLO_STREAM_READ:
 			res = hello_fs_open(&fs->f, path, FA_READ);
