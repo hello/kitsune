@@ -7,7 +7,8 @@
 #include "uart_logger.h"
 
 /* do not change PADDED_STREAM_SIZE without checking what the watermark size is, otherwise it'll overflow */
-#define PADDED_STREAM_SIZE 1024
+#define PADDED_PLAYBACK_STREAM_SIZE 1024
+#define PADDED_RECORD_STREAM_SIZE (4096)
 
 extern unsigned int g_uiPlayWaterMark;
 extern tCircularBuffer * pRxBuffer;
@@ -28,9 +29,10 @@ static int _close_playback(void * ctx){
 static int _write_playback_mono(void * ctx, const void * buf, size_t size){
 	uint16_t * speaker_data_padded = (uint16_t *)ctx;
 	uint16_t * buf16 = (uint16_t*)buf;
-	int bytes_to_fill = min((PADDED_STREAM_SIZE/2), size);//we can only fill half of the padded stream
+	int bytes_to_fill = min((PADDED_PLAYBACK_STREAM_SIZE/2), size);//we can only fill half of the padded stream
 
 	if(IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) == TRUE){
+		//TODO remove this once i understand how that fifo lib works, seems to bug out when kept full vs dma interrupt
 		return 0;
 	}else if(bytes_to_fill %2){
 		return HLO_STREAM_ERROR;
@@ -60,7 +62,50 @@ static int _open_playback(uint32_t sr, uint8_t vol){
 		return 0;
 	}
 }
+////------------------------------
+//record stream driver
+static int _close_record(void * ctx){
+	return 0;
+}
+#define BYTES_TO_MONO(i) (i/2)
+static int _read_record_mono(void * ctx, void * buf, size_t size){
 
+	int raw_buff_size =  GetBufferSize(pTxBuffer);
+	if(raw_buff_size < PADDED_RECORD_STREAM_SIZE) {
+		//todo remove and completely empty buffer on demand
+		return 0;
+	}else{
+#if 0
+		int bytes_to_fill = min( (size * 2), PADDED_RECORD_STREAM_SIZE);
+		int i;
+		uint16_t * dst16 = (uint16_t*)buf;
+		uint16_t * src16 = (uint16_t *)ctx;
+		ReadBuffer(pTxBuffer,(uint8_t *)src16,bytes_to_fill);
+		//compress half of it
+		for(i = 0; i < bytes_to_fill/4; i++){
+			dst16[i] = src16[2*i + 1];//because it goes right, left,right left, and we want the left channel.
+			dst16[i] = ( (dst16[i]) << 8) | ((dst16[i]) >> 8);
+		}
+		return bytes_to_fill/2;
+#else
+		uint16_t * dst16 = (uint16_t*)buf;
+		int i;
+		ReadBuffer(pTxBuffer,(uint8_t *)dst16,size);
+		for(i = 0; i < size/4; i++){
+			dst16[i] = dst16[2*i + 1];
+			dst16[i] = ( (dst16[i]) << 8) | ((dst16[i]) >> 8);
+		}
+		return size/2;
+#endif
+	}
+
+}
+static int _open_record(uint32_t sr){
+	if(!InitAudioCapture(sr)){
+		return -1;
+	}
+	return 0;
+}
 ////------------------------------
 //  Public API
 hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint8_t vol, uint32_t direction){
@@ -69,10 +114,19 @@ hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint8_t vol, uint32_t direction)
 		tbl.write = _write_playback_mono;
 		tbl.close = _close_playback;
 		if(0 == _open_playback(sr,vol)){
-			uint16_t * speaker_data_padded = pvPortMalloc(PADDED_STREAM_SIZE);
-			memset(speaker_data_padded,0,PADDED_STREAM_SIZE);
+			uint16_t * speaker_data_padded = pvPortMalloc(PADDED_PLAYBACK_STREAM_SIZE);
+			memset(speaker_data_padded,0,PADDED_PLAYBACK_STREAM_SIZE);
 			Audio_Start();
 			return hlo_stream_new(&tbl,speaker_data_padded,HLO_STREAM_WRITE);
+		}
+	}else if(direction == HLO_AUDIO_RECORD){
+		tbl.read = _read_record_mono;
+		tbl.close = _close_record;
+		if(0 == _open_record(sr)){
+			uint16_t * record_data_buf = pvPortMalloc(PADDED_RECORD_STREAM_SIZE);
+			memset(record_data_buf, 0, PADDED_RECORD_STREAM_SIZE);
+			Audio_Start();
+			return hlo_stream_new(&tbl,record_data_buf,HLO_STREAM_READ);
 		}
 	}
 	return NULL;
