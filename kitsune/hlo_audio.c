@@ -8,7 +8,6 @@
 
 /* do not change PADDED_STREAM_SIZE without checking what the watermark size is, otherwise it'll overflow */
 #define PADDED_PLAYBACK_STREAM_SIZE 1024
-#define PADDED_RECORD_STREAM_SIZE (4096)
 
 extern unsigned int g_uiPlayWaterMark;
 extern tCircularBuffer * pRxBuffer;
@@ -67,24 +66,20 @@ static int _open_playback(uint32_t sr, uint8_t vol){
 static int _close_record(void * ctx){
 	return 0;
 }
-#define BYTES_TO_MONO(i) (i/2)
 static int _read_record_mono(void * ctx, void * buf, size_t size){
-	int raw_buff_size =  GetBufferSize(pTxBuffer);
-	if(raw_buff_size < PADDED_RECORD_STREAM_SIZE) {
+	int i,raw_buff_size =  GetBufferSize(pTxBuffer);
+	if(raw_buff_size < size) {
 		//todo remove and completely empty buffer on demand
 		return 0;
 	}else{
-		int size_to_read = min(size, PADDED_RECORD_STREAM_SIZE);
 		uint16_t * dst16 = (uint16_t*)buf;
-		int i;
-		ReadBuffer(pTxBuffer,(uint8_t *)dst16, size_to_read);
-		for(i = 0; i < size_to_read/4; i++){
+		ReadBuffer(pTxBuffer,(uint8_t *)dst16, size);
+		for(i = 0; i < size/4; i++){
 			dst16[i] = dst16[2*i + 1];
 			dst16[i] = ( (dst16[i]) << 8) | ((dst16[i]) >> 8);
 		}
-		return size_to_read/2;
+		return size/2;
 	}
-
 }
 static int _open_record(uint32_t sr){
 	if(!InitAudioCapture(sr)){
@@ -109,10 +104,8 @@ hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint8_t vol, uint32_t direction)
 		tbl.read = _read_record_mono;
 		tbl.close = _close_record;
 		if(0 == _open_record(sr)){
-			uint16_t * record_data_buf = pvPortMalloc(PADDED_RECORD_STREAM_SIZE);
-			memset(record_data_buf, 0, PADDED_RECORD_STREAM_SIZE);
 			Audio_Start();
-			return hlo_stream_new(&tbl,record_data_buf,HLO_STREAM_READ);
+			return hlo_stream_new(&tbl,NULL,HLO_STREAM_READ);
 		}
 	}
 	return NULL;
