@@ -69,20 +69,20 @@ static int _close_record(void * ctx){
 }
 #define BYTES_TO_MONO(i) (i/2)
 static int _read_record_mono(void * ctx, void * buf, size_t size){
-
 	int raw_buff_size =  GetBufferSize(pTxBuffer);
 	if(raw_buff_size < PADDED_RECORD_STREAM_SIZE) {
 		//todo remove and completely empty buffer on demand
 		return 0;
 	}else{
+		int size_to_read = min(size, PADDED_RECORD_STREAM_SIZE);
 		uint16_t * dst16 = (uint16_t*)buf;
 		int i;
-		ReadBuffer(pTxBuffer,(uint8_t *)dst16,size);
-		for(i = 0; i < size/4; i++){
+		ReadBuffer(pTxBuffer,(uint8_t *)dst16, size_to_read);
+		for(i = 0; i < size_to_read/4; i++){
 			dst16[i] = dst16[2*i + 1];
 			dst16[i] = ( (dst16[i]) << 8) | ((dst16[i]) >> 8);
 		}
-		return size/2;
+		return size_to_read/2;
 	}
 
 }
