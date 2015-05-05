@@ -30,7 +30,7 @@ extern tCircularBuffer *pRxBuffer;
 
 #define AUDIO_PLAYBACK_RATE_HZ (48000)
 
-static const unsigned int CPU_XDATA_CAPTURE = 1; //1: enabled CPU interrupt triggerred
+static const unsigned int CPU_XDATA_CAPTURE = 0; //1: enabled CPU interrupt triggerred
 
 static const unsigned int CPU_XDATA_PLAYBACK = 0; //1: enabled CPU interrupt triggerred, 0 for DMA
 
