@@ -32,10 +32,11 @@ static int close_client(void * ctx){
 }
 hlo_stream_t * hlo_open_mic_stream(size_t buffer_size, size_t opt_water_mark){
 	hlo_stream_vftbl_t tbl = {
-			.write = copy_from_master;
-			.read = copy_to_client;
-			.close = close_client;
+			.write = copy_from_master,
+			.read = copy_to_client,
+			.close = close_client,
 	};
+	return NULL;
 }
 void hlo_audio_manager_thread(void * data){
 	while(1){
