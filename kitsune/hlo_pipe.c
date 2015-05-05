@@ -2,7 +2,7 @@
 #include "task.h"
 #include "uart_logger.h"
 
-
+static int pipe_transfer(hlo_pipe_t * pipe, uint8_t * buf){
 	int read = 0;
 	int idx = 0;
 	while(read == 0){
