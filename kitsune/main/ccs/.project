@@ -291,6 +291,16 @@
 			<locationURI>PARENT-2-PROJECT_LOC/hellomath.c</locationURI>
 		</link>
 		<link>
+			<name>hlo_app_audio_recorder.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hlo_app_audio_recorder.c</locationURI>
+		</link>
+		<link>
+			<name>hlo_app_audio_recorder.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hlo_app_audio_recorder.h</locationURI>
+		</link>
+		<link>
 			<name>hlo_audio.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/hlo_audio.c</locationURI>

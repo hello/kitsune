@@ -93,7 +93,8 @@
 #include "hlo_stream.h"
 #include "pill_settings.h"
 #include "prox_signal.h"
-
+#include "hlo_audio_manager.h"
+#include "hlo_app_audio_recorder.h"
 #define ONLY_MID 0
 
 //******************************************************************************
@@ -1976,7 +1977,11 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("*");
 #endif
 
-
+	//todo put them in launch tasks
+	hlo_audio_manager_init();
+	xTaskCreate(hlo_audio_manager_thread,"audioManagerThread",1*1024/4,NULL,1,NULL);
+	xTaskCreate(hlo_app_audio_recorder_task,"audioRecorderThread",1*1024/4,NULL,4,NULL);
+	//end todo
 	if( on_charger ) {
 		launch_tasks();
 	} else {
