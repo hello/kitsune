@@ -228,7 +228,9 @@ int spi_read( int * len, unsigned char * buf ) {
 			}
 		}
 		if(i==ctx.len) {
+			xSemaphoreGive(_spi_smphr );
 			spi_reset();
+			xSemaphoreTake(_spi_smphr, portMAX_DELAY);
 		}
 	}else{
 		spi_read_step(0, buf);
@@ -260,19 +262,26 @@ int Cmd_spi_write(int argc, char *argv[]) {
 	return SUCCESS;
 }
 
+static xQueueHandle pb_proc_q = NULL;
+static xTaskHandle pb_proc_task = NULL;
+
 extern volatile bool booted;
 typedef struct {
 	int len;
 	unsigned char buf[];
 } pb_task_params;
 void task_process_pb(void* params) {
-	pb_task_params * p = (pb_task_params*)params;
-	on_morpheus_protobuf_arrival(p->buf, p->len);
-	vPortFree(p);
+	pb_task_params * p = NULL;
+	while( xQueueReceive(pb_proc_q, &p, 0 ) ) {
+		on_morpheus_protobuf_arrival(p->buf, p->len);
+		vPortFree(p);
+	}
+	pb_proc_task = NULL;
 	vTaskDelete(NULL);
 }
 
 int Cmd_spi_read(int argc, char *argv[]) {
+#define MAX_PB_QUEUED 32
 #define SPI_BUFSZ 256
 	pb_task_params *p = pvPortMalloc(sizeof(pb_task_params)+SPI_BUFSZ);
 	assert(p);
@@ -286,12 +295,20 @@ int Cmd_spi_read(int argc, char *argv[]) {
 	}
 	LOGI( "\r\n" );
 #endif
+	if( !pb_proc_q ) {
+		pb_proc_q = xQueueCreate(MAX_PB_QUEUED, sizeof(pb_task_params*));
+		assert(pb_proc_q);
+	}
 
 	if( p->len ) {
-		xTaskCreate(task_process_pb, "task_process_pb", 3*1024 / 4, p, 4, NULL); //this one doesn't look like much, but has to parse all the pb from bluetooth
+		p = pvPortRealloc( p, sizeof(pb_task_params)+p->len+1 );
+		xQueueSend(pb_proc_q, (void* )&p, portMAX_DELAY);
+		if( pb_proc_task == NULL ) {
+			xTaskCreate(task_process_pb, "task_process_pb", 3*1024 / 4, p, 4, &pb_proc_task); //this one doesn't look like much, but has to parse all the pb from bluetooth
+			assert(pb_proc_task);
+		}
 	} else {
 		vPortFree(p);
 	}
 	return SUCCESS;
-
 }
