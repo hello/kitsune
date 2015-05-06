@@ -17,7 +17,7 @@ static struct{
 	xSemaphoreHandle mic_client_lock;	//for open close and write operations
 	hlo_stream_t * mic_clients[NUM_MAX_MIC_CHANNELS];
 	xSemaphoreHandle speaker_lock;
-	hlo_stream_t * speaker_clients[NUM_MAX_PlAYBACK_CHANNELS];
+	hlo_stream_t * speaker_sources[NUM_MAX_PlAYBACK_CHANNELS];
 }self;
 
 void hlo_audio_manager_init(void){
@@ -37,11 +37,11 @@ int hlo_set_playback_stream(int channel, hlo_stream_t * src){
 		return -1;
 	}
 	xSemaphoreTake(self.speaker_lock, portMAX_DELAY);
-	if(self.speaker_clients[channel]){
+	if(self.speaker_sources[channel]){
 		//already has a stream, what do?
-		hlo_stream_close(self.speaker_clients[channel]);
+		hlo_stream_close(self.speaker_sources[channel]);
 	}
-	self.speaker_clients[channel] = src;
+	self.speaker_sources[channel] = src;
 	xSemaphoreGive(self.speaker_lock);
 	return 0;
 }
@@ -135,13 +135,13 @@ void hlo_audio_manager_thread(void * data){
 		xSemaphoreTake(self.speaker_lock, portMAX_DELAY);
 		memset(master_buffer, 0, sizeof(master_buffer));
 		for(i = 0; i < NUM_MAX_PlAYBACK_CHANNELS; i++){
-			if(self.speaker_clients[i]){
-				int read = hlo_stream_read(self.speaker_clients[i], tmp, sizeof(tmp));
+			if(self.speaker_sources[i]){
+				int read = hlo_stream_read(self.speaker_sources[i], tmp, sizeof(tmp));
 				if(read > 0){
 					mix16(tmp, master_buffer, read);
 				}else if(read < 0){
-					hlo_stream_close(self.speaker_clients[i]);
-					self.speaker_clients[i] = NULL;
+					hlo_stream_close(self.speaker_sources[i]);
+					self.speaker_sources[i] = NULL;
 				}
 			}
 		}
