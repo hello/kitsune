@@ -10,7 +10,7 @@ void hlo_audio_manager_init(void);
 void hlo_audio_manager_thread(void * data);
 ////---------------------------------
 // Playback multiplexer
-#define NUM_MAX_PlAYBACK_CHANNELS 1
+#define NUM_MAX_PlAYBACK_CHANNELS 2
 
 int hlo_set_playback_stream(int channel, hlo_stream_t * src);
 int hlo_fade_channel(int channel);

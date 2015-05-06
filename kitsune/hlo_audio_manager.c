@@ -15,15 +15,37 @@ static struct{
 	hlo_stream_t * master;
 	xSemaphoreHandle mic_client_lock;	//for open close and write operations
 	hlo_stream_t * mic_clients[NUM_MAX_MIC_CHANNELS];
+	xSemaphoreHandle speaker_lock;
+	hlo_stream_t * speaker_clients[NUM_MAX_PlAYBACK_CHANNELS];
 }self;
 
 void hlo_audio_manager_init(void){
-	self.master = hlo_audio_open_mono(48000,44,HLO_AUDIO_RECORD);
+	//self.master = hlo_audio_open_mono(48000,44,HLO_AUDIO_RECORD);
+	self.master = hlo_audio_open_mono(48000,44,HLO_AUDIO_PLAYBACK);
 	vSemaphoreCreateBinary(self.mic_client_lock);
+	vSemaphoreCreateBinary(self.speaker_lock);
 	assert(self.master);
 	assert(self.mic_client_lock);
+	assert(self.speaker_lock);
 
 }
+////-----------------------------------------------------------
+//Playback streams
+int hlo_set_playback_stream(int channel, hlo_stream_t * src){
+	if(channel >= NUM_MAX_PlAYBACK_CHANNELS){
+		return -1;
+	}
+	xSemaphoreTake(self.speaker_lock, portMAX_DELAY);
+	if(self.speaker_clients[channel]){
+		//already has a stream, what do?
+		hlo_stream_close(self.speaker_clients[channel]);
+	}
+	self.speaker_clients[channel] = src;
+	xSemaphoreGive(self.speaker_lock);
+	return 0;
+}
+////-----------------------------------------------------------
+//Mic Stream implementation
 static int copy_from_master(void * ctx, const void * buf, size_t size){
 	mic_client_t * client = (mic_client_t*)ctx;
 	size_t remain = GetBufferEmptySize(client->buf);
@@ -83,16 +105,54 @@ hlo_stream_t * hlo_open_mic_stream(size_t buffer_size, size_t opt_water_mark){
 	return NULL;
 
 }
+void mix16(uint8_t * src, uint8_t * dst, size_t size){
+	int16_t * src16 = (int16_t *)src;
+	int16_t * dst16 = (int16_t *)dst;
+	int size_to_transfer = size /2;
+	int i;
+	for(i = 0; i < size_to_transfer; i++){
+		if(src16[i] < 0 && dst16[i] < 0){
+			dst16[i] = (src16[i] + dst16[i]) - (int16_t)( (int32_t)src16[i] * (int32_t)dst16[i] / INT16_MIN );
+		}else if(src16[i] > 0 && dst16[i] > 0){
+			dst16[i] = (src16[i] + dst16[i]) - (int16_t)( (int32_t)src16[i] * (int32_t)dst16[i] / INT16_MAX );
+		}else{
+			dst16[i] = src16[i] + dst16[i];
+		}
+	}
+}
+////-----------------------------------------------------------
+//Thread
+static uint8_t tmp[512];
 void hlo_audio_manager_thread(void * data){
 	uint8_t master_buffer[512];
 	while(1){
+		int i;
+
 		//playback task
-		//todo impl
-		//mic task
+		//first mix in the samples
+		xSemaphoreTake(self.speaker_lock, portMAX_DELAY);
+		memset(master_buffer, 0, sizeof(master_buffer));
+		for(i = 0; i < NUM_MAX_PlAYBACK_CHANNELS; i++){
+			if(self.speaker_clients[i]){
+				int read = hlo_stream_read(self.speaker_clients[i], tmp, sizeof(tmp));
+				if(read > 0){
+					mix16(tmp, master_buffer, read);
+				}else if(read < 0){
+					hlo_stream_close(self.speaker_clients[i]);
+					self.speaker_clients[i] = NULL;
+				}
+			}
+		}
+		xSemaphoreGive(self.speaker_lock);
+		//then dump to audio buffer
+		while(0 == hlo_stream_write(self.master, master_buffer, sizeof(master_buffer))){
+			vTaskDelay(2);
+		}
+
+		//record task
 		int mic_in_bytes = hlo_stream_read(self.master,master_buffer,sizeof(master_buffer));
 		if(mic_in_bytes > 0){
-			//dispatch to clients, todo thread safety
-			int i;
+			xSemaphoreTake(self.mic_client_lock, portMAX_DELAY);
 			for(i = 0; i < NUM_MAX_MIC_CHANNELS; i++){
 				if(self.mic_clients[i]){
 					int res = hlo_stream_write(self.mic_clients[i], master_buffer, sizeof(master_buffer));
@@ -103,8 +163,9 @@ void hlo_audio_manager_thread(void * data){
 					}
 				}
 			}
+			xSemaphoreGive(self.mic_client_lock);
 		}else if(mic_in_bytes < 0){
-			LOGE("An error has occured in reading mic data, %d\r\n", mic_in_bytes);
+			//LOGE("An error has occured in reading mic data, %d\r\n", mic_in_bytes);
 		}
 		vTaskDelay(2);
 	}
