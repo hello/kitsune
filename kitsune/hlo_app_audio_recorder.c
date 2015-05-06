@@ -28,8 +28,8 @@ void hlo_app_audio_recorder_task(void * data){
 					hlo_stream_close(fs);
 				}
 			}
-			while( (res = hlo_stream_read(mic,NULL, CHUNK)) > 0){
-				//just burning off the most recent buffer
+			if(hlo_stream_transfer_all(FROM_STREAM,mic,NULL,CHUNK,4) < 0){
+				//handle error
 			}
 			break;
 		case RECORDER_RECORDING:
@@ -41,17 +41,17 @@ void hlo_app_audio_recorder_task(void * data){
 				hello_fs_unlink("rec.raw");
 				fs = fs_stream_open("rec.raw",HLO_STREAM_WRITE);
 			}
-			res = hlo_stream_transfer_all(FROM_STREAM,mic,chunk,CHUNK,4);
-			if(res < 0){
-				//handle error;
-			}else if(fs){
-				res = hlo_stream_transfer_all(INTO_STREAM, fs, chunk, CHUNK, 4);
-				if(res < 0){
+			if( hlo_stream_transfer_all(FROM_STREAM,mic,chunk,CHUNK,4) > 0 ){
+				if(hlo_stream_transfer_all(INTO_STREAM, fs, chunk, CHUNK, 4) > 0){
+
+				}else{
 					hello_fs_close(fs);
 					fs = NULL;
 					//try to stop
 					next_status = RECORDER_STOPPED;
 				}
+			}else{
+				//handle error
 			}
 			break;
 		case RECORDER_PLAYBACK:
