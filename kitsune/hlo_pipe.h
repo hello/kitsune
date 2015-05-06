@@ -1,5 +1,6 @@
 /*
- * Interface for pipe that connect streams
+ * Pipe are a set of functions
+ * that provide blocking behavior for streams
  */
 
 #ifndef HLO_PIPE_H
@@ -17,11 +18,14 @@ typedef struct{
 
 hlo_pipe_t * hlo_pipe_new(hlo_stream_t * from, hlo_stream_t * to, uint32_t buf_size, uint32_t opt_poll_delay);
 
+
+// blocks the caller thread
 int hlo_pipe_run(hlo_pipe_t * pipe);
 
 void hlo_pipe_destroy(hlo_pipe_t * pipe);
 
-//helper api to transfer all as indicated by buf_size
+////----------------------
+// helper api for a blocking transfer between a stream and a buffer.
 typedef enum{
 	INTO_STREAM = 0,
 	FROM_STREAM,
