@@ -3,30 +3,11 @@
 #include "uart_logger.h"
 
 static int pipe_transfer_step(hlo_pipe_t * pipe, uint8_t * buf){
-	int read = 0;
-	int idx = 0;
-	while(read == 0){
-		read = hlo_stream_read(pipe->from, buf, pipe->buf_size);
-		if(read < 0){
-				return read;
-		}else if(read == 0){
-			vTaskDelay((TickType_t)pipe->poll_delay);
-		}
+	int ret = hlo_stream_transfer_all(FROM_STREAM, pipe->from,buf, pipe->buf_size, pipe->poll_delay);
+	if(ret < 0){
+		return ret;
 	}
-	while(idx < read){
-		int ret = hlo_stream_write(pipe->to, buf+idx, read - idx);
-		if(ret < 0){
-			return ret;
-		}else{
-			idx += ret;
-			if(idx == read){
-				break;
-			}
-			//TODO either poll on consumer or delay
-			vTaskDelay((TickType_t)pipe->poll_delay);
-		}
-	}
-	return 0;
+	return hlo_stream_write_all(INTO_STREAM, pipe->to, buf, pipe->buf_size, pipe->poll_delay);
 }
 
 hlo_pipe_t * hlo_pipe_new(hlo_stream_t * from, hlo_stream_t * to, uint32_t buf_size, uint32_t opt_poll_delay){
@@ -66,4 +47,29 @@ void hlo_pipe_destroy(hlo_pipe_t * pipe){
 	hlo_stream_close(pipe->from);
 	hlo_stream_close(pipe->to);
 	vPortFree(pipe);
+}
+
+int hlo_stream_transfer_all(transfer_direction direction,
+							hlo_stream_t * stream,
+							uint8_t * buf,
+							uint32_t buf_size,
+							uint32_t transfer_delay){
+	int ret, idx = 0;
+	while(idx < buf_size){
+		if(direction == INTO_STREAM){
+			ret = hlo_stream_write(stream, buf+idx, buf_size - idx);
+		}else{
+			ret = hlo_stream_read(stream, buf+idx, buf_size - idx);
+		}
+
+		if(ret < 0){
+			return ret;
+		}else{
+			idx += ret;
+			if(idx == buf_size){
+				return buf_size;
+			}
+			vTaskDelay(transfer_delay);
+		}
+	}
 }
