@@ -23,16 +23,21 @@ void hlo_app_audio_recorder_task(void * data){
 		int res;
 		switch(my_status){
 		case RECORDER_STOPPED:
-			 hlo_stream_read(mic,NULL,CHUNK);
+			while( (res = hlo_stream_read(mic,NULL, CHUNK)) > 0){
+				//just burning off the most recent buffer
+			}
 			break;
 		case RECORDER_RECORDING:
+			DISP("rec.\r");
+			if(last_status != RECORDER_RECORDING){
+				if(fs){
+					hlo_stream_close(fs);
+				}
+				hello_fs_unlink("rec.raw");
+				fs = fs_stream_open("rec.raw",HLO_STREAM_WRITE);
+			}
 			while( (res = hlo_stream_read(mic,chunk, CHUNK)) > 0){
-				DISP("rec.\r");
-				if(fs && last_status != RECORDER_RECORDING){
-					//on transition
-					hello_fs_unlink("rec.raw");
-					fs = fs_stream_open("rec.raw",HLO_STREAM_WRITE);
-				}else if(fs){
+				if(fs){
 					hlo_stream_write(fs,chunk,res);
 				}
 			}
@@ -40,6 +45,7 @@ void hlo_app_audio_recorder_task(void * data){
 		case RECORDER_PLAYBACK:
 			if(fs && last_status != RECORDER_PLAYBACK){
 				//on transition
+				hlo_stream_close(fs);
 				fs = fs_stream_open("rec.raw",HLO_STREAM_READ);
 				hlo_set_playback_stream(1,fs);
 			}
