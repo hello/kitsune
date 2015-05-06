@@ -8,7 +8,7 @@ typedef enum{
 	RECORDER_RECORDING = 1,
 	RECORDER_PLAYBACK = 2,
 }recorder_status;
-static recorder_status status;
+static recorder_status next_status;
 
 
 #define CHUNK 512
@@ -19,7 +19,7 @@ void hlo_app_audio_recorder_task(void * data){
 	recorder_status last_status = RECORDER_STOPPED;
 	assert(mic);
 	while(1){
-		recorder_status my_status = status;
+		recorder_status my_status = next_status;
 		int res;
 		switch(my_status){
 		case RECORDER_STOPPED:
@@ -41,9 +41,16 @@ void hlo_app_audio_recorder_task(void * data){
 				hello_fs_unlink("rec.raw");
 				fs = fs_stream_open("rec.raw",HLO_STREAM_WRITE);
 			}
-			while( (res = hlo_stream_read(mic,chunk, CHUNK)) > 0){
-				if(fs){
-					hlo_stream_write(fs,chunk,res);
+			res = hlo_stream_transfer_all(FROM_STREAM,mic,chunk,CHUNK,4);
+			if(res < 0){
+				//handle error;
+			}else if(fs){
+				res = hlo_stream_transfer_all(INTO_STREAM, fs, chunk, CHUNK, 4);
+				if(res < 0){
+					hello_fs_close(fs);
+					fs = NULL;
+					//try to stop
+					next_status = RECORDER_STOPPED;
 				}
 			}
 			break;
@@ -55,7 +62,6 @@ void hlo_app_audio_recorder_task(void * data){
 				if(fs){
 					hlo_set_playback_stream(1,fs);
 				}
-
 			}
 			break;
 		}
@@ -66,13 +72,13 @@ void hlo_app_audio_recorder_task(void * data){
 
 
 void hlo_app_audio_recorder_start(const char * location){
-	status = RECORDER_RECORDING;
+	next_status = RECORDER_RECORDING;
 }
 void hlo_app_audio_recorder_stop(void){
-	status = RECORDER_STOPPED;
+	next_status = RECORDER_STOPPED;
 }
 void hlo_app_audio_recorder_replay(void){
-	status = RECORDER_PLAYBACK;
+	next_status = RECORDER_PLAYBACK;
 }
 ////-----------------------------------------
 //commands
