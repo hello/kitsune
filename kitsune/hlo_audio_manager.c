@@ -9,6 +9,7 @@
 typedef struct{
 	tCircularBuffer * buf;
 	size_t water_mark;
+	uint8_t always_on;	//if set, fills buffer even when speaker is playing
 }mic_client_t;
 
 static struct{
@@ -20,8 +21,8 @@ static struct{
 }self;
 
 void hlo_audio_manager_init(void){
-	//self.master = hlo_audio_open_mono(48000,44,HLO_AUDIO_RECORD);
-	self.master = hlo_audio_open_mono(48000,44,HLO_AUDIO_PLAYBACK);
+	self.master = hlo_audio_open_mono(48000,44,HLO_AUDIO_RECORD);
+	//self.master = hlo_audio_open_mono(48000,44,HLO_AUDIO_PLAYBACK);
 	vSemaphoreCreateBinary(self.mic_client_lock);
 	vSemaphoreCreateBinary(self.speaker_lock);
 	assert(self.master);
@@ -77,7 +78,7 @@ static int close_client(void * ctx){
 	vPortFree(client);
 	return 0;
 }
-hlo_stream_t * hlo_open_mic_stream(size_t buffer_size, size_t opt_water_mark){
+hlo_stream_t * hlo_open_mic_stream(size_t buffer_size, size_t opt_water_mark, uint8_t opt_always_on){
 	hlo_stream_vftbl_t tbl = {
 			.write = copy_from_master,
 			.read = copy_to_client,
@@ -95,6 +96,7 @@ hlo_stream_t * hlo_open_mic_stream(size_t buffer_size, size_t opt_water_mark){
 			assert(client->buf);
 
 			client->water_mark = opt_water_mark;
+			client->always_on = opt_always_on;
 
 			self.mic_clients[i] = hlo_stream_new(&tbl,client,HLO_STREAM_READ);
 			xSemaphoreGive(self.mic_client_lock);
