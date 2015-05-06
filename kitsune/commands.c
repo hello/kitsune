@@ -1772,7 +1772,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "fsdl", Cmd_fs_delete, "" },
 
 		{ "r", Cmd_app_record_start,""}, //record sounds into SD card
-		{ "p", Cmd_play_buff, ""},//play sounds from SD card
+		{ "p", Cmd_app_record_replay, ""},//play sounds from SD card
 		{ "s",Cmd_app_record_stop,""},
 		{ "oct",Cmd_do_octogram,""},
 		{ "getoct",Cmd_get_octogram,""},

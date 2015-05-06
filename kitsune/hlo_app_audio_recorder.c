@@ -68,6 +68,7 @@ void hlo_app_audio_recorder_task(void * data){
 		last_status = my_status;
 		vTaskDelay(4);
 	}
+	close(mic);
 }
 
 
@@ -89,6 +90,11 @@ int Cmd_app_record_start(int argc, char *argv[]){
 }
 int Cmd_app_record_stop(int argc, char *argv[]){
 	hlo_app_audio_recorder_stop();
+	return 0;
+
+}
+int Cmd_app_record_replay(int argc, char *argv[]){
+	hlo_app_audio_recorder_replay();
 	return 0;
 
 }

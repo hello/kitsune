@@ -1,6 +1,7 @@
 #ifndef HLO_APP_AUDIO_RECORDER_H
 #define HLO_APP_AUDIO_RECORDER_H
-//an audio recorder app, plays back the last clip
+//an audio recorder app
+//that demonstrates how to record and playback audio
 void hlo_app_audio_recorder_task(void * data);
 
 void hlo_app_audio_recorder_start(const char * location);
