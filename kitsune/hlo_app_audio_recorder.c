@@ -2,6 +2,8 @@
 #include "hlo_audio_manager.h"
 #include "task.h"
 #include "kit_assert.h"
+#include "hellofilesystem.h"
+#include "hlo_pipe.h"
 
 typedef enum{
 	RECORDER_STOPPED = 0,
@@ -13,14 +15,13 @@ static recorder_status next_status;
 
 #define CHUNK 512
 void hlo_app_audio_recorder_task(void * data){
-	hlo_stream_t * mic = hlo_open_mic_stream(2*CHUNK,CHUNK);
+	hlo_stream_t * mic = hlo_open_mic_stream(2*CHUNK,CHUNK,0);
 	uint8_t chunk[512];
 	hlo_stream_t * fs = NULL;
 	recorder_status last_status = RECORDER_STOPPED;
 	assert(mic);
 	while(1){
 		recorder_status my_status = next_status;
-		int res;
 		switch(my_status){
 		case RECORDER_STOPPED:
 			if(last_status != RECORDER_STOPPED){
@@ -45,7 +46,7 @@ void hlo_app_audio_recorder_task(void * data){
 				if(hlo_stream_transfer_all(INTO_STREAM, fs, chunk, CHUNK, 4) > 0){
 
 				}else{
-					hello_fs_close(fs);
+					hlo_stream_close(fs);
 					fs = NULL;
 					//try to stop
 					next_status = RECORDER_STOPPED;
@@ -68,7 +69,7 @@ void hlo_app_audio_recorder_task(void * data){
 		last_status = my_status;
 		vTaskDelay(4);
 	}
-	close(mic);
+	hlo_stream_close(mic);
 }
 
 

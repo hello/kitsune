@@ -24,6 +24,6 @@ int hlo_fade_channel(int channel);
  * opt_water_mark will make the read operation return 0 if it hasn't reached
  * leave it as 0 for no watermark.
  */
-hlo_stream_t * hlo_open_mic_stream(size_t buffer_size, size_t opt_water_mark);
+hlo_stream_t * hlo_open_mic_stream(size_t buffer_size, size_t opt_water_mark, uint8_t opt_always_on);
 
 #endif

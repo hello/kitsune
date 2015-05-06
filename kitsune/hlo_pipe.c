@@ -7,7 +7,7 @@ static int pipe_transfer_step(hlo_pipe_t * pipe, uint8_t * buf){
 	if(ret < 0){
 		return ret;
 	}
-	return hlo_stream_write_all(INTO_STREAM, pipe->to, buf, pipe->buf_size, pipe->poll_delay);
+	return hlo_stream_transfer_all(INTO_STREAM, pipe->to, buf, pipe->buf_size, pipe->poll_delay);
 }
 
 hlo_pipe_t * hlo_pipe_new(hlo_stream_t * from, hlo_stream_t * to, uint32_t buf_size, uint32_t opt_poll_delay){
@@ -72,4 +72,5 @@ int hlo_stream_transfer_all(transfer_direction direction,
 			vTaskDelay(transfer_delay);
 		}
 	}
+	return buf_size;
 }
