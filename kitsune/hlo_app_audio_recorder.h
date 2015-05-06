@@ -1,11 +1,11 @@
 #ifndef HLO_APP_AUDIO_RECORDER_H
 #define HLO_APP_AUDIO_RECORDER_H
-//an audio recording app
-//todo make it queue based
+//an audio recorder app, plays back the last clip
 void hlo_app_audio_recorder_task(void * data);
 
 void hlo_app_audio_recorder_start(const char * location);
 void hlo_app_audio_recorder_stop(void);
+void hlo_app_audio_recorder_replay(void);
 
 //uart commands
 int Cmd_app_record_start(int argc, char *argv[]);
