@@ -23,6 +23,11 @@ void hlo_app_audio_recorder_task(void * data){
 		int res;
 		switch(my_status){
 		case RECORDER_STOPPED:
+			if(last_status != RECORDER_STOPPED){
+				if(fs){
+					hlo_stream_close(fs);
+				}
+			}
 			while( (res = hlo_stream_read(mic,NULL, CHUNK)) > 0){
 				//just burning off the most recent buffer
 			}
@@ -47,7 +52,10 @@ void hlo_app_audio_recorder_task(void * data){
 				//on transition
 				hlo_stream_close(fs);
 				fs = fs_stream_open("rec.raw",HLO_STREAM_READ);
-				hlo_set_playback_stream(1,fs);
+				if(fs){
+					hlo_set_playback_stream(1,fs);
+				}
+
 			}
 			break;
 		}
