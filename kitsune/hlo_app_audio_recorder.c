@@ -27,6 +27,7 @@ void hlo_app_audio_recorder_task(void * data){
 			if(last_status != RECORDER_STOPPED){
 				if(fs){
 					hlo_stream_close(fs);
+					fs = NULL;
 				}
 			}
 			if(hlo_stream_transfer_all(FROM_STREAM,mic,NULL,CHUNK,4) < 0){
@@ -44,7 +45,7 @@ void hlo_app_audio_recorder_task(void * data){
 			}
 			if( hlo_stream_transfer_all(FROM_STREAM,mic,chunk,CHUNK,4) > 0 ){
 				if(hlo_stream_transfer_all(INTO_STREAM, fs, chunk, CHUNK, 4) > 0){
-
+					DISP("rec.\r");
 				}else{
 					hlo_stream_close(fs);
 					fs = NULL;
@@ -58,7 +59,9 @@ void hlo_app_audio_recorder_task(void * data){
 		case RECORDER_PLAYBACK:
 			if(fs && last_status != RECORDER_PLAYBACK){
 				//on transition
-				hlo_stream_close(fs);
+				if(fs){
+					hlo_stream_close(fs);
+				}
 				fs = fs_stream_open("rec.raw",HLO_STREAM_READ);
 				if(fs){
 					hlo_set_playback_stream(1,fs);

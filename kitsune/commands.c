@@ -1641,7 +1641,7 @@ void launch_tasks() {
 
 	//xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,1,NULL);
 	UARTprintf("*");
-	//xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 4, NULL);
+	xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 4, NULL);
 	UARTprintf("*");
 	xTaskCreate(FileUploaderTask_Thread,"fileUploadTask",1*1024/4,NULL,1,NULL);
 #ifdef BUILD_SERVERS //todo PVT disable!
@@ -1979,7 +1979,8 @@ void vUARTTask(void *pvParameters) {
 
 	//todo put them in launch tasks
 	hlo_audio_manager_init();
-	xTaskCreate(hlo_audio_manager_thread,"audioManagerThread",1*512/4,NULL,1,NULL);
+	xTaskCreate(hlo_audio_manager_spkr_thread,"audioManagerThreadSpkr",1*1536/4,NULL,1,NULL);
+	xTaskCreate(hlo_audio_manager_mic_thread,"audioManagerThreadMic",1*1024/4,NULL,1,NULL);
 	xTaskCreate(hlo_app_audio_recorder_task,"audioRecorderThread",1*1024/4,NULL,4,NULL);
 	//end todo
 	if( on_charger ) {

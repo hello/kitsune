@@ -43,12 +43,12 @@ uint8_t InitAudioDuplex(uint32_t rate){
 	get_codec_io_NAU();
 	AudioCapturerInit(0, rate); //always dma
 	UDMAInit();
-	UDMAChannelSelect(UDMA_CH4_I2S_RX|UDMA_CH5_I2S_TX, NULL);
+	UDMAChannelSelect(UDMA_CH4_I2S_RX, NULL);
+	UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL);
 	SetupPingPongDMATransferTx();
 	SetupPingPongDMATransferRx();
 	AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
 	AudioCaptureRendererConfigure(I2S_PORT_DMA, rate);
-	Audio_Start();
 	return 1;
 }
 void DeInitAudioDuplex(){

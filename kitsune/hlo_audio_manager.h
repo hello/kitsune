@@ -7,7 +7,8 @@
  */
 
 void hlo_audio_manager_init(void);
-void hlo_audio_manager_thread(void * data);
+void hlo_audio_manager_spkr_thread(void * data);
+void hlo_audio_manager_mic_thread(void * data);
 ////---------------------------------
 // Playback multiplexer
 #define NUM_MAX_PlAYBACK_CHANNELS 2

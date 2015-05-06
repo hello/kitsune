@@ -2,6 +2,7 @@
 #include "hlo_audio.h"
 #include "kit_assert.h"
 #include "circ_buff.h"
+#include "hlo_pipe.h"
 #include <string.h>
 
 #define min(a,b) ((a)<(b)?(a):(b))  /**< Find the minimum of 2 numbers. */
@@ -21,8 +22,8 @@ static struct{
 }self;
 
 void hlo_audio_manager_init(void){
-	self.master = hlo_audio_open_mono(48000,44,HLO_AUDIO_RECORD);
-	//self.master = hlo_audio_open_mono(48000,44,HLO_AUDIO_PLAYBACK);
+	//self.master = hlo_audio_open_mono(48000,44,HLO_AUDIO_RECORD);
+	self.master = hlo_audio_open_mono(48000,44, HLO_AUDIO_RECORD|HLO_AUDIO_PLAYBACK);
 	vSemaphoreCreateBinary(self.mic_client_lock);
 	vSemaphoreCreateBinary(self.speaker_lock);
 	assert(self.master);
@@ -124,19 +125,21 @@ void mix16(uint8_t * src, uint8_t * dst, size_t size){
 }
 ////-----------------------------------------------------------
 //Thread
-static uint8_t tmp[512];
-static uint8_t master_buffer[512];
-void hlo_audio_manager_thread(void * data){
+
+#define TMP_SIZE (sizeof(master_buffer)/2)
+void hlo_audio_manager_spkr_thread(void * data){
+	uint8_t master_buffer[1024];
+	uint8_t * tmp = master_buffer + TMP_SIZE;
+
 	while(1){
 		int i;
-
+		memset(master_buffer, 0, sizeof(master_buffer));
 		//playback task
 		//first mix in the samples
 		xSemaphoreTake(self.speaker_lock, portMAX_DELAY);
-		memset(master_buffer, 0, sizeof(master_buffer));
 		for(i = 0; i < NUM_MAX_PlAYBACK_CHANNELS; i++){
 			if(self.speaker_sources[i]){
-				int read = hlo_stream_read(self.speaker_sources[i], tmp, sizeof(tmp));
+				int read = hlo_stream_read(self.speaker_sources[i], tmp, TMP_SIZE);
 				if(read > 0){
 					mix16(tmp, master_buffer, read);
 				}else if(read < 0){
@@ -147,13 +150,18 @@ void hlo_audio_manager_thread(void * data){
 		}
 		xSemaphoreGive(self.speaker_lock);
 		//then dump to audio buffer
-		while(0 == hlo_stream_write(self.master, master_buffer, sizeof(master_buffer))){
-			vTaskDelay(2);
+		if(hlo_stream_transfer_all(INTO_STREAM, self.master,master_buffer,TMP_SIZE,2) < 0){
+			//handle error;
 		}
-
-		//record task
-		int mic_in_bytes = hlo_stream_read(self.master,master_buffer,sizeof(master_buffer));
-		if(mic_in_bytes > 0){
+	}
+}
+void hlo_audio_manager_mic_thread(void * data){
+	uint8_t master_buffer[512];
+	int i;
+	while(1){
+		if(hlo_stream_transfer_all(FROM_STREAM,self.master,master_buffer,sizeof(master_buffer),2) < 0){
+			//handle error
+		}else{
 			xSemaphoreTake(self.mic_client_lock, portMAX_DELAY);
 			for(i = 0; i < NUM_MAX_MIC_CHANNELS; i++){
 				if(self.mic_clients[i]){
@@ -166,10 +174,7 @@ void hlo_audio_manager_thread(void * data){
 				}
 			}
 			xSemaphoreGive(self.mic_client_lock);
-		}else if(mic_in_bytes < 0){
-			//LOGE("An error has occured in reading mic data, %d\r\n", mic_in_bytes);
 		}
-		vTaskDelay(2);
 	}
 }
 

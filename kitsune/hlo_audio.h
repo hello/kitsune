@@ -2,7 +2,10 @@
 #define HLO_AUDIO
 #include "hlo_stream.h"
 
-
+/**
+ * driver for audio
+ * do not access the stream directly, use hlo_audio_manager instead.
+ */
 #define HLO_AUDIO_PLAYBACK 	HLO_STREAM_WRITE
 #define HLO_AUDIO_RECORD	HLO_STREAM_READ
 
