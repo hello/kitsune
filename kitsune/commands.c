@@ -1954,7 +1954,7 @@ void vUARTTask(void *pvParameters) {
 	SetupGPIOInterrupts();
 	CreateDefaultDirectories();
 
-	//xTaskCreate(AudioTask_Thread,"audioTask",2560/4,NULL,4,NULL);
+	xTaskCreate(AudioTask_Thread,"audioTask",2560/4,NULL,4,NULL);
 	UARTprintf("*");
 	init_download_task( 1024 / 4 );
 	networktask_init(4 * 1024 / 4);
@@ -1979,7 +1979,7 @@ void vUARTTask(void *pvParameters) {
 
 	//todo put them in launch tasks
 	hlo_audio_manager_init();
-	xTaskCreate(hlo_audio_manager_thread,"audioManagerThread",1*1024/4,NULL,1,NULL);
+	xTaskCreate(hlo_audio_manager_thread,"audioManagerThread",1*512/4,NULL,1,NULL);
 	xTaskCreate(hlo_app_audio_recorder_task,"audioRecorderThread",1*1024/4,NULL,4,NULL);
 	//end todo
 	if( on_charger ) {

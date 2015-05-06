@@ -123,8 +123,8 @@ void mix16(uint8_t * src, uint8_t * dst, size_t size){
 ////-----------------------------------------------------------
 //Thread
 static uint8_t tmp[512];
+static uint8_t master_buffer[512];
 void hlo_audio_manager_thread(void * data){
-	uint8_t master_buffer[512];
 	while(1){
 		int i;
 
