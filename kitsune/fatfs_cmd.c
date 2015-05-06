@@ -414,15 +414,20 @@ Cmd_cat(int argc, char *argv[])
 
     int ret = -2;
     global_filename( argv[1] );
-    src = fs_stream_open(path_buff,HLO_STREAM_READ);
+    //src = fs_stream_open(path_buff,HLO_STREAM_READ);
     if(argc > 2){
     	global_filename( argv[2] );
-    	dst = fs_stream_open(path_buff, HLO_STREAM_WRITE);
+    	src =fs_stream_open(path_buff, HLO_STREAM_READ);
+    	dst =hlo_audio_open_mono(48000,44,HLO_AUDIO_PLAYBACK);
     }else{
     	DISP("using uart pipe");
     	//dst = uart_stream();
-    	src = random_stream_open();
-    	dst = hlo_audio_open_mono(48000,54,HLO_AUDIO_PLAYBACK);
+    	//src = random_stream_open();
+    	//dst = hlo_audio_open_mono(48000,44,HLO_AUDIO_PLAYBACK);
+    	hlo_set_playback_stream(0,fs_stream_open("/RINGTONE/ORG002.raw", HLO_STREAM_READ) );
+    	hlo_set_playback_stream(1,fs_stream_open("/RINGTONE/NEW006.raw", HLO_STREAM_READ) );
+    	//hlo_set_playback_stream(1,random_stream_open());
+    	return 0;
     }
     if(!src || !dst){
     	goto exit;
