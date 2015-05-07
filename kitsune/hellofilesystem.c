@@ -158,6 +158,7 @@ FRESULT hello_fs_append(const char* file_name, const unsigned char* content, int
 #include <string.h>
 typedef struct{
 	FIL f;
+	int32_t limit;
 	char fname[64];
 }fs_stream_t;
 
@@ -184,6 +185,23 @@ static int fs_read(void * ctx, void * buf, size_t size){
 		return HLO_STREAM_ERROR;
 	}
 	return read;
+}
+static int fs_read_with_replay(void * ctx, void * buf, size_t size){
+	int ret = fs_read(ctx, buf, size);
+	if(ret == HLO_STREAM_EOF){
+		fs_stream_t * fs = (fs_stream_t*)ctx;
+		if(fs->limit != 0){
+			if(fs->limit > 0){
+				fs->limit--;
+			}
+			if(FR_OK == hello_fs_lseek(&fs->f,0)){
+				return fs_read(ctx, buf, size);
+			}else{//unable to rewind
+				return HLO_STREAM_ERROR;
+			}
+		}
+	}
+	return ret;
 }
 static int fs_close(void * ctx){
 	fs_stream_t * fs = (fs_stream_t*)ctx;
@@ -231,4 +249,13 @@ fail:
 		return NULL;
 	}
 
+}
+hlo_stream_t * fs_stream_open_media(const char * filepath, int32_t replay){
+	hlo_stream_t * ret =  fs_stream_open(filepath, HLO_STREAM_READ);
+	if(ret){
+		fs_stream_t * fs = (fs_stream_t *)ret->ctx;
+		fs->limit = replay;
+		ret->impl.read = fs_read_with_replay;
+	}
+	return ret;
 }
