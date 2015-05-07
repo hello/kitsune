@@ -1981,7 +1981,6 @@ void vUARTTask(void *pvParameters) {
 	hlo_audio_manager_init();
 	xTaskCreate(hlo_audio_manager_spkr_thread,"audioManagerThreadSpkr",1*1536/4,NULL,1,NULL);
 	xTaskCreate(hlo_audio_manager_mic_thread,"audioManagerThreadMic",1*1024/4,NULL,1,NULL);
-	xTaskCreate(hlo_app_audio_recorder_task,"audioRecorderThread",1*1024/4,NULL,4,NULL);
 	//end todo
 	if( on_charger ) {
 		launch_tasks();
