@@ -273,7 +273,7 @@ hlo_stream_t * fs_stream_open_media(const char * filepath, int32_t replay){
 	}
 	return ret;
 }
-hlo_stream_t * fs_stream_open_wbuf(const char * filepath, int32_t limit){
+hlo_stream_t * fs_stream_open_wlimit(const char * filepath, int32_t limit){
 	hlo_stream_t * ret =  fs_stream_open(filepath, HLO_STREAM_WRITE);
 	if(ret){
 		fs_stream_t * fs = (fs_stream_t *)ret->ctx;
