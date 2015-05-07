@@ -14,7 +14,7 @@ void hlo_audio_manager_mic_thread(void * data);
 #define NUM_MAX_PlAYBACK_CHANNELS 2
 
 int hlo_set_playback_stream(int channel, hlo_stream_t * src);
-int hlo_fade_channel(int channel);
+int hlo_close_channel(int channel);
 
 
 ////---------------------------------
