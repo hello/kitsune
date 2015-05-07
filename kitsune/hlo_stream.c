@@ -49,23 +49,32 @@ int hlo_stream_close(hlo_stream_t * stream){
 	ret = stream->impl.close(stream->ctx);
 	UNLOCK(stream);
 	if(ret == 0){
-		vPortFree(stream);
+		vSemaphoreDelete(stream->info.lock);
+		if(stream->info.allocated){
+			//this frees the stream if it's created by new
+			//it'll skip if it's part of another object.
+			vPortFree(stream->info.allocated);
+		}
 	}
 	return ret;
 }
-
+void hlo_stream_init(hlo_stream_t * stream,
+		const hlo_stream_vftbl_t * impl,
+		void * ctx,
+		uint32_t options){
+	memset(stream, 0, sizeof(hlo_stream_t));
+	stream->ctx = ctx;
+	stream->impl = *impl;
+	stream->info.options = options;
+	vSemaphoreCreateBinary(ret->info.lock);
+	assert(stream->info.lock);
+}
 hlo_stream_t * hlo_stream_new(const hlo_stream_vftbl_t * impl, void * ctx, uint32_t options){
 	hlo_stream_t * ret  = pvPortMalloc(sizeof(hlo_stream_t));
 
 	assert(ret);
-
-	memset(ret, 0, sizeof(*ret));
-	ret->ctx = ctx;
-	ret->impl = *impl;
-	ret->info.options = options;
-	vSemaphoreCreateBinary(ret->info.lock);
-
-	assert(ret->info.lock);
+	hlo_stream_init(ret, impl, ctx, options);
+	ret->info.allocated = ret;
 
 	return ret;
 }

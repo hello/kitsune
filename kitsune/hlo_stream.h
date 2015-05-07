@@ -27,6 +27,7 @@ typedef struct hlo_stream_info_t{
 	uint32_t bytes_read;
 	uint32_t options;
 	xSemaphoreHandle lock;
+	void * allocated;
 }hlo_stream_info_t;
 
 
@@ -56,7 +57,16 @@ int hlo_stream_read(hlo_stream_t * stream, void * buf, size_t size);
 
 int hlo_stream_close(hlo_stream_t * stream);
 
-//implementation specific, do not call this directly
+//Initializes a stream memory region.
+//do not use in conjunction with new.
+//use this to initialize statically allocated streams.
+void hlo_stream_init(hlo_stream_t * stream,
+		const hlo_stream_vftbl_t * impl,
+		void * ctx,
+		uint32_t options);
+
+//Allocates and initializes a stream.
+//do not use in conjunction with init.
 hlo_stream_t * hlo_stream_new(const hlo_stream_vftbl_t * impl, void * ctx, uint32_t options);
 
 int Cmd_make_stream(int argc, char *argv[]);
