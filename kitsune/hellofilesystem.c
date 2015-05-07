@@ -159,7 +159,6 @@ FRESULT hello_fs_append(const char* file_name, const unsigned char* content, int
 typedef struct{
 	FIL f;
 	int32_t limit;
-	char fname[64];
 }fs_stream_t;
 
 static int fs_write(void * ctx, const void * buf, size_t size){
