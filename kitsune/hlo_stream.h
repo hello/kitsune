@@ -25,6 +25,8 @@
 typedef struct hlo_stream_info_t{
 	uint32_t bytes_written;
 	uint32_t bytes_read;
+	uint32_t write_limit;
+	uint32_t read_limit;
 	uint32_t options;
 	xSemaphoreHandle lock;
 }hlo_stream_info_t;
@@ -49,10 +51,6 @@ void hlo_stream_info(const hlo_stream_t * stream);
 int hlo_stream_write(hlo_stream_t * stream, void * buf, size_t size);
 int hlo_stream_read(hlo_stream_t * stream, void * buf, size_t size);
 
-
-//blocking pair
-//int hlo_stream_write_blocking(hlo_stream_t * stream, void * buf, size_t size);
-//int hlo_stream_read_blocking(hlo_stream_t * stream, void * buf, size_t size);
 
 int hlo_stream_close(hlo_stream_t * stream);
 
