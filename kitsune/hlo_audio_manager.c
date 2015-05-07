@@ -168,6 +168,7 @@ void hlo_audio_manager_mic_thread(void * data){
 					int res = hlo_stream_write(self.mic_clients[i], master_buffer, sizeof(master_buffer));
 					if(res ==  0){
 						//handle buffer overflow
+						LOGE("Mic Data overflow for client %d\r\n", i);
 					}else if(res < 0){
 						//this shouldn't happen
 					}

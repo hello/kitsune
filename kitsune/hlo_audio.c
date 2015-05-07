@@ -69,7 +69,7 @@ static int _close_record(void * ctx){
 	return 0;
 }
 //assumes to have at least 4 bytes
-static inline int i2s_to_i16(const uint8_t * buf){
+static inline int16_t i2s_to_i16(const uint8_t * buf){
 	int16_t * buf16 = (int16_t *)buf;
 	return ((buf16[1] << 8) | (buf16[1] >> 8));
 }

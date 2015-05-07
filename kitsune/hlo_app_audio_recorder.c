@@ -57,14 +57,17 @@ void hlo_app_audio_recorder_task(void * data){
 			}
 			break;
 		case RECORDER_PLAYBACK:
-			if(fs && last_status != RECORDER_PLAYBACK){
+			if(last_status != RECORDER_PLAYBACK){
 				//on transition
 				if(fs){
 					hlo_stream_close(fs);
 				}
 				fs = fs_stream_open("rec.raw",HLO_STREAM_READ);
 				if(fs){
+					DISP("Playing back record\r\n");
 					hlo_set_playback_stream(1,fs);
+				}else{
+					LOGE("Unable to open record for playback\r\n");
 				}
 			}
 			break;
@@ -77,12 +80,15 @@ void hlo_app_audio_recorder_task(void * data){
 
 
 void hlo_app_audio_recorder_start(const char * location){
+	DISP("Recorder record\r\n");
 	next_status = RECORDER_RECORDING;
 }
 void hlo_app_audio_recorder_stop(void){
+	DISP("Recorder stop\r\n");
 	next_status = RECORDER_STOPPED;
 }
 void hlo_app_audio_recorder_replay(void){
+	DISP("Recorder playback\r\n");
 	next_status = RECORDER_PLAYBACK;
 }
 ////-----------------------------------------
