@@ -531,16 +531,8 @@ static void _free_pb(const NetworkResponse_t * response, char * reply_buf, int r
 
 }
 static int _send_pb_async( const pb_field_t fields[], void * structdata, NetworkResponseCallback_t func, void * data) {
-	async_context_t * ctx  = pvPortMalloc(sizeof(async_context_t));
-	assert(ctx);
-	memset(ctx, 0, sizeof(async_context_t));
-	if (data) {
-		ctx->buffer = data;
-	}
-    ctx->structdata = structdata;
-
 	return NetworkTask_SendProtobuf(false, DATA_SERVER, SENSE_LOG_ENDPOINT,
-			fields, structdata, 0, func, ctx);
+			fields, structdata, 0, func, data);
 }
 
 int analytics_event( const char *pcString, ...) {
@@ -570,7 +562,13 @@ int analytics_event( const char *pcString, ...) {
 	log->has_property = true;
 	log->property = LogType_KEY_VALUE;
 
-    return _send_pb_async(sense_log_fields, log, _free_pb, ctx.ptr);
+	async_context_t * async_ctx  = pvPortMalloc(sizeof(async_context_t));
+	assert(async_ctx);
+	memset(async_ctx, 0, sizeof(async_context_t));
+	async_ctx->buffer = ctx.ptr;
+	async_ctx->structdata = log;
+
+    return _send_pb_async(sense_log_fields, log, _free_pb, async_ctx);
 }
 
 void uart_logc(uint8_t c){
