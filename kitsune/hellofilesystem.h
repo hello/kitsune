@@ -26,9 +26,13 @@ FRESULT hello_fs_rename (const char*, const char*);        /* Rename/Move a file
 FRESULT hello_fs_mkfs (BYTE, BYTE, BYTE);                    /* Create a file system on the drive */
 FRESULT hello_fs_append(const char* file_name, const unsigned char* content, int length);
 
-//read only implementation for now
+//opens a generic file stream, better to use specialized streams below
 hlo_stream_t * fs_stream_open(const char * filepath, uint32_t options);
+
+//opens a streaming file stream that loops back $replay times
 hlo_stream_t * fs_stream_open_media(const char * filepath, int32_t replay);
+
+//opens a file stream that rewinds to the beginning, and has a file size limit;
 hlo_stream_t * fs_stream_open_wbuf(const char * filepath, int32_t limit);
 #endif //_HELLOFILESYSTEM_H_
 
