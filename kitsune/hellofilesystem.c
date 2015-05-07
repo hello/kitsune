@@ -221,14 +221,15 @@ static int fs_close(void * ctx){
 	return 0;
 }
 
-static hlo_stream_vftbl_t fs_stream_impl = {
-		.write = fs_write,
-		.read = fs_read,
-		.close = fs_close
-};
+
 
 hlo_stream_t * fs_stream_open(const char * path, uint32_t options){
 	fs_stream_t * fs = pvPortMalloc(sizeof(fs_stream_t));
+	hlo_stream_vftbl_t fs_stream_impl = {
+			.write = fs_write,
+			.read = fs_read,
+			.close = fs_close
+	};
 	if(fs){
 		FRESULT res;
 		memset(fs, 0, sizeof(*fs));
@@ -239,10 +240,12 @@ hlo_stream_t * fs_stream_open(const char * path, uint32_t options){
 		strcpy(fs->fname,path);
 		switch(options){
 		case HLO_STREAM_WRITE:
+			fs_stream_impl.write = NULL;
 			res = hello_fs_open(&fs->f, path, FA_WRITE|FA_OPEN_ALWAYS);
 			//todo fseek to end
 			break;
 		case HLO_STREAM_READ:
+			fs_stream_impl.read = NULL;
 			res = hello_fs_open(&fs->f, path, FA_READ);
 			break;
 		case HLO_STREAM_READ_WRITE:
