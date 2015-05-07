@@ -857,8 +857,6 @@ void thread_fast_i2c_poll(void * unused)  {
 		int prox=0;
 
 		if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
-			vTaskDelay(2);
-			light = led_is_idle(0) ? get_light() : light;
 			vTaskDelay(2); //this is important! If we don't do it, then the prox will stretch the clock!
 
 			// For the black morpheus, we can detect 6mm distance max
@@ -888,8 +886,15 @@ void thread_fast_i2c_poll(void * unused)  {
 				break;
 			}
 
-			if (++counter > 10) {
+			if (++counter >= 10) {
 				counter = 0;
+
+				if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
+					vTaskDelay(2);
+					light = led_is_idle(0) ? get_light() : light;
+					xSemaphoreGive(i2c_smphr);
+				}
+
 
 				if (xSemaphoreTake(light_smphr, portMAX_DELAY)) {
 					light_log_sum += bitlog(light);
