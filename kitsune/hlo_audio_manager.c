@@ -52,9 +52,12 @@ int hlo_set_playback_stream(int channel, hlo_stream_t * src){
 static int copy_from_master(void * ctx, const void * buf, size_t size){
 	mic_client_t * client = (mic_client_t*)ctx;
 	size_t remain = GetBufferEmptySize(client->buf);
-	int bytes_to_fill = min(remain, size);
-	FillBuffer(client->buf, (uint8_t*)buf, bytes_to_fill);
-	return bytes_to_fill;
+	if(remain < size){
+		int diff = size - remain;
+		UpdateReadPtr(client->buf, diff);
+	}
+	FillBuffer(client->buf, (uint8_t*)buf, size);
+	return size;
 }
 static int copy_to_client(void * ctx, void * buf, size_t size){
 	mic_client_t * client = (mic_client_t*)ctx;
@@ -74,12 +77,10 @@ static int copy_to_client(void * ctx, void * buf, size_t size){
 	}
 }
 static int close_client(void * ctx){
-	xSemaphoreTake(self.mic_client_lock, portMAX_DELAY);
 	mic_client_t * client = (mic_client_t*)ctx;
 	self.mic_clients[client->parent_idx] = NULL;
 	DestroyCircularBuffer(client->buf);
 	vPortFree(client);
-	xSemaphoreGive(self.mic_client_lock);
 	return 0;
 }
 hlo_stream_t * hlo_open_mic_stream(size_t buffer_size, size_t opt_water_mark, uint8_t opt_always_on){
