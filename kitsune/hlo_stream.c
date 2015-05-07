@@ -19,8 +19,8 @@ void hlo_stream_info(const hlo_stream_t * stream){
 int hlo_stream_write(hlo_stream_t * stream, void * buf, size_t size){
 	assert(stream);
 	HAS_IMPL_OR_FAIL(stream,write);
-	int ret = stream->impl.write(stream->ctx, buf, size);
 	LOCK(stream);
+	int ret = stream->impl.write(stream->ctx, buf, size);
 	if(ret > 0){
 		stream->info.bytes_written += ret;
 	}
@@ -31,8 +31,8 @@ int hlo_stream_write(hlo_stream_t * stream, void * buf, size_t size){
 int hlo_stream_read(hlo_stream_t * stream, void * buf, size_t size){
 	assert(stream);
 	HAS_IMPL_OR_FAIL(stream,read);
-	int ret = stream->impl.read(stream->ctx, buf, size);
 	LOCK(stream);
+	int ret = stream->impl.read(stream->ctx, buf, size);
 	if(ret > 0){
 		stream->info.bytes_read += ret;
 	}
@@ -45,8 +45,9 @@ int hlo_stream_close(hlo_stream_t * stream){
 
 	assert(stream);
 	HAS_IMPL_OR_FAIL(stream,close);
-
+	LOCK(stream);
 	ret = stream->impl.close(stream->ctx);
+	UNLOCK(stream);
 	if(ret == 0){
 		vPortFree(stream);
 	}
