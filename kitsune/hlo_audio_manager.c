@@ -11,6 +11,7 @@ typedef struct{
 	tCircularBuffer * buf;
 	size_t water_mark;
 	uint8_t always_on;	//if set, fills buffer even when speaker is playing
+	uint8_t parent_idx;
 }mic_client_t;
 
 static struct{
@@ -73,10 +74,12 @@ static int copy_to_client(void * ctx, void * buf, size_t size){
 	}
 }
 static int close_client(void * ctx){
-	//todo thread safety although processing app shouldn't really close this at all
+	xSemaphoreTake(self.mic_client_lock, portMAX_DELAY);
 	mic_client_t * client = (mic_client_t*)ctx;
+	self.mic_clients[client->parent_idx] = NULL;
 	DestroyCircularBuffer(client->buf);
 	vPortFree(client);
+	xSemaphoreGive(self.mic_client_lock);
 	return 0;
 }
 hlo_stream_t * hlo_open_mic_stream(size_t buffer_size, size_t opt_water_mark, uint8_t opt_always_on){
@@ -98,6 +101,7 @@ hlo_stream_t * hlo_open_mic_stream(size_t buffer_size, size_t opt_water_mark, ui
 
 			client->water_mark = opt_water_mark;
 			client->always_on = opt_always_on;
+			client->parent_idx = i;
 
 			self.mic_clients[i] = hlo_stream_new(&tbl,client,HLO_STREAM_READ);
 			xSemaphoreGive(self.mic_client_lock);
