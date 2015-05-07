@@ -38,7 +38,6 @@ exit_mic:
 	hlo_stream_close(mic);
 exit_fail:
 	DISP("Recorder Task Finished %d\r\n", ret);
-	//vTaskDelete(NULL);
 }
 
 ////-----------------------------------------
