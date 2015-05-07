@@ -5,106 +5,54 @@
 #include "hellofilesystem.h"
 #include "hlo_pipe.h"
 
-typedef enum{
-	RECORDER_STOPPED = 0,
-	RECORDER_RECORDING = 1,
-	RECORDER_PLAYBACK = 2,
-}recorder_status;
-static recorder_status next_status;
 
 
-#define CHUNK 512
+#define CHUNK_SIZE 512
 void hlo_app_audio_recorder_task(void * data){
-	hlo_stream_t * mic = hlo_open_mic_stream(2*CHUNK,CHUNK,0);
-	uint8_t chunk[512];
-	hlo_stream_t * fs = NULL;
-	recorder_status last_status = RECORDER_STOPPED;
-	assert(mic);
+	int ret;
+	uint8_t chunk[CHUNK_SIZE];
+	hlo_stream_t * mic = hlo_open_mic_stream(2*CHUNK_SIZE,CHUNK_SIZE,0);
+
+	if(!mic){
+		goto exit_fail;
+	}
+	hlo_stream_t * fs = fs_stream_open_wbuf((char*)data, 48000 * 6); //max six seconds of audio
+	if(!fs){
+		goto exit_mic;
+	}
 	while(1){
-		recorder_status my_status = next_status;
-		switch(my_status){
-		case RECORDER_STOPPED:
-			if(last_status != RECORDER_STOPPED){
-				if(fs){
-					hlo_stream_close(fs);
-					fs = NULL;
-				}
-			}
-			if(hlo_stream_transfer_all(FROM_STREAM,mic,NULL,CHUNK,4) < 0){
-				//handle error
-			}
-			break;
-		case RECORDER_RECORDING:
-			DISP("rec.\r");
-			if(last_status != RECORDER_RECORDING){
-				if(fs){
-					hlo_stream_close(fs);
-				}
-				hello_fs_unlink("rec.raw");
-				fs = fs_stream_open("rec.raw",HLO_STREAM_WRITE);
-			}
-			if( hlo_stream_transfer_all(FROM_STREAM,mic,chunk,CHUNK,4) > 0 ){
-				if(hlo_stream_transfer_all(INTO_STREAM, fs, chunk, CHUNK, 4) > 0){
-					DISP("rec.\r");
-				}else{
-					hlo_stream_close(fs);
-					fs = NULL;
-					//try to stop
-					next_status = RECORDER_STOPPED;
-				}
+		if( (ret = hlo_stream_transfer_all(FROM_STREAM,mic,chunk, sizeof(chunk), 4)) > 0){
+			if( (ret = hlo_stream_transfer_all(INTO_STREAM,fs,chunk, sizeof(chunk),4)) > 0){
+				//ok
 			}else{
-				//handle error
+				break;
 			}
-			break;
-		case RECORDER_PLAYBACK:
-			if(last_status != RECORDER_PLAYBACK){
-				//on transition
-				if(fs){
-					hlo_stream_close(fs);
-				}
-				fs = fs_stream_open("rec.raw",HLO_STREAM_READ);
-				if(fs){
-					DISP("Playing back record\r\n");
-					hlo_set_playback_stream(1,fs);
-				}else{
-					LOGE("Unable to open record for playback\r\n");
-				}
-			}
+		}else{
 			break;
 		}
-		last_status = my_status;
-		vTaskDelay(4);
 	}
+	hlo_stream_close(fs);
+exit_mic:
 	hlo_stream_close(mic);
+exit_fail:
+	DISP("Recorder Task Finished %d\r\n", ret);
+	vTaskDelete(NULL);
 }
 
-
-void hlo_app_audio_recorder_start(const char * location){
-	DISP("Recorder record\r\n");
-	next_status = RECORDER_RECORDING;
-}
-void hlo_app_audio_recorder_stop(void){
-	DISP("Recorder stop\r\n");
-	next_status = RECORDER_STOPPED;
-}
-void hlo_app_audio_recorder_replay(void){
-	DISP("Recorder playback\r\n");
-	next_status = RECORDER_PLAYBACK;
-}
 ////-----------------------------------------
 //commands
 
 int Cmd_app_record_start(int argc, char *argv[]){
-	hlo_app_audio_recorder_start("");
+	hlo_app_audio_recorder_task("");
 	return 0;
 }
 int Cmd_app_record_stop(int argc, char *argv[]){
-	hlo_app_audio_recorder_stop();
+
 	return 0;
 
 }
 int Cmd_app_record_replay(int argc, char *argv[]){
-	hlo_app_audio_recorder_replay();
+
 	return 0;
 
 }
