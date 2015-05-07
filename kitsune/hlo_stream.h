@@ -25,8 +25,6 @@
 typedef struct hlo_stream_info_t{
 	uint32_t bytes_written;
 	uint32_t bytes_read;
-	uint32_t write_limit;
-	uint32_t read_limit;
 	uint32_t options;
 	xSemaphoreHandle lock;
 }hlo_stream_info_t;
