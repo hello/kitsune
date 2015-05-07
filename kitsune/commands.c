@@ -94,7 +94,7 @@
 #include "pill_settings.h"
 #include "prox_signal.h"
 #include "hlo_audio_manager.h"
-#include "hlo_app_audio_recorder.h"
+#include "hlo_app_audio_tools.h"
 #define ONLY_MID 0
 
 //******************************************************************************

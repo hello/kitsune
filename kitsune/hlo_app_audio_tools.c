@@ -1,4 +1,4 @@
-#include "hlo_app_audio_recorder.h"
+#include "hlo_app_audio_tools.h"
 #include "hlo_audio_manager.h"
 #include "task.h"
 #include "kit_assert.h"
@@ -8,6 +8,7 @@
 
 
 #define CHUNK_SIZE 512
+static int sig = 0;
 void hlo_app_audio_recorder_task(void * data){
 	int ret;
 	uint8_t chunk[CHUNK_SIZE];
@@ -25,7 +26,9 @@ void hlo_app_audio_recorder_task(void * data){
 	while(1){
 		if( (ret = hlo_stream_transfer_all(FROM_STREAM,mic,chunk, sizeof(chunk), 4)) > 0){
 			if( (ret = hlo_stream_transfer_all(INTO_STREAM,fs,chunk, sizeof(chunk),4)) > 0){
-				//ok
+				if(sig){
+					break;
+				}
 			}else{
 				break;
 			}
@@ -40,20 +43,25 @@ exit_fail:
 	DISP("Recorder Task Finished %d\r\n", ret);
 }
 
+
+
+void hlo_app_audio_playback_task(void * data){
+
+}
 ////-----------------------------------------
 //commands
 
 int Cmd_app_record_start(int argc, char *argv[]){
+	sig = 0;
 	hlo_app_audio_recorder_task("rec.raw");
 	return 0;
 }
 int Cmd_app_record_stop(int argc, char *argv[]){
-
+	sig = 1;
 	return 0;
 
 }
 int Cmd_app_record_replay(int argc, char *argv[]){
-
 	return 0;
-
 }
+
