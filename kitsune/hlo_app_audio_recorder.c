@@ -14,10 +14,12 @@ void hlo_app_audio_recorder_task(void * data){
 	hlo_stream_t * mic = hlo_open_mic_stream(2*CHUNK_SIZE,CHUNK_SIZE,0);
 
 	if(!mic){
+		DISP("Unable to open mic\r\n");
 		goto exit_fail;
 	}
-	hlo_stream_t * fs = fs_stream_open_wbuf((char*)data, 48000 * 6); //max six seconds of audio
+	hlo_stream_t * fs = fs_stream_open_wlimit((char*)data, 48000 * 6); //max six seconds of audio
 	if(!fs){
+		DISP("Unable to open wbuffer\r\n");
 		goto exit_mic;
 	}
 	while(1){
@@ -36,14 +38,14 @@ exit_mic:
 	hlo_stream_close(mic);
 exit_fail:
 	DISP("Recorder Task Finished %d\r\n", ret);
-	vTaskDelete(NULL);
+	//vTaskDelete(NULL);
 }
 
 ////-----------------------------------------
 //commands
 
 int Cmd_app_record_start(int argc, char *argv[]){
-	hlo_app_audio_recorder_task("");
+	hlo_app_audio_recorder_task("rec.raw");
 	return 0;
 }
 int Cmd_app_record_stop(int argc, char *argv[]){
