@@ -1034,7 +1034,6 @@ int start_connection() {
         LOGI("Socket create failed %d\n\r", sock);
         return -1;
     }
-    LOGI("Socket created\n\r");
 
 #if !LOCAL_TEST
     if (ipaddr == 0) {
