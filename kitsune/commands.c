@@ -1495,7 +1495,7 @@ void SetupGPIOInterrupts() {
 void thread_spi(void * data) {
 	Cmd_spi_read(0, 0);
 	while(1) {
-		if (xSemaphoreTake(spi_smphr, 1000) ) {
+		if (xSemaphoreTake(spi_smphr, 10000) ) {
 			Cmd_spi_read(0, 0);
 			MAP_GPIOIntEnable(GPIO_PORT,GSPI_INT_PIN);
 		} else {
