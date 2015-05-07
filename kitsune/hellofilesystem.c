@@ -232,11 +232,6 @@ hlo_stream_t * fs_stream_open(const char * path, uint32_t options){
 	if(fs){
 		FRESULT res;
 		memset(fs, 0, sizeof(*fs));
-		//file name to long maybe
-		if(strlen(path) >= sizeof(fs->fname)){
-			goto fail;
-		}
-		strcpy(fs->fname,path);
 		switch(options){
 		case HLO_STREAM_WRITE:
 			fs_stream_impl.write = NULL;

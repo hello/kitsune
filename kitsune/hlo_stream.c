@@ -62,7 +62,7 @@ void hlo_stream_init(hlo_stream_t * stream,
 	stream->ctx = ctx;
 	stream->impl = *impl;
 	stream->info.options = options;
-	vSemaphoreCreateBinary(ret->info.lock);
+	vSemaphoreCreateBinary(stream->info.lock);
 	assert(stream->info.lock);
 }
 hlo_stream_t * hlo_stream_new(const hlo_stream_vftbl_t * impl, void * ctx, uint32_t options){
