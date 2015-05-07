@@ -33,6 +33,6 @@ hlo_stream_t * fs_stream_open(const char * filepath, uint32_t options);
 hlo_stream_t * fs_stream_open_media(const char * filepath, int32_t replay);
 
 //opens a file stream that rewinds to the beginning, and has a file size limit;
-hlo_stream_t * fs_stream_open_wbuf(const char * filepath, int32_t limit);
+hlo_stream_t * fs_stream_open_wlimit(const char * filepath, int32_t limit);
 #endif //_HELLOFILESYSTEM_H_
 
