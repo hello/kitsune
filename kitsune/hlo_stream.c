@@ -50,11 +50,7 @@ int hlo_stream_close(hlo_stream_t * stream){
 	UNLOCK(stream);
 	if(ret == 0){
 		vSemaphoreDelete(stream->info.lock);
-		if(stream->info.allocated){
-			//this frees the stream if it's created by new
-			//it'll skip if it's part of another object.
-			vPortFree(stream->info.allocated);
-		}
+		vPortFree(stream);
 	}
 	return ret;
 }
@@ -74,7 +70,6 @@ hlo_stream_t * hlo_stream_new(const hlo_stream_vftbl_t * impl, void * ctx, uint3
 
 	assert(ret);
 	hlo_stream_init(ret, impl, ctx, options);
-	ret->info.allocated = ret;
 
 	return ret;
 }

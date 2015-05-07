@@ -27,7 +27,6 @@ typedef struct hlo_stream_info_t{
 	uint32_t bytes_read;
 	uint32_t options;
 	xSemaphoreHandle lock;
-	void * allocated;
 }hlo_stream_info_t;
 
 
