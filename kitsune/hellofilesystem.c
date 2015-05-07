@@ -241,8 +241,14 @@ hlo_stream_t * fs_stream_open(const char * path, uint32_t options){
 		switch(options){
 		case HLO_STREAM_WRITE:
 			fs_stream_impl.write = NULL;
-			res = hello_fs_open(&fs->f, path, FA_WRITE|FA_OPEN_ALWAYS);
-			//todo fseek to end
+			if(FR_OK == (res = hello_fs_open(&fs->f, path, FA_WRITE|FA_OPEN_ALWAYS))){
+				FILINFO info = {0};
+				if(FR_OK == (res = hello_fs_stat(path,&info))){
+					if(info.fsize > 0){
+						hello_fs_lseek(&fs->f,info.fsize);
+					}
+				}
+			}
 			break;
 		case HLO_STREAM_READ:
 			fs_stream_impl.read = NULL;
