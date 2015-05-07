@@ -28,6 +28,7 @@ FRESULT hello_fs_append(const char* file_name, const unsigned char* content, int
 
 //read only implementation for now
 hlo_stream_t * fs_stream_open(const char * filepath, uint32_t options);
-hlo_stream_t * fs_stream_open_media(const char * filepath, uint32_t replay);
+hlo_stream_t * fs_stream_open_media(const char * filepath, int32_t replay);
+hlo_stream_t * fs_stream_open_wbuf(const char * filepath, int32_t limit);
 #endif //_HELLOFILESYSTEM_H_
 

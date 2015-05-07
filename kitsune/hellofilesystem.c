@@ -172,6 +172,17 @@ static int fs_write(void * ctx, const void * buf, size_t size){
 	}
 	return (int)size_to_write;
 }
+static int fs_write_with_limit(void * ctx, const void * buf, size_t size){
+	int ret = fs_write(ctx, buf, size);
+	if(ret > 0){
+		fs_stream_t * fs = (fs_stream_t*)ctx;
+		fs->limit -= ret;
+		if(fs->limit <= 0){
+			return HLO_STREAM_EOF;
+		}
+	}
+	return ret;
+}
 
 static int fs_read(void * ctx, void * buf, size_t size){
 	fs_stream_t * fs = (fs_stream_t*)ctx;
@@ -256,6 +267,19 @@ hlo_stream_t * fs_stream_open_media(const char * filepath, int32_t replay){
 		fs_stream_t * fs = (fs_stream_t *)ret->ctx;
 		fs->limit = replay;
 		ret->impl.read = fs_read_with_replay;
+	}
+	return ret;
+}
+hlo_stream_t * fs_stream_open_wbuf(const char * filepath, int32_t limit){
+	hlo_stream_t * ret =  fs_stream_open(filepath, HLO_STREAM_WRITE);
+	if(ret){
+		fs_stream_t * fs = (fs_stream_t *)ret->ctx;
+		if(FR_OK != hello_fs_lseek(&fs->f,0)){
+			hlo_stream_close(ret);
+			return NULL;
+		}
+		fs->limit = limit;
+		ret->impl.write = fs_write_with_limit;
 	}
 	return ret;
 }
