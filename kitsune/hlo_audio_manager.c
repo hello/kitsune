@@ -14,6 +14,12 @@ typedef struct{
 	uint8_t parent_idx;
 }mic_client_t;
 
+typedef struct{
+	tCircularBuffer * buf;
+	size_t water_mark;
+	uint8_t parent_idx;
+}spkr_client_t;
+
 static struct{
 	hlo_stream_t * master;
 	xSemaphoreHandle mic_client_lock;	//for open close and write operations
@@ -49,7 +55,7 @@ int hlo_set_playback_stream(int channel, hlo_stream_t * src){
 }
 ////-----------------------------------------------------------
 //Mic Stream implementation
-static int copy_from_master(void * ctx, const void * buf, size_t size){
+static int copy_from_mic_master(void * ctx, const void * buf, size_t size){
 	mic_client_t * client = (mic_client_t*)ctx;
 	size_t remain = GetBufferEmptySize(client->buf);
 	if(remain < size){
@@ -59,7 +65,7 @@ static int copy_from_master(void * ctx, const void * buf, size_t size){
 	FillBuffer(client->buf, (uint8_t*)buf, size);
 	return size;
 }
-static int copy_to_client(void * ctx, void * buf, size_t size){
+static int copy_to_mic_client(void * ctx, void * buf, size_t size){
 	mic_client_t * client = (mic_client_t*)ctx;
 	size_t filled = GetBufferSize(client->buf);
 	if(client->water_mark && filled < client->water_mark){
@@ -76,18 +82,20 @@ static int copy_to_client(void * ctx, void * buf, size_t size){
 		return bytes_to_fill;
 	}
 }
-static int close_client(void * ctx){
+static int close_mic_client(void * ctx){
+	xSemaphoreTake(self.mic_client_lock, portMAX_DELAY);
 	mic_client_t * client = (mic_client_t*)ctx;
 	self.mic_clients[client->parent_idx] = NULL;
 	DestroyCircularBuffer(client->buf);
 	vPortFree(client);
+	xSemaphoreGive(self.mic_client_lock);
 	return 0;
 }
 hlo_stream_t * hlo_open_mic_stream(size_t buffer_size, size_t opt_water_mark, uint8_t opt_always_on){
 	hlo_stream_vftbl_t tbl = {
-			.write = copy_from_master,
-			.read = copy_to_client,
-			.close = close_client,
+			.write = copy_from_mic_master,
+			.read = copy_to_mic_client,
+			.close = close_mic_client,
 	};
 	xSemaphoreTake(self.mic_client_lock, portMAX_DELAY);
 	int i;
@@ -111,6 +119,87 @@ hlo_stream_t * hlo_open_mic_stream(size_t buffer_size, size_t opt_water_mark, ui
 	}
 	xSemaphoreGive(self.mic_client_lock);
 	return NULL;
+
+}
+////-----------------------------------------------------------
+//Speaker Stream implementation
+#if DIRECT_SPEAKER_ACCESS == 1
+static int speaker_proxy_write(void * ctx, const void * buf, size_t size){
+	hlo_stream_t * master = (hlo_stream_t*)ctx;
+	return hlo_stream_write(master,buf,size);
+}
+#else
+//internal impl, copies as much as possible
+static int spkr_client_write(void * ctx, const void * buf, size_t size){
+	spkr_client_t * client = (spkr_client_t*)ctx;
+	int remain = GetBufferEmptySize(client->buf);
+	if(remain >= client->water_mark){
+		int bytes_to_fill = min(remain, size);
+		FillBuffer(client->buf, (uint8_t*)buf, bytes_to_fill);
+		return bytes_to_fill;
+	}else{
+		return 0;
+	}
+}
+static int read_spkr_client_buffer(void * ctx, void * buf, size_t size){
+	spkr_client_t * client = (spkr_client_t*)ctx;
+	int rem = min( (GetBufferSize(client->buf)), size);
+	if(rem > 0){
+		ReadBuffer(client->buf, (uint8_t*)buf, rem);
+		return rem;
+	}else{
+		return 0;
+	}
+}
+static int close_spkr_client(void * ctx){
+	spkr_client_t * client = (spkr_client_t*)ctx;
+	xSemaphoreTake(self.speaker_lock, portMAX_DELAY);
+	self.speaker_sources[client->parent_idx] = NULL;
+	DestroyCircularBuffer(client->buf);
+	vPortFree(client);
+	xSemaphoreGive(self.speaker_lock);
+	return 0;
+
+}
+#endif
+hlo_stream_t * hlo_open_spkr_stream(size_t buffer_size, size_t opt_water_mark){
+#if DIRECT_SPEAKER_ACCESS == 1
+	static hlo_stream_t * spkr_proxy;
+	if(!spkr_proxy){
+		hlo_stream_vftbl_t tbl = {
+			.write = speaker_proxy_write,
+			.read = NULL,//you can not read from proxy
+			.close = NULL,//you can not close a proxy
+		};
+		spkr_proxy = hlo_stream_new(&tbl,self.master,HLO_STREAM_WRITE);
+	}
+	return spkr_proxy;
+#else
+	int i;
+	hlo_stream_vftbl_t tbl = {
+				.write = spkr_client_write,
+				.read = read_spkr_client_buffer,
+				.close = close_spkr_client,
+		};
+	xSemaphoreTake(self.speaker_lock, portMAX_DELAY);
+	for(i = 0; i < NUM_MAX_PlAYBACK_CHANNELS; i++){
+		if(!self.speaker_sources[i]){
+			spkr_client_t * client = pvPortMalloc(sizeof(spkr_client_t));
+			assert(client);
+			memset(client, 0, sizeof(spkr_client_t));
+			client->buf = CreateCircularBuffer(buffer_size);
+			assert(client->buf);
+			client->water_mark = opt_water_mark;
+			client->parent_idx = i;
+
+			self.speaker_sources[i] = hlo_stream_new(&tbl, client, HLO_STREAM_WRITE);
+			xSemaphoreGive(self.speaker_lock);
+			return self.speaker_sources[i];
+		}
+	}
+	xSemaphoreGive(self.speaker_lock);
+	return NULL;
+#endif
 
 }
 void mix16(uint8_t * src, uint8_t * dst, size_t size){
@@ -137,6 +226,9 @@ void hlo_audio_manager_spkr_thread(void * data){
 	uint8_t * tmp = master_buffer + TMP_SIZE;
 
 	while(1){
+#if DIRECT_SPEAKER_ACCESS == 1
+		vTaskDelay(100);
+#else
 		int i;
 		memset(master_buffer, 0, sizeof(master_buffer));
 		//playback task
@@ -148,8 +240,7 @@ void hlo_audio_manager_spkr_thread(void * data){
 				if(read > 0){
 					mix16(tmp, master_buffer, read);
 				}else if(read < 0){
-					hlo_stream_close(self.speaker_sources[i]);
-					self.speaker_sources[i] = NULL;
+					//has error
 				}
 			}
 		}
@@ -158,6 +249,7 @@ void hlo_audio_manager_spkr_thread(void * data){
 		if(hlo_stream_transfer_all(INTO_STREAM, self.master,master_buffer,TMP_SIZE,2) < 0){
 			//handle error;
 		}
+#endif
 	}
 }
 void hlo_audio_manager_mic_thread(void * data){

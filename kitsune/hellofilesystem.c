@@ -205,13 +205,13 @@ static int fs_read_with_replay(void * ctx, void * buf, size_t size){
 				fs->limit--;
 			}
 			if(FR_OK == hello_fs_lseek(&fs->f,0)){
-				return fs_read(ctx, buf, size);
-			}else{//unable to rewind
-				return HLO_STREAM_ERROR;
+				fs_read(ctx, buf, size);
+				return size;
 			}
 		}
+		return HLO_STREAM_ERROR;
 	}
-	return ret;
+	return size;
 }
 static int fs_close(void * ctx){
 	fs_stream_t * fs = (fs_stream_t*)ctx;
@@ -234,7 +234,7 @@ hlo_stream_t * fs_stream_open(const char * path, uint32_t options){
 		memset(fs, 0, sizeof(*fs));
 		switch(options){
 		case HLO_STREAM_WRITE:
-			fs_stream_impl.write = NULL;
+			fs_stream_impl.read = NULL;
 			if(FR_OK == (res = hello_fs_open(&fs->f, path, FA_WRITE|FA_OPEN_ALWAYS))){
 				FILINFO info = {0};
 				if(FR_OK == (res = hello_fs_stat(path,&info))){
@@ -245,7 +245,7 @@ hlo_stream_t * fs_stream_open(const char * path, uint32_t options){
 			}
 			break;
 		case HLO_STREAM_READ:
-			fs_stream_impl.read = NULL;
+			fs_stream_impl.write = NULL;
 			res = hello_fs_open(&fs->f, path, FA_READ);
 			break;
 		case HLO_STREAM_READ_WRITE:
