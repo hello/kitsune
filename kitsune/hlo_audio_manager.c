@@ -222,13 +222,13 @@ void mix16(uint8_t * src, uint8_t * dst, size_t size){
 
 #define TMP_SIZE (sizeof(master_buffer)/2)
 void hlo_audio_manager_spkr_thread(void * data){
-	uint8_t master_buffer[1024];
-	uint8_t * tmp = master_buffer + TMP_SIZE;
 
 	while(1){
 #if DIRECT_SPEAKER_ACCESS == 1
 		vTaskDelay(100);
 #else
+		uint8_t master_buffer[1024];
+		uint8_t * tmp = master_buffer + TMP_SIZE;
 		int i;
 		memset(master_buffer, 0, sizeof(master_buffer));
 		//playback task
