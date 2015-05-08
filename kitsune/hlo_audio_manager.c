@@ -78,7 +78,6 @@ static int copy_to_mic_client(void * ctx, void * buf, size_t size){
 			//but still increments the read ptr to
 			UpdateReadPtr(client->buf, bytes_to_fill);
 		}else{
-			DISP("r%d\r\n",bytes_to_fill);
 			ReadBuffer(client->buf,(uint8_t*)buf,bytes_to_fill);
 		}
 		return bytes_to_fill;
