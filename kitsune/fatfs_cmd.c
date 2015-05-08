@@ -424,8 +424,7 @@ Cmd_cat(int argc, char *argv[])
     	//dst = uart_stream();
     	//src = random_stream_open();
     	//dst = hlo_audio_open_mono(48000,44,HLO_AUDIO_PLAYBACK);
-    	hlo_set_playback_stream(0,fs_stream_open("/RINGTONE/ORG002.raw", HLO_STREAM_READ) );
-    	hlo_set_playback_stream(1,fs_stream_open("/RINGTONE/NEW006.raw", HLO_STREAM_READ) );
+
     	//hlo_set_playback_stream(1,random_stream_open());
     	return 0;
     }
