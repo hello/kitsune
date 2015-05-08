@@ -8,7 +8,7 @@
 
 
 #define CHUNK_SIZE 512
-static int sig = 0;
+int audio_sig_stop = 0;
 void hlo_app_audio_recorder_task(void * data){
 	int ret;
 	uint8_t chunk[CHUNK_SIZE];
@@ -17,7 +17,7 @@ void hlo_app_audio_recorder_task(void * data){
 	fs = fs_stream_open_wlimit((char*)data, 48000 * 6); //max six seconds of audio
 
 	while( (ret = hlo_stream_transfer_between(mic,fs,chunk, sizeof(chunk),4)) > 0){
-		if(sig){
+		if(audio_sig_stop){
 			break;
 		}
 	}
@@ -36,7 +36,8 @@ void hlo_app_audio_playback_task(void * data){
 	hlo_stream_t * fs = fs_stream_open_media((char*)data, 0);
 
 	while( (ret = hlo_stream_transfer_between(fs,spkr,chunk, sizeof(chunk),4)) > 0){
-		if(sig){
+		if(audio_sig_stop){
+			audio_sig_stop = 0;
 			break;
 		}
 	}
@@ -50,18 +51,18 @@ void hlo_app_audio_playback_task(void * data){
 //commands
 
 int Cmd_app_record_start(int argc, char *argv[]){
-	sig = 0;
+	audio_sig_stop = 0;
 	hlo_app_audio_recorder_task("rec.raw");
 	return 0;
 }
 int Cmd_app_record_stop(int argc, char *argv[]){
-	sig = 1;
+	audio_sig_stop = 1;
 	return 0;
 
 }
 int Cmd_app_record_replay(int argc, char *argv[]){
 	DISP("Playing back %s ...\r\n", argv[1]);
-	sig = 0;
+	audio_sig_stop = 0;
 	hlo_app_audio_playback_task(argv[1]);
 	return 0;
 }

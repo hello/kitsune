@@ -406,12 +406,14 @@ int global_filename(char * local_fn)
 #include "hlo_pipe.h"
 #include "hlo_audio_manager.h"
 #define BUF_SIZE 64
+extern int audio_sig_stop;
 static hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 	if(input){//input
 		if(str[0] == '$'){
 			switch(str[1]){
 			case 'a':
 			case 'A':
+				audio_sig_stop = 0;
 				return hlo_open_mic_stream(BUF_SIZE,1);
 			default:
 				break;
@@ -425,6 +427,7 @@ static hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 			switch(str[1]){
 			case 'a':
 			case 'A':
+				audio_sig_stop = 0;
 				return hlo_open_spkr_stream(BUF_SIZE);
 			default:
 			case 'o':
@@ -453,7 +456,9 @@ Cmd_cat(int argc, char *argv[])
     	//dst = open_stream_from_path("$o",0);	//this is really dangerous, disable for now
     }
     while( (ret = hlo_stream_transfer_between(src,dst,buf,BUF_SIZE,4)) > 0){
-    	//wait for signal
+    	if(audio_sig_stop){
+    		break;
+    	}
     }
 	hlo_stream_close(src);
 	hlo_stream_close(dst);
