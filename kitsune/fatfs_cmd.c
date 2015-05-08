@@ -410,7 +410,6 @@ Cmd_cat(int argc, char *argv[])
 {
 	hlo_stream_t * src = NULL;
 	hlo_stream_t * dst = NULL;
-    hlo_pipe_t *  pipe = NULL;
 
     int ret = -2;
     global_filename( argv[1] );
@@ -421,31 +420,16 @@ Cmd_cat(int argc, char *argv[])
     	dst =hlo_audio_open_mono(48000,44,HLO_AUDIO_PLAYBACK);
     }else{
     	DISP("using uart pipe");
-    	//dst = uart_stream();
-    	//src = random_stream_open();
-    	//dst = hlo_audio_open_mono(48000,44,HLO_AUDIO_PLAYBACK);
 
-    	//hlo_set_playback_stream(1,random_stream_open());
     	return 0;
     }
-    if(!src || !dst){
-    	goto exit;
-    }
-    pipe = hlo_pipe_new(src,dst,512,2);
-    if(pipe){
-    	hlo_pipe_run(pipe);
-    }
-exit:
-	if(pipe){
-		hlo_pipe_destroy(pipe);
-	}else{
-	    if(src){
-	    	hlo_stream_close(src);
-	    }
-	    if(dst){
-	    	hlo_stream_close(dst);
-	    }
+	if(src){
+		hlo_stream_close(src);
 	}
+	if(dst){
+		hlo_stream_close(dst);
+	}
+
     DISP("\r\n");
     return ret;
 }
