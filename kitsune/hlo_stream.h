@@ -18,7 +18,9 @@
 #define HLO_STREAM_ERROR		-1
 #define HLO_STREAM_EOF			-2
 #define HLO_STREAM_EAGAIN		-11
-#define HLO_STREAM_NO_IMPL		-20
+#define HLO_STREAM_NULL_OBJ		-20
+#define HLO_STREAM_NO_IMPL		-21
+
 
 
 //meta info for the parent api
@@ -46,7 +48,7 @@ typedef struct{
 void hlo_stream_info(const hlo_stream_t * stream);
 
 //nonblocking pair
-int hlo_stream_write(hlo_stream_t * stream, void * buf, size_t size);
+int hlo_stream_write(hlo_stream_t * stream, const void * buf, size_t size);
 int hlo_stream_read(hlo_stream_t * stream, void * buf, size_t size);
 
 
