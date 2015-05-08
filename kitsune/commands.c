@@ -426,30 +426,6 @@ int Cmd_do_octogram(int argc, char * argv[]) {
 	return 0;
 
 }
-
-int Cmd_play_buff(int argc, char *argv[]) {
-    //int vol = atoi( argv[1] );
-    //char * file = argv[3];
-    AudioPlaybackDesc_t desc;
-    memset(&desc,0,sizeof(desc));
-   //strncpy( desc.file, file, 64 );
-    desc.volume = 57;
-    desc.durationInSeconds = -1;
-	desc.fade_in_ms = 0;
-	desc.fade_out_ms = 0;
-    desc.rate = 48000;//atoi(argv[2]);
-    //desc.stream = random_stream_open();
-    desc.stream = fs_stream_open("/RINGTONE/star003.raw", HLO_STREAM_READ);
-    if(desc.stream){
-        AudioTask_StartPlayback(&desc);
-    }else{
-    	LOGE("Stream failed\r\n");
-    }
-
-
-    return 0;
-    //return play_ringtone( vol );
-}
 int Cmd_fs_delete(int argc, char *argv[]) {
 	//
 	// Print some header text.
