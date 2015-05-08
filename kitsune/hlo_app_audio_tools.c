@@ -24,16 +24,8 @@ void hlo_app_audio_recorder_task(void * data){
 		DISP("Unable to open wbuffer\r\n");
 		goto exit_mic;
 	}
-	while(1){
-		if( (ret = hlo_stream_transfer_all(FROM_STREAM,mic,chunk, sizeof(chunk), 4)) > 0){
-			if( (ret = hlo_stream_transfer_all(INTO_STREAM,fs,chunk, sizeof(chunk),4)) > 0){
-				if(sig){
-					break;
-				}
-			}else{
-				break;
-			}
-		}else{
+	while( (ret = hlo_stream_transfer_between(mic,fs,chunk, sizeof(chunk),4)) > 0){
+		if(sig){
 			break;
 		}
 	}
@@ -59,16 +51,8 @@ void hlo_app_audio_playback_task(void * data){
 		DISP("Unable to open media\r\n");
 		goto exit_spkr;
 	}
-	while(1){
-		if( (ret = hlo_stream_transfer_all(FROM_STREAM,fs,chunk, sizeof(chunk), 4)) > 0){
-			if( (ret = hlo_stream_transfer_all(INTO_STREAM,spkr,chunk, sizeof(chunk),4)) > 0){
-				if(sig){
-					break;
-				}
-			}else{
-				break;
-			}
-		}else{
+	while( (ret = hlo_stream_transfer_between(fs,spkr,chunk, sizeof(chunk),4)) > 0){
+		if(sig){
 			break;
 		}
 	}

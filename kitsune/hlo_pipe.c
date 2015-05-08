@@ -2,13 +2,6 @@
 #include "task.h"
 #include "uart_logger.h"
 
-static int pipe_transfer_step(hlo_pipe_t * pipe, uint8_t * buf){
-	int ret = hlo_stream_transfer_all(FROM_STREAM, pipe->from,buf, pipe->buf_size, pipe->poll_delay);
-	if(ret < 0){
-		return ret;
-	}
-	return hlo_stream_transfer_all(INTO_STREAM, pipe->to, buf, pipe->buf_size, pipe->poll_delay);
-}
 
 hlo_pipe_t * hlo_pipe_new(hlo_stream_t * from, hlo_stream_t * to, uint32_t buf_size, uint32_t opt_poll_delay){
 	hlo_pipe_t * ret = pvPortMalloc(sizeof(hlo_pipe_t));
@@ -29,7 +22,7 @@ int hlo_pipe_run(hlo_pipe_t * pipe){
 	uint8_t * buf = pvPortMalloc(pipe->buf_size);
 	if(buf && pipe->from && pipe->to){
 		int ret;
-		while((ret =  pipe_transfer_step(pipe, buf)) >= 0){
+		while(hlo_stream_transfer_between(pipe->from, pipe->to, buf, pipe->buf_size, pipe->poll_delay) >= 0){
 			//do control stuff here
 		}
 		if(ret < 0){
@@ -73,4 +66,18 @@ int hlo_stream_transfer_all(transfer_direction direction,
 		}
 	}
 	return buf_size;
+}
+int hlo_stream_transfer_between(
+		hlo_stream_t * src,
+		hlo_stream_t * dst,
+		uint8_t * buf,
+		uint32_t buf_size,
+		uint32_t transfer_delay){
+
+	int ret = hlo_stream_transfer_all(FROM_STREAM, src, buf,buf_size, transfer_delay);
+	if(ret < 0){
+		return ret;
+	}
+	return hlo_stream_transfer_all(INTO_STREAM, dst, buf,buf_size,transfer_delay);
+
 }
