@@ -49,6 +49,7 @@ void hlo_app_audio_playback_task(void * data){
 
 }
 #define OCTOGRAM_BUFFER_SIZE ((AUDIO_FFT_SIZE)*3*2)
+#define OCTOGRAM_DURATION 500
 void hlo_app_audio_octogram_task(void * data){
 	Octogram_t octogramdata = {0};
 	int ret,i;
@@ -63,12 +64,13 @@ void hlo_app_audio_octogram_task(void * data){
 	while( (ret = hlo_stream_transfer_all(FROM_STREAM,input,(uint8_t*)samples,OCTOGRAM_BUFFER_SIZE,4)) > 0){
 		//convert from 48K to 16K
 		for(i = 0; i < 256; i++){
-			int32_t sum = samples[i] + samples[256+i] + samples[512+i];
-			samples[i] = sum / 3;
+			int32_t sum = samples[i] + samples[AUDIO_FFT_SIZE+i] + samples[(2*AUDIO_FFT_SIZE)+i];
+			samples[i] = (int16_t)(sum / 3);
 		}
 		Octogram_Update(&octogramdata,samples);
+		DISP(".");
 		if(duration-- < 0){
-			//keep going
+			DISP("\r\n");
 			Octogram_GetResult(&octogramdata, &result);
 			LOGF("octogram log energies: ");
 			for (i = 0; i < OCTOGRAM_SIZE; i++) {
@@ -88,7 +90,7 @@ exit:
 }
 ////-----------------------------------------
 //commands
-
+extern hlo_stream_t * open_stream_from_path(char * str, uint8_t input);
 int Cmd_app_record_start(int argc, char *argv[]){
 	audio_sig_stop = 0;
 	hlo_app_audio_recorder_task("rec.raw");
@@ -107,7 +109,9 @@ int Cmd_app_record_replay(int argc, char *argv[]){
 }
 int Cmd_app_octogram(int argc, char *argv[]){
 	audio_sig_stop = 0;
-	hlo_app_audio_octogram_task(random_stream_open());
+	//hlo_app_audio_octogram_task(random_stream_open());
+
+	hlo_app_audio_octogram_task(open_stream_from_path(argv[1],2));
 	return 0;
 }
 
