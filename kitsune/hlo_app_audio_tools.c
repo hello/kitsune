@@ -30,9 +30,7 @@ void hlo_app_audio_recorder_task(void * data){
 		}
 	}
 	hlo_stream_close(fs);
-exit_mic:
 	hlo_stream_close(mic);
-exit_fail:
 	DISP("Recorder Task Finished %d\r\n", ret);
 }
 
@@ -57,9 +55,7 @@ void hlo_app_audio_playback_task(void * data){
 		}
 	}
 	hlo_stream_close(fs);
-exit_spkr:
 	hlo_stream_close(spkr);
-exit_fail:
 	DISP("Playback Task Finished %d\r\n", ret);
 
 }
