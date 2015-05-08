@@ -407,7 +407,7 @@ int global_filename(char * local_fn)
 #include "hlo_audio_manager.h"
 #define BUF_SIZE 64
 extern int audio_sig_stop;
-static hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
+hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 	if(input){//input
 		if(str[0] == '$'){
 			switch(str[1]){
@@ -420,6 +420,9 @@ static hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 			}
 		}else{//try file
 			global_filename(str);
+			if(input > 1){//repeating mode
+				return fs_stream_open_media(path_buff, -1);
+			}
 			return fs_stream_open(path_buff, HLO_STREAM_READ);
 		}
 	}else{//output
