@@ -4,6 +4,7 @@
 //that demonstrates how to record and playback audio
 void hlo_app_audio_recorder_task(void * data);
 void hlo_app_audio_playback_task(void * data);
+void hlo_app_audio_octogram_task(void * data);
 
 //uart commands
 int Cmd_app_record_start(int argc, char *argv[]);

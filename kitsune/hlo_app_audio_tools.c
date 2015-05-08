@@ -47,6 +47,39 @@ void hlo_app_audio_playback_task(void * data){
 	DISP("Playback Task Finished %d\r\n", ret);
 
 }
+void hlo_app_audio_octogram_task(void * data){
+	Octogram_t octogramdata = {0};
+	int ret,i;
+	int32_t duration = 500;
+	Octogram_Init(&octogramdata);
+	OctogramResult_t result;
+	int16_t samples[256 * 3];
+	hlo_stream_t * mic = hlo_open_mic_stream(CHUNK_SIZE*2, 1);
+
+	while( (ret = hlo_stream_transfer_all(FROM_STREAM,mic,samples,sizeof(samples),4)) > 0){
+		//convert from 48K to 16K
+		for(i = 0; i < 256; i++){
+			int32_t sum = samples[i] + samples[256+i] + samples[512+i];
+			samples[i] = sum / 3;
+		}
+		Octogram_Update(&octogramdata,samples);
+		if(duration-- < 0){
+			//keep going
+			Octogram_GetResult(&octogramdata, &result);
+			LOGF("octogram log energies: ");
+			for (i = 0; i < OCTOGRAM_SIZE; i++) {
+				if (i != 0) {
+					LOGF(",");
+				}
+				LOGF("%d",result.logenergy[i]);
+			}
+			LOGF("\r\n");
+			break;
+		}
+	}
+	DISP("Octogram Task Finished %d\r\n", ret);
+	hlo_stream_close(mic);
+}
 ////-----------------------------------------
 //commands
 
