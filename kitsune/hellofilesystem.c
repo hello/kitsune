@@ -205,13 +205,12 @@ static int fs_read_with_replay(void * ctx, void * buf, size_t size){
 				fs->limit--;
 			}
 			if(FR_OK == hello_fs_lseek(&fs->f,0)){
-				fs_read(ctx, buf, size);
-				return size;
+				return 0;
 			}
 		}
 		return HLO_STREAM_ERROR;
 	}
-	return size;
+	return ret;
 }
 static int fs_close(void * ctx){
 	fs_stream_t * fs = (fs_stream_t*)ctx;
