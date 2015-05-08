@@ -450,7 +450,7 @@ Cmd_cat(int argc, char *argv[])
     	dst = open_stream_from_path(argv[2],0);
     }else if(argc > 1){
     	src = open_stream_from_path(argv[1],1);
-    	dst = open_stream_from_path("$o",0);
+    	//dst = open_stream_from_path("$o",0);	//this is really dangerous, disable for now
     }
     while( (ret = hlo_stream_transfer_between(src,dst,buf,BUF_SIZE,4)) > 0){
     	//wait for signal
