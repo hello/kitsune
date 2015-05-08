@@ -14,7 +14,7 @@ void hlo_app_audio_recorder_task(void * data){
 	int ret;
 	uint8_t chunk[CHUNK_SIZE];
 	hlo_stream_t *fs, * mic;
-	mic = hlo_open_mic_stream(2*CHUNK_SIZE,0);
+	mic = hlo_open_mic_stream(0);
 	fs = fs_stream_open_wlimit((char*)data, 48000 * 6); //max six seconds of audio
 
 	while( (ret = hlo_stream_transfer_between(mic,fs,chunk, sizeof(chunk),4)) > 0){

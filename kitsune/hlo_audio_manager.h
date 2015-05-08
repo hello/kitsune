@@ -29,7 +29,7 @@ hlo_stream_t * hlo_open_spkr_stream(size_t buffer_size);
  * 1: records playback
  * 0: do not record when playing back
  */
-hlo_stream_t * hlo_open_mic_stream(size_t buffer_size, uint8_t opt_always_on);
+hlo_stream_t * hlo_open_mic_stream(uint8_t opt_always_on);
 
 
 #endif

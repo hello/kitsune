@@ -414,7 +414,7 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 			case 'a':
 			case 'A':
 				audio_sig_stop = 0;
-				return hlo_open_mic_stream(BUF_SIZE,1);
+				return hlo_open_mic_stream(1);
 			default:
 				break;
 			}
