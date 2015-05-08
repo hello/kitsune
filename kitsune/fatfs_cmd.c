@@ -404,34 +404,61 @@ int global_filename(char * local_fn)
 //
 //*****************************************************************************
 #include "hlo_pipe.h"
-#include "hlo_audio.h"
+#include "hlo_audio_manager.h"
+#define BUF_SIZE 64
+static hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
+	if(input){//input
+		if(str[0] == '$'){
+			switch(str[1]){
+			case 'a':
+			case 'A':
+				return hlo_open_mic_stream(BUF_SIZE,1);
+			default:
+				break;
+			}
+		}else{//try file
+			global_filename(str);
+			return fs_stream_open(path_buff, HLO_STREAM_READ);
+		}
+	}else{//output
+		if(str[0] == '$'){
+			switch(str[1]){
+			case 'a':
+			case 'A':
+				return hlo_open_spkr_stream(BUF_SIZE);
+			default:
+			case 'o':
+			case 'O':
+				return uart_stream();
+			}
+		}else{//try file
+			global_filename(str);
+			return fs_stream_open(path_buff, HLO_STREAM_READ);
+		}
+	}
+	return NULL;
+}
 int
 Cmd_cat(int argc, char *argv[])
 {
 	hlo_stream_t * src = NULL;
 	hlo_stream_t * dst = NULL;
-
-    int ret = -2;
-    global_filename( argv[1] );
-    //src = fs_stream_open(path_buff,HLO_STREAM_READ);
+    int ret;
+    uint8_t buf[BUF_SIZE];
     if(argc > 2){
-    	global_filename( argv[2] );
-    	src =fs_stream_open(path_buff, HLO_STREAM_READ);
-    	dst =hlo_audio_open_mono(48000,44,HLO_AUDIO_PLAYBACK);
-    }else{
-    	DISP("using uart pipe");
-
-    	return 0;
+    	src = open_stream_from_path(argv[1],1);
+    	dst = open_stream_from_path(argv[2],0);
+    }else if(argc > 1){
+    	src = open_stream_from_path(argv[1],1);
+    	dst = open_stream_from_path("$o",0);
     }
-	if(src){
-		hlo_stream_close(src);
-	}
-	if(dst){
-		hlo_stream_close(dst);
-	}
-
-    DISP("\r\n");
-    return ret;
+    while( (ret = hlo_stream_transfer_between(src,dst,buf,BUF_SIZE,4)) > 0){
+    	//wait for signal
+    }
+	hlo_stream_close(src);
+	hlo_stream_close(dst);
+    DISP("Transfer returned %d\r\n", ret);
+    return 0;
 }
 
 int
