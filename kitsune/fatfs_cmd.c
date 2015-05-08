@@ -431,9 +431,9 @@ static hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 			case 'O':
 				return uart_stream();
 			}
-		}else{//try file
+		}else{//try file, TODO make it append
 			global_filename(str);
-			return fs_stream_open(path_buff, HLO_STREAM_READ);
+			return fs_stream_open(path_buff, HLO_STREAM_WRITE);
 		}
 	}
 	return NULL;
