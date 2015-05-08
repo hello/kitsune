@@ -58,12 +58,13 @@ int hlo_set_playback_stream(int channel, hlo_stream_t * src){
 static int copy_from_mic_master(void * ctx, const void * buf, size_t size){
 	mic_client_t * client = (mic_client_t*)ctx;
 	size_t remain = GetBufferEmptySize(client->buf);
-	if(remain < size){
+	int bytes_to_write = min(size,remain);
+	/*if(remain < size){
 		int diff = size - remain;
 		UpdateReadPtr(client->buf, diff);
-	}
-	FillBuffer(client->buf, (uint8_t*)buf, size);
-	return size;
+	}*/
+	FillBuffer(client->buf, (uint8_t*)buf, bytes_to_write);
+	return bytes_to_write;
 }
 static int copy_to_mic_client(void * ctx, void * buf, size_t size){
 	mic_client_t * client = (mic_client_t*)ctx;
@@ -77,6 +78,7 @@ static int copy_to_mic_client(void * ctx, void * buf, size_t size){
 			//but still increments the read ptr to
 			UpdateReadPtr(client->buf, bytes_to_fill);
 		}else{
+			DISP("r%d\r\n",bytes_to_fill);
 			ReadBuffer(client->buf,(uint8_t*)buf,bytes_to_fill);
 		}
 		return bytes_to_fill;
@@ -108,7 +110,7 @@ hlo_stream_t * hlo_open_mic_stream(size_t buffer_size, uint8_t opt_always_on){
 			client->buf = CreateCircularBuffer(buffer_size);
 			assert(client->buf);
 
-			client->water_mark = buffer_size>>1;
+			client->water_mark = buffer_size>>2;
 			client->always_on = opt_always_on;
 			client->parent_idx = i;
 
