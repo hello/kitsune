@@ -10,4 +10,5 @@ void hlo_app_audio_octogram_task(void * data);
 int Cmd_app_record_start(int argc, char *argv[]);
 int Cmd_app_record_stop(int argc, char *argv[]);
 int Cmd_app_record_replay(int argc, char *argv[]);
+int Cmd_app_octogram(int argc, char *argv[]);
 #endif

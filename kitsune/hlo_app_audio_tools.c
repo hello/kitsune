@@ -4,7 +4,8 @@
 #include "kit_assert.h"
 #include "hellofilesystem.h"
 #include "hlo_pipe.h"
-
+#include "octogram.h"
+#include "audio_types.h"
 
 
 #define CHUNK_SIZE 512
@@ -47,16 +48,19 @@ void hlo_app_audio_playback_task(void * data){
 	DISP("Playback Task Finished %d\r\n", ret);
 
 }
+#define OCTOGRAM_BUFFER_SIZE ((AUDIO_FFT_SIZE)*3*2)
 void hlo_app_audio_octogram_task(void * data){
 	Octogram_t octogramdata = {0};
 	int ret,i;
 	int32_t duration = 500;
 	Octogram_Init(&octogramdata);
 	OctogramResult_t result;
-	int16_t samples[256 * 3];
-	hlo_stream_t * mic = hlo_open_mic_stream(CHUNK_SIZE*2, 1);
-
-	while( (ret = hlo_stream_transfer_all(FROM_STREAM,mic,samples,sizeof(samples),4)) > 0){
+	int16_t * samples = pvPortMalloc(OCTOGRAM_BUFFER_SIZE);
+	if(!samples){
+		goto exit;
+	}
+	hlo_stream_t * input = (hlo_stream_t*)data;//hlo_open_mic_stream(CHUNK_SIZE*2, 1);
+	while( (ret = hlo_stream_transfer_all(FROM_STREAM,input,(uint8_t*)samples,OCTOGRAM_BUFFER_SIZE,4)) > 0){
 		//convert from 48K to 16K
 		for(i = 0; i < 256; i++){
 			int32_t sum = samples[i] + samples[256+i] + samples[512+i];
@@ -77,8 +81,10 @@ void hlo_app_audio_octogram_task(void * data){
 			break;
 		}
 	}
+	vPortFree(samples);
+exit:
 	DISP("Octogram Task Finished %d\r\n", ret);
-	hlo_stream_close(mic);
+	hlo_stream_close(input);
 }
 ////-----------------------------------------
 //commands
@@ -97,6 +103,11 @@ int Cmd_app_record_replay(int argc, char *argv[]){
 	DISP("Playing back %s ...\r\n", argv[1]);
 	audio_sig_stop = 0;
 	hlo_app_audio_playback_task(argv[1]);
+	return 0;
+}
+int Cmd_app_octogram(int argc, char *argv[]){
+	audio_sig_stop = 0;
+	hlo_app_audio_octogram_task(random_stream_open());
 	return 0;
 }
 
