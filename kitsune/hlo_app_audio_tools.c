@@ -13,20 +13,15 @@ void hlo_app_audio_recorder_task(void * data){
 	int ret;
 	uint8_t chunk[CHUNK_SIZE];
 	hlo_stream_t *fs, * mic;
-	mic = hlo_open_mic_stream(2*CHUNK_SIZE,CHUNK_SIZE,0);
-
-	if(!mic){
-		DISP("Unable to open mic\r\n");
-	}
+	mic = hlo_open_mic_stream(2*CHUNK_SIZE,0);
 	fs = fs_stream_open_wlimit((char*)data, 48000 * 6); //max six seconds of audio
-	if(!fs){
-		DISP("Unable to open wbuffer\r\n");
-	}
+
 	while( (ret = hlo_stream_transfer_between(mic,fs,chunk, sizeof(chunk),4)) > 0){
 		if(sig){
 			break;
 		}
 	}
+
 	hlo_stream_close(fs);
 	hlo_stream_close(mic);
 	DISP("Recorder Task Finished %d\r\n", ret);
@@ -37,19 +32,15 @@ void hlo_app_audio_recorder_task(void * data){
 void hlo_app_audio_playback_task(void * data){
 	int ret;
 	uint8_t chunk[CHUNK_SIZE];
-	hlo_stream_t * spkr = hlo_open_spkr_stream(2*CHUNK_SIZE,CHUNK_SIZE);
-	if(!spkr){
-		DISP("Unable to open spkr\r\n");
-	}
+	hlo_stream_t * spkr = hlo_open_spkr_stream(2*CHUNK_SIZE);
 	hlo_stream_t * fs = fs_stream_open_media((char*)data, 0);
-	if(!fs){
-		DISP("Unable to open media\r\n");
-	}
+
 	while( (ret = hlo_stream_transfer_between(fs,spkr,chunk, sizeof(chunk),4)) > 0){
 		if(sig){
 			break;
 		}
 	}
+
 	hlo_stream_close(fs);
 	hlo_stream_close(spkr);
 	DISP("Playback Task Finished %d\r\n", ret);

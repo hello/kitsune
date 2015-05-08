@@ -91,7 +91,7 @@ static int close_mic_client(void * ctx){
 	xSemaphoreGive(self.mic_client_lock);
 	return 0;
 }
-hlo_stream_t * hlo_open_mic_stream(size_t buffer_size, size_t opt_water_mark, uint8_t opt_always_on){
+hlo_stream_t * hlo_open_mic_stream(size_t buffer_size, uint8_t opt_always_on){
 	hlo_stream_vftbl_t tbl = {
 			.write = copy_from_mic_master,
 			.read = copy_to_mic_client,
@@ -108,7 +108,7 @@ hlo_stream_t * hlo_open_mic_stream(size_t buffer_size, size_t opt_water_mark, ui
 			client->buf = CreateCircularBuffer(buffer_size);
 			assert(client->buf);
 
-			client->water_mark = opt_water_mark;
+			client->water_mark = buffer_size>>1;
 			client->always_on = opt_always_on;
 			client->parent_idx = i;
 
@@ -162,7 +162,7 @@ static int close_spkr_client(void * ctx){
 
 }
 #endif
-hlo_stream_t * hlo_open_spkr_stream(size_t buffer_size, size_t opt_water_mark){
+hlo_stream_t * hlo_open_spkr_stream(size_t buffer_size){
 #if DIRECT_SPEAKER_ACCESS == 1
 	static hlo_stream_t * spkr_proxy;
 	if(!spkr_proxy){
@@ -189,7 +189,7 @@ hlo_stream_t * hlo_open_spkr_stream(size_t buffer_size, size_t opt_water_mark){
 			memset(client, 0, sizeof(spkr_client_t));
 			client->buf = CreateCircularBuffer(buffer_size);
 			assert(client->buf);
-			client->water_mark = opt_water_mark;
+			client->water_mark = buffer_size>>1;
 			client->parent_idx = i;
 
 			self.speaker_sources[i] = hlo_stream_new(&tbl, client, HLO_STREAM_WRITE);
