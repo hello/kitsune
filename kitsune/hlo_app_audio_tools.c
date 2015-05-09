@@ -6,8 +6,10 @@
 #include "hlo_pipe.h"
 #include "octogram.h"
 #include "audio_types.h"
+#include "audiofeatures.h"
 
-
+////-------------------------------------------
+//recorder sample app
 #define CHUNK_SIZE 512
 int audio_sig_stop = 0;
 void hlo_app_audio_recorder_task(void * data){
@@ -28,8 +30,8 @@ void hlo_app_audio_recorder_task(void * data){
 	DISP("Recorder Task Finished %d\r\n", ret);
 }
 
-
-
+////-------------------------------------------
+//playback sample app
 void hlo_app_audio_playback_task(void * data){
 	int ret;
 	uint8_t chunk[CHUNK_SIZE];
@@ -48,7 +50,9 @@ void hlo_app_audio_playback_task(void * data){
 	DISP("Playback Task Finished %d\r\n", ret);
 
 }
-#define OCTOGRAM_BUFFER_SIZE ((AUDIO_FFT_SIZE)*3*2)
+////-------------------------------------------
+//octogram sample app
+#define PROCESSOR_BUFFER_SIZE ((AUDIO_FFT_SIZE)*3*2)
 #define OCTOGRAM_DURATION 500
 void hlo_app_audio_octogram_task(void * data){
 	Octogram_t octogramdata = {0};
@@ -56,12 +60,12 @@ void hlo_app_audio_octogram_task(void * data){
 	int32_t duration = 500;
 	Octogram_Init(&octogramdata);
 	OctogramResult_t result;
-	int16_t * samples = pvPortMalloc(OCTOGRAM_BUFFER_SIZE);
+	int16_t * samples = pvPortMalloc(PROCESSOR_BUFFER_SIZE);
 	if(!samples){
 		goto exit;
 	}
 	hlo_stream_t * input = (hlo_stream_t*)data;//hlo_open_mic_stream(CHUNK_SIZE*2, 1);
-	while( (ret = hlo_stream_transfer_all(FROM_STREAM,input,(uint8_t*)samples,OCTOGRAM_BUFFER_SIZE,4)) > 0){
+	while( (ret = hlo_stream_transfer_all(FROM_STREAM,input,(uint8_t*)samples,PROCESSOR_BUFFER_SIZE,4)) > 0){
 		//convert from 48K to 16K
 		for(i = 0; i < 256; i++){
 			int32_t sum = samples[i] + samples[AUDIO_FFT_SIZE+i] + samples[(2*AUDIO_FFT_SIZE)+i];
@@ -88,6 +92,42 @@ exit:
 	DISP("Octogram Task Finished %d\r\n", ret);
 	hlo_stream_close(input);
 }
+////-------------------------------------------
+//feature xtraction sample app
+
+static int64_t _callCounter;
+static void DataCallback(const AudioFeatures_t * pfeats) {
+	//AudioProcessingTask_AddFeaturesToQueue(pfeats);
+	//DISP("audio feature: logEg: %d, overbg: %dr\n", pfeats->logenergy, pfeats->logenergyOverBackroundNoise);
+}
+static void StatsCallback(const AudioOncePerMinuteData_t * pdata) {
+	LOGI("audio disturbance: background=%d, peak=%d\n",pdata->peak_background_energy,pdata->peak_energy);
+}
+
+void hlo_app_audio_feature_extraction_task(void * data){
+	hlo_stream_t * input = (hlo_stream_t*)data;
+	AudioFeatures_Init(DataCallback,StatsCallback);
+	int16_t * samples = pvPortMalloc(PROCESSOR_BUFFER_SIZE);
+	int i,ret;
+	if(!samples){
+		goto exit;
+	}
+	while( (ret = hlo_stream_transfer_all(FROM_STREAM,input,(uint8_t*)samples,PROCESSOR_BUFFER_SIZE,4)) > 0){
+		for(i = 0; i < 256; i++){
+			int32_t sum = samples[i] + samples[AUDIO_FFT_SIZE+i] + samples[(2*AUDIO_FFT_SIZE)+i];
+			samples[i] = (int16_t)(sum / 3);
+		}
+		AudioFeatures_SetAudioData(samples,_callCounter++);
+		if(audio_sig_stop){
+			break;
+		}
+	}
+	vPortFree(samples);
+exit:
+	DISP("Audio Feature Task Finished %d\r\n", ret);
+	hlo_stream_close(input);
+
+}
 ////-----------------------------------------
 //commands
 extern hlo_stream_t * open_stream_from_path(char * str, uint8_t input);
@@ -112,6 +152,11 @@ int Cmd_app_octogram(int argc, char *argv[]){
 	//hlo_app_audio_octogram_task(random_stream_open());
 
 	hlo_app_audio_octogram_task(open_stream_from_path(argv[1],2));
+	return 0;
+}
+int Cmd_app_features(int argc, char *argv[]){
+	audio_sig_stop = 0;
+	hlo_app_audio_feature_extraction_task(open_stream_from_path(argv[1],1));
 	return 0;
 }
 

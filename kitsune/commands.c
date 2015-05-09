@@ -1751,6 +1751,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "p", Cmd_app_record_replay, ""},//play sounds from SD card
 		{ "s",Cmd_app_record_stop,""},
 		{ "oct",Cmd_app_octogram,""},
+		{ "feat", Cmd_app_features, ""},
 		{ "getoct",Cmd_get_octogram,""},
 		{ "aon",Cmd_audio_turn_on,""},
 		{ "aoff",Cmd_audio_turn_off,""},
