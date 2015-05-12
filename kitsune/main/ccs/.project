@@ -291,9 +291,9 @@
 			<locationURI>PARENT-2-PROJECT_LOC/hellomath.c</locationURI>
 		</link>
 		<link>
-			<name>hlo_app_audio_tools.c</name>
+			<name>hlo_async.c</name>
 			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/hlo_app_audio_tools.c</locationURI>
+			<locationURI>PARENT-2-PROJECT_LOC/hlo_async.c</locationURI>
 		</link>
 		<link>
 			<name>hlo_app_audio_tools.h</name>

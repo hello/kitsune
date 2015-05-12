@@ -1747,7 +1747,7 @@ tCmdLineEntry g_sCmdTable[] = {
 #endif
 
 		{ "dust", Cmd_dusttest, "" },
-
+		{ "dig", Cmd_dig, "" },
 		{ "fswr", Cmd_fs_write, "" }, //serial flash commands
 		{ "fsrd", Cmd_fs_read, "" },
 		{ "fsdl", Cmd_fs_delete, "" },
@@ -1953,6 +1953,7 @@ void vUARTTask(void *pvParameters) {
 	ble_proto_init();
 	xTaskCreate(top_board_task, "top_board_task", 1280 / 4, NULL, 2, NULL);
 	xTaskCreate(thread_spi, "spiTask", 512 / 4, NULL, 4, NULL);
+	xTaskCreate(hlo_async_task, "asyncTask", 4096 / 4, NULL, 4, NULL);
 #ifndef BUILD_SERVERS
 	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 1, NULL);
 	UARTprintf("*");
