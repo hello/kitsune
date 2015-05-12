@@ -3,6 +3,7 @@
 #include "hellomath.h"
 #include "uart_logger.h"
 #include <stdlib.h>
+#include "hellomath.h"
 /************************
  * DEFINES AND TYPEDEFS
  */
@@ -10,17 +11,21 @@
 #define CHANGE_SIGNAL_BUF_SIZE (1 << CHANGE_SIGNAL_BUF_SIZE_2N)
 #define CHANGE_SIGNAL_BUF_MASK (CHANGE_SIGNAL_BUF_SIZE - 1)
 
+#define STABLE_BUF_SIZE_2N (3)
+#define STABLE_BUF_SIZE (1 << STABLE_BUF_SIZE_2N)
+#define STABLE_BUF_MASK (STABLE_BUF_SIZE - 1)
+
 #define QFIXEDPOINT (10)
 
-#define PROX_SIGNAL_SAMPLE_PERIOD_MS (10)
+#define PROX_SIGNAL_SAMPLE_PERIOD_MS (50)
 
 #define PROX_HOLD_GESTURE_PERIOD_MS (1000)
-#define PROX_WAVE_GESTURE_PERIOD_MS (50)
 
 #define PROX_HOLD_COUNT_THRESHOLD (PROX_HOLD_GESTURE_PERIOD_MS / PROX_SIGNAL_SAMPLE_PERIOD_MS)
-#define PROX_WAVE_COUNT_THRESHOLD (PROX_WAVE_GESTURE_PERIOD_MS / PROX_SIGNAL_SAMPLE_PERIOD_MS)
 
 #define MAX_COUNTER (32767)
+
+#define DIFF_SIGNAL_THRESHOLD_FOR_INTERRUPTION (100)
 
 /*
 #define PROX_SIGNAL_BUF_SIZE_2N (3)
@@ -38,15 +43,18 @@ typedef enum {
 typedef struct {
 	int64_t accumulator;
 	int32_t changebuf[CHANGE_SIGNAL_BUF_SIZE];
+	int32_t stablebuf[STABLE_BUF_SIZE];
+	uint32_t stablebufcount;
+	int32_t maxstable;
+
 	int32_t logProbOfModes[numChangeModes];
 	uint32_t counter;
 	uint32_t stablecount;
-	int32_t maxStable;
 	int32_t minHeldStable;
 	uint32_t increasingCount;
 	uint32_t decreasingCount;
-	uint8_t isWaved;
 	uint8_t isHeld;
+	uint8_t isInterrupted;
 } ProxSignal_t;
 
 
@@ -72,7 +80,28 @@ void ProxSignal_Init(void) {
 	memset(&_data,0,sizeof(_data));
 }
 
-static ProxGesture_t GetGesture(EChangeModes_t mode,uint8_t hasStableMeas,const int32_t maxStable,const int32_t stablex,const int32_t currentx) {
+static void UpdateMaxInBuffer(int32_t x) {
+	const uint32_t idx = _data.stablebufcount & STABLE_BUF_MASK;
+	int16_t i;
+	int32_t max = MIN_INT_32;
+	const int32_t * cbuf = _data.stablebuf;
+
+	_data.stablebuf[idx] = x;
+	for (i = 0; i < STABLE_BUF_SIZE; i++) {
+		if (cbuf[i] > max) {
+			max = cbuf[i];
+		}
+	}
+
+	//LOGI("new max %d, %d\n",idx,max);
+
+	_data.maxstable = max;
+	_data.stablebufcount++;
+
+
+}
+
+static ProxGesture_t GetGesture(uint8_t isInterrupted, EChangeModes_t mode,uint8_t hasStableMeas,const int32_t maxStable,const int32_t stablex,const int32_t currentx) {
 
 
 	if (hasStableMeas) {
@@ -103,24 +132,21 @@ static ProxGesture_t GetGesture(EChangeModes_t mode,uint8_t hasStableMeas,const 
 		}
 	}
 
-
-
-
-	//make sure that holds take precedence over waves
-	//so if we are holding, we are definitely not waving
 	if (!_data.isHeld) {
-		if (_data.increasingCount > PROX_WAVE_COUNT_THRESHOLD && _data.decreasingCount > PROX_WAVE_COUNT_THRESHOLD) {
-			/* output one wave */
-			if (!_data.isWaved) {
-				LOGI("ProxSignal: WAVING\n");
-				_data.isWaved = 1;
-				return proxGestureWave;
-			}
+		if (isInterrupted && !_data.isInterrupted) {
+			_data.isInterrupted = 1;
+			return proxGestureWave;
 		}
-		else {
-			_data.isWaved = 0;
+		else if (!isInterrupted && _data.isInterrupted) {
+			_data.isInterrupted = 0;
 		}
 	}
+	else {
+		_data.isInterrupted = 0;
+	}
+
+
+
 
 	return proxGestureNone;
 
@@ -130,7 +156,7 @@ ProxGesture_t ProxSignal_UpdateChangeSignals(const int32_t newx) {
 	const uint16_t idx = _data.counter & CHANGE_SIGNAL_BUF_MASK;
 	const int32_t oldx = _data.changebuf[idx];
 	EChangeModes_t mode = stable;
-
+	int32_t diffsignal;
 	int32_t change32;
 	int16_t change16;
 	int16_t logLikelihoodOfModePdfs[numChangeModes];
@@ -140,9 +166,12 @@ ProxGesture_t ProxSignal_UpdateChangeSignals(const int32_t newx) {
 	int32_t maxlogprob;
 	uint8_t hasStableMeas = 0;
 	int32_t stablex = 0;
+	uint8_t isInterrupted = 0;
 
 	/* increment counter */
 	_data.counter++;
+
+	/*  process signal */
 
 	/* update buffer */
 	_data.changebuf[idx] = newx;
@@ -275,8 +304,6 @@ ProxGesture_t ProxSignal_UpdateChangeSignals(const int32_t newx) {
 
 	if (mode == stable) {
 		_data.stablecount++;
-		_data.decreasingCount = 0;
-		_data.increasingCount = 0;
 
 		if (_data.stablecount > CHANGE_SIGNAL_BUF_SIZE) {
 			// update accumulator -- it's a moving average filter
@@ -285,10 +312,12 @@ ProxGesture_t ProxSignal_UpdateChangeSignals(const int32_t newx) {
 
 			stablex = _data.accumulator >> CHANGE_SIGNAL_BUF_SIZE_2N;
 
-			//record the maximum stable value
-			if (stablex > _data.maxStable) {
-				_data.maxStable = stablex;
+			//record the maximum stable value every so often
+			if (idx == 0) {
+				UpdateMaxInBuffer(stablex);
 			}
+
+
 
 			hasStableMeas = 1;
 			////print, for fun you know
@@ -305,27 +334,17 @@ ProxGesture_t ProxSignal_UpdateChangeSignals(const int32_t newx) {
 		//reset, we are not stable
 		_data.accumulator = 0;
 		_data.stablecount = 0;
-
-		if (mode == increasing) {
-			_data.increasingCount++;
-		}
-		else {
-			_data.decreasingCount++;
-		}
 	}
 
-
-	//make sure counters never roll over
-	if (_data.increasingCount > MAX_COUNTER) {
-		_data.increasingCount = MAX_COUNTER;
-	}
-
-	if (_data.decreasingCount > MAX_COUNTER) {
-		_data.decreasingCount = MAX_COUNTER;
-	}
 
 	if (_data.stablecount > MAX_COUNTER) {
 		_data.stablecount = MAX_COUNTER;
+	}
+
+	diffsignal = _data.maxstable - newx;
+
+	if (diffsignal > DIFF_SIGNAL_THRESHOLD_FOR_INTERRUPTION) {
+		isInterrupted = 1;
 	}
 
 
@@ -350,6 +369,6 @@ ProxGesture_t ProxSignal_UpdateChangeSignals(const int32_t newx) {
 
 #endif
 
-	return GetGesture(mode,hasStableMeas,_data.maxStable,stablex,newx);
+	return GetGesture(isInterrupted,mode,hasStableMeas,_data.maxstable,stablex,newx);
 
 }

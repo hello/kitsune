@@ -886,7 +886,7 @@ void thread_fast_i2c_poll(void * unused)  {
 				break;
 			}
 
-			if (++counter >= 10) {
+			if (++counter >= 5) {
 				counter = 0;
 
 				if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
@@ -917,7 +917,7 @@ void thread_fast_i2c_poll(void * unused)  {
 				}
 			}
 		}
-		vTaskDelayUntil(&now, 10);
+		vTaskDelayUntil(&now, 50);
 	}
 }
 

@@ -392,7 +392,7 @@ int init_prox_sensor()
 	TRY_OR_GOTOFAIL(I2C_IF_Write(0x13, prx_cmd_init, 2, 1) );
 
 	prx_cmd_init[0] = 0x83; // Current setting register
-	prx_cmd_init[1] = 20; // Value * 10mA
+	prx_cmd_init[1] = 14; // Value * 10mA
 	TRY_OR_GOTOFAIL( I2C_IF_Write(0x13, prx_cmd_init, 2, 1) );
 
 
