@@ -52,28 +52,18 @@ static int do_read(hlo_future_t * future, void * buf, size_t size){
 int hlo_future_read(hlo_future_t * future, void * buf, size_t size){
 	CHECK_FOR_NULL(future);
 	xSemaphoreTake(future->sync,portMAX_DELAY);
-	int err = do_read(future, buf, size);
-	hlo_future_destroy(future);
-	return err;
+	return hlo_future_read_with_timeout(future,buf,size,portMAX_DELAY);
 }
+
 //or this
-int hlo_future_read_with_timeout(hlo_future_t * future,  void * buf, size_t size, int ms){
+int hlo_future_read_with_timeout(hlo_future_t * future,  void * buf, size_t size, TickType_t ms){
 	CHECK_FOR_NULL(future);
-	TickType_t poll_delay = ms>10?10:ms;
 	int err = -11;
-	while(ms > 0){
-		if(xSemaphoreTake(future->buf,poll_delay) == pdTRUE){
-			err = do_read(future, buf, size);
-			break;
-		}else{
-			ms -= poll_delay;
-		}
-	}
-	if(ms < 0){
-		//timed out, do not free here
-		//todo: defer this object to be freed later
-	}else{
+	if(xSemaphoreTake(future->buf, ms) == pdTRUE){
+		err = do_read(future, buf, size);
 		hlo_future_destroy(future);
+	}else{
+		//timed out, defer destroy
 	}
 	return err;
 }
