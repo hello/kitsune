@@ -5,7 +5,6 @@
 /**
  * tools for asynchronous transaction here
  */
-
 typedef struct{
 	int error;
 	xSemaphoreHandle sync;
@@ -32,5 +31,7 @@ int hlo_future_read(hlo_future_t * future, void * buf, size_t size);
 int hlo_future_read_with_timeout(hlo_future_t * future,  void * buf, size_t size, TickType_t ms);
 
 
+//rtos scheduler
+void hlo_async_task(void * ctx);
 
 #endif
