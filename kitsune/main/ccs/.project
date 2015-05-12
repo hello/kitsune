@@ -301,6 +301,16 @@
 			<locationURI>PARENT-2-PROJECT_LOC/hlo_async.h</locationURI>
 		</link>
 		<link>
+			<name>hlo_net_tools.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hlo_net_tools.c</locationURI>
+		</link>
+		<link>
+			<name>hlo_net_tools.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hlo_net_tools.h</locationURI>
+		</link>
+		<link>
 			<name>hw_ver.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/hw_ver.c</locationURI>

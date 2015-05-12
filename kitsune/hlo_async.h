@@ -8,9 +8,9 @@
 
 typedef struct{
 	int error;
-	void * buf;
-	int buf_size;
 	xSemaphoreHandle sync;
+	int buf_size;
+	uint8_t buf[0];
 }hlo_future_t;
 
 hlo_future_t * hlo_future_create(size_t max_size);

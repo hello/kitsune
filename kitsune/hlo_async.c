@@ -10,11 +10,12 @@ static void hlo_future_destroy(hlo_future_t * future){
 	}
 }
 hlo_future_t * hlo_future_create(size_t max_size){
-	hlo_future_t * ret = pvPortMalloc(max_size);
+	size_t alloc_size = sizeof(hlo_future_t) + max_size;
+	hlo_future_t * ret = pvPortMalloc(alloc_size);
 	if(ret){
-		memset(ret, 0, sizeof(*ret));
+		memset(ret, 0, alloc_size);
 		ret->sync = xSemaphoreCreateBinary();
-		ret->buf_size = max_size;
+		ret->buf_size = (int)max_size;
 	}
 	return ret;
 }
@@ -68,6 +69,11 @@ int hlo_future_read_with_timeout(hlo_future_t * future,  void * buf, size_t size
 			ms -= poll_delay;
 		}
 	}
-	hlo_future_destroy(future);
+	if(ms < 0){
+		//timed out, do not free here
+		//todo: defer this object to be freed later
+	}else{
+		hlo_future_destroy(future);
+	}
 	return err;
 }
