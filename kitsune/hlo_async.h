@@ -22,7 +22,7 @@ int hlo_future_write(hlo_future_t * future, const void * buffer, size_t size, in
 //consumer use this
 int hlo_future_read(hlo_future_t * future, void * buf, size_t size);
 //or this
-int hlo_future_read_with_timeout(hlo_future_t * future,  void * buf, size_t size, int ms);
+int hlo_future_read_with_timeout(hlo_future_t * future,  void * buf, size_t size, TickType_t ms);
 
 
 
