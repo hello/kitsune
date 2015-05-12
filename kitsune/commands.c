@@ -1976,6 +1976,8 @@ void vUARTTask(void *pvParameters) {
 
 	if( on_charger ) {
 		launch_tasks();
+		vTaskDelete(NULL);
+		return;
 	} else {
 		play_led_wheel( 50, LED_MAX, LED_MAX, 0,0,10);
 	}
