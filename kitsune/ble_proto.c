@@ -79,7 +79,7 @@ static void _factory_reset(){
     if(ret)
     {
         LOGI("Delete all stored endpoint failed, error %d.\n", ret);
-        ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
+        ble_reply_protobuf_error(ErrorType_WLAN_ENDPOINT_DELETE_FAILED);
         return;
     }else{
         LOGI("All stored WIFI EP removed.\n");
@@ -578,7 +578,7 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 	bool success = false;
 	if(NULL == command->accountId.arg || NULL == command->deviceId.arg){
 		LOGI("*******Missing fields\n");
-		ble_reply_protobuf_error(ErrorType_INTERNAL_DATA_ERROR);
+		ble_reply_protobuf_error(ErrorType_INVALID_ACCOUNT_ID);
 	}else{
 		save_account_id( command->accountId.arg );
 
@@ -989,7 +989,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
             LOGI("Push data\n");
             if(force_data_push() != 0)
             {
-                ble_reply_protobuf_error(ErrorType_INTERNAL_OPERATION_FAILED);
+                ble_reply_protobuf_error(ErrorType_FORCE_DATA_PUSH_FAILED);
             }else{
                 _ble_reply_command_with_type(command->type);
             }
