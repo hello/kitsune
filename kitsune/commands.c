@@ -886,7 +886,7 @@ void thread_fast_i2c_poll(void * unused)  {
 				break;
 			}
 
-			if (++counter >= 5) {
+			if (++counter >= 2) {
 				counter = 0;
 
 				if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
