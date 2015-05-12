@@ -1,4 +1,4 @@
-#include "hlo_app_audio_tools.h"
+#include "hlo_audio_tools.h"
 #include "hlo_audio_manager.h"
 #include "task.h"
 #include "kit_assert.h"
@@ -12,7 +12,7 @@
 //recorder sample app
 #define CHUNK_SIZE 512
 int audio_sig_stop = 0;
-void hlo_app_audio_recorder_task(void * data){
+void hlo_audio_recorder_task(void * data){
 	int ret;
 	uint8_t chunk[CHUNK_SIZE];
 	hlo_stream_t *fs, * mic;
@@ -32,7 +32,7 @@ void hlo_app_audio_recorder_task(void * data){
 
 ////-------------------------------------------
 //playback sample app
-void hlo_app_audio_playback_task(void * data){
+void hlo_audio_playback_task(void * data){
 	int ret;
 	uint8_t chunk[CHUNK_SIZE];
 	hlo_stream_t * spkr = hlo_open_spkr_stream(2*CHUNK_SIZE);
@@ -54,7 +54,7 @@ void hlo_app_audio_playback_task(void * data){
 //octogram sample app
 #define PROCESSOR_BUFFER_SIZE ((AUDIO_FFT_SIZE)*3*2)
 #define OCTOGRAM_DURATION 500
-void hlo_app_audio_octogram_task(void * data){
+void hlo_audio_octogram_task(void * data){
 	Octogram_t octogramdata = {0};
 	int ret,i;
 	int32_t duration = 500;
@@ -104,7 +104,7 @@ static void StatsCallback(const AudioOncePerMinuteData_t * pdata) {
 	LOGI("audio disturbance: background=%d, peak=%d\n",pdata->peak_background_energy,pdata->peak_energy);
 }
 
-void hlo_app_audio_feature_extraction_task(void * data){
+void hlo_audio_feature_extraction_task(void * data){
 	hlo_stream_t * input = (hlo_stream_t*)data;
 	AudioFeatures_Init(DataCallback,StatsCallback);
 	int16_t * samples = pvPortMalloc(PROCESSOR_BUFFER_SIZE);
@@ -131,32 +131,32 @@ exit:
 ////-----------------------------------------
 //commands
 extern hlo_stream_t * open_stream_from_path(char * str, uint8_t input);
-int Cmd_app_record_start(int argc, char *argv[]){
+int Cmd_audio_record_start(int argc, char *argv[]){
 	audio_sig_stop = 0;
-	hlo_app_audio_recorder_task("rec.raw");
+	hlo_audio_recorder_task("rec.raw");
 	return 0;
 }
-int Cmd_app_record_stop(int argc, char *argv[]){
+int Cmd_audio_record_stop(int argc, char *argv[]){
 	audio_sig_stop = 1;
 	return 0;
 
 }
-int Cmd_app_record_replay(int argc, char *argv[]){
+int Cmd_audio_record_replay(int argc, char *argv[]){
 	DISP("Playing back %s ...\r\n", argv[1]);
 	audio_sig_stop = 0;
-	hlo_app_audio_playback_task(argv[1]);
+	hlo_audio_playback_task(argv[1]);
 	return 0;
 }
-int Cmd_app_octogram(int argc, char *argv[]){
+int Cmd_audio_octogram(int argc, char *argv[]){
 	audio_sig_stop = 0;
 	//hlo_app_audio_octogram_task(random_stream_open());
 
-	hlo_app_audio_octogram_task(open_stream_from_path(argv[1],2));
+	hlo_audio_octogram_task(open_stream_from_path(argv[1],2));
 	return 0;
 }
-int Cmd_app_features(int argc, char *argv[]){
+int Cmd_audio_features(int argc, char *argv[]){
 	audio_sig_stop = 0;
-	hlo_app_audio_feature_extraction_task(open_stream_from_path(argv[1],1));
+	hlo_audio_feature_extraction_task(open_stream_from_path(argv[1],1));
 	return 0;
 }
 

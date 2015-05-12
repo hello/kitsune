@@ -94,7 +94,8 @@
 #include "pill_settings.h"
 #include "prox_signal.h"
 #include "hlo_audio_manager.h"
-#include "hlo_app_audio_tools.h"
+#include "hlo_audio_tools.h"
+#include "hlo_net_tools.h"
 #define ONLY_MID 0
 
 //******************************************************************************
@@ -1752,11 +1753,11 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "fsrd", Cmd_fs_read, "" },
 		{ "fsdl", Cmd_fs_delete, "" },
 
-		{ "r", Cmd_app_record_start,""}, //record sounds into SD card
-		{ "p", Cmd_app_record_replay, ""},//play sounds from SD card
-		{ "s",Cmd_app_record_stop,""},
-		{ "oct",Cmd_app_octogram,""},
-		{ "feat", Cmd_app_features, ""},
+		{ "r", Cmd_audio_record_start,""}, //record sounds into SD card
+		{ "p", Cmd_audio_record_replay, ""},//play sounds from SD card
+		{ "s",Cmd_audio_record_stop,""},
+		{ "oct",Cmd_audio_octogram,""},
+		{ "feat", Cmd_audio_features, ""},
 		{ "getoct",Cmd_get_octogram,""},
 		{ "aon",Cmd_audio_turn_on,""},
 		{ "aoff",Cmd_audio_turn_off,""},

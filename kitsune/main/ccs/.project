@@ -296,9 +296,9 @@
 			<locationURI>PARENT-2-PROJECT_LOC/hlo_async.c</locationURI>
 		</link>
 		<link>
-			<name>hlo_app_audio_tools.h</name>
+			<name>hlo_async.h</name>
 			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/hlo_app_audio_tools.h</locationURI>
+			<locationURI>PARENT-2-PROJECT_LOC/hlo_async.h</locationURI>
 		</link>
 		<link>
 			<name>hlo_audio.c</name>
@@ -319,6 +319,26 @@
 			<name>hlo_audio_manager.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/hlo_audio_manager.h</locationURI>
+		</link>
+		<link>
+			<name>hlo_audio_tools.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hlo_audio_tools.c</locationURI>
+		</link>
+		<link>
+			<name>hlo_audio_tools.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hlo_audio_tools.h</locationURI>
+		</link>
+		<link>
+			<name>hlo_net_tools.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hlo_net_tools.c</locationURI>
+		</link>
+		<link>
+			<name>hlo_net_tools.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hlo_net_tools.h</locationURI>
 		</link>
 		<link>
 			<name>hlo_pipe.c</name>
