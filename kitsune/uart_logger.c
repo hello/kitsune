@@ -530,19 +530,6 @@ static void _free_pb(const NetworkResponse_t * response, char * reply_buf, int r
 	}
 
 }
-static int _send_pb_async( const pb_field_t fields[], void * structdata, NetworkResponseCallback_t func, void * data) {
-	async_context_t * ctx  = pvPortMalloc(sizeof(async_context_t));
-	assert(ctx);
-	memset(ctx, 0, sizeof(async_context_t));
-	if (data) {
-		ctx->buffer = data;
-	}
-    ctx->structdata = structdata;
-
-	return NetworkTask_SendProtobuf(false, DATA_SERVER, SENSE_LOG_ENDPOINT,
-			fields, structdata, 0, func, ctx);
-}
-
 int analytics_event( const char *pcString, ...) {
 	//todo make this fail more gracefully if the allocations don't succeed...
 	va_list vaArgP;
@@ -570,7 +557,14 @@ int analytics_event( const char *pcString, ...) {
 	log->has_property = true;
 	log->property = LogType_KEY_VALUE;
 
-    return _send_pb_async(sense_log_fields, log, _free_pb, ctx.ptr);
+	async_context_t * async_ctx  = pvPortMalloc(sizeof(async_context_t));
+	assert(async_ctx);
+	memset(async_ctx, 0, sizeof(async_context_t));
+	async_ctx->buffer = ctx.ptr;
+	async_ctx->structdata = log;
+
+    return NetworkTask_SendProtobuf(false, DATA_SERVER, SENSE_LOG_ENDPOINT,
+    		sense_log_fields, log, 0, _free_pb, async_ctx);
 }
 
 void uart_logc(uint8_t c){
@@ -590,7 +584,7 @@ void uart_logc(uint8_t c){
     xSemaphoreGive( self.print_sem );
 }
 
-static int send_log() {
+static bool send_log() {
 	self.log.has_unix_time = false;
 #if 0 // if we want this we need to add a file header so stored files will get the origin timestamp and not the uploading timestamp
 	if( has_good_time() ) {
@@ -598,8 +592,8 @@ static int send_log() {
 		self.log.unix_time = get_time();
 	}
 #endif
-
-    return _send_pb_async(sense_log_fields,&self.log, NULL, NULL);
+    return NetworkTask_SendProtobuf(true, DATA_SERVER, SENSE_LOG_ENDPOINT,
+    		sense_log_fields,&self.log, 0, NULL, NULL);
 }
 
 void uart_logger_task(void * params){
@@ -616,7 +610,6 @@ void uart_logger_task(void * params){
 		log_local_enable = 1;
 	}
 	while(1){
-		int ret;
 
 		xEventGroupSetBits(self.uart_log_events, LOG_EVENT_READY);
 		EventBits_t evnt = xEventGroupWaitBits(
@@ -656,8 +649,7 @@ void uart_logger_task(void * params){
 						continue;
 					}
 
-					ret = send_log();
-					if(ret == 0){
+					if(send_log()){
 						int rem = -1;
 						//LOGI("Log upload succeeded\r\n");
 						res = _remove_oldest(&rem);
@@ -676,7 +668,7 @@ void uart_logger_task(void * params){
 			if(evnt & LOG_EVENT_UPLOAD_ONLY) {
 				xEventGroupClearBits(self.uart_log_events,LOG_EVENT_UPLOAD_ONLY);
 				if(wifi_status_get(HAS_IP)){
-					ret = send_log();
+					send_log();
 				}
 			}
 			xSemaphoreGive(self.print_sem);

@@ -1810,6 +1810,14 @@ bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg
 		return false;
 	}
 
+    _ReadBootInfo(&sBootInfo);
+    /* Check only on status TESTING */
+    if( IMG_STATUS_TESTING == sBootInfo.ulImgStatus ){
+		LOGI("ota - ignoring due to test boot \n" );
+		free_download_info( &download_info );
+		return true;
+	}
+
 #if 0 //not reliable
 	if(  get_ble_mode() != BLE_CONNECTED ) {
 		LOGI("ota - ble active \n" );

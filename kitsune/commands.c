@@ -844,8 +844,6 @@ void thread_fast_i2c_poll(void * unused)  {
 		int prox=0;
 
 		if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
-			vTaskDelay(2);
-			light = led_is_idle(0) ? get_light() : light;
 			vTaskDelay(2); //this is important! If we don't do it, then the prox will stretch the clock!
 
 			// For the black morpheus, we can detect 6mm distance max
@@ -875,8 +873,15 @@ void thread_fast_i2c_poll(void * unused)  {
 				break;
 			}
 
-			if (++counter > 10) {
+			if (++counter >= 2) {
 				counter = 0;
+
+				if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
+					vTaskDelay(2);
+					light = led_is_idle(0) ? get_light() : light;
+					xSemaphoreGive(i2c_smphr);
+				}
+
 
 				if (xSemaphoreTake(light_smphr, portMAX_DELAY)) {
 					light_log_sum += bitlog(light);
@@ -899,7 +904,7 @@ void thread_fast_i2c_poll(void * unused)  {
 				}
 			}
 		}
-		vTaskDelayUntil(&now, 10);
+		vTaskDelayUntil(&now, 50);
 	}
 }
 
@@ -1482,12 +1487,12 @@ void SetupGPIOInterrupts() {
 void thread_spi(void * data) {
 	Cmd_spi_read(0, 0);
 	while(1) {
-		if (xSemaphoreTake(spi_smphr, 1000) ) {
-			vTaskDelay(8*10);
+		if (xSemaphoreTake(spi_smphr, 500) ) {
 			Cmd_spi_read(0, 0);
 			MAP_GPIOIntEnable(GPIO_PORT,GSPI_INT_PIN);
 		} else {
 			Cmd_spi_read(0, 0);
+			MAP_GPIOIntEnable(GPIO_PORT,GSPI_INT_PIN);
 		}
 	}
 
@@ -1947,8 +1952,7 @@ void vUARTTask(void *pvParameters) {
 	init_dust();
 	ble_proto_init();
 	xTaskCreate(top_board_task, "top_board_task", 1280 / 4, NULL, 2, NULL);
-	xTaskCreate(thread_spi, "spiTask", 3*1024 / 4, NULL, 4, NULL); //this one doesn't look like much, but has to parse all the pb from bluetooth
-	UARTprintf("*");
+	xTaskCreate(thread_spi, "spiTask", 512 / 4, NULL, 4, NULL);
 #ifndef BUILD_SERVERS
 	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 1, NULL);
 	UARTprintf("*");

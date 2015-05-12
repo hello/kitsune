@@ -1018,7 +1018,7 @@ int start_connection() {
         // configure the socket as RSA with RC4 128 SHA
         // setup certificate
         unsigned char method = SL_SO_SEC_METHOD_TLSV1_2;
-        unsigned int cipher = SL_SEC_MASK_TLS_RSA_WITH_AES_256_CBC_SHA;
+        unsigned int cipher = SL_SEC_MASK_TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA;
         if( sl_SetSockOpt(sock, SL_SOL_SOCKET, SL_SO_SECMETHOD, &method, sizeof(method) ) < 0 ||
             sl_SetSockOpt(sock, SL_SOL_SOCKET, SL_SO_SECURE_MASK, &cipher, sizeof(cipher)) < 0 ||
             sl_SetSockOpt(sock, SL_SOL_SOCKET, \
@@ -1034,7 +1034,6 @@ int start_connection() {
         LOGI("Socket create failed %d\n\r", sock);
         return -1;
     }
-    LOGI("Socket created\n\r");
 
 #if !LOCAL_TEST
     if (ipaddr == 0) {
@@ -1317,6 +1316,13 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     if( start_connection() < 0 ) {
         LOGI("failed to start connection\n\r\n\r");
         return -1;
+    }
+
+    //check that it's still secure...
+    rv = recv(sock, recv_buf, SERVER_REPLY_BUFSZ, 0);
+    if (rv != SL_EAGAIN ) {
+        LOGI("start recv error %d\n\r\n\r", rv);
+        return stop_connection();
     }
 
     //LOGI("Sending request\n\r%s\n\r", recv_buf);
