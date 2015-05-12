@@ -641,7 +641,7 @@ void ble_proto_led_flash(int a, int r, int g, int b, int delay)
 	_self.argb[3] = b;
 	_self.delay = delay;
 
-	ANIMATE_BLOCKING(play_led_animation_solid(a,r,g,b,2,18), 4000);
+	play_led_animation_solid(a,r,g,b,2,18);
 }
 extern volatile bool provisioning_mode;
 
