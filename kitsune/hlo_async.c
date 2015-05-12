@@ -1,8 +1,23 @@
 #include "hlo_async.h"
 #include <strings.h>
 
-
 #define CHECK_FOR_NULL(buf) if(!buf){return -99;}
+static xQueueHandle _queue;
+
+typedef struct{
+	hlo_future_t * result;
+	future_task work;
+	void * context;
+}async_task_t;
+
+void hlo_async_task(void * ctx){
+	_queue = xQueueCreate(16,sizeof( async_task_t ) );
+	async_task_t task;
+	while(1){
+		  xQueueReceive(_queue,(void *) &task, portMAX_DELAY );
+		  task.work(task.result, task.context);
+	}
+}
 static void hlo_future_destroy(hlo_future_t * future){
 	if(future){
 		vSemaphoreDelete(future->sync);
@@ -19,7 +34,22 @@ hlo_future_t * hlo_future_create(size_t max_size){
 	}
 	return ret;
 }
+hlo_future_t * hlo_future_create_task(size_t max_size, future_task cb, void * context){
+	if(!_queue){
+		return NULL;
+	}
+	hlo_future_t * result = hlo_future_create(max_size);
+	if(result){
+		async_task_t task = (async_task_t){
+			.result = result,
+			.work = cb,
+			.context = context,
+		};
+		xQueueSend(_queue,&task,0);
+	}
+	return result;
 
+}
 //producer use either
 int hlo_future_write(hlo_future_t * future, const void * buffer, size_t size, int opt_error){
 	CHECK_FOR_NULL(future);

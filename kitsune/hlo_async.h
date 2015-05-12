@@ -13,7 +13,14 @@ typedef struct{
 	uint8_t buf[0];
 }hlo_future_t;
 
+typedef void(*future_task)(hlo_future_t * result, void * ctx);
+
+//standalone creation
 hlo_future_t * hlo_future_create(size_t max_size);
+
+//creates and runs the cb on the future task handler.
+//future_task is guaranteed to run sequentially
+hlo_future_t * hlo_future_create_task(size_t max_size, future_task cb, void * context);
 
 //producer
 int hlo_future_write(hlo_future_t * future, const void * buffer, size_t size, int opt_error);
