@@ -50,7 +50,6 @@ static int do_read(hlo_future_t * future, void * buf, size_t size){
 	return err;
 }
 int hlo_future_read(hlo_future_t * future, void * buf, size_t size){
-	CHECK_FOR_NULL(future);
 	return hlo_future_read_with_timeout(future,buf,size,portMAX_DELAY);
 }
 
