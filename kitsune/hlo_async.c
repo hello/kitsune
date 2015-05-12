@@ -57,7 +57,7 @@ int hlo_future_read(hlo_future_t * future, void * buf, size_t size){
 int hlo_future_read_with_timeout(hlo_future_t * future,  void * buf, size_t size, TickType_t ms){
 	CHECK_FOR_NULL(future);
 	int err = -11;
-	if(xSemaphoreTake(future->buf, ms) == pdTRUE){
+	if(xSemaphoreTake(future->sync, ms) == pdTRUE){
 		err = do_read(future, buf, size);
 		hlo_future_destroy(future);
 	}else{
