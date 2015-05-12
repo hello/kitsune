@@ -764,11 +764,14 @@ uint8_t get_alpha_from_light()
 	int adjust_max_light = 800;
 	int adjust;
 
+
+	xSemaphoreTake(light_smphr, portMAX_DELAY);
 	if( light > adjust_max_light ) {
 		adjust = adjust_max_light;
 	} else {
 		adjust = light_mean;
 	}
+	xSemaphoreGive(light_smphr);
 
 	uint8_t alpha = 0xFF * adjust / adjust_max_light;
 	alpha = alpha < 10 ? 10 : alpha;
@@ -776,24 +779,27 @@ uint8_t get_alpha_from_light()
 }
 
 
-static int _is_light_off(int current_light)
+static int _is_light_off()
 {
 	static int last_light = -1;
 	const int light_off_threshold = 300;
 	int ret = 0;
+
+	xSemaphoreTake(light_smphr, portMAX_DELAY);
 	if(last_light != -1)
 	{
-		int delta = last_light - current_light;
+		int delta = last_light - light;
 		//LOGI("delta: %d, current %d, last %d\n", delta, current_light, last_light);
-		if(delta >= light_off_threshold && current_light < 300)
+		if(delta >= light_off_threshold && light < 300)
 		{
 			//LOGI("Light off\n");
 			ret = 1;
-			light_mean = current_light; //so the led alpha will be at the lights off level
+			light_mean = light; //so the led alpha will be at the lights off level
 		}
 	}
 
-	last_light = current_light;
+	last_light = light;
+	xSemaphoreGive(light_smphr);
 	return ret;
 
 }
@@ -910,7 +916,7 @@ void thread_fast_i2c_poll(void * unused)  {
 					xSemaphoreGive(light_smphr);
 
 					if(light_cnt % 5 == 0 && led_is_idle(0) ) {
-						if(_is_light_off(light)) {
+						if(_is_light_off()) {
 							_show_led_status();
 						}
 					}
