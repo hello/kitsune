@@ -1815,7 +1815,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "set-time",cmd_set_time,""},
 		{ "frag",cmd_memfrag,""},
 		{ "burntopkey",Cmd_burn_top,""},
-		{ "scan",Cmd_scan_wifi_mostly_nonblocking,""},
+		{ "scan",Cmd_scan_wifi,""},
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
 		{ "iperfcli",Cmd_iperf_client,""},
