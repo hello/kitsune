@@ -18,6 +18,14 @@ void hlo_async_task(void * ctx){
 		  task.work(task.result, task.context);
 	}
 }
+static void async_worker(void * ctx){
+	async_task_t * task = (async_task_t*)ctx;
+	if(task->work){
+		task->work(task->result, task->context);
+	}
+	vPortFree(task);
+	vTaskDelete(NULL);
+}
 static void hlo_future_destroy(hlo_future_t * future){
 	if(future){
 		vSemaphoreDelete(future->sync);
@@ -49,6 +57,28 @@ hlo_future_t * hlo_future_create_task(size_t max_size, future_task cb, void * co
 	}
 	return result;
 
+}
+hlo_future_t * hlo_future_create_task_bg(size_t max_size, future_task cb, void * context, size_t stack_size){
+	hlo_future_t * result = hlo_future_create(max_size);
+	async_task_t * task;
+	if(result){
+		task = pvPortMalloc(sizeof(async_task_t));
+		if(!task){
+			goto fail;
+		}
+		task->context = context;
+		task->result = result;
+		task->work = cb;
+		if(pdPASS != xTaskCreate(async_worker, "asyncWorker", stack_size / 4, task, 4, NULL)){
+			goto fail_task;
+		}
+	}
+	return result;
+fail_task:
+	vPortFree(task);
+fail:
+	hlo_future_destroy(result);
+	return NULL;
 }
 //producer use either
 int hlo_future_write(hlo_future_t * future, const void * buffer, size_t size, int return_code){

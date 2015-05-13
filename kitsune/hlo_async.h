@@ -20,7 +20,9 @@ hlo_future_t * hlo_future_create(size_t max_size);
 //creates and runs the cb on the future task handler.
 //future_task is guaranteed to run sequentially
 hlo_future_t * hlo_future_create_task(size_t max_size, future_task cb, void * context);
-
+//creates a new thread to run the task
+//not guarantee for sequentiality.
+hlo_future_t * hlo_future_create_task_bg(size_t max_size, future_task cb, void * context, size_t stack_size);
 //producer
 int hlo_future_write(hlo_future_t * future, const void * buffer, size_t size, int return_code);
 
