@@ -7,12 +7,9 @@
  * host name must remain in scope
  */
 unsigned long resolve_ip_by_host_name(const char * host_name);
-/**
- * scans wifi into the result
- * @return >= 0 for # of valid endpoints, < 0 for error
- *
- */
-int scan_for_wifi(Sl_WlanNetworkEntry_t * result, size_t max_entries, int ant_select);
+
+//scans and copies a list of unique result
+int get_unique_wifi_list(Sl_WlanNetworkEntry_t * result, size_t num_entries);
 
 
 int Cmd_dig(int argc, char *argv[]);

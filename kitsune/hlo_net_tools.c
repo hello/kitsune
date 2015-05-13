@@ -3,6 +3,7 @@
 #include "socket.h"
 #include "simplelink.h"
 #include "sl_sync_include_after_simplelink_header.h"
+#include <strings.h>
 typedef struct{
 	Sl_WlanNetworkEntry_t * entries;
 	size_t max_entries;
@@ -30,7 +31,8 @@ static void scan(hlo_future_t * result, void * ctx){
     policyOpt = SL_SCAN_POLICY(1);
 
     // set scan policy - this starts the scan
-    r = sl_WlanPolicySet(SL_POLICY_SCAN , policyOpt, (unsigned char *)(&IntervalVal), sizeof(IntervalVal));
+    //Interval is intentional
+    r = sl_WlanPolicySet(SL_POLICY_SCAN , policyOpt, (unsigned char *)(IntervalVal), sizeof(IntervalVal));
 
     // delay specific milli seconds to verify scan is started
     vTaskDelay(desc->duration_ms);
@@ -43,6 +45,21 @@ static void scan(hlo_future_t * result, void * ctx){
 	sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0), NULL, 0);
 
 	hlo_future_write(result,NULL,0,r);
+}
+static int scan_for_wifi(Sl_WlanNetworkEntry_t * result, size_t max_entries, int ant_select, int duration){
+	scan_desc_t desc = (scan_desc_t){
+		.entries = result,
+		.max_entries = max_entries,
+		.antenna = ant_select,
+		.duration_ms = duration,
+	};
+	hlo_future_t * fut = hlo_future_create_task(0, scan, &desc);
+	int rv = hlo_future_read(fut, NULL, 0);
+	if(rv >= 0){
+		return rv;
+	}else{
+		return -1;
+	}
 }
 ////---------------------------------
 //Public
@@ -57,20 +74,55 @@ unsigned long resolve_ip_by_host_name(const char * host_name){
 	}
 
 }
-int scan_for_wifi(Sl_WlanNetworkEntry_t * result, size_t max_entries, int ant_select){
-	scan_desc_t desc = (scan_desc_t){
-		.entries = result,
-		.max_entries = max_entries,
-		.antenna = ant_select,
-		.duration_ms = 6000,//fixed scanning duration for now
-	};
-	hlo_future_t * fut = hlo_future_create_task(0, scan, &desc);
-	int rv = hlo_future_read(fut, NULL, 0);
-	if(rv >= 0){
-		return rv;
-	}else{
-		return -1;
+int _replace_ssid_by_rssi(Sl_WlanNetworkEntry_t * main, size_t main_size, const Sl_WlanNetworkEntry_t* entry){
+	int i;
+	for(i = 0; i < main_size; i++){
+		Sl_WlanNetworkEntry_t * tbl = &main[i];
+		if(tbl->rssi == 0 && tbl->ssid[0] == 0){
+			//fresh entry, copy over
+			*tbl = *entry;
+			return 1;
+		}else if(!strncmp((const char*)tbl->ssid, (const char*)entry->ssid, sizeof(tbl->ssid))){
+			if(entry->rssi > tbl->rssi){
+				*tbl = *entry;
+				return 0;
+			}
+			return 0;
+		}
 	}
+	return 0;
+}
+//this implementation is O(n^2)
+int get_unique_wifi_list(Sl_WlanNetworkEntry_t * result, size_t num_entries){
+	size_t size = num_entries * sizeof(Sl_WlanNetworkEntry_t);
+	int retries, ret, tally = 0;
+	Sl_WlanNetworkEntry_t * ifa_list = pvPortMalloc(size);
+	Sl_WlanNetworkEntry_t * pcb_list = pvPortMalloc(size);
+	memset(result, 0, size);
+	if(!ifa_list || !pcb_list){
+		goto exit;
+	}
+
+	retries = 3;
+	while(retries > 0 && (ret = scan_for_wifi(ifa_list, num_entries, 1, 3000)) == 0){
+		DISP("Retrying IFA %d\r\n", retries);
+	}
+	while(--ret > 0){
+		tally += _replace_ssid_by_rssi(result, num_entries, &ifa_list[ret]);
+	}
+
+	retries = 3;
+	while(retries > 0 && (ret = scan_for_wifi(pcb_list, num_entries, 2, 3000)) == 0){
+		DISP("Retrying PCB %d\r\n", retries);
+	}
+	while(--ret > 0){
+		tally += _replace_ssid_by_rssi(result, num_entries, &pcb_list[ret]);
+	}
+exit:
+	if(ifa_list){vPortFree(ifa_list);}
+	if(pcb_list){vPortFree(pcb_list);}
+	return tally;
+
 }
 ////---------------------------------
 //Commands
@@ -92,12 +144,13 @@ int Cmd_scan_wifi(int argc, char *argv[]){
 	size_t size = 10 * sizeof(Sl_WlanNetworkEntry_t);
 	Sl_WlanNetworkEntry_t * entries = pvPortMalloc(size);
 	memset(entries,0, size);
-	int ret = scan_for_wifi(entries, 10, 1);
+	int ret = get_unique_wifi_list(entries, 10);
+	DISP("\r\n");
 	if(ret > 0){
 		DISP("Found endpoints\r\n===========\r\n");
 		int i;
 		for(i = 0; i < ret; i++){
-			DISP("%d)%s\r\n",i, entries->ssid);
+			DISP("%d)%s\r\n",i, entries[i].ssid);
 		}
 	}else{
 		DISP("No endpoints scanned\r\n");
