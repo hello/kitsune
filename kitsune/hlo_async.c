@@ -1,5 +1,6 @@
 #include "hlo_async.h"
 #include <strings.h>
+#include "task.h"
 
 #define CHECK_FOR_NULL(buf) if(!buf){return -99;}
 static xQueueHandle _queue;
