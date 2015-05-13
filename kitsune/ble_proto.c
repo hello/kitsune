@@ -186,6 +186,23 @@ Sl_WlanNetworkEntry_t *  get_wifi_scan(int * num) {
 	xSemaphoreGive(_wifi_smphr);
 	return ssid;
 }
+static void reselect_antenna() {
+	xSemaphoreTake(_wifi_smphr, portMAX_DELAY);
+	if( _scanned_wifi_count == 0 ) {
+		xSemaphoreGive(_wifi_smphr);
+		return;
+	}
+	int i;
+	char ssid[MAX_SSID_LEN];
+	wifi_get_connected_ssid( ssid, sizeof(ssid));
+    for(i = 0; i < _scanned_wifi_count; i++) {
+    	if( 0 == strcmp(_wifi_endpoints[i].ssid, ssid ) ) {
+    		antsel(_wifi_endpoints[i].reserved[0]);
+    		break;
+    	}
+    }
+	xSemaphoreGive(_wifi_smphr);
+}
 
 static void _reply_wifi_scan_result()
 {
@@ -333,6 +350,7 @@ static void _scan_wifi( void * params )
 		//but we don't care because this isn't the bad case (phone connected and not expecting the wifi list)
 		_reply_wifi_scan_result();
 	}
+	reselect_antenna();
 
 	vTaskDelete(NULL);
 }
