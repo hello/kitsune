@@ -2,6 +2,7 @@
 #include "kit_assert.h"
 #include "socket.h"
 #include "simplelink.h"
+#include "wifi_cmd.h"
 #include "sl_sync_include_after_simplelink_header.h"
 #include <strings.h>
 typedef struct{
@@ -102,20 +103,24 @@ int get_unique_wifi_list(Sl_WlanNetworkEntry_t * result, size_t num_entries){
 	if(!ifa_list || !pcb_list){
 		goto exit;
 	}
-
+	//do ifa
 	retries = 3;
-	while(retries > 0 && (ret = scan_for_wifi(ifa_list, num_entries, 1, 3000)) == 0){
+	while(retries > 0 && (ret = scan_for_wifi(ifa_list, num_entries, IFA_ANT, 3000)) == 0){
 		DISP("Retrying IFA %d\r\n", retries);
 	}
 	while(--ret > 0){
+		ifa_list[ret].reserved[0] = IFA_ANT;
+		ifa_list[ret].ssid_len = 0;
 		tally += _replace_ssid_by_rssi(result, num_entries, &ifa_list[ret]);
 	}
-
+	//now do pcb
 	retries = 3;
-	while(retries > 0 && (ret = scan_for_wifi(pcb_list, num_entries, 2, 3000)) == 0){
+	while(retries > 0 && (ret = scan_for_wifi(pcb_list, num_entries, PCB_ANT, 3000)) == 0){
 		DISP("Retrying PCB %d\r\n", retries);
 	}
 	while(--ret > 0){
+		pcb_list[ret].reserved[0] = PCB_ANT;
+		pcb_list[ret].ssid_len = 0;
 		tally += _replace_ssid_by_rssi(result, num_entries, &pcb_list[ret]);
 	}
 exit:
