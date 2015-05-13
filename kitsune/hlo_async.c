@@ -55,7 +55,9 @@ int hlo_future_write(hlo_future_t * future, const void * buffer, size_t size, in
 	CHECK_FOR_NULL(future);
 	int err = 0;
 	if(future->buf_size >= size){
-		memcpy(future->buf,buffer,size);
+		if(buffer){
+			memcpy(future->buf,buffer,size);
+		}
 		future->buf_size = size;
 	}else{
 		//input too bigs

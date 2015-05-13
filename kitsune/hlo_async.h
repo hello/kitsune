@@ -25,7 +25,13 @@ hlo_future_t * hlo_future_create_task(size_t max_size, future_task cb, void * co
 int hlo_future_write(hlo_future_t * future, const void * buffer, size_t size, int opt_error);
 
 
-//consumer use this
+/**
+ * @param future - the future containing the value
+ * @param buf - copies the future value into this buffer
+ * @param size - max size of the buffer
+ *
+ * @return - >= 0 for number of bytes written to the buffer, < 0 for error
+ */
 int hlo_future_read(hlo_future_t * future, void * buf, size_t size);
 //or this
 int hlo_future_read_with_timeout(hlo_future_t * future,  void * buf, size_t size, TickType_t ms);
