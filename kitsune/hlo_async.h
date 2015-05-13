@@ -6,7 +6,7 @@
  * tools for asynchronous transaction here
  */
 typedef struct{
-	int error;
+	int return_code;
 	xSemaphoreHandle sync;
 	int buf_size;
 	uint8_t buf[0];
@@ -22,7 +22,7 @@ hlo_future_t * hlo_future_create(size_t max_size);
 hlo_future_t * hlo_future_create_task(size_t max_size, future_task cb, void * context);
 
 //producer
-int hlo_future_write(hlo_future_t * future, const void * buffer, size_t size, int opt_error);
+int hlo_future_write(hlo_future_t * future, const void * buffer, size_t size, int return_code);
 
 
 /**
