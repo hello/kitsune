@@ -38,11 +38,13 @@ int MorpheusCommand_from_buffer(MorpheusCommand * dst, void * buf, size_t size){
 		.buf = buf,
 		.buf_size = size,
 	};
+	int ret = -1;
 	hlo_future_t * result = hlo_future_create_task(sizeof(MorpheusCommand), decode_MorpheusCommand, &desc);
 	if(result){
-		if(hlo_future_read(result,dst,sizeof(MorpheusCommand)) >= 0){
-			return 0;
+		if(hlo_future_read(result,dst,sizeof(MorpheusCommand), portMAX_DELAY) >= 0){
+			ret = 0;
 		}
+		hlo_future_destroy(result);
 	}
-	return -1;
+	return ret;
 }

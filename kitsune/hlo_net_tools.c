@@ -54,20 +54,28 @@ static int scan_for_wifi(Sl_WlanNetworkEntry_t * result, size_t max_entries, int
 		.antenna = ant_select,
 		.duration_ms = duration,
 	};
-	hlo_future_t * fut = hlo_future_create_task(0, scan, &desc);
-	int rv = hlo_future_read(fut, NULL, 0);
+	hlo_future_t * fut = hlo_future_create_task_bg(0, scan, &desc, 1024);
+	int rv = hlo_future_read(fut, NULL, 0, portMAX_DELAY);
+	hlo_future_destroy(fut);
 	if(rv >= 0){
 		return rv;
 	}else{
 		return -1;
 	}
 }
+static void worker_scan_unique(hlo_future_t * result, void * ctx){
+	int num_entries = result->buf_size / sizeof(Sl_WlanNetworkEntry_t);
+	Sl_WlanNetworkEntry_t * entries = (Sl_WlanNetworkEntry_t*)result->buf;
+	int ret = get_unique_wifi_list(entries, num_entries);
+	hlo_future_write(result,NULL,0,ret);
+}
 ////---------------------------------
 //Public
 unsigned long resolve_ip_by_host_name(const char * host_name){
 	unsigned long ip = 0;
 	hlo_future_t * fut = hlo_future_create_task(sizeof(unsigned long), resolve, (void*)host_name);
-	int rv = hlo_future_read(fut,&ip,sizeof(ip));
+	int rv = hlo_future_read(fut,&ip,sizeof(ip), portMAX_DELAY);
+	hlo_future_destroy(fut);
 	if(rv >= 0){
 		return ip;
 	}else{
@@ -129,6 +137,10 @@ exit:
 	return tally;
 
 }
+hlo_future_t * prescan_wifi(size_t num_entries){
+	size_t size = num_entries * sizeof(Sl_WlanNetworkEntry_t);
+	return hlo_future_create_task_bg(size, worker_scan_unique, NULL, 1024);
+}
 ////---------------------------------
 //Commands
 int Cmd_dig(int argc, char *argv[]){
@@ -146,9 +158,16 @@ int Cmd_dig(int argc, char *argv[]){
 	return 0;
 }
 int Cmd_scan_wifi(int argc, char *argv[]){
-	size_t size = 10 * sizeof(Sl_WlanNetworkEntry_t);
-	Sl_WlanNetworkEntry_t * entries = pvPortMalloc(size);
-	int ret = get_unique_wifi_list(entries, 10);
+	static hlo_future_t * result;
+	Sl_WlanNetworkEntry_t entries[10];
+	int ret;
+	if(!result){
+		result = prescan_wifi( 10 );
+	}
+	if(!result){
+		return -1;
+	}
+	ret = hlo_future_read(result,entries,sizeof(entries), portMAX_DELAY);
 	DISP("\r\n");
 	if(ret > 0){
 		DISP("Found endpoints\r\n===========\r\n");
@@ -159,6 +178,5 @@ int Cmd_scan_wifi(int argc, char *argv[]){
 	}else{
 		DISP("No endpoints scanned\r\n");
 	}
-	vPortFree(entries);
 	return 0;
 }

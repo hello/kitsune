@@ -2,6 +2,7 @@
 #define HLO_ASYNC_H
 #include "FreeRTOS.h"
 #include "semphr.h"
+#include "task.h"
 /**
  * tools for asynchronous transaction here
  */
@@ -17,29 +18,29 @@ typedef void(*future_task)(hlo_future_t * result, void * ctx);
 //standalone creation
 hlo_future_t * hlo_future_create(size_t max_size);
 
-//creates and runs the cb on the future task handler.
+//creates and runs the cb on the future task handler with a large stack
 //future_task is guaranteed to run sequentially
+//used to conserve space
 hlo_future_t * hlo_future_create_task(size_t max_size, future_task cb, void * context);
+
 //creates a new thread to run the task
-//not guarantee for sequentiality.
+//not guarantee for sequentiality
 hlo_future_t * hlo_future_create_task_bg(size_t max_size, future_task cb, void * context, size_t stack_size);
+
+
 //producer
 int hlo_future_write(hlo_future_t * future, const void * buffer, size_t size, int return_code);
 
+//consumer use this
+int hlo_future_read(hlo_future_t * future,  void * buf, size_t size, TickType_t ms);
 
-/**
- * @param future - the future containing the value
- * @param buf - copies the future value into this buffer
- * @param size - max size of the buffer
- *
- * @return - >= 0 for number of bytes written to the buffer, < 0 for error
- */
-int hlo_future_read(hlo_future_t * future, void * buf, size_t size);
-//or this
-int hlo_future_read_with_timeout(hlo_future_t * future,  void * buf, size_t size, TickType_t ms);
-
+//destroy after read
+void hlo_future_destroy(hlo_future_t * future);
 
 //rtos scheduler
 void hlo_async_task(void * ctx);
+
+
+//helper macros
 
 #endif

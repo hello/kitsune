@@ -1,6 +1,6 @@
 #include "hlo_async.h"
 #include <strings.h>
-#include "task.h"
+
 
 #define CHECK_FOR_NULL(buf) if(!buf){return -99;}
 static xQueueHandle _queue;
@@ -27,12 +27,16 @@ static void async_worker(void * ctx){
 	vPortFree(task);
 	vTaskDelete(NULL);
 }
-static void hlo_future_destroy(hlo_future_t * future){
-	if(future){
-		vSemaphoreDelete(future->sync);
-		vPortFree(future);
+static int do_read(hlo_future_t * future, void * buf, size_t size){
+	if(buf && size >= future->buf_size){
+		memcpy(buf,future->buf,future->buf_size);
 	}
+	return future->return_code;
 }
+
+
+////-------------
+//public
 hlo_future_t * hlo_future_create(size_t max_size){
 	size_t alloc_size = sizeof(hlo_future_t) + max_size;
 	hlo_future_t * ret = pvPortMalloc(alloc_size);
@@ -97,25 +101,20 @@ int hlo_future_write(hlo_future_t * future, const void * buffer, size_t size, in
 	xSemaphoreGive(future->sync);
 	return err;
 }
-static int do_read(hlo_future_t * future, void * buf, size_t size){
-	if(buf && size >= future->buf_size){
-		memcpy(buf,future->buf,future->buf_size);
-	}
-	return future->return_code;
-}
-int hlo_future_read(hlo_future_t * future, void * buf, size_t size){
-	return hlo_future_read_with_timeout(future,buf,size,portMAX_DELAY);
-}
 
+void hlo_future_destroy(hlo_future_t * future){
+	if(future){
+		vSemaphoreDelete(future->sync);
+		vPortFree(future);
+	}
+}
 //or this
-int hlo_future_read_with_timeout(hlo_future_t * future,  void * buf, size_t size, TickType_t ms){
+int hlo_future_read(hlo_future_t * future,  void * buf, size_t size, TickType_t ms){
 	CHECK_FOR_NULL(future);
 	int err = -11;
 	if(xSemaphoreTake(future->sync, ms) == pdTRUE){
 		err = do_read(future, buf, size);
-		hlo_future_destroy(future);
-	}else{
-		//timed out, defer destroy
+		xSemaphoreGive(future->sync);
 	}
 	return err;
 }
