@@ -1550,7 +1550,7 @@ void boot_commit_ota() {
 								IMG_ACT_USER2:
 								IMG_ACT_USER1;
         _WriteBootInfo(&sBootInfo);
-		//send_top("rst ", sizeof("rst "));
+		send_top("rst ", sizeof("rst "));
 		mcu_reset();
 	}
 }
