@@ -194,10 +194,11 @@ static void reselect_antenna() {
 	}
 	int i;
 	char ssid[MAX_SSID_LEN];
-	wifi_get_connected_ssid( ssid, sizeof(ssid));
+	wifi_get_connected_ssid( (uint8_t*)ssid, sizeof(ssid));
     for(i = 0; i < _scanned_wifi_count; i++) {
-    	if( 0 == strcmp(_wifi_endpoints[i].ssid, ssid ) ) {
+    	if( 0 == strcmp( (char*)_wifi_endpoints[i].ssid, ssid ) ) {
     		antsel(_wifi_endpoints[i].reserved[0]);
+    		save_default_antenna(_wifi_endpoints[i].reserved[0]);
     		break;
     	}
     }
