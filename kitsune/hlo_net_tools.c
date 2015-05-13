@@ -143,7 +143,6 @@ int Cmd_dig(int argc, char *argv[]){
 int Cmd_scan_wifi(int argc, char *argv[]){
 	size_t size = 10 * sizeof(Sl_WlanNetworkEntry_t);
 	Sl_WlanNetworkEntry_t * entries = pvPortMalloc(size);
-	memset(entries,0, size);
 	int ret = get_unique_wifi_list(entries, 10);
 	DISP("\r\n");
 	if(ret > 0){
