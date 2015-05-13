@@ -74,7 +74,9 @@ static int do_read(hlo_future_t * future, void * buf, size_t size){
 		//not enough space
 		err = -1;
 	}else{
-		memcpy(buf,future->buf,future->buf_size);
+		if(buf){
+			memcpy(buf,future->buf,future->buf_size);
+		}
 		err = future->buf_size;
 	}
 	return err;
