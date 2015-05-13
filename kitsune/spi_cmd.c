@@ -304,7 +304,7 @@ int Cmd_spi_read(int argc, char *argv[]) {
 	if( p.len ) {
 		xQueueSend(pb_proc_q, (void* )&p, portMAX_DELAY);
 		if( pb_proc_task == NULL ) {
-			xTaskCreate(task_process_pb, "task_process_pb", 3*1024 / 4, pb_proc_q, 4, &pb_proc_task); //this one doesn't look like much, but has to parse all the pb from bluetooth
+			xTaskCreate(task_process_pb, "task_process_pb", 512 / 4, pb_proc_q, 4, &pb_proc_task);
 			assert(pb_proc_task);
 		}
 	}
