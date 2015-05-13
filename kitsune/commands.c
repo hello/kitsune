@@ -942,6 +942,7 @@ int load_device_id();
 bool is_test_boot();
 //no need for semaphore, only thread_tx uses this one
 int data_queue_batch_size = 1;
+int Cmd_scan_wifi_mostly_nonblocking(int argc, char *argv[]);
 
 void thread_tx(void* unused) {
 	batched_pill_data pill_data_batched = {0};
@@ -1014,6 +1015,11 @@ void thread_tx(void* unused) {
 					}
 				}
 			}
+
+			wifi_get_connected_ssid( (uint8_t*)data_batched.connected_ssid, sizeof(data_batched) );
+			data_batched.has_connected_ssid = true;
+			data_batched.scan.funcs.encode = encode_scanned_ssid;
+			Cmd_scan_wifi_mostly_nonblocking(0,0);
 
 			while (!send_periodic_data(&data_batched)) {
 				LOGI("Waiting for network connection\n");
@@ -1723,7 +1729,6 @@ int Cmd_heapviz(int argc, char *argv[]) {
 	return 0;
 }
 
-int Cmd_scan_wifi_mostly_nonblocking(int argc, char *argv[]);
 // ==============================================================================
 // This is the table that holds the command names, implementing functions, and
 // brief description.

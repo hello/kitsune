@@ -172,6 +172,21 @@ void ble_proto_init() {
 	set_ble_mode(BLE_NORMAL);
 }
 
+Sl_WlanNetworkEntry_t *  get_wifi_scan(int * num) {
+	Sl_WlanNetworkEntry_t * ssid;
+	xSemaphoreTake(_wifi_smphr, portMAX_DELAY);
+	*num = _scanned_wifi_count;
+	if( _scanned_wifi_count == 0 ) {
+		xSemaphoreGive(_wifi_smphr);
+		return NULL;
+	}
+	ssid = pvPortMalloc(sizeof(Sl_WlanNetworkEntry_t) * _scanned_wifi_count);
+	assert(ssid);
+	memcpy( ssid, _wifi_endpoints, sizeof(Sl_WlanNetworkEntry_t) * _scanned_wifi_count );
+	xSemaphoreGive(_wifi_smphr);
+	return ssid;
+}
+
 static void _reply_wifi_scan_result()
 {
     int i = 0;

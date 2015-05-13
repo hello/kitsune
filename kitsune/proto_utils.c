@@ -1,4 +1,5 @@
 #include "proto_utils.h"
+#include "ble_proto.h"
 #include "uartstdio.h"
 #include "wifi_cmd.h"
 #include "kitsune_version.h"
@@ -59,6 +60,39 @@ bool encode_all_pills (pb_ostream_t *stream, const pb_field_t *field, void * con
         }
         //LOGI("******************* encode_pill_encode_all_pills: encode pill %s\n", pill_data.deviceId);
     }
+    return true;
+}
+
+bool encode_scanned_ssid (pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
+    int i,n;
+    Sl_WlanNetworkEntry_t * scan = get_wifi_scan(&n);
+    batched_periodic_data_wifi_access_point ap;
+
+    if( n == 0 ) {
+    	return true;
+    }
+
+    for( i = 0; i < n; ++i ) {
+        if(!pb_encode_tag(stream, PB_WT_STRING, batched_periodic_data_scan_tag))
+        {
+            LOGI("encode_scanned_ssid: Fail to encode tag for ssid %s, error %s\n", scan->rssi, PB_GET_ERROR(stream));
+            vPortFree(scan);
+            return false;
+        }
+        ap.antenna = (batched_periodic_data_wifi_access_point_AntennaType)scan[i].reserved[0];
+        ap.has_antenna = true;
+        ap.rssi = scan[i].rssi;
+        ap.has_rssi = true;
+        memcpy( ap.ssid, scan[i].ssid, sizeof(ap.ssid));
+        ap.has_ssid = true;
+
+        if (!pb_encode_delimited(stream, batched_periodic_data_wifi_access_point_fields, &ap )){
+            LOGI("encode_scanned_ssid: Fail to encode ssid %s, error: %s\n", scan[i].rssi, PB_GET_ERROR(stream));
+            vPortFree(scan);
+            return false;
+        }
+    }
+    vPortFree(scan);
     return true;
 }
 
