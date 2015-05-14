@@ -62,10 +62,15 @@ bool encode_all_pills (pb_ostream_t *stream, const pb_field_t *field, void * con
     }
     return true;
 }
+#include "hlo_async.h"
 
 bool encode_scanned_ssid (pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
     int i,n;
-    Sl_WlanNetworkEntry_t * scan = get_wifi_scan(&n);
+
+	Sl_WlanNetworkEntry_t scan[10];
+	hlo_future_t * scan_future = (hlo_future_t *)*arg;
+
+	n = hlo_future_read(scan_future,scan,sizeof(scan), portMAX_DELAY);
     batched_periodic_data_wifi_access_point ap;
 
     if( n == 0 ) {
@@ -76,7 +81,6 @@ bool encode_scanned_ssid (pb_ostream_t *stream, const pb_field_t *field, void * 
         if(!pb_encode_tag(stream, PB_WT_STRING, batched_periodic_data_scan_tag))
         {
             LOGI("encode_scanned_ssid: Fail to encode tag for ssid %s, error %s\n", scan->rssi, PB_GET_ERROR(stream));
-            vPortFree(scan);
             return false;
         }
         ap.antenna = (batched_periodic_data_wifi_access_point_AntennaType)scan[i].reserved[0];
@@ -88,11 +92,9 @@ bool encode_scanned_ssid (pb_ostream_t *stream, const pb_field_t *field, void * 
 
         if (!pb_encode_delimited(stream, batched_periodic_data_wifi_access_point_fields, &ap )){
             LOGI("encode_scanned_ssid: Fail to encode ssid %s, error: %s\n", scan[i].rssi, PB_GET_ERROR(stream));
-            vPortFree(scan);
             return false;
         }
     }
-    vPortFree(scan);
     return true;
 }
 

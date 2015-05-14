@@ -92,7 +92,7 @@
 
 #include "pill_settings.h"
 #include "prox_signal.h"
-
+#include "hlo_net_tools.h"
 #define ONLY_MID 0
 
 //******************************************************************************
@@ -1019,7 +1019,7 @@ void thread_tx(void* unused) {
 			wifi_get_connected_ssid( (uint8_t*)data_batched.connected_ssid, sizeof(data_batched) );
 			data_batched.has_connected_ssid = true;
 			data_batched.scan.funcs.encode = encode_scanned_ssid;
-			Cmd_scan_wifi_mostly_nonblocking(0,0);
+			data_batched.scan.arg = prescan_wifi(10);
 
 			while (!send_periodic_data(&data_batched)) {
 				LOGI("Waiting for network connection\n");
@@ -1771,7 +1771,7 @@ tCmdLineEntry g_sCmdTable[] = {
 #endif
 
 		{ "dust", Cmd_dusttest, "" },
-
+		{ "dig", Cmd_dig, "" },
 		{ "fswr", Cmd_fs_write, "" }, //serial flash commands
 		{ "fsrd", Cmd_fs_read, "" },
 		{ "fsdl", Cmd_fs_delete, "" },
@@ -1826,7 +1826,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "set-time",cmd_set_time,""},
 		{ "frag",cmd_memfrag,""},
 		{ "burntopkey",Cmd_burn_top,""},
-		{ "scan",Cmd_scan_wifi_mostly_nonblocking,""},
+		{ "scan",Cmd_scan_wifi,""},
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
 		{ "iperfcli",Cmd_iperf_client,""},
@@ -1973,6 +1973,7 @@ void vUARTTask(void *pvParameters) {
 	ble_proto_init();
 	xTaskCreate(top_board_task, "top_board_task", 1280 / 4, NULL, 2, NULL);
 	xTaskCreate(thread_spi, "spiTask", 512 / 4, NULL, 4, NULL);
+	xTaskCreate(hlo_async_task, "asyncTask", 4096 / 4, NULL, 4, NULL);
 #ifndef BUILD_SERVERS
 	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 1, NULL);
 	UARTprintf("*");

@@ -28,7 +28,6 @@ extern "C"
 typedef enum {
     BLE_UNKNOWN = 0,
     BLE_CONNECTED,
-    BLE_WIFI_REQUESTED,
     BLE_PAIRING,
     BLE_NORMAL
 } ble_mode_t;

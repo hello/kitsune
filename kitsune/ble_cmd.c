@@ -130,7 +130,7 @@ bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, void **
 
     return true;
 }
-
+#include "hlo_proto_tools.h"
 void on_morpheus_protobuf_arrival(uint8_t* protobuf, size_t len)
 {
     if(!protobuf)
@@ -139,25 +139,12 @@ void on_morpheus_protobuf_arrival(uint8_t* protobuf, size_t len)
         return;
     }
 
-    MorpheusCommand command;
-    memset(&command, 0, sizeof(command));
-    ///LOGI("proto arrv\n");
-
-    ble_proto_assign_decode_funcs(&command);
-
-    pb_istream_t stream = pb_istream_from_buffer(protobuf, len);
-    bool status = pb_decode(&stream, MorpheusCommand_fields, &command);
-    ble_proto_remove_decode_funcs(&command);
-
-    if (!status)
-    {
-        LOGI("Decoding protobuf failed, error: ");
-        LOGI(PB_GET_ERROR(&stream));
-        LOGI("\r\n");
-    } else {
+    MorpheusCommand command = {0};
+    if(0 == MorpheusCommand_from_buffer(&command, protobuf, len)){
     	on_ble_protobuf_command(&command);
-    	ble_proto_free_command(&command);
     }
+    ble_proto_free_command(&command);
+
 }
 
 void ble_proto_assign_decode_funcs(MorpheusCommand* command)
