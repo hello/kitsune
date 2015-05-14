@@ -1341,7 +1341,7 @@ static void SortByRSSI(Sl_WlanNetworkEntry_t* netEntries,
 
 
 int Cmd_rssi(int argc, char *argv[]) {
-	int lCountSSID,i;
+	/*int lCountSSID,i;
 
 	Sl_WlanNetworkEntry_t g_netEntries[SCAN_TABLE_SIZE];
 
@@ -1352,7 +1352,7 @@ int Cmd_rssi(int argc, char *argv[]) {
     LOGF( "SSID RSSI\n" );
 	for(i=0;i<lCountSSID;++i) {
 		LOGF( "%s %d\n", g_netEntries[i].ssid, g_netEntries[i].rssi );
-	}
+	}*/
 	return 0;
 }
 #include "crypto.h"

@@ -2211,45 +2211,6 @@ int Cmd_RadioStopTX(int argc, char*argv[])
 //end radio test functions
 #endif
 
-int get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uint32_t scan_duration_ms, int antenna)
-{
-    if(scan_duration_ms < 1000)
-    {
-        return 0;
-    }
-
-    unsigned long IntervalVal = 20;
-
-    unsigned char policyOpt = SL_CONNECTION_POLICY(0, 0, 0, 0, 0);
-    int r;
-
-    if( antenna ) {
-    	antsel(antenna);
-    }
-
-    r = sl_WlanPolicySet(SL_POLICY_CONNECTION , policyOpt, NULL, 0);
-
-    // Make sure scan is enabled
-    policyOpt = SL_SCAN_POLICY(1);
-
-    // set scan policy - this starts the scan
-    r = sl_WlanPolicySet(SL_POLICY_SCAN , policyOpt, (unsigned char *)(IntervalVal), sizeof(IntervalVal));
-
-
-    // delay specific milli seconds to verify scan is started
-    vTaskDelay(scan_duration_ms);
-
-    // r indicates the valid number of entries
-    // The scan results are occupied in netEntries[]
-    r = sl_WlanGetNetworkList(0, entry_len, entries);
-
-    // Restore connection policy to Auto
-    sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0), NULL, 0);
-
-    return r;
-
-}
-
 int connect_wifi(const char* ssid, const char* password, int sec_type, int version)
 {
 	SlSecParams_t secParam = {0};
