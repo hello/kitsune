@@ -718,6 +718,8 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
             }
             if(scan_results){
             	_reply_wifi_scan_result();
+            	hlo_future_destroy(scan_results);
+            	scan_results = prescan_wifi(MAX_WIFI_EP_PER_SCAN);
             }else{
             	ble_reply_protobuf_error(ErrorType_DEVICE_NO_MEMORY);
 
