@@ -110,7 +110,7 @@ static void SortByRSSI(Sl_WlanNetworkEntry_t* netEntries,
 unsigned long resolve_ip_by_host_name(const char * host_name){
 	unsigned long ip = 0;
 	if(0 <= hlo_future_read_once(
-				hlo_future_create_task_bg(sizeof(unsigned long), resolve, (void*)host_name, 1024 / 4),
+				hlo_future_create_task_bg(sizeof(unsigned long), resolve, (void*)host_name, 1024),
 				&ip,
 				sizeof(ip))){
 		return ip;
