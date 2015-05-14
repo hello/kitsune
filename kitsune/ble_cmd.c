@@ -274,14 +274,13 @@ void ble_proto_assign_encode_funcs( MorpheusCommand* command)
 
 bool ble_reply_protobuf_error(ErrorType error_type)
 {
-	uint8_t _error_buf[20] = {0};
     MorpheusCommand morpheus_command = {0};
     morpheus_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_ERROR;
 
     morpheus_command.has_error = true;
     morpheus_command.error = error_type;
 
-    return ble_send_protobuf(&command);
+    return ble_send_protobuf(&morpheus_command);
 }
 
 
@@ -290,7 +289,8 @@ bool ble_send_protobuf(MorpheusCommand* command)
 	int size;
     void * out_buf = buffer_from_MorpheusCommand(command, &size);
     if(out_buf){
-        i = spi_write(out_buf, size);
+    	int i;
+        i = spi_write(size, out_buf);
         LOGI("spiwrite: %d",i);
         vPortFree(out_buf);
         return true;

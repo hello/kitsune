@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include "uart_logger.h"
 #include "ble_cmd.h"
+#include "ble_proto.h"
 
 typedef struct{
 	void * buf;
@@ -84,7 +85,7 @@ int MorpheusCommand_from_buffer(MorpheusCommand * dst, void * buf, size_t size){
 					sizeof(*dst))){
 		return 0;
 	}
-	return ret;
+	return -1;
 }
 void * buffer_from_MorpheusCommand(MorpheusCommand * src, int * out_size){
 	buffer_desc_t desc = {0};
