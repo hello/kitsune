@@ -212,7 +212,9 @@ int spi_read( int * len, unsigned char * buf ) {
 	LOGI("Ctx len %u, address %u\r\n",ctx.len, ctx.addr);
 #endif
 	if( ctx.addr == 0xAAAA || ctx.addr == 0x5500 || ctx.addr == 0x5555 ) {
+		xSemaphoreGive(_spi_smphr );
 		spi_reset();
+		xSemaphoreTake(_spi_smphr, portMAX_DELAY);
 		ctx.len = 0;
 	}
 	*len = ctx.len;
@@ -226,7 +228,9 @@ int spi_read( int * len, unsigned char * buf ) {
 			}
 		}
 		if(i==ctx.len) {
+			xSemaphoreGive(_spi_smphr );
 			spi_reset();
+			xSemaphoreTake(_spi_smphr, portMAX_DELAY);
 		}
 	}else{
 		spi_read_step(0, buf);
