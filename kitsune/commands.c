@@ -378,11 +378,14 @@ int Cmd_get_octogram(int argc, char * argv[]) {
 int Cmd_do_octogram(int argc, char * argv[]) {
 	AudioMessage_t m;
     int32_t numsamples = atoi( argv[1] );
-    uint16_t i;
+    uint16_t i,j;
+    int counts;
 
     if( argc == 1 ) {
     	numsamples = 500;
-    	argv[2] = 1;
+    	counts = 1;
+    } else {
+        counts = atoi( argv[2] );
     }
     if (numsamples == 0) {
     	LOGF("number of requested samples was zero.\r\n");
@@ -392,7 +395,7 @@ int Cmd_do_octogram(int argc, char * argv[]) {
     if( !octogram_semaphore ) {
     	octogram_semaphore = xSemaphoreCreateBinary();
     }
-    for( i = 0; i< atoi( argv[2] ); ++ i) {
+    for( j = 0; j< counts; ++j) {
 
 		memset(&m,0,sizeof(m));
 
@@ -412,15 +415,23 @@ int Cmd_do_octogram(int argc, char * argv[]) {
 
 		xSemaphoreTake(octogram_semaphore,portMAX_DELAY);
 
+
+		int avg = 0;
+		avg += octorgram_result.logenergy[3];
+		avg += octorgram_result.logenergy[4];
+		avg += octorgram_result.logenergy[5];
+		avg += octorgram_result.logenergy[6];
+		avg /= 4;
+
 		//report results
-		LOGF("octogram log energies: ");
+		LOGF("%d\r\n", octorgram_result.logenergy[2] - avg );
 		for (i = 0; i < OCTOGRAM_SIZE; i++) {
 			if (i != 0) {
-				LOGF(",");
+				LOGI(",");
 			}
-			LOGF("%d",octorgram_result.logenergy[i]);
+			LOGI("%d",octorgram_result.logenergy[i]);
 		}
-		LOGF("\r\n");
+		LOGI("\r\n");
 
     }
 
