@@ -382,6 +382,7 @@ int Cmd_do_octogram(int argc, char * argv[]) {
 
     if( argc == 1 ) {
     	numsamples = 500;
+    	argv[2] = 1;
     }
     if (numsamples == 0) {
     	LOGF("number of requested samples was zero.\r\n");
@@ -391,35 +392,37 @@ int Cmd_do_octogram(int argc, char * argv[]) {
     if( !octogram_semaphore ) {
     	octogram_semaphore = xSemaphoreCreateBinary();
     }
+    for( i = 0; i< atoi( argv[2] ); ++ i) {
 
-	memset(&m,0,sizeof(m));
+		memset(&m,0,sizeof(m));
 
-	AudioTask_StartCapture(22050);
+		AudioTask_StartCapture(22050);
 
-	m.command = eAudioCaptureOctogram;
-	m.message.octogramdesc.result = &octorgram_result;
-	m.message.octogramdesc.analysisduration = numsamples;
-	m.message.octogramdesc.onFinished = octogram_notification;
-	m.message.octogramdesc.context = octogram_semaphore;
+		m.command = eAudioCaptureOctogram;
+		m.message.octogramdesc.result = &octorgram_result;
+		m.message.octogramdesc.analysisduration = numsamples;
+		m.message.octogramdesc.onFinished = octogram_notification;
+		m.message.octogramdesc.context = octogram_semaphore;
 
-	AudioTask_AddMessageToQueue(&m);
+		AudioTask_AddMessageToQueue(&m);
 
-	if( argc == 1 ) {
-    	return 0;
-    }
-
-	xSemaphoreTake(octogram_semaphore,portMAX_DELAY);
-
-	//report results
-    LOGF("octogram log energies: ");
-	for (i = 0; i < OCTOGRAM_SIZE; i++) {
-		if (i != 0) {
-			LOGF(",");
+		if( argc == 1 ) {
+			return 0;
 		}
-		LOGF("%d",octorgram_result.logenergy[i]);
-	}
 
-	LOGF("\r\n");
+		xSemaphoreTake(octogram_semaphore,portMAX_DELAY);
+
+		//report results
+		LOGF("octogram log energies: ");
+		for (i = 0; i < OCTOGRAM_SIZE; i++) {
+			if (i != 0) {
+				LOGF(",");
+			}
+			LOGF("%d",octorgram_result.logenergy[i]);
+		}
+		LOGF("\r\n");
+
+    }
 
 	return 0;
 
