@@ -768,20 +768,6 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
     		ble_proto_led_fade_in_trippy();
     		_ble_reply_command_with_type(command->type);
     		break;
-    	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SCAN_WIFI:
-    		LOGI("MorpheusCommand_CommandType_MORPHEUS_COMMAND_SCAN_WIFI\n");
-    		if(scan_results){
-    			//we need to read until its finished
-    			int rv = hlo_future_read(scan_results,NULL,0, 10000);
-    			if(rv < 0){
-    				ble_reply_protobuf_error(ErrorType_NO_ENDPOINT_IN_RANGE);
-    			}else{
-    				hlo_future_destroy(scan_results);
-    				scan_results = prescan_wifi(MAX_WIFI_EP_PER_SCAN);
-    			}
-    		}
-    		_ble_reply_command_with_type(command->type);
-    		break;
     	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_NEXT_WIFI_AP:
     		LOGI("MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_NEXT_WIFI_AP\n");
     		_reply_next_wifi_ap();
@@ -797,6 +783,9 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
             }
         }
         break;
+        default:
+        	LOGW("Deprecated BLE Command: %d\r\n", command->type);
+        	break;
 	}
     return true;
 }
