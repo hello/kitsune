@@ -28,7 +28,6 @@ extern "C"
 typedef enum {
     BLE_UNKNOWN = 0,
     BLE_CONNECTED,
-    BLE_WIFI_REQUESTED,
     BLE_PAIRING,
     BLE_NORMAL
 } ble_mode_t;
@@ -43,6 +42,8 @@ void ble_proto_init();
 void ble_proto_led_busy_mode(uint8_t a, uint8_t r, uint8_t g, uint8_t b, int delay);
 void ble_proto_led_fade_in_trippy();
 void ble_proto_led_fade_out(bool operation_result);
+
+Sl_WlanNetworkEntry_t *  get_wifi_scan(int * num);
 
 //*****************************************************************************
 //

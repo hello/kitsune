@@ -291,6 +291,36 @@
 			<locationURI>PARENT-2-PROJECT_LOC/hellomath.c</locationURI>
 		</link>
 		<link>
+			<name>hlo_async.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hlo_async.c</locationURI>
+		</link>
+		<link>
+			<name>hlo_async.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hlo_async.h</locationURI>
+		</link>
+		<link>
+			<name>hlo_net_tools.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hlo_net_tools.c</locationURI>
+		</link>
+		<link>
+			<name>hlo_net_tools.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hlo_net_tools.h</locationURI>
+		</link>
+		<link>
+			<name>hlo_proto_tools.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hlo_proto_tools.c</locationURI>
+		</link>
+		<link>
+			<name>hlo_proto_tools.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hlo_proto_tools.h</locationURI>
+		</link>
+		<link>
 			<name>hw_ver.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/hw_ver.c</locationURI>

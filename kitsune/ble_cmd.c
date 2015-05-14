@@ -130,7 +130,7 @@ bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, void **
 
     return true;
 }
-
+#include "hlo_proto_tools.h"
 void on_morpheus_protobuf_arrival(uint8_t* protobuf, size_t len)
 {
     if(!protobuf)
@@ -139,25 +139,12 @@ void on_morpheus_protobuf_arrival(uint8_t* protobuf, size_t len)
         return;
     }
 
-    MorpheusCommand command;
-    memset(&command, 0, sizeof(command));
-    ///LOGI("proto arrv\n");
-
-    ble_proto_assign_decode_funcs(&command);
-
-    pb_istream_t stream = pb_istream_from_buffer(protobuf, len);
-    bool status = pb_decode(&stream, MorpheusCommand_fields, &command);
-    ble_proto_remove_decode_funcs(&command);
-
-    if (!status)
-    {
-        LOGI("Decoding protobuf failed, error: ");
-        LOGI(PB_GET_ERROR(&stream));
-        LOGI("\r\n");
-    } else {
+    MorpheusCommand command = {0};
+    if(0 == MorpheusCommand_from_buffer(&command, protobuf, len)){
     	on_ble_protobuf_command(&command);
-    	ble_proto_free_command(&command);
     }
+    ble_proto_free_command(&command);
+
 }
 
 void ble_proto_assign_decode_funcs(MorpheusCommand* command)
@@ -190,63 +177,6 @@ void ble_proto_assign_decode_funcs(MorpheusCommand* command)
     {
         command->wifiPassword.funcs.decode = _decode_string_field;
         command->wifiPassword.arg = NULL;
-    }
-
-}
-
-void ble_proto_remove_decode_funcs(MorpheusCommand* command)
-{
-    if(command->accountId.funcs.decode)
-    {
-        command->accountId.funcs.decode = NULL;
-    }
-
-    if(command->deviceId.funcs.decode)
-    {
-        command->deviceId.funcs.decode = NULL;
-    }
-
-    if(command->wifiName.funcs.decode)
-    {
-        command->wifiName.funcs.decode = NULL;
-    }
-
-    if(command->wifiSSID.funcs.decode)
-    {
-        command->wifiSSID.funcs.decode = NULL;
-    }
-
-    if(command->wifiPassword.funcs.decode)
-    {
-        command->wifiPassword.funcs.decode = NULL;
-    }
-
-}
-void ble_proto_remove_encode_funcs(MorpheusCommand* command)
-{
-    if(command->accountId.funcs.encode)
-    {
-        command->accountId.funcs.encode = NULL;
-    }
-
-    if(command->deviceId.funcs.encode)
-    {
-        command->deviceId.funcs.encode = NULL;
-    }
-
-    if(command->wifiName.funcs.encode)
-    {
-        command->wifiName.funcs.encode = NULL;
-    }
-
-    if(command->wifiSSID.funcs.encode)
-    {
-        command->wifiSSID.funcs.encode = NULL;
-    }
-
-    if(command->wifiPassword.funcs.encode)
-    {
-        command->wifiPassword.funcs.encode = NULL;
     }
 
 }
@@ -287,82 +217,28 @@ void ble_proto_assign_encode_funcs( MorpheusCommand* command)
 
 bool ble_reply_protobuf_error(ErrorType error_type)
 {
-	uint8_t _error_buf[20];
-    MorpheusCommand morpheus_command;
-    memset(&morpheus_command, 0, sizeof(morpheus_command));
+    MorpheusCommand morpheus_command = {0};
     morpheus_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_ERROR;
-    morpheus_command.version = PROTOBUF_VERSION;
 
     morpheus_command.has_error = true;
     morpheus_command.error = error_type;
 
-    memset(_error_buf, 0, sizeof(_error_buf));
-
-    pb_ostream_t stream = pb_ostream_from_buffer(_error_buf, sizeof(_error_buf));
-    bool status = pb_encode(&stream, MorpheusCommand_fields, &morpheus_command);
-    
-    if(status)
-    {
-        size_t protobuf_len = stream.bytes_written;
-        spi_write(protobuf_len, _error_buf);
-    }else{
-        LOGI("encode protobuf failed: %s\r\n", PB_GET_ERROR(&stream));
-    }
-
-    return status;
+    return ble_send_protobuf(&morpheus_command);
 }
 
 
 bool ble_send_protobuf(MorpheusCommand* command)
 {
-    if(!command){
-        LOGI("Inavlid parameter.\r\n");
-        return false;
-    }
-
-    command->version = PROTOBUF_VERSION;
-    ble_proto_assign_encode_funcs(command);
-
-    command->has_firmwareVersion = true;
-    command->firmwareVersion = FIRMWARE_VERSION_INTERNAL;
-
-
-    pb_ostream_t stream = {0};
-    pb_encode(&stream, MorpheusCommand_fields, command);
-
-    if(!stream.bytes_written)
-    {
-        return false;
-    }
-
-    uint8_t* heap_page = pvPortMalloc(stream.bytes_written);
-    if(!heap_page)
-    {
-        LOGI("Not enough memory.\r\n");
-        return false;
-    }
-
-    memset(heap_page, 0, stream.bytes_written);
-    stream = pb_ostream_from_buffer(heap_page, stream.bytes_written);
-
-    bool status = pb_encode(&stream, MorpheusCommand_fields, command);
-    
-    if(status)
-    {
+	int size;
+    void * out_buf = buffer_from_MorpheusCommand(command, &size);
+    if(out_buf){
     	int i;
-
-        size_t protobuf_len = stream.bytes_written;
-        i = spi_write(protobuf_len, heap_page);
+        i = spi_write(size, out_buf);
         LOGI("spiwrite: %d",i);
-
-    }else{
-        LOGI("encode protobuf failed: ");
-        LOGI(PB_GET_ERROR(&stream));
-        LOGI("\r\n");
+        vPortFree(out_buf);
+        return true;
     }
-    vPortFree(heap_page);
-
-    return status;
+    return false;
 }
 
 

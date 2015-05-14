@@ -92,7 +92,7 @@
 
 #include "pill_settings.h"
 #include "prox_signal.h"
-
+#include "hlo_net_tools.h"
 #define ONLY_MID 0
 
 //******************************************************************************
@@ -378,10 +378,14 @@ int Cmd_get_octogram(int argc, char * argv[]) {
 int Cmd_do_octogram(int argc, char * argv[]) {
 	AudioMessage_t m;
     int32_t numsamples = atoi( argv[1] );
-    uint16_t i;
+    uint16_t i,j;
+    int counts;
 
     if( argc == 1 ) {
     	numsamples = 500;
+    	counts = 1;
+    } else {
+        counts = atoi( argv[2] );
     }
     if (numsamples == 0) {
     	LOGF("number of requested samples was zero.\r\n");
@@ -391,35 +395,45 @@ int Cmd_do_octogram(int argc, char * argv[]) {
     if( !octogram_semaphore ) {
     	octogram_semaphore = xSemaphoreCreateBinary();
     }
+    for( j = 0; j< counts; ++j) {
 
-	memset(&m,0,sizeof(m));
+		memset(&m,0,sizeof(m));
 
-	AudioTask_StartCapture(22050);
+		AudioTask_StartCapture(22050);
 
-	m.command = eAudioCaptureOctogram;
-	m.message.octogramdesc.result = &octorgram_result;
-	m.message.octogramdesc.analysisduration = numsamples;
-	m.message.octogramdesc.onFinished = octogram_notification;
-	m.message.octogramdesc.context = octogram_semaphore;
+		m.command = eAudioCaptureOctogram;
+		m.message.octogramdesc.result = &octorgram_result;
+		m.message.octogramdesc.analysisduration = numsamples;
+		m.message.octogramdesc.onFinished = octogram_notification;
+		m.message.octogramdesc.context = octogram_semaphore;
 
-	AudioTask_AddMessageToQueue(&m);
+		AudioTask_AddMessageToQueue(&m);
 
-	if( argc == 1 ) {
-    	return 0;
-    }
-
-	xSemaphoreTake(octogram_semaphore,portMAX_DELAY);
-
-	//report results
-    LOGF("octogram log energies: ");
-	for (i = 0; i < OCTOGRAM_SIZE; i++) {
-		if (i != 0) {
-			LOGF(",");
+		if( argc == 1 ) {
+			return 0;
 		}
-		LOGF("%d",octorgram_result.logenergy[i]);
-	}
 
-	LOGF("\r\n");
+		xSemaphoreTake(octogram_semaphore,portMAX_DELAY);
+
+
+		int avg = 0;
+		avg += octorgram_result.logenergy[3];
+		avg += octorgram_result.logenergy[4];
+		avg += octorgram_result.logenergy[5];
+		avg += octorgram_result.logenergy[6];
+		avg /= 4;
+
+		//report results
+		LOGF("%d\r\n", octorgram_result.logenergy[2] - avg );
+		for (i = 0; i < OCTOGRAM_SIZE; i++) {
+			if (i != 0) {
+				LOGI(",");
+			}
+			LOGI("%d",octorgram_result.logenergy[i]);
+		}
+		LOGI("\r\n");
+
+    }
 
 	return 0;
 
@@ -1015,6 +1029,11 @@ void thread_tx(void* unused) {
 				}
 			}
 
+			wifi_get_connected_ssid( (uint8_t*)data_batched.connected_ssid, sizeof(data_batched) );
+			data_batched.has_connected_ssid = true;
+			data_batched.scan.funcs.encode = encode_scanned_ssid;
+			data_batched.scan.arg = prescan_wifi(10);
+
 			while (!send_periodic_data(&data_batched)) {
 				LOGI("Waiting for network connection\n");
 				vTaskDelay((1 << tries) * 1000);
@@ -1325,42 +1344,6 @@ int Cmd_tasks(int argc, char *argv[]) {
 
 #define SCAN_TABLE_SIZE   20
 
-static void SortByRSSI(Sl_WlanNetworkEntry_t* netEntries,
-                                            unsigned char ucSSIDCount)
-{
-    Sl_WlanNetworkEntry_t tTempNetEntry;
-    unsigned char ucCount, ucSwapped;
-    do{
-        ucSwapped = 0;
-        for(ucCount =0; ucCount < ucSSIDCount - 1; ucCount++)
-        {
-           if(netEntries[ucCount].rssi < netEntries[ucCount + 1].rssi)
-           {
-              tTempNetEntry = netEntries[ucCount];
-              netEntries[ucCount] = netEntries[ucCount + 1];
-              netEntries[ucCount + 1] = tTempNetEntry;
-              ucSwapped = 1;
-           }
-        } //end for
-     }while(ucSwapped);
-}
-
-
-int Cmd_rssi(int argc, char *argv[]) {
-	int lCountSSID,i;
-
-	Sl_WlanNetworkEntry_t g_netEntries[SCAN_TABLE_SIZE];
-
-	lCountSSID = get_wifi_scan_result(&g_netEntries[0], SCAN_TABLE_SIZE, 1000, 0 );
-
-    SortByRSSI(&g_netEntries[0],(unsigned char)lCountSSID);
-
-    LOGF( "SSID RSSI\n" );
-	for(i=0;i<lCountSSID;++i) {
-		LOGF( "%s %d\n", g_netEntries[i].ssid, g_netEntries[i].rssi );
-	}
-	return 0;
-}
 #include "crypto.h"
 static const uint8_t exponent[] = { 1,0,1 };
 static const uint8_t public_key[] = {
@@ -1723,7 +1706,6 @@ int Cmd_heapviz(int argc, char *argv[]) {
 	return 0;
 }
 
-int Cmd_scan_wifi_mostly_nonblocking(int argc, char *argv[]);
 // ==============================================================================
 // This is the table that holds the command names, implementing functions, and
 // brief description.
@@ -1766,7 +1748,7 @@ tCmdLineEntry g_sCmdTable[] = {
 #endif
 
 		{ "dust", Cmd_dusttest, "" },
-
+		{ "dig", Cmd_dig, "" },
 		{ "fswr", Cmd_fs_write, "" }, //serial flash commands
 		{ "fsrd", Cmd_fs_read, "" },
 		{ "fsdl", Cmd_fs_delete, "" },
@@ -1796,7 +1778,6 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "rdiorxstart", Cmd_RadioStartRX, "" },
 		{ "rdiorxstop", Cmd_RadioStopRX, "" },
 #endif
-		{ "rssi", Cmd_rssi, "" },
 		{ "slip", Cmd_slip, "" },
 		{ "^", Cmd_send_top, ""}, //send command to top board
 		{ "topdfu", Cmd_topdfu, ""}, //update topboard firmware.
@@ -1821,7 +1802,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "set-time",cmd_set_time,""},
 		{ "frag",cmd_memfrag,""},
 		{ "burntopkey",Cmd_burn_top,""},
-		{ "scan",Cmd_scan_wifi_mostly_nonblocking,""},
+		{ "scan",Cmd_scan_wifi,""},
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
 		{ "iperfcli",Cmd_iperf_client,""},
