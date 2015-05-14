@@ -787,6 +787,8 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         break;
         default:
         	LOGW("Deprecated BLE Command: %d\r\n", command->type);
+        case MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_DEVICE_ID:
+        case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID:
         	break;
 	}
     return true;
