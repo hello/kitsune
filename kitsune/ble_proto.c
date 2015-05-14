@@ -713,8 +713,14 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_START_WIFISCAN:
         {
             LOGI("WIFI Scan request\n");
+            if(!scan_results){
+            	scan_results = prescan_wifi(MAX_WIFI_EP_PER_SCAN);
+            }
             if(scan_results){
             	_reply_wifi_scan_result();
+            }else{
+            	ble_reply_protobuf_error(ErrorType_DEVICE_NO_MEMORY);
+
             }
         }
         break;
@@ -768,7 +774,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
     			//we need to read until its finished
     			int rv = hlo_future_read(scan_results,NULL,0, 10000);
     			if(rv < 0){
-    				//todo reply error
+    				ble_reply_protobuf_error(ErrorType_NO_ENDPOINT_IN_RANGE);
     			}else{
     				hlo_future_destroy(scan_results);
     				scan_results = prescan_wifi(MAX_WIFI_EP_PER_SCAN);
