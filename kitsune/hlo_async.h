@@ -57,7 +57,12 @@ int hlo_future_write(hlo_future_t * future, const void * buffer, size_t size, in
  *  @return the return code set by hlo_future_write.  Check with implementer, but typically < 0 are errros
  */
 int hlo_future_read(hlo_future_t * future,  void * buf, size_t size, TickType_t ms);
-
+/**
+ * helper api
+ * hlo_future_read with automatic self destruction.
+ * always delay at maximum time.
+ */
+int hlo_future_read_once(hlo_future_t * future,  void * buf, size_t size);
 /**
  * destroys a future
  * use after a read, otherwise it'll crash the system.

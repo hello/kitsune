@@ -118,3 +118,8 @@ int hlo_future_read(hlo_future_t * future,  void * buf, size_t size, TickType_t 
 	}
 	return err;
 }
+int hlo_future_read_once(hlo_future_t * future,  void * buf, size_t size){
+	int res = hlo_future_read(future, buf, size, portMAX_DELAY);
+	hlo_future_destroy(future);
+	return res;
+}

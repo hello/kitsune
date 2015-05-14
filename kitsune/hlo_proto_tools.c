@@ -78,23 +78,20 @@ int MorpheusCommand_from_buffer(MorpheusCommand * dst, void * buf, size_t size){
 		.buf = buf,
 		.buf_size = size,
 	};
-	int ret = -1;
-	hlo_future_t * result = hlo_future_create_task(sizeof(MorpheusCommand), decode_MorpheusCommand, &desc);
-	if(result){
-		if(hlo_future_read(result,dst,sizeof(MorpheusCommand), portMAX_DELAY) >= 0){
-			ret = 0;
-		}
-		hlo_future_destroy(result);
+	if(0 <= hlo_future_read_once(
+					hlo_future_create_task(sizeof(MorpheusCommand), decode_MorpheusCommand, &desc),
+					dst,
+					sizeof(*dst))){
+		return 0;
 	}
 	return ret;
 }
 void * buffer_from_MorpheusCommand(MorpheusCommand * src, int * out_size){
 	buffer_desc_t desc = {0};
-	hlo_future_t * result = hlo_future_create_task(sizeof(desc), encode_MorpheusCommand, src);
-	if(result){
-		hlo_future_read(result, &desc, sizeof(desc));
-		hlo_future_destroy(result);
-	}
+	hlo_future_read_once(
+			hlo_future_create_task(sizeof(desc), encode_MorpheusCommand, src),
+			&desc,
+			sizeof(desc));
 	*out_size = desc.buf_size;
 	return desc.buf;
 }
