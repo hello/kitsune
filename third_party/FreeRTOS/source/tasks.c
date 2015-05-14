@@ -3348,6 +3348,7 @@ TCB_t *pxTCB;
 		char cStatus;
 
 		uint16_t stack = 0;
+		int length = strlen(taskname);
 
 			/* Take a snapshot of the number of tasks in case it changes while this
 			function is executing. */
@@ -3360,9 +3361,10 @@ TCB_t *pxTCB;
 			{
 				/* Generate the (binary) data. */
 				uxArraySize = uxTaskGetSystemState( pxTaskStatusArray, uxArraySize, NULL );
-
-				if( strcmp(pxTaskStatusArray[ x ].pcTaskName, taskname) == 0 ) {
-					stack = 4*pxTaskStatusArray[ x ].usStackHighWaterMark;
+				for( x = 0; x < uxArraySize; x++ ) {
+					if( strncmp(pxTaskStatusArray[ x ].pcTaskName, taskname, length) == 0 ) {
+						stack = 4*pxTaskStatusArray[ x ].usStackHighWaterMark;
+					}
 				}
 
 				/* Free the array again. */

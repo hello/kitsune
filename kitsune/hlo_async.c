@@ -24,7 +24,7 @@ static void async_worker(void * ctx){
 	}
 	vPortFree(task);
 
-	LOGI("\r\%s stack %d\r\n", task->name, vGetStack( task->name ) );
+	LOGI("\r\n%s stack %d\r\n", task->name, vGetStack( task->name ) );
 
 	vTaskDelete(NULL);
 }
