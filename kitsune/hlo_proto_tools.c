@@ -40,6 +40,9 @@ void encode_MorpheusCommand(hlo_future_t * result, void * context){
 		desc.buf = heap_page;
 		desc.buf_size = stream.bytes_written;
 	}else{
+		LOGI("encode protobuf failed: ");
+		LOGI(PB_GET_ERROR(&stream));
+		LOGI("\r\n");
 		vPortFree(heap_page);
 	}
 end:

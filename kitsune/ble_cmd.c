@@ -274,82 +274,28 @@ void ble_proto_assign_encode_funcs( MorpheusCommand* command)
 
 bool ble_reply_protobuf_error(ErrorType error_type)
 {
-	uint8_t _error_buf[20];
-    MorpheusCommand morpheus_command;
-    memset(&morpheus_command, 0, sizeof(morpheus_command));
+	uint8_t _error_buf[20] = {0};
+    MorpheusCommand morpheus_command = {0};
     morpheus_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_ERROR;
-    morpheus_command.version = PROTOBUF_VERSION;
 
     morpheus_command.has_error = true;
     morpheus_command.error = error_type;
 
-    memset(_error_buf, 0, sizeof(_error_buf));
-
-    pb_ostream_t stream = pb_ostream_from_buffer(_error_buf, sizeof(_error_buf));
-    bool status = pb_encode(&stream, MorpheusCommand_fields, &morpheus_command);
-    
-    if(status)
-    {
-        size_t protobuf_len = stream.bytes_written;
-        spi_write(protobuf_len, _error_buf);
-    }else{
-        LOGI("encode protobuf failed: %s\r\n", PB_GET_ERROR(&stream));
-    }
-
-    return status;
+    return ble_send_protobuf(&command);
 }
 
 
 bool ble_send_protobuf(MorpheusCommand* command)
 {
-    if(!command){
-        LOGI("Inavlid parameter.\r\n");
-        return false;
-    }
-
-    command->version = PROTOBUF_VERSION;
-    ble_proto_assign_encode_funcs(command);
-
-    command->has_firmwareVersion = true;
-    command->firmwareVersion = FIRMWARE_VERSION_INTERNAL;
-
-
-    pb_ostream_t stream = {0};
-    pb_encode(&stream, MorpheusCommand_fields, command);
-
-    if(!stream.bytes_written)
-    {
-        return false;
-    }
-
-    uint8_t* heap_page = pvPortMalloc(stream.bytes_written);
-    if(!heap_page)
-    {
-        LOGI("Not enough memory.\r\n");
-        return false;
-    }
-
-    memset(heap_page, 0, stream.bytes_written);
-    stream = pb_ostream_from_buffer(heap_page, stream.bytes_written);
-
-    bool status = pb_encode(&stream, MorpheusCommand_fields, command);
-    
-    if(status)
-    {
-    	int i;
-
-        size_t protobuf_len = stream.bytes_written;
-        i = spi_write(protobuf_len, heap_page);
+	int size;
+    void * out_buf = buffer_from_MorpheusCommand(command, &size);
+    if(out_buf){
+        i = spi_write(out_buf, size);
         LOGI("spiwrite: %d",i);
-
-    }else{
-        LOGI("encode protobuf failed: ");
-        LOGI(PB_GET_ERROR(&stream));
-        LOGI("\r\n");
+        vPortFree(out_buf);
+        return true;
     }
-    vPortFree(heap_page);
-
-    return status;
+    return false;
 }
 
 
