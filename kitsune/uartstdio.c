@@ -411,10 +411,11 @@ UARTStdioInitExpClk(unsigned long ulPortNum, unsigned long ulBaud)
     // In buffered mode, we only allow a single instance to be opened.
     //
     ASSERT(g_ulBase == 0);
-#endif
 
     g_pcUARTRxBuffer = pvPortMalloc(UART_RX_BUFFER_SIZE);
     g_pcUARTTxBuffer = pvPortMalloc(UART_TX_BUFFER_SIZE);
+#endif
+
     //
     // Select the base address of the UART.
     //

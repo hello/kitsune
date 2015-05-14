@@ -378,10 +378,14 @@ int Cmd_get_octogram(int argc, char * argv[]) {
 int Cmd_do_octogram(int argc, char * argv[]) {
 	AudioMessage_t m;
     int32_t numsamples = atoi( argv[1] );
-    uint16_t i;
+    uint16_t i,j;
+    int counts;
 
     if( argc == 1 ) {
     	numsamples = 500;
+    	counts = 1;
+    } else {
+        counts = atoi( argv[2] );
     }
     if (numsamples == 0) {
     	LOGF("number of requested samples was zero.\r\n");
@@ -391,35 +395,45 @@ int Cmd_do_octogram(int argc, char * argv[]) {
     if( !octogram_semaphore ) {
     	octogram_semaphore = xSemaphoreCreateBinary();
     }
+    for( j = 0; j< counts; ++j) {
 
-	memset(&m,0,sizeof(m));
+		memset(&m,0,sizeof(m));
 
-	AudioTask_StartCapture(22050);
+		AudioTask_StartCapture(22050);
 
-	m.command = eAudioCaptureOctogram;
-	m.message.octogramdesc.result = &octorgram_result;
-	m.message.octogramdesc.analysisduration = numsamples;
-	m.message.octogramdesc.onFinished = octogram_notification;
-	m.message.octogramdesc.context = octogram_semaphore;
+		m.command = eAudioCaptureOctogram;
+		m.message.octogramdesc.result = &octorgram_result;
+		m.message.octogramdesc.analysisduration = numsamples;
+		m.message.octogramdesc.onFinished = octogram_notification;
+		m.message.octogramdesc.context = octogram_semaphore;
 
-	AudioTask_AddMessageToQueue(&m);
+		AudioTask_AddMessageToQueue(&m);
 
-	if( argc == 1 ) {
-    	return 0;
-    }
-
-	xSemaphoreTake(octogram_semaphore,portMAX_DELAY);
-
-	//report results
-    LOGF("octogram log energies: ");
-	for (i = 0; i < OCTOGRAM_SIZE; i++) {
-		if (i != 0) {
-			LOGF(",");
+		if( argc == 1 ) {
+			return 0;
 		}
-		LOGF("%d",octorgram_result.logenergy[i]);
-	}
 
-	LOGF("\r\n");
+		xSemaphoreTake(octogram_semaphore,portMAX_DELAY);
+
+
+		int avg = 0;
+		avg += octorgram_result.logenergy[3];
+		avg += octorgram_result.logenergy[4];
+		avg += octorgram_result.logenergy[5];
+		avg += octorgram_result.logenergy[6];
+		avg /= 4;
+
+		//report results
+		LOGF("%d\r\n", octorgram_result.logenergy[2] - avg );
+		for (i = 0; i < OCTOGRAM_SIZE; i++) {
+			if (i != 0) {
+				LOGI(",");
+			}
+			LOGI("%d",octorgram_result.logenergy[i]);
+		}
+		LOGI("\r\n");
+
+    }
 
 	return 0;
 
@@ -764,11 +778,14 @@ uint8_t get_alpha_from_light()
 	int adjust_max_light = 800;
 	int adjust;
 
+
+	xSemaphoreTake(light_smphr, portMAX_DELAY);
 	if( light > adjust_max_light ) {
 		adjust = adjust_max_light;
 	} else {
 		adjust = light_mean;
 	}
+	xSemaphoreGive(light_smphr);
 
 	uint8_t alpha = 0xFF * adjust / adjust_max_light;
 	alpha = alpha < 10 ? 10 : alpha;
@@ -776,24 +793,27 @@ uint8_t get_alpha_from_light()
 }
 
 
-static int _is_light_off(int current_light)
+static int _is_light_off()
 {
 	static int last_light = -1;
 	const int light_off_threshold = 300;
 	int ret = 0;
+
+	xSemaphoreTake(light_smphr, portMAX_DELAY);
 	if(last_light != -1)
 	{
-		int delta = last_light - current_light;
+		int delta = last_light - light;
 		//LOGI("delta: %d, current %d, last %d\n", delta, current_light, last_light);
-		if(delta >= light_off_threshold && current_light < 300)
+		if(delta >= light_off_threshold && light < 300)
 		{
 			//LOGI("Light off\n");
 			ret = 1;
-			light_mean = current_light; //so the led alpha will be at the lights off level
+			light_mean = light; //so the led alpha will be at the lights off level
 		}
 	}
 
-	last_light = current_light;
+	last_light = light;
+	xSemaphoreGive(light_smphr);
 	return ret;
 
 }
@@ -910,7 +930,7 @@ void thread_fast_i2c_poll(void * unused)  {
 					xSemaphoreGive(light_smphr);
 
 					if(light_cnt % 5 == 0 && led_is_idle(0) ) {
-						if(_is_light_off(light)) {
+						if(_is_light_off()) {
 							_show_led_status();
 						}
 					}
@@ -1008,6 +1028,11 @@ void thread_tx(void* unused) {
 					}
 				}
 			}
+
+			wifi_get_connected_ssid( (uint8_t*)data_batched.connected_ssid, sizeof(data_batched) );
+			data_batched.has_connected_ssid = true;
+			data_batched.scan.funcs.encode = encode_scanned_ssid;
+			data_batched.scan.arg = prescan_wifi(10);
 
 			while (!send_periodic_data(&data_batched)) {
 				LOGI("Waiting for network connection\n");
@@ -1924,7 +1949,6 @@ void vUARTTask(void *pvParameters) {
 	ble_proto_init();
 	xTaskCreate(top_board_task, "top_board_task", 1280 / 4, NULL, 2, NULL);
 	xTaskCreate(thread_spi, "spiTask", 512 / 4, NULL, 4, NULL);
-	xTaskCreate(hlo_async_task, "asyncTask", 4096 / 4, NULL, 4, NULL);
 #ifndef BUILD_SERVERS
 	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 1, NULL);
 	UARTprintf("*");
@@ -1933,6 +1957,8 @@ void vUARTTask(void *pvParameters) {
 
 	if( on_charger ) {
 		launch_tasks();
+		vTaskDelete(NULL);
+		return;
 	} else {
 		play_led_wheel( 50, LED_MAX, LED_MAX, 0,0,10);
 	}

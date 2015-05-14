@@ -12,6 +12,8 @@ typedef struct{
 static int encode_MorpheusCommand(void * result, size_t size, void * context){
 	buffer_desc_t * desc = (buffer_desc_t*)result;
 	MorpheusCommand * command = (MorpheusCommand *)context;
+	pb_ostream_t stream = {0};
+	uint8_t* heap_page;
 	if(!command){
 		LOGI("Inavlid parameter.\r\n");
 		goto end;
@@ -23,14 +25,13 @@ static int encode_MorpheusCommand(void * result, size_t size, void * context){
 
 	ble_proto_assign_encode_funcs(command);
 
-	pb_ostream_t stream = {0};
 	pb_encode(&stream, MorpheusCommand_fields, command);
 
 	if(!stream.bytes_written){
 		goto end;
 	}
 
-	uint8_t* heap_page = pvPortMalloc(stream.bytes_written);
+	heap_page = pvPortMalloc(stream.bytes_written);
 	if(!heap_page){
 		goto end;
 	}
@@ -81,7 +82,7 @@ int MorpheusCommand_from_buffer(MorpheusCommand * dst, void * buf, size_t size){
 		.buf_size = size,
 	};
 	if(0 <= hlo_future_read_once(
-					hlo_future_create_task(sizeof(MorpheusCommand), decode_MorpheusCommand, &desc),
+					hlo_future_create_task_bg(sizeof(MorpheusCommand), decode_MorpheusCommand, &desc, 4096 / 4),
 					dst,
 					sizeof(*dst))){
 		return 0;
@@ -91,7 +92,7 @@ int MorpheusCommand_from_buffer(MorpheusCommand * dst, void * buf, size_t size){
 void * buffer_from_MorpheusCommand(MorpheusCommand * src, int * out_size){
 	buffer_desc_t desc = {0};
 	hlo_future_read_once(
-			hlo_future_create_task(sizeof(desc), encode_MorpheusCommand, src),
+			hlo_future_create_task_bg(sizeof(desc), encode_MorpheusCommand, src, 4096/4),
 			&desc,
 			sizeof(desc));
 	*out_size = desc.buf_size;

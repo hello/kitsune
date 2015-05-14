@@ -20,6 +20,24 @@ static int resolve(void * output, size_t out_size, void * ctx){
 	return out_size;
 }
 void antsel(unsigned char a);
+
+static void reselect_antenna(Sl_WlanNetworkEntry_t * entries, int num_entries ) {
+	if( num_entries == 0 ) {
+		return;
+	}
+	int i;
+	char ssid[MAX_SSID_LEN] = {0};
+	wifi_get_connected_ssid( (uint8_t*)ssid, sizeof(ssid));
+    for(i = 0; i < num_entries; i++) {
+    	if( 0 == strcmp( (char*)entries[i].ssid, ssid ) ) {
+    		antsel(entries[i].reserved[0]);
+    		save_default_antenna(entries[i].reserved[0]);
+    		LOGI("ssid: %s a:%d\r\n", ssid, entries[i].reserved[0]);
+    		break;
+    	}
+    }
+}
+
 static int scan(void * result, size_t out_size, void * ctx){
 	scan_desc_t * desc = (scan_desc_t*)ctx;
 	unsigned char policyOpt = SL_CONNECTION_POLICY(0, 0, 0, 0, 0);
@@ -92,7 +110,7 @@ static void SortByRSSI(Sl_WlanNetworkEntry_t* netEntries,
 unsigned long resolve_ip_by_host_name(const char * host_name){
 	unsigned long ip = 0;
 	if(0 <= hlo_future_read_once(
-				hlo_future_create_task(sizeof(unsigned long), resolve, (void*)host_name),
+				hlo_future_create_task_bg(sizeof(unsigned long), resolve, (void*)host_name, 1024 / 4),
 				&ip,
 				sizeof(ip))){
 		return ip;
@@ -151,6 +169,8 @@ int get_unique_wifi_list(Sl_WlanNetworkEntry_t * result, size_t num_entries){
 exit:
 	if(ifa_list){vPortFree(ifa_list);}
 	if(pcb_list){vPortFree(pcb_list);}
+
+	reselect_antenna( result, num_entries );
 	return tally;
 
 }
@@ -192,7 +212,7 @@ int Cmd_scan_wifi(int argc, char *argv[]){
 		DISP("Found %d endpoints\r\n===========\r\n", ret);
 		SortByRSSI(entries, ret);
 		for(i = 0; i < ret; i++){
-			DISP("%d)%s, %d, %d dB\r\n",i, entries[i].ssid, entries[i].sec_type, entries[i].rssi);
+			DISP("%d)%s, %d, %d dB, %d\r\n",i, entries[i].ssid, entries[i].sec_type, entries[i].rssi, entries[i].reserved[0]);
 		}
 	}else{
 		DISP("No endpoints scanned\r\n");
