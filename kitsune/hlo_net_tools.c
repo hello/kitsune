@@ -17,7 +17,7 @@ static int resolve(void * output, size_t out_size, void * ctx){
 	unsigned long ip = 0;
 	int ret = (int)sl_gethostbynameNoneThreadSafe((_i8*)ctx, strlen((char*)ctx), &ip, SL_AF_INET);
 	*(unsigned long*)output = ip;
-	return out_size;
+	return ret;
 }
 void antsel(unsigned char a);
 
@@ -110,7 +110,7 @@ static void SortByRSSI(Sl_WlanNetworkEntry_t* netEntries,
 unsigned long resolve_ip_by_host_name(const char * host_name){
 	unsigned long ip = 0;
 	if(0 <= hlo_future_read_once(
-				hlo_future_create_task_bg(sizeof(unsigned long), resolve, (void*)host_name, 1024 / 4),
+				hlo_future_create_task_bg(sizeof(unsigned long), resolve, (void*)host_name, 1024),
 				&ip,
 				sizeof(ip))){
 		return ip;
