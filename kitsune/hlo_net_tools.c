@@ -86,14 +86,14 @@ unsigned long resolve_ip_by_host_name(const char * host_name){
 int _replace_ssid_by_rssi(Sl_WlanNetworkEntry_t * main, size_t main_size, const Sl_WlanNetworkEntry_t* entry){
 	int i;
 	for(i = 0; i < main_size; i++){
-		Sl_WlanNetworkEntry_t * tbl = &main[i];
-		if(tbl->rssi == 0 && tbl->ssid[0] == 0){
+		Sl_WlanNetworkEntry_t * row = &main[i];
+		if(row->rssi == 0 && row->ssid[0] == 0){
 			//fresh entry, copy over
-			*tbl = *entry;
+			*row = *entry;
 			return 1;
-		}else if(!strncmp((const char*)tbl->ssid, (const char*)entry->ssid, sizeof(tbl->ssid))){
-			if(entry->rssi > tbl->rssi){
-				*tbl = *entry;
+		}else if(!strncmp((const char*)row->ssid, (const char*)entry->ssid, sizeof(row->ssid))){
+			if(entry->rssi > row->rssi){
+				*row = *entry;
 				return 0;
 			}
 			return 0;
