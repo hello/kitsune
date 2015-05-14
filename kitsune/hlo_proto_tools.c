@@ -64,7 +64,6 @@ static int decode_MorpheusCommand(void * result, size_t buf_size, void * context
 
     pb_istream_t stream = pb_istream_from_buffer(buf, size);
     bool status = pb_decode(&stream, MorpheusCommand_fields, &command);
-    ble_proto_remove_decode_funcs(&command);
     if(!status){
     	LOGI("Decoding protobuf failed, error: ");
     	LOGI(PB_GET_ERROR(&stream));
