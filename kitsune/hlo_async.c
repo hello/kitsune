@@ -1,11 +1,13 @@
 #include "hlo_async.h"
 #include <strings.h>
-
+#include "uart_logger.h"
+#include "ustdlib.h"
 
 #define CHECK_FOR_NULL(buf) if(!buf){return -99;}
 
 typedef struct{
 	hlo_future_t * result;
+	char name[24];
 	future_task work;
 	void * context;
 }async_task_t;
@@ -21,6 +23,9 @@ static void async_worker(void * ctx){
 				task->work(task->result->buf,task->result->buf_size, task->context));
 	}
 	vPortFree(task);
+
+	LOGI("\r\%s stack %d\r\n", task->name, vGetStack( task->name ) );
+
 	vTaskDelete(NULL);
 }
 static int do_read(hlo_future_t * future, void * buf, size_t size){
@@ -54,7 +59,9 @@ hlo_future_t * hlo_future_create_task_bg(size_t max_size, future_task cb, void *
 		task->context = context;
 		task->result = result;
 		task->work = cb;
-		if(pdPASS != xTaskCreate(async_worker, "asyncWorker", stack_size / 4, task, 4, NULL)){
+
+		usnprintf( task->name, sizeof(task->name),  "async %d", xTaskGetTickCount());
+		if(pdPASS != xTaskCreate(async_worker, task->name, stack_size / 4, task, 4, NULL)){
 			goto fail_task;
 		}
 	}
