@@ -6,5 +6,6 @@
 #include "protobuf/morpheus_ble.pb.h"
 
 int MorpheusCommand_from_buffer(MorpheusCommand * dst, void * buf, size_t size);
+void * buffer_from_MorpheusCommand(MorpheusCommand * src, int * out_size);
 
 #endif

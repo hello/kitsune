@@ -8,7 +8,44 @@ typedef struct{
 	size_t buf_size;
 }buffer_desc_t;
 
+void encode_MorpheusCommand(hlo_future_t * result, void * context){
+	buffer_desc_t desc = {0};
+	MorpheusCommand * command = (MorpheusCommand *)context;
+	if(!command){
+		LOGI("Inavlid parameter.\r\n");
+		goto end;
+	}
+	command->version = PROTOBUF_VERSION;
+	command->has_firmwareVersion = true;
+	command->firmwareVersion = FIRMWARE_VERSION_INTERNAL;
 
+	ble_proto_assign_encode_funcs(command);
+
+	pb_ostream_t stream = {0};
+	pb_encode(&stream, MorpheusCommand_fields, command);
+
+	if(!stream.bytes_written){
+		goto end;
+	}
+
+	uint8_t* heap_page = pvPortMalloc(stream.bytes_written);
+	if(!heap_page){
+		goto end;
+	}
+	memset(heap_page, 0, stream.bytes_written);
+
+	stream = pb_ostream_from_buffer(heap_page, stream.bytes_written);
+
+	if(pb_encode(&stream, MorpheusCommand_fields, command)){
+		desc.buf = heap_page;
+		desc.buf_size = stream.bytes_written;
+	}else{
+		vPortFree(heap_page);
+	}
+end:
+	hlo_future_write(result, &desc, sizeof(desc), 0);
+
+}
 
 void decode_MorpheusCommand(hlo_future_t * result, void * context){
 	uint8_t * buf = ((buffer_desc_t*)context)->buf;
@@ -47,4 +84,14 @@ int MorpheusCommand_from_buffer(MorpheusCommand * dst, void * buf, size_t size){
 		hlo_future_destroy(result);
 	}
 	return ret;
+}
+void * buffer_from_MorpheusCommand(MorpheusCommand * src, int * out_size){
+	buffer_desc_t desc = {0};
+	hlo_future_t * result = hlo_future_create_task(sizeof(desc), encode_MorpheusCommand, src);
+	if(result){
+		hlo_future_read(result, &desc, sizeof(desc));
+		hlo_future_destroy(result);
+	}
+	*out_size = desc.buf_size;
+	return desc.buf;
 }
