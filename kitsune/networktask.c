@@ -208,7 +208,6 @@ static void NetworkTask_Thread(void * networkdata) {
 		}
 		vTaskDelay(100);
 	}
-
 }
 
 

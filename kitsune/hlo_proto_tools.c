@@ -82,7 +82,7 @@ int MorpheusCommand_from_buffer(MorpheusCommand * dst, void * buf, size_t size){
 		.buf_size = size,
 	};
 	if(0 <= hlo_future_read_once(
-					hlo_future_create_task_bg(sizeof(MorpheusCommand), decode_MorpheusCommand, &desc, 4096 / 4),
+					hlo_future_create_task_bg(sizeof(MorpheusCommand), decode_MorpheusCommand, &desc, 4096),
 					dst,
 					sizeof(*dst))){
 		return 0;
@@ -92,7 +92,7 @@ int MorpheusCommand_from_buffer(MorpheusCommand * dst, void * buf, size_t size){
 void * buffer_from_MorpheusCommand(MorpheusCommand * src, int * out_size){
 	buffer_desc_t desc = {0};
 	hlo_future_read_once(
-			hlo_future_create_task_bg(sizeof(desc), encode_MorpheusCommand, src, 4096/4),
+			hlo_future_create_task_bg(sizeof(desc), encode_MorpheusCommand, src, 4096),
 			&desc,
 			sizeof(desc));
 	*out_size = desc.buf_size;
