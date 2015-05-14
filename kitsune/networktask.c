@@ -12,7 +12,6 @@
 #define NETWORK_TASK_QUEUE_DEPTH (10)
 #define INITIAL_RETRY_PERIOD_COUNTS (1024)
 
-static xQueueHandle _asyncqueue = NULL;
 static xSemaphoreHandle _network_mutex = NULL;
 
 #define USE_DEBUG_PRINTF
@@ -23,73 +22,6 @@ static xSemaphoreHandle _network_mutex = NULL;
 static void nop(const char * foo,...) {  }
 #define DEBUG_PRINTF(...) nop(__VA_ARGS__)
 #endif
-
-static void Init(NetworkTaskData_t * info) {
-
-	if (!_asyncqueue) {
-		_asyncqueue = xQueueCreate(NETWORK_TASK_QUEUE_DEPTH,sizeof(NetworkTaskServerSendMessage_t));
-	}
-
-	if(!_network_mutex)
-	{
-		_network_mutex = xSemaphoreCreateMutex();
-	}
-
-}
-
-void unblock_sync(void * data) {
-	NetworkTaskServerSendMessage_t * msg = (NetworkTaskServerSendMessage_t*)data;
-    xSemaphoreGive(msg->sync);
-}
-
-bool NetworkTask_SendProtobuf(bool blocking, const char * host,
-		const char * endpoint, const pb_field_t fields[],
-		const void * structdata, int32_t retry_time_in_counts,
-		NetworkResponseCallback_t func, void * context) {
-	NetworkTaskServerSendMessage_t message;
-	NetworkResponse_t response;
-	memset(&message,0,sizeof(message));
-
-	//craft message
-	message.host = host;
-	message.endpoint = endpoint;
-	message.response_callback = func;
-	message.retry_timeout = retry_time_in_counts;
-	message.context = context;
-
-	message.fields = fields;
-	message.structdata = structdata;
-
-	assert( _asyncqueue );
-
-	if( blocking ) {
-		message.sync = xSemaphoreCreateBinary();
-		assert( message.sync );
-		message.end = unblock_sync;
-		message.response_handle = &response;
-	}
-	DEBUG_PRINTF("NT %s",endpoint);
-
-	assert( _asyncqueue );
-
-	//add to queue
-	if(xQueueSend( _asyncqueue, ( const void * )&message, portMAX_DELAY ) != pdTRUE)
-	{
-		LOGE("Cannot send request to _asyncqueue\n");
-
-		if( message.sync ) {
-			vSemaphoreDelete(message.sync);
-		}
-		return false;
-	}
-
-	if( message.sync ) {
-	    xSemaphoreTake(message.sync, portMAX_DELAY);
-	    vSemaphoreDelete(message.sync);
-		return response.success;
-	}
-	return false;
-}
 
 static NetworkResponse_t nettask_send(NetworkTaskServerSendMessage_t * message) {
 	NetworkResponse_t response;
@@ -183,37 +115,70 @@ static NetworkResponse_t nettask_send(NetworkTaskServerSendMessage_t * message) 
 
 	return response;
 }
-
-static void NetworkTask_Thread(void * networkdata) {
-	NetworkTaskServerSendMessage_t message;
-
-	for (; ;) {
-
-		if (!xQueueReceive( _asyncqueue, &message, portMAX_DELAY )) {
-			vTaskDelay(1000);
-			continue; //LOOP FOREVEREVEREVEREVER
-		}
-		if (message.begin) {
-			message.begin(&message);
-		}
-
-		if( message.response_handle ) {
-			*message.response_handle = nettask_send(&message);
-		} else {
-			nettask_send(&message);
-		}
-
-		if( message.end ) {
-			message.end(&message);
-		}
-		vTaskDelay(100);
+static int nettask_future_cb(void * out_buf, size_t out_size, void * ctx) {
+	NetworkTaskServerSendMessage_t * message = (NetworkTaskServerSendMessage_t *)ctx;
+	if (message->begin) {
+		message->begin(&message);
 	}
 
+	if( message->response_handle ) {
+		*message->response_handle = nettask_send(message);
+	} else {
+		nettask_send(message);
+	}
+
+	if( message->end ) {
+		message->end(&message);
+	}
+
+	vPortFree(message);
+
+	return out_size;
+}
+#include "hlo_async.h"
+
+bool NetworkTask_SendProtobuf(bool blocking, const char * host,
+		const char * endpoint, const pb_field_t fields[],
+		const void * structdata, int32_t retry_time_in_counts,
+		NetworkResponseCallback_t func, void * context) {
+	NetworkTaskServerSendMessage_t * message;
+	NetworkResponse_t response;
+	hlo_future_t * nettask_future;
+
+	message = pvPortMalloc( sizeof(NetworkTaskServerSendMessage_t));
+	assert(message);
+	memset(&message,0,sizeof(message));
+
+	//craft message
+	message->host = host;
+	message->endpoint = endpoint;
+	message->response_callback = func;
+	message->retry_timeout = retry_time_in_counts;
+	message->context = context;
+
+	message->fields = fields;
+	message->structdata = structdata;
+
+	if( blocking ) {
+		message->response_handle = &response;
+	}
+	DEBUG_PRINTF("NT %s",endpoint);
+	nettask_future = hlo_future_create_task_bg(sizeof(unsigned long), nettask_future_cb, (void*)message, 4096 / 4);
+
+	if( blocking ) {
+		hlo_future_read_once(
+						nettask_future,
+						NULL,
+						0);
+		return response.success;
+	}
+	return false;
 }
 
 
 int NetworkTask_AddMessageToQueue(const NetworkTaskServerSendMessage_t * message) {
-    return xQueueSend( _asyncqueue, ( const void * ) message, 10 );
+    hlo_future_create_task_bg(sizeof(unsigned long), nettask_future_cb, (void*)message, 4096 / 4);
+    return pdPASS;
 }
 
 
@@ -231,16 +196,11 @@ int networktask_exit_critical_region()
 
 void networktask_init(uint16_t stack_size)
 {
-	// In this way the network task is encapsulated to its own module
-	// no semaphore needs to expose to outside
-	NetworkTaskData_t network_task_data;
-	memset(&network_task_data, 0, sizeof(network_task_data));
+	if(!_network_mutex)
+	{
+		_network_mutex = xSemaphoreCreateMutex();
+	}
 
-	Init(&network_task_data);
-
-	//this task needs a larger stack because
-	//some protobuf encoding will happen on the stack of this task
-	xTaskCreate(NetworkTask_Thread, "networkTask", stack_size, &network_task_data, 2, NULL);
 }
 
 

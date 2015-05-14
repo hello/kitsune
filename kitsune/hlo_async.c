@@ -22,6 +22,7 @@ static void async_worker(void * ctx){
 		hlo_future_write(task->result,
 				task->work(task->result->buf,task->result->buf_size, task->context));
 	}
+
 	LOGI("\r\n%s stack %d\r\n", task->name, vGetStack( task->name ) );
 
 	vPortFree(task);
