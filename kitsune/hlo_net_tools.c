@@ -157,6 +157,8 @@ int Cmd_dig(int argc, char *argv[]){
 
 	return 0;
 }
+//despite using futures, this is not thread safe, but given the speed
+//of human input, it's hard to race it.
 int Cmd_scan_wifi(int argc, char *argv[]){
 	static hlo_future_t * result;
 	Sl_WlanNetworkEntry_t entries[10];
@@ -178,5 +180,8 @@ int Cmd_scan_wifi(int argc, char *argv[]){
 	}else{
 		DISP("No endpoints scanned\r\n");
 	}
+	//queue another scan
+	hlo_future_destroy(result);
+	result = prescan_wifi( 10 );
 	return 0;
 }
