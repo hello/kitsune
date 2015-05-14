@@ -13,7 +13,7 @@ typedef struct{
 	uint8_t buf[0];
 }hlo_future_t;
 
-typedef void(*future_task)(hlo_future_t * result, void * ctx);
+typedef int(*future_task)(void * out_buf, size_t out_size, void * ctx);
 
 //standalone creation
 hlo_future_t * hlo_future_create(size_t max_size);
@@ -39,16 +39,6 @@ hlo_future_t * hlo_future_create_task(size_t max_size, future_task cb, void * co
  */
 hlo_future_t * hlo_future_create_task_bg(size_t max_size, future_task cb, void * context, size_t stack_size);
 
-
-/**
- *  @param future - the future you wish to write to
- *  @param buffer -  copies the content of this buffer into the future's internal buffer
- *  @param size - size of your buffer
- *  @param return_code  - return code to be returned by hlo_future_read
- *  @return expect 0, <0 if theres a buffer error.
- */
-int hlo_future_write(hlo_future_t * future, const void * buffer, size_t size, int return_code);
-
 /**
  *  @param future - the future you wish to read from
  *  @param buf -  copies the content of the future's internal buffer into this
@@ -57,7 +47,12 @@ int hlo_future_write(hlo_future_t * future, const void * buffer, size_t size, in
  *  @return the return code set by hlo_future_write.  Check with implementer, but typically < 0 are errros
  */
 int hlo_future_read(hlo_future_t * future,  void * buf, size_t size, TickType_t ms);
-
+/**
+ * helper api
+ * hlo_future_read with automatic self destruction.
+ * always delay at maximum time.
+ */
+int hlo_future_read_once(hlo_future_t * future,  void * buf, size_t size);
 /**
  * destroys a future
  * use after a read, otherwise it'll crash the system.

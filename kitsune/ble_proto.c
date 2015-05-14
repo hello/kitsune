@@ -49,8 +49,6 @@ static struct {
     xSemaphoreHandle smphr;
 } _self;
 
-static int _wifi_read_index;
-static int _scanned_wifi_count = 0;
 static Sl_WlanNetworkEntry_t _wifi_endpoints[MAX_WIFI_EP_PER_SCAN];
 static xSemaphoreHandle _wifi_smphr;
 static hlo_future_t * scan_results;
@@ -118,8 +116,8 @@ static void _reply_wifi_scan_result()
 {
     int i = 0;
     MorpheusCommand reply_command = {0};
-    _scanned_wifi_count = hlo_future_read(scan_results,_wifi_endpoints,sizeof(_wifi_endpoints), 10000);
-    for(i = 0; i < _scanned_wifi_count; i++)
+    int count = hlo_future_read(scan_results,_wifi_endpoints,sizeof(_wifi_endpoints), 10000);
+    for(i = 0; i < count; i++)
     {
 		reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_START_WIFISCAN;
 		reply_command.wifi_scan_result.arg = &_wifi_endpoints[i];
@@ -127,28 +125,10 @@ static void _reply_wifi_scan_result()
         vTaskDelay(250);  // This number must be long enough so the BLE can get the data transmit to phone
         memset(&reply_command, 0, sizeof(reply_command));
     }
-	_scanned_wifi_count = 0;
     reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_STOP_WIFISCAN;
 	ble_send_protobuf(&reply_command);
 	LOGI(">>>>>>Send WIFI scan results done<<<<<<\n");
 
-}
-
-static void _reply_next_wifi_ap()
-{
-	xSemaphoreTake(_wifi_smphr, portMAX_DELAY);
-	//reset so the next scan command will do a scan
-	if(_wifi_read_index == _scanned_wifi_count || _wifi_read_index == MAX_WIFI_EP_PER_SCAN) {
-		_wifi_read_index = 0;
-		_scanned_wifi_count = 0;
-	}
-
-	MorpheusCommand reply_command = {0};
-	reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_NEXT_WIFI_AP;
-	reply_command.wifi_scan_result.arg = &_wifi_endpoints[_wifi_read_index++];
-	xSemaphoreGive(_wifi_smphr);
-
-	ble_send_protobuf(&reply_command);
 }
 
 static bool _set_wifi(const char* ssid, const char* password, int security_type, int version)
@@ -348,7 +328,6 @@ static void _morpheus_command_reply(const NetworkResponse_t * response,
 	memset(&reply, 0, sizeof(reply));
 	ble_proto_assign_decode_funcs(&reply);
     if( response->success && validate_signatures((char*)reply_buf, MorpheusCommand_fields, &reply) == 0) {
-		ble_proto_remove_decode_funcs(&reply);
 		ble_send_protobuf(&reply);
     	LOGF("signature validated\r\n");
     	if( success ) {
@@ -776,10 +755,6 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
     		ble_proto_led_fade_in_trippy();
     		_ble_reply_command_with_type(command->type);
     		break;
-    	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_NEXT_WIFI_AP:
-    		LOGI("MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_NEXT_WIFI_AP\n");
-    		_reply_next_wifi_ap();
-    		break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PUSH_DATA_AFTER_SET_TIMEZONE:
         {
             LOGI("Push data\n");
@@ -793,6 +768,8 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         break;
         default:
         	LOGW("Deprecated BLE Command: %d\r\n", command->type);
+        case MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_DEVICE_ID:
+        case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID:
         	break;
 	}
     return true;

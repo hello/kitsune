@@ -3,7 +3,6 @@
 
 
 #define CHECK_FOR_NULL(buf) if(!buf){return -99;}
-static xQueueHandle _queue;
 
 typedef struct{
 	hlo_future_t * result;
@@ -11,18 +10,15 @@ typedef struct{
 	void * context;
 }async_task_t;
 
-void hlo_async_task(void * ctx){
-	_queue = xQueueCreate(16,sizeof( async_task_t ) );
-	async_task_t task;
-	while(1){
-		  xQueueReceive(_queue,(void *) &task, portMAX_DELAY );
-		  task.work(task.result, task.context);
-	}
+static void hlo_future_write(hlo_future_t * future, int return_code){
+	future->return_code = return_code;
+	xSemaphoreGive(future->sync);
 }
 static void async_worker(void * ctx){
 	async_task_t * task = (async_task_t*)ctx;
 	if(task->work){
-		task->work(task->result, task->context);
+		hlo_future_write(task->result,
+				task->work(task->result->buf,task->result->buf_size, task->context));
 	}
 	vPortFree(task);
 	vTaskDelete(NULL);
@@ -47,22 +43,6 @@ hlo_future_t * hlo_future_create(size_t max_size){
 	}
 	return ret;
 }
-hlo_future_t * hlo_future_create_task(size_t max_size, future_task cb, void * context){
-	if(!_queue){
-		return NULL;
-	}
-	hlo_future_t * result = hlo_future_create(max_size);
-	if(result){
-		async_task_t task = (async_task_t){
-			.result = result,
-			.work = cb,
-			.context = context,
-		};
-		xQueueSend(_queue,&task,0);
-	}
-	return result;
-
-}
 hlo_future_t * hlo_future_create_task_bg(size_t max_size, future_task cb, void * context, size_t stack_size){
 	hlo_future_t * result = hlo_future_create(max_size);
 	async_task_t * task;
@@ -85,22 +65,6 @@ fail:
 	hlo_future_destroy(result);
 	return NULL;
 }
-//producer use either
-int hlo_future_write(hlo_future_t * future, const void * buffer, size_t size, int return_code){
-	CHECK_FOR_NULL(future);
-	int err = 0;
-	if(future->buf_size >= size){
-		if(buffer){
-			memcpy(future->buf,buffer,size);
-		}
-	}else{
-		//input too bigs
-		err = -1;
-	}
-	future->return_code = return_code;
-	xSemaphoreGive(future->sync);
-	return err;
-}
 
 void hlo_future_destroy(hlo_future_t * future){
 	if(future){
@@ -117,4 +81,9 @@ int hlo_future_read(hlo_future_t * future,  void * buf, size_t size, TickType_t 
 		xSemaphoreGive(future->sync);
 	}
 	return err;
+}
+int hlo_future_read_once(hlo_future_t * future,  void * buf, size_t size){
+	int res = hlo_future_read(future, buf, size, portMAX_DELAY);
+	hlo_future_destroy(future);
+	return res;
 }

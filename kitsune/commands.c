@@ -956,7 +956,6 @@ int load_device_id();
 bool is_test_boot();
 //no need for semaphore, only thread_tx uses this one
 int data_queue_batch_size = 1;
-int Cmd_scan_wifi_mostly_nonblocking(int argc, char *argv[]);
 
 void thread_tx(void* unused) {
 	batched_pill_data pill_data_batched = {0};
@@ -1345,42 +1344,6 @@ int Cmd_tasks(int argc, char *argv[]) {
 
 #define SCAN_TABLE_SIZE   20
 
-static void SortByRSSI(Sl_WlanNetworkEntry_t* netEntries,
-                                            unsigned char ucSSIDCount)
-{
-    Sl_WlanNetworkEntry_t tTempNetEntry;
-    unsigned char ucCount, ucSwapped;
-    do{
-        ucSwapped = 0;
-        for(ucCount =0; ucCount < ucSSIDCount - 1; ucCount++)
-        {
-           if(netEntries[ucCount].rssi < netEntries[ucCount + 1].rssi)
-           {
-              tTempNetEntry = netEntries[ucCount];
-              netEntries[ucCount] = netEntries[ucCount + 1];
-              netEntries[ucCount + 1] = tTempNetEntry;
-              ucSwapped = 1;
-           }
-        } //end for
-     }while(ucSwapped);
-}
-
-
-int Cmd_rssi(int argc, char *argv[]) {
-	int lCountSSID,i;
-
-	Sl_WlanNetworkEntry_t g_netEntries[SCAN_TABLE_SIZE];
-
-	lCountSSID = get_wifi_scan_result(&g_netEntries[0], SCAN_TABLE_SIZE, 1000, 0 );
-
-    SortByRSSI(&g_netEntries[0],(unsigned char)lCountSSID);
-
-    LOGF( "SSID RSSI\n" );
-	for(i=0;i<lCountSSID;++i) {
-		LOGF( "%s %d\n", g_netEntries[i].ssid, g_netEntries[i].rssi );
-	}
-	return 0;
-}
 #include "crypto.h"
 static const uint8_t exponent[] = { 1,0,1 };
 static const uint8_t public_key[] = {
@@ -1815,7 +1778,6 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "rdiorxstart", Cmd_RadioStartRX, "" },
 		{ "rdiorxstop", Cmd_RadioStopRX, "" },
 #endif
-		{ "rssi", Cmd_rssi, "" },
 		{ "slip", Cmd_slip, "" },
 		{ "^", Cmd_send_top, ""}, //send command to top board
 		{ "topdfu", Cmd_topdfu, ""}, //update topboard firmware.
@@ -1987,7 +1949,6 @@ void vUARTTask(void *pvParameters) {
 	ble_proto_init();
 	xTaskCreate(top_board_task, "top_board_task", 1280 / 4, NULL, 2, NULL);
 	xTaskCreate(thread_spi, "spiTask", 512 / 4, NULL, 4, NULL);
-	xTaskCreate(hlo_async_task, "asyncTask", 4096 / 4, NULL, 4, NULL);
 #ifndef BUILD_SERVERS
 	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 1, NULL);
 	UARTprintf("*");
