@@ -49,7 +49,6 @@ static struct {
     xSemaphoreHandle smphr;
 } _self;
 
-static int _scanned_wifi_count = 0;
 static Sl_WlanNetworkEntry_t _wifi_endpoints[MAX_WIFI_EP_PER_SCAN];
 static xSemaphoreHandle _wifi_smphr;
 static hlo_future_t * scan_results;
@@ -117,8 +116,8 @@ static void _reply_wifi_scan_result()
 {
     int i = 0;
     MorpheusCommand reply_command = {0};
-    _scanned_wifi_count = hlo_future_read(scan_results,_wifi_endpoints,sizeof(_wifi_endpoints), 10000);
-    for(i = 0; i < _scanned_wifi_count; i++)
+    int count = hlo_future_read(scan_results,_wifi_endpoints,sizeof(_wifi_endpoints), 10000);
+    for(i = 0; i < count; i++)
     {
 		reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_START_WIFISCAN;
 		reply_command.wifi_scan_result.arg = &_wifi_endpoints[i];
@@ -126,7 +125,6 @@ static void _reply_wifi_scan_result()
         vTaskDelay(250);  // This number must be long enough so the BLE can get the data transmit to phone
         memset(&reply_command, 0, sizeof(reply_command));
     }
-	_scanned_wifi_count = 0;
     reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_STOP_WIFISCAN;
 	ble_send_protobuf(&reply_command);
 	LOGI(">>>>>>Send WIFI scan results done<<<<<<\n");
