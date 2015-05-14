@@ -73,15 +73,15 @@ static void worker_scan_unique(hlo_future_t * result, void * ctx){
 //Public
 unsigned long resolve_ip_by_host_name(const char * host_name){
 	unsigned long ip = 0;
-	hlo_future_t * fut = hlo_future_create_task(sizeof(unsigned long), resolve, (void*)host_name);
-	int rv = hlo_future_read(fut,&ip,sizeof(ip), portMAX_DELAY);
-	hlo_future_destroy(fut);
-	if(rv >= 0){
+	hlo_future_t * fut = ;
+	if(0 <= hlo_future_read_once(
+				hlo_future_create_task(sizeof(unsigned long), resolve, (void*)host_name),
+				&ip,
+				sizeof(ip))){
 		return ip;
 	}else{
 		return 0;
 	}
-
 }
 int _replace_ssid_by_rssi(Sl_WlanNetworkEntry_t * main, size_t main_size, const Sl_WlanNetworkEntry_t* entry){
 	int i;
