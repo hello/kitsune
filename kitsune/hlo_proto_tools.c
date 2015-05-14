@@ -9,13 +9,14 @@ typedef struct{
 	size_t buf_size;
 }buffer_desc_t;
 
-void encode_MorpheusCommand(hlo_future_t * result, void * context){
-	buffer_desc_t desc = {0};
+static int encode_MorpheusCommand(void * result, size_t size, void * context){
+	buffer_desc_t * desc = (buffer_desc_t*)result;
 	MorpheusCommand * command = (MorpheusCommand *)context;
 	if(!command){
 		LOGI("Inavlid parameter.\r\n");
 		goto end;
 	}
+	memset(result, 0, size);
 	command->version = PROTOBUF_VERSION;
 	command->has_firmwareVersion = true;
 	command->firmwareVersion = FIRMWARE_VERSION_INTERNAL;
@@ -38,8 +39,8 @@ void encode_MorpheusCommand(hlo_future_t * result, void * context){
 	stream = pb_ostream_from_buffer(heap_page, stream.bytes_written);
 
 	if(pb_encode(&stream, MorpheusCommand_fields, command)){
-		desc.buf = heap_page;
-		desc.buf_size = stream.bytes_written;
+		desc->buf = heap_page;
+		desc->buf_size = stream.bytes_written;
 	}else{
 		LOGI("encode protobuf failed: ");
 		LOGI(PB_GET_ERROR(&stream));
@@ -47,11 +48,11 @@ void encode_MorpheusCommand(hlo_future_t * result, void * context){
 		vPortFree(heap_page);
 	}
 end:
-	hlo_future_write(result, &desc, sizeof(desc), 0);
+	return stream.bytes_written;
 
 }
 
-void decode_MorpheusCommand(hlo_future_t * result, void * context){
+static int decode_MorpheusCommand(void * result, size_t buf_size, void * context){
 	uint8_t * buf = ((buffer_desc_t*)context)->buf;
 	size_t size =  ((buffer_desc_t*)context)->buf_size;
 	MorpheusCommand command;
@@ -70,7 +71,8 @@ void decode_MorpheusCommand(hlo_future_t * result, void * context){
     	LOGI("\r\n");
     	err = -1;
     }
-    hlo_future_write(result,&command,sizeof(command), err);
+    memcpy(result,&command,sizeof(MorpheusCommand));
+    return err;
 }
 
 

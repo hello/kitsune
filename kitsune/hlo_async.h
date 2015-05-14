@@ -13,7 +13,7 @@ typedef struct{
 	uint8_t buf[0];
 }hlo_future_t;
 
-typedef void(*future_task)(hlo_future_t * result, void * ctx);
+typedef int(*future_task)(void * out_buf, size_t out_size, void * ctx);
 
 //standalone creation
 hlo_future_t * hlo_future_create(size_t max_size);
@@ -38,16 +38,6 @@ hlo_future_t * hlo_future_create_task(size_t max_size, future_task cb, void * co
  * @return a new object if everything checks out.
  */
 hlo_future_t * hlo_future_create_task_bg(size_t max_size, future_task cb, void * context, size_t stack_size);
-
-
-/**
- *  @param future - the future you wish to write to
- *  @param buffer -  copies the content of this buffer into the future's internal buffer
- *  @param size - size of your buffer
- *  @param return_code  - return code to be returned by hlo_future_read
- *  @return expect 0, <0 if theres a buffer error.
- */
-int hlo_future_write(hlo_future_t * future, const void * buffer, size_t size, int return_code);
 
 /**
  *  @param future - the future you wish to read from

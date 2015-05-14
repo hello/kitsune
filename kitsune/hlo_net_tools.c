@@ -13,13 +13,14 @@ typedef struct{
 }scan_desc_t;
 ////---------------------------------
 //implementations
-static void resolve(hlo_future_t * result, void * ctx){
+static int resolve(void * output, size_t out_size, void * ctx){
 	unsigned long ip = 0;
 	int ret = (int)sl_gethostbynameNoneThreadSafe((_i8*)ctx, strlen((char*)ctx), &ip, SL_AF_INET);
-	hlo_future_write(result, &ip,sizeof(ip),ret);
+	*(unsigned long*)output = ip;
+	return out_size;
 }
 void antsel(unsigned char a);
-static void scan(hlo_future_t * result, void * ctx){
+static int scan(void * result, size_t out_size, void * ctx){
 	scan_desc_t * desc = (scan_desc_t*)ctx;
 	unsigned char policyOpt = SL_CONNECTION_POLICY(0, 0, 0, 0, 0);
 	unsigned long IntervalVal = 20;
@@ -45,7 +46,7 @@ static void scan(hlo_future_t * result, void * ctx){
 	// Restore connection policy to Auto
 	sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0), NULL, 0);
 
-	hlo_future_write(result,NULL,0,r);
+	return r;
 }
 static int scan_for_wifi(Sl_WlanNetworkEntry_t * result, size_t max_entries, int ant_select, int duration){
 	scan_desc_t desc = (scan_desc_t){
@@ -63,11 +64,10 @@ static int scan_for_wifi(Sl_WlanNetworkEntry_t * result, size_t max_entries, int
 		return -1;
 	}
 }
-static void worker_scan_unique(hlo_future_t * result, void * ctx){
-	int num_entries = result->buf_size / sizeof(Sl_WlanNetworkEntry_t);
-	Sl_WlanNetworkEntry_t * entries = (Sl_WlanNetworkEntry_t*)result->buf;
-	int ret = get_unique_wifi_list(entries, num_entries);
-	hlo_future_write(result,NULL,0,ret);
+static int worker_scan_unique(void * buf,size_t buf_size, void * ctx){
+	int num_entries = buf_size / sizeof(Sl_WlanNetworkEntry_t);
+	Sl_WlanNetworkEntry_t * entries = (Sl_WlanNetworkEntry_t*)buf;
+	return get_unique_wifi_list(entries, num_entries);
 }
 ////---------------------------------
 //Public

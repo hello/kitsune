@@ -11,18 +11,25 @@ typedef struct{
 	void * context;
 }async_task_t;
 
+static void hlo_future_write(hlo_future_t * future, int return_code){
+	future->return_code = return_code;
+	xSemaphoreGive(future->sync);
+}
+
 void hlo_async_task(void * ctx){
 	_queue = xQueueCreate(16,sizeof( async_task_t ) );
 	async_task_t task;
 	while(1){
 		  xQueueReceive(_queue,(void *) &task, portMAX_DELAY );
-		  task.work(task.result, task.context);
+		  hlo_future_write(task.result,
+				  task.work(task.result->buf, task.result->buf_size, task.context));
 	}
 }
 static void async_worker(void * ctx){
 	async_task_t * task = (async_task_t*)ctx;
 	if(task->work){
-		task->work(task->result, task->context);
+		hlo_future_write(task->result,
+				task->work(task->result->buf,task->result->buf_size, task->context));
 	}
 	vPortFree(task);
 	vTaskDelete(NULL);
@@ -84,22 +91,6 @@ fail_task:
 fail:
 	hlo_future_destroy(result);
 	return NULL;
-}
-//producer use either
-int hlo_future_write(hlo_future_t * future, const void * buffer, size_t size, int return_code){
-	CHECK_FOR_NULL(future);
-	int err = 0;
-	if(future->buf_size >= size){
-		if(buffer){
-			memcpy(future->buf,buffer,size);
-		}
-	}else{
-		//input too bigs
-		err = -1;
-	}
-	future->return_code = return_code;
-	xSemaphoreGive(future->sync);
-	return err;
 }
 
 void hlo_future_destroy(hlo_future_t * future){
