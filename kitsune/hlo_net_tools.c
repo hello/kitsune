@@ -112,7 +112,7 @@ int get_unique_wifi_list(Sl_WlanNetworkEntry_t * result, size_t num_entries){
 	}
 	//do ifa
 	retries = 3;
-	while(retries > 0 && (ret = scan_for_wifi(ifa_list, num_entries, IFA_ANT, 3000)) == 0){
+	while(--retries > 0 && (ret = scan_for_wifi(ifa_list, num_entries, IFA_ANT, 3000)) == 0){
 		DISP("Retrying IFA %d\r\n", retries);
 	}
 	while(--ret > 0){
@@ -122,7 +122,7 @@ int get_unique_wifi_list(Sl_WlanNetworkEntry_t * result, size_t num_entries){
 	}
 	//now do pcb
 	retries = 3;
-	while(retries > 0 && (ret = scan_for_wifi(pcb_list, num_entries, PCB_ANT, 3000)) == 0){
+	while(--retries > 0 && (ret = scan_for_wifi(pcb_list, num_entries, PCB_ANT, 3000)) == 0){
 		DISP("Retrying PCB %d\r\n", retries);
 	}
 	while(--ret > 0){
