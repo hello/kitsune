@@ -1803,6 +1803,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "frag",cmd_memfrag,""},
 		{ "burntopkey",Cmd_burn_top,""},
 		{ "scan",Cmd_scan_wifi,""},
+		{"future",Cmd_FutureTest,""},
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
 		{ "iperfcli",Cmd_iperf_client,""},

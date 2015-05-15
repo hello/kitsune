@@ -111,7 +111,7 @@ static NetworkResponse_t nettask_send(NetworkTaskServerSendMessage_t * message) 
 
 	vPortFree(decode_buf);
 
-	networktask_exit_critical_region();;
+	networktask_exit_critical_region();
 
 	return response;
 }
@@ -163,21 +163,23 @@ bool NetworkTask_SendProtobuf(bool blocking, const char * host,
 		message->response_handle = &response;
 	}
 	DEBUG_PRINTF("NT %s",endpoint);
-	nettask_future = hlo_future_create_task_bg(sizeof(unsigned long), nettask_future_cb, (void*)message, 4096 );
+
+	nettask_future = hlo_future_create_task_bg( nettask_future_cb, (void*)message, 4096 );
 
 	if( blocking ) {
-		hlo_future_read_once(
+		hlo_future_read(
 						nettask_future,
 						NULL,
 						0);
-		return response.success;
 	}
-	return false;
+	hlo_future_destroy(nettask_future);
+
+	return blocking ? response.success : false;
 }
 
 
 int NetworkTask_AddMessageToQueue(const NetworkTaskServerSendMessage_t * message) {
-    hlo_future_create_task_bg(sizeof(unsigned long), nettask_future_cb, (void*)message, 4096);
+    hlo_future_create_task_bg(nettask_future_cb, (void*)message, 4096);
     return pdPASS;
 }
 
