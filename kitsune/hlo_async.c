@@ -127,11 +127,11 @@ static void fork(hlo_future_t * result, void * ctx){
 		depth--;
 		unsigned int a,b;
 		hlo_future_read_once(
-					hlo_future_create_task_bg(fork,&depth,256),
+					hlo_future_create_task_bg(fork,&depth,512),
 					&a,
 					sizeof(a));
 		hlo_future_read_once(
-					hlo_future_create_task_bg(fork,&depth,256),
+					hlo_future_create_task_bg(fork,&depth,512),
 					&b,
 					sizeof(b));
 		sum = sum + a + b;
@@ -144,7 +144,7 @@ int Cmd_FutureTest(int argc, char * argv[]){
 	unsigned int depth = 3;
 	unsigned int result = 0;
 	hlo_future_read_once(
-			hlo_future_create_task_bg(fork,&depth,256),
+			hlo_future_create_task_bg(fork,&depth,512),
 			&result,
 			sizeof(result));
 	DISP("Res: %d\r\n", result);
