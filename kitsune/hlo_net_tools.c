@@ -209,7 +209,7 @@ int Cmd_scan_wifi(int argc, char *argv[]){
 	DISP("\r\n");
 	if(ret > 0){
 		DISP("Found %d endpoints\r\n===========\r\n", ret);
-		//SortByRSSI(entries, ret);
+		SortByRSSI(entries, ret);
 		for(i = 0; i < ret; i++){
 			DISP("%d)%s, %d, %d dB, %d\r\n",i, entries[i].ssid, entries[i].sec_type, entries[i].rssi, entries[i].reserved[0]);
 		}

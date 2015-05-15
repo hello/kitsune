@@ -38,7 +38,7 @@ hlo_future_t * hlo_future_create(void);
 hlo_future_t * hlo_future_create_task_bg(future_task cb, void * context, size_t stack_size);
 /**
  * Binds a region of memory, its size, and return code to the future so that readers can access it.
- * If called inside a future_task, it halts the task until a reader invokes destroy.
+ * If called inside a future_task, it halts the task until a reader invokes the destroy method.
  * @param future - future object
  * @param buffer - pointer to the object
  * @param size -size of the object
@@ -46,31 +46,23 @@ hlo_future_t * hlo_future_create_task_bg(future_task cb, void * context, size_t 
  */
 void hlo_future_write(hlo_future_t * future, void * buffer, size_t size, int return_code);
 /**
+ *  copies the content of the future into the supplied buffer.
  *  @param future - the future you wish to read from
- *  @param buf -  copies the content of the future's internal buffer into this
+ *  @param buf -  NON-NULL to copy the future content into here, NULL to wait until finished.
  *  @param size - size of your buffer
  *  @param ms - delay to wait
  *  @return the return code set by hlo_future_write.  Check with implementer, but typically < 0 are errros
  */
 int hlo_future_read(hlo_future_t * future,  void * buf, size_t size, TickType_t ms);
 /**
- * helper api
+ * helper api, reads then deallocate the future
  * hlo_future_read with automatic self destruction.
  * always delay at maximum time.
  */
 int hlo_future_read_once(hlo_future_t * future,  void * buf, size_t size);
 /**
- * destroys a future
- * use after a read, otherwise it'll crash the system.
+ * destroys a future, contents inside are considered invalid after this call.
  */
 void hlo_future_destroy(hlo_future_t * future);
-
-/**
- * run this to support synchronous mode aka @see hlo_future_create_task
- */
-void hlo_async_task(void * ctx);
-
-
-//helper macros
 
 #endif
