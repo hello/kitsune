@@ -62,11 +62,8 @@ static void scan(hlo_future_t * result, void * ctx){
 
 	// Restore connection policy to Auto
 	sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0), NULL, 0);
-
-	hlo_future_capture(result,
-				desc->entries,
-				sizeof(Sl_WlanNetworkEntry_t)*desc->max_entries,
-				r);
+	//do not need to capture any values since we are storing it directly to network list
+	hlo_future_capture(result, NULL, 0, r);
 }
 static int scan_for_wifi(Sl_WlanNetworkEntry_t * result, size_t max_entries, int ant_select, int duration){
 	scan_desc_t desc = (scan_desc_t){
@@ -75,18 +72,19 @@ static int scan_for_wifi(Sl_WlanNetworkEntry_t * result, size_t max_entries, int
 		.antenna = ant_select,
 		.duration_ms = duration,
 	};
-	hlo_future_t * fut = hlo_future_create_task_bg(scan, &desc, 1024);
+	hlo_future_t * fut = hlo_future_create_task_bg(scan, &desc, 2048);
 	int rv = hlo_future_read(fut, NULL, 0, portMAX_DELAY);
-	hlo_future_destroy(fut);
 	if(rv >= 0){
+		hlo_future_destroy(fut);
 		return rv;
 	}else{
+		hlo_future_destroy(fut);
 		return -1;
 	}
 }
 static void worker_scan_unique(hlo_future_t * result, void * ctx){
 	Sl_WlanNetworkEntry_t entries[10] = {0};
-	hlo_future_capture(result, entries, 10, get_unique_wifi_list(entries, 10));
+	hlo_future_capture(result, entries, sizeof(entries), get_unique_wifi_list(entries, 10));
 }
 static void SortByRSSI(Sl_WlanNetworkEntry_t* netEntries,
                                             unsigned char ucSSIDCount){
@@ -130,7 +128,6 @@ int _replace_ssid_by_rssi(Sl_WlanNetworkEntry_t * main, size_t main_size, const 
 		}else if(!strncmp((const char*)row->ssid, (const char*)entry->ssid, sizeof(row->ssid))){
 			if(entry->rssi > row->rssi){
 				*row = *entry;
-				return 0;
 			}
 			return 0;
 		}
@@ -143,7 +140,7 @@ int get_unique_wifi_list(Sl_WlanNetworkEntry_t * result, size_t num_entries){
 	int retries, ret, tally = 0;
 	Sl_WlanNetworkEntry_t * ifa_list = pvPortMalloc(size);
 	Sl_WlanNetworkEntry_t * pcb_list = pvPortMalloc(size);
-	memset(result, 0, size);
+
 	if(!ifa_list || !pcb_list){
 		goto exit;
 	}
@@ -155,6 +152,7 @@ int get_unique_wifi_list(Sl_WlanNetworkEntry_t * result, size_t num_entries){
 	while(--ret > 0){
 		ifa_list[ret].reserved[0] = IFA_ANT;
 		ifa_list[ret].ssid_len = 0;
+		ifa_list[ret].ssid[31] = 0;
 		tally += _replace_ssid_by_rssi(result, num_entries, &ifa_list[ret]);
 	}
 	//now do pcb
@@ -165,6 +163,7 @@ int get_unique_wifi_list(Sl_WlanNetworkEntry_t * result, size_t num_entries){
 	while(--ret > 0){
 		pcb_list[ret].reserved[0] = PCB_ANT;
 		pcb_list[ret].ssid_len = 0;
+		pcb_list[ret].ssid[31] = 0;
 		tally += _replace_ssid_by_rssi(result, num_entries, &pcb_list[ret]);
 	}
 exit:
@@ -176,7 +175,7 @@ exit:
 
 }
 hlo_future_t * prescan_wifi(size_t num_entries){
-	return hlo_future_create_task_bg(worker_scan_unique, NULL, 1024);
+	return hlo_future_create_task_bg(worker_scan_unique, NULL, 2048);
 }
 ////---------------------------------
 //Commands
@@ -198,7 +197,7 @@ int Cmd_dig(int argc, char *argv[]){
 //of human input, it's hard to race it.
 int Cmd_scan_wifi(int argc, char *argv[]){
 	static hlo_future_t * result;
-	Sl_WlanNetworkEntry_t entries[10];
+	Sl_WlanNetworkEntry_t entries[10] = {0};
 	int ret, i;
 	if(!result){
 		result = prescan_wifi( 10 );
@@ -210,7 +209,7 @@ int Cmd_scan_wifi(int argc, char *argv[]){
 	DISP("\r\n");
 	if(ret > 0){
 		DISP("Found %d endpoints\r\n===========\r\n", ret);
-		SortByRSSI(entries, ret);
+		//SortByRSSI(entries, ret);
 		for(i = 0; i < ret; i++){
 			DISP("%d)%s, %d, %d dB, %d\r\n",i, entries[i].ssid, entries[i].sec_type, entries[i].rssi, entries[i].reserved[0]);
 		}
