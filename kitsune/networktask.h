@@ -40,13 +40,9 @@ typedef struct {
 
 	int32_t retry_timeout;
 
-	xSemaphoreHandle sync;
 	NetworkResponseCallback_t response_callback;
 	NetworkResponse_t * response_handle;
 } NetworkTaskServerSendMessage_t;
-
-typedef struct {
-} NetworkTaskData_t;
 
 void networktask_init(uint16_t stack_size);
 
