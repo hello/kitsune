@@ -38,7 +38,7 @@ static void encode_MorpheusCommand(hlo_future_t * result, void * context){
 	stream = pb_ostream_from_buffer(heap_page, stream.bytes_written);
 
 	if(pb_encode(&stream, MorpheusCommand_fields, command)){
-		hlo_future_capture(result,heap_page,stream.bytes_written, stream.bytes_written);
+		hlo_future_write(result,heap_page,stream.bytes_written, stream.bytes_written);
 	}else{
 		LOGI("encode protobuf failed: ");
 		LOGI(PB_GET_ERROR(&stream));
@@ -66,7 +66,7 @@ static void decode_MorpheusCommand(hlo_future_t * result, void * context){
     }else{
     	err = 0;
     }
-    hlo_future_capture(result, &command, sizeof(command),err);
+    hlo_future_write(result, &command, sizeof(command),err);
 
     ble_proto_free_command(&command);
     vPortFree(context);

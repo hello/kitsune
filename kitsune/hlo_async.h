@@ -44,7 +44,7 @@ hlo_future_t * hlo_future_create_task_bg(future_task cb, void * context, size_t 
  * @param size -size of the object
  * @param return_code - return code
  */
-void hlo_future_capture(hlo_future_t * future, void * buffer, size_t size, int return_code);
+void hlo_future_write(hlo_future_t * future, void * buffer, size_t size, int return_code);
 /**
  *  @param future - the future you wish to read from
  *  @param buf -  copies the content of the future's internal buffer into this

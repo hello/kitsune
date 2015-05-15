@@ -22,7 +22,7 @@ static void async_worker(void * ctx){
 	if(task->work){
 		task->work(task->result, task->context);
 	}
-	LOGI("\r\n%s stack %d\r\n", task->name, vGetStack( task->name ) );
+	//LOGI("\r\n%s stack %d\r\n", task->name, vGetStack( task->name ) );
 	vSemaphoreDelete(task->result->release);
 	hlo_future_free(task->result);
 	vPortFree(task);
@@ -65,7 +65,6 @@ hlo_future_t * hlo_future_create_task_bg(future_task cb, void * context, size_t 
 		task->context = context;
 		task->result = result;
 		task->work = cb;
-
 		usnprintf( task->name, sizeof(task->name),  "async %d", xTaskGetTickCount());
 		if(pdPASS != xTaskCreate(async_worker, task->name, stack_size / 4, task, 4, NULL)){
 			goto fail_task;
@@ -89,7 +88,6 @@ void hlo_future_destroy(hlo_future_t * future){
 		}else{
 			hlo_future_free(future);
 		}
-
 	}
 }
 //or this
@@ -107,7 +105,7 @@ int hlo_future_read_once(hlo_future_t * future,  void * buf, size_t size){
 	hlo_future_destroy(future);
 	return res;
 }
-void hlo_future_capture(hlo_future_t * future, void * buffer, size_t size, int return_code){
+void hlo_future_write(hlo_future_t * future, void * buffer, size_t size, int return_code){
 	future->return_code = return_code;
 	future->buf = buffer;
 	future->buf_size = size;

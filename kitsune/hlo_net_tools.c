@@ -16,7 +16,7 @@ typedef struct{
 static void resolve(hlo_future_t * result, void * ctx){
 	unsigned long ip = 0;
 	int ret = (int)sl_gethostbynameNoneThreadSafe((_i8*)ctx, strlen((char*)ctx), &ip, SL_AF_INET);
-	hlo_future_capture(result, &ip, sizeof(ip), ret);
+	hlo_future_write(result, &ip, sizeof(ip), ret);
 }
 void antsel(unsigned char a);
 
@@ -63,7 +63,7 @@ static void scan(hlo_future_t * result, void * ctx){
 	// Restore connection policy to Auto
 	sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0), NULL, 0);
 	//do not need to capture any values since we are storing it directly to network list
-	hlo_future_capture(result, NULL, 0, r);
+	hlo_future_write(result, NULL, 0, r);
 }
 static int scan_for_wifi(Sl_WlanNetworkEntry_t * result, size_t max_entries, int ant_select, int duration){
 	scan_desc_t desc = (scan_desc_t){
@@ -84,7 +84,7 @@ static int scan_for_wifi(Sl_WlanNetworkEntry_t * result, size_t max_entries, int
 }
 static void worker_scan_unique(hlo_future_t * result, void * ctx){
 	Sl_WlanNetworkEntry_t entries[10] = {0};
-	hlo_future_capture(result, entries, sizeof(entries), get_unique_wifi_list(entries, 10));
+	hlo_future_write(result, entries, sizeof(entries), get_unique_wifi_list(entries, 10));
 }
 static void SortByRSSI(Sl_WlanNetworkEntry_t* netEntries,
                                             unsigned char ucSSIDCount){
