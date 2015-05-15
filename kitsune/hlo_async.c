@@ -71,10 +71,10 @@ hlo_future_t * hlo_future_create_task_bg(future_task cb, void * context, size_t 
 		}
 	}
 	return result;
-fail_sync:
-	hlo_future_destroy(task->result->release);
 fail_task:
 	vPortFree(task);
+fail_sync:
+	vSemaphoreDelete(result->release);
 fail:
 	hlo_future_destroy(result);
 	return NULL;
