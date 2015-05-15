@@ -76,7 +76,7 @@ fail_task:
 fail_sync:
 	vSemaphoreDelete(result->release);
 fail:
-	hlo_future_destroy(result);
+	hlo_future_free(result);
 	return NULL;
 }
 
