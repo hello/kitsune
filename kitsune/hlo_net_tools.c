@@ -152,7 +152,6 @@ int get_unique_wifi_list(Sl_WlanNetworkEntry_t * result, size_t num_entries){
 	while(--ret > 0){
 		ifa_list[ret].reserved[0] = IFA_ANT;
 		ifa_list[ret].ssid_len = 0;
-		ifa_list[ret].ssid[31] = 0;
 		tally += _replace_ssid_by_rssi(result, num_entries, &ifa_list[ret]);
 	}
 	//now do pcb
@@ -163,7 +162,6 @@ int get_unique_wifi_list(Sl_WlanNetworkEntry_t * result, size_t num_entries){
 	while(--ret > 0){
 		pcb_list[ret].reserved[0] = PCB_ANT;
 		pcb_list[ret].ssid_len = 0;
-		pcb_list[ret].ssid[31] = 0;
 		tally += _replace_ssid_by_rssi(result, num_entries, &pcb_list[ret]);
 	}
 exit:
