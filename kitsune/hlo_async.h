@@ -11,7 +11,7 @@ typedef struct hlo_future_t{
 	int return_code;
 	xSemaphoreHandle sync;
 	int buf_size;
-	uint8_t buf[0];
+	void * buf;
 }hlo_future_t;
 
 typedef int(*future_task)(void * out_buf, size_t out_size, void * ctx);
