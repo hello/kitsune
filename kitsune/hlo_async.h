@@ -35,7 +35,7 @@ hlo_future_t * hlo_future_create(void);
  *
  * @return a new object if everything checks out.
  */
-hlo_future_t * hlo_future_create_task_bg(future_task cb, void * context, size_t stack_size);
+hlo_future_t * hlo_future_create_task_bg(future_task cb, void * context);
 /**
  * Binds a region of memory, its size, and return code to the future so that readers can access it.
  * If called inside a future_task, it halts the task until a reader invokes the destroy method.

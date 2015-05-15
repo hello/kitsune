@@ -163,7 +163,7 @@ bool NetworkTask_SendProtobuf(bool blocking, const char * host,
 	}
 	DEBUG_PRINTF("NT %s",endpoint);
 
-	nettask_future = hlo_future_create_task_bg( nettask_future_cb, (void*)message, 4096 );
+	nettask_future = hlo_future_create_task_bg( nettask_future_cb, (void*)message );
 
 	if( blocking ) {
 		hlo_future_read(
@@ -179,7 +179,7 @@ bool NetworkTask_SendProtobuf(bool blocking, const char * host,
 
 
 int NetworkTask_AddMessageToQueue(const NetworkTaskServerSendMessage_t * message) {
-    hlo_future_create_task_bg(nettask_future_cb, (void*)message, 4096);
+    hlo_future_create_task_bg(nettask_future_cb, (void*)message);
     return pdPASS;
 }
 

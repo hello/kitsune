@@ -72,7 +72,7 @@ static int scan_for_wifi(Sl_WlanNetworkEntry_t * result, size_t max_entries, int
 		.antenna = ant_select,
 		.duration_ms = duration,
 	};
-	hlo_future_t * fut = hlo_future_create_task_bg(scan, &desc, 1024);
+	hlo_future_t * fut = hlo_future_create_task_bg(scan, &desc);
 	int rv = hlo_future_read(fut, NULL, 0, portMAX_DELAY);
 	if(rv >= 0){
 		hlo_future_destroy(fut);
@@ -109,7 +109,7 @@ static void SortByRSSI(Sl_WlanNetworkEntry_t* netEntries,
 unsigned long resolve_ip_by_host_name(const char * host_name){
 	unsigned long ip = 0;
 	if(0 <= hlo_future_read_once(
-				hlo_future_create_task_bg(resolve, (void*)host_name, 1024),
+				hlo_future_create_task_bg(resolve, (void*)host_name),
 				&ip,
 				sizeof(ip))){
 		return ip;
@@ -175,7 +175,7 @@ exit:
 
 }
 hlo_future_t * prescan_wifi(size_t num_entries){
-	return hlo_future_create_task_bg(worker_scan_unique, NULL, 2048);
+	return hlo_future_create_task_bg(worker_scan_unique, NULL);
 }
 ////---------------------------------
 //Commands
