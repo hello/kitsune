@@ -72,7 +72,7 @@ static int scan_for_wifi(Sl_WlanNetworkEntry_t * result, size_t max_entries, int
 		.antenna = ant_select,
 		.duration_ms = duration,
 	};
-	hlo_future_t * fut = hlo_future_create_task_bg(scan, &desc, 2048);
+	hlo_future_t * fut = hlo_future_create_task_bg(scan, &desc, 1024);
 	int rv = hlo_future_read(fut, NULL, 0, portMAX_DELAY);
 	if(rv >= 0){
 		hlo_future_destroy(fut);
