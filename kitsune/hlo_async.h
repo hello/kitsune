@@ -64,5 +64,5 @@ int hlo_future_read_once(hlo_future_t * future,  void * buf, size_t size);
  * destroys a future, contents inside are considered invalid after this call.
  */
 void hlo_future_destroy(hlo_future_t * future);
-
+int Cmd_FutureTest(int argc, char * argv[]);
 #endif

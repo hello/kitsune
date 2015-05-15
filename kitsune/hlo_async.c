@@ -116,3 +116,37 @@ void hlo_future_write(hlo_future_t * future, void * buffer, size_t size, int ret
 		xSemaphoreTake(future->release, portMAX_DELAY);
 	}
 }
+
+static void fork(hlo_future_t * result, void * ctx){
+	unsigned int depth = *(unsigned int*)ctx;
+	unsigned int sum = depth;
+	DISP("(%d)", depth);
+	if(depth == 1){
+		hlo_future_write(result, &sum, sizeof(sum),0);
+	}else{
+		depth--;
+		unsigned int a,b;
+		hlo_future_read_once(
+					hlo_future_create_task_bg(fork,&depth,256),
+					&a,
+					sizeof(a));
+		hlo_future_read_once(
+					hlo_future_create_task_bg(fork,&depth,256),
+					&b,
+					sizeof(b));
+		sum = sum + a + b;
+		hlo_future_write(result, &sum, sizeof(sum), 0);
+	}
+
+
+}
+int Cmd_FutureTest(int argc, char * argv[]){
+	unsigned int depth = 3;
+	unsigned int result = 0;
+	hlo_future_read_once(
+			hlo_future_create_task_bg(fork,&depth,256),
+			&result,
+			sizeof(result));
+	DISP("Res: %d\r\n", result);
+	return 0;
+}
