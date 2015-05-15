@@ -13,11 +13,10 @@ typedef struct{
 }scan_desc_t;
 ////---------------------------------
 //implementations
-static int resolve(void * output, size_t out_size, void * ctx){
+static void resolve(hlo_future_t * result, void * ctx){
 	unsigned long ip = 0;
 	int ret = (int)sl_gethostbynameNoneThreadSafe((_i8*)ctx, strlen((char*)ctx), &ip, SL_AF_INET);
-	*(unsigned long*)output = ip;
-	return ret;
+	hlo_future_capture(result, &ip, sizeof(ip), ret);
 }
 void antsel(unsigned char a);
 
@@ -38,7 +37,7 @@ static void reselect_antenna(Sl_WlanNetworkEntry_t * entries, int num_entries ) 
     }
 }
 
-static int scan(void * result, size_t out_size, void * ctx){
+static void scan(hlo_future_t * result, void * ctx){
 	scan_desc_t * desc = (scan_desc_t*)ctx;
 	unsigned char policyOpt = SL_CONNECTION_POLICY(0, 0, 0, 0, 0);
 	unsigned long IntervalVal = 20;
@@ -64,7 +63,10 @@ static int scan(void * result, size_t out_size, void * ctx){
 	// Restore connection policy to Auto
 	sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0), NULL, 0);
 
-	return r;
+	hlo_future_capture(result,
+				desc->entries,
+				sizeof(Sl_WlanNetworkEntry_t)*desc->max_entries,
+				r);
 }
 static int scan_for_wifi(Sl_WlanNetworkEntry_t * result, size_t max_entries, int ant_select, int duration){
 	scan_desc_t desc = (scan_desc_t){
@@ -73,7 +75,7 @@ static int scan_for_wifi(Sl_WlanNetworkEntry_t * result, size_t max_entries, int
 		.antenna = ant_select,
 		.duration_ms = duration,
 	};
-	hlo_future_t * fut = hlo_future_create_task_bg(0, scan, &desc, 1024);
+	hlo_future_t * fut = hlo_future_create_task_bg(scan, &desc, 1024);
 	int rv = hlo_future_read(fut, NULL, 0, portMAX_DELAY);
 	hlo_future_destroy(fut);
 	if(rv >= 0){
@@ -82,10 +84,9 @@ static int scan_for_wifi(Sl_WlanNetworkEntry_t * result, size_t max_entries, int
 		return -1;
 	}
 }
-static int worker_scan_unique(void * buf,size_t buf_size, void * ctx){
-	int num_entries = buf_size / sizeof(Sl_WlanNetworkEntry_t);
-	Sl_WlanNetworkEntry_t * entries = (Sl_WlanNetworkEntry_t*)buf;
-	return get_unique_wifi_list(entries, num_entries);
+static void worker_scan_unique(hlo_future_t * result, void * ctx){
+	Sl_WlanNetworkEntry_t entries[10] = {0};
+	hlo_future_capture(result, entries, 10, get_unique_wifi_list(entries, 10));
 }
 static void SortByRSSI(Sl_WlanNetworkEntry_t* netEntries,
                                             unsigned char ucSSIDCount){
@@ -110,7 +111,7 @@ static void SortByRSSI(Sl_WlanNetworkEntry_t* netEntries,
 unsigned long resolve_ip_by_host_name(const char * host_name){
 	unsigned long ip = 0;
 	if(0 <= hlo_future_read_once(
-				hlo_future_create_task_bg(sizeof(unsigned long), resolve, (void*)host_name, 1024),
+				hlo_future_create_task_bg(resolve, (void*)host_name, 1024),
 				&ip,
 				sizeof(ip))){
 		return ip;
@@ -175,8 +176,7 @@ exit:
 
 }
 hlo_future_t * prescan_wifi(size_t num_entries){
-	size_t size = num_entries * sizeof(Sl_WlanNetworkEntry_t);
-	return hlo_future_create_task_bg(size, worker_scan_unique, NULL, 1024);
+	return hlo_future_create_task_bg(worker_scan_unique, NULL, 1024);
 }
 ////---------------------------------
 //Commands

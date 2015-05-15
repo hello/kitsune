@@ -12,23 +12,24 @@ typedef struct{
 	void * context;
 }async_task_t;
 
-static void hlo_future_write(hlo_future_t * future, int return_code){
-	future->return_code = return_code;
-	xSemaphoreGive(future->sync);
+static void hlo_future_free(hlo_future_t * future){
+	vSemaphoreDelete(future->sync);
+	vPortFree(future);
 }
+
 static void async_worker(void * ctx){
 	async_task_t * task = (async_task_t*)ctx;
 	if(task->work){
-		hlo_future_write(task->result,
-				task->work(task->result->buf,task->result->buf_size, task->context));
+		task->work(task->result, task->context);
 	}
 	LOGI("\r\n%s stack %d\r\n", task->name, vGetStack( task->name ) );
-
+	vSemaphoreDelete(task->result->release);
+	hlo_future_free(task->result);
 	vPortFree(task);
 	vTaskDelete(NULL);
 }
 static int do_read(hlo_future_t * future, void * buf, size_t size){
-	if(buf && size >= future->buf_size){
+	if(buf && future->buf && size >= future->buf_size){
 		memcpy(buf,future->buf,future->buf_size);
 	}
 	return future->return_code;
@@ -37,24 +38,30 @@ static int do_read(hlo_future_t * future, void * buf, size_t size){
 
 ////-------------
 //public
-hlo_future_t * hlo_future_create(size_t max_size){
-	size_t alloc_size = sizeof(hlo_future_t) + max_size;
-	hlo_future_t * ret = pvPortMalloc(alloc_size);
+hlo_future_t * hlo_future_create(void){
+	hlo_future_t * ret = pvPortMalloc(sizeof(hlo_future_t));
 	if(ret){
-		memset(ret, 0, alloc_size);
+		memset(ret, 0, sizeof(hlo_future_t));
 		ret->sync = xSemaphoreCreateBinary();
-		ret->buf_size = (int)max_size;
+		//future defaults to fail if not captured
+		ret->return_code = -88;
 	}
 	return ret;
 }
-hlo_future_t * hlo_future_create_task_bg(size_t max_size, future_task cb, void * context, size_t stack_size){
-	hlo_future_t * result = hlo_future_create(max_size);
+hlo_future_t * hlo_future_create_task_bg(future_task cb, void * context, size_t stack_size){
+	hlo_future_t * result = hlo_future_create();
 	async_task_t * task;
 	if(result){
 		task = pvPortMalloc(sizeof(async_task_t));
 		if(!task){
 			goto fail;
 		}
+		//this lock indicates it's running a background thread and captures values
+		result->release = xSemaphoreCreateBinary();
+		if(!result->release){
+			goto fail_sync;
+		}
+
 		task->context = context;
 		task->result = result;
 		task->work = cb;
@@ -65,6 +72,8 @@ hlo_future_t * hlo_future_create_task_bg(size_t max_size, future_task cb, void *
 		}
 	}
 	return result;
+fail_sync:
+	hlo_future_destroy(task->result->release);
 fail_task:
 	vPortFree(task);
 fail:
@@ -74,8 +83,13 @@ fail:
 
 void hlo_future_destroy(hlo_future_t * future){
 	if(future){
-		vSemaphoreDelete(future->sync);
-		vPortFree(future);
+		if(future->release){
+			//running in a background thread
+			xSemaphoreGive(future->release);
+		}else{
+			hlo_future_free(future);
+		}
+
 	}
 }
 //or this
@@ -92,4 +106,15 @@ int hlo_future_read_once(hlo_future_t * future,  void * buf, size_t size){
 	int res = hlo_future_read(future, buf, size, portMAX_DELAY);
 	hlo_future_destroy(future);
 	return res;
+}
+void hlo_future_capture(hlo_future_t * future, void * buffer, size_t size, int return_code){
+	future->return_code = return_code;
+	future->buf = buffer;
+	future->buf_size = size;
+	//allow reader to access data
+	xSemaphoreGive(future->sync);
+	//halts the current thread until released
+	if(future->release){
+		xSemaphoreTake(future->release, portMAX_DELAY);
+	}
 }

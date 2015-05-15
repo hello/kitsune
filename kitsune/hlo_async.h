@@ -7,27 +7,24 @@
  * tools for asynchronous transaction here
  */
 typedef struct hlo_future_t{
-	hlo_future_t * write_lock;
-	int return_code;
+	xSemaphoreHandle release;
 	xSemaphoreHandle sync;
+	int return_code;
 	int buf_size;
 	void * buf;
 }hlo_future_t;
 
-typedef int(*future_task)(void * out_buf, size_t out_size, void * ctx);
+/**
+ * LifeCycle of the task
+ * 1. allocate local resources
+ * 2. compute
+ * 3. capture value that's accessible in the current scope
+ * 4. deallocate local resources
+ */
+typedef void(*future_task)(hlo_future_t * result, void * ctx);
 
 //standalone creation
-hlo_future_t * hlo_future_create(size_t max_size);
-
-/**
- * Adds the callback to @see hlo_async_task queue, calls to this api are guaranteed to be run sequentially
- * @param max_size - size of the future objects internal buffer for write/read
- * @param cb - the task to be scheduled
- * @param context - context the callback
- *
- * @return a new object if everything checks out.
- */
-hlo_future_t * hlo_future_create_task(size_t max_size, future_task cb, void * context);
+hlo_future_t * hlo_future_create(void);
 
 /**
  * Creates a thread to run the callback.
@@ -38,8 +35,16 @@ hlo_future_t * hlo_future_create_task(size_t max_size, future_task cb, void * co
  *
  * @return a new object if everything checks out.
  */
-hlo_future_t * hlo_future_create_task_bg(size_t max_size, future_task cb, void * context, size_t stack_size);
-
+hlo_future_t * hlo_future_create_task_bg(future_task cb, void * context, size_t stack_size);
+/**
+ * Binds a region of memory, its size, and return code to the future so that readers can access it.
+ * If called inside a future_task, it halts the task until a reader invokes destroy.
+ * @param future - future object
+ * @param buffer - pointer to the object
+ * @param size -size of the object
+ * @param return_code - return code
+ */
+void hlo_future_capture(hlo_future_t * future, void * buffer, size_t size, int return_code);
 /**
  *  @param future - the future you wish to read from
  *  @param buf -  copies the content of the future's internal buffer into this

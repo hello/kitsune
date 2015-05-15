@@ -138,13 +138,15 @@ void on_morpheus_protobuf_arrival(uint8_t* protobuf, size_t len)
         LOGI("Invalid parameter.\r\n");
         return;
     }
-
+    hlo_future_t * future_proto = MorpheusCommand_from_buffer(protobuf, len);
     MorpheusCommand command = {0};
-    if(0 == MorpheusCommand_from_buffer(&command, protobuf, len)){
-    	on_ble_protobuf_command(&command);
+    if(future_proto){
+    	int ret = hlo_future_read(future_proto,&command, sizeof(MorpheusCommand), portMAX_DELAY);
+    	if(ret >= 0){
+    		on_ble_protobuf_command(&command);
+    	}
+    	hlo_future_destroy(future_proto);
     }
-    ble_proto_free_command(&command);
-
 }
 
 void ble_proto_assign_decode_funcs(MorpheusCommand* command)
@@ -230,14 +232,16 @@ bool ble_reply_protobuf_error(ErrorType error_type)
 bool ble_send_protobuf(MorpheusCommand* command)
 {
 	int size;
-    void * out_buf = buffer_from_MorpheusCommand(command, &size);
-    if(out_buf){
+	hlo_future_t * result =  buffer_from_MorpheusCommand(command);
+	size = hlo_future_read(result,NULL,0,portMAX_DELAY);
+    if(size >= 0){
     	int i;
-        i = spi_write(size, out_buf);
+        i = spi_write(result->buf_size, result->buf);
         LOGI("spiwrite: %d",i);
-        vPortFree(out_buf);
+        hlo_future_destroy(result);
         return true;
     }
+    hlo_future_destroy(result);
     return false;
 }
 
