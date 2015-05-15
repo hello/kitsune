@@ -49,10 +49,10 @@
 #define HTTP_CONNECTION_CLOSE  "close"  /* HTTP Connection header value */
 
 #define DNS_RETRY           5 /* No of DNS tries */
-#define SOCK_RETRY      5
+#define SOCK_RETRY      256
 #define HTTP_END_OF_HEADER  "\r\n\r\n"  /* string marking the end of headers in response */
 
-#define MAX_BUFF_SIZE      512
+#define MAX_BUFF_SIZE      1024
 
 int sf_sha1_verify(const char * sha_truth, const char * serial_file_path);
 unsigned char g_buff[MAX_BUFF_SIZE];
@@ -700,12 +700,13 @@ int GetChunkSize(int *len, unsigned char **p_Buff, unsigned long *chunk_size)
             memset(g_buff, 0, MAX_BUFF_SIZE);
 
             do{
+                vTaskDelay(500);
                 *len = recv(dl_sock, g_buff, MAX_BUFF_SIZE, 0);
                 if(++retry > SOCK_RETRY){
                     break;
                 }
                 if(*len < 0 ){
-                    vTaskDelay(200);
+                    vTaskDelay(500);
                 }
             }while(*len == SL_EAGAIN);
 
@@ -802,12 +803,13 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
     // get the reply from the server in buffer.
     retry = 0;
     do {
+        vTaskDelay(500);
         transfer_len = recv(dl_sock, &g_buff[0], MAX_BUFF_SIZE, 0);
         if(++retry > SOCK_RETRY){
             break;
         }
         if(transfer_len < 0 ){
-            vTaskDelay(200);
+            vTaskDelay(500);
         }
     }while(transfer_len == SL_EAGAIN);
 
