@@ -6,7 +6,8 @@
 /**
  * tools for asynchronous transaction here
  */
-typedef struct{
+typedef struct hlo_future_t{
+	hlo_future_t * write_lock;
 	int return_code;
 	xSemaphoreHandle sync;
 	int buf_size;
