@@ -6,27 +6,25 @@
 /**
  * tools for asynchronous transaction here
  */
-typedef struct{
-	int return_code;
+typedef struct hlo_future_t{
+	xSemaphoreHandle release;
 	xSemaphoreHandle sync;
+	int return_code;
 	int buf_size;
-	uint8_t buf[0];
+	void * buf;
 }hlo_future_t;
 
-typedef int(*future_task)(void * out_buf, size_t out_size, void * ctx);
+/**
+ * LifeCycle of the task
+ * 1. allocate local resources
+ * 2. compute
+ * 3. capture value that's accessible in the current scope
+ * 4. deallocate local resources
+ */
+typedef void(*future_task)(hlo_future_t * result, void * ctx);
 
 //standalone creation
-hlo_future_t * hlo_future_create(size_t max_size);
-
-/**
- * Adds the callback to @see hlo_async_task queue, calls to this api are guaranteed to be run sequentially
- * @param max_size - size of the future objects internal buffer for write/read
- * @param cb - the task to be scheduled
- * @param context - context the callback
- *
- * @return a new object if everything checks out.
- */
-hlo_future_t * hlo_future_create_task(size_t max_size, future_task cb, void * context);
+hlo_future_t * hlo_future_create(void);
 
 /**
  * Creates a thread to run the callback.
@@ -37,34 +35,34 @@ hlo_future_t * hlo_future_create_task(size_t max_size, future_task cb, void * co
  *
  * @return a new object if everything checks out.
  */
-hlo_future_t * hlo_future_create_task_bg(size_t max_size, future_task cb, void * context, size_t stack_size);
-
+hlo_future_t * hlo_future_create_task_bg(future_task cb, void * context, size_t stack_size);
 /**
+ * Binds a region of memory, its size, and return code to the future so that readers can access it.
+ * If called inside a future_task, it halts the task until a reader invokes the destroy method.
+ * @param future - future object
+ * @param buffer - pointer to the object
+ * @param size -size of the object
+ * @param return_code - return code
+ */
+void hlo_future_write(hlo_future_t * future, void * buffer, size_t size, int return_code);
+/**
+ *  copies the content of the future into the supplied buffer.
  *  @param future - the future you wish to read from
- *  @param buf -  copies the content of the future's internal buffer into this
+ *  @param buf -  NON-NULL to copy the future content into here, NULL to wait until finished.
  *  @param size - size of your buffer
  *  @param ms - delay to wait
  *  @return the return code set by hlo_future_write.  Check with implementer, but typically < 0 are errros
  */
 int hlo_future_read(hlo_future_t * future,  void * buf, size_t size, TickType_t ms);
 /**
- * helper api
+ * helper api, reads then deallocate the future
  * hlo_future_read with automatic self destruction.
  * always delay at maximum time.
  */
 int hlo_future_read_once(hlo_future_t * future,  void * buf, size_t size);
 /**
- * destroys a future
- * use after a read, otherwise it'll crash the system.
+ * destroys a future, contents inside are considered invalid after this call.
  */
 void hlo_future_destroy(hlo_future_t * future);
-
-/**
- * run this to support synchronous mode aka @see hlo_future_create_task
- */
-void hlo_async_task(void * ctx);
-
-
-//helper macros
-
+int Cmd_FutureTest(int argc, char * argv[]);
 #endif
