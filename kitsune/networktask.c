@@ -9,6 +9,8 @@
 
 #include "kit_assert.h"
 
+#include "hlo_async.h"
+
 #define NETWORK_TASK_QUEUE_DEPTH (10)
 #define INITIAL_RETRY_PERIOD_COUNTS (1024)
 
@@ -115,7 +117,7 @@ static NetworkResponse_t nettask_send(NetworkTaskServerSendMessage_t * message) 
 
 	return response;
 }
-static int nettask_future_cb(void * out_buf, size_t out_size, void * ctx) {
+static void nettask_future_cb(hlo_future_t * result, void * ctx) {
 	NetworkTaskServerSendMessage_t * message = (NetworkTaskServerSendMessage_t *)ctx;
 	if (message->begin) {
 		message->begin(&message);
@@ -132,10 +134,7 @@ static int nettask_future_cb(void * out_buf, size_t out_size, void * ctx) {
 	}
 
 	vPortFree(message);
-
-	return out_size;
 }
-#include "hlo_async.h"
 
 bool NetworkTask_SendProtobuf(bool blocking, const char * host,
 		const char * endpoint, const pb_field_t fields[],
@@ -170,7 +169,8 @@ bool NetworkTask_SendProtobuf(bool blocking, const char * host,
 		hlo_future_read(
 						nettask_future,
 						NULL,
-						0);
+						0,
+						portMAX_DELAY);
 	}
 	hlo_future_destroy(nettask_future);
 
