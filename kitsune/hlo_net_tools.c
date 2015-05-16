@@ -62,7 +62,7 @@ static const struct http_funcs responseFuncs = {
     response_header,
     response_code,
 };
-static int open_sock(unsigned long ip){
+static int open_sock(unsigned long ip, int * out_sock){
 	SlSockAddrIn_t  Addr;
 	Addr.sin_family = SL_AF_INET;
 	Addr.sin_port = sl_Htons(80);
@@ -71,22 +71,22 @@ static int open_sock(unsigned long ip){
 	if(sock < 0){
 		return sock;
 	}
+	*out_sock = sock;
 	return connect(sock, (const SlSockAddr_t*)&Addr,  sizeof(SlSockAddrIn_t));
 }
 static void get_stream(hlo_future_t * result, void * ctx){
 	unsigned long ip = resolve_ip_by_host_name("google.com");
 	LOGI("IP: %d.%d.%d.%d \n\r\n\r",SL_IPV4_BYTE(ip, 3), SL_IPV4_BYTE(ip, 2),
 									   SL_IPV4_BYTE(ip, 1), SL_IPV4_BYTE(ip, 0));
-	const char request[] = "GET / HTTP/1.0\r\nContent-Length: 0\r\n\r\n";
-
+	const char request[] = "GET / HTTP/1.1\nHost:google.com\nAccept: text/html, application/xhtml+xml, */*\n\n";
+	//const char request[] = "GET /robots.txt HTTP/1.0\r\nContent-Length: 0\r\n\r\n";
 	int ret, len, sock;
 	bool needmore = true;
 	char buffer[1024];
 	struct http_roundtripper rt;
 
-	sock = open_sock(ip);
-	if(sock < 0){
-		ret = sock;
+	if(open_sock(ip, &sock) < 0 ){
+		DISP("Socket opened error\r\n");
 		goto end;
 	}
 
@@ -99,11 +99,22 @@ static void get_stream(hlo_future_t * result, void * ctx){
 
 	http_init(&rt, responseFuncs, NULL);
     while (needmore) {
-		const char* data = buffer;
-		int ndata = recv(sock, buffer, sizeof(buffer), 0);
+    	int ndata = 0;
+    	int retry = 0;
+    	const char* data = buffer;
+    	do{
+    		ndata = recv(sock, buffer, sizeof(buffer), 0);
+			if(++retry > 4){
+				break;
+			}
+			if(ndata < 0 ){
+				vTaskDelay(200);
+			}
+		}while(ndata == SL_EAGAIN);
+
 		if (ndata <= 0) {
-			DISP("Error receiving data\n");
-			ret = -1;
+			DISP("Error receiving data %d\n", ndata);
+			ret = ndata;
 			goto close_rt;
 		}
 		while (needmore && ndata) {
