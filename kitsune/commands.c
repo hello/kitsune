@@ -1752,6 +1752,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "fswr", Cmd_fs_write, "" }, //serial flash commands
 		{ "fsrd", Cmd_fs_read, "" },
 		{ "fsdl", Cmd_fs_delete, "" },
+		{ "get", Cmd_test_get, ""},
 
 		{ "r", Cmd_record_buff,""}, //record sounds into SD card
 		{ "p", Cmd_play_buff, ""},//play sounds from SD card
