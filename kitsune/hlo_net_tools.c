@@ -5,6 +5,9 @@
 #include "wifi_cmd.h"
 #include "sl_sync_include_after_simplelink_header.h"
 #include <strings.h>
+#include "tinyhttp/chunk.h"
+#include "tinyhttp/header.h"
+#include "tinyhttp/http.h"
 typedef struct{
 	Sl_WlanNetworkEntry_t * entries;
 	size_t max_entries;
