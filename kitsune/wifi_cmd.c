@@ -1042,7 +1042,7 @@ int start_connection() {
 				   DATA_SERVER, SL_IPV4_BYTE(ipaddr, 3), SL_IPV4_BYTE(ipaddr, 2),
 				   SL_IPV4_BYTE(ipaddr, 1), SL_IPV4_BYTE(ipaddr, 0));
         } else {
-            LOGI("failed to resolve ntp addr rv %d\n");
+            LOGI("failed to resolve ntp addr rv %d\n", rv);
             ipaddr = 0;
             return -1;
         }
