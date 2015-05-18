@@ -13,6 +13,12 @@ typedef struct{
 	int antenna;
 	int duration_ms;
 }scan_desc_t;
+typedef struct{
+	char * protocol;
+	char * host;
+	char * path;
+	char url[0];
+}url_desc_t;
 ////---------------------------------
 //implementations
 static void resolve(hlo_future_t * result, void * ctx){
@@ -74,24 +80,68 @@ static int open_sock(unsigned long ip, int * out_sock){
 	*out_sock = sock;
 	return connect(sock, (const SlSockAddr_t*)&Addr,  sizeof(SlSockAddrIn_t));
 }
+int _init_url(url_desc_t * desc, const char * url){
+	strcpy(desc->url, url);
+	char * marker = desc->url;
+
+	marker = strstr(marker, "http");
+	if(!marker){
+		return -1;
+	}
+	desc->protocol = marker;
+
+	//null terminate the : in http[s]
+	marker = strstr(marker, "://");
+	if(!marker){
+		return -2;
+	}
+	marker[0] = 0;
+
+	marker += 3;
+	desc->host = marker;
+
+	//null terminate the host ptr
+	marker = strstr(marker, "/");
+	if(!marker){
+		return -4;
+	}
+	marker[0] = 0;
+
+	marker += 1;
+	desc->path = marker;
+	//finally compare in reference to the original url
+	if(desc->path >= desc->url + strlen(url)){
+		return -5;
+	}
+	return 0;
+
+}
 static void get_stream(hlo_future_t * result, void * ctx){
-	unsigned long ip = resolve_ip_by_host_name("google.com");
-	LOGI("IP: %d.%d.%d.%d \n\r\n\r",SL_IPV4_BYTE(ip, 3), SL_IPV4_BYTE(ip, 2),
+	url_desc_t * desc = (url_desc_t *)ctx;
+	unsigned long ip = resolve_ip_by_host_name(desc->host);
+	LOGI("GET HOST %s \r\nIP: %d.%d.%d.%d \n\r\n\r",desc->host, SL_IPV4_BYTE(ip, 3), SL_IPV4_BYTE(ip, 2),
 									   SL_IPV4_BYTE(ip, 1), SL_IPV4_BYTE(ip, 0));
-	const char request[] = "GET / HTTP/1.1\nHost:google.com\nAccept: text/html, application/xhtml+xml, */*\n\n";
+
+	//static const char template = "GET /%s HTTP/1.1\r\nHost: %s\r\nAccept: */*\r\n\r\n";
+	//const char request[] = "GET /robots.txt HTTP/1.1\nHost:www.google.com\nAccept: text/html, application/xhtml+xml, */*\n\n";
 	//const char request[] = "GET /robots.txt HTTP/1.0\r\nContent-Length: 0\r\n\r\n";
+
 	int ret, len, sock;
 	bool needmore = true;
-	char buffer[1024];
+	char buffer[1460];
 	struct http_roundtripper rt;
 
-	if(open_sock(ip, &sock) < 0 ){
-		DISP("Socket opened error\r\n");
-		goto end;
+	if( (ret = open_sock(ip, &sock)) < 0 ){
+		DISP("Socket opened error %d\r\n", ret);
+		goto close_sock;
 	}
-
-	len = send(sock, request, strlen(request), 0);
-	if (len != strlen(request)) {
+	strcat(buffer, "GET /");
+	strcat(buffer, desc->path);
+	strcat(buffer, "HTTP/1.1\r\nHost : ");
+	strcat(buffer, desc->host);
+	strcat(buffer, "\r\nAccept: */*\r\n\r\n");
+	len = send(sock, buffer, strlen(buffer), 0);
+	if (len != strlen(buffer)) {
 		LOGI("Failed to send request %d\n", len);
 		ret = -1;
 		goto close_sock;
@@ -134,8 +184,8 @@ close_rt:
 	http_free(&rt);
 close_sock:
 	close(sock);
-end:
 	hlo_future_write(result,NULL,0,ret);
+	vPortFree(desc);
 }
 static void scan(hlo_future_t * result, void * ctx){
 	scan_desc_t * desc = (scan_desc_t*)ctx;
@@ -279,15 +329,26 @@ hlo_future_t * prescan_wifi(size_t num_entries){
 
 hlo_future_t * http_get_stream(const char * url){
 	//parse url
+	if(!url){
+		return NULL;
+	}
+	url_desc_t * desc = pvPortMalloc(sizeof(url_desc_t) + strlen(url) + 1);
+	int ret = _init_url(desc, url);
+	if(0 == ret){
+		return hlo_future_create_task_bg(get_stream, desc, 2048);
+	}else{
+		vPortFree(desc);
+		LOGW("Malformed Url %d\r\n", ret);
+		return NULL;
+	}
 
-	return hlo_future_create_task_bg(get_stream, NULL, 2048);
 
 
 }
 ////---------------------------------
 //Commands
 int Cmd_test_get(int argc, char * argv[]){
-	hlo_future_destroy(http_get_stream("google.com"));
+	hlo_future_destroy(http_get_stream(argv[1]));
 	return 0;
 }
 int Cmd_dig(int argc, char *argv[]){
