@@ -126,16 +126,33 @@ static void fork(hlo_future_t * result, void * ctx){
 	}else{
 		depth--;
 		unsigned int a,b;
+#if 0
+		//depth first
 		hlo_future_read_once(
-					hlo_future_create_task_bg(fork,&depth,256),
+					hlo_future_create_task_bg(fork,&depth,512),
 					&a,
 					sizeof(a));
 		hlo_future_read_once(
-					hlo_future_create_task_bg(fork,&depth,256),
+					hlo_future_create_task_bg(fork,&depth,512),
 					&b,
 					sizeof(b));
+#else
+		//breadth first
+		hlo_future_t * fa, *fb;
+		fa = hlo_future_create_task_bg(fork, &depth, 512);
+		fb = hlo_future_create_task_bg(fork, &depth, 512);
+		hlo_future_read(fa, &a, sizeof(a), portMAX_DELAY);
+		hlo_future_read(fb, &b, sizeof(b), portMAX_DELAY);
+#endif
 		sum = sum + a + b;
 		hlo_future_write(result, &sum, sizeof(sum), 0);
+#if 0
+		//depth first
+#else
+		//breadth first
+		hlo_future_destroy(fa);
+		hlo_future_destroy(fb);
+#endif
 	}
 
 
@@ -144,7 +161,7 @@ int Cmd_FutureTest(int argc, char * argv[]){
 	unsigned int depth = 3;
 	unsigned int result = 0;
 	hlo_future_read_once(
-			hlo_future_create_task_bg(fork,&depth,256),
+			hlo_future_create_task_bg(fork,&depth,512),
 			&result,
 			sizeof(result));
 	DISP("Res: %d\r\n", result);

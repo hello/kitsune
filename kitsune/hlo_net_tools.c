@@ -5,12 +5,20 @@
 #include "wifi_cmd.h"
 #include "sl_sync_include_after_simplelink_header.h"
 #include <strings.h>
+#include "tinyhttp/http.h"
+#include "socket.h"
 typedef struct{
 	Sl_WlanNetworkEntry_t * entries;
 	size_t max_entries;
 	int antenna;
 	int duration_ms;
 }scan_desc_t;
+typedef struct{
+	char * protocol;
+	char * host;
+	char * path;
+	char url[0];
+}url_desc_t;
 ////---------------------------------
 //implementations
 static void resolve(hlo_future_t * result, void * ctx){
@@ -36,6 +44,149 @@ static void reselect_antenna(Sl_WlanNetworkEntry_t * entries, int num_entries ) 
     	}
     }
 }
+static void* response_realloc(void* opaque, void* ptr, int size)
+{
+	DISP("realloc %d\r\n", size);
+    return pvPortRealloc(ptr, size);
+}
+
+static void response_body(void* opaque, const char* data, int size)
+{
+	DISP("Body %s\r\n", data);
+}
+
+static void response_header(void* opaque, const char* ckey, int nkey, const char* cvalue, int nvalue)
+{ /* example doesn't care about headers */ }
+
+static void response_code(void* opaque, int code)
+{
+	DISP("code: %d\r\n", code);
+}
+static const struct http_funcs responseFuncs = {
+    response_realloc,
+    response_body,
+    response_header,
+    response_code,
+};
+static int open_sock(unsigned long ip, int * out_sock){
+	SlSockAddrIn_t  Addr;
+	Addr.sin_family = SL_AF_INET;
+	Addr.sin_port = sl_Htons(80);
+	Addr.sin_addr.s_addr = sl_Htonl(ip);
+	int sock = socket(SL_AF_INET,SL_SOCK_STREAM, 0); //todo secure socket
+	if(sock < 0){
+		return sock;
+	}
+	*out_sock = sock;
+	return connect(sock, (const SlSockAddr_t*)&Addr,  sizeof(SlSockAddrIn_t));
+}
+int _init_url(url_desc_t * desc, const char * url){
+	strcpy(desc->url, url);
+	char * marker = desc->url;
+
+	marker = strstr(marker, "http");
+	if(!marker){
+		return -1;
+	}
+	desc->protocol = marker;
+
+	//null terminate the : in http[s]
+	marker = strstr(marker, "://");
+	if(!marker){
+		return -2;
+	}
+	marker[0] = 0;
+
+	marker += 3;
+	desc->host = marker;
+
+	//null terminate the host ptr
+	marker = strstr(marker, "/");
+	if(!marker){
+		return -4;
+	}
+	marker[0] = 0;
+
+	marker += 1;
+	desc->path = marker;
+	//finally compare in reference to the original url
+	if(desc->path >= desc->url + strlen(url)){
+		return -5;
+	}
+	return 0;
+
+}
+static void get_stream(hlo_future_t * result, void * ctx){
+	url_desc_t * desc = (url_desc_t *)ctx;
+	unsigned long ip = resolve_ip_by_host_name(desc->host);
+	LOGI("GET HOST %s \r\nIP: %d.%d.%d.%d \n\r\n\r",desc->host, SL_IPV4_BYTE(ip, 3), SL_IPV4_BYTE(ip, 2),
+									   SL_IPV4_BYTE(ip, 1), SL_IPV4_BYTE(ip, 0));
+
+	//static const char template = "GET /%s HTTP/1.1\r\nHost: %s\r\nAccept: */*\r\n\r\n";
+	//const char request[] = "GET /robots.txt HTTP/1.1\nHost:www.google.com\nAccept: text/html, application/xhtml+xml, */*\n\n";
+	//const char request[] = "GET /robots.txt HTTP/1.0\r\nContent-Length: 0\r\n\r\n";
+	int ret, len, sock;
+	bool needmore = true;
+	char buffer[1460];
+	struct http_roundtripper rt;
+
+	if( (ret = open_sock(ip, &sock)) < 0 ){
+		DISP("Socket opened error %d\r\n", ret);
+		goto close_sock;
+	}
+	strcat(buffer, "GET /");
+	strcat(buffer, desc->path);
+	strcat(buffer, "HTTP/1.1\r\nHost : ");
+	strcat(buffer, desc->host);
+	strcat(buffer, "\r\nAccept: */*\r\n\r\n");
+	len = send(sock, buffer, strlen(buffer), 0);
+	if (len != strlen(buffer)) {
+		LOGI("Failed to send request %d\n", len);
+		ret = -1;
+		goto close_sock;
+	}
+
+	http_init(&rt, responseFuncs, NULL);
+    while (needmore) {
+    	int ndata = 0;
+    	int retry = 0;
+    	const char* data = buffer;
+    	do{
+    		ndata = recv(sock, buffer, sizeof(buffer), 0);
+			if(++retry > 4){
+				break;
+			}
+			if(ndata < 0 ){
+				vTaskDelay(200);
+			}
+		}while(ndata == SL_EAGAIN);
+
+		if (ndata <= 0) {
+			DISP("Error receiving data %d\n", ndata);
+			ret = ndata;
+			goto close_rt;
+		}
+		while (needmore && ndata) {
+			int read;
+			needmore = http_data(&rt, data, ndata, &read);
+			ndata -= read;
+			data += read;
+		}
+    }
+	if (http_iserror(&rt)) {
+		DISP("Error parsing data\n");
+		ret = -1;
+		goto close_rt;
+	}
+	ret = 0;
+close_rt:
+	http_free(&rt);
+close_sock:
+	close(sock);
+	hlo_future_write(result,NULL,0,ret);
+	vPortFree(desc);
+}
+
 
 static int scan(scan_desc_t * desc){
 	unsigned char policyOpt = SL_CONNECTION_POLICY(0, 0, 0, 0, 0);
@@ -81,6 +232,7 @@ static void worker_scan_unique(hlo_future_t * result, void * ctx){
 	Sl_WlanNetworkEntry_t entries[10] = {0};
 	hlo_future_write(result, entries, sizeof(entries), get_unique_wifi_list(entries, 10));
 }
+
 static void SortByRSSI(Sl_WlanNetworkEntry_t* netEntries,
                                             unsigned char ucSSIDCount){
     Sl_WlanNetworkEntry_t tTempNetEntry;
@@ -176,8 +328,31 @@ exit:
 hlo_future_t * prescan_wifi(size_t num_entries){
 	return hlo_future_create_task_bg(worker_scan_unique, NULL, 2048);
 }
+
+hlo_future_t * http_get_stream(const char * url){
+	//parse url
+	if(!url){
+		return NULL;
+	}
+	url_desc_t * desc = pvPortMalloc(sizeof(url_desc_t) + strlen(url) + 1);
+	int ret = _init_url(desc, url);
+	if(0 == ret){
+		return hlo_future_create_task_bg(get_stream, desc, 2048);
+	}else{
+		vPortFree(desc);
+		LOGW("Malformed Url %d\r\n", ret);
+		return NULL;
+	}
+
+
+
+}
 ////---------------------------------
 //Commands
+int Cmd_test_get(int argc, char * argv[]){
+	hlo_future_destroy(http_get_stream(argv[1]));
+	return 0;
+}
 int Cmd_dig(int argc, char *argv[]){
 	if(argc > 1){
 		unsigned long ip = resolve_ip_by_host_name(argv[1]);

@@ -1,0 +1,3 @@
+[submodule "kitsune/tinyhttp"]
+	path = kitsune/tinyhttp
+	url = https://github.com/mendsley/tinyhttp

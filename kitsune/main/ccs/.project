@@ -541,6 +541,11 @@
 			<locationURI>virtual:/virtual</locationURI>
 		</link>
 		<link>
+			<name>tinyhttp</name>
+			<type>2</type>
+			<locationURI>virtual:/virtual</locationURI>
+		</link>
+		<link>
 			<name>top_board.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/top_board.c</locationURI>
@@ -944,6 +949,61 @@
 			<name>tests/TestNetwork.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/tests/TestNetwork.h</locationURI>
+		</link>
+		<link>
+			<name>tinyhttp/.git</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tinyhttp/.git</locationURI>
+		</link>
+		<link>
+			<name>tinyhttp/.travis.yml</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tinyhttp/.travis.yml</locationURI>
+		</link>
+		<link>
+			<name>tinyhttp/LICENSE</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tinyhttp/LICENSE</locationURI>
+		</link>
+		<link>
+			<name>tinyhttp/README.md</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tinyhttp/README.md</locationURI>
+		</link>
+		<link>
+			<name>tinyhttp/chunk.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tinyhttp/chunk.c</locationURI>
+		</link>
+		<link>
+			<name>tinyhttp/chunk.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tinyhttp/chunk.h</locationURI>
+		</link>
+		<link>
+			<name>tinyhttp/example.cpp</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tinyhttp/example.cpp</locationURI>
+		</link>
+		<link>
+			<name>tinyhttp/header.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tinyhttp/header.c</locationURI>
+		</link>
+		<link>
+			<name>tinyhttp/header.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tinyhttp/header.h</locationURI>
+		</link>
+		<link>
+			<name>tinyhttp/http.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tinyhttp/http.c</locationURI>
+		</link>
+		<link>
+			<name>tinyhttp/http.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tinyhttp/http.h</locationURI>
 		</link>
 	</linkedResources>
 	<variableList>
