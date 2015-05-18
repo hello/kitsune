@@ -37,8 +37,7 @@ static void reselect_antenna(Sl_WlanNetworkEntry_t * entries, int num_entries ) 
     }
 }
 
-static void scan(hlo_future_t * result, void * ctx){
-	scan_desc_t * desc = (scan_desc_t*)ctx;
+static int scan(scan_desc_t * desc){
 	unsigned char policyOpt = SL_CONNECTION_POLICY(0, 0, 0, 0, 0);
 	unsigned long IntervalVal = 20;
 	if( desc->antenna ) {
@@ -62,8 +61,9 @@ static void scan(hlo_future_t * result, void * ctx){
 
 	// Restore connection policy to Auto
 	sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0), NULL, 0);
+
 	//do not need to capture any values since we are storing it directly to network list
-	hlo_future_write(result, NULL, 0, r);
+	return r;
 }
 static int scan_for_wifi(Sl_WlanNetworkEntry_t * result, size_t max_entries, int ant_select, int duration){
 	scan_desc_t desc = (scan_desc_t){
@@ -72,15 +72,7 @@ static int scan_for_wifi(Sl_WlanNetworkEntry_t * result, size_t max_entries, int
 		.antenna = ant_select,
 		.duration_ms = duration,
 	};
-	hlo_future_t * fut = hlo_future_create_task_bg(scan, &desc, 1024);
-	int rv = hlo_future_read(fut, NULL, 0, portMAX_DELAY);
-	if(rv >= 0){
-		hlo_future_destroy(fut);
-		return rv;
-	}else{
-		hlo_future_destroy(fut);
-		return -1;
-	}
+	return scan( &desc );
 }
 static void worker_scan_unique(hlo_future_t * result, void * ctx){
 	Sl_WlanNetworkEntry_t entries[10] = {0};
