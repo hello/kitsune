@@ -1041,6 +1041,7 @@ void thread_tx(void* unused) {
 					tries = 5;
 				}
 			}
+			hlo_future_destroy( data_batched.scan.arg );
 			vPortFree( periodicdata.data );
 		}
 
