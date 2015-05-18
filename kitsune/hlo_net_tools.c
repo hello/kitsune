@@ -43,6 +43,8 @@ static int scan(scan_desc_t * desc){
 	if( desc->antenna ) {
 		antsel(desc->antenna);
 	}
+	sl_enter_critical_region();
+
 	int r = sl_WlanPolicySet(SL_POLICY_CONNECTION , policyOpt, NULL, 0);
 
     // Make sure scan is enabled
@@ -62,6 +64,7 @@ static int scan(scan_desc_t * desc){
 	// Restore connection policy to Auto
 	sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0), NULL, 0);
 
+	sl_exit_critical_region();
 	//do not need to capture any values since we are storing it directly to network list
 	return r;
 }

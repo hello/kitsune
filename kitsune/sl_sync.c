@@ -8,18 +8,18 @@ static xSemaphoreHandle _sl_mutex;
 
 long sl_sync_init()
 {
-	_sl_mutex = xSemaphoreCreateMutex();
+	_sl_mutex = xSemaphoreCreateRecursiveMutex();
 	return 1;
 }
 
 long sl_enter_critical_region()
 {
-    return xSemaphoreTake(_sl_mutex, portMAX_DELAY);
+    return xSemaphoreTakeRecursive(_sl_mutex, portMAX_DELAY);
 }
 
 long sl_exit_critical_region()
 {
-    return xSemaphoreGive(_sl_mutex);
+    return xSemaphoreGiveRecursive(_sl_mutex);
 }
 long sl_gethostbynameNoneThreadSafe(_i8 * hostname,const  _u16 usNameLen, _u32*  out_ip_addr,const _u8 family ) {
 #ifdef sl_NetAppDnsGetHostByName
