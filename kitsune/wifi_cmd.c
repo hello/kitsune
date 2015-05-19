@@ -2252,13 +2252,14 @@ int get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uin
     	antsel(antenna);
     }
 
+    sl_enter_critical_region();
     r = sl_WlanPolicySet(SL_POLICY_CONNECTION , policyOpt, NULL, 0);
 
     // Make sure scan is enabled
     policyOpt = SL_SCAN_POLICY(1);
 
     // set scan policy - this starts the scan
-    r = sl_WlanPolicySet(SL_POLICY_SCAN , policyOpt, (unsigned char *)(IntervalVal), sizeof(IntervalVal));
+    r = sl_WlanPolicySet(SL_POLICY_SCAN , policyOpt, (unsigned char *)(&IntervalVal), sizeof(IntervalVal));
 
 
     // delay specific milli seconds to verify scan is started
@@ -2270,6 +2271,8 @@ int get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uin
 
     // Restore connection policy to Auto
     sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0), NULL, 0);
+
+    sl_exit_critical_region();
 
     return r;
 
