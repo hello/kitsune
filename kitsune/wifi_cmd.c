@@ -78,10 +78,14 @@ void mcu_reset()
 
 #define SL_STOP_TIMEOUT                 (30)
 long nwp_reset() {
+	long r;
+	sl_enter_critical_region();
     sl_WlanSetMode(ROLE_STA);
     sl_Stop(SL_STOP_TIMEOUT);
     wifi_status_set(0xFFFFFFFF, true);
-    return sl_Start(NULL, NULL, NULL);
+    r = sl_Start(NULL, NULL, NULL);
+	sl_exit_critical_region();
+	return r;
 }
 
 
@@ -1042,8 +1046,9 @@ int start_connection() {
 				   DATA_SERVER, SL_IPV4_BYTE(ipaddr, 3), SL_IPV4_BYTE(ipaddr, 2),
 				   SL_IPV4_BYTE(ipaddr, 1), SL_IPV4_BYTE(ipaddr, 0));
         } else {
-            LOGI("failed to resolve ntp addr rv %d\n");
+            LOGI("failed to resolves addr rv %d\n");
             ipaddr = 0;
+            nwp_reset();
             return -1;
         }
     }
