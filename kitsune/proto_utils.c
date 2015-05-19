@@ -55,7 +55,7 @@ bool encode_all_pills (pb_ostream_t *stream, const pb_field_t *field, void * con
         }
 
         if (!pb_encode_delimited(stream, pill_data_fields, &data->pills[i])){
-            LOGI("encode_all_pills: Fail to encode pill %s, error: %s\n", data->pills[i].device_id, PB_GET_ERROR(stream));
+            LOGI("encode_all_pills: Fail to encode pill, error: %s\n", PB_GET_ERROR(stream));
             return false;
         }
         //LOGI("******************* encode_pill_encode_all_pills: encode pill %s\n", pill_data.deviceId);
@@ -80,7 +80,7 @@ bool encode_scanned_ssid (pb_ostream_t *stream, const pb_field_t *field, void * 
     for( i = 0; i < n; ++i ) {
         if(!pb_encode_tag(stream, PB_WT_STRING, batched_periodic_data_scan_tag))
         {
-            LOGI("encode_scanned_ssid: Fail to encode tag for ssid %s, error %s\n", scan->rssi, PB_GET_ERROR(stream));
+            LOGI("encode_scanned_ssid: Fail to encode tag for ssid, error %s\n", PB_GET_ERROR(stream));
             return false;
         }
         ap.antenna = (batched_periodic_data_wifi_access_point_AntennaType)scan[i].reserved[0];
@@ -91,7 +91,7 @@ bool encode_scanned_ssid (pb_ostream_t *stream, const pb_field_t *field, void * 
         ap.has_ssid = true;
 
         if (!pb_encode_delimited(stream, batched_periodic_data_wifi_access_point_fields, &ap )){
-            LOGI("encode_scanned_ssid: Fail to encode ssid %s, error: %s\n", scan[i].rssi, PB_GET_ERROR(stream));
+            LOGI("encode_scanned_ssid: Fail to encode ssid error: %s\n", PB_GET_ERROR(stream));
             return false;
         }
     }
