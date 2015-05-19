@@ -283,6 +283,7 @@ int Cmd_spi_read(int argc, char *argv[]) {
 
 	if( len ) {
 		on_morpheus_protobuf_arrival(buf, len);
+		vPortFree(buf);
 	}
 	return SUCCESS;
 }
