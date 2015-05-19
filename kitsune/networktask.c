@@ -179,7 +179,7 @@ static NetworkResponse_t nettask_send(NetworkTaskServerSendMessage_t * message) 
 
 	vPortFree(decode_buf);
 
-	networktask_exit_critical_region();;
+	networktask_exit_critical_region();
 
 	return response;
 }
@@ -208,7 +208,6 @@ static void NetworkTask_Thread(void * networkdata) {
 		}
 		vTaskDelay(100);
 	}
-
 }
 
 

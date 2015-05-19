@@ -1485,7 +1485,11 @@ static _i32 _ReadBootInfo(sBootInfo_t *psBootInfo)
         if( 0 < sl_FsRead(lFileHandle, 0, (_u8 *)psBootInfo, sizeof(sBootInfo_t)) )
         {
             status = 0;
-            LOGI("ReadBootInfo: ucActiveImg=%d, ulImgStatus=0x%x\n\r", psBootInfo->ucActiveImg, psBootInfo->ulImgStatus);
+            static bool printed = false;
+            if( !printed ) {
+            	LOGI("ReadBootInfo: ucActiveImg=%d, ulImgStatus=0x%x\n\r", psBootInfo->ucActiveImg, psBootInfo->ulImgStatus);
+            	printed = true;
+            }
         }
         sl_FsClose(lFileHandle, 0, 0, 0);
     }

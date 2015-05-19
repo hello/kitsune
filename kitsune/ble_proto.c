@@ -31,6 +31,7 @@
 #include "pill_settings.h"
 #include "audiohelper.h"
 #include "audiotask.h"
+#include "hlo_net_tools.h"
 
 typedef void(*task_routine_t)(void*);
 
@@ -48,10 +49,9 @@ static struct {
     xSemaphoreHandle smphr;
 } _self;
 
-static int _wifi_read_index;
-static int _scanned_wifi_count = 0;
 static Sl_WlanNetworkEntry_t _wifi_endpoints[MAX_WIFI_EP_PER_SCAN];
 static xSemaphoreHandle _wifi_smphr;
+static hlo_future_t * scan_results;
 
 ble_mode_t get_ble_mode() {
 	ble_mode_t status;
@@ -106,66 +106,6 @@ static void _factory_reset(){
 
 }
 
-static int scan_with_retry( Sl_WlanNetworkEntry_t ** endpoints, int antenna ) {
-	int scan_cnt = 0;
-
-	*endpoints = pvPortMalloc( MAX_WIFI_EP_PER_SCAN * sizeof(Sl_WlanNetworkEntry_t) );
-	assert(*endpoints);
-	memset(*endpoints, 0, MAX_WIFI_EP_PER_SCAN * sizeof(Sl_WlanNetworkEntry_t) );
-
-	uint8_t max_retry = 3;
-	uint8_t retry_count = max_retry;
-
-	while((scan_cnt = get_wifi_scan_result(*endpoints, MAX_WIFI_EP_PER_SCAN, 3000 * (max_retry - retry_count + 1), antenna)) == 0 && --retry_count)
-	{
-		LOGI("No wifi scanned, retry times remain %d\n", retry_count);
-		vTaskDelay(500);
-	}
-
-	return scan_cnt;
-}
-static void debug_print_ssid( char * msg, Sl_WlanNetworkEntry_t * ep, int n ) {
-	int i,b;
-    LOGI( msg );
-	for(i=0;i<n;++i) {
-		LOGI( "%s %d %d %d", ep[i].ssid, ep[i].rssi, ep[i].reserved[0] );
-		for(b=0;b<SL_BSSID_LENGTH;++b) {
-			LOGI("%x:", ep[i].bssid[b] );
-		}
-		LOGI("\n");
-		vTaskDelay(10);
-	}
-}
-
-static int compare_rssi (const void * a, const void * b)
-{
-  return ((Sl_WlanNetworkEntry_t*)b)->rssi - ((Sl_WlanNetworkEntry_t*)a)->rssi;
-}
-
-static void sort_on_ssid( Sl_WlanNetworkEntry_t * ep, int n ) {
-	qsort( ep, n, sizeof(Sl_WlanNetworkEntry_t), compare_rssi );
-}
-
-static void dedupe_ssid( Sl_WlanNetworkEntry_t * ep, int * c){
-	int j,i;
-	for (i = 0; i < *c - 1; ++i) {
-		//LOGI( "OUTER %d %d %d\n", i, j, *c);
-		for (j = i + 1; j < *c; ++j) {
-			//vTaskDelay(10);
-			//LOGI( "INNER %d %d %d\n", i, j, *c);
-			if(!strcmp((char*)ep[i].ssid, (char*)ep[j].ssid)) {
-				//LOGI( "MATCH %s %s\n", ep[i].ssid, ep[j].ssid);
-				//vTaskDelay(10);
-				memcpy( ep+j, ep+j+1, (*c - j - 1) * sizeof(Sl_WlanNetworkEntry_t) );
-				--*c;
-
-				//debug_print_ssid( "UPDATED ", ep, *c );
-				break;
-			}
-		}
-	}
-}
-
 void ble_proto_init() {
 	vSemaphoreCreateBinary(_self.smphr);
 	vSemaphoreCreateBinary(_wifi_smphr);
@@ -176,187 +116,19 @@ static void _reply_wifi_scan_result()
 {
     int i = 0;
     MorpheusCommand reply_command = {0};
-
-	xSemaphoreTake(_wifi_smphr, portMAX_DELAY);
-    for(i = 0; i < _scanned_wifi_count; i++)
+    int count = hlo_future_read(scan_results,_wifi_endpoints,sizeof(_wifi_endpoints), 10000);
+    for(i = 0; i < count; i++)
     {
 		reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_START_WIFISCAN;
 		reply_command.wifi_scan_result.arg = &_wifi_endpoints[i];
 		ble_send_protobuf(&reply_command);
-		xSemaphoreGive(_wifi_smphr); //don't hold a semaphore across a delay, it's bad manners
         vTaskDelay(250);  // This number must be long enough so the BLE can get the data transmit to phone
         memset(&reply_command, 0, sizeof(reply_command));
-    	xSemaphoreTake(_wifi_smphr, portMAX_DELAY);
     }
-
-	_scanned_wifi_count = 0;
-	xSemaphoreGive(_wifi_smphr);
     reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_STOP_WIFISCAN;
 	ble_send_protobuf(&reply_command);
 	LOGI(">>>>>>Send WIFI scan results done<<<<<<\n");
 
-}
-
-static void _scan_wifi( void * params )
-{
-	Sl_WlanNetworkEntry_t * endpoints_ifa;
-	Sl_WlanNetworkEntry_t * endpoints_pcb;
-	int scan_cnt[ANTENNA_CNT+1] = {0};
-	int i,p;
-
-	xSemaphoreTake(_wifi_smphr, portMAX_DELAY);
-	memset(_wifi_endpoints, 0, sizeof(_wifi_endpoints));
-	_scanned_wifi_count = 0;
-	_wifi_read_index = 0;
-	wifi_status_set(SCANNING, false);  // Set the scanning flag
-
-	//LOGI( "SCAN IFA\n");
-	scan_cnt[IFA_ANT] = scan_with_retry( &endpoints_ifa, IFA_ANT );
-
-	//LOGI( "SCAN PCB\n");
-	scan_cnt[PCB_ANT] = scan_with_retry( &endpoints_pcb, PCB_ANT );
-
-	for( i=0;i<scan_cnt[IFA_ANT];++i ) {
-		 //don't remove workaround for 32 char long ssid bug in SL, wipes out the ssid length but we dont' care
-		endpoints_ifa[i].ssid_len = 0;
-		endpoints_ifa[i].reserved[0] = IFA_ANT;
-	}
-	for( i=0;i<scan_cnt[PCB_ANT];++i ) {
-		 //don't remove workaround for 32 char long ssid bug in SL, wipes out the ssid length but we dont' care
-		endpoints_pcb[i].ssid_len = 0;
-		endpoints_pcb[i].reserved[0] = PCB_ANT;
-	}
-
-	//debug_print_ssid( "SSID RSSI IFA\n", endpoints_ifa, scan_cnt[IFA_ANT] );
-	//debug_print_ssid( "SSID RSSI PCB\n", endpoints_pcb, scan_cnt[PCB_ANT] );
-	sort_on_ssid( endpoints_ifa, scan_cnt[IFA_ANT] );
-	sort_on_ssid( endpoints_pcb, scan_cnt[PCB_ANT] );
-	//debug_print_ssid( "SSID RSSI IFA SORTED\n", endpoints_ifa, scan_cnt[IFA_ANT] );
-	//debug_print_ssid( "SSID RSSI PCB SORTED\n", endpoints_pcb, scan_cnt[PCB_ANT] );
-	dedupe_ssid(  endpoints_ifa, &scan_cnt[IFA_ANT]);
-	//LOGI("DEDUPE BARRIER\n");
-	dedupe_ssid(  endpoints_pcb, &scan_cnt[PCB_ANT]);
-	//debug_print_ssid( "SSID RSSI IFA UNIQUE\n", endpoints_ifa, scan_cnt[IFA_ANT] );
-	//debug_print_ssid( "SSID RSSI PCB UNIQUE\n", endpoints_pcb, scan_cnt[PCB_ANT] );
-
-	//LOGI("BEGIN MERGE\n");
-	//merge the lists... since they are sorted by rssi we can pop the best one
-	//however the two lists can contain repeated values... so we need to scan out the dupes with lesser signal, better to just do it ahead of time
-	for(i=0;i<scan_cnt[IFA_ANT];++i) {
-		for(p=0;p<scan_cnt[PCB_ANT];++p) {
-			if(!strcmp((char*)endpoints_pcb[p].ssid, (char*)endpoints_ifa[i].ssid)) {
-				//LOGI("MATCH\n");
-				if( endpoints_ifa[i].rssi > endpoints_pcb[p].rssi ) {
-					//LOGI("%s %d\n", endpoints_ifa[i].ssid, endpoints_ifa[i].rssi);
-		            //LOGI("%s %d\n", endpoints_pcb[p].ssid, endpoints_pcb[p].rssi);
-					//LOGI("REMOVE PCB %d %d %d %d\n", i,p,scan_cnt[IFA_ANT],scan_cnt[PCB_ANT]);
-					memmove( &endpoints_pcb[p], &endpoints_pcb[p+1], sizeof( Sl_WlanNetworkEntry_t ) * (MAX_WIFI_EP_PER_SCAN - p - 1) );
-					--scan_cnt[PCB_ANT];
-					--p;
-				} else {
-					//LOGI("%s %d\n", endpoints_ifa[i].ssid, endpoints_ifa[i].rssi);
-		            //LOGI("%s %d\n", endpoints_pcb[p].ssid, endpoints_pcb[p].rssi);
-					//LOGI("REMOVE IFA %d %d %d %d\n", i,p,scan_cnt[IFA_ANT],scan_cnt[PCB_ANT]);
-					memmove( &endpoints_ifa[i], &endpoints_ifa[i+1], sizeof( Sl_WlanNetworkEntry_t ) * (MAX_WIFI_EP_PER_SCAN - i - 1) );
-					--scan_cnt[IFA_ANT];
-					--i;
-				}
-			}
-		}
-	}
-
-	//debug_print_ssid( "SSID RSSI IFA MERGED\n", endpoints_ifa, scan_cnt[IFA_ANT] );
-	//debug_print_ssid( "SSID RSSI PCB MERGED\n", endpoints_pcb, scan_cnt[PCB_ANT] );
-
-	for(_scanned_wifi_count = 0;_scanned_wifi_count<MAX_WIFI_EP_PER_SCAN;) {
-		if( scan_cnt[IFA_ANT] && endpoints_ifa[0].rssi > endpoints_pcb[0].rssi ) {
-			memcpy( &_wifi_endpoints[_scanned_wifi_count], &endpoints_ifa[0], sizeof( Sl_WlanNetworkEntry_t ) );
-			memmove( &endpoints_ifa[0], &endpoints_ifa[0+1], sizeof( Sl_WlanNetworkEntry_t ) * (MAX_WIFI_EP_PER_SCAN - 0 - 1) );
-			_wifi_endpoints[_scanned_wifi_count].reserved[0] = IFA_ANT;
-			--scan_cnt[IFA_ANT];
-			//LOGI("PICKED IFA %d %d\n", _scanned_wifi_count, scan_cnt[IFA_ANT]);
-		} else if( scan_cnt[PCB_ANT] && endpoints_pcb[0].rssi > endpoints_ifa[0].rssi ) {
-			memcpy( &_wifi_endpoints[_scanned_wifi_count], &endpoints_pcb[0], sizeof( Sl_WlanNetworkEntry_t ) );
-			_wifi_endpoints[_scanned_wifi_count].reserved[0] = PCB_ANT;
-			memmove( &endpoints_pcb[0], &endpoints_pcb[0+1], sizeof( Sl_WlanNetworkEntry_t ) * (MAX_WIFI_EP_PER_SCAN - 0 - 1) );
-			--scan_cnt[PCB_ANT];
-			//LOGI("PICKED PCB %d %d\n", _scanned_wifi_count, scan_cnt[PCB_ANT]);
-		} else if( scan_cnt[IFA_ANT] ){
-			memcpy(&_wifi_endpoints[_scanned_wifi_count], &endpoints_ifa[0], sizeof(Sl_WlanNetworkEntry_t));
-			memmove( &endpoints_ifa[0], &endpoints_ifa[0+1], sizeof( Sl_WlanNetworkEntry_t ) * (MAX_WIFI_EP_PER_SCAN - 0 - 1) );
-			_wifi_endpoints[_scanned_wifi_count].reserved[0] = IFA_ANT;
-			--scan_cnt[IFA_ANT];
-			//LOGI("PICKED IFA %d %d\n", _scanned_wifi_count, scan_cnt[IFA_ANT]);
-		} else if( scan_cnt[PCB_ANT] ){
-			memcpy(&_wifi_endpoints[_scanned_wifi_count], &endpoints_pcb[0], sizeof(Sl_WlanNetworkEntry_t));
-			memmove( &endpoints_pcb[0], &endpoints_pcb[0+1], sizeof( Sl_WlanNetworkEntry_t ) * (MAX_WIFI_EP_PER_SCAN - 0 - 1) );
-			_wifi_endpoints[_scanned_wifi_count].reserved[0] = PCB_ANT;
-			--scan_cnt[PCB_ANT];
-			//LOGI("PICKED PCB %d %d\n", _scanned_wifi_count, scan_cnt[PCB_ANT]);
-		} else {
-			//LOGI("PICKED NONE %d %d %d\n", _scanned_wifi_count, scan_cnt[IFA_ANT], scan_cnt[PCB_ANT]);
-			break;
-		}
-
-		++_scanned_wifi_count;
-		//debug_print_ssid( "SSID RSSI COMBINED STEP \n", _wifi_endpoints, _scanned_wifi_count );
-
-	}
-	//debug_print_ssid( "SSID RSSI COMBINED\n", _wifi_endpoints, _scanned_wifi_count );
-	dedupe_ssid(  _wifi_endpoints, &_scanned_wifi_count );
-	debug_print_ssid( "SSID RSSI UNIQUE\n", _wifi_endpoints, _scanned_wifi_count );
-
-	wifi_status_set(SCANNING, true);  // Remove the sanning flag
-	vPortFree(endpoints_pcb);
-	vPortFree(endpoints_ifa);
-
-	xSemaphoreGive(_wifi_smphr);
-
-	if( get_ble_mode() == BLE_WIFI_REQUESTED ) {
-		//possible race condition here, if the phone disconnects
-		//we can't stop the disconnnect as it happens on the other micro
-		//but we don't care because this isn't the bad case (phone connected and not expecting the wifi list)
-		_reply_wifi_scan_result();
-	}
-
-	vTaskDelete(NULL);
-}
-
-static bool _scan_wifi_mostly_nonblocking() {
-	//need to get the semaphore so we block in case there's already a scan we don't want to spawn many threads and possibly run short of memory.
-	xSemaphoreTake(_wifi_smphr, portMAX_DELAY);
-	//only scan if we've been reset, this lets us cache the scan result for later
-	if( _scanned_wifi_count != 0 ) {
-		xSemaphoreGive(_wifi_smphr);
-		return true;
-	}
-	xSemaphoreGive(_wifi_smphr);
-
-	xTaskCreate( _scan_wifi, "wifi_scan", 1536 / 4, NULL, 1, NULL );
-	return false;
-}
-
-int Cmd_scan_wifi_mostly_nonblocking(int argc, char *argv[]) {
-	_scanned_wifi_count = 0;
-	_scan_wifi_mostly_nonblocking();
-	return 0;
-}
-
-static void _reply_next_wifi_ap()
-{
-	xSemaphoreTake(_wifi_smphr, portMAX_DELAY);
-	//reset so the next scan command will do a scan
-	if(_wifi_read_index == _scanned_wifi_count || _wifi_read_index == MAX_WIFI_EP_PER_SCAN) {
-		_wifi_read_index = 0;
-		_scanned_wifi_count = 0;
-	}
-
-	MorpheusCommand reply_command = {0};
-	reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_NEXT_WIFI_AP;
-	reply_command.wifi_scan_result.arg = &_wifi_endpoints[_wifi_read_index++];
-	xSemaphoreGive(_wifi_smphr);
-
-	ble_send_protobuf(&reply_command);
 }
 
 static bool _set_wifi(const char* ssid, const char* password, int security_type, int version)
@@ -556,7 +328,6 @@ static void _morpheus_command_reply(const NetworkResponse_t * response,
 	memset(&reply, 0, sizeof(reply));
 	ble_proto_assign_decode_funcs(&reply);
     if( response->success && validate_signatures((char*)reply_buf, MorpheusCommand_fields, &reply) == 0) {
-		ble_proto_remove_decode_funcs(&reply);
 		ble_send_protobuf(&reply);
     	LOGF("signature validated\r\n");
     	if( success ) {
@@ -850,7 +621,9 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 
 			analytics_event( "{ble: pairing}" );
             //wifi prescan, forked so we don't block the BLE and it just happens in the background
-            _scan_wifi_mostly_nonblocking();
+			if(!scan_results){
+				scan_results = prescan_wifi(MAX_WIFI_EP_PER_SCAN);
+			}
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE:
@@ -920,10 +693,17 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_START_WIFISCAN:
         {
             LOGI("WIFI Scan request\n");
-            if(_scan_wifi_mostly_nonblocking()) {
-            	_reply_wifi_scan_result();
+            if(!scan_results){
+            	scan_results = prescan_wifi(MAX_WIFI_EP_PER_SCAN);
             }
-            set_ble_mode( BLE_WIFI_REQUESTED );
+            if(scan_results){
+            	_reply_wifi_scan_result();
+            	hlo_future_destroy(scan_results);
+            	scan_results = prescan_wifi(MAX_WIFI_EP_PER_SCAN);
+            }else{
+            	ble_reply_protobuf_error(ErrorType_DEVICE_NO_MEMORY);
+
+            }
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_SHAKES:
@@ -975,15 +755,6 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
     		ble_proto_led_fade_in_trippy();
     		_ble_reply_command_with_type(command->type);
     		break;
-    	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SCAN_WIFI:
-    		LOGI("MorpheusCommand_CommandType_MORPHEUS_COMMAND_SCAN_WIFI\n");
-    		_scan_wifi_mostly_nonblocking();
-    		_ble_reply_command_with_type(command->type);
-    		break;
-    	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_NEXT_WIFI_AP:
-    		LOGI("MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_NEXT_WIFI_AP\n");
-    		_reply_next_wifi_ap();
-    		break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PUSH_DATA_AFTER_SET_TIMEZONE:
         {
             LOGI("Push data\n");
@@ -995,6 +766,11 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
             }
         }
         break;
+        default:
+        	LOGW("Deprecated BLE Command: %d\r\n", command->type);
+        case MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_DEVICE_ID:
+        case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID:
+        	break;
 	}
     return true;
 }
