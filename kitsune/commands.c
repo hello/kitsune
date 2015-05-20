@@ -107,6 +107,7 @@ tCircularBuffer *pTxBuffer;
 tCircularBuffer *pRxBuffer;
 
 volatile bool booted = false;
+volatile bool use_dev_server = false;
 
 //*****************************************************************************
 //                          LOCAL DEFINES
@@ -1808,6 +1809,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "burntopkey",Cmd_burn_top,""},
 		{ "scan",Cmd_scan_wifi,""},
 		{"future",Cmd_FutureTest,""},
+		{"dev", Cmd_setDev, ""},
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
 		{ "iperfcli",Cmd_iperf_client,""},
@@ -1947,6 +1949,7 @@ void vUARTTask(void *pvParameters) {
 	load_aes();
 	load_device_id();
 	load_account_id();
+	load_data_server();
 	pill_settings_init();
 	check_provision();
 

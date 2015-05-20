@@ -56,6 +56,7 @@ int Cmd_country(int argc, char *argv[]);
 #define ACCOUNT_ID_FILE "/hello/acct"
 #define PROVISION_FILE "/pch/prov"
 #define SERIAL_FILE "/pch/serial"
+#define SERVER_SELECTION_FILE "/hello/dev"
 
 #define PCB_ANT 2
 #define IFA_ANT 1
@@ -84,6 +85,7 @@ int Cmd_RadioStopRX(int argc, char*argv[]);
 int Cmd_RadioStopTX(int argc, char*argv[]);
 int Cmd_RadioStartTX(int argc, char*argv[]);
 int Cmd_RadioGetStats(int argc, char*argv[]);
+int Cmd_setDev(int argc, char *argv[]);
 
 bool get_mac(unsigned char mac[6]);
 bool get_device_id(char * device_id, uint32_t size_of_device_id_buffer);
@@ -106,6 +108,7 @@ int get_aes(uint8_t * dst);
 void on_key(uint8_t * key);
 bool has_default_key();
 bool should_burn_top_key();
+void load_data_server();
 int Cmd_burn_top(int argc, char *argv[]);
 
 int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
