@@ -150,67 +150,54 @@ void on_morpheus_protobuf_arrival(uint8_t* protobuf, size_t len)
 
 void ble_proto_assign_decode_funcs(MorpheusCommand* command)
 {
-    if(NULL == command->accountId.funcs.decode)
-    {
-        command->accountId.funcs.decode = _decode_string_field;
-        command->accountId.arg = NULL;
-    }
+	command->accountId.funcs.decode = _decode_string_field;
+	command->deviceId.funcs.decode = _decode_string_field;
+	command->wifiName.funcs.decode = _decode_string_field;
+	command->wifiSSID.funcs.decode = _decode_string_field;
+	command->wifiPassword.funcs.decode = _decode_string_field;
 
-    if(NULL == command->deviceId.funcs.decode)
-    {
-        command->deviceId.funcs.decode = _decode_string_field;
-        command->deviceId.arg = NULL;
-    }
-
-    if(NULL == command->wifiName.funcs.decode)
-    {
-        command->wifiName.funcs.decode = _decode_string_field;
-        command->wifiName.arg = NULL;
-    }
-
-    if(NULL == command->wifiSSID.funcs.decode)
-    {
-        command->wifiSSID.funcs.decode = _decode_string_field;
-        command->wifiSSID.arg = NULL;
-    }
-
-    if(NULL == command->wifiPassword.funcs.decode)
-    {
-        command->wifiPassword.funcs.decode = _decode_string_field;
-        command->wifiPassword.arg = NULL;
-    }
-
+	command->accountId.arg = NULL;
+	command->deviceId.arg = NULL;
+	command->wifiName.arg = NULL;
+	command->wifiSSID.arg = NULL;
+	command->wifiPassword.arg = NULL;
 }
 
 void ble_proto_assign_encode_funcs( MorpheusCommand* command)
 {
-    if(command->accountId.arg != NULL && command->accountId.funcs.encode == NULL)
+	command->accountId.funcs.decode = NULL;
+	command->deviceId.funcs.decode = NULL;
+	command->wifiName.funcs.decode = NULL;
+	command->wifiSSID.funcs.decode = NULL;
+	command->wifiPassword.funcs.decode = NULL;
+
+    if(command->accountId.arg != NULL )
     {
         command->accountId.funcs.encode = _encode_string_fields;
     }
 
-    if(command->deviceId.arg != NULL && command->deviceId.funcs.encode == NULL)
+    if(command->deviceId.arg != NULL )
     {
         command->deviceId.funcs.encode = _encode_string_fields;
     }
 
-    if(command->wifiName.arg != NULL && command->wifiName.funcs.encode == NULL)
+    if(command->wifiName.arg != NULL )
     {
         command->wifiName.funcs.encode = _encode_string_fields;
     }
 
-    if(command->wifiSSID.arg != NULL && command->wifiSSID.funcs.encode == NULL)
+    if(command->wifiSSID.arg != NULL )
     {
         command->wifiSSID.funcs.encode = _encode_string_fields;
     }
 
-    if(command->wifiPassword.arg != NULL && command->wifiPassword.funcs.encode == NULL)
+    if(command->wifiPassword.arg != NULL )
     {
         command->wifiPassword.funcs.encode = _encode_string_fields;
     }
 
 
-    if(command->wifi_scan_result.arg != NULL && command->wifi_scan_result.funcs.encode == NULL)
+    if(command->wifi_scan_result.arg != NULL )
     {
         command->wifi_scan_result.funcs.encode = _encode_wifi_scan_result_fields;
     }
