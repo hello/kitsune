@@ -1069,9 +1069,15 @@ int start_connection() {
 				   DATA_SERVER, SL_IPV4_BYTE(ipaddr, 3), SL_IPV4_BYTE(ipaddr, 2),
 				   SL_IPV4_BYTE(ipaddr, 1), SL_IPV4_BYTE(ipaddr, 0));
         } else {
+        	static portTickType last_reset_time = 0;
             LOGI("failed to resolves addr rv %d\n");
             ipaddr = 0;
-            nwp_reset();
+            #define SIX_MINUTES 360000
+            if( xTaskGetTickCount() - last_reset_time > SIX_MINUTES ) {
+                last_reset_time = xTaskGetTickCount();
+                nwp_reset();
+                vTaskDelay(10000);
+            }
             return -1;
         }
     }
