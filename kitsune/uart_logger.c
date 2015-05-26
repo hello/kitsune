@@ -197,7 +197,7 @@ _write_file(char * local_name, const char * buffer, WORD size){
 	WORD written = 0;
 	FRESULT res = _open_log(&file_obj, local_name, FA_CREATE_NEW|FA_WRITE|FA_OPEN_ALWAYS);
 	if(res != FR_OK && res != FR_EXIST){
-		LOGE("File %s open fail, code %d", local_name, res);
+		//LOGE("File %s open fail, code %d", local_name, res);
 		return res;
 	}
 	do{
@@ -206,7 +206,7 @@ _write_file(char * local_name, const char * buffer, WORD size){
 	}while(written < size);
 	res = hello_fs_close(&file_obj);
 	if(res != FR_OK){
-		LOGE("unable to write log file\r\n");
+		//LOGE("unable to write log file\r\n");
 		return res;
 	}
 	return FR_OK;
