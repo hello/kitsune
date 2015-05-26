@@ -97,9 +97,17 @@ static void
 _logstr(const char * str, int len, bool echo, bool store){
 #ifndef BUILD_SERVERS
 	int i;
+	if( self.print_sem == NULL) {
+		return;
+	}
+	if( xSemaphoreTake(self.print_sem, 10000) != pdPASS ) {
+		return;
+	}
 	for(i = 0; i < len && store; i++){
 		uart_logc(str[i]);
 	}
+
+    xSemaphoreGive( self.print_sem );
 #endif
 
 	if (echo) {
@@ -568,20 +576,11 @@ int analytics_event( const char *pcString, ...) {
 }
 
 void uart_logc(uint8_t c){
-	if( self.print_sem == NULL) {
-		return;
-	}
-	if( xSemaphoreTake(self.print_sem, 0) != pdPASS ) {
-		return;
-	}
-
 	if (self.widx == UART_LOGGER_BLOCK_SIZE) {
 		_swap_and_upload();
 	}
 	self.logging_block[self.widx] = c;
 	self.widx++;
-
-    xSemaphoreGive( self.print_sem );
 }
 
 static bool send_log() {
@@ -623,7 +622,7 @@ void uart_logger_task(void * params){
 			xEventGroupClearBits(self.uart_log_events,LOG_EVENT_EXIT);
 			return;
 		}
-		if( self.print_sem != NULL && evnt && pdPASS == xSemaphoreTake(self.print_sem, 0) ){
+		if( self.print_sem != NULL && evnt && pdPASS == xSemaphoreTake(self.print_sem, 10000) ){
 			if( evnt & LOG_EVENT_STORE ) {
 				if(log_local_enable && FR_OK == _save_newest((char*) self.store_block, UART_LOGGER_BLOCK_SIZE)){
 					self.operation_block = self.blocks[2];
