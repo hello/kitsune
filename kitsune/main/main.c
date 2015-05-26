@@ -268,16 +268,15 @@ void start_wdt() {
 }
 void mcu_reset();
 #include "kit_assert.h"
+volatile portTickType last_upload_time;
+#define SIXTY_MINUTES 3600000
 
 void watchdog_thread(void* unused) {
-	int no_connection_cnt = 0;
 	while (1) {
-		if( !wifi_status_get(UPLOADING) ) {
-			++no_connection_cnt;
-		} else {
-			no_connection_cnt = 0;
+		if( xTaskGetTickCount() - last_upload_time > SIXTY_MINUTES ) {
+			LOGE("NET TIMEOUT\n");
+			mcu_reset();
 		}
-		assert( no_connection_cnt < 3600 );
 
 		MAP_WatchdogIntClear(WDT_BASE); //clear wdt
 		vTaskDelay(1000);

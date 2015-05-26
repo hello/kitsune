@@ -177,8 +177,7 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
     }
     break;
     case SL_WLAN_DISCONNECT_EVENT:
-        wifi_status_set(CONNECT, true);
-        wifi_status_set(HAS_IP, true);
+        wifi_status_set(0xFFFFFFFF, true);
         memset(_connected_ssid, 0, MAX_SSID_LEN);
         LOGI("SL_WLAN_DISCONNECT_EVENT\n");
         break;
