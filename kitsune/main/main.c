@@ -163,6 +163,7 @@ void
 vAssertCalled( const char * s )
 {
   LOGE( "%s ASSERT", s );
+  uart_logger_flush();
   vTaskDelay(10000);
   mcu_reset();
 }
@@ -274,6 +275,8 @@ void watchdog_thread(void* unused) {
 	while (1) {
 		if( xTaskGetTickCount() - last_upload_time > SIXTY_MINUTES ) {
 			LOGE("NET TIMEOUT\n");
+			uart_logger_flush();
+			vTaskDelay(10000);
 			mcu_reset();
 		}
 
