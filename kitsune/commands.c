@@ -1041,6 +1041,9 @@ void thread_tx(void* unused) {
 				if (tries++ > 5) {
 					tries = 5;
 				}
+				while( !wifi_status_get(HAS_IP) ) {
+					vTaskDelay(1000);
+				}
 			}
 			last_upload_time = xTaskGetTickCount();
 			hlo_future_destroy( data_batched.scan.arg );
@@ -1074,6 +1077,9 @@ void thread_tx(void* unused) {
 				vTaskDelay((1 << tries) * 1000);
 				if (tries++ > 5) {
 					tries = 5;
+				}
+				while( !wifi_status_get(HAS_IP) ) {
+					vTaskDelay(1000);
 				}
 			}
 			vPortFree( pilldata.pills );

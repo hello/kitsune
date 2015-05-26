@@ -64,7 +64,7 @@ typedef struct {
 
 static ProxSignal_t _data;
 //the higher this gets, the less likely you are to be stable
-static const int32_t k_stable_likelihood_coefficient = TOFIX(1.0,QFIXEDPOINT);
+static const int32_t k_stable_likelihood_coefficient = TOFIX(0.5f,QFIXEDPOINT); //todo play with this
 
 //the closer this gets to zero, the more likely it is that you will be increasing or decreasing
 static const int32_t k_change_log_likelihood = TOFIX(-0.15f,QFIXEDPOINT);

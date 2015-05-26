@@ -54,7 +54,8 @@ static struct{
 	sense_log log;
 	uint8_t view_tag;	//what level gets printed out to console
 	uint8_t store_tag;	//what level to store to sd card
-	xSemaphoreHandle logging_block_sem;
+	xSemaphoreHandle block_sem; //guards logging_block and store_block pointers
+	xSemaphoreHandle print_sem; //guards writing to the logging block and widx
 	DIR logdir;
 }self = {0};
 
@@ -75,8 +76,10 @@ _encode_text_block(pb_ostream_t *stream, const pb_field_t *field, void * const *
 
 static void
 _swap_and_upload(void){
-	assert( self.logging_block_sem );
-	xSemaphoreTake(self.logging_block_sem, portMAX_DELAY);
+	if( !self.block_sem ) {
+		return;
+	}
+	xSemaphoreTake(self.block_sem, portMAX_DELAY);
 	if (!(xEventGroupGetBitsFromISR(self.uart_log_events) & LOG_EVENT_STORE)) {
 		self.store_block = self.logging_block;
 		//logc can be called anywhere, so using ISR api instead
@@ -91,7 +94,7 @@ _swap_and_upload(void){
 	//reset
 	self.widx = 0;
 
-    xSemaphoreGive( self.logging_block_sem );
+    xSemaphoreGive( self.block_sem );
 }
 #ifdef BUILD_SERVERS
 void telnetPrint(const char * str, int len );
@@ -101,9 +104,16 @@ static void
 _logstr(const char * str, int len, bool echo, bool store){
 #ifndef BUILD_SERVERS
 	int i;
+
+	if( !self.print_sem ) {
+		return;
+	}
+	xSemaphoreTake(self.print_sem, portMAX_DELAY);
 	for(i = 0; i < len && store; i++){
 		uart_logc(str[i]);
 	}
+	xSemaphoreGive(self.print_sem);
+
 #endif
 
 	if (echo) {
@@ -316,7 +326,8 @@ void uart_logger_init(void){
 	self.log.has_unix_time = true;
 	self.view_tag = LOG_INFO | LOG_WARNING | LOG_ERROR | LOG_VIEW_ONLY | LOG_FACTORY | LOG_TOP;
 	self.store_tag = LOG_INFO | LOG_WARNING | LOG_ERROR | LOG_FACTORY | LOG_TOP;
-	vSemaphoreCreateBinary(self.logging_block_sem);
+	vSemaphoreCreateBinary(self.block_sem);
+	vSemaphoreCreateBinary(self.print_sem);
 
 	xEventGroupSetBits(self.uart_log_events, LOG_EVENT_READY);
 }
@@ -574,8 +585,11 @@ int analytics_event( const char *pcString, ...) {
 void uart_logc(uint8_t c){
 
 	if (self.widx == UART_LOGGER_BLOCK_SIZE) {
+		xSemaphoreGive(self.print_sem);
 		_swap_and_upload();
+		xSemaphoreTake(self.print_sem, portMAX_DELAY);
 	}
+
 	self.logging_block[self.widx] = c;
 	self.widx++;
 
@@ -621,6 +635,7 @@ void uart_logger_task(void * params){
 			return;
 		}
 		if( evnt & LOG_EVENT_STORE ) {
+			xSemaphoreTake(self.block_sem, portMAX_DELAY);
 			if(log_local_enable && FR_OK == _save_newest((char*) self.store_block, UART_LOGGER_BLOCK_SIZE)){
 				self.operation_block = self.blocks[2];
 				xEventGroupSetBits(self.uart_log_events, LOG_EVENT_UPLOAD);
@@ -630,6 +645,7 @@ void uart_logger_task(void * params){
 				LOGE("Unable to save logs\r\n");
 			}
 			xEventGroupClearBits(self.uart_log_events, LOG_EVENT_STORE);
+			xSemaphoreGive(self.block_sem);
 		}
 		if( evnt & LOG_EVENT_UPLOAD) {
 			xEventGroupClearBits(self.uart_log_events,LOG_EVENT_UPLOAD);
