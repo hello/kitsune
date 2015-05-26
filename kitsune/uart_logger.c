@@ -54,7 +54,7 @@ static struct{
 	sense_log log;
 	uint8_t view_tag;	//what level gets printed out to console
 	uint8_t store_tag;	//what level to store to sd card
-	xSemaphoreHandle print_sem;
+	xSemaphoreHandle logging_block_sem;
 	DIR logdir;
 }self = {0};
 
@@ -75,6 +75,8 @@ _encode_text_block(pb_ostream_t *stream, const pb_field_t *field, void * const *
 
 static void
 _swap_and_upload(void){
+	assert( self.logging_block_sem );
+	xSemaphoreTake(self.logging_block_sem, portMAX_DELAY);
 	if (!(xEventGroupGetBitsFromISR(self.uart_log_events) & LOG_EVENT_STORE)) {
 		self.store_block = self.logging_block;
 		//logc can be called anywhere, so using ISR api instead
@@ -88,6 +90,8 @@ _swap_and_upload(void){
 					self.blocks[1] : self.blocks[0];
 	//reset
 	self.widx = 0;
+
+    xSemaphoreGive( self.logging_block_sem );
 }
 #ifdef BUILD_SERVERS
 void telnetPrint(const char * str, int len );
@@ -97,17 +101,9 @@ static void
 _logstr(const char * str, int len, bool echo, bool store){
 #ifndef BUILD_SERVERS
 	int i;
-	if( self.print_sem == NULL) {
-		return;
-	}
-	if( xSemaphoreTake(self.print_sem, 10000) != pdPASS ) {
-		return;
-	}
 	for(i = 0; i < len && store; i++){
 		uart_logc(str[i]);
 	}
-
-    xSemaphoreGive( self.print_sem );
 #endif
 
 	if (echo) {
@@ -320,7 +316,7 @@ void uart_logger_init(void){
 	self.log.has_unix_time = true;
 	self.view_tag = LOG_INFO | LOG_WARNING | LOG_ERROR | LOG_VIEW_ONLY | LOG_FACTORY | LOG_TOP;
 	self.store_tag = LOG_INFO | LOG_WARNING | LOG_ERROR | LOG_FACTORY | LOG_TOP;
-	vSemaphoreCreateBinary(self.print_sem);
+	vSemaphoreCreateBinary(self.logging_block_sem);
 
 	xEventGroupSetBits(self.uart_log_events, LOG_EVENT_READY);
 }
@@ -576,11 +572,13 @@ int analytics_event( const char *pcString, ...) {
 }
 
 void uart_logc(uint8_t c){
+
 	if (self.widx == UART_LOGGER_BLOCK_SIZE) {
 		_swap_and_upload();
 	}
 	self.logging_block[self.widx] = c;
 	self.widx++;
+
 }
 
 static bool send_log() {
@@ -622,57 +620,53 @@ void uart_logger_task(void * params){
 			xEventGroupClearBits(self.uart_log_events,LOG_EVENT_EXIT);
 			return;
 		}
-		if( self.print_sem != NULL && evnt && pdPASS == xSemaphoreTake(self.print_sem, 0) ){
-			if( evnt & LOG_EVENT_STORE ) {
-				if(log_local_enable && FR_OK == _save_newest((char*) self.store_block, UART_LOGGER_BLOCK_SIZE)){
-					self.operation_block = self.blocks[2];
-					xEventGroupSetBits(self.uart_log_events, LOG_EVENT_UPLOAD);
-				}else{
-					self.operation_block = self.store_block;
-					xEventGroupSetBits(self.uart_log_events, LOG_EVENT_UPLOAD_ONLY);
-					LOGE("Unable to save logs\r\n");
-				}
-				xEventGroupClearBits(self.uart_log_events, LOG_EVENT_STORE);
+		if( evnt & LOG_EVENT_STORE ) {
+			if(log_local_enable && FR_OK == _save_newest((char*) self.store_block, UART_LOGGER_BLOCK_SIZE)){
+				self.operation_block = self.blocks[2];
+				xEventGroupSetBits(self.uart_log_events, LOG_EVENT_UPLOAD);
+			}else{
+				self.operation_block = self.store_block;
+				xEventGroupSetBits(self.uart_log_events, LOG_EVENT_UPLOAD_ONLY);
+				LOGE("Unable to save logs\r\n");
 			}
-			if( evnt & LOG_EVENT_UPLOAD) {
-				xEventGroupClearBits(self.uart_log_events,LOG_EVENT_UPLOAD);
-				if(wifi_status_get(HAS_IP)){
-					WORD read;
-					FRESULT res;
-					//operation block is used for file io
-					res = _read_oldest((char*)self.operation_block,UART_LOGGER_BLOCK_SIZE, &read);
-					if(FR_OK != res){
-						LOGE("Unable to read log file %d\r\n",(int)res);
-						xSemaphoreGive(self.print_sem);
-                        vTaskDelay(5000);
-						continue;
-					}
-
-					if(send_log()){
-						int rem = -1;
-						//LOGI("Log upload succeeded\r\n");
-						res = _remove_oldest(&rem);
-						if(FR_OK == res && rem > 0){
-							xEventGroupSetBits(self.uart_log_events, LOG_EVENT_UPLOAD);
-						}else if(FR_OK == res && rem == 0){
-							//LOGI("Upload logs done\r\n");
-						}else{
-							//LOGE("Rm log error %d\r\n", res);
-						}
-					}else{
-						//LOGE("Log upload failed, network code = %d\r\n", ret);
-					}
-				}
-			}
-			if(evnt & LOG_EVENT_UPLOAD_ONLY) {
-				xEventGroupClearBits(self.uart_log_events,LOG_EVENT_UPLOAD_ONLY);
-				if(wifi_status_get(HAS_IP)){
-					send_log();
-				}
-			}
-			xSemaphoreGive(self.print_sem);
-            vTaskDelay(5000);
+			xEventGroupClearBits(self.uart_log_events, LOG_EVENT_STORE);
 		}
+		if( evnt & LOG_EVENT_UPLOAD) {
+			xEventGroupClearBits(self.uart_log_events,LOG_EVENT_UPLOAD);
+			if(wifi_status_get(HAS_IP)){
+				WORD read;
+				FRESULT res;
+				//operation block is used for file io
+				res = _read_oldest((char*)self.operation_block,UART_LOGGER_BLOCK_SIZE, &read);
+				if(FR_OK != res){
+					LOGE("Unable to read log file %d\r\n",(int)res);
+					vTaskDelay(5000);
+					continue;
+				}
+
+				if(send_log()){
+					int rem = -1;
+					//LOGI("Log upload succeeded\r\n");
+					res = _remove_oldest(&rem);
+					if(FR_OK == res && rem > 0){
+						xEventGroupSetBits(self.uart_log_events, LOG_EVENT_UPLOAD);
+					}else if(FR_OK == res && rem == 0){
+						//LOGI("Upload logs done\r\n");
+					}else{
+						//LOGE("Rm log error %d\r\n", res);
+					}
+				}else{
+					//LOGE("Log upload failed, network code = %d\r\n", ret);
+				}
+			}
+		}
+		if(evnt & LOG_EVENT_UPLOAD_ONLY) {
+			xEventGroupClearBits(self.uart_log_events,LOG_EVENT_UPLOAD_ONLY);
+			if(wifi_status_get(HAS_IP)){
+				send_log();
+			}
+		}
+		vTaskDelay(5000);
 	}
 }
 
