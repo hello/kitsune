@@ -255,7 +255,6 @@ void load_data_server(){
 		use_dev_server = true;
 	}
 }
-#include "hellofilesystem.h"
 int Cmd_setDev(int argc, char *argv[]) {
 	if(argc > 1){
 		if(argv[1][0] == '1'){
