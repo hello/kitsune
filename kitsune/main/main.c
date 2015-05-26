@@ -268,7 +268,7 @@ void start_wdt() {
 }
 void mcu_reset();
 #include "kit_assert.h"
-volatile portTickType last_upload_time;
+volatile portTickType last_upload_time = 0;
 #define SIXTY_MINUTES 3600000
 
 void watchdog_thread(void* unused) {
