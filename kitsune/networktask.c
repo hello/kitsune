@@ -68,7 +68,7 @@ bool NetworkTask_SendProtobuf(bool blocking, const char * host,
 		message.end = unblock_sync;
 		message.response_handle = &response;
 	}
-	DEBUG_PRINTF("NT %s",endpoint);
+	DEBUG_PRINTF("NT %n",endpoint);
 
 	assert( _asyncqueue );
 
@@ -86,8 +86,10 @@ bool NetworkTask_SendProtobuf(bool blocking, const char * host,
 	if( message.sync ) {
 	    xSemaphoreTake(message.sync, portMAX_DELAY);
 	    vSemaphoreDelete(message.sync);
+		DEBUG_PRINTF("NT blocking return\n");
 		return response.success;
 	}
+	DEBUG_PRINTF("NT return\n");
 	return false;
 }
 

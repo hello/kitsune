@@ -969,7 +969,7 @@ void thread_tx(void* unused) {
 	while (1) {
 		if (uxQueueMessagesWaiting(data_queue) >= data_queue_batch_size
 		 || got_forced_data ) {
-			LOGI(	"sending data" );
+			LOGI(	"sending data\n" );
 			periodic_data_to_encode periodicdata;
 			periodicdata.num_data = 0;
 			periodicdata.data = (periodic_data*)pvPortMalloc(data_queue_batch_size*sizeof(periodic_data));
@@ -1049,7 +1049,7 @@ void thread_tx(void* unused) {
 
 		tries = 0;
 		if (uxQueueMessagesWaiting(pill_queue) > PILL_BATCH_WATERMARK) {
-			LOGI(	"sending  pill data" );
+			LOGI(	"sending  pill data\n" );
 			pilldata_to_encode pilldata;
 			pilldata.num_pills = 0;
 			pilldata.pills = (pill_data*)pvPortMalloc(MAX_BATCH_PILL_DATA*sizeof(pill_data));
