@@ -1479,9 +1479,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
         LOGI("recv error %d\n\r\n\r", rv);
         return stop_connection();
     }
-    LOGI("recv %d\n\r\n\r", rv);
-
-	LOGI("Send complete\n");
+    LOGI("recv %d\n", rv);
 
     //todo check for http response code 2xx
 
