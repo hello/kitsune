@@ -68,7 +68,7 @@ bool NetworkTask_SendProtobuf(bool blocking, const char * host,
 		message.end = unblock_sync;
 		message.response_handle = &response;
 	}
-	DEBUG_PRINTF("NT %n",endpoint);
+	DEBUG_PRINTF("NT %s",endpoint);
 
 	assert( _asyncqueue );
 
