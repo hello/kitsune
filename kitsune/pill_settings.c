@@ -42,7 +42,7 @@ int pill_settings_save(BatchedPillSettings* pill_settings)
 
     if(!has_change)
     {
-    	LOGI("Pill settings not changed\n");
+    	//LOGI("Pill settings not changed\n");
         return 1;
     }
 

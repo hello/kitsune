@@ -1528,7 +1528,7 @@ int http_response_ok(const char* response_buffer)
 
 	memset(first_line, 0, first_line_len + 1);
 	memcpy(first_line, response_buffer, first_line_len);
-	LOGI("Status line: %s\n", first_line);
+	LOGI("status: %s\n", first_line);
 
 	int resp_ok = match("2..", first_line);
 	int ret = 0;

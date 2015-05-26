@@ -167,7 +167,7 @@ int Cmd_free(int argc, char *argv[]) {
 	//
 	// Print some header text.
 	//
-	LOGF("%d bytes free\nhigh: %d low: %d\n", xPortGetFreeHeapSize(),heap_high_mark,heap_low_mark);
+	LOGF("heap %d +: %d -: %d\n", xPortGetFreeHeapSize(),heap_high_mark,heap_low_mark);
 
     heap_high_mark = 0;
 	heap_low_mark = 0xffffffff;
@@ -522,11 +522,11 @@ void set_alarm( SyncResponse_Alarm * received_alarm ) {
             } else {
                 memcpy(&alarm, received_alarm, sizeof(alarm));
             }
-            LOGI("Got alarm %d to %d in %d minutes\n",
+            LOGI("alarm %d to %d in %d minutes\n",
                         received_alarm->start_time, received_alarm->end_time,
                         (received_alarm->start_time - now) / 60);
         }else{
-            LOGI("No alarm for now.\n");
+            LOGI("No alarm\n");
             // when we reach here, we need to cancel the existing alarm to prevent them ringing.
 
             // The following is not necessary, putting here just to make them explicit.

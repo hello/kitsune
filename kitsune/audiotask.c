@@ -707,7 +707,7 @@ void AudioTask_StartCapture(uint32_t rate) {
 	AudioMessage_t message;
 
 	//turn on
-	LOGI("Turning on audio capture\r\n");
+	LOGI("mic on\r\n");
 	memset(&message,0,sizeof(message));
 	message.command = eAudioCaptureTurnOn;
 	message.message.capturedesc.rate = rate;
@@ -719,7 +719,7 @@ void AudioTask_StartCapture(uint32_t rate) {
 void AudioTask_StopCapture(void) {
 	AudioMessage_t message;
 
-	LOGI("Turning off audio capture\r\n");
+	LOGI("mic off\r\n");
 
 	memset(&message,0,sizeof(message));
 	message.command = eAudioCaptureTurnOff;

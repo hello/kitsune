@@ -75,7 +75,7 @@ bool NetworkTask_SendProtobuf(bool blocking, const char * host,
 	//add to queue
 	if(xQueueSend( _asyncqueue, ( const void * )&message, portMAX_DELAY ) != pdTRUE)
 	{
-		LOGE("Cannot send request to _asyncqueue\n");
+		LOGE("Cannot send to _asyncqueue\n");
 
 		if( message.sync ) {
 			vSemaphoreDelete(message.sync);
@@ -86,10 +86,10 @@ bool NetworkTask_SendProtobuf(bool blocking, const char * host,
 	if( message.sync ) {
 	    xSemaphoreTake(message.sync, portMAX_DELAY);
 	    vSemaphoreDelete(message.sync);
-		DEBUG_PRINTF("NT blocking return\n");
+		DEBUG_PRINTF("NT bl ret\n");
 		return response.success;
 	}
-	DEBUG_PRINTF("NT return\n");
+	DEBUG_PRINTF("NT ret\n");
 	return false;
 }
 
