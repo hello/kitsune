@@ -108,7 +108,7 @@ extern void vUARTTask( void *pvParameters );
 //****************************************************************************
 //                      LOCAL FUNCTION PROTOTYPES
 //****************************************************************************
-void vAssertCalled( const char *pcFile, unsigned long ulLine );
+void vAssertCalled( const char *s );
 void vApplicationIdleHook();
 
 
@@ -160,11 +160,10 @@ vApplicationTickHook( void )
 //!
 //*****************************************************************************
 void
-vAssertCalled( const char *pcFile, unsigned long ulLine )
+vAssertCalled( const char * s )
 {
-
-  LOGE( "%s %u ASSERT", pcFile, ulLine );
-
+  LOGE( "%s ASSERT", s );
+  vTaskDelay(10000);
   mcu_reset();
 }
 
