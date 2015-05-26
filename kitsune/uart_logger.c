@@ -248,7 +248,7 @@ _save_newest(const char * buffer, int size){
 		return _write_file(s, buffer, size);
 	}else if(ret > 0 && ret > UART_LOGGER_FILE_LIMIT){
         int rem;
-        LOGW("File size reached, removing oldest\r\n");
+        //LOGW("File size reached, removing oldest\r\n");
         if(FR_OK == _remove_oldest(&rem)){
             char s[16] = {0};
             usnprintf(s,sizeof(s),"%d",++counter);
@@ -258,7 +258,7 @@ _save_newest(const char * buffer, int size){
             return FR_RW_ERROR;
         }
     }else{
-		LOGW("Write log error: %d \r\n", ret);
+		//LOGW("Write log error: %d \r\n", ret);
 	}
 	return FR_RW_ERROR;
 }
@@ -642,7 +642,7 @@ void uart_logger_task(void * params){
 			}else{
 				self.operation_block = self.store_block;
 				xEventGroupSetBits(self.uart_log_events, LOG_EVENT_UPLOAD_ONLY);
-				LOGE("Unable to save logs\r\n");
+				//LOGE("Unable to save logs\r\n");
 			}
 			xEventGroupClearBits(self.uart_log_events, LOG_EVENT_STORE);
 			xSemaphoreGive(self.block_sem);
