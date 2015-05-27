@@ -243,6 +243,30 @@ void save_default_antenna( unsigned char a ) {
 int load_account_id( ) {
 	return fs_get( ACCOUNT_ID_FILE, account_id, sizeof(account_id), NULL );
 }
+extern volatile bool use_dev_server;
+void load_data_server(){
+	char dummy[2] = {0};
+	fs_get(SERVER_SELECTION_FILE, dummy, sizeof(dummy), NULL);
+	if(dummy[0] == '1'){
+		UARTprintf("\r\n===============\r\n");
+		UARTprintf("Using Dev Endpoint");
+		UARTprintf("\r\n===============\r\n");
+		use_dev_server = true;
+	}
+}
+int Cmd_setDev(int argc, char *argv[]) {
+	if(argc > 1){
+		if(argv[1][0] == '1'){
+			DISP("Setting Dev\r\n");
+			fs_save(SERVER_SELECTION_FILE, "1", 2);
+		}else if(argv[1][0] == '0'){
+			DISP("Removing Dev\r\n");
+			fs_save(SERVER_SELECTION_FILE, "0", 2);
+		}
+		DISP("Restart to apply changes\r\n");
+	}
+	return 0;
+}
 
 char * get_account_id() {
 	return account_id;
@@ -1040,7 +1064,7 @@ int start_connection() {
 
 #if !LOCAL_TEST
     if (ipaddr == 0) {
-        if (!(rv = sl_gethostbynameNoneThreadSafe(DATA_SERVER, strlen(DATA_SERVER), &ipaddr, SL_AF_INET))) {
+        if (!(rv = sl_gethostbynameNoneThreadSafe((_i8*)DATA_SERVER, strlen(DATA_SERVER), &ipaddr, SL_AF_INET))) {
              LOGI("Get Host IP succeeded.\n\rHost: %s IP: %d.%d.%d.%d \n\r\n\r",
 				   DATA_SERVER, SL_IPV4_BYTE(ipaddr, 3), SL_IPV4_BYTE(ipaddr, 2),
 				   SL_IPV4_BYTE(ipaddr, 1), SL_IPV4_BYTE(ipaddr, 0));
@@ -1640,7 +1664,13 @@ static void _key_check_reply(const NetworkResponse_t * response,
     ble_proto_free_command(&reply);
     vPortFree(context);
 }
-
+extern volatile bool use_dev_server;
+char * get_server(void){
+	if(use_dev_server){
+		return DEV_DATA_SERVER;
+	}
+	return PROD_DATA_SERVER;
+}
 void on_key(uint8_t * key) {
 	save_aes(key);
 	load_aes();

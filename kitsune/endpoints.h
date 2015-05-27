@@ -1,7 +1,12 @@
 #ifndef _ENDPOINTS_H_
 #define _ENDPOINTS_H_
 
-#define DATA_SERVER                         "sense-in.hello.is"
+char * get_server(void);
+
+#define DATA_SERVER	get_server()
+
+#define PROD_DATA_SERVER                    "sense-in.hello.is"
+#define DEV_DATA_SERVER						"dev-in.hello.is"
 #define DATA_RECEIVE_ENDPOINT               "/in/sense/batch"
 #define MORPHEUS_REGISTER_ENDPOINT          "/register/morpheus"
 #define PILL_REGISTER_ENDPOINT              "/register/pill"
