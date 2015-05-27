@@ -1312,7 +1312,7 @@ int match(char *regexp, char *text)
     } while (*text++ != '\n');
     return 0;
 }
-extern int top_version;
+const char * get_top_version(void);
 //buffer needs to be at least 128 bytes...
 int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
 		uint32_t * recv_buf_size_ptr, const pb_field_t fields[],
@@ -1337,14 +1337,14 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
         return -1;
     }
 
-    usnprintf(recv_buf, recv_buf_size, "POST %s HTTP/1.1\r\n"
-            "Host: %s\r\n"
-            "Content-type: application/x-protobuf\r\n"
-            "X-Hello-Sense-Id: %s\r\n"
-    		"X-Hello-Sense-MFW: %x\r\n"
-    		"X-Hello-Sense-TFW: %d\r\n"
-            "Transfer-Encoding: chunked\r\n", 
-            path, host, hex_device_id, KIT_VER, top_version);
+    usnprintf(recv_buf, recv_buf_size, "POST %s HTTP/1.1\r\n\
+            Host: %s\r\n\
+            Content-type: application/x-protobuf\r\n\
+            X-Hello-Sense-Id: %s\r\n\
+    		X-Hello-Sense-MFW: %x\r\n\
+    		X-Hello-Sense-TFW: %s\r\n\
+            Transfer-Encoding: chunked\r\n",
+            path, host, hex_device_id, KIT_VER, get_top_version());
 
     send_length = strlen(recv_buf);
 
