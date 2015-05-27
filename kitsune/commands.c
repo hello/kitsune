@@ -107,6 +107,7 @@ tCircularBuffer *pTxBuffer;
 tCircularBuffer *pRxBuffer;
 
 volatile bool booted = false;
+volatile bool use_dev_server = false;
 
 //*****************************************************************************
 //                          LOCAL DEFINES
@@ -167,7 +168,7 @@ int Cmd_free(int argc, char *argv[]) {
 	//
 	// Print some header text.
 	//
-	LOGF("%d bytes free\nhigh: %d low: %d\n", xPortGetFreeHeapSize(),heap_high_mark,heap_low_mark);
+	LOGF("heap %d +: %d -: %d\n", xPortGetFreeHeapSize(),heap_high_mark,heap_low_mark);
 
     heap_high_mark = 0;
 	heap_low_mark = 0xffffffff;
@@ -522,11 +523,11 @@ void set_alarm( SyncResponse_Alarm * received_alarm ) {
             } else {
                 memcpy(&alarm, received_alarm, sizeof(alarm));
             }
-            LOGI("Got alarm %d to %d in %d minutes\n",
+            LOGI("alarm %d to %d in %d minutes\n",
                         received_alarm->start_time, received_alarm->end_time,
                         (received_alarm->start_time - now) / 60);
         }else{
-            LOGI("No alarm for now.\n");
+            LOGI("No alarm\n");
             // when we reach here, we need to cancel the existing alarm to prevent them ringing.
 
             // The following is not necessary, putting here just to make them explicit.
@@ -951,6 +952,7 @@ xQueueHandle force_data_queue = 0;
 xQueueHandle pill_queue = 0;
 
 extern volatile bool top_got_device_id;
+extern volatile portTickType last_upload_time;
 int send_top(char * s, int n) ;
 int load_device_id();
 bool is_test_boot();
@@ -968,7 +970,7 @@ void thread_tx(void* unused) {
 	while (1) {
 		if (uxQueueMessagesWaiting(data_queue) >= data_queue_batch_size
 		 || got_forced_data ) {
-			LOGI(	"sending data" );
+			LOGI(	"sending data\n" );
 			periodic_data_to_encode periodicdata;
 			periodicdata.num_data = 0;
 			periodicdata.data = (periodic_data*)pvPortMalloc(data_queue_batch_size*sizeof(periodic_data));
@@ -1040,14 +1042,18 @@ void thread_tx(void* unused) {
 				if (tries++ > 5) {
 					tries = 5;
 				}
+				while( !wifi_status_get(HAS_IP) ) {
+					vTaskDelay(1000);
+				}
 			}
+			last_upload_time = xTaskGetTickCount();
 			hlo_future_destroy( data_batched.scan.arg );
 			vPortFree( periodicdata.data );
 		}
 
 		tries = 0;
 		if (uxQueueMessagesWaiting(pill_queue) > PILL_BATCH_WATERMARK) {
-			LOGI(	"sending  pill data" );
+			LOGI(	"sending  pill data\n" );
 			pilldata_to_encode pilldata;
 			pilldata.num_pills = 0;
 			pilldata.pills = (pill_data*)pvPortMalloc(MAX_BATCH_PILL_DATA*sizeof(pill_data));
@@ -1072,6 +1078,9 @@ void thread_tx(void* unused) {
 				vTaskDelay((1 << tries) * 1000);
 				if (tries++ > 5) {
 					tries = 5;
+				}
+				while( !wifi_status_get(HAS_IP) ) {
+					vTaskDelay(1000);
 				}
 			}
 			vPortFree( pilldata.pills );
@@ -1808,6 +1817,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "burntopkey",Cmd_burn_top,""},
 		{ "scan",Cmd_scan_wifi,""},
 		{"future",Cmd_FutureTest,""},
+		{"dev", Cmd_setDev, ""},
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
 		{ "iperfcli",Cmd_iperf_client,""},
@@ -1947,6 +1957,7 @@ void vUARTTask(void *pvParameters) {
 	load_aes();
 	load_device_id();
 	load_account_id();
+	load_data_server();
 	pill_settings_init();
 	check_provision();
 

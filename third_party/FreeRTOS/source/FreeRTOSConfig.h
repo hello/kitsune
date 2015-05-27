@@ -149,8 +149,8 @@ version. */
 #define configUSE_PORT_OPTIMISED_TASK_SELECTION 1
 
 
-	void vAssertCalled( const char *pcFile, unsigned long ulLine );
-	#define configASSERT( x ) if( x == 0 ) vAssertCalled( __FILE__, __LINE__ );
+	void vAssertCalled( const char *s );
+	#define configASSERT( x ) if( x == 0 ) vAssertCalled( #x );
 
 
 #define traceMALLOC usertraceMALLOC
