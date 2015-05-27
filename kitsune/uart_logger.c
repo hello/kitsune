@@ -335,7 +335,6 @@ void uart_logger_init(void){
 	self.store_tag = LOG_INFO | LOG_WARNING | LOG_ERROR | LOG_FACTORY | LOG_TOP;
 	vSemaphoreCreateBinary(self.block_sem);
 	vSemaphoreCreateBinary(self.print_sem);
-	self.analytics_event_queue = xQueueCreate(10, sizeof(event_ctx_t));
 	xEventGroupSetBits(self.uart_log_events, LOG_EVENT_READY);
 }
 
@@ -587,7 +586,10 @@ int analytics_event( const char *pcString, ...) {
     _va_printf( vaArgP, pcString, _encode_wrapper, &ctx );
     va_end(vaArgP);
 
-    xQueueSend(self.analytics_event_queue, &ctx, 100);
+    if(self.analytics_event_queue){
+    	xQueueSend(self.analytics_event_queue, &ctx, 100);
+    }
+
 
     return 0;
 }
@@ -616,10 +618,13 @@ static bool send_log() {
     return NetworkTask_SendProtobuf(true, DATA_SERVER, SENSE_LOG_ENDPOINT,
     		sense_log_fields,&self.log, 0, NULL, NULL);
 }
+#ifndef max
+#define max(a,b) ((a)>(b)?(a):(b))  /**< Find the maximum of 2 numbers. */
+#endif
 void analytics_event_task(void * params){
 	int block_len = 0;
 	char * block = NULL;
-	event_ctx_t evt;
+	event_ctx_t evt = {0};
 	int32_t time = 0;
 	sense_log log = (sense_log){//defaults
 		.text.funcs.encode = _encode_string_fields,
@@ -629,30 +634,40 @@ void analytics_event_task(void * params){
 		.has_property = true,
 		.property = LogType_KEY_VALUE,
 	};
+	self.analytics_event_queue = xQueueCreate(10, sizeof(event_ctx_t));
+	assert(self.analytics_event_queue);
+
+
 	while(1){
 		if(pdTRUE == xQueueReceive(self.analytics_event_queue, &evt, 5000)){
 			//time is set on the first event.
+			char * next_block = pvPortRealloc(block, max(128, (evt.pos + block_len)));
 			if(!block){
 				time = get_time();
+				next_block[0] = 0;
 			}
+			block = next_block;
 			if(evt.pos){
-				block = pvPortRealloc(block, evt.pos + block_len);
 				assert(block);
-				strncpy(block+block_len, evt.ptr, evt.pos);
+				strcat(block, evt.ptr);
 				block_len +=  evt.pos;
 			}
-		}else if(block){
+		}else if(block != NULL){
 			log.text.arg = block;
 			log.unix_time = time;
-
-			NetworkTask_SendProtobuf(true, DATA_SERVER, SENSE_LOG_ENDPOINT,
-					sense_log_fields, &log, 0, _free_pb, NULL);
+			DISP("Uploading: %s\r\n", block);
+		/*	NetworkTask_SendProtobuf(true, DATA_SERVER, SENSE_LOG_ENDPOINT,
+					sense_log_fields, &log, 0, _free_pb, NULL);*/
 
 			vPortFree(block);
 			block = NULL;
 			block_len = 0;
+
+		}else{
+			vTaskDelay(1000);
 		}
 	}
+	vTaskDelete(NULL);
 }
 void uart_logger_task(void * params){
 	uint8_t log_local_enable;
@@ -750,6 +765,12 @@ void uart_logf(uint8_t tag, const char *pcString, ...){
     va_end(vaArgP);
 }
 int Cmd_analytics(int argc, char * argv[]){
-	analytics_event("{%s : %s}", argv[1]?argv[1]:"key", argv[2]?argv[2]:"value");
+	if(argc > 2){
+		analytics_event("{%s : %s}", argv[1], argv[2]);
+	}else{
+		DISP("Usage: ana $key $value\r\n");
+		return -1;
+	}
+
 	return 0;
 }
