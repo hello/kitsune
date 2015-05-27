@@ -351,6 +351,28 @@ void _logstr_wrapper(const char * str, int len, void * data ) {
     if( !booted ) {
     	store = false;
     }
+
+#if UART_LOGGER_PREPEND_TAG > 0
+    while(tag){
+    	if(tag & LOG_INFO){
+    		_logstr("[I]", strlen("[I]"), echo, store);
+    		tag &= ~LOG_INFO;
+    	}else if(tag & LOG_WARNING){
+    		_logstr("[W]", strlen("[W]"), echo, store);
+    		tag &= ~LOG_WARNING;
+    	}else if(tag & LOG_ERROR){
+    		_logstr("[E]", strlen("[E]"), echo, store);
+    		tag &= ~LOG_ERROR;
+    	}else if(tag & LOG_VIEW_ONLY){
+    		tag &= ~LOG_VIEW_ONLY;
+    	}else if(tag & LOG_TOP){
+    		_logstr("[T]", strlen("[T]"), echo, store);
+    		tag &= ~LOG_TOP;
+    	}else{
+    		tag = 0;
+    	}
+    }
+#endif
     _logstr(str, len, echo, store);
 }
 
