@@ -507,7 +507,7 @@ extern uint8_t aes_key[AES_BLOCKSIZE + 1];
 int save_device_id( uint8_t * device_id );
 int save_aes( uint8_t * key ) ;
 uint8_t get_alpha_from_light();
-
+static int top_version;
 bool on_ble_protobuf_command(MorpheusCommand* command)
 {
 	switch(command->type)
