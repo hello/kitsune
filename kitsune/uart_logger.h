@@ -84,8 +84,10 @@ void uart_logf(uint8_t tag, const char *pcString, ...);
  */
 void uart_logger_flush(void);
 void uart_logger_task(void * params);
+void analytics_event_task(void * params);
 int Cmd_log_upload(int argc, char *argv[]);
 int Cmd_log_setview(int argc, char * argv[]);
+int Cmd_analytics(int argc, char * argv[]);
 void set_loglevel(uint8_t loglevel);
 void uart_logc(uint8_t c);	//advanced: directly dumps character to tx block
 

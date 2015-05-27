@@ -749,3 +749,7 @@ void uart_logf(uint8_t tag, const char *pcString, ...){
     _va_printf( vaArgP, pcString, _logstr_wrapper, &tag );
     va_end(vaArgP);
 }
+int Cmd_analytics(int argc, char * argv[]){
+	analytics_event("{%s : %s}", argv[1]?argv[1]:"key", argv[2]?argv[2]:"value");
+	return 0;
+}

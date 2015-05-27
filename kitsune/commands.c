@@ -1652,6 +1652,7 @@ void launch_tasks() {
 	UARTprintf("*");
 	xTaskCreate(thread_tx, "txTask", 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
+	xTaskCreate(analytics_event_task, "analyticsTask", 1024/4, NULL, 2, NULL);
 #endif
 }
 
@@ -1818,6 +1819,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "scan",Cmd_scan_wifi,""},
 		{"future",Cmd_FutureTest,""},
 		{"dev", Cmd_setDev, ""},
+		{"ana", Cmd_analytics, ""},
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
 		{ "iperfcli",Cmd_iperf_client,""},
