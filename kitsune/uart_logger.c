@@ -41,6 +41,12 @@
 //flag to indicate the thread ip up and running
 #define LOG_EVENT_READY         0x100
 
+
+typedef struct {
+	char * ptr;
+	int pos;
+} event_ctx_t;
+
 static struct{
 	uint8_t blocks[3][UART_LOGGER_BLOCK_SIZE];
 	//ptr to block that is currently used for logging
@@ -57,6 +63,7 @@ static struct{
 	xSemaphoreHandle block_sem; //guards logging_block and store_block pointers
 	xSemaphoreHandle print_sem; //guards writing to the logging block and widx
 	DIR logdir;
+	xQueueHandle analytics_event_queue;
 }self = {0};
 
 void set_loglevel(uint8_t loglevel) {
@@ -328,7 +335,7 @@ void uart_logger_init(void){
 	self.store_tag = LOG_INFO | LOG_WARNING | LOG_ERROR | LOG_FACTORY | LOG_TOP;
 	vSemaphoreCreateBinary(self.block_sem);
 	vSemaphoreCreateBinary(self.print_sem);
-
+	self.analytics_event_queue = xQueueCreate(10, sizeof(event_ctx_t));
 	xEventGroupSetBits(self.uart_log_events, LOG_EVENT_READY);
 }
 
@@ -375,11 +382,6 @@ void _logstr_wrapper(const char * str, int len, void * data ) {
 #endif
     _logstr(str, len, echo, store);
 }
-
-typedef struct {
-	char * ptr;
-	int pos;
-} event_ctx_t;
 
 void _encode_wrapper(const char * str, int len, void * data ) {
 	event_ctx_t * ctx = (event_ctx_t*)data;
@@ -585,23 +587,9 @@ int analytics_event( const char *pcString, ...) {
     _va_printf( vaArgP, pcString, _encode_wrapper, &ctx );
     va_end(vaArgP);
 
-	log->text.funcs.encode = _encode_string_fields;
-	log->text.arg = ctx.ptr;
-	log->device_id.funcs.encode = encode_device_id_string;
+    xQueueSend(self.analytics_event_queue, &ctx, 100);
 
-	log->has_unix_time = true;
-	log->unix_time = get_time();
-	log->has_property = true;
-	log->property = LogType_KEY_VALUE;
-
-	async_context_t * async_ctx  = pvPortMalloc(sizeof(async_context_t));
-	assert(async_ctx);
-	memset(async_ctx, 0, sizeof(async_context_t));
-	async_ctx->buffer = ctx.ptr;
-	async_ctx->structdata = log;
-
-    return NetworkTask_SendProtobuf(false, DATA_SERVER, SENSE_LOG_ENDPOINT,
-    		sense_log_fields, log, 0, _free_pb, async_ctx);
+    return 0;
 }
 
 void uart_logc(uint8_t c){
@@ -628,7 +616,44 @@ static bool send_log() {
     return NetworkTask_SendProtobuf(true, DATA_SERVER, SENSE_LOG_ENDPOINT,
     		sense_log_fields,&self.log, 0, NULL, NULL);
 }
+void analytics_event_task(void * params){
+	int block_len = 0;
+	char * block = NULL;
+	event_ctx_t evt;
+	int32_t time = 0;
+	sense_log log = (sense_log){//defaults
+		.text.funcs.encode = _encode_string_fields,
+		.text.arg = NULL,
+		.device_id.funcs.encode = encode_device_id_string,
+		.has_unix_time = true,
+		.has_property = true,
+		.property = LogType_KEY_VALUE,
+	};
+	while(1){
+		if(pdTRUE == xQueueReceive(self.analytics_event_queue, &evt, 5000)){
+			//time is set on the first event.
+			if(!block){
+				time = get_time();
+			}
+			if(evt.pos){
+				block = pvPortRealloc(block, evt.pos + block_len);
+				assert(block);
+				strncpy(block+block_len, evt.ptr, evt.pos);
+				block_len +=  evt.pos;
+			}
+		}else if(block){
+			log.text.arg = block;
+			log.unix_time = time;
 
+			NetworkTask_SendProtobuf(true, DATA_SERVER, SENSE_LOG_ENDPOINT,
+					sense_log_fields, &log, 0, _free_pb, NULL);
+
+			vPortFree(block);
+			block = NULL;
+			block_len = 0;
+		}
+	}
+}
 void uart_logger_task(void * params){
 	uint8_t log_local_enable;
 	uart_logger_init();
