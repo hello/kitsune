@@ -698,26 +698,6 @@ int Cmd_log_setview(int argc, char * argv[]){
 
 void uart_logf(uint8_t tag, const char *pcString, ...){
 	va_list vaArgP;
-
-#if UART_LOGGER_PREPEND_TAG > 0
-    while(tag){
-    	if(tag & LOG_INFO){
-    		_logstr("[I]", strlen("[I]"), echo, store);
-    		tag &= ~LOG_INFO;
-    	}else if(tag & LOG_WARNING){
-    		_logstr("[W]", strlen("[W]"), echo, store);
-    		tag &= ~LOG_WARNING;
-    	}else if(tag & LOG_ERROR){
-    		_logstr("[E]", strlen("[E]"), echo, store);
-    		tag &= ~LOG_ERROR;
-    	}else if(tag & LOG_VIEW_ONLY){
-    		tag &= ~LOG_VIEW_ONLY;
-    	}else{
-    		tag = 0;
-    	}
-    }
-#endif
-
     va_start(vaArgP, pcString);
     _va_printf( vaArgP, pcString, _logstr_wrapper, &tag );
     va_end(vaArgP);
