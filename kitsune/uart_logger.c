@@ -637,11 +637,10 @@ void analytics_event_task(void * params){
 	self.analytics_event_queue = xQueueCreate(10, sizeof(event_ctx_t));
 	assert(self.analytics_event_queue);
 
-
 	while(1){
 		if(pdTRUE == xQueueReceive(self.analytics_event_queue, &evt, 5000)){
-			//time is set on the first event.
 			char * next_block = pvPortRealloc(block, max(128, (evt.pos + block_len)));
+			//time is set on the first event
 			if(!block){
 				time = get_time();
 				next_block[0] = 0;
@@ -651,11 +650,12 @@ void analytics_event_task(void * params){
 				assert(block);
 				strcat(block, evt.ptr);
 				block_len +=  evt.pos;
+				vPortFree(evt.ptr);
 			}
 		}else if(block != NULL){
 			log.text.arg = block;
 			log.unix_time = time;
-			DISP("Uploading: %s\r\n", block);
+			DISP("Analytics: %s\r\n", block);
 		/*	NetworkTask_SendProtobuf(true, DATA_SERVER, SENSE_LOG_ENDPOINT,
 					sense_log_fields, &log, 0, _free_pb, NULL);*/
 
@@ -667,7 +667,6 @@ void analytics_event_task(void * params){
 			vTaskDelay(1000);
 		}
 	}
-	vTaskDelete(NULL);
 }
 void uart_logger_task(void * params){
 	uint8_t log_local_enable;
