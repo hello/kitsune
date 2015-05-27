@@ -702,13 +702,13 @@ void uart_logf(uint8_t tag, const char *pcString, ...){
 #if UART_LOGGER_PREPEND_TAG > 0
     while(tag){
     	if(tag & LOG_INFO){
-    		_logstr("[INFO]", strlen("[INFO]"), echo, store);
+    		_logstr("[I]", strlen("[I]"), echo, store);
     		tag &= ~LOG_INFO;
     	}else if(tag & LOG_WARNING){
-    		_logstr("[WARNING]", strlen("[WARNING]"), echo, store);
+    		_logstr("[W]", strlen("[W]"), echo, store);
     		tag &= ~LOG_WARNING;
     	}else if(tag & LOG_ERROR){
-    		_logstr("[ERROR]", strlen("[ERROR]"), echo, store);
+    		_logstr("[E]", strlen("[E]"), echo, store);
     		tag &= ~LOG_ERROR;
     	}else if(tag & LOG_VIEW_ONLY){
     		tag &= ~LOG_VIEW_ONLY;
