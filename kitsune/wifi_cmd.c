@@ -850,8 +850,8 @@ static SHA1_CTX sha1ctx;
 typedef struct {
 	intptr_t fd;
 	uint8_t * buf;
-	uint32_t buf_pos;
-	uint32_t buf_size;
+	int32_t buf_pos;
+	int32_t buf_size;
 	SHA1_CTX * ctx;
 	uint32_t bytes_written;
 	uint32_t bytes_that_should_have_been_written;
@@ -911,17 +911,20 @@ static bool flush_out_buffer(ostream_buffered_desc_t * desc ) {
 	}
 	return ret;
 }
+#include "limits.h"
 
 static bool write_buffered_callback_sha(pb_ostream_t *stream, const uint8_t * inbuf, size_t count) {
 	ostream_buffered_desc_t * desc = (ostream_buffered_desc_t *) stream->state;
 	bool ret = true;
 	bool overflow =  (desc->buf_pos + count ) >= desc->buf_size;
 	int leftovers = (desc->buf_pos + count ) % desc->buf_size;
-	desc->bytes_that_should_have_been_written += count;
+	assert( count < INT_MAX ); //make sure it fits in signed int
+	int c = count;
+	desc->bytes_that_should_have_been_written += c;
 
 	if (overflow) {
 		/* Will I exceed the buffer size? then send buffer */
-		while ((desc->buf_pos + count) >= desc->buf_size) {
+		while ((desc->buf_pos + c) >= desc->buf_size) {
 			//copy over
 			memcpy(desc->buf + desc->buf_pos, inbuf,
 					desc->buf_size - desc->buf_pos);
@@ -938,7 +941,7 @@ static bool write_buffered_callback_sha(pb_ostream_t *stream, const uint8_t * in
 			desc->bytes_written += desc->buf_size;
 
 			desc->buf_pos = 0;
-			count -= desc->buf_size;
+			c -= desc->buf_size;
 		}
 		//copy to our buffer
 		memcpy(desc->buf, inbuf, leftovers);
