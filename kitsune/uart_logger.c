@@ -638,7 +638,7 @@ void analytics_event_task(void * params){
 			DISP("Fit to %d Bytes\r\n", fit_size);
 
 			if(fit_size > ANALYTICS_MAX_CHUNK_SIZE){
-				xQueueAltSendToFront(self.analytics_event_queue, &evt, 100);
+				xQueueSendToFront(self.analytics_event_queue, &evt, 100);
 				goto upload;
 			}
 
