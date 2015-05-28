@@ -618,12 +618,14 @@ static bool send_log() {
 
 void analytics_event_task(void * params){
 	int block_len = 0;
-	char * block = NULL;
+	char * block = pvPortMalloc(ANALYTICS_MAX_CHUNK_SIZE);
+	assert(block);
+	memset(block, 0, ANALYTICS_MAX_CHUNK_SIZE);
 	event_ctx_t evt = {0};
 	int32_t time = 0;
 	sense_log log = (sense_log){//defaults
 		.text.funcs.encode = _encode_string_fields,
-		.text.arg = NULL,
+		.text.arg = block,
 		.device_id.funcs.encode = encode_device_id_string,
 		.has_unix_time = true,
 		.has_property = true,
@@ -634,37 +636,29 @@ void analytics_event_task(void * params){
 
 	while(1){
 		if(pdTRUE == xQueueReceive(self.analytics_event_queue, &evt, ANALYTICS_WAIT_TIME)){
-			int fit_size = ((evt.pos + block_len + ANALYTICS_CHUNK_SIZE)) / ANALYTICS_CHUNK_SIZE * ANALYTICS_CHUNK_SIZE;
+			int fit_size = evt.pos + block_len;
 			DISP("Fit to %d Bytes\r\n", fit_size);
 
-			if(fit_size > ANALYTICS_MAX_CHUNK_SIZE){
+			if(fit_size >= ANALYTICS_MAX_CHUNK_SIZE){
 				xQueueSendToFront(self.analytics_event_queue, &evt, 100);
 				goto upload;
 			}
 
-			char * next_block = pvPortRealloc(block, fit_size);
-			assert(next_block);
-
-			if(!block){			//time is set on the first event
+			if(block_len == 0){			//time is set on the first event
 				time = get_time();
-				next_block[0] = 0;
 			}
-			block = next_block;
 
 			strcat(block, evt.ptr);
 			block_len +=  evt.pos;
 			vPortFree(evt.ptr);
-		}else if(block != NULL){
-			log.text.arg = block;
+		}else if(block_len != 0){
 			log.unix_time = time;
 upload:
 			DISP("Analytics: %s\r\n", block);
-		/*	NetworkTask_SendProtobuf(true, DATA_SERVER, SENSE_LOG_ENDPOINT,
-					sense_log_fields, &log, 0, _free_pb, NULL);*/
-
-			vPortFree(block);
-			block = NULL;
+			NetworkTask_SendProtobuf(true, DATA_SERVER, SENSE_LOG_ENDPOINT,
+					sense_log_fields, &log, 0, _free_pb, NULL);
 			block_len = 0;
+			memset(block, 0, ANALYTICS_MAX_CHUNK_SIZE);
 		}
 	}
 }
