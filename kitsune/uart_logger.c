@@ -571,13 +571,8 @@ static void _free_pb(const NetworkResponse_t * response, char * reply_buf, int r
 int analytics_event( const char *pcString, ...) {
 	//todo make this fail more gracefully if the allocations don't succeed...
 	va_list vaArgP;
-	event_ctx_t ctx;
+	event_ctx_t ctx = {0};
 
-	sense_log * log = pvPortMalloc(sizeof(sense_log));
-	assert(log);
-    memset( log, 0, sizeof(sense_log));
-
-	ctx.pos = 0;
 	ctx.ptr = pvPortMalloc(128);
 	assert(ctx.ptr);
 	memset(ctx.ptr, 0, 128);
@@ -589,7 +584,6 @@ int analytics_event( const char *pcString, ...) {
     if(self.analytics_event_queue){
     	xQueueSend(self.analytics_event_queue, &ctx, 100);
     }
-
 
     return 0;
 }
@@ -640,6 +634,7 @@ void analytics_event_task(void * params){
 	while(1){
 		if(pdTRUE == xQueueReceive(self.analytics_event_queue, &evt, 5000)){
 			char * next_block = pvPortRealloc(block, max(128, (evt.pos + block_len)));
+			assert(next_block);
 			//time is set on the first event
 			if(!block){
 				time = get_time();
@@ -647,7 +642,6 @@ void analytics_event_task(void * params){
 			}
 			block = next_block;
 			if(evt.pos){
-				assert(block);
 				strcat(block, evt.ptr);
 				block_len +=  evt.pos;
 				vPortFree(evt.ptr);
@@ -662,9 +656,6 @@ void analytics_event_task(void * params){
 			vPortFree(block);
 			block = NULL;
 			block_len = 0;
-
-		}else{
-			vTaskDelay(1000);
 		}
 	}
 }
