@@ -615,9 +615,7 @@ static bool send_log() {
 #ifndef max
 #define max(a,b) ((a)>(b)?(a):(b))  /**< Find the maximum of 2 numbers. */
 #endif
-#define ANALYTICS_CHUNK_SIZE 128
-#define ANALYTICS_MAX_CHUNK_SIZE (ANALYTICS_CHUNK_SIZE * 10)
-#define ANALYTICS_WAIT_TIME 5000
+
 void analytics_event_task(void * params){
 	int block_len = 0;
 	char * block = NULL;
@@ -638,22 +636,28 @@ void analytics_event_task(void * params){
 		if(pdTRUE == xQueueReceive(self.analytics_event_queue, &evt, ANALYTICS_WAIT_TIME)){
 			int fit_size = ((evt.pos + block_len + ANALYTICS_CHUNK_SIZE)) / ANALYTICS_CHUNK_SIZE * ANALYTICS_CHUNK_SIZE;
 			DISP("Fit to %d Bytes\r\n", fit_size);
+
+			if(fit_size > ANALYTICS_MAX_CHUNK_SIZE){
+				xQueueAltSendToFront(self.analytics_event_queue, &evt, 100);
+				goto upload;
+			}
+
 			char * next_block = pvPortRealloc(block, fit_size);
 			assert(next_block);
-			//time is set on the first event
-			if(!block){
+
+			if(!block){			//time is set on the first event
 				time = get_time();
 				next_block[0] = 0;
 			}
 			block = next_block;
-			if(evt.pos){
-				strcat(block, evt.ptr);
-				block_len +=  evt.pos;
-				vPortFree(evt.ptr);
-			}
+
+			strcat(block, evt.ptr);
+			block_len +=  evt.pos;
+			vPortFree(evt.ptr);
 		}else if(block != NULL){
 			log.text.arg = block;
 			log.unix_time = time;
+upload:
 			DISP("Analytics: %s\r\n", block);
 		/*	NetworkTask_SendProtobuf(true, DATA_SERVER, SENSE_LOG_ENDPOINT,
 					sense_log_fields, &log, 0, _free_pb, NULL);*/
