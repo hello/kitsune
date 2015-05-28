@@ -542,31 +542,10 @@ convert:
 
 }
 
-typedef struct {
-	void * buffer;
-	void * structdata;
-}async_context_t;
-
-static void _free_pb(const NetworkResponse_t * response, char * reply_buf, int reply_sz, void * context){
-	async_context_t * ctx = (async_context_t*)context;
-
+static void _finished_analytics_upload(const NetworkResponse_t * response, char * reply_buf, int reply_sz, void * context){
 	if( !http_response_ok((const char*)reply_buf) ) {
 		LOGE("failed up upload analytics\n");
-		if (ctx->buffer) {
-			LOGE("%s\n", ctx->buffer );
-		}
 	}
-
-	if (ctx) {
-		if (ctx->buffer) {
-			vPortFree(ctx->buffer);
-		}
-		if (ctx->structdata) {
-			vPortFree(ctx->structdata);
-		}
-		vPortFree(ctx);
-	}
-
 }
 
 int analytics_event( const char *pcString, ...) {
@@ -654,7 +633,7 @@ void analytics_event_task(void * params){
 upload:
 			DISP("Analytics: %s\r\n", block);
 			NetworkTask_SendProtobuf(true, DATA_SERVER, SENSE_LOG_ENDPOINT,
-					sense_log_fields, &log, 0, _free_pb, NULL);
+					sense_log_fields, &log, 0, _finished_analytics_upload, NULL);
 			block_len = 0;
 			memset(block, 0, ANALYTICS_MAX_CHUNK_SIZE);
 		}
