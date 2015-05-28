@@ -1969,7 +1969,7 @@ void vUARTTask(void *pvParameters) {
 #ifndef BUILD_SERVERS
 	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 1, NULL);
 	UARTprintf("*");
-	xTaskCreate(analytics_event_task, "analyticsTask", 2048/4, NULL, 4, NULL);
+	xTaskCreate(analytics_event_task, "analyticsTask", 1024/4, NULL, 4, NULL);
 	UARTprintf("*");
 #endif
 
