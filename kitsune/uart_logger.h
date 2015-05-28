@@ -47,8 +47,12 @@ extern "C" {
 #define UART_LOGGER_MODE_RAW 0
 #define UART_LOGGER_MODE_TAGGED 1
 
-
-
+/**
+ * analytics options
+ */
+#define ANALYTICS_CHUNK_SIZE 128
+#define ANALYTICS_MAX_CHUNK_SIZE (ANALYTICS_CHUNK_SIZE * 10)
+#define ANALYTICS_WAIT_TIME 5000
 /**
  * Utility macros, use these over logf
  */

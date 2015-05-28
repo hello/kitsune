@@ -615,6 +615,9 @@ static bool send_log() {
 #ifndef max
 #define max(a,b) ((a)>(b)?(a):(b))  /**< Find the maximum of 2 numbers. */
 #endif
+#define ANALYTICS_CHUNK_SIZE 128
+#define ANALYTICS_MAX_CHUNK_SIZE (ANALYTICS_CHUNK_SIZE * 10)
+#define ANALYTICS_WAIT_TIME 5000
 void analytics_event_task(void * params){
 	int block_len = 0;
 	char * block = NULL;
@@ -632,8 +635,10 @@ void analytics_event_task(void * params){
 	assert(self.analytics_event_queue);
 
 	while(1){
-		if(pdTRUE == xQueueReceive(self.analytics_event_queue, &evt, 5000)){
-			char * next_block = pvPortRealloc(block, max(128, (evt.pos + block_len)));
+		if(pdTRUE == xQueueReceive(self.analytics_event_queue, &evt, ANALYTICS_WAIT_TIME)){
+			int fit_size = ((evt.pos + block_len + ANALYTICS_CHUNK_SIZE)) / ANALYTICS_CHUNK_SIZE * ANALYTICS_CHUNK_SIZE;
+			DISP("Fit to %d Bytes\r\n", fit_size);
+			char * next_block = pvPortRealloc(block, fit_size);
 			assert(next_block);
 			//time is set on the first event
 			if(!block){
