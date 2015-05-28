@@ -568,6 +568,7 @@ static void _free_pb(const NetworkResponse_t * response, char * reply_buf, int r
 	}
 
 }
+
 int analytics_event( const char *pcString, ...) {
 	//todo make this fail more gracefully if the allocations don't succeed...
 	va_list vaArgP;
@@ -612,9 +613,6 @@ static bool send_log() {
     return NetworkTask_SendProtobuf(true, DATA_SERVER, SENSE_LOG_ENDPOINT,
     		sense_log_fields,&self.log, 0, NULL, NULL);
 }
-#ifndef max
-#define max(a,b) ((a)>(b)?(a):(b))  /**< Find the maximum of 2 numbers. */
-#endif
 
 void analytics_event_task(void * params){
 	int block_len = 0;
