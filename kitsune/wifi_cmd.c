@@ -850,8 +850,8 @@ static SHA1_CTX sha1ctx;
 typedef struct {
 	intptr_t fd;
 	uint8_t * buf;
-	uint32_t buf_pos;
-	uint32_t buf_size;
+	int32_t buf_pos;
+	int32_t buf_size;
 	SHA1_CTX * ctx;
 	uint32_t bytes_written;
 	uint32_t bytes_that_should_have_been_written;
@@ -911,17 +911,20 @@ static bool flush_out_buffer(ostream_buffered_desc_t * desc ) {
 	}
 	return ret;
 }
+#include "limits.h"
 
 static bool write_buffered_callback_sha(pb_ostream_t *stream, const uint8_t * inbuf, size_t count) {
 	ostream_buffered_desc_t * desc = (ostream_buffered_desc_t *) stream->state;
 	bool ret = true;
 	bool overflow =  (desc->buf_pos + count ) >= desc->buf_size;
 	int leftovers = (desc->buf_pos + count ) % desc->buf_size;
-	desc->bytes_that_should_have_been_written += count;
+	assert( count < INT_MAX ); //make sure it fits in signed int
+	int c = count;
+	desc->bytes_that_should_have_been_written += c;
 
 	if (overflow) {
 		/* Will I exceed the buffer size? then send buffer */
-		while ((desc->buf_pos + count) >= desc->buf_size) {
+		while ((desc->buf_pos + c) >= desc->buf_size) {
 			//copy over
 			memcpy(desc->buf + desc->buf_pos, inbuf,
 					desc->buf_size - desc->buf_pos);
@@ -938,7 +941,7 @@ static bool write_buffered_callback_sha(pb_ostream_t *stream, const uint8_t * in
 			desc->bytes_written += desc->buf_size;
 
 			desc->buf_pos = 0;
-			count -= desc->buf_size;
+			c -= desc->buf_size;
 		}
 		//copy to our buffer
 		memcpy(desc->buf, inbuf, leftovers);
@@ -1026,6 +1029,7 @@ void LOGIFaults() {
 int stop_connection() {
     close(sock);
     sock = -1;
+    ipaddr = 0;
     return sock;
 }
 int start_connection() {
@@ -1106,12 +1110,8 @@ int start_connection() {
     //connect it up
     //LOGI("Connecting \n\r\n\r");
     if (sock > 0 && sock_begin < 0 && (rv = connect(sock, &sAddr, sizeof(sAddr)))) {
-        ipaddr = 0;
-        LOGI("connect returned %d\n\r\n\r", rv);
-        if (rv != SL_ESECSNOVERIFY) {
-            LOGI("Could not connect %d\n\r\n\r", rv);
-            return stop_connection();    // could not send SNTP request
-        }
+		LOGI("Could not connect %d\n\r\n\r", rv);
+		return stop_connection();
     }
     return 0;
 }
@@ -1312,7 +1312,7 @@ int match(char *regexp, char *text)
     } while (*text++ != '\n');
     return 0;
 }
-
+const char * get_top_version(void);
 //buffer needs to be at least 128 bytes...
 int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
 		uint32_t * recv_buf_size_ptr, const pb_field_t fields[],
@@ -1341,8 +1341,10 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
             "Host: %s\r\n"
             "Content-type: application/x-protobuf\r\n"
             "X-Hello-Sense-Id: %s\r\n"
-            "Transfer-Encoding: chunked\r\n", 
-            path, host, hex_device_id);
+    		"X-Hello-Sense-MFW: %x\r\n"
+    		"X-Hello-Sense-TFW: %s\r\n"
+            "Transfer-Encoding: chunked\r\n",
+            path, host, hex_device_id, KIT_VER, get_top_version());
 
     send_length = strlen(recv_buf);
 

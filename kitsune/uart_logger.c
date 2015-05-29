@@ -41,6 +41,12 @@
 //flag to indicate the thread ip up and running
 #define LOG_EVENT_READY         0x100
 
+
+typedef struct {
+	char * ptr;
+	int pos;
+} event_ctx_t;
+
 static struct{
 	uint8_t blocks[3][UART_LOGGER_BLOCK_SIZE];
 	//ptr to block that is currently used for logging
@@ -57,6 +63,7 @@ static struct{
 	xSemaphoreHandle block_sem; //guards logging_block and store_block pointers
 	xSemaphoreHandle print_sem; //guards writing to the logging block and widx
 	DIR logdir;
+	xQueueHandle analytics_event_queue;
 }self = {0};
 
 void set_loglevel(uint8_t loglevel) {
@@ -328,7 +335,6 @@ void uart_logger_init(void){
 	self.store_tag = LOG_INFO | LOG_WARNING | LOG_ERROR | LOG_FACTORY | LOG_TOP;
 	vSemaphoreCreateBinary(self.block_sem);
 	vSemaphoreCreateBinary(self.print_sem);
-
 	xEventGroupSetBits(self.uart_log_events, LOG_EVENT_READY);
 }
 
@@ -351,13 +357,30 @@ void _logstr_wrapper(const char * str, int len, void * data ) {
     if( !booted ) {
     	store = false;
     }
+
+#if UART_LOGGER_PREPEND_TAG > 0
+    while(tag){
+    	if(tag & LOG_INFO){
+    		_logstr("[I]", strlen("[I]"), echo, store);
+    		tag &= ~LOG_INFO;
+    	}else if(tag & LOG_WARNING){
+    		_logstr("[W]", strlen("[W]"), echo, store);
+    		tag &= ~LOG_WARNING;
+    	}else if(tag & LOG_ERROR){
+    		_logstr("[E]", strlen("[E]"), echo, store);
+    		tag &= ~LOG_ERROR;
+    	}else if(tag & LOG_VIEW_ONLY){
+    		tag &= ~LOG_VIEW_ONLY;
+    	}else if(tag & LOG_TOP){
+    		_logstr("[T]", strlen("[T]"), echo, store);
+    		tag &= ~LOG_TOP;
+    	}else{
+    		tag = 0;
+    	}
+    }
+#endif
     _logstr(str, len, echo, store);
 }
-
-typedef struct {
-	char * ptr;
-	int pos;
-} event_ctx_t;
 
 void _encode_wrapper(const char * str, int len, void * data ) {
 	event_ctx_t * ctx = (event_ctx_t*)data;
@@ -519,42 +542,17 @@ convert:
 
 }
 
-typedef struct {
-	void * buffer;
-	void * structdata;
-}async_context_t;
-
-static void _free_pb(const NetworkResponse_t * response, char * reply_buf, int reply_sz, void * context){
-	async_context_t * ctx = (async_context_t*)context;
-
+static void _finished_analytics_upload(const NetworkResponse_t * response, char * reply_buf, int reply_sz, void * context){
 	if( !http_response_ok((const char*)reply_buf) ) {
 		LOGE("failed up upload analytics\n");
-		if (ctx->buffer) {
-			LOGE("%s\n", ctx->buffer );
-		}
 	}
-
-	if (ctx) {
-		if (ctx->buffer) {
-			vPortFree(ctx->buffer);
-		}
-		if (ctx->structdata) {
-			vPortFree(ctx->structdata);
-		}
-		vPortFree(ctx);
-	}
-
 }
+
 int analytics_event( const char *pcString, ...) {
 	//todo make this fail more gracefully if the allocations don't succeed...
 	va_list vaArgP;
-	event_ctx_t ctx;
+	event_ctx_t ctx = {0};
 
-	sense_log * log = pvPortMalloc(sizeof(sense_log));
-	assert(log);
-    memset( log, 0, sizeof(sense_log));
-
-	ctx.pos = 0;
 	ctx.ptr = pvPortMalloc(128);
 	assert(ctx.ptr);
 	memset(ctx.ptr, 0, 128);
@@ -563,23 +561,11 @@ int analytics_event( const char *pcString, ...) {
     _va_printf( vaArgP, pcString, _encode_wrapper, &ctx );
     va_end(vaArgP);
 
-	log->text.funcs.encode = _encode_string_fields;
-	log->text.arg = ctx.ptr;
-	log->device_id.funcs.encode = encode_device_id_string;
+    if(self.analytics_event_queue){
+    	xQueueSend(self.analytics_event_queue, &ctx, 100);
+    }
 
-	log->has_unix_time = true;
-	log->unix_time = get_time();
-	log->has_property = true;
-	log->property = LogType_KEY_VALUE;
-
-	async_context_t * async_ctx  = pvPortMalloc(sizeof(async_context_t));
-	assert(async_ctx);
-	memset(async_ctx, 0, sizeof(async_context_t));
-	async_ctx->buffer = ctx.ptr;
-	async_ctx->structdata = log;
-
-    return NetworkTask_SendProtobuf(false, DATA_SERVER, SENSE_LOG_ENDPOINT,
-    		sense_log_fields, log, 0, _free_pb, async_ctx);
+    return 0;
 }
 
 void uart_logc(uint8_t c){
@@ -607,6 +593,52 @@ static bool send_log() {
     		sense_log_fields,&self.log, 0, NULL, NULL);
 }
 
+void analytics_event_task(void * params){
+	int block_len = 0;
+	char * block = pvPortMalloc(ANALYTICS_MAX_CHUNK_SIZE);
+	assert(block);
+	memset(block, 0, ANALYTICS_MAX_CHUNK_SIZE);
+	event_ctx_t evt = {0};
+	int32_t time = 0;
+	sense_log log = (sense_log){//defaults
+		.text.funcs.encode = _encode_string_fields,
+		.text.arg = block,
+		.device_id.funcs.encode = encode_device_id_string,
+		.has_unix_time = true,
+		.has_property = true,
+		.property = LogType_KEY_VALUE,
+	};
+	self.analytics_event_queue = xQueueCreate(10, sizeof(event_ctx_t));
+	assert(self.analytics_event_queue);
+
+	while(1){
+		if(pdTRUE == xQueueReceive(self.analytics_event_queue, &evt, ANALYTICS_WAIT_TIME)){
+			int fit_size = evt.pos + block_len;
+			DISP("Fit to %d Bytes\r\n", fit_size);
+
+			if(fit_size >= ANALYTICS_MAX_CHUNK_SIZE){
+				xQueueSendToFront(self.analytics_event_queue, &evt, 100);
+				goto upload;
+			}
+
+			if(block_len == 0){			//time is set on the first event
+				time = get_time();
+			}
+
+			strcat(block, evt.ptr);
+			block_len +=  evt.pos;
+			vPortFree(evt.ptr);
+		}else if(block_len != 0){
+			log.unix_time = time;
+upload:
+			DISP("Analytics: %s\r\n", block);
+			NetworkTask_SendProtobuf(true, DATA_SERVER, SENSE_LOG_ENDPOINT,
+					sense_log_fields, &log, 0, _finished_analytics_upload, NULL);
+			block_len = 0;
+			memset(block, 0, ANALYTICS_MAX_CHUNK_SIZE);
+		}
+	}
+}
 void uart_logger_task(void * params){
 	uint8_t log_local_enable;
 	uart_logger_init();
@@ -698,27 +730,17 @@ int Cmd_log_setview(int argc, char * argv[]){
 
 void uart_logf(uint8_t tag, const char *pcString, ...){
 	va_list vaArgP;
-
-#if UART_LOGGER_PREPEND_TAG > 0
-    while(tag){
-    	if(tag & LOG_INFO){
-    		_logstr("[INFO]", strlen("[INFO]"), echo, store);
-    		tag &= ~LOG_INFO;
-    	}else if(tag & LOG_WARNING){
-    		_logstr("[WARNING]", strlen("[WARNING]"), echo, store);
-    		tag &= ~LOG_WARNING;
-    	}else if(tag & LOG_ERROR){
-    		_logstr("[ERROR]", strlen("[ERROR]"), echo, store);
-    		tag &= ~LOG_ERROR;
-    	}else if(tag & LOG_VIEW_ONLY){
-    		tag &= ~LOG_VIEW_ONLY;
-    	}else{
-    		tag = 0;
-    	}
-    }
-#endif
-
     va_start(vaArgP, pcString);
     _va_printf( vaArgP, pcString, _logstr_wrapper, &tag );
     va_end(vaArgP);
+}
+int Cmd_analytics(int argc, char * argv[]){
+	if(argc > 2){
+		analytics_event("{%s : %s}", argv[1], argv[2]);
+	}else{
+		DISP("Usage: ana $key $value\r\n");
+		return -1;
+	}
+
+	return 0;
 }

@@ -1818,6 +1818,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "scan",Cmd_scan_wifi,""},
 		{"future",Cmd_FutureTest,""},
 		{"dev", Cmd_setDev, ""},
+		{"ana", Cmd_analytics, ""},
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
 		{ "iperfcli",Cmd_iperf_client,""},
@@ -1967,6 +1968,8 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(thread_spi, "spiTask", 1024 / 4, NULL, 4, NULL);
 #ifndef BUILD_SERVERS
 	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 1, NULL);
+	UARTprintf("*");
+	xTaskCreate(analytics_event_task, "analyticsTask", 1024/4, NULL, 4, NULL);
 	UARTprintf("*");
 #endif
 

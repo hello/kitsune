@@ -507,7 +507,10 @@ extern uint8_t aes_key[AES_BLOCKSIZE + 1];
 int save_device_id( uint8_t * device_id );
 int save_aes( uint8_t * key ) ;
 uint8_t get_alpha_from_light();
-
+char top_version[16] = {0};
+const char * get_top_version(void){
+	return top_version;
+}
 bool on_ble_protobuf_command(MorpheusCommand* command)
 {
 	switch(command->type)
@@ -538,6 +541,13 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 				}
 
 				top_got_device_id = true;
+
+				if(command->has_top_version){
+					strncpy(top_version,command->top_version, sizeof(top_version));
+					LOGI("\r\nTop Board Version is %s\r\n", top_version);
+				}else{
+					strcpy(top_version, "unknown");
+				}
 				vTaskDelay(200);
 			}else{
 				LOGI("device id fail from top\n");
