@@ -1231,7 +1231,6 @@ void sample_sensor_data(periodic_data* data)
 		}else{
 			data->has_humidity = true;
 			data->humidity = humid_sum / humid_count;
-
 		}
 
 
@@ -1241,6 +1240,10 @@ void sample_sensor_data(periodic_data* data)
 		}else{
 			data->has_temperature = true;
 			data->temperature = temp_sum / temp_count;
+
+			if( data->has_humidity ) {
+				data->humidity += (2500 - data->temperature)*15;
+			}
 		}
 		
 		xSemaphoreGive(i2c_smphr);
