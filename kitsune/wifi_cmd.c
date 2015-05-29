@@ -1102,7 +1102,7 @@ int start_connection() {
     //LOGI("Connecting \n\r\n\r");
     if (sock > 0 && sock_begin < 0 && (rv = connect(sock, &sAddr, sizeof(sAddr)))) {
 		LOGI("Could not connect %d\n\r\n\r", rv);
-		return stop_connection();    // could not send SNTP request
+		return stop_connection();
     }
     return 0;
 }
