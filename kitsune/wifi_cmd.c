@@ -1025,6 +1025,7 @@ void LOGIFaults() {
 int stop_connection() {
     close(sock);
     sock = -1;
+    ipaddr = 0;
     return sock;
 }
 int start_connection() {
