@@ -181,14 +181,20 @@ uint32_t fetch_unix_time_from_ntp() {
                 SL_IPV4_BYTE(ipaddr, 1), SL_IPV4_BYTE(ipaddr, 0));
     } else {
     	static portTickType last_reset_time = 0;
+    	static portTickType last_fail_time = 0;
     	LOGI("failed to resolve ntp addr rv %d\n", rv);
         ipaddr = 0;
         #define SIX_MINUTES 360000
-        if( xTaskGetTickCount() - last_reset_time > SIX_MINUTES ) {
+        //need to reset if we're constantly failing, but this will only be called once per
+        //several hours so we need to check that we've failed recently before we send the reset...
+        if( xTaskGetTickCount() - last_fail_time < SIX_MINUTES &&
+        	xTaskGetTickCount() - last_reset_time > SIX_MINUTES ) {
             last_reset_time = xTaskGetTickCount();
             nwp_reset();
             vTaskDelay(10000);
         }
+
+        last_fail_time = xTaskGetTickCount();
         close(sock);
         return INVALID_SYS_TIME;
     }
