@@ -180,7 +180,15 @@ uint32_t fetch_unix_time_from_ntp() {
                 NTP_SERVER, SL_IPV4_BYTE(ipaddr, 3), SL_IPV4_BYTE(ipaddr, 2),
                 SL_IPV4_BYTE(ipaddr, 1), SL_IPV4_BYTE(ipaddr, 0));
     } else {
+    	static portTickType last_reset_time = 0;
     	LOGI("failed to resolve ntp addr rv %d\n", rv);
+        ipaddr = 0;
+        #define SIX_MINUTES 360000
+        if( xTaskGetTickCount() - last_reset_time > SIX_MINUTES ) {
+            last_reset_time = xTaskGetTickCount();
+            nwp_reset();
+            vTaskDelay(10000);
+        }
         close(sock);
         return INVALID_SYS_TIME;
     }
@@ -223,7 +231,7 @@ uint32_t fetch_unix_time_from_ntp() {
 
     LOGI("receiving reply\n\r\n\r");
 
-    rv = sl_recvfromNoneThreadSafe(sock, buffer, sizeof(buffer), 0, (SlSockAddr_t *) &sLocalAddr,  (SlSocklen_t*) &iAddrSize);
+    rv = recvfrom(sock, buffer, sizeof(buffer), 0, (SlSockAddr_t *) &sLocalAddr,  (SlSocklen_t*) &iAddrSize);
     if (rv <= 0) {
         LOGI("Did not receive\n\r");
         close(sock);
