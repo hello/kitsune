@@ -1242,7 +1242,7 @@ void sample_sensor_data(periodic_data* data)
 			data->temperature = temp_sum / temp_count;
 
 			if( data->has_humidity ) {
-				data->humidity += (2500 - data->temperature)*15;
+				data->humidity += (2500 - data->temperature)*-15;
 			}
 		}
 		
