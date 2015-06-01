@@ -130,7 +130,7 @@ void faultPrinter( faultInfo* f ) {
     //
     // Print the context of the exception stack frame.
     //
-    LOGE("\nException Frame\n---------------\n");
+    LOGE("\nver %x\nException Frame\n", KIT_VER);
     LOGE("R0   = 0x%08X\n", f->exceptionFrame[0]);
     LOGE("R1   = 0x%08X\n", f->exceptionFrame[1]);
     LOGE("R2   = 0x%08X\n", f->exceptionFrame[2]);
