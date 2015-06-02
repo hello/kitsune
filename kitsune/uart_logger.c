@@ -33,6 +33,8 @@
  * This way we can guarantee continuity if wifi is intermittent
  */
 
+//flag to store block
+#define LOG_EVENT_STORE			0x1
 //flag to upload to server and delete oldest file
 #define LOG_EVENT_UPLOAD	    0x2
 //flag to upload the swap block only
@@ -82,6 +84,7 @@ _encode_text_block(pb_ostream_t *stream, const pb_field_t *field, void * const *
 
 static void
 _swap_and_upload(void){
+	xEventGroupSetBits(self.uart_log_events, LOG_EVENT_STORE); //<- this needs to come before filling the queue
     xQueueSend(self.block_queue, (void* )&self.logging_block, 0);
 	//swap
 	self.logging_block = NULL;
@@ -155,7 +158,7 @@ static int _walk_log_dir(file_handler * handler, void * ctx){
 }
 static void
 _find_oldest_log(FILINFO * info, void * ctx){
-	DISP("log name: %s\r\n",info->fname);
+	//DISP("log name: %s\r\n",info->fname);
 	if(ctx){
 		int * counter = (int*)ctx;
 		int fcounter = atoi(info->fname);
@@ -168,7 +171,7 @@ _find_oldest_log(FILINFO * info, void * ctx){
 }
 static void
 _find_newest_log(FILINFO * info, void * ctx){
-	DISP("log name: %s\r\n",info->fname);
+	//DISP("log name: %s\r\n",info->fname);
 	if (ctx) {
 		int * counter = (int*) ctx;
 		int fcounter = atoi(info->fname);
@@ -656,7 +659,7 @@ void uart_logger_task(void * params){
 			return;
 		}
 
-		if( xQueueReceive(self.block_queue, &self.store_block, 0 ) ) {
+		while( xQueueReceive(self.block_queue, &self.store_block, 0 ) ) {
 			if(log_local_enable && FR_OK == _save_newest((char*) self.store_block, UART_LOGGER_BLOCK_SIZE)){
 				xEventGroupSetBits(self.uart_log_events, LOG_EVENT_UPLOAD);
 			}else{
@@ -666,6 +669,11 @@ void uart_logger_task(void * params){
 			}
 			vPortFree(self.store_block);
 			self.store_block = NULL;
+		}
+		if( uxQueueMessagesWaiting(self.block_queue) == 0) {
+			//this could race the filling of the queue so we need to be sure
+			//the event bits get set before inserting into the queue
+			xEventGroupClearBits(self.uart_log_events,LOG_EVENT_STORE);
 		}
 		if( evnt & LOG_EVENT_UPLOAD) {
 			xEventGroupClearBits(self.uart_log_events,LOG_EVENT_UPLOAD);
