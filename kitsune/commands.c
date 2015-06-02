@@ -1861,6 +1861,8 @@ void vUARTTask(void *pvParameters) {
     MAP_GPIODirModeSet(GPIOA0_BASE, 0x2, GPIO_DIR_MODE_OUT);
     MAP_GPIOPinWrite(GPIOA0_BASE, 0x2, 0);
 
+	//drive sop2 high so we connect UART...
+    MAP_GPIOPinWrite(GPIOA3_BASE, 0x2, 0x2);
     vTaskDelay(10);
     if( MAP_GPIOPinRead(GPIOA0_BASE, 0x4) == 0 ) {
     	//drive sop2 low so we disconnect
