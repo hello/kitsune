@@ -680,6 +680,7 @@ void uart_logger_task(void * params){
 			xSemaphoreGive(self.block_sem);
 		}
 		if( evnt & LOG_EVENT_UPLOAD) {
+			xSemaphoreTake(self.block_sem, portMAX_DELAY);
 			xEventGroupClearBits(self.uart_log_events,LOG_EVENT_UPLOAD);
 			if(wifi_status_get(HAS_IP)){
 				WORD read;
@@ -707,12 +708,15 @@ void uart_logger_task(void * params){
 					//LOGE("Log upload failed, network code = %d\r\n", ret);
 				}
 			}
+			xSemaphoreGive(self.block_sem);
 		}
 		if(evnt & LOG_EVENT_UPLOAD_ONLY) {
+			xSemaphoreTake(self.block_sem, portMAX_DELAY);
 			xEventGroupClearBits(self.uart_log_events,LOG_EVENT_UPLOAD_ONLY);
 			if(wifi_status_get(HAS_IP)){
 				send_log();
 			}
+			xSemaphoreGive(self.block_sem);
 		}
 		vTaskDelay(5000);
 	}
