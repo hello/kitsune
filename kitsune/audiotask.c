@@ -204,6 +204,9 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 	LOGI("%d bytes free\n", xPortGetFreeHeapSize());
 
+	//make sure the volume is down before we start...
+	set_volume(1);
+
 	//open file for playback
 	LOGI("Opening %s for playback\r\n",info->file);
 	res = hello_fs_open(&fp, info->file, FA_READ);
