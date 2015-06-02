@@ -95,6 +95,12 @@ task.h is included from an application file. */
 
 /* Allocate the memory for the heap. */
 static uint8_t ucHeap[ configTOTAL_HEAP_SIZE ];
+__attribute__((section(".bss"))) static uint8_t ucHeap_BSS[ 7*1024 ];
+typedef struct HeapRegion
+{
+	uint8_t *pucStartAddress; // << Start address of a block of memory that will be part of the heap.
+	size_t xSizeInBytes;	 // << Size of the block of memory.
+} HeapRegion_t;
 
 /* Define the linked list structure.  This is used to link free blocks in order
 of their memory address. */
@@ -492,39 +498,111 @@ void vPortInitialiseBlocks( void )
 }
 /*-----------------------------------------------------------*/
 
-static void prvHeapInit( void )
+void vPortDefineHeapRegions( const HeapRegion_t * const pxHeapRegions )
 {
-BlockLink_t *pxFirstFreeBlock;
-uint8_t *pucHeapEnd, *pucAlignedHeap;
+BlockLink_t *pxFirstFreeBlockInRegion = NULL, *pxPreviousFreeBlock;
+uint8_t *pucAlignedHeap;
+size_t xTotalRegionSize, xTotalHeapSize = 0;
+BaseType_t xDefinedRegions = 0;
+uint32_t ulAddress;
+const HeapRegion_t *pxHeapRegion;
 
-	/* Ensure the heap starts on a correctly aligned boundary. */
-	pucAlignedHeap = ( uint8_t * ) ( ( ( portPOINTER_SIZE_TYPE ) &ucHeap[ portBYTE_ALIGNMENT ] ) & ( ( portPOINTER_SIZE_TYPE ) ~portBYTE_ALIGNMENT_MASK ) );
+	/* Can only call once! */
+	configASSERT( pxEnd == NULL );
 
-	/* xStart is used to hold a pointer to the first item in the list of free
-	blocks.  The void cast is used to prevent compiler warnings. */
-	xStart.pxNextFreeBlock = ( void * ) pucAlignedHeap;
-	xStart.xBlockSize = ( size_t ) 0;
+	pxHeapRegion = &( pxHeapRegions[ xDefinedRegions ] );
 
-	/* pxEnd is used to mark the end of the list of free blocks and is inserted
-	at the end of the heap space. */
-	pucHeapEnd = pucAlignedHeap + xTotalHeapSize;
-	pucHeapEnd -= heapSTRUCT_SIZE;
-	pxEnd = ( void * ) pucHeapEnd;
-	configASSERT( ( ( ( uint32_t ) pxEnd ) & ( ( uint32_t ) portBYTE_ALIGNMENT_MASK ) ) == 0UL );
-	pxEnd->xBlockSize = 0;
-	pxEnd->pxNextFreeBlock = NULL;
+	while( pxHeapRegion->xSizeInBytes > 0 )
+	{
+		xTotalRegionSize = pxHeapRegion->xSizeInBytes;
 
-	/* To start with there is a single free block that is sized to take up the
-	entire heap space, minus the space taken by pxEnd. */
-	pxFirstFreeBlock = ( void * ) pucAlignedHeap;
-	pxFirstFreeBlock->xBlockSize = xTotalHeapSize - heapSTRUCT_SIZE;
-	pxFirstFreeBlock->pxNextFreeBlock = pxEnd;
+		/* Ensure the heap region starts on a correctly aligned boundary. */
+		ulAddress = ( uint32_t ) pxHeapRegion->pucStartAddress;
+		if( ( ulAddress & portBYTE_ALIGNMENT_MASK ) != 0 )
+		{
+			ulAddress += ( portBYTE_ALIGNMENT - 1 );
+			ulAddress &= ~portBYTE_ALIGNMENT_MASK;
 
-	/* The heap now contains pxEnd. */
-	xFreeBytesRemaining -= heapSTRUCT_SIZE;
+			/* Adjust the size for the bytes lost to alignment. */
+			xTotalRegionSize -= ulAddress - ( uint32_t ) pxHeapRegion->pucStartAddress;
+		}
+
+		pucAlignedHeap = ( uint8_t * ) ulAddress;
+
+		/* Set xStart if it has not already been set. */
+		if( xDefinedRegions == 0 )
+		{
+			/* xStart is used to hold a pointer to the first item in the list of
+			free blocks.  The void cast is used to prevent compiler warnings. */
+			xStart.pxNextFreeBlock = ( BlockLink_t * ) pucAlignedHeap;
+			xStart.xBlockSize = ( size_t ) 0;
+		}
+		else
+		{
+			/* Should only get here if one region has already been added to the
+			heap. */
+			configASSERT( pxEnd != NULL );
+
+			/* Check blocks are passed in with increasing start addresses. */
+			configASSERT( ulAddress > ( uint32_t ) pxEnd );
+		}
+
+		/* Remember the location of the end marker in the previous region, if
+		any. */
+		pxPreviousFreeBlock = pxEnd;
+
+		/* pxEnd is used to mark the end of the list of free blocks and is
+		inserted at the end of the region space. */
+		ulAddress = ( ( uint32_t ) pucAlignedHeap ) + xTotalRegionSize;
+		ulAddress -= heapSTRUCT_SIZE;
+		ulAddress &= ~portBYTE_ALIGNMENT_MASK;
+		pxEnd = ( BlockLink_t * ) ulAddress;
+		pxEnd->xBlockSize = 0;
+		pxEnd->pxNextFreeBlock = NULL;
+
+		/* To start with there is a single free block in this region that is
+		sized to take up the entire heap region minus the space taken by the
+		free block structure. */
+		pxFirstFreeBlockInRegion = ( BlockLink_t * ) pucAlignedHeap;
+		pxFirstFreeBlockInRegion->xBlockSize = ulAddress - ( uint32_t ) pxFirstFreeBlockInRegion;
+		pxFirstFreeBlockInRegion->pxNextFreeBlock = pxEnd;
+
+		/* If this is not the first region that makes up the entire heap space
+		then link the previous region to this region. */
+		if( pxPreviousFreeBlock != NULL )
+		{
+			pxPreviousFreeBlock->pxNextFreeBlock = pxFirstFreeBlockInRegion;
+		}
+
+		xTotalHeapSize += pxFirstFreeBlockInRegion->xBlockSize;
+
+		/* Move onto the next HeapRegion_t structure. */
+		xDefinedRegions++;
+		pxHeapRegion = &( pxHeapRegions[ xDefinedRegions ] );
+	}
+
+	xMinimumEverFreeBytesRemaining = xTotalHeapSize;
+	xFreeBytesRemaining = xTotalHeapSize;
+
+	/* Check something was actually defined before it is accessed. */
+	configASSERT( xTotalHeapSize );
 
 	/* Work out the position of the top bit in a size_t variable. */
 	xBlockAllocatedBit = ( ( size_t ) 1 ) << ( ( sizeof( size_t ) * heapBITS_PER_BYTE ) - 1 );
+}
+
+static void prvHeapInit( void )
+{
+	HeapRegion_t xHeapRegions[3];
+
+	xHeapRegions[0].pucStartAddress = ucHeap_BSS;
+	xHeapRegions[0].xSizeInBytes =  sizeof(ucHeap_BSS);
+	xHeapRegions[1].pucStartAddress = ucHeap;
+	xHeapRegions[1].xSizeInBytes =  sizeof(ucHeap);
+	xHeapRegions[2].pucStartAddress = NULL;
+	xHeapRegions[2].xSizeInBytes =  0;
+
+	vPortDefineHeapRegions( xHeapRegions );
 }
 /*-----------------------------------------------------------*/
 
