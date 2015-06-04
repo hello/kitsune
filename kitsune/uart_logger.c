@@ -585,8 +585,9 @@ static bool send_log() {
 		self.log.unix_time = get_time();
 	}
 #endif
+	//no timeout on this one...
     return NetworkTask_SendProtobuf(true, DATA_SERVER, SENSE_LOG_ENDPOINT,
-    		sense_log_fields,&self.log, INT_MAX, NULL, NULL);
+    		sense_log_fields,&self.log, 0, NULL, NULL);
 }
 
 void analytics_event_task(void * params){
