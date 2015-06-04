@@ -85,7 +85,9 @@ _encode_text_block(pb_ostream_t *stream, const pb_field_t *field, void * const *
 static void
 _swap_and_upload(void){
 	xEventGroupSetBits(self.uart_log_events, LOG_EVENT_STORE); //<- this needs to come before filling the queue
-    xQueueSend(self.block_queue, (void* )&self.logging_block, 0);
+    if( !xQueueSend(self.block_queue, (void* )&self.logging_block, 0) ) {
+    	vPortFree(self.logging_block);
+    }
 	//swap
 	self.logging_block = NULL;
 	//reset
