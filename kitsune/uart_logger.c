@@ -24,6 +24,8 @@
 #include "kit_assert.h"
 #include "sys_time.h"
 
+#include "limits.h"
+
 #define SENSE_LOG_ENDPOINT		"/logs"
 #define SENSE_LOG_FOLDER		"logs"
 #define SENSE_LOG_RW_SIZE		128
@@ -584,7 +586,7 @@ static bool send_log() {
 	}
 #endif
     return NetworkTask_SendProtobuf(true, DATA_SERVER, SENSE_LOG_ENDPOINT,
-    		sense_log_fields,&self.log, 0, NULL, NULL);
+    		sense_log_fields,&self.log, INT_MAX, NULL, NULL);
 }
 
 void analytics_event_task(void * params){
@@ -627,7 +629,7 @@ void analytics_event_task(void * params){
 upload:
 			DISP("Analytics: %s\r\n", block);
 			NetworkTask_SendProtobuf(true, DATA_SERVER, SENSE_LOG_ENDPOINT,
-					sense_log_fields, &log, 0, _finished_analytics_upload, NULL);
+					sense_log_fields, &log, INT_MAX, _finished_analytics_upload, NULL);
 			block_len = 0;
 			memset(block, 0, ANALYTICS_MAX_CHUNK_SIZE);
 		}
@@ -701,6 +703,7 @@ void uart_logger_task(void * params){
 						LOGE("Rm log error %d\r\n", res);
 					}
 				}else{
+					//should never get here
 					LOGE("Log upload failed\r\n");
 				}
 			}

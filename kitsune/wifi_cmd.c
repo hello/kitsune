@@ -52,6 +52,8 @@ int sl_mode = ROLE_INVALID;
 
 #include "fs_utils.h"
 
+#include "limits.h"
+
 void mcu_reset()
 {
 	vTaskDelay(1000);
@@ -776,8 +778,7 @@ void load_device_id() {
 	*/
 }
 
-
-bool validate_signatures( char * buffer, const pb_field_t fields[], void * structdata) {
+static bool validate_signatures( char * buffer, const pb_field_t fields[], void * structdata) {
 
     // Parse the response
     //LOGI("Reply is:\n\r%s\n\r", buffer);
@@ -806,7 +807,7 @@ static void _morpheus_command_reply(const NetworkResponse_t * response,
 	MorpheusCommand reply;
 	memset(&reply, 0, sizeof(reply));
 	ble_proto_assign_decode_funcs(&reply);
-    if( response->success && validate_signatures((char*)reply_buf, MorpheusCommand_fields, &reply) == 0) {
+    if( response->success ) {
     	LOGF("signature validated\r\n");
     } else {
         LOGF("signature validation fail\r\n");
@@ -827,7 +828,7 @@ int Cmd_test_key(int argc, char*argv[]) {
 	test_command->version = PROTOBUF_VERSION;
 
 	ret = NetworkTask_SendProtobuf(false, DATA_SERVER, CHECK_KEY_ENDPOINT,
-			MorpheusCommand_fields, test_command, 0, _morpheus_command_reply,
+			MorpheusCommand_fields, test_command, INT_MAX, _morpheus_command_reply,
 			test_command);
     if(ret != 0)
     {
@@ -911,8 +912,6 @@ static bool flush_out_buffer(ostream_buffered_desc_t * desc ) {
 	}
 	return ret;
 }
-#include "limits.h"
-
 static bool write_buffered_callback_sha(pb_ostream_t *stream, const uint8_t * inbuf, size_t count) {
 	ostream_buffered_desc_t * desc = (ostream_buffered_desc_t *) stream->state;
 	bool ret = true;
@@ -1315,8 +1314,7 @@ int match(char *regexp, char *text)
 const char * get_top_version(void);
 //buffer needs to be at least 128 bytes...
 int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
-		uint32_t * recv_buf_size_ptr, const pb_field_t fields[],
-		const void * structdata) {
+		uint32_t * recv_buf_size_ptr, const pb_field_t fields[], void * structdata) {
     int send_length = 0;
     int rv = 0;
     uint8_t sig[32]={0};
@@ -1492,6 +1490,10 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     	rv = recv(sock, recv_buf+recv_buf_size-SERVER_REPLY_BUFSZ, SERVER_REPLY_BUFSZ, 0);
     	if( rv == SERVER_REPLY_BUFSZ ) {
              recv_buf_size += SERVER_REPLY_BUFSZ;
+             if( recv_buf_size > 10*1024 ) {
+                 LOGI("error response too bug\n");
+                 return stop_connection();
+             }
     		 recv_buf = pvPortRealloc( recv_buf, recv_buf_size );
     		 assert(recv_buf);
     		 memset( recv_buf+recv_buf_size-SERVER_REPLY_BUFSZ, 0, SERVER_REPLY_BUFSZ);
@@ -1507,12 +1509,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     }
     LOGI("recv %d\n", rv);
 
-    //todo check for http response code 2xx
-
-    //LOGIFaults();
-    //close( sock ); //never close our precious socket
-
-    return 0;
+    return validate_signatures((char*)*recv_buf, fields, structdata );
 }
 
 
@@ -1637,7 +1634,7 @@ static void _key_check_reply(const NetworkResponse_t * response,
 	MorpheusCommand reply;
 	memset(&reply, 0, sizeof(reply));
 	ble_proto_assign_decode_funcs(&reply);
-	if (validate_signatures((char*) reply_buf, MorpheusCommand_fields, &reply) == 0) {
+	if ( response->success ) {
 		LOGF("signature validated\r\n");
 		if (provisioning_mode) {
 			sl_FsDel((unsigned char*)PROVISION_FILE, 0);
@@ -1681,7 +1678,7 @@ void on_key(uint8_t * key) {
 	test_command->version = PROTOBUF_VERSION;
 
 	NetworkTask_SendProtobuf(false, DATA_SERVER, CHECK_KEY_ENDPOINT,
-			MorpheusCommand_fields, test_command, 86400000, _key_check_reply,
+			MorpheusCommand_fields, test_command, INT_MAX, _key_check_reply,
 			test_command);
 }
 
@@ -1767,7 +1764,7 @@ void sync_response_reply(const NetworkResponse_t * response,
     memset(&response_protobuf, 0, sizeof(response_protobuf));
     response_protobuf.files.funcs.decode = _on_file_download;
 
-    if( response->success && validate_signatures((char*)reply_buf, SyncResponse_fields, &response_protobuf) == 0) {
+    if( response->success ) {
     	LOGF("signatures validated\r\n");
 		boot_commit_ota();
 		_on_response_protobuf(&response_protobuf);
@@ -1781,12 +1778,12 @@ void sync_response_reply(const NetworkResponse_t * response,
 //retry logic is handled elsewhere
 bool send_pill_data(batched_pill_data * pill_data) {
 	return NetworkTask_SendProtobuf(true, DATA_SERVER,
-			PILL_DATA_RECEIVE_ENDPOINT, batched_pill_data_fields, pill_data, 0,
+			PILL_DATA_RECEIVE_ENDPOINT, batched_pill_data_fields, pill_data, INT_MAX,
 			sync_response_reply, NULL);
 }
 bool send_periodic_data(batched_periodic_data* data) {
 	return NetworkTask_SendProtobuf(true, DATA_SERVER,
-			DATA_RECEIVE_ENDPOINT, batched_periodic_data_fields, data, 0,
+			DATA_RECEIVE_ENDPOINT, batched_periodic_data_fields, data, INT_MAX,
 			sync_response_reply, NULL);
 }
 
@@ -1795,7 +1792,7 @@ void provision_request_reply(const NetworkResponse_t * response,
 	ProvisionResponse response_protobuf;
     memset(&response_protobuf, 0, sizeof(response_protobuf));
 
-    if( response->success && validate_signatures((char*)reply_buf, ProvisionResponse_fields, &response_protobuf) == 0) {
+    if( response->success ) {
 		LOGI("Decoding PR %d %d\n",
 				response_protobuf.has_key,
 				response_protobuf.has_retry );
@@ -1819,7 +1816,7 @@ void provision_request_reply(const NetworkResponse_t * response,
 
 bool send_provision_request(ProvisionRequest* req) {
 	return NetworkTask_SendProtobuf(true, DATA_SERVER, PROVISION_ENDPOINT,
-			ProvisionRequest_fields, req, 86400000, provision_request_reply,
+			ProvisionRequest_fields, req, INT_MAX, provision_request_reply,
 			NULL);
 }
 

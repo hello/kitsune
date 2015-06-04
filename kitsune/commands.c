@@ -1036,16 +1036,7 @@ void thread_tx(void* unused) {
 			data_batched.scan.funcs.encode = encode_scanned_ssid;
 			data_batched.scan.arg = prescan_wifi(10);
 
-			while (!send_periodic_data(&data_batched)) {
-				LOGI("Waiting for network connection\n");
-				vTaskDelay((1 << tries) * 1000);
-				if (tries++ > 5) {
-					tries = 5;
-				}
-				while( !wifi_status_get(HAS_IP) ) {
-					vTaskDelay(1000);
-				}
-			}
+			send_periodic_data(&data_batched);
 			last_upload_time = xTaskGetTickCount();
 			hlo_future_destroy( data_batched.scan.arg );
 			vPortFree( periodicdata.data );
@@ -1073,16 +1064,7 @@ void thread_tx(void* unused) {
 			pill_data_batched.pills.arg = &pilldata;
 			pill_data_batched.device_id.funcs.encode = encode_device_id_string;
 
-			while (!send_pill_data(&pill_data_batched)) {
-				LOGI("  Waiting for WIFI connection  \n");
-				vTaskDelay((1 << tries) * 1000);
-				if (tries++ > 5) {
-					tries = 5;
-				}
-				while( !wifi_status_get(HAS_IP) ) {
-					vTaskDelay(1000);
-				}
-			}
+			send_pill_data(&pill_data_batched);
 			vPortFree( pilldata.pills );
 		}
 		do {
