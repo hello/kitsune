@@ -18,9 +18,7 @@ int close_codec_NAU();
 int get_codec_mic_NAU();
 void set_volume(int v);
 
-
-int get_temp();
-int get_humid();
+void get_temp_humid(int *temp, int *humid);
 int get_light();
 int get_prox();
 

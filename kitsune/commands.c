@@ -1181,27 +1181,27 @@ void sample_sensor_data(periodic_data* data)
 		while(--measure_time)
 		{
 			vTaskDelay(2);
+			int humid,temp;
 
-			int humid = led_is_idle(0) ? get_humid() : _last_humid;
+			if( led_is_idle(0) ) {
+				get_temp_humid(&temp, &humid);
+			} else {
+				humid = _last_humid;
+				temp = _last_temp;
+			}
 			_last_humid = humid;
+			_last_temp = temp;
 
 			if(humid != -1)
 			{
 				humid_sum += humid;
 				humid_count++;
 			}
-
-			vTaskDelay(2);
-
-			int temp = led_is_idle(0) ? get_temp() : _last_temp;
-			_last_temp = temp;
-
 			if(temp != -1)
 			{
 				temp_sum += temp;
 				temp_count++;
 			}
-
 			vTaskDelay(2);
 		}
 
@@ -1222,10 +1222,6 @@ void sample_sensor_data(periodic_data* data)
 		}else{
 			data->has_temperature = true;
 			data->temperature = temp_sum / temp_count;
-
-			if( data->has_humidity ) {
-				data->humidity += (2500 - data->temperature)*-15/100;
-			}
 		}
 		
 		xSemaphoreGive(i2c_smphr);
@@ -1278,8 +1274,7 @@ void thread_sensor_poll(void* unused) {
 
 	periodic_data data = {0};
 	if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
-		_last_temp = get_temp();
-		_last_humid = get_humid();
+		get_temp_humid(&_last_temp, &_last_humid);
 		xSemaphoreGive(i2c_smphr);
 	}
 

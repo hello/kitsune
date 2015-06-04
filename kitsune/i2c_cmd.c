@@ -228,18 +228,7 @@ int Cmd_i2c_write(int argc, char *argv[]) {
 
 }
 
-int init_temp_sensor()
-{
-	unsigned char cmd = 0xfe;
-	TRY_OR_GOTOFAIL(I2C_IF_Write(0x40, &cmd, 1, 1));    // reset
-
-	get_temp();
-
-	return SUCCESS;
-}
-
-
-int get_temp() {
+static int get_temp() {
 	unsigned char cmd = 0xe3;
 	int temp_raw;
 	int temp;
@@ -257,23 +246,17 @@ int get_temp() {
 	return temp;
 }
 
-int Cmd_readtemp(int argc, char *argv[]) {
-	LOGF("%d\n", get_temp());
-	return SUCCESS;
-}
-
-int init_humid_sensor()
+int init_temp_sensor()
 {
 	unsigned char cmd = 0xfe;
 	TRY_OR_GOTOFAIL(I2C_IF_Write(0x40, &cmd, 1, 1));    // reset
 
-	// Dummy read the 1st value.
-	get_humid();
+	get_temp();
 
 	return SUCCESS;
 }
 
-int get_humid() {
+static int get_humid() {
 	unsigned char aucDataBuf[2];
 	unsigned char cmd = 0xe5;
 	int humid_raw;
@@ -291,8 +274,35 @@ int get_humid() {
 	return humid;
 }
 
+int init_humid_sensor()
+{
+	unsigned char cmd = 0xfe;
+	TRY_OR_GOTOFAIL(I2C_IF_Write(0x40, &cmd, 1, 1));    // reset
+
+	// Dummy read the 1st value.
+	get_humid();
+
+	return SUCCESS;
+}
+
+
+void get_temp_humid( int * temp, int * humid ) {
+	*temp = get_temp();
+	*humid = get_humid();
+	*humid += (2500-*temp)*-15/100;
+}
+
 int Cmd_readhumid(int argc, char *argv[]) {
-	LOGF("%d\n", get_humid());
+	int temp,humid;
+	get_temp_humid(&temp, &humid);
+	LOGF("%d\n", humid);
+	return SUCCESS;
+}
+
+int Cmd_readtemp(int argc, char *argv[]) {
+	int temp,humid;
+	get_temp_humid(&temp, &humid);
+	LOGF("%d\n", temp);
 	return SUCCESS;
 }
 
