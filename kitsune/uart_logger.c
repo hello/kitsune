@@ -547,7 +547,7 @@ convert:
 }
 
 static void _finished_analytics_upload(const NetworkResponse_t * response, char * reply_buf, int reply_sz, void * context){
-	if( !http_response_ok((const char*)reply_buf) ) {
+	if( !response->success ) {
 		LOGE("failed up upload analytics\n");
 	}
 }

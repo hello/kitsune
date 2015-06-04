@@ -112,14 +112,7 @@ void load_data_server();
 int Cmd_burn_top(int argc, char *argv[]);
 
 int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
-		uint32_t * recv_buf_size_ptr, const pb_field_t fields[], void * structdata);
-
-int decode_rx_data_pb(const uint8_t * buffer, uint32_t buffer_size,
-		const pb_field_t fields[], void * structdata);
-
-bool validate_signatures( char * buffer, const pb_field_t fields[], void * structdata);
-
-int http_response_ok(const char* response_buffer);
+		uint32_t * recv_buf_size_ptr, const pb_field_t fields[],  void * structdata);
 
 int get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uint32_t scan_duration_ms, int antenna);
 int connect_wifi(const char* ssid, const char* password, int sec_type, int version);

@@ -44,7 +44,7 @@ void unblock_sync(void * data) {
 
 bool NetworkTask_SendProtobuf(bool blocking, const char * host,
 		const char * endpoint, const pb_field_t fields[],
-		const void * structdata, int32_t retry_time_in_counts,
+		void * structdata, int32_t retry_time_in_counts,
 		NetworkResponseCallback_t func, void * context) {
 	NetworkTaskServerSendMessage_t message;
 	NetworkResponse_t response;

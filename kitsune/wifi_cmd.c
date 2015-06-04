@@ -778,30 +778,6 @@ void load_device_id() {
 	*/
 }
 
-static bool validate_signatures( char * buffer, const pb_field_t fields[], void * structdata) {
-
-    // Parse the response
-    //LOGI("Reply is:\n\r%s\n\r", buffer);
-
-    const char* header_content_len = "Content-Length: ";
-    char * content = strstr(buffer, "\r\n\r\n") + 4;
-    char * len_str = strstr(buffer, header_content_len) + strlen(header_content_len);
-    if (http_response_ok(buffer) != 1) {
-    	wifi_status_set(UPLOADING, true);
-        LOGI("Invalid response, endpoint return failure.\n");
-        return -1;
-    }
-
-    if (len_str == NULL) {
-    	wifi_status_set(UPLOADING, true);
-        LOGI("Failed to find Content-Length header\n");
-        return -1;
-    }
-    int len = atoi(len_str);
-
-    return decode_rx_data_pb((unsigned char*) content, len, fields, structdata);
-}
-
 static void _morpheus_command_reply(const NetworkResponse_t * response,
 		char * reply_buf, int reply_sz, void * context) {
 	MorpheusCommand reply;
@@ -1207,7 +1183,7 @@ int send_audio_wifi(char * buffer, int buffer_size, audio_read_cb arcb) {
 #include "sync_response.pb.h"
 
 
-int decode_rx_data_pb(const uint8_t * buffer, uint32_t buffer_size, const pb_field_t fields[],void * structdata) {
+static bool decode_rx_data_pb(const uint8_t * buffer, uint32_t buffer_size, const pb_field_t fields[], void * structdata) {
 	AES_CTX aesctx;
 	unsigned char * buf_pos = (unsigned char*)buffer;
 	unsigned char sig[SIG_SIZE] = {0};
@@ -1220,13 +1196,13 @@ int decode_rx_data_pb(const uint8_t * buffer, uint32_t buffer_size, const pb_fie
 	for (i = 0; i < AES_IV_SIZE; ++i) {
 		aesctx.iv[i] = *buf_pos++;
 		if (buf_pos > (buffer + buffer_size)) {
-			return -1;
+			return false;
 		}
 	}
 	for (i = 0; i < SIG_SIZE; ++i) {
 		sig[i] = *buf_pos++;
 		if (buf_pos > (buffer + buffer_size)) {
-			return -1;
+			return false;
 		}
 	}
 	buffer_size -= (SIG_SIZE + AES_IV_SIZE);
@@ -1251,7 +1227,7 @@ int decode_rx_data_pb(const uint8_t * buffer, uint32_t buffer_size, const pb_fie
 		}
 		LOGI("\n");
 #endif
-		return -1; //todo uncomment
+		return false;
 	}
 
 	/* Create a stream that will read from our buffer. */
@@ -1263,11 +1239,10 @@ int decode_rx_data_pb(const uint8_t * buffer, uint32_t buffer_size, const pb_fie
 
 	/* Then just check for any errors.. */
 	if (!status) {
-		LOGI("Decoding failed: %s\n", PB_GET_ERROR(&stream));
-		return -1;
+		LOGI("Decoding error: %s\n", PB_GET_ERROR(&stream));
 	}
 
-	return 0;
+	return true;
 }
 
 
@@ -1312,9 +1287,81 @@ int match(char *regexp, char *text)
     return 0;
 }
 const char * get_top_version(void);
+
+
+bool encode_pill_id(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
+	char* str = *arg;
+	if(!str)
+	{
+		LOGI("encode_pill_id: No data to encode\n");
+		return 0;
+	}
+
+	if (!pb_encode_tag_for_field(stream, field)){
+		LOGI("encode_pill_id: Fail to encode tag\n");
+		return 0;
+	}
+
+	return pb_encode_string(stream, (uint8_t*)str, strlen(str));
+}
+
+int http_response_ok( char* response_buffer)
+{
+	char* first_line = strstr(response_buffer, "\r\n") + 2;
+	uint16_t first_line_len = first_line - response_buffer;
+	if( first_line && first_line_len > SERVER_REPLY_BUFSZ || first_line_len > strlen(response_buffer ) )
+	{
+		LOGE("Invalid headers\n");
+		return -2;
+	}
+	first_line = pvPortMalloc(first_line_len + 1);
+	if(!first_line)
+	{
+		LOGE("No memory\n");
+		return -2;
+	}
+
+	memset(first_line, 0, first_line_len + 1);
+	memcpy(first_line, response_buffer, first_line_len);
+	LOGI("status: %s\n", first_line);
+
+	int resp_ok = match("2..", first_line);
+	vPortFree(first_line);
+	return resp_ok ? 0 : -1;
+}
+
+
+static bool validate_signatures( char * buffer, const pb_field_t fields[], void * structdata) {
+
+    // Parse the response
+    //LOGI("Reply is:\n\r%s\n\r", buffer);
+
+    const char* header_content_len = "Content-Length: ";
+    char * content = strstr(buffer, "\r\n\r\n") + 4;
+    char * len_str = strstr(buffer, header_content_len) + strlen(header_content_len);
+    if (http_response_ok(buffer) != 0) {
+    	wifi_status_set(UPLOADING, true);
+        LOGI("Invalid response, endpoint return failure.\n");
+        return false;
+    }
+
+    if( strstr(buffer, "No Content") ) {
+    	return true;
+    }
+
+    if (len_str == NULL) {
+    	wifi_status_set(UPLOADING, true);
+        LOGI("Failed to find Content-Length header\n");
+        return false;
+    }
+    int len = atoi(len_str);
+
+    return decode_rx_data_pb((unsigned char*) content, len, fields, structdata);
+}
+
 //buffer needs to be at least 128 bytes...
 int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
-		uint32_t * recv_buf_size_ptr, const pb_field_t fields[], void * structdata) {
+		uint32_t * recv_buf_size_ptr, const pb_field_t fields[],  void * structdata) {
     int send_length = 0;
     int rv = 0;
     uint8_t sig[32]={0};
@@ -1509,56 +1556,9 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     }
     LOGI("recv %d\n", rv);
 
-    return validate_signatures((char*)*recv_buf, fields, structdata );
+    return validate_signatures((char*)recv_buf, fields, structdata ) ? 0 : -1;
 }
 
-
-
-
-bool encode_pill_id(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
-	char* str = *arg;
-	if(!str)
-	{
-		LOGI("encode_pill_id: No data to encode\n");
-		return 0;
-	}
-
-	if (!pb_encode_tag_for_field(stream, field)){
-		LOGI("encode_pill_id: Fail to encode tag\n");
-		return 0;
-	}
-
-	return pb_encode_string(stream, (uint8_t*)str, strlen(str));
-}
-
-int http_response_ok(const char* response_buffer)
-{
-	char* first_line = strstr(response_buffer, "\r\n") + 2;
-	uint16_t first_line_len = first_line - response_buffer;
-	if( first_line_len > SERVER_REPLY_BUFSZ || first_line_len > strlen(response_buffer ) )
-	{
-		LOGE("Invalid headers\n");
-		return -2;
-	}
-	first_line = pvPortMalloc(first_line_len + 1);
-	if(!first_line)
-	{
-		LOGE("No memory\n");
-		return -2;
-	}
-
-	memset(first_line, 0, first_line_len + 1);
-	memcpy(first_line, response_buffer, first_line_len);
-	LOGI("status: %s\n", first_line);
-
-	int resp_ok = match("2..", first_line);
-	int ret = 0;
-	if (resp_ok) {
-		ret = 1;
-	}
-	vPortFree(first_line);
-	return ret;
-}
 
 #include "ble_cmd.h"
 #if 0
