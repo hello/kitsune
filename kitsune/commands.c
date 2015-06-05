@@ -1643,6 +1643,39 @@ int Cmd_boot(int argc, char *argv[]) {
 	return 0;
 }
 
+
+int Cmd_inttemp(int argc, char *argv[]) {
+	unsigned long ulSample;
+// Initialize Intercept Temperature
+	int g_EfuseInterceptTemperature = 30;
+
+// Variables for Slope and Intercept
+	int temperature, slope_ch3, intcept_ch3;
+
+// Enable ADC
+	HWREG(ADC_BASE + 0xB8) = 0x0355AA00;
+	MAP_ADCEnable(ADC_BASE);
+
+//Initialize slope (for nominal devices)
+	slope_ch3 = 204795;
+
+//Get the RAW ADC intercept values from the EFUSE for this particular device.
+	intcept_ch3 = (HWREG(0x4402D448) & 0x3FFF) >> 2;
+
+//Read ADC FIFO - Suggested averaging for 4 samples
+
+	/* Wait for the FIFO to fill up */
+	MAP_UtilsDelay(300);
+
+	if ((HWREG(0x4402E8A0) & 0x7)) {
+		ulSample = (uint16_t) (HWREG(0x4402E880));
+		ulSample = (ulSample >> 2) & 0x0FFF;
+		temperature = g_EfuseInterceptTemperature
+				+ (((intcept_ch3 - (int) ulSample) * slope_ch3) >> 20);
+		LOGF("%u\n", temperature);
+	}
+}
+
 int Cmd_get_gesture_count(int argc, char * argv[]) {
 
 	const int count = gesture_get_and_reset_all_diagnostic_counts();
@@ -1729,6 +1762,7 @@ tCmdLineEntry g_sCmdTable[] = {
     { "pwd",      Cmd_pwd,      "" },
     { "cat",      Cmd_cat,      "" },
 
+    {"inttemp", Cmd_inttemp, "" },
 		{ "humid", Cmd_readhumid, "" },
 		{ "temp", Cmd_readtemp,	"" },
 		{ "light", Cmd_readlight, "" },
