@@ -287,7 +287,7 @@ int Cmd_spi_read(int argc, char *argv[]) {
 		case 0:
 			on_morpheus_protobuf_arrival(buf, len);
 			break;
-		case 0x0200://command from the top!
+		case 0x02://command from the top!
 		{
 			char * args = pvPortMalloc(len);
 			memcpy(args, buf, len);
