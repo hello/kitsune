@@ -146,8 +146,6 @@ void faultPrinter( faultInfo* f ) {
     }
     LOGE("END\n");
 }
-
-int mcu_reset();
 void uart_logger_flush();
 
 void

@@ -37,6 +37,9 @@ void ble_proto_free_command(MorpheusCommand* command);
 void ble_proto_assign_encode_funcs(MorpheusCommand* command);
 void ble_proto_assign_decode_funcs(MorpheusCommand* command);
 
+void ble_proto_get_morpheus_command(pb_field_t ** fields, void ** structdata);
+void ble_proto_free_morpheus_command(pb_field_t * fields, void * structdata);
+
 int Cmd_factory_reset(int argc, char* argv[]);
 
 //*****************************************************************************

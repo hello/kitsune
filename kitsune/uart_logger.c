@@ -24,6 +24,8 @@
 #include "kit_assert.h"
 #include "sys_time.h"
 
+#include "limits.h"
+
 #define SENSE_LOG_ENDPOINT		"/logs"
 #define SENSE_LOG_FOLDER		"logs"
 #define SENSE_LOG_RW_SIZE		128
@@ -85,7 +87,9 @@ _encode_text_block(pb_ostream_t *stream, const pb_field_t *field, void * const *
 static void
 _swap_and_upload(void){
 	xEventGroupSetBits(self.uart_log_events, LOG_EVENT_STORE); //<- this needs to come before filling the queue
-    xQueueSend(self.block_queue, (void* )&self.logging_block, 0);
+    if( !xQueueSend(self.block_queue, (void* )&self.logging_block, 0) ) {
+    	vPortFree(self.logging_block);
+    }
 	//swap
 	self.logging_block = NULL;
 	//reset
@@ -543,7 +547,7 @@ convert:
 }
 
 static void _finished_analytics_upload(const NetworkResponse_t * response, char * reply_buf, int reply_sz, void * context){
-	if( !http_response_ok((const char*)reply_buf) ) {
+	if( !response->success ) {
 		LOGE("failed up upload analytics\n");
 	}
 }
@@ -562,7 +566,9 @@ int analytics_event( const char *pcString, ...) {
     va_end(vaArgP);
 
     if(self.analytics_event_queue){
-    	xQueueSend(self.analytics_event_queue, &ctx, 100);
+    	if( !xQueueSend(self.analytics_event_queue, &ctx, 100) ) {
+    		vPortFree(ctx.ptr);
+    	}
     }
 
     return 0;
@@ -581,8 +587,9 @@ static bool send_log() {
 		self.log.unix_time = get_time();
 	}
 #endif
+	//no timeout on this one...
     return NetworkTask_SendProtobuf(true, DATA_SERVER, SENSE_LOG_ENDPOINT,
-    		sense_log_fields,&self.log, 0, NULL, NULL);
+    		sense_log_fields,&self.log, 0, NULL, NULL, NULL );
 }
 
 void analytics_event_task(void * params){
@@ -625,7 +632,7 @@ void analytics_event_task(void * params){
 upload:
 			DISP("Analytics: %s\r\n", block);
 			NetworkTask_SendProtobuf(true, DATA_SERVER, SENSE_LOG_ENDPOINT,
-					sense_log_fields, &log, 0, _finished_analytics_upload, NULL);
+					sense_log_fields, &log, INT_MAX, _finished_analytics_upload, NULL, NULL);
 			block_len = 0;
 			memset(block, 0, ANALYTICS_MAX_CHUNK_SIZE);
 		}
@@ -699,6 +706,7 @@ void uart_logger_task(void * params){
 						LOGE("Rm log error %d\r\n", res);
 					}
 				}else{
+					//should never get here
 					LOGE("Log upload failed\r\n");
 				}
 			}

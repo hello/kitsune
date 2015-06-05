@@ -1036,16 +1036,7 @@ void thread_tx(void* unused) {
 			data_batched.scan.funcs.encode = encode_scanned_ssid;
 			data_batched.scan.arg = prescan_wifi(10);
 
-			while (!send_periodic_data(&data_batched)) {
-				LOGI("Waiting for network connection\n");
-				vTaskDelay((1 << tries) * 1000);
-				if (tries++ > 5) {
-					tries = 5;
-				}
-				while( !wifi_status_get(HAS_IP) ) {
-					vTaskDelay(1000);
-				}
-			}
+			send_periodic_data(&data_batched);
 			last_upload_time = xTaskGetTickCount();
 			hlo_future_destroy( data_batched.scan.arg );
 			vPortFree( periodicdata.data );
@@ -1073,16 +1064,7 @@ void thread_tx(void* unused) {
 			pill_data_batched.pills.arg = &pilldata;
 			pill_data_batched.device_id.funcs.encode = encode_device_id_string;
 
-			while (!send_pill_data(&pill_data_batched)) {
-				LOGI("  Waiting for WIFI connection  \n");
-				vTaskDelay((1 << tries) * 1000);
-				if (tries++ > 5) {
-					tries = 5;
-				}
-				while( !wifi_status_get(HAS_IP) ) {
-					vTaskDelay(1000);
-				}
-			}
+			send_pill_data(&pill_data_batched);
 			vPortFree( pilldata.pills );
 		}
 		do {
@@ -1199,27 +1181,27 @@ void sample_sensor_data(periodic_data* data)
 		while(--measure_time)
 		{
 			vTaskDelay(2);
+			int humid,temp;
 
-			int humid = led_is_idle(0) ? get_humid() : _last_humid;
+			if( led_is_idle(0) ) {
+				get_temp_humid(&temp, &humid);
+			} else {
+				humid = _last_humid;
+				temp = _last_temp;
+			}
 			_last_humid = humid;
+			_last_temp = temp;
 
 			if(humid != -1)
 			{
 				humid_sum += humid;
 				humid_count++;
 			}
-
-			vTaskDelay(2);
-
-			int temp = led_is_idle(0) ? get_temp() : _last_temp;
-			_last_temp = temp;
-
 			if(temp != -1)
 			{
 				temp_sum += temp;
 				temp_count++;
 			}
-
 			vTaskDelay(2);
 		}
 
@@ -1240,10 +1222,6 @@ void sample_sensor_data(periodic_data* data)
 		}else{
 			data->has_temperature = true;
 			data->temperature = temp_sum / temp_count;
-
-			if( data->has_humidity ) {
-				data->humidity += (2500 - data->temperature)*-15/100;
-			}
 		}
 		
 		xSemaphoreGive(i2c_smphr);
@@ -1296,8 +1274,7 @@ void thread_sensor_poll(void* unused) {
 
 	periodic_data data = {0};
 	if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
-		_last_temp = get_temp();
-		_last_humid = get_humid();
+		get_temp_humid(&_last_temp, &_last_humid);
 		xSemaphoreGive(i2c_smphr);
 	}
 

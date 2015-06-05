@@ -7,6 +7,7 @@
 #include "endpoints.h"
 #include "FreeRTOS.h"
 #include "semphr.h"
+#include "wifi_cmd.h"
 
 #define NETWORK_RESPONSE_FLAG_NO_CONNECTION (0x00000001)
 
@@ -33,7 +34,7 @@ typedef struct {
 
 	//protobuf
 	const pb_field_t * fields;
-	const void * structdata;
+	void * structdata;
 
 	const char * host; //the server to which you wish to communicate
 	const char * endpoint; //where on the server you wish to communicate to.  eg /audio/features
@@ -43,6 +44,8 @@ typedef struct {
 	xSemaphoreHandle sync;
 	NetworkResponseCallback_t response_callback;
 	NetworkResponse_t * response_handle;
+
+	protobuf_reply_callbacks pb_cb;
 } NetworkTaskServerSendMessage_t;
 
 typedef struct {
@@ -57,8 +60,9 @@ void networktask_init(uint16_t stack_size);
  */
 bool NetworkTask_SendProtobuf(bool blocking, const char * host,
 		const char * endpoint, const pb_field_t fields[],
-		const void * structdata, int32_t retry_time_in_counts,
-		NetworkResponseCallback_t func, void * context);
+		void * structdata, int32_t retry_time_in_counts,
+		NetworkResponseCallback_t func, void * context,
+		protobuf_reply_callbacks * pb_cb );
 int NetworkTask_AddMessageToQueue(
 		const NetworkTaskServerSendMessage_t * message);
 int networktask_enter_critical_region();

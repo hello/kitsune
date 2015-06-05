@@ -143,10 +143,12 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type,
     	if( !strcmp( (char*)_wifi_endpoints[i].ssid, ssid ) ) {
     		antsel(_wifi_endpoints[i].reserved[0]);
     		save_default_antenna( _wifi_endpoints[i].reserved[0] );
+    		LOGI("Connecting to WIFI %s RSSI %d\r\n", ssid, _wifi_endpoints[i].rssi);
     		break;
     	}
     }
 	xSemaphoreGive(_wifi_smphr);
+
 
 	//play_led_progress_bar(0xFF, 128, 0, 128,portMAX_DELAY);
     while((connection_ret = connect_wifi(ssid, password, security_type, version)) == 0 && --retry_count)
@@ -321,25 +323,27 @@ static void _process_pill_heartbeat( MorpheusCommand* command)
 	
 }
 
-static void _morpheus_command_reply(const NetworkResponse_t * response,
+
+static void _on_pair_success(pb_field_t * fields, void * structdata){
+	LOGF("signature validated\r\n");
+	ble_send_protobuf(structdata);
+}
+static void _on_pair_failure(pb_field_t * fields, void * structdata){
+    LOGF("signature validation fail\r\n");
+}
+
+static void _pair_reply(const NetworkResponse_t * response,
 		char * reply_buf, int reply_sz, void * context) {
-	MorpheusCommand reply;
 	bool * success = (bool*)context;
-	memset(&reply, 0, sizeof(reply));
-	ble_proto_assign_decode_funcs(&reply);
-    if( response->success && validate_signatures((char*)reply_buf, MorpheusCommand_fields, &reply) == 0) {
-		ble_send_protobuf(&reply);
-    	LOGF("signature validated\r\n");
+    if( response->success ) {
     	if( success ) {
     		*success = true;
     	}
     } else {
-        LOGF("signature validation fail\r\n");
     	if( success ) {
     		*success = false;
     	}
     }
-    ble_proto_free_command(&reply);
 }
 
 void save_account_id( char * acct );
@@ -355,13 +359,20 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 
 		ble_proto_assign_encode_funcs(command);
 
+	    protobuf_reply_callbacks pb_cb;
+
+	    pb_cb.get_reply_pb = ble_proto_get_morpheus_command;
+	    pb_cb.free_reply_pb = ble_proto_free_morpheus_command;
+	    pb_cb.on_pb_failure = _on_pair_failure;
+	    pb_cb.on_pb_success = _on_pair_success;
+
 	    bool  ret = NetworkTask_SendProtobuf( true,
 					DATA_SERVER,
 					is_morpheus == 1 ? MORPHEUS_REGISTER_ENDPOINT : PILL_REGISTER_ENDPOINT,
 					MorpheusCommand_fields,
 					command,
 					30000,
-					_morpheus_command_reply, &success);
+					_pair_reply, &success, &pb_cb);
 
 		// All the args are in stack, don't need to do protobuf free.
 		if(!is_morpheus) {
