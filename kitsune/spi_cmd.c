@@ -198,7 +198,7 @@ int spi_write( int len, unsigned char * buf ) {
 
 	return SUCCESS;
 }
-int spi_read( int * len, unsigned char ** buf ) {
+int spi_read( int * len, unsigned char ** buf, int * addr ) {
 	unsigned char mode = READ;
 	ctx_t ctx;
 	int i;
@@ -217,6 +217,7 @@ int spi_read( int * len, unsigned char ** buf ) {
 		xSemaphoreTake(_spi_smphr, portMAX_DELAY);
 		ctx.len = 0;
 	}
+	*addr = ctx.addr;
 	*len = ctx.len;
 
 	if( *len != 0 ) {
@@ -268,10 +269,10 @@ extern volatile bool booted;
 int Cmd_spi_read(int argc, char *argv[]) {
 #define MAX_PB_QUEUED 32
 #define SPI_BUFSZ 512
-	int len;
+	int len, addr = 0;
 	unsigned char * buf;
 
-	spi_read( &len, &buf );
+	spi_read( &len, &buf, &addr );
 #ifdef SPI_DEBUG_PRINT
 	LOGI("read %u\r\n", len);
 	int i;
@@ -282,7 +283,11 @@ int Cmd_spi_read(int argc, char *argv[]) {
 #endif
 
 	if( len ) {
-		on_morpheus_protobuf_arrival(buf, len);
+		switch(addr){
+		case 0:
+			on_morpheus_protobuf_arrival(buf, len);
+			break;
+		}
 		vPortFree(buf);
 	}
 	return SUCCESS;
