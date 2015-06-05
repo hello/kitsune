@@ -566,7 +566,9 @@ int analytics_event( const char *pcString, ...) {
     va_end(vaArgP);
 
     if(self.analytics_event_queue){
-    	xQueueSend(self.analytics_event_queue, &ctx, 100);
+    	if( !xQueueSend(self.analytics_event_queue, &ctx, 100) ) {
+    		vPortFree(ctx.ptr);
+    	}
     }
 
     return 0;
