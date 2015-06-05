@@ -778,18 +778,11 @@ void load_device_id() {
 	*/
 }
 
-static void _morpheus_command_reply(const NetworkResponse_t * response,
-		char * reply_buf, int reply_sz, void * context) {
-	MorpheusCommand reply;
-	memset(&reply, 0, sizeof(reply));
-	ble_proto_assign_decode_funcs(&reply);
-    if( response->success ) {
-    	LOGF("signature validated\r\n");
-    } else {
-        LOGF("signature validation fail\r\n");
-    }
-    ble_proto_free_command(&reply);
-    vPortFree(context);
+static void _on_morpheus_command_success(pb_field_t * fields, void * structdata){
+	LOGF("signature validated\r\n");
+}
+static void _on_morpheus_command_failure(pb_field_t * fields, void * structdata){
+    LOGF("signature validation fail\r\n");
 }
 
 int Cmd_test_key(int argc, char*argv[]) {
@@ -797,6 +790,12 @@ int Cmd_test_key(int argc, char*argv[]) {
     load_device_id();
     //LOGI("Last two digit: %02X:%02X\n", aes_key[AES_BLOCKSIZE - 2], aes_key[AES_BLOCKSIZE - 1]);
     int ret;
+    protobuf_reply_callbacks pb_cb;
+
+    pb_cb.get_reply_pb = ble_proto_get_morpheus_command;
+    pb_cb.free_reply_pb = ble_proto_free_morpheus_command;
+    pb_cb.on_pb_failure = _on_morpheus_command_failure;
+    pb_cb.on_pb_success = _on_morpheus_command_success;
 
 	MorpheusCommand * test_command = (MorpheusCommand*)pvPortMalloc(sizeof(MorpheusCommand));
 	memset(test_command, 0, sizeof(MorpheusCommand));
@@ -804,8 +803,8 @@ int Cmd_test_key(int argc, char*argv[]) {
 	test_command->version = PROTOBUF_VERSION;
 
 	ret = NetworkTask_SendProtobuf(false, DATA_SERVER, CHECK_KEY_ENDPOINT,
-			MorpheusCommand_fields, test_command, INT_MAX, _morpheus_command_reply,
-			test_command);
+			MorpheusCommand_fields, test_command, INT_MAX, NULL,
+			test_command, &pb_cb );
     if(ret != 0)
     {
         // network error
@@ -1240,6 +1239,7 @@ static bool decode_rx_data_pb(const uint8_t * buffer, uint32_t buffer_size, cons
 	/* Then just check for any errors.. */
 	if (!status) {
 		LOGI("Decoding error: %s\n", PB_GET_ERROR(&stream));
+		return false;
 	}
 
 	return true;
@@ -1361,7 +1361,8 @@ static bool validate_signatures( char * buffer, const pb_field_t fields[], void 
 
 //buffer needs to be at least 128 bytes...
 int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
-		uint32_t * recv_buf_size_ptr, const pb_field_t fields[],  void * structdata) {
+		uint32_t * recv_buf_size_ptr, const pb_field_t fields[],  void * structdata,
+		protobuf_reply_callbacks * pb_cb ) {
     int send_length = 0;
     int rv = 0;
     uint8_t sig[32]={0};
@@ -1556,7 +1557,30 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     }
     LOGI("recv %d\n", rv);
 
-    return validate_signatures((char*)recv_buf, fields, structdata ) ? 0 : -1;
+    pb_field_t * reply_fields;
+    void * reply_structdata;
+
+    if( pb_cb && pb_cb->get_reply_pb ) {
+    	pb_cb->get_reply_pb( &reply_fields, &reply_structdata );
+    }
+
+    if( validate_signatures((char*)recv_buf, reply_fields, reply_structdata ) ) {
+    	if( pb_cb && pb_cb->on_pb_success ) {
+			pb_cb->on_pb_success( reply_fields, reply_structdata );
+		}
+    	if( pb_cb && pb_cb->free_reply_pb ) {
+    		pb_cb->free_reply_pb( reply_fields, reply_structdata );
+    	}
+    	return 0;
+    } else {
+    	if( pb_cb && pb_cb->on_pb_failure ) {
+			pb_cb->on_pb_failure( reply_fields, reply_structdata );
+		}
+    }
+	if( pb_cb && pb_cb->free_reply_pb ) {
+		pb_cb->free_reply_pb( reply_fields, reply_structdata );
+	}
+    return -1;
 }
 
 
@@ -1629,36 +1653,38 @@ int force_data_push();
 extern volatile bool provisioning_mode;
 void boot_commit_ota();
 
+static void _on_key_check_success(pb_field_t * fields, void * structdata){
+	LOGF("signature validated\r\n");
+	if (provisioning_mode) {
+		sl_FsDel((unsigned char*)PROVISION_FILE, 0);
+		wifi_reset();
+		//green!
+		play_led_wheel( LED_MAX, 0, LED_MAX, 0, 3600, 33);
+		while (1) {
+			vTaskDelay(100);
+		}
+	}
+
+	provisioning_mode = false;
+}
+static void _on_key_check_failure(pb_field_t * fields, void * structdata){
+	LOGF("signature validation fail\r\n");
+	//light up if we're in provisioning mode but not if we're testing the key from top
+	//this handles the overlap case where we want to get keys from top but the server doesn't yet have the blobs
+	//allowing us to fall back to the key handshake with the server
+	if (provisioning_mode && has_default_key()) {
+		//red!
+		play_led_wheel( LED_MAX, LED_MAX, 0, 0, 3600, 33);
+		while (1) {
+			vTaskDelay(100);
+		}
+	}
+	save_aes_in_memory(DEFAULT_KEY);
+	force_data_push(); //and make sure the retry happens right away
+}
+
 static void _key_check_reply(const NetworkResponse_t * response,
 		char * reply_buf, int reply_sz, void * context) {
-	MorpheusCommand reply;
-	memset(&reply, 0, sizeof(reply));
-	ble_proto_assign_decode_funcs(&reply);
-	if ( response->success ) {
-		LOGF("signature validated\r\n");
-		if (provisioning_mode) {
-			sl_FsDel((unsigned char*)PROVISION_FILE, 0);
-			wifi_reset();
-			//green!
-			play_led_wheel( LED_MAX, 0, LED_MAX, 0, 3600, 33);
-			while(1) {vTaskDelay(100);}
-		}
-
-		provisioning_mode = false;
-	} else {
-		LOGF("signature validation fail\r\n");
-		//light up if we're in provisioning mode but not if we're testing the key from top
-		//this handles the overlap case where we want to get keys from top but the server doesn't yet have the blobs
-		//allowing us to fall back to the key handshake with the server
-		if (provisioning_mode && has_default_key()) {
-			//red!
-			play_led_wheel( LED_MAX, LED_MAX, 0, 0, 3600, 33);
-			while(1) {vTaskDelay(100);}
-		}
-		save_aes_in_memory(DEFAULT_KEY);
-		force_data_push(); //and make sure the retry happens right away
-    }
-    ble_proto_free_command(&reply);
     vPortFree(context);
 }
 extern volatile bool use_dev_server;
@@ -1677,9 +1703,16 @@ void on_key(uint8_t * key) {
 	test_command->type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_SENSE;
 	test_command->version = PROTOBUF_VERSION;
 
+    protobuf_reply_callbacks pb_cb;
+
+    pb_cb.get_reply_pb = ble_proto_get_morpheus_command;
+    pb_cb.free_reply_pb = ble_proto_free_morpheus_command;
+    pb_cb.on_pb_failure = _on_key_check_failure;
+    pb_cb.on_pb_success = _on_key_check_success;
+
 	NetworkTask_SendProtobuf(false, DATA_SERVER, CHECK_KEY_ENDPOINT,
 			MorpheusCommand_fields, test_command, INT_MAX, _key_check_reply,
-			test_command);
+			test_command, &pb_cb );
 }
 
 static void _set_led_color_based_on_room_conditions(const SyncResponse* response_protobuf)
@@ -1758,66 +1791,100 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
     _set_led_color_based_on_room_conditions(response_protobuf);
 }
 
-void sync_response_reply(const NetworkResponse_t * response,
-		char * reply_buf, int reply_sz, void * context) {
-	SyncResponse response_protobuf;
-    memset(&response_protobuf, 0, sizeof(response_protobuf));
-    response_protobuf.files.funcs.decode = _on_file_download;
+static void _get_sync_response(pb_field_t ** fields, void ** structdata){
+	*fields = (pb_field_t *)SyncResponse_fields;
+	*structdata = pvPortMalloc(sizeof(SyncResponse));
+	assert(*structdata);
+	SyncResponse * response_protobuf = *structdata;
+    memset(response_protobuf, 0, sizeof(SyncResponse));
+    response_protobuf->files.funcs.decode = _on_file_download;
+}
+static void _free_sync_response(pb_field_t * fields, void * structdata){
+	vPortFree( structdata );
+}
 
-    if( response->success ) {
-    	LOGF("signatures validated\r\n");
-		boot_commit_ota();
-		_on_response_protobuf(&response_protobuf);
-		wifi_status_set(UPLOADING, false);
-    } else {
-        LOGF("signature validation fail\r\n");
-        wifi_status_set(UPLOADING, true);
-    }
+static void _on_sync_response_success(pb_field_t * fields, void * structdata){
+    LOGF("signature validation success\r\n");
+	boot_commit_ota();
+	_on_response_protobuf((SyncResponse*)structdata);
+	wifi_status_set(UPLOADING, false);
+}
+static void _on_sync_response_failure(pb_field_t * fields, void * structdata){
+    LOGF("signature validation fail\r\n");
+    wifi_status_set(UPLOADING, true);
 }
 
 //retry logic is handled elsewhere
 bool send_pill_data(batched_pill_data * pill_data) {
+    protobuf_reply_callbacks pb_cb;
+
+    pb_cb.get_reply_pb = _get_sync_response;
+    pb_cb.free_reply_pb = _free_sync_response;
+    pb_cb.on_pb_success = _on_sync_response_success;
+    pb_cb.on_pb_failure = _on_sync_response_failure;
+
 	return NetworkTask_SendProtobuf(true, DATA_SERVER,
 			PILL_DATA_RECEIVE_ENDPOINT, batched_pill_data_fields, pill_data, INT_MAX,
-			sync_response_reply, NULL);
+			NULL, NULL, &pb_cb);
 }
 bool send_periodic_data(batched_periodic_data* data) {
+    protobuf_reply_callbacks pb_cb;
+
+    pb_cb.get_reply_pb = _get_sync_response;
+    pb_cb.free_reply_pb = _free_sync_response;
+    pb_cb.on_pb_success = _on_sync_response_success;
+    pb_cb.on_pb_failure = _on_sync_response_failure;
+
 	return NetworkTask_SendProtobuf(true, DATA_SERVER,
 			DATA_RECEIVE_ENDPOINT, batched_periodic_data_fields, data, INT_MAX,
-			sync_response_reply, NULL);
+			NULL, NULL, &pb_cb);
 }
 
-void provision_request_reply(const NetworkResponse_t * response,
-		char * reply_buf, int reply_sz, void * context) {
-	ProvisionResponse response_protobuf;
-    memset(&response_protobuf, 0, sizeof(response_protobuf));
+static void _get_provision_response(pb_field_t ** fields, void ** structdata){
+	*fields = (pb_field_t *)MorpheusCommand_fields;
+	*structdata = pvPortMalloc(sizeof(ProvisionResponse));
+	assert(*structdata);
+    memset(structdata, 0, sizeof(ProvisionResponse));
+}
+static void _free_provision_response(pb_field_t * fields, void * structdata){
+	vPortFree( structdata );
+}
 
-    if( response->success ) {
-		LOGI("Decoding PR %d %d\n",
-				response_protobuf.has_key,
-				response_protobuf.has_retry );
+static void _on_provision_response_success(pb_field_t * fields, void * structdata){
+	ProvisionResponse * response_protobuf = structdata;
+	LOGF("signature validation success\r\n");
 
-        if( response_protobuf.has_key ) {
-        	on_key(response_protobuf.key.bytes);
-        } else if( response_protobuf.has_retry && response_protobuf.retry ) {
-        	//reset to known state
-        	save_aes_in_memory(DEFAULT_KEY);
-        }
-		wifi_status_set(UPLOADING, false);
-    } else {
-        LOGF("signature validation fail\r\n");
-        wifi_status_set(UPLOADING, true);
+	LOGI("Decoding PR %d %d\n",
+			response_protobuf->has_key,
+			response_protobuf->has_retry );
 
-        //this is bad... the device key has gone out of sync with the server...
-        //reset to default key...
-        save_aes_in_memory(DEFAULT_KEY);
+    if( response_protobuf->has_key ) {
+    	on_key(response_protobuf->key.bytes);
+    } else if( response_protobuf->has_retry && response_protobuf->retry ) {
+    	//reset to known state
+    	save_aes_in_memory(DEFAULT_KEY);
     }
+	wifi_status_set(UPLOADING, false);
+}
+static void _on_provision_response_failure(pb_field_t * fields, void * structdata){
+    LOGF("signature validation fail\r\n");
+    wifi_status_set(UPLOADING, true);
+
+    //this is bad... the device key has gone out of sync with the server...
+    //reset to default key...
+    save_aes_in_memory(DEFAULT_KEY);
 }
 
 bool send_provision_request(ProvisionRequest* req) {
+    protobuf_reply_callbacks pb_cb;
+
+    pb_cb.get_reply_pb = _get_provision_response;
+    pb_cb.free_reply_pb = _free_provision_response;
+    pb_cb.on_pb_failure = _on_provision_response_failure;
+    pb_cb.on_pb_success = _on_provision_response_success;
+
 	return NetworkTask_SendProtobuf(true, DATA_SERVER, PROVISION_ENDPOINT,
-			ProvisionRequest_fields, req, INT_MAX, provision_request_reply,
-			NULL);
+			ProvisionRequest_fields, req, INT_MAX, NULL,NULL, &pb_cb);
 }
 
 int Cmd_sl(int argc, char*argv[]) {

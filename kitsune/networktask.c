@@ -45,7 +45,8 @@ void unblock_sync(void * data) {
 bool NetworkTask_SendProtobuf(bool blocking, const char * host,
 		const char * endpoint, const pb_field_t fields[],
 		void * structdata, int32_t retry_time_in_counts,
-		NetworkResponseCallback_t func, void * context) {
+		NetworkResponseCallback_t func, void * context,
+		protobuf_reply_callbacks *pb_cb ) {
 	NetworkTaskServerSendMessage_t message;
 	NetworkResponse_t response;
 	memset(&message,0,sizeof(message));
@@ -59,6 +60,9 @@ bool NetworkTask_SendProtobuf(bool blocking, const char * host,
 
 	message.fields = fields;
 	message.structdata = structdata;
+	if( pb_cb ) {
+		message.pb_cb = *pb_cb;
+	}
 
 	assert( _asyncqueue );
 
@@ -130,7 +134,8 @@ static NetworkResponse_t nettask_send(NetworkTaskServerSendMessage_t * message) 
 				&decode_buf,
 				&decode_buf_size,
 				message->fields,
-				message->structdata) == 0) {
+				message->structdata,
+				&message->pb_cb ) == 0) {
 			response.success = true;
 		} else {
 			//failed to push, now what?

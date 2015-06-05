@@ -231,6 +231,17 @@ bool ble_send_protobuf(MorpheusCommand* command)
     return false;
 }
 
+void ble_proto_get_morpheus_command(pb_field_t ** fields, void ** structdata){
+	*fields = (pb_field_t *)MorpheusCommand_fields;
+	*structdata = pvPortMalloc(sizeof(MorpheusCommand));
+	assert(*structdata);
+	ble_proto_assign_decode_funcs(*structdata);
+	memset( *structdata, 0, sizeof(MorpheusCommand) );
+}
+void ble_proto_free_morpheus_command(pb_field_t * fields, void * structdata){
+    ble_proto_free_command( structdata );
+	vPortFree( structdata );
+}
 
 void ble_proto_free_command(MorpheusCommand* command)
 {

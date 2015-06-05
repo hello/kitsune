@@ -587,7 +587,7 @@ static bool send_log() {
 #endif
 	//no timeout on this one...
     return NetworkTask_SendProtobuf(true, DATA_SERVER, SENSE_LOG_ENDPOINT,
-    		sense_log_fields,&self.log, 0, NULL, NULL);
+    		sense_log_fields,&self.log, 0, NULL, NULL, NULL );
 }
 
 void analytics_event_task(void * params){
@@ -630,7 +630,7 @@ void analytics_event_task(void * params){
 upload:
 			DISP("Analytics: %s\r\n", block);
 			NetworkTask_SendProtobuf(true, DATA_SERVER, SENSE_LOG_ENDPOINT,
-					sense_log_fields, &log, INT_MAX, _finished_analytics_upload, NULL);
+					sense_log_fields, &log, INT_MAX, _finished_analytics_upload, NULL, NULL);
 			block_len = 0;
 			memset(block, 0, ANALYTICS_MAX_CHUNK_SIZE);
 		}
