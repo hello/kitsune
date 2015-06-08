@@ -1266,6 +1266,7 @@ int force_data_push()
     return 0;
 }
 
+int Cmd_inttemp(int argc, char *argv[]);
 void thread_sensor_poll(void* unused) {
 
 	//
@@ -1296,6 +1297,7 @@ void thread_sensor_poll(void* unused) {
 					data.dust_variability, data.wave_count, data.hold_count);
 
 			Cmd_free(0,0);
+			Cmd_inttemp(0,0);
 
 			if (!xQueueSend(data_queue, (void* )&data, 0) == pdPASS) {
 				xQueueReceive(data_queue, (void* )&data, 0); //discard one, so if the queue is full we will put every other one in the queue
