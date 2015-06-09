@@ -630,13 +630,11 @@ void analytics_event_task(void * params){
 		}else if(block_len != 0){
 			log.unix_time = time;
 upload:
-			portTickType now = xTaskGetTickCount();
 			DISP("Analytics: %s\r\n", block);
 			NetworkTask_SendProtobuf(true, DATA_SERVER, SENSE_LOG_ENDPOINT,
 					sense_log_fields, &log, INT_MAX, _finished_analytics_upload, NULL, NULL);
 			block_len = 0;
 			memset(block, 0, ANALYTICS_MAX_CHUNK_SIZE);
-			vTaskDelayUntil(&now, 1000);
 		}
 	}
 }
