@@ -153,6 +153,8 @@ static unsigned int fade_out_vol(unsigned int fade_counter, unsigned int volume,
 }
 
 #include "stdbool.h"
+extern xSemaphoreHandle i2c_smphr;
+
 static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 	//1.5K on the stack

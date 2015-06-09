@@ -33,6 +33,8 @@
 #include "audiotask.h"
 #include "hlo_net_tools.h"
 
+static bool wifi_state_requested = false;
+
 typedef void(*task_routine_t)(void*);
 
 typedef enum {
@@ -64,6 +66,47 @@ static void set_ble_mode(ble_mode_t status) {
 	xSemaphoreTake( _self.smphr, portMAX_DELAY );
 	_self.ble_status = status;
 	xSemaphoreGive( _self.smphr );
+}
+void ble_reply_http_status(char * status)
+{
+	MorpheusCommand reply_command;
+	memset(&reply_command, 0, sizeof(reply_command));
+	reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_CONNECTION_STATE;
+	reply_command.has_http_response_code = true;
+	memcpy( reply_command.http_response_code, status, 15);
+	//need to only send when it has been requested....=
+	if( wifi_state_requested ) {
+		ble_send_protobuf(&reply_command);
+	}
+}
+
+void ble_reply_socket_error(int error)
+{
+	MorpheusCommand reply_command;
+	memset(&reply_command, 0, sizeof(reply_command));
+	reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_CONNECTION_STATE;
+	reply_command.wifi_connection_state = wifi_connection_state_CONNECT_FAILED;
+	reply_command.has_wifi_connection_state = true;
+	reply_command.socket_error_code = error;
+	reply_command.has_socket_error_code = true;
+	//need to only send when it has been requested....=
+	if( wifi_state_requested ) {
+		ble_send_protobuf(&reply_command);
+	}
+}
+
+void ble_reply_wifi_status(wifi_connection_state state)
+{
+	MorpheusCommand reply_command;
+	memset(&reply_command, 0, sizeof(reply_command));
+	reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_CONNECTION_STATE;
+	reply_command.wifi_connection_state = state;
+	reply_command.has_wifi_connection_state = true;
+	//need to only send when it has been requested....
+	LOGI("blewifi status %d %d", state, wifi_state_requested );
+	if( wifi_state_requested ) {
+		ble_send_protobuf(&reply_command);
+	}
 }
 
 static void _ble_reply_command_with_type(MorpheusCommand_CommandType type)
@@ -133,11 +176,7 @@ static void _reply_wifi_scan_result()
 
 static bool _set_wifi(const char* ssid, const char* password, int security_type, int version)
 {
-    int connection_ret, i;
-
-    uint8_t max_retry = 10;
-    uint8_t retry_count = max_retry;
-
+    int i;
 	xSemaphoreTake(_wifi_smphr, portMAX_DELAY);
     for(i=0;i<MAX_WIFI_EP_PER_SCAN;++i) {
     	if( !strcmp( (char*)_wifi_endpoints[i].ssid, ssid ) ) {
@@ -149,88 +188,14 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type,
     }
 	xSemaphoreGive(_wifi_smphr);
 
-
-	//play_led_progress_bar(0xFF, 128, 0, 128,portMAX_DELAY);
-    while((connection_ret = connect_wifi(ssid, password, security_type, version)) == 0 && --retry_count)
+    if(!connect_wifi(ssid, password, security_type, version))
     {
-        //Cmd_led(0,0);
-        LOGI("Failed to connect, retry times remain %d\n", retry_count);
-        //set_led_progress_bar((max_retry - retry_count ) * 100 / max_retry);
-        vTaskDelay(2000);
-    }
-    //stop_led_animation();
-
-    if(!connection_ret)
-    {
-		LOGI("Tried all wifi ep, all failed to connect\n");
+		LOGI("failed to connect\n");
         ble_reply_protobuf_error(ErrorType_WLAN_CONNECTION_ERROR);
         //led_set_color(0xFF, LED_MAX,0,0,1,1,20,0);
 		return 0;
-    }else{
-		uint8_t wait_time = 5;
-
-		// Wait until the disconnect event happen. If we have a WIFI connection already
-		// and the user enter the wrong password in the next WIFI setup, it will go straight to success
-		// without returning error.
-		vTaskDelay(1000);
-
-		wifi_status_set(CONNECTING, false);
-		//play_led_progress_bar(30,30,0,0,portMAX_DELAY);
-		while(--wait_time && (!wifi_status_get(HAS_IP)))
-		{
-            if(!wifi_status_get(CONNECTING))  // This state will be triggered magically by SL_WLAN_CONNECTION_FAILED_EVENT event
-            {
-            	LOGI("Connection failed!\n");
-                break;
-            }
-			//set_led_progress_bar((10 - wait_time ) * 100 / 10);
-			LOGI("Retrieving IP address...\n");
-			vTaskDelay(4000);
-		}
-		//stop_led_animation();
-
-		if(!wifi_status_get(HAS_IP))
-		{
-			// This is the magical NWP reset problem...
-			// we either get an SL_WLAN_CONNECTION_FAILED_EVENT event, or
-			// no response, do a NWP reset based on the connection pattern
-			// sugguest here: http://e2e.ti.com/support/wireless_connectivity/f/968/p/361673/1273699.aspx
-			LOGI("Cannot retrieve IP address, try NWP reset.");
-			//led_set_color(0xFF, LED_MAX, 0x66, 0, 1, 0, 15, 0);  // Tell the user we are going to fire the bomb.
-
-			nwp_reset();
-
-			wait_time = 10;
-			while(--wait_time && (!wifi_status_get(HAS_IP)))
-			{
-				vTaskDelay(1000);
-			}
-
-			if(wifi_status_get(HAS_IP))
-			{
-				LOGI("Connection success by NWP reset.");
-				//led_set_color(0xFF, LED_MAX, 0x66, 0, 0, 1, 15, 0);
-			}else{
-				if(wifi_status_get(CONNECTING))
-				{
-					ble_reply_protobuf_error(ErrorType_FAIL_TO_OBTAIN_IP);
-				}else{
-					ble_reply_protobuf_error(ErrorType_NO_ENDPOINT_IN_RANGE);
-				}
-				//led_set_color(0xFF, LED_MAX,0,0,1,1,20,0);
-				return 0;
-			}
-		}
     }
 
-    MorpheusCommand reply_command;
-    memset(&reply_command, 0, sizeof(reply_command));
-    reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_SET_WIFI_ENDPOINT;
-    reply_command.wifiSSID.arg = (void*)ssid;
-
-    LOGI("Connection attempt issued.\n");
-    ble_send_protobuf(&reply_command);
-    //led_set_color(0xFF, 0,LED_MAX,0,1,1,20,0);
     return 1;
 }
 
@@ -604,6 +569,8 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
     {
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SET_WIFI_ENDPOINT:
         {
+            wifi_state_requested = command->version >= 2;
+
         	set_ble_mode(BLE_CONNECTED);
             const char* ssid = command->wifiSSID.arg;
             char* password = command->wifiPassword.arg;
@@ -786,6 +753,13 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
                 _ble_reply_command_with_type(command->type);
             }
         }
+        case MorpheusCommand_CommandType_MORPHEUS_COMMAND_DISABLE_WIFI_CONNECTION_UPDATES:
+        {
+        	wifi_state_requested = false;
+            _ble_reply_command_with_type(command->type);
+        	break;
+        }
+
         break;
         default:
         	LOGW("Deprecated BLE Command: %d\r\n", command->type);

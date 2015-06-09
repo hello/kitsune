@@ -169,6 +169,7 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
 			memcpy(_connected_ssid, pSSID, ssidLength);
 		}
         LOGI("SL_WLAN_CONNECT_EVENT\n");
+        ble_reply_wifi_status(wifi_connection_state_WLAN_CONNECTED);
     }
         break;
     case SL_WLAN_CONNECTION_FAILED_EVENT:  // ahhhhh this thing blocks us for 2 weeks...
@@ -176,12 +177,15 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
     	// This is a P2P event, but it fired here magically.
         wifi_status_set(CONNECTING, true);
         LOGI("SL_WLAN_CONNECTION_FAILED_EVENT\n");
+        ble_reply_wifi_status(wifi_connection_state_NO_WLAN_CONNECTED);
+        nwp_reset();
     }
     break;
     case SL_WLAN_DISCONNECT_EVENT:
         wifi_status_set(0xFFFFFFFF, true);
         memset(_connected_ssid, 0, MAX_SSID_LEN);
         LOGI("SL_WLAN_DISCONNECT_EVENT\n");
+    	ble_reply_wifi_status(wifi_connection_state_NO_WLAN_CONNECTED);
         break;
     default:
         break;
@@ -212,6 +216,7 @@ void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent) {
 		}
 
 		wifi_status_set(HAS_IP, false);
+        ble_reply_wifi_status(wifi_connection_state_IP_RETRIEVED);
 
 		break;
 
@@ -1032,6 +1037,7 @@ int start_connection() {
                                    strlen(SL_SSL_CA_CERT_FILE_NAME))  < 0  )
         {
         LOGI( "error setting ssl options\r\n" );
+        ble_reply_wifi_status(wifi_connection_state_SSL_FAIL);
         }
     }
 
@@ -1046,9 +1052,11 @@ int start_connection() {
              LOGI("Get Host IP succeeded.\n\rHost: %s IP: %d.%d.%d.%d \n\r\n\r",
 				   DATA_SERVER, SL_IPV4_BYTE(ipaddr, 3), SL_IPV4_BYTE(ipaddr, 2),
 				   SL_IPV4_BYTE(ipaddr, 1), SL_IPV4_BYTE(ipaddr, 0));
+         	ble_reply_wifi_status(wifi_connection_state_DNS_RESOLVED);
         } else {
         	static portTickType last_reset_time = 0;
 			LOGI("failed to resolves addr rv %d\n", rv);
+			ble_reply_wifi_status(wifi_connection_state_DNS_FAILED);
             ipaddr = 0;
             #define SIX_MINUTES 360000
             if( xTaskGetTickCount() - last_reset_time > SIX_MINUTES ) {
@@ -1084,9 +1092,11 @@ int start_connection() {
     //connect it up
     //LOGI("Connecting \n\r\n\r");
     if (sock > 0 && sock_begin < 0 && (rv = connect(sock, &sAddr, sizeof(sAddr)))) {
-		LOGI("Could not connect %d\n\r\n\r", rv);
+    	ble_reply_socket_error(rv);
+    	LOGI("Could not connect %d\n\r\n\r", rv);
 		return stop_connection();
     }
+ 	ble_reply_wifi_status(wifi_connection_state_SOCKET_CONNECTED);
     return 0;
 }
 
@@ -1324,6 +1334,7 @@ int http_response_ok( char* response_buffer)
 	memset(first_line, 0, first_line_len + 1);
 	memcpy(first_line, response_buffer, first_line_len);
 	LOGI("status: %s\n", first_line);
+	ble_reply_http_status(first_line);
 
 	int resp_ok = match("2..", first_line);
 	vPortFree(first_line);
@@ -1404,6 +1415,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     rv = recv(sock, recv_buf, SERVER_REPLY_BUFSZ, 0);
     if (rv != SL_EAGAIN ) {
         LOGI("start recv error %d\n\r\n\r", rv);
+        ble_reply_socket_error(rv);
         return stop_connection();
     }
 
@@ -1411,6 +1423,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     rv = send(sock, recv_buf, send_length, 0);
     if (rv <= 0) {
         LOGI("send error %d\n\r\n\r", rv);
+        ble_reply_socket_error(rv);
         return stop_connection();
     }
 
@@ -1530,6 +1543,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     if( send_chunk_len(0, sock) != 0 ) {
     	return -1;
     }
+    ble_reply_wifi_status(wifi_connection_state_REQUEST_SENT);
 
     memset(recv_buf, 0, recv_buf_size);
 
@@ -1553,6 +1567,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
 
     if (rv <= 0) {
         LOGI("recv error %d\n\r\n\r", rv);
+        ble_reply_socket_error(rv);
         return stop_connection();
     }
     LOGI("recv %d\n", rv);
@@ -1571,8 +1586,10 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     	if( pb_cb && pb_cb->free_reply_pb ) {
     		pb_cb->free_reply_pb( reply_fields, reply_structdata );
     	}
+    	ble_reply_wifi_status(wifi_connection_state_CONNECTED);
     	return 0;
     } else {
+    	ble_reply_wifi_status(wifi_connection_state_HELLO_KEY_FAIL);
     	if( pb_cb && pb_cb->on_pb_failure ) {
 			pb_cb->on_pb_failure( reply_fields, reply_structdata );
 		}
@@ -2368,6 +2385,7 @@ int connect_wifi(const char* ssid, const char* password, int sec_type, int versi
 
 		return 1;
 	}
+    ble_reply_wifi_status(wifi_connection_state_WLAN_CONNECTING);
 
 	return 0;
 }
@@ -2640,7 +2658,7 @@ static int http_cb(volatile int * sock, char * linebuf, int inbufsz) {
 			return -1;
 		}
 
-		xSemaphoreTake(i2c_smphr, portMAX_DELAY);
+		xSemaphoreTakeRecursive(i2c_smphr, portMAX_DELAY);
 		char * html = pvPortMalloc(128);
 		usnprintf( html, 128, "Temperature is %d<br>", get_temp());
 		if( send_buffer_chunked( sock, html, strlen(html)) < 0 ) {
@@ -2659,7 +2677,7 @@ static int http_cb(volatile int * sock, char * linebuf, int inbufsz) {
 			goto done_i2c;
 		}
 		done_i2c:
-		xSemaphoreGive(i2c_smphr);
+		xSemaphoreGiveRecursive(i2c_smphr);
 		if( *sock < 0 ) {
 			vPortFree(html);
 			return -1;
