@@ -600,6 +600,16 @@ int Cmd_connect(int argc, char *argv[]) {
     return (0);
 }
 
+int Cmd_setDns(int argc, char *argv[])  {
+	SlNetCfgIpV4Args_t config = {0};
+	uint8_t size = sizeof(config);
+	sl_NetCfgGet( SL_IPV4_STA_P2P_CL_GET_INFO, NULL, &size, (uint8_t*)&config );
+	config.ipV4DnsServer = strtoul(argv[1], NULL, 16);
+	sl_NetCfgSet( SL_IPV4_AP_P2P_GO_STATIC_ENABLE, IPCONFIG_MODE_ENABLE_IPV4, size, (uint8_t*)&config );
+	nwp_reset();
+	return 0;
+}
+
 int Cmd_status(int argc, char *argv[]) {
     unsigned char ucDHCP = 0;
     unsigned char len = sizeof(SlNetCfgIpV4Args_t);
@@ -616,6 +626,11 @@ int Cmd_status(int argc, char *argv[]) {
     LOGI("%x ip 0x%x submask 0x%x gateway 0x%x dns 0x%x\n\r", wifi_status_get(0xFFFFFFFF),
             ipv4.ipV4, ipv4.ipV4Mask, ipv4.ipV4Gateway, ipv4.ipV4DnsServer);
 
+    LOGF("DNS=%d.%d.%d.%d\n",
+                SL_IPV4_BYTE(ipv4.ipV4DnsServer,3),
+                SL_IPV4_BYTE(ipv4.ipV4DnsServer,2),
+                SL_IPV4_BYTE(ipv4.ipV4DnsServer,1),
+                SL_IPV4_BYTE(ipv4.ipV4DnsServer,0));
     LOGF("IP=%d.%d.%d.%d\n",
                 SL_IPV4_BYTE(ipv4.ipV4,3),
                 SL_IPV4_BYTE(ipv4.ipV4,2),
