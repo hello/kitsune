@@ -628,8 +628,8 @@ void analytics_event_task(void * params){
 			block_len +=  evt.pos;
 			vPortFree(evt.ptr);
 		}else if(block_len != 0){
-			log.unix_time = time;
 upload:
+			log.unix_time = time;
 			portTickType now = xTaskGetTickCount();
 			DISP("Analytics: %s\r\n", block);
 			NetworkTask_SendProtobuf(true, DATA_SERVER, SENSE_LOG_ENDPOINT,
