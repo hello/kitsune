@@ -1074,7 +1074,7 @@ int start_connection() {
 			ble_reply_wifi_status(wifi_connection_state_DNS_FAILED);
             ipaddr = 0;
             #define SIX_MINUTES 360000
-            if( xTaskGetTickCount() - last_reset_time > SIX_MINUTES ) {
+            if( last_reset_time == 0 || xTaskGetTickCount() - last_reset_time > SIX_MINUTES ) {
                 last_reset_time = xTaskGetTickCount();
                 nwp_reset();
                 vTaskDelay(10000);

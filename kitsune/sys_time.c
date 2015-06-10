@@ -187,8 +187,9 @@ uint32_t fetch_unix_time_from_ntp() {
         #define SIX_MINUTES 360000
         //need to reset if we're constantly failing, but this will only be called once per
         //several hours so we need to check that we've failed recently before we send the reset...
-        if( xTaskGetTickCount() - last_fail_time < SIX_MINUTES &&
-        	xTaskGetTickCount() - last_reset_time > SIX_MINUTES ) {
+        if( last_reset_time == 0 ||
+        	(xTaskGetTickCount() - last_fail_time < SIX_MINUTES &&
+        	 xTaskGetTickCount() - last_reset_time > SIX_MINUTES )) {
             last_reset_time = xTaskGetTickCount();
             nwp_reset();
             vTaskDelay(10000);
