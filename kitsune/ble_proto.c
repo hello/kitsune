@@ -591,7 +591,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
     {
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SET_WIFI_ENDPOINT:
         {
-            wifi_state_requested = command->version >= 3;
+            wifi_state_requested = command->has_app_version && command->app_version >= 0;
 
         	set_ble_mode(BLE_CONNECTED);
             const char* ssid = command->wifiSSID.arg;
