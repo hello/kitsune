@@ -33,7 +33,7 @@
 #include "audiotask.h"
 #include "hlo_net_tools.h"
 
-static bool wifi_state_requested = false;
+volatile static bool wifi_state_requested = false;
 
 typedef void(*task_routine_t)(void*);
 
@@ -195,6 +195,28 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type,
         //led_set_color(0xFF, LED_MAX,0,0,1,1,20,0);
 		return 0;
     }
+
+	if(wifi_state_requested) {
+		int to = 0;
+		while( !wifi_status_get(UPLOADING) ) {
+			vTaskDelay(1000);
+			if( ++to > 60 ) {
+				LOGI("wifi timeout\n");
+				wifi_state_requested = false;
+				ble_reply_protobuf_error(ErrorType_SERVER_CONNECTION_TIMEOUT);
+				break;
+			}
+		}
+		wifi_state_requested = false;
+	} else {
+		MorpheusCommand reply_command;
+		memset(&reply_command, 0, sizeof(reply_command));
+		reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_SET_WIFI_ENDPOINT;
+		reply_command.wifiSSID.arg = (void*)ssid;
+
+		LOGI("Connection attempt issued.\n");
+		ble_send_protobuf(&reply_command);
+	}
 
     return 1;
 }
@@ -752,12 +774,6 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
             }else{
                 _ble_reply_command_with_type(command->type);
             }
-        }
-        case MorpheusCommand_CommandType_MORPHEUS_COMMAND_DISABLE_WIFI_CONNECTION_UPDATES:
-        {
-        	wifi_state_requested = false;
-            _ble_reply_command_with_type(command->type);
-        	break;
         }
 
         break;
