@@ -1051,7 +1051,7 @@ int start_connection() {
 			LOGI("failed to resolves addr rv %d\n", rv);
             ipaddr = 0;
             #define SIX_MINUTES 360000
-            if( xTaskGetTickCount() - last_reset_time > SIX_MINUTES ) {
+            if( last_reset_time == 0 || xTaskGetTickCount() - last_reset_time > SIX_MINUTES ) {
                 last_reset_time = xTaskGetTickCount();
                 nwp_reset();
                 vTaskDelay(10000);
