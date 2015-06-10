@@ -72,6 +72,8 @@ void ble_reply_http_status(char * status)
 	MorpheusCommand reply_command;
 	memset(&reply_command, 0, sizeof(reply_command));
 	reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_CONNECTION_STATE;
+	reply_command.has_wifi_connection_state = true;
+	reply_command.wifi_connection_state = wifi_connection_state_CONNECTED;
 	reply_command.has_http_response_code = true;
 	memcpy( reply_command.http_response_code, status, 15);
 	//need to only send when it has been requested....=
@@ -188,6 +190,7 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type,
     }
 	xSemaphoreGive(_wifi_smphr);
 
+	nwp_reset(); //tabula rasa
     if(!connect_wifi(ssid, password, security_type, version))
     {
 		LOGI("failed to connect\n");
@@ -592,6 +595,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SET_WIFI_ENDPOINT:
         {
             wifi_state_requested = command->has_app_version && command->app_version >= 0;
+            LOGI("set wifi %d %d %d\n", wifi_state_requested, command->has_app_version, command->app_version );
 
         	set_ble_mode(BLE_CONNECTED);
             const char* ssid = command->wifiSSID.arg;

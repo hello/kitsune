@@ -1350,6 +1350,7 @@ int http_response_ok( char* response_buffer)
 	memcpy(first_line, response_buffer, first_line_len);
 	LOGI("status: %s\n", first_line);
 	ble_reply_http_status(first_line);
+	wifi_status_set(UPLOADING, false);
 
 	int resp_ok = match("2..", first_line);
 	vPortFree(first_line);
@@ -1601,9 +1602,9 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     	if( pb_cb && pb_cb->free_reply_pb ) {
     		pb_cb->free_reply_pb( reply_fields, reply_structdata );
     	}
-    	ble_reply_wifi_status(wifi_connection_state_CONNECTED);
     	return 0;
     } else {
+    	wifi_status_set(UPLOADING, true);
     	ble_reply_wifi_status(wifi_connection_state_HELLO_KEY_FAIL);
     	if( pb_cb && pb_cb->on_pb_failure ) {
 			pb_cb->on_pb_failure( reply_fields, reply_structdata );
@@ -1839,11 +1840,9 @@ static void _on_sync_response_success(pb_field_t * fields, void * structdata){
     LOGF("signature validation success\r\n");
 	boot_commit_ota();
 	_on_response_protobuf((SyncResponse*)structdata);
-	wifi_status_set(UPLOADING, false);
 }
 static void _on_sync_response_failure(pb_field_t * fields, void * structdata){
     LOGF("signature validation fail\r\n");
-    wifi_status_set(UPLOADING, true);
 }
 
 //retry logic is handled elsewhere
