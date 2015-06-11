@@ -138,12 +138,13 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type,
     uint8_t max_retry = 10;
     uint8_t retry_count = max_retry;
 
+	LOGI("Connecting to WIFI %s\n", ssid );
 	xSemaphoreTake(_wifi_smphr, portMAX_DELAY);
     for(i=0;i<MAX_WIFI_EP_PER_SCAN;++i) {
     	if( !strcmp( (char*)_wifi_endpoints[i].ssid, ssid ) ) {
     		antsel(_wifi_endpoints[i].reserved[0]);
     		save_default_antenna( _wifi_endpoints[i].reserved[0] );
-    		LOGI("Connecting to WIFI %s RSSI %d\r\n", ssid, _wifi_endpoints[i].rssi);
+    		LOGI("RSSI %d\r\n", ssid, _wifi_endpoints[i].rssi);
     		break;
     	}
     }
