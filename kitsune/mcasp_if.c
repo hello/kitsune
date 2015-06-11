@@ -66,11 +66,6 @@
 /* Demo app includes. */
 #include "mcasp_if.h"
 
-//unsigned long tone;
-unsigned short * audio_buf;
-unsigned long * playback_buffer;
-unsigned long playback_buffer_size;
-unsigned long playback_buffer_index;
 //*****************************************************************************
 //
 //! Returns the pointer to transfer Audio samples to be rendered
@@ -130,11 +125,6 @@ void McASPDeInit()
 	MAP_I2STxFIFODisable(I2S_BASE);
 	MAP_I2SRxFIFODisable(I2S_BASE);
 	I2SIntUnregister(I2S_BASE);
-}
-void McASPLoad(unsigned long * b, unsigned long size){
-	playback_buffer = b;
-	playback_buffer_size = size;
-	playback_buffer_index = 0;
 }
 
 //*****************************************************************************
