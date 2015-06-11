@@ -196,48 +196,6 @@ void DMAPingPongCompleteAppCB_opt()
               pusTxDestBuf = (unsigned short *)pAudInBuf->pucWritePtr;
               pusTxDestBuf -= CB_TRANSFER_SZ;
               guiDMATransferCountTx = 0;
-#if 0
-          	////////
-              WORD bytes = 0;
-          	WORD bytes_written = 0;
-          	WORD bytes_to_write = strlen(*pusTxDestBuf)+1;
-          //	WORD bytes_to_write = strlen(content[1]) * 4 +1;
-              if(global_filename( "VVONE" ))
-              {
-              	return 1;
-              }
-
-              // Open the file for reading.
-               f_open(&file_obj, g_pcTmpBuf, FA_CREATE_NEW|FA_WRITE);
-
-              f_stat( g_pcTmpBuf, &file_info );
-
-              if( file_info.fsize != 0 )
-                   f_lseek(&file_obj, file_info.fsize );
-
-              do {
-          		f_write( &file_obj, *pusTxDestBuf+bytes_written, bytes_to_write-bytes_written, &bytes );
-          		bytes_written+=bytes;
-              } while( bytes_written < bytes_to_write );
-
-               f_close( &file_obj );
-#endif
-               //Cmd_rm(1, "VONE");
-               //Cmd_write_record(*pusTxDestBuf);
-               /////
-             // LOGI("pusTxDestBuf %x\n\r",*pusTxDestBuf );
-              //f_append("/Aud",pusTxDestBuf,CB_TRANSFER_SZ);
-
-               /*
-			   int i = 0;
-               for(i=0; i<128; i++){
-            	   short* num = &pusTxDestBuf[i * 2];
-            	   LOGI("%d ", *num);
-               }
-               */
-
-               //short* num = &pusTxDestBuf[2];
-			   //LOGI("%d ", *num);
         }
     }
     
