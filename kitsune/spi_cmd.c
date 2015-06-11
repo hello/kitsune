@@ -265,7 +265,7 @@ int Cmd_spi_write(int argc, char *argv[]) {
 }
 
 extern volatile bool booted;
-
+extern void CmdLineProcess(void * line);
 int Cmd_spi_read(int argc, char *argv[]) {
 #define MAX_PB_QUEUED 32
 #define SPI_BUFSZ 512
@@ -286,6 +286,16 @@ int Cmd_spi_read(int argc, char *argv[]) {
 		switch(addr){
 		case 0:
 			on_morpheus_protobuf_arrival(buf, len);
+			break;
+		case 0x02://command from the top!
+		{
+			char * args = pvPortMalloc(len);
+			memcpy(args, buf, len);
+			xTaskCreate(CmdLineProcess, "commandTask",  3*1024 / 4, args, 4, NULL);
+		}
+			break;
+		default:
+			DISP("Unkown SPI Address: %x\r\n", addr);
 			break;
 		}
 		vPortFree(buf);
