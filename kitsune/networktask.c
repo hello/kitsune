@@ -162,6 +162,9 @@ static NetworkResponse_t nettask_send(NetworkTaskServerSendMessage_t * message) 
 				vTaskDelay(retry_period);
 				timeout_counts -= retry_period;
 				retry_period <<= 1;
+				if( retry_period > 30000 ) {
+					retry_period = 30000;
+				}
 			}
 		}
 		else {
