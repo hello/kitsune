@@ -1616,7 +1616,7 @@ void launch_tasks() {
 
 	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,1,NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 4, NULL);
+	xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 3, NULL);
 	UARTprintf("*");
 	xTaskCreate(FileUploaderTask_Thread,"fileUploadTask",1*1024/4,NULL,1,NULL);
 #ifdef BUILD_SERVERS //todo PVT disable!
@@ -1825,7 +1825,7 @@ void vUARTTask(void *pvParameters) {
 		LOGI("Failed to create the led_events.\n");
 	}
 	xTaskCreate(led_task, "ledTask", 700 / 4, NULL, 4, NULL); //todo reduce stack - jpf 512 not large enough due to large int arrays in led_task
-	xTaskCreate(led_idle_task, "led_idle_task", 256 / 4, NULL, 4, NULL); //todo reduce stack - jpf 512 not large enough due to large int arrays in led_task
+	xTaskCreate(led_idle_task, "led_idle_task", 256 / 4, NULL, 1, NULL); //todo reduce stack - jpf 512 not large enough due to large int arrays in led_task
 
 	//switch the uart lines to gpios, drive tx low and see if rx goes low as well
     // Configure PIN_57 for GPIOInput
@@ -1935,7 +1935,7 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("*");
 	init_download_task( 1024 / 4 );
 	networktask_init(4 * 1024 / 4);
-	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 4, NULL);
+	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 3, NULL);
 
 	load_serial();
 	load_aes();
@@ -1948,11 +1948,11 @@ void vUARTTask(void *pvParameters) {
 	init_dust();
 	ble_proto_init();
 	xTaskCreate(top_board_task, "top_board_task", 1280 / 4, NULL, 2, NULL);
-	xTaskCreate(thread_spi, "spiTask", 1024 / 4, NULL, 4, NULL);
+	xTaskCreate(thread_spi, "spiTask", 1024 / 4, NULL, 3, NULL);
 #ifndef BUILD_SERVERS
 	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 1, NULL);
 	UARTprintf("*");
-	xTaskCreate(analytics_event_task, "analyticsTask", 1024/4, NULL, 4, NULL);
+	xTaskCreate(analytics_event_task, "analyticsTask", 1024/4, NULL, 1, NULL);
 	UARTprintf("*");
 #endif
 

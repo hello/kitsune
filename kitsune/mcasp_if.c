@@ -66,11 +66,6 @@
 /* Demo app includes. */
 #include "mcasp_if.h"
 
-//unsigned long tone;
-unsigned short * audio_buf;
-unsigned long * playback_buffer;
-unsigned long playback_buffer_size;
-unsigned long playback_buffer_index;
 //*****************************************************************************
 //
 //! Returns the pointer to transfer Audio samples to be rendered
@@ -105,27 +100,6 @@ unsigned int* AudioCapturerGetDMADataPtr()
     return (unsigned int *)(I2S_RX_DMA_PORT);
 }
 
-
-
-//*****************************************************************************
-//
-//! Initialize the audio capturer
-//!
-//! \param None
-//! 
-//! This function initializes 
-//!        1. Initializes the McASP module
-//!
-//! \return None.
-//
-//*****************************************************************************
-void AudioCapturerInit(unsigned int CPU_XDATA, unsigned int SAMPLING_FREQ)
-{
-    //
-    // Initialising the McASP
-    //
-    McASPInit(CPU_XDATA, SAMPLING_FREQ);
-}
 //*****************************************************************************
 //
 //! Initialize McASP Interface
@@ -138,14 +112,10 @@ void AudioCapturerInit(unsigned int CPU_XDATA, unsigned int SAMPLING_FREQ)
 //! \return None.
 //
 //*****************************************************************************
-void McASPInit(unsigned int CPU_XDATA, unsigned int SAMPLING_FREQ)
+void McASPInit(unsigned int SAMPLING_FREQ)
 {
     MAP_PRCMPeripheralClkEnable(PRCM_I2S,PRCM_RUN_MODE_CLK); 
     MAP_PRCMI2SClockFreqSet(SAMPLING_FREQ*2*16); // 16bit *2* 22050Hz
-if(CPU_XDATA)
-{        MAP_I2SIntRegister(I2S_BASE,I2SIntHandler); // add by ben
-        MAP_I2SIntEnable(I2S_BASE,I2S_INT_XDATA); // add by ben
-}
 }
 void McASPDeInit()
 {
@@ -155,58 +125,6 @@ void McASPDeInit()
 	MAP_I2STxFIFODisable(I2S_BASE);
 	MAP_I2SRxFIFODisable(I2S_BASE);
 	I2SIntUnregister(I2S_BASE);
-}
-void McASPLoad(unsigned long * b, unsigned long size){
-	playback_buffer = b;
-	playback_buffer_size = size;
-	playback_buffer_index = 0;
-}
-
-//*****************************************************************************
-//add interrupt handeler
-//**************************************
-void I2SIntHandler(){
-	//static unsigned long sin[32]={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-	//						 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa, 0xaaaaaaaa};
-    static int i = 0 ;
-   unsigned long ulStatus;
-
-
-   // Get the interrupt status
-   ulStatus = I2SIntStatus(I2S_BASE);
-
-   // Check if there was a Transmit interrupt; if so write next data into the tx buffer and acknowledge the interrupt
-   if(ulStatus & I2S_STS_XDATA)
-   {
-	   //I2SDataPutNonBlocking(I2S_BASE,I2S_DATA_LINE_0,sin[(i++)%32]);
-	    I2SDataPut(I2S_BASE,I2S_DATA_LINE_0, (unsigned long) (audio_buf[i/2]));
-
-	  //  for( i = 0; i < 2*AUDIO_BUF_SZ/sizeof(unsigned short); i++) {
-	    //for(;;){
-		I2SDataPutNonBlocking(I2S_BASE,I2S_DATA_LINE_0, (unsigned long) (audio_buf[i/2]));
-	    //i++;
-		if( ++i > 2*AUDIO_BUF_SZ/sizeof(unsigned short) ) {
-	    	i=0;
-	    }
-
-        I2SIntClear(I2S_BASE,I2S_STS_XDATA);
-	    //}
-   }
-
-   // Check if there was a receive interrupt; if so read the data from the rx buffer and acknowledge
-   // the interrupt
-#if 0
-   if(ulStatus & I2S_STS_RDATA)
-   {
-	   unsigned long ulDummy=0;
-        I2SDataGetNonBlocking(I2S_BASE, I2S_DATA_LINE_1, &ulDummy);
-        UARTprintf("loop into I2SIntClear \n");
-
-        I2SIntClear(I2S_BASE,I2S_STS_RDATA);
-
-
-   }
-#endif
 }
 
 //*****************************************************************************

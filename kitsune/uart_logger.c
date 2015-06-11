@@ -546,12 +546,6 @@ convert:
 
 }
 
-static void _finished_analytics_upload(const NetworkResponse_t * response, char * reply_buf, int reply_sz, void * context){
-	if( !response->success ) {
-		LOGE("failed up upload analytics\n");
-	}
-}
-
 int analytics_event( const char *pcString, ...) {
 	//todo make this fail more gracefully if the allocations don't succeed...
 	va_list vaArgP;
@@ -628,13 +622,17 @@ void analytics_event_task(void * params){
 			block_len +=  evt.pos;
 			vPortFree(evt.ptr);
 		}else if(block_len != 0){
-			log.unix_time = time;
 upload:
+			log.unix_time = time;
+			portTickType now = xTaskGetTickCount();
 			DISP("Analytics: %s\r\n", block);
-			NetworkTask_SendProtobuf(true, DATA_SERVER, SENSE_LOG_ENDPOINT,
-					sense_log_fields, &log, INT_MAX, _finished_analytics_upload, NULL, NULL);
+			if( !NetworkTask_SendProtobuf(true, DATA_SERVER, SENSE_LOG_ENDPOINT,
+					sense_log_fields, &log, 1000, NULL, NULL, NULL) ) {
+				LOGI("Analytics failed to upload\n");
+			}
 			block_len = 0;
 			memset(block, 0, ANALYTICS_MAX_CHUNK_SIZE);
+			vTaskDelayUntil(&now, 1000);
 		}
 	}
 }
