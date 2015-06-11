@@ -99,16 +99,11 @@ volatile unsigned int *puiTxSrcBuf;
 volatile unsigned short *pusTxDestBuf;
 volatile unsigned short *pusRxSrcBuf;
 volatile unsigned int *puiRxDestBuf;
-volatile unsigned int guiDMATransferCountTx = 0, guiDMACount = 0;
+volatile unsigned int guiDMATransferCountTx = 0;
 volatile unsigned int guiDMATransferCountRx = 0;
-unsigned int g_uiBuffLevel=0;
-unsigned int g_uiNoDataLeft;
 extern tCircularBuffer *pTxBuffer;
 extern tCircularBuffer *pRxBuffer;
 extern unsigned int g_uiPlayWaterMark;
-int g_iReadFlag = 0;
-unsigned int guiDMAEmptyCount = 0;
-int iCount1,SPEAKER,MIC,iCount3;
 //*****************************************************************************
 //
 //! Callback function implementing ping pong mode DMA transfer
@@ -137,11 +132,6 @@ void DMAPingPongCompleteAppCB_opt()
     if(uDMAIntStatus() & 0x00000010)
     {
         HWREG(0x4402609c) = (1<<10);
-        guiDMACount++;
-        if(!(guiDMACount & 0x000003FF))
-        {
-            //DBG_PRINT("DMACount = %u\n\r",guiDMACount);
-        }
         //
         // Get the base address of the control table.
         //
@@ -164,7 +154,6 @@ void DMAPingPongCompleteAppCB_opt()
             {
                 pusTxDestBuf += CB_TRANSFER_SZ;
                 guiDMATransferCountTx += CB_TRANSFER_SZ;
-                MIC++;
             }
             
             pucDMADest = (unsigned char *)pusTxDestBuf;
@@ -189,7 +178,6 @@ void DMAPingPongCompleteAppCB_opt()
                 {
                     pusTxDestBuf += CB_TRANSFER_SZ;
                     guiDMATransferCountTx += CB_TRANSFER_SZ;
-                    MIC++;
                 }
                 pucDMADest = (unsigned char *)pusTxDestBuf;
                 pControlTable[ulAltIndexTx].ulControl |= CTRL_WRD;
@@ -250,8 +238,7 @@ void DMAPingPongCompleteAppCB_opt()
 
                //short* num = &pusTxDestBuf[2];
 			   //LOGI("%d ", *num);
-        }   
-        g_iReadFlag++;
+        }
     }
     
     
@@ -259,7 +246,6 @@ void DMAPingPongCompleteAppCB_opt()
     {
         HWREG(0x4402609c) = (1<<11);
         pControlTable = MAP_uDMAControlBaseGet();
-        iCount1++;
         if((pControlTable[ulPrimaryIndexRx].ulControl & UDMA_CHCTL_XFERMODE_M) == 0)
         {
             if((pAudOutBuf->pucReadPtr == pAudOutBuf->pucWritePtr) || (g_uiPlayWaterMark == 0))
@@ -268,18 +254,14 @@ void DMAPingPongCompleteAppCB_opt()
                 if(pAudOutBuf->pucReadPtr == pAudOutBuf->pucWritePtr)
                 {
                     g_uiPlayWaterMark = 0;
-                    guiDMAEmptyCount++;
-                   // LOGI("Buffer Empty %d\n\r",guiDMAEmptyCount );
                 }
                 guiDMATransferCountRx = 0;
-                iCount3++;
             }
             else
             {
                 pusRxSrcBuf += CB_TRANSFER_SZ;
                 guiDMATransferCountRx += CB_TRANSFER_SZ;
                 pucDMASrc = (unsigned char *)pusRxSrcBuf;
-                SPEAKER++;
             }
             pControlTable[ulPrimaryIndexRx].ulControl |= CTRL_WRD;
             //pControlTable[ulPrimaryIndex].pvSrcEndAddr = (void *)((unsigned long)&gaucZeroBuffer[0] + 15);
@@ -297,8 +279,6 @@ void DMAPingPongCompleteAppCB_opt()
                     if(pAudOutBuf->pucReadPtr == pAudOutBuf->pucWritePtr)
                     {
                       g_uiPlayWaterMark = 0;
-                      guiDMAEmptyCount++;
-                     // LOGI("Buffer Empty %d\n\r",guiDMAEmptyCount );
                     }
                     guiDMATransferCountRx = 0;
                 }
@@ -307,7 +287,6 @@ void DMAPingPongCompleteAppCB_opt()
                     pusRxSrcBuf += CB_TRANSFER_SZ;
                     guiDMATransferCountRx += CB_TRANSFER_SZ;
                     pucDMASrc = (unsigned char *)pusRxSrcBuf;
-                    SPEAKER++;
                 }
                 pControlTable[ulAltIndexRx].ulControl |= CTRL_WRD;
                 pControlTable[ulAltIndexRx].pvSrcEndAddr = (void *)((unsigned long)pucDMASrc + END_PTR);
