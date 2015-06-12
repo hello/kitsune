@@ -1606,6 +1606,7 @@ void launch_tasks() {
 	//dear future chris: this one doesn't need a semaphore since it's only written to while threads are going during factory test boot
 	booted = true;
 
+	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 3, NULL);
 	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,1,NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 3, NULL);
@@ -1926,7 +1927,6 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("*");
 	init_download_task( 1024 / 4 );
 	networktask_init(4 * 1024 / 4);
-	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 3, NULL);
 
 	load_serial();
 	load_aes();
