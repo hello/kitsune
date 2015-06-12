@@ -1690,6 +1690,17 @@ int Cmd_heapviz(int argc, char *argv[]) {
 
 	return 0;
 }
+int Cmd_disableInterrupts(int argc, char *argv[]) {
+	int counts = atoi(argv[1]);
+	unsigned long ulInt;
+	ulInt = MAP_IntMasterDisable();
+	UtilsDelay(counts);
+	if (!ulInt) {
+		MAP_IntMasterEnable();
+	}
+	return 0;
+}
+
 
 // ==============================================================================
 // This is the table that holds the command names, implementing functions, and
@@ -1792,6 +1803,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{"future",Cmd_FutureTest,""},
 		{"dev", Cmd_setDev, ""},
 		{"ana", Cmd_analytics, ""},
+		{"noint", Cmd_disableInterrupts, ""},
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
 		{ "iperfcli",Cmd_iperf_client,""},
