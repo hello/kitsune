@@ -964,7 +964,6 @@ void thread_tx(void* unused) {
 	batched_periodic_data data_batched = {0};
 	periodic_data forced_data;
 	bool got_forced_data = false;
-	int tries = 0;
 
 	LOGI(" Start polling  \n");
 	while (1) {
@@ -1021,13 +1020,7 @@ void thread_tx(void* unused) {
 					pr.serial.funcs.encode = _encode_string_fields;
 					pr.serial.arg = serial;
 					pr.need_key = true;
-					while (!send_provision_request(&pr)) {
-						LOGI("Waiting for network connection\n");
-						vTaskDelay((1 << tries) * 1000);
-						if (tries++ > 3) {
-							break;
-						}
-					}
+					send_provision_request(&pr);
 				}
 			}
 
@@ -1042,7 +1035,6 @@ void thread_tx(void* unused) {
 			vPortFree( periodicdata.data );
 		}
 
-		tries = 0;
 		if (uxQueueMessagesWaiting(pill_queue) > PILL_BATCH_WATERMARK) {
 			LOGI(	"sending  pill data\n" );
 			pilldata_to_encode pilldata;
