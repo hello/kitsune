@@ -845,6 +845,7 @@ static SHA1_CTX sha1ctx;
 
 typedef struct {
 	intptr_t fd;
+	uint32_t inbuf_offset;
 	uint8_t * buf;
 	int32_t buf_pos;
 	int32_t buf_size;
@@ -909,14 +910,12 @@ static bool flush_out_buffer(ostream_buffered_desc_t * desc ) {
 }
 static bool write_buffered_callback_sha(pb_ostream_t *stream, const uint8_t * inbuf, size_t count) {
 	ostream_buffered_desc_t * desc = (ostream_buffered_desc_t *) stream->state;
-	bool ret = true;
-	bool overflow =  (desc->buf_pos + count ) >= desc->buf_size;
-	int leftovers = (desc->buf_pos + count ) % desc->buf_size;
 	assert( count < INT_MAX ); //make sure it fits in signed int
 	int c = count;
 	desc->bytes_that_should_have_been_written += c;
+	int start_bufpos = desc->buf_pos;
 
-	if (overflow) {
+	if ((desc->buf_pos + count ) >= desc->buf_size) {
 		/* Will I exceed the buffer size? then send buffer */
 		while ((desc->buf_pos + c) >= desc->buf_size) {
 			//copy over
@@ -929,23 +928,24 @@ static bool write_buffered_callback_sha(pb_ostream_t *stream, const uint8_t * in
 			if (send_chunk_len(desc->buf_size, sock) != 0) {
 				return false;
 			}
-			ret = send(desc->fd, desc->buf, desc->buf_size, 0)
-					== desc->buf_size;
+			if(!send(desc->fd, desc->buf, desc->buf_size, 0)
+					== desc->buf_size ) { return false; }
 
 			desc->bytes_written += desc->buf_size;
 
 			desc->buf_pos = 0;
 			c -= desc->buf_size;
+			inbuf += desc->buf_size;
 		}
 		//copy to our buffer
-		memcpy(desc->buf, inbuf, leftovers);
-		desc->buf_pos += leftovers;
+		memcpy(desc->buf, inbuf, c+start_bufpos);
+		desc->buf_pos += c+start_bufpos;
 	} else {
 		//copy to our buffer
 		memcpy(desc->buf + desc->buf_pos, inbuf, count);
 		desc->buf_pos += count;
 	}
-    return ret;
+    return true;
 }
 
 static bool read_callback_sha(pb_istream_t *stream, uint8_t *buf, size_t count) {
@@ -1460,6 +1460,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
 	memset(&aesctx,0,sizeof(aesctx));
 
 	desc.buf = (uint8_t *)recv_buf;
+	desc.inbuf_offset = 0;
 	desc.buf_size = recv_buf_size;
 	desc.ctx = &ctx;
 	desc.fd = (intptr_t) sock;
