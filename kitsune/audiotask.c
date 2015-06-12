@@ -206,8 +206,6 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 	LOGI("%d bytes free\n", xPortGetFreeHeapSize());
 
-	//make sure the volume is down before we start...
-	set_volume(1);
 
 	//open file for playback
 	LOGI("Opening %s for playback\r\n",info->file);
@@ -225,6 +223,10 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	if( has_fade ) {
 		g_uiPlayWaterMark = 1;
 		fade_time = t0 = xTaskGetTickCount();
+		//make sure the volume is down before we start...
+		set_volume(1);
+	} else {
+		set_volume(volume);
 	}
 
 	bool started = false;
