@@ -498,7 +498,7 @@ int get_codec_io_NAU(void){
 			            { 0x6a ,  0x40   },
 			            { 0x6c ,  0xb9   },
 			            { 0x6e ,  0x40   },
-			            { 0x70 ,  0x40   },
+			            { 0x70 ,  0x41   }, // set DACMOUT = 1
 			            { 0x72 ,  0x40   },
 			            { 0x74 ,  0x00   },
 		};
