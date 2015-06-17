@@ -804,7 +804,7 @@ int Cmd_test_key(int argc, char*argv[]) {
 
 	ret = NetworkTask_SendProtobuf(false, DATA_SERVER, CHECK_KEY_ENDPOINT,
 			MorpheusCommand_fields, test_command, INT_MAX, NULL,
-			test_command, &pb_cb );
+			test_command, &pb_cb, true );
     if(ret != 0)
     {
         // network error
@@ -1713,7 +1713,7 @@ void on_key(uint8_t * key) {
 
 	NetworkTask_SendProtobuf(false, DATA_SERVER, CHECK_KEY_ENDPOINT,
 			MorpheusCommand_fields, test_command, INT_MAX, _key_check_reply,
-			test_command, &pb_cb );
+			test_command, &pb_cb, true );
 }
 
 static void _set_led_color_based_on_room_conditions(const SyncResponse* response_protobuf)
@@ -1826,7 +1826,7 @@ bool send_pill_data(batched_pill_data * pill_data) {
 
 	return NetworkTask_SendProtobuf(true, DATA_SERVER,
 			PILL_DATA_RECEIVE_ENDPOINT, batched_pill_data_fields, pill_data, INT_MAX,
-			NULL, NULL, &pb_cb);
+			NULL, NULL, &pb_cb, false);
 }
 bool send_periodic_data(batched_periodic_data* data) {
     protobuf_reply_callbacks pb_cb;
@@ -1838,7 +1838,7 @@ bool send_periodic_data(batched_periodic_data* data) {
 
 	return NetworkTask_SendProtobuf(true, DATA_SERVER,
 			DATA_RECEIVE_ENDPOINT, batched_periodic_data_fields, data, INT_MAX,
-			NULL, NULL, &pb_cb);
+			NULL, NULL, &pb_cb, false);
 }
 
 static void _get_provision_response(pb_field_t ** fields, void ** structdata){
@@ -1885,7 +1885,7 @@ bool send_provision_request(ProvisionRequest* req) {
     pb_cb.on_pb_success = _on_provision_response_success;
 
 	return NetworkTask_SendProtobuf(true, DATA_SERVER, PROVISION_ENDPOINT,
-			ProvisionRequest_fields, req, INT_MAX, NULL,NULL, &pb_cb);
+			ProvisionRequest_fields, req, INT_MAX, NULL,NULL, &pb_cb, true);
 }
 
 int Cmd_sl(int argc, char*argv[]) {
