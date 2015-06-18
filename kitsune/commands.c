@@ -922,10 +922,12 @@ void thread_fast_i2c_poll(void * unused)  {
 
 			// For the black morpheus, we can detect 6mm distance max
 			// for white one, 9mm distance max.
+			prox = get_prox();
+
 			prox_fifo[prox_idx] = prox;
 			prox_idx = inc_idx(prox_idx);
 
-			prox = median_filter(get_prox(), filter_buf, &filter_idx);
+			prox = median_filter(prox, filter_buf, &filter_idx);
 
 			xSemaphoreGive(i2c_smphr);
 
