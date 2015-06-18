@@ -23,6 +23,10 @@ protected:
     
 };
 
+class DISABLED_TestFrequencyFeatures : public TestFrequencyFeatures {
+    
+};
+
 /*  Ben: So the FFT as compared to octave is scaled by 32
          if I compare integers of the fft to the floating point output of octave
          
@@ -161,7 +165,7 @@ TEST_F(TestFrequencyFeatures,TestDct) {
 }
 
 
-TEST_F(TestFrequencyFeatures,TestFFTR1) {
+TEST_F(DISABLED_TestFrequencyFeatures,TestFFTR1) {
     short vec[1024];
     short * vecr;
     short * veci;
@@ -193,13 +197,17 @@ static Segment_t _myseg;
 
 static int16_t _mfcc[NUM_AUDIO_FEATURES];
 
-static void AudioFeatCallback(int64_t samplecount, const AudioFeatures_t * feats) {
+static void AudioFeatCallback(const AudioFeatures_t * feats) {
     //memcpy(&_myseg,pSegment,sizeof(Segment_t));
     //memcpy(_mfcc,feats,sizeof(_mfcc));
     
 }
 
-TEST_F(TestFrequencyFeatures,TestMel) {
+static void AudioStatsCallback(const AudioOncePerMinuteData_t * pdata) {
+    
+}
+
+TEST_F(DISABLED_TestFrequencyFeatures,TestMel) {
     int i,ichunk;
 	int16_t x[1024];
     
@@ -211,7 +219,7 @@ TEST_F(TestFrequencyFeatures,TestMel) {
 	printf("EXPECT: t1=%d,t2=%d,energy=something not zero\n",43,86);
     
     
-	AudioFeatures_Init(AudioFeatCallback);
+	AudioFeatures_Init(AudioFeatCallback,AudioStatsCallback);
     
 	//still ---> white random noise ---> still
 	for (ichunk = 0; ichunk < 43*8; ichunk++) {
@@ -234,7 +242,7 @@ TEST_F(TestFrequencyFeatures,TestMel) {
 }
 
 
-TEST_F(TestFrequencyFeatures,TestMel2) {
+TEST_F(DISABLED_TestFrequencyFeatures,TestMel2) {
     int i,ichunk;
     int16_t x[1024];
     
@@ -244,7 +252,7 @@ TEST_F(TestFrequencyFeatures,TestMel2) {
     srand(0);
     
     
-    AudioFeatures_Init(AudioFeatCallback);
+    AudioFeatures_Init(AudioFeatCallback,AudioStatsCallback);
 #define amplitude (2)
     //still ---> white random noise ---> still
     for (ichunk = 0; ichunk < 43*100; ichunk++) {

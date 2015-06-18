@@ -18,7 +18,8 @@ include_directories("../third_party/gtest/include")
 add_executable(unit-test
                main.cpp 
                testfft.cpp
-	       testmath.cpp)
+	       testmath.cpp
+               testprox.cpp)
 
 target_link_libraries(unit-test gtest EmbeddedAlg)
 
