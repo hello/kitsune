@@ -952,7 +952,7 @@ void thread_fast_i2c_poll(void * unused)  {
 				break;
 			}
 
-			if(wave_counter && needs_sample(&wave_tag) && --wave_counter == 0){
+			if(wave_counter && --wave_counter == 0  && needs_sample(&wave_tag)){
 				analytics_event( "{wave_data: %s}", str_prox());
 			}
 
