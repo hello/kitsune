@@ -886,7 +886,7 @@ static char * str_prox(void){
 	int itr = inc_idx(prox_idx);
 	for(i = 0; i < PROX_FIFO_SAMPLES; i++){
 		char buf[12] = {0};
-		usnprintf(buf,sizeof(buf),"%d ", next_prox(&itr));
+		usnprintf(buf,sizeof(buf),"%dm", next_prox(&itr));
 		strcat(str, buf);
 	}
 	return str;
@@ -921,12 +921,14 @@ void thread_fast_i2c_poll(void * unused)  {
 
 			// For the black morpheus, we can detect 6mm distance max
 			// for white one, 9mm distance max.
+			prox_fifo[prox_idx] = prox;
+			prox_idx = inc_idx(prox_idx);
+
 			prox = median_filter(get_prox(), filter_buf, &filter_idx);
 
 			xSemaphoreGive(i2c_smphr);
 
-			prox_fifo[prox_idx] = prox;
-			prox_idx = inc_idx(prox_idx);
+
 
 			gesture = ProxSignal_UpdateChangeSignals(prox);
 
