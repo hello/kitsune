@@ -17,8 +17,6 @@ typedef enum {
 
 void ProxSignal_Init(void);
 
-int32_t ProxSignal_MedianFilter(const int32_t x) ;
-
 ProxGesture_t ProxSignal_UpdateChangeSignals(const int32_t newx) ;
 
 #ifdef __cplusplus

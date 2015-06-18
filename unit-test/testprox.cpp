@@ -99,3 +99,4 @@ TEST_F(TestProx, TestIsStableWhenNoisy) {
     ASSERT_FALSE(wasEverUnstable);
 
 }
+
