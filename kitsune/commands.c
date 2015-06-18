@@ -863,6 +863,34 @@ static void _on_gesture_out()
 	ble_proto_end_hold();
 }
 
+#define PROX_FIFO_SAMPLES (5*20)
+static int * prox_fifo;
+static int prox_idx;
+
+static int inc_idx(int idx){
+	return ((idx + 1) % PROX_FIFO_SAMPLES);
+}
+static int next_prox(int * idx){
+	int ret = prox_fifo[*idx];
+	*idx = inc_idx(*idx);
+	return ret;
+}
+static char * str_prox(void){
+	int i;
+	static char * str;
+	if(!str){
+		str = pvPortMalloc(1280);
+		assert(str);
+	}
+	memset(str, 0, sizeof(str));
+	int itr = inc_idx(prox_idx);
+	for(i = 0; i < PROX_FIFO_SAMPLES; i++){
+		char buf[12] = {0};
+		usnprintf(buf,sizeof(buf),"%d ", next_prox(&itr));
+		strcat(str, buf);
+	}
+	return str;
+}
 void thread_fast_i2c_poll(void * unused)  {
 	unsigned int filter_buf[3];
 	unsigned int filter_idx=0;
@@ -870,7 +898,8 @@ void thread_fast_i2c_poll(void * unused)  {
 	gesture_init();
 	ProxSignal_Init();
 	ProxGesture_t gesture;
-
+	prox_fifo = pvPortMalloc(20 * 5 * sizeof(int));
+	memset(prox_fifo, 0, 20 * 5 * sizeof(int));
 	uint32_t counter = 0;
 
 	while (1) {
@@ -886,6 +915,9 @@ void thread_fast_i2c_poll(void * unused)  {
 
 			xSemaphoreGive(i2c_smphr);
 
+			prox_fifo[prox_idx] = prox;
+			prox_idx = inc_idx(prox_idx);
+
 			gesture = ProxSignal_UpdateChangeSignals(prox);
 
 
@@ -895,13 +927,16 @@ void thread_fast_i2c_poll(void * unused)  {
 			case proxGestureWave:
 				_on_wave();
 				gesture_increment_wave_count();
+				analytics_event( "{wave_data: %s}", str_prox());
 				break;
 			case proxGestureHold:
 				_on_hold();
 				gesture_increment_hold_count();
+				analytics_event( "{hold_data: %s}", str_prox());
 				break;
 			case proxGestureRelease:
 				_on_gesture_out();
+				analytics_event( "{release_data: %s}", str_prox());
 				break;
 			default:
 				break;
