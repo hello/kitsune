@@ -551,9 +551,9 @@ int analytics_event( const char *pcString, ...) {
 	va_list vaArgP;
 	event_ctx_t ctx = {0};
 
-	ctx.ptr = pvPortMalloc(128);
+	ctx.ptr = pvPortMalloc(ANALYTICS_MAX_CHUNK_SIZE);
 	assert(ctx.ptr);
-	memset(ctx.ptr, 0, 128);
+	memset(ctx.ptr, 0, ANALYTICS_MAX_CHUNK_SIZE);
 
     va_start(vaArgP, pcString);
     _va_printf( vaArgP, pcString, _encode_wrapper, &ctx );
