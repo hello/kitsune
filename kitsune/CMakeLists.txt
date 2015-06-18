@@ -11,8 +11,10 @@ include_directories ("${PROJECT_SOURCE_DIR}/nanopb")
 include_directories ("${PROJECT_SOURCE_DIR}/protobuf")
 
 
+
 #compile our alg code
 add_library(EmbeddedAlg STATIC
+prox_signal.c
 hellomath.c
 fft.c
 rawaudiostatemachine.c

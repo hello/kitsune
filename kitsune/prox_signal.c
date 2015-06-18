@@ -27,6 +27,12 @@
 
 #define DIFF_SIGNAL_THRESHOLD_FOR_INTERRUPTION (100)
 
+#ifdef USE_CPP_DEBUG_LOGGING
+#include <stdio.h>
+#undef LOGI
+#define LOGI(x) printf(x)
+#endif
+
 /*
 #define PROX_SIGNAL_BUF_SIZE_2N (3)
 #define PROX_SIGNAL_BUF_SIZE (1 << CHANGE_SIGNAL_BUF_SIZE_2N)

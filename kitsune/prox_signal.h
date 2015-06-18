@@ -3,6 +3,11 @@
 
 #include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
 typedef enum {
 	proxGestureNone,
 	proxGestureWave,
@@ -16,5 +21,8 @@ int32_t ProxSignal_MedianFilter(const int32_t x) ;
 
 ProxGesture_t ProxSignal_UpdateChangeSignals(const int32_t newx) ;
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif //_PROXSIGNAL_H_
