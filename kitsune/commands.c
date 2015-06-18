@@ -910,8 +910,8 @@ void thread_fast_i2c_poll(void * unused)  {
 	prox_fifo = pvPortMalloc(20 * 5 * sizeof(int));
 	memset(prox_fifo, 0, 20 * 5 * sizeof(int));
 	uint32_t counter = 0;
-	portTickType wave_tag, hold_tag, release_tag;
-	wave_tag = hold_tag = release_tag = xTaskGetTickCount();
+	portTickType wave_tag;
+	wave_tag  = xTaskGetTickCount();
 	while (1) {
 		portTickType now = xTaskGetTickCount();
 		int prox=0;
@@ -927,8 +927,6 @@ void thread_fast_i2c_poll(void * unused)  {
 			prox = median_filter(get_prox(), filter_buf, &filter_idx);
 
 			xSemaphoreGive(i2c_smphr);
-
-
 
 			gesture = ProxSignal_UpdateChangeSignals(prox);
 
@@ -946,15 +944,9 @@ void thread_fast_i2c_poll(void * unused)  {
 			case proxGestureHold:
 				_on_hold();
 				gesture_increment_hold_count();
-				if(needs_sample(&hold_tag)){
-					analytics_event( "{hold_data: %s}", str_prox());
-				}
 				break;
 			case proxGestureRelease:
 				_on_gesture_out();
-				if(needs_sample(&release_tag)){
-					analytics_event( "{release_data: %s}", str_prox());
-				}
 				break;
 			default:
 				break;
