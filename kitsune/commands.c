@@ -912,6 +912,7 @@ void thread_fast_i2c_poll(void * unused)  {
 	uint32_t counter = 0;
 	portTickType wave_tag;
 	wave_tag  = xTaskGetTickCount();
+	unsigned int wave_counter = 0;
 	while (1) {
 		portTickType now = xTaskGetTickCount();
 		int prox=0;
@@ -930,16 +931,15 @@ void thread_fast_i2c_poll(void * unused)  {
 
 			gesture = ProxSignal_UpdateChangeSignals(prox);
 
-
-			//gesture gesture_state = gesture_input(prox);
 			switch(gesture)
 			{
 			case proxGestureWave:
 				_on_wave();
-				gesture_increment_wave_count();
-				if(needs_sample(&wave_tag)){
-					analytics_event( "{wave_data: %s}", str_prox());
+				if(!wave_counter){
+					//keep 2.5 seconds of data after a wave.
+					wave_counter = 2.5 * 20;
 				}
+				gesture_increment_wave_count();
 				break;
 			case proxGestureHold:
 				_on_hold();
@@ -950,6 +950,10 @@ void thread_fast_i2c_poll(void * unused)  {
 				break;
 			default:
 				break;
+			}
+
+			if(wave_counter && needs_sample(&wave_tag) && --wave_counter == 0){
+				analytics_event( "{wave_data: %s}", str_prox());
 			}
 
 			if (++counter >= 2) {
