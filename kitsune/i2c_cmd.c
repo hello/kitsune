@@ -454,9 +454,9 @@ int get_codec_io_NAU(void){
 			            { 0x03 ,  0x7d   },
 			            { 0x04 ,  0x15   },
 			            { 0x06 ,  0xfd   },
-			            { 0x08 ,  0x10   },
+			            { 0x09 ,  0x90   },//note
 			            { 0x0a ,  0x00   },
-			            { 0x0d ,  0x48   },
+			            { 0x0d ,  0x08   },//0x48
 			            { 0x0e ,  0x00   },
 			            { 0x10 ,  0x00   },
 			            { 0x12 ,  0x00   },
@@ -481,15 +481,15 @@ int get_codec_io_NAU(void){
 			            { 0x42 ,  0x0b   },
 			            { 0x44 ,  0x32   },
 			            { 0x46 ,  0x00   },
-			            { 0x48 ,  0x08   },
+			            { 0x48 ,  0x18   },//048 08
 			            { 0x4a ,  0x0c   },
 			            { 0x4c ,  0x93   },
 			            { 0x4e ,  0xe9   },
 			            { 0x50 ,  0x01   },
-			            { 0x58 ,  0x02   },
+			            { 0x59 ,  0x82   },//0x58, 0x02
 			            { 0x5a ,  0x10   },
 			            { 0x5c ,  0x00   },
-			            { 0x5f , 0x00   },
+			            { 0x5e , 0x50   },//0x5f -> 5e, 0x00 -> 0x50
 			            { 0x60 ,  0x00   },
 			            { 0x62 ,  0x02   },
 			            { 0x64 ,  0x01   },
@@ -500,12 +500,13 @@ int get_codec_io_NAU(void){
 			            { 0x6e ,  0x40   },
 			            { 0x70 ,  0x41   }, // set DACMOUT = 1
 			            { 0x72 ,  0x40   },
-			            { 0x74 ,  0x00   },
+			            { 0x74 ,  0x10   },
 		};
 		for( i=0;i<sizeof(reg)/2;++i) {
 			cmd_init[0] = reg[i][0];
 			cmd_init[1] = reg[i][1];
 			I2C_IF_Write(Codec_addr, cmd_init, 2, 1);
+			DISP("%u : %u \r\n", reg[i][0], reg[i][1]);
 			vTaskDelay(DELAY_CODEC);
 		}
 		return SUCCESS;
