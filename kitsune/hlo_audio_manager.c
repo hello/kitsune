@@ -255,7 +255,7 @@ void hlo_audio_manager_spkr_thread(void * data){
 	}
 }
 void hlo_audio_manager_mic_thread(void * data){
-	uint8_t master_buffer[512];
+	uint8_t master_buffer[512] = {0};
 	int i;
 	while(1){
 		if(hlo_stream_transfer_all(FROM_STREAM,self.master,master_buffer,sizeof(master_buffer),2) < 0){
