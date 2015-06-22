@@ -59,6 +59,7 @@ bool NetworkTask_SendProtobuf(bool blocking, const char * host,
 	message.response_callback = func;
 	message.retry_timeout = retry_time_in_counts;
 	message.context = context;
+	message.priority = is_high_priority;
 
 	message.fields = fields;
 	message.structdata = structdata;
@@ -168,6 +169,17 @@ static NetworkResponse_t nettask_send(NetworkTaskServerSendMessage_t * message) 
 			}
 			else {
 				DEBUG_PRINTF("NT waiting %d ticks",retry_period);
+				int32_t countdown = retry_period;
+				while( countdown > 0 ) {
+					NetworkTaskServerSendMessage_t m;
+					if( xQueuePeek( _asyncqueue, &m, 0 ) ) {
+						if( m.priority && xQueueSend( _asyncqueue, ( const void * ) message, 0 ) ) {
+							DEBUG_PRINTF("NT switching to higher priority message");
+							goto next_message;
+						}
+					}
+					countdown -= 500;
+				}
 				vTaskDelay(retry_period);
 				timeout_counts -= retry_period;
 				retry_period <<= 1;
@@ -196,6 +208,7 @@ static NetworkResponse_t nettask_send(NetworkTaskServerSendMessage_t * message) 
 		message->response_callback(&response, decode_buf, decode_buf_size,message->context);
 	}
 
+	next_message:
 	vPortFree(decode_buf);
 
 	networktask_exit_critical_region();
