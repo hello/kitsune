@@ -10,6 +10,7 @@
 #include <string.h>
 #include "kit_assert.h"
 #include <stdint.h>
+#include <stdbool.h>
 #include "fatfs_cmd.h"
 
 /* Standard Stellaris includes */
@@ -597,30 +598,70 @@ Cmd_mkdir(int argc, char *argv[])
 //! \return         socket id for success and negative for error
 //
 //****************************************************************************
-int CreateConnection(unsigned long DestinationIP)
+int CreateConnection(unsigned long DestinationIP, bool secure )
 {
     SlSockAddrIn_t  Addr;
     int             Status = 0;
     int             AddrSize = 0;
-    int             SockID = 0;
+    int             sock = 0;
 
-    Addr.sin_family = SL_AF_INET;
-    Addr.sin_port = sl_Htons(80);
-    Addr.sin_addr.s_addr = sl_Htonl(DestinationIP);
+    if( !secure ) {
+		Addr.sin_family = SL_AF_INET;
+		Addr.sin_port = sl_Htons(80);
+		Addr.sin_addr.s_addr = sl_Htonl(DestinationIP);
 
-    AddrSize = sizeof(SlSockAddrIn_t);
+		AddrSize = sizeof(SlSockAddrIn_t);
 
-    SockID = socket(SL_AF_INET,SL_SOCK_STREAM, 0); //todo secure socket
-    ASSERT_ON_ERROR(SockID);
+		sock = socket(SL_AF_INET,SL_SOCK_STREAM, 0); //todo secure socket
+		ASSERT_ON_ERROR(sock);
 
-    Status = connect(SockID, ( SlSockAddr_t *)&Addr, AddrSize);
-    if( Status < 0 )
-    {
-        /* Error */
-        close(SockID);
-        ASSERT_ON_ERROR(Status);
+		Status = connect(sock, ( SlSockAddr_t *)&Addr, AddrSize);
+		if( Status < 0 )
+		{
+			/* Error */
+			LOGE("FAILED TO OPEN OTA SOCK\n");
+			close(sock);
+			ASSERT_ON_ERROR(Status);
+		}
+    } else {
+        sock = socket(AF_INET, SOCK_STREAM, SL_SEC_SOCKET);
+
+        #define SL_SSL_CA_CERT_FILE_NAME "/cert/ca.der"
+        // configure the socket as SSLV3.0
+        // configure the socket as RSA with RC4 128 SHA
+        // setup certificate
+        unsigned char method = SL_SO_SEC_METHOD_TLSV1_2;
+        unsigned int cipher = SL_SEC_MASK_TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA;
+        if( sl_SetSockOpt(sock, SL_SOL_SOCKET, SL_SO_SECMETHOD, &method, sizeof(method) ) < 0 ||
+            sl_SetSockOpt(sock, SL_SOL_SOCKET, SL_SO_SECURE_MASK, &cipher, sizeof(cipher)) < 0 ||
+            sl_SetSockOpt(sock, SL_SOL_SOCKET, \
+                                   SL_SO_SECURE_FILES_CA_FILE_NAME, \
+                                   SL_SSL_CA_CERT_FILE_NAME, \
+                                   strlen(SL_SSL_CA_CERT_FILE_NAME))  < 0  )
+        	{
+        	LOGE( "error setting ssl options\r\n" );
+        	}
+
+		Addr.sin_family = SL_AF_INET;
+		Addr.sin_port = sl_Htons(443);
+		Addr.sin_addr.s_addr = sl_Htonl(DestinationIP);
+
+		AddrSize = sizeof(SlSockAddrIn_t);
+
+		sock = socket(SL_AF_INET,SL_SOCK_STREAM, 0); //todo secure socket
+		ASSERT_ON_ERROR(sock);
+
+		Status = connect(sock, ( SlSockAddr_t *)&Addr, AddrSize);
+		if( Status < 0 )
+		{
+			/* Error */
+			LOGE("FAILED TO OPEN SECURE OTA SOCK\n");
+			close(sock);
+			ASSERT_ON_ERROR(Status);
+		}
     }
-    return SockID;
+
+    return sock;
 }
 
 //****************************************************************************
@@ -1302,7 +1343,7 @@ int download_file(char * host, char * url, char * filename, char * path, storage
 	}
 	//LOGI("download <host> <filename> <url>\n\r");
 	// Create a TCP connection to the Web Server
-	dl_sock = CreateConnection(ip);
+	dl_sock = CreateConnection(ip,  url[4] == 's');
 
 	if (dl_sock < 0) {
 		LOGF("Connection to server failed\n\r");
