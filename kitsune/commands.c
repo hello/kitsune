@@ -875,19 +875,21 @@ static int next_prox(int * idx){
 	*idx = inc_idx(*idx);
 	return ret;
 }
-static char * str_prox(void){
-	int i;
-	static char * str;
-	if(!str){
-		str = pvPortMalloc(1280);
-		assert(str);
-	}
-	memset(str, 0, sizeof(str));
+static char * str_prox(char * str, size_t str_size){
+	int i, total = 0;
+	memset(str, 0, str_size);
 	int itr = inc_idx(prox_idx);
 	for(i = 0; i < PROX_FIFO_SAMPLES; i++){
+		int new;
 		char buf[12] = {0};
 		usnprintf(buf,sizeof(buf),"%dm", next_prox(&itr));
-		strcat(str, buf);
+		new = strlen(buf);
+		if( total + new >= str_size ){
+			break;
+		}else{
+			strcat(str, buf);
+			total += new;
+		}
 	}
 	return str;
 }
@@ -903,7 +905,8 @@ static bool needs_sample(portTickType * tag){
 void thread_fast_i2c_poll(void * unused)  {
 	unsigned int filter_buf[3];
 	unsigned int filter_idx=0;
-
+	char * prox_string = pvPortMalloc(1280);
+	assert(prox_string);
 	gesture_init();
 	ProxSignal_Init();
 	ProxGesture_t gesture;
@@ -955,7 +958,7 @@ void thread_fast_i2c_poll(void * unused)  {
 			}
 
 			if(wave_counter && --wave_counter == 0  && needs_sample(&wave_tag)){
-				analytics_event( "{wave_data: %s}", str_prox());
+				analytics_event( "{wave_data: %s}", str_prox(prox_string, 1280));
 			}
 
 			if (++counter >= 2) {
