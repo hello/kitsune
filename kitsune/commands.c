@@ -877,14 +877,14 @@ void thread_fast_i2c_poll(void * unused)  {
 		portTickType now = xTaskGetTickCount();
 		int prox=0;
 
-		if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
+		if (xSemaphoreTakeRecursive(i2c_smphr, portMAX_DELAY)) {
 			vTaskDelay(2); //this is important! If we don't do it, then the prox will stretch the clock!
 
 			// For the black morpheus, we can detect 6mm distance max
 			// for white one, 9mm distance max.
 			prox = median_filter(get_prox(), filter_buf, &filter_idx);
 
-			xSemaphoreGive(i2c_smphr);
+			xSemaphoreGiveRecursive(i2c_smphr);
 
 			gesture = ProxSignal_UpdateChangeSignals(prox);
 
@@ -910,10 +910,10 @@ void thread_fast_i2c_poll(void * unused)  {
 			if (++counter >= 2) {
 				counter = 0;
 
-				if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
+				if (xSemaphoreTakeRecursive(i2c_smphr, portMAX_DELAY)) {
 					vTaskDelay(2);
 					light = led_is_idle(0) ? get_light() : light;
-					xSemaphoreGive(i2c_smphr);
+					xSemaphoreGiveRecursive(i2c_smphr);
 				}
 
 
@@ -1162,7 +1162,7 @@ void sample_sensor_data(periodic_data* data)
 	}
 
 	// get temperature and humidity
-	if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
+	if (xSemaphoreTakeRecursive(i2c_smphr, portMAX_DELAY)) {
 		uint8_t measure_time = 10;
 		int64_t humid_sum = 0;
 		int64_t temp_sum = 0;
@@ -1216,7 +1216,7 @@ void sample_sensor_data(periodic_data* data)
 			data->temperature = temp_sum / temp_count;
 		}
 		
-		xSemaphoreGive(i2c_smphr);
+		xSemaphoreGiveRecursive(i2c_smphr);
 	}
 
 	int wave_count = gesture_get_wave_count();
@@ -1265,9 +1265,9 @@ void thread_sensor_poll(void* unused) {
 	//
 
 	periodic_data data = {0};
-	if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
+	if (xSemaphoreTakeRecursive(i2c_smphr, portMAX_DELAY)) {
 		get_temp_humid(&_last_temp, &_last_humid);
-		xSemaphoreGive(i2c_smphr);
+		xSemaphoreGiveRecursive(i2c_smphr);
 	}
 
 	while (1) {
@@ -1803,6 +1803,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{"future",Cmd_FutureTest,""},
 		{"dev", Cmd_setDev, ""},
 		{"ana", Cmd_analytics, ""},
+		{"dns", Cmd_setDns, ""},
 		{"noint", Cmd_disableInterrupts, ""},
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
@@ -1908,7 +1909,7 @@ void vUARTTask(void *pvParameters) {
 	//INIT SPI
 	spi_init();
 
-	vSemaphoreCreateBinary(i2c_smphr);
+	i2c_smphr = xSemaphoreCreateRecursiveMutex();
 	init_time_module(768);
 
 	// Init sensors
