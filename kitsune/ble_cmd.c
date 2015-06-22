@@ -220,6 +220,7 @@ bool ble_send_protobuf(MorpheusCommand* command)
 	int size;
 	hlo_future_t * result =  buffer_from_MorpheusCommand(command);
 	size = hlo_future_read(result,NULL,0,portMAX_DELAY);
+	vTaskDelay(20);
     if(size >= 0){
     	int i;
         i = spi_write(result->buf_size, result->buf);
