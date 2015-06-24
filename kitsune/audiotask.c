@@ -172,8 +172,6 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	FRESULT res;
 	uint32_t totBytesRead = 0;
 	uint32_t iReceiveCount = 0;
-
-	int32_t iRetVal = -1;
 	uint8_t returnFlags = 0x00;
 
 	int32_t desired_ticks_elapsed;
