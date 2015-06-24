@@ -28,7 +28,6 @@
 
 #define SENSE_LOG_ENDPOINT		"/logs"
 #define SENSE_LOG_FOLDER		"logs"
-#define SENSE_LOG_RW_SIZE		128
 /**
  * The upload order should be
  * Backend(if has no local backlog) -> Local -> Backend(if has IP)
@@ -207,13 +206,14 @@ _write_file(char * local_name, const char * buffer, WORD size){
 		LOGE("File %s open fail, code %d", local_name, res);
 		return res;
 	}
-	do{
-		res = hello_fs_write(&file_obj, buffer + written, SENSE_LOG_RW_SIZE, &bytes);
-		written += bytes;
-	}while(written < size);
+	res = hello_fs_write(&file_obj, buffer, size, &bytes);
+	if(res != FR_OK){
+		LOGE("unable to write log file %d\r\n", res);
+		return res;
+	}
 	res = hello_fs_close(&file_obj);
 	if(res != FR_OK){
-		LOGE("unable to write log file\r\n");
+		LOGE("unable to close log file %d\r\n", res);
 		return res;
 	}
 	return FR_OK;
@@ -221,7 +221,6 @@ _write_file(char * local_name, const char * buffer, WORD size){
 static FRESULT
 _read_file(char * local_name, char * buffer, WORD buffer_size, WORD *size_read){
 	FIL file_obj;
-	WORD offset = 0;
 	UINT read = 0;
 	FRESULT res = _open_log(&file_obj, local_name, FA_READ);
 	if(res == FR_OK){
