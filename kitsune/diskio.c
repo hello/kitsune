@@ -448,8 +448,8 @@ void SDHostIntHandler()
 //*****************************************************************************
 #include "FreeRTOS.h"
 #include "task.h"
-volatile int wait = 0;
-volatile int wait2 = 0;
+//volatile int wait = 0;
+//volatile int wait2 = 0;
 
 DRESULT disk_read ( BYTE bDrive, BYTE* pBuffer, DWORD ulSectorNumber,
                    UINT bSectorCount )
@@ -489,13 +489,13 @@ DRESULT disk_read ( BYTE bDrive, BYTE* pBuffer, DWORD ulSectorNumber,
 	UDMA_SIZE_32, UDMA_ARB_1, (void *) (SDHOST_BASE + MMCHS_O_DATA),
 	UDMA_SRC_INC_NONE, (void *) (pBuffer), UDMA_DST_INC_32);
 
-	wait = wait2 = 0;
+	//wait = wait2 = 0;
 	//
 	// Send multi block read command to the card
 	//
 	if (CardSendCmd(CMD_READ_SINGLE_BLK | SDHOST_DMA_EN, ulSectorNumber) == 0) {
 		while (!(SDHostIntStatus(SDHOST_BASE) & SDHOST_INT_TC)) {
-			++wait2;
+		//	++wait2;
 		}
 		Res = RES_OK;
   }
@@ -567,8 +567,7 @@ DRESULT disk_write ( BYTE bDrive,const BYTE* pBuffer, DWORD ulSectorNumber,
 		// Send multi block read stop command to the card
 			//
 		while (!(SDHostIntStatus(SDHOST_BASE) & SDHOST_INT_TC)) {
-			vTaskDelay(1);
-			++wait2;
+//			++wait2;
 		}
 
 		Res = RES_OK;

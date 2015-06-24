@@ -156,8 +156,8 @@ static unsigned int fade_out_vol(unsigned int fade_counter, unsigned int volume,
 
 extern void UtilsDelay(unsigned long ulCount);
 
-extern volatile int wait;
-extern volatile int wait2;
+//extern volatile int wait;
+//extern volatile int wait2;
 
 static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
@@ -280,9 +280,9 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		if( iBufWaitingCount > 0 ) {
 		//	UARTprintf( "B %d bytes %d\n", iBufWaitingCount, size);
 		}
-		if( wait2 > 0 || wait > 1 ) {
+//		if( wait2 > 0 || wait > 1 ) {
 			//UARTprintf( "D %d %d bytes %d\n", wait, wait2,  size);
-		}
+//		}
 
 
 		if (iBufWaitingCount >= MAX_NUMBER_TIMES_TO_WAIT_FOR_AUDIO_BUFFER_TO_FILL) {
