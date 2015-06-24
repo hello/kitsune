@@ -153,7 +153,8 @@ static unsigned int fade_out_vol(unsigned int fade_counter, unsigned int volume,
 }
 
 #include "stdbool.h"
-extern xSemaphoreHandle i2c_smphr;
+
+extern void UtilsDelay(unsigned long ulCount);
 
 static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
@@ -163,7 +164,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 
 	FIL fp = {0};
-	WORD size;
+	UINT size;
 	FRESULT res;
 	uint32_t totBytesRead = 0;
 	uint32_t iReceiveCount = 0;
@@ -282,6 +283,10 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 				//the odd ones are zeroed already
 				speaker_data_padded[i<<1] = speaker_data[i];
 			}
+
+			static volatile int slow = 250000;
+
+			UtilsDelay(slow);
 
 			iRetVal = FillBuffer(pRxBuffer, (unsigned char*) (speaker_data_padded), size<<1);
 

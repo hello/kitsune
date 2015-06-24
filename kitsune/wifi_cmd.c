@@ -566,8 +566,6 @@ int Cmd_disconnect(int argc, char *argv[]) {
 }
 int connect_wifi(const char* ssid, const char* password, int sec_type, int version);
 int Cmd_connect(int argc, char *argv[]) {
-    SlSecParams_t secParams;
-
     if (argc != 4) {
     	LOGF(
                 "usage: connect <ssid> <key> <security: 0=open, 1=wep, 2=wpa>\n\r");

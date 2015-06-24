@@ -200,7 +200,7 @@ _open_log(FIL * file, char * local_name, WORD mode){
 static FRESULT
 _write_file(char * local_name, const char * buffer, WORD size){
 	FIL file_obj;
-	WORD bytes = 0;
+	UINT bytes = 0;
 	WORD written = 0;
 	FRESULT res = _open_log(&file_obj, local_name, FA_CREATE_NEW|FA_WRITE|FA_OPEN_ALWAYS);
 	if(res != FR_OK && res != FR_EXIST){
@@ -222,7 +222,7 @@ static FRESULT
 _read_file(char * local_name, char * buffer, WORD buffer_size, WORD *size_read){
 	FIL file_obj;
 	WORD offset = 0;
-	WORD read = 0;
+	UINT read = 0;
 	FRESULT res = _open_log(&file_obj, local_name, FA_READ);
 	if(res == FR_OK){
 		do{
