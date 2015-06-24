@@ -515,7 +515,7 @@ SDHostIntStatus(unsigned long ulBase)
   //
   // Get DMA done interrupt status
   //
-  ulIntStatus = HWREG(APPS_CONFIG_BASE + APPS_CONFIG_O_DMA_DONE_INT_MASK_SET);
+  ulIntStatus = HWREG(APPS_CONFIG_BASE + APPS_CONFIG_O_DMA_DONE_INT_STS_RAW);
   ulIntStatus = (ulIntStatus << 30);
 
   //
