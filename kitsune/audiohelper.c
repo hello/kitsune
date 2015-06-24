@@ -45,9 +45,6 @@ uint8_t InitAudioCapture(uint32_t rate) {
 	// Initialize the Audio(I2S) Module
 	McASPInit(rate);
 
-	// Initialize the DMA Module
-	UDMAInit();
-
 	UDMAChannelSelect(UDMA_CH4_I2S_RX, NULL);
 
 	// Setup the DMA Mode
@@ -93,8 +90,6 @@ uint8_t InitAudioPlayback(int32_t vol, uint32_t rate ) {
 	// Initialize the Audio(I2S) Module
 	McASPInit(rate);
 
-	// Initialize the DMA Module
-	UDMAInit();
 
 	UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL);
 

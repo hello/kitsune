@@ -158,9 +158,10 @@ extern void UtilsDelay(unsigned long ulCount);
 
 static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
+#define SPEAKER_DATA_CHUNK_SIZE 512
 	//1.5K on the stack
-	uint16_t * speaker_data_padded = pvPortMalloc(1024);
-	uint16_t * speaker_data = pvPortMalloc(512);
+	uint16_t * speaker_data_padded = pvPortMalloc(SPEAKER_DATA_CHUNK_SIZE<<1);
+	uint16_t * speaker_data = pvPortMalloc(SPEAKER_DATA_CHUNK_SIZE);
 
 
 	FIL fp = {0};
@@ -219,7 +220,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		return returnFlags;
 	}
 
-	memset(speaker_data_padded,0,1024);
+	memset(speaker_data_padded,0,SPEAKER_DATA_CHUNK_SIZE<<1);
 
 	if( has_fade ) {
 		g_uiPlayWaterMark = 1;
@@ -252,7 +253,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		}
 		/* Read always in block of 512 Bytes or less else it will stuck in hello_fs_read() */
 
-		res = hello_fs_read(&fp, speaker_data, 512, &size);
+		res = hello_fs_read(&fp, speaker_data, SPEAKER_DATA_CHUNK_SIZE, &size);
 		totBytesRead += size;
 
 		/* Wait to avoid buffer overflow as reading speed is faster than playback */
