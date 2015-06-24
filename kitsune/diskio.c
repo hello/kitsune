@@ -562,80 +562,33 @@ DRESULT disk_write ( BYTE bDrive,const BYTE* pBuffer, DWORD ulSectorNumber,
   //
   ulSize = (512*bSectorCount)/4;
 
+
   //
   // Check if 1 block or multi block transfer
   //
-  if (bSectorCount == 1)
-  {
-    //
-    // Send single block write command
-    //
-    if( CardSendCmd(CMD_WRITE_SINGLE_BLK, ulSectorNumber) == 0 )
-    {
-      //
-      // Write the data
-      //
-      while(ulSize--)
-      {
-        MAP_SDHostDataWrite(SDHOST_BASE,(*(unsigned long *)pBuffer));
-        pBuffer+=4;
-      }
+  unsigned int words_per_sector = 128;
+  int i;
+//  unsigned long cmd = bSectorCount == 1 ? CMD_READ_SINGLE_BLK : CMD_READ_MULTI_BLK;
+  for( i=0;i<bSectorCount; ++i ) {
+	SetupTransfer(UDMA_CH24_SDHOST_TX, UDMA_MODE_BASIC, words_per_sector,
+	UDMA_SIZE_32, UDMA_ARB_1, (void *) pBuffer,
+	UDMA_SRC_INC_32, (void *) (SDHOST_BASE + MMCHS_O_DATA), UDMA_DST_INC_NONE);
 
-      //
-      // Wait for data transfer complete
-      //
-      while( !(SDHostIntStatus(SDHOST_BASE) & SDHOST_INT_TC) )
-      {
+	pBuffer+=words_per_sector*4;
 
-      }
-      Res = RES_OK;
-    }
-  }
-  else
-  {
+	SDHostIntClear(SDHOST_BASE, SDHOST_INT_DMARD );
+	SDHostIntEnable(SDHOST_BASE, SDHOST_INT_DMARD);
+	//
+	// Send multi block read command to the card
+	//
+	if (CardSendCmd(CMD_WRITE_SINGLE_BLK | SDHOST_DMA_EN, ulSectorNumber) == 0) {
+		//
+		// Send multi block read stop command to the card
+		//
+		while (!(SDHostIntStatus(SDHOST_BASE) & SDHOST_INT_TC)) {			}
 
-    //
-    // Set the card write block count
-    //
-    if(g_sDisk.ucCardType == CARD_TYPE_SDCARD)
-    {
-      CardSendCmd(CMD_APP_CMD,g_sDisk.usRCA << 16);
-      CardSendCmd(CMD_SET_BLK_CNT, bSectorCount);
-    }
-
-    //
-    // Send single block write command
-    //
-    if( CardSendCmd(CMD_WRITE_MULTI_BLK, ulSectorNumber) == 0 )
-    {
-      //
-      // Write the data buffer
-      //
-      while(ulSize--)
-      {
-        MAP_SDHostDataWrite(SDHOST_BASE,(*(unsigned long *)pBuffer));
-        pBuffer+=4;
-      }
-
-      //
-      // Wait for transfer complete
-      //
-      while( !(SDHostIntStatus(SDHOST_BASE) & SDHOST_INT_TC) )
-      {
-
-      }
-      CardSendCmd(CMD_STOP_TRANS,0);
-
-      //
-      // Wait for command to complete
-      //
-      while( !(SDHostIntStatus(SDHOST_BASE) & SDHOST_INT_TC) )
-      {
-
-      }
-
-      Res = RES_OK;
-    }
+		Res = RES_OK;
+	}
   }
 
   //
