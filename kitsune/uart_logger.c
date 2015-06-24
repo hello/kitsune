@@ -225,13 +225,10 @@ _read_file(char * local_name, char * buffer, WORD buffer_size, WORD *size_read){
 	UINT read = 0;
 	FRESULT res = _open_log(&file_obj, local_name, FA_READ);
 	if(res == FR_OK){
-		do{
-			res = hello_fs_read(&file_obj, (void*)(buffer + offset), SENSE_LOG_RW_SIZE, &read);
-			if(res != FR_OK){
-				return res;
-			}
-			offset += read;
-		}while(read == SENSE_LOG_RW_SIZE && offset < buffer_size);
+		res = hello_fs_read(&file_obj, (void*)(buffer), buffer_size, &read);
+		if(res != FR_OK){
+			return res;
+		}
 		return FR_OK;
 	}
 	return res;

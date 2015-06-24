@@ -158,7 +158,7 @@ extern void UtilsDelay(unsigned long ulCount);
 
 static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
-#define SPEAKER_DATA_CHUNK_SIZE 512
+    #define SPEAKER_DATA_CHUNK_SIZE 256
 	//1.5K on the stack
 	uint16_t * speaker_data_padded = pvPortMalloc(SPEAKER_DATA_CHUNK_SIZE<<1);
 	uint16_t * speaker_data = pvPortMalloc(SPEAKER_DATA_CHUNK_SIZE);
@@ -280,14 +280,12 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		if (size > 0) {
 			unsigned int i;
 
-			for (i = 0; i != (size>>1); ++i) {
+			for (i = 0; i != (size<<1); ++i) {
 				//the odd ones are zeroed already
 				speaker_data_padded[i<<1] = speaker_data[i];
 			}
 
-			static volatile int slow = 250000;
-
-			UtilsDelay(slow);
+			//static volatile int slow = 250000; UtilsDelay(slow);
 
 			iRetVal = FillBuffer(pRxBuffer, (unsigned char*) (speaker_data_padded), size<<1);
 

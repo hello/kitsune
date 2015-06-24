@@ -427,16 +427,12 @@ DSTATUS disk_status ( BYTE bDrive )
 #include "udma.h"
 #include "udma_if.h"
 #include "hw_mmchs.h"
-static volatile int g_ulDMADone = 0;
 
 void SDHostIntHandler()
 {
-  int sdhoststs = 0;
-
-  sdhoststs = SDHostIntStatus(SDHOST_BASE);
-  SDHostIntClear(SDHOST_BASE, SDHOST_INT_DMARD );
-  SDHostIntDisable(SDHOST_BASE, SDHOST_INT_DMARD);
-  g_ulDMADone = 1;
+	CardSendCmd(CMD_STOP_TRANS, 0);
+	SDHostIntClear(SDHOST_BASE, SDHOST_INT_DMARD);
+	SDHostIntDisable(SDHOST_BASE, SDHOST_INT_DMARD);
 }
 
 //*****************************************************************************
@@ -486,30 +482,30 @@ DRESULT disk_read ( BYTE bDrive, BYTE* pBuffer, DWORD ulSectorNumber,
   //
   // Check if 1 block or multi block transfer
   //
-  unsigned long cmd = ulSectorNumber == 1 ? CMD_READ_SINGLE_BLK : CMD_READ_MULTI_BLK;
-
-	SetupTransfer(UDMA_CH23_SDHOST_RX, UDMA_MODE_BASIC, ulSize,
+  unsigned int words_per_sector = 128;
+  int i;
+//  unsigned long cmd = bSectorCount == 1 ? CMD_READ_SINGLE_BLK : CMD_READ_MULTI_BLK;
+  for( i=0;i<bSectorCount; ++i ) {
+	SetupTransfer(UDMA_CH23_SDHOST_RX, UDMA_MODE_BASIC, words_per_sector,
 	UDMA_SIZE_32, UDMA_ARB_1, (void *) (SDHOST_BASE + MMCHS_O_DATA),
 	UDMA_SRC_INC_NONE, (void *) pBuffer, UDMA_DST_INC_32);
 
-	g_ulDMADone = 0;
+	pBuffer+=words_per_sector*4;
+
 	SDHostIntClear(SDHOST_BASE, SDHOST_INT_DMARD );
 	SDHostIntEnable(SDHOST_BASE, SDHOST_INT_DMARD);
 	//
 	// Send multi block read command to the card
 	//
-	if (CardSendCmd(cmd | SDHOST_DMA_EN, ulSectorNumber) == 0) {
-
-		while (g_ulDMADone != 1) {}
+	if (CardSendCmd(CMD_READ_SINGLE_BLK | SDHOST_DMA_EN, ulSectorNumber) == 0) {
 		//
 		// Send multi block read stop command to the card
 		//
-		CardSendCmd(CMD_STOP_TRANS, 0);
-
 		while (!(SDHostIntStatus(SDHOST_BASE) & SDHOST_INT_TC)) {			}
 
 		Res = RES_OK;
 	}
+  }
 
   //
   // return status
