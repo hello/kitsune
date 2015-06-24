@@ -156,9 +156,12 @@ static unsigned int fade_out_vol(unsigned int fade_counter, unsigned int volume,
 
 extern void UtilsDelay(unsigned long ulCount);
 
+extern volatile int wait;
+extern volatile int wait2;
+
 static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
-    #define SPEAKER_DATA_CHUNK_SIZE 256
+    #define SPEAKER_DATA_CHUNK_SIZE 512
 	//1.5K on the stack
 	uint16_t * speaker_data_padded = pvPortMalloc(SPEAKER_DATA_CHUNK_SIZE<<1);
 	uint16_t * speaker_data = pvPortMalloc(SPEAKER_DATA_CHUNK_SIZE);
@@ -195,6 +198,8 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	if (!info || !info->file) {
 		hello_fs_unlock();
 		LOGI("invalid playback info %s\n\r",info->file);
+		vPortFree(speaker_data);
+		vPortFree(speaker_data_padded);
 		return returnFlags;
 	}
 
@@ -202,6 +207,8 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	if ( !InitAudioPlayback(volume, info->rate ) ) {
 		hello_fs_unlock();
 		LOGI("unable to initialize audio playback.  Probably not enough memory!\r\n");
+		vPortFree(speaker_data);
+		vPortFree(speaker_data_padded);
 		return returnFlags;
 
 	}
@@ -217,6 +224,8 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		hello_fs_unlock();
 		LOGI("Failed to open audio file %s\n\r",info->file);
 		DeinitAudioPlayback();
+		vPortFree(speaker_data);
+		vPortFree(speaker_data_padded);
 		return returnFlags;
 	}
 
@@ -240,10 +249,10 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 			if( fade_counter <= fade_length && xTaskGetTickCount() - last_vol > 100 ) {
 				last_vol = xTaskGetTickCount();
 				if( fade_in ) {
-					UARTprintf("FI %d\n", fade_in_vol(fade_counter, volume, fade_length));
+					//UARTprintf("FI %d\n", fade_in_vol(fade_counter, volume, fade_length));
 					set_volume(fade_in_vol(fade_counter, volume, fade_length));
 				} else {
-					UARTprintf("FO %d\n", fade_out_vol(fade_counter, volume, fade_length));
+					//UARTprintf("FO %d\n", fade_out_vol(fade_counter, volume, fade_length));
 					set_volume(fade_out_vol(fade_counter, volume, fade_length));
 				}
 			} else if ( !fade_in && fade_counter > fade_length ) {
@@ -252,7 +261,6 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 			}
 		}
 		/* Read always in block of 512 Bytes or less else it will stuck in hello_fs_read() */
-
 		res = hello_fs_read(&fp, speaker_data, SPEAKER_DATA_CHUNK_SIZE, &size);
 		totBytesRead += size;
 
@@ -269,6 +277,12 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 				started = true;
 			}
 		};
+		if( iBufWaitingCount > 0 ) {
+		//	UARTprintf( "B %d bytes %d\n", iBufWaitingCount, size);
+		}
+		if( wait2 > 0 || wait > 1 ) {
+			//UARTprintf( "D %d %d bytes %d\n", wait, wait2,  size);
+		}
 
 
 		if (iBufWaitingCount >= MAX_NUMBER_TIMES_TO_WAIT_FOR_AUDIO_BUFFER_TO_FILL) {
@@ -280,17 +294,15 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		if (size > 0) {
 			unsigned int i;
 
-			for (i = 0; i != size; ++i) {
+			for (i = 0; i != (size>>1); ++i) {
 				//the odd ones are zeroed already
 				speaker_data_padded[i<<1] = speaker_data[i];
 			}
 
 			//static volatile int slow = 250000; UtilsDelay(slow);
 
-			iRetVal = FillBuffer(pRxBuffer, (unsigned char*) (speaker_data_padded), size<<1);
-
-			if (iRetVal < 0) {
-				LOGI("Unable to fill buffer");
+			while( FillBuffer(pRxBuffer, (unsigned char*) (speaker_data_padded), size<<1) < 0 ) {
+				vTaskDelay(1);
 			}
 
 			returnFlags |= CheckForInterruptionDuringPlayback();
