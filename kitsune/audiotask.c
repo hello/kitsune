@@ -260,7 +260,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		iBufWaitingCount = 0;
 		while (IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) == TRUE &&
 				iBufWaitingCount < MAX_NUMBER_TIMES_TO_WAIT_FOR_AUDIO_BUFFER_TO_FILL) {
-			vTaskDelay(2);
+			vTaskDelay(1);
 
 			iBufWaitingCount++;
 
@@ -280,7 +280,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		if (size > 0) {
 			unsigned int i;
 
-			for (i = 0; i != (size<<1); ++i) {
+			for (i = 0; i != size; ++i) {
 				//the odd ones are zeroed already
 				speaker_data_padded[i<<1] = speaker_data[i];
 			}
