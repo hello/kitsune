@@ -441,10 +441,8 @@ DSTATUS disk_status ( BYTE bDrive )
 
 void SDHostIntHandler()
 {
-	SDHostIntClear(SDHOST_BASE, SDHOST_INT_DMARD);
-	SDHostIntDisable(SDHOST_BASE, SDHOST_INT_DMARD);
-
-	CardSendCmd(CMD_STOP_TRANS, 0);
+	SDHostIntClear(SDHOST_BASE, SDHOST_INT_DMARD|SDHOST_INT_DMAWR);
+	SDHostIntDisable(SDHOST_BASE, SDHOST_INT_DMARD|SDHOST_INT_DMAWR);
 	{
 	BaseType_t xHigherPriorityTaskWoken;
 	xSemaphoreGiveFromISR(sd_dma_smphr, &xHigherPriorityTaskWoken );
@@ -466,7 +464,7 @@ void SDHostIntHandler()
 //volatile int wait = 0;
 //volatile int wait2 = 0;
 
-#define SDCARD_DMA_BLOCK_TRANSFER_TIMEOUT 10000
+#define SDCARD_DMA_BLOCK_TRANSFER_TIMEOUT 1000
 
 DRESULT disk_read ( BYTE bDrive, BYTE* pBuffer, DWORD ulSectorNumber,
                    UINT bSectorCount )
@@ -513,13 +511,13 @@ DRESULT disk_read ( BYTE bDrive, BYTE* pBuffer, DWORD ulSectorNumber,
 	//
 	if (CardSendCmd(CMD_READ_SINGLE_BLK | SDHOST_DMA_EN, ulSectorNumber) == 0) {
 		if( xSemaphoreTake(sd_dma_smphr, SDCARD_DMA_BLOCK_TRANSFER_TIMEOUT) ) {//block till interrupt releases
-			while (!(SDHostIntStatus(SDHOST_BASE) & SDHOST_INT_TC)) {
-				//++wait2;
-			}
 			Res = RES_OK;
-		} else {
-			CardSendCmd(CMD_STOP_TRANS, 0);
 		}
+		CardSendCmd(CMD_STOP_TRANS, 0);
+		while (!(SDHostIntStatus(SDHOST_BASE) & SDHOST_INT_TC)) {
+			//++wait2;
+		}
+
   }
 
   //
@@ -581,19 +579,18 @@ DRESULT disk_write ( BYTE bDrive,const BYTE* pBuffer, DWORD ulSectorNumber,
 	UDMA_SIZE_32, UDMA_ARB_1, (void *) (pBuffer),
 	UDMA_SRC_INC_32, (void *) (SDHOST_BASE + MMCHS_O_DATA), UDMA_DST_INC_NONE);
 
-	SDHostIntClear(SDHOST_BASE, SDHOST_INT_DMARD );
-	SDHostIntEnable(SDHOST_BASE, SDHOST_INT_DMARD);
+	SDHostIntClear(SDHOST_BASE, SDHOST_INT_DMAWR );
+	SDHostIntEnable(SDHOST_BASE, SDHOST_INT_DMAWR);
 	//
 	// Send  block read command to the card
 	//
 	if (CardSendCmd(CMD_WRITE_SINGLE_BLK | SDHOST_DMA_EN, ulSectorNumber) == 0) {
 		if( xSemaphoreTake(sd_dma_smphr, SDCARD_DMA_BLOCK_TRANSFER_TIMEOUT) ) {//block till interrupt releases
-			while (!(SDHostIntStatus(SDHOST_BASE) & SDHOST_INT_TC)) {
-				//++wait2;
-			}
 			Res = RES_OK;
-		} else {
-			CardSendCmd(CMD_STOP_TRANS, 0);
+		}
+		CardSendCmd(CMD_STOP_TRANS, 0);
+		while (!(SDHostIntStatus(SDHOST_BASE) & SDHOST_INT_TC)) {
+			//++wait2;
 		}
   }
 
