@@ -466,6 +466,8 @@ void SDHostIntHandler()
 //volatile int wait = 0;
 //volatile int wait2 = 0;
 
+#define SDCARD_DMA_BLOCK_TRANSFER_TIMEOUT 10000
+
 DRESULT disk_read ( BYTE bDrive, BYTE* pBuffer, DWORD ulSectorNumber,
                    UINT bSectorCount )
 {
@@ -510,11 +512,13 @@ DRESULT disk_read ( BYTE bDrive, BYTE* pBuffer, DWORD ulSectorNumber,
 	// Send block read command to the card
 	//
 	if (CardSendCmd(CMD_READ_SINGLE_BLK | SDHOST_DMA_EN, ulSectorNumber) == 0) {
-		if( xSemaphoreTake(sd_dma_smphr, 1000) ) {//block till interrupt releases
+		if( xSemaphoreTake(sd_dma_smphr, SDCARD_DMA_BLOCK_TRANSFER_TIMEOUT) ) {//block till interrupt releases
 			while (!(SDHostIntStatus(SDHOST_BASE) & SDHOST_INT_TC)) {
 				//++wait2;
 			}
 			Res = RES_OK;
+		} else {
+			CardSendCmd(CMD_STOP_TRANS, 0);
 		}
   }
 
@@ -583,11 +587,13 @@ DRESULT disk_write ( BYTE bDrive,const BYTE* pBuffer, DWORD ulSectorNumber,
 	// Send  block read command to the card
 	//
 	if (CardSendCmd(CMD_WRITE_SINGLE_BLK | SDHOST_DMA_EN, ulSectorNumber) == 0) {
-		if( xSemaphoreTake(sd_dma_smphr, 1000) ) {//block till interrupt releases
+		if( xSemaphoreTake(sd_dma_smphr, SDCARD_DMA_BLOCK_TRANSFER_TIMEOUT) ) {//block till interrupt releases
 			while (!(SDHostIntStatus(SDHOST_BASE) & SDHOST_INT_TC)) {
 				//++wait2;
 			}
 			Res = RES_OK;
+		} else {
+			CardSendCmd(CMD_STOP_TRANS, 0);
 		}
   }
 
