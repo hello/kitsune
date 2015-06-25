@@ -450,7 +450,7 @@ void SDHostIntHandler()
 		SDHostIntEnable(SDHOST_BASE, SDHOST_INT_TC);
 
 		if( sts & SDHOST_INT_DMAWR ) {
-			UtilsDelay(20000);
+			UtilsDelay(2500); //TODO WTF 2250 works, 2000 does not
 		}
 		CardSendCmd(CMD_STOP_TRANS, 0);
 	}
