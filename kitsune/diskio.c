@@ -448,6 +448,7 @@ void SDHostIntHandler()
 //*****************************************************************************
 #include "FreeRTOS.h"
 #include "task.h"
+#include "kit_assert.h"
 //volatile int wait = 0;
 //volatile int wait2 = 0;
 
@@ -481,6 +482,7 @@ DRESULT disk_read ( BYTE bDrive, BYTE* pBuffer, DWORD ulSectorNumber,
 
   // Check if 1 block or multi block transfer
   //
+  assert(bSectorCount==1); //want to read more than the sector size? got to refactor fatfs :S
 //  unsigned long cmd = bSectorCount == 1 ? CMD_READ_SINGLE_BLK : CMD_READ_MULTI_BLK;
 	SDHostIntClear(SDHOST_BASE, SDHOST_INT_DMARD );
 	SDHostIntEnable(SDHOST_BASE, SDHOST_INT_DMARD);
@@ -552,6 +554,8 @@ DRESULT disk_write ( BYTE bDrive,const BYTE* pBuffer, DWORD ulSectorNumber,
   //
   // Check if 1 block or multi block transfer
   //
+
+  assert(bSectorCount==1); //want to read more than the sector size? got to refactor fatfs :S
 //  unsigned long cmd = bSectorCount == 1 ? CMD_READ_SINGLE_BLK : CMD_READ_MULTI_BLK;
 	SetupTransfer(UDMA_CH24_SDHOST_TX, UDMA_MODE_BASIC, 512/4,
 	UDMA_SIZE_32, UDMA_ARB_1, (void *) (pBuffer),
