@@ -12,7 +12,8 @@ extern "C" {
 
 //User Options
 //keep this large to reduce HTTP request printing overheads
-#define UART_LOGGER_BLOCK_SIZE 1280
+#define SENSE_LOG_RW_SIZE		512
+#define UART_LOGGER_BLOCK_SIZE (4*SENSE_LOG_RW_SIZE)
 
 //for reserved txbuf in the task for protobuf object
 #define UART_LOGGER_RESERVED_SIZE 128

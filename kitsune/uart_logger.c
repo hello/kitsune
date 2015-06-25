@@ -28,7 +28,6 @@
 
 #define SENSE_LOG_ENDPOINT		"/logs"
 #define SENSE_LOG_FOLDER		"logs"
-#define SENSE_LOG_RW_SIZE		512
 /**
  * The upload order should be
  * Backend(if has no local backlog) -> Local -> Backend(if has IP)
