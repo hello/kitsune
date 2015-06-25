@@ -493,7 +493,7 @@ DRESULT disk_read ( BYTE bDrive, BYTE* pBuffer, DWORD ulSectorNumber,
 
 	//wait = wait2 = 0;
 	//
-	// Send multi block read command to the card
+	// Send block read command to the card
 	//
 	if (CardSendCmd(CMD_READ_SINGLE_BLK | SDHOST_DMA_EN, ulSectorNumber) == 0) {
 		while (!(SDHostIntStatus(SDHOST_BASE) & SDHOST_INT_TC)) {
@@ -564,12 +564,10 @@ DRESULT disk_write ( BYTE bDrive,const BYTE* pBuffer, DWORD ulSectorNumber,
 	SDHostIntClear(SDHOST_BASE, SDHOST_INT_DMARD );
 	SDHostIntEnable(SDHOST_BASE, SDHOST_INT_DMARD);
 	//
-	// Send multi block read command to the card
+	// Send  block read command to the card
 	//
 	if (CardSendCmd(CMD_WRITE_SINGLE_BLK | SDHOST_DMA_EN, ulSectorNumber) == 0) {
-		//
-		// Send multi block read stop command to the card
-			//
+		//wait for interrupt to send stop...
 		while (!(SDHostIntStatus(SDHOST_BASE) & SDHOST_INT_TC)) {
 //			++wait2;
 		}
