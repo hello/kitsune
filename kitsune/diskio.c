@@ -259,10 +259,19 @@ CardSelect(DiskInfo_t *sDiskInfo)
 //!
 //! \return Returns 0 on succeeded.
 //*****************************************************************************
+
+#include "FreeRTOS.h"
+#include "task.h"
+#include "semphr.h"
+
+static xSemaphoreHandle sd_dma_smphr;
+
 DSTATUS disk_initialize ( BYTE bDrive )
 {
   unsigned long ulRet;
   unsigned long ulResp[4];
+
+  sd_dma_smphr = xSemaphoreCreateBinary();
 
   //
   // Check the drive No.
@@ -428,12 +437,30 @@ DSTATUS disk_status ( BYTE bDrive )
 #include "udma_if.h"
 #include "hw_mmchs.h"
 
+#include "kit_assert.h"
+
+#define DMA_INTERRUPTS (SDHOST_INT_DMARD|SDHOST_INT_DMAWR)
+
 void SDHostIntHandler()
 {
-	SDHostIntClear(SDHOST_BASE, SDHOST_INT_DMARD);
-	SDHostIntDisable(SDHOST_BASE, SDHOST_INT_DMARD);
+	unsigned long sts = SDHostIntStatus(SDHOST_BASE);
+	if( sts & DMA_INTERRUPTS ) {
+		SDHostIntClear(SDHOST_BASE, DMA_INTERRUPTS);
+		SDHostIntDisable(SDHOST_BASE, DMA_INTERRUPTS);
+		SDHostIntEnable(SDHOST_BASE, SDHOST_INT_TC);
 
-	CardSendCmd(CMD_STOP_TRANS, 0);
+		if( sts & SDHOST_INT_DMAWR ) {
+			UtilsDelay(2500); //TODO WTF 2250 works, 2000 does not
+		}
+		CardSendCmd(CMD_STOP_TRANS, 0);
+	}
+	if( sts & SDHOST_INT_TC ) {
+		SDHostIntClear(SDHOST_BASE, SDHOST_INT_TC);
+		SDHostIntDisable(SDHOST_BASE, SDHOST_INT_TC);
+		BaseType_t xHigherPriorityTaskWoken;
+		xSemaphoreGiveFromISR(sd_dma_smphr, &xHigherPriorityTaskWoken);
+		portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+	}
 }
 
 //*****************************************************************************
@@ -446,11 +473,11 @@ void SDHostIntHandler()
 //! \return Returns RES_OK on success.
 //
 //*****************************************************************************
-#include "FreeRTOS.h"
-#include "task.h"
-#include "kit_assert.h"
+
 //volatile int wait = 0;
 //volatile int wait2 = 0;
+
+#define SDCARD_DMA_BLOCK_TRANSFER_TIMEOUT portMAX_DELAY
 
 DRESULT disk_read ( BYTE bDrive, BYTE* pBuffer, DWORD ulSectorNumber,
                    UINT bSectorCount )
@@ -496,10 +523,9 @@ DRESULT disk_read ( BYTE bDrive, BYTE* pBuffer, DWORD ulSectorNumber,
 	// Send block read command to the card
 	//
 	if (CardSendCmd(CMD_READ_SINGLE_BLK | SDHOST_DMA_EN, ulSectorNumber) == 0) {
-		while (!(SDHostIntStatus(SDHOST_BASE) & SDHOST_INT_TC)) {
-		//	++wait2;
+		if( xSemaphoreTake(sd_dma_smphr, SDCARD_DMA_BLOCK_TRANSFER_TIMEOUT) ) {//block till interrupt releases
+			Res = RES_OK;
 		}
-		Res = RES_OK;
   }
 
   //
@@ -561,19 +587,16 @@ DRESULT disk_write ( BYTE bDrive,const BYTE* pBuffer, DWORD ulSectorNumber,
 	UDMA_SIZE_32, UDMA_ARB_1, (void *) (pBuffer),
 	UDMA_SRC_INC_32, (void *) (SDHOST_BASE + MMCHS_O_DATA), UDMA_DST_INC_NONE);
 
-	SDHostIntClear(SDHOST_BASE, SDHOST_INT_DMARD );
-	SDHostIntEnable(SDHOST_BASE, SDHOST_INT_DMARD);
+	SDHostIntClear(SDHOST_BASE, SDHOST_INT_DMAWR );
+	SDHostIntEnable(SDHOST_BASE, SDHOST_INT_DMAWR);
 	//
 	// Send  block read command to the card
 	//
 	if (CardSendCmd(CMD_WRITE_SINGLE_BLK | SDHOST_DMA_EN, ulSectorNumber) == 0) {
-		//wait for interrupt to send stop...
-		while (!(SDHostIntStatus(SDHOST_BASE) & SDHOST_INT_TC)) {
-//			++wait2;
+		if( xSemaphoreTake(sd_dma_smphr, SDCARD_DMA_BLOCK_TRANSFER_TIMEOUT) ) {//block till interrupt releases
+			Res = RES_OK;
 		}
-
-		Res = RES_OK;
-	}
+  }
 
   //
   // return status

@@ -125,7 +125,7 @@ static NetworkResponse_t nettask_send(NetworkTaskServerSendMessage_t * message) 
     memset(decode_buf, 0, SERVER_REPLY_BUFSZ);
     size_t decode_buf_size = SERVER_REPLY_BUFSZ;
 
-	retry_period = INITIAL_RETRY_PERIOD_COUNTS;
+	retry_period = INITIAL_RETRY_PERIOD_COUNTS + (rand()%2048); //add some jitter so a mass extinction event doesn't ddos
 	attempt_count = 0;
 	timeout_counts = message->retry_timeout;
 
