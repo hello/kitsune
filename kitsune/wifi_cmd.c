@@ -1781,6 +1781,10 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
     	data_queue_batch_size = response_protobuf->batch_size;
     }
 
+    if( response_protobuf->has_pill_batch_size ){
+    	pill_queue_batch_size = response_protobuf->pill_batch_size;
+    }
+
     if(response_protobuf->pill_settings_count > 0) {
 		BatchedPillSettings settings = {0};
 		settings.pill_settings_count = response_protobuf->pill_settings_count > MAX_PILL_SETTINGS_COUNT ? MAX_PILL_SETTINGS_COUNT : response_protobuf->pill_settings_count;

@@ -958,6 +958,7 @@ int load_device_id();
 bool is_test_boot();
 //no need for semaphore, only thread_tx uses this one
 int data_queue_batch_size = 1;
+int pill_queue_batch_size = PILL_BATCH_WATERMARK;
 
 void thread_tx(void* unused) {
 	batched_pill_data pill_data_batched = {0};
@@ -1035,7 +1036,7 @@ void thread_tx(void* unused) {
 			vPortFree( periodicdata.data );
 		}
 
-		if (uxQueueMessagesWaiting(pill_queue) > PILL_BATCH_WATERMARK) {
+		if (uxQueueMessagesWaiting(pill_queue) > pill_queue_batch_size) {
 			LOGI(	"sending  pill data\n" );
 			pilldata_to_encode pilldata;
 			pilldata.num_pills = 0;
