@@ -945,7 +945,7 @@ void thread_fast_i2c_poll(void * unused)  {
 #define MAX_PERIODIC_DATA 30
 #define MAX_PILL_DATA 20
 #define MAX_BATCH_PILL_DATA 10
-#define PILL_BATCH_WATERMARK 2
+#define PILL_BATCH_WATERMARK 0
 
 xQueueHandle data_queue = 0;
 xQueueHandle force_data_queue = 0;
