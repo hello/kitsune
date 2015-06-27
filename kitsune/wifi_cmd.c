@@ -1749,6 +1749,7 @@ static void _set_led_color_based_on_room_conditions(const SyncResponse* response
 void reset_to_factory_fw();
 
 extern int data_queue_batch_size;
+extern int pill_queue_batch_size;
 static void _on_response_protobuf( SyncResponse* response_protobuf)
 {
     if (response_protobuf->has_alarm) 
@@ -1779,6 +1780,10 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
 
     if( response_protobuf->has_batch_size ) {
     	data_queue_batch_size = response_protobuf->batch_size;
+    }
+
+    if( response_protobuf->has_pill_batch_size ){
+    	pill_queue_batch_size = response_protobuf->pill_batch_size;
     }
 
     if(response_protobuf->pill_settings_count > 0) {
