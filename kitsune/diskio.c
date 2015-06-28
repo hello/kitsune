@@ -572,6 +572,9 @@ DRESULT disk_write ( BYTE bDrive,const BYTE* pBuffer, DWORD ulSectorNumber,
   //
   MAP_SDHostBlockCountSet(SDHOST_BASE,bSectorCount);
 
+  SDHostIntClear(SDHOST_BASE, SDHOST_INT_TC );
+  SDHostIntEnable(SDHOST_BASE, SDHOST_INT_TC);
+
 	unsigned long ulSize = (512 * bSectorCount) / 4;
 
 	SetupTransfer(UDMA_CH24_SDHOST_TX, UDMA_MODE_BASIC, ulSize,
