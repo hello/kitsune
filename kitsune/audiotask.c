@@ -161,7 +161,7 @@ extern void UtilsDelay(unsigned long ulCount);
 
 static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
-    #define SPEAKER_DATA_CHUNK_SIZE (2560)
+    #define SPEAKER_DATA_CHUNK_SIZE (PING_PONG_CHUNK_SIZE)
 	//1.5K on the stack
 	uint16_t * speaker_data = pvPortMalloc(SPEAKER_DATA_CHUNK_SIZE);
 
