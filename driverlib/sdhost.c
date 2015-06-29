@@ -735,7 +735,7 @@ SDHostBlockCountSet(unsigned long ulBase, unsigned short ulBlkCount)
   //
   // Set the number of blocks
   //
-  HWREG(ulBase + MMCHS_O_BLK) |= ((ulRegVal & 0x0000FFFF)|
+  HWREG(ulBase + MMCHS_O_BLK) = ((ulRegVal & 0x0000FFFF)|
                                   (ulBlkCount << 16));
 }
 
