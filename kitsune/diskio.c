@@ -575,6 +575,8 @@ DRESULT disk_write ( BYTE bDrive,const BYTE* pBuffer, DWORD ulSectorNumber,
   SDHostIntClear(SDHOST_BASE, SDHOST_INT_TC );
   SDHostIntEnable(SDHOST_BASE, SDHOST_INT_TC);
 
+  assert(bSectorCount==1);//todo get multi sector writes working...
+
 	unsigned long ulSize = (512 * bSectorCount) / 4;
 
 	SetupTransfer(UDMA_CH24_SDHOST_TX, UDMA_MODE_BASIC, ulSize,
@@ -584,10 +586,11 @@ DRESULT disk_write ( BYTE bDrive,const BYTE* pBuffer, DWORD ulSectorNumber,
 	//
 	// Send  block read command to the card
 	//
-	if (CardSendCmd(CMD_WRITE_MULTI_BLK | SDHOST_DMA_EN, ulSectorNumber) == 0) {
+	if (CardSendCmd(CMD_WRITE_SINGLE_BLK | SDHOST_DMA_EN, ulSectorNumber) == 0) {
 		if (xSemaphoreTake(sd_dma_smphr, SDCARD_DMA_BLOCK_TRANSFER_TIMEOUT)) {//block till interrupt releases
 			Res = RES_OK;
 		}
+		vTaskDelay(10);
 		CardSendCmd(CMD_STOP_TRANS, 0);
 	}
 
