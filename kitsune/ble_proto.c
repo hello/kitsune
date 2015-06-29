@@ -105,7 +105,7 @@ void ble_reply_wifi_status(wifi_connection_state state)
 	reply_command.wifi_connection_state = state;
 	reply_command.has_wifi_connection_state = true;
 	//need to only send when it has been requested....
-	LOGI("blewifi status %d %d", state, wifi_state_requested );
+	//LOGI("blewifi status %d %d", state, wifi_state_requested );
 	if( wifi_state_requested ) {
 		ble_send_protobuf(&reply_command);
 	}

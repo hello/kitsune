@@ -229,9 +229,9 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		g_uiPlayWaterMark = 1;
 		fade_time = t0 = xTaskGetTickCount();
 		//make sure the volume is down before we start...
-		set_volume(1);
+		set_volume(1, portMAX_DELAY);
 	} else {
-		set_volume(volume);
+		set_volume(volume, portMAX_DELAY);
 	}
 	bool started = false;
 	//loop until either a) done playing file for specified duration or b) our message queue gets a message that tells us to stop
@@ -242,11 +242,11 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 			if( fade_counter <= fade_length && xTaskGetTickCount() - last_vol > 100 ) {
 				last_vol = xTaskGetTickCount();
 				if( fade_in ) {
-					//UARTprintf("FI %d\n", fade_in_vol(fade_counter, volume, fade_length));
-					set_volume(fade_in_vol(fade_counter, volume, fade_length));
+					UARTprintf("FI %d\n", fade_in_vol(fade_counter, volume, fade_length));
+					set_volume(fade_in_vol(fade_counter, volume, fade_length),0);
 				} else {
-					//UARTprintf("FO %d\n", fade_out_vol(fade_counter, volume, fade_length));
-					set_volume(fade_out_vol(fade_counter, volume, fade_length));
+					UARTprintf("FO %d\n", fade_out_vol(fade_counter, volume, fade_length));
+					set_volume(fade_out_vol(fade_counter, volume, fade_length),0);
 				}
 			} else if ( !fade_in && fade_counter > fade_length ) {
 				LOGI("stopping playback");
