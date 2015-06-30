@@ -68,6 +68,8 @@ void DeinitAudioCapture(void) {
 
 	McASPDeInit();
 
+	MAP_uDMAChannelDisable(UDMA_CH4_I2S_RX);
+
 	if (pTxBuffer) {
 		DestroyCircularBuffer(pTxBuffer);
 		pTxBuffer = NULL;
@@ -113,6 +115,8 @@ void DeinitAudioPlayback(void) {
 	close_codec_NAU();
 
 	McASPDeInit();
+
+	MAP_uDMAChannelDisable(UDMA_CH5_I2S_TX);
 
 	if (pRxBuffer) {
 		DestroyCircularBuffer(pRxBuffer);
