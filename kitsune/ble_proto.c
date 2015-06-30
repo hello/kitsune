@@ -373,7 +373,7 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 					MorpheusCommand_fields,
 					command,
 					30000,
-					_pair_reply, &success, &pb_cb);
+					_pair_reply, &success, &pb_cb, true);
 
 		// All the args are in stack, don't need to do protobuf free.
 		if(!is_morpheus) {

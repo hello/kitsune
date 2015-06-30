@@ -1803,7 +1803,6 @@ tCmdLineEntry g_sCmdTable[] = {
 		{"future",Cmd_FutureTest,""},
 		{"dev", Cmd_setDev, ""},
 		{"ana", Cmd_analytics, ""},
-		{"dns", Cmd_setDns, ""},
 		{"noint", Cmd_disableInterrupts, ""},
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
