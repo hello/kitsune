@@ -39,10 +39,10 @@ static int int_to_bcd( int i ) {
 static int get_rtc_time( struct tm * dt ) {
 	unsigned char data[7];
 	unsigned char addy = 1;
-	if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
+	if (xSemaphoreTakeRecursive(i2c_smphr, portMAX_DELAY)) {
 		TRY_OR_GOTOFAIL(I2C_IF_Write(0x68, &addy, 1, 1));
 		TRY_OR_GOTOFAIL(I2C_IF_Read(0x68, data, 7));
-		xSemaphoreGive(i2c_smphr);
+		xSemaphoreGiveRecursive(i2c_smphr);
 	}
 	dt->tm_sec = bcd_to_int(data[0] & 0x7f);
 	dt->tm_min = bcd_to_int(data[1] & 0x7f);
@@ -73,9 +73,9 @@ static int set_rtc_time(struct tm * dt) {
     data[6] = int_to_bcd((dt->tm_mon+1) & 0x3f );
     data[7] = int_to_bcd(dt->tm_year-100);
 
-	if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
+	if (xSemaphoreTakeRecursive(i2c_smphr, portMAX_DELAY)) {
 		TRY_OR_GOTOFAIL(I2C_IF_Write(0x68, data, 8, 1));
-		xSemaphoreGive(i2c_smphr);
+		xSemaphoreGiveRecursive(i2c_smphr);
 	}
 	return 0;
 }
