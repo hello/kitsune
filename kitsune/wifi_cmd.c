@@ -1720,6 +1720,7 @@ static void _set_led_color_based_on_room_conditions(const SyncResponse* response
 {
     if(response_protobuf->has_room_conditions)
     {
+    	LOGI("Room condition %d\r\n", (int)response_protobuf->room_conditions);
     	switch(response_protobuf->room_conditions)
     	{
 			case SyncResponse_RoomConditions_IDEAL:
@@ -1736,6 +1737,7 @@ static void _set_led_color_based_on_room_conditions(const SyncResponse* response
 			break;
     	}
     }else{
+    	LOGI("No room condition\r\n");
         led_set_user_color(0x00, LED_MAX, 0x00);
     }
 }
