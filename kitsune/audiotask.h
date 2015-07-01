@@ -21,6 +21,7 @@ typedef struct {
 	uint32_t fade_in_ms;
 	uint32_t fade_out_ms;
 	uint32_t rate;
+	uint8_t cancelable;
 
 	NotificationCallback_t onFinished;
 	void * context;
