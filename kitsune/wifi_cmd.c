@@ -1718,26 +1718,21 @@ void on_key(uint8_t * key) {
 
 static void _set_led_color_based_on_room_conditions(const SyncResponse* response_protobuf)
 {
-    if(response_protobuf->has_room_conditions)
-    {
-    	switch(response_protobuf->room_conditions)
-    	{
-			case SyncResponse_RoomConditions_IDEAL:
-				led_set_user_color(0x00, LED_MAX, 0x00);
-			break;
-			case SyncResponse_RoomConditions_WARNING:
-				led_set_user_color(LED_MAX, LED_MAX, 0x00);
-			break;
-			case SyncResponse_RoomConditions_ALERT:
-				led_set_user_color(0xF0, 0x76, 0x00);
-			break;
-			default:
-				led_set_user_color(0x00, 0x00, LED_MAX);
-			break;
-    	}
-    }else{
-        led_set_user_color(0x00, LED_MAX, 0x00);
-    }
+	LOGI("Room condition %d\r\n", (int)response_protobuf->room_conditions);
+	switch(response_protobuf->room_conditions){
+		case SyncResponse_RoomConditions_IDEAL:
+			led_set_user_color(0x00, LED_MAX, 0x00);
+		break;
+		case SyncResponse_RoomConditions_WARNING:
+			led_set_user_color(LED_MAX, LED_MAX, 0x00);
+		break;
+		case SyncResponse_RoomConditions_ALERT:
+			led_set_user_color(0xF0, 0x76, 0x00);
+		break;
+		default:
+			led_set_user_color(0x00, 0x00, LED_MAX);
+		break;
+	}
 }
 void reset_to_factory_fw();
 
@@ -1789,7 +1784,12 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
     		mcu_reset();
     	}
 	}
-    _set_led_color_based_on_room_conditions(response_protobuf);
+    if(response_protobuf->has_room_conditions){
+    	_set_led_color_based_on_room_conditions(response_protobuf);
+     }else{
+     	LOGI("No room condition\r\n");
+     }
+
 }
 
 static void _get_sync_response(pb_field_t ** fields, void ** structdata){
