@@ -46,8 +46,6 @@ typedef struct {
 	NetworkResponse_t * response_handle;
 
 	protobuf_reply_callbacks pb_cb;
-
-	bool priority;
 } NetworkTaskServerSendMessage_t;
 
 typedef struct {
