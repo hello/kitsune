@@ -1738,7 +1738,6 @@ static void _set_led_color_based_on_room_conditions(const SyncResponse* response
     	}
     }else{
     	LOGI("No room condition\r\n");
-        led_set_user_color(0x00, LED_MAX, 0x00);
     }
 }
 void reset_to_factory_fw();
