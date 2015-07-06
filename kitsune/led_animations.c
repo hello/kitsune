@@ -247,7 +247,7 @@ int play_led_animation_solid(int a, int r, int g, int b, int repeat, int delay){
 			.handler = _animate_solid,
 			.reinit_handler = _reinit_animate_solid,
 			.context = ctx,
-			.priority = 1,
+			.priority = repeat == 2 ? 1 : 3,
 			.cycle_time = delay,
 	};
 	ret = led_transition_custom_animation(&anim);
