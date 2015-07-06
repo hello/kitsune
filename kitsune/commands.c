@@ -1975,7 +1975,6 @@ void vUARTTask(void *pvParameters) {
 			mac[3], mac[4], mac[5]);
 	UARTprintf("> ");
 
-
 	/* remove anything we recieved before we were ready */
 
 	/* Loop forever */
