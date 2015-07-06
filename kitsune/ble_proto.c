@@ -214,6 +214,7 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type,
 		}
 		wifi_state_requested = false;
 	} else {
+		int retry_count = 10;
 		bool connection_ret = false;
 		//play_led_progress_bar(0xFF, 128, 0, 128,portMAX_DELAY);
 	    while((connection_ret = connect_wifi(ssid, password, security_type, version)) == 0 && --retry_count)
