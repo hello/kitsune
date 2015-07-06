@@ -117,6 +117,7 @@ static void _ble_reply_command_with_type(MorpheusCommand_CommandType type)
 	memset(&reply_command, 0, sizeof(reply_command));
 	reply_command.type = type;
 	ble_send_protobuf(&reply_command);
+    LOGI("BLE REPLY %d\n",type);
 }
 
 static void _factory_reset(){
@@ -391,34 +392,25 @@ static void _process_pill_heartbeat( MorpheusCommand* command)
 	
 }
 
-
+int force_data_push();
 static void _on_pair_success(pb_field_t * fields, void * structdata){
-	LOGF("signature validated\r\n");
+	LOGF("pairing success\r\n");
 	ble_send_protobuf(structdata);
+	force_data_push();
 }
 static void _on_pair_failure(pb_field_t * fields, void * structdata){
-    LOGF("signature validation fail\r\n");
+    LOGF("pairing fail\r\n");
+	ble_reply_protobuf_error(ErrorType_NETWORK_ERROR);
 }
 
 static void _pair_reply(const NetworkResponse_t * response,
 		char * reply_buf, int reply_sz, void * context) {
-	bool * success = (bool*)context;
-    if( response->success ) {
-    	if( success ) {
-    		*success = true;
-    	}
-    } else {
-    	if( success ) {
-    		*success = false;
-    	}
-    }
+vPortFree(context);
 }
 
 void save_account_id( char * acct );
-int force_data_push();
 static int _pair_device( MorpheusCommand* command, int is_morpheus)
 {
-	bool success = false;
 	if(NULL == command->accountId.arg || NULL == command->deviceId.arg){
 		LOGI("*******Missing fields\n");
 		ble_reply_protobuf_error(ErrorType_INVALID_ACCOUNT_ID);
@@ -427,31 +419,23 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 
 		ble_proto_assign_encode_funcs(command);
 
-	    protobuf_reply_callbacks pb_cb;
+	    protobuf_reply_callbacks * pb_cb= pvPortMalloc(sizeof(protobuf_reply_callbacks)+sizeof(MorpheusCommand));
+	    assert( pb_cb );
+	    MorpheusCommand * cmd = (MorpheusCommand *)(pb_cb+1);
 
-	    pb_cb.get_reply_pb = ble_proto_get_morpheus_command;
-	    pb_cb.free_reply_pb = ble_proto_free_morpheus_command;
-	    pb_cb.on_pb_failure = _on_pair_failure;
-	    pb_cb.on_pb_success = _on_pair_success;
+	    memcpy(cmd, command, sizeof(MorpheusCommand) );
+	    pb_cb->get_reply_pb = ble_proto_get_morpheus_command;
+	    pb_cb->free_reply_pb = ble_proto_free_morpheus_command;
+	    pb_cb->on_pb_failure = _on_pair_failure;
+	    pb_cb->on_pb_success = _on_pair_success;
 
-	    bool  ret = NetworkTask_SendProtobuf( true,
+	    bool  ret = NetworkTask_SendProtobuf( false,
 					DATA_SERVER,
 					is_morpheus == 1 ? MORPHEUS_REGISTER_ENDPOINT : PILL_REGISTER_ENDPOINT,
 					MorpheusCommand_fields,
-					command,
+					cmd,
 					30000,
-					_pair_reply, &success, &pb_cb, true);
-
-		// All the args are in stack, don't need to do protobuf free.
-		if(!is_morpheus) {
-			vTaskDelay(1000);
-			force_data_push();
-		}
-		if(!ret || !success )
-		{
-			LOGI("Pairing request failed, error %d\n", ret);
-			ble_reply_protobuf_error(ErrorType_NETWORK_ERROR);
-		}
+					_pair_reply, pb_cb, pb_cb, true);
 	}
 
 	return 0; // failure
@@ -459,7 +443,7 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 
 void ble_proto_led_init()
 {
-	play_led_animation_solid(LED_MAX, LED_MAX, LED_MAX,LED_MAX,1, 33);
+	play_led_animation_solid(LED_MAX, LED_MAX, LED_MAX,LED_MAX,1, 33,1);
 }
 
 
@@ -472,8 +456,8 @@ void ble_proto_led_busy_mode(uint8_t a, uint8_t r, uint8_t g, uint8_t b, int del
 	_self.argb[3] = b;
 	_self.delay = delay;
 
-	ble_proto_led_fade_out(false);
-	play_led_wheel(a,r,g,b,0,delay);
+	led_fade_all_animation(18);
+	ANIMATE_BLOCKING(play_led_wheel(a,r,g,b,0,delay), 10000 );
 }
 
 void ble_proto_led_flash(int a, int r, int g, int b, int delay)
@@ -491,20 +475,22 @@ void ble_proto_led_flash(int a, int r, int g, int b, int delay)
 	_self.argb[3] = b;
 	_self.delay = delay;
 
-	play_led_animation_solid(a,r,g,b,2,18);
+	play_led_animation_solid(a,r,g,b,2,18,1);
 }
 extern volatile bool provisioning_mode;
 
 void ble_proto_led_fade_in_trippy(){
 	uint8_t trippy_base[3] = {60, 25, 90};
-	play_led_trippy(trippy_base, trippy_base, portMAX_DELAY, 30);
+	led_fade_all_animation(18);
+	ANIMATE_BLOCKING(play_led_trippy(trippy_base, trippy_base, portMAX_DELAY, 30), 10000 );
 }
 
 void ble_proto_led_fade_out(bool operation_result){
-	stop_led_animation( 10000, 18 );
-
 	if(operation_result) {
-		ANIMATE_BLOCKING(play_led_animation_solid(LED_MAX,LED_MAX,LED_MAX,LED_MAX,1,11), 4000);
+		led_fade_all_animation(18);
+		ANIMATE_BLOCKING(play_led_animation_solid(LED_MAX,LED_MAX,LED_MAX,LED_MAX,1,11,1), 10000 );
+	} else {
+		led_fade_all_animation(18);
 	}
 }
 
@@ -827,23 +813,23 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         break;
     	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_LED_BUSY:
     		LOGI("MorpheusCommand_CommandType_MORPHEUS_COMMAND_LED_BUSY\n");
-    		ble_proto_led_busy_mode(0xFF, 128, 0, 128, 18);
     		_ble_reply_command_with_type(command->type);
+    		ble_proto_led_busy_mode(0xFF, 128, 0, 128, 18);
     		break;
     	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_LED_OPERATION_FAILED:
     		LOGI("MorpheusCommand_CommandType_MORPHEUS_COMMAND_LED_OPERATION_FAILED\n");
-    		ble_proto_led_fade_out(false);
     		_ble_reply_command_with_type(command->type);
+    		ble_proto_led_fade_out(false);
     		break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_LED_OPERATION_SUCCESS:
     		LOGI("MorpheusCommand_CommandType_MORPHEUS_COMMAND_LED_OPERATION_SUCCESS\n");
-            ble_proto_led_fade_out(true);
             _ble_reply_command_with_type(command->type);
+            ble_proto_led_fade_out(true);
             break;
     	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_LED_TRIPPY:
     		LOGI("MorpheusCommand_CommandType_MORPHEUS_COMMAND_LED_TRIPPY\n");
-    		ble_proto_led_fade_in_trippy();
     		_ble_reply_command_with_type(command->type);
+    		ble_proto_led_fade_in_trippy();
     		break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PUSH_DATA_AFTER_SET_TIMEZONE:
         {

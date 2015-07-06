@@ -232,7 +232,7 @@ int play_led_trippy(uint8_t trippy_base[3], uint8_t trippy_range[3], unsigned in
 	return ret;
 
 }
-int play_led_animation_solid(int a, int r, int g, int b, int repeat, int delay){
+int play_led_animation_solid(int a, int r, int g, int b, int repeat, int delay, int priority){
 	_animate_solid_ctx * ctx = pvPortMalloc(sizeof(_animate_solid_ctx));
 	int ret;
 
@@ -247,7 +247,7 @@ int play_led_animation_solid(int a, int r, int g, int b, int repeat, int delay){
 			.handler = _animate_solid,
 			.reinit_handler = _reinit_animate_solid,
 			.context = ctx,
-			.priority = repeat == 2 ? 1 : 3,
+			.priority = priority,
 			.cycle_time = delay,
 	};
 	ret = led_transition_custom_animation(&anim);
@@ -353,7 +353,7 @@ int Cmd_led_animate(int argc, char *argv[]){
 		}else if(strcmp(argv[1], "wheelr") == 0){
 			play_led_wheel(rand()%LED_MAX, rand()%LED_MAX, rand()%LED_MAX, rand()%LED_MAX, 0, 16);
 		}else if(strcmp(argv[1], "solid") == 0){
-			play_led_animation_solid(rand()%LED_MAX, rand()%LED_MAX, rand()%LED_MAX, rand()%LED_MAX, 1,18);
+			play_led_animation_solid(rand()%LED_MAX, rand()%LED_MAX, rand()%LED_MAX, rand()%LED_MAX, 1,18, 1);
 		}else if(strcmp(argv[1], "prog") == 0){
 			play_led_progress_bar(20, 20, 20, 0, portMAX_DELAY);
 		}else if(strcmp(argv[1], "kill") == 0){
