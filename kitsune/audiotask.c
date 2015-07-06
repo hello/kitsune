@@ -242,10 +242,10 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 			if( fade_counter <= fade_length && xTaskGetTickCount() - last_vol > 100 ) {
 				last_vol = xTaskGetTickCount();
 				if( fade_in ) {
-					UARTprintf("FI %d\n", fade_in_vol(fade_counter, volume, fade_length));
+					//UARTprintf("FI %d\n", fade_in_vol(fade_counter, volume, fade_length));
 					set_volume(fade_in_vol(fade_counter, volume, fade_length),0);
 				} else {
-					UARTprintf("FO %d\n", fade_out_vol(fade_counter, volume, fade_length));
+					//UARTprintf("FO %d\n", fade_out_vol(fade_counter, volume, fade_length));
 					set_volume(fade_out_vol(fade_counter, volume, fade_length),0);
 				}
 			} else if ( !fade_in && fade_counter > fade_length ) {
