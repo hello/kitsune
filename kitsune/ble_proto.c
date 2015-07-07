@@ -339,7 +339,8 @@ static void _on_pair_failure(pb_field_t * fields, void * structdata){
 
 static void _pair_reply(const NetworkResponse_t * response,
 		char * reply_buf, int reply_sz, void * context) {
-vPortFree(context);
+    ble_proto_free_command(context);
+    vPortFree(context);
 }
 
 void save_account_id( char * acct );
@@ -353,11 +354,11 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 
 		ble_proto_assign_encode_funcs(command);
 
-	    protobuf_reply_callbacks * pb_cb= pvPortMalloc(sizeof(protobuf_reply_callbacks)+sizeof(MorpheusCommand));
-	    assert( pb_cb );
-	    MorpheusCommand * cmd = (MorpheusCommand *)(pb_cb+1);
+		MorpheusCommand * cmd= pvPortMalloc(sizeof(protobuf_reply_callbacks)+sizeof(MorpheusCommand));
+	    assert( cmd );
+	    protobuf_reply_callbacks* pb_cb = (protobuf_reply_callbacks *)(cmd+1);
+	    memcpy(cmd, command, sizeof(MorpheusCommand) ); //WARNING shallow copy
 
-	    memcpy(cmd, command, sizeof(MorpheusCommand) );
 	    pb_cb->get_reply_pb = ble_proto_get_morpheus_command;
 	    pb_cb->free_reply_pb = ble_proto_free_morpheus_command;
 	    pb_cb->on_pb_failure = _on_pair_failure;
@@ -369,7 +370,7 @@ static int _pair_device( MorpheusCommand* command, int is_morpheus)
 					MorpheusCommand_fields,
 					cmd,
 					30000,
-					_pair_reply, pb_cb, pb_cb, true);
+					_pair_reply, cmd, pb_cb, true);
 	}
 
 	return 0; // failure
@@ -514,6 +515,7 @@ const char * get_top_version(void){
 }
 bool on_ble_protobuf_command(MorpheusCommand* command)
 {
+	bool finished_with_command = true;
 	switch(command->type)
 	{
 		case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID:
@@ -588,7 +590,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 		break;
 	}
 	if(!booted || provisioning_mode) {
-		return true;
+		goto cleanup;
 	}
     switch(command->type)
     {
@@ -689,12 +691,14 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         {
             LOGI("PAIR PILL\n");
             int result = _pair_device(command, 0);
+            finished_with_command = false;
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_SENSE:
         {
             LOGI("PAIR SENSE\n");
             int result = _pair_device(command, 1);
+            finished_with_command = false;
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_FACTORY_RESET:
@@ -785,5 +789,9 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID:
         	break;
 	}
+    cleanup:
+    if( finished_with_command ) {
+    	ble_proto_free_command(command);
+    }
     return true;
 }
