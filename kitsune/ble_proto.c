@@ -45,6 +45,7 @@ static struct {
 	uint8_t argb[4];
 	int delay;
 	uint32_t last_hold_time;
+	uint32_t last_cancel;
     ble_mode_t ble_status;
     xSemaphoreHandle smphr;
 } _self;
@@ -437,6 +438,7 @@ ble_send_protobuf(&response);
 #include "wifi_cmd.h"
 extern uint8_t top_device_id[DEVICE_ID_SZ];
 extern volatile bool top_got_device_id; //being bad, this is only for factory
+
 void ble_proto_start_hold()
 {
 	_self.last_hold_time = xTaskGetTickCount();
@@ -451,6 +453,8 @@ void ble_proto_start_hold()
             ble_send_protobuf(&response);
 
 			analytics_event( "{ble: normal}" );
+
+			_self.last_cancel = xTaskGetTickCount();
         }
         break;
     }
@@ -462,7 +466,8 @@ void ble_proto_end_hold()
 	uint32_t current_tick = xTaskGetTickCount();
 	if((current_tick - _self.last_hold_time) * (1000 / configTICK_RATE_HZ) > 3000 &&
 		(current_tick - _self.last_hold_time) * (1000 / configTICK_RATE_HZ) < 7000 &&
-		_self.last_hold_time > 0)
+		_self.last_hold_time > 0 &&
+		(current_tick - _self.last_cancel) * (1000 / configTICK_RATE_HZ) > 5000 )
 	{
 		if (get_ble_mode() != BLE_PAIRING) {
 			LOGI("Trigger pairing mode\n");
