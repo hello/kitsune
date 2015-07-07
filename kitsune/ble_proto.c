@@ -460,8 +460,8 @@ void ble_proto_end_hold()
 {
 	//configTICK_RATE_HZ
 	uint32_t current_tick = xTaskGetTickCount();
-	if((current_tick - _self.last_hold_time) * (1000 / configTICK_RATE_HZ) > 5000 &&
-		(current_tick - _self.last_hold_time) * (1000 / configTICK_RATE_HZ) < 10000 &&
+	if((current_tick - _self.last_hold_time) * (1000 / configTICK_RATE_HZ) > 3000 &&
+		(current_tick - _self.last_hold_time) * (1000 / configTICK_RATE_HZ) < 7000 &&
 		_self.last_hold_time > 0)
 	{
 		if (get_ble_mode() != BLE_PAIRING) {
