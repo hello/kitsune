@@ -470,8 +470,6 @@ void ble_proto_end_hold()
 			response.type =
 					MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_PAIRING_MODE;
 			ble_send_protobuf(&response);
-			ble_proto_led_fade_in_trippy();
-			analytics_event( "{ble: pairing}" );
 		}
 	}
 	_self.last_hold_time = 0;
@@ -622,16 +620,18 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_PAIRING_MODE:  // Just for testing
         {
-            // Light up LEDs?
-			ble_proto_led_fade_in_trippy();
-            set_ble_mode(BLE_PAIRING);
-            LOGI( "PAIRING MODE \n");
+    		if (get_ble_mode() != BLE_PAIRING) {
+				// Light up LEDs?
+				ble_proto_led_fade_in_trippy();
+				set_ble_mode(BLE_PAIRING);
+				LOGI( "PAIRING MODE \n");
 
-			analytics_event( "{ble: pairing}" );
-            //wifi prescan, forked so we don't block the BLE and it just happens in the background
-			if(!scan_results){
-				scan_results = prescan_wifi(MAX_WIFI_EP_PER_SCAN);
-			}
+				analytics_event( "{ble: pairing}" );
+				//wifi prescan, forked so we don't block the BLE and it just happens in the background
+				if(!scan_results){
+					scan_results = prescan_wifi(MAX_WIFI_EP_PER_SCAN);
+				}
+    		}
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE:
