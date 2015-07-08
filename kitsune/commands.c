@@ -1029,9 +1029,11 @@ void thread_tx(void* unused) {
 
 			wifi_get_connected_ssid( (uint8_t*)data_batched.connected_ssid, sizeof(data_batched) );
 			data_batched.has_connected_ssid = true;
-			data_batched.scan.funcs.encode = encode_scanned_ssid;
-			data_batched.scan.arg = prescan_wifi(10);
 
+			if( !got_forced_data ) {
+				data_batched.scan.funcs.encode = encode_scanned_ssid;
+				data_batched.scan.arg = prescan_wifi(10);
+			}
 			send_periodic_data(&data_batched);
 			last_upload_time = xTaskGetTickCount();
 			hlo_future_destroy( data_batched.scan.arg );

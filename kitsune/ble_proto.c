@@ -393,54 +393,62 @@ static void _process_pill_heartbeat( MorpheusCommand* command)
 	
 }
 
+typedef struct {
+	protobuf_reply_callbacks pb_cb;
+	MorpheusCommand cmd;
+	int is_morpheus;
+} pairing_context_t;
+
 int force_data_push();
 static void _on_pair_success(pb_field_t * fields, void * structdata){
 	LOGF("pairing success\r\n");
 	ble_send_protobuf(structdata);
-	force_data_push();
 }
 static void _on_pair_failure(pb_field_t * fields, void * structdata){
     LOGF("pairing fail\r\n");
 	ble_reply_protobuf_error(ErrorType_NETWORK_ERROR);
 }
-
 static void _pair_reply(const NetworkResponse_t * response,
 		char * reply_buf, int reply_sz, void * context) {
-    ble_proto_free_command(context);
-    vPortFree(context);
+	pairing_context_t * ctx = (pairing_context_t*)context;
+    ble_proto_free_command(&ctx->cmd);
+    if( !ctx->is_morpheus && response->success ) {
+    	force_data_push();
+    }
+    vPortFree(ctx);
 }
 
 void save_account_id( char * acct );
-static int _pair_device( MorpheusCommand* command, int is_morpheus)
+static bool _pair_device( MorpheusCommand* command, int is_morpheus)
 {
 	if(NULL == command->accountId.arg || NULL == command->deviceId.arg){
 		LOGI("*******Missing fields\n");
 		ble_reply_protobuf_error(ErrorType_INVALID_ACCOUNT_ID);
-	}else{
-		save_account_id( command->accountId.arg );
-
-		ble_proto_assign_encode_funcs(command);
-
-		MorpheusCommand * cmd= pvPortMalloc(sizeof(protobuf_reply_callbacks)+sizeof(MorpheusCommand));
-	    assert( cmd );
-	    protobuf_reply_callbacks* pb_cb = (protobuf_reply_callbacks *)(cmd+1);
-	    memcpy(cmd, command, sizeof(MorpheusCommand) ); //WARNING shallow copy
-
-	    pb_cb->get_reply_pb = ble_proto_get_morpheus_command;
-	    pb_cb->free_reply_pb = ble_proto_free_morpheus_command;
-	    pb_cb->on_pb_failure = _on_pair_failure;
-	    pb_cb->on_pb_success = _on_pair_success;
-
-	    bool  ret = NetworkTask_SendProtobuf( false,
-					DATA_SERVER,
-					is_morpheus == 1 ? MORPHEUS_REGISTER_ENDPOINT : PILL_REGISTER_ENDPOINT,
-					MorpheusCommand_fields,
-					cmd,
-					30000,
-					_pair_reply, cmd, pb_cb, true);
+		return false;
 	}
 
-	return 0; // failure
+	save_account_id( command->accountId.arg );
+
+	ble_proto_assign_encode_funcs(command);
+
+	pairing_context_t * ctx = pvPortMalloc(sizeof(pairing_context_t));
+	assert( ctx );
+	memcpy( &ctx->cmd, command, sizeof(MorpheusCommand) ); //WARNING shallow copy
+
+	ctx->pb_cb.get_reply_pb = ble_proto_get_morpheus_command;
+	ctx->pb_cb.free_reply_pb = ble_proto_free_morpheus_command;
+	ctx->pb_cb.on_pb_failure = _on_pair_failure;
+	ctx->pb_cb.on_pb_success = _on_pair_success;
+
+	bool  ret = NetworkTask_SendProtobuf( false,
+				DATA_SERVER,
+				is_morpheus == 1 ? MORPHEUS_REGISTER_ENDPOINT : PILL_REGISTER_ENDPOINT,
+				MorpheusCommand_fields,
+				&ctx->cmd,
+				30000,
+				_pair_reply, ctx, &ctx->pb_cb, true);
+
+	return true; // success
 }
 
 void ble_proto_led_init()
@@ -459,7 +467,7 @@ void ble_proto_led_busy_mode(uint8_t a, uint8_t r, uint8_t g, uint8_t b, int del
 	_self.delay = delay;
 
 	led_fade_all_animation(18);
-	ANIMATE_BLOCKING(play_led_wheel(a,r,g,b,0,delay), 10000 );
+	play_led_wheel(a,r,g,b,0,delay);
 }
 
 void ble_proto_led_flash(int a, int r, int g, int b, int delay)
@@ -484,13 +492,13 @@ extern volatile bool provisioning_mode;
 void ble_proto_led_fade_in_trippy(){
 	uint8_t trippy_base[3] = {60, 25, 90};
 	led_fade_all_animation(18);
-	ANIMATE_BLOCKING(play_led_trippy(trippy_base, trippy_base, portMAX_DELAY, 30), 10000 );
+	play_led_trippy(trippy_base, trippy_base, portMAX_DELAY, 30 );
 }
 
 void ble_proto_led_fade_out(bool operation_result){
 	if(operation_result) {
 		led_fade_all_animation(18);
-		ANIMATE_BLOCKING(play_led_animation_solid(LED_MAX,LED_MAX,LED_MAX,LED_MAX,1,11,1), 10000 );
+		play_led_animation_solid(LED_MAX,LED_MAX,LED_MAX,LED_MAX,1,11,1);
 	} else {
 		led_fade_all_animation(18);
 	}
@@ -758,15 +766,13 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_PILL:
         {
             LOGI("PAIR PILL\n");
-            int result = _pair_device(command, 0);
-            finished_with_command = false;
+            finished_with_command = !_pair_device(command, 0);
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PAIR_SENSE:
         {
             LOGI("PAIR SENSE\n");
-            int result = _pair_device(command, 1);
-            finished_with_command = false;
+            finished_with_command = !_pair_device(command, 1);
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_FACTORY_RESET:
