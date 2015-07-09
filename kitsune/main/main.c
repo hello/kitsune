@@ -165,6 +165,8 @@ vAssertCalled( const char * s )
 {
   LOGE( "%s ASSERT\n", s );
   LOGE( "%s\n", pxCurrentTCB->pcTaskName );
+  void* p;
+  LOGE("stack ptr %x\n", (int*)&p);
   LOGE( "%x %x\n", pxCurrentTCB->pxStack, pxCurrentTCB->pxTopOfStack );
 
   volatile StackType_t * top = pxCurrentTCB->pxTopOfStack;
