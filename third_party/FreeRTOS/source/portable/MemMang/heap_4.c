@@ -93,6 +93,9 @@ task.h is included from an application file. */
 /* A few bytes might be lost to byte aligning the heap start address. */
 #define heapADJUSTED_HEAP_SIZE	( configTOTAL_HEAP_SIZE - portBYTE_ALIGNMENT )
 
+#define HEAP_MAGIC 0xabcddcba
+#define heapMAGIC_SIZE 4
+
 /* Allocate the memory for the heap. */
 static uint8_t ucHeap[ configTOTAL_HEAP_SIZE ];
 __attribute__((section(".bss"))) static uint8_t ucHeap_BSS[ 7*1024 ];
@@ -186,10 +189,13 @@ BlockLink_t *pxLink, *pxNewBlockLink;
 		pxLink = ( void * ) puc;
 
 		/* Check the block is actually allocated. */
+		#define B(x) (x & ~xBlockAllocatedBit)
+		configASSERT( *(int*)(puc+B(pxLink->xBlockSize)-4) == HEAP_MAGIC );
 		configASSERT( ( pxLink->xBlockSize & xBlockAllocatedBit ) != 0 );
 		configASSERT( pxLink->pxNextFreeBlock == NULL );
 
 		xWantedSize += heapSTRUCT_SIZE;
+		xWantedSize += heapMAGIC_SIZE;
 
 		/* Ensure that blocks are always aligned to the required number
 		of bytes. */
@@ -203,7 +209,6 @@ BlockLink_t *pxLink, *pxNewBlockLink;
 			mtCOVERAGE_TEST_MARKER();
 		}
 
-        #define B(x) (x & ~xBlockAllocatedBit)
 		if( xWantedSize == B(pxLink->xBlockSize) ) {
 			( void ) xTaskResumeAll();
 			return pv;
@@ -224,6 +229,7 @@ BlockLink_t *pxLink, *pxNewBlockLink;
 			pxNewBlockLink->xBlockSize = diff;
 			xFreeBytesRemaining += diff;
 			pxLink->xBlockSize = xWantedSize|xBlockAllocatedBit;
+			*(int*)(puc+xWantedSize-4) = HEAP_MAGIC;
 
 			/* Insert the new block into the list of free blocks. */
 			prvInsertBlockIntoFreeList( ( pxNewBlockLink ) );
@@ -258,8 +264,9 @@ BlockLink_t *pxLink, *pxNewBlockLink;
 				*pxDest = *pxNewBlockLink;
 				pxDest->xBlockSize -= diff;
 				pxPreviousBlock->pxNextFreeBlock = pxDest;
-
 				pxLink->xBlockSize = xWantedSize|xBlockAllocatedBit;
+				*(int*)(puc+xWantedSize-4) = HEAP_MAGIC;
+
 				xFreeBytesRemaining -= diff;
 
 				traceMALLOC( pv, diff );
@@ -278,7 +285,6 @@ BlockLink_t *pxLink, *pxNewBlockLink;
 				( void ) xTaskResumeAll();
 				return NULL;
 			}
-#undef B
 		}
 	} else {
 		return pvPortMalloc(xWantedSize);
@@ -314,6 +320,7 @@ void *pvReturn = NULL;
 			if( xWantedSize > 0 )
 			{
 				xWantedSize += heapSTRUCT_SIZE;
+				xWantedSize += heapMAGIC_SIZE;
 
 				/* Ensure that blocks are always aligned to the required number
 				of bytes. */
@@ -392,6 +399,7 @@ void *pvReturn = NULL;
 
 					/* The block is being returned - it is allocated and owned
 					by the application and has no "next" block. */
+					*(int*)(((char*)pxBlock)+pxBlock->xBlockSize-4) = HEAP_MAGIC;
 					pxBlock->xBlockSize |= xBlockAllocatedBit;
 					pxBlock->pxNextFreeBlock = NULL;
 				}
@@ -447,6 +455,7 @@ BlockLink_t *pxLink;
 		pxLink = ( void * ) puc;
 
 		/* Check the block is actually allocated. */
+		configASSERT( *(int*)(puc+B(pxLink->xBlockSize)-4) == HEAP_MAGIC );
 		configASSERT( ( pxLink->xBlockSize & xBlockAllocatedBit ) != 0 );
 		configASSERT( pxLink->pxNextFreeBlock == NULL );
 
