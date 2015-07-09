@@ -141,7 +141,7 @@ void on_morpheus_protobuf_arrival(uint8_t* protobuf, size_t len)
     hlo_future_t * future_proto = MorpheusCommand_from_buffer(protobuf, len);
     if(future_proto){
     	int ret = hlo_future_read(future_proto,NULL, 0, portMAX_DELAY);
-    	if(ret >= 0){
+    	if(ret >= 0 && future_proto->buf){
     		on_ble_protobuf_command(future_proto->buf);
     	}
     	hlo_future_destroy(future_proto);
