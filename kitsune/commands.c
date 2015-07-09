@@ -1668,7 +1668,8 @@ void
 vAssertCalled( const char * s );
 int Cmd_fault(int argc, char *argv[]) {
 	//*(volatile int*)0xFFFFFFFF = 0xdead;
-	vAssertCalled("test");
+	//vAssertCalled("test");
+	assert(false);
 	return 0;
 }
 int Cmd_test_realloc(int argc, char *argv[]) {

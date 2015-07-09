@@ -170,8 +170,8 @@ vAssertCalled( const char * s )
   volatile StackType_t * top = pxCurrentTCB->pxTopOfStack;
   StackType_t * bottom =  pxCurrentTCB->pxStack;
 
-  while( top != bottom && *top != 0xa5a5a5a5 ) {
-	  LOGE( "%x\n", *top-- );
+  while( top != bottom ) {
+	  LOGE( "%08X\n", *top-- );
 	    UtilsDelay(10000);
   }
 }

@@ -142,7 +142,8 @@ void faultPrinter( faultInfo* f ) {
 
     LOGE("TRACE:");
     for( i=0; i < MAX_TRACE_DEPTH && f->stack_trace[i] != TRACE_DONE; ++i ) {
-        LOGE( "0x%08X\n", f->stack_trace[i]);
+        LOGE( "%08X\n", f->stack_trace[i]);
+	    UtilsDelay(10000);
     }
     LOGE("END\n");
 }
