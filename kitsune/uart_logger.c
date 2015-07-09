@@ -336,7 +336,7 @@ void uart_logger_init(void){
 	self.view_tag = LOG_INFO | LOG_WARNING | LOG_ERROR | LOG_VIEW_ONLY | LOG_FACTORY | LOG_TOP;
 	self.store_tag = LOG_INFO | LOG_WARNING | LOG_ERROR | LOG_FACTORY | LOG_TOP;
 
-	self.block_queue = xQueueCreate(10, sizeof(uint8_t*));
+	self.block_queue = xQueueCreate(3, sizeof(uint8_t*));
 
 	vSemaphoreCreateBinary(self.print_sem);
 	xEventGroupSetBits(self.uart_log_events, LOG_EVENT_READY);
