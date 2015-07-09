@@ -150,6 +150,7 @@ vApplicationTickHook( void )
 {
 }
 
+extern tskTCB * volatile pxCurrentTCB;
 //*****************************************************************************
 //
 //! Application for handling the assertion.
@@ -162,10 +163,17 @@ vApplicationTickHook( void )
 void
 vAssertCalled( const char * s )
 {
-  LOGE( "%s ASSERT", s );
-  uart_logger_flush();
-  vTaskDelay(10000);
-  mcu_reset();
+  LOGE( "%s ASSERT\n", s );
+  LOGE( "%s\n", pxCurrentTCB->pcTaskName );
+  LOGE( "%x %x\n", pxCurrentTCB->pxStack, pxCurrentTCB->pxTopOfStack );
+
+  volatile StackType_t * top = pxCurrentTCB->pxTopOfStack;
+  StackType_t * bottom =  pxCurrentTCB->pxStack;
+
+  while( top != bottom && *top != 0xa5a5a5a5 ) {
+	  LOGE( "%x\n", *top-- );
+	    UtilsDelay(10000);
+  }
 }
 
 //*****************************************************************************
@@ -184,6 +192,7 @@ void vApplicationStackOverflowHook( TaskHandle_t xTask, char *pcTaskName )
 
     LOGE( "%s STACK OVERFLOW", pcTaskName );
 
+    UtilsDelay(10000000);
     mcu_reset();
 }
 

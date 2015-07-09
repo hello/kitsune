@@ -1664,9 +1664,11 @@ int cmd_memfrag(int argc, char *argv[]) {
 	}
 	return 0;
 }
-
+void
+vAssertCalled( const char * s );
 int Cmd_fault(int argc, char *argv[]) {
-	*(volatile int*)0xFFFFFFFF = 0xdead;
+	//*(volatile int*)0xFFFFFFFF = 0xdead;
+	vAssertCalled("test");
 	return 0;
 }
 int Cmd_test_realloc(int argc, char *argv[]) {
