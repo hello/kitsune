@@ -47,9 +47,9 @@ SyncResponse_Alarm alarm;
 
 typedef struct {
 	void (*get_reply_pb)(pb_field_t ** fields, void ** structdata);
-	void (*on_pb_success)(pb_field_t * fields, void * structdata);
-	void (*on_pb_failure)(pb_field_t * fields, void * structdata);
-	void (*free_reply_pb)(pb_field_t * fields, void * structdata);
+	void (*on_pb_success)(void * structdata);
+	void (*on_pb_failure)();
+	void (*free_reply_pb)(void * structdata);
 } protobuf_reply_callbacks;
 
 int Cmd_iperf_client(int argc, char *argv[]);

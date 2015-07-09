@@ -1035,7 +1035,10 @@ void thread_tx(void* unused) {
 			}
 			send_periodic_data(&data_batched);
 			last_upload_time = xTaskGetTickCount();
-			hlo_future_destroy( data_batched.scan.arg );
+
+			if( data_batched.scan.arg ) {
+				hlo_future_destroy( data_batched.scan.arg );
+			}
 			vPortFree( periodicdata.data );
 		}
 

@@ -778,10 +778,10 @@ void load_device_id() {
 	*/
 }
 
-static void _on_morpheus_command_success(pb_field_t * fields, void * structdata){
+static void _on_morpheus_command_success(void * structdata){
 	LOGF("signature validated\r\n");
 }
-static void _on_morpheus_command_failure(pb_field_t * fields, void * structdata){
+static void _on_morpheus_command_failure(){
     LOGF("signature validation fail\r\n");
 }
 
@@ -1561,26 +1561,28 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     pb_field_t * reply_fields;
     void * reply_structdata;
 
-    if( pb_cb && pb_cb->get_reply_pb ) {
-    	pb_cb->get_reply_pb( &reply_fields, &reply_structdata );
-    }
-
-    if( validate_signatures((char*)recv_buf, reply_fields, reply_structdata ) ) {
-    	if( pb_cb && pb_cb->on_pb_success ) {
-			pb_cb->on_pb_success( reply_fields, reply_structdata );
+    if( pb_cb ) {
+		if( pb_cb->get_reply_pb ) {
+			pb_cb->get_reply_pb( &reply_fields, &reply_structdata );
 		}
-    	if( pb_cb && pb_cb->free_reply_pb ) {
-    		pb_cb->free_reply_pb( reply_fields, reply_structdata );
-    	}
-    	return 0;
-    } else {
-    	if( pb_cb && pb_cb->on_pb_failure ) {
-			pb_cb->on_pb_failure( reply_fields, reply_structdata );
+		assert(reply_structdata);
+		if( reply_structdata && validate_signatures((char*)recv_buf, reply_fields, reply_structdata ) ) {
+			if( pb_cb && pb_cb->on_pb_success ) {
+				pb_cb->on_pb_success( reply_structdata );
+			}
+			if( pb_cb && pb_cb->free_reply_pb ) {
+				pb_cb->free_reply_pb( reply_structdata );
+			}
+			return 0;
+		} else {
+			if( pb_cb && pb_cb->on_pb_failure ) {
+				pb_cb->on_pb_failure();
+			}
+		}
+		if( reply_structdata && pb_cb->free_reply_pb ) {
+			pb_cb->free_reply_pb( reply_structdata );
 		}
     }
-	if( pb_cb && pb_cb->free_reply_pb ) {
-		pb_cb->free_reply_pb( reply_fields, reply_structdata );
-	}
     return -1;
 }
 
@@ -1654,7 +1656,7 @@ int force_data_push();
 extern volatile bool provisioning_mode;
 void boot_commit_ota();
 
-static void _on_key_check_success(pb_field_t * fields, void * structdata){
+static void _on_key_check_success(void * structdata){
 	LOGF("signature validated\r\n");
 	if (provisioning_mode) {
 		sl_FsDel((unsigned char*)PROVISION_FILE, 0);
@@ -1668,7 +1670,7 @@ static void _on_key_check_success(pb_field_t * fields, void * structdata){
 
 	provisioning_mode = false;
 }
-static void _on_key_check_failure(pb_field_t * fields, void * structdata){
+static void _on_key_check_failure( void * structdata){
 	LOGF("signature validation fail\r\n");
 	//light up if we're in provisioning mode but not if we're testing the key from top
 	//this handles the overlap case where we want to get keys from top but the server doesn't yet have the blobs
@@ -1795,22 +1797,22 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
 static void _get_sync_response(pb_field_t ** fields, void ** structdata){
 	*fields = (pb_field_t *)SyncResponse_fields;
 	*structdata = pvPortMalloc(sizeof(SyncResponse));
-	assert(*structdata);
+	assert(structdata);
 	SyncResponse * response_protobuf = *structdata;
     memset(response_protobuf, 0, sizeof(SyncResponse));
     response_protobuf->files.funcs.decode = _on_file_download;
 }
-static void _free_sync_response(pb_field_t * fields, void * structdata){
+static void _free_sync_response(void * structdata){
 	vPortFree( structdata );
 }
 
-static void _on_sync_response_success(pb_field_t * fields, void * structdata){
-    LOGF("signature validation success\r\n");
+static void _on_sync_response_success( void * structdata){
+	LOGF("signature validation success\r\n");
 	boot_commit_ota();
 	_on_response_protobuf((SyncResponse*)structdata);
 	wifi_status_set(UPLOADING, false);
 }
-static void _on_sync_response_failure(pb_field_t * fields, void * structdata){
+static void _on_sync_response_failure( ){
     LOGF("signature validation fail\r\n");
     wifi_status_set(UPLOADING, true);
 }
@@ -1847,11 +1849,13 @@ static void _get_provision_response(pb_field_t ** fields, void ** structdata){
 	assert(*structdata);
     memset(structdata, 0, sizeof(ProvisionResponse));
 }
-static void _free_provision_response(pb_field_t * fields, void * structdata){
-	vPortFree( structdata );
+static void _free_provision_response(void * structdata){
+	if( structdata ) {
+		vPortFree( structdata );
+	};
 }
 
-static void _on_provision_response_success(pb_field_t * fields, void * structdata){
+static void _on_provision_response_success(void * structdata){
 	ProvisionResponse * response_protobuf = structdata;
 	LOGF("signature validation success\r\n");
 
