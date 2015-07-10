@@ -1318,14 +1318,19 @@ void thread_sensor_poll(void* unused) {
 
 int Cmd_tasks(int argc, char *argv[]) {
 	char* pBuffer;
+	int i, l;
 
 	LOGF("\t\t\t\t\tUnused\n            TaskName\tStatus\tPri\tStack\tTask ID\n");
-	pBuffer = pvPortMalloc(1024);
+	pBuffer = pvPortMalloc(2048);
 	assert(pBuffer);
 	LOGF("==========================");
 	vTaskList(pBuffer);
 	LOGF("==========================\n");
-	LOGF("%s", pBuffer);
+	l = strlen(pBuffer);
+	for( i=0;i<l;++i ) {
+		LOGF("%c", pBuffer[i]);
+		vTaskDelay(1);
+	}
 
 	vPortFree(pBuffer);
 	return 0;
