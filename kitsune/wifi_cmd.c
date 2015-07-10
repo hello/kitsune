@@ -1776,13 +1776,6 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
     	data_queue_batch_size = response_protobuf->batch_size;
     }
 
-    if(response_protobuf->pill_settings_count > 0) {
-		BatchedPillSettings settings = {0};
-		settings.pill_settings_count = response_protobuf->pill_settings_count > MAX_PILL_SETTINGS_COUNT ? MAX_PILL_SETTINGS_COUNT : response_protobuf->pill_settings_count;
-		memcpy(settings.pill_settings, response_protobuf->pill_settings, sizeof(SyncResponse_PillSettings) * settings.pill_settings_count);
-		pill_settings_save(&settings);
-    }
-
     if(response_protobuf->has_upload_log_level) {
     	set_loglevel(response_protobuf->upload_log_level);
     }
@@ -1800,6 +1793,8 @@ static void _get_sync_response(pb_field_t ** fields, void ** structdata){
 	assert(structdata);
 	SyncResponse * response_protobuf = *structdata;
     memset(response_protobuf, 0, sizeof(SyncResponse));
+
+    response_protobuf->pill_settings.funcs.decode = on_pill_settings;
     response_protobuf->files.funcs.decode = _on_file_download;
 }
 static void _free_sync_response(void * structdata){
