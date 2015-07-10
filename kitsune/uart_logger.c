@@ -28,21 +28,16 @@
 
 #define SENSE_LOG_ENDPOINT		"/logs"
 #define SENSE_LOG_FOLDER		"logs"
-#define SENSE_LOG_RW_SIZE		128
 /**
  * The upload order should be
  * Backend(if has no local backlog) -> Local -> Backend(if has IP)
  * This way we can guarantee continuity if wifi is intermittent
  */
 
-//flag to store block
-#define LOG_EVENT_STORE			0x1
 //flag to upload to server and delete oldest file
 #define LOG_EVENT_UPLOAD	    0x2
 //flag to upload the swap block only
 #define LOG_EVENT_UPLOAD_ONLY	0x4
-//flag to shutdown
-#define LOG_EVENT_EXIT          0x8
 //flag to indicate the thread ip up and running
 #define LOG_EVENT_READY         0x100
 
@@ -54,9 +49,7 @@ typedef struct {
 
 static struct{
 	xQueueHandle block_queue;
-
 	uint8_t * logging_block;
-	uint8_t * store_block;
 	//ptr to block that is used to upload or read from sdcard
 	uint8_t operation_block[UART_LOGGER_BLOCK_SIZE];
 	uint32_t widx;
@@ -86,8 +79,7 @@ _encode_text_block(pb_ostream_t *stream, const pb_field_t *field, void * const *
 
 static void
 _swap_and_upload(void){
-	xEventGroupSetBits(self.uart_log_events, LOG_EVENT_STORE); //<- this needs to come before filling the queue
-    if( !xQueueSend(self.block_queue, (void* )&self.logging_block, 0) ) {
+	if( !xQueueSend(self.block_queue, (void* )&self.logging_block, 0) ) {
     	vPortFree(self.logging_block);
     }
 	//swap
@@ -200,7 +192,7 @@ _open_log(FIL * file, char * local_name, WORD mode){
 static FRESULT
 _write_file(char * local_name, const char * buffer, WORD size){
 	FIL file_obj;
-	WORD bytes = 0;
+	UINT bytes = 0;
 	WORD written = 0;
 	FRESULT res = _open_log(&file_obj, local_name, FA_CREATE_NEW|FA_WRITE|FA_OPEN_ALWAYS);
 	if(res != FR_OK && res != FR_EXIST){
@@ -222,7 +214,7 @@ static FRESULT
 _read_file(char * local_name, char * buffer, WORD buffer_size, WORD *size_read){
 	FIL file_obj;
 	WORD offset = 0;
-	WORD read = 0;
+	UINT read = 0;
 	FRESULT res = _open_log(&file_obj, local_name, FA_READ);
 	if(res == FR_OK){
 		do{
@@ -300,22 +292,29 @@ _remove_oldest(int * rem){
 	}
 	return FR_RW_ERROR;
 }
+static uint8_t log_local_enable;
+static void _save_block_queue( TickType_t dly ) {
+	uint8_t * store_block;
+	while( xQueueReceive(self.block_queue, &store_block, dly ) ) {
+		if(log_local_enable && FR_OK == _save_newest((char*)store_block, UART_LOGGER_BLOCK_SIZE)){
+			xEventGroupSetBits(self.uart_log_events, LOG_EVENT_UPLOAD);
+		}else{
+			memcpy( self.operation_block, store_block, UART_LOGGER_BLOCK_SIZE );
+			xEventGroupSetBits(self.uart_log_events, LOG_EVENT_UPLOAD_ONLY);
+			LOGE("Unable to save logs\r\n");
+		}
+		vPortFree(store_block);
+		store_block = NULL;
+	}
+}
 /**
  * PUBLIC functions
  */
 void uart_logger_flush(void){
 	//set the task to exit and wait for it to do so
-	xEventGroupSetBits(self.uart_log_events, LOG_EVENT_EXIT);
-	EventBits_t evnt = xEventGroupWaitBits(
-					self.uart_log_events,   /* The event group being tested. */
-	                0xff,    /* The bits within the event group to wait for. */
-	                pdFALSE,        /* all bits should not be cleared before returning. */
-	                pdFALSE,       /* Don't wait for both bits, either bit will do. */
-	                portMAX_DELAY );/* Wait for any bit to be set. */
-
+	_save_block_queue(0);
 	//write out whatever's left in the logging block
 	_save_newest((const char*)self.logging_block, self.widx );
-
 }
 int Cmd_log_upload(int argc, char *argv[]){
 	xSemaphoreTake(self.print_sem, portMAX_DELAY);
@@ -326,7 +325,6 @@ int Cmd_log_upload(int argc, char *argv[]){
 void uart_logger_init(void){
 	self.block_queue = NULL;
 	self.logging_block = NULL;
-	self.store_block = NULL;
 	self.uart_log_events = xEventGroupCreate();
 	xEventGroupClearBits( self.uart_log_events, 0xff );
 	xEventGroupSetBits(self.uart_log_events, LOG_EVENT_UPLOAD);
@@ -336,7 +334,7 @@ void uart_logger_init(void){
 	self.view_tag = LOG_INFO | LOG_WARNING | LOG_ERROR | LOG_VIEW_ONLY | LOG_FACTORY | LOG_TOP;
 	self.store_tag = LOG_INFO | LOG_WARNING | LOG_ERROR | LOG_FACTORY | LOG_TOP;
 
-	self.block_queue = xQueueCreate(10, sizeof(uint8_t*));
+	self.block_queue = xQueueCreate(2, sizeof(uint8_t*));
 
 	vSemaphoreCreateBinary(self.print_sem);
 	xEventGroupSetBits(self.uart_log_events, LOG_EVENT_READY);
@@ -583,7 +581,7 @@ static bool send_log() {
 #endif
 	//no timeout on this one...
     return NetworkTask_SendProtobuf(true, DATA_SERVER, SENSE_LOG_ENDPOINT,
-    		sense_log_fields,&self.log, 0, NULL, NULL, NULL );
+    		sense_log_fields,&self.log, 0, NULL, NULL, NULL, false);
 }
 
 void analytics_event_task(void * params){
@@ -627,7 +625,7 @@ upload:
 			portTickType now = xTaskGetTickCount();
 			DISP("Analytics: %s\r\n", block);
 			if( !NetworkTask_SendProtobuf(true, DATA_SERVER, SENSE_LOG_ENDPOINT,
-					sense_log_fields, &log, 0, NULL, NULL, NULL) ) {
+					sense_log_fields, &log, 0, NULL, NULL, NULL, false) ) {
 				LOGI("Analytics failed to upload\n");
 			}
 			block_len = 0;
@@ -636,8 +634,10 @@ upload:
 		}
 	}
 }
+void uart_block_saver_task(void* params) {
+	_save_block_queue(portMAX_DELAY);
+}
 void uart_logger_task(void * params){
-	uint8_t log_local_enable;
 	uart_logger_init();
 	hello_fs_mkdir(SENSE_LOG_FOLDER);
 
@@ -649,8 +649,10 @@ void uart_logger_task(void * params){
 	}else{
 		log_local_enable = 1;
 	}
-	while(1){
 
+	xTaskCreate(uart_block_saver_task, "log saver task",   UART_LOGGER_THREAD_STACK_SIZE / 4 , NULL, 1, NULL);
+
+	while(1){
 		xEventGroupSetBits(self.uart_log_events, LOG_EVENT_READY);
 		EventBits_t evnt = xEventGroupWaitBits(
 				self.uart_log_events,   /* The event group being tested. */
@@ -658,28 +660,6 @@ void uart_logger_task(void * params){
                 pdFALSE,        /* all bits should not be cleared before returning. */
                 pdFALSE,       /* Don't wait for both bits, either bit will do. */
                 portMAX_DELAY );/* Wait for any bit to be set. */
-		if( (evnt & LOG_EVENT_EXIT) && (uxQueueMessagesWaiting(self.block_queue) == 0)){
-			vTaskDelete(0);
-			xEventGroupClearBits(self.uart_log_events,LOG_EVENT_EXIT);
-			return;
-		}
-
-		while( xQueueReceive(self.block_queue, &self.store_block, 0 ) ) {
-			if(log_local_enable && FR_OK == _save_newest((char*) self.store_block, UART_LOGGER_BLOCK_SIZE)){
-				xEventGroupSetBits(self.uart_log_events, LOG_EVENT_UPLOAD);
-			}else{
-				memcpy( self.operation_block, self.store_block, UART_LOGGER_BLOCK_SIZE );
-				xEventGroupSetBits(self.uart_log_events, LOG_EVENT_UPLOAD_ONLY);
-				LOGE("Unable to save logs\r\n");
-			}
-			vPortFree(self.store_block);
-			self.store_block = NULL;
-		}
-		if( uxQueueMessagesWaiting(self.block_queue) == 0) {
-			//this could race the filling of the queue so we need to be sure
-			//the event bits get set before inserting into the queue
-			xEventGroupClearBits(self.uart_log_events,LOG_EVENT_STORE);
-		}
 		if( evnt & LOG_EVENT_UPLOAD) {
 			xEventGroupClearBits(self.uart_log_events,LOG_EVENT_UPLOAD);
 			if(wifi_status_get(HAS_IP)){

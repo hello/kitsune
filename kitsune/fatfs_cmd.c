@@ -102,7 +102,7 @@ int Cmd_mnt(int argc, char *argv[])
 {
     FRESULT res;
 
-	res = hello_fs_mount(0, &fsobj);
+	res = hello_fs_mount("0", &fsobj);
 	if(res != FR_OK)
 	{
 		LOGF("f_mount error: %i\n", (res));
@@ -114,7 +114,7 @@ int Cmd_umnt(int argc, char *argv[])
 {
     FRESULT res;
 
-	res = hello_fs_mount(0, NULL);
+	res = hello_fs_mount("0", NULL);
 	if(res != FR_OK)
 	{
 		LOGF("f_mount error: %i\n", (res));
@@ -130,7 +130,7 @@ int Cmd_mkfs(int argc, char *argv[])
 
     LOGF("\n\nMaking FS...\n");
 
-	res = hello_fs_mkfs(0, 0, 64);
+	res = hello_fs_mkfs("0", 0, 64);
 	if(res != FR_OK)
 	{
 		LOGF("f_mkfs error: %i\n", (res));
@@ -235,7 +235,7 @@ Cmd_ls(int argc, char *argv[])
 
     // Display the amount of free space that was calculated.
     LOGF(", %10uK bytes free\n", (ui32TotalSize *
-                                        psFatFs->sects_clust / 2));
+                                        psFatFs->csize / 2));
 
     return(0);
 }
@@ -407,7 +407,7 @@ int
 Cmd_cat(int argc, char *argv[])
 {
     FRESULT res;
-    uint16_t ui16BytesRead;
+    UINT ui16BytesRead;
 
     if(global_filename( argv[1] ))
     {
@@ -457,9 +457,9 @@ Cmd_write_audio(char *argv[])
 {
     FRESULT res;
 
-	WORD bytes = 0;
-	WORD bytes_written = 0;
-	WORD bytes_to_write = strlen(argv[1])+1;
+    UINT bytes = 0;
+	UINT bytes_written = 0;
+	UINT bytes_to_write = strlen(argv[1])+1;
 
     if(global_filename( "TXBUF"))
     {
@@ -493,9 +493,9 @@ Cmd_write(int argc, char *argv[])
 {
 	LOGF("Cmd_write\n");
 
-	WORD bytes = 0;
-	WORD bytes_written = 0;
-	WORD bytes_to_write = strlen(argv[2]) + 1;
+	UINT bytes = 0;
+	UINT bytes_written = 0;
+	UINT bytes_to_write = strlen(argv[2]) + 1;
 
     if(global_filename( argv[1] ))
     {
@@ -684,7 +684,7 @@ signed long hexToi(unsigned char *ptr)
 //! \return         0 for success, -ve for error
 //
 //****************************************************************************
-int GetChunkSize(int *len, unsigned char **p_Buff, unsigned long *chunk_size)
+int GetChunkSize(int *len, unsigned char **p_Buff, UINT *chunk_size)
 {
     int           idx = 0;
     unsigned char lenBuff[10];
@@ -766,11 +766,11 @@ typedef enum {
 int GetData(char * filename, char* url, char * host, char * path, storage_dev_t storage)
 {
     int           transfer_len = 0;
-    WORD          r = 0;
+    UINT          r = 0;
     int           retry;
     unsigned char *pBuff = 0;
     char          eof_detected = 0;
-    unsigned long recv_size = 0;
+    UINT          recv_size = 0;
     unsigned char isChunked = 0;
 
     long          fileHandle = -1;

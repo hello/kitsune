@@ -46,6 +46,8 @@ typedef struct {
 	NetworkResponse_t * response_handle;
 
 	protobuf_reply_callbacks pb_cb;
+
+	bool priority;
 } NetworkTaskServerSendMessage_t;
 
 typedef struct {
@@ -62,7 +64,7 @@ bool NetworkTask_SendProtobuf(bool blocking, const char * host,
 		const char * endpoint, const pb_field_t fields[],
 		void * structdata, int32_t retry_time_in_counts,
 		NetworkResponseCallback_t func, void * context,
-		protobuf_reply_callbacks * pb_cb );
+		protobuf_reply_callbacks * pb_cb, bool is_high_priority);
 int NetworkTask_AddMessageToQueue(
 		const NetworkTaskServerSendMessage_t * message);
 int networktask_enter_critical_region();

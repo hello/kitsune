@@ -2,6 +2,7 @@
 #include <strings.h>
 #include "uart_logger.h"
 #include "ustdlib.h"
+#include "kit_assert.h"
 
 #define CHECK_FOR_NULL(buf) if(!buf){return -99;}
 
@@ -13,19 +14,25 @@ typedef struct{
 }async_task_t;
 
 static void hlo_future_free(hlo_future_t * future){
-	vSemaphoreDelete(future->sync);
-	vPortFree(future);
+	if( future ) {
+		vSemaphoreDelete(future->sync);
+		vPortFree(future);
+	}
 }
 
 static void async_worker(void * ctx){
-	async_task_t * task = (async_task_t*)ctx;
-	if(task->work){
-		task->work(task->result, task->context);
+	if( ctx ) {
+		async_task_t * task = (async_task_t*)ctx;
+		if(task->work){
+			task->work(task->result, task->context);
+		}
+		//LOGI("\r\n%s stack %d\r\n", task->name, vGetStack( task->name ) );
+		if( task->result->release ) {
+			vSemaphoreDelete(task->result->release);
+		}
+		hlo_future_free(task->result);
+		vPortFree(task);
 	}
-	//LOGI("\r\n%s stack %d\r\n", task->name, vGetStack( task->name ) );
-	vSemaphoreDelete(task->result->release);
-	hlo_future_free(task->result);
-	vPortFree(task);
 	vTaskDelete(NULL);
 }
 static int do_read(hlo_future_t * future, void * buf, size_t size){
@@ -106,14 +113,17 @@ int hlo_future_read_once(hlo_future_t * future,  void * buf, size_t size){
 	return res;
 }
 void hlo_future_write(hlo_future_t * future, void * buffer, size_t size, int return_code){
-	future->return_code = return_code;
-	future->buf = buffer;
-	future->buf_size = size;
-	//allow reader to access data
-	xSemaphoreGive(future->sync);
-	//halts the current thread until released
-	if(future->release){
-		xSemaphoreTake(future->release, portMAX_DELAY);
+	assert( future );
+	if( future ) {
+		future->return_code = return_code;
+		future->buf = buffer;
+		future->buf_size = size;
+		//allow reader to access data
+		xSemaphoreGive(future->sync);
+		//halts the current thread until released
+		if(future->release){
+			xSemaphoreTake(future->release, portMAX_DELAY);
+		}
 	}
 }
 

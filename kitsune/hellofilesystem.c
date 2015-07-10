@@ -24,11 +24,11 @@ void hello_fs_unlock () {
 }
 
 
-FRESULT hello_fs_mount (BYTE drv,FATFS *fs) {
+FRESULT hello_fs_mount (const char* drv,FATFS *fs) {
 
 	FRESULT res;
 	LOCK();
-	res = f_mount(drv,fs);
+	res = f_mount(fs,drv,1);
 	UNLOCK();
 	return res;
 }
@@ -39,14 +39,14 @@ FRESULT hello_fs_open ( FIL *fp, const char *path, BYTE mode) {
 	UNLOCK();
 	return res;
 }
-FRESULT hello_fs_read (FIL *fp, void *buff,WORD btr,WORD *br  ) {
+FRESULT hello_fs_read (FIL *fp, void *buff,UINT btr,UINT *br  ) {
 	FRESULT res;
 	LOCK();
 	res = f_read(fp,buff,btr,br);
 	UNLOCK();
 	return res;
 }
-FRESULT hello_fs_write (  FIL *fp, const void *buff,WORD btw,WORD *bw) {
+FRESULT hello_fs_write (  FIL *fp, const void *buff,UINT btw,UINT *bw) {
 	FRESULT res;
 	LOCK();
 	res = f_write(fp,buff,btw,bw);
@@ -136,7 +136,7 @@ FRESULT hello_fs_rename (const char* path_old, const char*path_new) {
 }
 #include "FreeRTOS.h"
 #include "task.h"
-FRESULT hello_fs_mkfs (BYTE drv, BYTE partition, BYTE allocsize) {
+FRESULT hello_fs_mkfs (const char* drv, BYTE partition, UINT allocsize) {
 	FRESULT res;
 	LOCK();
 	vTaskDelay(1000);
@@ -144,11 +144,3 @@ FRESULT hello_fs_mkfs (BYTE drv, BYTE partition, BYTE allocsize) {
 	UNLOCK();
 	return res;
 }
-FRESULT hello_fs_append(const char* file_name, const unsigned char* content, int length) {
-	FRESULT res;
-	LOCK();
-	res = f_append(file_name,content,length);
-	UNLOCK();
-	return res;
-}
-

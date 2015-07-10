@@ -169,6 +169,7 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
 			memcpy(_connected_ssid, pSSID, ssidLength);
 		}
         LOGI("SL_WLAN_CONNECT_EVENT\n");
+        ble_reply_wifi_status(wifi_connection_state_WLAN_CONNECTED);
     }
         break;
     case SL_WLAN_CONNECTION_FAILED_EVENT:  // ahhhhh this thing blocks us for 2 weeks...
@@ -176,12 +177,15 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
     	// This is a P2P event, but it fired here magically.
         wifi_status_set(CONNECTING, true);
         LOGI("SL_WLAN_CONNECTION_FAILED_EVENT\n");
+        ble_reply_wifi_status(wifi_connection_state_NO_WLAN_CONNECTED);
+        nwp_reset();
     }
     break;
     case SL_WLAN_DISCONNECT_EVENT:
         wifi_status_set(0xFFFFFFFF, true);
         memset(_connected_ssid, 0, MAX_SSID_LEN);
         LOGI("SL_WLAN_DISCONNECT_EVENT\n");
+    	ble_reply_wifi_status(wifi_connection_state_NO_WLAN_CONNECTED);
         break;
     default:
         break;
@@ -212,6 +216,7 @@ void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent) {
 		}
 
 		wifi_status_set(HAS_IP, false);
+        ble_reply_wifi_status(wifi_connection_state_IP_RETRIEVED);
 
 		break;
 
@@ -559,40 +564,24 @@ int Cmd_disconnect(int argc, char *argv[]) {
     wifi_reset();
     return (0);
 }
+int connect_wifi(const char* ssid, const char* password, int sec_type, int version);
 int Cmd_connect(int argc, char *argv[]) {
-    SlSecParams_t secParams;
-
     if (argc != 4) {
     	LOGF(
                 "usage: connect <ssid> <key> <security: 0=open, 1=wep, 2=wpa>\n\r");
     }
-
-    secParams.Key = (_i8*)argv[2];
-    secParams.KeyLen = strlen(argv[2]);
-    secParams.Type = atoi(argv[3]);
-
-    if( secParams.Type == 1 ) {
-    	uint8_t wep_hex[128];
-    	int i;
-
-		for(i=0;i<strlen((char*)secParams.Key)/2;++i) {
-			char num[3] = {0};
-			memcpy( num, secParams.Key+i*2, 2);
-			wep_hex[i] = strtol( num, NULL, 16 );
-		}
-		secParams.KeyLen = i;
-		wep_hex[i++] = 0;
-
-		for(i=0;i<secParams.KeyLen;++i) {
-			UARTprintf("%x:", wep_hex[i] );
-		}
-		UARTprintf("\n" );
-		memcpy( secParams.Key, wep_hex, secParams.KeyLen + 1 );
-    }
-
-    sl_WlanConnect((_i8*)argv[1], strlen(argv[1]), NULL, &secParams, 0);
-    sl_WlanProfileAdd((_i8*)argv[1], strlen(argv[1]), NULL, &secParams, NULL, 0, 0 );
+    connect_wifi( argv[1], argv[2], atoi(argv[3]), 1 );
     return (0);
+}
+
+int Cmd_setDns(int argc, char *argv[])  {
+	SlNetCfgIpV4Args_t config = {0};
+	uint8_t size = sizeof(config);
+	sl_NetCfgGet( SL_IPV4_STA_P2P_CL_GET_INFO, NULL, &size, (uint8_t*)&config );
+	config.ipV4DnsServer = strtoul(argv[1], NULL, 16);
+	sl_NetCfgSet( SL_IPV4_AP_P2P_GO_STATIC_ENABLE, IPCONFIG_MODE_ENABLE_IPV4, size, (uint8_t*)&config );
+	nwp_reset();
+	return 0;
 }
 
 int Cmd_status(int argc, char *argv[]) {
@@ -611,6 +600,11 @@ int Cmd_status(int argc, char *argv[]) {
     LOGI("%x ip 0x%x submask 0x%x gateway 0x%x dns 0x%x\n\r", wifi_status_get(0xFFFFFFFF),
             ipv4.ipV4, ipv4.ipV4Mask, ipv4.ipV4Gateway, ipv4.ipV4DnsServer);
 
+    LOGF("DNS=%d.%d.%d.%d\n",
+                SL_IPV4_BYTE(ipv4.ipV4DnsServer,3),
+                SL_IPV4_BYTE(ipv4.ipV4DnsServer,2),
+                SL_IPV4_BYTE(ipv4.ipV4DnsServer,1),
+                SL_IPV4_BYTE(ipv4.ipV4DnsServer,0));
     LOGF("IP=%d.%d.%d.%d\n",
                 SL_IPV4_BYTE(ipv4.ipV4,3),
                 SL_IPV4_BYTE(ipv4.ipV4,2),
@@ -778,10 +772,10 @@ void load_device_id() {
 	*/
 }
 
-static void _on_morpheus_command_success(pb_field_t * fields, void * structdata){
+static void _on_morpheus_command_success(void * structdata){
 	LOGF("signature validated\r\n");
 }
-static void _on_morpheus_command_failure(pb_field_t * fields, void * structdata){
+static void _on_morpheus_command_failure(){
     LOGF("signature validation fail\r\n");
 }
 
@@ -804,7 +798,7 @@ int Cmd_test_key(int argc, char*argv[]) {
 
 	ret = NetworkTask_SendProtobuf(false, DATA_SERVER, CHECK_KEY_ENDPOINT,
 			MorpheusCommand_fields, test_command, INT_MAX, NULL,
-			test_command, &pb_cb );
+			test_command, &pb_cb, true );
     if(ret != 0)
     {
         // network error
@@ -1032,6 +1026,7 @@ int start_connection() {
                                    strlen(SL_SSL_CA_CERT_FILE_NAME))  < 0  )
         {
         LOGI( "error setting ssl options\r\n" );
+        ble_reply_wifi_status(wifi_connection_state_SSL_FAIL);
         }
     }
 
@@ -1046,9 +1041,11 @@ int start_connection() {
              LOGI("Get Host IP succeeded.\n\rHost: %s IP: %d.%d.%d.%d \n\r\n\r",
 				   DATA_SERVER, SL_IPV4_BYTE(ipaddr, 3), SL_IPV4_BYTE(ipaddr, 2),
 				   SL_IPV4_BYTE(ipaddr, 1), SL_IPV4_BYTE(ipaddr, 0));
+         	ble_reply_wifi_status(wifi_connection_state_DNS_RESOLVED);
         } else {
         	static portTickType last_reset_time = 0;
 			LOGI("failed to resolves addr rv %d\n", rv);
+			ble_reply_wifi_status(wifi_connection_state_DNS_FAILED);
             ipaddr = 0;
             #define SIX_MINUTES 360000
             if( last_reset_time == 0 || xTaskGetTickCount() - last_reset_time > SIX_MINUTES ) {
@@ -1084,9 +1081,11 @@ int start_connection() {
     //connect it up
     //LOGI("Connecting \n\r\n\r");
     if (sock > 0 && sock_begin < 0 && (rv = connect(sock, &sAddr, sizeof(sAddr)))) {
-		LOGI("Could not connect %d\n\r\n\r", rv);
+    	ble_reply_socket_error(rv);
+    	LOGI("Could not connect %d\n\r\n\r", rv);
 		return stop_connection();
     }
+ 	ble_reply_wifi_status(wifi_connection_state_SOCKET_CONNECTED);
     return 0;
 }
 
@@ -1324,6 +1323,8 @@ int http_response_ok( char* response_buffer)
 	memset(first_line, 0, first_line_len + 1);
 	memcpy(first_line, response_buffer, first_line_len);
 	LOGI("status: %s\n", first_line);
+	ble_reply_http_status(first_line);
+	wifi_status_set(UPLOADING, false);
 
 	int resp_ok = match("2..", first_line);
 	vPortFree(first_line);
@@ -1404,6 +1405,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     rv = recv(sock, recv_buf, SERVER_REPLY_BUFSZ, 0);
     if (rv != SL_EAGAIN ) {
         LOGI("start recv error %d\n\r\n\r", rv);
+        ble_reply_socket_error(rv);
         return stop_connection();
     }
 
@@ -1411,6 +1413,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     rv = send(sock, recv_buf, send_length, 0);
     if (rv <= 0) {
         LOGI("send error %d\n\r\n\r", rv);
+        ble_reply_socket_error(rv);
         return stop_connection();
     }
 
@@ -1531,6 +1534,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     if( send_chunk_len(0, sock) != 0 ) {
     	return -1;
     }
+    ble_reply_wifi_status(wifi_connection_state_REQUEST_SENT);
 
     memset(recv_buf, 0, recv_buf_size);
 
@@ -1554,6 +1558,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
 
     if (rv <= 0) {
         LOGI("recv error %d\n\r\n\r", rv);
+        ble_reply_socket_error(rv);
         return stop_connection();
     }
     LOGI("recv %d\n", rv);
@@ -1561,26 +1566,28 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     pb_field_t * reply_fields;
     void * reply_structdata;
 
-    if( pb_cb && pb_cb->get_reply_pb ) {
-    	pb_cb->get_reply_pb( &reply_fields, &reply_structdata );
-    }
-
-    if( validate_signatures((char*)recv_buf, reply_fields, reply_structdata ) ) {
-    	if( pb_cb && pb_cb->on_pb_success ) {
-			pb_cb->on_pb_success( reply_fields, reply_structdata );
+    if( pb_cb ) {
+		if( pb_cb->get_reply_pb ) {
+			pb_cb->get_reply_pb( &reply_fields, &reply_structdata );
 		}
-    	if( pb_cb && pb_cb->free_reply_pb ) {
-    		pb_cb->free_reply_pb( reply_fields, reply_structdata );
-    	}
-    	return 0;
-    } else {
-    	if( pb_cb && pb_cb->on_pb_failure ) {
-			pb_cb->on_pb_failure( reply_fields, reply_structdata );
+		assert(reply_structdata);
+		if( reply_structdata && validate_signatures((char*)recv_buf, reply_fields, reply_structdata ) ) {
+			if( pb_cb && pb_cb->on_pb_success ) {
+				pb_cb->on_pb_success( reply_structdata );
+			}
+			if( pb_cb && pb_cb->free_reply_pb ) {
+				pb_cb->free_reply_pb( reply_structdata );
+			}
+			return 0;
+		} else {
+			if( pb_cb && pb_cb->on_pb_failure ) {
+				pb_cb->on_pb_failure();
+			}
+		}
+		if( reply_structdata && pb_cb->free_reply_pb ) {
+			pb_cb->free_reply_pb( reply_structdata );
 		}
     }
-	if( pb_cb && pb_cb->free_reply_pb ) {
-		pb_cb->free_reply_pb( reply_fields, reply_structdata );
-	}
     return -1;
 }
 
@@ -1654,7 +1661,7 @@ int force_data_push();
 extern volatile bool provisioning_mode;
 void boot_commit_ota();
 
-static void _on_key_check_success(pb_field_t * fields, void * structdata){
+static void _on_key_check_success(void * structdata){
 	LOGF("signature validated\r\n");
 	if (provisioning_mode) {
 		sl_FsDel((unsigned char*)PROVISION_FILE, 0);
@@ -1668,7 +1675,7 @@ static void _on_key_check_success(pb_field_t * fields, void * structdata){
 
 	provisioning_mode = false;
 }
-static void _on_key_check_failure(pb_field_t * fields, void * structdata){
+static void _on_key_check_failure( void * structdata){
 	LOGF("signature validation fail\r\n");
 	//light up if we're in provisioning mode but not if we're testing the key from top
 	//this handles the overlap case where we want to get keys from top but the server doesn't yet have the blobs
@@ -1713,7 +1720,7 @@ void on_key(uint8_t * key) {
 
 	NetworkTask_SendProtobuf(false, DATA_SERVER, CHECK_KEY_ENDPOINT,
 			MorpheusCommand_fields, test_command, INT_MAX, _key_check_reply,
-			test_command, &pb_cb );
+			test_command, &pb_cb, true );
 }
 
 static void _set_led_color_based_on_room_conditions(const SyncResponse* response_protobuf)
@@ -1742,6 +1749,7 @@ static void _set_led_color_based_on_room_conditions(const SyncResponse* response
 void reset_to_factory_fw();
 
 extern int data_queue_batch_size;
+extern int pill_queue_batch_size;
 static void _on_response_protobuf( SyncResponse* response_protobuf)
 {
     if (response_protobuf->has_alarm) 
@@ -1774,13 +1782,6 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
     	data_queue_batch_size = response_protobuf->batch_size;
     }
 
-    if(response_protobuf->pill_settings_count > 0) {
-		BatchedPillSettings settings = {0};
-		settings.pill_settings_count = response_protobuf->pill_settings_count > MAX_PILL_SETTINGS_COUNT ? MAX_PILL_SETTINGS_COUNT : response_protobuf->pill_settings_count;
-		memcpy(settings.pill_settings, response_protobuf->pill_settings, sizeof(SyncResponse_PillSettings) * settings.pill_settings_count);
-		pill_settings_save(&settings);
-    }
-
     if(response_protobuf->has_upload_log_level) {
     	set_loglevel(response_protobuf->upload_log_level);
     }
@@ -1795,24 +1796,24 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
 static void _get_sync_response(pb_field_t ** fields, void ** structdata){
 	*fields = (pb_field_t *)SyncResponse_fields;
 	*structdata = pvPortMalloc(sizeof(SyncResponse));
-	assert(*structdata);
+	assert(structdata);
 	SyncResponse * response_protobuf = *structdata;
     memset(response_protobuf, 0, sizeof(SyncResponse));
+
+    response_protobuf->pill_settings.funcs.decode = on_pill_settings;
     response_protobuf->files.funcs.decode = _on_file_download;
 }
-static void _free_sync_response(pb_field_t * fields, void * structdata){
+static void _free_sync_response(void * structdata){
 	vPortFree( structdata );
 }
 
-static void _on_sync_response_success(pb_field_t * fields, void * structdata){
-    LOGF("signature validation success\r\n");
+static void _on_sync_response_success( void * structdata){
+	LOGF("signature validation success\r\n");
 	boot_commit_ota();
 	_on_response_protobuf((SyncResponse*)structdata);
-	wifi_status_set(UPLOADING, false);
 }
-static void _on_sync_response_failure(pb_field_t * fields, void * structdata){
+static void _on_sync_response_failure( ){
     LOGF("signature validation fail\r\n");
-    wifi_status_set(UPLOADING, true);
 }
 
 //retry logic is handled elsewhere
@@ -1826,9 +1827,9 @@ bool send_pill_data(batched_pill_data * pill_data) {
 
 	return NetworkTask_SendProtobuf(true, DATA_SERVER,
 			PILL_DATA_RECEIVE_ENDPOINT, batched_pill_data_fields, pill_data, INT_MAX,
-			NULL, NULL, &pb_cb);
+			NULL, NULL, &pb_cb, false);
 }
-bool send_periodic_data(batched_periodic_data* data) {
+bool send_periodic_data(batched_periodic_data* data, bool forced) {
     protobuf_reply_callbacks pb_cb;
 
     pb_cb.get_reply_pb = _get_sync_response;
@@ -1838,7 +1839,7 @@ bool send_periodic_data(batched_periodic_data* data) {
 
 	return NetworkTask_SendProtobuf(true, DATA_SERVER,
 			DATA_RECEIVE_ENDPOINT, batched_periodic_data_fields, data, INT_MAX,
-			NULL, NULL, &pb_cb);
+			NULL, NULL, &pb_cb, forced);
 }
 
 static void _get_provision_response(pb_field_t ** fields, void ** structdata){
@@ -1847,11 +1848,13 @@ static void _get_provision_response(pb_field_t ** fields, void ** structdata){
 	assert(*structdata);
     memset(structdata, 0, sizeof(ProvisionResponse));
 }
-static void _free_provision_response(pb_field_t * fields, void * structdata){
-	vPortFree( structdata );
+static void _free_provision_response(void * structdata){
+	if( structdata ) {
+		vPortFree( structdata );
+	};
 }
 
-static void _on_provision_response_success(pb_field_t * fields, void * structdata){
+static void _on_provision_response_success(void * structdata){
 	ProvisionResponse * response_protobuf = structdata;
 	LOGF("signature validation success\r\n");
 
@@ -1885,7 +1888,7 @@ bool send_provision_request(ProvisionRequest* req) {
     pb_cb.on_pb_success = _on_provision_response_success;
 
 	return NetworkTask_SendProtobuf(true, DATA_SERVER, PROVISION_ENDPOINT,
-			ProvisionRequest_fields, req, INT_MAX, NULL,NULL, &pb_cb);
+			ProvisionRequest_fields, req, INT_MAX, NULL,NULL, &pb_cb, true);
 }
 
 int Cmd_sl(int argc, char*argv[]) {
@@ -2369,6 +2372,7 @@ int connect_wifi(const char* ssid, const char* password, int sec_type, int versi
 
 		return 1;
 	}
+    ble_reply_wifi_status(wifi_connection_state_WLAN_CONNECTING);
 
 	return 0;
 }
@@ -2641,7 +2645,7 @@ static int http_cb(volatile int * sock, char * linebuf, int inbufsz) {
 			return -1;
 		}
 
-		xSemaphoreTake(i2c_smphr, portMAX_DELAY);
+		xSemaphoreTakeRecursive(i2c_smphr, portMAX_DELAY);
 		char * html = pvPortMalloc(128);
 		usnprintf( html, 128, "Temperature is %d<br>", get_temp());
 		if( send_buffer_chunked( sock, html, strlen(html)) < 0 ) {
@@ -2660,7 +2664,7 @@ static int http_cb(volatile int * sock, char * linebuf, int inbufsz) {
 			goto done_i2c;
 		}
 		done_i2c:
-		xSemaphoreGive(i2c_smphr);
+		xSemaphoreGiveRecursive(i2c_smphr);
 		if( *sock < 0 ) {
 			vPortFree(html);
 			return -1;

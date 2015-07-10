@@ -446,15 +446,16 @@ int Cmd_readproximity(int argc, char *argv[]) {
 	return SUCCESS;
 }
 extern xSemaphoreHandle i2c_smphr;
-void set_volume(int v) {
+
+void set_volume(int v, unsigned int dly) {
 	unsigned char cmd_init[2];
 
 	cmd_init[0] = 0x6c;
 	cmd_init[1] = v;
 
-	if( xSemaphoreTake(i2c_smphr, 0) ) {
+	if( xSemaphoreTakeRecursive(i2c_smphr, dly) ) {
 		I2C_IF_Write(Codec_addr, cmd_init, 2, 1);
-		xSemaphoreGive(i2c_smphr);
+		xSemaphoreGiveRecursive(i2c_smphr);
 	}
 }
 int get_codec_mic_NAU(int argc, char *argv[]) {
@@ -579,14 +580,14 @@ int get_codec_mic_NAU(int argc, char *argv[]) {
 			// 0x3C PCMTSEN TRI PCM8BIT PUDOEN PUDPE    PUDPS LOUTR  PCMB TSLOT
 			// set  0       1     0      1     0         1    0      0      0
 	};
-	if( xSemaphoreTake(i2c_smphr, portMAX_DELAY) ) {
+	if( xSemaphoreTakeRecursive(i2c_smphr, portMAX_DELAY) ) {
 		for( i=0;i<50;++i) {
 			cmd_init[0] = reg[i][0];
 			cmd_init[1] = reg[i][1];
 			I2C_IF_Write(Codec_addr, cmd_init, 2, 1);
 			vTaskDelay(DELAY_CODEC);
 		}
-		xSemaphoreGive(i2c_smphr);
+		xSemaphoreGiveRecursive(i2c_smphr);
 	}
 	return SUCCESS;
 }
@@ -646,7 +647,7 @@ int get_codec_NAU(int vol_codec) {
 			{0x74,0x00},
 			{0x92,0xc1},
 	};
-	if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
+	if (xSemaphoreTakeRecursive(i2c_smphr, portMAX_DELAY)) {
 		for (i = 0; i < 48; ++i) {
 			cmd_init[0] = reg[i][0];
 			cmd_init[1] = reg[i][1];
@@ -656,7 +657,7 @@ int get_codec_NAU(int vol_codec) {
 			I2C_IF_Write(Codec_addr, cmd_init, 2, 1);
 			vTaskDelay(DELAY_CODEC);
 		}
-		xSemaphoreGive(i2c_smphr);
+		xSemaphoreGiveRecursive(i2c_smphr);
 	}
 #if 0
 	cmd_init[0] = 0x00 ; cmd_init[1] = 0x00 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC);
@@ -873,7 +874,7 @@ int get_codec_NAU(int vol_codec) {
 int close_codec_NAU(int argc, char *argv[]) {
 	unsigned char cmd_init[2];
 
-	if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
+	if (xSemaphoreTakeRecursive(i2c_smphr, portMAX_DELAY)) {
 		//////// 1.  Un-mute DAC DACMT[6] = 1
 		cmd_init[0] = 0x14;
 		cmd_init[1] = 0x4C;
@@ -900,7 +901,7 @@ int close_codec_NAU(int argc, char *argv[]) {
 		// set  0  0      0      0      1       0        1       0  1
 		//////// 4.  Power supplies Analog VDDA VDDB VDDC VDDSPK
 
-		xSemaphoreGive(i2c_smphr);
+		xSemaphoreGiveRecursive(i2c_smphr);
 	}
 	return 0;
 }

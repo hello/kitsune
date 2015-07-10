@@ -11,7 +11,7 @@
 #include "wifi_cmd.h"
 #include "kitsune_version.h"
 
-#define PROTOBUF_VERSION            1
+#define PROTOBUF_VERSION            2
 #define FIRMWARE_VERSION_INTERNAL   KIT_VER  //
 
 //*****************************************************************************
@@ -42,6 +42,10 @@ void ble_proto_init();
 void ble_proto_led_busy_mode(uint8_t a, uint8_t r, uint8_t g, uint8_t b, int delay);
 void ble_proto_led_fade_in_trippy();
 void ble_proto_led_fade_out(bool operation_result);
+
+void ble_reply_wifi_status(wifi_connection_state state);
+void ble_reply_socket_error(int error);
+void ble_reply_http_status(char * status);
 
 Sl_WlanNetworkEntry_t *  get_wifi_scan(int * num);
 

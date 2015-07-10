@@ -830,7 +830,7 @@ static void _show_led_status()
 		uint8_t rgb[3] = { LED_MAX };
 		led_get_user_color(&rgb[0], &rgb[1], &rgb[2]);
 		//led_set_color(alpha, rgb[0], rgb[1], rgb[2], 1, 1, 18, 0);
-		play_led_animation_solid(alpha, rgb[0], rgb[1], rgb[2],1, 18);
+		play_led_animation_solid(alpha, rgb[0], rgb[1], rgb[2],1, 18,3);
 	}
 	else if(wifi_status_get(HAS_IP)) {
 		play_led_wheel(alpha, LED_MAX,0,0,2,18);
@@ -854,7 +854,9 @@ static void _on_wave(){
 }
 
 static void _on_hold(){
-	_on_wave();
+	if(	cancel_alarm() ) {
+		stop_led_animation( 10000, 33 );
+	}
 	ble_proto_start_hold();
 }
 
@@ -920,7 +922,7 @@ void thread_fast_i2c_poll(void * unused)  {
 		portTickType now = xTaskGetTickCount();
 		int prox=0;
 
-		if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
+		if (xSemaphoreTakeRecursive(i2c_smphr, portMAX_DELAY)) {
 			vTaskDelay(2); //this is important! If we don't do it, then the prox will stretch the clock!
 
 			// For the black morpheus, we can detect 6mm distance max
@@ -932,7 +934,7 @@ void thread_fast_i2c_poll(void * unused)  {
 
 			prox = median_filter(prox, filter_buf, &filter_idx);
 
-			xSemaphoreGive(i2c_smphr);
+			xSemaphoreGiveRecursive(i2c_smphr);
 
 			gesture = ProxSignal_UpdateChangeSignals(prox);
 
@@ -964,10 +966,10 @@ void thread_fast_i2c_poll(void * unused)  {
 			if (++counter >= 2) {
 				counter = 0;
 
-				if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
+				if (xSemaphoreTakeRecursive(i2c_smphr, portMAX_DELAY)) {
 					vTaskDelay(2);
 					light = led_is_idle(0) ? get_light() : light;
-					xSemaphoreGive(i2c_smphr);
+					xSemaphoreGiveRecursive(i2c_smphr);
 				}
 
 
@@ -999,7 +1001,7 @@ void thread_fast_i2c_poll(void * unused)  {
 #define MAX_PERIODIC_DATA 30
 #define MAX_PILL_DATA 20
 #define MAX_BATCH_PILL_DATA 10
-#define PILL_BATCH_WATERMARK 2
+#define PILL_BATCH_WATERMARK 0
 
 xQueueHandle data_queue = 0;
 xQueueHandle force_data_queue = 0;
@@ -1012,6 +1014,7 @@ int load_device_id();
 bool is_test_boot();
 //no need for semaphore, only thread_tx uses this one
 int data_queue_batch_size = 1;
+int pill_queue_batch_size = PILL_BATCH_WATERMARK;
 
 void thread_tx(void* unused) {
 	batched_pill_data pill_data_batched = {0};
@@ -1034,7 +1037,6 @@ void thread_tx(void* unused) {
 				continue;
 			}
 			if( got_forced_data ) {
-				got_forced_data = false;
 				memcpy( &periodicdata.data[periodicdata.num_data], &forced_data, sizeof(forced_data) );
 				++periodicdata.num_data;
 			}
@@ -1080,16 +1082,23 @@ void thread_tx(void* unused) {
 
 			wifi_get_connected_ssid( (uint8_t*)data_batched.connected_ssid, sizeof(data_batched) );
 			data_batched.has_connected_ssid = true;
-			data_batched.scan.funcs.encode = encode_scanned_ssid;
-			data_batched.scan.arg = prescan_wifi(10);
 
-			send_periodic_data(&data_batched);
+			data_batched.scan.funcs.encode = encode_scanned_ssid;
+			data_batched.scan.arg = NULL;
+			if( !got_forced_data ) {
+				data_batched.scan.arg = prescan_wifi(10);
+			}
+			send_periodic_data(&data_batched, got_forced_data);
 			last_upload_time = xTaskGetTickCount();
-			hlo_future_destroy( data_batched.scan.arg );
+
+			if( data_batched.scan.arg ) {
+				hlo_future_destroy( data_batched.scan.arg );
+			}
 			vPortFree( periodicdata.data );
+			got_forced_data = false;
 		}
 
-		if (uxQueueMessagesWaiting(pill_queue) > PILL_BATCH_WATERMARK) {
+		if (uxQueueMessagesWaiting(pill_queue) > pill_queue_batch_size) {
 			LOGI(	"sending  pill data\n" );
 			pilldata_to_encode pilldata;
 			pilldata.num_pills = 0;
@@ -1216,7 +1225,7 @@ void sample_sensor_data(periodic_data* data)
 	}
 
 	// get temperature and humidity
-	if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
+	if (xSemaphoreTakeRecursive(i2c_smphr, portMAX_DELAY)) {
 		uint8_t measure_time = 10;
 		int64_t humid_sum = 0;
 		int64_t temp_sum = 0;
@@ -1270,7 +1279,7 @@ void sample_sensor_data(periodic_data* data)
 			data->temperature = temp_sum / temp_count;
 		}
 		
-		xSemaphoreGive(i2c_smphr);
+		xSemaphoreGiveRecursive(i2c_smphr);
 	}
 
 	int wave_count = gesture_get_wave_count();
@@ -1319,9 +1328,9 @@ void thread_sensor_poll(void* unused) {
 	//
 
 	periodic_data data = {0};
-	if (xSemaphoreTake(i2c_smphr, portMAX_DELAY)) {
+	if (xSemaphoreTakeRecursive(i2c_smphr, portMAX_DELAY)) {
 		get_temp_humid(&_last_temp, &_last_humid);
-		xSemaphoreGive(i2c_smphr);
+		xSemaphoreGiveRecursive(i2c_smphr);
 	}
 
 	while (1) {
@@ -1364,14 +1373,19 @@ void thread_sensor_poll(void* unused) {
 
 int Cmd_tasks(int argc, char *argv[]) {
 	char* pBuffer;
+	int i, l;
 
 	LOGF("\t\t\t\t\tUnused\n            TaskName\tStatus\tPri\tStack\tTask ID\n");
-	pBuffer = pvPortMalloc(1024);
+	pBuffer = pvPortMalloc(2048);
 	assert(pBuffer);
 	LOGF("==========================");
 	vTaskList(pBuffer);
 	LOGF("==========================\n");
-	LOGF("%s", pBuffer);
+	l = strlen(pBuffer);
+	for( i=0;i<l;++i ) {
+		LOGF("%c", pBuffer[i]);
+		vTaskDelay(1);
+	}
 
 	vPortFree(pBuffer);
 	return 0;
@@ -1714,9 +1728,12 @@ int cmd_memfrag(int argc, char *argv[]) {
 	}
 	return 0;
 }
-
+void
+vAssertCalled( const char * s );
 int Cmd_fault(int argc, char *argv[]) {
-	*(volatile int*)0xFFFFFFFF = 0xdead;
+	//*(volatile int*)0xFFFFFFFF = 0xdead;
+	//vAssertCalled("test");
+	assert(false);
 	return 0;
 }
 int Cmd_test_realloc(int argc, char *argv[]) {
@@ -1857,6 +1874,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{"future",Cmd_FutureTest,""},
 		{"dev", Cmd_setDev, ""},
 		{"ana", Cmd_analytics, ""},
+		{"dns", Cmd_setDns, ""},
 		{"noint", Cmd_disableInterrupts, ""},
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
@@ -1871,7 +1889,7 @@ tCmdLineEntry g_sCmdTable[] = {
 // ==============================================================================
 // This is the UARTTask.  It handles command lines received from the RX IRQ.
 // ==============================================================================
-
+void SDHostIntHandler();
 extern xSemaphoreHandle g_xRxLineSemaphore;
 void UARTStdioIntHandler(void);
 long nwp_reset();
@@ -1954,6 +1972,10 @@ void vUARTTask(void *pvParameters) {
 	MAP_PRCMPeripheralClkEnable(PRCM_SDHOST, PRCM_RUN_MODE_CLK);
 	MAP_PRCMPeripheralReset(PRCM_SDHOST);
 	MAP_SDHostInit(SDHOST_BASE);
+	// Initialize the DMA Module
+	UDMAInit();
+	//sdhost dma interrupts
+	MAP_SDHostIntRegister(SDHOST_BASE, SDHostIntHandler);
 	MAP_SDHostSetExpClk(SDHOST_BASE, MAP_PRCMPeripheralClockGet(PRCM_SDHOST),
 			get_hw_ver()==EVT2?1000000:24000000);
 	UARTprintf("*");
@@ -1962,7 +1984,7 @@ void vUARTTask(void *pvParameters) {
 	//INIT SPI
 	spi_init();
 
-	vSemaphoreCreateBinary(i2c_smphr);
+	i2c_smphr = xSemaphoreCreateRecursiveMutex();
 	init_time_module(768);
 
 	// Init sensors
@@ -2007,7 +2029,7 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(top_board_task, "top_board_task", 1280 / 4, NULL, 2, NULL);
 	xTaskCreate(thread_spi, "spiTask", 1024 / 4, NULL, 3, NULL);
 #ifndef BUILD_SERVERS
-	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 1, NULL);
+	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 3, NULL);
 	UARTprintf("*");
 	xTaskCreate(analytics_event_task, "analyticsTask", 1024/4, NULL, 1, NULL);
 	UARTprintf("*");
@@ -2026,7 +2048,6 @@ void vUARTTask(void *pvParameters) {
 	tskKERNEL_VERSION_NUMBER, KIT_VER, MORPH_NAME, mac[0], mac[1], mac[2],
 			mac[3], mac[4], mac[5]);
 	UARTprintf("> ");
-
 
 	/* remove anything we recieved before we were ready */
 

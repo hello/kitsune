@@ -66,9 +66,7 @@ static void decode_MorpheusCommand(hlo_future_t * result, void * context){
     }else{
     	err = 0;
     }
-    hlo_future_write(result, &command, sizeof(command),err);
-
-    ble_proto_free_command(&command);
+    hlo_future_write(result, &command, sizeof(command),err); //WARNING shallow copy
     vPortFree(context);
 }
 

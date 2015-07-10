@@ -3,35 +3,35 @@
 //
 // Low level SD Card access hookup for FatFS
 //
-// Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com/ 
-// 
-// 
-//  Redistribution and use in source and binary forms, with or without 
-//  modification, are permitted provided that the following conditions 
+// Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com/
+//
+//
+//  Redistribution and use in source and binary forms, with or without
+//  modification, are permitted provided that the following conditions
 //  are met:
 //
-//    Redistributions of source code must retain the above copyright 
+//    Redistributions of source code must retain the above copyright
 //    notice, this list of conditions and the following disclaimer.
 //
 //    Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the 
-//    documentation and/or other materials provided with the   
+//    notice, this list of conditions and the following disclaimer in the
+//    documentation and/or other materials provided with the
 //    distribution.
 //
 //    Neither the name of Texas Instruments Incorporated nor the names of
 //    its contributors may be used to endorse or promote products derived
 //    from this software without specific prior written permission.
 //
-//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
-//  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT 
+//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+//  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
 //  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-//  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT 
-//  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
-//  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT 
+//  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+//  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+//  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
 //  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
 //  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-//  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
-//  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
+//  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+//  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 //  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 //*****************************************************************************
@@ -99,34 +99,34 @@ static DiskInfo_t g_sDisk=
 //! This function sends command to attached card and check the response status
 //! if any.
 //!
-//! \return Returns 0 on success, 1 otherwise 
+//! \return Returns 0 on success, 1 otherwise
 //
 //*****************************************************************************
-static unsigned long 
+static unsigned long
 CardSendCmd(unsigned long ulCmd, unsigned long ulArg)
 {
   unsigned long ulStatus;
-  
+
   //
   // Clear interrupt status
   //
   MAP_SDHostIntClear(SDHOST_BASE,0xFFFFFFFF);
-  
+
   //
   // Send command
   //
   MAP_SDHostCmdSend(SDHOST_BASE,ulCmd,ulArg);
-  
+
   //
   // Wait for command complete or error
   //
   do
   {
-    ulStatus = MAP_SDHostIntStatus(SDHOST_BASE);
+    ulStatus = SDHostIntStatus(SDHOST_BASE);
     ulStatus = (ulStatus & (SDHOST_INT_CC|SDHOST_INT_ERRI));
   }
   while( !ulStatus );
-  
+
   //
   // Check error status
   //
@@ -152,7 +152,7 @@ CardSendCmd(unsigned long ulCmd, unsigned long ulArg)
 //!
 //! This function gets the capacity of card addressed by \e ulRCA paramaeter.
 //!
-//! \return Returns 0 on success, 1 otherwise. 
+//! \return Returns 0 on success, 1 otherwise.
 //
 //*****************************************************************************
 static unsigned long
@@ -164,19 +164,19 @@ CardCapacityGet(DiskInfo_t *psDiskInfo)
   unsigned long ulBlockCount;
   unsigned long ulCSizeMult;
   unsigned long ulCSize;
-  
+
   //
   // Read the CSD register
   //
   ulRet = CardSendCmd(CMD_SEND_CSD,(psDiskInfo->usRCA << 16 ));
-  
+
   if(ulRet == 0)
   {
     //
     // Read the response
     //
     MAP_SDHostRespGet(SDHOST_BASE,ulResp);
-    
+
     //
     // 136 bit CSD register is read into an array of 4 words.
     // ulResp[0] = CSD[31:0]
@@ -203,7 +203,7 @@ CardCapacityGet(DiskInfo_t *psDiskInfo)
     psDiskInfo->ulBlockSize = ulBlockSize;
     psDiskInfo->ulNofBlock  = ulBlockCount;
   }
-  
+
   //
   // return
   //
@@ -219,7 +219,7 @@ CardCapacityGet(DiskInfo_t *psDiskInfo)
 //! This function selects a card for reading or writing using its RCA from
 //! \e Card parameter.
 //!
-//! \return Returns 0 success, 1 otherwise. 
+//! \return Returns 0 success, 1 otherwise.
 //
 //*****************************************************************************
 static unsigned long
@@ -227,27 +227,27 @@ CardSelect(DiskInfo_t *sDiskInfo)
 {
   unsigned long ulRCA;
   unsigned long ulRet;
-  
+
   ulRCA = sDiskInfo->usRCA;
-  
+
   //
   // Send select command with card's RCA.
   //
   ulRet = CardSendCmd(CMD_SELECT_CARD, (ulRCA << 16));
-  
+
   if(ulRet == 0)
   {
-    while( !(MAP_SDHostIntStatus(SDHOST_BASE) & SDHOST_INT_TC) )
+    while( !(SDHostIntStatus(SDHOST_BASE) & SDHOST_INT_TC) )
     {
-            
+
     }
-  } 
-  
+  }
+
   //
   // Delay for card to become ready
   //
   MAP_UtilsDelay(80000000/12);
-  
+
   return ulRet;
 }
 
@@ -259,13 +259,22 @@ CardSelect(DiskInfo_t *sDiskInfo)
 //!
 //! \return Returns 0 on succeeded.
 //*****************************************************************************
+
+#include "FreeRTOS.h"
+#include "task.h"
+#include "semphr.h"
+
+static xSemaphoreHandle sd_dma_smphr;
+
 DSTATUS disk_initialize ( BYTE bDrive )
 {
   unsigned long ulRet;
   unsigned long ulResp[4];
-  
+
+  sd_dma_smphr = xSemaphoreCreateBinary();
+
   //
-  // Check the drive No. 
+  // Check the drive No.
   // Only 1 drive is supported
   //
   if (bDrive == 0)
@@ -274,19 +283,19 @@ DSTATUS disk_initialize ( BYTE bDrive )
     {
       return g_sDisk.bStatus;
     }
-  
+
     //
     // Send std GO IDLE command
     //
     if( CardSendCmd(CMD_GO_IDLE_STATE, 0) == 0)
-    { 
+    {
 
       //
       // Get interface operating condition for the card
       //
       ulRet = CardSendCmd(CMD_SEND_IF_COND,0x000001A5);
       MAP_SDHostRespGet(SDHOST_BASE,ulResp);
-      
+
       //
       // It's a SD ver 2.0 or higher card
       //
@@ -298,10 +307,10 @@ DSTATUS disk_initialize ( BYTE bDrive )
         //
         g_sDisk.ulVersion = CARD_VERSION_2;
         g_sDisk.ucCardType = CARD_TYPE_SDCARD;
-        
+
         //
         // Wait for card to become ready.
-        //      
+        //
         do
         {
             //
@@ -309,26 +318,26 @@ DSTATUS disk_initialize ( BYTE bDrive )
             //
             CardSendCmd(CMD_APP_CMD,0);
             ulRet = CardSendCmd(CMD_SD_SEND_OP_COND,0x40E00000);
-            
+
             //
             // Response contains 32-bit OCR register
             //
             MAP_SDHostRespGet(SDHOST_BASE,ulResp);
-            
+
         }while(((ulResp[0] >> 31) == 0));
-        
+
         if(ulResp[0] & (1UL<<30))
         {
           g_sDisk.ulCapClass = CARD_CAP_CLASS_SDHC;
         }
-        
+
         g_sDisk.bStatus = 0;
       }
       else //It's a MMC or SD 1.x card
-      {  
+      {
         //
         // Wait for card to become ready.
-        //      
+        //
         do
         {
             CardSendCmd(CMD_APP_CMD,0);
@@ -339,9 +348,9 @@ DSTATUS disk_initialize ( BYTE bDrive )
               // Response contains 32-bit OCR register
               //
               MAP_SDHostRespGet(SDHOST_BASE,ulResp);
-            }       
+            }
         }while(((ulRet == 0) && (ulResp[0] >> 31) == 0));
-        
+
         if(ulRet == 0)
         {
           g_sDisk.ucCardType = CARD_TYPE_SDCARD;
@@ -366,25 +375,25 @@ DSTATUS disk_initialize ( BYTE bDrive )
   //
   if(g_sDisk.bStatus == 0)
   {
-    
+
     ulRet = CardSendCmd(CMD_ALL_SEND_CID,0);
-    
+
     if( ulRet == 0)
     {
       CardSendCmd(CMD_SEND_REL_ADDR,0);
       MAP_SDHostRespGet(SDHOST_BASE,ulResp);
-    
+
       //
       //  Fill in the RCA
-      // 
+      //
       g_sDisk.usRCA = (ulResp[0] >> 16);
-      
+
       //
       // Get tha card capacity
       //
       CardCapacityGet(&g_sDisk);
     }
-    
+
     //
     // Select the card.
     //
@@ -394,12 +403,12 @@ DSTATUS disk_initialize ( BYTE bDrive )
       g_sDisk.bStatus = 0;
     }
   }
-  
+
   //
   // Set card rd/wr block len
   //
   MAP_SDHostBlockSizeSet(SDHOST_BASE,512);
-  
+
   return g_sDisk.bStatus;
 }
 
@@ -409,7 +418,7 @@ DSTATUS disk_initialize ( BYTE bDrive )
 //!
 //! This function gets the current status of the drive.
 //!
-//! \return Returns the current status of the specified drive 
+//! \return Returns the current status of the specified drive
 //
 //*****************************************************************************
 DSTATUS disk_status ( BYTE bDrive )
@@ -424,6 +433,28 @@ DSTATUS disk_status ( BYTE bDrive )
   }
 }
 
+#include "udma.h"
+#include "udma_if.h"
+#include "hw_mmchs.h"
+
+#include "kit_assert.h"
+
+#define DMA_INTERRUPTS (SDHOST_INT_DMARD|SDHOST_INT_DMAWR)
+
+void SDHostIntHandler()
+{
+	unsigned long sts = SDHostIntStatus(SDHOST_BASE);
+
+	if( sts & SDHOST_INT_TC ) {
+		SDHostIntClear(SDHOST_BASE, SDHOST_INT_TC);
+		SDHostIntDisable(SDHOST_BASE, SDHOST_INT_TC);
+
+		BaseType_t xHigherPriorityTaskWoken;
+		xSemaphoreGiveFromISR(sd_dma_smphr, &xHigherPriorityTaskWoken);
+		portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+	}
+}
+
 //*****************************************************************************
 //
 //! Reads sector(s) from the disk drive.
@@ -434,14 +465,19 @@ DSTATUS disk_status ( BYTE bDrive )
 //! \return Returns RES_OK on success.
 //
 //*****************************************************************************
+
+//volatile int wait = 0;
+//volatile int wait2 = 0;
+
+#define SDCARD_DMA_BLOCK_TRANSFER_TIMEOUT portMAX_DELAY
+
 DRESULT disk_read ( BYTE bDrive, BYTE* pBuffer, DWORD ulSectorNumber,
-                   BYTE bSectorCount )
+                   UINT bSectorCount )
 {
   DRESULT Res;
-  unsigned long ulSize;
-  
+
   Res = RES_ERROR;
-  
+
   //
   // Return if disk not initialized
   //
@@ -449,7 +485,7 @@ DRESULT disk_read ( BYTE bDrive, BYTE* pBuffer, DWORD ulSectorNumber,
   {
     return RES_PARERR;
   }
-  
+
   //
   // SDSC uses linear address, SDHC uses block address
   //
@@ -457,58 +493,37 @@ DRESULT disk_read ( BYTE bDrive, BYTE* pBuffer, DWORD ulSectorNumber,
   {
     ulSectorNumber = ulSectorNumber * DISKIO_SECTOR_SIZE;
   }
-  
+
   //
   // Set the block count
   //
   MAP_SDHostBlockCountSet(SDHOST_BASE,bSectorCount);
-  
-  //
-  // Compute the number of words
-  //
-  ulSize = (512*bSectorCount)/4;
-  
-  //
+
   // Check if 1 block or multi block transfer
   //
-  if (bSectorCount == 1)
-  { 
-    //
-    // Send single block read command
-    //
-    if( CardSendCmd(CMD_READ_SINGLE_BLK, ulSectorNumber) == 0 )
-    {
-      //
-      // Read the block of data
-      //
-      while(ulSize--)
-      {
-        MAP_SDHostDataRead(SDHOST_BASE,(unsigned long *)pBuffer);
-        pBuffer+=4;
-      }
-      Res = RES_OK;
-    }
+ // assert(bSectorCount==1); //want to read more than the sector size? got to refactor fatfs :S
+//    unsigned long cmd = bSectorCount == 1 ? CMD_READ_SINGLE_BLK : CMD_READ_MULTI_BLK;
+	SDHostIntClear(SDHOST_BASE, SDHOST_INT_TC );
+	SDHostIntEnable(SDHOST_BASE, SDHOST_INT_TC);
+
+    unsigned long ulSize = (512*bSectorCount)/4;
+
+	SetupTransfer(UDMA_CH23_SDHOST_RX, UDMA_MODE_BASIC, ulSize,
+	UDMA_SIZE_32, UDMA_ARB_1, (void *) (SDHOST_BASE + MMCHS_O_DATA),
+	UDMA_SRC_INC_NONE, (void *) (pBuffer), UDMA_DST_INC_32);
+
+	//wait = wait2 = 0;
+	//
+	// Send block read command to the card
+	//
+	if (CardSendCmd(CMD_READ_MULTI_BLK | SDHOST_DMA_EN, ulSectorNumber) == 0) {
+		if( xSemaphoreTake(sd_dma_smphr, SDCARD_DMA_BLOCK_TRANSFER_TIMEOUT) ) {//block till interrupt releases
+			Res = RES_OK;
+		}
+		CardSendCmd(CMD_STOP_TRANS,0);
+		 while( !(MAP_SDHostIntStatus(SDHOST_BASE) & SDHOST_INT_TC) ){}
   }
-  else 
-  {
-    //
-    // Send multi block read command
-    //
-    if( CardSendCmd(CMD_READ_MULTI_BLK, ulSectorNumber) == 0 )
-    {
-      //
-      // Read the data
-      //
-      while(ulSize--)
-      {
-        MAP_SDHostDataRead(SDHOST_BASE,(unsigned long *)pBuffer);
-        pBuffer+=4;
-      }
-      CardSendCmd(CMD_STOP_TRANS,0);
-      Res = RES_OK;
-    }     
-  }
-  
+
   //
   // return status
   //
@@ -525,21 +540,18 @@ DRESULT disk_read ( BYTE bDrive, BYTE* pBuffer, DWORD ulSectorNumber,
 //! \return Returns RES_OK on success.
 //
 //*****************************************************************************
-#include "FreeRTOS.h"
-#include "task.h"
 DRESULT disk_write ( BYTE bDrive,const BYTE* pBuffer, DWORD ulSectorNumber,
-                    BYTE bSectorCount)
+                    UINT bSectorCount)
 {
   DRESULT Res;
-  unsigned long ulSize;
-  
+
   Res = RES_ERROR;
-    
+
   if (bDrive || !bSectorCount)
   {
     return RES_PARERR;
   }
-  
+
   //
   // Return if disk not initialized
   //
@@ -547,7 +559,7 @@ DRESULT disk_write ( BYTE bDrive,const BYTE* pBuffer, DWORD ulSectorNumber,
   {
     return RES_NOTRDY;
   }
-  
+
   //
   // SDSC uses linear address, SDHC uses block address
   //
@@ -555,85 +567,38 @@ DRESULT disk_write ( BYTE bDrive,const BYTE* pBuffer, DWORD ulSectorNumber,
   {
     ulSectorNumber = ulSectorNumber * DISKIO_SECTOR_SIZE;
   }
-  
+
   //
   // Set the block count
   //
   MAP_SDHostBlockCountSet(SDHOST_BASE,bSectorCount);
-  
+
+  SDHostIntClear(SDHOST_BASE, SDHOST_INT_TC );
+  SDHostIntEnable(SDHOST_BASE, SDHOST_INT_TC);
+
+  assert(bSectorCount==1);//todo get multi sector writes working...
+
+	unsigned long ulSize = (512 * bSectorCount) / 4;
+
+	SetupTransfer(UDMA_CH24_SDHOST_TX, UDMA_MODE_BASIC, ulSize,
+	UDMA_SIZE_32, UDMA_ARB_1, (void *) (pBuffer),
+	UDMA_SRC_INC_32, (void *) (SDHOST_BASE + MMCHS_O_DATA), UDMA_DST_INC_NONE);
+
+	//
+	// Send  block read command to the card
+	//
+	if (CardSendCmd(CMD_WRITE_SINGLE_BLK | SDHOST_DMA_EN, ulSectorNumber) == 0) {
+		if (xSemaphoreTake(sd_dma_smphr, SDCARD_DMA_BLOCK_TRANSFER_TIMEOUT)) {//block till interrupt releases
+			Res = RES_OK;
+		}
+		vTaskDelay(10);
+		CardSendCmd(CMD_STOP_TRANS, 0);
+		 while( !(MAP_SDHostIntStatus(SDHOST_BASE) & SDHOST_INT_TC) ){
+				vTaskDelay(1);
+		 }
+	}
+
   //
-  // Compute the number of words
-  //
-  ulSize = (512*bSectorCount)/4;
-  
-  //
-  // Check if 1 block or multi block transfer
-  //
-  if (bSectorCount == 1)
-  {
-    //
-    // Send single block write command
-    //
-    if( CardSendCmd(CMD_WRITE_SINGLE_BLK, ulSectorNumber) == 0 )
-    {
-      //
-      // Write the data
-      //
-      while(ulSize--)
-      {
-        MAP_SDHostDataWrite(SDHOST_BASE,(*(unsigned long *)pBuffer));
-        pBuffer+=4;
-      }
-      
-      //
-      // Wait for data transfer complete
-      //
-      while( !(MAP_SDHostIntStatus(SDHOST_BASE) & SDHOST_INT_TC) )
-      {
-        vTaskDelay(1);
-      }
-      Res = RES_OK;
-    }
-  }
-  else 
-  { 
-    
-    //
-    // Set the card write block count
-    //
-    if(g_sDisk.ucCardType == CARD_TYPE_SDCARD)
-    {
-      CardSendCmd(CMD_APP_CMD,g_sDisk.usRCA << 16);
-      CardSendCmd(CMD_SET_BLK_CNT, bSectorCount);
-    }
-    
-    //
-    // Send single block write command
-    //
-    if( CardSendCmd(CMD_WRITE_MULTI_BLK, ulSectorNumber) == 0 )
-    {
-      //
-      // Write the data buffer
-      //
-      while(ulSize--)
-      {
-        MAP_SDHostDataWrite(SDHOST_BASE,(*(unsigned long *)pBuffer));
-        pBuffer+=4;
-        MAP_WatchdogIntClear(WDT_BASE); //clear wdt
-      }
-      
-      //
-      // Wait for transfer complete
-      //
-      while( !(MAP_SDHostIntStatus(SDHOST_BASE) & SDHOST_INT_TC) )
-      {
-          vTaskDelay(10);
-      }
-      CardSendCmd(CMD_STOP_TRANS,0);
-      Res = RES_OK;
-    }     
-  }
-    
   //
   // return status
   //
@@ -663,18 +628,18 @@ DRESULT disk_ioctl (BYTE bDrive,BYTE bCommand,void* Buffer )
     case GET_SECTOR_COUNT:
          *(WORD*)Buffer = g_sDisk.ulNofBlock;
          break;
-      
-    case GET_SECTOR_SIZE : 
+
+    case GET_SECTOR_SIZE :
          *(WORD*)Buffer = 512;
          break;
-         
+
     case CTRL_SYNC:
          break;
-         
-  default: 
+
+  default:
     while(1);
   }
-  
+
   return RES_OK;
 }
 

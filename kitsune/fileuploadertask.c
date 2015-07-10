@@ -95,11 +95,11 @@ bool encode_file (pb_ostream_t * stream, const pb_field_t * field,void * const *
 	FIL file_obj;
 	FILINFO file_info;
 
-	uint8_t readbuf[256];
+	uint8_t readbuf[512];
 
 	DWORD bytes_to_be_read;
-	WORD read_size;
-	WORD bytes_read;
+	UINT read_size;
+	UINT bytes_read;
 
 	bool success = false;
 

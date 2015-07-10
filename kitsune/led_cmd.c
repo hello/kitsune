@@ -567,7 +567,7 @@ int Cmd_led(int argc, char *argv[]) {
 			b = _clamp(atoi(argv[4]), 0, LED_CLAMP_MAX);
 			ANIMATE_BLOCKING(led_fade_all_animation(-1),500);
 			LOGF("Setting colors R: %d, G: %d, B: %d \r\n", r, g, b);
-			play_led_animation_solid(LED_MAX, r,g,b,1, 18);
+			play_led_animation_solid(LED_MAX, r,g,b,1, 18,1);
 		}
 	} else if( argc > 3){
 		int r,g,b,a,rp/*,fi,fo*/,ud,rot;
@@ -582,7 +582,7 @@ int Cmd_led(int argc, char *argv[]) {
 		rot = atoi(argv[7]);
 		LOGF("R: %d, G: %d, B: %d A:%d Rot:%d\r\n", r, g, b, a, rot);
 		if(rot){
-			play_led_animation_solid(a, r,g,b, rp,ud);
+			play_led_animation_solid(a, r,g,b, rp,ud,1);
 		}else{
 			play_led_wheel(a, r,g,b,rp,ud);
 		}
