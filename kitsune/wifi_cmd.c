@@ -1830,7 +1830,7 @@ bool send_pill_data(batched_pill_data * pill_data) {
 			PILL_DATA_RECEIVE_ENDPOINT, batched_pill_data_fields, pill_data, INT_MAX,
 			NULL, NULL, &pb_cb, false);
 }
-bool send_periodic_data(batched_periodic_data* data) {
+bool send_periodic_data(batched_periodic_data* data, bool forced) {
     protobuf_reply_callbacks pb_cb;
 
     pb_cb.get_reply_pb = _get_sync_response;
@@ -1840,7 +1840,7 @@ bool send_periodic_data(batched_periodic_data* data) {
 
 	return NetworkTask_SendProtobuf(true, DATA_SERVER,
 			DATA_RECEIVE_ENDPOINT, batched_periodic_data_fields, data, INT_MAX,
-			NULL, NULL, &pb_cb, false);
+			NULL, NULL, &pb_cb, forced);
 }
 
 static void _get_provision_response(pb_field_t ** fields, void ** structdata){

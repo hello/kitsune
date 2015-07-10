@@ -68,6 +68,10 @@ bool encode_scanned_ssid (pb_ostream_t *stream, const pb_field_t *field, void * 
     int i,n;
 
 	Sl_WlanNetworkEntry_t scan[10];
+
+	if( arg == NULL ) {
+		return true;
+	}
 	hlo_future_t * scan_future = (hlo_future_t *)*arg;
 
 	n = hlo_future_read(scan_future,scan,sizeof(scan), portMAX_DELAY);

@@ -982,7 +982,6 @@ void thread_tx(void* unused) {
 				continue;
 			}
 			if( got_forced_data ) {
-				got_forced_data = false;
 				memcpy( &periodicdata.data[periodicdata.num_data], &forced_data, sizeof(forced_data) );
 				++periodicdata.num_data;
 			}
@@ -1029,17 +1028,19 @@ void thread_tx(void* unused) {
 			wifi_get_connected_ssid( (uint8_t*)data_batched.connected_ssid, sizeof(data_batched) );
 			data_batched.has_connected_ssid = true;
 
+			data_batched.scan.funcs.encode = encode_scanned_ssid;
+			data_batched.scan.arg = NULL;
 			if( !got_forced_data ) {
-				data_batched.scan.funcs.encode = encode_scanned_ssid;
 				data_batched.scan.arg = prescan_wifi(10);
 			}
-			send_periodic_data(&data_batched);
+			send_periodic_data(&data_batched, got_forced_data);
 			last_upload_time = xTaskGetTickCount();
 
 			if( data_batched.scan.arg ) {
 				hlo_future_destroy( data_batched.scan.arg );
 			}
 			vPortFree( periodicdata.data );
+			got_forced_data = false;
 		}
 
 		if (uxQueueMessagesWaiting(pill_queue) > PILL_BATCH_WATERMARK) {
