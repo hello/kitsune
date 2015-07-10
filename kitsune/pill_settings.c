@@ -40,6 +40,7 @@ bool on_pill_settings(pb_istream_t *stream, const pb_field_t *field, void **arg)
             	_settings[i] = pill_setting;
                 assert( 0 == fs_save(settings_file, _settings, _num_settings*sizeof(SyncResponse_PillSettings)) );
         	}
+            xSemaphoreGive(_sync_mutex);
         	return true;
         }
     }
