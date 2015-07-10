@@ -13,6 +13,8 @@
 #include "fault.h"
 #include "kitsune_version.h"
 
+#include "utils.h"
+
 //*****************************************************************************
 //
 // A structure to map fault bit IDs with a human readable text string.
