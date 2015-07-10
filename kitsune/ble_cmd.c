@@ -141,7 +141,7 @@ void on_morpheus_protobuf_arrival(uint8_t* protobuf, size_t len)
     hlo_future_t * future_proto = MorpheusCommand_from_buffer(protobuf, len);
     if(future_proto){
     	int ret = hlo_future_read(future_proto,NULL, 0, portMAX_DELAY);
-    	if(ret >= 0){
+    	if(ret >= 0 && future_proto->buf){
     		on_ble_protobuf_command(future_proto->buf);
     	}
     	hlo_future_destroy(future_proto);
@@ -235,13 +235,15 @@ bool ble_send_protobuf(MorpheusCommand* command)
 void ble_proto_get_morpheus_command(pb_field_t ** fields, void ** structdata){
 	*fields = (pb_field_t *)MorpheusCommand_fields;
 	*structdata = pvPortMalloc(sizeof(MorpheusCommand));
-	assert(*structdata);
+	assert(structdata);
 	ble_proto_assign_decode_funcs(*structdata);
 	memset( *structdata, 0, sizeof(MorpheusCommand) );
 }
-void ble_proto_free_morpheus_command(pb_field_t * fields, void * structdata){
-    ble_proto_free_command( structdata );
-	vPortFree( structdata );
+void ble_proto_free_morpheus_command(void * structdata){
+	if( structdata ) {
+	    ble_proto_free_command( structdata );
+		vPortFree( structdata );
+	}
 }
 
 void ble_proto_free_command(MorpheusCommand* command)

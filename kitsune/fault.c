@@ -13,6 +13,8 @@
 #include "fault.h"
 #include "kitsune_version.h"
 
+#include "utils.h"
+
 //*****************************************************************************
 //
 // A structure to map fault bit IDs with a human readable text string.
@@ -142,12 +144,14 @@ void faultPrinter( faultInfo* f ) {
 
     LOGE("TRACE:");
     for( i=0; i < MAX_TRACE_DEPTH && f->stack_trace[i] != TRACE_DONE; ++i ) {
-        LOGE( "0x%08X\n", f->stack_trace[i]);
+        LOGE( "%08X\n", f->stack_trace[i]);
+	    UtilsDelay(10000);
     }
     LOGE("END\n");
 }
 void uart_logger_flush();
-
+void
+vAssertCalled( const char * s );
 void
 FaultDecoder(unsigned long *pulExceptionFrame)
 {
@@ -193,6 +197,7 @@ FaultDecoder(unsigned long *pulExceptionFrame)
 
     f->magic = SHUTDOWN_MAGIC;
 
+    vAssertCalled("hard fault");
     faultPrinter(f);
     //todo save the UART log buffers to sd, send them to server on next boot...
     uart_logger_flush();

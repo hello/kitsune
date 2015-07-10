@@ -400,11 +400,15 @@ typedef struct {
 } pairing_context_t;
 
 int force_data_push();
-static void _on_pair_success(pb_field_t * fields, void * structdata){
+static void _on_pair_success(void * structdata){
 	LOGF("pairing success\r\n");
-	ble_send_protobuf(structdata);
+	if( structdata ) {
+		ble_send_protobuf(structdata);
+	} else {
+		ble_reply_protobuf_error(ErrorType_DEVICE_NO_MEMORY);
+	}
 }
-static void _on_pair_failure(pb_field_t * fields, void * structdata){
+static void _on_pair_failure(){
     LOGF("pairing fail\r\n");
 	ble_reply_protobuf_error(ErrorType_NETWORK_ERROR);
 }

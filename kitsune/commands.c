@@ -983,7 +983,6 @@ void thread_tx(void* unused) {
 				continue;
 			}
 			if( got_forced_data ) {
-				got_forced_data = false;
 				memcpy( &periodicdata.data[periodicdata.num_data], &forced_data, sizeof(forced_data) );
 				++periodicdata.num_data;
 			}
@@ -1030,14 +1029,19 @@ void thread_tx(void* unused) {
 			wifi_get_connected_ssid( (uint8_t*)data_batched.connected_ssid, sizeof(data_batched) );
 			data_batched.has_connected_ssid = true;
 
+			data_batched.scan.funcs.encode = encode_scanned_ssid;
+			data_batched.scan.arg = NULL;
 			if( !got_forced_data ) {
-				data_batched.scan.funcs.encode = encode_scanned_ssid;
 				data_batched.scan.arg = prescan_wifi(10);
 			}
-			send_periodic_data(&data_batched);
+			send_periodic_data(&data_batched, got_forced_data);
 			last_upload_time = xTaskGetTickCount();
-			hlo_future_destroy( data_batched.scan.arg );
+
+			if( data_batched.scan.arg ) {
+				hlo_future_destroy( data_batched.scan.arg );
+			}
 			vPortFree( periodicdata.data );
+			got_forced_data = false;
 		}
 
 		if (uxQueueMessagesWaiting(pill_queue) > pill_queue_batch_size) {
@@ -1315,14 +1319,19 @@ void thread_sensor_poll(void* unused) {
 
 int Cmd_tasks(int argc, char *argv[]) {
 	char* pBuffer;
+	int i, l;
 
 	LOGF("\t\t\t\t\tUnused\n            TaskName\tStatus\tPri\tStack\tTask ID\n");
-	pBuffer = pvPortMalloc(1024);
+	pBuffer = pvPortMalloc(2048);
 	assert(pBuffer);
 	LOGF("==========================");
 	vTaskList(pBuffer);
 	LOGF("==========================\n");
-	LOGF("%s", pBuffer);
+	l = strlen(pBuffer);
+	for( i=0;i<l;++i ) {
+		LOGF("%c", pBuffer[i]);
+		vTaskDelay(1);
+	}
 
 	vPortFree(pBuffer);
 	return 0;
@@ -1665,9 +1674,12 @@ int cmd_memfrag(int argc, char *argv[]) {
 	}
 	return 0;
 }
-
+void
+vAssertCalled( const char * s );
 int Cmd_fault(int argc, char *argv[]) {
-	*(volatile int*)0xFFFFFFFF = 0xdead;
+	//*(volatile int*)0xFFFFFFFF = 0xdead;
+	//vAssertCalled("test");
+	assert(false);
 	return 0;
 }
 int Cmd_test_realloc(int argc, char *argv[]) {
@@ -1963,7 +1975,7 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(top_board_task, "top_board_task", 1280 / 4, NULL, 2, NULL);
 	xTaskCreate(thread_spi, "spiTask", 1024 / 4, NULL, 3, NULL);
 #ifndef BUILD_SERVERS
-	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 1, NULL);
+	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 3, NULL);
 	UARTprintf("*");
 	xTaskCreate(analytics_event_task, "analyticsTask", 1024/4, NULL, 1, NULL);
 	UARTprintf("*");
@@ -1982,7 +1994,6 @@ void vUARTTask(void *pvParameters) {
 	tskKERNEL_VERSION_NUMBER, KIT_VER, MORPH_NAME, mac[0], mac[1], mac[2],
 			mac[3], mac[4], mac[5]);
 	UARTprintf("> ");
-
 
 	/* remove anything we recieved before we were ready */
 
