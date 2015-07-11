@@ -1582,6 +1582,8 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
 		if( reply_structdata && pb_cb->free_reply_pb ) {
 			pb_cb->free_reply_pb( reply_structdata );
 		}
+    } else {
+    	return http_response_ok((char*)recv_buf);
     }
     return -1;
 }

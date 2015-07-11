@@ -63,8 +63,11 @@ bool NetworkTask_SendProtobuf(bool blocking, const char * host,
 
 	message.fields = fields;
 	message.structdata = structdata;
+
+	message.has_pb_cb = false;
 	if( pb_cb ) {
 		message.pb_cb = *pb_cb;
+		message.has_pb_cb = true;
 	}
 
 	assert( _asyncqueue );
@@ -145,7 +148,7 @@ static NetworkResponse_t nettask_send(NetworkTaskServerSendMessage_t * message) 
 				&decode_buf_size,
 				message->fields,
 				message->structdata,
-				&message->pb_cb ) == 0) {
+				message->has_pb_cb ? &message->pb_cb : NULL ) == 0) {
 			response.success = true;
 		} else {
 			//failed to push, now what?
