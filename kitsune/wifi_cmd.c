@@ -1563,14 +1563,14 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     }
     LOGI("recv %d\n", rv);
 
-    pb_field_t * reply_fields;
-    void * reply_structdata;
+    pb_field_t * reply_fields = NULL;
+    void * reply_structdata = NULL;
 
     if( pb_cb ) {
 		if( pb_cb->get_reply_pb ) {
 			pb_cb->get_reply_pb( &reply_fields, &reply_structdata );
+			assert(reply_structdata);
 		}
-		assert(reply_structdata);
 		if( reply_structdata && validate_signatures((char*)recv_buf, reply_fields, reply_structdata ) ) {
 			if( pb_cb && pb_cb->on_pb_success ) {
 				pb_cb->on_pb_success( reply_structdata );
@@ -1587,6 +1587,8 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
 		if( reply_structdata && pb_cb->free_reply_pb ) {
 			pb_cb->free_reply_pb( reply_structdata );
 		}
+    } else {
+    	return http_response_ok((char*)recv_buf);
     }
     return -1;
 }
@@ -1796,12 +1798,13 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
 static void _get_sync_response(pb_field_t ** fields, void ** structdata){
 	*fields = (pb_field_t *)SyncResponse_fields;
 	*structdata = pvPortMalloc(sizeof(SyncResponse));
-	assert(structdata);
-	SyncResponse * response_protobuf = *structdata;
-    memset(response_protobuf, 0, sizeof(SyncResponse));
-
-    response_protobuf->pill_settings.funcs.decode = on_pill_settings;
-    response_protobuf->files.funcs.decode = _on_file_download;
+	assert(*structdata);
+	if( *structdata ) {
+		SyncResponse * response_protobuf = *structdata;
+		memset(response_protobuf, 0, sizeof(SyncResponse));
+		response_protobuf->pill_settings.funcs.decode = on_pill_settings;
+		response_protobuf->files.funcs.decode = _on_file_download;
+	}
 }
 static void _free_sync_response(void * structdata){
 	vPortFree( structdata );
