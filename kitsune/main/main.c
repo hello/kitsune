@@ -176,6 +176,7 @@ vAssertCalled( const char * s )
 	  LOGE( "%08X\n", *top-- );
 	    UtilsDelay(10000);
   }
+  uart_logger_flush();
   mcu_reset();
 }
 
@@ -194,7 +195,7 @@ void vApplicationStackOverflowHook( TaskHandle_t xTask, char *pcTaskName )
     ( void ) pcTaskName;
 
     LOGE( "%s STACK OVERFLOW", pcTaskName );
-
+    uart_logger_flush();
     UtilsDelay(10000000);
     mcu_reset();
 }
