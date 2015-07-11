@@ -1558,14 +1558,14 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     }
     LOGI("recv %d\n", rv);
 
-    pb_field_t * reply_fields;
-    void * reply_structdata;
+    pb_field_t * reply_fields = NULL;
+    void * reply_structdata = NULL;
 
     if( pb_cb ) {
 		if( pb_cb->get_reply_pb ) {
 			pb_cb->get_reply_pb( &reply_fields, &reply_structdata );
+			assert(reply_structdata);
 		}
-		assert(reply_structdata);
 		if( reply_structdata && validate_signatures((char*)recv_buf, reply_fields, reply_structdata ) ) {
 			if( pb_cb && pb_cb->on_pb_success ) {
 				pb_cb->on_pb_success( reply_structdata );
