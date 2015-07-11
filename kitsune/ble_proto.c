@@ -394,7 +394,6 @@ static void _process_pill_heartbeat( MorpheusCommand* command)
 }
 
 typedef struct {
-	protobuf_reply_callbacks pb_cb;
 	MorpheusCommand cmd;
 	int is_morpheus;
 } pairing_context_t;
@@ -439,10 +438,11 @@ static bool _pair_device( MorpheusCommand* command, int is_morpheus)
 	assert( ctx );
 	memcpy( &ctx->cmd, command, sizeof(MorpheusCommand) ); //WARNING shallow copy
 
-	ctx->pb_cb.get_reply_pb = ble_proto_get_morpheus_command;
-	ctx->pb_cb.free_reply_pb = ble_proto_free_morpheus_command;
-	ctx->pb_cb.on_pb_failure = _on_pair_failure;
-	ctx->pb_cb.on_pb_success = _on_pair_success;
+	protobuf_reply_callbacks pb_cb;
+	pb_cb.get_reply_pb = ble_proto_get_morpheus_command;
+	pb_cb.free_reply_pb = ble_proto_free_morpheus_command;
+	pb_cb.on_pb_failure = _on_pair_failure;
+	pb_cb.on_pb_success = _on_pair_success;
 
 	bool  ret = NetworkTask_SendProtobuf( false,
 				DATA_SERVER,
@@ -450,7 +450,7 @@ static bool _pair_device( MorpheusCommand* command, int is_morpheus)
 				MorpheusCommand_fields,
 				&ctx->cmd,
 				30000,
-				_pair_reply, ctx, &ctx->pb_cb, true);
+				_pair_reply, ctx, &pb_cb, true);
 
 	return true; // success
 }
