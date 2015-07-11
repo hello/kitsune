@@ -1790,12 +1790,13 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
 static void _get_sync_response(pb_field_t ** fields, void ** structdata){
 	*fields = (pb_field_t *)SyncResponse_fields;
 	*structdata = pvPortMalloc(sizeof(SyncResponse));
-	assert(structdata);
-	SyncResponse * response_protobuf = *structdata;
-    memset(response_protobuf, 0, sizeof(SyncResponse));
-
-    response_protobuf->pill_settings.funcs.decode = on_pill_settings;
-    response_protobuf->files.funcs.decode = _on_file_download;
+	assert(*structdata);
+	if( *structdata ) {
+		SyncResponse * response_protobuf = *structdata;
+		memset(response_protobuf, 0, sizeof(SyncResponse));
+		response_protobuf->pill_settings.funcs.decode = on_pill_settings;
+		response_protobuf->files.funcs.decode = _on_file_download;
+	}
 }
 static void _free_sync_response(void * structdata){
 	vPortFree( structdata );
