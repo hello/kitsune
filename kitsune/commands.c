@@ -865,16 +865,59 @@ static void _on_gesture_out()
 	ble_proto_end_hold();
 }
 
+#define PROX_FIFO_SAMPLES (5*20)
+static int * prox_fifo;
+static int prox_idx;
+
+static int inc_idx(int idx){
+	return ((idx + 1) % PROX_FIFO_SAMPLES);
+}
+static int next_prox(int * idx){
+	int ret = prox_fifo[*idx];
+	*idx = inc_idx(*idx);
+	return ret;
+}
+static char * str_prox(char * str, size_t str_size){
+	int i, total = 0;
+	memset(str, 0, str_size);
+	int itr = inc_idx(prox_idx);
+	for(i = 0; i < PROX_FIFO_SAMPLES; i++){
+		int new;
+		char buf[12] = {0};
+		usnprintf(buf,sizeof(buf),"%dm", next_prox(&itr));
+		new = strlen(buf);
+		if( total + new >= str_size ){
+			break;
+		}else{
+			strcat(str, buf);
+			total += new;
+		}
+	}
+	return str;
+}
+static bool needs_sample(portTickType * tag){
+	bool ret = false;
+	portTickType now = xTaskGetTickCount();
+	if( (now - *tag) > (10 * 1000) ){
+		ret = true;
+		*tag = now;
+	}
+	return ret;
+}
 void thread_fast_i2c_poll(void * unused)  {
 	unsigned int filter_buf[3];
 	unsigned int filter_idx=0;
-
+	char * prox_string = pvPortMalloc(1280);
+	assert(prox_string);
 	gesture_init();
 	ProxSignal_Init();
 	ProxGesture_t gesture;
-
+	prox_fifo = pvPortMalloc(20 * 5 * sizeof(int));
+	memset(prox_fifo, 0, 20 * 5 * sizeof(int));
 	uint32_t counter = 0;
-
+	portTickType wave_tag;
+	wave_tag  = xTaskGetTickCount();
+	unsigned int wave_counter = 0;
 	while (1) {
 		portTickType now = xTaskGetTickCount();
 		int prox=0;
@@ -884,18 +927,25 @@ void thread_fast_i2c_poll(void * unused)  {
 
 			// For the black morpheus, we can detect 6mm distance max
 			// for white one, 9mm distance max.
-			prox = median_filter(get_prox(), filter_buf, &filter_idx);
+			prox = get_prox();
+
+			prox_fifo[prox_idx] = prox;
+			prox_idx = inc_idx(prox_idx);
+
+			prox = median_filter(prox, filter_buf, &filter_idx);
 
 			xSemaphoreGiveRecursive(i2c_smphr);
 
 			gesture = ProxSignal_UpdateChangeSignals(prox);
 
-
-			//gesture gesture_state = gesture_input(prox);
 			switch(gesture)
 			{
 			case proxGestureWave:
 				_on_wave();
+				if(!wave_counter){
+					//keep 2.5 seconds of data after a wave.
+					wave_counter = 2.5 * 20;
+				}
 				gesture_increment_wave_count();
 				break;
 			case proxGestureHold:
@@ -907,6 +957,10 @@ void thread_fast_i2c_poll(void * unused)  {
 				break;
 			default:
 				break;
+			}
+
+			if(wave_counter && --wave_counter == 0  && needs_sample(&wave_tag)){
+				analytics_event( "{wave_data: %s}", str_prox(prox_string, 1280));
 			}
 
 			if (++counter >= 2) {
