@@ -369,6 +369,7 @@ static bool _pair_device( MorpheusCommand* command, int is_morpheus)
 
 	pairing_context_t * ctx = pvPortMalloc(sizeof(pairing_context_t));
 	assert( ctx );
+	ctx->is_morpheus = is_morpheus;
 	memcpy( &ctx->cmd, command, sizeof(MorpheusCommand) ); //WARNING shallow copy
 
 	protobuf_reply_callbacks pb_cb;

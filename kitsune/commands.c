@@ -1252,16 +1252,10 @@ int force_data_push()
 		return -1;
     }
 
-    periodic_data* data = pvPortMalloc(sizeof(periodic_data));  // Let's put this in the heap, we don't use it all the time
-	if(!data)
-	{
-		LOGE("No memory\n");
-		return -2;
-	}
-    memset(data, 0, sizeof(periodic_data));
-    sample_sensor_data(data);
-    xQueueSend(force_data_queue, (void* )data, 0); //queues copy so this is safe to free
-    vPortFree(data);
+    periodic_data data;
+    memset(&data, 0, sizeof(periodic_data));
+    sample_sensor_data(&data);
+    xQueueSend(force_data_queue, (void* )&data, 0);
 
     return 0;
 }
@@ -1296,6 +1290,7 @@ void thread_sensor_poll(void* unused) {
 					data.dust_variability, data.wave_count, data.hold_count);
 
 			Cmd_free(0,0);
+			send_top("free", strlen("free"));
 
 			if (!xQueueSend(data_queue, (void* )&data, 0) == pdPASS) {
 				xQueueReceive(data_queue, (void* )&data, 0); //discard one, so if the queue is full we will put every other one in the queue

@@ -39,7 +39,8 @@ static void Init(NetworkTaskData_t * info) {
 
 void unblock_sync(void * data) {
 	NetworkTaskServerSendMessage_t * msg = (NetworkTaskServerSendMessage_t*)data;
-    xSemaphoreGive(msg->sync);
+	assert( msg->sync );
+	xSemaphoreGive(msg->sync); //todo maybe here
 }
 
 bool NetworkTask_SendProtobuf(bool blocking, const char * host,
@@ -223,11 +224,7 @@ static void NetworkTask_Thread(void * networkdata) {
 	NetworkTaskServerSendMessage_t message;
 
 	for (; ;) {
-
-		if (!xQueueReceive( _asyncqueue, &message, portMAX_DELAY )) {
-			vTaskDelay(1000);
-			continue; //LOOP FOREVEREVEREVEREVER
-		}
+		xQueueReceive( _asyncqueue, &message, portMAX_DELAY );
 		if (message.begin) {
 			message.begin(&message);
 		}
@@ -241,7 +238,6 @@ static void NetworkTask_Thread(void * networkdata) {
 		if( message.end ) {
 			message.end(&message);
 		}
-		vTaskDelay(100);
 	}
 }
 
