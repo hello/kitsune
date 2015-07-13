@@ -54,8 +54,8 @@ extern tCircularBuffer * pTxBuffer;
 
 /* static variables  */
 static xQueueHandle _queue = NULL;
-static xSemaphoreHandle _processingTaskWait;
-static xSemaphoreHandle _statsMutex;
+static xSemaphoreHandle _processingTaskWait = NULL;
+static xSemaphoreHandle _statsMutex = NULL;
 
 static uint8_t _isCapturing = 0;
 static int64_t _callCounter;
