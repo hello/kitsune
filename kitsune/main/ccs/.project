@@ -321,6 +321,16 @@
 			<locationURI>PARENT-2-PROJECT_LOC/hlo_proto_tools.h</locationURI>
 		</link>
 		<link>
+			<name>hlo_queue.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hlo_queue.c</locationURI>
+		</link>
+		<link>
+			<name>hlo_queue.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hlo_queue.h</locationURI>
+		</link>
+		<link>
 			<name>hw_ver.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/hw_ver.c</locationURI>
