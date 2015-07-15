@@ -146,6 +146,9 @@ _on_decode_failed(void){
 		_close_and_reset_dfu();
 	}
 }
+bool is_top_in_dfu(void){
+	return (self.mode == TOP_DFU_MODE);
+}
 static void
 _on_ack_success(void){
 	vTaskDelay(10);
@@ -404,4 +407,8 @@ int Cmd_top_dtm(int argc, char * argv[]){
 int verify_top_update(void){
     _load_top_info(&self.info);
     return sf_sha1_verify((char*)self.info.update_sha, "/top/update.bin");
+}
+void start_top_boot_watcher(void){
+	//vTaskDelay(10000);
+	LOGI("checking for boot\r\n");
 }
