@@ -1712,6 +1712,38 @@ int Cmd_disableInterrupts(int argc, char *argv[]) {
 	}
 	return 0;
 }
+#define ARR_LEN(x) (sizeof(x)/sizeof(x[0]))
+static void print_nwp_version() {
+	SlVersionFull ver;
+	uint8_t pConfigOpt, pConfigLen, i;
+
+	pConfigOpt = SL_DEVICE_GENERAL_VERSION;
+
+	pConfigLen = sizeof(SlVersionFull);
+
+	if( 0 == sl_DevGet(SL_DEVICE_GENERAL_CONFIGURATION,&pConfigOpt,&pConfigLen,(uint8_t *)(&ver)) ) {
+		LOGI("FW " );
+		for(i=0;i<ARR_LEN(ver.ChipFwAndPhyVersion.FwVersion);++i) {
+			LOGI("%d.", ver.ChipFwAndPhyVersion.FwVersion[i] );
+		} LOGI("\n");
+
+		LOGI("PHY " );
+		for(i=0;i<ARR_LEN(ver.ChipFwAndPhyVersion.PhyVersion);++i) {
+			LOGI("%d.", ver.ChipFwAndPhyVersion.PhyVersion[i] );
+		} LOGI("\n");
+
+		LOGI("CHIP %x\n", ver.ChipFwAndPhyVersion.ChipId );
+		LOGI("NWP " );
+		for(i=0;i<ARR_LEN(ver.NwpVersion);++i) {
+			LOGI("%d.", ver.NwpVersion[i] );
+		} LOGI("\n");
+
+		LOGI("ROM %x\n", ver.RomVersion );
+	}
+}
+int Cmd_nwpinfo(int argc, char *argv[]) {
+	print_nwp_version();
+}
 
 
 // ==============================================================================
@@ -1817,6 +1849,8 @@ tCmdLineEntry g_sCmdTable[] = {
 		{"ana", Cmd_analytics, ""},
 		{"dns", Cmd_setDns, ""},
 		{"noint", Cmd_disableInterrupts, ""},
+		{"nwp", Cmd_nwpinfo, ""},
+
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
 		{ "iperfcli",Cmd_iperf_client,""},
@@ -1990,6 +2024,7 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("\n\nFreeRTOS %s, %x, %s %x:%x:%x:%x:%x:%x\n",
 	tskKERNEL_VERSION_NUMBER, KIT_VER, MORPH_NAME, mac[0], mac[1], mac[2],
 			mac[3], mac[4], mac[5]);
+	print_nwp_version();
 	UARTprintf("> ");
 
 	/* remove anything we recieved before we were ready */
