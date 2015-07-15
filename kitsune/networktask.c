@@ -209,6 +209,7 @@ static NetworkResponse_t nettask_send(NetworkTaskServerSendMessage_t * message) 
 
 	//let the requester know we are done
 	if (message->response_callback) {
+		DEBUG_PRINTF("NT CB %x\n",message->response_callback);
 		message->response_callback(&response, decode_buf, decode_buf_size,message->context);
 	}
 
@@ -249,13 +250,13 @@ int NetworkTask_AddMessageToQueue(const NetworkTaskServerSendMessage_t * message
 
 int networktask_enter_critical_region()
 {
-	//LOGI("NT::ENTER CRITICAL REGION\n");
+	LOGI("NT::ENTER\n");
 	return xSemaphoreTake(_network_mutex, portMAX_DELAY);
 }
 
 int networktask_exit_critical_region()
 {
-	//LOGI("NT::EXIT CRITICAL REGION\n");
+	LOGI("NT::EXIT\n");
 	return xSemaphoreGive(_network_mutex);
 }
 
