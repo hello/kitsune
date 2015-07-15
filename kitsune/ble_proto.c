@@ -497,7 +497,7 @@ extern volatile bool provisioning_mode;
 void ble_proto_led_fade_in_trippy(){
 	uint8_t trippy_base[3] = {60, 25, 90};
 	led_fade_all_animation(18);
-	play_led_trippy(trippy_base, trippy_base, portMAX_DELAY, 30 );
+	play_led_trippy(trippy_base, trippy_base, portMAX_DELAY, 30, 30 );
 }
 
 void ble_proto_led_fade_out(bool operation_result){

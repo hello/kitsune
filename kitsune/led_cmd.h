@@ -33,7 +33,9 @@ typedef struct{
 	led_user_animation_reinit_handler reinit_handler;
 	void * context;
 	uint8_t priority;
+	int fade_time;
 	int cycle_time;
+	int fade_elapsed;
 }user_animation_t;
 
 int Cmd_led_clr(int argc, char *argv[]);

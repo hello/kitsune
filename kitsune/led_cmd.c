@@ -468,6 +468,12 @@ void led_task( void * params ) {
 				int animation_result = user_animation.handler(colors_last, colors,user_animation.context );
 				if( animation_result == ANIMATION_CONTINUE ) {
 					ledcpy(colors_last, colors, NUM_LED);
+					//fade in independently of animation rate...
+					if( user_animation.fade_time != 0 &&
+						user_animation.fade_elapsed < user_animation.fade_time ) {
+						user_animation.fade_elapsed += get_cycle_time();
+						led_brightness_all(colors, LED_MAX * user_animation.fade_elapsed / user_animation.fade_time );
+					}
 					//delay capped at 500 ms to improve task responsiveness
 					xSemaphoreGiveRecursive( led_smphr );
 					led_array(colors, get_cycle_time());
@@ -491,8 +497,14 @@ void led_task( void * params ) {
 		}
 		if (evnt & ( LED_FADE_OUT_STEP_BIT | LED_CUSTOM_TRANSITION ) ) {
 			led_color_t colors[NUM_LED + 1];
-			ledcpy(colors, colors_last, NUM_LED);
 			xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
+
+			if( user_animation.fade_time != 0 &&
+				user_animation.fade_elapsed < user_animation.fade_time ) {
+				led_brightness_all(colors_last, LED_MAX * user_animation.fade_elapsed / user_animation.fade_time );
+				user_animation.fade_time = 0;
+			}
+			ledcpy(colors, colors_last, NUM_LED);
 
 			if( evnt & LED_CUSTOM_TRANSITION ) {
 				if( fadeout_animation.priority != 0xff && fadeout_animation.handler ){
@@ -597,10 +609,6 @@ int Cmd_led_clr(int argc, char *argv[]) {
 	xEventGroupSetBits( led_events, LED_RESET_BIT );
 
 	return 0;
-}
-
-unsigned int led_delay( unsigned int dly ) {
-	return (255 / QUANT_FACTOR + 1) * dly;
 }
 
 int led_set_color(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b,

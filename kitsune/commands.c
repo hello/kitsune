@@ -687,7 +687,7 @@ void thread_alarm(void * unused) {
 
 					uint8_t trippy_base[3] = { 0, 0, 0 };
 					uint8_t trippy_range[3] = { 254, 254, 254 };
-					play_led_trippy(trippy_base, trippy_range,0, 333);
+					play_led_trippy(trippy_base, trippy_range,0,30, 120000);
 
 					delay = 90;
 				}
@@ -1743,6 +1743,7 @@ static void print_nwp_version() {
 }
 int Cmd_nwpinfo(int argc, char *argv[]) {
 	print_nwp_version();
+	return 0;
 }
 
 

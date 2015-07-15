@@ -211,7 +211,7 @@ static push_memory_queue(void * new){
 	}
 }
 
-int play_led_trippy(uint8_t trippy_base[3], uint8_t trippy_range[3], unsigned int timeout, unsigned int delay ){
+int play_led_trippy(uint8_t trippy_base[3], uint8_t trippy_range[3], unsigned int timeout, unsigned int delay, unsigned int fade ){
 	int ret;
 	user_animation_t anim = (user_animation_t){
 		.handler = _animate_trippy,
@@ -220,6 +220,8 @@ int play_led_trippy(uint8_t trippy_base[3], uint8_t trippy_range[3], unsigned in
 		.reinit_handler = NULL,
 		.priority = 1,
 		.cycle_time = delay,
+		.fade_time = fade,
+		.fade_elapsed = 0,
 	};
 
 	xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
@@ -249,6 +251,8 @@ int play_led_animation_solid(int a, int r, int g, int b, int repeat, int delay, 
 			.context = ctx,
 			.priority = priority,
 			.cycle_time = delay,
+			.fade_time = 0,
+			.fade_elapsed = 0,
 	};
 	ret = led_transition_custom_animation(&anim);
 	if( ret > 0 ) {
@@ -266,6 +270,8 @@ int play_led_progress_bar(int r, int g, int b, unsigned int options, unsigned in
 		.context = NULL,
 		.priority = 1,
 		.cycle_time = 20,
+		.fade_time = 0,
+		.fade_elapsed = 0,
 	};
 	xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
 	ret = led_transition_custom_animation(&anim);
@@ -286,6 +292,8 @@ int factory_led_test_pattern(unsigned int timeout) {
 		.context = (void*)&counter,
 		.priority = 2,
 		.cycle_time = 500,
+		.fade_time = 0,
+		.fade_elapsed = 0,
 	};
 	ret = led_transition_custom_animation(&anim);
 	return ret;
@@ -309,6 +317,8 @@ int play_led_wheel(int a, int r, int g, int b, int repeat, int delay){
 		.context = wheel_ctx,
 		.priority = 2,
 		.cycle_time = delay,
+		.fade_time = 0,
+		.fade_elapsed = 0,
 	};
 	ret = led_transition_custom_animation(&anim);
 
@@ -342,11 +352,11 @@ int Cmd_led_animate(int argc, char *argv[]){
 			if(argc >= 8){
 				uint8_t trippy_base[3] = {atoi(argv[2]), atoi(argv[3]), atoi(argv[4])};
 				uint8_t trippy_range[3] = {atoi(argv[5]), atoi(argv[6]), atoi(argv[7])};
-				play_led_trippy( trippy_base, trippy_range, portMAX_DELAY, 30 );
+				play_led_trippy( trippy_base, trippy_range, portMAX_DELAY, 30,30 );
 			}else{
 				uint8_t trippy_base[3] = {rand()%120, rand()%120, rand()%120};
 				uint8_t trippy_range[3] = {rand()%120, rand()%120, rand()%120};
-				play_led_trippy( trippy_base, trippy_range, portMAX_DELAY, 30 );
+				play_led_trippy( trippy_base, trippy_range, portMAX_DELAY, 30,30 );
 			}
 		}else if(strcmp(argv[1], "wheel") == 0){
 			play_led_wheel(rand()%LED_MAX, rand()%LED_MAX, rand()%LED_MAX, rand()%LED_MAX, 2, 16);
