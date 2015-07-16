@@ -413,16 +413,16 @@ int Cmd_SyncID(int argc, char * argv[]);
 void _boot_watcher_task(hlo_future_t * result, void * ctx){
 	int retries = 0;
 	while(1){
-		vTaskDelay(10000);
 		if(self.top_boot == 0){
 			LOGW("Attempting to resync ID\r\n");
 			Cmd_SyncID(0, 0);
-			if(reties++ > 3){
+			if(retries++ > 3){
 				LOGE("Unable to boot top board!\r\n");
 			}
 		}else{
 			break;
 		}
+		vTaskDelay(10000);
 	}
 	hlo_future_write(result, NULL, 0, 0);
 	Cmd_SyncID(0, 0);
@@ -430,5 +430,4 @@ void _boot_watcher_task(hlo_future_t * result, void * ctx){
 }
 void start_top_boot_watcher(void){
 	hlo_future_destroy(hlo_future_create_task_bg(_boot_watcher_task, NULL, 512));
-
 }

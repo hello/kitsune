@@ -43,12 +43,12 @@ typedef enum {
 	LED_OFF
 }led_mode_t;
 
-static struct {
+static volatile struct {
 	uint8_t argb[4];
 	int delay;
 	uint32_t last_hold_time;
 	uint32_t last_cancel;
-    ble_mode_t ble_status;
+	volatile ble_mode_t ble_status;
     xSemaphoreHandle smphr;
 } _self;
 

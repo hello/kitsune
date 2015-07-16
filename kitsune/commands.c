@@ -1661,6 +1661,7 @@ void init_i2c_recovery();
 
 void launch_tasks() {
 	checkFaults();
+	start_top_boot_watcher();
 
 	//dear future chris: this one doesn't need a semaphore since it's only written to while threads are going during factory test boot
 	booted = true;
@@ -2055,7 +2056,6 @@ void vUARTTask(void *pvParameters) {
 	ble_proto_init();
 	xTaskCreate(top_board_task, "top_board_task", 1280 / 4, NULL, 2, NULL);
 	xTaskCreate(thread_spi, "spiTask", 1024 / 4, NULL, 3, NULL);
-	start_top_boot_watcher();
 #ifndef BUILD_SERVERS
 	uart_logger_init();
 	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 3, NULL);
