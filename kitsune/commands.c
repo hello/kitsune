@@ -501,10 +501,11 @@ void load_serial() {
 static xSemaphoreHandle alarm_smphr;
 static SyncResponse_Alarm alarm;
 static char alarm_ack[sizeof(((SyncResponse *)0)->ring_time_ack)];
+static volatile bool needs_alarm_ack = false;
 #define ONE_YEAR_IN_SECONDS 0x1E13380
 
 void set_alarm( SyncResponse_Alarm * received_alarm, const char * ack, size_t ack_size ) {
-    if (xSemaphoreTake(alarm_smphr, portMAX_DELAY)) {
+    if (xSemaphoreTakeRecursive(alarm_smphr, portMAX_DELAY)) {
         if (received_alarm->has_ring_offset_from_now_in_second
         	&& received_alarm->ring_offset_from_now_in_second > -1 ) {   // -1 means user has no alarm/reset his/her now
         	unsigned long now = get_time();
@@ -530,6 +531,7 @@ void set_alarm( SyncResponse_Alarm * received_alarm, const char * ack, size_t ac
                         (received_alarm->start_time - now) / 60);
             if(ack && ack_size){
 				memcpy(alarm_ack, ack, min(sizeof(alarm_ack), ack_size));
+				LOGI("Alarm ID: %x %x\r\n", alarm_ack[0], alarm_ack[1]);
 			}else{
 				memset(alarm_ack, 0, sizeof(alarm_ack));
 			}
@@ -546,7 +548,7 @@ void set_alarm( SyncResponse_Alarm * received_alarm, const char * ack, size_t ac
 
             memcpy(&alarm, received_alarm, sizeof(alarm));
         }
-        xSemaphoreGive(alarm_smphr);
+        xSemaphoreGiveRecursive(alarm_smphr);
     }
 }
 static bool alarm_is_ringing = false;
@@ -554,7 +556,7 @@ static bool cancel_alarm() {
 	bool was_ringing = false;
 	AudioTask_StopPlayback();
 
-	if (xSemaphoreTake(alarm_smphr, portMAX_DELAY)) {
+	if (xSemaphoreTakeRecursive(alarm_smphr, portMAX_DELAY)) {
 		if (alarm_is_ringing) {
 			if (alarm.has_end_time || alarm.has_ring_offset_from_now_in_second) {
 				analytics_event( "{alarm: dismissed}" );
@@ -569,7 +571,7 @@ static bool cancel_alarm() {
 		    was_ringing = true;
 		}
 
-		xSemaphoreGive(alarm_smphr);
+		xSemaphoreGiveRecursive(alarm_smphr);
 	}
 	return was_ringing;
 }
@@ -590,12 +592,18 @@ int set_test_alarm(int argc, char *argv[]) {
 	alarm.has_ringtone_path = 1;
 	alarm.has_ring_offset_from_now_in_second = 1;
 
-	set_alarm( &alarm, NULL, 0 );
+	set_alarm( &alarm, "test", 5 );
 	return 0;
 }
-
+int force_data_push(void);
 static void thread_alarm_on_finished(void * context) {
 	stop_led_animation(10, 60);
+	if (xSemaphoreTakeRecursive(alarm_smphr, 500)) {
+		LOGI("Alarm finished\r\n");
+		needs_alarm_ack = true;
+		xSemaphoreGiveRecursive(alarm_smphr);
+	}
+	force_data_push();
 }
 
 static bool _is_file_exists(char* path)
@@ -621,7 +629,7 @@ void thread_alarm(void * unused) {
 		// The alarm thread should go ahead even without a valid time,
 		// because we don't need a correct time to fire alarm, we just need the offset.
 
-		if (xSemaphoreTake(alarm_smphr, portMAX_DELAY)) {
+		if (xSemaphoreTakeRecursive(alarm_smphr, portMAX_DELAY)) {
 			if(alarm.has_start_time && alarm.start_time > 0)
 			{
 				if ( time - alarm.start_time < alarm.ring_duration_in_second ) {
@@ -702,7 +710,7 @@ void thread_alarm(void * unused) {
 				// Alarm start time = 0 means no alarm
 			}
 			
-			xSemaphoreGive(alarm_smphr);
+			xSemaphoreGiveRecursive(alarm_smphr);
 		}
 		vTaskDelayUntil(&now, 1000*delay );
 	}
@@ -1037,8 +1045,18 @@ void thread_tx(void* unused) {
 
 			data_batched.scan.funcs.encode = encode_scanned_ssid;
 			data_batched.scan.arg = NULL;
+
 			if( !got_forced_data ) {
 				data_batched.scan.arg = prescan_wifi(10);
+			}
+			if (xSemaphoreTakeRecursive(alarm_smphr, 1000)) {
+				if(needs_alarm_ack){
+					data_batched.has_ring_time_ack = true;
+					memcpy(data_batched.ring_time_ack, alarm_ack, sizeof(data_batched.ring_time_ack));
+					LOGI("Ack Alarm ID: %x %x\r\n", alarm_ack[0], alarm_ack[1]);
+					needs_alarm_ack = false;
+				}
+				xSemaphoreGiveRecursive(alarm_smphr);
 			}
 			send_periodic_data(&data_batched, got_forced_data);
 			last_upload_time = xTaskGetTickCount();
@@ -2034,7 +2052,7 @@ void vUARTTask(void *pvParameters) {
 	vSemaphoreCreateBinary(dust_smphr);
 	vSemaphoreCreateBinary(light_smphr);
 	vSemaphoreCreateBinary(spi_smphr);
-	vSemaphoreCreateBinary(alarm_smphr);
+	alarm_smphr = xSemaphoreCreateRecursiveMutex();
 
 
 	if (data_queue == 0) {
