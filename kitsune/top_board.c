@@ -19,6 +19,7 @@
 #include "stdlib.h"
 #include "ble_proto.h"
 #include "crypto.h"
+#include "hlo_async.h"
 
 #define TOPBOARD_INFO_FILE "/top/info.bin"
 
@@ -408,7 +409,22 @@ int verify_top_update(void){
     _load_top_info(&self.info);
     return sf_sha1_verify((char*)self.info.update_sha, "/top/update.bin");
 }
+int Cmd_SyncID(int argc, char * argv[]);
+void _boot_watcher_task(hlo_future_t * result, void * ctx){
+	while(1){
+		vTaskDelay(10000);
+		if(self.top_boot == 0){
+			LOGI("Attempting to resync ID\r\n");
+			Cmd_SyncID(0, 0);
+		}else{
+			break;
+		}
+	}
+	hlo_future_write(result, NULL, 0, 0);
+	Cmd_SyncID(0, 0);
+	LOGI("Top has booted\r\n");
+}
 void start_top_boot_watcher(void){
-	//vTaskDelay(10000);
-	LOGI("checking for boot\r\n");
+	hlo_future_destroy(hlo_future_create_task_bg(_boot_watcher_task, NULL, 512));
+
 }

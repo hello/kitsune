@@ -1750,7 +1750,7 @@ int Cmd_nwpinfo(int argc, char *argv[]) {
 	print_nwp_version();
 	return 0;
 }
-
+int Cmd_SyncID(int argc, char * argv[]);
 
 // ==============================================================================
 // This is the table that holds the command names, implementing functions, and
@@ -1856,7 +1856,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{"dns", Cmd_setDns, ""},
 		{"noint", Cmd_disableInterrupts, ""},
 		{"nwp", Cmd_nwpinfo, ""},
-
+		{"resync", Cmd_SyncID, ""},
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
 		{ "iperfcli",Cmd_iperf_client,""},
