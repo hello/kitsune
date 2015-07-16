@@ -500,6 +500,7 @@ void load_serial() {
 static xSemaphoreHandle alarm_smphr;
 static SyncResponse_Alarm alarm;
 static char alarm_ack[sizeof(((SyncResponse *)0)->ring_time_ack)];
+static volatile bool needs_alarm_ack = false;
 #define ONE_YEAR_IN_SECONDS 0x1E13380
 
 void set_alarm( SyncResponse_Alarm * received_alarm, const char * ack, size_t ack_size ) {
@@ -592,13 +593,15 @@ int set_test_alarm(int argc, char *argv[]) {
 	set_alarm( &alarm, NULL, 0 );
 	return 0;
 }
-
+int force_data_push(void);
 static void thread_alarm_on_finished(void * context) {
 	stop_led_animation(10, 60);
 	if (xSemaphoreTakeRecursive(alarm_smphr, 500)) {
-		needs_ack_alarm = true;
+		LOGI("Alarm finished\r\n");
+		needs_alarm_ack = true;
 		xSemaphoreGiveRecursive(alarm_smphr);
 	}
+	force_data_push();
 }
 
 static bool _is_file_exists(char* path)
@@ -1043,6 +1046,14 @@ void thread_tx(void* unused) {
 
 			if( !got_forced_data ) {
 				data_batched.scan.arg = prescan_wifi(10);
+			}
+			if (xSemaphoreTakeRecursive(alarm_smphr, 1000)) {
+				if(needs_alarm_ack){
+					data_batched.has_ring_time_ack = true;
+					memcpy(data_batched.ring_time_ack, alarm_ack, sizeof(data_batched.ring_time_ack));
+					needs_alarm_ack = false;
+				}
+				xSemaphoreGiveRecursive(alarm_smphr);
 			}
 			send_periodic_data(&data_batched, got_forced_data);
 			last_upload_time = xTaskGetTickCount();
