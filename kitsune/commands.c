@@ -1334,8 +1334,53 @@ int Cmd_tasks(int argc, char *argv[]) {
 
 #endif /* configUSE_TRACE_FACILITY */
 
-
 #define SCAN_TABLE_SIZE   20
+
+static void SortByRSSI(Sl_WlanNetworkEntry_t* netEntries,
+                                            unsigned char ucSSIDCount)
+{
+    Sl_WlanNetworkEntry_t tTempNetEntry;
+    unsigned char ucCount, ucSwapped;
+    do{
+        ucSwapped = 0;
+        for(ucCount =0; ucCount < ucSSIDCount - 1; ucCount++)
+        {
+           if(netEntries[ucCount].rssi < netEntries[ucCount + 1].rssi)
+           {
+              tTempNetEntry = netEntries[ucCount];
+              netEntries[ucCount] = netEntries[ucCount + 1];
+              netEntries[ucCount + 1] = tTempNetEntry;
+              ucSwapped = 1;
+           }
+        } //end for
+     }while(ucSwapped);
+}
+
+
+int Cmd_rssi(int argc, char *argv[]) {
+	int lCountSSID,i;
+	int antenna = 0; // 0 does not change the antenna
+	int duration = 1000;
+
+	Sl_WlanNetworkEntry_t g_netEntries[SCAN_TABLE_SIZE];
+
+	if (argc == 2) {
+		duration = atoi(argv[1]);
+	}
+	if (argc == 3) {
+		antenna = atoi(argv[2]);
+	}
+
+	lCountSSID = get_wifi_scan_result(&g_netEntries[0], SCAN_TABLE_SIZE, duration, antenna );
+
+    SortByRSSI(&g_netEntries[0],(unsigned char)lCountSSID);
+
+    LOGF( "SSID RSSI\n" );
+	for(i=0;i<lCountSSID;++i) {
+		LOGF( "%s %d\n", g_netEntries[i].ssid, g_netEntries[i].rssi );
+	}
+	return 0;
+}
 
 #include "crypto.h"
 static const uint8_t exponent[] = { 1,0,1 };
@@ -1845,6 +1890,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "frag",cmd_memfrag,""},
 		{ "burntopkey",Cmd_burn_top,""},
 		{ "scan",Cmd_scan_wifi,""},
+		{ "rssi", Cmd_rssi, "" },
 		{"future",Cmd_FutureTest,""},
 		{"dev", Cmd_setDev, ""},
 		{"ana", Cmd_analytics, ""},
