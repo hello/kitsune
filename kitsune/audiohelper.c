@@ -30,6 +30,34 @@ extern tCircularBuffer *pRxBuffer;
 
 #define AUDIO_PLAYBACK_RATE_HZ (48000)
 
+uint8_t InitAudioDuplex(uint32_t rate){
+	pTxBuffer = CreateCircularBuffer(TX_BUFFER_SIZE);
+	pRxBuffer = CreateCircularBuffer(RX_BUFFER_SIZE);
+	if(!pTxBuffer || !pRxBuffer){
+		return 0;
+	}
+	get_codec_io_NAU();
+	InitAudioCapture(rate);
+	UDMAInit();
+	UDMAChannelSelect(UDMA_CH4_I2S_RX, NULL);
+	UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL);
+	SetupPingPongDMATransferTx();
+	SetupPingPongDMATransferRx();
+	AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
+	AudioCaptureRendererConfigure(I2S_PORT_DMA, rate);
+	return 1;
+}
+void DeInitAudioDuplex(){
+	Audio_Stop();
+	McASPDeInit();
+	if(pTxBuffer){
+		DestroyCircularBuffer(pTxBuffer);
+	}
+	if(pRxBuffer){
+		DestroyCircularBuffer(pRxBuffer);
+	}
+}
+
 uint8_t InitAudioCapture(uint32_t rate) {
 
 	if(pTxBuffer == NULL) {
@@ -41,7 +69,6 @@ uint8_t InitAudioCapture(uint32_t rate) {
 	}
 
 	get_codec_mic_NAU();
-
 	// Initialize the Audio(I2S) Module
 	McASPInit(rate);
 
@@ -88,7 +115,6 @@ uint8_t InitAudioPlayback(int32_t vol, uint32_t rate ) {
 	//////
 	// SET UP AUDIO PLAYBACK
 	get_codec_NAU(vol);
-
 	// Initialize the Audio(I2S) Module
 	McASPInit(rate);
 

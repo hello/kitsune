@@ -560,7 +560,7 @@ void ble_proto_end_hold()
 	}
 	_self.last_hold_time = 0;
 }
-
+#include "hellofilesystem.h"
 static void play_startup_sound() {
 	// TODO: Play startup sound. You will only reach here once.
 	// Now the hand hover-to-pairing mode will not delete all the bonds
@@ -571,7 +571,7 @@ static void play_startup_sound() {
 	{
 		AudioPlaybackDesc_t desc;
 		memset(&desc, 0, sizeof(desc));
-		strncpy(desc.file, "/ringtone/star003.raw", strlen("/ringtone/star003.raw"));
+		desc.stream = fs_stream_open("/ringtone/star003.raw", HLO_STREAM_READ);
 		desc.volume = 57;
 		desc.durationInSeconds = -1;
 		desc.rate = 48000;

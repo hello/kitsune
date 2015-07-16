@@ -162,14 +162,9 @@ extern void UtilsDelay(unsigned long ulCount);
 static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
     #define SPEAKER_DATA_CHUNK_SIZE (PING_PONG_CHUNK_SIZE)
-	//1.5K on the stack
+
 	uint16_t * speaker_data = pvPortMalloc(SPEAKER_DATA_CHUNK_SIZE);
-
-
-	FIL fp = {0};
-	UINT size;
-	FRESULT res;
-	uint32_t totBytesRead = 0;
+	int size;
 	uint32_t iReceiveCount = 0;
 	uint8_t returnFlags = 0x00;
 
@@ -190,39 +185,13 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	LOGI("Starting playback\r\n");
 	LOGI("%d bytes free\n", xPortGetFreeHeapSize());
 
-	hello_fs_lock();
-
-	if (!info || !info->file) {
-		hello_fs_unlock();
-		LOGI("invalid playback info %s\n\r",info->file);
-		vPortFree(speaker_data);
-		return returnFlags;
-	}
-
-
 	if ( !InitAudioPlayback(volume, info->rate ) ) {
-		hello_fs_unlock();
 		LOGI("unable to initialize audio playback.  Probably not enough memory!\r\n");
 		vPortFree(speaker_data);
 		return returnFlags;
 
 	}
-
 	LOGI("%d bytes free\n", xPortGetFreeHeapSize());
-
-
-	//open file for playback
-	LOGI("Opening %s for playback\r\n",info->file);
-	res = hello_fs_open(&fp, info->file, FA_READ);
-
-	if (res != FR_OK) {
-		hello_fs_unlock();
-		LOGI("Failed to open audio file %s\n\r",info->file);
-		DeinitAudioPlayback();
-		vPortFree(speaker_data);
-		return returnFlags;
-	}
-
 	memset(speaker_data,0,SPEAKER_DATA_CHUNK_SIZE);
 
 	if( has_fade ) {
@@ -254,8 +223,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 			}
 		}
 		/* Read always in block of 512 Bytes or less else it will stuck in hello_fs_read() */
-		res = hello_fs_read(&fp, speaker_data, SPEAKER_DATA_CHUNK_SIZE>>1, &size);
-		totBytesRead += size;
+		size = hlo_stream_read(info->stream, speaker_data, SPEAKER_DATA_CHUNK_SIZE>>1);
 
 		/* Wait to avoid buffer overflow as reading speed is faster than playback */
 		iBufWaitingCount = 0;
@@ -296,8 +264,6 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 				//speaker_data[(i<<1)+1] = 0;
 			}
 
-			//static volatile int slow = 250000; UtilsDelay(slow);
-
 			while( FillBuffer(pRxBuffer, (unsigned char*) (speaker_data), size<<1) < 0 ) {
 				vTaskDelay(1);
 			}
@@ -320,19 +286,10 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 				break;
 			}
 
-		}
-		else {
-			if (desired_ticks_elapsed >= 0) {
-				//LOOP THE FILE -- start over
-				hello_fs_lseek(&fp,0);
-			}
-			else {
-				//someone passed in a negative number--which means after one
-				//play through the file, we quit.
-
-				break;
-			}
-
+		}else {
+			//stream error, what do?
+			LOGE("Stream ended\r\n");
+			break;
 		}
 
 		if (g_uiPlayWaterMark == 0) {
@@ -359,12 +316,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 	vPortFree(speaker_data);
 
-	///CLEANUP
-	hello_fs_close(&fp);
-
 	DeinitAudioPlayback();
-
-	hello_fs_unlock();
 
 	LOGI("completed playback\r\n");
 
