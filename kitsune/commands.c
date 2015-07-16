@@ -591,7 +591,7 @@ int set_test_alarm(int argc, char *argv[]) {
 	alarm.has_ringtone_path = 1;
 	alarm.has_ring_offset_from_now_in_second = 1;
 
-	set_alarm( &alarm, NULL, 0 );
+	set_alarm( &alarm, "test", 5 );
 	return 0;
 }
 int force_data_push(void);
@@ -2000,7 +2000,7 @@ void vUARTTask(void *pvParameters) {
 	vSemaphoreCreateBinary(dust_smphr);
 	vSemaphoreCreateBinary(light_smphr);
 	vSemaphoreCreateBinary(spi_smphr);
-	vSemaphoreCreateBinary(alarm_smphr);
+	alarm_smphr = xSemaphoreCreateRecursiveMutex();
 
 
 	if (data_queue == 0) {
