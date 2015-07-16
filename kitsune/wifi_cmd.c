@@ -1685,11 +1685,11 @@ bool get_device_id(char * hex_device_id,uint32_t size_of_device_id_buffer) {
 
 bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg);
 
-void set_alarm( SyncResponse_Alarm * received_alarm );
+void set_alarm( SyncResponse_Alarm * received_alarm, const char * ack, size_t ack_size );
 
-static void _on_alarm_received( SyncResponse_Alarm* received_alarm)
+static void _on_alarm_received( SyncResponse_Alarm* received_alarm, const char * ack, size_t ack_size)
 {
-	set_alarm( received_alarm );
+	set_alarm( received_alarm, ack, ack_size );
 }
 
 static void _on_factory_reset_received()
@@ -1795,7 +1795,13 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
 {
     if (response_protobuf->has_alarm) 
     {
-        _on_alarm_received(&response_protobuf->alarm);
+    	if(response_protobuf->has_ring_time_ack){
+    		_on_alarm_received(&response_protobuf->alarm, response_protobuf->ring_time_ack, sizeof(response_protobuf->ring_time_ack));
+
+    	}else{
+    		_on_alarm_received(&response_protobuf->alarm, NULL, 0);
+    	}
+
     }
 
     if (response_protobuf->has_mac)

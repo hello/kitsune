@@ -500,9 +500,10 @@ void load_serial() {
 
 static xSemaphoreHandle alarm_smphr;
 static SyncResponse_Alarm alarm;
+static char alarm_ack[sizeof(((SyncResponse *)0)->ring_time_ack)];
 #define ONE_YEAR_IN_SECONDS 0x1E13380
 
-void set_alarm( SyncResponse_Alarm * received_alarm ) {
+void set_alarm( SyncResponse_Alarm * received_alarm, const char * ack, size_t ack_size ) {
     if (xSemaphoreTake(alarm_smphr, portMAX_DELAY)) {
         if (received_alarm->has_ring_offset_from_now_in_second
         	&& received_alarm->ring_offset_from_now_in_second > -1 ) {   // -1 means user has no alarm/reset his/her now
@@ -527,6 +528,11 @@ void set_alarm( SyncResponse_Alarm * received_alarm ) {
             LOGI("alarm %d to %d in %d minutes\n",
                         received_alarm->start_time, received_alarm->end_time,
                         (received_alarm->start_time - now) / 60);
+            if(ack && ack_size){
+				memcpy(alarm_ack, ack, min(sizeof(alarm_ack), ack_size));
+			}else{
+				memset(alarm_ack, 0, sizeof(alarm_ack));
+			}
         }else{
             LOGI("No alarm\n");
             // when we reach here, we need to cancel the existing alarm to prevent them ringing.
@@ -540,7 +546,6 @@ void set_alarm( SyncResponse_Alarm * received_alarm ) {
 
             memcpy(&alarm, received_alarm, sizeof(alarm));
         }
-
         xSemaphoreGive(alarm_smphr);
     }
 }
@@ -585,7 +590,7 @@ int set_test_alarm(int argc, char *argv[]) {
 	alarm.has_ringtone_path = 1;
 	alarm.has_ring_offset_from_now_in_second = 1;
 
-	set_alarm( &alarm );
+	set_alarm( &alarm, NULL, 0 );
 	return 0;
 }
 
