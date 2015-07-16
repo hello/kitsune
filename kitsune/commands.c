@@ -503,7 +503,7 @@ static char alarm_ack[sizeof(((SyncResponse *)0)->ring_time_ack)];
 #define ONE_YEAR_IN_SECONDS 0x1E13380
 
 void set_alarm( SyncResponse_Alarm * received_alarm, const char * ack, size_t ack_size ) {
-    if (xSemaphoreTake(alarm_smphr, portMAX_DELAY)) {
+    if (xSemaphoreTakeRecursive(alarm_smphr, portMAX_DELAY)) {
         if (received_alarm->has_ring_offset_from_now_in_second
         	&& received_alarm->ring_offset_from_now_in_second > -1 ) {   // -1 means user has no alarm/reset his/her now
         	unsigned long now = get_time();
@@ -545,7 +545,7 @@ void set_alarm( SyncResponse_Alarm * received_alarm, const char * ack, size_t ac
 
             memcpy(&alarm, received_alarm, sizeof(alarm));
         }
-        xSemaphoreGive(alarm_smphr);
+        xSemaphoreGiveRecursive(alarm_smphr);
     }
 }
 static bool alarm_is_ringing = false;
@@ -553,7 +553,7 @@ static bool cancel_alarm() {
 	bool was_ringing = false;
 	AudioTask_StopPlayback();
 
-	if (xSemaphoreTake(alarm_smphr, portMAX_DELAY)) {
+	if (xSemaphoreTakeRecursive(alarm_smphr, portMAX_DELAY)) {
 		if (alarm_is_ringing) {
 			if (alarm.has_end_time || alarm.has_ring_offset_from_now_in_second) {
 				analytics_event( "{alarm: dismissed}" );
@@ -568,7 +568,7 @@ static bool cancel_alarm() {
 		    was_ringing = true;
 		}
 
-		xSemaphoreGive(alarm_smphr);
+		xSemaphoreGiveRecursive(alarm_smphr);
 	}
 	return was_ringing;
 }
@@ -595,6 +595,10 @@ int set_test_alarm(int argc, char *argv[]) {
 
 static void thread_alarm_on_finished(void * context) {
 	stop_led_animation(10, 60);
+	if (xSemaphoreTakeRecursive(alarm_smphr, 500)) {
+		needs_ack_alarm = true;
+		xSemaphoreGiveRecursive(alarm_smphr);
+	}
 }
 
 static bool _is_file_exists(char* path)
@@ -620,7 +624,7 @@ void thread_alarm(void * unused) {
 		// The alarm thread should go ahead even without a valid time,
 		// because we don't need a correct time to fire alarm, we just need the offset.
 
-		if (xSemaphoreTake(alarm_smphr, portMAX_DELAY)) {
+		if (xSemaphoreTakeRecursive(alarm_smphr, portMAX_DELAY)) {
 			if(alarm.has_start_time && alarm.start_time > 0)
 			{
 				if ( time - alarm.start_time < alarm.ring_duration_in_second ) {
@@ -701,7 +705,7 @@ void thread_alarm(void * unused) {
 				// Alarm start time = 0 means no alarm
 			}
 			
-			xSemaphoreGive(alarm_smphr);
+			xSemaphoreGiveRecursive(alarm_smphr);
 		}
 		vTaskDelayUntil(&now, 1000*delay );
 	}
@@ -1036,6 +1040,7 @@ void thread_tx(void* unused) {
 
 			data_batched.scan.funcs.encode = encode_scanned_ssid;
 			data_batched.scan.arg = NULL;
+
 			if( !got_forced_data ) {
 				data_batched.scan.arg = prescan_wifi(10);
 			}
