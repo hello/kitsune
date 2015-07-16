@@ -876,3 +876,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
     }
     return true;
 }
+int Cmd_SyncID(int argc, char * argv[]){
+	_ble_reply_command_with_type(MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_DEVICE_ID);
+	return 0;
+}
