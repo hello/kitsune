@@ -1680,6 +1680,7 @@ void launch_tasks() {
 	xTaskCreate(thread_tx, "txTask", 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
 #endif
+	ble_reply_command_with_type(MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_DEVICE_ID);
 }
 
 

@@ -44,6 +44,7 @@ void ble_proto_led_fade_in_trippy();
 void ble_proto_led_fade_out(bool operation_result);
 
 void ble_reply_wifi_status(wifi_connection_state state);
+void ble_reply_command_with_type(MorpheusCommand_CommandType type);
 void ble_reply_socket_error(int error);
 void ble_reply_http_status(char * status);
 

@@ -112,7 +112,7 @@ void ble_reply_wifi_status(wifi_connection_state state)
 	}
 }
 
-static void _ble_reply_command_with_type(MorpheusCommand_CommandType type)
+void ble_reply_command_with_type(MorpheusCommand_CommandType type)
 {
 	MorpheusCommand reply_command;
 	memset(&reply_command, 0, sizeof(reply_command));
@@ -149,7 +149,7 @@ static void _factory_reset(){
     pill_settings_reset_all();
     nwp_reset();
     deleteFilesInDir(USER_DIR);
-	_ble_reply_command_with_type(MorpheusCommand_CommandType_MORPHEUS_COMMAND_FACTORY_RESET);
+	ble_reply_command_with_type(MorpheusCommand_CommandType_MORPHEUS_COMMAND_FACTORY_RESET);
 
 }
 
@@ -615,7 +615,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 						top_device_id[3],top_device_id[4],top_device_id[5],
 						top_device_id[6],top_device_id[7]);
 			    save_device_id(top_device_id);
-				_ble_reply_command_with_type(MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID);
+				ble_reply_command_with_type(MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID);
 				top_board_notify_boot_complete();
 				set_ble_mode(BLE_NORMAL);
 
@@ -643,7 +643,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 		{
 			// Get morpheus device id request from Nordic
 			LOGI("GET DEVICE ID\n");
-			_ble_reply_command_with_type(MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_DEVICE_ID);
+			ble_reply_command_with_type(MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_DEVICE_ID);
 
 			static bool played = false;
 			if( !played && booted && !is_test_boot() && xTaskGetTickCount() < 5000 ) {
@@ -834,22 +834,22 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         break;
     	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_LED_BUSY:
     		LOGI("MorpheusCommand_CommandType_MORPHEUS_COMMAND_LED_BUSY\n");
-    		_ble_reply_command_with_type(command->type);
+    		ble_reply_command_with_type(command->type);
     		ble_proto_led_busy_mode(0xFF, 128, 0, 128, 18);
     		break;
     	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_LED_OPERATION_FAILED:
     		LOGI("MorpheusCommand_CommandType_MORPHEUS_COMMAND_LED_OPERATION_FAILED\n");
-    		_ble_reply_command_with_type(command->type);
+    		ble_reply_command_with_type(command->type);
     		ble_proto_led_fade_out(false);
     		break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_LED_OPERATION_SUCCESS:
     		LOGI("MorpheusCommand_CommandType_MORPHEUS_COMMAND_LED_OPERATION_SUCCESS\n");
-            _ble_reply_command_with_type(command->type);
+            ble_reply_command_with_type(command->type);
             ble_proto_led_fade_out(true);
             break;
     	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_LED_TRIPPY:
     		LOGI("MorpheusCommand_CommandType_MORPHEUS_COMMAND_LED_TRIPPY\n");
-    		_ble_reply_command_with_type(command->type);
+    		ble_reply_command_with_type(command->type);
     		ble_proto_led_fade_in_trippy();
     		break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PUSH_DATA_AFTER_SET_TIMEZONE:
@@ -859,7 +859,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
             {
                 ble_reply_protobuf_error(ErrorType_FORCE_DATA_PUSH_FAILED);
             }else{
-                _ble_reply_command_with_type(command->type);
+                ble_reply_command_with_type(command->type);
             }
         }
 
