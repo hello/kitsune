@@ -90,8 +90,11 @@
 #include "proto_utils.h"
 #include "ustdlib.h"
 
+#include "hlo_stream.h"
 #include "pill_settings.h"
 #include "prox_signal.h"
+#include "hlo_audio_manager.h"
+#include "hlo_audio_tools.h"
 #include "hlo_net_tools.h"
 #define ONLY_MID 0
 
@@ -439,24 +442,6 @@ int Cmd_do_octogram(int argc, char * argv[]) {
 	return 0;
 
 }
-
-int Cmd_play_buff(int argc, char *argv[]) {
-    int vol = atoi( argv[1] );
-    char * file = argv[3];
-    AudioPlaybackDesc_t desc;
-    memset(&desc,0,sizeof(desc));
-    strncpy( desc.file, file, 64 );
-    desc.volume = vol;
-    desc.durationInSeconds = -1;
-	desc.fade_in_ms = 0;
-	desc.fade_out_ms = 0;
-    desc.rate = atoi(argv[2]);
-
-    AudioTask_StartPlayback(&desc);
-
-    return 0;
-    //return play_ringtone( vol );
-}
 int Cmd_fs_delete(int argc, char *argv[]) {
 	//
 	// Print some header text.
@@ -602,10 +587,11 @@ static bool _is_file_exists(char* path)
 	}
 	return true;
 }
-
+#include "hellofilesystem.h"
 uint8_t get_alpha_from_light();
 void thread_alarm(void * unused) {
 	int delay = 1;
+	char alarm_file[64] = {0};
 	while (1) {
 		wait_for_time(WAIT_FOREVER);
 
@@ -624,7 +610,8 @@ void thread_alarm(void * unused) {
 
 					desc.fade_in_ms = 30000;
 					desc.fade_out_ms = 3000;
-					strncpy( desc.file, AUDIO_FILE, 64 );
+
+					strncpy( alarm_file, AUDIO_FILE, 64 );
 					int has_valid_sound_file = 0;
 					char file_name[64] = {0};
 					if(alarm.has_ringtone_path)
@@ -671,7 +658,8 @@ void thread_alarm(void * unused) {
 						LOGE("ALARM RING FAIL: NO RINGTONE FILE FOUND %s\n", file_name);
 					}
 
-					strncpy(desc.file, file_name, 64);
+					strncpy(alarm_file, file_name, 64);
+					desc.stream = fs_stream_open(alarm_file,HLO_STREAM_READ);
 					desc.durationInSeconds = alarm.ring_duration_in_second;
 					desc.volume = 57;
 					desc.onFinished = thread_alarm_on_finished;
@@ -1616,7 +1604,7 @@ void launch_tasks() {
 	booted = true;
 
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 3, NULL);
-	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,1,NULL);
+	//xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,1,NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 3, NULL);
 	UARTprintf("*");
@@ -1795,10 +1783,11 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "fsdl", Cmd_fs_delete, "" },
 		{ "get", Cmd_test_get, ""},
 
-		{ "r", Cmd_record_buff,""}, //record sounds into SD card
-		{ "p", Cmd_play_buff, ""},//play sounds from SD card
-		{ "s",Cmd_stop_buff,""},
-		{ "oct",Cmd_do_octogram,""},
+		{ "r", Cmd_audio_record_start,""}, //record sounds into SD card
+		{ "p", Cmd_audio_record_replay, ""},//play sounds from SD card
+		{ "s",Cmd_audio_record_stop,""},
+		{ "oct",Cmd_audio_octogram,""},
+		{ "feat", Cmd_audio_features, ""},
 		{ "getoct",Cmd_get_octogram,""},
 		{ "aon",Cmd_audio_turn_on,""},
 		{ "aoff",Cmd_audio_turn_off,""},
@@ -1827,8 +1816,8 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "download", Cmd_download, ""},//download test function.
 		{ "dtm", Cmd_top_dtm, "" },//Sends Direct Test Mode command
 		{ "animate", Cmd_led_animate, ""},//Animates led
-		{ "uplog", Cmd_log_upload, "Uploads log to server"},
-		{ "loglevel", Cmd_log_setview, "Sets log level" },
+		{ "uplog", Cmd_log_upload, ""},
+		{ "loglevel", Cmd_log_setview, "" },
 		{ "ver", Cmd_version, ""},//Animates led
 #ifdef BUILD_TESTS
 		{ "test_network",Cmd_test_network,""},
@@ -1851,6 +1840,10 @@ tCmdLineEntry g_sCmdTable[] = {
 		{"dns", Cmd_setDns, ""},
 		{"noint", Cmd_disableInterrupts, ""},
 		{"nwp", Cmd_nwpinfo, ""},
+
+		{ "mks",Cmd_make_stream,""},
+		{ "wrs",Cmd_write_stream,""},
+		{ "rds",Cmd_read_stream,""},
 
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
@@ -2014,7 +2007,11 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("*");
 #endif
 
-
+	//todo put them in launch tasks
+	hlo_audio_manager_init();
+	xTaskCreate(hlo_audio_manager_spkr_thread,"audioManagerThreadSpkr",1*1536/4,NULL,1,NULL);
+	xTaskCreate(hlo_audio_manager_mic_thread,"audioManagerThreadMic",1*1024/4,NULL,1,NULL);
+	//end todo
 	if( on_charger ) {
 		launch_tasks();
 		vTaskDelete(NULL);

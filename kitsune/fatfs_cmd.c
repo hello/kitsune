@@ -403,53 +403,73 @@ int global_filename(char * local_fn)
 // the console.
 //
 //*****************************************************************************
+#include "hlo_pipe.h"
+#include "hlo_audio_manager.h"
+#define BUF_SIZE 64
+extern int audio_sig_stop;
+hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
+	if(input){//input
+		if(str[0] == '$'){
+			switch(str[1]){
+			case 'a':
+			case 'A':
+				audio_sig_stop = 0;
+				return hlo_open_mic_stream(1);
+			case 'r':
+			case 'R':
+				return random_stream_open();
+			default:
+				break;
+			}
+		}else{//try file
+			global_filename(str);
+			if(input > 1){//repeating mode
+				return fs_stream_open_media(path_buff, -1);
+			}
+			return fs_stream_open(path_buff, HLO_STREAM_READ);
+		}
+	}else{//output
+		if(str[0] == '$'){
+			switch(str[1]){
+			case 'a':
+			case 'A':
+				audio_sig_stop = 0;
+				return hlo_open_spkr_stream(BUF_SIZE);
+			default:
+			case 'o':
+			case 'O':
+				return uart_stream();
+			}
+		}else{//try file, TODO make it append
+			global_filename(str);
+			return fs_stream_open(path_buff, HLO_STREAM_WRITE);
+		}
+	}
+	return NULL;
+}
 int
 Cmd_cat(int argc, char *argv[])
 {
-    FRESULT res;
-    UINT ui16BytesRead;
-
-    if(global_filename( argv[1] ))
-    {
-    	return 1;
+	hlo_stream_t * src = NULL;
+	hlo_stream_t * dst = NULL;
+    int ret;
+    uint8_t buf[BUF_SIZE];
+    if(argc > 2){
+    	src = open_stream_from_path(argv[1],1);
+    	dst = open_stream_from_path(argv[2],0);
+    }else if(argc > 1){
+    	src = open_stream_from_path(argv[1],1);
+    	//dst = open_stream_from_path("$o",0);	//this is really dangerous, disable for now
     }
-
-    res = hello_fs_open(&file_obj, path_buff, FA_READ);
-    if(res != FR_OK)
-    {
-        return((int)res);
+    while( (ret = hlo_stream_transfer_between(src,dst,buf,BUF_SIZE,4)) > 0){
+    	if(audio_sig_stop){
+    		break;
+    	}
     }
-
-    // Enter a loop to repeatedly read data from the file and display it, until
-    // the end of the file is reached.
-    do
-    {
-        // Read a block of data from the file.  Read as much as can fit in the
-        // temporary buffer, including a space for the trailing null.
-        res = hello_fs_read(&file_obj, path_buff, 4,
-                         &ui16BytesRead);
-
-        // If there was an error reading, then print a newline and return the
-        // error to the user.
-        if(res != FR_OK)
-        {
-        	LOGF("\n");
-            return((int)res);
-        }
-        // Null terminate the last block that was read to make it a null
-        // terminated string that can be used with printf.
-        path_buff[ui16BytesRead] = 0;
-
-        // Print the last chunk of the file that was received.
-        LOGF("%s", path_buff);
-
-    }
-    while(ui16BytesRead == 4);
-
-    hello_fs_close( &file_obj );
-
-    LOGF("\n");
-    return(0);
+	hlo_stream_close(src);
+	hlo_stream_close(dst);
+    DISP("Transfer returned %d\r\n", ret);
+    return 0;
 }
 
 int
