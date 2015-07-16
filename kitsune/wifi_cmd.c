@@ -1828,6 +1828,9 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
     if( response_protobuf->has_batch_size ) {
     	data_queue_batch_size = response_protobuf->batch_size;
     }
+    if( response_protobuf->has_pill_batch_size ) {
+    	pill_queue_batch_size = response_protobuf->pill_batch_size;
+    }
 
     if(response_protobuf->has_upload_log_level) {
     	set_loglevel(response_protobuf->upload_log_level);
