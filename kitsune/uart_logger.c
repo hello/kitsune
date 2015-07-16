@@ -638,7 +638,6 @@ void uart_block_saver_task(void* params) {
 	_save_block_queue(portMAX_DELAY);
 }
 void uart_logger_task(void * params){
-	uart_logger_init();
 	hello_fs_mkdir(SENSE_LOG_FOLDER);
 
 	FRESULT res = hello_fs_opendir(&self.logdir,SENSE_LOG_FOLDER);
