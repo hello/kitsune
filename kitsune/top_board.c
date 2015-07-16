@@ -425,8 +425,7 @@ void _boot_watcher_task(hlo_future_t * result, void * ctx){
 		vTaskDelay(10000);
 	}
 	hlo_future_write(result, NULL, 0, 0);
-	Cmd_SyncID(0, 0);
-	LOGI("Top has booted\r\n");
+	LOGI("top boot watch exit\r\n");
 }
 void start_top_boot_watcher(void){
 	hlo_future_destroy(hlo_future_create_task_bg(_boot_watcher_task, NULL, 512));
