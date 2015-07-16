@@ -411,11 +411,15 @@ int verify_top_update(void){
 }
 int Cmd_SyncID(int argc, char * argv[]);
 void _boot_watcher_task(hlo_future_t * result, void * ctx){
+	int retries = 0;
 	while(1){
 		vTaskDelay(10000);
 		if(self.top_boot == 0){
-			LOGI("Attempting to resync ID\r\n");
+			LOGW("Attempting to resync ID\r\n");
 			Cmd_SyncID(0, 0);
+			if(reties++ > 3){
+				LOGE("Unable to boot top board!\r\n");
+			}
 		}else{
 			break;
 		}
