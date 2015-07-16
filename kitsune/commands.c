@@ -499,6 +499,7 @@ void load_serial() {
 
 static xSemaphoreHandle alarm_smphr;
 static SyncResponse_Alarm alarm;
+static char last_alarm_id[sizeof(((SyncResponse *)0)->ring_time_ack)]
 #define ONE_YEAR_IN_SECONDS 0x1E13380
 
 void set_alarm( SyncResponse_Alarm * received_alarm ) {
