@@ -4,6 +4,9 @@ install:
 - "./travis-setup.sh"
 before_install:
 - "./dependencies.sh"
+- cat $DEPLOY_KEY > .travis/deploy_key.pem
+- chmod 600 .travis/deploy_key.pem
+- git remote add deploy https://github.com/hello/heap_6.git
 notifications:
   email:
   - chris@sayhello.com
