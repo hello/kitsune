@@ -554,7 +554,9 @@ void set_alarm( SyncResponse_Alarm * received_alarm, const char * ack, size_t ac
 static bool alarm_is_ringing = false;
 static bool cancel_alarm() {
 	bool was_ringing = false;
-	AudioTask_StopPlayback();
+	if(xTaskGetTickCount > 10000) {
+		AudioTask_StopPlayback();
+	}
 
 	if (xSemaphoreTakeRecursive(alarm_smphr, portMAX_DELAY)) {
 		if (alarm_is_ringing) {
