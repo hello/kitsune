@@ -1,3 +1,6 @@
 [submodule "kitsune/tinyhttp"]
 	path = kitsune/tinyhttp
 	url = https://github.com/mendsley/tinyhttp
+[submodule "FreeRTOS/source/portable/MemMang"]
+	path = FreeRTOS/source/portable/MemMang
+	url = https://github.com/hello/heap_6.git
