@@ -299,7 +299,7 @@ int factory_led_test_pattern(unsigned int timeout) {
 	return ret;
 }
 
-int play_led_wheel(int a, int r, int g, int b, int repeat, int delay){
+int play_led_wheel(int a, int r, int g, int b, int repeat, int delay, int priority){
 	int ret;
 	led_color_t color = led_from_rgb(r,g,b);
 	analytics_event( "{led: wheel, color: %08x, alpha: %d}", color, a );
@@ -315,7 +315,7 @@ int play_led_wheel(int a, int r, int g, int b, int repeat, int delay){
 		.handler = _animate_wheel,
 		.reinit_handler = _reinit_animate_wheel,
 		.context = wheel_ctx,
-		.priority = 2,
+		.priority = priority,
 		.cycle_time = delay,
 		.fade_time = 0,
 		.fade_elapsed = 0,
@@ -359,9 +359,9 @@ int Cmd_led_animate(int argc, char *argv[]){
 				play_led_trippy( trippy_base, trippy_range, portMAX_DELAY, 30,30 );
 			}
 		}else if(strcmp(argv[1], "wheel") == 0){
-			play_led_wheel(rand()%LED_MAX, rand()%LED_MAX, rand()%LED_MAX, rand()%LED_MAX, 2, 16);
+			play_led_wheel(rand()%LED_MAX, rand()%LED_MAX, rand()%LED_MAX, rand()%LED_MAX, 2, 16,1);
 		}else if(strcmp(argv[1], "wheelr") == 0){
-			play_led_wheel(rand()%LED_MAX, rand()%LED_MAX, rand()%LED_MAX, rand()%LED_MAX, 0, 16);
+			play_led_wheel(rand()%LED_MAX, rand()%LED_MAX, rand()%LED_MAX, rand()%LED_MAX, 0, 16,1);
 		}else if(strcmp(argv[1], "solid") == 0){
 			play_led_animation_solid(rand()%LED_MAX, rand()%LED_MAX, rand()%LED_MAX, rand()%LED_MAX, 1,18, 1);
 		}else if(strcmp(argv[1], "prog") == 0){

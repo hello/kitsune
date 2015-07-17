@@ -596,7 +596,7 @@ int Cmd_led(int argc, char *argv[]) {
 		if(rot){
 			play_led_animation_solid(a, r,g,b, rp,ud,1);
 		}else{
-			play_led_wheel(a, r,g,b,rp,ud);
+			play_led_wheel(a, r,g,b,rp,ud,1);
 		}
 	} else {
 		factory_led_test_pattern(portMAX_DELAY);

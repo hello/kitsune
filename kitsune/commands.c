@@ -847,15 +847,15 @@ static void _show_led_status()
 		play_led_animation_solid(alpha, rgb[0], rgb[1], rgb[2],1, 18,3);
 	}
 	else if(wifi_status_get(HAS_IP)) {
-		play_led_wheel(alpha, LED_MAX,0,0,2,18);
+		play_led_wheel(alpha, LED_MAX,0,0,2,18,3);
 	}
 	else if(wifi_status_get(CONNECTING)) {
-		play_led_wheel(alpha, LED_MAX,LED_MAX,0,2,18);
+		play_led_wheel(alpha, LED_MAX,LED_MAX,0,2,18,3);
 	}
 	else if(wifi_status_get(SCANNING)) {
-		play_led_wheel(alpha, LED_MAX,0,0,1,18);
+		play_led_wheel(alpha, LED_MAX,0,0,1,18,3);
 	} else {
-		play_led_wheel(alpha, LED_MAX,LED_MAX,LED_MAX,2,18);
+		play_led_wheel(alpha, LED_MAX,LED_MAX,LED_MAX,2,18,3);
 	}
 }
 
@@ -2093,7 +2093,7 @@ void vUARTTask(void *pvParameters) {
 		vTaskDelete(NULL);
 		return;
 	} else {
-		play_led_wheel( 50, LED_MAX, LED_MAX, 0,0,10);
+		play_led_wheel( 50, LED_MAX, LED_MAX, 0,0,10,1);
 	}
 
 	UARTprintf("\n\nFreeRTOS %s, %x, %s %x:%x:%x:%x:%x:%x\n",

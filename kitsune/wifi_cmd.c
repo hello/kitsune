@@ -1708,7 +1708,7 @@ static void _on_key_check_success(void * structdata){
 		sl_FsDel((unsigned char*)PROVISION_FILE, 0);
 		wifi_reset();
 		//green!
-		play_led_wheel( LED_MAX, 0, LED_MAX, 0, 3600, 33);
+		play_led_wheel( LED_MAX, 0, LED_MAX, 0, 3600, 33,1);
 		while (1) {
 			vTaskDelay(100);
 		}
@@ -1723,7 +1723,7 @@ static void _on_key_check_failure( void * structdata){
 	//allowing us to fall back to the key handshake with the server
 	if (provisioning_mode && has_default_key()) {
 		//red!
-		play_led_wheel( LED_MAX, LED_MAX, 0, 0, 3600, 33);
+		play_led_wheel( LED_MAX, LED_MAX, 0, 0, 3600, 33,1);
 		while (1) {
 			vTaskDelay(100);
 		}

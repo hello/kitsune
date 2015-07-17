@@ -472,7 +472,7 @@ void ble_proto_led_busy_mode(uint8_t a, uint8_t r, uint8_t g, uint8_t b, int del
 	_self.delay = delay;
 
 	led_fade_all_animation(18);
-	play_led_wheel(a,r,g,b,0,delay);
+	play_led_wheel(a,r,g,b,0,delay,2);
 }
 
 void ble_proto_led_flash(int a, int r, int g, int b, int delay)
