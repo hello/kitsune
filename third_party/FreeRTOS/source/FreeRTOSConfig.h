@@ -148,6 +148,7 @@ See http://www.FreeRTOS.org/RTOS-Cortex-M3-M4.html. */
 version. */
 #define configUSE_PORT_OPTIMISED_TASK_SELECTION 1
 
+#include "stddef.h"
  void usertraceMALLOC( void * pvAddress, size_t uiSize );
  void usertraceFREE( void * pvAddress, size_t uiSize );
 #define traceMALLOC usertraceMALLOC
