@@ -1771,20 +1771,40 @@ static void _set_led_color_based_on_room_conditions(const SyncResponse* response
     	switch(response_protobuf->room_conditions)
     	{
 			case SyncResponse_RoomConditions_IDEAL:
-				led_set_user_color(0x00, LED_MAX, 0x00);
+				led_set_user_color(0x00, LED_MAX, 0x00,true);
 			break;
 			case SyncResponse_RoomConditions_WARNING:
-				led_set_user_color(LED_MAX, LED_MAX, 0x00);
+				led_set_user_color(LED_MAX, LED_MAX, 0x00,true);
 			break;
 			case SyncResponse_RoomConditions_ALERT:
-				led_set_user_color(0xF0, 0x76, 0x00);
+				led_set_user_color(0xF0, 0x76, 0x0,true);
 			break;
 			default:
-				led_set_user_color(0x00, 0x00, LED_MAX);
+				led_set_user_color(0x00, 0x00, LED_MAX,true);
 			break;
     	}
     }else{
-        led_set_user_color(0x00, LED_MAX, 0x00);
+        led_set_user_color(0x00, LED_MAX, 0x00,true);
+    }
+    if(response_protobuf->has_room_conditions_lights_off)
+    {
+    	switch(response_protobuf->room_conditions_lights_off)
+    	{
+			case SyncResponse_RoomConditions_IDEAL:
+				led_set_user_color(0x00, LED_MAX, 0x00,false);
+			break;
+			case SyncResponse_RoomConditions_WARNING:
+				led_set_user_color(LED_MAX, LED_MAX, 0x00,false);
+			break;
+			case SyncResponse_RoomConditions_ALERT:
+				led_set_user_color(0xF0, 0x76, 0x00,false);
+			break;
+			default:
+				led_set_user_color(0x00, 0x00, LED_MAX,false);
+			break;
+    	}
+    }else{
+        led_set_user_color(0x00, LED_MAX, 0x00,false);
     }
 }
 void reset_to_factory_fw();

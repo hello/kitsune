@@ -840,11 +840,12 @@ static int _is_light_off()
 static void _show_led_status()
 {
 	uint8_t alpha = get_alpha_from_light();
+	bool light = alpha > 128;
 
 	if(wifi_status_get(UPLOADING)) {
 		//TODO: wtf is this?
-		uint8_t rgb[3] = { LED_MAX };
-		led_get_user_color(&rgb[0], &rgb[1], &rgb[2]);
+		unsigned int rgb[3] = { LED_MAX };
+		led_get_user_color(&rgb[0], &rgb[1], &rgb[2], light);
 		//led_set_color(alpha, rgb[0], rgb[1], rgb[2], 1, 1, 18, 0);
 		play_led_animation_solid(alpha, rgb[0], rgb[1], rgb[2],1, 18,3);
 	}

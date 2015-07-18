@@ -658,31 +658,19 @@ int led_transition_custom_animation(const user_animation_t * user){
 int led_get_animation_id(void){
 	return animation_id;
 }
-static uint8_t _rgb[3];
+static led_color_t room_color[2] = {{0x00fe00},{0x00fe00}};
 
-void led_get_user_color(uint8_t* out_red, uint8_t* out_green, uint8_t* out_blue)
+void led_get_user_color(unsigned int* out_red, unsigned int* out_green, unsigned int* out_blue, bool light)
 {
 	xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
-	if(out_red){
-		*out_red = _rgb[0];
-	}
-
-	if(out_green){
-		*out_green = _rgb[1];
-	}
-
-	if(out_blue){
-		*out_blue = _rgb[2];
-	}
+	led_to_rgb(&room_color[light], out_red, out_green, out_blue );
 	xSemaphoreGiveRecursive(led_smphr);
 }
 
-void led_set_user_color(uint8_t red, uint8_t green, uint8_t blue)
+void led_set_user_color(unsigned int red, unsigned int green, unsigned int blue, bool light)
 {
 	xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
-	_rgb[0] = red;
-	_rgb[1] = green;
-	_rgb[2] = blue;
+	room_color[light] = led_from_rgb( red, green, blue );
 	xSemaphoreGiveRecursive(led_smphr);
 }
 int led_fade_current_animation(void){
