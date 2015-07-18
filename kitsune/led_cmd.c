@@ -642,7 +642,7 @@ int led_transition_custom_animation(const user_animation_t * user){
 			fadeout_animation = user_animation;
 			user_animation = *user;
 
-			if( !led_is_idle(0) ) {
+			if( !led_is_idle(0) && !( fadeout_animation.opt & TRANSITION_WITHOUT_FADE ) ) {
 				_fade_out_for_new();
 			} else {
 				_start_animation();
@@ -705,4 +705,9 @@ int led_fade_all_animation(int fadeout){
 	ret = led_fade_current_animation();
 	xSemaphoreGiveRecursive(led_smphr);
 	return ret;
+}
+void flush_animation_history() {
+	xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
+	_hist_flush();
+	xSemaphoreGiveRecursive(led_smphr);
 }

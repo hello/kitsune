@@ -46,8 +46,7 @@ typedef enum {
 static volatile struct {
 	uint8_t argb[4];
 	int delay;
-	uint32_t last_hold_time;
-	uint32_t last_cancel;
+	volatile bool hold_released;
 	volatile ble_mode_t ble_status;
     xSemaphoreHandle smphr;
 } _self;
@@ -66,6 +65,18 @@ ble_mode_t get_ble_mode() {
 static void set_ble_mode(ble_mode_t status) {
 	xSemaphoreTake( _self.smphr, portMAX_DELAY );
 	_self.ble_status = status;
+	xSemaphoreGive( _self.smphr );
+}
+static bool get_released() {
+	bool status;
+	xSemaphoreTake( _self.smphr, portMAX_DELAY );
+	status = _self.hold_released;
+	xSemaphoreGive( _self.smphr );
+	return status;
+}
+static void set_released(bool hold_released) {
+	xSemaphoreTake( _self.smphr, portMAX_DELAY );
+	_self.hold_released = hold_released;
 	xSemaphoreGive( _self.smphr );
 }
 void ble_reply_http_status(char * status)
@@ -471,7 +482,7 @@ void ble_proto_led_busy_mode(uint8_t a, uint8_t r, uint8_t g, uint8_t b, int del
 	_self.argb[3] = b;
 	_self.delay = delay;
 
-	led_fade_all_animation(18);
+	flush_animation_history();
 	play_led_wheel(a,r,g,b,0,delay,2);
 }
 
@@ -496,7 +507,7 @@ extern volatile bool provisioning_mode;
 
 void ble_proto_led_fade_in_trippy(){
 	uint8_t trippy_base[3] = {60, 25, 90};
-	led_fade_all_animation(18);
+	flush_animation_history();
 	play_led_trippy(trippy_base, trippy_base, portMAX_DELAY, 30, 30 );
 }
 
@@ -520,45 +531,57 @@ ble_send_protobuf(&response);
 extern uint8_t top_device_id[DEVICE_ID_SZ];
 extern volatile bool top_got_device_id; //being bad, this is only for factory
 
+#define PAIRING_GESTURE_DURATION 10000
+void hold_animate_progress_task(void * params) {
+	uint32_t start = xTaskGetTickCount();
+
+	while( xTaskGetTickCount() - start < PAIRING_GESTURE_DURATION ) {
+		set_led_progress_bar( 100*(xTaskGetTickCount() - start)/PAIRING_GESTURE_DURATION );
+		vTaskDelay(18);
+		if( get_released() ) {
+			led_fade_all_animation(18);
+			vTaskDelete(NULL);
+			return;
+		}
+	}
+	set_led_progress_bar(100);
+
+	if (get_ble_mode() != BLE_PAIRING) {
+		LOGI("Trigger pairing mode\n");
+		MorpheusCommand response = { 0 };
+		response.type =
+				MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_PAIRING_MODE;
+		ble_send_protobuf(&response);
+	}
+	vTaskDelete(NULL);
+}
+
 void ble_proto_start_hold()
 {
-	_self.last_hold_time = xTaskGetTickCount();
-    switch(get_ble_mode())
-    {
-        case BLE_PAIRING:
-        {
-            // hold to cancel the pairing mode
-            LOGI("Back to normal mode\n");
-            MorpheusCommand response = {0};
-            response.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE;
-            ble_send_protobuf(&response);
+	switch (get_ble_mode()) {
+	case BLE_PAIRING: {
+		MorpheusCommand response = { 0 };
+		// hold to cancel the pairing mode
+		LOGI("pairing cancelled\n");
+		response.type =
+				MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE;
+		ble_send_protobuf(&response);
 
-			analytics_event( "{ble: normal}" );
+		analytics_event("{ble: normal}");
+		break;
+	}
+	default:
+		if (play_led_progress_bar(128, 0, 128, 0, 10000)) {
+			set_released(false);
+			xTaskCreate(hold_animate_progress_task, "hold_animate_pair",1024 / 4, NULL, 2, NULL);
+		}
+	}
 
-			_self.last_cancel = xTaskGetTickCount();
-        }
-        break;
-    }
 }
 
 void ble_proto_end_hold()
 {
-	//configTICK_RATE_HZ
-	uint32_t current_tick = xTaskGetTickCount();
-	if((current_tick - _self.last_hold_time) * (1000 / configTICK_RATE_HZ) > 3000 &&
-		(current_tick - _self.last_hold_time) * (1000 / configTICK_RATE_HZ) < 7000 &&
-		_self.last_hold_time > 0 &&
-		(current_tick - _self.last_cancel) * (1000 / configTICK_RATE_HZ) > 5000 )
-	{
-		if (get_ble_mode() != BLE_PAIRING) {
-			LOGI("Trigger pairing mode\n");
-			MorpheusCommand response = { 0 };
-			response.type =
-					MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_PAIRING_MODE;
-			ble_send_protobuf(&response);
-		}
-	}
-	_self.last_hold_time = 0;
+	set_released(true);
 }
 
 static void play_startup_sound() {

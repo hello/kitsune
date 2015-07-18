@@ -222,6 +222,7 @@ int play_led_trippy(uint8_t trippy_base[3], uint8_t trippy_range[3], unsigned in
 		.cycle_time = delay,
 		.fade_time = fade,
 		.fade_elapsed = 0,
+		.opt = 0,
 	};
 
 	xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
@@ -253,6 +254,7 @@ int play_led_animation_solid(int a, int r, int g, int b, int repeat, int delay, 
 			.cycle_time = delay,
 			.fade_time = 0,
 			.fade_elapsed = 0,
+			.opt = 0,
 	};
 	ret = led_transition_custom_animation(&anim);
 	if( ret > 0 ) {
@@ -272,6 +274,7 @@ int play_led_progress_bar(int r, int g, int b, unsigned int options, unsigned in
 		.cycle_time = 20,
 		.fade_time = 0,
 		.fade_elapsed = 0,
+		.opt = TRANSITION_WITHOUT_FADE,
 	};
 	xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
 	ret = led_transition_custom_animation(&anim);
@@ -294,6 +297,7 @@ int factory_led_test_pattern(unsigned int timeout) {
 		.cycle_time = 500,
 		.fade_time = 0,
 		.fade_elapsed = 0,
+		.opt = 0,
 	};
 	ret = led_transition_custom_animation(&anim);
 	return ret;
@@ -319,6 +323,7 @@ int play_led_wheel(int a, int r, int g, int b, int repeat, int delay, int priori
 		.cycle_time = delay,
 		.fade_time = 0,
 		.fade_elapsed = 0,
+		.opt = 0,
 	};
 	ret = led_transition_custom_animation(&anim);
 

@@ -554,7 +554,7 @@ void set_alarm( SyncResponse_Alarm * received_alarm, const char * ack, size_t ac
 static bool alarm_is_ringing = false;
 static bool cancel_alarm() {
 	bool was_ringing = false;
-	if(xTaskGetTickCount > 10000) {
+	if(xTaskGetTickCount() > 10000) {
 		AudioTask_StopPlayback();
 	}
 
@@ -880,6 +880,20 @@ static void _on_gesture_out()
 {
 	ble_proto_end_hold();
 }
+
+int Cmd_gesture(int argc, char * argv[]) {
+	if( strcmp(argv[1], "h") == 0){
+		_on_hold();
+	}
+	if( strcmp(argv[1], "w") == 0){
+		_on_wave();
+	}
+	if( strcmp(argv[1], "o") == 0){
+		_on_gesture_out();
+	}
+	return 0;
+}
+
 
 void thread_fast_i2c_poll(void * unused)  {
 	unsigned int filter_buf[3];
@@ -1929,6 +1943,8 @@ tCmdLineEntry g_sCmdTable[] = {
 		{"noint", Cmd_disableInterrupts, ""},
 		{"nwp", Cmd_nwpinfo, ""},
 		{"resync", Cmd_SyncID, ""},
+		{"g", Cmd_gesture, ""},
+
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
 		{ "iperfcli",Cmd_iperf_client,""},
