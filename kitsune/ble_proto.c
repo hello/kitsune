@@ -536,7 +536,7 @@ void hold_animate_progress_task(void * params) {
 	uint32_t start = xTaskGetTickCount();
 
 	while( xTaskGetTickCount() - start < PAIRING_GESTURE_DURATION ) {
-		set_led_progress_bar( 100*(xTaskGetTickCount() - start)/PAIRING_GESTURE_DURATION );
+		set_led_progress_bar( PROGRESS_COMPLETE*(xTaskGetTickCount() - start)/PAIRING_GESTURE_DURATION );
 		vTaskDelay(18);
 		if( get_released() ) {
 			led_fade_all_animation(18);

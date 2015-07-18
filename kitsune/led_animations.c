@@ -109,8 +109,8 @@ static int _animate_trippy(const led_color_t * prev, led_color_t * out, void * u
 }
 static int _animate_progress(const led_color_t * prev, led_color_t * out, void * user_context){
 	int prog = self.progress_bar_percent * NUM_LED;
-	int filled = prog / 100;
-	int left = ((prog % 100)*254)>>8;
+	int filled = prog / PROGRESS_COMPLETE;
+	int left = ((prog % PROGRESS_COMPLETE)*LED_MAX)>>8;
 
 	int i;
 	for(i = 0; i < filled && i < NUM_LED; i++){
@@ -336,7 +336,7 @@ int play_led_wheel(int a, int r, int g, int b, int repeat, int delay, int priori
 }
 void set_led_progress_bar(uint8_t percent){
 	xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
-	self.progress_bar_percent =  percent > 100?100:percent;
+	self.progress_bar_percent =  percent > PROGRESS_COMPLETE?PROGRESS_COMPLETE:percent;
 	xSemaphoreGiveRecursive(led_smphr);
 }
 

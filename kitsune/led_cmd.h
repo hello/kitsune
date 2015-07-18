@@ -9,6 +9,7 @@ extern "C" {
 #endif
 #define NUM_LED 12
 #define LED_MAX 254
+#define PROGRESS_COMPLETE LED_MAX
 
 typedef struct{
 	unsigned int rgb;
