@@ -986,7 +986,7 @@ xQueueHandle pill_queue = 0;
 extern volatile bool top_got_device_id;
 extern volatile portTickType last_upload_time;
 int send_top(char * s, int n) ;
-int load_device_id();
+void load_device_id();
 bool is_test_boot();
 //no need for semaphore, only thread_tx uses this one
 int data_queue_batch_size = 1;

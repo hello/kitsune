@@ -148,11 +148,8 @@ See http://www.FreeRTOS.org/RTOS-Cortex-M3-M4.html. */
 version. */
 #define configUSE_PORT_OPTIMISED_TASK_SELECTION 1
 
-
-	void vAssertCalled( const char *s );
-	#define configASSERT( x ) if( x == 0 ) vAssertCalled( #x );
-
-
+ void usertraceMALLOC( void * pvAddress, size_t uiSize );
+ void usertraceFREE( void * pvAddress, size_t uiSize );
 #define traceMALLOC usertraceMALLOC
 #define traceFREE usertraceFREE
 
