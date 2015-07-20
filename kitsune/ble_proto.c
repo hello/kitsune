@@ -224,6 +224,9 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type,
 				ble_reply_protobuf_error(ErrorType_SERVER_CONNECTION_TIMEOUT);
 				break;
 			}
+			if( wifi_status_get(HAS_IP) ) { //can't do this one on the event handler, it has so little stack...
+		        ble_reply_wifi_status(wifi_connection_state_IP_RETRIEVED);
+			}
 		}
 		wifi_state_requested = false;
 	} else {
