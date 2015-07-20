@@ -539,7 +539,7 @@ void hold_animate_progress_task(void * params) {
 		set_led_progress_bar( PROGRESS_COMPLETE*(xTaskGetTickCount() - start)/PAIRING_GESTURE_DURATION );
 		vTaskDelay(18);
 		if( get_released() ) {
-			led_fade_all_animation(18);
+			led_fade_current_animation();
 			vTaskDelete(NULL);
 			return;
 		}
@@ -571,7 +571,6 @@ void ble_proto_start_hold()
 		break;
 	}
 	case BLE_CONNECTED:
-		break;
 	default:
 		if (play_led_progress_bar(128, 0, 128, 0, 10000)) {
 			set_released(false);
