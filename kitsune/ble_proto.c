@@ -570,6 +570,8 @@ void ble_proto_start_hold()
 		analytics_event("{ble: normal}");
 		break;
 	}
+	case BLE_CONNECTED:
+		break;
 	default:
 		if (play_led_progress_bar(128, 0, 128, 0, 10000)) {
 			set_released(false);
