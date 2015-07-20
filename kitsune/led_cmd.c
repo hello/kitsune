@@ -469,10 +469,10 @@ void led_task( void * params ) {
 				if( animation_result == ANIMATION_CONTINUE ) {
 					ledcpy(colors_last, colors, NUM_LED);
 					//fade in independently of animation rate...
-					if( user_animation.fade_time != 0 &&
-						user_animation.fade_elapsed < user_animation.fade_time ) {
-						user_animation.fade_elapsed += get_cycle_time();
-						led_brightness_all(colors, LED_MAX * user_animation.fade_elapsed / user_animation.fade_time );
+					if( user_animation.fadein_time != 0 &&
+						user_animation.fadein_elapsed < user_animation.fadein_time ) {
+						user_animation.fadein_elapsed += get_cycle_time();
+						led_brightness_all(colors, LED_MAX * user_animation.fadein_elapsed / user_animation.fadein_time );
 					}
 					//delay capped at 500 ms to improve task responsiveness
 					xSemaphoreGiveRecursive( led_smphr );
@@ -499,10 +499,10 @@ void led_task( void * params ) {
 			led_color_t colors[NUM_LED + 1];
 			xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
 
-			if( user_animation.fade_time != 0 &&
-				user_animation.fade_elapsed < user_animation.fade_time ) {
-				led_brightness_all(colors_last, LED_MAX * user_animation.fade_elapsed / user_animation.fade_time );
-				user_animation.fade_time = 0;
+			if( user_animation.fadein_time != 0 &&
+				user_animation.fadein_elapsed < user_animation.fadein_time ) {
+				led_brightness_all(colors_last, LED_MAX * user_animation.fadein_elapsed / user_animation.fadein_time );
+				user_animation.fadein_time = 0;
 			}
 			ledcpy(colors, colors_last, NUM_LED);
 

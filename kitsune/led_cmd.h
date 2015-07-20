@@ -34,9 +34,9 @@ typedef struct{
 	led_user_animation_reinit_handler reinit_handler;
 	void * context;
 	uint8_t priority;
-	int fade_time;
+	int fadein_time;
 	int cycle_time;
-	int fade_elapsed;
+	int fadein_elapsed;
 	uint32_t opt; //bitfield
 #define TRANSITION_WITHOUT_FADE 0x00000001
 
