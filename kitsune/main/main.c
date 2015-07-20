@@ -92,7 +92,7 @@
 #include "wifi_cmd.h"
 #include "uart_logger.h"
 #include "hellofilesystem.h"
-#include "sl_sync_include_after_simplelink_header.h"
+//#include "sl_sync_include_after_simplelink_header.h" not here, this one is operating before the scheduler starts...
 
 void mcu_reset();
 
@@ -150,6 +150,7 @@ vApplicationTickHook( void )
 {
 }
 
+extern tskTCB * volatile pxCurrentTCB;
 //*****************************************************************************
 //
 //! Application for handling the assertion.
@@ -162,9 +163,20 @@ vApplicationTickHook( void )
 void
 vAssertCalled( const char * s )
 {
-  LOGE( "%s ASSERT", s );
+  LOGE( "%s ASSERT\n", s );
+  LOGE( "%s\n", pxCurrentTCB->pcTaskName );
+  void* p;
+  LOGE("stack ptr %x\n", (int*)&p);
+  LOGE( "%x %x\n", pxCurrentTCB->pxStack, pxCurrentTCB->pxTopOfStack );
+
+  volatile StackType_t * top = pxCurrentTCB->pxTopOfStack;
+  StackType_t * bottom =  pxCurrentTCB->pxStack;
+
+  while( top != bottom ) {
+	  LOGE( "%08X\n", *top-- );
+	    UtilsDelay(10000);
+  }
   uart_logger_flush();
-  vTaskDelay(10000);
   mcu_reset();
 }
 
@@ -183,7 +195,8 @@ void vApplicationStackOverflowHook( TaskHandle_t xTask, char *pcTaskName )
     ( void ) pcTaskName;
 
     LOGE( "%s STACK OVERFLOW", pcTaskName );
-
+    uart_logger_flush();
+    UtilsDelay(10000000);
     mcu_reset();
 }
 
@@ -277,6 +290,7 @@ void watchdog_thread(void* unused) {
 			LOGE("NET TIMEOUT\n");
 			uart_logger_flush();
 			vTaskDelay(10000);
+			sl_Stop(30);
 			mcu_reset();
 		}
 

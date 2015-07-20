@@ -39,7 +39,8 @@ static void Init(NetworkTaskData_t * info) {
 
 void unblock_sync(void * data) {
 	NetworkTaskServerSendMessage_t * msg = (NetworkTaskServerSendMessage_t*)data;
-    xSemaphoreGive(msg->sync);
+	assert( msg->sync );
+	xSemaphoreGive(msg->sync); //todo maybe here
 }
 
 bool NetworkTask_SendProtobuf(bool blocking, const char * host,
@@ -63,8 +64,11 @@ bool NetworkTask_SendProtobuf(bool blocking, const char * host,
 
 	message.fields = fields;
 	message.structdata = structdata;
+
+	message.has_pb_cb = false;
 	if( pb_cb ) {
 		message.pb_cb = *pb_cb;
+		message.has_pb_cb = true;
 	}
 
 	assert( _asyncqueue );
@@ -145,7 +149,7 @@ static NetworkResponse_t nettask_send(NetworkTaskServerSendMessage_t * message) 
 				&decode_buf_size,
 				message->fields,
 				message->structdata,
-				&message->pb_cb ) == 0) {
+				message->has_pb_cb ? &message->pb_cb : NULL ) == 0) {
 			response.success = true;
 		} else {
 			//failed to push, now what?
@@ -205,6 +209,7 @@ static NetworkResponse_t nettask_send(NetworkTaskServerSendMessage_t * message) 
 
 	//let the requester know we are done
 	if (message->response_callback) {
+		DEBUG_PRINTF("NT CB %x\n",message->response_callback);
 		message->response_callback(&response, decode_buf, decode_buf_size,message->context);
 	}
 
@@ -220,11 +225,7 @@ static void NetworkTask_Thread(void * networkdata) {
 	NetworkTaskServerSendMessage_t message;
 
 	for (; ;) {
-
-		if (!xQueueReceive( _asyncqueue, &message, portMAX_DELAY )) {
-			vTaskDelay(1000);
-			continue; //LOOP FOREVEREVEREVEREVER
-		}
+		xQueueReceive( _asyncqueue, &message, portMAX_DELAY );
 		if (message.begin) {
 			message.begin(&message);
 		}
@@ -238,7 +239,6 @@ static void NetworkTask_Thread(void * networkdata) {
 		if( message.end ) {
 			message.end(&message);
 		}
-		vTaskDelay(100);
 	}
 }
 
@@ -250,13 +250,13 @@ int NetworkTask_AddMessageToQueue(const NetworkTaskServerSendMessage_t * message
 
 int networktask_enter_critical_region()
 {
-	//LOGI("NT::ENTER CRITICAL REGION\n");
+	LOGI("NT::ENTER\n");
 	return xSemaphoreTake(_network_mutex, portMAX_DELAY);
 }
 
 int networktask_exit_critical_region()
 {
-	//LOGI("NT::EXIT CRITICAL REGION\n");
+	LOGI("NT::EXIT\n");
 	return xSemaphoreGive(_network_mutex);
 }
 

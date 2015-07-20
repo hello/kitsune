@@ -93,6 +93,7 @@
 #include "pill_settings.h"
 #include "prox_signal.h"
 #include "hlo_net_tools.h"
+#include "top_board.h"
 #define ONLY_MID 0
 
 //******************************************************************************
@@ -499,10 +500,12 @@ void load_serial() {
 
 static xSemaphoreHandle alarm_smphr;
 static SyncResponse_Alarm alarm;
+static char alarm_ack[sizeof(((SyncResponse *)0)->ring_time_ack)];
+static volatile bool needs_alarm_ack = false;
 #define ONE_YEAR_IN_SECONDS 0x1E13380
 
-void set_alarm( SyncResponse_Alarm * received_alarm ) {
-    if (xSemaphoreTake(alarm_smphr, portMAX_DELAY)) {
+void set_alarm( SyncResponse_Alarm * received_alarm, const char * ack, size_t ack_size ) {
+    if (xSemaphoreTakeRecursive(alarm_smphr, portMAX_DELAY)) {
         if (received_alarm->has_ring_offset_from_now_in_second
         	&& received_alarm->ring_offset_from_now_in_second > -1 ) {   // -1 means user has no alarm/reset his/her now
         	unsigned long now = get_time();
@@ -526,6 +529,12 @@ void set_alarm( SyncResponse_Alarm * received_alarm ) {
             LOGI("alarm %d to %d in %d minutes\n",
                         received_alarm->start_time, received_alarm->end_time,
                         (received_alarm->start_time - now) / 60);
+            if(ack && ack_size){
+				memcpy(alarm_ack, ack, min(sizeof(alarm_ack), ack_size));
+				LOGI("Alarm ID: %x %x\r\n", alarm_ack[0], alarm_ack[1]);
+			}else{
+				memset(alarm_ack, 0, sizeof(alarm_ack));
+			}
         }else{
             LOGI("No alarm\n");
             // when we reach here, we need to cancel the existing alarm to prevent them ringing.
@@ -539,16 +548,17 @@ void set_alarm( SyncResponse_Alarm * received_alarm ) {
 
             memcpy(&alarm, received_alarm, sizeof(alarm));
         }
-
-        xSemaphoreGive(alarm_smphr);
+        xSemaphoreGiveRecursive(alarm_smphr);
     }
 }
 static bool alarm_is_ringing = false;
 static bool cancel_alarm() {
 	bool was_ringing = false;
-	AudioTask_StopPlayback();
+	if(xTaskGetTickCount() > 10000) {
+		AudioTask_StopPlayback();
+	}
 
-	if (xSemaphoreTake(alarm_smphr, portMAX_DELAY)) {
+	if (xSemaphoreTakeRecursive(alarm_smphr, portMAX_DELAY)) {
 		if (alarm_is_ringing) {
 			if (alarm.has_end_time || alarm.has_ring_offset_from_now_in_second) {
 				analytics_event( "{alarm: dismissed}" );
@@ -563,7 +573,7 @@ static bool cancel_alarm() {
 		    was_ringing = true;
 		}
 
-		xSemaphoreGive(alarm_smphr);
+		xSemaphoreGiveRecursive(alarm_smphr);
 	}
 	return was_ringing;
 }
@@ -584,12 +594,18 @@ int set_test_alarm(int argc, char *argv[]) {
 	alarm.has_ringtone_path = 1;
 	alarm.has_ring_offset_from_now_in_second = 1;
 
-	set_alarm( &alarm );
+	set_alarm( &alarm, "test", 5 );
 	return 0;
 }
-
+int force_data_push(void);
 static void thread_alarm_on_finished(void * context) {
 	stop_led_animation(10, 60);
+	if (xSemaphoreTakeRecursive(alarm_smphr, 500)) {
+		LOGI("Alarm finished\r\n");
+		needs_alarm_ack = true;
+		xSemaphoreGiveRecursive(alarm_smphr);
+	}
+	force_data_push();
 }
 
 static bool _is_file_exists(char* path)
@@ -615,7 +631,7 @@ void thread_alarm(void * unused) {
 		// The alarm thread should go ahead even without a valid time,
 		// because we don't need a correct time to fire alarm, we just need the offset.
 
-		if (xSemaphoreTake(alarm_smphr, portMAX_DELAY)) {
+		if (xSemaphoreTakeRecursive(alarm_smphr, portMAX_DELAY)) {
 			if(alarm.has_start_time && alarm.start_time > 0)
 			{
 				if ( time - alarm.start_time < alarm.ring_duration_in_second ) {
@@ -687,7 +703,7 @@ void thread_alarm(void * unused) {
 
 					uint8_t trippy_base[3] = { 0, 0, 0 };
 					uint8_t trippy_range[3] = { 254, 254, 254 };
-					play_led_trippy(trippy_base, trippy_range,0, 333);
+					play_led_trippy(trippy_base, trippy_range,0,30, 120000);
 
 					delay = 90;
 				}
@@ -696,7 +712,7 @@ void thread_alarm(void * unused) {
 				// Alarm start time = 0 means no alarm
 			}
 			
-			xSemaphoreGive(alarm_smphr);
+			xSemaphoreGiveRecursive(alarm_smphr);
 		}
 		vTaskDelayUntil(&now, 1000*delay );
 	}
@@ -824,24 +840,25 @@ static int _is_light_off()
 static void _show_led_status()
 {
 	uint8_t alpha = get_alpha_from_light();
+	bool light = alpha > 128;
 
 	if(wifi_status_get(UPLOADING)) {
 		//TODO: wtf is this?
-		uint8_t rgb[3] = { LED_MAX };
-		led_get_user_color(&rgb[0], &rgb[1], &rgb[2]);
+		unsigned int rgb[3] = { LED_MAX };
+		led_get_user_color(&rgb[0], &rgb[1], &rgb[2], light);
 		//led_set_color(alpha, rgb[0], rgb[1], rgb[2], 1, 1, 18, 0);
-		play_led_animation_solid(alpha, rgb[0], rgb[1], rgb[2],1, 18);
+		play_led_animation_solid(alpha, rgb[0], rgb[1], rgb[2],1, 18,3);
 	}
 	else if(wifi_status_get(HAS_IP)) {
-		play_led_wheel(alpha, LED_MAX,0,0,2,18);
+		play_led_wheel(alpha, LED_MAX,0,0,2,18,3);
 	}
 	else if(wifi_status_get(CONNECTING)) {
-		play_led_wheel(alpha, LED_MAX,LED_MAX,0,2,18);
+		play_led_wheel(alpha, LED_MAX,LED_MAX,0,2,18,3);
 	}
 	else if(wifi_status_get(SCANNING)) {
-		play_led_wheel(alpha, LED_MAX,0,0,1,18);
+		play_led_wheel(alpha, LED_MAX,0,0,1,18,3);
 	} else {
-		play_led_wheel(alpha, LED_MAX,LED_MAX,LED_MAX,2,18);
+		play_led_wheel(alpha, LED_MAX,LED_MAX,LED_MAX,2,18,3);
 	}
 }
 
@@ -854,7 +871,9 @@ static void _on_wave(){
 }
 
 static void _on_hold(){
-	_on_wave();
+	if(	cancel_alarm() ) {
+		stop_led_animation( 10000, 33 );
+	}
 	ble_proto_start_hold();
 }
 
@@ -862,6 +881,20 @@ static void _on_gesture_out()
 {
 	ble_proto_end_hold();
 }
+
+int Cmd_gesture(int argc, char * argv[]) {
+	if( strcmp(argv[1], "h") == 0){
+		_on_hold();
+	}
+	if( strcmp(argv[1], "w") == 0){
+		_on_wave();
+	}
+	if( strcmp(argv[1], "o") == 0){
+		_on_gesture_out();
+	}
+	return 0;
+}
+
 
 void thread_fast_i2c_poll(void * unused)  {
 	unsigned int filter_buf[3];
@@ -954,7 +987,7 @@ xQueueHandle pill_queue = 0;
 extern volatile bool top_got_device_id;
 extern volatile portTickType last_upload_time;
 int send_top(char * s, int n) ;
-int load_device_id();
+void load_device_id();
 bool is_test_boot();
 //no need for semaphore, only thread_tx uses this one
 int data_queue_batch_size = 1;
@@ -981,7 +1014,6 @@ void thread_tx(void* unused) {
 				continue;
 			}
 			if( got_forced_data ) {
-				got_forced_data = false;
 				memcpy( &periodicdata.data[periodicdata.num_data], &forced_data, sizeof(forced_data) );
 				++periodicdata.num_data;
 			}
@@ -1027,13 +1059,30 @@ void thread_tx(void* unused) {
 
 			wifi_get_connected_ssid( (uint8_t*)data_batched.connected_ssid, sizeof(data_batched) );
 			data_batched.has_connected_ssid = true;
-			data_batched.scan.funcs.encode = encode_scanned_ssid;
-			data_batched.scan.arg = prescan_wifi(10);
 
-			send_periodic_data(&data_batched);
+			data_batched.scan.funcs.encode = encode_scanned_ssid;
+			data_batched.scan.arg = NULL;
+
+			if( !got_forced_data ) {
+				data_batched.scan.arg = prescan_wifi(10);
+			}
+			if (xSemaphoreTakeRecursive(alarm_smphr, 1000)) {
+				if(needs_alarm_ack){
+					data_batched.has_ring_time_ack = true;
+					memcpy(data_batched.ring_time_ack, alarm_ack, sizeof(data_batched.ring_time_ack));
+					LOGI("Ack Alarm ID: %x %x\r\n", alarm_ack[0], alarm_ack[1]);
+					needs_alarm_ack = false;
+				}
+				xSemaphoreGiveRecursive(alarm_smphr);
+			}
+			send_periodic_data(&data_batched, got_forced_data);
 			last_upload_time = xTaskGetTickCount();
-			hlo_future_destroy( data_batched.scan.arg );
+
+			if( data_batched.scan.arg ) {
+				hlo_future_destroy( data_batched.scan.arg );
+			}
 			vPortFree( periodicdata.data );
+			got_forced_data = false;
 		}
 
 		if (uxQueueMessagesWaiting(pill_queue) > pill_queue_batch_size) {
@@ -1245,16 +1294,10 @@ int force_data_push()
 		return -1;
     }
 
-    periodic_data* data = pvPortMalloc(sizeof(periodic_data));  // Let's put this in the heap, we don't use it all the time
-	if(!data)
-	{
-		LOGE("No memory\n");
-		return -2;
-	}
-    memset(data, 0, sizeof(periodic_data));
-    sample_sensor_data(data);
-    xQueueSend(force_data_queue, (void* )data, 0); //queues copy so this is safe to free
-    vPortFree(data);
+    periodic_data data;
+    memset(&data, 0, sizeof(periodic_data));
+    sample_sensor_data(&data);
+    xQueueSend(force_data_queue, (void* )&data, 0);
 
     return 0;
 }
@@ -1289,6 +1332,7 @@ void thread_sensor_poll(void* unused) {
 					data.dust_variability, data.wave_count, data.hold_count);
 
 			Cmd_free(0,0);
+			send_top("free", strlen("free"));
 
 			if (!xQueueSend(data_queue, (void* )&data, 0) == pdPASS) {
 				xQueueReceive(data_queue, (void* )&data, 0); //discard one, so if the queue is full we will put every other one in the queue
@@ -1311,14 +1355,19 @@ void thread_sensor_poll(void* unused) {
 
 int Cmd_tasks(int argc, char *argv[]) {
 	char* pBuffer;
+	int i, l;
 
 	LOGF("\t\t\t\t\tUnused\n            TaskName\tStatus\tPri\tStack\tTask ID\n");
-	pBuffer = pvPortMalloc(1024);
+	pBuffer = pvPortMalloc(2048);
 	assert(pBuffer);
 	LOGF("==========================");
 	vTaskList(pBuffer);
 	LOGF("==========================\n");
-	LOGF("%s", pBuffer);
+	l = strlen(pBuffer);
+	for( i=0;i<l;++i ) {
+		LOGF("%c", pBuffer[i]);
+		vTaskDelay(1);
+	}
 
 	vPortFree(pBuffer);
 	return 0;
@@ -1326,8 +1375,53 @@ int Cmd_tasks(int argc, char *argv[]) {
 
 #endif /* configUSE_TRACE_FACILITY */
 
-
 #define SCAN_TABLE_SIZE   20
+
+static void SortByRSSI(Sl_WlanNetworkEntry_t* netEntries,
+                                            unsigned char ucSSIDCount)
+{
+    Sl_WlanNetworkEntry_t tTempNetEntry;
+    unsigned char ucCount, ucSwapped;
+    do{
+        ucSwapped = 0;
+        for(ucCount =0; ucCount < ucSSIDCount - 1; ucCount++)
+        {
+           if(netEntries[ucCount].rssi < netEntries[ucCount + 1].rssi)
+           {
+              tTempNetEntry = netEntries[ucCount];
+              netEntries[ucCount] = netEntries[ucCount + 1];
+              netEntries[ucCount + 1] = tTempNetEntry;
+              ucSwapped = 1;
+           }
+        } //end for
+     }while(ucSwapped);
+}
+
+
+int Cmd_rssi(int argc, char *argv[]) {
+	int lCountSSID,i;
+	int antenna = 0; // 0 does not change the antenna
+	int duration = 1000;
+
+	Sl_WlanNetworkEntry_t g_netEntries[SCAN_TABLE_SIZE];
+
+	if (argc == 2) {
+		duration = atoi(argv[1]);
+	}
+	if (argc == 3) {
+		antenna = atoi(argv[2]);
+	}
+
+	lCountSSID = get_wifi_scan_result(&g_netEntries[0], SCAN_TABLE_SIZE, duration, antenna );
+
+    SortByRSSI(&g_netEntries[0],(unsigned char)lCountSSID);
+
+    LOGF( "SSID RSSI\n" );
+	for(i=0;i<lCountSSID;++i) {
+		LOGF( "%s %d\n", g_netEntries[i].ssid, g_netEntries[i].rssi );
+	}
+	return 0;
+}
 
 #include "crypto.h"
 static const uint8_t exponent[] = { 1,0,1 };
@@ -1474,6 +1568,10 @@ void SetupGPIOInterrupts() {
 void thread_spi(void * data) {
 	Cmd_spi_read(0, 0);
 	while(1) {
+		if(is_top_in_dfu()){
+			vTaskDelay(500);
+			continue;
+		}
 		if (xSemaphoreTake(spi_smphr, 500) ) {
 			Cmd_spi_read(0, 0);
 			MAP_GPIOIntEnable(GPIO_PORT,GSPI_INT_PIN);
@@ -1603,6 +1701,7 @@ void init_i2c_recovery();
 
 void launch_tasks() {
 	checkFaults();
+	start_top_boot_watcher();
 
 	//dear future chris: this one doesn't need a semaphore since it's only written to while threads are going during factory test boot
 	booted = true;
@@ -1661,9 +1760,12 @@ int cmd_memfrag(int argc, char *argv[]) {
 	}
 	return 0;
 }
-
+void
+vAssertCalled( const char * s );
 int Cmd_fault(int argc, char *argv[]) {
-	*(volatile int*)0xFFFFFFFF = 0xdead;
+	//*(volatile int*)0xFFFFFFFF = 0xdead;
+	//vAssertCalled("test");
+	assert(false);
 	return 0;
 }
 int Cmd_test_realloc(int argc, char *argv[]) {
@@ -1701,7 +1803,40 @@ int Cmd_disableInterrupts(int argc, char *argv[]) {
 	}
 	return 0;
 }
+#define ARR_LEN(x) (sizeof(x)/sizeof(x[0]))
+static void print_nwp_version() {
+	SlVersionFull ver;
+	uint8_t pConfigOpt, pConfigLen, i;
 
+	pConfigOpt = SL_DEVICE_GENERAL_VERSION;
+
+	pConfigLen = sizeof(SlVersionFull);
+
+	if( 0 == sl_DevGet(SL_DEVICE_GENERAL_CONFIGURATION,&pConfigOpt,&pConfigLen,(uint8_t *)(&ver)) ) {
+		LOGI("FW " );
+		for(i=0;i<ARR_LEN(ver.ChipFwAndPhyVersion.FwVersion);++i) {
+			LOGI("%d.", ver.ChipFwAndPhyVersion.FwVersion[i] );
+		} LOGI("\n");
+
+		LOGI("PHY " );
+		for(i=0;i<ARR_LEN(ver.ChipFwAndPhyVersion.PhyVersion);++i) {
+			LOGI("%d.", ver.ChipFwAndPhyVersion.PhyVersion[i] );
+		} LOGI("\n");
+
+		LOGI("CHIP %x\n", ver.ChipFwAndPhyVersion.ChipId );
+		LOGI("NWP " );
+		for(i=0;i<ARR_LEN(ver.NwpVersion);++i) {
+			LOGI("%d.", ver.NwpVersion[i] );
+		} LOGI("\n");
+
+		LOGI("ROM %x\n", ver.RomVersion );
+	}
+}
+int Cmd_nwpinfo(int argc, char *argv[]) {
+	print_nwp_version();
+	return 0;
+}
+int Cmd_SyncID(int argc, char * argv[]);
 
 // ==============================================================================
 // This is the table that holds the command names, implementing functions, and
@@ -1801,11 +1936,16 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "frag",cmd_memfrag,""},
 		{ "burntopkey",Cmd_burn_top,""},
 		{ "scan",Cmd_scan_wifi,""},
+		{ "rssi", Cmd_rssi, "" },
 		{"future",Cmd_FutureTest,""},
 		{"dev", Cmd_setDev, ""},
 		{"ana", Cmd_analytics, ""},
 		{"dns", Cmd_setDns, ""},
 		{"noint", Cmd_disableInterrupts, ""},
+		{"nwp", Cmd_nwpinfo, ""},
+		{"resync", Cmd_SyncID, ""},
+		{"g", Cmd_gesture, ""},
+
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
 		{ "iperfcli",Cmd_iperf_client,""},
@@ -1931,7 +2071,7 @@ void vUARTTask(void *pvParameters) {
 	vSemaphoreCreateBinary(dust_smphr);
 	vSemaphoreCreateBinary(light_smphr);
 	vSemaphoreCreateBinary(spi_smphr);
-	vSemaphoreCreateBinary(alarm_smphr);
+	alarm_smphr = xSemaphoreCreateRecursiveMutex();
 
 
 	if (data_queue == 0) {
@@ -1959,7 +2099,8 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(top_board_task, "top_board_task", 1280 / 4, NULL, 2, NULL);
 	xTaskCreate(thread_spi, "spiTask", 1024 / 4, NULL, 3, NULL);
 #ifndef BUILD_SERVERS
-	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 1, NULL);
+	uart_logger_init();
+	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 3, NULL);
 	UARTprintf("*");
 	xTaskCreate(analytics_event_task, "analyticsTask", 1024/4, NULL, 1, NULL);
 	UARTprintf("*");
@@ -1971,14 +2112,14 @@ void vUARTTask(void *pvParameters) {
 		vTaskDelete(NULL);
 		return;
 	} else {
-		play_led_wheel( 50, LED_MAX, LED_MAX, 0,0,10);
+		play_led_wheel( 50, LED_MAX, LED_MAX, 0,0,10,1);
 	}
 
 	UARTprintf("\n\nFreeRTOS %s, %x, %s %x:%x:%x:%x:%x:%x\n",
 	tskKERNEL_VERSION_NUMBER, KIT_VER, MORPH_NAME, mac[0], mac[1], mac[2],
 			mac[3], mac[4], mac[5]);
+	print_nwp_version();
 	UARTprintf("> ");
-
 
 	/* remove anything we recieved before we were ready */
 

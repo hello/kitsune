@@ -145,6 +145,8 @@ void set_sl_time(time_t unix_timestamp_sec) {
     LOGI("Day %d,Mon %d,Year %d,Hour %d,Min %d,Sec %d\n",sl_tm.sl_tm_day,sl_tm.sl_tm_mon,sl_tm.sl_tm_year, sl_tm.sl_tm_hour,sl_tm.sl_tm_min,sl_tm.sl_tm_sec);
 }
 
+#define MAX_UDP_TIMEOUT 30
+static unsigned int time_attempts = 0;
 uint32_t fetch_unix_time_from_ntp() {
     char buffer[48];
     int rv = 0;
@@ -158,7 +160,7 @@ uint32_t fetch_unix_time_from_ntp() {
     SlTimeval_t tv;
 
     sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    tv.tv_sec = 30;             // Seconds
+    tv.tv_sec = time_attempts > MAX_UDP_TIMEOUT ? MAX_UDP_TIMEOUT : ++time_attempts; // Seconds
     tv.tv_usec = 0;             // Microseconds. 10000 microseconds resolution
     setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)); // Enable receive timeout
 

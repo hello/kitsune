@@ -8,6 +8,8 @@ extern void mcu_reset();
 #include "FreeRTOS.h"
 #include "task.h"
 
-#define assert(x) if(!(x)) {LOGE( "xkd " #x "\n" ); uart_logger_flush(); vTaskDelay(10000); mcu_reset();}
+void
+vAssertCalled( const char * s );
+#define assert(x) if(!(x)) {vAssertCalled(#x);}
 
 #endif // __USTDLIB_H__

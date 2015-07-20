@@ -540,6 +540,45 @@ int Cmd_iperf_client(int argc, char *argv[]) {
 }
 #endif
 
+int get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uint32_t scan_duration_ms, int antenna)
+{
+    if(scan_duration_ms < 1000)
+    {
+        return 0;
+    }
+
+    unsigned long IntervalVal = 20;
+
+    unsigned char policyOpt = SL_CONNECTION_POLICY(0, 0, 0, 0, 0);
+    int r;
+
+    if( antenna ) {
+    	antsel(antenna);
+    }
+
+    r = sl_WlanPolicySet(SL_POLICY_CONNECTION , policyOpt, NULL, 0);
+
+    // Make sure scan is enabled
+    policyOpt = SL_SCAN_POLICY(1);
+
+    // set scan policy - this starts the scan
+    r = sl_WlanPolicySet(SL_POLICY_SCAN , policyOpt, (unsigned char *)(IntervalVal), sizeof(IntervalVal));
+
+
+    // delay specific milli seconds to verify scan is started
+    vTaskDelay(scan_duration_ms);
+
+    // r indicates the valid number of entries
+    // The scan results are occupied in netEntries[]
+    r = sl_WlanGetNetworkList(0, entry_len, entries);
+
+    // Restore connection policy to Auto
+    sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0), NULL, 0);
+
+    return r;
+
+}
+
 void wifi_reset()
 {
     int16_t ret = sl_WlanProfileDel(0xFF);
@@ -772,10 +811,10 @@ void load_device_id() {
 	*/
 }
 
-static void _on_morpheus_command_success(pb_field_t * fields, void * structdata){
+static void _on_morpheus_command_success(void * structdata){
 	LOGF("signature validated\r\n");
 }
-static void _on_morpheus_command_failure(pb_field_t * fields, void * structdata){
+static void _on_morpheus_command_failure(){
     LOGF("signature validation fail\r\n");
 }
 
@@ -1563,31 +1602,33 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     }
     LOGI("recv %d\n", rv);
 
-    pb_field_t * reply_fields;
-    void * reply_structdata;
+    pb_field_t * reply_fields = NULL;
+    void * reply_structdata = NULL;
 
-    if( pb_cb && pb_cb->get_reply_pb ) {
-    	pb_cb->get_reply_pb( &reply_fields, &reply_structdata );
-    }
-
-    if( validate_signatures((char*)recv_buf, reply_fields, reply_structdata ) ) {
-    	if( pb_cb && pb_cb->on_pb_success ) {
-			pb_cb->on_pb_success( reply_fields, reply_structdata );
+    if( pb_cb ) {
+		if( pb_cb->get_reply_pb ) {
+			pb_cb->get_reply_pb( &reply_fields, &reply_structdata );
+			assert(reply_structdata);
 		}
-    	if( pb_cb && pb_cb->free_reply_pb ) {
-    		pb_cb->free_reply_pb( reply_fields, reply_structdata );
-    	}
-    	return 0;
+		if( reply_structdata && validate_signatures((char*)recv_buf, reply_fields, reply_structdata ) ) {
+			if( pb_cb && pb_cb->on_pb_success ) {
+				pb_cb->on_pb_success( reply_structdata );
+			}
+			if( pb_cb && pb_cb->free_reply_pb ) {
+				pb_cb->free_reply_pb( reply_structdata );
+			}
+			return 0;
+		} else {
+			if( pb_cb && pb_cb->on_pb_failure ) {
+				pb_cb->on_pb_failure();
+			}
+		}
+		if( reply_structdata && pb_cb->free_reply_pb ) {
+			pb_cb->free_reply_pb( reply_structdata );
+		}
     } else {
-    	wifi_status_set(UPLOADING, true);
-    	ble_reply_wifi_status(wifi_connection_state_HELLO_KEY_FAIL);
-    	if( pb_cb && pb_cb->on_pb_failure ) {
-			pb_cb->on_pb_failure( reply_fields, reply_structdata );
-		}
+    	return http_response_ok((char*)recv_buf);
     }
-	if( pb_cb && pb_cb->free_reply_pb ) {
-		pb_cb->free_reply_pb( reply_fields, reply_structdata );
-	}
     return -1;
 }
 
@@ -1644,11 +1685,11 @@ bool get_device_id(char * hex_device_id,uint32_t size_of_device_id_buffer) {
 
 bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg);
 
-void set_alarm( SyncResponse_Alarm * received_alarm );
+void set_alarm( SyncResponse_Alarm * received_alarm, const char * ack, size_t ack_size );
 
-static void _on_alarm_received( SyncResponse_Alarm* received_alarm)
+static void _on_alarm_received( SyncResponse_Alarm* received_alarm, const char * ack, size_t ack_size)
 {
-	set_alarm( received_alarm );
+	set_alarm( received_alarm, ack, ack_size );
 }
 
 static void _on_factory_reset_received()
@@ -1661,13 +1702,13 @@ int force_data_push();
 extern volatile bool provisioning_mode;
 void boot_commit_ota();
 
-static void _on_key_check_success(pb_field_t * fields, void * structdata){
+static void _on_key_check_success(void * structdata){
 	LOGF("signature validated\r\n");
 	if (provisioning_mode) {
 		sl_FsDel((unsigned char*)PROVISION_FILE, 0);
 		wifi_reset();
 		//green!
-		play_led_wheel( LED_MAX, 0, LED_MAX, 0, 3600, 33);
+		play_led_wheel( LED_MAX, 0, LED_MAX, 0, 3600, 33,1);
 		while (1) {
 			vTaskDelay(100);
 		}
@@ -1675,14 +1716,14 @@ static void _on_key_check_success(pb_field_t * fields, void * structdata){
 
 	provisioning_mode = false;
 }
-static void _on_key_check_failure(pb_field_t * fields, void * structdata){
+static void _on_key_check_failure( void * structdata){
 	LOGF("signature validation fail\r\n");
 	//light up if we're in provisioning mode but not if we're testing the key from top
 	//this handles the overlap case where we want to get keys from top but the server doesn't yet have the blobs
 	//allowing us to fall back to the key handshake with the server
 	if (provisioning_mode && has_default_key()) {
 		//red!
-		play_led_wheel( LED_MAX, LED_MAX, 0, 0, 3600, 33);
+		play_led_wheel( LED_MAX, LED_MAX, 0, 0, 3600, 33,1);
 		while (1) {
 			vTaskDelay(100);
 		}
@@ -1730,20 +1771,40 @@ static void _set_led_color_based_on_room_conditions(const SyncResponse* response
     	switch(response_protobuf->room_conditions)
     	{
 			case SyncResponse_RoomConditions_IDEAL:
-				led_set_user_color(0x00, LED_MAX, 0x00);
+				led_set_user_color(0x00, LED_MAX, 0x00,true);
 			break;
 			case SyncResponse_RoomConditions_WARNING:
-				led_set_user_color(LED_MAX, LED_MAX, 0x00);
+				led_set_user_color(LED_MAX, LED_MAX, 0x00,true);
 			break;
 			case SyncResponse_RoomConditions_ALERT:
-				led_set_user_color(0xF0, 0x76, 0x00);
+				led_set_user_color(0xF0, 0x76, 0x0,true);
 			break;
 			default:
-				led_set_user_color(0x00, 0x00, LED_MAX);
+				led_set_user_color(0x00, 0x00, LED_MAX,true);
 			break;
     	}
     }else{
-        led_set_user_color(0x00, LED_MAX, 0x00);
+        led_set_user_color(0x00, LED_MAX, 0x00,true);
+    }
+    if(response_protobuf->has_room_conditions_lights_off)
+    {
+    	switch(response_protobuf->room_conditions_lights_off)
+    	{
+			case SyncResponse_RoomConditions_IDEAL:
+				led_set_user_color(0x00, LED_MAX, 0x00,false);
+			break;
+			case SyncResponse_RoomConditions_WARNING:
+				led_set_user_color(LED_MAX, LED_MAX, 0x00,false);
+			break;
+			case SyncResponse_RoomConditions_ALERT:
+				led_set_user_color(0xF0, 0x76, 0x00,false);
+			break;
+			default:
+				led_set_user_color(0x00, 0x00, LED_MAX,false);
+			break;
+    	}
+    }else{
+        led_set_user_color(0x00, LED_MAX, 0x00,false);
     }
 }
 void reset_to_factory_fw();
@@ -1754,7 +1815,13 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
 {
     if (response_protobuf->has_alarm) 
     {
-        _on_alarm_received(&response_protobuf->alarm);
+    	if(response_protobuf->has_ring_time_ack){
+    		_on_alarm_received(&response_protobuf->alarm, response_protobuf->ring_time_ack, sizeof(response_protobuf->ring_time_ack));
+
+    	}else{
+    		_on_alarm_received(&response_protobuf->alarm, NULL, 0);
+    	}
+
     }
 
     if (response_protobuf->has_mac)
@@ -1781,16 +1848,8 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
     if( response_protobuf->has_batch_size ) {
     	data_queue_batch_size = response_protobuf->batch_size;
     }
-
-    if( response_protobuf->has_pill_batch_size ){
+    if( response_protobuf->has_pill_batch_size ) {
     	pill_queue_batch_size = response_protobuf->pill_batch_size;
-    }
-
-    if(response_protobuf->pill_settings_count > 0) {
-		BatchedPillSettings settings = {0};
-		settings.pill_settings_count = response_protobuf->pill_settings_count > MAX_PILL_SETTINGS_COUNT ? MAX_PILL_SETTINGS_COUNT : response_protobuf->pill_settings_count;
-		memcpy(settings.pill_settings, response_protobuf->pill_settings, sizeof(SyncResponse_PillSettings) * settings.pill_settings_count);
-		pill_settings_save(&settings);
     }
 
     if(response_protobuf->has_upload_log_level) {
@@ -1808,20 +1867,23 @@ static void _get_sync_response(pb_field_t ** fields, void ** structdata){
 	*fields = (pb_field_t *)SyncResponse_fields;
 	*structdata = pvPortMalloc(sizeof(SyncResponse));
 	assert(*structdata);
-	SyncResponse * response_protobuf = *structdata;
-    memset(response_protobuf, 0, sizeof(SyncResponse));
-    response_protobuf->files.funcs.decode = _on_file_download;
+	if( *structdata ) {
+		SyncResponse * response_protobuf = *structdata;
+		memset(response_protobuf, 0, sizeof(SyncResponse));
+		response_protobuf->pill_settings.funcs.decode = on_pill_settings;
+		response_protobuf->files.funcs.decode = _on_file_download;
+	}
 }
-static void _free_sync_response(pb_field_t * fields, void * structdata){
+static void _free_sync_response(void * structdata){
 	vPortFree( structdata );
 }
 
-static void _on_sync_response_success(pb_field_t * fields, void * structdata){
-    LOGF("signature validation success\r\n");
+static void _on_sync_response_success( void * structdata){
+	LOGF("signature validation success\r\n");
 	boot_commit_ota();
 	_on_response_protobuf((SyncResponse*)structdata);
 }
-static void _on_sync_response_failure(pb_field_t * fields, void * structdata){
+static void _on_sync_response_failure( ){
     LOGF("signature validation fail\r\n");
 }
 
@@ -1838,7 +1900,7 @@ bool send_pill_data(batched_pill_data * pill_data) {
 			PILL_DATA_RECEIVE_ENDPOINT, batched_pill_data_fields, pill_data, INT_MAX,
 			NULL, NULL, &pb_cb, false);
 }
-bool send_periodic_data(batched_periodic_data* data) {
+bool send_periodic_data(batched_periodic_data* data, bool forced) {
     protobuf_reply_callbacks pb_cb;
 
     pb_cb.get_reply_pb = _get_sync_response;
@@ -1848,7 +1910,7 @@ bool send_periodic_data(batched_periodic_data* data) {
 
 	return NetworkTask_SendProtobuf(true, DATA_SERVER,
 			DATA_RECEIVE_ENDPOINT, batched_periodic_data_fields, data, INT_MAX,
-			NULL, NULL, &pb_cb, false);
+			NULL, NULL, &pb_cb, forced);
 }
 
 static void _get_provision_response(pb_field_t ** fields, void ** structdata){
@@ -1857,11 +1919,13 @@ static void _get_provision_response(pb_field_t ** fields, void ** structdata){
 	assert(*structdata);
     memset(structdata, 0, sizeof(ProvisionResponse));
 }
-static void _free_provision_response(pb_field_t * fields, void * structdata){
-	vPortFree( structdata );
+static void _free_provision_response(void * structdata){
+	if( structdata ) {
+		vPortFree( structdata );
+	};
 }
 
-static void _on_provision_response_success(pb_field_t * fields, void * structdata){
+static void _on_provision_response_success(void * structdata){
 	ProvisionResponse * response_protobuf = structdata;
 	LOGF("signature validation success\r\n");
 

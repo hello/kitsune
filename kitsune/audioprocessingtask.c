@@ -22,7 +22,7 @@ static uint32_t samplecounter;
 #define AUDIO_UPLOAD_PERIOD_IN_MS (60000)
 #define AUDIO_UPLOAD_PERIOD_IN_TICKS (AUDIO_UPLOAD_PERIOD_IN_MS / SAMPLE_PERIOD_IN_MILLISECONDS / 2)
 
-#define DESIRED_BUFFER_SIZE_IN_BYTES (20000)
+#define DESIRED_BUFFER_SIZE_IN_BYTES (3300) //10 chunks
 
 static void * _longTermStorageBuffer = NULL;
 

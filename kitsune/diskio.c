@@ -444,19 +444,11 @@ DSTATUS disk_status ( BYTE bDrive )
 void SDHostIntHandler()
 {
 	unsigned long sts = SDHostIntStatus(SDHOST_BASE);
-	if( sts & DMA_INTERRUPTS ) {
-		SDHostIntClear(SDHOST_BASE, DMA_INTERRUPTS);
-		SDHostIntDisable(SDHOST_BASE, DMA_INTERRUPTS);
-		SDHostIntEnable(SDHOST_BASE, SDHOST_INT_TC);
 
-		if( sts & SDHOST_INT_DMAWR ) {
-			UtilsDelay(2500); //TODO WTF 2250 works, 2000 does not
-		}
-		CardSendCmd(CMD_STOP_TRANS, 0);
-	}
 	if( sts & SDHOST_INT_TC ) {
 		SDHostIntClear(SDHOST_BASE, SDHOST_INT_TC);
 		SDHostIntDisable(SDHOST_BASE, SDHOST_INT_TC);
+
 		BaseType_t xHigherPriorityTaskWoken;
 		xSemaphoreGiveFromISR(sd_dma_smphr, &xHigherPriorityTaskWoken);
 		portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
@@ -509,12 +501,14 @@ DRESULT disk_read ( BYTE bDrive, BYTE* pBuffer, DWORD ulSectorNumber,
 
   // Check if 1 block or multi block transfer
   //
-  assert(bSectorCount==1); //want to read more than the sector size? got to refactor fatfs :S
-//  unsigned long cmd = bSectorCount == 1 ? CMD_READ_SINGLE_BLK : CMD_READ_MULTI_BLK;
-	SDHostIntClear(SDHOST_BASE, SDHOST_INT_DMARD );
-	SDHostIntEnable(SDHOST_BASE, SDHOST_INT_DMARD);
+ // assert(bSectorCount==1); //want to read more than the sector size? got to refactor fatfs :S
+//    unsigned long cmd = bSectorCount == 1 ? CMD_READ_SINGLE_BLK : CMD_READ_MULTI_BLK;
+	SDHostIntClear(SDHOST_BASE, SDHOST_INT_TC );
+	SDHostIntEnable(SDHOST_BASE, SDHOST_INT_TC);
 
-	SetupTransfer(UDMA_CH23_SDHOST_RX, UDMA_MODE_BASIC, 512/4,
+    unsigned long ulSize = (512*bSectorCount)/4;
+
+	SetupTransfer(UDMA_CH23_SDHOST_RX, UDMA_MODE_BASIC, ulSize,
 	UDMA_SIZE_32, UDMA_ARB_1, (void *) (SDHOST_BASE + MMCHS_O_DATA),
 	UDMA_SRC_INC_NONE, (void *) (pBuffer), UDMA_DST_INC_32);
 
@@ -522,10 +516,12 @@ DRESULT disk_read ( BYTE bDrive, BYTE* pBuffer, DWORD ulSectorNumber,
 	//
 	// Send block read command to the card
 	//
-	if (CardSendCmd(CMD_READ_SINGLE_BLK | SDHOST_DMA_EN, ulSectorNumber) == 0) {
+	if (CardSendCmd(CMD_READ_MULTI_BLK | SDHOST_DMA_EN, ulSectorNumber) == 0) {
 		if( xSemaphoreTake(sd_dma_smphr, SDCARD_DMA_BLOCK_TRANSFER_TIMEOUT) ) {//block till interrupt releases
 			Res = RES_OK;
 		}
+		CardSendCmd(CMD_STOP_TRANS,0);
+		 while( !(MAP_SDHostIntStatus(SDHOST_BASE) & SDHOST_INT_TC) ){}
   }
 
   //
@@ -577,27 +573,32 @@ DRESULT disk_write ( BYTE bDrive,const BYTE* pBuffer, DWORD ulSectorNumber,
   //
   MAP_SDHostBlockCountSet(SDHOST_BASE,bSectorCount);
 
-  //
-  // Check if 1 block or multi block transfer
-  //
+  SDHostIntClear(SDHOST_BASE, SDHOST_INT_TC );
+  SDHostIntEnable(SDHOST_BASE, SDHOST_INT_TC);
 
-  assert(bSectorCount==1); //want to read more than the sector size? got to refactor fatfs :S
-//  unsigned long cmd = bSectorCount == 1 ? CMD_READ_SINGLE_BLK : CMD_READ_MULTI_BLK;
-	SetupTransfer(UDMA_CH24_SDHOST_TX, UDMA_MODE_BASIC, 512/4,
+  assert(bSectorCount==1);//todo get multi sector writes working...
+
+	unsigned long ulSize = (512 * bSectorCount) / 4;
+
+	SetupTransfer(UDMA_CH24_SDHOST_TX, UDMA_MODE_BASIC, ulSize,
 	UDMA_SIZE_32, UDMA_ARB_1, (void *) (pBuffer),
 	UDMA_SRC_INC_32, (void *) (SDHOST_BASE + MMCHS_O_DATA), UDMA_DST_INC_NONE);
 
-	SDHostIntClear(SDHOST_BASE, SDHOST_INT_DMAWR );
-	SDHostIntEnable(SDHOST_BASE, SDHOST_INT_DMAWR);
 	//
 	// Send  block read command to the card
 	//
 	if (CardSendCmd(CMD_WRITE_SINGLE_BLK | SDHOST_DMA_EN, ulSectorNumber) == 0) {
-		if( xSemaphoreTake(sd_dma_smphr, SDCARD_DMA_BLOCK_TRANSFER_TIMEOUT) ) {//block till interrupt releases
+		if (xSemaphoreTake(sd_dma_smphr, SDCARD_DMA_BLOCK_TRANSFER_TIMEOUT)) {//block till interrupt releases
 			Res = RES_OK;
 		}
-  }
+		vTaskDelay(10);
+		CardSendCmd(CMD_STOP_TRANS, 0);
+		 while( !(MAP_SDHostIntStatus(SDHOST_BASE) & SDHOST_INT_TC) ){
+				vTaskDelay(1);
+		 }
+	}
 
+  //
   //
   // return status
   //

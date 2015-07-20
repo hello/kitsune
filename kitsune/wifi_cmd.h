@@ -47,9 +47,9 @@ SyncResponse_Alarm alarm;
 
 typedef struct {
 	void (*get_reply_pb)(pb_field_t ** fields, void ** structdata);
-	void (*on_pb_success)(pb_field_t * fields, void * structdata);
-	void (*on_pb_failure)(pb_field_t * fields, void * structdata);
-	void (*free_reply_pb)(pb_field_t * fields, void * structdata);
+	void (*on_pb_success)(void * structdata);
+	void (*on_pb_failure)();
+	void (*free_reply_pb)(void * structdata);
 } protobuf_reply_callbacks;
 
 int Cmd_iperf_client(int argc, char *argv[]);
@@ -103,7 +103,7 @@ void wifi_status_init();
 int wifi_status_set(unsigned int status, int remove_status);
 int wifi_status_get(unsigned int status);
 
-bool send_periodic_data(batched_periodic_data* data);
+bool send_periodic_data(batched_periodic_data* data, bool forced);
 bool send_pill_data(batched_pill_data * pill_data);
 bool send_provision_request(ProvisionRequest* req);
 #define DEFAULT_KEY "1234567891234567"
