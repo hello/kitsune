@@ -100,18 +100,20 @@ _logstr(const char * str, int len, bool echo, bool store){
 		return;
 	}
 	xSemaphoreTake(self.print_sem, portMAX_DELAY);
-	if( self.widx + len >= UART_LOGGER_BLOCK_SIZE) {
-		_swap_and_upload();
+	if( store ) {
+		if( self.widx + len >= UART_LOGGER_BLOCK_SIZE) {
+			_swap_and_upload();
+		}
+		if( !self.logging_block ) {
+			self.logging_block = pvPortMalloc(UART_LOGGER_BLOCK_SIZE);
+			assert(self.logging_block);
+			memset( (void*)self.logging_block, 0, UART_LOGGER_BLOCK_SIZE );
+		}
+		for(i = 0; i < len; i++){
+			assert( self.widx < UART_LOGGER_BLOCK_SIZE );
+			self.logging_block[self.widx++] = str[i];
+		}
 	}
-	if( !self.logging_block ) {
-		self.logging_block = pvPortMalloc(UART_LOGGER_BLOCK_SIZE);
-		assert(self.logging_block);
-		memset( (void*)self.logging_block, 0, UART_LOGGER_BLOCK_SIZE );
-	}
-	for(i = 0; i < len && store; i++){
-		uart_logc(str[i]);
-	}
-	xSemaphoreGive(self.print_sem);
 
 #endif
 
@@ -121,6 +123,7 @@ _logstr(const char * str, int len, bool echo, bool store){
 #endif
 		UARTwrite(str, len);
 	}
+	xSemaphoreGive(self.print_sem);
 }
 static int _walk_log_dir(file_handler * handler, void * ctx){
 	FILINFO file_info;
@@ -564,11 +567,6 @@ int analytics_event( const char *pcString, ...) {
     }
 
     return 0;
-}
-
-void uart_logc(uint8_t c){
-	self.logging_block[self.widx] = c;
-	self.widx++;
 }
 
 static bool send_log() {
