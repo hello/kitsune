@@ -207,6 +207,7 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type,
 
 	if(wifi_state_requested) {
 		int to = 0;
+		bool need_to_transmit_ip = true;
 		nwp_reset(); //tabula rasa
 	    if(!connect_wifi(ssid, password, security_type, version))
 	    {
@@ -225,7 +226,12 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type,
 				break;
 			}
 			if( wifi_status_get(HAS_IP) ) { //can't do this one on the event handler, it has so little stack...
-		        ble_reply_wifi_status(wifi_connection_state_IP_RETRIEVED);
+				if( need_to_transmit_ip ) {
+					ble_reply_wifi_status(wifi_connection_state_IP_RETRIEVED);
+					need_to_transmit_ip = false;
+				}
+			} else {
+				need_to_transmit_ip = true;
 			}
 		}
 		wifi_state_requested = false;
