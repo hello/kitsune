@@ -188,8 +188,8 @@ static void _reply_wifi_scan_result()
 	LOGI(">>>>>>Send WIFI scan results done<<<<<<\n");
 
 }
-
-static bool _set_wifi(const char* ssid, const char* password, int security_type, int version)
+int force_data_push();
+static bool _set_wifi(const char* ssid, const char* password, int security_type, int version, int app_version)
 {
     int i;
 
@@ -205,10 +205,13 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type,
     }
 	xSemaphoreGive(_wifi_smphr);
 
-	if(wifi_state_requested) {
+	if(app_version >= 0) {
 		int to = 0;
 		bool need_to_transmit_ip = true;
-		nwp_reset(); //tabula rasa
+
+		nwp_reset();
+		wifi_state_requested = true;
+
 	    if(!connect_wifi(ssid, password, security_type, version))
 	    {
 			LOGI("failed to connect\n");
@@ -216,6 +219,7 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type,
 	        //led_set_color(0xFF, LED_MAX,0,0,1,1,20,0);
 			return 0;
 	    }
+	    force_data_push();
 
 		while( !wifi_status_get(UPLOADING) ) {
 			vTaskDelay(1000);
@@ -418,7 +422,6 @@ typedef struct {
 	int is_morpheus;
 } pairing_context_t;
 
-int force_data_push();
 static void _on_pair_success(void * structdata){
 	LOGF("pairing success\r\n");
 	if( structdata ) {
@@ -711,7 +714,6 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
     {
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SET_WIFI_ENDPOINT:
         {
-            wifi_state_requested = command->has_app_version && command->app_version >= 0;
             LOGI("set wifi %d %d %d\n", wifi_state_requested, command->has_app_version, command->app_version );
 
         	set_ble_mode(BLE_CONNECTED);
@@ -719,8 +721,6 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
             char* password = command->wifiPassword.arg;
 
             // I can get the Mac address as well, but not sure it is necessary.
-
-
             int sec_type = SL_SEC_TYPE_WPA_WPA2;
             if(command->has_security_type)
             {
@@ -739,7 +739,8 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
             	LOGI("%s\n", ssid, password);
             }
 #endif
-            int result = _set_wifi(ssid, (char*)password, sec_type, command->version );
+            int result = _set_wifi(ssid, (char*)password, sec_type, command->version,
+            		command->has_app_version ? command->app_version : -1  );
 
         }
         break;
