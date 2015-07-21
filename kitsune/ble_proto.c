@@ -479,6 +479,7 @@ static bool _pair_device( MorpheusCommand* command, int is_morpheus)
 void ble_proto_led_init()
 {
 	play_led_animation_solid(LED_MAX, LED_MAX, LED_MAX,LED_MAX,1, 33,1);
+	led_is_idle(5000);
 }
 
 
