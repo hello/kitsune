@@ -3,6 +3,7 @@
 #include "hlo_async.h"
 #include "FreeRTOS.h"
 #include "queue.h"
+#include <stdbool.h>
 /*
  * persistend fifo queue
  */
@@ -20,9 +21,13 @@ typedef void (*on_finished)(void * buf);
 
 hlo_queue_t * hlo_queue_create(const char * root, size_t obj_count, size_t watermark);
 
-int hlo_queue_enqueue(hlo_queue_t * q, void * obj, size_t obj_size, on_finished cb);
+/**
+ *
+ */
+int hlo_queue_enqueue(hlo_queue_t * q, void * obj, size_t obj_size, bool blocking, on_finished cb);
 
 int hlo_queue_dequeue(hlo_queue_t * q, void ** out_obj, size_t * out_size);
+
 
 int hlo_queue_count(hlo_queue_t * q);
 

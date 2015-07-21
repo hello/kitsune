@@ -1,18 +1,23 @@
 #include "hlo_queue.h"
-
+#include "hellofilesystem.h"
+#include <string.h>
+#include "ustdlib.h"
+#include "uart_logger.h"
+#include "hlo_async.h"
 
 typedef struct{
 	enum{
 		QUEUE_READ = 0,
 		QUEUE_WRITE,
 		QUEUE_FLUSH,
-	}operation;
+	}type;
 	void * buf;
 	size_t buf_size;
+	hlo_future_t * sync;
 	on_finished cleanup;
 }worker_context_t;
 
-static char*
+/*static char*
 _construct_name(char * buf, const char * root, const char * local){
 	strcat(buf, "/");
 	strcat(buf, root);
@@ -45,57 +50,41 @@ _write_file(char * root, char * local_name, const char * buffer, WORD size){
 		return res;
 	}
 	return FR_OK;
-}
+}*/
 static void _queue_worker(void * ctx){
 	hlo_queue_t * worker = (hlo_queue_t*)ctx;
-	xQueueHandle obj_cache = xQueueCreate(worker->watermark, sizeof(worker_context_t));
-	assert(obj_cache);
 	while(1){
-		worker_context_t task = {0};
-		if(xQueueReceive(worker->worker_queue, &task, portMAX_DELAY)){
-			switch(task.operation){
+		worker_context_t task = (worker_context_t){0};
+		while(xQueueReceive(worker->worker_queue, &task, portMAX_DELAY)){
+			size_t mcount = uxQueueMessagesWaiting(worker->worker_queue);
+			switch(task.type){
 			case QUEUE_READ:
-				if(worker->write_index > worker->read_index){
+				if(1){
 					//read from flash
-					//allocate
 				}else{
-					//read from cache
-					//do not need to allocate
+					//no op
 				}
-				//signal finished
 				break;
 			case QUEUE_WRITE:
-				while(xQueueSend(obj_cache, &task,1) != pdTRUE){
-					//cache is full
-					worker_context_t cached_task = {0};
-					if(xQueueReceive(obj_cache, &cached_task, portMAX_DELAY) == pdTRUE){
-						//write to flash
-						assert(FR_OK == _write_file(worker->root, "0", cached_task.buf, cached_task.buf_size));
-						cached_task.cleanup(cached_task.buf);
-					}
+				//writes to flash
+
+				//free
+				if(task.cleanup){
+					task.cleanup(task.sync);
 				}
-				//signal done
+				if(task.sync){
+					hlo_future_write(task.sync, NULL, 0, 0);
+				}
 
 				break;
 			case QUEUE_FLUSH:
 				goto fin;
-			default:
-				assert(0);
-				break;
 			}
 		}
 	}
 fin:
-	//flush cache
-	while(uxQueueMessagesWaiting(obj_cache) > 0){
-		worker_context cached_task = {0};
-		if(xQueueReceive(obj_cache, &cached_task, portMAX_DELAY) == pdTRUE){
-			//write to flash
-			_write_file(worker->root, "0", cached_task.buf, cached_task.buf_size)
-		}
-	}
 	hlo_future_write(worker->worker, NULL, 0, 0);
-	vQueueDelete(obj_cache);
+	LOGI("Flushing worker queue\r\n");
 }
 hlo_queue_t * hlo_queue_create(const char * root, size_t obj_count, size_t watermark){
 	hlo_queue_t * ret = pvPortMalloc(sizeof(*ret));
@@ -109,11 +98,26 @@ hlo_queue_t * hlo_queue_create(const char * root, size_t obj_count, size_t water
 }
 
 
-int hlo_queue_enqueue(hlo_queue_t * q, void * obj, size_t obj_size, on_finished cb){
-	if(xQueue)
-
+int hlo_queue_enqueue(hlo_queue_t * q, void * obj, size_t obj_size, bool blocking, on_finished cb){
+	worker_context_t task = (worker_context_t){
+		.type = QUEUE_WRITE,
+		.sync = blocking ? hlo_future_create():NULL,
+		.buf = obj,
+		.buf_size = obj_size,
+		.cleanup = cb,
+	};
+	int ret = 0;
+	if(xQueueSend(q,&task,100)){
+		hlo_future_read(task.sync, NULL, 0);
+	}else{
+		LOGE("Queue is full\r\n");
+		ret = -1;
+	}
+	hlo_future_destroy(task.sync);
+	return ret;
 }
 
 int hlo_queue_dequeue(hlo_queue_t * q, void ** out_obj, size_t * out_size){
 
 }
+
