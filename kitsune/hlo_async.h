@@ -7,8 +7,8 @@
  * tools for asynchronous transaction here
  */
 typedef struct hlo_future_t{
-	xSemaphoreHandle release;
-	xSemaphoreHandle sync;
+	xSemaphoreHandle read_lock;		//mandatory lock, will block reader's thread until value has been written
+	xSemaphoreHandle write_lock;	//optional lock, will block writer's thread until a value has been read
 	int return_code;
 	int buf_size;
 	void * buf;
