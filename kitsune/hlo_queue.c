@@ -117,7 +117,23 @@ int hlo_queue_enqueue(hlo_queue_t * q, void * obj, size_t obj_size, bool blockin
 	return ret;
 }
 
+//dequeue is always blocking
 int hlo_queue_dequeue(hlo_queue_t * q, void ** out_obj, size_t * out_size){
+	worker_context_t task = (worker_context_t){
+		.type = QUEUE_READ,
+		.sync = hlo_future_create(),
+		.buf = NULL,
+		.buf_size = 0,
+		.cleanup = NULL
+	}
+	int ret;
+	if(xQueueSend(q, &task, 100){
+		ret = hlo_future_read(task.sync, *out_obj, *out_size);
+	}else{
+		ret = -1;
+	}
+	hlo_future_destroy(task.sync);
+	return ret;
 
 }
 
