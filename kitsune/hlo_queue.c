@@ -97,6 +97,7 @@ hlo_queue_t * hlo_queue_create(const char * root, size_t obj_count, size_t water
 	memset(ret, 0, sizeof(*ret));
 	assert(ret);
 	usnprintf(ret->root, sizeof(ret->root),"%s", root);
+	LOGI("Created persisted queue: %s\r\n",ret->root);
 	ret->worker_queue = xQueueCreate(10, sizeof(worker_context_t));
 	assert(ret->worker_queue);
 	ret->worker = hlo_future_create_task_bg(_queue_worker, ret, 1024);
@@ -162,6 +163,10 @@ int hlo_queue_dequeue(hlo_queue_t * q, void ** out_obj, size_t * out_size){
 
 int Cmd_Hlo_Queue_Test(int argc, char * argv[]){
 	hlo_queue_t * q = hlo_queue_create("test", 10, 3);
+	char * out_string = NULL;
+	size_t out_size;
+	assert(0 == hlo_queue_enqueue(q, "test_string", strlen("test_string")+1, 1, NULL));
+	assert(0 == hlo_queue_dequeue(q, &out_string, &out_size));
 	hlo_queue_destroy(q);
 	return 0;
 }
