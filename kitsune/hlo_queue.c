@@ -84,10 +84,13 @@ static void _queue_worker(hlo_future_t * result, void * ctx){
 			default:
 			case QUEUE_FLUSH:
 				LOGI("received flush");
-				break;
+				goto fin;
 			}
 		}
 	}
+fin:
+	hlo_future_write(result, NULL, 0, 0);
+	DISP("done\r\n");
 }
 hlo_queue_t * hlo_queue_create(const char * root, size_t obj_count, size_t watermark){
 	hlo_queue_t * ret = pvPortMalloc(sizeof(*ret));
@@ -111,9 +114,9 @@ void hlo_queue_destroy(hlo_queue_t * q){
 		.cleanup = NULL,
 	};
 	xQueueSend(q->worker_queue,&task,portMAX_DELAY);
-	//hlo_future_read_once(q->worker, NULL, 0);
-	//vQueueDelete(q->worker_queue);
-	//vPortFree(q);
+	hlo_future_read_once(q->worker, NULL, 0);
+	vQueueDelete(q->worker_queue);
+	vPortFree(q);
 	LOGI("done\r\n");
 
 }
