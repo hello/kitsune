@@ -548,24 +548,26 @@ extern volatile bool top_got_device_id; //being bad, this is only for factory
 void hold_animate_progress_task(void * params) {
 	uint32_t start = xTaskGetTickCount();
 
-	while( xTaskGetTickCount() - start < PAIRING_GESTURE_DURATION ) {
-		set_led_progress_bar( PROGRESS_COMPLETE*(xTaskGetTickCount() - start)/PAIRING_GESTURE_DURATION );
-		vTaskDelay(18);
-		if( get_released() ) {
-			led_fade_current_animation();
-			vTaskDelete(NULL);
-			return;
-		}
+	vTaskDelay(3000);
+	if( get_released() ) {
+		vTaskDelete(NULL);
+		return;
 	}
-	set_led_progress_bar(100);
+	LOGI("Trigger pairing mode\n");
+	MorpheusCommand response = { 0 };
+	response.type =
+			MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_PAIRING_MODE;
+	ble_send_protobuf(&response);
 
-	if (get_ble_mode() != BLE_PAIRING) {
-		LOGI("Trigger pairing mode\n");
-		MorpheusCommand response = { 0 };
-		response.type =
-				MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_PAIRING_MODE;
-		ble_send_protobuf(&response);
+	vTaskDelay(10000);
+	if( get_released() ) {
+		vTaskDelete(NULL);
+		return;
 	}
+	response.type =
+			MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE;
+	ble_send_protobuf(&response);
+
 	vTaskDelete(NULL);
 }
 
@@ -585,10 +587,8 @@ void ble_proto_start_hold()
 	}
 	case BLE_CONNECTED:
 	default:
-		if (play_led_progress_bar(128, 0, 128, 0, 10000)) {
-			set_released(false);
-			xTaskCreate(hold_animate_progress_task, "hold_animate_pair",1024 / 4, NULL, 2, NULL);
-		}
+		set_released(false);
+		xTaskCreate(hold_animate_progress_task, "hold_animate_pair",1024 / 4, NULL, 2, NULL);
 	}
 
 }
