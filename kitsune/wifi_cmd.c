@@ -216,8 +216,6 @@ void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent) {
 		}
 
 		wifi_status_set(HAS_IP, false);
-        ble_reply_wifi_status(wifi_connection_state_IP_RETRIEVED);
-
 		break;
 
 	case SL_NETAPP_IP_LEASED_EVENT:

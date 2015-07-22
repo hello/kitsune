@@ -188,8 +188,8 @@ static void _reply_wifi_scan_result()
 	LOGI(">>>>>>Send WIFI scan results done<<<<<<\n");
 
 }
-
-static bool _set_wifi(const char* ssid, const char* password, int security_type, int version)
+int force_data_push();
+static bool _set_wifi(const char* ssid, const char* password, int security_type, int version, int app_version)
 {
     int i;
 
@@ -205,9 +205,13 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type,
     }
 	xSemaphoreGive(_wifi_smphr);
 
-	if(wifi_state_requested) {
+	if(app_version >= 0) {
 		int to = 0;
-		nwp_reset(); //tabula rasa
+		bool need_to_transmit_ip = true;
+
+		nwp_reset();
+		wifi_state_requested = true;
+
 	    if(!connect_wifi(ssid, password, security_type, version))
 	    {
 			LOGI("failed to connect\n");
@@ -215,6 +219,7 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type,
 	        //led_set_color(0xFF, LED_MAX,0,0,1,1,20,0);
 			return 0;
 	    }
+	    force_data_push();
 
 		while( !wifi_status_get(UPLOADING) ) {
 			vTaskDelay(1000);
@@ -223,6 +228,14 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type,
 				wifi_state_requested = false;
 				ble_reply_protobuf_error(ErrorType_SERVER_CONNECTION_TIMEOUT);
 				break;
+			}
+			if( wifi_status_get(HAS_IP) ) { //can't do this one on the event handler, it has so little stack...
+				if( need_to_transmit_ip ) {
+					ble_reply_wifi_status(wifi_connection_state_IP_RETRIEVED);
+					need_to_transmit_ip = false;
+				}
+			} else {
+				need_to_transmit_ip = true;
 			}
 		}
 		wifi_state_requested = false;
@@ -409,7 +422,6 @@ typedef struct {
 	int is_morpheus;
 } pairing_context_t;
 
-int force_data_push();
 static void _on_pair_success(void * structdata){
 	LOGF("pairing success\r\n");
 	if( structdata ) {
@@ -470,6 +482,7 @@ static bool _pair_device( MorpheusCommand* command, int is_morpheus)
 void ble_proto_led_init()
 {
 	play_led_animation_solid(LED_MAX, LED_MAX, LED_MAX,LED_MAX,1, 33,1);
+	led_is_idle(5000);
 }
 
 
@@ -535,24 +548,26 @@ extern volatile bool top_got_device_id; //being bad, this is only for factory
 void hold_animate_progress_task(void * params) {
 	uint32_t start = xTaskGetTickCount();
 
-	while( xTaskGetTickCount() - start < PAIRING_GESTURE_DURATION ) {
-		set_led_progress_bar( PROGRESS_COMPLETE*(xTaskGetTickCount() - start)/PAIRING_GESTURE_DURATION );
-		vTaskDelay(18);
-		if( get_released() ) {
-			led_fade_current_animation();
-			vTaskDelete(NULL);
-			return;
-		}
+	vTaskDelay(3000);
+	if( get_released() ) {
+		vTaskDelete(NULL);
+		return;
 	}
-	set_led_progress_bar(100);
+	LOGI("Trigger pairing mode\n");
+	MorpheusCommand response = { 0 };
+	response.type =
+			MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_PAIRING_MODE;
+	ble_send_protobuf(&response);
 
-	if (get_ble_mode() != BLE_PAIRING) {
-		LOGI("Trigger pairing mode\n");
-		MorpheusCommand response = { 0 };
-		response.type =
-				MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_PAIRING_MODE;
-		ble_send_protobuf(&response);
+	vTaskDelay(10000);
+	if( get_released() ) {
+		vTaskDelete(NULL);
+		return;
 	}
+	response.type =
+			MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE;
+	ble_send_protobuf(&response);
+
 	vTaskDelete(NULL);
 }
 
@@ -572,10 +587,8 @@ void ble_proto_start_hold()
 	}
 	case BLE_CONNECTED:
 	default:
-		if (play_led_progress_bar(128, 0, 128, 0, 10000)) {
-			set_released(false);
-			xTaskCreate(hold_animate_progress_task, "hold_animate_pair",1024 / 4, NULL, 2, NULL);
-		}
+		set_released(false);
+		xTaskCreate(hold_animate_progress_task, "hold_animate_pair",1024 / 4, NULL, 2, NULL);
 	}
 
 }
@@ -701,7 +714,6 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
     {
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SET_WIFI_ENDPOINT:
         {
-            wifi_state_requested = command->has_app_version && command->app_version >= 0;
             LOGI("set wifi %d %d %d\n", wifi_state_requested, command->has_app_version, command->app_version );
 
         	set_ble_mode(BLE_CONNECTED);
@@ -709,8 +721,6 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
             char* password = command->wifiPassword.arg;
 
             // I can get the Mac address as well, but not sure it is necessary.
-
-
             int sec_type = SL_SEC_TYPE_WPA_WPA2;
             if(command->has_security_type)
             {
@@ -729,7 +739,8 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
             	LOGI("%s\n", ssid, password);
             }
 #endif
-            int result = _set_wifi(ssid, (char*)password, sec_type, command->version );
+            int result = _set_wifi(ssid, (char*)password, sec_type, command->version,
+            		command->has_app_version ? command->app_version : -1  );
 
         }
         break;
