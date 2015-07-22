@@ -93,6 +93,7 @@
 #include "pill_settings.h"
 #include "prox_signal.h"
 #include "hlo_net_tools.h"
+#include "hlo_queue.h"
 #define ONLY_MID 0
 
 //******************************************************************************
@@ -1817,6 +1818,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{"ana", Cmd_analytics, ""},
 		{"dns", Cmd_setDns, ""},
 		{"noint", Cmd_disableInterrupts, ""},
+		{"qt", Cmd_Hlo_Queue_Test, ""},
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
 		{ "iperfcli",Cmd_iperf_client,""},

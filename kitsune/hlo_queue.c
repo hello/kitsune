@@ -4,6 +4,7 @@
 #include "ustdlib.h"
 #include "uart_logger.h"
 #include "hlo_async.h"
+#include "kit_assert.h"
 
 typedef struct{
 	enum{
@@ -51,7 +52,7 @@ _write_file(char * root, char * local_name, const char * buffer, WORD size){
 	}
 	return FR_OK;
 }*/
-static void _queue_worker(void * ctx){
+static void _queue_worker(hlo_future_t * result, void * ctx){
 	hlo_queue_t * worker = (hlo_queue_t*)ctx;
 	while(1){
 		worker_context_t task = (worker_context_t){0};
@@ -60,10 +61,11 @@ static void _queue_worker(void * ctx){
 			switch(task.type){
 			case QUEUE_READ:
 				if(1){
-					//read from flash
+					//read from queue
 				}else{
 					//no op
 				}
+				hlo_future_write(task.sync, NULL, 0, 0);
 				break;
 			case QUEUE_WRITE:
 				//writes to flash
@@ -83,7 +85,8 @@ static void _queue_worker(void * ctx){
 		}
 	}
 fin:
-	hlo_future_write(worker->worker, NULL, 0, 0);
+	//flush stuff here
+	hlo_future_write(result, NULL, 0, 0);
 	LOGI("Flushing worker queue\r\n");
 }
 hlo_queue_t * hlo_queue_create(const char * root, size_t obj_count, size_t watermark){
@@ -91,12 +94,23 @@ hlo_queue_t * hlo_queue_create(const char * root, size_t obj_count, size_t water
 	memset(ret, 0, sizeof(*ret));
 	assert(ret);
 	usnprintf(ret->root, sizeof(ret->root),"%s", root);
-	ret->worker = hlo_future_create_task_bg(_queue_worker, ret, 512);
+	ret->worker = hlo_future_create_task_bg(_queue_worker, ret, 1024);
 	ret->worker_queue = xQueueCreate(10, sizeof(worker_context_t));
 	//walk thorough directory for read/write index
 	return ret;
 }
+//todo make this call thread safe.
+void hlo_queue_destroy(hlo_queue_t * q){
+	worker_context_t task = (worker_context_t){
+		.type = QUEUE_FLUSH,
+	};
+	xQueueSend(q,&task,portMAX_DELAY);
+	hlo_future_read_once(q->worker, NULL, 0);
+	vQueueDelete(q->worker_queue);
+	vPortFree(q);
+	LOGI("done\r\n");
 
+}
 
 int hlo_queue_enqueue(hlo_queue_t * q, void * obj, size_t obj_size, bool blocking, on_finished cb){
 	worker_context_t task = (worker_context_t){
@@ -108,7 +122,7 @@ int hlo_queue_enqueue(hlo_queue_t * q, void * obj, size_t obj_size, bool blockin
 	};
 	int ret = 0;
 	if(xQueueSend(q,&task,100)){
-		hlo_future_read(task.sync, NULL, 0);
+		hlo_future_read(task.sync, NULL, 0, portMAX_DELAY);
 	}else{
 		LOGE("Queue is full\r\n");
 		ret = -1;
@@ -125,10 +139,10 @@ int hlo_queue_dequeue(hlo_queue_t * q, void ** out_obj, size_t * out_size){
 		.buf = NULL,
 		.buf_size = 0,
 		.cleanup = NULL
-	}
+	};
 	int ret;
-	if(xQueueSend(q, &task, 100){
-		ret = hlo_future_read(task.sync, *out_obj, *out_size);
+	if(xQueueSend(q, &task, 100)){
+		ret = hlo_future_read(task.sync, *out_obj, *out_size, portMAX_DELAY);
 	}else{
 		ret = -1;
 	}
@@ -137,3 +151,8 @@ int hlo_queue_dequeue(hlo_queue_t * q, void ** out_obj, size_t * out_size){
 
 }
 
+int Cmd_Hlo_Queue_Test(int argc, char * argv[]){
+	hlo_queue_t * q = hlo_queue_create("test", 10, 3);
+	hlo_queue_destroy(q);
+	return 0;
+}

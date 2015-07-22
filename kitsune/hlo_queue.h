@@ -20,7 +20,7 @@ typedef struct{
 typedef void (*on_finished)(void * buf);
 
 hlo_queue_t * hlo_queue_create(const char * root, size_t obj_count, size_t watermark);
-
+void hlo_queue_destroy(hlo_queue_t * q);
 /**
  *
  */
@@ -30,5 +30,7 @@ int hlo_queue_dequeue(hlo_queue_t * q, void ** out_obj, size_t * out_size);
 
 
 int hlo_queue_count(hlo_queue_t * q);
+
+int Cmd_Hlo_Queue_Test(int argc, char * argv[]);
 
 #endif
