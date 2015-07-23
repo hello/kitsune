@@ -165,8 +165,12 @@ int Cmd_Hlo_Queue_Test(int argc, char * argv[]){
 	hlo_queue_t * q = hlo_queue_create("test", 10, 3);
 	char * out_string = NULL;
 	size_t out_size;
-	assert(0 == hlo_queue_enqueue(q, "test_string", strlen("test_string")+1, 1, NULL));
+	assert(0 == hlo_queue_enqueue(q, "nonblocking", strlen("nonblocking")+1, 0, NULL));
+	assert(0 == hlo_queue_enqueue(q, "blocking", strlen("blocking")+1, 1, NULL));
 	assert(0 == hlo_queue_dequeue(q, &out_string, &out_size));
+	DISP("Dequeue %s\r\n", out_string);
+	assert(0 == hlo_queue_dequeue(q, &out_string, &out_size));
+	DISP("Dequeue %s\r\n", out_string);
 	hlo_queue_destroy(q);
 	return 0;
 }
