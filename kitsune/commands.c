@@ -843,7 +843,6 @@ static void _show_led_status()
 	bool light = alpha > 128;
 
 	if(wifi_status_get(UPLOADING)) {
-		//TODO: wtf is this?
 		unsigned int rgb[3] = { LED_MAX };
 		led_get_user_color(&rgb[0], &rgb[1], &rgb[2], light);
 		//led_set_color(alpha, rgb[0], rgb[1], rgb[2], 1, 1, 18, 0);
