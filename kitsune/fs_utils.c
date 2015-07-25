@@ -90,3 +90,6 @@ int fs_list( char * path, file_itr itr, void * ctx){
 	DISP("End of files\r\n");
 	return FR_OK;
 }
+void file_itr_counter(void * ctx, const FILINFO * info){
+	(*(volatile int*)ctx)++;
+}

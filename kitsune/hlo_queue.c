@@ -160,10 +160,11 @@ int hlo_queue_dequeue(hlo_queue_t * q, void ** out_obj, size_t * out_size){
 	return ret;
 
 }
-
+#include "fs_utils.h"
 int Cmd_Hlo_Queue_Test(int argc, char * argv[]){
 	hlo_queue_t * q = hlo_queue_create("test", 10, 3);
 	char * out_string = NULL;
+	int fcount = 0;
 	size_t out_size;
 	assert(0 == hlo_queue_enqueue(q, "nonblocking", strlen("nonblocking")+1, 0, NULL));
 	assert(0 == hlo_queue_enqueue(q, "blocking", strlen("blocking")+1, 1, NULL));
@@ -171,6 +172,8 @@ int Cmd_Hlo_Queue_Test(int argc, char * argv[]){
 	DISP("Dequeue %s\r\n", out_string);
 	assert(0 == hlo_queue_dequeue(q, &out_string, &out_size));
 	DISP("Dequeue %s\r\n", out_string);
+	fs_list(argc>1?argv[1]:"logs", file_itr_counter, &fcount);
+	DISP("Has %d files\r\n", fcount);
 	hlo_queue_destroy(q);
 	return 0;
 }
