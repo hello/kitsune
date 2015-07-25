@@ -63,3 +63,30 @@ int fs_save( char* file, void* data, int len) {
 	sl_FsClose(hndl, 0, 0, 0);
 	return 0;
 }
+int fs_list( char * path, file_itr itr){
+	FILINFO file_info;
+	FRESULT res;
+	DIR dir;
+	res = hello_fs_opendir(&dir, path);
+	if(res != FR_OK){
+		return res;
+	}
+	for(;;){
+		res = hello_fs_readdir(&dir, &file_info);
+		if(res != FR_OK){
+			return res;
+		}
+		// If the file name is blank, then this is the end of the listing.
+		if(!file_info.fname[0]){
+			break;
+		}
+		// If the attribue is directory, then increment the directory count.
+		if(!(file_info.fattrib & AM_DIR)){
+			if(itr){
+				itr(file_info.fname, &file_info);
+			}
+		}
+	}
+	DISP("End of files\r\n");
+	return FR_OK;
+}
