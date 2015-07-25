@@ -93,3 +93,6 @@ int fs_list( char * path, file_itr itr, void * ctx){
 void file_itr_counter(void * ctx, const FILINFO * info){
 	(*(volatile int*)ctx)++;
 }
+void file_itr_printer(void * no_ctx, const FILINFO * info){
+	DISP("%s\r\n", info->fname);
+}

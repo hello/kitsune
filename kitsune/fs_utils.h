@@ -10,5 +10,6 @@ int fs_save( char* file, void* data, int len);
 int fs_list( char * dir, file_itr itr, void * ctx);
 
 //helper file_itr
-void file_itr_counter(void * ctx, const FILINFO * info);
+void file_itr_counter(void * counter, const FILINFO * info);
+void file_itr_printer(void * no_ctx, const FILINFO * info);
 #endif

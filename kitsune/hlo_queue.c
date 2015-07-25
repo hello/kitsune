@@ -174,6 +174,7 @@ int Cmd_Hlo_Queue_Test(int argc, char * argv[]){
 	DISP("Dequeue %s\r\n", out_string);
 	fs_list(argc>1?argv[1]:"logs", file_itr_counter, &fcount);
 	DISP("Has %d files\r\n", fcount);
+	fs_list(argc>1?argv[1]:"logs", file_itr_printer, &fcount);
 	hlo_queue_destroy(q);
 	return 0;
 }
