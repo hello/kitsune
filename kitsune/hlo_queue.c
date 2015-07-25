@@ -96,13 +96,19 @@ hlo_queue_t * hlo_queue_create(const char * root, size_t obj_count, size_t water
 	hlo_queue_t * ret = pvPortMalloc(sizeof(*ret));
 	memset(ret, 0, sizeof(*ret));
 	assert(ret);
-	usnprintf(ret->root, sizeof(ret->root),"%s", root);
-	LOGI("Created persisted queue: %s\r\n",ret->root);
+
 	ret->worker_queue = xQueueCreate(10, sizeof(worker_context_t));
 	assert(ret->worker_queue);
+
 	ret->worker = hlo_future_create_task_bg(_queue_worker, ret, 1024);
 	assert(ret->worker);
+
+	usnprintf(ret->root, sizeof(ret->root),"%s", root);
+	hello_fs_mkdir(ret->root);
+	LOGI("Created persisted queue: %s\r\n",ret->root);
+
 	//walk thorough directory for read/write index
+
 	return ret;
 }
 //todo make this call thread safe.
