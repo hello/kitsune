@@ -664,6 +664,7 @@ void led_get_user_color(unsigned int* out_red, unsigned int* out_green, unsigned
 {
 	xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
 	led_to_rgb(&room_color[light], out_red, out_green, out_blue );
+	LOGI("using %d colors %x\n", light, room_color[light]);
 	xSemaphoreGiveRecursive(led_smphr);
 }
 
