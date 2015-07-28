@@ -6,6 +6,7 @@
 #include "hlo_async.h"
 #include <stdlib.h>
 #include "kit_assert.h"
+#include "fs_utils.h"
 
 typedef struct{
 	enum{
@@ -27,7 +28,6 @@ _construct_name(char * buf, const char * root, const char * local){
 	strcat(buf, root);
 	strcat(buf, "/");
 	strcat(buf, local);
-	DISP("%s\r\n", buf);
 	return buf;
 }
 static FRESULT
@@ -118,7 +118,13 @@ static void file_itr_get_min_max(void * ctx, const FILINFO * info){
 		queue->num_files++;
 	}
 }
-hlo_queue_t * hlo_queue_create(const char * root, size_t obj_count, size_t watermark){
+static void file_itr_delete_all(void * ctx, const FILINFO * info){
+	hlo_queue_t * queue = (hlo_queue_t*)ctx;
+	char path[13+3+16] = {0};
+	_construct_name(path, queue->root, info->fname);
+	assert(FR_OK == hello_fs_unlink(path));
+}
+hlo_queue_t * hlo_queue_create(const char * root, size_t max_count, bool clear_all){
 	hlo_queue_t * ret = pvPortMalloc(sizeof(*ret));
 	memset(ret, 0, sizeof(*ret));
 	assert(ret);
@@ -136,8 +142,13 @@ hlo_queue_t * hlo_queue_create(const char * root, size_t obj_count, size_t water
 	ret->read_index = UINT32_MAX;
 	ret->write_index = 1;
 	ret->num_files = 0;
+	ret->max_count = max_count;
 	//walk thorough directory for read/write index
-	fs_list(root, file_itr_get_min_max, ret);
+	if(clear_all){
+		fs_list(root, file_itr_delete_all, ret);
+	}else{
+		fs_list(root, file_itr_get_min_max, ret);
+	}
 	if(ret->num_files == 0){
 		ret->read_index = 1;
 	}
@@ -212,7 +223,7 @@ void _on_enqueue_free(void * buf){
 	vPortFree(buf);
 }
 static int _test_queue(char * root){
-	hlo_queue_t * q = hlo_queue_create(root, 10, 3);
+	hlo_queue_t * q = hlo_queue_create(root, 3, 1);
 	char * out_string = NULL;
 	int fcount = 0;
 	size_t out_size;

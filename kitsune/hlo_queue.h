@@ -14,13 +14,13 @@ typedef struct{
 	xQueueHandle worker_queue;	//queue for r/w access
 	uint32_t write_index;
 	uint32_t read_index;
-	uint16_t watermark;			//how many objects to cache in the memory before commiting to flash
+	uint16_t max_count;			//# of objects max to keep in root
 	uint32_t num_files;			//number of files in the directory
 }hlo_queue_t;
 
 typedef void (*on_finished)(void * buf);
 
-hlo_queue_t * hlo_queue_create(const char * root, size_t obj_count, size_t watermark);
+hlo_queue_t * hlo_queue_create(const char * root, size_t max_count, bool clear_all);
 void hlo_queue_destroy(hlo_queue_t * q);
 /**
  *
