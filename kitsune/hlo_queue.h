@@ -15,6 +15,7 @@ typedef struct{
 	uint32_t write_index;
 	uint32_t read_index;
 	uint16_t watermark;			//how many objects to cache in the memory before commiting to flash
+	uint32_t num_files;			//number of files in the directory
 }hlo_queue_t;
 
 typedef void (*on_finished)(void * buf);

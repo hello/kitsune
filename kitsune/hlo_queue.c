@@ -4,6 +4,7 @@
 #include "ustdlib.h"
 #include "uart_logger.h"
 #include "hlo_async.h"
+#include <stdlib.h>
 #include "kit_assert.h"
 
 typedef struct{
@@ -18,48 +19,54 @@ typedef struct{
 	on_finished cleanup;
 }worker_context_t;
 
-/*static char*
+
+
+static char *
 _construct_name(char * buf, const char * root, const char * local){
 	strcat(buf, "/");
 	strcat(buf, root);
 	strcat(buf, "/");
 	strcat(buf, local);
+	DISP("%s\r\n", buf);
 	return buf;
 }
 static FRESULT
-_open_file(FIL * out_file, const char * root, const char * local_name, WORD mode){
-	char name_buf[32] = {0};
-	return hello_fs_open(out_file, _construct_name(name_buf, root,  local_name), mode);
+_open_file(FIL * out_file, const char * root, const char * local_name){
+	char name_buf[16+2+13+1] = {0};
+	return hello_fs_open(out_file, _construct_name(name_buf, root,  local_name), FA_CREATE_NEW|FA_WRITE|FA_OPEN_ALWAYS);
 }
 static FRESULT
 _write_file(char * root, char * local_name, const char * buffer, WORD size){
-	FIL file_obj;
-	UINT bytes = 0;
-	WORD written = 0;
-	FRESULT res = _open_file(&file_obj, root, local_name, FA_CREATE_NEW|FA_WRITE|FA_OPEN_ALWAYS);
+	FIL file_obj = {0};
+	UINT written = 0;
+	FRESULT res = _open_file(&file_obj, root, local_name);
 	if(res != FR_OK && res != FR_EXIST){
 		LOGE("File %s open fail, code %d", local_name, res);
 		return res;
 	}
-	do{
-		res = hello_fs_write(&file_obj, buffer + written, SENSE_LOG_RW_SIZE, &bytes);
-		written += bytes;
-	}while(written < size);
+	DISP("writing to %s\r\n", local_name);
+	hello_fs_write(&file_obj,buffer, size, &written);
+
 	res = hello_fs_close(&file_obj);
 	if(res != FR_OK){
-		LOGE("unable to write queue file\r\n");
+		LOGE("unable to close file %d\r\n", res);
 		return res;
 	}
+
+	DISP("Wrote %u bytes\r\n", written);
+	assert(written == size);
 	return FR_OK;
-}*/
+}
 static void _queue_worker(hlo_future_t * result, void * ctx){
 	hlo_queue_t * worker = (hlo_queue_t*)ctx;
 	DISP("worker created\r\n");
+	int code;
 	while(1){
 		worker_context_t task;
 		memset(&task, 0, sizeof(task));
 		if(xQueueReceive(worker->worker_queue, &task, portMAX_DELAY)){
 			size_t mcount = uxQueueMessagesWaiting(worker->worker_queue);
+			char local_name[13] = {0};
 			switch(task.type){
 			case QUEUE_READ:
 				if(1){
@@ -71,15 +78,20 @@ static void _queue_worker(hlo_future_t * result, void * ctx){
 				break;
 			case QUEUE_WRITE:
 				//writes to flash
-
-				//free
-				if(task.cleanup){
-					task.cleanup(task.sync);
+				ltoa(worker->write_index, local_name);
+				if(FR_OK == _write_file(worker->root, local_name, task.buf, task.buf_size)){
+					if(task.cleanup){
+						task.cleanup(task.buf);
+					}
+					worker->write_index++;
+					code = 0;
+				}else{
+					code = -1;
 				}
 				if(task.sync){
-					hlo_future_write(task.sync, NULL, 0, 0);
+					DISP("wrote code%d\r\n", code);
+					hlo_future_write(task.sync, NULL, 0, code);
 				}
-
 				break;
 			default:
 			case QUEUE_FLUSH:
@@ -92,6 +104,20 @@ fin:
 	hlo_future_write(result, NULL, 0, 0);
 	DISP("done\r\n");
 }
+static void file_itr_get_min_max(void * ctx, const FILINFO * info){
+	hlo_queue_t * queue = (hlo_queue_t*)ctx;
+	uint32_t num = strtol(info->fname, NULL, 10);
+	//we do not create index of 0
+	if(num != 0){
+		if(num < queue->read_index){
+			queue->read_index = num;
+		}
+		if(num >= queue->write_index){
+			queue->write_index = num + 1;
+		}
+		queue->num_files++;
+	}
+}
 hlo_queue_t * hlo_queue_create(const char * root, size_t obj_count, size_t watermark){
 	hlo_queue_t * ret = pvPortMalloc(sizeof(*ret));
 	memset(ret, 0, sizeof(*ret));
@@ -100,15 +126,22 @@ hlo_queue_t * hlo_queue_create(const char * root, size_t obj_count, size_t water
 	ret->worker_queue = xQueueCreate(10, sizeof(worker_context_t));
 	assert(ret->worker_queue);
 
-	ret->worker = hlo_future_create_task_bg(_queue_worker, ret, 1024);
+	ret->worker = hlo_future_create_task_bg(_queue_worker, ret, 2048);
 	assert(ret->worker);
 
 	usnprintf(ret->root, sizeof(ret->root),"%s", root);
 	hello_fs_mkdir(ret->root);
 	LOGI("Created persisted queue: %s\r\n",ret->root);
 
+	ret->read_index = UINT32_MAX;
+	ret->write_index = 1;
+	ret->num_files = 0;
 	//walk thorough directory for read/write index
-
+	fs_list(root, file_itr_get_min_max, ret);
+	if(ret->num_files == 0){
+		ret->read_index = 1;
+	}
+	DISP("Q r:%u w:%u c:%u\r\n",  ret->read_index, ret->write_index, ret->num_files);
 	return ret;
 }
 //todo make this call thread safe.
@@ -138,7 +171,11 @@ int hlo_queue_enqueue(hlo_queue_t * q, void * obj, size_t obj_size, bool blockin
 	};
 	int ret = 0;
 	if(xQueueSend(q->worker_queue,&task,100)){
-		hlo_future_read(task.sync, NULL, 0, portMAX_DELAY);
+		if(task.sync){
+			ret = hlo_future_read(task.sync, NULL, 0, portMAX_DELAY);
+		}else{
+			ret = 0;
+		}
 	}else{
 		LOGE("Queue is full\r\n");
 		ret = -1;
@@ -158,7 +195,11 @@ int hlo_queue_dequeue(hlo_queue_t * q, void ** out_obj, size_t * out_size){
 	};
 	int ret;
 	if(xQueueSend(q->worker_queue, &task, 100)){
-		ret = hlo_future_read(task.sync, *out_obj, *out_size, portMAX_DELAY);
+		if(task.sync){
+			ret = hlo_future_read(task.sync, *out_obj, *out_size, portMAX_DELAY);
+		}else{
+			ret = 0;
+		}
 	}else{
 		ret = -1;
 	}
@@ -167,20 +208,39 @@ int hlo_queue_dequeue(hlo_queue_t * q, void ** out_obj, size_t * out_size){
 
 }
 #include "fs_utils.h"
-int Cmd_Hlo_Queue_Test(int argc, char * argv[]){
-	hlo_queue_t * q = hlo_queue_create("test", 10, 3);
+void _on_enqueue_free(void * buf){
+	vPortFree(buf);
+}
+static int _test_queue(char * root){
+	hlo_queue_t * q = hlo_queue_create(root, 10, 3);
 	char * out_string = NULL;
 	int fcount = 0;
 	size_t out_size;
-	assert(0 == hlo_queue_enqueue(q, "nonblocking", strlen("nonblocking")+1, 0, NULL));
-	assert(0 == hlo_queue_enqueue(q, "blocking", strlen("blocking")+1, 1, NULL));
+
+	char * nb_str = strdup("nonblocking");
+	assert(0 == hlo_queue_enqueue(q, nb_str, strlen(nb_str)+1, 0, _on_enqueue_free));
+
+	char * blocking_str = strdup("blocking");
+	assert(0 == hlo_queue_enqueue(q, blocking_str, strlen(blocking_str)+1, 1, NULL));
+	vPortFree(blocking_str);
+
 	assert(0 == hlo_queue_dequeue(q, &out_string, &out_size));
 	DISP("Dequeue %s\r\n", out_string);
+
 	assert(0 == hlo_queue_dequeue(q, &out_string, &out_size));
 	DISP("Dequeue %s\r\n", out_string);
-	fs_list(argc>1?argv[1]:"logs", file_itr_counter, &fcount);
-	DISP("Has %d files\r\n", fcount);
-	fs_list(argc>1?argv[1]:"logs", file_itr_printer, &fcount);
+
+	fs_list(root, file_itr_counter, &fcount);
+	//assert(fcount == 0);
+
 	hlo_queue_destroy(q);
+	return 0;
+}
+int Cmd_Hlo_Queue_Test(int argc, char * argv[]){
+	int i;
+	for(i = 0; i< 50; i++){
+		assert(0 == _test_queue("test"));
+		vTaskDelay(500);
+	}
 	return 0;
 }
