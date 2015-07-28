@@ -31,15 +31,16 @@ _construct_name(char * buf, const char * root, const char * local){
 	return buf;
 }
 static FRESULT
-_open_file(FIL * out_file, const char * root, const char * local_name){
+_open_file(FIL * out_file, const char * root, const char * local_name, WORD mode){
 	char name_buf[16+2+13+1] = {0};
-	return hello_fs_open(out_file, _construct_name(name_buf, root,  local_name), FA_CREATE_NEW|FA_WRITE|FA_OPEN_ALWAYS);
+	return hello_fs_open(out_file, _construct_name(name_buf, root,  local_name), mode);
 }
+
 static FRESULT
 _write_file(char * root, char * local_name, const char * buffer, WORD size){
 	FIL file_obj = {0};
 	UINT written = 0;
-	FRESULT res = _open_file(&file_obj, root, local_name);
+	FRESULT res = _open_file(&file_obj, root, local_name,  FA_CREATE_NEW|FA_WRITE|FA_OPEN_ALWAYS);
 	if(res != FR_OK && res != FR_EXIST){
 		LOGE("File %s open fail, code %d", local_name, res);
 		return res;
@@ -57,6 +58,38 @@ _write_file(char * root, char * local_name, const char * buffer, WORD size){
 	assert(written == size);
 	return FR_OK;
 }
+static FRESULT
+_read_file(char * root, char * local_name, void ** buffer, size_t * size){
+	FIL file_obj;
+	UINT read = 0;
+	FRESULT res = _open_file(&file_obj,root, local_name, FA_READ);
+	if(res == FR_OK){
+		DISP("File size is %u\r\n", file_obj.fsize);
+		char * out = pvPortMalloc(file_obj.fsize);
+		res = hello_fs_read(&file_obj, out, file_obj.fsize, &read);
+		if(FR_OK == res){
+			assert(read == file_obj.fsize);
+			DISP("Read %d bytes\r\n", file_obj.fsize);
+			*buffer = out;
+			*size = file_obj.fsize;
+		}else{
+			DISP("Fail read %d\r\n", res);
+			*buffer = NULL;
+			*size = 0;
+			vPortFree(out);
+		}
+		res = hello_fs_close(&file_obj);
+		if(res != FR_OK){
+			LOGE("unable to close read file %d\r\n", res);
+		}
+	}
+	return res;
+}
+static FRESULT
+_delete_file(char * root, char * local_name){
+	char name_buf[16+2+13+1] = {0};
+	return hello_fs_unlink(_construct_name(name_buf, root, local_name));
+}
 static void _queue_worker(hlo_future_t * result, void * ctx){
 	hlo_queue_t * worker = (hlo_queue_t*)ctx;
 	DISP("worker created\r\n");
@@ -67,14 +100,22 @@ static void _queue_worker(hlo_future_t * result, void * ctx){
 		if(xQueueReceive(worker->worker_queue, &task, portMAX_DELAY)){
 			size_t mcount = uxQueueMessagesWaiting(worker->worker_queue);
 			char local_name[13] = {0};
+
 			switch(task.type){
 			case QUEUE_READ:
-				if(1){
-					//read from queue
-				}else{
-					//no op
+				code = 0;
+				ltoa(worker->read_index, local_name);
+				if(worker->write_index > worker->read_index){
+					if(FR_OK == _read_file(worker->root, local_name, &task.buf, &task.buf_size)){
+						assert(FR_OK == _delete_file(worker->root, local_name));
+						worker->read_index++;
+						worker->num_files--;
+						code = 0;
+					}else{
+						code = -1;
+					}
 				}
-				hlo_future_write(task.sync, NULL, 0, 0);
+				hlo_future_write(task.sync, task.buf, task.buf_size, code);
 				break;
 			case QUEUE_WRITE:
 				//writes to flash
@@ -84,6 +125,7 @@ static void _queue_worker(hlo_future_t * result, void * ctx){
 						task.cleanup(task.buf);
 					}
 					worker->write_index++;
+					worker->num_files++;
 					code = 0;
 				}else{
 					code = -1;
@@ -202,14 +244,14 @@ int hlo_queue_dequeue(hlo_queue_t * q, void ** out_obj, size_t * out_size){
 		.sync = hlo_future_create(),
 		.buf = NULL,
 		.buf_size = 0,
-		.cleanup = NULL
+		.cleanup = NULL,
 	};
 	int ret;
 	if(xQueueSend(q->worker_queue, &task, 100)){
-		if(task.sync){
-			ret = hlo_future_read(task.sync, *out_obj, *out_size, portMAX_DELAY);
-		}else{
-			ret = 0;
+		ret = hlo_future_read(task.sync, NULL, 0, portMAX_DELAY);
+		if(ret >= 0){
+			*out_obj = task.sync->buf;
+			*out_size = task.sync->buf_size;
 		}
 	}else{
 		ret = -1;
@@ -235,6 +277,7 @@ static int _test_queue(char * root){
 	assert(0 == hlo_queue_enqueue(q, blocking_str, strlen(blocking_str)+1, 1, NULL));
 	vPortFree(blocking_str);
 
+	vTaskDelay(200);
 	assert(0 == hlo_queue_dequeue(q, &out_string, &out_size));
 	DISP("Dequeue %s\r\n", out_string);
 
