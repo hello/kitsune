@@ -1782,8 +1782,6 @@ static void _set_led_color_based_on_room_conditions(const SyncResponse* response
 				led_set_user_color(0x00, 0x00, LED_MAX,true);
 			break;
     	}
-    }else{
-        led_set_user_color(LED_MAX, LED_MAX, LED_MAX,true);
     }
     if(response_protobuf->has_room_conditions_lights_off)
     {
@@ -1803,8 +1801,6 @@ static void _set_led_color_based_on_room_conditions(const SyncResponse* response
 				led_set_user_color(0x00, 0x00, LED_MAX,false);
 			break;
     	}
-    }else{
-        led_set_user_color(LED_MAX, 0x00, 0x00,false);
     }
 }
 void reset_to_factory_fw();
