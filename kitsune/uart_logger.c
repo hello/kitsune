@@ -25,6 +25,7 @@
 #include "sys_time.h"
 
 #include "limits.h"
+#include "hlo_queue.h"
 
 #define SENSE_LOG_ENDPOINT		"/logs"
 #define SENSE_LOG_FOLDER		"logs"
@@ -49,26 +50,20 @@ typedef struct {
 
 static struct{
 	xQueueHandle block_queue;
-	uint8_t * logging_block;
+	uint8_t * logging_block; //used for logging uart text
 	//ptr to block that is used to upload or read from sdcard
-	uint8_t operation_block[UART_LOGGER_BLOCK_SIZE];
 	uint32_t widx;
-	EventGroupHandle_t uart_log_events;
-	sense_log log;
+	sense_log log;		//cached protobuf datastructure
 	uint8_t view_tag;	//what level gets printed out to console
 	uint8_t store_tag;	//what level to store to sd card
 	xSemaphoreHandle print_sem; //guards writing to the logging block and widx
-	DIR logdir;
 	xQueueHandle analytics_event_queue;
+	hlo_queue_t * blo
 }self = {0};
 
 void set_loglevel(uint8_t loglevel) {
 	self.store_tag = loglevel;
 }
-
-typedef void (file_handler)(FILINFO * info, void * ctx);
-static int _walk_log_dir(file_handler * handler, void * ctx);
-static FRESULT _remove_oldest(int * rem);
 
 static bool
 _encode_text_block(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
@@ -102,11 +97,11 @@ _logstr(const char * str, int len, bool echo, bool store){
 	xSemaphoreTake(self.print_sem, portMAX_DELAY);
 	if( self.widx + len >= UART_LOGGER_BLOCK_SIZE) {
 		_swap_and_upload();
-	}
-	if( !self.logging_block ) {
-		self.logging_block = pvPortMalloc(UART_LOGGER_BLOCK_SIZE);
+		hlo_queue_enqueue(self.)
+		self.logging_block =  pvPortMalloc(UART_LOGGER_BLOCK_SIZE);
 		assert(self.logging_block);
-		memset( (void*)self.logging_block, 0, UART_LOGGER_BLOCK_SIZE );
+		memset(self.logging_block, 0, UART_LOGGER_BLOCK_SIZE);
+		self.widx = 0;
 	}
 	for(i = 0; i < len && store; i++){
 		uart_logc(str[i]);
@@ -122,191 +117,9 @@ _logstr(const char * str, int len, bool echo, bool store){
 		UARTwrite(str, len);
 	}
 }
-static int _walk_log_dir(file_handler * handler, void * ctx){
-	FILINFO file_info;
-	FRESULT res;
-	int fcount = 0;
-	res = hello_fs_opendir(&self.logdir,SENSE_LOG_FOLDER);
-	if(res != FR_OK){
-		return -1;
-	}
-	for(;;){
-		res = hello_fs_readdir(&self.logdir, &file_info);
-		if(res != FR_OK){
-			fcount = -1;
-			break;
-		}
-		// If the file name is blank, then this is the end of the listing.
-		if(!file_info.fname[0]){
-			break;
-		}
-		// If the attribue is directory, then increment the directory count.
-		if(!(file_info.fattrib & AM_DIR)){
-			fcount++;
 
-			if(handler){
-				handler(&file_info, ctx);
-			}
-		}
-	}
-	DISP("End of log files\r\n");
-	return fcount;
-}
-static void
-_find_oldest_log(FILINFO * info, void * ctx){
-	//DISP("log name: %s\r\n",info->fname);
-	if(ctx){
-		int * counter = (int*)ctx;
-		int fcounter = atoi(info->fname);
-		if(fcounter <= *counter && *counter > 0){
-			*counter = fcounter;
-		}else if(*counter < 0){
-			*counter = fcounter;
-		}
-	}
-}
-static void
-_find_newest_log(FILINFO * info, void * ctx){
-	//DISP("log name: %s\r\n",info->fname);
-	if (ctx) {
-		int * counter = (int*) ctx;
-		int fcounter = atoi(info->fname);
-		if (fcounter > *counter) {
-			*counter = fcounter;
-		}
-	}
-}
-static char*
-_full_log_name(char * full_name, char * local){
-	strcat(full_name, "/");
-	strcat(full_name, SENSE_LOG_FOLDER);
-	strcat(full_name, "/");
-	strcat(full_name, local);
-	return full_name;
-}
-static FRESULT
-_open_log(FIL * file, char * local_name, WORD mode){
-	char name_buf[32] = {0};
-	return hello_fs_open(file, _full_log_name(name_buf, local_name), mode);
-}
-static FRESULT
-_write_file(char * local_name, const char * buffer, WORD size){
-	FIL file_obj;
-	UINT bytes = 0;
-	WORD written = 0;
-	FRESULT res = _open_log(&file_obj, local_name, FA_CREATE_NEW|FA_WRITE|FA_OPEN_ALWAYS);
-	if(res != FR_OK && res != FR_EXIST){
-		LOGE("File %s open fail, code %d", local_name, res);
-		return res;
-	}
-	do{
-		res = hello_fs_write(&file_obj, buffer + written, SENSE_LOG_RW_SIZE, &bytes);
-		written += bytes;
-	}while(written < size);
-	res = hello_fs_close(&file_obj);
-	if(res != FR_OK){
-		LOGE("unable to write log file\r\n");
-		return res;
-	}
-	return FR_OK;
-}
-static FRESULT
-_read_file(char * local_name, char * buffer, WORD buffer_size, WORD *size_read){
-	FIL file_obj;
-	WORD offset = 0;
-	UINT read = 0;
-	FRESULT res = _open_log(&file_obj, local_name, FA_READ);
-	if(res == FR_OK){
-		do{
-			res = hello_fs_read(&file_obj, (void*)(buffer + offset), SENSE_LOG_RW_SIZE, &read);
-			if(res != FR_OK){
-				return res;
-			}
-			offset += read;
-		}while(read == SENSE_LOG_RW_SIZE && offset < buffer_size);
-		return FR_OK;
-	}
-	return res;
-}
-static FRESULT
-_remove_file(char * local_name){
-	char name_buf[32] = {0};
-	return hello_fs_unlink(_full_log_name(name_buf, local_name));
-}
-static FRESULT
-_save_newest(const char * buffer, int size){
-	int counter = -1;
-	int ret = _walk_log_dir(_find_newest_log, &counter);
-	if(ret == 0){
-		DISP("NO log file exists, creating first log\r\n");
-		return _write_file("0", buffer, size);
-	}else if(ret > 0 && ret <= UART_LOGGER_FILE_LIMIT && counter >= 0){
-		char s[16] = {0};
-		usnprintf(s,sizeof(s),"%d",++counter);
-		DISP("Wr log %d\r\n", counter);
-		return _write_file(s, buffer, size);
-	}else if(ret > 0 && ret > UART_LOGGER_FILE_LIMIT){
-        int rem;
-        //LOGW("File size reached, removing oldest\r\n");
-        if(FR_OK == _remove_oldest(&rem)){
-            char s[16] = {0};
-            usnprintf(s,sizeof(s),"%d",++counter);
-            DISP("Wr log %d\r\n", counter);
-            return _write_file(s, buffer, size);
-        }else{
-            return FR_RW_ERROR;
-        }
-    }else{
-		//LOGW("Write log error: %d \r\n", ret);
-	}
-	return FR_RW_ERROR;
-}
-static FRESULT
-_read_oldest(char * buffer, int size, WORD * read){
-	int counter = -1;
-	int ret = _walk_log_dir(_find_oldest_log, &counter);
-	if(ret == 0){
-		DISP("No log file\r\n");
-		return FR_NO_FILE;
-	}else if(ret > 0 && counter >= 0){
-		char s[16] = {0};
-		usnprintf(s,sizeof(s),"%d",counter);
-		DISP("Rd log %d\r\n", counter);
-		return _read_file(s,buffer, size, read);
-	}
-	return FR_RW_ERROR;
-}
-static FRESULT
-_remove_oldest(int * rem){
-	int counter = -1;
-	int ret = _walk_log_dir(_find_oldest_log, &counter);
-	if(ret == 0){
-		DISP("No log file\r\n");
-		return FR_OK;
-	} else if (ret > 0 && counter >= 0) {
-		char s[16] = { 0 };
-		usnprintf(s, sizeof(s), "%d", counter);
-		DISP("Rm log %d\r\n", counter);
-		*rem = (ret - 1);
-		return _remove_file(s);
-	}
-	return FR_RW_ERROR;
-}
 static uint8_t log_local_enable;
-static void _save_block_queue( TickType_t dly ) {
-	uint8_t * store_block;
-	while( xQueueReceive(self.block_queue, &store_block, dly ) ) {
-		if(log_local_enable && FR_OK == _save_newest((char*)store_block, UART_LOGGER_BLOCK_SIZE)){
-			xEventGroupSetBits(self.uart_log_events, LOG_EVENT_UPLOAD);
-		}else{
-			memcpy( self.operation_block, store_block, UART_LOGGER_BLOCK_SIZE );
-			xEventGroupSetBits(self.uart_log_events, LOG_EVENT_UPLOAD_ONLY);
-			LOGE("Unable to save logs\r\n");
-		}
-		vPortFree(store_block);
-		store_block = NULL;
-	}
-}
+
 /**
  * PUBLIC functions
  */
@@ -325,9 +138,7 @@ int Cmd_log_upload(int argc, char *argv[]){
 void uart_logger_init(void){
 	self.block_queue = NULL;
 	self.logging_block = NULL;
-	self.uart_log_events = xEventGroupCreate();
-	xEventGroupClearBits( self.uart_log_events, 0xff );
-	xEventGroupSetBits(self.uart_log_events, LOG_EVENT_UPLOAD);
+
 	self.log.text.funcs.encode = _encode_text_block;
 	self.log.device_id.funcs.encode = encode_device_id_string;
 	self.log.has_unix_time = true;
@@ -335,9 +146,8 @@ void uart_logger_init(void){
 	self.store_tag = LOG_INFO | LOG_WARNING | LOG_ERROR | LOG_FACTORY | LOG_TOP;
 
 	self.block_queue = xQueueCreate(2, sizeof(uint8_t*));
-
 	vSemaphoreCreateBinary(self.print_sem);
-	xEventGroupSetBits(self.uart_log_events, LOG_EVENT_READY);
+
 }
 
 extern volatile bool booted;
@@ -359,28 +169,6 @@ void _logstr_wrapper(const char * str, int len, void * data ) {
     if( !booted ) {
     	store = false;
     }
-
-#if UART_LOGGER_PREPEND_TAG > 0
-    while(tag){
-    	if(tag & LOG_INFO){
-    		_logstr("[I]", strlen("[I]"), echo, store);
-    		tag &= ~LOG_INFO;
-    	}else if(tag & LOG_WARNING){
-    		_logstr("[W]", strlen("[W]"), echo, store);
-    		tag &= ~LOG_WARNING;
-    	}else if(tag & LOG_ERROR){
-    		_logstr("[E]", strlen("[E]"), echo, store);
-    		tag &= ~LOG_ERROR;
-    	}else if(tag & LOG_VIEW_ONLY){
-    		tag &= ~LOG_VIEW_ONLY;
-    	}else if(tag & LOG_TOP){
-    		_logstr("[T]", strlen("[T]"), echo, store);
-    		tag &= ~LOG_TOP;
-    	}else{
-    		tag = 0;
-    	}
-    }
-#endif
     _logstr(str, len, echo, store);
 }
 
@@ -634,69 +422,26 @@ upload:
 		}
 	}
 }
-void uart_block_saver_task(void* params) {
-	_save_block_queue(portMAX_DELAY);
-}
+
 void uart_logger_task(void * params){
 	uart_logger_init();
-	hello_fs_mkdir(SENSE_LOG_FOLDER);
 
-	FRESULT res = hello_fs_opendir(&self.logdir,SENSE_LOG_FOLDER);
-
-	if(res != FR_OK){
-		//uart logging to sd card is disabled
-		log_local_enable = 0;
-	}else{
-		log_local_enable = 1;
-	}
-
-	xTaskCreate(uart_block_saver_task, "log saver task",   UART_LOGGER_THREAD_STACK_SIZE / 4 , NULL, 1, NULL);
-
+	uint8_t * store_block;
 	while(1){
-		xEventGroupSetBits(self.uart_log_events, LOG_EVENT_READY);
-		EventBits_t evnt = xEventGroupWaitBits(
-				self.uart_log_events,   /* The event group being tested. */
-                0xff,    /* The bits within the event group to wait for. */
-                pdFALSE,        /* all bits should not be cleared before returning. */
-                pdFALSE,       /* Don't wait for both bits, either bit will do. */
-                portMAX_DELAY );/* Wait for any bit to be set. */
-		if( evnt & LOG_EVENT_UPLOAD) {
-			xEventGroupClearBits(self.uart_log_events,LOG_EVENT_UPLOAD);
-			if(wifi_status_get(HAS_IP)){
-				WORD read;
-				FRESULT res;
-				//operation block is used for file io
-				res = _read_oldest((char*)self.operation_block,UART_LOGGER_BLOCK_SIZE, &read);
-				if(FR_OK != res){
-					LOGE("Unable to read log file %d\r\n",(int)res);
-					vTaskDelay(5000);
-					continue;
-				}
+		if( xQueueReceive(self.block_queue, &store_block, 0xffff ) ) {
 
-				if(send_log()){
-					int rem = -1;
-					res = _remove_oldest(&rem);
-					if(FR_OK == res && rem > 0){
-						xEventGroupSetBits(self.uart_log_events, LOG_EVENT_UPLOAD);
-					}else if(FR_OK == res && rem == 0){
-						//DISP("Upload logs done\r\n");
-					}else{
-						LOGE("Rm log error %d\r\n", res);
-					}
+				if(log_local_enable && FR_OK == _save_newest((char*)store_block, UART_LOGGER_BLOCK_SIZE)){
+					xEventGroupSetBits(self.uart_log_events, LOG_EVENT_UPLOAD);
 				}else{
-					//should never get here
-					LOGE("Log upload failed\r\n");
+					memcpy( self.operation_block, store_block, UART_LOGGER_BLOCK_SIZE );
+					xEventGroupSetBits(self.uart_log_events, LOG_EVENT_UPLOAD_ONLY);
+					LOGE("Unable to save logs\r\n");
 				}
-			}
+				vPortFree(store_block);
+				store_block = NULL;
 		}
-		if(evnt & LOG_EVENT_UPLOAD_ONLY) {
-			xEventGroupClearBits(self.uart_log_events,LOG_EVENT_UPLOAD_ONLY);
-			if(wifi_status_get(HAS_IP)){
-				send_log();
-			}
-		}
-		vTaskDelay(5000);
 	}
+
 }
 
 int Cmd_log_setview(int argc, char * argv[]){
