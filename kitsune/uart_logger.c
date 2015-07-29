@@ -49,8 +49,8 @@ typedef struct {
 } event_ctx_t;
 
 static struct{
-	xQueueHandle block_queue;
 	uint8_t * logging_block; //used for logging uart text
+	hlo_queue_t * logging_queue;
 	//ptr to block that is used to upload or read from sdcard
 	uint32_t widx;
 	sense_log log;		//cached protobuf datastructure
@@ -58,8 +58,8 @@ static struct{
 	uint8_t store_tag;	//what level to store to sd card
 	xSemaphoreHandle print_sem; //guards writing to the logging block and widx
 	xQueueHandle analytics_event_queue;
-	hlo_queue_t * blo
-}self = {0};
+
+}self;
 
 void set_loglevel(uint8_t loglevel) {
 	self.store_tag = loglevel;
@@ -68,23 +68,24 @@ void set_loglevel(uint8_t loglevel) {
 static bool
 _encode_text_block(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
 	return pb_encode_tag(stream, PB_WT_STRING, field->tag)
-			&& pb_encode_string(stream, (uint8_t*)self.operation_block,
+			&& pb_encode_string(stream, (const char *)arg,
 					UART_LOGGER_BLOCK_SIZE);
 }
 
-static void
-_swap_and_upload(void){
-	if( !xQueueSend(self.block_queue, (void* )&self.logging_block, 0) ) {
-    	vPortFree(self.logging_block);
-    }
-	//swap
-	self.logging_block = NULL;
-	//reset
-	self.widx = 0;
-}
 #ifdef BUILD_SERVERS
 void telnetPrint(const char * str, int len );
 #endif
+void on_write_flash_finished(void * buf){
+	vPortFree(buf);
+}
+static void _queue_and_reset_block(void){
+	hlo_queue_enqueue(self.logging_queue, self.logging_block, UART_LOGGER_BLOCK_SIZE, 0,on_write_flash_finished);
+
+	self.logging_block =  pvPortMalloc(UART_LOGGER_BLOCK_SIZE);
+	assert(self.logging_block);
+	memset(self.logging_block, 0, UART_LOGGER_BLOCK_SIZE);
+	self.widx = 0;
+}
 
 static void
 _logstr(const char * str, int len, bool echo, bool store){
@@ -96,12 +97,7 @@ _logstr(const char * str, int len, bool echo, bool store){
 	}
 	xSemaphoreTake(self.print_sem, portMAX_DELAY);
 	if( self.widx + len >= UART_LOGGER_BLOCK_SIZE) {
-		_swap_and_upload();
-		hlo_queue_enqueue(self.)
-		self.logging_block =  pvPortMalloc(UART_LOGGER_BLOCK_SIZE);
-		assert(self.logging_block);
-		memset(self.logging_block, 0, UART_LOGGER_BLOCK_SIZE);
-		self.widx = 0;
+		_queue_and_reset_block();
 	}
 	for(i = 0; i < len && store; i++){
 		uart_logc(str[i]);
@@ -118,34 +114,32 @@ _logstr(const char * str, int len, bool echo, bool store){
 	}
 }
 
-static uint8_t log_local_enable;
-
 /**
  * PUBLIC functions
  */
 void uart_logger_flush(void){
 	//set the task to exit and wait for it to do so
-	_save_block_queue(0);
+	//_save_block_queue(0);
 	//write out whatever's left in the logging block
-	_save_newest((const char*)self.logging_block, self.widx );
+	//_save_newest((const char*)self.logging_block, self.widx );
 }
 int Cmd_log_upload(int argc, char *argv[]){
 	xSemaphoreTake(self.print_sem, portMAX_DELAY);
-	_swap_and_upload();
+	_queue_and_reset_block();
 	xSemaphoreGive(self.print_sem);
 	return 0;
 }
 void uart_logger_init(void){
-	self.block_queue = NULL;
 	self.logging_block = NULL;
+	self.logging_queue = hlo_queue_create("LOGS",64,0);
 
 	self.log.text.funcs.encode = _encode_text_block;
 	self.log.device_id.funcs.encode = encode_device_id_string;
 	self.log.has_unix_time = true;
+
 	self.view_tag = LOG_INFO | LOG_WARNING | LOG_ERROR | LOG_VIEW_ONLY | LOG_FACTORY | LOG_TOP;
 	self.store_tag = LOG_INFO | LOG_WARNING | LOG_ERROR | LOG_FACTORY | LOG_TOP;
 
-	self.block_queue = xQueueCreate(2, sizeof(uint8_t*));
 	vSemaphoreCreateBinary(self.print_sem);
 
 }
@@ -426,20 +420,15 @@ upload:
 void uart_logger_task(void * params){
 	uart_logger_init();
 
-	uint8_t * store_block;
 	while(1){
-		if( xQueueReceive(self.block_queue, &store_block, 0xffff ) ) {
-
-				if(log_local_enable && FR_OK == _save_newest((char*)store_block, UART_LOGGER_BLOCK_SIZE)){
-					xEventGroupSetBits(self.uart_log_events, LOG_EVENT_UPLOAD);
-				}else{
-					memcpy( self.operation_block, store_block, UART_LOGGER_BLOCK_SIZE );
-					xEventGroupSetBits(self.uart_log_events, LOG_EVENT_UPLOAD_ONLY);
-					LOGE("Unable to save logs\r\n");
-				}
-				vPortFree(store_block);
-				store_block = NULL;
+		void * out_buf = NULL;
+		size_t out_size = 0;
+		if(hlo_queue_dequeue(self.logging_queue, &out_buf, &out_size) >= 0){
+			if(out_buf && out_size){
+				DISP("uploading log %d bytes\r\n", out_size);
+			}
 		}
+		vTaskDelay(1000);
 	}
 
 }
