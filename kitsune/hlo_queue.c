@@ -35,18 +35,28 @@ _open_file(FIL * out_file, const char * root, const char * local_name, WORD mode
 	char name_buf[16+2+13+1] = {0};
 	return hello_fs_open(out_file, _construct_name(name_buf, root,  local_name), mode);
 }
-
+#define DISK_SECTOR_WRITE_MAX 256
 static FRESULT
 _write_file(char * root, char * local_name, const char * buffer, WORD size){
 	FIL file_obj = {0};
 	UINT written = 0;
+	UINT bytes = 0;
 	FRESULT res = _open_file(&file_obj, root, local_name,  FA_CREATE_NEW|FA_WRITE|FA_OPEN_ALWAYS);
 	if(res != FR_OK && res != FR_EXIST){
 		LOGE("File %s open fail, code %d", local_name, res);
 		return res;
 	}
-	DISP("writing to %s\r\n", local_name);
-	hello_fs_write(&file_obj,buffer, size, &written);
+	DISP("writing to %s/%s\r\n", root, local_name);
+
+	do{
+		UINT rem = size - written;
+		res = hello_fs_write(&file_obj,buffer + written, (rem > DISK_SECTOR_WRITE_MAX ? DISK_SECTOR_WRITE_MAX : rem), &bytes);
+		if(res != FR_OK){
+			LOGE("unable to write file %d\r\n", res);
+			//return res;
+		}
+		written += bytes;
+	}while(written < size);
 
 	res = hello_fs_close(&file_obj);
 	if(res != FR_OK){
@@ -69,7 +79,7 @@ _read_file(char * root, char * local_name, void ** buffer, size_t * size){
 		res = hello_fs_read(&file_obj, out, file_obj.fsize, &read);
 		if(FR_OK == res){
 			assert(read == file_obj.fsize);
-			DISP("Read %d bytes\r\n", file_obj.fsize);
+			//DISP("Read %d bytes\r\n", file_obj.fsize);
 			*buffer = out;
 			*size = file_obj.fsize;
 		}else{
@@ -137,7 +147,7 @@ static void _queue_worker(hlo_future_t * result, void * ctx){
 				break;
 			default:
 			case QUEUE_FLUSH:
-				LOGI("received flush");
+			//	("received flush");
 				goto fin;
 			}
 		}
@@ -145,6 +155,12 @@ static void _queue_worker(hlo_future_t * result, void * ctx){
 fin:
 	hlo_future_write(result, NULL, 0, 0);
 	DISP("done\r\n");
+}
+static void file_itr_delete(void * ctx, const FILINFO * info){
+	hlo_queue_t * queue = (hlo_queue_t*)ctx;
+	char path[13+3+16] = {0};
+	_construct_name(path, queue->root, info->fname);
+	assert(FR_OK == hello_fs_unlink(path));
 }
 static void file_itr_get_min_max(void * ctx, const FILINFO * info){
 	hlo_queue_t * queue = (hlo_queue_t*)ctx;
@@ -158,14 +174,12 @@ static void file_itr_get_min_max(void * ctx, const FILINFO * info){
 			queue->write_index = num + 1;
 		}
 		queue->num_files++;
+	}else if(num == 0){
+		//we remove this file because it shouldn't be here
+		file_itr_delete(ctx, info);
 	}
 }
-static void file_itr_delete_all(void * ctx, const FILINFO * info){
-	hlo_queue_t * queue = (hlo_queue_t*)ctx;
-	char path[13+3+16] = {0};
-	_construct_name(path, queue->root, info->fname);
-	assert(FR_OK == hello_fs_unlink(path));
-}
+
 hlo_queue_t * hlo_queue_create(const char * root, size_t max_count, bool clear_all){
 	hlo_queue_t * ret = pvPortMalloc(sizeof(*ret));
 	memset(ret, 0, sizeof(*ret));
@@ -187,12 +201,13 @@ hlo_queue_t * hlo_queue_create(const char * root, size_t max_count, bool clear_a
 	ret->max_count = max_count;
 	//walk thorough directory for read/write index
 	if(clear_all){
-		fs_list(root, file_itr_delete_all, ret);
+		fs_list(root, file_itr_delete, ret);
 	}else{
 		fs_list(root, file_itr_get_min_max, ret);
 	}
 	if(ret->num_files == 0){
 		ret->read_index = 1;
+		ret->write_index = 1;
 	}
 	DISP("Q r:%u w:%u c:%u\r\n",  ret->read_index, ret->write_index, ret->num_files);
 	return ret;

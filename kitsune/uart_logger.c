@@ -76,6 +76,7 @@ _encode_text_block(pb_ostream_t *stream, const pb_field_t *field, void * const *
 void telnetPrint(const char * str, int len );
 #endif
 void on_write_flash_finished(void * buf){
+	DISP("Freed\r\n");
 	vPortFree(buf);
 }
 static void _queue_and_reset_block(void){
@@ -95,14 +96,14 @@ _logstr(const char * str, int len, bool echo, bool store){
 	if( !self.print_sem ) {
 		return;
 	}
-	xSemaphoreTake(self.print_sem, portMAX_DELAY);
+	xSemaphoreTakeRecursive(self.print_sem, portMAX_DELAY);
 	if( self.widx + len >= UART_LOGGER_BLOCK_SIZE) {
 		_queue_and_reset_block();
 	}
 	for(i = 0; i < len && store; i++){
 		uart_logc(str[i]);
 	}
-	xSemaphoreGive(self.print_sem);
+	xSemaphoreGiveRecursive(self.print_sem);
 
 #endif
 
@@ -124,14 +125,16 @@ void uart_logger_flush(void){
 	//_save_newest((const char*)self.logging_block, self.widx );
 }
 int Cmd_log_upload(int argc, char *argv[]){
-	xSemaphoreTake(self.print_sem, portMAX_DELAY);
+	vTaskDelay(1000);
+	xSemaphoreTakeRecursive(self.print_sem, portMAX_DELAY);
 	_queue_and_reset_block();
-	xSemaphoreGive(self.print_sem);
+	xSemaphoreGiveRecursive(self.print_sem);
 	return 0;
 }
 void uart_logger_init(void){
 	self.logging_block = NULL;
-	self.logging_queue = hlo_queue_create("LOGS",64,0);
+	self.logging_queue = hlo_queue_create(SENSE_LOG_FOLDER,64,0);
+	assert(self.logging_queue);
 
 	self.log.text.funcs.encode = _encode_text_block;
 	self.log.device_id.funcs.encode = encode_device_id_string;
@@ -140,7 +143,7 @@ void uart_logger_init(void){
 	self.view_tag = LOG_INFO | LOG_WARNING | LOG_ERROR | LOG_VIEW_ONLY | LOG_FACTORY | LOG_TOP;
 	self.store_tag = LOG_INFO | LOG_WARNING | LOG_ERROR | LOG_FACTORY | LOG_TOP;
 
-	vSemaphoreCreateBinary(self.print_sem);
+	self.print_sem = xSemaphoreCreateRecursiveMutex();
 
 }
 
@@ -419,13 +422,13 @@ upload:
 
 void uart_logger_task(void * params){
 	uart_logger_init();
-
 	while(1){
 		void * out_buf = NULL;
 		size_t out_size = 0;
 		if(hlo_queue_dequeue(self.logging_queue, &out_buf, &out_size) >= 0){
 			if(out_buf && out_size){
 				DISP("uploading log %d bytes\r\n", out_size);
+				vPortFree(out_buf);
 			}
 		}
 		vTaskDelay(1000);
