@@ -62,8 +62,6 @@ _write_file(char * root, char * local_name, const char * buffer, WORD size){
 		LOGE("unable to close file %d\r\n", res);
 		return res;
 	}
-
-	DISP("Wrote %u bytes\r\n", written);
 	assert(written == size);
 	return FR_OK;
 }
@@ -73,7 +71,6 @@ _read_file(char * root, char * local_name, void ** buffer, size_t * size){
 	UINT read = 0;
 	FRESULT res = _open_file(&file_obj,root, local_name, FA_READ);
 	if(res == FR_OK){
-		DISP("File size is %u\r\n", file_obj.fsize);
 		char * out = pvPortMalloc(file_obj.fsize);
 		res = hello_fs_read(&file_obj, out, file_obj.fsize, &read);
 		if(FR_OK == res){
@@ -146,7 +143,11 @@ static void _queue_worker(hlo_future_t * result, void * ctx){
 				break;
 			default:
 			case QUEUE_FLUSH:
-			//	("received flush");
+				worker->terminated = true;
+				break;
+			}
+		}else{
+			if(worker->terminated){
 				goto fin;
 			}
 		}
@@ -198,6 +199,7 @@ hlo_queue_t * hlo_queue_create(const char * root, size_t max_count, bool clear_a
 	ret->write_index = 1;
 	ret->num_files = 0;
 	ret->max_count = max_count;
+	ret->terminated = false;
 	//walk thorough directory for read/write index
 	if(clear_all){
 		fs_list(root, file_itr_delete, ret);
@@ -222,6 +224,7 @@ void hlo_queue_destroy(hlo_queue_t * q){
 	};
 	xQueueSend(q->worker_queue,&task,portMAX_DELAY);
 	hlo_future_read_once(q->worker, NULL, 0);
+	//after this point, the worker is no longer running
 	vQueueDelete(q->worker_queue);
 	vPortFree(q);
 	LOGI("done\r\n");
@@ -245,6 +248,9 @@ int hlo_queue_enqueue(hlo_queue_t * q, void * obj, size_t obj_size, bool blockin
 		}
 	}else{
 		LOGE("Queue is full\r\n");
+		if(cb){
+			cb(obj);
+		}
 		ret = -1;
 	}
 	hlo_future_destroy(task.sync);

@@ -50,6 +50,7 @@ typedef struct {
 
 static struct{
 	uint8_t * logging_block; //used for logging uart text
+	uint8_t * encode_ptr;
 	hlo_queue_t * logging_queue;
 	//ptr to block that is used to upload or read from sdcard
 	uint32_t widx;
@@ -67,8 +68,9 @@ void set_loglevel(uint8_t loglevel) {
 
 static bool
 _encode_text_block(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
+	DISP("arg is %x\r\n", self.encode_ptr);
 	return pb_encode_tag(stream, PB_WT_STRING, field->tag)
-			&& pb_encode_string(stream, (const char *)arg,
+			&& pb_encode_string(stream, self.encode_ptr,
 					UART_LOGGER_BLOCK_SIZE);
 }
 
@@ -85,8 +87,8 @@ static void _create_logging_block(void){
 	memset(self.logging_block, 0, UART_LOGGER_BLOCK_SIZE);
 	self.widx = 0;
 }
-static void _queue_and_reset_block(void){
-	hlo_queue_enqueue(self.logging_queue, self.logging_block, UART_LOGGER_BLOCK_SIZE, 0,on_write_flash_finished);
+static void _queue_and_reset_block(bool blocking){
+	hlo_queue_enqueue(self.logging_queue, self.logging_block, UART_LOGGER_BLOCK_SIZE, blocking ,on_write_flash_finished);
 	_create_logging_block();
 }
 
@@ -100,7 +102,7 @@ _logstr(const char * str, int len, bool echo, bool store){
 	}
 	xSemaphoreTakeRecursive(self.print_sem, portMAX_DELAY);
 	if( self.widx + len >= UART_LOGGER_BLOCK_SIZE) {
-		_queue_and_reset_block();
+		_queue_and_reset_block(false);
 	}
 	for(i = 0; i < len && store; i++){
 		uart_logc(str[i]);
@@ -121,15 +123,16 @@ _logstr(const char * str, int len, bool echo, bool store){
  * PUBLIC functions
  */
 void uart_logger_flush(void){
-	//set the task to exit and wait for it to do so
-	//_save_block_queue(0);
-	//write out whatever's left in the logging block
-	//_save_newest((const char*)self.logging_block, self.widx );
+	xSemaphoreTakeRecursive(self.print_sem, portMAX_DELAY);
+	self.store_tag = 0;
+	_queue_and_reset_block(true);
+	hlo_queue_destroy(self.logging_queue);
+	//intentionally disallow xSemaphoreTake
 }
 int Cmd_log_upload(int argc, char *argv[]){
 	vTaskDelay(1000);
 	xSemaphoreTakeRecursive(self.print_sem, portMAX_DELAY);
-	_queue_and_reset_block();
+	_queue_and_reset_block(false);
 	xSemaphoreGiveRecursive(self.print_sem);
 	return 0;
 }
@@ -360,19 +363,6 @@ void uart_logc(uint8_t c){
 	self.widx++;
 }
 
-static bool send_log() {
-	self.log.has_unix_time = false;
-#if 0 // if we want this we need to add a file header so stored files will get the origin timestamp and not the uploading timestamp
-	if( has_good_time() ) {
-		self.log.has_unix_time = true;
-		self.log.unix_time = get_time();
-	}
-#endif
-	//no timeout on this one...
-    return NetworkTask_SendProtobuf(true, DATA_SERVER, SENSE_LOG_ENDPOINT,
-    		sense_log_fields,&self.log, 0, NULL, NULL, NULL, false);
-}
-
 void analytics_event_task(void * params){
 	int block_len = 0;
 	char * block = pvPortMalloc(ANALYTICS_MAX_CHUNK_SIZE);
@@ -384,7 +374,7 @@ void analytics_event_task(void * params){
 		.text.funcs.encode = _encode_string_fields,
 		.text.arg = block,
 		.device_id.funcs.encode = encode_device_id_string,
-		.has_unix_time = true,
+		.has_unix_time = false,
 		.has_property = true,
 		.property = LogType_KEY_VALUE,
 	};
@@ -431,7 +421,10 @@ void uart_logger_task(void * params){
 		size_t out_size = 0;
 		if(hlo_queue_dequeue(self.logging_queue, &out_buf, &out_size) >= 0){
 			if(out_buf && out_size){
-				DISP("uploading log %d bytes\r\n", out_size);
+				self.encode_ptr = out_buf;
+				DISP("uploading log: %x,  %d bytes\r\n", out_buf, out_size);
+				NetworkTask_SendProtobuf(true, DATA_SERVER, SENSE_LOG_ENDPOINT,
+				    		sense_log_fields,&self.log, 0, NULL, NULL, NULL, false);
 				vPortFree(out_buf);
 			}
 		}

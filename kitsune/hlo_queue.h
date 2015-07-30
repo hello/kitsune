@@ -16,6 +16,7 @@ typedef struct{
 	uint32_t read_index;
 	uint16_t max_count;			//# of objects max to keep in root
 	uint32_t num_files;			//number of files in the directory
+	bool terminated;
 }hlo_queue_t;
 
 typedef void (*on_finished)(void * buf);
@@ -28,7 +29,6 @@ void hlo_queue_destroy(hlo_queue_t * q);
 int hlo_queue_enqueue(hlo_queue_t * q, void * obj, size_t obj_size, bool blocking, on_finished cb);
 
 int hlo_queue_dequeue(hlo_queue_t * q, void ** out_obj, size_t * out_size);
-
 
 int hlo_queue_count(hlo_queue_t * q);
 
