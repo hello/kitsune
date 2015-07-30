@@ -35,7 +35,7 @@ _open_file(FIL * out_file, const char * root, const char * local_name, WORD mode
 	char name_buf[16+2+13+1] = {0};
 	return hello_fs_open(out_file, _construct_name(name_buf, root,  local_name), mode);
 }
-#define DISK_SECTOR_WRITE_MAX 256
+#define DISK_SECTOR_WRITE_MAX 512
 static FRESULT
 _write_file(char * root, char * local_name, const char * buffer, WORD size){
 	FIL file_obj = {0};
@@ -47,7 +47,6 @@ _write_file(char * root, char * local_name, const char * buffer, WORD size){
 		return res;
 	}
 	DISP("writing to %s/%s\r\n", root, local_name);
-
 	do{
 		UINT rem = size - written;
 		res = hello_fs_write(&file_obj,buffer + written, (rem > DISK_SECTOR_WRITE_MAX ? DISK_SECTOR_WRITE_MAX : rem), &bytes);

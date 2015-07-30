@@ -79,13 +79,15 @@ void on_write_flash_finished(void * buf){
 	DISP("Freed\r\n");
 	vPortFree(buf);
 }
-static void _queue_and_reset_block(void){
-	hlo_queue_enqueue(self.logging_queue, self.logging_block, UART_LOGGER_BLOCK_SIZE, 0,on_write_flash_finished);
-
+static void _create_logging_block(void){
 	self.logging_block =  pvPortMalloc(UART_LOGGER_BLOCK_SIZE);
 	assert(self.logging_block);
 	memset(self.logging_block, 0, UART_LOGGER_BLOCK_SIZE);
 	self.widx = 0;
+}
+static void _queue_and_reset_block(void){
+	hlo_queue_enqueue(self.logging_queue, self.logging_block, UART_LOGGER_BLOCK_SIZE, 0,on_write_flash_finished);
+	_create_logging_block();
 }
 
 static void
@@ -132,7 +134,7 @@ int Cmd_log_upload(int argc, char *argv[]){
 	return 0;
 }
 void uart_logger_init(void){
-	self.logging_block = NULL;
+
 	self.logging_queue = hlo_queue_create(SENSE_LOG_FOLDER,64,0);
 	assert(self.logging_queue);
 
@@ -144,6 +146,8 @@ void uart_logger_init(void){
 	self.store_tag = LOG_INFO | LOG_WARNING | LOG_ERROR | LOG_FACTORY | LOG_TOP;
 
 	self.print_sem = xSemaphoreCreateRecursiveMutex();
+
+	_create_logging_block();
 
 }
 
