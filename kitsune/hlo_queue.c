@@ -274,7 +274,7 @@ int _queue_read(hlo_queue_t * q, void ** opt_out_obj, size_t * out_size, bool pe
 			if(opt_out_obj){
 				*opt_out_obj = task.sync->buf;
 			}else{
-				vPortFree(task->buf);
+				vPortFree(task.buf);
 			}
 
 			if(out_size){
