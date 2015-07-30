@@ -27,7 +27,9 @@ void hlo_queue_destroy(hlo_queue_t * q);
  */
 int hlo_queue_enqueue(hlo_queue_t * q, void * obj, size_t obj_size, bool blocking, on_finished cb);
 
-int hlo_queue_dequeue(hlo_queue_t * q, void ** opt_out_obj, size_t * out_size, bool peek_only);
+int hlo_queue_dequeue(hlo_queue_t * q, void ** opt_out_obj, size_t * out_size);
+
+int hlo_queue_peek(hlo_queue_t * q, void ** opt_out_obj, size_t * out_size);
 
 int hlo_queue_count(hlo_queue_t * q);
 

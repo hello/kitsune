@@ -71,12 +71,13 @@ _read_file(char * root, char * local_name, void ** buffer, size_t * size){
 	FIL file_obj;
 	UINT read = 0;
 	FRESULT res = _open_file(&file_obj,root, local_name, FA_READ);
+	DISP("Read %s/%s\r\n", root, local_name);
 	if(res == FR_OK){
+
 		char * out = pvPortMalloc(file_obj.fsize);
 		res = hello_fs_read(&file_obj, out, file_obj.fsize, &read);
 		if(FR_OK == res){
 			assert(read == file_obj.fsize);
-			//DISP("Read %d bytes\r\n", file_obj.fsize);
 			*buffer = out;
 			*size = file_obj.fsize;
 		}else{
@@ -111,7 +112,6 @@ static void _queue_worker(hlo_future_t * result, void * ctx){
 
 			switch(task.type){
 			case QUEUE_PEEK:
-				DISP("peek");
 				needs_delete = false;
 			case QUEUE_READ:
 				code = 0;
@@ -127,6 +127,8 @@ static void _queue_worker(hlo_future_t * result, void * ctx){
 					}else{
 						code = -1;
 					}
+				}else{
+					code = -2;
 				}
 				hlo_future_write(task.sync, task.buf, task.buf_size, code);
 				break;
@@ -144,7 +146,6 @@ static void _queue_worker(hlo_future_t * result, void * ctx){
 					code = -1;
 				}
 				if(task.sync){
-					DISP("wrote code%d\r\n", code);
 					hlo_future_write(task.sync, NULL, 0, code);
 				}
 				break;
@@ -258,8 +259,7 @@ int hlo_queue_enqueue(hlo_queue_t * q, void * obj, size_t obj_size, bool blockin
 	return ret;
 }
 
-//dequeue is always blocking
-int hlo_queue_dequeue(hlo_queue_t * q, void ** opt_out_obj, size_t * out_size, bool peek_only){
+int _queue_read(hlo_queue_t * q, void ** opt_out_obj, size_t * out_size, bool peek_only){
 	worker_context_t task = (worker_context_t){
 		.type = peek_only?QUEUE_PEEK:QUEUE_READ,
 		.sync = hlo_future_create(),
@@ -271,15 +271,27 @@ int hlo_queue_dequeue(hlo_queue_t * q, void ** opt_out_obj, size_t * out_size, b
 	if(xQueueSend(q->worker_queue, &task, 100)){
 		ret = hlo_future_read(task.sync, NULL, 0, portMAX_DELAY);
 		if(ret >= 0 && opt_out_obj && out_size){
-			*opt_out_obj = task.sync->buf;
-			*out_size = task.sync->buf_size;
+			if(opt_out_obj){
+				*opt_out_obj = task.sync->buf;
+			}else{
+				vPortFree(task->buf);
+			}
+
+			if(out_size){
+				*out_size = task.sync->buf_size;
+			}
 		}
-	}else{
-		ret = -1;
 	}
 	hlo_future_destroy(task.sync);
 	return ret;
 
+}
+//dequeue is always blocking
+int hlo_queue_dequeue(hlo_queue_t * q, void ** opt_out_obj, size_t * out_size){
+	return _queue_read(q, opt_out_obj, out_size, 0);
+}
+int hlo_queue_peek(hlo_queue_t * q, void ** opt_out_obj, size_t * out_size){
+	return _queue_read(q, opt_out_obj, out_size, 1);
 }
 #include "fs_utils.h"
 void _on_enqueue_free(void * buf){
@@ -299,20 +311,23 @@ static int _test_queue(char * root){
 	vPortFree(blocking_str);
 
 	vTaskDelay(200);
-	assert(0 == hlo_queue_dequeue(q, &out_string, &out_size, false));
+	assert(0 == hlo_queue_dequeue(q, &out_string, &out_size));
 	DISP("Dequeue %s\r\n", out_string);
 	memset(out_string, 0, out_size);
 	vPortFree(out_string);
 
-	assert(0 == hlo_queue_dequeue(q, &out_string, &out_size, true));
+	assert(0 == hlo_queue_peek(q, &out_string, &out_size));
 	DISP("Peek %s\r\n", out_string);
 	memset(out_string, 0, out_size);
 	vPortFree(out_string);
 
-	assert(0 == hlo_queue_dequeue(q, &out_string, &out_size, false));
+	assert(0 == hlo_queue_dequeue(q, &out_string, &out_size));
 	DISP("Dequeue %s\r\n", out_string);
 	memset(out_string, 0, out_size);
 	vPortFree(out_string);
+
+	assert(-2 == hlo_queue_dequeue(q, NULL, NULL));
+	DISP("Dequeue NULL \r\n", out_string);
 
 	fs_list(root, file_itr_counter, &fcount);
 	//assert(fcount == 0);
