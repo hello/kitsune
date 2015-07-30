@@ -13,6 +13,7 @@ typedef struct{
 		QUEUE_READ = 0,
 		QUEUE_WRITE,
 		QUEUE_FLUSH,
+		QUEUE_PEEK,
 	}type;
 	void * buf;
 	size_t buf_size;
@@ -106,16 +107,22 @@ static void _queue_worker(hlo_future_t * result, void * ctx){
 		if(xQueueReceive(worker->worker_queue, &task, portMAX_DELAY)){
 			size_t mcount = uxQueueMessagesWaiting(worker->worker_queue);
 			char local_name[13] = {0};
+			bool needs_delete = true;
 
 			switch(task.type){
+			case QUEUE_PEEK:
+				DISP("peek");
+				needs_delete = false;
 			case QUEUE_READ:
 				code = 0;
 				ltoa(worker->read_index, local_name);
 				if(worker->write_index > worker->read_index){
 					if(FR_OK == _read_file(worker->root, local_name, &task.buf, &task.buf_size)){
-						assert(FR_OK == _delete_file(worker->root, local_name));
-						worker->read_index++;
-						worker->num_files--;
+						if(needs_delete){
+							assert(FR_OK == _delete_file(worker->root, local_name));
+							worker->read_index++;
+							worker->num_files--;
+						}
 						code = 0;
 					}else{
 						code = -1;
@@ -143,11 +150,6 @@ static void _queue_worker(hlo_future_t * result, void * ctx){
 				break;
 			default:
 			case QUEUE_FLUSH:
-				worker->terminated = true;
-				break;
-			}
-		}else{
-			if(worker->terminated){
 				goto fin;
 			}
 		}
@@ -199,7 +201,6 @@ hlo_queue_t * hlo_queue_create(const char * root, size_t max_count, bool clear_a
 	ret->write_index = 1;
 	ret->num_files = 0;
 	ret->max_count = max_count;
-	ret->terminated = false;
 	//walk thorough directory for read/write index
 	if(clear_all){
 		fs_list(root, file_itr_delete, ret);
@@ -258,19 +259,19 @@ int hlo_queue_enqueue(hlo_queue_t * q, void * obj, size_t obj_size, bool blockin
 }
 
 //dequeue is always blocking
-int hlo_queue_dequeue(hlo_queue_t * q, void ** out_obj, size_t * out_size){
+int hlo_queue_dequeue(hlo_queue_t * q, void ** opt_out_obj, size_t * out_size, bool peek_only){
 	worker_context_t task = (worker_context_t){
-		.type = QUEUE_READ,
+		.type = peek_only?QUEUE_PEEK:QUEUE_READ,
 		.sync = hlo_future_create(),
 		.buf = NULL,
 		.buf_size = 0,
 		.cleanup = NULL,
 	};
-	int ret;
+	int ret = 0;
 	if(xQueueSend(q->worker_queue, &task, 100)){
 		ret = hlo_future_read(task.sync, NULL, 0, portMAX_DELAY);
-		if(ret >= 0){
-			*out_obj = task.sync->buf;
+		if(ret >= 0 && opt_out_obj && out_size){
+			*opt_out_obj = task.sync->buf;
 			*out_size = task.sync->buf_size;
 		}
 	}else{
@@ -298,11 +299,20 @@ static int _test_queue(char * root){
 	vPortFree(blocking_str);
 
 	vTaskDelay(200);
-	assert(0 == hlo_queue_dequeue(q, &out_string, &out_size));
+	assert(0 == hlo_queue_dequeue(q, &out_string, &out_size, false));
 	DISP("Dequeue %s\r\n", out_string);
+	memset(out_string, 0, out_size);
+	vPortFree(out_string);
 
-	assert(0 == hlo_queue_dequeue(q, &out_string, &out_size));
+	assert(0 == hlo_queue_dequeue(q, &out_string, &out_size, true));
+	DISP("Peek %s\r\n", out_string);
+	memset(out_string, 0, out_size);
+	vPortFree(out_string);
+
+	assert(0 == hlo_queue_dequeue(q, &out_string, &out_size, false));
 	DISP("Dequeue %s\r\n", out_string);
+	memset(out_string, 0, out_size);
+	vPortFree(out_string);
 
 	fs_list(root, file_itr_counter, &fcount);
 	//assert(fcount == 0);

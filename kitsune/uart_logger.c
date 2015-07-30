@@ -419,7 +419,7 @@ void uart_logger_task(void * params){
 	while(1){
 		void * out_buf = NULL;
 		size_t out_size = 0;
-		if(hlo_queue_dequeue(self.logging_queue, &out_buf, &out_size) >= 0){
+		if(hlo_queue_dequeue(self.logging_queue, &out_buf, &out_size, 0) >= 0){
 			if(out_buf && out_size){
 				self.encode_ptr = out_buf;
 				DISP("uploading log: %x,  %d bytes\r\n", out_buf, out_size);
