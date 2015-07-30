@@ -501,8 +501,8 @@ void led_task( void * params ) {
 
 			if( user_animation.fadein_time != 0 &&
 				user_animation.fadein_elapsed < user_animation.fadein_time ) {
-				led_brightness_all(colors_last, LED_MAX * user_animation.fadein_elapsed / user_animation.fadein_time );
 				user_animation.fadein_time = 0;
+				fade_alpha = LED_MAX * user_animation.fadein_elapsed / user_animation.fadein_time;
 			}
 			ledcpy(colors, colors_last, NUM_LED);
 
