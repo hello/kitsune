@@ -63,7 +63,7 @@ int fs_save( char* file, void* data, int len) {
 	sl_FsClose(hndl, 0, 0, 0);
 	return 0;
 }
-int fs_list( char * path, file_itr itr, void * ctx){
+int fs_list(const char * path, file_itr itr, void * ctx){
 	FILINFO file_info;
 	FRESULT res;
 	DIR dir;

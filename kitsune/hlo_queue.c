@@ -311,17 +311,17 @@ static int _test_queue(char * root){
 	vPortFree(blocking_str);
 
 	vTaskDelay(200);
-	assert(0 == hlo_queue_dequeue(q, &out_string, &out_size));
+	assert(0 == hlo_queue_dequeue(q, (void**)&out_string, &out_size));
 	DISP("Dequeue %s\r\n", out_string);
 	memset(out_string, 0, out_size);
 	vPortFree(out_string);
 
-	assert(0 == hlo_queue_peek(q, &out_string, &out_size));
+	assert(0 == hlo_queue_peek(q,  (void**)&out_string, &out_size));
 	DISP("Peek %s\r\n", out_string);
 	memset(out_string, 0, out_size);
 	vPortFree(out_string);
 
-	assert(0 == hlo_queue_dequeue(q, &out_string, &out_size));
+	assert(0 == hlo_queue_dequeue(q, (void**)&out_string, &out_size));
 	DISP("Dequeue %s\r\n", out_string);
 	memset(out_string, 0, out_size);
 	vPortFree(out_string);
