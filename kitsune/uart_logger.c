@@ -123,7 +123,6 @@ _logstr(const char * str, int len, bool echo, bool store){
  * PUBLIC functions
  */
 void uart_logger_flush(void){
-	xSemaphoreTakeRecursive(self.print_sem, portMAX_DELAY);
 	self.store_tag = 0;
 	_queue_and_reset_block(true);
 	hlo_queue_destroy(self.logging_queue);
