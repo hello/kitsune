@@ -978,11 +978,7 @@ void thread_tx(void* unused) {
 			periodic_data_to_encode periodicdata;
 			periodicdata.num_data = 0;
 			periodicdata.data = (periodic_data*)pvPortMalloc(data_queue_batch_size*sizeof(periodic_data));
-			if( !periodicdata.data ) {
-				LOGI( "failed to alloc periodicdata\n" );
-				vTaskDelay(1000);
-				continue;
-			}
+			assert(periodicdata.data);
 			if( got_forced_data ) {
 				memcpy( &periodicdata.data[periodicdata.num_data], &forced_data, sizeof(forced_data) );
 				++periodicdata.num_data;
@@ -990,8 +986,10 @@ void thread_tx(void* unused) {
 			while( periodicdata.num_data < data_queue_batch_size && xQueueReceive(data_queue, &periodicdata.data[periodicdata.num_data], 1 ) ) {
 				++periodicdata.num_data;
 			}
-			if(!got_forced_data){//forced data does not
+			if(!got_forced_data){//forced data does not require a prescan
 				periodicdata.scan_result = scan_result;
+			}else{
+				periodicdata.scan_result = NULL;
 			}
 			wifi_get_connected_ssid( (uint8_t*)data_batched.connected_ssid, sizeof(data_batched) );
 			data_batched.has_connected_ssid = true;
