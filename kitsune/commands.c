@@ -1000,39 +1000,6 @@ void thread_tx(void* unused) {
 
 			pack_batched_periodic_data(&data_batched, &periodicdata);
 
-			if( !is_test_boot() && provisioning_mode ) {
-				//wait for top to boot...
-#if 0
-				top_got_device_id = false;
-#endif
-				if( !top_got_device_id ) {
-					send_top( "rst", strlen("rst"));
-				}
-				while( !top_got_device_id ) {
-					vTaskDelay(1000);
-				}
-#if 0
-				save_aes_in_memory(DEFAULT_KEY);
-#endif
-
-				//try a test key with whatever we have so long as it is not the default
-				if( !has_default_key() ) {
-					uint8_t current_key[AES_BLOCKSIZE] = {0};
-					get_aes(current_key);
-					on_key(current_key);
-				} else {
-					ProvisionRequest pr;
-					memset(&pr, 0, sizeof(pr));
-					pr.device_id.funcs.encode = encode_device_id_string;
-					pr.serial.funcs.encode = _encode_string_fields;
-					pr.serial.arg = serial;
-					pr.need_key = true;
-					send_provision_request(&pr);
-				}
-			}
-
-
-
 			send_periodic_data(&data_batched, got_forced_data);
 
 			last_upload_time = xTaskGetTickCount();
