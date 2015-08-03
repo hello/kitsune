@@ -962,14 +962,15 @@ bool is_test_boot();
 //no need for semaphore, only thread_tx uses this one
 int data_queue_batch_size = 1;
 int pill_queue_batch_size = PILL_BATCH_WATERMARK;
-
 void thread_tx(void* unused) {
 	batched_pill_data pill_data_batched = {0};
 	batched_periodic_data data_batched = {0};
 	periodic_data forced_data;
 	bool got_forced_data = false;
+	hlo_future_t * scan_result = prescan_wifi(10);
 
 	LOGI(" Start polling  \n");
+
 	while (1) {
 		if (uxQueueMessagesWaiting(data_queue) >= data_queue_batch_size
 		 || got_forced_data ) {
@@ -977,7 +978,6 @@ void thread_tx(void* unused) {
 			periodic_data_to_encode periodicdata;
 			periodicdata.num_data = 0;
 			periodicdata.data = (periodic_data*)pvPortMalloc(data_queue_batch_size*sizeof(periodic_data));
-
 			if( !periodicdata.data ) {
 				LOGI( "failed to alloc periodicdata\n" );
 				vTaskDelay(1000);
@@ -990,11 +990,15 @@ void thread_tx(void* unused) {
 			while( periodicdata.num_data < data_queue_batch_size && xQueueReceive(data_queue, &periodicdata.data[periodicdata.num_data], 1 ) ) {
 				++periodicdata.num_data;
 			}
-
-			pack_batched_periodic_data(&data_batched, &periodicdata);
-
+			if(!got_forced_data){//forced data does not
+				periodicdata.scan_result = scan_result;
+			}
+			wifi_get_connected_ssid( (uint8_t*)data_batched.connected_ssid, sizeof(data_batched) );
+			data_batched.has_connected_ssid = true;
 			data_batched.has_uptime_in_second = true;
 			data_batched.uptime_in_second = xTaskGetTickCount() / configTICK_RATE_HZ;
+
+			pack_batched_periodic_data(&data_batched, &periodicdata);
 
 			if( !is_test_boot() && provisioning_mode ) {
 				//wait for top to boot...
@@ -1027,20 +1031,13 @@ void thread_tx(void* unused) {
 				}
 			}
 
-			wifi_get_connected_ssid( (uint8_t*)data_batched.connected_ssid, sizeof(data_batched) );
-			data_batched.has_connected_ssid = true;
 
-			data_batched.scan.funcs.encode = encode_scanned_ssid;
-			data_batched.scan.arg = NULL;
-			if( !got_forced_data ) {
-				data_batched.scan.arg = prescan_wifi(10);
-			}
+
 			send_periodic_data(&data_batched, got_forced_data);
-			last_upload_time = xTaskGetTickCount();
 
-			if( data_batched.scan.arg ) {
-				hlo_future_destroy( data_batched.scan.arg );
-			}
+			last_upload_time = xTaskGetTickCount();
+			hlo_future_destroy(scan_result);
+			scan_result = prescan_wifi(10);
 			vPortFree( periodicdata.data );
 			got_forced_data = false;
 		}

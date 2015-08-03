@@ -4,7 +4,7 @@
 #include "nanopb/pb_encode.h"
 #include "protobuf/periodic.pb.h"
 #include "protobuf/morpheus_ble.pb.h"
-
+#include "hlo_async.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -17,6 +17,7 @@ typedef struct {
 typedef struct {
     periodic_data * data;
     int num_data;
+    hlo_future_t * scan_result;
 } periodic_data_to_encode;
 
 
