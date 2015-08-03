@@ -621,18 +621,17 @@ static bool _is_file_exists(char* path)
 
 uint8_t get_alpha_from_light();
 void thread_alarm(void * unused) {
-	int delay = 1;
+	uint32_t last_ring_start = 0;
 	while (1) {
 		wait_for_time(WAIT_FOREVER);
 
 		portTickType now = xTaskGetTickCount();
 		uint64_t time = get_time();
-		delay = 1;
 		// The alarm thread should go ahead even without a valid time,
 		// because we don't need a correct time to fire alarm, we just need the offset.
 
 		if (xSemaphoreTakeRecursive(alarm_smphr, portMAX_DELAY)) {
-			if(alarm.has_start_time && alarm.start_time > 0)
+			if(alarm.has_start_time && alarm.start_time > 0 && alarm.start_time != last_ring_start)
 			{
 				if ( time - alarm.start_time < alarm.ring_duration_in_second ) {
 					AudioPlaybackDesc_t desc;
@@ -697,15 +696,12 @@ void thread_alarm(void * unused) {
 
 					LOGI("ALARM RINGING RING RING RING\n");
 					analytics_event( "{alarm: ring}" );
-					alarm.has_start_time = 0;
-					alarm.start_time = 0;
+					last_ring_start = alarm.start_time;
 					alarm_is_ringing = true;
 
 					uint8_t trippy_base[3] = { 0, 0, 0 };
 					uint8_t trippy_range[3] = { 254, 254, 254 };
 					play_led_trippy(trippy_base, trippy_range,0,30, 120000);
-
-					delay = 90;
 				}
 			}
 			else {
@@ -714,7 +710,7 @@ void thread_alarm(void * unused) {
 			
 			xSemaphoreGiveRecursive(alarm_smphr);
 		}
-		vTaskDelayUntil(&now, 1000*delay );
+		vTaskDelayUntil(&now, 1000 );
 	}
 }
 
