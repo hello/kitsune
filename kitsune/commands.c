@@ -94,6 +94,7 @@
 #include "prox_signal.h"
 #include "hlo_net_tools.h"
 #include "hlo_queue.h"
+#include "hlo_proto_tools.h"
 #define ONLY_MID 0
 
 //******************************************************************************
@@ -1002,7 +1003,7 @@ void thread_tx(void* unused) {
 
 			last_upload_time = xTaskGetTickCount();
 			hlo_future_destroy(scan_result);
-			scan_result = prescan_wifi(10);
+			scan_result = prescan_wifi(10);//reload a scan
 			vPortFree( periodicdata.data );
 			got_forced_data = false;
 		}
@@ -1781,6 +1782,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{"dns", Cmd_setDns, ""},
 		{"noint", Cmd_disableInterrupts, ""},
 		{"qt", Cmd_Hlo_Queue_Test, ""},
+		{"pt", Cmd_test_protobuf, ""},
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
 		{ "iperfcli",Cmd_iperf_client,""},
