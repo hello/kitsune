@@ -506,7 +506,9 @@ static volatile bool needs_alarm_ack = false;
 
 void set_alarm( SyncResponse_Alarm * received_alarm, const char * ack, size_t ack_size ) {
     if (xSemaphoreTakeRecursive(alarm_smphr, portMAX_DELAY)) {
-        if (received_alarm->has_ring_offset_from_now_in_second
+		if (memcmp(alarm_ack, ack, ack_size) == 0) {
+			LOGI("alarm already set\n");
+		} else if (received_alarm->has_ring_offset_from_now_in_second
         	&& received_alarm->ring_offset_from_now_in_second > -1 ) {   // -1 means user has no alarm/reset his/her now
         	unsigned long now = get_time();
         	received_alarm->start_time = now + received_alarm->ring_offset_from_now_in_second;
@@ -518,14 +520,7 @@ void set_alarm( SyncResponse_Alarm * received_alarm, const char * ack, size_t ac
         	// //sanity check
         	// since received_alarm->ring_offset_from_now_in_second >= 0, we don't need to check received_alarm->start_time
             
-            //are we within the duration of the current alarm?
-            if( alarm.has_start_time
-             && alarm.start_time - now > 0
-             && now - alarm.start_time < alarm.ring_duration_in_second ) {
-                LOGI( "alarm currently active, putting off setting\n");
-            } else {
-                memcpy(&alarm, received_alarm, sizeof(alarm));
-            }
+            memcpy(&alarm, received_alarm, sizeof(alarm));
             LOGI("alarm %d to %d in %d minutes\n",
                         received_alarm->start_time, received_alarm->end_time,
                         (received_alarm->start_time - now) / 60);
@@ -564,11 +559,9 @@ static bool cancel_alarm() {
 				analytics_event( "{alarm: dismissed}" );
 				LOGI("ALARM DONE RINGING\n");
 				alarm.has_end_time = 0;
-				alarm.has_start_time = 0;
+				alarm.has_start_time = false;
 				alarm.has_ring_offset_from_now_in_second = false;
 			}
-
-
 		    alarm_is_ringing = false;
 		    was_ringing = true;
 		}
@@ -621,7 +614,6 @@ static bool _is_file_exists(char* path)
 
 uint8_t get_alpha_from_light();
 void thread_alarm(void * unused) {
-	uint32_t last_ring_start = 0;
 	while (1) {
 		wait_for_time(WAIT_FOREVER);
 
@@ -631,7 +623,7 @@ void thread_alarm(void * unused) {
 		// because we don't need a correct time to fire alarm, we just need the offset.
 
 		if (xSemaphoreTakeRecursive(alarm_smphr, portMAX_DELAY)) {
-			if(alarm.has_start_time && alarm.start_time > 0 && alarm.start_time != last_ring_start)
+			if(alarm.has_start_time && alarm.start_time > 0 )
 			{
 				if ( time - alarm.start_time < alarm.ring_duration_in_second ) {
 					AudioPlaybackDesc_t desc;
@@ -696,7 +688,6 @@ void thread_alarm(void * unused) {
 
 					LOGI("ALARM RINGING RING RING RING\n");
 					analytics_event( "{alarm: ring}" );
-					last_ring_start = alarm.start_time;
 					alarm_is_ringing = true;
 
 					uint8_t trippy_base[3] = { 0, 0, 0 };
