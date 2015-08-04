@@ -55,8 +55,8 @@ static struct{
 	uint32_t widx;
 	EventGroupHandle_t uart_log_events;
 	sense_log log;
-	uint8_t view_tag;	//what level gets printed out to console
-	uint8_t store_tag;	//what level to store to sd card
+	uint16_t view_tag;	//what level gets printed out to console
+	uint16_t store_tag;	//what level to store to sd card
 	xSemaphoreHandle print_sem; //guards writing to the logging block and widx
 	DIR logdir;
 	xQueueHandle analytics_event_queue;
@@ -350,7 +350,7 @@ static const char * const g_pcHex = "0123456789abcdef";
 typedef void (*out_func_t)(const char * str, int len, void * data);
 
 void _logstr_wrapper(const char * str, int len, void * data ) {
-	uint8_t tag = *(uint8_t*)data;
+	uint16_t tag = *(uint16_t*)data;
     bool echo = false;
     bool store = false;
     if(tag & self.view_tag){
@@ -699,15 +699,17 @@ void uart_logger_task(void * params){
 int Cmd_log_setview(int argc, char * argv[]){
     char * pend;
 	if(argc > 1){
-		self.view_tag = ((uint8_t) strtol(argv[1],&pend,16) )&0xFF;
+		self.view_tag = ((uint16_t) strtol(argv[1],&pend,16) )&0xFFFF;
 		return 0;
 	}
 	return -1;
 }
 
 
-void uart_logf(uint8_t tag, const char *pcString, ...){
+void uart_logf(uint16_t tag, const char *pcString, ...){
 	va_list vaArgP;
+
+    if(!(tag & (self.view_tag|self.store_tag))) return;
     va_start(vaArgP, pcString);
     _va_printf( vaArgP, pcString, _logstr_wrapper, &tag );
     va_end(vaArgP);

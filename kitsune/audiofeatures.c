@@ -477,6 +477,8 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int64_t samplecount) {
     
     DEBUG_LOG_S16("energy", NULL, &logTotalEnergy, 1, samplecount, samplecount);
 
+    LOGA("%d\n", GetAudioEnergyAsDBA(logTotalEnergy));
+
     /* Determine stability of signal energy order to figure out when to estimate background spectrum */
     logTotalEnergyAvg = MovingAverage16(_data.callcounter, logTotalEnergy, _data.energybuf, &_data.energyaccumulator,ENERGY_BUF_MASK,ENERGY_BUF_SIZE_2N);
     
