@@ -912,6 +912,8 @@ void thread_fast_i2c_poll(void * unused)  {
 			// for white one, 9mm distance max.
 			prox = median_filter(get_prox(), filter_buf, &filter_idx);
 
+			LOGP( "%d\n", prox );
+
 			xSemaphoreGiveRecursive(i2c_smphr);
 
 			gesture = ProxSignal_UpdateChangeSignals(prox);
