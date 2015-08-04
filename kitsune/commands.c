@@ -1052,7 +1052,7 @@ void thread_tx(void* unused) {
 			data_batched.scan.arg = NULL;
 
 			if( !got_forced_data ) {
-				data_batched.scan.arg = prescan_wifi(10);
+//				data_batched.scan.arg = prescan_wifi(10);
 			}
 			if (xSemaphoreTakeRecursive(alarm_smphr, 1000)) {
 				if(needs_alarm_ack){
