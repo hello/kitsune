@@ -1735,7 +1735,7 @@ int Cmd_get_gesture_count(int argc, char * argv[]) {
 
 	const int count = gesture_get_and_reset_all_diagnostic_counts();
 
-	LOGI("%d transitions\n",count);
+	LOGF("%d transitions\n",count);
 
 	return 0;
 }
