@@ -885,50 +885,60 @@ int Cmd_gesture(int argc, char * argv[]) {
 void thread_fast_i2c_poll(void * unused)  {
 	unsigned int filter_buf[3];
 	unsigned int filter_idx=0;
+	unsigned int filter_buf_slow[3];
+	unsigned int filter_idx_slow=0;
 
 	gesture_init();
 	ProxSignal_Init();
 	ProxGesture_t gesture;
 
 	uint32_t counter = 0;
+	uint32_t counter_prox = 0;
 
+	int prox=0;
+	portTickType last_cnt = xTaskGetTickCount();
 	while (1) {
 		portTickType now = xTaskGetTickCount();
-		int prox=0;
 
 		if (xSemaphoreTakeRecursive(i2c_smphr, portMAX_DELAY)) {
 			vTaskDelay(2); //this is important! If we don't do it, then the prox will stretch the clock!
 
 			// For the black morpheus, we can detect 6mm distance max
 			// for white one, 9mm distance max.
-			prox = median_filter(get_prox(), filter_buf, &filter_idx);
-
-			LOGP( "%d\n", prox );
-
+			prox += median_filter(get_prox(), filter_buf, &filter_idx);
 			xSemaphoreGiveRecursive(i2c_smphr);
 
-			gesture = ProxSignal_UpdateChangeSignals(prox);
+			if (++counter_prox == 10) {
+				prox /=counter_prox;
+				prox = median_filter(prox, filter_buf_slow, &filter_idx_slow);
+				LOGP( "%d %d\n", prox, now - last_cnt );
+				last_cnt = now;
 
+				gesture = ProxSignal_UpdateChangeSignals(prox);
+				prox = 0;
+				counter_prox = 0;
 
-			//gesture gesture_state = gesture_input(prox);
-			switch(gesture)
-			{
-			case proxGestureWave:
-				_on_wave();
-				gesture_increment_wave_count();
-				break;
-			case proxGestureHold:
-				_on_hold();
-				gesture_increment_hold_count();
-				break;
-			case proxGestureRelease:
-				_on_gesture_out();
-				break;
-			default:
-				break;
+				//gesture gesture_state = gesture_input(prox);
+				switch(gesture)
+				{
+				case proxGestureWave:
+					_on_wave();
+					gesture_increment_wave_count();
+					break;
+				case proxGestureHold:
+					_on_hold();
+					gesture_increment_hold_count();
+					break;
+				case proxGestureRelease:
+					_on_gesture_out();
+					break;
+				default:
+					break;
+				}
 			}
 
-			if (++counter >= 2) {
+			if (++counter >= 20) {
+				vTaskDelay(20);
 				counter = 0;
 
 				if (xSemaphoreTakeRecursive(i2c_smphr, portMAX_DELAY)) {
@@ -959,7 +969,7 @@ void thread_fast_i2c_poll(void * unused)  {
 				}
 			}
 		}
-		vTaskDelayUntil(&now, 50);
+		vTaskDelayUntil(&now, 5);
 	}
 }
 
