@@ -421,6 +421,7 @@ int get_prox() {
 	prx_cmd_init[1] = 0x08; // one shot measurements
 	TRY_OR_GOTOFAIL(I2C_IF_Write(0x13, prx_cmd_init, 2, 1) );
 
+	vTaskDelay(10);
 	do {
 		vTaskDelay(1);
 		TRY_OR_GOTOFAIL(I2C_IF_Read(0x13, &cmd_reg,  1 ) );
