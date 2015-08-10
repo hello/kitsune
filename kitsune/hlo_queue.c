@@ -135,16 +135,15 @@ static void _queue_worker(hlo_future_t * result, void * ctx){
 			case QUEUE_WRITE:
 				//writes to flash
 				ltoa(worker->write_index, local_name);
-				assert(task.buf);
-				if(FR_OK == _write_file(worker->root, local_name, task.buf, task.buf_size)){
-					if(task.cleanup){
-						task.cleanup(task.buf);
-					}
+				if(task.buf && FR_OK == _write_file(worker->root, local_name, task.buf, task.buf_size)){
 					worker->write_index++;
 					worker->num_files++;
 					code = 0;
 				}else{
 					code = -1;
+				}
+				if(task.cleanup){
+					task.cleanup(task.buf);
 				}
 				if(task.sync){
 					hlo_future_write(task.sync, NULL, 0, code);
@@ -271,7 +270,7 @@ int _queue_read(hlo_queue_t * q, void ** opt_out_obj, size_t * out_size, bool pe
 	int ret = 0;
 	if(xQueueSend(q->worker_queue, &task, 100)){
 		ret = hlo_future_read(task.sync, NULL, 0, portMAX_DELAY);
-		if(ret >= 0 && opt_out_obj && out_size){
+		if(ret >= 0){
 			if(opt_out_obj){
 				*opt_out_obj = task.sync->buf;
 			}else{
