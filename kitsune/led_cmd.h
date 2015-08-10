@@ -9,6 +9,7 @@ extern "C" {
 #endif
 #define NUM_LED 12
 #define LED_MAX 254
+#define PROGRESS_COMPLETE LED_MAX
 
 typedef struct{
 	unsigned int rgb;
@@ -33,7 +34,12 @@ typedef struct{
 	led_user_animation_reinit_handler reinit_handler;
 	void * context;
 	uint8_t priority;
+	int fadein_time;
 	int cycle_time;
+	int fadein_elapsed;
+	uint32_t opt; //bitfield
+#define TRANSITION_WITHOUT_FADE 0x00000001
+
 }user_animation_t;
 
 int Cmd_led_clr(int argc, char *argv[]);
@@ -53,9 +59,10 @@ int led_transition_custom_animation(const user_animation_t * user);
 int led_fade_current_animation(void);
 int led_fade_all_animation(int fadeout);
 int led_get_animation_id(void);
+void flush_animation_history();
 
-void led_get_user_color(uint8_t* out_red, uint8_t* out_green, uint8_t* out_blue);
-void led_set_user_color(uint8_t red, uint8_t green, uint8_t blue);
+void led_get_user_color(unsigned int* out_red, unsigned int* out_green, unsigned int* out_blue, bool light);
+void led_set_user_color(unsigned int red, unsigned int green, unsigned int blue, bool light);
 int led_set_color(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b,
 		int fade_in, int fade_out,
 		unsigned int ud,

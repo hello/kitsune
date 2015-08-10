@@ -216,8 +216,6 @@ void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent) {
 		}
 
 		wifi_status_set(HAS_IP, false);
-        ble_reply_wifi_status(wifi_connection_state_IP_RETRIEVED);
-
 		break;
 
 	case SL_NETAPP_IP_LEASED_EVENT:
@@ -539,6 +537,45 @@ int Cmd_iperf_client(int argc, char *argv[]) {
     return 0;
 }
 #endif
+
+int get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uint32_t scan_duration_ms, int antenna)
+{
+    if(scan_duration_ms < 1000)
+    {
+        return 0;
+    }
+
+    unsigned long IntervalVal = 20;
+
+    unsigned char policyOpt = SL_CONNECTION_POLICY(0, 0, 0, 0, 0);
+    int r;
+
+    if( antenna ) {
+    	antsel(antenna);
+    }
+
+    r = sl_WlanPolicySet(SL_POLICY_CONNECTION , policyOpt, NULL, 0);
+
+    // Make sure scan is enabled
+    policyOpt = SL_SCAN_POLICY(1);
+
+    // set scan policy - this starts the scan
+    r = sl_WlanPolicySet(SL_POLICY_SCAN , policyOpt, (unsigned char *)(IntervalVal), sizeof(IntervalVal));
+
+
+    // delay specific milli seconds to verify scan is started
+    vTaskDelay(scan_duration_ms);
+
+    // r indicates the valid number of entries
+    // The scan results are occupied in netEntries[]
+    r = sl_WlanGetNetworkList(0, entry_len, entries);
+
+    // Restore connection policy to Auto
+    sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0), NULL, 0);
+
+    return r;
+
+}
 
 void wifi_reset()
 {
@@ -1646,11 +1683,11 @@ bool get_device_id(char * hex_device_id,uint32_t size_of_device_id_buffer) {
 
 bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg);
 
-void set_alarm( SyncResponse_Alarm * received_alarm );
+void set_alarm( SyncResponse_Alarm * received_alarm, const char * ack, size_t ack_size );
 
-static void _on_alarm_received( SyncResponse_Alarm* received_alarm)
+static void _on_alarm_received( SyncResponse_Alarm* received_alarm, const char * ack, size_t ack_size)
 {
-	set_alarm( received_alarm );
+	set_alarm( received_alarm, ack, ack_size );
 }
 
 static void _on_factory_reset_received()
@@ -1669,7 +1706,7 @@ static void _on_key_check_success(void * structdata){
 		sl_FsDel((unsigned char*)PROVISION_FILE, 0);
 		wifi_reset();
 		//green!
-		play_led_wheel( LED_MAX, 0, LED_MAX, 0, 3600, 33);
+		play_led_wheel( LED_MAX, 0, LED_MAX, 0, 3600, 33,1);
 		while (1) {
 			vTaskDelay(100);
 		}
@@ -1684,7 +1721,7 @@ static void _on_key_check_failure( void * structdata){
 	//allowing us to fall back to the key handshake with the server
 	if (provisioning_mode && has_default_key()) {
 		//red!
-		play_led_wheel( LED_MAX, LED_MAX, 0, 0, 3600, 33);
+		play_led_wheel( LED_MAX, LED_MAX, 0, 0, 3600, 33,1);
 		while (1) {
 			vTaskDelay(100);
 		}
@@ -1729,23 +1766,41 @@ static void _set_led_color_based_on_room_conditions(const SyncResponse* response
 {
     if(response_protobuf->has_room_conditions)
     {
+    	LOGI("lightson %d\n", response_protobuf->room_conditions);
     	switch(response_protobuf->room_conditions)
     	{
 			case SyncResponse_RoomConditions_IDEAL:
-				led_set_user_color(0x00, LED_MAX, 0x00);
+				led_set_user_color(0x00, LED_MAX, 0x00,true);
 			break;
 			case SyncResponse_RoomConditions_WARNING:
-				led_set_user_color(LED_MAX, LED_MAX, 0x00);
+				led_set_user_color(LED_MAX, LED_MAX, 0x00,true);
 			break;
 			case SyncResponse_RoomConditions_ALERT:
-				led_set_user_color(0xF0, 0x76, 0x00);
+				led_set_user_color(0xF0, 0x76, 0x0,true);
 			break;
 			default:
-				led_set_user_color(0x00, 0x00, LED_MAX);
+				led_set_user_color(0x00, 0x00, LED_MAX,true);
 			break;
     	}
-    }else{
-        led_set_user_color(0x00, LED_MAX, 0x00);
+    }
+    if(response_protobuf->has_room_conditions_lights_off)
+    {
+    	LOGI("lightsoff %d\n", response_protobuf->room_conditions_lights_off);
+    	switch(response_protobuf->room_conditions_lights_off)
+    	{
+			case SyncResponse_RoomConditions_IDEAL:
+				led_set_user_color(0x00, LED_MAX, 0x00,false);
+			break;
+			case SyncResponse_RoomConditions_WARNING:
+				led_set_user_color(LED_MAX, LED_MAX, 0x00,false);
+			break;
+			case SyncResponse_RoomConditions_ALERT:
+				led_set_user_color(0xF0, 0x76, 0x00,false);
+			break;
+			default:
+				led_set_user_color(0x00, 0x00, LED_MAX,false);
+			break;
+    	}
     }
 }
 void reset_to_factory_fw();
@@ -1756,7 +1811,13 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
 {
     if (response_protobuf->has_alarm) 
     {
-        _on_alarm_received(&response_protobuf->alarm);
+    	if(response_protobuf->has_ring_time_ack){
+    		_on_alarm_received(&response_protobuf->alarm, response_protobuf->ring_time_ack, sizeof(response_protobuf->ring_time_ack));
+
+    	}else{
+    		_on_alarm_received(&response_protobuf->alarm, NULL, 0);
+    	}
+
     }
 
     if (response_protobuf->has_mac)
@@ -1782,6 +1843,9 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
 
     if( response_protobuf->has_batch_size ) {
     	data_queue_batch_size = response_protobuf->batch_size;
+    }
+    if( response_protobuf->has_pill_batch_size ) {
+    	pill_queue_batch_size = response_protobuf->pill_batch_size;
     }
 
     if(response_protobuf->has_upload_log_level) {

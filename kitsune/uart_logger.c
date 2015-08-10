@@ -55,8 +55,8 @@ static struct{
 	//ptr to block that is used to upload or read from sdcard
 	uint32_t widx;
 	sense_log log;		//cached protobuf datastructure
-	uint8_t view_tag;	//what level gets printed out to console
-	uint8_t store_tag;	//what level to store to sd card
+	uint16_t view_tag;	//what level gets printed out to console
+	uint16_t store_tag;	//what level to store to sd card
 	xSemaphoreHandle print_sem; //guards writing to the logging block and widx
 	xQueueHandle analytics_event_queue;
 
@@ -101,11 +101,14 @@ _logstr(const char * str, int len, bool echo, bool store){
 		return;
 	}
 	xSemaphoreTakeRecursive(self.print_sem, portMAX_DELAY);
-	if( self.widx + len >= UART_LOGGER_BLOCK_SIZE) {
+	if( store ) {
+		if( self.widx + len >= UART_LOGGER_BLOCK_SIZE) {
 		_queue_and_reset_block(false);
-	}
-	for(i = 0; i < len && store; i++){
-		uart_logc(str[i]);
+		}
+		for(i = 0; i < len; i++){
+			assert( self.widx < UART_LOGGER_BLOCK_SIZE );
+			self.logging_block[self.widx++] = str[i];
+		}
 	}
 	xSemaphoreGiveRecursive(self.print_sem);
 
@@ -117,6 +120,7 @@ _logstr(const char * str, int len, bool echo, bool store){
 #endif
 		UARTwrite(str, len);
 	}
+	xSemaphoreGive(self.print_sem);
 }
 
 /**
@@ -160,7 +164,7 @@ static const char * const g_pcHex = "0123456789abcdef";
 typedef void (*out_func_t)(const char * str, int len, void * data);
 
 void _logstr_wrapper(const char * str, int len, void * data ) {
-	uint8_t tag = *(uint8_t*)data;
+	uint16_t tag = *(uint16_t*)data;
     bool echo = false;
     bool store = false;
     if(tag & self.view_tag){
@@ -357,11 +361,6 @@ int analytics_event( const char *pcString, ...) {
     return 0;
 }
 
-void uart_logc(uint8_t c){
-	self.logging_block[self.widx] = c;
-	self.widx++;
-}
-
 void analytics_event_task(void * params){
 	int block_len = 0;
 	char * block = pvPortMalloc(ANALYTICS_MAX_CHUNK_SIZE);
@@ -414,7 +413,6 @@ upload:
 }
 
 void uart_logger_task(void * params){
-	uart_logger_init();
 	while(1){
 		void * out_buf = NULL;
 		size_t out_size = 0;
@@ -440,15 +438,17 @@ void uart_logger_task(void * params){
 int Cmd_log_setview(int argc, char * argv[]){
     char * pend;
 	if(argc > 1){
-		self.view_tag = ((uint8_t) strtol(argv[1],&pend,16) )&0xFF;
+		self.view_tag = ((uint16_t) strtol(argv[1],&pend,16) )&0xFFFF;
 		return 0;
 	}
 	return -1;
 }
 
 
-void uart_logf(uint8_t tag, const char *pcString, ...){
+void uart_logf(uint16_t tag, const char *pcString, ...){
 	va_list vaArgP;
+
+    if(!(tag & (self.view_tag|self.store_tag))) return;
     va_start(vaArgP, pcString);
     _va_printf( vaArgP, pcString, _logstr_wrapper, &tag );
     va_end(vaArgP);

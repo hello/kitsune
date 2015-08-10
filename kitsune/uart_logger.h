@@ -39,6 +39,8 @@ extern "C" {
 #define LOG_VIEW_ONLY 0x20
 #define LOG_FACTORY 0x40
 #define LOG_TOP     0x80
+#define LOG_AUDIO   0x100
+#define LOG_PROX    0x200
 /**
  * Mode defines
  */
@@ -60,6 +62,8 @@ extern "C" {
 #define LOGE(...) uart_logf(LOG_ERROR, __VA_ARGS__)
 #define LOGF(...) uart_logf(LOG_FACTORY, __VA_ARGS__)
 #define LOGT(...) uart_logf(LOG_TOP, __VA_ARGS__)
+#define LOGA(...) uart_logf(LOG_AUDIO, __VA_ARGS__)
+#define LOGP(...) uart_logf(LOG_PROX, __VA_ARGS__)
 #define DISP(...) uart_logf(LOG_VIEW_ONLY, __VA_ARGS__)
 #else
 #define LOGI(...) UARTprintf(__VA_ARGS__)
@@ -76,7 +80,7 @@ void uart_logger_init(void);
 /**
  * For printing tags other than LOGX()
  */
-void uart_logf(uint8_t tag, const char *pcString, ...);
+void uart_logf(uint16_t tag, const char *pcString, ...);
 
 /**
  * Emergency flush

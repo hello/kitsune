@@ -92,7 +92,7 @@
 #include "wifi_cmd.h"
 #include "uart_logger.h"
 #include "hellofilesystem.h"
-#include "sl_sync_include_after_simplelink_header.h"
+//#include "sl_sync_include_after_simplelink_header.h" not here, this one is operating before the scheduler starts...
 
 void mcu_reset();
 
@@ -290,6 +290,7 @@ void watchdog_thread(void* unused) {
 			LOGE("NET TIMEOUT\n");
 			uart_logger_flush();
 			vTaskDelay(10000);
+			sl_Stop(30);
 			mcu_reset();
 		}
 

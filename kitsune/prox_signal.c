@@ -64,17 +64,17 @@ typedef struct {
 
 static ProxSignal_t _data;
 //the higher this gets, the less likely you are to be stable
-static const int32_t k_stable_likelihood_coefficient = TOFIX(0.5f,QFIXEDPOINT); //todo play with this
+static const int32_t k_stable_likelihood_coefficient = TOFIX(0.7f,QFIXEDPOINT); //todo play with this
 
 //the closer this gets to zero, the more likely it is that you will be increasing or decreasing
-static const int32_t k_change_log_likelihood = TOFIX(-0.15f,QFIXEDPOINT);
+static const int32_t k_change_log_likelihood = TOFIX(-0.10f,QFIXEDPOINT);
 
 //the closer this gets to zero, the shorter the amount of time it will take to switch between modes
 //the more negative it gets, the more evidence is required before switching modes, in general
-static const int32_t k_min_log_prob = TOFIX(-0.25f,QFIXEDPOINT);
+static const int32_t k_min_log_prob = TOFIX(-0.20f,QFIXEDPOINT);
 
-static const int32_t k_hold_threshold = 10000; //difference between max and held stable value before we say we are holding
-static const int32_t k_release_threshold = 10000; //difference between min and held stable value before we say we are released
+static const int32_t k_hold_threshold = 1000; //difference between max and held stable value before we say we are holding
+static const int32_t k_release_threshold = 1000; //difference between min and held stable value before we say we are released
 
 void ProxSignal_Init(void) {
 	memset(&_data,0,sizeof(_data));
@@ -103,10 +103,10 @@ static void UpdateMaxInBuffer(int32_t x) {
 
 static ProxGesture_t GetGesture(uint8_t isInterrupted, EChangeModes_t mode,uint8_t hasStableMeas,const int32_t maxStable,const int32_t stablex,const int32_t currentx) {
 
-
 	if (hasStableMeas) {
 		const int32_t diff = maxStable - stablex;
 
+		//LOGI("hold %d stb %d\n", diff, _data.stablecount);
 		if (diff > k_hold_threshold) {
 			if (_data.stablecount > PROX_HOLD_COUNT_THRESHOLD) {
 				//output one hold
@@ -187,7 +187,7 @@ ProxGesture_t ProxSignal_UpdateChangeSignals(const int32_t newx) {
 	}
 
 	change16 = change32;
-	//DEBUG_LOG_S16("change", NULL, &change16, 1, counter, counter);
+	//LOGI("change %d\n", change16 );
 
 	//evaluate log likelihood and compute Bayes update
 	/*
@@ -235,7 +235,9 @@ ProxGesture_t ProxSignal_UpdateChangeSignals(const int32_t newx) {
 
 	change16 = -abs(change16);
 	logLikelihoodOfModePdfs[stable] = MUL_PRECISE_RESULT(change16,k_stable_likelihood_coefficient,QFIXEDPOINT);
-	//DEBUG_LOG_S32("loglik", NULL, logLikelihoodOfModePdfs, 3, counter, counter);
+	/*LOGI("loglik %d %d %d\n", logLikelihoodOfModePdfs[increasing],
+			logLikelihoodOfModePdfs[stable],
+			logLikelihoodOfModePdfs[decreasing]);*/
 
 
 	/* Bayes rule
@@ -356,11 +358,11 @@ ProxGesture_t ProxSignal_UpdateChangeSignals(const int32_t newx) {
 		break;
 
 	case increasing:
-		LOGI("increasing, %d\n",_data.maxStable);
+		LOGI("increasing, %d\n",_data.maxstable);
 		break;
 
 	case decreasing:
-		LOGI("decreasing, %d\n",_data.maxStable);
+		LOGI("decreasing, %d\n",_data.maxstable);
 		break;
 
 	default:
