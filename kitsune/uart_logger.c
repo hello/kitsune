@@ -427,7 +427,6 @@ void uart_logger_task(void * params){
 					DISP("unable to upload logs, try again later\r\n");
 				}
 				vPortFree(out_buf);
-
 			}
 		}
 		vTaskDelay(5000);
