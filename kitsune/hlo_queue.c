@@ -112,6 +112,7 @@ static void _queue_worker(hlo_future_t * result, void * ctx){
 
 			switch(task.type){
 			case QUEUE_PEEK:
+				DISP("Peek\r\n");
 				needs_delete = false;
 			case QUEUE_READ:
 				code = 0;
@@ -125,6 +126,7 @@ static void _queue_worker(hlo_future_t * result, void * ctx){
 						}
 						code = 0;
 					}else{
+						DISP("CODE === -1\r\n");
 						code = -1;
 					}
 				}else{
