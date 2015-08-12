@@ -22,7 +22,12 @@ typedef struct{
 }worker_context_t;
 
 
-
+static
+void _reset_rw_count(hlo_queue_t * q){
+	q->read_index = 1;
+	q->write_index = 1;
+	q->num_files = 0;
+}
 static char *
 _construct_name(char * buf, const char * root, const char * local){
 	strcat(buf, "/");
@@ -130,6 +135,8 @@ static void _queue_worker(hlo_future_t * result, void * ctx){
 						code = -1;
 					}
 				}else{
+					//there are no more files available
+					_reset_rw_count(worker);
 					code = -2;
 				}
 				hlo_future_write(task.sync, task.buf, task.buf_size, code);
@@ -211,8 +218,7 @@ hlo_queue_t * hlo_queue_create(const char * root, size_t max_count, bool clear_a
 		fs_list(root, file_itr_get_min_max, ret);
 	}
 	if(ret->num_files == 0){
-		ret->read_index = 1;
-		ret->write_index = 1;
+		_reset_rw_count(ret);
 	}
 	DISP("Q r:%u w:%u c:%u\r\n",  ret->read_index, ret->write_index, ret->num_files);
 	return ret;
