@@ -506,7 +506,7 @@ static volatile bool needs_alarm_ack = false;
 
 void set_alarm( SyncResponse_Alarm * received_alarm, const char * ack, size_t ack_size ) {
     if (xSemaphoreTakeRecursive(alarm_smphr, portMAX_DELAY)) {
-		if (memcmp(alarm_ack, ack, ack_size) == 0) {
+		if ( ack && ack_size && memcmp(alarm_ack, ack, ack_size) == 0) {
 			LOGI("alarm already set\n");
 		} else if (received_alarm->has_ring_offset_from_now_in_second
         	&& received_alarm->ring_offset_from_now_in_second > -1 ) {   // -1 means user has no alarm/reset his/her now
