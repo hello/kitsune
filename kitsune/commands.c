@@ -527,6 +527,7 @@ void set_alarm( SyncResponse_Alarm * received_alarm, const char * ack, size_t ac
             if(ack && ack_size){
 				memcpy(alarm_ack, ack, min(sizeof(alarm_ack), ack_size));
 				LOGI("Alarm ID: %x %x\r\n", alarm_ack[0], alarm_ack[1]);
+				needs_alarm_ack = true;
 			}else{
 				memset(alarm_ack, 0, sizeof(alarm_ack));
 			}
@@ -595,7 +596,6 @@ static void thread_alarm_on_finished(void * context) {
 	stop_led_animation(10, 60);
 	if (xSemaphoreTakeRecursive(alarm_smphr, 500)) {
 		LOGI("Alarm finished\r\n");
-		needs_alarm_ack = true;
 		xSemaphoreGiveRecursive(alarm_smphr);
 	}
 	force_data_push();
@@ -1059,7 +1059,6 @@ void thread_tx(void* unused) {
 					data_batched.has_ring_time_ack = true;
 					memcpy(data_batched.ring_time_ack, alarm_ack, sizeof(data_batched.ring_time_ack));
 					LOGI("Ack Alarm ID: %x %x\r\n", alarm_ack[0], alarm_ack[1]);
-					needs_alarm_ack = false;
 				}
 				xSemaphoreGiveRecursive(alarm_smphr);
 			}
