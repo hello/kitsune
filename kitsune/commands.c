@@ -597,7 +597,6 @@ int set_test_alarm(int argc, char *argv[]) {
 	set_alarm( &alarm, "test", 5 );
 	return 0;
 }
-int force_data_push(void);
 static void thread_alarm_on_finished(void * context) {
 	stop_led_animation(10, 60);
 	if (xSemaphoreTakeRecursive(alarm_smphr, 500)) {
@@ -605,7 +604,6 @@ static void thread_alarm_on_finished(void * context) {
 		needs_alarm_ack = true;
 		xSemaphoreGiveRecursive(alarm_smphr);
 	}
-	force_data_push();
 }
 
 static bool _is_file_exists(char* path)
