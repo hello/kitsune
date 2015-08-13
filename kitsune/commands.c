@@ -684,6 +684,7 @@ void thread_alarm(void * unused) {
 					desc.onFinished = thread_alarm_on_finished;
 					desc.rate = 48000;
 
+					alarm.has_start_time = FALSE;
 					AudioTask_StartPlayback(&desc);
 
 					LOGI("ALARM RINGING RING RING RING\n");
