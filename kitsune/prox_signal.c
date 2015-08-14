@@ -4,6 +4,8 @@
 #include "uart_logger.h"
 #include <stdlib.h>
 #include "hellomath.h"
+#include "FreeRTOS.h"
+#include "task.h"
 /************************
  * DEFINES AND TYPEDEFS
  */
@@ -53,6 +55,7 @@ typedef struct {
 	int32_t minHeldStable;
 	uint32_t increasingCount;
 	uint32_t decreasingCount;
+	uint32_t holdStart;
 	uint8_t isHeld;
 	uint8_t isInterrupted;
 } ProxSignal_t;
@@ -112,6 +115,7 @@ static ProxGesture_t GetGesture(uint8_t isInterrupted, EChangeModes_t mode,uint8
 				//output one hold
 				if (!_data.isHeld) {
 					LOGI("ProxSignal: HOLDING\n");
+					_data.holdStart = xTaskGetTickCount();
 					_data.isHeld = 1;
 					_data.minHeldStable = stablex;
 					return proxGestureHold;
@@ -125,7 +129,7 @@ static ProxGesture_t GetGesture(uint8_t isInterrupted, EChangeModes_t mode,uint8
 	if (_data.isHeld) {
 		const int32_t diff = currentx - _data.minHeldStable;
 		//LOGI("current=%d,min=%d,diff=%d\n",currentx,_data.minHeldStable,diff);
-		if (diff > k_release_threshold) {
+		if (diff > k_release_threshold || xTaskGetTickCount() - _data.holdStart > MAX_HOLD_TIME_MS) {
 			_data.isHeld = 0;
 			LOGI("ProxSignal: RELEASE\n");
 			return proxGestureRelease;

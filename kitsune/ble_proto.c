@@ -32,6 +32,7 @@
 #include "audiohelper.h"
 #include "audiotask.h"
 #include "hlo_net_tools.h"
+#include "prox_signal.h"
 
 volatile static bool wifi_state_requested = false;
 
@@ -549,7 +550,7 @@ ble_send_protobuf(&response);
 extern uint8_t top_device_id[DEVICE_ID_SZ];
 extern volatile bool top_got_device_id; //being bad, this is only for factory
 
-#define PAIRING_GESTURE_DURATION 10000
+#define BLE_HOLD_TIMEOUT_MS 10000
 void hold_animate_progress_task(void * params) {
 	uint32_t start = xTaskGetTickCount();
 
@@ -564,7 +565,8 @@ void hold_animate_progress_task(void * params) {
 			MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_PAIRING_MODE;
 	ble_send_protobuf(&response);
 
-	vTaskDelay(10000);
+	assert( BLE_HOLD_TIMEOUT_MS < MAX_HOLD_TIME_MS );
+	vTaskDelay(BLE_HOLD_TIMEOUT_MS);
 	if( get_released() ) {
 		vTaskDelete(NULL);
 		return;
