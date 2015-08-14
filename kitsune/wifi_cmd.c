@@ -1411,14 +1411,14 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
 
     if (!recv_buf) {
     	LOGI("send_data_pb_callback needs a buffer\r\n");
-    	return -1;
+    	goto failure;
     }
 
     char hex_device_id[DEVICE_ID_SZ * 2 + 1] = {0};
     if(!get_device_id(hex_device_id, sizeof(hex_device_id)))
     {
         LOGE("get_device_id failed\n");
-        return -1;
+        goto failure;
     }
 
     usnprintf(recv_buf, recv_buf_size, "POST %s HTTP/1.1\r\n"
@@ -1435,7 +1435,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     //setup the connection
     if( start_connection() < 0 ) {
         LOGI("failed to start connection\n\r\n\r");
-        return -1;
+        goto failure;
     }
 
     //check that it's still secure...
@@ -1443,7 +1443,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     if (rv != SL_EAGAIN ) {
         LOGI("start recv error %d\n\r\n\r", rv);
         ble_reply_socket_error(rv);
-        return stop_connection();
+        goto failure;
     }
 
     //LOGI("Sending request\n\r%s\n\r", recv_buf);
@@ -1451,7 +1451,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     if (rv <= 0) {
         LOGI("send error %d\n\r\n\r", rv);
         ble_reply_socket_error(rv);
-        return stop_connection();
+        goto failure;
     }
 
 #if 0
@@ -1487,7 +1487,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
 
 	if( !flush_out_buffer(&desc) ) {
 		LOGI("Flush failed\n");
-		return -1;
+        goto failure;
 	}
 	LOGI("\n");
 
@@ -1499,7 +1499,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
 	/* Then just check for any errors.. */
 	if (!status) {
 		LOGI("Encoding failed: %s\n", PB_GET_ERROR(&stream));
-		return -1;
+        goto failure;
 	}
 
 	//now sign it
@@ -1536,13 +1536,13 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
 
 	/*  send AES initialization vector */
 	if( send_chunk_len( AES_IV_SIZE, sock) != 0 ) {
-		return -1;
+        goto failure;
 	}
 	rv = send(sock, aesctx.iv, AES_IV_SIZE, 0);
 
 	if (rv != AES_IV_SIZE) {
 		LOGI("Sending IV failed: %d\n", rv);
-		return -1;
+        goto failure;
 	}
 
 	AES_set_key(&aesctx, aes_key, aesctx.iv, AES_MODE_128); //todo real key
@@ -1550,13 +1550,13 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
 
 	/* send signature */
 	if( send_chunk_len( sizeof(sig), sock) != 0 ) {
-		return -1;
+        goto failure;
 	}
 	rv = send(sock, sig, sizeof(sig), 0);
 
 	if (rv != sizeof(sig)) {
 		LOGI("Sending SHA failed: %d\n", rv);
-		return -1;
+		goto failure;
 	}
 
 #if 0
@@ -1569,7 +1569,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
 
 
     if( send_chunk_len(0, sock) != 0 ) {
-    	return -1;
+        goto failure;
     }
     ble_reply_wifi_status(wifi_connection_state_REQUEST_SENT);
 
@@ -1582,7 +1582,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
              recv_buf_size += SERVER_REPLY_BUFSZ;
              if( recv_buf_size > 10*1024 ) {
                  LOGI("error response too bug\n");
-                 return stop_connection();
+                 goto failure;
              }
     		 recv_buf = pvPortRealloc( recv_buf, recv_buf_size );
     		 assert(recv_buf);
@@ -1596,7 +1596,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     if (rv <= 0) {
         LOGI("recv error %d\n\r\n\r", rv);
         ble_reply_socket_error(rv);
-        return stop_connection();
+        goto failure;
     }
     LOGI("recv %d\n", rv);
 
@@ -1627,7 +1627,13 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     } else {
     	return http_response_ok((char*)recv_buf);
     }
-    return -1;
+    return stop_connection();
+
+	failure:
+	if( pb_cb && pb_cb->on_pb_failure ) {
+		pb_cb->on_pb_failure();
+	}
+	return stop_connection();
 }
 
 

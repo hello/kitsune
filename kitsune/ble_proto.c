@@ -437,6 +437,7 @@ static void _on_pair_success(void * structdata){
 }
 static void _on_pair_failure(){
     LOGF("pairing server response failed\r\n");
+	ble_reply_protobuf_error(ErrorType_NETWORK_ERROR);
 }
 static void _pair_reply(const NetworkResponse_t * response,
 		char * reply_buf, int reply_sz, void * context) {
@@ -472,15 +473,13 @@ static bool _pair_device( MorpheusCommand* command, int is_morpheus)
 	pb_cb.on_pb_failure = _on_pair_failure;
 	pb_cb.on_pb_success = _on_pair_success;
 
-	if(! NetworkTask_SendProtobuf( false,
+	NetworkTask_SendProtobuf( false,
 				DATA_SERVER,
 				is_morpheus == 1 ? MORPHEUS_REGISTER_ENDPOINT : PILL_REGISTER_ENDPOINT,
 				MorpheusCommand_fields,
 				&ctx->cmd,
 				30000,
-				_pair_reply, ctx, &pb_cb, true) ) {
-		ble_reply_protobuf_error(ErrorType_NETWORK_ERROR);
-	}
+				_pair_reply, ctx, &pb_cb, true);
 
 	return true; // success
 }
