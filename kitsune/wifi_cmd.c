@@ -939,18 +939,18 @@ static bool write_buffered_callback_sha(pb_ostream_t *stream, const uint8_t * in
 			if (send_chunk_len(desc->buf_size, sock) != 0) {
 				return false;
 			}
+
 			if(!send(desc->fd, desc->buf, desc->buf_size, 0)
 					== desc->buf_size ) { return false; }
 
-			desc->bytes_written += desc->buf_size;
-
+			desc->bytes_written += desc->buf_size - desc->buf_pos;
+			c -= desc->buf_size - desc->buf_pos;
+			inbuf += desc->buf_size - desc->buf_pos;
 			desc->buf_pos = 0;
-			c -= desc->buf_size;
-			inbuf += desc->buf_size;
 		}
 		//copy to our buffer
-		memcpy(desc->buf, inbuf, c+start_bufpos);
-		desc->buf_pos += c+start_bufpos;
+		memcpy(desc->buf, inbuf, c);
+		desc->buf_pos += c;
 	} else {
 		//copy to our buffer
 		memcpy(desc->buf + desc->buf_pos, inbuf, count);
