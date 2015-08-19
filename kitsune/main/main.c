@@ -283,11 +283,11 @@ void start_wdt() {
 void mcu_reset();
 #include "kit_assert.h"
 volatile portTickType last_upload_time = 0;
-#define SIXTY_MINUTES 3600000
+#define TWENTY_FIVE_HOURS 90000000
 
 void watchdog_thread(void* unused) {
 	while (1) {
-		if( xTaskGetTickCount() - last_upload_time > SIXTY_MINUTES ) {
+		if( xTaskGetTickCount() - last_upload_time > TWENTY_FIVE_HOURS ) {
 			LOGE("NET TIMEOUT\n");
 			uart_logger_flush();
 			vTaskDelay(10000);
