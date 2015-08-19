@@ -1251,6 +1251,7 @@ static bool decode_rx_data_pb(const uint8_t * buffer, uint32_t buffer_size, cons
 	SHA1_Final(sig_test, &sha1ctx);
 	if (memcmp(sig, sig_test, SHA1_SIZE) != 0) {
 		LOGI("signatures do not match\n");
+		LOGI("%d %x %x\n", buffer_size, buf_pos, buffer );
 #if 0
 		for (i = 0; i < SHA1_SIZE; ++i) {
 			LOGI("%02x", sig[i]);
@@ -1368,7 +1369,7 @@ int http_response_ok( char* response_buffer)
 }
 
 
-static bool validate_signatures( char * buffer, const pb_field_t fields[], void * structdata) {
+static bool validate_signatures( char * buffer, int sz, const pb_field_t fields[], void * structdata) {
 
     // Parse the response
     //LOGI("Reply is:\n\r%s\n\r", buffer);
@@ -1376,6 +1377,7 @@ static bool validate_signatures( char * buffer, const pb_field_t fields[], void 
     const char* header_content_len = "Content-Length: ";
     char * content = strstr(buffer, "\r\n\r\n") + 4;
     char * len_str = strstr(buffer, header_content_len) + strlen(header_content_len);
+
     if (http_response_ok(buffer) != 0) {
     	wifi_status_set(UPLOADING, true);
         LOGI("Invalid response, endpoint return failure.\n");
@@ -1385,6 +1387,8 @@ static bool validate_signatures( char * buffer, const pb_field_t fields[], void 
     if( strstr(buffer, "No Content") ) {
     	return true;
     }
+    *(content-2) = 0;
+    LOGI( "Headers:\n%s", buffer );
 
     if (len_str == NULL) {
     	wifi_status_set(UPLOADING, true);
@@ -1392,6 +1396,10 @@ static bool validate_signatures( char * buffer, const pb_field_t fields[], void 
         return false;
     }
     int len = atoi(len_str);
+    if( len + (content - buffer) > sz ) {
+    	LOGE("Content length %d exceeds rx buffer %d! %x %x\n", len, sz, content, buffer);
+    	return false;
+    }
 
     return decode_rx_data_pb((unsigned char*) content, len, fields, structdata);
 }
@@ -1610,7 +1618,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
 			pb_cb->get_reply_pb( &reply_fields, &reply_structdata );
 			assert(reply_structdata);
 		}
-		if( reply_structdata && validate_signatures((char*)recv_buf, reply_fields, reply_structdata ) ) {
+		if( reply_structdata && validate_signatures((char*)recv_buf, rv, reply_fields, reply_structdata ) ) {
 			if( pb_cb && pb_cb->on_pb_success ) {
 				pb_cb->on_pb_success( reply_structdata );
 			}
