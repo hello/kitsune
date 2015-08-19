@@ -923,6 +923,7 @@ static bool write_buffered_callback_sha(pb_ostream_t *stream, const uint8_t * in
 	ostream_buffered_desc_t * desc = (ostream_buffered_desc_t *) stream->state;
 	assert( count < INT_MAX ); //make sure it fits in signed int
 	int c = count;
+	desc->bytes_that_should_have_been_written += c;
 
 	if ((desc->buf_pos + count ) >= desc->buf_size) {
 		/* Will I exceed the buffer size? then send buffer */
