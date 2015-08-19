@@ -251,6 +251,7 @@ void WatchdogIntHandler(void)
 	// watchdog interrupt - if it fires when the interrupt has not been cleared then the device will reset...
 	//
 		LOGE( "oh no WDT: %u, %u\r\n", xTaskGetTickCount() );
+		sl_Stop(30);
 		mcu_reset();
 }
 

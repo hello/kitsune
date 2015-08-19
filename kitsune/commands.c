@@ -502,7 +502,6 @@ static xSemaphoreHandle alarm_smphr;
 static SyncResponse_Alarm alarm;
 static char alarm_ack[sizeof(((SyncResponse *)0)->ring_time_ack)];
 static volatile bool needs_alarm_ack = false;
-#define ONE_YEAR_IN_SECONDS 0x1E13380
 
 void set_alarm( SyncResponse_Alarm * received_alarm, const char * ack, size_t ack_size ) {
     if (xSemaphoreTakeRecursive(alarm_smphr, portMAX_DELAY)) {

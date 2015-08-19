@@ -923,8 +923,6 @@ static bool write_buffered_callback_sha(pb_ostream_t *stream, const uint8_t * in
 	ostream_buffered_desc_t * desc = (ostream_buffered_desc_t *) stream->state;
 	assert( count < INT_MAX ); //make sure it fits in signed int
 	int c = count;
-	desc->bytes_that_should_have_been_written += c;
-	int start_bufpos = desc->buf_pos;
 
 	if ((desc->buf_pos + count ) >= desc->buf_size) {
 		/* Will I exceed the buffer size? then send buffer */
@@ -1414,7 +1412,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     	LOGI("send_data_pb_callback needs a buffer\r\n");
     	goto failure;
     }
-
+    {
     char hex_device_id[DEVICE_ID_SZ * 2 + 1] = {0};
     if(!get_device_id(hex_device_id, sizeof(hex_device_id)))
     {
@@ -1454,12 +1452,13 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
         ble_reply_socket_error(rv);
         goto failure;
     }
-
+	}
 #if 0
     LOGI("HTTP header sent %d\n\r%s\n\r", rv, recv_buf);
 
 #endif
 
+    {
 	ostream_buffered_desc_t desc;
 
 	SHA1_CTX ctx;
@@ -1600,7 +1599,9 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
         goto failure;
     }
     LOGI("recv %d\n", rv);
+    }
 
+    {
     pb_field_t * reply_fields = NULL;
     void * reply_structdata = NULL;
 
@@ -1629,6 +1630,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     	return http_response_ok((char*)recv_buf);
     }
     return stop_connection();
+    }
 
 	failure:
 	if( pb_cb && pb_cb->on_pb_failure ) {
