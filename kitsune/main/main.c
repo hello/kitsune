@@ -283,9 +283,11 @@ void start_wdt() {
 void mcu_reset();
 #include "kit_assert.h"
 volatile portTickType last_upload_time = 0;
-#define TWENTY_FIVE_HOURS 90000000
+#define ONE_HOUR (1000*60*60)
+#define TWENTY_FIVE_HOURS (ONE_HOUR*25)
 
 void watchdog_thread(void* unused) {
+	int last_nwp_reset_time = 0;
 	while (1) {
 		if( xTaskGetTickCount() - last_upload_time > TWENTY_FIVE_HOURS ) {
 			LOGE("NET TIMEOUT\n");
@@ -293,6 +295,12 @@ void watchdog_thread(void* unused) {
 			vTaskDelay(10000);
 			sl_Stop(30);
 			mcu_reset();
+		}
+		if( xTaskGetTickCount() - last_upload_time > ONE_HOUR
+		&&  xTaskGetTickCount() - last_nwp_reset_time > ONE_HOUR) {
+			LOGE("NWP TIMEOUT\n");
+			nwp_reset();
+			last_nwp_reset_time = xTaskGetTickCount();
 		}
 
 		MAP_WatchdogIntClear(WDT_BASE); //clear wdt
