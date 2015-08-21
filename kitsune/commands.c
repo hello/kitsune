@@ -517,6 +517,7 @@ void set_alarm( SyncResponse_Alarm * received_alarm, const char * ack, size_t ac
         	received_alarm->has_end_time = received_alarm->has_start_time = received_alarm->has_ring_duration_in_second = true;
         	received_alarm->ring_duration_in_second = ring_duration;
         	// //sanity check
+
         	// since received_alarm->ring_offset_from_now_in_second >= 0, we don't need to check received_alarm->start_time
             
             memcpy(&alarm, received_alarm, sizeof(alarm));
@@ -525,7 +526,9 @@ void set_alarm( SyncResponse_Alarm * received_alarm, const char * ack, size_t ac
                         (received_alarm->start_time - now) / 60);
             if(ack && ack_size){
 				memcpy(alarm_ack, ack, min(sizeof(alarm_ack), ack_size));
-				LOGI("Alarm ID: %x %x\r\n", alarm_ack[0], alarm_ack[1]);
+				ack_size = ack_size >= sizeof(alarm_ack) ? sizeof(alarm_ack)-1 : ack_size;
+				alarm_ack[ack_size] = 0;
+				LOGI("Alarm ID: %s\r\n", alarm_ack );
 				needs_alarm_ack = true;
 			}else{
 				memset(alarm_ack, 0, sizeof(alarm_ack));
