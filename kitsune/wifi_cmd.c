@@ -593,6 +593,13 @@ void wifi_reset()
     }else{
         LOGI("Disconnect WIFI failed, error %d.\n", ret);
     }
+
+    while(wifi_status_get(CONNECT))
+    {
+    	LOGI("Waiting disconnect...\n");
+    	vTaskDelay(1000);
+    }
+
     reset_default_antenna();
 }
 
