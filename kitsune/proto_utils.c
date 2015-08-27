@@ -91,6 +91,7 @@ bool encode_scanned_ssid (pb_ostream_t *stream, const pb_field_t *field, void * 
         ap.has_antenna = true;
         ap.rssi = scan[i].rssi;
         ap.has_rssi = true;
+        scan[i].ssid_len = 0;
         memcpy( ap.ssid, scan[i].ssid, sizeof(ap.ssid));
         ap.has_ssid = true;
 

@@ -924,7 +924,6 @@ static bool write_buffered_callback_sha(pb_ostream_t *stream, const uint8_t * in
 	assert( count < INT_MAX ); //make sure it fits in signed int
 	int c = count;
 	desc->bytes_that_should_have_been_written += c;
-	int start_bufpos = desc->buf_pos;
 
 	if ((desc->buf_pos + count ) >= desc->buf_size) {
 		/* Will I exceed the buffer size? then send buffer */
@@ -939,18 +938,19 @@ static bool write_buffered_callback_sha(pb_ostream_t *stream, const uint8_t * in
 			if (send_chunk_len(desc->buf_size, sock) != 0) {
 				return false;
 			}
+
 			if(!send(desc->fd, desc->buf, desc->buf_size, 0)
 					== desc->buf_size ) { return false; }
 
-			desc->bytes_written += desc->buf_size;
-
+			desc->bytes_written += desc->buf_size - desc->buf_pos;
+			c -= desc->buf_size - desc->buf_pos;
+			inbuf += desc->buf_size - desc->buf_pos;
 			desc->buf_pos = 0;
-			c -= desc->buf_size;
-			inbuf += desc->buf_size;
 		}
 		//copy to our buffer
-		memcpy(desc->buf, inbuf, c+start_bufpos);
-		desc->buf_pos += c+start_bufpos;
+		memcpy(desc->buf, inbuf, c);
+		desc->buf_pos += c;
+		desc->bytes_written += c;
 	} else {
 		//copy to our buffer
 		memcpy(desc->buf + desc->buf_pos, inbuf, count);
@@ -1252,6 +1252,7 @@ static bool decode_rx_data_pb(const uint8_t * buffer, uint32_t buffer_size, cons
 	SHA1_Final(sig_test, &sha1ctx);
 	if (memcmp(sig, sig_test, SHA1_SIZE) != 0) {
 		LOGI("signatures do not match\n");
+		LOGI("%d %x %x\n", buffer_size, buf_pos, buffer );
 #if 0
 		for (i = 0; i < SHA1_SIZE; ++i) {
 			LOGI("%02x", sig[i]);
@@ -1369,7 +1370,7 @@ int http_response_ok( char* response_buffer)
 }
 
 
-static bool validate_signatures( char * buffer, const pb_field_t fields[], void * structdata) {
+static bool validate_signatures( char * buffer, int sz, const pb_field_t fields[], void * structdata) {
 
     // Parse the response
     //LOGI("Reply is:\n\r%s\n\r", buffer);
@@ -1377,6 +1378,7 @@ static bool validate_signatures( char * buffer, const pb_field_t fields[], void 
     const char* header_content_len = "Content-Length: ";
     char * content = strstr(buffer, "\r\n\r\n") + 4;
     char * len_str = strstr(buffer, header_content_len) + strlen(header_content_len);
+
     if (http_response_ok(buffer) != 0) {
     	wifi_status_set(UPLOADING, true);
         LOGI("Invalid response, endpoint return failure.\n");
@@ -1386,6 +1388,8 @@ static bool validate_signatures( char * buffer, const pb_field_t fields[], void 
     if( strstr(buffer, "No Content") ) {
     	return true;
     }
+    *(content-2) = 0;
+    LOGI( "Headers:\n%s", buffer );
 
     if (len_str == NULL) {
     	wifi_status_set(UPLOADING, true);
@@ -1393,6 +1397,10 @@ static bool validate_signatures( char * buffer, const pb_field_t fields[], void 
         return false;
     }
     int len = atoi(len_str);
+    if( len + (content - buffer) > sz ) {
+    	LOGE("Content length %d exceeds rx buffer %d! %x %x\n", len, sz, content, buffer);
+    	return false;
+    }
 
     return decode_rx_data_pb((unsigned char*) content, len, fields, structdata);
 }
@@ -1411,14 +1419,14 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
 
     if (!recv_buf) {
     	LOGI("send_data_pb_callback needs a buffer\r\n");
-    	return -1;
+    	goto failure;
     }
-
+    {
     char hex_device_id[DEVICE_ID_SZ * 2 + 1] = {0};
     if(!get_device_id(hex_device_id, sizeof(hex_device_id)))
     {
         LOGE("get_device_id failed\n");
-        return -1;
+        goto failure;
     }
 
     usnprintf(recv_buf, recv_buf_size, "POST %s HTTP/1.1\r\n"
@@ -1435,7 +1443,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     //setup the connection
     if( start_connection() < 0 ) {
         LOGI("failed to start connection\n\r\n\r");
-        return -1;
+        goto failure;
     }
 
     //check that it's still secure...
@@ -1443,7 +1451,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     if (rv != SL_EAGAIN ) {
         LOGI("start recv error %d\n\r\n\r", rv);
         ble_reply_socket_error(rv);
-        return stop_connection();
+        goto failure;
     }
 
     //LOGI("Sending request\n\r%s\n\r", recv_buf);
@@ -1451,14 +1459,15 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     if (rv <= 0) {
         LOGI("send error %d\n\r\n\r", rv);
         ble_reply_socket_error(rv);
-        return stop_connection();
+        goto failure;
     }
-
+	}
 #if 0
     LOGI("HTTP header sent %d\n\r%s\n\r", rv, recv_buf);
 
 #endif
 
+    {
 	ostream_buffered_desc_t desc;
 
 	SHA1_CTX ctx;
@@ -1487,7 +1496,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
 
 	if( !flush_out_buffer(&desc) ) {
 		LOGI("Flush failed\n");
-		return -1;
+        goto failure;
 	}
 	LOGI("\n");
 
@@ -1499,7 +1508,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
 	/* Then just check for any errors.. */
 	if (!status) {
 		LOGI("Encoding failed: %s\n", PB_GET_ERROR(&stream));
-		return -1;
+        goto failure;
 	}
 
 	//now sign it
@@ -1536,13 +1545,13 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
 
 	/*  send AES initialization vector */
 	if( send_chunk_len( AES_IV_SIZE, sock) != 0 ) {
-		return -1;
+        goto failure;
 	}
 	rv = send(sock, aesctx.iv, AES_IV_SIZE, 0);
 
 	if (rv != AES_IV_SIZE) {
 		LOGI("Sending IV failed: %d\n", rv);
-		return -1;
+        goto failure;
 	}
 
 	AES_set_key(&aesctx, aes_key, aesctx.iv, AES_MODE_128); //todo real key
@@ -1550,13 +1559,13 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
 
 	/* send signature */
 	if( send_chunk_len( sizeof(sig), sock) != 0 ) {
-		return -1;
+        goto failure;
 	}
 	rv = send(sock, sig, sizeof(sig), 0);
 
 	if (rv != sizeof(sig)) {
 		LOGI("Sending SHA failed: %d\n", rv);
-		return -1;
+		goto failure;
 	}
 
 #if 0
@@ -1569,7 +1578,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
 
 
     if( send_chunk_len(0, sock) != 0 ) {
-    	return -1;
+        goto failure;
     }
     ble_reply_wifi_status(wifi_connection_state_REQUEST_SENT);
 
@@ -1582,7 +1591,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
              recv_buf_size += SERVER_REPLY_BUFSZ;
              if( recv_buf_size > 10*1024 ) {
                  LOGI("error response too bug\n");
-                 return stop_connection();
+                 goto failure;
              }
     		 recv_buf = pvPortRealloc( recv_buf, recv_buf_size );
     		 assert(recv_buf);
@@ -1596,10 +1605,12 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     if (rv <= 0) {
         LOGI("recv error %d\n\r\n\r", rv);
         ble_reply_socket_error(rv);
-        return stop_connection();
+        goto failure;
     }
     LOGI("recv %d\n", rv);
+    }
 
+    {
     pb_field_t * reply_fields = NULL;
     void * reply_structdata = NULL;
 
@@ -1608,7 +1619,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
 			pb_cb->get_reply_pb( &reply_fields, &reply_structdata );
 			assert(reply_structdata);
 		}
-		if( reply_structdata && validate_signatures((char*)recv_buf, reply_fields, reply_structdata ) ) {
+		if( reply_structdata && validate_signatures((char*)recv_buf, rv, reply_fields, reply_structdata ) ) {
 			if( pb_cb && pb_cb->on_pb_success ) {
 				pb_cb->on_pb_success( reply_structdata );
 			}
@@ -1627,7 +1638,14 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     } else {
     	return http_response_ok((char*)recv_buf);
     }
-    return -1;
+    return stop_connection();
+    }
+
+	failure:
+	if( pb_cb && pb_cb->on_pb_failure ) {
+		pb_cb->on_pb_failure();
+	}
+	return stop_connection();
 }
 
 
@@ -1776,7 +1794,7 @@ static void _set_led_color_based_on_room_conditions(const SyncResponse* response
 				led_set_user_color(LED_MAX, LED_MAX, 0x00,true);
 			break;
 			case SyncResponse_RoomConditions_ALERT:
-				led_set_user_color(0xF0, 0x76, 0x0,true);
+				led_set_user_color(253,45,8,true);
 			break;
 			default:
 				led_set_user_color(0x00, 0x00, LED_MAX,true);
@@ -1795,7 +1813,7 @@ static void _set_led_color_based_on_room_conditions(const SyncResponse* response
 				led_set_user_color(LED_MAX, LED_MAX, 0x00,false);
 			break;
 			case SyncResponse_RoomConditions_ALERT:
-				led_set_user_color(0xF0, 0x76, 0x00,false);
+				led_set_user_color(253,45,8,false);
 			break;
 			default:
 				led_set_user_color(0x00, 0x00, LED_MAX,false);

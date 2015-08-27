@@ -251,6 +251,7 @@ void WatchdogIntHandler(void)
 	// watchdog interrupt - if it fires when the interrupt has not been cleared then the device will reset...
 	//
 		LOGE( "oh no WDT: %u, %u\r\n", xTaskGetTickCount() );
+		sl_Stop(30);
 		mcu_reset();
 }
 
@@ -282,16 +283,24 @@ void start_wdt() {
 void mcu_reset();
 #include "kit_assert.h"
 volatile portTickType last_upload_time = 0;
-#define SIXTY_MINUTES 3600000
+#define ONE_HOUR (1000*60*60)
+#define TWENTY_FIVE_HOURS (ONE_HOUR*25)
 
 void watchdog_thread(void* unused) {
+	int last_nwp_reset_time = 0;
 	while (1) {
-		if( xTaskGetTickCount() - last_upload_time > SIXTY_MINUTES ) {
+		if( xTaskGetTickCount() - last_upload_time > TWENTY_FIVE_HOURS ) {
 			LOGE("NET TIMEOUT\n");
 			uart_logger_flush();
 			vTaskDelay(10000);
 			sl_Stop(30);
 			mcu_reset();
+		}
+		if( xTaskGetTickCount() - last_upload_time > ONE_HOUR
+		&&  xTaskGetTickCount() - last_nwp_reset_time > ONE_HOUR) {
+			LOGE("NWP TIMEOUT\n");
+			nwp_reset();
+			last_nwp_reset_time = xTaskGetTickCount();
 		}
 
 		MAP_WatchdogIntClear(WDT_BASE); //clear wdt
@@ -330,7 +339,7 @@ void main()
 
   /* Create the UART processing task. */
   xTaskCreate( vUARTTask, "UARTTask", 2048/(sizeof(portSTACK_TYPE)), NULL, 4, NULL );
-  xTaskCreate( watchdog_thread, "wdtTask", configMINIMAL_STACK_SIZE, NULL, 1, NULL );
+  xTaskCreate( watchdog_thread, "wdtTask", 1280/(sizeof(portSTACK_TYPE)), NULL, 1, NULL );
 
   //
   // Start the task scheduler

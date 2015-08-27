@@ -32,6 +32,7 @@
 #include "audiohelper.h"
 #include "audiotask.h"
 #include "hlo_net_tools.h"
+#include "prox_signal.h"
 
 volatile static bool wifi_state_requested = false;
 
@@ -435,7 +436,7 @@ static void _on_pair_success(void * structdata){
 	}
 }
 static void _on_pair_failure(){
-    LOGF("pairing fail\r\n");
+    LOGF("pairing server response failed\r\n");
 	ble_reply_protobuf_error(ErrorType_NETWORK_ERROR);
 }
 static void _pair_reply(const NetworkResponse_t * response,
@@ -472,7 +473,7 @@ static bool _pair_device( MorpheusCommand* command, int is_morpheus)
 	pb_cb.on_pb_failure = _on_pair_failure;
 	pb_cb.on_pb_success = _on_pair_success;
 
-	bool  ret = NetworkTask_SendProtobuf( false,
+	NetworkTask_SendProtobuf( false,
 				DATA_SERVER,
 				is_morpheus == 1 ? MORPHEUS_REGISTER_ENDPOINT : PILL_REGISTER_ENDPOINT,
 				MorpheusCommand_fields,
@@ -548,7 +549,7 @@ ble_send_protobuf(&response);
 extern uint8_t top_device_id[DEVICE_ID_SZ];
 extern volatile bool top_got_device_id; //being bad, this is only for factory
 
-#define PAIRING_GESTURE_DURATION 10000
+#define BLE_HOLD_TIMEOUT_MS 10000
 void hold_animate_progress_task(void * params) {
 	uint32_t start = xTaskGetTickCount();
 
@@ -563,7 +564,8 @@ void hold_animate_progress_task(void * params) {
 			MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_PAIRING_MODE;
 	ble_send_protobuf(&response);
 
-	vTaskDelay(10000);
+	assert( BLE_HOLD_TIMEOUT_MS < MAX_HOLD_TIME_MS );
+	vTaskDelay(BLE_HOLD_TIMEOUT_MS);
 	if( get_released() ) {
 		vTaskDelete(NULL);
 		return;

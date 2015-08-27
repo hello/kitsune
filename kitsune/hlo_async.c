@@ -84,6 +84,8 @@ fail_sync:
 	vSemaphoreDelete(result->release);
 fail:
 	hlo_future_free(result);
+#define FUTURE_FAIL 0
+	assert(FUTURE_FAIL);
 	return NULL;
 }
 

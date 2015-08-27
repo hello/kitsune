@@ -502,11 +502,12 @@ static xSemaphoreHandle alarm_smphr;
 static SyncResponse_Alarm alarm;
 static char alarm_ack[sizeof(((SyncResponse *)0)->ring_time_ack)];
 static volatile bool needs_alarm_ack = false;
-#define ONE_YEAR_IN_SECONDS 0x1E13380
 
 void set_alarm( SyncResponse_Alarm * received_alarm, const char * ack, size_t ack_size ) {
     if (xSemaphoreTakeRecursive(alarm_smphr, portMAX_DELAY)) {
-        if (received_alarm->has_ring_offset_from_now_in_second
+		if ( ack && ack_size && memcmp(alarm_ack, ack, ack_size) == 0) {
+			LOGI("alarm already set\n");
+		} else if (received_alarm->has_ring_offset_from_now_in_second
         	&& received_alarm->ring_offset_from_now_in_second > -1 ) {   // -1 means user has no alarm/reset his/her now
         	unsigned long now = get_time();
         	received_alarm->start_time = now + received_alarm->ring_offset_from_now_in_second;
@@ -516,22 +517,19 @@ void set_alarm( SyncResponse_Alarm * received_alarm, const char * ack, size_t ac
         	received_alarm->has_end_time = received_alarm->has_start_time = received_alarm->has_ring_duration_in_second = true;
         	received_alarm->ring_duration_in_second = ring_duration;
         	// //sanity check
+
         	// since received_alarm->ring_offset_from_now_in_second >= 0, we don't need to check received_alarm->start_time
             
-            //are we within the duration of the current alarm?
-            if( alarm.has_start_time
-             && alarm.start_time - now > 0
-             && now - alarm.start_time < alarm.ring_duration_in_second ) {
-                LOGI( "alarm currently active, putting off setting\n");
-            } else {
-                memcpy(&alarm, received_alarm, sizeof(alarm));
-            }
+            memcpy(&alarm, received_alarm, sizeof(alarm));
             LOGI("alarm %d to %d in %d minutes\n",
                         received_alarm->start_time, received_alarm->end_time,
                         (received_alarm->start_time - now) / 60);
             if(ack && ack_size){
 				memcpy(alarm_ack, ack, min(sizeof(alarm_ack), ack_size));
-				LOGI("Alarm ID: %x %x\r\n", alarm_ack[0], alarm_ack[1]);
+				ack_size = ack_size >= sizeof(alarm_ack) ? sizeof(alarm_ack)-1 : ack_size;
+				alarm_ack[ack_size] = 0;
+				LOGI("Alarm ID: %s\r\n", alarm_ack );
+				needs_alarm_ack = true;
 			}else{
 				memset(alarm_ack, 0, sizeof(alarm_ack));
 			}
@@ -564,11 +562,9 @@ static bool cancel_alarm() {
 				analytics_event( "{alarm: dismissed}" );
 				LOGI("ALARM DONE RINGING\n");
 				alarm.has_end_time = 0;
-				alarm.has_start_time = 0;
+				alarm.has_start_time = false;
 				alarm.has_ring_offset_from_now_in_second = false;
 			}
-
-
 		    alarm_is_ringing = false;
 		    was_ringing = true;
 		}
@@ -597,15 +593,12 @@ int set_test_alarm(int argc, char *argv[]) {
 	set_alarm( &alarm, "test", 5 );
 	return 0;
 }
-int force_data_push(void);
 static void thread_alarm_on_finished(void * context) {
 	stop_led_animation(10, 60);
 	if (xSemaphoreTakeRecursive(alarm_smphr, 500)) {
 		LOGI("Alarm finished\r\n");
-		needs_alarm_ack = true;
 		xSemaphoreGiveRecursive(alarm_smphr);
 	}
-	force_data_push();
 }
 
 static bool _is_file_exists(char* path)
@@ -621,18 +614,16 @@ static bool _is_file_exists(char* path)
 
 uint8_t get_alpha_from_light();
 void thread_alarm(void * unused) {
-	int delay = 1;
 	while (1) {
 		wait_for_time(WAIT_FOREVER);
 
 		portTickType now = xTaskGetTickCount();
 		uint64_t time = get_time();
-		delay = 1;
 		// The alarm thread should go ahead even without a valid time,
 		// because we don't need a correct time to fire alarm, we just need the offset.
 
 		if (xSemaphoreTakeRecursive(alarm_smphr, portMAX_DELAY)) {
-			if(alarm.has_start_time && alarm.start_time > 0)
+			if(alarm.has_start_time && alarm.start_time > 0 )
 			{
 				if ( time - alarm.start_time < alarm.ring_duration_in_second ) {
 					AudioPlaybackDesc_t desc;
@@ -693,19 +684,16 @@ void thread_alarm(void * unused) {
 					desc.onFinished = thread_alarm_on_finished;
 					desc.rate = 48000;
 
+					alarm.has_start_time = FALSE;
 					AudioTask_StartPlayback(&desc);
 
 					LOGI("ALARM RINGING RING RING RING\n");
 					analytics_event( "{alarm: ring}" );
-					alarm.has_start_time = 0;
-					alarm.start_time = 0;
 					alarm_is_ringing = true;
 
 					uint8_t trippy_base[3] = { 0, 0, 0 };
 					uint8_t trippy_range[3] = { 254, 254, 254 };
 					play_led_trippy(trippy_base, trippy_range,0,30, 120000);
-
-					delay = 90;
 				}
 			}
 			else {
@@ -714,7 +702,7 @@ void thread_alarm(void * unused) {
 			
 			xSemaphoreGiveRecursive(alarm_smphr);
 		}
-		vTaskDelayUntil(&now, 1000*delay );
+		vTaskDelayUntil(&now, 1000);
 	}
 }
 
@@ -916,6 +904,8 @@ void thread_fast_i2c_poll(void * unused)  {
 			// for white one, 9mm distance max.
 			prox = median_filter(get_prox(), filter_buf, &filter_idx);
 
+			LOGP( "%d\n", prox );
+
 			xSemaphoreGiveRecursive(i2c_smphr);
 
 			gesture = ProxSignal_UpdateChangeSignals(prox);
@@ -1070,7 +1060,6 @@ void thread_tx(void* unused) {
 					data_batched.has_ring_time_ack = true;
 					memcpy(data_batched.ring_time_ack, alarm_ack, sizeof(data_batched.ring_time_ack));
 					LOGI("Ack Alarm ID: %x %x\r\n", alarm_ack[0], alarm_ack[1]);
-					needs_alarm_ack = false;
 				}
 				xSemaphoreGiveRecursive(alarm_smphr);
 			}
@@ -1722,7 +1711,7 @@ void launch_tasks() {
 	UARTprintf("*");
 	xTaskCreate(thread_sensor_poll, "pollTask", 1024 / 4, NULL, 3, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_tx, "txTask", 1024 / 4, NULL, 2, NULL);
+	xTaskCreate(thread_tx, "txTask", 1536 / 4, NULL, 2, NULL);
 	UARTprintf("*");
 #endif
 }

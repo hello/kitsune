@@ -27,7 +27,7 @@
                                      return  iRetVal;}
 #define BUF_SIZE 2
 
-#define TRY_OR_GOTOFAIL(a) if(a!=SUCCESS) { LOGI( "fail at %s %d\n\r", __FILE__, __LINE__ ); return FAILURE;}
+#define TRY_OR_GOTOFAIL(a) assert(a==SUCCESS)
 
 #define Codec_addr 0x1A
 #define DELAY_CODEC 5
@@ -398,7 +398,7 @@ int init_prox_sensor()
 
 	prx_cmd_init[0] = 0x8f;
 	//                  ---++--- delay, frequency, dead time
-	prx_cmd_init[1] = 0b01000001;
+	prx_cmd_init[1] = 0b10000001;
 	TRY_OR_GOTOFAIL(I2C_IF_Write(0x13, prx_cmd_init, 2, 1) );
 
 	prx_cmd_init[0] = 0x83; // Current setting register
