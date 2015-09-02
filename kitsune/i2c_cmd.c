@@ -330,8 +330,20 @@ int init_light_sensor()
 	return SUCCESS;
 }
 
+static int _read_als(){
+	unsigned char cmd;
+	unsigned char aucDataBuf[2] = { 0, 0 };
+
+	cmd = 0x2;
+	TRY_OR_GOTOFAIL(I2C_IF_Write(0x44, &cmd, 1, 1));
+	vTaskDelay(0);
+	TRY_OR_GOTOFAIL(I2C_IF_Read(0x44, aucDataBuf, 2));
+	return = aucDataBuf[0] | (aucDataBuf[1] << 8);
+}
+
 int get_light() {
 	unsigned char cmd;
+	unsigned char aucDataBuf[2] = { 0, 0 };
 
 	if (old_light_sensor) {
 		unsigned char aucDataBuf_LOW[2];
@@ -352,14 +364,45 @@ int get_light() {
 
 		return light_lux;
 	} else {
-		unsigned char aucDataBuf[2] = { 0, 0 };
+		int light = 0;
+		static int scaling = 0;
 
-		cmd = 0x2;
-		TRY_OR_GOTOFAIL(I2C_IF_Write(0x44, &cmd, 1, 1));
-		vTaskDelay(0);
-		TRY_OR_GOTOFAIL(I2C_IF_Read(0x44, aucDataBuf, 2));
+		for(;;) {
+			light = _read_als();
+			if( light > 65534 ) {
+				if( scaling < 3 ) {
+					aucDataBuf[0] = 1;
+					aucDataBuf[1] = ++scaling;
+					TRY_OR_GOTOFAIL(I2C_IF_Write(0x44, aucDataBuf, 2, 1));
+					vTaskDelay(1);
+					_read_als();
+					continue;
+				} else {
+					break;
+				}
+			}
+			if( light < 16384 ) {
+				if( scaling > 0 ) {
+					aucDataBuf[0] = 1;
+					aucDataBuf[1] = --scaling;
+					TRY_OR_GOTOFAIL(I2C_IF_Write(0x44, aucDataBuf, 2, 1));
+					vTaskDelay(1);
+					_read_als();
+					continue;
+				} else {
+					break;
+				}
+			}
+			break;
+		}
 
-		return aucDataBuf[0] | (aucDataBuf[1] << 8);
+		light *= (1<<(scaling*2));
+
+		aucDataBuf[0] = 1;
+		aucDataBuf[1] = scaling;
+		TRY_OR_GOTOFAIL(I2C_IF_Write(0x44, aucDataBuf, 2, 1));
+
+		return light;
 	}
 }
 
