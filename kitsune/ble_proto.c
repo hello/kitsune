@@ -134,29 +134,7 @@ static void _ble_reply_command_with_type(MorpheusCommand_CommandType type)
 }
 
 static void _factory_reset(){
-    int16_t ret = sl_WlanProfileDel(0xFF);
-    if(ret)
-    {
-        LOGI("Delete all stored endpoint failed, error %d.\n", ret);
-        ble_reply_protobuf_error(ErrorType_WLAN_ENDPOINT_DELETE_FAILED);
-        return;
-    }else{
-        LOGI("All stored WIFI EP removed.\n");
-    }
-
-    ret = sl_WlanDisconnect();
-    if(ret == 0){
-        LOGI("WIFI disconnected\n");
-    }else{
-        LOGI("Disconnect WIFI failed, error %d.\n", ret);
-    }
-
-    while(wifi_status_get(CONNECT))
-    {
-    	LOGI("Waiting disconnect...\n");
-    	vTaskDelay(1000);
-    }
-
+	wifi_reset();
     reset_default_antenna();
     pill_settings_reset_all();
     nwp_reset();
@@ -209,6 +187,7 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type,
     	}
     }
 	xSemaphoreGive(_wifi_smphr);
+    assert(i!=MAX_WIFI_EP_PER_SCAN);
 
 	if(app_version >= 0) {
 		int to = 0;
