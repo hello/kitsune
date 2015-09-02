@@ -8,7 +8,6 @@
 #include "uartstdio.h"
 #include "i2c_cmd.h"
 
-#include "kit_assert.h"
 #include "time.h"
 
 #include "sl_sync_include_after_simplelink_header.h"
@@ -34,12 +33,15 @@ static int int_to_bcd( int i ) {
 	return bcd;
 }
 
+#define FAILURE                 -1
+#define SUCCESS                 0
+#define TRY_OR_GOTOFAIL(a) if(a!=SUCCESS) { LOGI( "fail at %s %d\n\r", __FILE__, __LINE__ ); return FAILURE;}
 static int get_rtc_time( struct tm * dt ) {
 	unsigned char data[7];
 	unsigned char addy = 1;
 	if (xSemaphoreTakeRecursive(i2c_smphr, portMAX_DELAY)) {
-		assert(I2C_IF_Write(0x68, &addy, 1, 1)==0);
-		assert(I2C_IF_Read(0x68, data, 7)==0);
+		TRY_OR_GOTOFAIL(I2C_IF_Write(0x68, &addy, 1, 1));
+		TRY_OR_GOTOFAIL(I2C_IF_Read(0x68, data, 7));
 		xSemaphoreGiveRecursive(i2c_smphr);
 	}
 	dt->tm_sec = bcd_to_int(data[0] & 0x7f);
@@ -72,7 +74,7 @@ static int set_rtc_time(struct tm * dt) {
     data[7] = int_to_bcd(dt->tm_year-100);
 
 	if (xSemaphoreTakeRecursive(i2c_smphr, portMAX_DELAY)) {
-		assert(I2C_IF_Write(0x68, data, 8, 1)==0);
+		TRY_OR_GOTOFAIL(I2C_IF_Write(0x68, data, 8, 1));
 		xSemaphoreGiveRecursive(i2c_smphr);
 	}
 	return 0;
