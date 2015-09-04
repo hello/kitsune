@@ -54,9 +54,13 @@ int sl_mode = ROLE_INVALID;
 
 #include "limits.h"
 
+
+int send_top(char *, int);
 void mcu_reset()
 {
+	send_top("bounce", strlen("bounce"));
 	vTaskDelay(1000);
+	LOGI("did not get power reset\r\n");
 	//TODO make flush work on reset...
 	//MAP_IntMasterDisable();
 	//uart_logger_flush();
@@ -728,7 +732,6 @@ bool should_burn_top_key() {
 	return burn_top_key;
 }
 extern volatile bool top_got_device_id;
-int send_top(char *, int);
 int Cmd_burn_top(int argc, char *argv[]) {
 	burn_top_key = true;
 	if (top_got_device_id) {
