@@ -891,6 +891,8 @@ void thread_fast_i2c_poll(void * unused)  {
 	ProxSignal_Init();
 	ProxGesture_t gesture;
 
+	uint32_t counter = 0;
+
 	while (1) {
 		portTickType now = xTaskGetTickCount();
 		int prox=0;
@@ -927,35 +929,38 @@ void thread_fast_i2c_poll(void * unused)  {
 				break;
 			}
 
+			if (++counter >= 2) {
+				counter = 0;
 
-			if (xSemaphoreTakeRecursive(i2c_smphr, portMAX_DELAY)) {
-				vTaskDelay(2);
-				light = led_is_idle(0) ? get_light() : light;
-				xSemaphoreGiveRecursive(i2c_smphr);
-			}
-
-
-			if (xSemaphoreTake(light_smphr, portMAX_DELAY)) {
-				light_log_sum += bitlog(light);
-				++light_cnt;
-
-				int delta = light - light_mean;
-				light_mean = light_mean + delta/light_cnt;
-				light_m2 = light_m2 + delta * (light - light_mean);
-				if( light_m2 < 0 ) {
-					light_m2 = 0x7FFFFFFF;
+				if (xSemaphoreTakeRecursive(i2c_smphr, portMAX_DELAY)) {
+					vTaskDelay(2);
+					light = led_is_idle(0) ? get_light() : light;
+					xSemaphoreGiveRecursive(i2c_smphr);
 				}
-				//LOGI( "%d %d %d %d\n", delta, light_mean, light_m2, light_cnt);
-				xSemaphoreGive(light_smphr);
 
-				if(light_cnt % 5 == 0 && led_is_idle(0) ) {
-					if(_is_light_off()) {
-						_show_led_status();
+
+				if (xSemaphoreTake(light_smphr, portMAX_DELAY)) {
+					light_log_sum += bitlog(light);
+					++light_cnt;
+
+					int delta = light - light_mean;
+					light_mean = light_mean + delta/light_cnt;
+					light_m2 = light_m2 + delta * (light - light_mean);
+					if( light_m2 < 0 ) {
+						light_m2 = 0x7FFFFFFF;
+					}
+					//LOGI( "%d %d %d %d\n", delta, light_mean, light_m2, light_cnt);
+					xSemaphoreGive(light_smphr);
+
+					if(light_cnt % 5 == 0 && led_is_idle(0) ) {
+						if(_is_light_off()) {
+							_show_led_status();
+						}
 					}
 				}
 			}
 		}
-		vTaskDelayUntil(&now, 100);
+		vTaskDelayUntil(&now, 50);
 	}
 }
 
