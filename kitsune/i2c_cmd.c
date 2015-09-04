@@ -338,7 +338,7 @@ static int _read_als(){
 	TRY_OR_GOTOFAIL(I2C_IF_Write(0x44, &cmd, 1, 1));
 	vTaskDelay(0);
 	TRY_OR_GOTOFAIL(I2C_IF_Read(0x44, aucDataBuf, 2));
-	return = aucDataBuf[0] | (aucDataBuf[1] << 8);
+	return aucDataBuf[0] | (aucDataBuf[1] << 8);
 }
 
 int get_light() {
@@ -368,26 +368,32 @@ int get_light() {
 		static int scaling = 0;
 
 		for(;;) {
+			#define MAX_RETRIES 10
+			int switch_cnt = 0;
 			light = _read_als();
-			if( light > 65534 ) {
+			if( light == 65535 ) {
 				if( scaling < 3 ) {
+					LOGI("increase scaling %d\r\n", scaling);
 					aucDataBuf[0] = 1;
 					aucDataBuf[1] = ++scaling;
 					TRY_OR_GOTOFAIL(I2C_IF_Write(0x44, aucDataBuf, 2, 1));
-					vTaskDelay(1);
-					_read_als();
+					while (_read_als() == 65535 && ++switch_cnt < MAX_RETRIES) {
+						vTaskDelay(100);
+					}
 					continue;
 				} else {
 					break;
 				}
 			}
 			if( light < 16384 ) {
-				if( scaling > 0 ) {
+				if( scaling != 0 ) {
+					LOGI("decrease scaling %d\r\n", scaling);
 					aucDataBuf[0] = 1;
 					aucDataBuf[1] = --scaling;
 					TRY_OR_GOTOFAIL(I2C_IF_Write(0x44, aucDataBuf, 2, 1));
-					vTaskDelay(1);
-					_read_als();
+					while( _read_als() < 16384 && ++switch_cnt < MAX_RETRIES ) {
+						vTaskDelay(100);
+					}
 					continue;
 				} else {
 					break;
