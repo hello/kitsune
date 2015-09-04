@@ -149,6 +149,7 @@ void ble_proto_init() {
 	set_ble_mode(BLE_NORMAL);
 }
 
+
 static void _reply_wifi_scan_result()
 {
     int i = 0;

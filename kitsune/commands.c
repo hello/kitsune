@@ -702,7 +702,7 @@ void thread_alarm(void * unused) {
 			
 			xSemaphoreGiveRecursive(alarm_smphr);
 		}
-		vTaskDelayUntil(&now, 1000 );
+		vTaskDelayUntil(&now, 1000);
 	}
 }
 
@@ -1059,7 +1059,7 @@ void thread_tx(void* unused) {
 				if(needs_alarm_ack){
 					data_batched.has_ring_time_ack = true;
 					memcpy(data_batched.ring_time_ack, alarm_ack, sizeof(data_batched.ring_time_ack));
-					LOGI("Ack Alarm ID: %x %x\r\n", alarm_ack[0], alarm_ack[1]);
+					LOGI("Alarm ID: %s\r\n", alarm_ack );
 				}
 				xSemaphoreGiveRecursive(alarm_smphr);
 			}
@@ -1321,6 +1321,15 @@ void thread_sensor_poll(void* unused) {
 
 			Cmd_free(0,0);
 			send_top("free", strlen("free"));
+
+			if (xSemaphoreTakeRecursive(alarm_smphr, 1000)) {
+				if(needs_alarm_ack){
+		            LOGI("alarm %d to %d in %d minutes\n",
+		                        alarm.start_time, alarm.end_time,
+		                        (alarm.start_time - get_time()) / 60);
+				}
+				xSemaphoreGiveRecursive(alarm_smphr);
+			}
 
 			if (!xQueueSend(data_queue, (void* )&data, 0) == pdPASS) {
 				xQueueReceive(data_queue, (void* )&data, 0); //discard one, so if the queue is full we will put every other one in the queue
@@ -1728,7 +1737,7 @@ int Cmd_get_gesture_count(int argc, char * argv[]) {
 
 	const int count = gesture_get_and_reset_all_diagnostic_counts();
 
-	LOGI("%d transitions\n",count);
+	LOGF("%d transitions\n",count);
 
 	return 0;
 }
