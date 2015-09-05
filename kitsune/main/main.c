@@ -168,7 +168,7 @@ vAssertCalled( const char * s )
   void* p;
   LOGE("stack ptr %x\n", (int*)&p);
   LOGE( "%x %x\n", pxCurrentTCB->pxStack, pxCurrentTCB->pxTopOfStack );
-
+#if 0
   volatile StackType_t * top = pxCurrentTCB->pxTopOfStack;
   StackType_t * bottom =  pxCurrentTCB->pxStack;
 
@@ -176,6 +176,14 @@ vAssertCalled( const char * s )
 	  LOGE( "%08X\n", *top-- );
 	    UtilsDelay(10000);
   }
+#endif
+  /*
+   * yes, this looks like a race, and it is. In the event something goes wrong in the
+   * flush, which is likely given it accesses shared data and the filesystem
+   * and the system is now in some unkown bad state, this will come in and reset
+   * after a half second....
+   */
+  send_top("bounce", strlen("bounce"));
   uart_logger_flush();
   mcu_reset();
 }
