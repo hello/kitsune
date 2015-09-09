@@ -1399,7 +1399,7 @@ static bool validate_signatures( char * buffer, int sz, const pb_field_t fields[
     	return true;
     }
     *(content-2) = 0;
-    LOGI( "Headers:\n%s", buffer );
+//    LOGI( "Headers:\n%s", buffer );
 
     if (len_str == NULL) {
     	wifi_status_set(UPLOADING, true);
