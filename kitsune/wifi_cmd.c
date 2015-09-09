@@ -1124,10 +1124,18 @@ int start_connection() {
     sAddr.sa_data[5] = (char) () & 0xff);
 
 #endif
+    SlSockNonblocking_t enableOption;
+    enableOption.NonblockingEnabled = 1;
+    sl_SetSockOpt(sock,SL_SOL_SOCKET,SL_SO_NONBLOCKING, (_u8 *)&enableOption,sizeof(enableOption)); // Enable/disable nonblocking mode
 
     //connect it up
     //LOGI("Connecting \n\r\n\r");
+    retry_connect:
     if (sock > 0 && sock_begin < 0 && (rv = connect(sock, &sAddr, sizeof(sAddr)))) {
+    	if( rv == SL_EALREADY ) {
+    		vTaskDelay(100);
+    		goto retry_connect;
+    	}
     	ble_reply_socket_error(rv);
     	LOGI("Could not connect %d\n\r\n\r", rv);
 		return stop_connection();

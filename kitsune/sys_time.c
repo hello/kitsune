@@ -219,6 +219,10 @@ uint32_t fetch_unix_time_from_ntp() {
     buffer[14] = 49;
     buffer[15] = 52;
 
+    SlSockNonblocking_t enableOption;
+    enableOption.NonblockingEnabled = 1;
+    sl_SetSockOpt(sock,SL_SOL_SOCKET,SL_SO_NONBLOCKING, (_u8 *)&enableOption,sizeof(enableOption)); // Enable/disable nonblocking mode
+
     LOGI("Sending request\n\r\n\r");
     rv = sendto(sock, buffer, sizeof(buffer), 0, &sAddr, sizeof(sAddr));
     if (rv != sizeof(buffer)) {
@@ -238,9 +242,13 @@ uint32_t fetch_unix_time_from_ntp() {
 
     LOGI("receiving reply\n\r\n\r");
 
-    rv = recvfrom(sock, buffer, sizeof(buffer), 0, (SlSockAddr_t *) &sLocalAddr,  (SlSocklen_t*) &iAddrSize);
-    if (rv <= 0) {
-        LOGI("Did not receive\n\r");
+    int recv_cnt = 0;
+    while( SL_EWOULDBLOCK == (rv = recvfrom(sock, buffer, sizeof(buffer), 0, (SlSockAddr_t *) &sLocalAddr,  (SlSocklen_t*) &iAddrSize) )) {
+    	vTaskDelay(1000);
+    	if( recv_cnt++ > time_attempts ) break;
+    }
+    if (rv < 0) {
+        LOGI("Did not receive %d\n\r", rv);
         close(sock);
         return INVALID_SYS_TIME;
     }
@@ -267,6 +275,7 @@ uint32_t fetch_unix_time_from_ntp() {
         ntp += buffer[43];
     }
     close(sock);
+    time_attempts = 0;
     return ntp;
 }
 
