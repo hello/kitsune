@@ -578,9 +578,9 @@ int set_test_alarm(int argc, char *argv[]) {
 	SyncResponse_Alarm alarm;
 	unsigned int now = get_time();
 	alarm.end_time = now + 120;
-	alarm.start_time = now + 1;
+	alarm.start_time = now + 10;
 	alarm.ring_duration_in_second = 120;
-	alarm.ring_offset_from_now_in_second = 1;
+	alarm.ring_offset_from_now_in_second = 10;
 	strncpy( alarm.ringtone_path, "/ringtone/star003.raw", strlen("/ringtone/star003.raw"));
 
 	alarm.has_end_time = 1;
@@ -590,7 +590,7 @@ int set_test_alarm(int argc, char *argv[]) {
 	alarm.has_ringtone_path = 1;
 	alarm.has_ring_offset_from_now_in_second = 1;
 
-	set_alarm( &alarm, "test", 5 );
+	set_alarm( &alarm, argv[1], 5 );
 	return 0;
 }
 static void thread_alarm_on_finished(void * context) {
