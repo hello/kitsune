@@ -618,11 +618,23 @@ void thread_alarm(void * unused) {
 		wait_for_time(WAIT_FOREVER);
 
 		portTickType now = xTaskGetTickCount();
-		uint64_t time = get_time();
+		uint32_t time = get_time();
 		// The alarm thread should go ahead even without a valid time,
 		// because we don't need a correct time to fire alarm, we just need the offset.
 
 		if (xSemaphoreTakeRecursive(alarm_smphr, portMAX_DELAY)) {
+
+			if( time - alarm.start_time < 600 || alarm.start_time - time < 600 ) {
+				if( time < alarm.start_time ) {
+					LOGI("coming %d in %d\n",
+								alarm.start_time,
+								(alarm.start_time-time));
+				} else {
+					LOGI("past %d in %d\n",
+								alarm.start_time,
+								(time - alarm.start_time));
+				}
+			}
 			if(alarm.has_start_time && alarm.start_time > 0 )
 			{
 				if ( time - alarm.start_time < alarm.ring_duration_in_second ) {
@@ -1321,15 +1333,6 @@ void thread_sensor_poll(void* unused) {
 
 			Cmd_free(0,0);
 			send_top("free", strlen("free"));
-
-			if (xSemaphoreTakeRecursive(alarm_smphr, 1000)) {
-				if(needs_alarm_ack){
-		            LOGI("alarm %d to %d in %d minutes\n",
-		                        alarm.start_time, alarm.end_time,
-		                        (alarm.start_time - get_time()) / 60);
-				}
-				xSemaphoreGiveRecursive(alarm_smphr);
-			}
 
 			if (!xQueueSend(data_queue, (void* )&data, 0) == pdPASS) {
 				xQueueReceive(data_queue, (void* )&data, 0); //discard one, so if the queue is full we will put every other one in the queue

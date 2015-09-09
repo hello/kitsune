@@ -590,7 +590,7 @@ void analytics_event_task(void * params){
 	assert(block);
 	memset(block, 0, ANALYTICS_MAX_CHUNK_SIZE);
 	event_ctx_t evt = {0};
-	int32_t time = 0;
+	uint32_t time = 0;
 	sense_log log = (sense_log){//defaults
 		.text.funcs.encode = _encode_string_fields,
 		.text.arg = block,

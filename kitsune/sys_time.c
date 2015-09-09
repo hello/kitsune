@@ -355,8 +355,8 @@ bool has_good_time() {
 	return good;
 }
 
-time_t get_time() { //all accesses go to cache...
-	time_t t = INVALID_SYS_TIME;
+uint32_t get_time() { //all accesses go to cache...
+	uint32_t t = INVALID_SYS_TIME;
 	if (time_smphr) {
 		if (cached_time != INVALID_SYS_TIME && xSemaphoreTake(time_smphr, 0)) {
 			t = get_cached_time();
