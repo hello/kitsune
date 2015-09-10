@@ -1916,6 +1916,7 @@ void Cmd_pill_test_register_heartbeat(const char * id, int32_t bat, int32_t upti
 			}
 		}
 #else
+		strcpy(pill_fsm.uut, id);
 		if(pill_fsm.bat < bat){
 			//always take the lowest value
 			pill_fsm.bat = bat;
@@ -1939,17 +1940,7 @@ int Cmd_shake_count(int argc, char *argv[]){
 	return 0;
 }
 int Cmd_show_battery(int argc, char *argv[]){
-	if(pill_fsm.bat == 0){
-		LOGF("Fail Retest No HB\r\n");
-	}else if(pill_fsm.uptime < 1800){
-		LOGF("Fail Uptime: %d\r\n", pill_fsm.uptime);
-	}else if(pill_fsm.bat >= 120){
-		LOGF("Fail Retest Error: %d\r\n", pill_fsm.bat);
-	}else if(check_battery(pill_fsm.bat, pill_fsm.uptime)){
-		LOGF("Pass %d %d\r\n", pill_fsm.bat, pill_fsm.uptime);
-	}else{
-		LOGF("Fail Low Bat: %d %d\r\n", pill_fsm.bat, pill_fsm.uptime);
-	}
+	LOGF("Bat %d Uptime %d ID %s\r\n", pill_fsm.bat, pill_fsm.uptime, pill_fsm.uut );
 	return 0;
 }
 int Cmd_clear_shake(int argc, char *argv[]){
