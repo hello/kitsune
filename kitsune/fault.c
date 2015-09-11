@@ -197,12 +197,7 @@ FaultDecoder(unsigned long *pulExceptionFrame)
 
     f->magic = SHUTDOWN_MAGIC;
 
-    vAssertCalled("hard fault");
-    faultPrinter(f);
-    //todo save the UART log buffers to sd, send them to server on next boot...
-    uart_logger_flush();
-
-    PRCMMCUReset(true);
+    PRCMMCUReset(true); //the reboot will take care of the printing...
 }
 
 //*****************************************************************************
