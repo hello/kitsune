@@ -296,12 +296,8 @@ volatile portTickType last_upload_time = 0;
 void watchdog_thread(void* unused) {
 	int last_nwp_reset_time = 0;
 	while (1) {
-		if( xTaskGetTickCount() - last_upload_time > TWENTY_FIVE_HOURS ) {
-			LOGE("NET TIMEOUT\n");
-			uart_logger_flush();
-			vTaskDelay(10000);
-			sl_Stop(30);
-			mcu_reset();
+		if( xTaskGetTickCount() - last_upload_time > ONE_HOUR ) {
+			vAssertCalled("NET TIMEOUT\n");
 		}
 		if( xTaskGetTickCount() - last_upload_time > ONE_HOUR
 		&&  xTaskGetTickCount() - last_nwp_reset_time > ONE_HOUR) {
