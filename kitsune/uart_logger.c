@@ -671,8 +671,12 @@ void uart_logger_task(void * params){
 					vTaskDelay(5000);
 					continue;
 				}
-
-				if(send_log()){
+				sl_WlanDisconnect();
+				while(!send_log()){
+					LOGE("Log upload failed\r\n");
+					vTaskDelay(10000);
+				}
+				{
 					int rem = -1;
 					res = _remove_oldest(&rem);
 					if(FR_OK == res && rem > 0){
@@ -682,9 +686,6 @@ void uart_logger_task(void * params){
 					}else{
 						LOGE("Rm log error %d\r\n", res);
 					}
-				}else{
-					//should never get here
-					LOGE("Log upload failed\r\n");
 				}
 			}
 		}
