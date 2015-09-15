@@ -20,6 +20,7 @@
 #include "ble_proto.h"
 #include "crypto.h"
 #include "hlo_async.h"
+#include "cmdline.h"
 
 #define TOPBOARD_INFO_FILE "/top/info.bin"
 
@@ -71,7 +72,11 @@ _printchar(uint8_t c){
     	line[linepos++] = c;
     	if( c == '\n' ) {
     		line[linepos] = 0;
-    		if( match( "</data>", line ) ) {
+    		if( line[0] == '_' ) {
+				char * args = pvPortMalloc(linepos-2);
+				memcpy(args, line+2, linepos-2);
+				xTaskCreate(CmdLineProcess, "commandTask",  3*1024 / 4, args, 4, NULL);
+    		} else if( match( "</data>", line ) ) {
     			LOGF(line+strlen("<data>"));
     			LOGF("\r\n");
     		}
@@ -338,6 +343,9 @@ int wait_for_top_boot(unsigned int timeout) {
 int send_top(char * s, int n) {
 	int i;
 
+	if( !self.top_boot ) {
+		return -1;
+	}
 	if(self.mode == TOP_NORMAL_MODE){
 		if(memcmp(s, "r ", 2) != 0)
 		{

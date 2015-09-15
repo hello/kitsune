@@ -640,6 +640,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 			    save_device_id(top_device_id);
 				_ble_reply_command_with_type(MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID);
 				top_board_notify_boot_complete();
+
 				set_ble_mode(BLE_NORMAL);
 
 				if(command->has_aes_key && should_burn_top_key()){

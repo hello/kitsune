@@ -11,7 +11,11 @@
 #include "kit_assert.h"
 #include "time.h"
 
+#include "ustdlib.h"
+
 #include "sl_sync_include_after_simplelink_header.h"
+
+int send_top(char * s, int n) ;
 
 static time_t cached_time;
 static TickType_t cached_ticks;
@@ -291,7 +295,7 @@ static xSemaphoreHandle time_smphr = NULL;
 
 int cmd_set_time(int argc, char *argv[]) {
 	if (time_smphr && xSemaphoreTake(time_smphr, portMAX_DELAY)) {
-		set_cached_time(atoi(argv[1]));
+		set_cached_time(atoi(argv[1])+2208988800UL);
 		set_sl_time(get_cached_time());
 		is_time_good = true;
 		set_unix_time(get_cached_time());
@@ -311,14 +315,23 @@ static void time_task( void * params ) { //exists to get the time going and cach
 			uint32_t ntp_time = fetch_unix_time_from_ntp();
 			if (ntp_time != INVALID_SYS_TIME && time_smphr && xSemaphoreTake(time_smphr, 0) ) {
 				if (set_unix_time(ntp_time) != INVALID_SYS_TIME) {
+					char cmdbuf[20]={0};
 					is_time_good = true;
 					set_cached_time(ntp_time);
 					set_sl_time(get_cached_time());
+
+					usnprintf( cmdbuf, sizeof(cmdbuf), "time %u\r\n", get_time());
+					LOGI("sending %s\r\n", cmdbuf);
+					send_top(cmdbuf, strlen(cmdbuf));
 					have_set_time = true;
 					last_set = xTaskGetTickCount();
 				}
 				xSemaphoreGive(time_smphr);
 			}
+		}
+		if( !have_set_time ) { //request top...
+			send_top("time", strlen("time"));
+			vTaskDelay(10000);
 		}
 
 		if (time_smphr && xSemaphoreTake(time_smphr, 0)) {
