@@ -502,6 +502,7 @@ static xSemaphoreHandle alarm_smphr;
 static SyncResponse_Alarm alarm;
 static char alarm_ack[sizeof(((SyncResponse *)0)->ring_time_ack)];
 static volatile bool needs_alarm_ack = false;
+#define ALARM_LOC "/hello/alarm"
 
 void set_alarm( SyncResponse_Alarm * received_alarm, const char * ack, size_t ack_size ) {
     if (xSemaphoreTakeRecursive(alarm_smphr, portMAX_DELAY)) {
@@ -529,6 +530,7 @@ void set_alarm( SyncResponse_Alarm * received_alarm, const char * ack, size_t ac
 				ack_size = ack_size >= sizeof(alarm_ack) ? sizeof(alarm_ack)-1 : ack_size;
 				alarm_ack[ack_size] = 0;
 				LOGI("Alarm ID: %s\r\n", alarm_ack );
+				fs_save( ALARM_LOC, received_alarm, sizeof(alarm));
 				needs_alarm_ack = true;
 			}else{
 				memset(alarm_ack, 0, sizeof(alarm_ack));
@@ -549,6 +551,11 @@ void set_alarm( SyncResponse_Alarm * received_alarm, const char * ack, size_t ac
         xSemaphoreGiveRecursive(alarm_smphr);
     }
 }
+
+int load_alarm( ) {
+	return fs_get( ALARM_LOC, &alarm, sizeof(alarm), NULL );
+}
+
 static bool alarm_is_ringing = false;
 static bool cancel_alarm() {
 	bool was_ringing = false;
@@ -2091,6 +2098,7 @@ void vUARTTask(void *pvParameters) {
 	load_device_id();
 	load_account_id();
 	load_data_server();
+	load_alarm();
 	pill_settings_init();
 	check_provision();
 
