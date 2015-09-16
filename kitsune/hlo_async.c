@@ -15,7 +15,7 @@ typedef struct{
 
 static void hlo_future_free(hlo_future_t * future){
 	if( future ) {
-		vSemaphoreDelete(future->sync);
+		vSemaphoreDelete(future->read_lock);
 		vPortFree(future);
 	}
 }
@@ -27,8 +27,8 @@ static void async_worker(void * ctx){
 			task->work(task->result, task->context);
 		}
 		//LOGI("\r\n%s stack %d\r\n", task->name, vGetStack( task->name ) );
-		if( task->result->release ) {
-			vSemaphoreDelete(task->result->release);
+		if( task->result->write_lock ) {
+			vSemaphoreDelete(task->result->write_lock);
 		}
 		hlo_future_free(task->result);
 		vPortFree(task);
@@ -49,7 +49,7 @@ hlo_future_t * hlo_future_create(void){
 	hlo_future_t * ret = pvPortMalloc(sizeof(hlo_future_t));
 	if(ret){
 		memset(ret, 0, sizeof(hlo_future_t));
-		ret->sync = xSemaphoreCreateBinary();
+		ret->read_lock = xSemaphoreCreateBinary();
 		//future defaults to fail if not captured
 		ret->return_code = -88;
 	}
@@ -64,8 +64,8 @@ hlo_future_t * hlo_future_create_task_bg(future_task cb, void * context, size_t 
 			goto fail;
 		}
 		//this lock indicates it's running a background thread and captures values
-		result->release = xSemaphoreCreateBinary();
-		if(!result->release){
+		result->write_lock = xSemaphoreCreateBinary();
+		if(!result->write_lock){
 			goto fail_sync;
 		}
 
@@ -81,7 +81,7 @@ hlo_future_t * hlo_future_create_task_bg(future_task cb, void * context, size_t 
 fail_task:
 	vPortFree(task);
 fail_sync:
-	vSemaphoreDelete(result->release);
+	vSemaphoreDelete(result->write_lock);
 fail:
 	hlo_future_free(result);
 #define FUTURE_FAIL 0
@@ -91,9 +91,9 @@ fail:
 
 void hlo_future_destroy(hlo_future_t * future){
 	if(future){
-		if(future->release){
+		if(future->write_lock){
 			//running in a background thread
-			xSemaphoreGive(future->release);
+			xSemaphoreGive(future->write_lock);
 		}else{
 			hlo_future_free(future);
 		}
@@ -103,9 +103,9 @@ void hlo_future_destroy(hlo_future_t * future){
 int hlo_future_read(hlo_future_t * future,  void * buf, size_t size, TickType_t ms){
 	CHECK_FOR_NULL(future);
 	int err = -11;
-	if(xSemaphoreTake(future->sync, ms) == pdTRUE){
+	if(xSemaphoreTake(future->read_lock, ms) == pdTRUE){
 		err = do_read(future, buf, size);
-		xSemaphoreGive(future->sync);
+		xSemaphoreGive(future->read_lock);
 	}
 	return err;
 }
@@ -121,10 +121,10 @@ void hlo_future_write(hlo_future_t * future, void * buffer, size_t size, int ret
 		future->buf = buffer;
 		future->buf_size = size;
 		//allow reader to access data
-		xSemaphoreGive(future->sync);
+		xSemaphoreGive(future->read_lock);
 		//halts the current thread until released
-		if(future->release){
-			xSemaphoreTake(future->release, portMAX_DELAY);
+		if(future->write_lock){
+			xSemaphoreTake(future->write_lock, portMAX_DELAY);
 		}
 	}
 }

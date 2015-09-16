@@ -93,7 +93,8 @@
 #include "pill_settings.h"
 #include "prox_signal.h"
 #include "hlo_net_tools.h"
-#include "top_board.h"
+#include "hlo_queue.h"
+#include "hlo_proto_tools.h"
 #define ONLY_MID 0
 
 //******************************************************************************
@@ -1000,14 +1001,15 @@ bool is_test_boot();
 //no need for semaphore, only thread_tx uses this one
 int data_queue_batch_size = 1;
 int pill_queue_batch_size = PILL_BATCH_WATERMARK;
-
 void thread_tx(void* unused) {
 	batched_pill_data pill_data_batched = {0};
 	batched_periodic_data data_batched = {0};
 	periodic_data forced_data;
 	bool got_forced_data = false;
+	hlo_future_t * scan_result = prescan_wifi(10);
 
 	LOGI(" Start polling  \n");
+
 	while (1) {
 		if (uxQueueMessagesWaiting(data_queue) >= data_queue_batch_size
 		 || got_forced_data ) {
@@ -1015,12 +1017,7 @@ void thread_tx(void* unused) {
 			periodic_data_to_encode periodicdata;
 			periodicdata.num_data = 0;
 			periodicdata.data = (periodic_data*)pvPortMalloc(data_queue_batch_size*sizeof(periodic_data));
-
-			if( !periodicdata.data ) {
-				LOGI( "failed to alloc periodicdata\n" );
-				vTaskDelay(1000);
-				continue;
-			}
+			assert(periodicdata.data);
 			if( got_forced_data ) {
 				memcpy( &periodicdata.data[periodicdata.num_data], &forced_data, sizeof(forced_data) );
 				++periodicdata.num_data;
@@ -1028,52 +1025,19 @@ void thread_tx(void* unused) {
 			while( periodicdata.num_data < data_queue_batch_size && xQueueReceive(data_queue, &periodicdata.data[periodicdata.num_data], 1 ) ) {
 				++periodicdata.num_data;
 			}
-
-			pack_batched_periodic_data(&data_batched, &periodicdata);
-
+			if(!got_forced_data){//forced data does not require a prescan
+				periodicdata.scan_result = scan_result;
+			}else{
+				periodicdata.scan_result = NULL;
+			}
+			wifi_get_connected_ssid( (uint8_t*)data_batched.connected_ssid, sizeof(data_batched) );
+			data_batched.has_connected_ssid = true;
 			data_batched.has_uptime_in_second = true;
 			data_batched.uptime_in_second = xTaskGetTickCount() / configTICK_RATE_HZ;
 
-			if( !is_test_boot() && provisioning_mode ) {
-				//wait for top to boot...
-#if 0
-				top_got_device_id = false;
-#endif
-				if( !top_got_device_id ) {
-					send_top( "rst", strlen("rst"));
-				}
-				while( !top_got_device_id ) {
-					vTaskDelay(1000);
-				}
-#if 0
-				save_aes_in_memory(DEFAULT_KEY);
-#endif
+			pack_batched_periodic_data(&data_batched, &periodicdata);
 
-				//try a test key with whatever we have so long as it is not the default
-				if( !has_default_key() ) {
-					uint8_t current_key[AES_BLOCKSIZE] = {0};
-					get_aes(current_key);
-					on_key(current_key);
-				} else {
-					ProvisionRequest pr;
-					memset(&pr, 0, sizeof(pr));
-					pr.device_id.funcs.encode = encode_device_id_string;
-					pr.serial.funcs.encode = _encode_string_fields;
-					pr.serial.arg = serial;
-					pr.need_key = true;
-					send_provision_request(&pr);
-				}
-			}
 
-			wifi_get_connected_ssid( (uint8_t*)data_batched.connected_ssid, sizeof(data_batched) );
-			data_batched.has_connected_ssid = true;
-
-			data_batched.scan.funcs.encode = encode_scanned_ssid;
-			data_batched.scan.arg = NULL;
-
-			if( !got_forced_data ) {
-				data_batched.scan.arg = prescan_wifi(10);
-			}
 			if (xSemaphoreTakeRecursive(alarm_smphr, 1000)) {
 				if(needs_alarm_ack){
 					data_batched.has_ring_time_ack = true;
@@ -1083,11 +1047,10 @@ void thread_tx(void* unused) {
 				xSemaphoreGiveRecursive(alarm_smphr);
 			}
 			send_periodic_data(&data_batched, got_forced_data);
-			last_upload_time = xTaskGetTickCount();
 
-			if( data_batched.scan.arg ) {
-				hlo_future_destroy( data_batched.scan.arg );
-			}
+			last_upload_time = xTaskGetTickCount();
+			hlo_future_destroy(scan_result);
+			scan_result = prescan_wifi(10);//reload a scan
 			vPortFree( periodicdata.data );
 			got_forced_data = false;
 		}
@@ -1949,8 +1912,8 @@ tCmdLineEntry g_sCmdTable[] = {
 		{"ana", Cmd_analytics, ""},
 		{"dns", Cmd_setDns, ""},
 		{"noint", Cmd_disableInterrupts, ""},
-		{"nwp", Cmd_nwpinfo, ""},
-		{"resync", Cmd_SyncID, ""},
+		{"qt", Cmd_Hlo_Queue_Test, ""},
+		{"pt", Cmd_test_protobuf, ""},
 		{"g", Cmd_gesture, ""},
 
 #ifdef BUILD_IPERF

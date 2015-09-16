@@ -20,9 +20,6 @@ extern "C" {
 
 #define UART_LOGGER_THREAD_STACK_SIZE	(1280)
 
-//if you want to prepend a tag when calling LOGX() functions with TAGGED MODE
-#define UART_LOGGER_PREPEND_TAG 0
-
 //operation modes
 //RAW: logs everything sent to PRINTF
 //TAGGED: logs everything tagged with LOGX() functions

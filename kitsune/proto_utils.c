@@ -122,10 +122,21 @@ void pack_batched_periodic_data(batched_periodic_data* batched, periodic_data_to
         LOGE("null param\n");
         return;
     }
-
-    batched->data.funcs.encode = encode_all_periodic_data;  // This is smart :D
-    batched->data.arg = encode_wrapper;
     batched->firmware_version = KIT_VER;
     batched->device_id.funcs.encode = encode_device_id_string;
+
+    if(encode_wrapper->data && encode_wrapper->num_data){
+    	batched->data.arg = encode_wrapper;
+    	batched->data.funcs.encode = encode_all_periodic_data;  // This is smart :D
+    }else{
+    	batched->data.funcs.encode = NULL;
+    }
+
+    if(encode_wrapper->scan_result){
+    	batched->scan.funcs.encode = encode_scanned_ssid;
+    	batched->scan.arg = encode_wrapper->scan_result;
+    }else{
+    	batched->scan.funcs.encode = NULL;
+    }
 }
 
