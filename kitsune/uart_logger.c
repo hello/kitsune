@@ -671,7 +671,6 @@ void uart_logger_task(void * params){
 					vTaskDelay(5000);
 					continue;
 				}
-				sl_WlanDisconnect();
 				while(!send_log()){
 					LOGE("Log upload failed\r\n");
 					vTaskDelay(10000);
