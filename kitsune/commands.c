@@ -1917,13 +1917,8 @@ void Cmd_pill_test_register_heartbeat(const char * id, int32_t bat, int32_t upti
 		}
 #else
 		strcpy(pill_fsm.uut, id);
-		if(pill_fsm.bat < bat){
-			//always take the lowest value
-			pill_fsm.bat = bat;
-		}
-		if(pill_fsm.uptime < uptime){
-			pill_fsm.uptime = uptime;
-		}
+		pill_fsm.bat = bat;
+		pill_fsm.uptime = uptime;
 #endif
 		xSemaphoreGive(pill_fsm.sem);
 	}
