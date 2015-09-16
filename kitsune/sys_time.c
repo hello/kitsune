@@ -295,7 +295,7 @@ static xSemaphoreHandle time_smphr = NULL;
 
 int cmd_set_time(int argc, char *argv[]) {
 	if (time_smphr && xSemaphoreTake(time_smphr, portMAX_DELAY)) {
-		set_cached_time(atoi(argv[1])+2208988800UL);
+		set_cached_time(strtoul(argv[1],NULL,10));
 		set_sl_time(get_cached_time());
 		is_time_good = true;
 		set_unix_time(get_cached_time());
@@ -319,17 +319,17 @@ static void time_task( void * params ) { //exists to get the time going and cach
 					is_time_good = true;
 					set_cached_time(ntp_time);
 					set_sl_time(get_cached_time());
-
-					usnprintf( cmdbuf, sizeof(cmdbuf), "time %u\r\n", get_time());
-					LOGI("sending %s\r\n", cmdbuf);
-					send_top(cmdbuf, strlen(cmdbuf));
 					have_set_time = true;
 					last_set = xTaskGetTickCount();
+
+					usnprintf( cmdbuf, sizeof(cmdbuf), "time %u\r\n", ntp_time);
+					LOGI("sending %s\r\n", cmdbuf);
+					send_top(cmdbuf, strlen(cmdbuf));
 				}
 				xSemaphoreGive(time_smphr);
 			}
 		}
-		if( !have_set_time ) { //request top...
+		if( !is_time_good ) { //request top...
 			send_top("time", strlen("time"));
 			vTaskDelay(10000);
 		}
