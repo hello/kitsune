@@ -72,7 +72,7 @@ _printchar(uint8_t c){
     	line[linepos++] = c;
     	if( c == '\n' ) {
     		line[linepos] = 0;
-    		if( line[0] == '_' ) {
+    		if( line[0] == '_' && line[1] == ' ' ) {
 				char * args = pvPortMalloc(linepos-2);
 				memcpy(args, line+2, linepos-2);
 				xTaskCreate(CmdLineProcess, "commandTask",  3*1024 / 4, args, 4, NULL);
