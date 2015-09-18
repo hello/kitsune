@@ -1435,10 +1435,12 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     uint32_t recv_buf_size = *recv_buf_size_ptr;
     char * recv_buf = *recv_buf_ptr;
 
+    LOGI("%d\n", __LINE__ );
     if (!recv_buf) {
     	LOGI("send_data_pb_callback needs a buffer\r\n");
     	goto failure;
     }
+    LOGI("%d\n", __LINE__ );
     {
     char hex_device_id[DEVICE_ID_SZ * 2 + 1] = {0};
     if(!get_device_id(hex_device_id, sizeof(hex_device_id)))
@@ -1446,6 +1448,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
         LOGE("get_device_id failed\n");
         goto failure;
     }
+    LOGI("%d\n", __LINE__ );
 
     usnprintf(recv_buf, recv_buf_size, "POST %s HTTP/1.1\r\n"
             "Host: %s\r\n"
@@ -1463,6 +1466,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
         LOGI("failed to start connection\n\r\n\r");
         goto failure;
     }
+    LOGI("%d\n", __LINE__ );
 
     //check that it's still secure...
     rv = recv(sock, recv_buf, SERVER_REPLY_BUFSZ, 0);
@@ -1471,6 +1475,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
         ble_reply_socket_error(rv);
         goto failure;
     }
+    LOGI("%d\n", __LINE__ );
 
     //LOGI("Sending request\n\r%s\n\r", recv_buf);
     rv = send(sock, recv_buf, send_length, 0);
@@ -1479,6 +1484,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
         ble_reply_socket_error(rv);
         goto failure;
     }
+    LOGI("%d\n", __LINE__ );
 	}
 #if 0
     LOGI("HTTP header sent %d\n\r%s\n\r", rv, recv_buf);
@@ -1504,6 +1510,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
 	desc.fd = (intptr_t) sock;
 
 	SHA1_Init(&ctx);
+    LOGI("%d\n", __LINE__ );
 
 	/* Create a stream that will write to our buffer. */
 	stream = pb_ostream_from_sha_socket(&desc);
