@@ -122,7 +122,7 @@ CardSendCmd(unsigned long ulCmd, unsigned long ulArg)
   //
   do
   {
-    ulStatus = SDHostIntStatus(SDHOST_BASE);
+    ulStatus = MAP_SDHostIntStatus(SDHOST_BASE);
     ulStatus = (ulStatus & (SDHOST_INT_CC|SDHOST_INT_ERRI));
   }
   while( !ulStatus );
@@ -237,7 +237,7 @@ CardSelect(DiskInfo_t *sDiskInfo)
 
   if(ulRet == 0)
   {
-    while( !(SDHostIntStatus(SDHOST_BASE) & SDHOST_INT_TC) )
+    while( !(MAP_SDHostIntStatus(SDHOST_BASE) & SDHOST_INT_TC) )
     {
 
     }
@@ -259,19 +259,10 @@ CardSelect(DiskInfo_t *sDiskInfo)
 //!
 //! \return Returns 0 on succeeded.
 //*****************************************************************************
-
-#include "FreeRTOS.h"
-#include "task.h"
-#include "semphr.h"
-
-static xSemaphoreHandle sd_dma_smphr;
-
 DSTATUS disk_initialize ( BYTE bDrive )
 {
   unsigned long ulRet;
   unsigned long ulResp[4];
-
-  sd_dma_smphr = xSemaphoreCreateBinary();
 
   //
   // Check the drive No.
@@ -433,28 +424,6 @@ DSTATUS disk_status ( BYTE bDrive )
   }
 }
 
-#include "udma.h"
-#include "udma_if.h"
-#include "hw_mmchs.h"
-
-#include "kit_assert.h"
-
-#define DMA_INTERRUPTS (SDHOST_INT_DMARD|SDHOST_INT_DMAWR)
-
-void SDHostIntHandler()
-{
-	unsigned long sts = SDHostIntStatus(SDHOST_BASE);
-
-	if( sts & SDHOST_INT_TC ) {
-		SDHostIntClear(SDHOST_BASE, SDHOST_INT_TC);
-		SDHostIntDisable(SDHOST_BASE, SDHOST_INT_TC);
-
-		BaseType_t xHigherPriorityTaskWoken;
-		xSemaphoreGiveFromISR(sd_dma_smphr, &xHigherPriorityTaskWoken);
-		portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-	}
-}
-
 //*****************************************************************************
 //
 //! Reads sector(s) from the disk drive.
@@ -465,16 +434,11 @@ void SDHostIntHandler()
 //! \return Returns RES_OK on success.
 //
 //*****************************************************************************
-
-//volatile int wait = 0;
-//volatile int wait2 = 0;
-
-#define SDCARD_DMA_BLOCK_TRANSFER_TIMEOUT portMAX_DELAY
-
 DRESULT disk_read ( BYTE bDrive, BYTE* pBuffer, DWORD ulSectorNumber,
                    UINT bSectorCount )
 {
   DRESULT Res;
+  unsigned long ulSize;
 
   Res = RES_ERROR;
 
@@ -499,29 +463,50 @@ DRESULT disk_read ( BYTE bDrive, BYTE* pBuffer, DWORD ulSectorNumber,
   //
   MAP_SDHostBlockCountSet(SDHOST_BASE,bSectorCount);
 
+  //
+  // Compute the number of words
+  //
+  ulSize = (512*bSectorCount)/4;
+
+  //
   // Check if 1 block or multi block transfer
   //
- // assert(bSectorCount==1); //want to read more than the sector size? got to refactor fatfs :S
-//    unsigned long cmd = bSectorCount == 1 ? CMD_READ_SINGLE_BLK : CMD_READ_MULTI_BLK;
-	SDHostIntClear(SDHOST_BASE, SDHOST_INT_TC );
-	SDHostIntEnable(SDHOST_BASE, SDHOST_INT_TC);
-
-    unsigned long ulSize = (512*bSectorCount)/4;
-
-	SetupTransfer(UDMA_CH23_SDHOST_RX, UDMA_MODE_BASIC, ulSize,
-	UDMA_SIZE_32, UDMA_ARB_1, (void *) (SDHOST_BASE + MMCHS_O_DATA),
-	UDMA_SRC_INC_NONE, (void *) (pBuffer), UDMA_DST_INC_32);
-
-	//wait = wait2 = 0;
-	//
-	// Send block read command to the card
-	//
-	if (CardSendCmd(CMD_READ_MULTI_BLK | SDHOST_DMA_EN, ulSectorNumber) == 0) {
-		if( xSemaphoreTake(sd_dma_smphr, SDCARD_DMA_BLOCK_TRANSFER_TIMEOUT) ) {//block till interrupt releases
-			Res = RES_OK;
-		}
-		CardSendCmd(CMD_STOP_TRANS,0);
-		 while( !(MAP_SDHostIntStatus(SDHOST_BASE) & SDHOST_INT_TC) ){}
+  if (bSectorCount == 1)
+  {
+    //
+    // Send single block read command
+    //
+    if( CardSendCmd(CMD_READ_SINGLE_BLK, ulSectorNumber) == 0 )
+    {
+      //
+      // Read the block of data
+      //
+      while(ulSize--)
+      {
+        MAP_SDHostDataRead(SDHOST_BASE,(unsigned long *)pBuffer);
+        pBuffer+=4;
+      }
+      Res = RES_OK;
+    }
+  }
+  else
+  {
+    //
+    // Send multi block read command
+    //
+    if( CardSendCmd(CMD_READ_MULTI_BLK, ulSectorNumber) == 0 )
+    {
+      //
+      // Read the data
+      //
+      while(ulSize--)
+      {
+        MAP_SDHostDataRead(SDHOST_BASE,(unsigned long *)pBuffer);
+        pBuffer+=4;
+      }
+      CardSendCmd(CMD_STOP_TRANS,0);
+      Res = RES_OK;
+    }
   }
 
   //
@@ -540,10 +525,13 @@ DRESULT disk_read ( BYTE bDrive, BYTE* pBuffer, DWORD ulSectorNumber,
 //! \return Returns RES_OK on success.
 //
 //*****************************************************************************
+#include "FreeRTOS.h"
+#include "task.h"
 DRESULT disk_write ( BYTE bDrive,const BYTE* pBuffer, DWORD ulSectorNumber,
                     UINT bSectorCount)
 {
   DRESULT Res;
+  unsigned long ulSize;
 
   Res = RES_ERROR;
 
@@ -573,32 +561,79 @@ DRESULT disk_write ( BYTE bDrive,const BYTE* pBuffer, DWORD ulSectorNumber,
   //
   MAP_SDHostBlockCountSet(SDHOST_BASE,bSectorCount);
 
-  SDHostIntClear(SDHOST_BASE, SDHOST_INT_TC );
-  SDHostIntEnable(SDHOST_BASE, SDHOST_INT_TC);
-
-  assert(bSectorCount==1);//todo get multi sector writes working...
-
-	unsigned long ulSize = (512 * bSectorCount) / 4;
-
-	SetupTransfer(UDMA_CH24_SDHOST_TX, UDMA_MODE_BASIC, ulSize,
-	UDMA_SIZE_32, UDMA_ARB_1, (void *) (pBuffer),
-	UDMA_SRC_INC_32, (void *) (SDHOST_BASE + MMCHS_O_DATA), UDMA_DST_INC_NONE);
-
-	//
-	// Send  block read command to the card
-	//
-	if (CardSendCmd(CMD_WRITE_SINGLE_BLK | SDHOST_DMA_EN, ulSectorNumber) == 0) {
-		if (xSemaphoreTake(sd_dma_smphr, SDCARD_DMA_BLOCK_TRANSFER_TIMEOUT)) {//block till interrupt releases
-			Res = RES_OK;
-		}
-		vTaskDelay(10);
-		CardSendCmd(CMD_STOP_TRANS, 0);
-		 while( !(MAP_SDHostIntStatus(SDHOST_BASE) & SDHOST_INT_TC) ){
-				vTaskDelay(1);
-		 }
-	}
+  //
+  // Compute the number of words
+  //
+  ulSize = (512*bSectorCount)/4;
 
   //
+  // Check if 1 block or multi block transfer
+  //
+  if (bSectorCount == 1)
+  {
+    //
+    // Send single block write command
+    //
+    if( CardSendCmd(CMD_WRITE_SINGLE_BLK, ulSectorNumber) == 0 )
+    {
+      //
+      // Write the data
+      //
+      while(ulSize--)
+      {
+        MAP_SDHostDataWrite(SDHOST_BASE,(*(unsigned long *)pBuffer));
+        pBuffer+=4;
+      }
+
+      //
+      // Wait for data transfer complete
+      //
+      while( !(MAP_SDHostIntStatus(SDHOST_BASE) & SDHOST_INT_TC) )
+      {
+        vTaskDelay(1);
+      }
+      Res = RES_OK;
+    }
+  }
+  else
+  {
+
+    //
+    // Set the card write block count
+    //
+    if(g_sDisk.ucCardType == CARD_TYPE_SDCARD)
+    {
+      CardSendCmd(CMD_APP_CMD,g_sDisk.usRCA << 16);
+      CardSendCmd(CMD_SET_BLK_CNT, bSectorCount);
+    }
+
+    //
+    // Send single block write command
+    //
+    if( CardSendCmd(CMD_WRITE_MULTI_BLK, ulSectorNumber) == 0 )
+    {
+      //
+      // Write the data buffer
+      //
+      while(ulSize--)
+      {
+        MAP_SDHostDataWrite(SDHOST_BASE,(*(unsigned long *)pBuffer));
+        pBuffer+=4;
+        MAP_WatchdogIntClear(WDT_BASE); //clear wdt
+      }
+
+      //
+      // Wait for transfer complete
+      //
+      while( !(MAP_SDHostIntStatus(SDHOST_BASE) & SDHOST_INT_TC) )
+      {
+          vTaskDelay(10);
+      }
+      CardSendCmd(CMD_STOP_TRANS,0);
+      Res = RES_OK;
+    }
+  }
+
   //
   // return status
   //

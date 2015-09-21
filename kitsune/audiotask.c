@@ -254,7 +254,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 			}
 		}
 		/* Read always in block of 512 Bytes or less else it will stuck in hello_fs_read() */
-		res = hello_fs_read(&fp, speaker_data, SPEAKER_DATA_CHUNK_SIZE>>1, &size);
+		res = hello_fs_read(&fp, speaker_data, 512, &size);
 		totBytesRead += size;
 
 		/* Wait to avoid buffer overflow as reading speed is faster than playback */
