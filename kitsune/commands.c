@@ -597,7 +597,9 @@ int set_test_alarm(int argc, char *argv[]) {
 	alarm.has_ringtone_path = 1;
 	alarm.has_ring_offset_from_now_in_second = 1;
 
-	set_alarm( &alarm, argv[1], 5 );
+	char ack[32];
+	usnprintf( ack, 32, "%d", now);
+	set_alarm( &alarm, ack, strlen(ack) );
 	return 0;
 }
 static void thread_alarm_on_finished(void * context) {
