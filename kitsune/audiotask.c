@@ -390,7 +390,7 @@ static void DoCapture(uint32_t rate) {
 	Filedata_t filedata;
 	uint8_t isSavingToFile = 0;
 	uint32_t num_bytes_written;
-	uint32_t octogram_count;
+	uint32_t octogram_count = 0;
 	Octogram_t octogramdata;
 	AudioOctogramDesc_t octogramdesc;
 	uint32_t settle_cnt = 0;
