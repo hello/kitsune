@@ -1084,8 +1084,9 @@ void thread_tx(void* unused) {
 				}
 				xSemaphoreGiveRecursive(alarm_smphr);
 			}
-			send_periodic_data(&data_batched, got_forced_data);
-			last_upload_time = xTaskGetTickCount();
+			if( send_periodic_data(&data_batched, got_forced_data) ) {
+				last_upload_time = xTaskGetTickCount();
+			}
 
 			if( data_batched.scan.arg ) {
 				hlo_future_destroy( data_batched.scan.arg );
