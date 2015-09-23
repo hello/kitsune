@@ -607,6 +607,7 @@ static void thread_alarm_on_finished(void * context) {
 	if (xSemaphoreTakeRecursive(alarm_smphr, 500)) {
 		LOGI("Alarm finished\r\n");
 		xSemaphoreGiveRecursive(alarm_smphr);
+	    alarm_is_ringing = false;
 	}
 }
 
@@ -644,81 +645,77 @@ void thread_alarm(void * unused) {
 								(time - alarm.start_time));
 				}
 			}
-			if(alarm.has_start_time && alarm.start_time > 0 )
-			{
-				if ( time - alarm.start_time < alarm.ring_duration_in_second ) {
-					AudioPlaybackDesc_t desc;
-					memset(&desc,0,sizeof(desc));
+			if ( time - alarm.start_time < 600 ) {
+				AudioPlaybackDesc_t desc;
+				memset(&desc,0,sizeof(desc));
 
-					desc.fade_in_ms = 30000;
-					desc.fade_out_ms = 3000;
-					strncpy( desc.file, AUDIO_FILE, 64 );
-					int has_valid_sound_file = 0;
-					char file_name[64] = {0};
-					if(alarm.has_ringtone_path)
+				desc.fade_in_ms = 30000;
+				desc.fade_out_ms = 3000;
+				strncpy( desc.file, AUDIO_FILE, 64 );
+				int has_valid_sound_file = 0;
+				char file_name[64] = {0};
+				if(alarm.has_ringtone_path)
+				{
+					memcpy(file_name, alarm.ringtone_path, sizeof(alarm.ringtone_path) <= 64 ? sizeof(alarm.ringtone_path) : 64);
+					file_name[63] = 0;
+					if(_is_file_exists(file_name))
 					{
-						memcpy(file_name, alarm.ringtone_path, sizeof(alarm.ringtone_path) <= 64 ? sizeof(alarm.ringtone_path) : 64);
-						file_name[63] = 0;
-						if(_is_file_exists(file_name))
-						{
-							has_valid_sound_file = 1;
-						}
-
+						has_valid_sound_file = 1;
 					}
 
-					if(!has_valid_sound_file)
-					{
-						memset(file_name, 0, sizeof(file_name));
-						// fallback for DVT
-						char* fallback = "/RINGTONE/DIGO001.raw";
-						char* fallback_short = "/RINGTO~1/DIGO001.raw";
-						if(_is_file_exists(fallback))
-						{
-							memcpy(file_name, fallback, strlen(fallback));
-							has_valid_sound_file = 1;
-						}else if(_is_file_exists(fallback_short)){
-							memcpy(file_name, fallback_short, strlen(fallback_short));
-							has_valid_sound_file = 1;
-						}
-					}
-
-					if(!has_valid_sound_file)
-					{
-						memset(file_name, 0, sizeof(file_name));
-						// fallback for PVT
-						char* fallback = "/RINGTONE/DIG001.raw";
-						if(_is_file_exists(fallback))
-						{
-							memcpy(file_name, fallback, strlen(fallback));
-							has_valid_sound_file = 1;
-						}
-					}
-
-					if(!has_valid_sound_file)
-					{
-						LOGE("ALARM RING FAIL: NO RINGTONE FILE FOUND %s\n", file_name);
-					}
-
-					strncpy(desc.file, file_name, 64);
-					desc.durationInSeconds = alarm.ring_duration_in_second;
-					desc.volume = 57;
-					desc.onFinished = thread_alarm_on_finished;
-					desc.rate = 48000;
-
-					alarm.has_start_time = FALSE;
-					AudioTask_StartPlayback(&desc);
-
-					LOGI("ALARM RINGING RING RING RING\n");
-					analytics_event( "{alarm: ring}" );
-					alarm_is_ringing = true;
-
-					uint8_t trippy_base[3] = { 0, 0, 0 };
-					uint8_t trippy_range[3] = { 254, 254, 254 };
-					play_led_trippy(trippy_base, trippy_range,0,30, 120000);
 				}
-			}
-			else {
-				// Alarm start time = 0 means no alarm
+
+				if(!has_valid_sound_file)
+				{
+					memset(file_name, 0, sizeof(file_name));
+					// fallback for DVT
+					char* fallback = "/RINGTONE/DIGO001.raw";
+					char* fallback_short = "/RINGTO~1/DIGO001.raw";
+					if(_is_file_exists(fallback))
+					{
+						memcpy(file_name, fallback, strlen(fallback));
+						has_valid_sound_file = 1;
+					}else if(_is_file_exists(fallback_short)){
+						memcpy(file_name, fallback_short, strlen(fallback_short));
+						has_valid_sound_file = 1;
+					}
+				}
+
+				if(!has_valid_sound_file)
+				{
+					memset(file_name, 0, sizeof(file_name));
+					// fallback for PVT
+					char* fallback = "/RINGTONE/DIG001.raw";
+					if(_is_file_exists(fallback))
+					{
+						memcpy(file_name, fallback, strlen(fallback));
+						has_valid_sound_file = 1;
+					}
+				}
+
+				if(!has_valid_sound_file)
+				{
+					LOGE("ALARM RING FAIL: NO RINGTONE FILE FOUND %s\n", file_name);
+				}
+
+				strncpy(desc.file, file_name, 64);
+				desc.durationInSeconds = alarm.ring_duration_in_second;
+				desc.volume = 57;
+				desc.onFinished = thread_alarm_on_finished;
+				desc.rate = 48000;
+
+				alarm.has_start_time = FALSE;
+				alarm.start_time = 0;
+				AudioTask_StartPlayback(&desc);
+
+				LOGI("ALARM RINGING RING RING RING\n");
+				LOGI("ALARM DURATION %d\n", alarm.ring_duration_in_second);
+				analytics_event( "{alarm: ring}" );
+				alarm_is_ringing = true;
+
+				uint8_t trippy_base[3] = { 0, 0, 0 };
+				uint8_t trippy_range[3] = { 254, 254, 254 };
+				play_led_trippy(trippy_base, trippy_range,0,30, 120000);
 			}
 			
 			xSemaphoreGiveRecursive(alarm_smphr);
