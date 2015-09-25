@@ -546,8 +546,11 @@ void hold_animate_progress_task(void * params) {
 	assert( BLE_HOLD_TIMEOUT_MS < MAX_HOLD_TIME_MS );
 	vTaskDelay(BLE_HOLD_TIMEOUT_MS);
 	if( get_released() ) {
-		vTaskDelete(NULL);
-		return;
+		vTaskDelay(20*60*1000UL); //20 minute timeout
+		if( get_ble_mode() != BLE_PAIRING ) {
+			vTaskDelete(NULL);
+			return;
+		}
 	}
 	response.type =
 			MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE;
