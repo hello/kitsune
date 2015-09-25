@@ -188,7 +188,6 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type,
     	}
     }
 	xSemaphoreGive(_wifi_smphr);
-    assert(i!=MAX_WIFI_EP_PER_SCAN);
 
 	if(app_version >= 0) {
 		int to = 0;
