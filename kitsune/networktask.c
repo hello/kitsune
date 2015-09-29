@@ -8,6 +8,7 @@
 #include "uartstdio.h"
 
 #include "kit_assert.h"
+#include "sl_sync_include_after_simplelink_header.h"
 
 #define NETWORK_TASK_QUEUE_DEPTH (10)
 #define INITIAL_RETRY_PERIOD_COUNTS (1024)
@@ -251,12 +252,14 @@ int NetworkTask_AddMessageToQueue(const NetworkTaskServerSendMessage_t * message
 int networktask_enter_critical_region()
 {
 	LOGI("NT::ENTER\n");
+	sl_enter_critical_region();
 	return xSemaphoreTake(_network_mutex, portMAX_DELAY);
 }
 
 int networktask_exit_critical_region()
 {
 	LOGI("NT::EXIT\n");
+	sl_exit_critical_region();
 	return xSemaphoreGive(_network_mutex);
 }
 

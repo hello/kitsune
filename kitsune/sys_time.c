@@ -155,7 +155,7 @@ uint32_t fetch_unix_time_from_ntp() {
     SlSockAddr_t sAddr;
     SlSockAddrIn_t sLocalAddr;
     int iAddrSize;
-    unsigned long long ntp;
+    unsigned long long ntp = INVALID_SYS_TIME;
     unsigned long ipaddr;
     int sock;
 
@@ -172,6 +172,7 @@ uint32_t fetch_unix_time_from_ntp() {
     }
     LOGI("Socket created\n\r");
 
+    sl_enter_critical_region();
 //
     // Send a query ? to the NTP server to get the NTP time
     //
@@ -200,8 +201,7 @@ uint32_t fetch_unix_time_from_ntp() {
         }
 
         last_fail_time = xTaskGetTickCount();
-        close(sock);
-        return INVALID_SYS_TIME;
+        goto cleanup;
     }
 
     sAddr.sa_family = AF_INET;
@@ -231,8 +231,7 @@ uint32_t fetch_unix_time_from_ntp() {
     rv = sendto(sock, buffer, sizeof(buffer), 0, &sAddr, sizeof(sAddr));
     if (rv != sizeof(buffer)) {
         LOGI("Could not send SNTP request\n\r\n\r");
-        close(sock);
-        return INVALID_SYS_TIME;    // could not send SNTP request
+        goto cleanup;
     }
 
     //
@@ -246,15 +245,16 @@ uint32_t fetch_unix_time_from_ntp() {
 
     LOGI("receiving reply\n\r\n\r");
 
-    int recv_cnt = 0;
-    while( SL_EWOULDBLOCK == (rv = recvfrom(sock, buffer, sizeof(buffer), 0, (SlSockAddr_t *) &sLocalAddr,  (SlSocklen_t*) &iAddrSize) )) {
-    	vTaskDelay(1000);
-    	if( recv_cnt++ > time_attempts ) break;
-    }
-    if (rv < 0) {
-        LOGI("Did not receive %d\n\r", rv);
-        close(sock);
-        return INVALID_SYS_TIME;
+    {
+		int recv_cnt = 0;
+		while( SL_EWOULDBLOCK == (rv = recvfrom(sock, buffer, sizeof(buffer), 0, (SlSockAddr_t *) &sLocalAddr,  (SlSocklen_t*) &iAddrSize) )) {
+			vTaskDelay(1000);
+			if( recv_cnt++ > time_attempts ) break;
+		}
+		if (rv < 0) {
+			LOGI("Did not receive %d\n\r", rv);
+			goto cleanup;
+		}
     }
 
     //
@@ -262,8 +262,7 @@ uint32_t fetch_unix_time_from_ntp() {
     if ((buffer[0] & 0x7) != 4)    // expect only server response
     {
         LOGI("Expecting response from Server Only!\n\r");
-        close(sock);
-        return INVALID_SYS_TIME;    // MODE is not server, abort
+        goto cleanup;
     } else {
         //
         // Getting the data from the Transmit Timestamp (seconds) field
@@ -277,9 +276,12 @@ uint32_t fetch_unix_time_from_ntp() {
         ntp += buffer[42];
         ntp <<= 8;
         ntp += buffer[43];
+        time_attempts = 0;
     }
+
+    cleanup:
     close(sock);
-    time_attempts = 0;
+    sl_exit_critical_region();
     return ntp;
 }
 
