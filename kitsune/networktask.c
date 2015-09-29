@@ -252,14 +252,12 @@ int NetworkTask_AddMessageToQueue(const NetworkTaskServerSendMessage_t * message
 int networktask_enter_critical_region()
 {
 	LOGI("NT::ENTER\n");
-	sl_enter_critical_region();
 	return xSemaphoreTake(_network_mutex, portMAX_DELAY);
 }
 
 int networktask_exit_critical_region()
 {
 	LOGI("NT::EXIT\n");
-	sl_exit_critical_region();
 	return xSemaphoreGive(_network_mutex);
 }
 

@@ -1458,6 +1458,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
 
     send_length = strlen(recv_buf);
 
+    sl_enter_critical_region();
     //setup the connection
     if( start_connection() < 0 ) {
         LOGI("failed to start connection\n\r\n\r");
@@ -1627,6 +1628,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     }
     LOGI("recv %d\n", rv);
     }
+    sl_exit_critical_region();
 
     {
     pb_field_t * reply_fields = NULL;
@@ -1660,6 +1662,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     }
 
 	failure:
+    sl_exit_critical_region();
 	if( pb_cb && pb_cb->on_pb_failure ) {
 		pb_cb->on_pb_failure();
 	}
