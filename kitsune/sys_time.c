@@ -58,7 +58,7 @@ static int get_rtc_time( struct tm * dt ) {
 	dt->tm_hour = bcd_to_int(data[2]);
 	dt->tm_wday = bcd_to_int(data[3] & 0xf);
 	dt->tm_mday = bcd_to_int(data[4]);
-	dt->tm_mon = bcd_to_int((data[5]-1) & 0x3f);
+	dt->tm_mon = bcd_to_int(data[5] & 0x3f)-1;
 	dt->tm_year = bcd_to_int(data[6])+100;
 	return 0;
 }
