@@ -766,6 +766,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PHONE_BLE_CONNECTED:
         {
+        	ble_proto_led_fade_out(0);
         	set_ble_mode(BLE_CONNECTED);
         	LOGI("PHONE CONNECTED\n");
         }
