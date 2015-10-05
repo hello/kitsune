@@ -1844,6 +1844,7 @@ int Cmd_nwpinfo(int argc, char *argv[]) {
 	return 0;
 }
 int Cmd_SyncID(int argc, char * argv[]);
+int Cmd_time_test(int argc, char * argv[]);
 
 // ==============================================================================
 // This is the table that holds the command names, implementing functions, and
@@ -1851,6 +1852,7 @@ int Cmd_SyncID(int argc, char * argv[]);
 // ==============================================================================
 tCmdLineEntry g_sCmdTable[] = {
 //    { "cpu",      Cmd_cpu,      "Show CPU utilization" },
+		{ "time_test", Cmd_time_test, "" },
 		{ "free", Cmd_free, "" },
 		{ "heapviz", Cmd_heapviz, "" },
 		{ "realloc", Cmd_test_realloc, "" },

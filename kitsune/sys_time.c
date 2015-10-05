@@ -107,14 +107,14 @@ time_t get_sl_time() {
 	sl_DevGet(SL_DEVICE_GENERAL_CONFIGURATION, &cfg, &sz,
 			(unsigned char * )(&sl_tm));
 
-	dt.tm_hour = sl_tm.sl_tm_hour;
 	dt.tm_mday = sl_tm.sl_tm_day;
 	dt.tm_hour = sl_tm.sl_tm_hour;
 	dt.tm_min = sl_tm.sl_tm_min;
-	dt.tm_mon = sl_tm.sl_tm_mon;
-	dt.tm_mon = sl_tm.sl_tm_mon == 0 ? 12 : sl_tm.sl_tm_mon - 1;
+	dt.tm_mon = sl_tm.sl_tm_mon-1;//coming from 1-12 going to 0-11, no rollover possible
 	dt.tm_sec = sl_tm.sl_tm_sec;
-	dt.tm_year = sl_tm.sl_tm_year;
+	dt.tm_year = sl_tm.sl_tm_year - 1900;
+
+    LOGI("OUT Day %d,Mon %d,Year %d,Hour %d,Min %d,Sec %d\n",sl_tm.sl_tm_day,sl_tm.sl_tm_mon,sl_tm.sl_tm_year, sl_tm.sl_tm_hour,sl_tm.sl_tm_min,sl_tm.sl_tm_sec);
 
 	return mktime(&dt);
 }
@@ -127,9 +127,7 @@ void set_sl_time(time_t unix_timestamp_sec) {
     sl_tm.sl_tm_day = dt->tm_mday;
     sl_tm.sl_tm_hour = dt->tm_hour;
     sl_tm.sl_tm_min = dt->tm_min;
-    sl_tm.sl_tm_mon = dt->tm_mon;
-    sl_tm.sl_tm_mon+=1;
-    sl_tm.sl_tm_mon = sl_tm.sl_tm_mon > 12 ? sl_tm.sl_tm_mon -= 12 : sl_tm.sl_tm_mon;
+    sl_tm.sl_tm_mon = dt->tm_mon+1; //coming from 0-11 going to 1-12, no rollover possible
     sl_tm.sl_tm_sec = dt->tm_sec;
     sl_tm.sl_tm_year = dt->tm_year + 1900;
 
@@ -144,7 +142,7 @@ void set_sl_time(time_t unix_timestamp_sec) {
 			  &sz,
 			  (unsigned char *)(&sl_tm));
 
-    LOGI("Day %d,Mon %d,Year %d,Hour %d,Min %d,Sec %d\n",sl_tm.sl_tm_day,sl_tm.sl_tm_mon,sl_tm.sl_tm_year, sl_tm.sl_tm_hour,sl_tm.sl_tm_min,sl_tm.sl_tm_sec);
+    LOGI("IN Day %d,Mon %d,Year %d,Hour %d,Min %d,Sec %d\n",sl_tm.sl_tm_day,sl_tm.sl_tm_mon,sl_tm.sl_tm_year, sl_tm.sl_tm_hour,sl_tm.sl_tm_min,sl_tm.sl_tm_sec);
 }
 
 #define MAX_UDP_TIMEOUT 30
@@ -399,4 +397,98 @@ void init_time_module(int stack)
 	set_cached_time(1422504361UL+2208988800UL); //default time gets us in jan 29th 2015
 	set_sl_time(get_cached_time());
 	xTaskCreate(time_task, "time_task", stack / 4, NULL, 4, NULL); //todo reduce stack
+}
+
+#include "limits.h"
+
+/* Hardware library includes. */
+#include "hw_memmap.h"
+#include "hw_common_reg.h"
+#include "hw_types.h"
+#include "hw_ints.h"
+#include "hw_wdt.h"
+#include "wdt.h"
+#include "wdt_if.h"
+#include "rom.h"
+#include "rom_map.h"
+
+int Cmd_time_test(int argc, char * argv[]) {
+
+#if 1 //test 4 times per day, does the RTC round trip correctly?
+	{
+	uint32_t i=3641861161UL,r;
+	int cnt=0;
+	while( i < 3641861161UL + 3641861161UL ) { //10 years
+		vTaskDelay(10);
+		set_unix_time(i);
+		vTaskDelay(10);
+		r =  get_unix_time();
+		if( r != i ) {
+			LOGE("TIME FAIL %u %u", i, r);
+		}
+		i+=3600*6;
+		cnt++;
+		MAP_WatchdogIntClear(WDT_BASE); //clear wdt
+	}
+}
+#endif
+
+#if 1 //test 4 times per day, does the RTC in the 3200 round trip correctly?
+	{
+	uint32_t i=3641861161UL,r;
+	int cnt=0;
+	while( i < 3641861161UL + 3641861161UL ) { //10 years
+		vTaskDelay(10);
+		set_sl_time(i);
+		vTaskDelay(10);
+		r =  get_sl_time();
+		if( r != i ) {
+			LOGE("TIME FAIL %u %u %d\n", i, r, i-r);
+		}
+		i+=3600*6;
+		cnt++;
+		MAP_WatchdogIntClear(WDT_BASE); //clear wdt
+	}
+}
+#endif
+
+
+#if 1 //do we roll across month endings correctly?
+	{
+	unsigned int mon_len[] =
+		{31,28,31,30,31,30,31,31,30,31,30,31 };
+	uint32_t i,r,y,m;
+	y = 2015;
+	m = 0;
+	for(y=2015;y<2020;++y) {
+		for(m=0;m<12;++m) {
+			SlDateTime_t sl_tm;
+			struct tm dt;
+			memset(&sl_tm, 0, sizeof(sl_tm));
+			uint8_t cfg = SL_DEVICE_GENERAL_CONFIGURATION_DATE_TIME;
+			uint8_t sz = sizeof(SlDateTime_t);
+			sl_DevGet(SL_DEVICE_GENERAL_CONFIGURATION, &cfg, &sz,
+					(unsigned char * )(&sl_tm));
+
+			dt.tm_mday = mon_len[m];
+			dt.tm_hour = 23;
+			dt.tm_min = 59;
+			dt.tm_mon = m;
+			dt.tm_sec = 59;
+			dt.tm_year = y-1900;
+
+			i =  mktime(&dt);
+			set_unix_time( i );
+			vTaskDelay(1100);
+			r = get_unix_time();
+			if( r != i + 1 ) {
+				LOGE("ROLLOVER FAIL %d %d %u %u\n", m ,y, i, r);
+			} else {
+				LOGE("%u %u\n", m ,y);
+			}
+		}
+	}
+	}
+#endif
+	return 0;
 }
