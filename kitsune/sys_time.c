@@ -483,8 +483,6 @@ int Cmd_time_test(int argc, char * argv[]) {
 			r = get_unix_time();
 			if( r != i + 1 ) {
 				LOGE("ROLLOVER FAIL %d %d %u %u\n", m ,y, i, r);
-			} else {
-				LOGE("%u %u\n", m ,y);
 			}
 		}
 	}
