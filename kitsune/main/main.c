@@ -291,6 +291,7 @@ void mcu_reset();
 #include "kit_assert.h"
 volatile portTickType last_upload_time = 0;
 #define ONE_HOUR (1000*60*60)
+#define FIFTEEN_MINUTES (1000*60*15)
 #define TWENTY_FIVE_HOURS (ONE_HOUR*25)
 
 void watchdog_thread(void* unused) {
@@ -299,8 +300,8 @@ void watchdog_thread(void* unused) {
 		if( xTaskGetTickCount() - last_upload_time > ONE_HOUR ) {
 			vAssertCalled("NET TIMEOUT\n");
 		}
-		if( xTaskGetTickCount() - last_upload_time > ONE_HOUR
-		&&  xTaskGetTickCount() - last_nwp_reset_time > ONE_HOUR) {
+		if( xTaskGetTickCount() - last_upload_time > FIFTEEN_MINUTES
+		&&  xTaskGetTickCount() - last_nwp_reset_time > FIFTEEN_MINUTES) {
 			LOGE("NWP TIMEOUT\n");
 			nwp_reset();
 			last_nwp_reset_time = xTaskGetTickCount();
