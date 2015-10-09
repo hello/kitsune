@@ -952,7 +952,7 @@ void thread_fast_i2c_poll(void * unused)  {
 
 				if (xSemaphoreTakeRecursive(i2c_smphr, portMAX_DELAY)) {
 					vTaskDelay(2);
-					light = led_is_idle(0) ? get_light() : light;
+					light = get_light();
 					xSemaphoreGiveRecursive(i2c_smphr);
 				}
 
@@ -1126,8 +1126,6 @@ void thread_tx(void* unused) {
 
 #include "audio_types.h"
 
-static int _last_temp;
-static int _last_humid;
 void sample_sensor_data(periodic_data* data)
 {
 	if(!data)
@@ -1232,14 +1230,7 @@ void sample_sensor_data(periodic_data* data)
 			vTaskDelay(2);
 			int humid,temp;
 
-			if( led_is_idle(0) ) {
-				get_temp_humid(&temp, &humid);
-			} else {
-				humid = _last_humid;
-				temp = _last_temp;
-			}
-			_last_humid = humid;
-			_last_temp = temp;
+			get_temp_humid(&temp, &humid);
 
 			if(humid != -1)
 			{
@@ -1316,10 +1307,6 @@ void thread_sensor_poll(void* unused) {
 	//
 
 	periodic_data data = {0};
-	if (xSemaphoreTakeRecursive(i2c_smphr, portMAX_DELAY)) {
-		get_temp_humid(&_last_temp, &_last_humid);
-		xSemaphoreGiveRecursive(i2c_smphr);
-	}
 
 	while (1) {
 		portTickType now = xTaskGetTickCount();
