@@ -290,6 +290,7 @@ void start_wdt() {
 void mcu_reset();
 #include "kit_assert.h"
 volatile portTickType last_upload_time = 0;
+volatile bool need_nwp_reset = false;
 #define ONE_HOUR (1000*60*60)
 #define FIFTEEN_MINUTES (1000*60*15)
 #define TWENTY_FIVE_HOURS (ONE_HOUR*25)
@@ -301,9 +302,10 @@ void watchdog_thread(void* unused) {
 			vAssertCalled("NET TIMEOUT\n");
 		}
 		if( xTaskGetTickCount() - last_upload_time > FIFTEEN_MINUTES
-		&&  xTaskGetTickCount() - last_nwp_reset_time > FIFTEEN_MINUTES) {
+		&&  xTaskGetTickCount() - last_nwp_reset_time > FIFTEEN_MINUTES
+		&& !need_nwp_reset ) {
 			LOGE("NWP TIMEOUT\n");
-			nwp_reset();
+			need_nwp_reset = true;
 			last_nwp_reset_time = xTaskGetTickCount();
 		}
 
