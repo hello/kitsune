@@ -1299,7 +1299,6 @@ int force_data_push()
 
     return 0;
 }
-extern volatile bool need_nwp_reset;
 
 void thread_sensor_poll(void* unused) {
 
@@ -1332,11 +1331,6 @@ void thread_sensor_poll(void* unused) {
 			if (!xQueueSend(data_queue, (void* )&data, 0) == pdPASS) {
 				xQueueReceive(data_queue, (void* )&data, 0); //discard one, so if the queue is full we will put every other one in the queue
 				LOGE("Failed to post data\n");
-			}
-
-			if( need_nwp_reset ) {
-				nwp_reset();
-				need_nwp_reset = false;
 			}
 		}
 
