@@ -28,6 +28,10 @@ static void resolve(hlo_future_t * result, void * ctx){
 }
 void antsel(unsigned char a);
 
+//limit antenna switching via hysteresis
+#define ANTSEL_CNT_MAX 60
+static unsigned int antsel_cnt[MAX_ANT]={0};
+
 static void reselect_antenna(Sl_WlanNetworkEntry_t * entries, int num_entries ) {
 	if( num_entries == 0 ) {
 		return;
@@ -37,12 +41,21 @@ static void reselect_antenna(Sl_WlanNetworkEntry_t * entries, int num_entries ) 
 	wifi_get_connected_ssid( (uint8_t*)ssid, sizeof(ssid));
     for(i = 0; i < num_entries; i++) {
     	if( 0 == strcmp( (char*)entries[i].ssid, ssid ) ) {
-    		antsel(entries[i].reserved[0]);
-    		save_default_antenna(entries[i].reserved[0]);
-    		LOGI("ssid: %s a:%d\r\n", ssid, entries[i].reserved[0]);
+    		if( antsel_cnt[entries[i].reserved[0]] < ANTSEL_CNT_MAX ) {
+        		antsel_cnt[entries[i].reserved[0]] += 2;
+    		}
     		break;
     	}
     }
+    if( antsel_cnt[get_default_antenna()] > 0 ) {
+    	antsel_cnt[get_default_antenna()]-=1;
+    }
+    if( antsel_cnt[entries[i].reserved[0]] - antsel_cnt[get_default_antenna()]  > 30 ) {
+		antsel(entries[i].reserved[0]);
+		save_default_antenna(entries[i].reserved[0]);
+		antsel_cnt[IFA_ANT] = antsel_cnt[PCB_ANT] = 0;
+    }
+	LOGI("ssid: %s a:%d %d %d %d\r\n", ssid, entries[i].reserved[0], get_default_antenna(), antsel_cnt[get_default_antenna()], antsel_cnt[entries[i].reserved[0]]);
 }
 static void* response_realloc(void* opaque, void* ptr, int size)
 {

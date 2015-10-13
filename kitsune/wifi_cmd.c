@@ -230,9 +230,12 @@ void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent) {
     }
 }
 
+static int cached_ant = MAX_ANT;
+
 void reset_default_antenna()
 {
 	int err = sl_FsDel((unsigned char*)ANTENNA_FILE, 0);
+	cached_ant = MAX_ANT;
 	if (err) {
 		LOGI("226error %d\n", err);
 	}
@@ -246,7 +249,10 @@ void save_account_id( char * acct ) {
 }
 
 void save_default_antenna( unsigned char a ) {
-	fs_save(ANTENNA_FILE, &a, 1);
+	if( a != cached_ant ) {
+		cached_ant = a;
+		fs_save(ANTENNA_FILE, &a, 1);
+	}
 }
 
 int load_account_id( ) {
@@ -284,6 +290,9 @@ char * get_account_id() {
 unsigned char get_default_antenna() {
 	unsigned char a = PCB_ANT;
 
+	if( cached_ant != MAX_ANT ) {
+		return cached_ant;
+	} else
 	if( 0 > fs_get( ANTENNA_FILE, &a, 1, NULL ) ) {
 		return PCB_ANT;
 	}

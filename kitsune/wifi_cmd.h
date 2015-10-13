@@ -64,6 +64,7 @@ int Cmd_country(int argc, char *argv[]);
 #define SERIAL_FILE "/pch/serial"
 #define SERVER_SELECTION_FILE "/hello/dev"
 
+#define MAX_ANT 3
 #define PCB_ANT 2
 #define IFA_ANT 1
 void save_default_antenna( unsigned char a );
