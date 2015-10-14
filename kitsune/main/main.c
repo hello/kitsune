@@ -292,6 +292,10 @@ void mcu_reset();
 volatile portTickType last_upload_time = 0;
 #define ONE_HOUR (1000*60*60)
 #define TWENTY_FIVE_HOURS (ONE_HOUR*25)
+void nwp_reset_thread(void* unused) {
+	nwp_reset();
+	vTaskDelete(NULL);
+}
 
 void watchdog_thread(void* unused) {
 	int last_nwp_reset_time = 0;
@@ -302,7 +306,7 @@ void watchdog_thread(void* unused) {
 		if( xTaskGetTickCount() - last_upload_time > ONE_HOUR
 		&&  xTaskGetTickCount() - last_nwp_reset_time > ONE_HOUR) {
 			LOGE("NWP TIMEOUT\n");
-			nwp_reset();
+			xTaskCreate( nwp_reset_thread, "nwp_reset_thread", 1280/(sizeof(portSTACK_TYPE)), NULL, 1, NULL );
 			last_nwp_reset_time = xTaskGetTickCount();
 		}
 
