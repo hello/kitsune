@@ -31,7 +31,7 @@ extern "C" {
 	long sl_ret; \
 	/*UARTprintf("TRY %s %u\n", __FILE__, __LINE__);\*/\
 	if( !sl_enter_critical_region() ) {\
-		LOGI("SFQ %s %u\n", __FILE__, __LINE__);\
+		LOGI("SFQ %u\n", __LINE__);\
 	}\
 	sl_ret = (call); \
 	sl_exit_critical_region(); \
