@@ -30,9 +30,8 @@ extern "C" {
 	({ \
 	long sl_ret; \
 	/*UARTprintf("TRY %s %u\n", __FILE__, __LINE__);\*/\
-	if( !sl_enter_critical_region() ) {\
-		LOGI("SFQ %u\n", __LINE__);\
-	}\
+	assert(sl_enter_critical_region());\
+	/*UARTprintf("GOT %u\n" , __LINE__);\*/\
 	sl_ret = (call); \
 	sl_exit_critical_region(); \
 	/*UARTprintf("DONE %u\n", __LINE__);\*/\
@@ -61,8 +60,8 @@ extern "C" {
 #define htons(...)                               sl_Htons(__VA_ARGS__)
 #define ntohs(...)                               sl_Ntohs(__VA_ARGS__)
 
-//#define sl_Start(...)                            SL_SYNC(sl_Start(__VA_ARGS__))
-//#define sl_Stop(...)                             SL_SYNC(sl_Stop(__VA_ARGS__))
+#define sl_Start(...)                            SL_SYNC(sl_Start(__VA_ARGS__))
+#define sl_Stop(...)                             SL_SYNC(sl_Stop(__VA_ARGS__))
 #define sl_DevSet(...)                           SL_SYNC(sl_DevSet(__VA_ARGS__))
 #define sl_DevGet(...)                           SL_SYNC(sl_DevGet(__VA_ARGS__))
 #define sl_EventMaskSet(...)                     SL_SYNC(sl_EventMaskSet(__VA_ARGS__))
@@ -115,7 +114,7 @@ extern "C" {
 #define sl_WlanRxStatGet(...)                    SL_SYNC(sl_WlanRxStatGet(__VA_ARGS__))
 #define sl_WlanSmartConfigStop(...)              SL_SYNC(sl_WlanSmartConfigStop(__VA_ARGS__))
 #define sl_WlanSmartConfigStart(...)             SL_SYNC(sl_WlanSmartConfigStart(__VA_ARGS__))
-//#define sl_WlanSetMode(...)                      SL_SYNC(sl_WlanSetMode(__VA_ARGS__))
+#define sl_WlanSetMode(...)                      SL_SYNC(sl_WlanSetMode(__VA_ARGS__))
 #define sl_WlanSet(...)                          SL_SYNC(sl_WlanSet(__VA_ARGS__))
 #define sl_WlanGet(...)                          SL_SYNC(sl_WlanGet(__VA_ARGS__))
 #define sl_WlanRxFilterAdd(...)                  SL_SYNC(sl_WlanRxFilterAdd(__VA_ARGS__))
