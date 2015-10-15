@@ -368,6 +368,24 @@ int Cmd_get_octogram(int argc, char * argv[]) {
 	avg += octorgram_result.logenergy[6];
 	avg /= 4;
 
+	int distortion = 0;
+	int fundamental = 0;
+	int THD = 0;
+	distortion = octorgram_result.logenergy[3]+octorgram_result.logenergy[4]+octorgram_result.logenergy[5]+octorgram_result.logenergy[6];
+	fundamental = octorgram_result.logenergy[2];
+	distortion = distortion * 1000; // to increase the resolution
+
+	THD = distortion/fundamental;
+	LOGF("THD %d\r\n", THD);
+	LOGF("OCTget is %d\r\n", octorgram_result.logenergy[2] - avg );
+	LOGF("tone[0] %d\r\n", octorgram_result.logenergy[0]);
+	LOGF("tone[1] %d\r\n", octorgram_result.logenergy[1]);
+	LOGF("tone[2] %d\r\n", octorgram_result.logenergy[2]);
+	LOGF("tone[3] %d\r\n", octorgram_result.logenergy[3]);
+	LOGF("tone[4] %d\r\n", octorgram_result.logenergy[4]);
+	LOGF("tone[5] %d\r\n", octorgram_result.logenergy[5]);
+	LOGF("tone[6] %d\r\n", octorgram_result.logenergy[6]);
+	LOGF("tone[7] %d\r\n", octorgram_result.logenergy[7]);
 	LOGF("%d\r\n", octorgram_result.logenergy[2] - avg );
 
 	return 0;
