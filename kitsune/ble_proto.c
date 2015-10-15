@@ -207,7 +207,7 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type,
 
 		while( !wifi_status_get(UPLOADING) ) {
 			vTaskDelay(1000);
-			if( ++to > 60 || ( to > 10 && !wifi_status_get(CONNECT) ) ) {
+			if( ++to > 60 ) {
 				LOGI("wifi timeout\n");
 				wifi_state_requested = false;
 				ble_reply_protobuf_error(ErrorType_SERVER_CONNECTION_TIMEOUT);
