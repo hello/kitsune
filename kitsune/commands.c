@@ -368,7 +368,13 @@ int Cmd_get_octogram(int argc, char * argv[]) {
 	avg += octorgram_result.logenergy[6];
 	avg /= 4;
 
-	LOGF("%d\r\n", octorgram_result.logenergy[2] - avg );
+	//LOGF("%d\r\n", octorgram_result.logenergy[2] - avg );
+    //SNDR =   0.8*Tone_440/     (1.36*Tone_880+0.952*Tone_1320    +1*Tone_2640   +  0.8*Tone_3960) * 10000
+	//             logenergy[2]       logenergy[3]    logenergy[4]    logenergy[5]   logenergy[6]
+	//     =   10000*800*$R20/(1360*$R21 +1000*$R22 +1000*$R23 +800*$R24)
+	int SNDR = 0;
+	SNDR = 10000*800*octorgram_result.logenergy[2]/(1360*octorgram_result.logenergy[3]+1000*octorgram_result.logenergy[4] +1000*octorgram_result.logenergy[5] +800*octorgram_result.logenergy[6]);
+	LOGF("%d\r\n", SNDR );
 
 	return 0;
 }
