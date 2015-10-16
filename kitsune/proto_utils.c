@@ -64,6 +64,25 @@ bool encode_all_pills (pb_ostream_t *stream, const pb_field_t *field, void * con
 }
 #include "hlo_async.h"
 
+bool encode_single_ssid (pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
+	if( arg == NULL ) {
+		return true;
+	}
+    batched_periodic_data_wifi_access_point* ap = (batched_periodic_data_wifi_access_point *)*arg;
+
+	if(!pb_encode_tag(stream, PB_WT_STRING, batched_periodic_data_scan_tag))
+	{
+		LOGI("encode_scanned_ssid: Fail to encode tag for ssid, error %s\n", PB_GET_ERROR(stream));
+		return false;
+	}
+	if (!pb_encode_delimited(stream, batched_periodic_data_wifi_access_point_fields, ap )){
+		LOGI("encode_scanned_ssid: Fail to encode ssid error: %s\n", PB_GET_ERROR(stream));
+		return false;
+	}
+
+    return true;
+}
+
 bool encode_scanned_ssid (pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
     int i,n;
 

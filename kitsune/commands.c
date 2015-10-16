@@ -96,6 +96,9 @@
 #include "top_board.h"
 #define ONLY_MID 0
 
+#define ARRAY_LEN(a) (sizeof(a)/sizeof(a[0]))
+
+
 //******************************************************************************
 //			        FUNCTION DECLARATIONS
 //******************************************************************************
@@ -1003,6 +1006,7 @@ int pill_queue_batch_size = PILL_BATCH_WATERMARK;
 void thread_tx(void* unused) {
 	batched_pill_data pill_data_batched = {0};
 	batched_periodic_data data_batched = {0};
+	batched_periodic_data_wifi_access_point ap;
 	periodic_data forced_data;
 	bool got_forced_data = false;
 
@@ -1067,12 +1071,34 @@ void thread_tx(void* unused) {
 			wifi_get_connected_ssid( (uint8_t*)data_batched.connected_ssid, sizeof(data_batched) );
 			data_batched.has_connected_ssid = true;
 
-			data_batched.scan.funcs.encode = encode_scanned_ssid;
+			data_batched.scan.funcs.encode = encode_single_ssid;
 			data_batched.scan.arg = NULL;
 
-			if( !got_forced_data ) {
-				//data_batched.scan.arg = prescan_wifi(10);
+			{
+				static SlGetRxStatResponse_t rxStat;
+				sl_WlanRxStatGet(&rxStat,0);
+				if( rxStat.AvarageDataCtrlRssi == 0 ) {
+					sl_WlanRxStatStart();  // set statistics mode
+				}
+				LOGI("RSSI %d %d\n", rxStat.AvarageDataCtrlRssi, rxStat.AvarageMgMntRssi );
+#if 0
+				int i;
+				for( i=0;i< ARRAY_LEN(rxStat.RssiHistogram); ++i) {
+					LOGI("\t%d", rxStat.RssiHistogram[i] );
+				}LOGI("\n");
+				LOGI("pck vld %d fcs %d mis %d\n", rxStat.ReceivedValidPacketsNumber, rxStat.ReceivedFcsErrorPacketsNumber, rxStat.ReceivedAddressMismatchPacketsNumber );
+#endif
+
+				ap.antenna = (batched_periodic_data_wifi_access_point_AntennaType)get_default_antenna();
+				ap.has_antenna = true;
+				ap.rssi = rxStat.AvarageDataCtrlRssi;
+				ap.has_rssi = true;
+				memcpy( ap.ssid, data_batched.connected_ssid, sizeof(ap.ssid));
+				ap.has_ssid = true;
+
+				data_batched.scan.arg = &ap;
 			}
+
 			if (xSemaphoreTakeRecursive(alarm_smphr, 1000)) {
 				if(needs_alarm_ack){
 					data_batched.has_ring_time_ack = true;
@@ -1085,9 +1111,6 @@ void thread_tx(void* unused) {
 				last_upload_time = xTaskGetTickCount();
 			}
 
-			if( data_batched.scan.arg ) {
-				hlo_future_destroy( data_batched.scan.arg );
-			}
 			vPortFree( periodicdata.data );
 			got_forced_data = false;
 		}
