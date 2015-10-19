@@ -94,6 +94,7 @@ typedef struct {
 
 typedef struct {
 	int32_t num_disturbances;
+	int32_t num_samples;
 	int32_t peak_energy;
 	int32_t peak_background_energy;
 	uint8_t isValid;
