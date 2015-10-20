@@ -1006,7 +1006,7 @@ void thread_tx(void* unused) {
 	periodic_data forced_data;
 	bool got_forced_data = false;
 
-	LOGI(" Start polling  \n");
+	LOGF(" Start polling  \n");
 	while (1) {
 		if (uxQueueMessagesWaiting(data_queue) >= data_queue_batch_size
 		 || got_forced_data ) {
