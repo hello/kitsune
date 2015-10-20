@@ -1207,6 +1207,8 @@ void sample_sensor_data(periodic_data* data)
 
 		data->has_audio_peak_disturbance_energy_db = true;
 		data->audio_peak_disturbance_energy_db = aud_data.peak_energy;
+
+		LOGI("AUD %d %d %d",aud_data.num_disturbances, aud_data.peak_background_energy, aud_data.peak_energy);
 	}
 
 	// copy over light values
