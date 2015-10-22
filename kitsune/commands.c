@@ -2110,7 +2110,7 @@ void vUARTTask(void *pvParameters) {
 		play_led_wheel( 50, LED_MAX, LED_MAX, 0,0,10,1);
 	}
 
-	UARTprintf("\n\nFreeRTOS %s, %x, %s %x:%x:%x:%x:%x:%x\n",
+	UARTprintf("\n\nFreeRTOS %s, %08x, %s %02x:%02x:%02x:%02x:%02x:%02x\n",
 	tskKERNEL_VERSION_NUMBER, KIT_VER, MORPH_NAME, mac[0], mac[1], mac[2],
 			mac[3], mac[4], mac[5]);
 	print_nwp_version();
