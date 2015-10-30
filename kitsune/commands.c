@@ -1212,7 +1212,7 @@ void sample_sensor_data(periodic_data* data)
 			data->has_audio_peak_disturbance_energy_db = true;
 			data->audio_peak_disturbance_energy_db = aud_data.peak_background_energy;
 		}
-		LOGI("AUD %d %d %d",data->audio_num_disturbances, data->audio_peak_background_energy_db, data->audio_peak_background_energy_db );
+		//LOGI("AUD %d %d %d",data->audio_num_disturbances, data->audio_peak_background_energy_db, data->audio_peak_background_energy_db );
 	}
 
 	// copy over light values
@@ -2108,7 +2108,7 @@ void vUARTTask(void *pvParameters) {
 
 	xTaskCreate(AudioTask_Thread,"audioTask",2560/4,NULL,4,NULL);
 	UARTprintf("*");
-	init_download_task( 1024 / 4 );
+	init_download_task( 2048 / 4 );
 	networktask_init(4 * 1024 / 4);
 
 	load_serial();

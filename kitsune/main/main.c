@@ -301,13 +301,17 @@ void nwp_reset_thread(void* unused) {
 void watchdog_thread(void* unused) {
 	int last_nwp_reset_time = 0;
 	while (1) {
-		if( xTaskGetTickCount() - last_upload_time > ONE_HOUR ) {
-			vAssertCalled("NET TIMEOUT\n");
+		if (xTaskGetTickCount() - last_upload_time > ONE_HOUR) {
+			LOGE("NET TIMEOUT\n");
+			send_top("bounce", strlen("bounce"));
+			uart_logger_flush();
+			mcu_reset();
 		}
-		if( xTaskGetTickCount() - last_upload_time > FIFTEEN_MINUTES
-		&&  xTaskGetTickCount() - last_nwp_reset_time > FIFTEEN_MINUTES) {
+		if (xTaskGetTickCount() - last_upload_time > FIFTEEN_MINUTES
+				&& xTaskGetTickCount() - last_nwp_reset_time > FIFTEEN_MINUTES) {
 			LOGE("NWP TIMEOUT\n");
-			xTaskCreate( nwp_reset_thread, "nwp_reset_thread", 1280/(sizeof(portSTACK_TYPE)), NULL, 1, NULL );
+			xTaskCreate(nwp_reset_thread, "nwp_reset_thread",
+					1280/(sizeof(portSTACK_TYPE)), NULL, 1, NULL);
 			last_nwp_reset_time = xTaskGetTickCount();
 		}
 

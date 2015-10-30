@@ -216,7 +216,7 @@ _on_slip_message(uint8_t * c, uint32_t size){
 }
 static void
 _on_dtm_event(uint16_t dtm_event){
-	LOGI("Got a dtm event: %X\r\n", dtm_event);
+	LOGI("Got a dtm event: %04X\r\n", dtm_event);
 }
 
 static void

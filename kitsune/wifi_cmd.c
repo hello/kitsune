@@ -952,15 +952,17 @@ static bool write_buffered_callback_sha(pb_ostream_t *stream, const uint8_t * in
 			if(!send(desc->fd, desc->buf, desc->buf_size, 0)
 					== desc->buf_size ) { return false; }
 
-			desc->bytes_written += desc->buf_size - desc->buf_pos;
+			desc->bytes_written += desc->buf_size;
 			c -= desc->buf_size - desc->buf_pos;
 			inbuf += desc->buf_size - desc->buf_pos;
 			desc->buf_pos = 0;
 		}
-		//copy to our buffer
-		memcpy(desc->buf, inbuf, c);
-		desc->buf_pos += c;
-		desc->bytes_written += c;
+		if( c > 0 ) {
+			//copy to our buffer
+			memcpy(desc->buf, inbuf, c);
+			desc->buf_pos += c;
+			desc->bytes_written += c;
+		}
 	} else {
 		//copy to our buffer
 		memcpy(desc->buf + desc->buf_pos, inbuf, count);
@@ -2521,7 +2523,7 @@ int wifi_status_set(unsigned int status, int remove_status)
     return ret;
 }
 
-#ifdef BUILD_SERVERS
+#if defined(BUILD_SERVERS) && defined(BUILD_TELNET_SERVER)
 #include "ctype.h"
 #if 0
 #define SVR_LOGI UARTprintf
@@ -2667,7 +2669,7 @@ static int send_buffer( volatile int* sock, const char * str, int len ) {
 	}
 	return sent;
 }
-
+#ifdef BUILD_TELNET_SERVER
 volatile static int telnet_connection_sock;
 void telnetPrint(const char * str, int len) {
 	if ( telnet_connection_sock > 0 && wifi_status_get(HAS_IP)) {
@@ -2693,6 +2695,7 @@ void telnetServerTask(void *params) {
 #define INTERPRETER_PORT 224
     serv( INTERPRETER_PORT, &telnet_connection_sock, cli_cb, "\n" );
 }
+#endif
 #if 0 //used in proof of concept
 static int echo_cb( volatile int * sock,  char * linebuf, int inbufsz ) {
 	if ( send( *sock, "\n", 1, 0 ) <= 0 ) {

@@ -87,13 +87,13 @@ _swap_and_upload(void){
 	//reset
 	self.widx = 0;
 }
-#ifdef BUILD_SERVERS
+#ifdef BUILD_TELNET_SERVER
 void telnetPrint(const char * str, int len );
 #endif
 
 static void
 _logstr(const char * str, int len, bool echo, bool store){
-#ifndef BUILD_SERVERS
+#ifndef BUILD_TELNET_SERVER
 	int i;
 
 	if( !self.print_sem ) {
@@ -118,7 +118,7 @@ _logstr(const char * str, int len, bool echo, bool store){
 #endif
 
 	if (echo) {
-#ifdef BUILD_SERVERS
+#ifdef BUILD_TELNET_SERVER
 		telnetPrint(str, len);
 #endif
 		UARTwrite(str, len);
