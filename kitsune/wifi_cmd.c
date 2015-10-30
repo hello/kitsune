@@ -961,7 +961,6 @@ static bool write_buffered_callback_sha(pb_ostream_t *stream, const uint8_t * in
 			//copy to our buffer
 			memcpy(desc->buf, inbuf, c);
 			desc->buf_pos += c;
-			desc->bytes_written += c;
 		}
 	} else {
 		//copy to our buffer
