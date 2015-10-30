@@ -2108,7 +2108,7 @@ void vUARTTask(void *pvParameters) {
 
 	xTaskCreate(AudioTask_Thread,"audioTask",2560/4,NULL,4,NULL);
 	UARTprintf("*");
-	init_download_task( 1024 / 4 );
+	init_download_task( 2048 / 4 );
 	networktask_init(4 * 1024 / 4);
 
 	load_serial();
