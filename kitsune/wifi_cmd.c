@@ -2523,7 +2523,7 @@ int wifi_status_set(unsigned int status, int remove_status)
     return ret;
 }
 
-#ifdef BUILD_SERVERS
+#if defined(BUILD_SERVERS) && defined(BUILD_TELNET_SERVER)
 #include "ctype.h"
 #if 0
 #define SVR_LOGI UARTprintf
@@ -2669,7 +2669,7 @@ static int send_buffer( volatile int* sock, const char * str, int len ) {
 	}
 	return sent;
 }
-
+#ifdef BUILD_TELNET_SERVER
 volatile static int telnet_connection_sock;
 void telnetPrint(const char * str, int len) {
 	if ( telnet_connection_sock > 0 && wifi_status_get(HAS_IP)) {
@@ -2695,6 +2695,7 @@ void telnetServerTask(void *params) {
 #define INTERPRETER_PORT 224
     serv( INTERPRETER_PORT, &telnet_connection_sock, cli_cb, "\n" );
 }
+#endif
 #if 0 //used in proof of concept
 static int echo_cb( volatile int * sock,  char * linebuf, int inbufsz ) {
 	if ( send( *sock, "\n", 1, 0 ) <= 0 ) {
