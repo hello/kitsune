@@ -1,16 +1,13 @@
 language: c
-script: "./build.sh"
+script: ./build.sh
 install:
-- "./travis-setup.sh"
+- ./travis-setup.sh
 before_install:
-- "./dependencies.sh"
-- cat $DEPLOY_KEY > .travis/deploy_key.pem
-- chmod 600 .travis/deploy_key.pem
-- git remote add deploy https://github.com/hello/heap_6.git
+- ./dependencies.sh
 notifications:
   email:
   - chris@sayhello.com
-before_deploy: "./teardown.sh"
+before_deploy: ./teardown.sh
 deploy:
 - provider: s3
   access_key_id: AKIAIJE3P5YMHYZQDY4Q
@@ -37,12 +34,9 @@ deploy:
     tags: true
 - provider: releases
   api-key:
-    secure: XTYvRkGHLlJDHVMrZN4xuCRcz6wSXras5UWcZOalckSJgCU484ZHESx8pCKbO5LDeTqNLaIWQXmAddobsiRc4qfWHOKRZylaAViOMPHDgsqmJ96lquUo+wKG6qY/LkbVWxniFKMBOHH+yUjhrJW59MXlDNrKrUOvrAcC/y486Vg=
+    secure: "XTYvRkGHLlJDHVMrZN4xuCRcz6wSXras5UWcZOalckSJgCU484ZHESx8pCKbO5LDeTqNLaIWQXmAddobsiRc4qfWHOKRZylaAViOMPHDgsqmJ96lquUo+wKG6qY/LkbVWxniFKMBOHH+yUjhrJW59MXlDNrKrUOvrAcC/y486Vg="
   file: build.tar.gz
   skip_cleanup: true
   on:
     tags: true
     all_branches: true
-env:
-  matrix:
-    secure: F9feHoztXJWB3as8r9/ShAqZQaZK2/CaIULJkpHhh8/xnl4gtom0QRzoJPDCstRBBH1JrHDKRQsNxp+aA45YH8JNoDdi06W6tYky7baAxqurH6YIMPxVCi0OTWv+Fv7mFzGZSPqneUp/nbITXj9mOl+ujbfcYhCdXdyP1UilhRM=
