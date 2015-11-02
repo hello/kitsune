@@ -206,6 +206,10 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
 //! \return None
 //
 //****************************************************************************
+static void wifi_ip_update_task( void * params ) {
+	ble_reply_wifi_status(wifi_connection_state_IP_RETRIEVED);
+	vTaskDelete(NULL);
+}
 
 void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent) {
 
@@ -220,6 +224,8 @@ void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent) {
 		}
 
 		wifi_status_set(HAS_IP, false);
+
+		xTaskCreate(wifi_ip_update_task, "wifi_ip_update_task", 1024 / 4, NULL, 2, NULL);
 		break;
 
 	case SL_NETAPP_IP_LEASED_EVENT:

@@ -191,7 +191,6 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type,
 
 	if(app_version >= 0) {
 		int to = 0;
-		bool need_to_transmit_ip = true;
 
 		nwp_reset();
 		wifi_state_requested = true;
@@ -212,14 +211,6 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type,
 				wifi_state_requested = false;
 				ble_reply_protobuf_error(ErrorType_SERVER_CONNECTION_TIMEOUT);
 				break;
-			}
-			if( wifi_status_get(HAS_IP) ) { //can't do this one on the event handler, it has so little stack...
-				if( need_to_transmit_ip ) {
-					ble_reply_wifi_status(wifi_connection_state_IP_RETRIEVED);
-					need_to_transmit_ip = false;
-				}
-			} else {
-				need_to_transmit_ip = true;
 			}
 		}
 		wifi_state_requested = false;
