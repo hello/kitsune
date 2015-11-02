@@ -79,8 +79,6 @@ _encode_text_block(pb_ostream_t *stream, const pb_field_t *field, void * const *
 
 static void
 _swap_and_upload(void){
-	//UARTprintf(" QEUE \r\n%s", self.logging_block );
-
 	if( !xQueueSend(self.block_queue, (void* )&self.logging_block, 0) ) {
     	vPortFree(self.logging_block);
     }
@@ -110,14 +108,11 @@ _logstr(const char * str, int len, bool echo, bool store){
 			self.logging_block = pvPortMalloc(UART_LOGGER_BLOCK_SIZE);
 			assert(self.logging_block);
 			memset( (void*)self.logging_block, 0, UART_LOGGER_BLOCK_SIZE );
-
-	//		UARTprintf(" INIT \r\n%s\r\n", self.logging_block );
 		}
 		for(i = 0; i < len; i++){
 			assert( self.widx < UART_LOGGER_BLOCK_SIZE );
 			self.logging_block[self.widx++] = str[i];
 		}
-	//	UARTprintf(" COPY \r\n%s\r\n", self.logging_block );
 	}
 
 #endif
@@ -304,7 +299,6 @@ static uint8_t log_local_enable;
 static void _save_block_queue( TickType_t dly ) {
 	uint8_t * store_block;
 	while( xQueueReceive(self.block_queue, &store_block, dly ) ) {
-	//	UARTprintf(" DEQEUE \r\n%s", store_block );
 		if(log_local_enable && FR_OK == _save_newest((char*)store_block, UART_LOGGER_BLOCK_SIZE)){
 			xEventGroupSetBits(self.uart_log_events, LOG_EVENT_UPLOAD);
 		}else{
