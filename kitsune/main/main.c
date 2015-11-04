@@ -184,8 +184,6 @@ vAssertCalled( const char * s )
    * and the system is now in some unkown bad state, this will come in and reset
    * after a half second....
    */
-  send_top("bounce", strlen("bounce"));
-  uart_logger_flush();
   mcu_reset();
 }
 
@@ -204,8 +202,6 @@ void vApplicationStackOverflowHook( TaskHandle_t xTask, char *pcTaskName )
     ( void ) pcTaskName;
 
     LOGE( "%s STACK OVERFLOW", pcTaskName );
-    uart_logger_flush();
-    UtilsDelay(10000000);
     mcu_reset();
 }
 
@@ -303,8 +299,6 @@ void watchdog_thread(void* unused) {
 	while (1) {
 		if (xTaskGetTickCount() - last_upload_time > ONE_HOUR) {
 			LOGE("NET TIMEOUT\n");
-			send_top("bounce", strlen("bounce"));
-			uart_logger_flush();
 			mcu_reset();
 		}
 		if (xTaskGetTickCount() - last_upload_time > FIFTEEN_MINUTES

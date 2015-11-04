@@ -58,6 +58,8 @@ int sl_mode = ROLE_INVALID;
 int send_top(char *, int);
 void mcu_reset()
 {
+	uart_logger_flush();
+	set_loglevel(0); //don't want to be saving logs when the power goes out....
 	send_top("bounce", strlen("bounce"));
 	vTaskDelay(1000);
 	LOGI("did not get power reset\r\n");
