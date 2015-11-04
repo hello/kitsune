@@ -36,6 +36,7 @@ FRESULT hello_fs_open ( FIL *fp, const char *path, BYTE mode) {
 	FRESULT res;
 	LOCK();
 	res = f_open(fp,path,mode);
+	f_sync(fp);
 	UNLOCK();
 	return res;
 }
@@ -50,6 +51,7 @@ FRESULT hello_fs_write (  FIL *fp, const void *buff,UINT btw,UINT *bw) {
 	FRESULT res;
 	LOCK();
 	res = f_write(fp,buff,btw,bw);
+	f_sync(fp);
 	UNLOCK();
 	return res;
 }
