@@ -54,7 +54,6 @@ int sl_mode = ROLE_INVALID;
 
 #include "limits.h"
 
-
 int send_top(char *, int);
 void mcu_reset()
 {
