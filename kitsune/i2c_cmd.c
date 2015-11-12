@@ -2,7 +2,6 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "kit_assert.h"
 #include <stdint.h>
 
 /* FreeRTOS includes */
@@ -27,7 +26,7 @@
                                      return  iRetVal;}
 #define BUF_SIZE 2
 
-#define TRY_OR_GOTOFAIL(a) assert(a==SUCCESS)
+#define TRY_OR_GOTOFAIL(a) if(a!=SUCCESS) {LOGE("i2c error\n");}
 
 #define Codec_addr 0x1A
 #define DELAY_CODEC 5
