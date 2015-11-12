@@ -307,24 +307,32 @@ int cmd_set_time(int argc, char *argv[]) {
 }
 
 static void time_task( void * params ) { //exists to get the time going and cache so we aren't going to NTP or RTC every time...
-	#define TIME_POLL_INTERVAL 86400000ul>>3 //one eighth DAY
+	#define TIME_POLL_INTERVAL_MS (86400000ul>>3) //one eighth DAY
+	#define TIME_POLL_INTERVAL_SEC (TIME_POLL_INTERVAL_MS/1000)
+	#define MARGIN_OF_ERROR 800
 	bool have_set_time = false;
 	TickType_t last_set = 0;
 	while (1) {
-		if ((!have_set_time || xTaskGetTickCount()- last_set > TIME_POLL_INTERVAL ) && wifi_status_get(HAS_IP) ) {
+		if ((!have_set_time || xTaskGetTickCount()- last_set > TIME_POLL_INTERVAL_MS ) && wifi_status_get(HAS_IP) ) {
 			uint32_t ntp_time = fetch_unix_time_from_ntp();
 			if (ntp_time != INVALID_SYS_TIME && time_smphr && xSemaphoreTake(time_smphr, 0) ) {
 				if (set_unix_time(ntp_time) != INVALID_SYS_TIME) {
-					char cmdbuf[20]={0};
-					is_time_good = true;
-					set_cached_time(ntp_time);
-					set_sl_time(get_cached_time());
-					have_set_time = true;
-					last_set = xTaskGetTickCount();
+				    if( is_time_good &&
+				    		get_cached_time() - ntp_time > TIME_POLL_INTERVAL_SEC - MARGIN_OF_ERROR &&
+				    		get_cached_time() - ntp_time < TIME_POLL_INTERVAL_SEC + MARGIN_OF_ERROR ) {
+				    	LOGE("STALE TIME\r\n");
+				    } else {
+						char cmdbuf[20]={0};
+						is_time_good = true;
+						set_cached_time(ntp_time);
+						set_sl_time(get_cached_time());
+						have_set_time = true;
+						last_set = xTaskGetTickCount();
 
-					usnprintf( cmdbuf, sizeof(cmdbuf), "time %u\r\n", ntp_time);
-					LOGI("sending %s\r\n", cmdbuf);
-					send_top(cmdbuf, strlen(cmdbuf));
+						usnprintf( cmdbuf, sizeof(cmdbuf), "time %u\r\n", ntp_time);
+						LOGI("sending %s\r\n", cmdbuf);
+						send_top(cmdbuf, strlen(cmdbuf));
+				    }
 				}
 				xSemaphoreGive(time_smphr);
 			}
