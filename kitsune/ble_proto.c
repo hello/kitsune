@@ -91,6 +91,9 @@ void ble_reply_http_status(char * status)
 	memcpy( reply_command.http_response_code, status, 15);
 	//need to only send when it has been requested....=
 	if( wifi_state_requested ) {
+        if(wifi_status_get(UPLOADING)) {
+            wifi_state_requested = false;
+        }
 		ble_send_protobuf(&reply_command);
 	}
 }
