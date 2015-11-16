@@ -232,6 +232,10 @@ static void worker_scan_unique(hlo_future_t * result, void * ctx){
 	Sl_WlanNetworkEntry_t entries[10] = {0};
 	hlo_future_write(result, entries, sizeof(entries), get_unique_wifi_list(entries, 10));
 }
+static void worker_scan_compare(hlo_future_t * result, void * ctx){
+	Sl_WlanNetworkEntry_t entries[10] = {0};
+	hlo_future_write(result, entries, sizeof(entries), get_compare_wifi_list(entries, 10));
+}
 
 static void SortByRSSI(Sl_WlanNetworkEntry_t* netEntries,
                                             unsigned char ucSSIDCount){
@@ -281,6 +285,47 @@ int _replace_ssid_by_rssi(Sl_WlanNetworkEntry_t * main, size_t main_size, const 
 	}
 	return 0;
 }
+int get_compare_wifi_list(Sl_WlanNetworkEntry_t * result, size_t num_entries, int ant){
+	size_t size = num_entries * sizeof(Sl_WlanNetworkEntry_t);
+	int retries, ret,i, tally = 0;
+
+	DISP("Scan begin\n");
+
+	DISP("Scan IFA\n");
+	//do ifa
+	retries = 3;
+	while(--retries > 0 && (ret = scan_for_wifi(result, num_entries/2, IFA_ANT, 3000)) == 0){
+		DISP("Retrying IFA %d\r\n", retries);
+	}
+	tally += ret;
+	while(--ret >= 0){
+		result[ret].reserved[0] = IFA_ANT;
+		result[ret].ssid_len = 0;
+	}
+
+	DISP("Scan PCB\n");
+	//now do pcb
+	retries = 3;
+	while(--retries > 0 && (ret = scan_for_wifi(result + num_entries/2, num_entries/2, PCB_ANT, 3000)) == 0){
+		DISP("Retrying PCB %d\r\n", retries);
+	}
+	tally += ret;
+	while(--ret >= 0){
+		result[num_entries/2 + ret].reserved[0] = PCB_ANT;
+		result[num_entries/2 + ret].ssid_len = 0;
+	}
+
+exit:
+	DISP("listing %d\r\n", tally);
+	for(i = 0; i < tally; i++){
+		LOGI("ssid: %s\t%d\t%d\r\n", result[i].ssid, result[i].rssi, result[i].reserved[0]);
+	}
+
+	DISP("Scan selecting antenna\n");
+	reselect_antenna( result, num_entries );
+	DISP("Scan complete\n");
+	return 10;
+}
 //this implementation is O(n^2)
 int get_unique_wifi_list(Sl_WlanNetworkEntry_t * result, size_t num_entries){
 	size_t size = num_entries * sizeof(Sl_WlanNetworkEntry_t);
@@ -326,7 +371,7 @@ exit:
 
 }
 hlo_future_t * prescan_wifi(size_t num_entries){
-	return hlo_future_create_task_bg(worker_scan_unique, NULL, 2048);
+	return hlo_future_create_task_bg(worker_scan_compare, NULL, 2048);
 }
 
 hlo_future_t * http_get_stream(const char * url){
