@@ -1957,7 +1957,14 @@ tCmdLineEntry g_sCmdTable[] = {
 extern xSemaphoreHandle g_xRxLineSemaphore;
 void UARTStdioIntHandler(void);
 long nwp_reset();
-
+static void _connect_wifi(hlo_future_t * result, void * ctx){
+	while( !wifi_status_get(HAS_IP) ){
+		connect_wifi("derp","herpderp",2,1);
+		vTaskDelay(10000);
+	}
+	hlo_future_write(result,NULL,0,0);
+	DISP("Connected");
+}
 void vUARTTask(void *pvParameters) {
 	char cCmdBuf[512];
 	bool on_charger = false;
@@ -2117,7 +2124,7 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("> ");
 
 	/* remove anything we recieved before we were ready */
-
+	hlo_future_destroy(hlo_future_create_task_bg(_connect_wifi,NULL,2048));
 	/* Loop forever */
 	while (1) {
 		/* Wait for a signal indicating we have an RX line to process */
