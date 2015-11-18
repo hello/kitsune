@@ -337,7 +337,7 @@ void uart_logger_init(void){
 	self.log.device_id.funcs.encode = encode_device_id_string;
 	self.log.has_unix_time = true;
 	self.view_tag = LOG_INFO | LOG_WARNING | LOG_ERROR | LOG_VIEW_ONLY | LOG_FACTORY | LOG_TOP;
-	self.store_tag = LOG_INFO | LOG_WARNING | LOG_ERROR | LOG_FACTORY | LOG_TOP;
+	self.store_tag = 0;
 
 	self.block_queue = xQueueCreate(2, sizeof(uint8_t*));
 
