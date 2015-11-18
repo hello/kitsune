@@ -29,7 +29,7 @@ extern "C" {
 #define UART_LOGGER_MODE	UART_LOGGER_MODE_TAGGED
 
 //how many files maximum to keep
-#define UART_LOGGER_FILE_LIMIT 512
+#define UART_LOGGER_FILE_LIMIT 0
 
 /**
  * Tag level defines
