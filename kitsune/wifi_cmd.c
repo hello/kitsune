@@ -1107,8 +1107,8 @@ int start_connection() {
 
     sAddr.sa_family = AF_INET;
     // the source port
-    sAddr.sa_data[0] = 1;    //port 443, ssl
-    sAddr.sa_data[1] = 0xbb; //port 443, ssl
+    sAddr.sa_data[0] = 5;    //port 443, ssl
+    sAddr.sa_data[1] = 0x00; //port 443, ssl
     sAddr.sa_data[2] = (char) ((ipaddr >> 24) & 0xff);
     sAddr.sa_data[3] = (char) ((ipaddr >> 16) & 0xff);
     sAddr.sa_data[4] = (char) ((ipaddr >> 8) & 0xff);
