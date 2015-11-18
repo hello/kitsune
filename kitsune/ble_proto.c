@@ -537,12 +537,17 @@ void hold_animate_progress_task(void * params) {
 		vTaskDelete(NULL);
 		return;
 	}
-	LOGI("Trigger pairing mode\n");
-	MorpheusCommand response = { 0 };
-	response.type =
-			MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_PAIRING_MODE;
-	ble_send_protobuf(&response);
 
+	/*
+	 * disabled for store
+	 */
+	LOGI("(Disabled)Trigger pairing mode\n");
+	/*
+	*MorpheusCommand response = { 0 };
+	*response.type =
+	*		MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_PAIRING_MODE;
+	*ble_send_protobuf(&response);
+	*/
 	assert( BLE_HOLD_TIMEOUT_MS < MAX_HOLD_TIME_MS );
 	vTaskDelay(BLE_HOLD_TIMEOUT_MS);
 	if( get_released() ) {
@@ -552,9 +557,13 @@ void hold_animate_progress_task(void * params) {
 			return;
 		}
 	}
-	response.type =
+	/*
+	 * disabled for store
+	 */
+	/*response.type =
 			MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE;
 	ble_send_protobuf(&response);
+	*/
 
 	vTaskDelete(NULL);
 }
