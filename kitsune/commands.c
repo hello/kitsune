@@ -1118,8 +1118,8 @@ void thread_tx(void* unused) {
 		}
 		do {
 			if( xQueueReceive(force_data_queue, &forced_data, 1000 ) ) {
-				got_forced_data = true;
 			}
+			got_forced_data = true;
 		} while (!wifi_status_get(HAS_IP));
 	}
 }
