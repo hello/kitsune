@@ -580,8 +580,7 @@ static bool send_log() {
 	}
 #endif
 	//no timeout on this one...
-    return NetworkTask_SendProtobuf(true, DATA_SERVER, SENSE_LOG_ENDPOINT,
-    		sense_log_fields,&self.log, 0, NULL, NULL, NULL, false);
+    return 1;
 }
 
 void analytics_event_task(void * params){
@@ -624,10 +623,6 @@ upload:
 			log.unix_time = time;
 			portTickType now = xTaskGetTickCount();
 			DISP("Analytics: %s\r\n", block);
-			if( !NetworkTask_SendProtobuf(true, DATA_SERVER, SENSE_LOG_ENDPOINT,
-					sense_log_fields, &log, 0, NULL, NULL, NULL, false) ) {
-				LOGI("Analytics failed to upload\n");
-			}
 			block_len = 0;
 			memset(block, 0, ANALYTICS_MAX_CHUNK_SIZE);
 			vTaskDelayUntil(&now, 1000);
