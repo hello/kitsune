@@ -5,7 +5,7 @@ char * get_server(void);
 
 #define DATA_SERVER	get_server()
 
-#define PROD_DATA_SERVER                    "sense-in.hello.is"
+#define PROD_DATA_SERVER                    "sense.target.dev"
 #define DEV_DATA_SERVER						"dev-in.hello.is"
 #define DATA_RECEIVE_ENDPOINT               "/in/sense/batch"
 #define MORPHEUS_REGISTER_ENDPOINT          "/register/morpheus"
