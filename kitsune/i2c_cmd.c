@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include "kit_assert.h"
 #include <stdint.h>
 
 /* FreeRTOS includes */
@@ -15,6 +16,8 @@
 
 #include "hw_ver.h"
 
+#include "stdbool.h"
+
 #define MAX_MEASURE_TIME		10
 
 #define FAILURE                 -1
@@ -26,7 +29,8 @@
                                      return  iRetVal;}
 #define BUF_SIZE 2
 
-#define TRY_OR_GOTOFAIL(a) if(a!=SUCCESS) {LOGE("i2c error\n");}
+extern volatile bool booted;
+#define TRY_OR_GOTOFAIL(a) assert(!booted||a==SUCCESS)
 
 #define Codec_addr 0x1A
 #define DELAY_CODEC 5
