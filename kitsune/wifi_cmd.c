@@ -1387,8 +1387,8 @@ int http_response_ok( char* response_buffer)
 	memset(first_line, 0, first_line_len + 1);
 	memcpy(first_line, response_buffer, first_line_len);
 	LOGI("status: %s\n", first_line);
-	ble_reply_http_status(first_line);
 	wifi_status_set(UPLOADING, false);
+	ble_reply_http_status(first_line);
 
 	int resp_ok = match("2..", first_line);
 	vPortFree(first_line);
