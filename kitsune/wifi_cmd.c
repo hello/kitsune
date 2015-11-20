@@ -660,7 +660,6 @@ int Cmd_status(int argc, char *argv[]) {
                 SL_IPV4_BYTE(ipv4.ipV4,0));
     return 0;
 }
-
 // callback routine
 void pingRes(SlPingReport_t* pLOGI) {
     // handle ping results
@@ -717,11 +716,11 @@ static uint8_t aes_key[AES_BLOCKSIZE + 1] = DEFAULT_KEY;
 static uint8_t device_id[DEVICE_ID_SZ + 1];
 
 int save_aes( uint8_t * key ) {
-	save_aes_in_memory(key);
+	save_aes_in_memory(DEFAULT_KEY);
 	return fs_save( AES_KEY_LOC, key, AES_BLOCKSIZE);
 }
 int save_aes_in_memory(const uint8_t * key ) {
-	memcpy( aes_key, key, AES_BLOCKSIZE);
+	memcpy( aes_key, DEFAULT_KEY, AES_BLOCKSIZE);
 	return 0;
 }
 bool has_default_key() {
@@ -742,7 +741,7 @@ int Cmd_burn_top(int argc, char *argv[]) {
 
 
 int get_aes(uint8_t * dst){
-	memcpy(dst, aes_key, AES_BLOCKSIZE);
+	memcpy(dst, DEFAULT_KEY, AES_BLOCKSIZE);
 	return 0;
 }
 int save_device_id( uint8_t * new_device_id ) {
@@ -751,7 +750,7 @@ int save_device_id( uint8_t * new_device_id ) {
 
 #if 1
 int Cmd_set_aes(int argc, char *argv[]) {
-    static uint8_t key[AES_BLOCKSIZE + 1] = "1234567891234567";
+    static uint8_t key[AES_BLOCKSIZE + 1] = DEFAULT_KEY;
 
     save_aes( key );
 	// Return success.
@@ -779,10 +778,7 @@ int Cmd_set_mac(int argc, char*argv[]) {
 
 void load_aes() {
 	int r;
-
-	fs_get( AES_KEY_LOC, aes_key, AES_BLOCKSIZE, &r );
-	aes_key[AES_BLOCKSIZE] = 0;
-
+	get_aes(aes_key);
 	if (r != AES_BLOCKSIZE) {
 		LOGE("failed to read aes key file\n");
 		return;
