@@ -1941,7 +1941,7 @@ void UARTStdioIntHandler(void);
 long nwp_reset();
 static void _connect_wifi(hlo_future_t * result, void * ctx){
 	while( !wifi_status_get(HAS_IP) ){
-		connect_wifi("derp","herpderp",2,1);
+		connect_wifi("zebraEye","r3dw00dc1TY",2,1);
 		vTaskDelay(10000);
 	}
 	hlo_future_write(result,NULL,0,0);
