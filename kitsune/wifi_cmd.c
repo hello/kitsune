@@ -1081,7 +1081,7 @@ int start_connection() {
 #if !LOCAL_TEST
     if (ipaddr == 0) {
         if (1 ) {
-        	 ipaddr = SL_IPV4_VAL(192,168,66,15);
+        	 ipaddr = STORE_IP();
              LOGI("Get Host IP succeeded.\n\rHost: %s IP: %d.%d.%d.%d \n\r\n\r",
 				   DATA_SERVER, SL_IPV4_BYTE(ipaddr, 3), SL_IPV4_BYTE(ipaddr, 2),
 				   SL_IPV4_BYTE(ipaddr, 1), SL_IPV4_BYTE(ipaddr, 0));

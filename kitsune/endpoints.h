@@ -18,4 +18,6 @@ char * get_server(void);
 
 #define TEST_NETWORK_ENDPOINT               "/"
 #define TEST_SERVER                         "stress-in.hello.is"
+
+#define STORE_IP() SL_IPV4_VAL(192,168,128,165)
 #endif //_ENDPOINTS_H_
