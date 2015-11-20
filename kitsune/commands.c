@@ -649,7 +649,7 @@ void thread_alarm(void * unused) {
 				AudioPlaybackDesc_t desc;
 				memset(&desc,0,sizeof(desc));
 
-				desc.fade_in_ms = 30000;
+				desc.fade_in_ms = 10000;
 				desc.fade_out_ms = 3000;
 				strncpy( desc.file, AUDIO_FILE, 64 );
 				int has_valid_sound_file = 0;
