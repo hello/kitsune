@@ -12,6 +12,8 @@
 #include "time.h"
 
 #include "ustdlib.h"
+#include "socket.h"
+
 
 #include "sl_sync_include_after_simplelink_header.h"
 
@@ -144,10 +146,7 @@ void set_sl_time(time_t unix_timestamp_sec) {
 
     LOGI("IN Day %d,Mon %d,Year %d,Hour %d,Min %d,Sec %d\n",sl_tm.sl_tm_day,sl_tm.sl_tm_mon,sl_tm.sl_tm_year, sl_tm.sl_tm_hour,sl_tm.sl_tm_min,sl_tm.sl_tm_sec);
 }
-
-#define MAX_UDP_TIMEOUT 30
-static unsigned int time_attempts = 0;
-uint32_t fetch_unix_time_from_ntp() {
+uint32_t fetch_ntp_time_from_ntp() {
     char buffer[48];
     int rv = 0;
     SlSockAddr_t sAddr;
@@ -159,8 +158,11 @@ uint32_t fetch_unix_time_from_ntp() {
 
     SlTimeval_t tv;
 
+    size_t sent_ticks;
+    size_t recv_ticks;
+
     sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    tv.tv_sec = time_attempts > MAX_UDP_TIMEOUT ? MAX_UDP_TIMEOUT : ++time_attempts; // Seconds
+    tv.tv_sec = 1; // Seconds
     tv.tv_usec = 0;             // Microseconds. 10000 microseconds resolution
     setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)); // Enable receive timeout
 
@@ -170,7 +172,6 @@ uint32_t fetch_unix_time_from_ntp() {
     }
     LOGI("Socket created\n\r");
 
-    sl_enter_critical_region();
 //
     // Send a query ? to the NTP server to get the NTP time
     //
@@ -225,7 +226,8 @@ uint32_t fetch_unix_time_from_ntp() {
     enableOption.NonblockingEnabled = 1;
     sl_SetSockOpt(sock,SL_SOL_SOCKET,SL_SO_NONBLOCKING, (_u8 *)&enableOption,sizeof(enableOption)); // Enable/disable nonblocking mode
 
-    LOGI("Sending request\n\r\n\r");
+    sent_ticks = xTaskGetTickCount();
+    LOGI("Sending request %u\n\r\n\r", sent_ticks);
     rv = sendto(sock, buffer, sizeof(buffer), 0, &sAddr, sizeof(sAddr));
     if (rv != sizeof(buffer)) {
         LOGI("Could not send SNTP request\n\r\n\r");
@@ -241,19 +243,35 @@ uint32_t fetch_unix_time_from_ntp() {
     sLocalAddr.sin_addr.s_addr = 0;
     bind(sock, (SlSockAddr_t *) &sLocalAddr, iAddrSize);
 
-    LOGI("receiving reply\n\r\n\r");
-
-    {
-		int recv_cnt = 0;
-		while( SL_EWOULDBLOCK == (rv = recvfrom(sock, buffer, sizeof(buffer), 0, (SlSockAddr_t *) &sLocalAddr,  (SlSocklen_t*) &iAddrSize) )) {
-			vTaskDelay(1000);
-			if( recv_cnt++ > time_attempts ) break;
-		}
-		if (rv < 0) {
-			LOGI("Did not receive %d\n\r", rv);
+	for(;;) {
+		if( !wifi_status_get(HAS_IP) ) {
 			goto cleanup;
 		}
-    }
+		rv = recvfrom(sock, buffer, sizeof(buffer), 0, (SlSockAddr_t *) &sLocalAddr,  (SlSocklen_t*) &iAddrSize);
+		if( rv > 0 ) {
+			recv_ticks = xTaskGetTickCount();
+		    LOGI("receiving reply %d %u\n\r\n\r", rv, recv_ticks);
+			break;
+		}
+		vTaskDelay(1000);
+		LOGI("sending another request\n\r\n\r", sent_ticks);
+
+		buffer[0] = 0b11100011;   // LI, Version, Mode
+		buffer[1] = 0;     // Stratum, or type of clock
+		buffer[2] = 6;     // Polling Interval
+		buffer[3] = 0xEC;  // Peer Clock Precision
+		// 8 bytes of zero for Root Delay & Root Dispersion
+		buffer[12] = 49;
+		buffer[13] = 0x4E;
+		buffer[14] = 49;
+		buffer[15] = 52;
+
+		rv = sendto(sock, buffer, sizeof(buffer), 0, &sAddr, sizeof(sAddr));
+		if (rv != sizeof(buffer)) {
+			LOGI("Could not send follow-up NTP request\n\r\n\r");
+			goto cleanup;
+		}
+	}
 
     //
     // Confirm that the MODE is 4 --> server
@@ -262,24 +280,24 @@ uint32_t fetch_unix_time_from_ntp() {
         LOGI("Expecting response from Server Only!\n\r");
         goto cleanup;
     } else {
-        //
-        // Getting the data from the Transmit Timestamp (seconds) field
-        // This is the time at which the reply departed the
-        // server for the client
-        //
-        ntp = buffer[40];
-        ntp <<= 8;
-        ntp += buffer[41];
-        ntp <<= 8;
-        ntp += buffer[42];
-        ntp <<= 8;
-        ntp += buffer[43];
-        time_attempts = 0;
+    	// Getting the data from the Transmit Timestamp (seconds) field
+    	// This is the time at which the reply departed the
+    	// server for the client
+    	//
+    	ntp = buffer[40];
+    	ntp <<= 8;
+    	ntp += buffer[41];
+    	ntp <<= 8;
+    	ntp += buffer[42];
+    	ntp <<= 8;
+    	ntp += buffer[43];
+
+        LOGI("time %ull delay %d\n\r\n\r", ntp, recv_ticks - sent_ticks);
+        //round up to the nearest second
     }
 
-    cleanup:
+cleanup:
     close(sock);
-    sl_exit_critical_region();
     return ntp;
 }
 
@@ -314,7 +332,7 @@ static void time_task( void * params ) { //exists to get the time going and cach
 	TickType_t last_set = 0;
 	while (1) {
 		if ((!have_set_time || xTaskGetTickCount()- last_set > TIME_POLL_INTERVAL_MS ) && wifi_status_get(HAS_IP) ) {
-			uint32_t ntp_time = fetch_unix_time_from_ntp();
+			uint32_t ntp_time = fetch_ntp_time_from_ntp();
 			if (ntp_time != INVALID_SYS_TIME && time_smphr && xSemaphoreTake(time_smphr, 0) ) {
 				if (set_unix_time(ntp_time) != INVALID_SYS_TIME) {
 				    if( is_time_good &&

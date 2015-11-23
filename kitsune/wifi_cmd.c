@@ -694,7 +694,7 @@ int Cmd_ping(int argc, char *argv[]) {
 }
 
 int Cmd_time(int argc, char*argv[]) {
-	uint32_t unix = fetch_unix_time_from_ntp();
+	uint32_t unix = fetch_ntp_time_from_ntp()-2208988800UL;
 	uint32_t t = get_time();
 
     LOGF("time is %u and the ntp is %u and the diff is %d, good time? %d\n", t, unix, (int)(t-unix), has_good_time());
