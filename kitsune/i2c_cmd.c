@@ -30,7 +30,7 @@
 #define BUF_SIZE 2
 
 extern volatile bool booted;
-#define TRY_OR_GOTOFAIL(a) assert(!booted||a==SUCCESS)
+#define TRY_OR_GOTOFAIL(a) do { if( booted ) { assert(a==SUCCESS) } else { a; } } while(0)
 
 #define Codec_addr 0x1A
 #define DELAY_CODEC 5
