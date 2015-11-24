@@ -315,11 +315,12 @@ static void _save_block_queue( TickType_t dly ) {
  */
 void uart_logger_flush(void){
 	//set the task to exit and wait for it to do so
-	_save_block_queue(0);
 	xSemaphoreTake(self.print_sem, portMAX_DELAY);
+	self.view_tag = self.store_tag = 0;
+	xSemaphoreGive(self.print_sem);
 	//write out whatever's left in the logging block
 	_save_newest((const char*)self.logging_block, self.widx );
-	xSemaphoreGive(self.print_sem);
+	_save_block_queue(0);
 }
 int Cmd_log_upload(int argc, char *argv[]){
 	xSemaphoreTake(self.print_sem, portMAX_DELAY);
