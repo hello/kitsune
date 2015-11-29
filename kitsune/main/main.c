@@ -297,12 +297,12 @@ void nwp_reset_thread(void* unused) {
 void watchdog_thread(void* unused) {
 	int last_nwp_reset_time = 0;
 	while (1) {
-		if (xTaskGetTickCount() - last_upload_time > ONE_HOUR) {
+		if (xTaskGetTickCount() - last_upload_time > 2*ONE_HOUR) {
 			LOGE("NET TIMEOUT\n");
 			mcu_reset();
 		}
-		if (xTaskGetTickCount() - last_upload_time > FIFTEEN_MINUTES
-				&& xTaskGetTickCount() - last_nwp_reset_time > FIFTEEN_MINUTES) {
+		if (xTaskGetTickCount() - last_upload_time > ONE_HOUR
+				&& xTaskGetTickCount() - last_nwp_reset_time > ONE_HOUR) {
 			LOGE("NWP TIMEOUT\n");
 			xTaskCreate(nwp_reset_thread, "nwp_reset_thread",
 					1280/(sizeof(portSTACK_TYPE)), NULL, 1, NULL);
