@@ -813,7 +813,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
             if( command->has_country_code ) {
                 LOGI("Set country code %s\n", command->country_code );
 				sl_WlanSet(SL_WLAN_CFG_GENERAL_PARAM_ID,
-						WLAN_GENERAL_PARAM_OPT_COUNTRY_CODE, 2, command->country_code);
+						WLAN_GENERAL_PARAM_OPT_COUNTRY_CODE, 2, (uint8_t*)command->country_code);
 				nwp_reset();
 			}
 
@@ -893,7 +893,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SET_COUNTRY_CODE:
         	if( command->has_country_code ) {
 				sl_WlanSet(SL_WLAN_CFG_GENERAL_PARAM_ID,
-						WLAN_GENERAL_PARAM_OPT_COUNTRY_CODE, 2, command->country_code);
+						WLAN_GENERAL_PARAM_OPT_COUNTRY_CODE, 2, (uint8_t*)command->country_code);
 				nwp_reset();
         	} else {
                 ble_reply_protobuf_error(ErrorType_INTERNAL_DATA_ERROR);
