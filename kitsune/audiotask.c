@@ -20,6 +20,7 @@
 
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include "ustdlib.h"
 
 #include "mcasp_if.h"
@@ -168,7 +169,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	FIL fp = {0};
 	UINT size;
 	FRESULT res;
-	uint32_t totBytesRead = 0;
+	EAudioPlaybackType_t playback_type = eAudioPlayFile;
 	uint32_t iReceiveCount = 0;
 	uint8_t returnFlags = 0x00;
 
@@ -184,42 +185,44 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	unsigned int fade_length = info->fade_in_ms;
 	bool has_fade = fade_length != 0;
 
+	int i = 0;
+
 	desired_ticks_elapsed = info->durationInSeconds * NUMBER_OF_TICKS_IN_A_SECOND;
 
-	LOGI("Starting playback\r\n");
-	LOGI("%d bytes free\n", xPortGetFreeHeapSize());
-
-	hello_fs_lock();
-
 	if (!info || !info->file) {
-		hello_fs_unlock();
 		LOGI("invalid playback info %s\n\r",info->file);
 		vPortFree(speaker_data);
 		return returnFlags;
 	}
 
-
 	if ( !InitAudioPlayback(volume, info->rate ) ) {
-		hello_fs_unlock();
 		LOGI("unable to initialize audio playback.  Probably not enough memory!\r\n");
 		vPortFree(speaker_data);
 		return returnFlags;
-
+	}
+	if( strstr( info->file, "proc") ) {
+		if( strstr( info->file, "rand") ) {
+			playback_type = eAudioPlayRand;
+		}
 	}
 
+	LOGI("Starting playback\r\n");
 	LOGI("%d bytes free\n", xPortGetFreeHeapSize());
 
+	if( playback_type == eAudioPlayFile ) {
+		hello_fs_lock();
 
-	//open file for playback
-	LOGI("Opening %s for playback\r\n",info->file);
-	res = hello_fs_open(&fp, info->file, FA_READ);
+		//open file for playback
+		LOGI("Opening %s for playback\r\n",info->file);
+		res = hello_fs_open(&fp, info->file, FA_READ);
 
-	if (res != FR_OK) {
-		hello_fs_unlock();
-		LOGI("Failed to open audio file %s\n\r",info->file);
-		DeinitAudioPlayback();
-		vPortFree(speaker_data);
-		return returnFlags;
+		if (res != FR_OK) {
+			hello_fs_unlock();
+			LOGI("Failed to open audio file %s\n\r",info->file);
+			DeinitAudioPlayback();
+			vPortFree(speaker_data);
+			return returnFlags;
+		}
 	}
 
 	memset(speaker_data,0,SPEAKER_DATA_CHUNK_SIZE);
@@ -252,9 +255,22 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 				break;
 			}
 		}
-		/* Read always in block of 512 Bytes or less else it will stuck in hello_fs_read() */
-		res = hello_fs_read(&fp, speaker_data, 512, &size);
-		totBytesRead += size;
+		switch (playback_type) {
+		case eAudioPlayFile: {
+			/* Read always in block of 512 Bytes or less else it will stuck in hello_fs_read() */
+			res = hello_fs_read(&fp, speaker_data, 512, &size);
+			break;
+		}
+		case eAudioPlayRand: {
+			for (i = 0; i < 512; ++i) {
+				speaker_data[i] = rand();
+			}
+			size = i;
+			break;
+		}
+		default:
+			LOGE("NO PLAYBACK TYPE\r\n");
+		}
 
 		/* Wait to avoid buffer overflow as reading speed is faster than playback */
 		iBufWaitingCount = 0;
@@ -359,11 +375,12 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	vPortFree(speaker_data);
 
 	///CLEANUP
-	hello_fs_close(&fp);
-
 	DeinitAudioPlayback();
 
-	hello_fs_unlock();
+	if( playback_type == eAudioPlayFile ) {
+		hello_fs_close(&fp);
+		hello_fs_unlock();
+	}
 
 	LOGI("completed playback\r\n");
 
