@@ -349,10 +349,8 @@ void logpsdmel(int16_t * logTotalEnergy,int16_t psd[],const int16_t fr[],const i
             
             ifft++;
         }
-        
-        utemp64 += min_energy;
-        
-        temp32 = FixedPointLog2Q10(utemp64) + binaveragingcoeff[iend] - log2scaleOfRawSignal*1024;
+
+        temp32 = FixedPointLog2Q10(utemp64 + min_energy) + binaveragingcoeff[iend] - log2scaleOfRawSignal*1024;
         
         if (temp32 > INT16_MAX) {
             temp32 = INT16_MAX;
