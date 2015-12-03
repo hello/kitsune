@@ -604,6 +604,8 @@ int CreateConnection(unsigned long DestinationIP)
     int             AddrSize = 0;
     int             SockID = 0;
 
+    timeval tv;
+
     Addr.sin_family = SL_AF_INET;
     Addr.sin_port = sl_Htons(80);
     Addr.sin_addr.s_addr = sl_Htonl(DestinationIP);
@@ -613,7 +615,19 @@ int CreateConnection(unsigned long DestinationIP)
     SockID = socket(SL_AF_INET,SL_SOCK_STREAM, 0); //todo secure socket
     ASSERT_ON_ERROR(SockID);
 
-    Status = connect(SockID, ( SlSockAddr_t *)&Addr, AddrSize);
+    tv.tv_sec = 2;             // Seconds
+    tv.tv_usec = 0;           // Microseconds. 10000 microseconds resolution
+    setsockopt(SockID, SOL_SOCKET, SL_SO_RCVTIMEO, &tv, sizeof(tv)); // Enable receive timeout
+
+    SlSockNonblocking_t enableOption;
+    enableOption.NonblockingEnabled = 1;
+    sl_SetSockOpt(SockID,SL_SOL_SOCKET,SL_SO_NONBLOCKING, (_u8 *)&enableOption,sizeof(enableOption)); // Enable/disable nonblocking mode
+
+    do {
+		vTaskDelay(100);
+		Status = connect(SockID, ( SlSockAddr_t *)&Addr, AddrSize);
+	} 	while( SL_EALREADY == Status );
+
     if( Status < 0 )
     {
         /* Error */
@@ -1199,8 +1213,18 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 
         memset(g_buff, 0, MAX_BUFF_SIZE);
 
-        transfer_len = recv(dl_sock, &g_buff[0], MAX_BUFF_SIZE, 0);
-        //LOGI("rx:  %d\r\n", transfer_len);
+        {
+        int retries;
+		for(retries = 0;retries < 1000; ++retries) {
+			transfer_len = recv(dl_sock, &g_buff[0], MAX_BUFF_SIZE, 0);
+			if( transfer_len == SL_EAGAIN ) {
+				vTaskDelay(500);
+				continue;
+			}
+			break;
+		}
+        }
+		//LOGI("rx:  %d\r\n", transfer_len);
         if(transfer_len <= 0) {
         	LOGI("TCP_RECV_ERROR\r\n" );
         	cd( "/" );
