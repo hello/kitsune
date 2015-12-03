@@ -289,18 +289,23 @@ volatile portTickType last_upload_time = 0;
 #define ONE_HOUR (1000*60*60)
 #define FIFTEEN_MINUTES (1000*60*15)
 #define TWENTY_FIVE_HOURS (ONE_HOUR*25)
+#ifdef NWP_WATCHDOG_TIMEOUT
 void nwp_reset_thread(void* unused) {
 	nwp_reset();
 	vTaskDelete(NULL);
 }
+#endif
 
 void watchdog_thread(void* unused) {
+#ifdef NWP_WATCHDOG_TIMEOUT
 	int last_nwp_reset_time = 0;
+#endif
 	while (1) {
 		if (xTaskGetTickCount() - last_upload_time > 3*ONE_HOUR) {
 			LOGE("NET TIMEOUT\n");
 			mcu_reset();
 		}
+#ifdef NWP_WATCHDOG_TIMEOUT
 		if (xTaskGetTickCount() - last_upload_time > ONE_HOUR
 				&& xTaskGetTickCount() - last_nwp_reset_time > ONE_HOUR) {
 			LOGE("NWP TIMEOUT\n");
@@ -308,7 +313,7 @@ void watchdog_thread(void* unused) {
 					1280/(sizeof(portSTACK_TYPE)), NULL, 1, NULL);
 			last_nwp_reset_time = xTaskGetTickCount();
 		}
-
+#endif
 		MAP_WatchdogIntClear(WDT_BASE); //clear wdt
 		vTaskDelay(1000);
 	}
