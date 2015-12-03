@@ -44,6 +44,7 @@ extern "C" {
 #define LOG_TOP     0x80
 #define LOG_AUDIO   0x100
 #define LOG_PROX    0x200
+#define LOG_DEBUG   0x400
 /**
  * Mode defines
  */
@@ -68,6 +69,7 @@ extern "C" {
 #define LOGA(...) uart_logf(LOG_AUDIO, __VA_ARGS__)
 #define LOGP(...) uart_logf(LOG_PROX, __VA_ARGS__)
 #define DISP(...) uart_logf(LOG_VIEW_ONLY, __VA_ARGS__)
+#define LOGD(...) uart_logf(LOG_DEBUG, __VA_ARGS__)
 #else
 #define LOGI(...) UARTprintf(__VA_ARGS__)
 #define LOGW(...) UARTprintf(__VA_ARGS__)
@@ -97,7 +99,12 @@ void analytics_event_task(void * params);
 int Cmd_log_upload(int argc, char *argv[]);
 int Cmd_log_setview(int argc, char * argv[]);
 int Cmd_analytics(int argc, char * argv[]);
-void set_loglevel(uint8_t loglevel);
+void set_loglevel(uint16_t loglevel);
+
+
+void add_loglevel(uint16_t loglevel );
+void rem_loglevel(uint16_t loglevel );
+
 void uart_logc(uint8_t c);	//advanced: directly dumps character to tx block
 
 int analytics_event( const char *pcString, ...);

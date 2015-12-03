@@ -62,8 +62,17 @@ static struct{
 	xQueueHandle analytics_event_queue;
 }self = {0};
 
-void set_loglevel(uint8_t loglevel) {
+void set_loglevel(uint16_t loglevel) {
 	self.store_tag = loglevel;
+}
+
+void add_loglevel(uint16_t loglevel ) {
+	self.store_tag |= loglevel;
+	self.view_tag |= loglevel;
+}
+void rem_loglevel(uint16_t loglevel ) {
+	self.store_tag &= ~loglevel;
+	self.view_tag &= ~loglevel;
 }
 
 typedef void (file_handler)(FILINFO * info, void * ctx);
