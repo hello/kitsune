@@ -1085,6 +1085,8 @@ int start_connection() {
         }
     }
 
+    LOGD("1");
+
     if (sock < 0) {
         LOGI("Socket create failed %d\n\r", sock);
         return -1;
@@ -1111,6 +1113,7 @@ int start_connection() {
             return -1;
         }
     }
+    LOGD("2");
 
     sAddr.sa_family = AF_INET;
     // the source port
@@ -1136,6 +1139,8 @@ int start_connection() {
     enableOption.NonblockingEnabled = 1;
     sl_SetSockOpt(sock,SL_SOL_SOCKET,SL_SO_NONBLOCKING, (_u8 *)&enableOption,sizeof(enableOption)); // Enable/disable nonblocking mode
 
+    LOGD("3");
+
     //connect it up
     //LOGI("Connecting \n\r\n\r");
     retry_connect:
@@ -1148,6 +1153,7 @@ int start_connection() {
     	LOGI("Could not connect %d\n\r\n\r", rv);
 		return stop_connection();
     }
+    LOGD("4");
  	ble_reply_wifi_status(wifi_connection_state_SOCKET_CONNECTED);
     return 0;
 }
@@ -1443,6 +1449,9 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     uint32_t recv_buf_size = *recv_buf_size_ptr;
     char * recv_buf = *recv_buf_ptr;
 
+    add_loglevel(LOG_DEBUG);
+    LOGD("a");
+
     if (!recv_buf) {
     	LOGI("send_data_pb_callback needs a buffer\r\n");
     	goto failure;
@@ -1454,6 +1463,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
         LOGE("get_device_id failed\n");
         goto failure;
     }
+    LOGD("b");
 
     usnprintf(recv_buf, recv_buf_size, "POST %s HTTP/1.1\r\n"
             "Host: %s\r\n"
@@ -1471,6 +1481,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
         LOGI("failed to start connection\n\r\n\r");
         goto failure;
     }
+    LOGD("c");
 
     //check that it's still secure...
     rv = recv(sock, recv_buf, SERVER_REPLY_BUFSZ, 0);
@@ -1479,6 +1490,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
         ble_reply_socket_error(rv);
         goto failure;
     }
+    LOGD("d");
 
     //LOGI("Sending request\n\r%s\n\r", recv_buf);
     rv = send(sock, recv_buf, send_length, 0);
@@ -1487,6 +1499,9 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
         ble_reply_socket_error(rv);
         goto failure;
     }
+    LOGD("e");
+
+    rem_loglevel(LOG_DEBUG);
 	}
 #if 0
     LOGI("HTTP header sent %d\n\r%s\n\r", rv, recv_buf);
