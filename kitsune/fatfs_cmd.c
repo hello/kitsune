@@ -1547,7 +1547,12 @@ int wait_for_top_boot(unsigned int timeout);
 int send_top(char *, int);
 
 bool is_test_boot() {
-	_ReadBootInfo(&sBootInfo);
+	static bool read_bootinfo = false;
+
+	if( !read_bootinfo ) {
+		_ReadBootInfo(&sBootInfo);
+		read_bootinfo = true;
+	}
 	/* Check only on status TESTING */
 	return IMG_STATUS_TESTING == sBootInfo.ulImgStatus;
 }
