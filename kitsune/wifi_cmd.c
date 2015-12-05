@@ -1449,7 +1449,6 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     uint32_t recv_buf_size = *recv_buf_size_ptr;
     char * recv_buf = *recv_buf_ptr;
 
-    add_loglevel(LOG_DEBUG);
     LOGD("a");
 
     if (!recv_buf) {
@@ -1501,8 +1500,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     }
     LOGD("e");
 
-    rem_loglevel(LOG_DEBUG);
-	}
+    }
 #if 0
     LOGI("HTTP header sent %d\n\r%s\n\r", rv, recv_buf);
 
@@ -1640,6 +1638,8 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     		 *recv_buf_ptr = recv_buf;
     		 *recv_buf_size_ptr = recv_buf_size;
     		 rv = SL_EAGAIN;
+    	} else {
+    		vTaskDelay(1000);
     	}
     } while (rv == SL_EAGAIN);
 
