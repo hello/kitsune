@@ -70,6 +70,22 @@ bool encode_single_ssid (pb_ostream_t *stream, const pb_field_t *field, void * c
 	}
     batched_periodic_data_wifi_access_point* ap = (batched_periodic_data_wifi_access_point *)*arg;
 
+	{
+		static SlGetRxStatResponse_t rxStat;
+		sl_WlanRxStatGet(&rxStat,0);
+		if( rxStat.AvarageDataCtrlRssi == 0 ) {
+			sl_WlanRxStatStart();  // set statistics mode
+		}
+		LOGI("RSSI %d %d\n", rxStat.AvarageDataCtrlRssi, rxStat.AvarageMgMntRssi );
+
+		ap->antenna = (batched_periodic_data_wifi_access_point_AntennaType)get_default_antenna();
+		ap->has_antenna = true;
+		ap->rssi = rxStat.AvarageDataCtrlRssi;
+		ap->has_rssi = true;
+		wifi_get_connected_ssid( (uint8_t*)ap->ssid, sizeof(ap->ssid) );
+		ap->has_ssid = true;
+	}
+
 	if(!pb_encode_tag(stream, PB_WT_STRING, batched_periodic_data_scan_tag))
 	{
 		LOGI("encode_scanned_ssid: Fail to encode tag for ssid, error %s\n", PB_GET_ERROR(stream));
