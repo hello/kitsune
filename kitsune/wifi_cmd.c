@@ -1882,6 +1882,7 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
     }
 
     if (response_protobuf->has_audio_control) {
+    	LOGI("Start Audio Capture\r\n");
     	AudioControlHelper_SetAudioControl(&response_protobuf->audio_control);
     }
 
