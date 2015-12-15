@@ -11,7 +11,7 @@ typedef enum {
 	eAudioSaveToDisk,
 	eAudioPlaybackStart,
 	eAudioPlaybackStop,
-	eAudioCaptureOctogram
+	eAudioCaptureOctogram,
 } EAudioCommand_t;
 
 typedef struct {
@@ -57,6 +57,8 @@ void AudioTask_StartPlayback(const AudioPlaybackDesc_t * desc);
 void AudioTask_StopPlayback(void);
 
 void AudioTask_StopCapture(void);
+
+void AudioTask_RestartCapture(uint32_t rate);
 
 void AudioTask_StartCapture(uint32_t rate);
 
