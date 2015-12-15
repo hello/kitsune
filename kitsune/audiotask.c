@@ -77,7 +77,7 @@ static void StatsCallback(const AudioOncePerMinuteData_t * pdata) {
 
 	xSemaphoreTake(_statsMutex,portMAX_DELAY);
 
-	LOGI("audio disturbance: %d,  background=%d, peak=%d\n",pdata->num_disturbances, pdata->peak_background_energy,pdata->peak_energy);
+	LOGI("audio disturbance: %d,  background=%d, peak=%d, samples = %d\n",pdata->num_disturbances, pdata->peak_background_energy,pdata->peak_energy, _stats.num_samples);
 	_stats.num_disturbances += pdata->num_disturbances;
 	_stats.num_samples++;
 
@@ -90,6 +90,10 @@ static void StatsCallback(const AudioOncePerMinuteData_t * pdata) {
 	_stats.isValid = 1;
 
 	xSemaphoreGive(_statsMutex);
+
+	if(_stats.num_samples % 3600 == 0){
+		AudioTask_RestartCapture(16000);
+	}
 }
 
 static void QueueFileForUpload(const char * filename,uint8_t delete_after_upload) {
