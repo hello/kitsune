@@ -916,7 +916,7 @@ void thread_fast_i2c_poll(void * unused)  {
 
 	while (1) {
 		portTickType now = xTaskGetTickCount();
-		int prox=0;
+		uint32_t prox=0;
 
 		if (xSemaphoreTakeRecursive(i2c_smphr, portMAX_DELAY)) {
 			vTaskDelay(2); //this is important! If we don't do it, then the prox will stretch the clock!
