@@ -59,7 +59,7 @@
 #define TRUE (1)
 #define FALSE (0)
 
-#define MICROPHONE_NOISE_FLOOR_DB (32.0f)
+#define MICROPHONE_NOISE_FLOOR_DB (34.7f)
 
 
 /* Have fun tuning these magic numbers!
