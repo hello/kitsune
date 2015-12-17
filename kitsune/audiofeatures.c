@@ -70,7 +70,7 @@
 static const int16_t k_stable_likelihood_coefficient = TOFIX(1.0,QFIXEDPOINT);
 
 //the closer this gets to zero, the more likely it is that you will be increasing or decreasing
-static const int16_t k_change_log_likelihood = TOFIX(-0.15f,QFIXEDPOINT);
+static const int16_t k_change_log_likelihood = TOFIX(-1.0f,QFIXEDPOINT);
 
 //the closer this gets to zero, the shorter the amount of time it will take to switch between modes
 //the more negative it gets, the more evidence is required before switching modes, in general
