@@ -475,7 +475,8 @@ int Cmd_iperf_server(int argc, char *argv[]) {
 int Cmd_iperf_client(int argc, char *argv[]) {
     if (argc != 4) {
     	LOGI("Run iperf command on target server \"iperf.exe -s -i 1\"\n");
-        LOGI( "usage: iperfcli <ip (hex)> <port> <packets>\n\r");
+        LOGI( "usage: iperfcli <ip (unsigned hex)> <port> <packets>\n\r");
+        LOGI("IP->Integer http://www.aboutmyip.com/AboutMyXApp/IP2Integer.jsp \r\n");
         return -1;
     }
 
@@ -499,7 +500,7 @@ int Cmd_iperf_client(int argc, char *argv[]) {
     unsigned int packets = atoi(argv[3]);
     unsigned short port = atoi(argv[2]);
     char * pend;
-    unsigned int ip = strtol(argv[1], &pend, 16);
+    unsigned int ip = strtoul(argv[1], &pend, 10);
 
     //filling the TCP server socket address
     sAddr.sin_family = SL_AF_INET;
