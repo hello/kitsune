@@ -1903,7 +1903,7 @@ tCmdLineEntry g_sCmdTable[] = {
 #if ( configUSE_TRACE_FACILITY == 1 )
 		{ "tasks", Cmd_tasks, "" },
 #endif
-
+/*
 		{ "dust", Cmd_dusttest, "" },
 		{ "dig", Cmd_dig, "" },
 		{ "fswr", Cmd_fs_write, "" }, //serial flash commands
@@ -1929,6 +1929,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "antsel", Cmd_antsel, "" }, //select antenna
 		{ "led", Cmd_led, "" },
 		{ "clrled", Cmd_led_clr, "" },
+		*/
 #ifdef BUILD_RADIO_TEST
 		{ "rdiostats", Cmd_RadioGetStats, "" },
 		{ "rdiotxstart", Cmd_RadioStartTX, "" },
