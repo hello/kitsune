@@ -504,10 +504,10 @@ int Cmd_iperf_client(int argc, char *argv[]) {
     //filling the TCP server socket address
     sAddr.sin_family = SL_AF_INET;
     sAddr.sin_port = sl_Htons((unsigned short)port);
-    sAddr.sin_addr.s_addr = ((unsigned int)ip);
+    sAddr.sin_addr.s_addr = sl_Htonl((unsigned int)ip);
 
     iAddrSize = sizeof(SlSockAddrIn_t);
-
+    DISP("Connecting to Iperf %u:%u\r\n", ip, port);
     // creating a TCP socket
     iSockID = sl_Socket(SL_AF_INET,SL_SOCK_STREAM, 0);
     if( iSockID < 0 )
