@@ -916,7 +916,7 @@ void thread_fast_i2c_poll(void * unused)  {
 
 	while (1) {
 		portTickType now = xTaskGetTickCount();
-		int prox=0;
+		uint32_t prox=0;
 
 		if (xSemaphoreTakeRecursive(i2c_smphr, portMAX_DELAY)) {
 			vTaskDelay(2); //this is important! If we don't do it, then the prox will stretch the clock!
@@ -1070,10 +1070,10 @@ void thread_tx(void* unused) {
 
 			wifi_get_connected_ssid( (uint8_t*)data_batched.connected_ssid, sizeof(data_batched) );
 			data_batched.has_connected_ssid = true;
-
+#if 0
 			data_batched.scan.funcs.encode = encode_single_ssid;
 			data_batched.scan.arg = &ap;
-
+#endif
 			if (xSemaphoreTakeRecursive(alarm_smphr, 1000)) {
 				if(needs_alarm_ack){
 					data_batched.has_ring_time_ack = true;
