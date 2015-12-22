@@ -77,14 +77,14 @@ static void StatsCallback(const AudioOncePerMinuteData_t * pdata) {
 
 	xSemaphoreTake(_statsMutex,portMAX_DELAY);
 
-	LOGI("audio disturbance: %d,  background=%d, peak=%d, samples = %d\n",pdata->num_disturbances, pdata->peak_background_energy,pdata->peak_energy, _stats.num_samples);
+	LOGI("audio disturbance: %d,  background=%d, peak=%d, samples = %d\n",pdata->num_disturbances, pdata->peak_background_energy, _stats.peak_energy , _stats.num_samples);
 	_stats.num_disturbances += pdata->num_disturbances;
 	_stats.num_samples++;
 
 	_stats.peak_background_energy += pdata->peak_background_energy;
 
-	if (pdata->peak_energy > _stats.peak_energy) {
-		_stats.peak_energy = pdata->peak_energy;
+	if (pdata->peak_background_energy > _stats.peak_energy) {
+		_stats.peak_energy = pdata->peak_background_energy;
 	}
 
 	_stats.isValid = 1;
