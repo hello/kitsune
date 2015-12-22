@@ -91,9 +91,7 @@ static void StatsCallback(const AudioOncePerMinuteData_t * pdata) {
 
 	xSemaphoreGive(_statsMutex);
 
-	if(_stats.num_samples % 3600 == 0){
-		AudioTask_RestartCapture(16000);
-	}
+
 }
 
 static void QueueFileForUpload(const char * filename,uint8_t delete_after_upload) {
@@ -752,14 +750,16 @@ void AudioTask_StopCapture(void) {
 }
 
 void AudioTask_DumpOncePerMinuteStats(AudioOncePerMinuteData_t * pdata) {
-
+	static uint32_t minute_count = 0;
 	xSemaphoreTake(_statsMutex,portMAX_DELAY);
 	memcpy(pdata,&_stats,sizeof(AudioOncePerMinuteData_t));
 	pdata->peak_background_energy/=pdata->num_samples;
-
 	memset(&_stats,0,sizeof(_stats));
-
 	xSemaphoreGive(_statsMutex);
+
+	if(++minute_count % 60 == 0){
+		AudioTask_RestartCapture(16000);
+	}
 
 }
 
