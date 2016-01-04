@@ -1015,9 +1015,14 @@ void thread_tx(void* unused) {
 		if (uxQueueMessagesWaiting(data_queue) >= data_queue_batch_size
 		 || got_forced_data ) {
 			LOGI(	"sending data\n" );
+
+			//adust batch size to get as many as possible in one request
+			int num_data_to_send = uxQueueMessagesWaiting(data_queue) < MAX_BATCH_SIZE ?
+									uxQueueMessagesWaiting(data_queue) : MAX_BATCH_SIZE;
+
 			periodic_data_to_encode periodicdata;
 			periodicdata.num_data = 0;
-			periodicdata.data = (periodic_data*)pvPortMalloc(data_queue_batch_size*sizeof(periodic_data));
+			periodicdata.data = (periodic_data*)pvPortMalloc(num_data_to_send*sizeof(periodic_data));
 
 			if( !periodicdata.data ) {
 				LOGI( "failed to alloc periodicdata\n" );
@@ -1028,7 +1033,7 @@ void thread_tx(void* unused) {
 				memcpy( &periodicdata.data[periodicdata.num_data], &forced_data, sizeof(forced_data) );
 				++periodicdata.num_data;
 			}
-			while( periodicdata.num_data < data_queue_batch_size && xQueueReceive(data_queue, &periodicdata.data[periodicdata.num_data], 1 ) ) {
+			while( periodicdata.num_data < num_data_to_send && xQueueReceive(data_queue, &periodicdata.data[periodicdata.num_data], 1 ) ) {
 				++periodicdata.num_data;
 			}
 

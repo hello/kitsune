@@ -1942,8 +1942,8 @@ static void _on_sync_response_failure( ){
     LOGF("signature validation fail\r\n");
 }
 
-//give up after 15 minutes & move on
-#define DATA_UPLOAD_TIMEOUT 15 * 60 * 1000
+//give up after MAX_BATCH_SIZE minutes...
+#define DATA_UPLOAD_TIMEOUT ( MAX_BATCH_SIZE * 60 * 1000 )
 
 //retry logic is handled elsewhere
 bool send_pill_data(batched_pill_data * pill_data) {

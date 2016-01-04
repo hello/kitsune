@@ -37,6 +37,8 @@ int sl_mode;
 
 #define SERVER_REPLY_BUFSZ 2048
 
+#define MAX_BATCH_SIZE 15
+
 #include "stdint.h"
 #include "sync_response.pb.h"
 #include "provision.pb.h"
