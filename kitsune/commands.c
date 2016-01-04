@@ -1091,7 +1091,7 @@ void thread_tx(void* unused) {
 		}
 
 		if (uxQueueMessagesWaiting(pill_queue) > pill_queue_batch_size) {
-			LOGI(	"sending  pill data\n" );
+			LOGI( "sending  pill data\n" );
 			pilldata_to_encode pilldata;
 			pilldata.num_pills = 0;
 			pilldata.pills = (pill_data*)pvPortMalloc(MAX_BATCH_PILL_DATA*sizeof(pill_data));
