@@ -1006,7 +1006,9 @@ int pill_queue_batch_size = PILL_BATCH_WATERMARK;
 void thread_tx(void* unused) {
 	batched_pill_data pill_data_batched = {0};
 	batched_periodic_data data_batched = {0};
+#ifdef UPLOAD_AP_INFO
 	batched_periodic_data_wifi_access_point ap;
+#endif
 	periodic_data forced_data;
 	bool got_forced_data = false;
 
@@ -1075,7 +1077,7 @@ void thread_tx(void* unused) {
 
 			wifi_get_connected_ssid( (uint8_t*)data_batched.connected_ssid, sizeof(data_batched) );
 			data_batched.has_connected_ssid = true;
-#if 0
+#if UPLOAD_AP_INFO
 			data_batched.scan.funcs.encode = encode_single_ssid;
 			data_batched.scan.arg = &ap;
 #endif
