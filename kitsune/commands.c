@@ -829,10 +829,10 @@ static int _is_light_off()
 	if(last_light != -1)
 	{
 		int delta = last_light - light;
-		//LOGI("delta: %d, current %d, last %d\n", delta, current_light, last_light);
 		if(delta >= light_off_threshold && light < 300)
 		{
 			//LOGI("Light off\n");
+			LOGI("delta: %d, current %d, last %d\n", delta, current_light, last_light);
 			ret = 1;
 			light_mean = light; //so the led alpha will be at the lights off level
 		}
