@@ -344,6 +344,7 @@ static void _ble_reply_wifi_info(){
 
 #include "wifi_cmd.h"
 extern xQueueHandle pill_queue;
+extern xQueueHandle pill_prox_queue;
 
 static void _process_encrypted_pill_data( MorpheusCommand* command)
 {
@@ -355,8 +356,14 @@ static void _process_encrypted_pill_data( MorpheusCommand* command)
     	}
     	uint32_t timestamp = get_time();
         command->pill_data.timestamp = timestamp;  // attach timestamp, so we don't need to worry about the sending time
-        xQueueSend(pill_queue, &command->pill_data, 10);
-
+        switch(command->type){
+        case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_PROX_DATA:
+        	xQueueSend(pill_prox_queue, &command->pill_data, 10);
+        	break;
+        case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_DATA:
+        	 xQueueSend(pill_queue, &command->pill_data, 10);
+        	break;
+        }
         if(command->pill_data.has_motion_data_entrypted)
         {
             LOGI("PILL DATA FROM ID: %s, length: %d\n", command->pill_data.device_id,
@@ -771,6 +778,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         	LOGI("PHONE BONDED\n");
         }
         break;
+        case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_PROX_DATA:
     	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_DATA: 
         {
     		// Pill data received from ANT

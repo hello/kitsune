@@ -993,6 +993,7 @@ void thread_fast_i2c_poll(void * unused)  {
 xQueueHandle data_queue = 0;
 xQueueHandle force_data_queue = 0;
 xQueueHandle pill_queue = 0;
+xQueueHandle pill_prox_queue = 0;
 
 extern volatile bool top_got_device_id;
 extern volatile portTickType last_upload_time;
@@ -1113,6 +1114,11 @@ void thread_tx(void* unused) {
 
 			send_pill_data(&pill_data_batched);
 			vPortFree( pilldata.pills );
+		}
+		if (uxQueueMessagesWaiting(pill_prox_queue) > pill_queue_batch_size) {
+			LOGI(	"sending  prox data\n" );
+			pill_data dummy;
+			while(xQueueReceive(pill_prox_queue, &dummy, 1 ));
 		}
 		do {
 			if( xQueueReceive(force_data_queue, &forced_data, 1000 ) ) {
@@ -2068,6 +2074,7 @@ void vUARTTask(void *pvParameters) {
 	data_queue = xQueueCreate(MAX_PERIODIC_DATA, sizeof(periodic_data));
 	force_data_queue = xQueueCreate(1, sizeof(periodic_data));
 	pill_queue = xQueueCreate(MAX_PILL_DATA, sizeof(pill_data));
+	pill_prox_queue = xQueueCreate(MAX_PILL_DATA, sizeof(pill_data));
 	vSemaphoreCreateBinary(dust_smphr);
 	vSemaphoreCreateBinary(light_smphr);
 	vSemaphoreCreateBinary(spi_smphr);
