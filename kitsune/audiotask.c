@@ -77,19 +77,21 @@ static void StatsCallback(const AudioOncePerMinuteData_t * pdata) {
 
 	xSemaphoreTake(_statsMutex,portMAX_DELAY);
 
-	//LOGI("audio disturbance: background=%d, peak=%d\n",pdata->peak_background_energy,pdata->peak_energy);
+	LOGI("audio disturbance: %d,  background=%d, peak=%d, samples = %d\n",pdata->num_disturbances, pdata->peak_background_energy, _stats.peak_energy , _stats.num_samples);
 	_stats.num_disturbances += pdata->num_disturbances;
 	_stats.num_samples++;
 
 	_stats.peak_background_energy += pdata->peak_background_energy;
 
-	if (pdata->peak_energy > _stats.peak_energy) {
-		_stats.peak_energy = pdata->peak_energy;
+	if (pdata->peak_background_energy > _stats.peak_energy) {
+		_stats.peak_energy = pdata->peak_background_energy;
 	}
 
 	_stats.isValid = 1;
 
 	xSemaphoreGive(_statsMutex);
+
+
 }
 
 static void QueueFileForUpload(const char * filename,uint8_t delete_after_upload) {
@@ -510,7 +512,6 @@ static void DoCapture(uint32_t rate) {
 				goto CAPTURE_CLEANUP;
 			}
 
-
 			default:
 			{
 				//place message back on queue
@@ -699,6 +700,11 @@ void AudioTask_StopPlayback(void) {
 		xQueueSendToFront(_queue,(void *)&m,0);
 	}
 }
+void AudioTask_RestartCapture(uint32_t rate){
+	LOGI("Restarting Capture\r\n");
+	AudioTask_StopPlayback();
+	AudioTask_StartCapture(rate);
+}
 
 void AudioTask_StartPlayback(const AudioPlaybackDesc_t * desc) {
 	AudioMessage_t m;
@@ -744,14 +750,16 @@ void AudioTask_StopCapture(void) {
 }
 
 void AudioTask_DumpOncePerMinuteStats(AudioOncePerMinuteData_t * pdata) {
-
+	static uint32_t minute_count = 0;
 	xSemaphoreTake(_statsMutex,portMAX_DELAY);
 	memcpy(pdata,&_stats,sizeof(AudioOncePerMinuteData_t));
 	pdata->peak_background_energy/=pdata->num_samples;
-
 	memset(&_stats,0,sizeof(_stats));
-
 	xSemaphoreGive(_statsMutex);
+
+	if(++minute_count % 60 == 0){
+		AudioTask_RestartCapture(16000);
+	}
 
 }
 

@@ -59,7 +59,7 @@
 #define TRUE (1)
 #define FALSE (0)
 
-#define MICROPHONE_NOISE_FLOOR_DB (32.0f)
+#define MICROPHONE_NOISE_FLOOR_DB (34.7f)
 
 
 /* Have fun tuning these magic numbers!
@@ -70,7 +70,7 @@
 static const int16_t k_stable_likelihood_coefficient = TOFIX(1.0,QFIXEDPOINT);
 
 //the closer this gets to zero, the more likely it is that you will be increasing or decreasing
-static const int16_t k_change_log_likelihood = TOFIX(-0.15f,QFIXEDPOINT);
+static const int16_t k_change_log_likelihood = TOFIX(-1.0f,QFIXEDPOINT);
 
 //the closer this gets to zero, the shorter the amount of time it will take to switch between modes
 //the more negative it gets, the more evidence is required before switching modes, in general
@@ -217,6 +217,7 @@ static void UpdateEnergyStats(uint8_t isStable,int16_t logTotalEnergyAvg,int16_t
 
 	//leaving stable mode -- therefore starting a disturbance
 	if (!isStable && _data.statsLastIsStable) {
+		LOGI("S->US\r\n");
 		_data.maxenergy = logTotalEnergy;
 	}
 
@@ -228,6 +229,7 @@ static void UpdateEnergyStats(uint8_t isStable,int16_t logTotalEnergyAvg,int16_t
 
 	//entering stable mode --ending a disturbance
 	if (isStable && !_data.statsLastIsStable ) {
+		LOGI("US->S\r\n");
 		data.num_disturbances = 1;
 	}
 
