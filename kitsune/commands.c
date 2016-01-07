@@ -989,6 +989,8 @@ void thread_fast_i2c_poll(void * unused)  {
 #define MAX_PILL_DATA 20
 #define MAX_BATCH_PILL_DATA 10
 #define PILL_BATCH_WATERMARK 0
+#define MAX_BATCH_SIZE 15
+#define ONE_HOUR_IN_MS ( 3600 * 1000 )
 
 xQueueHandle data_queue = 0;
 xQueueHandle force_data_queue = 0;
@@ -1018,13 +1020,9 @@ void thread_tx(void* unused) {
 		 || got_forced_data ) {
 			LOGI(	"sending data\n" );
 
-			//adust batch size to get as many as possible in one request
-			int num_data_to_send = uxQueueMessagesWaiting(data_queue) < MAX_BATCH_SIZE ?
-									uxQueueMessagesWaiting(data_queue) : MAX_BATCH_SIZE;
-
 			periodic_data_to_encode periodicdata;
 			periodicdata.num_data = 0;
-			periodicdata.data = (periodic_data*)pvPortMalloc(num_data_to_send*sizeof(periodic_data));
+			periodicdata.data = (periodic_data*)pvPortMalloc(MAX_BATCH_SIZE*sizeof(periodic_data));
 
 			if( !periodicdata.data ) {
 				LOGI( "failed to alloc periodicdata\n" );
@@ -1035,7 +1033,7 @@ void thread_tx(void* unused) {
 				memcpy( &periodicdata.data[periodicdata.num_data], &forced_data, sizeof(forced_data) );
 				++periodicdata.num_data;
 			}
-			while( periodicdata.num_data < num_data_to_send && xQueueReceive(data_queue, &periodicdata.data[periodicdata.num_data], 1 ) ) {
+			while( periodicdata.num_data < MAX_BATCH_SIZE && xQueueReceive(data_queue, &periodicdata.data[periodicdata.num_data], 1 ) ) {
 				++periodicdata.num_data;
 			}
 
@@ -1089,7 +1087,7 @@ void thread_tx(void* unused) {
 				}
 				xSemaphoreGiveRecursive(alarm_smphr);
 			}
-			if( send_periodic_data(&data_batched, got_forced_data) ) {
+			if( send_periodic_data(&data_batched, got_forced_data, ( MAX_PERIODIC_DATA - uxQueueMessagesWaiting(data_queue) ) * 60 * 1000 ) ) {
 				last_upload_time = xTaskGetTickCount();
 			}
 
@@ -1118,7 +1116,7 @@ void thread_tx(void* unused) {
 			pill_data_batched.pills.arg = &pilldata;
 			pill_data_batched.device_id.funcs.encode = encode_device_id_string;
 
-			send_pill_data(&pill_data_batched);
+			send_pill_data(&pill_data_batched, ONE_HOUR_IN_MS );
 			vPortFree( pilldata.pills );
 		}
 		do {

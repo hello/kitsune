@@ -37,8 +37,6 @@ int sl_mode;
 
 #define SERVER_REPLY_BUFSZ 2048
 
-#define MAX_BATCH_SIZE 15
-
 #include "stdint.h"
 #include "sync_response.pb.h"
 #include "provision.pb.h"
@@ -105,8 +103,8 @@ void wifi_status_init();
 int wifi_status_set(unsigned int status, int remove_status);
 int wifi_status_get(unsigned int status);
 
-bool send_periodic_data(batched_periodic_data* data, bool forced);
-bool send_pill_data(batched_pill_data * pill_data);
+bool send_periodic_data(batched_periodic_data* data, bool forced, int32_t to);
+bool send_pill_data(batched_pill_data * pill_data, int32_t to);
 bool send_provision_request(ProvisionRequest* req);
 #define DEFAULT_KEY "1234567891234567"
 

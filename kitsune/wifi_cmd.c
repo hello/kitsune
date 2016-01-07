@@ -1942,11 +1942,8 @@ static void _on_sync_response_failure( ){
     LOGF("signature validation fail\r\n");
 }
 
-//give up after MAX_BATCH_SIZE minutes...
-#define DATA_UPLOAD_TIMEOUT ( MAX_BATCH_SIZE * 60 * 1000 )
-
 //retry logic is handled elsewhere
-bool send_pill_data(batched_pill_data * pill_data) {
+bool send_pill_data(batched_pill_data * pill_data, int32_t to) {
     protobuf_reply_callbacks pb_cb;
 
     pb_cb.get_reply_pb = _get_sync_response;
@@ -1955,10 +1952,10 @@ bool send_pill_data(batched_pill_data * pill_data) {
     pb_cb.on_pb_failure = _on_sync_response_failure;
 
 	return NetworkTask_SendProtobuf(true, DATA_SERVER,
-			PILL_DATA_RECEIVE_ENDPOINT, batched_pill_data_fields, pill_data, DATA_UPLOAD_TIMEOUT,
+			PILL_DATA_RECEIVE_ENDPOINT, batched_pill_data_fields, pill_data, to,
 			NULL, NULL, &pb_cb, false);
 }
-bool send_periodic_data(batched_periodic_data* data, bool forced) {
+bool send_periodic_data(batched_periodic_data* data, bool forced, int32_t to) {
     protobuf_reply_callbacks pb_cb;
 
     pb_cb.get_reply_pb = _get_sync_response;
@@ -1967,7 +1964,7 @@ bool send_periodic_data(batched_periodic_data* data, bool forced) {
     pb_cb.on_pb_failure = _on_sync_response_failure;
 
 	return NetworkTask_SendProtobuf(true, DATA_SERVER,
-			DATA_RECEIVE_ENDPOINT, batched_periodic_data_fields, data, DATA_UPLOAD_TIMEOUT,
+			DATA_RECEIVE_ENDPOINT, batched_periodic_data_fields, data, to,
 			NULL, NULL, &pb_cb, forced);
 }
 
