@@ -1003,9 +1003,35 @@ bool is_test_boot();
 //no need for semaphore, only thread_tx uses this one
 int data_queue_batch_size = 1;
 int pill_queue_batch_size = PILL_BATCH_WATERMARK;
-
-void thread_tx(void* unused) {
+static void handle_pill_queue(xQueueHandle queue, const char * endpoint){
 	batched_pill_data pill_data_batched = {0};
+	if (uxQueueMessagesWaiting(queue) > pill_queue_batch_size) {
+		LOGI("Handling Queue for %s\r\n",endpoint);
+		pilldata_to_encode pilldata;
+		pilldata.num_pills = 0;
+		pilldata.pills = (pill_data*)pvPortMalloc(MAX_BATCH_PILL_DATA*sizeof(pill_data));
+
+		if( !pilldata.pills ) {
+			LOGE( "failed to alloc pilldata\n" );
+			vTaskDelay(1000);
+			return;
+		}
+
+		while( pilldata.num_pills < MAX_BATCH_PILL_DATA && xQueueReceive(queue, &pilldata.pills[pilldata.num_pills], 1 ) ) {
+			++pilldata.num_pills;
+		}
+
+		memset(&pill_data_batched, 0, sizeof(pill_data_batched));
+		pill_data_batched.pills.funcs.encode = encode_all_pills;  // This is smart :D
+		pill_data_batched.pills.arg = &pilldata;
+		pill_data_batched.device_id.funcs.encode = encode_device_id_string;
+
+		send_pill_data_generic(&pill_data_batched, endpoint);
+		vPortFree( pilldata.pills );
+	}
+}
+#include "endpoints.h"
+void thread_tx(void* unused) {
 	batched_periodic_data data_batched = {0};
 	batched_periodic_data_wifi_access_point ap;
 	periodic_data forced_data;
@@ -1091,54 +1117,9 @@ void thread_tx(void* unused) {
 			got_forced_data = false;
 		}
 
-		if (uxQueueMessagesWaiting(pill_queue) > pill_queue_batch_size) {
-			LOGI(	"sending  pill data\n" );
-			pilldata_to_encode pilldata;
-			pilldata.num_pills = 0;
-			pilldata.pills = (pill_data*)pvPortMalloc(MAX_BATCH_PILL_DATA*sizeof(pill_data));
+		handle_pill_queue(pill_queue, PILL_DATA_RECEIVE_ENDPOINT);
+		handle_pill_queue(pill_prox_queue, PILL_PROX_DATA_RECEIVE_ENDPOINT);
 
-			if( !pilldata.pills ) {
-				LOGI( "failed to alloc pilldata\n" );
-				vTaskDelay(1000);
-				continue;
-			}
-
-			while( pilldata.num_pills < MAX_BATCH_PILL_DATA && xQueueReceive(pill_queue, &pilldata.pills[pilldata.num_pills], 1 ) ) {
-				++pilldata.num_pills;
-			}
-
-			memset(&pill_data_batched, 0, sizeof(pill_data_batched));
-			pill_data_batched.pills.funcs.encode = encode_all_pills;  // This is smart :D
-			pill_data_batched.pills.arg = &pilldata;
-			pill_data_batched.device_id.funcs.encode = encode_device_id_string;
-
-			send_pill_data(&pill_data_batched);
-			vPortFree( pilldata.pills );
-		}
-		if (uxQueueMessagesWaiting(pill_prox_queue) > pill_queue_batch_size) {
-			LOGI(	"sending  prox data\n" );
-			pilldata_to_encode pilldata;
-			pilldata.num_pills = 0;
-			pilldata.pills = (pill_data*)pvPortMalloc(MAX_BATCH_PILL_DATA*sizeof(pill_data));
-
-			if( !pilldata.pills ) {
-				LOGI( "failed to alloc pilldata\n" );
-				vTaskDelay(1000);
-				continue;
-			}
-
-			while( pilldata.num_pills < MAX_BATCH_PILL_DATA && xQueueReceive(pill_queue, &pilldata.pills[pilldata.num_pills], 1 ) ) {
-				++pilldata.num_pills;
-			}
-
-			memset(&pill_data_batched, 0, sizeof(pill_data_batched));
-			pill_data_batched.pills.funcs.encode = encode_all_pills;  // This is smart :D
-			pill_data_batched.pills.arg = &pilldata;
-			pill_data_batched.device_id.funcs.encode = encode_device_id_string;
-
-			send_pill_prox_data(&pill_data_batched);
-			vPortFree( pilldata.pills );
-		}
 		do {
 			if( xQueueReceive(force_data_queue, &forced_data, 1000 ) ) {
 				got_forced_data = true;

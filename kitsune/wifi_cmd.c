@@ -1953,13 +1953,7 @@ bool send_pill_data_generic(batched_pill_data * pill_data, const char * endpoint
 			endpoint, batched_pill_data_fields, pill_data, INT_MAX,
 			NULL, NULL, &pb_cb, false);
 }
-//retry logic is handled elsewhere
-bool send_pill_data(batched_pill_data * pill_data) {
-	return send_pill_data_generic(pill_data, PILL_DATA_RECEIVE_ENDPOINT);
-}
-bool send_pill_prox_data(batched_pill_data * pill_data) {
-	return send_pill_data_generic(pill_data, PILL_PROX_DATA_RECEIVE_ENDPOINT);
-}
+
 bool send_periodic_data(batched_periodic_data* data, bool forced) {
     protobuf_reply_callbacks pb_cb;
 
