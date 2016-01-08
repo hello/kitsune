@@ -1117,8 +1117,27 @@ void thread_tx(void* unused) {
 		}
 		if (uxQueueMessagesWaiting(pill_prox_queue) > pill_queue_batch_size) {
 			LOGI(	"sending  prox data\n" );
-			pill_data dummy;
-			while(xQueueReceive(pill_prox_queue, &dummy, 1 ));
+			pilldata_to_encode pilldata;
+			pilldata.num_pills = 0;
+			pilldata.pills = (pill_data*)pvPortMalloc(MAX_BATCH_PILL_DATA*sizeof(pill_data));
+
+			if( !pilldata.pills ) {
+				LOGI( "failed to alloc pilldata\n" );
+				vTaskDelay(1000);
+				continue;
+			}
+
+			while( pilldata.num_pills < MAX_BATCH_PILL_DATA && xQueueReceive(pill_queue, &pilldata.pills[pilldata.num_pills], 1 ) ) {
+				++pilldata.num_pills;
+			}
+
+			memset(&pill_data_batched, 0, sizeof(pill_data_batched));
+			pill_data_batched.pills.funcs.encode = encode_all_pills;  // This is smart :D
+			pill_data_batched.pills.arg = &pilldata;
+			pill_data_batched.device_id.funcs.encode = encode_device_id_string;
+
+			send_pill_prox_data(&pill_data_batched);
+			vPortFree( pilldata.pills );
 		}
 		do {
 			if( xQueueReceive(force_data_queue, &forced_data, 1000 ) ) {
