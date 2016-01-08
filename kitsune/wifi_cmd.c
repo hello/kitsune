@@ -1941,19 +1941,24 @@ static void _on_sync_response_success( void * structdata){
 static void _on_sync_response_failure( ){
     LOGF("signature validation fail\r\n");
 }
+bool send_pill_data_generic(batched_pill_data * pill_data, const char * endpoint){
+	 protobuf_reply_callbacks pb_cb;
 
-//retry logic is handled elsewhere
-bool send_pill_data(batched_pill_data * pill_data) {
-    protobuf_reply_callbacks pb_cb;
-
-    pb_cb.get_reply_pb = _get_sync_response;
-    pb_cb.free_reply_pb = _free_sync_response;
-    pb_cb.on_pb_success = _on_sync_response_success;
-    pb_cb.on_pb_failure = _on_sync_response_failure;
+	pb_cb.get_reply_pb = _get_sync_response;
+	pb_cb.free_reply_pb = _free_sync_response;
+	pb_cb.on_pb_success = _on_sync_response_success;
+	pb_cb.on_pb_failure = _on_sync_response_failure;
 
 	return NetworkTask_SendProtobuf(true, DATA_SERVER,
-			PILL_DATA_RECEIVE_ENDPOINT, batched_pill_data_fields, pill_data, INT_MAX,
+			endpoint, batched_pill_data_fields, pill_data, INT_MAX,
 			NULL, NULL, &pb_cb, false);
+}
+//retry logic is handled elsewhere
+bool send_pill_data(batched_pill_data * pill_data) {
+	return send_pill_data_generic(pill_data, PILL_DATA_RECEIVE_ENDPOINT);
+}
+bool send_pill_prox_data(batched_pill_data * pill_data) {
+	return send_pill_data_generic(pill_data, PILL_PROX_DATA_RECEIVE_ENDPOINT);
 }
 bool send_periodic_data(batched_periodic_data* data, bool forced) {
     protobuf_reply_callbacks pb_cb;

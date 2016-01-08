@@ -105,6 +105,7 @@ int wifi_status_get(unsigned int status);
 
 bool send_periodic_data(batched_periodic_data* data, bool forced);
 bool send_pill_data(batched_pill_data * pill_data);
+bool send_pill_prox_data(batched_pill_data * pill_data);
 bool send_provision_request(ProvisionRequest* req);
 #define DEFAULT_KEY "1234567891234567"
 
