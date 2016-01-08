@@ -1025,8 +1025,9 @@ static void handle_pill_queue(xQueueHandle queue, const char * endpoint){
 		pill_data_batched.pills.funcs.encode = encode_all_pills;  // This is smart :D
 		pill_data_batched.pills.arg = &pilldata;
 		pill_data_batched.device_id.funcs.encode = encode_device_id_string;
-
-		send_pill_data_generic(&pill_data_batched, endpoint);
+		if(endpoint){
+			send_pill_data_generic(&pill_data_batched, endpoint);
+		}
 		vPortFree( pilldata.pills );
 	}
 }
