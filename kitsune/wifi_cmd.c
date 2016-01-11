@@ -1110,7 +1110,7 @@ int start_connection() {
                 nwp_reset();
                 vTaskDelay(10000);
             }
-            return -1;
+            return stop_connection();
         }
     }
     LOGD("2");
