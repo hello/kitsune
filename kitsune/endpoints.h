@@ -13,7 +13,6 @@ char * get_server(void);
 #define AUDIO_FEATURES_ENDPOINT             "/audio/features"
 #define RAW_AUDIO_ENDPOINT                 "/audio/raw"
 #define PILL_DATA_RECEIVE_ENDPOINT          "/in/pill"
-#define PILL_PROX_DATA_RECEIVE_ENDPOINT		"/in/pill/prox"
 #define CHECK_KEY_ENDPOINT                  "/check"
 #define PROVISION_ENDPOINT					"/provision/keys"
 
