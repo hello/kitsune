@@ -1003,10 +1003,14 @@ bool is_test_boot();
 //no need for semaphore, only thread_tx uses this one
 int data_queue_batch_size = 1;
 int pill_queue_batch_size = PILL_BATCH_WATERMARK;
-static void handle_pill_queue(xQueueHandle queue, const char * endpoint){
+typedef enum{
+	MOTION = 0,
+	PROX
+}pill_batch_type;
+
+static void handle_pill_queue(xQueueHandle queue, const char * endpoint, pill_batch_type type){
 	batched_pill_data pill_data_batched = {0};
 	if (uxQueueMessagesWaiting(queue) > pill_queue_batch_size) {
-		LOGI("Handling Queue for %s\r\n",endpoint);
 		pilldata_to_encode pilldata;
 		pilldata.num_pills = 0;
 		pilldata.pills = (pill_data*)pvPortMalloc(MAX_BATCH_PILL_DATA*sizeof(pill_data));
@@ -1022,12 +1026,24 @@ static void handle_pill_queue(xQueueHandle queue, const char * endpoint){
 		}
 
 		memset(&pill_data_batched, 0, sizeof(pill_data_batched));
-		pill_data_batched.pills.funcs.encode = encode_all_pills;  // This is smart :D
-		pill_data_batched.pills.arg = &pilldata;
 		pill_data_batched.device_id.funcs.encode = encode_device_id_string;
+		switch(type){
+			case MOTION:
+				pill_data_batched.pills.funcs.encode = encode_all_pills;
+				pill_data_batched.pills.arg = &pilldata;
+				break;
+			case PROX:
+				DISP("Encoding PROX\r\n");
+				pill_data_batched.prox.funcs.encode = encode_all_prox;
+				pill_data_batched.prox.arg = &pilldata;
+				break;
+			default:
+				goto end;
+		}
 		if(endpoint){
 			send_pill_data_generic(&pill_data_batched, endpoint);
 		}
+end:
 		vPortFree( pilldata.pills );
 	}
 }
@@ -1118,8 +1134,8 @@ void thread_tx(void* unused) {
 			got_forced_data = false;
 		}
 
-		handle_pill_queue(pill_queue, PILL_DATA_RECEIVE_ENDPOINT);
-		handle_pill_queue(pill_prox_queue, PILL_PROX_DATA_RECEIVE_ENDPOINT);
+		handle_pill_queue(pill_queue, PILL_DATA_RECEIVE_ENDPOINT, (pill_batch_type)MOTION);
+		handle_pill_queue(pill_prox_queue, PILL_DATA_RECEIVE_ENDPOINT,  (pill_batch_type)PROX);
 
 		do {
 			if( xQueueReceive(force_data_queue, &forced_data, 1000 ) ) {
