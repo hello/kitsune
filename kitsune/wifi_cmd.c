@@ -131,6 +131,9 @@ void SimpleLinkSockEventHandler(SlSockEvent_t *pSock)
 }
 
 static uint8_t _connected_ssid[MAX_SSID_LEN];
+#define INV_INDEX 0xff
+static int _connected_index = INV_INDEX;
+static uint8_t _connected_bssid[BSSID_LEN];
 void wifi_get_connected_ssid(uint8_t* ssid_buffer, size_t len)
 {
     size_t copy_len = MAX_SSID_LEN > len ? len : MAX_SSID_LEN;
@@ -172,6 +175,8 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
 		}else{
 			memset(_connected_ssid, 0, MAX_SSID_LEN);
 			memcpy(_connected_ssid, pSSID, ssidLength);
+			memset(_connected_bssid, 0, BSSID_LEN);
+			memcpy(_connected_bssid, (char*)pSlWlanEvent->EventData.STAandP2PModeWlanConnected.bssid, BSSID_LEN);
 		}
         LOGI("SL_WLAN_CONNECT_EVENT\n");
         ble_reply_wifi_status(wifi_connection_state_WLAN_CONNECTED);
@@ -208,7 +213,18 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
 //
 //****************************************************************************
 static void wifi_ip_update_task( void * params ) {
-	ble_reply_wifi_status(wifi_connection_state_IP_RETRIEVED);
+
+    if( _connected_index != INV_INDEX ) {
+    	int i;
+    	for( i=0; i < 7; ++i ) {
+    		if( i != _connected_index ) {
+    		    sl_WlanProfileDel(i);
+    		}
+    	}
+    }
+
+    ble_reply_wifi_status(wifi_connection_state_IP_RETRIEVED);
+
 	vTaskDelete(NULL);
 }
 
@@ -2475,19 +2491,18 @@ int connect_wifi(const char* ssid, const char* password, int sec_type, int versi
 		memcpy( secParam.Key, wep_hex, secParam.KeyLen + 1 );
     }
 
-
-	int16_t index = 0;
 	int16_t ret = 0;
 	uint8_t retry = 5;
-	while((index = sl_WlanProfileAdd((_i8*) ssid, strlen(ssid), NULL,
+	while((_connected_index = sl_WlanProfileAdd((_i8*) ssid, strlen(ssid), NULL,
 			&secParam, NULL, 0, 0)) < 0 && retry--){
 		ret = sl_WlanProfileDel(0xFF);
 		if (ret != 0) {
 			LOGI("profile del fail\n");
 		}
 	}
+	LOGI("index %d\n", _connected_index);
 
-	if (index < 0) {
+	if (_connected_index < 0) {
 		LOGI("profile add fail\n");
 		return 0;
 	}
