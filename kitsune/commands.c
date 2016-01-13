@@ -2,8 +2,6 @@
 //
 // commands.c - FreeRTOS porting example on CCS4
 //
-// Copyright (c) 2012 Fuel7, Inc.
-//
 //*****************************************************************************
 #include <stdio.h>
 #include <string.h>
