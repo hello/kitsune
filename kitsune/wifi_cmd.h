@@ -17,6 +17,9 @@
 #ifndef MAX_SSID_LEN
 #define MAX_SSID_LEN	(33)
 #endif
+#ifndef BSSID_LEN
+#define BSSID_LEN	(8)
+#endif
 
 extern xSemaphoreHandle pill_smphr;
 
