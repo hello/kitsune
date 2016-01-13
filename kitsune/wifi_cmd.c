@@ -131,6 +131,7 @@ void SimpleLinkSockEventHandler(SlSockEvent_t *pSock)
 }
 
 static uint8_t _connected_ssid[MAX_SSID_LEN];
+static uint8_t _connected_bssid[BSSID_LEN];
 void wifi_get_connected_ssid(uint8_t* ssid_buffer, size_t len)
 {
     size_t copy_len = MAX_SSID_LEN > len ? len : MAX_SSID_LEN;
@@ -172,6 +173,8 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
 		}else{
 			memset(_connected_ssid, 0, MAX_SSID_LEN);
 			memcpy(_connected_ssid, pSSID, ssidLength);
+			memset(_connected_bssid, 0, BSSID_LEN);
+			memcpy(_connected_bssid, (char*)pSlWlanEvent->EventData.STAandP2PModeWlanConnected.bssid, BSSID_LEN);
 		}
         LOGI("SL_WLAN_CONNECT_EVENT\n");
         ble_reply_wifi_status(wifi_connection_state_WLAN_CONNECTED);
@@ -190,13 +193,27 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
         wifi_status_set(0xFFFFFFFF, true);
         memset(_connected_ssid, 0, MAX_SSID_LEN);
         LOGI("SL_WLAN_DISCONNECT_EVENT\n");
+
+        { //recommended ti debug block
+		int i;
+
+		LOGI("AP: \"%s\" Code=%d BSSID:",_connected_ssid, pSlWlanEvent->EventData.STAandP2PModeDisconnected.reason_code);
+    	LOGI( "%x", _connected_bssid[0]);
+    	for( i=1;i< BSSID_LEN;++i) {
+        	LOGI( ":%x", _connected_bssid[i] );
+        } LOGI("\n");
+        }
+
     	ble_reply_wifi_status(wifi_connection_state_NO_WLAN_CONNECTED);
         break;
     default:
         break;
     }
 }
-
+void SimpleLinkGeneralEventHandler(SlDeviceEvent_t *pDevEvent)
+{
+LOGI("GENEVT ID=%d Sender=%d\n",pDevEvent->EventData.deviceEvent.status, pDevEvent->EventData.deviceEvent.sender);
+}
 //****************************************************************************
 //
 //!    \brief This function handles events for IP address acquisition via DHCP
