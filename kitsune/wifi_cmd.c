@@ -131,6 +131,9 @@ void SimpleLinkSockEventHandler(SlSockEvent_t *pSock)
 }
 
 static uint8_t _connected_ssid[MAX_SSID_LEN];
+#define INV_INDEX 0xff
+static int _connected_index = INV_INDEX;
+static uint8_t _connected_bssid[BSSID_LEN];
 void wifi_get_connected_ssid(uint8_t* ssid_buffer, size_t len)
 {
     size_t copy_len = MAX_SSID_LEN > len ? len : MAX_SSID_LEN;
@@ -172,6 +175,8 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
 		}else{
 			memset(_connected_ssid, 0, MAX_SSID_LEN);
 			memcpy(_connected_ssid, pSSID, ssidLength);
+			memset(_connected_bssid, 0, BSSID_LEN);
+			memcpy(_connected_bssid, (char*)pSlWlanEvent->EventData.STAandP2PModeWlanConnected.bssid, BSSID_LEN);
 		}
         LOGI("SL_WLAN_CONNECT_EVENT\n");
         ble_reply_wifi_status(wifi_connection_state_WLAN_CONNECTED);
@@ -208,7 +213,18 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
 //
 //****************************************************************************
 static void wifi_ip_update_task( void * params ) {
-	ble_reply_wifi_status(wifi_connection_state_IP_RETRIEVED);
+
+    if( _connected_index != INV_INDEX ) {
+    	int i;
+    	for( i=0; i < 7; ++i ) {
+    		if( i != _connected_index ) {
+    		    sl_WlanProfileDel(i);
+    		}
+    	}
+    }
+
+    ble_reply_wifi_status(wifi_connection_state_IP_RETRIEVED);
+
 	vTaskDelete(NULL);
 }
 
@@ -1110,7 +1126,7 @@ int start_connection() {
                 nwp_reset();
                 vTaskDelay(10000);
             }
-            return -1;
+            return stop_connection();
         }
     }
     LOGD("2");
@@ -1943,7 +1959,7 @@ static void _on_sync_response_failure( ){
 }
 
 //retry logic is handled elsewhere
-bool send_pill_data(batched_pill_data * pill_data) {
+bool send_pill_data(batched_pill_data * pill_data, int32_t to) {
     protobuf_reply_callbacks pb_cb;
 
     pb_cb.get_reply_pb = _get_sync_response;
@@ -1952,10 +1968,10 @@ bool send_pill_data(batched_pill_data * pill_data) {
     pb_cb.on_pb_failure = _on_sync_response_failure;
 
 	return NetworkTask_SendProtobuf(true, DATA_SERVER,
-			PILL_DATA_RECEIVE_ENDPOINT, batched_pill_data_fields, pill_data, INT_MAX,
+			PILL_DATA_RECEIVE_ENDPOINT, batched_pill_data_fields, pill_data, to,
 			NULL, NULL, &pb_cb, false);
 }
-bool send_periodic_data(batched_periodic_data* data, bool forced) {
+bool send_periodic_data(batched_periodic_data* data, bool forced, int32_t to) {
     protobuf_reply_callbacks pb_cb;
 
     pb_cb.get_reply_pb = _get_sync_response;
@@ -1964,7 +1980,7 @@ bool send_periodic_data(batched_periodic_data* data, bool forced) {
     pb_cb.on_pb_failure = _on_sync_response_failure;
 
 	return NetworkTask_SendProtobuf(true, DATA_SERVER,
-			DATA_RECEIVE_ENDPOINT, batched_periodic_data_fields, data, INT_MAX,
+			DATA_RECEIVE_ENDPOINT, batched_periodic_data_fields, data, to,
 			NULL, NULL, &pb_cb, forced);
 }
 
@@ -2475,19 +2491,18 @@ int connect_wifi(const char* ssid, const char* password, int sec_type, int versi
 		memcpy( secParam.Key, wep_hex, secParam.KeyLen + 1 );
     }
 
-
-	int16_t index = 0;
 	int16_t ret = 0;
 	uint8_t retry = 5;
-	while((index = sl_WlanProfileAdd((_i8*) ssid, strlen(ssid), NULL,
+	while((_connected_index = sl_WlanProfileAdd((_i8*) ssid, strlen(ssid), NULL,
 			&secParam, NULL, 0, 0)) < 0 && retry--){
 		ret = sl_WlanProfileDel(0xFF);
 		if (ret != 0) {
 			LOGI("profile del fail\n");
 		}
 	}
+	LOGI("index %d\n", _connected_index);
 
-	if (index < 0) {
+	if (_connected_index < 0) {
 		LOGI("profile add fail\n");
 		return 0;
 	}

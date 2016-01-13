@@ -916,7 +916,7 @@ void thread_fast_i2c_poll(void * unused)  {
 
 	while (1) {
 		portTickType now = xTaskGetTickCount();
-		int prox=0;
+		uint32_t prox=0;
 
 		if (xSemaphoreTakeRecursive(i2c_smphr, portMAX_DELAY)) {
 			vTaskDelay(2); //this is important! If we don't do it, then the prox will stretch the clock!
@@ -989,6 +989,8 @@ void thread_fast_i2c_poll(void * unused)  {
 #define MAX_PILL_DATA 20
 #define MAX_BATCH_PILL_DATA 10
 #define PILL_BATCH_WATERMARK 0
+#define MAX_BATCH_SIZE 15
+#define ONE_HOUR_IN_MS ( 3600 * 1000 )
 
 xQueueHandle data_queue = 0;
 xQueueHandle force_data_queue = 0;
@@ -1006,7 +1008,9 @@ int pill_queue_batch_size = PILL_BATCH_WATERMARK;
 void thread_tx(void* unused) {
 	batched_pill_data pill_data_batched = {0};
 	batched_periodic_data data_batched = {0};
+#ifdef UPLOAD_AP_INFO
 	batched_periodic_data_wifi_access_point ap;
+#endif
 	periodic_data forced_data;
 	bool got_forced_data = false;
 
@@ -1015,9 +1019,10 @@ void thread_tx(void* unused) {
 		if (uxQueueMessagesWaiting(data_queue) >= data_queue_batch_size
 		 || got_forced_data ) {
 			LOGI(	"sending data\n" );
+
 			periodic_data_to_encode periodicdata;
 			periodicdata.num_data = 0;
-			periodicdata.data = (periodic_data*)pvPortMalloc(data_queue_batch_size*sizeof(periodic_data));
+			periodicdata.data = (periodic_data*)pvPortMalloc(MAX_BATCH_SIZE*sizeof(periodic_data));
 
 			if( !periodicdata.data ) {
 				LOGI( "failed to alloc periodicdata\n" );
@@ -1028,7 +1033,7 @@ void thread_tx(void* unused) {
 				memcpy( &periodicdata.data[periodicdata.num_data], &forced_data, sizeof(forced_data) );
 				++periodicdata.num_data;
 			}
-			while( periodicdata.num_data < data_queue_batch_size && xQueueReceive(data_queue, &periodicdata.data[periodicdata.num_data], 1 ) ) {
+			while( periodicdata.num_data < MAX_BATCH_SIZE && xQueueReceive(data_queue, &periodicdata.data[periodicdata.num_data], 1 ) ) {
 				++periodicdata.num_data;
 			}
 
@@ -1070,7 +1075,7 @@ void thread_tx(void* unused) {
 
 			wifi_get_connected_ssid( (uint8_t*)data_batched.connected_ssid, sizeof(data_batched) );
 			data_batched.has_connected_ssid = true;
-#if 0
+#ifdef UPLOAD_AP_INFO
 			data_batched.scan.funcs.encode = encode_single_ssid;
 			data_batched.scan.arg = &ap;
 #endif
@@ -1082,7 +1087,7 @@ void thread_tx(void* unused) {
 				}
 				xSemaphoreGiveRecursive(alarm_smphr);
 			}
-			if( send_periodic_data(&data_batched, got_forced_data) ) {
+			if( send_periodic_data(&data_batched, got_forced_data, ( MAX_PERIODIC_DATA - uxQueueMessagesWaiting(data_queue) ) * 60 * 1000 ) ) {
 				last_upload_time = xTaskGetTickCount();
 			}
 
@@ -1111,7 +1116,7 @@ void thread_tx(void* unused) {
 			pill_data_batched.pills.arg = &pilldata;
 			pill_data_batched.device_id.funcs.encode = encode_device_id_string;
 
-			send_pill_data(&pill_data_batched);
+			send_pill_data(&pill_data_batched, ONE_HOUR_IN_MS );
 			vPortFree( pilldata.pills );
 		}
 		do {
