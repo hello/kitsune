@@ -131,6 +131,7 @@ void SimpleLinkSockEventHandler(SlSockEvent_t *pSock)
 }
 
 static uint8_t _connected_ssid[MAX_SSID_LEN];
+static uint8_t _connected_bssid[BSSID_LEN];
 void wifi_get_connected_ssid(uint8_t* ssid_buffer, size_t len)
 {
     size_t copy_len = MAX_SSID_LEN > len ? len : MAX_SSID_LEN;
@@ -172,6 +173,8 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
 		}else{
 			memset(_connected_ssid, 0, MAX_SSID_LEN);
 			memcpy(_connected_ssid, pSSID, ssidLength);
+			memset(_connected_bssid, 0, BSSID_LEN);
+			memcpy(_connected_bssid, (char*)pSlWlanEvent->EventData.STAandP2PModeWlanConnected.bssid, BSSID_LEN);
 		}
         LOGI("SL_WLAN_CONNECT_EVENT\n");
         ble_reply_wifi_status(wifi_connection_state_WLAN_CONNECTED);
@@ -190,13 +193,27 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
         wifi_status_set(0xFFFFFFFF, true);
         memset(_connected_ssid, 0, MAX_SSID_LEN);
         LOGI("SL_WLAN_DISCONNECT_EVENT\n");
+
+        { //recommended ti debug block
+		int i;
+
+		LOGI("AP: \"%s\" Code=%d BSSID:",_connected_ssid, pSlWlanEvent->EventData.STAandP2PModeDisconnected.reason_code);
+    	LOGI( "%x", _connected_bssid[0]);
+    	for( i=1;i< BSSID_LEN;++i) {
+        	LOGI( ":%x", _connected_bssid[i] );
+        } LOGI("\n");
+        }
+
     	ble_reply_wifi_status(wifi_connection_state_NO_WLAN_CONNECTED);
         break;
     default:
         break;
     }
 }
-
+void SimpleLinkGeneralEventHandler(SlDeviceEvent_t *pDevEvent)
+{
+LOGI("GENEVT ID=%d Sender=%d\n",pDevEvent->EventData.deviceEvent.status, pDevEvent->EventData.deviceEvent.sender);
+}
 //****************************************************************************
 //
 //!    \brief This function handles events for IP address acquisition via DHCP
@@ -1110,7 +1127,7 @@ int start_connection() {
                 nwp_reset();
                 vTaskDelay(10000);
             }
-            return -1;
+            return stop_connection();
         }
     }
     LOGD("2");
@@ -1943,7 +1960,7 @@ static void _on_sync_response_failure( ){
 }
 
 //retry logic is handled elsewhere
-bool send_pill_data(batched_pill_data * pill_data) {
+bool send_pill_data(batched_pill_data * pill_data, int32_t to) {
     protobuf_reply_callbacks pb_cb;
 
     pb_cb.get_reply_pb = _get_sync_response;
@@ -1952,10 +1969,10 @@ bool send_pill_data(batched_pill_data * pill_data) {
     pb_cb.on_pb_failure = _on_sync_response_failure;
 
 	return NetworkTask_SendProtobuf(true, DATA_SERVER,
-			PILL_DATA_RECEIVE_ENDPOINT, batched_pill_data_fields, pill_data, INT_MAX,
+			PILL_DATA_RECEIVE_ENDPOINT, batched_pill_data_fields, pill_data, to,
 			NULL, NULL, &pb_cb, false);
 }
-bool send_periodic_data(batched_periodic_data* data, bool forced) {
+bool send_periodic_data(batched_periodic_data* data, bool forced, int32_t to) {
     protobuf_reply_callbacks pb_cb;
 
     pb_cb.get_reply_pb = _get_sync_response;
@@ -1964,7 +1981,7 @@ bool send_periodic_data(batched_periodic_data* data, bool forced) {
     pb_cb.on_pb_failure = _on_sync_response_failure;
 
 	return NetworkTask_SendProtobuf(true, DATA_SERVER,
-			DATA_RECEIVE_ENDPOINT, batched_periodic_data_fields, data, INT_MAX,
+			DATA_RECEIVE_ENDPOINT, batched_periodic_data_fields, data, to,
 			NULL, NULL, &pb_cb, forced);
 }
 
