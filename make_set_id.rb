@@ -1,7 +1,7 @@
 #!/usr/bin/ruby
 
 commit = `git show --pretty=%H 2>&1`
-version = commit.each_line().first.to_s()[0,7]
+version = ENV['TRAVIS_BUILD_NUMBER']
 
 Dir.mkdir 'exe' unless File.exists? 'exe'
 File.open("./exe/build_info.txt", 'w') { |f|
@@ -20,7 +20,7 @@ File.open("./exe/build_info.txt", 'w') { |f|
 }
 File.open("kitsune/kitsune_version.h", 'w') { |f|
   f.write "#ifndef KIT_VER\n"+
-          "#define KIT_VER 0x" +version+"\n"+
+          "#define KIT_VER "+version+"\n"+
           "#endif\n"
 }
 
@@ -28,4 +28,4 @@ File.open("./exe/version-#{version}.txt", 'w') { |f|
   f.write "#{ENV['TRAVIS_BRANCH']}\n"
 }
 
-puts "Labelled as KIT_VER 0x"+version+"\n"
+puts "Labelled as KIT_VER "+version+"\n"
