@@ -1671,6 +1671,8 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     	} else {
     		vTaskDelay(1000);
     	}
+        LOGI("rv %d\n", rv);
+    	vTaskDelay(1000);
     } while (rv == SL_EAGAIN);
 
     if (rv <= 0) {
