@@ -31,6 +31,10 @@ int sl_mode = ROLE_INVALID;
 #include "gpio.h"
 #include "led_cmd.h"
 
+#include "hw_wdt.h"
+#include "wdt.h"
+#include "wdt_if.h"
+
 #include "FreeRTOS.h"
 #include "task.h"
 
@@ -1680,6 +1684,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
         ble_reply_socket_error(rv);
         goto failure;
     }
+	MAP_WatchdogIntClear(WDT_BASE); //clear wdt, it seems the SL_SPAWN hogs CPU here
     LOGI("recv %d\n", rv);
     }
 
