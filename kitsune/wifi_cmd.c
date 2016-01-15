@@ -1660,8 +1660,11 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     retries = 0;
     //keep looping while our socket error code is telling us to try again
     do {
+		vTaskDelay(1000);
     	rv = recv(sock, recv_buf+recv_buf_size-SERVER_REPLY_BUFSZ, SERVER_REPLY_BUFSZ, 0);
-    	if( rv == SERVER_REPLY_BUFSZ ) {
+    	MAP_WatchdogIntClear(WDT_BASE); //clear wdt, it seems the SL_SPAWN hogs CPU here
+        LOGI("rv %d\n", rv);
+        if( rv == SERVER_REPLY_BUFSZ ) {
              recv_buf_size += SERVER_REPLY_BUFSZ;
              if( recv_buf_size > 10*1024 ) {
                  LOGI("error response too bug\n");
@@ -1673,10 +1676,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     		 *recv_buf_ptr = recv_buf;
     		 *recv_buf_size_ptr = recv_buf_size;
     		 rv = SL_EAGAIN;
-    	} else {
-    		vTaskDelay(1000);
     	}
-        LOGI("rv %d\n", rv);
     } while (rv == SL_EAGAIN && retries++ < 60 );
 
     if (rv <= 0) {
@@ -1684,8 +1684,6 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
         ble_reply_socket_error(rv);
         goto failure;
     }
-	MAP_WatchdogIntClear(WDT_BASE); //clear wdt, it seems the SL_SPAWN hogs CPU here
-    LOGI("recv %d\n", rv);
     }
 
     {
