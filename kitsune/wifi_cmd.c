@@ -31,6 +31,10 @@ int sl_mode = ROLE_INVALID;
 #include "gpio.h"
 #include "led_cmd.h"
 
+#include "hw_wdt.h"
+#include "wdt.h"
+#include "wdt_if.h"
+
 #include "FreeRTOS.h"
 #include "task.h"
 
@@ -131,6 +135,9 @@ void SimpleLinkSockEventHandler(SlSockEvent_t *pSock)
 }
 
 static uint8_t _connected_ssid[MAX_SSID_LEN];
+#define INV_INDEX 0xff
+static int _connected_index = INV_INDEX;
+static uint8_t _connected_bssid[BSSID_LEN];
 void wifi_get_connected_ssid(uint8_t* ssid_buffer, size_t len)
 {
     size_t copy_len = MAX_SSID_LEN > len ? len : MAX_SSID_LEN;
@@ -172,6 +179,8 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
 		}else{
 			memset(_connected_ssid, 0, MAX_SSID_LEN);
 			memcpy(_connected_ssid, pSSID, ssidLength);
+			memset(_connected_bssid, 0, BSSID_LEN);
+			memcpy(_connected_bssid, (char*)pSlWlanEvent->EventData.STAandP2PModeWlanConnected.bssid, BSSID_LEN);
 		}
         LOGI("SL_WLAN_CONNECT_EVENT\n");
         ble_reply_wifi_status(wifi_connection_state_WLAN_CONNECTED);
@@ -190,13 +199,27 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
         wifi_status_set(0xFFFFFFFF, true);
         memset(_connected_ssid, 0, MAX_SSID_LEN);
         LOGI("SL_WLAN_DISCONNECT_EVENT\n");
+
+        { //recommended ti debug block
+		int i;
+
+		LOGI("AP: \"%s\" Code=%d BSSID:",_connected_ssid, pSlWlanEvent->EventData.STAandP2PModeDisconnected.reason_code);
+    	LOGI( "%x", _connected_bssid[0]);
+    	for( i=1;i< BSSID_LEN;++i) {
+        	LOGI( ":%x", _connected_bssid[i] );
+        } LOGI("\n");
+        }
+
     	ble_reply_wifi_status(wifi_connection_state_NO_WLAN_CONNECTED);
         break;
     default:
         break;
     }
 }
-
+void SimpleLinkGeneralEventHandler(SlDeviceEvent_t *pDevEvent)
+{
+LOGI("GENEVT ID=%d Sender=%d\n",pDevEvent->EventData.deviceEvent.status, pDevEvent->EventData.deviceEvent.sender);
+}
 //****************************************************************************
 //
 //!    \brief This function handles events for IP address acquisition via DHCP
@@ -208,7 +231,18 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
 //
 //****************************************************************************
 static void wifi_ip_update_task( void * params ) {
-	ble_reply_wifi_status(wifi_connection_state_IP_RETRIEVED);
+
+    if( _connected_index != INV_INDEX ) {
+    	int i;
+    	for( i=0; i < 7; ++i ) {
+    		if( i != _connected_index ) {
+    		    sl_WlanProfileDel(i);
+    		}
+    	}
+    }
+
+    ble_reply_wifi_status(wifi_connection_state_IP_RETRIEVED);
+
 	vTaskDelete(NULL);
 }
 
@@ -1110,7 +1144,7 @@ int start_connection() {
                 nwp_reset();
                 vTaskDelay(10000);
             }
-            return -1;
+            return stop_connection();
         }
     }
     LOGD("2");
@@ -1512,7 +1546,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
 	SHA1_CTX ctx;
 	AES_CTX aesctx;
 	pb_ostream_t stream = {0};
-	int i;
+	int i, retries;
 
 	memset(&desc,0,sizeof(desc));
 	memset(&ctx,0,sizeof(ctx));
@@ -1623,10 +1657,14 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
 
     memset(recv_buf, 0, recv_buf_size);
 
+    retries = 0;
     //keep looping while our socket error code is telling us to try again
     do {
+		vTaskDelay(1000);
     	rv = recv(sock, recv_buf+recv_buf_size-SERVER_REPLY_BUFSZ, SERVER_REPLY_BUFSZ, 0);
-    	if( rv == SERVER_REPLY_BUFSZ ) {
+    	MAP_WatchdogIntClear(WDT_BASE); //clear wdt, it seems the SL_SPAWN hogs CPU here
+        LOGI("rv %d\n", rv);
+        if( rv == SERVER_REPLY_BUFSZ ) {
              recv_buf_size += SERVER_REPLY_BUFSZ;
              if( recv_buf_size > 10*1024 ) {
                  LOGI("error response too bug\n");
@@ -1638,17 +1676,14 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     		 *recv_buf_ptr = recv_buf;
     		 *recv_buf_size_ptr = recv_buf_size;
     		 rv = SL_EAGAIN;
-    	} else {
-    		vTaskDelay(1000);
     	}
-    } while (rv == SL_EAGAIN);
+    } while (rv == SL_EAGAIN && retries++ < 60 );
 
     if (rv <= 0) {
         LOGI("recv error %d\n\r\n\r", rv);
         ble_reply_socket_error(rv);
         goto failure;
     }
-    LOGI("recv %d\n", rv);
     }
 
     {
@@ -1954,7 +1989,6 @@ bool send_pill_data_generic(batched_pill_data * pill_data, const char * endpoint
 			NULL, NULL, &pb_cb, false);
 }
 
-bool send_periodic_data(batched_periodic_data* data, bool forced) {
     protobuf_reply_callbacks pb_cb;
 
     pb_cb.get_reply_pb = _get_sync_response;
@@ -1963,7 +1997,7 @@ bool send_periodic_data(batched_periodic_data* data, bool forced) {
     pb_cb.on_pb_failure = _on_sync_response_failure;
 
 	return NetworkTask_SendProtobuf(true, DATA_SERVER,
-			DATA_RECEIVE_ENDPOINT, batched_periodic_data_fields, data, INT_MAX,
+			DATA_RECEIVE_ENDPOINT, batched_periodic_data_fields, data, to,
 			NULL, NULL, &pb_cb, forced);
 }
 
@@ -2474,19 +2508,18 @@ int connect_wifi(const char* ssid, const char* password, int sec_type, int versi
 		memcpy( secParam.Key, wep_hex, secParam.KeyLen + 1 );
     }
 
-
-	int16_t index = 0;
 	int16_t ret = 0;
 	uint8_t retry = 5;
-	while((index = sl_WlanProfileAdd((_i8*) ssid, strlen(ssid), NULL,
+	while((_connected_index = sl_WlanProfileAdd((_i8*) ssid, strlen(ssid), NULL,
 			&secParam, NULL, 0, 0)) < 0 && retry--){
 		ret = sl_WlanProfileDel(0xFF);
 		if (ret != 0) {
 			LOGI("profile del fail\n");
 		}
 	}
+	LOGI("index %d\n", _connected_index);
 
-	if (index < 0) {
+	if (_connected_index < 0) {
 		LOGI("profile add fail\n");
 		return 0;
 	}

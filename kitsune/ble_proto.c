@@ -176,10 +176,6 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type,
 {
     int i;
 
-	LOGI("Clearing wifi profiles\n" );
-	wifi_reset();
-	vTaskDelay(200);
-
 	LOGI("Connecting to WIFI %s\n", ssid );
 	xSemaphoreTake(_wifi_smphr, portMAX_DELAY);
     for(i=0;i<MAX_WIFI_EP_PER_SCAN;++i) {

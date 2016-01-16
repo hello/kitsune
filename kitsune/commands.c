@@ -2,8 +2,6 @@
 //
 // commands.c - FreeRTOS porting example on CCS4
 //
-// Copyright (c) 2012 Fuel7, Inc.
-//
 //*****************************************************************************
 #include <stdio.h>
 #include <string.h>
@@ -989,6 +987,8 @@ void thread_fast_i2c_poll(void * unused)  {
 #define MAX_PILL_DATA 20
 #define MAX_BATCH_PILL_DATA 10
 #define PILL_BATCH_WATERMARK 0
+#define MAX_BATCH_SIZE 15
+#define ONE_HOUR_IN_MS ( 3600 * 1000 )
 
 xQueueHandle data_queue = 0;
 xQueueHandle force_data_queue = 0;
@@ -1050,7 +1050,9 @@ end:
 #include "endpoints.h"
 void thread_tx(void* unused) {
 	batched_periodic_data data_batched = {0};
+#ifdef UPLOAD_AP_INFO
 	batched_periodic_data_wifi_access_point ap;
+#endif
 	periodic_data forced_data;
 	bool got_forced_data = false;
 
@@ -1059,9 +1061,10 @@ void thread_tx(void* unused) {
 		if (uxQueueMessagesWaiting(data_queue) >= data_queue_batch_size
 		 || got_forced_data ) {
 			LOGI(	"sending data\n" );
+
 			periodic_data_to_encode periodicdata;
 			periodicdata.num_data = 0;
-			periodicdata.data = (periodic_data*)pvPortMalloc(data_queue_batch_size*sizeof(periodic_data));
+			periodicdata.data = (periodic_data*)pvPortMalloc(MAX_BATCH_SIZE*sizeof(periodic_data));
 
 			if( !periodicdata.data ) {
 				LOGI( "failed to alloc periodicdata\n" );
@@ -1072,7 +1075,7 @@ void thread_tx(void* unused) {
 				memcpy( &periodicdata.data[periodicdata.num_data], &forced_data, sizeof(forced_data) );
 				++periodicdata.num_data;
 			}
-			while( periodicdata.num_data < data_queue_batch_size && xQueueReceive(data_queue, &periodicdata.data[periodicdata.num_data], 1 ) ) {
+			while( periodicdata.num_data < MAX_BATCH_SIZE && xQueueReceive(data_queue, &periodicdata.data[periodicdata.num_data], 1 ) ) {
 				++periodicdata.num_data;
 			}
 
@@ -1114,7 +1117,7 @@ void thread_tx(void* unused) {
 
 			wifi_get_connected_ssid( (uint8_t*)data_batched.connected_ssid, sizeof(data_batched) );
 			data_batched.has_connected_ssid = true;
-#if 0
+#ifdef UPLOAD_AP_INFO
 			data_batched.scan.funcs.encode = encode_single_ssid;
 			data_batched.scan.arg = &ap;
 #endif
@@ -1126,7 +1129,7 @@ void thread_tx(void* unused) {
 				}
 				xSemaphoreGiveRecursive(alarm_smphr);
 			}
-			if( send_periodic_data(&data_batched, got_forced_data) ) {
+			if( send_periodic_data(&data_batched, got_forced_data, ( MAX_PERIODIC_DATA - uxQueueMessagesWaiting(data_queue) ) * 60 * 1000 ) ) {
 				last_upload_time = xTaskGetTickCount();
 			}
 
@@ -1327,6 +1330,7 @@ int force_data_push()
     return 0;
 }
 
+int Cmd_inttemp(int argc, char *argv[]);
 void thread_sensor_poll(void* unused) {
 
 	//
@@ -1354,6 +1358,7 @@ void thread_sensor_poll(void* unused) {
 
 			Cmd_free(0,0);
 			send_top("free", strlen("free"));
+			Cmd_inttemp(0,0);
 
 			if (!xQueueSend(data_queue, (void* )&data, 0) == pdPASS) {
 				xQueueReceive(data_queue, (void* )&data, 0); //discard one, so if the queue is full we will put every other one in the queue
@@ -1757,6 +1762,57 @@ int Cmd_boot(int argc, char *argv[]) {
 	return 0;
 }
 
+
+#include "rom.h"
+#include "rom_map.h"
+#include "hw_adc.h"
+#include "adc.h"
+int Cmd_inttemp(int argc, char *argv[]) {
+	unsigned long ulSample;
+	int i;
+// Initialize Intercept Temperature
+	int g_EfuseInterceptTemperature = 3000;
+
+// Variables for Slope and Intercept
+	int temperature, slope_ch3, intcept_ch3;
+	unsigned int flags = MAP_IntMasterDisable();
+
+// Enable ADC
+	HWREG(ADC_BASE + 0xB8) = 0x0355AA00;
+	MAP_ADCEnable(ADC_BASE);
+
+//Initialize slope (for nominal devices)
+	slope_ch3 = 204795;
+
+//Get the RAW ADC intercept values from the EFUSE for this particular device.
+	intcept_ch3 = (HWREG(0x4402D448) & 0x3FFF) >> 2;
+
+//Read ADC FIFO - Suggested averaging for 4 samples
+
+	/* Wait for the FIFO to fill up */
+	MAP_UtilsDelay(300);
+
+	temperature = 0;
+	for( i=0; i<1000; ++i ) {
+		while( !(HWREG(0x4402E8A0) & 0x7) ) {}
+		if ((HWREG(0x4402E8A0) & 0x7)) {
+			ulSample = (uint16_t) (HWREG(0x4402E880));
+			ulSample = (ulSample >> 2) & 0x0FFF;
+			temperature += g_EfuseInterceptTemperature
+					+ (((intcept_ch3 - (int) ulSample) * slope_ch3 * 100) >> 20);
+
+		}
+	}
+	MAP_ADCDisable(ADC_BASE);
+
+	if (!flags) {
+		MAP_IntMasterEnable();
+	}
+
+	LOGF("internal %u\n", temperature/i);
+	return 0;
+}
+
 int Cmd_get_gesture_count(int argc, char * argv[]) {
 
 	const int count = gesture_get_and_reset_all_diagnostic_counts();
@@ -1892,6 +1948,7 @@ tCmdLineEntry g_sCmdTable[] = {
     { "pwd",      Cmd_pwd,      "" },
     { "cat",      Cmd_cat,      "" },
 
+    {"inttemp", Cmd_inttemp, "" },
 		{ "humid", Cmd_readhumid, "" },
 		{ "temp", Cmd_readtemp,	"" },
 		{ "light", Cmd_readlight, "" },
