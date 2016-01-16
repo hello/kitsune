@@ -260,10 +260,6 @@ void WatchdogIntHandler(void)
 
 
 void start_wdt() {
-#define WD_PERIOD_MS 				20000
-#define MAP_SysCtlClockGet 			80000000
-#define LED_GPIO             		MCU_RED_LED_GPIO	/* RED LED */
-#define MILLISECONDS_TO_TICKS(ms) 	((MAP_SysCtlClockGet / 1000) * (ms))
     //
     // Enable the peripherals used by this example.
     //
@@ -272,7 +268,7 @@ void start_wdt() {
     //
     // Set up the watchdog interrupt handler.
     //
-    WDT_IF_Init(WatchdogIntHandler, MILLISECONDS_TO_TICKS(WD_PERIOD_MS));
+    WDT_IF_Init(WatchdogIntHandler, 0xFFFFFFFF);
 
     //
     // Start the timer. Once the timer is started, it cannot be disable.

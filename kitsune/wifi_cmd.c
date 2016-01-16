@@ -31,6 +31,10 @@ int sl_mode = ROLE_INVALID;
 #include "gpio.h"
 #include "led_cmd.h"
 
+#include "hw_wdt.h"
+#include "wdt.h"
+#include "wdt_if.h"
+
 #include "FreeRTOS.h"
 #include "task.h"
 
@@ -1542,7 +1546,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
 	SHA1_CTX ctx;
 	AES_CTX aesctx;
 	pb_ostream_t stream = {0};
-	int i;
+	int i, retries;
 
 	memset(&desc,0,sizeof(desc));
 	memset(&ctx,0,sizeof(ctx));
@@ -1653,10 +1657,14 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
 
     memset(recv_buf, 0, recv_buf_size);
 
+    retries = 0;
     //keep looping while our socket error code is telling us to try again
     do {
+		vTaskDelay(1000);
     	rv = recv(sock, recv_buf+recv_buf_size-SERVER_REPLY_BUFSZ, SERVER_REPLY_BUFSZ, 0);
-    	if( rv == SERVER_REPLY_BUFSZ ) {
+    	MAP_WatchdogIntClear(WDT_BASE); //clear wdt, it seems the SL_SPAWN hogs CPU here
+        LOGI("rv %d\n", rv);
+        if( rv == SERVER_REPLY_BUFSZ ) {
              recv_buf_size += SERVER_REPLY_BUFSZ;
              if( recv_buf_size > 10*1024 ) {
                  LOGI("error response too bug\n");
@@ -1668,17 +1676,14 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     		 *recv_buf_ptr = recv_buf;
     		 *recv_buf_size_ptr = recv_buf_size;
     		 rv = SL_EAGAIN;
-    	} else {
-    		vTaskDelay(1000);
     	}
-    } while (rv == SL_EAGAIN);
+    } while (rv == SL_EAGAIN && retries++ < 60 );
 
     if (rv <= 0) {
         LOGI("recv error %d\n\r\n\r", rv);
         ble_reply_socket_error(rv);
         goto failure;
     }
-    LOGI("recv %d\n", rv);
     }
 
     {
