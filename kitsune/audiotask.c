@@ -37,7 +37,7 @@
 
 #define MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP (500)
 
-#define MAX_NUMBER_TIMES_TO_WAIT_FOR_AUDIO_BUFFER_TO_FILL (5000)
+#define MAX_NUMBER_TIMES_TO_WAIT_FOR_AUDIO_BUFFER_TO_FILL (500)
 #define MAX_FILE_SIZE_BYTES (1048576*10)
 
 #define MONO_BUF_LENGTH (256)
@@ -282,7 +282,15 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 		if (iBufWaitingCount >= MAX_NUMBER_TIMES_TO_WAIT_FOR_AUDIO_BUFFER_TO_FILL) {
 			LOGI("Waited too long for audio buffer empty out to the codec \r\n");
-			break;
+
+			started = false;
+			DeinitAudioPlayback();
+			if ( !InitAudioPlayback(volume, info->rate ) ||
+			      CheckForInterruptionDuringPlayback() ) {
+				LOGI("e stopping playback");
+				break;
+			}
+			continue;
 		}
 
 
