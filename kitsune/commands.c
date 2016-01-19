@@ -604,7 +604,9 @@ int set_test_alarm(int argc, char *argv[]) {
 	return 0;
 }
 static void thread_alarm_on_finished(void * context) {
-	stop_led_animation(10, 60);
+	if( led_get_animation_id() == *(int*)context ) {
+		stop_led_animation(10, 60);
+	}
 	if (xSemaphoreTakeRecursive(alarm_smphr, 500)) {
 		LOGI("Alarm finished\r\n");
 		xSemaphoreGiveRecursive(alarm_smphr);
@@ -625,6 +627,7 @@ static bool _is_file_exists(char* path)
 
 uint8_t get_alpha_from_light();
 void thread_alarm(void * unused) {
+	int alarm_led_id = -1;
 	while (1) {
 		wait_for_time(WAIT_FOREVER);
 
@@ -704,6 +707,7 @@ void thread_alarm(void * unused) {
 				desc.volume = 57;
 				desc.onFinished = thread_alarm_on_finished;
 				desc.rate = 48000;
+				desc.context = &alarm_led_id;
 
 				alarm.has_start_time = FALSE;
 				alarm.start_time = 0;
@@ -716,7 +720,7 @@ void thread_alarm(void * unused) {
 
 				uint8_t trippy_base[3] = { 0, 0, 0 };
 				uint8_t trippy_range[3] = { 254, 254, 254 };
-				play_led_trippy(trippy_base, trippy_range,0,30, 120000);
+				alarm_led_id = play_led_trippy(trippy_base, trippy_range,0,30, 120000);
 			}
 			
 			xSemaphoreGiveRecursive(alarm_smphr);
