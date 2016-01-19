@@ -929,9 +929,6 @@ static bool write_callback_sha(pb_ostream_t *stream, const uint8_t *buf,
 }
 #endif
 
-
-static int sock = -1;
-
 int send_chunk_len( int obj_sz, int sock ) {
 	#define CL_BUF_SZ 12
 	int rv;
@@ -963,7 +960,7 @@ static bool flush_out_buffer(ostream_buffered_desc_t * desc ) {
 		SHA1_Update(desc->ctx, desc->buf, buf_size);
 
 		//send
-        if( send_chunk_len( buf_size, sock ) != 0 ) {
+        if( send_chunk_len( buf_size, desc->fd ) != 0 ) {
         	return false;
         }
 		ret = send(desc->fd, desc->buf, buf_size, 0) == buf_size;
@@ -986,7 +983,7 @@ static bool write_buffered_callback_sha(pb_ostream_t *stream, const uint8_t * in
 			SHA1_Update(desc->ctx, desc->buf, desc->buf_size);
 
 			//send
-			if (send_chunk_len(desc->buf_size, sock) != 0) {
+			if (send_chunk_len(desc->buf_size, desc->fd) != 0) {
 				return false;
 			}
 
@@ -1049,8 +1046,8 @@ pb_istream_t pb_istream_from_sha_socket(int fd) {
 
 static unsigned long ipaddr = 0;
 
+#if 0
 #include "fault.h"
-
 void LOGIFaults() {
 #define minval( a,b ) a < b ? a : b
 #define BUF_SZ 600
@@ -1083,23 +1080,24 @@ void LOGIFaults() {
         }
     }
 }
-int stop_connection() {
-    close(sock);
-    sock = -1;
+#endif
+int stop_connection(int * sock) {
+    close(*sock);
+    *sock = -1;
     ipaddr = 0;
-    return sock;
+    return *sock;
 }
-int start_connection() {
+int start_connection(int * sock) {
     sockaddr sAddr;
     timeval tv;
     int rv;
-    int sock_begin = sock;
+    int sock_begin = *sock;
 
-    if (sock < 0) {
-        sock = socket(AF_INET, SOCK_STREAM, SL_SEC_SOCKET);
+    if (*sock < 0) {
+        *sock = socket(AF_INET, SOCK_STREAM, SL_SEC_SOCKET);
         tv.tv_sec = 2;             // Seconds
         tv.tv_usec = 0;           // Microseconds. 10000 microseconds resolution
-        setsockopt(sock, SOL_SOCKET, SL_SO_RCVTIMEO, &tv, sizeof(tv)); // Enable receive timeout
+        setsockopt(*sock, SOL_SOCKET, SL_SO_RCVTIMEO, &tv, sizeof(tv)); // Enable receive timeout
 
         #define SL_SSL_CA_CERT_FILE_NAME "/cert/ca.der"
         // configure the socket as SSLV3.0
@@ -1107,9 +1105,9 @@ int start_connection() {
         // setup certificate
         unsigned char method = SL_SO_SEC_METHOD_TLSV1_2;
         unsigned int cipher = SL_SEC_MASK_TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA;
-        if( sl_SetSockOpt(sock, SL_SOL_SOCKET, SL_SO_SECMETHOD, &method, sizeof(method) ) < 0 ||
-            sl_SetSockOpt(sock, SL_SOL_SOCKET, SL_SO_SECURE_MASK, &cipher, sizeof(cipher)) < 0 ||
-            sl_SetSockOpt(sock, SL_SOL_SOCKET, \
+        if( sl_SetSockOpt(*sock, SL_SOL_SOCKET, SL_SO_SECMETHOD, &method, sizeof(method) ) < 0 ||
+            sl_SetSockOpt(*sock, SL_SOL_SOCKET, SL_SO_SECURE_MASK, &cipher, sizeof(cipher)) < 0 ||
+            sl_SetSockOpt(*sock, SL_SOL_SOCKET, \
                                    SL_SO_SECURE_FILES_CA_FILE_NAME, \
                                    SL_SSL_CA_CERT_FILE_NAME, \
                                    strlen(SL_SSL_CA_CERT_FILE_NAME))  < 0  )
@@ -1121,8 +1119,8 @@ int start_connection() {
 
     LOGD("1");
 
-    if (sock < 0) {
-        LOGI("Socket create failed %d\n\r", sock);
+    if (*sock < 0) {
+        LOGI("Socket create failed %d\n\r", *sock);
         return -1;
     }
 
@@ -1144,7 +1142,7 @@ int start_connection() {
                 nwp_reset();
                 vTaskDelay(10000);
             }
-            return stop_connection();
+            return stop_connection(sock);
         }
     }
     LOGD("2");
@@ -1171,21 +1169,21 @@ int start_connection() {
 #endif
     SlSockNonblocking_t enableOption;
     enableOption.NonblockingEnabled = 1;
-    sl_SetSockOpt(sock,SL_SOL_SOCKET,SL_SO_NONBLOCKING, (_u8 *)&enableOption,sizeof(enableOption)); // Enable/disable nonblocking mode
+    sl_SetSockOpt(*sock,SL_SOL_SOCKET,SL_SO_NONBLOCKING, (_u8 *)&enableOption,sizeof(enableOption)); // Enable/disable nonblocking mode
 
     LOGD("3");
 
     //connect it up
     //LOGI("Connecting \n\r\n\r");
     retry_connect:
-    if (sock > 0 && sock_begin < 0 && (rv = connect(sock, &sAddr, sizeof(sAddr)))) {
+    if (*sock > 0 && sock_begin < 0 && (rv = connect(*sock, &sAddr, sizeof(sAddr)))) {
     	if( rv == SL_EALREADY ) {
     		vTaskDelay(100);
     		goto retry_connect;
     	}
     	ble_reply_socket_error(rv);
     	LOGI("Could not connect %d\n\r\n\r", rv);
-		return stop_connection();
+		return stop_connection(sock);
     }
     LOGD("4");
  	ble_reply_wifi_status(wifi_connection_state_SOCKET_CONNECTED);
@@ -1474,7 +1472,7 @@ static bool validate_signatures( char * buffer, int sz, const pb_field_t fields[
 //buffer needs to be at least 128 bytes...
 int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
 		uint32_t * recv_buf_size_ptr, const pb_field_t fields[],  void * structdata,
-		protobuf_reply_callbacks * pb_cb ) {
+		protobuf_reply_callbacks * pb_cb, int * sock ) {
     int send_length = 0;
     int rv = 0;
     uint8_t sig[32]={0};
@@ -1510,14 +1508,14 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     send_length = strlen(recv_buf);
 
     //setup the connection
-    if( start_connection() < 0 ) {
+    if( start_connection(sock) < 0 ) {
         LOGI("failed to start connection\n\r\n\r");
         goto failure;
     }
     LOGD("c");
 
     //check that it's still secure...
-    rv = recv(sock, recv_buf, SERVER_REPLY_BUFSZ, 0);
+    rv = recv(*sock, recv_buf, SERVER_REPLY_BUFSZ, 0);
     if (rv != SL_EAGAIN ) {
         LOGI("start recv error %d\n\r\n\r", rv);
         ble_reply_socket_error(rv);
@@ -1526,7 +1524,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     LOGD("d");
 
     //LOGI("Sending request\n\r%s\n\r", recv_buf);
-    rv = send(sock, recv_buf, send_length, 0);
+    rv = send(*sock, recv_buf, send_length, 0);
     if (rv <= 0) {
         LOGI("send error %d\n\r\n\r", rv);
         ble_reply_socket_error(rv);
@@ -1617,10 +1615,10 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
 #endif
 
 	/*  send AES initialization vector */
-	if( send_chunk_len( AES_IV_SIZE, sock) != 0 ) {
+	if( send_chunk_len( AES_IV_SIZE, *sock) != 0 ) {
         goto failure;
 	}
-	rv = send(sock, aesctx.iv, AES_IV_SIZE, 0);
+	rv = send(*sock, aesctx.iv, AES_IV_SIZE, 0);
 
 	if (rv != AES_IV_SIZE) {
 		LOGI("Sending IV failed: %d\n", rv);
@@ -1631,10 +1629,10 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
 	AES_cbc_encrypt(&aesctx, sig, sig, sizeof(sig));
 
 	/* send signature */
-	if( send_chunk_len( sizeof(sig), sock) != 0 ) {
+	if( send_chunk_len( sizeof(sig), *sock) != 0 ) {
         goto failure;
 	}
-	rv = send(sock, sig, sizeof(sig), 0);
+	rv = send(*sock, sig, sizeof(sig), 0);
 
 	if (rv != sizeof(sig)) {
 		LOGI("Sending SHA failed: %d\n", rv);
@@ -1650,7 +1648,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
 #endif
 
 
-    if( send_chunk_len(0, sock) != 0 ) {
+    if( send_chunk_len(0, *sock) != 0 ) {
         goto failure;
     }
     ble_reply_wifi_status(wifi_connection_state_REQUEST_SENT);
@@ -1660,7 +1658,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     retries = 0;
     //keep looping while our socket error code is telling us to try again
     do {
-    	rv = recv(sock, recv_buf+recv_buf_size-SERVER_REPLY_BUFSZ, SERVER_REPLY_BUFSZ, 0);
+    	rv = recv(*sock, recv_buf+recv_buf_size-SERVER_REPLY_BUFSZ, SERVER_REPLY_BUFSZ, 0);
     	if( rv == SERVER_REPLY_BUFSZ ) {
              recv_buf_size += SERVER_REPLY_BUFSZ;
              if( recv_buf_size > 10*1024 ) {
@@ -1716,14 +1714,14 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     } else {
     	return http_response_ok((char*)recv_buf);
     }
-    return stop_connection();
+    return stop_connection(sock);
     }
 
 	failure:
 	if( pb_cb && pb_cb->on_pb_failure ) {
 		pb_cb->on_pb_failure();
 	}
-	return stop_connection();
+	return stop_connection(sock);
 }
 
 

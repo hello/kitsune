@@ -117,6 +117,7 @@ static NetworkResponse_t nettask_send(NetworkTaskServerSendMessage_t * message) 
 	int32_t timeout_counts;
 	int32_t retry_period;
 	uint32_t attempt_count;
+	int sock = -1;
 
 	memset(&response,0,sizeof(response));
 
@@ -150,7 +151,7 @@ static NetworkResponse_t nettask_send(NetworkTaskServerSendMessage_t * message) 
 				&decode_buf_size,
 				message->fields,
 				message->structdata,
-				message->has_pb_cb ? &message->pb_cb : NULL ) == 0) {
+				message->has_pb_cb ? &message->pb_cb : NULL, &sock ) == 0) {
 			response.success = true;
 		} else {
 			//failed to push, now what?
