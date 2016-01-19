@@ -371,6 +371,11 @@
 			<locationURI>PARENT-2-PROJECT_LOC/led_cmd.h</locationURI>
 		</link>
 		<link>
+			<name>long_poll.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/long_poll.c</locationURI>
+		</link>
+		<link>
 			<name>machine_learning_types.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/machinelearning/machine_learning_types.h</locationURI>
