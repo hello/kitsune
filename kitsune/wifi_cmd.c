@@ -260,7 +260,7 @@ void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent) {
 
 		wifi_status_set(HAS_IP, false);
 
-		xTaskCreate(wifi_ip_update_task, "wifi_ip_update_task", 1024 / 4, NULL, 2, NULL);
+		xTaskCreate(wifi_ip_update_task, "wifi_ip_update_task", 1024 / 4, NULL, 1, NULL);
 		break;
 
 	case SL_NETAPP_IP_LEASED_EVENT:
