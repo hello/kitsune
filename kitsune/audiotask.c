@@ -23,6 +23,7 @@
 #include "ustdlib.h"
 
 #include "mcasp_if.h"
+#include "kit_assert.h"
 
 #if 0
 #define PRINT_TIMING
@@ -280,18 +281,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 //		}
 
 
-		if (iBufWaitingCount >= MAX_NUMBER_TIMES_TO_WAIT_FOR_AUDIO_BUFFER_TO_FILL) {
-			LOGI("Waited too long for audio buffer empty out to the codec \r\n");
-
-			started = false;
-			DeinitAudioPlayback();
-			if ( !InitAudioPlayback(volume, info->rate ) ||
-			      CheckForInterruptionDuringPlayback() ) {
-				LOGI("e stopping playback");
-				break;
-			}
-			continue;
-		}
+		assert(iBufWaitingCount < MAX_NUMBER_TIMES_TO_WAIT_FOR_AUDIO_BUFFER_TO_FILL);
 
 
 		if (size > 0) {
