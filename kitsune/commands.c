@@ -1089,6 +1089,9 @@ void thread_tx(void* unused) {
 				}
 				xSemaphoreGiveRecursive(alarm_smphr);
 			}
+			data_batched.has_messages_in_queue = true;
+			data_batched.messages_in_queue = uxQueueMessagesWaiting(data_queue);
+
 			if( send_periodic_data(&data_batched, got_forced_data, ( MAX_PERIODIC_DATA - uxQueueMessagesWaiting(data_queue) ) * 60 * 1000 ) ) {
 				last_upload_time = xTaskGetTickCount();
 			}
