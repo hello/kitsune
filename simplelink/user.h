@@ -963,9 +963,7 @@ typedef OsiLockObj_t                            _SlLockObj_t;
 
     \warning
 */
-/*
-#define sl_GeneralEvtHdlr
-*/
+#define sl_GeneralEvtHdlr				SimpleLinkGeneralEventHandler
 
 /*!
     \brief          An event handler for WLAN connection or disconnection indication

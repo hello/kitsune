@@ -461,10 +461,10 @@ int init_prox_sensor()
 	return SUCCESS;
 }
 
-int get_prox() {
+uint32_t get_prox() {
 	unsigned char prx_aucDataBuf_LOW[2];
 	unsigned char prx_aucDataBuf_HIGH[2];
-	int proximity_raw;
+	uint64_t proximity_raw = 0;
 	unsigned char prx_cmd;
 	unsigned char prx_cmd_init[2];
 	unsigned char cmd_reg = 0;
@@ -493,7 +493,7 @@ int get_prox() {
 }
 
 int Cmd_readproximity(int argc, char *argv[]) {
-	LOGF("%d\n", get_prox());
+	LOGF("%u\n", get_prox());
 
 	return SUCCESS;
 }
