@@ -176,10 +176,6 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type,
 {
     int i;
 
-	LOGI("Clearing wifi profiles\n" );
-	wifi_reset();
-	vTaskDelay(200);
-
 	LOGI("Connecting to WIFI %s\n", ssid );
 	xSemaphoreTake(_wifi_smphr, portMAX_DELAY);
     for(i=0;i<MAX_WIFI_EP_PER_SCAN;++i) {
@@ -570,7 +566,7 @@ void ble_proto_start_hold()
 	case BLE_CONNECTED:
 	default:
 		set_released(false);
-		xTaskCreate(hold_animate_progress_task, "hold_animate_pair",1024 / 4, NULL, 2, NULL);
+		xTaskCreate(hold_animate_progress_task, "hold_animate_pair",1024 / 4, NULL, 3, NULL);
 	}
 
 }

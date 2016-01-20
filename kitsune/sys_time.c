@@ -156,13 +156,16 @@ uint32_t fetch_ntp_time_from_ntp() {
     unsigned long ipaddr;
     int sock;
 
+	#define NTP_RETRY_LIMIT 100
+    int retries = 0;
+
     SlTimeval_t tv;
 
     size_t sent_ticks;
     size_t recv_ticks;
 
     sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    tv.tv_sec = 1; // Seconds
+    tv.tv_sec = 2; // Seconds
     tv.tv_usec = 0;             // Microseconds. 10000 microseconds resolution
     setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)); // Enable receive timeout
 
@@ -243,7 +246,7 @@ uint32_t fetch_ntp_time_from_ntp() {
     sLocalAddr.sin_addr.s_addr = 0;
     bind(sock, (SlSockAddr_t *) &sLocalAddr, iAddrSize);
 
-	for(;;) {
+	for(retries=0;retries < NTP_RETRY_LIMIT;++retries) {
 		if( !wifi_status_get(HAS_IP) ) {
 			goto cleanup;
 		}
@@ -253,7 +256,7 @@ uint32_t fetch_ntp_time_from_ntp() {
 		    LOGI("receiving reply %d %u\n\r\n\r", rv, recv_ticks);
 			break;
 		}
-		vTaskDelay(1000);
+		vTaskDelay(2000);
 		LOGI("sending another request\n\r\n\r", sent_ticks);
 
 		buffer[0] = 0b11100011;   // LI, Version, Mode
@@ -272,6 +275,7 @@ uint32_t fetch_ntp_time_from_ntp() {
 			goto cleanup;
 		}
 	}
+	assert( NTP_RETRY_LIMIT != retries );
 
     //
     // Confirm that the MODE is 4 --> server

@@ -52,7 +52,6 @@ static struct{
 	uint8_t g;
 	uint8_t b;
 }user_color;
-unsigned int user_delay;
 static int animation_id;
 static int fade_alpha;
 
@@ -619,7 +618,6 @@ int led_set_color(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b,
 	user_color.r = _clamp(r, 0, LED_CLAMP_MAX) * alpha / 0xFF;
 	user_color.g = _clamp(g, 0, LED_CLAMP_MAX) * alpha / 0xFF;
 	user_color.b = _clamp(b, 0, LED_CLAMP_MAX) * alpha / 0xFF;
-	user_delay = ud;
     LOGI("Setting colors R: %d, G: %d, B: %d \r\n", user_color.r, user_color.g, user_color.b);
 	xEventGroupClearBits( led_events, 0xffffff );
 
