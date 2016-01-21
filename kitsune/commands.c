@@ -174,7 +174,9 @@ int Cmd_free(int argc, char *argv[]) {
 
     heap_high_mark = 0;
 	heap_low_mark = 0xffffffff;
-	heap_print = atoi(argv[1]);
+	if( argc != 0 ) {
+		heap_print = atoi(argv[1]);
+	}
 	// Return success.
 	return (0);
 }
