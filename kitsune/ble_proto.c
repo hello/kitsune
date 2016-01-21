@@ -573,7 +573,7 @@ void ble_proto_start_hold()
 	case BLE_CONNECTED:
 	default:
 		set_released(false);
-		xTaskCreate(hold_animate_progress_task, "hold_animate_pair",1024 / 4, NULL, 2, NULL);
+		xTaskCreate(hold_animate_progress_task, "hold_animate_pair",1024 / 4, NULL, 3, NULL);
 	}
 
 }
