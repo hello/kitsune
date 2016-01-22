@@ -228,6 +228,8 @@ static void
 _top_uart_isr() {
 	signed long xHigherPriorityTaskWoken;
 	UARTIntDisable( UARTA1_BASE, 0xFFF );
+	UARTIntClear( UARTA1_BASE, 0xFFF );
+
 	xSemaphoreGiveFromISR(self.uart_sem, &xHigherPriorityTaskWoken);
 	portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }
