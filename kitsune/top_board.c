@@ -265,7 +265,7 @@ void top_board_task(void * params){
 				slip_handle_rx(c);
 			}
 		}
-		UARTIntEnable( UARTA1_BASE, UART_INT_RX | UART_INT_EOT | UART_INT_OE  );
+		UARTIntEnable( UARTA1_BASE, UART_INT_OE  );
 		xSemaphoreTake(self.uart_sem, 100);
 	}
 }
