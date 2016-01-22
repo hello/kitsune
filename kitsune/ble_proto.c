@@ -157,7 +157,7 @@ static void _reply_wifi_scan_result()
 {
     int i = 0;
     MorpheusCommand reply_command = {0};
-    int count = hlo_future_read(scan_results,_wifi_endpoints,sizeof(_wifi_endpoints), 10000);
+    int count = hlo_future_read(scan_results,_wifi_endpoints,sizeof(_wifi_endpoints), 40000);
     for(i = 0; i < count; i++)
     {
 		reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_START_WIFISCAN;
@@ -165,6 +165,9 @@ static void _reply_wifi_scan_result()
 		ble_send_protobuf(&reply_command);
         vTaskDelay(250);  // This number must be long enough so the BLE can get the data transmit to phone
         memset(&reply_command, 0, sizeof(reply_command));
+    }
+    if( count == -11 ) {
+    	LOGI("WIFI SCAN TO\n");
     }
     reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_STOP_WIFISCAN;
 	ble_send_protobuf(&reply_command);
