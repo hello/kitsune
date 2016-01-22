@@ -38,7 +38,7 @@
 
 #define MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP (500)
 
-#define MAX_NUMBER_TIMES_TO_WAIT_FOR_AUDIO_BUFFER_TO_FILL (50)
+#define MAX_NUMBER_TIMES_TO_WAIT_FOR_AUDIO_BUFFER_TO_FILL (5)
 #define MAX_FILE_SIZE_BYTES (1048576*10)
 
 #define MONO_BUF_LENGTH (256)
@@ -264,7 +264,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		iBufWaitingCount = 0;
 		while (IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) == TRUE &&
 				iBufWaitingCount < MAX_NUMBER_TIMES_TO_WAIT_FOR_AUDIO_BUFFER_TO_FILL) {
-			xSemaphoreTake( audio_dma_sem, 100 );
+			xSemaphoreTake( audio_dma_sem, 1000 );
 			iBufWaitingCount++;
 
 			if( !started ) {
@@ -525,7 +525,11 @@ static void DoCapture(uint32_t rate) {
 
 		if(iBufferFilled < 2*PING_PONG_CHUNK_SIZE) {
 			//wait a bit for the tx buffer to fill
-			xSemaphoreTake( audio_dma_sem, 100 );
+			if( !xSemaphoreTake( audio_dma_sem, 1000 ) ) {
+				LOGE("Capture DMA timeout\n");
+				DeinitAudioCapture();
+				InitAudioCapture(rate);
+			}
 		}
 		else {
 	//		uint8_ts * ptr_samples_bytes = (uint8_t *)samples;

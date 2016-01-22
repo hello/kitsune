@@ -104,6 +104,8 @@ extern tCircularBuffer *pTxBuffer;
 extern tCircularBuffer *pRxBuffer;
 extern unsigned int g_uiPlayWaterMark;
 
+extern xSemaphoreHandle audio_dma_sem;
+
 //*****************************************************************************
 //
 //! Callback function implementing ping pong mode DMA transfer
