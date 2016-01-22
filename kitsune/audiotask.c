@@ -525,7 +525,11 @@ static void DoCapture(uint32_t rate) {
 
 		if(iBufferFilled < 2*PING_PONG_CHUNK_SIZE) {
 			//wait a bit for the tx buffer to fill
-			xSemaphoreTake( audio_dma_sem, 100 );
+			if( !xSemaphoreTake( audio_dma_sem, 100 ) ) {
+#define capture_fail false
+				assert(capture_fail)
+#undef capture_fail
+			}
 		}
 		else {
 	//		uint8_ts * ptr_samples_bytes = (uint8_t *)samples;
