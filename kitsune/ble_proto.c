@@ -157,7 +157,7 @@ static void _reply_wifi_scan_result()
 {
     int i = 0;
     MorpheusCommand reply_command = {0};
-    int count = hlo_future_read(scan_results,_wifi_endpoints,sizeof(_wifi_endpoints), 40000);
+    int count = hlo_future_read(scan_results,_wifi_endpoints,sizeof(_wifi_endpoints), 30000);
     for(i = 0; i < count; i++)
     {
 		reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_START_WIFISCAN;
