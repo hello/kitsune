@@ -1987,7 +1987,8 @@ bool send_pill_data_generic(batched_pill_data * pill_data, const char * endpoint
 	return NetworkTask_SendProtobuf(true, DATA_SERVER,
 			endpoint, batched_pill_data_fields, pill_data, INT_MAX,
 			NULL, NULL, &pb_cb, false);
-
+}
+bool send_periodic_data(batched_periodic_data* data, bool forced) {
     protobuf_reply_callbacks pb_cb;
 
     pb_cb.get_reply_pb = _get_sync_response;
@@ -1996,10 +1997,9 @@ bool send_pill_data_generic(batched_pill_data * pill_data, const char * endpoint
     pb_cb.on_pb_failure = _on_sync_response_failure;
 
 	return NetworkTask_SendProtobuf(true, DATA_SERVER,
-			DATA_RECEIVE_ENDPOINT, batched_periodic_data_fields, data, to,
+			DATA_RECEIVE_ENDPOINT, batched_periodic_data_fields, data, INT_MAX,
 			NULL, NULL, &pb_cb, forced);
 }
-
 static void _get_provision_response(pb_field_t ** fields, void ** structdata){
 	*fields = (pb_field_t *)MorpheusCommand_fields;
 	*structdata = pvPortMalloc(sizeof(ProvisionResponse));
