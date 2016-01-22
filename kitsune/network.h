@@ -78,9 +78,6 @@ extern "C"
 
 #define TX_BUFFER_SIZE          (4*PING_PONG_CHUNK_SIZE)
 
-extern void * audio_dma_sem;
-
-
 #define AUDIO_FILE "DIGIAUX.raw" //armi.rec
 //*****************************************************************************
 //

@@ -826,17 +826,16 @@ uint8_t get_alpha_from_light()
 static int _is_light_off()
 {
 	static int last_light = -1;
-	const int light_off_threshold = 300;
+	const int light_off_threshold = 500;
 	int ret = 0;
 
 	xSemaphoreTake(light_smphr, portMAX_DELAY);
 	if(last_light != -1)
 	{
 		int delta = last_light - light;
-		//LOGI("delta: %d, current %d, last %d\n", delta, current_light, last_light);
-		if(delta >= light_off_threshold && light < 300)
+		if(delta >= light_off_threshold && light < 1000)
 		{
-			//LOGI("Light off\n");
+			LOGI("light delta: %d, current %d, last %d\n", delta, light, last_light);
 			ret = 1;
 			light_mean = light; //so the led alpha will be at the lights off level
 		}
