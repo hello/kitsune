@@ -1987,7 +1987,6 @@ bool send_pill_data_generic(batched_pill_data * pill_data, const char * endpoint
 	return NetworkTask_SendProtobuf(true, DATA_SERVER,
 			endpoint, batched_pill_data_fields, pill_data, INT_MAX,
 			NULL, NULL, &pb_cb, false);
-}
 
     protobuf_reply_callbacks pb_cb;
 
