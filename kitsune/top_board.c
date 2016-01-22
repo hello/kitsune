@@ -227,7 +227,6 @@ _sendchar(uint8_t c){
 static void
 _top_uart_isr() {
 	signed long xHigherPriorityTaskWoken;
-	UARTIntDisable( UARTA1_BASE, 0xFFF );
 	UARTIntClear( UARTA1_BASE, 0xFFF );
 
 	xSemaphoreGiveFromISR(self.uart_sem, &xHigherPriorityTaskWoken);
@@ -259,6 +258,7 @@ void top_board_task(void * params){
 			(UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE));
 	UARTFIFOLevelSet( UARTA1_BASE, UART_FIFO_TX1_8, UART_FIFO_RX1_8 );
 	UARTIntDisable( UARTA1_BASE, 0xFFF );
+	UARTIntEnable( UARTA1_BASE, UART_INT_OE | UART_INT_RX | UART_INT_EOT );
 	UARTIntRegister(UARTA1_BASE, _top_uart_isr );
 	while (1) {
 		while( UARTCharsAvail(UARTA1_BASE)) {
@@ -267,7 +267,6 @@ void top_board_task(void * params){
 				slip_handle_rx(c);
 			}
 		}
-		UARTIntEnable( UARTA1_BASE, UART_INT_OE  );
 		xSemaphoreTake(self.uart_sem, 100);
 	}
 }
