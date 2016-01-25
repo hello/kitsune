@@ -204,7 +204,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	}
 
 
-	if ( !InitAudioPlayback(volume, info->rate ) ) {
+	if ( !InitAudioPlayback(1, info->rate ) ) {
 		hello_fs_unlock();
 		LOGI("unable to initialize audio playback.  Probably not enough memory!\r\n");
 		vPortFree(speaker_data);
