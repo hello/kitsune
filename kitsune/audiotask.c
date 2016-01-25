@@ -281,7 +281,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 			//UARTprintf( "D %d %d bytes %d\n", wait, wait2,  size);
 //		}
 
-		if( iBufWaitingCount < MAX_NUMBER_TIMES_TO_WAIT_FOR_AUDIO_BUFFER_TO_FILL &&
+		if( iBufWaitingCount >= MAX_NUMBER_TIMES_TO_WAIT_FOR_AUDIO_BUFFER_TO_FILL &&
 				CheckForInterruptionDuringPlayback() ) {
 			LOGI("stopping playback");
 			break;
