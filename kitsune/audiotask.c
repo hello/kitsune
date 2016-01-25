@@ -272,6 +272,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 				Audio_Start();
 				started = true;
 			}
+
 		};
 		if( iBufWaitingCount > 0 ) {
 //			UARTprintf( "B %d bytes %d\n", iBufWaitingCount, size);
@@ -280,9 +281,13 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 			//UARTprintf( "D %d %d bytes %d\n", wait, wait2,  size);
 //		}
 
+		if( iBufWaitingCount < MAX_NUMBER_TIMES_TO_WAIT_FOR_AUDIO_BUFFER_TO_FILL &&
+				CheckForInterruptionDuringPlayback() ) {
+			LOGI("stopping playback");
+			break;
+		}
 
 		assert(iBufWaitingCount < MAX_NUMBER_TIMES_TO_WAIT_FOR_AUDIO_BUFFER_TO_FILL);
-
 
 		if (size > 0) {
 			int i;
