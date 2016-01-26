@@ -1907,15 +1907,17 @@ int Cmd_time_test(int argc, char * argv[]);
 // ==============================================================================
 tCmdLineEntry g_sCmdTable[] = {
 //    { "cpu",      Cmd_cpu,      "Show CPU utilization" },
+#if 0
 		{ "time_test", Cmd_time_test, "" },
-		{ "free", Cmd_free, "" },
 		{ "heapviz", Cmd_heapviz, "" },
 		{ "realloc", Cmd_test_realloc, "" },
 		{ "fault", Cmd_fault, "" },
-		{ "connect", Cmd_connect, "" },
-		{ "disconnect", Cmd_disconnect, "" },
 		{ "mac", Cmd_set_mac, "" },
 		{ "aes", Cmd_set_aes, "" },
+#endif
+		{ "free", Cmd_free, "" },
+		{ "connect", Cmd_connect, "" },
+		{ "disconnect", Cmd_disconnect, "" },
 
 		{ "ping", Cmd_ping, "" },
 		{ "time", Cmd_time, "" },
@@ -1926,30 +1928,34 @@ tCmdLineEntry g_sCmdTable[] = {
     { "ls",       Cmd_ls,       "" },
     { "chdir",    Cmd_cd,       "" },
     { "cd",       Cmd_cd,       "" },
-    { "mkdir",    Cmd_mkdir,    "" },
     { "rm",       Cmd_rm,       "" },
+#if 0
+    { "mkdir",    Cmd_mkdir,    "" },
     { "write",    Cmd_write,    "" },
     { "mkfs",     Cmd_mkfs,     "" },
     { "pwd",      Cmd_pwd,      "" },
     { "cat",      Cmd_cat,      "" },
+	{"codec_Mic", get_codec_mic_NAU, "" },
+#endif
 
     {"inttemp", Cmd_inttemp, "" },
 		{ "humid", Cmd_readhumid, "" },
 		{ "temp", Cmd_readtemp,	"" },
 		{ "light", Cmd_readlight, "" },
 		{"prox", Cmd_readproximity, "" },
-//		{"codec_Mic", get_codec_mic_NAU, "" },
 
 #if ( configUSE_TRACE_FACILITY == 1 )
 		{ "tasks", Cmd_tasks, "" },
 #endif
 
 		{ "dust", Cmd_dusttest, "" },
+#if 0
 		{ "dig", Cmd_dig, "" },
 		{ "fswr", Cmd_fs_write, "" }, //serial flash commands
 		{ "fsrd", Cmd_fs_read, "" },
 		{ "fsdl", Cmd_fs_delete, "" },
 		{ "get", Cmd_test_get, ""},
+#endif
 
 		{ "r", Cmd_record_buff,""}, //record sounds into SD card
 		{ "p", Cmd_play_buff, ""},//play sounds from SD card
@@ -1958,14 +1964,14 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "getoct",Cmd_get_octogram,""},
 		{ "aon",Cmd_audio_turn_on,""},
 		{ "aoff",Cmd_audio_turn_off,""},
-
+#if 0
 		{ "sl", Cmd_sl, "" }, // smart config
 		{ "mode", Cmd_mode, "" }, //set the ap/station mode
 
 		{ "spird", Cmd_spi_read,"" },
 		{ "spiwr", Cmd_spi_write, "" },
 		{ "spirst", Cmd_spi_reset, "" },
-
+#endif
 		{ "antsel", Cmd_antsel, "" }, //select antenna
 		{ "led", Cmd_led, "" },
 		{ "clrled", Cmd_led_clr, "" },
@@ -1976,15 +1982,21 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "rdiorxstart", Cmd_RadioStartRX, "" },
 		{ "rdiorxstop", Cmd_RadioStopRX, "" },
 #endif
+#if 0
 		{ "slip", Cmd_slip, "" },
+#endif
 		{ "^", Cmd_send_top, ""}, //send command to top board
 		{ "topdfu", Cmd_topdfu, ""}, //update topboard firmware.
 		{ "factory_reset", Cmd_factory_reset, ""},//Factory reset from middle.
+#if 0
 		{ "download", Cmd_download, ""},//download test function.
 		{ "dtm", Cmd_top_dtm, "" },//Sends Direct Test Mode command
+#endif
 		{ "animate", Cmd_led_animate, ""},//Animates led
-		{ "uplog", Cmd_log_upload, "Uploads log to server"},
-		{ "loglevel", Cmd_log_setview, "Sets log level" },
+#if 0
+		{ "uplog", Cmd_log_upload, ""},
+#endif
+		{ "loglevel", Cmd_log_setview, "" },
 		{ "ver", Cmd_version, ""},//Animates led
 #ifdef BUILD_TESTS
 		{ "test_network",Cmd_test_network,""},
@@ -1998,10 +2010,11 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "gesture_count",Cmd_get_gesture_count,""},
 		{ "alarm",set_test_alarm,""},
 		{ "set-time",cmd_set_time,""},
+		{ "rssi", Cmd_rssi, "" },
+#if 0
 		{ "frag",cmd_memfrag,""},
 		{ "burntopkey",Cmd_burn_top,""},
 		{ "scan",Cmd_scan_wifi,""},
-		{ "rssi", Cmd_rssi, "" },
 		{"future",Cmd_FutureTest,""},
 		{"dev", Cmd_setDev, ""},
 		{"ana", Cmd_analytics, ""},
@@ -2010,6 +2023,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{"nwp", Cmd_nwpinfo, ""},
 		{"resync", Cmd_SyncID, ""},
 		{"g", Cmd_gesture, ""},
+#endif
 
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},

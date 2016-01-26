@@ -138,6 +138,7 @@ FRESULT hello_fs_rename (const char* path_old, const char*path_new) {
 }
 #include "FreeRTOS.h"
 #include "task.h"
+#if 0
 FRESULT hello_fs_mkfs (const char* drv, BYTE partition, UINT allocsize) {
 	FRESULT res;
 	LOCK();
@@ -146,3 +147,4 @@ FRESULT hello_fs_mkfs (const char* drv, BYTE partition, UINT allocsize) {
 	UNLOCK();
 	return res;
 }
+#endif

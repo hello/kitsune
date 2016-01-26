@@ -53,8 +53,8 @@ extern "C"
 #define PRINT_DBG               printf
 
 typedef void (*tAppCallbackHndl)(void);
-#define MAX_NUM_CH	            64	//32*2 entries
-#define CTL_TBL_SIZE	            64	//32*2 entries
+#define MAX_NUM_CH	            32	//32*2 entries
+#define CTL_TBL_SIZE	            32	//32*2 entries
 
 #define UDMA_CH5_BITID          (1<<5)
 
