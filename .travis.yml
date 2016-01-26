@@ -1,9 +1,12 @@
+sudo: false
 language: c
+addons:
+  apt:
+    sources:
+    - libstdc++6:i386
 script: "./build.sh"
 install:
 - "./travis-setup.sh"
-before_install:
-- "./dependencies.sh"
 notifications:
   email:
   - chris@sayhello.com
