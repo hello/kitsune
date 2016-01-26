@@ -260,7 +260,7 @@ void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent) {
 
 		wifi_status_set(HAS_IP, false);
 
-		xTaskCreate(wifi_ip_update_task, "wifi_ip_update_task", 1024 / 4, NULL, 2, NULL);
+		xTaskCreate(wifi_ip_update_task, "wifi_ip_update_task", 1024 / 4, NULL, 1, NULL);
 		break;
 
 	case SL_NETAPP_IP_LEASED_EVENT:
@@ -1658,8 +1658,11 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     retries = 0;
     //keep looping while our socket error code is telling us to try again
     do {
-    	rv = recv(*sock, recv_buf+recv_buf_size-SERVER_REPLY_BUFSZ, SERVER_REPLY_BUFSZ, 0);
-    	if( rv == SERVER_REPLY_BUFSZ ) {
+		vTaskDelay(1000);
+    	rv = recv(sock, recv_buf+recv_buf_size-SERVER_REPLY_BUFSZ, SERVER_REPLY_BUFSZ, 0);
+    	MAP_WatchdogIntClear(WDT_BASE); //clear wdt, it seems the SL_SPAWN hogs CPU here
+        LOGI("rv %d\n", rv);
+        if( rv == SERVER_REPLY_BUFSZ ) {
              recv_buf_size += SERVER_REPLY_BUFSZ;
              if( recv_buf_size > 10*1024 ) {
                  LOGI("error response too bug\n");
@@ -1671,10 +1674,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     		 *recv_buf_ptr = recv_buf;
     		 *recv_buf_size_ptr = recv_buf_size;
     		 rv = SL_EAGAIN;
-    	} else {
-    		vTaskDelay(1000);
     	}
-        LOGI("rv %d\n", rv);
     } while (rv == SL_EAGAIN && retries++ < 60 );
 
     if (rv <= 0) {
@@ -1682,8 +1682,6 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
         ble_reply_socket_error(rv);
         goto failure;
     }
-	MAP_WatchdogIntClear(WDT_BASE); //clear wdt, it seems the SL_SPAWN hogs CPU here
-    LOGI("recv %d\n", rv);
     }
 
     {

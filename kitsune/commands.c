@@ -174,7 +174,9 @@ int Cmd_free(int argc, char *argv[]) {
 
     heap_high_mark = 0;
 	heap_low_mark = 0xffffffff;
-	heap_print = atoi(argv[1]);
+	if( argc != 0 ) {
+		heap_print = atoi(argv[1]);
+	}
 	// Return success.
 	return (0);
 }
@@ -604,7 +606,9 @@ int set_test_alarm(int argc, char *argv[]) {
 	return 0;
 }
 static void thread_alarm_on_finished(void * context) {
-	stop_led_animation(10, 60);
+	if( led_get_animation_id() == *(int*)context ) {
+		stop_led_animation(10, 60);
+	}
 	if (xSemaphoreTakeRecursive(alarm_smphr, 500)) {
 		LOGI("Alarm finished\r\n");
 		xSemaphoreGiveRecursive(alarm_smphr);
@@ -625,6 +629,7 @@ static bool _is_file_exists(char* path)
 
 uint8_t get_alpha_from_light();
 void thread_alarm(void * unused) {
+	int alarm_led_id = -1;
 	while (1) {
 		wait_for_time(WAIT_FOREVER);
 
@@ -704,6 +709,7 @@ void thread_alarm(void * unused) {
 				desc.volume = 57;
 				desc.onFinished = thread_alarm_on_finished;
 				desc.rate = 48000;
+				desc.context = &alarm_led_id;
 
 				alarm.has_start_time = FALSE;
 				alarm.start_time = 0;
@@ -716,7 +722,7 @@ void thread_alarm(void * unused) {
 
 				uint8_t trippy_base[3] = { 0, 0, 0 };
 				uint8_t trippy_range[3] = { 254, 254, 254 };
-				play_led_trippy(trippy_base, trippy_range,0,30, 120000);
+				alarm_led_id = play_led_trippy(trippy_base, trippy_range,0,30, 120000);
 			}
 			
 			xSemaphoreGiveRecursive(alarm_smphr);
@@ -820,17 +826,16 @@ uint8_t get_alpha_from_light()
 static int _is_light_off()
 {
 	static int last_light = -1;
-	const int light_off_threshold = 300;
+	const int light_off_threshold = 500;
 	int ret = 0;
 
 	xSemaphoreTake(light_smphr, portMAX_DELAY);
 	if(last_light != -1)
 	{
 		int delta = last_light - light;
-		//LOGI("delta: %d, current %d, last %d\n", delta, current_light, last_light);
-		if(delta >= light_off_threshold && light < 300)
+		if(delta >= light_off_threshold && light < 1000)
 		{
-			//LOGI("Light off\n");
+			LOGI("light delta: %d, current %d, last %d\n", delta, light, last_light);
 			ret = 1;
 			light_mean = light; //so the led alpha will be at the lights off level
 		}
@@ -983,7 +988,7 @@ void thread_fast_i2c_poll(void * unused)  {
 	}
 }
 
-#define MAX_PERIODIC_DATA 90
+#define MAX_PERIODIC_DATA 30
 #define MAX_PILL_DATA 20
 #define MAX_BATCH_PILL_DATA 10
 #define PILL_BATCH_WATERMARK 0
@@ -1085,6 +1090,9 @@ void thread_tx(void* unused) {
 				}
 				xSemaphoreGiveRecursive(alarm_smphr);
 			}
+			data_batched.has_messages_in_queue = true;
+			data_batched.messages_in_queue = uxQueueMessagesWaiting(data_queue);
+
 			if( send_periodic_data(&data_batched, got_forced_data, ( MAX_PERIODIC_DATA - uxQueueMessagesWaiting(data_queue) ) * 60 * 1000 ) ) {
 				last_upload_time = xTaskGetTickCount();
 			}
@@ -1709,24 +1717,24 @@ void launch_tasks() {
 	//dear future chris: this one doesn't need a semaphore since it's only written to while threads are going during factory test boot
 	booted = true;
 
-	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 3, NULL);
-	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,1,NULL);
+	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 2, NULL);
+	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,2,NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 3, NULL);
 	UARTprintf("*");
-	xTaskCreate(FileUploaderTask_Thread,"fileUploadTask",1*1024/4,NULL,1,NULL);
+	xTaskCreate(FileUploaderTask_Thread,"fileUploadTask",1*1024/4,NULL,3,NULL);
 #ifdef BUILD_SERVERS //todo PVT disable!
-	xTaskCreate(telnetServerTask,"telnetServerTask",512/4,NULL,1,NULL);
-	xTaskCreate(httpServerTask,"httpServerTask",3*512/4,NULL,1,NULL);
+	xTaskCreate(telnetServerTask,"telnetServerTask",512/4,NULL,4,NULL);
+	xTaskCreate(httpServerTask,"httpServerTask",3*512/4,NULL,4,NULL);
 #endif
 	UARTprintf("*");
 #if !ONLY_MID
 	UARTprintf("*");
-	xTaskCreate(thread_dust, "dustTask", 1024 / 4, NULL, 3, NULL);
+	xTaskCreate(thread_dust, "dustTask", 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_sensor_poll, "pollTask", 1024 / 4, NULL, 3, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_tx, "txTask", 1536 / 4, NULL, 2, NULL);
+	xTaskCreate(thread_tx, "txTask", 1536 / 4, NULL, 4, NULL);
 	UARTprintf("*");
 #endif
 }
@@ -2027,8 +2035,8 @@ void vUARTTask(void *pvParameters) {
 	if(led_init() != 0){
 		LOGI("Failed to create the led_events.\n");
 	}
-	xTaskCreate(led_task, "ledTask", 700 / 4, NULL, 4, NULL); //todo reduce stack - jpf 512 not large enough due to large int arrays in led_task
-	xTaskCreate(led_idle_task, "led_idle_task", 256 / 4, NULL, 1, NULL); //todo reduce stack - jpf 512 not large enough due to large int arrays in led_task
+	xTaskCreate(led_task, "ledTask", 700 / 4, NULL, 2, NULL);
+	xTaskCreate(led_idle_task, "led_idle_task", 256 / 4, NULL, 4, NULL);
 
 	//switch the uart lines to gpios, drive tx low and see if rx goes low as well
     // Configure PIN_57 for GPIOInput

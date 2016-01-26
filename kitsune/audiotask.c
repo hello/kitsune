@@ -23,6 +23,7 @@
 #include "ustdlib.h"
 
 #include "mcasp_if.h"
+#include "kit_assert.h"
 
 #if 0
 #define PRINT_TIMING
@@ -37,7 +38,7 @@
 
 #define MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP (500)
 
-#define MAX_NUMBER_TIMES_TO_WAIT_FOR_AUDIO_BUFFER_TO_FILL (5000)
+#define MAX_NUMBER_TIMES_TO_WAIT_FOR_AUDIO_BUFFER_TO_FILL (5)
 #define MAX_FILE_SIZE_BYTES (1048576*10)
 
 #define MONO_BUF_LENGTH (256)
@@ -51,6 +52,7 @@
 unsigned int g_uiPlayWaterMark;
 extern tCircularBuffer * pRxBuffer;
 extern tCircularBuffer * pTxBuffer;
+xSemaphoreHandle audio_dma_sem;
 
 /* static variables  */
 static xQueueHandle _queue = NULL;
@@ -114,6 +116,10 @@ static void Init(void) {
 		_statsMutex = xSemaphoreCreateMutex();
 	}
 
+	if( !audio_dma_sem ) {
+		audio_dma_sem = xSemaphoreCreateMutex();
+	}
+
 	memset(&_stats,0,sizeof(_stats));
 
 	AudioFeatures_Init(DataCallback,StatsCallback);
@@ -164,7 +170,6 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	//1.5K on the stack
 	uint16_t * speaker_data = pvPortMalloc(SPEAKER_DATA_CHUNK_SIZE);
 
-
 	FIL fp = {0};
 	UINT size;
 	FRESULT res;
@@ -199,7 +204,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	}
 
 
-	if ( !InitAudioPlayback(volume, info->rate ) ) {
+	if ( !InitAudioPlayback(1, info->rate ) ) {
 		hello_fs_unlock();
 		LOGI("unable to initialize audio playback.  Probably not enough memory!\r\n");
 		vPortFree(speaker_data);
@@ -225,7 +230,6 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	memset(speaker_data,0,SPEAKER_DATA_CHUNK_SIZE);
 
 	if( has_fade ) {
-		g_uiPlayWaterMark = 1;
 		fade_time = t0 = xTaskGetTickCount();
 		//make sure the volume is down before we start...
 		set_volume(1, portMAX_DELAY);
@@ -260,17 +264,15 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		iBufWaitingCount = 0;
 		while (IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) == TRUE &&
 				iBufWaitingCount < MAX_NUMBER_TIMES_TO_WAIT_FOR_AUDIO_BUFFER_TO_FILL) {
-			if( iBufWaitingCount == 0 ) {
-				vTaskDelay(5);
-			} else {
-				vTaskDelay(1);
-			}
+			xSemaphoreTake( audio_dma_sem, 1000 );
 			iBufWaitingCount++;
 
 			if( !started ) {
+				g_uiPlayWaterMark = 1;
 				Audio_Start();
 				started = true;
 			}
+
 		};
 		if( iBufWaitingCount > 0 ) {
 //			UARTprintf( "B %d bytes %d\n", iBufWaitingCount, size);
@@ -279,12 +281,13 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 			//UARTprintf( "D %d %d bytes %d\n", wait, wait2,  size);
 //		}
 
-
-		if (iBufWaitingCount >= MAX_NUMBER_TIMES_TO_WAIT_FOR_AUDIO_BUFFER_TO_FILL) {
-			LOGI("Waited too long for audio buffer empty out to the codec \r\n");
+		if( iBufWaitingCount >= MAX_NUMBER_TIMES_TO_WAIT_FOR_AUDIO_BUFFER_TO_FILL &&
+				CheckForInterruptionDuringPlayback() ) {
+			LOGI("stopping playback");
 			break;
 		}
 
+		assert(iBufWaitingCount < MAX_NUMBER_TIMES_TO_WAIT_FOR_AUDIO_BUFFER_TO_FILL);
 
 		if (size > 0) {
 			int i;
@@ -527,7 +530,11 @@ static void DoCapture(uint32_t rate) {
 
 		if(iBufferFilled < 2*PING_PONG_CHUNK_SIZE) {
 			//wait a bit for the tx buffer to fill
-			vTaskDelay(1);
+			if( !xSemaphoreTake( audio_dma_sem, 1000 ) ) {
+				LOGE("Capture DMA timeout\n");
+				DeinitAudioCapture();
+				InitAudioCapture(rate);
+			}
 		}
 		else {
 	//		uint8_ts * ptr_samples_bytes = (uint8_t *)samples;
