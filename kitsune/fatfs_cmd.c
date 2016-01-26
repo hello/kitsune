@@ -55,7 +55,6 @@
 #define MAX_BUFF_SIZE      1024
 
 int sf_sha1_verify(const char * sha_truth, const char * serial_file_path);
-unsigned char g_buff[MAX_BUFF_SIZE];
 long bytesReceived = 0; // variable to store the file size
 static int dl_sock = -1;
 //end download stuff
@@ -123,7 +122,7 @@ int Cmd_umnt(int argc, char *argv[])
 	LOGF("f_mount success\n");
 	return 0;
 }
-
+#if 0
 int Cmd_mkfs(int argc, char *argv[])
 {
     FRESULT res;
@@ -139,7 +138,7 @@ int Cmd_mkfs(int argc, char *argv[])
 	LOGF("f_mkfs success\n");
 	return 0;
 }
-
+#endif
 //*****************************************************************************
 //
 // This function implements the "ls" command.  It opens the current directory
@@ -689,70 +688,6 @@ signed long hexToi(unsigned char *ptr)
 
 //****************************************************************************
 //
-//! \brief Calculate the file chunk size
-//!
-//! \param[in]      len - pointer to length of the data in the buffer
-//! \param[in]      p_Buff - pointer to ponter of buffer containing data
-//! \param[out]     chunk_size - pointer to variable containing chunk size
-//!
-//! \return         0 for success, -ve for error
-//
-//****************************************************************************
-int GetChunkSize(int *len, unsigned char **p_Buff, UINT *chunk_size)
-{
-    int           idx = 0;
-    unsigned char lenBuff[10];
-    signed long r = -1;
-
-    idx = 0;
-    memset(lenBuff, 0, 10);
-    while(*len >= 0 && **p_Buff != 13) /* check for <CR> */
-    {
-        if(*len == 0)
-        {
-            int retry = 0;
-            memset(g_buff, 0, MAX_BUFF_SIZE);
-
-            do{
-                vTaskDelay(500);
-                *len = recv(dl_sock, g_buff, MAX_BUFF_SIZE, 0);
-                if(++retry > SOCK_RETRY){
-                    break;
-                }
-                if(*len < 0 ){
-                    vTaskDelay(500);
-                }
-            }while(*len == SL_EAGAIN);
-
-            LOGI( "chunked rx:\r\n%s\r\n", g_buff);
-            if(*len <= 0){
-                ASSERT_ON_ERROR(-1);
-            }
-
-            *p_Buff = g_buff;
-        }
-        lenBuff[idx] = **p_Buff;
-        idx++;
-        (*p_Buff)++;
-        (*len)--;
-    }
-    (*p_Buff) += 2; // skip <CR><LF>
-    (*len) -= 2;
-    r = hexToi(lenBuff);
-    if(r < 0)
-    {
-        ASSERT_ON_ERROR(-1);
-    }
-    else
-    {
-        *chunk_size = r;
-    }
-
-    return 0;
-}
-
-//****************************************************************************
-//
 //! \brief Obtain the file from the server
 //!
 //!  This function requests the file from the server and save it on serial flash.
@@ -783,13 +718,13 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
     UINT          r = 0;
     int           retry;
     unsigned char *pBuff = 0;
-    char          eof_detected = 0;
     UINT          recv_size = 0;
-    unsigned char isChunked = 0;
 
     long          fileHandle = -1;
 
     LOGI("Start downloading the file\r\n");
+
+    unsigned char * g_buff = pvPortMalloc( MAX_BUFF_SIZE );
 
     memset(g_buff, 0, MAX_BUFF_SIZE);
 
@@ -871,7 +806,6 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
         if(memcmp(pBuff, HTTP_ENCODING_CHUNKED, strlen(HTTP_ENCODING_CHUNKED)) == 0)
         {
             recv_size = 0;
-            isChunked = 1;
         }
     }
     else
@@ -911,11 +845,6 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
     	return -1;
     }
 
-    // If data in chunked format, calculate the chunk size
-    if(isChunked == 1)
-    {
-        r = GetChunkSize(&transfer_len, &pBuff, &recv_size);
-    }
     FRESULT res = FR_OK;
 
 	if (storage == SD_CARD) {
@@ -966,250 +895,36 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
     {
     	if( 100-100*recv_size/total != percent ) {
     		percent = 100-100*recv_size/total;
-            LOGI("Downloading... %d %d\r", recv_size, percent );
+            LOGI("Downloading... %d %d\r\n", recv_size, percent );
     	}
 
-        // For chunked data recv_size contains the chunk size to be received
-        if(recv_size <= transfer_len)
-        {
-            // write the recv_size
-			if (storage == SD_CARD) {
-				res = hello_fs_write(&file_obj, pBuff, transfer_len, &r);
-				if (r < recv_size) {
-					LOGI("Failed during writing the file\n");
-					/* Close file without saving */
-					res = hello_fs_close(&file_obj);
-
-					if (res != FR_OK) {
-						cd("/");
-						return ((int) res);
-					}
-					hello_fs_unlink(path_buff);
-					cd("/");
-					return -1;
-				}
-			} else if (storage == SERIAL_FLASH) {
-				//write to serial flash file
-	            r = sl_FsWrite(fileHandle, total - recv_size,
-	                    (unsigned char *)pBuff, transfer_len);
-                if(r > 0 && r < transfer_len){
-	            	LOGI("\r\nFailed to write correct chunk size\r\n");
-                }
-	            if(r < transfer_len)
-	            {
-	            	LOGI("Failed during writing the file\n");
-	                /* Close file without saving */
-	                return sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
-	            }
+		// write data on the file
+		if (storage == SD_CARD) {
+			res = hello_fs_write(&file_obj, pBuff, transfer_len, &r);
+			if (r != transfer_len) {
+				goto failure;
 			}
-            LOGI("chunked 1 wrote:  %d / %d , %d\r\n", r,transfer_len,  res);
-
-            if(r < recv_size)
-            {
-    			if (storage == SD_CARD) {
-    				/* Close file without saving */
-    				res = hello_fs_close(&file_obj);
-    				hello_fs_unlink(path_buff);
-    			} else if (storage == SERIAL_FLASH) {
-    				sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
-    			}
-                return r;
-            }
-            transfer_len -= recv_size;
-            bytesReceived +=recv_size;
-            pBuff += recv_size;
-            recv_size = 0;
-
-            if(isChunked == 1)
-            {
-                // if data in chunked format calculate next chunk size
-                pBuff += 2; // 2 bytes for <CR> <LF>
-                transfer_len -= 2;
-
-                if(GetChunkSize(&transfer_len, &pBuff, &recv_size) < 0)
-                {
-                    // Error
-                    break;
-                }
-
-                // if next chunk size is zero we have received the complete file
-                if(recv_size == 0)
-                {
-                    eof_detected = 1;
-                    break;
-                }
-
-                if(recv_size < transfer_len)
-                {
-                    // Code will enter this section if the new chunk size is
-                    // less than the transfer size. This will the last chunk of
-                    // file received
-        			if (storage == SD_CARD) {
-        				res = hello_fs_write(&file_obj, pBuff, recv_size, &r);
-        				if (r < recv_size) {
-        					LOGI("Failed during writing the file\n");
-        					/* Close file without saving */
-        					res = hello_fs_close(&file_obj);
-
-        					if (res != FR_OK) {
-        						cd("/");
-        						return ((int) res);
-        					}
-        					hello_fs_unlink(path_buff);
-        					cd("/");
-        					return -1;
-        				}
-        			} else if (storage == SERIAL_FLASH) {
-						//write to serial flash file
-					    r = sl_FsWrite(fileHandle,total - recv_size,
-								(unsigned char *) pBuff, transfer_len);
-						if (r < transfer_len) {
-							LOGI("Failed during writing the file\n");
-							/* Close file without saving */
-							r = sl_FsClose(fileHandle, 0,
-									(unsigned char*) "A", 1);
-							return r;
-						}
-        			}
-
-                    LOGI("chunked 2 wrote:  %d %d\r\n", r, res);
-
-                    if(r < recv_size)
-                    {
-            			if (storage == SD_CARD) {
-            				/* Close file without saving */
-            				res = hello_fs_close(&file_obj);
-            				hello_fs_unlink(path_buff);
-            			} else if (storage == SERIAL_FLASH) {
-            				sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
-            			}
-                        return -1;
-                    }
-                    transfer_len -= recv_size;
-                    bytesReceived +=recv_size;
-                    pBuff += recv_size;
-                    recv_size = 0;
-
-                    pBuff += 2; // 2bytes for <CR> <LF>
-                    transfer_len -= 2;
-
-                    // Calculate the next chunk size, should be zero
-                    if(GetChunkSize(&transfer_len, &pBuff, &recv_size) < 0)
-                    {
-                        // Error
-                        break;
-                    }
-
-                    // if next chunk size is non zero error
-                    if(recv_size != 0)
-                    {
-                        // Error
-                        break;
-                    }
-                    eof_detected = 1;
-                    break;
-                }
-                else
-                {
-                    // write data on the file
-        			if (storage == SD_CARD) {
-        				res = hello_fs_write(&file_obj, pBuff, transfer_len, &r);
-        				if (r < recv_size) {
-        					LOGI("Failed during writing the file\n");
-        					/* Close file without saving */
-        					res = hello_fs_close(&file_obj);
-
-        					if (res != FR_OK) {
-        						cd("/");
-        						return ((int) res);
-        					}
-        					hello_fs_unlink(path_buff);
-        					cd("/");
-        					return -1;
-        				}
-        			} else if (storage == SERIAL_FLASH) {
-        				//write to serial flash file
-						r = sl_FsWrite(fileHandle, total - recv_size,
-								(unsigned char *) pBuff, transfer_len);
-						if (r < transfer_len) {
-							LOGI("Failed during writing the file\n");
-							/* Close file without saving */
-							r = sl_FsClose(fileHandle, 0,
-									(unsigned char*) "A", 1);
-							return r;
-						}
-        			}
-
-                    LOGI("chunked 3 wrote:  %d %d\r\n", r, res);
-
-                    if(r < transfer_len)
-                    {
-            			if (storage == SD_CARD) {
-            				/* Close file without saving */
-            				res = hello_fs_close(&file_obj);
-            				hello_fs_unlink(path_buff);
-            			} else if (storage == SERIAL_FLASH) {
-            				sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
-            			}
-                        return -1;
-                    }
-                    recv_size -= transfer_len;
-                    bytesReceived +=transfer_len;
-                }
-            }
-            // complete file received exit
-            if(recv_size == 0)
-            {
-                eof_detected = 1;
-                break;
-            }
-        }
-        else
-        {
-            // write data on the file
-			if (storage == SD_CARD) {
-				res = hello_fs_write(&file_obj, pBuff, transfer_len, &r);
-				if (r != transfer_len) {
-					LOGI("Failed during writing the file\n");
-					/* Close file without saving */
-					res = hello_fs_close(&file_obj);
-
-					if (res != FR_OK) {
-						cd("/");
-						return ((int) res);
-					}
-					hello_fs_unlink(path_buff);
-					cd("/");
-					return -1;
-				}
-			} else if (storage == SERIAL_FLASH) {
-				//write to serial flash file
-				r = sl_FsWrite(fileHandle, total - recv_size,
-						(unsigned char *) pBuff, transfer_len);
-				if (r != transfer_len) {
-					LOGI("Failed during writing the file\n");
-					/* Close file without saving */
-					sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
-					return -1;
-				}
+		} else if (storage == SERIAL_FLASH) {
+			//write to serial flash file
+			r = sl_FsWrite(fileHandle, total - recv_size,
+					(unsigned char *) pBuff, transfer_len);
+			if (r != transfer_len) {
+				goto failure;
 			}
+		}
 
-            //LOGI("wrote:  %d %d\r\n", r, res); spamspamspam
+		//LOGI("wrote:  %d %d\r\n", r, res); spamspamspam
 
-            if (r != transfer_len )
-            {
-    			if (storage == SD_CARD) {
-    				/* Close file without saving */
-    				res = hello_fs_close(&file_obj);
-    				hello_fs_unlink(path_buff);
-    			} else if (storage == SERIAL_FLASH) {
-    				sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
-    			}
-                return -1;
-            }
-            bytesReceived +=transfer_len;
-            recv_size -= transfer_len;
-        }
+		if (r != transfer_len )
+		{
+			goto failure;
+		}
+		bytesReceived +=transfer_len;
+		recv_size -= transfer_len;
+
+		if( recv_size == 0 ) {
+			break;
+		}
 
         memset(g_buff, 0, MAX_BUFF_SIZE);
 
@@ -1224,18 +939,9 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 			break;
 		}
         }
-		//LOGI("rx:  %d\r\n", transfer_len);
-        if(transfer_len <= 0) {
-        	LOGI("TCP_RECV_ERROR\r\n" );
-        	cd( "/" );
-			if (storage == SD_CARD) {
-				/* Close file without saving */
-				res = hello_fs_close(&file_obj);
-				hello_fs_unlink(path_buff);
-			} else if (storage == SERIAL_FLASH) {
-				sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
-			}
-            return -1;
+        if(transfer_len < 0) {
+        	LOGI("recv %d\r\n", transfer_len );
+        	goto failure;
         }
 
         pBuff = g_buff;
@@ -1247,55 +953,53 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
     // In case of invalid file (FILE_NAME) should be closed without saving to
     // recover the previous version of file
     //
-    if(0 > transfer_len || eof_detected == 0)
-    {
-    	LOGI(" invalid file\r\n" );
+	LOGI(" successful file\r\n" );
 
-		if (storage == SD_CARD) {
-	        /* Close file without saving */
-	        res = hello_fs_close( &file_obj );
+	if (storage == SD_CARD) {
+		/* Save and close file */
+		res = hello_fs_close( &file_obj );
 
-	        if(res != FR_OK)
-	        {
-	        	cd( "/" );
-	            return((int)res);
-	        }
-	        hello_fs_unlink( path_buff );
-	        cd( "/" );
-		} else if (storage == SERIAL_FLASH) {
-	        /* Close file without saving */
-			sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
+		if(res != FR_OK)
+		{
+			cd( "/" );
+			vPortFree(g_buff);
+			return((int)res);
 		}
-        return -1;
-    }
-    else
-    {
-    	LOGI(" successful file\r\n" );
-
-		if (storage == SD_CARD) {
-	        /* Save and close file */
-	        res = hello_fs_close( &file_obj );
-
-	        if(res != FR_OK)
-	        {
-	        	cd( "/" );
-	            return((int)res);
-	        }
-		} else if (storage == SERIAL_FLASH) {
-			if( strstr(filename, "ucf") != 0) {
-				uint8_t sig[] = { 0x13, 0xA6, 0x89, 0x25, 0x74, 0xF1, 0xD8, 0x9F, 0x6D, 0x7E, 0x9D, 0x0E, 0x7E, 0xD4, 0x3E, 0x2B, 0x45, 0x02, 0x0E, 0xE7, 0xFA, 0x8D, 0xBC, 0xE6, 0x5C, 0x13, 0x42, 0x27, 0x6D, 0x86, 0xEB, 0x55, 0xE4, 0x90, 0x5E, 0x39, 0xB7, 0x8E, 0xB2, 0x08, 0x5B, 0xA8, 0xE7, 0x31, 0x0A, 0x02, 0x4F, 0xC5, 0x9B, 0x91, 0xA6, 0xAE, 0xAC, 0x66, 0x79, 0xC6, 0x3B, 0xE1, 0x51, 0xDE, 0x5E, 0x12, 0x08, 0xAC, 0xF2, 0x7E, 0xBF, 0xE0, 0x60, 0xD1, 0x03, 0x6E, 0x51, 0xCB, 0x82, 0xE3, 0xBF, 0x23, 0xA2, 0x9F, 0xFB, 0xFE, 0x10, 0xBD, 0x8D, 0x57, 0xA6, 0x0E, 0x7C, 0xBA, 0xF3, 0x34, 0xF1, 0x91, 0xBC, 0x1E, 0x96, 0x10, 0x80, 0xFD, 0xB5, 0x6C, 0xA2, 0x81, 0x36, 0x11, 0x0E, 0x30, 0x45, 0x9B, 0x47, 0x42, 0x05, 0xDA, 0x5A, 0x25, 0x63, 0x8C, 0x6B, 0x3C, 0x62, 0xA5, 0x43, 0xDF, 0x09, 0x3A, 0x6A, 0xAE, 0xB0, 0x59, 0x16, 0x04, 0xAA, 0x4F, 0x31, 0x4B, 0x48, 0xAE, 0xF8, 0xA8, 0x5F, 0x9A, 0x74, 0xC5, 0xFA, 0xA1, 0x60, 0x60, 0x8C, 0xB8, 0x38, 0xC9, 0xEC, 0x44, 0x5D, 0xD8, 0x7D, 0xD6, 0x2B, 0x6B, 0xD0, 0xF9, 0x4D, 0x3E, 0xDE, 0x76, 0xA3, 0x2B, 0xB8, 0x2F, 0xA8, 0x20, 0x96, 0x8D, 0xC8, 0xEF, 0x4E, 0xA9, 0x26, 0xDF, 0xCE, 0xA5, 0xF7, 0xA6, 0x1A, 0x2F, 0x4E, 0x21, 0xDE, 0x70, 0xC7, 0x62, 0xD0, 0x2B, 0xB5, 0x4E, 0x4E, 0x4D, 0xE1, 0xB8, 0x85, 0xA4, 0x1F, 0xD3, 0x8C, 0x0C, 0x2C, 0xCF, 0xB7, 0xD0, 0x01, 0x72, 0x36, 0x69, 0x1C, 0x99, 0x4D, 0x7A, 0x9E, 0x11, 0x61, 0xDA, 0x14, 0x80, 0xFE, 0xF1, 0xF7, 0xC6, 0xB2, 0xD2, 0x33, 0x78, 0xF5, 0xAB, 0x38, 0xBA, 0x0A, 0x07, 0xE1, 0x31, 0x97, 0x45, 0x2D, 0xDE, 0x78, 0x91, 0x3E, 0x3E, 0xE2, 0xF3, 0x0F, 0x05, 0xE2, 0xEA, 0x32, 0xB4 };
-				/* Save and close file */
-				return sl_FsClose(fileHandle, 0, sig, sizeof(sig));
-			} else {
-				/* Save and close file */
-				return sl_FsClose(fileHandle, 0, 0, 0);
-			}
+	} else if (storage == SERIAL_FLASH) {
+		if( strstr(filename, "ucf") != 0) {
+			uint8_t sig[] = { 0x13, 0xA6, 0x89, 0x25, 0x74, 0xF1, 0xD8, 0x9F, 0x6D, 0x7E, 0x9D, 0x0E, 0x7E, 0xD4, 0x3E, 0x2B, 0x45, 0x02, 0x0E, 0xE7, 0xFA, 0x8D, 0xBC, 0xE6, 0x5C, 0x13, 0x42, 0x27, 0x6D, 0x86, 0xEB, 0x55, 0xE4, 0x90, 0x5E, 0x39, 0xB7, 0x8E, 0xB2, 0x08, 0x5B, 0xA8, 0xE7, 0x31, 0x0A, 0x02, 0x4F, 0xC5, 0x9B, 0x91, 0xA6, 0xAE, 0xAC, 0x66, 0x79, 0xC6, 0x3B, 0xE1, 0x51, 0xDE, 0x5E, 0x12, 0x08, 0xAC, 0xF2, 0x7E, 0xBF, 0xE0, 0x60, 0xD1, 0x03, 0x6E, 0x51, 0xCB, 0x82, 0xE3, 0xBF, 0x23, 0xA2, 0x9F, 0xFB, 0xFE, 0x10, 0xBD, 0x8D, 0x57, 0xA6, 0x0E, 0x7C, 0xBA, 0xF3, 0x34, 0xF1, 0x91, 0xBC, 0x1E, 0x96, 0x10, 0x80, 0xFD, 0xB5, 0x6C, 0xA2, 0x81, 0x36, 0x11, 0x0E, 0x30, 0x45, 0x9B, 0x47, 0x42, 0x05, 0xDA, 0x5A, 0x25, 0x63, 0x8C, 0x6B, 0x3C, 0x62, 0xA5, 0x43, 0xDF, 0x09, 0x3A, 0x6A, 0xAE, 0xB0, 0x59, 0x16, 0x04, 0xAA, 0x4F, 0x31, 0x4B, 0x48, 0xAE, 0xF8, 0xA8, 0x5F, 0x9A, 0x74, 0xC5, 0xFA, 0xA1, 0x60, 0x60, 0x8C, 0xB8, 0x38, 0xC9, 0xEC, 0x44, 0x5D, 0xD8, 0x7D, 0xD6, 0x2B, 0x6B, 0xD0, 0xF9, 0x4D, 0x3E, 0xDE, 0x76, 0xA3, 0x2B, 0xB8, 0x2F, 0xA8, 0x20, 0x96, 0x8D, 0xC8, 0xEF, 0x4E, 0xA9, 0x26, 0xDF, 0xCE, 0xA5, 0xF7, 0xA6, 0x1A, 0x2F, 0x4E, 0x21, 0xDE, 0x70, 0xC7, 0x62, 0xD0, 0x2B, 0xB5, 0x4E, 0x4E, 0x4D, 0xE1, 0xB8, 0x85, 0xA4, 0x1F, 0xD3, 0x8C, 0x0C, 0x2C, 0xCF, 0xB7, 0xD0, 0x01, 0x72, 0x36, 0x69, 0x1C, 0x99, 0x4D, 0x7A, 0x9E, 0x11, 0x61, 0xDA, 0x14, 0x80, 0xFE, 0xF1, 0xF7, 0xC6, 0xB2, 0xD2, 0x33, 0x78, 0xF5, 0xAB, 0x38, 0xBA, 0x0A, 0x07, 0xE1, 0x31, 0x97, 0x45, 0x2D, 0xDE, 0x78, 0x91, 0x3E, 0x3E, 0xE2, 0xF3, 0x0F, 0x05, 0xE2, 0xEA, 0x32, 0xB4 };
+			/* Save and close file */
+			vPortFree(g_buff);
+			return sl_FsClose(fileHandle, 0, sig, sizeof(sig));
+		} else {
+			/* Save and close file */
+			vPortFree(g_buff);
+			return sl_FsClose(fileHandle, 0, 0, 0);
 		}
-    }
+	}
 	if (storage == SD_CARD) {
         cd( "/" );
 	}
-    return 0;
+	vPortFree(g_buff);
+	return 0;
+failure:
+	vPortFree(g_buff);
+	if (storage == SD_CARD) {
+        /* Close file without saving */
+        res = hello_fs_close( &file_obj );
+
+        if(res != FR_OK)
+        {
+        	cd( "/" );
+            return((int)res);
+        }
+        hello_fs_unlink( path_buff );
+        cd( "/" );
+	} else if (storage == SERIAL_FLASH) {
+        /* Close file without saving */
+		sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
+	}
+    return -1;
 }
 
 int file_exists( char * filename, char * path ) {
