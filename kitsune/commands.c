@@ -92,6 +92,7 @@
 #include "prox_signal.h"
 #include "hlo_net_tools.h"
 #include "top_board.h"
+#include "long_poll.h"
 #define ONLY_MID 0
 
 #define ARRAY_LEN(a) (sizeof(a)/sizeof(a[0]))
@@ -1983,8 +1984,8 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "download", Cmd_download, ""},//download test function.
 		{ "dtm", Cmd_top_dtm, "" },//Sends Direct Test Mode command
 		{ "animate", Cmd_led_animate, ""},//Animates led
-		{ "uplog", Cmd_log_upload, "Uploads log to server"},
-		{ "loglevel", Cmd_log_setview, "Sets log level" },
+		{ "uplog", Cmd_log_upload, ""},
+		{ "loglevel", Cmd_log_setview, "" },
 		{ "ver", Cmd_version, ""},//Animates led
 #ifdef BUILD_TESTS
 		{ "test_network",Cmd_test_network,""},
@@ -2032,9 +2033,7 @@ long nwp_reset();
 void vUARTTask(void *pvParameters) {
 	char cCmdBuf[512];
 	bool on_charger = false;
-	if(led_init() != 0){
-		LOGI("Failed to create the led_events.\n");
-	}
+	assert(led_init());
 	xTaskCreate(led_task, "ledTask", 700 / 4, NULL, 2, NULL);
 	xTaskCreate(led_idle_task, "led_idle_task", 256 / 4, NULL, 4, NULL);
 
@@ -2171,6 +2170,7 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(analytics_event_task, "analyticsTask", 1024/4, NULL, 1, NULL);
 	UARTprintf("*");
 #endif
+	long_poll_task_init( 1024 / 4 );
 
 
 	if( on_charger ) {
@@ -2209,7 +2209,7 @@ void vUARTTask(void *pvParameters) {
 			char * args = NULL;
 			args = pvPortMalloc( sizeof(cCmdBuf) );
 			if( args == NULL ) {
-				LOGF("can't run command %s, no memory available!\n", cCmdBuf );
+				LOGF("can't run %s, no mem!\n", cCmdBuf );
 			} else {
 				memcpy( args, cCmdBuf, sizeof( cCmdBuf ) );
 				xTaskCreate(CmdLineProcess, "commandTask",  3*1024 / 4, args, 4, NULL);

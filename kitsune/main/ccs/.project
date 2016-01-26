@@ -376,6 +376,11 @@
 			<locationURI>PARENT-2-PROJECT_LOC/long_poll.c</locationURI>
 		</link>
 		<link>
+			<name>long_poll.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/long_poll.h</locationURI>
+		</link>
+		<link>
 			<name>machine_learning_types.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/machinelearning/machine_learning_types.h</locationURI>
@@ -906,6 +911,16 @@
 			<locationURI>PARENT-2-PROJECT_LOC/protobuf/matrix.pb.h</locationURI>
 		</link>
 		<link>
+			<name>protobuf/messeji.pb.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/messeji.pb.c</locationURI>
+		</link>
+		<link>
+			<name>protobuf/messeji.pb.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/messeji.pb.h</locationURI>
+		</link>
+		<link>
 			<name>protobuf/morpheus_ble.pb.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/protobuf/morpheus_ble.pb.c</locationURI>
@@ -934,6 +949,16 @@
 			<name>protobuf/provision.pb.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/protobuf/provision.pb.h</locationURI>
+		</link>
+		<link>
+			<name>protobuf/sleep_sounds.pb.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/sleep_sounds.pb.c</locationURI>
+		</link>
+		<link>
+			<name>protobuf/sleep_sounds.pb.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/sleep_sounds.pb.h</locationURI>
 		</link>
 		<link>
 			<name>protobuf/sync_response.pb.c</name>
