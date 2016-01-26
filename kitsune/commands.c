@@ -2047,7 +2047,7 @@ long nwp_reset();
 void vUARTTask(void *pvParameters) {
 	char cCmdBuf[512];
 	bool on_charger = false;
-	assert(led_init());
+	led_init();
 	xTaskCreate(led_task, "ledTask", 700 / 4, NULL, 2, NULL);
 	xTaskCreate(led_idle_task, "led_idle_task", 256 / 4, NULL, 4, NULL);
 
