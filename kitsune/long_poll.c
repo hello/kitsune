@@ -96,6 +96,9 @@ static void long_poll_task(void * networkdata) {
     request.message_read_id.funcs.encode = _encode_read_id;
 
 	for (; ;) {
+		while (!wifi_status_get(HAS_IP)) {
+			vTaskDelay(1000);
+		}
 		send_data_pb(LONG_POLL_HOST,
 				LONG_POLL_ENDPOINT,
 				&decode_buf,
