@@ -151,7 +151,7 @@ static NetworkResponse_t nettask_send(NetworkTaskServerSendMessage_t * message) 
 				&decode_buf_size,
 				message->fields,
 				message->structdata,
-				message->has_pb_cb ? &message->pb_cb : NULL, &sock ) == 0) {
+				message->has_pb_cb ? &message->pb_cb : NULL, &sock, SSL ) == 0) {
 			response.success = true;
 		} else {
 			//failed to push, now what?

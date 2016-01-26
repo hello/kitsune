@@ -1087,7 +1087,7 @@ int stop_connection(int * sock) {
     ipaddr = 0;
     return *sock;
 }
-int start_connection(int * sock) {
+int start_connection(int * sock, security_type sec) {
     sockaddr sAddr;
     timeval tv;
     int rv;
@@ -1099,21 +1099,23 @@ int start_connection(int * sock) {
         tv.tv_usec = 0;           // Microseconds. 10000 microseconds resolution
         setsockopt(*sock, SOL_SOCKET, SL_SO_RCVTIMEO, &tv, sizeof(tv)); // Enable receive timeout
 
-        #define SL_SSL_CA_CERT_FILE_NAME "/cert/ca.der"
-        // configure the socket as SSLV3.0
-        // configure the socket as RSA with RC4 128 SHA
-        // setup certificate
-        unsigned char method = SL_SO_SEC_METHOD_TLSV1_2;
-        unsigned int cipher = SL_SEC_MASK_TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA;
-        if( sl_SetSockOpt(*sock, SL_SOL_SOCKET, SL_SO_SECMETHOD, &method, sizeof(method) ) < 0 ||
-            sl_SetSockOpt(*sock, SL_SOL_SOCKET, SL_SO_SECURE_MASK, &cipher, sizeof(cipher)) < 0 ||
-            sl_SetSockOpt(*sock, SL_SOL_SOCKET, \
-                                   SL_SO_SECURE_FILES_CA_FILE_NAME, \
-                                   SL_SSL_CA_CERT_FILE_NAME, \
-                                   strlen(SL_SSL_CA_CERT_FILE_NAME))  < 0  )
-        {
-        LOGI( "error setting ssl options\r\n" );
-        ble_reply_wifi_status(wifi_connection_state_SSL_FAIL);
+        if( sec == SSL ) {
+			#define SL_SSL_CA_CERT_FILE_NAME "/cert/ca.der"
+			// configure the socket as SSLV3.0
+			// configure the socket as RSA with RC4 128 SHA
+			// setup certificate
+			unsigned char method = SL_SO_SEC_METHOD_TLSV1_2;
+			unsigned int cipher = SL_SEC_MASK_TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA;
+			if( sl_SetSockOpt(*sock, SL_SOL_SOCKET, SL_SO_SECMETHOD, &method, sizeof(method) ) < 0 ||
+				sl_SetSockOpt(*sock, SL_SOL_SOCKET, SL_SO_SECURE_MASK, &cipher, sizeof(cipher)) < 0 ||
+				sl_SetSockOpt(*sock, SL_SOL_SOCKET, \
+									   SL_SO_SECURE_FILES_CA_FILE_NAME, \
+									   SL_SSL_CA_CERT_FILE_NAME, \
+									   strlen(SL_SSL_CA_CERT_FILE_NAME))  < 0  )
+			{
+			LOGI( "error setting ssl options\r\n" );
+			ble_reply_wifi_status(wifi_connection_state_SSL_FAIL);
+			}
         }
     }
 
@@ -1472,7 +1474,7 @@ static bool validate_signatures( char * buffer, int sz, const pb_field_t fields[
 //buffer needs to be at least 128 bytes...
 int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
 		uint32_t * recv_buf_size_ptr, const pb_field_t fields[],  void * structdata,
-		protobuf_reply_callbacks * pb_cb, int * sock ) {
+		protobuf_reply_callbacks * pb_cb, int * sock , security_type sec ) {
     int send_length = 0;
     int rv = 0;
     uint8_t sig[32]={0};
@@ -1508,18 +1510,20 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     send_length = strlen(recv_buf);
 
     //setup the connection
-    if( start_connection(sock) < 0 ) {
+    if( start_connection(sock, sec) < 0 ) {
         LOGI("failed to start connection\n\r\n\r");
         goto failure;
     }
     LOGD("c");
 
-    //check that it's still secure...
-    rv = recv(*sock, recv_buf, SERVER_REPLY_BUFSZ, 0);
-    if (rv != SL_EAGAIN ) {
-        LOGI("start recv error %d\n\r\n\r", rv);
-        ble_reply_socket_error(rv);
-        goto failure;
+    if( sec == SSL ) {
+		//check that it's still secure...
+		rv = recv(*sock, recv_buf, SERVER_REPLY_BUFSZ, 0);
+		if (rv != SL_EAGAIN ) {
+			LOGI("start recv error %d\n\r\n\r", rv);
+			ble_reply_socket_error(rv);
+			goto failure;
+		}
     }
     LOGD("d");
 

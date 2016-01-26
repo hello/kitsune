@@ -105,7 +105,7 @@ static void long_poll_task(void * networkdata) {
 				&decode_buf_size,
 				ReceiveMessageRequest_fields,
 				&request,
-				&pb_cb, &sock );
+				&pb_cb, &sock, SSL );
 	}
 }
 

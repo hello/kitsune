@@ -931,6 +931,16 @@
 			<locationURI>PARENT-2-PROJECT_LOC/protobuf/morpheus_ble.pb.h</locationURI>
 		</link>
 		<link>
+			<name>protobuf/ntp.pb.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/ntp.pb.c</locationURI>
+		</link>
+		<link>
+			<name>protobuf/ntp.pb.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/ntp.pb.h</locationURI>
+		</link>
+		<link>
 			<name>protobuf/periodic.pb.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/protobuf/periodic.pb.c</locationURI>
