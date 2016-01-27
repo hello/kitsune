@@ -1663,7 +1663,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     //keep looping while our socket error code is telling us to try again
     do {
 		vTaskDelay(1000);
-    	rv = recv(sock, recv_buf+recv_buf_size-SERVER_REPLY_BUFSZ, SERVER_REPLY_BUFSZ, 0);
+    	rv = recv(*sock, recv_buf+recv_buf_size-SERVER_REPLY_BUFSZ, SERVER_REPLY_BUFSZ, 0);
     	MAP_WatchdogIntClear(WDT_BASE); //clear wdt, it seems the SL_SPAWN hogs CPU here
         LOGI("rv %d\n", rv);
         if( rv == SERVER_REPLY_BUFSZ ) {
