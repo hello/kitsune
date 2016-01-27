@@ -56,8 +56,8 @@ typedef struct {
 } protobuf_reply_callbacks;
 
 typedef enum {
-	NONE,
-	SSL,
+	SOCKET_SEC_NONE,
+	SOCKET_SEC_SSL,
 } security_type;
 
 int Cmd_iperf_client(int argc, char *argv[]);

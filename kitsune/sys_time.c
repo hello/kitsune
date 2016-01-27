@@ -151,7 +151,7 @@ void set_sl_time(time_t unix_timestamp_sec) {
 #include "ntp.pb.h"
 
 #define TIME_HOST "time.sense.in"
-#define TIME_ENDPOINT "/time"
+#define TIME_ENDPOINT "/"
 
 static int64_t last_reference_time = 0;
 static int64_t current_ntp_time = 0;
@@ -178,9 +178,12 @@ static void _on_time_response_success( void * structdata){
 }
 static void _on_time_response_failure( ){
 	LOGF("_on_time_response_failure\r\n");
+	current_ntp_time = INVALID_SYS_TIME;
 }
 
 uint32_t fetch_ntp_time_from_ntp() {
+	#define MAX_RETRIES 300
+	int retries = 0;
 	int sock = -1;
 	hello_NTPDataPacket request;
     protobuf_reply_callbacks pb_cb;
@@ -200,15 +203,21 @@ uint32_t fetch_ntp_time_from_ntp() {
     request.has_reference_ts = true;
     request.reference_ts = last_reference_time;
 
-	send_data_pb(TIME_HOST,
+	while( send_data_pb(TIME_HOST,
 			TIME_ENDPOINT,
 			&decode_buf,
 			&decode_buf_size,
 			hello_NTPDataPacket_fields,
 			&request,
-			&pb_cb, &sock, NONE );
-
+			&pb_cb, &sock, SOCKET_SEC_NONE ) && ++retries < MAX_RETRIES ) {
+		if( retries < 5 ) {
+			vTaskDelay( (1<<retries)*1000 );
+		} else {
+			vTaskDelay( 32000 );
+		}
+	}
     return current_ntp_time;
+#undef MAX_RETRIES
 }
 
 static void set_cached_time( time_t t ) {

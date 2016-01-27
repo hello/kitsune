@@ -1099,7 +1099,7 @@ int start_connection(int * sock, security_type sec) {
         tv.tv_usec = 0;           // Microseconds. 10000 microseconds resolution
         setsockopt(*sock, SOL_SOCKET, SL_SO_RCVTIMEO, &tv, sizeof(tv)); // Enable receive timeout
 
-        if( sec == SSL ) {
+        if( sec == SOCKET_SEC_SSL ) {
 			#define SL_SSL_CA_CERT_FILE_NAME "/cert/ca.der"
 			// configure the socket as SSLV3.0
 			// configure the socket as RSA with RC4 128 SHA
@@ -1516,7 +1516,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     }
     LOGD("c");
 
-    if( sec == SSL ) {
+    if( sec == SOCKET_SEC_SSL ) {
 		//check that it's still secure...
 		rv = recv(*sock, recv_buf, SERVER_REPLY_BUFSZ, 0);
 		if (rv != SL_EAGAIN ) {
