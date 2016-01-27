@@ -2035,7 +2035,7 @@ void vUARTTask(void *pvParameters) {
 	if(led_init() != 0){
 		LOGI("Failed to create the led_events.\n");
 	}
-	xTaskCreate(led_task, "ledTask", 700 / 4, NULL, 1, NULL);
+	xTaskCreate(led_task, "ledTask", 700 / 4, NULL, 2, NULL);
 	xTaskCreate(led_idle_task, "led_idle_task", 256 / 4, NULL, 4, NULL);
 
 	//switch the uart lines to gpios, drive tx low and see if rx goes low as well
