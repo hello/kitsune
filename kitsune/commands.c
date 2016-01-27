@@ -1760,7 +1760,11 @@ int Cmd_inttemp(int argc, char *argv[]) {
 
 // Variables for Slope and Intercept
 	int temperature, slope_ch3, intcept_ch3;
-	unsigned int flags = MAP_IntMasterDisable();
+
+	//make sure the dust sensor is not using the ADC
+	if( !xSemaphoreTake(dust_smphr, 0) ) {
+		return 0;
+	}
 
 // Enable ADC
 	HWREG(ADC_BASE + 0xB8) = 0x0355AA00;
@@ -1775,7 +1779,7 @@ int Cmd_inttemp(int argc, char *argv[]) {
 //Read ADC FIFO - Suggested averaging for 4 samples
 
 	/* Wait for the FIFO to fill up */
-	MAP_UtilsDelay(300);
+	vTaskDelay(1);
 
 	temperature = 0;
 	for( i=0; i<1000; ++i ) {
@@ -1790,9 +1794,7 @@ int Cmd_inttemp(int argc, char *argv[]) {
 	}
 	MAP_ADCDisable(ADC_BASE);
 
-	if (!flags) {
-		MAP_IntMasterEnable();
-	}
+	xSemaphoreGive(dust_smphr);
 
 	LOGF("internal %u\n", temperature/i);
 	return 0;

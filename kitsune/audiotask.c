@@ -46,7 +46,6 @@
 #define SAVE_BASE "/usr/A"
 
 /* globals */
-extern xSemaphoreHandle i2c_smphr;
 unsigned int g_uiPlayWaterMark;
 extern tCircularBuffer * pRxBuffer;
 extern tCircularBuffer * pTxBuffer;
@@ -224,8 +223,6 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		return returnFlags;
 	}
 
-	assert(xSemaphoreTakeRecursive(i2c_smphr, 60000));
-
 	memset(speaker_data,0,SPEAKER_DATA_CHUNK_SIZE);
 
 	if( has_fade ) {
@@ -345,8 +342,6 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	hello_fs_close(&fp);
 
 	DeinitAudioPlayback();
-
-	xSemaphoreGiveRecursive(i2c_smphr);
 
 	hello_fs_unlock();
 
