@@ -150,7 +150,7 @@ void set_sl_time(time_t unix_timestamp_sec) {
 
 #include "ntp.pb.h"
 
-#define TIME_HOST "time.sense.in"
+#define TIME_HOST "time.hello.is"
 #define TIME_ENDPOINT "/"
 
 static int64_t last_reference_time = 0;
