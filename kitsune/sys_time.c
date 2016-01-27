@@ -146,163 +146,69 @@ void set_sl_time(time_t unix_timestamp_sec) {
 
     LOGI("IN Day %d,Mon %d,Year %d,Hour %d,Min %d,Sec %d\n",sl_tm.sl_tm_day,sl_tm.sl_tm_mon,sl_tm.sl_tm_year, sl_tm.sl_tm_hour,sl_tm.sl_tm_min,sl_tm.sl_tm_sec);
 }
-uint32_t fetch_ntp_time_from_ntp() {
-    char buffer[48];
-    int rv = 0;
-    SlSockAddr_t sAddr;
-    SlSockAddrIn_t sLocalAddr;
-    int iAddrSize;
-    unsigned long long ntp = INVALID_SYS_TIME;
-    unsigned long ipaddr;
-    int sock;
 
-	#define NTP_RETRY_LIMIT 100
-    int retries = 0;
 
-    SlTimeval_t tv;
+#include "ntp.pb.h"
 
-    size_t sent_ticks;
-    size_t recv_ticks;
+#define TIME_HOST "time.sense.in"
+#define TIME_ENDPOINT "/time"
 
-    sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    tv.tv_sec = 2; // Seconds
-    tv.tv_usec = 0;             // Microseconds. 10000 microseconds resolution
-    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)); // Enable receive timeout
+static int64_t last_reference_time = 0;
+static int64_t current_ntp_time = 0;
 
-    if (sock < 0) {
-        LOGI("Socket create failed\n\r");
-        return INVALID_SYS_TIME;
-    }
-    LOGI("Socket created\n\r");
-
-//
-    // Send a query ? to the NTP server to get the NTP time
-    //
-    memset(buffer, 0, sizeof(buffer));
-
-#define NTP_SERVER "ntp.hello.is"
-    if (!(rv = sl_gethostbynameNoneThreadSafe(NTP_SERVER, strlen(NTP_SERVER), &ipaddr, AF_INET))) {
-        LOGI(
-                "Get Host IP succeeded.\n\rHost: %s IP: %d.%d.%d.%d \n\r\n\r",
-                NTP_SERVER, SL_IPV4_BYTE(ipaddr, 3), SL_IPV4_BYTE(ipaddr, 2),
-                SL_IPV4_BYTE(ipaddr, 1), SL_IPV4_BYTE(ipaddr, 0));
-    } else {
-    	static portTickType last_reset_time = 0;
-    	static portTickType last_fail_time = 0;
-    	LOGI("failed to resolve ntp addr rv %d\n", rv);
-        ipaddr = 0;
-        #define SIX_MINUTES 360000
-        //need to reset if we're constantly failing, but this will only be called once per
-        //several hours so we need to check that we've failed recently before we send the reset...
-        if( last_reset_time == 0 ||
-        	(xTaskGetTickCount() - last_fail_time < SIX_MINUTES &&
-        	 xTaskGetTickCount() - last_reset_time > SIX_MINUTES )) {
-            last_reset_time = xTaskGetTickCount();
-            nwp_reset();
-            vTaskDelay(10000);
-        }
-
-        last_fail_time = xTaskGetTickCount();
-        goto cleanup;
-    }
-
-    sAddr.sa_family = AF_INET;
-    // the source port
-    sAddr.sa_data[0] = 0x00;
-    sAddr.sa_data[1] = 0x7B;    // UDP port number for NTP is 123
-    sAddr.sa_data[2] = (char) ((ipaddr >> 24) & 0xff);
-    sAddr.sa_data[3] = (char) ((ipaddr >> 16) & 0xff);
-    sAddr.sa_data[4] = (char) ((ipaddr >> 8) & 0xff);
-    sAddr.sa_data[5] = (char) (ipaddr & 0xff);
-
-    buffer[0] = 0b11100011;   // LI, Version, Mode
-    buffer[1] = 0;     // Stratum, or type of clock
-    buffer[2] = 6;     // Polling Interval
-    buffer[3] = 0xEC;  // Peer Clock Precision
-    // 8 bytes of zero for Root Delay & Root Dispersion
-    buffer[12] = 49;
-    buffer[13] = 0x4E;
-    buffer[14] = 49;
-    buffer[15] = 52;
-
-    SlSockNonblocking_t enableOption;
-    enableOption.NonblockingEnabled = 1;
-    sl_SetSockOpt(sock,SL_SOL_SOCKET,SL_SO_NONBLOCKING, (_u8 *)&enableOption,sizeof(enableOption)); // Enable/disable nonblocking mode
-
-    sent_ticks = xTaskGetTickCount();
-    LOGI("Sending request %u\n\r\n\r", sent_ticks);
-    rv = sendto(sock, buffer, sizeof(buffer), 0, &sAddr, sizeof(sAddr));
-    if (rv != sizeof(buffer)) {
-        LOGI("Could not send SNTP request\n\r\n\r");
-        goto cleanup;
-    }
-
-    //
-    // Wait to receive the NTP time from the server
-    //
-    iAddrSize = sizeof(SlSockAddrIn_t);
-    sLocalAddr.sin_family = SL_AF_INET;
-    sLocalAddr.sin_port = 0;
-    sLocalAddr.sin_addr.s_addr = 0;
-    bind(sock, (SlSockAddr_t *) &sLocalAddr, iAddrSize);
-
-	for(retries=0;retries < NTP_RETRY_LIMIT;++retries) {
-		if( !wifi_status_get(HAS_IP) ) {
-			goto cleanup;
-		}
-		rv = recvfrom(sock, buffer, sizeof(buffer), 0, (SlSockAddr_t *) &sLocalAddr,  (SlSocklen_t*) &iAddrSize);
-		if( rv > 0 ) {
-			recv_ticks = xTaskGetTickCount();
-		    LOGI("receiving reply %d %u\n\r\n\r", rv, recv_ticks);
-			break;
-		}
-		vTaskDelay(2000);
-		LOGI("sending another request\n\r\n\r", sent_ticks);
-
-		buffer[0] = 0b11100011;   // LI, Version, Mode
-		buffer[1] = 0;     // Stratum, or type of clock
-		buffer[2] = 6;     // Polling Interval
-		buffer[3] = 0xEC;  // Peer Clock Precision
-		// 8 bytes of zero for Root Delay & Root Dispersion
-		buffer[12] = 49;
-		buffer[13] = 0x4E;
-		buffer[14] = 49;
-		buffer[15] = 52;
-
-		rv = sendto(sock, buffer, sizeof(buffer), 0, &sAddr, sizeof(sAddr));
-		if (rv != sizeof(buffer)) {
-			LOGI("Could not send follow-up NTP request\n\r\n\r");
-			goto cleanup;
-		}
+static void _get_time_response(pb_field_t ** fields, void ** structdata){
+	*fields = (pb_field_t *)hello_NTPDataPacket_fields;
+	*structdata = pvPortMalloc(sizeof(hello_NTPDataPacket));
+	assert(*structdata);
+	if( *structdata ) {
+		hello_NTPDataPacket * response_protobuf = *structdata;
+		memset(response_protobuf, 0, sizeof(hello_NTPDataPacket));
 	}
-	assert( NTP_RETRY_LIMIT != retries );
+}
+static void _free_time_response(void * structdata){
+	vPortFree( structdata );
+}
 
-    //
-    // Confirm that the MODE is 4 --> server
-    if ((buffer[0] & 0x7) != 4)    // expect only server response
-    {
-        LOGI("Expecting response from Server Only!\n\r");
-        goto cleanup;
-    } else {
-    	// Getting the data from the Transmit Timestamp (seconds) field
-    	// This is the time at which the reply departed the
-    	// server for the client
-    	//
-    	ntp = buffer[40];
-    	ntp <<= 8;
-    	ntp += buffer[41];
-    	ntp <<= 8;
-    	ntp += buffer[42];
-    	ntp <<= 8;
-    	ntp += buffer[43];
+static void _on_time_response_success( void * structdata){
+	hello_NTPDataPacket * time = structdata;
+	LOGF("_on_time_response_success\r\n");
+	if( time->has_transmit_ts ) { //todo use the received and origin timestamps
+		current_ntp_time = last_reference_time = time->transmit_ts;
+	}
+}
+static void _on_time_response_failure( ){
+	LOGF("_on_time_response_failure\r\n");
+}
 
-        LOGI("time %ull delay %d\n\r\n\r", ntp, recv_ticks - sent_ticks);
-        //round up to the nearest second
-    }
+uint32_t fetch_ntp_time_from_ntp() {
+	int sock = -1;
+	hello_NTPDataPacket request;
+    protobuf_reply_callbacks pb_cb;
 
-cleanup:
-    close(sock);
-    return ntp;
+	char * decode_buf = pvPortMalloc(SERVER_REPLY_BUFSZ);
+    assert(decode_buf);
+    memset(decode_buf, 0, SERVER_REPLY_BUFSZ);
+    size_t decode_buf_size = SERVER_REPLY_BUFSZ;
+
+    pb_cb.get_reply_pb = _get_time_response;
+    pb_cb.free_reply_pb = _free_time_response;
+    pb_cb.on_pb_success = _on_time_response_success;
+    pb_cb.on_pb_failure = _on_time_response_failure;
+
+    request.has_origin_ts = true;
+    request.origin_ts = get_unix_time();
+    request.has_reference_ts = true;
+    request.reference_ts = last_reference_time;
+
+	send_data_pb(TIME_HOST,
+			TIME_ENDPOINT,
+			&decode_buf,
+			&decode_buf_size,
+			hello_NTPDataPacket_fields,
+			&request,
+			&pb_cb, &sock, NONE );
+
+    return current_ntp_time;
 }
 
 static void set_cached_time( time_t t ) {
