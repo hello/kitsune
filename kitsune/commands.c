@@ -2,8 +2,6 @@
 //
 // commands.c - FreeRTOS porting example on CCS4
 //
-// Copyright (c) 2012 Fuel7, Inc.
-//
 //*****************************************************************************
 #include <stdio.h>
 #include <string.h>
@@ -176,7 +174,9 @@ int Cmd_free(int argc, char *argv[]) {
 
     heap_high_mark = 0;
 	heap_low_mark = 0xffffffff;
-	heap_print = atoi(argv[1]);
+	if( argc != 0 ) {
+		heap_print = atoi(argv[1]);
+	}
 	// Return success.
 	return (0);
 }
@@ -606,7 +606,9 @@ int set_test_alarm(int argc, char *argv[]) {
 	return 0;
 }
 static void thread_alarm_on_finished(void * context) {
-	stop_led_animation(10, 60);
+	if( led_get_animation_id() == *(int*)context ) {
+		stop_led_animation(10, 60);
+	}
 	if (xSemaphoreTakeRecursive(alarm_smphr, 500)) {
 		LOGI("Alarm finished\r\n");
 		xSemaphoreGiveRecursive(alarm_smphr);
@@ -627,6 +629,7 @@ static bool _is_file_exists(char* path)
 
 uint8_t get_alpha_from_light();
 void thread_alarm(void * unused) {
+	int alarm_led_id = -1;
 	while (1) {
 		wait_for_time(WAIT_FOREVER);
 
@@ -706,6 +709,7 @@ void thread_alarm(void * unused) {
 				desc.volume = 57;
 				desc.onFinished = thread_alarm_on_finished;
 				desc.rate = 48000;
+				desc.context = &alarm_led_id;
 
 				alarm.has_start_time = FALSE;
 				alarm.start_time = 0;
@@ -718,7 +722,7 @@ void thread_alarm(void * unused) {
 
 				uint8_t trippy_base[3] = { 0, 0, 0 };
 				uint8_t trippy_range[3] = { 254, 254, 254 };
-				play_led_trippy(trippy_base, trippy_range,0,30, 120000);
+				alarm_led_id = play_led_trippy(trippy_base, trippy_range,0,30, 120000);
 			}
 			
 			xSemaphoreGiveRecursive(alarm_smphr);
@@ -822,17 +826,16 @@ uint8_t get_alpha_from_light()
 static int _is_light_off()
 {
 	static int last_light = -1;
-	const int light_off_threshold = 300;
+	const int light_off_threshold = 500;
 	int ret = 0;
 
 	xSemaphoreTake(light_smphr, portMAX_DELAY);
 	if(last_light != -1)
 	{
 		int delta = last_light - light;
-		//LOGI("delta: %d, current %d, last %d\n", delta, current_light, last_light);
-		if(delta >= light_off_threshold && light < 300)
+		if(delta >= light_off_threshold && light < 1000)
 		{
-			//LOGI("Light off\n");
+			LOGI("light delta: %d, current %d, last %d\n", delta, light, last_light);
 			ret = 1;
 			light_mean = light; //so the led alpha will be at the lights off level
 		}
@@ -916,7 +919,7 @@ void thread_fast_i2c_poll(void * unused)  {
 
 	while (1) {
 		portTickType now = xTaskGetTickCount();
-		int prox=0;
+		uint32_t prox=0;
 
 		if (xSemaphoreTakeRecursive(i2c_smphr, portMAX_DELAY)) {
 			vTaskDelay(2); //this is important! If we don't do it, then the prox will stretch the clock!
@@ -985,10 +988,12 @@ void thread_fast_i2c_poll(void * unused)  {
 	}
 }
 
-#define MAX_PERIODIC_DATA 90
+#define MAX_PERIODIC_DATA 30
 #define MAX_PILL_DATA 20
 #define MAX_BATCH_PILL_DATA 10
 #define PILL_BATCH_WATERMARK 0
+#define MAX_BATCH_SIZE 15
+#define ONE_HOUR_IN_MS ( 3600 * 1000 )
 
 xQueueHandle data_queue = 0;
 xQueueHandle force_data_queue = 0;
@@ -1006,7 +1011,9 @@ int pill_queue_batch_size = PILL_BATCH_WATERMARK;
 void thread_tx(void* unused) {
 	batched_pill_data pill_data_batched = {0};
 	batched_periodic_data data_batched = {0};
+#ifdef UPLOAD_AP_INFO
 	batched_periodic_data_wifi_access_point ap;
+#endif
 	periodic_data forced_data;
 	bool got_forced_data = false;
 
@@ -1015,9 +1022,10 @@ void thread_tx(void* unused) {
 		if (uxQueueMessagesWaiting(data_queue) >= data_queue_batch_size
 		 || got_forced_data ) {
 			LOGI(	"sending data\n" );
+
 			periodic_data_to_encode periodicdata;
 			periodicdata.num_data = 0;
-			periodicdata.data = (periodic_data*)pvPortMalloc(data_queue_batch_size*sizeof(periodic_data));
+			periodicdata.data = (periodic_data*)pvPortMalloc(MAX_BATCH_SIZE*sizeof(periodic_data));
 
 			if( !periodicdata.data ) {
 				LOGI( "failed to alloc periodicdata\n" );
@@ -1028,7 +1036,7 @@ void thread_tx(void* unused) {
 				memcpy( &periodicdata.data[periodicdata.num_data], &forced_data, sizeof(forced_data) );
 				++periodicdata.num_data;
 			}
-			while( periodicdata.num_data < data_queue_batch_size && xQueueReceive(data_queue, &periodicdata.data[periodicdata.num_data], 1 ) ) {
+			while( periodicdata.num_data < MAX_BATCH_SIZE && xQueueReceive(data_queue, &periodicdata.data[periodicdata.num_data], 1 ) ) {
 				++periodicdata.num_data;
 			}
 
@@ -1070,7 +1078,7 @@ void thread_tx(void* unused) {
 
 			wifi_get_connected_ssid( (uint8_t*)data_batched.connected_ssid, sizeof(data_batched) );
 			data_batched.has_connected_ssid = true;
-#if 0
+#ifdef UPLOAD_AP_INFO
 			data_batched.scan.funcs.encode = encode_single_ssid;
 			data_batched.scan.arg = &ap;
 #endif
@@ -1082,7 +1090,10 @@ void thread_tx(void* unused) {
 				}
 				xSemaphoreGiveRecursive(alarm_smphr);
 			}
-			if( send_periodic_data(&data_batched, got_forced_data) ) {
+			data_batched.has_messages_in_queue = true;
+			data_batched.messages_in_queue = uxQueueMessagesWaiting(data_queue);
+
+			if( send_periodic_data(&data_batched, got_forced_data, ( MAX_PERIODIC_DATA - uxQueueMessagesWaiting(data_queue) ) * 60 * 1000 ) ) {
 				last_upload_time = xTaskGetTickCount();
 			}
 
@@ -1111,7 +1122,7 @@ void thread_tx(void* unused) {
 			pill_data_batched.pills.arg = &pilldata;
 			pill_data_batched.device_id.funcs.encode = encode_device_id_string;
 
-			send_pill_data(&pill_data_batched);
+			send_pill_data(&pill_data_batched, ONE_HOUR_IN_MS );
 			vPortFree( pilldata.pills );
 		}
 		do {
@@ -1304,6 +1315,7 @@ int force_data_push()
     return 0;
 }
 
+int Cmd_inttemp(int argc, char *argv[]);
 void thread_sensor_poll(void* unused) {
 
 	//
@@ -1331,6 +1343,7 @@ void thread_sensor_poll(void* unused) {
 
 			Cmd_free(0,0);
 			send_top("free", strlen("free"));
+			Cmd_inttemp(0,0);
 
 			if (!xQueueSend(data_queue, (void* )&data, 0) == pdPASS) {
 				xQueueReceive(data_queue, (void* )&data, 0); //discard one, so if the queue is full we will put every other one in the queue
@@ -1704,24 +1717,24 @@ void launch_tasks() {
 	//dear future chris: this one doesn't need a semaphore since it's only written to while threads are going during factory test boot
 	booted = true;
 
-	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 3, NULL);
-	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,1,NULL);
+	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 2, NULL);
+	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,2,NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 3, NULL);
 	UARTprintf("*");
-	xTaskCreate(FileUploaderTask_Thread,"fileUploadTask",1*1024/4,NULL,1,NULL);
+	xTaskCreate(FileUploaderTask_Thread,"fileUploadTask",1*1024/4,NULL,3,NULL);
 #ifdef BUILD_SERVERS //todo PVT disable!
-	xTaskCreate(telnetServerTask,"telnetServerTask",512/4,NULL,1,NULL);
-	xTaskCreate(httpServerTask,"httpServerTask",3*512/4,NULL,1,NULL);
+	xTaskCreate(telnetServerTask,"telnetServerTask",512/4,NULL,4,NULL);
+	xTaskCreate(httpServerTask,"httpServerTask",3*512/4,NULL,4,NULL);
 #endif
 	UARTprintf("*");
 #if !ONLY_MID
 	UARTprintf("*");
-	xTaskCreate(thread_dust, "dustTask", 1024 / 4, NULL, 3, NULL);
+	xTaskCreate(thread_dust, "dustTask", 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_sensor_poll, "pollTask", 1024 / 4, NULL, 3, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_tx, "txTask", 1536 / 4, NULL, 2, NULL);
+	xTaskCreate(thread_tx, "txTask", 1536 / 4, NULL, 4, NULL);
 	UARTprintf("*");
 #endif
 }
@@ -1731,6 +1744,57 @@ int Cmd_boot(int argc, char *argv[]) {
 	if( !booted ) {
 		launch_tasks();
 	}
+	return 0;
+}
+
+
+#include "rom.h"
+#include "rom_map.h"
+#include "hw_adc.h"
+#include "adc.h"
+int Cmd_inttemp(int argc, char *argv[]) {
+	unsigned long ulSample;
+	int i;
+// Initialize Intercept Temperature
+	int g_EfuseInterceptTemperature = 3000;
+
+// Variables for Slope and Intercept
+	int temperature, slope_ch3, intcept_ch3;
+	unsigned int flags = MAP_IntMasterDisable();
+
+// Enable ADC
+	HWREG(ADC_BASE + 0xB8) = 0x0355AA00;
+	MAP_ADCEnable(ADC_BASE);
+
+//Initialize slope (for nominal devices)
+	slope_ch3 = 204795;
+
+//Get the RAW ADC intercept values from the EFUSE for this particular device.
+	intcept_ch3 = (HWREG(0x4402D448) & 0x3FFF) >> 2;
+
+//Read ADC FIFO - Suggested averaging for 4 samples
+
+	/* Wait for the FIFO to fill up */
+	MAP_UtilsDelay(300);
+
+	temperature = 0;
+	for( i=0; i<1000; ++i ) {
+		while( !(HWREG(0x4402E8A0) & 0x7) ) {}
+		if ((HWREG(0x4402E8A0) & 0x7)) {
+			ulSample = (uint16_t) (HWREG(0x4402E880));
+			ulSample = (ulSample >> 2) & 0x0FFF;
+			temperature += g_EfuseInterceptTemperature
+					+ (((intcept_ch3 - (int) ulSample) * slope_ch3 * 100) >> 20);
+
+		}
+	}
+	MAP_ADCDisable(ADC_BASE);
+
+	if (!flags) {
+		MAP_IntMasterEnable();
+	}
+
+	LOGF("internal %u\n", temperature/i);
 	return 0;
 }
 
@@ -1869,6 +1933,7 @@ tCmdLineEntry g_sCmdTable[] = {
     { "pwd",      Cmd_pwd,      "" },
     { "cat",      Cmd_cat,      "" },
 
+    {"inttemp", Cmd_inttemp, "" },
 		{ "humid", Cmd_readhumid, "" },
 		{ "temp", Cmd_readtemp,	"" },
 		{ "light", Cmd_readlight, "" },
@@ -1970,8 +2035,8 @@ void vUARTTask(void *pvParameters) {
 	if(led_init() != 0){
 		LOGI("Failed to create the led_events.\n");
 	}
-	xTaskCreate(led_task, "ledTask", 700 / 4, NULL, 4, NULL); //todo reduce stack - jpf 512 not large enough due to large int arrays in led_task
-	xTaskCreate(led_idle_task, "led_idle_task", 256 / 4, NULL, 1, NULL); //todo reduce stack - jpf 512 not large enough due to large int arrays in led_task
+	xTaskCreate(led_task, "ledTask", 700 / 4, NULL, 1, NULL);
+	xTaskCreate(led_idle_task, "led_idle_task", 256 / 4, NULL, 4, NULL);
 
 	//switch the uart lines to gpios, drive tx low and see if rx goes low as well
     // Configure PIN_57 for GPIOInput

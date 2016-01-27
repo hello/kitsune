@@ -18,7 +18,7 @@ void set_volume(int v, unsigned int dly) ;
 
 void get_temp_humid(int *temp, int *humid);
 int get_light();
-int get_prox();
+uint32_t get_prox();
 
 
 int init_humid_sensor();
