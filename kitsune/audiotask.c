@@ -33,9 +33,6 @@
 
 #define NUMBER_OF_TICKS_IN_A_SECOND (1000)
 
-#define LOOP_DELAY_WHILE_PROCESSING_IN_TICKS (1)
-#define LOOP_DELAY_WHILE_WAITING_BUFFER_TO_FILL (5)
-
 #define MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP (500)
 
 #define MAX_NUMBER_TIMES_TO_WAIT_FOR_AUDIO_BUFFER_TO_FILL (5)
@@ -179,7 +176,6 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 	int32_t desired_ticks_elapsed;
 	portTickType t0;
-	uint32_t iBufWaitingCount;
 
 	unsigned int fade_counter=0;
 	unsigned int fade_time=0;
@@ -261,33 +257,14 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		totBytesRead += size;
 
 		/* Wait to avoid buffer overflow as reading speed is faster than playback */
-		iBufWaitingCount = 0;
-		while (IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) == TRUE &&
-				iBufWaitingCount < MAX_NUMBER_TIMES_TO_WAIT_FOR_AUDIO_BUFFER_TO_FILL) {
-			xSemaphoreTake( audio_dma_sem, 1000 );
-			iBufWaitingCount++;
-
+		while (IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) == TRUE ) {
 			if( !started ) {
 				g_uiPlayWaterMark = 1;
 				Audio_Start();
 				started = true;
 			}
-
-		};
-		if( iBufWaitingCount > 0 ) {
-//			UARTprintf( "B %d bytes %d\n", iBufWaitingCount, size);
+			assert( xSemaphoreTake( audio_dma_sem, 1000 ) );
 		}
-//		if( wait2 > 0 || wait > 1 ) {
-			//UARTprintf( "D %d %d bytes %d\n", wait, wait2,  size);
-//		}
-
-		if( iBufWaitingCount >= MAX_NUMBER_TIMES_TO_WAIT_FOR_AUDIO_BUFFER_TO_FILL &&
-				CheckForInterruptionDuringPlayback() ) {
-			LOGI("stopping playback");
-			break;
-		}
-
-		assert(iBufWaitingCount < MAX_NUMBER_TIMES_TO_WAIT_FOR_AUDIO_BUFFER_TO_FILL);
 
 		if (size > 0) {
 			int i;
