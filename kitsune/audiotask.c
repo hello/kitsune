@@ -161,6 +161,8 @@ extern void UtilsDelay(unsigned long ulCount);
 //extern volatile int wait;
 //extern volatile int wait2;
 
+extern xSemaphoreHandle low_frequency_i2c_sem;
+
 static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
     #define SPEAKER_DATA_CHUNK_SIZE (PING_PONG_CHUNK_SIZE)
@@ -199,8 +201,9 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		return returnFlags;
 	}
 
-
+	assert(xSemaphoreTake( low_frequency_i2c_sem, 60000 ));
 	if ( !InitAudioPlayback(1, info->rate ) ) {
+		xSemaphoreGive( low_frequency_i2c_sem );
 		hello_fs_unlock();
 		LOGI("unable to initialize audio playback.  Probably not enough memory!\r\n");
 		vPortFree(speaker_data);
@@ -216,6 +219,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	res = hello_fs_open(&fp, info->file, FA_READ);
 
 	if (res != FR_OK) {
+		xSemaphoreGive( low_frequency_i2c_sem );
 		hello_fs_unlock();
 		LOGI("Failed to open audio file %s\n\r",info->file);
 		DeinitAudioPlayback();
@@ -342,6 +346,8 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	hello_fs_close(&fp);
 
 	DeinitAudioPlayback();
+
+	xSemaphoreGive( low_frequency_i2c_sem );
 
 	hello_fs_unlock();
 
