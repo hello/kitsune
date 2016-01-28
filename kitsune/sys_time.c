@@ -173,7 +173,7 @@ static void _on_time_response_success( void * structdata){
 	hello_NTPDataPacket * time = structdata;
 	LOGF("_on_time_response_success\r\n");
 	if( time->has_transmit_ts ) { //todo use the received and origin timestamps
-		current_ntp_time = last_reference_time = time->transmit_ts;
+		current_ntp_time = last_reference_time = time->transmit_ts>>32;
 	}
 }
 static void _on_time_response_failure( ){
@@ -199,9 +199,9 @@ uint32_t fetch_ntp_time_from_ntp() {
     pb_cb.on_pb_failure = _on_time_response_failure;
 
     request.has_origin_ts = true;
-    request.origin_ts = get_unix_time();
+    request.origin_ts = get_unix_time()<<31;
     request.has_reference_ts = true;
-    request.reference_ts = last_reference_time;
+    request.reference_ts = last_reference_time<<32;
 
 	while( send_data_pb(TIME_HOST,
 			TIME_ENDPOINT,
