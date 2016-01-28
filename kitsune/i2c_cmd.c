@@ -29,9 +29,6 @@
                                      return  iRetVal;}
 #define BUF_SIZE 2
 
-extern volatile bool booted;
-#define TRY_OR_GOTOFAIL(a) do { if( booted ) { assert(a==SUCCESS) } else { a; } } while(0)
-
 #define Codec_addr 0x1A
 #define DELAY_CODEC 5
 #include "stdbool.h"
@@ -238,10 +235,10 @@ static int get_temp() {
 
 	unsigned char aucDataBuf[2];
 	vTaskDelay(10);
-	TRY_OR_GOTOFAIL(I2C_IF_Write(0x40, &cmd, 1, 1));
+	(I2C_IF_Write(0x40, &cmd, 1, 1));
 
 	vTaskDelay(50);
-	TRY_OR_GOTOFAIL(I2C_IF_Read(0x40, aucDataBuf, 2));
+	(I2C_IF_Read(0x40, aucDataBuf, 2));
 	temp_raw = (aucDataBuf[0] << 8) | ((aucDataBuf[1] & 0xfc));
 	
 	temp = 17572 * temp_raw / 65536 - 4685;
@@ -252,7 +249,7 @@ static int get_temp() {
 int init_temp_sensor()
 {
 	unsigned char cmd = 0xfe;
-	TRY_OR_GOTOFAIL(I2C_IF_Write(0x40, &cmd, 1, 1));    // reset
+	(I2C_IF_Write(0x40, &cmd, 1, 1));    // reset
 
 	get_temp();
 
@@ -266,10 +263,10 @@ static int get_humid() {
 	int humid;
 
 	vTaskDelay(10);
-	TRY_OR_GOTOFAIL(I2C_IF_Write(0x40, &cmd, 1, 1));
+	(I2C_IF_Write(0x40, &cmd, 1, 1));
 
 	vTaskDelay(50);
-	TRY_OR_GOTOFAIL(I2C_IF_Read(0x40, aucDataBuf, 2));
+	(I2C_IF_Read(0x40, aucDataBuf, 2));
 	humid_raw = (aucDataBuf[0] << 8) | ((aucDataBuf[1] & 0xfc));
 	
 
@@ -280,7 +277,7 @@ static int get_humid() {
 int init_humid_sensor()
 {
 	unsigned char cmd = 0xfe;
-	TRY_OR_GOTOFAIL(I2C_IF_Write(0x40, &cmd, 1, 1));    // reset
+	(I2C_IF_Write(0x40, &cmd, 1, 1));    // reset
 
 	// Dummy read the 1st value.
 	get_humid();
@@ -318,16 +315,16 @@ int init_light_sensor()
 
 		cmd_init[0] = 0x80; // Command register - 8'b1000_0000
 		cmd_init[1] = 0x03; // Control register - 8'b0000_0011
-		TRY_OR_GOTOFAIL(I2C_IF_Write(0x29, cmd_init, 2, 1)); // setup normal mode
+		(I2C_IF_Write(0x29, cmd_init, 2, 1)); // setup normal mode
 
 		cmd_init[0] = 0x81; // Command register - 8'b1000_0000
 		cmd_init[1] = 0x02; // Control register - 8'b0000_0010 // 100ms due to page 9 of http://media.digikey.com/pdf/Data%20Sheets/Austriamicrosystems%20PDFs/TSL4531.pdf
-		TRY_OR_GOTOFAIL(I2C_IF_Write(0x29, cmd_init, 2, 1)); //  );// change integration
+		(I2C_IF_Write(0x29, cmd_init, 2, 1)); //  );// change integration
 	} else {
 		unsigned char aucDataBuf[2] = { 0, 0 };
 		aucDataBuf[0] = 0;
 		aucDataBuf[1] = 0xA0;
-		TRY_OR_GOTOFAIL(I2C_IF_Write(0x44, aucDataBuf, 2, 1));
+		(I2C_IF_Write(0x44, aucDataBuf, 2, 1));
 	}
 
 	return SUCCESS;
@@ -338,9 +335,9 @@ static int _read_als(){
 	unsigned char aucDataBuf[2] = { 0, 0 };
 
 	cmd = 0x2;
-	TRY_OR_GOTOFAIL(I2C_IF_Write(0x44, &cmd, 1, 1));
+	(I2C_IF_Write(0x44, &cmd, 1, 1));
 	vTaskDelay(0);
-	TRY_OR_GOTOFAIL(I2C_IF_Read(0x44, aucDataBuf, 2));
+	(I2C_IF_Read(0x44, aucDataBuf, 2));
 	return aucDataBuf[0] | (aucDataBuf[1] << 8);
 }
 
@@ -354,12 +351,12 @@ int get_light() {
 		int light_lux;
 
 		cmd = 0x84; // Command register - 0x04
-		TRY_OR_GOTOFAIL(I2C_IF_Write(0x29, &cmd, 1, 1));
-		TRY_OR_GOTOFAIL(I2C_IF_Read(0x29, aucDataBuf_LOW, 1)); //could read 2 here, but we don't use the other one...
+		(I2C_IF_Write(0x29, &cmd, 1, 1));
+		(I2C_IF_Read(0x29, aucDataBuf_LOW, 1)); //could read 2 here, but we don't use the other one...
 
 		cmd = 0x85; // Command register - 0x05
-		TRY_OR_GOTOFAIL(I2C_IF_Write(0x29, &cmd, 1, 1));
-		TRY_OR_GOTOFAIL(I2C_IF_Read(0x29, aucDataBuf_HIGH, 1));
+		(I2C_IF_Write(0x29, &cmd, 1, 1));
+		(I2C_IF_Read(0x29, aucDataBuf_HIGH, 1));
 
 		// We are using 100ms mode, multipler is 4
 		// formula based on page 6 of http://media.digikey.com/pdf/Data%20Sheets/Austriamicrosystems%20PDFs/TSL4531.pdf
@@ -379,7 +376,7 @@ int get_light() {
 					LOGI("increase scaling %d\r\n", scaling);
 					aucDataBuf[0] = 1;
 					aucDataBuf[1] = ++scaling;
-					TRY_OR_GOTOFAIL(I2C_IF_Write(0x44, aucDataBuf, 2, 1));
+					(I2C_IF_Write(0x44, aucDataBuf, 2, 1));
 					while (_read_als() == 65535 && ++switch_cnt < MAX_RETRIES) {
 						vTaskDelay(100);
 					}
@@ -393,7 +390,7 @@ int get_light() {
 					LOGI("decrease scaling %d\r\n", scaling);
 					aucDataBuf[0] = 1;
 					aucDataBuf[1] = --scaling;
-					TRY_OR_GOTOFAIL(I2C_IF_Write(0x44, aucDataBuf, 2, 1));
+					(I2C_IF_Write(0x44, aucDataBuf, 2, 1));
 					while( _read_als() < 16384 && ++switch_cnt < MAX_RETRIES ) {
 						vTaskDelay(100);
 					}
@@ -409,7 +406,7 @@ int get_light() {
 
 		aucDataBuf[0] = 1;
 		aucDataBuf[1] = scaling;
-		TRY_OR_GOTOFAIL(I2C_IF_Write(0x44, aucDataBuf, 2, 1));
+		(I2C_IF_Write(0x44, aucDataBuf, 2, 1));
 
 		return light;
 	}
@@ -428,17 +425,17 @@ int Cmd_readlight(int argc, char *argv[]) {
 
 		prx_cmd_init[0] = 0x82;
 		prx_cmd_init[1] = rate;	//0b011; // 15hz
-		TRY_OR_GOTOFAIL(I2C_IF_Write(0x13, prx_cmd_init, 2, 1));
+		(I2C_IF_Write(0x13, prx_cmd_init, 2, 1));
 
 		prx_cmd_init[0] = 0x8f;
 		//                    ---++--- delay, frequency, dead time
         //prx_cmd_init[1] = 0b01100001; // 15hz
 		prx_cmd_init[1] = (delay << 5) | (freq << 3) | (dead); // 15hz
-		TRY_OR_GOTOFAIL(I2C_IF_Write(0x13, prx_cmd_init, 2, 1));
+		(I2C_IF_Write(0x13, prx_cmd_init, 2, 1));
 
 		prx_cmd_init[0] = 0x83; // Current setting register
 		prx_cmd_init[1] = power; // Value * 10mA
-		TRY_OR_GOTOFAIL(I2C_IF_Write(0x13, prx_cmd_init, 2, 1));
+		(I2C_IF_Write(0x13, prx_cmd_init, 2, 1));
 	}
 
 	return SUCCESS;
@@ -451,11 +448,11 @@ int init_prox_sensor()
 	prx_cmd_init[0] = 0x8f;
 	//                  ---++--- delay, frequency, dead time
 	prx_cmd_init[1] = 0b10000001;
-	TRY_OR_GOTOFAIL(I2C_IF_Write(0x13, prx_cmd_init, 2, 1) );
+	(I2C_IF_Write(0x13, prx_cmd_init, 2, 1) );
 
 	prx_cmd_init[0] = 0x83; // Current setting register
 	prx_cmd_init[1] = 14; // Value * 10mA
-	TRY_OR_GOTOFAIL( I2C_IF_Write(0x13, prx_cmd_init, 2, 1) );
+	( I2C_IF_Write(0x13, prx_cmd_init, 2, 1) );
 
 
 	return SUCCESS;
@@ -471,20 +468,20 @@ uint32_t get_prox() {
 
 	prx_cmd_init[0] = 0x80; // Command register - 8'b1000_0000
 	prx_cmd_init[1] = 0x08; // one shot measurements
-	TRY_OR_GOTOFAIL(I2C_IF_Write(0x13, prx_cmd_init, 2, 1) );
+	(I2C_IF_Write(0x13, prx_cmd_init, 2, 1) );
 
 	while( ! ( cmd_reg & 0b00100000 ) ) {
-		TRY_OR_GOTOFAIL(I2C_IF_Read(0x13, &cmd_reg,  1 ) );
+		(I2C_IF_Read(0x13, &cmd_reg,  1 ) );
 		vTaskDelay(1);
 	}
 
 	prx_cmd = 0x88; // Command register - 0x87
-	TRY_OR_GOTOFAIL( I2C_IF_Write(0x13, &prx_cmd, 1, 1) );
-	TRY_OR_GOTOFAIL( I2C_IF_Read(0x13, prx_aucDataBuf_LOW, 1) );  //only using top byte...
+	( I2C_IF_Write(0x13, &prx_cmd, 1, 1) );
+	( I2C_IF_Read(0x13, prx_aucDataBuf_LOW, 1) );  //only using top byte...
 
 	prx_cmd = 0x87; // Command register - 0x87
-	TRY_OR_GOTOFAIL( I2C_IF_Write(0x13, &prx_cmd, 1, 1) );
-	TRY_OR_GOTOFAIL( I2C_IF_Read(0x13, prx_aucDataBuf_HIGH, 1) );   //only using top byte...
+	( I2C_IF_Write(0x13, &prx_cmd, 1, 1) );
+	( I2C_IF_Read(0x13, prx_aucDataBuf_HIGH, 1) );   //only using top byte...
 
 	proximity_raw = (prx_aucDataBuf_HIGH[0] << 8) | prx_aucDataBuf_LOW[0];
 
