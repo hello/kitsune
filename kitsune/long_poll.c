@@ -77,6 +77,7 @@ bool _encode_read_id(pb_ostream_t *stream, const pb_field_t *field, void * const
 
 static void long_poll_task(void * networkdata) {
 	int sock = -1;
+	int retries = 0;
 	ReceiveMessageRequest request;
     protobuf_reply_callbacks pb_cb;
 
@@ -99,13 +100,21 @@ static void long_poll_task(void * networkdata) {
 		while (!wifi_status_get(HAS_IP)) {
 			vTaskDelay(1000);
 		}
-		send_data_pb(LONG_POLL_HOST,
+		if( !send_data_pb(LONG_POLL_HOST,
 				LONG_POLL_ENDPOINT,
 				&decode_buf,
 				&decode_buf_size,
 				ReceiveMessageRequest_fields,
 				&request,
-				&pb_cb, &sock, SOCKET_SEC_SSL );
+				&pb_cb, &sock, SOCKET_SEC_NONE ) ) {
+			if( retries < 5 ) {
+				vTaskDelay( (1<<retries)*1000 );
+			} else {
+				vTaskDelay( 32000 );
+			}
+		} else {
+			retries = 0;
+		}
 	}
 }
 
