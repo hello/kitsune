@@ -42,7 +42,7 @@
 /  2: Enable with LF-CRLF conversion. */
 
 
-#define	_USE_MKFS		1
+#define	_USE_MKFS		0
 /* This option switches f_mkfs() function. (0:Disable or 1:Enable)
 /  To enable it, also _FS_READONLY need to be set to 0. */
 
