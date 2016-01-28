@@ -26,7 +26,6 @@ long sl_enter_critical_region()
 
 long sl_exit_critical_region()
 {
-	if( booted )LOGD("z");
     return xSemaphoreGiveRecursive(_sl_mutex);
 }
 long sl_gethostbynameNoneThreadSafe(_i8 * hostname,const  _u16 usNameLen, _u32*  out_ip_addr,const _u8 family ) {

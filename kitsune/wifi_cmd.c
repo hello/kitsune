@@ -903,8 +903,6 @@ int Cmd_test_key(int argc, char*argv[]) {
 #include "periodic.pb.h"
 #include "audio_data.pb.h"
 
-static SHA1_CTX sha1ctx;
-
 typedef struct {
 	intptr_t fd;
 	uint32_t inbuf_offset;
@@ -1018,7 +1016,7 @@ static bool write_buffered_callback_sha(pb_ostream_t *stream, const uint8_t * in
 	}
     return true;
 }
-
+#if 0
 static bool read_callback_sha(pb_istream_t *stream, uint8_t *buf, size_t count) {
     int fd = (intptr_t) stream->state;
     int result,i;
@@ -1037,6 +1035,11 @@ static bool read_callback_sha(pb_istream_t *stream, uint8_t *buf, size_t count) 
     return result == count;
 }
 
+pb_istream_t pb_istream_from_sha_socket(int fd) {
+    pb_istream_t stream = { &read_callback_sha, (void*) (intptr_t) fd, SIZE_MAX };
+    return stream;
+}
+#endif
 
 
 //WARNING not re-entrant! Only 1 of these can be going at a time!
@@ -1050,10 +1053,6 @@ pb_ostream_t pb_ostream_from_sha_socket(ostream_buffered_desc_t * desc) {
     return stream;
 }
 
-pb_istream_t pb_istream_from_sha_socket(int fd) {
-    pb_istream_t stream = { &read_callback_sha, (void*) (intptr_t) fd, SIZE_MAX };
-    return stream;
-}
 
 #if 0
 #include "fault.h"
@@ -1298,6 +1297,8 @@ int send_audio_wifi(char * buffer, int buffer_size, audio_read_cb arcb) {
 
 static bool decode_rx_data_pb(const uint8_t * buffer, uint32_t buffer_size, const pb_field_t fields[], void * structdata) {
 	AES_CTX aesctx;
+	SHA1_CTX sha1ctx;
+
 	unsigned char * buf_pos = (unsigned char*)buffer;
 	unsigned char sig[SIG_SIZE] = {0};
 	unsigned char sig_test[SIG_SIZE] = {0};
@@ -1561,7 +1562,7 @@ int send_data_pb( char* host, const char* path, char ** recv_buf_ptr,
 	desc.inbuf_offset = 0;
 	desc.buf_size = recv_buf_size;
 	desc.ctx = &ctx;
-	desc.fd = (intptr_t) sock;
+	desc.fd = *sock;
 
 	SHA1_Init(&ctx);
 
