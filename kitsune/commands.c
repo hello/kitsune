@@ -1737,6 +1737,7 @@ void launch_tasks() {
 	UARTprintf("*");
 	xTaskCreate(thread_tx, "txTask", 1536 / 4, NULL, 4, NULL);
 	UARTprintf("*");
+	long_poll_task_init( 1536 / 4 );
 #endif
 }
 
@@ -2133,7 +2134,7 @@ void vUARTTask(void *pvParameters) {
 	spi_init();
 
 	i2c_smphr = xSemaphoreCreateRecursiveMutex();
-	init_time_module(768);
+	init_time_module(1536);
 
 	// Init sensors
 	init_humid_sensor();
@@ -2184,8 +2185,6 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(analytics_event_task, "analyticsTask", 1024/4, NULL, 1, NULL);
 	UARTprintf("*");
 #endif
-	long_poll_task_init( 1024 / 4 );
-
 
 	if( on_charger ) {
 		launch_tasks();

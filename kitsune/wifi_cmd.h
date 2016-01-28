@@ -125,7 +125,7 @@ bool should_burn_top_key();
 void load_data_server();
 int Cmd_burn_top(int argc, char *argv[]);
 
-int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
+int send_data_pb( char* host, const char* path, char ** recv_buf_ptr,
 		uint32_t * recv_buf_size_ptr, const pb_field_t fields[],  void * structdata,
 		protobuf_reply_callbacks * pb_cb, int * sock, security_type sec );
 
