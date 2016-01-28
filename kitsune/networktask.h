@@ -36,7 +36,7 @@ typedef struct {
 	const pb_field_t * fields;
 	void * structdata;
 
-	const char * host; //the server to which you wish to communicate
+	char * host; //the server to which you wish to communicate
 	const char * endpoint; //where on the server you wish to communicate to.  eg /audio/features
 
 	int32_t retry_timeout;

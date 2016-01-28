@@ -42,25 +42,30 @@ bool encode_all_periodic_data (pb_ostream_t *stream, const pb_field_t *field, vo
     }
     return true;
 }
+static bool _encode_pill_batch_data (pb_ostream_t *stream, const pb_field_t *field, void * const *arg, uint32_t tag){
+	int i;
+	pilldata_to_encode * data = *(pilldata_to_encode**)arg;
 
+	for( i = 0; i < data->num_pills; ++i ) {
+	if(!pb_encode_tag(stream, PB_WT_STRING, tag))
+	{
+		LOGI("encode_all_pills: Fail to encode tag for pill %s, error %s\n", data->pills[i].device_id, PB_GET_ERROR(stream));
+		return false;
+	}
+
+	if (!pb_encode_delimited(stream, pill_data_fields, &data->pills[i])){
+		LOGI("encode_all_pills: Fail to encode pill, error: %s\n", PB_GET_ERROR(stream));
+		return false;
+	}
+	//LOGI("******************* encode_pill_encode_all_pills: encode pill %s\n", pill_data.deviceId);
+	}
+	return true;
+}
+bool encode_all_prox (pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
+	return _encode_pill_batch_data(stream, field, arg, batched_pill_data_prox_tag);
+}
 bool encode_all_pills (pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
-    int i;
-    pilldata_to_encode * data = *(pilldata_to_encode**)arg;
-
-    for( i = 0; i < data->num_pills; ++i ) {
-        if(!pb_encode_tag(stream, PB_WT_STRING, batched_pill_data_pills_tag))
-        {
-            LOGI("encode_all_pills: Fail to encode tag for pill %s, error %s\n", data->pills[i].device_id, PB_GET_ERROR(stream));
-            return false;
-        }
-
-        if (!pb_encode_delimited(stream, pill_data_fields, &data->pills[i])){
-            LOGI("encode_all_pills: Fail to encode pill, error: %s\n", PB_GET_ERROR(stream));
-            return false;
-        }
-        //LOGI("******************* encode_pill_encode_all_pills: encode pill %s\n", pill_data.deviceId);
-    }
-    return true;
+	return _encode_pill_batch_data(stream, field, arg, batched_pill_data_pills_tag);
 }
 #include "hlo_async.h"
 

@@ -999,6 +999,7 @@ void thread_fast_i2c_poll(void * unused)  {
 xQueueHandle data_queue = 0;
 xQueueHandle force_data_queue = 0;
 xQueueHandle pill_queue = 0;
+xQueueHandle pill_prox_queue = 0;
 
 extern volatile bool top_got_device_id;
 extern volatile portTickType last_upload_time;
@@ -1008,9 +1009,52 @@ bool is_test_boot();
 //no need for semaphore, only thread_tx uses this one
 int data_queue_batch_size = 1;
 int pill_queue_batch_size = PILL_BATCH_WATERMARK;
+typedef enum{
+	MOTION = 0,
+	PROX
+}pill_batch_type;
 
-void thread_tx(void* unused) {
+static void handle_pill_queue(xQueueHandle queue, const char * endpoint, pill_batch_type type){
 	batched_pill_data pill_data_batched = {0};
+	if (uxQueueMessagesWaiting(queue) > pill_queue_batch_size) {
+		pilldata_to_encode pilldata;
+		pilldata.num_pills = 0;
+		pilldata.pills = (pill_data*)pvPortMalloc(MAX_BATCH_PILL_DATA*sizeof(pill_data));
+
+		if( !pilldata.pills ) {
+			LOGE( "failed to alloc pilldata\n" );
+			vTaskDelay(1000);
+			return;
+		}
+
+		while( pilldata.num_pills < MAX_BATCH_PILL_DATA && xQueueReceive(queue, &pilldata.pills[pilldata.num_pills], 1 ) ) {
+			++pilldata.num_pills;
+		}
+
+		memset(&pill_data_batched, 0, sizeof(pill_data_batched));
+		pill_data_batched.device_id.funcs.encode = encode_device_id_string;
+		switch(type){
+			case MOTION:
+				pill_data_batched.pills.funcs.encode = encode_all_pills;
+				pill_data_batched.pills.arg = &pilldata;
+				break;
+			case PROX:
+				DISP("Encoding PROX\r\n");
+				pill_data_batched.prox.funcs.encode = encode_all_prox;
+				pill_data_batched.prox.arg = &pilldata;
+				break;
+			default:
+				goto end;
+		}
+		if(endpoint){
+			send_pill_data_generic(&pill_data_batched, endpoint);
+		}
+end:
+		vPortFree( pilldata.pills );
+	}
+}
+#include "endpoints.h"
+void thread_tx(void* unused) {
 	batched_periodic_data data_batched = {0};
 #ifdef UPLOAD_AP_INFO
 	batched_periodic_data_wifi_access_point ap;
@@ -1102,30 +1146,9 @@ void thread_tx(void* unused) {
 			got_forced_data = false;
 		}
 
-		if (uxQueueMessagesWaiting(pill_queue) > pill_queue_batch_size) {
-			LOGI(	"sending  pill data\n" );
-			pilldata_to_encode pilldata;
-			pilldata.num_pills = 0;
-			pilldata.pills = (pill_data*)pvPortMalloc(MAX_BATCH_PILL_DATA*sizeof(pill_data));
+		handle_pill_queue(pill_queue, PILL_DATA_RECEIVE_ENDPOINT, (pill_batch_type)MOTION);
+		handle_pill_queue(pill_prox_queue, PILL_DATA_RECEIVE_ENDPOINT,  (pill_batch_type)PROX);
 
-			if( !pilldata.pills ) {
-				LOGI( "failed to alloc pilldata\n" );
-				vTaskDelay(1000);
-				continue;
-			}
-
-			while( pilldata.num_pills < MAX_BATCH_PILL_DATA && xQueueReceive(pill_queue, &pilldata.pills[pilldata.num_pills], 1 ) ) {
-				++pilldata.num_pills;
-			}
-
-			memset(&pill_data_batched, 0, sizeof(pill_data_batched));
-			pill_data_batched.pills.funcs.encode = encode_all_pills;  // This is smart :D
-			pill_data_batched.pills.arg = &pilldata;
-			pill_data_batched.device_id.funcs.encode = encode_device_id_string;
-
-			send_pill_data(&pill_data_batched, ONE_HOUR_IN_MS );
-			vPortFree( pilldata.pills );
-		}
 		do {
 			if( xQueueReceive(force_data_queue, &forced_data, 1000 ) ) {
 				got_forced_data = true;
@@ -1138,7 +1161,7 @@ void thread_tx(void* unused) {
 
 void sample_sensor_data(periodic_data* data)
 {
-	if(!data)
+	if(!data )
 	{
 		return;
 	}
@@ -1737,6 +1760,7 @@ void launch_tasks() {
 	UARTprintf("*");
 	xTaskCreate(thread_tx, "txTask", 1536 / 4, NULL, 4, NULL);
 	UARTprintf("*");
+	long_poll_task_init( 4096 / 4 );
 #endif
 }
 
@@ -1761,7 +1785,11 @@ int Cmd_inttemp(int argc, char *argv[]) {
 
 // Variables for Slope and Intercept
 	int temperature, slope_ch3, intcept_ch3;
-	unsigned int flags = MAP_IntMasterDisable();
+
+	//make sure the dust sensor is not using the ADC
+	if( !xSemaphoreTake(dust_smphr, 0) ) {
+		return 0;
+	}
 
 // Enable ADC
 	HWREG(ADC_BASE + 0xB8) = 0x0355AA00;
@@ -1776,7 +1804,7 @@ int Cmd_inttemp(int argc, char *argv[]) {
 //Read ADC FIFO - Suggested averaging for 4 samples
 
 	/* Wait for the FIFO to fill up */
-	MAP_UtilsDelay(300);
+	vTaskDelay(1);
 
 	temperature = 0;
 	for( i=0; i<1000; ++i ) {
@@ -1791,9 +1819,7 @@ int Cmd_inttemp(int argc, char *argv[]) {
 	}
 	MAP_ADCDisable(ADC_BASE);
 
-	if (!flags) {
-		MAP_IntMasterEnable();
-	}
+	xSemaphoreGive(dust_smphr);
 
 	LOGF("internal %u\n", temperature/i);
 	return 0;
@@ -2047,7 +2073,9 @@ long nwp_reset();
 void vUARTTask(void *pvParameters) {
 	char cCmdBuf[512];
 	bool on_charger = false;
-	led_init();
+	if(led_init() != 0){
+		LOGI("Failed to create the led_events.\n");
+	}
 	xTaskCreate(led_task, "ledTask", 700 / 4, NULL, 1, NULL);
 	xTaskCreate(led_idle_task, "led_idle_task", 256 / 4, NULL, 4, NULL);
 
@@ -2133,7 +2161,7 @@ void vUARTTask(void *pvParameters) {
 	spi_init();
 
 	i2c_smphr = xSemaphoreCreateRecursiveMutex();
-	init_time_module(768);
+	init_time_module(2200);
 
 	// Init sensors
 	init_humid_sensor();
@@ -2146,6 +2174,7 @@ void vUARTTask(void *pvParameters) {
 	data_queue = xQueueCreate(MAX_PERIODIC_DATA, sizeof(periodic_data));
 	force_data_queue = xQueueCreate(1, sizeof(periodic_data));
 	pill_queue = xQueueCreate(MAX_PILL_DATA, sizeof(pill_data));
+	pill_prox_queue = xQueueCreate(MAX_PILL_DATA, sizeof(pill_data));
 	vSemaphoreCreateBinary(dust_smphr);
 	vSemaphoreCreateBinary(light_smphr);
 	vSemaphoreCreateBinary(spi_smphr);
@@ -2184,8 +2213,6 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(analytics_event_task, "analyticsTask", 1024/4, NULL, 1, NULL);
 	UARTprintf("*");
 #endif
-	long_poll_task_init( 1024 / 4 );
-
 
 	if( on_charger ) {
 		launch_tasks();
