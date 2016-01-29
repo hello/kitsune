@@ -274,7 +274,7 @@ void AudioClassifier_DataCallback(const AudioFeatures_t * pfeats) {
     }
     
     //determine if anything interesting happend, energy-wise
-    if (pfeats->logenergyOverBackroundNoise > MIN_CLASSIFICATION_ENERGY) {
+    if (pfeats->logenergy >MIN_CLASSIFICATION_ENERGY ) {
         _buffer.isThereAnythingInteresting = true;
         _buffer.isWorthClassifying = true;
     }
@@ -438,6 +438,19 @@ void AudioClassifier_ResetStorageBuffer(void) {
 #include "sys_time.h"
 #include "matrix.pb.h"
 #include "debugutils/matmessageutils.h"
+
+#ifdef USED_ON_DESKTOP
+uint32_t get_time(void) {
+    return 0;
+}
+
+bool encode_device_id_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
+    const char * k_device_id = "DESKTOP";
+    return pb_encode_tag_for_field(stream, field) && pb_encode_string(stream, (uint8_t*)k_device_id, strlen(k_device_id));
+}
+
+#endif
+
 void * getMatrixClientMessage() {
 	//this code leaks references to these, can't have them on the stack
 	//also makes this function non reentrant

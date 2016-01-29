@@ -5,7 +5,6 @@
 #include "debugutils/debuglog.h"
 #include <stdio.h>
 #include "hellomath.h"
-#include "uart_logger.h"
 
 /*
    How is this all going to work? 
@@ -479,8 +478,6 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int64_t samplecount) {
     logpsdmel(&logTotalEnergy,psd,fr,fi,log2scaleOfRawSignal,_data.psd_min_energy); //psd is now 64, and on a logarithmic scale after 1khz
     
     DEBUG_LOG_S16("energy", NULL, &logTotalEnergy, 1, samplecount, samplecount);
-
-    LOGA("%d\n", GetAudioEnergyAsDBA(logTotalEnergy));
 
     /* Determine stability of signal energy order to figure out when to estimate background spectrum */
     logTotalEnergyAvg = MovingAverage16(_data.callcounter, logTotalEnergy, _data.energybuf, &_data.energyaccumulator,ENERGY_BUF_MASK,ENERGY_BUF_SIZE_2N);
