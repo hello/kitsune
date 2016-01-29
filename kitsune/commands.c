@@ -92,6 +92,7 @@
 #include "prox_signal.h"
 #include "hlo_net_tools.h"
 #include "top_board.h"
+#include "long_poll.h"
 #define ONLY_MID 0
 
 #define ARRAY_LEN(a) (sizeof(a)/sizeof(a[0]))
@@ -1161,7 +1162,7 @@ void thread_tx(void* unused) {
 
 void sample_sensor_data(periodic_data* data)
 {
-	if(!data)
+	if(!data )
 	{
 		return;
 	}
@@ -1765,6 +1766,7 @@ void launch_tasks() {
 	UARTprintf("*");
 	xTaskCreate(thread_tx, "txTask", 1536 / 4, NULL, 4, NULL);
 	UARTprintf("*");
+	//long_poll_task_init( 4096 / 4 );
 #endif
 }
 
@@ -2165,7 +2167,7 @@ void vUARTTask(void *pvParameters) {
 	spi_init();
 
 	i2c_smphr = xSemaphoreCreateRecursiveMutex();
-	init_time_module(768);
+	init_time_module(2200);
 
 	// Init sensors
 	init_humid_sensor();
@@ -2218,7 +2220,6 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("*");
 #endif
 
-
 	if( on_charger ) {
 		launch_tasks();
 		vTaskDelete(NULL);
@@ -2255,7 +2256,7 @@ void vUARTTask(void *pvParameters) {
 			char * args = NULL;
 			args = pvPortMalloc( sizeof(cCmdBuf) );
 			if( args == NULL ) {
-				LOGF("can't run command %s, no memory available!\n", cCmdBuf );
+				LOGF("can't run %s, no mem!\n", cCmdBuf );
 			} else {
 				memcpy( args, cCmdBuf, sizeof( cCmdBuf ) );
 				xTaskCreate(CmdLineProcess, "commandTask",  3*1024 / 4, args, 4, NULL);
