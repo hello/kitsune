@@ -612,8 +612,9 @@ static void thread_alarm_on_finished(void * context) {
 	}
 	if (xSemaphoreTakeRecursive(alarm_smphr, 500)) {
 		LOGI("Alarm finished\r\n");
+		alarm_is_ringing = false;
 		xSemaphoreGiveRecursive(alarm_smphr);
-	    alarm_is_ringing = false;
+
 	}
 }
 
