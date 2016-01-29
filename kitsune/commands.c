@@ -1338,12 +1338,14 @@ int force_data_push()
     return 0;
 }
 
+xSemaphoreHandle low_frequency_i2c_sem;
 int Cmd_inttemp(int argc, char *argv[]);
 void thread_sensor_poll(void* unused) {
 
 	//
 	// Print some header text.
 	//
+	vSemaphoreCreateBinary( low_frequency_i2c_sem );
 
 	periodic_data data = {0};
 
@@ -1354,23 +1356,26 @@ void thread_sensor_poll(void* unused) {
 
 		wait_for_time(WAIT_FOREVER);
 
-		sample_sensor_data(&data);
+		if( xSemaphoreTake( low_frequency_i2c_sem, 0 ) ) {
+			sample_sensor_data(&data);
 
-		if( booted ) {
-			LOGI(
-					"collecting time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d %d %d %d\twave %d\thold %d\n",
-					data.unix_time, data.light, data.light_variability,
-					data.light_tonality, data.temperature, data.humidity,
-					data.dust, data.dust_max, data.dust_min,
-					data.dust_variability, data.wave_count, data.hold_count);
+			if( booted ) {
+				LOGI(
+						"collecting time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d %d %d %d\twave %d\thold %d\n",
+						data.unix_time, data.light, data.light_variability,
+						data.light_tonality, data.temperature, data.humidity,
+						data.dust, data.dust_max, data.dust_min,
+						data.dust_variability, data.wave_count, data.hold_count);
 
-			Cmd_free(0,0);
-			send_top("free", strlen("free"));
-			Cmd_inttemp(0,0);
+				Cmd_free(0,0);
+				send_top("free", strlen("free"));
+				Cmd_inttemp(0,0);
 
-			if (!xQueueSend(data_queue, (void* )&data, 0) == pdPASS) {
-				xQueueReceive(data_queue, (void* )&data, 0); //discard one, so if the queue is full we will put every other one in the queue
-				LOGE("Failed to post data\n");
+				if (!xQueueSend(data_queue, (void* )&data, 0) == pdPASS) {
+					xQueueReceive(data_queue, (void* )&data, 0); //discard one, so if the queue is full we will put every other one in the queue
+					LOGE("Failed to post data\n");
+				}
+				xSemaphoreGive(low_frequency_i2c_sem);
 			}
 		}
 
