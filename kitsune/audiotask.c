@@ -114,7 +114,7 @@ static void Init(void) {
 	}
 
 	if( !audio_dma_sem ) {
-		audio_dma_sem = xSemaphoreCreateMutex();
+		audio_dma_sem = xSemaphoreCreateBinary();
 	}
 
 	memset(&_stats,0,sizeof(_stats));
