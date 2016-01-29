@@ -998,6 +998,7 @@ void thread_fast_i2c_poll(void * unused)  {
 xQueueHandle data_queue = 0;
 xQueueHandle force_data_queue = 0;
 xQueueHandle pill_queue = 0;
+xQueueHandle pill_prox_queue = 0;
 
 extern volatile bool top_got_device_id;
 extern volatile portTickType last_upload_time;
@@ -1007,9 +1008,52 @@ bool is_test_boot();
 //no need for semaphore, only thread_tx uses this one
 int data_queue_batch_size = 1;
 int pill_queue_batch_size = PILL_BATCH_WATERMARK;
+typedef enum{
+	MOTION = 0,
+	PROX
+}pill_batch_type;
 
-void thread_tx(void* unused) {
+static void handle_pill_queue(xQueueHandle queue, const char * endpoint, pill_batch_type type){
 	batched_pill_data pill_data_batched = {0};
+	if (uxQueueMessagesWaiting(queue) > pill_queue_batch_size) {
+		pilldata_to_encode pilldata;
+		pilldata.num_pills = 0;
+		pilldata.pills = (pill_data*)pvPortMalloc(MAX_BATCH_PILL_DATA*sizeof(pill_data));
+
+		if( !pilldata.pills ) {
+			LOGE( "failed to alloc pilldata\n" );
+			vTaskDelay(1000);
+			return;
+		}
+
+		while( pilldata.num_pills < MAX_BATCH_PILL_DATA && xQueueReceive(queue, &pilldata.pills[pilldata.num_pills], 1 ) ) {
+			++pilldata.num_pills;
+		}
+
+		memset(&pill_data_batched, 0, sizeof(pill_data_batched));
+		pill_data_batched.device_id.funcs.encode = encode_device_id_string;
+		switch(type){
+			case MOTION:
+				pill_data_batched.pills.funcs.encode = encode_all_pills;
+				pill_data_batched.pills.arg = &pilldata;
+				break;
+			case PROX:
+				DISP("Encoding PROX\r\n");
+				pill_data_batched.prox.funcs.encode = encode_all_prox;
+				pill_data_batched.prox.arg = &pilldata;
+				break;
+			default:
+				goto end;
+		}
+		if(endpoint){
+			send_pill_data_generic(&pill_data_batched, endpoint);
+		}
+end:
+		vPortFree( pilldata.pills );
+	}
+}
+#include "endpoints.h"
+void thread_tx(void* unused) {
 	batched_periodic_data data_batched = {0};
 #ifdef UPLOAD_AP_INFO
 	batched_periodic_data_wifi_access_point ap;
@@ -1101,30 +1145,9 @@ void thread_tx(void* unused) {
 			got_forced_data = false;
 		}
 
-		if (uxQueueMessagesWaiting(pill_queue) > pill_queue_batch_size) {
-			LOGI(	"sending  pill data\n" );
-			pilldata_to_encode pilldata;
-			pilldata.num_pills = 0;
-			pilldata.pills = (pill_data*)pvPortMalloc(MAX_BATCH_PILL_DATA*sizeof(pill_data));
+		handle_pill_queue(pill_queue, PILL_DATA_RECEIVE_ENDPOINT, (pill_batch_type)MOTION);
+		handle_pill_queue(pill_prox_queue, PILL_DATA_RECEIVE_ENDPOINT,  (pill_batch_type)PROX);
 
-			if( !pilldata.pills ) {
-				LOGI( "failed to alloc pilldata\n" );
-				vTaskDelay(1000);
-				continue;
-			}
-
-			while( pilldata.num_pills < MAX_BATCH_PILL_DATA && xQueueReceive(pill_queue, &pilldata.pills[pilldata.num_pills], 1 ) ) {
-				++pilldata.num_pills;
-			}
-
-			memset(&pill_data_batched, 0, sizeof(pill_data_batched));
-			pill_data_batched.pills.funcs.encode = encode_all_pills;  // This is smart :D
-			pill_data_batched.pills.arg = &pilldata;
-			pill_data_batched.device_id.funcs.encode = encode_device_id_string;
-
-			send_pill_data(&pill_data_batched, ONE_HOUR_IN_MS );
-			vPortFree( pilldata.pills );
-		}
 		do {
 			if( xQueueReceive(force_data_queue, &forced_data, 1000 ) ) {
 				got_forced_data = true;
@@ -1909,15 +1932,17 @@ int Cmd_time_test(int argc, char * argv[]);
 // ==============================================================================
 tCmdLineEntry g_sCmdTable[] = {
 //    { "cpu",      Cmd_cpu,      "Show CPU utilization" },
+#if 0
 		{ "time_test", Cmd_time_test, "" },
-		{ "free", Cmd_free, "" },
 		{ "heapviz", Cmd_heapviz, "" },
 		{ "realloc", Cmd_test_realloc, "" },
 		{ "fault", Cmd_fault, "" },
-		{ "connect", Cmd_connect, "" },
-		{ "disconnect", Cmd_disconnect, "" },
 		{ "mac", Cmd_set_mac, "" },
 		{ "aes", Cmd_set_aes, "" },
+#endif
+		{ "free", Cmd_free, "" },
+		{ "connect", Cmd_connect, "" },
+		{ "disconnect", Cmd_disconnect, "" },
 
 		{ "ping", Cmd_ping, "" },
 		{ "time", Cmd_time, "" },
@@ -1928,30 +1953,34 @@ tCmdLineEntry g_sCmdTable[] = {
     { "ls",       Cmd_ls,       "" },
     { "chdir",    Cmd_cd,       "" },
     { "cd",       Cmd_cd,       "" },
-    { "mkdir",    Cmd_mkdir,    "" },
     { "rm",       Cmd_rm,       "" },
+#if 0
+    { "mkdir",    Cmd_mkdir,    "" },
     { "write",    Cmd_write,    "" },
     { "mkfs",     Cmd_mkfs,     "" },
     { "pwd",      Cmd_pwd,      "" },
     { "cat",      Cmd_cat,      "" },
+	{"codec_Mic", get_codec_mic_NAU, "" },
+#endif
 
     {"inttemp", Cmd_inttemp, "" },
 		{ "humid", Cmd_readhumid, "" },
 		{ "temp", Cmd_readtemp,	"" },
 		{ "light", Cmd_readlight, "" },
 		{"prox", Cmd_readproximity, "" },
-//		{"codec_Mic", get_codec_mic_NAU, "" },
 
 #if ( configUSE_TRACE_FACILITY == 1 )
 		{ "tasks", Cmd_tasks, "" },
 #endif
 
 		{ "dust", Cmd_dusttest, "" },
+#if 0
 		{ "dig", Cmd_dig, "" },
 		{ "fswr", Cmd_fs_write, "" }, //serial flash commands
 		{ "fsrd", Cmd_fs_read, "" },
 		{ "fsdl", Cmd_fs_delete, "" },
 		{ "get", Cmd_test_get, ""},
+#endif
 
 		{ "r", Cmd_record_buff,""}, //record sounds into SD card
 		{ "p", Cmd_play_buff, ""},//play sounds from SD card
@@ -1960,14 +1989,14 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "getoct",Cmd_get_octogram,""},
 		{ "aon",Cmd_audio_turn_on,""},
 		{ "aoff",Cmd_audio_turn_off,""},
-
+#if 0
 		{ "sl", Cmd_sl, "" }, // smart config
 		{ "mode", Cmd_mode, "" }, //set the ap/station mode
 
 		{ "spird", Cmd_spi_read,"" },
 		{ "spiwr", Cmd_spi_write, "" },
 		{ "spirst", Cmd_spi_reset, "" },
-
+#endif
 		{ "antsel", Cmd_antsel, "" }, //select antenna
 		{ "led", Cmd_led, "" },
 		{ "clrled", Cmd_led_clr, "" },
@@ -1978,15 +2007,21 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "rdiorxstart", Cmd_RadioStartRX, "" },
 		{ "rdiorxstop", Cmd_RadioStopRX, "" },
 #endif
+#if 0
 		{ "slip", Cmd_slip, "" },
+#endif
 		{ "^", Cmd_send_top, ""}, //send command to top board
 		{ "topdfu", Cmd_topdfu, ""}, //update topboard firmware.
 		{ "factory_reset", Cmd_factory_reset, ""},//Factory reset from middle.
+#if 0
 		{ "download", Cmd_download, ""},//download test function.
 		{ "dtm", Cmd_top_dtm, "" },//Sends Direct Test Mode command
+#endif
 		{ "animate", Cmd_led_animate, ""},//Animates led
-		{ "uplog", Cmd_log_upload, "Uploads log to server"},
-		{ "loglevel", Cmd_log_setview, "Sets log level" },
+#if 0
+		{ "uplog", Cmd_log_upload, ""},
+#endif
+		{ "loglevel", Cmd_log_setview, "" },
 		{ "ver", Cmd_version, ""},//Animates led
 #ifdef BUILD_TESTS
 		{ "test_network",Cmd_test_network,""},
@@ -2000,10 +2035,11 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "gesture_count",Cmd_get_gesture_count,""},
 		{ "alarm",set_test_alarm,""},
 		{ "set-time",cmd_set_time,""},
+		{ "rssi", Cmd_rssi, "" },
+#if 0
 		{ "frag",cmd_memfrag,""},
 		{ "burntopkey",Cmd_burn_top,""},
 		{ "scan",Cmd_scan_wifi,""},
-		{ "rssi", Cmd_rssi, "" },
 		{"future",Cmd_FutureTest,""},
 		{"dev", Cmd_setDev, ""},
 		{"ana", Cmd_analytics, ""},
@@ -2012,6 +2048,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{"nwp", Cmd_nwpinfo, ""},
 		{"resync", Cmd_SyncID, ""},
 		{"g", Cmd_gesture, ""},
+#endif
 
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
@@ -2135,6 +2172,7 @@ void vUARTTask(void *pvParameters) {
 	data_queue = xQueueCreate(MAX_PERIODIC_DATA, sizeof(periodic_data));
 	force_data_queue = xQueueCreate(1, sizeof(periodic_data));
 	pill_queue = xQueueCreate(MAX_PILL_DATA, sizeof(pill_data));
+	pill_prox_queue = xQueueCreate(MAX_PILL_DATA, sizeof(pill_data));
 	vSemaphoreCreateBinary(dust_smphr);
 	vSemaphoreCreateBinary(light_smphr);
 	vSemaphoreCreateBinary(spi_smphr);
