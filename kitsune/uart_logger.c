@@ -671,7 +671,7 @@ void uart_logger_task(void * params){
                 portMAX_DELAY );/* Wait for any bit to be set. */
 		if( evnt & LOG_EVENT_UPLOAD) {
 			xEventGroupClearBits(self.uart_log_events,LOG_EVENT_UPLOAD);
-			if(wifi_status_get(HAS_IP)){
+			if(wifi_status_get(UPLOADING)){
 				WORD read;
 				FRESULT res;
 				//operation block is used for file io
@@ -700,7 +700,7 @@ void uart_logger_task(void * params){
 		}
 		if(evnt & LOG_EVENT_UPLOAD_ONLY) {
 			xEventGroupClearBits(self.uart_log_events,LOG_EVENT_UPLOAD_ONLY);
-			if(wifi_status_get(HAS_IP)){
+			if(wifi_status_get(UPLOADING)){
 				send_log();
 			}
 		}
