@@ -346,7 +346,7 @@ void uart_logger_init(void){
 	self.log.text.funcs.encode = _encode_text_block;
 	self.log.device_id.funcs.encode = encode_device_id_string;
 	self.log.has_unix_time = true;
-	self.view_tag = LOG_INFO | LOG_WARNING | LOG_ERROR | LOG_VIEW_ONLY | LOG_FACTORY | LOG_TOP;
+	self.view_tag = LOG_DEBUG | LOG_INFO | LOG_WARNING | LOG_ERROR | LOG_VIEW_ONLY | LOG_FACTORY | LOG_TOP;
 	self.store_tag = LOG_INFO | LOG_WARNING | LOG_ERROR | LOG_FACTORY | LOG_TOP;
 
 	self.block_queue = xQueueCreate(2, sizeof(uint8_t*));
@@ -671,7 +671,7 @@ void uart_logger_task(void * params){
                 portMAX_DELAY );/* Wait for any bit to be set. */
 		if( evnt & LOG_EVENT_UPLOAD) {
 			xEventGroupClearBits(self.uart_log_events,LOG_EVENT_UPLOAD);
-			if(wifi_status_get(HAS_IP)){
+			if(wifi_status_get(UPLOADING)){
 				WORD read;
 				FRESULT res;
 				//operation block is used for file io
@@ -700,7 +700,7 @@ void uart_logger_task(void * params){
 		}
 		if(evnt & LOG_EVENT_UPLOAD_ONLY) {
 			xEventGroupClearBits(self.uart_log_events,LOG_EVENT_UPLOAD_ONLY);
-			if(wifi_status_get(HAS_IP)){
+			if(wifi_status_get(UPLOADING)){
 				send_log();
 			}
 		}

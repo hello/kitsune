@@ -18,18 +18,14 @@ long sl_sync_init()
 
 long sl_enter_critical_region()
 {
-    if( booted )LOGD("x");
     if( !xSemaphoreTakeRecursive(_sl_mutex, 60000) ) {
-    	if( booted )LOGD("sl_enter_critical_region timeout\r\n");
     	return 0;
     }
-    if( booted )LOGD("y");
     return 1;
 }
 
 long sl_exit_critical_region()
 {
-	if( booted )LOGD("z");
     return xSemaphoreGiveRecursive(_sl_mutex);
 }
 long sl_gethostbynameNoneThreadSafe(_i8 * hostname,const  _u16 usNameLen, _u32*  out_ip_addr,const _u8 family ) {

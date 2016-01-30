@@ -92,6 +92,7 @@
 #include "prox_signal.h"
 #include "hlo_net_tools.h"
 #include "top_board.h"
+#include "long_poll.h"
 #define ONLY_MID 0
 
 #define ARRAY_LEN(a) (sizeof(a)/sizeof(a[0]))
@@ -611,8 +612,9 @@ static void thread_alarm_on_finished(void * context) {
 	}
 	if (xSemaphoreTakeRecursive(alarm_smphr, 500)) {
 		LOGI("Alarm finished\r\n");
+		alarm_is_ringing = false;
 		xSemaphoreGiveRecursive(alarm_smphr);
-	    alarm_is_ringing = false;
+
 	}
 }
 
@@ -1160,7 +1162,7 @@ void thread_tx(void* unused) {
 
 void sample_sensor_data(periodic_data* data)
 {
-	if(!data)
+	if(!data )
 	{
 		return;
 	}
@@ -1338,12 +1340,14 @@ int force_data_push()
     return 0;
 }
 
+xSemaphoreHandle low_frequency_i2c_sem;
 int Cmd_inttemp(int argc, char *argv[]);
 void thread_sensor_poll(void* unused) {
 
 	//
 	// Print some header text.
 	//
+	vSemaphoreCreateBinary( low_frequency_i2c_sem );
 
 	periodic_data data = {0};
 
@@ -1354,23 +1358,26 @@ void thread_sensor_poll(void* unused) {
 
 		wait_for_time(WAIT_FOREVER);
 
-		sample_sensor_data(&data);
+		if( xSemaphoreTake( low_frequency_i2c_sem, 0 ) ) {
+			sample_sensor_data(&data);
 
-		if( booted ) {
-			LOGI(
-					"collecting time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d %d %d %d\twave %d\thold %d\n",
-					data.unix_time, data.light, data.light_variability,
-					data.light_tonality, data.temperature, data.humidity,
-					data.dust, data.dust_max, data.dust_min,
-					data.dust_variability, data.wave_count, data.hold_count);
+			if( booted ) {
+				LOGI(
+						"collecting time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d %d %d %d\twave %d\thold %d\n",
+						data.unix_time, data.light, data.light_variability,
+						data.light_tonality, data.temperature, data.humidity,
+						data.dust, data.dust_max, data.dust_min,
+						data.dust_variability, data.wave_count, data.hold_count);
 
-			Cmd_free(0,0);
-			send_top("free", strlen("free"));
-			Cmd_inttemp(0,0);
+				Cmd_free(0,0);
+				send_top("free", strlen("free"));
+				Cmd_inttemp(0,0);
 
-			if (!xQueueSend(data_queue, (void* )&data, 0) == pdPASS) {
-				xQueueReceive(data_queue, (void* )&data, 0); //discard one, so if the queue is full we will put every other one in the queue
-				LOGE("Failed to post data\n");
+				if (!xQueueSend(data_queue, (void* )&data, 0) == pdPASS) {
+					xQueueReceive(data_queue, (void* )&data, 0); //discard one, so if the queue is full we will put every other one in the queue
+					LOGE("Failed to post data\n");
+				}
+				xSemaphoreGive(low_frequency_i2c_sem);
 			}
 		}
 
@@ -1759,6 +1766,7 @@ void launch_tasks() {
 	UARTprintf("*");
 	xTaskCreate(thread_tx, "txTask", 1536 / 4, NULL, 4, NULL);
 	UARTprintf("*");
+	//long_poll_task_init( 4096 / 4 );
 #endif
 }
 
@@ -2159,7 +2167,7 @@ void vUARTTask(void *pvParameters) {
 	spi_init();
 
 	i2c_smphr = xSemaphoreCreateRecursiveMutex();
-	init_time_module(768);
+	init_time_module(2200);
 
 	// Init sensors
 	init_humid_sensor();
@@ -2212,7 +2220,6 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("*");
 #endif
 
-
 	if( on_charger ) {
 		launch_tasks();
 		vTaskDelete(NULL);
@@ -2249,7 +2256,7 @@ void vUARTTask(void *pvParameters) {
 			char * args = NULL;
 			args = pvPortMalloc( sizeof(cCmdBuf) );
 			if( args == NULL ) {
-				LOGF("can't run command %s, no memory available!\n", cCmdBuf );
+				LOGF("can't run %s, no mem!\n", cCmdBuf );
 			} else {
 				memcpy( args, cCmdBuf, sizeof( cCmdBuf ) );
 				xTaskCreate(CmdLineProcess, "commandTask",  3*1024 / 4, args, 4, NULL);
