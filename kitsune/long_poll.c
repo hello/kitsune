@@ -112,7 +112,7 @@ static void long_poll_task(void * networkdata) {
 				ReceiveMessageRequest_fields,
 				&request,
 				&pb_cb, &sock, SOCKET_SEC_NONE ) ) {
-			if( retries < 5 ) {
+			if( retries++ < 5 ) {
 				vTaskDelay( (1<<retries)*1000 );
 			} else {
 				vTaskDelay( 32000 );
