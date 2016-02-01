@@ -184,6 +184,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	bool fade_in = true;
 	unsigned int last_vol = 0;
 	unsigned int volume = info->volume;
+	unsigned int initial_volume = info->volume;
 	unsigned int fade_length = info->fade_in_ms;
 	bool has_fade = fade_length != 0;
 
@@ -200,9 +201,13 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		vPortFree(speaker_data);
 		return returnFlags;
 	}
+	if( has_fade ) {
+		initial_volume = 1;
+		last_vol = xTaskGetTickCount();
+	}
 
 	assert(xSemaphoreTake( low_frequency_i2c_sem, 60000 ));
-	if ( !InitAudioPlayback(1, info->rate ) ) {
+	if ( !InitAudioPlayback(initial_volume, info->rate ) ) {
 		xSemaphoreGive( low_frequency_i2c_sem );
 		hello_fs_unlock();
 		LOGI("unable to initialize audio playback.  Probably not enough memory!\r\n");
@@ -229,13 +234,6 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 	memset(speaker_data,0,SPEAKER_DATA_CHUNK_SIZE);
 
-	if( has_fade ) {
-		fade_time = t0 = xTaskGetTickCount();
-		//make sure the volume is down before we start...
-		set_volume(1, portMAX_DELAY);
-	} else {
-		set_volume(volume, portMAX_DELAY);
-	}
 	bool started = false;
 	//loop until either a) done playing file for specified duration or b) our message queue gets a message that tells us to stop
 	for (; ;) {
