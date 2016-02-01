@@ -586,25 +586,30 @@ static bool cancel_alarm() {
 }
 
 int set_test_alarm(int argc, char *argv[]) {
-	SyncResponse_Alarm alarm;
-	unsigned int now = get_time();
-	alarm.end_time = now + 120;
-	alarm.start_time = now + 10;
-	alarm.ring_duration_in_second = 120;
-	alarm.ring_offset_from_now_in_second = 10;
-	strncpy( alarm.ringtone_path, "/ringtone/star003.raw", strlen("/ringtone/star003.raw"));
+	while (1) {
+		SyncResponse_Alarm alarm;
+		unsigned int now = get_time();
+		alarm.end_time = now + 32;
+		alarm.start_time = now + 2;
+		alarm.ring_duration_in_second = 32;
+		alarm.ring_offset_from_now_in_second = 2;
+		strncpy(alarm.ringtone_path, "/ringtone/star003.raw",
+				strlen("/ringtone/star003.raw"));
 
-	alarm.has_end_time = 1;
-	alarm.has_start_time = 1;
-	alarm.has_ring_duration_in_second = 1;
-	alarm.has_ringtone_id = 0;
-	alarm.has_ringtone_path = 1;
-	alarm.has_ring_offset_from_now_in_second = 1;
+		alarm.has_end_time = 1;
+		alarm.has_start_time = 1;
+		alarm.has_ring_duration_in_second = 1;
+		alarm.has_ringtone_id = 0;
+		alarm.has_ringtone_path = 1;
+		alarm.has_ring_offset_from_now_in_second = 1;
 
-	char ack[32];
-	usnprintf( ack, 32, "%d", now);
-	set_alarm( &alarm, ack, strlen(ack) );
-	return 0;
+		char ack[32];
+		usnprintf(ack, 32, "%d", now);
+		set_alarm(&alarm, ack, strlen(ack));
+		do {
+			vTaskDelay(5000);
+		} while ( alarm_is_ringing );
+	}
 }
 static void thread_alarm_on_finished(void * context) {
 	if( led_get_animation_id() == *(int*)context ) {

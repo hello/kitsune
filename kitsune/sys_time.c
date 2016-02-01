@@ -23,6 +23,7 @@ static time_t cached_time;
 static TickType_t cached_ticks;
 static bool is_time_good = false;
 extern xSemaphoreHandle i2c_smphr;
+extern volatile bool booted;
 
 static int bcd_to_int( int bcd ) {
 	int i=0;
@@ -182,11 +183,15 @@ static void _on_time_response_failure( ){
 }
 
 uint32_t fetch_ntp_time_from_ntp() {
-	#define MAX_RETRIES 300
+	#define MAX_RETRIES 30
 	int retries = 0;
 	int sock = -1;
 	hello_NTPDataPacket request;
     protobuf_reply_callbacks pb_cb;
+
+    while( !booted ) {
+    	vTaskDelay(1000);
+    }
 
 	char * decode_buf = pvPortMalloc(SERVER_REPLY_BUFSZ);
     assert(decode_buf);
