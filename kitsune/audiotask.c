@@ -165,10 +165,14 @@ extern xSemaphoreHandle low_frequency_i2c_sem;
 
 static void _lock_for_audio() {
 	hello_fs_lock();
-	assert(xSemaphoreTake( low_frequency_i2c_sem, 60000 ));
+	if( low_frequency_i2c_sem ) {
+		assert(xSemaphoreTake( low_frequency_i2c_sem, 60000 ));
+	}
 }
 static void _unlock_for_audio() {
-	xSemaphoreGive( low_frequency_i2c_sem );
+	if( low_frequency_i2c_sem ) {
+		xSemaphoreGive( low_frequency_i2c_sem );
+	}
 	hello_fs_unlock();
 }
 

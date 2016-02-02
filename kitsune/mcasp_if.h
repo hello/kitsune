@@ -111,7 +111,7 @@ extern void AudioRendererDeInit();
 extern unsigned int BitClockConfigure(int iSamplingFrequency,
                                       short sNumOfChannels,
                                       short sBitsPerSample);
-extern void AudioCaptureRendererConfigure(unsigned int PORTI2S, unsigned int SAMPLING_FREQ);
+extern void AudioCaptureRendererConfigure(unsigned int SAMPLING_FREQ);
 extern void Audio_Start();
 extern int Audio_Stop();
 extern void I2SIntHandler();

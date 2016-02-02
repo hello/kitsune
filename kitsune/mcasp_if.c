@@ -60,6 +60,7 @@
 #include "uart.h"
 #include "pin.h"
 #include "i2s.h"
+#include "prcm.h"
 
 #include "uartstdio.h"
 
@@ -112,10 +113,17 @@ unsigned int* AudioCapturerGetDMADataPtr()
 //! \return None.
 //
 //*****************************************************************************
-void McASPInit(unsigned int SAMPLING_FREQ)
+void McASPInit( unsigned int SAMPLING_FREQ)
 {
-    MAP_PRCMPeripheralClkEnable(PRCM_I2S,PRCM_RUN_MODE_CLK); 
-    MAP_PRCMI2SClockFreqSet(SAMPLING_FREQ*2*16); // 16bit *2* 22050Hz
+	 //cc3200 trm page 333
+	//(a) Enable the I2S module clock by invoking PRCMPeripheralClkEnable
+    MAP_PRCMPeripheralClkEnable(PRCM_I2S,PRCM_RUN_MODE_CLK);
+    //(b) Reset the module using PRCMPeripheralReset
+    MAP_PRCMPeripheralReset(PRCM_I2S);
+
+    MAP_PRCMI2SClockFreqSet(SAMPLING_FREQ*2*16);
+    MAP_I2SConfigSetExpClk(I2S_BASE,SAMPLING_FREQ*2*16,SAMPLING_FREQ*2*16,I2S_SLOT_SIZE_16|
+                            I2S_PORT_DMA);
 }
 void McASPDeInit()
 {
@@ -147,9 +155,8 @@ void McASPDeInit()
 void AudioCapturerSetupDMAMode(void (*pfnAppCbHndlr)(void), 
                               unsigned long ulCallbackEvtSamples)
 {
-
-     MAP_I2SIntEnable(I2S_BASE,I2S_INT_XDATA);
-     MAP_I2SIntEnable(I2S_BASE,I2S_INT_RDATA); //added by Ben
+    MAP_I2SIntEnable(I2S_BASE,I2S_INT_XDATA);
+    //(e) Register the interrupt handler and enable the transmit data interrupt:
 #ifdef USE_TIRTOS
     osi_InterruptRegister(INT_I2S, pfnAppCbHndlr, INT_PRIORITY_LVL_1);
 #else
@@ -176,11 +183,8 @@ void AudioCapturerSetupDMAMode(void (*pfnAppCbHndlr)(void),
 //
 //*****************************************************************************
 
-void AudioCaptureRendererConfigure(unsigned int PORTI2S, unsigned int SAMPLING_FREQ)
+void AudioCaptureRendererConfigure( unsigned int SAMPLING_FREQ)
 {
-
-    MAP_I2SConfigSetExpClk(I2S_BASE,SAMPLING_FREQ*2*16 ,SAMPLING_FREQ*2*16 ,I2S_SLOT_SIZE_16|
-    		PORTI2S );// // 16bit *2* 22050Hz = 705600
     MAP_I2SSerializerConfig(I2S_BASE,I2S_DATA_LINE_1,I2S_SER_MODE_RX,
                                             I2S_INACT_LOW_LEVEL);
     MAP_I2SSerializerConfig(I2S_BASE,I2S_DATA_LINE_0,I2S_SER_MODE_TX,
