@@ -268,12 +268,11 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		totBytesRead += size;
 
 		/* Wait to avoid buffer overflow as reading speed is faster than playback */
-		while (IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) == TRUE ) {
+		while ( !IsBufferVacant(pRxBuffer, 512*2) ) {
 			if( !started ) {
 				g_uiPlayWaterMark = 1;
 				Audio_Start();
 				started = true;
-				break;
 			}
 			assert( xSemaphoreTake( audio_dma_sem, 1000 ) );
 		}
