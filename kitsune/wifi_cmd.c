@@ -1153,6 +1153,8 @@ int start_connection(int * sock, char * host, security_type sec) {
                 last_reset_time = xTaskGetTickCount();
                 nwp_reset();
                 vTaskDelay(10000);
+                *sock = -1;
+                return *sock;
             }
             return stop_connection(sock);
         }
