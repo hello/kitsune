@@ -156,6 +156,7 @@ void AudioCapturerSetupDMAMode(void (*pfnAppCbHndlr)(void),
                               unsigned long ulCallbackEvtSamples)
 {
     MAP_I2SIntEnable(I2S_BASE,I2S_INT_XDATA);
+    MAP_I2SIntEnable(I2S_BASE,I2S_INT_RDATA);
     //(e) Register the interrupt handler and enable the transmit data interrupt:
 #ifdef USE_TIRTOS
     osi_InterruptRegister(INT_I2S, pfnAppCbHndlr, INT_PRIORITY_LVL_1);
