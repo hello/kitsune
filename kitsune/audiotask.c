@@ -203,7 +203,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	}
 	if( has_fade ) {
 		initial_volume = 1;
-		last_vol = xTaskGetTickCount();
+		t0 = fade_time = last_vol = xTaskGetTickCount();
 	}
 
 	assert(xSemaphoreTake( low_frequency_i2c_sem, 60000 ));
