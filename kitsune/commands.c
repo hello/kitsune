@@ -2221,7 +2221,7 @@ void vUARTTask(void *pvParameters) {
 	uart_logger_init();
 	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 3, NULL);
 	UARTprintf("*");
-	xTaskCreate(analytics_event_task, "analyticsTask", 1024/4, NULL, 1, NULL);
+	xTaskCreate(analytics_event_task, "analyticsTask", 1024/4, NULL, 3, NULL);
 	UARTprintf("*");
 #endif
 
