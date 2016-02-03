@@ -29,12 +29,12 @@ extern "C" {
 #define SL_SYNC(call) \
 	({ \
 	long sl_ret; \
-	/*UARTprintf("TRY %s %u\n", __FILE__, __LINE__);\*/\
+	LOGD("TRY %s %u\n", __FILE__, __LINE__);\
 	assert(sl_enter_critical_region());\
-	/*UARTprintf("GOT %u\n" , __LINE__);\*/\
+	LOGD("GOT %s %u\n", __FILE__, __LINE__);\
 	sl_ret = (call); \
 	sl_exit_critical_region(); \
-	/*UARTprintf("DONE %u\n", __LINE__);\*/\
+	LOGD("DONE %s %u\n", __FILE__, __LINE__);\
 	sl_ret; \
 	})
 
