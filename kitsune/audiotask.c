@@ -223,7 +223,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	}
 
 	if( strstr( info->file, "proc") ) {
-		if( strstr( info->file, "rand") ) {
+		if( strstr( info->file, "noise") ) {
 			playback_type = eAudioPlayRand;
 		}
 	}
