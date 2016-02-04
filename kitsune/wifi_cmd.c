@@ -1663,7 +1663,7 @@ int send_data_pb( char* host, const char* path, char ** recv_buf_ptr,
 		vTaskDelay(1000);
     	rv = recv(*sock, recv_buf+recv_buf_size-SERVER_REPLY_BUFSZ, SERVER_REPLY_BUFSZ, 0);
     	MAP_WatchdogIntClear(WDT_BASE); //clear wdt, it seems the SL_SPAWN hogs CPU here
-        LOGI("rv %d\n", rv);
+        LOGI("x");
         if( rv == SERVER_REPLY_BUFSZ ) {
              recv_buf_size += SERVER_REPLY_BUFSZ;
              if( recv_buf_size > 10*1024 ) {
@@ -1678,6 +1678,7 @@ int send_data_pb( char* host, const char* path, char ** recv_buf_ptr,
     		 rv = SL_EAGAIN;
     	}
     } while (rv == SL_EAGAIN && retries++ < 60 );
+    LOGI("rv %d\n", rv);
 
     if (rv <= 0) {
         LOGI("recv error %d\n\r\n\r", rv);

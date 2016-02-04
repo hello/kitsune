@@ -100,7 +100,7 @@ bool _encode_read_id(pb_ostream_t *stream, const pb_field_t *field, void * const
 	if( _rx_queue ) {
 		while( xQueueReceive(_rx_queue, &id, 0 ) &&
 				//todo check if tag_for_field is necessary here
-				( success =  pb_encode_tag_for_field(stream, field) && pb_encode_fixed64(stream, &id ) ) ) {}
+				( success =  pb_encode_tag_for_field(stream, field) && pb_encode_varint(stream, &id ) ) ) {}
 	}
 	return success;
 }
@@ -138,7 +138,7 @@ static void long_poll_task(void * networkdata) {
 				ReceiveMessageRequest_fields,
 				&request,
 				&pb_cb, &sock, SOCKET_SEC_NONE ) ) {
-			if( retries < 5 ) {
+			if( retries++ < 5 ) {
 				vTaskDelay( (1<<retries)*1000 );
 			} else {
 				vTaskDelay( 32000 );
