@@ -273,6 +273,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 				g_uiPlayWaterMark = 1;
 				Audio_Start();
 				started = true;
+				break;
 			}
 			assert( xSemaphoreTake( audio_dma_sem, 1000 ) );
 		}
@@ -350,6 +351,8 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	hello_fs_close(&fp);
 
 	DeinitAudioPlayback();
+
+	xSemaphoreGive( audio_dma_sem );
 
 	_unlock_for_audio();
 

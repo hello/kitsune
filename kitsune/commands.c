@@ -2049,12 +2049,12 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "alarm",set_test_alarm,""},
 		{ "set-time",cmd_set_time,""},
 		{ "rssi", Cmd_rssi, "" },
+		{"dev", Cmd_setDev, ""},
 #if 0
 		{ "frag",cmd_memfrag,""},
 		{ "burntopkey",Cmd_burn_top,""},
 		{ "scan",Cmd_scan_wifi,""},
 		{"future",Cmd_FutureTest,""},
-		{"dev", Cmd_setDev, ""},
 		{"ana", Cmd_analytics, ""},
 		{"dns", Cmd_setDns, ""},
 		{"noint", Cmd_disableInterrupts, ""},
