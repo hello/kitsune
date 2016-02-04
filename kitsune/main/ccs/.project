@@ -961,16 +961,6 @@
 			<locationURI>PARENT-2-PROJECT_LOC/protobuf/provision.pb.h</locationURI>
 		</link>
 		<link>
-			<name>protobuf/sleep_sounds.pb.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/protobuf/sleep_sounds.pb.c</locationURI>
-		</link>
-		<link>
-			<name>protobuf/sleep_sounds.pb.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/protobuf/sleep_sounds.pb.h</locationURI>
-		</link>
-		<link>
 			<name>protobuf/sync_response.pb.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/protobuf/sync_response.pb.c</locationURI>
