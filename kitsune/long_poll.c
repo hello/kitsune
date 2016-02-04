@@ -13,9 +13,8 @@
 
 #include "messeji.pb.h"
 #include "sleep_sounds.pb.h"
-
-#define LONG_POLL_HOST "long-poll.sense.in"
-#define LONG_POLL_ENDPOINT "/poll"
+#define LONG_POLL_HOST "ec2-52-72-244-213.compute-1.amazonaws.com"
+#define LONG_POLL_ENDPOINT "/receive"
 
 #define _MAX_RX_RECEIPTS 10
 
@@ -23,24 +22,30 @@ xQueueHandle _rx_queue = 0;
 
 static void _on_sleep_sounds( SleepSoundsCommand * cmd ) {}
 
+bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, void **arg);
 
 static bool _on_message(pb_istream_t *stream, const pb_field_t *field, void **arg) {
-	Message message;
+      Message message;
 
-	LOGI("message parsing\n" );
-	if( !pb_decode(stream,Message_fields,&message) ) {
-		LOGI("message parse fail \n" );
-		return false;
-	}
+      LOGI("message parsing\n" );
+      message.sender_id.funcs.encode = NULL;
+      message.sender_id.arg = NULL;
+      message.sender_id.funcs.decode = _decode_string_field;
 
-	if( message.has_message_id ) {
-		xQueueSend(_rx_queue, (void* )&message.message_id, 0);
-	}
-	if( message.has_sleep_sounds_command ) {
-		_on_sleep_sounds( &message.sleep_sounds_command );
-	}
+      if( !pb_decode(stream,Message_fields,&message) ) {
+              LOGI("message parse fail \n" );
+              return false;
+      }
 
-	return true;
+      vPortFree(message.sender_id.arg);
+      if( message.has_message_id ) {
+              xQueueSend(_rx_queue, (void* )&message.message_id, 0);
+      }
+      if( message.has_sleep_sounds_command ) {
+              _on_sleep_sounds( &message.sleep_sounds_command );
+      }
+
+      return true;
 }
 static void _get_long_poll_response(pb_field_t ** fields, void ** structdata){
 	*fields = (pb_field_t *)BatchMessage_fields;

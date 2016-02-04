@@ -1771,7 +1771,7 @@ void launch_tasks() {
 	UARTprintf("*");
 	xTaskCreate(thread_tx, "txTask", 1536 / 4, NULL, 4, NULL);
 	UARTprintf("*");
-	//long_poll_task_init( 4096 / 4 );
+	long_poll_task_init( 4096 / 4 );
 #endif
 }
 

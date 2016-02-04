@@ -1312,12 +1312,14 @@ static bool decode_rx_data_pb(const uint8_t * buffer, uint32_t buffer_size, cons
 	for (i = 0; i < AES_IV_SIZE; ++i) {
 		aesctx.iv[i] = *buf_pos++;
 		if (buf_pos > (buffer + buffer_size)) {
+			LOGI("No IV\n");
 			return false;
 		}
 	}
 	for (i = 0; i < SIG_SIZE; ++i) {
 		sig[i] = *buf_pos++;
 		if (buf_pos > (buffer + buffer_size)) {
+			LOGI("No SIG\n");
 			return false;
 		}
 	}
@@ -1449,16 +1451,30 @@ int http_response_ok( char* response_buffer)
 	vPortFree(first_line);
 	return resp_ok ? 0 : -1;
 }
-
+static char lcase(char a ) {
+	return (a >= 'A' && a <= 'Z' ) ? a + ('a'-'A') : a;
+}
+static void lcasestr(char *s){
+    while(*s) {
+    	*s = lcase(*s);
+    	++s;
+    }
+}
 
 static bool validate_signatures( char * buffer, int sz, const pb_field_t fields[], void * structdata) {
 
     // Parse the response
     //LOGI("Reply is:\n\r%s\n\r", buffer);
 
-    const char* header_content_len = "Content-Length: ";
+    const char* header_content_len = "content-length: ";
     char * content = strstr(buffer, "\r\n\r\n") + 4;
+
+    *(content-2) = 0;
+    lcasestr(buffer);
+
     char * len_str = strstr(buffer, header_content_len) + strlen(header_content_len);
+
+    LOGD( "Headers:\n%s", buffer );
 
     if (http_response_ok(buffer) != 0) {
     	wifi_status_set(UPLOADING, true);
@@ -1466,11 +1482,9 @@ static bool validate_signatures( char * buffer, int sz, const pb_field_t fields[
         return false;
     }
 
-    if( strstr(buffer, "No Content") ) {
+    if( strstr(buffer, "no content") ) {
     	return true;
     }
-    *(content-2) = 0;
-//    LOGI( "Headers:\n%s", buffer );
 
     if (len_str == NULL) {
     	wifi_status_set(UPLOADING, true);
