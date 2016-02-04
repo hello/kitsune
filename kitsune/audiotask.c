@@ -119,7 +119,6 @@ static void Init(void) {
 	}
 
 	memset(&_stats,0,sizeof(_stats));
-
 	AudioFeatures_Init(DataCallback,StatsCallback);
 
 }
@@ -197,7 +196,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	uint32_t iReceiveCount = 0;
 	uint8_t returnFlags = 0x00;
 
-	int32_t desired_ticks_elapsed;
+	int32_t desired_ticks_elapsed = info->durationInSeconds * 1000;
 	portTickType t0;
 
 	unsigned int fade_counter=0;
