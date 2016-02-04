@@ -52,7 +52,7 @@ uint8_t InitAudioCapture(uint32_t rate) {
 
 	// Setup the Audio In/Out
 	AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
-	AudioCaptureRendererConfigure(I2S_PORT_DMA, rate);
+	AudioCaptureRendererConfigure( rate);
 
 	// Start Audio Tx/Rx
 	Audio_Start();
@@ -100,7 +100,7 @@ uint8_t InitAudioPlayback(int32_t vol, uint32_t rate ) {
 
 	// Setup the Audio In/Out
 	AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
-	AudioCaptureRendererConfigure(I2S_PORT_DMA, rate);
+	AudioCaptureRendererConfigure( rate);
 
 	return 1;
 

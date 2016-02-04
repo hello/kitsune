@@ -71,6 +71,7 @@ extern unsigned char g_ucUARTBuffer[];
 /****************************************************************************/
 /*								FUNCTION PROTOTYPES							*/
 /****************************************************************************/
+#if 0
 extern void DispatcherUARTConfigure(void);
 extern void DispatcherUartSendPacket(unsigned char *inBuff, unsigned short usLength);
 extern int GetCmd(char *pcBuffer, unsigned int uiBufLen);
@@ -79,6 +80,7 @@ extern void ClearTerm(void);
 extern void Message(char *format);
 extern void Error(char *format,...);
 extern int Report(char *format, ...);
+#endif
 
 //*****************************************************************************
 //

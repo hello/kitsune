@@ -10,6 +10,7 @@ extern void mcu_reset();
 
 void
 vAssertCalled( const char * s );
+
 #define assert(x) if(!(x)) {vAssertCalled(#x);}
 
 #endif // __USTDLIB_H__

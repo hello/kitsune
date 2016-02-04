@@ -96,6 +96,8 @@ unsigned int get_dust() {
 		return DUST_SENSOR_NOT_READY;
 	}
 
+	init_dust();
+
 	MAP_GPIOPinWrite(GPIOA1_BASE, 0x2, 0);
 	ADCEnable(ADC_BASE);
 
@@ -124,10 +126,10 @@ unsigned int get_dust() {
 	}
 
 	MAP_GPIOPinWrite(GPIOA1_BASE, 0x2, 0);
+	ADCDisable(ADC_BASE);
 	if (!flags) {
 		MAP_IntMasterEnable();
 	}
-	ADCDisable(ADC_BASE);
 
 #if DEBUG_DUST
 	if( smplbuf ){

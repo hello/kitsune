@@ -31,6 +31,10 @@ int sl_mode = ROLE_INVALID;
 #include "gpio.h"
 #include "led_cmd.h"
 
+#include "hw_wdt.h"
+#include "wdt.h"
+#include "wdt_if.h"
+
 #include "FreeRTOS.h"
 #include "task.h"
 
@@ -131,6 +135,9 @@ void SimpleLinkSockEventHandler(SlSockEvent_t *pSock)
 }
 
 static uint8_t _connected_ssid[MAX_SSID_LEN];
+#define INV_INDEX 0xff
+static int _connected_index = INV_INDEX;
+static uint8_t _connected_bssid[BSSID_LEN];
 void wifi_get_connected_ssid(uint8_t* ssid_buffer, size_t len)
 {
     size_t copy_len = MAX_SSID_LEN > len ? len : MAX_SSID_LEN;
@@ -172,6 +179,8 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
 		}else{
 			memset(_connected_ssid, 0, MAX_SSID_LEN);
 			memcpy(_connected_ssid, pSSID, ssidLength);
+			memset(_connected_bssid, 0, BSSID_LEN);
+			memcpy(_connected_bssid, (char*)pSlWlanEvent->EventData.STAandP2PModeWlanConnected.bssid, BSSID_LEN);
 		}
         LOGI("SL_WLAN_CONNECT_EVENT\n");
         ble_reply_wifi_status(wifi_connection_state_WLAN_CONNECTED);
@@ -190,13 +199,27 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
         wifi_status_set(0xFFFFFFFF, true);
         memset(_connected_ssid, 0, MAX_SSID_LEN);
         LOGI("SL_WLAN_DISCONNECT_EVENT\n");
+
+        { //recommended ti debug block
+		int i;
+
+		LOGI("AP: \"%s\" Code=%d BSSID:",_connected_ssid, pSlWlanEvent->EventData.STAandP2PModeDisconnected.reason_code);
+    	LOGI( "%x", _connected_bssid[0]);
+    	for( i=1;i< BSSID_LEN;++i) {
+        	LOGI( ":%x", _connected_bssid[i] );
+        } LOGI("\n");
+        }
+
     	ble_reply_wifi_status(wifi_connection_state_NO_WLAN_CONNECTED);
         break;
     default:
         break;
     }
 }
-
+void SimpleLinkGeneralEventHandler(SlDeviceEvent_t *pDevEvent)
+{
+LOGI("GENEVT ID=%d Sender=%d\n",pDevEvent->EventData.deviceEvent.status, pDevEvent->EventData.deviceEvent.sender);
+}
 //****************************************************************************
 //
 //!    \brief This function handles events for IP address acquisition via DHCP
@@ -208,7 +231,18 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
 //
 //****************************************************************************
 static void wifi_ip_update_task( void * params ) {
-	ble_reply_wifi_status(wifi_connection_state_IP_RETRIEVED);
+
+    if( _connected_index != INV_INDEX ) {
+    	int i;
+    	for( i=0; i < 7; ++i ) {
+    		if( i != _connected_index ) {
+    		    sl_WlanProfileDel(i);
+    		}
+    	}
+    }
+
+    ble_reply_wifi_status(wifi_connection_state_IP_RETRIEVED);
+
 	vTaskDelete(NULL);
 }
 
@@ -226,7 +260,7 @@ void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent) {
 
 		wifi_status_set(HAS_IP, false);
 
-		xTaskCreate(wifi_ip_update_task, "wifi_ip_update_task", 1024 / 4, NULL, 2, NULL);
+		xTaskCreate(wifi_ip_update_task, "wifi_ip_update_task", 1024 / 4, NULL, 1, NULL);
 		break;
 
 	case SL_NETAPP_IP_LEASED_EVENT:
@@ -869,8 +903,6 @@ int Cmd_test_key(int argc, char*argv[]) {
 #include "periodic.pb.h"
 #include "audio_data.pb.h"
 
-static SHA1_CTX sha1ctx;
-
 typedef struct {
 	intptr_t fd;
 	uint32_t inbuf_offset;
@@ -895,9 +927,6 @@ static bool write_callback_sha(pb_ostream_t *stream, const uint8_t *buf,
 }
 #endif
 
-
-static int sock = -1;
-
 int send_chunk_len( int obj_sz, int sock ) {
 	#define CL_BUF_SZ 12
 	int rv;
@@ -907,6 +936,7 @@ int send_chunk_len( int obj_sz, int sock ) {
 	} else {
 		usnprintf(recv_buf, CL_BUF_SZ, "\r\n%x\r\n", obj_sz);
 	}
+	LOGD("CL:%s", recv_buf);
 	rv = send(sock, recv_buf, strlen(recv_buf), 0);
 	if (rv != strlen(recv_buf)) {
 		LOGI("Sending CE failed\n");
@@ -916,7 +946,15 @@ int send_chunk_len( int obj_sz, int sock ) {
  //   LOGI("HTTP chunk sent %s", recv_buf);
 	return 0;
 }
-
+static void log_debug_bytes( char * tag, uint8_t * bytes, int len ) {
+	int i = 0;
+	LOGD(tag);
+	LOGD("%02x",bytes[i++] );
+	for(;i<len;++i) {
+		LOGD(":%02x",bytes[i] );
+	}
+	LOGD("\n");
+}
 
 static bool flush_out_buffer(ostream_buffered_desc_t * desc ) {
 	uint32_t buf_size = desc->buf_pos;
@@ -929,9 +967,10 @@ static bool flush_out_buffer(ostream_buffered_desc_t * desc ) {
 		SHA1_Update(desc->ctx, desc->buf, buf_size);
 
 		//send
-        if( send_chunk_len( buf_size, sock ) != 0 ) {
+        if( send_chunk_len( buf_size, desc->fd ) != 0 ) {
         	return false;
         }
+        log_debug_bytes("Chunk flush:", desc->buf, buf_size);
 		ret = send(desc->fd, desc->buf, buf_size, 0) == buf_size;
 	}
 	return ret;
@@ -952,10 +991,11 @@ static bool write_buffered_callback_sha(pb_ostream_t *stream, const uint8_t * in
 			SHA1_Update(desc->ctx, desc->buf, desc->buf_size);
 
 			//send
-			if (send_chunk_len(desc->buf_size, sock) != 0) {
+			if (send_chunk_len(desc->buf_size, desc->fd) != 0) {
 				return false;
 			}
 
+	        log_debug_bytes("Chunk:", desc->buf, desc->buf_size);
 			if(!send(desc->fd, desc->buf, desc->buf_size, 0)
 					== desc->buf_size ) { return false; }
 
@@ -976,7 +1016,7 @@ static bool write_buffered_callback_sha(pb_ostream_t *stream, const uint8_t * in
 	}
     return true;
 }
-
+#if 0
 static bool read_callback_sha(pb_istream_t *stream, uint8_t *buf, size_t count) {
     int fd = (intptr_t) stream->state;
     int result,i;
@@ -995,6 +1035,11 @@ static bool read_callback_sha(pb_istream_t *stream, uint8_t *buf, size_t count) 
     return result == count;
 }
 
+pb_istream_t pb_istream_from_sha_socket(int fd) {
+    pb_istream_t stream = { &read_callback_sha, (void*) (intptr_t) fd, SIZE_MAX };
+    return stream;
+}
+#endif
 
 
 //WARNING not re-entrant! Only 1 of these can be going at a time!
@@ -1008,15 +1053,9 @@ pb_ostream_t pb_ostream_from_sha_socket(ostream_buffered_desc_t * desc) {
     return stream;
 }
 
-pb_istream_t pb_istream_from_sha_socket(int fd) {
-    pb_istream_t stream = { &read_callback_sha, (void*) (intptr_t) fd, SIZE_MAX };
-    return stream;
-}
 
-static unsigned long ipaddr = 0;
-
+#if 0
 #include "fault.h"
-
 void LOGIFaults() {
 #define minval( a,b ) a < b ? a : b
 #define BUF_SZ 600
@@ -1049,73 +1088,87 @@ void LOGIFaults() {
         }
     }
 }
-int stop_connection() {
-    close(sock);
-    sock = -1;
-    ipaddr = 0;
-    return sock;
+#endif
+int stop_connection(int * sock) {
+    close(*sock);
+    *sock = -1;
+    return *sock;
 }
-int start_connection() {
+int start_connection(int * sock, char * host, security_type sec) {
     sockaddr sAddr;
     timeval tv;
     int rv;
-    int sock_begin = sock;
+    unsigned long ipaddr = 0;
+    int sock_begin = *sock;
 
-    if (sock < 0) {
-        sock = socket(AF_INET, SOCK_STREAM, SL_SEC_SOCKET);
-        tv.tv_sec = 2;             // Seconds
-        tv.tv_usec = 0;           // Microseconds. 10000 microseconds resolution
-        setsockopt(sock, SOL_SOCKET, SL_SO_RCVTIMEO, &tv, sizeof(tv)); // Enable receive timeout
+    if (*sock < 0) {
+        if( sec == SOCKET_SEC_SSL ) {
+			*sock = socket(AF_INET, SOCK_STREAM, SL_SEC_SOCKET);
 
-        #define SL_SSL_CA_CERT_FILE_NAME "/cert/ca.der"
-        // configure the socket as SSLV3.0
-        // configure the socket as RSA with RC4 128 SHA
-        // setup certificate
-        unsigned char method = SL_SO_SEC_METHOD_TLSV1_2;
-        unsigned int cipher = SL_SEC_MASK_TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA;
-        if( sl_SetSockOpt(sock, SL_SOL_SOCKET, SL_SO_SECMETHOD, &method, sizeof(method) ) < 0 ||
-            sl_SetSockOpt(sock, SL_SOL_SOCKET, SL_SO_SECURE_MASK, &cipher, sizeof(cipher)) < 0 ||
-            sl_SetSockOpt(sock, SL_SOL_SOCKET, \
-                                   SL_SO_SECURE_FILES_CA_FILE_NAME, \
-                                   SL_SSL_CA_CERT_FILE_NAME, \
-                                   strlen(SL_SSL_CA_CERT_FILE_NAME))  < 0  )
-        {
-        LOGI( "error setting ssl options\r\n" );
-        ble_reply_wifi_status(wifi_connection_state_SSL_FAIL);
+			LOGI("SSL\n");
+			#define SL_SSL_CA_CERT_FILE_NAME "/cert/ca.der"
+			// configure the socket as SSLV3.0
+			// configure the socket as RSA with RC4 128 SHA
+			// setup certificate
+			unsigned char method = SL_SO_SEC_METHOD_TLSV1_2;
+			unsigned int cipher = SL_SEC_MASK_TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA;
+			if( sl_SetSockOpt(*sock, SL_SOL_SOCKET, SL_SO_SECMETHOD, &method, sizeof(method) ) < 0 ||
+				sl_SetSockOpt(*sock, SL_SOL_SOCKET, SL_SO_SECURE_MASK, &cipher, sizeof(cipher)) < 0 ||
+				sl_SetSockOpt(*sock, SL_SOL_SOCKET, \
+									   SL_SO_SECURE_FILES_CA_FILE_NAME, \
+									   SL_SSL_CA_CERT_FILE_NAME, \
+									   strlen(SL_SSL_CA_CERT_FILE_NAME))  < 0  )
+			{
+			LOGI( "error setting ssl options\r\n" );
+			ble_reply_wifi_status(wifi_connection_state_SSL_FAIL);
+			}
+        } else {
+			*sock = socket(AF_INET, SOCK_STREAM, SL_IPPROTO_TCP);
+			tv.tv_sec = 2;             // Seconds
+			tv.tv_usec = 0;           // Microseconds. 10000 microseconds resolution
+			setsockopt(*sock, SOL_SOCKET, SL_SO_RCVTIMEO, &tv, sizeof(tv)); // Enable receive timeout
+
         }
     }
 
-    if (sock < 0) {
-        LOGI("Socket create failed %d\n\r", sock);
+
+    if (*sock < 0) {
+        LOGI("Socket create failed %d\n\r", *sock);
         return -1;
     }
 
 #if !LOCAL_TEST
-    if (ipaddr == 0) {
-        if (!(rv = sl_gethostbynameNoneThreadSafe((_i8*)DATA_SERVER, strlen(DATA_SERVER), &ipaddr, SL_AF_INET))) {
+   // if (ipaddr == 0) {
+        if (!(rv = sl_gethostbynameNoneThreadSafe((_i8*)host, strlen(host), &ipaddr, SL_AF_INET))) {
              LOGI("Get Host IP succeeded.\n\rHost: %s IP: %d.%d.%d.%d \n\r\n\r",
-				   DATA_SERVER, SL_IPV4_BYTE(ipaddr, 3), SL_IPV4_BYTE(ipaddr, 2),
+            		 host, SL_IPV4_BYTE(ipaddr, 3), SL_IPV4_BYTE(ipaddr, 2),
 				   SL_IPV4_BYTE(ipaddr, 1), SL_IPV4_BYTE(ipaddr, 0));
          	ble_reply_wifi_status(wifi_connection_state_DNS_RESOLVED);
         } else {
         	static portTickType last_reset_time = 0;
 			LOGI("failed to resolves addr rv %d\n", rv);
 			ble_reply_wifi_status(wifi_connection_state_DNS_FAILED);
-            ipaddr = 0;
             #define SIX_MINUTES 360000
             if( last_reset_time == 0 || xTaskGetTickCount() - last_reset_time > SIX_MINUTES ) {
                 last_reset_time = xTaskGetTickCount();
                 nwp_reset();
                 vTaskDelay(10000);
+                *sock = -1;
+                return *sock;
             }
-            return -1;
+            return stop_connection(sock);
         }
-    }
+   // }
 
     sAddr.sa_family = AF_INET;
     // the source port
-    sAddr.sa_data[0] = 1;    //port 443, ssl
-    sAddr.sa_data[1] = 0xbb; //port 443, ssl
+    if( sec == SOCKET_SEC_SSL ) {
+		sAddr.sa_data[0] = 1;    //port 443, ssl
+		sAddr.sa_data[1] = 0xbb; //port 443, ssl
+    } else {
+    	sAddr.sa_data[0] = 0;  //port 80, http
+		sAddr.sa_data[1] = 80; //port 80, http
+    }
     sAddr.sa_data[2] = (char) ((ipaddr >> 24) & 0xff);
     sAddr.sa_data[3] = (char) ((ipaddr >> 16) & 0xff);
     sAddr.sa_data[4] = (char) ((ipaddr >> 8) & 0xff);
@@ -1134,19 +1187,19 @@ int start_connection() {
 #endif
     SlSockNonblocking_t enableOption;
     enableOption.NonblockingEnabled = 1;
-    sl_SetSockOpt(sock,SL_SOL_SOCKET,SL_SO_NONBLOCKING, (_u8 *)&enableOption,sizeof(enableOption)); // Enable/disable nonblocking mode
+    sl_SetSockOpt(*sock,SL_SOL_SOCKET,SL_SO_NONBLOCKING, (_u8 *)&enableOption,sizeof(enableOption)); // Enable/disable nonblocking mode
 
     //connect it up
     //LOGI("Connecting \n\r\n\r");
     retry_connect:
-    if (sock > 0 && sock_begin < 0 && (rv = connect(sock, &sAddr, sizeof(sAddr)))) {
+    if (*sock > 0 && sock_begin < 0 && (rv = connect(*sock, &sAddr, sizeof(sAddr)))) {
     	if( rv == SL_EALREADY ) {
     		vTaskDelay(100);
     		goto retry_connect;
     	}
     	ble_reply_socket_error(rv);
     	LOGI("Could not connect %d\n\r\n\r", rv);
-		return stop_connection();
+		return stop_connection(sock);
     }
  	ble_reply_wifi_status(wifi_connection_state_SOCKET_CONNECTED);
     return 0;
@@ -1246,6 +1299,8 @@ int send_audio_wifi(char * buffer, int buffer_size, audio_read_cb arcb) {
 
 static bool decode_rx_data_pb(const uint8_t * buffer, uint32_t buffer_size, const pb_field_t fields[], void * structdata) {
 	AES_CTX aesctx;
+	SHA1_CTX sha1ctx;
+
 	unsigned char * buf_pos = (unsigned char*)buffer;
 	unsigned char sig[SIG_SIZE] = {0};
 	unsigned char sig_test[SIG_SIZE] = {0};
@@ -1432,9 +1487,9 @@ static bool validate_signatures( char * buffer, int sz, const pb_field_t fields[
 }
 
 //buffer needs to be at least 128 bytes...
-int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
+int send_data_pb( char* host, const char* path, char ** recv_buf_ptr,
 		uint32_t * recv_buf_size_ptr, const pb_field_t fields[],  void * structdata,
-		protobuf_reply_callbacks * pb_cb ) {
+		protobuf_reply_callbacks * pb_cb, int * sock , security_type sec ) {
     int send_length = 0;
     int rv = 0;
     uint8_t sig[32]={0};
@@ -1467,31 +1522,31 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     send_length = strlen(recv_buf);
 
     //setup the connection
-    if( start_connection() < 0 ) {
+    if( start_connection(sock, host, sec) < 0 ) {
         LOGI("failed to start connection\n\r\n\r");
         goto failure;
     }
 
-    //check that it's still secure...
-    rv = recv(sock, recv_buf, SERVER_REPLY_BUFSZ, 0);
-    if (rv != SL_EAGAIN ) {
-        LOGI("start recv error %d\n\r\n\r", rv);
-        ble_reply_socket_error(rv);
-        goto failure;
+    if( sec == SOCKET_SEC_SSL ) {
+		//check that it's still secure...
+		rv = recv(*sock, recv_buf, SERVER_REPLY_BUFSZ, 0);
+		if (rv != SL_EAGAIN ) {
+			LOGI("start recv error %d\n\r\n\r", rv);
+			ble_reply_socket_error(rv);
+			goto failure;
+		}
     }
 
-    //LOGI("Sending request\n\r%s\n\r", recv_buf);
-    rv = send(sock, recv_buf, send_length, 0);
+    LOGD("Sending request\n\r%s\n\r", recv_buf);
+    rv = send(*sock, recv_buf, send_length, 0);
     if (rv <= 0) {
         LOGI("send error %d\n\r\n\r", rv);
         ble_reply_socket_error(rv);
         goto failure;
     }
-	}
-#if 0
-    LOGI("HTTP header sent %d\n\r%s\n\r", rv, recv_buf);
 
-#endif
+    }
+    LOGD("HTTP header sent %d\n\r", rv);
 
     {
 	ostream_buffered_desc_t desc;
@@ -1499,7 +1554,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
 	SHA1_CTX ctx;
 	AES_CTX aesctx;
 	pb_ostream_t stream = {0};
-	int i;
+	int i, retries;
 
 	memset(&desc,0,sizeof(desc));
 	memset(&ctx,0,sizeof(ctx));
@@ -1509,7 +1564,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
 	desc.inbuf_offset = 0;
 	desc.buf_size = recv_buf_size;
 	desc.ctx = &ctx;
-	desc.fd = (intptr_t) sock;
+	desc.fd = *sock;
 
 	SHA1_Init(&ctx);
 
@@ -1517,14 +1572,14 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
 	stream = pb_ostream_from_sha_socket(&desc);
 
 	/* Now we are ready to encode the message! Let's go encode. */
-	LOGI("data ");
+	LOGI("data\n");
 	status = pb_encode(&stream,fields,structdata);
 
 	if( !flush_out_buffer(&desc) ) {
 		LOGI("Flush failed\n");
         goto failure;
 	}
-	LOGI("\n");
+	LOGI("a\n");
 
 	/* sanity checks  */
 	if (desc.bytes_written != desc.bytes_that_should_have_been_written) {
@@ -1545,35 +1600,20 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
 		sig[i] = (uint8_t)rand();
 	}
 
-#if 0
-	LOGI("SHA ");
-	for (i = 0; i < sizeof(sig); ++i) {
-		LOGI("%x", sig[i]);
-	}
-	LOGI("\n");
-
-#endif
+    log_debug_bytes("SHA:", sig, sizeof(sig));
 	//memset( aesctx.iv, 0, sizeof( aesctx.iv ) );
 
 	/*  create AES initialization vector */
-#if 0
-	LOGI("iv ");
-#endif
-	for (i = 0; i < sizeof(aesctx.iv); ++i) {
+    for (i = 0; i < sizeof(aesctx.iv); ++i) {
 		aesctx.iv[i] = (uint8_t)rand();
-#if 0
-		LOGI("%x", aesctx.iv[i]);
-#endif
 	}
-#if 0
-	LOGI("\n");
-#endif
 
 	/*  send AES initialization vector */
-	if( send_chunk_len( AES_IV_SIZE, sock) != 0 ) {
+	if( send_chunk_len( AES_IV_SIZE, *sock) != 0 ) {
         goto failure;
 	}
-	rv = send(sock, aesctx.iv, AES_IV_SIZE, 0);
+    log_debug_bytes("IV:", aesctx.iv, sizeof(aesctx.iv));
+	rv = send(*sock, aesctx.iv, AES_IV_SIZE, 0);
 
 	if (rv != AES_IV_SIZE) {
 		LOGI("Sending IV failed: %d\n", rv);
@@ -1583,37 +1623,34 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
 	AES_set_key(&aesctx, aes_key, aesctx.iv, AES_MODE_128); //todo real key
 	AES_cbc_encrypt(&aesctx, sig, sig, sizeof(sig));
 
+
 	/* send signature */
-	if( send_chunk_len( sizeof(sig), sock) != 0 ) {
+	if( send_chunk_len( sizeof(sig), *sock) != 0 ) {
         goto failure;
 	}
-	rv = send(sock, sig, sizeof(sig), 0);
+    log_debug_bytes("sig:", sig, sizeof(sig));
+	rv = send(*sock, sig, sizeof(sig), 0);
 
 	if (rv != sizeof(sig)) {
 		LOGI("Sending SHA failed: %d\n", rv);
 		goto failure;
 	}
 
-#if 0
-	LOGI("sig ");
-	for (i = 0; i < sizeof(sig); ++i) {
-		LOGI("%x", sig[i]);
-	}
-	LOGI("\n");
-#endif
-
-
-    if( send_chunk_len(0, sock) != 0 ) {
+    if( send_chunk_len(0, *sock) != 0 ) {
         goto failure;
     }
     ble_reply_wifi_status(wifi_connection_state_REQUEST_SENT);
 
     memset(recv_buf, 0, recv_buf_size);
 
+    retries = 0;
     //keep looping while our socket error code is telling us to try again
     do {
-    	rv = recv(sock, recv_buf+recv_buf_size-SERVER_REPLY_BUFSZ, SERVER_REPLY_BUFSZ, 0);
-    	if( rv == SERVER_REPLY_BUFSZ ) {
+		vTaskDelay(1000);
+    	rv = recv(*sock, recv_buf+recv_buf_size-SERVER_REPLY_BUFSZ, SERVER_REPLY_BUFSZ, 0);
+    	MAP_WatchdogIntClear(WDT_BASE); //clear wdt, it seems the SL_SPAWN hogs CPU here
+        LOGI("rv %d\n", rv);
+        if( rv == SERVER_REPLY_BUFSZ ) {
              recv_buf_size += SERVER_REPLY_BUFSZ;
              if( recv_buf_size > 10*1024 ) {
                  LOGI("error response too bug\n");
@@ -1626,14 +1663,13 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     		 *recv_buf_size_ptr = recv_buf_size;
     		 rv = SL_EAGAIN;
     	}
-    } while (rv == SL_EAGAIN);
+    } while (rv == SL_EAGAIN && retries++ < 60 );
 
     if (rv <= 0) {
         LOGI("recv error %d\n\r\n\r", rv);
         ble_reply_socket_error(rv);
         goto failure;
     }
-    LOGI("recv %d\n", rv);
     }
 
     {
@@ -1664,14 +1700,14 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     } else {
     	return http_response_ok((char*)recv_buf);
     }
-    return stop_connection();
+    return stop_connection(sock);
     }
 
 	failure:
 	if( pb_cb && pb_cb->on_pb_failure ) {
 		pb_cb->on_pb_failure();
 	}
-	return stop_connection();
+	return stop_connection(sock);
 }
 
 
@@ -1926,21 +1962,19 @@ static void _on_sync_response_success( void * structdata){
 static void _on_sync_response_failure( ){
     LOGF("signature validation fail\r\n");
 }
+bool send_pill_data_generic(batched_pill_data * pill_data, const char * endpoint){
+	 protobuf_reply_callbacks pb_cb;
 
-//retry logic is handled elsewhere
-bool send_pill_data(batched_pill_data * pill_data) {
-    protobuf_reply_callbacks pb_cb;
-
-    pb_cb.get_reply_pb = _get_sync_response;
-    pb_cb.free_reply_pb = _free_sync_response;
-    pb_cb.on_pb_success = _on_sync_response_success;
-    pb_cb.on_pb_failure = _on_sync_response_failure;
+	pb_cb.get_reply_pb = _get_sync_response;
+	pb_cb.free_reply_pb = _free_sync_response;
+	pb_cb.on_pb_success = _on_sync_response_success;
+	pb_cb.on_pb_failure = _on_sync_response_failure;
 
 	return NetworkTask_SendProtobuf(true, DATA_SERVER,
-			PILL_DATA_RECEIVE_ENDPOINT, batched_pill_data_fields, pill_data, INT_MAX,
+			endpoint, batched_pill_data_fields, pill_data, INT_MAX,
 			NULL, NULL, &pb_cb, false);
 }
-bool send_periodic_data(batched_periodic_data* data, bool forced) {
+bool send_periodic_data(batched_periodic_data* data, bool forced, int32_t to) {
     protobuf_reply_callbacks pb_cb;
 
     pb_cb.get_reply_pb = _get_sync_response;
@@ -1949,10 +1983,9 @@ bool send_periodic_data(batched_periodic_data* data, bool forced) {
     pb_cb.on_pb_failure = _on_sync_response_failure;
 
 	return NetworkTask_SendProtobuf(true, DATA_SERVER,
-			DATA_RECEIVE_ENDPOINT, batched_periodic_data_fields, data, INT_MAX,
+			DATA_RECEIVE_ENDPOINT, batched_periodic_data_fields, data, to,
 			NULL, NULL, &pb_cb, forced);
 }
-
 static void _get_provision_response(pb_field_t ** fields, void ** structdata){
 	*fields = (pb_field_t *)MorpheusCommand_fields;
 	*structdata = pvPortMalloc(sizeof(ProvisionResponse));
@@ -2460,19 +2493,18 @@ int connect_wifi(const char* ssid, const char* password, int sec_type, int versi
 		memcpy( secParam.Key, wep_hex, secParam.KeyLen + 1 );
     }
 
-
-	int16_t index = 0;
 	int16_t ret = 0;
 	uint8_t retry = 5;
-	while((index = sl_WlanProfileAdd((_i8*) ssid, strlen(ssid), NULL,
+	while((_connected_index = sl_WlanProfileAdd((_i8*) ssid, strlen(ssid), NULL,
 			&secParam, NULL, 0, 0)) < 0 && retry--){
 		ret = sl_WlanProfileDel(0xFF);
 		if (ret != 0) {
 			LOGI("profile del fail\n");
 		}
 	}
+	LOGI("index %d\n", _connected_index);
 
-	if (index < 0) {
+	if (_connected_index < 0) {
 		LOGI("profile add fail\n");
 		return 0;
 	}

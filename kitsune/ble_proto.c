@@ -157,7 +157,7 @@ static void _reply_wifi_scan_result()
 {
     int i = 0;
     MorpheusCommand reply_command = {0};
-    int count = hlo_future_read(scan_results,_wifi_endpoints,sizeof(_wifi_endpoints), 10000);
+    int count = hlo_future_read(scan_results,_wifi_endpoints,sizeof(_wifi_endpoints), 25000);
     for(i = 0; i < count; i++)
     {
 		reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_START_WIFISCAN;
@@ -165,6 +165,9 @@ static void _reply_wifi_scan_result()
 		ble_send_protobuf(&reply_command);
         vTaskDelay(250);  // This number must be long enough so the BLE can get the data transmit to phone
         memset(&reply_command, 0, sizeof(reply_command));
+    }
+    if( count == -11 ) {
+    	LOGI("WIFI SCAN TO\n");
     }
     reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_STOP_WIFISCAN;
 	ble_send_protobuf(&reply_command);
@@ -175,10 +178,6 @@ int force_data_push();
 static bool _set_wifi(const char* ssid, const char* password, int security_type, int version, int app_version)
 {
     int i;
-
-	LOGI("Clearing wifi profiles\n" );
-	wifi_reset();
-	vTaskDelay(200);
 
 	LOGI("Connecting to WIFI %s\n", ssid );
 	xSemaphoreTake(_wifi_smphr, portMAX_DELAY);
@@ -344,6 +343,7 @@ static void _ble_reply_wifi_info(){
 
 #include "wifi_cmd.h"
 extern xQueueHandle pill_queue;
+extern xQueueHandle pill_prox_queue;
 
 static void _process_encrypted_pill_data( MorpheusCommand* command)
 {
@@ -355,8 +355,14 @@ static void _process_encrypted_pill_data( MorpheusCommand* command)
     	}
     	uint32_t timestamp = get_time();
         command->pill_data.timestamp = timestamp;  // attach timestamp, so we don't need to worry about the sending time
-        xQueueSend(pill_queue, &command->pill_data, 10);
-
+        switch(command->type){
+        case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_PROX_DATA:
+        	xQueueSend(pill_prox_queue, &command->pill_data, 10);
+        	break;
+        case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_DATA:
+        	 xQueueSend(pill_queue, &command->pill_data, 10);
+        	break;
+        }
         if(command->pill_data.has_motion_data_entrypted)
         {
             LOGI("PILL DATA FROM ID: %s, length: %d\n", command->pill_data.device_id,
@@ -570,7 +576,7 @@ void ble_proto_start_hold()
 	case BLE_CONNECTED:
 	default:
 		set_released(false);
-		xTaskCreate(hold_animate_progress_task, "hold_animate_pair",1024 / 4, NULL, 2, NULL);
+		xTaskCreate(hold_animate_progress_task, "hold_animate_pair",1024 / 4, NULL, 3, NULL);
 	}
 
 }
@@ -771,6 +777,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         	LOGI("PHONE BONDED\n");
         }
         break;
+        case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_PROX_DATA:
     	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_DATA: 
         {
     		// Pill data received from ANT
