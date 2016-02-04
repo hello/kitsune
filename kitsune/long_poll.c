@@ -61,6 +61,7 @@ static bool _on_message(pb_istream_t *stream, const pb_field_t *field, void **ar
 	}
 
 	if (message.has_message_id) {
+		LOGI("message id %d\n", message.message_id );
 		xQueueSend(_rx_queue, (void* )&message.message_id, 0);
 	}
 	if (message.has_play_audio) {
@@ -100,7 +101,9 @@ bool _encode_read_id(pb_ostream_t *stream, const pb_field_t *field, void * const
 	if( _rx_queue ) {
 		while( xQueueReceive(_rx_queue, &id, 0 ) &&
 				//todo check if tag_for_field is necessary here
-				( success =  pb_encode_tag_for_field(stream, field) && pb_encode_varint(stream, &id ) ) ) {}
+				( success =  pb_encode_tag_for_field(stream, field) && pb_encode_varint(stream, id ) ) ) {
+			LOGI("ack message id %d\n", id );
+		}
 	}
 	return success;
 }
