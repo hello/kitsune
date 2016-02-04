@@ -215,6 +215,10 @@ uint32_t fetch_ntp_time_from_ntp() {
 			hello_NTPDataPacket_fields,
 			&request,
 			&pb_cb, &sock, SOCKET_SEC_NONE ) != 0 && ++retries < MAX_RETRIES ) {
+		if( !is_time_good ) { //request top...
+			send_top("time", strlen("time"));
+		}
+
 		if( retries < 5 ) {
 			vTaskDelay( (1<<retries)*1000 );
 		} else {
@@ -259,22 +263,16 @@ static void time_task( void * params ) { //exists to get the time going and cach
 			uint32_t ntp_time = fetch_ntp_time_from_ntp();
 			if (ntp_time != INVALID_SYS_TIME && time_smphr && xSemaphoreTake(time_smphr, 0) ) {
 				if (set_unix_time(ntp_time) != INVALID_SYS_TIME) {
-				    if( is_time_good &&
-				    		get_cached_time() - ntp_time > TIME_POLL_INTERVAL_SEC - MARGIN_OF_ERROR &&
-				    		get_cached_time() - ntp_time < TIME_POLL_INTERVAL_SEC + MARGIN_OF_ERROR ) {
-				    	LOGE("STALE TIME\r\n");
-				    } else {
-						char cmdbuf[20]={0};
-						is_time_good = true;
-						set_cached_time(ntp_time);
-						set_sl_time(get_cached_time());
-						have_set_time = true;
-						last_set = xTaskGetTickCount();
+					char cmdbuf[20]={0};
+					is_time_good = true;
+					set_cached_time(ntp_time);
+					set_sl_time(get_cached_time());
+					have_set_time = true;
+					last_set = xTaskGetTickCount();
 
-						usnprintf( cmdbuf, sizeof(cmdbuf), "time %u\r\n", ntp_time);
-						LOGI("sending %s\r\n", cmdbuf);
-						send_top(cmdbuf, strlen(cmdbuf));
-				    }
+					usnprintf( cmdbuf, sizeof(cmdbuf), "time %u\r\n", ntp_time);
+					LOGI("sending %s\r\n", cmdbuf);
+					send_top(cmdbuf, strlen(cmdbuf));
 				}
 				xSemaphoreGive(time_smphr);
 			}
