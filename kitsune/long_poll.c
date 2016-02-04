@@ -25,7 +25,11 @@ xQueueHandle _rx_queue = 0;
 
 static void _on_play_audio( PlayAudio * cmd ) {
 	AudioPlaybackDesc_t desc;
-	desc.durationInSeconds = cmd->duration_seconds;
+	if( cmd->has_duration_seconds ) {
+		desc.durationInSeconds = cmd->duration_seconds;
+	} else {
+		desc.durationInSeconds = -1;
+	}
 	strncpy(desc.file, cmd->file_path, sizeof(desc.file));
 	desc.volume = cmd->volume_percent * 60 / 100; //convert from percent to codec range
 	desc.fade_in_ms = cmd->fade_in_duration_seconds * 1000;
