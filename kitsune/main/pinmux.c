@@ -235,16 +235,19 @@ PinMuxConfig(void)
     // Configure PIN_06 for SDHOST0 SDHost_D0
     //
     MAP_PinTypeSDHost(PIN_06, PIN_MODE_8);
+    MAP_PinConfigSet(PIN_06,PIN_STRENGTH_6MA|PIN_STRENGTH_2MA|PIN_STRENGTH_4MA, PIN_TYPE_STD);
 
     //
     // Configure PIN_07 for SDHOST0 SDHost_CLK
     //
     MAP_PinTypeSDHost(PIN_07, PIN_MODE_8);
+    MAP_PinConfigSet(PIN_07,PIN_STRENGTH_6MA|PIN_STRENGTH_2MA|PIN_STRENGTH_4MA, PIN_TYPE_STD_PU);
 
     //
     // Configure PIN_08 for SDHOST0 SDHost_CMD
     //
     MAP_PinTypeSDHost(PIN_08, PIN_MODE_8);
+    MAP_PinConfigSet(PIN_08,PIN_STRENGTH_6MA|PIN_STRENGTH_2MA|PIN_STRENGTH_4MA, PIN_TYPE_STD_PU);
 
     //
     // Configure PIN_53 for SPI0 GSPI_MISO

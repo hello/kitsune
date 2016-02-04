@@ -211,6 +211,9 @@ static int16_t MovingAverage16(uint32_t counter, const int16_t x,int16_t * buf, 
 
 //finds stats of a disturbance, and performs callback when distubance is over
 static void UpdateEnergyStats(uint8_t isStable,int16_t logTotalEnergyAvg,int16_t logTotalEnergy,int64_t samplecount) {
+	AudioOncePerMinuteData_t data;
+
+	data.num_disturbances = 0;
 
 	//leaving stable mode -- therefore starting a disturbance
 	if (!isStable && _data.statsLastIsStable) {
@@ -221,15 +224,15 @@ static void UpdateEnergyStats(uint8_t isStable,int16_t logTotalEnergyAvg,int16_t
 		if (logTotalEnergy > _data.maxenergy) {
 			_data.maxenergy = logTotalEnergy;
 		}
-
-
 	}
 
 	//entering stable mode --ending a disturbance
-	if (isStable && !_data.statsLastIsStable) {
+	if (isStable && !_data.statsLastIsStable ) {
+		data.num_disturbances = 1;
+	}
+
+	if( data.num_disturbances || ( (samplecount & 0xff) == 0xff ) ) {
 		if (_data.fpOncePerMinuteDataCallback) {
-			AudioOncePerMinuteData_t data;
-			data.num_disturbances = 1;
 			data.peak_background_energy = GetAudioEnergyAsDBA(logTotalEnergyAvg);
 			data.peak_energy = GetAudioEnergyAsDBA(_data.maxenergy);
 
@@ -476,6 +479,8 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int64_t samplecount) {
     logpsdmel(&logTotalEnergy,psd,fr,fi,log2scaleOfRawSignal,_data.psd_min_energy); //psd is now 64, and on a logarithmic scale after 1khz
     
     DEBUG_LOG_S16("energy", NULL, &logTotalEnergy, 1, samplecount, samplecount);
+
+    LOGA("%d\n", GetAudioEnergyAsDBA(logTotalEnergy));
 
     /* Determine stability of signal energy order to figure out when to estimate background spectrum */
     logTotalEnergyAvg = MovingAverage16(_data.callcounter, logTotalEnergy, _data.energybuf, &_data.energyaccumulator,ENERGY_BUF_MASK,ENERGY_BUF_SIZE_2N);

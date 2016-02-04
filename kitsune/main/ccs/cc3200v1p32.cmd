@@ -61,8 +61,8 @@ MEMORY
 {
     /* Application uses internal RAM for program and data */
     SRAM_DATA (RW) : origin = 0x20000000, length = 0x3FFF
-    SRAM (RWX) : origin = 0x20004000, length = 0x22FFF
-    SRAM_HEAP (RW) : origin = 0x20027000, length = 0x18FFF
+	SRAM (RWX) : origin = 0x20004000, length = 0x237FF
+    SRAM_HEAP (RW) : origin = 0x20027800, length = 0x187FF
 }
 
 /* Section allocation in memory */

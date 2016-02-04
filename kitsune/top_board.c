@@ -19,6 +19,8 @@
 #include "stdlib.h"
 #include "ble_proto.h"
 #include "crypto.h"
+#include "hlo_async.h"
+#include "cmdline.h"
 
 #define TOPBOARD_INFO_FILE "/top/info.bin"
 
@@ -51,6 +53,7 @@ static struct{
 	}dfu_contex;
 	volatile int top_boot;
     top_info_t info;
+    xSemaphoreHandle uart_sem;
 }self;
 
 #define MAX_LINE_LENGTH 128
@@ -70,7 +73,11 @@ _printchar(uint8_t c){
     	line[linepos++] = c;
     	if( c == '\n' ) {
     		line[linepos] = 0;
-    		if( match( "</data>", line ) ) {
+    		if( line[0] == '_' && line[1] == ' ' ) {
+				char * args = pvPortMalloc(linepos-2);
+				memcpy(args, line+2, linepos-2);
+				xTaskCreate(CmdLineProcess, "commandTask",  3*1024 / 4, args, 4, NULL);
+    		} else if( match( "</data>", line ) ) {
     			LOGF(line+strlen("<data>"));
     			LOGF("\r\n");
     		}
@@ -146,6 +153,9 @@ _on_decode_failed(void){
 		_close_and_reset_dfu();
 	}
 }
+bool is_top_in_dfu(void){
+	return (self.mode == TOP_DFU_MODE);
+}
 static void
 _on_ack_success(void){
 	vTaskDelay(10);
@@ -207,14 +217,21 @@ _on_slip_message(uint8_t * c, uint32_t size){
 }
 static void
 _on_dtm_event(uint16_t dtm_event){
-	LOGI("Got a dtm event: %X\r\n", dtm_event);
+	LOGI("Got a dtm event: %04X\r\n", dtm_event);
 }
 
 static void
 _sendchar(uint8_t c){
     UARTCharPut(UARTA1_BASE, c);
 }
+static void
+_top_uart_isr() {
+	signed long xHigherPriorityTaskWoken;
+	UARTIntClear( UARTA1_BASE, 0xFFF );
 
+	xSemaphoreGiveFromISR(self.uart_sem, &xHigherPriorityTaskWoken);
+	portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+}
 void top_board_task(void * params){
 	slip_handler_t me = {
 			.slip_display_char = _printchar,
@@ -231,9 +248,18 @@ void top_board_task(void * params){
 	self.mode = TOP_NORMAL_MODE;
 	slip_reset(&me);
 	hci_init();
+
+	if( !self.uart_sem ) {
+		self.uart_sem = xSemaphoreCreateMutex();
+	}
+
 	MAP_UARTConfigSetExpClk(UARTA1_BASE, PRCMPeripheralClockGet(PRCM_UARTA1),
 			38400,
 			(UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE));
+	UARTFIFOLevelSet( UARTA1_BASE, UART_FIFO_TX1_8, UART_FIFO_RX1_8 );
+	UARTIntDisable( UARTA1_BASE, 0xFFF );
+	UARTIntEnable( UARTA1_BASE, UART_INT_OE | UART_INT_RX | UART_INT_EOT );
+	UARTIntRegister(UARTA1_BASE, _top_uart_isr );
 	while (1) {
 		while( UARTCharsAvail(UARTA1_BASE)) {
 			int8_t c = UARTCharGetNonBlocking(UARTA1_BASE);
@@ -241,7 +267,7 @@ void top_board_task(void * params){
 				slip_handle_rx(c);
 			}
 		}
-		vTaskDelay(1);
+		xSemaphoreTake(self.uart_sem, 100);
 	}
 }
 static int _prep_file(const char * name, uint32_t * out_fsize, uint16_t * out_crc, long * out_handle){
@@ -334,6 +360,9 @@ int wait_for_top_boot(unsigned int timeout) {
 int send_top(char * s, int n) {
 	int i;
 
+	if( !self.top_boot ) {
+		return -1;
+	}
 	if(self.mode == TOP_NORMAL_MODE){
 		if(memcmp(s, "r ", 2) != 0)
 		{
@@ -404,4 +433,25 @@ int Cmd_top_dtm(int argc, char * argv[]){
 int verify_top_update(void){
     _load_top_info(&self.info);
     return sf_sha1_verify((char*)self.info.update_sha, "/top/update.bin");
+}
+int Cmd_SyncID(int argc, char * argv[]);
+void _boot_watcher_task(hlo_future_t * result, void * ctx){
+	int retries = 0;
+	while(1){
+		if(self.top_boot == 0){
+			LOGW("Attempting to resync ID\r\n");
+			Cmd_SyncID(0, 0);
+			if(retries++ > 3){
+				LOGE("Unable to boot top board!\r\n");
+			}
+		}else{
+			break;
+		}
+		vTaskDelay(10000);
+	}
+	hlo_future_write(result, NULL, 0, 0);
+	LOGI("top boot watch exit\r\n");
+}
+void start_top_boot_watcher(void){
+	hlo_future_destroy(hlo_future_create_task_bg(_boot_watcher_task, NULL, 512));
 }

@@ -23,7 +23,9 @@ typedef struct {
 bool encode_device_id_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 bool encode_all_periodic_data (pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 bool encode_all_pills (pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
+bool encode_all_prox (pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 bool encode_scanned_ssid (pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
+bool encode_single_ssid (pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 void pack_batched_periodic_data(batched_periodic_data* batched, periodic_data_to_encode* encode_wrapper);
 bool _encode_string_fields(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 

@@ -28,7 +28,6 @@
 
 #define SENSE_LOG_ENDPOINT		"/logs"
 #define SENSE_LOG_FOLDER		"logs"
-#define SENSE_LOG_RW_SIZE		128
 /**
  * The upload order should be
  * Backend(if has no local backlog) -> Local -> Backend(if has IP)
@@ -56,15 +55,24 @@ static struct{
 	uint32_t widx;
 	EventGroupHandle_t uart_log_events;
 	sense_log log;
-	uint8_t view_tag;	//what level gets printed out to console
-	uint8_t store_tag;	//what level to store to sd card
+	uint16_t view_tag;	//what level gets printed out to console
+	uint16_t store_tag;	//what level to store to sd card
 	xSemaphoreHandle print_sem; //guards writing to the logging block and widx
 	DIR logdir;
 	xQueueHandle analytics_event_queue;
 }self = {0};
 
-void set_loglevel(uint8_t loglevel) {
+void set_loglevel(uint16_t loglevel) {
 	self.store_tag = loglevel;
+}
+
+void add_loglevel(uint16_t loglevel ) {
+	self.store_tag |= loglevel;
+	self.view_tag |= loglevel;
+}
+void rem_loglevel(uint16_t loglevel ) {
+	self.store_tag &= ~loglevel;
+	self.view_tag &= ~loglevel;
 }
 
 typedef void (file_handler)(FILINFO * info, void * ctx);
@@ -88,40 +96,43 @@ _swap_and_upload(void){
 	//reset
 	self.widx = 0;
 }
-#ifdef BUILD_SERVERS
+#ifdef BUILD_TELNET_SERVER
 void telnetPrint(const char * str, int len );
 #endif
 
 static void
 _logstr(const char * str, int len, bool echo, bool store){
-#ifndef BUILD_SERVERS
+#ifndef BUILD_TELNET_SERVER
 	int i;
 
 	if( !self.print_sem ) {
 		return;
 	}
 	xSemaphoreTake(self.print_sem, portMAX_DELAY);
-	if( self.widx + len >= UART_LOGGER_BLOCK_SIZE) {
-		_swap_and_upload();
+	if( store ) {
+		if( self.widx + len >= UART_LOGGER_BLOCK_SIZE) {
+			_swap_and_upload();
+		}
+		if( !self.logging_block ) {
+			self.logging_block = pvPortMalloc(UART_LOGGER_BLOCK_SIZE);
+			assert(self.logging_block);
+			memset( (void*)self.logging_block, 0, UART_LOGGER_BLOCK_SIZE );
+		}
+		for(i = 0; i < len; i++){
+			assert( self.widx < UART_LOGGER_BLOCK_SIZE );
+			self.logging_block[self.widx++] = str[i];
+		}
 	}
-	if( !self.logging_block ) {
-		self.logging_block = pvPortMalloc(UART_LOGGER_BLOCK_SIZE);
-		assert(self.logging_block);
-		memset( (void*)self.logging_block, 0, UART_LOGGER_BLOCK_SIZE );
-	}
-	for(i = 0; i < len && store; i++){
-		uart_logc(str[i]);
-	}
-	xSemaphoreGive(self.print_sem);
 
 #endif
 
 	if (echo) {
-#ifdef BUILD_SERVERS
+#ifdef BUILD_TELNET_SERVER
 		telnetPrint(str, len);
 #endif
 		UARTwrite(str, len);
 	}
+	xSemaphoreGive(self.print_sem);
 }
 static int _walk_log_dir(file_handler * handler, void * ctx){
 	FILINFO file_info;
@@ -193,7 +204,7 @@ _open_log(FIL * file, char * local_name, WORD mode){
 static FRESULT
 _write_file(char * local_name, const char * buffer, WORD size){
 	FIL file_obj;
-	WORD bytes = 0;
+	UINT bytes = 0;
 	WORD written = 0;
 	FRESULT res = _open_log(&file_obj, local_name, FA_CREATE_NEW|FA_WRITE|FA_OPEN_ALWAYS);
 	if(res != FR_OK && res != FR_EXIST){
@@ -215,7 +226,7 @@ static FRESULT
 _read_file(char * local_name, char * buffer, WORD buffer_size, WORD *size_read){
 	FIL file_obj;
 	WORD offset = 0;
-	WORD read = 0;
+	UINT read = 0;
 	FRESULT res = _open_log(&file_obj, local_name, FA_READ);
 	if(res == FR_OK){
 		do{
@@ -313,9 +324,12 @@ static void _save_block_queue( TickType_t dly ) {
  */
 void uart_logger_flush(void){
 	//set the task to exit and wait for it to do so
-	_save_block_queue(0);
+	xSemaphoreTake(self.print_sem, portMAX_DELAY);
+	self.view_tag = self.store_tag = 0;
+	xSemaphoreGive(self.print_sem);
 	//write out whatever's left in the logging block
 	_save_newest((const char*)self.logging_block, self.widx );
+	_save_block_queue(0);
 }
 int Cmd_log_upload(int argc, char *argv[]){
 	xSemaphoreTake(self.print_sem, portMAX_DELAY);
@@ -348,7 +362,7 @@ static const char * const g_pcHex = "0123456789abcdef";
 typedef void (*out_func_t)(const char * str, int len, void * data);
 
 void _logstr_wrapper(const char * str, int len, void * data ) {
-	uint8_t tag = *(uint8_t*)data;
+	uint16_t tag = *(uint16_t*)data;
     bool echo = false;
     bool store = false;
     if(tag & self.view_tag){
@@ -567,11 +581,6 @@ int analytics_event( const char *pcString, ...) {
     return 0;
 }
 
-void uart_logc(uint8_t c){
-	self.logging_block[self.widx] = c;
-	self.widx++;
-}
-
 static bool send_log() {
 	self.log.has_unix_time = false;
 #if 0 // if we want this we need to add a file header so stored files will get the origin timestamp and not the uploading timestamp
@@ -591,7 +600,7 @@ void analytics_event_task(void * params){
 	assert(block);
 	memset(block, 0, ANALYTICS_MAX_CHUNK_SIZE);
 	event_ctx_t evt = {0};
-	int32_t time = 0;
+	uint32_t time = 0;
 	sense_log log = (sense_log){//defaults
 		.text.funcs.encode = _encode_string_fields,
 		.text.arg = block,
@@ -639,7 +648,6 @@ void uart_block_saver_task(void* params) {
 	_save_block_queue(portMAX_DELAY);
 }
 void uart_logger_task(void * params){
-	uart_logger_init();
 	hello_fs_mkdir(SENSE_LOG_FOLDER);
 
 	FRESULT res = hello_fs_opendir(&self.logdir,SENSE_LOG_FOLDER);
@@ -651,7 +659,7 @@ void uart_logger_task(void * params){
 		log_local_enable = 1;
 	}
 
-	xTaskCreate(uart_block_saver_task, "log saver task",   UART_LOGGER_THREAD_STACK_SIZE / 4 , NULL, 1, NULL);
+	xTaskCreate(uart_block_saver_task, "log saver task",   UART_LOGGER_THREAD_STACK_SIZE / 4 , NULL, 2, NULL);
 
 	while(1){
 		xEventGroupSetBits(self.uart_log_events, LOG_EVENT_READY);
@@ -663,7 +671,7 @@ void uart_logger_task(void * params){
                 portMAX_DELAY );/* Wait for any bit to be set. */
 		if( evnt & LOG_EVENT_UPLOAD) {
 			xEventGroupClearBits(self.uart_log_events,LOG_EVENT_UPLOAD);
-			if(wifi_status_get(HAS_IP)){
+			if(wifi_status_get(UPLOADING)){
 				WORD read;
 				FRESULT res;
 				//operation block is used for file io
@@ -673,8 +681,11 @@ void uart_logger_task(void * params){
 					vTaskDelay(5000);
 					continue;
 				}
-
-				if(send_log()){
+				while(!send_log()){
+					LOGE("Log upload failed\r\n");
+					vTaskDelay(10000);
+				}
+				{
 					int rem = -1;
 					res = _remove_oldest(&rem);
 					if(FR_OK == res && rem > 0){
@@ -684,15 +695,12 @@ void uart_logger_task(void * params){
 					}else{
 						LOGE("Rm log error %d\r\n", res);
 					}
-				}else{
-					//should never get here
-					LOGE("Log upload failed\r\n");
 				}
 			}
 		}
 		if(evnt & LOG_EVENT_UPLOAD_ONLY) {
 			xEventGroupClearBits(self.uart_log_events,LOG_EVENT_UPLOAD_ONLY);
-			if(wifi_status_get(HAS_IP)){
+			if(wifi_status_get(UPLOADING)){
 				send_log();
 			}
 		}
@@ -703,15 +711,17 @@ void uart_logger_task(void * params){
 int Cmd_log_setview(int argc, char * argv[]){
     char * pend;
 	if(argc > 1){
-		self.view_tag = ((uint8_t) strtol(argv[1],&pend,16) )&0xFF;
+		self.view_tag = ((uint16_t) strtol(argv[1],&pend,16) )&0xFFFF;
 		return 0;
 	}
 	return -1;
 }
 
 
-void uart_logf(uint8_t tag, const char *pcString, ...){
+void uart_logf(uint16_t tag, const char *pcString, ...){
 	va_list vaArgP;
+
+    if(!(tag & (self.view_tag|self.store_tag))) return;
     va_start(vaArgP, pcString);
     _va_printf( vaArgP, pcString, _logstr_wrapper, &tag );
     va_end(vaArgP);

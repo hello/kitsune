@@ -18,12 +18,12 @@ void init_time_module( int stack );
 
 bool wait_for_time(int wait_sec);
 bool has_good_time();
-time_t get_time();
+uint32_t get_time();
 
 void set_sl_time( time_t unix_timestamp_sec );
 time_t get_sl_time( );
 
-uint32_t fetch_unix_time_from_ntp(); //DO NOT CALL THIS ONE EXCEPT IN TESTS
+uint32_t fetch_ntp_time_from_ntp(); //DO NOT CALL THIS ONE EXCEPT IN TESTS
 int cmd_set_time(int argc, char *argv[]);
 
 #ifdef __cplusplus

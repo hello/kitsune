@@ -57,8 +57,6 @@
 /* Peripheral interface includes. */
 #include "udma_if.h"
 
-#define MAX_NUM_CH              64  //32*2 entries
-#define CTL_TBL_SIZE            64  //32*2 entries
 
 #define UDMA_CH5_BITID          (1<<5)
 
@@ -76,7 +74,6 @@ tDMAControlTable gpCtlTbl[CTL_TBL_SIZE];
 tDMAControlTable gpCtlTbl[CTL_TBL_SIZE];
 #endif
 
-unsigned char iDone;
 tAppCallbackHndl gfpAppCallbackHndl[MAX_NUM_CH];
 
 //*****************************************************************************
@@ -95,8 +92,6 @@ void
 DmaSwIntHandler(void)
 {
     unsigned long uiIntStatus;
-    iDone = 1;
-//    UARTprintf("iDone\n");
     uiIntStatus = MAP_uDMAIntStatus();
     MAP_uDMAIntClear(uiIntStatus);
 }
@@ -113,10 +108,13 @@ DmaSwIntHandler(void)
 //! \return None.
 //
 //*****************************************************************************
+#include "uart_logger.h"
 void
 DmaErrorIntHandler(void)
 {
-    MAP_uDMAIntClear(MAP_uDMAIntStatus());
+	unsigned long sts = uDMAErrorStatusGet();
+	if(sts){DISP("DMA error\n");}
+	uDMAErrorStatusClear();
 }
 
 //*****************************************************************************

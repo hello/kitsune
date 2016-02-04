@@ -6,8 +6,6 @@ int Cmd_i2c_write(int argc, char *argv[]);
 int Cmd_i2c_readreg(int argc, char *argv[]);
 int Cmd_i2c_writereg(int argc, char *argv[]);
 
-void Cmd_james();
-
 int Cmd_readtemp(int argc, char *argv[]);
 int Cmd_readhumid(int argc, char *argv[]);
 int Cmd_readlight(int argc, char *argv[]);
@@ -20,7 +18,7 @@ void set_volume(int v, unsigned int dly) ;
 
 void get_temp_humid(int *temp, int *humid);
 int get_light();
-int get_prox();
+uint32_t get_prox();
 
 
 int init_humid_sensor();

@@ -5,7 +5,7 @@
 #define TOP_BOARD_H
 
 #include <stdint.h>
-
+#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -23,6 +23,10 @@ void top_board_notify_boot_complete(void);
 void set_top_update_sha(const char * shasum, unsigned int imgnum);
 //verify if update is valid
 int verify_top_update(void);
+
+void start_top_boot_watcher(void);
+bool is_top_in_dfu(void);
+
 #ifdef __cplusplus
 }
 #endif

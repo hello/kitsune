@@ -23,6 +23,7 @@
 #include "ustdlib.h"
 
 #include "mcasp_if.h"
+#include "kit_assert.h"
 
 #if 0
 #define PRINT_TIMING
@@ -32,12 +33,9 @@
 
 #define NUMBER_OF_TICKS_IN_A_SECOND (1000)
 
-#define LOOP_DELAY_WHILE_PROCESSING_IN_TICKS (1)
-#define LOOP_DELAY_WHILE_WAITING_BUFFER_TO_FILL (5)
-
 #define MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP (500)
 
-#define MAX_NUMBER_TIMES_TO_WAIT_FOR_AUDIO_BUFFER_TO_FILL (5000)
+#define MAX_NUMBER_TIMES_TO_WAIT_FOR_AUDIO_BUFFER_TO_FILL (5)
 #define MAX_FILE_SIZE_BYTES (1048576*10)
 
 #define MONO_BUF_LENGTH (256)
@@ -51,6 +49,7 @@
 unsigned int g_uiPlayWaterMark;
 extern tCircularBuffer * pRxBuffer;
 extern tCircularBuffer * pTxBuffer;
+xSemaphoreHandle audio_dma_sem;
 
 /* static variables  */
 static xQueueHandle _queue = NULL;
@@ -79,10 +78,9 @@ static void StatsCallback(const AudioOncePerMinuteData_t * pdata) {
 
 	//LOGI("audio disturbance: background=%d, peak=%d\n",pdata->peak_background_energy,pdata->peak_energy);
 	_stats.num_disturbances += pdata->num_disturbances;
+	_stats.num_samples++;
 
-	if (pdata->peak_background_energy > _stats.peak_background_energy) {
-		_stats.peak_background_energy = pdata->peak_background_energy;
-	}
+	_stats.peak_background_energy += pdata->peak_background_energy;
 
 	if (pdata->peak_energy > _stats.peak_energy) {
 		_stats.peak_energy = pdata->peak_energy;
@@ -113,6 +111,10 @@ static void Init(void) {
 
 	if (!_statsMutex) {
 		_statsMutex = xSemaphoreCreateMutex();
+	}
+
+	if( !audio_dma_sem ) {
+		audio_dma_sem = xSemaphoreCreateBinary();
 	}
 
 	memset(&_stats,0,sizeof(_stats));
@@ -153,31 +155,49 @@ static unsigned int fade_out_vol(unsigned int fade_counter, unsigned int volume,
 }
 
 #include "stdbool.h"
+
+extern void UtilsDelay(unsigned long ulCount);
+
+//extern volatile int wait;
+//extern volatile int wait2;
+
+extern xSemaphoreHandle low_frequency_i2c_sem;
+
+static void _lock_for_audio() {
+	hello_fs_lock();
+	if( low_frequency_i2c_sem ) {
+		assert(xSemaphoreTake( low_frequency_i2c_sem, 60000 ));
+	}
+}
+static void _unlock_for_audio() {
+	if( low_frequency_i2c_sem ) {
+		xSemaphoreGive( low_frequency_i2c_sem );
+	}
+	hello_fs_unlock();
+}
+
 static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
+    #define SPEAKER_DATA_CHUNK_SIZE (PING_PONG_CHUNK_SIZE)
 	//1.5K on the stack
-	uint16_t * speaker_data_padded = pvPortMalloc(1024);
-	uint16_t * speaker_data = pvPortMalloc(512);
-
+	uint16_t * speaker_data = pvPortMalloc(SPEAKER_DATA_CHUNK_SIZE);
 
 	FIL fp = {0};
-	WORD size;
+	UINT size;
 	FRESULT res;
 	uint32_t totBytesRead = 0;
 	uint32_t iReceiveCount = 0;
-
-	int32_t iRetVal = -1;
 	uint8_t returnFlags = 0x00;
 
 	int32_t desired_ticks_elapsed;
 	portTickType t0;
-	uint32_t iBufWaitingCount;
 
 	unsigned int fade_counter=0;
 	unsigned int fade_time=0;
 	bool fade_in = true;
 	unsigned int last_vol = 0;
 	unsigned int volume = info->volume;
+	unsigned int initial_volume = info->volume;
 	unsigned int fade_length = info->fade_in_ms;
 	bool has_fade = fade_length != 0;
 
@@ -186,18 +206,23 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	LOGI("Starting playback\r\n");
 	LOGI("%d bytes free\n", xPortGetFreeHeapSize());
 
-	hello_fs_lock();
+	_lock_for_audio();
 
 	if (!info || !info->file) {
-		hello_fs_unlock();
+		_unlock_for_audio();
 		LOGI("invalid playback info %s\n\r",info->file);
+		vPortFree(speaker_data);
 		return returnFlags;
 	}
+	if( has_fade ) {
+		initial_volume = 1;
+		t0 = fade_time = last_vol = xTaskGetTickCount();
+	}
 
-
-	if ( !InitAudioPlayback(volume, info->rate ) ) {
-		hello_fs_unlock();
+	if ( !InitAudioPlayback(initial_volume, info->rate ) ) {
+		_unlock_for_audio();
 		LOGI("unable to initialize audio playback.  Probably not enough memory!\r\n");
+		vPortFree(speaker_data);
 		return returnFlags;
 
 	}
@@ -210,27 +235,18 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	res = hello_fs_open(&fp, info->file, FA_READ);
 
 	if (res != FR_OK) {
-		hello_fs_unlock();
+		_unlock_for_audio();
 		LOGI("Failed to open audio file %s\n\r",info->file);
 		DeinitAudioPlayback();
+		vPortFree(speaker_data);
 		return returnFlags;
 	}
 
-	memset(speaker_data_padded,0,1024);
-
-	if( has_fade ) {
-		g_uiPlayWaterMark = 1;
-		fade_time = t0 = xTaskGetTickCount();
-		//make sure the volume is down before we start...
-		set_volume(1, portMAX_DELAY);
-	} else {
-		set_volume(volume, portMAX_DELAY);
-	}
+	memset(speaker_data,0,SPEAKER_DATA_CHUNK_SIZE);
 
 	bool started = false;
 	//loop until either a) done playing file for specified duration or b) our message queue gets a message that tells us to stop
 	for (; ;) {
-
 		if( has_fade ) {
 			fade_counter = xTaskGetTickCount() - fade_time;
 			if( fade_counter <= fade_length && xTaskGetTickCount() - last_vol > 100 ) {
@@ -248,44 +264,31 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 			}
 		}
 		/* Read always in block of 512 Bytes or less else it will stuck in hello_fs_read() */
-
 		res = hello_fs_read(&fp, speaker_data, 512, &size);
 		totBytesRead += size;
 
 		/* Wait to avoid buffer overflow as reading speed is faster than playback */
-		iBufWaitingCount = 0;
-		while (IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) == TRUE &&
-				iBufWaitingCount < MAX_NUMBER_TIMES_TO_WAIT_FOR_AUDIO_BUFFER_TO_FILL) {
-			vTaskDelay(2);
-
-			iBufWaitingCount++;
-
+		while ( !IsBufferVacant(pRxBuffer, 512*2) ) {
 			if( !started ) {
+				g_uiPlayWaterMark = 1;
 				Audio_Start();
 				started = true;
+				break;
 			}
-		};
-
-
-		if (iBufWaitingCount >= MAX_NUMBER_TIMES_TO_WAIT_FOR_AUDIO_BUFFER_TO_FILL) {
-			LOGI("Waited too long for audio buffer empty out to the codec \r\n");
-			break;
+			assert( xSemaphoreTake( audio_dma_sem, 1000 ) );
 		}
 
-
 		if (size > 0) {
-			unsigned int i;
+			int i;
 
-			for (i = 0; i != (size>>1); ++i) {
-				//the odd ones are zeroed already
-				speaker_data_padded[i<<1] = speaker_data[i];
+			for (i = (size>>1)-1; i!=-1 ; --i) {
+				//the odd ones do not matter
+				speaker_data[i<<1] = speaker_data[i];
+				//speaker_data[(i<<1)+1] = 0;
 			}
 
-			iRetVal = FillBuffer(pRxBuffer, (unsigned char*) (speaker_data_padded), size<<1);
-
-			if (iRetVal < 0) {
-				LOGI("Unable to fill buffer");
-			}
+			//static volatile int slow = 250000; UtilsDelay(slow);
+			FillBuffer(pRxBuffer, (unsigned char*) (speaker_data), size<<1);
 
 			returnFlags |= CheckForInterruptionDuringPlayback();
 
@@ -336,9 +339,6 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 				fade_in = false;
 			}
 		}
-
-
-		vTaskDelay(0);
 	}
 
 	if( started ) {
@@ -346,14 +346,15 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	}
 
 	vPortFree(speaker_data);
-	vPortFree(speaker_data_padded);
 
 	///CLEANUP
 	hello_fs_close(&fp);
 
 	DeinitAudioPlayback();
 
-	hello_fs_unlock();
+	xSemaphoreGive( audio_dma_sem );
+
+	_unlock_for_audio();
 
 	LOGI("completed playback\r\n");
 
@@ -379,9 +380,10 @@ static void DoCapture(uint32_t rate) {
 	Filedata_t filedata;
 	uint8_t isSavingToFile = 0;
 	uint32_t num_bytes_written;
-	uint32_t octogram_count;
+	uint32_t octogram_count = 0;
 	Octogram_t octogramdata;
 	AudioOctogramDesc_t octogramdesc;
+	uint32_t settle_cnt = 0;
 
 #ifdef PRINT_TIMING
 	uint32_t t0;
@@ -516,7 +518,11 @@ static void DoCapture(uint32_t rate) {
 
 		if(iBufferFilled < 2*PING_PONG_CHUNK_SIZE) {
 			//wait a bit for the tx buffer to fill
-			vTaskDelay(1);
+			if( !xSemaphoreTake( audio_dma_sem, 1000 ) ) {
+				LOGE("Capture DMA timeout\n");
+				DeinitAudioCapture();
+				InitAudioCapture(rate);
+			}
 		}
 		else {
 	//		uint8_ts * ptr_samples_bytes = (uint8_t *)samples;
@@ -569,19 +575,20 @@ static void DoCapture(uint32_t rate) {
 			t1 = xTaskGetTickCount();
 #endif
 			//do audio feature processing
-			AudioFeatures_SetAudioData(samples,_callCounter++);
+			if(settle_cnt++ > 3) {
+				AudioFeatures_SetAudioData(samples,_callCounter++);
+				if (octogram_count > 0) {
+					octogram_count--;
 
-			if (octogram_count > 0) {
-				octogram_count--;
+					Octogram_Update(&octogramdata,samples);
 
-				Octogram_Update(&octogramdata,samples);
+					if (octogram_count == 0) {
+						LOGI("Finished octogram \r\n");
+						Octogram_GetResult(&octogramdata,octogramdesc.result);
 
-				if (octogram_count == 0) {
-					LOGI("Finished octogram \r\n");
-					Octogram_GetResult(&octogramdata,octogramdesc.result);
-
-					if (octogramdesc.onFinished) {
-						octogramdesc.onFinished(octogramdesc.context);
+						if (octogramdesc.onFinished) {
+							octogramdesc.onFinished(octogramdesc.context);
+						}
 					}
 				}
 			}
@@ -735,6 +742,7 @@ void AudioTask_DumpOncePerMinuteStats(AudioOncePerMinuteData_t * pdata) {
 
 	xSemaphoreTake(_statsMutex,portMAX_DELAY);
 	memcpy(pdata,&_stats,sizeof(AudioOncePerMinuteData_t));
+	pdata->peak_background_energy/=pdata->num_samples;
 
 	memset(&_stats,0,sizeof(_stats));
 

@@ -18,7 +18,7 @@ void DeinitAudioPlayback(void);
 
 
 uint8_t InitFile(Filedata_t * pfiledata);
-uint8_t WriteToFile(Filedata_t * pfiledata,const WORD bytes_to_write,const uint8_t * const_ptr_samples_bytes);
+uint8_t WriteToFile(Filedata_t * pfiledata,const UINT bytes_to_write,const uint8_t * const_ptr_samples_bytes);
 void CloseFile(Filedata_t * pfiledata);
 void CloseAndDeleteFile(Filedata_t * pfiledata);
 

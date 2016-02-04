@@ -45,9 +45,6 @@ uint8_t InitAudioCapture(uint32_t rate) {
 	// Initialize the Audio(I2S) Module
 	McASPInit(rate);
 
-	// Initialize the DMA Module
-	UDMAInit();
-
 	UDMAChannelSelect(UDMA_CH4_I2S_RX, NULL);
 
 	// Setup the DMA Mode
@@ -55,7 +52,7 @@ uint8_t InitAudioCapture(uint32_t rate) {
 
 	// Setup the Audio In/Out
 	AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
-	AudioCaptureRendererConfigure(I2S_PORT_DMA, rate);
+	AudioCaptureRendererConfigure( rate);
 
 	// Start Audio Tx/Rx
 	Audio_Start();
@@ -95,8 +92,6 @@ uint8_t InitAudioPlayback(int32_t vol, uint32_t rate ) {
 	// Initialize the Audio(I2S) Module
 	McASPInit(rate);
 
-	// Initialize the DMA Module
-	UDMAInit();
 
 	UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL);
 
@@ -105,7 +100,7 @@ uint8_t InitAudioPlayback(int32_t vol, uint32_t rate ) {
 
 	// Setup the Audio In/Out
 	AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
-	AudioCaptureRendererConfigure(I2S_PORT_DMA, rate);
+	AudioCaptureRendererConfigure( rate);
 
 	return 1;
 
@@ -144,9 +139,9 @@ uint8_t InitFile(Filedata_t * pfiledata) {
 
 }
 
-uint8_t WriteToFile(Filedata_t * pfiledata,const WORD bytes_to_write,const uint8_t * const_ptr_samples_bytes) {
-	WORD bytes = 0;
-	WORD bytes_written = 0;
+uint8_t WriteToFile(Filedata_t * pfiledata,const UINT bytes_to_write,const uint8_t * const_ptr_samples_bytes) {
+	UINT bytes = 0;
+	UINT bytes_written = 0;
 	FRESULT res;
 	uint8_t ret = 1;
 

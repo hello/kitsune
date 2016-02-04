@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+#define MAX_HOLD_TIME_MS 15000
+
 typedef enum {
 	proxGestureNone,
 	proxGestureWave,
