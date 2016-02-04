@@ -351,6 +351,8 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 	DeinitAudioPlayback();
 
+	xSemaphoreGive( audio_dma_sem );
+
 	_unlock_for_audio();
 
 	LOGI("completed playback\r\n");
