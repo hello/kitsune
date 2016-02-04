@@ -12,7 +12,8 @@
 #include "sl_sync_include_after_simplelink_header.h"
 
 #include "messeji.pb.h"
-#include "sleep_sounds.pb.h"
+#include "audio_commands.pb.h"
+
 #define LONG_POLL_HOST "ec2-52-72-244-213.compute-1.amazonaws.com"
 #define LONG_POLL_ENDPOINT "/receive"
 
@@ -20,32 +21,41 @@
 
 xQueueHandle _rx_queue = 0;
 
-static void _on_sleep_sounds( SleepSoundsCommand * cmd ) {}
+static void _on_play_audio( PlayAudio * cmd ) {
+
+}
+static void _on_stop_audio( StopAudio * cmd ) {
+
+}
 
 bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, void **arg);
 
 static bool _on_message(pb_istream_t *stream, const pb_field_t *field, void **arg) {
-      Message message;
+	Message message;
 
-      LOGI("message parsing\n" );
-      message.sender_id.funcs.encode = NULL;
-      message.sender_id.arg = NULL;
-      message.sender_id.funcs.decode = _decode_string_field;
+	LOGI("message parsing\n");
+	message.sender_id.funcs.encode = NULL;
+	message.sender_id.arg = NULL;
+	message.sender_id.funcs.decode = _decode_string_field;
 
-      if( !pb_decode(stream,Message_fields,&message) ) {
-              LOGI("message parse fail \n" );
-              return false;
-      }
+	if (!pb_decode(stream, Message_fields, &message)) {
+		LOGI("message parse fail \n");
+		return false;
+	}
 
-      vPortFree(message.sender_id.arg);
-      if( message.has_message_id ) {
-              xQueueSend(_rx_queue, (void* )&message.message_id, 0);
-      }
-      if( message.has_sleep_sounds_command ) {
-              _on_sleep_sounds( &message.sleep_sounds_command );
-      }
+	vPortFree(message.sender_id.arg);
 
-      return true;
+	if (message.has_message_id) {
+		xQueueSend(_rx_queue, (void* )&message.message_id, 0);
+	}
+	if (message.has_play_audio) {
+		_on_play_audio(&message.play_audio);
+	}
+	if (message.has_stop_audio) {
+		_on_stop_audio(&message.stop_audio);
+	}
+
+	return true;
 }
 static void _get_long_poll_response(pb_field_t ** fields, void ** structdata){
 	*fields = (pb_field_t *)BatchMessage_fields;

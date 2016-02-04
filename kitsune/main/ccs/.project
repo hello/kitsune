@@ -861,6 +861,16 @@
 			<locationURI>PARENT-2-PROJECT_LOC/nanopb/pb_encode.h</locationURI>
 		</link>
 		<link>
+			<name>protobuf/audio_commands.pb.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/audio_commands.pb.c</locationURI>
+		</link>
+		<link>
+			<name>protobuf/audio_commands.pb.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/audio_commands.pb.h</locationURI>
+		</link>
+		<link>
 			<name>protobuf/audio_control.pb.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/protobuf/audio_control.pb.c</locationURI>
