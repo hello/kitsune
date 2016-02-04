@@ -100,14 +100,14 @@ static void long_poll_task(void * networkdata) {
 		while (!wifi_status_get(HAS_IP)) {
 			vTaskDelay(1000);
 		}
-		if( !send_data_pb(LONG_POLL_HOST,
+		if( send_data_pb(LONG_POLL_HOST,
 				LONG_POLL_ENDPOINT,
 				&decode_buf,
 				&decode_buf_size,
 				ReceiveMessageRequest_fields,
 				&request,
-				&pb_cb, &sock, SOCKET_SEC_NONE ) ) {
-			if( retries < 5 ) {
+				&pb_cb, &sock, SOCKET_SEC_NONE ) != 0 ) {
+			if( retries++ < 5 ) {
 				vTaskDelay( (1<<retries)*1000 );
 			} else {
 				vTaskDelay( 32000 );
