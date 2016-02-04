@@ -20,6 +20,7 @@
 
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include "ustdlib.h"
 
 #include "mcasp_if.h"
@@ -163,17 +164,24 @@ extern void UtilsDelay(unsigned long ulCount);
 
 extern xSemaphoreHandle low_frequency_i2c_sem;
 
-static void _lock_for_audio() {
-	hello_fs_lock();
+static void _lock_for_audio(EAudioPlaybackType_t playback_type) {
+	if( playback_type == eAudioPlayFile ) {
+		hello_fs_lock();
+	}
 	if( low_frequency_i2c_sem ) {
 		assert(xSemaphoreTake( low_frequency_i2c_sem, 60000 ));
 	}
 }
-static void _unlock_for_audio() {
+static void _unlock_for_audio(EAudioPlaybackType_t playback_type, FIL * fh) {
 	if( low_frequency_i2c_sem ) {
 		xSemaphoreGive( low_frequency_i2c_sem );
 	}
-	hello_fs_unlock();
+	if( playback_type == eAudioPlayFile ) {
+		if( fh != NULL ) {
+			hello_fs_close(fh);
+		}
+		hello_fs_unlock();
+	}
 }
 
 static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
@@ -185,7 +193,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	FIL fp = {0};
 	UINT size;
 	FRESULT res;
-	uint32_t totBytesRead = 0;
+	EAudioPlaybackType_t playback_type = eAudioPlayFile;
 	uint32_t iReceiveCount = 0;
 	uint8_t returnFlags = 0x00;
 
@@ -201,15 +209,10 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	unsigned int fade_length = info->fade_in_ms;
 	bool has_fade = fade_length != 0;
 
-	desired_ticks_elapsed = info->durationInSeconds * NUMBER_OF_TICKS_IN_A_SECOND;
+	int i = 0;
 
-	LOGI("Starting playback\r\n");
-	LOGI("%d bytes free\n", xPortGetFreeHeapSize());
-
-	_lock_for_audio();
 
 	if (!info || !info->file) {
-		_unlock_for_audio();
 		LOGI("invalid playback info %s\n\r",info->file);
 		vPortFree(speaker_data);
 		return returnFlags;
@@ -219,27 +222,36 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		t0 = fade_time = last_vol = xTaskGetTickCount();
 	}
 
+	if( strstr( info->file, "proc") ) {
+		if( strstr( info->file, "rand") ) {
+			playback_type = eAudioPlayRand;
+		}
+	}
+	_lock_for_audio(playback_type);
 	if ( !InitAudioPlayback(initial_volume, info->rate ) ) {
-		_unlock_for_audio();
+		_unlock_for_audio(playback_type, NULL);
 		LOGI("unable to initialize audio playback.  Probably not enough memory!\r\n");
 		vPortFree(speaker_data);
 		return returnFlags;
-
 	}
 
+	LOGI("Starting playback\r\n");
 	LOGI("%d bytes free\n", xPortGetFreeHeapSize());
 
+	if( playback_type == eAudioPlayFile ) {
+		hello_fs_lock(playback_type);
 
-	//open file for playback
-	LOGI("Opening %s for playback\r\n",info->file);
-	res = hello_fs_open(&fp, info->file, FA_READ);
+		//open file for playback
+		LOGI("Opening %s for playback\r\n",info->file);
+		res = hello_fs_open(&fp, info->file, FA_READ);
 
-	if (res != FR_OK) {
-		_unlock_for_audio();
-		LOGI("Failed to open audio file %s\n\r",info->file);
-		DeinitAudioPlayback();
-		vPortFree(speaker_data);
-		return returnFlags;
+		if (res != FR_OK) {
+			_unlock_for_audio(playback_type, &fp);
+			LOGI("Failed to open audio file %s\n\r",info->file);
+			DeinitAudioPlayback();
+			vPortFree(speaker_data);
+			return returnFlags;
+		}
 	}
 
 	memset(speaker_data,0,SPEAKER_DATA_CHUNK_SIZE);
@@ -263,9 +275,22 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 				break;
 			}
 		}
-		/* Read always in block of 512 Bytes or less else it will stuck in hello_fs_read() */
-		res = hello_fs_read(&fp, speaker_data, 512, &size);
-		totBytesRead += size;
+		switch (playback_type) {
+		case eAudioPlayFile: {
+			/* Read always in block of 512 Bytes or less else it will stuck in hello_fs_read() */
+			res = hello_fs_read(&fp, speaker_data, 512, &size);
+			break;
+		}
+		case eAudioPlayRand: {
+			for (i = 0; i < 512; ++i) {
+				speaker_data[i] = rand();
+			}
+			size = i;
+			break;
+		}
+		default:
+			LOGE("NO PLAYBACK TYPE\r\n");
+		}
 
 		/* Wait to avoid buffer overflow as reading speed is faster than playback */
 		while ( !IsBufferVacant(pRxBuffer, 512*2) ) {
@@ -348,13 +373,11 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	vPortFree(speaker_data);
 
 	///CLEANUP
-	hello_fs_close(&fp);
-
 	DeinitAudioPlayback();
 
 	xSemaphoreGive( audio_dma_sem );
 
-	_unlock_for_audio();
+	_unlock_for_audio(playback_type, &fp);
 
 	LOGI("completed playback\r\n");
 
