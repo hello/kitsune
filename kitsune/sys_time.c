@@ -214,7 +214,7 @@ uint32_t fetch_ntp_time_from_ntp() {
 			&decode_buf_size,
 			hello_NTPDataPacket_fields,
 			&request,
-			&pb_cb, &sock, SOCKET_SEC_NONE ) && ++retries < MAX_RETRIES ) {
+			&pb_cb, &sock, SOCKET_SEC_NONE ) != 0 && ++retries < MAX_RETRIES ) {
 		if( retries < 5 ) {
 			vTaskDelay( (1<<retries)*1000 );
 		} else {
