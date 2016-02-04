@@ -12,6 +12,8 @@
 #include "sl_sync_include_after_simplelink_header.h"
 
 #include "messeji.pb.h"
+
+#include "audiotask.h"
 #include "audio_commands.pb.h"
 
 #define LONG_POLL_HOST "ec2-52-72-244-213.compute-1.amazonaws.com"
@@ -22,10 +24,21 @@
 xQueueHandle _rx_queue = 0;
 
 static void _on_play_audio( PlayAudio * cmd ) {
+	AudioPlaybackDesc_t desc;
+	desc.durationInSeconds = cmd->duration_seconds;
+	strncpy(desc.file, cmd->file_path, sizeof(desc.file));
+	desc.volume = cmd->volume_percent * 60 / 100; //convert from percent to codec range
+	desc.fade_in_ms = cmd->fade_in_duration_seconds * 1000;
+	desc.fade_out_ms = cmd->fade_out_duration_seconds * 1000;
 
+	desc.onFinished = NULL;
+	desc.rate = 48000;
+	desc.context = NULL;
+	AudioTask_StartPlayback(&desc);
 }
 static void _on_stop_audio( StopAudio * cmd ) {
-
+	//TODO use cmd->fade_out_duration_seconds; ?
+	AudioTask_StopPlayback();
 }
 
 bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, void **arg);
@@ -43,8 +56,6 @@ static bool _on_message(pb_istream_t *stream, const pb_field_t *field, void **ar
 		return false;
 	}
 
-	vPortFree(message.sender_id.arg);
-
 	if (message.has_message_id) {
 		xQueueSend(_rx_queue, (void* )&message.message_id, 0);
 	}
@@ -55,6 +66,7 @@ static bool _on_message(pb_istream_t *stream, const pb_field_t *field, void **ar
 		_on_stop_audio(&message.stop_audio);
 	}
 
+	vPortFree(message.sender_id.arg);
 	return true;
 }
 static void _get_long_poll_response(pb_field_t ** fields, void ** structdata){
