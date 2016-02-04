@@ -260,10 +260,6 @@ void WatchdogIntHandler(void)
 
 
 void start_wdt() {
-#define WD_PERIOD_MS 				20000
-#define MAP_SysCtlClockGet 			80000000
-#define LED_GPIO             		MCU_RED_LED_GPIO	/* RED LED */
-#define MILLISECONDS_TO_TICKS(ms) 	((MAP_SysCtlClockGet / 1000) * (ms))
     //
     // Enable the peripherals used by this example.
     //
@@ -272,7 +268,7 @@ void start_wdt() {
     //
     // Set up the watchdog interrupt handler.
     //
-    WDT_IF_Init(WatchdogIntHandler, MILLISECONDS_TO_TICKS(WD_PERIOD_MS));
+    WDT_IF_Init(WatchdogIntHandler, 0xFFFFFFFF);
 
     //
     // Start the timer. Once the timer is started, it cannot be disable.
@@ -286,29 +282,35 @@ void start_wdt() {
 void mcu_reset();
 #include "kit_assert.h"
 volatile portTickType last_upload_time = 0;
+#define NWP_WATCHDOG_TIMEOUT
 #define ONE_HOUR (1000*60*60)
 #define FIFTEEN_MINUTES (1000*60*15)
 #define TWENTY_FIVE_HOURS (ONE_HOUR*25)
+#ifdef NWP_WATCHDOG_TIMEOUT
 void nwp_reset_thread(void* unused) {
 	nwp_reset();
 	vTaskDelete(NULL);
 }
+#endif
 
 void watchdog_thread(void* unused) {
+#ifdef NWP_WATCHDOG_TIMEOUT
 	int last_nwp_reset_time = 0;
+#endif
 	while (1) {
-		if (xTaskGetTickCount() - last_upload_time > 2*ONE_HOUR) {
+		if (xTaskGetTickCount() - last_upload_time > 3*ONE_HOUR) {
 			LOGE("NET TIMEOUT\n");
 			mcu_reset();
 		}
-		if (xTaskGetTickCount() - last_upload_time > ONE_HOUR
-				&& xTaskGetTickCount() - last_nwp_reset_time > ONE_HOUR) {
+#ifdef NWP_WATCHDOG_TIMEOUT
+		if (xTaskGetTickCount() - last_upload_time > FIFTEEN_MINUTES
+				&& xTaskGetTickCount() - last_nwp_reset_time > FIFTEEN_MINUTES) {
 			LOGE("NWP TIMEOUT\n");
 			xTaskCreate(nwp_reset_thread, "nwp_reset_thread",
 					1280/(sizeof(portSTACK_TYPE)), NULL, 1, NULL);
 			last_nwp_reset_time = xTaskGetTickCount();
 		}
-
+#endif
 		MAP_WatchdogIntClear(WDT_BASE); //clear wdt
 		vTaskDelay(1000);
 	}

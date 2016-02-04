@@ -44,7 +44,7 @@ void unblock_sync(void * data) {
 	xSemaphoreGive(msg->sync); //todo maybe here
 }
 
-bool NetworkTask_SendProtobuf(bool blocking, const char * host,
+bool NetworkTask_SendProtobuf(bool blocking, char * host,
 		const char * endpoint, const pb_field_t fields[],
 		void * structdata, int32_t retry_time_in_counts,
 		NetworkResponseCallback_t func, void * context,
@@ -112,7 +112,7 @@ bool NetworkTask_SendProtobuf(bool blocking, const char * host,
 	return false;
 }
 
-static NetworkResponse_t nettask_send(NetworkTaskServerSendMessage_t * message) {
+static NetworkResponse_t nettask_send(NetworkTaskServerSendMessage_t * message, int * sock) {
 	NetworkResponse_t response;
 	int32_t timeout_counts;
 	int32_t retry_period;
@@ -150,7 +150,7 @@ static NetworkResponse_t nettask_send(NetworkTaskServerSendMessage_t * message) 
 				&decode_buf_size,
 				message->fields,
 				message->structdata,
-				message->has_pb_cb ? &message->pb_cb : NULL ) == 0) {
+				message->has_pb_cb ? &message->pb_cb : NULL, sock, SOCKET_SEC_SSL ) == 0) {
 			response.success = true;
 		} else {
 			//failed to push, now what?
@@ -224,6 +224,7 @@ static NetworkResponse_t nettask_send(NetworkTaskServerSendMessage_t * message) 
 
 static void NetworkTask_Thread(void * networkdata) {
 	NetworkTaskServerSendMessage_t message;
+	int sock = -1;
 
 	for (; ;) {
 		xQueueReceive( _asyncqueue, &message, portMAX_DELAY );
@@ -232,9 +233,9 @@ static void NetworkTask_Thread(void * networkdata) {
 		}
 
 		if( message.response_handle ) {
-			*message.response_handle = nettask_send(&message);
+			*message.response_handle = nettask_send(&message, &sock);
 		} else {
-			nettask_send(&message);
+			nettask_send(&message, &sock);
 		}
 
 		if( message.end ) {

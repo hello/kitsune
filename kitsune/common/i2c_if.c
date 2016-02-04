@@ -50,6 +50,7 @@
 #include "prcm.h"
 #include "hwspinlock.h"
 #include "i2c_if.h"
+#include "kit_assert.h"
 
 //****************************************************************************
 //                      GLOBAL VARIABLES                                   
@@ -61,11 +62,14 @@
 #define I2C_BASE                I2CA0_BASE
 #define SYS_CLK                 80000000
 #define FAILURE                 -1
+#define I2C_FAILURE				FAILURE
 #define SUCCESS                 0
 #define RETERR_IF_TRUE(condition) {if(condition) return FAILURE;}
 #define RET_IF_ERR(Func)          {int iRetVal = (Func); \
                                    if (SUCCESS != iRetVal) \
                                      return  iRetVal;}
+extern volatile bool booted;
+
 
 //****************************************************************************
 //                      LOCAL FUNCTION DEFINITIONS                          
@@ -158,6 +162,10 @@ void recoveri2c() {
 	MAP_PinTypeI2C(sda_gpio_pin, sda_i2c_mode);
 	I2CMasterControl(I2C_BASE, 0x00000004); //send a stop...
 	vTaskDelay(2);
+
+	if( booted ) {
+		assert( I2C_FAILURE );
+	}
 }
 
 static int I2CTransact(unsigned long ulCmd) {

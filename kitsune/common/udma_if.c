@@ -57,8 +57,6 @@
 /* Peripheral interface includes. */
 #include "udma_if.h"
 
-#define MAX_NUM_CH              64  //32*2 entries
-#define CTL_TBL_SIZE            64  //32*2 entries
 
 #define UDMA_CH5_BITID          (1<<5)
 

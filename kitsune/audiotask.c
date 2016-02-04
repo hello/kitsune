@@ -23,6 +23,7 @@
 #include "ustdlib.h"
 
 #include "mcasp_if.h"
+#include "kit_assert.h"
 
 #if 0
 #define PRINT_TIMING
@@ -32,12 +33,9 @@
 
 #define NUMBER_OF_TICKS_IN_A_SECOND (1000)
 
-#define LOOP_DELAY_WHILE_PROCESSING_IN_TICKS (1)
-#define LOOP_DELAY_WHILE_WAITING_BUFFER_TO_FILL (5)
-
 #define MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP (500)
 
-#define MAX_NUMBER_TIMES_TO_WAIT_FOR_AUDIO_BUFFER_TO_FILL (5000)
+#define MAX_NUMBER_TIMES_TO_WAIT_FOR_AUDIO_BUFFER_TO_FILL (5)
 #define MAX_FILE_SIZE_BYTES (1048576*10)
 
 #define MONO_BUF_LENGTH (256)
@@ -51,6 +49,7 @@
 unsigned int g_uiPlayWaterMark;
 extern tCircularBuffer * pRxBuffer;
 extern tCircularBuffer * pTxBuffer;
+xSemaphoreHandle audio_dma_sem;
 
 /* static variables  */
 static xQueueHandle _queue = NULL;
@@ -116,6 +115,10 @@ static void Init(void) {
 		_statsMutex = xSemaphoreCreateMutex();
 	}
 
+	if( !audio_dma_sem ) {
+		audio_dma_sem = xSemaphoreCreateBinary();
+	}
+
 	memset(&_stats,0,sizeof(_stats));
 
 	AudioFeatures_Init(DataCallback,StatsCallback);
@@ -160,12 +163,26 @@ extern void UtilsDelay(unsigned long ulCount);
 //extern volatile int wait;
 //extern volatile int wait2;
 
+extern xSemaphoreHandle low_frequency_i2c_sem;
+
+static void _lock_for_audio() {
+	hello_fs_lock();
+	if( low_frequency_i2c_sem ) {
+		assert(xSemaphoreTake( low_frequency_i2c_sem, 60000 ));
+	}
+}
+static void _unlock_for_audio() {
+	if( low_frequency_i2c_sem ) {
+		xSemaphoreGive( low_frequency_i2c_sem );
+	}
+	hello_fs_unlock();
+}
+
 static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
     #define SPEAKER_DATA_CHUNK_SIZE (PING_PONG_CHUNK_SIZE)
 	//1.5K on the stack
 	uint16_t * speaker_data = pvPortMalloc(SPEAKER_DATA_CHUNK_SIZE);
-
 
 	FIL fp = {0};
 	UINT size;
@@ -176,13 +193,13 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 	int32_t desired_ticks_elapsed;
 	portTickType t0;
-	uint32_t iBufWaitingCount;
 
 	unsigned int fade_counter=0;
 	unsigned int fade_time=0;
 	bool fade_in = true;
 	unsigned int last_vol = 0;
 	unsigned int volume = info->volume;
+	unsigned int initial_volume = info->volume;
 	unsigned int fade_length = info->fade_in_ms;
 	bool has_fade = fade_length != 0;
 
@@ -191,18 +208,21 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	LOGI("Starting playback\r\n");
 	LOGI("%d bytes free\n", xPortGetFreeHeapSize());
 
-	hello_fs_lock();
+	_lock_for_audio();
 
 	if (!info || !info->file) {
-		hello_fs_unlock();
+		_unlock_for_audio();
 		LOGI("invalid playback info %s\n\r",info->file);
 		vPortFree(speaker_data);
 		return returnFlags;
 	}
+	if( has_fade ) {
+		initial_volume = 1;
+		t0 = fade_time = last_vol = xTaskGetTickCount();
+	}
 
-
-	if ( !InitAudioPlayback(volume, info->rate ) ) {
-		hello_fs_unlock();
+	if ( !InitAudioPlayback(initial_volume, info->rate ) ) {
+		_unlock_for_audio();
 		LOGI("unable to initialize audio playback.  Probably not enough memory!\r\n");
 		vPortFree(speaker_data);
 		return returnFlags;
@@ -217,7 +237,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	res = hello_fs_open(&fp, info->file, FA_READ);
 
 	if (res != FR_OK) {
-		hello_fs_unlock();
+		_unlock_for_audio();
 		LOGI("Failed to open audio file %s\n\r",info->file);
 		DeinitAudioPlayback();
 		vPortFree(speaker_data);
@@ -226,18 +246,9 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 	memset(speaker_data,0,SPEAKER_DATA_CHUNK_SIZE);
 
-	if( has_fade ) {
-		g_uiPlayWaterMark = 1;
-		fade_time = t0 = xTaskGetTickCount();
-		//make sure the volume is down before we start...
-		set_volume(1, portMAX_DELAY);
-	} else {
-		set_volume(volume, portMAX_DELAY);
-	}
 	bool started = false;
 	//loop until either a) done playing file for specified duration or b) our message queue gets a message that tells us to stop
 	for (; ;) {
-
 		if( has_fade ) {
 			fade_counter = xTaskGetTickCount() - fade_time;
 			if( fade_counter <= fade_length && xTaskGetTickCount() - last_vol > 100 ) {
@@ -259,34 +270,15 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		totBytesRead += size;
 
 		/* Wait to avoid buffer overflow as reading speed is faster than playback */
-		iBufWaitingCount = 0;
-		while (IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) == TRUE &&
-				iBufWaitingCount < MAX_NUMBER_TIMES_TO_WAIT_FOR_AUDIO_BUFFER_TO_FILL) {
-			if( iBufWaitingCount == 0 ) {
-				vTaskDelay(5);
-			} else {
-				vTaskDelay(1);
-			}
-			iBufWaitingCount++;
-
+		while ( !IsBufferVacant(pRxBuffer, 512*2) ) {
 			if( !started ) {
+				g_uiPlayWaterMark = 1;
 				Audio_Start();
 				started = true;
+				break;
 			}
-		};
-		if( iBufWaitingCount > 0 ) {
-//			UARTprintf( "B %d bytes %d\n", iBufWaitingCount, size);
+			assert( xSemaphoreTake( audio_dma_sem, 1000 ) );
 		}
-//		if( wait2 > 0 || wait > 1 ) {
-			//UARTprintf( "D %d %d bytes %d\n", wait, wait2,  size);
-//		}
-
-
-		if (iBufWaitingCount >= MAX_NUMBER_TIMES_TO_WAIT_FOR_AUDIO_BUFFER_TO_FILL) {
-			LOGI("Waited too long for audio buffer empty out to the codec \r\n");
-			break;
-		}
-
 
 		if (size > 0) {
 			int i;
@@ -298,10 +290,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 			}
 
 			//static volatile int slow = 250000; UtilsDelay(slow);
-
-			while( FillBuffer(pRxBuffer, (unsigned char*) (speaker_data), size<<1) < 0 ) {
-				vTaskDelay(1);
-			}
+			FillBuffer(pRxBuffer, (unsigned char*) (speaker_data), size<<1);
 
 			returnFlags |= CheckForInterruptionDuringPlayback();
 
@@ -365,7 +354,9 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 	DeinitAudioPlayback();
 
-	hello_fs_unlock();
+	xSemaphoreGive( audio_dma_sem );
+
+	_unlock_for_audio();
 
 	LOGI("completed playback\r\n");
 
@@ -528,7 +519,11 @@ static void DoCapture(uint32_t rate) {
 
 		if(iBufferFilled < 2*PING_PONG_CHUNK_SIZE) {
 			//wait a bit for the tx buffer to fill
-			vTaskDelay(1);
+			if( !xSemaphoreTake( audio_dma_sem, 1000 ) ) {
+				LOGE("Capture DMA timeout\n");
+				DeinitAudioCapture();
+				InitAudioCapture(rate);
+			}
 		}
 		else {
 	//		uint8_ts * ptr_samples_bytes = (uint8_t *)samples;

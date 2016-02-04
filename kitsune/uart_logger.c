@@ -62,8 +62,17 @@ static struct{
 	xQueueHandle analytics_event_queue;
 }self = {0};
 
-void set_loglevel(uint8_t loglevel) {
+void set_loglevel(uint16_t loglevel) {
 	self.store_tag = loglevel;
+}
+
+void add_loglevel(uint16_t loglevel ) {
+	self.store_tag |= loglevel;
+	self.view_tag |= loglevel;
+}
+void rem_loglevel(uint16_t loglevel ) {
+	self.store_tag &= ~loglevel;
+	self.view_tag &= ~loglevel;
 }
 
 typedef void (file_handler)(FILINFO * info, void * ctx);
@@ -650,7 +659,7 @@ void uart_logger_task(void * params){
 		log_local_enable = 1;
 	}
 
-	xTaskCreate(uart_block_saver_task, "log saver task",   UART_LOGGER_THREAD_STACK_SIZE / 4 , NULL, 1, NULL);
+	xTaskCreate(uart_block_saver_task, "log saver task",   UART_LOGGER_THREAD_STACK_SIZE / 4 , NULL, 2, NULL);
 
 	while(1){
 		xEventGroupSetBits(self.uart_log_events, LOG_EVENT_READY);
@@ -662,7 +671,7 @@ void uart_logger_task(void * params){
                 portMAX_DELAY );/* Wait for any bit to be set. */
 		if( evnt & LOG_EVENT_UPLOAD) {
 			xEventGroupClearBits(self.uart_log_events,LOG_EVENT_UPLOAD);
-			if(wifi_status_get(HAS_IP)){
+			if(wifi_status_get(UPLOADING)){
 				WORD read;
 				FRESULT res;
 				//operation block is used for file io
@@ -691,7 +700,7 @@ void uart_logger_task(void * params){
 		}
 		if(evnt & LOG_EVENT_UPLOAD_ONLY) {
 			xEventGroupClearBits(self.uart_log_events,LOG_EVENT_UPLOAD_ONLY);
-			if(wifi_status_get(HAS_IP)){
+			if(wifi_status_get(UPLOADING)){
 				send_log();
 			}
 		}
