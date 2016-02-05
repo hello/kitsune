@@ -1437,16 +1437,53 @@ static const uint8_t public_key[] = {
 uint8_t top_device_id[DEVICE_ID_SZ];
 volatile bool top_got_device_id = false; //being bad, this is only for factory
 
-int save_aes( uint8_t * key ) ;
-int save_device_id( uint8_t * device_id );
-int Cmd_generate_factory_data(int argc,char * argv[]) {
+void print_blob( uint8_t* factory_data ) {
 #define NORDIC_ENC_ROOT_SIZE 16 //todo find out the real value
-	uint8_t factory_data[AES_BLOCKSIZE + DEVICE_ID_SZ + SHA1_SIZE + 3];
 	uint8_t enc_factory_data[255];
 	char key_string[2*255];
 	SHA1_CTX sha_ctx;
 	RSA_CTX * rsa_ptr = NULL;
 	int enc_size;
+
+
+    memcpy( factory_data+AES_BLOCKSIZE + 1, top_device_id, DEVICE_ID_SZ);
+	factory_data[AES_BLOCKSIZE+DEVICE_ID_SZ+1] = 0;
+
+	//add checksum
+	SHA1_Init( &sha_ctx );
+	SHA1_Update( &sha_ctx, factory_data, AES_BLOCKSIZE+DEVICE_ID_SZ + 2  );
+	SHA1_Final( factory_data+AES_BLOCKSIZE+DEVICE_ID_SZ + 2, &sha_ctx );
+	factory_data[AES_BLOCKSIZE+DEVICE_ID_SZ+SHA1_SIZE+2] = 0;
+
+	//init the rsa public key, encrypt the aes key and checksum
+	RSA_pub_key_new( &rsa_ptr, public_key, sizeof(public_key), exponent, sizeof(exponent) );
+	enc_size = RSA_encrypt(  rsa_ptr, factory_data, AES_BLOCKSIZE+DEVICE_ID_SZ+SHA1_SIZE+3, enc_factory_data, 0);
+	RSA_free( rsa_ptr );
+    uint8_t i = 0;
+    for(i = 1; i < enc_size; i++) {
+    	usnprintf(&key_string[i * 2 - 2], 3, "%02X", enc_factory_data[i]);
+    }
+    LOGF( "\nfactory key: %s\n", key_string);
+}
+
+int Cmd_print_blob(int argc, char * argv[]) {
+	uint8_t factory_data[AES_BLOCKSIZE + DEVICE_ID_SZ + SHA1_SIZE + 3];
+
+	if( !top_got_device_id ) {
+		LOGE("Error please connect TOP board!\n");
+		return -1;
+	}
+
+	get_aes( factory_data );
+	factory_data[AES_BLOCKSIZE] = 0;
+	print_blob(factory_data);
+	return 0;
+}
+
+int save_aes( uint8_t * key ) ;
+int save_device_id( uint8_t * device_id );
+int Cmd_generate_factory_data(int argc,char * argv[]) {
+	uint8_t factory_data[AES_BLOCKSIZE + DEVICE_ID_SZ + SHA1_SIZE + 3];
 	uint8_t entropy_pool[32];
 
 	if( !top_got_device_id ) {
@@ -1454,6 +1491,8 @@ int Cmd_generate_factory_data(int argc,char * argv[]) {
 		return -1;
 	}
 
+    //todo DVT get top's device ID, print it here, and use it as device ID in periodic/audio data
+    save_device_id(top_device_id);
 	//ENTROPY ! Sensors, timers, TI's mac address, so much randomness!!!11!!1!
 	int pos=0;
 	unsigned char mac[6];
@@ -1475,26 +1514,7 @@ int Cmd_generate_factory_data(int argc,char * argv[]) {
 	factory_data[AES_BLOCKSIZE] = 0;
 	save_aes(factory_data); //todo DVT enable
 
-    //todo DVT get top's device ID, print it here, and use it as device ID in periodic/audio data
-    save_device_id(top_device_id);
-    memcpy( factory_data+AES_BLOCKSIZE + 1, top_device_id, DEVICE_ID_SZ);
-	factory_data[AES_BLOCKSIZE+DEVICE_ID_SZ+1] = 0;
-
-	//add checksum
-	SHA1_Init( &sha_ctx );
-	SHA1_Update( &sha_ctx, factory_data, AES_BLOCKSIZE+DEVICE_ID_SZ + 2  );
-	SHA1_Final( factory_data+AES_BLOCKSIZE+DEVICE_ID_SZ + 2, &sha_ctx );
-	factory_data[AES_BLOCKSIZE+DEVICE_ID_SZ+SHA1_SIZE+2] = 0;
-
-	//init the rsa public key, encrypt the aes key and checksum
-	RSA_pub_key_new( &rsa_ptr, public_key, sizeof(public_key), exponent, sizeof(exponent) );
-	enc_size = RSA_encrypt(  rsa_ptr, factory_data, AES_BLOCKSIZE+DEVICE_ID_SZ+SHA1_SIZE+3, enc_factory_data, 0);
-	RSA_free( rsa_ptr );
-    uint8_t i = 0;
-    for(i = 1; i < enc_size; i++) {
-    	usnprintf(&key_string[i * 2 - 2], 3, "%02X", enc_factory_data[i]);
-    }
-    LOGF( "\nfactory key: %s\n", key_string);
+	print_blob(factory_data);
 
 
 #if 0 //todo DVT disable!
@@ -1945,6 +1965,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{"nwp", Cmd_nwpinfo, ""},
 		{"resync", Cmd_SyncID, ""},
 		{"g", Cmd_gesture, ""},
+		{"blob", Cmd_print_blob, ""},
 
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
