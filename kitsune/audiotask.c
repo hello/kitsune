@@ -196,7 +196,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	uint32_t iReceiveCount = 0;
 	uint8_t returnFlags = 0x00;
 
-	int32_t desired_ticks_elapsed = info->durationInSeconds * 1000;
+	int32_t desired_ticks_elapsed;
 	portTickType t0;
 
 	unsigned int fade_counter=0;
@@ -210,6 +210,8 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 	int i = 0;
 
+	desired_ticks_elapsed = info->durationInSeconds * NUMBER_OF_TICKS_IN_A_SECOND;
+	LOGI("Starting playback\r\n");
 
 	if (!info || !info->file) {
 		LOGI("invalid playback info %s\n\r",info->file);
@@ -238,8 +240,6 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	LOGI("%d bytes free\n", xPortGetFreeHeapSize());
 
 	if( playback_type == eAudioPlayFile ) {
-		hello_fs_lock(playback_type);
-
 		//open file for playback
 		LOGI("Opening %s for playback\r\n",info->file);
 		res = hello_fs_open(&fp, info->file, FA_READ);
