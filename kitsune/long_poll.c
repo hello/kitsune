@@ -16,10 +16,21 @@
 #include "audiotask.h"
 #include "audio_commands.pb.h"
 
-#define LONG_POLL_HOST "ec2-52-72-244-213.compute-1.amazonaws.com"
-#define LONG_POLL_ENDPOINT "/receive"
+#include "sys_time.h"
 
 #define _MAX_RX_RECEIPTS 10
+
+#include "endpoints.h"
+extern volatile bool use_dev_server;
+char * get_messeji_server(void){
+	if(use_dev_server){
+		return DEV_MESSEJI_SERVER;
+	}
+	return PROD_MESSEJI_SERVER;
+}
+
+#define LONG_POLL_HOST MESSEJI_SERVER
+#define LONG_POLL_ENDPOINT MESSEJI_ENDPOINT
 
 xQueueHandle _rx_queue = 0;
 
@@ -131,16 +142,14 @@ static void long_poll_task(void * networkdata) {
     request.message_read_id.funcs.encode = _encode_read_id;
 
 	for (; ;) {
-		while (!wifi_status_get(HAS_IP)) {
-			vTaskDelay(1000);
-		}
+		wait_for_time(WAIT_FOREVER); //need time for SSL
 		if( send_data_pb(LONG_POLL_HOST,
 				LONG_POLL_ENDPOINT,
 				&decode_buf,
 				&decode_buf_size,
 				ReceiveMessageRequest_fields,
 				&request,
-				&pb_cb, &sock, SOCKET_SEC_NONE ) != 0 ) {
+				&pb_cb, &sock, SOCKET_SEC_SSL ) != 0 ) {
 			if( retries++ < 5 ) {
 				vTaskDelay( (1<<retries)*1000 );
 			} else {
