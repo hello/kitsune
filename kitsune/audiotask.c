@@ -610,6 +610,8 @@ static void DoCapture(uint32_t rate) {
 
 	DeinitAudioCapture();
 
+	xSemaphoreGive( audio_dma_sem );
+
 	AudioProcessingTask_SetControl(processingOff,ProcessingCommandFinished,NULL);
 
 	//wait until ProcessingCommandFinished is returned
