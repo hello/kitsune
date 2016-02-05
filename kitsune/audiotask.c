@@ -751,11 +751,6 @@ void AudioTask_DumpOncePerMinuteStats(AudioOncePerMinuteData_t * pdata) {
 	pdata->peak_background_energy/=pdata->num_samples;
 	memset(&_stats,0,sizeof(_stats));
 	xSemaphoreGive(_statsMutex);
-
-	if(++minute_count % 60 == 0){
-		AudioTask_RestartCapture(16000);
-	}
-
 }
 
 
