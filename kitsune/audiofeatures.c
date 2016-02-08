@@ -217,7 +217,7 @@ static void UpdateEnergyStats(uint8_t isStable,int16_t logTotalEnergyAvg,int16_t
 
 	//leaving stable mode -- therefore starting a disturbance
 	if (!isStable && _data.statsLastIsStable) {
-		LOGI("S->US\r\n");
+		//LOGI("S->US\r\n");
 		_data.maxenergy = logTotalEnergy;
 	}
 
@@ -229,7 +229,7 @@ static void UpdateEnergyStats(uint8_t isStable,int16_t logTotalEnergyAvg,int16_t
 
 	//entering stable mode --ending a disturbance
 	if (isStable && !_data.statsLastIsStable ) {
-		LOGI("US->S\r\n");
+		//LOGI("US->S\r\n");
 		data.num_disturbances = 1;
 	}
 

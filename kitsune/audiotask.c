@@ -697,11 +697,6 @@ void AudioTask_StopPlayback(void) {
 		xQueueSendToFront(_queue,(void *)&m,0);
 	}
 }
-void AudioTask_RestartCapture(uint32_t rate){
-	LOGI("Restarting Capture\r\n");
-	AudioTask_StopPlayback();
-	AudioTask_StartCapture(rate);
-}
 
 void AudioTask_StartPlayback(const AudioPlaybackDesc_t * desc) {
 	AudioMessage_t m;
