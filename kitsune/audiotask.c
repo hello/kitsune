@@ -76,7 +76,7 @@ static void StatsCallback(const AudioOncePerMinuteData_t * pdata) {
 
 	xSemaphoreTake(_statsMutex,portMAX_DELAY);
 
-	LOGI("audio disturbance: %d,  background=%d, peak=%d, samples = %d\n",pdata->num_disturbances, pdata->peak_background_energy, _stats.peak_energy , _stats.num_samples);
+//	LOGI("audio disturbance: %d,  background=%d, peak=%d, samples = %d\n",pdata->num_disturbances, pdata->peak_background_energy, _stats.peak_energy , _stats.num_samples);
 	_stats.num_disturbances += pdata->num_disturbances;
 	_stats.num_samples++;
 
@@ -742,7 +742,6 @@ void AudioTask_StopCapture(void) {
 }
 
 void AudioTask_DumpOncePerMinuteStats(AudioOncePerMinuteData_t * pdata) {
-	static uint32_t minute_count = 0;
 	xSemaphoreTake(_statsMutex,portMAX_DELAY);
 	memcpy(pdata,&_stats,sizeof(AudioOncePerMinuteData_t));
 	pdata->peak_background_energy/=pdata->num_samples;
