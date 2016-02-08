@@ -135,8 +135,10 @@ void SimpleLinkSockEventHandler(SlSockEvent_t *pSock)
 }
 
 static uint8_t _connected_ssid[MAX_SSID_LEN];
+
 #define INV_INDEX 0xff
 static int _connected_index = INV_INDEX;
+
 static uint8_t _connected_bssid[BSSID_LEN];
 void wifi_get_connected_ssid(uint8_t* ssid_buffer, size_t len)
 {
@@ -1918,6 +1920,7 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
     }
 
     if (response_protobuf->has_audio_control) {
+//    	LOGI("Start Audio Capture\r\n");
     	AudioControlHelper_SetAudioControl(&response_protobuf->audio_control);
     }
 

@@ -11,7 +11,7 @@ typedef enum {
 	eAudioSaveToDisk,
 	eAudioPlaybackStart,
 	eAudioPlaybackStop,
-	eAudioCaptureOctogram
+	eAudioCaptureOctogram,
 } EAudioCommand_t;
 
 typedef struct {
