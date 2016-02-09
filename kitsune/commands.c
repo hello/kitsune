@@ -1221,14 +1221,13 @@ void sample_sensor_data(periodic_data* data)
 		data->has_audio_peak_background_energy_db = true;
 		data->audio_peak_background_energy_db = aud_data.peak_background_energy;
 
-		if( aud_data.num_disturbances ) {
-			data->has_audio_peak_disturbance_energy_db = true;
-			data->audio_peak_disturbance_energy_db = aud_data.peak_energy;
-		} else {
-			data->has_audio_peak_disturbance_energy_db = true;
-			data->audio_peak_disturbance_energy_db = aud_data.peak_background_energy;
-		}
-		//LOGI("AUD %d %d %d",data->audio_num_disturbances, data->audio_peak_background_energy_db, data->audio_peak_background_energy_db );
+		data->has_audio_peak_energy_db = true;
+		data->audio_peak_energy_db = aud_data.peak_energy;
+
+		data->has_audio_peak_disturbance_energy_db = true;
+		data->audio_peak_disturbance_energy_db = aud_data.peak_energy;
+
+		//LOGI("Uploading audio %u %u %u\r\n",data->audio_num_disturbances, data->audio_peak_background_energy_db, data->audio_peak_disturbance_energy_db );
 	}
 
 	// copy over light values
