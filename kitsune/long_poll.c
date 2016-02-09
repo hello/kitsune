@@ -116,6 +116,8 @@ static void long_poll_task(void * networkdata) {
 			retries = 0;
 		}
 	}
+	//shouldn't get here, but for consistency...
+	//vPortFree(decode_buf);
 }
 
 void long_poll_task_init(uint16_t stack_size)
