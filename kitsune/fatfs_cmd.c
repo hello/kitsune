@@ -54,6 +54,7 @@
 
 #define MAX_BUFF_SIZE      1024
 
+int sd_sha1_verify(const char * sha_truth, const char * path);
 int sf_sha1_verify(const char * sha_truth, const char * serial_file_path);
 long bytesReceived = 0; // variable to store the file size
 static int dl_sock = -1;
@@ -1431,15 +1432,29 @@ void file_download_task( void * params ) {
                 }
                 LOGI("done, closing\n");
 			} else {
-					int retries = 0;
-					while (download_file(host, url, filename, path, SD_CARD)
-							!= 0) {
-						if (++retries > 10) {
-							goto end_download_task;
-						}
+				int retries = 0;
+				while (download_file(host, url, filename, path, SD_CARD)
+						!= 0) {
+					if (++retries > 10) {
+						goto end_download_task;
 					}
-					LOGI("done, closing\n");
-					hello_fs_close(&file_obj);
+				}
+
+				// SHA1 verify for SD card files
+				char buf[64];
+				strncpy(buf, path, 64 );
+				strncat(buf, filename, 64 );
+
+				if (download_info.has_sha1) {
+					memcpy(top_sha_cache, download_info.sha1.bytes, SHA1_SIZE );
+					if( sd_sha1_verify((char *)download_info.sha1.bytes, buf)){
+						LOGW("SD card file download failed\r\n");
+						goto end_download_task;
+					}
+				}
+
+				LOGI("done, closing\n");
+				hello_fs_close(&file_obj); // Todo DK: is this needed?
             }
         }
         if (download_info.has_reset_application_processor
@@ -1592,3 +1607,54 @@ int sf_sha1_verify(const char * sha_truth, const char * serial_file_path){
     return 0;
 }
 
+// SHA1 verify for SD card files
+int sd_sha1_verify(const char * sha_truth, const char * path){
+    //compute the sha of the file..
+#define minval( a,b ) a < b ? a : b
+
+    unsigned char sha[SHA1_SIZE] = { 0 };
+    static unsigned char buffer[128];
+    SHA1_CTX sha1ctx;
+    SHA1_Init(&sha1ctx);
+    long bytes_to_read;
+    uint32_t bytes;
+    FIL fp = {0};
+    FILINFO info;
+    FRESULT res;
+
+    //fetch path info
+    LOGI( "computing SHA of %s\n", path);
+    hello_fs_stat(path, &info);
+    res = hello_fs_open(&fp, path, FA_READ);
+    if (res) {
+        LOGI("error opening for read %d\n", res);
+        return -1;
+    }
+
+    //compute sha
+    bytes_to_read = info.fsize;
+    while (bytes_to_read > 0) {
+		hello_fs_lseek(&fp, info.fsize - bytes_to_read);
+		res = hello_fs_read(&fp, buffer,
+				(minval(sizeof(buffer),bytes_to_read)), &bytes);
+		if (res) {
+			LOGI("error reading file %d\n", res);
+			return -1;
+		}
+		SHA1_Update(&sha1ctx, buffer, bytes);
+		bytes_to_read -= bytes;
+    }
+    hello_fs_close(&fp);
+    SHA1_Final(sha, &sha1ctx);
+
+    //compare
+    if (memcmp(sha, sha_truth, SHA1_SIZE) != 0) {
+        LOGE("SD card file SHA did not match!\n");
+        LOGI("Sha truth:      %02x ... %02x\r\n", sha_truth[0], sha_truth[SHA1_SIZE-1]);
+        LOGI("Sha calculated: %02x ... %02x\r\n", sha[0], sha[SHA1_SIZE-1]);
+        return -1;
+    }
+
+    LOGI("SD card file SHA Match!\n");
+    return 0;
+}
