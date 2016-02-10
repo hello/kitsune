@@ -54,7 +54,7 @@
 
 #define MAX_BUFF_SIZE      1024
 
-int sd_sha1_verify(const char * sha_truth, const char * path);
+int32_t sd_sha1_verify(const char * sha_truth, const char * path);
 int sf_sha1_verify(const char * sha_truth, const char * serial_file_path);
 long bytesReceived = 0; // variable to store the file size
 static int dl_sock = -1;
@@ -1440,7 +1440,7 @@ void file_download_task( void * params ) {
 					}
 				}
 
-				// SHA1 verify for SD card files
+				// SHA verify for SD card files
 				char buf[64];
 				strncpy(buf, path, 64 );
 				strncat(buf, filename, 64 );
@@ -1608,35 +1608,43 @@ int sf_sha1_verify(const char * sha_truth, const char * serial_file_path){
 }
 
 // SHA1 verify for SD card files
-int sd_sha1_verify(const char * sha_truth, const char * path){
+int32_t sd_sha1_verify(const char * sha_truth, const char * path){
     //compute the sha of the file..
 #define minval( a,b ) a < b ? a : b
 
-    unsigned char sha[SHA1_SIZE] = { 0 };
-    static unsigned char buffer[128];
-    SHA1_CTX sha1ctx;
-    SHA1_Init(&sha1ctx);
-    long bytes_to_read;
-    uint32_t bytes;
+    uint8_t sha[SHA1_SIZE] = { 0 };
+    static uint8_t buffer[128];
+    uint32_t bytes_to_read, bytes;
     FIL fp = {0};
     FILINFO info;
     FRESULT res;
 
+    SHA1_CTX sha1ctx;
+    SHA1_Init(&sha1ctx);
+
     //fetch path info
     LOGI( "computing SHA of %s\n", path);
-    hello_fs_stat(path, &info);
+    res = hello_fs_stat(path, &info);
+    if (res) {
+        LOGI("error getting file info %d\n", res);
+        return -1;
+    }
+
     res = hello_fs_open(&fp, path, FA_READ);
     if (res) {
-        LOGI("error opening for read %d\n", res);
+        LOGI("error opening file for read %d\n", res);
         return -1;
     }
 
     //compute sha
     bytes_to_read = info.fsize;
     while (bytes_to_read > 0) {
-		hello_fs_lseek(&fp, info.fsize - bytes_to_read);
-		res = hello_fs_read(&fp, buffer,
-				(minval(sizeof(buffer),bytes_to_read)), &bytes);
+		res = hello_fs_lseek(&fp, info.fsize - bytes_to_read);
+		if (res) {
+			LOGI("error in file seek %d\n", res);
+			return -1;
+		}
+		res = hello_fs_read(&fp, buffer,(minval(sizeof(buffer),bytes_to_read)), &bytes);
 		if (res) {
 			LOGI("error reading file %d\n", res);
 			return -1;
