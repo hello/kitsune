@@ -54,7 +54,7 @@
 
 #define MAX_BUFF_SIZE      1024
 
-int32_t sd_sha1_verify(const char * sha_truth, const char * path);
+static int32_t sd_sha1_verify(const char * sha_truth, const char * path);
 int sf_sha1_verify(const char * sha_truth, const char * serial_file_path);
 long bytesReceived = 0; // variable to store the file size
 static int dl_sock = -1;
@@ -1608,13 +1608,13 @@ int sf_sha1_verify(const char * sha_truth, const char * serial_file_path){
 }
 
 // SHA1 verify for SD card files
-int32_t sd_sha1_verify(const char * sha_truth, const char * path){
+static int32_t sd_sha1_verify(const char * sha_truth, const char * path){
     //compute the sha of the file..
 #define minval( a,b ) a < b ? a : b
 
     uint8_t sha[SHA1_SIZE] = { 0 };
     static uint8_t buffer[128];
-    uint32_t bytes_to_read, bytes;
+    uint32_t bytes_to_read, bytes_read;
     FIL fp = {0};
     FILINFO info;
     FRESULT res;
@@ -1626,13 +1626,13 @@ int32_t sd_sha1_verify(const char * sha_truth, const char * path){
     LOGI( "computing SHA of %s\n", path);
     res = hello_fs_stat(path, &info);
     if (res) {
-        LOGI("error getting file info %d\n", res);
+        LOGE("error getting file info %d\n", res);
         return -1;
     }
 
     res = hello_fs_open(&fp, path, FA_READ);
     if (res) {
-        LOGI("error opening file for read %d\n", res);
+        LOGE("error opening file for read %d\n", res);
         return -1;
     }
 
@@ -1641,16 +1641,16 @@ int32_t sd_sha1_verify(const char * sha_truth, const char * path){
     while (bytes_to_read > 0) {
 		res = hello_fs_lseek(&fp, info.fsize - bytes_to_read);
 		if (res) {
-			LOGI("error in file seek %d\n", res);
+			LOGE("error in file seek %d\n", res);
 			return -1;
 		}
-		res = hello_fs_read(&fp, buffer,(minval(sizeof(buffer),bytes_to_read)), &bytes);
+		res = hello_fs_read(&fp, buffer,(minval(sizeof(buffer),bytes_to_read)), &bytes_read);
 		if (res) {
-			LOGI("error reading file %d\n", res);
+			LOGE("error reading file %d\n", res);
 			return -1;
 		}
-		SHA1_Update(&sha1ctx, buffer, bytes);
-		bytes_to_read -= bytes;
+		SHA1_Update(&sha1ctx, buffer, bytes_read);
+		bytes_to_read -= bytes_read;
     }
     hello_fs_close(&fp);
     SHA1_Final(sha, &sha1ctx);
