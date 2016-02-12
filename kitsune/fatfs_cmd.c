@@ -1639,11 +1639,6 @@ static int32_t sd_sha1_verify(const char * sha_truth, const char * path){
     //compute sha
     bytes_to_read = info.fsize;
     while (bytes_to_read > 0) {
-		res = hello_fs_lseek(&fp, info.fsize - bytes_to_read);
-		if (res) {
-			LOGE("error in file seek %d\n", res);
-			return -1;
-		}
 		res = hello_fs_read(&fp, buffer,(minval(sizeof(buffer),bytes_to_read)), &bytes_read);
 		if (res) {
 			LOGE("error reading file %d\n", res);
