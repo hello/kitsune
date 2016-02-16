@@ -1451,6 +1451,7 @@ void file_download_task( void * params ) {
 						LOGW("SD card file download failed\r\n");
 						goto end_download_task;
 					}
+					LOGI("SD card file download successful \r\n");
 				}
 
 				LOGI("done, closing\n");
