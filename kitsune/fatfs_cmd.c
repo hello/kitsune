@@ -1454,7 +1454,6 @@ void file_download_task( void * params ) {
 				}
 
 				LOGI("done, closing\n");
-				hello_fs_close(&file_obj); // Todo DK: is this needed?
             }
         }
         if (download_info.has_reset_application_processor
