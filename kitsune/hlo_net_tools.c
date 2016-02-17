@@ -326,7 +326,7 @@ exit:
 
 }
 hlo_future_t * prescan_wifi(size_t num_entries){
-	return hlo_future_create_task_bg(worker_scan_unique, NULL, 2048);
+	return hlo_future_create_task_bg(worker_scan_unique, NULL, 2560);
 }
 
 hlo_future_t * http_get_stream(const char * url){
