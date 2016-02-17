@@ -87,7 +87,7 @@ uint8_t InitAudioPlayback(int32_t vol, uint32_t rate ) {
 
 	//////
 	// SET UP AUDIO PLAYBACK
-	get_codec_NAU(vol);
+	get_codec_NAU(vol); // TODO DKH audio change
 
 	// Initialize the Audio(I2S) Module
 	McASPInit(rate);
@@ -107,7 +107,7 @@ uint8_t InitAudioPlayback(int32_t vol, uint32_t rate ) {
 }
 
 void DeinitAudioPlayback(void) {
-	close_codec_NAU();
+	close_codec_NAU(); // TODO DKH audio change
 
 	McASPDeInit();
 

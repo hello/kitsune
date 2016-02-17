@@ -73,11 +73,6 @@
 #include "uart_if.h"
 #include "network.h"
 
-#ifndef TI_CODEC
-#include "wolfson.h"
-#else
-#include "ti_codec.h"
-#endif
 
 /* FatFS include */
 //#include "ff.h"

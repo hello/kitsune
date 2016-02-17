@@ -61,7 +61,6 @@
 #include "osi.h"
 
 #include "control.h"
-#include "ti_codec.h"
 #include "network.h"
 
 #include "diskio.h"
