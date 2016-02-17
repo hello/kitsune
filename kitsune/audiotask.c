@@ -277,7 +277,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 				started = true;
 				break;
 			}
-			assert( xSemaphoreTake( audio_dma_sem, 1000 ) );
+			assert( xSemaphoreTake( audio_dma_sem, 5000 ) );
 		}
 
 		if (size > 0) {
