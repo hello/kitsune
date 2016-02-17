@@ -1040,7 +1040,7 @@ int download_file(char * host, char * url, char * filename, char * path, storage
 	}
 	// Download the file, verify the file and replace the exiting file
 	r = GetData(filename, url, host, path, storage);
-	if (r < 0) {
+	if (r != 0) {
 		LOGF("Device couldn't download the file from the server\n\r");
 		close(dl_sock);
 		return r;
