@@ -154,7 +154,14 @@ void recoveri2c() {
 		MAP_GPIOPinWrite(GPIO_PORT, 0x4, 1);
 		vTaskDelay(10);
 	}
+	MAP_GPIODirModeSet(GPIOA1_BASE, 0x4, GPIO_DIR_MODE_IN);
 
+	// if the lines stay low, we have failed
+	if( booted
+		&& MAP_GPIOPinRead(sda_gpio_base, sda_gpio_bit) == 0
+		&& MAP_GPIOPinRead(GPIO_PORT, 0x4) == 0 ) {
+		assert( I2C_FAILURE );
+	}
 	//SDA is now high again, go back to i2c controller...
 	//MAP_PRCMPeripheralReset(PRCM_I2CA0);
 
@@ -163,9 +170,6 @@ void recoveri2c() {
 	I2CMasterControl(I2C_BASE, 0x00000004); //send a stop...
 	vTaskDelay(2);
 
-	if( booted ) {
-		assert( I2C_FAILURE );
-	}
 }
 
 static int I2CTransact(unsigned long ulCmd) {
