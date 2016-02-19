@@ -849,8 +849,34 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
     FRESULT res = FR_OK;
 
 	if (storage == SD_CARD) {
-		mkdir(path);
-		cd(path);
+
+		if(path == NULL)
+		{
+			LOGI("Path not provided, downloading to root\n");
+			cd("/");
+		}
+		else
+		{
+			if(hello_fs_stat(path, NULL))
+			{
+				res = mkdir(path);
+				if(res)
+				{
+					LOGE("mkdir fail: %d\n", res);
+					cd("/");
+					return 1;
+				}
+
+			}
+
+			res = cd(path);
+			if(res)
+			{
+				LOGE("CD fail: %d\n", res);
+				cd("/");
+				return 1;
+			}
+		}
 
 		/* Open file to save the downloaded file */
 		if (global_filename(filename)) {
@@ -859,7 +885,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 		}
 		// Open the file for writing.
 		res = hello_fs_open(&file_obj, path_buff,
-				FA_CREATE_NEW | FA_WRITE | FA_OPEN_ALWAYS);
+				FA_CREATE_ALWAYS | FA_WRITE | FA_OPEN_ALWAYS);
 		LOGI("res :%d\n", res);
 
 		if (res != FR_OK && res != FR_EXIST) {
