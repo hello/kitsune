@@ -859,8 +859,9 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 		{
 			if(hello_fs_stat(path, NULL))
 			{
-				res = mkdir(path);
-				if(res)
+				// Path doesn't exist, create directory
+				res = (FRESULT) mkdir(path);
+				if(res != FR_OK && res != FR_EXIST)
 				{
 					LOGE("mkdir fail: %d\n", res);
 					cd("/");
