@@ -1470,7 +1470,7 @@ void file_download_task( void * params ) {
 				// SHA verify for SD card files
 				char buf[64];
 				strcpy(buf, "/");
-				strncpy(buf, path, 64 );
+				strncat(buf, path, 64 );
 				strcat(buf, "/");
 				strncat(buf, filename, 64 );
 
