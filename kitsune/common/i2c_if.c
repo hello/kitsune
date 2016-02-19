@@ -158,8 +158,8 @@ void recoveri2c() {
 
 	// if the lines stay low, we have failed
 	if( booted
-		&& MAP_GPIOPinRead(sda_gpio_base, sda_gpio_bit) == 0
-		&& MAP_GPIOPinRead(GPIO_PORT, 0x4) == 0 ) {
+		&& ( MAP_GPIOPinRead(sda_gpio_base, sda_gpio_bit) == 0
+		  || MAP_GPIOPinRead(GPIO_PORT, 0x4) == 0 ) ) {
 		assert( I2C_FAILURE );
 	}
 	//SDA is now high again, go back to i2c controller...
