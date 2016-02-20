@@ -857,6 +857,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 		}
 		else
 		{
+
 			if(hello_fs_stat(path, NULL))
 			{
 				// Path doesn't exist, create directory
@@ -1468,15 +1469,17 @@ void file_download_task( void * params ) {
 				}
 
 				// SHA verify for SD card files
-				char buf[64];
-				strcpy(buf, "/");
-				strncat(buf, path, 64 );
-				strcat(buf, "/");
-				strncat(buf, filename, 64 );
+				char full_path_buffer[64];
+
+				// Create full path string for downloaded file
+				strcpy(full_path_buffer, "/");
+				strncat(full_path_buffer, path, 64 );
+				strcat(full_path_buffer, "/");
+				strncat(full_path_buffer, filename, 64 );
 
 				if (download_info.has_sha1) {
 					memcpy(top_sha_cache, download_info.sha1.bytes, SHA1_SIZE );
-					if( sd_sha1_verify((char *)download_info.sha1.bytes, buf)){
+					if( sd_sha1_verify((char *)download_info.sha1.bytes, full_path_buffer)){
 						LOGW("SD card file download failed\r\n");
 						goto end_download_task;
 					}
