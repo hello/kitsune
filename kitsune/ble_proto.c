@@ -818,10 +818,16 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
             LOGI("WIFI Scan request\n");
 
             if( command->has_country_code ) {
-                LOGI("Set country code %s\n", command->country_code );
-				sl_WlanSet(SL_WLAN_CFG_GENERAL_PARAM_ID,
-						WLAN_GENERAL_PARAM_OPT_COUNTRY_CODE, 2, (uint8_t*)command->country_code);
-				nwp_reset();
+                uint16_t len = 4;
+        	    uint16_t  config_opt = WLAN_GENERAL_PARAM_OPT_COUNTRY_CODE;
+        	    char cc[4];
+        	    sl_WlanGet(SL_WLAN_CFG_GENERAL_PARAM_ID, &config_opt, &len, (_u8* )cc);
+        	    LOGI("Set country code %s have %s\n", command->country_code, cc );
+        	    if( strncmp( cc, command->country_code, 2) != 0 ) {
+        	    	LOGI("mismatch\n");
+					sl_WlanSet(SL_WLAN_CFG_GENERAL_PARAM_ID,
+							WLAN_GENERAL_PARAM_OPT_COUNTRY_CODE, 2, (uint8_t*)command->country_code);
+        	    }
 			}
 
             if(!scan_results){
