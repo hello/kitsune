@@ -69,7 +69,7 @@ extern "C" {
 #define LOGA(...) uart_logf(LOG_AUDIO, __VA_ARGS__)
 #define LOGP(...) uart_logf(LOG_PROX, __VA_ARGS__)
 #define DISP(...) uart_logf(LOG_VIEW_ONLY, __VA_ARGS__)
-#define LOGD(...) uart_logf(LOG_DEBUG, __VA_ARGS__)
+#define LOGD(...)
 #else
 #define LOGI(...) UARTprintf(__VA_ARGS__)
 #define LOGW(...) UARTprintf(__VA_ARGS__)
