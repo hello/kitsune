@@ -2077,7 +2077,6 @@ tCmdLineEntry g_sCmdTable[] = {
 // ==============================================================================
 //void SDHostIntHandler();
 extern xSemaphoreHandle g_xRxLineSemaphore;
-xSemaphoreHandle http_smphr;
 
 void UARTStdioIntHandler(void);
 long nwp_reset();
@@ -2190,7 +2189,6 @@ void vUARTTask(void *pvParameters) {
 	vSemaphoreCreateBinary(dust_smphr);
 	vSemaphoreCreateBinary(light_smphr);
 	vSemaphoreCreateBinary(spi_smphr);
-	vSemaphoreCreateBinary(http_smphr);
 	alarm_smphr = xSemaphoreCreateRecursiveMutex();
 
 
