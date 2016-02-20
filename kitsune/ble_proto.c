@@ -826,9 +826,14 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         	    sl_WlanGet(SL_WLAN_CFG_GENERAL_PARAM_ID, &config_opt, &len, (_u8* )cc);
         	    LOGI("Set country code %s have %s\n", command->country_code, cc );
         	    if( strncmp( cc, command->country_code, 2) != 0 ) {
-        	    	LOGI("mismatch\n");
+					LOGI("mismatch\n");
+					sl_enter_critical_region();
 					sl_WlanSet(SL_WLAN_CFG_GENERAL_PARAM_ID,
-							WLAN_GENERAL_PARAM_OPT_COUNTRY_CODE, 2, (uint8_t*)command->country_code);
+							WLAN_GENERAL_PARAM_OPT_COUNTRY_CODE, 2,
+							(uint8_t* )command->country_code);
+					vTaskDelay(100);
+					nwp_reset();
+					sl_exit_critical_region();
         	    }
 			}
 
