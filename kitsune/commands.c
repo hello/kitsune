@@ -2077,6 +2077,8 @@ tCmdLineEntry g_sCmdTable[] = {
 // ==============================================================================
 //void SDHostIntHandler();
 extern xSemaphoreHandle g_xRxLineSemaphore;
+xSemaphoreHandle http_smphr;
+
 void UARTStdioIntHandler(void);
 long nwp_reset();
 
@@ -2086,8 +2088,8 @@ void vUARTTask(void *pvParameters) {
 	if(led_init() != 0){
 		LOGI("Failed to create the led_events.\n");
 	}
-	xTaskCreate(led_task, "ledTask", 700 / 4, NULL, 2, NULL);
-	xTaskCreate(led_idle_task, "led_idle_task", 256 / 4, NULL, 4, NULL);
+	xTaskCreate(led_task, "ledTask", 700 / 4, NULL, 4, NULL);
+	xTaskCreate(led_idle_task, "led_idle_task", 256 / 4, NULL, 2, NULL);
 
 	//switch the uart lines to gpios, drive tx low and see if rx goes low as well
     // Configure PIN_57 for GPIOInput
@@ -2188,6 +2190,7 @@ void vUARTTask(void *pvParameters) {
 	vSemaphoreCreateBinary(dust_smphr);
 	vSemaphoreCreateBinary(light_smphr);
 	vSemaphoreCreateBinary(spi_smphr);
+	vSemaphoreCreateBinary(http_smphr);
 	alarm_smphr = xSemaphoreCreateRecursiveMutex();
 
 

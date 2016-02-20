@@ -87,15 +87,18 @@ void mcu_reset()
     MAP_PRCMHibernateEnter();
 }
 
+extern xSemaphoreHandle http_smphr;
 #define SL_STOP_TIMEOUT                 (30)
 long nwp_reset() {
 	long r;
+    assert( xSemaphoreTake( http_smphr, 160000 ) );
 	sl_enter_critical_region();
     sl_WlanSetMode(ROLE_STA);
     sl_Stop(SL_STOP_TIMEOUT);
     wifi_status_set(0xFFFFFFFF, true);
     r = sl_Start(NULL, NULL, NULL);
 	sl_exit_critical_region();
+    xSemaphoreGive( http_smphr );
 	return r;
 }
 
@@ -1500,6 +1503,8 @@ int send_data_pb( char* host, const char* path, char ** recv_buf_ptr,
     uint32_t recv_buf_size = *recv_buf_size_ptr;
     char * recv_buf = *recv_buf_ptr;
 
+    assert( xSemaphoreTake( http_smphr, 160000 ) );
+
     if (!recv_buf) {
     	LOGI("send_data_pb_callback needs a buffer\r\n");
     	goto failure;
@@ -1672,6 +1677,7 @@ int send_data_pb( char* host, const char* path, char ** recv_buf_ptr,
         ble_reply_socket_error(rv);
         goto failure;
     }
+    xSemaphoreGive( http_smphr );
     }
 
     {
@@ -1706,6 +1712,8 @@ int send_data_pb( char* host, const char* path, char ** recv_buf_ptr,
     }
 
 	failure:
+    xSemaphoreGive( http_smphr );
+
 	if( pb_cb && pb_cb->on_pb_failure ) {
 		pb_cb->on_pb_failure();
 	}
