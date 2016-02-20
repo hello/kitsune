@@ -103,7 +103,7 @@ extern void vUARTTask( void *pvParameters );
 //                      MACRO DEFINITIONS
 //*****************************************************************************
 #define UART_PRINT               Report
-#define SPAWN_TASK_PRIORITY		 4
+#define SPAWN_TASK_PRIORITY		 1
 
 //****************************************************************************
 //                      LOCAL FUNCTION PROTOTYPES
