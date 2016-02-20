@@ -379,7 +379,7 @@ int Cmd_scan_wifi(int argc, char *argv[]){
 	if(!result){
 		return -1;
 	}
-	ret = hlo_future_read(result,entries,sizeof(entries), portMAX_DELAY);
+	ret = hlo_future_read_once(result,entries,sizeof(entries));
 	DISP("\r\n");
 	if(ret > 0){
 		DISP("Found %d endpoints\r\n===========\r\n", ret);
@@ -391,7 +391,6 @@ int Cmd_scan_wifi(int argc, char *argv[]){
 		DISP("No endpoints scanned\r\n");
 	}
 	//queue another scan
-	hlo_future_destroy(result);
 	result = prescan_wifi( 10 );
 	return 0;
 }

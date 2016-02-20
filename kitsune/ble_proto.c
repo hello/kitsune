@@ -157,7 +157,9 @@ static void _reply_wifi_scan_result()
 {
     int i = 0;
     MorpheusCommand reply_command = {0};
-    int count = hlo_future_read(scan_results,_wifi_endpoints,sizeof(_wifi_endpoints), 25000);
+    int count = hlo_future_read_once(scan_results,_wifi_endpoints,sizeof(_wifi_endpoints) );
+	scan_results = prescan_wifi(MAX_WIFI_EP_PER_SCAN);
+
     for(i = 0; i < count; i++)
     {
 		reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_START_WIFISCAN;
@@ -835,11 +837,8 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
             }
             if(scan_results){
             	_reply_wifi_scan_result();
-            	hlo_future_destroy(scan_results);
-            	scan_results = prescan_wifi(MAX_WIFI_EP_PER_SCAN);
             }else{
             	ble_reply_protobuf_error(ErrorType_DEVICE_NO_MEMORY);
-
             }
         }
         break;
