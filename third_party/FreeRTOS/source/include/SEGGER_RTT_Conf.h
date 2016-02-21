@@ -121,14 +121,18 @@ Purpose : Implementation of SEGGER real-time transfer (RTT) which
                                                   :                             \
                                                   );                            \
                                   }
-  #else
-		#define SEGGER_RTT_LOCK() portENTER_CRITICAL()
-		#define SEGGER_RTT_UNLOCK() portEXIT_CRITICAL()
   #endif
-#else
-#define SEGGER_RTT_LOCK() portENTER_CRITICAL()
-#define SEGGER_RTT_UNLOCK() portEXIT_CRITICAL()
 #endif
+
+
+#include <hw_memmap.h>
+#include "hw_types.h"
+#include "hw_ints.h"
+#include "rom.h"
+#include "rom_map.h"
+#include "interrupt.h"
+#define SEGGER_RTT_LOCK() {int __irq_status = MAP_IntMasterDisable();
+#define SEGGER_RTT_UNLOCK()  if (!__irq_status) {MAP_IntMasterEnable(); } }
 
 /*********************************************************************
 *
