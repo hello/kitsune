@@ -94,14 +94,13 @@
 #include "hellofilesystem.h"
 //#include "sl_sync_include_after_simplelink_header.h" not here, this one is operating before the scheduler starts...
 
-void SEGGER_SYSVIEW_Conf          (void);
-void         SEGGER_RTT_Init             (void);
-void SEGGER_SYSVIEW_Start   (void);
+void SEGGER_SYSVIEW_Conf(void);
+void SEGGER_RTT_Init(void);
+void SEGGER_SYSVIEW_Start(void);
 void mcu_reset();
 
-extern void vUARTTask( void *pvParameters );
+extern void vUARTTask(void *pvParameters);
 
-	
 //*****************************************************************************
 //                      MACRO DEFINITIONS
 //*****************************************************************************
@@ -342,6 +341,7 @@ void main()
   SEGGER_RTT_Init();
   SEGGER_SYSVIEW_Conf();
   SEGGER_SYSVIEW_Start();
+
   //
   // Start the SimpleLink Host
   //

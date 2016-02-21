@@ -74,8 +74,6 @@ Purpose : Implementation of SEGGER real-time transfer (RTT) which
 #define SEGGER_RTT_MODE_DEFAULT                   SEGGER_RTT_MODE_NO_BLOCK_SKIP // Mode for pre-initialized terminal channel (buffer 0)
 #include "portmacro.h"
 
-#define SEGGER_RTT_LOCK() portENTER_CRITICAL()
-#define SEGGER_RTT_UNLOCK() portEXIT_CRITICAL()
 
 //
 // Target is not allowed to perform other RTT operations while string still has not been stored completely.
@@ -124,9 +122,12 @@ Purpose : Implementation of SEGGER real-time transfer (RTT) which
                                                   );                            \
                                   }
   #else
-    #define SEGGER_RTT_LOCK()  
-    #define SEGGER_RTT_UNLOCK()
+		#define SEGGER_RTT_LOCK() portENTER_CRITICAL()
+		#define SEGGER_RTT_UNLOCK() portEXIT_CRITICAL()
   #endif
+#else
+#define SEGGER_RTT_LOCK() portENTER_CRITICAL()
+#define SEGGER_RTT_UNLOCK() portEXIT_CRITICAL()
 #endif
 
 /*********************************************************************
