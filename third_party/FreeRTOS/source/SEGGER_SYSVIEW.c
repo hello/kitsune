@@ -233,9 +233,8 @@ static struct {
         char                    DownBuffer[8];  // Small, fixed-size buffer, for back-channel comms
         char                    UpBuffer  [SEGGER_SYSVIEW_RTT_BUFFER_SIZE];
 
-
-        char                    tDownBuffer[8];  // Small, fixed-size buffer, for back-channel comms
-        char                    tUpBuffer  [SEGGER_SYSVIEW_RTT_BUFFER_SIZE];
+//        char                    tDownBuffer[8];  // Small, fixed-size buffer, for back-channel comms
+//        char                    tUpBuffer  [SEGGER_SYSVIEW_RTT_BUFFER_SIZE];
   const SEGGER_SYSVIEW_OS_API*  pOSAPI;
         SEGGER_SYSVIEW_SEND_SYS_DESC_FUNC*   pfSendSysDesc;
 } _SYSVIEW_Globals;
@@ -533,7 +532,7 @@ Send:
   //
   // Try to store packet in RTT buffer and update time stamp when this was successful
   //
-  SEGGER_RTT_WriteSkipNoLock(0, "B", 1);
+ // SEGGER_RTT_WriteSkipNoLock(0, "B", 1);
 
   Status = SEGGER_RTT_WriteSkipNoLock(CHANNEL_ID_UP, pStartPacket, pEndPacket - pStartPacket);
   if (Status) {
@@ -990,8 +989,8 @@ static void _VPrintTarget(const char* sFormat, U32 Options, va_list* pParamList)
 */
 void SEGGER_SYSVIEW_Init(U32 SysFreq, U32 CPUFreq, const SEGGER_SYSVIEW_OS_API *pOSAPI, SEGGER_SYSVIEW_SEND_SYS_DESC_FUNC pfSendSysDesc) {
 #if SEGGER_SYSVIEW_RTT_CHANNEL > 0
-	SEGGER_RTT_ConfigUpBuffer   (0, "TERM", &_SYSVIEW_Globals.tUpBuffer[0],   sizeof(_SYSVIEW_Globals.tUpBuffer),   SEGGER_RTT_MODE_NO_BLOCK_SKIP);
-	SEGGER_RTT_ConfigDownBuffer (0, "TERM", &_SYSVIEW_Globals.tDownBuffer[0], sizeof(_SYSVIEW_Globals.tDownBuffer), SEGGER_RTT_MODE_NO_BLOCK_SKIP);
+	//SEGGER_RTT_ConfigUpBuffer   (0, "TERM", &_SYSVIEW_Globals.tUpBuffer[0],   sizeof(_SYSVIEW_Globals.tUpBuffer),   SEGGER_RTT_MODE_NO_BLOCK_SKIP);
+	//SEGGER_RTT_ConfigDownBuffer (0, "TERM", &_SYSVIEW_Globals.tDownBuffer[0], sizeof(_SYSVIEW_Globals.tDownBuffer), SEGGER_RTT_MODE_NO_BLOCK_SKIP);
 
   SEGGER_RTT_ConfigUpBuffer   (SEGGER_SYSVIEW_RTT_CHANNEL, "SysView", &_SYSVIEW_Globals.UpBuffer[0],   sizeof(_SYSVIEW_Globals.UpBuffer),   SEGGER_RTT_MODE_NO_BLOCK_SKIP);
   SEGGER_RTT_ConfigDownBuffer (SEGGER_SYSVIEW_RTT_CHANNEL, "SysView", &_SYSVIEW_Globals.DownBuffer[0], sizeof(_SYSVIEW_Globals.DownBuffer), SEGGER_RTT_MODE_NO_BLOCK_SKIP);

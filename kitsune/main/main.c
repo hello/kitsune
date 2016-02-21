@@ -340,8 +340,6 @@ void main()
 
   SEGGER_RTT_Init();
   SEGGER_SYSVIEW_Conf();
-  SEGGER_SYSVIEW_Start();
-
   //
   // Start the SimpleLink Host
   //
