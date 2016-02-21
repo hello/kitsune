@@ -61,7 +61,7 @@ Purpose : Interface between FreeRTOS and SystemView.
 *
 **********************************************************************
 */
-#define SYSVIEW_FREERTOS_MAX_NOF_TASKS  8
+#define SYSVIEW_FREERTOS_MAX_NOF_TASKS  64
 
 /*********************************************************************
 *
