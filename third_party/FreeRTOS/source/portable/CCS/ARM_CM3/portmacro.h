@@ -67,6 +67,8 @@
 #ifndef PORTMACRO_H
 #define PORTMACRO_H
 
+#include "stdint.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -80,7 +82,6 @@ extern "C" {
  * These settings should not be altered.
  *-----------------------------------------------------------
  */
-
 /* Type definitions. */
 #define portCHAR		char
 #define portFLOAT		float
