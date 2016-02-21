@@ -93,7 +93,7 @@ long nwp_reset() {
 	long r;
 	sl_enter_critical_region();
     sl_WlanSetMode(ROLE_STA);
-    sl_Stop(SL_STOP_TIMEOUT);
+	r = sl_Stop(0xFF);
     wifi_status_set(0xFFFFFFFF, true);
     r = sl_Start(NULL, NULL, NULL);
 	sl_exit_critical_region();
@@ -308,16 +308,8 @@ void load_data_server(){
 	}
 }
 int Cmd_setDev(int argc, char *argv[]) {
-	if(argc > 1){
-		if(argv[1][0] == '1'){
-			DISP("Setting Dev\r\n");
-			fs_save(SERVER_SELECTION_FILE, "1", 2);
-		}else if(argv[1][0] == '0'){
-			DISP("Removing Dev\r\n");
-			fs_save(SERVER_SELECTION_FILE, "0", 2);
-		}
-		DISP("Restart to apply changes\r\n");
-	}
+
+	nwp_reset();
 	return 0;
 }
 

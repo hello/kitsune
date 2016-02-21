@@ -453,5 +453,5 @@ void _boot_watcher_task(hlo_future_t * result, void * ctx){
 	LOGI("top boot watch exit\r\n");
 }
 void start_top_boot_watcher(void){
-	hlo_future_destroy(hlo_future_create_task_bg(_boot_watcher_task, NULL, 512));
+	hlo_future_destroy(hlo_future_create_task_bg(_boot_watcher_task, NULL, 1024));
 }
