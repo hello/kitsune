@@ -58,7 +58,7 @@ extern const SEGGER_SYSVIEW_OS_API SYSVIEW_X_OS_TraceAPI;
 **********************************************************************
 */
 // The application name to be displayed in SystemViewer
-#define SYSVIEW_APP_NAME        "FreeRTOS Demo Application"
+#define SYSVIEW_APP_NAME        "Sense"
 
 // The target device name
 #define SYSVIEW_DEVICE_NAME     "Cortex-M4"
