@@ -10,9 +10,11 @@ static xSemaphoreHandle _sl_mutex;
 
 extern volatile bool booted;
 
+#include "SEGGER_SYSVIEW.h"
 long sl_sync_init()
 {
 	_sl_mutex = xSemaphoreCreateRecursiveMutex();
+	SEGGER_SYSVIEW_NameResource((U32)_sl_mutex, "SL SYNC SEM");
 	return 1;
 }
 

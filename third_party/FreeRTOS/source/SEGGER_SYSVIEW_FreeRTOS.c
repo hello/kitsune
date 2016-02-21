@@ -118,7 +118,7 @@ static U64 _cbGetTime(void) {
 */
 void SYSVIEW_AddTask(U32 xHandle, const char* pcTaskName, unsigned uxCurrentPriority, U32  pxStack, unsigned uStackHighWaterMark) {
   if (_NumTasks >= SYSVIEW_FREERTOS_MAX_NOF_TASKS) {
-    SEGGER_SYSVIEW_Warn("SYSTEMVIEW: Could not record task informaiton. Maximum number of tasks reached.");
+    SEGGER_SYSVIEW_Warn("Maximum number of tasks!");
     return;
   }
 
@@ -132,6 +132,19 @@ void SYSVIEW_AddTask(U32 xHandle, const char* pcTaskName, unsigned uxCurrentPrio
 
   SYSVIEW_SendTaskInfo(xHandle, pcTaskName,uxCurrentPriority, pxStack, uStackHighWaterMark);
 
+}
+void SYSVIEW_DeleteTask(U32 xHandle) {
+	int n;
+	for (n = 0; n < _NumTasks; n++) {
+		if (_aTasks[n].xHandle == xHandle) {
+			break;
+		}
+	}
+	if (n == _NumTasks) {
+		SEGGER_SYSVIEW_Warn("Deleting untracked task!");
+	}
+	memmove( _aTasks+n, _aTasks+(n+1), _NumTasks - n );
+	_NumTasks--;
 }
 
 /********************************************************************* 

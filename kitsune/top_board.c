@@ -267,7 +267,7 @@ void top_board_task(void * params){
 				slip_handle_rx(c);
 			}
 		}
-		xSemaphoreTake(self.uart_sem, 100);
+		xSemaphoreTake(self.uart_sem, portMAX_DELAY);
 	}
 }
 static int _prep_file(const char * name, uint32_t * out_fsize, uint16_t * out_crc, long * out_handle){

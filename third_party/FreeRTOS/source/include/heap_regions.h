@@ -1,5 +1,5 @@
 static uint8_t ucHeap[ configTOTAL_HEAP_SIZE ];
-__attribute__((section(".bss"))) static uint8_t ucHeap_BSS[ 7*1024 ];
+__attribute__((section(".lowheap"))) static uint8_t ucHeap_BSS[ 0x3ff7 ];
 
 #define heap_regions_init(xHeapRegions) \
 xHeapRegions[0].pucStartAddress = ucHeap_BSS; \

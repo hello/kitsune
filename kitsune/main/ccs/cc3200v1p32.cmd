@@ -60,7 +60,7 @@
 MEMORY
 {
     /* Application uses internal RAM for program and data */
-    SRAM_DATA (RW) : origin = 0x20000000, length = 0x3FFF
+    SRAM_LOWHEAP (RW) : origin = 0x20000000, length = 0x3FFF
 	SRAM (RWX) : origin = 0x20004000, length = 0x237FF
     SRAM_HEAP (RW) : origin = 0x20027800, length = 0x187FF
 }
@@ -73,13 +73,14 @@ SECTIONS
     .text   :   > SRAM
     .const  :   > SRAM
     .cinit  :   > SRAM
-    .pinit  :   > SRAM_DATA
+    .pinit  :   > SRAM_HEAP
     .init_array : > SRAM
-    .vtable :   > SRAM_DATA
+    .vtable :   > SRAM_HEAP
     .data   :   > SRAM_HEAP
-    .bss    :   > SRAM_DATA
-    .sysmem :   > SRAM_DATA
-    .stack  :   > SRAM_DATA
+    .bss    :   > SRAM_HEAP
+    .lowheap:   > SRAM_LOWHEAP
+    .sysmem :   > SRAM_HEAP
+    .stack  :   > SRAM_HEAP
 }
 
 __STACK_TOP = __stack + __STACK_SIZE;
