@@ -96,7 +96,7 @@
 //#define configSYSTICK_CLOCK_HZ          ( ( portTickType ) 80000000 )
 #define configMINIMAL_STACK_SIZE		( ( unsigned short ) 70 )
 
-#define configTOTAL_HEAP_SIZE			( ( size_t ) ( 89 * 1024 ) )
+#define configTOTAL_HEAP_SIZE			( ( size_t ) ( 70 * 1024 ) )
 
 #define configMAX_TASK_NAME_LEN			( 12 )
 #define configUSE_TRACE_FACILITY		1
@@ -107,7 +107,7 @@
 #define configUSE_MUTEXES				1
 #define configUSE_RECURSIVE_MUTEXES		1
 #define configCHECK_FOR_STACK_OVERFLOW	1
-#define configUSE_QUEUE_SETS			1
+#define configUSE_QUEUE_SETS			0
 #define configUSE_COUNTING_SEMAPHORES	1
 #define configUSE_ALTERNATIVE_API		1
 
@@ -149,9 +149,12 @@ version. */
 #define configUSE_PORT_OPTIMISED_TASK_SELECTION 1
 
 #include "stddef.h"
- void usertraceMALLOC( void * pvAddress, size_t uiSize );
+void usertraceMALLOC( void * pvAddress, size_t uiSize );
  void usertraceFREE( void * pvAddress, size_t uiSize );
 #define traceMALLOC usertraceMALLOC
 #define traceFREE usertraceFREE
+
+#include "Global.h"
+#include "SEGGER_SYSVIEW_FreeRTOS.h"
 
 #endif /* FREERTOS_CONFIG_H */

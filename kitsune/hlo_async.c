@@ -73,7 +73,7 @@ hlo_future_t * hlo_future_create_task_bg(future_task cb, void * context, size_t 
 		task->result = result;
 		task->work = cb;
 		usnprintf( task->name, sizeof(task->name),  "async %d", xTaskGetTickCount());
-		if(pdPASS != xTaskCreate(async_worker, task->name, stack_size / 4, task, 4, NULL)){
+		if(pdPASS != xTaskCreate(async_worker, task->name, stack_size / 4, task, 1, NULL)){
 			goto fail_task;
 		}
 	}
