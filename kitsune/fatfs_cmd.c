@@ -395,6 +395,7 @@ int global_filename(char * local_fn)
 
     return 0;
 }
+
 //*****************************************************************************
 //
 // This function implements the "cat" command.  It reads the contents of a file
@@ -1468,25 +1469,38 @@ void file_download_task( void * params ) {
 					}
 				}
 
-				// SHA verify for SD card files
-				char full_path_buffer[64];
-
-				// Create full path string for downloaded file
-				strcpy(full_path_buffer, "/");
-				strncat(full_path_buffer, path, 64 );
-				strcat(full_path_buffer, "/");
-				strncat(full_path_buffer, filename, 64 );
-
 				if (download_info.has_sha1) {
-					memcpy(top_sha_cache, download_info.sha1.bytes, SHA1_SIZE );
-					if( sd_sha1_verify((char *)download_info.sha1.bytes, full_path_buffer)){
-						LOGW("SD card file download failed\r\n");
+
+
+					// SHA verify for SD card files
+					FRESULT res = FR_OK;
+
+					res = cd(path);
+					if(res)
+					{
+						LOGE("CD fail: %d\n", res);
+						cd("/");
 						goto end_download_task;
 					}
-					LOGI("SD card file download successful \r\n");
+
+					/* Open file to save the downloaded file */
+					if (global_filename(filename)) {
+						cd("/");
+						goto end_download_task;
+					}
+
+					//LOGI("Path buf : %s \n", path_buff);
+
+					if( sd_sha1_verify((char *)download_info.sha1.bytes, path_buff)){
+						LOGW("SD card download fail\r\n");
+						cd("/");
+						goto end_download_task;
+					}
+
+					cd("/");
+					LOGI("SD card download success \r\n");
 				}
 
-				LOGI("done, closing\n");
             }
         }
         if (download_info.has_reset_application_processor
