@@ -115,8 +115,11 @@ _encode_and_send(uint8_t* orig, uint32_t size){
 #define minval(a,b) ((a)<(b)?(a):(b))
 static dfu_packet_type
 _next_file_data_block(uint8_t * write_buf, uint32_t buffer_size, uint32_t * out_actual_size){
-	int status = sl_FsRead(self.dfu_contex.handle, self.dfu_contex.offset, write_buf,
-			minval( buffer_size, (self.dfu_contex.len - self.dfu_contex.offset) ) );
+	int status;
+	if( self.dfu_contex.len - self.dfu_contex.offset < buffer_size ) {
+		buffer_size = self.dfu_contex.len - self.dfu_contex.offset;
+	}
+	status = sl_FsRead(self.dfu_contex.handle, self.dfu_contex.offset, write_buf, buffer_size );
 	if(status > 0){
 		self.dfu_contex.offset += status;
 		*out_actual_size = status;
@@ -160,7 +163,7 @@ bool is_top_in_dfu(void){
 }
 static void
 _on_ack_success(void){
-	vTaskDelay(10);
+	//vTaskDelay(10);
 	if (self.mode == TOP_DFU_MODE) {
 		switch (self.dfu_state) {
 		case DFU_INVALID_PACKET:
@@ -260,7 +263,7 @@ void top_board_task(void * params){
 			(UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE));
 	UARTFIFOLevelSet( UARTA1_BASE, UART_FIFO_TX1_8, UART_FIFO_RX1_8 );
 	UARTIntDisable( UARTA1_BASE, 0xFFF );
-	UARTIntEnable( UARTA1_BASE, UART_INT_OE | UART_INT_RX | UART_INT_EOT );
+	UARTIntEnable( UARTA1_BASE, 0xFF2 /*UART_INT_RX*/);
 	UARTIntRegister(UARTA1_BASE, _top_uart_isr );
 	while (1) {
 		while( UARTCharsAvail(UARTA1_BASE)) {
