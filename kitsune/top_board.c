@@ -112,9 +112,11 @@ _encode_and_send(uint8_t* orig, uint32_t size){
 	}
 	return -1;
 }
+#define minval(a,b) ((a)<(b)?(a):(b))
 static dfu_packet_type
 _next_file_data_block(uint8_t * write_buf, uint32_t buffer_size, uint32_t * out_actual_size){
-	int status = sl_FsRead(self.dfu_contex.handle, self.dfu_contex.offset, write_buf, buffer_size);
+	int status = sl_FsRead(self.dfu_contex.handle, self.dfu_contex.offset, write_buf,
+			minval( buffer_size, (self.dfu_contex.len - self.dfu_contex.offset) ) );
 	if(status > 0){
 		self.dfu_contex.offset += status;
 		*out_actual_size = status;
