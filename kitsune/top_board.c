@@ -250,7 +250,7 @@ void top_board_task(void * params){
 	hci_init();
 
 	if( !self.uart_sem ) {
-		self.uart_sem = xSemaphoreCreateMutex();
+		self.uart_sem = xSemaphoreCreateBinary();
 	}
 
 	MAP_UARTConfigSetExpClk(UARTA1_BASE, PRCMPeripheralClockGet(PRCM_UARTA1),
