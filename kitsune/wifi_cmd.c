@@ -307,9 +307,18 @@ void load_data_server(){
 		use_dev_server = true;
 	}
 }
-int Cmd_setDev(int argc, char *argv[]) {
 
-	nwp_reset();
+int Cmd_setDev(int argc, char *argv[]) {
+	if(argc > 1){
+		if(argv[1][0] == '1'){
+			DISP("Setting Dev\r\n");
+			fs_save(SERVER_SELECTION_FILE, "1", 2);
+		}else if(argv[1][0] == '0'){
+			DISP("Removing Dev\r\n");
+			fs_save(SERVER_SELECTION_FILE, "0", 2);
+		}
+		DISP("Restart to apply changes\r\n");
+	}
 	return 0;
 }
 
