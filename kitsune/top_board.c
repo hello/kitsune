@@ -112,9 +112,14 @@ _encode_and_send(uint8_t* orig, uint32_t size){
 	}
 	return -1;
 }
+#define minval(a,b) ((a)<(b)?(a):(b))
 static dfu_packet_type
 _next_file_data_block(uint8_t * write_buf, uint32_t buffer_size, uint32_t * out_actual_size){
-	int status = sl_FsRead(self.dfu_contex.handle, self.dfu_contex.offset, write_buf, buffer_size);
+	int status;
+	if( self.dfu_contex.len - self.dfu_contex.offset < buffer_size ) {
+		buffer_size = self.dfu_contex.len - self.dfu_contex.offset;
+	}
+	status = sl_FsRead(self.dfu_contex.handle, self.dfu_contex.offset, write_buf, buffer_size );
 	if(status > 0){
 		self.dfu_contex.offset += status;
 		*out_actual_size = status;
@@ -158,7 +163,7 @@ bool is_top_in_dfu(void){
 }
 static void
 _on_ack_success(void){
-	vTaskDelay(10);
+	//vTaskDelay(10);
 	if (self.mode == TOP_DFU_MODE) {
 		switch (self.dfu_state) {
 		case DFU_INVALID_PACKET:
@@ -250,7 +255,7 @@ void top_board_task(void * params){
 	hci_init();
 
 	if( !self.uart_sem ) {
-		self.uart_sem = xSemaphoreCreateMutex();
+		self.uart_sem = xSemaphoreCreateBinary();
 	}
 
 	MAP_UARTConfigSetExpClk(UARTA1_BASE, PRCMPeripheralClockGet(PRCM_UARTA1),
@@ -258,7 +263,7 @@ void top_board_task(void * params){
 			(UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE));
 	UARTFIFOLevelSet( UARTA1_BASE, UART_FIFO_TX1_8, UART_FIFO_RX1_8 );
 	UARTIntDisable( UARTA1_BASE, 0xFFF );
-	UARTIntEnable( UARTA1_BASE, UART_INT_OE | UART_INT_RX | UART_INT_EOT );
+	UARTIntEnable( UARTA1_BASE, 0xFF2 /*UART_INT_RX*/);
 	UARTIntRegister(UARTA1_BASE, _top_uart_isr );
 	while (1) {
 		while( UARTCharsAvail(UARTA1_BASE)) {
@@ -276,8 +281,7 @@ static int _prep_file(const char * name, uint32_t * out_fsize, uint16_t * out_cr
 	}
 	unsigned char buffer[128] = {0};
 	unsigned long tok = 0;
-	long hndl, total = 0;
-	int status = 0;
+	long hndl = 0;
 	uint16_t crc = 0xFFFFu;
 	SlFsFileInfo_t info;
 	sl_FsGetInfo((unsigned char*)name, tok, &info);
@@ -287,18 +291,21 @@ static int _prep_file(const char * name, uint32_t * out_fsize, uint16_t * out_cr
 	}else{
 		LOGI("Opened fw for top ota: %s.\r\n", name);
     }
-	do{
-		status = sl_FsRead(hndl, total, buffer, sizeof(buffer));
-		if(status > 0){
-			crc = hci_crc16_compute_cont(buffer,status,&crc);
-			total += status;
+	uint32_t bytes_to_read = info.FileLen;
+	uint32_t bytes;
+	while(bytes_to_read){
+		bytes = sl_FsRead(hndl,
+				info.FileLen - bytes_to_read,
+				buffer,
+				min(sizeof(buffer), bytes_to_read));
+		if ( bytes ){
+			crc = hci_crc16_compute_cont(buffer, bytes, &crc);
 		}
-
-	}while(status > 0);
-
+		bytes_to_read -= bytes;
+	}
 	//sl_FsClose(hndl, 0,0,0);
 	*out_crc = crc;
-	*out_fsize = total;
+	*out_fsize = info.FileLen;
 	*out_handle = hndl;
 	LOGI("Bytes Read %u, crc = %u.\r\n", *out_fsize, *out_crc);
 	return 0;
