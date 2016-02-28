@@ -44,10 +44,15 @@ static int int_to_bcd( int i ) {
 static int get_rtc_time( struct tm * dt ) {
 	unsigned char data[7];
 	unsigned char addy = 1;
-	if (xSemaphoreTakeRecursive(i2c_smphr, portMAX_DELAY)) {
-		assert(I2C_IF_Write(0x68, &addy, 1, 1)==0);
-		assert(I2C_IF_Read(0x68, data, 7)==0);
+	int retries = 0;
+	if (xSemaphoreTakeRecursive(i2c_smphr, 10000)) {
+		while (I2C_IF_Write(0x68, &addy, 1, 1) || I2C_IF_Read(0x68, data, 7)) {
+			vTaskDelay(100);
+			assert(++retries < 100);
+		}
 		xSemaphoreGiveRecursive(i2c_smphr);
+	} else {
+		vAssertCalled("rtc time no i2c sem\n");
 	}
 	dt->tm_sec = bcd_to_int(data[0] & 0x7f);
 	dt->tm_min = bcd_to_int(data[1] & 0x7f);

@@ -134,38 +134,43 @@ void init_i2c_recovery() {
 
 void recoveri2c() {
 #define GPIO_PORT 0x40005000
+	int pulses = 0;
 
-	LOGI("i2c recovery...\r\n");
-	//
-	// Configure PIN_01 for GPIOOutput 10 open drain
-	//
-	MAP_PinTypeGPIO(PIN_01, PIN_MODE_0, true);
-	MAP_GPIODirModeSet(GPIOA1_BASE, 0x4, GPIO_DIR_MODE_OUT);
 	//
 	// Configure PIN_02 for GPIOOutput 11
 	//
 	MAP_PinTypeGPIO(sda_gpio_pin, PIN_MODE_0, false);
 	MAP_GPIODirModeSet(sda_gpio_base, sda_gpio_bit, GPIO_DIR_MODE_IN);
 
-	TickType_t start = xTaskGetTickCount();
-	while ( MAP_GPIOPinRead(sda_gpio_base, sda_gpio_bit) == 0 && xTaskGetTickCount() - start < 5000 ) {
-		MAP_GPIOPinWrite(GPIO_PORT, 0x4, 0); //pulse the clock line...
-		vTaskDelay(10);
-		MAP_GPIOPinWrite(GPIO_PORT, 0x4, 1);
-		vTaskDelay(10);
-	}
-	MAP_GPIODirModeSet(GPIOA1_BASE, 0x4, GPIO_DIR_MODE_IN);
+	if( MAP_GPIOPinRead(sda_gpio_base, sda_gpio_bit) == 0 ) {
+		LOGE("i2c recovery...\r\n");
+		//
+		// Configure PIN_01 for GPIOOutput 10 open drain
+		//
+		MAP_PinTypeGPIO(PIN_01, PIN_MODE_0, true);
+		MAP_GPIODirModeSet(GPIOA1_BASE, 0x4, GPIO_DIR_MODE_OUT);
 
-	// if the lines stay low, we have failed
-	if( booted
-		&& ( MAP_GPIOPinRead(sda_gpio_base, sda_gpio_bit) == 0
-		  || MAP_GPIOPinRead(GPIO_PORT, 0x4) == 0 ) ) {
-		assert( I2C_FAILURE );
-	}
-	//SDA is now high again, go back to i2c controller...
-	//MAP_PRCMPeripheralReset(PRCM_I2CA0);
+		TickType_t start = xTaskGetTickCount();
+		while ( MAP_GPIOPinRead(sda_gpio_base, sda_gpio_bit) == 0 && ++pulses < 65 ) {
+			MAP_GPIOPinWrite(GPIO_PORT, 0x4, 0); //pulse the clock line...
+			vTaskDelay(10);
+			MAP_GPIOPinWrite(GPIO_PORT, 0x4, 1);
+			vTaskDelay(10);
+		}
+		MAP_GPIODirModeSet(GPIOA1_BASE, 0x4, GPIO_DIR_MODE_IN);
 
-	MAP_PinTypeI2C(PIN_01, PIN_MODE_1);
+		LOGE("recovered %d\r\n", pulses);
+		// if the lines stay low, we have failed
+		if( booted
+			&& ( MAP_GPIOPinRead(sda_gpio_base, sda_gpio_bit) == 0
+			  || MAP_GPIOPinRead(GPIO_PORT, 0x4) == 0 ) ) {
+			assert( I2C_FAILURE );
+		}
+		//SDA is now high again, go back to i2c controller...
+		//MAP_PRCMPeripheralReset(PRCM_I2CA0);
+
+		MAP_PinTypeI2C(PIN_01, PIN_MODE_1);
+	}
 	MAP_PinTypeI2C(sda_gpio_pin, sda_i2c_mode);
 	I2CMasterControl(I2C_BASE, 0x00000004); //send a stop...
 	vTaskDelay(2);
@@ -193,15 +198,18 @@ static int I2CTransact(unsigned long ulCmd) {
 	int attempts = 0;
 	while ((MAP_I2CMasterIntStatusEx(I2C_BASE, false)
 			& (I2C_INT_MASTER | I2C_MRIS_CLKTOUT)) == 0) {
-		if (++attempts == 10000) {
+		if (++attempts == 1000) {
+			LOGE("i2c timeout\n");
 			recoveri2c();
 			return FAILURE;
 		}
+		vTaskDelay(1);
 	}
 	//
 	// Check for any errors in transfer
 	//
 	if (MAP_I2CMasterErr(I2C_BASE) != I2C_MASTER_ERR_NONE) {
+		LOGE("i2c mastererr %x\n", MAP_I2CMasterErr(I2C_BASE));
 		recoveri2c();
 		return FAILURE;
     }
