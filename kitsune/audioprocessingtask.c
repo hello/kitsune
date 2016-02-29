@@ -137,8 +137,6 @@ static void NetworkResponseFunc(const NetworkResponse_t * response,
 		char * reply_buf, int reply_buf_sz, void * context) {
 	//LOGI("AUDIO RESPONSE:\r\n%s", reply_buf);
 
-	vPortFree( reply_buf );
-
 	if (response->success) {
     	xSemaphoreTake(_mutex,portMAX_DELAY);
 		AudioClassifier_ResetStorageBuffer();
