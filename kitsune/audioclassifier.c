@@ -236,7 +236,7 @@ void AudioClassifier_Init(RecordAudioCallback_t recordfunc) {
 }
 
 
-void AudioClassifier_DataCallback(const AudioFeatures_t * pfeats) {
+bool AudioClassifier_DataCallback(const AudioFeatures_t * pfeats) {
 
     uint16_t idx;
 
@@ -256,7 +256,7 @@ void AudioClassifier_DataCallback(const AudioFeatures_t * pfeats) {
     
     //do nothing if we do not have a storage buffer allocated
     if (!_buffer.pchunkbuf || _buffer.chunk_buf_size == 0) {
-    	return;
+    	return false;
     }
     
     idx = _buffer.incomingidx;
@@ -281,8 +281,9 @@ void AudioClassifier_DataCallback(const AudioFeatures_t * pfeats) {
     
     //if something interesting happend and the circular buffer is full
     //dump it to storage
-    if (_buffer.isThereAnythingInteresting == true && _buffer.numincoming == CIRCULAR_BUF_SIZE) {
-        
+   // if (_buffer.isThereAnythingInteresting == true &&
+    if( _buffer.numincoming == CIRCULAR_BUF_SIZE )
+    {
         //this may block... hopefully not for too long?
         CopyCircularBufferToPermanentStorage(pfeats->samplecount);
         _buffer.numincoming = 0; //"empty" the buffer
@@ -315,7 +316,7 @@ void AudioClassifier_DataCallback(const AudioFeatures_t * pfeats) {
         _buffer.isWorthClassifying = false;
     }
 
-   
+   return _buffer.isThereAnythingInteresting;
 }
 
 /* sadly this is not stateless, but was the only way to serialize chunks one at a time */
