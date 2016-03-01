@@ -121,7 +121,8 @@ bool write_mat_array(pb_ostream_t *stream, const pb_field_t *field, void * const
     uint8_t isFirst = true;
         
     
-    while(context->func(isFirst,&desc,context->data)) {
+    while(true) {
+        const uint8_t isContinuing = context->func(isFirst,&desc,context->data);
         isFirst = false;
         
         if (!pb_encode_tag(stream,PB_WT_STRING, field->tag)) {
@@ -142,6 +143,9 @@ bool write_mat_array(pb_ostream_t *stream, const pb_field_t *field, void * const
         //encode matrix payload
         SetIntMatrix(stream, desc.id, desc.tags, desc.source, desc.data, desc.rows, desc.cols, desc.t1, desc.t2);
     
+        if (!isContinuing) {
+            break;
+        }
     }
 
     return 1;

@@ -545,14 +545,27 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int64_t samplecount) {
         
         Scale16VecTo8(featvec, featavg, NUM_AUDIO_FEATURES);
         VecNormalize8(featvec, NUM_AUDIO_FEATURES);
+       
+        
+        //scale down to 4 bit numbers
+        /*
+        printf("MFCC=");
+        for (i = 0; i < NUM_AUDIO_FEATURES; i++) {
+            temp32 = featvec[i]; temp32 >>= 4;
+            printf("%d,",temp32); _data.feats.feats4bit[i] = (int8_t)temp32;
+        }
+        printf("\n");
+         */
+        
         
         //scale down to 4 bit numbers
         for (i = 0; i < NUM_AUDIO_FEATURES; i++) {
             temp32 = featvec[i];
-            temp32 += (1<<3);
             temp32 >>= 4;
             _data.feats.feats4bit[i] = (int8_t)temp32;
         }
+
+        
         
         temp32 = _data.lastEnergy + logTotalEnergy;
         temp32 >>= 1;

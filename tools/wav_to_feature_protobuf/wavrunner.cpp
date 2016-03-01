@@ -15,7 +15,7 @@ using namespace std;
 #define BUF_SIZE (1 << 24)
 
 static uint8_t _buf[BUF_SIZE];
-static uint8_t _outbuf[BUF_SIZE];
+static uint8_t _outbuf[4*BUF_SIZE];
 
 
 static void read_file (const std::string & fname) {
@@ -64,21 +64,19 @@ int main(int argc, char * argv[]) {
     AudioFeatures_Init(AudioClassifier_DataCallback,NULL);
     
     read_file(inFile);
-    
+
     const MatrixClientMessage * p = (MatrixClientMessage *)getMatrixClientMessage();
     
     pb_ostream_t pbout = pb_ostream_from_buffer(_outbuf, sizeof(_outbuf));
+    
     pb_encode(&pbout, MatrixClientMessage_fields, p);
     
-    string s;
-    s.assign((const char *)_outbuf,pbout.bytes_written);
     const std::string filename = inFile + ".proto";
-    ofstream outprotofile(filename);
+    ofstream outprotofile(filename,std::ios::binary);
 
     if (outprotofile.is_open()) {
         std::cout << "wrote " << pbout.bytes_written << " bytes to " << filename << std::endl;
-        outprotofile << s;
-        outprotofile.close();
+        outprotofile.write((const char *)_outbuf,pbout.bytes_written);
     }
     
     return 0;
