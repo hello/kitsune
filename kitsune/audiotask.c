@@ -621,10 +621,7 @@ static void DoCapture(uint32_t rate) {
 	LOGI("%d bytes free\n", xPortGetFreeHeapSize());
 }
 
-
-
-
-
+// TODO DKH split to two separate tasks for capture and playback
 void AudioTask_Thread(void * data) {
 
 	AudioMessage_t  m;

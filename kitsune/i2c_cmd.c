@@ -18,6 +18,8 @@
 
 #include "stdbool.h"
 
+#include "audio_codec_pps_driver.h"
+
 #define MAX_MEASURE_TIME		10
 
 #define FAILURE                 -1
@@ -29,7 +31,7 @@
                                      return  iRetVal;}
 #define BUF_SIZE 2
 
-#define Codec_addr 0x1A
+#define Codec_addr 0x30 // TODO DKH audio change
 #define DELAY_CODEC 5
 #include "stdbool.h"
 static bool old_light_sensor;
@@ -496,6 +498,7 @@ int Cmd_readproximity(int argc, char *argv[]) {
 }
 extern xSemaphoreHandle i2c_smphr;
 
+// TODO DKH audio change
 void set_volume(int v, unsigned int dly) {
 	unsigned char cmd_init[2];
 
@@ -954,3 +957,320 @@ int close_codec_NAU(int argc, char *argv[]) {
 	}
 	return 0;
 }
+
+
+// TODO DKH audio functions
+
+static void codec_sw_reset(void);
+static void codec_fifo_config(void);
+static void codec_power_config(void);
+static void codec_clock_config(void);
+static void codec_asi_config(void);
+static void codec_signal_processing_config(void);
+static void codec_speaker_config(void);
+static void codec_minidsp_a_config(void);
+static void codec_minidsp_d_config(void);
+
+void codec_init(void)
+{
+	codec_sw_reset();
+
+	codec_fifo_config();
+
+	codec_power_config();
+
+	codec_clock_config();
+
+	codec_asi_config();
+
+	codec_signal_processing_config();
+
+	codec_speaker_config();
+
+	codec_minidsp_a_config();
+
+	codec_minidsp_d_config();
+
+
+}
+
+// Software reset codec
+static inline void codec_sw_reset(void)
+{
+	char send_stop = 1;
+	unsigned char cmd[2];
+	const TickType_t delay = 1 / portTICK_PERIOD_MS;
+
+	//w 30 00 00 # Initialize to Page 0
+	cmd[0] = 0;
+	cmd[1] = 0;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//w 30 7f 00 # Initialize to Book 0
+	cmd[0] = 0x7F;
+	cmd[1] = 0;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//w 30 01 01 # Software Reset
+	cmd[0] = 0x01;
+	cmd[1] = 0x01;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//d 1        # Delay 1 millisecond
+	vTaskDelay(delay);
+}
+
+
+// Codec FIFO config
+static inline void codec_fifo_config(void)
+{
+	char send_stop = 1;
+	unsigned char cmd[2];
+
+	//	w 30 00 00 # Select Page 0
+	cmd[0] = 0;
+	cmd[1] = 0;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//	w 30 7f 78 # Select Book 120
+	cmd[0] = 0x7F;
+	cmd[1] = 0x78;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//	w 30 32 80 # Enable DAC FIFO
+	cmd[0] = 0x32;
+	cmd[1] = 0x80;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//	w 30 7f 64 # Select Book 100
+	cmd[0] = 0x7F;
+	cmd[1] = 0x64;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//	w 30 32 80 # Enable ADC FIFO
+	cmd[0] = 0x32;
+	cmd[1] = 0x80;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//	w 30 7f 00 # Select Book 0
+	cmd[0] = 0x7F;
+	cmd[1] = 0;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+
+}
+
+//Codec power and analog config
+static inline void codec_power_config(void)
+{
+	char send_stop = 1;
+	unsigned char cmd[2];
+
+	//	w 30 00 01 # Select Page 1
+	cmd[0] = 0;
+	cmd[1] = 0x01;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//	w 30 01 00 # Disable weak AVDD to DVDD connection
+	cmd[0] = 0x01;
+	cmd[1] = 0x00;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//	w 30 7a 01 # REF charging time = 40ms
+	cmd[0] = 0x7A;
+	cmd[1] = 0x01;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//	w 30 79 33 # Quick charge of analog inputs caps
+	cmd[0] = 0x79;
+	cmd[1] = 0x33;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+}
+
+// Codec Clock config
+static inline void codec_clock_config(void)
+{
+	char send_stop = 1;
+	unsigned char cmd[2];
+
+	/*
+	* Clock configuration
+	* -----------------------------------------------------
+	* - MCLK = 11.2896MHz/12.288MHz
+	* - FS = 44.1kHz/48kHz
+	* - I2S Slave
+	*/
+	//	w 30 00 00 # Select Page 0
+	cmd[0] = 0;
+	cmd[1] = 0;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//	w 30 04 00 # Set ADC_CLKIN as MCLK
+	cmd[0] = 0x04;
+	cmd[1] = 0x00;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//	w 30 12 81 # NADC = 1
+	cmd[0] = 0x12;
+	cmd[1] = 0x81;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//	w 30 13 84 # MADC = 4
+	cmd[0] = 0x13;
+	cmd[1] = 0x84;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//	w 30 14 40 # AOSR = 64
+	cmd[0] = 0x14;
+	cmd[1] = 0x40;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+}
+
+// Codec audio serial interface settings
+static inline void codec_asi_config(void)
+{
+	char send_stop = 1;
+	unsigned char cmd[2];
+
+	//	w 30 00 04 # Select Page 4
+	cmd[0] = 0;
+	cmd[1] = 0x04;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//	w 30 01 00 # ASI1 set to I2S mode, 16-bit
+	cmd[0] = 0x01;
+	cmd[1] = 0;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//	w 30 0a 00 # ASI1 WCLK/BCLK to WCLK1 pin/BCLK1 pin
+	cmd[0] = 0x0A;
+	cmd[1] = 0;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+}
+
+// signal processing settings
+static inline void codec_signal_processing_config(void)
+{
+	char send_stop = 1;
+	unsigned char cmd[2];
+
+	//	w 30 00 00 # Select Page 0
+	cmd[0] = 0;
+	cmd[1] = 0;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//	w 30 3d 0a # Set the ADC Mode to PRB_R10
+	cmd[0] = 0x3D;
+	cmd[1] = 0x0A;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	// w 30 3c 01 # Set the DAC PRB Mode to PRB_P1
+	cmd[0] = 0x3C;
+	cmd[1] = 0x01;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+}
+
+// Enable Class-D Speaker playback
+static inline void codec_speaker_config(void)
+{
+	char send_stop = 1;
+	unsigned char cmd[2];
+
+	//	w 30 00 01 # Select Page 1
+	cmd[0] = 0;
+	cmd[1] = 0x01;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//	w 30 03 00 # Set PTM mode for Left DAC to PTM_P3
+	cmd[0] = 0x03;
+	cmd[1] = 0;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//	w 30 04 00 # Set PTM mode for Right DAC to PTM_P3
+	cmd[0] = 0x04;
+	cmd[1] = 0;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//	w 30 16 c3 # DAC to LOL/R routing, power-up LOL/R
+	cmd[0] = 0x16;
+	cmd[1] = 0xC3;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//	w 30 2E 0c # Route LOL to SPK @ -6dB
+	cmd[0] = 0x2E;
+	cmd[1] = 0x0C;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//	w 30 2F 0c # Route LOR to SPK_RIGHT_CH_IN @ -6dB
+	cmd[0] = 0x2F;
+	cmd[1] = 0x0C;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//	w 30 30 21 # SPK Gain = 12dB, unmute SPK_RIGHT_CH_IN
+	cmd[0] = 030;
+	cmd[1] = 0x21;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//	w 30 2D 06 # Power-up SPK, route SPK_RIGHT_CH_IN to SPK
+	cmd[0] = 0x2D;
+	cmd[1] = 0x06;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//	w 30 00 00 # Select Page 0
+	cmd[0] = 0x00;
+	cmd[1] = 0x00;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//	w 30 3f c0 # Power up the Left and Right DAC Channels
+	cmd[0] = 0x3F;
+	cmd[1] = 0xC0;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//	w 30 40 00 # Unmute the DAC digital volume control
+	cmd[0] = 0x40;
+	cmd[1] = 0;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+}
+
+// Enable digital mic input
+
+// miniDSP A config
+static inline void codec_minidsp_a_config(void)
+{
+	char send_stop = 1;
+	unsigned char cmd[2];
+	uint32_t i;
+
+	// Enable auto increment TODO
+/*
+	for(i =0;i< miniDSP_A_reg_values_INST_SIZE + miniDSP_A_reg_values_COEFF_SIZE;i++)
+	{
+		cmd[0] = miniDSP_A_reg_values[i].reg_off;
+		cmd[1] = miniDSP_A_reg_values[i].reg_val;
+		I2C_IF_Write(Codec_addr,cmd, 2, send_stop);
+	}
+*/
+	// Send stop TODO
+
+}
+
+// miniDSP D config
+static inline void codec_minidsp_d_config(void)
+{
+	char send_stop = 1;
+	unsigned char cmd[2];
+	uint32_t i;
+
+	// Enable auto increment TODO
+/*
+	for(i =0;i< miniDSP_D_reg_values_INST_SIZE + miniDSP_D_reg_values_COEFF_SIZE;i++)
+	{
+		cmd[0] = miniDSP_D_reg_values[i].reg_off;
+		cmd[1] = miniDSP_D_reg_values[i].reg_val;
+		I2C_IF_Write(Codec_addr,cmd, 2, send_stop);
+	}
+*/
+	// Send stop TODO
+}
+
