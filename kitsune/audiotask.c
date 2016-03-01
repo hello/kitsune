@@ -205,7 +205,6 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	unsigned int volume = info->volume;
 	unsigned int initial_volume = info->volume;
 	unsigned int fade_length = info->fade_in_ms;
-	bool has_fade = fade_length != 0;
 
 	desired_ticks_elapsed = info->durationInSeconds * NUMBER_OF_TICKS_IN_A_SECOND;
 
@@ -220,7 +219,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		vPortFree(speaker_data);
 		return returnFlags;
 	}
-	if( has_fade ) {
+	if( fade_length != 0 ) {
 		initial_volume = 1;
 		t0 = fade_time = last_vol = xTaskGetTickCount();
 	}
@@ -253,7 +252,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	bool started = false;
 	//loop until either a) done playing file for specified duration or b) our message queue gets a message that tells us to stop
 	for (; ;) {
-		if( has_fade ) {
+		if( fade_length != 0  ) {
 			if( !has_i2c_lock ) {
 				if( low_frequency_i2c_sem ) {
 					has_i2c_lock = xSemaphoreTake( low_frequency_i2c_sem, 10 );
@@ -274,7 +273,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 				break;
 			}
 		}
-		if( has_i2c_lock && ( !has_fade || fade_counter > fade_length ) ) {
+		if( has_i2c_lock && ( fade_length == 0 || fade_counter > fade_length ) ) {
 			if( low_frequency_i2c_sem ) {
 				xSemaphoreGive( low_frequency_i2c_sem );
 				has_i2c_lock = false;
@@ -309,7 +308,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 			returnFlags |= CheckForInterruptionDuringPlayback();
 
-			if( has_fade ) {
+			if( fade_length != 0 ) {
 				if (returnFlags && fade_in) {
 					if (fade_counter <= info->fade_in_ms) {
 						//interrupted before we can get to max volume...
@@ -347,7 +346,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		}
 		iReceiveCount++;
 
-		if (has_fade) {
+		if (fade_length != 0) {
 			//if time elapsed is greater than desired, we quit.
 			//UNLESS anddesired_ticks_elapsed is a negative number
 			//instead, we will quit when the file is done playing
