@@ -157,7 +157,9 @@ static void _reply_wifi_scan_result()
 {
     int i = 0;
     MorpheusCommand reply_command = {0};
-    int count = hlo_future_read(scan_results,_wifi_endpoints,sizeof(_wifi_endpoints), 25000);
+    int count = hlo_future_read_once(scan_results,_wifi_endpoints,sizeof(_wifi_endpoints) );
+	scan_results = prescan_wifi(MAX_WIFI_EP_PER_SCAN);
+
     for(i = 0; i < count; i++)
     {
 		reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_START_WIFISCAN;
@@ -576,7 +578,7 @@ void ble_proto_start_hold()
 	case BLE_CONNECTED:
 	default:
 		set_released(false);
-		xTaskCreate(hold_animate_progress_task, "hold_animate_pair",1024 / 4, NULL, 3, NULL);
+		xTaskCreate(hold_animate_progress_task, "hold_animate_pair",1024 / 4, NULL, 2, NULL);
 	}
 
 }
@@ -818,10 +820,21 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
             LOGI("WIFI Scan request\n");
 
             if( command->has_country_code ) {
-                LOGI("Set country code %s\n", command->country_code );
-				sl_WlanSet(SL_WLAN_CFG_GENERAL_PARAM_ID,
-						WLAN_GENERAL_PARAM_OPT_COUNTRY_CODE, 2, (uint8_t*)command->country_code);
-				nwp_reset();
+                uint16_t len = 4;
+        	    uint16_t  config_opt = WLAN_GENERAL_PARAM_OPT_COUNTRY_CODE;
+        	    char cc[4];
+        	    sl_WlanGet(SL_WLAN_CFG_GENERAL_PARAM_ID, &config_opt, &len, (_u8* )cc);
+        	    LOGI("Set country code %s have %s\n", command->country_code, cc );
+        	    if( strncmp( cc, command->country_code, 2) != 0 ) {
+					LOGI("mismatch\n");
+					sl_enter_critical_region();
+					sl_WlanSet(SL_WLAN_CFG_GENERAL_PARAM_ID,
+							WLAN_GENERAL_PARAM_OPT_COUNTRY_CODE, 2,
+							(uint8_t* )command->country_code);
+					vTaskDelay(100);
+					nwp_reset();
+					sl_exit_critical_region();
+        	    }
 			}
 
             if(!scan_results){
@@ -829,11 +842,8 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
             }
             if(scan_results){
             	_reply_wifi_scan_result();
-            	hlo_future_destroy(scan_results);
-            	scan_results = prescan_wifi(MAX_WIFI_EP_PER_SCAN);
             }else{
             	ble_reply_protobuf_error(ErrorType_DEVICE_NO_MEMORY);
-
             }
         }
         break;

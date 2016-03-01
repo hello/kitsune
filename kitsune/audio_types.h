@@ -4,7 +4,7 @@
 #include <stdint.h>
 
 //magic number, in no particular units, just from observation
-#define MIN_CLASSIFICATION_ENERGY (500)
+#define MIN_CLASSIFICATION_ENERGY (100)
 
 
 #define AUDIO_FFT_SIZE_2N (8)

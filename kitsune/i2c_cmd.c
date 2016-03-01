@@ -31,8 +31,12 @@
 
 #define Codec_addr 0x1A
 #define DELAY_CODEC 5
+
+extern xSemaphoreHandle i2c_smphr;
+
 #include "stdbool.h"
 static bool old_light_sensor;
+
 //*****************************************************************************
 //
 //! Display the buffer contents over I2C
@@ -69,6 +73,7 @@ int Cmd_i2c_read(int argc, char *argv[]) {
 		return FAILURE;
 	}
 
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000+__LINE__));
 	// Get the device address
 	//
 	ucDevAddr = (unsigned char) strtoul(argv[2], &pcErrPtr, 16);
@@ -80,6 +85,8 @@ int Cmd_i2c_read(int argc, char *argv[]) {
 	// Read the specified length of data
 	//
 	iRetVal = I2C_IF_Read(ucDevAddr, aucDataBuf, ucLen);
+
+	xSemaphoreGiveRecursive(i2c_smphr);
 
 	if (iRetVal == SUCCESS) {
 		LOGI("I2C_IF_ Read complete\n\r");
@@ -106,6 +113,9 @@ int Cmd_i2c_writereg(int argc, char *argv[]) {
 				"writereg <dev_addr> <reg_offset> <wrlen> <<byte0> [<byte1> ... ]> \n\r");
 		return FAILURE;
 	}
+
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000+__LINE__));
+
 	// Get the device address
 	//
 	ucDevAddr = (unsigned char) strtoul(argv[2], &pcErrPtr, 16);
@@ -134,6 +144,8 @@ int Cmd_i2c_writereg(int argc, char *argv[]) {
 	//
 	RET_IF_ERR(I2C_IF_Write(ucDevAddr, &aucDataBuf[0], ucWrLen + 1, 1));
 
+	xSemaphoreGiveRecursive(i2c_smphr);
+
 	LOGI("I2C_IF_ Write To address complete\n\r");
 
 	return SUCCESS;
@@ -147,6 +159,8 @@ int Cmd_i2c_readreg(int argc, char *argv[]) {
 		LOGI("readreg <dev_addr> <reg_offset> <rdlen> \n\r");
 		return FAILURE;
 	}
+
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000+__LINE__));
 	//
 	// Get the device address
 	//
@@ -173,6 +187,8 @@ int Cmd_i2c_readreg(int argc, char *argv[]) {
 	//
 	RET_IF_ERR(I2C_IF_Read(ucDevAddr, &aucRdDataBuf[0], ucRdLen));
 
+	xSemaphoreGiveRecursive(i2c_smphr);
+
 	LOGI("I2C_IF_ Read From address complete\n");
 	//
 	// Display the buffer over UART on successful readreg
@@ -192,6 +208,7 @@ int Cmd_i2c_write(int argc, char *argv[]) {
 		return FAILURE;
 	}
 
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000+__LINE__));
 	//
 	// Get the device address
 	//
@@ -217,6 +234,9 @@ int Cmd_i2c_write(int argc, char *argv[]) {
 	// Write the data to the specified address
 	//
 	iRetVal = I2C_IF_Write(ucDevAddr, aucDataBuf, ucLen, ucStopBit);
+
+	xSemaphoreGiveRecursive(i2c_smphr);
+
 	if (iRetVal == SUCCESS) {
 		LOGI("I2C_IF_ Write complete\n\r");
 	} else {
@@ -234,6 +254,8 @@ static int get_temp() {
 	int temp;
 
 	unsigned char aucDataBuf[2];
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000+__LINE__));
+
 	vTaskDelay(10);
 	(I2C_IF_Write(0x40, &cmd, 1, 1));
 
@@ -243,15 +265,20 @@ static int get_temp() {
 	
 	temp = 17572 * temp_raw / 65536 - 4685;
 
+	xSemaphoreGiveRecursive(i2c_smphr);
+
 	return temp;
 }
 
 int init_temp_sensor()
 {
 	unsigned char cmd = 0xfe;
+
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000+__LINE__));
 	(I2C_IF_Write(0x40, &cmd, 1, 1));    // reset
 
 	get_temp();
+	xSemaphoreGiveRecursive(i2c_smphr);
 
 	return SUCCESS;
 }
@@ -262,13 +289,16 @@ static int get_humid() {
 	int humid_raw;
 	int humid;
 
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000+__LINE__));
 	vTaskDelay(10);
+
 	(I2C_IF_Write(0x40, &cmd, 1, 1));
 
 	vTaskDelay(50);
 	(I2C_IF_Read(0x40, aucDataBuf, 2));
 	humid_raw = (aucDataBuf[0] << 8) | ((aucDataBuf[1] & 0xfc));
-	
+
+	xSemaphoreGiveRecursive(i2c_smphr);
 
 	humid = 12500 * humid_raw / 65536 - 600;
 	return humid;
@@ -277,10 +307,15 @@ static int get_humid() {
 int init_humid_sensor()
 {
 	unsigned char cmd = 0xfe;
+
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000+__LINE__));
+
 	(I2C_IF_Write(0x40, &cmd, 1, 1));    // reset
 
 	// Dummy read the 1st value.
 	get_humid();
+
+	xSemaphoreGiveRecursive(i2c_smphr);
 
 	return SUCCESS;
 }
@@ -310,6 +345,8 @@ int init_light_sensor()
 {
 	old_light_sensor = get_hw_ver()==EVT2;
 
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000+__LINE__));
+
 	if (old_light_sensor) {
 		unsigned char cmd_init[2];
 
@@ -326,7 +363,7 @@ int init_light_sensor()
 		aucDataBuf[1] = 0xA0;
 		(I2C_IF_Write(0x44, aucDataBuf, 2, 1));
 	}
-
+	xSemaphoreGiveRecursive(i2c_smphr);
 	return SUCCESS;
 }
 
@@ -334,16 +371,20 @@ static int _read_als(){
 	unsigned char cmd;
 	unsigned char aucDataBuf[2] = { 0, 0 };
 
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000+__LINE__));
 	cmd = 0x2;
 	(I2C_IF_Write(0x44, &cmd, 1, 1));
 	vTaskDelay(0);
 	(I2C_IF_Read(0x44, aucDataBuf, 2));
+	xSemaphoreGiveRecursive(i2c_smphr);
 	return aucDataBuf[0] | (aucDataBuf[1] << 8);
 }
 
 int get_light() {
 	unsigned char cmd;
 	unsigned char aucDataBuf[2] = { 0, 0 };
+
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000+__LINE__));
 
 	if (old_light_sensor) {
 		unsigned char aucDataBuf_LOW[2];
@@ -361,6 +402,8 @@ int get_light() {
 		// We are using 100ms mode, multipler is 4
 		// formula based on page 6 of http://media.digikey.com/pdf/Data%20Sheets/Austriamicrosystems%20PDFs/TSL4531.pdf
 		light_lux = ((aucDataBuf_HIGH[0] << 8) | aucDataBuf_LOW[0]) << 2;
+
+		xSemaphoreGiveRecursive(i2c_smphr);
 
 		return light_lux;
 	} else {
@@ -408,6 +451,7 @@ int get_light() {
 		aucDataBuf[1] = scaling;
 		(I2C_IF_Write(0x44, aucDataBuf, 2, 1));
 
+		xSemaphoreGiveRecursive(i2c_smphr);
 		return light;
 	}
 }
@@ -423,6 +467,8 @@ int Cmd_readlight(int argc, char *argv[]) {
 
 		unsigned char prx_cmd_init[2];
 
+		assert(xSemaphoreTakeRecursive(i2c_smphr, 1000+__LINE__));
+
 		prx_cmd_init[0] = 0x82;
 		prx_cmd_init[1] = rate;	//0b011; // 15hz
 		(I2C_IF_Write(0x13, prx_cmd_init, 2, 1));
@@ -437,6 +483,7 @@ int Cmd_readlight(int argc, char *argv[]) {
 		prx_cmd_init[1] = power; // Value * 10mA
 		(I2C_IF_Write(0x13, prx_cmd_init, 2, 1));
 	}
+	xSemaphoreGiveRecursive(i2c_smphr);
 
 	return SUCCESS;
 }
@@ -444,6 +491,7 @@ int Cmd_readlight(int argc, char *argv[]) {
 int init_prox_sensor()
 {
 	unsigned char prx_cmd_init[2];
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000+__LINE__));
 
 	prx_cmd_init[0] = 0x8f;
 	//                  ---++--- delay, frequency, dead time
@@ -454,6 +502,7 @@ int init_prox_sensor()
 	prx_cmd_init[1] = 14; // Value * 10mA
 	( I2C_IF_Write(0x13, prx_cmd_init, 2, 1) );
 
+	xSemaphoreGiveRecursive(i2c_smphr);
 
 	return SUCCESS;
 }
@@ -468,6 +517,8 @@ uint32_t get_prox() {
 
 	prx_cmd_init[0] = 0x80; // Command register - 8'b1000_0000
 	prx_cmd_init[1] = 0x08; // one shot measurements
+
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000+__LINE__));
 	(I2C_IF_Write(0x13, prx_cmd_init, 2, 1) );
 
 	while( ! ( cmd_reg & 0b00100000 ) ) {
@@ -484,6 +535,7 @@ uint32_t get_prox() {
 	( I2C_IF_Read(0x13, prx_aucDataBuf_HIGH, 1) );   //only using top byte...
 
 	proximity_raw = (prx_aucDataBuf_HIGH[0] << 8) | prx_aucDataBuf_LOW[0];
+	xSemaphoreGiveRecursive(i2c_smphr);
 
 	return 200000 - proximity_raw * 200000 / 65536;
 
@@ -494,7 +546,6 @@ int Cmd_readproximity(int argc, char *argv[]) {
 
 	return SUCCESS;
 }
-extern xSemaphoreHandle i2c_smphr;
 
 void set_volume(int v, unsigned int dly) {
 	unsigned char cmd_init[2];

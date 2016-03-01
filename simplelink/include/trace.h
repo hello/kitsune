@@ -52,10 +52,13 @@ extern "C" {
 
 #define SL_SYNC_SCAN_THRESHOLD  (( _u32 )2000)
   
-#define _SlDrvAssert(line )  { while(1); }          
+#define _SlDrvAssert(line )
+// { while(1); }
 
-#define _SL_ASSERT(expr)            { if(!(expr)){_SlDrvAssert(__LINE__); } }
-#define _SL_ERROR(expr, error)      { if(!(expr)){return (error); } }
+#define _SL_ASSERT(expr)
+//{ if(!(expr)){_SlDrvAssert(__LINE__); } }
+#define _SL_ERROR(expr, error)
+//{ if(!(expr)){return (error); } }
 
 #define SL_HANDLING_ASSERT          2
 #define SL_HANDLING_ERROR           1
@@ -106,8 +109,10 @@ extern "C" {
 #endif
 
 #if (SL_NWP_IF_HANDLING == SL_HANDLING_ASSERT)
-#define NWP_IF_WRITE_CHECK(fd,pBuff,len)       { _i16 RetSize, ExpSize = (len); RetSize = sl_IfWrite((fd),(pBuff),ExpSize); _SL_ASSERT(ExpSize == RetSize)}
-#define NWP_IF_READ_CHECK(fd,pBuff,len)        { _i16 RetSize, ExpSize = (len); RetSize = sl_IfRead((fd),(pBuff),ExpSize);  _SL_ASSERT(ExpSize == RetSize)}
+#define NWP_IF_WRITE_CHECK(fd,pBuff,len)      sl_IfWrite((fd),(pBuff),len)
+//{ _i16 RetSize, ExpSize = (len); RetSize = sl_IfWrite((fd),(pBuff),ExpSize); _SL_ASSERT(ExpSize == RetSize)}
+#define NWP_IF_READ_CHECK(fd,pBuff,len)       sl_IfRead((fd),(pBuff),len)
+//{ _i16 RetSize, ExpSize = (len); RetSize = sl_IfRead((fd),(pBuff),ExpSize);  _SL_ASSERT(ExpSize == RetSize)}
 #elif (SL_NWP_IF_HANDLING == SL_HANDLING_ERROR)
 #define NWP_IF_WRITE_CHECK(fd,pBuff,len)       { _SL_ERROR((len == sl_IfWrite((fd),(pBuff),(len))), SL_RET_CODE_NWP_IF_ERROR);}
 #define NWP_IF_READ_CHECK(fd,pBuff,len)        { _SL_ERROR((len == sl_IfRead((fd),(pBuff),(len))),  SL_RET_CODE_NWP_IF_ERROR);}
@@ -117,7 +122,8 @@ extern "C" {
 #endif
 
 #if (SL_OSI_RET_OK_HANDLING == SL_HANDLING_ASSERT)
-#define OSI_RET_OK_CHECK(Func)                  {_SlReturnVal_t _RetVal = (Func); _SL_ASSERT((_SlReturnVal_t)SL_OS_RET_CODE_OK == _RetVal)}
+#define OSI_RET_OK_CHECK(Func)                  Func
+//{_SlReturnVal_t _RetVal = (Func); _SL_ASSERT((_SlReturnVal_t)SL_OS_RET_CODE_OK == _RetVal)}
 #elif (SL_OSI_RET_OK_HANDLING == SL_HANDLING_ERROR)
 #define OSI_RET_OK_CHECK(Func)                  {_SlReturnVal_t _RetVal = (Func); if (SL_OS_RET_CODE_OK != _RetVal) return  _RetVal;}
 #else

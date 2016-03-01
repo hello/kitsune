@@ -27,7 +27,7 @@ typedef enum {
 
 typedef struct {
 	char sfilepath[32]; //need buffer somewhere, as filenames are sometimes not const static
-	const char * host;
+	char * host;
 	const char * endpoint;
 	uint8_t deleteAfterUpload;
 

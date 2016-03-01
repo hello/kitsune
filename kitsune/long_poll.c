@@ -159,13 +159,15 @@ static void long_poll_task(void * networkdata) {
 			retries = 0;
 		}
 	}
+	//shouldn't get here, but for consistency...
+	//vPortFree(decode_buf);
 }
 
 void long_poll_task_init(uint16_t stack_size)
 {
 	//this task needs a larger stack because
 	//some protobuf encoding will happen on the stack of this task
-	xTaskCreate(long_poll_task, "long_poll", stack_size, NULL, 4, NULL);
+	xTaskCreate(long_poll_task, "long_poll", stack_size, NULL, 2, NULL);
 }
 
 

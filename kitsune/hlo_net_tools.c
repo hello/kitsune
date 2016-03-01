@@ -194,6 +194,7 @@ static int scan(scan_desc_t * desc){
 	if( desc->antenna ) {
 		antsel(desc->antenna);
 	}
+
 	sl_enter_critical_region();
 
 	int r = sl_WlanPolicySet(SL_POLICY_CONNECTION , policyOpt, NULL, 0);
@@ -290,6 +291,10 @@ int get_unique_wifi_list(Sl_WlanNetworkEntry_t * result, size_t num_entries){
 
 	DISP("Scan begin\n");
 
+	sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(0, 0, 0, 0, 0), NULL, 0);
+	sl_WlanDisconnect();
+	vTaskDelay(100);
+
 	if(!ifa_list || !pcb_list){
 		goto exit;
 	}
@@ -316,6 +321,8 @@ int get_unique_wifi_list(Sl_WlanNetworkEntry_t * result, size_t num_entries){
 		tally += _replace_ssid_by_rssi(result, num_entries, &pcb_list[ret]);
 	}
 exit:
+	sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0), NULL, 0);
+
 	if(ifa_list){vPortFree(ifa_list);}
 	if(pcb_list){vPortFree(pcb_list);}
 	DISP("Scan selecting antenna\n");
@@ -326,7 +333,7 @@ exit:
 
 }
 hlo_future_t * prescan_wifi(size_t num_entries){
-	return hlo_future_create_task_bg(worker_scan_unique, NULL, 2048);
+	return hlo_future_create_task_bg(worker_scan_unique, NULL, 2560);
 }
 
 hlo_future_t * http_get_stream(const char * url){
@@ -379,7 +386,7 @@ int Cmd_scan_wifi(int argc, char *argv[]){
 	if(!result){
 		return -1;
 	}
-	ret = hlo_future_read(result,entries,sizeof(entries), portMAX_DELAY);
+	ret = hlo_future_read_once(result,entries,sizeof(entries));
 	DISP("\r\n");
 	if(ret > 0){
 		DISP("Found %d endpoints\r\n===========\r\n", ret);
@@ -391,7 +398,6 @@ int Cmd_scan_wifi(int argc, char *argv[]){
 		DISP("No endpoints scanned\r\n");
 	}
 	//queue another scan
-	hlo_future_destroy(result);
 	result = prescan_wifi( 10 );
 	return 0;
 }

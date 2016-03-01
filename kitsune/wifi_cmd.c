@@ -87,12 +87,13 @@ void mcu_reset()
     MAP_PRCMHibernateEnter();
 }
 
+
 #define SL_STOP_TIMEOUT                 (30)
 long nwp_reset() {
 	long r;
 	sl_enter_critical_region();
     sl_WlanSetMode(ROLE_STA);
-    sl_Stop(SL_STOP_TIMEOUT);
+	r = sl_Stop(0xFF);
     wifi_status_set(0xFFFFFFFF, true);
     r = sl_Start(NULL, NULL, NULL);
 	sl_exit_critical_region();
@@ -135,8 +136,10 @@ void SimpleLinkSockEventHandler(SlSockEvent_t *pSock)
 }
 
 static uint8_t _connected_ssid[MAX_SSID_LEN];
+
 #define INV_INDEX 0xff
 static int _connected_index = INV_INDEX;
+
 static uint8_t _connected_bssid[BSSID_LEN];
 void wifi_get_connected_ssid(uint8_t* ssid_buffer, size_t len)
 {
@@ -304,6 +307,7 @@ void load_data_server(){
 		use_dev_server = true;
 	}
 }
+
 int Cmd_setDev(int argc, char *argv[]) {
 	if(argc > 1){
 		if(argv[1][0] == '1'){
@@ -1719,6 +1723,7 @@ int send_data_pb( char* host, const char* path, char ** recv_buf_ptr,
     }
 
 	failure:
+
 	if( pb_cb && pb_cb->on_pb_failure ) {
 		pb_cb->on_pb_failure();
 	}
@@ -1933,6 +1938,7 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
     }
 
     if (response_protobuf->has_audio_control) {
+//    	LOGI("Start Audio Capture\r\n");
     	AudioControlHelper_SetAudioControl(&response_protobuf->audio_control);
     }
 
