@@ -336,7 +336,7 @@ static uint8_t GetNextMatrixCallback(uint8_t isFirst,const_MatDesc_t * pdesc,voi
     memset(pdesc,0,sizeof(const_MatDesc_t));
     
     if (encodedata->buf->numchunkbuf == 0 || encodedata->buf->pchunkbuf == NULL) {
-        return false; //stop
+        return MAT_MESSAGE_FAIL; //stop
     }
     
     if (isFirst) {
@@ -422,12 +422,12 @@ static uint8_t GetNextMatrixCallback(uint8_t isFirst,const_MatDesc_t * pdesc,voi
         //have we reached the end?
         if (encodedata->currentidx == encodedata->endidx) {
             encodedata->state = 0;
-            return false;
+            return MAT_MESSAGE_DONE;
         }
 
     }
     
-    return true;
+    return MAT_MESSAGE_CONTINUE;
 }
 
 void AudioClassifier_ResetStorageBuffer(void) {
