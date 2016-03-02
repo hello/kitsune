@@ -274,7 +274,7 @@ void AudioClassifier_DataCallback(const AudioFeatures_t * pfeats) {
     }
     
     //determine if anything interesting happend, energy-wise
-    if (pfeats->logenergy >MIN_CLASSIFICATION_ENERGY ) {
+    if (pfeats->logenergyOverBackroundNoise > MIN_CLASSIFICATION_ENERGY ) {
         _buffer.isThereAnythingInteresting = true;
         _buffer.isWorthClassifying = true;
     }
