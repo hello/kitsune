@@ -59,6 +59,7 @@
 void ResetISR(void);
 static void NmiSR(void);
 static void IntDefaultHandler(void);
+static void GPIOIntDefaultHandler(void);
 static void BusFaultHandler(void);
 //*****************************************************************************
 //
@@ -115,11 +116,11 @@ void (* const g_pfnVectors[256])(void) =
     IntDefaultHandler,                      // The PendSV handler
     IntDefaultHandler,                      // The SysTick handler
 #endif
-    IntDefaultHandler,                      // GPIO Port A
-    IntDefaultHandler,                      // GPIO Port B
-    IntDefaultHandler,                      // GPIO Port C
-    IntDefaultHandler,                      // GPIO Port D
-    IntDefaultHandler,                      // GPIO Port E
+    GPIOIntDefaultHandler,                      // GPIO Port A
+	GPIOIntDefaultHandler,                      // GPIO Port B
+	GPIOIntDefaultHandler,                      // GPIO Port C
+	GPIOIntDefaultHandler,                      // GPIO Port D
+	GPIOIntDefaultHandler,                      // GPIO Port E
     IntDefaultHandler,                      // UART0 Rx and Tx
     IntDefaultHandler,                      // UART1 Rx and Tx
     IntDefaultHandler,                      // SSI0 Rx and Tx
@@ -202,12 +203,7 @@ ResetISR(void)
 static void
 NmiSR(void)
 {
-    //
-    // Enter an infinite loop.
-    //
-    while(1)
-    {
-    }
+	FaultISR();
 }
 
 //*****************************************************************************
@@ -222,12 +218,20 @@ NmiSR(void)
 static void
 BusFaultHandler(void)
 {
-    //
-    // Go into an infinite loop.
-    //
-    while(1)
-    {
-    }
+	FaultISR();
+}
+
+#include "gpio.h"
+static void GPIOIntDefaultHandler(void) {
+	LOGE("A0:%x\n", GPIOIntStatus(GPIOA0_BASE, 0));
+	LOGE("A1:%x\n", GPIOIntStatus(GPIOA1_BASE, 0));
+	LOGE("A2:%x\n", GPIOIntStatus(GPIOA2_BASE, 0));
+	LOGE("A3:%x\n", GPIOIntStatus(GPIOA3_BASE, 0));
+	LOGE("UNEXPECTED GPIO INTERRUPT\n");
+	MAP_GPIOIntClear(GPIOA0_BASE, 0xFFFFFFFF);
+	MAP_GPIOIntClear(GPIOA1_BASE, 0xFFFFFFFF);
+	MAP_GPIOIntClear(GPIOA2_BASE, 0xFFFFFFFF);
+	MAP_GPIOIntClear(GPIOA3_BASE, 0xFFFFFFFF);
 }
 
 //*****************************************************************************
@@ -240,14 +244,5 @@ BusFaultHandler(void)
 static void
 IntDefaultHandler(void)
 {
-    unsigned long ulInts;
-    unsigned long g_ulBase = 0;
-
-    //
-    // Get and clear the current interrupt source(s)
-    //
-    ulInts = MAP_UARTIntStatus(g_ulBase, 1);
-    MAP_UARTIntClear(g_ulBase, ulInts);
-
-    LOGI("got interrupt %x %x", g_ulBase, ulInts);
+	FaultISR();
 }

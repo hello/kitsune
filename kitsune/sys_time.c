@@ -45,7 +45,7 @@ static int get_rtc_time( struct tm * dt ) {
 	unsigned char data[7];
 	unsigned char addy = 1;
 	int retries = 0;
-	if (xSemaphoreTakeRecursive(i2c_smphr, 10000)) {
+	if (xSemaphoreTakeRecursive(i2c_smphr, portMAX_DELAY)) {
 		while (I2C_IF_Write(0x68, &addy, 1, 1) || I2C_IF_Read(0x68, data, 7)) {
 			vTaskDelay(100);
 			assert(++retries < 100);
