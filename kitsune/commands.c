@@ -452,9 +452,16 @@ int Cmd_play_buff(int argc, char *argv[]) {
     memset(&desc,0,sizeof(desc));
     strncpy( desc.file, file, 64 );
     desc.volume = vol;
-    desc.durationInSeconds = -1;
-	desc.fade_in_ms = 0;
-	desc.fade_out_ms = 0;
+    if( argc >= 4 ) {
+        desc.durationInSeconds = atoi(argv[4]);
+    } else {
+        desc.durationInSeconds = -1;
+    }
+    if( argc >= 5 ) {
+    	desc.fade_out_ms = desc.fade_in_ms = atoi(argv[5]);
+    } else {
+    	desc.fade_out_ms = desc.fade_in_ms = 0;
+    }
     desc.rate = atoi(argv[2]);
 
     AudioTask_StartPlayback(&desc);
