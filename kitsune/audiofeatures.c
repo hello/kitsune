@@ -235,7 +235,7 @@ static void UpdateEnergyStats(uint8_t isStable,int16_t logTotalEnergyAvg,int16_t
 	if( data.num_disturbances || ( (samplecount & 0xff) == 0xff ) ) {
 		if (_data.fpOncePerMinuteDataCallback) {
 			data.peak_background_energy = GetAudioEnergyAsDBA(logTotalEnergyAvg);
-			data.peak_energy = GetAudioEnergyAsDBA(_data.maxenergy);
+			data.peak_energy = GetAudioEnergyAsDBA(logTotalEnergy);
 
 			_data.fpOncePerMinuteDataCallback(&data);
 		}

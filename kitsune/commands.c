@@ -452,9 +452,16 @@ int Cmd_play_buff(int argc, char *argv[]) {
     memset(&desc,0,sizeof(desc));
     strncpy( desc.file, file, 64 );
     desc.volume = vol;
-    desc.durationInSeconds = -1;
-	desc.fade_in_ms = 0;
-	desc.fade_out_ms = 0;
+    if( argc >= 4 ) {
+        desc.durationInSeconds = atoi(argv[4]);
+    } else {
+        desc.durationInSeconds = -1;
+    }
+    if( argc >= 5 ) {
+    	desc.fade_out_ms = desc.fade_in_ms = atoi(argv[5]);
+    } else {
+    	desc.fade_out_ms = desc.fade_in_ms = 0;
+    }
     desc.rate = atoi(argv[2]);
 
     AudioTask_StartPlayback(&desc);
@@ -1617,7 +1624,7 @@ void thread_spi(void * data) {
 			vTaskDelay(500);
 			continue;
 		}
-		if (xSemaphoreTake(spi_smphr, 500) ) {
+		if (xSemaphoreTake(spi_smphr, portMAX_DELAY) ) {
 			Cmd_spi_read(0, 0);
 			MAP_GPIOIntEnable(GPIO_PORT,GSPI_INT_PIN);
 		} else {
@@ -1751,12 +1758,12 @@ void launch_tasks() {
 	//dear future chris: this one doesn't need a semaphore since it's only written to while threads are going during factory test boot
 	booted = true;
 
-	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 2, NULL);
-	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,2,NULL);
+	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 3, NULL);
+	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,4,NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 3, NULL);
+	xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
-	xTaskCreate(FileUploaderTask_Thread,"fileUploadTask",1*1024/4,NULL,3,NULL);
+	xTaskCreate(FileUploaderTask_Thread,"fileUploadTask",1*1024/4,NULL,1,NULL);
 #ifdef BUILD_SERVERS //todo PVT disable!
 	xTaskCreate(telnetServerTask,"telnetServerTask",512/4,NULL,4,NULL);
 	xTaskCreate(httpServerTask,"httpServerTask",3*512/4,NULL,4,NULL);
@@ -1764,11 +1771,11 @@ void launch_tasks() {
 	UARTprintf("*");
 #if !ONLY_MID
 	UARTprintf("*");
-	xTaskCreate(thread_dust, "dustTask", 1024 / 4, NULL, 2, NULL);
+	xTaskCreate(thread_dust, "dustTask", 1024 / 4, NULL, 3, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_sensor_poll, "pollTask", 1024 / 4, NULL, 3, NULL);
+	xTaskCreate(thread_sensor_poll, "pollTask", 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_tx, "txTask", 1536 / 4, NULL, 4, NULL);
+	xTaskCreate(thread_tx, "txTask", 1536 / 4, NULL, 1, NULL);
 	UARTprintf("*");
 	//long_poll_task_init( 4096 / 4 );
 #endif
@@ -2025,7 +2032,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "^", Cmd_send_top, ""}, //send command to top board
 		{ "topdfu", Cmd_topdfu, ""}, //update topboard firmware.
 		{ "factory_reset", Cmd_factory_reset, ""},//Factory reset from middle.
-#if 0
+#if 2
 		{ "download", Cmd_download, ""},//download test function.
 		{ "dtm", Cmd_top_dtm, "" },//Sends Direct Test Mode command
 #endif
@@ -2077,6 +2084,7 @@ tCmdLineEntry g_sCmdTable[] = {
 // ==============================================================================
 //void SDHostIntHandler();
 extern xSemaphoreHandle g_xRxLineSemaphore;
+
 void UARTStdioIntHandler(void);
 long nwp_reset();
 
@@ -2086,8 +2094,8 @@ void vUARTTask(void *pvParameters) {
 	if(led_init() != 0){
 		LOGI("Failed to create the led_events.\n");
 	}
-	xTaskCreate(led_task, "ledTask", 700 / 4, NULL, 2, NULL);
-	xTaskCreate(led_idle_task, "led_idle_task", 256 / 4, NULL, 4, NULL);
+	xTaskCreate(led_task, "ledTask", 700 / 4, NULL, 4, NULL);
+	xTaskCreate(led_idle_task, "led_idle_task", 256 / 4, NULL, 2, NULL);
 
 	//switch the uart lines to gpios, drive tx low and see if rx goes low as well
     // Configure PIN_57 for GPIOInput
@@ -2214,13 +2222,13 @@ void vUARTTask(void *pvParameters) {
 
 	init_dust();
 	ble_proto_init();
-	xTaskCreate(top_board_task, "top_board_task", 1280 / 4, NULL, 2, NULL);
+	xTaskCreate(top_board_task, "top_board_task", 1280 / 4, NULL, 3, NULL);
 	xTaskCreate(thread_spi, "spiTask", 1024 / 4, NULL, 3, NULL);
 #ifndef BUILD_SERVERS
 	uart_logger_init();
-	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 3, NULL);
+	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 1, NULL);
 	UARTprintf("*");
-	xTaskCreate(analytics_event_task, "analyticsTask", 1024/4, NULL, 3, NULL);
+	xTaskCreate(analytics_event_task, "analyticsTask", 1024/4, NULL, 1, NULL);
 	UARTprintf("*");
 #endif
 

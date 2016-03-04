@@ -1343,7 +1343,7 @@ void file_download_task( void * params ) {
     SyncResponse_FileDownload download_info;
     unsigned char top_sha_cache[SHA1_SIZE];
     int top_need_dfu = 0;
-    for(;;) while (xQueueReceive(download_queue, &(download_info), 100)) {
+    for(;;) while (xQueueReceive(download_queue, &(download_info), portMAX_DELAY)) {
         char * filename=NULL, * url=NULL, * host=NULL, * path=NULL, * serial_flash_path=NULL, * serial_flash_name=NULL;
 
         filename = download_info.sd_card_filename.arg;

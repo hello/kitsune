@@ -115,6 +115,7 @@ void DeinitAudioPlayback(void) {
 
 	if (pRxBuffer) {
 		DestroyCircularBuffer(pRxBuffer);
+		pRxBuffer = NULL;
 	}
 }
 

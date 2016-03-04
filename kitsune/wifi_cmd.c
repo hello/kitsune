@@ -87,12 +87,13 @@ void mcu_reset()
     MAP_PRCMHibernateEnter();
 }
 
+
 #define SL_STOP_TIMEOUT                 (30)
 long nwp_reset() {
 	long r;
 	sl_enter_critical_region();
     sl_WlanSetMode(ROLE_STA);
-    sl_Stop(SL_STOP_TIMEOUT);
+	r = sl_Stop(0xFF);
     wifi_status_set(0xFFFFFFFF, true);
     r = sl_Start(NULL, NULL, NULL);
 	sl_exit_critical_region();
@@ -306,6 +307,7 @@ void load_data_server(){
 		use_dev_server = true;
 	}
 }
+
 int Cmd_setDev(int argc, char *argv[]) {
 	if(argc > 1){
 		if(argv[1][0] == '1'){
@@ -1706,6 +1708,7 @@ int send_data_pb( char* host, const char* path, char ** recv_buf_ptr,
     }
 
 	failure:
+
 	if( pb_cb && pb_cb->on_pb_failure ) {
 		pb_cb->on_pb_failure();
 	}

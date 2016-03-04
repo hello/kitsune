@@ -82,8 +82,8 @@ static void StatsCallback(const AudioOncePerMinuteData_t * pdata) {
 
 	_stats.peak_background_energy += pdata->peak_background_energy;
 
-	if (pdata->peak_background_energy > _stats.peak_energy) {
-		_stats.peak_energy = pdata->peak_background_energy;
+	if (pdata->peak_energy > _stats.peak_energy) {
+		_stats.peak_energy = pdata->peak_energy;
 	}
 
 	_stats.isValid = 1;
@@ -277,7 +277,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 				started = true;
 				break;
 			}
-			assert( xSemaphoreTake( audio_dma_sem, 1000 ) );
+			assert( xSemaphoreTake( audio_dma_sem, 5000 ) );
 		}
 
 		if (size > 0) {
@@ -314,12 +314,12 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		else {
 			if (desired_ticks_elapsed >= 0) {
 				//LOOP THE FILE -- start over
+				LOGI("looping, %d", desired_ticks_elapsed - (xTaskGetTickCount() - t0)  );
 				hello_fs_lseek(&fp,0);
 			}
 			else {
 				//someone passed in a negative number--which means after one
 				//play through the file, we quit.
-
 				break;
 			}
 
