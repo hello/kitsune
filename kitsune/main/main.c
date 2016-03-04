@@ -94,9 +94,13 @@
 #include "hellofilesystem.h"
 //#include "sl_sync_include_after_simplelink_header.h" not here, this one is operating before the scheduler starts...
 
+
+#ifdef _ENABLE_SYSVIEW
 void SEGGER_SYSVIEW_Conf(void);
 void SEGGER_RTT_Init(void);
 void SEGGER_SYSVIEW_Start(void);
+#endif
+
 void mcu_reset();
 
 extern void vUARTTask(void *pvParameters);
@@ -338,8 +342,10 @@ void main()
   //
   MAP_PinDirModeSet(PIN_07,PIN_DIR_MODE_OUT);
 
+#ifdef _ENABLE_SYSVIEW
   SEGGER_RTT_Init();
   SEGGER_SYSVIEW_Conf();
+#endif
   //
   // Start the SimpleLink Host
   //
