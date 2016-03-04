@@ -153,9 +153,9 @@ void recoveri2c() {
 		TickType_t start = xTaskGetTickCount();
 		while ( MAP_GPIOPinRead(sda_gpio_base, sda_gpio_bit) == 0 && ++pulses < 65 ) {
 			MAP_GPIOPinWrite(GPIO_PORT, 0x4, 0); //pulse the clock line...
-			vTaskDelay(10);
+			vTaskDelay(1);
 			MAP_GPIOPinWrite(GPIO_PORT, 0x4, 1);
-			vTaskDelay(10);
+			vTaskDelay(1);
 		}
 		MAP_GPIODirModeSet(GPIOA1_BASE, 0x4, GPIO_DIR_MODE_IN);
 
@@ -208,6 +208,7 @@ static int I2CTransact(unsigned long ulCmd) {
 	//
 	// Check for any errors in transfer
 	//
+	vTaskDelay(1);
 	if (MAP_I2CMasterErr(I2C_BASE) != I2C_MASTER_ERR_NONE) {
 		LOGE("i2c mastererr %x\n", MAP_I2CMasterErr(I2C_BASE));
 		recoveri2c();
