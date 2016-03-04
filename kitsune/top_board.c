@@ -24,6 +24,8 @@
 
 #define TOPBOARD_INFO_FILE "/top/info.bin"
 
+#define UART_INTFLAGS (UART_INT_EOT | UART_INT_OE | UART_INT_RT | UART_INT_TX | UART_INT_RX)
+
 typedef struct{
     uint8_t update_sha[SHA1_SIZE];
 }top_info_t;
@@ -232,7 +234,7 @@ _sendchar(uint8_t c){
 static void
 _top_uart_isr() {
 	signed long xHigherPriorityTaskWoken;
-	UARTIntClear( UARTA1_BASE, 0xFFF );
+	UARTIntClear( UARTA1_BASE, UART_INTFLAGS );
 
 	xSemaphoreGiveFromISR(self.uart_sem, &xHigherPriorityTaskWoken);
 	portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
@@ -262,8 +264,7 @@ void top_board_task(void * params){
 			38400,
 			(UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE));
 	UARTFIFOLevelSet( UARTA1_BASE, UART_FIFO_TX1_8, UART_FIFO_RX1_8 );
-	UARTIntDisable( UARTA1_BASE, 0xFFF );
-	UARTIntEnable( UARTA1_BASE, 0xFF2 /*UART_INT_RX*/);
+	UARTIntEnable( UARTA1_BASE, UART_INTFLAGS );
 	UARTIntRegister(UARTA1_BASE, _top_uart_isr );
 	while (1) {
 		while( UARTCharsAvail(UARTA1_BASE)) {

@@ -154,7 +154,11 @@ void usertraceMALLOC( void * pvAddress, size_t uiSize );
 #define traceMALLOC usertraceMALLOC
 #define traceFREE usertraceFREE
 
+#define _ENABLE_SYSVIEW
+
+#ifdef _ENABLE_SYSVIEW
 #include "Global.h"
 #include "SEGGER_SYSVIEW_FreeRTOS.h"
+#endif
 
 #endif /* FREERTOS_CONFIG_H */
