@@ -2172,7 +2172,7 @@ void vUARTTask(void *pvParameters) {
 	spi_init();
 
 	i2c_smphr = xSemaphoreCreateRecursiveMutex();
-	init_time_module(2200);
+	init_time_module(2560);
 
 	// Init sensors
 	init_humid_sensor();
