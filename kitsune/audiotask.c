@@ -49,7 +49,7 @@
 unsigned int g_uiPlayWaterMark;
 extern tCircularBuffer * pRxBuffer;
 extern tCircularBuffer * pTxBuffer;
-xSemaphoreHandle audio_dma_sem;
+TaskHandle_t audio_task_hndl;
 
 /* static variables  */
 static xQueueHandle _queue = NULL;
@@ -103,6 +103,8 @@ static void Init(void) {
 	_callCounter = 0;
 	_filecounter = 0;
 
+	audio_task_hndl = xTaskGetCurrentTaskHandle();
+
 	if (!_queue) {
 		_queue = xQueueCreate(INBOX_QUEUE_LENGTH,sizeof(AudioMessage_t));
 	}
@@ -113,10 +115,6 @@ static void Init(void) {
 
 	if (!_statsMutex) {
 		_statsMutex = xSemaphoreCreateMutex();
-	}
-
-	if( !audio_dma_sem ) {
-		audio_dma_sem = xSemaphoreCreateBinary();
 	}
 
 	memset(&_stats,0,sizeof(_stats));
@@ -291,7 +289,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 				started = true;
 				break;
 			}
-			assert( xSemaphoreTake( audio_dma_sem, 5000 ) );
+			ulTaskNotifyTake( pdTRUE, 5000 );
 		}
 
 		if (size > 0) {
@@ -367,8 +365,6 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	hello_fs_close(&fp);
 
 	DeinitAudioPlayback();
-
-	xSemaphoreGive( audio_dma_sem );
 
 	_unlock_for_audio( has_i2c_lock );
 
@@ -533,7 +529,7 @@ static void DoCapture(uint32_t rate) {
 
 		if(iBufferFilled < 2*PING_PONG_CHUNK_SIZE) {
 			//wait a bit for the tx buffer to fill
-			if( !xSemaphoreTake( audio_dma_sem, 1000 ) ) {
+			if( !ulTaskNotifyTake( pdTRUE, 1000 ) ) {
 				LOGE("Capture DMA timeout\n");
 				DeinitAudioCapture();
 				InitAudioCapture(rate);
@@ -623,8 +619,6 @@ static void DoCapture(uint32_t rate) {
 	}
 
 	DeinitAudioCapture();
-
-	xSemaphoreGive( audio_dma_sem );
 
 	AudioProcessingTask_SetControl(processingOff,ProcessingCommandFinished,NULL);
 

@@ -104,7 +104,7 @@ extern tCircularBuffer *pTxBuffer;
 extern tCircularBuffer *pRxBuffer;
 extern unsigned int g_uiPlayWaterMark;
 
-extern xSemaphoreHandle audio_dma_sem;
+extern TaskHandle_t audio_task_hndl;
 
 //*****************************************************************************
 //
@@ -192,7 +192,7 @@ void DMAPingPongCompleteAppCB_opt()
 			pusTxDestBuf -= CB_TRANSFER_SZ;
 
 			guiDMATransferCountTx = 0;
-			xSemaphoreGiveFromISR(audio_dma_sem, &xHigherPriorityTaskWoken);
+		    vTaskNotifyGiveFromISR( audio_task_hndl, &xHigherPriorityTaskWoken );
 			portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 		}
 	}
@@ -255,7 +255,7 @@ void DMAPingPongCompleteAppCB_opt()
 			pusRxSrcBuf -= CB_TRANSFER_SZ;
 
 			guiDMATransferCountRx = 0;
-			xSemaphoreGiveFromISR(audio_dma_sem, &xHigherPriorityTaskWoken);
+		    vTaskNotifyGiveFromISR( audio_task_hndl, &xHigherPriorityTaskWoken );
 			portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 		}
 	}

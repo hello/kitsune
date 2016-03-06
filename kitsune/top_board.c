@@ -55,7 +55,7 @@ static struct{
 	}dfu_contex;
 	volatile int top_boot;
     top_info_t info;
-    xSemaphoreHandle uart_sem;
+    TaskHandle_t top_board_task_hndl;
 }self;
 
 #define MAX_LINE_LENGTH 128
@@ -237,7 +237,7 @@ _top_uart_isr() {
 	traceISR_ENTER();
 	UARTIntClear( UARTA1_BASE, UART_INTFLAGS );
 
-	xSemaphoreGiveFromISR(self.uart_sem, &xHigherPriorityTaskWoken);
+    vTaskNotifyGiveFromISR( self.top_board_task_hndl, &xHigherPriorityTaskWoken );
 	portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 	traceISR_EXIT();
 }
@@ -258,9 +258,7 @@ void top_board_task(void * params){
 	slip_reset(&me);
 	hci_init();
 
-	if( !self.uart_sem ) {
-		self.uart_sem = xSemaphoreCreateBinary();
-	}
+	self.top_board_task_hndl =  xTaskGetCurrentTaskHandle();
 
 	MAP_UARTConfigSetExpClk(UARTA1_BASE, PRCMPeripheralClockGet(PRCM_UARTA1),
 			38400,
@@ -275,7 +273,7 @@ void top_board_task(void * params){
 				slip_handle_rx(c);
 			}
 		}
-		xSemaphoreTake(self.uart_sem, portMAX_DELAY);
+		ulTaskNotifyTake( pdTRUE, portMAX_DELAY );
 	}
 }
 static int _prep_file(const char * name, uint32_t * out_fsize, uint16_t * out_crc, long * out_handle){

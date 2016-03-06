@@ -930,24 +930,21 @@ void thread_fast_i2c_poll(void * unused)  {
 	ProxGesture_t gesture;
 
 	uint32_t counter = 0;
+	uint32_t delay = 50;
 
 	while (1) {
 		portTickType now = xTaskGetTickCount();
 		uint32_t prox=0;
 
 		if (xSemaphoreTakeRecursive(i2c_smphr, portMAX_DELAY)) {
-			vTaskDelay(2); //this is important! If we don't do it, then the prox will stretch the clock!
-
 			// For the black morpheus, we can detect 6mm distance max
 			// for white one, 9mm distance max.
+			vTaskDelay(2);
 			prox = median_filter(get_prox(), filter_buf, &filter_idx);
 
 			LOGP( "%d\n", prox );
 
-			xSemaphoreGiveRecursive(i2c_smphr);
-
 			gesture = ProxSignal_UpdateChangeSignals(prox);
-
 
 			//gesture gesture_state = gesture_input(prox);
 			switch(gesture)
@@ -970,14 +967,9 @@ void thread_fast_i2c_poll(void * unused)  {
 			if (++counter >= 2) {
 				counter = 0;
 
-				if (xSemaphoreTakeRecursive(i2c_smphr, portMAX_DELAY)) {
+				if (xSemaphoreTake(light_smphr, portMAX_DELAY)) {
 					vTaskDelay(2);
 					light = get_light();
-					xSemaphoreGiveRecursive(i2c_smphr);
-				}
-
-
-				if (xSemaphoreTake(light_smphr, portMAX_DELAY)) {
 					light_log_sum += bitlog(light);
 					++light_cnt;
 
@@ -997,8 +989,9 @@ void thread_fast_i2c_poll(void * unused)  {
 					}
 				}
 			}
+			xSemaphoreGiveRecursive(i2c_smphr);
 		}
-		vTaskDelayUntil(&now, 50);
+		vTaskDelayUntil(&now, delay);
 	}
 }
 
@@ -1369,8 +1362,9 @@ void thread_sensor_poll(void* unused) {
 
 		wait_for_time(WAIT_FOREVER);
 
-		if( xSemaphoreTake( low_frequency_i2c_sem, 0 ) ) {
+		if( xSemaphoreTake( low_frequency_i2c_sem, portMAX_DELAY ) ) {
 			sample_sensor_data(&data);
+			xSemaphoreGive(low_frequency_i2c_sem);
 
 			if( booted ) {
 				LOGI(
@@ -1388,7 +1382,6 @@ void thread_sensor_poll(void* unused) {
 					xQueueReceive(data_queue, (void* )&data, 0); //discard one, so if the queue is full we will put every other one in the queue
 					LOGE("Failed to post data\n");
 				}
-				xSemaphoreGive(low_frequency_i2c_sem);
 			}
 		}
 
@@ -1753,7 +1746,6 @@ static void checkFaults() {
 }
 
 void init_download_task( int stack );
-void init_i2c_recovery();
 
 void launch_tasks() {
 	checkFaults();
@@ -2161,7 +2153,6 @@ void vUARTTask(void *pvParameters) {
 	}
 	sl_NetAppStop(0x1f);
 	check_hw_version();
-	init_i2c_recovery();
 	PinMuxConfig_hw_dep();
 
 	// SDCARD INITIALIZATION
