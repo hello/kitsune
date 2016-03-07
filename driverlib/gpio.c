@@ -492,6 +492,8 @@ GPIOIntClear(unsigned long ulPort, unsigned long ulIntFlags)
 //! \return None.
 //
 //*****************************************************************************
+//#include "FreeRTOSconfig.h" todo find out why travis doesn't like this
+#define configMAX_SYSCALL_INTERRUPT_PRIORITY 	( 5 << 5 )
 void
 GPIOIntRegister(unsigned long ulPort, void (*pfnIntHandler)(void))
 {
@@ -509,6 +511,8 @@ GPIOIntRegister(unsigned long ulPort, void (*pfnIntHandler)(void))
     // Register the interrupt handler.
     //
     IntRegister(ulPort, pfnIntHandler);
+
+    IntPrioritySet(ulPort, configMAX_SYSCALL_INTERRUPT_PRIORITY);
 
     //
     // Enable the GPIO interrupt.
