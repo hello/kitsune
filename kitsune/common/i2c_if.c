@@ -198,12 +198,11 @@ static int I2CTransact(unsigned long ulCmd) {
 	int attempts = 0;
 	while ((MAP_I2CMasterIntStatusEx(I2C_BASE, false)
 			& (I2C_INT_MASTER | I2C_MRIS_CLKTOUT)) == 0) {
-		if (++attempts == 1000) {
+		if (++attempts == 10000) {
 			LOGE("i2c timeout\n");
 			recoveri2c();
 			return FAILURE;
 		}
-		vTaskDelay(1);
 	}
 	//
 	// Check for any errors in transfer

@@ -231,14 +231,6 @@ static void
 _sendchar(uint8_t c){
     UARTCharPut(UARTA1_BASE, c);
 }
-static void
-_top_uart_isr() {
-	signed long xHigherPriorityTaskWoken;
-	UARTIntClear( UARTA1_BASE, UART_INTFLAGS );
-
-	xSemaphoreGiveFromISR(self.uart_sem, &xHigherPriorityTaskWoken);
-	portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-}
 void top_board_task(void * params){
 	slip_handler_t me = {
 			.slip_display_char = _printchar,
@@ -263,9 +255,7 @@ void top_board_task(void * params){
 	MAP_UARTConfigSetExpClk(UARTA1_BASE, PRCMPeripheralClockGet(PRCM_UARTA1),
 			38400,
 			(UART_CONFIG_WLEN_8 | UART_CONFIG_STOP_ONE | UART_CONFIG_PAR_NONE));
-	UARTFIFOLevelSet( UARTA1_BASE, UART_FIFO_TX1_8, UART_FIFO_RX1_8 );
-	UARTIntEnable( UARTA1_BASE, UART_INTFLAGS );
-	UARTIntRegister(UARTA1_BASE, _top_uart_isr );
+
 	while (1) {
 		while( UARTCharsAvail(UARTA1_BASE)) {
 			int8_t c = UARTCharGetNonBlocking(UARTA1_BASE);
@@ -273,7 +263,7 @@ void top_board_task(void * params){
 				slip_handle_rx(c);
 			}
 		}
-		xSemaphoreTake(self.uart_sem, portMAX_DELAY);
+		vTaskDelay(10);
 	}
 }
 static int _prep_file(const char * name, uint32_t * out_fsize, uint16_t * out_crc, long * out_handle){

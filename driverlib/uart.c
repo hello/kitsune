@@ -1179,7 +1179,7 @@ UARTIntRegister(unsigned long ulBase, void (*pfnHandler)(void))
     //
     IntRegister(ulInt, pfnHandler);
 
-    IntPrioritySet(ui32Int, configMAX_SYSCALL_INTERRUPT_PRIORITY);
+    IntPrioritySet(ulInt, configMAX_SYSCALL_INTERRUPT_PRIORITY);
     //
     // Enable the UART interrupt.
     //
