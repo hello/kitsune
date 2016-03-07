@@ -131,6 +131,8 @@ void DMAPingPongCompleteAppCB_opt()
     unsigned char *pucDMADest;
     unsigned char *pucDMASrc;
 
+	traceISR_ENTER();
+
 	if (uDMAIntStatus() & 0x00000010) {
 		HWREG(0x4402609c) = (1 << 10);
 		//
@@ -258,6 +260,7 @@ void DMAPingPongCompleteAppCB_opt()
 		}
 	}
 
+	traceISR_EXIT();
 }
 
 //*****************************************************************************

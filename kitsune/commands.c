@@ -1580,6 +1580,8 @@ void nordic_prox_int() {
     unsigned int status;
     signed long xHigherPriorityTaskWoken; //todo this should be basetype_t
 
+	traceISR_ENTER();
+
     //check for which pin triggered
     status = GPIOIntStatus(GPIO_PORT, FALSE);
 	//clear all interrupts
@@ -1600,6 +1602,8 @@ void nordic_prox_int() {
 	/* If xHigherPriorityTaskWoken was set to true you
     we should yield.  The actual macro used here is
     port specific. */
+
+	traceISR_EXIT();
 }
 
 #include "gpio.h"

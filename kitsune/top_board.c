@@ -234,10 +234,12 @@ _sendchar(uint8_t c){
 static void
 _top_uart_isr() {
 	signed long xHigherPriorityTaskWoken;
+	traceISR_ENTER();
 	UARTIntClear( UARTA1_BASE, UART_INTFLAGS );
 
 	xSemaphoreGiveFromISR(self.uart_sem, &xHigherPriorityTaskWoken);
 	portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+	traceISR_EXIT();
 }
 void top_board_task(void * params){
 	slip_handler_t me = {
