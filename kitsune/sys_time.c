@@ -48,11 +48,15 @@ static int get_rtc_time( struct tm * dt ) {
 	if (xSemaphoreTakeRecursive(i2c_smphr, portMAX_DELAY)) {
 		while (I2C_IF_Write(0x68, &addy, 1, 1) || I2C_IF_Read(0x68, data, 7)) {
 			vTaskDelay(100);
-			assert(++retries < 100);
+//			assert(++retries < 100);
+			++retries;
 		}
 		xSemaphoreGiveRecursive(i2c_smphr);
 	} else {
 		vAssertCalled("rtc time no i2c sem\n");
+	}
+	if( retries > 0 ) {
+		LOGW("rtc i2c retries %d\n", retries);
 	}
 	dt->tm_sec = bcd_to_int(data[0] & 0x7f);
 	dt->tm_min = bcd_to_int(data[1] & 0x7f);
@@ -73,7 +77,7 @@ static int get_rtc_time( struct tm * dt ) {
 
 static int set_rtc_time(struct tm * dt) {
 	unsigned char data[8];
-
+	int retries = 0;
 	data[0] = 1; //address to write to...
 	data[1] = int_to_bcd(dt->tm_sec & 0x7f);
 	data[2] = int_to_bcd(dt->tm_min & 0x7f); //sets the OF to FALSE
@@ -84,8 +88,13 @@ static int set_rtc_time(struct tm * dt) {
     data[7] = int_to_bcd(dt->tm_year-100);
 
 	if (xSemaphoreTakeRecursive(i2c_smphr, portMAX_DELAY)) {
-		assert(I2C_IF_Write(0x68, data, 8, 1)==0);
+		while (I2C_IF_Write(0x68, data, 8, 1) != 0) {
+			++retries;
+		};
 		xSemaphoreGiveRecursive(i2c_smphr);
+	}
+	if( retries > 0 ) {
+		LOGW("set rtc retry %d\n", retries);
 	}
 	return 0;
 }
@@ -184,7 +193,7 @@ static void _on_time_response_success( void * structdata){
 }
 static void _on_time_response_failure( ){
 	LOGF("_on_time_response_failure\r\n");
-	current_ntp_time = INVALID_SYS_TIME;
+	//current_ntp_time = INVALID_SYS_TIME;
 }
 
 uint32_t fetch_ntp_time_from_ntp() {
