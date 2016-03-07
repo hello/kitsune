@@ -56,7 +56,8 @@
 
 /* Peripheral interface includes. */
 #include "udma_if.h"
-#include "FreeRTOSconfig.h"
+//#include "FreeRTOSconfig.h" todo find out why travis doesn't like this
+#define configMAX_SYSCALL_INTERRUPT_PRIORITY 	( 5 << 5 )
 
 
 #define UDMA_CH5_BITID          (1<<5)
