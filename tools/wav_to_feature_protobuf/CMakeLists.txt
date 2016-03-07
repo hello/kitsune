@@ -8,6 +8,7 @@ set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 find_package(SndFile REQUIRED)
 
 add_definitions(-DUSE_CPP_DEBUG_LOGGING)
+add_definitions(-DNO_EQUALIZATION)
 
 include_directories ("${PROJECT_SOURCE_DIR}/../../kitsune/nanopb" ${SNDFILE_INCLUDE_DIRS})
 
