@@ -1152,7 +1152,8 @@ UARTBusy(unsigned long ulBase)
 //! \return None.
 //
 //*****************************************************************************
-#include "FreeRTOSconfig.h"
+//#include "FreeRTOSconfig.h" todo find out why travis doesn't like this
+#define configMAX_SYSCALL_INTERRUPT_PRIORITY 	( 5 << 5 )
 void
 UARTIntRegister(unsigned long ulBase, void (*pfnHandler)(void))
 {

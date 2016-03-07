@@ -435,7 +435,8 @@ I2CSlaveDisable(uint32_t ui32Base)
 //! \return None.
 //
 //*****************************************************************************
-#include "FreeRTOSconfig.h"
+//#include "FreeRTOSconfig.h" todo find out why travis doesn't like this
+#define configMAX_SYSCALL_INTERRUPT_PRIORITY (5<<5)
 void
 I2CIntRegister(uint32_t ui32Base, void (*pfnHandler)(void))
 {
@@ -452,7 +453,6 @@ I2CIntRegister(uint32_t ui32Base, void (*pfnHandler)(void))
     ui32Int = _I2CIntNumberGet(ui32Base);
 
     ASSERT(ui32Int != 0);
-
     //
     // Register the interrupt handler, returning an error if an error occurs.
     //

@@ -870,12 +870,15 @@ void I2SIntClear(unsigned long ulBase, unsigned long ulStatFlags)
 //! \return None.
 //
 //*****************************************************************************
+//#include "FreeRTOSconfig.h" todo find out why travis doesn't like this
 void I2SIntRegister(unsigned long ulBase, void (*pfnHandler)(void))
 {
   //
   // Register the interrupt handler
   //
   IntRegister(INT_I2S,pfnHandler);
+
+  IntPrioritySet(INT_I2S, 5<<5);
 
   //
   // Enable the interrupt
