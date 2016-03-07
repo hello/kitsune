@@ -56,6 +56,7 @@
 
 /* Peripheral interface includes. */
 #include "udma_if.h"
+#include "FreeRTOSconfig.h"
 
 
 #define UDMA_CH5_BITID          (1<<5)
@@ -140,6 +141,8 @@ void UDMAInit()
     //
     // Register interrupt handlers
     //
+    IntPrioritySet(UDMA_INT_SW, configMAX_SYSCALL_INTERRUPT_PRIORITY);
+    IntPrioritySet(UDMA_INT_ERR, configMAX_SYSCALL_INTERRUPT_PRIORITY);
     MAP_uDMAIntRegister(UDMA_INT_SW, DmaSwIntHandler);
     MAP_uDMAIntRegister(UDMA_INT_ERR, DmaErrorIntHandler);
     //
