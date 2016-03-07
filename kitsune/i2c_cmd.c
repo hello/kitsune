@@ -524,6 +524,8 @@ void set_volume(int v, unsigned int dly) {
 	if( xSemaphoreTakeRecursive(i2c_smphr, dly) ) {
 		I2C_IF_Write(Codec_addr, cmd_init, 2, 1);
 		xSemaphoreGiveRecursive(i2c_smphr);
+	} else {
+		LOGW("failed to get i2c %d\n", __LINE__);
 	}
 }
 int get_codec_mic_NAU(int argc, char *argv[]) {
@@ -648,7 +650,7 @@ int get_codec_mic_NAU(int argc, char *argv[]) {
 			// 0x3C PCMTSEN TRI PCM8BIT PUDOEN PUDPE    PUDPS LOUTR  PCMB TSLOT
 			// set  0       1     0      1     0         1    0      0      0
 	};
-	if( xSemaphoreTakeRecursive(i2c_smphr, portMAX_DELAY) ) {
+	if( xSemaphoreTakeRecursive(i2c_smphr, 300000) ) {
 		for( i=0;i<50;++i) {
 			cmd_init[0] = reg[i][0];
 			cmd_init[1] = reg[i][1];
@@ -656,6 +658,8 @@ int get_codec_mic_NAU(int argc, char *argv[]) {
 			vTaskDelay(DELAY_CODEC);
 		}
 		xSemaphoreGiveRecursive(i2c_smphr);
+	} else {
+		LOGW("failed to get i2c %d\n", __LINE__);
 	}
 	return SUCCESS;
 }
@@ -715,7 +719,7 @@ int get_codec_NAU(int vol_codec) {
 			{0x74,0x00},
 			{0x92,0xc1},
 	};
-	if (xSemaphoreTakeRecursive(i2c_smphr, portMAX_DELAY)) {
+	if (xSemaphoreTakeRecursive(i2c_smphr, 300000)) {
 		for (i = 0; i < 48; ++i) {
 			cmd_init[0] = reg[i][0];
 			cmd_init[1] = reg[i][1];
@@ -726,6 +730,8 @@ int get_codec_NAU(int vol_codec) {
 			vTaskDelay(DELAY_CODEC);
 		}
 		xSemaphoreGiveRecursive(i2c_smphr);
+	} else {
+		LOGW("failed to get i2c %d\n", __LINE__);
 	}
 #if 0
 	cmd_init[0] = 0x00 ; cmd_init[1] = 0x00 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC);
@@ -942,7 +948,7 @@ int get_codec_NAU(int vol_codec) {
 int close_codec_NAU(int argc, char *argv[]) {
 	unsigned char cmd_init[2];
 
-	if (xSemaphoreTakeRecursive(i2c_smphr, portMAX_DELAY)) {
+	if (xSemaphoreTakeRecursive(i2c_smphr, 300000)) {
 		//////// 1.  Un-mute DAC DACMT[6] = 1
 		cmd_init[0] = 0x14;
 		cmd_init[1] = 0x4C;
@@ -970,6 +976,8 @@ int close_codec_NAU(int argc, char *argv[]) {
 		//////// 4.  Power supplies Analog VDDA VDDB VDDC VDDSPK
 
 		xSemaphoreGiveRecursive(i2c_smphr);
+	} else {
+		LOGW("failed to get i2c %d\n", __LINE__);
 	}
 	return 0;
 }

@@ -936,7 +936,7 @@ void thread_fast_i2c_poll(void * unused)  {
 		portTickType now = xTaskGetTickCount();
 		uint32_t prox=0;
 
-		if (xSemaphoreTakeRecursive(i2c_smphr, portMAX_DELAY)) {
+		if (xSemaphoreTakeRecursive(i2c_smphr, 300000)) {
 			// For the black morpheus, we can detect 6mm distance max
 			// for white one, 9mm distance max.
 			vTaskDelay(2);
@@ -990,6 +990,8 @@ void thread_fast_i2c_poll(void * unused)  {
 				}
 			}
 			xSemaphoreGiveRecursive(i2c_smphr);
+		} else {
+			LOGW("failed to get i2c %d\n", __LINE__);
 		}
 		vTaskDelayUntil(&now, delay);
 	}
@@ -1261,7 +1263,7 @@ void sample_sensor_data(periodic_data* data)
 	}
 
 	// get temperature and humidity
-	if (xSemaphoreTakeRecursive(i2c_smphr, portMAX_DELAY)) {
+	if (xSemaphoreTakeRecursive(i2c_smphr, 300000)) {
 		uint8_t measure_time = 10;
 		int64_t humid_sum = 0;
 		int64_t temp_sum = 0;
@@ -1309,6 +1311,8 @@ void sample_sensor_data(periodic_data* data)
 		}
 		
 		xSemaphoreGiveRecursive(i2c_smphr);
+	} else {
+		LOGW("failed to get i2c %d\n", __LINE__);
 	}
 
 	int wave_count = gesture_get_wave_count();
