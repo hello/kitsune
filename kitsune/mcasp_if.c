@@ -128,8 +128,7 @@ void McASPInit( unsigned int SAMPLING_FREQ)
 void McASPDeInit()
 {
 	//MAP_PRCMPeripheralClkDisable(PRCM_I2S,PRCM_RUN_MODE_CLK);
-	MAP_I2SIntDisable(I2S_BASE,I2S_INT_XDATA);
-	MAP_I2SIntDisable(I2S_BASE,I2S_INT_RDATA);
+	MAP_I2SIntDisable(I2S_BASE,I2S_INT_XDMA | I2S_INT_RDMA);
 	MAP_I2STxFIFODisable(I2S_BASE);
 	MAP_I2SRxFIFODisable(I2S_BASE);
 	I2SIntUnregister(I2S_BASE);
@@ -155,8 +154,7 @@ void McASPDeInit()
 void AudioCapturerSetupDMAMode(void (*pfnAppCbHndlr)(void), 
                               unsigned long ulCallbackEvtSamples)
 {
-    MAP_I2SIntEnable(I2S_BASE,I2S_INT_XDATA);
-    MAP_I2SIntEnable(I2S_BASE,I2S_INT_RDATA);
+    MAP_I2SIntEnable(I2S_BASE,I2S_INT_XDMA | I2S_INT_RDMA );
     //(e) Register the interrupt handler and enable the transmit data interrupt:
 #ifdef USE_TIRTOS
     osi_InterruptRegister(INT_I2S, pfnAppCbHndlr, INT_PRIORITY_LVL_1);
