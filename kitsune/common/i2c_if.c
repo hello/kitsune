@@ -119,11 +119,11 @@ static void i2c_int() {
     MAP_I2CMasterIntClearEx(I2C_BASE,sts);
 
 	if( (sts & (I2C_INT_MASTER | I2C_MRIS_CLKTOUT)) != (I2C_INT_MASTER | I2C_MRIS_CLKTOUT) ) {
-		I2CMasterIntDisable(I2C_BASE);
-		I2CIntUnregister(I2C_BASE);
 		vTaskNotifyGiveFromISR( i2c_task, &xHigherPriorityTaskWoken );
 		portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 	}
+	I2CMasterIntDisable(I2C_BASE);
+	I2CIntUnregister(I2C_BASE);
 	traceISR_EXIT();
 }
 

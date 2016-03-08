@@ -62,6 +62,7 @@
 #include "debug.h"
 #include "interrupt.h"
 #include "hw_memmap.h"
+#include "hw_ints.h"
 #include "i2s.h"
 #include "udma.h"
 #include "pin.h"
@@ -130,10 +131,15 @@ void DMAPingPongCompleteAppCB_opt()
     unsigned int uiBufferEmpty = 0;
     unsigned char *pucDMADest;
     unsigned char *pucDMASrc;
+    unsigned int dma_status;
+    unsigned int i2s_status;
 
-	traceISR_ENTER();
+    traceISR_ENTER();
 
-	if (uDMAIntStatus() & 0x00000010) {
+	i2s_status = I2SIntStatus(I2S_BASE);
+	dma_status = uDMAIntStatus();
+
+	if (dma_status & 0x00000010) {
 		HWREG(0x4402609c) = (1 << 10);
 		//
 		// Get the base address of the control table.
@@ -197,7 +203,7 @@ void DMAPingPongCompleteAppCB_opt()
 		}
 	}
 
-	if (uDMAIntStatus() & 0x00000020) {
+	if (dma_status & 0x00000020) {
 		HWREG(0x4402609c) = (1 << 11);
 		pControlTable = MAP_uDMAControlBaseGet();
 		if ((pControlTable[ulPrimaryIndexRx].ulControl & UDMA_CHCTL_XFERMODE_M)
@@ -259,6 +265,8 @@ void DMAPingPongCompleteAppCB_opt()
 			portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 		}
 	}
+	uDMAIntClear(dma_status);
+	I2SIntClear(I2S_BASE, i2s_status );
 
 	traceISR_EXIT();
 }
