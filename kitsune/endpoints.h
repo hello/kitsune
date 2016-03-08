@@ -15,6 +15,7 @@ char * get_server(void);
 #define PILL_DATA_RECEIVE_ENDPOINT          "/in/pill"
 #define CHECK_KEY_ENDPOINT                  "/check"
 #define PROVISION_ENDPOINT					"/provision/keys"
+#define FILE_SYNC_ENDPOINT					"/in/sense/files"
 
 #define TEST_NETWORK_ENDPOINT               "/"
 #define TEST_SERVER                         "stress-in.hello.is"
