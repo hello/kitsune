@@ -929,7 +929,6 @@ void thread_fast_i2c_poll(void * unused)  {
 	ProxSignal_Init();
 	ProxGesture_t gesture;
 
-	uint32_t counter = 0;
 	uint32_t delay = 50;
 
 	while (1) {
@@ -939,7 +938,6 @@ void thread_fast_i2c_poll(void * unused)  {
 		if (xSemaphoreTakeRecursive(i2c_smphr, 300000)) {
 			// For the black morpheus, we can detect 6mm distance max
 			// for white one, 9mm distance max.
-			vTaskDelay(2);
 			prox = median_filter(get_prox(), filter_buf, &filter_idx);
 
 			LOGP( "%d\n", prox );
@@ -964,28 +962,23 @@ void thread_fast_i2c_poll(void * unused)  {
 				break;
 			}
 
-			if (++counter >= 2) {
-				counter = 0;
+			if (xSemaphoreTake(light_smphr, portMAX_DELAY)) {
+				light = get_light();
+				light_log_sum += bitlog(light);
+				++light_cnt;
 
-				if (xSemaphoreTake(light_smphr, portMAX_DELAY)) {
-					vTaskDelay(2);
-					light = get_light();
-					light_log_sum += bitlog(light);
-					++light_cnt;
+				int delta = light - light_mean;
+				light_mean = light_mean + delta/light_cnt;
+				light_m2 = light_m2 + delta * (light - light_mean);
+				if( light_m2 < 0 ) {
+					light_m2 = 0x7FFFFFFF;
+				}
+				//LOGI( "%d %d %d %d\n", delta, light_mean, light_m2, light_cnt);
+				xSemaphoreGive(light_smphr);
 
-					int delta = light - light_mean;
-					light_mean = light_mean + delta/light_cnt;
-					light_m2 = light_m2 + delta * (light - light_mean);
-					if( light_m2 < 0 ) {
-						light_m2 = 0x7FFFFFFF;
-					}
-					//LOGI( "%d %d %d %d\n", delta, light_mean, light_m2, light_cnt);
-					xSemaphoreGive(light_smphr);
-
-					if(light_cnt % 5 == 0 && led_is_idle(0) ) {
-						if(_is_light_off()) {
-							_show_led_status();
-						}
+				if(light_cnt % 5 == 0 && led_is_idle(0) ) {
+					if(_is_light_off()) {
+						_show_led_status();
 					}
 				}
 			}
@@ -1759,7 +1752,7 @@ void launch_tasks() {
 	booted = true;
 
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 3, NULL);
-	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,4,NULL);
+	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,2,NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
@@ -2094,7 +2087,7 @@ void vUARTTask(void *pvParameters) {
 	if(led_init() != 0){
 		LOGI("Failed to create the led_events.\n");
 	}
-	xTaskCreate(led_task, "ledTask", 700 / 4, NULL, 4, NULL);
+	xTaskCreate(led_task, "ledTask", 700 / 4, NULL, 3, NULL);
 	xTaskCreate(led_idle_task, "led_idle_task", 256 / 4, NULL, 2, NULL);
 
 	//switch the uart lines to gpios, drive tx low and see if rx goes low as well
@@ -2205,7 +2198,7 @@ void vUARTTask(void *pvParameters) {
 	SetupGPIOInterrupts();
 	CreateDefaultDirectories();
 
-	xTaskCreate(AudioTask_Thread,"audioTask",3072/4,NULL,4,NULL);
+	xTaskCreate(AudioTask_Thread,"audioTask",3072/4,NULL,3,NULL);
 	UARTprintf("*");
 	init_download_task( 2048 / 4 );
 	networktask_init(4 * 1024 / 4);
@@ -2270,7 +2263,7 @@ void vUARTTask(void *pvParameters) {
 				LOGF("can't run %s, no mem!\n", cCmdBuf );
 			} else {
 				memcpy( args, cCmdBuf, sizeof( cCmdBuf ) );
-				xTaskCreate(CmdLineProcess, "commandTask",  3*1024 / 4, args, 4, NULL);
+				xTaskCreate(CmdLineProcess, "commandTask",  3*1024 / 4, args, 3, NULL);
 			}
         }
 	}

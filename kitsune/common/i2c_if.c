@@ -115,15 +115,13 @@ static void i2c_int() {
 	signed long xHigherPriorityTaskWoken;
 	unsigned int sts;
 	traceISR_ENTER();
-	sts = MAP_I2CMasterIntStatusEx(I2C_BASE, false);
-    MAP_I2CMasterIntClearEx(I2C_BASE,sts);
+	sts = I2CMasterIntStatusEx(I2C_BASE, false);
+    I2CMasterIntClearEx(I2C_BASE,I2C_MASTER_INT_DATA);
 
-	if( (sts & (I2C_INT_MASTER | I2C_MRIS_CLKTOUT)) != (I2C_INT_MASTER | I2C_MRIS_CLKTOUT) ) {
+	if( I2C_MASTER_INT_DATA == (sts & I2C_MASTER_INT_DATA) ) {
 		vTaskNotifyGiveFromISR( i2c_task, &xHigherPriorityTaskWoken );
 		portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 	}
-	I2CMasterIntDisable(I2C_BASE);
-	I2CIntUnregister(I2C_BASE);
 	traceISR_EXIT();
 }
 
@@ -133,40 +131,39 @@ static void recoveri2c() {
 	//
 	// Configure PIN_02 for GPIOOutput 11
 	//
-	MAP_PinTypeGPIO(PIN_04, PIN_MODE_0, false);
-	MAP_GPIODirModeSet(GPIOA1_BASE, 0x20, GPIO_DIR_MODE_IN);
+	PRCMPeripheralReset(PRCM_I2CA0);
 
-	if( MAP_GPIOPinRead(GPIOA1_BASE, 0x20) == 0 ) {
-		LOGE("i2c recovery...\r\n");
-		//
-		// Configure PIN_01 for GPIOOutput 10 open drain
-		//
-		MAP_PinTypeGPIO(PIN_01, PIN_MODE_0, true);
-		MAP_GPIODirModeSet(GPIOA1_BASE, 0x4, GPIO_DIR_MODE_OUT);
+	PinTypeGPIO(PIN_04, PIN_MODE_0, false);
+	GPIODirModeSet(GPIOA1_BASE, 0x20, GPIO_DIR_MODE_IN);
 
-		TickType_t start = xTaskGetTickCount();
-		while ( MAP_GPIOPinRead(GPIOA1_BASE, 0x20) == 0 && ++pulses < 1000 ) {
-			MAP_GPIOPinWrite(GPIOA1_BASE, 0x4, 0); //pulse the clock line...
-			vTaskDelay(1);
-			MAP_GPIOPinWrite(GPIOA1_BASE, 0x4, 1);
-			vTaskDelay(1);
-		}
-		MAP_GPIODirModeSet(GPIOA1_BASE, 0x4, GPIO_DIR_MODE_IN);
+	LOGE("i2c recovery...\r\n");
+	//
+	// Configure PIN_01 for GPIOOutput 10 open drain
+	//
+	PinTypeGPIO(PIN_01, PIN_MODE_0, true);
+	GPIODirModeSet(GPIOA1_BASE, 0x4, GPIO_DIR_MODE_OUT);
 
-		LOGE("pulsed %d sda %x scl %x\r\n", pulses, MAP_GPIOPinRead(GPIOA1_BASE, 0x20), MAP_GPIOPinRead(GPIOA1_BASE, 0x4));
+	TickType_t start = xTaskGetTickCount();
+	do {
+		GPIOPinWrite(GPIOA1_BASE, 0x4, 0); //pulse the clock line...
+		vTaskDelay(1);
+		GPIOPinWrite(GPIOA1_BASE, 0x4, 1);
+		vTaskDelay(1);
+	} while ( GPIOPinRead(GPIOA1_BASE, 0x20) == 0 && ++pulses < 1000 );
+	GPIODirModeSet(GPIOA1_BASE, 0x4, GPIO_DIR_MODE_IN);
+
+	LOGE("pulsed %d sda %x scl %x\r\n", pulses, GPIOPinRead(GPIOA1_BASE, 0x20), GPIOPinRead(GPIOA1_BASE, 0x4));
 #if 0
-		// if the lines stay low, we have failed
-		if( booted
-			&& ( MAP_GPIOPinRead(GPIOA1_BASE, 0x20) == 0
-			  || MAP_GPIOPinRead(GPIOA1_BASE, 0x4) == 0 ) ) {
-			assert( I2C_FAILURE );
-		}
-#endif
-		//SDA is now high again, go back to i2c controller...
-		//MAP_PRCMPeripheralReset(PRCM_I2CA0);
-		MAP_PinTypeI2C(PIN_01, PIN_MODE_1);
+	// if the lines stay low, we have failed
+	if( booted
+		&& ( GPIOPinRead(GPIOA1_BASE, 0x20) == 0
+		  || GPIOPinRead(GPIOA1_BASE, 0x4) == 0 ) ) {
+		assert( I2C_FAILURE );
 	}
-	MAP_PinTypeI2C(PIN_04, PIN_MODE_5);
+#endif
+	//SDA is now high again, go back to i2c controller...
+	PinTypeI2C(PIN_01, PIN_MODE_1);
+	PinTypeI2C(PIN_04, PIN_MODE_5);
 	I2CMasterControl(I2C_BASE, 0x00000004); //send a stop...
 	vTaskDelay(2);
 }
@@ -174,49 +171,53 @@ static int
 I2CTransact(unsigned long ulCmd)
 {
 	int rval = SUCCESS;
+	unsigned long prio = uxTaskPriorityGet(NULL);
     //
     // Clear all interrupts
     //
-    I2CMasterIntClearEx(I2C_BASE,MAP_I2CMasterIntStatusEx(I2C_BASE,false));
+    I2CMasterIntClearEx(I2C_BASE,I2CMasterIntStatusEx(I2C_BASE,false));
 	i2c_task =  xTaskGetCurrentTaskHandle();
     I2CIntRegister(I2C_BASE, i2c_int);
-    I2CMasterIntEnable(I2C_BASE);
+    I2CMasterIntEnableEx(I2C_BASE, I2C_MASTER_INT_DATA);
     //
     // Set the time-out. Not to be used with breakpoints.
     //
-    MAP_I2CMasterTimeoutSet(I2C_BASE, I2C_TIMEOUT_VAL);
+    I2CMasterTimeoutSet(I2C_BASE, I2C_TIMEOUT_VAL);
     //
     // Initiate the transfer.
     //
-    MAP_I2CMasterControl(I2C_BASE, ulCmd);
+    I2CMasterControl(I2C_BASE, ulCmd);
     //
     // Wait until the current byte has been transferred.
     // Poll on the raw interrupt status.
     //
 	if( !ulTaskNotifyTake( pdTRUE, 100 ) ) {
-		I2CMasterIntDisable(I2C_BASE);
-		I2CIntUnregister(I2C_BASE);
+	    if(I2CMasterErr(I2C_BASE) != I2C_MASTER_ERR_NONE) {
+	    	LOGE("i2c err %x\n", I2CMasterErr(I2C_BASE) != I2C_MASTER_ERR_NONE );
+	    }
 		recoveri2c();
 		rval = FAILURE;
 	}
+	I2CMasterIntDisable(I2C_BASE);
+	I2CIntUnregister(I2C_BASE);
 
     //
     // Check for any errors in transfer
     //
-    if(MAP_I2CMasterErr(I2C_BASE) != I2C_MASTER_ERR_NONE)
+    if(I2CMasterErr(I2C_BASE) != I2C_MASTER_ERR_NONE)
     {
         switch(ulCmd)
         {
         case I2C_MASTER_CMD_BURST_SEND_START:
         case I2C_MASTER_CMD_BURST_SEND_CONT:
         case I2C_MASTER_CMD_BURST_SEND_STOP:
-            MAP_I2CMasterControl(I2C_BASE,
+            I2CMasterControl(I2C_BASE,
                          I2C_MASTER_CMD_BURST_SEND_ERROR_STOP);
             break;
         case I2C_MASTER_CMD_BURST_RECEIVE_START:
         case I2C_MASTER_CMD_BURST_RECEIVE_CONT:
         case I2C_MASTER_CMD_BURST_RECEIVE_FINISH:
-            MAP_I2CMasterControl(I2C_BASE,
+            I2CMasterControl(I2C_BASE,
                          I2C_MASTER_CMD_BURST_RECEIVE_ERROR_STOP);
             break;
         default:
@@ -224,6 +225,7 @@ I2CTransact(unsigned long ulCmd)
         }
 		rval = FAILURE;
     }
+    vTaskPrioritySet(NULL, prio);
 
     return rval;
 }
@@ -255,11 +257,11 @@ I2C_IF_Write(unsigned char ucDevAddr,
     //
     // Set I2C codec slave address
     //
-    MAP_I2CMasterSlaveAddrSet(I2C_BASE, ucDevAddr, false);
+    I2CMasterSlaveAddrSet(I2C_BASE, ucDevAddr, false);
     //
     // Write the first byte to the controller.
     //
-    MAP_I2CMasterDataPut(I2C_BASE, *pucData);
+    I2CMasterDataPut(I2C_BASE, *pucData);
     //
     // Initiate the transfer.
     //
@@ -278,7 +280,7 @@ I2C_IF_Write(unsigned char ucDevAddr,
         //
         // Write the next byte of data
         //
-        MAP_I2CMasterDataPut(I2C_BASE, *pucData);
+        I2CMasterDataPut(I2C_BASE, *pucData);
         //
         // Transact over I2C to send byte
         //
@@ -329,7 +331,7 @@ I2C_IF_Read(unsigned char ucDevAddr,
     //
     // Set I2C codec slave address
     //
-    MAP_I2CMasterSlaveAddrSet(I2C_BASE, ucDevAddr, true);
+    I2CMasterSlaveAddrSet(I2C_BASE, ucDevAddr, true);
     //
     // Check if its a single receive or burst receive
     //
@@ -364,7 +366,7 @@ I2C_IF_Read(unsigned char ucDevAddr,
         //
         // Receive the byte over I2C
         //
-        *pucData = MAP_I2CMasterDataGet(I2C_BASE);
+        *pucData = I2CMasterDataGet(I2C_BASE);
         //
         // Decrement the count and increment the data pointer
         // to facilitate the next transfer
@@ -389,7 +391,7 @@ I2C_IF_Read(unsigned char ucDevAddr,
     //
     // Receive the byte over I2C
     //
-    *pucData = MAP_I2CMasterDataGet(I2C_BASE);
+    *pucData = I2CMasterDataGet(I2C_BASE);
 
     return SUCCESS;
 }
@@ -455,9 +457,9 @@ I2C_IF_Open(unsigned long ulMode)
     //
     // Enable I2C Peripheral
     //           
-    //MAP_HwSemaphoreLock(HWSEM_I2C, HWSEM_WAIT_FOR_EVER);
-    MAP_PRCMPeripheralClkEnable(PRCM_I2CA0, PRCM_RUN_MODE_CLK);
-    MAP_PRCMPeripheralReset(PRCM_I2CA0);
+    //HwSemaphoreLock(HWSEM_I2C, HWSEM_WAIT_FOR_EVER);
+    PRCMPeripheralClkEnable(PRCM_I2CA0, PRCM_RUN_MODE_CLK);
+    PRCMPeripheralReset(PRCM_I2CA0);
 
     //
     // Configure I2C module in the specified mode
@@ -465,21 +467,21 @@ I2C_IF_Open(unsigned long ulMode)
     switch(ulMode)
     {
         case I2C_MASTER_MODE_STD:       /* 100000 */
-            MAP_I2CMasterInitExpClk(I2C_BASE,SYS_CLK,false);
+            I2CMasterInitExpClk(I2C_BASE,SYS_CLK,false);
             break;
 
         case I2C_MASTER_MODE_FST:       /* 400000 */
-            MAP_I2CMasterInitExpClk(I2C_BASE,SYS_CLK,true);
+            I2CMasterInitExpClk(I2C_BASE,SYS_CLK,true);
             break;
 
         default:
-            MAP_I2CMasterInitExpClk(I2C_BASE,SYS_CLK,true);
+            I2CMasterInitExpClk(I2C_BASE,SYS_CLK,true);
             break;
     }
     //
     // Disables the multi-master mode
     //
-    //MAP_I2CMasterDisable(I2C_BASE);
+    //I2CMasterDisable(I2C_BASE);
     
     return SUCCESS;
 }
@@ -502,7 +504,7 @@ I2C_IF_Close()
     //
     // Power OFF the I2C peripheral
     //
-    MAP_PRCMPeripheralClkDisable(PRCM_I2CA0, PRCM_RUN_MODE_CLK);
+    PRCMPeripheralClkDisable(PRCM_I2CA0, PRCM_RUN_MODE_CLK);
 
     return SUCCESS;
 }

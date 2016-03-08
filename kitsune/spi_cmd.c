@@ -292,7 +292,7 @@ int Cmd_spi_read(int argc, char *argv[]) {
 		{
 			char * args = pvPortMalloc(len);
 			memcpy(args, buf, len);
-			xTaskCreate(CmdLineProcess, "commandTask",  3*1024 / 4, args, 4, NULL);
+			xTaskCreate(CmdLineProcess, "commandTask",  3*1024 / 4, args, 3, NULL);
 		}
 			break;
 		default:

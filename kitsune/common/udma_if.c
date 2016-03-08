@@ -142,8 +142,8 @@ void UDMAInit()
     //
     // Register interrupt handlers
     //
-    IntPrioritySet(UDMA_INT_SW, configMAX_SYSCALL_INTERRUPT_PRIORITY);
-    IntPrioritySet(UDMA_INT_ERR, configMAX_SYSCALL_INTERRUPT_PRIORITY);
+    IntPrioritySet(UDMA_INT_SW, 6<<5); //between max syscall priority and kernel
+    IntPrioritySet(UDMA_INT_ERR, 6<<5); //between max syscall priority and kernel
     MAP_uDMAIntRegister(UDMA_INT_SW, DmaSwIntHandler);
     MAP_uDMAIntRegister(UDMA_INT_ERR, DmaErrorIntHandler);
     //

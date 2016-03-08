@@ -492,11 +492,6 @@ uint32_t get_prox() {
 
 	(I2C_IF_Write(0x13, prx_cmd_init, 2, 1) );
 
-	while( ! ( cmd_reg & 0b00100000 ) ) {
-		vTaskDelay(1);
-		(I2C_IF_Read(0x13, &cmd_reg,  1 ) );
-	}
-
 	prx_cmd = 0x87; // Command register - 0x87
 	( I2C_IF_Write(0x13, &prx_cmd, 1, 1) );
 	( I2C_IF_Read(0x13, data, 2) );

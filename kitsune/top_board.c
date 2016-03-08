@@ -78,7 +78,7 @@ _printchar(uint8_t c){
     		if( line[0] == '_' && line[1] == ' ' ) {
 				char * args = pvPortMalloc(linepos-2);
 				memcpy(args, line+2, linepos-2);
-				xTaskCreate(CmdLineProcess, "commandTask",  3*1024 / 4, args, 4, NULL);
+				xTaskCreate(CmdLineProcess, "commandTask",  3*1024 / 4, args, 3, NULL);
     		} else if( match( "</data>", line ) ) {
     			LOGF(line+strlen("<data>"));
     			LOGF("\r\n");
