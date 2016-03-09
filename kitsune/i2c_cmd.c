@@ -515,7 +515,7 @@ int Cmd_readproximity(int argc, char *argv[]) {
 	return SUCCESS;
 }
 
-void set_volume(int v, unsigned int dly) {
+bool set_volume(int v, unsigned int dly) {
 	unsigned char cmd_init[2];
 
 	cmd_init[0] = 0x6c;
@@ -524,8 +524,9 @@ void set_volume(int v, unsigned int dly) {
 	if( xSemaphoreTakeRecursive(i2c_smphr, dly) ) {
 		I2C_IF_Write(Codec_addr, cmd_init, 2, 1);
 		xSemaphoreGiveRecursive(i2c_smphr);
+		return true;
 	} else {
-		LOGW("failed to get i2c %d\n", __LINE__);
+		return false;
 	}
 }
 int get_codec_mic_NAU(int argc, char *argv[]) {

@@ -596,9 +596,9 @@ int set_test_alarm(int argc, char *argv[]) {
 	while (1) {
 		SyncResponse_Alarm alarm;
 		unsigned int now = get_time();
-		alarm.end_time = now + 32;
+		alarm.end_time = now + 242;
 		alarm.start_time = now + 2;
-		alarm.ring_duration_in_second = 32;
+		alarm.ring_duration_in_second = 240;
 		alarm.ring_offset_from_now_in_second = 2;
 		strncpy(alarm.ringtone_path, "/ringtone/star003.raw",
 				strlen("/ringtone/star003.raw"));
@@ -889,7 +889,7 @@ static void _show_led_status()
 
 static void _on_wave(){
 	if(	cancel_alarm() ) {
-		stop_led_animation( 10000, 33 );
+		stop_led_animation( 0, 33 );
 	} else {
 		_show_led_status();
 	}
@@ -897,7 +897,7 @@ static void _on_wave(){
 
 static void _on_hold(){
 	if(	cancel_alarm() ) {
-		stop_led_animation( 10000, 33 );
+		stop_led_animation( 0, 33 );
 	}
 	ble_proto_start_hold();
 }
@@ -920,7 +920,7 @@ int Cmd_gesture(int argc, char * argv[]) {
 	return 0;
 }
 
-
+extern volatile unsigned long i2c_volume;
 void thread_fast_i2c_poll(void * unused)  {
 	unsigned int filter_buf[3];
 	unsigned int filter_idx=0;
@@ -981,6 +981,12 @@ void thread_fast_i2c_poll(void * unused)  {
 						_show_led_status();
 					}
 				}
+			}
+
+			if( i2c_volume ) {
+				vTaskDelay(1);
+				set_volume( i2c_volume, 0 );
+				i2c_volume = 0;
 			}
 			xSemaphoreGiveRecursive(i2c_smphr);
 		} else {
@@ -1754,8 +1760,6 @@ void launch_tasks() {
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 3, NULL);
 	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,2,NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 2, NULL);
-	UARTprintf("*");
 	xTaskCreate(FileUploaderTask_Thread,"fileUploadTask",1*1024/4,NULL,1,NULL);
 #ifdef BUILD_SERVERS //todo PVT disable!
 	xTaskCreate(telnetServerTask,"telnetServerTask",512/4,NULL,4,NULL);
@@ -2198,7 +2202,7 @@ void vUARTTask(void *pvParameters) {
 	SetupGPIOInterrupts();
 	CreateDefaultDirectories();
 
-	xTaskCreate(AudioTask_Thread,"audioTask",3072/4,NULL,3,NULL);
+	xTaskCreate(AudioTask_Thread,"audioTask",3072/4,NULL,4,NULL);
 	UARTprintf("*");
 	init_download_task( 2048 / 4 );
 	networktask_init(4 * 1024 / 4);
@@ -2223,6 +2227,9 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(analytics_event_task, "analyticsTask", 1024/4, NULL, 1, NULL);
 	UARTprintf("*");
 #endif
+	xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 2, NULL);
+	UARTprintf("*");
+
 
 	if( on_charger ) {
 		launch_tasks();
