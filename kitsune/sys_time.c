@@ -270,7 +270,7 @@ int cmd_set_time(int argc, char *argv[]) {
 }
 
 static void time_task( void * params ) { //exists to get the time going and cache so we aren't going to NTP or RTC every time...
-	#define TIME_POLL_INTERVAL_MS (10000) //one eighth DAY
+	#define TIME_POLL_INTERVAL_MS (86400000ul>>3) //one eighth DAY
 	#define TIME_POLL_INTERVAL_SEC (TIME_POLL_INTERVAL_MS/1000)
 	#define MARGIN_OF_ERROR 800
 	bool have_set_time = false;
