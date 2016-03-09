@@ -593,15 +593,15 @@ static bool cancel_alarm() {
 }
 
 int set_test_alarm(int argc, char *argv[]) {
-	while (1) {
+	do {
 		SyncResponse_Alarm alarm;
 		unsigned int now = get_time();
 		alarm.end_time = now + 242;
 		alarm.start_time = now + 2;
 		alarm.ring_duration_in_second = 240;
 		alarm.ring_offset_from_now_in_second = 2;
-		strncpy(alarm.ringtone_path, "/ringtone/star003.raw",
-				strlen("/ringtone/star003.raw"));
+		strncpy(alarm.ringtone_path, "/ringtone/tone.raw",
+				strlen("/ringtone/tone.raw"));
 
 		alarm.has_end_time = 1;
 		alarm.has_start_time = 1;
@@ -613,10 +613,14 @@ int set_test_alarm(int argc, char *argv[]) {
 		char ack[32];
 		usnprintf(ack, 32, "%d", now);
 		set_alarm(&alarm, ack, strlen(ack));
-		do {
-			vTaskDelay(5000);
-		} while ( alarm_is_ringing );
-	}
+		if( argc > 1) {
+			do {
+				vTaskDelay(5000);
+			} while ( alarm_is_ringing );
+		}
+	} while( argc > 1 );
+
+	return 0;
 }
 static void thread_alarm_on_finished(void * context) {
 	if( led_get_animation_id() == *(int*)context ) {
