@@ -256,7 +256,12 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 				started = true;
 				t0 = fade_time =  xTaskGetTickCount();
 			}
-			( ulTaskNotifyTake( pdTRUE, 5000 ) );
+			if( returnFlags ) {
+				break;
+			}
+			if( !ulTaskNotifyTake( pdTRUE, 5000 ) ) {
+				goto cleanup;
+			}
 		}
 
 		if (size > 0) {
@@ -313,7 +318,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 			}
 		}
 	}
-
+cleanup:
 	if( started ) {
 		Audio_Stop();
 	}
