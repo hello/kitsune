@@ -205,7 +205,6 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 	LOGI("%d bytes free\n", xPortGetFreeHeapSize());
 
-
 	//open file for playback
 	LOGI("Opening %s for playback\r\n",info->file);
 	res = hello_fs_open(&fp, info->file, FA_READ);
@@ -218,7 +217,6 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	}
 
 	memset(speaker_data,0,SPEAKER_DATA_CHUNK_SIZE);
-	hello_fs_lock();
 
 	bool started = false;
 	//loop until either a) done playing file for specified duration or b) our message queue gets a message that tells us to stop
@@ -290,7 +288,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		else {
 			if (desired_ticks_elapsed >= 0) {
 				//LOOP THE FILE -- start over
-				//LOGI("looping, %d", desired_ticks_elapsed - (xTaskGetTickCount() - t0)  );
+				LOGI("looping %d\n", desired_ticks_elapsed - (xTaskGetTickCount() - t0)  );
 				hello_fs_lseek(&fp,0);
 			}
 			else {
@@ -314,7 +312,6 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	if( started ) {
 		Audio_Stop();
 	}
-	hello_fs_unlock();
 
 	vPortFree(speaker_data);
 

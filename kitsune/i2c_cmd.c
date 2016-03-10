@@ -30,7 +30,7 @@
 #define BUF_SIZE 2
 
 #define Codec_addr 0x1A
-#define DELAY_CODEC 5
+#define DELAY_CODEC 1
 
 extern xSemaphoreHandle i2c_smphr;
 
@@ -407,6 +407,7 @@ int get_light() {
 	} else {
 		int light = 0;
 		static int scaling = 0;
+		int prev_scaling = scaling;
 
 		for(;;) {
 			#define MAX_RETRIES 10
@@ -445,10 +446,11 @@ int get_light() {
 
 		light *= (1<<(scaling*2));
 
-		aucDataBuf[0] = 1;
-		aucDataBuf[1] = scaling;
-		(I2C_IF_Write(0x44, aucDataBuf, 2, 1));
-
+		if( scaling != prev_scaling ) {
+			aucDataBuf[0] = 1;
+			aucDataBuf[1] = scaling;
+			(I2C_IF_Write(0x44, aucDataBuf, 2, 1));
+		}
 		xSemaphoreGiveRecursive(i2c_smphr);
 		return light;
 	}
@@ -533,7 +535,7 @@ int get_codec_mic_NAU(int argc, char *argv[]) {
 	unsigned char cmd_init[2];
 	int i;
 
-	static const char reg[52][2] = {
+	static const char reg[50][2] = {
 			{0x00,0x00},
 			{0x03,0x3d},
 			// Addr D8 		D7 D6    D5    D4        D3      D2     D1,D0
@@ -642,17 +644,18 @@ int get_codec_mic_NAU(int argc, char *argv[]) {
 			// 0x38    0     0       MOUTMXMT 0  0  0  AUXMOUT BYPMOUT DACMOUT
 			// set     0     0       1        0  0  0  0       0       0
 			{0x72,0x40},
-			{0x74,0x10}, //Power Management 4
+			//{0x74,0x10}, //Power Management 4
 			//Addr  D8      D7    D6     D5    D4        D3   D2     D1 D0
 			// 0x3A LPIPBST LPADC LPSPKD LPDAC MICBIASM TRIMREG[3:2] IBADJ[1:0]
 			// set  0       0     0      0     1         0    0      0  0
-			{0x78,0xa8}, // 0xa8
+			//{0x78,0xa8}, // 0xa8
 			//Addr  D8      D7    D6     D5    D4        D3   D2     D1     D0
 			// 0x3C PCMTSEN TRI PCM8BIT PUDOEN PUDPE    PUDPS LOUTR  PCMB TSLOT
 			// set  0       1     0      1     0         1    0      0      0
 	};
 	if( xSemaphoreTakeRecursive(i2c_smphr, 300000) ) {
-		for( i=0;i<50;++i) {
+		vTaskDelay(DELAY_CODEC);
+		for( i=0;i<sizeof(reg)/2;++i) {
 			cmd_init[0] = reg[i][0];
 			cmd_init[1] = reg[i][1];
 			I2C_IF_Write(Codec_addr, cmd_init, 2, 1);
@@ -670,7 +673,7 @@ int get_codec_NAU(int vol_codec) {
 	unsigned char cmd_init[2];
 	int i;
 
-	static const char reg[48][2] = {
+	static const char reg[46][2] = {
 			{0x00,0x00},
 			// Do sequencing for avoid pop and click sounds
 			/////////////// 1. Power supplies VDDA, VDDB, VDDC, and VDDSPK /////////////////////
@@ -698,7 +701,6 @@ int get_codec_NAU(int vol_codec) {
 			//0x06 CLKM MCLKSEL[2:0] BCLKSEL[2:0] 0  CLKIOEN
 			//set  1    0  0  0       0  1  1      0  0
 			//cmd_init[0] = 0x0e ; cmd_init[1] = 0x00 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC);
-			{0x0e,0x00},
 			{0x0E,0x00},
 			// Addr D8    D7 D6 D5 D4 D3 D2 D1   D0
 			// 0x07 SPIEN 0  0  0  0  SMPLR[2:0] SCLKEN
@@ -745,7 +747,6 @@ int get_codec_NAU(int vol_codec) {
 			// Addr D8    D7   D6    D5    D4 D3         D2      D1      D0  Default
 			// 0x04 BCLKP FSP  WLEN[1:0]   AIFMT[1:0]    DACPHS  ADCPHS  0   0x050
 			// set  0     0    0     0     1  0          0       0       0
-			{0x09,0x10},
 			{0x0a,0x00},
 			// Addr D8    D7   D6    D5    D4 D3         D2   D1      D0     Default
 			// 0x05 0     0    0     CMB8  DACCM[1:0]    ADCCM[1:0]   ADDA
@@ -873,7 +874,8 @@ int get_codec_NAU(int vol_codec) {
 			//     0      1  1             0     0       0     0       0        1
 	};
 	if (xSemaphoreTakeRecursive(i2c_smphr, 300000)) {
-		for (i = 0; i < 48; ++i) {
+		vTaskDelay(DELAY_CODEC);
+		for (i = 0; i < sizeof(reg)/2; ++i) {
 			cmd_init[0] = reg[i][0];
 			cmd_init[1] = reg[i][1];
 			if (cmd_init[0] == 0x6c) {
@@ -893,37 +895,38 @@ int get_codec_NAU(int vol_codec) {
 
 int close_codec_NAU(int argc, char *argv[]) {
 	unsigned char cmd_init[2];
+	int i;
 
+	static const char reg[3][2] = {
+			//////// 1.  Un-mute DAC DACMT[6] = 1
+			{0x14,0x4c},
+			// Addr D8 D7  D6                  D5,D4      D3     D2      D1 D0
+			// 0x0A 0  0   DACMT/0: Disable    DEEMP[1:0] DACOS  AUTOMT  0  DACPL
+			// set  0  0   1                   0  0       1      1       0  0
+			//////// 2.  Power Management PWRM1 = 0x000
+			{0x02,0x00},// Power Management 1
+			// Addr D8 		D7 D6    D5    D4        D3      D2     D1,D0
+			// 0x01 DCBUFEN 0  AUXEN PLLEN MICBIASEN ABIASEN IOBUFEN REFIMP[1:0]
+			// set  0       0  0     0     0         0       0      0  0
+			//////// 3.  Output stages MOUTEN[7] NSPKEN PSPKEN
+			{0x06,0x15}, // Power Management 3
+			// Addr D8 D7     D6     D5     D4      D3       D2      D1 D0
+			// 0x03 0  MOUTEN NSPKEN PSPKEN BIASGEN MOUTMXEN SPKMXEN 0  DACEN
+			// set  0  0      0      0      1       0        1       0  1
+			//////// 4.  Power supplies Analog VDDA VDDB VDDC VDDSPK
+	};
 	if (xSemaphoreTakeRecursive(i2c_smphr, 300000)) {
-		//////// 1.  Un-mute DAC DACMT[6] = 1
-		cmd_init[0] = 0x14;
-		cmd_init[1] = 0x4C;
-		I2C_IF_Write(Codec_addr, cmd_init, 2, 1);
-		vTaskDelay(DELAY_CODEC); // DAC control
-		// Addr D8 D7  D6                  D5,D4      D3     D2      D1 D0
-		// 0x0A 0  0   DACMT/0: Disable    DEEMP[1:0] DACOS  AUTOMT  0  DACPL
-		// set  0  0   1                   0  0       1      1       0  0
-		//////// 2.  Power Management PWRM1 = 0x000
-		cmd_init[0] = 0x02;
-		cmd_init[1] = 0x00;
-		I2C_IF_Write(Codec_addr, cmd_init, 2, 1);
-		vTaskDelay(DELAY_CODEC); // Power Management 1
-		// Addr D8 		D7 D6    D5    D4        D3      D2     D1,D0
-		// 0x01 DCBUFEN 0  AUXEN PLLEN MICBIASEN ABIASEN IOBUFEN REFIMP[1:0]
-		// set  0       0  0     0     0         0       0      0  0
-		//////// 3.  Output stages MOUTEN[7] NSPKEN PSPKEN
-		cmd_init[0] = 0x06;
-		cmd_init[1] = 0x15;
-		I2C_IF_Write(Codec_addr, cmd_init, 2, 1);
-		vTaskDelay(DELAY_CODEC); // Power Management 3
-		// Addr D8 D7     D6     D5     D4      D3       D2      D1 D0
-		// 0x03 0  MOUTEN NSPKEN PSPKEN BIASGEN MOUTMXEN SPKMXEN 0  DACEN
-		// set  0  0      0      0      1       0        1       0  1
-		//////// 4.  Power supplies Analog VDDA VDDB VDDC VDDSPK
-
+		vTaskDelay(DELAY_CODEC);
+		for (i = 0; i < sizeof(reg)/2; ++i) {
+			cmd_init[0] = reg[i][0];
+			cmd_init[1] = reg[i][1];
+			I2C_IF_Write(Codec_addr, cmd_init, 2, 1);
+			vTaskDelay(DELAY_CODEC);
+		}
 		xSemaphoreGiveRecursive(i2c_smphr);
 	} else {
 		LOGW("failed to get i2c %d\n", __LINE__);
 	}
+
 	return 0;
 }

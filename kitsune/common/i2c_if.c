@@ -131,7 +131,6 @@ static void recoveri2c() {
 	//
 	// Configure PIN_02 for GPIOOutput 11
 	//
-	PRCMPeripheralReset(PRCM_I2CA0);
 
 	PinTypeGPIO(PIN_04, PIN_MODE_0, false);
 	GPIODirModeSet(GPIOA1_BASE, 0x20, GPIO_DIR_MODE_IN);
@@ -149,7 +148,7 @@ static void recoveri2c() {
 		vTaskDelay(1);
 		GPIOPinWrite(GPIOA1_BASE, 0x4, 1);
 		vTaskDelay(1);
-	} while ( GPIOPinRead(GPIOA1_BASE, 0x20) == 0 && ++pulses < 1000 );
+	} while ( GPIOPinRead(GPIOA1_BASE, 0x20) == 0 && ++pulses < 16 );
 	GPIODirModeSet(GPIOA1_BASE, 0x4, GPIO_DIR_MODE_IN);
 
 	LOGE("pulsed %d sda %x scl %x\r\n", pulses, GPIOPinRead(GPIOA1_BASE, 0x20), GPIOPinRead(GPIOA1_BASE, 0x4));
@@ -164,6 +163,9 @@ static void recoveri2c() {
 	//SDA is now high again, go back to i2c controller...
 	PinTypeI2C(PIN_01, PIN_MODE_1);
 	PinTypeI2C(PIN_04, PIN_MODE_5);
+	vTaskDelay(2);
+	PRCMPeripheralReset(PRCM_I2CA0);
+	vTaskDelay(2);
 	I2CMasterControl(I2C_BASE, 0x00000004); //send a stop...
 	vTaskDelay(2);
 }
@@ -201,30 +203,6 @@ I2CTransact(unsigned long ulCmd)
 	I2CMasterIntDisable(I2C_BASE);
 	I2CIntUnregister(I2C_BASE);
 
-    //
-    // Check for any errors in transfer
-    //
-    if(I2CMasterErr(I2C_BASE) != I2C_MASTER_ERR_NONE)
-    {
-        switch(ulCmd)
-        {
-        case I2C_MASTER_CMD_BURST_SEND_START:
-        case I2C_MASTER_CMD_BURST_SEND_CONT:
-        case I2C_MASTER_CMD_BURST_SEND_STOP:
-            I2CMasterControl(I2C_BASE,
-                         I2C_MASTER_CMD_BURST_SEND_ERROR_STOP);
-            break;
-        case I2C_MASTER_CMD_BURST_RECEIVE_START:
-        case I2C_MASTER_CMD_BURST_RECEIVE_CONT:
-        case I2C_MASTER_CMD_BURST_RECEIVE_FINISH:
-            I2CMasterControl(I2C_BASE,
-                         I2C_MASTER_CMD_BURST_RECEIVE_ERROR_STOP);
-            break;
-        default:
-            break;
-        }
-		rval = FAILURE;
-    }
     vTaskPrioritySet(NULL, prio);
 
     return rval;

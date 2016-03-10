@@ -942,6 +942,7 @@ void thread_fast_i2c_poll(void * unused)  {
 		if (xSemaphoreTakeRecursive(i2c_smphr, 300000)) {
 			// For the black morpheus, we can detect 6mm distance max
 			// for white one, 9mm distance max.
+			vTaskDelay(1);
 			prox = median_filter(get_prox(), filter_buf, &filter_idx);
 
 			LOGP( "%d\n", prox );
@@ -992,6 +993,7 @@ void thread_fast_i2c_poll(void * unused)  {
 				set_volume( i2c_volume, 0 );
 				i2c_volume = 0;
 			}
+			vTaskDelay(1);
 			xSemaphoreGiveRecursive(i2c_smphr);
 		} else {
 			LOGW("failed to get i2c %d\n", __LINE__);
