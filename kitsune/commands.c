@@ -2074,8 +2074,8 @@ tCmdLineEntry g_sCmdTable[] = {
 		{"noint", Cmd_disableInterrupts, ""},
 		{"nwp", Cmd_nwpinfo, ""},
 		{"resync", Cmd_SyncID, ""},
-		{"g", Cmd_gesture, ""},
 #endif
+		{"g", Cmd_gesture, ""},
 
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
