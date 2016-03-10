@@ -1592,3 +1592,21 @@ int sf_sha1_verify(const char * sha_truth, const char * serial_file_path){
     return 0;
 }
 
+bool send_to_download_queue(SyncResponse_FileDownload* data, TickType_t ticks_to_wait)
+{
+	if( download_queue )
+	{
+		if( xQueueSend(download_queue, (void*)data, ticks_to_wait) != pdPASS )
+		{
+			//free_file_sync_info( &download_info );
+			return false;
+		}
+	}
+	else
+	{
+		return false;
+	}
+
+	return true;
+
+}

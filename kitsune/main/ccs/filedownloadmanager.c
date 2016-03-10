@@ -9,6 +9,7 @@
 #include "sys_time.h"
 #include "limits.h"
 #include "networktask.h"
+#include <string.h>
 
 #define FILE_ERROR_QUEUE_DEPTH (10)
 #define QUERY_DELAY_DEFAULT		(15) //minutes
@@ -26,6 +27,7 @@ static xSemaphoreHandle _file_download_mutex = NULL;
 
 // link health - send and recv errors
 static FileManifest_LinkHealth link_health = {0};
+//TODO may need a mutex to protect send_error?
 
 // Query delay in ticks
 TickType_t query_delay_ticks = (QUERY_DELAY_DEFAULT*60*1000)/portTICK_PERIOD_MS;
@@ -37,6 +39,12 @@ static void _free_file_sync_response(void * structdata);
 static void _on_file_sync_response_success( void * structdata);
 static void _on_file_sync_response_failure(void );
 static void get_file_download_status(FileManifest_FileStatusType* file_status);
+static bool _on_file_update(pb_istream_t *stream, const pb_field_t *field, void **arg);
+static void free_file_sync_info(FileManifest_FileDownload * download_info);
+
+// extern functions
+bool send_to_download_queue(SyncResponse_FileDownload* data, TickType_t ticks_to_wait);
+bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, void **arg);
 
 // Init
 void downloadmanagertask_init(uint16_t stack_size)
@@ -131,13 +139,13 @@ static void DownloadManagerTask(void * filesyncdata)
 
 			/* UPDATE DEVICE UPTIME */
 
-			message_for_upload.has_device_uptime = true;
-			message_for_upload.device_uptime = xTaskGetTickCount() / configTICK_RATE_HZ; // in seconds
+			message_for_upload.has_device_uptime_in_seconds = true;
+			message_for_upload.device_uptime_in_seconds = xTaskGetTickCount() / configTICK_RATE_HZ; // in seconds
 
 			/* UPDATE FW VERSION */
 
 			message_for_upload.has_firmware_version = true;
-			message_for_upload.firmware_version = KIT_VER;
+			message_for_upload.firmware_version = KIT_VER; //TODO is this right
 
 			/* UPDATE TIME */
 
@@ -151,6 +159,7 @@ static void DownloadManagerTask(void * filesyncdata)
 
 			// Clear time to response count since it has been saved to protobuf
 			link_health.time_to_response = 0;
+			link_health.send_errors = 0;
 
 			/* UPDATE MEMORY INFO */
 
@@ -204,10 +213,87 @@ static void _get_file_sync_response(pb_field_t ** fields, void ** structdata)
 	if( *structdata ) {
 		FileManifest * response_protobuf = *structdata;
 		memset(response_protobuf, 0, sizeof(FileManifest));
-		//todo
-		//response_protobuf;
+		//todo - is this right, do i need more callbacks
+		response_protobuf->file_info.funcs.decode = _on_file_update;
+
+		//todo callback for error info and sense id ? Since this wont be sent by server, is this needed?
 	}
 }
+
+//TODO update this callback This needs to be called only if response has update.
+//Is it better to handle this in response success
+// Better to handle it here since the flags are a part of the structure. and then populate download info and send to queue
+bool _on_file_update(pb_istream_t *stream, const pb_field_t *field, void **arg)
+{
+	FileManifest_FileDownload file_info;
+
+	file_info.host.funcs.decode = _decode_string_field;
+	file_info.host.arg = NULL;
+
+	file_info.url.funcs.decode = _decode_string_field;
+	file_info.url.arg = NULL;
+
+	file_info.sd_card_filename.funcs.decode = _decode_string_field;
+	file_info.sd_card_filename.arg = NULL;
+
+	file_info.sd_card_path.funcs.decode = _decode_string_field;
+	file_info.sd_card_path.arg = NULL;
+
+
+	// decode PB
+	LOGI("file sync parsing\n" );
+	if( !pb_decode(stream,FileManifest_FileDownload_fields,&file_info) )
+	{
+		LOGI("file sync - parse fail \n" );
+		free_file_sync_info( &file_info );
+		return false;
+	}
+
+	// Prepare download info and send to download task
+
+	SyncResponse_FileDownload download_info = {0};
+
+	download_info.host.arg = file_info.host.arg;
+	download_info.url.arg = file_info.url.arg;
+	download_info.sd_card_path.arg = file_info.sd_card_path.arg;
+	download_info.sd_card_filename.arg = file_info.sd_card_filename.arg;
+	download_info.has_sha1 = file_info.has_sha1;
+	memcpy(&download_info.sha1, &file_info.sha1, sizeof(FileManifest_FileDownload_sha1_t));
+
+
+	if( !send_to_download_queue(&download_info,10) )
+	{
+		free_file_sync_info( &file_info );
+
+	}
+
+	return true;
+}
+
+void free_file_sync_info(FileManifest_FileDownload * download_info)
+{
+	char * filename=NULL, * url=NULL, * host=NULL, * path=NULL;
+
+	filename = download_info->sd_card_filename.arg;
+	path = download_info->sd_card_path.arg;
+	url = download_info->url.arg;
+	host = download_info->host.arg;
+
+	if( filename ) {
+		vPortFree(filename);
+	}
+	if( url ) {
+		vPortFree(url);
+	}
+	if( host ) {
+		vPortFree(host);
+	}
+	if( path ) {
+		vPortFree(path);
+	}
+
+}
+
 static void _free_file_sync_response(void * structdata)
 {
 	vPortFree( structdata );
@@ -232,6 +318,8 @@ static void _on_file_sync_response_failure( )
 
     // Update default query delay ticks
 	query_delay_ticks = (QUERY_DELAY_DEFAULT*60*1000)/portTICK_PERIOD_MS;
+
+	//Also update time_t-_response by 15 minutes
 
     // give semaphore for default query delay
 	xSemaphoreGive(_response_received_sem);
