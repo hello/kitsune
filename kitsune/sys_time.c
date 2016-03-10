@@ -45,16 +45,14 @@ static int get_rtc_time( struct tm * dt ) {
 	unsigned char data[7];
 	unsigned char addy = 1;
 	int retries = 0;
-	if (xSemaphoreTakeRecursive(i2c_smphr, 300000)) {
-		while (I2C_IF_Write(0x68, &addy, 1, 1) || I2C_IF_Read(0x68, data, 7)) {
-			vTaskDelay(100);
-//			assert(++retries < 100);
-			++retries;
-		}
+	assert (xSemaphoreTakeRecursive(i2c_smphr, 300000));
+	while (I2C_IF_Write(0x68, &addy, 1, 1) || I2C_IF_Read(0x68, data, 7)) {
 		xSemaphoreGiveRecursive(i2c_smphr);
-	} else {
-		vAssertCalled("rtc time no i2c sem\n");
+		vTaskDelay(1000);
+		assert (xSemaphoreTakeRecursive(i2c_smphr, 300000));
+		++retries;
 	}
+	xSemaphoreGiveRecursive(i2c_smphr);
 	if( retries > 0 ) {
 		LOGW("rtc i2c retries %d\n", retries);
 	}

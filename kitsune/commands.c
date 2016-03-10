@@ -514,9 +514,15 @@ static SyncResponse_Alarm alarm;
 static char alarm_ack[sizeof(((SyncResponse *)0)->ring_time_ack)];
 static volatile bool needs_alarm_ack = false;
 #define ALARM_LOC "/hello/alarm"
+static bool alarm_is_ringing = false;
 
 void set_alarm( SyncResponse_Alarm * received_alarm, const char * ack, size_t ack_size ) {
     if (xSemaphoreTakeRecursive(alarm_smphr, portMAX_DELAY)) {
+    	if( alarm_is_ringing ) {
+    		LOGI("already ringing\n");
+            xSemaphoreGiveRecursive(alarm_smphr);
+            return;
+    	}
 		if ( ack && ack_size && memcmp(alarm_ack, ack, ack_size) == 0) {
 			LOGI("alarm already set\n");
 		} else if (received_alarm->has_ring_offset_from_now_in_second
@@ -567,7 +573,6 @@ int load_alarm( ) {
 	return fs_get( ALARM_LOC, &alarm, sizeof(alarm), NULL );
 }
 
-static bool alarm_is_ringing = false;
 static bool cancel_alarm() {
 	bool was_ringing = false;
 	if(xTaskGetTickCount() > 10000) {
@@ -596,10 +601,10 @@ int set_test_alarm(int argc, char *argv[]) {
 	do {
 		SyncResponse_Alarm alarm;
 		unsigned int now = get_time();
-		alarm.end_time = now + 242;
-		alarm.start_time = now + 2;
+		alarm.end_time = now + 245;
+		alarm.start_time = now + 5;
 		alarm.ring_duration_in_second = 240;
-		alarm.ring_offset_from_now_in_second = 2;
+		alarm.ring_offset_from_now_in_second = 5;
 		strncpy(alarm.ringtone_path, "/ringtone/tone.raw",
 				strlen("/ringtone/tone.raw"));
 

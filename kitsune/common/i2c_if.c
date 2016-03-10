@@ -152,11 +152,12 @@ static void recoveri2c() {
 	GPIODirModeSet(GPIOA1_BASE, 0x4, GPIO_DIR_MODE_IN);
 
 	LOGE("pulsed %d sda %x scl %x\r\n", pulses, GPIOPinRead(GPIOA1_BASE, 0x20), GPIOPinRead(GPIOA1_BASE, 0x4));
-#if 0
+#if 1
 	// if the lines stay low, we have failed
 	if( booted
 		&& ( GPIOPinRead(GPIOA1_BASE, 0x20) == 0
-		  || GPIOPinRead(GPIOA1_BASE, 0x4) == 0 ) ) {
+		  || GPIOPinRead(GPIOA1_BASE, 0x4) == 0
+		  || pulses == 0 ) ) {
 		assert( I2C_FAILURE );
 	}
 #endif
@@ -165,6 +166,7 @@ static void recoveri2c() {
 	PinTypeI2C(PIN_04, PIN_MODE_5);
 	vTaskDelay(2);
 	PRCMPeripheralReset(PRCM_I2CA0);
+    PRCMPeripheralClkEnable(PRCM_I2CA0, PRCM_RUN_MODE_CLK);
 	vTaskDelay(2);
 	I2CMasterControl(I2C_BASE, 0x00000004); //send a stop...
 	vTaskDelay(2);
@@ -174,10 +176,8 @@ I2CTransact(unsigned long ulCmd)
 {
 	int rval = SUCCESS;
 	unsigned long prio = uxTaskPriorityGet(NULL);
-    //
-    // Clear all interrupts
-    //
-    I2CMasterIntClearEx(I2C_BASE,I2CMasterIntStatusEx(I2C_BASE,false));
+
+	I2CMasterIntClearEx(I2C_BASE,I2C_MASTER_INT_DATA);
 	i2c_task =  xTaskGetCurrentTaskHandle();
     I2CIntRegister(I2C_BASE, i2c_int);
     I2CMasterIntEnableEx(I2C_BASE, I2C_MASTER_INT_DATA);
