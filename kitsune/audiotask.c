@@ -157,8 +157,8 @@ static unsigned int fade_out_vol(unsigned int fade_counter, unsigned int volume,
 #include "stdbool.h"
 
 volatile unsigned long i2c_volume = 0;
-
 extern volatile bool booted;
+extern xSemaphoreHandle i2c_smphr;
 
 static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
@@ -224,10 +224,15 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		if( started && fade_length != 0  ) {
 			fade_counter = xTaskGetTickCount() - fade_time;
 			if( fade_counter <= fade_length ) {
-				if( fade_in ) {
-					i2c_volume = fade_in_vol(fade_counter, volume, fade_length);
+				if( xSemaphoreTakeRecursive(i2c_smphr, 0) ) {
+					if( fade_in ) {
+						i2c_volume = fade_in_vol(fade_counter, volume, fade_length);
+					} else {
+						i2c_volume = fade_out_vol(fade_counter, volume, fade_length);
+					}
+					xSemaphoreGiveRecursive(i2c_smphr);
 				} else {
-					i2c_volume = fade_out_vol(fade_counter, volume, fade_length);
+					//DISP("-");
 				}
 			} else if ( !fade_in && fade_counter > fade_length ) {
 				LOGI("stopping playback");
