@@ -51,6 +51,7 @@ uint8_t InitAudioCapture(uint32_t rate) {
 	SetupPingPongDMATransferTx();
 
 	// Setup the Audio In/Out
+    MAP_I2SIntEnable(I2S_BASE, I2S_INT_RDMA );
 	AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
 	AudioCaptureRendererConfigure( rate);
 
@@ -99,6 +100,8 @@ uint8_t InitAudioPlayback(int32_t vol, uint32_t rate ) {
 	SetupPingPongDMATransferRx();
 
 	// Setup the Audio In/Out
+
+    MAP_I2SIntEnable(I2S_BASE,I2S_INT_XDMA  );
 	AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
 	AudioCaptureRendererConfigure( rate);
 
