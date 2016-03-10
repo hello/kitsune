@@ -2,9 +2,11 @@
 #define FILEDOWNLOADMANAGER_H_
 
 #include <stdint.h>
+#include <stdbool.h>
 
 void downloadmanagertask_init(uint16_t stack_size);
-void set_file_download_pending(void);
+void update_file_download_status(bool is_pending);
+
 
 
 #endif /* FILEDOWNLOADMANAGER_H_ */

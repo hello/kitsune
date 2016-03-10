@@ -1337,6 +1337,7 @@ void free_download_info(SyncResponse_FileDownload * download_info) {
 	}
 }
 
+void update_file_download_status(bool is_pending);
 xQueueHandle download_queue = 0;
 
 void file_download_task( void * params ) {
@@ -1432,12 +1433,21 @@ void file_download_task( void * params ) {
                 LOGI("done, closing\n");
 			} else {
 					int retries = 0;
+
+					// Set file download pending for download manager
+					update_file_download_status(true);
+
 					while (download_file(host, url, filename, path, SD_CARD)
 							!= 0) {
 						if (++retries > 10) {
+							// Clear file download status
+							update_file_download_status(false);
 							goto end_download_task;
 						}
 					}
+
+					// Clear file download status
+					update_file_download_status(false);
 					LOGI("done, closing\n");
 					hello_fs_close(&file_obj);
             }

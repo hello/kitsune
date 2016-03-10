@@ -72,10 +72,10 @@ void downloadmanagertask_init(uint16_t stack_size)
 
 }
 
-void set_file_download_pending(void)
+void update_file_download_status(bool is_pending)
 {
 	xSemaphoreTake(_file_download_mutex, portMAX_DELAY);
-		file_download_status = FileManifest_FileStatusType_DOWNLOAD_PENDING;
+		file_download_status = (is_pending) ? FileManifest_FileStatusType_DOWNLOAD_PENDING:FileManifest_FileStatusType_DOWNLOAD_COMPLETED;
 	xSemaphoreGive(_file_download_mutex);
 
 }
