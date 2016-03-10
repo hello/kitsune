@@ -225,48 +225,62 @@ static void _get_file_sync_response(pb_field_t ** fields, void ** structdata)
 // Better to handle it here since the flags are a part of the structure. and then populate download info and send to queue
 bool _on_file_update(pb_istream_t *stream, const pb_field_t *field, void **arg)
 {
-	FileManifest_FileDownload file_info;
+	FileManifest_File file_info;
 
-	file_info.host.funcs.decode = _decode_string_field;
-	file_info.host.arg = NULL;
+	file_info.download_info.host.funcs.decode = _decode_string_field;
+	file_info.download_info.host.arg = NULL;
 
-	file_info.url.funcs.decode = _decode_string_field;
-	file_info.url.arg = NULL;
+	file_info.download_info.url.funcs.decode = _decode_string_field;
+	file_info.download_info.url.arg = NULL;
 
-	file_info.sd_card_filename.funcs.decode = _decode_string_field;
-	file_info.sd_card_filename.arg = NULL;
+	file_info.download_info.sd_card_filename.funcs.decode = _decode_string_field;
+	file_info.download_info.sd_card_filename.arg = NULL;
 
-	file_info.sd_card_path.funcs.decode = _decode_string_field;
-	file_info.sd_card_path.arg = NULL;
+	file_info.download_info.sd_card_path.funcs.decode = _decode_string_field;
+	file_info.download_info.sd_card_path.arg = NULL;
 
 
 	// decode PB
 	LOGI("file sync parsing\n" );
-	if( !pb_decode(stream,FileManifest_FileDownload_fields,&file_info) )
+	if( !pb_decode(stream,FileManifest_File_fields,&file_info) )
 	{
 		LOGI("file sync - parse fail \n" );
-		free_file_sync_info( &file_info );
+		free_file_sync_info( &file_info.download_info );
 		return false;
 	}
 
-	// Prepare download info and send to download task
-
-	SyncResponse_FileDownload download_info = {0};
-
-	download_info.host.arg = file_info.host.arg;
-	download_info.url.arg = file_info.url.arg;
-	download_info.sd_card_path.arg = file_info.sd_card_path.arg;
-	download_info.sd_card_filename.arg = file_info.sd_card_filename.arg;
-	download_info.has_sha1 = file_info.has_sha1;
-	memcpy(&download_info.sha1, &file_info.sha1, sizeof(FileManifest_FileDownload_sha1_t));
-
-
-	if( !send_to_download_queue(&download_info,10) )
+	if(file_info.has_update_file && file_info.update_file)
 	{
-		free_file_sync_info( &file_info );
+		if(file_info.has_delete_file && file_info.delete_file)
+		{
+			// delete file
+		}
+		else
+		{
+			// Download file
+			// Prepare download info and send to download task
 
+			SyncResponse_FileDownload download_info = {0};
+
+			download_info.host.arg = file_info.download_info.host.arg;
+			download_info.url.arg = file_info.download_info.url.arg;
+			download_info.sd_card_path.arg = file_info.download_info.sd_card_path.arg;
+			download_info.sd_card_filename.arg = file_info.download_info.sd_card_filename.arg;
+			download_info.has_sha1 = file_info.download_info.has_sha1;
+			memcpy(&download_info.sha1, &file_info.download_info.sha1, sizeof(FileManifest_FileDownload_sha1_t));
+
+
+			if( !send_to_download_queue(&download_info,10) )
+			{
+				free_file_sync_info( &file_info.download_info );
+				return false;
+
+			}
+
+		}
 	}
 
+	free_file_sync_info( &file_info.download_info );
 	return true;
 }
 
