@@ -253,7 +253,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 				started = true;
 				t0 = fade_time =  xTaskGetTickCount();
 			}
-			assert( ulTaskNotifyTake( pdTRUE, 5000 ) );
+			( ulTaskNotifyTake( pdTRUE, 5000 ) );
 		}
 
 		if (size > 0) {
