@@ -41,6 +41,7 @@
 
 #include "networktask.h"
 #include "wifi_cmd.h"
+#include "i2c_if.h"
 #include "i2c_cmd.h"
 #include "dust_cmd.h"
 #include "fatfs_cmd.h"
@@ -929,7 +930,6 @@ int Cmd_gesture(int argc, char * argv[]) {
 	return 0;
 }
 
-extern volatile unsigned long i2c_volume;
 void thread_fast_i2c_poll(void * unused)  {
 	unsigned int filter_buf[3];
 	unsigned int filter_idx=0;
@@ -948,6 +948,8 @@ void thread_fast_i2c_poll(void * unused)  {
 			// For the black morpheus, we can detect 6mm distance max
 			// for white one, 9mm distance max.
 			vTaskDelay(1);
+			checki2c();
+
 			prox = median_filter(get_prox(), filter_buf, &filter_idx);
 
 			LOGP( "%d\n", prox );
@@ -993,11 +995,6 @@ void thread_fast_i2c_poll(void * unused)  {
 				}
 			}
 
-			if( i2c_volume ) {
-				vTaskDelay(1);
-				set_volume( i2c_volume, 0 );
-				i2c_volume = 0;
-			}
 			vTaskDelay(1);
 			xSemaphoreGiveRecursive(i2c_smphr);
 		} else {

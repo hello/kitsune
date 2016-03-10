@@ -125,7 +125,7 @@ static void i2c_int() {
 	traceISR_EXIT();
 }
 
-static void recoveri2c() {
+void checki2c() {
 	int pulses = 0;
 
 	//
@@ -135,7 +135,6 @@ static void recoveri2c() {
 	PinTypeGPIO(PIN_04, PIN_MODE_0, false);
 	GPIODirModeSet(GPIOA1_BASE, 0x20, GPIO_DIR_MODE_IN);
 
-	LOGE("i2c recovery...\r\n");
 	//
 	// Configure PIN_01 for GPIOOutput 10 open drain
 	//
@@ -143,32 +142,36 @@ static void recoveri2c() {
 	GPIODirModeSet(GPIOA1_BASE, 0x4, GPIO_DIR_MODE_OUT);
 
 	TickType_t start = xTaskGetTickCount();
-	do {
+	while ( GPIOPinRead(GPIOA1_BASE, 0x20) == 0 && ++pulses < 16 ) {
 		GPIOPinWrite(GPIOA1_BASE, 0x4, 0); //pulse the clock line...
 		vTaskDelay(1);
 		GPIOPinWrite(GPIOA1_BASE, 0x4, 1);
 		vTaskDelay(1);
-	} while ( GPIOPinRead(GPIOA1_BASE, 0x20) == 0 && ++pulses < 16 );
+	}
 	GPIODirModeSet(GPIOA1_BASE, 0x4, GPIO_DIR_MODE_IN);
 
-	LOGE("pulsed %d sda %x scl %x\r\n", pulses, GPIOPinRead(GPIOA1_BASE, 0x20), GPIOPinRead(GPIOA1_BASE, 0x4));
+	if( pulses ) {
+		LOGE("pulsed %d sda %x scl %x\r\n", pulses, GPIOPinRead(GPIOA1_BASE, 0x20), GPIOPinRead(GPIOA1_BASE, 0x4));
+	}
 #if 1
 	// if the lines stay low, we have failed
 	if( booted
 		&& ( GPIOPinRead(GPIOA1_BASE, 0x20) == 0
-		  || GPIOPinRead(GPIOA1_BASE, 0x4) == 0
-		  || pulses == 0 ) ) {
+		  || GPIOPinRead(GPIOA1_BASE, 0x4) == 0 ) ) {
 		assert( I2C_FAILURE );
 	}
 #endif
 	//SDA is now high again, go back to i2c controller...
 	PinTypeI2C(PIN_01, PIN_MODE_1);
 	PinTypeI2C(PIN_04, PIN_MODE_5);
-	vTaskDelay(2);
-	PRCMPeripheralReset(PRCM_I2CA0);
-    PRCMPeripheralClkEnable(PRCM_I2CA0, PRCM_RUN_MODE_CLK);
-	vTaskDelay(2);
-	I2CMasterControl(I2C_BASE, 0x00000004); //send a stop...
+    if(I2CMasterErr(I2C_BASE) != I2C_MASTER_ERR_NONE) {
+    	LOGE("i2c err %x\n", I2CMasterErr(I2C_BASE) != I2C_MASTER_ERR_NONE );
+		vTaskDelay(2);
+		PRCMPeripheralReset(PRCM_I2CA0);
+		PRCMPeripheralClkEnable(PRCM_I2CA0, PRCM_RUN_MODE_CLK);
+		vTaskDelay(2);
+		I2CMasterControl(I2C_BASE, 0x00000004); //send a stop...
+    }
 	vTaskDelay(2);
 }
 static int
@@ -193,11 +196,7 @@ I2CTransact(unsigned long ulCmd)
     // Wait until the current byte has been transferred.
     // Poll on the raw interrupt status.
     //
-	if( !ulTaskNotifyTake( pdTRUE, 100 ) ) {
-	    if(I2CMasterErr(I2C_BASE) != I2C_MASTER_ERR_NONE) {
-	    	LOGE("i2c err %x\n", I2CMasterErr(I2C_BASE) != I2C_MASTER_ERR_NONE );
-	    }
-		recoveri2c();
+	if( !ulTaskNotifyTake( pdTRUE, 2 ) ) {
 		rval = FAILURE;
 	}
 	I2CMasterIntDisable(I2C_BASE);
