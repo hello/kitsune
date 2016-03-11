@@ -184,7 +184,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	desired_ticks_elapsed = info->durationInSeconds * NUMBER_OF_TICKS_IN_A_SECOND;
 
 	LOGI("Starting playback\r\n");
-	LOGI("%d bytes free\n", xPortGetFreeHeapSize());
+	LOGI("%d free %d stk\n", xPortGetFreeHeapSize(),  uxTaskGetStackHighWaterMark(NULL));
 
 	if (!info || !info->file) {
 		LOGI("invalid playback info %s\n\r",info->file);
@@ -202,8 +202,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		return returnFlags;
 
 	}
-
-	LOGI("%d bytes free\n", xPortGetFreeHeapSize());
+	LOGI("%d free %d stk\n", xPortGetFreeHeapSize(),  uxTaskGetStackHighWaterMark(NULL));
 
 	//open file for playback
 	LOGI("Opening %s for playback\r\n",info->file);
@@ -243,7 +242,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 					xSemaphoreGiveRecursive(i2c_smphr);
 				}
 			} else if (!fade_in && fade_counter > fade_length) {
-				LOGI("stopping playback");
+				LOGI("stopping playback\n");
 				break;
 			}
 		}
@@ -258,6 +257,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 				started = true;
 				t0 = fade_time =  xTaskGetTickCount();
 			}
+			DISP("%d\r", GetBufferSize(pRxBuffer));
 			if( !ulTaskNotifyTake( pdTRUE, 5000 ) ) {
 				goto cleanup;
 			}
@@ -290,7 +290,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 					fade_length = info->fade_out_ms;
 				}
 			} else if( returnFlags) {
-				LOGI("stopping playback");
+				LOGI("stopping playback\n");
 				break;
 			}
 
@@ -323,6 +323,8 @@ cleanup:
 		Audio_Stop();
 	}
 
+	LOGI("leftover %d\n", GetBufferSize(pRxBuffer));
+
 	vPortFree(speaker_data);
 
 	///CLEANUP
@@ -334,7 +336,7 @@ cleanup:
 
 	returnFlags |= FLAG_SUCCESS;
 
-	LOGI("%d bytes free\n", xPortGetFreeHeapSize());
+	LOGI("%d free %d stk\n", xPortGetFreeHeapSize(),  uxTaskGetStackHighWaterMark(NULL));
 
 	return returnFlags;
 
@@ -375,7 +377,7 @@ static void DoCapture(uint32_t rate) {
 
 	InitAudioCapture(rate);
 
-	LOGI("%d bytes free\n", xPortGetFreeHeapSize());
+	LOGI("%d free %d stk\n", xPortGetFreeHeapSize(),  uxTaskGetStackHighWaterMark(NULL));
 
 	//loop until we get an event that disturbs capture
 	for (; ;) {
@@ -588,7 +590,7 @@ static void DoCapture(uint32_t rate) {
 	xSemaphoreTake(_processingTaskWait,MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP);
 
 	LOGI("finished audio capture\r\n");
-	LOGI("%d bytes free\n", xPortGetFreeHeapSize());
+	LOGI("%d free %d stk\n", xPortGetFreeHeapSize(),  uxTaskGetStackHighWaterMark(NULL));
 }
 
 

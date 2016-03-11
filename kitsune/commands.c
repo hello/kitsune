@@ -599,32 +599,25 @@ static bool cancel_alarm() {
 }
 
 int set_test_alarm(int argc, char *argv[]) {
-	do {
-		SyncResponse_Alarm alarm;
-		unsigned int now = get_time();
-		alarm.end_time = now + 245;
-		alarm.start_time = now + 5;
-		alarm.ring_duration_in_second = 240;
-		alarm.ring_offset_from_now_in_second = 5;
-		strncpy(alarm.ringtone_path, "/ringtone/tone.raw",
-				strlen("/ringtone/tone.raw"));
+	SyncResponse_Alarm alarm;
+	unsigned int now = get_time();
+	alarm.end_time = now + 245;
+	alarm.start_time = now + 5;
+	alarm.ring_duration_in_second = 240;
+	alarm.ring_offset_from_now_in_second = 5;
+	strncpy(alarm.ringtone_path, "/ringtone/tone.raw",
+			strlen("/ringtone/tone.raw"));
 
-		alarm.has_end_time = 1;
-		alarm.has_start_time = 1;
-		alarm.has_ring_duration_in_second = 1;
-		alarm.has_ringtone_id = 0;
-		alarm.has_ringtone_path = 1;
-		alarm.has_ring_offset_from_now_in_second = 1;
+	alarm.has_end_time = 1;
+	alarm.has_start_time = 1;
+	alarm.has_ring_duration_in_second = 1;
+	alarm.has_ringtone_id = 0;
+	alarm.has_ringtone_path = 1;
+	alarm.has_ring_offset_from_now_in_second = 1;
 
-		char ack[32];
-		usnprintf(ack, 32, "%d", now);
-		set_alarm(&alarm, ack, strlen(ack));
-		if( argc > 1) {
-			do {
-				vTaskDelay(5000);
-			} while ( alarm_is_ringing );
-		}
-	} while( argc > 1 );
+	char ack[32];
+	usnprintf(ack, 32, "%d", now);
+	set_alarm(&alarm, ack, strlen(ack));
 
 	return 0;
 }
@@ -1355,15 +1348,8 @@ int force_data_push()
     return 0;
 }
 
-xSemaphoreHandle low_frequency_i2c_sem;
 int Cmd_inttemp(int argc, char *argv[]);
 void thread_sensor_poll(void* unused) {
-
-	//
-	// Print some header text.
-	//
-	vSemaphoreCreateBinary( low_frequency_i2c_sem );
-
 	periodic_data data = {0};
 
 	while (1) {
@@ -1373,26 +1359,22 @@ void thread_sensor_poll(void* unused) {
 
 		wait_for_time(WAIT_FOREVER);
 
-		if( xSemaphoreTake( low_frequency_i2c_sem, portMAX_DELAY ) ) {
-			sample_sensor_data(&data);
-			xSemaphoreGive(low_frequency_i2c_sem);
+		sample_sensor_data(&data);
 
-			if( booted ) {
-				LOGI(
-						"collecting time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d %d %d %d\twave %d\thold %d\n",
-						data.unix_time, data.light, data.light_variability,
-						data.light_tonality, data.temperature, data.humidity,
-						data.dust, data.dust_max, data.dust_min,
-						data.dust_variability, data.wave_count, data.hold_count);
+		if( booted ) {
+			LOGI(	"collecting time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d %d %d %d\twave %d\thold %d\n",
+					data.unix_time, data.light, data.light_variability,
+					data.light_tonality, data.temperature, data.humidity,
+					data.dust, data.dust_max, data.dust_min,
+					data.dust_variability, data.wave_count, data.hold_count);
 
-				Cmd_free(0,0);
-				send_top("free", strlen("free"));
-				Cmd_inttemp(0,0);
+			Cmd_free(0,0);
+			send_top("free", strlen("free"));
+			Cmd_inttemp(0,0);
 
-				if (!xQueueSend(data_queue, (void* )&data, 0) == pdPASS) {
-					xQueueReceive(data_queue, (void* )&data, 0); //discard one, so if the queue is full we will put every other one in the queue
-					LOGE("Failed to post data\n");
-				}
+			if (!xQueueSend(data_queue, (void* )&data, 0) == pdPASS) {
+				xQueueReceive(data_queue, (void* )&data, 0); //discard one, so if the queue is full we will put every other one in the queue
+				LOGE("Failed to post data\n");
 			}
 		}
 
