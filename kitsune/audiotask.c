@@ -253,7 +253,6 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		/* Wait to avoid buffer overflow as reading speed is faster than playback */
 		while ( IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) ) {
 			if( !started ) {
-				g_uiPlayWaterMark = 1;
 				Audio_Start();
 				started = true;
 				t0 = fade_time =  xTaskGetTickCount();

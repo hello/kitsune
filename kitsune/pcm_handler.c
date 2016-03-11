@@ -208,12 +208,8 @@ void DMAPingPongCompleteAppCB_opt()
 		pControlTable = MAP_uDMAControlBaseGet();
 		if ((pControlTable[ulPrimaryIndexRx].ulControl & UDMA_CHCTL_XFERMODE_M)
 				== 0) {
-			if ((pAudOutBuf->pucReadPtr == pAudOutBuf->pucWritePtr)
-					|| (g_uiPlayWaterMark == 0)) {
+			if ( GetBufferSize(pAudOutBuf) < CB_TRANSFER_SZ ) {
 				pucDMASrc = &gaucZeroBuffer[0];
-				if (pAudOutBuf->pucReadPtr == pAudOutBuf->pucWritePtr) {
-					g_uiPlayWaterMark = 0;
-				}
 				guiDMATransferCountRx = 0;
 			} else {
 				pusRxSrcBuf += CB_TRANSFER_SZ;
@@ -229,12 +225,8 @@ void DMAPingPongCompleteAppCB_opt()
 		} else {
 			if ((pControlTable[ulAltIndexRx].ulControl & UDMA_CHCTL_XFERMODE_M)
 					== 0) {
-				if ((pAudOutBuf->pucReadPtr == pAudOutBuf->pucWritePtr)
-						|| (g_uiPlayWaterMark == 0)) {
+				if ( GetBufferSize(pAudOutBuf) < CB_TRANSFER_SZ ) {
 					pucDMASrc = &gaucZeroBuffer[0];
-					if (pAudOutBuf->pucReadPtr == pAudOutBuf->pucWritePtr) {
-						g_uiPlayWaterMark = 0;
-					}
 					guiDMATransferCountRx = 0;
 				} else {
 					pusRxSrcBuf += CB_TRANSFER_SZ;
