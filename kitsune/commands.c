@@ -93,6 +93,7 @@
 #include "hlo_net_tools.h"
 #include "top_board.h"
 #include "long_poll.h"
+#include "filedownloadmanager.h"
 #define ONLY_MID 0
 
 #define ARRAY_LEN(a) (sizeof(a)/sizeof(a[0]))
@@ -1771,6 +1772,7 @@ void launch_tasks() {
 	xTaskCreate(thread_tx, "txTask", 1536 / 4, NULL, 4, NULL);
 	UARTprintf("*");
 	//long_poll_task_init( 4096 / 4 );
+	downloadmanagertask_init(1024 / 4); // TODO stack size
 #endif
 }
 

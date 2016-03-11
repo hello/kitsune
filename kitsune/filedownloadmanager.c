@@ -12,7 +12,7 @@
 #include <string.h>
 
 #define FILE_ERROR_QUEUE_DEPTH (10)		// ensure that this matches the max_count for error_info in file_manifest.options
-#define QUERY_DELAY_DEFAULT		(15) //minutes
+#define QUERY_DELAY_DEFAULT		(15UL) //minutes
 
 typedef struct {
 	FileManifest_File * data;
