@@ -121,6 +121,7 @@ extern TaskHandle_t audio_task_hndl;
 //! \return None.
 //
 //*****************************************************************************
+static volatile unsigned long qqbufsz=0;
 void DMAPingPongCompleteAppCB_opt()
 {
     unsigned long ulPrimaryIndexTx = 0x4, ulAltIndexTx = 0x24;
@@ -204,6 +205,7 @@ void DMAPingPongCompleteAppCB_opt()
 	}
 
 	if (dma_status & 0x00000020) {
+		qqbufsz = GetBufferSize(pAudOutBuf);
 		HWREG(0x4402609c) = (1 << 11);
 		pControlTable = MAP_uDMAControlBaseGet();
 		if ((pControlTable[ulPrimaryIndexRx].ulControl & UDMA_CHCTL_XFERMODE_M)
@@ -243,6 +245,7 @@ void DMAPingPongCompleteAppCB_opt()
 
 		if (guiDMATransferCountRx >= CB_TRANSFER_SZ) {
 			signed long xHigherPriorityTaskWoken;
+			qqbufsz = GetBufferSize(pAudOutBuf);
 			pAudOutBuf->pucReadPtr += (CB_TRANSFER_SZ * 2);
 			if ((unsigned int) pAudOutBuf->pucReadPtr
 					>= (unsigned int) pAudOutBuf->pucBufferEndPtr) {
@@ -254,7 +257,7 @@ void DMAPingPongCompleteAppCB_opt()
 
 			guiDMATransferCountRx = 0;
 
-			if ( GetBufferSize(pAudOutBuf) < PLAY_WATERMARK ) {
+			if ( qqbufsz < PLAY_WATERMARK ) {
 				vTaskNotifyGiveFromISR( audio_task_hndl, &xHigherPriorityTaskWoken );
 				portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 			}

@@ -161,9 +161,11 @@ extern xSemaphoreHandle i2c_smphr;
 
 static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
-    #define SPEAKER_DATA_CHUNK_SIZE (PING_PONG_CHUNK_SIZE)
+#define SPEAKER_DATA_CHUNK_SIZE (PING_PONG_CHUNK_SIZE)
+#define FLASH_PAGE_SIZE 512
+
 	//1.5K on the stack
-	uint16_t * speaker_data = pvPortMalloc(SPEAKER_DATA_CHUNK_SIZE);
+	uint16_t * speaker_data = pvPortMalloc(SPEAKER_DATA_CHUNK_SIZE+1);
 
 	FIL fp = {0};
 	UINT size;
@@ -178,6 +180,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	unsigned int fade_counter=0;
 	unsigned int fade_time=0;
 	bool fade_in = true;
+	bool fade_out = false;
 	unsigned int volume = info->volume;
 	unsigned int initial_volume = info->volume;
 	unsigned int fade_length = info->fade_in_ms;
@@ -193,7 +196,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		return returnFlags;
 	}
 	if( fade_length != 0 ) {
-		initial_volume = 1;
+		i2c_volume = initial_volume = 1;
 		t0 = fade_time =  xTaskGetTickCount();
 	}
 
@@ -221,79 +224,76 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	bool started = false;
 	//loop until either a) done playing file for specified duration or b) our message queue gets a message that tells us to stop
 	for (; ;) {
-		if( started && fade_length != 0  ) {
-			fade_counter = xTaskGetTickCount() - fade_time;
-
-			if (fade_counter <= fade_length) {
-				int set_vol = 0;
-				if (fade_in) {
-					set_vol = fade_in_vol(fade_counter, volume, fade_length);
-				} else {
-					set_vol = fade_out_vol(fade_counter, volume, fade_length);
-				}
-				if ( set_vol != i2c_volume
-				 && xTaskGetTickCount() - set_time > 100
-				 && IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK)
-				 && xSemaphoreTakeRecursive(i2c_smphr, 0) ) {
-					UtilsDelay(30);
-					set_volume(i2c_volume, 0);
-					UtilsDelay(30);
-					i2c_volume = set_vol;
-					set_time = xTaskGetTickCount();
-					xSemaphoreGiveRecursive(i2c_smphr);
-				}
-			} else if (!fade_in && fade_counter > fade_length) {
-				LOGI("stopping playback\n");
-				break;
-			}
-		}
 		/* Read always in block of 512 Bytes or less else it will stuck in hello_fs_read() */
-		res = hello_fs_read(&fp, speaker_data, 512, &size);
+		res = hello_fs_read(&fp, speaker_data, FLASH_PAGE_SIZE, &size);
 
-		/* Wait to avoid buffer overflow as reading speed is faster than playback */
-		while ( IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) ) {
-			if( !started ) {
-				Audio_Start();
-				started = true;
-				t0 = fade_time =  xTaskGetTickCount();
-			}
-			//DISP("%d\r", GetBufferSize(pRxBuffer));
-			if( !ulTaskNotifyTake( pdTRUE, 5000 ) ) {
-				goto cleanup;
-			}
-		}
-
-
-		if (size > 0) {
+		if ( res == FR_OK && size > 0 ) {
 			int i;
 
-			for (i = (size>>1)-1; i!=-1 ; --i) {
+			for (i = size/2; i!=0 ; --i) {
 				//the odd ones do not matter
 				speaker_data[i<<1] = speaker_data[i];
-				//speaker_data[(i<<1)+1] = 0;
 			}
 
-			//static volatile int slow = 250000; UtilsDelay(slow);
-			FillBuffer(pRxBuffer, (unsigned char*) (speaker_data), size<<1);
-
-			returnFlags |= CheckForInterruptionDuringPlayback();
-
-			if( fade_length != 0 ) {
-				if (returnFlags && fade_in) {
-					if (fade_counter <= info->fade_in_ms) {
-						//interrupted before we can get to max volume...
-						volume = fade_in_vol(fade_counter, volume, fade_length);
-					}
-					//ruh-roh, gotta stop.
-					fade_time = xTaskGetTickCount();
-					fade_in = false;
-					fade_length = info->fade_out_ms;
+			/* Wait to avoid buffer overflow as reading speed is faster than playback */
+			while ( IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) ) {
+				if( !started ) {
+					Audio_Start();
+					started = true;
+					t0 = fade_time =  xTaskGetTickCount();
 				}
-			} else if( returnFlags) {
-				LOGI("stopping playback\n");
-				break;
+				returnFlags |= CheckForInterruptionDuringPlayback();
+				if( started && fade_length != 0  ) {
+					fade_counter = xTaskGetTickCount() - fade_time;
+
+					if (fade_counter > fade_length) {
+						if( fade_in ) {
+							fade_in = false;
+						}
+						if( fade_out ) {
+							goto cleanup;
+						}
+					}
+					if( xTaskGetTickCount() - set_time > 100) {
+						int set_vol = 0;
+						if (fade_in) {
+							set_vol = fade_in_vol(fade_counter, volume, fade_length);
+						}
+						if(fade_out){
+							set_vol = fade_out_vol(fade_counter, volume, fade_length);
+						}
+						if ( set_vol != i2c_volume
+						 && xSemaphoreTakeRecursive(i2c_smphr, 0) ) {
+						    set_volume(i2c_volume, 0);
+							i2c_volume = set_vol;
+							set_time = xTaskGetTickCount();
+							xSemaphoreGiveRecursive(i2c_smphr);
+						}
+					}
+					if (!fade_out && (returnFlags || ((xTaskGetTickCount() - t0) > desired_ticks_elapsed && desired_ticks_elapsed > 0) ) ) {
+						if (fade_in) {
+							//interrupted before we can get to max volume...
+							volume = fade_in_vol(fade_counter, volume, fade_length);
+							fade_in = false;
+						}
+						//ruh-roh, gotta stop.
+						fade_time = xTaskGetTickCount();
+						fade_out = true;
+						fade_length = info->fade_out_ms;
+					}
+					if(fade_out && fade_counter > fade_length) {
+						goto cleanup;
+					}
+				} else if( returnFlags) {
+					LOGI("stopping playback\n");
+					goto cleanup;
+				}
+				if( !ulTaskNotifyTake( pdTRUE, 5000 ) ) {
+					goto cleanup;
+				}
 			}
 
+			FillBuffer(pRxBuffer, (unsigned char*) (speaker_data), size<<1);
 		}
 		else {
 			if ( desired_ticks_elapsed > 0) {
@@ -305,16 +305,6 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 				//someone passed in a negative number--which means after one
 				//play through the file, we quit.
 				break;
-			}
-		}
-
-		if (fade_length != 0) {
-			//if time elapsed is greater than desired, we quit.
-			//UNLESS anddesired_ticks_elapsed is a negative number
-			//instead, we will quit when the file is done playing
-			if (fade_in && (xTaskGetTickCount() - t0) > desired_ticks_elapsed && desired_ticks_elapsed > 0) {
-				fade_time = xTaskGetTickCount();
-				fade_in = false;
 			}
 		}
 	}
