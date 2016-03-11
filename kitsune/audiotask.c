@@ -257,7 +257,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 				started = true;
 				t0 = fade_time =  xTaskGetTickCount();
 			}
-			DISP("%d\r", GetBufferSize(pRxBuffer));
+			//DISP("%d\r", GetBufferSize(pRxBuffer));
 			if( !ulTaskNotifyTake( pdTRUE, 5000 ) ) {
 				goto cleanup;
 			}
