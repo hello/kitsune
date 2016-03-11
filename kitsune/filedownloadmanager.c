@@ -11,8 +11,14 @@
 #include "networktask.h"
 #include <string.h>
 
-#define FILE_ERROR_QUEUE_DEPTH (10)
+#define FILE_ERROR_QUEUE_DEPTH (10)		// ensure that this matches the max_count for error_info in file_manifest.options
 #define QUERY_DELAY_DEFAULT		(15) //minutes
+
+typedef struct {
+	FileManifest_File * data;
+    uint32_t num_data;
+} file_info_to_encode;
+
 
 // Response received semaphore
 static xSemaphoreHandle _response_received_sem = NULL;
@@ -41,6 +47,8 @@ static void _on_file_sync_response_failure(void );
 static void get_file_download_status(FileManifest_FileStatusType* file_status);
 static bool _on_file_update(pb_istream_t *stream, const pb_field_t *field, void **arg);
 static void free_file_sync_info(FileManifest_FileDownload * download_info);
+static void restart_download_manager(void);
+bool encode_file_info (pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 
 // extern functions
 bool send_to_download_queue(SyncResponse_FileDownload* data, TickType_t ticks_to_wait);
@@ -118,7 +126,7 @@ static void DownloadManagerTask(void * filesyncdata)
     start_time = xTaskGetTickCount();
 
     //give sempahore with query delay as 15 minutes
-    xSemaphoreGive(_response_received_sem);
+    restart_download_manager();
 
 	for (; ;)
 	{
@@ -130,6 +138,8 @@ static void DownloadManagerTask(void * filesyncdata)
 			/* UPDATE FILE INFO */
 
 			// Scan through file system and update file manifest
+
+			message_for_upload.file_info.funcs.encode = encode_file_info;
 
 			/* UPDATE FILE STATUS - DOWNLOADED/PENDING */
 
@@ -163,12 +173,20 @@ static void DownloadManagerTask(void * filesyncdata)
 
 			/* UPDATE MEMORY INFO */
 
+			message_for_upload.has_sd_card_size = true;
+			//TODO update memory info
+
 			/* UPDATE FILE ERROR INFO */
+
+			message_for_upload.error_info_count = 0;
 
 			// Empty file operation error queue
 			while(xQueueReceive( _file_error_queue, &error_message, 0 ))
 			{
 				// Add to protobuf
+				message_for_upload.error_info[message_for_upload.error_info_count] = error_message;
+				message_for_upload.error_info_count++;
+
 			}
 
 			/* UPDATE SENSE ID */
@@ -187,7 +205,14 @@ static void DownloadManagerTask(void * filesyncdata)
 			{
 				LOGI("File manifest failed to upload \n");
 
+				// give semaphore here to restart sending
+				restart_download_manager();
+
 				// Update error count
+			}
+			else
+			{
+				// clear error count
 			}
 
 			// Update wake time
@@ -308,6 +333,44 @@ void free_file_sync_info(FileManifest_FileDownload * download_info)
 
 }
 
+//TODO
+bool encode_file_info (pb_ostream_t *stream, const pb_field_t *field, void * const *arg)
+{
+
+	return true;
+
+}
+
+bool add_to_file_error_queue(char* filename, int32_t err_code, bool write_error)
+{
+	FileManifest_FileOperationError data;
+
+	// if queue is full, remove oldest
+	if(! uxQueueSpacesAvailable(_file_error_queue))
+	{
+		xQueueReceive(_file_error_queue, &data, portMAX_DELAY); // TODO portMaxDelay?
+	}
+
+	data.has_err_code = true;
+	data.err_code = err_code;
+
+	data.has_err_type = true;
+	data.err_type = (write_error) ?
+			FileManifest_FileOperationError_ErrorType_WRITE_ERROR : FileManifest_FileOperationError_ErrorType_READ_ERROR;
+
+	// Copy file name
+	// data.filename.arg, filename,
+	data.filename.funcs.encode = _encode_string_fields;
+
+	// add to qyeye
+	if( !xQueueSend(_file_error_queue, &data, portMAX_DELAY))
+	{
+		return false;
+	}
+
+	return true;
+}
+
 static void _free_file_sync_response(void * structdata)
 {
 	vPortFree( structdata );
@@ -336,7 +399,7 @@ static void _on_file_sync_response_failure( )
 	//Also update time_t-_response by 15 minutes
 
     // give semaphore for default query delay
-	xSemaphoreGive(_response_received_sem);
+	restart_download_manager();
 
     // update link health error count
     //TODO is there any way to know if error occurred during send or recv
@@ -350,3 +413,8 @@ static void get_file_download_status(FileManifest_FileStatusType* file_status)
 
 }
 
+
+static void restart_download_manager(void)
+{
+	xSemaphoreGive(_response_received_sem);
+}
