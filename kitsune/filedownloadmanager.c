@@ -130,6 +130,8 @@ static void DownloadManagerTask(void * filesyncdata)
     //give sempahore with query delay as 15 minutes
     restart_download_manager();
 
+    LOGI("Starting download manager\n");
+
 	for (; ;)
 	{
 		// Check if response has been received
@@ -172,9 +174,7 @@ static void DownloadManagerTask(void * filesyncdata)
 			message_for_upload.has_link_health = true;
 			message_for_upload.link_health = link_health;
 
-			// Clear time to response count since it has been saved to protobuf
-			link_health.time_to_response = 0;
-			link_health.send_errors = 0;
+
 
 			/* UPDATE MEMORY INFO */
 
@@ -210,15 +210,19 @@ static void DownloadManagerTask(void * filesyncdata)
 			{
 				LOGI("File manifest failed to upload \n");
 
+				// If time to response is non-zero, it means the last upload was not sent successfully
+				// So add fifteen minutes
+				if(link_health.time_to_response)
+				{
+					link_health.time_to_response += 15;
+				}
+
 				// give semaphore here to restart sending
 				restart_download_manager();
 
-				// Update error count
+
 			}
-			else
-			{
-				// clear error count
-			}
+
 
 			// Update wake time
 			start_time = xTaskGetTickCount();
@@ -383,15 +387,29 @@ static void _free_file_sync_response(void * structdata)
 
 static void _on_file_sync_response_success( void * structdata)
 {
+	FileManifest* response_protobuf = (FileManifest*) structdata;
+
 	LOGF("_on_file_sync_response_success\r\n");
 
 	// If has update file and delete file info
 		// send for download
 
 	// Update query delay ticks
+	if(response_protobuf->has_query_delay)
+	{
+		query_delay_ticks = (response_protobuf->query_delay * 60 * 1000)/portTICK_PERIOD_MS;
+	}
+	else
+	{
+	    // Update default query delay ticks
+		query_delay_ticks = (QUERY_DELAY_DEFAULT*60*1000)/portTICK_PERIOD_MS;
+	}
 
-	// give semaphore for query delay
-	xSemaphoreGive(_response_received_sem);
+	// Clear time to response count since it has been sent successfully
+	link_health.time_to_response = 0;
+	link_health.send_errors = 0;
+
+	restart_download_manager();
 }
 
 static void _on_file_sync_response_failure( )
@@ -402,12 +420,15 @@ static void _on_file_sync_response_failure( )
 	query_delay_ticks = (QUERY_DELAY_DEFAULT*60*1000)/portTICK_PERIOD_MS;
 
 	//Also update time_t-_response by 15 minutes
+	link_health.time_to_response += 15;
+
+    // update link health error count
+    //TODO is there any way to know if error occurred during send or recv
+	link_health.send_errors++;
 
     // give semaphore for default query delay
 	restart_download_manager();
 
-    // update link health error count
-    //TODO is there any way to know if error occurred during send or recv
 }
 
 static void get_file_download_status(FileManifest_FileStatusType* file_status)
@@ -419,7 +440,7 @@ static void get_file_download_status(FileManifest_FileStatusType* file_status)
 }
 
 
-static void restart_download_manager(void)
+static inline void restart_download_manager(void)
 {
 	xSemaphoreGive(_response_received_sem);
 }

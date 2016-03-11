@@ -1440,8 +1440,6 @@ void file_download_task( void * params ) {
 					while (download_file(host, url, filename, path, SD_CARD)
 							!= 0) {
 						if (++retries > 10) {
-							// Clear file download status
-							update_file_download_status(false);
 							goto end_download_task;
 						}
 					}
@@ -1498,6 +1496,8 @@ next_one:
         //what if there's an error on some but not all the files? (start over)
 
 end_download_task: //there was an error
+		// Clear file download status
+		update_file_download_status(false);
         while (xQueueReceive(download_queue, &download_info, 10)) {
             free_download_info(&download_info);
         }
