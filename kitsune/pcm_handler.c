@@ -253,8 +253,11 @@ void DMAPingPongCompleteAppCB_opt()
 			pusRxSrcBuf -= CB_TRANSFER_SZ;
 
 			guiDMATransferCountRx = 0;
-		    vTaskNotifyGiveFromISR( audio_task_hndl, &xHigherPriorityTaskWoken );
-			portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+
+			if ( GetBufferSize(pAudOutBuf) < PLAY_WATERMARK ) {
+				vTaskNotifyGiveFromISR( audio_task_hndl, &xHigherPriorityTaskWoken );
+				portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+			}
 		}
 	}
 	uDMAIntClear(dma_status);
