@@ -164,4 +164,7 @@ void usertraceMALLOC( void * pvAddress, size_t uiSize );
 #include "SEGGER_SYSVIEW_FreeRTOS.h"
 #endif
 
+extern int usprintf(char *pcBuf, const char *pcString, ...);
+#define sprintf usprintf
+
 #endif /* FREERTOS_CONFIG_H */
