@@ -24,6 +24,7 @@
 
 #include "mcasp_if.h"
 #include "kit_assert.h"
+#include "utils.h"
 
 #if 0
 #define PRINT_TIMING
@@ -49,7 +50,7 @@
 unsigned int g_uiPlayWaterMark;
 extern tCircularBuffer * pRxBuffer;
 extern tCircularBuffer * pTxBuffer;
-xSemaphoreHandle audio_dma_sem;
+TaskHandle_t audio_task_hndl;
 
 /* static variables  */
 static xQueueHandle _queue = NULL;
@@ -103,6 +104,8 @@ static void Init(void) {
 	_callCounter = 0;
 	_filecounter = 0;
 
+	audio_task_hndl = xTaskGetCurrentTaskHandle();
+
 	if (!_queue) {
 		_queue = xQueueCreate(INBOX_QUEUE_LENGTH,sizeof(AudioMessage_t));
 	}
@@ -113,10 +116,6 @@ static void Init(void) {
 
 	if (!_statsMutex) {
 		_statsMutex = xSemaphoreCreateMutex();
-	}
-
-	if( !audio_dma_sem ) {
-		audio_dma_sem = xSemaphoreCreateBinary();
 	}
 
 	memset(&_stats,0,sizeof(_stats));
@@ -157,29 +156,8 @@ static unsigned int fade_out_vol(unsigned int fade_counter, unsigned int volume,
 }
 
 #include "stdbool.h"
-
-extern void UtilsDelay(unsigned long ulCount);
-
-//extern volatile int wait;
-//extern volatile int wait2;
-
-extern xSemaphoreHandle low_frequency_i2c_sem;
-
-static bool _lock_for_audio() {
-	bool has_i2c_lock = false;
-	hello_fs_lock();
-	if( low_frequency_i2c_sem ) {
-		assert(xSemaphoreTake( low_frequency_i2c_sem, 60000 ));
-		has_i2c_lock = true;
-	}
-	return has_i2c_lock;
-}
-static void _unlock_for_audio(bool unlock_i2c) {
-	if( unlock_i2c && low_frequency_i2c_sem ) {
-		xSemaphoreGive( low_frequency_i2c_sem );
-	}
-	hello_fs_unlock();
-}
+extern volatile bool booted;
+extern xSemaphoreHandle i2c_smphr;
 
 static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
@@ -190,18 +168,16 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	FIL fp = {0};
 	UINT size;
 	FRESULT res;
-	uint32_t totBytesRead = 0;
-	uint32_t iReceiveCount = 0;
 	uint8_t returnFlags = 0x00;
 
 	int32_t desired_ticks_elapsed;
 	portTickType t0;
-	bool has_i2c_lock;
 
+	unsigned int set_time=0;
+	unsigned long i2c_volume = 0;
 	unsigned int fade_counter=0;
 	unsigned int fade_time=0;
 	bool fade_in = true;
-	unsigned int last_vol = 0;
 	unsigned int volume = info->volume;
 	unsigned int initial_volume = info->volume;
 	unsigned int fade_length = info->fade_in_ms;
@@ -209,38 +185,31 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	desired_ticks_elapsed = info->durationInSeconds * NUMBER_OF_TICKS_IN_A_SECOND;
 
 	LOGI("Starting playback\r\n");
-	LOGI("%d bytes free\n", xPortGetFreeHeapSize());
-
-	has_i2c_lock = _lock_for_audio();
+	LOGI("%d free %d stk\n", xPortGetFreeHeapSize(),  uxTaskGetStackHighWaterMark(NULL));
 
 	if (!info || !info->file) {
-		_unlock_for_audio(has_i2c_lock);
 		LOGI("invalid playback info %s\n\r",info->file);
 		vPortFree(speaker_data);
 		return returnFlags;
 	}
 	if( fade_length != 0 ) {
 		initial_volume = 1;
-		t0 = fade_time = last_vol = xTaskGetTickCount();
+		t0 = fade_time =  xTaskGetTickCount();
 	}
 
 	if ( !InitAudioPlayback(initial_volume, info->rate ) ) {
-		_unlock_for_audio(has_i2c_lock);
 		LOGI("unable to initialize audio playback.  Probably not enough memory!\r\n");
 		vPortFree(speaker_data);
 		return returnFlags;
 
 	}
-
-	LOGI("%d bytes free\n", xPortGetFreeHeapSize());
-
+	LOGI("%d free %d stk\n", xPortGetFreeHeapSize(),  uxTaskGetStackHighWaterMark(NULL));
 
 	//open file for playback
 	LOGI("Opening %s for playback\r\n",info->file);
 	res = hello_fs_open(&fp, info->file, FA_READ);
 
 	if (res != FR_OK) {
-		_unlock_for_audio(has_i2c_lock);
 		LOGI("Failed to open audio file %s\n\r",info->file);
 		DeinitAudioPlayback();
 		vPortFree(speaker_data);
@@ -252,47 +221,48 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	bool started = false;
 	//loop until either a) done playing file for specified duration or b) our message queue gets a message that tells us to stop
 	for (; ;) {
-		if( fade_length != 0  ) {
-			if( !has_i2c_lock ) {
-				if( low_frequency_i2c_sem ) {
-					has_i2c_lock = xSemaphoreTake( low_frequency_i2c_sem, 10 );
-				}
-			}
+		if( started && fade_length != 0  ) {
 			fade_counter = xTaskGetTickCount() - fade_time;
-			if( fade_counter <= fade_length && xTaskGetTickCount() - last_vol > 100 ) {
-				last_vol = xTaskGetTickCount();
-				if( fade_in ) {
-					//UARTprintf("FI %d\n", fade_in_vol(fade_counter, volume, fade_length));
-					set_volume(fade_in_vol(fade_counter, volume, fade_length),0);
+
+			if (fade_counter <= fade_length) {
+				int set_vol = 0;
+				if (fade_in) {
+					set_vol = fade_in_vol(fade_counter, volume, fade_length);
 				} else {
-					//UARTprintf("FO %d\n", fade_out_vol(fade_counter, volume, fade_length));
-					set_volume(fade_out_vol(fade_counter, volume, fade_length),0);
+					set_vol = fade_out_vol(fade_counter, volume, fade_length);
 				}
-			} else if ( !fade_in && fade_counter > fade_length ) {
-				LOGI("stopping playback");
+				if ( set_vol != i2c_volume
+				 && xTaskGetTickCount() - set_time > 100
+				 && IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK)
+				 && xSemaphoreTakeRecursive(i2c_smphr, 0) ) {
+					UtilsDelay(30);
+					set_volume(i2c_volume, 0);
+					UtilsDelay(30);
+					i2c_volume = set_vol;
+					set_time = xTaskGetTickCount();
+					xSemaphoreGiveRecursive(i2c_smphr);
+				}
+			} else if (!fade_in && fade_counter > fade_length) {
+				LOGI("stopping playback\n");
 				break;
-			}
-		}
-		if( has_i2c_lock && ( fade_length == 0 || fade_counter > fade_length ) ) {
-			if( low_frequency_i2c_sem ) {
-				xSemaphoreGive( low_frequency_i2c_sem );
-				has_i2c_lock = false;
 			}
 		}
 		/* Read always in block of 512 Bytes or less else it will stuck in hello_fs_read() */
 		res = hello_fs_read(&fp, speaker_data, 512, &size);
-		totBytesRead += size;
 
 		/* Wait to avoid buffer overflow as reading speed is faster than playback */
-		while ( !IsBufferVacant(pRxBuffer, 512*2) ) {
+		while ( IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) ) {
 			if( !started ) {
-				g_uiPlayWaterMark = 1;
 				Audio_Start();
 				started = true;
-				break;
+				t0 = fade_time =  xTaskGetTickCount();
 			}
-			assert( xSemaphoreTake( audio_dma_sem, 5000 ) );
+			//DISP("%d\r", GetBufferSize(pRxBuffer));
+			if( !ulTaskNotifyTake( pdTRUE, 5000 ) ) {
+				goto cleanup;
+			}
 		}
+
 
 		if (size > 0) {
 			int i;
@@ -320,15 +290,15 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 					fade_length = info->fade_out_ms;
 				}
 			} else if( returnFlags) {
-				LOGI("stopping playback");
+				LOGI("stopping playback\n");
 				break;
 			}
 
 		}
 		else {
-			if (desired_ticks_elapsed >= 0) {
+			if ( desired_ticks_elapsed > 0) {
 				//LOOP THE FILE -- start over
-				LOGI("looping, %d", desired_ticks_elapsed - (xTaskGetTickCount() - t0)  );
+				LOGI("looping %d\n", desired_ticks_elapsed - (xTaskGetTickCount() - t0)  );
 				hello_fs_lseek(&fp,0);
 			}
 			else {
@@ -336,30 +306,24 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 				//play through the file, we quit.
 				break;
 			}
-
 		}
-
-		if (g_uiPlayWaterMark == 0) {
-			if (IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) == TRUE) {
-				g_uiPlayWaterMark = 1;
-			}
-		}
-		iReceiveCount++;
 
 		if (fade_length != 0) {
 			//if time elapsed is greater than desired, we quit.
 			//UNLESS anddesired_ticks_elapsed is a negative number
 			//instead, we will quit when the file is done playing
-			if (fade_in && (xTaskGetTickCount() - t0) > desired_ticks_elapsed && desired_ticks_elapsed >= 0) {
+			if (fade_in && (xTaskGetTickCount() - t0) > desired_ticks_elapsed && desired_ticks_elapsed > 0) {
 				fade_time = xTaskGetTickCount();
 				fade_in = false;
 			}
 		}
 	}
-
+cleanup:
 	if( started ) {
 		Audio_Stop();
 	}
+
+	LOGI("leftover %d\n", GetBufferSize(pRxBuffer));
 
 	vPortFree(speaker_data);
 
@@ -368,15 +332,11 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 	DeinitAudioPlayback();
 
-	xSemaphoreGive( audio_dma_sem );
-
-	_unlock_for_audio( has_i2c_lock );
-
 	LOGI("completed playback\r\n");
 
 	returnFlags |= FLAG_SUCCESS;
 
-	LOGI("%d bytes free\n", xPortGetFreeHeapSize());
+	LOGI("%d free %d stk\n", xPortGetFreeHeapSize(),  uxTaskGetStackHighWaterMark(NULL));
 
 	return returnFlags;
 
@@ -417,7 +377,7 @@ static void DoCapture(uint32_t rate) {
 
 	InitAudioCapture(rate);
 
-	LOGI("%d bytes free\n", xPortGetFreeHeapSize());
+	LOGI("%d free %d stk\n", xPortGetFreeHeapSize(),  uxTaskGetStackHighWaterMark(NULL));
 
 	//loop until we get an event that disturbs capture
 	for (; ;) {
@@ -533,7 +493,7 @@ static void DoCapture(uint32_t rate) {
 
 		if(iBufferFilled < 2*PING_PONG_CHUNK_SIZE) {
 			//wait a bit for the tx buffer to fill
-			if( !xSemaphoreTake( audio_dma_sem, 1000 ) ) {
+			if( !ulTaskNotifyTake( pdTRUE, 1000 ) ) {
 				LOGE("Capture DMA timeout\n");
 				DeinitAudioCapture();
 				InitAudioCapture(rate);
@@ -624,15 +584,13 @@ static void DoCapture(uint32_t rate) {
 
 	DeinitAudioCapture();
 
-	xSemaphoreGive( audio_dma_sem );
-
 	AudioProcessingTask_SetControl(processingOff,ProcessingCommandFinished,NULL);
 
 	//wait until ProcessingCommandFinished is returned
 	xSemaphoreTake(_processingTaskWait,MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP);
 
 	LOGI("finished audio capture\r\n");
-	LOGI("%d bytes free\n", xPortGetFreeHeapSize());
+	LOGI("%d free %d stk\n", xPortGetFreeHeapSize(),  uxTaskGetStackHighWaterMark(NULL));
 }
 
 

@@ -1578,6 +1578,8 @@ UARTStdioIntHandler(void)
     long lChar;
     static tBoolean bLastWasCR = false;
 
+    traceISR_ENTER();
+
     //
     // Get and clear the current interrupt source(s)
     //
@@ -1841,11 +1843,7 @@ UARTStdioIntHandler(void)
                     #ifdef WANT_FREERTOS_SUPPORT
 						// Signal the UARTTask that it has data to process
 						xSemaphoreGiveFromISR(g_xRxLineSemaphore, &xHigherPriorityTaskWoken);
-						
-						if (xHigherPriorityTaskWoken == pdTRUE)
-						{
-							vTaskDelay(0);
-						}
+						portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 						                  	                    
                     #endif /* WANT_FREERTOS_SUPPORT */
                     	
@@ -1913,6 +1911,7 @@ UARTStdioIntHandler(void)
         UARTPrimeTransmit(g_ulBase);
         MAP_UARTIntEnable(g_ulBase, UART_INT_TX);
     }
+    traceISR_EXIT();
 }
 #endif
 

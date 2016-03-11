@@ -62,6 +62,7 @@
 #include "debug.h"
 #include "interrupt.h"
 #include "hw_memmap.h"
+#include "hw_ints.h"
 #include "i2s.h"
 #include "udma.h"
 #include "pin.h"
@@ -104,7 +105,7 @@ extern tCircularBuffer *pTxBuffer;
 extern tCircularBuffer *pRxBuffer;
 extern unsigned int g_uiPlayWaterMark;
 
-extern xSemaphoreHandle audio_dma_sem;
+extern TaskHandle_t audio_task_hndl;
 
 //*****************************************************************************
 //
@@ -130,8 +131,15 @@ void DMAPingPongCompleteAppCB_opt()
     unsigned int uiBufferEmpty = 0;
     unsigned char *pucDMADest;
     unsigned char *pucDMASrc;
+    unsigned int dma_status;
+    unsigned int i2s_status;
 
-	if (uDMAIntStatus() & 0x00000010) {
+    traceISR_ENTER();
+
+	i2s_status = I2SIntStatus(I2S_BASE);
+	dma_status = uDMAIntStatus();
+
+	if (dma_status & 0x00000010) {
 		HWREG(0x4402609c) = (1 << 10);
 		//
 		// Get the base address of the control table.
@@ -190,22 +198,18 @@ void DMAPingPongCompleteAppCB_opt()
 			pusTxDestBuf -= CB_TRANSFER_SZ;
 
 			guiDMATransferCountTx = 0;
-			xSemaphoreGiveFromISR(audio_dma_sem, &xHigherPriorityTaskWoken);
+		    vTaskNotifyGiveFromISR( audio_task_hndl, &xHigherPriorityTaskWoken );
 			portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 		}
 	}
 
-	if (uDMAIntStatus() & 0x00000020) {
+	if (dma_status & 0x00000020) {
 		HWREG(0x4402609c) = (1 << 11);
 		pControlTable = MAP_uDMAControlBaseGet();
 		if ((pControlTable[ulPrimaryIndexRx].ulControl & UDMA_CHCTL_XFERMODE_M)
 				== 0) {
-			if ((pAudOutBuf->pucReadPtr == pAudOutBuf->pucWritePtr)
-					|| (g_uiPlayWaterMark == 0)) {
+			if ( GetBufferSize(pAudOutBuf) < CB_TRANSFER_SZ ) {
 				pucDMASrc = &gaucZeroBuffer[0];
-				if (pAudOutBuf->pucReadPtr == pAudOutBuf->pucWritePtr) {
-					g_uiPlayWaterMark = 0;
-				}
 				guiDMATransferCountRx = 0;
 			} else {
 				pusRxSrcBuf += CB_TRANSFER_SZ;
@@ -221,12 +225,8 @@ void DMAPingPongCompleteAppCB_opt()
 		} else {
 			if ((pControlTable[ulAltIndexRx].ulControl & UDMA_CHCTL_XFERMODE_M)
 					== 0) {
-				if ((pAudOutBuf->pucReadPtr == pAudOutBuf->pucWritePtr)
-						|| (g_uiPlayWaterMark == 0)) {
+				if ( GetBufferSize(pAudOutBuf) < CB_TRANSFER_SZ ) {
 					pucDMASrc = &gaucZeroBuffer[0];
-					if (pAudOutBuf->pucReadPtr == pAudOutBuf->pucWritePtr) {
-						g_uiPlayWaterMark = 0;
-					}
 					guiDMATransferCountRx = 0;
 				} else {
 					pusRxSrcBuf += CB_TRANSFER_SZ;
@@ -253,11 +253,14 @@ void DMAPingPongCompleteAppCB_opt()
 			pusRxSrcBuf -= CB_TRANSFER_SZ;
 
 			guiDMATransferCountRx = 0;
-			xSemaphoreGiveFromISR(audio_dma_sem, &xHigherPriorityTaskWoken);
+		    vTaskNotifyGiveFromISR( audio_task_hndl, &xHigherPriorityTaskWoken );
 			portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 		}
 	}
+	uDMAIntClear(dma_status);
+	I2SIntClear(I2S_BASE, i2s_status );
 
+	traceISR_EXIT();
 }
 
 //*****************************************************************************

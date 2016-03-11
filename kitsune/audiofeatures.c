@@ -482,8 +482,6 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int64_t samplecount) {
     
     DEBUG_LOG_S16("energy", NULL, &logTotalEnergy, 1, samplecount, samplecount);
 
-    LOGA("%d\n", GetAudioEnergyAsDBA(logTotalEnergy));
-
     /* Determine stability of signal energy order to figure out when to estimate background spectrum */
     logTotalEnergyAvg = MovingAverage16(_data.callcounter, logTotalEnergy, _data.energybuf, &_data.energyaccumulator,ENERGY_BUF_MASK,ENERGY_BUF_SIZE_2N);
     
@@ -568,6 +566,9 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int64_t samplecount) {
         if (dc > MIN_CLASSIFICATION_ENERGY) {
             DEBUG_LOG_S8("mfcc",NULL,featvec,NUM_AUDIO_FEATURES,samplecount,samplecount);
         }
+        for (i = 0; i < NUM_AUDIO_FEATURES; i++) {
+        	LOGA("%d,",featvec[i] );
+        }LOGA("\n");
 
         _data.feats.samplecount = samplecount;
         //do data callback always

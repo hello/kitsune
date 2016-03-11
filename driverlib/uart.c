@@ -1152,8 +1152,6 @@ UARTBusy(unsigned long ulBase)
 //! \return None.
 //
 //*****************************************************************************
-//#include "FreeRTOSconfig.h" todo find out why travis doesn't like this
-#define configMAX_SYSCALL_INTERRUPT_PRIORITY 	( 5 << 5 )
 void
 UARTIntRegister(unsigned long ulBase, void (*pfnHandler)(void))
 {
@@ -1180,7 +1178,7 @@ UARTIntRegister(unsigned long ulBase, void (*pfnHandler)(void))
     //
     IntRegister(ulInt, pfnHandler);
 
-    IntPrioritySet(ulInt, configMAX_SYSCALL_INTERRUPT_PRIORITY);
+    IntPrioritySet(ulInt, 6<<5); //between max syscall priority and kernel
     //
     // Enable the UART interrupt.
     //

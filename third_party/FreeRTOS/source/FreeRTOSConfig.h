@@ -131,7 +131,7 @@ to exclude the API function. */
 #define INCLUDE_vTaskSuspend					1
 #define INCLUDE_vTaskDelayUntil					1
 #define INCLUDE_vTaskDelay						1
-#define INCLUDE_uxTaskGetStackHighWaterMark		0
+#define INCLUDE_uxTaskGetStackHighWaterMark		1
 #define INCLUDE_xTaskGetSchedulerState			1
 #define INCLUDE_xTimerGetTimerDaemonTaskHandle	0
 #define INCLUDE_xTaskGetIdleTaskHandle			1
@@ -147,6 +147,9 @@ See http://www.FreeRTOS.org/RTOS-Cortex-M3-M4.html. */
 /* Use the Cortex-M3 optimised task selection rather than the generic C code
 version. */
 #define configUSE_PORT_OPTIMISED_TASK_SELECTION 1
+void
+vAssertCalled( const char * s );
+#define configASSERT(x) if(!(x)) {vAssertCalled(#x);}
 
 #include "stddef.h"
 void usertraceMALLOC( void * pvAddress, size_t uiSize );
