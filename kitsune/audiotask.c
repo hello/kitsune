@@ -24,6 +24,7 @@
 
 #include "mcasp_if.h"
 #include "kit_assert.h"
+#include "utils.h"
 
 #if 0
 #define PRINT_TIMING
@@ -232,11 +233,11 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 				}
 				if ( set_vol != i2c_volume
 				 && xTaskGetTickCount() - set_time > 100
-				 && IsBufferSizeFilled(pRxBuffer, pRxBuffer->ulBufferSize - SPEAKER_DATA_CHUNK_SIZE)
+				 && IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK)
 				 && xSemaphoreTakeRecursive(i2c_smphr, 0) ) {
-					vTaskDelay(1);
+					UtilsDelay(30);
 					set_volume(i2c_volume, 0);
-					vTaskDelay(1);
+					UtilsDelay(30);
 					i2c_volume = set_vol;
 					set_time = xTaskGetTickCount();
 					xSemaphoreGiveRecursive(i2c_smphr);
@@ -250,7 +251,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		res = hello_fs_read(&fp, speaker_data, 512, &size);
 
 		/* Wait to avoid buffer overflow as reading speed is faster than playback */
-		while ( IsBufferSizeFilled(pRxBuffer, pRxBuffer->ulBufferSize - SPEAKER_DATA_CHUNK_SIZE) ) {
+		while ( IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) ) {
 			if( !started ) {
 				g_uiPlayWaterMark = 1;
 				Audio_Start();
