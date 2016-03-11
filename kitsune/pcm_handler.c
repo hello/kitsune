@@ -95,6 +95,8 @@
 //                          GLOBAL VARIABLES
 //*****************************************************************************
 unsigned char gaucZeroBuffer[(CB_TRANSFER_SZ * HALF_WORD_SIZE)];
+unsigned short ping[(CB_TRANSFER_SZ)];
+unsigned short pong[(CB_TRANSFER_SZ)];
 volatile unsigned int *puiTxSrcBuf;
 volatile unsigned short *pusTxDestBuf;
 volatile unsigned short *pusRxSrcBuf;
@@ -121,6 +123,7 @@ extern TaskHandle_t audio_task_hndl;
 //! \return None.
 //
 //*****************************************************************************
+
 static volatile unsigned long qqbufsz=0;
 void DMAPingPongCompleteAppCB_opt()
 {
@@ -134,6 +137,7 @@ void DMAPingPongCompleteAppCB_opt()
     unsigned char *pucDMASrc;
     unsigned int dma_status;
     unsigned int i2s_status;
+    int i = 0;
 
     traceISR_ENTER();
 
@@ -210,14 +214,18 @@ void DMAPingPongCompleteAppCB_opt()
 		pControlTable = MAP_uDMAControlBaseGet();
 		if ((pControlTable[ulPrimaryIndexRx].ulControl & UDMA_CHCTL_XFERMODE_M)
 				== 0) {
-			if ( GetBufferSize(pAudOutBuf) < CB_TRANSFER_SZ ) {
-				pucDMASrc = &gaucZeroBuffer[0];
-				guiDMATransferCountRx = 0;
-			} else {
-				pusRxSrcBuf += CB_TRANSFER_SZ;
-				guiDMATransferCountRx += CB_TRANSFER_SZ;
-				pucDMASrc = (unsigned char *) pusRxSrcBuf;
+			guiDMATransferCountRx += CB_TRANSFER_SZ;
+
+			memcpy(  (void*)ping, (void*)GetReadPtr(pAudOutBuf), CB_TRANSFER_SZ);
+			UpdateReadPtr(pAudOutBuf, CB_TRANSFER_SZ);
+
+			for (i = CB_TRANSFER_SZ/2-1; i!=-1 ; --i) {
+				//the odd ones do not matter
+				ping[(i<<1)+1] = ping[i<<1] = ping[i];
 			}
+
+			pucDMASrc = (unsigned char*)ping;
+
 			pControlTable[ulPrimaryIndexRx].ulControl |= CTRL_WRD;
 			//pControlTable[ulPrimaryIndex].pvSrcEndAddr = (void *)((unsigned long)&gaucZeroBuffer[0] + 15);
 			pControlTable[ulPrimaryIndexRx].pvSrcEndAddr =
@@ -227,14 +235,18 @@ void DMAPingPongCompleteAppCB_opt()
 		} else {
 			if ((pControlTable[ulAltIndexRx].ulControl & UDMA_CHCTL_XFERMODE_M)
 					== 0) {
-				if ( GetBufferSize(pAudOutBuf) < CB_TRANSFER_SZ ) {
-					pucDMASrc = &gaucZeroBuffer[0];
-					guiDMATransferCountRx = 0;
-				} else {
-					pusRxSrcBuf += CB_TRANSFER_SZ;
-					guiDMATransferCountRx += CB_TRANSFER_SZ;
-					pucDMASrc = (unsigned char *) pusRxSrcBuf;
+				guiDMATransferCountRx += CB_TRANSFER_SZ;
+
+				memcpy(  (void*)pong,  (void*)GetReadPtr(pAudOutBuf), CB_TRANSFER_SZ);
+				UpdateReadPtr(pAudOutBuf, CB_TRANSFER_SZ);
+
+				for (i = CB_TRANSFER_SZ/2-1; i!=-1 ; --i) {
+					//the odd ones do not matter
+					pong[(i<<1)+1] = pong[i<<1] = pong[i];
 				}
+
+				pucDMASrc = (unsigned char*)pong;
+
 				pControlTable[ulAltIndexRx].ulControl |= CTRL_WRD;
 				pControlTable[ulAltIndexRx].pvSrcEndAddr =
 						(void *) ((unsigned long) pucDMASrc + END_PTR);
@@ -246,15 +258,6 @@ void DMAPingPongCompleteAppCB_opt()
 		if (guiDMATransferCountRx >= CB_TRANSFER_SZ) {
 			signed long xHigherPriorityTaskWoken;
 			qqbufsz = GetBufferSize(pAudOutBuf);
-			pAudOutBuf->pucReadPtr += (CB_TRANSFER_SZ * 2);
-			if ((unsigned int) pAudOutBuf->pucReadPtr
-					>= (unsigned int) pAudOutBuf->pucBufferEndPtr) {
-				pAudOutBuf->pucReadPtr = pAudOutBuf->pucBufferStartPtr;
-			}
-
-			pusRxSrcBuf = (unsigned short *) pAudOutBuf->pucReadPtr;
-			pusRxSrcBuf -= CB_TRANSFER_SZ;
-
 			guiDMATransferCountRx = 0;
 
 			if ( qqbufsz < PLAY_WATERMARK ) {

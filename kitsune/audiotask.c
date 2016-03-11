@@ -230,11 +230,6 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		if ( res == FR_OK && size > 0 ) {
 			int i;
 
-			for (i = size/2; i!=0 ; --i) {
-				//the odd ones do not matter
-				speaker_data[i<<1] = speaker_data[i];
-			}
-
 			/* Wait to avoid buffer overflow as reading speed is faster than playback */
 			while ( IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) ) {
 				if( !started ) {
@@ -293,7 +288,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 				}
 			}
 
-			FillBuffer(pRxBuffer, (unsigned char*) (speaker_data), size<<1);
+			FillBuffer(pRxBuffer, (unsigned char*) (speaker_data), size);
 		}
 		else {
 			if ( desired_ticks_elapsed > 0) {
