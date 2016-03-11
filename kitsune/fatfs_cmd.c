@@ -1620,3 +1620,28 @@ bool send_to_download_queue(SyncResponse_FileDownload* data, TickType_t ticks_to
 	return true;
 
 }
+
+uint32_t get_free_space(void)
+{
+    uint32_t ui32TotalSize;
+
+    FRESULT res;
+    FATFS *psFatFs;
+
+    // Get the free space.
+    res = hello_fs_getfree("/", (DWORD *)&ui32TotalSize, &psFatFs);
+
+    // Check for error and return if there is a problem.
+    if(res != FR_OK)
+    {
+        return((int)res);
+    }
+
+    // Display the amount of free space that was calculated.
+    LOGF(", %10uK bytes free\n", (ui32TotalSize *
+                                        psFatFs->csize / 2));
+
+    return (ui32TotalSize * psFatFs->csize / 2);
+
+}
+

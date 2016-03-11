@@ -55,6 +55,7 @@ bool encode_file_info (pb_ostream_t *stream, const pb_field_t *field, void * con
 // extern functions
 bool send_to_download_queue(SyncResponse_FileDownload* data, TickType_t ticks_to_wait);
 bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, void **arg);
+uint32_t get_free_space(void);
 
 // Init
 void downloadmanagertask_init(uint16_t stack_size)
@@ -180,6 +181,10 @@ static void DownloadManagerTask(void * filesyncdata)
 
 			message_for_upload.has_sd_card_size = true;
 			//TODO update memory info
+			message_for_upload.sd_card_size.has_free_memory = true;
+			message_for_upload.sd_card_size.free_memory = get_free_space();
+			message_for_upload.sd_card_size.has_total_memory = true;
+			//message_for_upload.sd_card_size.total_memory = 0; //TODO
 
 			/* UPDATE FILE ERROR INFO */
 
@@ -444,3 +449,5 @@ static inline void restart_download_manager(void)
 {
 	xSemaphoreGive(_response_received_sem);
 }
+
+
