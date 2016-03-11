@@ -15,10 +15,12 @@
 #define QUERY_DELAY_DEFAULT		(15UL) //minutes
 
 typedef struct {
-	FileManifest_File * data;
+	FileManifest_FileDownload * data;
     uint32_t num_data;
 } file_info_to_encode;
 
+// Holds the file info that will be encoded into pb
+static file_info_to_encode file_manifest_local;
 
 // Response received semaphore
 static xSemaphoreHandle _response_received_sem = NULL;
@@ -140,12 +142,15 @@ static void DownloadManagerTask(void * filesyncdata)
 			// Scan through file system and update file manifest
 
 			message_for_upload.file_info.funcs.encode = encode_file_info;
+			message_for_upload.file_info.arg = &file_manifest_local;
 
 			/* UPDATE FILE STATUS - DOWNLOADED/PENDING */
 
 			message_for_upload.has_file_status = true;
 			get_file_download_status(&message_for_upload.file_status);
 
+			/* Update query delay */
+			message_for_upload.has_query_delay = false;
 
 			/* UPDATE DEVICE UPTIME */
 
