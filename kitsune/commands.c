@@ -599,11 +599,12 @@ static bool cancel_alarm() {
 }
 
 int set_test_alarm(int argc, char *argv[]) {
+	while(1) {
 	SyncResponse_Alarm alarm;
 	unsigned int now = get_time();
-	alarm.end_time = now + 245;
+	alarm.end_time = now + 45;
 	alarm.start_time = now + 5;
-	alarm.ring_duration_in_second = 240;
+	alarm.ring_duration_in_second = 40;
 	alarm.ring_offset_from_now_in_second = 5;
 	strncpy(alarm.ringtone_path, "/ringtone/tone.raw",
 			strlen("/ringtone/tone.raw"));
@@ -618,6 +619,9 @@ int set_test_alarm(int argc, char *argv[]) {
 	char ack[32];
 	usnprintf(ack, 32, "%d", now);
 	set_alarm(&alarm, ack, strlen(ack));
+
+	vTaskDelay(10000);
+	}
 
 	return 0;
 }
@@ -723,7 +727,7 @@ void thread_alarm(void * unused) {
 
 				strncpy(desc.file, file_name, 64);
 				desc.durationInSeconds = alarm.ring_duration_in_second;
-				desc.volume = 57;
+				desc.volume = 10;
 				desc.onFinished = thread_alarm_on_finished;
 				desc.rate = 48000;
 				desc.context = &alarm_led_id;

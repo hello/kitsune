@@ -26,6 +26,8 @@
 #include "kit_assert.h"
 #include "utils.h"
 
+#include "adpcm.h"
+
 #if 0
 #define PRINT_TIMING
 #endif
@@ -165,7 +167,8 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 #define FLASH_PAGE_SIZE 512
 
 	//1.5K on the stack
-	uint16_t * speaker_data = pvPortMalloc(SPEAKER_DATA_CHUNK_SIZE+1);
+	short * speaker_data = pvPortMalloc(SPEAKER_DATA_CHUNK_SIZE+1);
+	char * speaker_data_enc = pvPortMalloc(SPEAKER_DATA_CHUNK_SIZE/2+1);
 
 	FIL fp = {0};
 	UINT size;
@@ -221,11 +224,14 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 	memset(speaker_data,0,SPEAKER_DATA_CHUNK_SIZE);
 
+	adpcm_state pcm_state = {0};
+
 	bool started = false;
 	//loop until either a) done playing file for specified duration or b) our message queue gets a message that tells us to stop
 	for (; ;) {
 		/* Read always in block of 512 Bytes or less else it will stuck in hello_fs_read() */
 		res = hello_fs_read(&fp, speaker_data, FLASH_PAGE_SIZE, &size);
+		adpcm_coder( speaker_data, speaker_data_enc, size, &pcm_state );
 
 		if ( res == FR_OK && size > 0 ) {
 
@@ -289,7 +295,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 				}
 			}
 
-			FillBuffer(pRxBuffer, (unsigned char*) (speaker_data), size);
+			FillBuffer(pRxBuffer, (unsigned char*) (speaker_data_enc), size/2);
 		}
 		else {
 			if ( desired_ticks_elapsed > 0) {

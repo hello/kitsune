@@ -80,11 +80,8 @@
 #include "ti_codec.h"
 #endif
 
-/* FatFS include */
-//#include "ff.h"
-//#include "diskio.h"
-#include "fatfs_cmd.h"
-#include "uartstdio.h"
+#include "adpcm.h"
+
 //*****************************************************************************
 //                          LOCAL DEFINES
 //*****************************************************************************
@@ -94,14 +91,17 @@
 //*****************************************************************************
 //                          GLOBAL VARIABLES
 //*****************************************************************************
-unsigned short ping[(CB_TRANSFER_SZ)];
-unsigned short pong[(CB_TRANSFER_SZ)];
+ short ping[(CB_TRANSFER_SZ)];
+ short pong[(CB_TRANSFER_SZ)];
+ char pcm[(CB_TRANSFER_SZ)];
 volatile unsigned int guiDMATransferCountTx = 0;
 volatile unsigned int guiDMATransferCountRx = 0;
 extern tCircularBuffer *pTxBuffer;
 extern tCircularBuffer *pRxBuffer;
 
 extern TaskHandle_t audio_task_hndl;
+
+static adpcm_state pcm_state = {0};
 
 //*****************************************************************************
 //
@@ -200,14 +200,14 @@ void DMAPingPongCompleteAppCB_opt()
 				== 0) {
 			guiDMATransferCountRx += CB_TRANSFER_SZ;
 
-			memcpy(  (void*)ping, (void*)GetReadPtr(pAudOutBuf), CB_TRANSFER_SZ);
+			memcpy(  (void*)pcm, (void*)GetReadPtr(pAudOutBuf), CB_TRANSFER_SZ);
 			UpdateReadPtr(pAudOutBuf, CB_TRANSFER_SZ);
 
+			adpcm_decoder(pcm, ping, CB_TRANSFER_SZ, &pcm_state);
 			for (i = CB_TRANSFER_SZ/2-1; i!=-1 ; --i) {
 				//the odd ones do not matter
-				/*ping[(i<<1)+1] = */ping[i<<1] = ping[i];
+				/*pong[(i<<1)+1] = */ping[i<<1] = ping[i];
 			}
-
 			pucDMASrc = (unsigned char*)ping;
 
 			pControlTable[ulPrimaryIndexRx].ulControl |= CTRL_WRD;
@@ -221,14 +221,14 @@ void DMAPingPongCompleteAppCB_opt()
 					== 0) {
 				guiDMATransferCountRx += CB_TRANSFER_SZ;
 
-				memcpy(  (void*)pong,  (void*)GetReadPtr(pAudOutBuf), CB_TRANSFER_SZ);
+				memcpy(  (void*)pcm,  (void*)GetReadPtr(pAudOutBuf), CB_TRANSFER_SZ);
 				UpdateReadPtr(pAudOutBuf, CB_TRANSFER_SZ);
 
+				adpcm_decoder(pcm, pong, CB_TRANSFER_SZ, &pcm_state);
 				for (i = CB_TRANSFER_SZ/2-1; i!=-1 ; --i) {
 					//the odd ones do not matter
 					/*pong[(i<<1)+1] = */pong[i<<1] = pong[i];
 				}
-
 				pucDMASrc = (unsigned char*)pong;
 
 				pControlTable[ulAltIndexRx].ulControl |= CTRL_WRD;
@@ -275,6 +275,7 @@ void SetupPingPongDMATransferTx()
 
     memset(ping, 0, sizeof(ping));
     memset(pong, 0, sizeof(pong));
+    memset(&pcm_state, 0, sizeof(pcm_state));
 
     // changed to SD card DMA UDMA_CH14_SDHOST_RX
     SetupTransfer(UDMA_CH4_I2S_RX,
@@ -304,6 +305,7 @@ void SetupPingPongDMATransferRx()
 
     memset(ping, 0, sizeof(ping));
     memset(pong, 0, sizeof(pong));
+    memset(&pcm_state, 0, sizeof(pcm_state));
 
     SetupTransfer(UDMA_CH5_I2S_TX,
                   UDMA_MODE_PINGPONG,
