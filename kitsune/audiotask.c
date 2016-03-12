@@ -228,7 +228,6 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		res = hello_fs_read(&fp, speaker_data, FLASH_PAGE_SIZE, &size);
 
 		if ( res == FR_OK && size > 0 ) {
-			int i;
 
 			/* Wait to avoid buffer overflow as reading speed is faster than playback */
 			while ( IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) ) {
@@ -322,7 +321,6 @@ cleanup:
 	returnFlags |= FLAG_SUCCESS;
 
 	LOGI("%d free %d stk\n", xPortGetFreeHeapSize(),  uxTaskGetStackHighWaterMark(NULL));
-
 	return returnFlags;
 
 }
@@ -333,7 +331,6 @@ cleanup:
 
 static void DoCapture(uint32_t rate) {
 	int16_t * samples = pvPortMalloc(MONO_BUF_LENGTH*2*2); //256 * 2bytes * 2 = 1KB
-	uint16_t i;
 	char filepath[32];
 
 	int iBufferFilled = 0;
@@ -476,7 +473,7 @@ static void DoCapture(uint32_t rate) {
 
 		iBufferFilled = GetBufferSize(pTxBuffer);
 
-		if(iBufferFilled < 2*PING_PONG_CHUNK_SIZE) {
+		if(iBufferFilled < LISTEN_WATERMARK) {
 			//wait a bit for the tx buffer to fill
 			if( !ulTaskNotifyTake( pdTRUE, 1000 ) ) {
 				LOGE("Capture DMA timeout\n");
@@ -485,23 +482,8 @@ static void DoCapture(uint32_t rate) {
 			}
 		}
 		else {
-	//		uint8_ts * ptr_samples_bytes = (uint8_t *)samples;
-			uint16_t * pu16 = (uint16_t *)samples;
-
 			//dump buffer out
-			ReadBuffer(pTxBuffer,(uint8_t *)samples,1024);
-
-			for (i = 0; i < MONO_BUF_LENGTH; i++) {
-				samples[i] = samples[2*i + 1];//because it goes right, left,right left, and we want the left channel.
-			}
-
-#if 1
-			//swap endian, so we output little endian (it comes in as big endian)
-			for (i = 0; i < MONO_BUF_LENGTH; i ++) {
-				*pu16 = ((*pu16) << 8) | ((*pu16) >> 8);
-				pu16++;
-			}
-#endif
+			ReadBuffer(pTxBuffer,(uint8_t *)samples,PING_PONG_CHUNK_SIZE);
 
 #ifdef PRINT_TIMING
 			t1 = xTaskGetTickCount(); dt = t1 - t0; t0 = t1;
@@ -603,6 +585,8 @@ void AudioTask_Thread(void * data) {
 			{
 				//if audio was turned on, we remember that we are on
 				_isCapturing = 1;
+
+				DoCapture(m.message.capturedesc.rate);
 				break;
 			}
 
@@ -630,13 +614,10 @@ void AudioTask_Thread(void * data) {
 			}
 			}
 
-
-
 			//so even if we just played back a file
 			//if we were supposed to be capturing, we resume that mode
 			if (_isCapturing) {
-				//this will block until a message comes in
-				DoCapture(m.message.capturedesc.rate);
+				AudioTask_StartCapture(16000);
 			}
 		}
 	}
