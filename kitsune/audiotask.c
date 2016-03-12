@@ -258,7 +258,9 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 						}
 						if ( set_vol != i2c_volume
 						 && xSemaphoreTakeRecursive(i2c_smphr, 0) ) {
+							vTaskDelay(1);
 						    set_volume(i2c_volume, 0);
+							vTaskDelay(1);
 							i2c_volume = set_vol;
 							set_time = xTaskGetTickCount();
 							xSemaphoreGiveRecursive(i2c_smphr);
