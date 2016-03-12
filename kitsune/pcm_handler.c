@@ -198,14 +198,16 @@ void DMAPingPongCompleteAppCB_opt()
 		pControlTable = MAP_uDMAControlBaseGet();
 		if ((pControlTable[ulPrimaryIndexRx].ulControl & UDMA_CHCTL_XFERMODE_M)
 				== 0) {
-			guiDMATransferCountRx += CB_TRANSFER_SZ;
+			if ( qqbufsz > CB_TRANSFER_SZ ) {
+				guiDMATransferCountRx += CB_TRANSFER_SZ;
 
-			memcpy(  (void*)ping, (void*)GetReadPtr(pAudOutBuf), CB_TRANSFER_SZ);
-			UpdateReadPtr(pAudOutBuf, CB_TRANSFER_SZ);
+				memcpy(  (void*)ping, (void*)GetReadPtr(pAudOutBuf), CB_TRANSFER_SZ);
+				UpdateReadPtr(pAudOutBuf, CB_TRANSFER_SZ);
 
-			for (i = CB_TRANSFER_SZ/2-1; i!=-1 ; --i) {
-				//the odd ones do not matter
-				/*ping[(i<<1)+1] = */ping[i<<1] = ping[i];
+				for (i = CB_TRANSFER_SZ/2-1; i!=-1 ; --i) {
+					//the odd ones do not matter
+					/*ping[(i<<1)+1] = */ping[i<<1] = ping[i];
+				}
 			}
 
 			pucDMASrc = (unsigned char*)ping;
@@ -219,14 +221,16 @@ void DMAPingPongCompleteAppCB_opt()
 		} else {
 			if ((pControlTable[ulAltIndexRx].ulControl & UDMA_CHCTL_XFERMODE_M)
 					== 0) {
-				guiDMATransferCountRx += CB_TRANSFER_SZ;
+				if ( qqbufsz > CB_TRANSFER_SZ ) {
+					guiDMATransferCountRx += CB_TRANSFER_SZ;
 
-				memcpy(  (void*)pong,  (void*)GetReadPtr(pAudOutBuf), CB_TRANSFER_SZ);
-				UpdateReadPtr(pAudOutBuf, CB_TRANSFER_SZ);
+					memcpy(  (void*)pong,  (void*)GetReadPtr(pAudOutBuf), CB_TRANSFER_SZ);
+					UpdateReadPtr(pAudOutBuf, CB_TRANSFER_SZ);
 
-				for (i = CB_TRANSFER_SZ/2-1; i!=-1 ; --i) {
-					//the odd ones do not matter
-					/*pong[(i<<1)+1] = */pong[i<<1] = pong[i];
+					for (i = CB_TRANSFER_SZ/2-1; i!=-1 ; --i) {
+						//the odd ones do not matter
+						/*pong[(i<<1)+1] = */pong[i<<1] = pong[i];
+					}
 				}
 
 				pucDMASrc = (unsigned char*)pong;

@@ -107,8 +107,8 @@
 //			    GLOBAL VARIABLES
 //******************************************************************************
 
-tCircularBuffer *pTxBuffer;
-tCircularBuffer *pRxBuffer;
+tCircularBuffer *pTxBuffer = NULL;
+tCircularBuffer *pRxBuffer = NULL;
 
 volatile bool booted = false;
 volatile bool use_dev_server = false;

@@ -104,6 +104,8 @@ static void Init(void) {
 	_callCounter = 0;
 	_filecounter = 0;
 
+	InitAudioHelper();
+
 	audio_task_hndl = xTaskGetCurrentTaskHandle();
 
 	if (!_queue) {

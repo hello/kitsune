@@ -73,10 +73,10 @@ extern "C"
 //*****************************************************************************
 #define PING_PONG_CHUNK_SIZE (1024)
 
-#define RX_BUFFER_SIZE          (8*PING_PONG_CHUNK_SIZE)
+#define RX_BUFFER_SIZE          (12*PING_PONG_CHUNK_SIZE)
 #define PLAY_WATERMARK          (RX_BUFFER_SIZE-PING_PONG_CHUNK_SIZE-PING_PONG_CHUNK_SIZE/2)
 
-#define TX_BUFFER_SIZE          (8*PING_PONG_CHUNK_SIZE)
+#define TX_BUFFER_SIZE          (4*PING_PONG_CHUNK_SIZE)
 #define LISTEN_WATERMARK        (PING_PONG_CHUNK_SIZE+PING_PONG_CHUNK_SIZE/2)
 
 #define AUDIO_FILE "DIGIAUX.raw" //armi.rec
