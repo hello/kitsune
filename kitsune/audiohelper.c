@@ -23,32 +23,26 @@
 #include "uart_logger.h"
 #include <ustdlib.h>
 
+#include "FreeRTOS.h"
+#include "kit_assert.h"
 
 /* externs */
 extern tCircularBuffer *pTxBuffer;
 extern tCircularBuffer *pRxBuffer;
+unsigned char * audio_mem;
 
 #define AUDIO_PLAYBACK_RATE_HZ (48000)
 
 void InitAudioHelper() {
-	if (!pRxBuffer) {
-		pRxBuffer = CreateCircularBuffer(RX_BUFFER_SIZE);
-	}
-	if(pTxBuffer == NULL) {
-		pTxBuffer = CreateCircularBuffer(TX_BUFFER_SIZE);
-	}
-
+	audio_mem = (unsigned char*)pvPortMalloc( AUD_BUFFER_SIZE );
 }
 
 uint8_t InitAudioCapture(uint32_t rate) {
 
 	if(pTxBuffer == NULL) {
-		pTxBuffer = CreateCircularBuffer(TX_BUFFER_SIZE);
+		pTxBuffer = CreateCircularBuffer(TX_BUFFER_SIZE, audio_mem);
 	}
-
-	if(pTxBuffer == NULL) {
-		return 0;
-	}
+	memset( audio_mem, 0, AUD_BUFFER_SIZE);
 
 	get_codec_mic_NAU();
 
@@ -78,24 +72,19 @@ void DeinitAudioCapture(void) {
 
 	MAP_uDMAChannelDisable(UDMA_CH4_I2S_RX);
 
-#if 0
 	if (pTxBuffer) {
 		DestroyCircularBuffer(pTxBuffer);
 		pTxBuffer = NULL;
 	}
-#endif
 }
 
 uint8_t InitAudioPlayback(int32_t vol, uint32_t rate ) {
 
 	//create circular buffer
-
 	if (!pRxBuffer) {
-		pRxBuffer = CreateCircularBuffer(RX_BUFFER_SIZE);
+		pRxBuffer = CreateCircularBuffer(RX_BUFFER_SIZE, audio_mem);
 	}
-
-	//zero out RX byffer
-	memset(pRxBuffer->pucBufferStartPtr,0,RX_BUFFER_SIZE);
+	memset( audio_mem, 0, AUD_BUFFER_SIZE);
 
 	//////
 	// SET UP AUDIO PLAYBACK
@@ -126,13 +115,10 @@ void DeinitAudioPlayback(void) {
 	McASPDeInit();
 
 	MAP_uDMAChannelDisable(UDMA_CH5_I2S_TX);
-
-#if 0
 	if (pRxBuffer) {
 		DestroyCircularBuffer(pRxBuffer);
 		pRxBuffer = NULL;
 	}
-#endif
 }
 
 
