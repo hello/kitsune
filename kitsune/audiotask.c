@@ -262,18 +262,19 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 						if( fade_out ) {
 							goto cleanup;
 						}
-					}
-					int set_vol = 0;
-					if (fade_in) {
-						set_vol = fade_in_vol(fade_counter, volume, fade_length);
-					}
-					if(fade_out){
-						set_vol = fade_out_vol(fade_counter, volume, fade_length);
-					}
-					if ( set_vol != i2c_volume && (xTaskGetTickCount() - last_set) > 100 ) {
-						i2c_volume = set_vol;
-						last_set = xTaskGetTickCount();
-						hlo_future_destroy( hlo_future_create_task_bg(_set_volume_task, (void*)&i2c_volume, 512));
+					} else {
+						int set_vol = 0;
+						if (fade_in) {
+							set_vol = fade_in_vol(fade_counter, volume, fade_length);
+						}
+						if(fade_out){
+							set_vol = fade_out_vol(fade_counter, volume, fade_length);
+						}
+						if ( set_vol != i2c_volume && (xTaskGetTickCount() - last_set) > 100 ) {
+							i2c_volume = set_vol;
+							last_set = xTaskGetTickCount();
+							hlo_future_destroy( hlo_future_create_task_bg(_set_volume_task, (void*)&i2c_volume, 512));
+						}
 					}
 					if (!fade_out && (returnFlags || ((xTaskGetTickCount() - t0) > desired_ticks_elapsed && desired_ticks_elapsed > 0) ) ) {
 						if (fade_in) {
@@ -286,9 +287,6 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 						fade_out = true;
 						fade_length = info->fade_out_ms;
 						fade_counter = 0;
-					}
-					if(fade_out && fade_counter > fade_length) {
-						goto cleanup;
 					}
 				} else if( returnFlags) {
 					LOGI("stopping playback\n");
