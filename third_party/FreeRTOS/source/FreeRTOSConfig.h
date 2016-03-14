@@ -96,7 +96,7 @@
 //#define configSYSTICK_CLOCK_HZ          ( ( portTickType ) 80000000 )
 #define configMINIMAL_STACK_SIZE		( ( unsigned short ) 70 )
 
-#define configTOTAL_HEAP_SIZE			( ( size_t ) ( 70 * 1024 ) )
+#define configTOTAL_HEAP_SIZE			( ( size_t ) ( 75 * 1024 ) )
 
 #define configMAX_TASK_NAME_LEN			( 12 )
 #define configUSE_TRACE_FACILITY		1
@@ -131,7 +131,7 @@ to exclude the API function. */
 #define INCLUDE_vTaskSuspend					1
 #define INCLUDE_vTaskDelayUntil					1
 #define INCLUDE_vTaskDelay						1
-#define INCLUDE_uxTaskGetStackHighWaterMark		0
+#define INCLUDE_uxTaskGetStackHighWaterMark		1
 #define INCLUDE_xTaskGetSchedulerState			1
 #define INCLUDE_xTimerGetTimerDaemonTaskHandle	0
 #define INCLUDE_xTaskGetIdleTaskHandle			1
@@ -147,6 +147,9 @@ See http://www.FreeRTOS.org/RTOS-Cortex-M3-M4.html. */
 /* Use the Cortex-M3 optimised task selection rather than the generic C code
 version. */
 #define configUSE_PORT_OPTIMISED_TASK_SELECTION 1
+void
+vAssertCalled( const char * s );
+#define configASSERT(x) if(!(x)) {vAssertCalled(#x);}
 
 #include "stddef.h"
 void usertraceMALLOC( void * pvAddress, size_t uiSize );
@@ -154,7 +157,14 @@ void usertraceMALLOC( void * pvAddress, size_t uiSize );
 #define traceMALLOC usertraceMALLOC
 #define traceFREE usertraceFREE
 
+#define _ENABLE_SYSVIEW
+
+#ifdef _ENABLE_SYSVIEW
 #include "Global.h"
 #include "SEGGER_SYSVIEW_FreeRTOS.h"
+#endif
+
+extern int usprintf(char *pcBuf, const char *pcString, ...);
+#define sprintf usprintf
 
 #endif /* FREERTOS_CONFIG_H */

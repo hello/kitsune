@@ -877,6 +877,8 @@ void I2SIntRegister(unsigned long ulBase, void (*pfnHandler)(void))
   //
   IntRegister(INT_I2S,pfnHandler);
 
+  IntPrioritySet(INT_I2S, 6<<5); //between max syscall priority and kernel
+
   //
   // Enable the interrupt
   //

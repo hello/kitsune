@@ -36,25 +36,28 @@
 //
 //*****************************************************************************
 
+// Standard includes
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
+
+// Driverlib includes
 #include "hw_types.h"
-#include "i2c.h"
 #include "hw_memmap.h"
 #include "hw_ints.h"
 #include "hw_i2c.h"
+#include "i2c.h"
 #include "pin.h"
 #include "rom.h"
 #include "rom_map.h"
 #include "prcm.h"
-#include "hwspinlock.h"
-#include "i2c_if.h"
-#include "kit_assert.h"
 
-//****************************************************************************
-//                      GLOBAL VARIABLES                                   
-//****************************************************************************
+// Common interface include
+#include "i2c_if.h"
+
+#include "FreeRTOS.h"
+#include "task.h"
+
 
 //*****************************************************************************
 //                      MACRO DEFINITIONS
@@ -62,14 +65,11 @@
 #define I2C_BASE                I2CA0_BASE
 #define SYS_CLK                 80000000
 #define FAILURE                 -1
-#define I2C_FAILURE				FAILURE
 #define SUCCESS                 0
 #define RETERR_IF_TRUE(condition) {if(condition) return FAILURE;}
 #define RET_IF_ERR(Func)          {int iRetVal = (Func); \
                                    if (SUCCESS != iRetVal) \
                                      return  iRetVal;}
-extern volatile bool booted;
-
 
 //****************************************************************************
 //                      LOCAL FUNCTION DEFINITIONS                          
@@ -96,6 +96,7 @@ static int I2CTransact(unsigned long ulCmd);
 #include "task.h"
 #include "uartstdio.h"
 #include "interrupt.h"
+#include "kit_assert.h"
 
 #include "hw_gpio.h"
 #include "hw_types.h"
@@ -106,121 +107,111 @@ static int I2CTransact(unsigned long ulCmd);
 #include "rom.h"
 #include "rom_map.h"
 #include "prcm.h"
+static volatile TaskHandle_t i2c_task;
+extern volatile bool booted;
+#define I2C_FAILURE 0
 
-#include "hw_ver.h"
-unsigned long sda_gpio_base;
-unsigned char sda_gpio_bit;
-unsigned long sda_gpio_pin;
-unsigned long sda_i2c_mode;
+static void i2c_int() {
+	signed long xHigherPriorityTaskWoken;
+	unsigned int sts;
+	traceISR_ENTER();
+	sts = I2CMasterIntStatusEx(I2C_BASE, false);
+    I2CMasterIntClearEx(I2C_BASE,I2C_MASTER_INT_DATA);
 
-void init_i2c_recovery() {
-	hw_ver = get_hw_ver();
-
-	switch (hw_ver) {
-	case EVT2:
-		sda_gpio_base = GPIOA1_BASE;
-		sda_gpio_bit = 0x8;
-		sda_gpio_pin = PIN_02;
-		sda_i2c_mode = PIN_MODE_1;
-		break;
-	default: //DVT onward
-		sda_gpio_base = GPIOA1_BASE;
-		sda_gpio_bit = 0x20;
-		sda_gpio_pin = PIN_04;
-		sda_i2c_mode = PIN_MODE_5;
-		break;
+	if( I2C_MASTER_INT_DATA == (sts & I2C_MASTER_INT_DATA) ) {
+		vTaskNotifyGiveFromISR( i2c_task, &xHigherPriorityTaskWoken );
+		portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 	}
+	traceISR_EXIT();
 }
 
-void recoveri2c() {
-#define GPIO_PORT 0x40005000
+void checki2c() {
 	int pulses = 0;
 
 	//
 	// Configure PIN_02 for GPIOOutput 11
 	//
-	MAP_PinTypeGPIO(sda_gpio_pin, PIN_MODE_0, false);
-	MAP_GPIODirModeSet(sda_gpio_base, sda_gpio_bit, GPIO_DIR_MODE_IN);
 
-	if( MAP_GPIOPinRead(sda_gpio_base, sda_gpio_bit) == 0 ) {
-		LOGE("i2c recovery...\r\n");
-		//
-		// Configure PIN_01 for GPIOOutput 10 open drain
-		//
-		MAP_PinTypeGPIO(PIN_01, PIN_MODE_0, true);
-		MAP_GPIODirModeSet(GPIOA1_BASE, 0x4, GPIO_DIR_MODE_OUT);
+	PinTypeGPIO(PIN_04, PIN_MODE_0, false);
+	GPIODirModeSet(GPIOA1_BASE, 0x20, GPIO_DIR_MODE_IN);
 
-		TickType_t start = xTaskGetTickCount();
-		while ( MAP_GPIOPinRead(sda_gpio_base, sda_gpio_bit) == 0 && ++pulses < 65 ) {
-			MAP_GPIOPinWrite(GPIO_PORT, 0x4, 0); //pulse the clock line...
-			vTaskDelay(10);
-			MAP_GPIOPinWrite(GPIO_PORT, 0x4, 1);
-			vTaskDelay(10);
-		}
-		MAP_GPIODirModeSet(GPIOA1_BASE, 0x4, GPIO_DIR_MODE_IN);
+	//
+	// Configure PIN_01 for GPIOOutput 10 open drain
+	//
+	PinTypeGPIO(PIN_01, PIN_MODE_0, true);
+	GPIODirModeSet(GPIOA1_BASE, 0x4, GPIO_DIR_MODE_OUT);
 
-		LOGE("recovered %d\r\n", pulses);
-		// if the lines stay low, we have failed
-		if( booted
-			&& ( MAP_GPIOPinRead(sda_gpio_base, sda_gpio_bit) == 0
-			  || MAP_GPIOPinRead(GPIO_PORT, 0x4) == 0 ) ) {
-			assert( I2C_FAILURE );
-		}
-		//SDA is now high again, go back to i2c controller...
-		//MAP_PRCMPeripheralReset(PRCM_I2CA0);
-
-		MAP_PinTypeI2C(PIN_01, PIN_MODE_1);
-	}
-	MAP_PinTypeI2C(sda_gpio_pin, sda_i2c_mode);
-	I2CMasterControl(I2C_BASE, 0x00000004); //send a stop...
-	vTaskDelay(2);
-
-}
-
-static int I2CTransact(unsigned long ulCmd) {
-	//
-	// Clear all interrupts
-	//
-	MAP_I2CMasterIntClearEx(I2C_BASE,
-	MAP_I2CMasterIntStatusEx(I2C_BASE, false));
-	//
-	// Set the time-out. Not to be used with breakpoints.
-	//
-	MAP_I2CMasterTimeoutSet(I2C_BASE, I2C_TIMEOUT_VAL);
-	//
-	// Initiate the transfer.
-	//
-	MAP_I2CMasterControl(I2C_BASE, ulCmd);
-	//
-	// Wait until the current byte has been transferred.
-	// Poll on the raw interrupt status.
-	//
-	int attempts = 0;
-	while ((MAP_I2CMasterIntStatusEx(I2C_BASE, false)
-			& (I2C_INT_MASTER | I2C_MRIS_CLKTOUT)) == 0) {
-		if (++attempts == 1000) {
-			LOGE("i2c timeout\n");
-			recoveri2c();
-			return FAILURE;
-		}
+	TickType_t start = xTaskGetTickCount();
+	while ( GPIOPinRead(GPIOA1_BASE, 0x20) == 0 && ++pulses < 1000 ) {
+		GPIOPinWrite(GPIOA1_BASE, 0x4, 0); //pulse the clock line...
 		vTaskDelay(1);
+		GPIOPinWrite(GPIOA1_BASE, 0x4, 1);
+		vTaskDelay(2);
 	}
-	//
-	// Check for any errors in transfer
-	//
-	if (MAP_I2CMasterErr(I2C_BASE) != I2C_MASTER_ERR_NONE) {
-		LOGE("i2c mastererr %x\n", MAP_I2CMasterErr(I2C_BASE));
-		recoveri2c();
-		return FAILURE;
+	GPIODirModeSet(GPIOA1_BASE, 0x4, GPIO_DIR_MODE_IN);
+
+	if( pulses ) {
+		LOGE("pulsed %d sda %x scl %x\r\n", pulses, GPIOPinRead(GPIOA1_BASE, 0x20), GPIOPinRead(GPIOA1_BASE, 0x4));
+	}
+#if 0
+	// if the lines stay low, we have failed
+	if( booted
+		&& ( GPIOPinRead(GPIOA1_BASE, 0x20) == 0
+		  || GPIOPinRead(GPIOA1_BASE, 0x4) == 0 ) ) {
+		assert( I2C_FAILURE );
+	}
+#endif
+	//SDA is now high again, go back to i2c controller...
+	PinTypeI2C(PIN_01, PIN_MODE_1);
+	PinTypeI2C(PIN_04, PIN_MODE_5);
+    if(I2CMasterErr(I2C_BASE) != I2C_MASTER_ERR_NONE) {
+    	LOGE("i2c err %x\n", I2CMasterErr(I2C_BASE) );
+		vTaskDelay(2);
+		I2CMasterControl(I2C_BASE, 0x00000004); //send a stop...
     }
-    return SUCCESS;
+	vTaskDelay(2);
+}
+static int
+I2CTransact(unsigned long ulCmd)
+{
+	int rval = SUCCESS;
+//	unsigned long prio = uxTaskPriorityGet(NULL);
+
+	I2CMasterIntClearEx(I2C_BASE,I2C_MASTER_INT_DATA);
+	i2c_task =  xTaskGetCurrentTaskHandle();
+    I2CIntRegister(I2C_BASE, i2c_int);
+    I2CMasterIntEnableEx(I2C_BASE, I2C_MASTER_INT_DATA);
+    //
+    // Set the time-out. Not to be used with breakpoints.
+    //
+    I2CMasterTimeoutSet(I2C_BASE, I2C_TIMEOUT_VAL);
+    //
+    // Initiate the transfer.
+    //
+    I2CMasterControl(I2C_BASE, ulCmd);
+    //
+    // Wait until the current byte has been transferred.
+    // Poll on the raw interrupt status.
+    //
+	if( !ulTaskNotifyTake( pdTRUE, 100 ) ) {
+		rval = FAILURE;
+	}
+	I2CMasterIntDisable(I2C_BASE);
+	I2CIntUnregister(I2C_BASE);
+
+	if( rval == FAILURE ) {
+		checki2c();
+	}
+//    vTaskPrioritySet(NULL, prio);
+
+    return rval;
 }
 
 //****************************************************************************
 //
 //! Invokes the I2C driver APIs to write to the specified address
 //!
-//! \param ucDevAddr is the device I2C slave address
+//! \param ucDevAddr is the 7-bit I2C slave address
 //! \param pucData is the pointer to the data to be written
 //! \param ucLen is the length of data to be written
 //! \param ucStop determines if the transaction is followed by stop bit
@@ -243,11 +234,11 @@ I2C_IF_Write(unsigned char ucDevAddr,
     //
     // Set I2C codec slave address
     //
-    MAP_I2CMasterSlaveAddrSet(I2C_BASE, ucDevAddr, false);
+    I2CMasterSlaveAddrSet(I2C_BASE, ucDevAddr, false);
     //
     // Write the first byte to the controller.
     //
-    MAP_I2CMasterDataPut(I2C_BASE, *pucData);
+    I2CMasterDataPut(I2C_BASE, *pucData);
     //
     // Initiate the transfer.
     //
@@ -266,7 +257,7 @@ I2C_IF_Write(unsigned char ucDevAddr,
         //
         // Write the next byte of data
         //
-        MAP_I2CMasterDataPut(I2C_BASE, *pucData);
+        I2CMasterDataPut(I2C_BASE, *pucData);
         //
         // Transact over I2C to send byte
         //
@@ -294,7 +285,7 @@ I2C_IF_Write(unsigned char ucDevAddr,
 //! Invokes the I2C driver APIs to read from the device. This assumes the 
 //! device local address to read from is set using the I2CWrite API.
 //!
-//! \param ucDevAddr is the device I2C slave address
+//! \param ucDevAddr is the 7-bit I2C slave address
 //! \param pucData is the pointer to the read data to be placed
 //! \param ucLen is the length of data to be read
 //! 
@@ -317,7 +308,7 @@ I2C_IF_Read(unsigned char ucDevAddr,
     //
     // Set I2C codec slave address
     //
-    MAP_I2CMasterSlaveAddrSet(I2C_BASE, ucDevAddr, true);
+    I2CMasterSlaveAddrSet(I2C_BASE, ucDevAddr, true);
     //
     // Check if its a single receive or burst receive
     //
@@ -352,7 +343,7 @@ I2C_IF_Read(unsigned char ucDevAddr,
         //
         // Receive the byte over I2C
         //
-        *pucData = MAP_I2CMasterDataGet(I2C_BASE);
+        *pucData = I2CMasterDataGet(I2C_BASE);
         //
         // Decrement the count and increment the data pointer
         // to facilitate the next transfer
@@ -377,7 +368,7 @@ I2C_IF_Read(unsigned char ucDevAddr,
     //
     // Receive the byte over I2C
     //
-    *pucData = MAP_I2CMasterDataGet(I2C_BASE);
+    *pucData = I2CMasterDataGet(I2C_BASE);
 
     return SUCCESS;
 }
@@ -388,7 +379,7 @@ I2C_IF_Read(unsigned char ucDevAddr,
 //! This assumes the device local address to be of 8-bit. For other 
 //! combinations use I2CWrite followed by I2CRead.
 //!
-//! \param ucDevAddr is the device I2C slave address
+//! \param ucDevAddr is the 7-bit I2C slave address
 //! \param pucWrDataBuf is the pointer to the data to be written (reg addr)
 //! \param ucWrLen is the length of data to be written
 //! \param pucRdDataBuf is the pointer to the read data to be placed
@@ -443,31 +434,31 @@ I2C_IF_Open(unsigned long ulMode)
     //
     // Enable I2C Peripheral
     //           
-	//MAP_HwSemaphoreLock(HWSEM_I2C, HWSEM_WAIT_FOR_EVER);
-    MAP_PRCMPeripheralClkEnable(PRCM_I2CA0, PRCM_RUN_MODE_CLK);
-    MAP_PRCMPeripheralReset(PRCM_I2CA0);
+    //HwSemaphoreLock(HWSEM_I2C, HWSEM_WAIT_FOR_EVER);
+    PRCMPeripheralClkEnable(PRCM_I2CA0, PRCM_RUN_MODE_CLK);
+    PRCMPeripheralReset(PRCM_I2CA0);
 
     //
     // Configure I2C module in the specified mode
     //
     switch(ulMode)
     {
-		case I2C_MASTER_MODE_STD:       /* 100000 */
-			MAP_I2CMasterInitExpClk(I2C_BASE,SYS_CLK,false);
-			break;
+        case I2C_MASTER_MODE_STD:       /* 100000 */
+            I2CMasterInitExpClk(I2C_BASE,SYS_CLK,false);
+            break;
 
-		case I2C_MASTER_MODE_FST:       /* 400000 */
-			MAP_I2CMasterInitExpClk(I2C_BASE,SYS_CLK,true);
-			break;
+        case I2C_MASTER_MODE_FST:       /* 400000 */
+            I2CMasterInitExpClk(I2C_BASE,SYS_CLK,true);
+            break;
 
-		default:
-			MAP_I2CMasterInitExpClk(I2C_BASE,SYS_CLK,true);
-			break;
+        default:
+            I2CMasterInitExpClk(I2C_BASE,SYS_CLK,true);
+            break;
     }
     //
     // Disables the multi-master mode
     //
-    //MAP_I2CMasterDisable(I2C_BASE);
+    //I2CMasterDisable(I2C_BASE);
     
     return SUCCESS;
 }
@@ -490,7 +481,7 @@ I2C_IF_Close()
     //
     // Power OFF the I2C peripheral
     //
-    MAP_PRCMPeripheralClkDisable(PRCM_I2CA0, PRCM_RUN_MODE_CLK);
+    PRCMPeripheralClkDisable(PRCM_I2CA0, PRCM_RUN_MODE_CLK);
 
     return SUCCESS;
 }

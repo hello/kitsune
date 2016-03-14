@@ -41,6 +41,7 @@
 
 #include "networktask.h"
 #include "wifi_cmd.h"
+#include "i2c_if.h"
 #include "i2c_cmd.h"
 #include "dust_cmd.h"
 #include "fatfs_cmd.h"
@@ -106,8 +107,8 @@
 //			    GLOBAL VARIABLES
 //******************************************************************************
 
-tCircularBuffer *pTxBuffer;
-tCircularBuffer *pRxBuffer;
+tCircularBuffer *pTxBuffer = NULL;
+tCircularBuffer *pRxBuffer = NULL;
 
 volatile bool booted = false;
 volatile bool use_dev_server = false;
@@ -337,8 +338,8 @@ int Cmd_audio_turn_on(int argc, char * argv[]) {
 
 	AudioTask_StartCapture(16000);
 
-	AudioProcessingTask_SetControl(featureUploadsOn,NULL,NULL);
-	AudioProcessingTask_SetControl(rawUploadsOn,NULL,NULL);
+	AudioProcessingTask_SetControl(featureUploadsOn,NULL,NULL,0);
+	AudioProcessingTask_SetControl(rawUploadsOn,NULL,NULL,0);
 
 	return 0;
 }
@@ -452,9 +453,16 @@ int Cmd_play_buff(int argc, char *argv[]) {
     memset(&desc,0,sizeof(desc));
     strncpy( desc.file, file, 64 );
     desc.volume = vol;
-    desc.durationInSeconds = -1;
-	desc.fade_in_ms = 0;
-	desc.fade_out_ms = 0;
+    if( argc >= 4 ) {
+        desc.durationInSeconds = atoi(argv[4]);
+    } else {
+        desc.durationInSeconds = -1;
+    }
+    if( argc >= 5 ) {
+    	desc.fade_out_ms = desc.fade_in_ms = atoi(argv[5]);
+    } else {
+    	desc.fade_out_ms = desc.fade_in_ms = 0;
+    }
     desc.rate = atoi(argv[2]);
 
     AudioTask_StartPlayback(&desc);
@@ -507,9 +515,15 @@ static SyncResponse_Alarm alarm;
 static char alarm_ack[sizeof(((SyncResponse *)0)->ring_time_ack)];
 static volatile bool needs_alarm_ack = false;
 #define ALARM_LOC "/hello/alarm"
+static bool alarm_is_ringing = false;
 
 void set_alarm( SyncResponse_Alarm * received_alarm, const char * ack, size_t ack_size ) {
     if (xSemaphoreTakeRecursive(alarm_smphr, portMAX_DELAY)) {
+    	if( alarm_is_ringing ) {
+    		LOGI("already ringing\n");
+            xSemaphoreGiveRecursive(alarm_smphr);
+            return;
+    	}
 		if ( ack && ack_size && memcmp(alarm_ack, ack, ack_size) == 0) {
 			LOGI("alarm already set\n");
 		} else if (received_alarm->has_ring_offset_from_now_in_second
@@ -560,7 +574,6 @@ int load_alarm( ) {
 	return fs_get( ALARM_LOC, &alarm, sizeof(alarm), NULL );
 }
 
-static bool alarm_is_ringing = false;
 static bool cancel_alarm() {
 	bool was_ringing = false;
 	if(xTaskGetTickCount() > 10000) {
@@ -586,30 +599,27 @@ static bool cancel_alarm() {
 }
 
 int set_test_alarm(int argc, char *argv[]) {
-	while (1) {
-		SyncResponse_Alarm alarm;
-		unsigned int now = get_time();
-		alarm.end_time = now + 32;
-		alarm.start_time = now + 2;
-		alarm.ring_duration_in_second = 32;
-		alarm.ring_offset_from_now_in_second = 2;
-		strncpy(alarm.ringtone_path, "/ringtone/star003.raw",
-				strlen("/ringtone/star003.raw"));
+	SyncResponse_Alarm alarm;
+	unsigned int now = get_time();
+	alarm.end_time = now + 245;
+	alarm.start_time = now + 5;
+	alarm.ring_duration_in_second = 240;
+	alarm.ring_offset_from_now_in_second = 5;
+	strncpy(alarm.ringtone_path, "/ringtone/tone.raw",
+			strlen("/ringtone/tone.raw"));
 
-		alarm.has_end_time = 1;
-		alarm.has_start_time = 1;
-		alarm.has_ring_duration_in_second = 1;
-		alarm.has_ringtone_id = 0;
-		alarm.has_ringtone_path = 1;
-		alarm.has_ring_offset_from_now_in_second = 1;
+	alarm.has_end_time = 1;
+	alarm.has_start_time = 1;
+	alarm.has_ring_duration_in_second = 1;
+	alarm.has_ringtone_id = 0;
+	alarm.has_ringtone_path = 1;
+	alarm.has_ring_offset_from_now_in_second = 1;
 
-		char ack[32];
-		usnprintf(ack, 32, "%d", now);
-		set_alarm(&alarm, ack, strlen(ack));
-		do {
-			vTaskDelay(5000);
-		} while ( alarm_is_ringing );
-	}
+	char ack[32];
+	usnprintf(ack, 32, "%d", now);
+	set_alarm(&alarm, ack, strlen(ack));
+
+	return 0;
 }
 static void thread_alarm_on_finished(void * context) {
 	if( led_get_animation_id() == *(int*)context ) {
@@ -882,7 +892,7 @@ static void _show_led_status()
 
 static void _on_wave(){
 	if(	cancel_alarm() ) {
-		stop_led_animation( 10000, 33 );
+		stop_led_animation( 0, 33 );
 	} else {
 		_show_led_status();
 	}
@@ -890,7 +900,7 @@ static void _on_wave(){
 
 static void _on_hold(){
 	if(	cancel_alarm() ) {
-		stop_led_animation( 10000, 33 );
+		stop_led_animation( 0, 33 );
 	}
 	ble_proto_start_hold();
 }
@@ -913,7 +923,6 @@ int Cmd_gesture(int argc, char * argv[]) {
 	return 0;
 }
 
-
 void thread_fast_i2c_poll(void * unused)  {
 	unsigned int filter_buf[3];
 	unsigned int filter_idx=0;
@@ -922,25 +931,20 @@ void thread_fast_i2c_poll(void * unused)  {
 	ProxSignal_Init();
 	ProxGesture_t gesture;
 
-	uint32_t counter = 0;
+	uint32_t delay = 50;
 
 	while (1) {
 		portTickType now = xTaskGetTickCount();
 		uint32_t prox=0;
 
-		if (xSemaphoreTakeRecursive(i2c_smphr, portMAX_DELAY)) {
-			vTaskDelay(2); //this is important! If we don't do it, then the prox will stretch the clock!
+		if (xSemaphoreTakeRecursive(i2c_smphr, 300000)) {
+			vTaskDelay(1);
 
-			// For the black morpheus, we can detect 6mm distance max
-			// for white one, 9mm distance max.
 			prox = median_filter(get_prox(), filter_buf, &filter_idx);
 
 			LOGP( "%d\n", prox );
 
-			xSemaphoreGiveRecursive(i2c_smphr);
-
 			gesture = ProxSignal_UpdateChangeSignals(prox);
-
 
 			//gesture gesture_state = gesture_input(prox);
 			switch(gesture)
@@ -960,38 +964,33 @@ void thread_fast_i2c_poll(void * unused)  {
 				break;
 			}
 
-			if (++counter >= 2) {
-				counter = 0;
+			if (xSemaphoreTake(light_smphr, portMAX_DELAY)) {
+				light = get_light();
+				light_log_sum += bitlog(light);
+				++light_cnt;
 
-				if (xSemaphoreTakeRecursive(i2c_smphr, portMAX_DELAY)) {
-					vTaskDelay(2);
-					light = get_light();
-					xSemaphoreGiveRecursive(i2c_smphr);
+				int delta = light - light_mean;
+				light_mean = light_mean + delta/light_cnt;
+				light_m2 = light_m2 + delta * (light - light_mean);
+				if( light_m2 < 0 ) {
+					light_m2 = 0x7FFFFFFF;
 				}
+				//LOGI( "%d %d %d %d\n", delta, light_mean, light_m2, light_cnt);
+				xSemaphoreGive(light_smphr);
 
-
-				if (xSemaphoreTake(light_smphr, portMAX_DELAY)) {
-					light_log_sum += bitlog(light);
-					++light_cnt;
-
-					int delta = light - light_mean;
-					light_mean = light_mean + delta/light_cnt;
-					light_m2 = light_m2 + delta * (light - light_mean);
-					if( light_m2 < 0 ) {
-						light_m2 = 0x7FFFFFFF;
-					}
-					//LOGI( "%d %d %d %d\n", delta, light_mean, light_m2, light_cnt);
-					xSemaphoreGive(light_smphr);
-
-					if(light_cnt % 5 == 0 && led_is_idle(0) ) {
-						if(_is_light_off()) {
-							_show_led_status();
-						}
+				if(light_cnt % 5 == 0 && led_is_idle(0) ) {
+					if(_is_light_off()) {
+						_show_led_status();
 					}
 				}
 			}
+
+			vTaskDelay(1);
+			xSemaphoreGiveRecursive(i2c_smphr);
+		} else {
+			LOGW("failed to get i2c %d\n", __LINE__);
 		}
-		vTaskDelayUntil(&now, 50);
+		vTaskDelayUntil(&now, delay);
 	}
 }
 
@@ -1261,54 +1260,47 @@ void sample_sensor_data(periodic_data* data)
 	}
 
 	// get temperature and humidity
-	if (xSemaphoreTakeRecursive(i2c_smphr, portMAX_DELAY)) {
-		uint8_t measure_time = 10;
-		int64_t humid_sum = 0;
-		int64_t temp_sum = 0;
+	uint8_t measure_time = 10;
+	int64_t humid_sum = 0;
+	int64_t temp_sum = 0;
 
-		uint8_t humid_count = 0;
-		uint8_t temp_count = 0;
+	uint8_t humid_count = 0;
+	uint8_t temp_count = 0;
 
-		while(--measure_time)
+	while(--measure_time) {
+		int humid,temp;
+
+		get_temp_humid(&temp, &humid);
+
+		if(humid != -1)
 		{
-			vTaskDelay(2);
-			int humid,temp;
-
-			get_temp_humid(&temp, &humid);
-
-			if(humid != -1)
-			{
-				humid_sum += humid;
-				humid_count++;
-			}
-			if(temp != -1)
-			{
-				temp_sum += temp;
-				temp_count++;
-			}
-			vTaskDelay(2);
+			humid_sum += humid;
+			humid_count++;
 		}
-
-
-
-		if(humid_count == 0)
+		if(temp != -1)
 		{
-			data->has_humidity = false;
-		}else{
-			data->has_humidity = true;
-			data->humidity = humid_sum / humid_count;
+			temp_sum += temp;
+			temp_count++;
 		}
+	}
 
 
-		if(temp_count == 0)
-		{
-			data->has_temperature = false;
-		}else{
-			data->has_temperature = true;
-			data->temperature = temp_sum / temp_count;
-		}
-		
-		xSemaphoreGiveRecursive(i2c_smphr);
+
+	if(humid_count == 0)
+	{
+		data->has_humidity = false;
+	}else{
+		data->has_humidity = true;
+		data->humidity = humid_sum / humid_count;
+	}
+
+
+	if(temp_count == 0)
+	{
+		data->has_temperature = false;
+	}else{
+		data->has_temperature = true;
+		data->temperature = temp_sum / temp_count;
 	}
 
 	int wave_count = gesture_get_wave_count();
@@ -1344,16 +1336,11 @@ int force_data_push()
     return 0;
 }
 
-xSemaphoreHandle low_frequency_i2c_sem;
+int Cmd_tasks(int argc, char *argv[]);
 int Cmd_inttemp(int argc, char *argv[]);
 void thread_sensor_poll(void* unused) {
-
-	//
-	// Print some header text.
-	//
-	vSemaphoreCreateBinary( low_frequency_i2c_sem );
-
 	periodic_data data = {0};
+	unsigned int count = 0;
 
 	while (1) {
 		portTickType now = xTaskGetTickCount();
@@ -1362,26 +1349,27 @@ void thread_sensor_poll(void* unused) {
 
 		wait_for_time(WAIT_FOREVER);
 
-		if( xSemaphoreTake( low_frequency_i2c_sem, 0 ) ) {
-			sample_sensor_data(&data);
+		sample_sensor_data(&data);
 
-			if( booted ) {
-				LOGI(
-						"collecting time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d %d %d %d\twave %d\thold %d\n",
-						data.unix_time, data.light, data.light_variability,
-						data.light_tonality, data.temperature, data.humidity,
-						data.dust, data.dust_max, data.dust_min,
-						data.dust_variability, data.wave_count, data.hold_count);
+		if( booted ) {
+			LOGI(	"collecting time %d\tlight %d, %d, %d\ttemp %d\thumid %d\tdust %d %d %d %d\twave %d\thold %d\n",
+					data.unix_time, data.light, data.light_variability,
+					data.light_tonality, data.temperature, data.humidity,
+					data.dust, data.dust_max, data.dust_min,
+					data.dust_variability, data.wave_count, data.hold_count);
 
-				Cmd_free(0,0);
-				send_top("free", strlen("free"));
-				Cmd_inttemp(0,0);
+			Cmd_free(0,0);
+			send_top("free", strlen("free"));
+			Cmd_inttemp(0,0);
 
-				if (!xQueueSend(data_queue, (void* )&data, 0) == pdPASS) {
-					xQueueReceive(data_queue, (void* )&data, 0); //discard one, so if the queue is full we will put every other one in the queue
-					LOGE("Failed to post data\n");
-				}
-				xSemaphoreGive(low_frequency_i2c_sem);
+			if( ( ++count % 60 ) == 0 ) {
+				Cmd_tasks(0,0);
+				LOGI("uptime %d, %d\n", xTaskGetTickCount(), count);
+			}
+
+			if (!xQueueSend(data_queue, (void* )&data, 0) == pdPASS) {
+				xQueueReceive(data_queue, (void* )&data, 0); //discard one, so if the queue is full we will put every other one in the queue
+				LOGE("Failed to post data\n");
 			}
 		}
 
@@ -1573,6 +1561,8 @@ void nordic_prox_int() {
     unsigned int status;
     signed long xHigherPriorityTaskWoken; //todo this should be basetype_t
 
+	traceISR_ENTER();
+
     //check for which pin triggered
     status = GPIOIntStatus(GPIO_PORT, FALSE);
 	//clear all interrupts
@@ -1593,6 +1583,8 @@ void nordic_prox_int() {
 	/* If xHigherPriorityTaskWoken was set to true you
     we should yield.  The actual macro used here is
     port specific. */
+
+	traceISR_EXIT();
 }
 
 #include "gpio.h"
@@ -1742,7 +1734,6 @@ static void checkFaults() {
 }
 
 void init_download_task( int stack );
-void init_i2c_recovery();
 
 void launch_tasks() {
 	checkFaults();
@@ -1752,9 +1743,7 @@ void launch_tasks() {
 	booted = true;
 
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 3, NULL);
-	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,4,NULL);
-	UARTprintf("*");
-	xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 2, NULL);
+	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,2,NULL);
 	UARTprintf("*");
 	xTaskCreate(FileUploaderTask_Thread,"fileUploadTask",1*1024/4,NULL,1,NULL);
 #ifdef BUILD_SERVERS //todo PVT disable!
@@ -2059,8 +2048,8 @@ tCmdLineEntry g_sCmdTable[] = {
 		{"noint", Cmd_disableInterrupts, ""},
 		{"nwp", Cmd_nwpinfo, ""},
 		{"resync", Cmd_SyncID, ""},
-		{"g", Cmd_gesture, ""},
 #endif
+		{"g", Cmd_gesture, ""},
 
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
@@ -2087,7 +2076,7 @@ void vUARTTask(void *pvParameters) {
 	if(led_init() != 0){
 		LOGI("Failed to create the led_events.\n");
 	}
-	xTaskCreate(led_task, "ledTask", 700 / 4, NULL, 4, NULL);
+	xTaskCreate(led_task, "ledTask", 700 / 4, NULL, 3, NULL);
 	xTaskCreate(led_idle_task, "led_idle_task", 256 / 4, NULL, 2, NULL);
 
 	//switch the uart lines to gpios, drive tx low and see if rx goes low as well
@@ -2150,7 +2139,6 @@ void vUARTTask(void *pvParameters) {
 	}
 	sl_NetAppStop(0x1f);
 	check_hw_version();
-	init_i2c_recovery();
 	PinMuxConfig_hw_dep();
 
 	// SDCARD INITIALIZATION
@@ -2172,7 +2160,7 @@ void vUARTTask(void *pvParameters) {
 	spi_init();
 
 	i2c_smphr = xSemaphoreCreateRecursiveMutex();
-	init_time_module(2200);
+	init_time_module(2560);
 
 	// Init sensors
 	init_humid_sensor();
@@ -2199,7 +2187,7 @@ void vUARTTask(void *pvParameters) {
 	SetupGPIOInterrupts();
 	CreateDefaultDirectories();
 
-	xTaskCreate(AudioTask_Thread,"audioTask",2560/4,NULL,4,NULL);
+	xTaskCreate(AudioTask_Thread,"audioTask",3072/4,NULL,4,NULL);
 	UARTprintf("*");
 	init_download_task( 2048 / 4 );
 	networktask_init(4 * 1024 / 4);
@@ -2224,6 +2212,9 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(analytics_event_task, "analyticsTask", 1024/4, NULL, 1, NULL);
 	UARTprintf("*");
 #endif
+	xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 2, NULL);
+	UARTprintf("*");
+
 
 	if( on_charger ) {
 		launch_tasks();
@@ -2264,7 +2255,7 @@ void vUARTTask(void *pvParameters) {
 				LOGF("can't run %s, no mem!\n", cCmdBuf );
 			} else {
 				memcpy( args, cCmdBuf, sizeof( cCmdBuf ) );
-				xTaskCreate(CmdLineProcess, "commandTask",  3*1024 / 4, args, 4, NULL);
+				xTaskCreate(CmdLineProcess, "commandTask",  3*1024 / 4, args, 3, NULL);
 			}
         }
 	}

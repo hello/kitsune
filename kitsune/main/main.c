@@ -94,9 +94,13 @@
 #include "hellofilesystem.h"
 //#include "sl_sync_include_after_simplelink_header.h" not here, this one is operating before the scheduler starts...
 
+
+#ifdef _ENABLE_SYSVIEW
 void SEGGER_SYSVIEW_Conf(void);
 void SEGGER_RTT_Init(void);
 void SEGGER_SYSVIEW_Start(void);
+#endif
+
 void mcu_reset();
 
 extern void vUARTTask(void *pvParameters);
@@ -105,7 +109,7 @@ extern void vUARTTask(void *pvParameters);
 //                      MACRO DEFINITIONS
 //*****************************************************************************
 #define UART_PRINT               Report
-#define SPAWN_TASK_PRIORITY		 4
+#define SPAWN_TASK_PRIORITY		 3
 
 //****************************************************************************
 //                      LOCAL FUNCTION PROTOTYPES
@@ -338,8 +342,10 @@ void main()
   //
   MAP_PinDirModeSet(PIN_07,PIN_DIR_MODE_OUT);
 
+#ifdef _ENABLE_SYSVIEW
   SEGGER_RTT_Init();
   SEGGER_SYSVIEW_Conf();
+#endif
   //
   // Start the SimpleLink Host
   //
@@ -349,7 +355,7 @@ void main()
   wifi_status_init();
 
   /* Create the UART processing task. */
-  xTaskCreate( vUARTTask, "UARTTask", 2048/(sizeof(portSTACK_TYPE)), NULL, 4, NULL );
+  xTaskCreate( vUARTTask, "UARTTask", 2048/(sizeof(portSTACK_TYPE)), NULL, 3, NULL );
   xTaskCreate( watchdog_thread, "wdtTask", 1280/(sizeof(portSTACK_TYPE)), NULL, 1, NULL );
 
   //
