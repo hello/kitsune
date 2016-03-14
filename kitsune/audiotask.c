@@ -181,8 +181,8 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 #define FLASH_PAGE_SIZE 512
 
 	//1.5K on the stack
-	short * speaker_data = pvPortMalloc(SPEAKER_DATA_CHUNK_SIZE+1);
-	char * speaker_data_enc = pvPortMalloc(SPEAKER_DATA_CHUNK_SIZE/2+1);
+	short * speaker_data = pvPortMalloc(FLASH_PAGE_SIZE+1);
+	char * speaker_data_enc = pvPortMalloc(FLASH_PAGE_SIZE/4+1);
 
 	FIL fp = {0};
 	UINT size;
@@ -245,7 +245,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	for (; ;) {
 		/* Read always in block of 512 Bytes or less else it will stuck in hello_fs_read() */
 		res = hello_fs_read(&fp, speaker_data, FLASH_PAGE_SIZE, &size);
-		adpcm_coder( speaker_data, speaker_data_enc, size, &pcm_state );
+		adpcm_coder( speaker_data, speaker_data_enc, size/2, &pcm_state );
 
 		if ( res == FR_OK && size > 0 ) {
 
@@ -302,7 +302,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 				}
 			}
 
-			FillBuffer(pRxBuffer, (unsigned char*) (speaker_data_enc), size/2);
+			FillBuffer(pRxBuffer, (unsigned char*) (speaker_data_enc), size/4);
 		}
 		else {
 			if ( desired_ticks_elapsed > 0) {
@@ -325,6 +325,7 @@ cleanup:
 	LOGI("leftover %d\n", GetBufferSize(pRxBuffer));
 
 	vPortFree(speaker_data);
+	vPortFree(speaker_data_enc);
 
 	///CLEANUP
 	hello_fs_close(&fp);
