@@ -378,6 +378,24 @@ void vPortYield( void )
 }
 /*-----------------------------------------------------------*/
 
+
+
+#include <hw_memmap.h>
+#include "hw_types.h"
+#include "hw_ints.h"
+#include "rom.h"
+#include "rom_map.h"
+#include "interrupt.h"
+
+uint32_t ulPortSetInterruptMask( void ) {
+	return MAP_IntMasterDisable();
+}
+void vPortClearInterruptMask(uint32_t ulNewMaskValue) {
+	if (!ulNewMaskValue) {
+		MAP_IntMasterEnable();
+	}
+}
+
 void vPortEnterCritical( void )
 {
 	portDISABLE_INTERRUPTS();
@@ -396,6 +414,7 @@ void vPortExitCritical( void )
 		portENABLE_INTERRUPTS();
 	}
 }
+
 /*-----------------------------------------------------------*/
 #if 0
 __attribute__(( naked )) uint32_t ulPortSetInterruptMask( void )

@@ -27,6 +27,7 @@
 #include "utils.h"
 
 #include "adpcm.h"
+#include "hlo_async.h"
 
 #if 0
 #define PRINT_TIMING
@@ -36,7 +37,7 @@
 
 #define NUMBER_OF_TICKS_IN_A_SECOND (1000)
 
-#define MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP (500)
+#define MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP (50000)
 
 #define MAX_NUMBER_TIMES_TO_WAIT_FOR_AUDIO_BUFFER_TO_FILL (5)
 #define MAX_FILE_SIZE_BYTES (1048576*10)
@@ -106,6 +107,8 @@ static void Init(void) {
 	_callCounter = 0;
 	_filecounter = 0;
 
+	InitAudioHelper();
+
 	audio_task_hndl = xTaskGetCurrentTaskHandle();
 
 	if (!_queue) {
@@ -161,6 +164,17 @@ static unsigned int fade_out_vol(unsigned int fade_counter, unsigned int volume,
 extern volatile bool booted;
 extern xSemaphoreHandle i2c_smphr;
 
+static void _set_volume_task(hlo_future_t * result, void * ctx){
+	volatile unsigned long vol_to_set = *(volatile unsigned long*)ctx;
+	if( xSemaphoreTakeRecursive(i2c_smphr, 100)) {
+		vTaskDelay(5);
+		set_volume(vol_to_set, 0);
+		vTaskDelay(5);
+		xSemaphoreGiveRecursive(i2c_smphr);
+	}
+	hlo_future_write(result, NULL, 0, 0);
+}
+
 static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 #define SPEAKER_DATA_CHUNK_SIZE (PING_PONG_CHUNK_SIZE)
@@ -178,8 +192,8 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	int32_t desired_ticks_elapsed;
 	portTickType t0;
 
-	unsigned int set_time=0;
-	unsigned long i2c_volume = 0;
+	static volatile unsigned long i2c_volume = 0;
+	unsigned int last_set=0;
 	unsigned int fade_counter=0;
 	unsigned int fade_time=0;
 	bool fade_in = true;
@@ -253,8 +267,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 						if( fade_out ) {
 							goto cleanup;
 						}
-					}
-					if( xTaskGetTickCount() - set_time > 100) {
+					} else {
 						int set_vol = 0;
 						if (fade_in) {
 							set_vol = fade_in_vol(fade_counter, volume, fade_length);
@@ -262,14 +275,10 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 						if(fade_out){
 							set_vol = fade_out_vol(fade_counter, volume, fade_length);
 						}
-						if ( set_vol != i2c_volume
-						 && xSemaphoreTakeRecursive(i2c_smphr, 0) ) {
-							vTaskDelay(1);
-						    set_volume(i2c_volume, 0);
-							vTaskDelay(1);
+						if ( set_vol != i2c_volume && (xTaskGetTickCount() - last_set) > 100 ) {
 							i2c_volume = set_vol;
-							set_time = xTaskGetTickCount();
-							xSemaphoreGiveRecursive(i2c_smphr);
+							last_set = xTaskGetTickCount();
+							hlo_future_destroy( hlo_future_create_task_bg(_set_volume_task, (void*)&i2c_volume, 512));
 						}
 					}
 					if (!fade_out && (returnFlags || ((xTaskGetTickCount() - t0) > desired_ticks_elapsed && desired_ticks_elapsed > 0) ) ) {
@@ -282,9 +291,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 						fade_time = xTaskGetTickCount();
 						fade_out = true;
 						fade_length = info->fade_out_ms;
-					}
-					if(fade_out && fade_counter > fade_length) {
-						goto cleanup;
+						fade_counter = 0;
 					}
 				} else if( returnFlags) {
 					LOGI("stopping playback\n");
@@ -358,7 +365,7 @@ static void DoCapture(uint32_t rate) {
 	uint32_t dt;
 #endif
 
-	AudioProcessingTask_SetControl(processingOn,ProcessingCommandFinished,NULL);
+	AudioProcessingTask_SetControl(processingOn,ProcessingCommandFinished,NULL, MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP);
 
 	//wait until processing is turned on
 	LOGI("Waiting for processing to start... \r\n");
@@ -559,7 +566,7 @@ static void DoCapture(uint32_t rate) {
 
 	DeinitAudioCapture();
 
-	AudioProcessingTask_SetControl(processingOff,ProcessingCommandFinished,NULL);
+	AudioProcessingTask_SetControl(processingOff,ProcessingCommandFinished,NULL, MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP);
 
 	//wait until ProcessingCommandFinished is returned
 	xSemaphoreTake(_processingTaskWait,MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP);

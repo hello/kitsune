@@ -79,13 +79,13 @@ hlo_future_t * MorpheusCommand_from_buffer(void * buf, size_t size){
 		return hlo_future_create_task_bg(
 					decode_MorpheusCommand,
 					desc,
-					1536);
+					1024);
 	}else{
 		return NULL;
 	}
 
 }
 hlo_future_t * buffer_from_MorpheusCommand(MorpheusCommand * src){
-	return hlo_future_create_task_bg(encode_MorpheusCommand, src, 1536);
+	return hlo_future_create_task_bg(encode_MorpheusCommand, src, 1024);
 }
 
