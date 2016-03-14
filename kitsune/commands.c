@@ -338,8 +338,8 @@ int Cmd_audio_turn_on(int argc, char * argv[]) {
 
 	AudioTask_StartCapture(16000);
 
-	AudioProcessingTask_SetControl(featureUploadsOn,NULL,NULL);
-	AudioProcessingTask_SetControl(rawUploadsOn,NULL,NULL);
+	AudioProcessingTask_SetControl(featureUploadsOn,NULL,NULL,0);
+	AudioProcessingTask_SetControl(rawUploadsOn,NULL,NULL,0);
 
 	return 0;
 }

@@ -120,7 +120,7 @@ void AudioProcessingTask_AddFeaturesToQueue(const AudioFeatures_t * feat) {
 	}
 }
 
-void AudioProcessingTask_SetControl(EAudioProcessingCommand_t cmd,NotificationCallback_t onFinished, void * context) {
+void AudioProcessingTask_SetControl(EAudioProcessingCommand_t cmd,NotificationCallback_t onFinished, void * context, TickType_t wait ) {
 	AudioProcessingTaskMessage_t m;
 	memset(&m,0,sizeof(m));
 	m.message.cmd = cmd;
@@ -129,7 +129,7 @@ void AudioProcessingTask_SetControl(EAudioProcessingCommand_t cmd,NotificationCa
 	m.context = context;
 
 	if (_queue) {
-		xQueueSend(_queue,&m,0);
+		xQueueSend(_queue,&m,wait);
 	}
 }
 

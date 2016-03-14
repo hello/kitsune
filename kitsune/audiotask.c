@@ -36,7 +36,7 @@
 
 #define NUMBER_OF_TICKS_IN_A_SECOND (1000)
 
-#define MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP (500)
+#define MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP (50000)
 
 #define MAX_NUMBER_TIMES_TO_WAIT_FOR_AUDIO_BUFFER_TO_FILL (5)
 #define MAX_FILE_SIZE_BYTES (1048576*10)
@@ -360,7 +360,7 @@ static void DoCapture(uint32_t rate) {
 	uint32_t dt;
 #endif
 
-	AudioProcessingTask_SetControl(processingOn,ProcessingCommandFinished,NULL);
+	AudioProcessingTask_SetControl(processingOn,ProcessingCommandFinished,NULL, MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP);
 
 	//wait until processing is turned on
 	LOGI("Waiting for processing to start... \r\n");
@@ -561,7 +561,7 @@ static void DoCapture(uint32_t rate) {
 
 	DeinitAudioCapture();
 
-	AudioProcessingTask_SetControl(processingOff,ProcessingCommandFinished,NULL);
+	AudioProcessingTask_SetControl(processingOff,ProcessingCommandFinished,NULL, MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP);
 
 	//wait until ProcessingCommandFinished is returned
 	xSemaphoreTake(_processingTaskWait,MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP);
