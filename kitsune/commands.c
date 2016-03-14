@@ -599,6 +599,7 @@ static bool cancel_alarm() {
 }
 
 int set_test_alarm(int argc, char *argv[]) {
+	while(1) {
 	SyncResponse_Alarm alarm;
 	unsigned int now = get_time();
 	alarm.end_time = now + 245;
@@ -618,6 +619,8 @@ int set_test_alarm(int argc, char *argv[]) {
 	char ack[32];
 	usnprintf(ack, 32, "%d", now);
 	set_alarm(&alarm, ack, strlen(ack));
+	vTaskDelay(10000);
+	}
 
 	return 0;
 }
@@ -938,10 +941,7 @@ void thread_fast_i2c_poll(void * unused)  {
 		uint32_t prox=0;
 
 		if (xSemaphoreTakeRecursive(i2c_smphr, 300000)) {
-			// For the black morpheus, we can detect 6mm distance max
-			// for white one, 9mm distance max.
 			vTaskDelay(1);
-			checki2c();
 
 			prox = median_filter(get_prox(), filter_buf, &filter_idx);
 
@@ -1263,56 +1263,47 @@ void sample_sensor_data(periodic_data* data)
 	}
 
 	// get temperature and humidity
-	if (xSemaphoreTakeRecursive(i2c_smphr, 300000)) {
-		uint8_t measure_time = 10;
-		int64_t humid_sum = 0;
-		int64_t temp_sum = 0;
+	uint8_t measure_time = 10;
+	int64_t humid_sum = 0;
+	int64_t temp_sum = 0;
 
-		uint8_t humid_count = 0;
-		uint8_t temp_count = 0;
+	uint8_t humid_count = 0;
+	uint8_t temp_count = 0;
 
-		while(--measure_time)
+	while(--measure_time) {
+		int humid,temp;
+
+		get_temp_humid(&temp, &humid);
+
+		if(humid != -1)
 		{
-			vTaskDelay(2);
-			int humid,temp;
-
-			get_temp_humid(&temp, &humid);
-
-			if(humid != -1)
-			{
-				humid_sum += humid;
-				humid_count++;
-			}
-			if(temp != -1)
-			{
-				temp_sum += temp;
-				temp_count++;
-			}
-			vTaskDelay(2);
+			humid_sum += humid;
+			humid_count++;
 		}
-
-
-
-		if(humid_count == 0)
+		if(temp != -1)
 		{
-			data->has_humidity = false;
-		}else{
-			data->has_humidity = true;
-			data->humidity = humid_sum / humid_count;
+			temp_sum += temp;
+			temp_count++;
 		}
+	}
 
 
-		if(temp_count == 0)
-		{
-			data->has_temperature = false;
-		}else{
-			data->has_temperature = true;
-			data->temperature = temp_sum / temp_count;
-		}
-		
-		xSemaphoreGiveRecursive(i2c_smphr);
-	} else {
-		LOGW("failed to get i2c %d\n", __LINE__);
+
+	if(humid_count == 0)
+	{
+		data->has_humidity = false;
+	}else{
+		data->has_humidity = true;
+		data->humidity = humid_sum / humid_count;
+	}
+
+
+	if(temp_count == 0)
+	{
+		data->has_temperature = false;
+	}else{
+		data->has_temperature = true;
+		data->temperature = temp_sum / temp_count;
 	}
 
 	int wave_count = gesture_get_wave_count();
@@ -1348,9 +1339,11 @@ int force_data_push()
     return 0;
 }
 
+int Cmd_tasks(int argc, char *argv[]);
 int Cmd_inttemp(int argc, char *argv[]);
 void thread_sensor_poll(void* unused) {
 	periodic_data data = {0};
+	unsigned int count = 0;
 
 	while (1) {
 		portTickType now = xTaskGetTickCount();
@@ -1371,6 +1364,11 @@ void thread_sensor_poll(void* unused) {
 			Cmd_free(0,0);
 			send_top("free", strlen("free"));
 			Cmd_inttemp(0,0);
+
+			if( ( ++count % 60 ) == 0 ) {
+				Cmd_tasks(0,0);
+				LOGI("uptime %d, %d\n", xTaskGetTickCount(), count);
+			}
 
 			if (!xQueueSend(data_queue, (void* )&data, 0) == pdPASS) {
 				xQueueReceive(data_queue, (void* )&data, 0); //discard one, so if the queue is full we will put every other one in the queue

@@ -208,6 +208,8 @@ void DMAPingPongCompleteAppCB_opt()
 					//the odd ones do not matter
 					/*ping[(i<<1)+1] = */ping[i<<1] = ping[i];
 				}
+			} else {
+				memset( ping, 0, sizeof(ping));
 			}
 
 			pucDMASrc = (unsigned char*)ping;
@@ -231,6 +233,8 @@ void DMAPingPongCompleteAppCB_opt()
 						//the odd ones do not matter
 						/*pong[(i<<1)+1] = */pong[i<<1] = pong[i];
 					}
+				} else {
+					memset( pong, 0, sizeof(pong));
 				}
 
 				pucDMASrc = (unsigned char*)pong;

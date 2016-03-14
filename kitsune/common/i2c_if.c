@@ -142,18 +142,18 @@ void checki2c() {
 	GPIODirModeSet(GPIOA1_BASE, 0x4, GPIO_DIR_MODE_OUT);
 
 	TickType_t start = xTaskGetTickCount();
-	while ( GPIOPinRead(GPIOA1_BASE, 0x20) == 0 && ++pulses < 16 ) {
+	while ( GPIOPinRead(GPIOA1_BASE, 0x20) == 0 && ++pulses < 1000 ) {
 		GPIOPinWrite(GPIOA1_BASE, 0x4, 0); //pulse the clock line...
 		vTaskDelay(1);
 		GPIOPinWrite(GPIOA1_BASE, 0x4, 1);
-		vTaskDelay(1);
+		vTaskDelay(2);
 	}
 	GPIODirModeSet(GPIOA1_BASE, 0x4, GPIO_DIR_MODE_IN);
 
 	if( pulses ) {
 		LOGE("pulsed %d sda %x scl %x\r\n", pulses, GPIOPinRead(GPIOA1_BASE, 0x20), GPIOPinRead(GPIOA1_BASE, 0x4));
 	}
-#if 1
+#if 0
 	// if the lines stay low, we have failed
 	if( booted
 		&& ( GPIOPinRead(GPIOA1_BASE, 0x20) == 0
@@ -165,10 +165,7 @@ void checki2c() {
 	PinTypeI2C(PIN_01, PIN_MODE_1);
 	PinTypeI2C(PIN_04, PIN_MODE_5);
     if(I2CMasterErr(I2C_BASE) != I2C_MASTER_ERR_NONE) {
-    	LOGE("i2c err %x\n", I2CMasterErr(I2C_BASE) != I2C_MASTER_ERR_NONE );
-		vTaskDelay(2);
-		PRCMPeripheralReset(PRCM_I2CA0);
-		PRCMPeripheralClkEnable(PRCM_I2CA0, PRCM_RUN_MODE_CLK);
+    	LOGE("i2c err %x\n", I2CMasterErr(I2C_BASE) );
 		vTaskDelay(2);
 		I2CMasterControl(I2C_BASE, 0x00000004); //send a stop...
     }
@@ -178,7 +175,7 @@ static int
 I2CTransact(unsigned long ulCmd)
 {
 	int rval = SUCCESS;
-	unsigned long prio = uxTaskPriorityGet(NULL);
+//	unsigned long prio = uxTaskPriorityGet(NULL);
 
 	I2CMasterIntClearEx(I2C_BASE,I2C_MASTER_INT_DATA);
 	i2c_task =  xTaskGetCurrentTaskHandle();
@@ -196,13 +193,16 @@ I2CTransact(unsigned long ulCmd)
     // Wait until the current byte has been transferred.
     // Poll on the raw interrupt status.
     //
-	if( !ulTaskNotifyTake( pdTRUE, 2 ) ) {
+	if( !ulTaskNotifyTake( pdTRUE, 100 ) ) {
 		rval = FAILURE;
 	}
 	I2CMasterIntDisable(I2C_BASE);
 	I2CIntUnregister(I2C_BASE);
 
-    vTaskPrioritySet(NULL, prio);
+	if( rval == FAILURE ) {
+		checki2c();
+	}
+//    vTaskPrioritySet(NULL, prio);
 
     return rval;
 }

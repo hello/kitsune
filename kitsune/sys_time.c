@@ -46,7 +46,9 @@ static int get_rtc_time( struct tm * dt ) {
 	unsigned char addy = 1;
 	int retries = 0;
 	assert (xSemaphoreTakeRecursive(i2c_smphr, 300000));
+	vTaskDelay(5);
 	while (I2C_IF_Write(0x68, &addy, 1, 1) || I2C_IF_Read(0x68, data, 7)) {
+		vTaskDelay(5);
 		xSemaphoreGiveRecursive(i2c_smphr);
 		vTaskDelay(1000);
 		assert (xSemaphoreTakeRecursive(i2c_smphr, 300000));
@@ -86,7 +88,9 @@ static int set_rtc_time(struct tm * dt) {
     data[7] = int_to_bcd(dt->tm_year-100);
 
 	if (xSemaphoreTakeRecursive(i2c_smphr, 300000)) {
+		vTaskDelay(5);
 		while (I2C_IF_Write(0x68, data, 8, 1) != 0) {
+			vTaskDelay(5);
 			++retries;
 		};
 		xSemaphoreGiveRecursive(i2c_smphr);
@@ -298,8 +302,9 @@ static void time_task( void * params ) { //exists to get the time going and cach
 		}
 
 		if (time_smphr && xSemaphoreTake(time_smphr, 0)) {
-			if( xTaskGetTickCount() - cached_ticks > 30000 ) {
+			if( xTaskGetTickCount() - cached_ticks > 30000 &&xSemaphoreTakeRecursive(i2c_smphr, 300000)) {
 				set_cached_time(get_unix_time());
+				xSemaphoreGiveRecursive(i2c_smphr);
 			}
 			xSemaphoreGive(time_smphr);
 		}

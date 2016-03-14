@@ -255,12 +255,15 @@ static int get_temp() {
 
 	unsigned char aucDataBuf[2];
 
-	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
 
-	vTaskDelay(10);
+	vTaskDelay(5);
 	(I2C_IF_Write(0x40, &cmd, 1, 1));
 
+	xSemaphoreGiveRecursive(i2c_smphr);
 	vTaskDelay(50);
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
+	vTaskDelay(5);
 	(I2C_IF_Read(0x40, aucDataBuf, 2));
 	temp_raw = (aucDataBuf[0] << 8) | ((aucDataBuf[1] & 0xfc));
 	
@@ -290,12 +293,16 @@ static int get_humid() {
 	int humid_raw;
 	int humid;
 
-	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
-	vTaskDelay(10);
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
+	vTaskDelay(5);
 
 	(I2C_IF_Write(0x40, &cmd, 1, 1));
 
+	xSemaphoreGiveRecursive(i2c_smphr);
 	vTaskDelay(50);
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
+
+	vTaskDelay(5);
 	(I2C_IF_Read(0x40, aucDataBuf, 2));
 	humid_raw = (aucDataBuf[0] << 8) | ((aucDataBuf[1] & 0xfc));
 
