@@ -37,6 +37,8 @@ static xSemaphoreHandle _file_download_mutex = NULL;
 static FileManifest_LinkHealth link_health = {0};
 //TODO may need a mutex to protect send_error?
 
+static uint32_t message_sent_time;
+
 // Query delay in ticks
 TickType_t query_delay_ticks = (QUERY_DELAY_DEFAULT*60*1000)/portTICK_PERIOD_MS;
 
@@ -91,8 +93,6 @@ void update_file_download_status(bool is_pending)
 
 }
 
-
-
 // Download Manager task
 static void DownloadManagerTask(void * filesyncdata)
 {
@@ -116,14 +116,12 @@ static void DownloadManagerTask(void * filesyncdata)
 		file_download_status = FileManifest_FileStatusType_DOWNLOAD_COMPLETED;
 	xSemaphoreGive(_file_download_mutex);
 
-
 	protobuf_reply_callbacks pb_cb;
 
     pb_cb.get_reply_pb = _get_file_sync_response;
     pb_cb.free_reply_pb = _free_file_sync_response;
     pb_cb.on_pb_success = _on_file_sync_response_success;
     pb_cb.on_pb_failure = _on_file_sync_response_failure;
-
 
     // set current time
     start_time = xTaskGetTickCount();
@@ -135,8 +133,10 @@ static void DownloadManagerTask(void * filesyncdata)
 
 	for (; ;)
 	{
+		//TODO instead of trying to semaphore every minutes, use gettickcount to compute time to response
+		// use portmaxdelay
 		// Check if response has been received
-		if(xSemaphoreTake(_response_received_sem,response_wait))
+		if(xSemaphoreTake(_response_received_sem,portMAX_DELAY))
 		{
 			vTaskDelayUntil(&start_time,query_delay_ticks); // TODO should this be vtaskdelay instead?
 
@@ -152,18 +152,19 @@ static void DownloadManagerTask(void * filesyncdata)
 			message_for_upload.has_file_status = true;
 			get_file_download_status(&message_for_upload.file_status);
 
-			/* Update query delay */
-			message_for_upload.has_query_delay = false;
-
 			/* UPDATE DEVICE UPTIME */
 
 			message_for_upload.has_device_uptime_in_seconds = true;
 			message_for_upload.device_uptime_in_seconds = xTaskGetTickCount() / configTICK_RATE_HZ; // in seconds
 
+			/* UPDATE QUERY DELAY */
+
+			message_for_upload.has_query_delay = false;
+
 			/* UPDATE FW VERSION */
 
 			message_for_upload.has_firmware_version = true;
-			message_for_upload.firmware_version = KIT_VER; //TODO is this right
+			message_for_upload.firmware_version = KIT_VER;
 
 			/* UPDATE TIME */
 
@@ -174,7 +175,6 @@ static void DownloadManagerTask(void * filesyncdata)
 
 			message_for_upload.has_link_health = true;
 			message_for_upload.link_health = link_health;
-
 
 
 			/* UPDATE MEMORY INFO */
@@ -207,6 +207,7 @@ static void DownloadManagerTask(void * filesyncdata)
 
 			LOGI("Sending file sync \r\n");
 
+			message_sent_time = xTaskGetTickCount();
 
 			//TODO are all parameters right
 			if(NetworkTask_SendProtobuf(
@@ -215,28 +216,30 @@ static void DownloadManagerTask(void * filesyncdata)
 			{
 				LOGI("File manifest failed to upload \n");
 
+				/*
 				// If time to response is non-zero, it means the last upload was not sent successfully
 				// So add fifteen minutes
 				if(link_health.time_to_response)
 				{
 					link_health.time_to_response += 15;
 				}
+				*/
 
 				// give semaphore here to restart sending
-				restart_download_manager();
-
-
+				//restart_download_manager();
 			}
 
 
 			// Update wake time
 			start_time = xTaskGetTickCount();
 		}
+		/*
 		else
 		{
 			// Update time to response count
 			link_health.time_to_response++;
 		}
+		*/
 
 
 	}
@@ -396,6 +399,8 @@ static void _on_file_sync_response_success( void * structdata)
 
 	LOGF("_on_file_sync_response_success\r\n");
 
+	link_health.time_to_response = (xTaskGetTickCount() - message_sent_time) / configTICK_RATE_HZ /60; // in minutes
+
 	// If has update file and delete file info
 		// send for download
 
@@ -425,7 +430,7 @@ static void _on_file_sync_response_failure( )
 	query_delay_ticks = (QUERY_DELAY_DEFAULT*60*1000)/portTICK_PERIOD_MS;
 
 	//Also update time_t-_response by 15 minutes
-	link_health.time_to_response += 15;
+	link_health.time_to_response = portMAX_DELAY;
 
     // update link health error count
     //TODO is there any way to know if error occurred during send or recv

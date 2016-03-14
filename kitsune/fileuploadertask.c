@@ -89,7 +89,7 @@ static void NetTaskResponse(const NetworkResponse_t * response,
 }
 
 
-
+bool add_to_file_error_queue(char* filename, int32_t err_code, bool write_error);
 bool encode_file (pb_ostream_t * stream, const pb_field_t * field,void * const *arg) {
 	FRESULT res;
 	FIL file_obj;
@@ -147,6 +147,7 @@ bool encode_file (pb_ostream_t * stream, const pb_field_t * field,void * const *
 			res = hello_fs_read(&file_obj,readbuf,read_size,&bytes_read);
 
 			if (res != FR_OK) {
+				add_to_file_error_queue(encodedata->filename, res, false); // TODO DKH
 				goto FILEUPLOADER_CLEANUP;
 			}
 
