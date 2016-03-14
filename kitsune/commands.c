@@ -599,7 +599,6 @@ static bool cancel_alarm() {
 }
 
 int set_test_alarm(int argc, char *argv[]) {
-	while(1) {
 	SyncResponse_Alarm alarm;
 	unsigned int now = get_time();
 	alarm.end_time = now + 245;
@@ -619,8 +618,6 @@ int set_test_alarm(int argc, char *argv[]) {
 	char ack[32];
 	usnprintf(ack, 32, "%d", now);
 	set_alarm(&alarm, ack, strlen(ack));
-	vTaskDelay(10000);
-	}
 
 	return 0;
 }
