@@ -291,6 +291,9 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 				} else if( returnFlags) {
 					LOGI("stopping playback\n");
 					goto cleanup;
+				} else if( (desired_ticks_elapsed - (int32_t)(xTaskGetTickCount() - t0)) < 0 ) {
+					LOGI("completed playback\n");
+					goto cleanup;
 				}
 				if( !ulTaskNotifyTake( pdTRUE, 5000 ) ) {
 					goto cleanup;
@@ -300,7 +303,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 			FillBuffer(pRxBuffer, (unsigned char*) (speaker_data), size);
 		}
 		else {
-			if ( desired_ticks_elapsed > 0) {
+			if( desired_ticks_elapsed - (xTaskGetTickCount() - t0) > 0) {
 				//LOOP THE FILE -- start over
 				LOGI("looping %d\n", desired_ticks_elapsed - (xTaskGetTickCount() - t0)  );
 				hello_fs_lseek(&fp,0);
