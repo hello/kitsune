@@ -77,6 +77,13 @@ FRESULT hello_fs_opendir (DIR* dirobj, const char* path) {
 	UNLOCK();
 	return res;
 }
+FRESULT hello_fs_closedir (DIR* dirobj) {
+	FRESULT res;
+	LOCK();
+	res = f_closedir(dirobj);
+	UNLOCK();
+	return res;
+}
 FRESULT hello_fs_readdir (DIR * dirobj, FILINFO * finfo) {
 	FRESULT res;
 	LOCK();

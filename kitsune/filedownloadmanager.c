@@ -10,6 +10,9 @@
 #include "limits.h"
 #include "networktask.h"
 #include <string.h>
+#include "hellofilesystem.h"
+#include <ustdlib.h>
+
 
 #define FILE_ERROR_QUEUE_DEPTH (10)		// ensure that this matches the max_count for error_info in file_manifest.options
 #define QUERY_DELAY_DEFAULT		(15UL) //minutes
@@ -20,7 +23,7 @@ typedef struct {
 } file_info_to_encode;
 
 // Holds the file info that will be encoded into pb
-static file_info_to_encode file_manifest_local;
+static file_info_to_encode file_manifest_local; // TODO does this need to be protected
 
 // Response received semaphore
 static xSemaphoreHandle _response_received_sem = NULL;
@@ -53,6 +56,8 @@ static bool _on_file_update(pb_istream_t *stream, const pb_field_t *field, void 
 static void free_file_sync_info(FileManifest_FileDownload * download_info);
 static void restart_download_manager(void);
 bool encode_file_info (pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
+static uint32_t update_file_manifest(void);
+static uint32_t scan_files(char* path);
 
 // extern functions
 bool send_to_download_queue(SyncResponse_FileDownload* data, TickType_t ticks_to_wait);
@@ -143,6 +148,14 @@ static void DownloadManagerTask(void * filesyncdata)
 			/* UPDATE FILE INFO */
 
 			// Scan through file system and update file manifest
+			uint32_t ret = update_file_manifest();
+			if(ret)
+			{
+				LOGE("Error creating file manifest: %d\n", ret);
+				//TODO what is to be sent if this function returns an error
+			}
+
+			LOGI("File manifest created for uploading \n");
 
 			message_for_upload.file_info.funcs.encode = encode_file_info;
 			message_for_upload.file_info.arg = &file_manifest_local;
@@ -455,4 +468,64 @@ static inline void restart_download_manager(void)
 	xSemaphoreGive(_response_received_sem);
 }
 
+static uint32_t update_file_manifest(void)
+{
+	uint32_t res;
+	char path_buf[128] = {0};
+
+	strncpy(path_buf,"/",sizeof(path_buf));
+	res = scan_files(path_buf);
+
+	return res;
+
+}
+
+
+static uint32_t scan_files(char* path)
+{
+    FRESULT res;
+    FILINFO fno;
+    DIR dir;
+    int i;
+    char *fn;   /* This function assumes non-Unicode configuration */
+
+    res = hello_fs_opendir(&dir, path);                       /* Open the directory */
+    if (res == FR_OK) {
+        i = strlen(path);
+        for (;;) {
+            res = hello_fs_readdir(&dir, &fno);                   /* Read a directory item */
+            if (res != FR_OK || fno.fname[0] == 0) break;  /* Break on error or end of dir */
+            if (fno.fname[0] == '.') continue;             /* Ignore dot entry */
+
+            // todo exclude folders usr and logs
+            if( !strcmp(fno.fname, "LOGS"))
+            {
+            	LOGI("skipping logs\n");
+            	continue;
+            }
+
+            if( !strcmp(fno.fname, "USR"))
+            {
+            	LOGI("skipping usr\n");
+            	continue;
+            }
+
+            fn = fno.fname;
+            LOGI("DM fname: %s\n", fn);
+            if (fno.fattrib & AM_DIR) {                    /* It is a directory */
+                usnprintf(&path[i],128, "%s", fn);
+                LOGI("DM path: %s\n", path);
+                res = (FRESULT)scan_files(path);
+                path[i] = 0;
+                if (res != FR_OK) break;
+            } else {                                       /* It is a file. */
+                LOGI("DM full path: %s/%s\n", path, fn);
+            }
+            vTaskDelay(50/portTICK_PERIOD_MS);
+        }
+        hello_fs_closedir(&dir);
+    }
+
+    return res;
+}
 

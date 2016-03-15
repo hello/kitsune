@@ -432,7 +432,7 @@ Cmd_cat(int argc, char *argv[])
         // error to the user.
         if(res != FR_OK)
         {
-        	add_to_file_error_queue(path_buff, res, false); // TODO DKH
+        	//add_to_file_error_queue(path_buff, res, false); // TODO DKH
         	LOGF("\n");
             return((int)res);
         }
