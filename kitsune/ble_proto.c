@@ -199,7 +199,7 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type,
 		nwp_reset();
 		wifi_state_requested = true;
 
-	    if(!connect_wifi(ssid, password, security_type, version))
+	    if(connect_wifi(ssid, password, security_type, version, false) < 0)
 	    {
 			LOGI("failed to connect\n");
 	        ble_reply_protobuf_error(ErrorType_WLAN_CONNECTION_ERROR);
@@ -217,20 +217,39 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type,
 				break;
 			}
 		}
+		if( wifi_status_get(UPLOADING) ) {
+			#define INV_INDEX 0xff
+			int _connected_index = INV_INDEX;
+			int16_t ret = 0;
+			uint8_t retry = 5;
+			SlSecParams_t secParam = make_sec_params(ssid, password, security_type, version);
+
+			ret = sl_WlanProfileDel(0xFF);
+			while(sl_WlanProfileAdd((_i8*) ssid, strlen(ssid), NULL,
+					&secParam, NULL, 0, 0) < 0 && retry--){
+				ret = sl_WlanProfileDel(0xFF);
+				if (ret != 0) {
+					LOGI("profile del fail\n");
+				}
+			}
+			LOGI("index %d\n", _connected_index);
+		} else {
+			char ssid[MAX_SSID_LEN];
+			char mac[6];
+			SlGetSecParamsExt_t extSec;
+			uint32_t priority;
+			int16_t namelen;
+			SlSecParams_t secParam;
+			nwp_reset();
+			if( 0 < sl_WlanProfileGet(0,(_i8*)ssid, &namelen, (_u8*)mac, &secParam, &extSec, (_u32*)&priority)) {
+				sl_WlanConnect((_i8*) ssid, strlen(ssid), NULL, &secParam, 0);
+			}
+		}
 		wifi_state_requested = false;
 	} else {
-		int retry_count = 10;
 		bool connection_ret = false;
 		//play_led_progress_bar(0xFF, 128, 0, 128,portMAX_DELAY);
-	    while((connection_ret = connect_wifi(ssid, password, security_type, version)) == 0 && --retry_count)
-	    {
-	        //Cmd_led(0,0);
-	        LOGI("Failed to connect, retry times remain %d\n", retry_count);
-	        //set_led_progress_bar((max_retry - retry_count ) * 100 / max_retry);
-	        vTaskDelay(2000);
-	    }
-	    //stop_led_animation();
-
+	    connect_wifi(ssid, password, security_type, version, false);
 	    if(!connection_ret)
 	    {
 			LOGI("Tried all wifi ep, all failed to connect\n");
