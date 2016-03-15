@@ -160,7 +160,10 @@ void DMAPingPongCompleteAppCB_opt()
 				pong[i] = pong[2*i+1];
 				swap_endian(pong+i);
 			}
-			FillBuffer(pAudInBuf, (unsigned char*)pong, CB_TRANSFER_SZ);
+
+			adpcm_coder( pong, pcm, CB_TRANSFER_SZ/4, &pcm_state );
+
+			FillBuffer(pAudInBuf, (unsigned char*)pcm, CB_TRANSFER_SZ/8);
 		} else {
 			//ALT part of the ping pong
 			if ((pControlTable[ulAltIndexTx].ulControl & UDMA_CHCTL_XFERMODE_M)
@@ -176,7 +179,9 @@ void DMAPingPongCompleteAppCB_opt()
 					ping[i] = ping[2*i+1];
 					swap_endian(ping+i);
 				}
-				FillBuffer(pAudInBuf, (unsigned char*)ping, CB_TRANSFER_SZ);
+				adpcm_coder( ping, pcm, CB_TRANSFER_SZ/4, &pcm_state );
+
+				FillBuffer(pAudInBuf, (unsigned char*)pcm, CB_TRANSFER_SZ/8);
 			}
 		}
 

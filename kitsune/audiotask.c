@@ -42,8 +42,6 @@
 #define MAX_NUMBER_TIMES_TO_WAIT_FOR_AUDIO_BUFFER_TO_FILL (5)
 #define MAX_FILE_SIZE_BYTES (1048576*10)
 
-#define MONO_BUF_LENGTH (256)
-
 #define FLAG_SUCCESS (0x01)
 #define FLAG_STOP    (0x02)
 
@@ -346,7 +344,8 @@ cleanup:
 
 
 static void DoCapture(uint32_t rate) {
-	int16_t * samples = pvPortMalloc(MONO_BUF_LENGTH*2*2); //256 * 2bytes * 2 = 1KB
+	int16_t * samples = pvPortMalloc(PING_PONG_CHUNK_SIZE*4);
+	char * adpcm = pvPortMalloc(PING_PONG_CHUNK_SIZE);
 	char filepath[32];
 
 	int iBufferFilled = 0;
@@ -374,6 +373,8 @@ static void DoCapture(uint32_t rate) {
 	LOGI("done.\r\n");
 
 	InitAudioCapture(rate);
+
+	adpcm_state pcm_state = {0};
 
 	LOGI("%d free %d stk\n", xPortGetFreeHeapSize(),  uxTaskGetStackHighWaterMark(NULL));
 
@@ -499,7 +500,9 @@ static void DoCapture(uint32_t rate) {
 		}
 		else {
 			//dump buffer out
-			ReadBuffer(pTxBuffer,(uint8_t *)samples,PING_PONG_CHUNK_SIZE);
+			ReadBuffer(pTxBuffer,(uint8_t *)adpcm,PING_PONG_CHUNK_SIZE);
+
+			adpcm_decoder( adpcm, samples, PING_PONG_CHUNK_SIZE*2, &pcm_state );
 
 #ifdef PRINT_TIMING
 			t1 = xTaskGetTickCount(); dt = t1 - t0; t0 = t1;
@@ -507,7 +510,7 @@ static void DoCapture(uint32_t rate) {
 
 			//write to file
 			if (isSavingToFile) {
-				const uint32_t bytes_written = MONO_BUF_LENGTH*sizeof(int16_t);
+				const uint32_t bytes_written = PING_PONG_CHUNK_SIZE*2*sizeof(int16_t);
 
 				if (WriteToFile(&filedata,bytes_written,(const uint8_t *)samples)) {
 					num_bytes_written += bytes_written;
@@ -560,6 +563,7 @@ static void DoCapture(uint32_t rate) {
 
 	CAPTURE_CLEANUP:
 	vPortFree(samples);
+	vPortFree(adpcm);
 
 	if (isSavingToFile) {
 		CloseAndDeleteFile(&filedata);
