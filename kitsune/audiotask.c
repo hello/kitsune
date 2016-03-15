@@ -95,11 +95,11 @@ static void StatsCallback(const AudioOncePerMinuteData_t * pdata) {
 
 
 }
-
+#ifdef KIT_INCLUDE_FILE_UPLOAD
 static void QueueFileForUpload(const char * filename,uint8_t delete_after_upload) {
 	FileUploaderTask_Upload(filename,DATA_SERVER,RAW_AUDIO_ENDPOINT,delete_after_upload,NULL,NULL);
 }
-
+#endif
 
 static void Init(void) {
 	_isCapturing = 0;
@@ -416,6 +416,7 @@ static void DoCapture(uint32_t rate) {
 					if (flags & AUDIO_TRANSFER_FLAG_DELETE_IMMEDIATELY) {
 						CloseAndDeleteFile(&filedata);
 					}
+#ifdef KIT_INCLUDE_FILE_UPLOAD
 					else if (flags & AUDIO_TRANSFER_FLAG_UPLOAD) {
 						const uint8_t delete_after_upload = (flags & AUDIO_TRANSFER_FLAG_DELETE_AFTER_UPLOAD) > 0;
 
@@ -423,6 +424,7 @@ static void DoCapture(uint32_t rate) {
 
 						QueueFileForUpload(filedata.file_name,delete_after_upload);
 					}
+#endif
 					else {
 						//default -- just close it
 						CloseFile(&filedata);
