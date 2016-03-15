@@ -16,6 +16,10 @@
 
 #define FILE_ERROR_QUEUE_DEPTH (10)		// ensure that this matches the max_count for error_info in file_manifest.options
 #define QUERY_DELAY_DEFAULT		(15UL) //minutes
+#define PATH_BUF_MAX_SIZE		(64)
+#define FOLDERS_TO_EXCLUDE      (2)
+
+const char* folders[FOLDERS_TO_EXCLUDE] = {"LOGS", "USR"};
 
 typedef struct {
 	FileManifest_FileDownload * data;
@@ -143,6 +147,7 @@ static void DownloadManagerTask(void * filesyncdata)
 		// Check if response has been received
 		if(xSemaphoreTake(_response_received_sem,portMAX_DELAY))
 		{
+			LOGI("DM: Sem Taken\n");
 			vTaskDelayUntil(&start_time,query_delay_ticks); // TODO should this be vtaskdelay instead?
 
 			/* UPDATE FILE INFO */
@@ -224,7 +229,7 @@ static void DownloadManagerTask(void * filesyncdata)
 
 			//TODO are all parameters right
 			if(NetworkTask_SendProtobuf(
-					true, DATA_SERVER, FILE_SYNC_ENDPOINT, FileManifest_fields, &message_for_upload, INT_MAX, NULL, NULL, &pb_cb, false)
+					true, DATA_SERVER, FILE_SYNC_ENDPOINT, FileManifest_fields, &message_for_upload, 0, NULL, NULL, &pb_cb, false)
 					!= 0 )
 			{
 				LOGI("File manifest failed to upload \n");
@@ -241,6 +246,8 @@ static void DownloadManagerTask(void * filesyncdata)
 				// give semaphore here to restart sending
 				//restart_download_manager();
 			}
+
+			LOGI("DM: file upload sent\n");
 
 
 			// Update wake time
@@ -465,13 +472,14 @@ static void get_file_download_status(FileManifest_FileStatusType* file_status)
 
 static inline void restart_download_manager(void)
 {
+	LOGI("DM: Sem Give\n");
 	xSemaphoreGive(_response_received_sem);
 }
 
 static uint32_t update_file_manifest(void)
 {
 	uint32_t res;
-	char path_buf[128] = {0};
+	char path_buf[PATH_BUF_MAX_SIZE] = {0};
 
 	strncpy(path_buf,"/",sizeof(path_buf));
 	res = scan_files(path_buf);
@@ -487,33 +495,35 @@ static uint32_t scan_files(char* path)
     FILINFO fno;
     DIR dir;
     int i;
+    int j;
     char *fn;   /* This function assumes non-Unicode configuration */
 
     res = hello_fs_opendir(&dir, path);                       /* Open the directory */
     if (res == FR_OK) {
         i = strlen(path);
         for (;;) {
+
             res = hello_fs_readdir(&dir, &fno);                   /* Read a directory item */
             if (res != FR_OK || fno.fname[0] == 0) break;  /* Break on error or end of dir */
             if (fno.fname[0] == '.') continue;             /* Ignore dot entry */
 
-            // todo exclude folders usr and logs
-            if( !strcmp(fno.fname, "LOGS"))
+
+            for(j=0;j<FOLDERS_TO_EXCLUDE;j++)
             {
-            	LOGI("skipping logs\n");
-            	continue;
+                if( !strcmp(fno.fname, folders[j]))
+                {
+                	LOGI("skipping %s\n",fno.fname );
+                	break;
+                }
+
             }
 
-            if( !strcmp(fno.fname, "USR"))
-            {
-            	LOGI("skipping usr\n");
-            	continue;
-            }
+            if(j<FOLDERS_TO_EXCLUDE) continue;
 
             fn = fno.fname;
             LOGI("DM fname: %s\n", fn);
             if (fno.fattrib & AM_DIR) {                    /* It is a directory */
-                usnprintf(&path[i],128, "%s", fn);
+                usnprintf(&path[i],PATH_BUF_MAX_SIZE * sizeof(char), "%s", fn);
                 LOGI("DM path: %s\n", path);
                 res = (FRESULT)scan_files(path);
                 path[i] = 0;
