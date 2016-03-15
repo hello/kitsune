@@ -1114,6 +1114,7 @@ void thread_tx(void* unused) {
 				save_aes_in_memory(DEFAULT_KEY);
 #endif
 
+#ifdef SELF_PROVISION_SUPPORT
 				//try a test key with whatever we have so long as it is not the default
 				if( !has_default_key() ) {
 					uint8_t current_key[AES_BLOCKSIZE] = {0};
@@ -1128,6 +1129,7 @@ void thread_tx(void* unused) {
 					pr.need_key = true;
 					send_provision_request(&pr);
 				}
+#endif
 			}
 
 			wifi_get_connected_ssid( (uint8_t*)data_batched.connected_ssid, sizeof(data_batched) );

@@ -1769,11 +1769,17 @@ static void _on_factory_reset_received()
 #include "led_animations.h"
 
 int force_data_push();
+
+#ifdef SELF_PROVISION_SUPPORT
 extern volatile bool provisioning_mode;
+#endif
+
 void boot_commit_ota();
 
 static void _on_key_check_success(void * structdata){
 	LOGF("signature validated\r\n");
+
+#ifdef SELF_PROVISION_SUPPORT
 	if (provisioning_mode) {
 		sl_FsDel((unsigned char*)PROVISION_FILE, 0);
 		wifi_reset();
@@ -1785,9 +1791,12 @@ static void _on_key_check_success(void * structdata){
 	}
 
 	provisioning_mode = false;
+#endif
 }
 static void _on_key_check_failure( void * structdata){
 	LOGF("signature validation fail\r\n");
+
+#ifdef SELF_PROVISION_SUPPORT
 	//light up if we're in provisioning mode but not if we're testing the key from top
 	//this handles the overlap case where we want to get keys from top but the server doesn't yet have the blobs
 	//allowing us to fall back to the key handshake with the server
@@ -1798,6 +1807,7 @@ static void _on_key_check_failure( void * structdata){
 			vTaskDelay(100);
 		}
 	}
+#endif
 	save_aes_in_memory(DEFAULT_KEY);
 	force_data_push(); //and make sure the retry happens right away
 }
@@ -1979,6 +1989,8 @@ bool send_periodic_data(batched_periodic_data* data, bool forced, int32_t to) {
 			DATA_RECEIVE_ENDPOINT, batched_periodic_data_fields, data, to,
 			NULL, NULL, &pb_cb, forced);
 }
+
+#ifdef SELF_PROVISION_SUPPORT
 static void _get_provision_response(pb_field_t ** fields, void ** structdata){
 	*fields = (pb_field_t *)MorpheusCommand_fields;
 	*structdata = pvPortMalloc(sizeof(ProvisionResponse));
@@ -2027,6 +2039,7 @@ bool send_provision_request(ProvisionRequest* req) {
 	return NetworkTask_SendProtobuf(true, DATA_SERVER, PROVISION_ENDPOINT,
 			ProvisionRequest_fields, req, INT_MAX, NULL,NULL, &pb_cb, true);
 }
+#endif
 
 int Cmd_sl(int argc, char*argv[]) {
 
