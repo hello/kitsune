@@ -127,14 +127,14 @@ static void _sense_state_task(hlo_future_t * result, void * ctx){
 			DISP("AudioState %s\r\n", last_audio_state.playing_audio?"Playing":"Stopped");
 			state_sent = NetworkTask_SendProtobuf(true, DATA_SERVER,
 							SENSE_STATE_ENDPOINT, SenseState_fields, &sense_state, 3000,
-							NULL, NULL, &pb_cb, true);
+							NULL, NULL, &pb_cb, false);
 			DISP("AudioState upload %s\r\n", state_sent?"Success":"Fail");
 		}else if(!state_sent && wifi_status_get(HAS_IP)){
 			sense_state.audio_state = last_audio_state;
 			DISP("Retrying AudioState %s\r\n", last_audio_state.playing_audio?"Playing":"Stopped");
 			state_sent = NetworkTask_SendProtobuf(true, DATA_SERVER,
 										SENSE_STATE_ENDPOINT, SenseState_fields, &sense_state, 3000,
-										NULL, NULL, &pb_cb, true);
+										NULL, NULL, &pb_cb, false);
 			DISP("AudioState upload %s\r\n", state_sent?"Success":"Fail");
 		}
 	}
@@ -165,7 +165,7 @@ static void Init(void) {
 
 
 	_state_queue =  xQueueCreate(INBOX_QUEUE_LENGTH,sizeof(AudioState));
-	hlo_future_create_task_bg(_sense_state_task, NULL, 512);
+	hlo_future_create_task_bg(_sense_state_task, NULL, 1024);
 
 }
 
