@@ -19,3 +19,4 @@ void adpcm_decoder(char *indata, short *outdata, int len, adpcm_state *state);
 
 
 #endif
+

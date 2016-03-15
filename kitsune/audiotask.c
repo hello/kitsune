@@ -236,7 +236,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		return returnFlags;
 	}
 
-	memset(speaker_data,0,SPEAKER_DATA_CHUNK_SIZE);
+	memset(speaker_data,0,FLASH_PAGE_SIZE);
 
 	adpcm_state pcm_state = {0};
 
