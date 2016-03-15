@@ -94,11 +94,11 @@ static void StatsCallback(const AudioOncePerMinuteData_t * pdata) {
 
 
 }
-
+#ifdef KIT_INCLUDE_FILE_UPLOAD
 static void QueueFileForUpload(const char * filename,uint8_t delete_after_upload) {
 	FileUploaderTask_Upload(filename,DATA_SERVER,RAW_AUDIO_ENDPOINT,delete_after_upload,NULL,NULL);
 }
-
+#endif
 
 static void Init(void) {
 	_isCapturing = 0;
@@ -294,6 +294,9 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 				} else if( returnFlags) {
 					LOGI("stopping playback\n");
 					goto cleanup;
+				} else if( (desired_ticks_elapsed - (int32_t)(xTaskGetTickCount() - t0)) < 0 ) {
+					LOGI("completed playback\n");
+					goto cleanup;
 				}
 				if( !ulTaskNotifyTake( pdTRUE, 5000 ) ) {
 					goto cleanup;
@@ -303,7 +306,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 			FillBuffer(pRxBuffer, (unsigned char*) (speaker_data_enc), size/4);
 		}
 		else {
-			if ( desired_ticks_elapsed > 0) {
+			if( desired_ticks_elapsed - (xTaskGetTickCount() - t0) > 0) {
 				//LOOP THE FILE -- start over
 				LOGI("looping %d\n", desired_ticks_elapsed - (xTaskGetTickCount() - t0)  );
 				hello_fs_lseek(&fp,0);
@@ -423,6 +426,7 @@ static void DoCapture(uint32_t rate) {
 					if (flags & AUDIO_TRANSFER_FLAG_DELETE_IMMEDIATELY) {
 						CloseAndDeleteFile(&filedata);
 					}
+#ifdef KIT_INCLUDE_FILE_UPLOAD
 					else if (flags & AUDIO_TRANSFER_FLAG_UPLOAD) {
 						const uint8_t delete_after_upload = (flags & AUDIO_TRANSFER_FLAG_DELETE_AFTER_UPLOAD) > 0;
 
@@ -430,6 +434,7 @@ static void DoCapture(uint32_t rate) {
 
 						QueueFileForUpload(filedata.file_name,delete_after_upload);
 					}
+#endif
 					else {
 						//default -- just close it
 						CloseFile(&filedata);

@@ -137,8 +137,6 @@ void SimpleLinkSockEventHandler(SlSockEvent_t *pSock)
 
 static uint8_t _connected_ssid[MAX_SSID_LEN];
 
-#define INV_INDEX 0xff
-static int _connected_index = INV_INDEX;
 
 static uint8_t _connected_bssid[BSSID_LEN];
 void wifi_get_connected_ssid(uint8_t* ssid_buffer, size_t len)
@@ -234,16 +232,6 @@ LOGI("GENEVT ID=%d Sender=%d\n",pDevEvent->EventData.deviceEvent.status, pDevEve
 //
 //****************************************************************************
 static void wifi_ip_update_task( void * params ) {
-
-    if( _connected_index != INV_INDEX ) {
-    	int i;
-    	for( i=0; i < 7; ++i ) {
-    		if( i != _connected_index ) {
-    		    sl_WlanProfileDel(i);
-    		}
-    	}
-    }
-
     ble_reply_wifi_status(wifi_connection_state_IP_RETRIEVED);
 
 	vTaskDelete(NULL);
@@ -657,13 +645,12 @@ int Cmd_disconnect(int argc, char *argv[]) {
     wifi_reset();
     return (0);
 }
-int connect_wifi(const char* ssid, const char* password, int sec_type, int version);
 int Cmd_connect(int argc, char *argv[]) {
     if (argc != 4) {
     	LOGF(
                 "usage: connect <ssid> <key> <security: 0=open, 1=wep, 2=wpa>\n\r");
     }
-    connect_wifi( argv[1], argv[2], atoi(argv[3]), 1 );
+    connect_wifi( argv[1], argv[2], atoi(argv[3]), 1, true );
     return (0);
 }
 
@@ -2469,7 +2456,7 @@ int Cmd_RadioStopTX(int argc, char*argv[])
 //end radio test functions
 #endif
 
-int connect_wifi(const char* ssid, const char* password, int sec_type, int version)
+SlSecParams_t make_sec_params(const char* ssid, const char* password, int sec_type, int version)
 {
 	SlSecParams_t secParam = {0};
 
@@ -2498,32 +2485,27 @@ int connect_wifi(const char* ssid, const char* password, int sec_type, int versi
 		UARTprintf("\n" );
 		memcpy( secParam.Key, wep_hex, secParam.KeyLen + 1 );
     }
-
+    return secParam;
+}
+int connect_wifi(const char* ssid, const char* password, int sec_type, int version, bool save)
+{
 	int16_t ret = 0;
-	uint8_t retry = 5;
-	while((_connected_index = sl_WlanProfileAdd((_i8*) ssid, strlen(ssid), NULL,
-			&secParam, NULL, 0, 0)) < 0 && retry--){
-		ret = sl_WlanProfileDel(0xFF);
-		if (ret != 0) {
-			LOGI("profile del fail\n");
-		}
-	}
-	LOGI("index %d\n", _connected_index);
+	SlSecParams_t secParam = make_sec_params(ssid, password, sec_type, version);
 
-	if (_connected_index < 0) {
-		LOGI("profile add fail\n");
-		return 0;
-	}
 	ret = sl_WlanConnect((_i8*) ssid, strlen(ssid), NULL, sec_type == SL_SEC_TYPE_OPEN ? NULL : &secParam, 0);
+
+	if( save ) {
+		sl_WlanProfileAdd((_i8*) ssid, strlen(ssid), NULL,
+							&secParam, NULL, 0, 0);
+	}
 	if(ret == 0 || ret == -71)
 	{
 		LOGI("WLAN connect attempt issued\n");
-
-		return 1;
+	    ble_reply_wifi_status(wifi_connection_state_WLAN_CONNECTING);
+	    return 0;
+	} else {
+        return -1;
 	}
-    ble_reply_wifi_status(wifi_connection_state_WLAN_CONNECTING);
-
-	return 0;
 }
 static xSemaphoreHandle _sl_status_mutex;
 static unsigned int _wifi_status;

@@ -80,7 +80,9 @@
 #include "fs.h"
 #include "sl_sync_include_after_simplelink_header.h"
 
+#ifdef KIT_INCLUDE_FILE_UPLOAD
 #include "fileuploadertask.h"
+#endif
 #include "hellofilesystem.h"
 
 #include "hw_ver.h"
@@ -339,7 +341,9 @@ int Cmd_audio_turn_on(int argc, char * argv[]) {
 	AudioTask_StartCapture(16000);
 
 	AudioProcessingTask_SetControl(featureUploadsOn,NULL,NULL,0);
+#ifdef KIT_INCLUDE_FILE_UPLOAD
 	AudioProcessingTask_SetControl(rawUploadsOn,NULL,NULL,0);
+#endif
 
 	return 0;
 }
@@ -1749,7 +1753,9 @@ void launch_tasks() {
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 3, NULL);
 	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,2,NULL);
 	UARTprintf("*");
-	xTaskCreate(FileUploaderTask_Thread,"fileUploadTask",1*1024/4,NULL,1,NULL);
+#ifdef KIT_INCLUDE_FILE_UPLOAD
+	xTaskCreate(FileUploaderTask_Thread,"fileUploadTask", 1024/4,NULL,1,NULL);
+#endif
 #ifdef BUILD_SERVERS //todo PVT disable!
 	xTaskCreate(telnetServerTask,"telnetServerTask",512/4,NULL,4,NULL);
 	xTaskCreate(httpServerTask,"httpServerTask",3*512/4,NULL,4,NULL);
