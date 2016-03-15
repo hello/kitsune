@@ -123,14 +123,13 @@ static void _sense_state_task(hlo_future_t * result, void * ctx){
 	bool state_sent = true;
 	while(1){
 		if(xQueueReceive( _state_queue,(void *) &(sense_state.audio_state), 5000)){
-			last_audio_state = sense_state.audio_state; 				//cache the last played value
+			last_audio_state = sense_state.audio_state;
 			DISP("AudioState %s\r\n", last_audio_state.playing_audio?"Playing":"Stopped");
 			state_sent = NetworkTask_SendProtobuf(true, DATA_SERVER,
 							SENSE_STATE_ENDPOINT, SenseState_fields, &sense_state, 3000,
 							NULL, NULL, &pb_cb, true);
 			DISP("AudioState upload %s\r\n", state_sent?"Success":"Fail");
-		}else if(!state_sent){
-			//timeout, update server with current audio state?
+		}else if(!state_sent && wifi_status_get(HAS_IP)){
 			sense_state.audio_state = last_audio_state;
 			DISP("Retrying AudioState %s\r\n", last_audio_state.playing_audio?"Playing":"Stopped");
 			state_sent = NetworkTask_SendProtobuf(true, DATA_SERVER,
