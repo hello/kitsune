@@ -42,7 +42,10 @@ int sl_mode;
 
 #include "stdint.h"
 #include "sync_response.pb.h"
+
+#ifdef SELF_PROVISION_SUPPORT
 #include "provision.pb.h"
+#endif
 
 #define INV_TIME 0xffffffff
 extern
@@ -113,7 +116,11 @@ int wifi_status_get(unsigned int status);
 
 bool send_periodic_data(batched_periodic_data* data, bool forced, int32_t to);
 bool send_pill_data_generic(batched_pill_data * pill_data, const char * endpoint);
+
+#ifdef SELF_PROVISION_SUPPORT
 bool send_provision_request(ProvisionRequest* req);
+#endif
+
 #define DEFAULT_KEY "1234567891234567"
 
 void thread_ota( void * unused );
