@@ -209,8 +209,19 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type,
 	    force_data_push();
 
 		while( !wifi_status_get(UPLOADING) ) {
-			vTaskDelay(1000);
-			if( ++to > 60 ) {
+			vTaskDelay(10000);
+
+			if (wifi_status_get(CONNECTING)) {
+				ble_reply_wifi_status(wifi_connection_state_WLAN_CONNECTING);
+			} else if (wifi_status_get(CONNECT)) {
+				ble_reply_wifi_status(wifi_connection_state_WLAN_CONNECTED);
+			} else if (wifi_status_get(IP_LEASED)) {
+				ble_reply_wifi_status(wifi_connection_state_IP_RETRIEVED);
+			} else if (!wifi_status_get(0xFFFFFFFF)) {
+				ble_reply_wifi_status(wifi_connection_state_NO_WLAN_CONNECTED);
+			}
+
+			if( ++to > 6 ) {
 				LOGI("wifi timeout\n");
 				wifi_state_requested = false;
 				ble_reply_protobuf_error(ErrorType_SERVER_CONNECTION_TIMEOUT);

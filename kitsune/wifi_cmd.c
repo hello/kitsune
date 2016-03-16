@@ -1086,17 +1086,13 @@ int stop_connection(int * sock) {
     return *sock;
 }
 static void set_backup_dns() {
-	#define NUM_ALT_DNS 6
+	#define NUM_ALT_DNS 2
 	static int backup_idx = 0;
     SlNetCfgIpV4Args_t config = {0};
     unsigned char len = sizeof(SlNetCfgIpV4Args_t);
     uint8_t ip[NUM_ALT_DNS][4] = {
     		{8,8,8,8}, //google
 			{8,8,4,4},
-			{208,67,222,222}, //opendns
-			{208,67,220,220},
-			{208,67,222,220},
-			{208,67,220,222},
     };
     sl_NetCfgGet(SL_IPV4_STA_P2P_CL_GET_INFO, NULL, &len, (unsigned char*)&config);
 
@@ -1124,6 +1120,10 @@ int start_connection(int * sock, char * host, security_type sec) {
     int rv;
     unsigned long ipaddr = 0;
     int sock_begin = *sock;
+
+    while(!wifi_status_get(HAS_IP)) {
+    	vTaskDelay(1000);
+    }
 
     if (*sock < 0) {
         if( sec == SOCKET_SEC_SSL ) {
