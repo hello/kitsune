@@ -98,10 +98,11 @@ static void StatsCallback(const AudioOncePerMinuteData_t * pdata) {
 
 
 }
-
+#ifdef KIT_INCLUDE_FILE_UPLOAD
 static void QueueFileForUpload(const char * filename,uint8_t delete_after_upload) {
 	FileUploaderTask_Upload(filename,DATA_SERVER,RAW_AUDIO_ENDPOINT,delete_after_upload,NULL,NULL);
 }
+#endif
 /**
  * sense state task is an async task that is responsible for caching the correct audio playback state
  * and ensure its delivery to the server
@@ -131,6 +132,7 @@ static void _sense_state_task(hlo_future_t * result, void * ctx){
 		}
 	}
 }
+
 static void Init(void) {
 	_isCapturing = 0;
 	_callCounter = 0;
@@ -190,13 +192,12 @@ static unsigned int fade_in_vol(unsigned int fade_counter, unsigned int volume, 
 static unsigned int fade_out_vol(unsigned int fade_counter, unsigned int volume, unsigned int fade_length) {
     return volume - fade_counter * FADE_SPAN / fade_length;
 }
-
-#include "stdbool.h"
-extern volatile bool booted;
 extern xSemaphoreHandle i2c_smphr;
 
 static void _set_volume_task(hlo_future_t * result, void * ctx){
 	volatile unsigned long vol_to_set = *(volatile unsigned long*)ctx;
+
+	LOGI("Setting volume %d at %d\n", vol_to_set, xTaskGetTickCount());
 	if( xSemaphoreTakeRecursive(i2c_smphr, 100)) {
 		vTaskDelay(5);
 		set_volume(vol_to_set, 0);
@@ -232,6 +233,8 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	FIL fp = {0};
 	UINT size;
 	FRESULT res;
+	EAudioPlaybackType_t playback_type = eAudioPlayFile;
+	int i;
 	uint8_t returnFlags = 0x00;
 
 	int32_t desired_ticks_elapsed;
@@ -262,6 +265,8 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	if( fade_length != 0 ) {
 		i2c_volume = initial_volume = 1;
 		t0 = fade_time =  xTaskGetTickCount();
+
+		LOGI("start fade in %d\n", fade_time);
 	}
 
 	if ( !InitAudioPlayback(initial_volume, info->rate ) ) {
@@ -290,6 +295,22 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		/* Read always in block of 512 Bytes or less else it will stuck in hello_fs_read() */
 		res = hello_fs_read(&fp, speaker_data, FLASH_PAGE_SIZE, &size);
 
+			switch (playback_type) {
+				case eAudioPlayFile: {
+					/* Read always in block of 512 Bytes or less else it will stuck in hello_fs_read() */
+					res = hello_fs_read(&fp, speaker_data, FLASH_PAGE_SIZE, &size);
+					break;
+				}
+				case eAudioPlayRand: {
+					for (i = 0; i < 512; ++i) {
+						speaker_data[i] = rand();
+					}
+					size = i;
+					break;
+				}
+				default:
+				LOGE("NO PLAYBACK TYPE\r\n");
+			}
 		if ( res == FR_OK && size > 0 ) {
 
 			/* Wait to avoid buffer overflow as reading speed is faster than playback */
@@ -306,8 +327,10 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 					if (fade_counter > fade_length) {
 						if( fade_in ) {
 							fade_in = false;
+							LOGI("finish fade in %d\n", fade_counter);
 						}
 						if( fade_out ) {
+							LOGI("finish fade out %d\n", fade_counter);
 							goto cleanup;
 						}
 					} else {
@@ -335,9 +358,13 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 						fade_out = true;
 						fade_length = info->fade_out_ms;
 						fade_counter = 0;
+						LOGI("start fadeout %d %d %d\n", volume, fade_length, fade_time);
 					}
 				} else if( returnFlags) {
 					LOGI("stopping playback\n");
+					goto cleanup;
+				} else if( (desired_ticks_elapsed - (int32_t)(xTaskGetTickCount() - t0)) < 0 && desired_ticks_elapsed > 0 ) {
+					LOGI("completed playback\n");
 					goto cleanup;
 				}
 				if( !ulTaskNotifyTake( pdTRUE, 5000 ) ) {
@@ -348,7 +375,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 			FillBuffer(pRxBuffer, (unsigned char*) (speaker_data), size);
 		}
 		else {
-			if ( desired_ticks_elapsed > 0) {
+			if( desired_ticks_elapsed - (xTaskGetTickCount() - t0) > 0 && desired_ticks_elapsed > 0 ) {
 				//LOOP THE FILE -- start over
 				LOGI("looping %d\n", desired_ticks_elapsed - (xTaskGetTickCount() - t0)  );
 				hello_fs_lseek(&fp,0);
@@ -465,6 +492,7 @@ static void DoCapture(uint32_t rate) {
 					if (flags & AUDIO_TRANSFER_FLAG_DELETE_IMMEDIATELY) {
 						CloseAndDeleteFile(&filedata);
 					}
+#ifdef KIT_INCLUDE_FILE_UPLOAD
 					else if (flags & AUDIO_TRANSFER_FLAG_UPLOAD) {
 						const uint8_t delete_after_upload = (flags & AUDIO_TRANSFER_FLAG_DELETE_AFTER_UPLOAD) > 0;
 
@@ -472,6 +500,7 @@ static void DoCapture(uint32_t rate) {
 
 						QueueFileForUpload(filedata.file_name,delete_after_upload);
 					}
+#endif
 					else {
 						//default -- just close it
 						CloseFile(&filedata);

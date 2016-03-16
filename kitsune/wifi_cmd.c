@@ -137,8 +137,6 @@ void SimpleLinkSockEventHandler(SlSockEvent_t *pSock)
 
 static uint8_t _connected_ssid[MAX_SSID_LEN];
 
-#define INV_INDEX 0xff
-static int _connected_index = INV_INDEX;
 
 static uint8_t _connected_bssid[BSSID_LEN];
 void wifi_get_connected_ssid(uint8_t* ssid_buffer, size_t len)
@@ -219,9 +217,24 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
         break;
     }
 }
+
+static void bad_wifi_password( void * params ) {
+	sl_WlanDisconnect();
+	ble_reply_protobuf_error(ErrorType_BAD_WIFI_PASSWORD);
+
+	vTaskDelete(NULL);
+}
+
+
 void SimpleLinkGeneralEventHandler(SlDeviceEvent_t *pDevEvent)
 {
-LOGI("GENEVT ID=%d Sender=%d\n",pDevEvent->EventData.deviceEvent.status, pDevEvent->EventData.deviceEvent.sender);
+	LOGI("GENEVT ID=%d Sender=%d\n", pDevEvent->EventData.deviceEvent.status,
+			pDevEvent->EventData.deviceEvent.sender);
+
+	if (pDevEvent->EventData.deviceEvent.status
+			== SL_ERROR_CON_MGMT_STATUS_DISCONNECT_DURING_CONNECT) {
+		xTaskCreate(bad_wifi_password, "bad_wifi_password", 1024 / 4, NULL, 1, NULL);
+	}
 }
 //****************************************************************************
 //
@@ -234,16 +247,6 @@ LOGI("GENEVT ID=%d Sender=%d\n",pDevEvent->EventData.deviceEvent.status, pDevEve
 //
 //****************************************************************************
 static void wifi_ip_update_task( void * params ) {
-
-    if( _connected_index != INV_INDEX ) {
-    	int i;
-    	for( i=0; i < 7; ++i ) {
-    		if( i != _connected_index ) {
-    		    sl_WlanProfileDel(i);
-    		}
-    	}
-    }
-
     ble_reply_wifi_status(wifi_connection_state_IP_RETRIEVED);
 
 	vTaskDelete(NULL);
@@ -657,13 +660,12 @@ int Cmd_disconnect(int argc, char *argv[]) {
     wifi_reset();
     return (0);
 }
-int connect_wifi(const char* ssid, const char* password, int sec_type, int version);
 int Cmd_connect(int argc, char *argv[]) {
     if (argc != 4) {
     	LOGF(
                 "usage: connect <ssid> <key> <security: 0=open, 1=wep, 2=wpa>\n\r");
     }
-    connect_wifi( argv[1], argv[2], atoi(argv[3]), 1 );
+    connect_wifi( argv[1], argv[2], atoi(argv[3]), 1, true );
     return (0);
 }
 
@@ -1098,12 +1100,45 @@ int stop_connection(int * sock) {
     *sock = -1;
     return *sock;
 }
+static void set_backup_dns() {
+	#define NUM_ALT_DNS 2
+	static int backup_idx = 0;
+    SlNetCfgIpV4Args_t config = {0};
+    unsigned char len = sizeof(SlNetCfgIpV4Args_t);
+    uint8_t ip[NUM_ALT_DNS][4] = {
+    		{8,8,8,8}, //google
+			{8,8,4,4},
+    };
+    sl_NetCfgGet(SL_IPV4_STA_P2P_CL_GET_INFO, NULL, &len, (unsigned char*)&config);
+
+    LOGI("current DNS %d.%d.%d.%d\n",
+			SL_IPV4_BYTE(config.ipV4DnsServer, 3), SL_IPV4_BYTE(config.ipV4DnsServer, 2),
+			SL_IPV4_BYTE(config.ipV4DnsServer, 1), SL_IPV4_BYTE(config.ipV4DnsServer, 0)
+			);
+
+    config.ipV4DnsServer = (uint32_t)SL_IPV4_VAL(
+    		ip[backup_idx][0],ip[backup_idx][1],ip[backup_idx][2],ip[backup_idx][3]);
+
+    LOGI("New DNS %d.%d.%d.%d\n",
+			SL_IPV4_BYTE(config.ipV4DnsServer, 3), SL_IPV4_BYTE(config.ipV4DnsServer, 2),
+			SL_IPV4_BYTE(config.ipV4DnsServer, 1), SL_IPV4_BYTE(config.ipV4DnsServer, 0)
+			);
+
+    sl_NetCfgSet(SL_IPV4_STA_P2P_CL_STATIC_ENABLE, 1, sizeof(SlNetCfgIpV4Args_t), (unsigned char*)&config);
+
+    backup_idx = (backup_idx + 1) % NUM_ALT_DNS;
+}
+
 int start_connection(int * sock, char * host, security_type sec) {
     sockaddr sAddr;
     timeval tv;
     int rv;
     unsigned long ipaddr = 0;
     int sock_begin = *sock;
+
+    while(!wifi_status_get(HAS_IP)) {
+    	vTaskDelay(1000);
+    }
 
     if (*sock < 0) {
         if( sec == SOCKET_SEC_SSL ) {
@@ -1128,13 +1163,16 @@ int start_connection(int * sock, char * host, security_type sec) {
 			}
         } else {
 			*sock = socket(AF_INET, SOCK_STREAM, SL_IPPROTO_TCP);
-			tv.tv_sec = 2;             // Seconds
-			tv.tv_usec = 0;           // Microseconds. 10000 microseconds resolution
-			setsockopt(*sock, SOL_SOCKET, SL_SO_RCVTIMEO, &tv, sizeof(tv)); // Enable receive timeout
-
         }
     }
 
+	tv.tv_sec = 2;             // Seconds
+	tv.tv_usec = 0;           // Microseconds. 10000 microseconds resolution
+	setsockopt(*sock, SOL_SOCKET, SL_SO_RCVTIMEO, &tv, sizeof(tv)); // Enable receive timeout
+
+    SlSockNonblocking_t enableOption;
+    enableOption.NonblockingEnabled = 1;
+    sl_SetSockOpt(*sock,SL_SOL_SOCKET,SL_SO_NONBLOCKING, (_u8 *)&enableOption,sizeof(enableOption)); // Enable/disable nonblocking mode
 
     if (*sock < 0) {
         LOGI("Socket create failed %d\n\r", *sock);
@@ -1152,6 +1190,8 @@ int start_connection(int * sock, char * host, security_type sec) {
         	static portTickType last_reset_time = 0;
 			LOGI("failed to resolves addr rv %d\n", rv);
 			ble_reply_wifi_status(wifi_connection_state_DNS_FAILED);
+			set_backup_dns();
+
             #define SIX_MINUTES 360000
             if( last_reset_time == 0 || xTaskGetTickCount() - last_reset_time > SIX_MINUTES ) {
                 last_reset_time = xTaskGetTickCount();
@@ -1189,10 +1229,6 @@ int start_connection(int * sock, char * host, security_type sec) {
     sAddr.sa_data[5] = (char) () & 0xff);
 
 #endif
-    SlSockNonblocking_t enableOption;
-    enableOption.NonblockingEnabled = 1;
-    sl_SetSockOpt(*sock,SL_SOL_SOCKET,SL_SO_NONBLOCKING, (_u8 *)&enableOption,sizeof(enableOption)); // Enable/disable nonblocking mode
-
     //connect it up
     //LOGI("Connecting \n\r\n\r");
     retry_connect:
@@ -1797,11 +1833,17 @@ static void _on_factory_reset_received()
 #include "led_animations.h"
 
 int force_data_push();
+
+#ifdef SELF_PROVISION_SUPPORT
 extern volatile bool provisioning_mode;
+#endif
+
 void boot_commit_ota();
 
 static void _on_key_check_success(void * structdata){
 	LOGF("signature validated\r\n");
+
+#ifdef SELF_PROVISION_SUPPORT
 	if (provisioning_mode) {
 		sl_FsDel((unsigned char*)PROVISION_FILE, 0);
 		wifi_reset();
@@ -1813,9 +1855,12 @@ static void _on_key_check_success(void * structdata){
 	}
 
 	provisioning_mode = false;
+#endif
 }
 static void _on_key_check_failure( void * structdata){
 	LOGF("signature validation fail\r\n");
+
+#ifdef SELF_PROVISION_SUPPORT
 	//light up if we're in provisioning mode but not if we're testing the key from top
 	//this handles the overlap case where we want to get keys from top but the server doesn't yet have the blobs
 	//allowing us to fall back to the key handshake with the server
@@ -1826,6 +1871,7 @@ static void _on_key_check_failure( void * structdata){
 			vTaskDelay(100);
 		}
 	}
+#endif
 	save_aes_in_memory(DEFAULT_KEY);
 	force_data_push(); //and make sure the retry happens right away
 }
@@ -2007,6 +2053,8 @@ bool send_periodic_data(batched_periodic_data* data, bool forced, int32_t to) {
 			DATA_RECEIVE_ENDPOINT, batched_periodic_data_fields, data, to,
 			NULL, NULL, &pb_cb, forced);
 }
+
+#ifdef SELF_PROVISION_SUPPORT
 static void _get_provision_response(pb_field_t ** fields, void ** structdata){
 	*fields = (pb_field_t *)MorpheusCommand_fields;
 	*structdata = pvPortMalloc(sizeof(ProvisionResponse));
@@ -2055,6 +2103,7 @@ bool send_provision_request(ProvisionRequest* req) {
 	return NetworkTask_SendProtobuf(true, DATA_SERVER, PROVISION_ENDPOINT,
 			ProvisionRequest_fields, req, INT_MAX, NULL,NULL, &pb_cb, true);
 }
+#endif
 
 int Cmd_sl(int argc, char*argv[]) {
 
@@ -2484,7 +2533,7 @@ int Cmd_RadioStopTX(int argc, char*argv[])
 //end radio test functions
 #endif
 
-int connect_wifi(const char* ssid, const char* password, int sec_type, int version)
+SlSecParams_t make_sec_params(const char* ssid, const char* password, int sec_type, int version)
 {
 	SlSecParams_t secParam = {0};
 
@@ -2513,32 +2562,27 @@ int connect_wifi(const char* ssid, const char* password, int sec_type, int versi
 		UARTprintf("\n" );
 		memcpy( secParam.Key, wep_hex, secParam.KeyLen + 1 );
     }
-
+    return secParam;
+}
+int connect_wifi(const char* ssid, const char* password, int sec_type, int version, bool save)
+{
 	int16_t ret = 0;
-	uint8_t retry = 5;
-	while((_connected_index = sl_WlanProfileAdd((_i8*) ssid, strlen(ssid), NULL,
-			&secParam, NULL, 0, 0)) < 0 && retry--){
-		ret = sl_WlanProfileDel(0xFF);
-		if (ret != 0) {
-			LOGI("profile del fail\n");
-		}
-	}
-	LOGI("index %d\n", _connected_index);
+	SlSecParams_t secParam = make_sec_params(ssid, password, sec_type, version);
 
-	if (_connected_index < 0) {
-		LOGI("profile add fail\n");
-		return 0;
-	}
 	ret = sl_WlanConnect((_i8*) ssid, strlen(ssid), NULL, sec_type == SL_SEC_TYPE_OPEN ? NULL : &secParam, 0);
+
+	if( save ) {
+		sl_WlanProfileAdd((_i8*) ssid, strlen(ssid), NULL,
+							&secParam, NULL, 0, 0);
+	}
 	if(ret == 0 || ret == -71)
 	{
 		LOGI("WLAN connect attempt issued\n");
-
-		return 1;
+	    ble_reply_wifi_status(wifi_connection_state_WLAN_CONNECTING);
+	    return 0;
+	} else {
+        return -1;
 	}
-    ble_reply_wifi_status(wifi_connection_state_WLAN_CONNECTING);
-
-	return 0;
 }
 static xSemaphoreHandle _sl_status_mutex;
 static unsigned int _wifi_status;

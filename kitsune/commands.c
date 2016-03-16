@@ -80,7 +80,9 @@
 #include "fs.h"
 #include "sl_sync_include_after_simplelink_header.h"
 
+#ifdef KIT_INCLUDE_FILE_UPLOAD
 #include "fileuploadertask.h"
+#endif
 #include "hellofilesystem.h"
 
 #include "hw_ver.h"
@@ -339,7 +341,9 @@ int Cmd_audio_turn_on(int argc, char * argv[]) {
 	AudioTask_StartCapture(16000);
 
 	AudioProcessingTask_SetControl(featureUploadsOn,NULL,NULL,0);
+#ifdef KIT_INCLUDE_FILE_UPLOAD
 	AudioProcessingTask_SetControl(rawUploadsOn,NULL,NULL,0);
+#endif
 
 	return 0;
 }
@@ -1110,6 +1114,7 @@ void thread_tx(void* unused) {
 				save_aes_in_memory(DEFAULT_KEY);
 #endif
 
+#ifdef SELF_PROVISION_SUPPORT
 				//try a test key with whatever we have so long as it is not the default
 				if( !has_default_key() ) {
 					uint8_t current_key[AES_BLOCKSIZE] = {0};
@@ -1124,6 +1129,7 @@ void thread_tx(void* unused) {
 					pr.need_key = true;
 					send_provision_request(&pr);
 				}
+#endif
 			}
 
 			wifi_get_connected_ssid( (uint8_t*)data_batched.connected_ssid, sizeof(data_batched) );
@@ -1335,7 +1341,7 @@ int force_data_push()
 
     return 0;
 }
-
+static void print_nwp_version();
 int Cmd_tasks(int argc, char *argv[]);
 int Cmd_inttemp(int argc, char *argv[]);
 void thread_sensor_poll(void* unused) {
@@ -1365,6 +1371,7 @@ void thread_sensor_poll(void* unused) {
 			if( ( ++count % 60 ) == 0 ) {
 				Cmd_tasks(0,0);
 				LOGI("uptime %d, %d\n", xTaskGetTickCount(), count);
+				print_nwp_version();
 			}
 
 			if (!xQueueSend(data_queue, (void* )&data, 0) == pdPASS) {
@@ -1745,7 +1752,9 @@ void launch_tasks() {
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 3, NULL);
 	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,2,NULL);
 	UARTprintf("*");
-	xTaskCreate(FileUploaderTask_Thread,"fileUploadTask",1*1024/4,NULL,1,NULL);
+#ifdef KIT_INCLUDE_FILE_UPLOAD
+	xTaskCreate(FileUploaderTask_Thread,"fileUploadTask", 1024/4,NULL,1,NULL);
+#endif
 #ifdef BUILD_SERVERS //todo PVT disable!
 	xTaskCreate(telnetServerTask,"telnetServerTask",512/4,NULL,4,NULL);
 	xTaskCreate(httpServerTask,"httpServerTask",3*512/4,NULL,4,NULL);
