@@ -233,7 +233,6 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	FIL fp = {0};
 	UINT size;
 	FRESULT res;
-	int i;
 	uint8_t returnFlags = 0x00;
 
 	int32_t desired_ticks_elapsed;
