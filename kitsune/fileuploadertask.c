@@ -1,3 +1,5 @@
+#ifdef KIT_INCLUDE_FILE_UPLOAD
+
 #include "FreeRTOS.h"
 #include "queue.h"
 #include "semphr.h"
@@ -245,3 +247,4 @@ void FileUploaderTask_Upload(const char * filepath,const char * host, const char
 	}
 }
 
+#endif
