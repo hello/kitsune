@@ -165,6 +165,8 @@ extern xSemaphoreHandle i2c_smphr;
 
 static void _set_volume_task(hlo_future_t * result, void * ctx){
 	volatile unsigned long vol_to_set = *(volatile unsigned long*)ctx;
+
+	LOGI("Setting volume %d at %d\n", vol_to_set, xTaskGetTickCount());
 	if( xSemaphoreTakeRecursive(i2c_smphr, 100)) {
 		vTaskDelay(5);
 		set_volume(vol_to_set, 0);
@@ -213,6 +215,8 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	if( fade_length != 0 ) {
 		i2c_volume = initial_volume = 1;
 		t0 = fade_time =  xTaskGetTickCount();
+
+		LOGI("start fade in %d\n", fade_time);
 	}
 
 	if ( !InitAudioPlayback(initial_volume, info->rate ) ) {
@@ -258,8 +262,10 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 					if (fade_counter > fade_length) {
 						if( fade_in ) {
 							fade_in = false;
+							LOGI("finish fade in %d\n", fade_counter);
 						}
 						if( fade_out ) {
+							LOGI("finish fade out %d\n", fade_counter);
 							goto cleanup;
 						}
 					} else {
@@ -287,6 +293,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 						fade_out = true;
 						fade_length = info->fade_out_ms;
 						fade_counter = 0;
+						LOGI("start fadeout %d %d %d\n", volume, fade_length, fade_time);
 					}
 				} else if( returnFlags) {
 					LOGI("stopping playback\n");
