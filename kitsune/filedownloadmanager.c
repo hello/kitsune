@@ -13,12 +13,16 @@
 #include "hellofilesystem.h"
 #include <ustdlib.h>
 
+#define DM_TESTING
 
 #define FILE_ERROR_QUEUE_DEPTH (10)		// ensure that this matches the max_count for error_info in file_manifest.options
 
 // TODO REMEMBER TO CHANGE THIS *******
-#define QUERY_DELAY_DEFAULT		(1UL) //minutes
-
+#ifdef DM_TESTING
+	#define QUERY_DELAY_DEFAULT		(1UL) //minutes
+#else
+	#define QUERY_DELAY_DEFAULT		(1UL) //minutes
+#endif
 
 #define PATH_BUF_MAX_SIZE		(64)
 #define FOLDERS_TO_EXCLUDE      (2)
@@ -33,13 +37,19 @@ typedef struct {
 	char path[48];
 
 	//Filename
-	char filename[12];
+	char filename[13];
 }file_list_t;
 
 typedef struct {
-	//FileManifest_FileDownload* data;
-	file_list_t* ga_file_list;//[MAX_NUMBER_OF_FILES];
+
+	file_list_t* ga_file_list;
     uint32_t num_data;
+
+    // Indicates the number of files for which memory has been allocated.
+    // This refers to the number of files names that can be stored at ga_file_list
+    // This number is incremented whenever a realloc is done.
+    uint32_t allocated_file_list_size;
+
 } file_info_to_encode;
 
 // Holds the file info that will be encoded into pb
@@ -62,8 +72,6 @@ static FileManifest_LinkHealth link_health = {0};
 
 static uint32_t message_sent_time;
 
-//static file_list_t ga_file_list[MAX_NUMBER_OF_FILES];
-
 // Query delay in ticks
 TickType_t query_delay_ticks = (QUERY_DELAY_DEFAULT*60*1000)/portTICK_PERIOD_MS;
 
@@ -85,6 +93,7 @@ static uint32_t scan_files(char* path);
 bool send_to_download_queue(SyncResponse_FileDownload* data, TickType_t ticks_to_wait);
 bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, void **arg);
 uint32_t get_free_space(void);
+bool _encode_string_fields(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 
 // Init
 void downloadmanagertask_init(uint16_t stack_size)
@@ -110,6 +119,8 @@ void downloadmanagertask_init(uint16_t stack_size)
 	xTaskCreate(DownloadManagerTask, "downloadManagerTask", stack_size, NULL, 2, NULL);
 
 	file_manifest_local.ga_file_list = NULL;
+
+	file_manifest_local.allocated_file_list_size = 0;
 
 
 }
@@ -171,11 +182,9 @@ static void DownloadManagerTask(void * filesyncdata)
 			vTaskDelayUntil(&start_time,query_delay_ticks); // TODO should this be vtaskdelay instead?
 
 			memset(&message_for_upload,0,sizeof(FileManifest));
+
 			/* UPDATE FILE INFO */
 
-			/*
-			file_manifest_local.num_data = 0;
-			//file_manifest_local.data = ((FileManifest_FileDownload*)pvPortMalloc(MAX_NUMBER_OF_FILES*sizeof(FileManifest_FileDownload)));
 			// Scan through file system and update file manifest
 			uint32_t ret = update_file_manifest();
 			if(ret)
@@ -185,10 +194,10 @@ static void DownloadManagerTask(void * filesyncdata)
 			}
 
 			LOGI("File manifest created for uploading \n");
-			*/
 
-			//message_for_upload.file_info.funcs.encode = encode_file_info;
-			//message_for_upload.file_info.arg = &file_manifest_local;
+
+			message_for_upload.file_info.funcs.encode = encode_file_info;
+			message_for_upload.file_info.arg = &file_manifest_local;
 
 			/* UPDATE FILE STATUS - DOWNLOADED/PENDING */
 
@@ -255,9 +264,9 @@ static void DownloadManagerTask(void * filesyncdata)
 
 			//30 sec
 			//TODO are all parameters right
-			if(NetworkTask_SendProtobuf(
+			if(!NetworkTask_SendProtobuf(
 					true, DATA_SERVER, FILE_SYNC_ENDPOINT, FileManifest_fields, &message_for_upload, 0, NULL, NULL, &pb_cb, false)
-					!= 0 )
+					)
 			{
 				// TODO why do I get this even with a 200 from server
 				LOGI("File manifest failed to upload \n");
@@ -271,8 +280,6 @@ static void DownloadManagerTask(void * filesyncdata)
 				}
 				*/
 
-				// give semaphore here to restart sending
-				//restart_download_manager();
 			}
 
 			LOGI("DM: file upload sent\n");
@@ -281,14 +288,6 @@ static void DownloadManagerTask(void * filesyncdata)
 			// Update wake time
 			start_time = xTaskGetTickCount();
 		}
-		/*
-		else
-		{
-			// Update time to response count
-			link_health.time_to_response++;
-		}
-		*/
-
 
 	}
 }
@@ -401,24 +400,35 @@ void free_file_sync_info(FileManifest_FileDownload * download_info)
 //TODO
 bool encode_file_info (pb_ostream_t *stream, const pb_field_t *field, void * const *arg)
 {
-	/*
+
     int i;
-    periodic_data_to_encode * data = *(periodic_data_to_encode**)arg;
+    file_info_to_encode * data = *(file_info_to_encode**)arg;
+    FileManifest_FileDownload file_info = {};
+
 
     for( i = 0; i < data->num_data; ++i ) {
-        if(!pb_encode_tag(stream, PB_WT_STRING, batched_periodic_data_data_tag))
+
+    	file_info.sd_card_path.funcs.encode = _encode_string_fields;
+    	file_info.sd_card_path.arg = data->ga_file_list[i].path;
+
+    	file_info.sd_card_filename.funcs.encode = _encode_string_fields;
+    	file_info.sd_card_filename.arg = data->ga_file_list[i].filename;
+
+    	//TODO add SHA
+
+        if(!pb_encode_tag_for_field(stream, field))
         {
-            LOGI("encode_all_periodic_data: Fail to encode tag error %s\n", PB_GET_ERROR(stream));
+            LOGI("encode_all_file_sync_data: Fail to encode tag error %s\n", PB_GET_ERROR(stream));
             return false;
         }
 
-        if (!pb_encode_delimited(stream, periodic_data_fields, &data->data[i])){
-            LOGI("encode_all_periodic_data2: Fail to encode error: %s\n", PB_GET_ERROR(stream));
+        if (!pb_encode_submessage(stream, FileManifest_FileDownload_fields, &file_info)){
+            LOGI("encode_all_file_sync_data2: Fail to encode error: %s\n", PB_GET_ERROR(stream));
             return false;
         }
-        //LOGI("******************* encode_pill_encode_all_pills: encode pill %s\n", pill_data.deviceId);
+
     }
-    */
+
 
     // free file_manifest to encode
 	return true;
@@ -476,7 +486,12 @@ static void _on_file_sync_response_success( void * structdata)
 	// Update query delay ticks
 	if(response_protobuf->has_query_delay)
 	{
+#ifdef DM_TESTING
+	    // Update default query delay ticks
+		query_delay_ticks = (QUERY_DELAY_DEFAULT*60*1000)/portTICK_PERIOD_MS;
+#else
 		query_delay_ticks = (response_protobuf->query_delay * 60 * 1000)/portTICK_PERIOD_MS;
+#endif
 		LOGI("DM: Query delay %d\n", response_protobuf->query_delay);
 	}
 	else
@@ -523,50 +538,28 @@ static void get_file_download_status(FileManifest_FileStatusType* file_status)
 
 }
 
-
 static inline void restart_download_manager(void)
 {
 	LOGI("DM: Sem Give\n");
 	xSemaphoreGive(_response_received_sem);
 }
 
-static uint32_t running_file_count;
-
 static uint32_t update_file_manifest(void)
 {
 	uint32_t res;
 	char path_buf[PATH_BUF_MAX_SIZE] = {0};
-	uint32_t i;
 
 	strncpy(path_buf,"/",sizeof(path_buf));
 
-	running_file_count = 0;
 	file_manifest_local.num_data = 0;
-	file_manifest_local.ga_file_list = NULL;
 	res = scan_files(path_buf);
-	file_manifest_local.num_data = running_file_count;
 
-	LOGI("DM: File count: %d\n", file_manifest_local.num_data);
-
-	// Loop
-	for(i=0;i<file_manifest_local.num_data;i++)
-	{
-		/*
-	    // TODO Update file info
-	    file_manifest_local.data[i].sd_card_filename.funcs.encode = _encode_string_fields;
-
-	    file_manifest_local.data[i].sd_card_filename.arg = ga_file_list[i].filename;
-
-	    file_manifest_local.data[i].sd_card_path.funcs.encode = _encode_string_fields;
-	    file_manifest_local.data[i].sd_card_path.arg = ga_file_list[i].path;
-	    */
-	}
-
+	LOGI("DM: File count: %d Allocated file count: %d\n", \
+			file_manifest_local.num_data, file_manifest_local.allocated_file_list_size);
 
 	return res;
 
 }
-
 
 static uint32_t scan_files(char* path)
 {
@@ -600,33 +593,43 @@ static uint32_t scan_files(char* path)
             if(j<FOLDERS_TO_EXCLUDE) continue;
 
             fn = fno.fname;
-            LOGI("DM fname: %s\n", fn);
+            //LOGI("DM fname: %s\n", fn);
             if (fno.fattrib & AM_DIR) {                    /* It is a directory */
                 usnprintf(&path[i],PATH_BUF_MAX_SIZE * sizeof(char), "%s", fn);
-                LOGI("DM path: %s\n", path);
+                //LOGI("DM path: %s\n", path);
                 res = (FRESULT)scan_files(path);
                 path[i] = 0;
                 if (res != FR_OK) break;
             } else {                                       /* It is a file. */
-                LOGI("DM full path: %s/%s\n", path, fn);
+                LOGI("DM full path: %s/%s\n", path, fn, strlen(path), strlen(fn));
 
-                /*
-				if(running_file_count >= file_manifest_local.num_data ||
-						!file_manifest_local.ga_file_list)
+
+				if( ( file_manifest_local.allocated_file_list_size <= file_manifest_local.num_data ) ||
+						( !file_manifest_local.ga_file_list) )
 				{
-					file_manifest_local.num_data = ( file_manifest_local.num_data ) ?
-							file_manifest_local.num_data*2 : 2;
+					file_manifest_local.allocated_file_list_size = ( file_manifest_local.allocated_file_list_size ) ?
+							file_manifest_local.allocated_file_list_size*2 : 2;
+
+//					LOGI("Allocating: %d while file count: %d\n", \
+//							file_manifest_local.allocated_file_list_size, file_manifest_local.num_data);
+
 
 					file_manifest_local.ga_file_list =
-							pvPortRealloc(file_manifest_local.ga_file_list, file_manifest_local.num_data * sizeof(FileManifest_FileDownload));
+							(file_list_t*)pvPortRealloc(file_manifest_local.ga_file_list, file_manifest_local.allocated_file_list_size * sizeof(file_list_t));
 				}
 
 				// assert pointer TODO
-                strncpy(file_manifest_local.ga_file_list[running_file_count].path,path,48);
-                strncpy(file_manifest_local.ga_file_list[running_file_count].filename,fn,12);
 
-                running_file_count++;
-                */
+				// Clear the strings
+                memset(file_manifest_local.ga_file_list[file_manifest_local.num_data].path, 0, sizeof(file_manifest_local.ga_file_list[file_manifest_local.num_data].path));
+                memset(file_manifest_local.ga_file_list[file_manifest_local.num_data].filename, 0, sizeof(file_manifest_local.ga_file_list[file_manifest_local.num_data].filename));
+
+                // Copy path and filename
+                memcpy(file_manifest_local.ga_file_list[file_manifest_local.num_data].path, path, strlen(path));
+                memcpy(file_manifest_local.ga_file_list[file_manifest_local.num_data].filename, fn, strlen(fn));
+
+                file_manifest_local.num_data++;
+
 
             }
             vTaskDelay(50/portTICK_PERIOD_MS);
