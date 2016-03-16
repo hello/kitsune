@@ -27,9 +27,6 @@
 #define PATH_BUF_MAX_SIZE		(64)
 #define FOLDERS_TO_EXCLUDE      (2)
 
-// TODO can this define be a part of the protobuf
-#define MAX_NUMBER_OF_FILES		(50)	// Maximum number of files that will be uploaded in the file manifest
-
 const char* folders[FOLDERS_TO_EXCLUDE] = {"LOGS", "USR"};
 
 typedef struct {
@@ -53,7 +50,7 @@ typedef struct {
 } file_info_to_encode;
 
 // Holds the file info that will be encoded into pb
-static file_info_to_encode file_manifest_local; // TODO does this need to be protected
+static file_info_to_encode file_manifest_local;
 
 // Response received semaphore
 static xSemaphoreHandle _response_received_sem = NULL;
@@ -114,14 +111,11 @@ void downloadmanagertask_init(uint16_t stack_size)
 		_response_received_sem = xSemaphoreCreateBinary();
 	}
 
-
-	//stack_size? //TODO
 	xTaskCreate(DownloadManagerTask, "downloadManagerTask", stack_size, NULL, 2, NULL);
 
 	file_manifest_local.ga_file_list = NULL;
 
 	file_manifest_local.allocated_file_list_size = 0;
-
 
 }
 
@@ -173,8 +167,6 @@ static void DownloadManagerTask(void * filesyncdata)
 
 	for (; ;)
 	{
-		//TODO instead of trying to semaphore every minutes, use gettickcount to compute time to response
-		// use portmaxdelay
 		// Check if response has been received
 		if(xSemaphoreTake(_response_received_sem,portMAX_DELAY))
 		{
@@ -262,13 +254,10 @@ static void DownloadManagerTask(void * filesyncdata)
 
 			message_sent_time = xTaskGetTickCount();
 
-			//30 sec
-			//TODO are all parameters right
 			if(!NetworkTask_SendProtobuf(
 					true, DATA_SERVER, FILE_SYNC_ENDPOINT, FileManifest_fields, &message_for_upload, 0, NULL, NULL, &pb_cb, false)
 					)
 			{
-				// TODO why do I get this even with a 200 from server
 				LOGI("File manifest failed to upload \n");
 
 				/*
