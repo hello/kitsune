@@ -115,27 +115,19 @@ static void _sense_state_task(hlo_future_t * result, void * ctx){
 	AudioState last_audio_state;
 	sense_state.sense_id.funcs.encode = encode_device_id_string;
 	sense_state.has_audio_state = true;
-	protobuf_reply_callbacks pb_cb;
-	pb_cb.get_reply_pb = NULL;
-	pb_cb.free_reply_pb = NULL;
-	pb_cb.on_pb_success = NULL;
-	pb_cb.on_pb_failure = NULL;
 	bool state_sent = true;
 	while(1){
 		if(xQueueReceive( _state_queue,(void *) &(sense_state.audio_state), 5000)){
 			last_audio_state = sense_state.audio_state;
-			DISP("AudioState %s\r\n", last_audio_state.playing_audio?"Playing":"Stopped");
+			LOGI("AudioState %s, %s\r\n", last_audio_state.playing_audio?"Playing":"Stopped", last_audio_state.file_path);
 			state_sent = NetworkTask_SendProtobuf(true, DATA_SERVER,
 							SENSE_STATE_ENDPOINT, SenseState_fields, &sense_state, 3000,
-							NULL, NULL, &pb_cb, false);
-			DISP("AudioState upload %s\r\n", state_sent?"Success":"Fail");
+							NULL, NULL, NULL, false);
 		}else if(!state_sent && wifi_status_get(HAS_IP)){
 			sense_state.audio_state = last_audio_state;
-			DISP("Retrying AudioState %s\r\n", last_audio_state.playing_audio?"Playing":"Stopped");
 			state_sent = NetworkTask_SendProtobuf(true, DATA_SERVER,
 										SENSE_STATE_ENDPOINT, SenseState_fields, &sense_state, 3000,
-										NULL, NULL, &pb_cb, false);
-			DISP("AudioState upload %s\r\n", state_sent?"Success":"Fail");
+										NULL, NULL, NULL, false);
 		}
 	}
 }
