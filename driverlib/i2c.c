@@ -435,6 +435,7 @@ I2CSlaveDisable(uint32_t ui32Base)
 //! \return None.
 //
 //*****************************************************************************
+#include "FreeRTOS.h"
 void
 I2CIntRegister(uint32_t ui32Base, void (*pfnHandler)(void))
 {
@@ -451,11 +452,12 @@ I2CIntRegister(uint32_t ui32Base, void (*pfnHandler)(void))
     ui32Int = _I2CIntNumberGet(ui32Base);
 
     ASSERT(ui32Int != 0);
-
     //
     // Register the interrupt handler, returning an error if an error occurs.
     //
     IntRegister(ui32Int, pfnHandler);
+
+    IntPrioritySet(ui32Int, configMAX_SYSCALL_INTERRUPT_PRIORITY);
 
     //
     // Enable the I2C interrupt.

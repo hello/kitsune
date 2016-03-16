@@ -588,10 +588,7 @@ DRESULT disk_write ( BYTE bDrive,const BYTE* pBuffer, DWORD ulSectorNumber,
       //
       // Wait for data transfer complete
       //
-      while( !(MAP_SDHostIntStatus(SDHOST_BASE) & SDHOST_INT_TC) )
-      {
-        vTaskDelay(1);
-      }
+      while( !(MAP_SDHostIntStatus(SDHOST_BASE) & SDHOST_INT_TC) ) { }
       Res = RES_OK;
     }
   }
@@ -625,10 +622,7 @@ DRESULT disk_write ( BYTE bDrive,const BYTE* pBuffer, DWORD ulSectorNumber,
       //
       // Wait for transfer complete
       //
-      while( !(MAP_SDHostIntStatus(SDHOST_BASE) & SDHOST_INT_TC) )
-      {
-          vTaskDelay(10);
-      }
+      while( !(MAP_SDHostIntStatus(SDHOST_BASE) & SDHOST_INT_TC) ) { }
       CardSendCmd(CMD_STOP_TRANS,0);
       Res = RES_OK;
     }
