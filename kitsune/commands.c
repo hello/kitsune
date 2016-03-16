@@ -1341,7 +1341,7 @@ int force_data_push()
 
     return 0;
 }
-
+static void print_nwp_version();
 int Cmd_tasks(int argc, char *argv[]);
 int Cmd_inttemp(int argc, char *argv[]);
 void thread_sensor_poll(void* unused) {
@@ -1371,6 +1371,7 @@ void thread_sensor_poll(void* unused) {
 			if( ( ++count % 60 ) == 0 ) {
 				Cmd_tasks(0,0);
 				LOGI("uptime %d, %d\n", xTaskGetTickCount(), count);
+				print_nwp_version();
 			}
 
 			if (!xQueueSend(data_queue, (void* )&data, 0) == pdPASS) {
