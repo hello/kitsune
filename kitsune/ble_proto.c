@@ -34,7 +34,7 @@
 #include "hlo_net_tools.h"
 #include "prox_signal.h"
 
-volatile static bool wifi_state_requested = false;
+volatile bool wifi_state_requested = false;
 
 typedef void(*task_routine_t)(void*);
 
@@ -208,20 +208,24 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type,
 	    }
 	    force_data_push();
 
-		while( !wifi_status_get(UPLOADING) ) {
-			vTaskDelay(10000);
+		while( !wifi_status_get(UPLOADING) && wifi_state_requested ) {
+			vTaskDelay(1000);
 
-			if (wifi_status_get(CONNECTING)) {
-				ble_reply_wifi_status(wifi_connection_state_WLAN_CONNECTING);
-			} else if (wifi_status_get(CONNECT)) {
-				ble_reply_wifi_status(wifi_connection_state_WLAN_CONNECTED);
-			} else if (wifi_status_get(IP_LEASED)) {
-				ble_reply_wifi_status(wifi_connection_state_IP_RETRIEVED);
-			} else if (!wifi_status_get(0xFFFFFFFF)) {
-				ble_reply_wifi_status(wifi_connection_state_NO_WLAN_CONNECTED);
+			if ((to % 10) == 0) {
+				if (wifi_status_get(CONNECTING)) {
+					ble_reply_wifi_status(
+							wifi_connection_state_WLAN_CONNECTING);
+				} else if (wifi_status_get(CONNECT)) {
+					ble_reply_wifi_status(wifi_connection_state_WLAN_CONNECTED);
+				} else if (wifi_status_get(IP_LEASED)) {
+					ble_reply_wifi_status(wifi_connection_state_IP_RETRIEVED);
+				} else if (!wifi_status_get(0xFFFFFFFF)) {
+					ble_reply_wifi_status(
+							wifi_connection_state_NO_WLAN_CONNECTED);
+				}
 			}
 
-			if( ++to > 6 ) {
+			if( ++to > 60 ) {
 				LOGI("wifi timeout\n");
 				wifi_state_requested = false;
 				ble_reply_protobuf_error(ErrorType_SERVER_CONNECTION_TIMEOUT);
