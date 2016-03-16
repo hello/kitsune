@@ -1085,6 +1085,39 @@ int stop_connection(int * sock) {
     *sock = -1;
     return *sock;
 }
+static void set_backup_dns() {
+	#define NUM_ALT_DNS 6
+	static int backup_idx = 0;
+    SlNetCfgIpV4Args_t config = {0};
+    unsigned char len = sizeof(SlNetCfgIpV4Args_t);
+    uint8_t ip[NUM_ALT_DNS][4] = {
+    		{8,8,8,8}, //google
+			{8,8,4,4},
+			{208,67,222,222}, //opendns
+			{208,67,220,220},
+			{208,67,222,220},
+			{208,67,220,222},
+    };
+    sl_NetCfgGet(SL_IPV4_STA_P2P_CL_GET_INFO, NULL, &len, (unsigned char*)&config);
+
+    LOGI("current DNS %d.%d.%d.%d\n",
+			SL_IPV4_BYTE(config.ipV4DnsServer, 3), SL_IPV4_BYTE(config.ipV4DnsServer, 2),
+			SL_IPV4_BYTE(config.ipV4DnsServer, 1), SL_IPV4_BYTE(config.ipV4DnsServer, 0)
+			);
+
+    config.ipV4DnsServer = (uint32_t)SL_IPV4_VAL(
+    		ip[backup_idx][0],ip[backup_idx][1],ip[backup_idx][2],ip[backup_idx][3]);
+
+    LOGI("New DNS %d.%d.%d.%d\n",
+			SL_IPV4_BYTE(config.ipV4DnsServer, 3), SL_IPV4_BYTE(config.ipV4DnsServer, 2),
+			SL_IPV4_BYTE(config.ipV4DnsServer, 1), SL_IPV4_BYTE(config.ipV4DnsServer, 0)
+			);
+
+    sl_NetCfgSet(SL_IPV4_STA_P2P_CL_STATIC_ENABLE, 1, sizeof(SlNetCfgIpV4Args_t), (unsigned char*)&config);
+
+    backup_idx = (backup_idx + 1) % NUM_ALT_DNS;
+}
+
 int start_connection(int * sock, char * host, security_type sec) {
     sockaddr sAddr;
     timeval tv;
@@ -1142,6 +1175,8 @@ int start_connection(int * sock, char * host, security_type sec) {
         	static portTickType last_reset_time = 0;
 			LOGI("failed to resolves addr rv %d\n", rv);
 			ble_reply_wifi_status(wifi_connection_state_DNS_FAILED);
+			set_backup_dns();
+
             #define SIX_MINUTES 360000
             if( last_reset_time == 0 || xTaskGetTickCount() - last_reset_time > SIX_MINUTES ) {
                 last_reset_time = xTaskGetTickCount();
