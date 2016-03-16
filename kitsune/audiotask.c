@@ -233,7 +233,6 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	FIL fp = {0};
 	UINT size;
 	FRESULT res;
-	EAudioPlaybackType_t playback_type = eAudioPlayFile;
 	int i;
 	uint8_t returnFlags = 0x00;
 
