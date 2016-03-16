@@ -293,23 +293,6 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	for (; ;) {
 		/* Read always in block of 512 Bytes or less else it will stuck in hello_fs_read() */
 		res = hello_fs_read(&fp, speaker_data, FLASH_PAGE_SIZE, &size);
-
-			switch (playback_type) {
-				case eAudioPlayFile: {
-					/* Read always in block of 512 Bytes or less else it will stuck in hello_fs_read() */
-					res = hello_fs_read(&fp, speaker_data, FLASH_PAGE_SIZE, &size);
-					break;
-				}
-				case eAudioPlayRand: {
-					for (i = 0; i < 512; ++i) {
-						speaker_data[i] = rand();
-					}
-					size = i;
-					break;
-				}
-				default:
-				LOGE("NO PLAYBACK TYPE\r\n");
-			}
 		if ( res == FR_OK && size > 0 ) {
 
 			/* Wait to avoid buffer overflow as reading speed is faster than playback */
