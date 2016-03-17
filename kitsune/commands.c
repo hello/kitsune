@@ -2057,11 +2057,11 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "scan",Cmd_scan_wifi,""},
 		{"future",Cmd_FutureTest,""},
 		{"ana", Cmd_analytics, ""},
-		{"dns", Cmd_setDns, ""},
 		{"noint", Cmd_disableInterrupts, ""},
-		{"nwp", Cmd_nwpinfo, ""},
-		{"resync", Cmd_SyncID, ""},
 #endif
+		{"resync", Cmd_SyncID, ""},
+		{"nwp", Cmd_nwpinfo, ""},
+		{"dns", Cmd_setDns, ""},
 		{"g", Cmd_gesture, ""},
 
 #ifdef BUILD_IPERF
