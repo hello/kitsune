@@ -5,7 +5,6 @@
 #include "debugutils/debuglog.h"
 #include <stdio.h>
 #include "hellomath.h"
-#include "uart_logger.h"
 
 /*
    How is this all going to work? 
@@ -51,7 +50,13 @@
 #define STEADY_STATE_AVERAGING_PERIOD_2N (6)
 #define STEADY_STATE_AVERAGING_PERIOD (1 << STEADY_STATE_AVERAGING_PERIOD_2N)
 
-#define STARTUP_PERIOD_IN_MS (10000)
+#ifdef NO_EQUALIZATION
+    #define STARTUP_PERIOD_IN_MS (0)
+#else
+    //default
+    #define STARTUP_PERIOD_IN_MS (10000)
+#endif
+
 #define STARTUP_EQUALIZATION_COUNTS (STARTUP_PERIOD_IN_MS / SAMPLE_PERIOD_IN_MILLISECONDS)
 
 #define QFIXEDPOINT (12)
@@ -548,14 +553,27 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int64_t samplecount) {
         
         Scale16VecTo8(featvec, featavg, NUM_AUDIO_FEATURES);
         VecNormalize8(featvec, NUM_AUDIO_FEATURES);
+       
+        
+        //scale down to 4 bit numbers
+        /*
+        printf("MFCC=");
+        for (i = 0; i < NUM_AUDIO_FEATURES; i++) {
+            temp32 = featvec[i]; temp32 >>= 4;
+            printf("%d,",temp32); _data.feats.feats4bit[i] = (int8_t)temp32;
+        }
+        printf("\n");
+         */
+        
         
         //scale down to 4 bit numbers
         for (i = 0; i < NUM_AUDIO_FEATURES; i++) {
             temp32 = featvec[i];
-            temp32 += (1<<3);
             temp32 >>= 4;
             _data.feats.feats4bit[i] = (int8_t)temp32;
         }
+
+        
         
         temp32 = _data.lastEnergy + logTotalEnergy;
         temp32 >>= 1;
