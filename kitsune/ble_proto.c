@@ -785,7 +785,6 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
     		if (get_ble_mode() != BLE_PAIRING) {
 				// Light up LEDs?
 				ble_proto_led_fade_in_trippy();
-				vTaskDelay(10); //Let the pairing mode WDT run
 				set_ble_mode(BLE_PAIRING);
 				LOGI( "PAIRING MODE \n");
 
