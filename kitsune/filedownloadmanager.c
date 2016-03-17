@@ -85,6 +85,10 @@ static void restart_download_manager(void);
 bool encode_file_info (pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 static uint32_t update_file_manifest(void);
 static uint32_t scan_files(char* path);
+static int32_t compute_sha(char* path, char* sha_path);
+static bool get_sha_filename(char* filename, char* sha_fn);
+static int get_complete_filename(char* full_path, char * local_fn, char* path);
+static bool does_sha_file_exist(char* sha_path);
 
 // extern functions
 bool send_to_download_queue(SyncResponse_FileDownload* data, TickType_t ticks_to_wait);
@@ -407,6 +411,10 @@ bool encode_file_info (pb_ostream_t *stream, const pb_field_t *field, void * con
 
     	//TODO add SHA
 
+    	// read from SHA file
+
+    	// Store in file_info
+
         if(!pb_encode_tag_for_field(stream, field))
         {
             LOGI("encode_all_file_sync_data: Fail to encode tag error %s\n", PB_GET_ERROR(stream));
@@ -557,6 +565,8 @@ static uint32_t update_file_manifest(void)
 	LOGI("DM: File count: %d Allocated file count: %d\n", \
 			file_manifest_local.num_data, file_manifest_local.allocated_file_list_size);
 
+	// Update SHA1
+
 	return res;
 
 }
@@ -593,43 +603,64 @@ static uint32_t scan_files(char* path)
             if(j<FOLDERS_TO_EXCLUDE) continue;
 
             fn = fno.fname;
-            //LOGI("DM fname: %s\n", fn);
             if (fno.fattrib & AM_DIR) {                    /* It is a directory */
                 usnprintf(&path[i],PATH_BUF_MAX_SIZE * sizeof(char), "%s", fn);
-                //LOGI("DM path: %s\n", path);
                 res = (FRESULT)scan_files(path);
                 path[i] = 0;
                 if (res != FR_OK) break;
             } else {                                       /* It is a file. */
                 LOGI("DM full path: %s/%s\n", path, fn, strlen(path), strlen(fn));
 
+                // Skip if file is a sha file
+                if(!strstr(fn, ".SHA"))
+                {
 
-				if( ( file_manifest_local.allocated_file_list_size <= file_manifest_local.num_data ) ||
-						( !file_manifest_local.ga_file_list) )
-				{
-					file_manifest_local.allocated_file_list_size = ( file_manifest_local.allocated_file_list_size ) ?
-							file_manifest_local.allocated_file_list_size*2 : 2;
+					if( ( file_manifest_local.allocated_file_list_size <= file_manifest_local.num_data ) ||
+							( !file_manifest_local.ga_file_list) )
+					{
+						file_manifest_local.allocated_file_list_size = ( file_manifest_local.allocated_file_list_size ) ?
+								file_manifest_local.allocated_file_list_size*2 : 2;
 
-//					LOGI("Allocating: %d while file count: %d\n", \
-//							file_manifest_local.allocated_file_list_size, file_manifest_local.num_data);
+	//					LOGI("Allocating: %d while file count: %d\n", \
+	//							file_manifest_local.allocated_file_list_size, file_manifest_local.num_data);
 
 
-					file_manifest_local.ga_file_list =
-							(file_list_t*)pvPortRealloc(file_manifest_local.ga_file_list, file_manifest_local.allocated_file_list_size * sizeof(file_list_t));
-				}
+						file_manifest_local.ga_file_list =
+								(file_list_t*)pvPortRealloc(file_manifest_local.ga_file_list, file_manifest_local.allocated_file_list_size * sizeof(file_list_t));
+					}
 
-				// assert pointer TODO
+					// Clear the strings
+					memset(file_manifest_local.ga_file_list[file_manifest_local.num_data].path, 0, sizeof(file_manifest_local.ga_file_list[file_manifest_local.num_data].path));
+					memset(file_manifest_local.ga_file_list[file_manifest_local.num_data].filename, 0, sizeof(file_manifest_local.ga_file_list[file_manifest_local.num_data].filename));
 
-				// Clear the strings
-                memset(file_manifest_local.ga_file_list[file_manifest_local.num_data].path, 0, sizeof(file_manifest_local.ga_file_list[file_manifest_local.num_data].path));
-                memset(file_manifest_local.ga_file_list[file_manifest_local.num_data].filename, 0, sizeof(file_manifest_local.ga_file_list[file_manifest_local.num_data].filename));
+					// Copy path and filename
+					memcpy(file_manifest_local.ga_file_list[file_manifest_local.num_data].path, path, strlen(path));
+					memcpy(file_manifest_local.ga_file_list[file_manifest_local.num_data].filename, fn, strlen(fn));
 
-                // Copy path and filename
-                memcpy(file_manifest_local.ga_file_list[file_manifest_local.num_data].path, path, strlen(path));
-                memcpy(file_manifest_local.ga_file_list[file_manifest_local.num_data].filename, fn, strlen(fn));
+					file_manifest_local.num_data++;
 
-                file_manifest_local.num_data++;
+					char sha[13];
+					char full_path[64];
+					char full_path_sha[64];
 
+					// Get name of SHA file
+					get_sha_filename(fn, sha);
+
+					// Get complete filename
+					get_complete_filename(full_path,fn, path);
+					get_complete_filename(full_path_sha,sha, path);
+
+					// Check if SHA file exists
+					if(!does_sha_file_exist(full_path_sha))
+					{
+
+						// Create SHA file
+
+						// Compute and store SHA
+					   // get_complete_filename();
+						compute_sha(full_path, full_path_sha);
+					}
+                }
 
             }
             vTaskDelay(50/portTICK_PERIOD_MS);
@@ -638,5 +669,163 @@ static uint32_t scan_files(char* path)
     }
 
     return res;
+}
+
+static bool does_sha_file_exist(char* sha_path)
+{
+	FILINFO info;
+	FRESULT res;
+
+	res = hello_fs_stat(sha_path, &info);
+	if (res)
+	{
+		LOGE("DM: File doesnt exist %d\n", res);
+		return false;
+	}
+
+	LOGE("DM: File exists\n");
+
+	return true;
+
+}
+
+#include "crypto.h"
+
+static int32_t compute_sha(char* path, char* sha_path)
+{
+#define minval( a,b ) a < b ? a : b
+
+	uint8_t sha[SHA1_SIZE] = { 0 };
+    static uint8_t buffer[128];
+    uint32_t bytes_to_read, bytes_read;
+    uint32_t bytes_to_write = 0, bytes_written = 0;
+    FIL fp = {0};
+    FILINFO info;
+    FRESULT res;
+
+    SHA1_CTX sha1ctx;
+    SHA1_Init(&sha1ctx);
+
+    //fetch path info
+    LOGI( "computing SHA of %s\n", path);
+    res = hello_fs_stat(path, &info);
+    if (res) {
+        LOGE("error getting file info %d\n", res);
+        return -1;
+    }
+
+
+    res = hello_fs_open(&fp, path, FA_READ);
+    if (res) {
+        LOGE("error opening file for read %d\n", res);
+        return -1;
+    }
+
+    //compute sha
+    bytes_to_read = info.fsize;
+    while (bytes_to_read > 0) {
+		res = hello_fs_read(&fp, buffer,(minval(sizeof(buffer),bytes_to_read)), &bytes_read);
+		if (res) {
+			LOGE("error reading file %d\n", res);
+			return -1;
+		}
+		SHA1_Update(&sha1ctx, buffer, bytes_read);
+		bytes_to_read -= bytes_read;
+    }
+    hello_fs_close(&fp);
+    SHA1_Final(sha, &sha1ctx);
+
+    memset(&fp,0,sizeof(fp));
+
+	// Open for writing
+	res = hello_fs_open(&fp, sha_path, FA_OPEN_ALWAYS|FA_WRITE);
+	if (res) {
+		LOGE("error opening file for write %d\n", res);
+		return -1;
+	}
+
+	bytes_to_write = SHA1_SIZE;
+
+	while(bytes_to_write > 0)
+	{
+		// Write SHA into it
+		res = hello_fs_write(&fp, sha,SHA1_SIZE, &bytes_written);
+		if (res) {
+			LOGE("error reading file %d\n", res);
+			return -1;
+		}
+
+		bytes_to_write -= bytes_written;
+	}
+	LOGI("DM: SHA bytes written: %d\n",bytes_written);
+
+    // Close file
+    hello_fs_close(&fp);
+}
+
+static int get_complete_filename(char* full_path, char * local_fn, char* path)
+{
+	strncpy(full_path,path,48);
+	strncat(full_path, "/", 48);
+	strncat(full_path, local_fn, 48);
+
+	//LOGI("DM: %s\n", full_path);
+
+	/*
+    // First, check to make sure that the current path (CWD), plus the file
+    // name, plus a separator and trailing null, will all fit in the temporary
+    // buffer that will be used to hold the file name.  The file name must be
+    // fully specified, with path, to FatFs.
+    if(strlen(cwd_buff) + strlen(local_fn) + 1 + 1 > sizeof(path_buff))
+    {
+        LOGI("Resulting path name is too long\n");
+        return(0);
+    }
+
+    // Copy the current path to the temporary buffer so it can be manipulated.
+    strcpy(path_buff, cwd_buff);
+
+    // If not already at the root level, then append a separator.
+    if(strcmp("/", cwd_buff))
+    {
+        strcat(path_buff, "/");
+    }
+
+    // Now finally, append the file name to result in a fully specified file.
+    strcat(path_buff, local_fn);
+    */
+
+    return 0;
+}
+
+// Function that gives SHA filename from actual filename
+static bool get_sha_filename(char* filename, char* sha_fn)
+{
+	char filename_local[13];
+	char* token;
+
+	strncpy(filename_local,filename, 13);
+
+	if(filename && sha_fn)
+	{
+		strncpy(filename_local,filename, 13);
+
+		// Get token from filename
+		token = strtok(filename_local, ".");
+
+		// assumes that sha_fun points to an array of length 13 or greater
+		// Append .sha
+		strncpy(sha_fn,token, 13);
+		strncat(sha_fn,".SHA",sizeof(".SHA"));
+
+		LOGI("DM: From %s to %s\n", filename, sha_fn);
+
+		return true;
+
+	}
+
+	return false;
+
+
 }
 
