@@ -146,21 +146,15 @@ static void _factory_reset(){
 
 }
 
-static xSemaphoreHandle pairing_mode_smphr;
+#define PM_TIMEOUT (20*60*1000UL)
+static TimerHandle_t pm_timer;
 
-static void pm_wdt_task(void * params) {
-#define TIMEOUT (20*60*1000UL)
+void pm_cancel( TimerHandle_t pxTimer ) {
 	MorpheusCommand response = { 0 };
-	while (1) {
-		//if we get the semaphore it means we entered pairing mode
-		//if the semaphore times out and we're in pairing mode, exit pairing mode
-		if (!xSemaphoreTake(pairing_mode_smphr, TIMEOUT)
-				&& get_ble_mode() == BLE_PAIRING) {
-			//second give, phone not yet connected
-			response.type =
-					MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE;
-			ble_send_protobuf(&response);
-		}
+	if(get_ble_mode() == BLE_PAIRING) {
+		response.type =
+				MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE;
+		ble_send_protobuf(&response);
 	}
 }
 
@@ -169,9 +163,7 @@ void ble_proto_init() {
 	vSemaphoreCreateBinary(_wifi_smphr);
 	set_ble_mode(BLE_NORMAL);
 
-	pairing_mode_smphr = xSemaphoreCreateBinary(); // X create, first take blocks!
-
-	xTaskCreate(pm_wdt_task, "pm_wdt_task",512 / 4, NULL, 4, NULL);
+	pm_timer = xTimerCreate("PM Timer",PM_TIMEOUT,pdFALSE, 0, pm_cancel);
 }
 
 
@@ -631,7 +623,7 @@ void ble_proto_start_hold()
 	case BLE_CONNECTED:
 	default:
 		set_released(false);
-		xTaskCreate(hold_animate_progress_task, "hold_animate_pair",512 / 4, NULL, 2, NULL);
+		xTaskCreate(hold_animate_progress_task, "hold_animate_pair",1024 / 4, NULL, 2, NULL);
 	}
 
 }
@@ -793,7 +785,6 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
     		if (get_ble_mode() != BLE_PAIRING) {
 				// Light up LEDs?
 				ble_proto_led_fade_in_trippy();
-				xSemaphoreGive(pairing_mode_smphr);
 				vTaskDelay(10); //Let the pairing mode WDT run
 				set_ble_mode(BLE_PAIRING);
 				LOGI( "PAIRING MODE \n");
@@ -803,6 +794,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 				if(!scan_results){
 					scan_results = prescan_wifi(MAX_WIFI_EP_PER_SCAN);
 				}
+				assert( pdPASS == xTimerStart(pm_timer, 30000));
     		}
         }
         break;
