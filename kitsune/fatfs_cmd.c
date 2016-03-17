@@ -1044,12 +1044,18 @@ int download_file(char * host, char * url, char * filename, char * path, storage
 	if (r < 0) {
 		ASSERT_ON_ERROR(-1);
 	}
+    LOGF("host %s\ndownload ip %d.%d.%d.%d\n",
+    			host
+                SL_IPV4_BYTE(ip,3),
+                SL_IPV4_BYTE(ip,2),
+                SL_IPV4_BYTE(ip,1),
+                SL_IPV4_BYTE(ip,0));
 	//LOGI("download <host> <filename> <url>\n\r");
 	// Create a TCP connection to the Web Server
 	dl_sock = CreateConnection(ip);
 
 	if (dl_sock < 0) {
-		LOGF("Connection to server failed\n\r");
+		LOGF("Connection to server failed %d\n\r", dl_sock);
 		return -1;
 	} else {
 		LOGF("Connection to server created successfully\r\n");
