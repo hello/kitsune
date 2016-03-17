@@ -1178,6 +1178,7 @@ UARTIntRegister(unsigned long ulBase, void (*pfnHandler)(void))
     //
     IntRegister(ulInt, pfnHandler);
 
+    IntPrioritySet(ulInt, 6<<5); //between max syscall priority and kernel
     //
     // Enable the UART interrupt.
     //

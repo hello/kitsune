@@ -3,8 +3,6 @@
 
 	.thumb
 
-	.def ulPortSetInterruptMask
-	.def vPortClearInterruptMask
 	.def vPortSVCHandler
 	.def prvPortStartFirstTask
 	.def xPortPendSVHandler
@@ -18,27 +16,6 @@
 	.text
 
 NVIC_VTABLE_R: .word  	0xE000ED08
-
-;---------------------------------------------------------
-
-ulPortSetInterruptMask:
-	
-	mrs r0,basepri
-	mov r1, #configMAX_SYSCALL_INTERRUPT_PRIORITY                     
-	msr basepri, r1     
-	dsb
-	isb
-	bx r14
-	
-;---------------------------------------------------------
-
-vPortClearInterruptMask:
-
-	msr basepri, r0
-	dsb
-	isb
-	bx r14
-	
 
 ;---------------------------------------------------------
 

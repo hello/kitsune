@@ -44,10 +44,19 @@ static int int_to_bcd( int i ) {
 static int get_rtc_time( struct tm * dt ) {
 	unsigned char data[7];
 	unsigned char addy = 1;
-	if (xSemaphoreTakeRecursive(i2c_smphr, portMAX_DELAY)) {
-		assert(I2C_IF_Write(0x68, &addy, 1, 1)==0);
-		assert(I2C_IF_Read(0x68, data, 7)==0);
+	int retries = 0;
+	assert (xSemaphoreTakeRecursive(i2c_smphr, 300000));
+	vTaskDelay(5);
+	while (I2C_IF_Write(0x68, &addy, 1, 1) || I2C_IF_Read(0x68, data, 7)) {
+		vTaskDelay(5);
 		xSemaphoreGiveRecursive(i2c_smphr);
+		vTaskDelay(1000);
+		assert (xSemaphoreTakeRecursive(i2c_smphr, 300000));
+		++retries;
+	}
+	xSemaphoreGiveRecursive(i2c_smphr);
+	if( retries > 0 ) {
+		LOGW("rtc i2c retries %d\n", retries);
 	}
 	dt->tm_sec = bcd_to_int(data[0] & 0x7f);
 	dt->tm_min = bcd_to_int(data[1] & 0x7f);
@@ -68,7 +77,7 @@ static int get_rtc_time( struct tm * dt ) {
 
 static int set_rtc_time(struct tm * dt) {
 	unsigned char data[8];
-
+	int retries = 0;
 	data[0] = 1; //address to write to...
 	data[1] = int_to_bcd(dt->tm_sec & 0x7f);
 	data[2] = int_to_bcd(dt->tm_min & 0x7f); //sets the OF to FALSE
@@ -78,9 +87,18 @@ static int set_rtc_time(struct tm * dt) {
     data[6] = int_to_bcd((dt->tm_mon+1) & 0x3f );
     data[7] = int_to_bcd(dt->tm_year-100);
 
-	if (xSemaphoreTakeRecursive(i2c_smphr, portMAX_DELAY)) {
-		assert(I2C_IF_Write(0x68, data, 8, 1)==0);
+	if (xSemaphoreTakeRecursive(i2c_smphr, 300000)) {
+		vTaskDelay(5);
+		while (I2C_IF_Write(0x68, data, 8, 1) != 0) {
+			vTaskDelay(5);
+			++retries;
+		};
 		xSemaphoreGiveRecursive(i2c_smphr);
+	} else {
+		LOGW("failed to get i2c %d\n", __LINE__);
+	}
+	if( retries > 0 ) {
+		LOGW("set rtc retry %d\n", retries);
 	}
 	return 0;
 }
@@ -179,7 +197,7 @@ static void _on_time_response_success( void * structdata){
 }
 static void _on_time_response_failure( ){
 	LOGF("_on_time_response_failure\r\n");
-	current_ntp_time = INVALID_SYS_TIME;
+	//current_ntp_time = INVALID_SYS_TIME;
 }
 
 uint32_t fetch_ntp_time_from_ntp() {
@@ -284,8 +302,9 @@ static void time_task( void * params ) { //exists to get the time going and cach
 		}
 
 		if (time_smphr && xSemaphoreTake(time_smphr, 0)) {
-			if( xTaskGetTickCount() - cached_ticks > 30000 ) {
+			if( xTaskGetTickCount() - cached_ticks > 30000 &&xSemaphoreTakeRecursive(i2c_smphr, 300000)) {
 				set_cached_time(get_unix_time());
+				xSemaphoreGiveRecursive(i2c_smphr);
 			}
 			xSemaphoreGive(time_smphr);
 		}

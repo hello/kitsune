@@ -510,6 +510,8 @@ GPIOIntRegister(unsigned long ulPort, void (*pfnIntHandler)(void))
     //
     IntRegister(ulPort, pfnIntHandler);
 
+    IntPrioritySet(ulPort, 6<<5); //between max syscall priority and kernel
+
     //
     // Enable the GPIO interrupt.
     //
