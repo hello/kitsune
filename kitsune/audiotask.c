@@ -112,23 +112,32 @@ static void QueueFileForUpload(const char * filename,uint8_t delete_after_upload
 #include "wifi_cmd.h"
 extern bool encode_device_id_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 static void _sense_state_task(hlo_future_t * result, void * ctx){
+#define MAX_STATE_BACKOFF (15*60*1000)
 	SenseState sense_state;
 	AudioState last_audio_state;
 	sense_state.sense_id.funcs.encode = encode_device_id_string;
 	sense_state.has_audio_state = true;
 	bool state_sent = true;
+	unsigned int backoff = 1000;
 	while(1){
-		if(xQueueReceive( _state_queue,(void *) &(sense_state.audio_state), 5000)){
+		if(xQueueReceive( _state_queue,(void *) &(sense_state.audio_state), backoff)){
+			//reset backoff on state change
+			backoff = 1000;
 			last_audio_state = sense_state.audio_state;
 			LOGI("AudioState %s, %s\r\n", last_audio_state.playing_audio?"Playing":"Stopped", last_audio_state.file_path);
 			state_sent = NetworkTask_SendProtobuf(true, DATA_SERVER,
-							SENSE_STATE_ENDPOINT, SenseState_fields, &sense_state, 3000,
+							SENSE_STATE_ENDPOINT, SenseState_fields, &sense_state, 0,
 							NULL, NULL, NULL, false);
 		}else if(!state_sent && wifi_status_get(HAS_IP)){
 			sense_state.audio_state = last_audio_state;
 			state_sent = NetworkTask_SendProtobuf(true, DATA_SERVER,
-										SENSE_STATE_ENDPOINT, SenseState_fields, &sense_state, 3000,
+										SENSE_STATE_ENDPOINT, SenseState_fields, &sense_state, 0,
 										NULL, NULL, NULL, false);
+			backoff *= 2;
+			backoff = backoff > MAX_STATE_BACKOFF ?  MAX_STATE_BACKOFF : backoff;
+		}
+		if( state_sent ) {
+			backoff = 1000;
 		}
 	}
 }
