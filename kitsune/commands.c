@@ -2228,7 +2228,6 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
 
-
 	if( on_charger ) {
 		launch_tasks();
 		vTaskDelete(NULL);
