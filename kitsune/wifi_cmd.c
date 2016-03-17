@@ -1190,7 +1190,7 @@ int start_connection(int * sock, char * host, security_type sec) {
         	static portTickType last_reset_time = 0;
 			LOGI("failed to resolves addr rv %d\n", rv);
 			ble_reply_wifi_status(wifi_connection_state_DNS_FAILED);
-			set_backup_dns();
+			//set_backup_dns();
 
             #define SIX_MINUTES 360000
             if( last_reset_time == 0 || xTaskGetTickCount() - last_reset_time > SIX_MINUTES ) {
