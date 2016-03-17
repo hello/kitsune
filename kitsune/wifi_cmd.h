@@ -96,6 +96,7 @@ int Cmd_set_mac(int argc, char*argv[]);
 int Cmd_set_aes(int argc, char *argv[]) ;
 int Cmd_test_key(int argc, char*argv[]);
 int Cmd_setDns(int argc, char *argv[]);
+void set_backup_dns();
 
 int Cmd_RadioStartRX(int argc, char*argv[]);
 int Cmd_RadioStopRX(int argc, char*argv[]);
