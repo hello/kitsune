@@ -14,7 +14,7 @@ void AudioClassifier_ResetUpdateTime(void);
     
 uint32_t AudioClassifier_GetSerializedBuffer(pb_ostream_t * stream,const char * macbytes, uint32_t unix_time,const char * tags, const char * source);
 
-void AudioClassifier_DataCallback(int64_t samplecount, const AudioFeatures_t * feats);
+void AudioClassifier_DataCallback(AudioFeatures_t * feats);
  
 #ifdef __cplusplus
 }

@@ -236,7 +236,7 @@ void AudioClassifier_Init(RecordAudioCallback_t recordfunc) {
 }
 
 
-void AudioClassifier_DataCallback(const AudioFeatures_t * pfeats) {
+void AudioClassifier_DataCallback( AudioFeatures_t * pfeats) {
 
     uint16_t idx;
 

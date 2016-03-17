@@ -4,6 +4,7 @@
 #include <stdlib.h>     /* abs */
 #include "debugutils/debuglog.h"
 #include <stdio.h>
+#include "uart_logger.h"
 #include "hellomath.h"
 
 /*
