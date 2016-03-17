@@ -668,7 +668,7 @@ int Cmd_connect(int argc, char *argv[]) {
     connect_wifi( argv[1], argv[2], atoi(argv[3]), 1, true );
     return (0);
 }
-
+static void set_backup_dns();
 int Cmd_setDns(int argc, char *argv[])  {
 	if( argc == 2 ) {
 		SlNetCfgIpV4Args_t config = {0};
