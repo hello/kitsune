@@ -675,7 +675,7 @@ int Cmd_setDns(int argc, char *argv[])  {
 		uint8_t size = sizeof(config);
 		sl_NetCfgGet( SL_IPV4_STA_P2P_CL_GET_INFO, NULL, &size, (uint8_t*)&config );
 		config.ipV4DnsServer = strtoul(argv[1], NULL, 16);
-		sl_NetCfgSet( SL_IPV4_AP_P2P_GO_STATIC_ENABLE, IPCONFIG_MODE_ENABLE_IPV4, size, (uint8_t*)&config );
+		sl_NetCfgSet( SL_IPV4_STA_P2P_CL_STATIC_ENABLE, IPCONFIG_MODE_ENABLE_IPV4, size, (uint8_t*)&config );
 		nwp_reset();
 	} else {
 		set_backup_dns();
@@ -1128,7 +1128,7 @@ static void set_backup_dns() {
 			SL_IPV4_BYTE(config.ipV4DnsServer, 1), SL_IPV4_BYTE(config.ipV4DnsServer, 0)
 			);
 
-    sl_NetCfgSet(SL_IPV4_AP_P2P_GO_STATIC_ENABLE, 1, sizeof(SlNetCfgIpV4Args_t), (unsigned char*)&config);
+    sl_NetCfgSet(SL_IPV4_STA_P2P_CL_STATIC_ENABLE, 1, sizeof(SlNetCfgIpV4Args_t), (unsigned char*)&config);
 
     backup_idx = (backup_idx + 1) % NUM_ALT_DNS;
 }
@@ -1194,7 +1194,7 @@ int start_connection(int * sock, char * host, security_type sec) {
         	static portTickType last_reset_time = 0;
 			LOGI("failed to resolves addr rv %d\n", rv);
 			ble_reply_wifi_status(wifi_connection_state_DNS_FAILED);
-			set_backup_dns();
+			//set_backup_dns();
 
             #define SIX_MINUTES 360000
             if( last_reset_time == 0 || xTaskGetTickCount() - last_reset_time > SIX_MINUTES ) {
