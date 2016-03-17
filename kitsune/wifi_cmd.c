@@ -1683,7 +1683,7 @@ int send_data_pb( char* host, const char* path, char ** recv_buf_ptr,
     pb_field_t * reply_fields = NULL;
     void * reply_structdata = NULL;
 
-    if( http_response_ok((char*)recv_buf) ) {
+    if( http_response_ok((char*)recv_buf) == 0 ) {
 		if( pb_cb ) {
 			const char* header_content_len = "content-length: ";
 			char * content = strstr(recv_buf, "\r\n\r\n") + 4;
@@ -1695,17 +1695,10 @@ int send_data_pb( char* host, const char* path, char ** recv_buf_ptr,
 
 			LOGD( "Headers:\n%s", buffer );
 
-			if (http_response_ok(recv_buf) != 0) {
-				wifi_status_set(UPLOADING, true);
-				LOGI("Invalid response, endpoint return failure.\n");
-				goto failure_pb;
-			}
-
 			if( strstr(recv_buf, "no content") ) {
 				LOGI("No content\n");
 				return 0;
 			}
-
 			if (len_str == NULL) {
 				wifi_status_set(UPLOADING, true);
 				LOGI("Failed to find Content-Length header\n");
@@ -1732,7 +1725,9 @@ int send_data_pb( char* host, const char* path, char ** recv_buf_ptr,
 			}
 		}
 		return 0;
-    }
+	}
+	wifi_status_set(UPLOADING, true);
+	LOGI("Invalid response, endpoint return failure.\n");
 
 	failure_pb:
 	if( reply_structdata && pb_cb->free_reply_pb ) {
