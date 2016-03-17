@@ -89,6 +89,7 @@ static int32_t compute_sha(char* path, char* sha_path);
 static bool get_sha_filename(char* filename, char* sha_fn);
 static int get_complete_filename(char* full_path, char * local_fn, char* path);
 static bool does_sha_file_exist(char* sha_path);
+static int get_sha_from_file(char* filename, char* path, uint8_t* sha);
 
 // extern functions
 bool send_to_download_queue(SyncResponse_FileDownload* data, TickType_t ticks_to_wait);
@@ -169,6 +170,14 @@ static void DownloadManagerTask(void * filesyncdata)
 
     LOGI("Starting download manager\n");
 
+    // Run this once so that most memory realloc and SHA file creation is done
+	uint32_t ret = update_file_manifest();
+	if(ret)
+	{
+		LOGE("Error creating file manifest: %d\n", ret);
+		//TODO what is to be sent if this function returns an error
+	}
+
 	for (; ;)
 	{
 		// Check if response has been received
@@ -211,7 +220,11 @@ static void DownloadManagerTask(void * filesyncdata)
 			/* UPDATE FW VERSION */
 
 			message_for_upload.has_firmware_version = true;
+#ifdef DM_TESTING
+			message_for_upload.firmware_version = 100; //KIT_VER;
+#else
 			message_for_upload.firmware_version = KIT_VER;
+#endif
 
 			/* UPDATE TIME */
 
@@ -309,6 +322,8 @@ static void _get_file_sync_response(pb_field_t ** fields, void ** structdata)
 // Better to handle it here since the flags are a part of the structure. and then populate download info and send to queue
 bool _on_file_update(pb_istream_t *stream, const pb_field_t *field, void **arg)
 {
+	//LOGI("DM: file sync parsing\n" );
+
 	FileManifest_File file_info;
 
 	file_info.download_info.host.funcs.decode = _decode_string_field;
@@ -325,7 +340,7 @@ bool _on_file_update(pb_istream_t *stream, const pb_field_t *field, void **arg)
 
 
 	// decode PB
-	LOGI("DM: file sync parsing\n" );
+	//LOGI("DM: file sync parsing\n" );
 	if( !pb_decode(stream,FileManifest_File_fields,&file_info) )
 	{
 		LOGI("DM: file sync - parse fail \n" );
@@ -338,32 +353,39 @@ bool _on_file_update(pb_istream_t *stream, const pb_field_t *field, void **arg)
 		if(file_info.has_delete_file && file_info.delete_file)
 		{
 			// delete file
+			LOGI("DM: delete file\n" );
 		}
 		else
 		{
-			// Download file
-			// Prepare download info and send to download task
-
-			SyncResponse_FileDownload download_info = {0};
-
-			download_info.host.arg = file_info.download_info.host.arg;
-			download_info.url.arg = file_info.download_info.url.arg;
-			download_info.sd_card_path.arg = file_info.download_info.sd_card_path.arg;
-			download_info.sd_card_filename.arg = file_info.download_info.sd_card_filename.arg;
-			download_info.has_sha1 = file_info.download_info.has_sha1;
-			memcpy(&download_info.sha1, &file_info.download_info.sha1, sizeof(FileManifest_FileDownload_sha1_t));
-
-
-			if( !send_to_download_queue(&download_info,10) )
-			{
-				free_file_sync_info( &file_info.download_info );
-				return false;
-
-			}
-
+			LOGI("DM: update file %s\n", file_info.download_info.sd_card_filename.arg );
+//			// Download file
+//			// Prepare download info and send to download task
+//
+//			SyncResponse_FileDownload download_info = {0};
+//
+//			download_info.host.arg = file_info.download_info.host.arg;
+//			download_info.url.arg = file_info.download_info.url.arg;
+//			download_info.sd_card_path.arg = file_info.download_info.sd_card_path.arg;
+//			download_info.sd_card_filename.arg = file_info.download_info.sd_card_filename.arg;
+//			download_info.has_sha1 = file_info.download_info.has_sha1;
+//			memcpy(&download_info.sha1, &file_info.download_info.sha1, sizeof(FileManifest_FileDownload_sha1_t));
+//
+//
+//			if( !send_to_download_queue(&download_info,10) )
+//			{
+//				free_file_sync_info( &file_info.download_info );
+//				return false;
+//
+//			}
+//
 		}
 	}
+	else
+	{
+		LOGI("DM: no file update\n" );
 
+	}
+//
 	free_file_sync_info( &file_info.download_info );
 	return true;
 }
@@ -410,6 +432,7 @@ bool encode_file_info (pb_ostream_t *stream, const pb_field_t *field, void * con
     	file_info.sd_card_filename.arg = data->ga_file_list[i].filename;
 
     	//TODO add SHA
+    	get_sha_from_file(data->ga_file_list[i].filename,data->ga_file_list[i].path,file_info.sha1.bytes);
 
     	// read from SHA file
 
@@ -609,21 +632,18 @@ static uint32_t scan_files(char* path)
                 path[i] = 0;
                 if (res != FR_OK) break;
             } else {                                       /* It is a file. */
-                LOGI("DM full path: %s/%s\n", path, fn, strlen(path), strlen(fn));
-
                 // Skip if file is a sha file
                 if(!strstr(fn, ".SHA"))
                 {
+                	//LOGI("DM File found: %s/%s\n", path, fn, strlen(path), strlen(fn));
 
+
+                	// Allocate memory if needed
 					if( ( file_manifest_local.allocated_file_list_size <= file_manifest_local.num_data ) ||
 							( !file_manifest_local.ga_file_list) )
 					{
 						file_manifest_local.allocated_file_list_size = ( file_manifest_local.allocated_file_list_size ) ?
 								file_manifest_local.allocated_file_list_size*2 : 2;
-
-	//					LOGI("Allocating: %d while file count: %d\n", \
-	//							file_manifest_local.allocated_file_list_size, file_manifest_local.num_data);
-
 
 						file_manifest_local.ga_file_list =
 								(file_list_t*)pvPortRealloc(file_manifest_local.ga_file_list, file_manifest_local.allocated_file_list_size * sizeof(file_list_t));
@@ -639,27 +659,27 @@ static uint32_t scan_files(char* path)
 
 					file_manifest_local.num_data++;
 
-					char sha[13];
+					char sha_filename[13];
 					char full_path[64];
 					char full_path_sha[64];
 
 					// Get name of SHA file
-					get_sha_filename(fn, sha);
+					get_sha_filename(fn, sha_filename);
 
 					// Get complete filename
 					get_complete_filename(full_path,fn, path);
-					get_complete_filename(full_path_sha,sha, path);
+					get_complete_filename(full_path_sha,sha_filename, path);
 
 					// Check if SHA file exists
 					if(!does_sha_file_exist(full_path_sha))
 					{
-
-						// Create SHA file
-
 						// Compute and store SHA
-					   // get_complete_filename();
 						compute_sha(full_path, full_path_sha);
 					}
+                }
+                else
+                {
+                	//LOGI("DM skipping File: %s/%s\n", path, fn, strlen(path), strlen(fn));
                 }
 
             }
@@ -679,11 +699,9 @@ static bool does_sha_file_exist(char* sha_path)
 	res = hello_fs_stat(sha_path, &info);
 	if (res)
 	{
-		LOGE("DM: File doesnt exist %d\n", res);
+		LOGI("DM: File doesnt exist %d\n", res);
 		return false;
 	}
-
-	LOGE("DM: File exists\n");
 
 	return true;
 
@@ -710,14 +728,14 @@ static int32_t compute_sha(char* path, char* sha_path)
     LOGI( "computing SHA of %s\n", path);
     res = hello_fs_stat(path, &info);
     if (res) {
-        LOGE("error getting file info %d\n", res);
+        LOGE("DM: error getting file info %d\n", res);
         return -1;
     }
 
 
     res = hello_fs_open(&fp, path, FA_READ);
     if (res) {
-        LOGE("error opening file for read %d\n", res);
+        LOGE("DM: error opening file for read %d\n", res);
         return -1;
     }
 
@@ -726,7 +744,7 @@ static int32_t compute_sha(char* path, char* sha_path)
     while (bytes_to_read > 0) {
 		res = hello_fs_read(&fp, buffer,(minval(sizeof(buffer),bytes_to_read)), &bytes_read);
 		if (res) {
-			LOGE("error reading file %d\n", res);
+			LOGE("DM: error reading file %d\n", res);
 			return -1;
 		}
 		SHA1_Update(&sha1ctx, buffer, bytes_read);
@@ -740,7 +758,7 @@ static int32_t compute_sha(char* path, char* sha_path)
 	// Open for writing
 	res = hello_fs_open(&fp, sha_path, FA_OPEN_ALWAYS|FA_WRITE);
 	if (res) {
-		LOGE("error opening file for write %d\n", res);
+		LOGE("DM: error opening file for write %d\n", res);
 		return -1;
 	}
 
@@ -751,16 +769,17 @@ static int32_t compute_sha(char* path, char* sha_path)
 		// Write SHA into it
 		res = hello_fs_write(&fp, sha,SHA1_SIZE, &bytes_written);
 		if (res) {
-			LOGE("error reading file %d\n", res);
+			LOGE("DM: error reading file %d\n", res);
 			return -1;
 		}
 
 		bytes_to_write -= bytes_written;
 	}
-	LOGI("DM: SHA bytes written: %d\n",bytes_written);
 
     // Close file
     hello_fs_close(&fp);
+
+    return 0;
 }
 
 static int get_complete_filename(char* full_path, char * local_fn, char* path)
@@ -771,6 +790,7 @@ static int get_complete_filename(char* full_path, char * local_fn, char* path)
 
 	//LOGI("DM: %s\n", full_path);
 
+	// TODO add some boundary checks
 	/*
     // First, check to make sure that the current path (CWD), plus the file
     // name, plus a separator and trailing null, will all fit in the temporary
@@ -782,17 +802,6 @@ static int get_complete_filename(char* full_path, char * local_fn, char* path)
         return(0);
     }
 
-    // Copy the current path to the temporary buffer so it can be manipulated.
-    strcpy(path_buff, cwd_buff);
-
-    // If not already at the root level, then append a separator.
-    if(strcmp("/", cwd_buff))
-    {
-        strcat(path_buff, "/");
-    }
-
-    // Now finally, append the file name to result in a fully specified file.
-    strcat(path_buff, local_fn);
     */
 
     return 0;
@@ -818,8 +827,6 @@ static bool get_sha_filename(char* filename, char* sha_fn)
 		strncpy(sha_fn,token, 13);
 		strncat(sha_fn,".SHA",sizeof(".SHA"));
 
-		LOGI("DM: From %s to %s\n", filename, sha_fn);
-
 		return true;
 
 	}
@@ -829,3 +836,42 @@ static bool get_sha_filename(char* filename, char* sha_fn)
 
 }
 
+
+static int get_sha_from_file(char* filename, char* path, uint8_t* sha)
+{
+	char sha_filename[13];
+	char sha_fullpath[48];
+	FRESULT res;
+    uint32_t bytes_to_read, bytes_read;
+    FIL fp = {0};
+
+	//get SHA filename
+	get_sha_filename(filename,sha_filename);
+
+	// compute full path
+	get_complete_filename(sha_fullpath,sha_filename,path);
+
+	//open file for read
+	res = hello_fs_open(&fp, sha_fullpath, FA_READ);
+	if (res) {
+		LOGE("DM: error opening file for read %d\n", res);
+		return -1;
+	}
+
+	// read into SHA
+	bytes_to_read = SHA1_SIZE;
+	while (bytes_to_read > 0) {
+		res = hello_fs_read(&fp, sha,bytes_to_read, &bytes_read);
+		if (res) {
+			LOGE("DM: error reading file %d\n", res);
+			return -1;
+		}
+		bytes_to_read -= bytes_read;
+	}
+	hello_fs_close(&fp);
+
+	LOGI("Sha calculated: %02x ... %02x\r\n", sha[0], sha[SHA1_SIZE-1]);
+
+	return 0;
+
+}
