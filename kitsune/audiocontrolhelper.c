@@ -35,14 +35,14 @@ void AudioControlHelper_SetAudioControl(AudioControl * pcontrol) {
 		case AudioControl_AudioCaptureAction_ON:
 		{
 			//turn on uploading of audio MFCC features
-			AudioProcessingTask_SetControl(featureUploadsOn,NULL,NULL);
+			AudioProcessingTask_SetControl(featureUploadsOn,NULL,NULL, 1000);
 			break;
 		}
 
 		case AudioControl_AudioCaptureAction_OFF:
 		{
 			//turn off uploading of audio MFCC features
-			AudioProcessingTask_SetControl(featureUploadsOff,NULL,NULL);
+			AudioProcessingTask_SetControl(featureUploadsOff,NULL,NULL, 1000);
 			break;
 		}
 
@@ -58,14 +58,14 @@ void AudioControlHelper_SetAudioControl(AudioControl * pcontrol) {
 		case AudioControl_AudioCaptureAction_ON:
 		{
 			//turn on uploading of raw audio
-			AudioProcessingTask_SetControl(rawUploadsOn,NULL,NULL);
+			AudioProcessingTask_SetControl(rawUploadsOn,NULL,NULL, 1000);
 			break;
 		}
 
 		case AudioControl_AudioCaptureAction_OFF:
 		{
 			//turn off uploading of raw audio
-			AudioProcessingTask_SetControl(rawUploadsOff,NULL,NULL);
+			AudioProcessingTask_SetControl(rawUploadsOff,NULL,NULL, 1000);
 			break;
 		}
 

@@ -50,7 +50,7 @@ extern "C"
 {
 #endif
 
-#define CTL_TBL_SIZE	            32
+#define CTL_TBL_SIZE	            64
 
 //
 // UDMA Interface APIs

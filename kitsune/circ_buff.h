@@ -80,7 +80,7 @@ typedef unsigned int tboolean;
 /****************************************************************************/
 /*		        FUNCTION PROTOTYPES							*/
 /****************************************************************************/
-extern tCircularBuffer* CreateCircularBuffer(unsigned long ulBufferSize);
+extern tCircularBuffer* CreateCircularBuffer(unsigned long ulBufferSize, unsigned char * data);
 extern void DestroyCircularBuffer(tCircularBuffer *pCircularBuffer);
 extern unsigned char* GetReadPtr(tCircularBuffer *pCircularBuffer);
 extern unsigned char* GetWritePtr(tCircularBuffer *pCircularBuffer);
