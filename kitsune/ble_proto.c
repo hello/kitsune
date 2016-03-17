@@ -146,10 +146,31 @@ static void _factory_reset(){
 
 }
 
+static xSemaphoreHandle pairing_mode_smphr;
+
+static void pm_wdt_task(void * params) {
+#define TIMEOUT (20*60*1000UL)
+	MorpheusCommand response = { 0 };
+	while(xSemaphoreTake(pairing_mode_smphr, portMAX_DELAY)) {
+		//first give, pairing mode
+		if (!xSemaphoreTake(pairing_mode_smphr, TIMEOUT)) { //20 minute timeout
+			//second give, phone not yet connected
+			response.type =
+					MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE;
+			ble_send_protobuf(&response);
+			xSemaphoreGive(pairing_mode_smphr);
+		}
+	}
+}
+
 void ble_proto_init() {
 	vSemaphoreCreateBinary(_self.smphr);
 	vSemaphoreCreateBinary(_wifi_smphr);
 	set_ble_mode(BLE_NORMAL);
+
+	pairing_mode_smphr = xSemaphoreCreateBinary(); // X create, first take blocks!
+
+	xTaskCreate(pm_wdt_task, "pm_wdt_task",512 / 4, NULL, 2, NULL);
 }
 
 
@@ -582,11 +603,8 @@ void hold_animate_progress_task(void * params) {
 	assert( BLE_HOLD_TIMEOUT_MS < MAX_HOLD_TIME_MS );
 	vTaskDelay(BLE_HOLD_TIMEOUT_MS);
 	if( get_released() ) {
-		vTaskDelay(20*60*1000UL); //20 minute timeout
-		if( get_ble_mode() != BLE_PAIRING ) {
-			vTaskDelete(NULL);
-			return;
-		}
+		vTaskDelete(NULL);
+		return;
 	}
 	response.type =
 			MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE;
@@ -612,7 +630,7 @@ void ble_proto_start_hold()
 	case BLE_CONNECTED:
 	default:
 		set_released(false);
-		xTaskCreate(hold_animate_progress_task, "hold_animate_pair",1024 / 4, NULL, 2, NULL);
+		xTaskCreate(hold_animate_progress_task, "hold_animate_pair",512 / 4, NULL, 2, NULL);
 	}
 
 }
@@ -782,6 +800,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 				if(!scan_results){
 					scan_results = prescan_wifi(MAX_WIFI_EP_PER_SCAN);
 				}
+				xSemaphoreGive(pairing_mode_smphr);
     		}
         }
         break;
@@ -811,6 +830,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         {
         	ble_proto_led_fade_out(0);
         	LOGI("PHONE BONDED\n");
+			xSemaphoreGive(pairing_mode_smphr);
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_PROX_DATA:
