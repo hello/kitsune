@@ -151,14 +151,15 @@ static xSemaphoreHandle pairing_mode_smphr;
 static void pm_wdt_task(void * params) {
 #define TIMEOUT (20*60*1000UL)
 	MorpheusCommand response = { 0 };
-	while(xSemaphoreTake(pairing_mode_smphr, portMAX_DELAY)) {
-		//first give, pairing mode
-		if (!xSemaphoreTake(pairing_mode_smphr, TIMEOUT)) { //20 minute timeout
+	while (1) {
+		//if we get the semaphore it means we entered pairing mode
+		//if the semaphore times out and we're in pairing mode, exit pairing mode
+		if (!xSemaphoreTake(pairing_mode_smphr, TIMEOUT)
+				&& get_ble_mode() == BLE_PAIRING) {
 			//second give, phone not yet connected
 			response.type =
 					MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE;
 			ble_send_protobuf(&response);
-			xSemaphoreGive(pairing_mode_smphr);
 		}
 	}
 }
@@ -170,7 +171,7 @@ void ble_proto_init() {
 
 	pairing_mode_smphr = xSemaphoreCreateBinary(); // X create, first take blocks!
 
-	xTaskCreate(pm_wdt_task, "pm_wdt_task",512 / 4, NULL, 2, NULL);
+	xTaskCreate(pm_wdt_task, "pm_wdt_task",512 / 4, NULL, 4, NULL);
 }
 
 
@@ -792,6 +793,8 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
     		if (get_ble_mode() != BLE_PAIRING) {
 				// Light up LEDs?
 				ble_proto_led_fade_in_trippy();
+				xSemaphoreGive(pairing_mode_smphr);
+				vTaskDelay(10); //Let the pairing mode WDT run
 				set_ble_mode(BLE_PAIRING);
 				LOGI( "PAIRING MODE \n");
 
@@ -800,7 +803,6 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 				if(!scan_results){
 					scan_results = prescan_wifi(MAX_WIFI_EP_PER_SCAN);
 				}
-				xSemaphoreGive(pairing_mode_smphr);
     		}
         }
         break;
@@ -830,7 +832,6 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         {
         	ble_proto_led_fade_out(0);
         	LOGI("PHONE BONDED\n");
-			xSemaphoreGive(pairing_mode_smphr);
         }
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_PROX_DATA:
