@@ -916,7 +916,6 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
             }
 		}
 	    LOGI("opening %s\n", path_buff);
-
 	}
     uint32_t total = recv_size;
     int percent = 101-100*recv_size/total;
