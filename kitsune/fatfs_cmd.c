@@ -8,6 +8,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include "netcfg.h"
 #include "kit_assert.h"
 #include <stdint.h>
 #include "fatfs_cmd.h"
@@ -1045,7 +1046,7 @@ int download_file(char * host, char * url, char * filename, char * path, storage
 		ASSERT_ON_ERROR(-1);
 	}
     LOGF("host %s\ndownload ip %d.%d.%d.%d\n",
-    			host
+    			host,
                 SL_IPV4_BYTE(ip,3),
                 SL_IPV4_BYTE(ip,2),
                 SL_IPV4_BYTE(ip,1),
