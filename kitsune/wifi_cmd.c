@@ -1492,45 +1492,6 @@ static void lcasestr(char *s){
     }
 }
 
-static bool validate_signatures( char * buffer, int sz, const pb_field_t fields[], void * structdata) {
-
-    // Parse the response
-    //LOGI("Reply is:\n\r%s\n\r", buffer);
-
-    const char* header_content_len = "content-length: ";
-    char * content = strstr(buffer, "\r\n\r\n") + 4;
-
-    *(content-2) = 0;
-    lcasestr(buffer);
-
-    char * len_str = strstr(buffer, header_content_len) + strlen(header_content_len);
-
-    LOGD( "Headers:\n%s", buffer );
-
-    if (http_response_ok(buffer) != 0) {
-    	wifi_status_set(UPLOADING, true);
-        LOGI("Invalid response, endpoint return failure.\n");
-        return false;
-    }
-
-    if( strstr(buffer, "no content") ) {
-    	return true;
-    }
-
-    if (len_str == NULL) {
-    	wifi_status_set(UPLOADING, true);
-        LOGI("Failed to find Content-Length header\n");
-        return false;
-    }
-    int len = atoi(len_str);
-    if( len + (content - buffer) > sz ) {
-    	LOGE("Content length %d exceeds rx buffer %d! %x %x\n", len, sz, content, buffer);
-    	return false;
-    }
-
-    return decode_rx_data_pb((unsigned char*) content, len, fields, structdata);
-}
-
 //buffer needs to be at least 128 bytes...
 int send_data_pb( char* host, const char* path, char ** recv_buf_ptr,
 		uint32_t * recv_buf_size_ptr, const pb_field_t fields[],  void * structdata,
@@ -1723,11 +1684,46 @@ int send_data_pb( char* host, const char* path, char ** recv_buf_ptr,
     void * reply_structdata = NULL;
 
     if( pb_cb ) {
-		if( pb_cb->get_reply_pb ) {
-			pb_cb->get_reply_pb( &reply_fields, &reply_structdata );
-			assert(reply_structdata);
-		}
-		if( reply_structdata && validate_signatures((char*)recv_buf, rv, reply_fields, reply_structdata ) ) {
+		if( reply_structdata ) {
+		    const char* header_content_len = "content-length: ";
+		    char * content = strstr(recv_buf, "\r\n\r\n") + 4;
+
+		    *(content-2) = 0;
+		    lcasestr(recv_buf);
+
+		    char * len_str = strstr(recv_buf, header_content_len) + strlen(header_content_len);
+
+		    LOGD( "Headers:\n%s", buffer );
+
+		    if (http_response_ok(recv_buf) != 0) {
+		    	wifi_status_set(UPLOADING, true);
+		        LOGI("Invalid response, endpoint return failure.\n");
+		        goto failure;
+		    }
+
+		    if( strstr(recv_buf, "no content") ) {
+		        LOGI("No content\n");
+				return 0;
+		    }
+
+		    if (len_str == NULL) {
+		    	wifi_status_set(UPLOADING, true);
+		        LOGI("Failed to find Content-Length header\n");
+		        goto failure;
+		    }
+		    int len = atoi(len_str);
+		    if( len + (content - recv_buf) > rv ) {
+		    	LOGE("Content length %d exceeds rx buffer %d! %x %x\n", len, rv, content, recv_buf);
+		        goto failure;
+		    }
+
+			if( pb_cb->get_reply_pb ) {
+				pb_cb->get_reply_pb( &reply_fields, &reply_structdata );
+				assert(reply_structdata);
+			}
+			if( !decode_rx_data_pb((unsigned char*) content, len, fields, structdata) ) {
+				goto failure;
+			}
 			if( pb_cb && pb_cb->on_pb_success ) {
 				pb_cb->on_pb_success( reply_structdata );
 			}
@@ -2004,6 +2000,7 @@ static void _get_sync_response(pb_field_t ** fields, void ** structdata){
 	if( *structdata ) {
 		SyncResponse * response_protobuf = *structdata;
 		memset(response_protobuf, 0, sizeof(SyncResponse));
+		pill_settings_reset_all();
 		response_protobuf->pill_settings.funcs.decode = on_pill_settings;
 		response_protobuf->files.funcs.decode = _on_file_download;
 	}
