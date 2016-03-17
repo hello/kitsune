@@ -847,6 +847,7 @@ uint8_t get_alpha_from_light()
 static int _is_light_off()
 {
 	static int last_light = -1;
+	static unsigned int last_light_time = 0;
 	const int light_off_threshold = 500;
 	int ret = 0;
 
@@ -854,11 +855,14 @@ static int _is_light_off()
 	if(last_light != -1)
 	{
 		int delta = last_light - light;
-		if(delta >= light_off_threshold && light < 1000)
+		if(xTaskGetTickCount() - last_light_time > 2000
+				&& delta >= light_off_threshold
+				&& light < 1000)
 		{
 			LOGI("light delta: %d, current %d, last %d\n", delta, light, last_light);
 			ret = 1;
 			light_mean = light; //so the led alpha will be at the lights off level
+			last_light_time = xTaskGetTickCount();
 		}
 	}
 
