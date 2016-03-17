@@ -976,7 +976,6 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
         pBuff = g_buff;
     }
 
-    //
     // If user file has checksum which can be used to verify the temporary
     // file then file should be verified
     // In case of invalid file (FILE_NAME) should be closed without saving to
