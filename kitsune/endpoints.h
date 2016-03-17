@@ -22,6 +22,7 @@ char * get_messeji_server(void);
 #define PILL_DATA_RECEIVE_ENDPOINT          "/in/pill"
 #define CHECK_KEY_ENDPOINT                  "/check"
 #define PROVISION_ENDPOINT					"/provision/keys"
+#define SENSE_STATE_ENDPOINT				"/in/sense/state"
 
 #define TEST_NETWORK_ENDPOINT               "/"
 #define TEST_SERVER                         "stress-in.hello.is"

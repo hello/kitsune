@@ -28,6 +28,7 @@
 #include "utils.h"
 
 #include "hlo_async.h"
+#include "state.pb.h"
 
 #if 0
 #define PRINT_TIMING
@@ -57,6 +58,7 @@ TaskHandle_t audio_task_hndl;
 
 /* static variables  */
 static xQueueHandle _queue = NULL;
+static xQueueHandle _state_queue = NULL;
 static xSemaphoreHandle _processingTaskWait = NULL;
 static xSemaphoreHandle _statsMutex = NULL;
 
@@ -101,6 +103,35 @@ static void QueueFileForUpload(const char * filename,uint8_t delete_after_upload
 	FileUploaderTask_Upload(filename,DATA_SERVER,RAW_AUDIO_ENDPOINT,delete_after_upload,NULL,NULL);
 }
 #endif
+/**
+ * sense state task is an async task that is responsible for caching the correct audio playback state
+ * and ensure its delivery to the server
+ */
+#include "endpoints.h"
+#include "networktask.h"
+#include "wifi_cmd.h"
+extern bool encode_device_id_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
+static void _sense_state_task(hlo_future_t * result, void * ctx){
+	SenseState sense_state;
+	AudioState last_audio_state;
+	sense_state.sense_id.funcs.encode = encode_device_id_string;
+	sense_state.has_audio_state = true;
+	bool state_sent = true;
+	while(1){
+		if(xQueueReceive( _state_queue,(void *) &(sense_state.audio_state), 5000)){
+			last_audio_state = sense_state.audio_state;
+			LOGI("AudioState %s, %s\r\n", last_audio_state.playing_audio?"Playing":"Stopped", last_audio_state.file_path);
+			state_sent = NetworkTask_SendProtobuf(true, DATA_SERVER,
+							SENSE_STATE_ENDPOINT, SenseState_fields, &sense_state, 3000,
+							NULL, NULL, NULL, false);
+		}else if(!state_sent && wifi_status_get(HAS_IP)){
+			sense_state.audio_state = last_audio_state;
+			state_sent = NetworkTask_SendProtobuf(true, DATA_SERVER,
+										SENSE_STATE_ENDPOINT, SenseState_fields, &sense_state, 3000,
+										NULL, NULL, NULL, false);
+		}
+	}
+}
 
 static void Init(void) {
 	_isCapturing = 0;
@@ -126,6 +157,10 @@ static void Init(void) {
 	memset(&_stats,0,sizeof(_stats));
 	AudioFeatures_Init(DataCallback,StatsCallback);
 
+
+	_state_queue =  xQueueCreate(INBOX_QUEUE_LENGTH,sizeof(AudioState));
+	hlo_future_create_task_bg(_sense_state_task, NULL, 1024);
+
 }
 
 static uint8_t CheckForInterruptionDuringPlayback(void) {
@@ -139,7 +174,6 @@ static uint8_t CheckForInterruptionDuringPlayback(void) {
 			ret = FLAG_STOP;
 			LOGI("Stopping playback\r\n");
 		}
-
 		if (ret) {
 			xQueueReceive(_queue,(void *)&m,0); //pop this interruption off the queue
 		}
@@ -158,6 +192,8 @@ static unsigned int fade_in_vol(unsigned int fade_counter, unsigned int volume, 
 static unsigned int fade_out_vol(unsigned int fade_counter, unsigned int volume, unsigned int fade_length) {
     return volume - fade_counter * FADE_SPAN / fade_length;
 }
+extern xSemaphoreHandle i2c_smphr;
+
 static void _set_volume_task(hlo_future_t * result, void * ctx){
 	volatile unsigned long vol_to_set = *(volatile unsigned long*)ctx;
 
@@ -170,6 +206,21 @@ static void _set_volume_task(hlo_future_t * result, void * ctx){
 	}
 	hlo_future_write(result, NULL, 0, 0);
 }
+#include "state.pb.h"
+static bool _queue_audio_playback_state(bool is_playing, const char * fpath, uint32_t length){
+	AudioState ret = AudioState_init_default;
+
+	ret.playing_audio = is_playing;
+
+	ret.has_duration_seconds = true;
+	ret.duration_seconds = length;
+
+	ret.has_file_path = true;
+	ustrncpy(ret.file_path, fpath, sizeof(ret.file_path));
+
+	return xQueueSend(_state_queue, &ret, 0);
+}
+
 
 static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
@@ -182,8 +233,6 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	FIL fp = {0};
 	UINT size;
 	FRESULT res;
-	EAudioPlaybackType_t playback_type = eAudioPlayFile;
-	uint32_t iReceiveCount = 0;
 	uint8_t returnFlags = 0x00;
 
 	int32_t desired_ticks_elapsed;
@@ -199,8 +248,6 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	unsigned int initial_volume = info->volume;
 	unsigned int fade_length = info->fade_in_ms;
 
-	int i = 0;
-
 	desired_ticks_elapsed = info->durationInSeconds * NUMBER_OF_TICKS_IN_A_SECOND;
 	LOGI("Starting playback\r\n");
 	LOGI("%d free %d stk\n", xPortGetFreeHeapSize(),  uxTaskGetStackHighWaterMark(NULL));
@@ -210,6 +257,9 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		vPortFree(speaker_data);
 		return returnFlags;
 	}
+
+	_queue_audio_playback_state(true, info->file, info->durationInSeconds);
+
 	if( fade_length != 0 ) {
 		i2c_volume = initial_volume = 1;
 		t0 = fade_time =  xTaskGetTickCount();
@@ -217,32 +267,22 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		LOGI("start fade in %d\n", fade_time);
 	}
 
-	if( strstr( info->file, "proc") ) {
-		if( strstr( info->file, "noise") ) {
-			playback_type = eAudioPlayRand;
-		}
-	}
-	_lock_for_audio(playback_type);
 	if ( !InitAudioPlayback(initial_volume, info->rate ) ) {
 		LOGI("unable to initialize audio playback.  Probably not enough memory!\r\n");
 		vPortFree(speaker_data);
 		return returnFlags;
 	}
-	LOGI("Starting playback\r\n");
-	LOGI("%d bytes free\n", xPortGetFreeHeapSize());
+	LOGI("%d free %d stk\n", xPortGetFreeHeapSize(),  uxTaskGetStackHighWaterMark(NULL));
 
-	if( playback_type == eAudioPlayFile ) {
-		//open file for playback
-		LOGI("Opening %s for playback\r\n",info->file);
-		res = hello_fs_open(&fp, info->file, FA_READ);
+	//open file for playback
+	LOGI("Opening %s for playback\r\n",info->file);
+	res = hello_fs_open(&fp, info->file, FA_READ);
 
-		if (res != FR_OK) {
-			_unlock_for_audio(playback_type, &fp);
-			LOGI("Failed to open audio file %s\n\r",info->file);
-			DeinitAudioPlayback();
-			vPortFree(speaker_data);
-			return returnFlags;
-		}
+	if (res != FR_OK) {
+		LOGI("Failed to open audio file %s\n\r",info->file);
+		DeinitAudioPlayback();
+		vPortFree(speaker_data);
+		return returnFlags;
 	}
 
 	memset(speaker_data,0,SPEAKER_DATA_CHUNK_SIZE);
@@ -252,23 +292,6 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	for (; ;) {
 		/* Read always in block of 512 Bytes or less else it will stuck in hello_fs_read() */
 		res = hello_fs_read(&fp, speaker_data, FLASH_PAGE_SIZE, &size);
-
-			switch (playback_type) {
-				case eAudioPlayFile: {
-					/* Read always in block of 512 Bytes or less else it will stuck in hello_fs_read() */
-					res = hello_fs_read(&fp, speaker_data, FLASH_PAGE_SIZE, &size);
-					break;
-				}
-				case eAudioPlayRand: {
-					for (i = 0; i < 512; ++i) {
-						speaker_data[i] = rand();
-					}
-					size = i;
-					break;
-				}
-				default:
-				LOGE("NO PLAYBACK TYPE\r\n");
-			}
 		if ( res == FR_OK && size > 0 ) {
 
 			/* Wait to avoid buffer overflow as reading speed is faster than playback */
@@ -362,6 +385,9 @@ cleanup:
 	returnFlags |= FLAG_SUCCESS;
 
 	LOGI("%d free %d stk\n", xPortGetFreeHeapSize(),  uxTaskGetStackHighWaterMark(NULL));
+
+	_queue_audio_playback_state(false, info->file, info->durationInSeconds);
+
 	return returnFlags;
 
 }
