@@ -125,10 +125,6 @@ long sl_sync_init();
 long sl_enter_critical_region();
 long sl_exit_critical_region();
 
-_i16 sl_recvfromNoneThreadSafe(_i16 sd, void *buf, _i16 Len, _i16 flags, SlSockAddr_t *from, SlSocklen_t *fromlen);
-long sl_AcceptNoneThreadSafe(_i16 sd, SlSockAddr_t *addr, SlSocklen_t *addrlen);
-long sl_gethostbynameNoneThreadSafe(_i8 * hostname,const  _u16 usNameLen, _u32*  out_ip_addr,const _u8 family );
-
 #ifdef __cplusplus
 }
 #endif
