@@ -87,7 +87,6 @@ void mcu_reset()
     MAP_PRCMHibernateEnter();
 }
 
-
 #define SL_STOP_TIMEOUT                 (30)
 long nwp_reset() {
 	long r;
@@ -653,17 +652,25 @@ int Cmd_connect(int argc, char *argv[]) {
     connect_wifi( argv[1], argv[2], atoi(argv[3]), 1, true );
     return (0);
 }
-
 int Cmd_setDns(int argc, char *argv[])  {
-	SlNetCfgIpV4Args_t config = {0};
-	uint8_t size = sizeof(config);
-	sl_NetCfgGet( SL_IPV4_STA_P2P_CL_GET_INFO, NULL, &size, (uint8_t*)&config );
-	config.ipV4DnsServer = strtoul(argv[1], NULL, 16);
-	sl_NetCfgSet( SL_IPV4_AP_P2P_GO_STATIC_ENABLE, IPCONFIG_MODE_ENABLE_IPV4, size, (uint8_t*)&config );
-	nwp_reset();
+	if( argc == 2 ) {
+		SlNetCfgIpV4Args_t config = {0};
+		uint8_t size = sizeof(config);
+		sl_NetCfgGet( SL_IPV4_STA_P2P_CL_GET_INFO, NULL, &size, (uint8_t*)&config );
+		config.ipV4DnsServer = strtoul(argv[1], NULL, 16);
+		sl_NetCfgSet( SL_IPV4_STA_P2P_CL_STATIC_ENABLE, IPCONFIG_MODE_ENABLE_IPV4, size, (uint8_t*)&config );
+		nwp_reset();
+	}
 	return 0;
 }
 
+void set_backup_dns() {
+    SlNetCfgIpV4DnsClientArgs_t DnsOpt;
+
+   DnsOpt.DnsSecondServerAddr  =  SL_IPV4_VAL(8,8,4,4);
+   DnsOpt.DnsMaxRetries        =  12;
+   sl_NetCfgSet(SL_IPV4_DNS_CLIENT,0,sizeof(SlNetCfgIpV4DnsClientArgs_t),(unsigned char *)&DnsOpt);
+}
 int Cmd_status(int argc, char *argv[]) {
     unsigned char ucDHCP = 0;
     unsigned char len = sizeof(SlNetCfgIpV4Args_t);
@@ -685,11 +692,23 @@ int Cmd_status(int argc, char *argv[]) {
                 SL_IPV4_BYTE(ipv4.ipV4DnsServer,2),
                 SL_IPV4_BYTE(ipv4.ipV4DnsServer,1),
                 SL_IPV4_BYTE(ipv4.ipV4DnsServer,0));
+
+    _u8 ConfigOpt;
+    _u8 pConfigLen = sizeof(SlNetCfgIpV4DnsClientArgs_t);
+    SlNetCfgIpV4DnsClientArgs_t DnsOpt;
+    sl_NetCfgGet(SL_IPV4_DNS_CLIENT,&ConfigOpt,&pConfigLen,(unsigned char *)&DnsOpt);
+
+    LOGF("ALT DNS=%d.%d.%d.%d\n",
+                SL_IPV4_BYTE(DnsOpt.DnsSecondServerAddr,3),
+                SL_IPV4_BYTE(DnsOpt.DnsSecondServerAddr,2),
+                SL_IPV4_BYTE(DnsOpt.DnsSecondServerAddr,1),
+                SL_IPV4_BYTE(DnsOpt.DnsSecondServerAddr,0));
     LOGF("IP=%d.%d.%d.%d\n",
                 SL_IPV4_BYTE(ipv4.ipV4,3),
                 SL_IPV4_BYTE(ipv4.ipV4,2),
                 SL_IPV4_BYTE(ipv4.ipV4,1),
                 SL_IPV4_BYTE(ipv4.ipV4,0));
+
     return 0;
 }
 
@@ -1085,12 +1104,18 @@ int stop_connection(int * sock) {
     *sock = -1;
     return *sock;
 }
+
 int start_connection(int * sock, char * host, security_type sec) {
     sockaddr sAddr;
     timeval tv;
     int rv;
     unsigned long ipaddr = 0;
     int sock_begin = *sock;
+
+    while(!wifi_status_get(HAS_IP)) {
+    	vTaskDelay(1000);
+    }
+    set_backup_dns();
 
     if (*sock < 0) {
         if( sec == SOCKET_SEC_SSL ) {
@@ -1142,6 +1167,7 @@ int start_connection(int * sock, char * host, security_type sec) {
         	static portTickType last_reset_time = 0;
 			LOGI("failed to resolves addr rv %d\n", rv);
 			ble_reply_wifi_status(wifi_connection_state_DNS_FAILED);
+
             #define SIX_MINUTES 360000
             if( last_reset_time == 0 || xTaskGetTickCount() - last_reset_time > SIX_MINUTES ) {
                 last_reset_time = xTaskGetTickCount();
