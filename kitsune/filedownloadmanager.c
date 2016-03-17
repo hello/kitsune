@@ -187,7 +187,6 @@ static void DownloadManagerTask(void * filesyncdata)
 
 			LOGI("File manifest created for uploading \n");
 
-
 			message_for_upload.file_info.funcs.encode = encode_file_info;
 			message_for_upload.file_info.arg = &file_manifest_local;
 
@@ -293,6 +292,9 @@ static void _get_file_sync_response(pb_field_t ** fields, void ** structdata)
 		memset(response_protobuf, 0, sizeof(FileManifest));
 		//todo - is this right, do i need more callbacks
 		response_protobuf->file_info.funcs.decode = _on_file_update;
+		response_protobuf->file_info.arg = NULL;
+		response_protobuf->sense_id.funcs.decode = _decode_string_field;
+		response_protobuf->sense_id.arg = NULL;
 
 		//todo callback for error info and sense id ? Since this wont be sent by server, is this needed?
 	}
@@ -489,6 +491,15 @@ static void _on_file_sync_response_success( void * structdata)
 		query_delay_ticks = (QUERY_DELAY_DEFAULT*60*1000)/portTICK_PERIOD_MS;
 	}
 
+	if(response_protobuf->sense_id.arg)
+	{
+		LOGI("DM:Sense ID %s\n", response_protobuf->sense_id.arg);
+	}
+
+	if(response_protobuf->file_info.arg)
+	{
+		LOGI("DM: FILE INFO ARG EXISTS\n");
+	}
 	// Clear time to response count since it has been sent successfully
 	link_health.time_to_response = 0;
 	link_health.send_errors = 0;
