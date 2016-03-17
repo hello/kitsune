@@ -1041,7 +1041,7 @@ int file_exists( char * filename, char * path ) {
 
 int download_file(char * host, char * url, char * filename, char * path, storage_dev_t storage ) {
 	unsigned long ip;
-	int r = sl_gethostbynameNoneThreadSafe((signed char*) host, strlen(host), &ip, SL_AF_INET);
+	int r = gethostbyname((signed char*) host, strlen(host), &ip, SL_AF_INET);
 	if (r < 0) {
 		ASSERT_ON_ERROR(-1);
 	}
