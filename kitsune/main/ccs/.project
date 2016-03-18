@@ -871,6 +871,16 @@
 			<locationURI>PARENT-2-PROJECT_LOC/nanopb/pb_encode.h</locationURI>
 		</link>
 		<link>
+			<name>protobuf/audio_commands.pb.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/audio_commands.pb.c</locationURI>
+		</link>
+		<link>
+			<name>protobuf/audio_commands.pb.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/audio_commands.pb.h</locationURI>
+		</link>
+		<link>
 			<name>protobuf/audio_control.pb.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/protobuf/audio_control.pb.c</locationURI>
@@ -981,14 +991,14 @@
 			<locationURI>PARENT-2-PROJECT_LOC/protobuf/provision.pb.h</locationURI>
 		</link>
 		<link>
-			<name>protobuf/sleep_sounds.pb.c</name>
+			<name>protobuf/state.pb.c</name>
 			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/protobuf/sleep_sounds.pb.c</locationURI>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/state.pb.c</locationURI>
 		</link>
 		<link>
-			<name>protobuf/sleep_sounds.pb.h</name>
+			<name>protobuf/state.pb.h</name>
 			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/protobuf/sleep_sounds.pb.h</locationURI>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/state.pb.h</locationURI>
 		</link>
 		<link>
 			<name>protobuf/sync_response.pb.c</name>

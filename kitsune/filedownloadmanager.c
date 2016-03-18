@@ -797,7 +797,7 @@ static int32_t compute_sha(char* path, char* sha_path)
 }
 
 // len is the length of the full_path array
-static int32_t get_complete_filename(char* full_path, char * local_fn, char* path, uint32_t len)
+static inline int32_t get_complete_filename(char* full_path, char * local_fn, char* path, uint32_t len)
 {
 	if(full_path && local_fn && path)
 	{

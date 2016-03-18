@@ -54,6 +54,7 @@
 
 #define MAX_BUFF_SIZE      1024
 
+static int32_t sd_sha1_verify(const char * sha_truth, const char * path);
 int sf_sha1_verify(const char * sha_truth, const char * serial_file_path);
 long bytesReceived = 0; // variable to store the file size
 static int dl_sock = -1;
@@ -394,6 +395,7 @@ int global_filename(char * local_fn)
 
     return 0;
 }
+
 //*****************************************************************************
 //
 // This function implements the "cat" command.  It reads the contents of a file
@@ -848,8 +850,36 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
     FRESULT res = FR_OK;
 
 	if (storage == SD_CARD) {
-		mkdir(path);
-		cd(path);
+
+		if(path == NULL)
+		{
+			LOGI("Path not provided, downloading to root\n");
+			cd("/");
+		}
+		else
+		{
+
+			if(hello_fs_stat(path, NULL))
+			{
+				// Path doesn't exist, create directory
+				res = (FRESULT) mkdir(path);
+				if(res != FR_OK && res != FR_EXIST)
+				{
+					LOGE("mkdir fail: %d\n", res);
+					cd("/");
+					return 1;
+				}
+
+			}
+
+			res = cd(path);
+			if(res)
+			{
+				LOGE("CD fail: %d\n", res);
+				cd("/");
+				return 1;
+			}
+		}
 
 		/* Open file to save the downloaded file */
 		if (global_filename(filename)) {
@@ -858,7 +888,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 		}
 		// Open the file for writing.
 		res = hello_fs_open(&file_obj, path_buff,
-				FA_CREATE_NEW | FA_WRITE | FA_OPEN_ALWAYS);
+				FA_CREATE_ALWAYS | FA_WRITE | FA_OPEN_ALWAYS);
 		LOGI("res :%d\n", res);
 
 		if (res != FR_OK && res != FR_EXIST) {
@@ -886,7 +916,6 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
             }
 		}
 	    LOGI("opening %s\n", path_buff);
-
 	}
     uint32_t total = recv_size;
     int percent = 101-100*recv_size/total;
@@ -947,7 +976,6 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
         pBuff = g_buff;
     }
 
-    //
     // If user file has checksum which can be used to verify the temporary
     // file then file should be verified
     // In case of invalid file (FILE_NAME) should be closed without saving to
@@ -1040,7 +1068,7 @@ int file_exists( char * filename, char * path ) {
 
 int download_file(char * host, char * url, char * filename, char * path, storage_dev_t storage ) {
 	unsigned long ip;
-	int r = sl_gethostbynameNoneThreadSafe((signed char*) host, strlen(host), &ip, SL_AF_INET);
+	int r = gethostbyname((signed char*) host, strlen(host), &ip, SL_AF_INET);
 	if (r < 0) {
 		ASSERT_ON_ERROR(-1);
 	}
@@ -1056,7 +1084,7 @@ int download_file(char * host, char * url, char * filename, char * path, storage
 	}
 	// Download the file, verify the file and replace the exiting file
 	r = GetData(filename, url, host, path, storage);
-	if (r < 0) {
+	if (r != 0) {
 		LOGF("Device couldn't download the file from the server\n\r");
 		close(dl_sock);
 		return r;
@@ -1449,22 +1477,54 @@ void file_download_task( void * params ) {
                 }
                 LOGI("done, closing\n");
 			} else {
-					int retries = 0;
 
-					// Set file download pending for download manager
-					update_file_download_status(true);
+				int retries = 0;
 
-					while (download_file(host, url, filename, path, SD_CARD)
-							!= 0) {
-						if (++retries > 10) {
-							goto end_download_task;
-						}
+				// Set file download pending for download manager
+				update_file_download_status(true);
+
+				while (download_file(host, url, filename, path, SD_CARD)
+						!= 0) {
+					if (++retries > 10) {
+						goto end_download_task;
+					}
+				}
+
+				if (download_info.has_sha1) {
+
+
+					// SHA verify for SD card files
+					FRESULT res = FR_OK;
+
+					res = cd(path);
+					if(res)
+					{
+						LOGE("CD fail: %d\n", res);
+						cd("/");
+						goto end_download_task;
 					}
 
-					// Clear file download status
-					update_file_download_status(false);
-					LOGI("done, closing\n");
-					hello_fs_close(&file_obj);
+					/* Open file to save the downloaded file */
+					if (global_filename(filename)) {
+						cd("/");
+						goto end_download_task;
+					}
+
+					//LOGI("Path buf : %s \n", path_buff);
+
+					if( sd_sha1_verify((char *)download_info.sha1.bytes, path_buff)){
+						LOGW("SD card download fail\r\n");
+						cd("/");
+						goto end_download_task;
+					}
+
+					cd("/");
+					LOGI("SD card download success \r\n");
+				}
+
+				// Clear file download status
+				update_file_download_status(false);
+
             }
         }
         if (download_info.has_reset_application_processor
@@ -1688,5 +1748,59 @@ uint32_t get_total_space(void)
     LOGF("%10uK bytes total\n",total_mem );
 
     return total_mem;
+}
 
+// SHA1 verify for SD card files
+static int32_t sd_sha1_verify(const char * sha_truth, const char * path){
+    //compute the sha of the file..
+#define minval( a,b ) a < b ? a : b
+
+    uint8_t sha[SHA1_SIZE] = { 0 };
+    static uint8_t buffer[128];
+    uint32_t bytes_to_read, bytes_read;
+    FIL fp = {0};
+    FILINFO info;
+    FRESULT res;
+
+    SHA1_CTX sha1ctx;
+    SHA1_Init(&sha1ctx);
+
+    //fetch path info
+    LOGI( "computing SHA of %s\n", path);
+    res = hello_fs_stat(path, &info);
+    if (res) {
+        LOGE("error getting file info %d\n", res);
+        return -1;
+    }
+
+    res = hello_fs_open(&fp, path, FA_READ);
+    if (res) {
+        LOGE("error opening file for read %d\n", res);
+        return -1;
+    }
+
+    //compute sha
+    bytes_to_read = info.fsize;
+    while (bytes_to_read > 0) {
+		res = hello_fs_read(&fp, buffer,(minval(sizeof(buffer),bytes_to_read)), &bytes_read);
+		if (res) {
+			LOGE("error reading file %d\n", res);
+			return -1;
+		}
+		SHA1_Update(&sha1ctx, buffer, bytes_read);
+		bytes_to_read -= bytes_read;
+    }
+    hello_fs_close(&fp);
+    SHA1_Final(sha, &sha1ctx);
+
+    //compare
+    if (memcmp(sha, sha_truth, SHA1_SIZE) != 0) {
+        LOGE("SD card file SHA did not match!\n");
+        LOGI("Sha truth:      %02x ... %02x\r\n", sha_truth[0], sha_truth[SHA1_SIZE-1]);
+        LOGI("Sha calculated: %02x ... %02x\r\n", sha[0], sha[SHA1_SIZE-1]);
+        return -1;
+    }
+
+    LOGI("SD card file SHA Match!\n");
+    return 0;
 }

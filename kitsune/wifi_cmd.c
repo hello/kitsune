@@ -87,7 +87,6 @@ void mcu_reset()
     MAP_PRCMHibernateEnter();
 }
 
-
 #define SL_STOP_TIMEOUT                 (30)
 long nwp_reset() {
 	long r;
@@ -668,17 +667,25 @@ int Cmd_connect(int argc, char *argv[]) {
     connect_wifi( argv[1], argv[2], atoi(argv[3]), 1, true );
     return (0);
 }
-
 int Cmd_setDns(int argc, char *argv[])  {
-	SlNetCfgIpV4Args_t config = {0};
-	uint8_t size = sizeof(config);
-	sl_NetCfgGet( SL_IPV4_STA_P2P_CL_GET_INFO, NULL, &size, (uint8_t*)&config );
-	config.ipV4DnsServer = strtoul(argv[1], NULL, 16);
-	sl_NetCfgSet( SL_IPV4_AP_P2P_GO_STATIC_ENABLE, IPCONFIG_MODE_ENABLE_IPV4, size, (uint8_t*)&config );
-	nwp_reset();
+	if( argc == 2 ) {
+		SlNetCfgIpV4Args_t config = {0};
+		uint8_t size = sizeof(config);
+		sl_NetCfgGet( SL_IPV4_STA_P2P_CL_GET_INFO, NULL, &size, (uint8_t*)&config );
+		config.ipV4DnsServer = strtoul(argv[1], NULL, 16);
+		sl_NetCfgSet( SL_IPV4_STA_P2P_CL_STATIC_ENABLE, IPCONFIG_MODE_ENABLE_IPV4, size, (uint8_t*)&config );
+		nwp_reset();
+	}
 	return 0;
 }
 
+void set_backup_dns() {
+    SlNetCfgIpV4DnsClientArgs_t DnsOpt;
+
+   DnsOpt.DnsSecondServerAddr  =  SL_IPV4_VAL(8,8,4,4);
+   DnsOpt.DnsMaxRetries        =  12;
+   sl_NetCfgSet(SL_IPV4_DNS_CLIENT,0,sizeof(SlNetCfgIpV4DnsClientArgs_t),(unsigned char *)&DnsOpt);
+}
 int Cmd_status(int argc, char *argv[]) {
     unsigned char ucDHCP = 0;
     unsigned char len = sizeof(SlNetCfgIpV4Args_t);
@@ -700,11 +707,23 @@ int Cmd_status(int argc, char *argv[]) {
                 SL_IPV4_BYTE(ipv4.ipV4DnsServer,2),
                 SL_IPV4_BYTE(ipv4.ipV4DnsServer,1),
                 SL_IPV4_BYTE(ipv4.ipV4DnsServer,0));
+
+    _u8 ConfigOpt;
+    _u8 pConfigLen = sizeof(SlNetCfgIpV4DnsClientArgs_t);
+    SlNetCfgIpV4DnsClientArgs_t DnsOpt;
+    sl_NetCfgGet(SL_IPV4_DNS_CLIENT,&ConfigOpt,&pConfigLen,(unsigned char *)&DnsOpt);
+
+    LOGF("ALT DNS=%d.%d.%d.%d\n",
+                SL_IPV4_BYTE(DnsOpt.DnsSecondServerAddr,3),
+                SL_IPV4_BYTE(DnsOpt.DnsSecondServerAddr,2),
+                SL_IPV4_BYTE(DnsOpt.DnsSecondServerAddr,1),
+                SL_IPV4_BYTE(DnsOpt.DnsSecondServerAddr,0));
     LOGF("IP=%d.%d.%d.%d\n",
                 SL_IPV4_BYTE(ipv4.ipV4,3),
                 SL_IPV4_BYTE(ipv4.ipV4,2),
                 SL_IPV4_BYTE(ipv4.ipV4,1),
                 SL_IPV4_BYTE(ipv4.ipV4,0));
+
     return 0;
 }
 
@@ -1100,34 +1119,6 @@ int stop_connection(int * sock) {
     *sock = -1;
     return *sock;
 }
-static void set_backup_dns() {
-	#define NUM_ALT_DNS 2
-	static int backup_idx = 0;
-    SlNetCfgIpV4Args_t config = {0};
-    unsigned char len = sizeof(SlNetCfgIpV4Args_t);
-    uint8_t ip[NUM_ALT_DNS][4] = {
-    		{8,8,8,8}, //google
-			{8,8,4,4},
-    };
-    sl_NetCfgGet(SL_IPV4_STA_P2P_CL_GET_INFO, NULL, &len, (unsigned char*)&config);
-
-    LOGI("current DNS %d.%d.%d.%d\n",
-			SL_IPV4_BYTE(config.ipV4DnsServer, 3), SL_IPV4_BYTE(config.ipV4DnsServer, 2),
-			SL_IPV4_BYTE(config.ipV4DnsServer, 1), SL_IPV4_BYTE(config.ipV4DnsServer, 0)
-			);
-
-    config.ipV4DnsServer = (uint32_t)SL_IPV4_VAL(
-    		ip[backup_idx][0],ip[backup_idx][1],ip[backup_idx][2],ip[backup_idx][3]);
-
-    LOGI("New DNS %d.%d.%d.%d\n",
-			SL_IPV4_BYTE(config.ipV4DnsServer, 3), SL_IPV4_BYTE(config.ipV4DnsServer, 2),
-			SL_IPV4_BYTE(config.ipV4DnsServer, 1), SL_IPV4_BYTE(config.ipV4DnsServer, 0)
-			);
-
-    sl_NetCfgSet(SL_IPV4_STA_P2P_CL_STATIC_ENABLE, 1, sizeof(SlNetCfgIpV4Args_t), (unsigned char*)&config);
-
-    backup_idx = (backup_idx + 1) % NUM_ALT_DNS;
-}
 
 int start_connection(int * sock, char * host, security_type sec) {
     sockaddr sAddr;
@@ -1139,6 +1130,7 @@ int start_connection(int * sock, char * host, security_type sec) {
     while(!wifi_status_get(HAS_IP)) {
     	vTaskDelay(1000);
     }
+    set_backup_dns();
 
     if (*sock < 0) {
         if( sec == SOCKET_SEC_SSL ) {
@@ -1181,7 +1173,7 @@ int start_connection(int * sock, char * host, security_type sec) {
 
 #if !LOCAL_TEST
    // if (ipaddr == 0) {
-        if (!(rv = sl_gethostbynameNoneThreadSafe((_i8*)host, strlen(host), &ipaddr, SL_AF_INET))) {
+        if (!(rv = gethostbyname((_i8*)host, strlen(host), &ipaddr, SL_AF_INET))) {
              LOGI("Get Host IP succeeded.\n\rHost: %s IP: %d.%d.%d.%d \n\r\n\r",
             		 host, SL_IPV4_BYTE(ipaddr, 3), SL_IPV4_BYTE(ipaddr, 2),
 				   SL_IPV4_BYTE(ipaddr, 1), SL_IPV4_BYTE(ipaddr, 0));
@@ -1190,7 +1182,6 @@ int start_connection(int * sock, char * host, security_type sec) {
         	static portTickType last_reset_time = 0;
 			LOGI("failed to resolves addr rv %d\n", rv);
 			ble_reply_wifi_status(wifi_connection_state_DNS_FAILED);
-			set_backup_dns();
 
             #define SIX_MINUTES 360000
             if( last_reset_time == 0 || xTaskGetTickCount() - last_reset_time > SIX_MINUTES ) {
@@ -1352,12 +1343,14 @@ static bool decode_rx_data_pb(const uint8_t * buffer, uint32_t buffer_size, cons
 	for (i = 0; i < AES_IV_SIZE; ++i) {
 		aesctx.iv[i] = *buf_pos++;
 		if (buf_pos > (buffer + buffer_size)) {
+			LOGI("No IV\n");
 			return false;
 		}
 	}
 	for (i = 0; i < SIG_SIZE; ++i) {
 		sig[i] = *buf_pos++;
 		if (buf_pos > (buffer + buffer_size)) {
+			LOGI("No SIG\n");
 			return false;
 		}
 	}
@@ -1489,16 +1482,30 @@ int http_response_ok( char* response_buffer)
 	vPortFree(first_line);
 	return resp_ok ? 0 : -1;
 }
-
+static char lcase(char a ) {
+	return (a >= 'A' && a <= 'Z' ) ? a + ('a'-'A') : a;
+}
+static void lcasestr(char *s){
+    while(*s) {
+    	*s = lcase(*s);
+    	++s;
+    }
+}
 
 static bool validate_signatures( char * buffer, int sz, const pb_field_t fields[], void * structdata) {
 
     // Parse the response
     //LOGI("Reply is:\n\r%s\n\r", buffer);
 
-    const char* header_content_len = "Content-Length: ";
+    const char* header_content_len = "content-length: ";
     char * content = strstr(buffer, "\r\n\r\n") + 4;
+
+    *(content-2) = 0;
+    lcasestr(buffer);
+
     char * len_str = strstr(buffer, header_content_len) + strlen(header_content_len);
+
+    LOGD( "Headers:\n%s", buffer );
 
     if (http_response_ok(buffer) != 0) {
     	wifi_status_set(UPLOADING, true);
@@ -1506,11 +1513,9 @@ static bool validate_signatures( char * buffer, int sz, const pb_field_t fields[
         return false;
     }
 
-    if( strstr(buffer, "No Content") ) {
+    if( strstr(buffer, "no content") ) {
     	return true;
     }
-    *(content-2) = 0;
-//    LOGI( "Headers:\n%s", buffer );
 
     if (len_str == NULL) {
     	wifi_status_set(UPLOADING, true);
@@ -1689,7 +1694,7 @@ int send_data_pb( char* host, const char* path, char ** recv_buf_ptr,
 		vTaskDelay(1000);
     	rv = recv(*sock, recv_buf+recv_buf_size-SERVER_REPLY_BUFSZ, SERVER_REPLY_BUFSZ, 0);
     	MAP_WatchdogIntClear(WDT_BASE); //clear wdt, it seems the SL_SPAWN hogs CPU here
-        LOGI("rv %d\n", rv);
+        LOGI("x");
         if( rv == SERVER_REPLY_BUFSZ ) {
              recv_buf_size += SERVER_REPLY_BUFSZ;
              if( recv_buf_size > 10*1024 ) {
@@ -1704,6 +1709,7 @@ int send_data_pb( char* host, const char* path, char ** recv_buf_ptr,
     		 rv = SL_EAGAIN;
     	}
     } while (rv == SL_EAGAIN && retries++ < 60 );
+    LOGI("rv %d\n", rv);
 
     if (rv <= 0) {
         LOGI("recv error %d\n\r\n\r", rv);
