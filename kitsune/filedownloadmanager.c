@@ -377,6 +377,9 @@ bool _on_file_update(pb_istream_t *stream, const pb_field_t *field, void **arg)
 			{
 				LOGI("File %s deleted\n", full_path);
 			}
+
+			free_file_sync_info( &file_info.download_info );
+
 		}
 		else
 		{
