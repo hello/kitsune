@@ -21,20 +21,24 @@
 #ifdef DM_TESTING
 	#define QUERY_DELAY_DEFAULT		(1UL) //minutes
 #else
-	#define QUERY_DELAY_DEFAULT		(1UL) //minutes
+	#define QUERY_DELAY_DEFAULT		(15UL) //minutes
 #endif
 
 #define PATH_BUF_MAX_SIZE		(64)
+
+//From ff.f of fatfs TCHAR	fname[13];		/* Short file name (8.3 format) */
+#define MAX_FILENAME_SIZE		(13)
+
 #define FOLDERS_TO_EXCLUDE      (2)
 
 const char* folders[FOLDERS_TO_EXCLUDE] = {"LOGS", "USR"};
 
 typedef struct {
 	//File path
-	char path[48];
+	char path[PATH_BUF_MAX_SIZE];
 
 	//Filename
-	char filename[13];
+	char filename[MAX_FILENAME_SIZE];
 }file_list_t;
 
 typedef struct {
@@ -87,7 +91,7 @@ static uint32_t update_file_manifest(void);
 static uint32_t scan_files(char* path);
 static int32_t compute_sha(char* path, char* sha_path);
 static bool get_sha_filename(char* filename, char* sha_fn);
-static int get_complete_filename(char* full_path, char * local_fn, char* path);
+static int get_complete_filename(char* full_path, char * local_fn, char* path, uint32_t len);
 static bool does_sha_file_exist(char* sha_path);
 static int get_sha_from_file(char* filename, char* path, uint8_t* sha);
 
@@ -352,8 +356,29 @@ bool _on_file_update(pb_istream_t *stream, const pb_field_t *field, void **arg)
 	{
 		if(file_info.has_delete_file && file_info.delete_file)
 		{
+			FRESULT res;
+			char full_path[PATH_BUF_MAX_SIZE];
+
 			// delete file
 			LOGI("DM: delete file\n" );
+
+			// get complete filename
+			get_complete_filename( \
+					full_path, 		\
+					file_info.download_info.sd_card_filename.arg, \
+					file_info.download_info.sd_card_path.arg, \
+					PATH_BUF_MAX_SIZE);
+
+			// unlink
+			res = hello_fs_unlink(full_path);
+			if(res)
+			{
+				LOGE("File delete unsuccessful %s\n",full_path );
+			}
+			else
+			{
+				LOGI("File %s deleted\n", full_path);
+			}
 		}
 		else
 		{
@@ -660,16 +685,19 @@ static uint32_t scan_files(char* path)
 
 					file_manifest_local.num_data++;
 
-					char sha_filename[13];
-					char full_path[64];
-					char full_path_sha[64];
+					char sha_filename[MAX_FILENAME_SIZE];
+					char full_path[PATH_BUF_MAX_SIZE];
+					char full_path_sha[PATH_BUF_MAX_SIZE];
 
 					// Get name of SHA file
 					get_sha_filename(fn, sha_filename);
 
 					// Get complete filename
-					get_complete_filename(full_path,fn, path);
-					get_complete_filename(full_path_sha,sha_filename, path);
+					if(get_complete_filename(full_path,fn, path, PATH_BUF_MAX_SIZE))
+						return ~0;
+
+					if(get_complete_filename(full_path_sha,sha_filename, path, PATH_BUF_MAX_SIZE))
+						return ~0;
 
 					// Check if SHA file exists
 					if(!does_sha_file_exist(full_path_sha))
@@ -783,65 +811,68 @@ static int32_t compute_sha(char* path, char* sha_path)
     return 0;
 }
 
-static int get_complete_filename(char* full_path, char * local_fn, char* path)
+// len is the length of the full_path array
+static int32_t get_complete_filename(char* full_path, char * local_fn, char* path, uint32_t len)
 {
-	strncpy(full_path,path,48);
-	strncat(full_path, "/", 48);
-	strncat(full_path, local_fn, 48);
+	if(full_path && local_fn && path)
+	{
+		strncpy(full_path,path,len);
+		strncat(full_path, "/", len);
+		strncat(full_path, local_fn, len);
 
-	//LOGI("DM: %s\n", full_path);
+		//LOGI("DM: %s\n", full_path);
 
-	// TODO add some boundary checks
-	/*
-    // First, check to make sure that the current path (CWD), plus the file
-    // name, plus a separator and trailing null, will all fit in the temporary
-    // buffer that will be used to hold the file name.  The file name must be
-    // fully specified, with path, to FatFs.
-    if(strlen(cwd_buff) + strlen(local_fn) + 1 + 1 > sizeof(path_buff))
-    {
-        LOGI("Resulting path name is too long\n");
-        return(0);
-    }
+		// TODO add some boundary checks
+		/*
+		// First, check to make sure that the current path (CWD), plus the file
+		// name, plus a separator and trailing null, will all fit in the temporary
+		// buffer that will be used to hold the file name.  The file name must be
+		// fully specified, with path, to FatFs.
+		if(strlen(cwd_buff) + strlen(local_fn) + 1 + 1 > sizeof(path_buff))
+		{
+			LOGI("Resulting path name is too long\n");
+			return(0);
+		}
 
-    */
+		*/
 
-    return 0;
+		return 0;
+	}
+
+	return -1;
 }
 
 // Function that gives SHA filename from actual filename
 static bool get_sha_filename(char* filename, char* sha_fn)
 {
-	char filename_local[13];
+	char filename_local[MAX_FILENAME_SIZE];
 	char* token;
 
-	strncpy(filename_local,filename, 13);
+	strncpy(filename_local,filename, MAX_FILENAME_SIZE);
 
 	if(filename && sha_fn)
 	{
-		strncpy(filename_local,filename, 13);
+		strncpy(filename_local,filename, MAX_FILENAME_SIZE);
 
 		// Get token from filename
 		token = strtok(filename_local, ".");
 
-		// assumes that sha_fun points to an array of length 13 or greater
+		// assumes that pointer sha_fn points to an array of length MAX_FILENAME_SIZE or greater
 		// Append .sha
-		strncpy(sha_fn,token, 13);
+		strncpy(sha_fn,token, MAX_FILENAME_SIZE);
 		strncat(sha_fn,".SHA",sizeof(".SHA"));
 
 		return true;
-
 	}
 
 	return false;
-
-
 }
 
 
 static int get_sha_from_file(char* filename, char* path, uint8_t* sha)
 {
-	char sha_filename[13];
-	char sha_fullpath[48];
+	char sha_filename[MAX_FILENAME_SIZE];
+	char sha_fullpath[PATH_BUF_MAX_SIZE];
 	FRESULT res;
     uint32_t bytes_to_read, bytes_read;
     FIL fp = {0};
@@ -850,7 +881,10 @@ static int get_sha_from_file(char* filename, char* path, uint8_t* sha)
 	get_sha_filename(filename,sha_filename);
 
 	// compute full path
-	get_complete_filename(sha_fullpath,sha_filename,path);
+	if(get_complete_filename(sha_fullpath,sha_filename,path, PATH_BUF_MAX_SIZE))
+	{
+		return -1;
+	}
 
 	//open file for read
 	res = hello_fs_open(&fp, sha_fullpath, FA_READ);
@@ -874,5 +908,4 @@ static int get_sha_from_file(char* filename, char* path, uint8_t* sha)
 	LOGI("Sha calculated: %02x ... %02x\r\n", sha[0], sha[SHA1_SIZE-1]);
 
 	return 0;
-
 }
