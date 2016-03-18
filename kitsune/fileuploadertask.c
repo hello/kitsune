@@ -149,7 +149,6 @@ bool encode_file (pb_ostream_t * stream, const pb_field_t * field,void * const *
 			res = hello_fs_read(&file_obj,readbuf,read_size,&bytes_read);
 
 			if (res != FR_OK) {
-				add_to_file_error_queue(encodedata->filename, res, false); // TODO DKH
 				goto FILEUPLOADER_CLEANUP;
 			}
 

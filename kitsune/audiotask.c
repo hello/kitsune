@@ -246,11 +246,6 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	for (; ;) {
 		/* Read always in block of 512 Bytes or less else it will stuck in hello_fs_read() */
 		res = hello_fs_read(&fp, speaker_data, FLASH_PAGE_SIZE, &size);
-		if(res != FR_OK)
-		{
-			add_to_file_error_queue(info->file, res, false); // TODO DKH
-		}
-
 		if ( res == FR_OK && size > 0 ) {
 
 			/* Wait to avoid buffer overflow as reading speed is faster than playback */

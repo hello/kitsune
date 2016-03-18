@@ -187,7 +187,7 @@ static void DownloadManagerTask(void * filesyncdata)
 		// Check if response has been received
 		if(xSemaphoreTake(_response_received_sem,portMAX_DELAY))
 		{
-			LOGI("DM: Sem Taken\n");
+
 			vTaskDelayUntil(&start_time,query_delay_ticks); // TODO should this be vtaskdelay instead?
 
 			memset(&message_for_upload,0,sizeof(FileManifest));
@@ -201,8 +201,6 @@ static void DownloadManagerTask(void * filesyncdata)
 				LOGE("Error creating file manifest: %d\n", ret);
 				//TODO what is to be sent if this function returns an error
 			}
-
-			LOGI("File manifest created for uploading \n");
 
 			message_for_upload.file_info.funcs.encode = encode_file_info;
 			message_for_upload.file_info.arg = &file_manifest_local;
@@ -270,7 +268,7 @@ static void DownloadManagerTask(void * filesyncdata)
 
 			/* SEND PROTOBUF */
 
-			LOGI("Sending file sync \r\n");
+			LOGI("DM: Sending file sync \r\n");
 
 			message_sent_time = xTaskGetTickCount();
 
@@ -278,7 +276,7 @@ static void DownloadManagerTask(void * filesyncdata)
 					true, DATA_SERVER, FILE_SYNC_ENDPOINT, FileManifest_fields, &message_for_upload, 0, NULL, NULL, &pb_cb, false)
 					)
 			{
-				LOGI("File manifest failed to upload \n");
+				LOGI("DM: File manifest failed to upload \n");
 
 				/*
 				// If time to response is non-zero, it means the last upload was not sent successfully
@@ -490,7 +488,7 @@ bool add_to_file_error_queue(char* filename, int32_t err_code, bool write_error)
 	// if queue is full, remove oldest
 	if(! uxQueueSpacesAvailable(_file_error_queue))
 	{
-		xQueueReceive(_file_error_queue, &data, portMAX_DELAY); // TODO portMaxDelay?
+		xQueueReceive(_file_error_queue, &data, 10);
 	}
 
 	data.has_err_code = true;
@@ -503,9 +501,10 @@ bool add_to_file_error_queue(char* filename, int32_t err_code, bool write_error)
 	// Copy file name
 	// data.filename.arg, filename,
 	data.filename.funcs.encode = _encode_string_fields;
+	data.filename.arg = NULL;
 
 	// add to qyeye
-	if( !xQueueSend(_file_error_queue, &data, portMAX_DELAY))
+	if( !xQueueSend(_file_error_queue, &data, 10))
 	{
 		return false;
 	}

@@ -234,7 +234,6 @@ _read_file(char * local_name, char * buffer, WORD buffer_size, WORD *size_read){
 		do{
 			res = hello_fs_read(&file_obj, (void*)(buffer + offset), SENSE_LOG_RW_SIZE, &read);
 			if(res != FR_OK){
-				add_to_file_error_queue(local_name, res, false); // TODO DKH
 				return res;
 			}
 			offset += read;
