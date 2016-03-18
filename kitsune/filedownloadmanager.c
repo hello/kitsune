@@ -142,7 +142,6 @@ static void DownloadManagerTask(void * filesyncdata)
 {
 	static TickType_t start_time;
 	const uint32_t response_wait_time = 60 * 1000; // 1 minute in ms
-	const TickType_t response_wait = response_wait_time/portTICK_PERIOD_MS;
 	FileManifest_FileOperationError error_message;
 	FileManifest message_for_upload;
 
@@ -276,15 +275,6 @@ static void DownloadManagerTask(void * filesyncdata)
 					)
 			{
 				LOGI("DM: File manifest failed to upload \n");
-
-				/*
-				// If time to response is non-zero, it means the last upload was not sent successfully
-				// So add fifteen minutes
-				if(link_health.time_to_response)
-				{
-					link_health.time_to_response += 15;
-				}
-				*/
 
 			}
 
