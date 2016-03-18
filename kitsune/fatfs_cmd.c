@@ -1645,6 +1645,8 @@ uint32_t get_free_space(void)
     FRESULT res;
     FATFS *psFatFs;
 
+    uint32_t free_mem = 0;
+
     // Get the free space.
     res = hello_fs_getfree("/", (DWORD *)&ui32TotalSize, &psFatFs);
 
@@ -1654,11 +1656,37 @@ uint32_t get_free_space(void)
         return((int)res);
     }
 
-    // Display the amount of free space that was calculated.
-    LOGF(", %10uK bytes free\n", (ui32TotalSize *
-                                        psFatFs->csize / 2));
+    free_mem = (ui32TotalSize * psFatFs->csize / 2);
 
-    return (ui32TotalSize * psFatFs->csize / 2);
+    // Display the amount of free space that was calculated.
+    LOGF("%10uK bytes free\n",free_mem );
+
+    return free_mem;
 
 }
 
+uint32_t get_total_space(void)
+{
+    uint32_t ui32TotalSize;
+
+    FRESULT res;
+    FATFS *psFatFs;
+
+    uint32_t total_mem = 0;
+
+    // Get the free space.
+    res = hello_fs_getfree("/", (DWORD *)&ui32TotalSize, &psFatFs);
+
+    // Check for error and return if there is a problem.
+    if(res != FR_OK)
+    {
+        return((int)res);
+    }
+
+    total_mem = ((psFatFs->n_fatent-2) * psFatFs->csize / 2);
+
+    LOGF("%10uK bytes total\n",total_mem );
+
+    return total_mem;
+
+}

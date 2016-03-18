@@ -99,6 +99,7 @@ static int get_sha_from_file(char* filename, char* path, uint8_t* sha);
 bool send_to_download_queue(SyncResponse_FileDownload* data, TickType_t ticks_to_wait);
 bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, void **arg);
 uint32_t get_free_space(void);
+uint32_t get_total_space(void);
 bool _encode_string_fields(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 
 // Init
@@ -179,7 +180,6 @@ static void DownloadManagerTask(void * filesyncdata)
 	if(ret)
 	{
 		LOGE("Error creating file manifest: %d\n", ret);
-		//TODO what is to be sent if this function returns an error
 	}
 
 	for (; ;)
@@ -188,7 +188,8 @@ static void DownloadManagerTask(void * filesyncdata)
 		if(xSemaphoreTake(_response_received_sem,portMAX_DELAY))
 		{
 
-			vTaskDelayUntil(&start_time,query_delay_ticks); // TODO should this be vtaskdelay instead?
+			// TODO should this be vtaskdelay instead?
+			vTaskDelayUntil(&start_time,query_delay_ticks);
 
 			memset(&message_for_upload,0,sizeof(FileManifest));
 
@@ -242,12 +243,10 @@ static void DownloadManagerTask(void * filesyncdata)
 			/* UPDATE MEMORY INFO */
 
 			message_for_upload.has_sd_card_size = true;
-			//TODO update memory info
 			message_for_upload.sd_card_size.has_free_memory = true;
-			message_for_upload.sd_card_size.free_memory = get_free_space(); //TODO
-			LOGI("DM: Free space: %d \n", message_for_upload.sd_card_size.free_memory);
+			message_for_upload.sd_card_size.free_memory = get_free_space();
 			message_for_upload.sd_card_size.has_total_memory = true;
-			message_for_upload.sd_card_size.total_memory = 0; //TODO
+			message_for_upload.sd_card_size.total_memory = get_total_space();
 
 			/* UPDATE FILE ERROR INFO */
 
@@ -309,17 +308,15 @@ static void _get_file_sync_response(pb_field_t ** fields, void ** structdata)
 	if( *structdata ) {
 		FileManifest * response_protobuf = *structdata;
 		memset(response_protobuf, 0, sizeof(FileManifest));
-		//todo - is this right, do i need more callbacks
+
 		response_protobuf->file_info.funcs.decode = _on_file_update;
 		response_protobuf->file_info.arg = NULL;
 		response_protobuf->sense_id.funcs.decode = _decode_string_field;
 		response_protobuf->sense_id.arg = NULL;
 
-		//todo callback for error info and sense id ? Since this wont be sent by server, is this needed?
 	}
 }
 
-//TODO update this callback This needs to be called only if response has update.
 //Is it better to handle this in response success
 // Better to handle it here since the flags are a part of the structure. and then populate download info and send to queue
 bool _on_file_update(pb_istream_t *stream, const pb_field_t *field, void **arg)
@@ -396,7 +393,8 @@ bool _on_file_update(pb_istream_t *stream, const pb_field_t *field, void **arg)
 			download_info.has_sha1 = file_info.download_info.has_sha1;
 			memcpy(&download_info.sha1, &file_info.download_info.sha1, sizeof(FileManifest_FileDownload_sha1_t));
 
-
+			LOGI("DM: received: %s/%s %s/%s\n", \
+					download_info.host.arg,download_info.url.arg, download_info.sd_card_path.arg, download_info.sd_card_filename.arg );
 			if( !send_to_download_queue(&download_info,10) )
 			{
 				free_file_sync_info( &file_info.download_info );
@@ -441,7 +439,7 @@ void free_file_sync_info(FileManifest_FileDownload * download_info)
 
 }
 
-//TODO
+
 bool encode_file_info (pb_ostream_t *stream, const pb_field_t *field, void * const *arg)
 {
 
@@ -458,12 +456,7 @@ bool encode_file_info (pb_ostream_t *stream, const pb_field_t *field, void * con
     	file_info.sd_card_filename.funcs.encode = _encode_string_fields;
     	file_info.sd_card_filename.arg = data->ga_file_list[i].filename;
 
-    	//TODO add SHA
     	get_sha_from_file(data->ga_file_list[i].filename,data->ga_file_list[i].path,file_info.sha1.bytes);
-
-    	// read from SHA file
-
-    	// Store in file_info
 
         if(!pb_encode_tag_for_field(stream, field))
         {
