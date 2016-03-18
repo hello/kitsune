@@ -358,35 +358,36 @@ bool _on_file_update(pb_istream_t *stream, const pb_field_t *field, void **arg)
 		else
 		{
 			LOGI("DM: update file %s\n", file_info.download_info.sd_card_filename.arg );
-//			// Download file
-//			// Prepare download info and send to download task
-//
-//			SyncResponse_FileDownload download_info = {0};
-//
-//			download_info.host.arg = file_info.download_info.host.arg;
-//			download_info.url.arg = file_info.download_info.url.arg;
-//			download_info.sd_card_path.arg = file_info.download_info.sd_card_path.arg;
-//			download_info.sd_card_filename.arg = file_info.download_info.sd_card_filename.arg;
-//			download_info.has_sha1 = file_info.download_info.has_sha1;
-//			memcpy(&download_info.sha1, &file_info.download_info.sha1, sizeof(FileManifest_FileDownload_sha1_t));
-//
-//
-//			if( !send_to_download_queue(&download_info,10) )
-//			{
-//				free_file_sync_info( &file_info.download_info );
-//				return false;
-//
-//			}
-//
+			// Download file
+			// Prepare download info and send to download task
+
+			SyncResponse_FileDownload download_info = {0};
+
+			download_info.host.arg = file_info.download_info.host.arg;
+			download_info.url.arg = file_info.download_info.url.arg;
+			download_info.sd_card_path.arg = file_info.download_info.sd_card_path.arg;
+			download_info.sd_card_filename.arg = file_info.download_info.sd_card_filename.arg;
+			download_info.has_sha1 = file_info.download_info.has_sha1;
+			memcpy(&download_info.sha1, &file_info.download_info.sha1, sizeof(FileManifest_FileDownload_sha1_t));
+
+
+			if( !send_to_download_queue(&download_info,10) )
+			{
+				free_file_sync_info( &file_info.download_info );
+				return false;
+
+			}
+
 		}
 	}
 	else
 	{
+		free_file_sync_info( &file_info.download_info );
 		LOGI("DM: no file update\n" );
 
 	}
-//
-	free_file_sync_info( &file_info.download_info );
+
+
 	return true;
 }
 
