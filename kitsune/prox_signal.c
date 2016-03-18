@@ -22,19 +22,34 @@ typedef enum {
 static prox_state_t state=IDLE;
 static uint32_t mark=0;
 
-#define ACC_SZ 5
-static uint32_t diff_acc_buf[ACC_SZ]={0};
-static uint32_t diff_acc_idx=0;
+#define DIFF_1SEC 20
+static int diff_1sec_buf[DIFF_1SEC]={0};
+static int ctr=0;
+#define DIFF_QTR_SEC 5
+static int diff_qtr_buf[DIFF_QTR_SEC]={0};
 
 void ProxSignal_Init(void) {
 	fast = 0;
 }
 
+static void calc_buffer( int in, int * buffer, int ctr, int sz, int * mean, int * var) {
+	int i;
+	buffer[ctr%sz] = in;
+	*mean = 0;
+	for(i=0;i<sz;++i) {
+		*mean += buffer[i];
+	}
+	*mean /=sz;
+	for(i=0;i<sz;++i) {
+		*var += ( buffer[i] - *mean )*( buffer[i] - *mean );
+	}
+	*var /=sz;
+}
+
 ProxGesture_t ProxSignal_UpdateChangeSignals( int32_t new) {
 #define SLOWDOWN 4
 	ProxGesture_t gesture = proxGestureNone;
-	int32_t diff, diff_acc;
-	int i;
+	int diff, diff_1sec_mean=0, diff_1sec_var=0, diff_qtr_mean=0, diff_qtr_var=0;
 
 	new <<= SLOWDOWN;
 	if( fast == 0 ) {
@@ -45,13 +60,14 @@ ProxGesture_t ProxSignal_UpdateChangeSignals( int32_t new) {
 	diff = fast - new;
 	diff>>=SLOWDOWN;
 
-	diff_acc_buf[++diff_acc_idx%ACC_SZ] = diff;
-	diff_acc = 0;
-	for(i=0;i<ACC_SZ;++i) {
-		diff_acc += diff_acc_buf[i];
+	calc_buffer( diff, diff_1sec_buf, ++ctr, DIFF_1SEC, &diff_1sec_mean, &diff_1sec_var);
+	calc_buffer( diff, diff_qtr_buf, ctr, DIFF_QTR_SEC, &diff_qtr_mean, &diff_qtr_var);
+
+	if( diff_1sec_var < 100 ) {
+		state = IDLE;
 	}
 
-	if( diff_acc > 50 ) {
+	if( diff_qtr_mean > 100 ) {
 		switch( state ) {
 		case OUTGOING:
 		case IDLE:
@@ -62,7 +78,9 @@ ProxGesture_t ProxSignal_UpdateChangeSignals( int32_t new) {
 		case INCOMING:
 			gesture = proxGestureIncoming;
 			state = INCOMING;
-			if( diff_acc > 1500 && xTaskGetTickCount() - mark > 3000 ) {
+
+			LOGP("%d %d\n", diff_qtr_mean, xTaskGetTickCount() - mark);
+			if( diff_qtr_mean > 1500 && xTaskGetTickCount() - mark > 1000 ) {
 				LOGP("held\n");
 				state = HELD;
 				gesture = proxGestureHold;
@@ -72,8 +90,9 @@ ProxGesture_t ProxSignal_UpdateChangeSignals( int32_t new) {
 		case HELD:
 			break; //do nothing...
 		}
-	} else if( diff_acc < -50 ) {
+	} else if( diff_qtr_mean < -100 ) {
 		switch( state ) {
+		case IDLE:
 		case INCOMING:
 			LOGP("%d->%d wave\n", state, OUTGOING);
 			gesture = proxGestureWave;
@@ -81,14 +100,13 @@ ProxGesture_t ProxSignal_UpdateChangeSignals( int32_t new) {
 			LOGP("\n");
 			break;
 		case HELD:
-			if( diff_acc < -5000 ) {
+			if( diff_qtr_mean < -5000 ) {
 				LOGP("%d->%d release\n", state, OUTGOING);
 				gesture = proxGestureRelease;
 				state = OUTGOING;
 				fast = new;
 			}
 			break;
-		case IDLE:
 		case OUTGOING:
 		default:
 			state = OUTGOING;
@@ -104,7 +122,8 @@ ProxGesture_t ProxSignal_UpdateChangeSignals( int32_t new) {
 		}
 	}
 
-	LOGP( "%d\t%d\t%d\t%d\t%d\n", new, state, gesture, diff_acc, diff );
+	LOGP("%d\t%d\t%d\t%d\t%d\t%d\t%d\n", state, gesture, diff_1sec_mean, diff_1sec_var,
+			diff_qtr_mean, diff_qtr_var, diff);
 
 	return gesture;
 }
