@@ -63,11 +63,11 @@ ProxGesture_t ProxSignal_UpdateChangeSignals( int32_t new) {
 	calc_buffer( diff, diff_1sec_buf, ++ctr, DIFF_1SEC, &diff_1sec_mean, &diff_1sec_var);
 	calc_buffer( diff, diff_qtr_buf, ctr, DIFF_QTR_SEC, &diff_qtr_mean, &diff_qtr_var);
 
-	if( diff_1sec_var < 100 ) {
+	if( diff_1sec_var < 80 ) {
 		state = IDLE;
 	}
 
-	if( diff_qtr_mean > 100 ) {
+	if( diff_qtr_mean > 70 ) {
 		switch( state ) {
 		case OUTGOING:
 		case IDLE:
@@ -90,7 +90,7 @@ ProxGesture_t ProxSignal_UpdateChangeSignals( int32_t new) {
 		case HELD:
 			break; //do nothing...
 		}
-	} else if( diff_qtr_mean < -100 ) {
+	} else if( diff_qtr_mean < -60 ) {
 		switch( state ) {
 		case IDLE:
 		case INCOMING:
