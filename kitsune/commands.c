@@ -1774,7 +1774,7 @@ void launch_tasks() {
 	xTaskCreate(thread_tx, "txTask", 1536 / 4, NULL, 1, NULL);
 	UARTprintf("*");
 	long_poll_task_init( 4096 / 4 );
-	//downloadmanagertask_init(4096 / 4); // TODO stack size
+	downloadmanagertask_init(4096 / 4); // TODO stack size
 #endif
 }
 

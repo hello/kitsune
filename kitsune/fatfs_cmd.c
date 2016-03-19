@@ -1698,14 +1698,13 @@ bool send_to_download_queue(SyncResponse_FileDownload* data, TickType_t ticks_to
 
 }
 
-uint32_t get_free_space(void)
+uint32_t get_free_space(uint32_t* free_space, uint32_t* total_mem)
 {
     uint32_t ui32TotalSize;
 
     FRESULT res;
     FATFS *psFatFs;
 
-    uint32_t free_mem = 0;
 
     // Get the free space.
     res = hello_fs_getfree("/", (DWORD *)&ui32TotalSize, &psFatFs);
@@ -1716,38 +1715,14 @@ uint32_t get_free_space(void)
         return((int)res);
     }
 
-    free_mem = (ui32TotalSize * psFatFs->csize / 2);
+    *free_space = (ui32TotalSize * psFatFs->csize / 2);
+    *total_mem = ((psFatFs->n_fatent-2) * psFatFs->csize / 2);
 
     // Display the amount of free space that was calculated.
-    LOGF("%10uK bytes free\n",free_mem );
+    LOGF("%1uK bytes free of %uK bytes total\n",*free_space, *total_mem );
 
-    return free_mem;
+    return 0;
 
-}
-
-uint32_t get_total_space(void)
-{
-    uint32_t ui32TotalSize;
-
-    FRESULT res;
-    FATFS *psFatFs;
-
-    uint32_t total_mem = 0;
-
-    // Get the free space.
-    res = hello_fs_getfree("/", (DWORD *)&ui32TotalSize, &psFatFs);
-
-    // Check for error and return if there is a problem.
-    if(res != FR_OK)
-    {
-        return((int)res);
-    }
-
-    total_mem = ((psFatFs->n_fatent-2) * psFatFs->csize / 2);
-
-    LOGF("%10uK bytes total\n",total_mem );
-
-    return total_mem;
 }
 
 // SHA1 verify for SD card files
@@ -1766,7 +1741,7 @@ static int32_t sd_sha1_verify(const char * sha_truth, const char * path){
     SHA1_Init(&sha1ctx);
 
     //fetch path info
-    LOGI( "computing SHA of %s\n", path);
+    //LOGI( "computing SHA of %s\n", path);
     res = hello_fs_stat(path, &info);
     if (res) {
         LOGE("error getting file info %d\n", res);
@@ -1796,11 +1771,12 @@ static int32_t sd_sha1_verify(const char * sha_truth, const char * path){
     //compare
     if (memcmp(sha, sha_truth, SHA1_SIZE) != 0) {
         LOGE("SD card file SHA did not match!\n");
-        LOGI("Sha truth:      %02x ... %02x\r\n", sha_truth[0], sha_truth[SHA1_SIZE-1]);
-        LOGI("Sha calculated: %02x ... %02x\r\n", sha[0], sha[SHA1_SIZE-1]);
+        //LOGI("Sha truth:      %02x ... %02x\r\n", sha_truth[0], sha_truth[SHA1_SIZE-1]);
+        //LOGI("Sha calculated: %02x ... %02x\r\n", sha[0], sha[SHA1_SIZE-1]);
         return -1;
     }
 
-    LOGI("SD card file SHA Match!\n");
+    //LOGI("Sha calculated: %02x ... %02x\r\n", sha[0], sha[SHA1_SIZE-1]);
+    //LOGI("SD card file SHA Match!\n");
     return 0;
 }

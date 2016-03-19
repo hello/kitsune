@@ -15,7 +15,7 @@
 
 #define DM_TESTING
 
-#define FILE_ERROR_QUEUE_DEPTH (10)		// ensure that this matches the max_count for error_info in file_manifest.options
+#define FILE_ERROR_QUEUE_DEPTH (5)		// ensure that this matches the max_count for error_info in file_manifest.options
 
 // TODO REMEMBER TO CHANGE THIS *******
 #ifdef DM_TESTING
@@ -31,7 +31,7 @@
 
 #define FOLDERS_TO_EXCLUDE      (2)
 
-const char* folders[FOLDERS_TO_EXCLUDE] = {"LOGS", "USR"};
+char* folders[FOLDERS_TO_EXCLUDE] = {"LOGS", "USR"};
 
 typedef struct {
 	//File path
@@ -98,8 +98,7 @@ static int get_sha_from_file(char* filename, char* path, uint8_t* sha);
 // extern functions
 bool send_to_download_queue(SyncResponse_FileDownload* data, TickType_t ticks_to_wait);
 bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, void **arg);
-uint32_t get_free_space(void);
-uint32_t get_total_space(void);
+uint32_t get_free_space(uint32_t* free_space, uint32_t* total_mem);
 bool _encode_string_fields(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 
 // Init
@@ -141,7 +140,6 @@ void update_file_download_status(bool is_pending)
 static void DownloadManagerTask(void * filesyncdata)
 {
 	static TickType_t start_time;
-	const uint32_t response_wait_time = 60 * 1000; // 1 minute in ms
 	FileManifest_FileOperationError error_message;
 	FileManifest message_for_upload;
 
@@ -155,9 +153,7 @@ static void DownloadManagerTask(void * filesyncdata)
 	link_health.has_time_to_response = true;
 
 	// init file download status flag
-	xSemaphoreTake(_file_download_mutex, portMAX_DELAY);
-		file_download_status = FileManifest_FileStatusType_DOWNLOAD_COMPLETED;
-	xSemaphoreGive(_file_download_mutex);
+	update_file_download_status(false);
 
 	protobuf_reply_callbacks pb_cb;
 
@@ -172,8 +168,9 @@ static void DownloadManagerTask(void * filesyncdata)
     //give sempahore with query delay as 15 minutes
     restart_download_manager();
 
-    LOGI("Starting download manager\n");
+    //LOGI("Starting download manager\n");
 
+    /*
     // Run this once so that most memory realloc and SHA file creation is done
 	uint32_t ret = update_file_manifest();
 	if(ret)
@@ -181,6 +178,7 @@ static void DownloadManagerTask(void * filesyncdata)
 		LOGE("Error creating file manifest: %d\n", ret);
 	}
 
+	*/
 	for (; ;)
 	{
 		// Check if response has been received
@@ -243,9 +241,9 @@ static void DownloadManagerTask(void * filesyncdata)
 
 			message_for_upload.has_sd_card_size = true;
 			message_for_upload.sd_card_size.has_free_memory = true;
-			message_for_upload.sd_card_size.free_memory = get_free_space();
 			message_for_upload.sd_card_size.has_total_memory = true;
-			message_for_upload.sd_card_size.total_memory = get_total_space();
+
+			get_free_space(&message_for_upload.sd_card_size.free_memory, &message_for_upload.sd_card_size.total_memory);
 
 			/* UPDATE FILE ERROR INFO */
 
@@ -266,7 +264,7 @@ static void DownloadManagerTask(void * filesyncdata)
 
 			/* SEND PROTOBUF */
 
-			LOGI("DM: Sending file sync \r\n");
+			//LOGI("DM: Sending file sync \r\n");
 
 			message_sent_time = xTaskGetTickCount();
 
@@ -278,7 +276,7 @@ static void DownloadManagerTask(void * filesyncdata)
 
 			}
 
-			LOGI("DM: file upload sent\n");
+			//LOGI("DM: file upload sent\n");
 
 
 			// Update wake time
@@ -345,7 +343,7 @@ bool _on_file_update(pb_istream_t *stream, const pb_field_t *field, void **arg)
 			char full_path[PATH_BUF_MAX_SIZE];
 
 			// delete file
-			LOGI("DM: delete file\n" );
+			//LOGI("DM: delete file\n" );
 
 			// get complete filename
 			get_complete_filename( \
@@ -358,11 +356,7 @@ bool _on_file_update(pb_istream_t *stream, const pb_field_t *field, void **arg)
 			res = hello_fs_unlink(full_path);
 			if(res)
 			{
-				LOGE("File delete unsuccessful %s\n",full_path );
-			}
-			else
-			{
-				LOGI("File %s deleted\n", full_path);
+				LOGE("DM:delete unsuccessful %s\n",full_path );
 			}
 
 			free_file_sync_info( &file_info.download_info );
@@ -370,7 +364,7 @@ bool _on_file_update(pb_istream_t *stream, const pb_field_t *field, void **arg)
 		}
 		else
 		{
-			LOGI("DM: update file %s\n", file_info.download_info.sd_card_filename.arg );
+			//LOGI("DM: update file %s\n", file_info.download_info.sd_card_filename.arg );
 			// Download file
 			// Prepare download info and send to download task
 
@@ -383,8 +377,6 @@ bool _on_file_update(pb_istream_t *stream, const pb_field_t *field, void **arg)
 			download_info.has_sha1 = file_info.download_info.has_sha1;
 			memcpy(&download_info.sha1, &file_info.download_info.sha1, sizeof(FileManifest_FileDownload_sha1_t));
 
-			LOGI("DM: received: %s/%s %s/%s\n", \
-					download_info.host.arg,download_info.url.arg, download_info.sd_card_path.arg, download_info.sd_card_filename.arg );
 			if( !send_to_download_queue(&download_info,10) )
 			{
 				free_file_sync_info( &file_info.download_info );
@@ -397,7 +389,7 @@ bool _on_file_update(pb_istream_t *stream, const pb_field_t *field, void **arg)
 	else
 	{
 		free_file_sync_info( &file_info.download_info );
-		LOGI("DM: no file update\n" );
+		//LOGI("DM: no file update\n" );
 
 	}
 
@@ -437,25 +429,35 @@ bool encode_file_info (pb_ostream_t *stream, const pb_field_t *field, void * con
     file_info_to_encode * data = *(file_info_to_encode**)arg;
     FileManifest_FileDownload file_info = {};
 
+    char path_local[PATH_BUF_MAX_SIZE];
 
     for( i = 0; i < data->num_data; ++i ) {
 
     	file_info.sd_card_path.funcs.encode = _encode_string_fields;
-    	file_info.sd_card_path.arg = data->ga_file_list[i].path;
+
+    	// To remove the leading slash from path
+    	strncpy(path_local, &data->ga_file_list[i].path[1],PATH_BUF_MAX_SIZE);
+
+    	file_info.sd_card_path.arg = path_local;
 
     	file_info.sd_card_filename.funcs.encode = _encode_string_fields;
     	file_info.sd_card_filename.arg = data->ga_file_list[i].filename;
 
+    	file_info.has_sha1 = true;
     	get_sha_from_file(data->ga_file_list[i].filename,data->ga_file_list[i].path,file_info.sha1.bytes);
+
+    	file_info.sha1.size = 20;
+
+    	//LOGI("Sending: %s/%s %u...%u\n",file_info.sd_card_path.arg, file_info.sd_card_filename.arg,file_info.sha1.bytes[0], file_info.sha1.bytes[19]);
 
         if(!pb_encode_tag_for_field(stream, field))
         {
-            LOGI("encode_all_file_sync_data: Fail to encode tag error %s\n", PB_GET_ERROR(stream));
+            LOGI("DM: encode tag error %s\n", PB_GET_ERROR(stream));
             return false;
         }
 
         if (!pb_encode_submessage(stream, FileManifest_FileDownload_fields, &file_info)){
-            LOGI("encode_all_file_sync_data2: Fail to encode error: %s\n", PB_GET_ERROR(stream));
+            LOGI("DM: encode error: %s\n", PB_GET_ERROR(stream));
             return false;
         }
 
@@ -510,7 +512,7 @@ static void _on_file_sync_response_success( void * structdata)
 	LOGF("_on_file_sync_response_success\r\n");
 
 	link_health.time_to_response = (xTaskGetTickCount() - message_sent_time) / configTICK_RATE_HZ /60; // in minutes
-	LOGI("DM: Time to response %d \n", link_health.time_to_response );
+	//LOGI("DM: Time to response %d \n", link_health.time_to_response );
 
 	// If has update file and delete file info
 		// send for download
@@ -533,15 +535,6 @@ static void _on_file_sync_response_success( void * structdata)
 		query_delay_ticks = (QUERY_DELAY_DEFAULT*60*1000)/portTICK_PERIOD_MS;
 	}
 
-	if(response_protobuf->sense_id.arg)
-	{
-		LOGI("DM:Sense ID %s\n", response_protobuf->sense_id.arg);
-	}
-
-	if(response_protobuf->file_info.arg)
-	{
-		LOGI("DM: FILE INFO ARG EXISTS\n");
-	}
 	// Clear time to response count since it has been sent successfully
 	link_health.time_to_response = 0;
 	link_health.send_errors = 0;
@@ -582,7 +575,7 @@ static void get_file_download_status(FileManifest_FileStatusType* file_status)
 
 static inline void restart_download_manager(void)
 {
-	LOGI("DM: Sem Give\n");
+	//LOGI("DM: Sem Give\n");
 	xSemaphoreGive(_response_received_sem);
 }
 
@@ -591,13 +584,13 @@ static uint32_t update_file_manifest(void)
 	uint32_t res;
 	char path_buf[PATH_BUF_MAX_SIZE] = {0};
 
-	strncpy(path_buf,"/",sizeof(path_buf));
+	strncpy(path_buf,"/",PATH_BUF_MAX_SIZE);
 
 	file_manifest_local.num_data = 0;
 	res = scan_files(path_buf);
 
-	LOGI("DM: File count: %d Allocated file count: %d\n", \
-			file_manifest_local.num_data, file_manifest_local.allocated_file_list_size);
+//	LOGI("DM: File count: %d Allocated file count: %d\n", \
+//			file_manifest_local.num_data, file_manifest_local.allocated_file_list_size);
 
 	// Update SHA1
 
@@ -684,6 +677,8 @@ static uint32_t scan_files(char* path)
 					if(get_complete_filename(full_path_sha,sha_filename, path, PATH_BUF_MAX_SIZE))
 						return ~0;
 
+					// TODO what if the filename is the same, but the file has changed. In that case, the file contains the old SHA
+					// which is never updated and the file is always downloaded. Need to update/delete SHA file on download
 					// Check if SHA file exists
 					if(!does_sha_file_exist(full_path_sha))
 					{
@@ -797,7 +792,7 @@ static int32_t compute_sha(char* path, char* sha_path)
 }
 
 // len is the length of the full_path array
-static inline int32_t get_complete_filename(char* full_path, char * local_fn, char* path, uint32_t len)
+static int32_t get_complete_filename(char* full_path, char * local_fn, char* path, uint32_t len)
 {
 	if(full_path && local_fn && path)
 	{
@@ -874,7 +869,7 @@ static int get_sha_from_file(char* filename, char* path, uint8_t* sha)
 	//open file for read
 	res = hello_fs_open(&fp, sha_fullpath, FA_READ);
 	if (res) {
-		LOGE("DM: error opening file for read %d\n", res);
+		//LOGE("DM: error opening file for read %d\n", res);
 		return -1;
 	}
 
@@ -883,14 +878,14 @@ static int get_sha_from_file(char* filename, char* path, uint8_t* sha)
 	while (bytes_to_read > 0) {
 		res = hello_fs_read(&fp, sha,bytes_to_read, &bytes_read);
 		if (res) {
-			LOGE("DM: error reading file %d\n", res);
+			//LOGE("DM: error reading file %d\n", res);
 			return -1;
 		}
 		bytes_to_read -= bytes_read;
 	}
 	hello_fs_close(&fp);
 
-	LOGI("Sha calculated: %02x ... %02x\r\n", sha[0], sha[SHA1_SIZE-1]);
+	//LOGI("Sha calculated: %02x ... %02x\r\n", sha[0], sha[SHA1_SIZE-1]);
 
 	return 0;
 }
