@@ -90,8 +90,6 @@ static void NetTaskResponse(const NetworkResponse_t * response,
 	xSemaphoreGive(_wait);
 }
 
-
-bool add_to_file_error_queue(char* filename, int32_t err_code, bool write_error);
 bool encode_file (pb_ostream_t * stream, const pb_field_t * field,void * const *arg) {
 	FRESULT res;
 	FIL file_obj;

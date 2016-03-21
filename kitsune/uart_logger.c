@@ -223,7 +223,6 @@ _write_file(char * local_name, const char * buffer, WORD size){
 	return FR_OK;
 }
 
-bool add_to_file_error_queue(char* filename, int32_t err_code, bool write_error);
 static FRESULT
 _read_file(char * local_name, char * buffer, WORD buffer_size, WORD *size_read){
 	FIL file_obj;

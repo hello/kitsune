@@ -1781,12 +1781,11 @@ static int32_t sd_sha1_verify(const char * sha_truth, const char * path){
     //compare
     if (memcmp(sha, sha_truth, SHA1_SIZE) != 0) {
         LOGE("SD card file SHA did not match!\n");
-        //LOGI("Sha truth:      %02x ... %02x\r\n", sha_truth[0], sha_truth[SHA1_SIZE-1]);
-        //LOGI("Sha calculated: %02x ... %02x\r\n", sha[0], sha[SHA1_SIZE-1]);
+        LOGI("Sha truth:      %02x ... %02x\r\n", sha_truth[0], sha_truth[SHA1_SIZE-1]);
+        LOGI("Sha calculated: %02x ... %02x\r\n", sha[0], sha[SHA1_SIZE-1]);
         return -1;
     }
 
-    //LOGI("Sha calculated: %02x ... %02x\r\n", sha[0], sha[SHA1_SIZE-1]);
-    //LOGI("SD card file SHA Match!\n");
+    LOGI("SD card file SHA Match!\n");
     return 0;
 }
