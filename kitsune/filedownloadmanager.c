@@ -670,10 +670,6 @@ static uint32_t scan_files(char* path)
 					// Get name of SHA file
 					get_sha_filename(fn, sha_filename);
 
-					// Get complete filename
-					if(get_complete_filename(full_path,fn, path, PATH_BUF_MAX_SIZE))
-						return ~0;
-
 					if(get_complete_filename(full_path_sha,sha_filename, path, PATH_BUF_MAX_SIZE))
 						return ~0;
 
@@ -682,6 +678,10 @@ static uint32_t scan_files(char* path)
 					// Check if SHA file exists
 					if(!does_sha_file_exist(full_path_sha))
 					{
+						// Get complete filename
+						if(get_complete_filename(full_path,fn, path, PATH_BUF_MAX_SIZE))
+							return ~0;
+
 						// Compute and store SHA
 						compute_sha(full_path, full_path_sha);
 					}
@@ -765,7 +765,7 @@ static int32_t compute_sha(char* path, char* sha_path)
     memset(&fp,0,sizeof(fp));
 
 	// Open for writing
-	res = hello_fs_open(&fp, sha_path, FA_OPEN_ALWAYS|FA_WRITE);
+	res = hello_fs_open(&fp, sha_path, FA_CREATE_ALWAYS|FA_WRITE);
 	if (res) {
 		LOGE("DM: error opening file for write %d\n", res);
 		return -1;
@@ -889,3 +889,102 @@ static int get_sha_from_file(char* filename, char* path, uint8_t* sha)
 
 	return 0;
 }
+
+typedef enum {
+	sha_file_update=0,
+	sha_file_delete,
+	sha_file_get_sha
+
+}update_sha_t;
+
+// TODO better name for function
+uint32_t update_sha_file(char* path, char* original_filename, update_sha_t option, uint8_t* sha, bool* file_exists )
+{
+	char sha_filename[MAX_FILENAME_SIZE];
+	char sha_fullpath[PATH_BUF_MAX_SIZE];
+	FRESULT res;
+
+	// Get name of SHA file from original filename
+	get_sha_filename(original_filename, sha_filename);
+
+	// get absolute path of sha file
+	if(get_complete_filename(sha_fullpath,sha_filename, path, PATH_BUF_MAX_SIZE))
+		return ~0;
+
+	// Check if SHA file exists
+	*file_exists = (does_sha_file_exist(sha_fullpath)) ? true: false;
+
+	switch(option)
+	{
+		case sha_file_update:
+		{
+			char full_path[PATH_BUF_MAX_SIZE];
+
+			// Get absolute path of original file
+			if(get_complete_filename(full_path,original_filename, path, PATH_BUF_MAX_SIZE))
+				return ~0;
+
+			// Compute and store SHA. This function overwrites an existing SHA file
+			compute_sha(full_path, sha_fullpath);
+		}
+		break;
+
+		case sha_file_delete:
+		{
+			if(*file_exists)
+			{
+				// Delete exisiting SHA file
+				LOGI("SHA file exists, will be deleted\n");
+				res = hello_fs_unlink(sha_fullpath);
+				if(res)
+				{
+					LOGE("DM:delete unsuccessful %s\n",sha_fullpath );
+					return res;
+				}
+
+			}
+			else
+			{
+				LOGE("FM: No file %s to delete\n", sha_fullpath);
+				return ~0;
+			}
+		}
+		break;
+
+		case sha_file_get_sha:
+		{
+			if( !(*file_exists) )
+			{
+				LOGE("DM: Cannot return SHA, file does not exist\n");
+				return ~0;
+			}
+
+
+		    uint32_t bytes_to_read=0, bytes_read=0;
+		    FIL fp = {0};
+
+			//open file for read
+			res = hello_fs_open(&fp, sha_fullpath, FA_READ);
+			if (res) {
+				//LOGE("DM: error opening file for read %d\n", res);
+				return res;
+			}
+
+			// read into SHA
+			bytes_to_read = SHA1_SIZE;
+			while (bytes_to_read > 0) {
+				res = hello_fs_read(&fp, sha,bytes_to_read, &bytes_read);
+				if (res) {
+					//LOGE("DM: error reading file %d\n", res);
+					return res;
+				}
+				bytes_to_read -= bytes_read;
+			}
+			hello_fs_close(&fp);
+		}
+		break;
+	}
+
+	return 0;
+}
+
