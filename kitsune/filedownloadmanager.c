@@ -103,7 +103,6 @@ static int32_t compute_sha(char* path, char* sha_path);
 static bool get_sha_filename(char* filename, char* sha_fn);
 static int get_complete_filename(char* full_path, char * local_fn, char* path, uint32_t len);
 static bool does_sha_file_exist(char* sha_path);
-static int get_sha_from_file(char* filename, char* path, uint8_t* sha);
 
 // extern functions
 bool send_to_download_queue(SyncResponse_FileDownload* data, TickType_t ticks_to_wait);
@@ -835,49 +834,6 @@ static bool get_sha_filename(char* filename, char* sha_fn)
 
 	return false;
 }
-
-
-static int get_sha_from_file(char* filename, char* path, uint8_t* sha)
-{
-	char sha_filename[MAX_FILENAME_SIZE];
-	char sha_fullpath[PATH_BUF_MAX_SIZE];
-	FRESULT res;
-    uint32_t bytes_to_read, bytes_read;
-    FIL fp = {0};
-
-	//get SHA filename
-	get_sha_filename(filename,sha_filename);
-
-	// compute full path
-	if(get_complete_filename(sha_fullpath,sha_filename,path, PATH_BUF_MAX_SIZE))
-	{
-		return -1;
-	}
-
-	//open file for read
-	res = hello_fs_open(&fp, sha_fullpath, FA_READ);
-	if (res) {
-		//LOGE("DM: error opening file for read %d\n", res);
-		return -1;
-	}
-
-	// read into SHA
-	bytes_to_read = SHA1_SIZE;
-	while (bytes_to_read > 0) {
-		res = hello_fs_read(&fp, sha,bytes_to_read, &bytes_read);
-		if (res) {
-			//LOGE("DM: error reading file %d\n", res);
-			return -1;
-		}
-		bytes_to_read -= bytes_read;
-	}
-	hello_fs_close(&fp);
-
-	//LOGI("Sha calculated: %02x ... %02x\r\n", sha[0], sha[SHA1_SIZE-1]);
-
-	return 0;
-}
-
 
 // TODO better name for function
 uint32_t update_sha_file(char* path, char* original_filename, update_sha_t option, uint8_t* sha, bool* file_exists )
