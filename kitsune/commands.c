@@ -1941,6 +1941,7 @@ int Cmd_nwpinfo(int argc, char *argv[]) {
 }
 int Cmd_SyncID(int argc, char * argv[]);
 int Cmd_time_test(int argc, char * argv[]);
+int cmd_file_sync_upload(int argc, char *argv[]);
 
 // ==============================================================================
 // This is the table that holds the command names, implementing functions, and
@@ -2073,6 +2074,7 @@ tCmdLineEntry g_sCmdTable[] = {
 #ifdef FILE_TEST
 		{ "test_files",Cmd_generate_user_testing_files,""},
 #endif
+		{"fs", cmd_file_sync_upload, ""},
 		{ 0, 0, 0 } };
 
 

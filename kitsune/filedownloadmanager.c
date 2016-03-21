@@ -14,15 +14,12 @@
 #include <ustdlib.h>
 
 #define DM_TESTING
+#define DM_UPLOAD_CMD_ENABLED
 
 #define FILE_ERROR_QUEUE_DEPTH (5)		// ensure that this matches the max_count for error_info in file_manifest.options
 
-// TODO REMEMBER TO CHANGE THIS *******
-#ifdef DM_TESTING
-	#define QUERY_DELAY_DEFAULT		(1UL) //minutes
-#else
-	#define QUERY_DELAY_DEFAULT		(15UL) //minutes
-#endif
+#define QUERY_DELAY_DEFAULT		(15UL) //minutes
+
 
 #define PATH_BUF_MAX_SIZE		(64)
 
@@ -53,7 +50,10 @@ typedef struct {
 
 } file_info_to_encode;
 
-
+#ifdef DM_UPLOAD_CMD_ENABLED
+// Semaphore to enable file_sync upload from cli
+static xSemaphoreHandle _cli_upload_sem = NULL;
+#endif
 
 // Holds the file info that will be encoded into pb
 static file_info_to_encode file_manifest_local;
@@ -130,6 +130,13 @@ void downloadmanagertask_init(uint16_t stack_size)
 
 	file_manifest_local.allocated_file_list_size = 0;
 
+#ifdef DM_UPLOAD_CMD_ENABLED
+	if(!_cli_upload_sem)
+	{
+		_cli_upload_sem = xSemaphoreCreateBinary();
+	}
+#endif
+
 }
 
 void update_file_download_status(bool is_pending)
@@ -189,8 +196,13 @@ static void DownloadManagerTask(void * filesyncdata)
 		if(xSemaphoreTake(_response_received_sem,portMAX_DELAY))
 		{
 
+#ifdef DM_UPLOAD_CMD_ENABLED
+			xSemaphoreTake(_cli_upload_sem, query_delay_ticks);
+#else
 			// TODO should this be vtaskdelay instead?
 			vTaskDelayUntil(&start_time,query_delay_ticks);
+
+#endif
 
 			memset(&message_for_upload,0,sizeof(FileManifest));
 
@@ -285,6 +297,7 @@ static void DownloadManagerTask(void * filesyncdata)
 
 			// Update wake time
 			start_time = xTaskGetTickCount();
+
 		}
 
 	}
@@ -522,12 +535,8 @@ static void _on_file_sync_response_success( void * structdata)
 	// Update query delay ticks
 	if(response_protobuf->has_query_delay)
 	{
-#ifdef DM_TESTING
-	    // Update default query delay ticks
-		query_delay_ticks = (QUERY_DELAY_DEFAULT*60*1000)/portTICK_PERIOD_MS;
-#else
 		query_delay_ticks = (response_protobuf->query_delay * 60 * 1000)/portTICK_PERIOD_MS;
-#endif
+
 		LOGI("DM: Query delay %d\n", response_protobuf->query_delay);
 	}
 	else
@@ -933,3 +942,13 @@ uint32_t update_sha_file(char* path, char* original_filename, update_sha_t optio
 	return 0;
 }
 
+int cmd_file_sync_upload(int argc, char *argv[])
+{
+#ifdef DM_UPLOAD_CMD_ENABLED
+
+	LOGI("DM: File sync upload!\n");
+	xSemaphoreGive(_cli_upload_sem);
+#endif
+
+	return 0;
+}
