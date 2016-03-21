@@ -427,26 +427,30 @@ bool encode_file_info (pb_ostream_t *stream, const pb_field_t *field, void * con
 
     int i;
     file_info_to_encode * data = *(file_info_to_encode**)arg;
-    FileManifest_FileDownload file_info = {};
+    FileManifest_File file_info = {0};
 
     char path_local[PATH_BUF_MAX_SIZE];
 
     for( i = 0; i < data->num_data; ++i ) {
 
-    	file_info.sd_card_path.funcs.encode = _encode_string_fields;
+        file_info.has_delete_file = false;
+        file_info.has_download_info = true;
+        file_info.has_update_file = false;
+
+    	file_info.download_info.sd_card_path.funcs.encode = _encode_string_fields;
 
     	// To remove the leading slash from path
     	strncpy(path_local, &data->ga_file_list[i].path[1],PATH_BUF_MAX_SIZE);
 
-    	file_info.sd_card_path.arg = path_local;
+    	file_info.download_info.sd_card_path.arg = path_local;
 
-    	file_info.sd_card_filename.funcs.encode = _encode_string_fields;
-    	file_info.sd_card_filename.arg = data->ga_file_list[i].filename;
+    	file_info.download_info.sd_card_filename.funcs.encode = _encode_string_fields;
+    	file_info.download_info.sd_card_filename.arg = data->ga_file_list[i].filename;
 
-    	file_info.has_sha1 = true;
-    	get_sha_from_file(data->ga_file_list[i].filename,data->ga_file_list[i].path,file_info.sha1.bytes);
+    	file_info.download_info.has_sha1 = true;
+    	get_sha_from_file(data->ga_file_list[i].filename,data->ga_file_list[i].path,file_info.download_info.sha1.bytes);
 
-    	file_info.sha1.size = 20;
+    	file_info.download_info.sha1.size = 20;
 
     	//LOGI("Sending: %s/%s %u...%u\n",file_info.sd_card_path.arg, file_info.sd_card_filename.arg,file_info.sha1.bytes[0], file_info.sha1.bytes[19]);
 
@@ -456,7 +460,7 @@ bool encode_file_info (pb_ostream_t *stream, const pb_field_t *field, void * con
             return false;
         }
 
-        if (!pb_encode_submessage(stream, FileManifest_FileDownload_fields, &file_info)){
+        if (!pb_encode_submessage(stream, FileManifest_File_fields, &file_info)){
             LOGI("DM: encode error: %s\n", PB_GET_ERROR(stream));
             return false;
         }
@@ -513,10 +517,6 @@ static void _on_file_sync_response_success( void * structdata)
 
 	link_health.time_to_response = (xTaskGetTickCount() - message_sent_time) / configTICK_RATE_HZ /60; // in minutes
 	//LOGI("DM: Time to response %d \n", link_health.time_to_response );
-
-	// If has update file and delete file info
-		// send for download
-
 
 	// Update query delay ticks
 	if(response_protobuf->has_query_delay)
@@ -734,7 +734,7 @@ static int32_t compute_sha(char* path, char* sha_path)
     SHA1_Init(&sha1ctx);
 
     //fetch path info
-    LOGI( "computing SHA of %s\n", path);
+    //LOGI( "computing SHA of %s\n", path);
     res = hello_fs_stat(path, &info);
     if (res) {
         LOGE("DM: error getting file info %d\n", res);
