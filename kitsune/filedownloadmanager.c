@@ -53,6 +53,13 @@ typedef struct {
 
 } file_info_to_encode;
 
+typedef enum {
+	sha_file_create=0,
+	sha_file_delete,
+	sha_file_get_sha
+
+}update_sha_t;
+
 // Holds the file info that will be encoded into pb
 static file_info_to_encode file_manifest_local;
 
@@ -76,6 +83,11 @@ static uint32_t message_sent_time;
 // Query delay in ticks
 TickType_t query_delay_ticks = (QUERY_DELAY_DEFAULT*60*1000)/portTICK_PERIOD_MS;
 
+// Global functions
+uint32_t update_sha_file(char* path, char* original_filename, update_sha_t option, uint8_t* sha, bool* file_exists );
+bool _on_file_update(pb_istream_t *stream, const pb_field_t *field, void **arg);
+bool encode_file_info (pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
+
 // Static Functions
 static void DownloadManagerTask(void * filesyncdata);
 static void _get_file_sync_response(pb_field_t ** fields, void ** structdata);
@@ -83,10 +95,8 @@ static void _free_file_sync_response(void * structdata);
 static void _on_file_sync_response_success( void * structdata);
 static void _on_file_sync_response_failure(void );
 static void get_file_download_status(FileManifest_FileStatusType* file_status);
-bool _on_file_update(pb_istream_t *stream, const pb_field_t *field, void **arg);
 static void free_file_sync_info(FileManifest_FileDownload * download_info);
 static void restart_download_manager(void);
-bool encode_file_info (pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 static uint32_t update_file_manifest(void);
 static uint32_t scan_files(char* path);
 static int32_t compute_sha(char* path, char* sha_path);
@@ -448,11 +458,11 @@ bool encode_file_info (pb_ostream_t *stream, const pb_field_t *field, void * con
     	file_info.download_info.sd_card_filename.arg = data->ga_file_list[i].filename;
 
     	file_info.download_info.has_sha1 = true;
-    	get_sha_from_file(data->ga_file_list[i].filename,data->ga_file_list[i].path,file_info.download_info.sha1.bytes);
+
+    	bool file_exists;
+    	update_sha_file(data->ga_file_list[i].path, data->ga_file_list[i].filename,sha_file_get_sha, file_info.download_info.sha1.bytes, &file_exists );
 
     	file_info.download_info.sha1.size = 20;
-
-    	//LOGI("Sending: %s/%s %u...%u\n",file_info.sd_card_path.arg, file_info.sd_card_filename.arg,file_info.sha1.bytes[0], file_info.sha1.bytes[19]);
 
         if(!pb_encode_tag_for_field(stream, field))
         {
@@ -467,8 +477,6 @@ bool encode_file_info (pb_ostream_t *stream, const pb_field_t *field, void * con
 
     }
 
-
-    // free file_manifest to encode
 	return true;
 
 }
@@ -653,38 +661,18 @@ static uint32_t scan_files(char* path)
 								(file_list_t*)pvPortRealloc(file_manifest_local.ga_file_list, file_manifest_local.allocated_file_list_size * sizeof(file_list_t));
 					}
 
-					// Clear the strings
-					memset(file_manifest_local.ga_file_list[file_manifest_local.num_data].path, 0, sizeof(file_manifest_local.ga_file_list[file_manifest_local.num_data].path));
-					memset(file_manifest_local.ga_file_list[file_manifest_local.num_data].filename, 0, sizeof(file_manifest_local.ga_file_list[file_manifest_local.num_data].filename));
-
 					// Copy path and filename
-					memcpy(file_manifest_local.ga_file_list[file_manifest_local.num_data].path, path, strlen(path));
-					memcpy(file_manifest_local.ga_file_list[file_manifest_local.num_data].filename, fn, strlen(fn));
+					strncpy(file_manifest_local.ga_file_list[file_manifest_local.num_data].path, path, PATH_BUF_MAX_SIZE);
+					strncpy(file_manifest_local.ga_file_list[file_manifest_local.num_data].filename, fn, MAX_FILENAME_SIZE);
 
 					file_manifest_local.num_data++;
 
-					char sha_filename[MAX_FILENAME_SIZE];
-					char full_path[PATH_BUF_MAX_SIZE];
-					char full_path_sha[PATH_BUF_MAX_SIZE];
-
-					// Get name of SHA file
-					get_sha_filename(fn, sha_filename);
-
-					if(get_complete_filename(full_path_sha,sha_filename, path, PATH_BUF_MAX_SIZE))
-						return ~0;
-
-					// TODO what if the filename is the same, but the file has changed. In that case, the file contains the old SHA
-					// which is never updated and the file is always downloaded. Need to update/delete SHA file on download
-					// Check if SHA file exists
-					if(!does_sha_file_exist(full_path_sha))
+					bool file_exists;
+					if(update_sha_file(path,fn, sha_file_create,NULL, &file_exists))
 					{
-						// Get complete filename
-						if(get_complete_filename(full_path,fn, path, PATH_BUF_MAX_SIZE))
-							return ~0;
-
-						// Compute and store SHA
-						compute_sha(full_path, full_path_sha);
+						LOGE("DM: Error creating SHA\n");
 					}
+
                 }
                 else
                 {
@@ -890,12 +878,6 @@ static int get_sha_from_file(char* filename, char* path, uint8_t* sha)
 	return 0;
 }
 
-typedef enum {
-	sha_file_update=0,
-	sha_file_delete,
-	sha_file_get_sha
-
-}update_sha_t;
 
 // TODO better name for function
 uint32_t update_sha_file(char* path, char* original_filename, update_sha_t option, uint8_t* sha, bool* file_exists )
@@ -911,13 +893,24 @@ uint32_t update_sha_file(char* path, char* original_filename, update_sha_t optio
 	if(get_complete_filename(sha_fullpath,sha_filename, path, PATH_BUF_MAX_SIZE))
 		return ~0;
 
+	if(!file_exists)
+	{
+		LOGE("DM: Invalid pointer \n");
+		return ~0;
+	}
+
 	// Check if SHA file exists
 	*file_exists = (does_sha_file_exist(sha_fullpath)) ? true: false;
 
 	switch(option)
 	{
-		case sha_file_update:
+		case sha_file_create:
 		{
+			if(*file_exists)
+			{
+				// File exists, no need to create
+				return 0;
+			}
 			char full_path[PATH_BUF_MAX_SIZE];
 
 			// Get absolute path of original file
@@ -959,28 +952,36 @@ uint32_t update_sha_file(char* path, char* original_filename, update_sha_t optio
 				return ~0;
 			}
 
+			if(sha)
+			{
 
-		    uint32_t bytes_to_read=0, bytes_read=0;
-		    FIL fp = {0};
+				uint32_t bytes_to_read=0, bytes_read=0;
+				FIL fp = {0};
 
-			//open file for read
-			res = hello_fs_open(&fp, sha_fullpath, FA_READ);
-			if (res) {
-				//LOGE("DM: error opening file for read %d\n", res);
-				return res;
-			}
-
-			// read into SHA
-			bytes_to_read = SHA1_SIZE;
-			while (bytes_to_read > 0) {
-				res = hello_fs_read(&fp, sha,bytes_to_read, &bytes_read);
+				//open file for read
+				res = hello_fs_open(&fp, sha_fullpath, FA_READ);
 				if (res) {
-					//LOGE("DM: error reading file %d\n", res);
+					//LOGE("DM: error opening file for read %d\n", res);
 					return res;
 				}
-				bytes_to_read -= bytes_read;
+
+				// read into SHA
+				bytes_to_read = SHA1_SIZE;
+				while (bytes_to_read > 0) {
+					res = hello_fs_read(&fp, sha,bytes_to_read, &bytes_read);
+					if (res) {
+						//LOGE("DM: error reading file %d\n", res);
+						return res;
+					}
+					bytes_to_read -= bytes_read;
+				}
+				hello_fs_close(&fp);
+
 			}
-			hello_fs_close(&fp);
+			else
+			{
+				LOGE("DM: Invalid ptr for SHA\n");
+			}
 		}
 		break;
 	}
