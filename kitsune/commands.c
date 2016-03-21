@@ -908,8 +908,9 @@ static void _on_wave(){
 }
 
 static void _on_hold(){
-	stop_led_animation( 0, 33 );
-	cancel_alarm();
+	if(	cancel_alarm() ) {
+		stop_led_animation( 0, 33 );
+	}
 	ble_proto_start_hold();
 }
 
