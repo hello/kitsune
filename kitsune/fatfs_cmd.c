@@ -1382,7 +1382,13 @@ void free_download_info(SyncResponse_FileDownload * download_info) {
 	}
 }
 
+typedef enum {
+	sha_file_create=0,
+	sha_file_delete,
+	sha_file_get_sha
+}update_sha_t;
 void update_file_download_status(bool is_pending);
+uint32_t update_sha_file(char* path, char* original_filename, update_sha_t option, uint8_t* sha);
 xQueueHandle download_queue = 0;
 
 void file_download_task( void * params ) {
@@ -1517,6 +1523,10 @@ void file_download_task( void * params ) {
 						cd("/");
 						goto end_download_task;
 					}
+
+
+					// Delete corresponding SHA file if exists
+					update_sha_file(path, filename, sha_file_delete,NULL );
 
 					cd("/");
 					LOGI("SD card download success \r\n");

@@ -53,12 +53,7 @@ typedef struct {
 
 } file_info_to_encode;
 
-typedef enum {
-	sha_file_create=0,
-	sha_file_delete,
-	sha_file_get_sha
 
-}update_sha_t;
 
 // Holds the file info that will be encoded into pb
 static file_info_to_encode file_manifest_local;
@@ -84,7 +79,7 @@ static uint32_t message_sent_time;
 TickType_t query_delay_ticks = (QUERY_DELAY_DEFAULT*60*1000)/portTICK_PERIOD_MS;
 
 // Global functions
-uint32_t update_sha_file(char* path, char* original_filename, update_sha_t option, uint8_t* sha, bool* file_exists );
+uint32_t update_sha_file(char* path, char* original_filename, update_sha_t option, uint8_t* sha );
 bool _on_file_update(pb_istream_t *stream, const pb_field_t *field, void **arg);
 bool encode_file_info (pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 
@@ -458,8 +453,7 @@ bool encode_file_info (pb_ostream_t *stream, const pb_field_t *field, void * con
 
     	file_info.download_info.has_sha1 = true;
 
-    	bool file_exists;
-    	update_sha_file(data->ga_file_list[i].path, data->ga_file_list[i].filename,sha_file_get_sha, file_info.download_info.sha1.bytes, &file_exists );
+    	update_sha_file(data->ga_file_list[i].path, data->ga_file_list[i].filename,sha_file_get_sha, file_info.download_info.sha1.bytes );
 
     	file_info.download_info.sha1.size = 20;
 
@@ -666,8 +660,7 @@ static uint32_t scan_files(char* path)
 
 					file_manifest_local.num_data++;
 
-					bool file_exists;
-					if(update_sha_file(path,fn, sha_file_create,NULL, &file_exists))
+					if(update_sha_file(path,fn, sha_file_create,NULL))
 					{
 						LOGE("DM: Error creating SHA\n");
 					}
@@ -836,11 +829,12 @@ static bool get_sha_filename(char* filename, char* sha_fn)
 }
 
 // TODO better name for function
-uint32_t update_sha_file(char* path, char* original_filename, update_sha_t option, uint8_t* sha, bool* file_exists )
+uint32_t update_sha_file(char* path, char* original_filename, update_sha_t option, uint8_t* sha)
 {
 	char sha_filename[MAX_FILENAME_SIZE];
 	char sha_fullpath[PATH_BUF_MAX_SIZE];
 	FRESULT res;
+	bool file_exists;
 
 	// Get name of SHA file from original filename
 	get_sha_filename(original_filename, sha_filename);
@@ -849,20 +843,14 @@ uint32_t update_sha_file(char* path, char* original_filename, update_sha_t optio
 	if(get_complete_filename(sha_fullpath,sha_filename, path, PATH_BUF_MAX_SIZE))
 		return ~0;
 
-	if(!file_exists)
-	{
-		LOGE("DM: Invalid pointer \n");
-		return ~0;
-	}
-
 	// Check if SHA file exists
-	*file_exists = (does_sha_file_exist(sha_fullpath)) ? true: false;
+	file_exists = (does_sha_file_exist(sha_fullpath)) ? true: false;
 
 	switch(option)
 	{
 		case sha_file_create:
 		{
-			if(*file_exists)
+			if(file_exists)
 			{
 				// File exists, no need to create
 				return 0;
@@ -880,7 +868,7 @@ uint32_t update_sha_file(char* path, char* original_filename, update_sha_t optio
 
 		case sha_file_delete:
 		{
-			if(*file_exists)
+			if(file_exists)
 			{
 				// Delete exisiting SHA file
 				LOGI("SHA file exists, will be deleted\n");
@@ -895,14 +883,14 @@ uint32_t update_sha_file(char* path, char* original_filename, update_sha_t optio
 			else
 			{
 				LOGE("FM: No file %s to delete\n", sha_fullpath);
-				return ~0;
+
 			}
 		}
 		break;
 
 		case sha_file_get_sha:
 		{
-			if( !(*file_exists) )
+			if( !file_exists )
 			{
 				LOGE("DM: Cannot return SHA, file does not exist\n");
 				return ~0;
