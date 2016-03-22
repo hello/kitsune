@@ -207,16 +207,19 @@ static void DownloadManagerTask(void * filesyncdata)
 
 			/* UPDATE FILE INFO */
 
+			message_for_upload.file_info.funcs.encode = encode_file_info;
+			message_for_upload.file_info.arg = &file_manifest_local;
+
 			// Scan through file system and update file manifest
 			uint32_t ret = update_file_manifest();
 			if(ret)
 			{
 				LOGE("Error creating file manifest: %d\n", ret);
 				//TODO what is to be sent if this function returns an error
+				message_for_upload.file_info.arg = NULL;
 			}
 
-			message_for_upload.file_info.funcs.encode = encode_file_info;
-			message_for_upload.file_info.arg = &file_manifest_local;
+
 
 			/* UPDATE FILE STATUS - DOWNLOADED/PENDING */
 
@@ -366,17 +369,18 @@ bool _on_file_update(pb_istream_t *stream, const pb_field_t *field, void **arg)
 			//LOGI("DM: delete file\n" );
 
 			// get complete filename
-			get_complete_filename( \
+			if( !get_complete_filename( \
 					full_path, 		\
 					file_info.download_info.sd_card_filename.arg, \
 					file_info.download_info.sd_card_path.arg, \
-					PATH_BUF_MAX_SIZE);
+					PATH_BUF_MAX_SIZE)  ){
 
-			// unlink
-			res = hello_fs_unlink(full_path);
-			if(res)
-			{
-				LOGE("DM:delete unsuccessful %s\n",full_path );
+				// unlink
+				res = hello_fs_unlink(full_path);
+				if(res)
+				{
+					LOGE("DM:delete unsuccessful %s\n",full_path );
+				}
 			}
 
 			free_file_sync_info( &file_info.download_info );
@@ -450,27 +454,11 @@ bool encode_file_info (pb_ostream_t *stream, const pb_field_t *field, void * con
 
     char path_local[PATH_BUF_MAX_SIZE];
 
-    for( i = 0; i < data->num_data; ++i ) {
-
+    if(!data)
+    {
         file_info.has_delete_file = false;
-        file_info.has_download_info = true;
+        file_info.has_download_info = false;
         file_info.has_update_file = false;
-
-    	file_info.download_info.sd_card_path.funcs.encode = _encode_string_fields;
-
-    	// To remove the leading slash from path
-    	strncpy(path_local, &data->ga_file_list[i].path[1],PATH_BUF_MAX_SIZE);
-
-    	file_info.download_info.sd_card_path.arg = path_local;
-
-    	file_info.download_info.sd_card_filename.funcs.encode = _encode_string_fields;
-    	file_info.download_info.sd_card_filename.arg = data->ga_file_list[i].filename;
-
-    	file_info.download_info.has_sha1 = true;
-
-    	update_sha_file(data->ga_file_list[i].path, data->ga_file_list[i].filename,sha_file_get_sha, file_info.download_info.sha1.bytes );
-
-    	file_info.download_info.sha1.size = 20;
 
         if(!pb_encode_tag_for_field(stream, field))
         {
@@ -482,7 +470,43 @@ bool encode_file_info (pb_ostream_t *stream, const pb_field_t *field, void * con
             LOGI("DM: encode error: %s\n", PB_GET_ERROR(stream));
             return false;
         }
+    }
+    else
+    {
+		for( i = 0; i < data->num_data; ++i )
+		{
 
+			file_info.has_delete_file = false;
+			file_info.has_download_info = true;
+			file_info.has_update_file = false;
+
+			file_info.download_info.sd_card_path.funcs.encode = _encode_string_fields;
+
+			// To remove the leading slash from path
+			strncpy(path_local, &data->ga_file_list[i].path[1],PATH_BUF_MAX_SIZE);
+
+			file_info.download_info.sd_card_path.arg = path_local;
+
+			file_info.download_info.sd_card_filename.funcs.encode = _encode_string_fields;
+			file_info.download_info.sd_card_filename.arg = data->ga_file_list[i].filename;
+
+			file_info.download_info.has_sha1 = (!update_sha_file(data->ga_file_list[i].path, data->ga_file_list[i].filename,sha_file_get_sha, file_info.download_info.sha1.bytes ))?
+					true: false;
+
+			file_info.download_info.sha1.size = 20;
+
+			if(!pb_encode_tag_for_field(stream, field))
+			{
+				LOGI("DM: encode tag error %s\n", PB_GET_ERROR(stream));
+				return false;
+			}
+
+			if (!pb_encode_submessage(stream, FileManifest_File_fields, &file_info)){
+				LOGI("DM: encode error: %s\n", PB_GET_ERROR(stream));
+				return false;
+			}
+
+		}
     }
 
 	return true;
@@ -643,7 +667,8 @@ static uint32_t scan_files(char* path)
 
             fn = fno.fname;
             if (fno.fattrib & AM_DIR) {                    /* It is a directory */
-                usnprintf(&path[i],PATH_BUF_MAX_SIZE * sizeof(char), "%s", fn);
+                //usnprintf(&path[i],PATH_BUF_MAX_SIZE * sizeof(char), "%s", fn);
+                strncat(&path[i],fn,PATH_BUF_MAX_SIZE);
                 res = (FRESULT)scan_files(path);
                 path[i] = 0;
                 if (res != FR_OK) break;
@@ -789,25 +814,15 @@ static int32_t get_complete_filename(char* full_path, char * local_fn, char* pat
 {
 	if(full_path && local_fn && path)
 	{
+		if(strlen(path) + strlen(local_fn) + 1 + 1 > len)
+		{
+			LOGI("DM: Resulting path name is too long\n");
+			return -1;
+		}
+
 		strncpy(full_path,path,len);
 		strncat(full_path, "/", len);
 		strncat(full_path, local_fn, len);
-
-		//LOGI("DM: %s\n", full_path);
-
-		// TODO add some boundary checks
-		/*
-		// First, check to make sure that the current path (CWD), plus the file
-		// name, plus a separator and trailing null, will all fit in the temporary
-		// buffer that will be used to hold the file name.  The file name must be
-		// fully specified, with path, to FatFs.
-		if(strlen(cwd_buff) + strlen(local_fn) + 1 + 1 > sizeof(path_buff))
-		{
-			LOGI("Resulting path name is too long\n");
-			return(0);
-		}
-
-		*/
 
 		return 0;
 	}
@@ -850,7 +865,8 @@ uint32_t update_sha_file(char* path, char* original_filename, update_sha_t optio
 	bool file_exists;
 
 	// Get name of SHA file from original filename
-	get_sha_filename(original_filename, sha_filename);
+	if(get_sha_filename(original_filename, sha_filename) == false)
+		return ~0;
 
 	// get absolute path of sha file
 	if(get_complete_filename(sha_fullpath,sha_filename, path, PATH_BUF_MAX_SIZE))
