@@ -16,7 +16,7 @@
 //#define DM_TESTING
 //#define DM_UPLOAD_CMD_ENABLED
 
-#define FILE_ERROR_QUEUE_DEPTH (5)		// ensure that this matches the max_count for error_info in file_manifest.options
+#define FILE_ERROR_QUEUE_DEPTH (10)		// ensure that this matches the max_count for error_info in file_manifest.options
 
 #define QUERY_DELAY_DEFAULT		(15UL) //minutes
 
