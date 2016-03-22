@@ -199,7 +199,6 @@ static void DownloadManagerTask(void * filesyncdata)
 #ifdef DM_UPLOAD_CMD_ENABLED
 			xSemaphoreTake(_cli_upload_sem, query_delay_ticks);
 #else
-			// TODO should this be vtaskdelay instead?
 			vTaskDelayUntil(&start_time,query_delay_ticks);
 
 #endif
@@ -293,6 +292,10 @@ static void DownloadManagerTask(void * filesyncdata)
 			}
 
 			//LOGI("DM: file upload sent\n");
+			// Free the ga_list memory, todo
+			vPortFree(file_manifest_local.ga_file_list);
+			file_manifest_local.ga_file_list = NULL;
+			file_manifest_local.allocated_file_list_size = 0;
 
 
 			// Update wake time
@@ -381,11 +384,10 @@ bool _on_file_update(pb_istream_t *stream, const pb_field_t *field, void **arg)
 		}
 		else
 		{
-			//LOGI("DM: update file %s\n", file_info.download_info.sd_card_filename.arg );
 			// Download file
 			// Prepare download info and send to download task
 
-			SyncResponse_FileDownload download_info = {0};
+			SyncResponse_FileDownload download_info = (SyncResponse_FileDownload)SyncResponse_FileDownload_init_default;
 
 			download_info.host.arg = file_info.download_info.host.arg;
 			download_info.url.arg = file_info.download_info.url.arg;
@@ -599,8 +601,8 @@ static uint32_t update_file_manifest(void)
 	file_manifest_local.num_data = 0;
 	res = scan_files(path_buf);
 
-//	LOGI("DM: File count: %d Allocated file count: %d\n", \
-//			file_manifest_local.num_data, file_manifest_local.allocated_file_list_size);
+	LOGI("DM: File count: %d Allocated file count: %d\n", \
+			file_manifest_local.num_data, file_manifest_local.allocated_file_list_size);
 
 	// Update SHA1
 
@@ -662,6 +664,8 @@ static uint32_t scan_files(char* path)
 						file_manifest_local.ga_file_list =
 								(file_list_t*)pvPortRealloc(file_manifest_local.ga_file_list, file_manifest_local.allocated_file_list_size * sizeof(file_list_t));
 					}
+
+					assert(file_manifest_local.ga_file_list);
 
 					// Copy path and filename
 					strncpy(file_manifest_local.ga_file_list[file_manifest_local.num_data].path, path, PATH_BUF_MAX_SIZE);
