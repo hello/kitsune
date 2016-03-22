@@ -295,7 +295,7 @@ static void DownloadManagerTask(void * filesyncdata)
 			}
 
 			//LOGI("DM: file upload sent\n");
-			// Free the ga_list memory, todo
+
 			vPortFree(file_manifest_local.ga_file_list);
 			file_manifest_local.ga_file_list = NULL;
 			file_manifest_local.allocated_file_list_size = 0;
@@ -668,7 +668,8 @@ static uint32_t scan_files(char* path)
             fn = fno.fname;
             if (fno.fattrib & AM_DIR) {                    /* It is a directory */
                 //usnprintf(&path[i],PATH_BUF_MAX_SIZE * sizeof(char), "%s", fn);
-                strncat(&path[i],fn,PATH_BUF_MAX_SIZE);
+
+                strncat(&path[i],fn,PATH_BUF_MAX_SIZE-strlen(path));
                 res = (FRESULT)scan_files(path);
                 path[i] = 0;
                 if (res != FR_OK) break;
