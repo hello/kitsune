@@ -71,7 +71,6 @@ static xSemaphoreHandle _file_download_mutex = NULL;
 
 // link health - send and recv errors
 static FileManifest_LinkHealth link_health = {0};
-//TODO may need a mutex to protect send_error?
 
 static uint32_t message_sent_time;
 
@@ -215,7 +214,6 @@ static void DownloadManagerTask(void * filesyncdata)
 			if(ret)
 			{
 				LOGE("Error creating file manifest: %d\n", ret);
-				//TODO what is to be sent if this function returns an error
 				message_for_upload.file_info.arg = NULL;
 			}
 
@@ -254,6 +252,7 @@ static void DownloadManagerTask(void * filesyncdata)
 			message_for_upload.has_link_health = true;
 			message_for_upload.link_health = link_health;
 
+			LOGI("DM: link health %d errors and %d time to response\n",link_health.send_errors,link_health.time_to_response);
 
 			/* UPDATE MEMORY INFO */
 
@@ -589,7 +588,6 @@ static void _on_file_sync_response_failure( )
 	link_health.time_to_response = portMAX_DELAY;
 
     // update link health error count
-    //TODO is there any way to know if error occurred during send or recv
 	link_health.send_errors++;
 
 	/*NOTE: This semaphore give helps to retry sending file manifest even when there is a failure.
