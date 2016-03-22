@@ -13,8 +13,8 @@
 #include "hellofilesystem.h"
 #include <ustdlib.h>
 
-#define DM_TESTING
-#define DM_UPLOAD_CMD_ENABLED
+//#define DM_TESTING
+//#define DM_UPLOAD_CMD_ENABLED
 
 #define FILE_ERROR_QUEUE_DEPTH (5)		// ensure that this matches the max_count for error_info in file_manifest.options
 
@@ -178,17 +178,6 @@ static void DownloadManagerTask(void * filesyncdata)
     //give sempahore with query delay as 15 minutes
     restart_download_manager();
 
-    //LOGI("Starting download manager\n");
-
-    /*
-    // Run this once so that most memory realloc and SHA file creation is done
-	uint32_t ret = update_file_manifest();
-	if(ret)
-	{
-		LOGE("Error creating file manifest: %d\n", ret);
-	}
-
-	*/
 	for (; ;)
 	{
 		// Check if response has been received
@@ -281,8 +270,6 @@ static void DownloadManagerTask(void * filesyncdata)
 
 			/* SEND PROTOBUF */
 
-			//LOGI("DM: Sending file sync \r\n");
-
 			message_sent_time = xTaskGetTickCount();
 
 			if(!NetworkTask_SendProtobuf(
@@ -292,8 +279,6 @@ static void DownloadManagerTask(void * filesyncdata)
 				LOGI("DM: File manifest failed to upload \n");
 
 			}
-
-			//LOGI("DM: file upload sent\n");
 
 			vPortFree(file_manifest_local.ga_file_list);
 			file_manifest_local.ga_file_list = NULL;
@@ -307,8 +292,6 @@ static void DownloadManagerTask(void * filesyncdata)
 
 	}
 }
-
-// Send file manifest, update pb callbacks
 
 static void _get_file_sync_response(pb_field_t ** fields, void ** structdata)
 {
@@ -327,12 +310,8 @@ static void _get_file_sync_response(pb_field_t ** fields, void ** structdata)
 	}
 }
 
-//Is it better to handle this in response success
-// Better to handle it here since the flags are a part of the structure. and then populate download info and send to queue
 bool _on_file_update(pb_istream_t *stream, const pb_field_t *field, void **arg)
 {
-	//LOGI("DM: file sync parsing\n" );
-
 	FileManifest_File file_info;
 
 	file_info.download_info.host.funcs.decode = _decode_string_field;
@@ -349,7 +328,6 @@ bool _on_file_update(pb_istream_t *stream, const pb_field_t *field, void **arg)
 
 
 	// decode PB
-	//LOGI("DM: file sync parsing\n" );
 	if( !pb_decode(stream,FileManifest_File_fields,&file_info) )
 	{
 		LOGI("DM: file sync - parse fail \n" );
@@ -554,6 +532,7 @@ static void _on_file_sync_response_success( void * structdata)
 
 	LOGF("_on_file_sync_response_success\r\n");
 
+	// TODO Might be more meaningful to have this in seconds
 	link_health.time_to_response = (xTaskGetTickCount() - message_sent_time) / configTICK_RATE_HZ /60; // in minutes
 	//LOGI("DM: Time to response %d \n", link_health.time_to_response );
 
@@ -590,7 +569,7 @@ static void _on_file_sync_response_failure( )
     // update link health error count
 	link_health.send_errors++;
 
-	/*NOTE: This semaphore give helps to retry sending file manifest even when there is a failure.
+	/*NOTE: This semaphore-give helps to retry sending file manifest even when there is a failure.
 	 * Since retries are handled here, the retry time in count for NetworkTask_sendProtobuf() is set to 0.
 	 * If that were to change to >0, then the semapahore below needs to be removed
 	 */
@@ -626,7 +605,6 @@ static uint32_t update_file_manifest(void)
 	LOGI("DM: File count: %d Allocated file count: %d\n", \
 			file_manifest_local.num_data, file_manifest_local.allocated_file_list_size);
 
-	// Update SHA1
 
 	return res;
 
