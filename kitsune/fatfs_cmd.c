@@ -1382,6 +1382,13 @@ void free_download_info(SyncResponse_FileDownload * download_info) {
 	}
 }
 
+typedef enum {
+	sha_file_create=0,
+	sha_file_delete,
+	sha_file_get_sha
+}update_sha_t;
+void update_file_download_status(bool is_pending);
+uint32_t update_sha_file(char* path, char* original_filename, update_sha_t option, uint8_t* sha);
 xQueueHandle download_queue = 0;
 
 void file_download_task( void * params ) {
@@ -1476,7 +1483,12 @@ void file_download_task( void * params ) {
                 }
                 LOGI("done, closing\n");
 			} else {
+
 				int retries = 0;
+
+				// Set file download pending for download manager
+				update_file_download_status(true);
+
 				while (download_file(host, url, filename, path, SD_CARD)
 						!= 0) {
 					if (++retries > 10) {
@@ -1512,9 +1524,16 @@ void file_download_task( void * params ) {
 						goto end_download_task;
 					}
 
+
+					// Delete corresponding SHA file if exists
+					update_sha_file(path, filename, sha_file_delete,NULL );
+
 					cd("/");
 					LOGI("SD card download success \r\n");
 				}
+
+				// Clear file download status
+				update_file_download_status(false);
 
             }
         }
@@ -1564,6 +1583,8 @@ next_one:
         //what if there's an error on some but not all the files? (start over)
 
 end_download_task: //there was an error
+		// Clear file download status
+		update_file_download_status(false);
         while (xQueueReceive(download_queue, &download_info, 10)) {
             free_download_info(&download_info);
         }
@@ -1668,6 +1689,52 @@ int sf_sha1_verify(const char * sha_truth, const char * serial_file_path){
     return 0;
 }
 
+bool send_to_download_queue(SyncResponse_FileDownload* data, TickType_t ticks_to_wait)
+{
+	if( download_queue )
+	{
+		if( xQueueSend(download_queue, (void*)data, ticks_to_wait) != pdPASS )
+		{
+			//free_file_sync_info( &download_info );
+			return false;
+		}
+	}
+	else
+	{
+		return false;
+	}
+
+	return true;
+
+}
+
+uint32_t get_free_space(uint32_t* free_space, uint32_t* total_mem)
+{
+    uint32_t ui32TotalSize;
+
+    FRESULT res;
+    FATFS *psFatFs;
+
+
+    // Get the free space.
+    res = hello_fs_getfree("/", (DWORD *)&ui32TotalSize, &psFatFs);
+
+    // Check for error and return if there is a problem.
+    if(res != FR_OK)
+    {
+        return((int)res);
+    }
+
+    *free_space = (ui32TotalSize * psFatFs->csize / 2);
+    *total_mem = ((psFatFs->n_fatent-2) * psFatFs->csize / 2);
+
+    // Display the amount of free space that was calculated.
+    LOGF("%1uK bytes free of %uK bytes total\n",*free_space, *total_mem );
+
+    return 0;
+
+}
+
 // SHA1 verify for SD card files
 static int32_t sd_sha1_verify(const char * sha_truth, const char * path){
     //compute the sha of the file..
@@ -1684,7 +1751,7 @@ static int32_t sd_sha1_verify(const char * sha_truth, const char * path){
     SHA1_Init(&sha1ctx);
 
     //fetch path info
-    LOGI( "computing SHA of %s\n", path);
+    //LOGI( "computing SHA of %s\n", path);
     res = hello_fs_stat(path, &info);
     if (res) {
         LOGE("error getting file info %d\n", res);
