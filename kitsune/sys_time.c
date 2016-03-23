@@ -222,7 +222,7 @@ uint32_t fetch_ntp_time_from_ntp() {
     pb_cb.on_pb_failure = _on_time_response_failure;
 
     request.has_origin_ts = true;
-    request.origin_ts = get_unix_time()<<31;
+    request.origin_ts = ((uint64_t)get_unix_time())<<31;
     request.has_reference_ts = true;
     request.reference_ts = last_reference_time<<32;
 
