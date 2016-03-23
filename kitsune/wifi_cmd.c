@@ -1158,28 +1158,16 @@ int start_connection(int * sock, char * host, security_type sec) {
     }
 
 #if !LOCAL_TEST
-   // if (ipaddr == 0) {
-        if (!(rv = gethostbyname((_i8*)host, strlen(host), &ipaddr, SL_AF_INET))) {
-             LOGI("Get Host IP succeeded.\n\rHost: %s IP: %d.%d.%d.%d \n\r\n\r",
-            		 host, SL_IPV4_BYTE(ipaddr, 3), SL_IPV4_BYTE(ipaddr, 2),
-				   SL_IPV4_BYTE(ipaddr, 1), SL_IPV4_BYTE(ipaddr, 0));
-         	ble_reply_wifi_status(wifi_connection_state_DNS_RESOLVED);
-        } else {
-        	static portTickType last_reset_time = 0;
-			LOGI("failed to resolves addr rv %d\n", rv);
-			ble_reply_wifi_status(wifi_connection_state_DNS_FAILED);
-
-            #define SIX_MINUTES 360000
-            if( last_reset_time == 0 || xTaskGetTickCount() - last_reset_time > SIX_MINUTES ) {
-                last_reset_time = xTaskGetTickCount();
-                nwp_reset();
-                vTaskDelay(10000);
-                *sock = -1;
-                return *sock;
-            }
-            return stop_connection(sock);
-        }
-   // }
+	if (!(rv = gethostbyname((_i8*)host, strlen(host), &ipaddr, SL_AF_INET))) {
+		 LOGI("Get Host IP succeeded.\n\rHost: %s IP: %d.%d.%d.%d \n\r\n\r",
+				 host, SL_IPV4_BYTE(ipaddr, 3), SL_IPV4_BYTE(ipaddr, 2),
+			   SL_IPV4_BYTE(ipaddr, 1), SL_IPV4_BYTE(ipaddr, 0));
+		ble_reply_wifi_status(wifi_connection_state_DNS_RESOLVED);
+	} else {
+		LOGI("failed to resolves addr rv %d\n", rv);
+		ble_reply_wifi_status(wifi_connection_state_DNS_FAILED);
+		return stop_connection(sock);
+	}
 
     sAddr.sa_family = AF_INET;
     // the source port
