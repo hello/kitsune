@@ -1128,6 +1128,7 @@ int start_connection(int * sock, char * host, security_type sec) {
     int sock_begin = *sock;
 
     while(!wifi_status_get(HAS_IP)) {
+    	LOGI(".");
     	vTaskDelay(1000);
     }
     set_backup_dns();
@@ -1172,28 +1173,16 @@ int start_connection(int * sock, char * host, security_type sec) {
     }
 
 #if !LOCAL_TEST
-   // if (ipaddr == 0) {
-        if (!(rv = gethostbyname((_i8*)host, strlen(host), &ipaddr, SL_AF_INET))) {
-             LOGI("Get Host IP succeeded.\n\rHost: %s IP: %d.%d.%d.%d \n\r\n\r",
-            		 host, SL_IPV4_BYTE(ipaddr, 3), SL_IPV4_BYTE(ipaddr, 2),
-				   SL_IPV4_BYTE(ipaddr, 1), SL_IPV4_BYTE(ipaddr, 0));
-         	ble_reply_wifi_status(wifi_connection_state_DNS_RESOLVED);
-        } else {
-        	static portTickType last_reset_time = 0;
-			LOGI("failed to resolves addr rv %d\n", rv);
-			ble_reply_wifi_status(wifi_connection_state_DNS_FAILED);
-
-            #define SIX_MINUTES 360000
-            if( last_reset_time == 0 || xTaskGetTickCount() - last_reset_time > SIX_MINUTES ) {
-                last_reset_time = xTaskGetTickCount();
-                nwp_reset();
-                vTaskDelay(10000);
-                *sock = -1;
-                return *sock;
-            }
-            return stop_connection(sock);
-        }
-   // }
+	if (!(rv = gethostbyname((_i8*)host, strlen(host), &ipaddr, SL_AF_INET))) {
+		 LOGI("Get Host IP succeeded.\n\rHost: %s IP: %d.%d.%d.%d \n\r\n\r",
+				 host, SL_IPV4_BYTE(ipaddr, 3), SL_IPV4_BYTE(ipaddr, 2),
+			   SL_IPV4_BYTE(ipaddr, 1), SL_IPV4_BYTE(ipaddr, 0));
+		ble_reply_wifi_status(wifi_connection_state_DNS_RESOLVED);
+	} else {
+		LOGI("failed to resolves addr rv %d\n", rv);
+		ble_reply_wifi_status(wifi_connection_state_DNS_FAILED);
+		return stop_connection(sock);
+	}
 
     sAddr.sa_family = AF_INET;
     // the source port
@@ -1516,17 +1505,6 @@ int send_data_pb( char* host, const char* path, char ** recv_buf_ptr,
         goto failure;
     }
 
-    usnprintf(recv_buf, recv_buf_size, "POST %s HTTP/1.1\r\n"
-            "Host: %s\r\n"
-            "Content-type: application/x-protobuf\r\n"
-            "X-Hello-Sense-Id: %s\r\n"
-    		"X-Hello-Sense-MFW: %x\r\n"
-    		"X-Hello-Sense-TFW: %s\r\n"
-            "Transfer-Encoding: chunked\r\n",
-            path, host, hex_device_id, KIT_VER, get_top_version());
-
-    send_length = strlen(recv_buf);
-
     //setup the connection
     if( start_connection(sock, host, sec) < 0 ) {
         LOGI("failed to start connection\n\r\n\r");
@@ -1542,6 +1520,17 @@ int send_data_pb( char* host, const char* path, char ** recv_buf_ptr,
 			goto failure;
 		}
     }
+
+    usnprintf(recv_buf, recv_buf_size, "POST %s HTTP/1.1\r\n"
+            "Host: %s\r\n"
+            "Content-type: application/x-protobuf\r\n"
+            "X-Hello-Sense-Id: %s\r\n"
+    		"X-Hello-Sense-MFW: %x\r\n"
+    		"X-Hello-Sense-TFW: %s\r\n"
+            "Transfer-Encoding: chunked\r\n",
+            path, host, hex_device_id, KIT_VER, get_top_version());
+
+    send_length = strlen(recv_buf);
 
     LOGD("Sending request\n\r%s\n\r", recv_buf);
     rv = send(*sock, recv_buf, send_length, 0);

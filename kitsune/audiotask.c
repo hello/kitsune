@@ -231,6 +231,7 @@ static bool _queue_audio_playback_state(bool is_playing, const char * fpath, uin
 }
 
 
+bool add_to_file_error_queue(char* filename, int32_t err_code, bool write_error);
 static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 #define SPEAKER_DATA_CHUNK_SIZE (PING_PONG_CHUNK_SIZE)

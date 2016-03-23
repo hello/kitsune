@@ -96,6 +96,7 @@
 #include "hlo_net_tools.h"
 #include "top_board.h"
 #include "long_poll.h"
+#include "filedownloadmanager.h"
 #define ONLY_MID 0
 
 #define ARRAY_LEN(a) (sizeof(a)/sizeof(a[0]))
@@ -1370,7 +1371,7 @@ void thread_sensor_poll(void* unused) {
 
 			Cmd_free(0,0);
 			send_top("free", strlen("free"));
-			Cmd_inttemp(0,0);
+			//Cmd_inttemp(0,0);
 
 			if( ( ++count % 60 ) == 0 ) {
 				Cmd_tasks(0,0);
@@ -1773,6 +1774,7 @@ void launch_tasks() {
 	xTaskCreate(thread_tx, "txTask", 1536 / 4, NULL, 1, NULL);
 	UARTprintf("*");
 	long_poll_task_init( 4096 / 4 );
+	downloadmanagertask_init(4096 / 4);
 #endif
 }
 
@@ -1939,6 +1941,7 @@ int Cmd_nwpinfo(int argc, char *argv[]) {
 }
 int Cmd_SyncID(int argc, char * argv[]);
 int Cmd_time_test(int argc, char * argv[]);
+int cmd_file_sync_upload(int argc, char *argv[]);
 
 // ==============================================================================
 // This is the table that holds the command names, implementing functions, and
@@ -2071,6 +2074,7 @@ tCmdLineEntry g_sCmdTable[] = {
 #ifdef FILE_TEST
 		{ "test_files",Cmd_generate_user_testing_files,""},
 #endif
+		{"fs", cmd_file_sync_upload, ""},
 		{ 0, 0, 0 } };
 
 
