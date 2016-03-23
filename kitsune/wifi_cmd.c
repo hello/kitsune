@@ -1128,6 +1128,7 @@ int start_connection(int * sock, char * host, security_type sec) {
     int sock_begin = *sock;
 
     while(!wifi_status_get(HAS_IP)) {
+    	LOGI(".");
     	vTaskDelay(1000);
     }
     set_backup_dns();
@@ -1555,17 +1556,6 @@ int send_data_pb( char* host, const char* path, char ** recv_buf_ptr,
         goto failure;
     }
 
-    usnprintf(recv_buf, recv_buf_size, "POST %s HTTP/1.1\r\n"
-            "Host: %s\r\n"
-            "Content-type: application/x-protobuf\r\n"
-            "X-Hello-Sense-Id: %s\r\n"
-    		"X-Hello-Sense-MFW: %x\r\n"
-    		"X-Hello-Sense-TFW: %s\r\n"
-            "Transfer-Encoding: chunked\r\n",
-            path, host, hex_device_id, KIT_VER, get_top_version());
-
-    send_length = strlen(recv_buf);
-
     //setup the connection
     if( start_connection(sock, host, sec) < 0 ) {
         LOGI("failed to start connection\n\r\n\r");
@@ -1581,6 +1571,17 @@ int send_data_pb( char* host, const char* path, char ** recv_buf_ptr,
 			goto failure;
 		}
     }
+
+    usnprintf(recv_buf, recv_buf_size, "POST %s HTTP/1.1\r\n"
+            "Host: %s\r\n"
+            "Content-type: application/x-protobuf\r\n"
+            "X-Hello-Sense-Id: %s\r\n"
+    		"X-Hello-Sense-MFW: %x\r\n"
+    		"X-Hello-Sense-TFW: %s\r\n"
+            "Transfer-Encoding: chunked\r\n",
+            path, host, hex_device_id, KIT_VER, get_top_version());
+
+    send_length = strlen(recv_buf);
 
     LOGD("Sending request\n\r%s\n\r", recv_buf);
     rv = send(*sock, recv_buf, send_length, 0);
