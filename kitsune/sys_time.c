@@ -197,7 +197,7 @@ static void _on_time_response_success( void * structdata){
 }
 static void _on_time_response_failure( ){
 	LOGF("_on_time_response_failure\r\n");
-	//current_ntp_time = INVALID_SYS_TIME;
+	current_ntp_time = INVALID_SYS_TIME;
 }
 
 uint32_t fetch_ntp_time_from_ntp() {
