@@ -1371,7 +1371,7 @@ void thread_sensor_poll(void* unused) {
 
 			Cmd_free(0,0);
 			send_top("free", strlen("free"));
-			Cmd_inttemp(0,0);
+			//Cmd_inttemp(0,0);
 
 			if( ( ++count % 60 ) == 0 ) {
 				Cmd_tasks(0,0);
