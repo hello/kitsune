@@ -530,7 +530,7 @@ int Cmd_readproximity(int argc, char *argv[]) {
 }
 
 // TODO DKH audio change
-void set_volume(int v, unsigned int dly) {
+bool set_volume(int v, unsigned int dly) {
 	unsigned char cmd_init[2];
 
 	cmd_init[0] = 0x6c;
@@ -1129,6 +1129,11 @@ static inline void codec_asi_config(void)
 	cmd[1] = 0;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
+	// w 30 04 40 # Enable 4 channel for ASI1 bus - MULTI CHANNEL TODO DKH
+	cmd[0] = 0x04;
+	cmd[1] = 0x40;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
 	//	w 30 0a 00 # ASI1 WCLK/BCLK to WCLK1 pin/BCLK1 pin
 	cmd[0] = 0x0A;
 	cmd[1] = 0;
@@ -1233,7 +1238,7 @@ static inline void codec_minidsp_a_config(void)
 	for(i =0;i< miniDSP_A_reg_values_INST_SIZE + miniDSP_A_reg_values_COEFF_SIZE;i++)
 	{
 		cmd[0] = miniDSP_A_reg_values[i].reg_off;
-		cmd[1] = miniDSP_A_reg_values[i].reg_val;
+		//cmd[1] = miniDSP_A_reg_values[i].reg_val;
 		I2C_IF_Write(Codec_addr,cmd, 2, send_stop);
 	}
 */
