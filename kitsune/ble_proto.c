@@ -34,7 +34,7 @@
 #include "hlo_net_tools.h"
 #include "prox_signal.h"
 
-volatile static bool wifi_state_requested = false;
+volatile bool wifi_state_requested = false;
 
 typedef void(*task_routine_t)(void*);
 
@@ -157,7 +157,9 @@ static void _reply_wifi_scan_result()
 {
     int i = 0;
     MorpheusCommand reply_command = {0};
-    int count = hlo_future_read(scan_results,_wifi_endpoints,sizeof(_wifi_endpoints), 25000);
+    int count = hlo_future_read_once(scan_results,_wifi_endpoints,sizeof(_wifi_endpoints) );
+	scan_results = prescan_wifi(MAX_WIFI_EP_PER_SCAN);
+
     for(i = 0; i < count; i++)
     {
 		reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_START_WIFISCAN;
@@ -197,7 +199,7 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type,
 		nwp_reset();
 		wifi_state_requested = true;
 
-	    if(!connect_wifi(ssid, password, security_type, version))
+	    if(connect_wifi(ssid, password, security_type, version, false) < 0)
 	    {
 			LOGI("failed to connect\n");
 	        ble_reply_protobuf_error(ErrorType_WLAN_CONNECTION_ERROR);
@@ -206,8 +208,23 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type,
 	    }
 	    force_data_push();
 
-		while( !wifi_status_get(UPLOADING) ) {
+		while( !wifi_status_get(UPLOADING) && wifi_state_requested ) {
 			vTaskDelay(1000);
+
+			if ((to % 10) == 0) {
+				if (wifi_status_get(CONNECTING)) {
+					ble_reply_wifi_status(
+							wifi_connection_state_WLAN_CONNECTING);
+				} else if (wifi_status_get(CONNECT)) {
+					ble_reply_wifi_status(wifi_connection_state_WLAN_CONNECTED);
+				} else if (wifi_status_get(IP_LEASED)) {
+					ble_reply_wifi_status(wifi_connection_state_IP_RETRIEVED);
+				} else if (!wifi_status_get(0xFFFFFFFF)) {
+					ble_reply_wifi_status(
+							wifi_connection_state_NO_WLAN_CONNECTED);
+				}
+			}
+
 			if( ++to > 60 ) {
 				LOGI("wifi timeout\n");
 				wifi_state_requested = false;
@@ -215,20 +232,39 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type,
 				break;
 			}
 		}
+		if( wifi_status_get(UPLOADING) ) {
+			#define INV_INDEX 0xff
+			int _connected_index = INV_INDEX;
+			int16_t ret = 0;
+			uint8_t retry = 5;
+			SlSecParams_t secParam = make_sec_params(ssid, password, security_type, version);
+
+			ret = sl_WlanProfileDel(0xFF);
+			while(sl_WlanProfileAdd((_i8*) ssid, strlen(ssid), NULL,
+					&secParam, NULL, 0, 0) < 0 && retry--){
+				ret = sl_WlanProfileDel(0xFF);
+				if (ret != 0) {
+					LOGI("profile del fail\n");
+				}
+			}
+			LOGI("index %d\n", _connected_index);
+		} else {
+			char ssid[MAX_SSID_LEN];
+			char mac[6];
+			SlGetSecParamsExt_t extSec;
+			uint32_t priority;
+			int16_t namelen;
+			SlSecParams_t secParam;
+			nwp_reset();
+			if( 0 < sl_WlanProfileGet(0,(_i8*)ssid, &namelen, (_u8*)mac, &secParam, &extSec, (_u32*)&priority)) {
+				sl_WlanConnect((_i8*) ssid, strlen(ssid), NULL, &secParam, 0);
+			}
+		}
 		wifi_state_requested = false;
 	} else {
-		int retry_count = 10;
 		bool connection_ret = false;
 		//play_led_progress_bar(0xFF, 128, 0, 128,portMAX_DELAY);
-	    while((connection_ret = connect_wifi(ssid, password, security_type, version)) == 0 && --retry_count)
-	    {
-	        //Cmd_led(0,0);
-	        LOGI("Failed to connect, retry times remain %d\n", retry_count);
-	        //set_led_progress_bar((max_retry - retry_count ) * 100 / max_retry);
-	        vTaskDelay(2000);
-	    }
-	    //stop_led_animation();
-
+	    connect_wifi(ssid, password, security_type, version, false);
 	    if(!connection_ret)
 	    {
 			LOGI("Tried all wifi ep, all failed to connect\n");
@@ -576,7 +612,7 @@ void ble_proto_start_hold()
 	case BLE_CONNECTED:
 	default:
 		set_released(false);
-		xTaskCreate(hold_animate_progress_task, "hold_animate_pair",1024 / 4, NULL, 3, NULL);
+		xTaskCreate(hold_animate_progress_task, "hold_animate_pair",1024 / 4, NULL, 2, NULL);
 	}
 
 }
@@ -818,10 +854,21 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
             LOGI("WIFI Scan request\n");
 
             if( command->has_country_code ) {
-                LOGI("Set country code %s\n", command->country_code );
-				sl_WlanSet(SL_WLAN_CFG_GENERAL_PARAM_ID,
-						WLAN_GENERAL_PARAM_OPT_COUNTRY_CODE, 2, (uint8_t*)command->country_code);
-				nwp_reset();
+                uint16_t len = 4;
+        	    uint16_t  config_opt = WLAN_GENERAL_PARAM_OPT_COUNTRY_CODE;
+        	    char cc[4];
+        	    sl_WlanGet(SL_WLAN_CFG_GENERAL_PARAM_ID, &config_opt, &len, (_u8* )cc);
+        	    LOGI("Set country code %s have %s\n", command->country_code, cc );
+        	    if( strncmp( cc, command->country_code, 2) != 0 ) {
+					LOGI("mismatch\n");
+					sl_enter_critical_region();
+					sl_WlanSet(SL_WLAN_CFG_GENERAL_PARAM_ID,
+							WLAN_GENERAL_PARAM_OPT_COUNTRY_CODE, 2,
+							(uint8_t* )command->country_code);
+					vTaskDelay(100);
+					nwp_reset();
+					sl_exit_critical_region();
+        	    }
 			}
 
             if(!scan_results){
@@ -829,11 +876,8 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
             }
             if(scan_results){
             	_reply_wifi_scan_result();
-            	hlo_future_destroy(scan_results);
-            	scan_results = prescan_wifi(MAX_WIFI_EP_PER_SCAN);
             }else{
             	ble_reply_protobuf_error(ErrorType_DEVICE_NO_MEMORY);
-
             }
         }
         break;

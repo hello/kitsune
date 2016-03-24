@@ -27,6 +27,26 @@
 	</natures>
 	<linkedResources>
 		<link>
+			<name>SEGGER_RTT.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/third_party/FreeRTOS/source/SEGGER_RTT.c</locationURI>
+		</link>
+		<link>
+			<name>SEGGER_SYSVIEW.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/third_party/FreeRTOS/source/SEGGER_SYSVIEW.c</locationURI>
+		</link>
+		<link>
+			<name>SEGGER_SYSVIEW_Config_FreeRTOS.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/third_party/FreeRTOS/source/SEGGER_SYSVIEW_Config_FreeRTOS.c</locationURI>
+		</link>
+		<link>
+			<name>SEGGER_SYSVIEW_FreeRTOS.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/third_party/FreeRTOS/source/SEGGER_SYSVIEW_FreeRTOS.c</locationURI>
+		</link>
+		<link>
 			<name>croutine.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/third_party/FreeRTOS/source/croutine.c</locationURI>

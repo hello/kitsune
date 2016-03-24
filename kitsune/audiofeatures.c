@@ -4,8 +4,8 @@
 #include <stdlib.h>     /* abs */
 #include "debugutils/debuglog.h"
 #include <stdio.h>
-#include "hellomath.h"
 #include "uart_logger.h"
+#include "hellomath.h"
 
 /*
    How is this all going to work? 
@@ -51,7 +51,13 @@
 #define STEADY_STATE_AVERAGING_PERIOD_2N (6)
 #define STEADY_STATE_AVERAGING_PERIOD (1 << STEADY_STATE_AVERAGING_PERIOD_2N)
 
-#define STARTUP_PERIOD_IN_MS (10000)
+#ifdef NO_EQUALIZATION
+    #define STARTUP_PERIOD_IN_MS (0)
+#else
+    //default
+    #define STARTUP_PERIOD_IN_MS (10000)
+#endif
+
 #define STARTUP_EQUALIZATION_COUNTS (STARTUP_PERIOD_IN_MS / SAMPLE_PERIOD_IN_MILLISECONDS)
 
 #define QFIXEDPOINT (12)
@@ -236,7 +242,7 @@ static void UpdateEnergyStats(uint8_t isStable,int16_t logTotalEnergyAvg,int16_t
 	if( data.num_disturbances || ( (samplecount & 0xff) == 0xff ) ) {
 		if (_data.fpOncePerMinuteDataCallback) {
 			data.peak_background_energy = GetAudioEnergyAsDBA(logTotalEnergyAvg);
-			data.peak_energy = GetAudioEnergyAsDBA(_data.maxenergy);
+			data.peak_energy = GetAudioEnergyAsDBA(logTotalEnergy);
 
 			_data.fpOncePerMinuteDataCallback(&data);
 		}
@@ -482,8 +488,6 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int64_t samplecount) {
     
     DEBUG_LOG_S16("energy", NULL, &logTotalEnergy, 1, samplecount, samplecount);
 
-    LOGA("%d\n", GetAudioEnergyAsDBA(logTotalEnergy));
-
     /* Determine stability of signal energy order to figure out when to estimate background spectrum */
     logTotalEnergyAvg = MovingAverage16(_data.callcounter, logTotalEnergy, _data.energybuf, &_data.energyaccumulator,ENERGY_BUF_MASK,ENERGY_BUF_SIZE_2N);
     
@@ -498,7 +502,7 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int64_t samplecount) {
     isStable = IsStable(currentMode,logTotalEnergyAvg);
     
     //if (c++ == 255) {
-    //	LOGI("background=%d\r\n",GetAudioEnergyAsDBA(logTotalEnergyAvg));
+    	LOGA("%d\n",GetAudioEnergyAsDBA(logTotalEnergyAvg));
     //}
 
 
@@ -550,14 +554,27 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int64_t samplecount) {
         
         Scale16VecTo8(featvec, featavg, NUM_AUDIO_FEATURES);
         VecNormalize8(featvec, NUM_AUDIO_FEATURES);
+       
+        
+        //scale down to 4 bit numbers
+        /*
+        printf("MFCC=");
+        for (i = 0; i < NUM_AUDIO_FEATURES; i++) {
+            temp32 = featvec[i]; temp32 >>= 4;
+            printf("%d,",temp32); _data.feats.feats4bit[i] = (int8_t)temp32;
+        }
+        printf("\n");
+         */
+        
         
         //scale down to 4 bit numbers
         for (i = 0; i < NUM_AUDIO_FEATURES; i++) {
             temp32 = featvec[i];
-            temp32 += (1<<3);
             temp32 >>= 4;
             _data.feats.feats4bit[i] = (int8_t)temp32;
         }
+
+        
         
         temp32 = _data.lastEnergy + logTotalEnergy;
         temp32 >>= 1;
@@ -568,7 +585,11 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int64_t samplecount) {
         if (dc > MIN_CLASSIFICATION_ENERGY) {
             DEBUG_LOG_S8("mfcc",NULL,featvec,NUM_AUDIO_FEATURES,samplecount,samplecount);
         }
-
+#if 0
+        for (i = 0; i < NUM_AUDIO_FEATURES; i++) {
+        	LOGA("%d,",featvec[i] );
+        }LOGA("\n");
+#endif
         _data.feats.samplecount = samplecount;
         //do data callback always
         if (_data.fpCallback) {

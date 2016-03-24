@@ -120,7 +120,7 @@ void AudioProcessingTask_AddFeaturesToQueue(const AudioFeatures_t * feat) {
 	}
 }
 
-void AudioProcessingTask_SetControl(EAudioProcessingCommand_t cmd,NotificationCallback_t onFinished, void * context) {
+void AudioProcessingTask_SetControl(EAudioProcessingCommand_t cmd,NotificationCallback_t onFinished, void * context, TickType_t wait ) {
 	AudioProcessingTaskMessage_t m;
 	memset(&m,0,sizeof(m));
 	m.message.cmd = cmd;
@@ -129,15 +129,13 @@ void AudioProcessingTask_SetControl(EAudioProcessingCommand_t cmd,NotificationCa
 	m.context = context;
 
 	if (_queue) {
-		xQueueSend(_queue,&m,0);
+		xQueueSend(_queue,&m,wait);
 	}
 }
 
 static void NetworkResponseFunc(const NetworkResponse_t * response,
 		char * reply_buf, int reply_buf_sz, void * context) {
 	//LOGI("AUDIO RESPONSE:\r\n%s", reply_buf);
-
-	vPortFree( reply_buf );
 
 	if (response->success) {
     	xSemaphoreTake(_mutex,portMAX_DELAY);
@@ -237,10 +235,9 @@ void AudioProcessingTask_Thread(void * data) {
     		if (_longTermStorageBuffer) {
     			//process features
     			AudioClassifier_DataCallback(&m.message.feats);
-
-    			//check to see if it's time to try to upload
     			samplecounter++;
 
+    			//check to see if it's time to try to upload
     			if (samplecounter > AUDIO_UPLOAD_PERIOD_IN_TICKS) {
     				if (featureUploads) {
     					SetUpUpload();

@@ -42,7 +42,10 @@ int sl_mode;
 
 #include "stdint.h"
 #include "sync_response.pb.h"
+
+#ifdef SELF_PROVISION_SUPPORT
 #include "provision.pb.h"
+#endif
 
 #define INV_TIME 0xffffffff
 extern
@@ -93,6 +96,7 @@ int Cmd_set_mac(int argc, char*argv[]);
 int Cmd_set_aes(int argc, char *argv[]) ;
 int Cmd_test_key(int argc, char*argv[]);
 int Cmd_setDns(int argc, char *argv[]);
+void set_backup_dns();
 
 int Cmd_RadioStartRX(int argc, char*argv[]);
 int Cmd_RadioStopRX(int argc, char*argv[]);
@@ -113,7 +117,11 @@ int wifi_status_get(unsigned int status);
 
 bool send_periodic_data(batched_periodic_data* data, bool forced, int32_t to);
 bool send_pill_data_generic(batched_pill_data * pill_data, const char * endpoint);
+
+#ifdef SELF_PROVISION_SUPPORT
 bool send_provision_request(ProvisionRequest* req);
+#endif
+
 #define DEFAULT_KEY "1234567891234567"
 
 void thread_ota( void * unused );
@@ -130,7 +138,8 @@ int send_data_pb( char* host, const char* path, char ** recv_buf_ptr,
 		protobuf_reply_callbacks * pb_cb, int * sock, security_type sec );
 
 int get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uint32_t scan_duration_ms, int antenna);
-int connect_wifi(const char* ssid, const char* password, int sec_type, int version);
+SlSecParams_t make_sec_params(const char* ssid, const char* password, int sec_type, int version);
+int connect_wifi(const char* ssid, const char* password, int sec_type, int version, bool save);
 void wifi_get_connected_ssid(uint8_t* ssid_buffer, size_t len);
 
 long nwp_reset();
