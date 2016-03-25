@@ -241,6 +241,10 @@ static void NetworkTask_Thread(void * networkdata) {
 		if( message.end ) {
 			message.end(&message);
 		}
+
+		if( sock > 0 ) {
+			close(sock);
+		}
 	}
 }
 

@@ -158,6 +158,9 @@ static void long_poll_task(void * networkdata) {
 		} else {
 			retries = 0;
 		}
+		if( sock > 0 ) {
+			close(sock);
+		}
 	}
 	//shouldn't get here, but for consistency...
 	//vPortFree(decode_buf);
