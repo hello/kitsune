@@ -146,10 +146,24 @@ static void _factory_reset(){
 
 }
 
+#define PM_TIMEOUT (20*60*1000UL)
+static TimerHandle_t pm_timer;
+
+void pm_cancel( TimerHandle_t pxTimer ) {
+	MorpheusCommand response = { 0 };
+	if(get_ble_mode() == BLE_PAIRING) {
+		response.type =
+				MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE;
+		ble_send_protobuf(&response);
+	}
+}
+
 void ble_proto_init() {
 	vSemaphoreCreateBinary(_self.smphr);
 	vSemaphoreCreateBinary(_wifi_smphr);
 	set_ble_mode(BLE_NORMAL);
+
+	pm_timer = xTimerCreate("PM Timer",PM_TIMEOUT,pdFALSE, 0, pm_cancel);
 }
 
 
@@ -582,11 +596,8 @@ void hold_animate_progress_task(void * params) {
 	assert( BLE_HOLD_TIMEOUT_MS < MAX_HOLD_TIME_MS );
 	vTaskDelay(BLE_HOLD_TIMEOUT_MS);
 	if( get_released() ) {
-		vTaskDelay(20*60*1000UL); //20 minute timeout
-		if( get_ble_mode() != BLE_PAIRING ) {
-			vTaskDelete(NULL);
-			return;
-		}
+		vTaskDelete(NULL);
+		return;
 	}
 	response.type =
 			MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE;
@@ -782,6 +793,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 				if(!scan_results){
 					scan_results = prescan_wifi(MAX_WIFI_EP_PER_SCAN);
 				}
+				assert( pdPASS == xTimerStart(pm_timer, 30000));
     		}
         }
         break;
