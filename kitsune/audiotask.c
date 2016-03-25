@@ -188,7 +188,7 @@ static uint8_t CheckForInterruptionDuringPlayback(void) {
 		}
 		if (m.command == eAudioPlaybackStart) {
 			ret = FLAG_STOP;
-			LOGI("Switching audio\r\n");
+//			LOGI("Switching audio\r\n");
 		}
 	}
 
