@@ -1054,10 +1054,8 @@ int download_file(char * host, char * url, char * filename, char * path, storage
 	//LOGI("download <host> <filename> <url>\n\r");
 	// Create a TCP connection to the Web Server
 	dl_sock = CreateConnection(ip);
-
 	if (dl_sock < 0) {
-		LOGF("Connection to server failed %d\n\r", dl_sock);
-		return -1;
+	    assert( !"Connection to server failed\n\r" );
 	} else {
 		LOGF("Connection to server created successfully\r\n");
 	}
