@@ -203,7 +203,7 @@ static void DownloadManagerTask(void * filesyncdata)
 			if(ret)
 			{
 				LOGE("Error creating file manifest: %d\n", ret);
-				message_for_upload.file_info.arg = NULL;
+				//message_for_upload.file_info.arg = NULL;
 			}
 
 
