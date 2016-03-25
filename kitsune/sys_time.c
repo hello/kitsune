@@ -243,6 +243,9 @@ uint32_t fetch_ntp_time_from_ntp() {
 			vTaskDelay( 32000 );
 		}
 	}
+	if( sock > 0 ) {
+		close(sock);
+	}
 	vPortFree(decode_buf);
     return current_ntp_time;
 #undef MAX_RETRIES
