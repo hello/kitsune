@@ -28,7 +28,7 @@
 
 #define FOLDERS_TO_EXCLUDE      (3)
 
-char* folders[FOLDERS_TO_EXCLUDE] = {"LOGS", "USR", "FSEVEN~1"};
+static const char* folders[FOLDERS_TO_EXCLUDE] = {"LOGS", "USR", "FSEVEN~1"};
 
 typedef struct {
 	//File path
@@ -75,7 +75,7 @@ static FileManifest_LinkHealth link_health = {0};
 static uint32_t message_sent_time;
 
 // Query delay in ticks
-TickType_t query_delay_ticks = (QUERY_DELAY_DEFAULT*60*1000)/portTICK_PERIOD_MS;
+static TickType_t query_delay_ticks = (QUERY_DELAY_DEFAULT*60*1000)/portTICK_PERIOD_MS;
 
 // Global functions
 uint32_t update_sha_file(char* path, char* original_filename, update_sha_t option, uint8_t* sha );
@@ -123,7 +123,7 @@ void downloadmanagertask_init(uint16_t stack_size)
 		_response_received_sem = xSemaphoreCreateBinary();
 	}
 
-	xTaskCreate(DownloadManagerTask, "downloadManagerTask", stack_size, NULL, 2, NULL);
+	xTaskCreate(DownloadManagerTask, "dm_task", stack_size, NULL, 2, NULL);
 
 	file_manifest_local.ga_file_list = NULL;
 
@@ -356,7 +356,7 @@ bool _on_file_update(pb_istream_t *stream, const pb_field_t *field, void **arg)
 				res = hello_fs_unlink(full_path);
 				if(res)
 				{
-					LOGE("DM:delete unsuccessful %s\n",full_path );
+					LOGE("DM:delete fail %s\n",full_path );
 				}
 			}
 
@@ -602,7 +602,7 @@ static uint32_t update_file_manifest(void)
 	file_manifest_local.num_data = 0;
 	res = scan_files(path_buf);
 
-	LOGI("DM: File count: %d Allocated file count: %d\n", \
+	LOGI("DM: Files: %d\n", \
 			file_manifest_local.num_data, file_manifest_local.allocated_file_list_size);
 
 
@@ -628,7 +628,7 @@ static uint32_t scan_files(char* path)
             if (res != FR_OK || fno.fname[0] == 0)
 			{
 
-            	if(res != FR_OK) LOGE("DM SF RD %d\n", res);
+            	//if(res != FR_OK) LOGE("DM SF RD %d\n", res);
 
             	break;  /* Break on error or end of dir */
 
@@ -659,7 +659,7 @@ static uint32_t scan_files(char* path)
                 path[i] = 0;
                 if (res != FR_OK)
                 {
-                	LOGE("DM SF err %s\n",res,path);
+                	//LOGI("DM SF err %s\n",res,path);
                 	break;
                 }
             } else {                                       /* It is a file. */
@@ -704,10 +704,6 @@ static uint32_t scan_files(char* path)
         }
         hello_fs_closedir(&dir);
     }
-    else
-    {
-    	LOGE("DM SF OD %s\n",path);
-    }
 
     return res;
 }
@@ -749,14 +745,14 @@ static int32_t compute_sha(char* path, char* sha_path)
     //LOGI( "computing SHA of %s\n", path);
     res = hello_fs_stat(path, &info);
     if (res) {
-        LOGE("DM: error getting file info %d\n", res);
+        LOGE("DM: error fstat %d\n", res);
         return -1;
     }
 
 
     res = hello_fs_open(&fp, path, FA_READ);
     if (res) {
-        LOGE("DM: error opening file for read %d\n", res);
+        LOGE("DM: error fopen %d\n", res);
         return -1;
     }
 
@@ -765,7 +761,7 @@ static int32_t compute_sha(char* path, char* sha_path)
     while (bytes_to_read > 0) {
 		res = hello_fs_read(&fp, buffer,(minval(sizeof(buffer),bytes_to_read)), &bytes_read);
 		if (res) {
-			LOGE("DM: error reading file %d\n", res);
+			LOGE("DM: err fread %d\n", res);
 			return -1;
 		}
 		SHA1_Update(&sha1ctx, buffer, bytes_read);
@@ -779,7 +775,7 @@ static int32_t compute_sha(char* path, char* sha_path)
 	// Open for writing
 	res = hello_fs_open(&fp, sha_path, FA_CREATE_ALWAYS|FA_WRITE);
 	if (res) {
-		LOGE("DM: error opening file for write %d\n", res);
+		LOGE("DM: err fopen write %d\n", res);
 		return -1;
 	}
 
@@ -790,7 +786,7 @@ static int32_t compute_sha(char* path, char* sha_path)
 		// Write SHA into it
 		res = hello_fs_write(&fp, sha,SHA1_SIZE, &bytes_written);
 		if (res) {
-			LOGE("DM: error reading file %d\n", res);
+			LOGE("DM: err fwrite  %d\n", res);
 			return -1;
 		}
 
@@ -810,7 +806,7 @@ static int32_t get_complete_filename(char* full_path, char * local_fn, char* pat
 	{
 		if(strlen(path) + strlen(local_fn) + 1 + 1 > len)
 		{
-			LOGI("DM: Resulting path name is too long\n");
+			LOGI("DM: name too long\n");
 			return -1;
 		}
 
@@ -894,20 +890,16 @@ uint32_t update_sha_file(char* path, char* original_filename, update_sha_t optio
 			if(file_exists)
 			{
 				// Delete exisiting SHA file
-				LOGI("SHA file exists, will be deleted\n");
+				//LOGI("delete SHA file exists\n");
 				res = hello_fs_unlink(sha_fullpath);
 				if(res)
 				{
-					LOGE("DM:delete unsuccessful %s\n",sha_fullpath );
+					LOGE("DM:delete fail %s\n",sha_fullpath );
 					return res;
 				}
 
 			}
-			else
-			{
-				LOGE("FM: No file %s to delete\n", sha_fullpath);
 
-			}
 		}
 		break;
 
@@ -915,7 +907,7 @@ uint32_t update_sha_file(char* path, char* original_filename, update_sha_t optio
 		{
 			if( !file_exists )
 			{
-				LOGE("DM: Cannot return SHA, file does not exist\n");
+				LOGE("DM: SHA file does not exist\n");
 				return ~0;
 			}
 
@@ -947,7 +939,7 @@ uint32_t update_sha_file(char* path, char* original_filename, update_sha_t optio
 			}
 			else
 			{
-				LOGE("DM: Invalid ptr for SHA\n");
+				LOGE("DM: Invalid ptr\n");
 			}
 		}
 		break;
@@ -960,7 +952,7 @@ int cmd_file_sync_upload(int argc, char *argv[])
 {
 #ifdef DM_UPLOAD_CMD_ENABLED
 
-	LOGI("DM: File sync upload!\n");
+	LOGI("DM!\n");
 	xSemaphoreGive(_cli_upload_sem);
 #endif
 
