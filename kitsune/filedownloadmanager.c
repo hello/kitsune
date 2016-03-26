@@ -26,9 +26,9 @@
 //From ff.f of fatfs TCHAR	fname[13];		/* Short file name (8.3 format) */
 #define MAX_FILENAME_SIZE		(13)
 
-#define FOLDERS_TO_EXCLUDE      (2)
+#define FOLDERS_TO_EXCLUDE      (3)
 
-char* folders[FOLDERS_TO_EXCLUDE] = {"LOGS", "USR"};
+char* folders[FOLDERS_TO_EXCLUDE] = {"LOGS", "USR", "FSEVEN~1"};
 
 typedef struct {
 	//File path
@@ -625,8 +625,17 @@ static uint32_t scan_files(char* path)
         for (;;) {
 
             res = hello_fs_readdir(&dir, &fno);                   /* Read a directory item */
-            if (res != FR_OK || fno.fname[0] == 0) break;  /* Break on error or end of dir */
+            if (res != FR_OK || fno.fname[0] == 0)
+			{
+
+            	if(res != FR_OK) LOGE("DM SF RD %d\n", res);
+
+            	break;  /* Break on error or end of dir */
+
+			}
             if (fno.fname[0] == '.') continue;             /* Ignore dot entry */
+            if (fno.fname[0] == '~') continue;             /* Ignore entry */
+            //if (fno.fname[0] == '/') continue;             /* Ignore entry */
 
 
             for(j=0;j<FOLDERS_TO_EXCLUDE;j++)
@@ -648,7 +657,11 @@ static uint32_t scan_files(char* path)
                 strncat(&path[i],fn,PATH_BUF_MAX_SIZE-strlen(path));
                 res = (FRESULT)scan_files(path);
                 path[i] = 0;
-                if (res != FR_OK) break;
+                if (res != FR_OK)
+                {
+                	LOGE("DM SF err %s\n",res,path);
+                	break;
+                }
             } else {                                       /* It is a file. */
                 // Skip if file is a sha file
                 if(!strstr(fn, ".SHA"))
@@ -690,6 +703,10 @@ static uint32_t scan_files(char* path)
             vTaskDelay(50/portTICK_PERIOD_MS);
         }
         hello_fs_closedir(&dir);
+    }
+    else
+    {
+    	LOGE("DM SF OD %s\n",path);
     }
 
     return res;
