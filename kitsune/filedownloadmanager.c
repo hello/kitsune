@@ -26,9 +26,9 @@
 //From ff.f of fatfs TCHAR	fname[13];		/* Short file name (8.3 format) */
 #define MAX_FILENAME_SIZE		(13)
 
-#define FOLDERS_TO_EXCLUDE      (2)
+#define FOLDERS_TO_INCLUDE      (2)
 
-char* folders[FOLDERS_TO_EXCLUDE] = {"LOGS", "USR"};
+char* folders[FOLDERS_TO_INCLUDE] = {"SLPTONES", "RINGTONE"};
 
 typedef struct {
 	//File path
@@ -628,22 +628,24 @@ static uint32_t scan_files(char* path)
             if (res != FR_OK || fno.fname[0] == 0) break;  /* Break on error or end of dir */
             if (fno.fname[0] == '.') continue;             /* Ignore dot entry */
 
-
-            for(j=0;j<FOLDERS_TO_EXCLUDE;j++)
-            {
-                if( !strcmp(fno.fname, folders[j]))
-                {
-                	LOGI("skipping %s\n",fno.fname );
-                	break;
-                }
-
-            }
-
-            if(j<FOLDERS_TO_EXCLUDE) continue;
-
             fn = fno.fname;
             if (fno.fattrib & AM_DIR) {                    /* It is a directory */
                 //usnprintf(&path[i],PATH_BUF_MAX_SIZE * sizeof(char), "%s", fn);
+
+                for(j=0;j<FOLDERS_TO_INCLUDE;j++)
+                {
+                    if( !strcmp(fno.fname, folders[j]))
+                    {
+                    	LOGI("reading %s\n",fno.fname );
+                    	break;
+                    }
+
+                }
+
+                if(j==FOLDERS_TO_INCLUDE) {
+                	LOGI("skipping %s\n",fno.fname );
+                	continue;
+                }
 
                 strncat(&path[i],fn,PATH_BUF_MAX_SIZE-strlen(path));
                 res = (FRESULT)scan_files(path);
