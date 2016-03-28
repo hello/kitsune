@@ -127,7 +127,7 @@ static void _sense_state_task(hlo_future_t * result, void * ctx){
 			LOGI("AudioState %s, %s\r\n", last_audio_state.playing_audio?"Playing":"Stopped", last_audio_state.file_path);
 			state_sent = NetworkTask_SendProtobuf(true, DATA_SERVER,
 							SENSE_STATE_ENDPOINT, SenseState_fields, &sense_state, 0,
-							NULL, NULL, NULL, false);
+							NULL, NULL, NULL, true);
 		}else if(!state_sent && wifi_status_get(HAS_IP)){
 			sense_state.audio_state = last_audio_state;
 			state_sent = NetworkTask_SendProtobuf(true, DATA_SERVER,
