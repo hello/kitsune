@@ -132,7 +132,7 @@ static void _sense_state_task(hlo_future_t * result, void * ctx){
 			sense_state.audio_state = last_audio_state;
 			state_sent = NetworkTask_SendProtobuf(true, DATA_SERVER,
 										SENSE_STATE_ENDPOINT, SenseState_fields, &sense_state, 0,
-										NULL, NULL, NULL, false);
+										NULL, NULL, NULL, true);
 			backoff *= 2;
 			backoff = backoff > MAX_STATE_BACKOFF ?  MAX_STATE_BACKOFF : backoff;
 		}

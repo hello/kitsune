@@ -244,6 +244,7 @@ static void NetworkTask_Thread(void * networkdata) {
 
 		if( sock > 0 ) {
 			close(sock);
+			sock = -1;
 		}
 	}
 }

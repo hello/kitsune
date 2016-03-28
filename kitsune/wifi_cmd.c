@@ -2642,10 +2642,12 @@ static void serv(int port, volatile int * connection_socket, int (*cb)(volatile 
 		SVR_LOGI( "SVR: bind\n");
 		if ( bind(sock, &local_addr, sizeof(local_addr)) < 0) {
 			close(sock);
+			sock = -1;
 			continue;
 		} SVR_LOGI( "SVR: listen\n");
 		if ( listen(sock, 0) < 0) {
 			close(sock);
+			sock = -1;
 			continue;
 		}
 
@@ -2725,6 +2727,7 @@ static void serv(int port, volatile int * connection_socket, int (*cb)(volatile 
 		SVR_LOGI( "SVR: lost sock\n");
 		*connection_socket = -1;
 		close(sock);
+		sock = -1;
 		vPortFree(buf);
 		vPortFree(linebuf);
 	}

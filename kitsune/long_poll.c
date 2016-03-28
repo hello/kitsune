@@ -160,6 +160,7 @@ static void long_poll_task(void * networkdata) {
 		}
 		if( sock > 0 ) {
 			close(sock);
+			sock = -1;
 		}
 	}
 	//shouldn't get here, but for consistency...
