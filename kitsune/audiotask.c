@@ -186,8 +186,7 @@ static uint8_t CheckForInterruptionDuringPlayback(void) {
 		if (ret) {
 			xQueueReceive(_queue,(void *)&m,0); //pop this interruption off the queue
 		}
-		if (m.command == eAudioPlaybackStart
-				|| m.command == eAudioCaptureTurnOn ) {
+		if (m.command == eAudioPlaybackStart ) {
 			ret = FLAG_STOP;
 //			LOGI("Switching audio\r\n");
 		}
