@@ -248,6 +248,7 @@ uint32_t fetch_ntp_time_from_ntp() {
 	}
 	if( sock > 0 ) {
 		close(sock);
+		sock = -1;
 	}
 	vPortFree(decode_buf);
     return current_ntp_time;
