@@ -271,8 +271,6 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		return returnFlags;
 	}
 
-	_queue_audio_playback_state(true, info->file, info->durationInSeconds);
-
 	if( fade_length != 0 ) {
 		i2c_volume = initial_volume = 1;
 		t0 = fade_time =  xTaskGetTickCount();
@@ -299,6 +297,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	}
 
 	memset(speaker_data,0,SPEAKER_DATA_CHUNK_SIZE);
+	_queue_audio_playback_state(true, info->file, info->durationInSeconds);
 
 	bool started = false;
 	//loop until either a) done playing file for specified duration or b) our message queue gets a message that tells us to stop
