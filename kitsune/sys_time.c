@@ -221,10 +221,8 @@ uint32_t fetch_ntp_time_from_ntp() {
     pb_cb.on_pb_success = _on_time_response_success;
     pb_cb.on_pb_failure = _on_time_response_failure;
 
-    request.has_origin_ts = has_good_time();
-    if( request.has_origin_ts ) {
-    	request.origin_ts = ((uint64_t)get_unix_time())<<31;
-    }
+    request.has_origin_ts = true;
+    request.origin_ts = ((uint64_t)get_unix_time())<<31;
     request.has_reference_ts = true;
     request.reference_ts = last_reference_time<<32;
 
