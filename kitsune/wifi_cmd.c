@@ -216,24 +216,9 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
         break;
     }
 }
-
-static void bad_wifi_password( void * params ) {
-	sl_WlanDisconnect();
-	ble_reply_protobuf_error(ErrorType_BAD_WIFI_PASSWORD);
-
-	vTaskDelete(NULL);
-}
-
-
 void SimpleLinkGeneralEventHandler(SlDeviceEvent_t *pDevEvent)
 {
-	LOGI("GENEVT ID=%d Sender=%d\n", pDevEvent->EventData.deviceEvent.status,
-			pDevEvent->EventData.deviceEvent.sender);
-
-	if (pDevEvent->EventData.deviceEvent.status
-			== SL_ERROR_CON_MGMT_STATUS_DISCONNECT_DURING_CONNECT) {
-		xTaskCreate(bad_wifi_password, "bad_wifi_password", 1024 / 4, NULL, 1, NULL);
-	}
+LOGI("GENEVT ID=%d Sender=%d\n",pDevEvent->EventData.deviceEvent.status, pDevEvent->EventData.deviceEvent.sender);
 }
 //****************************************************************************
 //
