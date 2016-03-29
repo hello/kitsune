@@ -889,7 +889,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 		}
 		// Open the file for writing.
 		res = hello_fs_open(&file_obj, path_buff,
-				FA_CREATE_ALWAYS | FA_WRITE | FA_OPEN_ALWAYS);
+				FA_CREATE_ALWAYS | FA_WRITE );
 		LOGI("res :%d\n", res);
 
 		if (res != FR_OK && res != FR_EXIST) {
