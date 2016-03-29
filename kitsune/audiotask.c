@@ -177,14 +177,14 @@ static uint8_t CheckForInterruptionDuringPlayback(void) {
 	uint8_t ret = 0x00;
 
 	/* Take a peak at the top of our queue.  If we get something that says stop, we stop  */
-	if (xQueuePeek(_queue,(void *)&m,0)) {
+	if (xQueueReceive(_queue,(void *)&m,0)) {
 
 		if (m.command == eAudioPlaybackStop) {
 			ret = FLAG_STOP;
 			LOGI("Stopping playback\r\n");
 		}
-		if (ret) {
-			xQueueReceive(_queue,(void *)&m,0); //pop this interruption off the queue
+		if (!ret) {
+			xQueueSendToFront(_queue, (void*)&m, 0);
 		}
 		if (m.command == eAudioPlaybackStart ) {
 			ret = FLAG_STOP;
