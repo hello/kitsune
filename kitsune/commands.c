@@ -1230,8 +1230,11 @@ void sample_sensor_data(periodic_data* data)
 		data->audio_peak_energy_db = aud_data.peak_energy;
 
 		data->has_audio_peak_disturbance_energy_db = true;
-		data->audio_peak_disturbance_energy_db = aud_data.peak_energy;
-
+		if( aud_data.num_disturbances ) {
+			data->audio_peak_disturbance_energy_db = aud_data.peak_energy;
+		} else {
+			data->audio_peak_disturbance_energy_db = aud_data.peak_background_energy;
+		}
 		//LOGI("Uploading audio %u %u %u\r\n",data->audio_num_disturbances, data->audio_peak_background_energy_db, data->audio_peak_disturbance_energy_db );
 	}
 
@@ -1366,7 +1369,7 @@ void thread_sensor_poll(void* unused) {
 
 			Cmd_free(0,0);
 			send_top("free", strlen("free"));
-			Cmd_inttemp(0,0);
+			//Cmd_inttemp(0,0);
 
 			if( ( ++count % 60 ) == 0 ) {
 				Cmd_tasks(0,0);

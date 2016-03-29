@@ -190,14 +190,17 @@ static void _free_time_response(void * structdata){
 
 static void _on_time_response_success( void * structdata){
 	hello_NTPDataPacket * time = structdata;
-	LOGF("_on_time_response_success\r\n");
-	if( time->has_transmit_ts ) { //todo use the received and origin timestamps
+	LOGF("_on_time_response_success %u\r\n", (time->transmit_ts>>32) );
+	if( time->has_transmit_ts && (time->transmit_ts>>32)!=0 ) { //todo use the received and origin timestamps
 		current_ntp_time = last_reference_time = time->transmit_ts>>32;
+	} else {
+		LOGE("no or zero time!\n");
+		current_ntp_time = INVALID_SYS_TIME;
 	}
 }
 static void _on_time_response_failure( ){
 	LOGF("_on_time_response_failure\r\n");
-	//current_ntp_time = INVALID_SYS_TIME;
+	current_ntp_time = INVALID_SYS_TIME;
 }
 
 uint32_t fetch_ntp_time_from_ntp() {
@@ -222,7 +225,7 @@ uint32_t fetch_ntp_time_from_ntp() {
     pb_cb.on_pb_failure = _on_time_response_failure;
 
     request.has_origin_ts = true;
-    request.origin_ts = get_unix_time()<<31;
+    request.origin_ts = ((uint64_t)get_unix_time())<<31;
     request.has_reference_ts = true;
     request.reference_ts = last_reference_time<<32;
 
@@ -242,6 +245,9 @@ uint32_t fetch_ntp_time_from_ntp() {
 		} else {
 			vTaskDelay( 32000 );
 		}
+	}
+	if( sock > 0 ) {
+		close(sock);
 	}
 	vPortFree(decode_buf);
     return current_ntp_time;
