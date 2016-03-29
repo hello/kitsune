@@ -235,10 +235,9 @@ void AudioProcessingTask_Thread(void * data) {
     		if (_longTermStorageBuffer) {
     			//process features
     			AudioClassifier_DataCallback(&m.message.feats);
-
-    			//check to see if it's time to try to upload
     			samplecounter++;
 
+    			//check to see if it's time to try to upload
     			if (samplecounter > AUDIO_UPLOAD_PERIOD_IN_TICKS) {
     				if (featureUploads) {
     					SetUpUpload();

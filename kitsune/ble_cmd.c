@@ -203,6 +203,7 @@ void ble_proto_assign_encode_funcs( MorpheusCommand* command)
     }
 }
 
+extern volatile bool wifi_state_requested;
 bool ble_reply_protobuf_error(ErrorType error_type)
 {
     MorpheusCommand morpheus_command = {0};
@@ -210,6 +211,8 @@ bool ble_reply_protobuf_error(ErrorType error_type)
 
     morpheus_command.has_error = true;
     morpheus_command.error = error_type;
+
+	wifi_state_requested = false;
 
     return ble_send_protobuf(&morpheus_command);
 }
