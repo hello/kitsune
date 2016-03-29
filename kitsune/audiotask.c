@@ -740,18 +740,30 @@ void AudioTask_AddMessageToQueue(const AudioMessage_t * message) {
 void AudioTask_StartCapture(uint32_t rate) {
 	AudioMessage_t message;
 
+	if (_queue && xQueuePeek(_queue,&message,0)) {
+		if( message.command == eAudioCaptureTurnOn ) {
+			return;
+		}
+	}
 	//turn on
 	LOGI("mic on\r\n");
 	memset(&message,0,sizeof(message));
 	message.command = eAudioCaptureTurnOn;
 	message.message.capturedesc.rate = rate;
 	message.message.capturedesc.flags = 0;
+
 	AudioTask_AddMessageToQueue(&message);
 
 }
 
 void AudioTask_StopCapture(void) {
 	AudioMessage_t message;
+
+	if (_queue && xQueuePeek(_queue,&message,0)) {
+		if( message.command == eAudioCaptureTurnOff ) {
+			return;
+		}
+	}
 
 	LOGI("mic off\r\n");
 
