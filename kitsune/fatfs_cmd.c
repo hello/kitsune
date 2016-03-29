@@ -1494,6 +1494,11 @@ void file_download_task( void * params ) {
 				// Set file download pending for download manager
 				update_file_download_status(true);
 
+				// Delete corresponding SHA file if exists
+				// delete before downloading the file, so that if the download fails midway,
+				// the device won't be left with a corrupt file and a valid sha file.
+				update_sha_file(path, filename, sha_file_delete,NULL );
+
 				while (download_file(host, url, filename, path, SD_CARD)
 						!= 0) {
 					if (++retries > 10) {
@@ -1502,7 +1507,6 @@ void file_download_task( void * params ) {
 				}
 
 				if (download_info.has_sha1) {
-
 
 					// SHA verify for SD card files
 					FRESULT res = FR_OK;
@@ -1528,10 +1532,6 @@ void file_download_task( void * params ) {
 						cd("/");
 						goto end_download_task;
 					}
-
-
-					// Delete corresponding SHA file if exists
-					update_sha_file(path, filename, sha_file_delete,NULL );
 
 					cd("/");
 					LOGI("SD card download success \r\n");
@@ -1786,8 +1786,8 @@ static int32_t sd_sha1_verify(const char * sha_truth, const char * path){
     //compare
     if (memcmp(sha, sha_truth, SHA1_SIZE) != 0) {
         LOGE("SD card file SHA did not match!\n");
-        LOGI("Sha truth:      %02x ... %02x\r\n", sha_truth[0], sha_truth[SHA1_SIZE-1]);
-        LOGI("Sha calculated: %02x ... %02x\r\n", sha[0], sha[SHA1_SIZE-1]);
+        //LOGI("Sha truth:      %02x ... %02x\r\n", sha_truth[0], sha_truth[SHA1_SIZE-1]);
+        //LOGI("Sha calculated: %02x ... %02x\r\n", sha[0], sha[SHA1_SIZE-1]);
         return -1;
     }
 

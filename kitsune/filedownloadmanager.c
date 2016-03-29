@@ -123,7 +123,7 @@ void downloadmanagertask_init(uint16_t stack_size)
 		_response_received_sem = xSemaphoreCreateBinary();
 	}
 
-	xTaskCreate(DownloadManagerTask, "downloadManagerTask", stack_size, NULL, 2, NULL);
+	xTaskCreate(DownloadManagerTask, "dmTask", stack_size, NULL, 2, NULL);
 
 	file_manifest_local.ga_file_list = NULL;
 
@@ -202,7 +202,7 @@ static void DownloadManagerTask(void * filesyncdata)
 			uint32_t ret = update_file_manifest();
 			if(ret)
 			{
-				LOGE("Error creating file manifest: %d\n", ret);
+				LOGE("DM: Err creating manifest: %d\n", ret);
 				//message_for_upload.file_info.arg = NULL;
 			}
 
@@ -241,7 +241,7 @@ static void DownloadManagerTask(void * filesyncdata)
 			message_for_upload.has_link_health = true;
 			message_for_upload.link_health = link_health;
 
-			LOGI("DM: link health %d errors and %d time to response\n",link_health.send_errors,link_health.time_to_response);
+			LOGI("DM: LH %d\n",link_health.send_errors);
 
 			/* UPDATE MEMORY INFO */
 
@@ -276,7 +276,7 @@ static void DownloadManagerTask(void * filesyncdata)
 					true, DATA_SERVER, FILE_SYNC_ENDPOINT, FileManifest_fields, &message_for_upload, 0, NULL, NULL, &pb_cb, false)
 					)
 			{
-				LOGI("DM: File manifest failed to upload \n");
+				LOGI("DM: Upload Fail \n");
 
 			}
 
@@ -330,7 +330,7 @@ bool _on_file_update(pb_istream_t *stream, const pb_field_t *field, void **arg)
 	// decode PB
 	if( !pb_decode(stream,FileManifest_File_fields,&file_info) )
 	{
-		LOGI("DM: file sync - parse fail \n" );
+		LOGI("DM: parse fail \n" );
 		free_file_sync_info( &file_info.download_info );
 		return false;
 	}
@@ -356,7 +356,7 @@ bool _on_file_update(pb_istream_t *stream, const pb_field_t *field, void **arg)
 				res = hello_fs_unlink(full_path);
 				if(res)
 				{
-					LOGE("DM:delete unsuccessful %s\n",full_path );
+					LOGE("DM:file delete fail %s\n",full_path );
 				}
 			}
 
@@ -530,7 +530,7 @@ static void _on_file_sync_response_success( void * structdata)
 {
 	FileManifest* response_protobuf = (FileManifest*) structdata;
 
-	LOGF("_on_file_sync_response_success\r\n");
+	LOGF("_on_fs_response_success\r\n");
 
 	// TODO Might be more meaningful to have this in seconds
 	link_health.time_to_response = (xTaskGetTickCount() - message_sent_time) / configTICK_RATE_HZ /60; // in minutes
@@ -541,7 +541,7 @@ static void _on_file_sync_response_success( void * structdata)
 	{
 		query_delay_ticks = (response_protobuf->query_delay * 60 * 1000)/portTICK_PERIOD_MS;
 
-		LOGI("DM: Query delay %d\n", response_protobuf->query_delay);
+		//LOGI("DM: Query delay %d\n", response_protobuf->query_delay);
 	}
 	else
 	{
@@ -734,14 +734,14 @@ static int32_t compute_sha(char* path, char* sha_path)
     //LOGI( "computing SHA of %s\n", path);
     res = hello_fs_stat(path, &info);
     if (res) {
-        LOGE("DM: error getting file info %d\n", res);
+        LOGE("DM: f_stat %d\n", res);
         return -1;
     }
 
 
     res = hello_fs_open(&fp, path, FA_READ);
     if (res) {
-        LOGE("DM: error opening file for read %d\n", res);
+        LOGE("DM: f_open for read %d\n", res);
         return -1;
     }
 
@@ -750,7 +750,7 @@ static int32_t compute_sha(char* path, char* sha_path)
     while (bytes_to_read > 0) {
 		res = hello_fs_read(&fp, buffer,(minval(sizeof(buffer),bytes_to_read)), &bytes_read);
 		if (res) {
-			LOGE("DM: error reading file %d\n", res);
+			LOGE("DM: f_read %d\n", res);
 			return -1;
 		}
 		SHA1_Update(&sha1ctx, buffer, bytes_read);
@@ -764,7 +764,7 @@ static int32_t compute_sha(char* path, char* sha_path)
 	// Open for writing
 	res = hello_fs_open(&fp, sha_path, FA_CREATE_ALWAYS|FA_WRITE);
 	if (res) {
-		LOGE("DM: error opening file for write %d\n", res);
+		LOGE("DM: f_open for write %d\n", res);
 		return -1;
 	}
 
@@ -775,7 +775,7 @@ static int32_t compute_sha(char* path, char* sha_path)
 		// Write SHA into it
 		res = hello_fs_write(&fp, sha,SHA1_SIZE, &bytes_written);
 		if (res) {
-			LOGE("DM: error reading file %d\n", res);
+			LOGE("DM: f_write %d\n", res);
 			return -1;
 		}
 
@@ -795,7 +795,7 @@ static int32_t get_complete_filename(char* full_path, char * local_fn, char* pat
 	{
 		if(strlen(path) + strlen(local_fn) + 1 + 1 > len)
 		{
-			LOGI("DM: Resulting path name is too long\n");
+			LOGI("DM: name too long\n");
 			return -1;
 		}
 
@@ -879,18 +879,18 @@ uint32_t update_sha_file(char* path, char* original_filename, update_sha_t optio
 			if(file_exists)
 			{
 				// Delete exisiting SHA file
-				LOGI("SHA file exists, will be deleted\n");
+				//LOGI("SHA file exists, will be deleted\n");
 				res = hello_fs_unlink(sha_fullpath);
 				if(res)
 				{
-					LOGE("DM:delete unsuccessful %s\n",sha_fullpath );
+					LOGE("DM:delete fail %s\n",sha_fullpath );
 					return res;
 				}
 
 			}
 			else
 			{
-				LOGE("FM: No file %s to delete\n", sha_fullpath);
+				//LOGE("DM: No file %s to delete\n", sha_fullpath);
 
 			}
 		}
@@ -900,7 +900,7 @@ uint32_t update_sha_file(char* path, char* original_filename, update_sha_t optio
 		{
 			if( !file_exists )
 			{
-				LOGE("DM: Cannot return SHA, file does not exist\n");
+				LOGE("DM: file doesn't exist\n");
 				return ~0;
 			}
 
