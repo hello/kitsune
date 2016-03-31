@@ -719,7 +719,7 @@ void AudioTask_StopPlayback(void) {
 	//send to front of queue so this message is always processed first
 	if (_queue) {
 		xQueueSendToFront(_queue,(void *)&m,0);
-		_queue_audio_playback_state(true, NULL, 0);
+		_queue_audio_playback_state(false, NULL, 0);
 	}
 }
 
