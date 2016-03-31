@@ -1120,6 +1120,7 @@ int start_connection(int * sock, char * host, security_type sec) {
 
     if (*sock < 0) {
         if( sec == SOCKET_SEC_SSL ) {
+        	wait_for_time(WAIT_FOREVER);
 			*sock = socket(AF_INET, SOCK_STREAM, SL_SEC_SOCKET);
 
 			LOGI("SSL\n");

@@ -141,6 +141,22 @@ static void _sense_state_task(hlo_future_t * result, void * ctx){
 		}
 	}
 }
+#include "state.pb.h"
+static bool _queue_audio_playback_state(bool is_playing, const char * fpath, uint32_t length){
+	AudioState ret = AudioState_init_default;
+
+	ret.playing_audio = is_playing;
+
+	if( fpath ) {
+		ret.has_duration_seconds = true;
+		ret.duration_seconds = length;
+
+		ret.has_file_path = true;
+		ustrncpy(ret.file_path, fpath, sizeof(ret.file_path));
+	}
+	return xQueueSend(_state_queue, &ret, 0);
+}
+
 
 static void Init(void) {
 	_isCapturing = 0;
@@ -170,6 +186,7 @@ static void Init(void) {
 	_state_queue =  xQueueCreate(INBOX_QUEUE_LENGTH,sizeof(AudioState));
 	hlo_future_create_task_bg(_sense_state_task, NULL, 1024);
 
+	_queue_audio_playback_state(false, NULL, 0);
 }
 
 static uint8_t CheckForInterruptionDuringPlayback(void) {
@@ -217,21 +234,6 @@ static void _set_volume_task(hlo_future_t * result, void * ctx){
 		xSemaphoreGiveRecursive(i2c_smphr);
 	}
 	hlo_future_write(result, NULL, 0, 0);
-}
-#include "state.pb.h"
-static bool _queue_audio_playback_state(bool is_playing, const char * fpath, uint32_t length){
-	AudioState ret = AudioState_init_default;
-
-	ret.playing_audio = is_playing;
-
-	if( fpath ) {
-		ret.has_duration_seconds = true;
-		ret.duration_seconds = length;
-
-		ret.has_file_path = true;
-		ustrncpy(ret.file_path, fpath, sizeof(ret.file_path));
-	}
-	return xQueueSend(_state_queue, &ret, 0);
 }
 
 
