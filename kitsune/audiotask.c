@@ -224,12 +224,13 @@ static bool _queue_audio_playback_state(bool is_playing, const char * fpath, uin
 
 	ret.playing_audio = is_playing;
 
-	ret.has_duration_seconds = true;
-	ret.duration_seconds = length;
+	if( fpath ) {
+		ret.has_duration_seconds = true;
+		ret.duration_seconds = length;
 
-	ret.has_file_path = true;
-	ustrncpy(ret.file_path, fpath, sizeof(ret.file_path));
-
+		ret.has_file_path = true;
+		ustrncpy(ret.file_path, fpath, sizeof(ret.file_path));
+	}
 	return xQueueSend(_state_queue, &ret, 0);
 }
 
@@ -355,6 +356,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 						fade_length = info->fade_out_ms;
 						fade_counter = 0;
 						LOGI("start fadeout %d %d %d\n", volume, fade_length, fade_time);
+						_queue_audio_playback_state(false, info->file, info->durationInSeconds);
 					}
 				} else if( returnFlags) {
 					LOGI("stopping playback\n");
@@ -717,6 +719,7 @@ void AudioTask_StopPlayback(void) {
 	//send to front of queue so this message is always processed first
 	if (_queue) {
 		xQueueSendToFront(_queue,(void *)&m,0);
+		_queue_audio_playback_state(true, NULL, 0);
 	}
 }
 
@@ -730,6 +733,7 @@ void AudioTask_StartPlayback(const AudioPlaybackDesc_t * desc) {
 	//send to front of queue so this message is always processed first
 	if (_queue) {
 		xQueueSendToFront(_queue,(void *)&m,0);
+		_queue_audio_playback_state(true, desc->file, desc->durationInSeconds);
 	}
 }
 
