@@ -222,6 +222,7 @@ _write_file(char * local_name, const char * buffer, WORD size){
 	}
 	return FR_OK;
 }
+
 static FRESULT
 _read_file(char * local_name, char * buffer, WORD buffer_size, WORD *size_read){
 	FIL file_obj;

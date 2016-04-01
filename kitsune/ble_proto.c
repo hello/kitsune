@@ -146,10 +146,24 @@ static void _factory_reset(){
 
 }
 
+#define PM_TIMEOUT (20*60*1000UL)
+static TimerHandle_t pm_timer;
+
+void pm_cancel( TimerHandle_t pxTimer ) {
+	MorpheusCommand response = { 0 };
+	if(get_ble_mode() == BLE_PAIRING) {
+		response.type =
+				MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE;
+		ble_send_protobuf(&response);
+	}
+}
+
 void ble_proto_init() {
 	vSemaphoreCreateBinary(_self.smphr);
 	vSemaphoreCreateBinary(_wifi_smphr);
 	set_ble_mode(BLE_NORMAL);
+
+	pm_timer = xTimerCreate("PM Timer",PM_TIMEOUT,pdFALSE, 0, pm_cancel);
 }
 
 
@@ -209,8 +223,19 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type,
 	    force_data_push();
 
 		while( !wifi_status_get(UPLOADING) ) {
-			vTaskDelay(1000);
-			if( ++to > 60 ) {
+			vTaskDelay(10000);
+
+			if (wifi_status_get(CONNECTING)) {
+				ble_reply_wifi_status(wifi_connection_state_WLAN_CONNECTING);
+			} else if (wifi_status_get(CONNECT)) {
+				ble_reply_wifi_status(wifi_connection_state_WLAN_CONNECTED);
+			} else if (wifi_status_get(IP_LEASED)) {
+				ble_reply_wifi_status(wifi_connection_state_IP_RETRIEVED);
+			} else if (!wifi_status_get(0xFFFFFFFF)) {
+				ble_reply_wifi_status(wifi_connection_state_NO_WLAN_CONNECTED);
+			}
+
+			if( ++to > 6 ) {
 				LOGI("wifi timeout\n");
 				wifi_state_requested = false;
 				ble_reply_protobuf_error(ErrorType_SERVER_CONNECTION_TIMEOUT);
@@ -567,11 +592,8 @@ void hold_animate_progress_task(void * params) {
 	assert( BLE_HOLD_TIMEOUT_MS < MAX_HOLD_TIME_MS );
 	vTaskDelay(BLE_HOLD_TIMEOUT_MS);
 	if( get_released() ) {
-		vTaskDelay(20*60*1000UL); //20 minute timeout
-		if( get_ble_mode() != BLE_PAIRING ) {
-			vTaskDelete(NULL);
-			return;
-		}
+		vTaskDelete(NULL);
+		return;
 	}
 	response.type =
 			MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE;
@@ -767,6 +789,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 				if(!scan_results){
 					scan_results = prescan_wifi(MAX_WIFI_EP_PER_SCAN);
 				}
+				assert( pdPASS == xTimerStart(pm_timer, 30000));
     		}
         }
         break;

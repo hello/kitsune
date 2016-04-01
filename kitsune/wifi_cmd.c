@@ -1120,6 +1120,7 @@ int start_connection(int * sock, char * host, security_type sec) {
 
     if (*sock < 0) {
         if( sec == SOCKET_SEC_SSL ) {
+        	wait_for_time(WAIT_FOREVER);
 			*sock = socket(AF_INET, SOCK_STREAM, SL_SEC_SOCKET);
 
 			LOGI("SSL\n");
@@ -1317,12 +1318,14 @@ static bool decode_rx_data_pb(const uint8_t * buffer, uint32_t buffer_size, cons
 	for (i = 0; i < AES_IV_SIZE; ++i) {
 		aesctx.iv[i] = *buf_pos++;
 		if (buf_pos > (buffer + buffer_size)) {
+			LOGI("No IV\n");
 			return false;
 		}
 	}
 	for (i = 0; i < SIG_SIZE; ++i) {
 		sig[i] = *buf_pos++;
 		if (buf_pos > (buffer + buffer_size)) {
+			LOGI("No SIG\n");
 			return false;
 		}
 	}
@@ -1454,16 +1457,30 @@ int http_response_ok( char* response_buffer)
 	vPortFree(first_line);
 	return resp_ok ? 0 : -1;
 }
-
+static char lcase(char a ) {
+	return (a >= 'A' && a <= 'Z' ) ? a + ('a'-'A') : a;
+}
+static void lcasestr(char *s){
+    while(*s) {
+    	*s = lcase(*s);
+    	++s;
+    }
+}
 
 static bool validate_signatures( char * buffer, int sz, const pb_field_t fields[], void * structdata) {
 
     // Parse the response
     //LOGI("Reply is:\n\r%s\n\r", buffer);
 
-    const char* header_content_len = "Content-Length: ";
+    const char* header_content_len = "content-length: ";
     char * content = strstr(buffer, "\r\n\r\n") + 4;
+
+    *(content-2) = 0;
+    lcasestr(buffer);
+
     char * len_str = strstr(buffer, header_content_len) + strlen(header_content_len);
+
+    LOGD( "Headers:\n%s", buffer );
 
     if (http_response_ok(buffer) != 0) {
     	wifi_status_set(UPLOADING, true);
@@ -1471,11 +1488,9 @@ static bool validate_signatures( char * buffer, int sz, const pb_field_t fields[
         return false;
     }
 
-    if( strstr(buffer, "No Content") ) {
+    if( strstr(buffer, "no content") ) {
     	return true;
     }
-    *(content-2) = 0;
-//    LOGI( "Headers:\n%s", buffer );
 
     if (len_str == NULL) {
     	wifi_status_set(UPLOADING, true);
@@ -1654,7 +1669,7 @@ int send_data_pb( char* host, const char* path, char ** recv_buf_ptr,
 		vTaskDelay(1000);
     	rv = recv(*sock, recv_buf+recv_buf_size-SERVER_REPLY_BUFSZ, SERVER_REPLY_BUFSZ, 0);
     	MAP_WatchdogIntClear(WDT_BASE); //clear wdt, it seems the SL_SPAWN hogs CPU here
-        LOGI("rv %d\n", rv);
+        LOGI("x");
         if( rv == SERVER_REPLY_BUFSZ ) {
              recv_buf_size += SERVER_REPLY_BUFSZ;
              if( recv_buf_size > 10*1024 ) {
@@ -1669,6 +1684,7 @@ int send_data_pb( char* host, const char* path, char ** recv_buf_ptr,
     		 rv = SL_EAGAIN;
     	}
     } while (rv == SL_EAGAIN && retries++ < 60 );
+    LOGI("rv %d\n", rv);
 
     if (rv <= 0) {
         LOGI("recv error %d\n\r\n\r", rv);
@@ -2612,10 +2628,12 @@ static void serv(int port, volatile int * connection_socket, int (*cb)(volatile 
 		SVR_LOGI( "SVR: bind\n");
 		if ( bind(sock, &local_addr, sizeof(local_addr)) < 0) {
 			close(sock);
+			sock = -1;
 			continue;
 		} SVR_LOGI( "SVR: listen\n");
 		if ( listen(sock, 0) < 0) {
 			close(sock);
+			sock = -1;
 			continue;
 		}
 
@@ -2695,6 +2713,7 @@ static void serv(int port, volatile int * connection_socket, int (*cb)(volatile 
 		SVR_LOGI( "SVR: lost sock\n");
 		*connection_socket = -1;
 		close(sock);
+		sock = -1;
 		vPortFree(buf);
 		vPortFree(linebuf);
 	}

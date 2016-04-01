@@ -96,6 +96,7 @@
 #include "hlo_net_tools.h"
 #include "top_board.h"
 #include "long_poll.h"
+#include "filedownloadmanager.h"
 #define ONLY_MID 0
 
 #define ARRAY_LEN(a) (sizeof(a)/sizeof(a[0]))
@@ -847,6 +848,7 @@ uint8_t get_alpha_from_light()
 static int _is_light_off()
 {
 	static int last_light = -1;
+	static unsigned int last_light_time = 0;
 	const int light_off_threshold = 500;
 	int ret = 0;
 
@@ -854,11 +856,14 @@ static int _is_light_off()
 	if(last_light != -1)
 	{
 		int delta = last_light - light;
-		if(delta >= light_off_threshold && light < 1000)
+		if(xTaskGetTickCount() - last_light_time > 2000
+				&& delta >= light_off_threshold
+				&& light < 1000)
 		{
 			LOGI("light delta: %d, current %d, last %d\n", delta, light, last_light);
 			ret = 1;
 			light_mean = light; //so the led alpha will be at the lights off level
+			last_light_time = xTaskGetTickCount();
 		}
 	}
 
@@ -903,9 +908,8 @@ static void _on_wave(){
 }
 
 static void _on_hold(){
-	if(	cancel_alarm() ) {
-		stop_led_animation( 0, 33 );
-	}
+	stop_led_animation( 0, 33 );
+	cancel_alarm();
 	ble_proto_start_hold();
 }
 
@@ -1771,7 +1775,8 @@ void launch_tasks() {
 	UARTprintf("*");
 	xTaskCreate(thread_tx, "txTask", 1536 / 4, NULL, 1, NULL);
 	UARTprintf("*");
-	//long_poll_task_init( 4096 / 4 );
+	long_poll_task_init( 4096 / 4 );
+	downloadmanagertask_init(4096 / 4);
 #endif
 }
 
@@ -1938,6 +1943,7 @@ int Cmd_nwpinfo(int argc, char *argv[]) {
 }
 int Cmd_SyncID(int argc, char * argv[]);
 int Cmd_time_test(int argc, char * argv[]);
+int cmd_file_sync_upload(int argc, char *argv[]);
 
 // ==============================================================================
 // This is the table that holds the command names, implementing functions, and
@@ -2056,11 +2062,11 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "scan",Cmd_scan_wifi,""},
 		{"future",Cmd_FutureTest,""},
 		{"ana", Cmd_analytics, ""},
-		{"dns", Cmd_setDns, ""},
 		{"noint", Cmd_disableInterrupts, ""},
-		{"nwp", Cmd_nwpinfo, ""},
-		{"resync", Cmd_SyncID, ""},
 #endif
+		{"resync", Cmd_SyncID, ""},
+		{"nwp", Cmd_nwpinfo, ""},
+		{"dns", Cmd_setDns, ""},
 		{"g", Cmd_gesture, ""},
 
 #ifdef BUILD_IPERF
@@ -2070,6 +2076,7 @@ tCmdLineEntry g_sCmdTable[] = {
 #ifdef FILE_TEST
 		{ "test_files",Cmd_generate_user_testing_files,""},
 #endif
+		{"fs", cmd_file_sync_upload, ""},
 		{ 0, 0, 0 } };
 
 

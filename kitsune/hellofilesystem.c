@@ -40,11 +40,19 @@ FRESULT hello_fs_open ( FIL *fp, const char *path, BYTE mode) {
 	UNLOCK();
 	return res;
 }
+
+#include <stdbool.h>
+bool add_to_file_error_queue(char* filename, int32_t err_code, bool write_error);
 FRESULT hello_fs_read (FIL *fp, void *buff,UINT btr,UINT *br  ) {
 	FRESULT res;
 	LOCK();
 	res = f_read(fp,buff,btr,br);
 	UNLOCK();
+
+	if(res)
+	{
+		add_to_file_error_queue(NULL, res, 0);
+	}
 	return res;
 }
 FRESULT hello_fs_write (  FIL *fp, const void *buff,UINT btw,UINT *bw) {
@@ -53,6 +61,12 @@ FRESULT hello_fs_write (  FIL *fp, const void *buff,UINT btw,UINT *bw) {
 	res = f_write(fp,buff,btw,bw);
 	f_sync(fp);
 	UNLOCK();
+
+	if(res)
+	{
+		add_to_file_error_queue(NULL, res, 1);
+	}
+
 	return res;
 }
 
@@ -74,6 +88,13 @@ FRESULT hello_fs_opendir (DIR* dirobj, const char* path) {
 	FRESULT res;
 	LOCK();
 	res = f_opendir(dirobj,path);
+	UNLOCK();
+	return res;
+}
+FRESULT hello_fs_closedir (DIR* dirobj) {
+	FRESULT res;
+	LOCK();
+	res = f_closedir(dirobj);
 	UNLOCK();
 	return res;
 }
