@@ -255,7 +255,6 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	portTickType t0;
 
 	static volatile unsigned long i2c_volume = 0;
-	unsigned int last_set=0;
 	unsigned int fade_counter=0;
 	unsigned int fade_time=0;
 	bool fade_in = true;
@@ -340,9 +339,8 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 						if(fade_out){
 							set_vol = fade_out_vol(fade_counter, volume, fade_length);
 						}
-						if ( set_vol != i2c_volume && (xTaskGetTickCount() - last_set) > 100 ) {
+						if ( set_vol != i2c_volume ) {
 							i2c_volume = set_vol;
-							last_set = xTaskGetTickCount();
 							hlo_future_destroy( hlo_future_create_task_bg(_set_volume_task, (void*)&i2c_volume, 512));
 						}
 					}
