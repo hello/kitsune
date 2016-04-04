@@ -1719,7 +1719,7 @@ int send_data_pb( char* host, const char* path, char ** recv_buf_ptr,
 			pb_cb->free_reply_pb( reply_structdata );
 		}
     } else {
-    	return http_response_ok((char*)recv_buf);
+    	return http_response_ok((char*)recv_buf); //<- todo make non-200 from endpoints we don't have callbacks for close the socket
     }
     return stop_connection(sock);
     }
