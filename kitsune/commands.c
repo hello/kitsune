@@ -2202,9 +2202,9 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("*");
 	SetupGPIOInterrupts();
 	CreateDefaultDirectories();
+	load_data_server();
 
 	xTaskCreate(AudioTask_Thread,"audioTask",3072/4,NULL,4,NULL);
-	UARTprintf("*");
 	init_download_task( 2048 / 4 );
 	networktask_init(4 * 1024 / 4);
 
@@ -2212,7 +2212,6 @@ void vUARTTask(void *pvParameters) {
 	load_aes();
 	load_device_id();
 	load_account_id();
-	load_data_server();
 	load_alarm();
 	pill_settings_init();
 	check_provision();
