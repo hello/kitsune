@@ -55,6 +55,10 @@ typedef struct {
 static xSemaphoreHandle _cli_upload_sem = NULL;
 #endif
 
+// Counter to periodically update existing SHA file for each whitelisted file
+// This done so that the SHA file has the latest SHA
+static uint32_t sha_calc_running_count = 0;
+
 // Holds the file info that will be encoded into pb
 static file_info_to_encode file_manifest_local;
 
@@ -78,7 +82,7 @@ static uint32_t message_sent_time;
 TickType_t query_delay_ticks = (QUERY_DELAY_DEFAULT*60*1000)/portTICK_PERIOD_MS;
 
 // Global functions
-uint32_t update_sha_file(char* path, char* original_filename, update_sha_t option, uint8_t* sha );
+uint32_t update_sha_file(char* path, char* original_filename, update_sha_t option, uint8_t* sha, bool ovwr );
 bool _on_file_update(pb_istream_t *stream, const pb_field_t *field, void **arg);
 bool encode_file_info (pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 
@@ -209,7 +213,7 @@ static void DownloadManagerTask(void * filesyncdata)
 			}
 			// stop time
 			time_for_update = get_time() - time_for_update;
-			LOGI("DM Scan time: %d\n",time_for_update);
+			LOGI("DM scan_time=%d\n",time_for_update);
 
 
 			/* UPDATE FILE STATUS - DOWNLOADED/PENDING */
@@ -471,7 +475,7 @@ bool encode_file_info (pb_ostream_t *stream, const pb_field_t *field, void * con
 			file_info.download_info.sd_card_filename.funcs.encode = _encode_string_fields;
 			file_info.download_info.sd_card_filename.arg = data->ga_file_list[i].filename;
 
-			file_info.download_info.has_sha1 = (!update_sha_file(data->ga_file_list[i].path, data->ga_file_list[i].filename,sha_file_get_sha, file_info.download_info.sha1.bytes ))?
+			file_info.download_info.has_sha1 = (!update_sha_file(data->ga_file_list[i].path, data->ga_file_list[i].filename,sha_file_get_sha, file_info.download_info.sha1.bytes, false ))?
 					true: false;
 
 			file_info.download_info.sha1.size = 20;
@@ -609,6 +613,8 @@ static uint32_t update_file_manifest(void)
 	LOGI("DM: File count: %d Allocated file count: %d\n", \
 			file_manifest_local.num_data, file_manifest_local.allocated_file_list_size);
 
+	// Update sha counter
+	sha_calc_running_count = (sha_calc_running_count + 1) % file_manifest_local.num_data;
 
 	return res;
 
@@ -679,12 +685,16 @@ static uint32_t scan_files(char* path)
 					strncpy(file_manifest_local.ga_file_list[file_manifest_local.num_data].path, path, PATH_BUF_MAX_SIZE);
 					strncpy(file_manifest_local.ga_file_list[file_manifest_local.num_data].filename, fn, MAX_FILENAME_SIZE);
 
-					file_manifest_local.num_data++;
+					bool sha_ovwr = false;
 
-					if(update_sha_file(path,fn, sha_file_create,NULL))
+					sha_ovwr = (sha_calc_running_count == file_manifest_local.num_data) ? true : false;
+
+					if(update_sha_file(path,fn, sha_file_create,NULL, sha_ovwr ))
 					{
 						LOGE("DM: Error creating SHA\n");
 					}
+
+					file_manifest_local.num_data++;
 
                 }
                 else
@@ -840,7 +850,7 @@ static bool get_sha_filename(char* filename, char* sha_fn)
 }
 
 // TODO better name for function
-uint32_t update_sha_file(char* path, char* original_filename, update_sha_t option, uint8_t* sha)
+uint32_t update_sha_file(char* path, char* original_filename, update_sha_t option, uint8_t* sha, bool ovwr)
 {
 	char sha_filename[MAX_FILENAME_SIZE];
 	char sha_fullpath[PATH_BUF_MAX_SIZE];
@@ -862,11 +872,12 @@ uint32_t update_sha_file(char* path, char* original_filename, update_sha_t optio
 	{
 		case sha_file_create:
 		{
-			if(file_exists)
+			if(file_exists && !ovwr )
 			{
 				// File exists, no need to create
 				return 0;
 			}
+			LOGI("DM: SHA update\n");
 			char full_path[PATH_BUF_MAX_SIZE];
 
 			// Get absolute path of original file
@@ -879,7 +890,7 @@ uint32_t update_sha_file(char* path, char* original_filename, update_sha_t optio
 			compute_sha(full_path, sha_fullpath);
 			// stop time
 			time_for_sha = get_time() - time_for_sha;
-			LOGI("DM Sha for %s %d\n",original_filename,time_for_sha);
+			LOGI("DM %s sha_time=%d\n",original_filename,time_for_sha);
 		}
 		break;
 

@@ -1393,7 +1393,7 @@ typedef enum {
 	sha_file_get_sha
 }update_sha_t;
 void update_file_download_status(bool is_pending);
-uint32_t update_sha_file(char* path, char* original_filename, update_sha_t option, uint8_t* sha);
+uint32_t update_sha_file(char* path, char* original_filename, update_sha_t option, uint8_t* sha, bool ovwr);
 xQueueHandle download_queue = 0;
 
 void file_download_task( void * params ) {
@@ -1497,7 +1497,7 @@ void file_download_task( void * params ) {
 				// Delete corresponding SHA file if exists
 				// delete before downloading the file, so that if the download fails midway,
 				// the device won't be left with a corrupt file and a valid sha file.
-				update_sha_file(path, filename, sha_file_delete,NULL );
+				update_sha_file(path, filename, sha_file_delete,NULL, false );
 
 				while (download_file(host, url, filename, path, SD_CARD)
 						!= 0) {
