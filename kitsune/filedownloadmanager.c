@@ -198,6 +198,8 @@ static void DownloadManagerTask(void * filesyncdata)
 			message_for_upload.file_info.funcs.encode = encode_file_info;
 			message_for_upload.file_info.arg = &file_manifest_local;
 
+			// Start time
+			uint32_t time_for_update = get_time();
 			// Scan through file system and update file manifest
 			uint32_t ret = update_file_manifest();
 			if(ret)
@@ -205,7 +207,9 @@ static void DownloadManagerTask(void * filesyncdata)
 				LOGE("DM: Err creating manifest: %d\n", ret);
 				//message_for_upload.file_info.arg = NULL;
 			}
-
+			// stop time
+			time_for_update = get_time() - time_for_update;
+			LOGI("DM Scan time: %d\n",time_for_update);
 
 
 			/* UPDATE FILE STATUS - DOWNLOADED/PENDING */
@@ -869,8 +873,13 @@ uint32_t update_sha_file(char* path, char* original_filename, update_sha_t optio
 			if(get_complete_filename(full_path,original_filename, path, PATH_BUF_MAX_SIZE))
 				return ~0;
 
+			// start time
+			uint32_t time_for_sha = get_time();
 			// Compute and store SHA. This function overwrites an existing SHA file
 			compute_sha(full_path, sha_fullpath);
+			// stop time
+			time_for_sha = get_time() - time_for_sha;
+			LOGI("DM Sha for %s %d\n",original_filename,time_for_sha);
 		}
 		break;
 
