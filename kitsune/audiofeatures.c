@@ -239,13 +239,11 @@ static void UpdateEnergyStats(uint8_t isStable,int16_t logTotalEnergyAvg,int16_t
 		data.num_disturbances = 1;
 	}
 
-	if( data.num_disturbances || ( (samplecount & 0xff) == 0xff ) ) {
-		if (_data.fpOncePerMinuteDataCallback) {
-			data.peak_background_energy = GetAudioEnergyAsDBA(logTotalEnergyAvg);
-			data.peak_energy = GetAudioEnergyAsDBA(logTotalEnergy);
+	if (_data.fpOncePerMinuteDataCallback) {
+		data.peak_background_energy = GetAudioEnergyAsDBA(logTotalEnergyAvg);
+		data.peak_energy = GetAudioEnergyAsDBA(logTotalEnergy);
 
-			_data.fpOncePerMinuteDataCallback(&data);
-		}
+		_data.fpOncePerMinuteDataCallback(&data);
 	}
 
 
