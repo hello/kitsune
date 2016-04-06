@@ -1202,9 +1202,11 @@ int start_connection(int * sock, char * host, security_type sec) {
 			rv = connect(*sock, &sAddr, sizeof(sAddr));
 			vTaskDelay(100);
 		} while( rv == SL_EALREADY );
-    	ble_reply_socket_error(rv);
-    	LOGI("Could not connect %d\n\r\n\r", rv);
-		return stop_connection(sock);
+		if( rv < 0 ) {
+			ble_reply_socket_error(rv);
+			LOGI("Could not connect %d\n\r\n\r", rv);
+			return stop_connection(sock);
+		}
     }
  	ble_reply_wifi_status(wifi_connection_state_SOCKET_CONNECTED);
     return 0;
