@@ -470,6 +470,13 @@ static bool scan_files(char* path, pb_ostream_t *stream, const pb_field_t *field
 
             		vTaskDelay(50/portTICK_PERIOD_MS);
 
+					if(update_sha_file(path,fn, sha_file_create,NULL))
+					{
+						LOGE("DM: Error creating SHA\n");
+					}
+
+            		vTaskDelay(50/portTICK_PERIOD_MS);
+
             		if(!pb_encode_tag_for_field(stream, field))
             		{
             			LOGI("DM: encode tag error %s\n", PB_GET_ERROR(stream));
@@ -482,13 +489,6 @@ static bool scan_files(char* path, pb_ostream_t *stream, const pb_field_t *field
             			LOGI("DM: encode error: %s\n", PB_GET_ERROR(stream));
             			return false;
             		}
-
-            		vTaskDelay(50/portTICK_PERIOD_MS);
-
-					if(update_sha_file(path,fn, sha_file_create,NULL))
-					{
-						LOGE("DM: Error creating SHA\n");
-					}
                 	LOGI("DM File encoded: %s/%s\n", path, fn);
 
 
@@ -515,7 +515,11 @@ static bool scan_files(char* path, pb_ostream_t *stream, const pb_field_t *field
 
 bool encode_file_info (pb_ostream_t *stream, const pb_field_t *field, void * const *arg)
 {
-	return scan_files("/", stream, field, arg);
+	char path_buf[PATH_BUF_MAX_SIZE] = {0};
+
+	strncpy(path_buf,"/",PATH_BUF_MAX_SIZE);
+
+	return scan_files(path_buf, stream, field, arg);
 }
 
 bool add_to_file_error_queue(char* filename, int32_t err_code, bool write_error)
