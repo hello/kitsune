@@ -1145,14 +1145,6 @@ int start_connection(int * sock, char * host, security_type sec) {
         }
     }
 
-	tv.tv_sec = 2;             // Seconds
-	tv.tv_usec = 0;           // Microseconds. 10000 microseconds resolution
-	setsockopt(*sock, SOL_SOCKET, SL_SO_RCVTIMEO, &tv, sizeof(tv)); // Enable receive timeout
-
-    SlSockNonblocking_t enableOption;
-    enableOption.NonblockingEnabled = 1;
-    sl_SetSockOpt(*sock,SL_SOL_SOCKET,SL_SO_NONBLOCKING, (_u8 *)&enableOption,sizeof(enableOption)); // Enable/disable nonblocking mode
-
     if (*sock < 0) {
         LOGI("Socket create failed %d\n\r", *sock);
         return -1;
@@ -1161,6 +1153,14 @@ int start_connection(int * sock, char * host, security_type sec) {
     //connect it up
     //LOGI("Connecting \n\r\n\r");
     if (*sock > 0 && sock_begin < 0) {
+    	tv.tv_sec = 2;             // Seconds
+    	tv.tv_usec = 0;           // Microseconds. 10000 microseconds resolution
+    	setsockopt(*sock, SOL_SOCKET, SL_SO_RCVTIMEO, &tv, sizeof(tv)); // Enable receive timeout
+
+        SlSockNonblocking_t enableOption;
+        enableOption.NonblockingEnabled = 1;
+        sl_SetSockOpt(*sock,SL_SOL_SOCKET,SL_SO_NONBLOCKING, (_u8 *)&enableOption,sizeof(enableOption)); // Enable/disable nonblocking mode
+
 		#if !LOCAL_TEST
 			if (!(rv = gethostbyname((_i8*)host, strlen(host), &ipaddr, SL_AF_INET))) {
 				 LOGI("Get Host IP succeeded.\n\rHost: %s IP: %d.%d.%d.%d \n\r\n\r",
