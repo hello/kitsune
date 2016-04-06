@@ -1775,6 +1775,7 @@ bool get_device_id(char * hex_device_id,uint32_t size_of_device_id_buffer) {
 		return false;
 	}
 
+    load_device_id();
 	memset(hex_device_id, 0, size_of_device_id_buffer);
 
 	for(i = 0; i < DEVICE_ID_SZ; i++){
