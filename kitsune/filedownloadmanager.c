@@ -28,6 +28,8 @@
 
 #define FOLDERS_TO_INCLUDE      (2)
 
+#define SD_BLOCK_SIZE		512
+
 char* folders[FOLDERS_TO_INCLUDE] = {"SLPTONES", "RINGTONE"};
 
 typedef struct {
@@ -49,6 +51,10 @@ typedef struct {
     uint32_t allocated_file_list_size;
 
 } file_info_to_encode;
+
+typedef FRESULT (*filesystem_rw_func_t)(FIL *fp, void *buff,UINT btrw,UINT *brw );
+
+ hello_fs_read ( )
 
 #ifdef DM_UPLOAD_CMD_ENABLED
 // Semaphore to enable file_sync upload from cli
@@ -99,6 +105,7 @@ static int32_t compute_sha(char* path, char* sha_path);
 static bool get_sha_filename(char* filename, char* sha_fn);
 static int get_complete_filename(char* full_path, char * local_fn, char* path, uint32_t len);
 static bool does_sha_file_exist(char* sha_path);
+static uint32_t sd_card_test(bool rw, uint8_t* ptr, filesystem_rw_func_t fs_rw_func);
 
 // extern functions
 bool send_to_download_queue(SyncResponse_FileDownload* data, TickType_t ticks_to_wait);
@@ -151,6 +158,9 @@ static void DownloadManagerTask(void * filesyncdata)
 	FileManifest_FileOperationError error_message;
 	FileManifest message_for_upload;
 
+	uint8_t test_buf_write[SD_BLOCK_SIZE];
+	uint8_t test_buf_read[SD_BLOCK_SIZE];
+
 	// init query delay - Set default delay of 15 minutes
 	query_delay_ticks = (QUERY_DELAY_DEFAULT*60*1000)/portTICK_PERIOD_MS;
 
@@ -169,6 +179,8 @@ static void DownloadManagerTask(void * filesyncdata)
     pb_cb.free_reply_pb = _free_file_sync_response;
     pb_cb.on_pb_success = _on_file_sync_response_success;
     pb_cb.on_pb_failure = _on_file_sync_response_failure;
+
+    memset(test_buf_write,0xAF50AF50,SD_BLOCK_SIZE);
 
     // set current time
     start_time = xTaskGetTickCount();
@@ -191,10 +203,11 @@ static void DownloadManagerTask(void * filesyncdata)
 
 			memset(&message_for_upload,0,sizeof(FileManifest));
 
+			// TODO create and write test data to SD card, set flag is fail
+
 			/* UPDATE FILE INFO */
 
 			message_for_upload.file_info.funcs.encode = encode_file_info;
-
 			message_for_upload.file_info.arg = NULL;
 
 			/* UPDATE FILE STATUS - DOWNLOADED/PENDING */
@@ -256,6 +269,8 @@ static void DownloadManagerTask(void * filesyncdata)
 			/* UPDATE SENSE ID */
 
 			message_for_upload.sense_id.funcs.encode = encode_device_id_string;
+
+			// TODO read and delete test data from SD card, set flag is fail
 
 			/* SEND PROTOBUF */
 
@@ -664,7 +679,6 @@ static bool does_sha_file_exist(char* sha_path)
 static int32_t compute_sha(char* path, char* sha_path)
 {
 #define minval( a,b ) a < b ? a : b
-#define SD_BLOCK_SIZE		512
 
 	uint8_t sha[SHA1_SIZE] = { 0 };
     static uint8_t buffer[SD_BLOCK_SIZE];
@@ -905,3 +919,43 @@ int cmd_file_sync_upload(int argc, char *argv[])
 
 	return 0;
 }
+
+// rw = 0 (write), 1(read)
+static uint32_t sd_card_test(bool rw, uint8_t* ptr, filesystem_rw_func_t fs_rw_func)
+{
+	FRESULT res;
+	FIL fp = {0};
+	uint32_t bytes_transferred;
+	uint8_t open_flags = 0;
+	char filename[] = {"test"};
+
+	open_flags = (rw) ? FA_READ : FA_CREATE_ALWAYS|FA_WRITE;
+
+	res = hello_fs_open(&fp,filename, open_flags);
+	if (res) {
+		LOGE("DM: test f_open fail %d\n", res);
+		return res;
+	}
+
+	// Perform a read/write
+	res = fs_rw_func(&fp, ptr,SD_BLOCK_SIZE, &bytes_transferred);
+	if (res) {
+		LOGE("DM: test rw fail %d\n", res);
+		return res;
+	}
+
+    // Close file
+    hello_fs_close(&fp);
+    if(res){
+    	return res;
+    }
+
+    // Delete file if this is a read
+    if(rw)
+	{
+    	return (hello_fs_unlink(filename));
+	}
+
+    return FR_OK;
+}
+
