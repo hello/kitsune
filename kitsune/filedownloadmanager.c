@@ -479,6 +479,8 @@ static bool scan_files(char* path, pb_ostream_t *stream, const pb_field_t *field
             			return false;
             		}
 
+            		vTaskDelay(50/portTICK_PERIOD_MS);
+
 					if(update_sha_file(path,fn, sha_file_create,NULL))
 					{
 						LOGE("DM: Error creating SHA\n");
@@ -632,9 +634,10 @@ static bool does_sha_file_exist(char* sha_path)
 static int32_t compute_sha(char* path, char* sha_path)
 {
 #define minval( a,b ) a < b ? a : b
+#define SD_BLOCK_SIZE		512
 
 	uint8_t sha[SHA1_SIZE] = { 0 };
-    static uint8_t buffer[128];
+    static uint8_t buffer[SD_BLOCK_SIZE];
     uint32_t bytes_to_read, bytes_read;
     uint32_t bytes_to_write = 0, bytes_written = 0;
     FIL fp = {0};

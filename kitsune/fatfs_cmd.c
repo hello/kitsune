@@ -1744,9 +1744,10 @@ uint32_t get_free_space(uint32_t* free_space, uint32_t* total_mem)
 static int32_t sd_sha1_verify(const char * sha_truth, const char * path){
     //compute the sha of the file..
 #define minval( a,b ) a < b ? a : b
+#define SD_BLOCK_SIZE		512
 
     uint8_t sha[SHA1_SIZE] = { 0 };
-    static uint8_t buffer[128];
+    static uint8_t buffer[SD_BLOCK_SIZE];
     uint32_t bytes_to_read, bytes_read;
     FIL fp = {0};
     FILINFO info;
