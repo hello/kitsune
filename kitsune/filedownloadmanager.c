@@ -59,6 +59,8 @@ static xSemaphoreHandle _cli_upload_sem = NULL;
 // This done so that the SHA file has the latest SHA
 static uint32_t sha_calc_running_count = 0;
 
+static uint32_t total_file_count = 0;
+
 // Response received semaphore
 static xSemaphoreHandle _response_received_sem = NULL;
 
@@ -403,6 +405,7 @@ void free_file_sync_info(FileManifest_FileDownload * download_info)
 
 }
 
+
 static bool scan_files(char* path, pb_ostream_t *stream, const pb_field_t *field, void * const *arg)
 {
     FileManifest_File file_info = {0};
@@ -473,7 +476,11 @@ static bool scan_files(char* path, pb_ostream_t *stream, const pb_field_t *field
 
             		vTaskDelay(50/portTICK_PERIOD_MS);
 
-					if(update_sha_file(path,fn, sha_file_create,NULL, false))
+            		bool sha_ovwr = false;
+
+            		sha_ovwr = (sha_calc_running_count == total_file_count) ? true : false;
+
+            		if(update_sha_file(path,fn, sha_file_create,NULL, sha_ovwr ))
 					{
 						LOGE("DM: Error creating SHA\n");
 					}
@@ -495,6 +502,8 @@ static bool scan_files(char* path, pb_ostream_t *stream, const pb_field_t *field
 
             		file_info.download_info.has_sha1 = (!update_sha_file(path, fn, sha_file_get_sha, file_info.download_info.sha1.bytes, false ))?
             				true: false;
+
+            		total_file_count++;
 
                 	LOGI("DM File encoded: %s/%s\n", path, fn);
 
@@ -526,6 +535,7 @@ bool encode_file_info (pb_ostream_t *stream, const pb_field_t *field, void * con
 
 	strncpy(path_buf,"/",PATH_BUF_MAX_SIZE);
 
+	total_file_count = 0;
 	return scan_files(path_buf, stream, field, arg);
 }
 
@@ -562,6 +572,8 @@ bool add_to_file_error_queue(char* filename, int32_t err_code, bool write_error)
 
 static void _free_file_sync_response(void * structdata)
 {
+	sha_calc_running_count = (++sha_calc_running_count) % total_file_count;
+
 	vPortFree( structdata );
 }
 
