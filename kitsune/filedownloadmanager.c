@@ -55,9 +55,6 @@ typedef struct {
 static xSemaphoreHandle _cli_upload_sem = NULL;
 #endif
 
-// Holds the file info that will be encoded into pb
-static file_info_to_encode file_manifest_local;
-
 // Response received semaphore
 static xSemaphoreHandle _response_received_sem = NULL;
 
@@ -91,8 +88,7 @@ static void _on_file_sync_response_failure(void );
 static void get_file_download_status(FileManifest_FileStatusType* file_status);
 static void free_file_sync_info(FileManifest_FileDownload * download_info);
 static void restart_download_manager(void);
-static uint32_t update_file_manifest(void);
-static uint32_t scan_files(char* path);
+static bool scan_files(char* path, pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 static int32_t compute_sha(char* path, char* sha_path);
 static bool get_sha_filename(char* filename, char* sha_fn);
 static int get_complete_filename(char* full_path, char * local_fn, char* path, uint32_t len);
@@ -124,10 +120,6 @@ void downloadmanagertask_init(uint16_t stack_size)
 	}
 
 	xTaskCreate(DownloadManagerTask, "downloadManagerTask", stack_size, NULL, 2, NULL);
-
-	file_manifest_local.ga_file_list = NULL;
-
-	file_manifest_local.allocated_file_list_size = 0;
 
 #ifdef DM_UPLOAD_CMD_ENABLED
 	if(!_cli_upload_sem)
@@ -196,16 +188,7 @@ static void DownloadManagerTask(void * filesyncdata)
 			/* UPDATE FILE INFO */
 
 			message_for_upload.file_info.funcs.encode = encode_file_info;
-			message_for_upload.file_info.arg = &file_manifest_local;
-
-			// Scan through file system and update file manifest
-			uint32_t ret = update_file_manifest();
-			if(ret)
-			{
-				LOGE("Error creating file manifest: %d\n", ret);
-				//message_for_upload.file_info.arg = NULL;
-			}
-
+			message_for_upload.file_info.arg = NULL;
 
 
 			/* UPDATE FILE STATUS - DOWNLOADED/PENDING */
@@ -279,11 +262,6 @@ static void DownloadManagerTask(void * filesyncdata)
 				LOGI("DM: File manifest failed to upload \n");
 
 			}
-
-			vPortFree(file_manifest_local.ga_file_list);
-			file_manifest_local.ga_file_list = NULL;
-			file_manifest_local.allocated_file_list_size = 0;
-
 
 			// Update wake time
 			start_time = xTaskGetTickCount();
@@ -421,73 +399,114 @@ void free_file_sync_info(FileManifest_FileDownload * download_info)
 
 }
 
+static bool scan_files(char* path, pb_ostream_t *stream, const pb_field_t *field, void * const *arg)
+{
+    FileManifest_File file_info = {0};
+    FRESULT res;
+    FILINFO fno;
+    DIR dir;
+    int i;
+    int j;
+    char *fn;   /* This function assumes non-Unicode configuration */
+
+    res = hello_fs_opendir(&dir, path);                       /* Open the directory */
+    if (res == FR_OK) {
+        i = strlen(path);
+        for (;;) {
+
+            res = hello_fs_readdir(&dir, &fno);                   /* Read a directory item */
+            if (res != FR_OK || fno.fname[0] == 0) break;  /* Break on error or end of dir */
+            if (fno.fname[0] == '.') continue;             /* Ignore dot entry */
+
+            fn = fno.fname;
+            if (fno.fattrib & AM_DIR) {                    /* It is a directory */
+                //usnprintf(&path[i],PATH_BUF_MAX_SIZE * sizeof(char), "%s", fn);
+
+                for(j=0;j<FOLDERS_TO_INCLUDE;j++)
+                {
+                    if( !strcmp(fno.fname, folders[j]))
+                    {
+                    	LOGI("reading %s\n",fno.fname );
+                    	break;
+                    }
+
+                }
+
+                if(j==FOLDERS_TO_INCLUDE) {
+                	LOGI("skipping %s\n",fno.fname );
+                	continue;
+                }
+
+                strncat(&path[i],fn,PATH_BUF_MAX_SIZE-strlen(path));
+            	LOGI("DM  recurse in dir %s/%s\n", path, fn);
+                res = (FRESULT)scan_files(path,stream,field,arg);
+            	LOGI("DM  recurse ou dir %s/%s\n", path, fn);
+
+                path[i] = 0;
+                if (res != FR_OK) break;
+            } else {                                       /* It is a file. */
+                // Skip if file is a sha file
+                if(!strstr(fn, ".SHA"))
+                {
+                	LOGI("DM File found: %s/%s\n", path, fn, strlen(path), strlen(fn));
+
+            		file_info.has_delete_file = false;
+            		file_info.has_download_info = true;
+            		file_info.has_update_file = false;
+
+            		file_info.download_info.sd_card_path.funcs.encode = _encode_string_fields;
+
+            		// To remove the leading slash from path
+            		file_info.download_info.sd_card_path.arg = path+1;
+
+            		file_info.download_info.sd_card_filename.funcs.encode = _encode_string_fields;
+            		file_info.download_info.sd_card_filename.arg = fn;
+
+            		file_info.download_info.has_sha1 = (!update_sha_file(path, fn,
+            				sha_file_get_sha, file_info.download_info.sha1.bytes ))?
+            				true: false;
+
+            		file_info.download_info.sha1.size = 20;
+
+            		if(!pb_encode_tag_for_field(stream, field))
+            		{
+            			LOGI("DM: encode tag error %s\n", PB_GET_ERROR(stream));
+            			return false;
+            		}
+
+            		if (!pb_encode_submessage(stream, FileManifest_File_fields, &file_info)){
+            			LOGI("DM: encode error: %s\n", PB_GET_ERROR(stream));
+            			return false;
+            		}
+
+					if(update_sha_file(path,fn, sha_file_create,NULL))
+					{
+						LOGE("DM: Error creating SHA\n");
+					}
+                	LOGI("DM File encoded: %s/%s\n", path, fn);
+
+
+                }
+                else
+                {
+                	//LOGI("DM skipping File: %s/%s\n", path, fn, strlen(path), strlen(fn));
+                }
+
+            }
+            vTaskDelay(50/portTICK_PERIOD_MS);
+        }
+    	LOGI("DM  closing dir %s/%s\n", path, fn);
+
+        hello_fs_closedir(&dir);
+    }
+
+    return true;
+}
+
 
 bool encode_file_info (pb_ostream_t *stream, const pb_field_t *field, void * const *arg)
 {
-
-    int i;
-    file_info_to_encode * data = *(file_info_to_encode**)arg;
-    FileManifest_File file_info = {0};
-
-    char path_local[PATH_BUF_MAX_SIZE];
-
-    if(!data)
-    {
-        file_info.has_delete_file = false;
-        file_info.has_download_info = false;
-        file_info.has_update_file = false;
-
-        if(!pb_encode_tag_for_field(stream, field))
-        {
-            LOGI("DM: encode tag error %s\n", PB_GET_ERROR(stream));
-            return false;
-        }
-
-        if (!pb_encode_submessage(stream, FileManifest_File_fields, &file_info)){
-            LOGI("DM: encode error: %s\n", PB_GET_ERROR(stream));
-            return false;
-        }
-    }
-    else
-    {
-		for( i = 0; i < data->num_data; ++i )
-		{
-
-			file_info.has_delete_file = false;
-			file_info.has_download_info = true;
-			file_info.has_update_file = false;
-
-			file_info.download_info.sd_card_path.funcs.encode = _encode_string_fields;
-
-			// To remove the leading slash from path
-			strncpy(path_local, &data->ga_file_list[i].path[1],PATH_BUF_MAX_SIZE);
-
-			file_info.download_info.sd_card_path.arg = path_local;
-
-			file_info.download_info.sd_card_filename.funcs.encode = _encode_string_fields;
-			file_info.download_info.sd_card_filename.arg = data->ga_file_list[i].filename;
-
-			file_info.download_info.has_sha1 = (!update_sha_file(data->ga_file_list[i].path, data->ga_file_list[i].filename,sha_file_get_sha, file_info.download_info.sha1.bytes ))?
-					true: false;
-
-			file_info.download_info.sha1.size = 20;
-
-			if(!pb_encode_tag_for_field(stream, field))
-			{
-				LOGI("DM: encode tag error %s\n", PB_GET_ERROR(stream));
-				return false;
-			}
-
-			if (!pb_encode_submessage(stream, FileManifest_File_fields, &file_info)){
-				LOGI("DM: encode error: %s\n", PB_GET_ERROR(stream));
-				return false;
-			}
-
-		}
-    }
-
-	return true;
-
+	return scan_files("/", stream, field, arg);
 }
 
 bool add_to_file_error_queue(char* filename, int32_t err_code, bool write_error)
@@ -590,110 +609,6 @@ static inline void restart_download_manager(void)
 {
 	//LOGI("DM: Sem Give\n");
 	xSemaphoreGive(_response_received_sem);
-}
-
-static uint32_t update_file_manifest(void)
-{
-	uint32_t res;
-	char path_buf[PATH_BUF_MAX_SIZE] = {0};
-
-	strncpy(path_buf,"/",PATH_BUF_MAX_SIZE);
-
-	file_manifest_local.num_data = 0;
-	res = scan_files(path_buf);
-
-	LOGI("DM: File count: %d Allocated file count: %d\n", \
-			file_manifest_local.num_data, file_manifest_local.allocated_file_list_size);
-
-
-	return res;
-
-}
-
-static uint32_t scan_files(char* path)
-{
-    FRESULT res;
-    FILINFO fno;
-    DIR dir;
-    int i;
-    int j;
-    char *fn;   /* This function assumes non-Unicode configuration */
-
-    res = hello_fs_opendir(&dir, path);                       /* Open the directory */
-    if (res == FR_OK) {
-        i = strlen(path);
-        for (;;) {
-
-            res = hello_fs_readdir(&dir, &fno);                   /* Read a directory item */
-            if (res != FR_OK || fno.fname[0] == 0) break;  /* Break on error or end of dir */
-            if (fno.fname[0] == '.') continue;             /* Ignore dot entry */
-
-            fn = fno.fname;
-            if (fno.fattrib & AM_DIR) {                    /* It is a directory */
-                //usnprintf(&path[i],PATH_BUF_MAX_SIZE * sizeof(char), "%s", fn);
-
-                for(j=0;j<FOLDERS_TO_INCLUDE;j++)
-                {
-                    if( !strcmp(fno.fname, folders[j]))
-                    {
-                    	LOGI("reading %s\n",fno.fname );
-                    	break;
-                    }
-
-                }
-
-                if(j==FOLDERS_TO_INCLUDE) {
-                	LOGI("skipping %s\n",fno.fname );
-                	continue;
-                }
-
-                strncat(&path[i],fn,PATH_BUF_MAX_SIZE-strlen(path));
-                res = (FRESULT)scan_files(path);
-                path[i] = 0;
-                if (res != FR_OK) break;
-            } else {                                       /* It is a file. */
-                // Skip if file is a sha file
-                if(!strstr(fn, ".SHA"))
-                {
-                	//LOGI("DM File found: %s/%s\n", path, fn, strlen(path), strlen(fn));
-
-
-                	// Allocate memory if needed
-					if( ( file_manifest_local.allocated_file_list_size <= file_manifest_local.num_data ) ||
-							( !file_manifest_local.ga_file_list) )
-					{
-						++file_manifest_local.allocated_file_list_size;
-
-						file_manifest_local.ga_file_list =
-								(file_list_t*)pvPortRealloc(file_manifest_local.ga_file_list, file_manifest_local.allocated_file_list_size * sizeof(file_list_t));
-					}
-
-					assert(file_manifest_local.ga_file_list);
-
-					// Copy path and filename
-					strncpy(file_manifest_local.ga_file_list[file_manifest_local.num_data].path, path, PATH_BUF_MAX_SIZE);
-					strncpy(file_manifest_local.ga_file_list[file_manifest_local.num_data].filename, fn, MAX_FILENAME_SIZE);
-
-					file_manifest_local.num_data++;
-
-					if(update_sha_file(path,fn, sha_file_create,NULL))
-					{
-						LOGE("DM: Error creating SHA\n");
-					}
-
-                }
-                else
-                {
-                	//LOGI("DM skipping File: %s/%s\n", path, fn, strlen(path), strlen(fn));
-                }
-
-            }
-            vTaskDelay(50/portTICK_PERIOD_MS);
-        }
-        hello_fs_closedir(&dir);
-    }
-
-    return res;
 }
 
 static bool does_sha_file_exist(char* sha_path)
