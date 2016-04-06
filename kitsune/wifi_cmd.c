@@ -1158,51 +1158,50 @@ int start_connection(int * sock, char * host, security_type sec) {
         return -1;
     }
 
-#if !LOCAL_TEST
-	if (!(rv = gethostbyname((_i8*)host, strlen(host), &ipaddr, SL_AF_INET))) {
-		 LOGI("Get Host IP succeeded.\n\rHost: %s IP: %d.%d.%d.%d \n\r\n\r",
-				 host, SL_IPV4_BYTE(ipaddr, 3), SL_IPV4_BYTE(ipaddr, 2),
-			   SL_IPV4_BYTE(ipaddr, 1), SL_IPV4_BYTE(ipaddr, 0));
-		ble_reply_wifi_status(wifi_connection_state_DNS_RESOLVED);
-	} else {
-		LOGI("failed to resolves addr rv %d\n", rv);
-		ble_reply_wifi_status(wifi_connection_state_DNS_FAILED);
-		return stop_connection(sock);
-	}
-
-    sAddr.sa_family = AF_INET;
-    // the source port
-    if( sec == SOCKET_SEC_SSL ) {
-		sAddr.sa_data[0] = 1;    //port 443, ssl
-		sAddr.sa_data[1] = 0xbb; //port 443, ssl
-    } else {
-    	sAddr.sa_data[0] = 0;  //port 80, http
-		sAddr.sa_data[1] = 80; //port 80, http
-    }
-    sAddr.sa_data[2] = (char) ((ipaddr >> 24) & 0xff);
-    sAddr.sa_data[3] = (char) ((ipaddr >> 16) & 0xff);
-    sAddr.sa_data[4] = (char) ((ipaddr >> 8) & 0xff);
-    sAddr.sa_data[5] = (char) (ipaddr & 0xff);
-#else
-
-    sAddr.sa_family = AF_INET;
-    // the source port
-    sAddr.sa_data[0] = 0;//0xf;
-    sAddr.sa_data[1] = 80;//0xa0; //4k
-    sAddr.sa_data[2] = (char) () & 0xff);
-    sAddr.sa_data[3] = (char) () & 0xff);
-    sAddr.sa_data[4] = (char) () & 0xff);
-    sAddr.sa_data[5] = (char) () & 0xff);
-
-#endif
     //connect it up
     //LOGI("Connecting \n\r\n\r");
-    retry_connect:
-    if (*sock > 0 && sock_begin < 0 && (rv = connect(*sock, &sAddr, sizeof(sAddr)))) {
-    	if( rv == SL_EALREADY ) {
-    		vTaskDelay(100);
-    		goto retry_connect;
-    	}
+    if (*sock > 0 && sock_begin < 0) {
+		#if !LOCAL_TEST
+			if (!(rv = gethostbyname((_i8*)host, strlen(host), &ipaddr, SL_AF_INET))) {
+				 LOGI("Get Host IP succeeded.\n\rHost: %s IP: %d.%d.%d.%d \n\r\n\r",
+						 host, SL_IPV4_BYTE(ipaddr, 3), SL_IPV4_BYTE(ipaddr, 2),
+					   SL_IPV4_BYTE(ipaddr, 1), SL_IPV4_BYTE(ipaddr, 0));
+				ble_reply_wifi_status(wifi_connection_state_DNS_RESOLVED);
+			} else {
+				LOGI("failed to resolves addr rv %d\n", rv);
+				ble_reply_wifi_status(wifi_connection_state_DNS_FAILED);
+				return stop_connection(sock);
+			}
+
+			sAddr.sa_family = AF_INET;
+			// the source port
+			if( sec == SOCKET_SEC_SSL ) {
+				sAddr.sa_data[0] = 1;    //port 443, ssl
+				sAddr.sa_data[1] = 0xbb; //port 443, ssl
+			} else {
+				sAddr.sa_data[0] = 0;  //port 80, http
+				sAddr.sa_data[1] = 80; //port 80, http
+			}
+			sAddr.sa_data[2] = (char) ((ipaddr >> 24) & 0xff);
+			sAddr.sa_data[3] = (char) ((ipaddr >> 16) & 0xff);
+			sAddr.sa_data[4] = (char) ((ipaddr >> 8) & 0xff);
+			sAddr.sa_data[5] = (char) (ipaddr & 0xff);
+		#else
+
+			sAddr.sa_family = AF_INET;
+			// the source port
+			sAddr.sa_data[0] = 0;//0xf;
+			sAddr.sa_data[1] = 80;//0xa0; //4k
+			sAddr.sa_data[2] = (char) () & 0xff);
+			sAddr.sa_data[3] = (char) () & 0xff);
+			sAddr.sa_data[4] = (char) () & 0xff);
+			sAddr.sa_data[5] = (char) () & 0xff);
+
+		#endif
+		do {
+			rv = connect(*sock, &sAddr, sizeof(sAddr));
+			vTaskDelay(100);
+		} while( rv == SL_EALREADY );
     	ble_reply_socket_error(rv);
     	LOGI("Could not connect %d\n\r\n\r", rv);
 		return stop_connection(sock);
