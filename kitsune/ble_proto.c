@@ -660,6 +660,7 @@ uint8_t get_alpha_from_light();
 bool is_test_boot();
 char top_version[16] = {0};
 const char * get_top_version(void){
+	wait_for_top_boot(-1);
 	return top_version;
 }
 bool on_ble_protobuf_command(MorpheusCommand* command)
