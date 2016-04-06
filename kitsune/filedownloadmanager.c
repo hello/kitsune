@@ -500,6 +500,8 @@ static bool scan_files(char* path, pb_ostream_t *stream, const pb_field_t *field
     	LOGI("DM  closing dir %s/%s\n", path, fn);
 
         hello_fs_closedir(&dir);
+
+        LOGI("DM  closed dir \n");
     }
 
     return true;
