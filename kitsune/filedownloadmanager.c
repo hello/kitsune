@@ -468,11 +468,15 @@ static bool scan_files(char* path, pb_ostream_t *stream, const pb_field_t *field
 
             		file_info.download_info.sha1.size = 20;
 
+            		vTaskDelay(50/portTICK_PERIOD_MS);
+
             		if(!pb_encode_tag_for_field(stream, field))
             		{
             			LOGI("DM: encode tag error %s\n", PB_GET_ERROR(stream));
             			return false;
             		}
+
+            		vTaskDelay(50/portTICK_PERIOD_MS);
 
             		if (!pb_encode_submessage(stream, FileManifest_File_fields, &file_info)){
             			LOGI("DM: encode error: %s\n", PB_GET_ERROR(stream));
@@ -501,9 +505,10 @@ static bool scan_files(char* path, pb_ostream_t *stream, const pb_field_t *field
 
         hello_fs_closedir(&dir);
 
-        LOGI("DM  closed dir \n");
+
     }
 
+    LOGI("DM  closed dir \n");
     return true;
 }
 
