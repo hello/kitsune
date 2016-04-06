@@ -695,6 +695,7 @@ static int32_t compute_sha(char* path, char* sha_path)
     //compute sha
     bytes_to_read = info.fsize;
     while (bytes_to_read > 0) {
+		vTaskDelay(50/portTICK_PERIOD_MS);
 		res = hello_fs_read(&fp, buffer,(minval(sizeof(buffer),bytes_to_read)), &bytes_read);
 		if (res) {
 			LOGE("DM: f_read %d\n", res);
