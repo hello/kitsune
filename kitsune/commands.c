@@ -465,8 +465,9 @@ int Cmd_play_buff(int argc, char *argv[]) {
     }
     if( argc >= 5 ) {
     	desc.fade_out_ms = desc.fade_in_ms = atoi(argv[5]);
+		desc.to_fade_out_ms = atoi(argv[6]);
     } else {
-    	desc.fade_out_ms = desc.fade_in_ms = 0;
+    	desc.to_fade_out_ms = desc.fade_out_ms = desc.fade_in_ms = 0;
     }
     desc.rate = atoi(argv[2]);
 
@@ -677,7 +678,7 @@ void thread_alarm(void * unused) {
 				AudioPlaybackDesc_t desc;
 				memset(&desc,0,sizeof(desc));
 
-				desc.fade_in_ms = 30000;
+				desc.to_fade_out_ms = desc.fade_in_ms = 30000;
 				desc.fade_out_ms = 3000;
 				strncpy( desc.file, AUDIO_FILE, 64 );
 				int has_valid_sound_file = 0;
