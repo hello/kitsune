@@ -141,7 +141,6 @@ void update_file_download_status(bool is_pending)
 	xSemaphoreTake(_file_download_mutex, portMAX_DELAY);
 		file_download_status = (is_pending) ? FileManifest_FileStatusType_DOWNLOAD_PENDING:FileManifest_FileStatusType_DOWNLOAD_COMPLETED;
 	xSemaphoreGive(_file_download_mutex);
-
 }
 
 // Download Manager task
@@ -422,6 +421,7 @@ static bool scan_files(char* path, pb_ostream_t *stream, const pb_field_t *field
         for (;;) {
 
             res = hello_fs_readdir(&dir, &fno);                   /* Read a directory item */
+        	LOGI("readdir %s -- %d\n",fno.fname, res );
             if (res != FR_OK || fno.fname[0] == 0) break;  /* Break on error or end of dir */
             if (fno.fname[0] == '.') continue;             /* Ignore dot entry */
 
@@ -450,7 +450,7 @@ static bool scan_files(char* path, pb_ostream_t *stream, const pb_field_t *field
             	LOGI("DM  recurse ou dir %s/%s\n", path, fn);
 
                 path[i] = 0;
-                if (res != FR_OK) break;
+               // if (res != FR_OK) break;
             } else {                                       /* It is a file. */
                 // Skip if file is a sha file
                 if(!strstr(fn, ".SHA"))
