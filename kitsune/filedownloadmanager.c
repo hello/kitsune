@@ -662,8 +662,7 @@ static uint32_t scan_files(char* path)
 					if( ( file_manifest_local.allocated_file_list_size <= file_manifest_local.num_data ) ||
 							( !file_manifest_local.ga_file_list) )
 					{
-						file_manifest_local.allocated_file_list_size = ( file_manifest_local.allocated_file_list_size ) ?
-								file_manifest_local.allocated_file_list_size*2 : 2;
+						++file_manifest_local.allocated_file_list_size;
 
 						file_manifest_local.ga_file_list =
 								(file_list_t*)pvPortRealloc(file_manifest_local.ga_file_list, file_manifest_local.allocated_file_list_size * sizeof(file_list_t));
