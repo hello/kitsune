@@ -13,6 +13,8 @@
 #include "hellofilesystem.h"
 #include <ustdlib.h>
 
+#include "crypto.h"
+
 //#define DM_TESTING
 #define DM_UPLOAD_CMD_ENABLED
 
@@ -195,6 +197,12 @@ static void DownloadManagerTask(void * filesyncdata)
 			vTaskDelayUntil(&start_time,query_delay_ticks);
 
 #endif
+			char path_buf[PATH_BUF_MAX_SIZE] = {0};
+
+			strncpy(path_buf,"/",PATH_BUF_MAX_SIZE);
+
+			total_file_count = 0;
+			scan_files(path_buf, NULL, NULL, NULL);
 
 			memset(&message_for_upload,0,sizeof(FileManifest));
 
@@ -339,7 +347,7 @@ bool _on_file_update(pb_istream_t *stream, const pb_field_t *field, void **arg)
 			char full_path[PATH_BUF_MAX_SIZE];
 
 			// delete file
-			//LOGI("DM: delete file\n" );
+			LOGI("DM: delete file\n" );
 
 			// get complete filename
 			if( !get_complete_filename( \
@@ -371,7 +379,16 @@ bool _on_file_update(pb_istream_t *stream, const pb_field_t *field, void **arg)
 			download_info.sd_card_path.arg = file_info.download_info.sd_card_path.arg;
 			download_info.sd_card_filename.arg = file_info.download_info.sd_card_filename.arg;
 			download_info.has_sha1 = file_info.download_info.has_sha1;
-			memcpy(&download_info.sha1, &file_info.download_info.sha1, sizeof(FileManifest_FileDownload_sha1_t));
+			memcpy(&download_info.sha1.bytes, &file_info.download_info.sha1.bytes, file_info.download_info.sha1.size);
+			download_info.sha1.size = file_info.download_info.sha1.size;
+
+#if DM_TESTING
+			LOGI("DM: download file sha %d, ", download_info.sha1.size );
+			int i;
+			for(i=0;i<download_info.sha1.size;++i) LOGI("%x:",download_info.sha1.bytes[i]);
+			LOGI("\n");
+#endif
+
 
 			if( !send_to_download_queue(&download_info,10) )
 			{
@@ -385,7 +402,7 @@ bool _on_file_update(pb_istream_t *stream, const pb_field_t *field, void **arg)
 	else
 	{
 		free_file_sync_info( &file_info.download_info );
-		//LOGI("DM: no file update\n" );
+		LOGI("DM: no file update\n" );
 
 	}
 
@@ -487,40 +504,47 @@ static bool scan_files(char* path, pb_ostream_t *stream, const pb_field_t *field
 
             		file_info.download_info.sha1.size = 20;
 
-            		vTaskDelay(50/portTICK_PERIOD_MS);
+            		if( stream == NULL ) {
+						vTaskDelay(50/portTICK_PERIOD_MS);
 
-            		bool sha_ovwr = false;
+						bool sha_ovwr = false;
 
-            		sha_ovwr = (sha_calc_running_count == total_file_count) ? true : false;
+						sha_ovwr = (sha_calc_running_count == total_file_count) ? true : false;
 
-            		if(update_sha_file(path,fn, sha_file_create,NULL, sha_ovwr ))
-					{
-						LOGE("DM: Error creating SHA\n");
-					}
+	            		total_file_count++;
 
-            		vTaskDelay(50/portTICK_PERIOD_MS);
+						if(update_sha_file(path,fn, sha_file_create,NULL, sha_ovwr ))
+						{
+							LOGE("DM: Error creating SHA\n");
+						}
 
-            		if(!pb_encode_tag_for_field(stream, field))
-            		{
-            			LOGI("DM: encode tag error %s\n", PB_GET_ERROR(stream));
-            			return false;
+						vTaskDelay(50/portTICK_PERIOD_MS);
+            		} else {
+						file_info.download_info.has_sha1 = !update_sha_file(path, fn, sha_file_get_sha, file_info.download_info.sha1.bytes, false );
+	            		if( file_info.download_info.has_sha1 ) {
+	            			file_info.download_info.sha1.size = SHA1_SIZE;
+#if DM_TESTING
+	            			int i;
+	            			LOGI("DM UPLOAD SHA ");
+	            			for(i=0;i<SHA1_SIZE;++i) LOGI("%x:",file_info.download_info.sha1.bytes[i]);
+	            			LOGI("\n");
+#endif
+	            		}
+
+						if(!pb_encode_tag_for_field(stream, field))
+						{
+							LOGI("DM: encode tag error %s\n", PB_GET_ERROR(stream));
+							return false;
+						}
+
+						vTaskDelay(50/portTICK_PERIOD_MS);
+
+						if (!pb_encode_submessage(stream, FileManifest_File_fields, &file_info)){
+							LOGI("DM: encode error: %s\n", PB_GET_ERROR(stream));
+							return false;
+						}
+	                	LOGI("DM File encoded: %s/%s\n", path, fn);
             		}
-
-            		vTaskDelay(50/portTICK_PERIOD_MS);
-
-            		if (!pb_encode_submessage(stream, FileManifest_File_fields, &file_info)){
-            			LOGI("DM: encode error: %s\n", PB_GET_ERROR(stream));
-            			return false;
-            		}
-
-            		file_info.download_info.has_sha1 = (!update_sha_file(path, fn, sha_file_get_sha, file_info.download_info.sha1.bytes, false ))?
-            				true: false;
-
-            		total_file_count++;
-
-                	LOGI("DM File encoded: %s/%s\n", path, fn);
-
-
                 }
                 else
                 {
@@ -672,7 +696,6 @@ static bool does_sha_file_exist(char* sha_path)
 
 }
 
-#include "crypto.h"
 
 static int32_t compute_sha(char* path, char* sha_path)
 {
@@ -707,7 +730,7 @@ static int32_t compute_sha(char* path, char* sha_path)
     //compute sha
     bytes_to_read = info.fsize;
     while (bytes_to_read > 0) {
-		vTaskDelay(1/portTICK_PERIOD_MS);
+		vTaskDelay(5/portTICK_PERIOD_MS);
 		res = hello_fs_read(&fp, buffer,(minval(sizeof(buffer),bytes_to_read)), &bytes_read);
 		if (res) {
 			LOGE("DM: f_read %d\n", res);
@@ -729,6 +752,13 @@ static int32_t compute_sha(char* path, char* sha_path)
 	}
 
 	bytes_to_write = SHA1_SIZE;
+
+#if DM_TESTING
+	int i;
+	LOGI("DM SHA ");
+	for(i=0;i<SHA1_SIZE;++i) LOGI("%x:",sha[i]);
+	LOGI("\n");
+#endif
 
 	while(bytes_to_write > 0)
 	{
