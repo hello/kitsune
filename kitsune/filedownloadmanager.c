@@ -164,6 +164,7 @@ static void DownloadManagerTask(void * filesyncdata)
 #endif
 	FileManifest_FileOperationError error_message;
 	FileManifest message_for_upload;
+	uint8_t* test_buf;
 
 	// init query delay - Set default delay of 15 minutes
 	query_delay_ticks = (QUERY_DELAY_DEFAULT*60*1000)/portTICK_PERIOD_MS;
@@ -212,8 +213,17 @@ static void DownloadManagerTask(void * filesyncdata)
 
 			memset(&message_for_upload,0,sizeof(FileManifest));
 
+			message_for_upload.sd_card_size.has_sd_card_failure = true;
+
 			// TODO create and write test data to SD card, set flag is fail
-			//sd_card_test(false, 0xAF50AF50, hello_fs_write);
+			test_buf = (uint8_t*) pvPortMalloc(SD_BLOCK_SIZE);
+			assert(test_buf);
+			memset(test_buf, 0xAF50AF50,SD_BLOCK_SIZE/4);
+			if(sd_card_test(false, test_buf, hello_fs_write))
+			{
+				LOGE("DM: SD card write err\n");
+				message_for_upload.sd_card_size.sd_card_failure = true;
+			}
 
 			/* UPDATE FILE INFO */
 
@@ -282,8 +292,12 @@ static void DownloadManagerTask(void * filesyncdata)
 
 			// TODO read and delete test data from SD card, set flag is fail
 
-			//sd_card_test(true, test_buf, hello_fs_read);
-			// compare if data read is right
+			if(sd_card_test(true, test_buf, hello_fs_read))
+			{
+				LOGE("DM: SD card read err\n");
+				message_for_upload.sd_card_size.sd_card_failure = true;
+			}
+			vPortFree(test_buf);
 
 
 			/* SEND PROTOBUF */
@@ -961,7 +975,7 @@ int cmd_file_sync_upload(int argc, char *argv[])
 }
 
 // rw = 0 (write), 1(read)
-static uint32_t sd_card_test(bool rw, uint8_t* data, filesystem_rw_func_t fs_rw_func)
+static uint32_t sd_card_test(bool rw, uint8_t* ptr, filesystem_rw_func_t fs_rw_func)
 {
 
 	FRESULT res;
@@ -969,6 +983,7 @@ static uint32_t sd_card_test(bool rw, uint8_t* data, filesystem_rw_func_t fs_rw_
 	uint32_t bytes_transferred;
 	uint8_t open_flags = 0;
 	char filename[] = {"test"};
+	uint32_t i;
 
 	open_flags = (rw) ? FA_READ : FA_CREATE_ALWAYS|FA_WRITE;
 
@@ -979,10 +994,27 @@ static uint32_t sd_card_test(bool rw, uint8_t* data, filesystem_rw_func_t fs_rw_
 	}
 
 	// Perform a read/write
-	res = fs_rw_func(&fp, &data,SD_BLOCK_SIZE, &bytes_transferred);
+	res = fs_rw_func(&fp, &ptr,SD_BLOCK_SIZE, &bytes_transferred);
 	if (res) {
 		LOGE("DM: test rw fail %d\n", res);
 		return res;
+	}
+
+	if(rw)
+	{
+
+		uint32_t* data_ptr = (uint32_t*)ptr;
+
+		for(i=0;i<SD_BLOCK_SIZE/4;i++)
+		{
+			if(*data_ptr != 0xAF50AF50)
+			{
+				LOGE("DM read %d\n",*data_ptr);
+				return FR_RW_ERROR;
+			}
+
+		}
+
 	}
 
     // Close file
