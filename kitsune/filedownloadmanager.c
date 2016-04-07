@@ -223,7 +223,7 @@ static void DownloadManagerTask(void * filesyncdata)
 			memset(test_buf, 0xAF50AF50,SD_BLOCK_SIZE/4);
 			if(sd_card_test(false, test_buf, hello_fs_write))
 			{
-				//LOGE("DM: SD card write err\n");
+				LOGE("DM: SD card write err\n");
 				message_for_upload.sd_card_size.sd_card_failure = true;
 			}
 
@@ -297,7 +297,7 @@ static void DownloadManagerTask(void * filesyncdata)
 			 memset(test_buf,0,SD_BLOCK_SIZE);
 			if(sd_card_test(true, test_buf, hello_fs_read))
 			{
-				//LOGE("DM: SD card read err\n");
+				LOGE("DM: SD card read err\n");
 				message_for_upload.sd_card_size.sd_card_failure = true;
 			}
 			vPortFree(test_buf);
@@ -986,7 +986,6 @@ static uint32_t sd_card_test(bool rw, uint8_t* ptr, filesystem_rw_func_t fs_rw_f
 	char filename[] = {"test"};
 	uint32_t i;
 
-	/*
 	open_flags = (rw) ? FA_READ : FA_CREATE_ALWAYS|FA_WRITE;
 
 	res = hello_fs_open(&fp,filename, open_flags);
@@ -1032,7 +1031,7 @@ static uint32_t sd_card_test(bool rw, uint8_t* ptr, filesystem_rw_func_t fs_rw_f
 	{
     	return (hello_fs_unlink(filename));
 	}
-*/
+
     return FR_OK;
 }
 
