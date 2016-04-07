@@ -58,7 +58,6 @@ typedef struct {
 
 typedef FRESULT (*filesystem_rw_func_t)(FIL *fp, void *buff,UINT btrw,UINT *brw );
 
-
 #ifdef DM_UPLOAD_CMD_ENABLED
 // Semaphore to enable file_sync upload from cli
 static xSemaphoreHandle _cli_upload_sem = NULL;
@@ -151,7 +150,6 @@ void update_file_download_status(bool is_pending)
 	xSemaphoreTake(_file_download_mutex, portMAX_DELAY);
 		file_download_status = (is_pending) ? FileManifest_FileStatusType_DOWNLOAD_PENDING:FileManifest_FileStatusType_DOWNLOAD_COMPLETED;
 	xSemaphoreGive(_file_download_mutex);
-
 }
 
 
@@ -159,7 +157,9 @@ void update_file_download_status(bool is_pending)
 // Download Manager task
 static void DownloadManagerTask(void * filesyncdata)
 {
+#ifndef DM_UPLOAD_CMD_ENABLED
 	static TickType_t start_time;
+#endif
 	FileManifest_FileOperationError error_message;
 	FileManifest message_for_upload;
 
@@ -185,8 +185,9 @@ static void DownloadManagerTask(void * filesyncdata)
     pb_cb.on_pb_failure = _on_file_sync_response_failure;
 
     // set current time
+#ifndef DM_UPLOAD_CMD_ENABLED
     start_time = xTaskGetTickCount();
-
+#endif
     //give sempahore with query delay as 15 minutes
     restart_download_manager();
 
@@ -294,8 +295,10 @@ static void DownloadManagerTask(void * filesyncdata)
 
 			}
 
+#ifndef DM_UPLOAD_CMD_ENABLED
 			// Update wake time
 			start_time = xTaskGetTickCount();
+#endif
 
 		}
 
@@ -447,6 +450,7 @@ static bool scan_files(char* path, pb_ostream_t *stream, const pb_field_t *field
         for (;;) {
 
             res = hello_fs_readdir(&dir, &fno);                   /* Read a directory item */
+        	//LOGI("readdir %s -- %d\n",fno.fname, res );
             if (res != FR_OK || fno.fname[0] == 0) break;  /* Break on error or end of dir */
             if (fno.fname[0] == '.') continue;             /* Ignore dot entry */
 
@@ -475,7 +479,7 @@ static bool scan_files(char* path, pb_ostream_t *stream, const pb_field_t *field
             	//LOGI("DM  recurse ou dir %s/%s\n", path, fn);
 
                 path[i] = 0;
-                if (res != FR_OK) break;
+                if (!res) break;
             } else {                                       /* It is a file. */
                 // Skip if file is a sha file
                 if(!strstr(fn, ".SHA"))
