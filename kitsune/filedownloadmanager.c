@@ -60,6 +60,7 @@ typedef struct {
 
 typedef FRESULT (*filesystem_rw_func_t)(FIL *fp, void *buff,UINT btrw,UINT *brw );
 
+
 #ifdef DM_UPLOAD_CMD_ENABLED
 // Semaphore to enable file_sync upload from cli
 static xSemaphoreHandle _cli_upload_sem = NULL;
@@ -165,6 +166,8 @@ static void DownloadManagerTask(void * filesyncdata)
 	FileManifest_FileOperationError error_message;
 	FileManifest message_for_upload;
 
+	uint8_t* test_buf;
+
 	// init query delay - Set default delay of 15 minutes
 	query_delay_ticks = (QUERY_DELAY_DEFAULT*60*1000)/portTICK_PERIOD_MS;
 
@@ -212,8 +215,11 @@ static void DownloadManagerTask(void * filesyncdata)
 
 			memset(&message_for_upload,0,sizeof(FileManifest));
 
+			test_buf = (uint8_t*) pvPortMalloc(SD_BLOCK_SIZE);
+			assert(test_buf);
+			memset(test_buf,0xAF50AF50,SD_BLOCK_SIZE);
 			// TODO create and write test data to SD card, set flag is fail
-			//sd_card_test(false, 0xAF50AF50, hello_fs_write);
+			sd_card_test(false, test_buf, hello_fs_write);
 
 			/* UPDATE FILE INFO */
 
@@ -281,6 +287,10 @@ static void DownloadManagerTask(void * filesyncdata)
 			message_for_upload.sense_id.funcs.encode = encode_device_id_string;
 
 			// TODO read and delete test data from SD card, set flag is fail
+			 memset(test_buf,0,SD_BLOCK_SIZE);
+			sd_card_test(true, test_buf, hello_fs_read);
+			// compare if data read is right
+			vPortFree(test_buf);
 
 			//sd_card_test(true, test_buf, hello_fs_read);
 			// compare if data read is right
@@ -548,8 +558,6 @@ static bool scan_files(char* path, pb_ostream_t *stream, const pb_field_t *field
 							return false;
 						}
 
-						vTaskDelay(50/portTICK_PERIOD_MS);
-
 						if (!pb_encode_submessage(stream, FileManifest_File_fields, &file_info)){
 							LOGI("DM: encode error: %s\n", PB_GET_ERROR(stream));
 							return false;
@@ -742,7 +750,6 @@ static int32_t compute_sha(char* path, char* sha_path)
     bytes_to_read = info.fsize;
     while (bytes_to_read > 0) {
 		vTaskDelay(5/portTICK_PERIOD_MS);
-
 		res = hello_fs_read(&fp, buffer,(minval(sizeof(buffer),bytes_to_read)), &bytes_read);
 		if (res) {
 			LOGE("DM: f_read %d\n", res);
