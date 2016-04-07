@@ -164,6 +164,7 @@ static void DownloadManagerTask(void * filesyncdata)
 #endif
 	FileManifest_FileOperationError error_message;
 	FileManifest message_for_upload;
+
 	uint8_t* test_buf;
 
 	// init query delay - Set default delay of 15 minutes
@@ -535,6 +536,7 @@ static bool scan_files(char* path, pb_ostream_t *stream, const pb_field_t *field
 						bool sha_ovwr = false;
 
 						sha_ovwr = (sha_calc_running_count == total_file_count) ? true : false;
+
 
 	            		total_file_count++;
 

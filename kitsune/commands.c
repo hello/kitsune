@@ -1775,8 +1775,8 @@ void launch_tasks() {
 	UARTprintf("*");
 	xTaskCreate(thread_tx, "txTask", 1536 / 4, NULL, 1, NULL);
 	UARTprintf("*");
-	long_poll_task_init( 4096 / 4 );
-	downloadmanagertask_init(4096 / 4);
+	long_poll_task_init( 3072 / 4 );
+	downloadmanagertask_init(3072 / 4);
 #endif
 }
 
@@ -2209,7 +2209,7 @@ void vUARTTask(void *pvParameters) {
 
 	xTaskCreate(AudioTask_Thread,"audioTask",3072/4,NULL,4,NULL);
 	init_download_task( 2048 / 4 );
-	networktask_init(6 * 1024 / 4);
+	networktask_init(4 * 1024 / 4);
 
 	load_serial();
 	load_aes();
