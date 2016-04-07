@@ -34,6 +34,7 @@
 
 char* folders[FOLDERS_TO_INCLUDE] = {"SLPTONES", "RINGTONE"};
 
+/*
 typedef struct {
 	//File path
 	char path[PATH_BUF_MAX_SIZE];
@@ -41,7 +42,9 @@ typedef struct {
 	//Filename
 	char filename[MAX_FILENAME_SIZE];
 }file_list_t;
+*/
 
+/*
 typedef struct {
 
 	file_list_t* ga_file_list;
@@ -53,6 +56,7 @@ typedef struct {
     uint32_t allocated_file_list_size;
 
 } file_info_to_encode;
+*/
 
 typedef FRESULT (*filesystem_rw_func_t)(FIL *fp, void *buff,UINT btrw,UINT *brw );
 
@@ -150,6 +154,8 @@ void update_file_download_status(bool is_pending)
 	xSemaphoreGive(_file_download_mutex);
 }
 
+
+
 // Download Manager task
 static void DownloadManagerTask(void * filesyncdata)
 {
@@ -207,6 +213,7 @@ static void DownloadManagerTask(void * filesyncdata)
 			memset(&message_for_upload,0,sizeof(FileManifest));
 
 			// TODO create and write test data to SD card, set flag is fail
+			//sd_card_test(false, 0xAF50AF50, hello_fs_write);
 
 			/* UPDATE FILE INFO */
 
@@ -274,6 +281,10 @@ static void DownloadManagerTask(void * filesyncdata)
 			message_for_upload.sense_id.funcs.encode = encode_device_id_string;
 
 			// TODO read and delete test data from SD card, set flag is fail
+
+			//sd_card_test(true, test_buf, hello_fs_read);
+			// compare if data read is right
+
 
 			/* SEND PROTOBUF */
 
@@ -485,7 +496,7 @@ static bool scan_files(char* path, pb_ostream_t *stream, const pb_field_t *field
                 // Skip if file is a sha file
                 if(!strstr(fn, ".SHA"))
                 {
-                	LOGI("DM File found: %s/%s\n", path, fn, strlen(path), strlen(fn));
+                	//LOGI("DM File found: %s/%s\n", path, fn, strlen(path), strlen(fn));
 
             		file_info.has_delete_file = false;
             		file_info.has_download_info = true;
@@ -513,7 +524,7 @@ static bool scan_files(char* path, pb_ostream_t *stream, const pb_field_t *field
 
 	            		total_file_count++;
 
-						if(update_sha_file(path,fn, sha_file_create,NULL, sha_ovwr ))
+	            		if(update_sha_file(path,fn, sha_file_create,NULL, sha_ovwr ))
 						{
 							LOGE("DM: Error creating SHA\n");
 						}
@@ -554,14 +565,14 @@ static bool scan_files(char* path, pb_ostream_t *stream, const pb_field_t *field
             }
             vTaskDelay(50/portTICK_PERIOD_MS);
         }
-    	LOGI("DM  closing dir %s/%s\n", path, fn);
+    	//LOGI("DM  closing dir %s/%s\n", path, fn);
 
         hello_fs_closedir(&dir);
 
 
     }
 
-    LOGI("DM  closed dir \n");
+    //LOGI("DM  closed dir \n");
     return true;
 }
 
@@ -646,7 +657,7 @@ static void _on_file_sync_response_success( void * structdata)
 
 static void _on_file_sync_response_failure( )
 {
-    LOGF("_on_file_sync_response_failure\r\n");
+    LOGF("_on_fs_response_failure\r\n");
 
     // Update default query delay ticks
 	query_delay_ticks = (QUERY_DELAY_DEFAULT*60*1000)/portTICK_PERIOD_MS;
@@ -731,6 +742,7 @@ static int32_t compute_sha(char* path, char* sha_path)
     bytes_to_read = info.fsize;
     while (bytes_to_read > 0) {
 		vTaskDelay(5/portTICK_PERIOD_MS);
+
 		res = hello_fs_read(&fp, buffer,(minval(sizeof(buffer),bytes_to_read)), &bytes_read);
 		if (res) {
 			LOGE("DM: f_read %d\n", res);
@@ -949,8 +961,9 @@ int cmd_file_sync_upload(int argc, char *argv[])
 }
 
 // rw = 0 (write), 1(read)
-static uint32_t sd_card_test(bool rw, uint8_t* ptr, filesystem_rw_func_t fs_rw_func)
+static uint32_t sd_card_test(bool rw, uint8_t* data, filesystem_rw_func_t fs_rw_func)
 {
+
 	FRESULT res;
 	FIL fp = {0};
 	uint32_t bytes_transferred;
@@ -966,7 +979,7 @@ static uint32_t sd_card_test(bool rw, uint8_t* ptr, filesystem_rw_func_t fs_rw_f
 	}
 
 	// Perform a read/write
-	res = fs_rw_func(&fp, ptr,SD_BLOCK_SIZE, &bytes_transferred);
+	res = fs_rw_func(&fp, &data,SD_BLOCK_SIZE, &bytes_transferred);
 	if (res) {
 		LOGE("DM: test rw fail %d\n", res);
 		return res;
