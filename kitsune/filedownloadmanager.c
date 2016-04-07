@@ -60,6 +60,7 @@ typedef struct {
 
 typedef FRESULT (*filesystem_rw_func_t)(FIL *fp, void *buff,UINT btrw,UINT *brw );
 
+
 #ifdef DM_UPLOAD_CMD_ENABLED
 // Semaphore to enable file_sync upload from cli
 static xSemaphoreHandle _cli_upload_sem = NULL;
@@ -226,6 +227,7 @@ static void DownloadManagerTask(void * filesyncdata)
 				message_for_upload.sd_card_size.sd_card_failure = true;
 			}
 
+
 			/* UPDATE FILE INFO */
 
 			message_for_upload.file_info.funcs.encode = encode_file_info;
@@ -292,7 +294,7 @@ static void DownloadManagerTask(void * filesyncdata)
 			message_for_upload.sense_id.funcs.encode = encode_device_id_string;
 
 			// TODO read and delete test data from SD card, set flag is fail
-
+			 memset(test_buf,0,SD_BLOCK_SIZE);
 			if(sd_card_test(true, test_buf, hello_fs_read))
 			{
 				LOGE("DM: SD card read err\n");
@@ -537,10 +539,9 @@ static bool scan_files(char* path, pb_ostream_t *stream, const pb_field_t *field
 
 						sha_ovwr = (sha_calc_running_count == total_file_count) ? true : false;
 
-
 	            		total_file_count++;
 
-						if(update_sha_file(path,fn, sha_file_create,NULL, sha_ovwr ))
+	            		if(update_sha_file(path,fn, sha_file_create,NULL, sha_ovwr ))
 						{
 							LOGE("DM: Error creating SHA\n");
 						}
@@ -563,8 +564,6 @@ static bool scan_files(char* path, pb_ostream_t *stream, const pb_field_t *field
 							LOGI("DM: encode tag error %s\n", PB_GET_ERROR(stream));
 							return false;
 						}
-
-						vTaskDelay(50/portTICK_PERIOD_MS);
 
 						if (!pb_encode_submessage(stream, FileManifest_File_fields, &file_info)){
 							LOGI("DM: encode error: %s\n", PB_GET_ERROR(stream));
@@ -1002,6 +1001,7 @@ static uint32_t sd_card_test(bool rw, uint8_t* ptr, filesystem_rw_func_t fs_rw_f
 		return res;
 	}
 
+
 	if(rw)
 	{
 
@@ -1018,6 +1018,7 @@ static uint32_t sd_card_test(bool rw, uint8_t* ptr, filesystem_rw_func_t fs_rw_f
 		}
 
 	}
+
 
     // Close file
     hello_fs_close(&fp);
