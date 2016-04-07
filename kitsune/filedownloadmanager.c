@@ -54,8 +54,6 @@ typedef struct {
 
 typedef FRESULT (*filesystem_rw_func_t)(FIL *fp, void *buff,UINT btrw,UINT *brw );
 
- hello_fs_read ( )
-
 #ifdef DM_UPLOAD_CMD_ENABLED
 // Semaphore to enable file_sync upload from cli
 static xSemaphoreHandle _cli_upload_sem = NULL;
