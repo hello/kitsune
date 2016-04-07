@@ -34,29 +34,11 @@
 
 char* folders[FOLDERS_TO_INCLUDE] = {"SLPTONES", "RINGTONE"};
 
-/*
-typedef struct {
-	//File path
-	char path[PATH_BUF_MAX_SIZE];
-
-	//Filename
-	char filename[MAX_FILENAME_SIZE];
-}file_list_t;
-*/
-
-/*
-typedef struct {
-
-	file_list_t* ga_file_list;
-    uint32_t num_data;
-
-    // Indicates the number of files for which memory has been allocated.
-    // This refers to the number of files names that can be stored at ga_file_list
-    // This number is incremented whenever a realloc is done.
-    uint32_t allocated_file_list_size;
-
-} file_info_to_encode;
-*/
+typedef enum {
+	sha_file_create=0,
+	sha_file_delete,
+	sha_file_get_sha
+}update_sha_t;
 
 typedef FRESULT (*filesystem_rw_func_t)(FIL *, const void *,UINT ,UINT * );
 
@@ -106,7 +88,7 @@ static void get_file_download_status(FileManifest_FileStatusType* file_status);
 static void free_file_sync_info(FileManifest_FileDownload * download_info);
 static void restart_download_manager(void);
 static bool scan_files(char* path, pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
-static int32_t compute_sha(char* path, char* sha_path);
+static int32_t sd_sha_verifynsave(const char * sha_truth, char* path, char* sha_path);
 static bool get_sha_filename(char* filename, char* sha_fn);
 static int get_complete_filename(char* full_path, char * local_fn, char* path, uint32_t len);
 static bool does_sha_file_exist(char* sha_path);
@@ -221,6 +203,7 @@ static void DownloadManagerTask(void * filesyncdata)
 			test_buf = (uint8_t*) pvPortMalloc(SD_BLOCK_SIZE);
 			assert(test_buf);
 			memset(test_buf, 0xAF50AF50,SD_BLOCK_SIZE/4);
+			LOGI("DM test buf%d %d\n", (uint32_t)test_buf[0],  (uint32_t)test_buf[4] );
 			if(sd_card_test(false, test_buf, hello_fs_write))
 			{
 				LOGE("DM: SD card write err\n");
@@ -722,7 +705,7 @@ static bool does_sha_file_exist(char* sha_path)
 }
 
 
-static int32_t compute_sha(char* path, char* sha_path)
+static int32_t sd_sha_verifynsave(const char * sha_truth, char* path, char* sha_path)
 {
 #define minval( a,b ) a < b ? a : b
 
@@ -768,7 +751,18 @@ static int32_t compute_sha(char* path, char* sha_path)
     hello_fs_close(&fp);
     SHA1_Final(sha, &sha1ctx);
 
-    memset(&fp,0,sizeof(fp));
+    //compare
+    if(sha_truth){
+		if (memcmp(sha, sha_truth, SHA1_SIZE) != 0) {
+			LOGE("SD card file SHA did not match!\n");
+			//LOGI("Sha truth:      %02x ... %02x\r\n", sha_truth[0], sha_truth[SHA1_SIZE-1]);
+			//LOGI("Sha calculated: %02x ... %02x\r\n", sha[0], sha[SHA1_SIZE-1]);
+			return -1;
+		}
+    }
+
+
+	memset(&fp,0,sizeof(fp));
 
 	// Open for writing
 	res = hello_fs_open(&fp, sha_path, FA_CREATE_ALWAYS|FA_WRITE);
@@ -798,8 +792,9 @@ static int32_t compute_sha(char* path, char* sha_path)
 		bytes_to_write -= bytes_written;
 	}
 
-    // Close file
-    hello_fs_close(&fp);
+	// Close file
+	hello_fs_close(&fp);
+
 
     return 0;
 }
@@ -889,7 +884,10 @@ uint32_t update_sha_file(char* path, char* original_filename, update_sha_t optio
 			// start time
 			uint32_t time_for_sha = get_time();
 			// Compute and store SHA. This function overwrites an existing SHA file
-			compute_sha(full_path, sha_fullpath);
+			//compute_sha(full_path, sha_fullpath);
+			assert(sha);
+			if(sd_sha_verifynsave((const char*)sha,full_path,sha_fullpath))
+				return 1;
 			// stop time
 			time_for_sha = get_time() - time_for_sha;
 			LOGI("DM %s sha_time=%d\n",original_filename,time_for_sha);
@@ -1017,7 +1015,6 @@ static uint32_t sd_card_test(bool rw, uint8_t* ptr, filesystem_rw_func_t fs_rw_f
 		}
 
 	}
-
 
     // Close file
     hello_fs_close(&fp);
