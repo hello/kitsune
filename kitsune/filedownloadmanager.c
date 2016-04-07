@@ -157,9 +157,6 @@ static void DownloadManagerTask(void * filesyncdata)
 	FileManifest_FileOperationError error_message;
 	FileManifest message_for_upload;
 
-	uint8_t test_buf_write[SD_BLOCK_SIZE];
-	uint8_t test_buf_read[SD_BLOCK_SIZE];
-
 	// init query delay - Set default delay of 15 minutes
 	query_delay_ticks = (QUERY_DELAY_DEFAULT*60*1000)/portTICK_PERIOD_MS;
 
@@ -178,8 +175,6 @@ static void DownloadManagerTask(void * filesyncdata)
     pb_cb.free_reply_pb = _free_file_sync_response;
     pb_cb.on_pb_success = _on_file_sync_response_success;
     pb_cb.on_pb_failure = _on_file_sync_response_failure;
-
-    memset(test_buf_write,0xAF50AF50,SD_BLOCK_SIZE);
 
     // set current time
 #ifndef DM_UPLOAD_CMD_ENABLED
@@ -712,7 +707,7 @@ static int32_t compute_sha(char* path, char* sha_path)
     //compute sha
     bytes_to_read = info.fsize;
     while (bytes_to_read > 0) {
-		vTaskDelay(50/portTICK_PERIOD_MS);
+		vTaskDelay(1/portTICK_PERIOD_MS);
 		res = hello_fs_read(&fp, buffer,(minval(sizeof(buffer),bytes_to_read)), &bytes_read);
 		if (res) {
 			LOGE("DM: f_read %d\n", res);
