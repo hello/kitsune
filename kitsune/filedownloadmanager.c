@@ -58,7 +58,7 @@ typedef struct {
 } file_info_to_encode;
 */
 
-typedef FRESULT (*filesystem_rw_func_t)(FIL *fp, void *buff,UINT btrw,UINT *brw );
+typedef FRESULT (*filesystem_rw_func_t)(FIL *, const void *,UINT ,UINT * );
 
 
 #ifdef DM_UPLOAD_CMD_ENABLED
@@ -291,10 +291,6 @@ static void DownloadManagerTask(void * filesyncdata)
 			sd_card_test(true, test_buf, hello_fs_read);
 			// compare if data read is right
 			vPortFree(test_buf);
-
-			//sd_card_test(true, test_buf, hello_fs_read);
-			// compare if data read is right
-
 
 			/* SEND PROTOBUF */
 
