@@ -2256,6 +2256,7 @@ void vUARTTask(void *pvParameters) {
 
 		if (UARTPeek('\r') != -1) {
 			/* Read data from the UART and process the command line */
+			memset( cCmdBuf, 0, sizeof(cCmdBuf) );
 			UARTgets(cCmdBuf, sizeof(cCmdBuf));
 			if (ustrlen(cCmdBuf) == 0) {
 				LOGI("> ");
