@@ -48,6 +48,8 @@ typedef FRESULT (*filesystem_rw_func_t)(FIL *, const void *,UINT ,UINT * );
 static xSemaphoreHandle _cli_upload_sem = NULL;
 #endif
 
+const uint32_t test_code = 0xAF50AF50;
+
 // Counter to periodically update existing SHA file for each whitelisted file
 // This done so that the SHA file has the latest SHA
 static uint32_t sha_calc_running_count = 0;
@@ -117,6 +119,17 @@ void downloadmanagertask_init(uint16_t stack_size)
 	// init sempahore that indicates server response has been received
 	if (!_response_received_sem) {
 		_response_received_sem = xSemaphoreCreateBinary();
+	}
+
+
+	// Create a folder for SD RW testing
+    if(hello_fs_stat("/test", NULL))
+	{
+    	FRESULT res = hello_fs_mkdir("/test");
+		if(res != FR_OK)
+		{
+			LOGE("DM: Err creating test folder\n");
+		}
 	}
 
 	xTaskCreate(DownloadManagerTask, "dmTask", stack_size, NULL, 2, NULL);
@@ -202,8 +215,15 @@ static void DownloadManagerTask(void * filesyncdata)
 			// TODO create and write test data to SD card, set flag is fail
 			test_buf = (uint8_t*) pvPortMalloc(SD_BLOCK_SIZE);
 			assert(test_buf);
-			memset(test_buf, 0xAF50AF50,SD_BLOCK_SIZE/4);
-			LOGI("DM test buf%d %d\n", (uint32_t)test_buf[0],  (uint32_t)test_buf[4] );
+
+			uint32_t i;
+			for(i=0;i<SD_BLOCK_SIZE/4;i++)
+			{
+				uint32_t j = i*4;
+				test_buf[j] = test_buf[j+2] = test_code & 0xFF;
+				test_buf[j+1] = test_buf[j+3] = (test_code & 0xFF00) >> 8;
+			}
+
 			if(sd_card_test(false, test_buf, hello_fs_write))
 			{
 				LOGE("DM: SD card write err\n");
@@ -277,13 +297,14 @@ static void DownloadManagerTask(void * filesyncdata)
 			message_for_upload.sense_id.funcs.encode = encode_device_id_string;
 
 			// TODO read and delete test data from SD card, set flag is fail
-			 memset(test_buf,0,SD_BLOCK_SIZE);
+			memset(test_buf,0,SD_BLOCK_SIZE);
 			if(sd_card_test(true, test_buf, hello_fs_read))
 			{
 				LOGE("DM: SD card read err\n");
 				message_for_upload.sd_card_size.sd_card_failure = true;
 			}
 			vPortFree(test_buf);
+			test_buf = NULL;
 
 			/* SEND PROTOBUF */
 
@@ -551,7 +572,7 @@ static bool scan_files(char* path, pb_ostream_t *stream, const pb_field_t *field
 							LOGI("DM: encode error: %s\n", PB_GET_ERROR(stream));
 							return false;
 						}
-	                	LOGI("DM File encoded: %s/%s\n", path, fn);
+	                	//LOGI("DM File encoded: %s/%s\n", path, fn);
             		}
                 }
                 else
@@ -690,10 +711,9 @@ static inline void restart_download_manager(void)
 
 static bool does_sha_file_exist(char* sha_path)
 {
-	FILINFO info;
 	FRESULT res;
 
-	res = hello_fs_stat(sha_path, &info);
+	res = hello_fs_stat(sha_path,NULL);
 	if (res)
 	{
 		LOGI("DM: File doesnt exist %d\n", res);
@@ -748,11 +768,13 @@ static int32_t sd_sha_verifynsave(const char * sha_truth, char* path, char* sha_
 		SHA1_Update(&sha1ctx, buffer, bytes_read);
 		bytes_to_read -= bytes_read;
     }
+
     hello_fs_close(&fp);
     SHA1_Final(sha, &sha1ctx);
 
     //compare
     if(sha_truth){
+    	LOGI("SHA COMPARE\n");
 		if (memcmp(sha, sha_truth, SHA1_SIZE) != 0) {
 			LOGE("SD card file SHA did not match!\n");
 			//LOGI("Sha truth:      %02x ... %02x\r\n", sha_truth[0], sha_truth[SHA1_SIZE-1]);
@@ -874,7 +896,7 @@ uint32_t update_sha_file(char* path, char* original_filename, update_sha_t optio
 				// File exists, no need to create
 				return 0;
 			}
-			LOGI("DM: SHA update\n");
+			LOGI("DM: SHA update %s\n", sha_filename);
 			char full_path[PATH_BUF_MAX_SIZE];
 
 			// Get absolute path of original file
@@ -885,9 +907,11 @@ uint32_t update_sha_file(char* path, char* original_filename, update_sha_t optio
 			uint32_t time_for_sha = get_time();
 			// Compute and store SHA. This function overwrites an existing SHA file
 			//compute_sha(full_path, sha_fullpath);
-			assert(sha);
 			if(sd_sha_verifynsave((const char*)sha,full_path,sha_fullpath))
+			{
+				LOGE("DM: SHA verifynsave fail\n");
 				return 1;
+			}
 			// stop time
 			time_for_sha = get_time() - time_for_sha;
 			LOGI("DM %s sha_time=%d\n",original_filename,time_for_sha);
@@ -980,7 +1004,7 @@ static uint32_t sd_card_test(bool rw, uint8_t* ptr, filesystem_rw_func_t fs_rw_f
 	FIL fp = {0};
 	uint32_t bytes_transferred;
 	uint8_t open_flags = 0;
-	char filename[] = {"test"};
+	char filename[] = {"/test/test"};
 	uint32_t i;
 
 	open_flags = (rw) ? FA_READ : FA_CREATE_ALWAYS|FA_WRITE;
@@ -992,12 +1016,11 @@ static uint32_t sd_card_test(bool rw, uint8_t* ptr, filesystem_rw_func_t fs_rw_f
 	}
 
 	// Perform a read/write
-	res = fs_rw_func(&fp, &ptr,SD_BLOCK_SIZE, &bytes_transferred);
+	res = fs_rw_func(&fp, ptr,SD_BLOCK_SIZE, &bytes_transferred);
 	if (res) {
 		LOGE("DM: test rw fail %d\n", res);
 		return res;
 	}
-
 
 	if(rw)
 	{
@@ -1006,13 +1029,15 @@ static uint32_t sd_card_test(bool rw, uint8_t* ptr, filesystem_rw_func_t fs_rw_f
 
 		for(i=0;i<SD_BLOCK_SIZE/4;i++)
 		{
-			if(*data_ptr != 0xAF50AF50)
+
+			if(data_ptr[i] != test_code)
 			{
-				LOGE("DM read %d\n",*data_ptr);
+				LOGE("DM read at %d: 0x%x\n",i, data_ptr[i]);
 				return FR_RW_ERROR;
 			}
 
 		}
+
 
 	}
 

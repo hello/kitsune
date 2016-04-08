@@ -2208,7 +2208,7 @@ void vUARTTask(void *pvParameters) {
 	load_data_server();
 
 	xTaskCreate(AudioTask_Thread,"audioTask",3072/4,NULL,4,NULL);
-	init_download_task( 2048 / 4 );
+	init_download_task( 3072 / 4 );
 	networktask_init(4 * 1024 / 4);
 
 	load_serial();
