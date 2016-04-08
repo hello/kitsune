@@ -1775,8 +1775,8 @@ void launch_tasks() {
 	UARTprintf("*");
 	xTaskCreate(thread_tx, "txTask", 1536 / 4, NULL, 1, NULL);
 	UARTprintf("*");
-	long_poll_task_init( 4096 / 4 );
-	downloadmanagertask_init(4096 / 4);
+	long_poll_task_init( 3072 / 4 );
+	downloadmanagertask_init(3072 / 4);
 #endif
 }
 
@@ -2208,7 +2208,7 @@ void vUARTTask(void *pvParameters) {
 	load_data_server();
 
 	xTaskCreate(AudioTask_Thread,"audioTask",3072/4,NULL,4,NULL);
-	init_download_task( 2048 / 4 );
+	init_download_task( 3072 / 4 );
 	networktask_init(4 * 1024 / 4);
 
 	load_serial();
@@ -2256,6 +2256,7 @@ void vUARTTask(void *pvParameters) {
 
 		if (UARTPeek('\r') != -1) {
 			/* Read data from the UART and process the command line */
+			memset( cCmdBuf, 0, sizeof(cCmdBuf) );
 			UARTgets(cCmdBuf, sizeof(cCmdBuf));
 			if (ustrlen(cCmdBuf) == 0) {
 				LOGI("> ");
