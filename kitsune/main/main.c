@@ -356,7 +356,7 @@ void main()
 
   /* Create the UART processing task. */
   xTaskCreate( vUARTTask, "UARTTask", 2048/(sizeof(portSTACK_TYPE)), NULL, 3, NULL );
-  xTaskCreate( watchdog_thread, "wdtTask", 1280/(sizeof(portSTACK_TYPE)), NULL, 1, NULL );
+  xTaskCreate( watchdog_thread, "wdtTask", 512/(sizeof(portSTACK_TYPE)), NULL, 1, NULL );
 
   //
   // Start the task scheduler
