@@ -201,6 +201,10 @@ static void DownloadManagerTask(void * filesyncdata)
 			vTaskDelayUntil(&start_time,query_delay_ticks);
 
 #endif
+
+			memset(&message_for_upload,0,sizeof(FileManifest));
+
+			/* SCAN AND COMPUTE SHA FOR RANDOM FILE */
 			char path_buf[PATH_BUF_MAX_SIZE] = {0};
 
 			strncpy(path_buf,"/",PATH_BUF_MAX_SIZE);
@@ -208,28 +212,16 @@ static void DownloadManagerTask(void * filesyncdata)
 			total_file_count = 0;
 			scan_files(path_buf, NULL, NULL, NULL);
 
-			memset(&message_for_upload,0,sizeof(FileManifest));
-
+			/* SD CARD TEST WRITE */
 			message_for_upload.sd_card_size.has_sd_card_failure = true;
-
-			// TODO create and write test data to SD card, set flag is fail
 			test_buf = (uint8_t*) pvPortMalloc(SD_BLOCK_SIZE);
 			assert(test_buf);
-
-			uint32_t i;
-			for(i=0;i<SD_BLOCK_SIZE/4;i++)
-			{
-				uint32_t j = i*4;
-				test_buf[j] = test_buf[j+2] = test_code & 0xFF;
-				test_buf[j+1] = test_buf[j+3] = (test_code & 0xFF00) >> 8;
-			}
 
 			if(sd_card_test(false, test_buf, hello_fs_write))
 			{
 				LOGE("DM: SD card write err\n");
 				message_for_upload.sd_card_size.sd_card_failure = true;
 			}
-
 
 			/* UPDATE FILE INFO */
 
@@ -296,7 +288,7 @@ static void DownloadManagerTask(void * filesyncdata)
 
 			message_for_upload.sense_id.funcs.encode = encode_device_id_string;
 
-			// TODO read and delete test data from SD card, set flag is fail
+			/* SD CARD TEST READ */
 			memset(test_buf,0,SD_BLOCK_SIZE);
 			if(sd_card_test(true, test_buf, hello_fs_read))
 			{
@@ -518,23 +510,6 @@ static bool scan_files(char* path, pb_ostream_t *stream, const pb_field_t *field
                 {
                 	//LOGI("DM File found: %s/%s\n", path, fn, strlen(path), strlen(fn));
 
-            		file_info.has_delete_file = false;
-            		file_info.has_download_info = true;
-            		file_info.has_update_file = false;
-
-
-            		file_info.download_info.sd_card_path.funcs.encode = _encode_string_fields;
-
-            		// To remove the leading slash from path
-            		file_info.download_info.sd_card_path.arg = path+1;
-
-            		file_info.download_info.sd_card_filename.funcs.encode = _encode_string_fields;
-            		file_info.download_info.sd_card_filename.arg = fn;
-
-
-
-            		file_info.download_info.sha1.size = 20;
-
             		if( stream == NULL ) {
 						vTaskDelay(50/portTICK_PERIOD_MS);
 
@@ -551,6 +526,20 @@ static bool scan_files(char* path, pb_ostream_t *stream, const pb_field_t *field
 
 						vTaskDelay(50/portTICK_PERIOD_MS);
             		} else {
+                   		file_info.has_delete_file = false;
+						file_info.has_download_info = true;
+						file_info.has_update_file = false;
+
+						file_info.download_info.sd_card_path.funcs.encode = _encode_string_fields;
+
+						// To remove the leading slash from path
+						file_info.download_info.sd_card_path.arg = path+1;
+
+						file_info.download_info.sd_card_filename.funcs.encode = _encode_string_fields;
+						file_info.download_info.sd_card_filename.arg = fn;
+
+						file_info.download_info.sha1.size = 20;
+
 						file_info.download_info.has_sha1 = !update_sha_file(path, fn, sha_file_get_sha, file_info.download_info.sha1.bytes, false );
 	            		if( file_info.download_info.has_sha1 ) {
 	            			file_info.download_info.sha1.size = SHA1_SIZE;
@@ -647,7 +636,7 @@ static void _on_file_sync_response_success( void * structdata)
 {
 	FileManifest* response_protobuf = (FileManifest*) structdata;
 
-	LOGF("_on_fs_response_success\r\n");
+	LOGF("--FILE SYNC SUCCESS--\r\n");
 
 	// TODO Might be more meaningful to have this in seconds
 	link_health.time_to_response = (xTaskGetTickCount() - message_sent_time) / configTICK_RATE_HZ /60; // in minutes
@@ -675,7 +664,7 @@ static void _on_file_sync_response_success( void * structdata)
 
 static void _on_file_sync_response_failure( )
 {
-    LOGF("_on_fs_response_failure\r\n");
+    LOGF("--FILE SYNC FAIL--\r\n");
 
     // Update default query delay ticks
 	query_delay_ticks = (QUERY_DELAY_DEFAULT*60*1000)/portTICK_PERIOD_MS;
@@ -716,7 +705,6 @@ static bool does_sha_file_exist(char* sha_path)
 	res = hello_fs_stat(sha_path,NULL);
 	if (res)
 	{
-		LOGI("DM: File doesnt exist %d\n", res);
 		return false;
 	}
 
@@ -884,6 +872,8 @@ uint32_t update_sha_file(char* path, char* original_filename, update_sha_t optio
 	if(get_complete_filename(sha_fullpath,sha_filename, path, PATH_BUF_MAX_SIZE))
 		return ~0;
 
+
+
 	// Check if SHA file exists
 	file_exists = (does_sha_file_exist(sha_fullpath)) ? true: false;
 
@@ -891,12 +881,16 @@ uint32_t update_sha_file(char* path, char* original_filename, update_sha_t optio
 	{
 		case sha_file_create:
 		{
+			// debug log for why function was called
+			LOGI("DM: SHA CREATE \n");
+
 			if(file_exists && !ovwr )
 			{
-				// File exists, no need to create
+				// File exists and overwrite flag is false,
+				// no need to update
 				return 0;
 			}
-			LOGI("DM: SHA update %s\n", sha_filename);
+			LOGI("DM: SHA create %s\n", sha_filename);
 			char full_path[PATH_BUF_MAX_SIZE];
 
 			// Get absolute path of original file
@@ -920,10 +914,13 @@ uint32_t update_sha_file(char* path, char* original_filename, update_sha_t optio
 
 		case sha_file_delete:
 		{
+			// debug log for why function was called
+			LOGI("DM: SHA DELETE \n");
+
 			if(file_exists)
 			{
 				// Delete exisiting SHA file
-				//LOGI("SHA file exists, will be deleted\n");
+				LOGI("SHA delete\n");
 				res = hello_fs_unlink(sha_fullpath);
 				if(res)
 				{
@@ -942,9 +939,12 @@ uint32_t update_sha_file(char* path, char* original_filename, update_sha_t optio
 
 		case sha_file_get_sha:
 		{
+			// debug log for why function was called
+			LOGI("DM: SHA BYTES GET \n");
+
 			if( !file_exists )
 			{
-				LOGE("DM: file doesn't exist\n");
+				LOGE("DM: file get sha fail\n");
 				return ~0;
 			}
 
@@ -976,7 +976,7 @@ uint32_t update_sha_file(char* path, char* original_filename, update_sha_t optio
 			}
 			else
 			{
-				LOGE("DM: Invalid ptr for SHA\n");
+				LOGE("DM: SHA get, invalid ptr\n");
 			}
 		}
 		break;
@@ -989,7 +989,7 @@ int cmd_file_sync_upload(int argc, char *argv[])
 {
 #ifdef DM_UPLOAD_CMD_ENABLED
 
-	LOGI("DM: File sync upload!\n");
+	LOGI("DM: --FILE SYNC UPLOAD!--\n");
 	xSemaphoreGive(_cli_upload_sem);
 #endif
 
@@ -1007,6 +1007,7 @@ static uint32_t sd_card_test(bool rw, uint8_t* ptr, filesystem_rw_func_t fs_rw_f
 	char filename[] = {"/test/test"};
 	uint32_t i;
 
+	/* OPEN TEST FILE FOR READ/WRITE */
 	open_flags = (rw) ? FA_READ : FA_CREATE_ALWAYS|FA_WRITE;
 
 	res = hello_fs_open(&fp,filename, open_flags);
@@ -1015,6 +1016,19 @@ static uint32_t sd_card_test(bool rw, uint8_t* ptr, filesystem_rw_func_t fs_rw_f
 		return res;
 	}
 
+	/* WRITE TEST DATA */
+	if(!rw)
+	{
+		uint32_t* data_ptr = (uint32_t*)ptr;
+
+		for(i=0;i<SD_BLOCK_SIZE/4;i++)
+		{
+			data_ptr[i] = test_code;
+
+		}
+	}
+
+	/* READ/WRITE TEST DATA */
 	// Perform a read/write
 	res = fs_rw_func(&fp, ptr,SD_BLOCK_SIZE, &bytes_transferred);
 	if (res) {
@@ -1022,6 +1036,7 @@ static uint32_t sd_card_test(bool rw, uint8_t* ptr, filesystem_rw_func_t fs_rw_f
 		return res;
 	}
 
+	/* READ TEST DATA */
 	if(rw)
 	{
 
@@ -1029,7 +1044,6 @@ static uint32_t sd_card_test(bool rw, uint8_t* ptr, filesystem_rw_func_t fs_rw_f
 
 		for(i=0;i<SD_BLOCK_SIZE/4;i++)
 		{
-
 			if(data_ptr[i] != test_code)
 			{
 				LOGE("DM read at %d: 0x%x\n",i, data_ptr[i]);
@@ -1047,6 +1061,7 @@ static uint32_t sd_card_test(bool rw, uint8_t* ptr, filesystem_rw_func_t fs_rw_f
     	return res;
     }
 
+    /* DELETE TEST FILE */
     // Delete file if this is a read
     if(rw)
 	{
