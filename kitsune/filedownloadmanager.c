@@ -590,7 +590,6 @@ bool encode_file_info (pb_ostream_t *stream, const pb_field_t *field, void * con
 
 	strncpy(path_buf,"/",PATH_BUF_MAX_SIZE);
 
-	total_file_count = 0;
 	return scan_files(path_buf, stream, field, arg);
 }
 
