@@ -882,7 +882,7 @@ uint32_t update_sha_file(char* path, char* original_filename, update_sha_t optio
 		case sha_file_create:
 		{
 			// debug log for why function was called
-			LOGI("DM: SHA CREATE \n");
+			//LOGI("DM: SHA CREATE \n");
 
 			if(file_exists && !ovwr )
 			{
@@ -915,7 +915,7 @@ uint32_t update_sha_file(char* path, char* original_filename, update_sha_t optio
 		case sha_file_delete:
 		{
 			// debug log for why function was called
-			LOGI("DM: SHA DELETE \n");
+			//LOGI("DM: SHA DELETE \n");
 
 			if(file_exists)
 			{
@@ -940,7 +940,7 @@ uint32_t update_sha_file(char* path, char* original_filename, update_sha_t optio
 		case sha_file_get_sha:
 		{
 			// debug log for why function was called
-			LOGI("DM: SHA BYTES GET \n");
+			//LOGI("DM: SHA BYTES GET \n");
 
 			if( !file_exists )
 			{
