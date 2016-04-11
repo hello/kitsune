@@ -13,8 +13,10 @@
 #include "hellofilesystem.h"
 #include <ustdlib.h>
 
+#include "crypto.h"
+
 //#define DM_TESTING
-//#define DM_UPLOAD_CMD_ENABLED
+#define DM_UPLOAD_CMD_ENABLED
 
 #define FILE_ERROR_QUEUE_DEPTH (10)		// ensure that this matches the max_count for error_info in file_manifest.options
 
@@ -26,37 +28,33 @@
 //From ff.f of fatfs TCHAR	fname[13];		/* Short file name (8.3 format) */
 #define MAX_FILENAME_SIZE		(13)
 
-#define FOLDERS_TO_EXCLUDE      (2)
+#define FOLDERS_TO_INCLUDE      (2)
 
-char* folders[FOLDERS_TO_EXCLUDE] = {"LOGS", "USR"};
+#define SD_BLOCK_SIZE		512
 
-typedef struct {
-	//File path
-	char path[PATH_BUF_MAX_SIZE];
+char* folders[FOLDERS_TO_INCLUDE] = {"SLPTONES", "RINGTONE"};
 
-	//Filename
-	char filename[MAX_FILENAME_SIZE];
-}file_list_t;
+typedef enum {
+	sha_file_create=0,
+	sha_file_delete,
+	sha_file_get_sha
+}update_sha_t;
 
-typedef struct {
+typedef FRESULT (*filesystem_rw_func_t)(FIL *, const void *,UINT ,UINT * );
 
-	file_list_t* ga_file_list;
-    uint32_t num_data;
-
-    // Indicates the number of files for which memory has been allocated.
-    // This refers to the number of files names that can be stored at ga_file_list
-    // This number is incremented whenever a realloc is done.
-    uint32_t allocated_file_list_size;
-
-} file_info_to_encode;
 
 #ifdef DM_UPLOAD_CMD_ENABLED
 // Semaphore to enable file_sync upload from cli
 static xSemaphoreHandle _cli_upload_sem = NULL;
 #endif
 
-// Holds the file info that will be encoded into pb
-static file_info_to_encode file_manifest_local;
+const uint32_t test_code = 0xAF50AF50;
+
+// Counter to periodically update existing SHA file for each whitelisted file
+// This done so that the SHA file has the latest SHA
+static uint32_t sha_calc_running_count = 0;
+
+static uint32_t total_file_count = 0;
 
 // Response received semaphore
 static xSemaphoreHandle _response_received_sem = NULL;
@@ -78,7 +76,7 @@ static uint32_t message_sent_time;
 TickType_t query_delay_ticks = (QUERY_DELAY_DEFAULT*60*1000)/portTICK_PERIOD_MS;
 
 // Global functions
-uint32_t update_sha_file(char* path, char* original_filename, update_sha_t option, uint8_t* sha );
+uint32_t update_sha_file(char* path, char* original_filename, update_sha_t option, uint8_t* sha, bool ovwr );
 bool _on_file_update(pb_istream_t *stream, const pb_field_t *field, void **arg);
 bool encode_file_info (pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
 
@@ -91,12 +89,12 @@ static void _on_file_sync_response_failure(void );
 static void get_file_download_status(FileManifest_FileStatusType* file_status);
 static void free_file_sync_info(FileManifest_FileDownload * download_info);
 static void restart_download_manager(void);
-static uint32_t update_file_manifest(void);
-static uint32_t scan_files(char* path);
-static int32_t compute_sha(char* path, char* sha_path);
+static bool scan_files(char* path, pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
+static int32_t sd_sha_verifynsave(const char * sha_truth, char* path, char* sha_path);
 static bool get_sha_filename(char* filename, char* sha_fn);
 static int get_complete_filename(char* full_path, char * local_fn, char* path, uint32_t len);
 static bool does_sha_file_exist(char* sha_path);
+static uint32_t sd_card_test(bool rw, uint8_t* ptr, filesystem_rw_func_t fs_rw_func);
 
 // extern functions
 bool send_to_download_queue(SyncResponse_FileDownload* data, TickType_t ticks_to_wait);
@@ -123,11 +121,18 @@ void downloadmanagertask_init(uint16_t stack_size)
 		_response_received_sem = xSemaphoreCreateBinary();
 	}
 
-	xTaskCreate(DownloadManagerTask, "downloadManagerTask", stack_size, NULL, 2, NULL);
 
-	file_manifest_local.ga_file_list = NULL;
+	// Create a folder for SD RW testing
+    if(hello_fs_stat("/test", NULL))
+	{
+    	FRESULT res = hello_fs_mkdir("/test");
+		if(res != FR_OK)
+		{
+			LOGE("DM: Err creating test folder\n");
+		}
+	}
 
-	file_manifest_local.allocated_file_list_size = 0;
+	xTaskCreate(DownloadManagerTask, "dmTask", stack_size, NULL, 2, NULL);
 
 #ifdef DM_UPLOAD_CMD_ENABLED
 	if(!_cli_upload_sem)
@@ -143,15 +148,20 @@ void update_file_download_status(bool is_pending)
 	xSemaphoreTake(_file_download_mutex, portMAX_DELAY);
 		file_download_status = (is_pending) ? FileManifest_FileStatusType_DOWNLOAD_PENDING:FileManifest_FileStatusType_DOWNLOAD_COMPLETED;
 	xSemaphoreGive(_file_download_mutex);
-
 }
+
+
 
 // Download Manager task
 static void DownloadManagerTask(void * filesyncdata)
 {
+#ifndef DM_UPLOAD_CMD_ENABLED
 	static TickType_t start_time;
+#endif
 	FileManifest_FileOperationError error_message;
 	FileManifest message_for_upload;
+
+	uint8_t* test_buf;
 
 	// init query delay - Set default delay of 15 minutes
 	query_delay_ticks = (QUERY_DELAY_DEFAULT*60*1000)/portTICK_PERIOD_MS;
@@ -173,8 +183,9 @@ static void DownloadManagerTask(void * filesyncdata)
     pb_cb.on_pb_failure = _on_file_sync_response_failure;
 
     // set current time
+#ifndef DM_UPLOAD_CMD_ENABLED
     start_time = xTaskGetTickCount();
-
+#endif
     //give sempahore with query delay as 15 minutes
     restart_download_manager();
 
@@ -193,20 +204,29 @@ static void DownloadManagerTask(void * filesyncdata)
 
 			memset(&message_for_upload,0,sizeof(FileManifest));
 
+			/* SCAN AND COMPUTE SHA FOR RANDOM FILE */
+			char path_buf[PATH_BUF_MAX_SIZE] = {0};
+
+			strncpy(path_buf,"/",PATH_BUF_MAX_SIZE);
+
+			total_file_count = 0;
+			scan_files(path_buf, NULL, NULL, NULL);
+
+			/* SD CARD TEST WRITE */
+			message_for_upload.sd_card_size.has_sd_card_failure = true;
+			test_buf = (uint8_t*) pvPortMalloc(SD_BLOCK_SIZE);
+			assert(test_buf);
+
+			if(sd_card_test(false, test_buf, hello_fs_write))
+			{
+				LOGE("DM: SD card write err\n");
+				message_for_upload.sd_card_size.sd_card_failure = true;
+			}
+
 			/* UPDATE FILE INFO */
 
 			message_for_upload.file_info.funcs.encode = encode_file_info;
-			message_for_upload.file_info.arg = &file_manifest_local;
-
-			// Scan through file system and update file manifest
-			uint32_t ret = update_file_manifest();
-			if(ret)
-			{
-				LOGE("Error creating file manifest: %d\n", ret);
-				message_for_upload.file_info.arg = NULL;
-			}
-
-
+			message_for_upload.file_info.arg = NULL;
 
 			/* UPDATE FILE STATUS - DOWNLOADED/PENDING */
 
@@ -241,7 +261,7 @@ static void DownloadManagerTask(void * filesyncdata)
 			message_for_upload.has_link_health = true;
 			message_for_upload.link_health = link_health;
 
-			LOGI("DM: link health %d errors and %d time to response\n",link_health.send_errors,link_health.time_to_response);
+			LOGI("DM: LH %d\n",link_health.send_errors);
 
 			/* UPDATE MEMORY INFO */
 
@@ -268,6 +288,16 @@ static void DownloadManagerTask(void * filesyncdata)
 
 			message_for_upload.sense_id.funcs.encode = encode_device_id_string;
 
+			/* SD CARD TEST READ */
+			memset(test_buf,0,SD_BLOCK_SIZE);
+			if(sd_card_test(true, test_buf, hello_fs_read))
+			{
+				LOGE("DM: SD card read err\n");
+				message_for_upload.sd_card_size.sd_card_failure = true;
+			}
+			vPortFree(test_buf);
+			test_buf = NULL;
+
 			/* SEND PROTOBUF */
 
 			message_sent_time = xTaskGetTickCount();
@@ -276,17 +306,14 @@ static void DownloadManagerTask(void * filesyncdata)
 					true, DATA_SERVER, FILE_SYNC_ENDPOINT, FileManifest_fields, &message_for_upload, 0, NULL, NULL, &pb_cb, false)
 					)
 			{
-				LOGI("DM: File manifest failed to upload \n");
+				LOGI("DM: Upload Fail \n");
 
 			}
 
-			vPortFree(file_manifest_local.ga_file_list);
-			file_manifest_local.ga_file_list = NULL;
-			file_manifest_local.allocated_file_list_size = 0;
-
-
+#ifndef DM_UPLOAD_CMD_ENABLED
 			// Update wake time
 			start_time = xTaskGetTickCount();
+#endif
 
 		}
 
@@ -330,7 +357,7 @@ bool _on_file_update(pb_istream_t *stream, const pb_field_t *field, void **arg)
 	// decode PB
 	if( !pb_decode(stream,FileManifest_File_fields,&file_info) )
 	{
-		LOGI("DM: file sync - parse fail \n" );
+		LOGI("DM: parse fail \n" );
 		free_file_sync_info( &file_info.download_info );
 		return false;
 	}
@@ -343,7 +370,7 @@ bool _on_file_update(pb_istream_t *stream, const pb_field_t *field, void **arg)
 			char full_path[PATH_BUF_MAX_SIZE];
 
 			// delete file
-			//LOGI("DM: delete file\n" );
+			LOGI("DM: delete file\n" );
 
 			// get complete filename
 			if( !get_complete_filename( \
@@ -356,7 +383,7 @@ bool _on_file_update(pb_istream_t *stream, const pb_field_t *field, void **arg)
 				res = hello_fs_unlink(full_path);
 				if(res)
 				{
-					LOGE("DM:delete unsuccessful %s\n",full_path );
+					LOGE("DM:file delete fail %s\n",full_path );
 				}
 			}
 
@@ -375,7 +402,16 @@ bool _on_file_update(pb_istream_t *stream, const pb_field_t *field, void **arg)
 			download_info.sd_card_path.arg = file_info.download_info.sd_card_path.arg;
 			download_info.sd_card_filename.arg = file_info.download_info.sd_card_filename.arg;
 			download_info.has_sha1 = file_info.download_info.has_sha1;
-			memcpy(&download_info.sha1, &file_info.download_info.sha1, sizeof(FileManifest_FileDownload_sha1_t));
+			memcpy(&download_info.sha1.bytes, &file_info.download_info.sha1.bytes, file_info.download_info.sha1.size);
+			download_info.sha1.size = file_info.download_info.sha1.size;
+
+#if DM_TESTING
+			LOGI("DM: download file sha %d, ", download_info.sha1.size );
+			int i;
+			for(i=0;i<download_info.sha1.size;++i) LOGI("%x:",download_info.sha1.bytes[i]);
+			LOGI("\n");
+#endif
+
 
 			if( !send_to_download_queue(&download_info,10) )
 			{
@@ -389,7 +425,7 @@ bool _on_file_update(pb_istream_t *stream, const pb_field_t *field, void **arg)
 	else
 	{
 		free_file_sync_info( &file_info.download_info );
-		//LOGI("DM: no file update\n" );
+		LOGI("DM: no file update\n" );
 
 	}
 
@@ -422,72 +458,139 @@ void free_file_sync_info(FileManifest_FileDownload * download_info)
 }
 
 
+static bool scan_files(char* path, pb_ostream_t *stream, const pb_field_t *field, void * const *arg)
+{
+    FileManifest_File file_info = {0};
+    FRESULT res;
+    FILINFO fno;
+    DIR dir;
+    int i;
+    int j;
+    char *fn;   /* This function assumes non-Unicode configuration */
+
+    res = hello_fs_opendir(&dir, path);                       /* Open the directory */
+    if (res == FR_OK) {
+        i = strlen(path);
+        for (;;) {
+
+            res = hello_fs_readdir(&dir, &fno);                   /* Read a directory item */
+        	//LOGI("readdir %s -- %d\n",fno.fname, res );
+            if (res != FR_OK || fno.fname[0] == 0) break;  /* Break on error or end of dir */
+            if (fno.fname[0] == '.') continue;             /* Ignore dot entry */
+
+            fn = fno.fname;
+            if (fno.fattrib & AM_DIR) {                    /* It is a directory */
+                //usnprintf(&path[i],PATH_BUF_MAX_SIZE * sizeof(char), "%s", fn);
+
+                for(j=0;j<FOLDERS_TO_INCLUDE;j++)
+                {
+                    if( !strcmp(fno.fname, folders[j]))
+                    {
+                    	LOGI("reading %s\n",fno.fname );
+                    	break;
+                    }
+
+                }
+
+                if(j==FOLDERS_TO_INCLUDE) {
+                	LOGI("skipping %s\n",fno.fname );
+                	continue;
+                }
+
+                strncat(&path[i],fn,PATH_BUF_MAX_SIZE-strlen(path));
+            	//LOGI("DM  recurse in dir %s/%s\n", path, fn);
+                res = (FRESULT)scan_files(path,stream,field,arg);
+            	//LOGI("DM  recurse ou dir %s/%s\n", path, fn);
+
+                path[i] = 0;
+                if (!res) break;
+            } else {                                       /* It is a file. */
+                // Skip if file is a sha file
+                if(!strstr(fn, ".SHA"))
+                {
+                	//LOGI("DM File found: %s/%s\n", path, fn, strlen(path), strlen(fn));
+
+            		if( stream == NULL ) {
+						vTaskDelay(50/portTICK_PERIOD_MS);
+
+						bool sha_ovwr = false;
+
+						sha_ovwr = (sha_calc_running_count == total_file_count) ? true : false;
+
+	            		total_file_count++;
+
+	            		if(update_sha_file(path,fn, sha_file_create,NULL, sha_ovwr ))
+						{
+							LOGE("DM: Error creating SHA\n");
+						}
+
+						vTaskDelay(50/portTICK_PERIOD_MS);
+            		} else {
+                   		file_info.has_delete_file = false;
+						file_info.has_download_info = true;
+						file_info.has_update_file = false;
+
+						file_info.download_info.sd_card_path.funcs.encode = _encode_string_fields;
+
+						// To remove the leading slash from path
+						file_info.download_info.sd_card_path.arg = path+1;
+
+						file_info.download_info.sd_card_filename.funcs.encode = _encode_string_fields;
+						file_info.download_info.sd_card_filename.arg = fn;
+
+						file_info.download_info.sha1.size = 20;
+
+						file_info.download_info.has_sha1 = !update_sha_file(path, fn, sha_file_get_sha, file_info.download_info.sha1.bytes, false );
+	            		if( file_info.download_info.has_sha1 ) {
+	            			file_info.download_info.sha1.size = SHA1_SIZE;
+#if DM_TESTING
+	            			int i;
+	            			LOGI("DM UPLOAD SHA ");
+	            			for(i=0;i<SHA1_SIZE;++i) LOGI("%x:",file_info.download_info.sha1.bytes[i]);
+	            			LOGI("\n");
+#endif
+	            		}
+
+						if(!pb_encode_tag_for_field(stream, field))
+						{
+							LOGI("DM: encode tag error %s\n", PB_GET_ERROR(stream));
+							return false;
+						}
+
+						if (!pb_encode_submessage(stream, FileManifest_File_fields, &file_info)){
+							LOGI("DM: encode error: %s\n", PB_GET_ERROR(stream));
+							return false;
+						}
+	                	//LOGI("DM File encoded: %s/%s\n", path, fn);
+            		}
+                }
+                else
+                {
+                	//LOGI("DM skipping File: %s/%s\n", path, fn, strlen(path), strlen(fn));
+                }
+
+            }
+            vTaskDelay(50/portTICK_PERIOD_MS);
+        }
+    	//LOGI("DM  closing dir %s/%s\n", path, fn);
+
+        hello_fs_closedir(&dir);
+
+
+    }
+
+    //LOGI("DM  closed dir \n");
+    return true;
+}
+
+
 bool encode_file_info (pb_ostream_t *stream, const pb_field_t *field, void * const *arg)
 {
+	char path_buf[PATH_BUF_MAX_SIZE] = {0};
 
-    int i;
-    file_info_to_encode * data = *(file_info_to_encode**)arg;
-    FileManifest_File file_info = {0};
+	strncpy(path_buf,"/",PATH_BUF_MAX_SIZE);
 
-    char path_local[PATH_BUF_MAX_SIZE];
-
-    if(!data)
-    {
-        file_info.has_delete_file = false;
-        file_info.has_download_info = false;
-        file_info.has_update_file = false;
-
-        if(!pb_encode_tag_for_field(stream, field))
-        {
-            LOGI("DM: encode tag error %s\n", PB_GET_ERROR(stream));
-            return false;
-        }
-
-        if (!pb_encode_submessage(stream, FileManifest_File_fields, &file_info)){
-            LOGI("DM: encode error: %s\n", PB_GET_ERROR(stream));
-            return false;
-        }
-    }
-    else
-    {
-		for( i = 0; i < data->num_data; ++i )
-		{
-
-			file_info.has_delete_file = false;
-			file_info.has_download_info = true;
-			file_info.has_update_file = false;
-
-			file_info.download_info.sd_card_path.funcs.encode = _encode_string_fields;
-
-			// To remove the leading slash from path
-			strncpy(path_local, &data->ga_file_list[i].path[1],PATH_BUF_MAX_SIZE);
-
-			file_info.download_info.sd_card_path.arg = path_local;
-
-			file_info.download_info.sd_card_filename.funcs.encode = _encode_string_fields;
-			file_info.download_info.sd_card_filename.arg = data->ga_file_list[i].filename;
-
-			file_info.download_info.has_sha1 = (!update_sha_file(data->ga_file_list[i].path, data->ga_file_list[i].filename,sha_file_get_sha, file_info.download_info.sha1.bytes ))?
-					true: false;
-
-			file_info.download_info.sha1.size = 20;
-
-			if(!pb_encode_tag_for_field(stream, field))
-			{
-				LOGI("DM: encode tag error %s\n", PB_GET_ERROR(stream));
-				return false;
-			}
-
-			if (!pb_encode_submessage(stream, FileManifest_File_fields, &file_info)){
-				LOGI("DM: encode error: %s\n", PB_GET_ERROR(stream));
-				return false;
-			}
-
-		}
-    }
-
-	return true;
-
+	return scan_files(path_buf, stream, field, arg);
 }
 
 bool add_to_file_error_queue(char* filename, int32_t err_code, bool write_error)
@@ -523,6 +626,8 @@ bool add_to_file_error_queue(char* filename, int32_t err_code, bool write_error)
 
 static void _free_file_sync_response(void * structdata)
 {
+	sha_calc_running_count = (++sha_calc_running_count) % total_file_count;
+
 	vPortFree( structdata );
 }
 
@@ -530,7 +635,7 @@ static void _on_file_sync_response_success( void * structdata)
 {
 	FileManifest* response_protobuf = (FileManifest*) structdata;
 
-	LOGF("_on_file_sync_response_success\r\n");
+	LOGF("--FILE SYNC SUCCESS--\r\n");
 
 	// TODO Might be more meaningful to have this in seconds
 	link_health.time_to_response = (xTaskGetTickCount() - message_sent_time) / configTICK_RATE_HZ /60; // in minutes
@@ -541,7 +646,7 @@ static void _on_file_sync_response_success( void * structdata)
 	{
 		query_delay_ticks = (response_protobuf->query_delay * 60 * 1000)/portTICK_PERIOD_MS;
 
-		LOGI("DM: Query delay %d\n", response_protobuf->query_delay);
+		//LOGI("DM: Query delay %d\n", response_protobuf->query_delay);
 	}
 	else
 	{
@@ -558,7 +663,7 @@ static void _on_file_sync_response_success( void * structdata)
 
 static void _on_file_sync_response_failure( )
 {
-    LOGF("_on_file_sync_response_failure\r\n");
+    LOGF("--FILE SYNC FAIL--\r\n");
 
     // Update default query delay ticks
 	query_delay_ticks = (QUERY_DELAY_DEFAULT*60*1000)/portTICK_PERIOD_MS;
@@ -592,118 +697,13 @@ static inline void restart_download_manager(void)
 	xSemaphoreGive(_response_received_sem);
 }
 
-static uint32_t update_file_manifest(void)
-{
-	uint32_t res;
-	char path_buf[PATH_BUF_MAX_SIZE] = {0};
-
-	strncpy(path_buf,"/",PATH_BUF_MAX_SIZE);
-
-	file_manifest_local.num_data = 0;
-	res = scan_files(path_buf);
-
-	LOGI("DM: File count: %d Allocated file count: %d\n", \
-			file_manifest_local.num_data, file_manifest_local.allocated_file_list_size);
-
-
-	return res;
-
-}
-
-static uint32_t scan_files(char* path)
-{
-    FRESULT res;
-    FILINFO fno;
-    DIR dir;
-    int i;
-    int j;
-    char *fn;   /* This function assumes non-Unicode configuration */
-
-    res = hello_fs_opendir(&dir, path);                       /* Open the directory */
-    if (res == FR_OK) {
-        i = strlen(path);
-        for (;;) {
-
-            res = hello_fs_readdir(&dir, &fno);                   /* Read a directory item */
-            if (res != FR_OK || fno.fname[0] == 0) break;  /* Break on error or end of dir */
-            if (fno.fname[0] == '.') continue;             /* Ignore dot entry */
-
-
-            for(j=0;j<FOLDERS_TO_EXCLUDE;j++)
-            {
-                if( !strcmp(fno.fname, folders[j]))
-                {
-                	LOGI("skipping %s\n",fno.fname );
-                	break;
-                }
-
-            }
-
-            if(j<FOLDERS_TO_EXCLUDE) continue;
-
-            fn = fno.fname;
-            if (fno.fattrib & AM_DIR) {                    /* It is a directory */
-                //usnprintf(&path[i],PATH_BUF_MAX_SIZE * sizeof(char), "%s", fn);
-
-                strncat(&path[i],fn,PATH_BUF_MAX_SIZE-strlen(path));
-                res = (FRESULT)scan_files(path);
-                path[i] = 0;
-                if (res != FR_OK) break;
-            } else {                                       /* It is a file. */
-                // Skip if file is a sha file
-                if(!strstr(fn, ".SHA"))
-                {
-                	//LOGI("DM File found: %s/%s\n", path, fn, strlen(path), strlen(fn));
-
-
-                	// Allocate memory if needed
-					if( ( file_manifest_local.allocated_file_list_size <= file_manifest_local.num_data ) ||
-							( !file_manifest_local.ga_file_list) )
-					{
-						file_manifest_local.allocated_file_list_size = ( file_manifest_local.allocated_file_list_size ) ?
-								file_manifest_local.allocated_file_list_size*2 : 2;
-
-						file_manifest_local.ga_file_list =
-								(file_list_t*)pvPortRealloc(file_manifest_local.ga_file_list, file_manifest_local.allocated_file_list_size * sizeof(file_list_t));
-					}
-
-					assert(file_manifest_local.ga_file_list);
-
-					// Copy path and filename
-					strncpy(file_manifest_local.ga_file_list[file_manifest_local.num_data].path, path, PATH_BUF_MAX_SIZE);
-					strncpy(file_manifest_local.ga_file_list[file_manifest_local.num_data].filename, fn, MAX_FILENAME_SIZE);
-
-					file_manifest_local.num_data++;
-
-					if(update_sha_file(path,fn, sha_file_create,NULL))
-					{
-						LOGE("DM: Error creating SHA\n");
-					}
-
-                }
-                else
-                {
-                	//LOGI("DM skipping File: %s/%s\n", path, fn, strlen(path), strlen(fn));
-                }
-
-            }
-            vTaskDelay(50/portTICK_PERIOD_MS);
-        }
-        hello_fs_closedir(&dir);
-    }
-
-    return res;
-}
-
 static bool does_sha_file_exist(char* sha_path)
 {
-	FILINFO info;
 	FRESULT res;
 
-	res = hello_fs_stat(sha_path, &info);
+	res = hello_fs_stat(sha_path,NULL);
 	if (res)
 	{
-		LOGI("DM: File doesnt exist %d\n", res);
 		return false;
 	}
 
@@ -711,14 +711,13 @@ static bool does_sha_file_exist(char* sha_path)
 
 }
 
-#include "crypto.h"
 
-static int32_t compute_sha(char* path, char* sha_path)
+static int32_t sd_sha_verifynsave(const char * sha_truth, char* path, char* sha_path)
 {
 #define minval( a,b ) a < b ? a : b
 
 	uint8_t sha[SHA1_SIZE] = { 0 };
-    static uint8_t buffer[128];
+    static uint8_t buffer[SD_BLOCK_SIZE];
     uint32_t bytes_to_read, bytes_read;
     uint32_t bytes_to_write = 0, bytes_written = 0;
     FIL fp = {0};
@@ -732,56 +731,79 @@ static int32_t compute_sha(char* path, char* sha_path)
     //LOGI( "computing SHA of %s\n", path);
     res = hello_fs_stat(path, &info);
     if (res) {
-        LOGE("DM: error getting file info %d\n", res);
+        LOGE("DM: f_stat %d\n", res);
         return -1;
     }
 
 
     res = hello_fs_open(&fp, path, FA_READ);
     if (res) {
-        LOGE("DM: error opening file for read %d\n", res);
+        LOGE("DM: f_open for read %d\n", res);
         return -1;
     }
 
     //compute sha
     bytes_to_read = info.fsize;
     while (bytes_to_read > 0) {
+		vTaskDelay(5/portTICK_PERIOD_MS);
+
 		res = hello_fs_read(&fp, buffer,(minval(sizeof(buffer),bytes_to_read)), &bytes_read);
 		if (res) {
-			LOGE("DM: error reading file %d\n", res);
+			LOGE("DM: f_read %d\n", res);
 			return -1;
 		}
 		SHA1_Update(&sha1ctx, buffer, bytes_read);
 		bytes_to_read -= bytes_read;
     }
+
     hello_fs_close(&fp);
     SHA1_Final(sha, &sha1ctx);
 
-    memset(&fp,0,sizeof(fp));
+    //compare
+    if(sha_truth){
+    	LOGI("SHA COMPARE\n");
+		if (memcmp(sha, sha_truth, SHA1_SIZE) != 0) {
+			LOGE("SD card file SHA did not match!\n");
+			//LOGI("Sha truth:      %02x ... %02x\r\n", sha_truth[0], sha_truth[SHA1_SIZE-1]);
+			//LOGI("Sha calculated: %02x ... %02x\r\n", sha[0], sha[SHA1_SIZE-1]);
+			return -1;
+		}
+    }
+
+
+	memset(&fp,0,sizeof(fp));
 
 	// Open for writing
 	res = hello_fs_open(&fp, sha_path, FA_CREATE_ALWAYS|FA_WRITE);
 	if (res) {
-		LOGE("DM: error opening file for write %d\n", res);
+		LOGE("DM: f_open for write %d\n", res);
 		return -1;
 	}
 
 	bytes_to_write = SHA1_SIZE;
+
+#if DM_TESTING
+	int i;
+	LOGI("DM SHA ");
+	for(i=0;i<SHA1_SIZE;++i) LOGI("%x:",sha[i]);
+	LOGI("\n");
+#endif
 
 	while(bytes_to_write > 0)
 	{
 		// Write SHA into it
 		res = hello_fs_write(&fp, sha,SHA1_SIZE, &bytes_written);
 		if (res) {
-			LOGE("DM: error reading file %d\n", res);
+			LOGE("DM: f_write %d\n", res);
 			return -1;
 		}
 
 		bytes_to_write -= bytes_written;
 	}
 
-    // Close file
-    hello_fs_close(&fp);
+	// Close file
+	hello_fs_close(&fp);
+
 
     return 0;
 }
@@ -793,7 +815,7 @@ static int32_t get_complete_filename(char* full_path, char * local_fn, char* pat
 	{
 		if(strlen(path) + strlen(local_fn) + 1 + 1 > len)
 		{
-			LOGI("DM: Resulting path name is too long\n");
+			LOGI("DM: name too long\n");
 			return -1;
 		}
 
@@ -834,7 +856,7 @@ static bool get_sha_filename(char* filename, char* sha_fn)
 }
 
 // TODO better name for function
-uint32_t update_sha_file(char* path, char* original_filename, update_sha_t option, uint8_t* sha)
+uint32_t update_sha_file(char* path, char* original_filename, update_sha_t option, uint8_t* sha, bool ovwr)
 {
 	char sha_filename[MAX_FILENAME_SIZE];
 	char sha_fullpath[PATH_BUF_MAX_SIZE];
@@ -849,6 +871,8 @@ uint32_t update_sha_file(char* path, char* original_filename, update_sha_t optio
 	if(get_complete_filename(sha_fullpath,sha_filename, path, PATH_BUF_MAX_SIZE))
 		return ~0;
 
+
+
 	// Check if SHA file exists
 	file_exists = (does_sha_file_exist(sha_fullpath)) ? true: false;
 
@@ -856,39 +880,57 @@ uint32_t update_sha_file(char* path, char* original_filename, update_sha_t optio
 	{
 		case sha_file_create:
 		{
-			if(file_exists)
+			// debug log for why function was called
+			//LOGI("DM: SHA CREATE \n");
+
+			if(file_exists && !ovwr )
 			{
-				// File exists, no need to create
+				// File exists and overwrite flag is false,
+				// no need to update
 				return 0;
 			}
+			LOGI("DM: SHA create %s\n", sha_filename);
 			char full_path[PATH_BUF_MAX_SIZE];
 
 			// Get absolute path of original file
 			if(get_complete_filename(full_path,original_filename, path, PATH_BUF_MAX_SIZE))
 				return ~0;
 
+			// start time
+			uint32_t time_for_sha = get_time();
 			// Compute and store SHA. This function overwrites an existing SHA file
-			compute_sha(full_path, sha_fullpath);
+			//compute_sha(full_path, sha_fullpath);
+			if(sd_sha_verifynsave((const char*)sha,full_path,sha_fullpath))
+			{
+				LOGE("DM: SHA verifynsave fail\n");
+				return 1;
+			}
+			// stop time
+			time_for_sha = get_time() - time_for_sha;
+			LOGI("DM %s sha_time=%d\n",original_filename,time_for_sha);
 		}
 		break;
 
 		case sha_file_delete:
 		{
+			// debug log for why function was called
+			//LOGI("DM: SHA DELETE \n");
+
 			if(file_exists)
 			{
 				// Delete exisiting SHA file
-				LOGI("SHA file exists, will be deleted\n");
+				LOGI("SHA delete\n");
 				res = hello_fs_unlink(sha_fullpath);
 				if(res)
 				{
-					LOGE("DM:delete unsuccessful %s\n",sha_fullpath );
+					LOGE("DM:delete fail %s\n",sha_fullpath );
 					return res;
 				}
 
 			}
 			else
 			{
-				LOGE("FM: No file %s to delete\n", sha_fullpath);
+				//LOGE("DM: No file %s to delete\n", sha_fullpath);
 
 			}
 		}
@@ -896,9 +938,12 @@ uint32_t update_sha_file(char* path, char* original_filename, update_sha_t optio
 
 		case sha_file_get_sha:
 		{
+			// debug log for why function was called
+			//LOGI("DM: SHA BYTES GET \n");
+
 			if( !file_exists )
 			{
-				LOGE("DM: Cannot return SHA, file does not exist\n");
+				LOGE("DM: file get sha fail\n");
 				return ~0;
 			}
 
@@ -930,7 +975,7 @@ uint32_t update_sha_file(char* path, char* original_filename, update_sha_t optio
 			}
 			else
 			{
-				LOGE("DM: Invalid ptr for SHA\n");
+				LOGE("DM: SHA get, invalid ptr\n");
 			}
 		}
 		break;
@@ -943,9 +988,85 @@ int cmd_file_sync_upload(int argc, char *argv[])
 {
 #ifdef DM_UPLOAD_CMD_ENABLED
 
-	LOGI("DM: File sync upload!\n");
+	LOGI("DM: --FILE SYNC UPLOAD!--\n");
 	xSemaphoreGive(_cli_upload_sem);
 #endif
 
 	return 0;
 }
+
+// rw = 0 (write), 1(read)
+static uint32_t sd_card_test(bool rw, uint8_t* ptr, filesystem_rw_func_t fs_rw_func)
+{
+
+	FRESULT res;
+	FIL fp = {0};
+	uint32_t bytes_transferred;
+	uint8_t open_flags = 0;
+	char filename[] = {"/test/test"};
+	uint32_t i;
+
+	/* OPEN TEST FILE FOR READ/WRITE */
+	open_flags = (rw) ? FA_READ : FA_CREATE_ALWAYS|FA_WRITE;
+
+	res = hello_fs_open(&fp,filename, open_flags);
+	if (res) {
+		LOGE("DM: test f_open fail %d\n", res);
+		return res;
+	}
+
+	/* WRITE TEST DATA */
+	if(!rw)
+	{
+		uint32_t* data_ptr = (uint32_t*)ptr;
+
+		for(i=0;i<SD_BLOCK_SIZE/4;i++)
+		{
+			data_ptr[i] = test_code;
+
+		}
+	}
+
+	/* READ/WRITE TEST DATA */
+	// Perform a read/write
+	res = fs_rw_func(&fp, ptr,SD_BLOCK_SIZE, &bytes_transferred);
+	if (res) {
+		LOGE("DM: test rw fail %d\n", res);
+		return res;
+	}
+
+	/* READ TEST DATA */
+	if(rw)
+	{
+
+		uint32_t* data_ptr = (uint32_t*)ptr;
+
+		for(i=0;i<SD_BLOCK_SIZE/4;i++)
+		{
+			if(data_ptr[i] != test_code)
+			{
+				LOGE("DM read at %d: 0x%x\n",i, data_ptr[i]);
+				return FR_RW_ERROR;
+			}
+
+		}
+
+
+	}
+
+    // Close file
+    hello_fs_close(&fp);
+    if(res){
+    	return res;
+    }
+
+    /* DELETE TEST FILE */
+    // Delete file if this is a read
+    if(rw)
+	{
+    	return (hello_fs_unlink(filename));
+	}
+
+    return FR_OK;
+}
+

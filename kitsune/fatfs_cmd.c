@@ -8,6 +8,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include "netcfg.h"
 #include "kit_assert.h"
 #include <stdint.h>
 #include "fatfs_cmd.h"
@@ -54,7 +55,6 @@
 
 #define MAX_BUFF_SIZE      1024
 
-static int32_t sd_sha1_verify(const char * sha_truth, const char * path);
 int sf_sha1_verify(const char * sha_truth, const char * serial_file_path);
 long bytesReceived = 0; // variable to store the file size
 static int dl_sock = -1;
@@ -888,7 +888,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 		}
 		// Open the file for writing.
 		res = hello_fs_open(&file_obj, path_buff,
-				FA_CREATE_ALWAYS | FA_WRITE | FA_OPEN_ALWAYS);
+				FA_CREATE_ALWAYS | FA_WRITE );
 		LOGI("res :%d\n", res);
 
 		if (res != FR_OK && res != FR_EXIST) {
@@ -1072,13 +1072,17 @@ int download_file(char * host, char * url, char * filename, char * path, storage
 	if (r < 0) {
 		ASSERT_ON_ERROR(-1);
 	}
+    LOGF("host %s\ndownload ip %d.%d.%d.%d\n",
+    			host,
+                SL_IPV4_BYTE(ip,3),
+                SL_IPV4_BYTE(ip,2),
+                SL_IPV4_BYTE(ip,1),
+                SL_IPV4_BYTE(ip,0));
 	//LOGI("download <host> <filename> <url>\n\r");
 	// Create a TCP connection to the Web Server
 	dl_sock = CreateConnection(ip);
-
 	if (dl_sock < 0) {
-		LOGF("Connection to server failed\n\r");
-		return -1;
+	    assert( !"Connection to server failed\n\r" );
 	} else {
 		LOGF("Connection to server created successfully\r\n");
 	}
@@ -1388,7 +1392,7 @@ typedef enum {
 	sha_file_get_sha
 }update_sha_t;
 void update_file_download_status(bool is_pending);
-uint32_t update_sha_file(char* path, char* original_filename, update_sha_t option, uint8_t* sha);
+uint32_t update_sha_file(char* path, char* original_filename, update_sha_t option, uint8_t* sha, bool ovwr);
 xQueueHandle download_queue = 0;
 
 void file_download_task( void * params ) {
@@ -1489,6 +1493,11 @@ void file_download_task( void * params ) {
 				// Set file download pending for download manager
 				update_file_download_status(true);
 
+				// Delete corresponding SHA file if exists
+				// delete before downloading the file, so that if the download fails midway,
+				// the device won't be left with a corrupt file and a valid sha file.
+				update_sha_file(path, filename, sha_file_delete,NULL, false );
+
 				while (download_file(host, url, filename, path, SD_CARD)
 						!= 0) {
 					if (++retries > 10) {
@@ -1497,7 +1506,6 @@ void file_download_task( void * params ) {
 				}
 
 				if (download_info.has_sha1) {
-
 
 					// SHA verify for SD card files
 					FRESULT res = FR_OK;
@@ -1518,15 +1526,11 @@ void file_download_task( void * params ) {
 
 					//LOGI("Path buf : %s \n", path_buff);
 
-					if( sd_sha1_verify((char *)download_info.sha1.bytes, path_buff)){
+					if( update_sha_file(path, filename, sha_file_create, download_info.sha1.bytes, true)){
 						LOGW("SD card download fail\r\n");
 						cd("/");
 						goto end_download_task;
 					}
-
-
-					// Delete corresponding SHA file if exists
-					update_sha_file(path, filename, sha_file_delete,NULL );
 
 					cd("/");
 					LOGI("SD card download success \r\n");
@@ -1735,57 +1739,3 @@ uint32_t get_free_space(uint32_t* free_space, uint32_t* total_mem)
 
 }
 
-// SHA1 verify for SD card files
-static int32_t sd_sha1_verify(const char * sha_truth, const char * path){
-    //compute the sha of the file..
-#define minval( a,b ) a < b ? a : b
-
-    uint8_t sha[SHA1_SIZE] = { 0 };
-    static uint8_t buffer[128];
-    uint32_t bytes_to_read, bytes_read;
-    FIL fp = {0};
-    FILINFO info;
-    FRESULT res;
-
-    SHA1_CTX sha1ctx;
-    SHA1_Init(&sha1ctx);
-
-    //fetch path info
-    //LOGI( "computing SHA of %s\n", path);
-    res = hello_fs_stat(path, &info);
-    if (res) {
-        LOGE("error getting file info %d\n", res);
-        return -1;
-    }
-
-    res = hello_fs_open(&fp, path, FA_READ);
-    if (res) {
-        LOGE("error opening file for read %d\n", res);
-        return -1;
-    }
-
-    //compute sha
-    bytes_to_read = info.fsize;
-    while (bytes_to_read > 0) {
-		res = hello_fs_read(&fp, buffer,(minval(sizeof(buffer),bytes_to_read)), &bytes_read);
-		if (res) {
-			LOGE("error reading file %d\n", res);
-			return -1;
-		}
-		SHA1_Update(&sha1ctx, buffer, bytes_read);
-		bytes_to_read -= bytes_read;
-    }
-    hello_fs_close(&fp);
-    SHA1_Final(sha, &sha1ctx);
-
-    //compare
-    if (memcmp(sha, sha_truth, SHA1_SIZE) != 0) {
-        LOGE("SD card file SHA did not match!\n");
-        LOGI("Sha truth:      %02x ... %02x\r\n", sha_truth[0], sha_truth[SHA1_SIZE-1]);
-        LOGI("Sha calculated: %02x ... %02x\r\n", sha[0], sha[SHA1_SIZE-1]);
-        return -1;
-    }
-
-    LOGI("SD card file SHA Match!\n");
-    return 0;
-}

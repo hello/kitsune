@@ -127,12 +127,12 @@ static void _sense_state_task(hlo_future_t * result, void * ctx){
 			LOGI("AudioState %s, %s\r\n", last_audio_state.playing_audio?"Playing":"Stopped", last_audio_state.file_path);
 			state_sent = NetworkTask_SendProtobuf(true, DATA_SERVER,
 							SENSE_STATE_ENDPOINT, SenseState_fields, &sense_state, 0,
-							NULL, NULL, NULL, false);
+							NULL, NULL, NULL, true);
 		}else if(!state_sent && wifi_status_get(HAS_IP)){
 			sense_state.audio_state = last_audio_state;
 			state_sent = NetworkTask_SendProtobuf(true, DATA_SERVER,
 										SENSE_STATE_ENDPOINT, SenseState_fields, &sense_state, 0,
-										NULL, NULL, NULL, false);
+										NULL, NULL, NULL, true);
 			backoff *= 2;
 			backoff = backoff > MAX_STATE_BACKOFF ?  MAX_STATE_BACKOFF : backoff;
 		}
@@ -141,6 +141,22 @@ static void _sense_state_task(hlo_future_t * result, void * ctx){
 		}
 	}
 }
+#include "state.pb.h"
+static bool _queue_audio_playback_state(bool is_playing, const char * fpath, uint32_t length){
+	AudioState ret = AudioState_init_default;
+
+	ret.playing_audio = is_playing;
+
+	if( fpath ) {
+		ret.has_duration_seconds = true;
+		ret.duration_seconds = length;
+
+		ret.has_file_path = true;
+		ustrncpy(ret.file_path, fpath, sizeof(ret.file_path));
+	}
+	return xQueueSend(_state_queue, &ret, 0);
+}
+
 
 static void Init(void) {
 	_isCapturing = 0;
@@ -170,6 +186,7 @@ static void Init(void) {
 	_state_queue =  xQueueCreate(INBOX_QUEUE_LENGTH,sizeof(AudioState));
 	hlo_future_create_task_bg(_sense_state_task, NULL, 1024);
 
+	_queue_audio_playback_state(false, NULL, 0);
 }
 
 static uint8_t CheckForInterruptionDuringPlayback(void) {
@@ -177,16 +194,19 @@ static uint8_t CheckForInterruptionDuringPlayback(void) {
 	uint8_t ret = 0x00;
 
 	/* Take a peak at the top of our queue.  If we get something that says stop, we stop  */
-	if (xQueuePeek(_queue,(void *)&m,0)) {
+	if (xQueueReceive(_queue,(void *)&m,0)) {
 
 		if (m.command == eAudioPlaybackStop) {
 			ret = FLAG_STOP;
 			LOGI("Stopping playback\r\n");
 		}
-		if (ret) {
-			xQueueReceive(_queue,(void *)&m,0); //pop this interruption off the queue
+		if (!ret) {
+			xQueueSendToFront(_queue, (void*)&m, 0);
 		}
-
+		if (m.command == eAudioPlaybackStart ) {
+			ret = FLAG_STOP;
+//			LOGI("Switching audio\r\n");
+		}
 	}
 
 	return ret;
@@ -215,20 +235,6 @@ static void _set_volume_task(hlo_future_t * result, void * ctx){
 	}
 	hlo_future_write(result, NULL, 0, 0);
 }
-#include "state.pb.h"
-static bool _queue_audio_playback_state(bool is_playing, const char * fpath, uint32_t length){
-	AudioState ret = AudioState_init_default;
-
-	ret.playing_audio = is_playing;
-
-	ret.has_duration_seconds = true;
-	ret.duration_seconds = length;
-
-	ret.has_file_path = true;
-	ustrncpy(ret.file_path, fpath, sizeof(ret.file_path));
-
-	return xQueueSend(_state_queue, &ret, 0);
-}
 
 
 bool add_to_file_error_queue(char* filename, int32_t err_code, bool write_error);
@@ -249,7 +255,6 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	portTickType t0;
 
 	static volatile unsigned long i2c_volume = 0;
-	unsigned int last_set=0;
 	unsigned int fade_counter=0;
 	unsigned int fade_time=0;
 	bool fade_in = true;
@@ -265,10 +270,9 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	if (!info || !info->file) {
 		LOGI("invalid playback info %s\n\r",info->file);
 		vPortFree(speaker_data);
+		_queue_audio_playback_state(false, info->file, info->durationInSeconds);
 		return returnFlags;
 	}
-
-	_queue_audio_playback_state(true, info->file, info->durationInSeconds);
 
 	if( fade_length != 0 ) {
 		i2c_volume = initial_volume = 1;
@@ -280,6 +284,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	if ( !InitAudioPlayback(initial_volume, info->rate ) ) {
 		LOGI("unable to initialize audio playback.  Probably not enough memory!\r\n");
 		vPortFree(speaker_data);
+		_queue_audio_playback_state(false, info->file, info->durationInSeconds);
 		return returnFlags;
 	}
 	LOGI("%d free %d stk\n", xPortGetFreeHeapSize(),  uxTaskGetStackHighWaterMark(NULL));
@@ -292,10 +297,12 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		LOGI("Failed to open audio file %s\n\r",info->file);
 		DeinitAudioPlayback();
 		vPortFree(speaker_data);
+		_queue_audio_playback_state(false, info->file, info->durationInSeconds);
 		return returnFlags;
 	}
 
 	memset(speaker_data,0,SPEAKER_DATA_CHUNK_SIZE);
+	_queue_audio_playback_state(true, info->file, info->durationInSeconds);
 
 	bool started = false;
 	//loop until either a) done playing file for specified duration or b) our message queue gets a message that tells us to stop
@@ -332,9 +339,8 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 						if(fade_out){
 							set_vol = fade_out_vol(fade_counter, volume, fade_length);
 						}
-						if ( set_vol != i2c_volume && (xTaskGetTickCount() - last_set) > 100 ) {
+						if ( set_vol != i2c_volume ) {
 							i2c_volume = set_vol;
-							last_set = xTaskGetTickCount();
 							hlo_future_destroy( hlo_future_create_task_bg(_set_volume_task, (void*)&i2c_volume, 512));
 						}
 					}
@@ -350,6 +356,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 						fade_length = info->fade_out_ms;
 						fade_counter = 0;
 						LOGI("start fadeout %d %d %d\n", volume, fade_length, fade_time);
+						_queue_audio_playback_state(false, info->file, info->durationInSeconds);
 					}
 				} else if( returnFlags) {
 					LOGI("stopping playback\n");
@@ -709,6 +716,7 @@ void AudioTask_StopPlayback(void) {
 	//send to front of queue so this message is always processed first
 	if (_queue) {
 		xQueueSendToFront(_queue,(void *)&m,0);
+		_queue_audio_playback_state(false, NULL, 0);
 	}
 }
 
@@ -722,6 +730,7 @@ void AudioTask_StartPlayback(const AudioPlaybackDesc_t * desc) {
 	//send to front of queue so this message is always processed first
 	if (_queue) {
 		xQueueSendToFront(_queue,(void *)&m,0);
+		_queue_audio_playback_state(true, desc->file, desc->durationInSeconds);
 	}
 }
 
@@ -735,18 +744,30 @@ void AudioTask_AddMessageToQueue(const AudioMessage_t * message) {
 void AudioTask_StartCapture(uint32_t rate) {
 	AudioMessage_t message;
 
+	if (_queue && xQueuePeek(_queue,&message,0)) {
+		if( message.command == eAudioCaptureTurnOn ) {
+			return;
+		}
+	}
 	//turn on
 	LOGI("mic on\r\n");
 	memset(&message,0,sizeof(message));
 	message.command = eAudioCaptureTurnOn;
 	message.message.capturedesc.rate = rate;
 	message.message.capturedesc.flags = 0;
+
 	AudioTask_AddMessageToQueue(&message);
 
 }
 
 void AudioTask_StopCapture(void) {
 	AudioMessage_t message;
+
+	if (_queue && xQueuePeek(_queue,&message,0)) {
+		if( message.command == eAudioCaptureTurnOff ) {
+			return;
+		}
+	}
 
 	LOGI("mic off\r\n");
 

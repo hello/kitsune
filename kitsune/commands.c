@@ -907,9 +907,8 @@ static void _on_wave(){
 }
 
 static void _on_hold(){
-	if(	cancel_alarm() ) {
-		stop_led_animation( 0, 33 );
-	}
+	stop_led_animation( 0, 33 );
+	cancel_alarm();
 	ble_proto_start_hold();
 }
 
@@ -1234,8 +1233,11 @@ void sample_sensor_data(periodic_data* data)
 		data->audio_peak_energy_db = aud_data.peak_energy;
 
 		data->has_audio_peak_disturbance_energy_db = true;
-		data->audio_peak_disturbance_energy_db = aud_data.peak_energy;
-
+		if( aud_data.num_disturbances ) {
+			data->audio_peak_disturbance_energy_db = aud_data.peak_energy;
+		} else {
+			data->audio_peak_disturbance_energy_db = aud_data.peak_background_energy;
+		}
 		//LOGI("Uploading audio %u %u %u\r\n",data->audio_num_disturbances, data->audio_peak_background_energy_db, data->audio_peak_disturbance_energy_db );
 	}
 
@@ -1772,8 +1774,8 @@ void launch_tasks() {
 	UARTprintf("*");
 	xTaskCreate(thread_tx, "txTask", 1536 / 4, NULL, 1, NULL);
 	UARTprintf("*");
-	long_poll_task_init( 4096 / 4 );
-	downloadmanagertask_init(4096 / 4);
+	long_poll_task_init( 3072 / 4 );
+	downloadmanagertask_init(3072 / 4);
 #endif
 }
 
@@ -2202,17 +2204,16 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("*");
 	SetupGPIOInterrupts();
 	CreateDefaultDirectories();
+	load_data_server();
 
 	xTaskCreate(AudioTask_Thread,"audioTask",3072/4,NULL,4,NULL);
-	UARTprintf("*");
-	init_download_task( 2048 / 4 );
+	init_download_task( 3072 / 4 );
 	networktask_init(4 * 1024 / 4);
 
 	load_serial();
 	load_aes();
 	load_device_id();
 	load_account_id();
-	load_data_server();
 	load_alarm();
 	pill_settings_init();
 	check_provision();
@@ -2254,6 +2255,7 @@ void vUARTTask(void *pvParameters) {
 
 		if (UARTPeek('\r') != -1) {
 			/* Read data from the UART and process the command line */
+			memset( cCmdBuf, 0, sizeof(cCmdBuf) );
 			UARTgets(cCmdBuf, sizeof(cCmdBuf));
 			if (ustrlen(cCmdBuf) == 0) {
 				LOGI("> ");

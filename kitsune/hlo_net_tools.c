@@ -183,6 +183,7 @@ close_rt:
 	http_free(&rt);
 close_sock:
 	close(sock);
+	sock = -1;
 	hlo_future_write(result,NULL,0,ret);
 	vPortFree(desc);
 }

@@ -216,24 +216,9 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
         break;
     }
 }
-
-static void bad_wifi_password( void * params ) {
-	sl_WlanDisconnect();
-	ble_reply_protobuf_error(ErrorType_BAD_WIFI_PASSWORD);
-
-	vTaskDelete(NULL);
-}
-
-
 void SimpleLinkGeneralEventHandler(SlDeviceEvent_t *pDevEvent)
 {
-	LOGI("GENEVT ID=%d Sender=%d\n", pDevEvent->EventData.deviceEvent.status,
-			pDevEvent->EventData.deviceEvent.sender);
-
-	if (pDevEvent->EventData.deviceEvent.status
-			== SL_ERROR_CON_MGMT_STATUS_DISCONNECT_DURING_CONNECT) {
-		xTaskCreate(bad_wifi_password, "bad_wifi_password", 1024 / 4, NULL, 1, NULL);
-	}
+LOGI("GENEVT ID=%d Sender=%d\n",pDevEvent->EventData.deviceEvent.status, pDevEvent->EventData.deviceEvent.sender);
 }
 //****************************************************************************
 //
@@ -1135,6 +1120,7 @@ int start_connection(int * sock, char * host, security_type sec) {
 
     if (*sock < 0) {
         if( sec == SOCKET_SEC_SSL ) {
+        	wait_for_time(WAIT_FOREVER);
 			*sock = socket(AF_INET, SOCK_STREAM, SL_SEC_SOCKET);
 
 			LOGI("SSL\n");
@@ -1159,67 +1145,68 @@ int start_connection(int * sock, char * host, security_type sec) {
         }
     }
 
-	tv.tv_sec = 2;             // Seconds
-	tv.tv_usec = 0;           // Microseconds. 10000 microseconds resolution
-	setsockopt(*sock, SOL_SOCKET, SL_SO_RCVTIMEO, &tv, sizeof(tv)); // Enable receive timeout
-
-    SlSockNonblocking_t enableOption;
-    enableOption.NonblockingEnabled = 1;
-    sl_SetSockOpt(*sock,SL_SOL_SOCKET,SL_SO_NONBLOCKING, (_u8 *)&enableOption,sizeof(enableOption)); // Enable/disable nonblocking mode
-
     if (*sock < 0) {
         LOGI("Socket create failed %d\n\r", *sock);
         return -1;
     }
 
-#if !LOCAL_TEST
-	if (!(rv = gethostbyname((_i8*)host, strlen(host), &ipaddr, SL_AF_INET))) {
-		 LOGI("Get Host IP succeeded.\n\rHost: %s IP: %d.%d.%d.%d \n\r\n\r",
-				 host, SL_IPV4_BYTE(ipaddr, 3), SL_IPV4_BYTE(ipaddr, 2),
-			   SL_IPV4_BYTE(ipaddr, 1), SL_IPV4_BYTE(ipaddr, 0));
-		ble_reply_wifi_status(wifi_connection_state_DNS_RESOLVED);
-	} else {
-		LOGI("failed to resolves addr rv %d\n", rv);
-		ble_reply_wifi_status(wifi_connection_state_DNS_FAILED);
-		return stop_connection(sock);
-	}
-
-    sAddr.sa_family = AF_INET;
-    // the source port
-    if( sec == SOCKET_SEC_SSL ) {
-		sAddr.sa_data[0] = 1;    //port 443, ssl
-		sAddr.sa_data[1] = 0xbb; //port 443, ssl
-    } else {
-    	sAddr.sa_data[0] = 0;  //port 80, http
-		sAddr.sa_data[1] = 80; //port 80, http
-    }
-    sAddr.sa_data[2] = (char) ((ipaddr >> 24) & 0xff);
-    sAddr.sa_data[3] = (char) ((ipaddr >> 16) & 0xff);
-    sAddr.sa_data[4] = (char) ((ipaddr >> 8) & 0xff);
-    sAddr.sa_data[5] = (char) (ipaddr & 0xff);
-#else
-
-    sAddr.sa_family = AF_INET;
-    // the source port
-    sAddr.sa_data[0] = 0;//0xf;
-    sAddr.sa_data[1] = 80;//0xa0; //4k
-    sAddr.sa_data[2] = (char) () & 0xff);
-    sAddr.sa_data[3] = (char) () & 0xff);
-    sAddr.sa_data[4] = (char) () & 0xff);
-    sAddr.sa_data[5] = (char) () & 0xff);
-
-#endif
     //connect it up
     //LOGI("Connecting \n\r\n\r");
-    retry_connect:
-    if (*sock > 0 && sock_begin < 0 && (rv = connect(*sock, &sAddr, sizeof(sAddr)))) {
-    	if( rv == SL_EALREADY ) {
-    		vTaskDelay(100);
-    		goto retry_connect;
-    	}
-    	ble_reply_socket_error(rv);
-    	LOGI("Could not connect %d\n\r\n\r", rv);
-		return stop_connection(sock);
+    if (*sock > 0 && sock_begin < 0) {
+    	tv.tv_sec = 2;             // Seconds
+    	tv.tv_usec = 0;           // Microseconds. 10000 microseconds resolution
+    	setsockopt(*sock, SOL_SOCKET, SL_SO_RCVTIMEO, &tv, sizeof(tv)); // Enable receive timeout
+
+        SlSockNonblocking_t enableOption;
+        enableOption.NonblockingEnabled = 1;
+        sl_SetSockOpt(*sock,SL_SOL_SOCKET,SL_SO_NONBLOCKING, (_u8 *)&enableOption,sizeof(enableOption)); // Enable/disable nonblocking mode
+
+		#if !LOCAL_TEST
+			if (!(rv = gethostbyname((_i8*)host, strlen(host), &ipaddr, SL_AF_INET))) {
+				 LOGI("Get Host IP succeeded.\n\rHost: %s IP: %d.%d.%d.%d \n\r\n\r",
+						 host, SL_IPV4_BYTE(ipaddr, 3), SL_IPV4_BYTE(ipaddr, 2),
+					   SL_IPV4_BYTE(ipaddr, 1), SL_IPV4_BYTE(ipaddr, 0));
+				ble_reply_wifi_status(wifi_connection_state_DNS_RESOLVED);
+			} else {
+				LOGI("failed to resolves addr rv %d\n", rv);
+				ble_reply_wifi_status(wifi_connection_state_DNS_FAILED);
+				return stop_connection(sock);
+			}
+
+			sAddr.sa_family = AF_INET;
+			// the source port
+			if( sec == SOCKET_SEC_SSL ) {
+				sAddr.sa_data[0] = 1;    //port 443, ssl
+				sAddr.sa_data[1] = 0xbb; //port 443, ssl
+			} else {
+				sAddr.sa_data[0] = 0;  //port 80, http
+				sAddr.sa_data[1] = 80; //port 80, http
+			}
+			sAddr.sa_data[2] = (char) ((ipaddr >> 24) & 0xff);
+			sAddr.sa_data[3] = (char) ((ipaddr >> 16) & 0xff);
+			sAddr.sa_data[4] = (char) ((ipaddr >> 8) & 0xff);
+			sAddr.sa_data[5] = (char) (ipaddr & 0xff);
+		#else
+
+			sAddr.sa_family = AF_INET;
+			// the source port
+			sAddr.sa_data[0] = 0;//0xf;
+			sAddr.sa_data[1] = 80;//0xa0; //4k
+			sAddr.sa_data[2] = (char) () & 0xff);
+			sAddr.sa_data[3] = (char) () & 0xff);
+			sAddr.sa_data[4] = (char) () & 0xff);
+			sAddr.sa_data[5] = (char) () & 0xff);
+
+		#endif
+		do {
+			rv = connect(*sock, &sAddr, sizeof(sAddr));
+			vTaskDelay(100);
+		} while( rv == SL_EALREADY );
+		if( rv < 0 ) {
+			ble_reply_socket_error(rv);
+			LOGI("Could not connect %d\n\r\n\r", rv);
+			return stop_connection(sock);
+		}
     }
  	ble_reply_wifi_status(wifi_connection_state_SOCKET_CONNECTED);
     return 0;
@@ -1733,7 +1720,7 @@ int send_data_pb( char* host, const char* path, char ** recv_buf_ptr,
 			pb_cb->free_reply_pb( reply_structdata );
 		}
     } else {
-    	return http_response_ok((char*)recv_buf);
+    	return http_response_ok((char*)recv_buf); //<- todo make non-200 from endpoints we don't have callbacks for close the socket
     }
     return stop_connection(sock);
     }
@@ -1788,6 +1775,7 @@ bool get_device_id(char * hex_device_id,uint32_t size_of_device_id_buffer) {
 		return false;
 	}
 
+    load_device_id();
 	memset(hex_device_id, 0, size_of_device_id_buffer);
 
 	for(i = 0; i < DEVICE_ID_SZ; i++){
@@ -2642,10 +2630,12 @@ static void serv(int port, volatile int * connection_socket, int (*cb)(volatile 
 		SVR_LOGI( "SVR: bind\n");
 		if ( bind(sock, &local_addr, sizeof(local_addr)) < 0) {
 			close(sock);
+			sock = -1;
 			continue;
 		} SVR_LOGI( "SVR: listen\n");
 		if ( listen(sock, 0) < 0) {
 			close(sock);
+			sock = -1;
 			continue;
 		}
 
@@ -2725,6 +2715,7 @@ static void serv(int port, volatile int * connection_socket, int (*cb)(volatile 
 		SVR_LOGI( "SVR: lost sock\n");
 		*connection_socket = -1;
 		close(sock);
+		sock = -1;
 		vPortFree(buf);
 		vPortFree(linebuf);
 	}
