@@ -281,30 +281,30 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 		LOGI("start fade in %d\n", fade_time);
 	}
 
-	if ( !InitAudioPlayback(initial_volume, info->rate ) ) {
-		LOGI("unable to initialize audio playback.  Probably not enough memory!\r\n");
-		vPortFree(speaker_data);
-		_queue_audio_playback_state(false, info->file, info->durationInSeconds);
-		return returnFlags;
-	}
-	LOGI("%d free %d stk\n", xPortGetFreeHeapSize(),  uxTaskGetStackHighWaterMark(NULL));
-
 	//open file for playback
 	LOGI("Opening %s for playback\r\n",info->file);
 	res = hello_fs_open(&fp, info->file, FA_READ);
 
 	if (res != FR_OK) {
-		LOGI("Failed to open audio file %s\n\r",info->file);
-		DeinitAudioPlayback();
+		LOGE("Failed to open audio file %s\n\r",info->file);
 		vPortFree(speaker_data);
 		_queue_audio_playback_state(false, info->file, info->durationInSeconds);
 		return returnFlags;
 	}
+	bool started = false;
+
+	if ( !InitAudioPlayback(initial_volume, info->rate ) ) {
+		LOGE("unable to initialize audio playback!\r\n");
+		vPortFree(speaker_data);
+		DeinitAudioPlayback();
+		_queue_audio_playback_state(false, info->file, info->durationInSeconds);
+		return returnFlags;
+	}
+	LOGI("%d free %d stk\n", xPortGetFreeHeapSize(),  uxTaskGetStackHighWaterMark(NULL));
 
 	memset(speaker_data,0,SPEAKER_DATA_CHUNK_SIZE);
 	_queue_audio_playback_state(true, info->file, info->durationInSeconds);
 
-	bool started = false;
 	//loop until either a) done playing file for specified duration or b) our message queue gets a message that tells us to stop
 	for (; ;) {
 		/* Read always in block of 512 Bytes or less else it will stuck in hello_fs_read() */
@@ -365,14 +365,24 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 					LOGI("completed playback\n");
 					goto cleanup;
 				}
-				if( !ulTaskNotifyTake( pdTRUE, 5000 ) ) {
-					goto cleanup;
+				if( !ulTaskNotifyTake( pdTRUE, 40 ) ) {
+					LOGW("AUDIO REINIT");
+					Audio_Stop();
+					if ( !InitAudioPlayback(i2c_volume, info->rate ) ) {
+						LOGE("unable to initialize audio playback!\r\n");
+						goto cleanup;
+					}
+					Audio_Start();
+					LOGW(" DONE\n");
 				}
 			}
 
 			FillBuffer(pRxBuffer, (unsigned char*) (speaker_data), size);
 		}
 		else {
+			if( res != 0 ) {
+				LOGE("FSERR %d\n", res);
+			}
 			if( desired_ticks_elapsed - (xTaskGetTickCount() - t0) > 0 && desired_ticks_elapsed > 0 ) {
 				//LOOP THE FILE -- start over
 				LOGI("looping %d\n", desired_ticks_elapsed - (xTaskGetTickCount() - t0)  );
