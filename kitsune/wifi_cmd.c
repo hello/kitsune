@@ -1102,6 +1102,8 @@ void LOGIFaults() {
 int stop_connection(int * sock) {
     close(*sock);
     *sock = -1;
+    //NWP requires some time to come to terms with the disconnect...
+    vTaskDelay(1000);
     return *sock;
 }
 
