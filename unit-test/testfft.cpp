@@ -193,11 +193,16 @@ static Segment_t _myseg;
 
 static int16_t _mfcc[NUM_AUDIO_FEATURES];
 
-static void AudioFeatCallback(int64_t samplecount, const AudioFeatures_t * feats) {
+static void AudioFeatCallback(const AudioFeatures_t * pfeats) {
     //memcpy(&_myseg,pSegment,sizeof(Segment_t));
     //memcpy(_mfcc,feats,sizeof(_mfcc));
     
 }
+
+static void AudioFeatCallbackOncePerMinute (const AudioOncePerMinuteData_t * pdata) {
+    
+}
+
 
 TEST_F(TestFrequencyFeatures,TestMel) {
     int i,ichunk;
@@ -211,7 +216,7 @@ TEST_F(TestFrequencyFeatures,TestMel) {
 	printf("EXPECT: t1=%d,t2=%d,energy=something not zero\n",43,86);
     
     
-	AudioFeatures_Init(AudioFeatCallback);
+	AudioFeatures_Init(AudioFeatCallback,AudioFeatCallbackOncePerMinute);
     
 	//still ---> white random noise ---> still
 	for (ichunk = 0; ichunk < 43*8; ichunk++) {
@@ -244,7 +249,7 @@ TEST_F(TestFrequencyFeatures,TestMel2) {
     srand(0);
     
     
-    AudioFeatures_Init(AudioFeatCallback);
+    AudioFeatures_Init(AudioFeatCallback,AudioFeatCallbackOncePerMinute);
 #define amplitude (2)
     //still ---> white random noise ---> still
     for (ichunk = 0; ichunk < 43*100; ichunk++) {
