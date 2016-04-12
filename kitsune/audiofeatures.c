@@ -4,8 +4,13 @@
 #include <stdlib.h>     /* abs */
 #include "debugutils/debuglog.h"
 #include <stdio.h>
-#include "uart_logger.h"
 #include "hellomath.h"
+
+#ifdef USED_ON_DESKTOP
+#define LOGA(...)
+#else
+#include "uart_logger.h"
+#endif
 
 /*
    How is this all going to work? 
