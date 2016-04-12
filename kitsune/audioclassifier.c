@@ -244,9 +244,8 @@ void AudioClassifier_DataCallback( AudioFeatures_t * pfeats) {
     
     /* 
      
-       Data comes in, and if it doesn't pass the energy threshold for being interesting, we don't save it off.
-       
-       Meanwhile, we keep a running circular buffer.
+       Data comes in, and we save it to a circular buffer.
+       Classification is disabled for now
      
      */
     
@@ -273,11 +272,10 @@ void AudioClassifier_DataCallback( AudioFeatures_t * pfeats) {
         _buffer.numincoming++;
     }
     
-    //determine if anything interesting happend, energy-wise
-    if (pfeats->logenergyOverBackroundNoise > MIN_CLASSIFICATION_ENERGY ) {
-        _buffer.isThereAnythingInteresting = true;
-        _buffer.isWorthClassifying = true;
-    }
+    //everything is interesting
+    _buffer.isThereAnythingInteresting = true;
+    _buffer.isWorthClassifying = false; //don't classify anything for now
+    
     
     //if something interesting happend and the circular buffer is full
     //dump it to storage

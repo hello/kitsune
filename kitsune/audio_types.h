@@ -55,7 +55,6 @@ typedef struct {
 typedef struct {
 	int64_t samplecount;
     int16_t logenergy;
-    int16_t logenergyOverBackroundNoise;
     int8_t feats4bit[NUM_AUDIO_FEATURES];
 } AudioFeatures_t;
     
