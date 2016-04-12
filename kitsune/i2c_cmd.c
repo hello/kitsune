@@ -987,18 +987,21 @@ int32_t codec_init(void)
 	// Check if header is valid
 	if(sl_FsRead(hndl, offset, (_u8 *)codec_file_header, sizeof(codec_file_header)) <= 0)
 	{
-		goto codec_file_fail;
+		sl_FsClose(hndl, 0, 0, 0);
+		return -1;
 	}
 	if(codec_file_header != 0xA508A509)
 	{
 		LOGE("Codec: Driver header incorrect %d\n", codec_file_header);
-		goto codec_file_fail;
+		sl_FsClose(hndl, 0, 0, 0);
+		return -1;
 	}
 
 	offset +=4;
 	if(sl_FsRead(hndl, offset, (_u8 *)codec_file_version, sizeof(codec_file_version)) <= 0)
 	{
-		goto codec_file_fail;
+		sl_FsClose(hndl, 0, 0, 0);
+		return -1;
 	}
 
 	// Display codec version
@@ -1017,7 +1020,11 @@ int32_t codec_init(void)
 	while((bytes_read=sl_FsRead(hndl, offset, (_u8 *)codec_program, sizeof(FILE_READ_BLOCK))) > 0)
 	{
 		// The number of bytes read must always be even. If it is not, we have a problem!
-		if(bytes_read%2) goto codec_file_fail;
+		if(bytes_read%2)
+		{
+			sl_FsClose(hndl, 0, 0, 0);
+			return -1;
+		}
 
 		for(i=0;i<bytes_read/2;i++)
 		{
@@ -1040,9 +1047,6 @@ int32_t codec_init(void)
 	sl_FsClose(hndl, 0, 0, 0);
 
 	return 0;
-
-codec_file_fail:
-	return -1;
 
 }
 
