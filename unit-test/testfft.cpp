@@ -225,9 +225,11 @@ TEST_F(TestFrequencyFeatures,TestMel) {
         AudioFeatures_SetAudioData(x,icount++);
     }
 
+    int64_t featsum[NUM_AUDIO_FEATURES];
+    memset(featsum,0,sizeof(featsum));
     //noise
     int64_t lastSampleCount = _feats.samplecount;
-	for (ichunk = 0; ichunk < 100; ichunk++) {
+	for (ichunk = 0; ichunk < 10000; ichunk++) {
         for (i = 0; i < 1024; i++) {
             x[i] = (rand() % 32767) - (1<<14);
         }
@@ -238,15 +240,22 @@ TEST_F(TestFrequencyFeatures,TestMel) {
         //check range
         if (lastSampleCount != _feats.samplecount) {
             for (int i = 0; i < NUM_AUDIO_FEATURES; i++) {
-                ASSERT_TRUE(_feats.feats4bit[i] >= -8);
+                ASSERT_TRUE(_feats.feats4bit[i] >= -7);
                 ASSERT_TRUE(_feats.feats4bit[i] <= 7);
+                featsum[i] += _feats.feats4bit[i];
             }
             ASSERT_TRUE(_feats.logenergy > 0);
+            
         }
         
         lastSampleCount = _feats.samplecount;
         
 	}
+    
+    //test flatness
+    for (i = 0; i < NUM_AUDIO_FEATURES; i++) {
+        ASSERT_TRUE(std::abs(featsum[i])/100 < 10);
+    }
   
 }
 

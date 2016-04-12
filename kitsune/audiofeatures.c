@@ -583,7 +583,19 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int64_t samplecount) {
         //scale down to 4 bit numbers
         for (i = 0; i < NUM_AUDIO_FEATURES; i++) {
             temp32 = featvec[i];
-            temp32 >>= 4;
+            
+            //we do this to never get -8,
+            // as -127 / 16 = -8
+            // and 127 / 16 = 7
+            // not quite what we expected!
+            if (featvec[i] < 0) {
+                temp32 = (-featvec[i]) >> 4;
+                temp32 = -temp32;
+            }
+            else {
+                temp32 = featvec[i] >> 4;
+            }
+            
             _data.feats.feats4bit[i] = (int8_t)temp32;
         }
 
