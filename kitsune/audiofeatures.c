@@ -458,7 +458,7 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int64_t samplecount) {
     int16_t fr[AUDIO_FFT_SIZE]; //512K
     int16_t fi[AUDIO_FFT_SIZE]; //512K
     int16_t psd[PSD_SIZE];
-    int16_t dc;
+    int32_t dc;
     
     uint16_t i,j;
     uint8_t log2scaleOfRawSignal;
@@ -532,13 +532,23 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int64_t samplecount) {
         fr[i] = psd[i] - _data.lpfbuf[i];
     }
     
+    //remove mean of PSD before taking DCT
+    dc = 0;
+    for (i = 0; i < PSD_SIZE; i++) {
+        dc += fr[i];
+    }
+    
+    dc >>= PSD_SIZE_2N;
+    
+    for (i = 0; i < PSD_SIZE; i++) {
+        fr[i] -= (int16_t)dc;
+    }
+    
     DEBUG_LOG_S16("psd", NULL, fr, PSD_SIZE, samplecount, samplecount);
     
     //fft of 2^8 --> 256
     dct(fr,fi,PSD_SIZE_2N);
-    dc = fr[0];
     
-    DEBUG_LOG_S16("dc",NULL,&dc,1,samplecount,samplecount);
     //here they are
     for (j = 0; j < NUM_AUDIO_FEATURES; j++) {
         mfcc[j] = fr[j+1];
@@ -582,7 +592,6 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int64_t samplecount) {
         temp32 = _data.lastEnergy + logTotalEnergy;
         temp32 >>= 1;
         _data.feats.logenergy = (int16_t)temp32;
-        _data.feats.logenergyOverBackroundNoise = dc;
         
         //log this only when energy is significant
         if (dc > MIN_CLASSIFICATION_ENERGY) {
