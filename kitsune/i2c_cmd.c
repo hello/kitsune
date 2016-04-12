@@ -946,6 +946,8 @@ int close_codec_NAU(int argc, char *argv[]) {
 
 
 // TODO DKH audio functions
+#include "simplelink.h"
+#include "sl_sync_include_after_simplelink_header.h"
 
 static void codec_sw_reset(void);
 static void codec_fifo_config(void);
@@ -957,28 +959,102 @@ static void codec_speaker_config(void);
 static void codec_minidsp_a_config(void);
 static void codec_minidsp_d_config(void);
 
-void codec_init(void)
+#define CODEC_DRIVER_FILE "/sys/codec_driver"
+#define FILE_READ_BLOCK 128
+
+int32_t codec_init(void)
 {
-	codec_sw_reset();
+    _i32 hndl;
+    unsigned long ulToken = 0;
+    uint32_t codec_file_header = 0;
+    uint32_t codec_file_version=0;
+    uint8_t* codec_program = NULL;
+    uint32_t offset;
+    uint32_t i;
+    uint32_t bytes_read = 0;
 
-	codec_fifo_config();
+    codec_program = pvPortMalloc(FILE_READ_BLOCK);
+    assert(codec_program);
 
-	codec_power_config();
+	// Read codec file from flash
+	if (sl_FsOpen((unsigned char *)CODEC_DRIVER_FILE, FS_MODE_OPEN_READ, &ulToken, &hndl))
+	{
+		LOGI("Codec: error opening file\n");
+		return -1;
+	}
 
-	codec_clock_config();
+	offset=0;
+	// Check if header is valid
+	if(sl_FsRead(hndl, offset, (_u8 *)codec_file_header, sizeof(codec_file_header)) <= 0)
+	{
+		goto codec_file_fail;
+	}
+	if(codec_file_header != 0xA508A509)
+	{
+		LOGE("Codec: Driver header incorrect %d\n", codec_file_header);
+		goto codec_file_fail;
+	}
 
-	codec_asi_config();
+	offset +=4;
+	if(sl_FsRead(hndl, offset, (_u8 *)codec_file_version, sizeof(codec_file_version)) <= 0)
+	{
+		goto codec_file_fail;
+	}
 
-	codec_signal_processing_config();
+	// Display codec version
+	LOGI("Codec: Driver version %d\n", codec_file_version);
 
-	codec_speaker_config();
+	// Read data into buffer and program codec
 
-	codec_minidsp_a_config();
+	/*
+	 * NOTE: block I2c write is not possible since the registers are not contiguous in the codec code.
+	 * Two bytes need to be taken at a time and then written
+	 */
 
-	codec_minidsp_d_config();
 
+	offset += 4;
+
+	while((bytes_read=sl_FsRead(hndl, offset, (_u8 *)codec_program, sizeof(FILE_READ_BLOCK))) > 0)
+	{
+		// The number of bytes read must always be even. If it is not, we have a problem!
+		if(bytes_read%2) goto codec_file_fail;
+
+		for(i=0;i<bytes_read/2;i++)
+		{
+			uint8_t cmd[2];
+			uint8_t send_stop = 1;
+
+			cmd[0] = codec_program[2*i];
+			cmd[1] = codec_program[2*i+1];
+			I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+			vTaskDelay(5);
+		}
+		offset += bytes_read;
+
+	}
+
+	LOGI("Codec: Bytes read: %d\n", offset);
+
+	// Close file
+	sl_FsClose(hndl, 0, 0, 0);
+
+	return 0;
+
+codec_file_fail:
+	return -1;
 
 }
+
+// Start playback
+
+// Stop playback
+
+// start capture
+
+//stop capture
+
+// update volume
 
 // Software reset codec
 static inline void codec_sw_reset(void)
