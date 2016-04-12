@@ -86,10 +86,12 @@ static void StatsCallback(const AudioOncePerMinuteData_t * pdata) {
 	_stats.num_disturbances += pdata->num_disturbances;
 	_stats.num_samples++;
 
-	_stats.peak_background_energy += pdata->peak_background_energy;
+        if (pdata->peak_background_energy > _stats.peak_background_energy) {
+            _stats.peak_background_energy = pdata->peak_background_energy;
+        }
 
 	if (pdata->peak_energy > _stats.peak_energy) {
-		_stats.peak_energy = pdata->peak_energy;
+	    _stats.peak_energy = pdata->peak_energy;
 	}
 
 	_stats.isValid = 1;
