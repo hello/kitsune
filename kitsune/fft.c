@@ -302,9 +302,10 @@ void logpsdmel(int16_t * logTotalEnergy,int16_t psd[],const int16_t fr[],const i
     uint16_t ufr;
     uint16_t ufi;
     uint64_t utemp64;
+    uint64_t non_weighted_energy;
 	uint64_t accumulator64 = 0;
 	int32_t temp32;
-	static const uint8_t spacings[31] = { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+	static const uint8_t spacings[32] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 			1, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6, 7, 8, 10, 11, 13, 14, 15 };
 
 	static const int16_t binaveragingcoeff[18] = { 0, 0, -1024, -1623, -2048,
@@ -329,12 +330,12 @@ void logpsdmel(int16_t * logTotalEnergy,int16_t psd[],const int16_t fr[],const i
 	accumulator64 = 0;
     
 
-    ifft = 2;
-    psd[0] = 0;
-    for (idx = 1; idx < 32; idx++) {
+    ifft = 1;
+    for (idx = 0; idx < 32; idx++) {
        // assert(idx-1 <= 31);
-        iend = spacings[idx-1];
+        iend = spacings[idx];
         utemp64 = 0;
+        non_weighted_energy = 0;
 
         for (i = 0; i < iend; i++) {
         	uint64_t a = 0;
@@ -346,11 +347,11 @@ void logpsdmel(int16_t * logTotalEnergy,int16_t psd[],const int16_t fr[],const i
             a += (uint32_t)ufi*(uint32_t)ufi;
 
             utemp64 += a * a_weight_q10[ifft] >> 10;
-            
+            non_weighted_energy += a;
             ifft++;
         }
 
-        temp32 = FixedPointLog2Q10(utemp64 + min_energy) + binaveragingcoeff[iend] - log2scaleOfRawSignal*1024;
+        temp32 = FixedPointLog2Q10(non_weighted_energy + min_energy) + binaveragingcoeff[iend] - log2scaleOfRawSignal*1024;
         
         if (temp32 > INT16_MAX) {
             temp32 = INT16_MAX;
