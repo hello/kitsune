@@ -231,9 +231,6 @@ static void NetworkTask_Thread(void * networkdata) {
 
 	for (; ;) {
 		xQueueReceive( _asyncqueue, &message, portMAX_DELAY );
-		if (message.begin) {
-			message.begin(&message);
-		}
 
 		if( message.response_handle ) {
 			*message.response_handle = nettask_send(&message, &sock);

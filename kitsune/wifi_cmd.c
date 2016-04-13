@@ -152,6 +152,10 @@ void wifi_get_connected_ssid(uint8_t* ssid_buffer, size_t len)
 //! \return None
 //
 //****************************************************************************
+static void wifi_update_task( void * params ) {
+	ble_reply_wifi_status((wifi_connection_state)params);
+	vTaskDelete(NULL);
+}
 void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
     switch (pSlWlanEvent->Event) {
 #if 0 //todo bring this back after ti realises they've mucked it up
@@ -183,7 +187,8 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
 			memcpy(_connected_bssid, (char*)pSlWlanEvent->EventData.STAandP2PModeWlanConnected.bssid, BSSID_LEN);
 		}
         LOGI("SL_WLAN_CONNECT_EVENT\n");
-        ble_reply_wifi_status(wifi_connection_state_WLAN_CONNECTED);
+		xTaskCreate(wifi_update_task, "wifi_update_task", 1024 / 4, (void*)wifi_connection_state_WLAN_CONNECTED, 1, NULL);
+
     }
         break;
     case SL_WLAN_CONNECTION_FAILED_EVENT:  // ahhhhh this thing blocks us for 2 weeks...
@@ -191,7 +196,8 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
     	// This is a P2P event, but it fired here magically.
         wifi_status_set(CONNECTING, true);
         LOGI("SL_WLAN_CONNECTION_FAILED_EVENT\n");
-        ble_reply_wifi_status(wifi_connection_state_NO_WLAN_CONNECTED);
+		xTaskCreate(wifi_update_task, "wifi_update_task", 1024 / 4, (void*)wifi_connection_state_NO_WLAN_CONNECTED, 1, NULL);
+
         nwp_reset();
     }
     break;
@@ -209,8 +215,8 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
         	LOGI( ":%x", _connected_bssid[i] );
         } LOGI("\n");
         }
+		xTaskCreate(wifi_update_task, "wifi_update_task", 1024 / 4, (void*)wifi_connection_state_NO_WLAN_CONNECTED, 1, NULL);
 
-    	ble_reply_wifi_status(wifi_connection_state_NO_WLAN_CONNECTED);
         break;
     default:
         break;
@@ -230,11 +236,7 @@ LOGI("GENEVT ID=%d Sender=%d\n",pDevEvent->EventData.deviceEvent.status, pDevEve
 //! \return None
 //
 //****************************************************************************
-static void wifi_ip_update_task( void * params ) {
-    ble_reply_wifi_status(wifi_connection_state_IP_RETRIEVED);
 
-	vTaskDelete(NULL);
-}
 
 void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent) {
 
@@ -250,7 +252,7 @@ void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent) {
 
 		wifi_status_set(HAS_IP, false);
 
-		xTaskCreate(wifi_ip_update_task, "wifi_ip_update_task", 1024 / 4, NULL, 1, NULL);
+		xTaskCreate(wifi_update_task, "wifi_update_task", 1024 / 4, (void*)wifi_connection_state_IP_RETRIEVED, 1, NULL);
 		break;
 
 	case SL_NETAPP_IP_LEASED_EVENT:
