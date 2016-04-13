@@ -909,9 +909,8 @@ static void _on_wave(){
 }
 
 static void _on_hold(){
-	if(	cancel_alarm() ) {
-		stop_led_animation( 0, 33 );
-	}
+	stop_led_animation( 0, 33 );
+	cancel_alarm();
 	ble_proto_start_hold();
 }
 
@@ -952,6 +951,8 @@ void thread_fast_i2c_poll(void * unused)  {
 
 			prox = median_filter(get_prox(), filter_buf, &filter_idx);
 
+			LOGP( "%d\n", prox );
+
 			gesture = ProxSignal_UpdateChangeSignals(prox);
 
 			//gesture gesture_state = gesture_input(prox);
@@ -986,16 +987,10 @@ void thread_fast_i2c_poll(void * unused)  {
 				//LOGI( "%d %d %d %d\n", delta, light_mean, light_m2, light_cnt);
 				xSemaphoreGive(light_smphr);
 
-				if(gesture != proxGestureIncoming
-						&& gesture != proxGestureHold
-						&& gesture != proxGestureHeld
-						&& light_cnt % 5 == 0
-						&& led_is_idle(0)
-						&&_is_light_off()) {
-
-					LOGP( "%d\tLIGHTS\n", gesture );
-
-					_show_led_status();
+				if(light_cnt % 5 == 0 && led_is_idle(0) ) {
+					if(_is_light_off()) {
+						_show_led_status();
+					}
 				}
 			}
 

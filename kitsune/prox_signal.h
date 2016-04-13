@@ -9,14 +9,14 @@ typedef enum {
 	proxGestureNone,
 	proxGestureWave,
 	proxGestureHold,
-	proxGestureHeld,
-	proxGestureRelease,
-	proxGestureIncoming
+	proxGestureRelease
 } ProxGesture_t;
 
 void ProxSignal_Init(void);
 
-ProxGesture_t ProxSignal_UpdateChangeSignals( int32_t newx) ;
+int32_t ProxSignal_MedianFilter(const int32_t x) ;
+
+ProxGesture_t ProxSignal_UpdateChangeSignals(const int32_t newx) ;
 
 
 #endif //_PROXSIGNAL_H_
