@@ -519,8 +519,6 @@ static bool scan_files(char* path, pb_ostream_t *stream, const pb_field_t *field
 
 	            		total_file_count++;
 
-	            		//LOGI("DM: sha_ovwr :%d\n", sha_ovwr);
-
 	            		if(update_sha_file(path,fn, sha_file_create,NULL, sha_ovwr ))
 						{
 							LOGE("DM: Error creating SHA\n");
@@ -809,8 +807,7 @@ static int32_t sd_sha_verifynsave(const char * sha_truth, char* path, char* sha_
 	// Close file
 	hello_fs_close(&fp);
 
-	if(buffer)
-		vPortFree(buffer);
+	if(buffer) vPortFree(buffer);
 
 
     return 0;
@@ -886,18 +883,11 @@ uint32_t update_sha_file(char* path, char* original_filename, update_sha_t optio
 	{
 		case sha_file_create:
 		{
-			// debug log for why function was called
-			//LOGI("DM: SHA CREATE \n");
-
-			// Check if downloads are going on
-			// FileManifest_FileStatusType download_pending;
-			// get_file_download_status(&download_pending);
 
 			if((file_exists && !ovwr))
 			{
 				// File exists and overwrite flag is false,
 				// no need to update
-				//LOGI("DM: download_pending:%d\n", (uint8_t)download_pending);
 				return 0;
 			}
 			LOGI("DM: SHA create %s\n", sha_filename);
@@ -924,8 +914,6 @@ uint32_t update_sha_file(char* path, char* original_filename, update_sha_t optio
 
 		case sha_file_delete:
 		{
-			// debug log for why function was called
-			//LOGI("DM: SHA DELETE \n");
 
 			if(file_exists)
 			{
@@ -949,8 +937,6 @@ uint32_t update_sha_file(char* path, char* original_filename, update_sha_t optio
 
 		case sha_file_get_sha:
 		{
-			// debug log for why function was called
-			//LOGI("DM: SHA BYTES GET \n");
 
 			if( !file_exists )
 			{
