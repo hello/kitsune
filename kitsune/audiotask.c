@@ -150,7 +150,9 @@ static bool _queue_audio_playback_state(playstate_t is_playing, const AudioPlayb
 	AudioState ret = AudioState_init_default;
 	ret.playing_audio = (is_playing == PLAYING);
 
-	if( info ) {
+	assert(!( ret.playing_audio && ( !info || !info->file ) ));
+
+	if( info && info->file ) {
 		ret.has_duration_seconds = true;
 		ret.duration_seconds = info->durationInSeconds;
 
@@ -160,6 +162,7 @@ static bool _queue_audio_playback_state(playstate_t is_playing, const AudioPlayb
 		ret.has_file_path = true;
 		ustrncpy(ret.file_path, info->file, sizeof(ret.file_path));
 	}
+
 	return xQueueSend(_state_queue, &ret, 0);
 }
 
