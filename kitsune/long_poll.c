@@ -45,6 +45,11 @@ static void _on_play_audio( PlayAudio * cmd ) {
 	desc.volume = cmd->volume_percent * 60 / 100; //convert from percent to codec range
 	desc.fade_in_ms = cmd->fade_in_duration_seconds * 1000;
 	desc.fade_out_ms = cmd->fade_out_duration_seconds * 1000;
+	if( cmd->has_timeout_fade_out_duration_seconds ) {
+		desc.to_fade_out_ms = cmd->timeout_fade_out_duration_seconds * 1000;
+	} else {
+		desc.to_fade_out_ms = desc.fade_out_ms;
+	}
 
 	desc.onFinished = NULL;
 	desc.rate = 48000;

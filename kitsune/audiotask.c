@@ -152,7 +152,9 @@ static bool _queue_audio_playback_state(playstate_t is_playing, const AudioPlayb
 	AudioState ret = AudioState_init_default;
 	ret.playing_audio = (is_playing == PLAYING);
 
-	if( info ) {
+	assert(!( ret.playing_audio && ( !info || !info->file ) ));
+
+	if( info && info->file ) {
 		ret.has_duration_seconds = true;
 		ret.duration_seconds = info->durationInSeconds;
 
@@ -162,6 +164,7 @@ static bool _queue_audio_playback_state(playstate_t is_playing, const AudioPlayb
 		ret.has_file_path = true;
 		ustrncpy(ret.file_path, info->file, sizeof(ret.file_path));
 	}
+
 	return xQueueSend(_state_queue, &ret, 0);
 }
 
@@ -352,7 +355,8 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 							hlo_future_destroy( hlo_future_create_task_bg(_set_volume_task, (void*)&i2c_volume, 512));
 						}
 					}
-					if (!fade_out && (returnFlags || ((xTaskGetTickCount() - t0) > desired_ticks_elapsed && desired_ticks_elapsed > 0) ) ) {
+					bool timeout = ( ((xTaskGetTickCount() - t0) > desired_ticks_elapsed && desired_ticks_elapsed > 0) );
+					if (!fade_out && (returnFlags || timeout ) ) {
 						if (fade_in) {
 							//interrupted before we can get to max volume...
 							volume = fade_in_vol(fade_counter, volume, fade_length);
@@ -361,7 +365,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 						//ruh-roh, gotta stop.
 						fade_time = xTaskGetTickCount();
 						fade_out = true;
-						fade_length = info->fade_out_ms;
+						fade_length = timeout ? info->to_fade_out_ms : info->fade_out_ms;
 						fade_counter = 0;
 						LOGI("start fadeout %d %d %d\n", volume, fade_length, fade_time);
 						_queue_audio_playback_state(SILENT, info);
