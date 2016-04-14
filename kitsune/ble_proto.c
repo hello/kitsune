@@ -143,8 +143,6 @@ static void _factory_reset(){
     nwp_reset();
     deleteFilesInDir(USER_DIR);
 	_ble_reply_command_with_type(MorpheusCommand_CommandType_MORPHEUS_COMMAND_FACTORY_RESET);
-	mcu_reset();
-
 }
 
 int Cmd_factory_reset(int argc, char* argv[])
