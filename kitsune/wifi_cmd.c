@@ -1154,11 +1154,12 @@ int start_connection(int * sock, char * host, security_type sec) {
         LOGI("Socket create failed %d\n\r", *sock);
         return -1;
     }
-	LOGI("opening sock %d\n", *sock);
 
     //connect it up
     //LOGI("Connecting \n\r\n\r");
     if (*sock > 0 && sock_begin < 0) {
+    	LOGI("connecting sock %d %d\n", *sock, sock_begin);
+
     	tv.tv_sec = 2;             // Seconds
     	tv.tv_usec = 0;           // Microseconds. 10000 microseconds resolution
     	setsockopt(*sock, SOL_SOCKET, SL_SO_RCVTIMEO, &tv, sizeof(tv)); // Enable receive timeout
@@ -1213,6 +1214,8 @@ int start_connection(int * sock, char * host, security_type sec) {
 			LOGI("Could not connect %d\n\r\n\r", rv);
 			return stop_connection(sock);
 		}
+    } else {
+    	LOGI("using sock %d %d\n", *sock, sock_begin);
     }
  	ble_reply_wifi_status(wifi_connection_state_SOCKET_CONNECTED);
     return 0;
