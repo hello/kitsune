@@ -1770,13 +1770,13 @@ void launch_tasks() {
 	UARTprintf("*");
 #if !ONLY_MID
 	UARTprintf("*");
-	xTaskCreate(thread_dust, "dustTask", 1024 / 4, NULL, 3, NULL);
+	xTaskCreate(thread_dust, "dustTask", 512 / 4, NULL, 3, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_sensor_poll, "pollTask", 1024 / 4, NULL, 2, NULL);
+	xTaskCreate(thread_sensor_poll, "pollTask", 768 / 4, NULL, 2, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_tx, "txTask", 1536 / 4, NULL, 1, NULL);
+	xTaskCreate(thread_tx, "txTask", 1024 / 4, NULL, 1, NULL);
 	UARTprintf("*");
-	long_poll_task_init( 3072 / 4 );
+	long_poll_task_init( 2560 / 4 );
 	downloadmanagertask_init(3072 / 4);
 #endif
 }
@@ -2208,9 +2208,9 @@ void vUARTTask(void *pvParameters) {
 	CreateDefaultDirectories();
 	load_data_server();
 
-	xTaskCreate(AudioTask_Thread,"audioTask",3072/4,NULL,4,NULL);
-	init_download_task( 3072 / 4 );
-	networktask_init(4 * 1024 / 4);
+	xTaskCreate(AudioTask_Thread,"audioTask",2560/4,NULL,4,NULL);
+	init_download_task( 2560 / 4 );
+	networktask_init(3 * 1024 / 4);
 
 	load_serial();
 	load_aes();
