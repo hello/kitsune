@@ -15,6 +15,8 @@
 
 #include "crypto.h"
 
+#include "ble_proto.h"
+
 //#define DM_TESTING
 #define DM_UPLOAD_CMD_ENABLED
 
@@ -194,13 +196,17 @@ static void DownloadManagerTask(void * filesyncdata)
 		// Check if response has been received
 		if(xSemaphoreTake(_response_received_sem,portMAX_DELAY))
 		{
-
+			retry:
 #ifdef DM_UPLOAD_CMD_ENABLED
 			xSemaphoreTake(_cli_upload_sem, query_delay_ticks);
 #else
 			vTaskDelayUntil(&start_time,query_delay_ticks);
 
 #endif
+			if( get_ble_mode() != BLE_NORMAL ) {
+				LOGI("not downloading, ble %d!\n", get_ble_mode());
+				goto retry;
+			}
 
 			memset(&message_for_upload,0,sizeof(FileManifest));
 
