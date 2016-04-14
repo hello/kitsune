@@ -1102,7 +1102,7 @@ void LOGIFaults() {
 }
 #endif
 int stop_connection(int * sock) {
-	LOGI("closing sock %d\n", sock);
+	LOGI("closing sock %d\n", *sock);
     close(*sock);
     *sock = -1;
     //NWP requires some time to come to terms with the disconnect...
@@ -1154,7 +1154,7 @@ int start_connection(int * sock, char * host, security_type sec) {
         LOGI("Socket create failed %d\n\r", *sock);
         return -1;
     }
-	LOGI("opening sock %d\n", sock);
+	LOGI("opening sock %d\n", *sock);
 
     //connect it up
     //LOGI("Connecting \n\r\n\r");
@@ -1690,7 +1690,7 @@ int send_data_pb( char* host, const char* path, char ** recv_buf_ptr,
     		 *recv_buf_size_ptr = recv_buf_size;
     		 rv = SL_EAGAIN;
     	}
-    } while (rv == SL_EAGAIN && retries++ < 70 );
+    } while (rv == SL_EAGAIN && retries++ < 70 ); // long poll endpoint times out at 60 seconds, so we need to wait a bit longer than that
     LOGI("rv %d\n", rv);
 
     if (rv <= 0) {
