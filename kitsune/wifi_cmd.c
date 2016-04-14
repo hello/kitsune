@@ -1102,6 +1102,7 @@ void LOGIFaults() {
 }
 #endif
 int stop_connection(int * sock) {
+	LOGI("closing sock %d\n", *sock);
     close(*sock);
     *sock = -1;
     //NWP requires some time to come to terms with the disconnect...
@@ -1157,6 +1158,8 @@ int start_connection(int * sock, char * host, security_type sec) {
     //connect it up
     //LOGI("Connecting \n\r\n\r");
     if (*sock > 0 && sock_begin < 0) {
+    	LOGI("connecting sock %d %d\n", *sock, sock_begin);
+
     	tv.tv_sec = 2;             // Seconds
     	tv.tv_usec = 0;           // Microseconds. 10000 microseconds resolution
     	setsockopt(*sock, SOL_SOCKET, SL_SO_RCVTIMEO, &tv, sizeof(tv)); // Enable receive timeout
@@ -1211,6 +1214,8 @@ int start_connection(int * sock, char * host, security_type sec) {
 			LOGI("Could not connect %d\n\r\n\r", rv);
 			return stop_connection(sock);
 		}
+    } else {
+    	LOGI("using sock %d %d\n", *sock, sock_begin);
     }
  	ble_reply_wifi_status(wifi_connection_state_SOCKET_CONNECTED);
     return 0;
@@ -1688,7 +1693,7 @@ int send_data_pb( char* host, const char* path, char ** recv_buf_ptr,
     		 *recv_buf_size_ptr = recv_buf_size;
     		 rv = SL_EAGAIN;
     	}
-    } while (rv == SL_EAGAIN && retries++ < 60 );
+    } while (rv == SL_EAGAIN && retries++ < 70 ); // long poll endpoint times out at 60 seconds, so we need to wait a bit longer than that
     LOGI("rv %d\n", rv);
 
     if (rv <= 0) {
