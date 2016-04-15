@@ -352,10 +352,13 @@ int init_light_sensor()
 {
 	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
 
-	unsigned char aucDataBuf[2] = { 0, 0 };
-	aucDataBuf[0] = 0;
-	aucDataBuf[1] = 0xA0;
-	(I2C_IF_Write(0x44, aucDataBuf, 2, 1));
+	if( get_hw_ver() < EVT1_1p5 ) {
+		unsigned char aucDataBuf[2] = { 0, 0xA0 };
+		(I2C_IF_Write(0x44, aucDataBuf, 2, 1));
+	} else {
+		unsigned char aucDataBuf[3] = { 1, 0b11001100, 0b00001000 };
+		(I2C_IF_Write(0x44, aucDataBuf, 3, 1));
+	}
 
 	xSemaphoreGiveRecursive(i2c_smphr);
 	return SUCCESS;
@@ -381,47 +384,60 @@ int get_light() {
 	static int scaling = 0;
 	int prev_scaling = scaling;
 
-	for(;;) {
-		#define MAX_RETRIES 10
-		int switch_cnt = 0;
-		light = _read_als();
-		if( light == 65535 ) {
-			if( scaling < 3 ) {
-				LOGI("increase scaling %d\r\n", scaling);
-				aucDataBuf[0] = 1;
-				aucDataBuf[1] = ++scaling;
-				(I2C_IF_Write(0x44, aucDataBuf, 2, 1));
-				while (_read_als() == 65535 && ++switch_cnt < MAX_RETRIES) {
-					vTaskDelay(100);
+	if( get_hw_ver() < EVT1_1p5 ) {
+		for(;;) {
+			#define MAX_RETRIES 10
+			int switch_cnt = 0;
+			light = _read_als();
+			if( light == 65535 ) {
+				if( scaling < 3 ) {
+					LOGI("increase scaling %d\r\n", scaling);
+					aucDataBuf[0] = 1;
+					aucDataBuf[1] = ++scaling;
+					(I2C_IF_Write(0x44, aucDataBuf, 2, 1));
+					while (_read_als() == 65535 && ++switch_cnt < MAX_RETRIES) {
+						vTaskDelay(100);
+					}
+					continue;
+				} else {
+					break;
 				}
-				continue;
-			} else {
-				break;
 			}
-		}
-		if( light < 16384 ) {
-			if( scaling != 0 ) {
-				LOGI("decrease scaling %d\r\n", scaling);
-				aucDataBuf[0] = 1;
-				aucDataBuf[1] = --scaling;
-				(I2C_IF_Write(0x44, aucDataBuf, 2, 1));
-				while( _read_als() < 16384 && ++switch_cnt < MAX_RETRIES ) {
-					vTaskDelay(100);
+			if( light < 16384 ) {
+				if( scaling != 0 ) {
+					LOGI("decrease scaling %d\r\n", scaling);
+					aucDataBuf[0] = 1;
+					aucDataBuf[1] = --scaling;
+					(I2C_IF_Write(0x44, aucDataBuf, 2, 1));
+					while( _read_als() < 16384 && ++switch_cnt < MAX_RETRIES ) {
+						vTaskDelay(100);
+					}
+					continue;
+				} else {
+					break;
 				}
-				continue;
-			} else {
-				break;
 			}
+			break;
 		}
-		break;
-	}
 
-	light *= (1<<(scaling*2));
+		light *= (1<<(scaling*2));
 
-	if( scaling != prev_scaling ) {
-		aucDataBuf[0] = 1;
-		aucDataBuf[1] = scaling;
-		(I2C_IF_Write(0x44, aucDataBuf, 2, 1));
+		if( scaling != prev_scaling ) {
+			aucDataBuf[0] = 1;
+			aucDataBuf[1] = scaling;
+			(I2C_IF_Write(0x44, aucDataBuf, 2, 1));
+		}
+	} else {
+		uint8_t cmd = 0x0;
+		(I2C_IF_Write(0x44, &cmd, 1, 1));
+		vTaskDelay(0);
+		(I2C_IF_Read(0x44, aucDataBuf, 2));
+
+		uint16_t raw =  aucDataBuf[0] | (aucDataBuf[1] << 8);
+		unsigned int exp = raw >> 12; //pull out exponent
+		raw &= ~0xC000; //clear the exponent
+
+		return ( raw * (1<<exp) * 65536 ) / (125 * 100 );
 	}
 	xSemaphoreGiveRecursive(i2c_smphr);
 	return light;
