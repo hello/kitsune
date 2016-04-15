@@ -464,8 +464,9 @@ int Cmd_play_buff(int argc, char *argv[]) {
     }
     if( argc >= 5 ) {
     	desc.fade_out_ms = desc.fade_in_ms = atoi(argv[5]);
+		desc.to_fade_out_ms = atoi(argv[6]);
     } else {
-    	desc.fade_out_ms = desc.fade_in_ms = 0;
+    	desc.to_fade_out_ms = desc.fade_out_ms = desc.fade_in_ms = 0;
     }
     desc.rate = atoi(argv[2]);
 
@@ -676,7 +677,7 @@ void thread_alarm(void * unused) {
 				AudioPlaybackDesc_t desc;
 				memset(&desc,0,sizeof(desc));
 
-				desc.fade_in_ms = 30000;
+				desc.to_fade_out_ms = desc.fade_in_ms = 30000;
 				desc.fade_out_ms = 3000;
 				strncpy( desc.file, AUDIO_FILE, 64 );
 				int has_valid_sound_file = 0;
@@ -982,7 +983,7 @@ void thread_fast_i2c_poll(void * unused)  {
 				if( light_m2 < 0 ) {
 					light_m2 = 0x7FFFFFFF;
 				}
-				//LOGI( "%d %d %d %d\n", delta, light_mean, light_m2, light_cnt);
+//				LOGI( "%d\t%d\t%d\t%d\t%d\n", delta, light_mean, light_m2, light_cnt, _is_light_off());
 				xSemaphoreGive(light_smphr);
 
 				if(light_cnt % 5 == 0 && led_is_idle(0) ) {
@@ -1768,13 +1769,13 @@ void launch_tasks() {
 	UARTprintf("*");
 #if !ONLY_MID
 	UARTprintf("*");
-	xTaskCreate(thread_dust, "dustTask", 1024 / 4, NULL, 3, NULL);
+	xTaskCreate(thread_dust, "dustTask", 512 / 4, NULL, 3, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_sensor_poll, "pollTask", 1024 / 4, NULL, 2, NULL);
+	xTaskCreate(thread_sensor_poll, "pollTask", 768 / 4, NULL, 2, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_tx, "txTask", 1536 / 4, NULL, 1, NULL);
+	xTaskCreate(thread_tx, "txTask", 1024 / 4, NULL, 1, NULL);
 	UARTprintf("*");
-	long_poll_task_init( 3072 / 4 );
+	long_poll_task_init( 2560 / 4 );
 	downloadmanagertask_init(3072 / 4);
 #endif
 }
@@ -1958,6 +1959,8 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "mac", Cmd_set_mac, "" },
 		{ "aes", Cmd_set_aes, "" },
 #endif
+		{ "hwver", Cmd_hwver, "" },
+
 		{ "free", Cmd_free, "" },
 		{ "connect", Cmd_connect, "" },
 		{ "disconnect", Cmd_disconnect, "" },
@@ -2169,8 +2172,7 @@ void vUARTTask(void *pvParameters) {
 	UDMAInit();
 	//sdhost dma interrupts
 	//MAP_SDHostIntRegister(SDHOST_BASE, SDHostIntHandler);
-	MAP_SDHostSetExpClk(SDHOST_BASE, MAP_PRCMPeripheralClockGet(PRCM_SDHOST),
-			get_hw_ver()==EVT2?1000000:24000000);
+	MAP_SDHostSetExpClk(SDHOST_BASE, MAP_PRCMPeripheralClockGet(PRCM_SDHOST), 24000000);
 	UARTprintf("*");
 	Cmd_mnt(0, 0);
 	vTaskDelay(10);
@@ -2206,9 +2208,9 @@ void vUARTTask(void *pvParameters) {
 	CreateDefaultDirectories();
 	load_data_server();
 
-	xTaskCreate(AudioTask_Thread,"audioTask",3072/4,NULL,4,NULL);
-	init_download_task( 3072 / 4 );
-	networktask_init(4 * 1024 / 4);
+	xTaskCreate(AudioTask_Thread,"audioTask",2560/4,NULL,4,NULL);
+	init_download_task( 2560 / 4 );
+	networktask_init(3 * 1024 / 4);
 
 	load_serial();
 	load_aes();

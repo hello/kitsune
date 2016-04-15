@@ -15,6 +15,8 @@
 
 #include "crypto.h"
 
+#include "ble_proto.h"
+
 //#define DM_TESTING
 #define DM_UPLOAD_CMD_ENABLED
 
@@ -194,13 +196,17 @@ static void DownloadManagerTask(void * filesyncdata)
 		// Check if response has been received
 		if(xSemaphoreTake(_response_received_sem,portMAX_DELAY))
 		{
-
+			retry:
 #ifdef DM_UPLOAD_CMD_ENABLED
 			xSemaphoreTake(_cli_upload_sem, query_delay_ticks);
 #else
 			vTaskDelayUntil(&start_time,query_delay_ticks);
 
 #endif
+			if( get_ble_mode() != BLE_NORMAL ) {
+				LOGI("not downloading, ble %d!\n", get_ble_mode());
+				goto retry;
+			}
 
 			memset(&message_for_upload,0,sizeof(FileManifest));
 
@@ -717,7 +723,7 @@ static int32_t sd_sha_verifynsave(const char * sha_truth, char* path, char* sha_
 #define minval( a,b ) a < b ? a : b
 
 	uint8_t sha[SHA1_SIZE] = { 0 };
-    static uint8_t buffer[SD_BLOCK_SIZE];
+    uint8_t* buffer;
     uint32_t bytes_to_read, bytes_read;
     uint32_t bytes_to_write = 0, bytes_written = 0;
     FIL fp = {0};
@@ -726,6 +732,9 @@ static int32_t sd_sha_verifynsave(const char * sha_truth, char* path, char* sha_
 
     SHA1_CTX sha1ctx;
     SHA1_Init(&sha1ctx);
+
+    buffer = (uint8_t*) pvPortMalloc(SD_BLOCK_SIZE);
+    assert(buffer);
 
     //fetch path info
     //LOGI( "computing SHA of %s\n", path);
@@ -747,7 +756,7 @@ static int32_t sd_sha_verifynsave(const char * sha_truth, char* path, char* sha_
     while (bytes_to_read > 0) {
 		vTaskDelay(5/portTICK_PERIOD_MS);
 
-		res = hello_fs_read(&fp, buffer,(minval(sizeof(buffer),bytes_to_read)), &bytes_read);
+		res = hello_fs_read(&fp, buffer,(minval(SD_BLOCK_SIZE,bytes_to_read)), &bytes_read);
 		if (res) {
 			LOGE("DM: f_read %d\n", res);
 			return -1;
@@ -803,6 +812,8 @@ static int32_t sd_sha_verifynsave(const char * sha_truth, char* path, char* sha_
 
 	// Close file
 	hello_fs_close(&fp);
+
+	if(buffer) vPortFree(buffer);
 
 
     return 0;
@@ -871,8 +882,6 @@ uint32_t update_sha_file(char* path, char* original_filename, update_sha_t optio
 	if(get_complete_filename(sha_fullpath,sha_filename, path, PATH_BUF_MAX_SIZE))
 		return ~0;
 
-
-
 	// Check if SHA file exists
 	file_exists = (does_sha_file_exist(sha_fullpath)) ? true: false;
 
@@ -880,10 +889,8 @@ uint32_t update_sha_file(char* path, char* original_filename, update_sha_t optio
 	{
 		case sha_file_create:
 		{
-			// debug log for why function was called
-			//LOGI("DM: SHA CREATE \n");
 
-			if(file_exists && !ovwr )
+			if((file_exists && !ovwr))
 			{
 				// File exists and overwrite flag is false,
 				// no need to update
@@ -913,8 +920,6 @@ uint32_t update_sha_file(char* path, char* original_filename, update_sha_t optio
 
 		case sha_file_delete:
 		{
-			// debug log for why function was called
-			//LOGI("DM: SHA DELETE \n");
 
 			if(file_exists)
 			{
@@ -938,8 +943,6 @@ uint32_t update_sha_file(char* path, char* original_filename, update_sha_t optio
 
 		case sha_file_get_sha:
 		{
-			// debug log for why function was called
-			//LOGI("DM: SHA BYTES GET \n");
 
 			if( !file_exists )
 			{

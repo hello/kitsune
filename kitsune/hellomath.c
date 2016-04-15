@@ -249,8 +249,13 @@ uint8_t VecNormalize8(int8_t * vec, uint8_t n) {
         temp16 += (1 << 6);
         temp16 >>= 7;
         
+        //hacky, but we want to stay in range of -127 and 127 (symmetric)
         if (temp16 == 128) {
             temp16--;
+        }
+        
+        if (temp16 == -128) {
+            temp16++;
         }
         
         vec[i] = (int8_t)temp16;
