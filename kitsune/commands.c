@@ -984,7 +984,7 @@ void thread_fast_i2c_poll(void * unused)  {
 				if( light_m2 < 0 ) {
 					light_m2 = 0x7FFFFFFF;
 				}
-				//LOGI( "%d %d %d %d\n", delta, light_mean, light_m2, light_cnt);
+//				LOGI( "%d\t%d\t%d\t%d\t%d\n", delta, light_mean, light_m2, light_cnt, _is_light_off());
 				xSemaphoreGive(light_smphr);
 
 				if(light_cnt % 5 == 0 && led_is_idle(0) ) {

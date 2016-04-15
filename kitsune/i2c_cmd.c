@@ -436,9 +436,9 @@ int get_light() {
 		unsigned int exp = raw >> 12; //pull out exponent
 		raw &= 0xFFF; //clear the exponent
 
-		//LOGI("%x\t%x\n%d, %d\n", aucDataBuf[0],aucDataBuf[1], raw, exp);
 		light = raw;
 		light *= ((1<<exp) * 65536 ) / (125 * 100 );
+		//LOGI("%x\t%x\t\t%d, %d, %d\n", aucDataBuf[0],aucDataBuf[1], raw, exp, light);
 	}
 	xSemaphoreGiveRecursive(i2c_smphr);
 	return light;
