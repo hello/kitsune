@@ -119,6 +119,9 @@ void PinMuxConfig_hw_dep() {
 	switch( hw_ver ) {
 	case DVT:
 	case PVT:
+	    SetAntennaSelectionGPIOs();
+	    //break; deliberate
+	case EVT1_1p5:
 		//DVT uses camera clock for codec's master clock
 		MAP_PRCMPeripheralClkEnable(PRCM_CAMERA, PRCM_RUN_MODE_CLK);
 		HWREG(0x44025000) = 0x0000;
@@ -263,8 +266,6 @@ PinMuxConfig(void)
     // Configure PIN_52 for SPI0 GSPI_MOSI
     //
     MAP_PinTypeSPI(PIN_52, PIN_MODE_8);
-
-    SetAntennaSelectionGPIOs();
 
     // Configure PIN_04 for GPIOOutput
     //
