@@ -2,8 +2,6 @@
 #define HW_VER
 
 enum {
-	EVT1,
-	EVT2,
 	DVT,
 	PVT,
 	EVT1_1p5,

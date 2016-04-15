@@ -6,7 +6,6 @@
 #include "fs_utils.h"
 #include "sl_sync_include_after_simplelink_header.h"
 
-#define EVT_STRING "evt2"
 #define DVT_STRING "dvt"
 #define PVT_STRING "pvt"
 #define EVT1_1p5_STRING "1.5 evt1"
@@ -37,9 +36,7 @@ void check_hw_version() {
 	int min_len = minval(info.FileLen, BUF_SZ);
 	bytes = sl_FsRead(hndl, 0, (unsigned char* ) buffer, min_len);
 
-	if ( check_ver_string(EVT_STRING, buffer, bytes) ) {
-		hw_ver = EVT2;
-	} else if ( check_ver_string(DVT_STRING, buffer, bytes) ) {
+	if ( check_ver_string(DVT_STRING, buffer, bytes) ) {
 		hw_ver = DVT;
 	} else if ( check_ver_string(PVT_STRING, buffer, bytes) ) {
 		hw_ver = PVT;
