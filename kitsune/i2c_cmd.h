@@ -18,6 +18,8 @@ int close_codec_NAU();
 int get_codec_mic_NAU();
 bool set_volume(int v, unsigned int dly) ;
 
+int32_t codec_test_commands(void);
+
 void get_temp_humid(int *temp, int *humid);
 int get_light();
 uint32_t get_prox();

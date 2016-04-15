@@ -674,60 +674,65 @@ void AudioTask_Thread(void * data) {
 	AudioMessage_t  m;
 
 	// TODO DKH - init codec here
-	codec_init();
 
-	Init();
+	// Codec test
+
+
+	//codec_init();
+
+	//Init();
 
 
 	for (; ;) {
-		memset(&m,0,sizeof(m));
 
-		/* Wait until we get a message */
-		if (xQueueReceive( _queue,(void *) &m, portMAX_DELAY )) {
-
-
-			/* PROCESS COMMANDS */
-			switch (m.command) {
-
-			case eAudioCaptureTurnOn:
-			{
-				//if audio was turned on, we remember that we are on
-				_isCapturing = 1;
-
-				DoCapture(m.message.capturedesc.rate);
-				break;
-			}
-
-			case eAudioCaptureTurnOff:
-			{
-				_isCapturing = 0;
-				break;
-			}
-
-			case eAudioPlaybackStart:
-			{
-				DoPlayback(&(m.message.playbackdesc));
-
-				if (m.message.playbackdesc.onFinished) {
-					m.message.playbackdesc.onFinished(m.message.playbackdesc.context);
-				}
-
-				break;
-			}
-
-			default:
-			{
-				LOGI("audio task ignoring message enum %d",m.command);
-				break;
-			}
-			}
-
-			//so even if we just played back a file
-			//if we were supposed to be capturing, we resume that mode
-			if (_isCapturing) {
-				AudioTask_StartCapture(16000);
-			}
-		}
+//		memset(&m,0,sizeof(m));
+//
+//		/* Wait until we get a message */
+//		if (xQueueReceive( _queue,(void *) &m, portMAX_DELAY )) {
+//
+//
+//			/* PROCESS COMMANDS */
+//			switch (m.command) {
+//
+//			case eAudioCaptureTurnOn:
+//			{
+//				//if audio was turned on, we remember that we are on
+//				_isCapturing = 1;
+//
+//				DoCapture(m.message.capturedesc.rate);
+//				break;
+//			}
+//
+//			case eAudioCaptureTurnOff:
+//			{
+//				_isCapturing = 0;
+//				break;
+//			}
+//
+//			case eAudioPlaybackStart:
+//			{
+//				DoPlayback(&(m.message.playbackdesc));
+//
+//				if (m.message.playbackdesc.onFinished) {
+//					m.message.playbackdesc.onFinished(m.message.playbackdesc.context);
+//				}
+//
+//				break;
+//			}
+//
+//			default:
+//			{
+//				LOGI("audio task ignoring message enum %d",m.command);
+//				break;
+//			}
+//			}
+//
+//			//so even if we just played back a file
+//			//if we were supposed to be capturing, we resume that mode
+//			if (_isCapturing) {
+//				AudioTask_StartCapture(16000);
+//			}
+//		}
 	}
 }
 

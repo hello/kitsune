@@ -2208,6 +2208,9 @@ void vUARTTask(void *pvParameters) {
 	CreateDefaultDirectories();
 	load_data_server();
 
+	LOGI("Codec TESTING----\n");
+	codec_test_commands();
+
 	xTaskCreate(AudioTask_Thread,"audioTask",2560/4,NULL,4,NULL);
 	init_download_task( 2560 / 4 );
 	networktask_init(3 * 1024 / 4);

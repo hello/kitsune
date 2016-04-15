@@ -31,7 +31,7 @@
                                      return  iRetVal;}
 #define BUF_SIZE 2
 
-#define Codec_addr 0x30 // TODO DKH audio change
+#define Codec_addr 0x18 // TODO DKH audio change
 #define DELAY_CODEC 5
 
 //#define Codec_addr 0x1A
@@ -942,6 +942,46 @@ static void codec_minidsp_d_config(void);
 
 #define CODEC_DRIVER_FILE "/sys/codec_driver"
 #define FILE_READ_BLOCK 128
+
+// FOR board bring up
+int32_t codec_test_commands(void)
+{
+	unsigned char cmd[2];
+	char send_stop = 1;
+
+	// Send Software reset
+	codec_sw_reset();
+
+	// Read register in [0][0][06]
+	cmd[0] = 6;
+	cmd[1] = 0;
+	I2C_IF_Read(Codec_addr, cmd, 1);
+
+	if(cmd[1] == 0x11)
+	{
+		LOGI("Codec Test: PASS [0][0][6]: %d\n", cmd[1]);
+	}
+	else
+	{
+		LOGI("Codec Test: FAIL [0][0][6]: %u\n",cmd[1]);
+	}
+
+	// Change book
+	cmd[0] = 0x7F;
+	cmd[1] = 0x78;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	// Read register in [0][X]
+
+	// Change book number
+
+	// Read register is [Y][X]
+
+	// Enable beep generator (?) if speaker is connected
+
+	return 0;
+
+}
 
 int32_t codec_init(void)
 {
