@@ -7,6 +7,7 @@
 #include <strings.h>
 #include "tinyhttp/http.h"
 #include "socket.h"
+#include "hw_ver.h"
 typedef struct{
 	Sl_WlanNetworkEntry_t * entries;
 	size_t max_entries;
@@ -299,16 +300,18 @@ int get_unique_wifi_list(Sl_WlanNetworkEntry_t * result, size_t num_entries){
 	if(!ifa_list || !pcb_list){
 		goto exit;
 	}
-	DISP("Scan IFA\n");
-	//do ifa
-	retries = 3;
-	while(--retries > 0 && (ret = scan_for_wifi(ifa_list, num_entries, IFA_ANT, 5000)) == 0){
-		DISP("Retrying IFA %d\r\n", retries);
-	}
-	while(--ret > 0){
-		ifa_list[ret].reserved[0] = IFA_ANT;
-		ifa_list[ret].ssid_len = 0;
-		tally += _replace_ssid_by_rssi(result, num_entries, &ifa_list[ret]);
+	if( get_hw_ver() < EVT1_1p5 ) {
+		DISP("Scan IFA\n");
+		//do ifa
+		retries = 3;
+		while(--retries > 0 && (ret = scan_for_wifi(ifa_list, num_entries, IFA_ANT, 5000)) == 0){
+			DISP("Retrying IFA %d\r\n", retries);
+		}
+		while(--ret > 0){
+			ifa_list[ret].reserved[0] = IFA_ANT;
+			ifa_list[ret].ssid_len = 0;
+			tally += _replace_ssid_by_rssi(result, num_entries, &ifa_list[ret]);
+		}
 	}
 	DISP("Scan PCB\n");
 	//now do pcb

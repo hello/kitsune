@@ -2081,7 +2081,6 @@ tCmdLineEntry g_sCmdTable[] = {
 		{"fs", cmd_file_sync_upload, ""},
 		{ 0, 0, 0 } };
 
-
 // ==============================================================================
 // This is the UARTTask.  It handles command lines received from the RX IRQ.
 // ==============================================================================
