@@ -57,6 +57,7 @@ int sl_mode = ROLE_INVALID;
 #include "fs_utils.h"
 
 #include "limits.h"
+#include "hw_ver.h"
 
 int send_top(char *, int);
 void mcu_reset()
