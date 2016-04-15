@@ -1960,6 +1960,8 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "mac", Cmd_set_mac, "" },
 		{ "aes", Cmd_set_aes, "" },
 #endif
+		{ "hwver", Cmd_hwver, "" },
+
 		{ "free", Cmd_free, "" },
 		{ "connect", Cmd_connect, "" },
 		{ "disconnect", Cmd_disconnect, "" },
