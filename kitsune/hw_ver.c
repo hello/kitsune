@@ -10,7 +10,7 @@
 #define DVT_STRING "dvt"
 #define PVT_STRING "pvt"
 #define EVT1_1p5_STRING "1.5 evt1"
-int hw_ver = EVT2;
+int hw_ver = EVT1_1p5;
 
 #define minval(a,b) a < b ? a : b;
 
