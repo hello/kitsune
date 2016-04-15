@@ -356,7 +356,7 @@ int init_light_sensor()
 		unsigned char aucDataBuf[2] = { 0, 0xA0 };
 		(I2C_IF_Write(0x44, aucDataBuf, 2, 1));
 	} else {
-		unsigned char aucDataBuf[3] = { 1, 0b11001100, 0b00001000 };
+		unsigned char aucDataBuf[3] = { 1, 0b11001110, 0b00001000 };
 		(I2C_IF_Write(0x44, aucDataBuf, 3, 1));
 	}
 
@@ -366,7 +366,7 @@ int init_light_sensor()
 
 static int _read_als(){
 	unsigned char cmd;
-	unsigned char aucDataBuf[2] = { 0, 0 };
+	unsigned char aucDataBuf[5] = { 0, 0 };
 
 	cmd = 0x2;
 	(I2C_IF_Write(0x44, &cmd, 1, 1));
@@ -430,14 +430,15 @@ int get_light() {
 	} else {
 		uint8_t cmd = 0x0;
 		(I2C_IF_Write(0x44, &cmd, 1, 1));
-		vTaskDelay(0);
 		(I2C_IF_Read(0x44, aucDataBuf, 2));
 
-		uint16_t raw =  aucDataBuf[0] | (aucDataBuf[1] << 8);
+		uint16_t raw =  aucDataBuf[1] | (aucDataBuf[0] << 8);
 		unsigned int exp = raw >> 12; //pull out exponent
-		raw &= ~0xC000; //clear the exponent
+		raw &= 0xFFF; //clear the exponent
 
-		return ( raw * (1<<exp) * 65536 ) / (125 * 100 );
+		//LOGI("%x\t%x\n%d, %d\n", aucDataBuf[0],aucDataBuf[1], raw, exp);
+		light = raw;
+		light *= ((1<<exp) * 65536 ) / (125 * 100 );
 	}
 	xSemaphoreGiveRecursive(i2c_smphr);
 	return light;
