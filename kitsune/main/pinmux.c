@@ -299,4 +299,9 @@ PinMuxConfig(void)
 	// todo PVT reverse this
 	//drive high by default
     MAP_GPIOPinWrite(GPIOA3_BASE, 0x2, 0x2);
+
+    //
+    // Configure PIN_29 for Audio CODEC RESET_b
+    //
+    MAP_GPIODirModeSet(GPIOA3_BASE,0x4,GPIO_DIR_MODE_OUT);
 }

@@ -685,6 +685,8 @@ void AudioTask_Thread(void * data) {
 
 	for (; ;) {
 
+		vTaskDelay(1000);
+
 //		memset(&m,0,sizeof(m));
 //
 //		/* Wait until we get a message */
