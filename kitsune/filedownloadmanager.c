@@ -741,14 +741,14 @@ static int32_t sd_sha_verifynsave(const char * sha_truth, char* path, char* sha_
     res = hello_fs_stat(path, &info);
     if (res) {
         LOGE("DM: f_stat %d\n", res);
-        return -1;
+        goto fail;
     }
 
 
     res = hello_fs_open(&fp, path, FA_READ);
     if (res) {
         LOGE("DM: f_open for read %d\n", res);
-        return -1;
+        goto fail;
     }
 
     //compute sha
@@ -759,7 +759,7 @@ static int32_t sd_sha_verifynsave(const char * sha_truth, char* path, char* sha_
 		res = hello_fs_read(&fp, buffer,(minval(SD_BLOCK_SIZE,bytes_to_read)), &bytes_read);
 		if (res) {
 			LOGE("DM: f_read %d\n", res);
-			return -1;
+			goto fail;
 		}
 		SHA1_Update(&sha1ctx, buffer, bytes_read);
 		bytes_to_read -= bytes_read;
@@ -775,7 +775,7 @@ static int32_t sd_sha_verifynsave(const char * sha_truth, char* path, char* sha_
 			LOGE("SD card file SHA did not match!\n");
 			//LOGI("Sha truth:      %02x ... %02x\r\n", sha_truth[0], sha_truth[SHA1_SIZE-1]);
 			//LOGI("Sha calculated: %02x ... %02x\r\n", sha[0], sha[SHA1_SIZE-1]);
-			return -1;
+			goto fail;
 		}
     }
 
@@ -786,7 +786,7 @@ static int32_t sd_sha_verifynsave(const char * sha_truth, char* path, char* sha_
 	res = hello_fs_open(&fp, sha_path, FA_CREATE_ALWAYS|FA_WRITE);
 	if (res) {
 		LOGE("DM: f_open for write %d\n", res);
-		return -1;
+		goto fail;
 	}
 
 	bytes_to_write = SHA1_SIZE;
@@ -804,7 +804,7 @@ static int32_t sd_sha_verifynsave(const char * sha_truth, char* path, char* sha_
 		res = hello_fs_write(&fp, sha,SHA1_SIZE, &bytes_written);
 		if (res) {
 			LOGE("DM: f_write %d\n", res);
-			return -1;
+			goto fail;
 		}
 
 		bytes_to_write -= bytes_written;
@@ -817,6 +817,11 @@ static int32_t sd_sha_verifynsave(const char * sha_truth, char* path, char* sha_
 
 
     return 0;
+
+fail:
+	if(buffer) vPortFree(buffer);
+	return -1;
+
 }
 
 // len is the length of the full_path array
