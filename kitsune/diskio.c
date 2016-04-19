@@ -45,6 +45,7 @@
 #include "sdhost.h"
 #include "stdcmd.h"
 #include "utils.h"
+#include "kit_assert.h"
 
 //*****************************************************************************
 // Macros
@@ -588,7 +589,10 @@ DRESULT disk_write ( BYTE bDrive,const BYTE* pBuffer, DWORD ulSectorNumber,
       //
       // Wait for data transfer complete
       //
-      while( !(MAP_SDHostIntStatus(SDHOST_BASE) & SDHOST_INT_TC) ) { }
+      uint32_t retries = 0;
+      while( !(MAP_SDHostIntStatus(SDHOST_BASE) & SDHOST_INT_TC) ) {
+    	  assert( ++retries < 1000000 );
+      }
       Res = RES_OK;
     }
   }
@@ -622,7 +626,10 @@ DRESULT disk_write ( BYTE bDrive,const BYTE* pBuffer, DWORD ulSectorNumber,
       //
       // Wait for transfer complete
       //
-      while( !(MAP_SDHostIntStatus(SDHOST_BASE) & SDHOST_INT_TC) ) { }
+      uint32_t retries = 0;
+      while( !(MAP_SDHostIntStatus(SDHOST_BASE) & SDHOST_INT_TC) ) {
+    	  assert( ++retries < 1000000 );
+      }
       CardSendCmd(CMD_STOP_TRANS,0);
       Res = RES_OK;
     }
