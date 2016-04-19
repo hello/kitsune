@@ -35,6 +35,7 @@
 #include "protocol.h"
 #include "common.h"
 #include "sl_sync_include_after_simplelink_header.h"
+#define SD_BLOCK_SIZE		512
 
 /* Hardware library includes. */
 #include "hw_memmap.h"
@@ -973,7 +974,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
         {
         int retries;
 		for(retries = 0;retries < 1000; ++retries) {
-			transfer_len = recv(dl_sock, &g_buff[0], MAX_BUFF_SIZE, 0);
+			transfer_len = recv(dl_sock, &g_buff[0], SD_BLOCK_SIZE, 0);
 			if( transfer_len == SL_EAGAIN ) {
 				vTaskDelay(500);
 				continue;
