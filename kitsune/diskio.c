@@ -462,7 +462,7 @@ DRESULT disk_read ( BYTE bDrive, BYTE* pBuffer, DWORD ulSectorNumber,
   //
   // Set the block count
   //
-  MAP_SDHostBlockCountSet(SDHOST_BASE,bSectorCount);
+  SDHostBlockCountSet(SDHOST_BASE,bSectorCount);
 
   //
   // Compute the number of words
@@ -560,7 +560,7 @@ DRESULT disk_write ( BYTE bDrive,const BYTE* pBuffer, DWORD ulSectorNumber,
   //
   // Set the block count
   //
-  MAP_SDHostBlockCountSet(SDHOST_BASE,bSectorCount);
+  SDHostBlockCountSet(SDHOST_BASE,bSectorCount);
 
   //
   // Compute the number of words
