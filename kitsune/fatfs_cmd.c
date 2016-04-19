@@ -36,6 +36,17 @@
 #include "common.h"
 #include "sl_sync_include_after_simplelink_header.h"
 
+/* Hardware library includes. */
+#include "hw_memmap.h"
+#include "hw_common_reg.h"
+#include "hw_types.h"
+#include "hw_ints.h"
+#include "hw_wdt.h"
+#include "wdt.h"
+#include "wdt_if.h"
+#include "rom.h"
+#include "rom_map.h"
+
 #define PREFIX_BUFFER    "GET "
 //#define POST_BUFFER      " HTTP/1.1\nAccept: text/html, application/xhtml+xml, */*\n\n"
 #define POST_BUFFER_1  " HTTP/1.1\nHost:"
@@ -926,6 +937,8 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
     		percent = 100-100*recv_size/total;
             LOGI("Downloading... %d %d\r\n", recv_size, percent );
     	}
+
+		MAP_WatchdogIntClear(WDT_BASE); //clear wdt
 
 		// write data on the file
 		if (storage == SD_CARD) {
