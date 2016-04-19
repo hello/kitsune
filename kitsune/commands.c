@@ -1624,13 +1624,9 @@ void thread_spi(void * data) {
 			vTaskDelay(500);
 			continue;
 		}
-		if (xSemaphoreTake(spi_smphr, portMAX_DELAY) ) {
-			Cmd_spi_read(0, 0);
-			MAP_GPIOIntEnable(GPIO_PORT,GSPI_INT_PIN);
-		} else {
-			Cmd_spi_read(0, 0);
-			MAP_GPIOIntEnable(GPIO_PORT,GSPI_INT_PIN);
-		}
+		xSemaphoreTake(spi_smphr, 500);
+		Cmd_spi_read(0, 0);
+		MAP_GPIOIntEnable(GPIO_PORT,GSPI_INT_PIN);
 	}
 
 	/*
