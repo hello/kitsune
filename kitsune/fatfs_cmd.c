@@ -35,6 +35,18 @@
 #include "protocol.h"
 #include "common.h"
 #include "sl_sync_include_after_simplelink_header.h"
+#define SD_BLOCK_SIZE		512
+
+/* Hardware library includes. */
+#include "hw_memmap.h"
+#include "hw_common_reg.h"
+#include "hw_types.h"
+#include "hw_ints.h"
+#include "hw_wdt.h"
+#include "wdt.h"
+#include "wdt_if.h"
+#include "rom.h"
+#include "rom_map.h"
 
 #define PREFIX_BUFFER    "GET "
 //#define POST_BUFFER      " HTTP/1.1\nAccept: text/html, application/xhtml+xml, */*\n\n"
@@ -927,6 +939,8 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
             LOGI("Downloading... %d %d\r\n", recv_size, percent );
     	}
 
+		MAP_WatchdogIntClear(WDT_BASE); //clear wdt
+
 		// write data on the file
 		if (storage == SD_CARD) {
 			res = hello_fs_write(&file_obj, pBuff, transfer_len, &r);
@@ -960,7 +974,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
         {
         int retries;
 		for(retries = 0;retries < 1000; ++retries) {
-			transfer_len = recv(dl_sock, &g_buff[0], MAX_BUFF_SIZE, 0);
+			transfer_len = recv(dl_sock, &g_buff[0], SD_BLOCK_SIZE, 0);
 			if( transfer_len == SL_EAGAIN ) {
 				vTaskDelay(500);
 				continue;
