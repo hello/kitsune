@@ -216,8 +216,9 @@ static unsigned long CardSelect(DiskInfo_t *sDiskInfo) {
 	ulRet = CardSendCmd(CMD_SELECT_CARD, (ulRCA << 16));
 
 	if (ulRet == 0) {
+		int retries = 0;
 		while (!(SDHostIntStatus(SDHOST_BASE) & SDHOST_INT_TC)) {
-
+			assert(++retries < 1000000);
 		}
 	}
 
@@ -475,7 +476,9 @@ DRESULT disk_read(BYTE bDrive, BYTE* pBuffer, DWORD ulSectorNumber,
 			Res = RES_OK;
 		}
 		CardSendCmd(CMD_STOP_TRANS, 0);
+		int retries = 0;
 		while (!(MAP_SDHostIntStatus(SDHOST_BASE) & SDHOST_INT_TC)) {
+			assert(++retries < 1000000);
 		}
 	}
 
@@ -546,7 +549,9 @@ DRESULT disk_write(BYTE bDrive, const BYTE* pBuffer, DWORD ulSectorNumber,
 		}
 		vTaskDelay(10);
 		CardSendCmd(CMD_STOP_TRANS, 0);
+		int retries = 0;
 		while (!(MAP_SDHostIntStatus(SDHOST_BASE) & SDHOST_INT_TC)) {
+			assert(++retries < 100000);
 			vTaskDelay(1);
 		}
 	}
