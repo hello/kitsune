@@ -1102,11 +1102,13 @@ void LOGIFaults() {
 }
 #endif
 int stop_connection(int * sock) {
-	LOGI("closing sock %d\n", *sock);
-    close(*sock);
-    *sock = -1;
-    //NWP requires some time to come to terms with the disconnect...
-    vTaskDelay(1000);
+	if( *sock >= 0 ) {
+		LOGI("closing sock %d\n", *sock);
+		close(*sock);
+		*sock = -1;
+		//NWP requires some time to come to terms with the disconnect...
+		vTaskDelay(1000);
+	}
     return *sock;
 }
 
@@ -1207,7 +1209,8 @@ int start_connection(int * sock, char * host, security_type sec) {
 		#endif
 		do {
 			rv = connect(*sock, &sAddr, sizeof(sAddr));
-			vTaskDelay(100);
+			LOGI("`");
+			vTaskDelay(500);
 		} while( rv == SL_EALREADY );
 		if( rv < 0 ) {
 			ble_reply_socket_error(rv);
