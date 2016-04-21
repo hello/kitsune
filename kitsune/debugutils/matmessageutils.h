@@ -5,6 +5,11 @@
 #include "pb.h"
 #include <stdbool.h>
 
+#define MAT_MESSAGE_FAIL (0)
+#define MAT_MESSAGE_CONTINUE (1)
+#define MAT_MESSAGE_DONE (2)
+
+
 #ifdef __cplusplus
 extern "C" {
 #endif

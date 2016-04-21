@@ -45,6 +45,7 @@
 #include "sdhost.h"
 #include "stdcmd.h"
 #include "utils.h"
+#include "kit_assert.h"
 
 //*****************************************************************************
 // Macros
@@ -461,7 +462,7 @@ DRESULT disk_read ( BYTE bDrive, BYTE* pBuffer, DWORD ulSectorNumber,
   //
   // Set the block count
   //
-  MAP_SDHostBlockCountSet(SDHOST_BASE,bSectorCount);
+  SDHostBlockCountSet(SDHOST_BASE,bSectorCount);
 
   //
   // Compute the number of words
@@ -559,7 +560,7 @@ DRESULT disk_write ( BYTE bDrive,const BYTE* pBuffer, DWORD ulSectorNumber,
   //
   // Set the block count
   //
-  MAP_SDHostBlockCountSet(SDHOST_BASE,bSectorCount);
+  SDHostBlockCountSet(SDHOST_BASE,bSectorCount);
 
   //
   // Compute the number of words
@@ -588,7 +589,10 @@ DRESULT disk_write ( BYTE bDrive,const BYTE* pBuffer, DWORD ulSectorNumber,
       //
       // Wait for data transfer complete
       //
-      while( !(MAP_SDHostIntStatus(SDHOST_BASE) & SDHOST_INT_TC) ) { }
+      uint32_t retries = 0;
+      while( !(MAP_SDHostIntStatus(SDHOST_BASE) & SDHOST_INT_TC) ) {
+    	  assert( ++retries < 1000000 );
+      }
       Res = RES_OK;
     }
   }
@@ -622,7 +626,10 @@ DRESULT disk_write ( BYTE bDrive,const BYTE* pBuffer, DWORD ulSectorNumber,
       //
       // Wait for transfer complete
       //
-      while( !(MAP_SDHostIntStatus(SDHOST_BASE) & SDHOST_INT_TC) ) { }
+      uint32_t retries = 0;
+      while( !(MAP_SDHostIntStatus(SDHOST_BASE) & SDHOST_INT_TC) ) {
+    	  assert( ++retries < 1000000 );
+      }
       CardSendCmd(CMD_STOP_TRANS,0);
       Res = RES_OK;
     }

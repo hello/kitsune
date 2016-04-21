@@ -1,3 +1,5 @@
+#ifdef KIT_INCLUDE_FILE_UPLOAD
+
 #include "FreeRTOS.h"
 #include "queue.h"
 #include "semphr.h"
@@ -87,8 +89,6 @@ static void NetTaskResponse(const NetworkResponse_t * response,
 
 	xSemaphoreGive(_wait);
 }
-
-
 
 bool encode_file (pb_ostream_t * stream, const pb_field_t * field,void * const *arg) {
 	FRESULT res;
@@ -245,3 +245,4 @@ void FileUploaderTask_Upload(const char * filepath,const char * host, const char
 	}
 }
 
+#endif
