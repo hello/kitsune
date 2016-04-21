@@ -2080,7 +2080,7 @@ tCmdLineEntry g_sCmdTable[] = {
 // ==============================================================================
 // This is the UARTTask.  It handles command lines received from the RX IRQ.
 // ==============================================================================
-//void SDHostIntHandler();
+void SDHostIntHandler();
 extern xSemaphoreHandle g_xRxLineSemaphore;
 
 void UARTStdioIntHandler(void);
@@ -2166,7 +2166,7 @@ void vUARTTask(void *pvParameters) {
 	// Initialize the DMA Module
 	UDMAInit();
 	//sdhost dma interrupts
-	//MAP_SDHostIntRegister(SDHOST_BASE, SDHostIntHandler);
+	MAP_SDHostIntRegister(SDHOST_BASE, SDHostIntHandler);
 	MAP_SDHostSetExpClk(SDHOST_BASE, MAP_PRCMPeripheralClockGet(PRCM_SDHOST),
 			get_hw_ver()==EVT2?1000000:24000000);
 	UARTprintf("*");
