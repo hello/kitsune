@@ -518,7 +518,7 @@ static bool scan_files(char* path, pb_ostream_t *stream, const pb_field_t *field
 						// If downloads are pending, skip SHA calculation
 						if(get_file_download_status() != FileManifest_FileStatusType_DOWNLOAD_PENDING){
 
-							vTaskDelay(50/portTICK_PERIOD_MS);
+							vTaskDelay(5);
 
 							bool sha_ovwr = false;
 
@@ -529,7 +529,7 @@ static bool scan_files(char* path, pb_ostream_t *stream, const pb_field_t *field
 							LOGE("DM: SHA not created %s\n", fn);
 							}
 
-							vTaskDelay(50/portTICK_PERIOD_MS);
+							vTaskDelay(5);
 						}
 
 						total_file_count++;
@@ -927,7 +927,7 @@ uint32_t update_sha_file(char* path, char* original_filename, update_sha_t optio
 			}
 			// stop time
 			time_for_sha = get_time() - time_for_sha;
-			LOGI("DM %s sha_time=%d\n",original_filename,time_for_sha);
+			LOGI("DM %s sha_time=%u\n",original_filename,time_for_sha);
 		}
 		break;
 
