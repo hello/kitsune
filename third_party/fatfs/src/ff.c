@@ -123,8 +123,7 @@
 #include "diskio.h"		/* Declarations of disk I/O functions */
 ///MAB #include "uart_logger.h"
 
-
-
+#include "uart_logger.h"
 
 /*--------------------------------------------------------------------------
 
