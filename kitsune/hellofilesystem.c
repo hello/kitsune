@@ -56,7 +56,7 @@ FRESULT hello_fs_read (FIL *fp, void *buff,UINT btr,UINT *br  ) {
 	return res;
 }
 
-FRESULT hello_fs_write (  FIL *fp, const void *buff,UINT btw,UINT *bw ) {
+FRESULT hello_fs_write (  FIL *fp, const void *buff,UINT btw,UINT *bw) {
 #define minval( a,b ) a < b ? a : b
 	FRESULT res = FR_OK;
 	LOCK();
