@@ -32,8 +32,6 @@
 
 #define FOLDERS_TO_INCLUDE      (2)
 
-#define SD_BLOCK_SIZE		512
-
 char* folders[FOLDERS_TO_INCLUDE] = {"SLPTONES", "RINGTONE"};
 
 typedef enum {

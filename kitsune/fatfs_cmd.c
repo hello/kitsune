@@ -35,7 +35,6 @@
 #include "protocol.h"
 #include "common.h"
 #include "sl_sync_include_after_simplelink_header.h"
-#define SD_BLOCK_SIZE		512
 
 /* Hardware library includes. */
 #include "hw_memmap.h"
@@ -65,7 +64,7 @@
 #define SOCK_RETRY      256
 #define HTTP_END_OF_HEADER  "\r\n\r\n"  /* string marking the end of headers in response */
 
-#define MAX_BUFF_SIZE      1024
+#define MAX_BUFF_SIZE      (4*SD_BLOCK_SIZE)
 
 int sf_sha1_verify(const char * sha_truth, const char * serial_file_path);
 long bytesReceived = 0; // variable to store the file size
@@ -974,7 +973,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
         {
         int retries;
 		for(retries = 0;retries < 1000; ++retries) {
-			transfer_len = recv(dl_sock, &g_buff[0], SD_BLOCK_SIZE, 0);
+			transfer_len = recv(dl_sock, &g_buff[0], MAX_BUFF_SIZE, 0);
 			if( transfer_len == SL_EAGAIN ) {
 				vTaskDelay(500);
 				continue;

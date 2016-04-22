@@ -55,10 +55,26 @@ FRESULT hello_fs_read (FIL *fp, void *buff,UINT btr,UINT *br  ) {
 	}
 	return res;
 }
+
 FRESULT hello_fs_write (  FIL *fp, const void *buff,UINT btw,UINT *bw) {
-	FRESULT res;
+#define minval( a,b ) a < b ? a : b
+	FRESULT res = FR_OK;
 	LOCK();
-	res = f_write(fp,buff,btw,bw);
+	*bw = 0;
+	if( btw > SD_BLOCK_SIZE ) {
+		unsigned int wr = 0;
+		int to_wr = btw; //signed!
+		while( to_wr > 0 && res == FR_OK ) { //todo get multi block writes working
+			res = f_write(fp,(uint8_t*)buff+wr,minval(to_wr, SD_BLOCK_SIZE),bw);
+			to_wr-=*bw;
+			wr+=*bw;
+			//LOGD("multi %d %d %d\n", wr, *bw, to_wr);
+		}
+		*bw = wr;
+	}
+	else {
+		res = f_write(fp,buff,btw,bw);
+	}
 	f_sync(fp);
 	UNLOCK();
 
