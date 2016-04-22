@@ -47,7 +47,7 @@
 // modifications in your CCS project and leave this file alone.              
 //*****************************************************************************                                                                           */
  __HEAP_SIZE=0x00000200;
- __STACK_SIZE=0x400;
+ __STACK_SIZE=0x600;
 
 //*****************************************************************************
 // The starting address of the application.  Normally the interrupt vectors  
