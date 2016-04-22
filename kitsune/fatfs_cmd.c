@@ -64,7 +64,8 @@
 #define SOCK_RETRY      256
 #define HTTP_END_OF_HEADER  "\r\n\r\n"  /* string marking the end of headers in response */
 
-#define MAX_BUFF_SIZE      (4*SD_BLOCK_SIZE)
+#define MAX_BUFF_SIZE      512
+//(4*SD_BLOCK_SIZE)
 
 int sf_sha1_verify(const char * sha_truth, const char * serial_file_path);
 long bytesReceived = 0; // variable to store the file size
