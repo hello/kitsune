@@ -86,7 +86,7 @@ static void _get_file_sync_response(pb_field_t ** fields, void ** structdata);
 static void _free_file_sync_response(void * structdata);
 static void _on_file_sync_response_success( void * structdata);
 static void _on_file_sync_response_failure(void );
-static void get_file_download_status(FileManifest_FileStatusType* file_status);
+static FileManifest_FileStatusType get_file_download_status(void);
 static void free_file_sync_info(FileManifest_FileDownload * download_info);
 static void restart_download_manager(void);
 static bool scan_files(char* path, pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
@@ -235,7 +235,7 @@ static void DownloadManagerTask(void * filesyncdata)
 			/* UPDATE FILE STATUS - DOWNLOADED/PENDING */
 
 			message_for_upload.has_file_status = true;
-			get_file_download_status(&message_for_upload.file_status);
+			message_for_upload.file_status = get_file_download_status();
 
 			/* UPDATE DEVICE UPTIME */
 
@@ -464,7 +464,6 @@ void free_file_sync_info(FileManifest_FileDownload * download_info)
 
 static bool scan_files(char* path, pb_ostream_t *stream, const pb_field_t *field, void * const *arg)
 {
-    FileManifest_File file_info = {0};
     FRESULT res;
     FILINFO fno;
     DIR dir;
@@ -514,22 +513,30 @@ static bool scan_files(char* path, pb_ostream_t *stream, const pb_field_t *field
                 {
                 	//LOGI("DM File found: %s/%s\n", path, fn, strlen(path), strlen(fn));
 
-            		if( stream == NULL ) {
-						vTaskDelay(50/portTICK_PERIOD_MS);
+					if( stream == NULL ) {
 
-						bool sha_ovwr = false;
+						// If downloads are pending, skip SHA calculation
+						if(get_file_download_status() != FileManifest_FileStatusType_DOWNLOAD_PENDING){
 
-						sha_ovwr = (sha_calc_running_count == total_file_count) ? true : false;
+							vTaskDelay(50/portTICK_PERIOD_MS);
 
-	            		total_file_count++;
+							bool sha_ovwr = false;
 
-	            		if(update_sha_file(path,fn, sha_file_create,NULL, sha_ovwr ))
-						{
-							LOGE("DM: Error creating SHA\n");
+							sha_ovwr = (sha_calc_running_count == total_file_count) ? true : false;
+
+							if(update_sha_file(path,fn, sha_file_create,NULL, sha_ovwr ))
+							{
+							LOGE("DM: SHA not created %s\n", fn);
+							}
+
+							vTaskDelay(50/portTICK_PERIOD_MS);
 						}
 
-						vTaskDelay(50/portTICK_PERIOD_MS);
+						total_file_count++;
+
             		} else {
+            			FileManifest_File file_info = {0};
+
                    		file_info.has_delete_file = false;
 						file_info.has_download_info = true;
 						file_info.has_update_file = false;
@@ -687,12 +694,15 @@ static void _on_file_sync_response_failure( )
 
 }
 
-static void get_file_download_status(FileManifest_FileStatusType* file_status)
+static FileManifest_FileStatusType get_file_download_status(void)
 {
+	FileManifest_FileStatusType file_status;
+
 	xSemaphoreTake(_file_download_mutex, portMAX_DELAY);
-		*file_status = file_download_status;
+		file_status = file_download_status;
 	xSemaphoreGive(_file_download_mutex);
 
+	return file_status;
 }
 
 static inline void restart_download_manager(void)
@@ -893,7 +903,7 @@ uint32_t update_sha_file(char* path, char* original_filename, update_sha_t optio
 		case sha_file_create:
 		{
 
-			if((file_exists && !ovwr))
+			if(file_exists && !ovwr )
 			{
 				// File exists and overwrite flag is false,
 				// no need to update
@@ -949,7 +959,7 @@ uint32_t update_sha_file(char* path, char* original_filename, update_sha_t optio
 
 			if( !file_exists )
 			{
-				LOGE("DM: file get sha fail\n");
+				LOGE("DM: file get sha fail %s\n", original_filename);
 				return ~0;
 			}
 
