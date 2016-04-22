@@ -121,7 +121,7 @@
 
 #include "ff.h"			/* Declarations of FatFs API */
 #include "diskio.h"		/* Declarations of disk I/O functions */
-#include "uart_logger.h"
+///MAB #include "uart_logger.h"
 
 
 
@@ -2261,7 +2261,7 @@ FRESULT find_volume (	/* FR_OK(0): successful, !=0: any error occurred */
 	if (!fasize)
 	{
 		fasize = LD_DWORD(fs->win+BPB_FATSz32);
-	    LOGI("fasize (offset 0x24) = %x\n", fasize);
+//	    LOGI("fasize (offset 0x24) = %x\n", fasize);
 //		if (fasize == 0x1ea0)
 //			ST_DWORD(fs->win+BPB_FATSz32, 0x36c);
 //		fasize = LD_DWORD(fs->win+BPB_FATSz32);
@@ -2286,7 +2286,7 @@ FRESULT find_volume (	/* FR_OK(0): successful, !=0: any error occurred */
 	if (!tsect)
 	{
 		tsect = LD_DWORD(fs->win+BPB_TotSec32);
-	    LOGI("tsect (offset 0x20) = %x\n", tsect);
+//	    LOGI("tsect (offset 0x20) = %x\n", tsect);
 //	    if (tsect == 0x3d08fc1)
 //	    	ST_DWORD(fs->win+BPB_TotSec32, 0x06d67d0);
 //		tsect = LD_DWORD(fs->win+BPB_TotSec32);

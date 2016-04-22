@@ -152,6 +152,10 @@ void wifi_get_connected_ssid(uint8_t* ssid_buffer, size_t len)
 //! \return None
 //
 //****************************************************************************
+static void wifi_update_task( void * params ) {
+	ble_reply_wifi_status((wifi_connection_state)params);
+	vTaskDelete(NULL);
+}
 void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
     switch (pSlWlanEvent->Event) {
 #if 0 //todo bring this back after ti realises they've mucked it up
@@ -183,7 +187,8 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
 			memcpy(_connected_bssid, (char*)pSlWlanEvent->EventData.STAandP2PModeWlanConnected.bssid, BSSID_LEN);
 		}
         LOGI("SL_WLAN_CONNECT_EVENT\n");
-        ble_reply_wifi_status(wifi_connection_state_WLAN_CONNECTED);
+		xTaskCreate(wifi_update_task, "wifi_update_task", 1024 / 4, (void*)wifi_connection_state_WLAN_CONNECTED, 1, NULL);
+
     }
         break;
     case SL_WLAN_CONNECTION_FAILED_EVENT:  // ahhhhh this thing blocks us for 2 weeks...
@@ -191,7 +196,8 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
     	// This is a P2P event, but it fired here magically.
         wifi_status_set(CONNECTING, true);
         LOGI("SL_WLAN_CONNECTION_FAILED_EVENT\n");
-        ble_reply_wifi_status(wifi_connection_state_NO_WLAN_CONNECTED);
+		xTaskCreate(wifi_update_task, "wifi_update_task", 1024 / 4, (void*)wifi_connection_state_NO_WLAN_CONNECTED, 1, NULL);
+
         nwp_reset();
     }
     break;
@@ -209,8 +215,8 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
         	LOGI( ":%x", _connected_bssid[i] );
         } LOGI("\n");
         }
+		xTaskCreate(wifi_update_task, "wifi_update_task", 1024 / 4, (void*)wifi_connection_state_NO_WLAN_CONNECTED, 1, NULL);
 
-    	ble_reply_wifi_status(wifi_connection_state_NO_WLAN_CONNECTED);
         break;
     default:
         break;
@@ -230,11 +236,7 @@ LOGI("GENEVT ID=%d Sender=%d\n",pDevEvent->EventData.deviceEvent.status, pDevEve
 //! \return None
 //
 //****************************************************************************
-static void wifi_ip_update_task( void * params ) {
-    ble_reply_wifi_status(wifi_connection_state_IP_RETRIEVED);
 
-	vTaskDelete(NULL);
-}
 
 void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent) {
 
@@ -250,7 +252,7 @@ void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent) {
 
 		wifi_status_set(HAS_IP, false);
 
-		xTaskCreate(wifi_ip_update_task, "wifi_ip_update_task", 1024 / 4, NULL, 1, NULL);
+		xTaskCreate(wifi_update_task, "wifi_update_task", 1024 / 4, (void*)wifi_connection_state_IP_RETRIEVED, 1, NULL);
 		break;
 
 	case SL_NETAPP_IP_LEASED_EVENT:
@@ -1100,8 +1102,13 @@ void LOGIFaults() {
 }
 #endif
 int stop_connection(int * sock) {
-    close(*sock);
-    *sock = -1;
+	if( *sock >= 0 ) {
+		LOGI("closing sock %d\n", *sock);
+		close(*sock);
+		*sock = -1;
+		//NWP requires some time to come to terms with the disconnect...
+		vTaskDelay(1000);
+	}
     return *sock;
 }
 
@@ -1153,6 +1160,8 @@ int start_connection(int * sock, char * host, security_type sec) {
     //connect it up
     //LOGI("Connecting \n\r\n\r");
     if (*sock > 0 && sock_begin < 0) {
+    	LOGI("connecting sock %d %d\n", *sock, sock_begin);
+
     	tv.tv_sec = 2;             // Seconds
     	tv.tv_usec = 0;           // Microseconds. 10000 microseconds resolution
     	setsockopt(*sock, SOL_SOCKET, SL_SO_RCVTIMEO, &tv, sizeof(tv)); // Enable receive timeout
@@ -1200,13 +1209,16 @@ int start_connection(int * sock, char * host, security_type sec) {
 		#endif
 		do {
 			rv = connect(*sock, &sAddr, sizeof(sAddr));
-			vTaskDelay(100);
+			LOGI("`");
+			vTaskDelay(500);
 		} while( rv == SL_EALREADY );
 		if( rv < 0 ) {
 			ble_reply_socket_error(rv);
 			LOGI("Could not connect %d\n\r\n\r", rv);
 			return stop_connection(sock);
 		}
+    } else {
+    	LOGI("using sock %d %d\n", *sock, sock_begin);
     }
  	ble_reply_wifi_status(wifi_connection_state_SOCKET_CONNECTED);
     return 0;
@@ -1436,17 +1448,9 @@ int http_response_ok( char* response_buffer)
 {
 	char* first_line = strstr(response_buffer, "\r\n") + 2;
 	uint16_t first_line_len = first_line - response_buffer;
-	if( first_line && first_line_len > SERVER_REPLY_BUFSZ || first_line_len > strlen(response_buffer ) )
-	{
-		LOGE("Invalid headers\n");
-		return -2;
-	}
+	assert(!( first_line && first_line_len > SERVER_REPLY_BUFSZ || first_line_len > strlen(response_buffer ) ));
 	first_line = pvPortMalloc(first_line_len + 1);
-	if(!first_line)
-	{
-		LOGE("No memory\n");
-		return -2;
-	}
+	assert(first_line);
 
 	memset(first_line, 0, first_line_len + 1);
 	memcpy(first_line, response_buffer, first_line_len);
@@ -1684,7 +1688,7 @@ int send_data_pb( char* host, const char* path, char ** recv_buf_ptr,
     		 *recv_buf_size_ptr = recv_buf_size;
     		 rv = SL_EAGAIN;
     	}
-    } while (rv == SL_EAGAIN && retries++ < 60 );
+    } while (rv == SL_EAGAIN && retries++ < 70 ); // long poll endpoint times out at 60 seconds, so we need to wait a bit longer than that
     LOGI("rv %d\n", rv);
 
     if (rv <= 0) {

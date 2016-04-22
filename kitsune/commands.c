@@ -465,8 +465,9 @@ int Cmd_play_buff(int argc, char *argv[]) {
     }
     if( argc >= 5 ) {
     	desc.fade_out_ms = desc.fade_in_ms = atoi(argv[5]);
+		desc.to_fade_out_ms = atoi(argv[6]);
     } else {
-    	desc.fade_out_ms = desc.fade_in_ms = 0;
+    	desc.to_fade_out_ms = desc.fade_out_ms = desc.fade_in_ms = 0;
     }
     desc.rate = atoi(argv[2]);
 
@@ -677,7 +678,7 @@ void thread_alarm(void * unused) {
 				AudioPlaybackDesc_t desc;
 				memset(&desc,0,sizeof(desc));
 
-				desc.fade_in_ms = 30000;
+				desc.to_fade_out_ms = desc.fade_in_ms = 30000;
 				desc.fade_out_ms = 3000;
 				strncpy( desc.file, AUDIO_FILE, 64 );
 				int has_valid_sound_file = 0;
@@ -1623,13 +1624,9 @@ void thread_spi(void * data) {
 			vTaskDelay(500);
 			continue;
 		}
-		if (xSemaphoreTake(spi_smphr, portMAX_DELAY) ) {
-			Cmd_spi_read(0, 0);
-			MAP_GPIOIntEnable(GPIO_PORT,GSPI_INT_PIN);
-		} else {
-			Cmd_spi_read(0, 0);
-			MAP_GPIOIntEnable(GPIO_PORT,GSPI_INT_PIN);
-		}
+		xSemaphoreTake(spi_smphr, 500);
+		Cmd_spi_read(0, 0);
+		MAP_GPIOIntEnable(GPIO_PORT,GSPI_INT_PIN);
 	}
 
 	/*
@@ -1769,13 +1766,13 @@ void launch_tasks() {
 	UARTprintf("*");
 #if !ONLY_MID
 	UARTprintf("*");
-	xTaskCreate(thread_dust, "dustTask", 1024 / 4, NULL, 3, NULL);
+	xTaskCreate(thread_dust, "dustTask", 512 / 4, NULL, 3, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_sensor_poll, "pollTask", 1024 / 4, NULL, 2, NULL);
+	xTaskCreate(thread_sensor_poll, "pollTask", 768 / 4, NULL, 2, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_tx, "txTask", 1536 / 4, NULL, 1, NULL);
+	xTaskCreate(thread_tx, "txTask", 1024 / 4, NULL, 1, NULL);
 	UARTprintf("*");
-	long_poll_task_init( 3072 / 4 );
+	long_poll_task_init( 2560 / 4 );
 	downloadmanagertask_init(3072 / 4);
 #endif
 }
@@ -2084,7 +2081,7 @@ tCmdLineEntry g_sCmdTable[] = {
 // ==============================================================================
 // This is the UARTTask.  It handles command lines received from the RX IRQ.
 // ==============================================================================
-//void SDHostIntHandler();
+void SDHostIntHandler();
 extern xSemaphoreHandle g_xRxLineSemaphore;
 
 void UARTStdioIntHandler(void);
@@ -2170,7 +2167,7 @@ void vUARTTask(void *pvParameters) {
 	// Initialize the DMA Module
 	UDMAInit();
 	//sdhost dma interrupts
-	//MAP_SDHostIntRegister(SDHOST_BASE, SDHostIntHandler);
+	MAP_SDHostIntRegister(SDHOST_BASE, SDHostIntHandler);
 	MAP_SDHostSetExpClk(SDHOST_BASE, MAP_PRCMPeripheralClockGet(PRCM_SDHOST),
 			get_hw_ver()==EVT2?1000000:24000000);
 	UARTprintf("*");
@@ -2208,9 +2205,9 @@ void vUARTTask(void *pvParameters) {
 	CreateDefaultDirectories();
 	load_data_server();
 
-	xTaskCreate(AudioTask_Thread,"audioTask",3072/4,NULL,4,NULL);
+	xTaskCreate(AudioTask_Thread,"audioTask",2560/4,NULL,4,NULL);
 	init_download_task( 3072 / 4 );
-	networktask_init(4 * 1024 / 4);
+	networktask_init(3 * 1024 / 4);
 
 	load_serial();
 	load_aes();

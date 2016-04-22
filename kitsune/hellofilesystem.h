@@ -2,6 +2,7 @@
 #define _HELLOFILESYSTEM_H_
 
 #include "ff.h"
+#define SD_BLOCK_SIZE		512
 
 void hello_fs_init(void);  /*  Initializes locking semaphore */
 void hello_fs_lock(); //global SD card lock

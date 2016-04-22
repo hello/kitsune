@@ -46,7 +46,7 @@
 // If you are using CCS for building, it is probably better to make any such 
 // modifications in your CCS project and leave this file alone.              
 //*****************************************************************************                                                                           */
- __HEAP_SIZE=0x00000800;
+ __HEAP_SIZE=0x00000200;
  __STACK_SIZE=0x600;
 
 //*****************************************************************************
