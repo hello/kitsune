@@ -121,6 +121,7 @@
 
 #include "ff.h"			/* Declarations of FatFs API */
 #include "diskio.h"		/* Declarations of disk I/O functions */
+#include "uart_logger.h"
 
 
 
@@ -2257,7 +2258,15 @@ FRESULT find_volume (	/* FR_OK(0): successful, !=0: any error occurred */
 		return FR_NO_FILESYSTEM;
 
 	fasize = LD_WORD(fs->win+BPB_FATSz16);				/* Number of sectors per FAT */
-	if (!fasize) fasize = LD_DWORD(fs->win+BPB_FATSz32);
+	if (!fasize)
+	{
+		fasize = LD_DWORD(fs->win+BPB_FATSz32);
+	    LOGI("fasize (offset 0x24) = %x\n", fasize);
+//		if (fasize == 0x1ea0)
+//			ST_DWORD(fs->win+BPB_FATSz32, 0x36c);
+//		fasize = LD_DWORD(fs->win+BPB_FATSz32);
+//	    LOGI("fasize (offset 0x24) = %x\n", fasize);
+	}
 	fs->fsize = fasize;
 
 	fs->n_fats = fs->win[BPB_NumFATs];					/* Number of FAT copies */
@@ -2274,7 +2283,15 @@ FRESULT find_volume (	/* FR_OK(0): successful, !=0: any error occurred */
 		return FR_NO_FILESYSTEM;
 
 	tsect = LD_WORD(fs->win+BPB_TotSec16);				/* Number of sectors on the volume */
-	if (!tsect) tsect = LD_DWORD(fs->win+BPB_TotSec32);
+	if (!tsect)
+	{
+		tsect = LD_DWORD(fs->win+BPB_TotSec32);
+	    LOGI("tsect (offset 0x20) = %x\n", tsect);
+//	    if (tsect == 0x3d08fc1)
+//	    	ST_DWORD(fs->win+BPB_TotSec32, 0x06d67d0);
+//		tsect = LD_DWORD(fs->win+BPB_TotSec32);
+//	    LOGI("tsect (offset 0x20) = %x\n", tsect);
+	}
 
 	nrsv = LD_WORD(fs->win+BPB_RsvdSecCnt);				/* Number of reserved sectors */
 	if (!nrsv) return FR_NO_FILESYSTEM;					/* (Must not be 0) */

@@ -97,7 +97,11 @@ static DIR fsdirobj;
 static FILINFO file_info;
 static FIL file_obj;
 
-
+int Cmd_cid(int argc, char *argv[])
+{
+    print_CID();
+	return 0;
+}
 int Cmd_mnt(int argc, char *argv[])
 {
     FRESULT res;

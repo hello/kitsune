@@ -45,6 +45,7 @@
 #include "sdhost.h"
 #include "stdcmd.h"
 #include "utils.h"
+#include "uart_logger.h"
 
 //*****************************************************************************
 // Macros
@@ -74,6 +75,7 @@ typedef struct
   unsigned long ulBlockSize;
   DSTATUS bStatus;
   unsigned short usRCA;
+  uint32_t ui32CID[4];
 }DiskInfo_t;
 
 //*****************************************************************************
@@ -208,6 +210,85 @@ CardCapacityGet(DiskInfo_t *psDiskInfo)
   // return
   //
   return ulRet;
+}
+
+//*****************************************************************************
+//
+//! Get the CID of specified card
+//!
+//! \param ulRCA is the Relative Card Address (RCA)
+//!
+//! This function gets the capacity of card addressed by \e ulRCA paramaeter.
+//!
+//! \return Returns 0 on success, 1 otherwise.
+//
+//*****************************************************************************
+static unsigned long
+CardCIDGet(DiskInfo_t *psDiskInfo)
+{
+
+  unsigned long ulRet;
+  unsigned long ulResp[4];
+  //unsigned long ulMID;
+  //unsigned long ulOID;
+  //unsigned long ulPNM;
+  //unsigned long ulPRV;
+  //unsigned long ulPSN;
+  //unsigned long ulMDT;
+  //unsigned long ulCRC;
+  //unsigned long ulAlwaysOne;
+
+  //
+  // Read the CSD register
+  //
+  ulRet = CardSendCmd(CMD_SEND_CID,(psDiskInfo->usRCA << 16 ));
+
+  if(ulRet == 0)
+  {
+    //
+    // Read the response
+    //
+    MAP_SDHostRespGet(SDHOST_BASE,ulResp);
+
+    //
+    // 136 bit CID register is read into an array of 4 words.
+    // ulResp[0] = CID[31:0]
+    // ulResp[1] = CID[63:32]
+    // ulResp[2] = CID[95:64]
+    // ulResp[3] = CID[127:96]
+    //
+
+    psDiskInfo->ui32CID[0]  =  ulResp[0];
+    psDiskInfo->ui32CID[1]  =  ulResp[1];
+    psDiskInfo->ui32CID[2]  =  ulResp[2];
+    psDiskInfo->ui32CID[3]  =  ulResp[3];
+
+
+
+  }
+
+  //
+  // return
+  //
+  return ulRet;
+}
+
+
+void print_CID ()
+{
+    LOGI("Raw CID[127:96] = %x\n", g_sDisk.ui32CID[3]);
+    LOGI("Raw CID[95:64] = %x\n", g_sDisk.ui32CID[2]);
+    LOGI("Raw CID[63:32] = %x\n", g_sDisk.ui32CID[1]);
+    LOGI("Raw CID[31:0] = %x\n", g_sDisk.ui32CID[0]);
+
+    LOGI("Transcend MID (127:120) = 0x%x\n", ((g_sDisk.ui32CID[3] >> 24) & 0xff)   );
+    LOGI("Transcend OID (119:104) = 0x%x\n", ((g_sDisk.ui32CID[3] >> 8)  & 0xffff) );
+    LOGI("Transcend PNM (103:64)  = 0x%x%x\n", g_sDisk.ui32CID[3] & 0xff , g_sDisk.ui32CID[2] );
+    LOGI("Transcend PRV (63:56)   = 0x%x\n", ((g_sDisk.ui32CID[1] >> 24) & 0xff)   );
+    LOGI("Transcend PSN (55:24)   = 0x%x\n", ((g_sDisk.ui32CID[1] & 0xffffff) << 8) | ((g_sDisk.ui32CID[0] >> 24) & 0xff)  );
+    LOGI("Transcend MDT (19:8)    = 0x%x\n", ((g_sDisk.ui32CID[0] >> 8)  & 0x3ff)  );
+    LOGI("Transcend CRC (7:1) and always 1 (0)   = 0x%x\n",   g_sDisk.ui32CID[0] & 0xff );
+
 }
 
 //*****************************************************************************
@@ -383,6 +464,8 @@ DSTATUS disk_initialize ( BYTE bDrive )
       // Get tha card capacity
       //
       CardCapacityGet(&g_sDisk);
+      CardCIDGet(&g_sDisk);
+
     }
 
     //

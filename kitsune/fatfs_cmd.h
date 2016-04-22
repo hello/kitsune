@@ -2,6 +2,7 @@
 #define __FATFS_CMD_H__
 
 
+int Cmd_cid(int argc, char *argv[]);
 int Cmd_mnt(int argc, char *argv[]);
 int Cmd_umnt(int argc, char *argv[]);
 int Cmd_ls(int argc, char *argv[]);

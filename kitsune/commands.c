@@ -1967,6 +1967,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "time", Cmd_time, "" },
 		{ "status", Cmd_status, "" },
 
+	{ "cid",      Cmd_cid,      "" },
     { "mnt",      Cmd_mnt,      "" },
     { "umnt",     Cmd_umnt,     "" },
     { "ls",       Cmd_ls,       "" },
