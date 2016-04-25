@@ -962,7 +962,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 
         if( 100-100*recv_size/total != percent ) {
     		percent = 100-100*recv_size/total;
-            LOGI("Downloading... %d %d\r\n", recv_size, percent );
+            LOGI("DL %d %d\r\n", recv_size, percent );
     	}
 
 		MAP_WatchdogIntClear(WDT_BASE); //clear wdt
