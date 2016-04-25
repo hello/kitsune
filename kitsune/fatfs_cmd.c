@@ -35,7 +35,6 @@
 #include "protocol.h"
 #include "common.h"
 #include "sl_sync_include_after_simplelink_header.h"
-#define SD_BLOCK_SIZE		512
 
 /* Hardware library includes. */
 #include "hw_memmap.h"
@@ -65,9 +64,9 @@
 #define SOCK_RETRY      256
 #define HTTP_END_OF_HEADER  "\r\n\r\n"  /* string marking the end of headers in response */
 
-#define MAX_BUFF_SIZE      1024
+#define MAX_BUFF_SIZE      (5*SD_BLOCK_SIZE)
 
-int sf_sha1_verify(const char * sha_truth, const char * serial_file_path);
+int sf_sha1_verify(const char * sha_truth, const char * serial_file_path, int size);
 long bytesReceived = 0; // variable to store the file size
 static int dl_sock = -1;
 //end download stuff
@@ -726,7 +725,7 @@ typedef enum {
 
 #include "crypto.h"
 
-int GetData(char * filename, char* url, char * host, char * path, storage_dev_t storage)
+int GetData(char * filename, char* url, char * host, char * path, storage_dev_t storage, int * download_size)
 {
     int           transfer_len = 0;
     UINT          r = 0;
@@ -930,64 +929,62 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 	    LOGI("opening %s\n", path_buff);
 	}
     uint32_t total = recv_size;
-    int percent = 101-100*recv_size/total;
+    int percent = -1;
+    if( download_size ) { *download_size = total; }
 
-    while (0 < transfer_len)
+    //move the data back to the front of the buffer
+    memcpy( g_buff, pBuff, transfer_len );
+	//DISP( "begin %d\n", transfer_len);
+    while (recv_size > 0)
     {
-    	if( 100-100*recv_size/total != percent ) {
-    		percent = 100-100*recv_size/total;
-            LOGI("Downloading... %d %d\r\n", recv_size, percent );
-    	}
+        int retries = 0;
+        int recv_res = 1;
+		while( ++retries < 1000 && transfer_len < MAX_BUFF_SIZE && recv_res > 0 ) {
+			recv_res = recv(dl_sock, g_buff + transfer_len, MAX_BUFF_SIZE - transfer_len, 0);
+			//DISP( "r %d ", recv_res);
+			if( recv_res > 0 ) {
+				transfer_len += recv_res;
+			}
+			if( recv_res == SL_EAGAIN ) {
+				vTaskDelay(500);
+				continue;
+			}
+		}
+		//DISP( " %d %d\n", transfer_len, recv_size);
+
+		if( recv_res != SL_EAGAIN && recv_res <= 0 && transfer_len <= 0 ) {
+        	LOGI("recv fail %d\r\n", transfer_len );
+        	goto failure;
+		}
+        pBuff = g_buff;
 
 		MAP_WatchdogIntClear(WDT_BASE); //clear wdt
 
 		// write data on the file
 		if (storage == SD_CARD) {
 			res = hello_fs_write(&file_obj, pBuff, transfer_len, &r);
-			if (r != transfer_len) {
-				goto failure;
-			}
 		} else if (storage == SERIAL_FLASH) {
 			//write to serial flash file
 			r = sl_FsWrite(fileHandle, total - recv_size,
 					(unsigned char *) pBuff, transfer_len);
-			if (r != transfer_len) {
-				goto failure;
-			}
 		}
-
-		//LOGI("wrote:  %d %d\r\n", r, res); spamspamspam
 
 		if (r != transfer_len )
 		{
+			LOGE("failed to write %d %d\n",r,transfer_len);
 			goto failure;
 		}
-		bytesReceived +=transfer_len;
+		//LOGI("wrote:  %d %d\r\n", r, res); spamspamspam
+		bytesReceived += transfer_len;
 		recv_size -= transfer_len;
 
-		if( recv_size == 0 ) {
-			break;
+		if (100 - 100 * recv_size / total != percent) {
+			percent = 100 - 100 * recv_size / total;
+			LOGI("DL %d %d\r\n", recv_size, percent);
 		}
 
         memset(g_buff, 0, MAX_BUFF_SIZE);
-
-        {
-        int retries;
-		for(retries = 0;retries < 1000; ++retries) {
-			transfer_len = recv(dl_sock, &g_buff[0], SD_BLOCK_SIZE, 0);
-			if( transfer_len == SL_EAGAIN ) {
-				vTaskDelay(500);
-				continue;
-			}
-			break;
-		}
-        }
-        if(transfer_len < 0) {
-        	LOGI("recv %d\r\n", transfer_len );
-        	goto failure;
-        }
-
-        pBuff = g_buff;
+        transfer_len = 0;
     }
 
     // If user file has checksum which can be used to verify the temporary
@@ -1042,6 +1039,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 	vPortFree(g_buff);
 	return 0;
 failure:
+	LOGE("FAIL\n");
 	vPortFree(g_buff);
 	if (storage == SD_CARD) {
         /* Close file without saving */
@@ -1080,7 +1078,7 @@ int file_exists( char * filename, char * path ) {
 	return 1;
 }
 
-int download_file(char * host, char * url, char * filename, char * path, storage_dev_t storage ) {
+int download_file(char * host, char * url, char * filename, char * path, storage_dev_t storage, int * size ) {
 	unsigned long ip;
 	int r = gethostbyname((signed char*) host, strlen(host), &ip, SL_AF_INET);
 	if (r < 0) {
@@ -1095,15 +1093,14 @@ int download_file(char * host, char * url, char * filename, char * path, storage
 	//LOGI("download <host> <filename> <url>\n\r");
 	// Create a TCP connection to the Web Server
 	dl_sock = CreateConnection(ip);
+    LOGE("connect returns %d\n", dl_sock );
 	if (dl_sock < 0) {
-	    assert( !"Connection to server failed\n\r" );
-	} else {
-		LOGF("Connection to server created successfully\r\n");
+	    return dl_sock;
 	}
 	// Download the file, verify the file and replace the exiting file
-	r = GetData(filename, url, host, path, storage);
+	r = GetData(filename, url, host, path, storage, size);
 	if (r != 0) {
-		LOGF("Device couldn't download the file from the server\n\r");
+		LOGF("GetData failed\n\r");
 		close(dl_sock);
 		return r;
 	}
@@ -1116,7 +1113,7 @@ int download_file(char * host, char * url, char * filename, char * path, storage
 
 //download dropbox.com somefile.txt /on/drop/box/file.txt /
 int Cmd_download(int argc, char*argv[]) {
-	return download_file( argv[1], argv[3], argv[2], argv[4], SD_CARD );
+	return download_file( argv[1], argv[3], argv[2], argv[4], SD_CARD, NULL );
 }
 
 //end download functions
@@ -1413,6 +1410,7 @@ void file_download_task( void * params ) {
     SyncResponse_FileDownload download_info;
     unsigned char top_sha_cache[SHA1_SIZE];
     int top_need_dfu = 0;
+    int dl_size = 0;
     for(;;) while (xQueueReceive(download_queue, &(download_info), portMAX_DELAY)) {
         char * filename=NULL, * url=NULL, * host=NULL, * path=NULL, * serial_flash_path=NULL, * serial_flash_name=NULL;
 
@@ -1478,7 +1476,7 @@ void file_download_task( void * params ) {
 
                 int retries = 0;
                 while(download_file(host, url, serial_flash_name,
-                            serial_flash_path, SERIAL_FLASH) != 0) {
+                            serial_flash_path, SERIAL_FLASH, &dl_size) != 0) {
                 	if( ++retries > 10 ) {
                 		goto end_download_task;
                 	}
@@ -1490,7 +1488,7 @@ void file_download_task( void * params ) {
                 if (strcmp(buf, "/top/update.bin") == 0) {
                     if (download_info.has_sha1) {
                         memcpy(top_sha_cache, download_info.sha1.bytes, SHA1_SIZE );
-                        if( sf_sha1_verify((char *)download_info.sha1.bytes, buf)){
+                        if( sf_sha1_verify((char *)download_info.sha1.bytes, buf, dl_size)){
                             LOGW("Top DFU download failed\r\n");
                             top_need_dfu = 0;
                             goto end_download_task;
@@ -1512,7 +1510,7 @@ void file_download_task( void * params ) {
 				// the device won't be left with a corrupt file and a valid sha file.
 				update_sha_file(path, filename, sha_file_delete,NULL, false );
 
-				while (download_file(host, url, filename, path, SD_CARD)
+				while (download_file(host, url, filename, path, SD_CARD, &dl_size)
 						!= 0) {
 					if (++retries > 10) {
 						goto end_download_task;
@@ -1565,7 +1563,7 @@ void file_download_task( void * params ) {
                 full_path[sizeof(full_path)-1] = 0;
                 strncat((char*)full_path, serial_flash_name, sizeof(full_path) - strlen((char*)full_path) - 1);
 
-                res = sf_sha1_verify((char *)download_info.sha1.bytes, (char *)full_path);
+                res = sf_sha1_verify((char *)download_info.sha1.bytes, (char *)full_path, dl_size);
 
                 if(res){
                     goto end_download_task;
@@ -1665,7 +1663,7 @@ bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg
 	}
 	return true;
 }
-int sf_sha1_verify(const char * sha_truth, const char * serial_file_path){
+int sf_sha1_verify(const char * sha_truth, const char * serial_file_path, int size){
     //compute the sha of the file..
 #define minval( a,b ) a < b ? a : b
 
@@ -1685,7 +1683,10 @@ int sf_sha1_verify(const char * sha_truth, const char * serial_file_path){
         return -1;
     }
     //compute sha
-    bytes_to_read = info.FileLen;
+    if( size != info.FileLen ) {
+        LOGI("size mismatch %d %d\n", size, info.FileLen);
+    }
+    bytes_to_read = minval(size, info.FileLen);
     while (bytes_to_read > 0) {
         bytes = sl_FsRead(hndl, info.FileLen - bytes_to_read,
                 buffer,

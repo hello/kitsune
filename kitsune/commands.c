@@ -1905,6 +1905,12 @@ int Cmd_disableInterrupts(int argc, char *argv[]) {
 	}
 	return 0;
 }
+
+int Cmd_uptime(int argc, char *argv[]) {
+	LOGF("uptime %d\n", xTaskGetTickCount());
+	return 0;
+}
+
 #define ARR_LEN(x) (sizeof(x)/sizeof(x[0]))
 static void print_nwp_version() {
 	SlVersionFull ver;
@@ -2046,6 +2052,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "testkey", Cmd_test_key, ""},
 		{ "lfclktest",Cmd_test_3200_rtc,""},
 		{ "country",Cmd_country,""},
+		{ "up",Cmd_uptime,""},
 		{ "sync", Cmd_sync, "" },
 		{ "boot",Cmd_boot,""},
 		{ "gesture_count",Cmd_get_gesture_count,""},
@@ -2080,7 +2087,7 @@ tCmdLineEntry g_sCmdTable[] = {
 // ==============================================================================
 // This is the UARTTask.  It handles command lines received from the RX IRQ.
 // ==============================================================================
-//void SDHostIntHandler();
+void SDHostIntHandler();
 extern xSemaphoreHandle g_xRxLineSemaphore;
 
 void UARTStdioIntHandler(void);
@@ -2166,7 +2173,7 @@ void vUARTTask(void *pvParameters) {
 	// Initialize the DMA Module
 	UDMAInit();
 	//sdhost dma interrupts
-	//MAP_SDHostIntRegister(SDHOST_BASE, SDHostIntHandler);
+	MAP_SDHostIntRegister(SDHOST_BASE, SDHostIntHandler);
 	MAP_SDHostSetExpClk(SDHOST_BASE, MAP_PRCMPeripheralClockGet(PRCM_SDHOST),
 			get_hw_ver()==EVT2?1000000:24000000);
 	UARTprintf("*");

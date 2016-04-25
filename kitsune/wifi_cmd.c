@@ -1448,17 +1448,9 @@ int http_response_ok( char* response_buffer)
 {
 	char* first_line = strstr(response_buffer, "\r\n") + 2;
 	uint16_t first_line_len = first_line - response_buffer;
-	if( first_line && first_line_len > SERVER_REPLY_BUFSZ || first_line_len > strlen(response_buffer ) )
-	{
-		LOGE("Invalid headers\n");
-		return -2;
-	}
+	assert(!( first_line && first_line_len > SERVER_REPLY_BUFSZ || first_line_len > strlen(response_buffer ) ));
 	first_line = pvPortMalloc(first_line_len + 1);
-	if(!first_line)
-	{
-		LOGE("No memory\n");
-		return -2;
-	}
+	assert(first_line);
 
 	memset(first_line, 0, first_line_len + 1);
 	memcpy(first_line, response_buffer, first_line_len);
