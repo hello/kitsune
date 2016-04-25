@@ -260,10 +260,10 @@ static void DownloadManagerTask(void * filesyncdata)
 			/* UPDATE MEMORY INFO */
 
 			message_for_upload.has_sd_card_size = true;
-			//message_for_upload.sd_card_size.has_free_memory = true;
-			//message_for_upload.sd_card_size.has_total_memory = true;
+			message_for_upload.sd_card_size.has_free_memory = true;
+			message_for_upload.sd_card_size.has_total_memory = true;
 
-			//get_free_space(&message_for_upload.sd_card_size.free_memory, &message_for_upload.sd_card_size.total_memory); TODO - this causes a crash?
+			get_free_space(&message_for_upload.sd_card_size.free_memory, &message_for_upload.sd_card_size.total_memory);
 
 			LOGI("+");
 			/* UPDATE FILE ERROR INFO */
@@ -272,13 +272,11 @@ static void DownloadManagerTask(void * filesyncdata)
 
 			// Empty file operation error queue
 			while (xQueueReceive(_file_error_queue, &error_message, 0)
-					&& message_for_upload.error_info_count
-							< sizeof(message_for_upload.error_info)
-									/ sizeof(FileManifest_FileOperationError)) {
+					&& message_for_upload.error_info_count < sizeof(message_for_upload.error_info) / sizeof(FileManifest_FileOperationError)) {
 				// Add to protobuf
-				message_for_upload.error_info[message_for_upload.error_info_count] = error_message;
-				message_for_upload.error_info_count++;
-
+				LOGI("err %d %d\n", message_for_upload.error_info_count, error_message.err_code );
+				vTaskDelay(100);
+				message_for_upload.error_info[message_for_upload.error_info_count++] = error_message;
 			}
 
 			LOGI("-");
