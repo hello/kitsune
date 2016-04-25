@@ -1092,15 +1092,14 @@ int download_file(char * host, char * url, char * filename, char * path, storage
 	//LOGI("download <host> <filename> <url>\n\r");
 	// Create a TCP connection to the Web Server
 	dl_sock = CreateConnection(ip);
+    LOGE("connect returns %d\n", dl_sock );
 	if (dl_sock < 0) {
-	    assert( !"Connection to server failed\n\r" );
-	} else {
-		LOGF("Connection to server created successfully\r\n");
+	    return dl_sock;
 	}
 	// Download the file, verify the file and replace the exiting file
 	r = GetData(filename, url, host, path, storage);
 	if (r != 0) {
-		LOGF("Device couldn't download the file from the server\n\r");
+		LOGF("GetData failed\n\r");
 		close(dl_sock);
 		return r;
 	}
