@@ -260,11 +260,12 @@ static void DownloadManagerTask(void * filesyncdata)
 			/* UPDATE MEMORY INFO */
 
 			message_for_upload.has_sd_card_size = true;
-			message_for_upload.sd_card_size.has_free_memory = true;
-			message_for_upload.sd_card_size.has_total_memory = true;
+			//message_for_upload.sd_card_size.has_free_memory = true;
+			//message_for_upload.sd_card_size.has_total_memory = true;
 
-			get_free_space(&message_for_upload.sd_card_size.free_memory, &message_for_upload.sd_card_size.total_memory);
+			//get_free_space(&message_for_upload.sd_card_size.free_memory, &message_for_upload.sd_card_size.total_memory); TODO - this causes a crash?
 
+			LOGI("+");
 			/* UPDATE FILE ERROR INFO */
 
 			message_for_upload.error_info_count = 0;
@@ -280,8 +281,8 @@ static void DownloadManagerTask(void * filesyncdata)
 
 			}
 
+			LOGI("-");
 			/* UPDATE SENSE ID */
-
 			message_for_upload.sense_id.funcs.encode = encode_device_id_string;
 
 			/* SD CARD TEST READ */
@@ -295,7 +296,7 @@ static void DownloadManagerTask(void * filesyncdata)
 			test_buf = NULL;
 
 			/* SEND PROTOBUF */
-
+			LOGI("+");
 			message_sent_time = xTaskGetTickCount();
 			if(!NetworkTask_SendProtobuf(
 					true, DATA_SERVER, FILE_SYNC_ENDPOINT, FileManifest_fields, &message_for_upload, 0, NULL, NULL, &pb_cb, false)
