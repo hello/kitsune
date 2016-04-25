@@ -18,7 +18,6 @@
 #include "ble_proto.h"
 
 //#define DM_TESTING
-#define DM_UPLOAD_CMD_ENABLED
 
 #define FILE_ERROR_QUEUE_DEPTH (10)		// ensure that this matches the max_count for error_info in file_manifest.options
 
@@ -43,10 +42,8 @@ typedef enum {
 typedef FRESULT (*filesystem_rw_func_t)(FIL *, const void *,UINT ,UINT * );
 
 
-#ifdef DM_UPLOAD_CMD_ENABLED
 // Semaphore to enable file_sync upload from cli
-static xSemaphoreHandle _cli_upload_sem = NULL;
-#endif
+static xSemaphoreHandle filemngr_upload_sem = NULL;
 
 const uint32_t test_code = 0xAF50AF50;
 
@@ -134,12 +131,10 @@ void downloadmanagertask_init(uint16_t stack_size)
 
 	xTaskCreate(DownloadManagerTask, "dmTask", stack_size, NULL, 2, NULL);
 
-#ifdef DM_UPLOAD_CMD_ENABLED
-	if(!_cli_upload_sem)
+	if(!filemngr_upload_sem)
 	{
-		_cli_upload_sem = xSemaphoreCreateBinary();
+		filemngr_upload_sem = xSemaphoreCreateBinary();
 	}
-#endif
 
 }
 
@@ -148,6 +143,11 @@ void update_file_download_status(bool is_pending)
 	xSemaphoreTake(_file_download_mutex, portMAX_DELAY);
 		file_download_status = (is_pending) ? FileManifest_FileStatusType_DOWNLOAD_PENDING:FileManifest_FileStatusType_DOWNLOAD_COMPLETED;
 	xSemaphoreGive(_file_download_mutex);
+
+	//start the next one then
+	if( !is_pending ) {
+		xSemaphoreGive(filemngr_upload_sem);
+	}
 }
 
 
@@ -155,9 +155,6 @@ void update_file_download_status(bool is_pending)
 // Download Manager task
 static void DownloadManagerTask(void * filesyncdata)
 {
-#ifndef DM_UPLOAD_CMD_ENABLED
-	static TickType_t start_time;
-#endif
 	FileManifest_FileOperationError error_message;
 	FileManifest message_for_upload;
 
@@ -182,10 +179,6 @@ static void DownloadManagerTask(void * filesyncdata)
     pb_cb.on_pb_success = _on_file_sync_response_success;
     pb_cb.on_pb_failure = _on_file_sync_response_failure;
 
-    // set current time
-#ifndef DM_UPLOAD_CMD_ENABLED
-    start_time = xTaskGetTickCount();
-#endif
     //give sempahore with query delay as 15 minutes
     restart_download_manager();
 
@@ -195,12 +188,8 @@ static void DownloadManagerTask(void * filesyncdata)
 		if(xSemaphoreTake(_response_received_sem,portMAX_DELAY))
 		{
 			retry:
-#ifdef DM_UPLOAD_CMD_ENABLED
-			xSemaphoreTake(_cli_upload_sem, query_delay_ticks);
-#else
-			vTaskDelayUntil(&start_time,query_delay_ticks);
+			xSemaphoreTake(filemngr_upload_sem, query_delay_ticks);
 
-#endif
 			if( get_ble_mode() != BLE_NORMAL ||
 					get_file_download_status() == FileManifest_FileStatusType_DOWNLOAD_PENDING ) {
 				LOGI("not downloading %d or %d\n", get_ble_mode(), get_file_download_status());
@@ -315,12 +304,6 @@ static void DownloadManagerTask(void * filesyncdata)
 				LOGI("DM: Upload Fail \n");
 
 			}
-
-#ifndef DM_UPLOAD_CMD_ENABLED
-			// Update wake time
-			start_time = xTaskGetTickCount();
-#endif
-
 		}
 
 	}
@@ -1002,11 +985,9 @@ uint32_t update_sha_file(char* path, char* original_filename, update_sha_t optio
 
 int cmd_file_sync_upload(int argc, char *argv[])
 {
-#ifdef DM_UPLOAD_CMD_ENABLED
 
 	LOGI("DM: --FILE SYNC UPLOAD!--\n");
-	xSemaphoreGive(_cli_upload_sem);
-#endif
+	xSemaphoreGive(filemngr_upload_sem);
 
 	return 0;
 }
