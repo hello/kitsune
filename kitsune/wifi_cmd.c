@@ -1120,7 +1120,7 @@ int start_connection(int * sock, char * host, security_type sec) {
     int sock_begin = *sock;
 
     while(!wifi_status_get(HAS_IP)) {
-    	LOGI(".");
+    	LOGD(".");
     	vTaskDelay(1000);
     }
     set_backup_dns();
