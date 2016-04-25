@@ -55,7 +55,7 @@ FRESULT hello_fs_read (FIL *fp, void *buff,UINT btr,UINT *br  ) {
 	}
 	return res;
 }
-
+#include "uart_logger.h"
 FRESULT hello_fs_write (  FIL *fp, const void *buff,UINT btw,UINT *bw) {
 #define minval( a,b ) a < b ? a : b
 	FRESULT res = FR_OK;
@@ -68,7 +68,7 @@ FRESULT hello_fs_write (  FIL *fp, const void *buff,UINT btw,UINT *bw) {
 			res = f_write(fp,(uint8_t*)buff+wr,minval(to_wr, SD_BLOCK_SIZE),bw);
 			to_wr-=*bw;
 			wr+=*bw;
-			//LOGD("multi %d %d %d\n", wr, *bw, to_wr);
+			*bw = 0;
 		}
 		*bw = wr;
 	}

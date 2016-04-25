@@ -64,8 +64,7 @@
 #define SOCK_RETRY      256
 #define HTTP_END_OF_HEADER  "\r\n\r\n"  /* string marking the end of headers in response */
 
-#define MAX_BUFF_SIZE      512
-//(4*SD_BLOCK_SIZE)
+#define MAX_BUFF_SIZE      (5*SD_BLOCK_SIZE)
 
 int sf_sha1_verify(const char * sha_truth, const char * serial_file_path);
 long bytesReceived = 0; // variable to store the file size
@@ -930,11 +929,38 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 	    LOGI("opening %s\n", path_buff);
 	}
     uint32_t total = recv_size;
-    int percent = 101-100*recv_size/total;
+    int percent = -1;
 
-    while (0 < transfer_len)
+    //move the data back to the front of the buffer
+    memcpy( g_buff, pBuff, transfer_len );
+	//DISP( "begin %d\n", transfer_len);
+    while (recv_size > 0)
     {
-    	if( 100-100*recv_size/total != percent ) {
+        int retries = 0;
+        int recv_res = 1;
+		while( ++retries < 1000 && transfer_len < MAX_BUFF_SIZE && recv_res > 0 ) {
+			recv_res = recv(dl_sock, g_buff + transfer_len, MAX_BUFF_SIZE - transfer_len, 0);
+			//DISP( "r %d ", recv_res);
+			if( recv_res > 0 ) {
+				transfer_len += recv_res;
+			}
+			if( recv_res == SL_EAGAIN ) {
+				vTaskDelay(500);
+				continue;
+			}
+		}
+		//DISP( " %d %d\n", transfer_len, recv_size);
+
+		if( recv_res != SL_EAGAIN && recv_res <= 0 && transfer_len <= 0 ) {
+        	LOGI("recv fail %d\r\n", transfer_len );
+        	goto failure;
+		}
+        pBuff = g_buff;
+
+		bytesReceived +=transfer_len;
+		recv_size -= transfer_len;
+
+        if( 100-100*recv_size/total != percent ) {
     		percent = 100-100*recv_size/total;
             LOGI("Downloading... %d %d\r\n", recv_size, percent );
     	}
@@ -944,50 +970,21 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 		// write data on the file
 		if (storage == SD_CARD) {
 			res = hello_fs_write(&file_obj, pBuff, transfer_len, &r);
-			if (r != transfer_len) {
-				goto failure;
-			}
 		} else if (storage == SERIAL_FLASH) {
 			//write to serial flash file
 			r = sl_FsWrite(fileHandle, total - recv_size,
 					(unsigned char *) pBuff, transfer_len);
-			if (r != transfer_len) {
-				goto failure;
-			}
 		}
-
-		//LOGI("wrote:  %d %d\r\n", r, res); spamspamspam
 
 		if (r != transfer_len )
 		{
+			LOGE("failed to write %d %d\n",r,transfer_len);
 			goto failure;
 		}
-		bytesReceived +=transfer_len;
-		recv_size -= transfer_len;
-
-		if( recv_size == 0 ) {
-			break;
-		}
+		//LOGI("wrote:  %d %d\r\n", r, res); spamspamspam
 
         memset(g_buff, 0, MAX_BUFF_SIZE);
-
-        {
-        int retries;
-		for(retries = 0;retries < 1000; ++retries) {
-			transfer_len = recv(dl_sock, &g_buff[0], MAX_BUFF_SIZE, 0);
-			if( transfer_len == SL_EAGAIN ) {
-				vTaskDelay(500);
-				continue;
-			}
-			break;
-		}
-        }
-        if(transfer_len < 0) {
-        	LOGI("recv %d\r\n", transfer_len );
-        	goto failure;
-        }
-
-        pBuff = g_buff;
+        transfer_len = 0;
     }
 
     // If user file has checksum which can be used to verify the temporary
@@ -1042,6 +1039,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 	vPortFree(g_buff);
 	return 0;
 failure:
+	LOGE("FAIL\n");
 	vPortFree(g_buff);
 	if (storage == SD_CARD) {
         /* Close file without saving */

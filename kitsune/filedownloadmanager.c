@@ -201,8 +201,9 @@ static void DownloadManagerTask(void * filesyncdata)
 			vTaskDelayUntil(&start_time,query_delay_ticks);
 
 #endif
-			if( get_ble_mode() != BLE_NORMAL ) {
-				LOGI("not downloading, ble %d!\n", get_ble_mode());
+			if( get_ble_mode() != BLE_NORMAL ||
+					get_file_download_status() == FileManifest_FileStatusType_DOWNLOAD_PENDING ) {
+				LOGI("not downloading %d or %d\n", get_ble_mode(), get_file_download_status());
 				goto retry;
 			}
 
@@ -280,8 +281,10 @@ static void DownloadManagerTask(void * filesyncdata)
 			message_for_upload.error_info_count = 0;
 
 			// Empty file operation error queue
-			while(xQueueReceive( _file_error_queue, &error_message, 0 ))
-			{
+			while (xQueueReceive(_file_error_queue, &error_message, 0)
+					&& message_for_upload.error_info_count
+							< sizeof(message_for_upload.error_info)
+									/ sizeof(FileManifest_FileOperationError)) {
 				// Add to protobuf
 				message_for_upload.error_info[message_for_upload.error_info_count] = error_message;
 				message_for_upload.error_info_count++;
@@ -305,7 +308,6 @@ static void DownloadManagerTask(void * filesyncdata)
 			/* SEND PROTOBUF */
 
 			message_sent_time = xTaskGetTickCount();
-
 			if(!NetworkTask_SendProtobuf(
 					true, DATA_SERVER, FILE_SYNC_ENDPOINT, FileManifest_fields, &message_for_upload, 0, NULL, NULL, &pb_cb, false)
 					)
@@ -762,10 +764,8 @@ static int32_t sd_sha_verifynsave(const char * sha_truth, char* path, char* sha_
     //compute sha
     bytes_to_read = info.fsize;
     while (bytes_to_read > 0) {
-		vTaskDelay(5/portTICK_PERIOD_MS);
-
 		res = hello_fs_read(&fp, buffer,(minval(SD_BLOCK_SIZE,bytes_to_read)), &bytes_read);
-		if (res) {
+		if (res != FR_OK) {
 			LOGE("DM: f_read %d\n", res);
 			goto fail;
 		}

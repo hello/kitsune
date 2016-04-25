@@ -547,7 +547,6 @@ DRESULT disk_write(BYTE bDrive, const BYTE* pBuffer, DWORD ulSectorNumber,
 		if (xSemaphoreTake(sd_dma_smphr, SDCARD_DMA_BLOCK_TRANSFER_TIMEOUT)) {//block till interrupt releases
 			Res = RES_OK;
 		}
-//		vTaskDelay(10);
 		CardSendCmd(CMD_STOP_TRANS, 0);
 		int retries = 0;
 		while (!(MAP_SDHostIntStatus(SDHOST_BASE) & SDHOST_INT_TC)) {
