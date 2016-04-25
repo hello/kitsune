@@ -957,14 +957,6 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 		}
         pBuff = g_buff;
 
-		bytesReceived +=transfer_len;
-		recv_size -= transfer_len;
-
-        if( 100-100*recv_size/total != percent ) {
-    		percent = 100-100*recv_size/total;
-            LOGI("DL %d %d\r\n", recv_size, percent );
-    	}
-
 		MAP_WatchdogIntClear(WDT_BASE); //clear wdt
 
 		// write data on the file
@@ -982,6 +974,13 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 			goto failure;
 		}
 		//LOGI("wrote:  %d %d\r\n", r, res); spamspamspam
+		bytesReceived += transfer_len;
+		recv_size -= transfer_len;
+
+		if (100 - 100 * recv_size / total != percent) {
+			percent = 100 - 100 * recv_size / total;
+			LOGI("DL %d %d\r\n", recv_size, percent);
+		}
 
         memset(g_buff, 0, MAX_BUFF_SIZE);
         transfer_len = 0;
