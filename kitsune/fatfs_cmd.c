@@ -1683,6 +1683,9 @@ int sf_sha1_verify(const char * sha_truth, const char * serial_file_path, int si
         return -1;
     }
     //compute sha
+    if( size != info.FileLen ) {
+        LOGI("size mismatch %d %d\n", size, info.FileLen);
+    }
     bytes_to_read = minval(size, info.FileLen);
     while (bytes_to_read > 0) {
         bytes = sl_FsRead(hndl, info.FileLen - bytes_to_read,
