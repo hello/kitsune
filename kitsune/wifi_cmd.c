@@ -1102,11 +1102,13 @@ void LOGIFaults() {
 }
 #endif
 int stop_connection(int * sock) {
-	LOGI("closing sock %d\n", *sock);
-    close(*sock);
-    *sock = -1;
-    //NWP requires some time to come to terms with the disconnect...
-    vTaskDelay(1000);
+	if( *sock >= 0 ) {
+		LOGI("closing sock %d\n", *sock);
+		close(*sock);
+		*sock = -1;
+		//NWP requires some time to come to terms with the disconnect...
+		vTaskDelay(1000);
+	}
     return *sock;
 }
 
@@ -1207,7 +1209,8 @@ int start_connection(int * sock, char * host, security_type sec) {
 		#endif
 		do {
 			rv = connect(*sock, &sAddr, sizeof(sAddr));
-			vTaskDelay(100);
+			LOGI("`");
+			vTaskDelay(500);
 		} while( rv == SL_EALREADY );
 		if( rv < 0 ) {
 			ble_reply_socket_error(rv);
@@ -1445,17 +1448,9 @@ int http_response_ok( char* response_buffer)
 {
 	char* first_line = strstr(response_buffer, "\r\n") + 2;
 	uint16_t first_line_len = first_line - response_buffer;
-	if( first_line && first_line_len > SERVER_REPLY_BUFSZ || first_line_len > strlen(response_buffer ) )
-	{
-		LOGE("Invalid headers\n");
-		return -2;
-	}
+	assert(!( first_line && first_line_len > SERVER_REPLY_BUFSZ || first_line_len > strlen(response_buffer ) ));
 	first_line = pvPortMalloc(first_line_len + 1);
-	if(!first_line)
-	{
-		LOGE("No memory\n");
-		return -2;
-	}
+	assert(first_line);
 
 	memset(first_line, 0, first_line_len + 1);
 	memcpy(first_line, response_buffer, first_line_len);

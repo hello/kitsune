@@ -1623,13 +1623,9 @@ void thread_spi(void * data) {
 			vTaskDelay(500);
 			continue;
 		}
-		if (xSemaphoreTake(spi_smphr, portMAX_DELAY) ) {
-			Cmd_spi_read(0, 0);
-			MAP_GPIOIntEnable(GPIO_PORT,GSPI_INT_PIN);
-		} else {
-			Cmd_spi_read(0, 0);
-			MAP_GPIOIntEnable(GPIO_PORT,GSPI_INT_PIN);
-		}
+		xSemaphoreTake(spi_smphr, 500);
+		Cmd_spi_read(0, 0);
+		MAP_GPIOIntEnable(GPIO_PORT,GSPI_INT_PIN);
 	}
 
 	/*
@@ -1908,6 +1904,12 @@ int Cmd_disableInterrupts(int argc, char *argv[]) {
 	}
 	return 0;
 }
+
+int Cmd_uptime(int argc, char *argv[]) {
+	LOGF("uptime %d\n", xTaskGetTickCount());
+	return 0;
+}
+
 #define ARR_LEN(x) (sizeof(x)/sizeof(x[0]))
 static void print_nwp_version() {
 	SlVersionFull ver;
@@ -2051,6 +2053,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "testkey", Cmd_test_key, ""},
 		{ "lfclktest",Cmd_test_3200_rtc,""},
 		{ "country",Cmd_country,""},
+		{ "up",Cmd_uptime,""},
 		{ "sync", Cmd_sync, "" },
 		{ "boot",Cmd_boot,""},
 		{ "gesture_count",Cmd_get_gesture_count,""},
@@ -2081,10 +2084,11 @@ tCmdLineEntry g_sCmdTable[] = {
 		{"fs", cmd_file_sync_upload, ""},
 		{ 0, 0, 0 } };
 
+
 // ==============================================================================
 // This is the UARTTask.  It handles command lines received from the RX IRQ.
 // ==============================================================================
-//void SDHostIntHandler();
+void SDHostIntHandler();
 extern xSemaphoreHandle g_xRxLineSemaphore;
 
 void UARTStdioIntHandler(void);
@@ -2170,8 +2174,9 @@ void vUARTTask(void *pvParameters) {
 	// Initialize the DMA Module
 	UDMAInit();
 	//sdhost dma interrupts
-	//MAP_SDHostIntRegister(SDHOST_BASE, SDHostIntHandler);
-	MAP_SDHostSetExpClk(SDHOST_BASE, MAP_PRCMPeripheralClockGet(PRCM_SDHOST), 24000000);
+	MAP_SDHostIntRegister(SDHOST_BASE, SDHostIntHandler);
+	MAP_SDHostSetExpClk(SDHOST_BASE, MAP_PRCMPeripheralClockGet(PRCM_SDHOST),
+			get_hw_ver()==EVT2?1000000:24000000);
 	UARTprintf("*");
 	Cmd_mnt(0, 0);
 	vTaskDelay(10);
@@ -2208,13 +2213,16 @@ void vUARTTask(void *pvParameters) {
 	load_data_server();
 
 	UARTprintf("Codec TESTING----\n");
+
+	// Configure CODEC_RST pin
+
 	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0);
 	vTaskDelay(10);
 	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0x4);
 	codec_test_commands();
 
 	xTaskCreate(AudioTask_Thread,"audioTask",2560/4,NULL,4,NULL);
-	init_download_task( 2560 / 4 );
+	init_download_task( 3072 / 4 );
 	networktask_init(3 * 1024 / 4);
 
 	load_serial();
