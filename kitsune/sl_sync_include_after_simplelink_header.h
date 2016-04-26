@@ -29,15 +29,19 @@ extern "C" {
 #define SL_SYNC(call) \
 	({ \
 	long sl_ret, assert_ret; \
+	portTickType start = xTaskGetTickCount();\
 	LOGD("TRY %s %u\n", __FILE__, __LINE__);\
 	assert_ret = sl_enter_critical_region();\
 	if( assert_ret ){\
-		LOGI("FAILED %s %u\n", __FUNCTION__, __LINE__);\
+		LOGD("GOT %s %u\n", __FILE__, __LINE__);\
+		sl_ret = (call); \
+		sl_exit_critical_region(); \
+	}\
+	portTickType end = xTaskGetTickCount();\
+	if( !assert_ret || (end - start) > 5000 ){\
+		LOGI("BAD %s %u, %u ms\n", __FUNCTION__, __LINE__, end-start);\
 	}\
 	assert(assert_ret);\
-	LOGD("GOT %s %u\n", __FILE__, __LINE__);\
-	sl_ret = (call); \
-	sl_exit_critical_region(); \
 	LOGD("DONE %s %u\n", __FILE__, __LINE__);\
 	sl_ret; \
 	})
