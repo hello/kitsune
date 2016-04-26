@@ -25,7 +25,8 @@ extern "C" {
 #else
 
 #include "kit_assert.h"
-
+extern char * sync_fn;\
+extern int sync_ln;
 #define SL_SYNC(call) \
 	({ \
 	long sl_ret, assert_ret; \
