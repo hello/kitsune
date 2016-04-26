@@ -25,8 +25,10 @@ extern "C" {
 #else
 
 #include "kit_assert.h"
-extern char * sync_fn;\
+#include "ustdlib.h"
 extern int sync_ln;
+extern const char * sync_fnc;
+
 #define SL_SYNC(call) \
 	({ \
 	long sl_ret, assert_ret; \
@@ -34,13 +36,16 @@ extern int sync_ln;
 	LOGD("TRY %s %u\n", __FILE__, __LINE__);\
 	assert_ret = sl_enter_critical_region();\
 	if( assert_ret ){\
+		sync_ln = __LINE__;\
+		sync_fnc = __FUNCTION__;\
 		LOGD("GOT %s %u\n", __FILE__, __LINE__);\
+		/*strncpy(sync_fn, __FUNCTION__, sizeof(sync_fn)-1);*/\
 		sl_ret = (call); \
 		sl_exit_critical_region(); \
 	}\
 	portTickType end = xTaskGetTickCount();\
 	if( !assert_ret || (end - start) > 5000 ){\
-		LOGI("BAD %s %u, %u ms\n", __FUNCTION__, __LINE__, end-start);\
+		LOGI("BLOCK %s %u, %u ms\n", sync_fnc, __LINE__, end-start);\
 	}\
 	assert(assert_ret);\
 	LOGD("DONE %s %u\n", __FILE__, __LINE__);\
