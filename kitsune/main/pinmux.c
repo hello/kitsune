@@ -110,6 +110,28 @@ static void SetAntennaSelectionGPIOs(void)
 
 }
 
+static void ConfigureCodecResetGPIO(void)
+{
+    MAP_GPIODirModeSet(GPIOA3_BASE,0x4,GPIO_DIR_MODE_OUT);
+
+    //
+    // Configure PIN_29 for GPIOOutput
+    //
+    HWREG(REG_PAD_CONFIG_26) = ((HWREG(REG_PAD_CONFIG_26) & ~(PAD_STRENGTH_MASK
+                        | PAD_TYPE_MASK)) | (0x00000020 | 0x00000000 ));
+
+    //
+    // Set the mode.
+    //
+    HWREG(REG_PAD_CONFIG_26) = (((HWREG(REG_PAD_CONFIG_26) & ~PAD_MODE_MASK) |
+                                                    0x00000000) & ~(3<<10));
+
+    //
+    // Set the direction
+    //
+    HWREG(REG_PAD_CONFIG_26) = ((HWREG(REG_PAD_CONFIG_26) & ~0xC00) | 0x00000800);
+
+}
 
 //*****************************************************************************
 #include "hw_ver.h"
@@ -122,6 +144,7 @@ void PinMuxConfig_hw_dep() {
 	    SetAntennaSelectionGPIOs();
 	    break;
 	case EVT1_1p5:
+		ConfigureCodecResetGPIO();
 		break;
 	}
 }
@@ -300,8 +323,4 @@ PinMuxConfig(void)
 	//drive high by default
     MAP_GPIOPinWrite(GPIOA3_BASE, 0x2, 0x2);
 
-    //
-    // Configure PIN_29 for Audio CODEC RESET_b
-    //
-    MAP_GPIODirModeSet(GPIOA3_BASE,0x4,GPIO_DIR_MODE_OUT);
 }

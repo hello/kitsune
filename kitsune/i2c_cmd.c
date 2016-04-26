@@ -946,51 +946,40 @@ static void codec_minidsp_d_config(void);
 // FOR board bring up
 int32_t codec_test_commands(void)
 {
-	unsigned char cmd[2];
+	unsigned char cmd[2] = {0};
 	char send_stop = 1;
 	int ret;
 
 	if( xSemaphoreTakeRecursive(i2c_smphr, 100)) {
-		vTaskDelay(DELAY_CODEC);
 		// Send Software reset
 		codec_sw_reset();
-		vTaskDelay(DELAY_CODEC);
 
-//		//w 30 00 00 # Initialize to Page 1
-//		cmd[0] = 0;
-//		cmd[1] = 1;
-//		if((ret=I2C_IF_Write(Codec_addr, cmd, 2, send_stop)) < 0)
-//		{
-//			UARTprintf("Codec Write Fail %d\n", ret);
-//		}
-//
-//		// Read register in [0][0][06]
-//		cmd[0] = 1;
-//		cmd[1] = 0x00;
-//		if((ret=I2C_IF_Read(Codec_addr, cmd, 2)) < 0)
-//		{
-//			UARTprintf("Codec Read Fail %d\n", ret);
-//		}
-//
-//		if(cmd[1] == 0x11)
-//		{
-//			UARTprintf("Codec Test: PASS [0][0][6]: %d\n", cmd[1]);
-//		}
-//		else
-//		{
-//			UARTprintf("Codec Test: FAIL [0][0][6]: %u\n",cmd[1]);
-//		}
-//
-//		// Change book
-//		cmd[0] = 0x7F;
-//		cmd[1] = 0x78;
-//		I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+		// Read register in [0][0][00]
+		cmd[0] = 0;
+		cmd[1] = 0;
 
-		// Read register in [0][X]
+		I2C_IF_Write(Codec_addr, &cmd[0],1,send_stop);
+		I2C_IF_Read(Codec_addr, &cmd[1], 1);
 
-		// Change book number
+		UARTprintf("Codec Test read 1 %s: [0][0][%u]: %X \n", (cmd[1]==0)?"Pass":"Fail", cmd[0], cmd[1]);
 
-		// Read register is [Y][X]
+		// Read register in [0][0][06]
+		cmd[0] = 0x06;
+		cmd[1] = 0;
+
+		I2C_IF_Write(Codec_addr, &cmd[0],1,send_stop);
+		I2C_IF_Read(Codec_addr, &cmd[1], 1);
+
+		UARTprintf("Codec Test read 2 %s: [0][0][%u]: %X  \r\n", (cmd[1]==0x11)?"Pass":"Fail", cmd[0], cmd[1]);
+
+		// Read register in [0][0][0A]
+		cmd[0] = 0x0A;
+		cmd[1] = 0;
+
+		I2C_IF_Write(Codec_addr, &cmd[0],1,send_stop);
+		I2C_IF_Read(Codec_addr, &cmd[1], 1);
+
+		UARTprintf("Codec Test read 3 %s: [0][0][%u]: %X  \r\n", (cmd[1]==0x01)?"Pass":"Fail", cmd[0], cmd[1]);
 
 		// Enable beep generator (?) if speaker is connected
 
@@ -1107,21 +1096,21 @@ static inline void codec_sw_reset(void)
 	const TickType_t delay = 100 / portTICK_PERIOD_MS;
 	int ret;
 
-	//w 30 00 00 # Initialize to Page 0
-//	cmd[0] = 0;
-//	cmd[1] = 0;
-//	if((ret=I2C_IF_Write(Codec_addr, cmd, 2, send_stop)))
-//	{
-//		UARTprintf("Codec init page fail:%d\n",ret);
-//	}
-//
-//	//w 30 7f 00 # Initialize to Book 0
-//	cmd[0] = 0x7F;
-//	cmd[1] = 0;
-//	if((ret=I2C_IF_Write(Codec_addr, cmd, 2, send_stop)))
-//	{
-//		UARTprintf("Codec init book fail:%d\n",ret);
-//	}
+	// w 30 00 00 # Initialize to Page 0
+	cmd[0] = 0;
+	cmd[1] = 0;
+	if((ret=I2C_IF_Write(Codec_addr, cmd, 2, send_stop)))
+	{
+		UARTprintf("Codec init page fail:%d\n",ret);
+	}
+
+	//w 30 7f 00 # Initialize to Book 0
+	cmd[0] = 0x7F;
+	cmd[1] = 0;
+	if((ret=I2C_IF_Write(Codec_addr, cmd, 2, send_stop)))
+	{
+		UARTprintf("Codec init book fail:%d\n",ret);
+	}
 
 	//w 30 01 01 # Software Reset
 	cmd[0] = 0x01;
