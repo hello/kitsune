@@ -44,7 +44,7 @@ extern const char * sync_fnc;
 	}\
 	portTickType end = xTaskGetTickCount();\
 	if( !assert_ret || (end - start) > 5000 ){\
-		LOGI("BLOCK %s %u, %u ms\n", sync_fnc, __LINE__, end-start);\
+		LOGI("BLOCK %s %u, %u ms\n", sync_fnc, sync_ln, end-start);\
 	}\
 	assert(assert_ret);\
 	LOGD("DONE %s %u\n", __FILE__, __LINE__);\
