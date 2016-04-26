@@ -97,7 +97,7 @@
 #include "top_board.h"
 #include "long_poll.h"
 #include "filedownloadmanager.h"
-#define ONLY_MID 0
+#define ONLY_MID 1
 
 #define ARRAY_LEN(a) (sizeof(a)/sizeof(a[0]))
 
@@ -1752,6 +1752,7 @@ void init_download_task( int stack );
 
 void launch_tasks() {
 	checkFaults();
+#if !ONLY_MID
 	start_top_boot_watcher();
 
 	//dear future chris: this one doesn't need a semaphore since it's only written to while threads are going during factory test boot
@@ -1768,7 +1769,6 @@ void launch_tasks() {
 	xTaskCreate(httpServerTask,"httpServerTask",3*512/4,NULL,4,NULL);
 #endif
 	UARTprintf("*");
-#if !ONLY_MID
 	UARTprintf("*");
 	xTaskCreate(thread_dust, "dustTask", 512 / 4, NULL, 3, NULL);
 	UARTprintf("*");
