@@ -2246,7 +2246,7 @@ int Cmd_RadioStartRX(int argc, char*argv[])
 	return RadioStartRX(channel);
 }
 
-int RadioGetStats(unsigned int *validPackets, unsigned int *fcsPackets,unsigned int *plcpPackets, int16_t *avgRssiMgmt, int16_t  *avgRssiOther, uint16_t * pRssiHistogram, uint16_t * pRateHistogram)
+int RadioGetStats(unsigned int *validPackets, unsigned int *fcsPackets, int16_t *avgRssiMgmt, int16_t  *avgRssiOther, uint16_t * pRssiHistogram, uint16_t * pRateHistogram)
 {
 
 	SlGetRxStatResponse_t rxStatResp;
@@ -2255,7 +2255,6 @@ int RadioGetStats(unsigned int *validPackets, unsigned int *fcsPackets,unsigned 
 
 	*validPackets = rxStatResp.ReceivedValidPacketsNumber;
 	*fcsPackets = rxStatResp.ReceivedFcsErrorPacketsNumber;
-	*plcpPackets = rxStatResp.ReceivedPlcpErrorPacketsNumber;
 	*avgRssiMgmt = rxStatResp.AvarageMgMntRssi;
 	*avgRssiOther = rxStatResp.AvarageDataCtrlRssi;
 
@@ -2269,7 +2268,7 @@ int RadioGetStats(unsigned int *validPackets, unsigned int *fcsPackets,unsigned 
 
 int Cmd_RadioGetStats(int argc, char*argv[])
 {
-	unsigned int valid_packets, fcs_packets, plcp_packets;
+	unsigned int valid_packets, fcs_packets;
 	int16_t avg_rssi_mgmt, avg_rssi_other;
 	uint16_t * rssi_histogram;
 	uint16_t * rate_histogram;
@@ -2280,11 +2279,10 @@ int Cmd_RadioGetStats(int argc, char*argv[])
 	assert(rssi_histogram);
 	assert(rate_histogram);
 
-	RadioGetStats(&valid_packets, &fcs_packets, &plcp_packets, &avg_rssi_mgmt, &avg_rssi_other, rssi_histogram, rate_histogram);
+	RadioGetStats(&valid_packets, &fcs_packets, &avg_rssi_mgmt, &avg_rssi_other, rssi_histogram, rate_histogram);
 
 	LOGI( "valid_packets %d\n", valid_packets );
 	LOGI( "fcs_packets %d\n", fcs_packets );
-	LOGI( "plcp_packets %d\n", plcp_packets );
 	LOGI( "avg_rssi_mgmt %d\n", avg_rssi_mgmt );
 	LOGI( "acg_rssi_other %d\n", avg_rssi_other );
 
