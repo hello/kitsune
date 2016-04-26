@@ -39,7 +39,6 @@ extern const char * sync_fnc;
 		sync_ln = __LINE__;\
 		sync_fnc = __FUNCTION__;\
 		LOGD("GOT %s %u\n", __FILE__, __LINE__);\
-		/*strncpy(sync_fn, __FUNCTION__, sizeof(sync_fn)-1);*/\
 		sl_ret = (call); \
 		sl_exit_critical_region(); \
 	}\
