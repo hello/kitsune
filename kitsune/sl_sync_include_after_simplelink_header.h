@@ -28,9 +28,13 @@ extern "C" {
 
 #define SL_SYNC(call) \
 	({ \
-	long sl_ret; \
+	long sl_ret, assert_ret; \
 	LOGD("TRY %s %u\n", __FILE__, __LINE__);\
-	assert(sl_enter_critical_region());\
+	assert_ret = sl_enter_critical_region();\
+	if( assert_ret ){\
+		LOGI("FAILED %s %u\n", __FUNCTION__, __LINE__);\
+	}\
+	assert(assert_ret);\
 	LOGD("GOT %s %u\n", __FILE__, __LINE__);\
 	sl_ret = (call); \
 	sl_exit_critical_region(); \
