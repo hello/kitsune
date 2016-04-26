@@ -1876,13 +1876,11 @@ int Cmd_fault(int argc, char *argv[]) {
 	//*(volatile int*)0xFFFFFFFF = 0xdead;
 	//vAssertCalled("test");
 	//assert(false);
-	DISP("testing\r\n");
 	SL_SYNC(always_ok());
-
-	DISP("testing slow\r\n");
-	vTaskDelay(1000);
+	return 0;
+}
+int Cmd_fault_slow(int argc, char * argv[]) {
 	SL_SYNC(always_slow());
-
 	return 0;
 }
 int Cmd_test_realloc(int argc, char *argv[]) {
@@ -1978,6 +1976,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "aes", Cmd_set_aes, "" },
 #endif
 		{ "fault", Cmd_fault, "" },
+		{ "faults", Cmd_fault_slow, ""},
 		{ "free", Cmd_free, "" },
 		{ "connect", Cmd_connect, "" },
 		{ "disconnect", Cmd_disconnect, "" },
