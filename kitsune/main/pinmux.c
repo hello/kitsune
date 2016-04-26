@@ -112,24 +112,26 @@ static void SetAntennaSelectionGPIOs(void)
 
 static void ConfigureCodecResetGPIO(void)
 {
+	// Set as output
     MAP_GPIODirModeSet(GPIOA3_BASE,0x4,GPIO_DIR_MODE_OUT);
 
+    // Reset Values for REG_PAD_CONFIG_26: 0xC61
+
     //
-    // Configure PIN_29 for GPIOOutput
+    // Clear pad strength, pad type and pad mode, set drive strength to be 2mA [7:5]=001
     //
     HWREG(REG_PAD_CONFIG_26) = ((HWREG(REG_PAD_CONFIG_26) & ~(PAD_STRENGTH_MASK
-                        | PAD_TYPE_MASK)) | (0x00000020 | 0x00000000 ));
+                        | PAD_TYPE_MASK | PAD_MODE_MASK)) | 0x00000020 );
 
     //
-    // Set the mode.
+    // Clear pad output and output buffer enable override
     //
-    HWREG(REG_PAD_CONFIG_26) = (((HWREG(REG_PAD_CONFIG_26) & ~PAD_MODE_MASK) |
-                                                    0x00000000) & ~(3<<10));
+    HWREG(REG_PAD_CONFIG_26) = (HWREG(REG_PAD_CONFIG_26) & ~(3<<10));
 
     //
-    // Set the direction
+    // Enable override of pad output buffer enable (Pg 498 of SWRU367B)
     //
-    HWREG(REG_PAD_CONFIG_26) = ((HWREG(REG_PAD_CONFIG_26) & ~0xC00) | 0x00000800);
+    HWREG(REG_PAD_CONFIG_26) = (HWREG(REG_PAD_CONFIG_26) | 0x00000800);
 
 }
 
