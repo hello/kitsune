@@ -125,7 +125,8 @@ extern void (* const g_pfnVectors[])(void);
 extern uVectorEntry __vector_table;
 #endif
 
-
+int sync_ln;
+const char * sync_fnc = NULL;
 
 //*****************************************************************************
 //

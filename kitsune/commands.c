@@ -1862,12 +1862,24 @@ int cmd_memfrag(int argc, char *argv[]) {
 	}
 	return 0;
 }
+static long always_ok(void){
+	return 0;
+}
+static long always_slow(int dly){
+	vTaskDelay(dly);
+	return 0;
+}
+
 void
 vAssertCalled( const char * s );
 int Cmd_fault(int argc, char *argv[]) {
 	//*(volatile int*)0xFFFFFFFF = 0xdead;
 	//vAssertCalled("test");
 	assert(false);
+	return 0;
+}
+int Cmd_fault_slow(int argc, char * argv[]) {
+	SL_SYNC(always_slow(atoi(argv[1])));
 	return 0;
 }
 int Cmd_test_realloc(int argc, char *argv[]) {
@@ -1958,10 +1970,12 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "time_test", Cmd_time_test, "" },
 		{ "heapviz", Cmd_heapviz, "" },
 		{ "realloc", Cmd_test_realloc, "" },
-		{ "fault", Cmd_fault, "" },
+
 		{ "mac", Cmd_set_mac, "" },
 		{ "aes", Cmd_set_aes, "" },
 #endif
+		{ "fault", Cmd_fault, "" },
+		{ "faults", Cmd_fault_slow, ""},
 		{ "free", Cmd_free, "" },
 		{ "connect", Cmd_connect, "" },
 		{ "disconnect", Cmd_disconnect, "" },
