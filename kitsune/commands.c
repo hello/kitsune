@@ -1983,7 +1983,7 @@ tCmdLineEntry g_sCmdTable[] = {
     { "mkfs",     Cmd_mkfs,     "" },
     { "pwd",      Cmd_pwd,      "" },
     { "cat",      Cmd_cat,      "" },
-	{"codec_Mic", get_codec_mic_NAU, "" },
+	{"codec_Mic", get_codec_mic_NAU, "" }, // TODO DKH
 #endif
 
     {"inttemp", Cmd_inttemp, "" },

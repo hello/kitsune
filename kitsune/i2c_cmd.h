@@ -12,12 +12,15 @@ int Cmd_readtemp(int argc, char *argv[]);
 int Cmd_readhumid(int argc, char *argv[]);
 int Cmd_readlight(int argc, char *argv[]);
 int Cmd_readproximity(int argc, char *argv[]);
+
+// TODO DKH
+/*
 //int get_codec_NAU();
 int get_codec_NAU(int vol);
 int close_codec_NAU();
 int get_codec_mic_NAU();
 bool set_volume(int v, unsigned int dly) ;
-
+*/
 int32_t codec_test_commands(void);
 
 void get_temp_humid(int *temp, int *humid);

@@ -240,7 +240,7 @@ static void _set_volume_task(hlo_future_t * result, void * ctx){
 	LOGI("Setting volume %d at %d\n", vol_to_set, xTaskGetTickCount());
 	if( xSemaphoreTakeRecursive(i2c_smphr, 100)) {
 		vTaskDelay(5);
-		set_volume(vol_to_set, 0);
+		// set_volume(vol_to_set, 0); // TODO DKH
 		vTaskDelay(5);
 		xSemaphoreGiveRecursive(i2c_smphr);
 	}
@@ -687,54 +687,54 @@ void AudioTask_Thread(void * data) {
 
 		vTaskDelay(1000);
 
-//		memset(&m,0,sizeof(m));
-//
-//		/* Wait until we get a message */
-//		if (xQueueReceive( _queue,(void *) &m, portMAX_DELAY )) {
-//
-//
-//			/* PROCESS COMMANDS */
-//			switch (m.command) {
-//
-//			case eAudioCaptureTurnOn:
-//			{
-//				//if audio was turned on, we remember that we are on
-//				_isCapturing = 1;
-//
-//				DoCapture(m.message.capturedesc.rate);
-//				break;
-//			}
-//
-//			case eAudioCaptureTurnOff:
-//			{
-//				_isCapturing = 0;
-//				break;
-//			}
-//
-//			case eAudioPlaybackStart:
-//			{
-//				DoPlayback(&(m.message.playbackdesc));
-//
-//				if (m.message.playbackdesc.onFinished) {
-//					m.message.playbackdesc.onFinished(m.message.playbackdesc.context);
-//				}
-//
-//				break;
-//			}
-//
-//			default:
-//			{
-//				LOGI("audio task ignoring message enum %d",m.command);
-//				break;
-//			}
-//			}
-//
-//			//so even if we just played back a file
-//			//if we were supposed to be capturing, we resume that mode
-//			if (_isCapturing) {
-//				AudioTask_StartCapture(16000);
-//			}
-//		}
+		memset(&m,0,sizeof(m));
+
+		/* Wait until we get a message */
+		if (xQueueReceive( _queue,(void *) &m, portMAX_DELAY )) {
+
+
+			/* PROCESS COMMANDS */
+			switch (m.command) {
+
+			case eAudioCaptureTurnOn:
+			{
+				//if audio was turned on, we remember that we are on
+				_isCapturing = 1;
+
+				DoCapture(m.message.capturedesc.rate);
+				break;
+			}
+
+			case eAudioCaptureTurnOff:
+			{
+				_isCapturing = 0;
+				break;
+			}
+
+			case eAudioPlaybackStart:
+			{
+				DoPlayback(&(m.message.playbackdesc));
+
+				if (m.message.playbackdesc.onFinished) {
+					m.message.playbackdesc.onFinished(m.message.playbackdesc.context);
+				}
+
+				break;
+			}
+
+			default:
+			{
+				LOGI("audio task ignoring message enum %d",m.command);
+				break;
+			}
+			}
+
+			//so even if we just played back a file
+			//if we were supposed to be capturing, we resume that mode
+			if (_isCapturing) {
+				AudioTask_StartCapture(16000);
+			}
+		}
 	}
 }
 

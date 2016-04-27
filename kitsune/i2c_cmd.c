@@ -16,6 +16,10 @@
 
 #include "hw_ver.h"
 
+#include "hw_memmap.h"
+#include "wdt.h"
+#include "rom_map.h"
+
 #include "stdbool.h"
 
 #include "audio_codec_pps_driver.h"
@@ -511,6 +515,7 @@ int Cmd_readproximity(int argc, char *argv[]) {
 }
 
 // TODO DKH audio change
+/*
 bool set_volume(int v, unsigned int dly) {
 	unsigned char cmd_init[2];
 
@@ -924,7 +929,7 @@ int close_codec_NAU(int argc, char *argv[]) {
 
 	return 0;
 }
-
+*/
 
 // TODO DKH audio functions
 #include "simplelink.h"
@@ -1062,13 +1067,30 @@ int32_t codec_init(void)
 			uint8_t cmd[2];
 			uint8_t send_stop = 1;
 
-			cmd[0] = codec_program[2*i];
-			cmd[1] = codec_program[2*i+1];
+			uint32_t index = i*2;
+
+			cmd[0] = codec_program[index];
+			cmd[1] = codec_program[index+1];
 			I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 			vTaskDelay(5);
+
+#ifdef CODEC_1P5_TEST
+
+			uint8_t data;
+			I2C_IF_Write(Codec_addr, &cmd[0],1,send_stop);
+			I2C_IF_Read(Codec_addr, &data, 1);
+
+			if(data != cmd[1]){
+				UARTprintf("Codec read back fail for reg %d: %d vs %d \r\n",cmd[0], cmd[1], data);
+			}
+
+			vTaskDelay(5);
+#endif
 		}
 		offset += bytes_read;
+
+		MAP_WatchdogIntClear(WDT_BASE); //clear wdt
 
 	}
 
