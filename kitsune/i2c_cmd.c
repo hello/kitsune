@@ -930,6 +930,8 @@ int close_codec_NAU(int argc, char *argv[]) {
 #include "simplelink.h"
 #include "sl_sync_include_after_simplelink_header.h"
 
+#define CODEC_1P5_TEST
+
 static void codec_sw_reset(void);
 static void codec_fifo_config(void);
 static void codec_power_config(void);
@@ -946,6 +948,7 @@ static void codec_minidsp_d_config(void);
 // FOR board bring up
 int32_t codec_test_commands(void)
 {
+#ifdef CODEC_1P5_TEST
 	unsigned char cmd[2] = {0};
 	char send_stop = 1;
 
@@ -984,6 +987,7 @@ int32_t codec_test_commands(void)
 
 		xSemaphoreGiveRecursive(i2c_smphr);
 	}
+#endif
 
 	return 0;
 

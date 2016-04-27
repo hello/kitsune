@@ -110,12 +110,12 @@ static void SetAntennaSelectionGPIOs(void)
 
 }
 
-static void ConfigureCodecResetGPIO(void)
+static void ConfigCodecResetPin(void)
 {
 	// Set as output
     MAP_GPIODirModeSet(GPIOA3_BASE,0x4,GPIO_DIR_MODE_OUT);
 
-    // Reset Values for REG_PAD_CONFIG_26: 0xC61
+    // Reset Value for REG_PAD_CONFIG_26: 0xC61
 
     //
     // Clear pad strength, pad type and pad mode, set drive strength to be 2mA [7:5]=001
@@ -146,7 +146,7 @@ void PinMuxConfig_hw_dep() {
 	    SetAntennaSelectionGPIOs();
 	    break;
 	case EVT1_1p5:
-		ConfigureCodecResetGPIO();
+		ConfigCodecResetPin();
 		break;
 	}
 }
