@@ -2,6 +2,7 @@
 #define __SL_SYNC_H__
 
 #include <stdint.h>
+#include <stdbool.h>
 #include "socket.h"
 
 //#define SL_DEBUG_LOG
@@ -29,25 +30,21 @@ extern "C" {
 extern int sync_ln;
 extern const char * sync_fnc;
 
+void _checkret(bool assert_ret, portTickType start);
+
 #define SL_SYNC(call) \
 	({ \
-	long sl_ret, assert_ret; \
+	long sl_ret; \
 	portTickType start = xTaskGetTickCount();\
-	LOGD("TRY %s %u\n", __FILE__, __LINE__);\
-	assert_ret = sl_enter_critical_region();\
-	if( assert_ret ){\
+	if( sl_enter_critical_region() ){\
 		sync_ln = __LINE__;\
 		sync_fnc = __FUNCTION__;\
-		LOGD("GOT %s %u\n", __FILE__, __LINE__);\
 		sl_ret = (call); \
 		sl_exit_critical_region(); \
+		_checkret( true, start );\
+	} else { \
+	    _checkret( false, start );\
 	}\
-	portTickType end = xTaskGetTickCount();\
-	if( !assert_ret || (end - start) > 5000 ){\
-		LOGI("BLOCK %s %u, %u ms\n", sync_fnc, sync_ln, end-start);\
-	}\
-	assert(assert_ret);\
-	LOGD("DONE %s %u\n", __FILE__, __LINE__);\
 	sl_ret; \
 	})
 
