@@ -1865,8 +1865,8 @@ int cmd_memfrag(int argc, char *argv[]) {
 static long always_ok(void){
 	return 0;
 }
-static long always_slow(void){
-	vTaskDelay(6000);
+static long always_slow(int dly){
+	vTaskDelay(dly);
 	return 0;
 }
 
@@ -1875,12 +1875,11 @@ vAssertCalled( const char * s );
 int Cmd_fault(int argc, char *argv[]) {
 	//*(volatile int*)0xFFFFFFFF = 0xdead;
 	//vAssertCalled("test");
-	//assert(false);
-	SL_SYNC(always_ok());
+	assert(false);
 	return 0;
 }
 int Cmd_fault_slow(int argc, char * argv[]) {
-	SL_SYNC(always_slow());
+	SL_SYNC(always_slow(atoi(argv[1])));
 	return 0;
 }
 int Cmd_test_realloc(int argc, char *argv[]) {
