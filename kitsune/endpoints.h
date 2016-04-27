@@ -8,7 +8,7 @@ char * get_messeji_server(void);
 #define MESSEJI_SERVER	get_messeji_server()
 
 #define PROD_MESSEJI_SERVER "messeji.hello.is"
-#define DEV_MESSEJI_SERVER "messeji-dev.hello.is"
+#define DEV_MESSEJI_SERVER "messeji-dev-sha2.hello.is"
 #define MESSEJI_ENDPOINT "/receive"
 
 
