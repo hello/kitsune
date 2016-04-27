@@ -30,3 +30,10 @@ long sl_exit_critical_region()
 {
     return xSemaphoreGiveRecursive(_sl_mutex);
 }
+
+void _checkret(bool assert_ret, portTickType start) {
+	if( !assert_ret || (xTaskGetTickCount() - start) > 5000 ){
+		LOGI("BLOCK %s %u, %u ms\n", sync_fnc, sync_ln, xTaskGetTickCount()-start);
+	}
+	assert(assert_ret);
+}
