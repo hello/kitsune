@@ -792,6 +792,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
     if(strstr((const char *)g_buff, HTTP_STATUS_OK) == 0)
     {
     	LOGW("NO 200!\r\n");
+        LOGW("%s", g_buff);
         ASSERT_ON_ERROR(-1);
     }
 
