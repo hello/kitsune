@@ -204,7 +204,7 @@ PinMuxConfig(void)
     //setup i2S clock
     //MAP_PRCMPeripheralClkEnable(PRCM_I2S, PRCM_RUN_MODE_CLK);
     //
-    // Configure PIN_62 for GPIOInput
+    // Configure PIN_62 for GPIOInput // TODO DKH This may need to be set as output
     //
     MAP_PinTypeGPIO(PIN_62, PIN_MODE_0, false);
     MAP_GPIODirModeSet(GPIOA0_BASE, 0x80, GPIO_DIR_MODE_IN);
@@ -235,14 +235,11 @@ PinMuxConfig(void)
 	//DVT uses camera clock for codec's master clock
 	MAP_PRCMPeripheralClkEnable(PRCM_CAMERA, PRCM_RUN_MODE_CLK);
 	HWREG(0x44025000) = 0x0000;
-	MAP_CameraXClkConfig(CAMERA_BASE, 120000000ul,12000000ul);
+	MAP_CameraXClkConfig(CAMERA_BASE, 120000000ul,12000000ul); // 12MHz
 
 	// Configure PIN_02 for CAMERA0 CAM_pXCLK
     PinModeSet(PIN_02,PIN_MODE_4);
     PinConfigSet(PIN_02,PIN_STRENGTH_6MA|PIN_STRENGTH_2MA|PIN_STRENGTH_4MA,PIN_TYPE_STD);
-
-//    HWREG(0x44025000) = 0x0000;
-//    MAP_CameraXClkConfig(CAMERA_BASE, 120000000ul,12000000ul);
 
     //
     // Configure PIN_03 for MCASP0 McACLK

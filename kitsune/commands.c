@@ -2212,14 +2212,17 @@ void vUARTTask(void *pvParameters) {
 	CreateDefaultDirectories();
 	load_data_server();
 
-	UARTprintf("Codec TESTING----\n");
+	UARTprintf("~~~~Codec INIT~~~~\n");
 
 	// Configure CODEC_RST pin
 
 	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0);
 	vTaskDelay(10);
 	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0x4);
+#ifdef CODEC_1P5_TEST
 	codec_test_commands();
+#endif
+	codec_init();
 
 	xTaskCreate(AudioTask_Thread,"audioTask",2560/4,NULL,4,NULL);
 	init_download_task( 3072 / 4 );

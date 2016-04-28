@@ -17,8 +17,8 @@
 #include "hw_ver.h"
 
 #include "hw_memmap.h"
-#include "wdt.h"
 #include "rom_map.h"
+#include "wdt.h"
 
 #include "stdbool.h"
 
@@ -35,11 +35,10 @@
                                      return  iRetVal;}
 #define BUF_SIZE 2
 
-#define Codec_addr (0x18U) // TODO DKH audio change
-#define DELAY_CODEC 5
+#define Codec_addr (0x18U)
+#define DELAY_CODEC 5 // TODO set arbitrarily, might need to be adjusted
+#define CODEC_USE_MINIDSP 0 // Set to 1 if using miniDSP, else 0
 
-//#define Codec_addr 0x1A
-//#define DELAY_CODEC 1
 
 extern xSemaphoreHandle i2c_smphr;
 
@@ -935,8 +934,6 @@ int close_codec_NAU(int argc, char *argv[]) {
 #include "simplelink.h"
 #include "sl_sync_include_after_simplelink_header.h"
 
-#define CODEC_1P5_TEST
-
 static void codec_sw_reset(void);
 static void codec_fifo_config(void);
 static void codec_power_config(void);
@@ -944,16 +941,14 @@ static void codec_clock_config(void);
 static void codec_asi_config(void);
 static void codec_signal_processing_config(void);
 static void codec_speaker_config(void);
-static void codec_minidsp_a_config(void);
-static void codec_minidsp_d_config(void);
 
 #define CODEC_DRIVER_FILE "/sys/codec_driver"
 #define FILE_READ_BLOCK 128
 
 // FOR board bring up
+#ifdef CODEC_1P5_TEST
 int32_t codec_test_commands(void)
 {
-#ifdef CODEC_1P5_TEST
 	unsigned char cmd[2] = {0};
 	char send_stop = 1;
 
@@ -992,13 +987,50 @@ int32_t codec_test_commands(void)
 
 		xSemaphoreGiveRecursive(i2c_smphr);
 	}
-#endif
 
 	return 0;
 
 }
+#endif
 
-int32_t codec_init(void)
+#if (CODEC_USE_MINIDSP == 1)
+#define codec_init_with_dsp codec_init
+#else
+#define codec_init_no_dsp codec_init
+#endif
+
+
+int32_t codec_init_no_dsp(void)
+{
+	// Softwarre Reset
+	codec_sw_reset();
+
+	// FIFO Configuration
+	codec_fifo_config();
+
+	// Power and Analog Configuration
+	codec_power_config();
+
+	// Clock configuration
+	codec_clock_config();
+
+	// Audio Serial Interface Configuration (ASI1 with 6 wire I2S setup)
+	codec_asi_config();
+
+	// Signal Processing Settings (Select signal processing blocks for record and playback)
+	codec_signal_processing_config();
+
+	// Configure GPIO for digital mic input (TODO maybe power off analog section in input)
+
+	// ADC Input Channel Configuration
+
+	// Output Channel Configuration
+	codec_speaker_config();
+
+	return 0;
+}
+
+int32_t codec_init_with_dsp(void)
 {
     _i32 hndl;
     unsigned long ulToken = 0;
@@ -1114,6 +1146,8 @@ int32_t codec_init(void)
 // update volume
 
 // Software reset codec
+
+#if (CODEC_USE_MINIDSP == 0)
 static inline void codec_sw_reset(void)
 {
 	char send_stop = 1;
@@ -1367,44 +1401,7 @@ static inline void codec_speaker_config(void)
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 }
 
-// Enable digital mic input
+#endif
 
-// miniDSP A config
-static inline void codec_minidsp_a_config(void)
-{
-	char send_stop = 1;
-	unsigned char cmd[2];
-	uint32_t i;
 
-	// Enable auto increment TODO
-/*
-	for(i =0;i< miniDSP_A_reg_values_INST_SIZE + miniDSP_A_reg_values_COEFF_SIZE;i++)
-	{
-		cmd[0] = miniDSP_A_reg_values[i].reg_off;
-		//cmd[1] = miniDSP_A_reg_values[i].reg_val;
-		I2C_IF_Write(Codec_addr,cmd, 2, send_stop);
-	}
-*/
-	// Send stop TODO
-
-}
-
-// miniDSP D config
-static inline void codec_minidsp_d_config(void)
-{
-	char send_stop = 1;
-	unsigned char cmd[2];
-	uint32_t i;
-
-	// Enable auto increment TODO
-/*
-	for(i =0;i< miniDSP_D_reg_values_INST_SIZE + miniDSP_D_reg_values_COEFF_SIZE;i++)
-	{
-		cmd[0] = miniDSP_D_reg_values[i].reg_off;
-		cmd[1] = miniDSP_D_reg_values[i].reg_val;
-		I2C_IF_Write(Codec_addr,cmd, 2, send_stop);
-	}
-*/
-	// Send stop TODO
-}
 

@@ -673,15 +673,7 @@ void AudioTask_Thread(void * data) {
 
 	AudioMessage_t  m;
 
-	// TODO DKH - init codec here
-
-	// Codec test
-
-
-	//codec_init();
-
-	//Init();
-
+	Init();
 
 	for (; ;) {
 
