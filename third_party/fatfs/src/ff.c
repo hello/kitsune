@@ -121,9 +121,10 @@
 
 #include "ff.h"			/* Declarations of FatFs API */
 #include "diskio.h"		/* Declarations of disk I/O functions */
-///MAB #include "uart_logger.h"
-
 #include "uart_logger.h"
+#include "uartstdio.h"
+#include "FreeRTOS.h"
+#include "task.h"
 
 /*--------------------------------------------------------------------------
 
@@ -2174,6 +2175,14 @@ BYTE check_fs (	/* 0:FAT boor sector, 1:Valid boor sector but not FAT, 2:Not a b
 }
 
 
+/*
+static void dump_sector ( FATFS* fs, DWORD sect )
+{
+	move_window(fs, sect);
+	UINT i;
+
+}
+*/
 
 
 /*-----------------------------------------------------------------------*/
@@ -2233,6 +2242,30 @@ FRESULT find_volume (	/* FR_OK(0): successful, !=0: any error occurred */
 	/* Find an FAT partition on the drive. Supports only generic partitioning, FDISK and SFD. */
 	bsect = 0;
 	fmt = check_fs(fs, bsect);					/* Load sector 0 and check if it is an FAT boot sector as SFD */
+
+/*
+	fs->wflag = 1;
+	UARTprintf("\nRev2 values\n");
+	ST_DWORD(fs->win+0x1b8, 0xefa66e2c);
+	ST_DWORD(fs->win+0x1ca, 0x006d67d0);
+	sync_window(fs);
+*/
+	/*
+	UARTprintf("\nRev3 values\n");
+	ST_DWORD(fs->win+0x1ca, 0x00694920);
+	sync_window(fs);
+	*/
+/*
+	UINT i;
+	UARTprintf("\nSector %u\n", bsect);
+	for (i=0; i<512; i++)
+	{
+		vTaskDelay(1);
+		if (i%16 == 0)
+			UARTprintf("\n%6x ", i);
+		UARTprintf("%2x ", fs->win[i]);
+	}
+*/
 	if (fmt == 1 || (!fmt && (LD2PT(vol)))) {	/* Not an FAT boot sector or forced partition number */
 		UINT i;
 		DWORD br[4];
@@ -2253,6 +2286,104 @@ FRESULT find_volume (	/* FR_OK(0): successful, !=0: any error occurred */
 
 	/* An FAT volume is found. Following code initializes the file system object */
 
+/*
+	fs->wflag = 1;
+	UARTprintf("\nRev2 values\n");
+	ST_DWORD(fs->win+0x00, 0x429058eb);
+	ST_DWORD(fs->win+0x04, 0x20204453);
+	ST_DWORD(fs->win+0x08, 0x00342e34);
+	ST_DWORD(fs->win+0x0c, 0x00204002);
+	ST_DWORD(fs->win+0x0c, 0x00204002);
+	ST_DWORD(fs->win+0x10, 0x00000002);
+	ST_DWORD(fs->win+0x18, 0x00ff0020);
+	ST_DWORD(fs->win+0x1c, 0x00000002);
+	ST_DWORD(fs->win+0x20, 0x006d67d0);
+	ST_DWORD(fs->win+0x24, 0x0000036c);
+	ST_DWORD(fs->win+0x40, 0x02290080);
+	ST_DWORD(fs->win+0x44, 0x53e0dd1f);
+	ST_DWORD(fs->win+0x48, 0x45534e45);
+	ST_DWORD(fs->win+0x4c, 0x2044535f);
+	ST_DWORD(fs->win+0x50, 0x41462020);
+	ST_DWORD(fs->win+0x54, 0x20323354);
+	ST_DWORD(fs->win+0x58, 0x31fa2020);
+	ST_DWORD(fs->win+0x5c, 0xbcd08ec0);
+	ST_DWORD(fs->win+0x60, 0x8efb7c00);
+	ST_DWORD(fs->win+0x64, 0x0000e8d8);
+	ST_DWORD(fs->win+0x68, 0x19c6835e);
+	ST_DWORD(fs->win+0x6c, 0xfc0007bb);
+	ST_DWORD(fs->win+0x70, 0x74c084ac);
+	ST_DWORD(fs->win+0x74, 0xcd0eb406);
+	ST_DWORD(fs->win+0x78, 0x30f5eb10);
+	ST_DWORD(fs->win+0x7c, 0xcd16cde4);
+	ST_DWORD(fs->win+0x80, 0x4e0a0d19);
+	ST_DWORD(fs->win+0x84, 0x732d6e6f);
+	ST_DWORD(fs->win+0x88, 0x65747379);
+	ST_DWORD(fs->win+0x8c, 0x6964206d);
+	ST_DWORD(fs->win+0x90, 0x0a0d6b73);
+	ST_DWORD(fs->win+0x94, 0x73657250);
+	ST_DWORD(fs->win+0x98, 0x6e612073);
+	ST_DWORD(fs->win+0x9c, 0x656b2079);
+	ST_DWORD(fs->win+0xa0, 0x6f742079);
+	ST_DWORD(fs->win+0xa4, 0x62657220);
+	ST_DWORD(fs->win+0xa8, 0x0d746f6f);
+	ST_DWORD(fs->win+0xac, 0x0000000a);
+	sync_window(fs);
+*/
+/*
+	UARTprintf("\nRev3 values\n");
+	ST_DWORD(fs->win+0x00, 0x429058eb);
+	ST_DWORD(fs->win+0x04, 0x20204453);
+	ST_DWORD(fs->win+0x08, 0x00342e34);
+	ST_DWORD(fs->win+0x0c, 0x00204002);
+	ST_DWORD(fs->win+0x0c, 0x00204002);
+	ST_DWORD(fs->win+0x10, 0x00000002);
+	ST_DWORD(fs->win+0x18, 0x00ff0020);
+	ST_DWORD(fs->win+0x1c, 0x00000002);
+	ST_DWORD(fs->win+0x20, 0x00694920);
+	ST_DWORD(fs->win+0x24, 0x0000034b);
+	ST_DWORD(fs->win+0x40, 0x07290080);
+	ST_DWORD(fs->win+0x44, 0x53be6516);
+	ST_DWORD(fs->win+0x48, 0x45534e45);
+	ST_DWORD(fs->win+0x4c, 0x2044535f);
+	ST_DWORD(fs->win+0x50, 0x41462020);
+	ST_DWORD(fs->win+0x54, 0x20323354);
+	ST_DWORD(fs->win+0x58, 0x31fa2020);
+	ST_DWORD(fs->win+0x5c, 0xbcd08ec0);
+	ST_DWORD(fs->win+0x60, 0x8efb7c00);
+	ST_DWORD(fs->win+0x64, 0x0000e8d8);
+	ST_DWORD(fs->win+0x68, 0x19c6835e);
+	ST_DWORD(fs->win+0x6c, 0xfc0007bb);
+	ST_DWORD(fs->win+0x70, 0x74c084ac);
+	ST_DWORD(fs->win+0x74, 0xcd0eb406);
+	ST_DWORD(fs->win+0x78, 0x30f5eb10);
+	ST_DWORD(fs->win+0x7c, 0xcd16cde4);
+	ST_DWORD(fs->win+0x80, 0x4e0a0d19);
+	ST_DWORD(fs->win+0x84, 0x732d6e6f);
+	ST_DWORD(fs->win+0x88, 0x65747379);
+	ST_DWORD(fs->win+0x8c, 0x6964206d);
+	ST_DWORD(fs->win+0x90, 0x0a0d6b73);
+	ST_DWORD(fs->win+0x94, 0x73657250);
+	ST_DWORD(fs->win+0x98, 0x6e612073);
+	ST_DWORD(fs->win+0x9c, 0x656b2079);
+	ST_DWORD(fs->win+0xa0, 0x6f742079);
+	ST_DWORD(fs->win+0xa4, 0x62657220);
+	ST_DWORD(fs->win+0xa8, 0x0d746f6f);
+	ST_DWORD(fs->win+0xac, 0x0000000a);
+	sync_window(fs);
+*/
+//	ST_DWORD(fs->win+BPB_TotSec32, 0x06d67d0);
+//	ST_DWORD(fs->win+BPB_TotSec32, 0x0694920);
+
+/*	UARTprintf("\nSector %u\n", bsect);
+	for (i=0; i<512; i++)
+	{
+		vTaskDelay(1);
+		if (i%16 == 0)
+			UARTprintf("\n%6x ", i);
+		UARTprintf("%2x ", fs->win[i]);
+	}
+*/
+
 	if (LD_WORD(fs->win+BPB_BytsPerSec) != SS(fs))		/* (BPB_BytsPerSec must be equal to the physical sector size) */
 		return FR_NO_FILESYSTEM;
 
@@ -2260,7 +2391,7 @@ FRESULT find_volume (	/* FR_OK(0): successful, !=0: any error occurred */
 	if (!fasize)
 	{
 		fasize = LD_DWORD(fs->win+BPB_FATSz32);
-//	    LOGI("fasize (offset 0x24) = %x\n", fasize);
+//	    UARTprintf("fasize (offset 0x24) = %x\n", fasize);
 //		if (fasize == 0x1ea0)
 //			ST_DWORD(fs->win+BPB_FATSz32, 0x36c);
 //		fasize = LD_DWORD(fs->win+BPB_FATSz32);
@@ -2285,7 +2416,7 @@ FRESULT find_volume (	/* FR_OK(0): successful, !=0: any error occurred */
 	if (!tsect)
 	{
 		tsect = LD_DWORD(fs->win+BPB_TotSec32);
-//	    LOGI("tsect (offset 0x20) = %x\n", tsect);
+//	    UARTprintf("tsect (offset 0x20) = %x\n", tsect);
 //	    if (tsect == 0x3d08fc1)
 //	    	ST_DWORD(fs->win+BPB_TotSec32, 0x06d67d0);
 //		tsect = LD_DWORD(fs->win+BPB_TotSec32);

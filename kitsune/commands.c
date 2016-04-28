@@ -1964,7 +1964,10 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "time", Cmd_time, "" },
 		{ "status", Cmd_status, "" },
 
-	{ "cid",      Cmd_cid,      "" },
+	{ "fat",      Cmd_dump_FAT,      "" },
+//MAB	{ "cid",      Cmd_cid,      "" },
+		{ "repair",      Cmd_repair_fs,      "" },
+		{ "dumpfs",      Cmd_dump_fs,      "" },
     { "mnt",      Cmd_mnt,      "" },
     { "umnt",     Cmd_umnt,     "" },
     { "ls",       Cmd_ls,       "" },
@@ -2205,7 +2208,7 @@ void vUARTTask(void *pvParameters) {
 	CreateDefaultDirectories();
 	load_data_server();
 
-	xTaskCreate(AudioTask_Thread,"audioTask",2560/4,NULL,4,NULL);
+//	xTaskCreate(AudioTask_Thread,"audioTask",2560/4,NULL,4,NULL);
 	init_download_task( 3072 / 4 );
 	networktask_init(3 * 1024 / 4);
 
@@ -2225,10 +2228,10 @@ void vUARTTask(void *pvParameters) {
 	uart_logger_init();
 	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 1, NULL);
 	UARTprintf("*");
-	xTaskCreate(analytics_event_task, "analyticsTask", 1024/4, NULL, 1, NULL);
+//	xTaskCreate(analytics_event_task, "analyticsTask", 1024/4, NULL, 1, NULL);
 	UARTprintf("*");
 #endif
-	xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 2, NULL);
+//	xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
 
 	if( on_charger ) {

@@ -206,7 +206,9 @@ static unsigned long CardCapacityGet(DiskInfo_t *psDiskInfo) {
 //! \return Returns 0 on success, 1 otherwise.
 //
 //*****************************************************************************
-static unsigned long
+
+
+/*MAB static unsigned long
 CardCIDGet(DiskInfo_t *psDiskInfo)
 {
 
@@ -273,6 +275,7 @@ void print_CID ()
     LOGI("Transcend CRC (7:1) and always 1 (0)   = 0x%x\n",   g_sDisk.ui32CID[0] & 0xff );
 
 }
+MAB */
 
 //*****************************************************************************
 //
@@ -437,7 +440,7 @@ DSTATUS disk_initialize(BYTE bDrive) {
 			// Get tha card capacity
 			//
 			CardCapacityGet(&g_sDisk);
-		    CardCIDGet(&g_sDisk);
+//		    CardCIDGet(&g_sDisk);
 
 		}
 

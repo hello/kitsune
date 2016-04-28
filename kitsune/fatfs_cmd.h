@@ -1,8 +1,10 @@
 #ifndef __FATFS_CMD_H__
 #define __FATFS_CMD_H__
 
-
-int Cmd_cid(int argc, char *argv[]);
+int Cmd_dump_fs(int argc, char *argv[]);
+int Cmd_repair_fs(int argc, char *argv[]);
+int Cmd_dump_FAT(int argc, char *argv[]);
+//int Cmd_cid(int argc, char *argv[]);
 int Cmd_mnt(int argc, char *argv[]);
 int Cmd_umnt(int argc, char *argv[]);
 int Cmd_ls(int argc, char *argv[]);
