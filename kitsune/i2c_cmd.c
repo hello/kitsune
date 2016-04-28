@@ -1235,17 +1235,18 @@ static void codec_power_config(void)
 	cmd[1] = 0x01;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
-	//	w 30 01 00 # Disable weak AVDD to DVDD connection
+	//	w 30 01 00 # Disable weak AVDD to DVDD connection // TODO verify with hardware
 	cmd[0] = 0x01;
 	cmd[1] = 0x00;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	//	w 30 7a 01 # REF charging time = 40ms
 	cmd[0] = 0x7A;
-	cmd[1] = 0x01;
+	cmd[1] = 0x01; // Recommended settings as per datasheet
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
-	//	w 30 79 33 # Quick charge of analog inputs caps
+	//	w 30 79 33 # Quick charge of analog inputs caps (1.1ms Left and 0.5ms right),
+	// as per MIC example, may not be needed for digital mic? TODO
 	cmd[0] = 0x79;
 	cmd[1] = 0x33;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
