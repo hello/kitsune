@@ -1771,8 +1771,9 @@ void launch_tasks() {
 	UARTprintf("*");
 	xTaskCreate(thread_tx, "txTask", 1024 / 4, NULL, 1, NULL);
 	UARTprintf("*");
-	long_poll_task_init( 2560 / 4 );
-	downloadmanagertask_init(3072 / 4);
+	// TODO ENABLE THIS BEFORE MERGE
+	// long_poll_task_init( 2560 / 4 );
+	// downloadmanagertask_init(3072 / 4);
 #endif
 }
 

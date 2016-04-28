@@ -22,7 +22,7 @@
 
 #include "stdbool.h"
 
-#include "audio_codec_pps_driver.h"
+//#include "audio_codec_pps_driver.h"
 
 #define MAX_MEASURE_TIME		10
 
