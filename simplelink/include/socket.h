@@ -1,7 +1,7 @@
 /*
  * socket.h - CC31xx/CC32xx Host Driver Implementation
  *
- * Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com/ 
+ * Copyright (C) 2015 Texas Instruments Incorporated - http://www.ti.com/ 
  * 
  * 
  *  Redistribution and use in source and binary forms, with or without 
@@ -291,6 +291,8 @@ extern "C" {
 #define SL_SO_SECURE_FILES_CERTIFICATE_FILE_NAME (31) /* This option used to configue secure file */
 #define SL_SO_SECURE_FILES_CA_FILE_NAME          (32) /* This option used to configue secure file */
 #define SL_SO_SECURE_FILES_DH_KEY_FILE_NAME      (33) /* This option used to configue secure file */
+#define SO_SECURE_DOMAIN_NAME_VERIFICATION       (35)
+#define SECURE_MAX_DOMAIN_LENGTH                 (64)
 
 #define SL_IP_MULTICAST_IF     (60) /* Specify outgoing multicast interface */
 #define SL_IP_MULTICAST_TTL    (61) /* Specify the TTL value to use for outgoing multicast packet. */
@@ -318,7 +320,13 @@ extern "C" {
 #define SL_SEC_MASK_TLS_DHE_RSA_WITH_AES_256_CBC_SHA       (1 << 3)
 #define SL_SEC_MASK_TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA     (1 << 4)
 #define SL_SEC_MASK_TLS_ECDHE_RSA_WITH_RC4_128_SHA         (1 << 5)
-#define SL_SEC_MASK_SECURE_DEFAULT                         ((SL_SEC_MASK_TLS_ECDHE_RSA_WITH_RC4_128_SHA  <<  1)  -  1)
+#define SL_SEC_MASK_TLS_RSA_WITH_AES_128_CBC_SHA256              (1 << 6)
+#define SL_SEC_MASK_TLS_RSA_WITH_AES_256_CBC_SHA256              (1 << 7)
+#define SL_SEC_MASK_TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256        (1 << 8)
+#define SL_SEC_MASK_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256      (1 << 9)
+
+
+#define SL_SEC_MASK_SECURE_DEFAULT                         ((SL_SEC_MASK_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256  <<  1)  -  1)
 
 #define SL_MSG_DONTWAIT                                   (0x00000008)  /* Nonblocking IO */
 
@@ -328,9 +336,9 @@ extern "C" {
 #define SL_IP_LEASE_EXPIRED          (2)
 
 /* possible types when receiving SL_SOCKET_ASYNC_EVENT*/
-#define SSL_ACCEPT                                (1) /* accept failed due to ssl issue ( tcp pass) */
-#define RX_FRAGMENTATION_TOO_BIG                  (2) /* connection less mode, rx packet fragmentation > 16K, packet is being released */
-#define OTHER_SIDE_CLOSE_SSL_DATA_NOT_ENCRYPTED   (3) /* remote side down from secure to unsecure */
+#define SSL_ACCEPT                                (0) /* accept failed due to ssl issue ( tcp pass) */
+#define RX_FRAGMENTATION_TOO_BIG                  (1) /* connection less mode, rx packet fragmentation > 16K, packet is being released */
+#define OTHER_SIDE_CLOSE_SSL_DATA_NOT_ENCRYPTED   (2) /* remote side down from secure to unsecure */
 
 
 
@@ -508,6 +516,7 @@ typedef struct
 
 
 
+
 typedef struct
 {
     _u32    secureMask;
@@ -637,7 +646,7 @@ typedef struct sock_secureFiles
 
 typedef struct SlFdSet_t                    /* The select socket array manager */
 { 
-   _u32        fd_array[(SL_FD_SETSIZE + 31)/32]; /* Bit map of SOCKET Descriptors */
+   _u32        fd_array[(SL_FD_SETSIZE + (_u8)31)/(_u8)32]; /* Bit map of SOCKET Descriptors */
 } SlFdSet_t;
 
 typedef struct

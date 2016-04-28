@@ -951,7 +951,7 @@ int send_chunk_len( int obj_sz, int sock ) {
 	LOGD("CL:%s", recv_buf);
 	rv = send(sock, recv_buf, strlen(recv_buf), 0);
 	if (rv != strlen(recv_buf)) {
-		LOGI("Sending CE failed\n");
+		LOGI("Sending CE failed %d %d\n", rv, strlen(recv_buf));
 		return -1;
 	}
 
@@ -1136,7 +1136,7 @@ int start_connection(int * sock, char * host, security_type sec) {
 			// configure the socket as RSA with RC4 128 SHA
 			// setup certificate
 			unsigned char method = SL_SO_SEC_METHOD_TLSV1_2;
-			unsigned int cipher = SL_SEC_MASK_TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA;
+			unsigned int cipher = SL_SEC_MASK_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256;
 			if( sl_SetSockOpt(*sock, SL_SOL_SOCKET, SL_SO_SECMETHOD, &method, sizeof(method) ) < 0 ||
 				sl_SetSockOpt(*sock, SL_SOL_SOCKET, SL_SO_SECURE_MASK, &cipher, sizeof(cipher)) < 0 ||
 				sl_SetSockOpt(*sock, SL_SOL_SOCKET, \
@@ -1587,7 +1587,7 @@ int send_data_pb( char* host, const char* path, char ** recv_buf_ptr,
 
 	desc.buf = (uint8_t *)recv_buf;
 	desc.inbuf_offset = 0;
-	desc.buf_size = recv_buf_size;
+	desc.buf_size = MAX_SHA256_SEND_SIZE;
 	desc.ctx = &ctx;
 	desc.fd = *sock;
 
