@@ -1253,15 +1253,20 @@ static void codec_power_config(void)
 }
 
 // Codec Clock config
+// TODO verify all the settings
 static void codec_clock_config(void)
 {
 	char send_stop = 1;
 	unsigned char cmd[2];
 
+	// ADC CLOCK - 16kHz
+	// DAC CLOCK - 48kHz
+	// Codec Control Clock calculator used to obtain settings
+
 	/*
 	* Clock configuration
 	* -----------------------------------------------------
-	* - MCLK = 11.2896MHz/12.288MHz
+	* - MCLK = 12MHz // TODO needs to be confirmed
 	* - FS = 44.1kHz/48kHz
 	* - I2S Slave
 	*/
@@ -1270,24 +1275,75 @@ static void codec_clock_config(void)
 	cmd[1] = 0;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
-	//	w 30 04 00 # Set ADC_CLKIN as MCLK
+	//	w 30 04 00 # Set ADC_CLKIN = PLL_CLK and DAC_CLK = PLL_CLK
 	cmd[0] = 0x04;
-	cmd[1] = 0x00;
+	cmd[1] = (3 << 4) | (3 << 0);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
-	//	w 30 12 81 # NADC = 1
+	// PLL Input multiplexer
+	cmd[0] = 0x05;
+	cmd[1] = (0 << 6) | (0 << 2); // PLL CLK range-0(Low) and pll_clkin=mclk(0)
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	// PLL P & R values
+	cmd[0] = 0x06;
+	cmd[1] = (1 << 7) | (1 << 0) | (1 << 0); // PLL power up, P=1, R=1
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	// PLL J values
+	cmd[0] = 0x07;
+	cmd[1] =  7 << 0; // J=7
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	// PLL D MSB values
+	cmd[0] = 0x08;
+	cmd[1] = (6800 & 0x3F00) >> 8; // D=6800 (0x1A90)
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	// PLL D LSB values
+	cmd[0] = 0x09;
+	cmd[1] = (6800 & 0x00FF) >> 0; // D=6800 (0x1A90)
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	// --------- ADC -------------
+
+	//	w 30 12 81 # NADC = 3
 	cmd[0] = 0x12;
-	cmd[1] = 0x81;
+	cmd[1] = (1 << 7) | (3 << 0);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
-	//	w 30 13 84 # MADC = 4
+	//	w 30 13 84 # MADC = 15
 	cmd[0] = 0x13;
-	cmd[1] = 0x84;
+	cmd[1] = (1 << 7) | (15 << 0);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
-	//	w 30 14 40 # AOSR = 64
+	//	w 30 14 40 # AOSR = 128
+	// TODO As per datasheet, if AOSR=128, Use with PRB_R1 to PRB_R6, ADC Filter Type A
 	cmd[0] = 0x14;
-	cmd[1] = 0x40;
+	cmd[1] = 128;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	// --------- DAC -------------
+
+	//	# NDAC = 3
+	cmd[0] = 0x0B;
+	cmd[1] = (1 << 7) | (3 << 0);
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//	# MDAC = 5
+	cmd[0] = 0x0C;
+	cmd[1] = (1 << 7) | (5 << 0);
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	// DOSR = 128
+	//	w 30 0d 00 # DOSR (MSB)
+	cmd[0] = 0x0D;
+	cmd[1] = (128 & 0x3F00) >> 8;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//	w 30 0e 80 # DOSR (LSB)
+	cmd[0] = 0x0E;
+	cmd[1] = (128 & 0x00FF) >> 0;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 }
