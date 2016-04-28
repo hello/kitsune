@@ -2240,7 +2240,7 @@ void vUARTTask(void *pvParameters) {
 	init_dust();
 	ble_proto_init();
 	xTaskCreate(top_board_task, "top_board_task", 1280 / 4, NULL, 3, NULL);
-	xTaskCreate(thread_spi, "spiTask", 1024 / 4, NULL, 3, NULL);
+	xTaskCreate(thread_spi, "spiTask", 1536 / 4, NULL, 3, NULL);
 #ifndef BUILD_SERVERS
 	uart_logger_init();
 	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 1, NULL);
