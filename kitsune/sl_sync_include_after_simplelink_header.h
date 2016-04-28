@@ -11,20 +11,6 @@
 extern "C" {
 #endif
 
-#ifdef SL_DEBUG_LOG
-
-#define SL_SYNC(call) \
-	({ \
-	UARTprintf("enter %s", #call); \
-	long sl_ret; \
-	sl_enter_critical_region(); \
-	sl_ret = (call); \
-	sl_exit_critical_region(); \
-	UARTprintf("->exit\n"); \
-	sl_ret; \
-	})
-#else
-
 #include "kit_assert.h"
 #include "ustdlib.h"
 extern int sync_ln;
@@ -32,6 +18,7 @@ extern const char * sync_fnc;
 
 void _checkret(bool assert_ret, portTickType start);
 
+#ifdef SL_DEBUG_LOG
 #define SL_SYNC(call) \
 	({ \
 	long sl_ret; \
@@ -47,7 +34,15 @@ void _checkret(bool assert_ret, portTickType start);
 	}\
 	sl_ret; \
 	})
-
+#else
+#define SL_SYNC(call) \
+	({ \
+	long sl_ret; \
+	assert( sl_enter_critical_region() );\
+	sl_ret = (call); \
+	sl_exit_critical_region(); \
+	sl_ret; \
+	})
 #endif
 
 #define socket(...)                              sl_Socket(__VA_ARGS__)
