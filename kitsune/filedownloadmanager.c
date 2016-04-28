@@ -565,7 +565,6 @@ static bool scan_files(char* path, pb_ostream_t *stream, const pb_field_t *field
                 }
 
             }
-            vTaskDelay(50/portTICK_PERIOD_MS);
         }
     	//LOGI("DM  closing dir %s/%s\n", path, fn);
 

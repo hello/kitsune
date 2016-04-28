@@ -39,6 +39,7 @@ int sl_mode;
 #define DEVICE_ID_SZ 8
 
 #define SERVER_REPLY_BUFSZ 2048
+#define MAX_SHA256_SEND_SIZE 1024
 
 #include "stdint.h"
 #include "sync_response.pb.h"
