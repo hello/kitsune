@@ -940,6 +940,7 @@ static void codec_power_config(void);
 static void codec_clock_config(void);
 static void codec_asi_config(void);
 static void codec_signal_processing_config(void);
+static void codec_mic_config(void);
 static void codec_speaker_config(void);
 
 #define CODEC_DRIVER_FILE "/sys/codec_driver"
@@ -998,37 +999,6 @@ int32_t codec_test_commands(void)
 #else
 #define codec_init_no_dsp codec_init
 #endif
-
-
-int32_t codec_init_no_dsp(void)
-{
-	// Softwarre Reset
-	codec_sw_reset();
-
-	// FIFO Configuration
-	codec_fifo_config();
-
-	// Power and Analog Configuration
-	codec_power_config();
-
-	// Clock configuration
-	codec_clock_config();
-
-	// Audio Serial Interface Configuration (ASI1 with 6 wire I2S setup)
-	codec_asi_config();
-
-	// Signal Processing Settings (Select signal processing blocks for record and playback)
-	codec_signal_processing_config();
-
-	// Configure GPIO for digital mic input (TODO maybe power off analog section in input)
-
-	// ADC Input Channel Configuration
-
-	// Output Channel Configuration
-	codec_speaker_config();
-
-	return 0;
-}
 
 int32_t codec_init_with_dsp(void)
 {
@@ -1148,7 +1118,38 @@ int32_t codec_init_with_dsp(void)
 // Software reset codec
 
 #if (CODEC_USE_MINIDSP == 0)
-static inline void codec_sw_reset(void)
+int32_t codec_init_no_dsp(void)
+{
+	// Softwarre Reset
+	codec_sw_reset();
+
+	// FIFO Configuration
+	codec_fifo_config();
+
+	// Power and Analog Configuration
+	codec_power_config();
+
+	// Clock configuration
+	codec_clock_config();
+
+	// Audio Serial Interface Configuration (ASI1 with 6 wire I2S setup)
+	codec_asi_config();
+
+	// Signal Processing Settings (Select signal processing blocks for record and playback)
+	codec_signal_processing_config();
+
+	// Configure GPIO for digital mic input (TODO maybe power off analog section in input)
+	codec_mic_config();
+
+	// ADC Input Channel Configuration
+
+	// Output Channel Configuration
+	codec_speaker_config();
+
+	return 0;
+}
+
+static void codec_sw_reset(void)
 {
 	char send_stop = 1;
 	unsigned char cmd[2];
@@ -1185,7 +1186,7 @@ static inline void codec_sw_reset(void)
 
 
 // Codec FIFO config
-static inline void codec_fifo_config(void)
+static void codec_fifo_config(void)
 {
 	char send_stop = 1;
 	unsigned char cmd[2];
@@ -1224,7 +1225,7 @@ static inline void codec_fifo_config(void)
 }
 
 //Codec power and analog config
-static inline void codec_power_config(void)
+static void codec_power_config(void)
 {
 	char send_stop = 1;
 	unsigned char cmd[2];
@@ -1251,7 +1252,7 @@ static inline void codec_power_config(void)
 }
 
 // Codec Clock config
-static inline void codec_clock_config(void)
+static void codec_clock_config(void)
 {
 	char send_stop = 1;
 	unsigned char cmd[2];
@@ -1291,7 +1292,7 @@ static inline void codec_clock_config(void)
 }
 
 // Codec audio serial interface settings
-static inline void codec_asi_config(void)
+static void codec_asi_config(void)
 {
 	char send_stop = 1;
 	unsigned char cmd[2];
@@ -1315,10 +1316,30 @@ static inline void codec_asi_config(void)
 	cmd[0] = 0x0A;
 	cmd[1] = 0;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	// # WCLK2 as CLKOUT
+	cmd[0] = 0x45;
+	cmd[1] = 0x4 << 2;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	// # BCLK2 as CLKOUT
+	cmd[0] = 0x46;
+	cmd[1] = 0x4 << 2;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	// # GPIO1 as clock input (will be used as ADC WCLK in 6-wire ASI)
+	cmd[0] = 0x56;
+	cmd[1] = (0x01 << 2);
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	// # GPIO3 as clock input (will be used as ADC BCLK in 6-wire ASI)
+	cmd[0] = 0x58;
+	cmd[1] = (0x01 << 2);
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 }
 
 // signal processing settings
-static inline void codec_signal_processing_config(void)
+static void codec_signal_processing_config(void)
 {
 	char send_stop = 1;
 	unsigned char cmd[2];
@@ -1339,8 +1360,73 @@ static inline void codec_signal_processing_config(void)
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 }
 
+static void codec_mic_config(void)
+{
+	char send_stop = 1;
+	unsigned char cmd[2];
+
+	// Enable ADC_MOD_CLK for mic B0_P4
+
+	//	w 30 00 01 # Select Page 4
+	cmd[0] = 0;
+	cmd[1] = 0x04;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	/*
+	//	w 30 00 01 # Select Book 0
+	cmd[0] = 0;
+	cmd[1] = 0x04;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+	*/
+
+	// # GPIO2 as clock output (ADC_MOD_CLK for digital mic)
+	cmd[0] = 0x57;
+	cmd[1] = (0x0A << 2);
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	// # GPIO4 as digital mic input, MIC1_DAT, sampled on rising edge, hence left by default (DIG MIC PAIR 1)
+	cmd[0] = 0x59;
+	cmd[1] = (0x01 << 2);
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	// # GPIO5 as digital mic input, MIC2_DAT, sampled on falling edge, hence right by default (DIG MIC PAIR 1)
+	cmd[0] = 0x5A;
+	cmd[1] = (0x01 << 2);
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	// # GPIO6 as digital mic input,  MIC3_DAT, sampled on rising edge, hence left by default (DIG MIC PAIR 2)
+	cmd[0] = 0x5B;
+	cmd[1] = (0x01 << 2);
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	// # Digital Mic 1 Input Pin Control (GPIO4 -Left, GPIO5 - Right) - Stereo
+	cmd[0] = 0x65;
+	cmd[1] = (3 << 4) | (4 << 0);
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	// # Digital Mix 2 Input Pin Control (GPIO6 -Left) - Left-only
+	cmd[0] = 0x66;
+	cmd[1] = (5 << 4);
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//	# Select Page 0
+	cmd[0] = 0;
+	cmd[1] = 0x00;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	// # ADC channel power control - Left and right channel ADC configured for Digital Mic
+	cmd[0] = 0x51;
+	cmd[1] = (1 << 4) | (1 << 2); // TODO Should ADC be powered up B[7:6]
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	// # Digital mic 2 control - Enable CIC2 Left channel, and digital mic to left channel
+	cmd[0] = 0x70;
+	cmd[1] = (1 << 7) | (1 << 4);
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+}
+
 // Enable Class-D Speaker playback
-static inline void codec_speaker_config(void)
+static void codec_speaker_config(void)
 {
 	char send_stop = 1;
 	unsigned char cmd[2];
