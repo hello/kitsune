@@ -951,7 +951,7 @@ int send_chunk_len( int obj_sz, int sock ) {
 	LOGD("CL:%s", recv_buf);
 	rv = send(sock, recv_buf, strlen(recv_buf), 0);
 	if (rv != strlen(recv_buf)) {
-		LOGI("Sending CE failed\n");
+		LOGI("Sending CE failed %d %d\n", rv, strlen(recv_buf));
 		return -1;
 	}
 
@@ -1587,7 +1587,7 @@ int send_data_pb( char* host, const char* path, char ** recv_buf_ptr,
 
 	desc.buf = (uint8_t *)recv_buf;
 	desc.inbuf_offset = 0;
-	desc.buf_size = recv_buf_size;
+	desc.buf_size = MAX_SHA256_SEND_SIZE;
 	desc.ctx = &ctx;
 	desc.fd = *sock;
 
