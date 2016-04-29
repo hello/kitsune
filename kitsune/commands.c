@@ -523,6 +523,10 @@ static volatile bool needs_alarm_ack = false;
 #define ALARM_LOC "/hello/alarm"
 static bool alarm_is_ringing = false;
 
+void delete_alarms() {
+	sl_FsDel((unsigned char*)ALARM_LOC, 0);
+}
+
 void set_alarm( SyncResponse_Alarm * received_alarm, const char * ack, size_t ack_size ) {
     if (xSemaphoreTakeRecursive(alarm_smphr, portMAX_DELAY)) {
     	if( alarm_is_ringing ) {
