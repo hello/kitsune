@@ -48,6 +48,7 @@
 #include "rom_map.h"
 
 #define HLO_HTTP_ERR -1000
+#define HTTP_RETRIES 5
 
 #define PREFIX_BUFFER    "GET "
 //#define POST_BUFFER      " HTTP/1.1\nAccept: text/html, application/xhtml+xml, */*\n\n"
@@ -1490,7 +1491,7 @@ void file_download_task( void * params ) {
                     if( dl_ret == HLO_HTTP_ERR ) {
                         goto next_one;
                     }
-                    if( ++retries > 10 ) {
+                    if( ++retries > HTTP_RETRIES ) {
                         goto end_download_task;
                     }
                 }
@@ -1530,7 +1531,7 @@ void file_download_task( void * params ) {
                     if( dl_ret == HLO_HTTP_ERR ) {
                         goto next_one;
                     }
-                    if( ++retries > 10 ) {
+                    if( ++retries > HTTP_RETRIES ) {
                         goto end_download_task;
                     }
                 }
