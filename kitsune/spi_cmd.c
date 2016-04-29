@@ -57,7 +57,7 @@ void CS_set(int val) {
 		MAP_GPIOPinWrite(GPIOA2_BASE,0x40,val?0x40:0);
 		break;
 	case EVT1_1p5:
-		//MAP_GPIOPinWrite(GPIOA2_BASE,0x40,val?0x40:0);
+		MAP_GPIOPinWrite(GPIOA2_BASE,0x40,val?0x40:0);
 		break;
 	default:
 		LOGE("HW Version Not Supported\r\n");
