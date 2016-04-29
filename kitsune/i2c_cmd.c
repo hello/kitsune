@@ -1139,9 +1139,8 @@ int32_t codec_init_no_dsp(void)
 	codec_signal_processing_config();
 
 	// Configure GPIO for digital mic input (TODO maybe power off analog section in input)
-	codec_mic_config();
-
 	// ADC Input Channel Configuration
+	codec_mic_config();
 
 	// Output Channel Configuration
 	codec_speaker_config();
@@ -1366,7 +1365,7 @@ static void codec_asi_config(void)
 
 	// w 30 04 40 # Enable 4 channel for ASI1 bus - MULTI CHANNEL TODO DKH
 	cmd[0] = 0x04;
-	cmd[1] = 0x40;
+	cmd[1] = (1 << 6);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	//	w 30 0a 00 # ASI1 WCLK/BCLK to WCLK1 pin/BCLK1 pin
@@ -1374,14 +1373,19 @@ static void codec_asi_config(void)
 	cmd[1] = 0;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
-	// # WCLK2 as CLKOUT
-	cmd[0] = 0x45;
-	cmd[1] = 0x4 << 2;
+	// Enable 6-wire interface TODO - not sure if this config is right
+	cmd[0] = 0x0B;
+	cmd[1] = (0x01 << 7) | (1 << 6) | (7 << 0);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
-	// # BCLK2 as CLKOUT
-	cmd[0] = 0x46;
-	cmd[1] = 0x4 << 2;
+	// ADC WCLK is input on GPIO1, BCLK is input on GPIO 3
+	cmd[0] = 0x010;
+	cmd[1] = (1 << 4) | (3 << 0);
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	// Enable ASI2 BCLK Output and WCLK Output
+	cmd[0] = 0x1A;
+	cmd[1] = (1 << 5) | (1 << 2);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	// # GPIO1 as clock input (will be used as ADC WCLK in 6-wire ASI)
@@ -1393,6 +1397,7 @@ static void codec_asi_config(void)
 	cmd[0] = 0x58;
 	cmd[1] = (0x01 << 2);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
 }
 
 // signal processing settings
