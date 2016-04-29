@@ -47,11 +47,15 @@
 #include "rom.h"
 #include "rom_map.h"
 
+#define HLO_HTTP_ERR -1000
+#define HTTP_RETRIES 5
+
 #define PREFIX_BUFFER    "GET "
 //#define POST_BUFFER      " HTTP/1.1\nAccept: text/html, application/xhtml+xml, */*\n\n"
 #define POST_BUFFER_1  " HTTP/1.1\nHost:"
 #define POST_BUFFER_2  "\nAccept: text/html, application/xhtml+xml, */*\n\n"
 
+#define HTTP_FORBIDDEN         "403 Forbidden" //url expired
 #define HTTP_FILE_NOT_FOUND    "404 Not Found" /* HTTP file not found response */
 #define HTTP_STATUS_OK         "200 OK"  /* HTTP status ok response */
 #define HTTP_CONTENT_LENGTH    "Content-Length:"  /* HTTP content length header */
@@ -784,14 +788,19 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
     // Check for 404 return code
     if(strstr((const char *)g_buff, HTTP_FILE_NOT_FOUND) != 0)
     {
-    	LOGW("HTTP_FILE_NOT_FOUND\r\n");
-        ASSERT_ON_ERROR(-1);
+        LOGW("HTTP_FILE_NOT_FOUND\r\n");
+        ASSERT_ON_ERROR(HLO_HTTP_ERR);
+    }
+    if(strstr((const char *)g_buff, HTTP_FORBIDDEN) != 0)
+    {
+        LOGW("HTTP_FORBIDDEN\r\n");
+        ASSERT_ON_ERROR(HLO_HTTP_ERR);
     }
 
     // if not "200 OK" return error
     if(strstr((const char *)g_buff, HTTP_STATUS_OK) == 0)
     {
-    	LOGW("NO 200!\r\n");
+        LOGW("UNKNOWN HTTP CODE!\r\n");
         LOGW("%s", g_buff);
         ASSERT_ON_ERROR(-1);
     }
@@ -1476,12 +1485,17 @@ void file_download_task( void * params ) {
                 }
 
                 int retries = 0;
-                while(download_file(host, url, serial_flash_name,
-                            serial_flash_path, SERIAL_FLASH, &dl_size) != 0) {
-                	if( ++retries > 10 ) {
-                		goto end_download_task;
-                	}
+                int dl_ret = -1;
+                while(dl_ret != 0) {
+                    dl_ret = download_file(host, url, serial_flash_name, serial_flash_path, SERIAL_FLASH, &dl_size);
+                    if( dl_ret == HLO_HTTP_ERR ) {
+                        goto next_one;
+                    }
+                    if( ++retries > HTTP_RETRIES ) {
+                        goto end_download_task;
+                    }
                 }
+
                 char buf[64];
                 strncpy( buf, serial_flash_path, 64 );
                 strncat(buf, serial_flash_name, 64 );
@@ -1511,12 +1525,16 @@ void file_download_task( void * params ) {
 				// the device won't be left with a corrupt file and a valid sha file.
 				update_sha_file(path, filename, sha_file_delete,NULL, false );
 
-				while (download_file(host, url, filename, path, SD_CARD, &dl_size)
-						!= 0) {
-					if (++retries > 10) {
-						goto end_download_task;
-					}
-				}
+				int dl_ret = -1;
+                while(dl_ret != 0) {
+                    dl_ret = download_file(host, url, filename, path, SD_CARD, &dl_size);
+                    if( dl_ret == HLO_HTTP_ERR ) {
+                        goto next_one;
+                    }
+                    if( ++retries > HTTP_RETRIES ) {
+                        goto end_download_task;
+                    }
+                }
 
 				if (download_info.has_sha1) {
 
