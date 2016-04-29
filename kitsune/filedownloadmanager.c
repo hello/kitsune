@@ -18,7 +18,6 @@
 #include "ble_proto.h"
 
 //#define DM_TESTING
-#define DM_UPLOAD_CMD_ENABLED
 
 #define FILE_ERROR_QUEUE_DEPTH (10)		// ensure that this matches the max_count for error_info in file_manifest.options
 
@@ -32,8 +31,6 @@
 
 #define FOLDERS_TO_INCLUDE      (2)
 
-#define SD_BLOCK_SIZE		512
-
 char* folders[FOLDERS_TO_INCLUDE] = {"SLPTONES", "RINGTONE"};
 
 typedef enum {
@@ -45,10 +42,8 @@ typedef enum {
 typedef FRESULT (*filesystem_rw_func_t)(FIL *, const void *,UINT ,UINT * );
 
 
-#ifdef DM_UPLOAD_CMD_ENABLED
 // Semaphore to enable file_sync upload from cli
-static xSemaphoreHandle _cli_upload_sem = NULL;
-#endif
+static xSemaphoreHandle filemngr_upload_sem = NULL;
 
 const uint32_t test_code = 0xAF50AF50;
 
@@ -88,7 +83,7 @@ static void _get_file_sync_response(pb_field_t ** fields, void ** structdata);
 static void _free_file_sync_response(void * structdata);
 static void _on_file_sync_response_success( void * structdata);
 static void _on_file_sync_response_failure(void );
-static void get_file_download_status(FileManifest_FileStatusType* file_status);
+static FileManifest_FileStatusType get_file_download_status(void);
 static void free_file_sync_info(FileManifest_FileDownload * download_info);
 static void restart_download_manager(void);
 static bool scan_files(char* path, pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
@@ -136,12 +131,10 @@ void downloadmanagertask_init(uint16_t stack_size)
 
 	xTaskCreate(DownloadManagerTask, "dmTask", stack_size, NULL, 2, NULL);
 
-#ifdef DM_UPLOAD_CMD_ENABLED
-	if(!_cli_upload_sem)
+	if(!filemngr_upload_sem)
 	{
-		_cli_upload_sem = xSemaphoreCreateBinary();
+		filemngr_upload_sem = xSemaphoreCreateBinary();
 	}
-#endif
 
 }
 
@@ -150,6 +143,11 @@ void update_file_download_status(bool is_pending)
 	xSemaphoreTake(_file_download_mutex, portMAX_DELAY);
 		file_download_status = (is_pending) ? FileManifest_FileStatusType_DOWNLOAD_PENDING:FileManifest_FileStatusType_DOWNLOAD_COMPLETED;
 	xSemaphoreGive(_file_download_mutex);
+
+	//start the next one then
+	if( !is_pending ) {
+		xSemaphoreGive(filemngr_upload_sem);
+	}
 }
 
 
@@ -157,9 +155,6 @@ void update_file_download_status(bool is_pending)
 // Download Manager task
 static void DownloadManagerTask(void * filesyncdata)
 {
-#ifndef DM_UPLOAD_CMD_ENABLED
-	static TickType_t start_time;
-#endif
 	FileManifest_FileOperationError error_message;
 	FileManifest message_for_upload;
 
@@ -184,10 +179,6 @@ static void DownloadManagerTask(void * filesyncdata)
     pb_cb.on_pb_success = _on_file_sync_response_success;
     pb_cb.on_pb_failure = _on_file_sync_response_failure;
 
-    // set current time
-#ifndef DM_UPLOAD_CMD_ENABLED
-    start_time = xTaskGetTickCount();
-#endif
     //give sempahore with query delay as 15 minutes
     restart_download_manager();
 
@@ -197,14 +188,11 @@ static void DownloadManagerTask(void * filesyncdata)
 		if(xSemaphoreTake(_response_received_sem,portMAX_DELAY))
 		{
 			retry:
-#ifdef DM_UPLOAD_CMD_ENABLED
-			xSemaphoreTake(_cli_upload_sem, query_delay_ticks);
-#else
-			vTaskDelayUntil(&start_time,query_delay_ticks);
+			xSemaphoreTake(filemngr_upload_sem, query_delay_ticks);
 
-#endif
-			if( get_ble_mode() != BLE_NORMAL ) {
-				LOGI("not downloading, ble %d!\n", get_ble_mode());
+			if( get_ble_mode() != BLE_NORMAL ||
+					get_file_download_status() == FileManifest_FileStatusType_DOWNLOAD_PENDING ) {
+				LOGI("not downloading %d or %d\n", get_ble_mode(), get_file_download_status());
 				goto retry;
 			}
 
@@ -237,7 +225,7 @@ static void DownloadManagerTask(void * filesyncdata)
 			/* UPDATE FILE STATUS - DOWNLOADED/PENDING */
 
 			message_for_upload.has_file_status = true;
-			get_file_download_status(&message_for_upload.file_status);
+			message_for_upload.file_status = get_file_download_status();
 
 			/* UPDATE DEVICE UPTIME */
 
@@ -277,21 +265,22 @@ static void DownloadManagerTask(void * filesyncdata)
 
 			get_free_space(&message_for_upload.sd_card_size.free_memory, &message_for_upload.sd_card_size.total_memory);
 
+			LOGI("+");
 			/* UPDATE FILE ERROR INFO */
 
 			message_for_upload.error_info_count = 0;
 
 			// Empty file operation error queue
-			while(xQueueReceive( _file_error_queue, &error_message, 0 ))
-			{
+			while (xQueueReceive(_file_error_queue, &error_message, 0)
+					&& message_for_upload.error_info_count < sizeof(message_for_upload.error_info) / sizeof(FileManifest_FileOperationError)) {
 				// Add to protobuf
-				message_for_upload.error_info[message_for_upload.error_info_count] = error_message;
-				message_for_upload.error_info_count++;
-
+				LOGI("err %d %d\n", message_for_upload.error_info_count, error_message.err_code );
+				vTaskDelay(100);
+				message_for_upload.error_info[message_for_upload.error_info_count++] = error_message;
 			}
 
+			LOGI("-");
 			/* UPDATE SENSE ID */
-
 			message_for_upload.sense_id.funcs.encode = encode_device_id_string;
 
 			/* SD CARD TEST READ */
@@ -305,9 +294,8 @@ static void DownloadManagerTask(void * filesyncdata)
 			test_buf = NULL;
 
 			/* SEND PROTOBUF */
-
+			LOGI("+");
 			message_sent_time = xTaskGetTickCount();
-
 			if(!NetworkTask_SendProtobuf(
 					true, DATA_SERVER, FILE_SYNC_ENDPOINT, FileManifest_fields, &message_for_upload, 0, NULL, NULL, &pb_cb, false)
 					)
@@ -315,12 +303,6 @@ static void DownloadManagerTask(void * filesyncdata)
 				LOGI("DM: Upload Fail \n");
 
 			}
-
-#ifndef DM_UPLOAD_CMD_ENABLED
-			// Update wake time
-			start_time = xTaskGetTickCount();
-#endif
-
 		}
 
 	}
@@ -466,7 +448,6 @@ void free_file_sync_info(FileManifest_FileDownload * download_info)
 
 static bool scan_files(char* path, pb_ostream_t *stream, const pb_field_t *field, void * const *arg)
 {
-    FileManifest_File file_info = {0};
     FRESULT res;
     FILINFO fno;
     DIR dir;
@@ -516,22 +497,30 @@ static bool scan_files(char* path, pb_ostream_t *stream, const pb_field_t *field
                 {
                 	//LOGI("DM File found: %s/%s\n", path, fn, strlen(path), strlen(fn));
 
-            		if( stream == NULL ) {
-						vTaskDelay(50/portTICK_PERIOD_MS);
+					if( stream == NULL ) {
 
-						bool sha_ovwr = false;
+						// If downloads are pending, skip SHA calculation
+						if(get_file_download_status() != FileManifest_FileStatusType_DOWNLOAD_PENDING){
 
-						sha_ovwr = (sha_calc_running_count == total_file_count) ? true : false;
+							vTaskDelay(5);
 
-	            		total_file_count++;
+							bool sha_ovwr = false;
 
-	            		if(update_sha_file(path,fn, sha_file_create,NULL, sha_ovwr ))
-						{
-							LOGE("DM: Error creating SHA\n");
+							sha_ovwr = (sha_calc_running_count == total_file_count) ? true : false;
+
+							if(update_sha_file(path,fn, sha_file_create,NULL, sha_ovwr ))
+							{
+							LOGE("DM: SHA not created %s\n", fn);
+							}
+
+							vTaskDelay(5);
 						}
 
-						vTaskDelay(50/portTICK_PERIOD_MS);
+						total_file_count++;
+
             		} else {
+            			FileManifest_File file_info = {0};
+
                    		file_info.has_delete_file = false;
 						file_info.has_download_info = true;
 						file_info.has_update_file = false;
@@ -576,7 +565,6 @@ static bool scan_files(char* path, pb_ostream_t *stream, const pb_field_t *field
                 }
 
             }
-            vTaskDelay(50/portTICK_PERIOD_MS);
         }
     	//LOGI("DM  closing dir %s/%s\n", path, fn);
 
@@ -689,12 +677,15 @@ static void _on_file_sync_response_failure( )
 
 }
 
-static void get_file_download_status(FileManifest_FileStatusType* file_status)
+static FileManifest_FileStatusType get_file_download_status(void)
 {
+	FileManifest_FileStatusType file_status;
+
 	xSemaphoreTake(_file_download_mutex, portMAX_DELAY);
-		*file_status = file_download_status;
+		file_status = file_download_status;
 	xSemaphoreGive(_file_download_mutex);
 
+	return file_status;
 }
 
 static inline void restart_download_manager(void)
@@ -741,25 +732,23 @@ static int32_t sd_sha_verifynsave(const char * sha_truth, char* path, char* sha_
     res = hello_fs_stat(path, &info);
     if (res) {
         LOGE("DM: f_stat %d\n", res);
-        return -1;
+        goto fail;
     }
 
 
     res = hello_fs_open(&fp, path, FA_READ);
     if (res) {
         LOGE("DM: f_open for read %d\n", res);
-        return -1;
+        goto fail;
     }
 
     //compute sha
     bytes_to_read = info.fsize;
     while (bytes_to_read > 0) {
-		vTaskDelay(5/portTICK_PERIOD_MS);
-
 		res = hello_fs_read(&fp, buffer,(minval(SD_BLOCK_SIZE,bytes_to_read)), &bytes_read);
-		if (res) {
+		if (res != FR_OK) {
 			LOGE("DM: f_read %d\n", res);
-			return -1;
+			goto fail;
 		}
 		SHA1_Update(&sha1ctx, buffer, bytes_read);
 		bytes_to_read -= bytes_read;
@@ -775,7 +764,7 @@ static int32_t sd_sha_verifynsave(const char * sha_truth, char* path, char* sha_
 			LOGE("SD card file SHA did not match!\n");
 			//LOGI("Sha truth:      %02x ... %02x\r\n", sha_truth[0], sha_truth[SHA1_SIZE-1]);
 			//LOGI("Sha calculated: %02x ... %02x\r\n", sha[0], sha[SHA1_SIZE-1]);
-			return -1;
+			goto fail;
 		}
     }
 
@@ -786,7 +775,7 @@ static int32_t sd_sha_verifynsave(const char * sha_truth, char* path, char* sha_
 	res = hello_fs_open(&fp, sha_path, FA_CREATE_ALWAYS|FA_WRITE);
 	if (res) {
 		LOGE("DM: f_open for write %d\n", res);
-		return -1;
+		goto fail;
 	}
 
 	bytes_to_write = SHA1_SIZE;
@@ -804,7 +793,7 @@ static int32_t sd_sha_verifynsave(const char * sha_truth, char* path, char* sha_
 		res = hello_fs_write(&fp, sha,SHA1_SIZE, &bytes_written);
 		if (res) {
 			LOGE("DM: f_write %d\n", res);
-			return -1;
+			goto fail;
 		}
 
 		bytes_to_write -= bytes_written;
@@ -817,6 +806,11 @@ static int32_t sd_sha_verifynsave(const char * sha_truth, char* path, char* sha_
 
 
     return 0;
+
+fail:
+	if(buffer) vPortFree(buffer);
+	return -1;
+
 }
 
 // len is the length of the full_path array
@@ -890,7 +884,7 @@ uint32_t update_sha_file(char* path, char* original_filename, update_sha_t optio
 		case sha_file_create:
 		{
 
-			if((file_exists && !ovwr))
+			if(file_exists && !ovwr )
 			{
 				// File exists and overwrite flag is false,
 				// no need to update
@@ -914,7 +908,7 @@ uint32_t update_sha_file(char* path, char* original_filename, update_sha_t optio
 			}
 			// stop time
 			time_for_sha = get_time() - time_for_sha;
-			LOGI("DM %s sha_time=%d\n",original_filename,time_for_sha);
+			LOGI("DM %s sha_time=%u\n",original_filename,time_for_sha);
 		}
 		break;
 
@@ -946,7 +940,7 @@ uint32_t update_sha_file(char* path, char* original_filename, update_sha_t optio
 
 			if( !file_exists )
 			{
-				LOGE("DM: file get sha fail\n");
+				LOGE("DM: file get sha fail %s\n", original_filename);
 				return ~0;
 			}
 
@@ -989,11 +983,9 @@ uint32_t update_sha_file(char* path, char* original_filename, update_sha_t optio
 
 int cmd_file_sync_upload(int argc, char *argv[])
 {
-#ifdef DM_UPLOAD_CMD_ENABLED
 
 	LOGI("DM: --FILE SYNC UPLOAD!--\n");
-	xSemaphoreGive(_cli_upload_sem);
-#endif
+	xSemaphoreGive(filemngr_upload_sem);
 
 	return 0;
 }

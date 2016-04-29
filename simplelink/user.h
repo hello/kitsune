@@ -639,7 +639,7 @@ extern "C" {
     \note           belongs to \ref ported_sec
     \warning
 */
-#define SL_OS_WAIT_FOREVER                      ((OsiTime_t)OSI_WAIT_FOREVER)
+#define SL_OS_WAIT_FOREVER                      ((OsiTime_t)45000)
 
 /*!
     \brief
