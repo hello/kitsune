@@ -1401,6 +1401,7 @@ static void codec_asi_config(void)
 }
 
 // signal processing settings
+// TODO Change later
 static void codec_signal_processing_config(void)
 {
 	char send_stop = 1;
@@ -1411,12 +1412,13 @@ static void codec_signal_processing_config(void)
 	cmd[1] = 0;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
-	//	w 30 3d 0a # Set the ADC Mode to PRB_R10
+	//	w 30 3d 0a # Set the ADC Mode to PRB_R1
 	cmd[0] = 0x3D;
-	cmd[1] = 0x0A;
+	cmd[1] = 0x01;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	// w 30 3c 01 # Set the DAC PRB Mode to PRB_P1
+	// TODO If using beep generator this may have to be changed
 	cmd[0] = 0x3C;
 	cmd[1] = 0x01;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
