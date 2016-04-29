@@ -36,6 +36,8 @@
 
 volatile static bool wifi_state_requested = false;
 
+void delete_alarms();
+
 typedef void(*task_routine_t)(void*);
 
 typedef enum {
@@ -140,9 +142,11 @@ static void _ble_reply_command_with_type(MorpheusCommand_CommandType type)
 static void _factory_reset(){
 	wifi_reset();
     reset_default_antenna();
+    delete_alarms();
     pill_settings_reset_all();
     nwp_reset();
     deleteFilesInDir(USER_DIR);
+
 	_ble_reply_command_with_type(MorpheusCommand_CommandType_MORPHEUS_COMMAND_FACTORY_RESET);
 }
 

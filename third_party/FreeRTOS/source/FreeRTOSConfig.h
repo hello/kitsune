@@ -94,7 +94,7 @@
 #define configCPU_CLOCK_HZ				( ( unsigned long )80000000 )
 #define configTICK_RATE_HZ				( ( portTickType ) 1000 )
 //#define configSYSTICK_CLOCK_HZ          ( ( portTickType ) 80000000 )
-#define configMINIMAL_STACK_SIZE		( ( unsigned short ) 70 )
+#define configMINIMAL_STACK_SIZE		( ( unsigned short ) 512/4 )
 
 #define configTOTAL_HEAP_SIZE			( ( size_t ) ( 75 * 1024 ) )
 

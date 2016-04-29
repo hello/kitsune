@@ -951,7 +951,7 @@ int send_chunk_len( int obj_sz, int sock ) {
 	LOGD("CL:%s", recv_buf);
 	rv = send(sock, recv_buf, strlen(recv_buf), 0);
 	if (rv != strlen(recv_buf)) {
-		LOGI("Sending CE failed\n");
+		LOGI("Sending CE failed %d %d\n", rv, strlen(recv_buf));
 		return -1;
 	}
 
@@ -1102,11 +1102,13 @@ void LOGIFaults() {
 }
 #endif
 int stop_connection(int * sock) {
-	LOGI("closing sock %d\n", *sock);
-    close(*sock);
-    *sock = -1;
-    //NWP requires some time to come to terms with the disconnect...
-    vTaskDelay(1000);
+	if( *sock >= 0 ) {
+		LOGI("closing sock %d\n", *sock);
+		close(*sock);
+		*sock = -1;
+		//NWP requires some time to come to terms with the disconnect...
+		vTaskDelay(1000);
+	}
     return *sock;
 }
 
@@ -1134,7 +1136,7 @@ int start_connection(int * sock, char * host, security_type sec) {
 			// configure the socket as RSA with RC4 128 SHA
 			// setup certificate
 			unsigned char method = SL_SO_SEC_METHOD_TLSV1_2;
-			unsigned int cipher = SL_SEC_MASK_TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA;
+			unsigned int cipher = SL_SEC_MASK_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256;
 			if( sl_SetSockOpt(*sock, SL_SOL_SOCKET, SL_SO_SECMETHOD, &method, sizeof(method) ) < 0 ||
 				sl_SetSockOpt(*sock, SL_SOL_SOCKET, SL_SO_SECURE_MASK, &cipher, sizeof(cipher)) < 0 ||
 				sl_SetSockOpt(*sock, SL_SOL_SOCKET, \
@@ -1207,7 +1209,8 @@ int start_connection(int * sock, char * host, security_type sec) {
 		#endif
 		do {
 			rv = connect(*sock, &sAddr, sizeof(sAddr));
-			vTaskDelay(100);
+			LOGI("`");
+			vTaskDelay(500);
 		} while( rv == SL_EALREADY );
 		if( rv < 0 ) {
 			ble_reply_socket_error(rv);
@@ -1445,17 +1448,9 @@ int http_response_ok( char* response_buffer)
 {
 	char* first_line = strstr(response_buffer, "\r\n") + 2;
 	uint16_t first_line_len = first_line - response_buffer;
-	if( first_line && first_line_len > SERVER_REPLY_BUFSZ || first_line_len > strlen(response_buffer ) )
-	{
-		LOGE("Invalid headers\n");
-		return -2;
-	}
+	assert(!( first_line && first_line_len > SERVER_REPLY_BUFSZ || first_line_len > strlen(response_buffer ) ));
 	first_line = pvPortMalloc(first_line_len + 1);
-	if(!first_line)
-	{
-		LOGE("No memory\n");
-		return -2;
-	}
+	assert(first_line);
 
 	memset(first_line, 0, first_line_len + 1);
 	memcpy(first_line, response_buffer, first_line_len);
@@ -1592,7 +1587,7 @@ int send_data_pb( char* host, const char* path, char ** recv_buf_ptr,
 
 	desc.buf = (uint8_t *)recv_buf;
 	desc.inbuf_offset = 0;
-	desc.buf_size = recv_buf_size;
+	desc.buf_size = MAX_SHA256_SEND_SIZE;
 	desc.ctx = &ctx;
 	desc.fd = *sock;
 

@@ -523,6 +523,10 @@ static volatile bool needs_alarm_ack = false;
 #define ALARM_LOC "/hello/alarm"
 static bool alarm_is_ringing = false;
 
+void delete_alarms() {
+	sl_FsDel((unsigned char*)ALARM_LOC, 0);
+}
+
 void set_alarm( SyncResponse_Alarm * received_alarm, const char * ack, size_t ack_size ) {
     if (xSemaphoreTakeRecursive(alarm_smphr, portMAX_DELAY)) {
     	if( alarm_is_ringing ) {
@@ -1624,13 +1628,9 @@ void thread_spi(void * data) {
 			vTaskDelay(500);
 			continue;
 		}
-		if (xSemaphoreTake(spi_smphr, portMAX_DELAY) ) {
-			Cmd_spi_read(0, 0);
-			MAP_GPIOIntEnable(GPIO_PORT,GSPI_INT_PIN);
-		} else {
-			Cmd_spi_read(0, 0);
-			MAP_GPIOIntEnable(GPIO_PORT,GSPI_INT_PIN);
-		}
+		xSemaphoreTake(spi_smphr, 500);
+		Cmd_spi_read(0, 0);
+		MAP_GPIOIntEnable(GPIO_PORT,GSPI_INT_PIN);
 	}
 
 	/*
@@ -1866,12 +1866,24 @@ int cmd_memfrag(int argc, char *argv[]) {
 	}
 	return 0;
 }
+static long always_ok(void){
+	return 0;
+}
+static long always_slow(int dly){
+	vTaskDelay(dly);
+	return 0;
+}
+
 void
 vAssertCalled( const char * s );
 int Cmd_fault(int argc, char *argv[]) {
 	//*(volatile int*)0xFFFFFFFF = 0xdead;
 	//vAssertCalled("test");
 	assert(false);
+	return 0;
+}
+int Cmd_fault_slow(int argc, char * argv[]) {
+	SL_SYNC(always_slow(atoi(argv[1])));
 	return 0;
 }
 int Cmd_test_realloc(int argc, char *argv[]) {
@@ -1909,6 +1921,12 @@ int Cmd_disableInterrupts(int argc, char *argv[]) {
 	}
 	return 0;
 }
+
+int Cmd_uptime(int argc, char *argv[]) {
+	LOGF("uptime %d\n", xTaskGetTickCount());
+	return 0;
+}
+
 #define ARR_LEN(x) (sizeof(x)/sizeof(x[0]))
 static void print_nwp_version() {
 	SlVersionFull ver;
@@ -1956,11 +1974,14 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "time_test", Cmd_time_test, "" },
 		{ "heapviz", Cmd_heapviz, "" },
 		{ "realloc", Cmd_test_realloc, "" },
-		{ "fault", Cmd_fault, "" },
+
 		{ "mac", Cmd_set_mac, "" },
 		{ "aes", Cmd_set_aes, "" },
 #endif
 		{ "hwver", Cmd_hwver, "" },
+
+		{ "fault", Cmd_fault, "" },
+		{ "faults", Cmd_fault_slow, ""},
 
 		{ "free", Cmd_free, "" },
 		{ "connect", Cmd_connect, "" },
@@ -2052,6 +2073,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "testkey", Cmd_test_key, ""},
 		{ "lfclktest",Cmd_test_3200_rtc,""},
 		{ "country",Cmd_country,""},
+		{ "up",Cmd_uptime,""},
 		{ "sync", Cmd_sync, "" },
 		{ "boot",Cmd_boot,""},
 		{ "gesture_count",Cmd_get_gesture_count,""},
@@ -2082,10 +2104,11 @@ tCmdLineEntry g_sCmdTable[] = {
 		{"fs", cmd_file_sync_upload, ""},
 		{ 0, 0, 0 } };
 
+
 // ==============================================================================
 // This is the UARTTask.  It handles command lines received from the RX IRQ.
 // ==============================================================================
-//void SDHostIntHandler();
+void SDHostIntHandler();
 extern xSemaphoreHandle g_xRxLineSemaphore;
 
 void UARTStdioIntHandler(void);
@@ -2171,7 +2194,7 @@ void vUARTTask(void *pvParameters) {
 	// Initialize the DMA Module
 	UDMAInit();
 	//sdhost dma interrupts
-	//MAP_SDHostIntRegister(SDHOST_BASE, SDHostIntHandler);
+	MAP_SDHostIntRegister(SDHOST_BASE, SDHostIntHandler);
 	MAP_SDHostSetExpClk(SDHOST_BASE, MAP_PRCMPeripheralClockGet(PRCM_SDHOST), 24000000);
 	UARTprintf("*");
 	Cmd_mnt(0, 0);
@@ -2209,7 +2232,7 @@ void vUARTTask(void *pvParameters) {
 	load_data_server();
 
 	xTaskCreate(AudioTask_Thread,"audioTask",2560/4,NULL,4,NULL);
-	init_download_task( 2560 / 4 );
+	init_download_task( 3072 / 4 );
 	networktask_init(3 * 1024 / 4);
 
 	load_serial();
@@ -2223,7 +2246,7 @@ void vUARTTask(void *pvParameters) {
 	init_dust();
 	ble_proto_init();
 	xTaskCreate(top_board_task, "top_board_task", 1280 / 4, NULL, 3, NULL);
-	xTaskCreate(thread_spi, "spiTask", 1024 / 4, NULL, 3, NULL);
+	xTaskCreate(thread_spi, "spiTask", 1536 / 4, NULL, 3, NULL);
 #ifndef BUILD_SERVERS
 	uart_logger_init();
 	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 1, NULL);
