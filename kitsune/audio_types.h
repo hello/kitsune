@@ -4,7 +4,7 @@
 #include <stdint.h>
 
 //magic number, in no particular units, just from observation
-#define MIN_CLASSIFICATION_ENERGY (500)
+#define MIN_CLASSIFICATION_ENERGY (100)
 
 
 #define AUDIO_FFT_SIZE_2N (8)
@@ -55,7 +55,6 @@ typedef struct {
 typedef struct {
 	int64_t samplecount;
     int16_t logenergy;
-    int16_t logenergyOverBackroundNoise;
     int8_t feats4bit[NUM_AUDIO_FEATURES];
 } AudioFeatures_t;
     
@@ -94,6 +93,7 @@ typedef struct {
 
 typedef struct {
 	int32_t num_disturbances;
+	int32_t num_samples;
 	int32_t peak_energy;
 	int32_t peak_background_energy;
 	uint8_t isValid;

@@ -142,11 +142,6 @@ void faultPrinter( faultInfo* f ) {
     LOGE("PC   = 0x%08X\n", f->exceptionFrame[6]);
     LOGE("xPSR = 0x%08X\n", f->exceptionFrame[7]);
 
-    LOGE("TRACE:");
-    for( i=0; i < MAX_TRACE_DEPTH && f->stack_trace[i] != TRACE_DONE; ++i ) {
-        LOGE( "%08X\n", f->stack_trace[i]);
-	    UtilsDelay(10000);
-    }
     LOGE("END\n");
 }
 void uart_logger_flush();
@@ -189,20 +184,31 @@ FaultDecoder(unsigned long *pulExceptionFrame)
         }
     }
 
+    volatile uint32_t r0;
+    volatile uint32_t r1;
+    volatile uint32_t r2;
+    volatile uint32_t r3;
+    volatile uint32_t r12;
+    volatile uint32_t lr; /* Link register. */
+    volatile uint32_t pc; /* Program counter. */
+    volatile uint32_t psr;/* Program status register. */
+
+        r0 = pulExceptionFrame[ 0 ];
+        r1 = pulExceptionFrame[ 1 ];
+        r2 = pulExceptionFrame[ 2 ];
+        r3 = pulExceptionFrame[ 3 ];
+
+        r12 = pulExceptionFrame[ 4 ];
+        lr = pulExceptionFrame[ 5 ];
+        pc = pulExceptionFrame[ 6 ];
+        psr = pulExceptionFrame[ 7 ];
+
     for( i=0;i<8;++i )
         f->exceptionFrame[i] = pulExceptionFrame[i];
-    for( i=8;i<(MAX_TRACE_DEPTH+8) && pulExceptionFrame+i <= (unsigned long *)0x2003FFFF; ++i )
-    	f->stack_trace[i-8] = pulExceptionFrame[i];
-    f->stack_trace[i-8] = TRACE_DONE;
 
     f->magic = SHUTDOWN_MAGIC;
 
-    vAssertCalled("hard fault");
-    faultPrinter(f);
-    //todo save the UART log buffers to sd, send them to server on next boot...
-    uart_logger_flush();
-
-    PRCMMCUReset(true);
+    PRCMMCUReset(true); //the reboot will take care of the printing...
 }
 
 //*****************************************************************************

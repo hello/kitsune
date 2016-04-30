@@ -28,15 +28,15 @@ typedef struct {
 	network_prep_callback_t unprepare;
 	void * prepdata;
 
-	/* Called at the start of the session and after all retries, get context as arg */
-	network_prep_callback_t begin, end;
+	/* Called after all retries, get context as arg */
+	network_prep_callback_t end;
 	void * context;
 
 	//protobuf
 	const pb_field_t * fields;
 	void * structdata;
 
-	const char * host; //the server to which you wish to communicate
+	char * host; //the server to which you wish to communicate
 	const char * endpoint; //where on the server you wish to communicate to.  eg /audio/features
 
 	int32_t retry_timeout;
@@ -61,7 +61,7 @@ void networktask_init(uint16_t stack_size);
  * field in the HTTP headers, the socket it will talk on will
  * always connect to DATA_SERVER
  */
-bool NetworkTask_SendProtobuf(bool blocking, const char * host,
+bool NetworkTask_SendProtobuf(bool blocking, char * host,
 		const char * endpoint, const pb_field_t fields[],
 		void * structdata, int32_t retry_time_in_counts,
 		NetworkResponseCallback_t func, void * context,

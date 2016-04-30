@@ -251,6 +251,16 @@
 			<locationURI>PARENT-2-PROJECT_LOC/fft.h</locationURI>
 		</link>
 		<link>
+			<name>filedownloadmanager.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/filedownloadmanager.c</locationURI>
+		</link>
+		<link>
+			<name>filedownloadmanager.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/filedownloadmanager.h</locationURI>
+		</link>
+		<link>
 			<name>fileuploadertask.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/fileuploadertask.c</locationURI>
@@ -419,6 +429,16 @@
 			<name>led_cmd.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/led_cmd.h</locationURI>
+		</link>
+		<link>
+			<name>long_poll.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/long_poll.c</locationURI>
+		</link>
+		<link>
+			<name>long_poll.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/long_poll.h</locationURI>
 		</link>
 		<link>
 			<name>machine_learning_types.h</name>
@@ -901,6 +921,16 @@
 			<locationURI>PARENT-2-PROJECT_LOC/nanopb/pb_encode.h</locationURI>
 		</link>
 		<link>
+			<name>protobuf/audio_commands.pb.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/audio_commands.pb.c</locationURI>
+		</link>
+		<link>
+			<name>protobuf/audio_commands.pb.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/audio_commands.pb.h</locationURI>
+		</link>
+		<link>
 			<name>protobuf/audio_control.pb.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/protobuf/audio_control.pb.c</locationURI>
@@ -919,6 +949,16 @@
 			<name>protobuf/audio_data.pb.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/protobuf/audio_data.pb.h</locationURI>
+		</link>
+		<link>
+			<name>protobuf/file_manifest.pb.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/file_manifest.pb.c</locationURI>
+		</link>
+		<link>
+			<name>protobuf/file_manifest.pb.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/file_manifest.pb.h</locationURI>
 		</link>
 		<link>
 			<name>protobuf/filetransfer.pb.c</name>
@@ -951,6 +991,16 @@
 			<locationURI>PARENT-2-PROJECT_LOC/protobuf/matrix.pb.h</locationURI>
 		</link>
 		<link>
+			<name>protobuf/messeji.pb.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/messeji.pb.c</locationURI>
+		</link>
+		<link>
+			<name>protobuf/messeji.pb.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/messeji.pb.h</locationURI>
+		</link>
+		<link>
 			<name>protobuf/morpheus_ble.pb.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/protobuf/morpheus_ble.pb.c</locationURI>
@@ -959,6 +1009,16 @@
 			<name>protobuf/morpheus_ble.pb.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/protobuf/morpheus_ble.pb.h</locationURI>
+		</link>
+		<link>
+			<name>protobuf/ntp.pb.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/ntp.pb.c</locationURI>
+		</link>
+		<link>
+			<name>protobuf/ntp.pb.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/ntp.pb.h</locationURI>
 		</link>
 		<link>
 			<name>protobuf/periodic.pb.c</name>
@@ -979,6 +1039,16 @@
 			<name>protobuf/provision.pb.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/protobuf/provision.pb.h</locationURI>
+		</link>
+		<link>
+			<name>protobuf/state.pb.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/state.pb.c</locationURI>
+		</link>
+		<link>
+			<name>protobuf/state.pb.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/state.pb.h</locationURI>
 		</link>
 		<link>
 			<name>protobuf/sync_response.pb.c</name>

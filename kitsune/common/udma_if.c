@@ -56,9 +56,9 @@
 
 /* Peripheral interface includes. */
 #include "udma_if.h"
+//#include "FreeRTOSconfig.h" todo find out why travis doesn't like this
+#define configMAX_SYSCALL_INTERRUPT_PRIORITY 	( 5 << 5 )
 
-#define MAX_NUM_CH              64  //32*2 entries
-#define CTL_TBL_SIZE            64  //32*2 entries
 
 #define UDMA_CH5_BITID          (1<<5)
 
@@ -142,6 +142,8 @@ void UDMAInit()
     //
     // Register interrupt handlers
     //
+    IntPrioritySet(UDMA_INT_SW, 6<<5); //between max syscall priority and kernel
+    IntPrioritySet(UDMA_INT_ERR, 6<<5); //between max syscall priority and kernel
     MAP_uDMAIntRegister(UDMA_INT_SW, DmaSwIntHandler);
     MAP_uDMAIntRegister(UDMA_INT_ERR, DmaErrorIntHandler);
     //

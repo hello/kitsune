@@ -5,7 +5,12 @@
 #include "debugutils/debuglog.h"
 #include <stdio.h>
 #include "hellomath.h"
+
+#ifdef USED_ON_DESKTOP
+#define LOGA(...)
+#else
 #include "uart_logger.h"
+#endif
 
 /*
    How is this all going to work? 
@@ -51,7 +56,13 @@
 #define STEADY_STATE_AVERAGING_PERIOD_2N (6)
 #define STEADY_STATE_AVERAGING_PERIOD (1 << STEADY_STATE_AVERAGING_PERIOD_2N)
 
-#define STARTUP_PERIOD_IN_MS (10000)
+#ifdef NO_EQUALIZATION
+    #define STARTUP_PERIOD_IN_MS (0)
+#else
+    //default
+    #define STARTUP_PERIOD_IN_MS (10000)
+#endif
+
 #define STARTUP_EQUALIZATION_COUNTS (STARTUP_PERIOD_IN_MS / SAMPLE_PERIOD_IN_MILLISECONDS)
 
 #define QFIXEDPOINT (12)
@@ -59,7 +70,7 @@
 #define TRUE (1)
 #define FALSE (0)
 
-#define MICROPHONE_NOISE_FLOOR_DB (32.0f)
+#define MICROPHONE_NOISE_FLOOR_DB (34.7f)
 
 
 /* Have fun tuning these magic numbers!
@@ -70,7 +81,7 @@
 static const int16_t k_stable_likelihood_coefficient = TOFIX(1.0,QFIXEDPOINT);
 
 //the closer this gets to zero, the more likely it is that you will be increasing or decreasing
-static const int16_t k_change_log_likelihood = TOFIX(-0.15f,QFIXEDPOINT);
+static const int16_t k_change_log_likelihood = TOFIX(-1.0f,QFIXEDPOINT);
 
 //the closer this gets to zero, the shorter the amount of time it will take to switch between modes
 //the more negative it gets, the more evidence is required before switching modes, in general
@@ -211,9 +222,13 @@ static int16_t MovingAverage16(uint32_t counter, const int16_t x,int16_t * buf, 
 
 //finds stats of a disturbance, and performs callback when distubance is over
 static void UpdateEnergyStats(uint8_t isStable,int16_t logTotalEnergyAvg,int16_t logTotalEnergy,int64_t samplecount) {
+	AudioOncePerMinuteData_t data;
+
+	data.num_disturbances = 0;
 
 	//leaving stable mode -- therefore starting a disturbance
 	if (!isStable && _data.statsLastIsStable) {
+		//LOGI("S->US\r\n");
 		_data.maxenergy = logTotalEnergy;
 	}
 
@@ -221,20 +236,19 @@ static void UpdateEnergyStats(uint8_t isStable,int16_t logTotalEnergyAvg,int16_t
 		if (logTotalEnergy > _data.maxenergy) {
 			_data.maxenergy = logTotalEnergy;
 		}
-
-
 	}
 
 	//entering stable mode --ending a disturbance
-	if (isStable && !_data.statsLastIsStable) {
-		if (_data.fpOncePerMinuteDataCallback) {
-			AudioOncePerMinuteData_t data;
-			data.num_disturbances = 1;
-			data.peak_background_energy = GetAudioEnergyAsDBA(logTotalEnergyAvg);
-			data.peak_energy = GetAudioEnergyAsDBA(_data.maxenergy);
+	if (isStable && !_data.statsLastIsStable ) {
+		//LOGI("US->S\r\n");
+		data.num_disturbances = 1;
+	}
 
-			_data.fpOncePerMinuteDataCallback(&data);
-		}
+	if (_data.fpOncePerMinuteDataCallback) {
+		data.peak_background_energy = GetAudioEnergyAsDBA(logTotalEnergyAvg);
+		data.peak_energy = GetAudioEnergyAsDBA(logTotalEnergy);
+
+		_data.fpOncePerMinuteDataCallback(&data);
 	}
 
 
@@ -444,7 +458,7 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int64_t samplecount) {
     int16_t fr[AUDIO_FFT_SIZE]; //512K
     int16_t fi[AUDIO_FFT_SIZE]; //512K
     int16_t psd[PSD_SIZE];
-    int16_t dc;
+    int32_t dc;
     
     uint16_t i,j;
     uint8_t log2scaleOfRawSignal;
@@ -491,7 +505,7 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int64_t samplecount) {
     isStable = IsStable(currentMode,logTotalEnergyAvg);
     
     //if (c++ == 255) {
-    //	LOGI("background=%d\r\n",GetAudioEnergyAsDBA(logTotalEnergyAvg));
+    	LOGA("%d\n",GetAudioEnergyAsDBA(logTotalEnergyAvg));
     //}
 
 
@@ -518,13 +532,23 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int64_t samplecount) {
         fr[i] = psd[i] - _data.lpfbuf[i];
     }
     
+    //remove mean of PSD before taking DCT
+    dc = 0;
+    for (i = 0; i < PSD_SIZE; i++) {
+        dc += fr[i];
+    }
+    
+    dc >>= PSD_SIZE_2N;
+    
+    for (i = 0; i < PSD_SIZE; i++) {
+        fr[i] -= (int16_t)dc;
+    }
+    
     DEBUG_LOG_S16("psd", NULL, fr, PSD_SIZE, samplecount, samplecount);
     
     //fft of 2^8 --> 256
     dct(fr,fi,PSD_SIZE_2N);
-    dc = fr[0];
     
-    DEBUG_LOG_S16("dc",NULL,&dc,1,samplecount,samplecount);
     //here they are
     for (j = 0; j < NUM_AUDIO_FEATURES; j++) {
         mfcc[j] = fr[j+1];
@@ -543,25 +567,53 @@ void AudioFeatures_SetAudioData(const int16_t samples[],int64_t samplecount) {
         
         Scale16VecTo8(featvec, featavg, NUM_AUDIO_FEATURES);
         VecNormalize8(featvec, NUM_AUDIO_FEATURES);
+       
+        
+        //scale down to 4 bit numbers
+        /*
+        printf("MFCC=");
+        for (i = 0; i < NUM_AUDIO_FEATURES; i++) {
+            temp32 = featvec[i]; temp32 >>= 4;
+            printf("%d,",temp32); _data.feats.feats4bit[i] = (int8_t)temp32;
+        }
+        printf("\n");
+         */
+        
         
         //scale down to 4 bit numbers
         for (i = 0; i < NUM_AUDIO_FEATURES; i++) {
             temp32 = featvec[i];
-            temp32 += (1<<3);
-            temp32 >>= 4;
+            
+            //we do this to never get -8,
+            // as -127 / 16 = -8
+            // and 127 / 16 = 7
+            // not quite what we expected!
+            if (featvec[i] < 0) {
+                temp32 = (-featvec[i]) >> 4;
+                temp32 = -temp32;
+            }
+            else {
+                temp32 = featvec[i] >> 4;
+            }
+            
             _data.feats.feats4bit[i] = (int8_t)temp32;
         }
+
+        
         
         temp32 = _data.lastEnergy + logTotalEnergy;
         temp32 >>= 1;
         _data.feats.logenergy = (int16_t)temp32;
-        _data.feats.logenergyOverBackroundNoise = dc;
         
         //log this only when energy is significant
         if (dc > MIN_CLASSIFICATION_ENERGY) {
             DEBUG_LOG_S8("mfcc",NULL,featvec,NUM_AUDIO_FEATURES,samplecount,samplecount);
         }
-
+#if 0
+        for (i = 0; i < NUM_AUDIO_FEATURES; i++) {
+        	LOGA("%d,",featvec[i] );
+        }LOGA("\n");
+#endif
         _data.feats.samplecount = samplecount;
         //do data callback always
         if (_data.fpCallback) {

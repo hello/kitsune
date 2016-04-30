@@ -302,45 +302,56 @@ void logpsdmel(int16_t * logTotalEnergy,int16_t psd[],const int16_t fr[],const i
     uint16_t ufr;
     uint16_t ufi;
     uint64_t utemp64;
-    uint64_t accumulator64 = 0;
-    int32_t temp32;
-    static const uint8_t spacings[31] = {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
-                                         2,3,3,4,4,5,5,6,7,8,10,11,13,14,15};
+    uint64_t non_weighted_energy;
+	uint64_t accumulator64 = 0;
+	int32_t temp32;
+	static const uint8_t spacings[32] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+			1, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6, 7, 8, 10, 11, 13, 14, 15 };
+
+	static const int16_t binaveragingcoeff[18] = { 0, 0, -1024, -1623, -2048,
+			-2378, -2647, -2875, -3072, -3246, -3402, -3542, -3671, -3789,
+			-3899, -4001, -4096, -4186 };
+
+	const static uint16_t a_weight_q10[128] = { 0, 0, 100, 150, 263, 379, 489,
+			510, 725, 763, 823, 859, 896, 934, 963, 994, 1024, 1054, 1085, 1093,
+			1101, 1110, 1123, 1136, 1149, 1152, 1156, 1159, 1162, 1166, 1169,
+			1172, 1176, 1166, 1170, 1174, 1178, 1182, 1184, 1185, 1187, 1188,
+			1189, 1185, 1180, 1176, 1171, 1167, 1162, 1162, 1162, 1162, 1162,
+			1162, 1162, 1162, 1161, 1159, 1157, 1156, 1154, 1152, 1151, 1149,
+			1146, 1142, 1139, 1136, 1133, 1129, 1126, 1123, 1120, 1116, 1112,
+			1107, 1103, 1098, 1094, 1089, 1085, 1081, 1076, 1072, 1067, 1063,
+			1059, 1054, 1050, 1046, 1042, 1037, 1033, 1029, 1025, 1021, 1016,
+			1012, 1012, 1009, 1005, 1002, 998, 995, 991, 987, 984, 981, 977,
+			974, 970, 967, 963, 959, 956, 952, 948, 945, 941, 937, 934, 930,
+			927, 923, 920, 916, 913, 913 };
+
+	uint16_t idx, ifft, iend;
+
+	accumulator64 = 0;
     
-    static const int16_t binaveragingcoeff[18] = {0,0,-1024,-1623,-2048,-2378,-2647,
-                                                -2875,-3072,-3246,-3402,-3542,-3671,
-                                                -3789,-3899,-4001,-4096,-4186};
 
-
-
-
-    uint16_t idx,ifft,iend;
-   
-    accumulator64 = 0;
-    
-
-    ifft = 2;
-    psd[0] = 0;
-    for (idx = 1; idx < 32; idx++) {
+    ifft = 1;
+    for (idx = 0; idx < 32; idx++) {
        // assert(idx-1 <= 31);
-        iend = spacings[idx-1];
+        iend = spacings[idx];
         utemp64 = 0;
+        non_weighted_energy = 0;
 
         for (i = 0; i < iend; i++) {
+        	uint64_t a = 0;
           //  assert(ifft < 128);
             ufr = abs(fr[ifft]);
             ufi = abs(fi[ifft]);
             
-            utemp64 += (uint32_t)ufr*(uint32_t)ufr;
-            utemp64 += (uint32_t)ufi*(uint32_t)ufi;
+            a += (uint32_t)ufr*(uint32_t)ufr;
+            a += (uint32_t)ufi*(uint32_t)ufi;
 
-            
+            utemp64 += a * a_weight_q10[ifft] >> 10;
+            non_weighted_energy += a;
             ifft++;
         }
-        
-        utemp64 += min_energy;
-        
-        temp32 = FixedPointLog2Q10(utemp64) + binaveragingcoeff[iend] - log2scaleOfRawSignal*1024;
+
+        temp32 = FixedPointLog2Q10(non_weighted_energy + min_energy) + binaveragingcoeff[iend] - log2scaleOfRawSignal*1024;
         
         if (temp32 > INT16_MAX) {
             temp32 = INT16_MAX;

@@ -477,7 +477,7 @@ PRCMPeripheralReset(unsigned long ulPeripheral)
     //
     // Delay for a little bit.
     //
-    for(ulDelay = 0; ulDelay < 16; ulDelay++)
+    for(ulDelay = 0; ulDelay < 32; ulDelay++)
     {
     }
 

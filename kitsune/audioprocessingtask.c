@@ -19,7 +19,8 @@ static xQueueHandle _queue = NULL;
 static xSemaphoreHandle _mutex = NULL;
 static uint32_t samplecounter;
 
-#define AUDIO_UPLOAD_PERIOD_IN_MS (60000)
+// each set of features is 16 bytes (representing 1 frame or 16ms) and 32 of them go into a 330 byte chunk, and we have 10 chunks, so that’s 16*32*10 = 5120ms worth of audio features
+#define AUDIO_UPLOAD_PERIOD_IN_MS (5120)
 #define AUDIO_UPLOAD_PERIOD_IN_TICKS (AUDIO_UPLOAD_PERIOD_IN_MS / SAMPLE_PERIOD_IN_MILLISECONDS / 2)
 
 #define DESIRED_BUFFER_SIZE_IN_BYTES (3300) //10 chunks
@@ -119,7 +120,7 @@ void AudioProcessingTask_AddFeaturesToQueue(const AudioFeatures_t * feat) {
 	}
 }
 
-void AudioProcessingTask_SetControl(EAudioProcessingCommand_t cmd,NotificationCallback_t onFinished, void * context) {
+void AudioProcessingTask_SetControl(EAudioProcessingCommand_t cmd,NotificationCallback_t onFinished, void * context, TickType_t wait ) {
 	AudioProcessingTaskMessage_t m;
 	memset(&m,0,sizeof(m));
 	m.message.cmd = cmd;
@@ -128,15 +129,13 @@ void AudioProcessingTask_SetControl(EAudioProcessingCommand_t cmd,NotificationCa
 	m.context = context;
 
 	if (_queue) {
-		xQueueSend(_queue,&m,0);
+		xQueueSend(_queue,&m,wait);
 	}
 }
 
 static void NetworkResponseFunc(const NetworkResponse_t * response,
 		char * reply_buf, int reply_buf_sz, void * context) {
-	LOGI("AUDIO RESPONSE:\r\n%s", reply_buf);
-
-	vPortFree( reply_buf );
+	//LOGI("AUDIO RESPONSE:\r\n%s", reply_buf);
 
 	if (response->success) {
     	xSemaphoreTake(_mutex,portMAX_DELAY);
@@ -236,10 +235,9 @@ void AudioProcessingTask_Thread(void * data) {
     		if (_longTermStorageBuffer) {
     			//process features
     			AudioClassifier_DataCallback(&m.message.feats);
-
-    			//check to see if it's time to try to upload
     			samplecounter++;
 
+    			//check to see if it's time to try to upload
     			if (samplecounter > AUDIO_UPLOAD_PERIOD_IN_TICKS) {
     				if (featureUploads) {
     					SetUpUpload();

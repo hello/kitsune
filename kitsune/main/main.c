@@ -92,18 +92,24 @@
 #include "wifi_cmd.h"
 #include "uart_logger.h"
 #include "hellofilesystem.h"
-#include "sl_sync_include_after_simplelink_header.h"
+//#include "sl_sync_include_after_simplelink_header.h" not here, this one is operating before the scheduler starts...
+
+
+#ifdef _ENABLE_SYSVIEW
+void SEGGER_SYSVIEW_Conf(void);
+void SEGGER_RTT_Init(void);
+void SEGGER_SYSVIEW_Start(void);
+#endif
 
 void mcu_reset();
 
-extern void vUARTTask( void *pvParameters );
+extern void vUARTTask(void *pvParameters);
 
-	
 //*****************************************************************************
 //                      MACRO DEFINITIONS
 //*****************************************************************************
 #define UART_PRINT               Report
-#define SPAWN_TASK_PRIORITY		 4
+#define SPAWN_TASK_PRIORITY		 3
 
 //****************************************************************************
 //                      LOCAL FUNCTION PROTOTYPES
@@ -119,7 +125,8 @@ extern void (* const g_pfnVectors[])(void);
 extern uVectorEntry __vector_table;
 #endif
 
-
+int sync_ln;
+const char * sync_fnc = NULL;
 
 //*****************************************************************************
 //
@@ -150,6 +157,7 @@ vApplicationTickHook( void )
 {
 }
 
+int send_top(char * s, int n);
 extern tskTCB * volatile pxCurrentTCB;
 //*****************************************************************************
 //
@@ -168,7 +176,7 @@ vAssertCalled( const char * s )
   void* p;
   LOGE("stack ptr %x\n", (int*)&p);
   LOGE( "%x %x\n", pxCurrentTCB->pxStack, pxCurrentTCB->pxTopOfStack );
-
+#if 0
   volatile StackType_t * top = pxCurrentTCB->pxTopOfStack;
   StackType_t * bottom =  pxCurrentTCB->pxStack;
 
@@ -176,7 +184,13 @@ vAssertCalled( const char * s )
 	  LOGE( "%08X\n", *top-- );
 	    UtilsDelay(10000);
   }
-  uart_logger_flush();
+#endif
+  /*
+   * yes, this looks like a race, and it is. In the event something goes wrong in the
+   * flush, which is likely given it accesses shared data and the filesystem
+   * and the system is now in some unkown bad state, this will come in and reset
+   * after a half second....
+   */
   mcu_reset();
 }
 
@@ -195,8 +209,6 @@ void vApplicationStackOverflowHook( TaskHandle_t xTask, char *pcTaskName )
     ( void ) pcTaskName;
 
     LOGE( "%s STACK OVERFLOW", pcTaskName );
-    uart_logger_flush();
-    UtilsDelay(10000000);
     mcu_reset();
 }
 
@@ -250,16 +262,11 @@ void WatchdogIntHandler(void)
 	//
 	// watchdog interrupt - if it fires when the interrupt has not been cleared then the device will reset...
 	//
-		LOGE( "oh no WDT: %u, %u\r\n", xTaskGetTickCount() );
-		mcu_reset();
+	vAssertCalled("WATCHDOG");
 }
 
 
 void start_wdt() {
-#define WD_PERIOD_MS 				20000
-#define MAP_SysCtlClockGet 			80000000
-#define LED_GPIO             		MCU_RED_LED_GPIO	/* RED LED */
-#define MILLISECONDS_TO_TICKS(ms) 	((MAP_SysCtlClockGet / 1000) * (ms))
     //
     // Enable the peripherals used by this example.
     //
@@ -268,7 +275,7 @@ void start_wdt() {
     //
     // Set up the watchdog interrupt handler.
     //
-    WDT_IF_Init(WatchdogIntHandler, MILLISECONDS_TO_TICKS(WD_PERIOD_MS));
+    WDT_IF_Init(WatchdogIntHandler, 0xFFFFFFFF);
 
     //
     // Start the timer. Once the timer is started, it cannot be disable.
@@ -282,22 +289,39 @@ void start_wdt() {
 void mcu_reset();
 #include "kit_assert.h"
 volatile portTickType last_upload_time = 0;
-#define SIXTY_MINUTES 3600000
+#define NWP_WATCHDOG_TIMEOUT
+#define ONE_HOUR (1000*60*60)
+#define FIFTEEN_MINUTES (1000*60*15)
+#define TWENTY_FIVE_HOURS (ONE_HOUR*25)
+#ifdef NWP_WATCHDOG_TIMEOUT
+void nwp_reset_thread(void* unused) {
+	nwp_reset();
+	vTaskDelete(NULL);
+}
+#endif
 
 void watchdog_thread(void* unused) {
+#ifdef NWP_WATCHDOG_TIMEOUT
+	int last_nwp_reset_time = 0;
+#endif
 	while (1) {
-		if( xTaskGetTickCount() - last_upload_time > SIXTY_MINUTES ) {
+		if (xTaskGetTickCount() - last_upload_time > 3*ONE_HOUR) {
 			LOGE("NET TIMEOUT\n");
-			uart_logger_flush();
-			vTaskDelay(10000);
 			mcu_reset();
 		}
-
+#ifdef NWP_WATCHDOG_TIMEOUT
+		if (xTaskGetTickCount() - last_upload_time > FIFTEEN_MINUTES
+				&& xTaskGetTickCount() - last_nwp_reset_time > FIFTEEN_MINUTES) {
+			LOGE("NWP TIMEOUT\n");
+			xTaskCreate(nwp_reset_thread, "nwp_reset_thread",
+					1280/(sizeof(portSTACK_TYPE)), NULL, 1, NULL);
+			last_nwp_reset_time = xTaskGetTickCount();
+		}
+#endif
 		MAP_WatchdogIntClear(WDT_BASE); //clear wdt
 		vTaskDelay(1000);
 	}
 }
-
 //*****************************************************************************
 //							MAIN FUNCTION
 //*****************************************************************************
@@ -319,6 +343,10 @@ void main()
   //
   MAP_PinDirModeSet(PIN_07,PIN_DIR_MODE_OUT);
 
+#ifdef _ENABLE_SYSVIEW
+  SEGGER_RTT_Init();
+  SEGGER_SYSVIEW_Conf();
+#endif
   //
   // Start the SimpleLink Host
   //
@@ -328,8 +356,8 @@ void main()
   wifi_status_init();
 
   /* Create the UART processing task. */
-  xTaskCreate( vUARTTask, "UARTTask", 2048/(sizeof(portSTACK_TYPE)), NULL, 4, NULL );
-  xTaskCreate( watchdog_thread, "wdtTask", configMINIMAL_STACK_SIZE, NULL, 1, NULL );
+  xTaskCreate( vUARTTask, "UARTTask", 1024/(sizeof(portSTACK_TYPE)), NULL, 3, NULL );
+  xTaskCreate( watchdog_thread, "wdtTask", 512/(sizeof(portSTACK_TYPE)), NULL, 1, NULL );
 
   //
   // Start the task scheduler

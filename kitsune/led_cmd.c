@@ -52,7 +52,6 @@ static struct{
 	uint8_t g;
 	uint8_t b;
 }user_color;
-unsigned int user_delay;
 static int animation_id;
 static int fade_alpha;
 
@@ -469,10 +468,10 @@ void led_task( void * params ) {
 				if( animation_result == ANIMATION_CONTINUE ) {
 					ledcpy(colors_last, colors, NUM_LED);
 					//fade in independently of animation rate...
-					if( user_animation.fade_time != 0 &&
-						user_animation.fade_elapsed < user_animation.fade_time ) {
-						user_animation.fade_elapsed += get_cycle_time();
-						led_brightness_all(colors, LED_MAX * user_animation.fade_elapsed / user_animation.fade_time );
+					if( user_animation.fadein_time != 0 &&
+						user_animation.fadein_elapsed < user_animation.fadein_time ) {
+						user_animation.fadein_elapsed += get_cycle_time();
+						led_brightness_all(colors, LED_MAX * user_animation.fadein_elapsed / user_animation.fadein_time );
 					}
 					//delay capped at 500 ms to improve task responsiveness
 					xSemaphoreGiveRecursive( led_smphr );
@@ -499,10 +498,10 @@ void led_task( void * params ) {
 			led_color_t colors[NUM_LED + 1];
 			xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
 
-			if( user_animation.fade_time != 0 &&
-				user_animation.fade_elapsed < user_animation.fade_time ) {
-				led_brightness_all(colors_last, LED_MAX * user_animation.fade_elapsed / user_animation.fade_time );
-				user_animation.fade_time = 0;
+			if( user_animation.fadein_time != 0 &&
+				user_animation.fadein_elapsed < user_animation.fadein_time ) {
+				led_brightness_all(colors_last, LED_MAX * user_animation.fadein_elapsed / user_animation.fadein_time );
+				user_animation.fadein_time = 0;
 			}
 			ledcpy(colors, colors_last, NUM_LED);
 
@@ -596,7 +595,7 @@ int Cmd_led(int argc, char *argv[]) {
 		if(rot){
 			play_led_animation_solid(a, r,g,b, rp,ud,1);
 		}else{
-			play_led_wheel(a, r,g,b,rp,ud);
+			play_led_wheel(a, r,g,b,rp,ud,1);
 		}
 	} else {
 		factory_led_test_pattern(portMAX_DELAY);
@@ -619,7 +618,6 @@ int led_set_color(uint8_t alpha, uint8_t r, uint8_t g, uint8_t b,
 	user_color.r = _clamp(r, 0, LED_CLAMP_MAX) * alpha / 0xFF;
 	user_color.g = _clamp(g, 0, LED_CLAMP_MAX) * alpha / 0xFF;
 	user_color.b = _clamp(b, 0, LED_CLAMP_MAX) * alpha / 0xFF;
-	user_delay = ud;
     LOGI("Setting colors R: %d, G: %d, B: %d \r\n", user_color.r, user_color.g, user_color.b);
 	xEventGroupClearBits( led_events, 0xffffff );
 
@@ -642,7 +640,7 @@ int led_transition_custom_animation(const user_animation_t * user){
 			fadeout_animation = user_animation;
 			user_animation = *user;
 
-			if( !led_is_idle(0) ) {
+			if( !led_is_idle(0) && !( fadeout_animation.opt & TRANSITION_WITHOUT_FADE ) ) {
 				_fade_out_for_new();
 			} else {
 				_start_animation();
@@ -658,31 +656,20 @@ int led_transition_custom_animation(const user_animation_t * user){
 int led_get_animation_id(void){
 	return animation_id;
 }
-static uint8_t _rgb[3];
+static led_color_t room_color[2] = {{0x00fe00},{0x00fe00}};
 
-void led_get_user_color(uint8_t* out_red, uint8_t* out_green, uint8_t* out_blue)
+void led_get_user_color(unsigned int* out_red, unsigned int* out_green, unsigned int* out_blue, bool light)
 {
 	xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
-	if(out_red){
-		*out_red = _rgb[0];
-	}
-
-	if(out_green){
-		*out_green = _rgb[1];
-	}
-
-	if(out_blue){
-		*out_blue = _rgb[2];
-	}
+	led_to_rgb(&room_color[light], out_red, out_green, out_blue );
+	LOGI("using %d colors %x\n", light, room_color[light]);
 	xSemaphoreGiveRecursive(led_smphr);
 }
 
-void led_set_user_color(uint8_t red, uint8_t green, uint8_t blue)
+void led_set_user_color(unsigned int red, unsigned int green, unsigned int blue, bool light)
 {
 	xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
-	_rgb[0] = red;
-	_rgb[1] = green;
-	_rgb[2] = blue;
+	room_color[light] = led_from_rgb( red, green, blue );
 	xSemaphoreGiveRecursive(led_smphr);
 }
 int led_fade_current_animation(void){
@@ -705,4 +692,9 @@ int led_fade_all_animation(int fadeout){
 	ret = led_fade_current_animation();
 	xSemaphoreGiveRecursive(led_smphr);
 	return ret;
+}
+void flush_animation_history() {
+	xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
+	_hist_flush();
+	xSemaphoreGiveRecursive(led_smphr);
 }

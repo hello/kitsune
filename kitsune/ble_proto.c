@@ -32,8 +32,11 @@
 #include "audiohelper.h"
 #include "audiotask.h"
 #include "hlo_net_tools.h"
+#include "prox_signal.h"
 
 volatile static bool wifi_state_requested = false;
+
+void delete_alarms();
 
 typedef void(*task_routine_t)(void*);
 
@@ -43,12 +46,11 @@ typedef enum {
 	LED_OFF
 }led_mode_t;
 
-static struct {
+static volatile struct {
 	uint8_t argb[4];
 	int delay;
-	uint32_t last_hold_time;
-	uint32_t last_cancel;
-    ble_mode_t ble_status;
+	volatile bool hold_released;
+	volatile ble_mode_t ble_status;
     xSemaphoreHandle smphr;
 } _self;
 
@@ -65,7 +67,20 @@ ble_mode_t get_ble_mode() {
 }
 static void set_ble_mode(ble_mode_t status) {
 	xSemaphoreTake( _self.smphr, portMAX_DELAY );
+	LOGI("\t\tBLE MODE %d\n", status);
 	_self.ble_status = status;
+	xSemaphoreGive( _self.smphr );
+}
+static bool get_released() {
+	bool status;
+	xSemaphoreTake( _self.smphr, portMAX_DELAY );
+	status = _self.hold_released;
+	xSemaphoreGive( _self.smphr );
+	return status;
+}
+static void set_released(bool hold_released) {
+	xSemaphoreTake( _self.smphr, portMAX_DELAY );
+	_self.hold_released = hold_released;
 	xSemaphoreGive( _self.smphr );
 }
 void ble_reply_http_status(char * status)
@@ -79,6 +94,9 @@ void ble_reply_http_status(char * status)
 	memcpy( reply_command.http_response_code, status, 15);
 	//need to only send when it has been requested....=
 	if( wifi_state_requested ) {
+        if(wifi_status_get(UPLOADING)) {
+            wifi_state_requested = false;
+        }
 		ble_send_protobuf(&reply_command);
 	}
 }
@@ -122,48 +140,49 @@ static void _ble_reply_command_with_type(MorpheusCommand_CommandType type)
 }
 
 static void _factory_reset(){
-    int16_t ret = sl_WlanProfileDel(0xFF);
-    if(ret)
-    {
-        LOGI("Delete all stored endpoint failed, error %d.\n", ret);
-        ble_reply_protobuf_error(ErrorType_WLAN_ENDPOINT_DELETE_FAILED);
-        return;
-    }else{
-        LOGI("All stored WIFI EP removed.\n");
-    }
-
-    ret = sl_WlanDisconnect();
-    if(ret == 0){
-        LOGI("WIFI disconnected\n");
-    }else{
-        LOGI("Disconnect WIFI failed, error %d.\n", ret);
-    }
-
-    while(wifi_status_get(CONNECT))
-    {
-    	LOGI("Waiting disconnect...\n");
-    	vTaskDelay(1000);
-    }
-
+	wifi_reset();
     reset_default_antenna();
+    delete_alarms();
     pill_settings_reset_all();
     nwp_reset();
     deleteFilesInDir(USER_DIR);
-	_ble_reply_command_with_type(MorpheusCommand_CommandType_MORPHEUS_COMMAND_FACTORY_RESET);
 
+	_ble_reply_command_with_type(MorpheusCommand_CommandType_MORPHEUS_COMMAND_FACTORY_RESET);
+}
+
+int Cmd_factory_reset(int argc, char* argv[])
+{
+    _factory_reset();
+	return 0;
+}
+
+#define PM_TIMEOUT (20*60*1000UL)
+static TimerHandle_t pm_timer;
+
+void pm_cancel( TimerHandle_t pxTimer ) {
+	MorpheusCommand response = { 0 };
+	if(get_ble_mode() == BLE_PAIRING) {
+		response.type =
+				MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE;
+		ble_send_protobuf(&response);
+	}
 }
 
 void ble_proto_init() {
 	vSemaphoreCreateBinary(_self.smphr);
 	vSemaphoreCreateBinary(_wifi_smphr);
 	set_ble_mode(BLE_NORMAL);
+
+	pm_timer = xTimerCreate("PM Timer",PM_TIMEOUT,pdFALSE, 0, pm_cancel);
 }
+
 
 static void _reply_wifi_scan_result()
 {
     int i = 0;
     MorpheusCommand reply_command = {0};
-    int count = hlo_future_read(scan_results,_wifi_endpoints,sizeof(_wifi_endpoints), 10000);
+    int count = hlo_future_read_once(scan_results,_wifi_endpoints,sizeof(_wifi_endpoints) );
+
     for(i = 0; i < count; i++)
     {
 		reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_START_WIFISCAN;
@@ -172,13 +191,16 @@ static void _reply_wifi_scan_result()
         vTaskDelay(250);  // This number must be long enough so the BLE can get the data transmit to phone
         memset(&reply_command, 0, sizeof(reply_command));
     }
+    if( count == -11 ) {
+    	LOGI("WIFI SCAN TO\n");
+    }
     reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_STOP_WIFISCAN;
 	ble_send_protobuf(&reply_command);
 	LOGI(">>>>>>Send WIFI scan results done<<<<<<\n");
-
+	scan_results = prescan_wifi(MAX_WIFI_EP_PER_SCAN);
 }
-
-static bool _set_wifi(const char* ssid, const char* password, int security_type, int version)
+int force_data_push();
+static bool _set_wifi(const char* ssid, const char* password, int security_type, int version, int app_version)
 {
     int i;
 
@@ -194,40 +216,74 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type,
     }
 	xSemaphoreGive(_wifi_smphr);
 
-	if(wifi_state_requested) {
+	if(app_version >= 0) {
 		int to = 0;
-		nwp_reset(); //tabula rasa
-	    if(!connect_wifi(ssid, password, security_type, version))
+
+		nwp_reset();
+		wifi_state_requested = true;
+
+	    if(connect_wifi(ssid, password, security_type, version, false) < 0)
 	    {
 			LOGI("failed to connect\n");
 	        ble_reply_protobuf_error(ErrorType_WLAN_CONNECTION_ERROR);
 	        //led_set_color(0xFF, LED_MAX,0,0,1,1,20,0);
 			return 0;
 	    }
+	    force_data_push();
 
 		while( !wifi_status_get(UPLOADING) ) {
-			vTaskDelay(1000);
-			if( ++to > 60 ) {
+			vTaskDelay(10000);
+
+			if (wifi_status_get(CONNECTING)) {
+				ble_reply_wifi_status(wifi_connection_state_WLAN_CONNECTING);
+			} else if (wifi_status_get(CONNECT)) {
+				ble_reply_wifi_status(wifi_connection_state_WLAN_CONNECTED);
+			} else if (wifi_status_get(IP_LEASED)) {
+				ble_reply_wifi_status(wifi_connection_state_IP_RETRIEVED);
+			} else if (!wifi_status_get(0xFFFFFFFF)) {
+				ble_reply_wifi_status(wifi_connection_state_NO_WLAN_CONNECTED);
+			}
+
+			if( ++to > 6 ) {
 				LOGI("wifi timeout\n");
 				wifi_state_requested = false;
 				ble_reply_protobuf_error(ErrorType_SERVER_CONNECTION_TIMEOUT);
 				break;
 			}
 		}
+		if( wifi_status_get(UPLOADING) ) {
+			#define INV_INDEX 0xff
+			int _connected_index = INV_INDEX;
+			int16_t ret = 0;
+			uint8_t retry = 5;
+			SlSecParams_t secParam = make_sec_params(ssid, password, security_type, version);
+
+			ret = sl_WlanProfileDel(0xFF);
+			while(sl_WlanProfileAdd((_i8*) ssid, strlen(ssid), NULL,
+					&secParam, NULL, 0, 0) < 0 && retry--){
+				ret = sl_WlanProfileDel(0xFF);
+				if (ret != 0) {
+					LOGI("profile del fail\n");
+				}
+			}
+			LOGI("index %d\n", _connected_index);
+		} else {
+			char ssid[MAX_SSID_LEN];
+			char mac[6];
+			SlGetSecParamsExt_t extSec;
+			uint32_t priority;
+			int16_t namelen;
+			SlSecParams_t secParam;
+			nwp_reset();
+			if( 0 < sl_WlanProfileGet(0,(_i8*)ssid, &namelen, (_u8*)mac, &secParam, &extSec, (_u32*)&priority)) {
+				sl_WlanConnect((_i8*) ssid, strlen(ssid), NULL, &secParam, 0);
+			}
+		}
 		wifi_state_requested = false;
 	} else {
-		int retry_count = 10;
 		bool connection_ret = false;
 		//play_led_progress_bar(0xFF, 128, 0, 128,portMAX_DELAY);
-	    while((connection_ret = connect_wifi(ssid, password, security_type, version)) == 0 && --retry_count)
-	    {
-	        //Cmd_led(0,0);
-	        LOGI("Failed to connect, retry times remain %d\n", retry_count);
-	        //set_led_progress_bar((max_retry - retry_count ) * 100 / max_retry);
-	        vTaskDelay(2000);
-	    }
-	    //stop_led_animation();
-
+	    connect_wifi(ssid, password, security_type, version, false);
 	    if(!connection_ret)
 	    {
 			LOGI("Tried all wifi ep, all failed to connect\n");
@@ -342,6 +398,7 @@ static void _ble_reply_wifi_info(){
 
 #include "wifi_cmd.h"
 extern xQueueHandle pill_queue;
+extern xQueueHandle pill_prox_queue;
 
 static void _process_encrypted_pill_data( MorpheusCommand* command)
 {
@@ -353,8 +410,14 @@ static void _process_encrypted_pill_data( MorpheusCommand* command)
     	}
     	uint32_t timestamp = get_time();
         command->pill_data.timestamp = timestamp;  // attach timestamp, so we don't need to worry about the sending time
-        xQueueSend(pill_queue, &command->pill_data, 10);
-
+        switch(command->type){
+        case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_PROX_DATA:
+        	xQueueSend(pill_prox_queue, &command->pill_data, 10);
+        	break;
+        case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_DATA:
+        	 xQueueSend(pill_queue, &command->pill_data, 10);
+        	break;
+        }
         if(command->pill_data.has_motion_data_entrypted)
         {
             LOGI("PILL DATA FROM ID: %s, length: %d\n", command->pill_data.device_id,
@@ -398,7 +461,6 @@ typedef struct {
 	int is_morpheus;
 } pairing_context_t;
 
-int force_data_push();
 static void _on_pair_success(void * structdata){
 	LOGF("pairing success\r\n");
 	if( structdata ) {
@@ -408,7 +470,7 @@ static void _on_pair_success(void * structdata){
 	}
 }
 static void _on_pair_failure(){
-    LOGF("pairing fail\r\n");
+    LOGF("pairing server response failed\r\n");
 	ble_reply_protobuf_error(ErrorType_NETWORK_ERROR);
 }
 static void _pair_reply(const NetworkResponse_t * response,
@@ -445,7 +507,7 @@ static bool _pair_device( MorpheusCommand* command, int is_morpheus)
 	pb_cb.on_pb_failure = _on_pair_failure;
 	pb_cb.on_pb_success = _on_pair_success;
 
-	bool  ret = NetworkTask_SendProtobuf( false,
+	NetworkTask_SendProtobuf( false,
 				DATA_SERVER,
 				is_morpheus == 1 ? MORPHEUS_REGISTER_ENDPOINT : PILL_REGISTER_ENDPOINT,
 				MorpheusCommand_fields,
@@ -459,6 +521,7 @@ static bool _pair_device( MorpheusCommand* command, int is_morpheus)
 void ble_proto_led_init()
 {
 	play_led_animation_solid(LED_MAX, LED_MAX, LED_MAX,LED_MAX,1, 33,1);
+	led_is_idle(5000);
 }
 
 
@@ -471,8 +534,8 @@ void ble_proto_led_busy_mode(uint8_t a, uint8_t r, uint8_t g, uint8_t b, int del
 	_self.argb[3] = b;
 	_self.delay = delay;
 
-	led_fade_all_animation(18);
-	play_led_wheel(a,r,g,b,0,delay);
+	flush_animation_history();
+	play_led_wheel(a,r,g,b,0,delay,2);
 }
 
 void ble_proto_led_flash(int a, int r, int g, int b, int delay)
@@ -496,7 +559,7 @@ extern volatile bool provisioning_mode;
 
 void ble_proto_led_fade_in_trippy(){
 	uint8_t trippy_base[3] = {60, 25, 90};
-	led_fade_all_animation(18);
+	flush_animation_history();
 	play_led_trippy(trippy_base, trippy_base, portMAX_DELAY, 30, 30 );
 }
 
@@ -520,45 +583,59 @@ ble_send_protobuf(&response);
 extern uint8_t top_device_id[DEVICE_ID_SZ];
 extern volatile bool top_got_device_id; //being bad, this is only for factory
 
+#define BLE_HOLD_TIMEOUT_MS 10000
+void hold_animate_progress_task(void * params) {
+	uint32_t start = xTaskGetTickCount();
+
+	vTaskDelay(3000);
+	if( get_released() ) {
+		vTaskDelete(NULL);
+		return;
+	}
+	LOGI("Trigger pairing mode\n");
+	MorpheusCommand response = { 0 };
+	response.type =
+			MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_PAIRING_MODE;
+	ble_send_protobuf(&response);
+
+	assert( BLE_HOLD_TIMEOUT_MS < MAX_HOLD_TIME_MS );
+	vTaskDelay(BLE_HOLD_TIMEOUT_MS);
+	if( get_released() ) {
+		vTaskDelete(NULL);
+		return;
+	}
+	response.type =
+			MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE;
+	ble_send_protobuf(&response);
+
+	vTaskDelete(NULL);
+}
+
 void ble_proto_start_hold()
 {
-	_self.last_hold_time = xTaskGetTickCount();
-    switch(get_ble_mode())
-    {
-        case BLE_PAIRING:
-        {
-            // hold to cancel the pairing mode
-            LOGI("Back to normal mode\n");
-            MorpheusCommand response = {0};
-            response.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE;
-            ble_send_protobuf(&response);
+	switch (get_ble_mode()) {
+	case BLE_PAIRING: {
+		MorpheusCommand response = { 0 };
+		// hold to cancel the pairing mode
+		LOGI("pairing cancelled\n");
+		response.type =
+				MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE;
+		ble_send_protobuf(&response);
 
-			analytics_event( "{ble: normal}" );
+		analytics_event("{ble: normal}");
+		break;
+	}
+	case BLE_CONNECTED:
+	default:
+		set_released(false);
+		xTaskCreate(hold_animate_progress_task, "hold_animate_pair",1024 / 4, NULL, 2, NULL);
+	}
 
-			_self.last_cancel = xTaskGetTickCount();
-        }
-        break;
-    }
 }
 
 void ble_proto_end_hold()
 {
-	//configTICK_RATE_HZ
-	uint32_t current_tick = xTaskGetTickCount();
-	if((current_tick - _self.last_hold_time) * (1000 / configTICK_RATE_HZ) > 3000 &&
-		(current_tick - _self.last_hold_time) * (1000 / configTICK_RATE_HZ) < 7000 &&
-		_self.last_hold_time > 0 &&
-		(current_tick - _self.last_cancel) * (1000 / configTICK_RATE_HZ) > 5000 )
-	{
-		if (get_ble_mode() != BLE_PAIRING) {
-			LOGI("Trigger pairing mode\n");
-			MorpheusCommand response = { 0 };
-			response.type =
-					MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_PAIRING_MODE;
-			ble_send_protobuf(&response);
-		}
-	}
-	_self.last_hold_time = 0;
+	set_released(true);
 }
 #include "hellofilesystem.h"
 static void play_startup_sound() {
@@ -577,6 +654,7 @@ static void play_startup_sound() {
 		desc.rate = 48000;
 		desc.fade_in_ms = 0;
 		desc.fade_out_ms = 0;
+		desc.to_fade_out_ms = 0;
 		AudioTask_StartPlayback(&desc);
 	}
 	vTaskDelay(175);
@@ -610,13 +688,14 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 					memcpy( num, device_id_str+i*2, 2);
 					top_device_id[i] = strtol( num, NULL, 16 );
 				}
-				LOGI("got id from top %x:%x:%x:%x:%x:%x:%x:%x\n",
+				LOGI("got id from top %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x\n",
 						top_device_id[0],top_device_id[1],top_device_id[2],
 						top_device_id[3],top_device_id[4],top_device_id[5],
 						top_device_id[6],top_device_id[7]);
 			    save_device_id(top_device_id);
 				_ble_reply_command_with_type(MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID);
 				top_board_notify_boot_complete();
+
 				set_ble_mode(BLE_NORMAL);
 
 				if(command->has_aes_key && should_burn_top_key()){
@@ -677,7 +756,6 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
     {
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SET_WIFI_ENDPOINT:
         {
-            wifi_state_requested = command->has_app_version && command->app_version >= 0;
             LOGI("set wifi %d %d %d\n", wifi_state_requested, command->has_app_version, command->app_version );
 
         	set_ble_mode(BLE_CONNECTED);
@@ -685,8 +763,6 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
             char* password = command->wifiPassword.arg;
 
             // I can get the Mac address as well, but not sure it is necessary.
-
-
             int sec_type = SL_SEC_TYPE_WPA_WPA2;
             if(command->has_security_type)
             {
@@ -705,7 +781,8 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
             	LOGI("%s\n", ssid, password);
             }
 #endif
-            int result = _set_wifi(ssid, (char*)password, sec_type, command->version );
+            _set_wifi(ssid, (char*)password, sec_type, command->version,
+            		command->has_app_version ? command->app_version : -1  );
 
         }
         break;
@@ -722,6 +799,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 				if(!scan_results){
 					scan_results = prescan_wifi(MAX_WIFI_EP_PER_SCAN);
 				}
+				assert( pdPASS == xTimerStart(pm_timer, 30000));
     		}
         }
         break;
@@ -742,6 +820,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         break;
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PHONE_BLE_CONNECTED:
         {
+        	ble_proto_led_fade_out(0);
         	set_ble_mode(BLE_CONNECTED);
         	LOGI("PHONE CONNECTED\n");
         }
@@ -749,9 +828,11 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PHONE_BLE_BONDED:
         {
         	ble_proto_led_fade_out(0);
+        	set_ble_mode(BLE_NORMAL);
         	LOGI("PHONE BONDED\n");
         }
         break;
+        case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_PROX_DATA:
     	case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PILL_DATA: 
         {
     		// Pill data received from ANT
@@ -790,16 +871,32 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_START_WIFISCAN:
         {
             LOGI("WIFI Scan request\n");
+
+            if( command->has_country_code ) {
+                uint16_t len = 4;
+        	    uint16_t  config_opt = WLAN_GENERAL_PARAM_OPT_COUNTRY_CODE;
+        	    char cc[4];
+        	    sl_WlanGet(SL_WLAN_CFG_GENERAL_PARAM_ID, &config_opt, &len, (_u8* )cc);
+        	    LOGI("Set country code %s have %s\n", command->country_code, cc );
+        	    if( strncmp( cc, command->country_code, 2) != 0 ) {
+					LOGI("mismatch\n");
+					sl_enter_critical_region();
+					sl_WlanSet(SL_WLAN_CFG_GENERAL_PARAM_ID,
+							WLAN_GENERAL_PARAM_OPT_COUNTRY_CODE, 2,
+							(uint8_t* )command->country_code);
+					vTaskDelay(100);
+					nwp_reset();
+					sl_exit_critical_region();
+        	    }
+			}
+
             if(!scan_results){
             	scan_results = prescan_wifi(MAX_WIFI_EP_PER_SCAN);
             }
             if(scan_results){
             	_reply_wifi_scan_result();
-            	hlo_future_destroy(scan_results);
-            	scan_results = prescan_wifi(MAX_WIFI_EP_PER_SCAN);
             }else{
             	ble_reply_protobuf_error(ErrorType_DEVICE_NO_MEMORY);
-
             }
         }
         break;
@@ -862,8 +959,17 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
                 _ble_reply_command_with_type(command->type);
             }
         }
-
         break;
+        case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SET_COUNTRY_CODE:
+        	if( command->has_country_code ) {
+				sl_WlanSet(SL_WLAN_CFG_GENERAL_PARAM_ID,
+						WLAN_GENERAL_PARAM_OPT_COUNTRY_CODE, 2, (uint8_t*)command->country_code);
+				nwp_reset();
+        	} else {
+                ble_reply_protobuf_error(ErrorType_INTERNAL_DATA_ERROR);
+        	}
+
+        	break;
         default:
         	LOGW("Deprecated BLE Command: %d\r\n", command->type);
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_DEVICE_ID:
@@ -875,4 +981,8 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
     	ble_proto_free_command(command);
     }
     return true;
+}
+int Cmd_SyncID(int argc, char * argv[]){
+	_ble_reply_command_with_type(MorpheusCommand_CommandType_MORPHEUS_COMMAND_GET_DEVICE_ID);
+	return 0;
 }

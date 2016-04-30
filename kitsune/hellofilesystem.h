@@ -4,6 +4,8 @@
 #include "ff.h"
 #include "hlo_stream.h"
 
+#define SD_BLOCK_SIZE		512
+
 void hello_fs_init(void);  /*  Initializes locking semaphore */
 void hello_fs_lock(); //global SD card lock
 void hello_fs_unlock();
@@ -16,6 +18,7 @@ FRESULT hello_fs_lseek (FIL*, DWORD);                        /* Move file pointe
 FRESULT hello_fs_close (FIL*);                                /* Close an open file object */
 FRESULT hello_fs_opendir (DIR*, const char*);                /* Open an existing directory */
 FRESULT hello_fs_readdir (DIR*, FILINFO*);                    /* Read a directory item */
+FRESULT hello_fs_closedir (DIR* dirobj);    /* Close a directory item */
 FRESULT hello_fs_stat (const char*, FILINFO*);                /* Get file status */
 FRESULT hello_fs_getfree (const char*, DWORD*, FATFS**);    /* Get number of free clusters on the drive */
 FRESULT hello_fs_sync (FIL*);                                /* Flush cached data of a writing file */

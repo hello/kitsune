@@ -107,7 +107,7 @@ hlo_stream_t * hlo_open_mic_stream(uint8_t opt_always_on){
 			assert(client);
 			memset(client, 0, sizeof(mic_client_t));
 
-			client->buf = CreateCircularBuffer(MIC_STREAM_BUFFER_SIZE);
+			client->buf = CreateCircularBuffer(MIC_STREAM_BUFFER_SIZE );
 			assert(client->buf);
 
 			client->water_mark = MIC_STREAM_BUFFER_SIZE>>2;

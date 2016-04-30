@@ -31,6 +31,10 @@ int sl_mode = ROLE_INVALID;
 #include "gpio.h"
 #include "led_cmd.h"
 
+#include "hw_wdt.h"
+#include "wdt.h"
+#include "wdt_if.h"
+
 #include "FreeRTOS.h"
 #include "task.h"
 
@@ -54,9 +58,14 @@ int sl_mode = ROLE_INVALID;
 
 #include "limits.h"
 
+int send_top(char *, int);
 void mcu_reset()
 {
+	uart_logger_flush();
+	set_loglevel(0); //don't want to be saving logs when the power goes out....
+	send_top("bounce", strlen("bounce"));
 	vTaskDelay(1000);
+	LOGI("did not get power reset\r\n");
 	//TODO make flush work on reset...
 	//MAP_IntMasterDisable();
 	//uart_logger_flush();
@@ -83,7 +92,7 @@ long nwp_reset() {
 	long r;
 	sl_enter_critical_region();
     sl_WlanSetMode(ROLE_STA);
-    sl_Stop(SL_STOP_TIMEOUT);
+	r = sl_Stop(0xFF);
     wifi_status_set(0xFFFFFFFF, true);
     r = sl_Start(NULL, NULL, NULL);
 	sl_exit_critical_region();
@@ -126,6 +135,9 @@ void SimpleLinkSockEventHandler(SlSockEvent_t *pSock)
 }
 
 static uint8_t _connected_ssid[MAX_SSID_LEN];
+
+
+static uint8_t _connected_bssid[BSSID_LEN];
 void wifi_get_connected_ssid(uint8_t* ssid_buffer, size_t len)
 {
     size_t copy_len = MAX_SSID_LEN > len ? len : MAX_SSID_LEN;
@@ -140,6 +152,10 @@ void wifi_get_connected_ssid(uint8_t* ssid_buffer, size_t len)
 //! \return None
 //
 //****************************************************************************
+static void wifi_update_task( void * params ) {
+	ble_reply_wifi_status((wifi_connection_state)params);
+	vTaskDelete(NULL);
+}
 void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
     switch (pSlWlanEvent->Event) {
 #if 0 //todo bring this back after ti realises they've mucked it up
@@ -167,9 +183,12 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
 		}else{
 			memset(_connected_ssid, 0, MAX_SSID_LEN);
 			memcpy(_connected_ssid, pSSID, ssidLength);
+			memset(_connected_bssid, 0, BSSID_LEN);
+			memcpy(_connected_bssid, (char*)pSlWlanEvent->EventData.STAandP2PModeWlanConnected.bssid, BSSID_LEN);
 		}
         LOGI("SL_WLAN_CONNECT_EVENT\n");
-        ble_reply_wifi_status(wifi_connection_state_WLAN_CONNECTED);
+		xTaskCreate(wifi_update_task, "wifi_update_task", 1024 / 4, (void*)wifi_connection_state_WLAN_CONNECTED, 1, NULL);
+
     }
         break;
     case SL_WLAN_CONNECTION_FAILED_EVENT:  // ahhhhh this thing blocks us for 2 weeks...
@@ -177,7 +196,8 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
     	// This is a P2P event, but it fired here magically.
         wifi_status_set(CONNECTING, true);
         LOGI("SL_WLAN_CONNECTION_FAILED_EVENT\n");
-        ble_reply_wifi_status(wifi_connection_state_NO_WLAN_CONNECTED);
+		xTaskCreate(wifi_update_task, "wifi_update_task", 1024 / 4, (void*)wifi_connection_state_NO_WLAN_CONNECTED, 1, NULL);
+
         nwp_reset();
     }
     break;
@@ -185,13 +205,27 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
         wifi_status_set(0xFFFFFFFF, true);
         memset(_connected_ssid, 0, MAX_SSID_LEN);
         LOGI("SL_WLAN_DISCONNECT_EVENT\n");
-    	ble_reply_wifi_status(wifi_connection_state_NO_WLAN_CONNECTED);
+
+        { //recommended ti debug block
+		int i;
+
+		LOGI("AP: \"%s\" Code=%d BSSID:",_connected_ssid, pSlWlanEvent->EventData.STAandP2PModeDisconnected.reason_code);
+    	LOGI( "%x", _connected_bssid[0]);
+    	for( i=1;i< BSSID_LEN;++i) {
+        	LOGI( ":%x", _connected_bssid[i] );
+        } LOGI("\n");
+        }
+		xTaskCreate(wifi_update_task, "wifi_update_task", 1024 / 4, (void*)wifi_connection_state_NO_WLAN_CONNECTED, 1, NULL);
+
         break;
     default:
         break;
     }
 }
-
+void SimpleLinkGeneralEventHandler(SlDeviceEvent_t *pDevEvent)
+{
+LOGI("GENEVT ID=%d Sender=%d\n",pDevEvent->EventData.deviceEvent.status, pDevEvent->EventData.deviceEvent.sender);
+}
 //****************************************************************************
 //
 //!    \brief This function handles events for IP address acquisition via DHCP
@@ -202,6 +236,7 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
 //! \return None
 //
 //****************************************************************************
+
 
 void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent) {
 
@@ -216,8 +251,8 @@ void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent) {
 		}
 
 		wifi_status_set(HAS_IP, false);
-        ble_reply_wifi_status(wifi_connection_state_IP_RETRIEVED);
 
+		xTaskCreate(wifi_update_task, "wifi_update_task", 1024 / 4, (void*)wifi_connection_state_IP_RETRIEVED, 1, NULL);
 		break;
 
 	case SL_NETAPP_IP_LEASED_EVENT:
@@ -261,6 +296,7 @@ void load_data_server(){
 		use_dev_server = true;
 	}
 }
+
 int Cmd_setDev(int argc, char *argv[]) {
 	if(argc > 1){
 		if(argv[1][0] == '1'){
@@ -540,6 +576,45 @@ int Cmd_iperf_client(int argc, char *argv[]) {
 }
 #endif
 
+int get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uint32_t scan_duration_ms, int antenna)
+{
+    if(scan_duration_ms < 1000)
+    {
+        return 0;
+    }
+
+    unsigned long IntervalVal = 20;
+
+    unsigned char policyOpt = SL_CONNECTION_POLICY(0, 0, 0, 0, 0);
+    int r;
+
+    if( antenna ) {
+    	antsel(antenna);
+    }
+
+    r = sl_WlanPolicySet(SL_POLICY_CONNECTION , policyOpt, NULL, 0);
+
+    // Make sure scan is enabled
+    policyOpt = SL_SCAN_POLICY(1);
+
+    // set scan policy - this starts the scan
+    r = sl_WlanPolicySet(SL_POLICY_SCAN , policyOpt, (unsigned char *)(IntervalVal), sizeof(IntervalVal));
+
+
+    // delay specific milli seconds to verify scan is started
+    vTaskDelay(scan_duration_ms);
+
+    // r indicates the valid number of entries
+    // The scan results are occupied in netEntries[]
+    r = sl_WlanGetNetworkList(0, entry_len, entries);
+
+    // Restore connection policy to Auto
+    sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0), NULL, 0);
+
+    return r;
+
+}
+
 void wifi_reset()
 {
     int16_t ret = sl_WlanProfileDel(0xFF);
@@ -556,6 +631,13 @@ void wifi_reset()
     }else{
         LOGI("Disconnect WIFI failed, error %d.\n", ret);
     }
+
+    while(wifi_status_get(CONNECT))
+    {
+    	LOGI("Waiting disconnect...\n");
+    	vTaskDelay(1000);
+    }
+
     reset_default_antenna();
 }
 
@@ -564,26 +646,33 @@ int Cmd_disconnect(int argc, char *argv[]) {
     wifi_reset();
     return (0);
 }
-int connect_wifi(const char* ssid, const char* password, int sec_type, int version);
 int Cmd_connect(int argc, char *argv[]) {
     if (argc != 4) {
     	LOGF(
                 "usage: connect <ssid> <key> <security: 0=open, 1=wep, 2=wpa>\n\r");
     }
-    connect_wifi( argv[1], argv[2], atoi(argv[3]), 1 );
+    connect_wifi( argv[1], argv[2], atoi(argv[3]), 1, true );
     return (0);
 }
-
 int Cmd_setDns(int argc, char *argv[])  {
-	SlNetCfgIpV4Args_t config = {0};
-	uint8_t size = sizeof(config);
-	sl_NetCfgGet( SL_IPV4_STA_P2P_CL_GET_INFO, NULL, &size, (uint8_t*)&config );
-	config.ipV4DnsServer = strtoul(argv[1], NULL, 16);
-	sl_NetCfgSet( SL_IPV4_AP_P2P_GO_STATIC_ENABLE, IPCONFIG_MODE_ENABLE_IPV4, size, (uint8_t*)&config );
-	nwp_reset();
+	if( argc == 2 ) {
+		SlNetCfgIpV4Args_t config = {0};
+		uint8_t size = sizeof(config);
+		sl_NetCfgGet( SL_IPV4_STA_P2P_CL_GET_INFO, NULL, &size, (uint8_t*)&config );
+		config.ipV4DnsServer = strtoul(argv[1], NULL, 16);
+		sl_NetCfgSet( SL_IPV4_STA_P2P_CL_STATIC_ENABLE, IPCONFIG_MODE_ENABLE_IPV4, size, (uint8_t*)&config );
+		nwp_reset();
+	}
 	return 0;
 }
 
+void set_backup_dns() {
+    SlNetCfgIpV4DnsClientArgs_t DnsOpt;
+
+   DnsOpt.DnsSecondServerAddr  =  SL_IPV4_VAL(8,8,4,4);
+   DnsOpt.DnsMaxRetries        =  12;
+   sl_NetCfgSet(SL_IPV4_DNS_CLIENT,0,sizeof(SlNetCfgIpV4DnsClientArgs_t),(unsigned char *)&DnsOpt);
+}
 int Cmd_status(int argc, char *argv[]) {
     unsigned char ucDHCP = 0;
     unsigned char len = sizeof(SlNetCfgIpV4Args_t);
@@ -605,11 +694,23 @@ int Cmd_status(int argc, char *argv[]) {
                 SL_IPV4_BYTE(ipv4.ipV4DnsServer,2),
                 SL_IPV4_BYTE(ipv4.ipV4DnsServer,1),
                 SL_IPV4_BYTE(ipv4.ipV4DnsServer,0));
+
+    _u8 ConfigOpt;
+    _u8 pConfigLen = sizeof(SlNetCfgIpV4DnsClientArgs_t);
+    SlNetCfgIpV4DnsClientArgs_t DnsOpt;
+    sl_NetCfgGet(SL_IPV4_DNS_CLIENT,&ConfigOpt,&pConfigLen,(unsigned char *)&DnsOpt);
+
+    LOGF("ALT DNS=%d.%d.%d.%d\n",
+                SL_IPV4_BYTE(DnsOpt.DnsSecondServerAddr,3),
+                SL_IPV4_BYTE(DnsOpt.DnsSecondServerAddr,2),
+                SL_IPV4_BYTE(DnsOpt.DnsSecondServerAddr,1),
+                SL_IPV4_BYTE(DnsOpt.DnsSecondServerAddr,0));
     LOGF("IP=%d.%d.%d.%d\n",
                 SL_IPV4_BYTE(ipv4.ipV4,3),
                 SL_IPV4_BYTE(ipv4.ipV4,2),
                 SL_IPV4_BYTE(ipv4.ipV4,1),
                 SL_IPV4_BYTE(ipv4.ipV4,0));
+
     return 0;
 }
 
@@ -639,7 +740,7 @@ int Cmd_ping(int argc, char *argv[]) {
 }
 
 int Cmd_time(int argc, char*argv[]) {
-	uint32_t unix = fetch_unix_time_from_ntp();
+	uint32_t unix = fetch_ntp_time_from_ntp()-2208988800UL;
 	uint32_t t = get_time();
 
     LOGF("time is %u and the ntp is %u and the diff is %d, good time? %d\n", t, unix, (int)(t-unix), has_good_time());
@@ -684,7 +785,6 @@ bool should_burn_top_key() {
 	return burn_top_key;
 }
 extern volatile bool top_got_device_id;
-int send_top(char *, int);
 int Cmd_burn_top(int argc, char *argv[]) {
 	burn_top_key = true;
 	if (top_got_device_id) {
@@ -815,8 +915,6 @@ int Cmd_test_key(int argc, char*argv[]) {
 #include "periodic.pb.h"
 #include "audio_data.pb.h"
 
-static SHA1_CTX sha1ctx;
-
 typedef struct {
 	intptr_t fd;
 	uint32_t inbuf_offset;
@@ -841,9 +939,6 @@ static bool write_callback_sha(pb_ostream_t *stream, const uint8_t *buf,
 }
 #endif
 
-
-static int sock = -1;
-
 int send_chunk_len( int obj_sz, int sock ) {
 	#define CL_BUF_SZ 12
 	int rv;
@@ -853,16 +948,25 @@ int send_chunk_len( int obj_sz, int sock ) {
 	} else {
 		usnprintf(recv_buf, CL_BUF_SZ, "\r\n%x\r\n", obj_sz);
 	}
+	LOGD("CL:%s", recv_buf);
 	rv = send(sock, recv_buf, strlen(recv_buf), 0);
 	if (rv != strlen(recv_buf)) {
-		LOGI("Sending CE failed\n");
+		LOGI("Sending CE failed %d %d\n", rv, strlen(recv_buf));
 		return -1;
 	}
 
  //   LOGI("HTTP chunk sent %s", recv_buf);
 	return 0;
 }
-
+static void log_debug_bytes( char * tag, uint8_t * bytes, int len ) {
+	int i = 0;
+	LOGD(tag);
+	LOGD("%02x",bytes[i++] );
+	for(;i<len;++i) {
+		LOGD(":%02x",bytes[i] );
+	}
+	LOGD("\n");
+}
 
 static bool flush_out_buffer(ostream_buffered_desc_t * desc ) {
 	uint32_t buf_size = desc->buf_pos;
@@ -875,9 +979,10 @@ static bool flush_out_buffer(ostream_buffered_desc_t * desc ) {
 		SHA1_Update(desc->ctx, desc->buf, buf_size);
 
 		//send
-        if( send_chunk_len( buf_size, sock ) != 0 ) {
+        if( send_chunk_len( buf_size, desc->fd ) != 0 ) {
         	return false;
         }
+        log_debug_bytes("Chunk flush:", desc->buf, buf_size);
 		ret = send(desc->fd, desc->buf, buf_size, 0) == buf_size;
 	}
 	return ret;
@@ -887,7 +992,6 @@ static bool write_buffered_callback_sha(pb_ostream_t *stream, const uint8_t * in
 	assert( count < INT_MAX ); //make sure it fits in signed int
 	int c = count;
 	desc->bytes_that_should_have_been_written += c;
-	int start_bufpos = desc->buf_pos;
 
 	if ((desc->buf_pos + count ) >= desc->buf_size) {
 		/* Will I exceed the buffer size? then send buffer */
@@ -899,21 +1003,24 @@ static bool write_buffered_callback_sha(pb_ostream_t *stream, const uint8_t * in
 			SHA1_Update(desc->ctx, desc->buf, desc->buf_size);
 
 			//send
-			if (send_chunk_len(desc->buf_size, sock) != 0) {
+			if (send_chunk_len(desc->buf_size, desc->fd) != 0) {
 				return false;
 			}
+
+	        log_debug_bytes("Chunk:", desc->buf, desc->buf_size);
 			if(!send(desc->fd, desc->buf, desc->buf_size, 0)
 					== desc->buf_size ) { return false; }
 
 			desc->bytes_written += desc->buf_size;
-
+			c -= desc->buf_size - desc->buf_pos;
+			inbuf += desc->buf_size - desc->buf_pos;
 			desc->buf_pos = 0;
-			c -= desc->buf_size;
-			inbuf += desc->buf_size;
 		}
-		//copy to our buffer
-		memcpy(desc->buf, inbuf, c+start_bufpos);
-		desc->buf_pos += c+start_bufpos;
+		if( c > 0 ) {
+			//copy to our buffer
+			memcpy(desc->buf, inbuf, c);
+			desc->buf_pos += c;
+		}
 	} else {
 		//copy to our buffer
 		memcpy(desc->buf + desc->buf_pos, inbuf, count);
@@ -921,7 +1028,7 @@ static bool write_buffered_callback_sha(pb_ostream_t *stream, const uint8_t * in
 	}
     return true;
 }
-
+#if 0
 static bool read_callback_sha(pb_istream_t *stream, uint8_t *buf, size_t count) {
     int fd = (intptr_t) stream->state;
     int result,i;
@@ -940,6 +1047,11 @@ static bool read_callback_sha(pb_istream_t *stream, uint8_t *buf, size_t count) 
     return result == count;
 }
 
+pb_istream_t pb_istream_from_sha_socket(int fd) {
+    pb_istream_t stream = { &read_callback_sha, (void*) (intptr_t) fd, SIZE_MAX };
+    return stream;
+}
+#endif
 
 
 //WARNING not re-entrant! Only 1 of these can be going at a time!
@@ -953,15 +1065,9 @@ pb_ostream_t pb_ostream_from_sha_socket(ostream_buffered_desc_t * desc) {
     return stream;
 }
 
-pb_istream_t pb_istream_from_sha_socket(int fd) {
-    pb_istream_t stream = { &read_callback_sha, (void*) (intptr_t) fd, SIZE_MAX };
-    return stream;
-}
 
-static unsigned long ipaddr = 0;
-
+#if 0
 #include "fault.h"
-
 void LOGIFaults() {
 #define minval( a,b ) a < b ? a : b
 #define BUF_SZ 600
@@ -994,96 +1100,125 @@ void LOGIFaults() {
         }
     }
 }
-int stop_connection() {
-    close(sock);
-    sock = -1;
-    ipaddr = 0;
-    return sock;
+#endif
+int stop_connection(int * sock) {
+	if( *sock >= 0 ) {
+		LOGI("closing sock %d\n", *sock);
+		close(*sock);
+		*sock = -1;
+		//NWP requires some time to come to terms with the disconnect...
+		vTaskDelay(1000);
+	}
+    return *sock;
 }
-int start_connection() {
+
+int start_connection(int * sock, char * host, security_type sec) {
     sockaddr sAddr;
     timeval tv;
     int rv;
-    int sock_begin = sock;
+    unsigned long ipaddr = 0;
+    int sock_begin = *sock;
 
-    if (sock < 0) {
-        sock = socket(AF_INET, SOCK_STREAM, SL_SEC_SOCKET);
-        tv.tv_sec = 2;             // Seconds
-        tv.tv_usec = 0;           // Microseconds. 10000 microseconds resolution
-        setsockopt(sock, SOL_SOCKET, SL_SO_RCVTIMEO, &tv, sizeof(tv)); // Enable receive timeout
+    while(!wifi_status_get(HAS_IP)) {
+    	LOGI(".");
+    	vTaskDelay(1000);
+    }
+    set_backup_dns();
 
-        #define SL_SSL_CA_CERT_FILE_NAME "/cert/ca.der"
-        // configure the socket as SSLV3.0
-        // configure the socket as RSA with RC4 128 SHA
-        // setup certificate
-        unsigned char method = SL_SO_SEC_METHOD_TLSV1_2;
-        unsigned int cipher = SL_SEC_MASK_TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA;
-        if( sl_SetSockOpt(sock, SL_SOL_SOCKET, SL_SO_SECMETHOD, &method, sizeof(method) ) < 0 ||
-            sl_SetSockOpt(sock, SL_SOL_SOCKET, SL_SO_SECURE_MASK, &cipher, sizeof(cipher)) < 0 ||
-            sl_SetSockOpt(sock, SL_SOL_SOCKET, \
-                                   SL_SO_SECURE_FILES_CA_FILE_NAME, \
-                                   SL_SSL_CA_CERT_FILE_NAME, \
-                                   strlen(SL_SSL_CA_CERT_FILE_NAME))  < 0  )
-        {
-        LOGI( "error setting ssl options\r\n" );
-        ble_reply_wifi_status(wifi_connection_state_SSL_FAIL);
+    if (*sock < 0) {
+        if( sec == SOCKET_SEC_SSL ) {
+        	wait_for_time(WAIT_FOREVER);
+			*sock = socket(AF_INET, SOCK_STREAM, SL_SEC_SOCKET);
+
+			LOGI("SSL\n");
+			#define SL_SSL_CA_CERT_FILE_NAME "/cert/ca.der"
+			// configure the socket as SSLV3.0
+			// configure the socket as RSA with RC4 128 SHA
+			// setup certificate
+			unsigned char method = SL_SO_SEC_METHOD_TLSV1_2;
+			unsigned int cipher = SL_SEC_MASK_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256;
+			if( sl_SetSockOpt(*sock, SL_SOL_SOCKET, SL_SO_SECMETHOD, &method, sizeof(method) ) < 0 ||
+				sl_SetSockOpt(*sock, SL_SOL_SOCKET, SL_SO_SECURE_MASK, &cipher, sizeof(cipher)) < 0 ||
+				sl_SetSockOpt(*sock, SL_SOL_SOCKET, \
+									   SL_SO_SECURE_FILES_CA_FILE_NAME, \
+									   SL_SSL_CA_CERT_FILE_NAME, \
+									   strlen(SL_SSL_CA_CERT_FILE_NAME))  < 0  )
+			{
+			LOGI( "error setting ssl options\r\n" );
+			ble_reply_wifi_status(wifi_connection_state_SSL_FAIL);
+			}
+        } else {
+			*sock = socket(AF_INET, SOCK_STREAM, SL_IPPROTO_TCP);
         }
     }
 
-    if (sock < 0) {
-        LOGI("Socket create failed %d\n\r", sock);
+    if (*sock < 0) {
+        LOGI("Socket create failed %d\n\r", *sock);
         return -1;
     }
 
-#if !LOCAL_TEST
-    if (ipaddr == 0) {
-        if (!(rv = sl_gethostbynameNoneThreadSafe((_i8*)DATA_SERVER, strlen(DATA_SERVER), &ipaddr, SL_AF_INET))) {
-             LOGI("Get Host IP succeeded.\n\rHost: %s IP: %d.%d.%d.%d \n\r\n\r",
-				   DATA_SERVER, SL_IPV4_BYTE(ipaddr, 3), SL_IPV4_BYTE(ipaddr, 2),
-				   SL_IPV4_BYTE(ipaddr, 1), SL_IPV4_BYTE(ipaddr, 0));
-         	ble_reply_wifi_status(wifi_connection_state_DNS_RESOLVED);
-        } else {
-        	static portTickType last_reset_time = 0;
-			LOGI("failed to resolves addr rv %d\n", rv);
-			ble_reply_wifi_status(wifi_connection_state_DNS_FAILED);
-            ipaddr = 0;
-            #define SIX_MINUTES 360000
-            if( last_reset_time == 0 || xTaskGetTickCount() - last_reset_time > SIX_MINUTES ) {
-                last_reset_time = xTaskGetTickCount();
-                nwp_reset();
-                vTaskDelay(10000);
-            }
-            return -1;
-        }
-    }
-
-    sAddr.sa_family = AF_INET;
-    // the source port
-    sAddr.sa_data[0] = 1;    //port 443, ssl
-    sAddr.sa_data[1] = 0xbb; //port 443, ssl
-    sAddr.sa_data[2] = (char) ((ipaddr >> 24) & 0xff);
-    sAddr.sa_data[3] = (char) ((ipaddr >> 16) & 0xff);
-    sAddr.sa_data[4] = (char) ((ipaddr >> 8) & 0xff);
-    sAddr.sa_data[5] = (char) (ipaddr & 0xff);
-#else
-
-    sAddr.sa_family = AF_INET;
-    // the source port
-    sAddr.sa_data[0] = 0;//0xf;
-    sAddr.sa_data[1] = 80;//0xa0; //4k
-    sAddr.sa_data[2] = (char) () & 0xff);
-    sAddr.sa_data[3] = (char) () & 0xff);
-    sAddr.sa_data[4] = (char) () & 0xff);
-    sAddr.sa_data[5] = (char) () & 0xff);
-
-#endif
-
     //connect it up
     //LOGI("Connecting \n\r\n\r");
-    if (sock > 0 && sock_begin < 0 && (rv = connect(sock, &sAddr, sizeof(sAddr)))) {
-    	ble_reply_socket_error(rv);
-    	LOGI("Could not connect %d\n\r\n\r", rv);
-		return stop_connection();
+    if (*sock > 0 && sock_begin < 0) {
+    	LOGI("connecting sock %d %d\n", *sock, sock_begin);
+
+    	tv.tv_sec = 2;             // Seconds
+    	tv.tv_usec = 0;           // Microseconds. 10000 microseconds resolution
+    	setsockopt(*sock, SOL_SOCKET, SL_SO_RCVTIMEO, &tv, sizeof(tv)); // Enable receive timeout
+
+        SlSockNonblocking_t enableOption;
+        enableOption.NonblockingEnabled = 1;
+        sl_SetSockOpt(*sock,SL_SOL_SOCKET,SL_SO_NONBLOCKING, (_u8 *)&enableOption,sizeof(enableOption)); // Enable/disable nonblocking mode
+
+		#if !LOCAL_TEST
+			if (!(rv = gethostbyname((_i8*)host, strlen(host), &ipaddr, SL_AF_INET))) {
+				 LOGI("Get Host IP succeeded.\n\rHost: %s IP: %d.%d.%d.%d \n\r\n\r",
+						 host, SL_IPV4_BYTE(ipaddr, 3), SL_IPV4_BYTE(ipaddr, 2),
+					   SL_IPV4_BYTE(ipaddr, 1), SL_IPV4_BYTE(ipaddr, 0));
+				ble_reply_wifi_status(wifi_connection_state_DNS_RESOLVED);
+			} else {
+				LOGI("failed to resolves addr rv %d\n", rv);
+				ble_reply_wifi_status(wifi_connection_state_DNS_FAILED);
+				return stop_connection(sock);
+			}
+
+			sAddr.sa_family = AF_INET;
+			// the source port
+			if( sec == SOCKET_SEC_SSL ) {
+				sAddr.sa_data[0] = 1;    //port 443, ssl
+				sAddr.sa_data[1] = 0xbb; //port 443, ssl
+			} else {
+				sAddr.sa_data[0] = 0;  //port 80, http
+				sAddr.sa_data[1] = 80; //port 80, http
+			}
+			sAddr.sa_data[2] = (char) ((ipaddr >> 24) & 0xff);
+			sAddr.sa_data[3] = (char) ((ipaddr >> 16) & 0xff);
+			sAddr.sa_data[4] = (char) ((ipaddr >> 8) & 0xff);
+			sAddr.sa_data[5] = (char) (ipaddr & 0xff);
+		#else
+
+			sAddr.sa_family = AF_INET;
+			// the source port
+			sAddr.sa_data[0] = 0;//0xf;
+			sAddr.sa_data[1] = 80;//0xa0; //4k
+			sAddr.sa_data[2] = (char) () & 0xff);
+			sAddr.sa_data[3] = (char) () & 0xff);
+			sAddr.sa_data[4] = (char) () & 0xff);
+			sAddr.sa_data[5] = (char) () & 0xff);
+
+		#endif
+		do {
+			rv = connect(*sock, &sAddr, sizeof(sAddr));
+			LOGI("`");
+			vTaskDelay(500);
+		} while( rv == SL_EALREADY );
+		if( rv < 0 ) {
+			ble_reply_socket_error(rv);
+			LOGI("Could not connect %d\n\r\n\r", rv);
+			return stop_connection(sock);
+		}
+    } else {
+    	LOGI("using sock %d %d\n", *sock, sock_begin);
     }
  	ble_reply_wifi_status(wifi_connection_state_SOCKET_CONNECTED);
     return 0;
@@ -1183,6 +1318,8 @@ int send_audio_wifi(char * buffer, int buffer_size, audio_read_cb arcb) {
 
 static bool decode_rx_data_pb(const uint8_t * buffer, uint32_t buffer_size, const pb_field_t fields[], void * structdata) {
 	AES_CTX aesctx;
+	SHA1_CTX sha1ctx;
+
 	unsigned char * buf_pos = (unsigned char*)buffer;
 	unsigned char sig[SIG_SIZE] = {0};
 	unsigned char sig_test[SIG_SIZE] = {0};
@@ -1194,12 +1331,14 @@ static bool decode_rx_data_pb(const uint8_t * buffer, uint32_t buffer_size, cons
 	for (i = 0; i < AES_IV_SIZE; ++i) {
 		aesctx.iv[i] = *buf_pos++;
 		if (buf_pos > (buffer + buffer_size)) {
+			LOGI("No IV\n");
 			return false;
 		}
 	}
 	for (i = 0; i < SIG_SIZE; ++i) {
 		sig[i] = *buf_pos++;
 		if (buf_pos > (buffer + buffer_size)) {
+			LOGI("No SIG\n");
 			return false;
 		}
 	}
@@ -1215,6 +1354,7 @@ static bool decode_rx_data_pb(const uint8_t * buffer, uint32_t buffer_size, cons
 	SHA1_Final(sig_test, &sha1ctx);
 	if (memcmp(sig, sig_test, SHA1_SIZE) != 0) {
 		LOGI("signatures do not match\n");
+		LOGI("%d %x %x\n", buffer_size, buf_pos, buffer );
 #if 0
 		for (i = 0; i < SHA1_SIZE; ++i) {
 			LOGI("%02x", sig[i]);
@@ -1308,45 +1448,52 @@ int http_response_ok( char* response_buffer)
 {
 	char* first_line = strstr(response_buffer, "\r\n") + 2;
 	uint16_t first_line_len = first_line - response_buffer;
-	if( first_line && first_line_len > SERVER_REPLY_BUFSZ || first_line_len > strlen(response_buffer ) )
-	{
-		LOGE("Invalid headers\n");
-		return -2;
-	}
+	assert(!( first_line && first_line_len > SERVER_REPLY_BUFSZ || first_line_len > strlen(response_buffer ) ));
 	first_line = pvPortMalloc(first_line_len + 1);
-	if(!first_line)
-	{
-		LOGE("No memory\n");
-		return -2;
-	}
+	assert(first_line);
 
 	memset(first_line, 0, first_line_len + 1);
 	memcpy(first_line, response_buffer, first_line_len);
 	LOGI("status: %s\n", first_line);
-	ble_reply_http_status(first_line);
 	wifi_status_set(UPLOADING, false);
+	ble_reply_http_status(first_line);
 
 	int resp_ok = match("2..", first_line);
 	vPortFree(first_line);
 	return resp_ok ? 0 : -1;
 }
+static char lcase(char a ) {
+	return (a >= 'A' && a <= 'Z' ) ? a + ('a'-'A') : a;
+}
+static void lcasestr(char *s){
+    while(*s) {
+    	*s = lcase(*s);
+    	++s;
+    }
+}
 
-
-static bool validate_signatures( char * buffer, const pb_field_t fields[], void * structdata) {
+static bool validate_signatures( char * buffer, int sz, const pb_field_t fields[], void * structdata) {
 
     // Parse the response
     //LOGI("Reply is:\n\r%s\n\r", buffer);
 
-    const char* header_content_len = "Content-Length: ";
+    const char* header_content_len = "content-length: ";
     char * content = strstr(buffer, "\r\n\r\n") + 4;
+
+    *(content-2) = 0;
+    lcasestr(buffer);
+
     char * len_str = strstr(buffer, header_content_len) + strlen(header_content_len);
+
+    LOGD( "Headers:\n%s", buffer );
+
     if (http_response_ok(buffer) != 0) {
     	wifi_status_set(UPLOADING, true);
         LOGI("Invalid response, endpoint return failure.\n");
         return false;
     }
 
-    if( strstr(buffer, "No Content") ) {
+    if( strstr(buffer, "no content") ) {
     	return true;
     }
 
@@ -1356,14 +1503,18 @@ static bool validate_signatures( char * buffer, const pb_field_t fields[], void 
         return false;
     }
     int len = atoi(len_str);
+    if( len + (content - buffer) > sz ) {
+    	LOGE("Content length %d exceeds rx buffer %d! %x %x\n", len, sz, content, buffer);
+    	return false;
+    }
 
     return decode_rx_data_pb((unsigned char*) content, len, fields, structdata);
 }
 
 //buffer needs to be at least 128 bytes...
-int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
+int send_data_pb( char* host, const char* path, char ** recv_buf_ptr,
 		uint32_t * recv_buf_size_ptr, const pb_field_t fields[],  void * structdata,
-		protobuf_reply_callbacks * pb_cb ) {
+		protobuf_reply_callbacks * pb_cb, int * sock , security_type sec ) {
     int send_length = 0;
     int rv = 0;
     uint8_t sig[32]={0};
@@ -1374,14 +1525,30 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
 
     if (!recv_buf) {
     	LOGI("send_data_pb_callback needs a buffer\r\n");
-    	return -1;
+    	goto failure;
     }
-
+    {
     char hex_device_id[DEVICE_ID_SZ * 2 + 1] = {0};
     if(!get_device_id(hex_device_id, sizeof(hex_device_id)))
     {
         LOGE("get_device_id failed\n");
-        return -1;
+        goto failure;
+    }
+
+    //setup the connection
+    if( start_connection(sock, host, sec) < 0 ) {
+        LOGI("failed to start connection\n\r\n\r");
+        goto failure;
+    }
+
+    if( sec == SOCKET_SEC_SSL ) {
+		//check that it's still secure...
+		rv = recv(*sock, recv_buf, SERVER_REPLY_BUFSZ, 0);
+		if (rv != SL_EAGAIN ) {
+			LOGI("start recv error %d\n\r\n\r", rv);
+			ble_reply_socket_error(rv);
+			goto failure;
+		}
     }
 
     usnprintf(recv_buf, recv_buf_size, "POST %s HTTP/1.1\r\n"
@@ -1395,39 +1562,24 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
 
     send_length = strlen(recv_buf);
 
-    //setup the connection
-    if( start_connection() < 0 ) {
-        LOGI("failed to start connection\n\r\n\r");
-        return -1;
-    }
-
-    //check that it's still secure...
-    rv = recv(sock, recv_buf, SERVER_REPLY_BUFSZ, 0);
-    if (rv != SL_EAGAIN ) {
-        LOGI("start recv error %d\n\r\n\r", rv);
-        ble_reply_socket_error(rv);
-        return stop_connection();
-    }
-
-    //LOGI("Sending request\n\r%s\n\r", recv_buf);
-    rv = send(sock, recv_buf, send_length, 0);
+    LOGD("Sending request\n\r%s\n\r", recv_buf);
+    rv = send(*sock, recv_buf, send_length, 0);
     if (rv <= 0) {
         LOGI("send error %d\n\r\n\r", rv);
         ble_reply_socket_error(rv);
-        return stop_connection();
+        goto failure;
     }
 
-#if 0
-    LOGI("HTTP header sent %d\n\r%s\n\r", rv, recv_buf);
+    }
+    LOGD("HTTP header sent %d\n\r", rv);
 
-#endif
-
+    {
 	ostream_buffered_desc_t desc;
 
 	SHA1_CTX ctx;
 	AES_CTX aesctx;
 	pb_ostream_t stream = {0};
-	int i;
+	int i, retries;
 
 	memset(&desc,0,sizeof(desc));
 	memset(&ctx,0,sizeof(ctx));
@@ -1435,9 +1587,9 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
 
 	desc.buf = (uint8_t *)recv_buf;
 	desc.inbuf_offset = 0;
-	desc.buf_size = recv_buf_size;
+	desc.buf_size = MAX_SHA256_SEND_SIZE;
 	desc.ctx = &ctx;
-	desc.fd = (intptr_t) sock;
+	desc.fd = *sock;
 
 	SHA1_Init(&ctx);
 
@@ -1445,14 +1597,14 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
 	stream = pb_ostream_from_sha_socket(&desc);
 
 	/* Now we are ready to encode the message! Let's go encode. */
-	LOGI("data ");
+	LOGI("data\n");
 	status = pb_encode(&stream,fields,structdata);
 
 	if( !flush_out_buffer(&desc) ) {
 		LOGI("Flush failed\n");
-		return -1;
+        goto failure;
 	}
-	LOGI("\n");
+	LOGI("a\n");
 
 	/* sanity checks  */
 	if (desc.bytes_written != desc.bytes_that_should_have_been_written) {
@@ -1462,7 +1614,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
 	/* Then just check for any errors.. */
 	if (!status) {
 		LOGI("Encoding failed: %s\n", PB_GET_ERROR(&stream));
-		return -1;
+        goto failure;
 	}
 
 	//now sign it
@@ -1473,79 +1625,61 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
 		sig[i] = (uint8_t)rand();
 	}
 
-#if 0
-	LOGI("SHA ");
-	for (i = 0; i < sizeof(sig); ++i) {
-		LOGI("%x", sig[i]);
-	}
-	LOGI("\n");
-
-#endif
+    log_debug_bytes("SHA:", sig, sizeof(sig));
 	//memset( aesctx.iv, 0, sizeof( aesctx.iv ) );
 
 	/*  create AES initialization vector */
-#if 0
-	LOGI("iv ");
-#endif
-	for (i = 0; i < sizeof(aesctx.iv); ++i) {
+    for (i = 0; i < sizeof(aesctx.iv); ++i) {
 		aesctx.iv[i] = (uint8_t)rand();
-#if 0
-		LOGI("%x", aesctx.iv[i]);
-#endif
 	}
-#if 0
-	LOGI("\n");
-#endif
 
 	/*  send AES initialization vector */
-	if( send_chunk_len( AES_IV_SIZE, sock) != 0 ) {
-		return -1;
+	if( send_chunk_len( AES_IV_SIZE, *sock) != 0 ) {
+        goto failure;
 	}
-	rv = send(sock, aesctx.iv, AES_IV_SIZE, 0);
+    log_debug_bytes("IV:", aesctx.iv, sizeof(aesctx.iv));
+	rv = send(*sock, aesctx.iv, AES_IV_SIZE, 0);
 
 	if (rv != AES_IV_SIZE) {
 		LOGI("Sending IV failed: %d\n", rv);
-		return -1;
+        goto failure;
 	}
 
 	AES_set_key(&aesctx, aes_key, aesctx.iv, AES_MODE_128); //todo real key
 	AES_cbc_encrypt(&aesctx, sig, sig, sizeof(sig));
 
+
 	/* send signature */
-	if( send_chunk_len( sizeof(sig), sock) != 0 ) {
-		return -1;
+	if( send_chunk_len( sizeof(sig), *sock) != 0 ) {
+        goto failure;
 	}
-	rv = send(sock, sig, sizeof(sig), 0);
+    log_debug_bytes("sig:", sig, sizeof(sig));
+	rv = send(*sock, sig, sizeof(sig), 0);
 
 	if (rv != sizeof(sig)) {
 		LOGI("Sending SHA failed: %d\n", rv);
-		return -1;
+		goto failure;
 	}
 
-#if 0
-	LOGI("sig ");
-	for (i = 0; i < sizeof(sig); ++i) {
-		LOGI("%x", sig[i]);
-	}
-	LOGI("\n");
-#endif
-
-
-    if( send_chunk_len(0, sock) != 0 ) {
-    	return -1;
+    if( send_chunk_len(0, *sock) != 0 ) {
+        goto failure;
     }
     ble_reply_wifi_status(wifi_connection_state_REQUEST_SENT);
 
     memset(recv_buf, 0, recv_buf_size);
 
+    retries = 0;
     //keep looping while our socket error code is telling us to try again
     do {
-    	rv = recv(sock, recv_buf+recv_buf_size-SERVER_REPLY_BUFSZ, SERVER_REPLY_BUFSZ, 0);
-    	if( rv == SERVER_REPLY_BUFSZ ) {
+		vTaskDelay(1000);
+    	rv = recv(*sock, recv_buf+recv_buf_size-SERVER_REPLY_BUFSZ, SERVER_REPLY_BUFSZ, 0);
+    	MAP_WatchdogIntClear(WDT_BASE); //clear wdt, it seems the SL_SPAWN hogs CPU here
+        LOGI("x");
+        if( rv == SERVER_REPLY_BUFSZ ) {
              recv_buf_size += SERVER_REPLY_BUFSZ;
              if( recv_buf_size > 10*1024 ) {
                  LOGI("error response too bug\n");
-                 return stop_connection();
+                 goto failure;
              }
     		 recv_buf = pvPortRealloc( recv_buf, recv_buf_size );
     		 assert(recv_buf);
@@ -1554,15 +1688,17 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
     		 *recv_buf_size_ptr = recv_buf_size;
     		 rv = SL_EAGAIN;
     	}
-    } while (rv == SL_EAGAIN);
+    } while (rv == SL_EAGAIN && retries++ < 70 ); // long poll endpoint times out at 60 seconds, so we need to wait a bit longer than that
+    LOGI("rv %d\n", rv);
 
     if (rv <= 0) {
         LOGI("recv error %d\n\r\n\r", rv);
         ble_reply_socket_error(rv);
-        return stop_connection();
+        goto failure;
     }
-    LOGI("recv %d\n", rv);
+    }
 
+    {
     pb_field_t * reply_fields = NULL;
     void * reply_structdata = NULL;
 
@@ -1571,7 +1707,7 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
 			pb_cb->get_reply_pb( &reply_fields, &reply_structdata );
 			assert(reply_structdata);
 		}
-		if( reply_structdata && validate_signatures((char*)recv_buf, reply_fields, reply_structdata ) ) {
+		if( reply_structdata && validate_signatures((char*)recv_buf, rv, reply_fields, reply_structdata ) ) {
 			if( pb_cb && pb_cb->on_pb_success ) {
 				pb_cb->on_pb_success( reply_structdata );
 			}
@@ -1588,9 +1724,17 @@ int send_data_pb(const char* host, const char* path, char ** recv_buf_ptr,
 			pb_cb->free_reply_pb( reply_structdata );
 		}
     } else {
-    	return http_response_ok((char*)recv_buf);
+    	return http_response_ok((char*)recv_buf); //<- todo make non-200 from endpoints we don't have callbacks for close the socket
     }
-    return -1;
+    return stop_connection(sock);
+    }
+
+	failure:
+
+	if( pb_cb && pb_cb->on_pb_failure ) {
+		pb_cb->on_pb_failure();
+	}
+	return stop_connection(sock);
 }
 
 
@@ -1635,6 +1779,7 @@ bool get_device_id(char * hex_device_id,uint32_t size_of_device_id_buffer) {
 		return false;
 	}
 
+    load_device_id();
 	memset(hex_device_id, 0, size_of_device_id_buffer);
 
 	for(i = 0; i < DEVICE_ID_SZ; i++){
@@ -1646,11 +1791,11 @@ bool get_device_id(char * hex_device_id,uint32_t size_of_device_id_buffer) {
 
 bool _on_file_download(pb_istream_t *stream, const pb_field_t *field, void **arg);
 
-void set_alarm( SyncResponse_Alarm * received_alarm );
+void set_alarm( SyncResponse_Alarm * received_alarm, const char * ack, size_t ack_size );
 
-static void _on_alarm_received( SyncResponse_Alarm* received_alarm)
+static void _on_alarm_received( SyncResponse_Alarm* received_alarm, const char * ack, size_t ack_size)
 {
-	set_alarm( received_alarm );
+	set_alarm( received_alarm, ack, ack_size );
 }
 
 static void _on_factory_reset_received()
@@ -1660,35 +1805,45 @@ static void _on_factory_reset_received()
 #include "led_animations.h"
 
 int force_data_push();
+
+#ifdef SELF_PROVISION_SUPPORT
 extern volatile bool provisioning_mode;
+#endif
+
 void boot_commit_ota();
 
 static void _on_key_check_success(void * structdata){
 	LOGF("signature validated\r\n");
+
+#ifdef SELF_PROVISION_SUPPORT
 	if (provisioning_mode) {
 		sl_FsDel((unsigned char*)PROVISION_FILE, 0);
 		wifi_reset();
 		//green!
-		play_led_wheel( LED_MAX, 0, LED_MAX, 0, 3600, 33);
+		play_led_wheel( LED_MAX, 0, LED_MAX, 0, 3600, 33,1);
 		while (1) {
 			vTaskDelay(100);
 		}
 	}
 
 	provisioning_mode = false;
+#endif
 }
 static void _on_key_check_failure( void * structdata){
 	LOGF("signature validation fail\r\n");
+
+#ifdef SELF_PROVISION_SUPPORT
 	//light up if we're in provisioning mode but not if we're testing the key from top
 	//this handles the overlap case where we want to get keys from top but the server doesn't yet have the blobs
 	//allowing us to fall back to the key handshake with the server
 	if (provisioning_mode && has_default_key()) {
 		//red!
-		play_led_wheel( LED_MAX, LED_MAX, 0, 0, 3600, 33);
+		play_led_wheel( LED_MAX, LED_MAX, 0, 0, 3600, 33,1);
 		while (1) {
 			vTaskDelay(100);
 		}
 	}
+#endif
 	save_aes_in_memory(DEFAULT_KEY);
 	force_data_push(); //and make sure the retry happens right away
 }
@@ -1729,23 +1884,41 @@ static void _set_led_color_based_on_room_conditions(const SyncResponse* response
 {
     if(response_protobuf->has_room_conditions)
     {
+    	LOGI("lightson %d\n", response_protobuf->room_conditions);
     	switch(response_protobuf->room_conditions)
     	{
 			case SyncResponse_RoomConditions_IDEAL:
-				led_set_user_color(0x00, LED_MAX, 0x00);
+				led_set_user_color(0x00, LED_MAX, 0x00,true);
 			break;
 			case SyncResponse_RoomConditions_WARNING:
-				led_set_user_color(LED_MAX, LED_MAX, 0x00);
+				led_set_user_color(LED_MAX, LED_MAX, 0x00,true);
 			break;
 			case SyncResponse_RoomConditions_ALERT:
-				led_set_user_color(0xF0, 0x76, 0x00);
+				led_set_user_color(253,45,8,true);
 			break;
 			default:
-				led_set_user_color(0x00, 0x00, LED_MAX);
+				led_set_user_color(0x00, 0x00, LED_MAX,true);
 			break;
     	}
-    }else{
-        led_set_user_color(0x00, LED_MAX, 0x00);
+    }
+    if(response_protobuf->has_room_conditions_lights_off)
+    {
+    	LOGI("lightsoff %d\n", response_protobuf->room_conditions_lights_off);
+    	switch(response_protobuf->room_conditions_lights_off)
+    	{
+			case SyncResponse_RoomConditions_IDEAL:
+				led_set_user_color(0x00, LED_MAX, 0x00,false);
+			break;
+			case SyncResponse_RoomConditions_WARNING:
+				led_set_user_color(LED_MAX, LED_MAX, 0x00,false);
+			break;
+			case SyncResponse_RoomConditions_ALERT:
+				led_set_user_color(253,45,8,false);
+			break;
+			default:
+				led_set_user_color(0x00, 0x00, LED_MAX,false);
+			break;
+    	}
     }
 }
 void reset_to_factory_fw();
@@ -1756,7 +1929,13 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
 {
     if (response_protobuf->has_alarm) 
     {
-        _on_alarm_received(&response_protobuf->alarm);
+    	if(response_protobuf->has_ring_time_ack){
+    		_on_alarm_received(&response_protobuf->alarm, response_protobuf->ring_time_ack, sizeof(response_protobuf->ring_time_ack));
+
+    	}else{
+    		_on_alarm_received(&response_protobuf->alarm, NULL, 0);
+    	}
+
     }
 
     if (response_protobuf->has_mac)
@@ -1777,11 +1956,15 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
     }
 
     if (response_protobuf->has_audio_control) {
+//    	LOGI("Start Audio Capture\r\n");
     	AudioControlHelper_SetAudioControl(&response_protobuf->audio_control);
     }
 
     if( response_protobuf->has_batch_size ) {
     	data_queue_batch_size = response_protobuf->batch_size;
+    }
+    if( response_protobuf->has_pill_batch_size ) {
+    	pill_queue_batch_size = response_protobuf->pill_batch_size;
     }
 
     if(response_protobuf->has_upload_log_level) {
@@ -1818,21 +2001,19 @@ static void _on_sync_response_success( void * structdata){
 static void _on_sync_response_failure( ){
     LOGF("signature validation fail\r\n");
 }
+bool send_pill_data_generic(batched_pill_data * pill_data, const char * endpoint){
+	 protobuf_reply_callbacks pb_cb;
 
-//retry logic is handled elsewhere
-bool send_pill_data(batched_pill_data * pill_data) {
-    protobuf_reply_callbacks pb_cb;
-
-    pb_cb.get_reply_pb = _get_sync_response;
-    pb_cb.free_reply_pb = _free_sync_response;
-    pb_cb.on_pb_success = _on_sync_response_success;
-    pb_cb.on_pb_failure = _on_sync_response_failure;
+	pb_cb.get_reply_pb = _get_sync_response;
+	pb_cb.free_reply_pb = _free_sync_response;
+	pb_cb.on_pb_success = _on_sync_response_success;
+	pb_cb.on_pb_failure = _on_sync_response_failure;
 
 	return NetworkTask_SendProtobuf(true, DATA_SERVER,
-			PILL_DATA_RECEIVE_ENDPOINT, batched_pill_data_fields, pill_data, INT_MAX,
+			endpoint, batched_pill_data_fields, pill_data, INT_MAX,
 			NULL, NULL, &pb_cb, false);
 }
-bool send_periodic_data(batched_periodic_data* data, bool forced) {
+bool send_periodic_data(batched_periodic_data* data, bool forced, int32_t to) {
     protobuf_reply_callbacks pb_cb;
 
     pb_cb.get_reply_pb = _get_sync_response;
@@ -1841,10 +2022,11 @@ bool send_periodic_data(batched_periodic_data* data, bool forced) {
     pb_cb.on_pb_failure = _on_sync_response_failure;
 
 	return NetworkTask_SendProtobuf(true, DATA_SERVER,
-			DATA_RECEIVE_ENDPOINT, batched_periodic_data_fields, data, INT_MAX,
+			DATA_RECEIVE_ENDPOINT, batched_periodic_data_fields, data, to,
 			NULL, NULL, &pb_cb, forced);
 }
 
+#ifdef SELF_PROVISION_SUPPORT
 static void _get_provision_response(pb_field_t ** fields, void ** structdata){
 	*fields = (pb_field_t *)MorpheusCommand_fields;
 	*structdata = pvPortMalloc(sizeof(ProvisionResponse));
@@ -1893,6 +2075,7 @@ bool send_provision_request(ProvisionRequest* req) {
 	return NetworkTask_SendProtobuf(true, DATA_SERVER, PROVISION_ENDPOINT,
 			ProvisionRequest_fields, req, INT_MAX, NULL,NULL, &pb_cb, true);
 }
+#endif
 
 int Cmd_sl(int argc, char*argv[]) {
 
@@ -2322,7 +2505,7 @@ int Cmd_RadioStopTX(int argc, char*argv[])
 //end radio test functions
 #endif
 
-int connect_wifi(const char* ssid, const char* password, int sec_type, int version)
+SlSecParams_t make_sec_params(const char* ssid, const char* password, int sec_type, int version)
 {
 	SlSecParams_t secParam = {0};
 
@@ -2351,33 +2534,27 @@ int connect_wifi(const char* ssid, const char* password, int sec_type, int versi
 		UARTprintf("\n" );
 		memcpy( secParam.Key, wep_hex, secParam.KeyLen + 1 );
     }
-
-
-	int16_t index = 0;
+    return secParam;
+}
+int connect_wifi(const char* ssid, const char* password, int sec_type, int version, bool save)
+{
 	int16_t ret = 0;
-	uint8_t retry = 5;
-	while((index = sl_WlanProfileAdd((_i8*) ssid, strlen(ssid), NULL,
-			&secParam, NULL, 0, 0)) < 0 && retry--){
-		ret = sl_WlanProfileDel(0xFF);
-		if (ret != 0) {
-			LOGI("profile del fail\n");
-		}
-	}
+	SlSecParams_t secParam = make_sec_params(ssid, password, sec_type, version);
 
-	if (index < 0) {
-		LOGI("profile add fail\n");
-		return 0;
-	}
 	ret = sl_WlanConnect((_i8*) ssid, strlen(ssid), NULL, sec_type == SL_SEC_TYPE_OPEN ? NULL : &secParam, 0);
+
+	if( save ) {
+		sl_WlanProfileAdd((_i8*) ssid, strlen(ssid), NULL,
+							&secParam, NULL, 0, 0);
+	}
 	if(ret == 0 || ret == -71)
 	{
 		LOGI("WLAN connect attempt issued\n");
-
-		return 1;
+	    ble_reply_wifi_status(wifi_connection_state_WLAN_CONNECTING);
+	    return 0;
+	} else {
+        return -1;
 	}
-    ble_reply_wifi_status(wifi_connection_state_WLAN_CONNECTING);
-
-	return 0;
 }
 static xSemaphoreHandle _sl_status_mutex;
 static unsigned int _wifi_status;
@@ -2418,7 +2595,7 @@ int wifi_status_set(unsigned int status, int remove_status)
     return ret;
 }
 
-#ifdef BUILD_SERVERS
+#if defined(BUILD_SERVERS) && defined(BUILD_TELNET_SERVER)
 #include "ctype.h"
 #if 0
 #define SVR_LOGI UARTprintf
@@ -2457,10 +2634,12 @@ static void serv(int port, volatile int * connection_socket, int (*cb)(volatile 
 		SVR_LOGI( "SVR: bind\n");
 		if ( bind(sock, &local_addr, sizeof(local_addr)) < 0) {
 			close(sock);
+			sock = -1;
 			continue;
 		} SVR_LOGI( "SVR: listen\n");
 		if ( listen(sock, 0) < 0) {
 			close(sock);
+			sock = -1;
 			continue;
 		}
 
@@ -2540,6 +2719,7 @@ static void serv(int port, volatile int * connection_socket, int (*cb)(volatile 
 		SVR_LOGI( "SVR: lost sock\n");
 		*connection_socket = -1;
 		close(sock);
+		sock = -1;
 		vPortFree(buf);
 		vPortFree(linebuf);
 	}
@@ -2564,7 +2744,7 @@ static int send_buffer( volatile int* sock, const char * str, int len ) {
 	}
 	return sent;
 }
-
+#ifdef BUILD_TELNET_SERVER
 volatile static int telnet_connection_sock;
 void telnetPrint(const char * str, int len) {
 	if ( telnet_connection_sock > 0 && wifi_status_get(HAS_IP)) {
@@ -2590,6 +2770,7 @@ void telnetServerTask(void *params) {
 #define INTERPRETER_PORT 224
     serv( INTERPRETER_PORT, &telnet_connection_sock, cli_cb, "\n" );
 }
+#endif
 #if 0 //used in proof of concept
 static int echo_cb( volatile int * sock,  char * linebuf, int inbufsz ) {
 	if ( send( *sock, "\n", 1, 0 ) <= 0 ) {

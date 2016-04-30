@@ -639,7 +639,7 @@ extern "C" {
     \note           belongs to \ref ported_sec
     \warning
 */
-#define SL_OS_WAIT_FOREVER                      ((OsiTime_t)OSI_WAIT_FOREVER)
+#define SL_OS_WAIT_FOREVER                      ((OsiTime_t)45000)
 
 /*!
     \brief
@@ -963,9 +963,7 @@ typedef OsiLockObj_t                            _SlLockObj_t;
 
     \warning
 */
-/*
-#define sl_GeneralEvtHdlr
-*/
+#define sl_GeneralEvtHdlr				SimpleLinkGeneralEventHandler
 
 /*!
     \brief          An event handler for WLAN connection or disconnection indication

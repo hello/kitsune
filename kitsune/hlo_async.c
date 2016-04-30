@@ -33,6 +33,7 @@ static void async_worker(void * ctx){
 		hlo_future_free(task->result);
 		vPortFree(task);
 	}
+	LOGI("async %d stk\n", uxTaskGetStackHighWaterMark(NULL));
 	vTaskDelete(NULL);
 }
 static int do_read(hlo_future_t * future, void * buf, size_t size){
@@ -73,7 +74,7 @@ hlo_future_t * hlo_future_create_task_bg(future_task cb, void * context, size_t 
 		task->result = result;
 		task->work = cb;
 		usnprintf( task->name, sizeof(task->name),  "async %d", xTaskGetTickCount());
-		if(pdPASS != xTaskCreate(async_worker, task->name, stack_size / 4, task, 4, NULL)){
+		if(pdPASS != xTaskCreate(async_worker, task->name, stack_size / 4, task, 1, NULL)){
 			goto fail_task;
 		}
 	}
@@ -84,6 +85,8 @@ fail_sync:
 	vSemaphoreDelete(result->release);
 fail:
 	hlo_future_free(result);
+#define FUTURE_FAIL 0
+	assert(FUTURE_FAIL);
 	return NULL;
 }
 

@@ -46,8 +46,8 @@
 // If you are using CCS for building, it is probably better to make any such 
 // modifications in your CCS project and leave this file alone.              
 //*****************************************************************************                                                                           */
- __HEAP_SIZE=0x00000800;
- __STACK_SIZE=0x200;
+ __HEAP_SIZE=0x00000200;
+ __STACK_SIZE=0x600;
 
 //*****************************************************************************
 // The starting address of the application.  Normally the interrupt vectors  
@@ -60,9 +60,9 @@
 MEMORY
 {
     /* Application uses internal RAM for program and data */
-    SRAM_DATA (RW) : origin = 0x20000000, length = 0x3FFF
-    SRAM (RWX) : origin = 0x20004000, length = 0x22FFF
-    SRAM_HEAP (RW) : origin = 0x20027000, length = 0x18FFF
+    SRAM_LOWHEAP (RW) : origin = 0x20000000, length = 0x3FFF
+	SRAM (RWX) : origin = 0x20004000, length = 0x241FF
+    SRAM_HEAP (RW) : origin = 0x20028200, length = 0x17DFF
 }
 
 /* Section allocation in memory */
@@ -73,13 +73,14 @@ SECTIONS
     .text   :   > SRAM
     .const  :   > SRAM
     .cinit  :   > SRAM
-    .pinit  :   > SRAM_DATA
+    .pinit  :   > SRAM_HEAP
     .init_array : > SRAM
-    .vtable :   > SRAM_DATA
+    .vtable :   > SRAM_HEAP
     .data   :   > SRAM_HEAP
-    .bss    :   > SRAM_DATA
-    .sysmem :   > SRAM_DATA
-    .stack  :   > SRAM_DATA
+    .bss    :   > SRAM_HEAP
+    .lowheap:   > SRAM_LOWHEAP
+    .sysmem :   > SRAM_HEAP
+    .stack  :   > SRAM_HEAP
 }
 
 __STACK_TOP = __stack + __STACK_SIZE;

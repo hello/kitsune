@@ -11,7 +11,7 @@ typedef enum {
 	eAudioSaveToDisk,
 	eAudioPlaybackStart,
 	eAudioPlaybackStop,
-	eAudioCaptureOctogram
+	eAudioCaptureOctogram,
 } EAudioCommand_t;
 
 typedef struct {
@@ -19,6 +19,7 @@ typedef struct {
 	int32_t durationInSeconds;
 	uint32_t fade_in_ms;
 	uint32_t fade_out_ms;
+	uint32_t to_fade_out_ms;
 	uint32_t rate;
 	hlo_stream_t * stream;
 	NotificationCallback_t onFinished;
