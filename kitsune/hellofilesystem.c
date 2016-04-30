@@ -184,7 +184,6 @@ FRESULT hello_fs_mkfs (const char* drv, BYTE partition, UINT allocsize) {
 	UNLOCK();
 	return res;
 }
-#endif
 
 FRESULT hello_fs_append(const char* file_name, const unsigned char* content, int length) {
 	FRESULT res;
@@ -194,6 +193,7 @@ FRESULT hello_fs_append(const char* file_name, const unsigned char* content, int
 	return res;
 }
 
+#endif
 ////==========================================================
 //fs stream impl
 #define FS_IO_CAP 512

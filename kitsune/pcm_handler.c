@@ -80,11 +80,8 @@
 #include "ti_codec.h"
 #endif
 
-/* FatFS include */
-//#include "ff.h"
-//#include "diskio.h"
-#include "fatfs_cmd.h"
-#include "uartstdio.h"
+#include "adpcm.h"
+
 //*****************************************************************************
 //                          LOCAL DEFINES
 //*****************************************************************************
@@ -94,14 +91,17 @@
 //*****************************************************************************
 //                          GLOBAL VARIABLES
 //*****************************************************************************
-unsigned short ping[(CB_TRANSFER_SZ)];
-unsigned short pong[(CB_TRANSFER_SZ)];
+ short ping[(CB_TRANSFER_SZ)];
+ short pong[(CB_TRANSFER_SZ)];
+ char pcm[(CB_TRANSFER_SZ/2)];
 volatile unsigned int guiDMATransferCountTx = 0;
 volatile unsigned int guiDMATransferCountRx = 0;
 extern tCircularBuffer *pTxBuffer;
 extern tCircularBuffer *pRxBuffer;
 
 extern TaskHandle_t audio_task_hndl;
+
+static adpcm_state pcm_state = {0};
 
 //*****************************************************************************
 //
@@ -160,7 +160,10 @@ void DMAPingPongCompleteAppCB_opt()
 				pong[i] = pong[2*i+1];
 				swap_endian(pong+i);
 			}
-			FillBuffer(pAudInBuf, (unsigned char*)pong, CB_TRANSFER_SZ);
+
+			adpcm_coder( pong, pcm, CB_TRANSFER_SZ/4, &pcm_state );
+
+			FillBuffer(pAudInBuf, (unsigned char*)pcm, CB_TRANSFER_SZ/8);
 		} else {
 			//ALT part of the ping pong
 			if ((pControlTable[ulAltIndexTx].ulControl & UDMA_CHCTL_XFERMODE_M)
@@ -176,7 +179,9 @@ void DMAPingPongCompleteAppCB_opt()
 					ping[i] = ping[2*i+1];
 					swap_endian(ping+i);
 				}
-				FillBuffer(pAudInBuf, (unsigned char*)ping, CB_TRANSFER_SZ);
+				adpcm_coder( ping, pcm, CB_TRANSFER_SZ/4, &pcm_state );
+
+				FillBuffer(pAudInBuf, (unsigned char*)pcm, CB_TRANSFER_SZ/8);
 			}
 		}
 
@@ -199,10 +204,12 @@ void DMAPingPongCompleteAppCB_opt()
 		if ((pControlTable[ulPrimaryIndexRx].ulControl & UDMA_CHCTL_XFERMODE_M)
 				== 0) {
 			if ( qqbufsz > CB_TRANSFER_SZ ) {
-				guiDMATransferCountRx += CB_TRANSFER_SZ;
+				guiDMATransferCountRx += CB_TRANSFER_SZ/4;
 
-				memcpy(  (void*)ping, (void*)GetReadPtr(pAudOutBuf), CB_TRANSFER_SZ);
-				UpdateReadPtr(pAudOutBuf, CB_TRANSFER_SZ);
+				memcpy(  (void*)pcm, (void*)GetReadPtr(pAudOutBuf), CB_TRANSFER_SZ/4);
+				UpdateReadPtr(pAudOutBuf, CB_TRANSFER_SZ/4);
+
+				adpcm_decoder(pcm, ping, CB_TRANSFER_SZ/2, &pcm_state);
 
 				for (i = CB_TRANSFER_SZ/2-1; i!=-1 ; --i) {
 					//the odd ones do not matter
@@ -211,7 +218,6 @@ void DMAPingPongCompleteAppCB_opt()
 			} else {
 				memset( ping, 0, sizeof(ping));
 			}
-
 			pucDMASrc = (unsigned char*)ping;
 
 			pControlTable[ulPrimaryIndexRx].ulControl |= CTRL_WRD;
@@ -224,11 +230,12 @@ void DMAPingPongCompleteAppCB_opt()
 			if ((pControlTable[ulAltIndexRx].ulControl & UDMA_CHCTL_XFERMODE_M)
 					== 0) {
 				if ( qqbufsz > CB_TRANSFER_SZ ) {
-					guiDMATransferCountRx += CB_TRANSFER_SZ;
+					guiDMATransferCountRx += CB_TRANSFER_SZ/4;
 
-					memcpy(  (void*)pong,  (void*)GetReadPtr(pAudOutBuf), CB_TRANSFER_SZ);
-					UpdateReadPtr(pAudOutBuf, CB_TRANSFER_SZ);
+					memcpy(  (void*)pcm,  (void*)GetReadPtr(pAudOutBuf), CB_TRANSFER_SZ/4);
+					UpdateReadPtr(pAudOutBuf, CB_TRANSFER_SZ/4);
 
+					adpcm_decoder(pcm, pong, CB_TRANSFER_SZ/2, &pcm_state);
 					for (i = CB_TRANSFER_SZ/2-1; i!=-1 ; --i) {
 						//the odd ones do not matter
 						/*pong[(i<<1)+1] = */pong[i<<1] = pong[i];
@@ -236,7 +243,6 @@ void DMAPingPongCompleteAppCB_opt()
 				} else {
 					memset( pong, 0, sizeof(pong));
 				}
-
 				pucDMASrc = (unsigned char*)pong;
 
 				pControlTable[ulAltIndexRx].ulControl |= CTRL_WRD;
@@ -283,6 +289,7 @@ void SetupPingPongDMATransferTx()
 
     memset(ping, 0, sizeof(ping));
     memset(pong, 0, sizeof(pong));
+    memset(&pcm_state, 0, sizeof(pcm_state));
 
     // changed to SD card DMA UDMA_CH14_SDHOST_RX
     SetupTransfer(UDMA_CH4_I2S_RX,
@@ -312,6 +319,7 @@ void SetupPingPongDMATransferRx()
 
     memset(ping, 0, sizeof(ping));
     memset(pong, 0, sizeof(pong));
+    memset(&pcm_state, 0, sizeof(pcm_state));
 
     SetupTransfer(UDMA_CH5_I2S_TX,
                   UDMA_MODE_PINGPONG,

@@ -589,9 +589,9 @@ static bool cancel_alarm() {
 int set_test_alarm(int argc, char *argv[]) {
 	SyncResponse_Alarm alarm;
 	unsigned int now = get_time();
-	alarm.end_time = now + 245;
+	alarm.end_time = now + 45;
 	alarm.start_time = now + 5;
-	alarm.ring_duration_in_second = 240;
+	alarm.ring_duration_in_second = 40;
 	alarm.ring_offset_from_now_in_second = 5;
 	strncpy(alarm.ringtone_path, "/ringtone/tone.raw",
 			strlen("/ringtone/tone.raw"));
@@ -708,7 +708,7 @@ void thread_alarm(void * unused) {
 
 				desc.stream = fs_stream_open(file_name,HLO_STREAM_READ);
 				desc.durationInSeconds = alarm.ring_duration_in_second;
-				desc.volume = 57;
+				desc.volume = 10;
 				desc.onFinished = thread_alarm_on_finished;
 				desc.rate = 48000;
 				desc.context = &alarm_led_id;
@@ -1839,9 +1839,6 @@ int cmd_memfrag(int argc, char *argv[]) {
 	else if (strstr(argv[1], "f") != 0) {
 		vPortFree(ptr);
 	}
-	return 0;
-}
-static long always_ok(void){
 	return 0;
 }
 static long always_slow(int dly){
