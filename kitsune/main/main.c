@@ -125,7 +125,8 @@ extern void (* const g_pfnVectors[])(void);
 extern uVectorEntry __vector_table;
 #endif
 
-
+int sync_ln;
+const char * sync_fnc = NULL;
 
 //*****************************************************************************
 //
@@ -355,8 +356,8 @@ void main()
   wifi_status_init();
 
   /* Create the UART processing task. */
-  xTaskCreate( vUARTTask, "UARTTask", 2048/(sizeof(portSTACK_TYPE)), NULL, 3, NULL );
-  xTaskCreate( watchdog_thread, "wdtTask", 1280/(sizeof(portSTACK_TYPE)), NULL, 1, NULL );
+  xTaskCreate( vUARTTask, "UARTTask", 1024/(sizeof(portSTACK_TYPE)), NULL, 3, NULL );
+  xTaskCreate( watchdog_thread, "wdtTask", 512/(sizeof(portSTACK_TYPE)), NULL, 1, NULL );
 
   //
   // Start the task scheduler

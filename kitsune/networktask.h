@@ -28,8 +28,8 @@ typedef struct {
 	network_prep_callback_t unprepare;
 	void * prepdata;
 
-	/* Called at the start of the session and after all retries, get context as arg */
-	network_prep_callback_t begin, end;
+	/* Called after all retries, get context as arg */
+	network_prep_callback_t end;
 	void * context;
 
 	//protobuf

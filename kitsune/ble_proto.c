@@ -36,6 +36,8 @@
 
 volatile static bool wifi_state_requested = false;
 
+void delete_alarms();
+
 typedef void(*task_routine_t)(void*);
 
 typedef enum {
@@ -65,6 +67,7 @@ ble_mode_t get_ble_mode() {
 }
 static void set_ble_mode(ble_mode_t status) {
 	xSemaphoreTake( _self.smphr, portMAX_DELAY );
+	LOGI("\t\tBLE MODE %d\n", status);
 	_self.ble_status = status;
 	xSemaphoreGive( _self.smphr );
 }
@@ -139,17 +142,38 @@ static void _ble_reply_command_with_type(MorpheusCommand_CommandType type)
 static void _factory_reset(){
 	wifi_reset();
     reset_default_antenna();
+    delete_alarms();
     pill_settings_reset_all();
     nwp_reset();
     deleteFilesInDir(USER_DIR);
-	_ble_reply_command_with_type(MorpheusCommand_CommandType_MORPHEUS_COMMAND_FACTORY_RESET);
 
+	_ble_reply_command_with_type(MorpheusCommand_CommandType_MORPHEUS_COMMAND_FACTORY_RESET);
+}
+
+int Cmd_factory_reset(int argc, char* argv[])
+{
+    _factory_reset();
+	return 0;
+}
+
+#define PM_TIMEOUT (20*60*1000UL)
+static TimerHandle_t pm_timer;
+
+void pm_cancel( TimerHandle_t pxTimer ) {
+	MorpheusCommand response = { 0 };
+	if(get_ble_mode() == BLE_PAIRING) {
+		response.type =
+				MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE;
+		ble_send_protobuf(&response);
+	}
 }
 
 void ble_proto_init() {
 	vSemaphoreCreateBinary(_self.smphr);
 	vSemaphoreCreateBinary(_wifi_smphr);
 	set_ble_mode(BLE_NORMAL);
+
+	pm_timer = xTimerCreate("PM Timer",PM_TIMEOUT,pdFALSE, 0, pm_cancel);
 }
 
 
@@ -158,7 +182,6 @@ static void _reply_wifi_scan_result()
     int i = 0;
     MorpheusCommand reply_command = {0};
     int count = hlo_future_read_once(scan_results,_wifi_endpoints,sizeof(_wifi_endpoints) );
-	scan_results = prescan_wifi(MAX_WIFI_EP_PER_SCAN);
 
     for(i = 0; i < count; i++)
     {
@@ -174,7 +197,7 @@ static void _reply_wifi_scan_result()
     reply_command.type = MorpheusCommand_CommandType_MORPHEUS_COMMAND_STOP_WIFISCAN;
 	ble_send_protobuf(&reply_command);
 	LOGI(">>>>>>Send WIFI scan results done<<<<<<\n");
-
+	scan_results = prescan_wifi(MAX_WIFI_EP_PER_SCAN);
 }
 int force_data_push();
 static bool _set_wifi(const char* ssid, const char* password, int security_type, int version, int app_version)
@@ -209,8 +232,19 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type,
 	    force_data_push();
 
 		while( !wifi_status_get(UPLOADING) ) {
-			vTaskDelay(1000);
-			if( ++to > 60 ) {
+			vTaskDelay(10000);
+
+			if (wifi_status_get(CONNECTING)) {
+				ble_reply_wifi_status(wifi_connection_state_WLAN_CONNECTING);
+			} else if (wifi_status_get(CONNECT)) {
+				ble_reply_wifi_status(wifi_connection_state_WLAN_CONNECTED);
+			} else if (wifi_status_get(IP_LEASED)) {
+				ble_reply_wifi_status(wifi_connection_state_IP_RETRIEVED);
+			} else if (!wifi_status_get(0xFFFFFFFF)) {
+				ble_reply_wifi_status(wifi_connection_state_NO_WLAN_CONNECTED);
+			}
+
+			if( ++to > 6 ) {
 				LOGI("wifi timeout\n");
 				wifi_state_requested = false;
 				ble_reply_protobuf_error(ErrorType_SERVER_CONNECTION_TIMEOUT);
@@ -567,11 +601,8 @@ void hold_animate_progress_task(void * params) {
 	assert( BLE_HOLD_TIMEOUT_MS < MAX_HOLD_TIME_MS );
 	vTaskDelay(BLE_HOLD_TIMEOUT_MS);
 	if( get_released() ) {
-		vTaskDelay(20*60*1000UL); //20 minute timeout
-		if( get_ble_mode() != BLE_PAIRING ) {
-			vTaskDelete(NULL);
-			return;
-		}
+		vTaskDelete(NULL);
+		return;
 	}
 	response.type =
 			MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE;
@@ -623,6 +654,7 @@ static void play_startup_sound() {
 		desc.rate = 48000;
 		desc.fade_in_ms = 0;
 		desc.fade_out_ms = 0;
+		desc.to_fade_out_ms = 0;
 		AudioTask_StartPlayback(&desc);
 	}
 	vTaskDelay(175);
@@ -767,6 +799,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 				if(!scan_results){
 					scan_results = prescan_wifi(MAX_WIFI_EP_PER_SCAN);
 				}
+				assert( pdPASS == xTimerStart(pm_timer, 30000));
     		}
         }
         break;
@@ -795,6 +828,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_PHONE_BLE_BONDED:
         {
         	ble_proto_led_fade_out(0);
+        	set_ble_mode(BLE_NORMAL);
         	LOGI("PHONE BONDED\n");
         }
         break;

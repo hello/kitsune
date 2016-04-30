@@ -39,10 +39,14 @@ int sl_mode;
 #define DEVICE_ID_SZ 8
 
 #define SERVER_REPLY_BUFSZ 2048
+#define MAX_SHA256_SEND_SIZE 1024
 
 #include "stdint.h"
 #include "sync_response.pb.h"
+
+#ifdef SELF_PROVISION_SUPPORT
 #include "provision.pb.h"
+#endif
 
 #define INV_TIME 0xffffffff
 extern
@@ -93,6 +97,7 @@ int Cmd_set_mac(int argc, char*argv[]);
 int Cmd_set_aes(int argc, char *argv[]) ;
 int Cmd_test_key(int argc, char*argv[]);
 int Cmd_setDns(int argc, char *argv[]);
+void set_backup_dns();
 
 int Cmd_RadioStartRX(int argc, char*argv[]);
 int Cmd_RadioStopRX(int argc, char*argv[]);
@@ -113,7 +118,11 @@ int wifi_status_get(unsigned int status);
 
 bool send_periodic_data(batched_periodic_data* data, bool forced, int32_t to);
 bool send_pill_data_generic(batched_pill_data * pill_data, const char * endpoint);
+
+#ifdef SELF_PROVISION_SUPPORT
 bool send_provision_request(ProvisionRequest* req);
+#endif
+
 #define DEFAULT_KEY "1234567891234567"
 
 void thread_ota( void * unused );

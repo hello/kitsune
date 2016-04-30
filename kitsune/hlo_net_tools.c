@@ -23,7 +23,7 @@ typedef struct{
 //implementations
 static void resolve(hlo_future_t * result, void * ctx){
 	unsigned long ip = 0;
-	int ret = (int)sl_gethostbynameNoneThreadSafe((_i8*)ctx, strlen((char*)ctx), &ip, SL_AF_INET);
+	int ret = (int)gethostbyname((_i8*)ctx, strlen((char*)ctx), &ip, SL_AF_INET);
 	hlo_future_write(result, &ip, sizeof(ip), ret);
 }
 void antsel(unsigned char a);
@@ -183,6 +183,7 @@ close_rt:
 	http_free(&rt);
 close_sock:
 	close(sock);
+	sock = -1;
 	hlo_future_write(result,NULL,0,ret);
 	vPortFree(desc);
 }
