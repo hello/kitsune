@@ -301,9 +301,8 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	LOGI("%d free %d stk\n", xPortGetFreeHeapSize(),  uxTaskGetStackHighWaterMark(NULL));
 
 	_queue_audio_playback_state(PLAYING, info);
-	memset(speaker_data,0,FLASH_PAGE_SIZE);
-
 	adpcm_state pcm_state = {0};
+	memset(speaker_data,0,FLASH_PAGE_SIZE);
 
 	//loop until either a) done playing file for specified duration or b) our message queue gets a message that tells us to stop
 	for (; ;) {
