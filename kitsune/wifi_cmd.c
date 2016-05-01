@@ -670,7 +670,7 @@ void set_backup_dns() {
     SlNetCfgIpV4DnsClientArgs_t DnsOpt;
 
    DnsOpt.DnsSecondServerAddr  =  SL_IPV4_VAL(8,8,4,4);
-   DnsOpt.DnsMaxRetries        =  12;
+   DnsOpt.DnsMaxRetries        =  5;
    sl_NetCfgSet(SL_IPV4_DNS_CLIENT,0,sizeof(SlNetCfgIpV4DnsClientArgs_t),(unsigned char *)&DnsOpt);
 }
 int Cmd_status(int argc, char *argv[]) {
