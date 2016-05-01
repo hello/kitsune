@@ -27,6 +27,7 @@
 #include "kit_assert.h"
 #include "utils.h"
 
+#include "adpcm.h"
 #include "hlo_async.h"
 #include "state.pb.h"
 
@@ -42,8 +43,6 @@
 
 #define MAX_NUMBER_TIMES_TO_WAIT_FOR_AUDIO_BUFFER_TO_FILL (5)
 #define MAX_FILE_SIZE_BYTES (1048576*10)
-
-#define MONO_BUF_LENGTH (256)
 
 #define FLAG_SUCCESS (0x01)
 #define FLAG_STOP    (0x02)
@@ -255,7 +254,8 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 #define FLASH_PAGE_SIZE 512
 
 	//1.5K on the stack
-	uint16_t * speaker_data = pvPortMalloc(SPEAKER_DATA_CHUNK_SIZE+1);
+	short * speaker_data = pvPortMalloc(FLASH_PAGE_SIZE+1);
+	char * speaker_data_enc = pvPortMalloc(FLASH_PAGE_SIZE/4+1);
 
 	FIL fp = {0};
 	UINT size;
@@ -313,6 +313,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	}
 	LOGI("%d free %d stk\n", xPortGetFreeHeapSize(),  uxTaskGetStackHighWaterMark(NULL));
 
+	adpcm_state pcm_state = {0};
 	memset(speaker_data,0,SPEAKER_DATA_CHUNK_SIZE);
 	_queue_audio_playback_state(PLAYING, info);
 
@@ -320,6 +321,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	for (; ;) {
 		/* Read always in block of 512 Bytes or less else it will stuck in hello_fs_read() */
 		res = hello_fs_read(&fp, speaker_data, FLASH_PAGE_SIZE, &size);
+		adpcm_coder( speaker_data, speaker_data_enc, size/2, &pcm_state );
 		if ( res == FR_OK && size > 0 ) {
 
 			/* Wait to avoid buffer overflow as reading speed is faster than playback */
@@ -389,7 +391,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 				}
 			}
 
-			FillBuffer(pRxBuffer, (unsigned char*) (speaker_data), size);
+			FillBuffer(pRxBuffer, (unsigned char*) (speaker_data_enc), size/4);
 		}
 		else {
 			if( res != 0 ) {
@@ -415,6 +417,7 @@ cleanup:
 	LOGI("leftover %d\n", GetBufferSize(pRxBuffer));
 
 	vPortFree(speaker_data);
+	vPortFree(speaker_data_enc);
 
 	///CLEANUP
 	DeinitAudioPlayback();
@@ -436,7 +439,8 @@ cleanup:
 
 
 static void DoCapture(uint32_t rate) {
-	int16_t * samples = pvPortMalloc(MONO_BUF_LENGTH*2*2); //256 * 2bytes * 2 = 1KB
+	int16_t * samples = pvPortMalloc(PING_PONG_CHUNK_SIZE*4);
+	char * adpcm = pvPortMalloc(PING_PONG_CHUNK_SIZE);
 	char filepath[32];
 
 	int iBufferFilled = 0;
@@ -464,6 +468,8 @@ static void DoCapture(uint32_t rate) {
 	LOGI("done.\r\n");
 
 	InitAudioCapture(rate);
+
+	adpcm_state pcm_state = {0};
 
 	LOGI("%d free %d stk\n", xPortGetFreeHeapSize(),  uxTaskGetStackHighWaterMark(NULL));
 
@@ -591,7 +597,9 @@ static void DoCapture(uint32_t rate) {
 		}
 		else {
 			//dump buffer out
-			ReadBuffer(pTxBuffer,(uint8_t *)samples,PING_PONG_CHUNK_SIZE);
+			ReadBuffer(pTxBuffer,(uint8_t *)adpcm,PING_PONG_CHUNK_SIZE);
+
+			adpcm_decoder( adpcm, samples, PING_PONG_CHUNK_SIZE*2, &pcm_state );
 
 #ifdef PRINT_TIMING
 			t1 = xTaskGetTickCount(); dt = t1 - t0; t0 = t1;
@@ -599,7 +607,7 @@ static void DoCapture(uint32_t rate) {
 
 			//write to file
 			if (isSavingToFile) {
-				const uint32_t bytes_written = MONO_BUF_LENGTH*sizeof(int16_t);
+				const uint32_t bytes_written = PING_PONG_CHUNK_SIZE*2*sizeof(int16_t);
 
 				if (WriteToFile(&filedata,bytes_written,(const uint8_t *)samples)) {
 					num_bytes_written += bytes_written;
@@ -652,6 +660,7 @@ static void DoCapture(uint32_t rate) {
 
 	CAPTURE_CLEANUP:
 	vPortFree(samples);
+	vPortFree(adpcm);
 
 	if (isSavingToFile) {
 		CloseAndDeleteFile(&filedata);

@@ -10,7 +10,7 @@
             <DataFile Name="" />
             <RawFile Name="" />
             <Scope>
-                <Options TimeResolutionUs="100000" />
+                <Options TimeResolutionUs="2000000" />
             </Scope>
         </Configuration>
         <Windows>
@@ -19,10 +19,10 @@
         </Windows>
         <SelectedSymbols>
             <Symbol>
-                <Options Name="qqbufsz" Address="0x2003C4C0" Type="volatile ulong" TypeID="8" Size="4" GraphColorRed="255" GraphColorGreen="215" GraphColorBlue="0" YMinSampled="0" YMaxSampled="6960" YAvgSampled="1487" Offset="4" ShowInGraph="1" YOffset="200" IsAutoConfig="0" YResolution="500" MaxValue="10000" File="CompUnit" Scope="1" DrawStyle="0" />
+                <Options Name="qqbufsz" Address="0x2003B654" Type="volatile ulong" TypeID="8" Size="4" GraphColorRed="255" GraphColorGreen="215" GraphColorBlue="0" YMinSampled="0" YMaxSampled="0" YAvgSampled="0" Offset="4" ShowInGraph="1" YOffset="200" IsAutoConfig="0" YResolution="2000" MaxValue="10000" File="CompUnit" Scope="1" DrawStyle="0" />
             </Symbol>
             <Symbol>
-                <Options Name="xFreeBytesRemaining" Address="0x20027804" Type="uint" TypeID="8" Size="4" GraphColorRed="0" GraphColorGreen="255" GraphColorBlue="0" YMinSampled="23720" YMaxSampled="33128" YAvgSampled="28640" Offset="8" ShowInGraph="1" YOffset="200" IsAutoConfig="0" YResolution="5000" MaxValue="40000" File="CompUnit" Scope="1" DrawStyle="0" />
+                <Options Name="xFreeBytesRemaining" Address="0x20027804" Type="uint" TypeID="8" Size="4" GraphColorRed="0" GraphColorGreen="255" GraphColorBlue="0" YMinSampled="0" YMaxSampled="0" YAvgSampled="0" Offset="8" ShowInGraph="1" YOffset="200" IsAutoConfig="1" YResolution="50000" MaxValue="100000" File="CompUnit" Scope="1" DrawStyle="0" />
             </Symbol>
         </SelectedSymbols>
     </Project>
