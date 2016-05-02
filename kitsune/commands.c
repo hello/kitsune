@@ -1974,12 +1974,15 @@ tCmdLineEntry g_sCmdTable[] = {
     { "chdir",    Cmd_cd,       "" },
     { "cd",       Cmd_cd,       "" },
     { "rm",       Cmd_rm,       "" },
-#if 0
-    { "mkdir",    Cmd_mkdir,    "" },
+    { "cat",      Cmd_cat,      "" },
     { "write",    Cmd_write,    "" },
+    { "mkdir",    Cmd_mkdir,    "" },
+#if 0
+
+
     { "mkfs",     Cmd_mkfs,     "" },
     { "pwd",      Cmd_pwd,      "" },
-    { "cat",      Cmd_cat,      "" },
+
 	{"codec_Mic", get_codec_mic_NAU, "" },
 #endif
 
