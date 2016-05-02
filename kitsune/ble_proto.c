@@ -67,7 +67,8 @@ ble_mode_t get_ble_mode() {
 }
 static void set_ble_mode(ble_mode_t status) {
 	xSemaphoreTake( _self.smphr, portMAX_DELAY );
-	LOGI("\t\tBLE MODE %d\n", status);
+	analytics_event( "{ble_mode: %d}", status );
+
 	_self.ble_status = status;
 	xSemaphoreGive( _self.smphr );
 }
@@ -621,8 +622,6 @@ void ble_proto_start_hold()
 		response.type =
 				MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE;
 		ble_send_protobuf(&response);
-
-		analytics_event("{ble: normal}");
 		break;
 	}
 	case BLE_CONNECTED:
@@ -794,7 +793,6 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 				set_ble_mode(BLE_PAIRING);
 				LOGI( "PAIRING MODE \n");
 
-				analytics_event( "{ble: pairing}" );
 				//wifi prescan, forked so we don't block the BLE and it just happens in the background
 				if(!scan_results){
 					scan_results = prescan_wifi(MAX_WIFI_EP_PER_SCAN);
