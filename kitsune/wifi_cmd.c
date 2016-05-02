@@ -1209,7 +1209,7 @@ int start_connection(int * sock, char * host, security_type sec) {
 		#endif
 		do {
 			rv = connect(*sock, &sAddr, sizeof(sAddr));
-			LOGI("`");
+			LOGD("`");
 			vTaskDelay(500);
 		} while( rv == SL_EALREADY );
 		if( rv < 0 ) {
@@ -1674,7 +1674,7 @@ int send_data_pb( char* host, const char* path, char ** recv_buf_ptr,
 		vTaskDelay(1000);
     	rv = recv(*sock, recv_buf+recv_buf_size-SERVER_REPLY_BUFSZ, SERVER_REPLY_BUFSZ, 0);
     	MAP_WatchdogIntClear(WDT_BASE); //clear wdt, it seems the SL_SPAWN hogs CPU here
-        LOGI("x");
+        LOGD("x");
         if( rv == SERVER_REPLY_BUFSZ ) {
              recv_buf_size += SERVER_REPLY_BUFSZ;
              if( recv_buf_size > 10*1024 ) {
