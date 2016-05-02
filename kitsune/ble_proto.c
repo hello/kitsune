@@ -137,7 +137,7 @@ static void _ble_reply_command_with_type(MorpheusCommand_CommandType type)
 	memset(&reply_command, 0, sizeof(reply_command));
 	reply_command.type = type;
 	ble_send_protobuf(&reply_command);
-    LOGI("BLE REPLY %d\n",type);
+    LOGI("Sending BLE %d\n",type);
 }
 
 static void _factory_reset(){
