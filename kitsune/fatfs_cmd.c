@@ -947,8 +947,8 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
     while (recv_size > 0)
     {
         int retries = 0;
-        int recv_res = 1;
-		while( ++retries < 1000 && transfer_len < MAX_BUFF_SIZE && recv_res > 0 ) {
+        int recv_res = SL_EAGAIN;
+		while( ++retries < 1000 && transfer_len < MAX_BUFF_SIZE && recv_res == SL_EAGAIN ) {
 			recv_res = recv(dl_sock, g_buff + transfer_len, MAX_BUFF_SIZE - transfer_len, 0);
 			//DISP( "r %d ", recv_res);
 			if( recv_res > 0 ) {
@@ -956,13 +956,12 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 			}
 			if( recv_res == SL_EAGAIN ) {
 				vTaskDelay(500);
-				continue;
 			}
 		}
 		//DISP( " %d %d\n", transfer_len, recv_size);
 
-		if( recv_res != SL_EAGAIN && recv_res <= 0 && transfer_len <= 0 ) {
-        	LOGI("recv fail %d\r\n", transfer_len );
+		if( transfer_len == 0 ) {
+        	LOGI("recv fail %d %d\r\n", recv_res, transfer_len );
         	goto failure;
 		}
         pBuff = g_buff;
