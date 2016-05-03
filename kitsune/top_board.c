@@ -417,7 +417,9 @@ int Cmd_send_top(int argc, char *argv[]){
 }
 void top_board_notify_boot_complete(void){
 	self.top_boot = true;
-	xTimerStop(boot_timer, portMAX_DELAY);
+	if( boot_timer ) {
+		xTimerStop(boot_timer, portMAX_DELAY);
+	}
 }
 void set_top_update_sha(const char * shasum, unsigned int imgnum){
     _load_top_info(&self.info);
@@ -453,4 +455,7 @@ int verify_top_update(void){
 
 void start_top_boot_watcher(void){
 	boot_timer = xTimerCreate("Boot timer",10000,pdTRUE, 0, boot_check);
+	if( boot_timer ) {
+		xTimerStart( boot_timer, portMAX_DELAY );
+	}
 }
