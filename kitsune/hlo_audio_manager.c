@@ -30,7 +30,7 @@ static struct{
 
 void hlo_audio_manager_init(void){
 	//self.master = hlo_audio_open_mono(48000,44,HLO_AUDIO_RECORD);
-	self.master = hlo_audio_open_mono(48000,44, HLO_AUDIO_RECORD|HLO_AUDIO_PLAYBACK);
+	self.master = hlo_audio_open_mono(48000,44,HLO_AUDIO_PLAYBACK);
 	vSemaphoreCreateBinary(self.mic_client_lock);
 	vSemaphoreCreateBinary(self.speaker_lock);
 	assert(self.master);
