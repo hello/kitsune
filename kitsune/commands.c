@@ -2233,8 +2233,8 @@ void vUARTTask(void *pvParameters) {
 
 	//todo put them in launch tasks
 	hlo_audio_manager_init();
-	xTaskCreate(hlo_audio_manager_spkr_thread,"audioManagerThreadSpkr",1*1536/4,NULL,1,NULL);
-	xTaskCreate(hlo_audio_manager_mic_thread,"audioManagerThreadMic",1*1024/4,NULL,1,NULL);
+	//xTaskCreate(hlo_audio_manager_spkr_thread,"audioManagerThreadSpkr",1*1536/4,NULL,1,NULL);
+	//xTaskCreate(hlo_audio_manager_mic_thread,"audioManagerThreadMic",1*1024/4,NULL,1,NULL);
 	//end todo
 
 	xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 2, NULL);
