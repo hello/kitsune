@@ -1784,6 +1784,7 @@ void launch_tasks() {
 int Cmd_boot(int argc, char *argv[]) {
 	if( !booted ) {
 		launch_tasks();
+		Cmd_led_clr(0,0);
 	}
 	return 0;
 }
