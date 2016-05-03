@@ -145,7 +145,7 @@ void update_file_download_status(bool is_pending)
 	xSemaphoreGive(_file_download_mutex);
 
 	//start the next one then
-	if( !is_pending ) {
+	if( !is_pending && xTaskGetTickCount() > 90000 ) {
 		xSemaphoreGive(filemngr_upload_sem);
 	}
 }
