@@ -35,10 +35,10 @@
                                      return  iRetVal;}
 #define BUF_SIZE 2
 
-#define Codec_addr (0x18U)
-#define DELAY_CODEC 5 // TODO set arbitrarily, might need to be adjusted
-#define CODEC_USE_MINIDSP 0 // Set to 1 if using miniDSP, else 0
-
+#define Codec_addr 			(0x18U)
+#define DELAY_CODEC 		5 // TODO set arbitrarily, might need to be adjusted
+#define CODEC_USE_MINIDSP 	0 // Set to 1 if using miniDSP, else 0
+#define CODEC_6_WIRE     	0
 
 extern xSemaphoreHandle i2c_smphr;
 
@@ -938,6 +938,7 @@ static void codec_sw_reset(void);
 static void codec_fifo_config(void);
 static void codec_power_config(void);
 static void codec_clock_config(void);
+static void codec_gpio_config(void);
 static void codec_asi_config(void);
 static void codec_signal_processing_config(void);
 static void codec_mic_config(void);
@@ -1000,6 +1001,7 @@ int32_t codec_test_commands(void)
 #define codec_init_no_dsp codec_init
 #endif
 
+#if (CODEC_USE_MINIDSP == 1)
 int32_t codec_init_with_dsp(void)
 {
     _i32 hndl;
@@ -1117,7 +1119,8 @@ int32_t codec_init_with_dsp(void)
 
 // Software reset codec
 
-#if (CODEC_USE_MINIDSP == 0)
+#else
+
 int32_t codec_init_no_dsp(void)
 {
 	// Softwarre Reset
@@ -1132,6 +1135,9 @@ int32_t codec_init_no_dsp(void)
 	// Clock configuration
 	codec_clock_config();
 
+	// Config GPIO pins
+	codec_gpio_config();
+
 	// Audio Serial Interface Configuration (ASI1 with 6 wire I2S setup)
 	codec_asi_config();
 
@@ -1142,8 +1148,8 @@ int32_t codec_init_no_dsp(void)
 	// ADC Input Channel Configuration
 	codec_mic_config();
 
-	// Output Channel Configuration
-	codec_speaker_config();
+	// Output Channel Configuration TODO verify
+	// codec_speaker_config();
 
 	return 0;
 }
@@ -1180,7 +1186,7 @@ static void codec_sw_reset(void)
 	}
 
 	//d 1        # Delay 1 millisecond
-	vTaskDelay(delay);
+	vTaskDelay(delay); // TODO adjust this delay, 100ms may not be needed
 }
 
 
@@ -1195,6 +1201,12 @@ static void codec_fifo_config(void)
 	cmd[1] = 0;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
+#if (CODEC_USE_MINIDSP == 1)
+	// TODO as per datasheet this does not seem necessary
+	// it is a minidsp setting which is not used right now
+	// But it is part of both mic and spkr example
+	// Why?
+
 	//	w 30 7f 78 # Select Book 120
 	cmd[0] = 0x7F;
 	cmd[1] = 0x78;
@@ -1205,12 +1217,38 @@ static void codec_fifo_config(void)
 	cmd[1] = 0x80;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
+#endif
+
+	// TODO the following registers are not explained in the datasheet,
+	// but they are present in the example code.
+	// Looks like they might be needed
 	//	w 30 7f 64 # Select Book 100
 	cmd[0] = 0x7F;
 	cmd[1] = 0x64;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
-	//	w 30 32 80 # Enable ADC FIFO
+	//	# reg[100][0][20] = 0x80 ;
+	// Disable ADC double buffer mode; Disable DAC double buffer mode; Enable ADC double buffer mode
+	cmd[0] = 20;
+	cmd[1] = 0x80;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//	# Select Book 120
+	cmd[0] = 0x7F;
+	cmd[1] = 0x78;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//	# reg[120][0][20] = 0x80 ; Enable DAC double buffer mode
+	cmd[0] = 20;
+	cmd[1] = 0x80;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//	w 30 7f 64 # Select Book 100
+	cmd[0] = 0x7F;
+	cmd[1] = 0x64;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//	w 30 32 80 # Enable ADC (CIC output) FIFO
 	cmd[0] = 0x32;
 	cmd[1] = 0x80;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
@@ -1245,7 +1283,7 @@ static void codec_power_config(void)
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	//	w 30 79 33 # Quick charge of analog inputs caps (1.1ms Left and 0.5ms right),
-	// as per MIC example, may not be needed for digital mic? TODO
+	// as per MIC example, may not be needed for digital mic? TODO // This is the reset value
 	cmd[0] = 0x79;
 	cmd[1] = 0x33;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
@@ -1266,7 +1304,7 @@ static void codec_clock_config(void)
 	* Clock configuration
 	* -----------------------------------------------------
 	* - MCLK = 12MHz // TODO needs to be confirmed
-	* - FS = 44.1kHz/48kHz
+	* - FS = 48kHz
 	* - I2S Slave
 	*/
 	//	w 30 00 00 # Select Page 0
@@ -1274,52 +1312,10 @@ static void codec_clock_config(void)
 	cmd[1] = 0;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
-	//	w 30 04 00 # Set ADC_CLKIN = PLL_CLK and DAC_CLK = PLL_CLK
+#if (CODEC_6_WIRE == 1)
+	//	w 30 04 00 # Set ADC_CLKIN = BCLK2 and DAC_CLK = BCLK1
 	cmd[0] = 0x04;
-	cmd[1] = (3 << 4) | (3 << 0);
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
-	// PLL Input multiplexer
-	cmd[0] = 0x05;
-	cmd[1] = (0 << 6) | (0 << 2); // PLL CLK range-0(Low) and pll_clkin=mclk(0)
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
-	// PLL P & R values
-	cmd[0] = 0x06;
-	cmd[1] = (1 << 7) | (1 << 0) | (1 << 0); // PLL power up, P=1, R=1
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
-	// PLL J values
-	cmd[0] = 0x07;
-	cmd[1] =  7 << 0; // J=7
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
-	// PLL D MSB values
-	cmd[0] = 0x08;
-	cmd[1] = (6800 & 0x3F00) >> 8; // D=6800 (0x1A90)
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
-	// PLL D LSB values
-	cmd[0] = 0x09;
-	cmd[1] = (6800 & 0x00FF) >> 0; // D=6800 (0x1A90)
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
-	// --------- ADC -------------
-
-	//	w 30 12 81 # NADC = 3
-	cmd[0] = 0x12;
-	cmd[1] = (1 << 7) | (3 << 0);
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
-	//	w 30 13 84 # MADC = 15
-	cmd[0] = 0x13;
-	cmd[1] = (1 << 7) | (15 << 0);
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
-	//	w 30 14 40 # AOSR = 128
-	// TODO As per datasheet, if AOSR=128, Use with PRB_R1 to PRB_R6, ADC Filter Type A
-	cmd[0] = 0x14;
-	cmd[1] = 128;
+	cmd[1] = (1 << 4) | (4 << 0);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	// --------- DAC -------------
@@ -1345,6 +1341,93 @@ static void codec_clock_config(void)
 	cmd[1] = (128 & 0x00FF) >> 0;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
+	// --------- ADC -------------
+
+	//	w 30 12 81 # NADC = 3
+	cmd[0] = 0x12;
+	cmd[1] = (1 << 7) | (3 << 0);
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//	w 30 13 84 # MADC = 15
+	cmd[0] = 0x13;
+	cmd[1] = (1 << 7) | (15 << 0);
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//	w 30 14 40 # AOSR = 128
+	// TODO As per datasheet, if AOSR=128, Use with PRB_R1 to PRB_R6, ADC Filter Type A
+	cmd[0] = 0x14;
+	cmd[1] = 128;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+#else
+	//	w 30 04 00 # Set ADC_CLKIN = BCLK1 and DAC_CLK = BCLK1
+	cmd[0] = 0x04;
+	cmd[1] = (1 << 4) | (1 << 0);
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	// --------- DAC -------------
+
+	//	# NDAC = 2
+	cmd[0] = 0x0B;
+	cmd[1] = (1 << 7) | (2 << 0);
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//	# MDAC = 1
+	cmd[0] = 0x0C;
+	cmd[1] = (1 << 7) | (16 << 0);
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	// DOSR = 1
+	//	w 30 0d 00 # DOSR (MSB)
+	cmd[0] = 0x0D;
+	cmd[1] = (1 & 0x3F00) >> 8;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//	w 30 0e 80 # DOSR (LSB)
+	cmd[0] = 0x0E;
+	cmd[1] = (1 & 0x00FF) >> 0;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	// --------- ADC -------------
+
+	// NADC and MADC same as DAC
+
+	//	w 30 14 40 # AOSR = 1
+	// TODO As per datasheet, if AOSR=128, Use with PRB_R1 to PRB_R6, ADC Filter Type A
+	cmd[0] = 0x14;
+	cmd[1] = 1;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+#endif
+
+	// TODO: Not sure if PLL is needed even in 6 wire mode
+#if (CODEC_6_WIRE == 1)
+	// PLL Input multiplexer
+	cmd[0] = 0x05;
+	cmd[1] = (0 << 6) | (0 << 2); // PLL CLK range-0(Low) and pll_clkin=mclk(0)
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	// PLL P & R values
+	cmd[0] = 0x06;
+	cmd[1] = (1 << 7) | (1 << 0) | (1 << 0); // PLL power up, P=1, R=1
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	// PLL J values
+	cmd[0] = 0x07;
+	cmd[1] =  7 << 0; // J=7
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	// PLL D MSB values
+	cmd[0] = 0x08;
+	cmd[1] = (6800 & 0x3F00) >> 8; // D=6800 (0x1A90)
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	// PLL D LSB values
+	cmd[0] = 0x09;
+	cmd[1] = (6800 & 0x00FF) >> 0; // D=6800 (0x1A90)
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+#endif
+
+
 }
 
 // Codec audio serial interface settings
@@ -1365,13 +1448,15 @@ static void codec_asi_config(void)
 
 	// w 30 04 40 # Enable 4 channel for ASI1 bus - MULTI CHANNEL TODO DKH
 	cmd[0] = 0x04;
-	cmd[1] = (1 << 6);
+	cmd[1] = 0; // (1 << 6); Enable this later
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	//	w 30 0a 00 # ASI1 WCLK/BCLK to WCLK1 pin/BCLK1 pin
 	cmd[0] = 0x0A;
 	cmd[1] = 0;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+#if (CODEC_6_WIRE == 1)
 
 	// Enable 6-wire interface TODO - not sure if this config is right
 	cmd[0] = 0x0B;
@@ -1383,9 +1468,34 @@ static void codec_asi_config(void)
 	cmd[1] = (1 << 4) | (3 << 0);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
+#else
+
+	// Set ASI1_BDIV_CLKIN = ASI 1 BCLK input pin
+	// TODO - not sure if this config is right
+	cmd[0] = 0x0B;
+	cmd[1] = (4 << 0);
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	cmd[0] = 0x010;
+	cmd[1] = 0;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+#endif
 	// Enable ASI2 BCLK Output and WCLK Output
 	cmd[0] = 0x1A;
 	cmd[1] = (1 << 5) | (1 << 2);
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+}
+
+static void codec_gpio_config(void)
+{
+	char send_stop = 1;
+	unsigned char cmd[2];
+
+	//	w 30 00 00 # Select Page 4
+	cmd[0] = 0;
+	cmd[1] = 4;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	// # GPIO1 as clock input (will be used as ADC WCLK in 6-wire ASI)
@@ -1393,8 +1503,28 @@ static void codec_asi_config(void)
 	cmd[1] = (0x01 << 2);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
+	// # GPIO2 as clock output (ADC_MOD_CLK for digital mic)
+	cmd[0] = 0x57;
+	cmd[1] = (0x0A << 2);
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
 	// # GPIO3 as clock input (will be used as ADC BCLK in 6-wire ASI)
 	cmd[0] = 0x58;
+	cmd[1] = (0x01 << 2);
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	// # GPIO4 as digital mic input, MIC1_DAT, sampled on rising edge, hence left by default (DIG MIC PAIR 1)
+	cmd[0] = 0x59;
+	cmd[1] = (0x01 << 2);
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	// # GPIO5 as digital mic input, MIC2_DAT, sampled on falling edge, hence right by default (DIG MIC PAIR 1)
+	cmd[0] = 0x5A;
+	cmd[1] = (0x01 << 2);
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	// # GPIO6 as digital mic input,  MIC3_DAT, sampled on rising edge, hence left by default (DIG MIC PAIR 2)
+	cmd[0] = 0x5B;
 	cmd[1] = (0x01 << 2);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
@@ -1434,33 +1564,6 @@ static void codec_mic_config(void)
 	//	w 30 00 01 # Select Page 4
 	cmd[0] = 0;
 	cmd[1] = 0x04;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
-	/*
-	//	w 30 00 01 # Select Book 0
-	cmd[0] = 0;
-	cmd[1] = 0x04;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-	*/
-
-	// # GPIO2 as clock output (ADC_MOD_CLK for digital mic)
-	cmd[0] = 0x57;
-	cmd[1] = (0x0A << 2);
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
-	// # GPIO4 as digital mic input, MIC1_DAT, sampled on rising edge, hence left by default (DIG MIC PAIR 1)
-	cmd[0] = 0x59;
-	cmd[1] = (0x01 << 2);
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
-	// # GPIO5 as digital mic input, MIC2_DAT, sampled on falling edge, hence right by default (DIG MIC PAIR 1)
-	cmd[0] = 0x5A;
-	cmd[1] = (0x01 << 2);
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
-	// # GPIO6 as digital mic input,  MIC3_DAT, sampled on rising edge, hence left by default (DIG MIC PAIR 2)
-	cmd[0] = 0x5B;
-	cmd[1] = (0x01 << 2);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	// # Digital Mic 1 Input Pin Control (GPIO4 -Left, GPIO5 - Right) - Stereo
