@@ -1752,7 +1752,6 @@ void init_download_task( int stack );
 
 void launch_tasks() {
 	checkFaults();
-	start_top_boot_watcher();
 
 	//dear future chris: this one doesn't need a semaphore since it's only written to while threads are going during factory test boot
 	booted = true;
@@ -1785,6 +1784,7 @@ void launch_tasks() {
 int Cmd_boot(int argc, char *argv[]) {
 	if( !booted ) {
 		launch_tasks();
+		Cmd_led_clr(0,0);
 	}
 	return 0;
 }
@@ -2254,6 +2254,7 @@ void vUARTTask(void *pvParameters) {
 #endif
 	xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
+	start_top_boot_watcher();
 
 	if( on_charger ) {
 		launch_tasks();

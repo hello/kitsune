@@ -678,7 +678,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 	{
 		case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID:
 		{
-			LOGI("MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID\n");
+			LOGI("got SYNC_DEVICE_ID\n");
 			int i;
 			if(command->deviceId.arg){
 				const char * device_id_str = command->deviceId.arg;
