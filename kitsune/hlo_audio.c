@@ -73,21 +73,15 @@ static inline int16_t i2s_to_i16(const uint8_t * buf){
 }
 static int _read_record_mono(void * ctx, void * buf, size_t size){
 	int raw_buff_size =  GetBufferSize(pTxBuffer);
+	int fill_size = min(raw_buff_size, size);
 	uint8_t tmp[4] = {0};
 	if(raw_buff_size < 1*PING_PONG_CHUNK_SIZE) {
 		//todo remove and completely empty buffer on demand
 		return 0;
 	}else{
 		//need to discard half of the buffer
-		int bytes_to_process = min(size * 2, raw_buff_size);
-		int16_t * buf16 = (int16_t*)buf;
-		while(bytes_to_process >= 4){
-			ReadBuffer(pTxBuffer, tmp, 4);
-			*buf16 = i2s_to_i16(tmp);
-			buf16++;
-			bytes_to_process -= 4;
-		}
-		return ((uint8_t*)buf16 - (uint8_t*)buf);
+		ReadBuffer(pTxBuffer, buf, fill_size);
+		return fill_size;
 	}
 }
 static int _open_record(uint32_t sr){

@@ -149,6 +149,7 @@ void DMAPingPongCompleteAppCB_opt()
 		//PRIMARY part of the ping pong
 		if ((pControlTable[ulPrimaryIndexTx].ulControl & UDMA_CHCTL_XFERMODE_M)
 				== 0) {
+			/*
 			guiDMATransferCountTx += CB_TRANSFER_SZ;
 			pucDMADest = (unsigned char *) ping;
 			pControlTable[ulPrimaryIndexTx].ulControl |= CTRL_WRD;
@@ -161,14 +162,27 @@ void DMAPingPongCompleteAppCB_opt()
 				swap_endian(pong+i);
 			}
 
-			adpcm_coder( pong, pcm, CB_TRANSFER_SZ/4, &pcm_state );
+			//adpcm_coder( pong, pcm, CB_TRANSFER_SZ/4, &pcm_state );
 
 			FillBuffer(pAudInBuf, (unsigned char*)pcm, CB_TRANSFER_SZ/8);
+			*/
+			guiDMATransferCountTx += CB_TRANSFER_SZ;
+						pucDMADest = (unsigned char *) ping;
+						pControlTable[ulPrimaryIndexTx].ulControl |= CTRL_WRD;
+						pControlTable[ulPrimaryIndexTx].pvDstEndAddr = (void *) (pucDMADest
+								+ END_PTR);
+						MAP_uDMAChannelEnable(UDMA_CH4_I2S_RX);
+
+						for (i = 0; i < CB_TRANSFER_SZ/2; i++) {
+							pong[i] = pong[2*i+1];
+							swap_endian(pong+i);
+						}
+						FillBuffer(pAudInBuf, (unsigned char*)pong, CB_TRANSFER_SZ);
 		} else {
 			//ALT part of the ping pong
 			if ((pControlTable[ulAltIndexTx].ulControl & UDMA_CHCTL_XFERMODE_M)
 					== 0) {
-				guiDMATransferCountTx += CB_TRANSFER_SZ;
+				/*guiDMATransferCountTx += CB_TRANSFER_SZ;
 				pucDMADest = (unsigned char *) pong;
 				pControlTable[ulAltIndexTx].ulControl |= CTRL_WRD;
 				pControlTable[ulAltIndexTx].pvDstEndAddr = (void *) (pucDMADest
@@ -182,6 +196,19 @@ void DMAPingPongCompleteAppCB_opt()
 				adpcm_coder( ping, pcm, CB_TRANSFER_SZ/4, &pcm_state );
 
 				FillBuffer(pAudInBuf, (unsigned char*)pcm, CB_TRANSFER_SZ/8);
+				*/
+				guiDMATransferCountTx += CB_TRANSFER_SZ;
+						pucDMADest = (unsigned char *) pong;
+						pControlTable[ulAltIndexTx].ulControl |= CTRL_WRD;
+						pControlTable[ulAltIndexTx].pvDstEndAddr = (void *) (pucDMADest
+								+ END_PTR);
+						MAP_uDMAChannelEnable(UDMA_CH4_I2S_RX);
+
+						for (i = 0; i < CB_TRANSFER_SZ/2; i++) {
+							ping[i] = ping[2*i+1];
+							swap_endian(ping+i);
+						}
+						FillBuffer(pAudInBuf, (unsigned char*)ping, CB_TRANSFER_SZ);
 			}
 		}
 
@@ -204,7 +231,7 @@ void DMAPingPongCompleteAppCB_opt()
 		if ((pControlTable[ulPrimaryIndexRx].ulControl & UDMA_CHCTL_XFERMODE_M)
 				== 0) {
 			if ( qqbufsz > CB_TRANSFER_SZ ) {
-				guiDMATransferCountRx += CB_TRANSFER_SZ/4;
+				/*guiDMATransferCountRx += CB_TRANSFER_SZ/4;
 
 				memcpy(  (void*)pcm, (void*)GetReadPtr(pAudOutBuf), CB_TRANSFER_SZ/4);
 				UpdateReadPtr(pAudOutBuf, CB_TRANSFER_SZ/4);
@@ -212,8 +239,13 @@ void DMAPingPongCompleteAppCB_opt()
 				adpcm_decoder(pcm, ping, CB_TRANSFER_SZ/2, &pcm_state);
 
 				for (i = CB_TRANSFER_SZ/2-1; i!=-1 ; --i) {
-					//the odd ones do not matter
-					/*ping[(i<<1)+1] = */ping[i<<1] = ping[i];
+					ping[i<<1] = ping[i];
+				}*/
+				guiDMATransferCountRx += CB_TRANSFER_SZ;
+				memcpy( (void*) ping, (void*)GetReadPtr(pAudOutBuf), CB_TRANSFER_SZ);
+				UpdateReadPtr(pAudOutBuf, CB_TRANSFER_SZ);
+				for(i = CB_TRANSFER_SZ/2 -1; i != -1; --i){
+					ping[i<<1] = ping[i];
 				}
 			} else {
 				memset( ping, 0, sizeof(ping));
@@ -230,15 +262,20 @@ void DMAPingPongCompleteAppCB_opt()
 			if ((pControlTable[ulAltIndexRx].ulControl & UDMA_CHCTL_XFERMODE_M)
 					== 0) {
 				if ( qqbufsz > CB_TRANSFER_SZ ) {
-					guiDMATransferCountRx += CB_TRANSFER_SZ/4;
+					/*guiDMATransferCountRx += CB_TRANSFER_SZ/4;
 
 					memcpy(  (void*)pcm,  (void*)GetReadPtr(pAudOutBuf), CB_TRANSFER_SZ/4);
 					UpdateReadPtr(pAudOutBuf, CB_TRANSFER_SZ/4);
 
 					adpcm_decoder(pcm, pong, CB_TRANSFER_SZ/2, &pcm_state);
 					for (i = CB_TRANSFER_SZ/2-1; i!=-1 ; --i) {
-						//the odd ones do not matter
-						/*pong[(i<<1)+1] = */pong[i<<1] = pong[i];
+						pong[i<<1] = pong[i];
+					}*/
+					guiDMATransferCountRx += CB_TRANSFER_SZ;
+					memcpy( (void*) pong, (void*)GetReadPtr(pAudOutBuf), CB_TRANSFER_SZ);
+					UpdateReadPtr(pAudOutBuf, CB_TRANSFER_SZ);
+					for(i = CB_TRANSFER_SZ/2 -1; i != -1; --i){
+						pong[i<<1] = pong[i];
 					}
 				} else {
 					memset( pong, 0, sizeof(pong));

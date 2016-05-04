@@ -18,8 +18,8 @@ void hlo_audio_recorder_task(void * data){
 	int ret;
 	uint8_t chunk[CHUNK_SIZE];
 	hlo_stream_t *fs, * mic;
-	mic = hlo_audio_open_mono(48000, 44, HLO_AUDIO_RECORD);
-	fs = fs_stream_open_wlimit((char*)data, 48000 * 6); //max six seconds of audio
+	mic = hlo_audio_open_mono(16000, 44, HLO_AUDIO_RECORD);
+	fs = fs_stream_open_wlimit((char*)data, 48000 * 3); //max six seconds of audio
 
 	while( (ret = hlo_stream_transfer_between(mic,fs,chunk, sizeof(chunk),4)) > 0){
 		if(audio_sig_stop){
@@ -133,6 +133,7 @@ int Cmd_audio_record_replay(int argc, char *argv[]){
 	desc.stream = fs_stream_open_media(argv[1],0);
 	desc.volume = 50;
 	desc.onFinished = NULL;
+	desc.rate = argc > 2?atoi(argv[2]):48000;
 	audio_sig_stop = 0;
 	AudioTask_StartPlayback(&desc);
 	return 0;
