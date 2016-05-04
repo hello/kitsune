@@ -393,22 +393,10 @@ static void DoCapture(uint32_t rate) {
 			case eAudioCaptureTurnOn:
 				//fallthrough
 			case eAudioPlaybackStop:
-			{
+				//fallthrough
+			case eAudioCaptureOctogram::
 				//ignore
 				break;
-			}
-
-			case eAudioCaptureOctogram:
-			{
-
-				Octogram_Init(&octogramdata);
-				memcpy(&octogramdesc,&(m.message.octogramdesc),sizeof(AudioOctogramDesc_t));
-
-				octogram_count = octogramdesc.analysisduration;
-
-				break;
-			}
-
 			case eAudioCaptureTurnOff:
 			{
 				//go to cleanup, and then the next loop through
