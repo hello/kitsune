@@ -28,27 +28,27 @@ static int _close_playback(void * ctx){
 static int _write_playback_mono(void * ctx, const void * buf, size_t size){
 	uint16_t * speaker_data_padded = (uint16_t *)ctx;
 	uint16_t * buf16 = (uint16_t*)buf;
-	int bytes_to_fill = min((PADDED_PLAYBACK_STREAM_SIZE/2), size);//we can only fill half of the padded stream
+	int bytes_consumed = min((PADDED_PLAYBACK_STREAM_SIZE/2), size);//we can only fill half of the padded stream
 
 	if(IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) == TRUE){
 		//TODO remove this once i understand how that fifo lib works, seems to bug out when kept full vs dma interrupt
 		return 0;
-	}else if(bytes_to_fill %2){
+	}else if(bytes_consumed %2){
 		return HLO_STREAM_ERROR;
 	}
-	if(bytes_to_fill > 0){
+	if(bytes_consumed > 0){
 		unsigned int i;
-		for (i = 0; i != (bytes_to_fill/2); ++i) {
+		for (i = 0; i != (bytes_consumed/2); ++i) {
 			//the odd ones are zeroed already
 			speaker_data_padded[i<<1] = buf16[i];
 		}
-		FillBuffer(pRxBuffer, (unsigned char*) (speaker_data_padded), bytes_to_fill * 2);
+		FillBuffer(pRxBuffer, (unsigned char*) (speaker_data_padded), bytes_consumed * 2);
 		if (g_uiPlayWaterMark == 0) {
 			if (IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) == TRUE) {
 				g_uiPlayWaterMark = 1;
 			}
 		}
-		return bytes_to_fill;
+		return bytes_consumed;
 	}
 
 	return 0;
