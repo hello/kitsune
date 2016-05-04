@@ -99,7 +99,7 @@ hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint8_t vol, uint32_t direction)
 		tbl.close = _close_playback;
 		if(0 == _open_playback(sr,vol)){
 			Audio_Start();
-			return hlo_stream_new(&tbl,speaker_data_padded,HLO_STREAM_WRITE);
+			return hlo_stream_new(&tbl,NULL,HLO_STREAM_WRITE);
 		}
 	}else if(direction == HLO_AUDIO_RECORD){
 		tbl.read = _read_record_mono;
@@ -113,16 +113,8 @@ hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint8_t vol, uint32_t direction)
 		tbl.write = _write_playback_mono;
 		tbl.close = _close_duplex;
 		if(0 == _open_duplex(sr)){
-			uint16_t * speaker_data_padded = pvPortMalloc(PADDED_PLAYBACK_STREAM_SIZE);
-			memset(speaker_data_padded,0,PADDED_PLAYBACK_STREAM_SIZE);
-			if(speaker_data_padded){
-				Audio_Start();
-				return hlo_stream_new(&tbl,speaker_data_padded,HLO_STREAM_READ|HLO_STREAM_WRITE);
-			}else{
-				_close_duplex(NULL);
-				DISP("2");
-				return NULL;
-			}
+			Audio_Start();
+			return hlo_stream_new(&tbl,NULL,HLO_STREAM_READ|HLO_STREAM_WRITE);
 		}else{
 			DISP("1");
 		}
