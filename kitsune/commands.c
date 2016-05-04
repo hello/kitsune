@@ -95,6 +95,7 @@
 #include "pill_settings.h"
 #include "prox_signal.h"
 #include "hlo_audio_tools.h"
+#include "hlo_audio.h"
 #include "hlo_net_tools.h"
 #include "top_board.h"
 #include "long_poll.h"
@@ -2176,6 +2177,7 @@ void vUARTTask(void *pvParameters) {
 	vTaskDelay(10);
 	//INIT SPI
 	spi_init();
+	hlo_audio_init();
 
 	i2c_smphr = xSemaphoreCreateRecursiveMutex();
 	init_time_module(2560);

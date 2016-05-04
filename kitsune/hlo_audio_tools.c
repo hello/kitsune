@@ -7,6 +7,7 @@
 #include "audio_types.h"
 #include "audiofeatures.h"
 #include "hlo_async.h"
+#include "hlo_audio.h"
 #include <stdbool.h>
 
 ////-------------------------------------------
@@ -17,7 +18,7 @@ void hlo_audio_recorder_task(void * data){
 	int ret;
 	uint8_t chunk[CHUNK_SIZE];
 	hlo_stream_t *fs, * mic;
-	//mic = hlo_open_mic_stream(0);
+	mic = hlo_audio_open_mono(48000, 44, HLO_AUDIO_RECORD);
 	fs = fs_stream_open_wlimit((char*)data, 48000 * 6); //max six seconds of audio
 
 	while( (ret = hlo_stream_transfer_between(mic,fs,chunk, sizeof(chunk),4)) > 0){
@@ -119,6 +120,7 @@ int Cmd_audio_record_start(int argc, char *argv[]){
 }
 int Cmd_audio_record_stop(int argc, char *argv[]){
 	AudioTask_StopPlayback();
+	audio_sig_stop = 1;
 	return 0;
 
 }
