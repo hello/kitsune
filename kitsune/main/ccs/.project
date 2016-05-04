@@ -331,16 +331,6 @@
 			<locationURI>PARENT-2-PROJECT_LOC/hlo_audio.h</locationURI>
 		</link>
 		<link>
-			<name>hlo_audio_manager.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/hlo_audio_manager.c</locationURI>
-		</link>
-		<link>
-			<name>hlo_audio_manager.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/hlo_audio_manager.h</locationURI>
-		</link>
-		<link>
 			<name>hlo_audio_tools.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/hlo_audio_tools.c</locationURI>
@@ -361,16 +351,6 @@
 			<locationURI>PARENT-2-PROJECT_LOC/hlo_net_tools.h</locationURI>
 		</link>
 		<link>
-			<name>hlo_proto_tools.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/hlo_proto_tools.c</locationURI>
-		</link>
-		<link>
-			<name>hlo_proto_tools.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/hlo_proto_tools.h</locationURI>
-		</link>
-		<link>
 			<name>hlo_pipe.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/hlo_pipe.c</locationURI>
@@ -379,6 +359,16 @@
 			<name>hlo_pipe.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/hlo_pipe.h</locationURI>
+		</link>
+		<link>
+			<name>hlo_proto_tools.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hlo_proto_tools.c</locationURI>
+		</link>
+		<link>
+			<name>hlo_proto_tools.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hlo_proto_tools.h</locationURI>
 		</link>
 		<link>
 			<name>hlo_stream.c</name>
