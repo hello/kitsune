@@ -94,7 +94,6 @@
 #include "hlo_stream.h"
 #include "pill_settings.h"
 #include "prox_signal.h"
-#include "hlo_audio_manager.h"
 #include "hlo_audio_tools.h"
 #include "hlo_net_tools.h"
 #include "top_board.h"
@@ -2231,11 +2230,6 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("*");
 #endif
 
-	//todo put them in launch tasks
-	hlo_audio_manager_init();
-	//xTaskCreate(hlo_audio_manager_spkr_thread,"audioManagerThreadSpkr",1*1536/4,NULL,1,NULL);
-	//xTaskCreate(hlo_audio_manager_mic_thread,"audioManagerThreadMic",1*1024/4,NULL,1,NULL);
-	//end todo
 
 	xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
@@ -2280,7 +2274,7 @@ void vUARTTask(void *pvParameters) {
 				LOGF("can't run %s, no mem!\n", cCmdBuf );
 			} else {
 				memcpy( args, cCmdBuf, sizeof( cCmdBuf ) );
-				xTaskCreate(CmdLineProcess, "commandTask",  3*1024 / 4, args, 3, NULL);
+				xTaskCreate(CmdLineProcess, "commandTask",  3*1024 / 4, args, 4, NULL);
 			}
         }
 	}

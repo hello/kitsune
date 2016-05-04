@@ -30,8 +30,8 @@
 #include "adpcm.h"
 #include "hlo_async.h"
 #include "state.pb.h"
+#include "hlo_audio.h"
 #include "hlo_audio_tools.h"
-#include "hlo_audio_manager.h"
 #if 0
 #define PRINT_TIMING
 #endif
@@ -280,7 +280,7 @@ static void _playback_loop(AudioPlaybackDesc_t * desc, audio_control_signal sig_
 	vol.ramp_up_ms = desc->fade_in_ms / (desc->volume + 1);
 	vol.ramp_down_ms = desc->fade_out_ms / (desc->volume + 1);
 
-	hlo_stream_t * spkr = hlo_open_spkr_stream( 0 );
+	hlo_stream_t * spkr = hlo_audio_open_mono(48000,0,HLO_AUDIO_PLAYBACK);
 	hlo_stream_t * fs = desc->stream;
 
 	hlo_future_t * vol_task = (hlo_future_t*)hlo_future_create_task_bg(_change_volume_task,(void*)&vol,1024);

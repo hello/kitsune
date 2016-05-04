@@ -1,5 +1,4 @@
 #include "hlo_audio_tools.h"
-#include "hlo_audio_manager.h"
 #include "task.h"
 #include "kit_assert.h"
 #include "hellofilesystem.h"
@@ -18,7 +17,7 @@ void hlo_audio_recorder_task(void * data){
 	int ret;
 	uint8_t chunk[CHUNK_SIZE];
 	hlo_stream_t *fs, * mic;
-	mic = hlo_open_mic_stream(0);
+	//mic = hlo_open_mic_stream(0);
 	fs = fs_stream_open_wlimit((char*)data, 48000 * 6); //max six seconds of audio
 
 	while( (ret = hlo_stream_transfer_between(mic,fs,chunk, sizeof(chunk),4)) > 0){
@@ -43,7 +42,7 @@ void hlo_audio_octogram_task(void * data){
 	Octogram_Init(&octogramdata);
 	OctogramResult_t result;
 	int16_t * samples = pvPortMalloc(PROCESSOR_BUFFER_SIZE);
-	hlo_stream_t * input = (hlo_stream_t*)data;//hlo_open_mic_stream(CHUNK_SIZE*2, 1);
+	hlo_stream_t * input = (hlo_stream_t*)data;
 	if(!samples){
 		goto exit;
 	}
