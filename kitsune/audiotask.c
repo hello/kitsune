@@ -388,58 +388,10 @@ static void DoCapture(uint32_t rate) {
 			xQueueReceive(_queue,&m,0);
 
 			switch (m.command) {
-
 			case  eAudioSaveToDisk:
-			{
-
-				//setup file saving...
-
-				if (!isSavingToFile && m.message.capturedesc.change == startSaving) {
-				//if you aren't already saving... make a new file
-					memset(&filedata,0,sizeof(filedata));
-					memset(filepath,0,sizeof(filepath));
-					usnprintf(filepath,sizeof(filedata),"%s%07d.dat",SAVE_BASE,_filecounter);
-					_filecounter++;
-
-					if (_filecounter > 9999999) {
-						_filecounter = 0;
-					}
-
-					filedata.file_name = filepath;
-
-					InitFile(&filedata);
-					isSavingToFile = 1;
-					num_bytes_written = 0;
-
-					LOGI("started saving to file %s\r\n",filedata.file_name );
-
-				}
-				else if (isSavingToFile && m.message.capturedesc.change == stopSaving) {
-					//got message to stop saving file
-					uint32_t flags = m.message.capturedesc.flags;
-					isSavingToFile = 0;
-					if (flags & AUDIO_TRANSFER_FLAG_DELETE_IMMEDIATELY) {
-						CloseAndDeleteFile(&filedata);
-					}
-#ifdef KIT_INCLUDE_FILE_UPLOAD
-					else if (flags & AUDIO_TRANSFER_FLAG_UPLOAD) {
-						const uint8_t delete_after_upload = (flags & AUDIO_TRANSFER_FLAG_DELETE_AFTER_UPLOAD) > 0;
-
-						CloseFile(&filedata);
-
-						QueueFileForUpload(filedata.file_name,delete_after_upload);
-					}
-#endif
-					else {
-						//default -- just close it
-						CloseFile(&filedata);
-					}
-				}
-
-				break;
-			}
-
+				//fallthrough
 			case eAudioCaptureTurnOn:
+				//fallthrough
 			case eAudioPlaybackStop:
 			{
 				//ignore
