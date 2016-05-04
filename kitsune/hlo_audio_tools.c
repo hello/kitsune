@@ -7,6 +7,7 @@
 #include "octogram.h"
 #include "audio_types.h"
 #include "audiofeatures.h"
+#include "hlo_async.h"
 
 ////-------------------------------------------
 //recorder sample app
@@ -29,22 +30,70 @@ void hlo_audio_recorder_task(void * data){
 	hlo_stream_close(mic);
 	DISP("Recorder Task Finished %d\r\n", ret);
 }
+typedef struct{
+	unsigned long current;
+	unsigned long target;
+	unsigned long ramp_up_ms;
+	unsigned long ramp_down_ms;
+}ramp_ctx_t;
+/**
+ * this task is responsible for gradually changing the volume until target == 0
+ */
+extern xSemaphoreHandle i2c_smphr;
+static void _change_volume_task(hlo_future_t * result, void * ctx){
+	volatile ramp_ctx_t * v = (ramp_ctx_t*)ctx;
+	while( v->target || v->current ){
+		if( xSemaphoreTakeRecursive(i2c_smphr, 100)) {
+			//set vol
+			xSemaphoreGiveRecursive(i2c_smphr);
 
+			if(v->current > v->target){
+				LOGI("Setting volume %u at %u\n", v->current, xTaskGetTickCount());
+				vTaskDelay(v->ramp_down_ms);
+				v->current--;
+			}else if(v->current < v->target){
+				LOGI("Setting volume %u at %u\n", v->current, xTaskGetTickCount());
+				v->current++;
+				vTaskDelay(v->ramp_up_ms);
+			}else{
+				vTaskDelay(10);
+			}
+		}else{
+			hlo_future_write(result, NULL, 0, -1);
+		}
+
+	}
+	hlo_future_write(result, NULL, 0, 0);
+}
 ////-------------------------------------------
 //playback sample app
 void hlo_audio_playback_task(void * data){
 	int ret;
 	uint8_t chunk[CHUNK_SIZE];
+	ramp_ctx_t * vol = pvPortMalloc(sizeof(*vol));
+	vol->current = 0;
+	vol->target = 33;
+	vol->ramp_up_ms = 50;
+	vol->ramp_down_ms = 50;
+
 	hlo_stream_t * spkr = hlo_open_spkr_stream(2*CHUNK_SIZE);
 	hlo_stream_t * fs = fs_stream_open_media((char*)data, 0);
+	hlo_future_t * vol_task = (hlo_future_t*)hlo_future_create_task_bg(_change_volume_task,(void*)vol,1024);
 
 	while( (ret = hlo_stream_transfer_between(fs,spkr,chunk, sizeof(chunk),4)) > 0){
 		if(audio_sig_stop){
-			audio_sig_stop = 0;
+			//signal ramp down
+			vol->target = 0;
+		}
+		if(hlo_future_read(vol_task,NULL,0,0) >= 0){
+			//future task has completed
 			break;
 		}
 	}
-
+	audio_sig_stop = 0;
+	vol->target = 0;
+	hlo_future_destroy(vol_task);
+	vPortFree(vol);
 	hlo_stream_close(fs);
 	hlo_stream_close(spkr);
 	DISP("Playback Task Finished %d\r\n", ret);
