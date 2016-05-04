@@ -6,10 +6,7 @@
 #include "mcasp_if.h"
 #include "uart_logger.h"
 
-/* do not change PADDED_STREAM_SIZE without checking what the watermark size is, otherwise it'll overflow */
-#define PADDED_PLAYBACK_STREAM_SIZE 1024
 
-extern unsigned int g_uiPlayWaterMark;
 extern tCircularBuffer * pRxBuffer;
 extern tCircularBuffer * pTxBuffer;
 
@@ -20,44 +17,27 @@ typedef struct{
 ////------------------------------
 // playback stream driver
 static int _close_playback(void * ctx){
-	vPortFree(ctx);
 	Audio_Stop();
 	DeinitAudioPlayback();
 	return 0;
 }
 static int _write_playback_mono(void * ctx, const void * buf, size_t size){
-	uint16_t * speaker_data_padded = (uint16_t *)ctx;
-	uint16_t * buf16 = (uint16_t*)buf;
-	int bytes_consumed = min((PADDED_PLAYBACK_STREAM_SIZE/2), size);//we can only fill half of the padded stream
-
+	int bytes_consumed = min(512, size);
 	if(IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) == TRUE){
-		//TODO remove this once i understand how that fifo lib works, seems to bug out when kept full vs dma interrupt
 		return 0;
 	}else if(bytes_consumed %2){
 		return HLO_STREAM_ERROR;
 	}
 	if(bytes_consumed > 0){
-		unsigned int i;
-		for (i = 0; i != (bytes_consumed/2); ++i) {
-			//the odd ones are zeroed already
-			speaker_data_padded[i<<1] = buf16[i];
-		}
-		FillBuffer(pRxBuffer, (unsigned char*) (speaker_data_padded), bytes_consumed * 2);
-		if (g_uiPlayWaterMark == 0) {
-			if (IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) == TRUE) {
-				g_uiPlayWaterMark = 1;
-			}
-		}
+		bytes_consumed = FillBuffer(pRxBuffer, (unsigned char*) (buf), bytes_consumed);
 		return bytes_consumed;
 	}
-
 	return 0;
 }
 static int _open_playback(uint32_t sr, uint8_t vol){
 	if(!InitAudioPlayback(vol, sr)){
 		return -1;
 	}else{
-		g_uiPlayWaterMark = 0;
 		return 0;
 	}
 }
@@ -118,8 +98,6 @@ hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint8_t vol, uint32_t direction)
 		tbl.write = _write_playback_mono;
 		tbl.close = _close_playback;
 		if(0 == _open_playback(sr,vol)){
-			uint16_t * speaker_data_padded = pvPortMalloc(PADDED_PLAYBACK_STREAM_SIZE);
-			memset(speaker_data_padded,0,PADDED_PLAYBACK_STREAM_SIZE);
 			Audio_Start();
 			return hlo_stream_new(&tbl,speaker_data_padded,HLO_STREAM_WRITE);
 		}
