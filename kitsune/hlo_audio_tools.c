@@ -75,11 +75,11 @@ static void _change_volume_task(hlo_future_t * result, void * ctx){
 }
 ////-------------------------------------------
 //playback sample app
-void hlo_audio_playback_task(AudioPlaybackDesc_t * desc){
+void hlo_audio_playback_task(AudioPlaybackDesc_t * desc, audio_control_signal sig_stop){
 	int ret;
 	uint8_t chunk[CHUNK_SIZE];
 
-	if(!desc || !desc->stream){
+	if(!desc || !desc->stream || !sig_stop){
 		return;
 	}
 	portTickType end = xTaskGetTickCount() + desc->durationInSeconds * 1000;
@@ -95,7 +95,7 @@ void hlo_audio_playback_task(AudioPlaybackDesc_t * desc){
 	hlo_future_t * vol_task = (hlo_future_t*)hlo_future_create_task_bg(_change_volume_task,(void*)&vol,1024);
 
 	while( (ret = hlo_stream_transfer_between(fs,spkr,chunk, sizeof(chunk),2)) > 0){
-		if(audio_sig_stop || xTaskGetTickCount() >= end){
+		if( sig_stop() || xTaskGetTickCount() >= end){
 			//signal ramp down
 			vol.target = 0;
 		}
@@ -104,7 +104,6 @@ void hlo_audio_playback_task(AudioPlaybackDesc_t * desc){
 			break;
 		}
 	}
-	audio_sig_stop = 0;
 	vol.target = 0;
 	hlo_future_destroy(vol_task);
 	hlo_stream_close(fs);
@@ -113,7 +112,6 @@ void hlo_audio_playback_task(AudioPlaybackDesc_t * desc){
 		desc->onFinished(desc->context);
 	}
 	DISP("Playback Task Finished %d\r\n", ret);
-
 }
 ////-------------------------------------------
 //octogram sample app
@@ -202,7 +200,7 @@ int Cmd_audio_record_start(int argc, char *argv[]){
 	return 0;
 }
 int Cmd_audio_record_stop(int argc, char *argv[]){
-	audio_sig_stop = 1;
+	AudioTask_StopPlayback();
 	return 0;
 
 }
@@ -216,7 +214,7 @@ int Cmd_audio_record_replay(int argc, char *argv[]){
 	desc.volume = 50;
 	desc.onFinished = NULL;
 	audio_sig_stop = 0;
-	hlo_audio_playback_task(&desc);
+	AudioTask_StartPlayback(&desc);
 	return 0;
 }
 int Cmd_audio_octogram(int argc, char *argv[]){

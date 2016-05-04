@@ -30,7 +30,7 @@
 #include "adpcm.h"
 #include "hlo_async.h"
 #include "state.pb.h"
-
+#include "hlo_audio_tools.h"
 #if 0
 #define PRINT_TIMING
 #endif
@@ -50,7 +50,6 @@
 #define SAVE_BASE "/usr/A"
 
 /* globals */
-unsigned int g_uiPlayWaterMark;
 extern tCircularBuffer * pRxBuffer;
 extern tCircularBuffer * pTxBuffer;
 TaskHandle_t audio_task_hndl;
@@ -222,178 +221,36 @@ static uint8_t CheckForInterruptionDuringPlayback(void) {
 	return ret;
 }
 
-#define MIN_VOL 1
-#define FADE_SPAN (volume - MIN_VOL)
-
-static unsigned int fade_in_vol(unsigned int fade_counter, unsigned int volume, unsigned int fade_length) {
-	return fade_counter * FADE_SPAN / fade_length + volume - FADE_SPAN;
-}
-static unsigned int fade_out_vol(unsigned int fade_counter, unsigned int volume, unsigned int fade_length) {
-    return volume - fade_counter * FADE_SPAN / fade_length;
-}
 extern xSemaphoreHandle i2c_smphr;
-
-static void _set_volume_task(hlo_future_t * result, void * ctx){
-	volatile unsigned long vol_to_set = *(volatile unsigned long*)ctx;
-
-	LOGI("Setting volume %d at %d\n", vol_to_set, xTaskGetTickCount());
-	if( xSemaphoreTakeRecursive(i2c_smphr, 100)) {
-		vTaskDelay(5);
-		set_volume(vol_to_set, 0);
-		vTaskDelay(5);
-		xSemaphoreGiveRecursive(i2c_smphr);
-	}
-	hlo_future_write(result, NULL, 0, 0);
-}
-
 
 bool add_to_file_error_queue(char* filename, int32_t err_code, bool write_error);
 static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
-
-#define SPEAKER_DATA_CHUNK_SIZE (PING_PONG_CHUNK_SIZE)
-#define FLASH_PAGE_SIZE 512
-
-	//1.5K on the stack
-	short * speaker_data = pvPortMalloc(FLASH_PAGE_SIZE+1);
-	char * speaker_data_enc = pvPortMalloc(FLASH_PAGE_SIZE/4+1);
-
-	UINT size;
 	uint8_t returnFlags = 0x00;
 
-	int32_t desired_ticks_elapsed;
-	portTickType t0;
-
-	static volatile unsigned long i2c_volume = 0;
-	unsigned int fade_counter=0;
-	unsigned int fade_time=0;
-	bool fade_in = true;
-	bool fade_out = false;
-	unsigned int volume = info->volume;
-	unsigned int initial_volume = info->volume;
-	unsigned int fade_length = info->fade_in_ms;
-
-	desired_ticks_elapsed = info->durationInSeconds * NUMBER_OF_TICKS_IN_A_SECOND;
 	LOGI("Starting playback\r\n");
 	LOGI("%d free %d stk\n", xPortGetFreeHeapSize(),  uxTaskGetStackHighWaterMark(NULL));
 
 	if (!info) {
 		LOGI("invalid playback info\n\r");
-		vPortFree(speaker_data);
 		_queue_audio_playback_state(SILENT, info);
 		return returnFlags;
 	}
 
-	if( fade_length != 0 ) {
-		i2c_volume = initial_volume = 1;
-		t0 = fade_time =  xTaskGetTickCount();
 
-		LOGI("start fade in %d\n", fade_time);
-	}
-	bool started = false;
-
-	if ( !InitAudioPlayback(initial_volume, info->rate ) ) {
+/*	if ( !InitAudioPlayback(initial_volume, info->rate ) ) {
 		LOGE("unable to initialize audio playback!\r\n");
 		vPortFree(speaker_data);
 		DeinitAudioPlayback();
 		_queue_audio_playback_state(SILENT, info);
 		return returnFlags;
-	}
+	}*/
 	LOGI("%d free %d stk\n", xPortGetFreeHeapSize(),  uxTaskGetStackHighWaterMark(NULL));
 
 	_queue_audio_playback_state(PLAYING, info);
-	adpcm_state pcm_state = {0};
-	memset(speaker_data,0,FLASH_PAGE_SIZE);
 
-	//loop until either a) done playing file for specified duration or b) our message queue gets a message that tells us to stop
-	for (; ;) {
-		/* Read always in block of 512 Bytes or less else it will stuck in hello_fs_read() */
-		size = hlo_stream_read(info->stream, speaker_data, FLASH_PAGE_SIZE);
-		adpcm_coder( speaker_data, speaker_data_enc, size/2, &pcm_state );
-		if ( size > 0 ) {
-			/* Wait to avoid buffer overflow as reading speed is faster than playback */
-			while ( IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) ) {
-				if( !started ) {
-					Audio_Start();
-					started = true;
-					t0 = fade_time =  xTaskGetTickCount();
-				}
-				returnFlags |= CheckForInterruptionDuringPlayback();
-				if( started && fade_length != 0  ) {
-					fade_counter = xTaskGetTickCount() - fade_time;
+	/* blocking */
+	hlo_audio_playback_task(info, CheckForInterruptionDuringPlayback);
 
-					if (fade_counter > fade_length) {
-						if( fade_in ) {
-							fade_in = false;
-							LOGI("finish fade in %d\n", fade_counter);
-						}
-						if( fade_out ) {
-							LOGI("finish fade out %d\n", fade_counter);
-							goto cleanup;
-						}
-					} else {
-						int set_vol = 0;
-						if (fade_in) {
-							set_vol = fade_in_vol(fade_counter, volume, fade_length);
-						}
-						if(fade_out){
-							set_vol = fade_out_vol(fade_counter, volume, fade_length);
-						}
-						if ( set_vol != i2c_volume ) {
-							i2c_volume = set_vol;
-							hlo_future_destroy( hlo_future_create_task_bg(_set_volume_task, (void*)&i2c_volume, 512));
-						}
-					}
-					bool timeout = ( ((xTaskGetTickCount() - t0) > desired_ticks_elapsed && desired_ticks_elapsed > 0) );
-					if (!fade_out && (returnFlags || timeout ) ) {
-						if (fade_in) {
-							//interrupted before we can get to max volume...
-							volume = fade_in_vol(fade_counter, volume, fade_length);
-							fade_in = false;
-						}
-						//ruh-roh, gotta stop.
-						fade_time = xTaskGetTickCount();
-						fade_out = true;
-						fade_length = timeout ? info->to_fade_out_ms : info->fade_out_ms;
-						fade_counter = 0;
-						LOGI("start fadeout %d %d %d\n", volume, fade_length, fade_time);
-						_queue_audio_playback_state(SILENT, info);
-					}
-				} else if( returnFlags) {
-					LOGI("stopping playback\n");
-					goto cleanup;
-				} else if( (desired_ticks_elapsed - (int32_t)(xTaskGetTickCount() - t0)) < 0 && desired_ticks_elapsed > 0 ) {
-					LOGI("completed playback\n");
-					goto cleanup;
-				}
-				if( !ulTaskNotifyTake( pdTRUE, 40 ) ) {
-					LOGW("AUDIO REINIT");
-					Audio_Stop();
-					if ( !InitAudioPlayback(i2c_volume, info->rate ) ) {
-						LOGE("unable to initialize audio playback!\r\n");
-						goto cleanup;
-					}
-					Audio_Start();
-					LOGW(" DONE\n");
-				}
-				FillBuffer(pRxBuffer, (unsigned char*) (speaker_data), size);
-			}
-		} else {
-			//stream error, what do?
-			LOGE("Stream ended\r\n");
-			break;
-		}
-	}
-cleanup:
-	if( started ) {
-		Audio_Stop();
-	}
-
-	LOGI("leftover %d\n", GetBufferSize(pRxBuffer));
-
-	vPortFree(speaker_data);
-	vPortFree(speaker_data_enc);
-
-	DeinitAudioPlayback();
 
 	LOGI("completed playback\r\n");
 
