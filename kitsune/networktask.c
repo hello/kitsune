@@ -214,6 +214,9 @@ static NetworkResponse_t nettask_send(NetworkTaskServerSendMessage_t * message, 
 		message->response_callback(&response, decode_buf, decode_buf_size,message->context);
 	}
 
+	if( message->end ) {
+		message->end(message);
+	}
 	next_message:
 	vPortFree(decode_buf);
 
@@ -228,9 +231,6 @@ static void NetworkTask_Thread(void * networkdata) {
 
 	for (; ;) {
 		xQueueReceive( _asyncqueue, &message, portMAX_DELAY );
-		if (message.begin) {
-			message.begin(&message);
-		}
 
 		if( message.response_handle ) {
 			*message.response_handle = nettask_send(&message, &sock);
@@ -238,9 +238,6 @@ static void NetworkTask_Thread(void * networkdata) {
 			nettask_send(&message, &sock);
 		}
 
-		if( message.end ) {
-			message.end(&message);
-		}
 	}
 }
 

@@ -36,11 +36,26 @@
 #include "common.h"
 #include "sl_sync_include_after_simplelink_header.h"
 
+/* Hardware library includes. */
+#include "hw_memmap.h"
+#include "hw_common_reg.h"
+#include "hw_types.h"
+#include "hw_ints.h"
+#include "hw_wdt.h"
+#include "wdt.h"
+#include "wdt_if.h"
+#include "rom.h"
+#include "rom_map.h"
+
+#define HLO_HTTP_ERR -1000
+#define HTTP_RETRIES 5
+
 #define PREFIX_BUFFER    "GET "
 //#define POST_BUFFER      " HTTP/1.1\nAccept: text/html, application/xhtml+xml, */*\n\n"
-#define POST_BUFFER_1  " HTTP/1.1\nHost:"
-#define POST_BUFFER_2  "\nAccept: text/html, application/xhtml+xml, */*\n\n"
+#define POST_BUFFER_1  " HTTP/1.1\r\nHost:"
+#define POST_BUFFER_2  "\r\nAccept: text/html, application/xhtml+xml, */*\r\n\r\n"
 
+#define HTTP_FORBIDDEN         "403 Forbidden" //url expired
 #define HTTP_FILE_NOT_FOUND    "404 Not Found" /* HTTP file not found response */
 #define HTTP_STATUS_OK         "200 OK"  /* HTTP status ok response */
 #define HTTP_CONTENT_LENGTH    "Content-Length:"  /* HTTP content length header */
@@ -53,7 +68,7 @@
 #define SOCK_RETRY      256
 #define HTTP_END_OF_HEADER  "\r\n\r\n"  /* string marking the end of headers in response */
 
-#define MAX_BUFF_SIZE      1024
+#define MAX_BUFF_SIZE      (5*SD_BLOCK_SIZE)
 
 int sf_sha1_verify(const char * sha_truth, const char * serial_file_path);
 long bytesReceived = 0; // variable to store the file size
@@ -395,6 +410,7 @@ int global_filename(char * local_fn)
 
     return 0;
 }
+
 //*****************************************************************************
 //
 // This function implements the "cat" command.  It reads the contents of a file
@@ -726,22 +742,22 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
     LOGI("Start downloading the file\r\n");
 
     unsigned char * g_buff = pvPortMalloc( MAX_BUFF_SIZE );
+    assert( g_buff );
 
     memset(g_buff, 0, MAX_BUFF_SIZE);
 
     // Puts together the HTTP GET string.
-    strcpy((char *)g_buff, PREFIX_BUFFER);
-    strcat((char *)g_buff, url);
-    strcat((char *)g_buff, POST_BUFFER_1);
-    strcat((char *)g_buff, host);
-    strcat((char *)g_buff, POST_BUFFER_2);
+    usnprintf( (char *)g_buff, MAX_BUFF_SIZE, "%s%s%s%s%s",
+               PREFIX_BUFFER, url, POST_BUFFER_1, host, POST_BUFFER_2);
+
+    assert( strlen((char *)g_buff) > 1 );
 
     LOGI("sent\r\n%s\r\n", g_buff );
 
     // Send the HTTP GET string to the opened TCP/IP socket.
     transfer_len = send(dl_sock, g_buff, strlen((const char *)g_buff), 0);
 
-    if (transfer_len < 0)
+    if (transfer_len <= 0)
     {
         // error
     	LOGW("Sending error %d\r\n",transfer_len);
@@ -763,7 +779,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
         }
     }while(transfer_len == SL_EAGAIN);
 
-    if(transfer_len < 0){
+    if(transfer_len <= 0){
         LOGW("Download error %d\r\n",transfer_len);
         ASSERT_ON_ERROR(-1);
     }
@@ -772,14 +788,20 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
     // Check for 404 return code
     if(strstr((const char *)g_buff, HTTP_FILE_NOT_FOUND) != 0)
     {
-    	LOGW("HTTP_FILE_NOT_FOUND\r\n");
-        ASSERT_ON_ERROR(-1);
+        LOGW("HTTP_FILE_NOT_FOUND\r\n");
+        ASSERT_ON_ERROR(HLO_HTTP_ERR);
+    }
+    if(strstr((const char *)g_buff, HTTP_FORBIDDEN) != 0)
+    {
+        LOGW("HTTP_FORBIDDEN\r\n");
+        ASSERT_ON_ERROR(HLO_HTTP_ERR);
     }
 
     // if not "200 OK" return error
     if(strstr((const char *)g_buff, HTTP_STATUS_OK) == 0)
     {
-    	LOGW("NO 200!\r\n");
+        LOGW("UNKNOWN HTTP CODE!\r\n");
+        LOGW("%s", g_buff);
         ASSERT_ON_ERROR(-1);
     }
 
@@ -849,8 +871,36 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
     FRESULT res = FR_OK;
 
 	if (storage == SD_CARD) {
-		mkdir(path);
-		cd(path);
+
+		if(path == NULL)
+		{
+			LOGI("Path not provided, downloading to root\n");
+			cd("/");
+		}
+		else
+		{
+
+			if(hello_fs_stat(path, NULL))
+			{
+				// Path doesn't exist, create directory
+				res = (FRESULT) mkdir(path);
+				if(res != FR_OK && res != FR_EXIST)
+				{
+					LOGE("mkdir fail: %d\n", res);
+					cd("/");
+					return 1;
+				}
+
+			}
+
+			res = cd(path);
+			if(res)
+			{
+				LOGE("CD fail: %d\n", res);
+				cd("/");
+				return 1;
+			}
+		}
 
 		/* Open file to save the downloaded file */
 		if (global_filename(filename)) {
@@ -859,7 +909,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 		}
 		// Open the file for writing.
 		res = hello_fs_open(&file_obj, path_buff,
-				FA_CREATE_NEW | FA_WRITE | FA_OPEN_ALWAYS);
+				FA_CREATE_ALWAYS | FA_WRITE );
 		LOGI("res :%d\n", res);
 
 		if (res != FR_OK && res != FR_EXIST) {
@@ -887,68 +937,64 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
             }
 		}
 	    LOGI("opening %s\n", path_buff);
-
 	}
     uint32_t total = recv_size;
-    int percent = 101-100*recv_size/total;
+    int percent = -1;
 
-    while (0 < transfer_len)
+    //move the data back to the front of the buffer
+    memcpy( g_buff, pBuff, transfer_len );
+	//DISP( "begin %d\n", transfer_len);
+    while (recv_size > 0)
     {
-    	if( 100-100*recv_size/total != percent ) {
-    		percent = 100-100*recv_size/total;
-            LOGI("Downloading... %d %d\r\n", recv_size, percent );
-    	}
+        int retries = 0;
+        int recv_res = SL_EAGAIN;
+		while( ++retries < 1000 && transfer_len < MAX_BUFF_SIZE && recv_res == SL_EAGAIN ) {
+			recv_res = recv(dl_sock, g_buff + transfer_len, MAX_BUFF_SIZE - transfer_len, 0);
+			//DISP( "r %d ", recv_res);
+			if( recv_res > 0 ) {
+				transfer_len += recv_res;
+			}
+			if( recv_res == SL_EAGAIN ) {
+				vTaskDelay(500);
+			}
+		}
+		//DISP( " %d %d\n", transfer_len, recv_size);
+
+		if( transfer_len == 0 ) {
+        	LOGI("recv fail %d %d\r\n", recv_res, transfer_len );
+        	goto failure;
+		}
+        pBuff = g_buff;
+
+		MAP_WatchdogIntClear(WDT_BASE); //clear wdt
 
 		// write data on the file
 		if (storage == SD_CARD) {
 			res = hello_fs_write(&file_obj, pBuff, transfer_len, &r);
-			if (r != transfer_len) {
-				goto failure;
-			}
 		} else if (storage == SERIAL_FLASH) {
 			//write to serial flash file
 			r = sl_FsWrite(fileHandle, total - recv_size,
 					(unsigned char *) pBuff, transfer_len);
-			if (r != transfer_len) {
-				goto failure;
-			}
 		}
-
-		//LOGI("wrote:  %d %d\r\n", r, res); spamspamspam
 
 		if (r != transfer_len )
 		{
+			LOGE("failed to write %d %d\n",r,transfer_len);
 			goto failure;
 		}
-		bytesReceived +=transfer_len;
+		//LOGI("wrote:  %d %d\r\n", r, res); spamspamspam
+		bytesReceived += transfer_len;
 		recv_size -= transfer_len;
 
-		if( recv_size == 0 ) {
-			break;
+		if (100 - 100 * recv_size / total != percent) {
+			percent = 100 - 100 * recv_size / total;
+			LOGI("DL %d %d\r\n", recv_size, percent);
 		}
 
         memset(g_buff, 0, MAX_BUFF_SIZE);
-
-        {
-        int retries;
-		for(retries = 0;retries < 1000; ++retries) {
-			transfer_len = recv(dl_sock, &g_buff[0], MAX_BUFF_SIZE, 0);
-			if( transfer_len == SL_EAGAIN ) {
-				vTaskDelay(500);
-				continue;
-			}
-			break;
-		}
-        }
-        if(transfer_len < 0) {
-        	LOGI("recv %d\r\n", transfer_len );
-        	goto failure;
-        }
-
-        pBuff = g_buff;
+        transfer_len = 0;
     }
 
-    //
     // If user file has checksum which can be used to verify the temporary
     // file then file should be verified
     // In case of invalid file (FILE_NAME) should be closed without saving to
@@ -1001,6 +1047,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 	vPortFree(g_buff);
 	return 0;
 failure:
+	LOGE("FAIL\n");
 	vPortFree(g_buff);
 	if (storage == SD_CARD) {
         /* Close file without saving */
@@ -1054,17 +1101,14 @@ int download_file(char * host, char * url, char * filename, char * path, storage
 	//LOGI("download <host> <filename> <url>\n\r");
 	// Create a TCP connection to the Web Server
 	dl_sock = CreateConnection(ip);
-
+    LOGE("connect returns %d\n", dl_sock );
 	if (dl_sock < 0) {
-		LOGF("Connection to server failed %d\n\r", dl_sock);
-		return -1;
-	} else {
-		LOGF("Connection to server created successfully\r\n");
+	    return dl_sock;
 	}
 	// Download the file, verify the file and replace the exiting file
 	r = GetData(filename, url, host, path, storage);
-	if (r < 0) {
-		LOGF("Device couldn't download the file from the server\n\r");
+	if (r != 0) {
+		LOGF("GetData failed\n\r");
 		close(dl_sock);
 		return r;
 	}
@@ -1361,6 +1405,13 @@ void free_download_info(SyncResponse_FileDownload * download_info) {
 	}
 }
 
+typedef enum {
+	sha_file_create=0,
+	sha_file_delete,
+	sha_file_get_sha
+}update_sha_t;
+void update_file_download_status(bool is_pending);
+uint32_t update_sha_file(char* path, char* original_filename, update_sha_t option, uint8_t* sha, bool ovwr);
 xQueueHandle download_queue = 0;
 
 void file_download_task( void * params ) {
@@ -1431,12 +1482,17 @@ void file_download_task( void * params ) {
                 }
 
                 int retries = 0;
-                while(download_file(host, url, serial_flash_name,
-                            serial_flash_path, SERIAL_FLASH) != 0) {
-                	if( ++retries > 10 ) {
-                		goto end_download_task;
-                	}
+                int dl_ret = -1;
+                while(dl_ret != 0) {
+                    dl_ret = download_file(host, url, serial_flash_name, serial_flash_path, SERIAL_FLASH);
+                    if( dl_ret == HLO_HTTP_ERR ) {
+                        goto next_one;
+                    }
+                    if( ++retries > HTTP_RETRIES ) {
+                        goto end_download_task;
+                    }
                 }
+
                 char buf[64];
                 strncpy( buf, serial_flash_path, 64 );
                 strncat(buf, serial_flash_name, 64 );
@@ -1455,15 +1511,62 @@ void file_download_task( void * params ) {
                 }
                 LOGI("done, closing\n");
 			} else {
-					int retries = 0;
-					while (download_file(host, url, filename, path, SD_CARD)
-							!= 0) {
-						if (++retries > 10) {
-							goto end_download_task;
-						}
+
+				int retries = 0;
+
+				// Set file download pending for download manager
+				update_file_download_status(true);
+
+				// Delete corresponding SHA file if exists
+				// delete before downloading the file, so that if the download fails midway,
+				// the device won't be left with a corrupt file and a valid sha file.
+				update_sha_file(path, filename, sha_file_delete,NULL, false );
+
+				int dl_ret = -1;
+                while(dl_ret != 0) {
+                    dl_ret = download_file(host, url, filename, path, SD_CARD);
+                    if( dl_ret == HLO_HTTP_ERR ) {
+                        goto next_one;
+                    }
+                    if( ++retries > HTTP_RETRIES ) {
+                        goto end_download_task;
+                    }
+                }
+
+				if (download_info.has_sha1) {
+
+					// SHA verify for SD card files
+					FRESULT res = FR_OK;
+
+					res = cd(path);
+					if(res)
+					{
+						LOGE("CD fail: %d\n", res);
+						cd("/");
+						goto end_download_task;
 					}
-					LOGI("done, closing\n");
-					hello_fs_close(&file_obj);
+
+					/* Open file to save the downloaded file */
+					if (global_filename(filename)) {
+						cd("/");
+						goto end_download_task;
+					}
+
+					//LOGI("Path buf : %s \n", path_buff);
+
+					if( update_sha_file(path, filename, sha_file_create, download_info.sha1.bytes, true)){
+						LOGW("SD card download fail\r\n");
+						cd("/");
+						goto end_download_task;
+					}
+
+					cd("/");
+					LOGI("SD card download success \r\n");
+				}
+
+				// Clear file download status
+				update_file_download_status(false);
+
             }
         }
         if (download_info.has_reset_application_processor
@@ -1512,6 +1615,8 @@ next_one:
         //what if there's an error on some but not all the files? (start over)
 
 end_download_task: //there was an error
+		// Clear file download status
+		update_file_download_status(false);
         while (xQueueReceive(download_queue, &download_info, 10)) {
             free_download_info(&download_info);
         }
@@ -1614,5 +1719,51 @@ int sf_sha1_verify(const char * sha_truth, const char * serial_file_path){
 
     LOGI( "SHA Match!\n");
     return 0;
+}
+
+bool send_to_download_queue(SyncResponse_FileDownload* data, TickType_t ticks_to_wait)
+{
+	if( download_queue )
+	{
+		if( xQueueSend(download_queue, (void*)data, ticks_to_wait) != pdPASS )
+		{
+			//free_file_sync_info( &download_info );
+			return false;
+		}
+	}
+	else
+	{
+		return false;
+	}
+
+	return true;
+
+}
+
+uint32_t get_free_space(uint32_t* free_space, uint32_t* total_mem)
+{
+    uint32_t ui32TotalSize;
+
+    FRESULT res;
+    FATFS *psFatFs;
+
+
+    // Get the free space.
+    res = hello_fs_getfree("/", (DWORD *)&ui32TotalSize, &psFatFs);
+
+    // Check for error and return if there is a problem.
+    if(res != FR_OK)
+    {
+        return((int)res);
+    }
+
+    *free_space = (ui32TotalSize * psFatFs->csize / 2);
+    *total_mem = ((psFatFs->n_fatent-2) * psFatFs->csize / 2);
+
+    // Display the amount of free space that was calculated.
+    LOGF("%1uK bytes free of %uK bytes total\n",*free_space, *total_mem );
+
+    return 0;
+
 }
 

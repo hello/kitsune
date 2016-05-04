@@ -2,11 +2,18 @@
 #define _ENDPOINTS_H_
 
 char * get_server(void);
+char * get_messeji_server(void);
 
 #define DATA_SERVER	get_server()
+#define MESSEJI_SERVER	get_messeji_server()
 
-#define PROD_DATA_SERVER                    "sense-in.hello.is"
-#define DEV_DATA_SERVER						"dev-in.hello.is"
+#define PROD_MESSEJI_SERVER "messeji-sha2.hello.is"
+#define DEV_MESSEJI_SERVER "messeji-dev-sha2.hello.is"
+#define MESSEJI_ENDPOINT "/receive"
+
+
+#define PROD_DATA_SERVER                    "sense-in-sha2.hello.is"
+#define DEV_DATA_SERVER						"dev-in-sha2.hello.is"
 #define DATA_RECEIVE_ENDPOINT               "/in/sense/batch"
 #define MORPHEUS_REGISTER_ENDPOINT          "/register/morpheus"
 #define PILL_REGISTER_ENDPOINT              "/register/pill"
@@ -15,6 +22,8 @@ char * get_server(void);
 #define PILL_DATA_RECEIVE_ENDPOINT          "/in/pill"
 #define CHECK_KEY_ENDPOINT                  "/check"
 #define PROVISION_ENDPOINT					"/provision/keys"
+#define FILE_SYNC_ENDPOINT					"/in/sense/files"
+#define SENSE_STATE_ENDPOINT				"/in/sense/state"
 
 #define TEST_NETWORK_ENDPOINT               "/"
 #define TEST_SERVER                         "stress-in.hello.is"

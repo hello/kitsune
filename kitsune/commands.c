@@ -96,6 +96,7 @@
 #include "hlo_net_tools.h"
 #include "top_board.h"
 #include "long_poll.h"
+#include "filedownloadmanager.h"
 #define ONLY_MID 0
 
 #define ARRAY_LEN(a) (sizeof(a)/sizeof(a[0]))
@@ -464,8 +465,9 @@ int Cmd_play_buff(int argc, char *argv[]) {
     }
     if( argc >= 5 ) {
     	desc.fade_out_ms = desc.fade_in_ms = atoi(argv[5]);
+		desc.to_fade_out_ms = atoi(argv[6]);
     } else {
-    	desc.fade_out_ms = desc.fade_in_ms = 0;
+    	desc.to_fade_out_ms = desc.fade_out_ms = desc.fade_in_ms = 0;
     }
     desc.rate = atoi(argv[2]);
 
@@ -520,6 +522,10 @@ static char alarm_ack[sizeof(((SyncResponse *)0)->ring_time_ack)];
 static volatile bool needs_alarm_ack = false;
 #define ALARM_LOC "/hello/alarm"
 static bool alarm_is_ringing = false;
+
+void delete_alarms() {
+	sl_FsDel((unsigned char*)ALARM_LOC, 0);
+}
 
 void set_alarm( SyncResponse_Alarm * received_alarm, const char * ack, size_t ack_size ) {
     if (xSemaphoreTakeRecursive(alarm_smphr, portMAX_DELAY)) {
@@ -676,7 +682,7 @@ void thread_alarm(void * unused) {
 				AudioPlaybackDesc_t desc;
 				memset(&desc,0,sizeof(desc));
 
-				desc.fade_in_ms = 30000;
+				desc.to_fade_out_ms = desc.fade_in_ms = 30000;
 				desc.fade_out_ms = 3000;
 				strncpy( desc.file, AUDIO_FILE, 64 );
 				int has_valid_sound_file = 0;
@@ -847,6 +853,7 @@ uint8_t get_alpha_from_light()
 static int _is_light_off()
 {
 	static int last_light = -1;
+	static unsigned int last_light_time = 0;
 	const int light_off_threshold = 500;
 	int ret = 0;
 
@@ -854,11 +861,14 @@ static int _is_light_off()
 	if(last_light != -1)
 	{
 		int delta = last_light - light;
-		if(delta >= light_off_threshold && light < 1000)
+		if(xTaskGetTickCount() - last_light_time > 2000
+				&& delta >= light_off_threshold
+				&& light < 1000)
 		{
 			LOGI("light delta: %d, current %d, last %d\n", delta, light, last_light);
 			ret = 1;
 			light_mean = light; //so the led alpha will be at the lights off level
+			last_light_time = xTaskGetTickCount();
 		}
 	}
 
@@ -903,9 +913,8 @@ static void _on_wave(){
 }
 
 static void _on_hold(){
-	if(	cancel_alarm() ) {
-		stop_led_animation( 0, 33 );
-	}
+	stop_led_animation( 0, 33 );
+	cancel_alarm();
 	ble_proto_start_hold();
 }
 
@@ -1230,8 +1239,11 @@ void sample_sensor_data(periodic_data* data)
 		data->audio_peak_energy_db = aud_data.peak_energy;
 
 		data->has_audio_peak_disturbance_energy_db = true;
-		data->audio_peak_disturbance_energy_db = aud_data.peak_energy;
-
+		if( aud_data.num_disturbances ) {
+			data->audio_peak_disturbance_energy_db = aud_data.peak_energy;
+		} else {
+			data->audio_peak_disturbance_energy_db = aud_data.peak_background_energy;
+		}
 		//LOGI("Uploading audio %u %u %u\r\n",data->audio_num_disturbances, data->audio_peak_background_energy_db, data->audio_peak_disturbance_energy_db );
 	}
 
@@ -1366,7 +1378,7 @@ void thread_sensor_poll(void* unused) {
 
 			Cmd_free(0,0);
 			send_top("free", strlen("free"));
-			Cmd_inttemp(0,0);
+			//Cmd_inttemp(0,0);
 
 			if( ( ++count % 60 ) == 0 ) {
 				Cmd_tasks(0,0);
@@ -1616,13 +1628,9 @@ void thread_spi(void * data) {
 			vTaskDelay(500);
 			continue;
 		}
-		if (xSemaphoreTake(spi_smphr, portMAX_DELAY) ) {
-			Cmd_spi_read(0, 0);
-			MAP_GPIOIntEnable(GPIO_PORT,GSPI_INT_PIN);
-		} else {
-			Cmd_spi_read(0, 0);
-			MAP_GPIOIntEnable(GPIO_PORT,GSPI_INT_PIN);
-		}
+		xSemaphoreTake(spi_smphr, 500);
+		Cmd_spi_read(0, 0);
+		MAP_GPIOIntEnable(GPIO_PORT,GSPI_INT_PIN);
 	}
 
 	/*
@@ -1744,7 +1752,6 @@ void init_download_task( int stack );
 
 void launch_tasks() {
 	checkFaults();
-	start_top_boot_watcher();
 
 	//dear future chris: this one doesn't need a semaphore since it's only written to while threads are going during factory test boot
 	booted = true;
@@ -1762,13 +1769,14 @@ void launch_tasks() {
 	UARTprintf("*");
 #if !ONLY_MID
 	UARTprintf("*");
-	xTaskCreate(thread_dust, "dustTask", 1024 / 4, NULL, 3, NULL);
+	xTaskCreate(thread_dust, "dustTask", 512 / 4, NULL, 3, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_sensor_poll, "pollTask", 1024 / 4, NULL, 2, NULL);
+	xTaskCreate(thread_sensor_poll, "pollTask", 768 / 4, NULL, 2, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_tx, "txTask", 1536 / 4, NULL, 1, NULL);
+	xTaskCreate(thread_tx, "txTask", 1024 / 4, NULL, 1, NULL);
 	UARTprintf("*");
-	//long_poll_task_init( 4096 / 4 );
+	long_poll_task_init( 2560 / 4 );
+	downloadmanagertask_init(3072 / 4);
 #endif
 }
 
@@ -1776,6 +1784,7 @@ void launch_tasks() {
 int Cmd_boot(int argc, char *argv[]) {
 	if( !booted ) {
 		launch_tasks();
+		Cmd_led_clr(0,0);
 	}
 	return 0;
 }
@@ -1857,12 +1866,24 @@ int cmd_memfrag(int argc, char *argv[]) {
 	}
 	return 0;
 }
+static long always_ok(void){
+	return 0;
+}
+static long always_slow(int dly){
+	vTaskDelay(dly);
+	return 0;
+}
+
 void
 vAssertCalled( const char * s );
 int Cmd_fault(int argc, char *argv[]) {
 	//*(volatile int*)0xFFFFFFFF = 0xdead;
 	//vAssertCalled("test");
 	assert(false);
+	return 0;
+}
+int Cmd_fault_slow(int argc, char * argv[]) {
+	SL_SYNC(always_slow(atoi(argv[1])));
 	return 0;
 }
 int Cmd_test_realloc(int argc, char *argv[]) {
@@ -1900,6 +1921,12 @@ int Cmd_disableInterrupts(int argc, char *argv[]) {
 	}
 	return 0;
 }
+
+int Cmd_uptime(int argc, char *argv[]) {
+	LOGF("uptime %d\n", xTaskGetTickCount());
+	return 0;
+}
+
 #define ARR_LEN(x) (sizeof(x)/sizeof(x[0]))
 static void print_nwp_version() {
 	SlVersionFull ver;
@@ -1935,6 +1962,7 @@ int Cmd_nwpinfo(int argc, char *argv[]) {
 }
 int Cmd_SyncID(int argc, char * argv[]);
 int Cmd_time_test(int argc, char * argv[]);
+int cmd_file_sync_upload(int argc, char *argv[]);
 
 // ==============================================================================
 // This is the table that holds the command names, implementing functions, and
@@ -1946,10 +1974,12 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "time_test", Cmd_time_test, "" },
 		{ "heapviz", Cmd_heapviz, "" },
 		{ "realloc", Cmd_test_realloc, "" },
-		{ "fault", Cmd_fault, "" },
+
 		{ "mac", Cmd_set_mac, "" },
 		{ "aes", Cmd_set_aes, "" },
 #endif
+		{ "fault", Cmd_fault, "" },
+		{ "faults", Cmd_fault_slow, ""},
 		{ "free", Cmd_free, "" },
 		{ "connect", Cmd_connect, "" },
 		{ "disconnect", Cmd_disconnect, "" },
@@ -2040,6 +2070,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "testkey", Cmd_test_key, ""},
 		{ "lfclktest",Cmd_test_3200_rtc,""},
 		{ "country",Cmd_country,""},
+		{ "up",Cmd_uptime,""},
 		{ "sync", Cmd_sync, "" },
 		{ "boot",Cmd_boot,""},
 		{ "gesture_count",Cmd_get_gesture_count,""},
@@ -2053,11 +2084,11 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "scan",Cmd_scan_wifi,""},
 		{"future",Cmd_FutureTest,""},
 		{"ana", Cmd_analytics, ""},
-		{"dns", Cmd_setDns, ""},
 		{"noint", Cmd_disableInterrupts, ""},
-		{"nwp", Cmd_nwpinfo, ""},
-		{"resync", Cmd_SyncID, ""},
 #endif
+		{"resync", Cmd_SyncID, ""},
+		{"nwp", Cmd_nwpinfo, ""},
+		{"dns", Cmd_setDns, ""},
 		{"g", Cmd_gesture, ""},
 
 #ifdef BUILD_IPERF
@@ -2067,13 +2098,14 @@ tCmdLineEntry g_sCmdTable[] = {
 #ifdef FILE_TEST
 		{ "test_files",Cmd_generate_user_testing_files,""},
 #endif
+		{"fs", cmd_file_sync_upload, ""},
 		{ 0, 0, 0 } };
 
 
 // ==============================================================================
 // This is the UARTTask.  It handles command lines received from the RX IRQ.
 // ==============================================================================
-//void SDHostIntHandler();
+void SDHostIntHandler();
 extern xSemaphoreHandle g_xRxLineSemaphore;
 
 void UARTStdioIntHandler(void);
@@ -2159,7 +2191,7 @@ void vUARTTask(void *pvParameters) {
 	// Initialize the DMA Module
 	UDMAInit();
 	//sdhost dma interrupts
-	//MAP_SDHostIntRegister(SDHOST_BASE, SDHostIntHandler);
+	MAP_SDHostIntRegister(SDHOST_BASE, SDHostIntHandler);
 	MAP_SDHostSetExpClk(SDHOST_BASE, MAP_PRCMPeripheralClockGet(PRCM_SDHOST),
 			get_hw_ver()==EVT2?1000000:24000000);
 	UARTprintf("*");
@@ -2195,17 +2227,16 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("*");
 	SetupGPIOInterrupts();
 	CreateDefaultDirectories();
+	load_data_server();
 
-	xTaskCreate(AudioTask_Thread,"audioTask",3072/4,NULL,4,NULL);
-	UARTprintf("*");
-	init_download_task( 2048 / 4 );
-	networktask_init(4 * 1024 / 4);
+	xTaskCreate(AudioTask_Thread,"audioTask",2560/4,NULL,4,NULL);
+	init_download_task( 3072 / 4 );
+	networktask_init(3 * 1024 / 4);
 
 	load_serial();
 	load_aes();
 	load_device_id();
 	load_account_id();
-	load_data_server();
 	load_alarm();
 	pill_settings_init();
 	check_provision();
@@ -2213,7 +2244,7 @@ void vUARTTask(void *pvParameters) {
 	init_dust();
 	ble_proto_init();
 	xTaskCreate(top_board_task, "top_board_task", 1280 / 4, NULL, 3, NULL);
-	xTaskCreate(thread_spi, "spiTask", 1024 / 4, NULL, 3, NULL);
+	xTaskCreate(thread_spi, "spiTask", 1536 / 4, NULL, 3, NULL);
 #ifndef BUILD_SERVERS
 	uart_logger_init();
 	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 1, NULL);
@@ -2223,6 +2254,7 @@ void vUARTTask(void *pvParameters) {
 #endif
 	xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
+	start_top_boot_watcher();
 
 	if( on_charger ) {
 		launch_tasks();
@@ -2247,6 +2279,7 @@ void vUARTTask(void *pvParameters) {
 
 		if (UARTPeek('\r') != -1) {
 			/* Read data from the UART and process the command line */
+			memset( cCmdBuf, 0, sizeof(cCmdBuf) );
 			UARTgets(cCmdBuf, sizeof(cCmdBuf));
 			if (ustrlen(cCmdBuf) == 0) {
 				LOGI("> ");
