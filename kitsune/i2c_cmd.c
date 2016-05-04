@@ -1367,35 +1367,35 @@ static void codec_clock_config(void)
 
 	// --------- DAC -------------
 
-	//	# NDAC = 2
+	//	# NDAC = 1
 	cmd[0] = 0x0B;
-	cmd[1] = (1 << 7) | (2 << 0);
+	cmd[1] = (1 << 7) | (1 << 0);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
-	//	# MDAC = 1
+	//	# MDAC = 6
 	cmd[0] = 0x0C;
-	cmd[1] = (1 << 7) | (16 << 0);
+	cmd[1] = (1 << 7) | (6 << 0);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
-	// DOSR = 1
+	// DOSR = 128
 	//	w 30 0d 00 # DOSR (MSB)
 	cmd[0] = 0x0D;
-	cmd[1] = (1 & 0x3F00) >> 8;
+	cmd[1] = (128 & 0x3F00) >> 8;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	//	w 30 0e 80 # DOSR (LSB)
 	cmd[0] = 0x0E;
-	cmd[1] = (1 & 0x00FF) >> 0;
+	cmd[1] = (128 & 0x00FF) >> 0;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	// --------- ADC -------------
 
 	// NADC and MADC same as DAC
 
-	//	w 30 14 40 # AOSR = 1
+	//	w 30 14 40 # AOSR = 128
 	// TODO As per datasheet, if AOSR=128, Use with PRB_R1 to PRB_R6, ADC Filter Type A
 	cmd[0] = 0x14;
-	cmd[1] = 1;
+	cmd[1] = 128;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 #endif
 
@@ -1542,9 +1542,10 @@ static void codec_signal_processing_config(void)
 	cmd[1] = 0;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
+	// Decimation filter must be A
 	//	w 30 3d 0a # Set the ADC Mode to PRB_R1
 	cmd[0] = 0x3D;
-	cmd[1] = 0x01;
+	cmd[1] = 0x01; //
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	// w 30 3c 01 # Set the DAC PRB Mode to PRB_P1
@@ -1583,7 +1584,12 @@ static void codec_mic_config(void)
 
 	// # ADC channel power control - Left and right channel ADC configured for Digital Mic
 	cmd[0] = 0x51;
-	cmd[1] = (1 << 4) | (1 << 2); // TODO Should ADC be powered up B[7:6]
+	cmd[1] = (1 << 7) | (1 << 6) | (1 << 4) | (1 << 2);
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	// # ADC Fine Gain Volume Control, Unmute Left and Right ADC channel
+	cmd[0] = 0x52;
+	cmd[1] = 0;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	// # Digital mic 2 control - Enable CIC2 Left channel, and digital mic to left channel
