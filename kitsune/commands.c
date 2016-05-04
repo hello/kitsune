@@ -523,6 +523,10 @@ static volatile bool needs_alarm_ack = false;
 #define ALARM_LOC "/hello/alarm"
 static bool alarm_is_ringing = false;
 
+void delete_alarms() {
+	sl_FsDel((unsigned char*)ALARM_LOC, 0);
+}
+
 void set_alarm( SyncResponse_Alarm * received_alarm, const char * ack, size_t ack_size ) {
     if (xSemaphoreTakeRecursive(alarm_smphr, portMAX_DELAY)) {
     	if( alarm_is_ringing ) {
@@ -1748,7 +1752,6 @@ void init_download_task( int stack );
 
 void launch_tasks() {
 	checkFaults();
-	start_top_boot_watcher();
 
 	//dear future chris: this one doesn't need a semaphore since it's only written to while threads are going during factory test boot
 	booted = true;
@@ -1781,6 +1784,7 @@ void launch_tasks() {
 int Cmd_boot(int argc, char *argv[]) {
 	if( !booted ) {
 		launch_tasks();
+		Cmd_led_clr(0,0);
 	}
 	return 0;
 }
@@ -2250,6 +2254,7 @@ void vUARTTask(void *pvParameters) {
 #endif
 	xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
+	start_top_boot_watcher();
 
 	if( on_charger ) {
 		launch_tasks();

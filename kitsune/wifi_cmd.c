@@ -670,7 +670,7 @@ void set_backup_dns() {
     SlNetCfgIpV4DnsClientArgs_t DnsOpt;
 
    DnsOpt.DnsSecondServerAddr  =  SL_IPV4_VAL(8,8,4,4);
-   DnsOpt.DnsMaxRetries        =  12;
+   DnsOpt.DnsMaxRetries        =  5;
    sl_NetCfgSet(SL_IPV4_DNS_CLIENT,0,sizeof(SlNetCfgIpV4DnsClientArgs_t),(unsigned char *)&DnsOpt);
 }
 int Cmd_status(int argc, char *argv[]) {
@@ -1120,7 +1120,7 @@ int start_connection(int * sock, char * host, security_type sec) {
     int sock_begin = *sock;
 
     while(!wifi_status_get(HAS_IP)) {
-    	LOGI(".");
+    	LOGD(".");
     	vTaskDelay(1000);
     }
     set_backup_dns();
@@ -1209,7 +1209,7 @@ int start_connection(int * sock, char * host, security_type sec) {
 		#endif
 		do {
 			rv = connect(*sock, &sAddr, sizeof(sAddr));
-			LOGI("`");
+			LOGD("`");
 			vTaskDelay(500);
 		} while( rv == SL_EALREADY );
 		if( rv < 0 ) {
@@ -1674,7 +1674,7 @@ int send_data_pb( char* host, const char* path, char ** recv_buf_ptr,
 		vTaskDelay(1000);
     	rv = recv(*sock, recv_buf+recv_buf_size-SERVER_REPLY_BUFSZ, SERVER_REPLY_BUFSZ, 0);
     	MAP_WatchdogIntClear(WDT_BASE); //clear wdt, it seems the SL_SPAWN hogs CPU here
-        LOGI("x");
+        LOGD("x");
         if( rv == SERVER_REPLY_BUFSZ ) {
              recv_buf_size += SERVER_REPLY_BUFSZ;
              if( recv_buf_size > 10*1024 ) {
