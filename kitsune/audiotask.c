@@ -345,7 +345,6 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 static void DoCapture(uint32_t rate) {
 	int16_t * samples = pvPortMalloc(PING_PONG_CHUNK_SIZE*4);
 	char * adpcm = pvPortMalloc(PING_PONG_CHUNK_SIZE);
-	char filepath[32];
 
 	int iBufferFilled = 0;
 	AudioMessage_t m;
