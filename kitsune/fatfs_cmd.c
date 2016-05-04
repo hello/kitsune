@@ -742,6 +742,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
     LOGI("Start downloading the file\r\n");
 
     unsigned char * g_buff = pvPortMalloc( MAX_BUFF_SIZE );
+    assert( g_buff );
 
     memset(g_buff, 0, MAX_BUFF_SIZE);
 
@@ -752,12 +753,14 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
     strcat((char *)g_buff, host);
     strcat((char *)g_buff, POST_BUFFER_2);
 
+    assert( strlen(g_buff) > 1 );
+
     LOGI("sent\r\n%s\r\n", g_buff );
 
     // Send the HTTP GET string to the opened TCP/IP socket.
     transfer_len = send(dl_sock, g_buff, strlen((const char *)g_buff), 0);
 
-    if (transfer_len < 0)
+    if (transfer_len <= 0)
     {
         // error
     	LOGW("Sending error %d\r\n",transfer_len);
@@ -779,7 +782,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
         }
     }while(transfer_len == SL_EAGAIN);
 
-    if(transfer_len < 0){
+    if(transfer_len <= 0){
         LOGW("Download error %d\r\n",transfer_len);
         ASSERT_ON_ERROR(-1);
     }
