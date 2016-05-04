@@ -442,45 +442,10 @@ static void DoCapture(uint32_t rate) {
 
 			adpcm_decoder( adpcm, samples, PING_PONG_CHUNK_SIZE*2, &pcm_state );
 
-#ifdef PRINT_TIMING
-			t1 = xTaskGetTickCount(); dt = t1 - t0; t0 = t1;
-#endif
 
-			//write to file
-			if (isSavingToFile) {
-				const uint32_t bytes_written = PING_PONG_CHUNK_SIZE*2*sizeof(int16_t);
-
-				if (WriteToFile(&filedata,bytes_written,(const uint8_t *)samples)) {
-					num_bytes_written += bytes_written;
-
-					//close if we get too big
-					if (num_bytes_written > MAX_FILE_SIZE_BYTES) {
-						CloseAndDeleteFile(&filedata);
-						isSavingToFile = 0;
-
-					}
-				}
-				else {
-					//handle the failure case
-					CloseFile(&filedata);
-					isSavingToFile = 0;
-					LOGI("Failed to write to file %s\r\n",filedata.file_name);
-					_filecounter--;
-				}
-			}
-
-			/* process audio to get features */
-#ifdef PRINT_TIMING
-			t1 = xTaskGetTickCount();
-#endif
-			//do audio feature processing
 			if(settle_cnt++ > 3) {
 				AudioFeatures_SetAudioData(samples,_callCounter++);
 			}
-#ifdef PRINT_TIMING
-			t2 = xTaskGetTickCount();
-			LOGI("dt = %d, compute=%d\n",dt,t2-t1); //vTaskDelay(5);
-#endif
 		}
 	}
 
@@ -489,9 +454,6 @@ static void DoCapture(uint32_t rate) {
 	vPortFree(samples);
 	vPortFree(adpcm);
 
-	if (isSavingToFile) {
-		CloseAndDeleteFile(&filedata);
-	}
 
 	DeinitAudioCapture();
 
