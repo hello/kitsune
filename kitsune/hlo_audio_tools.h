@@ -1,9 +1,10 @@
 #ifndef HLO_AUDIO_TOOLS_H
 #define HLO_AUDIO_TOOLS_H
+#include "audiotask.h"
 //an audio recorder app
 //that demonstrates how to record and playback audio
 void hlo_audio_recorder_task(void * data);
-void hlo_audio_playback_task(void * data);
+void hlo_audio_playback_task(AudioPlaybackDesc_t * desc);
 void hlo_audio_octogram_task(void * data);
 
 //uart commands
