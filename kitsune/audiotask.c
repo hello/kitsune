@@ -352,9 +352,6 @@ static void DoCapture(uint32_t rate) {
 	Filedata_t filedata;
 	uint8_t isSavingToFile = 0;
 	uint32_t num_bytes_written;
-	uint32_t octogram_count = 0;
-	Octogram_t octogramdata;
-	AudioOctogramDesc_t octogramdesc;
 	uint32_t settle_cnt = 0;
 
 #ifdef PRINT_TIMING
@@ -395,7 +392,7 @@ static void DoCapture(uint32_t rate) {
 				//fallthrough
 			case eAudioPlaybackStop:
 				//fallthrough
-			case eAudioCaptureOctogram::
+			case eAudioCaptureOctogram:
 				//ignore
 				break;
 			case eAudioCaptureTurnOff:
@@ -479,20 +476,6 @@ static void DoCapture(uint32_t rate) {
 			//do audio feature processing
 			if(settle_cnt++ > 3) {
 				AudioFeatures_SetAudioData(samples,_callCounter++);
-				if (octogram_count > 0) {
-					octogram_count--;
-
-					Octogram_Update(&octogramdata,samples);
-
-					if (octogram_count == 0) {
-						LOGI("Finished octogram \r\n");
-						Octogram_GetResult(&octogramdata,octogramdesc.result);
-
-						if (octogramdesc.onFinished) {
-							octogramdesc.onFinished(octogramdesc.context);
-						}
-					}
-				}
 			}
 #ifdef PRINT_TIMING
 			t2 = xTaskGetTickCount();
