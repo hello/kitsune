@@ -321,6 +321,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 
 	_queue_audio_playback_state(PLAYING, info);
 
+	//TODO integrate ulTaskNotifyTake
 	/* blocking */
 	_playback_loop(info, CheckForInterruptionDuringPlayback);
 
