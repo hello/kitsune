@@ -52,8 +52,8 @@
 
 #define PREFIX_BUFFER    "GET "
 //#define POST_BUFFER      " HTTP/1.1\nAccept: text/html, application/xhtml+xml, */*\n\n"
-#define POST_BUFFER_1  " HTTP/1.1\nHost:"
-#define POST_BUFFER_2  "\nAccept: text/html, application/xhtml+xml, */*\n\n"
+#define POST_BUFFER_1  " HTTP/1.1\r\nHost:"
+#define POST_BUFFER_2  "\r\nAccept: text/html, application/xhtml+xml, */*\r\n\r\n"
 
 #define HTTP_FORBIDDEN         "403 Forbidden" //url expired
 #define HTTP_FILE_NOT_FOUND    "404 Not Found" /* HTTP file not found response */
@@ -742,22 +742,22 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
     LOGI("Start downloading the file\r\n");
 
     unsigned char * g_buff = pvPortMalloc( MAX_BUFF_SIZE );
+    assert( g_buff );
 
     memset(g_buff, 0, MAX_BUFF_SIZE);
 
     // Puts together the HTTP GET string.
-    strcpy((char *)g_buff, PREFIX_BUFFER);
-    strcat((char *)g_buff, url);
-    strcat((char *)g_buff, POST_BUFFER_1);
-    strcat((char *)g_buff, host);
-    strcat((char *)g_buff, POST_BUFFER_2);
+    usnprintf( (char *)g_buff, MAX_BUFF_SIZE, "%s%s%s%s%s",
+               PREFIX_BUFFER, url, POST_BUFFER_1, host, POST_BUFFER_2);
+
+    assert( strlen((char *)g_buff) > 1 );
 
     LOGI("sent\r\n%s\r\n", g_buff );
 
     // Send the HTTP GET string to the opened TCP/IP socket.
     transfer_len = send(dl_sock, g_buff, strlen((const char *)g_buff), 0);
 
-    if (transfer_len < 0)
+    if (transfer_len <= 0)
     {
         // error
     	LOGW("Sending error %d\r\n",transfer_len);
@@ -779,7 +779,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
         }
     }while(transfer_len == SL_EAGAIN);
 
-    if(transfer_len < 0){
+    if(transfer_len <= 0){
         LOGW("Download error %d\r\n",transfer_len);
         ASSERT_ON_ERROR(-1);
     }
