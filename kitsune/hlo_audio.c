@@ -132,8 +132,11 @@ void hlo_audio_init(void){
 hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint8_t vol, uint32_t direction){
 	hlo_stream_t * ret = master;
 	LOCK();
-	record_sr = 16000;
-	playback_sr = 48000;
+	if(direction == HLO_AUDIO_PLAYBACK){
+		playback_sr = sr;
+	}else if(direction == HLO_AUDIO_RECORD){
+		record_sr = sr;
+	}
 	if(mode == CLOSED){
 		if( 0 != _open_record(sr) ){
 			ret = NULL;
