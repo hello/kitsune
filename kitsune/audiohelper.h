@@ -9,8 +9,6 @@ typedef struct {
 	FIL file_obj;
 } Filedata_t;
 
-void InitAudioHelper();
-
 uint8_t InitAudioCapture(uint32_t rate);
 void DeinitAudioCapture(void);
 

@@ -30,9 +30,6 @@
 extern tCircularBuffer *pTxBuffer;
 extern tCircularBuffer *pRxBuffer;
 
-void InitAudioHelper() {
-}
-
 #define AUDIO_PLAYBACK_RATE_HZ (48000)
 
 uint8_t InitAudioDuplex(uint32_t rate){
