@@ -31,6 +31,7 @@
 #include "hlo_async.h"
 #include "state.pb.h"
 #include "hlo_audio.h"
+#include "hlo_pipe.h"
 #include "hlo_audio_tools.h"
 #if 0
 #define PRINT_TIMING
@@ -183,6 +184,7 @@ static void Init(void) {
 
 	if (!_processingTaskWait) {
 		_processingTaskWait = xSemaphoreCreateBinary();
+		assert(_processingTaskWait);
 	}
 
 	if (!_statsMutex) {
@@ -358,7 +360,6 @@ static uint8_t CheckForInterruptionDuringCapture(void) {
 				//ignore
 				break;
 			case eAudioCaptureTurnOff:
-			{
 				//go to cleanup, and then the next loop through
 				//the thread will turn off capturing
 
@@ -366,40 +367,28 @@ static uint8_t CheckForInterruptionDuringCapture(void) {
 				xQueueSendToFront(_queue,&m,0);
 				LOGI("received eAudioCaptureTurnOff\r\n ");
 				ret |= FLAG_STOP;
-			}
-
+				break;
 			case eAudioPlaybackStart:
-			{
 				//place message back on queue
 				xQueueSendToFront(_queue,&m,0);
 				LOGI("received eAudioPlaybackStart\r\n");
 				ret |= FLAG_STOP;
-			}
-
+				break;
 			default:
-			{
 				//place message back on queue
 				xQueueSendToFront(_queue,&m,0);
 				LOGI("audio task received message during capture that it did not understand, placing back on queue\r\n");
 				break;
-			}
 		}
 
 	}
 	return ret;
 }
 
-
+#define RECORD_SAMPLE_SIZE (256*2*2)
 static void DoCapture(uint32_t rate) {
-	int16_t * samples = pvPortMalloc(PING_PONG_CHUNK_SIZE*4);
-	char * adpcm = pvPortMalloc(PING_PONG_CHUNK_SIZE);
-
-	int iBufferFilled = 0;
-	AudioMessage_t m;
-	Filedata_t filedata;
-	uint8_t isSavingToFile = 0;
-	uint32_t num_bytes_written;
 	uint32_t settle_cnt = 0;
+	int16_t * samples = pvPortMalloc(RECORD_SAMPLE_SIZE);
 
 	AudioProcessingTask_SetControl(processingOn,ProcessingCommandFinished,NULL, MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP);
 
@@ -408,58 +397,31 @@ static void DoCapture(uint32_t rate) {
 	xSemaphoreTake(_processingTaskWait,MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP);
 	LOGI("done.\r\n");
 
-	InitAudioCapture(rate);
-
-	adpcm_state pcm_state = {0};
-
 	LOGI("%d free %d stk\n", xPortGetFreeHeapSize(),  uxTaskGetStackHighWaterMark(NULL));
+	hlo_stream_t * in = hlo_audio_open_mono(rate,0,HLO_AUDIO_RECORD);
 
 	//loop until we get an event that disturbs capture
-	for (; ;) {
-
+	while(hlo_stream_transfer_all(FROM_STREAM,in,samples,RECORD_SAMPLE_SIZE,4) >= 0) {
+		//DISP("x");
 		//poll queue as I loop through capturing
 		//if a new message came in, process it, otherwise break
 		//non-blocking call here
 		if(CheckForInterruptionDuringCapture()){
-			goto CAPTURE_CLEANUP;
-		}
+			break;
+		} else if(settle_cnt++ > 3) {
+			AudioFeatures_SetAudioData(samples,_callCounter++);
 
-		iBufferFilled = GetBufferSize(pTxBuffer);
-
-		if(iBufferFilled < LISTEN_WATERMARK) {
-			//wait a bit for the tx buffer to fill
-			if( !ulTaskNotifyTake( pdTRUE, 1000 ) ) {
-				LOGE("Capture DMA timeout\n");
-				DeinitAudioCapture();
-				InitAudioCapture(rate);
-			}
-		}
-		else {
-			//dump buffer out
-			ReadBuffer(pTxBuffer,(uint8_t *)adpcm,PING_PONG_CHUNK_SIZE);
-
-			adpcm_decoder( adpcm, samples, PING_PONG_CHUNK_SIZE*2, &pcm_state );
-
-
-			if(settle_cnt++ > 3) {
-				AudioFeatures_SetAudioData(samples,_callCounter++);
-			}
 		}
 	}
 
-
-	CAPTURE_CLEANUP:
-	vPortFree(samples);
-	vPortFree(adpcm);
-
-
-	DeinitAudioCapture();
+	hlo_stream_close(in);
 
 	AudioProcessingTask_SetControl(processingOff,ProcessingCommandFinished,NULL, MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP);
 
 	//wait until ProcessingCommandFinished is returned
 	xSemaphoreTake(_processingTaskWait,MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP);
 
+	vPortFree(samples);
 	LOGI("finished audio capture\r\n");
 	LOGI("%d free %d stk\n", xPortGetFreeHeapSize(),  uxTaskGetStackHighWaterMark(NULL));
 }

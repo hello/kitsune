@@ -114,12 +114,14 @@ exit:
 //commands
 extern hlo_stream_t * open_stream_from_path(char * str, uint8_t input);
 int Cmd_audio_record_start(int argc, char *argv[]){
-	audio_sig_stop = 0;
-	hlo_audio_recorder_task("rec.raw");
+	//audio_sig_stop = 0;
+	//hlo_audio_recorder_task("rec.raw");
+	AudioTask_StartCapture(16000);
 	return 0;
 }
 int Cmd_audio_record_stop(int argc, char *argv[]){
 	AudioTask_StopPlayback();
+	AudioTask_StopCapture();
 	audio_sig_stop = 1;
 	return 0;
 

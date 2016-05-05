@@ -1733,7 +1733,7 @@ void launch_tasks() {
 	booted = true;
 
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 3, NULL);
-	//xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,1,NULL);
+	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,1,NULL);
 	UARTprintf("*");
 #ifdef KIT_INCLUDE_FILE_UPLOAD
 	xTaskCreate(FileUploaderTask_Thread,"fileUploadTask", 1024/4,NULL,1,NULL);
