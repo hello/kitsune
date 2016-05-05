@@ -339,7 +339,55 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 }
 
 
+static uint8_t CheckForInterruptionDuringCapture(void) {
+	AudioMessage_t m;
+	uint8_t ret = 0x00;
+	if (xQueuePeek(_queue,&m,0)) {
 
+		//pop
+		xQueueReceive(_queue,&m,0);
+
+		switch (m.command) {
+			case  eAudioSaveToDisk:
+				//fallthrough
+			case eAudioCaptureTurnOn:
+				//fallthrough
+			case eAudioPlaybackStop:
+				//fallthrough
+			case eAudioCaptureOctogram:
+				//ignore
+				break;
+			case eAudioCaptureTurnOff:
+			{
+				//go to cleanup, and then the next loop through
+				//the thread will turn off capturing
+
+				//place message back on queue
+				xQueueSendToFront(_queue,&m,0);
+				LOGI("received eAudioCaptureTurnOff\r\n ");
+				ret |= FLAG_STOP;
+			}
+
+			case eAudioPlaybackStart:
+			{
+				//place message back on queue
+				xQueueSendToFront(_queue,&m,0);
+				LOGI("received eAudioPlaybackStart\r\n");
+				ret |= FLAG_STOP;
+			}
+
+			default:
+			{
+				//place message back on queue
+				xQueueSendToFront(_queue,&m,0);
+				LOGI("audio task received message during capture that it did not understand, placing back on queue\r\n");
+				break;
+			}
+		}
+
+	}
+	return ret;
+}
 
 
 static void DoCapture(uint32_t rate) {
@@ -352,13 +400,6 @@ static void DoCapture(uint32_t rate) {
 	uint8_t isSavingToFile = 0;
 	uint32_t num_bytes_written;
 	uint32_t settle_cnt = 0;
-
-#ifdef PRINT_TIMING
-	uint32_t t0;
-	uint32_t t1;
-	uint32_t t2;
-	uint32_t dt;
-#endif
 
 	AudioProcessingTask_SetControl(processingOn,ProcessingCommandFinished,NULL, MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP);
 
@@ -379,51 +420,9 @@ static void DoCapture(uint32_t rate) {
 		//poll queue as I loop through capturing
 		//if a new message came in, process it, otherwise break
 		//non-blocking call here
-		if (xQueuePeek(_queue,&m,0)) {
-
-			//pop
-			xQueueReceive(_queue,&m,0);
-
-			switch (m.command) {
-			case  eAudioSaveToDisk:
-				//fallthrough
-			case eAudioCaptureTurnOn:
-				//fallthrough
-			case eAudioPlaybackStop:
-				//fallthrough
-			case eAudioCaptureOctogram:
-				//ignore
-				break;
-			case eAudioCaptureTurnOff:
-			{
-				//go to cleanup, and then the next loop through
-				//the thread will turn off capturing
-
-				//place message back on queue
-				xQueueSendToFront(_queue,&m,0);
-				LOGI("received eAudioCaptureTurnOff\r\n ");
-				goto CAPTURE_CLEANUP;
-			}
-
-			case eAudioPlaybackStart:
-			{
-				//place message back on queue
-				xQueueSendToFront(_queue,&m,0);
-				LOGI("received eAudioPlaybackStart\r\n");
-				goto CAPTURE_CLEANUP;
-			}
-
-			default:
-			{
-				//place message back on queue
-				xQueueSendToFront(_queue,&m,0);
-				LOGI("audio task received message during capture that it did not understand, placing back on queue\r\n");
-				break;
-			}
-			}
-
+		if(CheckForInterruptionDuringCapture()){
+			goto CAPTURE_CLEANUP;
 		}
-
 
 		iBufferFilled = GetBufferSize(pTxBuffer);
 
