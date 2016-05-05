@@ -323,11 +323,11 @@ static void _save_block_queue( TickType_t dly ) {
 /**
  * PUBLIC functions
  */
-void uart_logger_flush(void){
+void uart_logger_flush_err_shutdown(void){
 	//set the task to exit and wait for it to do so
-	xSemaphoreTake(self.print_sem, portMAX_DELAY);
+	//xSemaphoreTake(self.print_sem, portMAX_DELAY);
 	self.view_tag = self.store_tag = 0;
-	xSemaphoreGive(self.print_sem);
+	//xSemaphoreGive(self.print_sem);
 	//write out whatever's left in the logging block
 	_save_newest((const char*)self.logging_block, self.widx );
 	_save_block_queue(0);

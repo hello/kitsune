@@ -93,7 +93,7 @@ void uart_logf(uint16_t tag, const char *pcString, ...);
  * flushes the working buffer immediately instead of passing it to the worker task.
  * uart logger module will stop functioning right after.
  */
-void uart_logger_flush(void);
+void uart_logger_flush_err_shutdown(void);
 void uart_logger_task(void * params);
 void analytics_event_task(void * params);
 int Cmd_log_upload(int argc, char *argv[]);
