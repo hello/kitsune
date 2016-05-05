@@ -142,26 +142,3 @@ hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint8_t vol, uint32_t direction)
 	UNLOCK();
 	return ret;
 }
-
-/*
-	if(mode == CLOSED && direction == HLO_AUDIO_PLAYBACK){
-		tbl.write = _write_playback_mono;
-		if(0 == _open_playback(sr,vol)){
-			Audio_Start();
-			ret = hlo_stream_new(&tbl,NULL,HLO_STREAM_WRITE);
-		}
-	}else if(mode == CLOSED && direction == HLO_AUDIO_RECORD){
-		tbl.read = _read_record_mono;
-		if(0 == _open_record(sr)){
-			Audio_Start();
-			ret = hlo_stream_new(&tbl,NULL,HLO_STREAM_READ);
-		}
-	}else if(direction == (HLO_AUDIO_RECORD|HLO_AUDIO_PLAYBACK)){
-		LOGE("SORRY CAN'T TALK AND LISTEN AT THE SAME TIME\r\n");
-	}else{
-		LOGE("Stream in use\r\n");
-	}
-	UNLOCK();
-	return ret;
-}
-*/

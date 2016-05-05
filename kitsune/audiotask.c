@@ -347,24 +347,8 @@ static uint8_t CheckForInterruptionDuringCapture(void) {
 		xQueueReceive(_queue,&m,0);
 
 		switch (m.command) {
-			case  eAudioSaveToDisk:
-				//fallthrough
-			case eAudioCaptureTurnOn:
-				//fallthrough
 			case eAudioPlaybackStop:
 				//fallthrough
-			case eAudioCaptureOctogram:
-				//ignore
-				break;
-			case eAudioCaptureTurnOff:
-				//go to cleanup, and then the next loop through
-				//the thread will turn off capturing
-
-				//place message back on queue
-				xQueueSendToFront(_queue,&m,0);
-				LOGI("received eAudioCaptureTurnOff\r\n ");
-				ret |= FLAG_STOP;
-				break;
 			case eAudioPlaybackStart:
 				//place message back on queue
 				xQueueSendToFront(_queue,&m,0);
@@ -466,16 +450,16 @@ void AudioTask_Thread(void * data) {
 		}else if (ret == HLO_STREAM_EOF){
 			DISP("EOF\r\n");
 			vTaskDelay(1000);
-
+			if(stream_just_ended){
+				LOGI("%d free %d stk\n", xPortGetFreeHeapSize(),  uxTaskGetStackHighWaterMark(NULL));
+				stream_just_ended = 0;
+			}
 		}else{
 			LOGE("MIC Stream Error: %d\r\n", ret);
 			vTaskDelay(1000);
 		}
 
-		if(stream_just_ended){
-			LOGI("%d free %d stk\n", xPortGetFreeHeapSize(),  uxTaskGetStackHighWaterMark(NULL));
-			stream_just_ended = 0;
-		}
+
 	}
 	hlo_future_destroy(playback_thread);
 }
@@ -516,38 +500,11 @@ void AudioTask_AddMessageToQueue(const AudioMessage_t * message) {
 }
 
 void AudioTask_StartCapture(uint32_t rate) {
-	AudioMessage_t message;
-
-	if (_queue && xQueuePeek(_queue,&message,0)) {
-		if( message.command == eAudioCaptureTurnOn ) {
-			return;
-		}
-	}
-	//turn on
-	LOGI("mic on\r\n");
-	memset(&message,0,sizeof(message));
-	message.command = eAudioCaptureTurnOn;
-	message.message.capturedesc.rate = rate;
-	message.message.capturedesc.flags = 0;
-
-	AudioTask_AddMessageToQueue(&message);
 
 }
 
 void AudioTask_StopCapture(void) {
-	AudioMessage_t message;
 
-	if (_queue && xQueuePeek(_queue,&message,0)) {
-		if( message.command == eAudioCaptureTurnOff ) {
-			return;
-		}
-	}
-
-	LOGI("mic off\r\n");
-
-	memset(&message,0,sizeof(message));
-	message.command = eAudioCaptureTurnOff;
-	AudioTask_AddMessageToQueue(&message);
 }
 
 void AudioTask_DumpOncePerMinuteStats(AudioOncePerMinuteData_t * pdata) {

@@ -6,12 +6,8 @@
 #include "hlo_stream.h"
 
 typedef enum {
-	eAudioCaptureTurnOn,
-	eAudioCaptureTurnOff,
-	eAudioSaveToDisk,
 	eAudioPlaybackStart,
 	eAudioPlaybackStop,
-	eAudioCaptureOctogram,
 } EAudioCommand_t;
 
 typedef struct {

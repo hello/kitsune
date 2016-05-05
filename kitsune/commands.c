@@ -308,38 +308,6 @@ int Cmd_fs_read(int argc, char *argv[]) {
 	return 0;
 }
 
-int Cmd_record_buff(int argc, char *argv[]) {
-	AudioMessage_t m;
-	static xSemaphoreHandle wait = 0;
-
-	if (!wait) {
-		wait = xSemaphoreCreateBinary();
-	}
-
-	//turn on
-	AudioTask_StartCapture(atoi(argv[1]));
-
-	//capture
-	memset(&m,0,sizeof(m));
-	m.command = eAudioSaveToDisk;
-	m.message.capturedesc.change = startSaving;
-	AudioTask_AddMessageToQueue(&m);
-
-	xSemaphoreTake(wait,10000); //10 seconds
-
-	m.command = eAudioSaveToDisk;
-	m.message.capturedesc.change = stopSaving;
-	AudioTask_AddMessageToQueue(&m);
-
-
-	m.command = eAudioCaptureTurnOff;
-	AudioTask_AddMessageToQueue(&m);
-
-	return 0;
-
-}
-
-
 int Cmd_audio_turn_on(int argc, char * argv[]) {
 
 	AudioTask_StartCapture(16000);
