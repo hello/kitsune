@@ -47,7 +47,7 @@ typedef struct{
 //view info
 void hlo_stream_info(const hlo_stream_t * stream);
 
-//nonblocking pair
+//nonblocking and threadsafe (incl. implementer's method as well.)
 int hlo_stream_write(hlo_stream_t * stream, const void * buf, size_t size);
 int hlo_stream_read(hlo_stream_t * stream, void * buf, size_t size);
 
