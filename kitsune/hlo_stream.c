@@ -162,8 +162,13 @@ static int random_read(void * ctx, void * buf, size_t size){
 	get_random(size,(uint8_t*)buf);
 	return size;
 }
+static int random_seed(void *ctx, const void * buf, size_t size){
+	//TODO seed rng
+	return size;
+}
 static hlo_stream_vftbl_t random_stream_impl = {
 		.read = random_read,
+		.write = random_seed,
 };
 hlo_stream_t * random_stream_open(void){
 	static hlo_stream_t * rng;

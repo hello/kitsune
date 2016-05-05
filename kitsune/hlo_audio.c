@@ -7,7 +7,7 @@
 #include "uart_logger.h"
 #include "kit_assert.h"
 
-
+#define MODESWITCH_TIMEOUT_MS 500
 extern tCircularBuffer * pRxBuffer;
 extern tCircularBuffer * pTxBuffer;
 
@@ -15,25 +15,53 @@ typedef struct{
 
 }hlo_audio_t;
 static xSemaphoreHandle lock;
-static enum{
+static hlo_stream_t * master;
+typedef enum{
 	CLOSED = 0,
-	OPEN,
-}mode;
+	PLAYBACK,
+	RECORD,
+}codec_state_t;
+static codec_state_t mode;
+static unsigned long record_sr;
+static unsigned long playback_sr;
+
+static int _close_playback(void);
+static int _close_record(void);
+static TickType_t last_playback_time;
 
 #define LOCK() xSemaphoreTakeRecursive(lock,portMAX_DELAY)
 #define UNLOCK() xSemaphoreGiveRecursive(lock)
-
+#define ERROR_IF_CLOSED() if(mode == CLOSED) {return HLO_STREAM_ERROR;}
 ////------------------------------
 // playback stream driver
-static int _close_playback(void * ctx){
+static int _playback_done(void){
+	return (int)( (xTaskGetTickCount() - last_playback_time) > MODESWITCH_TIMEOUT_MS);
+}
+static int _close_playback(void){
 	Audio_Stop();
 	DeinitAudioPlayback();
-	LOCK();
 	mode = CLOSED;
-	UNLOCK();
 	return 0;
 }
+static int _open_playback(uint32_t sr, uint8_t vol){
+	if(!InitAudioPlayback(vol, sr)){
+		return -1;
+	}else{
+		mode = PLAYBACK;
+		Audio_Start();
+		DISP("Codec in SPKR mode\r\n");
+		return 0;
+	}
+}
 static int _write_playback_mono(void * ctx, const void * buf, size_t size){
+	ERROR_IF_CLOSED();
+	last_playback_time = xTaskGetTickCount();
+	if( mode == RECORD ){
+		//playback has priority, always swap to playback state
+		_close_record();
+		_open_playback(playback_sr, 0);
+		return 0;
+	}
 	int bytes_consumed = min(512, size);
 	if(IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) == TRUE){
 		return 0;
@@ -46,35 +74,38 @@ static int _write_playback_mono(void * ctx, const void * buf, size_t size){
 	}
 	return 0;
 }
-static int _open_playback(uint32_t sr, uint8_t vol){
-	if(!InitAudioPlayback(vol, sr)){
-		return -1;
-	}else{
-		LOCK();
-		mode = OPEN;
-		UNLOCK();
-		return 0;
-	}
-}
+
 ////------------------------------
 //record stream driver
-static int _close_record(void * ctx){
+static int _close_record(void){
 	Audio_Stop();
 	DeinitAudioCapture();
-	LOCK();
 	mode = CLOSED;
-	UNLOCK();
 	return 0;
 }
-//assumes to have at least 4 bytes
-static inline int16_t i2s_to_i16(const uint8_t * buf){
-	int16_t * buf16 = (int16_t *)buf;
-	return ((buf16[1] << 8) | (buf16[1] >> 8));
+static int _open_record(uint32_t sr){
+	if(!InitAudioCapture(sr)){
+		return -1;
+	}
+	mode = RECORD;
+	Audio_Start();
+	DISP("Codec in MIC mode\r\n");
+	return 0;
 }
 static int _read_record_mono(void * ctx, void * buf, size_t size){
+	ERROR_IF_CLOSED();
+	if( mode == PLAYBACK ){
+		//swap mode back to record iff playback buffer is empty
+		if( _playback_done() ){
+			_close_playback();
+			_open_record(record_sr);
+			return 0;//do not act immediately after mode switch
+		}else{
+			return HLO_STREAM_EOF;
+		}
+	}
 	int raw_buff_size =  GetBufferSize(pTxBuffer);
 	int fill_size = min(raw_buff_size, size);
-	uint8_t tmp[4] = {0};
 	if(raw_buff_size < 1*PING_PONG_CHUNK_SIZE) {
 		//todo remove and completely empty buffer on demand
 		return 0;
@@ -84,38 +115,43 @@ static int _read_record_mono(void * ctx, void * buf, size_t size){
 		return fill_size;
 	}
 }
-static int _open_record(uint32_t sr){
-	if(!InitAudioCapture(sr)){
-		return -1;
-	}
-	LOCK();
-	mode = OPEN;
-	UNLOCK();
-	return 0;
-}
 
 ////------------------------------
 //  Public API
 void hlo_audio_init(void){
 	lock = xSemaphoreCreateRecursiveMutex();
+	hlo_stream_vftbl_t tbl = { 0 };
+	tbl.write = _write_playback_mono;
+	tbl.read = _read_record_mono;
+	tbl.close = NULL;
+	master = hlo_stream_new(&tbl, NULL, HLO_AUDIO_RECORD|HLO_AUDIO_PLAYBACK);
 	mode = CLOSED;
 	assert(lock);
 }
 
 hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint8_t vol, uint32_t direction){
-	hlo_stream_vftbl_t tbl = { 0 };
-	hlo_stream_t * ret = NULL;
+	hlo_stream_t * ret = master;
 	LOCK();
+	record_sr = 16000;
+	playback_sr = 48000;
+	if(mode == CLOSED){
+		if( 0 != _open_record(sr) ){
+			ret = NULL;
+		}
+	}
+	UNLOCK();
+	return ret;
+}
+
+/*
 	if(mode == CLOSED && direction == HLO_AUDIO_PLAYBACK){
 		tbl.write = _write_playback_mono;
-		tbl.close = _close_playback;
 		if(0 == _open_playback(sr,vol)){
 			Audio_Start();
 			ret = hlo_stream_new(&tbl,NULL,HLO_STREAM_WRITE);
 		}
 	}else if(mode == CLOSED && direction == HLO_AUDIO_RECORD){
 		tbl.read = _read_record_mono;
-		tbl.close = _close_record;
 		if(0 == _open_record(sr)){
 			Audio_Start();
 			ret = hlo_stream_new(&tbl,NULL,HLO_STREAM_READ);
@@ -128,3 +164,4 @@ hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint8_t vol, uint32_t direction)
 	UNLOCK();
 	return ret;
 }
+*/
