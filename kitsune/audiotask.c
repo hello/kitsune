@@ -62,9 +62,7 @@ static xQueueHandle _state_queue = NULL;
 static xSemaphoreHandle _processingTaskWait = NULL;
 static xSemaphoreHandle _statsMutex = NULL;
 
-static uint8_t _isCapturing = 0;
 static int64_t _callCounter;
-static uint32_t _filecounter;
 
 static AudioOncePerMinuteData_t _stats;
 
@@ -170,11 +168,7 @@ static bool _queue_audio_playback_state(playstate_t is_playing, const AudioPlayb
 
 
 static void Init(void) {
-	_isCapturing = 0;
 	_callCounter = 0;
-	_filecounter = 0;
-
-	InitAudioHelper();
 
 	audio_task_hndl = xTaskGetCurrentTaskHandle();
 
@@ -250,7 +244,10 @@ static void _change_volume_task(hlo_future_t * result, void * ctx){
 			continue;
 		}
 		//fallthrough if volume adjust is needed
-		LOGI("Setting volume %u at %u\n", v->current, xTaskGetTickCount());
+		if(v->current % 10 == 0){
+			LOGI("Setting volume %u at %u\n", v->current, xTaskGetTickCount());
+		}
+
 		if( xSemaphoreTakeRecursive(i2c_smphr, 100)) {
 			//set vol
 			vTaskDelay(5);
@@ -390,14 +387,14 @@ static void DoCapture(uint32_t rate) {
 	uint32_t settle_cnt = 0;
 	int16_t * samples = pvPortMalloc(RECORD_SAMPLE_SIZE);
 
-	AudioProcessingTask_SetControl(processingOn,ProcessingCommandFinished,NULL, MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP);
+	/*AudioProcessingTask_SetControl(processingOn,ProcessingCommandFinished,NULL, MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP);
 
 	//wait until processing is turned on
 	LOGI("Waiting for processing to start... \r\n");
 	xSemaphoreTake(_processingTaskWait,MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP);
-	LOGI("done.\r\n");
+	LOGI("done.\r\n");*/
 
-	LOGI("%d free %d stk\n", xPortGetFreeHeapSize(),  uxTaskGetStackHighWaterMark(NULL));
+
 	hlo_stream_t * in = hlo_audio_open_mono(rate,0,HLO_AUDIO_RECORD);
 
 	//loop until we get an event that disturbs capture
@@ -416,77 +413,71 @@ static void DoCapture(uint32_t rate) {
 
 	hlo_stream_close(in);
 
-	AudioProcessingTask_SetControl(processingOff,ProcessingCommandFinished,NULL, MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP);
+	/*AudioProcessingTask_SetControl(processingOff,ProcessingCommandFinished,NULL, MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP);
 
 	//wait until ProcessingCommandFinished is returned
 	xSemaphoreTake(_processingTaskWait,MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP);
-
+	*/
 	vPortFree(samples);
 	LOGI("finished audio capture\r\n");
 	LOGI("%d free %d stk\n", xPortGetFreeHeapSize(),  uxTaskGetStackHighWaterMark(NULL));
 }
 
 
-
-
+static void _playback_thread(hlo_future_t * result, void * ctx){
+	while(1){
+		AudioMessage_t  m;
+		if (xQueueReceive( _queue,(void *) &m, portMAX_DELAY )) {
+			switch (m.command) {
+				case eAudioPlaybackStart:
+					DoPlayback(&(m.message.playbackdesc));
+					if (m.message.playbackdesc.onFinished) {
+						m.message.playbackdesc.onFinished(m.message.playbackdesc.context);
+					}
+					//fallthrough
+				default:
+					break;
+			}
+		}
+	}
+}
 
 void AudioTask_Thread(void * data) {
-
-	AudioMessage_t  m;
 
 	Init();
 
 
+	hlo_stream_t * mic = hlo_audio_open_mono(16000,0,HLO_AUDIO_RECORD);
+	assert(mic);
+	/**
+	* fork a task for playback
+	*/
+	hlo_future_t * playback_thread = hlo_future_create_task_bg(_playback_thread, NULL, 2048);
+	assert(playback_thread);
+
+	uint8_t buf[RECORD_SAMPLE_SIZE] = {0};
+	uint8_t stream_just_ended = 1;	//variable for stream transition edge
+
 	for (; ;) {
-		memset(&m,0,sizeof(m));
+		int ret =  hlo_stream_transfer_all(FROM_STREAM, mic,buf,sizeof(buf),4);
+		if( ret >= 0){
+			stream_just_ended = 1;
+			//process
+		}else if (ret == HLO_STREAM_EOF){
+			DISP("EOF\r\n");
+			vTaskDelay(1000);
 
-		/* Wait until we get a message */
-		if (xQueueReceive( _queue,(void *) &m, portMAX_DELAY )) {
+		}else{
+			LOGE("MIC Stream Error: %d\r\n", ret);
+			vTaskDelay(1000);
+		}
 
-
-			/* PROCESS COMMANDS */
-			switch (m.command) {
-
-			case eAudioCaptureTurnOn:
-			{
-				//if audio was turned on, we remember that we are on
-				_isCapturing = 1;
-
-				DoCapture(m.message.capturedesc.rate);
-				break;
-			}
-
-			case eAudioCaptureTurnOff:
-			{
-				_isCapturing = 0;
-				break;
-			}
-
-			case eAudioPlaybackStart:
-			{
-				DoPlayback(&(m.message.playbackdesc));
-
-				if (m.message.playbackdesc.onFinished) {
-					m.message.playbackdesc.onFinished(m.message.playbackdesc.context);
-				}
-
-				break;
-			}
-
-			default:
-			{
-				LOGI("audio task ignoring message enum %d",m.command);
-				break;
-			}
-			}
-
-			//so even if we just played back a file
-			//if we were supposed to be capturing, we resume that mode
-			if (_isCapturing) {
-				AudioTask_StartCapture(16000);
-			}
+		if(stream_just_ended){
+			LOGI("%d free %d stk\n", xPortGetFreeHeapSize(),  uxTaskGetStackHighWaterMark(NULL));
+			stream_just_ended = 0;
 		}
 	}
+	hlo_future_destroy(playback_thread);
 }
 
 
