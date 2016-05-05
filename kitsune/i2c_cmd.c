@@ -39,6 +39,7 @@
 #define DELAY_CODEC 		5 // TODO set arbitrarily, might need to be adjusted
 #define CODEC_USE_MINIDSP 	0 // Set to 1 if using miniDSP, else 0
 #define CODEC_6_WIRE     	0
+#define CODEC_MULTI_CH_SINGLE_PIN 0
 
 extern xSemaphoreHandle i2c_smphr;
 
@@ -1446,10 +1447,18 @@ static void codec_asi_config(void)
 	cmd[1] = 0;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
-	// w 30 04 40 # Enable 4 channel for ASI1 bus - MULTI CHANNEL TODO DKH
+	// MULTI CHANNEL TODO DKH
+#if (CODEC_MULTI_CH_SINGLE_PIN == 1)
+	// w 30 04 40 # Enable 4 channel for ASI1 bus
 	cmd[0] = 0x04;
-	cmd[1] = 0; // (1 << 6); Enable this later
+	cmd[1] = (1 << 6); // 2-pair of left and right channel (i.e. 4-channel) is enabled for the ASI1 bus
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+#else
+	// w 30 04 40 # Enable 4 channel for ASI1 bus
+	cmd[0] = 0x04;
+	cmd[1] = 0;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+#endif
 
 	//	w 30 0a 00 # ASI1 WCLK/BCLK to WCLK1 pin/BCLK1 pin
 	cmd[0] = 0x0A;
