@@ -51,9 +51,6 @@
 
 #define SAVE_BASE "/usr/A"
 
-/* globals */
-extern tCircularBuffer * pRxBuffer;
-extern tCircularBuffer * pTxBuffer;
 TaskHandle_t audio_task_hndl;
 
 /* static variables  */
