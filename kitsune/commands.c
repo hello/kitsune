@@ -358,69 +358,7 @@ int Cmd_get_octogram(int argc, char * argv[]) {
 
 	return 0;
 }
-int Cmd_do_octogram(int argc, char * argv[]) {
-	AudioMessage_t m;
-    int32_t numsamples = atoi( argv[1] );
-    uint16_t i,j;
-    int counts;
 
-    if( argc == 1 ) {
-    	numsamples = 500;
-    	counts = 1;
-    } else {
-        counts = atoi( argv[2] );
-    }
-    if (numsamples == 0) {
-    	LOGF("number of requested samples was zero.\r\n");
-    	return 0;
-    }
-
-    if( !octogram_semaphore ) {
-    	octogram_semaphore = xSemaphoreCreateBinary();
-    }
-    for( j = 0; j< counts; ++j) {
-
-		memset(&m,0,sizeof(m));
-
-		AudioTask_StartCapture(22050);
-
-		m.command = eAudioCaptureOctogram;
-		m.message.octogramdesc.result = &octorgram_result;
-		m.message.octogramdesc.analysisduration = numsamples;
-		m.message.octogramdesc.onFinished = octogram_notification;
-		m.message.octogramdesc.context = octogram_semaphore;
-
-		AudioTask_AddMessageToQueue(&m);
-
-		if( argc == 1 ) {
-			return 0;
-		}
-
-		xSemaphoreTake(octogram_semaphore,portMAX_DELAY);
-
-
-		int avg = 0;
-		avg += octorgram_result.logenergy[3];
-		avg += octorgram_result.logenergy[4];
-		avg += octorgram_result.logenergy[5];
-		avg += octorgram_result.logenergy[6];
-		avg /= 4;
-
-		//report results
-		LOGF("%d\r\n", octorgram_result.logenergy[2] - avg );
-		for (i = 0; i < OCTOGRAM_SIZE; i++) {
-			if (i != 0) {
-				LOGI(",");
-			}
-			LOGI("%d",octorgram_result.logenergy[i]);
-		}
-		LOGI("\r\n");
-
-    }
-
-	return 0;
-
-}
 
 int Cmd_fs_delete(int argc, char *argv[]) {
 	//
