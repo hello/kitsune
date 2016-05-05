@@ -1040,7 +1040,7 @@ static uint32_t sd_card_test(bool rw, uint8_t* ptr, filesystem_rw_func_t fs_rw_f
 			if(data_ptr[i] != test_code)
 			{
 				LOGE("DM read at %d: 0x%x\n",i, data_ptr[i]);
-				return FR_RW_ERROR;
+				return FR_DISK_ERR;
 			}
 
 		}
