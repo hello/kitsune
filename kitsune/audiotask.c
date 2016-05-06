@@ -228,9 +228,6 @@ static void _playback_loop(AudioPlaybackDesc_t * desc, audio_control_signal sig_
 	int ret;
 	uint8_t chunk[512]; //arbitrary
 
-	if(!desc || !desc->stream || !sig_stop){
-		return;
-	}
 	ramp_ctx_t vol = (ramp_ctx_t){
 		.current = 0,
 		.target = desc->volume,
