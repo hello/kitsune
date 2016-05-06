@@ -110,7 +110,7 @@ int Cmd_audio_octogram(int argc, char *argv[]){
 }
 int Cmd_audio_features(int argc, char *argv[]){
 	audio_sig_stop = 0;
-	hlo_audio_feature_extraction_task(open_stream_from_path(argv[1],1));
+	//hlo_audio_feature_extraction_task(open_stream_from_path(argv[1],1));
 	return 0;
 }
 
