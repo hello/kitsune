@@ -72,42 +72,6 @@ exit:
 	DISP("Octogram Task Finished %d\r\n", ret);
 	hlo_stream_close(input);
 }
-////-------------------------------------------
-//feature xtraction sample app
-
-static int64_t _callCounter;
-static void DataCallback(const AudioFeatures_t * pfeats) {
-	//AudioProcessingTask_AddFeaturesToQueue(pfeats);
-	//DISP("audio feature: logEg: %d, overbg: %dr\n", pfeats->logenergy, pfeats->logenergyOverBackroundNoise);
-}
-static void StatsCallback(const AudioOncePerMinuteData_t * pdata) {
-	LOGI("audio disturbance: background=%d, peak=%d\n",pdata->peak_background_energy,pdata->peak_energy);
-}
-
-void hlo_audio_feature_extraction_task(void * data){
-	hlo_stream_t * input = (hlo_stream_t*)data;
-	AudioFeatures_Init(DataCallback,StatsCallback);
-	int16_t * samples = pvPortMalloc(PROCESSOR_BUFFER_SIZE);
-	int i,ret;
-	if(!samples){
-		goto exit;
-	}
-	while( (ret = hlo_stream_transfer_all(FROM_STREAM,input,(uint8_t*)samples,PROCESSOR_BUFFER_SIZE,4)) > 0){
-		for(i = 0; i < 256; i++){
-			int32_t sum = samples[i] + samples[AUDIO_FFT_SIZE+i] + samples[(2*AUDIO_FFT_SIZE)+i];
-			samples[i] = (int16_t)(sum / 3);
-		}
-		AudioFeatures_SetAudioData(samples,_callCounter++);
-		if(audio_sig_stop){
-			break;
-		}
-	}
-	vPortFree(samples);
-exit:
-	DISP("Audio Feature Task Finished %d\r\n", ret);
-	hlo_stream_close(input);
-
-}
 ////-----------------------------------------
 //commands
 extern hlo_stream_t * open_stream_from_path(char * str, uint8_t input);
@@ -119,7 +83,6 @@ int Cmd_audio_record_start(int argc, char *argv[]){
 }
 int Cmd_audio_record_stop(int argc, char *argv[]){
 	AudioTask_StopPlayback();
-	AudioTask_StopCapture();
 	audio_sig_stop = 1;
 	return 0;
 

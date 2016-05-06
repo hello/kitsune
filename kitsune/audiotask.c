@@ -386,15 +386,13 @@ void AudioTask_AddMessageToQueue(const AudioMessage_t * message) {
 		xQueueSend(_playback_queue,message,0);
 	}
 }
-
-void AudioTask_StartCapture(uint32_t rate) {
-
-}
-
-void AudioTask_StopCapture(void) {
+void AudioTask_StopCapture(void){
 
 }
 
+void AudioTask_StartCapture(uint32_t rate){
+
+}
 void AudioTask_DumpOncePerMinuteStats(AudioOncePerMinuteData_t * pdata) {
 	xSemaphoreTake(_statsMutex,portMAX_DELAY);
 	memcpy(pdata,&_stats,sizeof(AudioOncePerMinuteData_t));

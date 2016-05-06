@@ -316,12 +316,6 @@ int Cmd_audio_turn_on(int argc, char * argv[]) {
 	return 0;
 }
 
-int Cmd_audio_turn_off(int agrc, char * agrv[]) {
-	AudioTask_StopCapture();
-	return 0;
-
-}
-
 int Cmd_stop_buff(int argc, char *argv[]) {
 	AudioTask_StopPlayback();
 
@@ -1897,7 +1891,6 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "feat", Cmd_audio_features, ""},
 		{ "getoct",Cmd_get_octogram,""},
 		{ "aon",Cmd_audio_turn_on,""},
-		{ "aoff",Cmd_audio_turn_off,""},
 #if 0
 		{ "sl", Cmd_sl, "" }, // smart config
 		{ "mode", Cmd_mode, "" }, //set the ap/station mode
