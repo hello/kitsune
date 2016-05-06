@@ -54,20 +54,13 @@
 TaskHandle_t audio_task_hndl;
 
 /* static variables  */
-static xQueueHandle _queue = NULL;
+static xQueueHandle _playback_queue = NULL;
 static xQueueHandle _state_queue = NULL;
-static xSemaphoreHandle _processingTaskWait = NULL;
 static xSemaphoreHandle _statsMutex = NULL;
 
 static int64_t _callCounter;
 
 static AudioOncePerMinuteData_t _stats;
-
-
-/* CALLBACKS  */
-static void ProcessingCommandFinished(void * context) {
-	xSemaphoreGive(_processingTaskWait);
-}
 
 static void DataCallback(const AudioFeatures_t * pfeats) {
 	AudioProcessingTask_AddFeaturesToQueue(pfeats);
@@ -169,13 +162,8 @@ static void Init(void) {
 
 	audio_task_hndl = xTaskGetCurrentTaskHandle();
 
-	if (!_queue) {
-		_queue = xQueueCreate(INBOX_QUEUE_LENGTH,sizeof(AudioMessage_t));
-	}
-
-	if (!_processingTaskWait) {
-		_processingTaskWait = xSemaphoreCreateBinary();
-		assert(_processingTaskWait);
+	if (!_playback_queue) {
+		_playback_queue = xQueueCreate(INBOX_QUEUE_LENGTH,sizeof(AudioMessage_t));
 	}
 
 	if (!_statsMutex) {
@@ -197,14 +185,14 @@ static uint8_t CheckForInterruptionDuringPlayback(void) {
 	uint8_t ret = 0x00;
 
 	/* Take a peak at the top of our queue.  If we get something that says stop, we stop  */
-	if (xQueueReceive(_queue,(void *)&m,0)) {
+	if (xQueueReceive(_playback_queue,(void *)&m,0)) {
 
 		if (m.command == eAudioPlaybackStop) {
 			ret = FLAG_STOP;
 			LOGI("Stopping playback\r\n");
 		}
 		if (!ret) {
-			xQueueSendToFront(_queue, (void*)&m, 0);
+			xQueueSendToFront(_playback_queue, (void*)&m, 0);
 		}
 		if (m.command == eAudioPlaybackStart ) {
 			ret = FLAG_STOP;
@@ -223,6 +211,7 @@ typedef struct{
 	unsigned long target;
 	unsigned long ramp_up_ms;
 	unsigned long ramp_down_ms;
+	portTickType  end_tick;
 }ramp_ctx_t;
 extern xSemaphoreHandle i2c_smphr;
 extern bool set_volume(int v, unsigned int dly);
@@ -230,6 +219,9 @@ extern bool set_volume(int v, unsigned int dly);
 static void _change_volume_task(hlo_future_t * result, void * ctx){
 	volatile ramp_ctx_t * v = (ramp_ctx_t*)ctx;
 	while( v->target || v->current ){
+		if (xTaskGetTickCount() >= v->end_tick ){
+			v->target = 0;
+		}
 		if(v->current > v->target){
 			vTaskDelay(v->ramp_down_ms);
 			v->current--;
@@ -269,12 +261,13 @@ static void _playback_loop(AudioPlaybackDesc_t * desc, audio_control_signal sig_
 	if(!desc || !desc->stream || !sig_stop){
 		return;
 	}
-	portTickType end = xTaskGetTickCount() + desc->durationInSeconds * 1000;
-	ramp_ctx_t vol;
-	vol.current = 0;
-	vol.target = desc->volume;
-	vol.ramp_up_ms = desc->fade_in_ms / (desc->volume + 1);
-	vol.ramp_down_ms = desc->fade_out_ms / (desc->volume + 1);
+	ramp_ctx_t vol = (ramp_ctx_t){
+		.current = 0,
+		.target = desc->volume,
+		.ramp_up_ms = desc->fade_in_ms / (desc->volume + 1),
+		.ramp_down_ms = desc->fade_out_ms / (desc->volume + 1),
+		.end_tick =  xTaskGetTickCount() + desc->durationInSeconds * 1000,
+	};
 
 	hlo_stream_t * spkr = hlo_audio_open_mono(desc->rate,0,HLO_AUDIO_PLAYBACK);
 	hlo_stream_t * fs = desc->stream;
@@ -282,7 +275,7 @@ static void _playback_loop(AudioPlaybackDesc_t * desc, audio_control_signal sig_
 	hlo_future_t * vol_task = (hlo_future_t*)hlo_future_create_task_bg(_change_volume_task,(void*)&vol,1024);
 
 	while( (ret = hlo_stream_transfer_between(fs,spkr,chunk, sizeof(chunk),2)) > 0){
-		if( sig_stop() || xTaskGetTickCount() >= end){
+		if( sig_stop() ){
 			//signal ramp down
 			vol.target = 0;
 		}
@@ -338,23 +331,23 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 static uint8_t CheckForInterruptionDuringCapture(void) {
 	AudioMessage_t m;
 	uint8_t ret = 0x00;
-	if (xQueuePeek(_queue,&m,0)) {
+	if (xQueuePeek(_playback_queue,&m,0)) {
 
 		//pop
-		xQueueReceive(_queue,&m,0);
+		xQueueReceive(_playback_queue,&m,0);
 
 		switch (m.command) {
 			case eAudioPlaybackStop:
 				//fallthrough
 			case eAudioPlaybackStart:
 				//place message back on queue
-				xQueueSendToFront(_queue,&m,0);
+				xQueueSendToFront(_playback_queue,&m,0);
 				LOGI("received eAudioPlaybackStart\r\n");
 				ret |= FLAG_STOP;
 				break;
 			default:
 				//place message back on queue
-				xQueueSendToFront(_queue,&m,0);
+				xQueueSendToFront(_playback_queue,&m,0);
 				LOGI("audio task received message during capture that it did not understand, placing back on queue\r\n");
 				break;
 		}
@@ -367,13 +360,6 @@ static uint8_t CheckForInterruptionDuringCapture(void) {
 static void DoCapture(uint32_t rate) {
 	uint32_t settle_cnt = 0;
 	int16_t * samples = pvPortMalloc(RECORD_SAMPLE_SIZE);
-
-	AudioProcessingTask_SetControl(processingOn,ProcessingCommandFinished,NULL, MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP);
-
-	//wait until processing is turned on
-	LOGI("Waiting for processing to start... \r\n");
-	xSemaphoreTake(_processingTaskWait,MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP);
-	LOGI("done.\r\n");
 
 
 	hlo_stream_t * in = hlo_audio_open_mono(rate,0,HLO_AUDIO_RECORD);
@@ -393,22 +379,18 @@ static void DoCapture(uint32_t rate) {
 	}
 
 	hlo_stream_close(in);
-
-	/*AudioProcessingTask_SetControl(processingOff,ProcessingCommandFinished,NULL, MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP);
-
-	//wait until ProcessingCommandFinished is returned
-	xSemaphoreTake(_processingTaskWait,MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP);
-	*/
 	vPortFree(samples);
 	LOGI("finished audio capture\r\n");
 	LOGI("%d free %d stk\n", xPortGetFreeHeapSize(),  uxTaskGetStackHighWaterMark(NULL));
 }
 
-
+/**
+ *
+ **/
 static void _playback_thread(hlo_future_t * result, void * ctx){
 	while(1){
 		AudioMessage_t  m;
-		if (xQueueReceive( _queue,(void *) &m, portMAX_DELAY )) {
+		if (xQueueReceive( _playback_queue,(void *) &m, portMAX_DELAY )) {
 			switch (m.command) {
 				case eAudioPlaybackStart:
 					DoPlayback(&(m.message.playbackdesc));
@@ -469,8 +451,8 @@ void AudioTask_StopPlayback(void) {
 	m.command = eAudioPlaybackStop;
 
 	//send to front of queue so this message is always processed first
-	if (_queue) {
-		xQueueSendToFront(_queue,(void *)&m,0);
+	if (_playback_queue) {
+		xQueueSendToFront(_playback_queue,(void *)&m,0);
 		_queue_audio_playback_state(SILENT, NULL);
 	}
 }
@@ -483,16 +465,16 @@ void AudioTask_StartPlayback(const AudioPlaybackDesc_t * desc) {
 	memcpy(&m.message.playbackdesc,desc,sizeof(AudioPlaybackDesc_t));
 
 	//send to front of queue so this message is always processed first
-	if (_queue) {
-		xQueueSendToFront(_queue,(void *)&m,0);
+	if (_playback_queue) {
+		xQueueSendToFront(_playback_queue,(void *)&m,0);
 		_queue_audio_playback_state(PLAYING, desc);
 	}
 }
 
 
 void AudioTask_AddMessageToQueue(const AudioMessage_t * message) {
-	if (_queue) {
-		xQueueSend(_queue,message,0);
+	if (_playback_queue) {
+		xQueueSend(_playback_queue,message,0);
 	}
 }
 

@@ -34,9 +34,7 @@ typedef enum {
 
 typedef struct {
 	EAudioProcesingMessage_t type;
-	NotificationCallback_t onFinished;
 	void * context;
-
 	union {
 		AudioFeatures_t feats;
 		EAudioProcessingCommand_t cmd;
@@ -101,13 +99,11 @@ void AudioProcessingTask_AddFeaturesToQueue(const AudioFeatures_t * feat) {
 	}
 }
 
-void AudioProcessingTask_SetControl(EAudioProcessingCommand_t cmd,NotificationCallback_t onFinished, void * context, TickType_t wait ) {
+void AudioProcessingTask_SetControl(EAudioProcessingCommand_t cmd, TickType_t wait ) {
 	AudioProcessingTaskMessage_t m;
 	memset(&m,0,sizeof(m));
 	m.message.cmd = cmd;
 	m.type = command;
-	m.onFinished = onFinished;
-	m.context = context;
 
 	if (_queue) {
 		xQueueSend(_queue,&m,wait);
@@ -153,7 +149,7 @@ void AudioProcessingTask_Thread(void * data) {
 	uint8_t featureUploads = 0;
 
 	Init();
-
+	Setup();
 	for( ;; ) {
 		/* Wait until we get a message */
         xQueueReceive( _queue,(void *) &m, portMAX_DELAY );
@@ -164,18 +160,6 @@ void AudioProcessingTask_Thread(void * data) {
     	case command:
     	{
     		switch (m.message.cmd) {
-
-    		case processingOff:
-    		{
-    			TearDown();
-    			break;
-    		}
-
-    		case processingOn:
-    		{
-    			Setup();
-    			break;
-    		}
 
     		case featureUploadsOn:
     		{
@@ -229,10 +213,6 @@ void AudioProcessingTask_Thread(void * data) {
     	//end critical section
     	xSemaphoreGive(_mutex);
 
-
-    	if (m.onFinished) {
-    		m.onFinished(m.context);
-    	}
-
 	}
+	TearDown();
 }

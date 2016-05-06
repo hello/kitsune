@@ -312,11 +312,7 @@ int Cmd_audio_turn_on(int argc, char * argv[]) {
 
 	AudioTask_StartCapture(16000);
 
-	AudioProcessingTask_SetControl(featureUploadsOn,NULL,NULL,0);
-#ifdef KIT_INCLUDE_FILE_UPLOAD
-	AudioProcessingTask_SetControl(rawUploadsOn,NULL,NULL,0);
-#endif
-
+	AudioProcessingTask_SetControl(featureUploadsOn,0);
 	return 0;
 }
 

@@ -179,10 +179,6 @@ void AudioFeatures_Init(AudioFeatureCallback_t fpCallback,AudioOncePerMinuteData
 
 }
 
-void AudioFeatures_SetParams(uint16_t psd_min_energy) {
-    _data.psd_min_energy = psd_min_energy;
-}
-
 static int32_t GetAudioEnergyAsDBA(int16_t logenergy) {
 	int32_t dba = 0;
 

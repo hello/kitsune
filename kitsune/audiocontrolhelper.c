@@ -36,14 +36,14 @@ void AudioControlHelper_SetAudioControl(AudioControl * pcontrol) {
 		case AudioControl_AudioCaptureAction_ON:
 		{
 			//turn on uploading of audio MFCC features
-			AudioProcessingTask_SetControl(featureUploadsOn,NULL,NULL, 1000);
+			AudioProcessingTask_SetControl(featureUploadsOn, 1000);
 			break;
 		}
 
 		case AudioControl_AudioCaptureAction_OFF:
 		{
 			//turn off uploading of audio MFCC features
-			AudioProcessingTask_SetControl(featureUploadsOff,NULL,NULL, 1000);
+			AudioProcessingTask_SetControl(featureUploadsOff, 1000);
 			break;
 		}
 
