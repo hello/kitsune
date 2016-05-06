@@ -39,17 +39,8 @@
 
 #define INBOX_QUEUE_LENGTH (5)
 
-#define NUMBER_OF_TICKS_IN_A_SECOND (1000)
-
-#define MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP (50000)
-
-#define MAX_NUMBER_TIMES_TO_WAIT_FOR_AUDIO_BUFFER_TO_FILL (5)
-#define MAX_FILE_SIZE_BYTES (1048576*10)
-
 #define FLAG_SUCCESS (0x01)
 #define FLAG_STOP    (0x02)
-
-#define SAVE_BASE "/usr/A"
 
 TaskHandle_t audio_task_hndl;
 
@@ -57,9 +48,6 @@ TaskHandle_t audio_task_hndl;
 static xQueueHandle _playback_queue = NULL;
 static xQueueHandle _state_queue = NULL;
 static xSemaphoreHandle _statsMutex = NULL;
-
-
-
 static AudioOncePerMinuteData_t _stats;
 
 static void DataCallback(const AudioFeatures_t * pfeats) {
