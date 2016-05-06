@@ -2104,7 +2104,8 @@ void vUARTTask(void *pvParameters) {
 	CreateDefaultDirectories();
 	load_data_server();
 
-	xTaskCreate(AudioPlaybackTask,"playbackTask",1580/4,NULL,4,NULL);
+	xTaskCreate(AudioPlaybackTask,"playbackTask",1280/4,NULL,4,NULL);
+	xTaskCreate(AudioCaptureTask,"captureTask", 2580/4,NULL,3,NULL);
 	init_download_task( 3072 / 4 );
 	networktask_init(3 * 1024 / 4);
 
