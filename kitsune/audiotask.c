@@ -328,14 +328,18 @@ void AudioCaptureTask(void * data) {
 	for (; ;) {
 		int ret =  hlo_stream_transfer_all(FROM_STREAM, mic,buf,sizeof(buf),4);
 		if( ret >= 0){
-			stream_just_ended = 1;
-			if(settle_count++ > 3){
+			if(settle_count == 0){
+				LOGI("Capture Frame Start\r\n");
+				_print_heap_info();
+				stream_just_ended = 1;
+			}else if(settle_count > 3){
 				AudioFeatures_SetAudioData(buf, callCounter++);
 			}
+			settle_count++;
 		}else if (ret == HLO_STREAM_EOF){
-			DISP("EOF\r\n");
 			vTaskDelay(2000);
 			if(stream_just_ended){
+				LOGI("Capture Frame Ended\r\n");
 				_print_heap_info();
 				stream_just_ended = 0;
 				settle_count = 0;
