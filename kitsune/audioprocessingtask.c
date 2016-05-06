@@ -162,27 +162,17 @@ void AudioProcessingTask_Thread(void * data) {
     		switch (m.message.cmd) {
 
     		case featureUploadsOn:
-    		{
     			featureUploads = 1;
     			break;
-    		}
-
     		case featureUploadsOff:
-    		{
     			featureUploads = 0;
     			break;
-    		}
-
     		default:
-    		{
     			LOGI("AudioProcessingTask_Thread -- unrecognized command\r\n");
     			break;
     		}
-    		}
-
     		break;
-    	}
-
+    	}//end command
     	case features:
     	{
     		if (_longTermStorageBuffer) {
@@ -193,6 +183,7 @@ void AudioProcessingTask_Thread(void * data) {
 
     			//check to see if it's time to try to upload
     			if (samplecounter > AUDIO_UPLOAD_PERIOD_IN_TICKS) {
+    				LOGI("uploading features\r\n");
     				if (featureUploads) {
     					SetUpUpload();
     				}
@@ -201,15 +192,12 @@ void AudioProcessingTask_Thread(void * data) {
     		}
 
     		break;
-    	}
+    	}//features
 
-    	default: {
+    	default:
     		LOGI("AudioProcessingTask_Thread -- unrecognized message type\r\n");
     		break;
     	}
-    	}
-
-
     	//end critical section
     	xSemaphoreGive(_mutex);
 

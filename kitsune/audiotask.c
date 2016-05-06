@@ -58,11 +58,12 @@ static xQueueHandle _playback_queue = NULL;
 static xQueueHandle _state_queue = NULL;
 static xSemaphoreHandle _statsMutex = NULL;
 
-static int64_t _callCounter;
+
 
 static AudioOncePerMinuteData_t _stats;
 
 static void DataCallback(const AudioFeatures_t * pfeats) {
+//	LOGI("Found Feature\r\n");
 	AudioProcessingTask_AddFeaturesToQueue(pfeats);
 }
 
@@ -70,7 +71,7 @@ static void StatsCallback(const AudioOncePerMinuteData_t * pdata) {
 
 	xSemaphoreTake(_statsMutex,portMAX_DELAY);
 
-//	LOGI("audio disturbance: %d,  background=%d, peak=%d, samples = %d\n",pdata->num_disturbances, pdata->peak_background_energy, _stats.peak_energy , _stats.num_samples);
+	//LOGI("audio disturbance: %d,  background=%d, peak=%d, samples = %d\n",pdata->num_disturbances, pdata->peak_background_energy, _stats.peak_energy , _stats.num_samples);
 	_stats.num_disturbances += pdata->num_disturbances;
 	_stats.num_samples++;
 
@@ -157,28 +158,6 @@ static bool _queue_audio_playback_state(playstate_t is_playing, const AudioPlayb
 }
 
 
-static void Init(void) {
-	_callCounter = 0;
-
-	audio_task_hndl = xTaskGetCurrentTaskHandle();
-
-	if (!_playback_queue) {
-		_playback_queue = xQueueCreate(INBOX_QUEUE_LENGTH,sizeof(AudioMessage_t));
-	}
-
-	if (!_statsMutex) {
-		_statsMutex = xSemaphoreCreateMutex();
-	}
-
-	memset(&_stats,0,sizeof(_stats));
-	AudioFeatures_Init(DataCallback,StatsCallback);
-
-
-	_state_queue =  xQueueCreate(INBOX_QUEUE_LENGTH,sizeof(AudioState));
-	hlo_future_create_task_bg(_sense_state_task, NULL, 1024);
-
-	_queue_audio_playback_state(SILENT, NULL);
-}
 
 static uint8_t CheckForInterruptionDuringPlayback(void) {
 	AudioMessage_t m;
@@ -373,7 +352,7 @@ static void DoCapture(uint32_t rate) {
 		if(CheckForInterruptionDuringCapture()){
 			break;
 		} else if(settle_cnt++ > 3) {
-			AudioFeatures_SetAudioData(samples,_callCounter++);
+
 
 		}
 	}
@@ -404,34 +383,54 @@ static void _playback_thread(hlo_future_t * result, void * ctx){
 		}
 	}
 }
+static void Init(void) {
+	audio_task_hndl = xTaskGetCurrentTaskHandle();
 
+	if (!_playback_queue) {
+		_playback_queue = xQueueCreate(INBOX_QUEUE_LENGTH,sizeof(AudioMessage_t));
+	}
+
+	if (!_statsMutex) {
+		_statsMutex = xSemaphoreCreateMutex();
+	}
+
+	memset(&_stats,0,sizeof(_stats));
+
+	_state_queue =  xQueueCreate(INBOX_QUEUE_LENGTH,sizeof(AudioState));
+	hlo_future_create_task_bg(_sense_state_task, NULL, 1024);
+
+	_queue_audio_playback_state(SILENT, NULL);
+}
 void AudioTask_Thread(void * data) {
 
 	Init();
 
-
-	hlo_stream_t * mic = hlo_audio_open_mono(16000,0,HLO_AUDIO_RECORD);
-	assert(mic);
-	/**
-	* fork a task for playback
-	*/
 	hlo_future_t * playback_thread = hlo_future_create_task_bg(_playback_thread, NULL, 2048);
 	assert(playback_thread);
 
-	uint8_t buf[RECORD_SAMPLE_SIZE] = {0};
-	uint8_t stream_just_ended = 1;	//variable for stream transition edge
+	hlo_stream_t * mic = hlo_audio_open_mono(16000,0,HLO_AUDIO_RECORD);
+	assert(mic);
 
+	uint8_t buf[RECORD_SAMPLE_SIZE] = {0};
+	uint8_t stream_just_ended = 1;	/** edge transition flag **/
+	int64_t callCounter = 0;		/** time context for feature extractor **/
+	uint32_t settle_count = 0;		/** let audio settle after playback **/
+
+	AudioFeatures_Init(DataCallback,StatsCallback);
 	for (; ;) {
 		int ret =  hlo_stream_transfer_all(FROM_STREAM, mic,buf,sizeof(buf),4);
 		if( ret >= 0){
 			stream_just_ended = 1;
-			//process
+			if(settle_count++ > 3){
+				AudioFeatures_SetAudioData(buf, callCounter++);
+			}
 		}else if (ret == HLO_STREAM_EOF){
 			DISP("EOF\r\n");
 			vTaskDelay(1000);
 			if(stream_just_ended){
 				LOGI("%d free %d stk\n", xPortGetFreeHeapSize(),  uxTaskGetStackHighWaterMark(NULL));
 				stream_just_ended = 0;
+				settle_count = 0;
 			}
 		}else{
 			LOGE("MIC Stream Error: %d\r\n", ret);
