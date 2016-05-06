@@ -334,9 +334,9 @@ void AudioCaptureTask(void * data) {
 			}
 		}else if (ret == HLO_STREAM_EOF){
 			DISP("EOF\r\n");
-			vTaskDelay(1000);
+			vTaskDelay(2000);
 			if(stream_just_ended){
-				LOGI("%d free %d stk\n", xPortGetFreeHeapSize(),  uxTaskGetStackHighWaterMark(NULL));
+				_print_heap_info();
 				stream_just_ended = 0;
 				settle_count = 0;
 			}
