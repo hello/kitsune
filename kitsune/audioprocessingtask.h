@@ -10,8 +10,6 @@
 typedef enum {
 	processingOn,
 	processingOff,
-	rawUploadsOn,
-	rawUploadsOff,
 	featureUploadsOn,
 	featureUploadsOff
 } EAudioProcessingCommand_t;

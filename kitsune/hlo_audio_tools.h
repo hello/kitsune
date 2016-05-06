@@ -5,7 +5,7 @@
 typedef uint8_t (*audio_control_signal)(void);
 //an audio recorder app
 //that demonstrates how to record and playback audio
-void hlo_audio_recorder_task(void * data);
+void hlo_audio_recorder_task(hlo_stream_t * data);
 void hlo_audio_playback_task(AudioPlaybackDesc_t * desc, audio_control_signal sig_stop);
 void hlo_audio_octogram_task(void * data);
 

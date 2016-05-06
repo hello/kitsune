@@ -91,16 +91,6 @@
 			<locationURI>PARENT-2-PROJECT_LOC/audiohelper.h</locationURI>
 		</link>
 		<link>
-			<name>audiohmm.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/machinelearning/audiohmm.c</locationURI>
-		</link>
-		<link>
-			<name>audiohmm.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/machinelearning/audiohmm.h</locationURI>
-		</link>
-		<link>
 			<name>audioprocessingtask.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/audioprocessingtask.c</locationURI>
@@ -534,16 +524,6 @@
 			<name>prox_signal.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/prox_signal.h</locationURI>
-		</link>
-		<link>
-			<name>rawaudiostatemachine.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/rawaudiostatemachine.c</locationURI>
-		</link>
-		<link>
-			<name>rawaudiostatemachine.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/rawaudiostatemachine.h</locationURI>
 		</link>
 		<link>
 			<name>rc4.c</name>

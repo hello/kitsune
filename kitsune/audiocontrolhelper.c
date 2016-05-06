@@ -1,6 +1,7 @@
 #include "audiocontrolhelper.h"
 #include "audiotask.h"
 #include "audioprocessingtask.h"
+#include "uart_logger.h"
 
 
 void AudioControlHelper_SetAudioControl(AudioControl * pcontrol) {
@@ -54,26 +55,7 @@ void AudioControlHelper_SetAudioControl(AudioControl * pcontrol) {
 	}
 
 	if (pcontrol->has_audio_save_raw_data) {
-		switch (pcontrol->audio_save_raw_data) {
-		case AudioControl_AudioCaptureAction_ON:
-		{
-			//turn on uploading of raw audio
-			AudioProcessingTask_SetControl(rawUploadsOn,NULL,NULL, 1000);
-			break;
-		}
-
-		case AudioControl_AudioCaptureAction_OFF:
-		{
-			//turn off uploading of raw audio
-			AudioProcessingTask_SetControl(rawUploadsOff,NULL,NULL, 1000);
-			break;
-		}
-
-		default:
-		{
-			break;
-		}
-		}
+		LOGI("Raw Audio Upload Not Supported\r\n");
 	}
 
 }

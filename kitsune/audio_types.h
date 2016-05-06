@@ -2,6 +2,7 @@
 #define _AUDIOTYPES_H_
 
 #include <stdint.h>
+#include "hlo_stream.h"
 
 //magic number, in no particular units, just from observation
 #define MIN_CLASSIFICATION_ENERGY (100)
@@ -68,15 +69,9 @@ typedef struct {
 #define AUDIO_TRANSFER_FLAG_DELETE_AFTER_UPLOAD    (1 << 1)
 #define AUDIO_TRANSFER_FLAG_DELETE_IMMEDIATELY     (1 << 2)
 
-typedef enum {
-	startSaving,
-	stopSaving
-} EAudioTransferChangeState_t;
 
 typedef struct {
-	EAudioTransferChangeState_t change;
-	uint32_t flags;
-	int32_t rate;
+	uint32_t rate;
 	hlo_stream_t * out;
 } AudioCaptureDesc_t;
 

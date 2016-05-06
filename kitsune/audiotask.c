@@ -368,12 +368,12 @@ static void DoCapture(uint32_t rate) {
 	uint32_t settle_cnt = 0;
 	int16_t * samples = pvPortMalloc(RECORD_SAMPLE_SIZE);
 
-	/*AudioProcessingTask_SetControl(processingOn,ProcessingCommandFinished,NULL, MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP);
+	AudioProcessingTask_SetControl(processingOn,ProcessingCommandFinished,NULL, MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP);
 
 	//wait until processing is turned on
 	LOGI("Waiting for processing to start... \r\n");
 	xSemaphoreTake(_processingTaskWait,MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP);
-	LOGI("done.\r\n");*/
+	LOGI("done.\r\n");
 
 
 	hlo_stream_t * in = hlo_audio_open_mono(rate,0,HLO_AUDIO_RECORD);

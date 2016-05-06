@@ -14,21 +14,19 @@
 //recorder sample app
 #define CHUNK_SIZE 1024
 int audio_sig_stop = 0;
-void hlo_audio_recorder_task(void * data){
+void hlo_audio_recorder_task(hlo_stream_t * out){
 	int ret;
 	uint8_t chunk[CHUNK_SIZE];
-	hlo_stream_t *fs, * mic;
+	hlo_stream_t * mic;
 	mic = hlo_audio_open_mono(16000, 44, HLO_AUDIO_RECORD);
-	fs = fs_stream_open_wlimit((char*)data, 48000 * 3); //max six seconds of audio
 
-	while( (ret = hlo_stream_transfer_between(mic,fs,chunk, sizeof(chunk),4)) > 0){
+	while( (ret = hlo_stream_transfer_between(mic,out,chunk, sizeof(chunk),4)) > 0){
 		if(audio_sig_stop){
 			break;
 		}
 	}
-
-	hlo_stream_close(fs);
 	hlo_stream_close(mic);
+	hlo_stream_close(out);
 	DISP("Recorder Task Finished %d\r\n", ret);
 }
 

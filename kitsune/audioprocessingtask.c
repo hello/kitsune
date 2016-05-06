@@ -45,23 +45,6 @@ typedef struct {
 	} message;
 } AudioProcessingTaskMessage_t;
 
-
-static void RecordCallback(const AudioCaptureDesc_t * request) {
-	/* Go tell audio capture task to write to disk as it captures */
-	AudioMessage_t m;
-	memset(&m,0,sizeof(m));
-
-	if (!_isUploadingRawData) {
-		return;
-	}
-
-	m.command = eAudioSaveToDisk;
-
-	memcpy(&m.message.capturedesc,request,sizeof(AudioCaptureDesc_t));
-
-	AudioTask_AddMessageToQueue(&m);
-}
-
 static void Prepare(void * data) {
 	xSemaphoreTake(_mutex,portMAX_DELAY);
 }
@@ -82,7 +65,7 @@ static void Init(void) {
 	samplecounter = 0;
 	_longTermStorageBuffer = NULL;
 
-	AudioClassifier_Init(RecordCallback);
+	AudioClassifier_Init(NULL);
 	AudioClassifier_SetStorageBuffers(NULL,0);
 
 }
@@ -196,18 +179,6 @@ void AudioProcessingTask_Thread(void * data) {
     			break;
     		}
 
-    		case rawUploadsOn:
-    		{
-    			_isUploadingRawData = 1;
-    			break;
-    		}
-
-    		case rawUploadsOff:
-    		{
-    			_isUploadingRawData = 0;
-    			break;
-    		}
-
     		case featureUploadsOn:
     		{
     			featureUploads = 1;
@@ -234,6 +205,7 @@ void AudioProcessingTask_Thread(void * data) {
     	{
     		if (_longTermStorageBuffer) {
     			//process features
+    			//indeterminate load
     			AudioClassifier_DataCallback(&m.message.feats);
     			samplecounter++;
 

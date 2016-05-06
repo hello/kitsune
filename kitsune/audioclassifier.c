@@ -7,7 +7,6 @@
 #include "machinelearning/audiohmm.h"
 #include <math.h>
 #include <string.h>
-#include "rawaudiostatemachine.h"
 //#include "uartstdio.h"
 
 #define CIRCULAR_FEATBUF_SIZE_2N (5)
@@ -232,7 +231,6 @@ void AudioClassifier_Init(RecordAudioCallback_t recordfunc) {
     memset(&_classifier,0,sizeof(Classifier_t));
     memset(&_hmm,0,sizeof(_hmm));
     
-    RawAudioStateMachine_Init(recordfunc);
 }
 
 
@@ -289,31 +287,6 @@ void AudioClassifier_DataCallback( AudioFeatures_t * pfeats) {
         _buffer.isThereAnythingInteresting = false;
     }
     
-   
-    /************************
-     THE CLASSIFIER SECTION
-     ***********************/
-    RawAudioStateMachine_IncrementSamples();
-
-    /* copy features  */
-    memcpy(_buffer.classifier_feat_buf[_buffer.classifier_feat_idx],pfeats->feats4bit,NUM_AUDIO_FEATURES*sizeof(int8_t));
-    _buffer.classifier_feat_idx++;
-    if (_buffer.classifier_feat_idx >= CLASSIFIER_BUF_LEN) {
-        int32_t loglik = INT32_MIN;
-        _buffer.classifier_feat_idx = 0;
-        
-        if (_buffer.isWorthClassifying) {
-            loglik = AudioHmm_EvaluateModel(&k_default_audio_hmm, &_buffer.classifier_feat_buf[0][0], CLASSIFIER_BUF_LEN);
-         //   UARTprintf("loglik = %d\n",loglik);
-            
-        }
-        
-        /* This could trigger an upload */
-        RawAudioStateMachine_SetLogLikelihoodOfModel(loglik,SNORING_LOG_LIK_THRESHOLD_Q10);
-        
-        _buffer.isWorthClassifying = false;
-    }
-
 }
 
 /* sadly this is not stateless, but was the only way to serialize chunks one at a time */
