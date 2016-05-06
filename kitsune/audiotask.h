@@ -43,7 +43,8 @@ typedef struct {
 
 } AudioMessage_t;
 
-void AudioTask_Thread(void * data);
+void AudioPlaybackTask(void * data);
+void AudioCaptureTask(void * data);
 
 void AudioTask_AddMessageToQueue(const AudioMessage_t * message);
 

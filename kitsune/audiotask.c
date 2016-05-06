@@ -102,6 +102,9 @@ static void QueueFileForUpload(const char * filename,uint8_t delete_after_upload
 #include "networktask.h"
 #include "wifi_cmd.h"
 extern bool encode_device_id_string(pb_ostream_t *stream, const pb_field_t *field, void * const *arg);
+static void _print_heap_info(void){
+	LOGI("%d free %d stk\n", xPortGetFreeHeapSize(),  uxTaskGetStackHighWaterMark(NULL));
+}
 static void _sense_state_task(hlo_future_t * result, void * ctx){
 #define MAX_STATE_BACKOFF (15*60*1000)
 	SenseState sense_state;
@@ -273,40 +276,6 @@ static void _playback_loop(AudioPlaybackDesc_t * desc, audio_control_signal sig_
 	DISP("Playback Task Finished %d\r\n", ret);
 }
 
-static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
-	uint8_t returnFlags = 0x00;
-
-	LOGI("Starting playback\r\n");
-	LOGI("%d free %d stk\n", xPortGetFreeHeapSize(),  uxTaskGetStackHighWaterMark(NULL));
-
-	if (!info) {
-		LOGI("invalid playback info\n\r");
-		_queue_audio_playback_state(SILENT, info);
-		return returnFlags;
-	}
-
-	LOGI("%d free %d stk\n", xPortGetFreeHeapSize(),  uxTaskGetStackHighWaterMark(NULL));
-
-	_queue_audio_playback_state(PLAYING, info);
-
-	//TODO integrate ulTaskNotifyTake
-	/* blocking */
-	_playback_loop(info, CheckForInterruptionDuringPlayback);
-
-
-	LOGI("completed playback\r\n");
-
-	returnFlags |= FLAG_SUCCESS;
-
-	LOGI("%d free %d stk\n", xPortGetFreeHeapSize(),  uxTaskGetStackHighWaterMark(NULL));
-
-	_queue_audio_playback_state(SILENT, info);
-
-	return returnFlags;
-
-}
-
-
 static uint8_t CheckForInterruptionDuringCapture(void) {
 	AudioMessage_t m;
 	uint8_t ret = 0x00;
@@ -335,49 +304,62 @@ static uint8_t CheckForInterruptionDuringCapture(void) {
 	return ret;
 }
 
-#define RECORD_SAMPLE_SIZE (256*2*2)
 
-static void _playback_thread(hlo_future_t * result, void * ctx){
+static void Init(void) {
+	audio_task_hndl = xTaskGetCurrentTaskHandle();
+
+	if (!_statsMutex) {
+		_statsMutex = xSemaphoreCreateMutex();
+	}
+}
+
+void AudioPlaybackTask(void * data) {
+	Init();
+
+	_playback_queue = xQueueCreate(INBOX_QUEUE_LENGTH,sizeof(AudioMessage_t));
+	assert(_playback_queue);
+
+	_state_queue =  xQueueCreate(INBOX_QUEUE_LENGTH,sizeof(AudioState));
+	assert(_state_queue);
+	_queue_audio_playback_state(SILENT, NULL);
+
+	hlo_future_t * state_update_task = hlo_future_create_task_bg(_sense_state_task, NULL, 1024);
+	assert(state_update_task);
+
 	while(1){
 		AudioMessage_t  m;
 		if (xQueueReceive( _playback_queue,(void *) &m, portMAX_DELAY )) {
 			switch (m.command) {
+
 				case eAudioPlaybackStart:
-					DoPlayback(&(m.message.playbackdesc));
+				{
+					AudioPlaybackDesc_t * info = &m.message.playbackdesc;
+					/** prep  **/
+					LOGI("Starting playback\r\n");
+					_print_heap_info();
+					_queue_audio_playback_state(PLAYING, info);
+					/** blocking loop to play the sound **/
+					_playback_loop(info, CheckForInterruptionDuringPlayback);
+					/** clean up **/
+					_queue_audio_playback_state(SILENT, info);
+					_print_heap_info();
+					LOGI("Completed playback\r\n");
+
 					if (m.message.playbackdesc.onFinished) {
 						m.message.playbackdesc.onFinished(m.message.playbackdesc.context);
 					}
-					//fallthrough
+				}
 				default:
 					break;
 			}
 		}
 	}
+
+	hlo_future_destroy(state_update_task);
+
 }
-static void Init(void) {
-	audio_task_hndl = xTaskGetCurrentTaskHandle();
-
-	if (!_playback_queue) {
-		_playback_queue = xQueueCreate(INBOX_QUEUE_LENGTH,sizeof(AudioMessage_t));
-	}
-
-	if (!_statsMutex) {
-		_statsMutex = xSemaphoreCreateMutex();
-	}
-
-	memset(&_stats,0,sizeof(_stats));
-
-	_state_queue =  xQueueCreate(INBOX_QUEUE_LENGTH,sizeof(AudioState));
-	hlo_future_create_task_bg(_sense_state_task, NULL, 1024);
-
-	_queue_audio_playback_state(SILENT, NULL);
-}
+#define RECORD_SAMPLE_SIZE (256*2*2)
 void AudioTask_Thread(void * data) {
-
-	Init();
-
-	hlo_future_t * playback_thread = hlo_future_create_task_bg(_playback_thread, NULL, 2048);
-	assert(playback_thread);
 
 	hlo_stream_t * mic = hlo_audio_open_mono(16000,0,HLO_AUDIO_RECORD);
 	assert(mic);
@@ -410,7 +392,6 @@ void AudioTask_Thread(void * data) {
 
 
 	}
-	hlo_future_destroy(playback_thread);
 }
 
 
