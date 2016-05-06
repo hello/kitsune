@@ -275,37 +275,7 @@ static void _playback_loop(AudioPlaybackDesc_t * desc, audio_control_signal sig_
 	}
 	DISP("Playback Task Finished %d\r\n", ret);
 }
-
-static uint8_t CheckForInterruptionDuringCapture(void) {
-	AudioMessage_t m;
-	uint8_t ret = 0x00;
-	if (xQueuePeek(_playback_queue,&m,0)) {
-
-		//pop
-		xQueueReceive(_playback_queue,&m,0);
-
-		switch (m.command) {
-			case eAudioPlaybackStop:
-				//fallthrough
-			case eAudioPlaybackStart:
-				//place message back on queue
-				xQueueSendToFront(_playback_queue,&m,0);
-				LOGI("received eAudioPlaybackStart\r\n");
-				ret |= FLAG_STOP;
-				break;
-			default:
-				//place message back on queue
-				xQueueSendToFront(_playback_queue,&m,0);
-				LOGI("audio task received message during capture that it did not understand, placing back on queue\r\n");
-				break;
-		}
-
-	}
-	return ret;
-}
-
-
-static void Init(void) {
+static void _init(void) {//TODO get rid of this
 	audio_task_hndl = xTaskGetCurrentTaskHandle();
 
 	if (!_statsMutex) {
@@ -314,7 +284,7 @@ static void Init(void) {
 }
 
 void AudioPlaybackTask(void * data) {
-	Init();
+	_init();
 
 	_playback_queue = xQueueCreate(INBOX_QUEUE_LENGTH,sizeof(AudioMessage_t));
 	assert(_playback_queue);
@@ -355,11 +325,11 @@ void AudioPlaybackTask(void * data) {
 		}
 	}
 
-	hlo_future_destroy(state_update_task);
+	//hlo_future_destroy(state_update_task);
 
 }
 #define RECORD_SAMPLE_SIZE (256*2*2)
-void AudioTask_Thread(void * data) {
+void AudioCaptureTask(void * data) {
 
 	hlo_stream_t * mic = hlo_audio_open_mono(16000,0,HLO_AUDIO_RECORD);
 	assert(mic);
