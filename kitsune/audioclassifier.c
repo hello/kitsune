@@ -85,21 +85,6 @@ static DataBuffer_t _buffer;
 static Classifier_t _classifier;
 static Classifier_t _hmm;
 
-#define NUM_HMM_STATES (2)
-static const int16_t k_default_audio_hmm_A[NUM_HMM_STATES][NUM_HMM_STATES] =
-{{1023,1},
-{1020,3}};
-
-static const int16_t k_default_audio_hmm_vecs[NUM_HMM_STATES][NUM_AUDIO_FEATURES] =
-{{-897,100,-429,168,-130,8,-4,-30,-23,17,-28,-14,-2,0,-15,-3},
-{-885,95,-333,197,-140,-160,-88,-2,30,199,-86,-40,-32,15,-15,-1}};
-
-static const int16_t k_default_audio_hmm_vars[NUM_HMM_STATES] = {438,186};
-
-
-static const AudioHmm_t k_default_audio_hmm = {NUM_HMM_STATES,&k_default_audio_hmm_A[0][0],&k_default_audio_hmm_vecs[0][0],&k_default_audio_hmm_vars[0]};
-
-
 
 static inline uint8_t pack_int8_to_int4(const int8_t x) {
     const uint8_t sign = x < 0;

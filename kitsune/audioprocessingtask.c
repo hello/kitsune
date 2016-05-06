@@ -27,8 +27,6 @@ static uint32_t samplecounter;
 
 static void * _longTermStorageBuffer = NULL;
 
-static uint8_t _isUploadingRawData = 0;
-
 typedef enum {
 	command,
 	features

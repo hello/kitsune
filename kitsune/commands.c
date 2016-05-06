@@ -332,12 +332,6 @@ int Cmd_stop_buff(int argc, char *argv[]) {
 	return 0;
 }
 
-static void octogram_notification(void * context) {
-	xSemaphoreHandle sem = (xSemaphoreHandle)context;
-
-	xSemaphoreGive(sem);
-}
-
 static
 OctogramResult_t octorgram_result;
 static
