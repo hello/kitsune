@@ -336,36 +336,7 @@ static uint8_t CheckForInterruptionDuringCapture(void) {
 }
 
 #define RECORD_SAMPLE_SIZE (256*2*2)
-static void DoCapture(uint32_t rate) {
-	uint32_t settle_cnt = 0;
-	int16_t * samples = pvPortMalloc(RECORD_SAMPLE_SIZE);
 
-
-	hlo_stream_t * in = hlo_audio_open_mono(rate,0,HLO_AUDIO_RECORD);
-
-	//loop until we get an event that disturbs capture
-	while(hlo_stream_transfer_all(FROM_STREAM,in,samples,RECORD_SAMPLE_SIZE,4) >= 0) {
-		//DISP("x");
-		//poll queue as I loop through capturing
-		//if a new message came in, process it, otherwise break
-		//non-blocking call here
-		if(CheckForInterruptionDuringCapture()){
-			break;
-		} else if(settle_cnt++ > 3) {
-
-
-		}
-	}
-
-	hlo_stream_close(in);
-	vPortFree(samples);
-	LOGI("finished audio capture\r\n");
-	LOGI("%d free %d stk\n", xPortGetFreeHeapSize(),  uxTaskGetStackHighWaterMark(NULL));
-}
-
-/**
- *
- **/
 static void _playback_thread(hlo_future_t * result, void * ctx){
 	while(1){
 		AudioMessage_t  m;
