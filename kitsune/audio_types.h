@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include "hlo_stream.h"
+#include "hlo_pipe.h"
 
 //magic number, in no particular units, just from observation
 #define MIN_CLASSIFICATION_ENERGY (100)
@@ -72,7 +73,9 @@ typedef struct {
 
 typedef struct {
 	uint32_t rate;
-	hlo_stream_t * out;
+	hlo_stream_t * opt_out;		/* optional output */
+	hlo_filter p;		/* the algorithm to run on the mic input */
+	void * ctx;					/* optional ctx pointer */
 } AudioCaptureDesc_t;
 
 /* ----------------- */

@@ -9,7 +9,66 @@
 #include "hlo_async.h"
 #include "hlo_audio.h"
 #include <stdbool.h>
+#include <string.h>
+////-------------------------------------------
+//The feature/extractor processor we used in sense 1.0
+//
+#include "audioprocessingtask.h"
+#include "audiofeatures.h"
+static xSemaphoreHandle _statsMutex = NULL;
+static AudioOncePerMinuteData_t _stats;
 
+static void DataCallback(const AudioFeatures_t * pfeats) {
+//	LOGI("Found Feature\r\n");
+	//AudioProcessingTask_AddFeaturesToQueue(pfeats);
+}
+
+static void StatsCallback(const AudioOncePerMinuteData_t * pdata) {
+
+	xSemaphoreTake(_statsMutex,portMAX_DELAY);
+
+	//LOGI("audio disturbance: %d,  background=%d, peak=%d, samples = %d\n",pdata->num_disturbances, pdata->peak_background_energy, _stats.peak_energy , _stats.num_samples);
+	_stats.num_disturbances += pdata->num_disturbances;
+	_stats.num_samples++;
+
+        if (pdata->peak_background_energy > _stats.peak_background_energy) {
+            _stats.peak_background_energy = pdata->peak_background_energy;
+        }
+
+	if (pdata->peak_energy > _stats.peak_energy) {
+	    _stats.peak_energy = pdata->peak_energy;
+	}
+	_stats.isValid = 1;
+	xSemaphoreGive(_statsMutex);
+}
+#define RECORD_SAMPLE_SIZE (256*2*2)
+int hlo_filter_feature_extractor_processor(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
+	uint8_t buf[RECORD_SAMPLE_SIZE] = {0};
+	static int64_t _callCounter;	/** time context for feature extractor **/
+	uint32_t settle_count = 0;		/** let audio settle after playback **/
+	int ret;
+	if(!_statsMutex){
+		_statsMutex = xSemaphoreCreateMutex();
+		assert(_statsMutex);
+		AudioFeatures_Init(DataCallback,StatsCallback);
+	}
+	while(1){
+		int ret = hlo_stream_transfer_all(FROM_STREAM,input,buf,sizeof(buf),4);
+		if(ret < 0){
+			break;
+		}else if(settle_count++ > 3){
+			AudioFeatures_SetAudioData((const int16_t*)buf,_callCounter++);
+		}
+	}
+	return ret;
+}
+void AudioTask_DumpOncePerMinuteStats(AudioOncePerMinuteData_t * pdata) {
+	xSemaphoreTake(_statsMutex,portMAX_DELAY);
+	memcpy(pdata,&_stats,sizeof(AudioOncePerMinuteData_t));
+	pdata->peak_background_energy/=pdata->num_samples;
+	memset(&_stats,0,sizeof(_stats));
+	xSemaphoreGive(_statsMutex);
+}
 ////-------------------------------------------
 //recorder sample app
 #define CHUNK_SIZE 1024

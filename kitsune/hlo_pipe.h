@@ -32,4 +32,7 @@ int hlo_stream_transfer_between(
 		uint32_t buf_size,
 		uint32_t transfer_delay);
 
+
+typedef uint8_t (*hlo_stream_signal)(void);
+typedef int(*hlo_filter)(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal);
 #endif

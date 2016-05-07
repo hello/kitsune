@@ -46,37 +46,9 @@ TaskHandle_t audio_task_hndl;
 
 /* static variables  */
 static xQueueHandle _playback_queue = NULL;
+static xQueueHandle _capture_queue = NULL;
 static xQueueHandle _state_queue = NULL;
-static xSemaphoreHandle _statsMutex = NULL;
-static AudioOncePerMinuteData_t _stats;
 
-static void DataCallback(const AudioFeatures_t * pfeats) {
-//	LOGI("Found Feature\r\n");
-	AudioProcessingTask_AddFeaturesToQueue(pfeats);
-}
-
-static void StatsCallback(const AudioOncePerMinuteData_t * pdata) {
-
-	xSemaphoreTake(_statsMutex,portMAX_DELAY);
-
-	//LOGI("audio disturbance: %d,  background=%d, peak=%d, samples = %d\n",pdata->num_disturbances, pdata->peak_background_energy, _stats.peak_energy , _stats.num_samples);
-	_stats.num_disturbances += pdata->num_disturbances;
-	_stats.num_samples++;
-
-        if (pdata->peak_background_energy > _stats.peak_background_energy) {
-            _stats.peak_background_energy = pdata->peak_background_energy;
-        }
-
-	if (pdata->peak_energy > _stats.peak_energy) {
-	    _stats.peak_energy = pdata->peak_energy;
-	}
-
-	_stats.isValid = 1;
-
-	xSemaphoreGive(_statsMutex);
-
-
-}
 #ifdef KIT_INCLUDE_FILE_UPLOAD
 static void QueueFileForUpload(const char * filename,uint8_t delete_after_upload) {
 	FileUploaderTask_Upload(filename,DATA_SERVER,RAW_AUDIO_ENDPOINT,delete_after_upload,NULL,NULL);
@@ -224,7 +196,7 @@ static void _change_volume_task(hlo_future_t * result, void * ctx){
 }
 ////-------------------------------------------
 //playback sample app
-static void _playback_loop(AudioPlaybackDesc_t * desc, audio_control_signal sig_stop){
+static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_stop){
 	int ret;
 	uint8_t chunk[512]; //arbitrary
 
@@ -263,9 +235,6 @@ static void _playback_loop(AudioPlaybackDesc_t * desc, audio_control_signal sig_
 static void _init(void) {//TODO get rid of this
 	audio_task_hndl = xTaskGetCurrentTaskHandle();
 
-	if (!_statsMutex) {
-		_statsMutex = xSemaphoreCreateMutex();
-	}
 }
 
 void AudioPlaybackTask(void * data) {
@@ -313,46 +282,32 @@ void AudioPlaybackTask(void * data) {
 	//hlo_future_destroy(state_update_task);
 
 }
-#define RECORD_SAMPLE_SIZE (256*2*2)
+#include "hlo_audio_tools.h"
+static uint8_t CheckForInterruptionDuringCapture(void){
+
+}
 void AudioCaptureTask(void * data) {
 
 	hlo_stream_t * mic = hlo_audio_open_mono(16000,0,HLO_AUDIO_RECORD);
 	assert(mic);
 
-	uint8_t buf[RECORD_SAMPLE_SIZE] = {0};
-	uint8_t stream_just_ended = 1;	/** edge transition flag **/
-	int64_t callCounter = 0;		/** time context for feature extractor **/
-	uint32_t settle_count = 0;		/** let audio settle after playback **/
+	_capture_queue = xQueueCreate(INBOX_QUEUE_LENGTH,sizeof(AudioMessage_t));
+	assert(_capture_queue);
 
-	AudioFeatures_Init(DataCallback,StatsCallback);
 	for (; ;) {
-		int ret =  hlo_stream_transfer_all(FROM_STREAM, mic,buf,sizeof(buf),4);
-		if( ret >= 0){
-			if(settle_count == 0){
-				LOGI("Capture Frame Start\r\n");
-				_print_heap_info();
-				stream_just_ended = 1;
-			}else if(settle_count > 3){
-				AudioFeatures_SetAudioData(buf, callCounter++);
-			}
-			settle_count++;
-		}else if (ret == HLO_STREAM_EOF){
+		//default
+		int ret = hlo_filter_feature_extractor_processor(mic,NULL,NULL,CheckForInterruptionDuringCapture);
+		if( ret == HLO_STREAM_EOF ){
 			vTaskDelay(2000);
-			if(stream_just_ended){
-				LOGI("Capture Frame Ended\r\n");
-				_print_heap_info();
-				stream_just_ended = 0;
-				settle_count = 0;
-			}
-		}else{
+		}else if(ret < 0){
 			LOGE("MIC Stream Error: %d\r\n", ret);
-			vTaskDelay(1000);
+			vTaskDelay(2000);
 		}
-
-
 	}
 }
+void AudioTask_StartProcessor(const AudioCaptureDesc_t * desc){
 
+}
 
 void AudioTask_StopPlayback(void) {
 	AudioMessage_t m;
@@ -394,12 +349,6 @@ void AudioTask_StopCapture(void){
 void AudioTask_StartCapture(uint32_t rate){
 
 }
-void AudioTask_DumpOncePerMinuteStats(AudioOncePerMinuteData_t * pdata) {
-	xSemaphoreTake(_statsMutex,portMAX_DELAY);
-	memcpy(pdata,&_stats,sizeof(AudioOncePerMinuteData_t));
-	pdata->peak_background_energy/=pdata->num_samples;
-	memset(&_stats,0,sizeof(_stats));
-	xSemaphoreGive(_statsMutex);
-}
+
 
 

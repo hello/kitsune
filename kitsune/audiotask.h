@@ -4,10 +4,13 @@
 #include <stdint.h>
 #include "audio_types.h"
 #include "hlo_stream.h"
+#include "hlo_pipe.h"
 
 typedef enum {
 	eAudioPlaybackStart,
 	eAudioPlaybackStop,
+	eAudioCaptureStart,
+	eAudioCaptureStop,
 } EAudioCommand_t;
 
 typedef struct {
@@ -23,14 +26,6 @@ typedef struct {
 } AudioPlaybackDesc_t;
 
 
-typedef struct {
-	uint32_t analysisduration;
-
-	NotificationCallback_t onFinished;
-	void * context;
-	OctogramResult_t * result;
-
-} AudioOctogramDesc_t;
 
 typedef struct {
 	EAudioCommand_t command;
@@ -38,7 +33,6 @@ typedef struct {
 	union {
 		AudioCaptureDesc_t capturedesc;
 		AudioPlaybackDesc_t playbackdesc;
-		AudioOctogramDesc_t octogramdesc;
 	} message;
 
 } AudioMessage_t;
