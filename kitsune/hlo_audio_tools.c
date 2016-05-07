@@ -42,11 +42,11 @@ static void StatsCallback(const AudioOncePerMinuteData_t * pdata) {
 	xSemaphoreGive(_statsMutex);
 }
 #define RECORD_SAMPLE_SIZE (256*2*2)
-int hlo_filter_feature_extractor_processor(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
+int hlo_filter_feature_extractor(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
 	uint8_t buf[RECORD_SAMPLE_SIZE] = {0};
 	static int64_t _callCounter;	/** time context for feature extractor **/
 	uint32_t settle_count = 0;		/** let audio settle after playback **/
-	int ret;
+	int ret = 0;
 	if(!_statsMutex){
 		_statsMutex = xSemaphoreCreateMutex();
 		assert(_statsMutex);

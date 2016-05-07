@@ -5,7 +5,7 @@
 /**
  * contains a list of commands and filters for audio
  */
-int hlo_filter_feature_extractor_processor(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal);
+int hlo_filter_feature_extractor(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal);
 /**
  * filter for feature extraction
  */

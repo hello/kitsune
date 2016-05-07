@@ -296,7 +296,7 @@ void AudioCaptureTask(void * data) {
 
 	for (; ;) {
 		//default
-		int ret = hlo_filter_feature_extractor_processor(mic,NULL,NULL,CheckForInterruptionDuringCapture);
+		int ret = hlo_filter_feature_extractor(mic,NULL,NULL,CheckForInterruptionDuringCapture);
 		if( ret == HLO_STREAM_EOF ){
 			vTaskDelay(2000);
 		}else if(ret < 0){
