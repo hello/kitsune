@@ -5,7 +5,12 @@
 /**
  * contains a list of commands and filters for audio
  */
+typedef struct{
+	uint8_t raw_audio_upload_enable;
+}feature_extractor_ctx_t;
 int hlo_filter_feature_extractor(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal);
+int hlo_filter_adpcm_decoder(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal);
+int hlo_filter_adpcm_encoder(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal);
 /**
  * filter for feature extraction
  */

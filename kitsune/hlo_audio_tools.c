@@ -59,6 +59,7 @@ int hlo_filter_feature_extractor(hlo_stream_t * input, hlo_stream_t * output, vo
 		}else if(settle_count++ > 3){
 			AudioFeatures_SetAudioData((const int16_t*)buf,_callCounter++);
 		}
+		hlo_stream_transfer_all(INTO_STREAM,ouput,buf,ret,4); /** be a good samaritan and transfer the stream back out */
 	}
 	return ret;
 }
