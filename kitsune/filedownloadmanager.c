@@ -145,7 +145,7 @@ void update_file_download_status(bool is_pending)
 	xSemaphoreGive(_file_download_mutex);
 
 	//start the next one then
-	if( !is_pending ) {
+	if( !is_pending && xTaskGetTickCount() > 90000 ) {
 		xSemaphoreGive(filemngr_upload_sem);
 	}
 }
@@ -255,7 +255,7 @@ static void DownloadManagerTask(void * filesyncdata)
 			message_for_upload.has_link_health = true;
 			message_for_upload.link_health = link_health;
 
-			LOGI("DM: LH %d\n",link_health.send_errors);
+			LOGD("DM: LH %d\n",link_health.send_errors);
 
 			/* UPDATE MEMORY INFO */
 
@@ -265,7 +265,7 @@ static void DownloadManagerTask(void * filesyncdata)
 
 			get_free_space(&message_for_upload.sd_card_size.free_memory, &message_for_upload.sd_card_size.total_memory);
 
-			LOGI("+");
+			LOGD("+");
 			/* UPDATE FILE ERROR INFO */
 
 			message_for_upload.error_info_count = 0;
@@ -279,7 +279,7 @@ static void DownloadManagerTask(void * filesyncdata)
 				message_for_upload.error_info[message_for_upload.error_info_count++] = error_message;
 			}
 
-			LOGI("-");
+			LOGD("-");
 			/* UPDATE SENSE ID */
 			message_for_upload.sense_id.funcs.encode = encode_device_id_string;
 
@@ -294,14 +294,13 @@ static void DownloadManagerTask(void * filesyncdata)
 			test_buf = NULL;
 
 			/* SEND PROTOBUF */
-			LOGI("+");
+			LOGD("+");
 			message_sent_time = xTaskGetTickCount();
 			if(!NetworkTask_SendProtobuf(
 					true, DATA_SERVER, FILE_SYNC_ENDPOINT, FileManifest_fields, &message_for_upload, 0, NULL, NULL, &pb_cb, false)
 					)
 			{
 				LOGI("DM: Upload Fail \n");
-
 			}
 		}
 
@@ -1041,7 +1040,7 @@ static uint32_t sd_card_test(bool rw, uint8_t* ptr, filesystem_rw_func_t fs_rw_f
 			if(data_ptr[i] != test_code)
 			{
 				LOGE("DM read at %d: 0x%x\n",i, data_ptr[i]);
-				return FR_RW_ERROR;
+				return FR_DISK_ERR;
 			}
 
 		}
