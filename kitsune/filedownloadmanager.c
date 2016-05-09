@@ -208,13 +208,18 @@ static void DownloadManagerTask(void * filesyncdata)
 
 			/* SD CARD TEST WRITE */
 			message_for_upload.sd_card_size.has_sd_card_failure = true;
+			test_buf = NULL;
 			test_buf = (uint8_t*) pvPortMalloc(SD_BLOCK_SIZE);
-			assert(test_buf);
+			if(!test_buf){
+				LOGE("DM test_buf: not enough memory\n");
+			}
+			else{
 
-			if(sd_card_test(false, test_buf, hello_fs_write))
-			{
-				LOGE("DM: SD card write err\n");
-				message_for_upload.sd_card_size.sd_card_failure = true;
+				if(sd_card_test(false, test_buf, hello_fs_write))
+				{
+					LOGE("DM: SD card write err\n");
+					message_for_upload.sd_card_size.sd_card_failure = true;
+				}
 			}
 
 			/* UPDATE FILE INFO */
@@ -284,14 +289,15 @@ static void DownloadManagerTask(void * filesyncdata)
 			message_for_upload.sense_id.funcs.encode = encode_device_id_string;
 
 			/* SD CARD TEST READ */
-			memset(test_buf,0,SD_BLOCK_SIZE);
-			if(sd_card_test(true, test_buf, hello_fs_read))
-			{
-				LOGE("DM: SD card read err\n");
-				message_for_upload.sd_card_size.sd_card_failure = true;
+			if(test_buf){
+				memset(test_buf,0,SD_BLOCK_SIZE);
+				if(sd_card_test(true, test_buf, hello_fs_read))
+				{
+					LOGE("DM: SD card read err\n");
+					message_for_upload.sd_card_size.sd_card_failure = true;
+				}
+				vPortFree(test_buf);
 			}
-			vPortFree(test_buf);
-			test_buf = NULL;
 
 			/* SEND PROTOBUF */
 			LOGD("+");
@@ -509,7 +515,7 @@ static bool scan_files(char* path, pb_ostream_t *stream, const pb_field_t *field
 
 							if(update_sha_file(path,fn, sha_file_create,NULL, sha_ovwr ))
 							{
-							LOGE("DM: SHA not created %s\n", fn);
+								LOGE("DM: SHA not created %s\n", fn);
 							}
 
 							vTaskDelay(5);
@@ -717,7 +723,7 @@ static int32_t sd_sha_verifynsave(const char * sha_truth, char* path, char* sha_
 #define minval( a,b ) a < b ? a : b
 
 	uint8_t sha[SHA1_SIZE] = { 0 };
-    uint8_t* buffer;
+    uint8_t* buffer = NULL;
     uint32_t bytes_to_read, bytes_read;
     uint32_t bytes_to_write = 0, bytes_written = 0;
     FIL fp = {0};
@@ -728,7 +734,11 @@ static int32_t sd_sha_verifynsave(const char * sha_truth, char* path, char* sha_
     SHA1_Init(&sha1ctx);
 
     buffer = (uint8_t*) pvPortMalloc(SD_BLOCK_SIZE);
-    assert(buffer);
+    if(!buffer)
+    {
+    	LOGI("DM: buffer: Not enought memory\n");
+        goto fail;
+    }
 
     //fetch path info
     //LOGI( "computing SHA of %s\n", path);
