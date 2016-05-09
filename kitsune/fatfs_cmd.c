@@ -416,6 +416,7 @@ int global_filename(char * local_fn)
 //
 //*****************************************************************************
 #include "hlo_pipe.h"
+#include "hlo_audio.h"
 #define BUF_SIZE 64
 extern int audio_sig_stop;
 hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
@@ -425,7 +426,7 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 			case 'a':
 			case 'A':
 				audio_sig_stop = 0;
-			//	return hlo_open_mic_stream(1);
+				return hlo_audio_open_mono(16000,0,HLO_AUDIO_RECORD);
 			case 'r':
 			case 'R':
 				return random_stream_open();
@@ -445,7 +446,7 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 			case 'a':
 			case 'A':
 				audio_sig_stop = 0;
-			//	return hlo_open_spkr_stream(BUF_SIZE);
+				return hlo_audio_open_mono(48000,44,HLO_AUDIO_PLAYBACK);
 			default:
 			case 'o':
 			case 'O':

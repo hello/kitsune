@@ -74,7 +74,7 @@ typedef struct {
 typedef struct {
 	uint32_t rate;
 	hlo_stream_t * opt_out;		/* optional output */
-	hlo_filter p;		/* the algorithm to run on the mic input */
+	hlo_filter p;				/* the algorithm to run on the mic input */
 	void * ctx;					/* optional ctx pointer */
 } AudioCaptureDesc_t;
 

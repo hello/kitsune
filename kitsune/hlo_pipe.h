@@ -37,4 +37,5 @@ int hlo_stream_transfer_between(
  */
 typedef uint8_t (*hlo_stream_signal)(void);
 typedef int(*hlo_filter)(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal);
+#define EXIT_ON_SIG(s) if(s && s()){return 0;}
 #endif

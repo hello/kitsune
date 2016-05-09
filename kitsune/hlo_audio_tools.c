@@ -59,7 +59,8 @@ int hlo_filter_feature_extractor(hlo_stream_t * input, hlo_stream_t * output, vo
 		}else if(settle_count++ > 3){
 			AudioFeatures_SetAudioData((const int16_t*)buf,_callCounter++);
 		}
-		hlo_stream_transfer_all(INTO_STREAM,ouput,buf,ret,4); /** be a good samaritan and transfer the stream back out */
+		hlo_stream_transfer_all(INTO_STREAM,output,buf,ret,4); /** be a good samaritan and transfer the stream back out */
+		EXIT_ON_SIG(signal);
 	}
 	return ret;
 }
@@ -135,6 +136,9 @@ exit:
 ////-----------------------------------------
 //commands
 extern hlo_stream_t * open_stream_from_path(char * str, uint8_t input);
+static uint8_t _can_has_sig_stop(void){
+	return audio_sig_stop;
+}
 int Cmd_audio_record_start(int argc, char *argv[]){
 	//audio_sig_stop = 0;
 	//hlo_audio_recorder_task("rec.raw");
@@ -170,7 +174,8 @@ int Cmd_audio_octogram(int argc, char *argv[]){
 }
 int Cmd_audio_features(int argc, char *argv[]){
 	audio_sig_stop = 0;
-	//hlo_audio_feature_extraction_task(open_stream_from_path(argv[1],1));
+	hlo_stream_t * s = open_stream_from_path(argv[1],1);
+	hlo_filter_feature_extractor(s, NULL, NULL, _can_has_sig_stop);
 	return 0;
 }
 
