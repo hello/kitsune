@@ -814,6 +814,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 		recv_size = atoi(p);
 
 		if(recv_size <= 0) {
+			vPortFree(g_buff);
 			return -1;
 		}
     }
@@ -865,6 +866,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
     	transfer_len -= (pBuff - g_buff);
     } else {
     	transfer_len = 0;
+    	vPortFree(g_buff);
     	return -1;
     }
 
@@ -888,7 +890,8 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 				{
 					LOGE("mkdir fail: %d\n", res);
 					cd("/");
-					return 1;
+					vPortFree(g_buff);
+					return -1;
 				}
 
 			}
@@ -898,14 +901,16 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 			{
 				LOGE("CD fail: %d\n", res);
 				cd("/");
-				return 1;
+				vPortFree(g_buff);
+				return -1;
 			}
 		}
 
 		/* Open file to save the downloaded file */
 		if (global_filename(filename)) {
 			cd("/");
-			return 1;
+			vPortFree(g_buff);
+			return -1;
 		}
 		// Open the file for writing.
 		res = hello_fs_open(&file_obj, path_buff,
@@ -915,6 +920,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 		if (res != FR_OK && res != FR_EXIST) {
 			LOGI("File open %s failed: %d\n", path_buff, res);
 			cd("/");
+			vPortFree(g_buff);
 			return res;
 		}
 	} else if( storage == SERIAL_FLASH ) {
@@ -933,6 +939,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 	                           _FS_FILE_OPEN_FLAG_COMMIT|_FS_FILE_PUBLIC_WRITE),
 	                           &Token, &fileHandle);
 			if (lRetVal < 0) {
+				vPortFree(g_buff);
 				return (lRetVal);
             }
 		}
