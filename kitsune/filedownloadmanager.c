@@ -622,7 +622,7 @@ static void _free_file_sync_response(void * structdata)
 	FileManifest* response_protobuf = (FileManifest*) structdata;
 	sha_calc_running_count = (++sha_calc_running_count) % total_file_count;
 
-	if( response_protobuf->sense_id.funcs.decode ) {
+	if( response_protobuf->sense_id.arg ) {
 		vPortFree(response_protobuf->sense_id.arg);
 	}
 	vPortFree( structdata );
