@@ -1967,6 +1967,7 @@ tCmdLineEntry g_sCmdTable[] = {
 	{ "fat",      Cmd_dump_FAT,      "" },
 //MAB	{ "cid",      Cmd_cid,      "" },
 		{ "repair",      Cmd_repair_fs,      "" },
+		{ "restore_bad",      Cmd_restore_bad_fs,      "" },
 		{ "dumpfs",      Cmd_dump_fs,      "" },
     { "mnt",      Cmd_mnt,      "" },
     { "umnt",     Cmd_umnt,     "" },

@@ -152,6 +152,34 @@ int Cmd_dump_fs(int argc, char *argv[])
 	return 0;
 }
 
+int Cmd_restore_bad_fs(int argc, char *argv[])
+{
+
+	BYTE rbuf[512];
+
+	disk_read(0,rbuf,2,1);
+
+//	rbuf[32] = 0xc1;
+//	rbuf[33] = 0x8f;
+//	rbuf[34] = 0xd0;
+//	rbuf[35] = 0x03;
+
+	rbuf[32] = 0x20;
+	rbuf[33] = 0x49;
+	rbuf[34] = 0x69;
+	rbuf[35] = 0x00;
+
+	rbuf[48] = 0x01;
+
+    if (disk_write(0, rbuf, 2, 1) != RES_OK) {
+    	return FR_DISK_ERR;
+    }
+
+    return 0;
+
+
+}
+
 int Cmd_repair_fs(int argc, char *argv[])
 {
 
@@ -159,9 +187,9 @@ int Cmd_repair_fs(int argc, char *argv[])
 
 	disk_read(0,rbuf,2,1);
 
-	rbuf[32] = 0xd0;
-	rbuf[33] = 0x67;
-	rbuf[34] = 0x6d;
+	rbuf[32] = 0x20;
+	rbuf[33] = 0x49;
+	rbuf[34] = 0x69;
 	rbuf[35] = 0x00;
 
 	rbuf[48] = 0x00;
@@ -379,6 +407,7 @@ Cmd_ls(int argc, char *argv[])
     FATFS *psFatFs;
 
     res = hello_fs_opendir(&fsdirobj,cwd_buff);
+    UARTprintf("opendir  : sclust = %x\n", fsdirobj.sclust);
 
     if(res != FR_OK)
     {
@@ -394,6 +423,7 @@ Cmd_ls(int argc, char *argv[])
     for(;;)
     {
         res = hello_fs_readdir(&fsdirobj, &file_info);
+        UARTprintf("readdir  : sclust = %x\n", fsdirobj.sclust);
 
         if(res != FR_OK)
         {
@@ -557,6 +587,7 @@ FRESULT cd( char * path ) {
     // At this point, a candidate new directory path is in chTmpBuf.  Try to
     // open it to make sure it is valid.
     res = hello_fs_opendir(&fsdirobj,path_buff);
+    UARTprintf("opendir  : sclust = %x\n", fsdirobj.sclust);
 
     // If it can't be opened, then it is a bad path.  Inform the user and
     // return.

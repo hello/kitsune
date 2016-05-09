@@ -3,6 +3,7 @@
 
 int Cmd_dump_fs(int argc, char *argv[]);
 int Cmd_repair_fs(int argc, char *argv[]);
+int Cmd_restore_bad_fs(int argc, char *argv[]);
 int Cmd_dump_FAT(int argc, char *argv[]);
 //int Cmd_cid(int argc, char *argv[]);
 int Cmd_mnt(int argc, char *argv[]);
