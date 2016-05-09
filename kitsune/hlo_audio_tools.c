@@ -87,13 +87,13 @@ int hlo_filter_adpcm_decoder(hlo_stream_t * input, hlo_stream_t * output, void *
 	adpcm_state state = (adpcm_state){0};
 	int ret = 0;
 	while(1){
-		ret = hlo_stream_transfer_all(FROM_STREAM, input, compressed, ADPCM_SAMPLES/2,4);
+		ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)compressed, ADPCM_SAMPLES/2,4);
 		if( ret < 0 ){
 			break;
 		}
 		adpcm_decoder((char*)compressed, (short*)decompressed, ret * 2 , &state);
 		if( output ){
-			ret = hlo_stream_transfer_all(INTO_STREAM, output, decompressed, ret * 4, 4);
+			ret = hlo_stream_transfer_all(INTO_STREAM, output, (uint8_t*)decompressed, ret * 4, 4);
 			if ( ret < 0 ){
 				break;
 			}
@@ -108,13 +108,13 @@ int hlo_filter_adpcm_encoder(hlo_stream_t * input, hlo_stream_t * output, void *
 	adpcm_state state = (adpcm_state){0};
 	int ret = 0;
 	while(1){
-		ret = hlo_stream_transfer_all(FROM_STREAM, input, decompressed,ADPCM_SAMPLES * 2, 4);
+		ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)decompressed,ADPCM_SAMPLES * 2, 4);
 		if ( ret < 0 ){
 			break;
 		}
 		adpcm_coder((short*)decompressed, (char*)compressed, ret / 2, &state);
 		if( output ){
-			ret = hlo_stream_transfer_all(INTO_STREAM, output, compressed, ret / 4, 4);
+			ret = hlo_stream_transfer_all(INTO_STREAM, output, (uint8_t*)compressed, ret / 4, 4);
 			if (ret < 0 ){
 				break;
 			}

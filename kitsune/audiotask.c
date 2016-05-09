@@ -126,22 +126,10 @@ static uint8_t CheckForInterruptionDuringPlayback(void) {
 	AudioMessage_t m;
 	uint8_t ret = 0x00;
 
-	/* Take a peak at the top of our queue.  If we get something that says stop, we stop  */
 	if (xQueueReceive(_playback_queue,(void *)&m,0)) {
-
-		if (m.command == eAudioPlaybackStop) {
-			ret = FLAG_STOP;
-			LOGI("Stopping playback\r\n");
-		}
-		if (!ret) {
-			xQueueSendToFront(_playback_queue, (void*)&m, 0);
-		}
-		if (m.command == eAudioPlaybackStart ) {
-			ret = FLAG_STOP;
-//			LOGI("Switching audio\r\n");
-		}
+		ret = FLAG_STOP;
+		xQueueSendToFront(_playback_queue, (void*)&m, 0);
 	}
-
 	return ret;
 }
 
@@ -284,29 +272,56 @@ void AudioPlaybackTask(void * data) {
 }
 #include "hlo_audio_tools.h"
 static uint8_t CheckForInterruptionDuringCapture(void){
-
+	AudioMessage_t m;
+	uint8_t ret = 0x00;
+	if (xQueueReceive(_capture_queue,(void *)&m,0)) {
+		ret = FLAG_STOP;
+		xQueueSendToFront(_capture_queue, (void*)&m, 0);
+	}
+	return ret;
 }
+static int _do_capture(const AudioCaptureDesc_t * info){
+	int ret = HLO_STREAM_ERROR;
+	if(info->p){
+		hlo_stream_t * mic = hlo_audio_open_mono(info->rate, 0, HLO_AUDIO_RECORD);
+		ret = info->p(mic, info->opt_out, info->ctx, CheckForInterruptionDuringCapture);
+		LOGI("Capture Returned: %d\r\n", ret);
+		hlo_stream_close(mic);
+		hlo_stream_close(info->opt_out);
+	}
+	return ret;
+}
+#define BG_CAPTURE_TIMEOUT 2000
 void AudioCaptureTask(void * data) {
-
-	hlo_stream_t * mic = hlo_audio_open_mono(16000,0,HLO_AUDIO_RECORD);
-	assert(mic);
-
 	_capture_queue = xQueueCreate(INBOX_QUEUE_LENGTH,sizeof(AudioMessage_t));
 	assert(_capture_queue);
 
+	AudioCaptureDesc_t bg_info = {0};
+	uint8_t bg_capture_enable = 0;
 	for (; ;) {
+		AudioMessage_t  m;
 		//default
-		int ret = hlo_filter_feature_extractor(mic,NULL,NULL,CheckForInterruptionDuringCapture);
-		if( ret == HLO_STREAM_EOF ){
-			vTaskDelay(2000);
-		}else if(ret < 0){
-			LOGE("MIC Stream Error: %d\r\n", ret);
-			vTaskDelay(2000);
+		if (xQueueReceive( _capture_queue,(void *) &m, BG_CAPTURE_TIMEOUT )) {
+			switch(m.command){
+			case eAudioCaptureStart:
+				_do_capture(&m.message.capturedesc);
+				break;
+			case eAudioBGCaptureStart:
+				bg_capture_enable = 1;
+				bg_info = m.message.capturedesc;
+				break;
+			case eAudioCaptureStop:
+				bg_capture_enable = 0;
+				break;
+			default:
+				break;
+			}
+		}else{
+			if(bg_capture_enable){
+				_do_capture(&bg_info);
+			}
 		}
 	}
-}
-void AudioTask_StartProcessor(const AudioCaptureDesc_t * desc){
-
 }
 
 void AudioTask_StopPlayback(void) {
@@ -336,19 +351,32 @@ void AudioTask_StartPlayback(const AudioPlaybackDesc_t * desc) {
 	}
 }
 
-
-void AudioTask_AddMessageToQueue(const AudioMessage_t * message) {
-	if (_playback_queue) {
-		xQueueSend(_playback_queue,message,0);
-	}
-}
 void AudioTask_StopCapture(void){
-
+	AudioMessage_t m;
+	m.command = eAudioCaptureStop;
+	if(_capture_queue){
+		xQueueSend(_capture_queue,(void *)&m,0);
+	}
 }
 
 void AudioTask_StartCapture(uint32_t rate){
-
+	AudioMessage_t m;
+	m.command = eAudioBGCaptureStart;
+	m.message.capturedesc.ctx = NULL;
+	m.message.capturedesc.opt_out = NULL;
+	m.message.capturedesc.p = hlo_filter_feature_extractor;
+	m.message.capturedesc.rate = rate;
+	if(_capture_queue){
+		xQueueSend(_capture_queue,(void *)&m,0);
+	}
 }
 
-
+void AudioTask_QueueCaptureProcess(const AudioCaptureDesc_t * desc){
+	AudioMessage_t m;
+	m.command = eAudioCaptureStart;
+	memcpy(&m.message.capturedesc, desc, sizeof(*desc));
+	if(_capture_queue){
+		xQueueSend(_capture_queue,(void *)&m,0);
+	}
+}
 

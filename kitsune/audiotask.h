@@ -9,8 +9,9 @@
 typedef enum {
 	eAudioPlaybackStart,
 	eAudioPlaybackStop,
-	eAudioCaptureStart,
-	eAudioCaptureStop,
+	eAudioCaptureStart,		//enables a one shot capture process
+	eAudioCaptureStop,		//stops the current capture process
+	eAudioBGCaptureStart, 	//enable a bg capture process that always gets restarted
 } EAudioCommand_t;
 
 typedef struct {
@@ -40,8 +41,6 @@ typedef struct {
 void AudioPlaybackTask(void * data);
 void AudioCaptureTask(void * data);
 
-void AudioTask_AddMessageToQueue(const AudioMessage_t * message);
-
 void AudioTask_StartPlayback(const AudioPlaybackDesc_t * desc);
 
 void AudioTask_StopPlayback(void);
@@ -49,6 +48,8 @@ void AudioTask_StopPlayback(void);
 void AudioTask_StopCapture(void);
 
 void AudioTask_StartCapture(uint32_t rate);
+
+void AudioTask_QueueCaptureProcess(const AudioCaptureDesc_t * desc);
 
 void AudioTask_DumpOncePerMinuteStats(AudioOncePerMinuteData_t * pdata);
 
