@@ -38,7 +38,7 @@
 #define Codec_addr 			(0x18U)
 #define DELAY_CODEC 		5 // TODO set arbitrarily, might need to be adjusted
 #define CODEC_USE_MINIDSP 	0 // Set to 1 if using miniDSP, else 0
-#define CODEC_6_WIRE     	0
+#define CODEC_ADC_16KHZ    	0 // Set to 1 if ADC sampling rate is 16k Hz. If not, ADC Fs = DAC Fs = 48k Hz
 #define CODEC_MULTI_CH_SINGLE_PIN 0
 
 extern xSemaphoreHandle i2c_smphr;
@@ -514,423 +514,6 @@ int Cmd_readproximity(int argc, char *argv[]) {
 	return SUCCESS;
 }
 
-// TODO DKH audio change
-/*
-bool set_volume(int v, unsigned int dly) {
-	unsigned char cmd_init[2];
-
-	cmd_init[0] = 0x6c;
-	cmd_init[1] = v;
-
-	if( xSemaphoreTakeRecursive(i2c_smphr, dly) ) {
-		I2C_IF_Write(Codec_addr, cmd_init, 2, 1);
-		xSemaphoreGiveRecursive(i2c_smphr);
-		return true;
-	} else {
-		return false;
-	}
-}
-int get_codec_mic_NAU(int argc, char *argv[]) {
-	unsigned char cmd_init[2];
-	int i;
-
-	static const char reg[50][2] = {
-			{0x00,0x00},
-			{0x03,0x3d},
-			// Addr D8 		D7 D6    D5    D4        D3      D2     D1,D0
-			// 0x01 DCBUFEN 0  AUXEN PLLEN MICBIASEN ABIASEN IOBUFEN REFIMP[1:0]
-			// set  1       0  0     1     1         1       0      1  1
-			{0x04,0x15},
-			// Addr D8  D7 D6    D5    D4      D3   D2     D1 D0
-			// 0x02 0   0  0     0     BSTEN   0    PGAEN  0  ADCEN
-			// set  0   0  0     0     1       0    1      0  1
-			{0x06,0x00},
-			// Addr D8 D7     D6     D5     D4      D3       D2      D1 D0
-			// 0x03 0  MOUTEN NSPKEN PSPKEN BIASGEN MOUTMXEN SPKMXEN 0  DACEN
-			// set  0  0      0      0      0       0        0       0  0
-			{0x09,0x90}, // Can be BCLKP or BCLKP_BAR {0x09 0x90}
-			// Addr D8    D7   D6    D5    D4 D3         D2      D1      D0  Default
-			// 0x04 BCLKP FSP  WLEN[1:0]   AIFMT[1:0]    DACPHS  ADCPHS  0   0x050
-			// set  1     1    0     0     1  0           0       0       0
-			{0x0a,0x00},
-			// Addr D8    D7   D6    D5    D4 D3         D2   D1      D0     Default
-			// 0x05 0     0    0     CMB8  DACCM[1:0]    ADCCM[1:0]   ADDA
-			// set  0     0    0     1     1  0           0    0      0
-			{0x0d,0x08},
-			//Addr D8   D7 D6 D5     D4 D3 D2     D1 D0
-			//0x06 CLKM MCLKSEL[2:0] BCLKSEL[2:0] 0  CLKIOEN
-			//set  1    0  0  0       0  1 0      0  0
-			{0x0e,0x00},
-			// Addr D8    D7 D6 D5 D4 D3 D2 D1   D0
-			// 0x07 SPIEN 0  0  0  0  SMPLR[2:0] SCLKEN
-			// set  0     0  0  0  0  0  1  1    0
-			{0x10,0x04},
-			// Addr D8    D7 D6 D5 D4 			D3     D2 D1  D0
-			//0x08  0     0  0  GPIOPLL[4:5]    GPIOPL GPIOSEL[2:0]
-			//      0     0  0  0  0            0      1  0   0
-			// General Purpose I/O Selection
-			// GPIOSEL [2]  GPIOSEL [1]  GPIOSEL [0]   Mode (Hz)
-			//	 0             0             0         CSb Input
-			//   0     		   0   			 1         Jack Insert Detect
-			//   0   		   1   			 0  	   Temperature OK
-			//   0			   1		     1		   AMUTE Active
-			//   1  		   0  			 0	       PLL CLK Output
-			//   1			   0			 1         PLL Lock
-			//   1             1             0         1
-			//   1             1             1         0
-			{0x12,0x00},
-			{0x14,0x08},
-			// Addr D8 D7  D6                  D5,D4      D3     D2      D1 D0
-			// 0x0A 0  0   DACMT/0: Disable    DEEMP[1:0] DACOS  AUTOMT  0  DACPL
-			// set  0  0   0                   0  0       1      0       0  0
-			{0x17,0xff},
-			{0x18,0x00},
-			{0x1a,0x00},
-			{0x1d,0xf8},
-			//Addr D8    D7    D6 D5 D4 D3    D2 D1 D0      Default
-			//0x0E HPFEN HPFAM HPF[2:0] ADCOS 0  0  ADCPL   0x100
-			//     1     1     0  0  0  1     0  0  0
-			{0x1e,0xff},
-			{0x25,0x2c},
-			{0x26,0x2c},
-			{0x28,0x2c},
-			{0x2a,0x2c},
-			{0x2c,0x2c},
-			{0x30,0x32},
-			{0x32,0x00},
-			{0x37,0x40},//{0x37,0xc0} Notch filter is on; {0x37,0x40} Notch filter is off
-			{0x39,0x15},//Notch 2
-			{0x3b,0x3f},//Notch 3
-			{0x3d,0x75},//Notch 4
-			{0x40,0x38},
-			{0x42,0x0b},
-			{0x44,0x32},
-			{0x46,0x00},
-			{0x48,0x18},
-			// Addr D8    D7 D6 D5 D4       D3 D2 D1 D0 Default
-			// 0x24 0     0  0  0  PLLMCLK  PLLN[3:0]
-			//  set 0     0  0  0  1        1  0  0  0
-			{0x4a,0x0c},
-			{0x4c,0x93},
-			{0x4e,0xe9},
-			{0x50,0x00},
-			{0x59,0x82},
-			// Addr       D8    D7 D6  D5 D4   D3     D2       D1       D0      Default
-			// 0x2C       MICBIASV 0   0  0    AUXM   AUXPGA   NMICPGA  PMICPGA
-			// set        1     1  0   0  0    0      0        1        0
-			{0x5a,0x08},
-			{0x5c,0x00},
-			{0x5e,0x50},
-			{0x60,0x00},
-			{0x62,0x02},
-			{0x64,0x00},
-			// Address D8    D7  D6   D5     D4 D3 D2 D1       D0
-			// 0x32    0     0   0    AUXSPK 0  0  0  BYPSPK   DACSPK
-			// set     0     0   0    0      0  0  0  0        0
-			{0x66,0x00},
-			{0x68,0x40},
-			{0x6a,0x40},
-			{0x6c,0x79},
-			// Address D8    D7      D6       D5 D4 D3 D2 D1 D0
-			// 0x36    0     SPKZC   SPKMT    SPKGAIN[5:0]
-			// set     0     0       1        1  1  1  1  1  1
-			// 								  1  1  1  0  0  1  0dB
-			// 								  1  1  1  0  1  0 +1.0
-			// 								  1  1  1  1  1  1 +6.0
-			{0x6e,0x40},
-			{0x70,0x40},
-			// Address D8    D7      D6       D5 D4 D3 D2      D1      D0
-			// 0x38    0     0       MOUTMXMT 0  0  0  AUXMOUT BYPMOUT DACMOUT
-			// set     0     0       1        0  0  0  0       0       0
-			{0x72,0x40},
-			//{0x74,0x10}, //Power Management 4
-			//Addr  D8      D7    D6     D5    D4        D3   D2     D1 D0
-			// 0x3A LPIPBST LPADC LPSPKD LPDAC MICBIASM TRIMREG[3:2] IBADJ[1:0]
-			// set  0       0     0      0     1         0    0      0  0
-			//{0x78,0xa8}, // 0xa8
-			//Addr  D8      D7    D6     D5    D4        D3   D2     D1     D0
-			// 0x3C PCMTSEN TRI PCM8BIT PUDOEN PUDPE    PUDPS LOUTR  PCMB TSLOT
-			// set  0       1     0      1     0         1    0      0      0
-	};
-	if( xSemaphoreTakeRecursive(i2c_smphr, 300000) ) {
-		vTaskDelay(DELAY_CODEC);
-		for( i=0;i<sizeof(reg)/2;++i) {
-			cmd_init[0] = reg[i][0];
-			cmd_init[1] = reg[i][1];
-			I2C_IF_Write(Codec_addr, cmd_init, 2, 1);
-			vTaskDelay(DELAY_CODEC);
-		}
-		xSemaphoreGiveRecursive(i2c_smphr);
-	} else {
-		LOGW("failed to get i2c %d\n", __LINE__);
-	}
-	return SUCCESS;
-}
-
-
-int get_codec_NAU(int vol_codec) {
-	unsigned char cmd_init[2];
-	int i;
-
-	static const char reg[46][2] = {
-			{0x00,0x00},
-			// Do sequencing for avoid pop and click sounds
-			/////////////// 1. Power supplies VDDA, VDDB, VDDC, and VDDSPK /////////////////////
-			/////////////// 2. Mode SPKBST and MOUTBST /////////////////////////////////////////
-			{0x62,0x00},
-			//Addr D8 D7 D6 D5 D4 D3      D2     D1   D0
-			//0x31 0  0  0  0  0  MOUTBST SPKBST TSEN AOUTIMP
-			//set  0  0  0  0  0  0       0      0    0
-			//////////////// 3. Power management ///////////////////////////////////////////////
-			{0x02,0x0b},
-			// Addr D8 		D7 D6    D5    D4        D3      D2     D1,D0
-			// 0x01 DCBUFEN 0  AUXEN PLLEN MICBIASEN ABIASEN IOBUFEN REFIMP[1:0]
-			// set  0       0  0     0     0         1       0      1  1
-			{0x04,0x00},
-			// Addr D8  D7 D6    D5    D4      D3   D2     D1 D0
-			// 0x02 0   0  0     0     BSTEN   0    PGAEN  0  ADCEN
-			// set  0   0  0     0     0       0    0      0  0
-			{0x06,0x10},
-			// Addr D8 D7     D6     D5     D4      D3       D2      D1 D0
-			// 0x03 0  MOUTEN NSPKEN PSPKEN BIASGEN MOUTMXEN SPKMXEN 0  DACEN
-			// set  0  0      0      0      1       0        0       0  0
-    		//////////////// 4. Clock divider //////////////////////////////////////////////////
-			{0x0d,0x0c},
-			//Addr D8   D7 D6 D5     D4 D3 D2     D1 D0
-			//0x06 CLKM MCLKSEL[2:0] BCLKSEL[2:0] 0  CLKIOEN
-			//set  1    0  0  0       0  1  1      0  0
-			//cmd_init[0] = 0x0e ; cmd_init[1] = 0x00 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC);
-			{0x0E,0x00},
-			// Addr D8    D7 D6 D5 D4 D3 D2 D1   D0
-			// 0x07 SPIEN 0  0  0  0  SMPLR[2:0] SCLKEN
-			// set  0     0  0  0  0  0  1  1    0
-			//////////////// 5. PLL ////////////////////////////////////////////////////////////
-			{0x02,0x2b},
-			// Addr D8 		D7 D6    D5    D4        D3      D2     D1,D0
-			// 0x01 DCBUFEN 0  AUXEN PLLEN MICBIASEN ABIASEN IOBUFEN REFIMP[1:0]
-			// set  0       0  0     1     0         1       0      1  1
-			// pre  1       0  0     1     0         1       1      1  1
-			//////////////// 6. DAC, ADC ////////////////////////////////////////////////////////
-			{0x06,0x11},
-			// Addr D8 D7     D6     D5     D4      D3       D2      D1 D0
-			// 0x03 0  MOUTEN NSPKEN PSPKEN BIASGEN MOUTMXEN SPKMXEN 0  DACEN
-			// set  0  0      0      0      1       0        0       0  1
-			//////////////// 7. SPK MIXER ENABLED ////////////////////////////////////////////////////////
-			{0x06,0x15},
-			// Addr D8 D7     D6     D5     D4      D3       D2      D1 D0
-			// 0x03 0  MOUTEN NSPKEN PSPKEN BIASGEN MOUTMXEN SPKMXEN 0  DACEN
-			// set  0  0      0      0      1       0        1       0  1
-			//////////////// 8. Output stages ////////////////////////////////////////////////////////
-			{0x06,0x75},
-			// Addr D8 D7     D6     D5     D4      D3       D2      D1 D0
-			// 0x03 0  MOUTEN NSPKEN PSPKEN BIASGEN MOUTMXEN SPKMXEN 0  DACEN
-			// set  0  0      1      1      1       0        1       0  1
-			//////////////// 9. Un-mute DAC ////////////////////////////////////////////////////////
-			{0x14,0x0c},
-			// Addr D8 D7  D6                  D5,D4      D3     D2      D1 D0
-			// 0x0A 0  0   DACMT/0: Disable    DEEMP[1:0] DACOS  AUTOMT  0  DACPL
-			// set  0  0   0                   0  0       1      1       0  0
-			{0x17,0xff},
-			// Addr D8 D7 D6 D5 D4 D3 D2 D1 D0
-			// 0x0B 0  DACGAIN
-			// set  0  1  1  1  1  1  1  1  1
-			//
-			//      0  0  0  0  0  0  0  1  1   -126 dB
-			//
-			//      0  1  1  1  1  1  0  0  1   -3.0 dB
-			//      0  1  1  1  1  1  0  1  0   -2.5 dB
-			//      0  1  1  1  1  1  0  1  1   -2.0 dB
-			// 	    0  1  1  1  1  1  1  0  0   -1.5 dB
-			// 		0  1  1  1  1  1  1  1  1      0 dB
-			{0x09,0x10},
-			// Addr D8    D7   D6    D5    D4 D3         D2      D1      D0  Default
-			// 0x04 BCLKP FSP  WLEN[1:0]   AIFMT[1:0]    DACPHS  ADCPHS  0   0x050
-			// set  0     0    0     0     1  0          0       0       0
-			{0x0a,0x00},
-			// Addr D8    D7   D6    D5    D4 D3         D2   D1      D0     Default
-			// 0x05 0     0    0     CMB8  DACCM[1:0]    ADCCM[1:0]   ADDA
-			// set  0     0    0     1     1  0           0    0      0
-			{0x10,0x04},
-			// Addr D8    D7 D6 D5 D4 			D3     D2 D1  D0
-			//0x08  0     0  0  GPIOPLL[4:5]    GPIOPL GPIOSEL[2:0]
-			//      0     0  0  0  0            0      1  0   0
-			// General Purpose I/O Selection
-			// GPIOSEL [2]  GPIOSEL [1]  GPIOSEL [0]   Mode (Hz)
-			//	 0             0             0         CSb Input
-			//   0     		   0   			 1         Jack Insert Detect
-			//   0   		   1   			 0  	   Temperature OK
-			//   0			   1		     1		   AMUTE Active
-			//   1  		   0  			 0	       PLL CLK Output
-			//   1			   0			 1         PLL Lock
-			//   1             1             0         1
-			//   1             1             1         0
-			{0x1c,0x00},
-			//Addr D8    D7    D6 D5 D4 D3    D2 D1 D0      Default
-			//0x0E HPFEN HPFAM HPF[2:0] ADCOS 0  0  ADCPL   0x100
-			//     0     0     0  0  0  1     0  0  0
-			{0x1e,0xff},
-			{0x25,0x0a}, // 0x25 -> EQ on/ 0x24 -> EQ off
-			// Address D8  D7 D6   D5     D4 D3 D2 D1 D0
-			// 0x12    EQM 0  EQ1CF[1:0]  EQ1GC[4:0]
-			// set     1   0  1    1      0  0  0  0  1
-			{0x27,0x4a},
-			// Address D8    D7 D6   D5     D4 D3 D2 D1 D0
-			// 0x13    EQ2BW 0  EQ2CF[1:0]  EQ2GC[4:0]
-			// set     1     0  1    0      0  0  0  1  0
-			{0x29,0x6c},
-			// Address D8    D7 D6   D5     D4 D3 D2 D1 D0
-			// 0x14    EQ3BW 0  EQ3CF[1:0]  EQ3GC[4:0]
-			// set     1     0  1    0      0  1  0  0  0
-			{0x2b,0x6c},
-			// Address D8    D7 D6   D5     D4 D3 D2 D1 D0
-			// 0x15    EQ4BW 0  EQ4CF[1:0]  EQ4GC[4:0]
-			// set     1     0  1    0      0  0  1  0  1
-			{0x2c,0x6c},
-			// Address D8    D7  D6   D5     D4 D3 D2 D1 D0
-			// 0x16    0     0   EQ5CF[1:0]  EQ5GC[4:0]
-			// set     0     0   0    0      1  1  0  0  0
-			{0x30,0x32},
-			//Addr D8          D7 D6 D5 D4    D3 D2 D1 D0
-			//0x18 DACLIMEN    DACLIMDCY[3:0] DACLIMATK[3:0]
-			//set  0           0  0  1  1     0  0  1  0
-			{0x32,0x00},
-			//0x19 0    0 DACLIMTHL[2:0] DACLIMBST[3:0]
-			// set 0    0   0  0  0      0 0 0 0
-			{0x36,0xC0},
-			{0x38,0x6B},
-			{0x3a,0x3F},
-			{0x3d,0x05},
-			{0x40,0x38},
-			// Addr D8    D7 D6 D5 D4 D3        D2 D1 D0 Default
-			// 0x20 ALCEN 0  0  ALCMXGAIN[2:0]  ALCMNGAIN[2:0]
-			//      0     0  0  1  1  1         0  0  0
-			{0x42,0x0b},
-			// Addr D8    D7 D6 D5 D4   D3 D2 D1 D0 Default
-			// 0x21 ALCZC ALCHT[3:0]    ALCSL[3:0]
-			//      0     0  0  0  0    1  0  1  1
-			{0x44,0x32},
-			// Addr D8    D7 D6 D5 D4   D3 D2 D1 D0 Default
-			//0x22  ALCM  ALCDCY[3:0]   ALCATK[3:0]
-			// set  0     0  0  1  1    0  0  1  0
-			{0x46,0x00},
-			// Addr D8    D7 D6 D5 D4   D3      D2 D1 D0 Default
-			// 0x23	0     0  0  0  0    ALCNEN  ALCNTH[2:0]
-			//      0     0  0  0  0    0       0  0  0
-			{0x48,0x18},
-			// Addr D8    D7 D6 D5 D4       D3 D2 D1 D0 Default
-			// 0x24 0     0  0  0  PLLMCLK  PLLN[3:0]
-			//  set 0     0  0  0  1        1  0  0  0
-			{0x4a,0x0c},
-			// Addr D8    D7 D6  D5 D4 D3 D2 D1 D0 Default
-			// 0x25 0     0  0   PLLK[23:18]
-			// set  0     0  0   0  0  1  1  0  0
-			{0x4c,0x93},
-			// Addr       D8    D7 D6  D5 D4 D3 D2 D1 D0 Default
-			// 0x26       PLLK[17:9]
-			// set        0     1  0   0  1  0  0  1  1
-			{0x4e,0xe9},
-			// Addr       D8    D7 D6  D5 D4 D3 D2 D1 D0 Default
-			// 0x27       PLLK[8:0]
-			// set        0     1  1   1  0  1  0  0  1
-			{0x50,0x02},
-			// Addr       D8    D7 D6  D5 D4 D3 D2       D1      D0 Default
-			// 0x28       0     0  0   0  0  0  MOUTATT  SPKATT  0
-			//
-			{0x58,0x00},
-			// Addr       D8    D7 D6  D5 D4   D3     D2       D1       D0      Default
-			// 0x2C       MICBIASV 0   0  0    AUXM   AUXPGA   NMICPGA  PMICPGA
-			// set
-			{0x5a,0x50},
-			// Addr       D8    D7    D6     D5 D4 D3 D2 D1 D0      Default
-			// 0x2D       0     PGAZC PGAMT  PGAGAIN[5:0]
-			// set        0     0     1      0  1  0  0  0  0
-			{0x5f,0x00},
-			// Addr       D8     D7    D6   D5 D4  D3 D2 D1 D0      Default
-			// 0x2F       PGABST 0     PMICBSTGAIN 0  AUXBSTGAIN
-			//
-			{0x64,0x01},
-			// Address D8    D7  D6   D5     D4 D3 D2 D1       D0
-			// 0x32    0     0   0    AUXSPK 0  0  0  BYPSPK   DACSPK
-			// set     0     0   0    0      0  0  0  0        1
-			{0x6c,60},
-			// Address D8    D7      D6       D5 D4 D3 D2 D1 D0
-			// 0x36    0     SPKZC   SPKMT    SPKGAIN[5:0]
-			// set     0     1       0        1  1  1  1  1  1
-			// 								  1  1  1  0  0  1  0dB
-			// 								  1  1  1  0  1  0 +1.0
-			// 								  1  1  1  1  1  1 +6.0
-			{0x70,0x40},
-			// Address D8    D7      D6       D5 D4 D3 D2      D1      D0
-			// 0x38    0     0       MOUTMXMT 0  0  0  AUXMOUT BYPMOUT DACMOUT
-			// set     0     0       1        0  0  0  0       0       0
-			{0x74,0x00},
-			//Addr  D8      D7    D6     D5    D4        D3   D2     D1 D0
-			// 0x3A LPIPBST LPADC LPSPKD LPDAC MICBIASM TRIMREG[3:2] IBADJ[1:0]
-			// set  0       0     0      0     0         0    0      0  0
-			{0x92,0xc1},
-			//Addr D8     D7 D6            D5    D4      D3    D2      D1       D0
-			//0x49 SPIEN FSERRVAL[1:0] FSERFLSH FSERRENA NFDLY DACINMT PLLLOCKP DACOS256
-			//     0      1  1             0     0       0     0       0        1
-	};
-	if (xSemaphoreTakeRecursive(i2c_smphr, 300000)) {
-		vTaskDelay(DELAY_CODEC);
-		for (i = 0; i < sizeof(reg)/2; ++i) {
-			cmd_init[0] = reg[i][0];
-			cmd_init[1] = reg[i][1];
-			if (cmd_init[0] == 0x6c) {
-				cmd_init[1] = vol_codec;
-			}
-			I2C_IF_Write(Codec_addr, cmd_init, 2, 1);
-			vTaskDelay(DELAY_CODEC);
-		}
-		xSemaphoreGiveRecursive(i2c_smphr);
-	} else {
-		LOGW("failed to get i2c %d\n", __LINE__);
-	}
-	LOGI(" codec is testing \n\r");
-	return SUCCESS;
-}
-
-
-int close_codec_NAU(int argc, char *argv[]) {
-	unsigned char cmd_init[2];
-	int i;
-
-	static const char reg[3][2] = {
-			//////// 1.  Un-mute DAC DACMT[6] = 1
-			{0x14,0x4c},
-			// Addr D8 D7  D6                  D5,D4      D3     D2      D1 D0
-			// 0x0A 0  0   DACMT/0: Disable    DEEMP[1:0] DACOS  AUTOMT  0  DACPL
-			// set  0  0   1                   0  0       1      1       0  0
-			//////// 2.  Power Management PWRM1 = 0x000
-			{0x02,0x00},// Power Management 1
-			// Addr D8 		D7 D6    D5    D4        D3      D2     D1,D0
-			// 0x01 DCBUFEN 0  AUXEN PLLEN MICBIASEN ABIASEN IOBUFEN REFIMP[1:0]
-			// set  0       0  0     0     0         0       0      0  0
-			//////// 3.  Output stages MOUTEN[7] NSPKEN PSPKEN
-			{0x06,0x15}, // Power Management 3
-			// Addr D8 D7     D6     D5     D4      D3       D2      D1 D0
-			// 0x03 0  MOUTEN NSPKEN PSPKEN BIASGEN MOUTMXEN SPKMXEN 0  DACEN
-			// set  0  0      0      0      1       0        1       0  1
-			//////// 4.  Power supplies Analog VDDA VDDB VDDC VDDSPK
-	};
-	if (xSemaphoreTakeRecursive(i2c_smphr, 300000)) {
-		vTaskDelay(DELAY_CODEC);
-		for (i = 0; i < sizeof(reg)/2; ++i) {
-			cmd_init[0] = reg[i][0];
-			cmd_init[1] = reg[i][1];
-			I2C_IF_Write(Codec_addr, cmd_init, 2, 1);
-			vTaskDelay(DELAY_CODEC);
-		}
-		xSemaphoreGiveRecursive(i2c_smphr);
-	} else {
-		LOGW("failed to get i2c %d\n", __LINE__);
-	}
-
-	return 0;
-}
-*/
-
 // TODO DKH audio functions
 #include "simplelink.h"
 #include "sl_sync_include_after_simplelink_header.h"
@@ -1152,6 +735,37 @@ int32_t codec_init_no_dsp(void)
 	// Output Channel Configuration TODO verify
 	// codec_speaker_config();
 
+	// For testing purposes only
+#ifdef CODEC_1P5_TEST
+	char send_stop = 1;
+	unsigned char cmd[2];
+
+	//	w 30 00 00 # Select Page 0
+	cmd[0] = 0;
+	cmd[1] = 0;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	// Read register in [0][0][36]
+	cmd[0] = 0x24;
+	cmd[1] = 0;
+
+	I2C_IF_Write(Codec_addr, &cmd[0],1,send_stop);
+	I2C_IF_Read(Codec_addr, &cmd[1], 1);
+
+	UARTprintf("Codec Test read [0][0][%u]: %X \n",cmd[0], cmd[1]);
+
+	// Read register in [0][0][37]
+	cmd[0] = 0x25;
+	cmd[1] = 0;
+
+	I2C_IF_Write(Codec_addr, &cmd[0],1,send_stop);
+	I2C_IF_Read(Codec_addr, &cmd[1], 1);
+
+	UARTprintf("Codec Test read [0][0][%u]: %X  \r\n", cmd[0], cmd[1]);
+
+#endif
+
+
 	return 0;
 }
 
@@ -1228,6 +842,12 @@ static void codec_fifo_config(void)
 	cmd[1] = 0x64;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
+	//	w 30 32 80 # Enable ADC (CIC output) FIFO
+	cmd[0] = 0x32;
+	cmd[1] = 0x80;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	/*
 	//	# reg[100][0][20] = 0x80 ;
 	// Disable ADC double buffer mode; Disable DAC double buffer mode; Enable ADC double buffer mode
 	cmd[0] = 20;
@@ -1243,16 +863,7 @@ static void codec_fifo_config(void)
 	cmd[0] = 20;
 	cmd[1] = 0x80;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
-	//	w 30 7f 64 # Select Book 100
-	cmd[0] = 0x7F;
-	cmd[1] = 0x64;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
-	//	w 30 32 80 # Enable ADC (CIC output) FIFO
-	cmd[0] = 0x32;
-	cmd[1] = 0x80;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+	*/
 
 	//	w 30 7f 00 # Select Book 0
 	cmd[0] = 0x7F;
@@ -1313,7 +924,10 @@ static void codec_clock_config(void)
 	cmd[1] = 0;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
-#if (CODEC_6_WIRE == 1)
+#if (CODEC_ADC_16KHZ == 1)
+	// *********************************************
+	// ********* ADC Fs != DAC Fs = 48k Hz *********
+	// *********************************************
 	//	w 30 04 00 # Set ADC_CLKIN = BCLK2 and DAC_CLK = BCLK1
 	cmd[0] = 0x04;
 	cmd[1] = (1 << 4) | (4 << 0);
@@ -1361,6 +975,10 @@ static void codec_clock_config(void)
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 #else
+	// *********************************************
+	// ********* ADC Fs = DAC Fs = 48k Hz *********
+	// *********************************************
+
 	//	w 30 04 00 # Set ADC_CLKIN = BCLK1 and DAC_CLK = BCLK1
 	cmd[0] = 0x04;
 	cmd[1] = (1 << 4) | (1 << 0);
@@ -1373,21 +991,25 @@ static void codec_clock_config(void)
 	cmd[1] = (1 << 7) | (1 << 0);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
-	//	# MDAC = 6
+	//	# MDAC = 2
 	cmd[0] = 0x0C;
-	cmd[1] = (1 << 7) | (6 << 0);
+	cmd[1] = (1 << 7) | (2 << 0);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	// DOSR = 128
 	//	w 30 0d 00 # DOSR (MSB)
 	cmd[0] = 0x0D;
-	cmd[1] = (128 & 0x3F00) >> 8;
+	cmd[1] = (64UL & 0x0300) >> 8;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	UARTprintf("DOSR = %x",cmd[1]);
 
 	//	w 30 0e 80 # DOSR (LSB)
 	cmd[0] = 0x0E;
-	cmd[1] = (128 & 0x00FF) >> 0;
+	cmd[1] = (64UL & 0x00FF) >> 0;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	UARTprintf(" %x \n",cmd[1] );
 
 	// --------- ADC -------------
 
@@ -1396,35 +1018,7 @@ static void codec_clock_config(void)
 	//	w 30 14 40 # AOSR = 128
 	// TODO As per datasheet, if AOSR=128, Use with PRB_R1 to PRB_R6, ADC Filter Type A
 	cmd[0] = 0x14;
-	cmd[1] = 128;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-#endif
-
-	// TODO: Not sure if PLL is needed even in 6 wire mode
-#if (CODEC_6_WIRE == 1)
-	// PLL Input multiplexer
-	cmd[0] = 0x05;
-	cmd[1] = (0 << 6) | (0 << 2); // PLL CLK range-0(Low) and pll_clkin=mclk(0)
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
-	// PLL P & R values
-	cmd[0] = 0x06;
-	cmd[1] = (1 << 7) | (1 << 0) | (1 << 0); // PLL power up, P=1, R=1
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
-	// PLL J values
-	cmd[0] = 0x07;
-	cmd[1] =  7 << 0; // J=7
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
-	// PLL D MSB values
-	cmd[0] = 0x08;
-	cmd[1] = (6800 & 0x3F00) >> 8; // D=6800 (0x1A90)
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
-	// PLL D LSB values
-	cmd[0] = 0x09;
-	cmd[1] = (6800 & 0x00FF) >> 0; // D=6800 (0x1A90)
+	cmd[1] = 64;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 #endif
 
@@ -1465,18 +1059,17 @@ static void codec_asi_config(void)
 	cmd[1] = 0;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
-#if (CODEC_6_WIRE == 1)
-
-	// Enable 6-wire interface TODO - not sure if this config is right
-	cmd[0] = 0x0B;
-	cmd[1] = (0x01 << 7) | (1 << 6) | (7 << 0);
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+#if (CODEC_ADC_16KHZ == 1)
 
 	// ADC WCLK is input on GPIO1, BCLK is input on GPIO 3
 	cmd[0] = 0x010;
 	cmd[1] = (1 << 4) | (3 << 0);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
+	// Enable ASI2 BCLK Output and WCLK Output
+	cmd[0] = 0x1A;
+	cmd[1] = (1 << 5) | (1 << 2);
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 #else
 
 	// Set ASI1_BDIV_CLKIN = ASI 1 BCLK input pin
@@ -1490,9 +1083,10 @@ static void codec_asi_config(void)
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 #endif
-	// Enable ASI2 BCLK Output and WCLK Output
-	cmd[0] = 0x1A;
-	cmd[1] = (1 << 5) | (1 << 2);
+
+	//	w 30 00 00 # Select Page 0
+	cmd[0] = 0;
+	cmd[1] = 0;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 }
@@ -1517,7 +1111,7 @@ static void codec_gpio_config(void)
 	cmd[1] = (0x0A << 2);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
-	// # GPIO3 as clock input (will be used as ADC BCLK in 6-wire ASI)
+	// # GPIO3 as clock input (will be used as ADC BCLK)
 	cmd[0] = 0x58;
 	cmd[1] = (0x01 << 2);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
@@ -1535,6 +1129,16 @@ static void codec_gpio_config(void)
 	// # GPIO6 as digital mic input,  MIC3_DAT, sampled on rising edge, hence left by default (DIG MIC PAIR 2)
 	cmd[0] = 0x5B;
 	cmd[1] = (0x01 << 2);
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	// # GPIO1 pin output disabled
+	cmd[0] = 0x60;
+	cmd[1] = 0;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);\
+
+	//	w 30 00 00 # Select Page 0
+	cmd[0] = 0;
+	cmd[1] = 0;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 }
@@ -1592,8 +1196,9 @@ static void codec_mic_config(void)
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	// # ADC channel power control - Left and right channel ADC configured for Digital Mic
+	// TODO enabled only left channel
 	cmd[0] = 0x51;
-	cmd[1] = (1 << 7) | (1 << 6) | (1 << 4) | (1 << 2);
+	cmd[1] = (1 << 7) | (1 << 4); // TODO | (1 << 6) | (1 << 2);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	// # ADC Fine Gain Volume Control, Unmute Left and Right ADC channel
@@ -1601,9 +1206,14 @@ static void codec_mic_config(void)
 	cmd[1] = 0;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
+	// # Left ADC Volume Control
+	cmd[0] = 0x53;
+	cmd[1] = 0x10;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
 	// # Digital mic 2 control - Enable CIC2 Left channel, and digital mic to left channel
 	cmd[0] = 0x70;
-	cmd[1] = (1 << 7) | (1 << 4);
+	cmd[1] = 0; // TODO (1 << 7) | (1 << 4);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 }
 

@@ -597,6 +597,7 @@ static void DoCapture(uint32_t rate) {
 			t1 = xTaskGetTickCount(); dt = t1 - t0; t0 = t1;
 #endif
 
+
 			//write to file
 			if (isSavingToFile) {
 				const uint32_t bytes_written = MONO_BUF_LENGTH*sizeof(int16_t);
@@ -619,6 +620,7 @@ static void DoCapture(uint32_t rate) {
 					_filecounter--;
 				}
 			}
+
 
 			/* process audio to get features */
 #ifdef PRINT_TIMING
@@ -724,7 +726,7 @@ void AudioTask_Thread(void * data) {
 			//so even if we just played back a file
 			//if we were supposed to be capturing, we resume that mode
 			if (_isCapturing) {
-				AudioTask_StartCapture(16000);
+				AudioTask_StartCapture(48000); // TODO DKH 16000);
 			}
 		}
 	}

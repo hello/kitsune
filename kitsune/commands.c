@@ -338,7 +338,7 @@ int Cmd_record_buff(int argc, char *argv[]) {
 
 int Cmd_audio_turn_on(int argc, char * argv[]) {
 
-	AudioTask_StartCapture(16000);
+	AudioTask_StartCapture(48000); // TODO DKH 16000);
 
 	AudioProcessingTask_SetControl(featureUploadsOn,NULL,NULL,0);
 #ifdef KIT_INCLUDE_FILE_UPLOAD
@@ -1747,7 +1747,7 @@ void init_download_task( int stack );
 
 void launch_tasks() {
 	checkFaults();
-	start_top_boot_watcher();
+	// start_top_boot_watcher();
 
 	//dear future chris: this one doesn't need a semaphore since it's only written to while threads are going during factory test boot
 	booted = true;
@@ -1773,7 +1773,7 @@ void launch_tasks() {
 	UARTprintf("*");
 	// TODO ENABLE THIS BEFORE MERGE
 	// long_poll_task_init( 2560 / 4 );
-	// downloadmanagertask_init(3072 / 4);
+	downloadmanagertask_init(3072 / 4);
 #endif
 }
 
@@ -2239,16 +2239,16 @@ void vUARTTask(void *pvParameters) {
 
 	init_dust();
 	ble_proto_init();
-	xTaskCreate(top_board_task, "top_board_task", 1280 / 4, NULL, 3, NULL);
-	xTaskCreate(thread_spi, "spiTask", 1024 / 4, NULL, 3, NULL);
+	// xTaskCreate(top_board_task, "top_board_task", 1280 / 4, NULL, 3, NULL);
+	// xTaskCreate(thread_spi, "spiTask", 1024 / 4, NULL, 3, NULL);
 #ifndef BUILD_SERVERS
 	uart_logger_init();
 	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 1, NULL);
 	UARTprintf("*");
-	xTaskCreate(analytics_event_task, "analyticsTask", 1024/4, NULL, 1, NULL);
+	// xTaskCreate(analytics_event_task, "analyticsTask", 1024/4, NULL, 1, NULL);
 	UARTprintf("*");
 #endif
-	xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 2, NULL);
+	// xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
 
 	if( on_charger ) {
