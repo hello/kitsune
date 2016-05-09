@@ -24,6 +24,7 @@ typedef enum{
 static codec_state_t mode;
 static unsigned long record_sr;
 static unsigned long playback_sr;
+static unsigned int initial_vol;
 
 static int _close_playback(void);
 static int _close_record(void);
@@ -59,7 +60,7 @@ static int _write_playback_mono(void * ctx, const void * buf, size_t size){
 	if( mode == RECORD ){
 		//playback has priority, always swap to playback state
 		_close_record();
-		_open_playback(playback_sr, 0);
+		_open_playback(playback_sr, initial_vol);
 		return 0;
 	}
 	int bytes_consumed = min(512, size);
@@ -134,6 +135,7 @@ hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint8_t vol, uint32_t direction)
 	LOCK();
 	if(direction == HLO_AUDIO_PLAYBACK){
 		playback_sr = sr;
+		initial_vol = vol;
 	}else if(direction == HLO_AUDIO_RECORD){
 		record_sr = sr;
 	}

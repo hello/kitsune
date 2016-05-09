@@ -56,15 +56,17 @@ int hlo_filter_feature_extractor(hlo_stream_t * input, hlo_stream_t * output, vo
 		AudioFeatures_Init(DataCallback,StatsCallback);
 	}
 	while(1){
-		int ret = hlo_stream_transfer_all(FROM_STREAM,input,buf,sizeof(buf),4);
+		ret = hlo_stream_transfer_all(FROM_STREAM,input,buf,sizeof(buf),4);
 		if(ret < 0){
 			break;
 		}else if(settle_count++ > 3){
 			AudioFeatures_SetAudioData((const int16_t*)buf,_callCounter++);
 		}
 		hlo_stream_transfer_all(INTO_STREAM,output,buf,ret,4); /** be a good samaritan and transfer the stream back out */
-		EXIT_ON_SIG(signal);
+		BREAK_ON_SIG(signal);
 	}
+	LOGI("Feature Extractor Completed:");
+	LOGI("%d disturbances, %d/%d dB(p/bg), %u samples\r\n", _stats.num_disturbances, _stats.peak_energy, _stats.peak_background_energy, _stats.num_samples);
 	return ret;
 }
 void AudioTask_DumpOncePerMinuteStats(AudioOncePerMinuteData_t * pdata) {
@@ -73,6 +75,53 @@ void AudioTask_DumpOncePerMinuteStats(AudioOncePerMinuteData_t * pdata) {
 	pdata->peak_background_energy/=pdata->num_samples;
 	memset(&_stats,0,sizeof(_stats));
 	xSemaphoreGive(_statsMutex);
+}
+////-------------------------------------------
+//adpcm processor pair
+//TODO make it more efficient
+#include "adpcm.h"
+#define ADPCM_SAMPLES (512)
+int hlo_filter_adpcm_decoder(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
+	char compressed[ADPCM_SAMPLES/2];
+	short decompressed[ADPCM_SAMPLES];
+	adpcm_state state = (adpcm_state){0};
+	int ret = 0;
+	while(1){
+		ret = hlo_stream_transfer_all(FROM_STREAM, input, compressed, ADPCM_SAMPLES/2,4);
+		if( ret < 0 ){
+			break;
+		}
+		adpcm_decoder((char*)compressed, (short*)decompressed, ret * 2 , &state);
+		if( output ){
+			ret = hlo_stream_transfer_all(INTO_STREAM, output, decompressed, ret * 4, 4);
+			if ( ret < 0 ){
+				break;
+			}
+		}
+		BREAK_ON_SIG(signal);
+	}
+	return ret;
+}
+int hlo_filter_adpcm_encoder(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
+	char compressed[ADPCM_SAMPLES/2];
+	short decompressed[ADPCM_SAMPLES];
+	adpcm_state state = (adpcm_state){0};
+	int ret = 0;
+	while(1){
+		ret = hlo_stream_transfer_all(FROM_STREAM, input, decompressed,ADPCM_SAMPLES * 2, 4);
+		if ( ret < 0 ){
+			break;
+		}
+		adpcm_coder((short*)decompressed, (char*)compressed, ret / 2, &state);
+		if( output ){
+			ret = hlo_stream_transfer_all(INTO_STREAM, output, compressed, ret / 4, 4);
+			if (ret < 0 ){
+				break;
+			}
+		}
+		BREAK_ON_SIG(signal);
+	}
+	return ret;
 }
 ////-------------------------------------------
 //recorder sample app
@@ -149,24 +198,39 @@ int Cmd_audio_record_start(int argc, char *argv[]){
 	return 0;
 }
 int Cmd_audio_record_stop(int argc, char *argv[]){
+	DISP("Stopping Audio\r\n");
 	AudioTask_StopPlayback();
 	audio_sig_stop = 1;
 	return 0;
 
 }
-int Cmd_audio_record_replay(int argc, char *argv[]){
-	DISP("Playing back %s ...\r\n", argv[1]);
-	AudioPlaybackDesc_t desc;
-	desc.durationInSeconds = 10;
-	desc.fade_in_ms = 1000;
-	desc.fade_out_ms = 1000;
-	desc.stream = fs_stream_open_media(argv[1],0);
-	desc.volume = 50;
-	desc.onFinished = NULL;
-	desc.rate = argc > 2?atoi(argv[2]):48000;
+int Cmd_audio_adpcm_encode(int argc, char *argv[]){
+	if(argc < 3){
+		return -1;
+	}
+	int ret;
 	audio_sig_stop = 0;
-	AudioTask_StartPlayback(&desc);
+	hlo_stream_t * in = open_stream_from_path(argv[1], 1);
+	hlo_stream_t * out = open_stream_from_path(argv[2], 0);
+	ret = hlo_filter_adpcm_encoder(in, out, NULL, _can_has_sig_stop);
+	hlo_stream_close(in);
+	hlo_stream_close(out);
+	LOGI("Encoder Finished %d\r\n", ret);
 	return 0;
+}
+int Cmd_audio_adpcm_decode(int argc, char *argv[]){
+	if(argc < 3){
+		return -1;
+	}
+	int ret;
+	hlo_stream_t * in = open_stream_from_path(argv[1], 1);
+	hlo_stream_t * out = open_stream_from_path(argv[2], 0);
+	ret = hlo_filter_adpcm_decoder(in, out, NULL, _can_has_sig_stop);
+	hlo_stream_close(in);
+	hlo_stream_close(out);
+	LOGI("Decoder Finished %d\r\n", ret);
+	return 0;
+
 }
 int Cmd_audio_octogram(int argc, char *argv[]){
 	audio_sig_stop = 0;
