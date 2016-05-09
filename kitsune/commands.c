@@ -339,7 +339,7 @@ int Cmd_record_buff(int argc, char *argv[]) {
 
 int Cmd_audio_turn_on(int argc, char * argv[]) {
 
-	AudioTask_StartCapture(16000);
+	AudioTask_StartCapture(AUDIO_CAPTURE_RATE);
 
 	AudioProcessingTask_SetControl(featureUploadsOn,NULL,NULL,0);
 #ifdef KIT_INCLUDE_FILE_UPLOAD
@@ -1757,8 +1757,6 @@ void launch_tasks() {
 	booted = true;
 
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 3, NULL);
-	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,2,NULL);
-	UARTprintf("*");
 #ifdef KIT_INCLUDE_FILE_UPLOAD
 	xTaskCreate(FileUploaderTask_Thread,"fileUploadTask", 1024/4,NULL,1,NULL);
 #endif
@@ -2230,6 +2228,8 @@ void vUARTTask(void *pvParameters) {
 	load_data_server();
 
 	xTaskCreate(AudioTask_Thread,"audioTask",2560/4,NULL,4,NULL);
+	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,2,NULL);
+	UARTprintf("*");
 	init_download_task( 3072 / 4 );
 	networktask_init(3 * 1024 / 4);
 
