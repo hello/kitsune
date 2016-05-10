@@ -206,12 +206,12 @@ typedef struct{
 static int fs_write(void * ctx, const void * buf, size_t size){
 	//due to a bug in the driver, only up to 512 works, so we cap it here
 	fs_stream_t * fs = (fs_stream_t*)ctx;
-	WORD size_to_write = (size > FS_IO_CAP)?FS_IO_CAP:size;
-	FRESULT res = hello_fs_write(&fs->f,buf,size_to_write,&size_to_write);
+	UINT written;
+	FRESULT res = hello_fs_write(&fs->f,buf,size,&written);
 	if(res != FR_OK){
 		return HLO_STREAM_ERROR;
 	}
-	return (int)size_to_write;
+	return (int)written;
 }
 static int fs_write_with_limit(void * ctx, const void * buf, size_t size){
 	int ret = fs_write(ctx, buf, size);
@@ -227,16 +227,15 @@ static int fs_write_with_limit(void * ctx, const void * buf, size_t size){
 
 static int fs_read(void * ctx, void * buf, size_t size){
 	fs_stream_t * fs = (fs_stream_t*)ctx;
-	WORD read;
-	int size_to_read = (size > FS_IO_CAP)?FS_IO_CAP:size;
-	FRESULT res = hello_fs_read(&fs->f, buf, size_to_read, &read);
+	UINT read;
+	FRESULT res = hello_fs_read(&fs->f, buf, size, &read);
 	if(read == 0){
 		return HLO_STREAM_EOF;
 	}
 	if(res != FR_OK){
 		return HLO_STREAM_ERROR;
 	}
-	return read;
+	return (int)read;
 }
 static int fs_read_with_replay(void * ctx, void * buf, size_t size){
 	int ret = fs_read(ctx, buf, size);
