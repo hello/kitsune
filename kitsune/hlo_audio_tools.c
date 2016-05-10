@@ -3,7 +3,6 @@
 #include "kit_assert.h"
 #include "hellofilesystem.h"
 #include "hlo_pipe.h"
-#include "octogram.h"
 #include "audio_types.h"
 #include "audiofeatures.h"
 #include "hlo_async.h"
@@ -142,19 +141,16 @@ int hlo_filter_data_transfer(hlo_stream_t * input, hlo_stream_t * output, void *
 
 ////-------------------------------------------
 //octogram sample app
+#include "octogram.h"
 #define PROCESSOR_BUFFER_SIZE ((AUDIO_FFT_SIZE)*3*2)
 #define OCTOGRAM_DURATION 500
-void hlo_audio_octogram_task(void * data){
+int hlo_filter_octogram(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
 	Octogram_t octogramdata = {0};
 	int ret,i;
 	int32_t duration = 500;
 	Octogram_Init(&octogramdata);
 	OctogramResult_t result;
 	int16_t * samples = pvPortMalloc(PROCESSOR_BUFFER_SIZE);
-	hlo_stream_t * input = (hlo_stream_t*)data;
-	if(!samples){
-		goto exit;
-	}
 	while( (ret = hlo_stream_transfer_all(FROM_STREAM,input,(uint8_t*)samples,PROCESSOR_BUFFER_SIZE,4)) > 0){
 		//convert from 48K to 16K
 		for(i = 0; i < 256; i++){
@@ -176,11 +172,11 @@ void hlo_audio_octogram_task(void * data){
 			LOGF("\r\n");
 			break;
 		}
+		BREAK_ON_SIG(signal);
 	}
 	vPortFree(samples);
-exit:
 	DISP("Octogram Task Finished %d\r\n", ret);
-	hlo_stream_close(input);
+	return ret;
 }
 ////-----------------------------------------
 //commands
@@ -208,6 +204,8 @@ static hlo_filter _filter_from_string(const char * str){
 		return hlo_filter_adpcm_encoder;
 	case 'd':
 		return hlo_filter_adpcm_decoder;
+	case 'o':
+		return hlo_filter_octogram;
 	default:
 		return hlo_filter_data_transfer;
 	}
