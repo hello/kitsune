@@ -24,6 +24,7 @@ static codec_state_t mode;
 static unsigned long record_sr;
 static unsigned long playback_sr;
 static unsigned int initial_vol;
+static uint8_t audio_playback_started;
 
 static int _close_playback(void);
 static int _close_record(void);
@@ -61,23 +62,7 @@ static uint8_t InitAudioCapture(uint32_t rate) {
 	AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
 	AudioCaptureRendererConfigure( rate);
 
-	// Start Audio Tx/Rx
-	Audio_Start();
-
 	return 1;
-}
-
-static void DeinitAudioCapture(void) {
-	Audio_Stop();
-
-	McASPDeInit();
-
-	MAP_uDMAChannelDisable(UDMA_CH4_I2S_RX);
-
-	if (pTxBuffer) {
-		DestroyCircularBuffer(pTxBuffer);
-		pTxBuffer = NULL;
-	}
 }
 
 static uint8_t InitAudioPlayback(int32_t vol, uint32_t rate ) {
@@ -108,28 +93,26 @@ static uint8_t InitAudioPlayback(int32_t vol, uint32_t rate ) {
 	return 1;
 
 }
-
-static void DeinitAudioPlayback(void) {
-	close_codec_NAU();
-
+static void DeinitAudio(void){
+	Audio_Stop();
 	McASPDeInit();
-
+	MAP_uDMAChannelDisable(UDMA_CH4_I2S_RX);
 	MAP_uDMAChannelDisable(UDMA_CH5_I2S_TX);
+	if (pTxBuffer) {
+		DestroyCircularBuffer(pTxBuffer);
+		pTxBuffer = NULL;
+	}
 	if (pRxBuffer) {
 		DestroyCircularBuffer(pRxBuffer);
 		pRxBuffer = NULL;
 	}
+	audio_playback_started = 0;
+	mode = CLOSED;
 }
 ////------------------------------
 // playback stream driver
 static int _playback_done(void){
 	return (int)( (xTaskGetTickCount() - last_playback_time) > MODESWITCH_TIMEOUT_MS);
-}
-static int _close_playback(void){
-	Audio_Stop();
-	DeinitAudioPlayback();
-	mode = CLOSED;
-	return 0;
 }
 static int _open_playback(uint32_t sr, uint8_t vol){
 	if(!InitAudioPlayback(vol, sr)){
@@ -146,12 +129,16 @@ static int _write_playback_mono(void * ctx, const void * buf, size_t size){
 	last_playback_time = xTaskGetTickCount();
 	if( mode == RECORD ){
 		//playback has priority, always swap to playback state
-		_close_record();
+		DeinitAudio();
 		_open_playback(playback_sr, initial_vol);
 		return 0;
 	}
 	int bytes_consumed = min(512, size);
 	if(IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) == TRUE){
+		if(!audio_playback_started){
+			audio_playback_started = 1;
+			Audio_Start();
+		}
 		return 0;
 	}else if(bytes_consumed %2){
 		return HLO_STREAM_ERROR;
@@ -165,12 +152,6 @@ static int _write_playback_mono(void * ctx, const void * buf, size_t size){
 
 ////------------------------------
 //record stream driver
-static int _close_record(void){
-	Audio_Stop();
-	DeinitAudioCapture();
-	mode = CLOSED;
-	return 0;
-}
 static int _open_record(uint32_t sr){
 	if(!InitAudioCapture(sr)){
 		return -1;
@@ -185,7 +166,7 @@ static int _read_record_mono(void * ctx, void * buf, size_t size){
 	if( mode == PLAYBACK ){
 		//swap mode back to record iff playback buffer is empty
 		if( _playback_done() ){
-			_close_playback();
+			DeinitAudio();
 			_open_record(record_sr);
 			return 0;//do not act immediately after mode switch
 		}else{
