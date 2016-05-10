@@ -202,37 +202,3 @@ hlo_stream_t * debug_stream_open(void){
 }
 ////==========================================================
 //test commands
-
-#include "hellofilesystem.h"
-static hlo_stream_t *user_streams[3];
-
-int Cmd_make_stream(int argc, char *argv[]){
-	DISP("Test: Making fifo 0");
-	//user_streams[0] = fifo_stream_open(16);
-	if(argc > 1){
-		user_streams[0] = fs_stream_open(argv[1], HLO_STREAM_READ);
-	}
-	return 0;
-}
-int Cmd_write_stream(int argc, char *argv[]){
-	DISP("Test: Writing fifo 0");
-	if(argc > 1){
-		hlo_stream_t * stream = user_streams[0];
-
-		int ret = hlo_stream_write(stream, argv[1], strlen(argv[1]));
-		DISP("write %s, return code %d\r\n",argv[1], ret);
-		hlo_stream_info(stream);
-	}
-	return 0;
-}
-int Cmd_read_stream(int argc, char *argv[]){
-	if(argc > 0){
-		uint8_t temp[9] = {0};
-		hlo_stream_t * stream = user_streams[0];
-
-		int ret = hlo_stream_read(stream, temp, 8);
-		DISP("read %s, return code %d\r\n", temp, ret);
-		hlo_stream_info(stream);
-	}
-	return 0;
-}

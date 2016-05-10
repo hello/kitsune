@@ -1951,11 +1951,6 @@ tCmdLineEntry g_sCmdTable[] = {
 		{"nwp", Cmd_nwpinfo, ""},
 		{"dns", Cmd_setDns, ""},
 		{"g", Cmd_gesture, ""},
-
-		{ "mks",Cmd_make_stream,""},
-		{ "wrs",Cmd_write_stream,""},
-		{ "rds",Cmd_read_stream,""},
-
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
 		{ "iperfcli",Cmd_iperf_client,""},

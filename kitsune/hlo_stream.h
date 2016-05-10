@@ -71,10 +71,6 @@ void hlo_stream_init(hlo_stream_t * stream,
 //do not use in conjunction with init.
 hlo_stream_t * hlo_stream_new(const hlo_stream_vftbl_t * impl, void * ctx, uint32_t options);
 
-int Cmd_make_stream(int argc, char *argv[]);
-int Cmd_write_stream(int argc, char *argv[]);
-int Cmd_read_stream(int argc, char *argv[]);
-
 //fifo buffer stream
 hlo_stream_t * fifo_stream_open(size_t capacity);
 //random stream
