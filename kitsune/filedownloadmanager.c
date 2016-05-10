@@ -611,7 +611,7 @@ bool add_to_file_error_queue(char* filename, int32_t err_code, bool write_error)
 
 	// Copy file name
 	// data.filename.arg, filename,
-	data.filename.funcs.encode = _encode_string_fields;
+	data.filename.funcs.encode = NULL;
 	data.filename.arg = NULL;
 
 	// add to qyeye
