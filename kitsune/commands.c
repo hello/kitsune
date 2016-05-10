@@ -1861,7 +1861,6 @@ tCmdLineEntry g_sCmdTable[] = {
     { "write",    Cmd_write,    "" },
     { "mkfs",     Cmd_mkfs,     "" },
     { "pwd",      Cmd_pwd,      "" },
-    { "cat",      Cmd_cat,      "" },
 	{"codec_Mic", get_codec_mic_NAU, "" },
 #endif
 
