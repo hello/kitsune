@@ -18,6 +18,8 @@
 static xSemaphoreHandle _statsMutex = NULL;
 static AudioOncePerMinuteData_t _stats;
 
+int audio_sig_stop = 0;
+
 static void DataCallback(const AudioFeatures_t * pfeats) {
 //	LOGI("Found Feature\r\n");
 	//AudioProcessingTask_AddFeaturesToQueue(pfeats);
@@ -124,23 +126,18 @@ int hlo_filter_adpcm_encoder(hlo_stream_t * input, hlo_stream_t * output, void *
 	return ret;
 }
 ////-------------------------------------------
-//recorder sample app
-#define CHUNK_SIZE 1024
-int audio_sig_stop = 0;
-void hlo_audio_recorder_task(hlo_stream_t * out){
+// Simple data transfer filter
+int hlo_filter_data_transfer(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
+	uint8_t buf[512];
 	int ret;
-	uint8_t chunk[CHUNK_SIZE];
-	hlo_stream_t * mic;
-	mic = hlo_audio_open_mono(16000, 44, HLO_AUDIO_RECORD);
-
-	while( (ret = hlo_stream_transfer_between(mic,out,chunk, sizeof(chunk),4)) > 0){
-		if(audio_sig_stop){
+	while(1){
+		ret = hlo_stream_transfer_between(input,output,buf,sizeof(buf),4);
+		if(ret < 0){
 			break;
 		}
+		BREAK_ON_SIG(signal);
 	}
-	hlo_stream_close(mic);
-	hlo_stream_close(out);
-	DISP("Recorder Task Finished %d\r\n", ret);
+	return ret;
 }
 
 ////-------------------------------------------
@@ -204,14 +201,23 @@ int Cmd_audio_record_stop(int argc, char *argv[]){
 
 }
 static hlo_filter _filter_from_string(const char * str){
-	return hlo_filter_feature_extractor;
+	switch(str[0]){
+	case 'f':
+		return hlo_filter_feature_extractor;
+	case 'e':
+		return hlo_filter_adpcm_encoder;
+	case 'd':
+		return hlo_filter_adpcm_decoder;
+	default:
+		return hlo_filter_data_transfer;
+	}
+
 }
 hlo_stream_t * open_stream_from_path(char * str, uint8_t input, uint32_t opt_rate);
 int Cmd_stream_transfer(int argc, char * argv[]){
-	uint8_t tmp[256];
 	uint32_t rate = 0;
 	audio_sig_stop = 0;
-	hlo_filter f = NULL;
+	hlo_filter f = hlo_filter_data_transfer;
 	int ret;
 	if(argc < 3){
 		LOGI("Usage: x in out [rate] [filter]\r\n");
@@ -225,11 +231,11 @@ int Cmd_stream_transfer(int argc, char * argv[]){
 	}
 	hlo_stream_t * in = open_stream_from_path(argv[1],1, rate);
 	hlo_stream_t * out = open_stream_from_path(argv[2],0, rate);
-	if(f){
-		ret = f(in,out,NULL, _can_has_sig_stop);
-	}else{
-		while((ret = hlo_stream_transfer_between(in,out,tmp,sizeof(tmp),4)) >= 0 ){};
-	}
+
+	ret = f(in,out,NULL, _can_has_sig_stop);
+
 	LOGI("Stream transfer exited with code %d\r\n", ret);
+	hlo_stream_close(in);
+	hlo_stream_close(out);
 	return 0;
 }
