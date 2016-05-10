@@ -306,7 +306,7 @@ static void DownloadManagerTask(void * filesyncdata)
 					true, DATA_SERVER, FILE_SYNC_ENDPOINT, FileManifest_fields, &message_for_upload, 0, NULL, NULL, &pb_cb, false)
 					)
 			{
-				LOGI("DM: Upload Fail \n");
+				LOGE("DM: Upload Fail \n");
 			}
 		}
 
@@ -350,7 +350,7 @@ bool _on_file_update(pb_istream_t *stream, const pb_field_t *field, void **arg)
 	// decode PB
 	if( !pb_decode(stream,FileManifest_File_fields,&file_info) )
 	{
-		LOGI("DM: parse fail \n" );
+		LOGE("DM: parse fail \n" );
 		free_file_sync_info( &file_info.download_info );
 		return false;
 	}
@@ -553,12 +553,12 @@ static bool scan_files(char* path, pb_ostream_t *stream, const pb_field_t *field
 
 						if(!pb_encode_tag_for_field(stream, field))
 						{
-							LOGI("DM: encode tag error %s\n", PB_GET_ERROR(stream));
+							LOGE("DM: encode tag error %s\n", PB_GET_ERROR(stream));
 							return false;
 						}
 
 						if (!pb_encode_submessage(stream, FileManifest_File_fields, &file_info)){
-							LOGI("DM: encode error: %s\n", PB_GET_ERROR(stream));
+							LOGE("DM: encode error: %s\n", PB_GET_ERROR(stream));
 							return false;
 						}
 	                	//LOGI("DM File encoded: %s/%s\n", path, fn);
@@ -736,7 +736,7 @@ static int32_t sd_sha_verifynsave(const char * sha_truth, char* path, char* sha_
     buffer = (uint8_t*) pvPortMalloc(SD_BLOCK_SIZE);
     if(!buffer)
     {
-    	LOGI("DM: buffer: Not enought memory\n");
+    	LOGE("DM: buffer: Not enough memory\n");
         goto fail;
     }
 
@@ -833,7 +833,7 @@ static int32_t get_complete_filename(char* full_path, char * local_fn, char* pat
 	{
 		if(strlen(path) + strlen(local_fn) + 1 + 1 > len)
 		{
-			LOGI("DM: name too long\n");
+			LOGE("DM: name too long\n");
 			return -1;
 		}
 
