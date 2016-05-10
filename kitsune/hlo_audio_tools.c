@@ -213,6 +213,7 @@ static hlo_filter _filter_from_string(const char * str){
 	}
 
 }
+#include <stdlib.h>
 hlo_stream_t * open_stream_from_path(char * str, uint8_t input, uint32_t opt_rate);
 int Cmd_stream_transfer(int argc, char * argv[]){
 	uint32_t rate = 0;
