@@ -2537,6 +2537,7 @@ SlSecParams_t make_sec_params(const char* ssid, const char* password, int sec_ty
 }
 int connect_wifi(const char* ssid, const char* password, int sec_type, int version, bool save)
 {
+	static uint32_t priority = 0;
 	int16_t ret = 0;
 	SlSecParams_t secParam = make_sec_params(ssid, password, sec_type, version);
 
@@ -2544,7 +2545,7 @@ int connect_wifi(const char* ssid, const char* password, int sec_type, int versi
 
 	if( save ) {
 		sl_WlanProfileAdd((_i8*) ssid, strlen(ssid), NULL,
-							&secParam, NULL, 0, 0);
+							&secParam, NULL, ++priority, 0);
 	}
 	if(ret == 0 || ret == -71)
 	{
