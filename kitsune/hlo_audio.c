@@ -133,7 +133,7 @@ static int _write_playback_mono(void * ctx, const void * buf, size_t size){
 		_open_playback(playback_sr, initial_vol);
 		return 0;
 	}
-	int bytes_consumed = min(512, size);
+	int bytes_consumed = min(PING_PONG_CHUNK_SIZE, size);
 	if(IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) == TRUE){
 		if(!audio_playback_started){
 			audio_playback_started = 1;
@@ -141,7 +141,7 @@ static int _write_playback_mono(void * ctx, const void * buf, size_t size){
 		}
 		return 0;
 	}else if(bytes_consumed %2){
-		return HLO_STREAM_ERROR;
+		bytes_consumed--;//if there's an odd number of empty space available, adjust it to be even.
 	}
 	if(bytes_consumed > 0){
 		bytes_consumed = FillBuffer(pRxBuffer, (unsigned char*) (buf), bytes_consumed);
