@@ -187,7 +187,6 @@ exit:
 }
 ////-----------------------------------------
 //commands
-extern hlo_stream_t * open_stream_from_path(char * str, uint8_t input);
 static uint8_t _can_has_sig_stop(void){
 	return audio_sig_stop;
 }
@@ -204,45 +203,33 @@ int Cmd_audio_record_stop(int argc, char *argv[]){
 	return 0;
 
 }
-int Cmd_audio_adpcm_encode(int argc, char *argv[]){
-	if(argc < 3){
-		return -1;
-	}
+static hlo_filter _filter_from_string(const char * str){
+	return hlo_filter_feature_extractor;
+}
+hlo_stream_t * open_stream_from_path(char * str, uint8_t input, uint32_t opt_rate);
+int Cmd_stream_transfer(int argc, char * argv[]){
+	uint8_t tmp[256];
+	uint32_t rate = 0;
+	audio_sig_stop = 0;
+	hlo_filter f = NULL;
 	int ret;
-	audio_sig_stop = 0;
-	hlo_stream_t * in = open_stream_from_path(argv[1], 1);
-	hlo_stream_t * out = open_stream_from_path(argv[2], 0);
-	ret = hlo_filter_adpcm_encoder(in, out, NULL, _can_has_sig_stop);
-	hlo_stream_close(in);
-	hlo_stream_close(out);
-	LOGI("Encoder Finished %d\r\n", ret);
-	return 0;
-}
-int Cmd_audio_adpcm_decode(int argc, char *argv[]){
 	if(argc < 3){
-		return -1;
+		LOGI("Usage: x in out [rate] [filter]\r\n");
+		LOGI("Press s to stop the transfer\r\n");
 	}
-	int ret;
-	hlo_stream_t * in = open_stream_from_path(argv[1], 1);
-	hlo_stream_t * out = open_stream_from_path(argv[2], 0);
-	ret = hlo_filter_adpcm_decoder(in, out, NULL, _can_has_sig_stop);
-	hlo_stream_close(in);
-	hlo_stream_close(out);
-	LOGI("Decoder Finished %d\r\n", ret);
-	return 0;
-
-}
-int Cmd_audio_octogram(int argc, char *argv[]){
-	audio_sig_stop = 0;
-	//hlo_app_audio_octogram_task(random_stream_open());
-
-	hlo_audio_octogram_task(open_stream_from_path(argv[1],2));
-	return 0;
-}
-int Cmd_audio_features(int argc, char *argv[]){
-	audio_sig_stop = 0;
-	hlo_stream_t * s = open_stream_from_path(argv[1],1);
-	hlo_filter_feature_extractor(s, NULL, NULL, _can_has_sig_stop);
+	if(argc >= 4){
+		rate = atoi(argv[3]);
+	}
+	if(argc >= 5){
+		f = _filter_from_string(argv[4]);
+	}
+	hlo_stream_t * in = open_stream_from_path(argv[1],1, rate);
+	hlo_stream_t * out = open_stream_from_path(argv[2],0, rate);
+	if(f){
+		ret = f(in,out,NULL, _can_has_sig_stop);
+	}else{
+		while((ret = hlo_stream_transfer_between(in,out,tmp,sizeof(tmp),4)) >= 0 ){};
+	}
+	LOGI("Stream transfer exited with code %d\r\n", ret);
 	return 0;
 }
-

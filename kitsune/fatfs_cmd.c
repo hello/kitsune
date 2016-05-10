@@ -418,15 +418,17 @@ int global_filename(char * local_fn)
 #include "hlo_pipe.h"
 #include "hlo_audio.h"
 #define BUF_SIZE 64
-extern int audio_sig_stop;
-hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
+hlo_stream_t * open_stream_from_path(char * str, uint8_t input, uint32_t opt_rate){
 	if(input){//input
 		if(str[0] == '$'){
 			switch(str[1]){
 			case 'a':
 			case 'A':
-				audio_sig_stop = 0;
-				return hlo_audio_open_mono(16000,44,HLO_AUDIO_RECORD);
+				if(opt_rate){
+					return hlo_audio_open_mono(opt_rate,44,HLO_AUDIO_RECORD);
+				}else{
+					return hlo_audio_open_mono(16000,44,HLO_AUDIO_RECORD);
+				}
 			case 'r':
 			case 'R':
 				return random_stream_open();
@@ -445,8 +447,11 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 			switch(str[1]){
 			case 'a':
 			case 'A':
-				audio_sig_stop = 0;
-				return hlo_audio_open_mono(48000,44,HLO_AUDIO_PLAYBACK);
+				if(opt_rate){
+					return hlo_audio_open_mono(opt_rate,44,HLO_AUDIO_PLAYBACK);
+				}else{
+					return hlo_audio_open_mono(48000,44,HLO_AUDIO_PLAYBACK);
+				}
 			case 'o':
 			case 'O':
 				return uart_stream();
@@ -461,67 +466,6 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 	}
 	return NULL;
 }
-int
-Cmd_cat(int argc, char *argv[])
-{
-	hlo_stream_t * src = NULL;
-	hlo_stream_t * dst = NULL;
-    int ret;
-    uint8_t buf[BUF_SIZE];
-    if(argc > 2){
-    	src = open_stream_from_path(argv[1],1);
-    	dst = open_stream_from_path(argv[2],0);
-    }else if(argc > 1){
-    	src = open_stream_from_path(argv[1],1);
-    	//dst = open_stream_from_path("$o",0);	//this is really dangerous, disable for now
-    }
-    while( (ret = hlo_stream_transfer_between(src,dst,buf,BUF_SIZE,4)) > 0){
-    	if(audio_sig_stop){
-    		break;
-    	}
-    }
-	hlo_stream_close(src);
-	hlo_stream_close(dst);
-    DISP("Transfer returned %d\r\n", ret);
-    return 0;
-}
-
-int
-Cmd_write_audio(char *argv[])
-{
-    FRESULT res;
-
-    UINT bytes = 0;
-	UINT bytes_written = 0;
-	UINT bytes_to_write = strlen(argv[1])+1;
-
-    if(global_filename( "TXBUF"))
-    {
-    	return 1;
-    }
-    LOGF("print");
-    // Open the file for reading.
-    //res = hello_fs_open(&file_obj, path_buff, FA_CREATE_NEW|FA_WRITE);
-    res = hello_fs_open(&file_obj, path_buff, FA_WRITE);
-    hello_fs_stat( path_buff, &file_info );
-
-    if( file_info.fsize != 0 )
-        res = hello_fs_lseek(&file_obj, file_info.fsize );
-
-    do {
-		res = hello_fs_write( &file_obj, argv[1]+bytes_written, bytes_to_write-bytes_written, &bytes );
-		bytes_written+=bytes;
-    } while( bytes_written < bytes_to_write );
-
-    res = hello_fs_close( &file_obj );
-
-    if(res != FR_OK)
-    {
-        return((int)res);
-    }
-    return(0);
-}
-
 int
 Cmd_write(int argc, char *argv[])
 {

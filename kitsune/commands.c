@@ -1885,11 +1885,8 @@ tCmdLineEntry g_sCmdTable[] = {
 #endif
 
 		{ "r", Cmd_audio_record_start,""}, //record sounds into SD card
-		{ "ec", Cmd_audio_adpcm_encode, ""},
-		{ "dc", Cmd_audio_adpcm_decode, ""},
 		{ "s",Cmd_audio_record_stop,""},
-		{ "oct",Cmd_audio_octogram,""},
-		{ "feat", Cmd_audio_features, ""},
+		{ "x", Cmd_stream_transfer, ""},
 		{ "getoct",Cmd_get_octogram,""},
 		{ "aon",Cmd_audio_turn_on,""},
 #if 0
