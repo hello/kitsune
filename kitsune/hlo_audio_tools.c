@@ -22,7 +22,7 @@ int audio_sig_stop = 0;
 
 static void DataCallback(const AudioFeatures_t * pfeats) {
 //	LOGI("Found Feature\r\n");
-	//AudioProcessingTask_AddFeaturesToQueue(pfeats);
+	AudioProcessingTask_AddFeaturesToQueue(pfeats);
 }
 
 static void StatsCallback(const AudioOncePerMinuteData_t * pdata) {
