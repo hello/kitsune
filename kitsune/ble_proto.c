@@ -203,7 +203,8 @@ static void _reply_wifi_scan_result()
 int force_data_push();
 static bool _set_wifi(const char* ssid, const char* password, int security_type, int version, int app_version)
 {
-    int i;
+    int i,idx;
+    idx = -1;
 
 	LOGI("Connecting to WIFI %s\n", ssid );
 	xSemaphoreTake(_wifi_smphr, portMAX_DELAY);
@@ -223,7 +224,7 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type,
 		nwp_reset();
 		wifi_state_requested = true;
 
-	    if(connect_wifi(ssid, password, security_type, version, false) < 0)
+	    if(connect_wifi(ssid, password, security_type, version, &idx, false) < 0)
 	    {
 			LOGI("failed to connect\n");
 	        ble_reply_protobuf_error(ErrorType_WLAN_CONNECTION_ERROR);
@@ -246,6 +247,10 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type,
 			}
 
 			if( ++to > 6 ) {
+				if( idx != -1 ) {
+					sl_WlanProfileDel(idx);
+					nwp_reset();
+				}
 				LOGI("wifi timeout\n");
 				wifi_state_requested = false;
 				ble_reply_protobuf_error(ErrorType_SERVER_CONNECTION_TIMEOUT);
@@ -284,7 +289,7 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type,
 	} else {
 		bool connection_ret = false;
 		//play_led_progress_bar(0xFF, 128, 0, 128,portMAX_DELAY);
-	    connect_wifi(ssid, password, security_type, version, false);
+	    connect_wifi(ssid, password, security_type, version, &idx, false);
 	    if(!connection_ret)
 	    {
 			LOGI("Tried all wifi ep, all failed to connect\n");
