@@ -406,7 +406,7 @@ int Cmd_AudioCapture(int argc, char * argv[]){
 		}
 		return 0;
 	}
-	LOGI("cap [1|0]\r\n");
+	LOGI("r [1|0]\r\n");
 	return -1;
 
 }
