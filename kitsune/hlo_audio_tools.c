@@ -192,6 +192,7 @@ int Cmd_audio_record_start(int argc, char *argv[]){
 int Cmd_audio_record_stop(int argc, char *argv[]){
 	DISP("Stopping Audio\r\n");
 	AudioTask_StopPlayback();
+	AudioTask_StopCapture();
 	audio_sig_stop = 1;
 	return 0;
 

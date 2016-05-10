@@ -379,4 +379,36 @@ void AudioTask_QueueCaptureProcess(const AudioCaptureDesc_t * desc){
 		xQueueSend(_capture_queue,(void *)&m,0);
 	}
 }
+int Cmd_AudioPlayback(int argc, char * argv[]){
+	if(argc  > 1){
+		AudioPlaybackDesc_t desc;
+		desc.context = NULL;
+		desc.durationInSeconds = 10;
+		desc.fade_in_ms = 1000;
+		desc.fade_out_ms = 1000;
+		desc.onFinished = NULL;
+		desc.rate = 48000;
+		desc.stream = fs_stream_open_media(argv[1], 0);
+		desc.volume = 44;
+		ustrncpy(desc.source_name, argv[1], sizeof(desc.source_name));
+		AudioTask_StartPlayback(&desc);
+		return 0;
+	}
+	return -1;
+}
+int Cmd_AudioCapture(int argc, char * argv[]){
+	if( argc > 1 ){
+		if (argv[1][0] == '0'){
+			LOGI("Stopping Capture\r\n");
+			AudioTask_StopCapture();
+		}else{
+			LOGI("Starting Capture\r\n");
+			AudioTask_StartCapture(16000);
+		}
+		return 0;
+	}
+	LOGI("cap [1|0]\r\n");
+	return -1;
+
+}
 
