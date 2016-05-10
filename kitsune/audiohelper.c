@@ -32,39 +32,6 @@ extern tCircularBuffer *pRxBuffer;
 
 #define AUDIO_PLAYBACK_RATE_HZ (48000)
 
-uint8_t InitAudioDuplex(uint32_t rate){
-	if(pTxBuffer == NULL) {
-		pTxBuffer = CreateCircularBuffer(TX_BUFFER_SIZE);
-	}
-	if(pRxBuffer == NULL) {
-		pRxBuffer = CreateCircularBuffer(RX_BUFFER_SIZE);
-	}
-	if(!pTxBuffer || !pRxBuffer){
-		return 0;
-	}
-
-	get_codec_io_NAU();
-	InitAudioCapture(rate);
-	UDMAInit();
-	UDMAChannelSelect(UDMA_CH4_I2S_RX, NULL);
-	UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL);
-	SetupPingPongDMATransferTx();
-	SetupPingPongDMATransferRx();
-	AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
-	AudioCaptureRendererConfigure(rate);
-	return 1;
-}
-void DeInitAudioDuplex(){
-	Audio_Stop();
-	McASPDeInit();
-	if(pTxBuffer){
-		DestroyCircularBuffer(pTxBuffer);
-	}
-	if(pRxBuffer){
-		DestroyCircularBuffer(pRxBuffer);
-	}
-}
-
 uint8_t InitAudioCapture(uint32_t rate) {
 
 	if(pTxBuffer == NULL) {
@@ -146,62 +113,6 @@ void DeinitAudioPlayback(void) {
 
 
 ///// FILE STUFF/////
-
-
-uint8_t InitFile(Filedata_t * pfiledata) {
-	FRESULT res;
-
-	/*  If we got here, then the file should already be closed */
-	uint8_t ret = 1;
-	/* open file */
-	res = hello_fs_open(&pfiledata->file_obj, pfiledata->file_name, FA_WRITE|FA_CREATE_ALWAYS);
-
-	/*  Did something horrible happen?  */
-	if(res != FR_OK) {
-		ret = 0;
-	}
-
-	return ret;
-
-}
-
-uint8_t WriteToFile(Filedata_t * pfiledata,const UINT bytes_to_write,const uint8_t * const_ptr_samples_bytes) {
-	UINT bytes = 0;
-	UINT bytes_written = 0;
-	FRESULT res;
-	uint8_t ret = 1;
-
-
-	/* write until we cannot write anymore.  This does take a finite amount of time, by the way.  */
-	do {
-		res = hello_fs_write(&pfiledata->file_obj, const_ptr_samples_bytes +  bytes_written , bytes_to_write-bytes_written, &bytes );
-
-		bytes_written+=bytes;
-
-		if (res != FR_OK) {
-			ret = 0;
-			break;
-		}
-
-	} while( bytes_written < bytes_to_write );
-
-	return ret;
-
-}
-
-void CloseFile(Filedata_t * pfiledata) {
-	hello_fs_close(&pfiledata->file_obj)	;
-	memset(&pfiledata->file_obj, 0, sizeof(file_obj));
-
-}
-
-void CloseAndDeleteFile(Filedata_t * pfiledata) {
-	hello_fs_close(&pfiledata->file_obj);
-	hello_fs_unlink(pfiledata->file_name);
-	memset(&pfiledata->file_obj, 0, sizeof(file_obj));
-
-}
-
 int deleteFilesInDir(const char* dir)
 {
 	DIR dirObject = {0};
