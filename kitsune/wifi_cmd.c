@@ -646,11 +646,13 @@ int Cmd_disconnect(int argc, char *argv[]) {
     return (0);
 }
 int Cmd_connect(int argc, char *argv[]) {
+	int idx;
+
     if (argc != 4) {
     	LOGF(
                 "usage: connect <ssid> <key> <security: 0=open, 1=wep, 2=wpa>\n\r");
     }
-    connect_wifi( argv[1], argv[2], atoi(argv[3]), 1, true );
+    connect_wifi( argv[1], argv[2], atoi(argv[3]), 1,  &idx, true );
     return (0);
 }
 int Cmd_setDns(int argc, char *argv[])  {
@@ -2535,16 +2537,17 @@ SlSecParams_t make_sec_params(const char* ssid, const char* password, int sec_ty
     }
     return secParam;
 }
-int connect_wifi(const char* ssid, const char* password, int sec_type, int version, bool save)
+int connect_wifi(const char* ssid, const char* password, int sec_type, int version, int * idx, bool save)
 {
+	static uint32_t priority = 0;
 	int16_t ret = 0;
 	SlSecParams_t secParam = make_sec_params(ssid, password, sec_type, version);
 
 	ret = sl_WlanConnect((_i8*) ssid, strlen(ssid), NULL, sec_type == SL_SEC_TYPE_OPEN ? NULL : &secParam, 0);
 
 	if( save ) {
-		sl_WlanProfileAdd((_i8*) ssid, strlen(ssid), NULL,
-							&secParam, NULL, 0, 0);
+		*idx = sl_WlanProfileAdd((_i8*) ssid, strlen(ssid), NULL,
+							&secParam, NULL, ++priority, 0);
 	}
 	if(ret == 0 || ret == -71)
 	{

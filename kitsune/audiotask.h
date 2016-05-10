@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include "audio_types.h"
 
+#define AUDIO_CAPTURE_RATE 16000
 
 typedef enum {
 	eAudioCaptureTurnOn,
