@@ -212,7 +212,7 @@ static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_sto
 		}
 	}
 	vol.target = 0;
-	hlo_future_destroy(vol_task);
+	hlo_future_read_once(vol_task, NULL, 0);
 	hlo_stream_close(fs);
 	hlo_stream_close(spkr);
 	if(desc->onFinished){
