@@ -141,15 +141,16 @@ typedef struct{
 	unsigned long target;
 	unsigned long ramp_up_ms;
 	unsigned long ramp_down_ms;
-	portTickType  end_tick;
+	int32_t  duration;
 }ramp_ctx_t;
 extern xSemaphoreHandle i2c_smphr;
 extern bool set_volume(int v, unsigned int dly);
 
 static void _change_volume_task(hlo_future_t * result, void * ctx){
 	volatile ramp_ctx_t * v = (ramp_ctx_t*)ctx;
+	portTickType t0 = xTaskGetTickCount();
 	while( v->target || v->current ){
-		if (xTaskGetTickCount() >= v->end_tick ){
+		if ( (v->duration - (int32_t)(xTaskGetTickCount() - t0)) < 0 && v->duration > 0){
 			v->target = 0;
 		}
 		if(v->current > v->target){
@@ -178,7 +179,6 @@ static void _change_volume_task(hlo_future_t * result, void * ctx){
 			//set volume failed, instantly exit out of this async worker.
 			hlo_future_write(result, NULL, 0, -1);
 		}
-
 	}
 	hlo_future_write(result, NULL, 0, 0);
 }
@@ -193,7 +193,7 @@ static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_sto
 		.target = desc->volume,
 		.ramp_up_ms = desc->fade_in_ms / (desc->volume + 1),
 		.ramp_down_ms = desc->fade_out_ms / (desc->volume + 1),
-		.end_tick =  xTaskGetTickCount() + desc->durationInSeconds * 1000,
+		.duration =  desc->durationInSeconds * 1000,
 	};
 
 	hlo_stream_t * spkr = hlo_audio_open_mono(desc->rate,0,HLO_AUDIO_PLAYBACK);
