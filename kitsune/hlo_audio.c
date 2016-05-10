@@ -42,7 +42,7 @@ static TickType_t last_playback_time;
 #include "rom_map.h"
 #include "hw_memmap.h"
 #include "udma_if.h"
-uint8_t InitAudioCapture(uint32_t rate) {
+static uint8_t InitAudioCapture(uint32_t rate) {
 
 	if(pTxBuffer == NULL) {
 		pTxBuffer = CreateCircularBuffer(TX_BUFFER_SIZE, audio_mem);
@@ -67,7 +67,7 @@ uint8_t InitAudioCapture(uint32_t rate) {
 	return 1;
 }
 
-void DeinitAudioCapture(void) {
+static void DeinitAudioCapture(void) {
 	Audio_Stop();
 
 	McASPDeInit();
@@ -80,7 +80,7 @@ void DeinitAudioCapture(void) {
 	}
 }
 
-uint8_t InitAudioPlayback(int32_t vol, uint32_t rate ) {
+static uint8_t InitAudioPlayback(int32_t vol, uint32_t rate ) {
 
 	//create circular buffer
 	if (!pRxBuffer) {
@@ -109,7 +109,7 @@ uint8_t InitAudioPlayback(int32_t vol, uint32_t rate ) {
 
 }
 
-void DeinitAudioPlayback(void) {
+static void DeinitAudioPlayback(void) {
 	close_codec_NAU();
 
 	McASPDeInit();
