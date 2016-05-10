@@ -45,6 +45,7 @@ static void _on_play_audio( PlayAudio * cmd ) {
 		desc.durationInSeconds = -1;
 	}
 	desc.stream = fs_stream_open(cmd->file_path,HLO_STREAM_READ);
+	ustrncpy(desc.source_name, cmd->file_path, sizeof(desc.source_name));
 	desc.volume = cmd->volume_percent * 60 / 100; //convert from percent to codec range
 	desc.fade_in_ms = cmd->fade_in_duration_seconds * 1000;
 	desc.fade_out_ms = cmd->fade_out_duration_seconds * 1000;

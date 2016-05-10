@@ -597,6 +597,7 @@ void thread_alarm(void * unused) {
 				}
 
 				desc.stream = fs_stream_open(file_name,HLO_STREAM_READ);
+				ustrncpy(desc.source_name, file_name, sizeof(desc.source_name));
 				desc.durationInSeconds = alarm.ring_duration_in_second;
 				desc.volume = 10;
 				desc.onFinished = thread_alarm_on_finished;

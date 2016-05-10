@@ -113,8 +113,8 @@ static bool _queue_audio_playback_state(playstate_t is_playing, const AudioPlayb
 		ret.has_volume_percent = true;
 		ret.volume_percent = info->volume * 100 / 60;
 
-		ret.has_file_path = false; //todo
-		//ustrncpy(ret.file_path, info->file, sizeof(ret.file_path));
+		ret.has_file_path = true;
+		ustrncpy(ret.file_path, info->source_name, sizeof(ret.file_path));
 	}
 
 	return xQueueSend(_state_queue, &ret, 0);

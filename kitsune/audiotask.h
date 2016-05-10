@@ -24,6 +24,7 @@ typedef struct {
 	hlo_stream_t * stream;
 	NotificationCallback_t onFinished;
 	void * context;
+	char source_name[64];
 } AudioPlaybackDesc_t;
 
 
