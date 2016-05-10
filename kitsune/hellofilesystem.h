@@ -29,6 +29,8 @@ FRESULT hello_fs_rename (const char*, const char*);        /* Rename/Move a file
 FRESULT hello_fs_mkfs (const char *, BYTE, UINT);                    /* Create a file system on the drive */
 FRESULT hello_fs_append(const char* file_name, const unsigned char* content, int length);
 
+//see title
+int deleteFilesInDir(const char* dir);
 //opens a generic file stream, better to use specialized streams below
 hlo_stream_t * fs_stream_open(const char * filepath, uint32_t options);
 

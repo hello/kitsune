@@ -10,7 +10,6 @@
 #include "fileuploadertask.h"
 
 #include "audiofeatures.h"
-#include "audiohelper.h"
 #include "uartstdio.h"
 #include "endpoints.h"
 #include "circ_buff.h"

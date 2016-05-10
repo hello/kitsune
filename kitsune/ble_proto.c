@@ -29,7 +29,6 @@
 #include "sl_sync_include_after_simplelink_header.h"
 #include "ustdlib.h"
 #include "pill_settings.h"
-#include "audiohelper.h"
 #include "audiotask.h"
 #include "hlo_net_tools.h"
 #include "prox_signal.h"

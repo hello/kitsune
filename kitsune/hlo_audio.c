@@ -1,21 +1,20 @@
 #include "hlo_audio.h"
-#include "audiohelper.h"
 #include "bigint.h"
 #include "circ_buff.h"
 #include "network.h"
 #include "mcasp_if.h"
 #include "uart_logger.h"
 #include "kit_assert.h"
+#include "hw_types.h"
+
+extern tCircularBuffer *pTxBuffer;
+extern tCircularBuffer *pRxBuffer;
 
 #define MODESWITCH_TIMEOUT_MS 500
-extern tCircularBuffer * pRxBuffer;
-extern tCircularBuffer * pTxBuffer;
 
-typedef struct{
-
-}hlo_audio_t;
 static xSemaphoreHandle lock;
 static hlo_stream_t * master;
+static unsigned char * audio_mem;
 typedef enum{
 	CLOSED = 0,
 	PLAYBACK,
@@ -33,6 +32,94 @@ static TickType_t last_playback_time;
 #define LOCK() xSemaphoreTakeRecursive(lock,portMAX_DELAY)
 #define UNLOCK() xSemaphoreGiveRecursive(lock)
 #define ERROR_IF_CLOSED() if(mode == CLOSED) {return HLO_STREAM_ERROR;}
+////------------------------------
+// Audio Helpers
+#include "pcm_handler.h"
+#include "udma.h"
+#include "i2s.h"
+#include "i2c_cmd.h"
+#include "rom.h"
+#include "rom_map.h"
+#include "hw_memmap.h"
+#include "udma_if.h"
+uint8_t InitAudioCapture(uint32_t rate) {
+
+	if(pTxBuffer == NULL) {
+		pTxBuffer = CreateCircularBuffer(TX_BUFFER_SIZE, audio_mem);
+	}
+	get_codec_mic_NAU();
+	// Initialize the Audio(I2S) Module
+	McASPInit(rate);
+
+	UDMAChannelSelect(UDMA_CH4_I2S_RX, NULL);
+
+	// Setup the DMA Mode
+	SetupPingPongDMATransferTx();
+
+	// Setup the Audio In/Out
+    MAP_I2SIntEnable(I2S_BASE, I2S_INT_RDMA );
+	AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
+	AudioCaptureRendererConfigure( rate);
+
+	// Start Audio Tx/Rx
+	Audio_Start();
+
+	return 1;
+}
+
+void DeinitAudioCapture(void) {
+	Audio_Stop();
+
+	McASPDeInit();
+
+	MAP_uDMAChannelDisable(UDMA_CH4_I2S_RX);
+
+	if (pTxBuffer) {
+		DestroyCircularBuffer(pTxBuffer);
+		pTxBuffer = NULL;
+	}
+}
+
+uint8_t InitAudioPlayback(int32_t vol, uint32_t rate ) {
+
+	//create circular buffer
+	if (!pRxBuffer) {
+		pRxBuffer = CreateCircularBuffer(RX_BUFFER_SIZE, audio_mem);
+	}
+
+	//////
+	// SET UP AUDIO PLAYBACK
+	get_codec_NAU(vol);
+	// Initialize the Audio(I2S) Module
+	McASPInit(rate);
+
+
+	UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL);
+
+	// Setup the DMA Mode
+	SetupPingPongDMATransferRx();
+
+	// Setup the Audio In/Out
+
+    MAP_I2SIntEnable(I2S_BASE,I2S_INT_XDMA  );
+	AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
+	AudioCaptureRendererConfigure( rate);
+
+	return 1;
+
+}
+
+void DeinitAudioPlayback(void) {
+	close_codec_NAU();
+
+	McASPDeInit();
+
+	MAP_uDMAChannelDisable(UDMA_CH5_I2S_TX);
+	if (pRxBuffer) {
+		DestroyCircularBuffer(pRxBuffer);
+		pRxBuffer = NULL;
+	}
+}
 ////------------------------------
 // playback stream driver
 static int _playback_done(void){
@@ -128,6 +215,8 @@ void hlo_audio_init(void){
 	master = hlo_stream_new(&tbl, NULL, HLO_AUDIO_RECORD|HLO_AUDIO_PLAYBACK);
 	mode = CLOSED;
 	assert(lock);
+	audio_mem = pvPortMalloc(AUD_BUFFER_SIZE);
+	assert(audio_mem);
 }
 
 hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint8_t vol, uint32_t direction){
