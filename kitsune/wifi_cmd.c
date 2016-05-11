@@ -1702,7 +1702,6 @@ int send_data_pb( char* host, const char* path, char ** recv_buf_ptr,
         goto failure;
     }
     }
-
     {
     pb_field_t * reply_fields = NULL;
     void * reply_structdata = NULL;
