@@ -26,8 +26,6 @@ static unsigned long playback_sr;
 static unsigned int initial_vol;
 static uint8_t audio_playback_started;
 
-static int _close_playback(void);
-static int _close_record(void);
 static TickType_t last_playback_time;
 
 #define LOCK() xSemaphoreTakeRecursive(lock,portMAX_DELAY)
