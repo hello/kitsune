@@ -234,9 +234,9 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type,
 	    force_data_push();
 
 		while( !wifi_status_get(UPLOADING) ) {
-			vTaskDelay(10000);
+			vTaskDelay(9000);
 
-			if( ++to > 4 ) {
+			if( ++to > 3 ) {
 				if( idx != -1 ) {
 					sl_WlanProfileDel(idx);
 					nwp_reset();
