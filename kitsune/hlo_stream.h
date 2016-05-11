@@ -31,7 +31,6 @@ typedef struct hlo_stream_info_t{
 	xSemaphoreHandle lock;
 }hlo_stream_info_t;
 
-
 typedef struct{
 	int (*write)(void * ctx, const void * buf, size_t size);
 	int (*read)(void * ctx, void * buf, size_t size);
