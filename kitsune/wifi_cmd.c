@@ -1137,7 +1137,11 @@ int start_connection(int * sock, char * host, security_type sec) {
 			// configure the socket as RSA with RC4 128 SHA
 			// setup certificate
 			unsigned char method = SL_SO_SEC_METHOD_TLSV1_2;
+#ifdef USE_SHA2
 			unsigned int cipher = SL_SEC_MASK_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256;
+#else
+			unsigned int cipher = SL_SEC_MASK_TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA;
+#endif
 			if( sl_SetSockOpt(*sock, SL_SOL_SOCKET, SL_SO_SECMETHOD, &method, sizeof(method) ) < 0 ||
 				sl_SetSockOpt(*sock, SL_SOL_SOCKET, SL_SO_SECURE_MASK, &cipher, sizeof(cipher)) < 0 ||
 				sl_SetSockOpt(*sock, SL_SOL_SOCKET, \
