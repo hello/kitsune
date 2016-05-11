@@ -25,6 +25,7 @@ static unsigned long record_sr;
 static unsigned long playback_sr;
 static unsigned int initial_vol;
 static uint8_t audio_playback_started;
+xSemaphoreHandle isr_sem;;
 
 static TickType_t last_playback_time;
 
@@ -122,14 +123,17 @@ static int _open_playback(uint32_t sr, uint8_t vol){
 		return 0;
 	}
 }
+static int _reinit_playback(sr, initial_vol){
+	DeinitAudio();
+	_open_playback(sr, initial_vol);
+	return 0;
+}
 static int _write_playback_mono(void * ctx, const void * buf, size_t size){
 	ERROR_IF_CLOSED();
 	last_playback_time = xTaskGetTickCount();
 	if( mode == RECORD ){
 		//playback has priority, always swap to playback state
-		DeinitAudio();
-		_open_playback(playback_sr, initial_vol);
-		return 0;
+		return _reinit_playback(playback_sr, initial_vol);
 	}
 	int bytes_consumed = min(PING_PONG_CHUNK_SIZE, size);
 	if(IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) == TRUE){
@@ -144,6 +148,8 @@ static int _write_playback_mono(void * ctx, const void * buf, size_t size){
 	if(bytes_consumed > 0){
 		bytes_consumed = FillBuffer(pRxBuffer, (unsigned char*) (buf), bytes_consumed);
 		return bytes_consumed;
+	}else if( !xSemaphoreTake(isr_sem,5000) ){
+		return _reinit_playback(playback_sr, initial_vol);
 	}
 	return 0;
 }
@@ -159,17 +165,22 @@ static int _open_record(uint32_t sr){
 	DISP("Codec in MIC mode\r\n");
 	return 0;
 }
+static int _reinit_record(sr){
+	DeinitAudio();
+	_open_record(sr);
+	return 0;
+}
 static int _read_record_mono(void * ctx, void * buf, size_t size){
 	ERROR_IF_CLOSED();
 	if( mode == PLAYBACK ){
 		//swap mode back to record iff playback buffer is empty
 		if( _playback_done() ){
-			DeinitAudio();
-			_open_record(record_sr);
-			return 0;//do not act immediately after mode switch
+			return _reinit_record(record_sr);
 		}else{
 			return HLO_STREAM_EOF;
 		}
+	}else if( !xSemaphoreTake(isr_sem,5000) ){
+		return _reinit_record(record_sr);
 	}
 	int raw_buff_size =  GetBufferSize(pTxBuffer);
 	int fill_size = min(raw_buff_size, size);
@@ -182,20 +193,21 @@ static int _read_record_mono(void * ctx, void * buf, size_t size){
 		return fill_size;
 	}
 }
-
 ////------------------------------
 //  Public API
 void hlo_audio_init(void){
 	lock = xSemaphoreCreateRecursiveMutex();
+	assert(lock);
 	hlo_stream_vftbl_t tbl = { 0 };
 	tbl.write = _write_playback_mono;
 	tbl.read = _read_record_mono;
 	tbl.close = NULL;
 	master = hlo_stream_new(&tbl, NULL, HLO_AUDIO_RECORD|HLO_AUDIO_PLAYBACK);
 	mode = CLOSED;
-	assert(lock);
 	audio_mem = pvPortMalloc(AUD_BUFFER_SIZE);
 	assert(audio_mem);
+	isr_sem = xSemaphoreCreateBinary();
+	assert(isr_sem);
 }
 
 hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint8_t vol, uint32_t direction){
@@ -206,6 +218,8 @@ hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint8_t vol, uint32_t direction)
 		initial_vol = vol;
 	}else if(direction == HLO_AUDIO_RECORD){
 		record_sr = sr;
+	}else{
+		LOGW("Unsupported Audio Mode, returning default stream\r\n");
 	}
 	if(mode == CLOSED){
 		if( 0 != _open_record(sr) ){
