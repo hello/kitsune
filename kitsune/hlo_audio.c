@@ -118,7 +118,6 @@ static int _open_playback(uint32_t sr, uint8_t vol){
 		return -1;
 	}else{
 		mode = PLAYBACK;
-		Audio_Start();
 		DISP("Codec in SPKR mode\r\n");
 		return 0;
 	}
