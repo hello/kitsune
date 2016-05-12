@@ -407,6 +407,69 @@ int global_filename(char * local_fn)
     return 0;
 }
 
+//*****************************************************************************
+//
+// This function implements the "cat" command.  It reads the contents of a file
+// and prints it to the console.  This should only be used on text files.  If
+// it is used on a binary file, then a bunch of garbage is likely to printed on
+// the console.
+//
+//*****************************************************************************
+#include "hlo_pipe.h"
+#include "hlo_audio.h"
+#include "hlo_http.h"
+#define BUF_SIZE 64
+hlo_stream_t * open_stream_from_path(char * str, uint8_t input, uint32_t opt_rate){
+	if(input){//input
+		if(str[0] == '$'){
+			switch(str[1]){
+			case 'a':
+			case 'A':
+				if(opt_rate){
+					return hlo_audio_open_mono(opt_rate,44,HLO_AUDIO_RECORD);
+				}else{
+					return hlo_audio_open_mono(16000,44,HLO_AUDIO_RECORD);
+				}
+			case 'r':
+			case 'R':
+				return random_stream_open();
+			case 'i':
+			case 'I':
+				return hlo_sock_stream(&str[2], 0);
+			default:
+				break;
+			}
+		}else{//try file
+			global_filename(str);
+			if(input > 1){//repeating mode
+				return fs_stream_open_media(path_buff, -1);
+			}
+			return fs_stream_open(path_buff, HLO_STREAM_READ);
+		}
+	}else{//output
+		if(str[0] == '$'){
+			switch(str[1]){
+			case 'a':
+			case 'A':
+				if(opt_rate){
+					return hlo_audio_open_mono(opt_rate,44,HLO_AUDIO_PLAYBACK);
+				}else{
+					return hlo_audio_open_mono(48000,44,HLO_AUDIO_PLAYBACK);
+				}
+			case 'o':
+			case 'O':
+				return uart_stream();
+			default:
+				return random_stream_open();
+
+			}
+		}else{//try file, TODO make it append
+			global_filename(str);
+			return fs_stream_open(path_buff, HLO_STREAM_WRITE);
+		}
+	}
+	return NULL;
+}
 int
 Cmd_write(int argc, char *argv[])
 {
