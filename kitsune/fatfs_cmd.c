@@ -417,6 +417,7 @@ int global_filename(char * local_fn)
 //*****************************************************************************
 #include "hlo_pipe.h"
 #include "hlo_audio.h"
+#include "hlo_http.h"
 #define BUF_SIZE 64
 hlo_stream_t * open_stream_from_path(char * str, uint8_t input, uint32_t opt_rate){
 	if(input){//input
@@ -432,6 +433,9 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input, uint32_t opt_rat
 			case 'r':
 			case 'R':
 				return random_stream_open();
+			case 'i':
+			case 'I':
+				return hlo_sock_stream(&str[2], 0);
 			default:
 				break;
 			}
