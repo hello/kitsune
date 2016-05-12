@@ -93,15 +93,12 @@
 //*****************************************************************************
  short ping[(CB_TRANSFER_SZ)];
  short pong[(CB_TRANSFER_SZ)];
- char pcm[(CB_TRANSFER_SZ/2)];
 volatile unsigned int guiDMATransferCountTx = 0;
 volatile unsigned int guiDMATransferCountRx = 0;
 extern tCircularBuffer *pTxBuffer;
 extern tCircularBuffer *pRxBuffer;
 
-extern TaskHandle_t audio_task_hndl;
-
-static adpcm_state pcm_state = {0};
+extern xSemaphoreHandle isr_sem;;
 
 //*****************************************************************************
 //
@@ -186,8 +183,7 @@ void DMAPingPongCompleteAppCB_opt()
 			guiDMATransferCountTx = 0;
 
 			if ( qqbufsz > LISTEN_WATERMARK ) {
-				vTaskNotifyGiveFromISR( audio_task_hndl, &xHigherPriorityTaskWoken );
-				portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+				xSemaphoreGiveFromISR(isr_sem, &xHigherPriorityTaskWoken);
 			}
 		}
 	}
@@ -245,8 +241,7 @@ void DMAPingPongCompleteAppCB_opt()
 			guiDMATransferCountRx = 0;
 
 			if ( qqbufsz < PLAY_WATERMARK ) {
-				vTaskNotifyGiveFromISR( audio_task_hndl, &xHigherPriorityTaskWoken );
-				portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+				xSemaphoreGiveFromISR(isr_sem, &xHigherPriorityTaskWoken);
 			}
 		}
 	}
@@ -275,7 +270,6 @@ void SetupPingPongDMATransferTx()
 
     memset(ping, 0, sizeof(ping));
     memset(pong, 0, sizeof(pong));
-    memset(&pcm_state, 0, sizeof(pcm_state));
 
     // changed to SD card DMA UDMA_CH14_SDHOST_RX
     SetupTransfer(UDMA_CH4_I2S_RX,
@@ -305,7 +299,6 @@ void SetupPingPongDMATransferRx()
 
     memset(ping, 0, sizeof(ping));
     memset(pong, 0, sizeof(pong));
-    memset(&pcm_state, 0, sizeof(pcm_state));
 
     SetupTransfer(UDMA_CH5_I2S_TX,
                   UDMA_MODE_PINGPONG,
