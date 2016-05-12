@@ -11,7 +11,7 @@ char * get_messeji_server(void);
 #define PROD_MESSEJI_SERVER "messeji-sha2.hello.is"
 #define DEV_MESSEJI_SERVER "messeji-dev-sha2.hello.is"
 #else
-#define PROD_MESSEJI_SERVER "messej.hello.is"
+#define PROD_MESSEJI_SERVER "messeji.hello.is"
 #define DEV_MESSEJI_SERVER "messeji-dev.hello.is"
 #endif
 
