@@ -843,8 +843,9 @@ static void codec_fifo_config(void)
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	//	w 30 32 80 # Enable ADC (CIC output) FIFO
+	// TODO adjust decimation to check if mic data is captured
 	cmd[0] = 0x32;
-	cmd[1] = 0x80;
+	cmd[1] = 0xA4; // EnABLE CIC, Auto normal, decimation ratio=4 //0x80;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	/*
@@ -1059,6 +1060,11 @@ static void codec_asi_config(void)
 	cmd[1] = 0;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
+	//	ASI1 Left DAC Datapath = Left Data, ASI1 Right DAC Datapath = Right Data
+	cmd[0] = 8;
+	cmd[1] = 0x50;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
 #if (CODEC_ADC_16KHZ == 1)
 
 	// ADC WCLK is input on GPIO1, BCLK is input on GPIO 3
@@ -1207,6 +1213,7 @@ static void codec_mic_config(void)
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	// # Left ADC Volume Control
+	// TODO play with volume
 	cmd[0] = 0x53;
 	cmd[1] = 0x10;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
@@ -1214,6 +1221,26 @@ static void codec_mic_config(void)
 	// # Digital mic 2 control - Enable CIC2 Left channel, and digital mic to left channel
 	cmd[0] = 0x70;
 	cmd[1] = 0; // TODO (1 << 7) | (1 << 4);
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//	# Select Page 0
+	cmd[0] = 0;
+	cmd[1] = 0x01;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	// Left mic pga control
+	cmd[0] = 0x3B;
+	cmd[1] = 0x00;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	// Right mic pga control
+	cmd[0] = 0x3C;
+	cmd[1] = 0x00;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//	# Select Page 0
+	cmd[0] = 0;
+	cmd[1] = 0x00;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 }
 
@@ -1270,7 +1297,7 @@ static void codec_speaker_config(void)
 
 	//	w 30 3f c0 # Power up the Left and Right DAC Channels
 	cmd[0] = 0x3F;
-	cmd[1] = 0xC0;
+	cmd[1] = 0xC2; // TODO soft stepping disabled
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	//	w 30 40 00 # Unmute the DAC digital volume control
