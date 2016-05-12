@@ -77,7 +77,11 @@ static int _close_sock(void * ctx){
 }
 static int _read_sock(void * ctx, void * buf, size_t size){
 	int sock = (int)ctx;
-	return recv(sock, buf, size,0);
+	int rv =  recv(sock, buf, size,0);
+	if(rv == SL_EAGAIN){
+		rv = 0;
+	}
+	return rv;
 }
 static int _write_sock(void * ctx, const void * buf, size_t size){
 	return 0;
@@ -91,7 +95,7 @@ hlo_stream_t * hlo_sock_stream(const char * host, uint8_t secure){
 	if(!secure){
 		int sock = _start_connection(_get_ip(host), SOCKET_SEC_NONE);
 		if(sock >= 0){
-			return hlo_stream_new(&impl, sock, HLO_STREAM_READ_WRITE);
+			return hlo_stream_new(&impl, (void*)sock, HLO_STREAM_READ_WRITE);
 		}
 	}
 	return NULL;
