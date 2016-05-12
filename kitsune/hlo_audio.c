@@ -118,7 +118,6 @@ static int _open_playback(uint32_t sr, uint8_t vol){
 		return -1;
 	}else{
 		mode = PLAYBACK;
-		Audio_Start();
 		DISP("Codec in SPKR mode\r\n");
 		return 0;
 	}
@@ -135,21 +134,18 @@ static int _write_playback_mono(void * ctx, const void * buf, size_t size){
 		//playback has priority, always swap to playback state
 		return _reinit_playback(playback_sr, initial_vol);
 	}
-	int bytes_consumed = min(PING_PONG_CHUNK_SIZE, size);
 	if(IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) == TRUE){
-		if(!audio_playback_started){
+		if(audio_playback_started){
+			xSemaphoreTake(isr_sem,5000);
+		}else{
 			audio_playback_started = 1;
 			Audio_Start();
+			return 0;
 		}
-		return 0;
-	}else if(bytes_consumed %2){
-		bytes_consumed--;//if there's an odd number of empty space available, adjust it to be even.
 	}
-	if(bytes_consumed > 0){
-		bytes_consumed = FillBuffer(pRxBuffer, (unsigned char*) (buf), bytes_consumed);
-		return bytes_consumed;
-	}else if( !xSemaphoreTake(isr_sem,5000) ){
-		return _reinit_playback(playback_sr, initial_vol);
+	int written = min(PING_PONG_CHUNK_SIZE, size);
+	if(written > 0){
+		return FillBuffer(pRxBuffer, (unsigned char*) (buf), written);
 	}
 	return 0;
 }
