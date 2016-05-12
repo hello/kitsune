@@ -84,7 +84,17 @@ static int _read_sock(void * ctx, void * buf, size_t size){
 	return rv;
 }
 static int _write_sock(void * ctx, const void * buf, size_t size){
-	return 0;
+	int sock = (int)ctx;
+	uint8_t dud;
+	int rv = recv(sock, dud, 0, 0);
+	if( rv < 0 ){
+		return rv;
+	}
+	rv = send(sock, buf, size, 0);
+	if( rv == SL_EAGAIN ){
+		rv = 0;
+	}
+	return rv;
 }
 hlo_stream_t * hlo_sock_stream(const char * host, uint8_t secure){
 	hlo_stream_vftbl_t impl = (hlo_stream_vftbl_t){
