@@ -159,15 +159,15 @@ int Cmd_restore_bad_fs(int argc, char *argv[])
 
 	disk_read(0,rbuf,2,1);
 
-//	rbuf[32] = 0xc1;
-//	rbuf[33] = 0x8f;
-//	rbuf[34] = 0xd0;
-//	rbuf[35] = 0x03;
+	rbuf[32] = 0xc1;
+	rbuf[33] = 0x8f;
+	rbuf[34] = 0xd0;
+	rbuf[35] = 0x03;
 
-	rbuf[32] = 0x20;
-	rbuf[33] = 0x49;
-	rbuf[34] = 0x69;
-	rbuf[35] = 0x00;
+//	rbuf[32] = 0x20;
+//	rbuf[33] = 0x49;
+//	rbuf[34] = 0x69;
+//	rbuf[35] = 0x00;
 
 	rbuf[48] = 0x01;
 
