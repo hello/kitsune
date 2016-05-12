@@ -136,7 +136,10 @@ static int _write_playback_mono(void * ctx, const void * buf, size_t size){
 	}
 	if(IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) == TRUE){
 		if(audio_playback_started){
-			xSemaphoreTake(isr_sem,5000);
+			if(!xSemaphoreTake(isr_sem,5000)){
+				LOGI("DMA Failed\r\n");
+				return _reinit_playback(playback_sr, initial_vol);
+			}
 		}else{
 			audio_playback_started = 1;
 			Audio_Start();
