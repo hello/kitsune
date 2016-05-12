@@ -137,7 +137,7 @@ static int _write_playback_mono(void * ctx, const void * buf, size_t size){
 	if(IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) == TRUE){
 		if(audio_playback_started){
 			if(!xSemaphoreTake(isr_sem,5000)){
-				LOGI("DMA Failed\r\n");
+				LOGI("ISR Failed\r\n");
 				return _reinit_playback(playback_sr, initial_vol);
 			}
 		}else{
@@ -178,19 +178,18 @@ static int _read_record_mono(void * ctx, void * buf, size_t size){
 		}else{
 			return HLO_STREAM_EOF;
 		}
-	}else if( !xSemaphoreTake(isr_sem,5000) ){
-		return _reinit_record(record_sr);
 	}
-	int raw_buff_size =  GetBufferSize(pTxBuffer);
-	int fill_size = min(raw_buff_size, size);
-	if(raw_buff_size < 1*PING_PONG_CHUNK_SIZE) {
-		//todo remove and completely empty buffer on demand
-		return 0;
-	}else{
-		//need to discard half of the buffer
-		ReadBuffer(pTxBuffer, buf, fill_size);
-		return fill_size;
+	if( !IsBufferSizeFilled(pTxBuffer, LISTEN_WATERMARK) ){
+		if(!xSemaphoreTake(isr_sem,5000)){
+			LOGI("ISR Failed\r\n");
+			return _reinit_record(record_sr);
+		}
 	}
+	int read = min(PING_PONG_CHUNK_SIZE, size);
+	if(read > 0){
+		return ReadBuffer(pTxBuffer, buf, read);
+	}
+	return 0;
 }
 ////------------------------------
 //  Public API
