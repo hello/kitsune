@@ -22,7 +22,9 @@ int hlo_stream_transfer_all(transfer_direction direction,
 			if(idx == buf_size){
 				return buf_size;
 			}
-			vTaskDelay(transfer_delay);
+			if(ret == 0){
+				vTaskDelay(transfer_delay);
+			}
 		}
 	}
 	return buf_size;
