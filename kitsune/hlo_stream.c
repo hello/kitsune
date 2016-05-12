@@ -222,7 +222,14 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input, uint32_t opt_rat
 				return random_stream_open();
 			case 'i':
 			case 'I':
-				return hlo_sock_stream(&str[2], 0);
+			{
+				hlo_stream_t * ret = hlo_sock_stream(&str[2], 0);
+				if(ret){
+					char cmd[] = "GET / HTTP/1.1\r\nHost : google.com\r\nAccept: */*\r\n\r\n";
+					hlo_stream_transfer_all(INTO_STREAM,ret,cmd, strlen(cmd), 4);
+					return ret;
+				}
+			}
 			default:
 				break;
 			}
