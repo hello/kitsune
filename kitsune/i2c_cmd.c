@@ -514,7 +514,6 @@ int Cmd_readproximity(int argc, char *argv[]) {
 	return SUCCESS;
 }
 
-// TODO DKH audio functions
 #include "simplelink.h"
 #include "sl_sync_include_after_simplelink_header.h"
 
@@ -773,7 +772,7 @@ static void codec_sw_reset(void)
 {
 	char send_stop = 1;
 	unsigned char cmd[2];
-	const TickType_t delay = 100 / portTICK_PERIOD_MS;
+	const TickType_t delay = 10 / portTICK_PERIOD_MS;
 	int ret;
 
 	// w 30 00 00 # Initialize to Page 0
@@ -801,7 +800,7 @@ static void codec_sw_reset(void)
 	}
 
 	//d 1        # Delay 1 millisecond
-	vTaskDelay(delay); // TODO adjust this delay, 100ms may not be needed
+	vTaskDelay(delay); // TODO adjust this delay
 }
 
 
@@ -834,9 +833,7 @@ static void codec_fifo_config(void)
 
 #endif
 
-	// TODO the following registers are not explained in the datasheet,
-	// but they are present in the example code.
-	// Looks like they might be needed
+
 	//	w 30 7f 64 # Select Book 100
 	cmd[0] = 0x7F;
 	cmd[1] = 0x64;
@@ -845,9 +842,12 @@ static void codec_fifo_config(void)
 	//	w 30 32 80 # Enable ADC (CIC output) FIFO
 	// TODO adjust decimation to check if mic data is captured
 	cmd[0] = 0x32;
-	cmd[1] = 0xA4; // EnABLE CIC, Auto normal, decimation ratio=4 //0x80;
+	cmd[1] = 0xA4; // EnABLE CIC, Auto normal, decimation ratio=4
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
+	// TODO the following registers are not explained in the datasheet,
+	// but they are present in the example code.
+	// Looks like they might be needed
 	/*
 	//	# reg[100][0][20] = 0x80 ;
 	// Disable ADC double buffer mode; Disable DAC double buffer mode; Enable ADC double buffer mode
@@ -1003,14 +1003,10 @@ static void codec_clock_config(void)
 	cmd[1] = (64UL & 0x0300) >> 8;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
-	UARTprintf("DOSR = %x",cmd[1]);
-
 	//	w 30 0e 80 # DOSR (LSB)
 	cmd[0] = 0x0E;
 	cmd[1] = (64UL & 0x00FF) >> 0;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
-	UARTprintf(" %x \n",cmd[1] );
 
 	// --------- ADC -------------
 
@@ -1140,7 +1136,7 @@ static void codec_gpio_config(void)
 	// # GPIO1 pin output disabled
 	cmd[0] = 0x60;
 	cmd[1] = 0;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);\
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	//	w 30 00 00 # Select Page 0
 	cmd[0] = 0;
@@ -1204,7 +1200,7 @@ static void codec_mic_config(void)
 	// # ADC channel power control - Left and right channel ADC configured for Digital Mic
 	// TODO enabled only left channel
 	cmd[0] = 0x51;
-	cmd[1] = (1 << 7) | (1 << 4); // TODO | (1 << 6) | (1 << 2);
+	cmd[1] = (1 << 7) | (1 << 4) | (1 << 6) | (1 << 2);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	// # ADC Fine Gain Volume Control, Unmute Left and Right ADC channel
@@ -1223,7 +1219,8 @@ static void codec_mic_config(void)
 	cmd[1] = 0; // TODO (1 << 7) | (1 << 4);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
-	//	# Select Page 0
+	/*
+	//	# Select Page 1
 	cmd[0] = 0;
 	cmd[1] = 0x01;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
@@ -1237,6 +1234,25 @@ static void codec_mic_config(void)
 	cmd[0] = 0x3C;
 	cmd[1] = 0x00;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//	ADC IN1_L is selected for left P
+	cmd[0] = 52;
+	cmd[1] = 0x40;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//	ADC CM1 is selected for left M
+	cmd[0] = 54;
+	cmd[1] = 0x40;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+	//	ADC IN1_R is selected for right P
+	cmd[0] = 55;
+	cmd[1] = 0x40;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+	//	ADC CM1 is selected for right M
+	cmd[0] = 57;
+	cmd[1] = 0x40;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+	*/
 
 	//	# Select Page 0
 	cmd[0] = 0;
