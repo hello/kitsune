@@ -124,3 +124,11 @@ hlo_stream_t * hlo_sock_stream(const char * host, uint8_t secure){
 //
 //
 //
+hlo_stream_t * hlo_http_op(
+		hlo_stream_t * sock,
+		const char * host,
+		const char * endpoint,
+		const char * method,
+		hlo_http_response_t * out_resp){
+
+}
