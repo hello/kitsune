@@ -122,13 +122,91 @@ hlo_stream_t * hlo_sock_stream(const char * host, uint8_t secure){
 //====================================================================
 //http requests impl
 //
-//
-//
-hlo_stream_t * hlo_http_op(
-		hlo_stream_t * sock,
-		const char * host,
-		const char * endpoint,
-		const char * method,
-		hlo_http_response_t * out_resp){
+#include "tinyhttp.h"
+typedef struct{
+	hlo_stream_t * sockstream;
+	struct http_roundtripper rt;
+	void * content;
+	int code;
+	int content_length;
+}hlo_http_context_t;
+#define HTTP_REQUEST_BUFFER_SIZE 1536
 
+static int _get_content(void * ctx, void * buf, size_t size){
+	hlo_http_context_t * session = (hlo_http_context_t*)ctx;
+}
+static int _close_session(void * ctx){
+	hlo_http_context_t * session = (hlo_http_context_t*)ctx;
+	hlo_stream_close(session->sockstream);
+	vPortFree(session->content);
+	http_free(&session->rt);
+	vPortFree(ctx);
+	return 0;
+}
+static void _response_header(void* opaque, const char* ckey, int nkey, const char* cvalue, int nvalue){
+	hlo_http_context_t * session = (hlo_http_context_t*)opaque;
+}
+static void _response_code(void* opaque, int code){
+	hlo_http_context_t * session = (hlo_http_context_t*)opaque;
+	session->code = code;
+}
+static void _response_body(void* opaque, const char* data, int size){
+	hlo_http_context_t * session = (hlo_http_context_t*)opaque;
+}
+static void* _response_realloc(void* opaque, void* ptr, int size){
+	return pvPortRealloc(ptr, size);
+}
+static const struct http_funcs response_functions = {
+    _response_realloc,
+    _response_body,
+    _response_header,
+    _response_code,
+};
+//default implementation table
+static const hlo_stream_vftbl_t get_impl = (hlo_stream_vftbl_t){
+		.write = NULL,
+		.read  = _get_content,
+		.close = _close_session,
+};
+hlo_stream_t * hlo_http_manual_get(hlo_stream_t * sock, const char * method, hlo_http_response_t * out_resp){
+	hlo_stream_t * ret = NULL;
+	hlo_http_response_t response = (hlo_http_response_t){
+		.code = 0,
+		.len = 0,
+		.error = HLO_STREAM_NULL_OBJ,
+	};
+	if(sock){
+		if( hlo_stream_transfer_all(INTO_STREAM,sock,method,strlen(method),4) < 0 ){
+			goto exit;
+		}
+		hlo_http_context_t * context = pvPortMalloc(sizeof(*context));
+		if(!context) goto exit;
+		context->sockstream = sock;
+		context->content = NULL;
+		http_init(&context->rt, response_functions, context);
+		while( !context->content ){//loop until body has been found
+			uint8_t scratch[512];
+			const char * data = scratch;
+			int ndata = hlo_stream_transfer_all(FROM_STREAM, sock, scratch, sizeof(scratch), 4);
+			if(ndata > 0){
+				int read = 0;
+				while(http_data(&context->rt, data,ndata, &read) && ndata){
+					ndata -= read;
+					data += scratch;
+				}
+			}else{
+				//has error
+				http_free(&rt);
+				vPortFree(context);
+				goto exit;
+			}
+		}
+		response.code = context->code;
+		response.len = context->content_length;
+	}
+exit:
+	if(out_resp){
+		*out_resp = response;
+	}
+	return ret;
 }
