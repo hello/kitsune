@@ -1,5 +1,10 @@
 /**
  * adds a Python Requests style API for HTTP stack
+ * Architecture:
+ * --------------         ------------------                        ---------
+ * |Sock Stream  | < - > |hlo_http_stream   |   -> response        | You     |
+ * |             |       |with tiny http    |  <-> content_stream  |         |
+ * --------------         ------------------                        ---------
  */
 #include "hlo_stream.h"
 typedef struct{
@@ -9,7 +14,8 @@ typedef struct{
 }hlo_http_response_t;
 
 /**
- * primitive api for a direct socket stream
+ * primitive sock stream
+ * for the requsts API
  */
 hlo_stream_t * hlo_sock_stream(const char * host, uint8_t secure);
 hlo_http_response_t hlo_http_get(const char * host);

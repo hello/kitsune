@@ -435,7 +435,16 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input, uint32_t opt_rat
 				return random_stream_open();
 			case 'i':
 			case 'I':
-				return hlo_sock_stream(&str[2], 0);
+			{
+				hlo_stream_t * ret = hlo_sock_stream(&str[2], 0);
+				if(ret){
+					char post[] = "GET /robots.txt HTTP/1.1\nHost: www.google.com\nAccept: text/html, application/xhtml+xml, */*\n\n";
+					hlo_stream_transfer_all(INTO_STREAM, ret, (uint8_t*)post,strlen(post),4);
+					vTaskDelay(500);
+					return ret;
+				}
+			}
+				break;
 			default:
 				break;
 			}

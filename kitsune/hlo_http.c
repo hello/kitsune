@@ -8,8 +8,10 @@
 #include <strings.h>
 #include "tinyhttp/http.h"
 
-//---------
+//====================================================================
 //socket stream implementation
+//
+//
 //
 typedef struct{
 	int sock;
@@ -43,29 +45,32 @@ static int _start_connection(unsigned long ip, security_type sec){
 			 sAddr = _get_addr(ip, 443);
 		//	 sock = sock
 		 }else{
-			 sAddr = _get_addr(ip, 443);
+			 sAddr = _get_addr(ip, 80);
 			 sock = socket(AF_INET, SOCK_STREAM, SL_IPPROTO_TCP);
 		 }
 		 if( sock < 0 ) goto exit;
 
-		 timeval tv = (timeval){
+/*		 timeval tv = (timeval){
 			.tv_sec = 2,
 			.tv_usec = 0,
 		 };
 		 sl_SetSockOpt(sock, SOL_SOCKET, SL_SO_RCVTIMEO, &tv, sizeof(tv) );
-		 SlSockNonblocking_t enableOption;
+			SlSockNonblocking_t enableOption;
 		 enableOption.NonblockingEnabled = 0;//blocking mode
-		 sl_SetSockOpt(sock,SL_SOL_SOCKET,SL_SO_NONBLOCKING, (_u8 *)&enableOption,sizeof(enableOption));
+		 sl_SetSockOpt(sock,SL_SOL_SOCKET,SL_SO_NONBLOCKING, (_u8 *)&enableOption,sizeof(enableOption));*/
 
 		 int retry = 5;
 		 int rv;
 		 do{
+			 LOGI("connecting\r\n;");
 			 rv = connect(sock, &sAddr, sizeof(sAddr));
+			 vTaskDelay(100);
 		 }while(rv == SL_EALREADY && retry--);
 		 if(rv < 0){
 			 LOGI("Could not connect %d\n\r\n\r", rv);
 			 sock = -1;
 		 }
+		 LOGI("Done\r\n");
 	}
 exit:
 	return sock;
@@ -77,23 +82,25 @@ static int _close_sock(void * ctx){
 }
 static int _read_sock(void * ctx, void * buf, size_t size){
 	int sock = (int)ctx;
+	LOGI("read sock %d\r\n", sock);
 	int rv =  recv(sock, buf, size,0);
+	LOGI("done %d\r\n", rv);
 	if(rv == SL_EAGAIN){
 		rv = 0;
+	}else if (rv == 0){
+		rv = HLO_STREAM_EOF;
 	}
 	return rv;
 }
 static int _write_sock(void * ctx, const void * buf, size_t size){
 	int sock = (int)ctx;
-	uint8_t dud;
-	int rv = recv(sock, dud, 0, 0);
-	if( rv < 0 ){
-		return rv;
-	}
+	int rv;
+	LOGI("write sock %d\r\n", sock);
 	rv = send(sock, buf, size, 0);
 	if( rv == SL_EAGAIN ){
 		rv = 0;
 	}
+	LOGI("done %d\r\n", rv);
 	return rv;
 }
 hlo_stream_t * hlo_sock_stream(const char * host, uint8_t secure){
@@ -105,8 +112,15 @@ hlo_stream_t * hlo_sock_stream(const char * host, uint8_t secure){
 	if(!secure){
 		int sock = _start_connection(_get_ip(host), SOCKET_SEC_NONE);
 		if(sock >= 0){
+			LOGI("sock is %d\r\n", sock);
 			return hlo_stream_new(&impl, (void*)sock, HLO_STREAM_READ_WRITE);
 		}
 	}
 	return NULL;
 }
+
+//====================================================================
+//http requests impl
+//
+//
+//
