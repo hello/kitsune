@@ -869,7 +869,7 @@ static void codec_fifo_config(void)
 	cmd[0] = 20;
 	cmd[1] = 0x80;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-	*/
+	 */
 
 	//	w 30 7f 00 # Select Book 0
 	cmd[0] = 0x7F;
@@ -1211,14 +1211,25 @@ static void codec_mic_config(void)
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	// # Digital Mic 1 Input Pin Control (GPIO4 -Left, GPIO5 - Right) - Stereo
+	cmd[0] = 0x64;
+	cmd[1] = (1 << 7) | (0 << 6) | (1 << 3) | (0 << 2);
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	UARTprintf("Dig Mic 1 :%d\n",cmd[1]);
+
+	// # Digital Mic 1 Input Pin Control (GPIO4 -Left, GPIO5 - Right) - Stereo
 	cmd[0] = 0x65;
 	cmd[1] = (3 << 4) | (4 << 0);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	UARTprintf("Dig Mic 2 :%d\n",cmd[1]);
 
 	// # Digital Mix 2 Input Pin Control (GPIO6 -Left) - Left-only
 	cmd[0] = 0x66;
 	cmd[1] = (5 << 4);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	UARTprintf("Dig Mic 3 :%d\n",cmd[1]);
 
 	//	# Select Page 0
 	cmd[0] = 0;
@@ -1228,8 +1239,10 @@ static void codec_mic_config(void)
 	// # ADC channel power control - Left and right channel ADC configured for Digital Mic
 	// TODO enabled only left channel
 	cmd[0] = 0x51;
-	cmd[1] = (1 << 7) | (1 << 4) | (1 << 6) | (1 << 2);
+	cmd[1] = (1 << 7) | (1 << 4) | (1 << 6) | (1 << 2) | (1 << 0);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	UARTprintf("Dig Mic 4 :%d\n",cmd[1]);
 
 	// # ADC Fine Gain Volume Control, Unmute Left and Right ADC channel
 	cmd[0] = 0x52;
@@ -1239,12 +1252,72 @@ static void codec_mic_config(void)
 	// # Left ADC Volume Control
 	// TODO play with volume
 	cmd[0] = 0x53;
-	cmd[1] = 0x10;
+	cmd[1] = 0x00;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	// TODO play with volume
 	cmd[0] = 0x54;
 	cmd[1] = 0x00;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//Left AGC Control 1 (TODO might not be needed)
+	cmd[0] = 0x56;
+	cmd[1] = (1 << 7) | (2 << 4);
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//Left AGC Control 2 (TODO might not be needed)
+	cmd[0] = 0x57;
+	cmd[1] = (3 << 6) | (0x1F << 1);
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//Left AGC Control 3 (TODO might not be needed)
+	cmd[0] = 0x58;
+	cmd[1] = 0;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//Left AGC Attack time (TODO might not be needed)
+	cmd[0] = 0x59;
+	cmd[1] = 0x68;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//Left AGC Decay time (TODO might not be needed)
+	cmd[0] = 0x5A;
+	cmd[1] = 0xA8;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//Left AGC Noise Debounce (TODO might not be needed)
+	cmd[0] = 0x5B;
+	cmd[1] = 0x6;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//Right AGC Control 1 (TODO might not be needed)
+	cmd[0] = 0x5E;
+	cmd[1] = (1 << 7) | (2 << 4);
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//Right AGC Control 2 (TODO might not be needed)
+	cmd[0] = 0x5F;
+	cmd[1] = (3 << 6) | (0x1F << 1);
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//Right AGC Control 3 (TODO might not be needed)
+	cmd[0] = 0x60;
+	cmd[1] = 0;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//Right AGC Attack time (TODO might not be needed)
+	cmd[0] = 0x61;
+	cmd[1] = 0x68;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//Right AGC Decay time (TODO might not be needed)
+	cmd[0] = 0x62;
+	cmd[1] = 0xA8;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//Right AGC Noise Debounce (TODO might not be needed)
+	cmd[0] = 0x63;
+	cmd[1] = 0x6;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	// # Digital mic 2 control - Enable CIC2 Left channel, and digital mic to left channel
@@ -1269,7 +1342,7 @@ static void codec_mic_config(void)
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	//	ADC IN1_L is selected for left P
-	cmd[0] = 52;
+	cmd[0] = 0x34;
 	cmd[1] = 0x40;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
