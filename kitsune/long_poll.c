@@ -39,7 +39,7 @@ static void _on_play_audio( PlayAudio * cmd ) {
 	if( cmd->has_duration_seconds ) {
 		desc.durationInSeconds = cmd->duration_seconds;
 	} else {
-		desc.durationInSeconds = -1;
+		desc.durationInSeconds = 0;
 	}
 	strncpy(desc.file, cmd->file_path, sizeof(desc.file));
 	desc.volume = cmd->volume_percent * 60 / 100; //convert from percent to codec range

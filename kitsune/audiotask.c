@@ -395,7 +395,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 			if( res != 0 ) {
 				LOGE("FSERR %d\n", res);
 			}
-			if( desired_ticks_elapsed - (xTaskGetTickCount() - t0) > 0 && desired_ticks_elapsed > 0 ) {
+			if( desired_ticks_elapsed == 0 || ( desired_ticks_elapsed - (xTaskGetTickCount() - t0) > 0 && desired_ticks_elapsed > 0 ) ) {
 				//LOOP THE FILE -- start over
 				LOGI("looping %d\n", desired_ticks_elapsed - (xTaskGetTickCount() - t0)  );
 				hello_fs_lseek(&fp,0);
