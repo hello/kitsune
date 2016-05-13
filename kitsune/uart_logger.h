@@ -5,7 +5,7 @@
 #define UART_LOGGER_H
 
 #include <stdint.h>
-
+#include "hlo_stream.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -93,7 +93,7 @@ void uart_logf(uint16_t tag, const char *pcString, ...);
  * flushes the working buffer immediately instead of passing it to the worker task.
  * uart logger module will stop functioning right after.
  */
-void uart_logger_flush(void);
+void uart_logger_flush_err_shutdown(void);
 void uart_logger_task(void * params);
 void analytics_event_task(void * params);
 int Cmd_log_upload(int argc, char *argv[]);
@@ -109,6 +109,7 @@ void uart_logc(uint8_t c);	//advanced: directly dumps character to tx block
 
 int analytics_event( const char *pcString, ...);
 
+hlo_stream_t * uart_stream(void);
 #ifdef __cplusplus
 }
 #endif

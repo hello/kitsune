@@ -91,8 +91,11 @@
 #include "proto_utils.h"
 #include "ustdlib.h"
 
+#include "hlo_stream.h"
 #include "pill_settings.h"
 #include "prox_signal.h"
+#include "hlo_audio_tools.h"
+#include "hlo_audio.h"
 #include "hlo_net_tools.h"
 #include "top_board.h"
 #include "long_poll.h"
@@ -305,66 +308,18 @@ int Cmd_fs_read(int argc, char *argv[]) {
 	return 0;
 }
 
-int Cmd_record_buff(int argc, char *argv[]) {
-	AudioMessage_t m;
-	static xSemaphoreHandle wait = 0;
-
-	if (!wait) {
-		wait = xSemaphoreCreateBinary();
-	}
-
-	//turn on
-	AudioTask_StartCapture(atoi(argv[1]));
-
-	//capture
-	memset(&m,0,sizeof(m));
-	m.command = eAudioSaveToDisk;
-	m.message.capturedesc.change = startSaving;
-	AudioTask_AddMessageToQueue(&m);
-
-	xSemaphoreTake(wait,10000); //10 seconds
-
-	m.command = eAudioSaveToDisk;
-	m.message.capturedesc.change = stopSaving;
-	AudioTask_AddMessageToQueue(&m);
-
-
-	m.command = eAudioCaptureTurnOff;
-	AudioTask_AddMessageToQueue(&m);
-
-	return 0;
-
-}
-
-
 int Cmd_audio_turn_on(int argc, char * argv[]) {
 
 	AudioTask_StartCapture(16000);
 
-	AudioProcessingTask_SetControl(featureUploadsOn,NULL,NULL,0);
-#ifdef KIT_INCLUDE_FILE_UPLOAD
-	AudioProcessingTask_SetControl(rawUploadsOn,NULL,NULL,0);
-#endif
-
+	AudioProcessingTask_SetControl(featureUploadsOn,0);
 	return 0;
-}
-
-int Cmd_audio_turn_off(int agrc, char * agrv[]) {
-	AudioTask_StopCapture();
-	return 0;
-
 }
 
 int Cmd_stop_buff(int argc, char *argv[]) {
 	AudioTask_StopPlayback();
 
 	return 0;
-}
-
-static void octogram_notification(void * context) {
-	xSemaphoreHandle sem = (xSemaphoreHandle)context;
-
-	xSemaphoreGive(sem);
 }
 
 static
@@ -387,95 +342,8 @@ int Cmd_get_octogram(int argc, char * argv[]) {
 
 	return 0;
 }
-int Cmd_do_octogram(int argc, char * argv[]) {
-	AudioMessage_t m;
-    int32_t numsamples = atoi( argv[1] );
-    uint16_t i,j;
-    int counts;
-
-    if( argc == 1 ) {
-    	numsamples = 500;
-    	counts = 1;
-    } else {
-        counts = atoi( argv[2] );
-    }
-    if (numsamples == 0) {
-    	LOGF("number of requested samples was zero.\r\n");
-    	return 0;
-    }
-
-    if( !octogram_semaphore ) {
-    	octogram_semaphore = xSemaphoreCreateBinary();
-    }
-    for( j = 0; j< counts; ++j) {
-
-		memset(&m,0,sizeof(m));
-
-		AudioTask_StartCapture(22050);
-
-		m.command = eAudioCaptureOctogram;
-		m.message.octogramdesc.result = &octorgram_result;
-		m.message.octogramdesc.analysisduration = numsamples;
-		m.message.octogramdesc.onFinished = octogram_notification;
-		m.message.octogramdesc.context = octogram_semaphore;
-
-		AudioTask_AddMessageToQueue(&m);
-
-		if( argc == 1 ) {
-			return 0;
-		}
-
-		xSemaphoreTake(octogram_semaphore,portMAX_DELAY);
 
 
-		int avg = 0;
-		avg += octorgram_result.logenergy[3];
-		avg += octorgram_result.logenergy[4];
-		avg += octorgram_result.logenergy[5];
-		avg += octorgram_result.logenergy[6];
-		avg /= 4;
-
-		//report results
-		LOGF("%d\r\n", octorgram_result.logenergy[2] - avg );
-		for (i = 0; i < OCTOGRAM_SIZE; i++) {
-			if (i != 0) {
-				LOGI(",");
-			}
-			LOGI("%d",octorgram_result.logenergy[i]);
-		}
-		LOGI("\r\n");
-
-    }
-
-	return 0;
-
-}
-
-int Cmd_play_buff(int argc, char *argv[]) {
-    int vol = atoi( argv[1] );
-    char * file = argv[3];
-    AudioPlaybackDesc_t desc;
-    memset(&desc,0,sizeof(desc));
-    strncpy( desc.file, file, 64 );
-    desc.volume = vol;
-    if( argc >= 4 ) {
-        desc.durationInSeconds = atoi(argv[4]);
-    } else {
-        desc.durationInSeconds = -1;
-    }
-    if( argc >= 5 ) {
-    	desc.fade_out_ms = desc.fade_in_ms = atoi(argv[5]);
-		desc.to_fade_out_ms = atoi(argv[6]);
-    } else {
-    	desc.to_fade_out_ms = desc.fade_out_ms = desc.fade_in_ms = 0;
-    }
-    desc.rate = atoi(argv[2]);
-
-    AudioTask_StartPlayback(&desc);
-
-    return 0;
-    //return play_ringtone( vol );
-}
 int Cmd_fs_delete(int argc, char *argv[]) {
 	//
 	// Print some header text.
@@ -609,7 +477,6 @@ static bool cancel_alarm() {
 }
 
 int set_test_alarm(int argc, char *argv[]) {
-	while(1) {
 	SyncResponse_Alarm alarm;
 	unsigned int now = get_time();
 	alarm.end_time = now + 45;
@@ -629,9 +496,6 @@ int set_test_alarm(int argc, char *argv[]) {
 	char ack[32];
 	usnprintf(ack, 32, "%d", now);
 	set_alarm(&alarm, ack, strlen(ack));
-
-	vTaskDelay(10000);
-	}
 
 	return 0;
 }
@@ -657,7 +521,7 @@ static bool _is_file_exists(char* path)
 	}
 	return true;
 }
-
+#include "hellofilesystem.h"
 uint8_t get_alpha_from_light();
 void thread_alarm(void * unused) {
 	int alarm_led_id = -1;
@@ -668,9 +532,7 @@ void thread_alarm(void * unused) {
 		uint32_t time = get_time();
 		// The alarm thread should go ahead even without a valid time,
 		// because we don't need a correct time to fire alarm, we just need the offset.
-
 		if (xSemaphoreTakeRecursive(alarm_smphr, portMAX_DELAY)) {
-
 			if( time - alarm.start_time < 600 || alarm.start_time - time < 600 ) {
 				if( time < alarm.start_time ) {
 					LOGI("coming %d in %d\n",
@@ -688,7 +550,6 @@ void thread_alarm(void * unused) {
 
 				desc.to_fade_out_ms = desc.fade_in_ms = 30000;
 				desc.fade_out_ms = 3000;
-				strncpy( desc.file, AUDIO_FILE, 64 );
 				int has_valid_sound_file = 0;
 				char file_name[64] = {0};
 				if(alarm.has_ringtone_path)
@@ -735,7 +596,8 @@ void thread_alarm(void * unused) {
 					LOGE("ALARM RING FAIL: NO RINGTONE FILE FOUND %s\n", file_name);
 				}
 
-				strncpy(desc.file, file_name, 64);
+				desc.stream = fs_stream_open(file_name,HLO_STREAM_READ);
+				ustrncpy(desc.source_name, file_name, sizeof(desc.source_name));
 				desc.durationInSeconds = alarm.ring_duration_in_second;
 				desc.volume = 10;
 				desc.onFinished = thread_alarm_on_finished;
@@ -1756,7 +1618,6 @@ void init_download_task( int stack );
 
 void launch_tasks() {
 	checkFaults();
-	start_top_boot_watcher();
 
 	//dear future chris: this one doesn't need a semaphore since it's only written to while threads are going during factory test boot
 	booted = true;
@@ -1789,6 +1650,7 @@ void launch_tasks() {
 int Cmd_boot(int argc, char *argv[]) {
 	if( !booted ) {
 		launch_tasks();
+		Cmd_led_clr(0,0);
 	}
 	return 0;
 }
@@ -1868,9 +1730,6 @@ int cmd_memfrag(int argc, char *argv[]) {
 	else if (strstr(argv[1], "f") != 0) {
 		vPortFree(ptr);
 	}
-	return 0;
-}
-static long always_ok(void){
 	return 0;
 }
 static long always_slow(int dly){
@@ -2003,7 +1862,6 @@ tCmdLineEntry g_sCmdTable[] = {
     { "write",    Cmd_write,    "" },
     { "mkfs",     Cmd_mkfs,     "" },
     { "pwd",      Cmd_pwd,      "" },
-    { "cat",      Cmd_cat,      "" },
 	{"codec_Mic", get_codec_mic_NAU, "" },
 #endif
 
@@ -2026,13 +1884,12 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "get", Cmd_test_get, ""},
 #endif
 
-		{ "r", Cmd_record_buff,""}, //record sounds into SD card
-		{ "p", Cmd_play_buff, ""},//play sounds from SD card
-		{ "s",Cmd_stop_buff,""},
-		{ "oct",Cmd_do_octogram,""},
+		{ "r", Cmd_AudioCapture,""}, //record sounds into SD card
+		{ "s",Cmd_audio_record_stop,""},
+		{ "x", Cmd_stream_transfer, ""},
+		{ "p", Cmd_AudioPlayback, ""},
 		{ "getoct",Cmd_get_octogram,""},
 		{ "aon",Cmd_audio_turn_on,""},
-		{ "aoff",Cmd_audio_turn_off,""},
 #if 0
 		{ "sl", Cmd_sl, "" }, // smart config
 		{ "mode", Cmd_mode, "" }, //set the ap/station mode
@@ -2062,6 +1919,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "dtm", Cmd_top_dtm, "" },//Sends Direct Test Mode command
 #endif
 		{ "animate", Cmd_led_animate, ""},//Animates led
+
 #if 0
 		{ "uplog", Cmd_log_upload, ""},
 #endif
@@ -2094,7 +1952,6 @@ tCmdLineEntry g_sCmdTable[] = {
 		{"nwp", Cmd_nwpinfo, ""},
 		{"dns", Cmd_setDns, ""},
 		{"g", Cmd_gesture, ""},
-
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
 		{ "iperfcli",Cmd_iperf_client,""},
@@ -2203,6 +2060,7 @@ void vUARTTask(void *pvParameters) {
 	vTaskDelay(10);
 	//INIT SPI
 	spi_init();
+	hlo_audio_init();
 
 	i2c_smphr = xSemaphoreCreateRecursiveMutex();
 	init_time_module(2560);
@@ -2233,7 +2091,8 @@ void vUARTTask(void *pvParameters) {
 	CreateDefaultDirectories();
 	load_data_server();
 
-	xTaskCreate(AudioTask_Thread,"audioTask",2560/4,NULL,4,NULL);
+	xTaskCreate(AudioPlaybackTask,"playbackTask",1280/4,NULL,4,NULL);
+	xTaskCreate(AudioCaptureTask,"captureTask", (3*1024)/4,NULL,3,NULL);
 	init_download_task( 3072 / 4 );
 	networktask_init(3 * 1024 / 4);
 
@@ -2256,8 +2115,11 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(analytics_event_task, "analyticsTask", 1024/4, NULL, 1, NULL);
 	UARTprintf("*");
 #endif
+
+
 	xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
+	start_top_boot_watcher();
 
 	if( on_charger ) {
 		launch_tasks();

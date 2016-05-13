@@ -93,15 +93,12 @@
 //*****************************************************************************
  short ping[(CB_TRANSFER_SZ)];
  short pong[(CB_TRANSFER_SZ)];
- char pcm[(CB_TRANSFER_SZ/2)];
 volatile unsigned int guiDMATransferCountTx = 0;
 volatile unsigned int guiDMATransferCountRx = 0;
 extern tCircularBuffer *pTxBuffer;
 extern tCircularBuffer *pRxBuffer;
 
-extern TaskHandle_t audio_task_hndl;
-
-static adpcm_state pcm_state = {0};
+extern xSemaphoreHandle isr_sem;;
 
 //*****************************************************************************
 //
@@ -150,38 +147,33 @@ void DMAPingPongCompleteAppCB_opt()
 		if ((pControlTable[ulPrimaryIndexTx].ulControl & UDMA_CHCTL_XFERMODE_M)
 				== 0) {
 			guiDMATransferCountTx += CB_TRANSFER_SZ;
-			pucDMADest = (unsigned char *) ping;
-			pControlTable[ulPrimaryIndexTx].ulControl |= CTRL_WRD;
-			pControlTable[ulPrimaryIndexTx].pvDstEndAddr = (void *) (pucDMADest
-					+ END_PTR);
-			MAP_uDMAChannelEnable(UDMA_CH4_I2S_RX);
+						pucDMADest = (unsigned char *) ping;
+						pControlTable[ulPrimaryIndexTx].ulControl |= CTRL_WRD;
+						pControlTable[ulPrimaryIndexTx].pvDstEndAddr = (void *) (pucDMADest
+								+ END_PTR);
+						MAP_uDMAChannelEnable(UDMA_CH4_I2S_RX);
 
-			for (i = 0; i < CB_TRANSFER_SZ/2; i++) {
-				pong[i] = pong[2*i+1];
-				swap_endian(pong+i);
-			}
-
-			adpcm_coder( pong, pcm, CB_TRANSFER_SZ/4, &pcm_state );
-
-			FillBuffer(pAudInBuf, (unsigned char*)pcm, CB_TRANSFER_SZ/8);
+						for (i = 0; i < CB_TRANSFER_SZ/2; i++) {
+							pong[i] = pong[2*i+1];
+							swap_endian(pong+i);
+						}
+						FillBuffer(pAudInBuf, (unsigned char*)pong, CB_TRANSFER_SZ);
 		} else {
 			//ALT part of the ping pong
 			if ((pControlTable[ulAltIndexTx].ulControl & UDMA_CHCTL_XFERMODE_M)
 					== 0) {
 				guiDMATransferCountTx += CB_TRANSFER_SZ;
-				pucDMADest = (unsigned char *) pong;
-				pControlTable[ulAltIndexTx].ulControl |= CTRL_WRD;
-				pControlTable[ulAltIndexTx].pvDstEndAddr = (void *) (pucDMADest
-						+ END_PTR);
-				MAP_uDMAChannelEnable(UDMA_CH4_I2S_RX);
+						pucDMADest = (unsigned char *) pong;
+						pControlTable[ulAltIndexTx].ulControl |= CTRL_WRD;
+						pControlTable[ulAltIndexTx].pvDstEndAddr = (void *) (pucDMADest
+								+ END_PTR);
+						MAP_uDMAChannelEnable(UDMA_CH4_I2S_RX);
 
-				for (i = 0; i < CB_TRANSFER_SZ/2; i++) {
-					ping[i] = ping[2*i+1];
-					swap_endian(ping+i);
-				}
-				adpcm_coder( ping, pcm, CB_TRANSFER_SZ/4, &pcm_state );
-
-				FillBuffer(pAudInBuf, (unsigned char*)pcm, CB_TRANSFER_SZ/8);
+						for (i = 0; i < CB_TRANSFER_SZ/2; i++) {
+							ping[i] = ping[2*i+1];
+							swap_endian(ping+i);
+						}
+						FillBuffer(pAudInBuf, (unsigned char*)ping, CB_TRANSFER_SZ);
 			}
 		}
 
@@ -191,8 +183,7 @@ void DMAPingPongCompleteAppCB_opt()
 			guiDMATransferCountTx = 0;
 
 			if ( qqbufsz > LISTEN_WATERMARK ) {
-				vTaskNotifyGiveFromISR( audio_task_hndl, &xHigherPriorityTaskWoken );
-				portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+				xSemaphoreGiveFromISR(isr_sem, &xHigherPriorityTaskWoken);
 			}
 		}
 	}
@@ -204,16 +195,11 @@ void DMAPingPongCompleteAppCB_opt()
 		if ((pControlTable[ulPrimaryIndexRx].ulControl & UDMA_CHCTL_XFERMODE_M)
 				== 0) {
 			if ( qqbufsz > CB_TRANSFER_SZ ) {
-				guiDMATransferCountRx += CB_TRANSFER_SZ/4;
-
-				memcpy(  (void*)pcm, (void*)GetReadPtr(pAudOutBuf), CB_TRANSFER_SZ/4);
-				UpdateReadPtr(pAudOutBuf, CB_TRANSFER_SZ/4);
-
-				adpcm_decoder(pcm, ping, CB_TRANSFER_SZ/2, &pcm_state);
-
-				for (i = CB_TRANSFER_SZ/2-1; i!=-1 ; --i) {
-					//the odd ones do not matter
-					/*ping[(i<<1)+1] = */ping[i<<1] = ping[i];
+				guiDMATransferCountRx += CB_TRANSFER_SZ;
+				memcpy( (void*) ping, (void*)GetReadPtr(pAudOutBuf), CB_TRANSFER_SZ);
+				UpdateReadPtr(pAudOutBuf, CB_TRANSFER_SZ);
+				for(i = CB_TRANSFER_SZ/2 -1; i != -1; --i){
+					ping[i<<1] = ping[i];
 				}
 			} else {
 				memset( ping, 0, sizeof(ping));
@@ -230,15 +216,11 @@ void DMAPingPongCompleteAppCB_opt()
 			if ((pControlTable[ulAltIndexRx].ulControl & UDMA_CHCTL_XFERMODE_M)
 					== 0) {
 				if ( qqbufsz > CB_TRANSFER_SZ ) {
-					guiDMATransferCountRx += CB_TRANSFER_SZ/4;
-
-					memcpy(  (void*)pcm,  (void*)GetReadPtr(pAudOutBuf), CB_TRANSFER_SZ/4);
-					UpdateReadPtr(pAudOutBuf, CB_TRANSFER_SZ/4);
-
-					adpcm_decoder(pcm, pong, CB_TRANSFER_SZ/2, &pcm_state);
-					for (i = CB_TRANSFER_SZ/2-1; i!=-1 ; --i) {
-						//the odd ones do not matter
-						/*pong[(i<<1)+1] = */pong[i<<1] = pong[i];
+					guiDMATransferCountRx += CB_TRANSFER_SZ;
+					memcpy( (void*) pong, (void*)GetReadPtr(pAudOutBuf), CB_TRANSFER_SZ);
+					UpdateReadPtr(pAudOutBuf, CB_TRANSFER_SZ);
+					for(i = CB_TRANSFER_SZ/2 -1; i != -1; --i){
+						pong[i<<1] = pong[i];
 					}
 				} else {
 					memset( pong, 0, sizeof(pong));
@@ -259,8 +241,7 @@ void DMAPingPongCompleteAppCB_opt()
 			guiDMATransferCountRx = 0;
 
 			if ( qqbufsz < PLAY_WATERMARK ) {
-				vTaskNotifyGiveFromISR( audio_task_hndl, &xHigherPriorityTaskWoken );
-				portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+				xSemaphoreGiveFromISR(isr_sem, &xHigherPriorityTaskWoken);
 			}
 		}
 	}
@@ -289,7 +270,6 @@ void SetupPingPongDMATransferTx()
 
     memset(ping, 0, sizeof(ping));
     memset(pong, 0, sizeof(pong));
-    memset(&pcm_state, 0, sizeof(pcm_state));
 
     // changed to SD card DMA UDMA_CH14_SDHOST_RX
     SetupTransfer(UDMA_CH4_I2S_RX,
@@ -319,7 +299,6 @@ void SetupPingPongDMATransferRx()
 
     memset(ping, 0, sizeof(ping));
     memset(pong, 0, sizeof(pong));
-    memset(&pcm_state, 0, sizeof(pcm_state));
 
     SetupTransfer(UDMA_CH5_I2S_TX,
                   UDMA_MODE_PINGPONG,
