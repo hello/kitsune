@@ -751,7 +751,7 @@ int32_t codec_init_no_dsp(void)
 	I2C_IF_Write(Codec_addr, &cmd[0],1,send_stop);
 	I2C_IF_Read(Codec_addr, &cmd[1], 1);
 
-	UARTprintf("Codec Test read [0][0][%u]: %X \n",cmd[0], cmd[1]);
+	UARTprintf("ADC Flag read [0][0][%u]: %X \n",cmd[0], cmd[1]);
 
 	// Read register in [0][0][37]
 	cmd[0] = 0x25;
@@ -760,7 +760,7 @@ int32_t codec_init_no_dsp(void)
 	I2C_IF_Write(Codec_addr, &cmd[0],1,send_stop);
 	I2C_IF_Read(Codec_addr, &cmd[1], 1);
 
-	UARTprintf("Codec Test read [0][0][%u]: %X  \r\n", cmd[0], cmd[1]);
+	UARTprintf("DAC Flag read [0][0][%u]: %X  \r\n", cmd[0], cmd[1]);
 
 #endif
 
@@ -840,9 +840,14 @@ static void codec_fifo_config(void)
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	//	w 30 32 80 # Enable ADC (CIC output) FIFO
-	// TODO adjust decimation to check if mic data is captured
+	// TODO is auto clear necessary?, currently disbaled
 	cmd[0] = 0x32;
-	cmd[1] = 0xA4; // EnABLE CIC, Auto normal, decimation ratio=4
+	cmd[1] = ( 1<<7 ) | ( 0 << 6 ) | (1 << 5) | (4 << 0) ; // EnABLE CIC, Auto normal, decimation ratio=4
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	// CIC2 FIFO not bypassed
+	cmd[0] = 0x3C;
+	cmd[1] = ( 1<<7 ) | ( 0 << 6 );
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	// TODO the following registers are not explained in the datasheet,
@@ -875,6 +880,7 @@ static void codec_fifo_config(void)
 }
 
 //Codec power and analog config
+// TODO verify
 static void codec_power_config(void)
 {
 	char send_stop = 1;
@@ -992,20 +998,20 @@ static void codec_clock_config(void)
 	cmd[1] = (1 << 7) | (1 << 0);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
-	//	# MDAC = 2
+	//	# MDAC = 1
 	cmd[0] = 0x0C;
-	cmd[1] = (1 << 7) | (2 << 0);
+	cmd[1] = (1 << 7) | (1 << 0);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	// DOSR = 128
 	//	w 30 0d 00 # DOSR (MSB)
 	cmd[0] = 0x0D;
-	cmd[1] = (64UL & 0x0300) >> 8;
+	cmd[1] = (32UL & 0x0300) >> 8;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	//	w 30 0e 80 # DOSR (LSB)
 	cmd[0] = 0x0E;
-	cmd[1] = (64UL & 0x00FF) >> 0;
+	cmd[1] = (32UL & 0x00FF) >> 0;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	// --------- ADC -------------
@@ -1015,7 +1021,7 @@ static void codec_clock_config(void)
 	//	w 30 14 40 # AOSR = 128
 	// TODO As per datasheet, if AOSR=128, Use with PRB_R1 to PRB_R6, ADC Filter Type A
 	cmd[0] = 0x14;
-	cmd[1] = 64;
+	cmd[1] = 32;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 #endif
 
@@ -1074,17 +1080,39 @@ static void codec_asi_config(void)
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 #else
 
-	// Set ASI1_BDIV_CLKIN = ASI 1 BCLK input pin
-	// TODO - not sure if this config is right
-	cmd[0] = 0x0B;
-	cmd[1] = (4 << 0);
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
 	cmd[0] = 0x010;
 	cmd[1] = 0;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 #endif
+
+	cmd[0] = 0x47;
+	cmd[1] = ( 1 << 5 ) ;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	cmd[0] = 0x48;
+	cmd[1] = 0;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	cmd[0] = 0x49;
+	cmd[1] = 0;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	cmd[0] = 0x49;
+	cmd[1] = 0;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	cmd[0] = 0x4A;
+	cmd[1] = 0;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	cmd[0] = 0x4B;
+	cmd[1] = ( 1 << 5 ) ;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	cmd[0] = 0x4C;
+	cmd[1] = 0;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	//	w 30 00 00 # Select Page 0
 	cmd[0] = 0;
@@ -1214,12 +1242,17 @@ static void codec_mic_config(void)
 	cmd[1] = 0x10;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
-	// # Digital mic 2 control - Enable CIC2 Left channel, and digital mic to left channel
-	cmd[0] = 0x70;
-	cmd[1] = 0; // TODO (1 << 7) | (1 << 4);
+	// TODO play with volume
+	cmd[0] = 0x54;
+	cmd[1] = 0x00;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
-	/*
+	// # Digital mic 2 control - Enable CIC2 Left channel, and digital mic to left channel
+	cmd[0] = 0x70;
+	cmd[1] = (1 << 7) | (1 << 4);
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+
 	//	# Select Page 1
 	cmd[0] = 0;
 	cmd[1] = 0x01;
@@ -1252,7 +1285,7 @@ static void codec_mic_config(void)
 	cmd[0] = 57;
 	cmd[1] = 0x40;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-	*/
+
 
 	//	# Select Page 0
 	cmd[0] = 0;
