@@ -15,19 +15,22 @@ int hlo_stream_transfer_all(transfer_direction direction,
 			ret = hlo_stream_read(stream, buf+idx, buf_size - idx);
 		}
 
-		if(ret < 0){
+		if(ret == HLO_STREAM_EOF){
+			goto transfer_done;
+		}else if(ret < 0){
 			return ret;
 		}else{
 			idx += ret;
 			if(idx == buf_size){
-				return buf_size;
+				goto transfer_done;
 			}
 			if(ret == 0){
 				vTaskDelay(transfer_delay);
 			}
 		}
 	}
-	return buf_size;
+transfer_done:
+	return idx;
 }
 int hlo_stream_transfer_between(
 		hlo_stream_t * src,
@@ -40,6 +43,6 @@ int hlo_stream_transfer_between(
 	if(ret < 0){
 		return ret;
 	}
-	return hlo_stream_transfer_all(INTO_STREAM, dst, buf,buf_size,transfer_delay);
+	return hlo_stream_transfer_all(INTO_STREAM, dst, buf,ret,transfer_delay);
 
 }
