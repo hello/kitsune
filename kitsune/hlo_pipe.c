@@ -16,7 +16,11 @@ int hlo_stream_transfer_all(transfer_direction direction,
 		}
 
 		if(ret == HLO_STREAM_EOF){
-			goto transfer_done;
+			if( idx ){
+				goto transfer_done;
+			}else{
+				return ret;
+			}
 		}else if(ret < 0){
 			return ret;
 		}else{
