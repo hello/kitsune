@@ -173,6 +173,55 @@ FRESULT hello_fs_rename (const char* path_old, const char*path_new) {
 	UNLOCK();
 	return res;
 }
+#include <string.h>
+#include "ustdlib.h"
+int deleteFilesInDir(const char* dir)
+{
+	DIR dirObject = {0};
+	FILINFO fileInfo = {0};
+    FRESULT res;
+    char path[64] = {0};
+
+    res = hello_fs_opendir(&dirObject, dir);
+
+    if(res != FR_OK)
+    {
+        return 0;
+    }
+
+
+    for(;;)
+    {
+        res = hello_fs_readdir(&dirObject, &fileInfo);
+        if(res != FR_OK)
+        {
+            return 0;
+        }
+
+        // If the file name is blank, then this is the end of the listing.
+        if(!fileInfo.fname[0])
+        {
+            break;
+        }
+
+        if(fileInfo.fattrib & AM_DIR)  // directory
+        {
+            continue;
+        } else {
+        	memset(path, 0, sizeof(path));
+        	usnprintf(path, sizeof(fileInfo.fname) + 5, "/usr/%s", fileInfo.fname);
+            res = hello_fs_unlink(path);
+            if(res == FR_OK)
+            {
+            	LOGI("User file deleted %s\n", path);
+            }else{
+            	LOGE("Delete user file %s failed, err %d\n", path, res);
+            }
+        }
+    }
+
+    return(0);
+}
 #include "FreeRTOS.h"
 #include "task.h"
 #if 0
@@ -206,12 +255,12 @@ typedef struct{
 static int fs_write(void * ctx, const void * buf, size_t size){
 	//due to a bug in the driver, only up to 512 works, so we cap it here
 	fs_stream_t * fs = (fs_stream_t*)ctx;
-	WORD size_to_write = (size > FS_IO_CAP)?FS_IO_CAP:size;
-	FRESULT res = hello_fs_write(&fs->f,buf,size_to_write,&size_to_write);
+	UINT written;
+	FRESULT res = hello_fs_write(&fs->f,buf,size,&written);
 	if(res != FR_OK){
 		return HLO_STREAM_ERROR;
 	}
-	return (int)size_to_write;
+	return (int)written;
 }
 static int fs_write_with_limit(void * ctx, const void * buf, size_t size){
 	int ret = fs_write(ctx, buf, size);
@@ -227,16 +276,15 @@ static int fs_write_with_limit(void * ctx, const void * buf, size_t size){
 
 static int fs_read(void * ctx, void * buf, size_t size){
 	fs_stream_t * fs = (fs_stream_t*)ctx;
-	WORD read;
-	int size_to_read = (size > FS_IO_CAP)?FS_IO_CAP:size;
-	FRESULT res = hello_fs_read(&fs->f, buf, size_to_read, &read);
+	UINT read;
+	FRESULT res = hello_fs_read(&fs->f, buf, size, &read);
 	if(read == 0){
 		return HLO_STREAM_EOF;
 	}
 	if(res != FR_OK){
 		return HLO_STREAM_ERROR;
 	}
-	return read;
+	return (int)read;
 }
 static int fs_read_with_replay(void * ctx, void * buf, size_t size){
 	int ret = fs_read(ctx, buf, size);

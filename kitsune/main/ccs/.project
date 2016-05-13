@@ -81,16 +81,6 @@
 			<locationURI>PARENT-2-PROJECT_LOC/audiofeatures.h</locationURI>
 		</link>
 		<link>
-			<name>audiohelper.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/audiohelper.c</locationURI>
-		</link>
-		<link>
-			<name>audiohelper.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/audiohelper.h</locationURI>
-		</link>
-		<link>
 			<name>audioprocessingtask.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/audioprocessingtask.c</locationURI>

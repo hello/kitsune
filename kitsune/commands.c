@@ -597,6 +597,7 @@ void thread_alarm(void * unused) {
 				}
 
 				desc.stream = fs_stream_open(file_name,HLO_STREAM_READ);
+				ustrncpy(desc.source_name, file_name, sizeof(desc.source_name));
 				desc.durationInSeconds = alarm.ring_duration_in_second;
 				desc.volume = 10;
 				desc.onFinished = thread_alarm_on_finished;
@@ -1622,7 +1623,7 @@ void launch_tasks() {
 	booted = true;
 
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 3, NULL);
-	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,1,NULL);
+	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,2,NULL);
 	UARTprintf("*");
 #ifdef KIT_INCLUDE_FILE_UPLOAD
 	xTaskCreate(FileUploaderTask_Thread,"fileUploadTask", 1024/4,NULL,1,NULL);
@@ -1861,7 +1862,6 @@ tCmdLineEntry g_sCmdTable[] = {
     { "write",    Cmd_write,    "" },
     { "mkfs",     Cmd_mkfs,     "" },
     { "pwd",      Cmd_pwd,      "" },
-    { "cat",      Cmd_cat,      "" },
 	{"codec_Mic", get_codec_mic_NAU, "" },
 #endif
 
@@ -1884,11 +1884,10 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "get", Cmd_test_get, ""},
 #endif
 
-		{ "r", Cmd_audio_record_start,""}, //record sounds into SD card
-		{ "p", Cmd_audio_record_replay, ""},//play sounds from SD card
+		{ "r", Cmd_AudioCapture,""}, //record sounds into SD card
 		{ "s",Cmd_audio_record_stop,""},
-		{ "oct",Cmd_audio_octogram,""},
-		{ "feat", Cmd_audio_features, ""},
+		{ "x", Cmd_stream_transfer, ""},
+		{ "p", Cmd_AudioPlayback, ""},
 		{ "getoct",Cmd_get_octogram,""},
 		{ "aon",Cmd_audio_turn_on,""},
 #if 0
@@ -1953,11 +1952,6 @@ tCmdLineEntry g_sCmdTable[] = {
 		{"nwp", Cmd_nwpinfo, ""},
 		{"dns", Cmd_setDns, ""},
 		{"g", Cmd_gesture, ""},
-
-		{ "mks",Cmd_make_stream,""},
-		{ "wrs",Cmd_write_stream,""},
-		{ "rds",Cmd_read_stream,""},
-
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
 		{ "iperfcli",Cmd_iperf_client,""},
@@ -2098,7 +2092,7 @@ void vUARTTask(void *pvParameters) {
 	load_data_server();
 
 	xTaskCreate(AudioPlaybackTask,"playbackTask",1280/4,NULL,4,NULL);
-	xTaskCreate(AudioCaptureTask,"captureTask", 2580/4,NULL,3,NULL);
+	xTaskCreate(AudioCaptureTask,"captureTask", (3*1024)/4,NULL,3,NULL);
 	init_download_task( 3072 / 4 );
 	networktask_init(3 * 1024 / 4);
 
@@ -2167,7 +2161,7 @@ void vUARTTask(void *pvParameters) {
 				LOGF("can't run %s, no mem!\n", cCmdBuf );
 			} else {
 				memcpy( args, cCmdBuf, sizeof( cCmdBuf ) );
-				xTaskCreate(CmdLineProcess, "commandTask",  3*1024 / 4, args, 4, NULL);
+				xTaskCreate(CmdLineProcess, "commandTask",  3*1024 / 4, args, 3, NULL);
 			}
         }
 	}

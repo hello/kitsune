@@ -63,14 +63,13 @@
 //
 //*****************************************************************************
 tCircularBuffer*
-CreateCircularBuffer(unsigned long ulBufferSize)
+CreateCircularBuffer(unsigned long ulBufferSize, unsigned char * data)
 {
     tCircularBuffer *pTempBuff;
     pTempBuff = (tCircularBuffer*)pvPortMalloc(sizeof(tCircularBuffer));
     assert(pTempBuff);
-    pTempBuff->pucBufferStartPtr = pvPortMalloc(ulBufferSize);
+    pTempBuff->pucBufferStartPtr = data;
     assert(pTempBuff->pucBufferStartPtr);
-	memset( pTempBuff->pucBufferStartPtr, 0, ulBufferSize);
     pTempBuff->pucReadPtr = pTempBuff->pucBufferStartPtr;
     pTempBuff->pucWritePtr = pTempBuff->pucBufferStartPtr;
     pTempBuff->ulBufferSize = ulBufferSize;
@@ -95,7 +94,7 @@ CreateCircularBuffer(unsigned long ulBufferSize)
 void
 DestroyCircularBuffer(tCircularBuffer *pCircularBuffer)
 {
-#if 1
+#if 0
     if(pCircularBuffer->pucBufferStartPtr)
     {
         vPortFree(pCircularBuffer->pucBufferStartPtr);

@@ -10,7 +10,6 @@
 #include "fileuploadertask.h"
 
 #include "audiofeatures.h"
-#include "audiohelper.h"
 #include "uartstdio.h"
 #include "endpoints.h"
 #include "circ_buff.h"
@@ -46,37 +45,9 @@ TaskHandle_t audio_task_hndl;
 
 /* static variables  */
 static xQueueHandle _playback_queue = NULL;
+static xQueueHandle _capture_queue = NULL;
 static xQueueHandle _state_queue = NULL;
-static xSemaphoreHandle _statsMutex = NULL;
-static AudioOncePerMinuteData_t _stats;
 
-static void DataCallback(const AudioFeatures_t * pfeats) {
-//	LOGI("Found Feature\r\n");
-	AudioProcessingTask_AddFeaturesToQueue(pfeats);
-}
-
-static void StatsCallback(const AudioOncePerMinuteData_t * pdata) {
-
-	xSemaphoreTake(_statsMutex,portMAX_DELAY);
-
-	//LOGI("audio disturbance: %d,  background=%d, peak=%d, samples = %d\n",pdata->num_disturbances, pdata->peak_background_energy, _stats.peak_energy , _stats.num_samples);
-	_stats.num_disturbances += pdata->num_disturbances;
-	_stats.num_samples++;
-
-        if (pdata->peak_background_energy > _stats.peak_background_energy) {
-            _stats.peak_background_energy = pdata->peak_background_energy;
-        }
-
-	if (pdata->peak_energy > _stats.peak_energy) {
-	    _stats.peak_energy = pdata->peak_energy;
-	}
-
-	_stats.isValid = 1;
-
-	xSemaphoreGive(_statsMutex);
-
-
-}
 #ifdef KIT_INCLUDE_FILE_UPLOAD
 static void QueueFileForUpload(const char * filename,uint8_t delete_after_upload) {
 	FileUploaderTask_Upload(filename,DATA_SERVER,RAW_AUDIO_ENDPOINT,delete_after_upload,NULL,NULL);
@@ -141,8 +112,8 @@ static bool _queue_audio_playback_state(playstate_t is_playing, const AudioPlayb
 		ret.has_volume_percent = true;
 		ret.volume_percent = info->volume * 100 / 60;
 
-		ret.has_file_path = false; //todo
-		//ustrncpy(ret.file_path, info->file, sizeof(ret.file_path));
+		ret.has_file_path = true;
+		ustrncpy(ret.file_path, info->source_name, sizeof(ret.file_path));
 	}
 
 	return xQueueSend(_state_queue, &ret, 0);
@@ -154,22 +125,10 @@ static uint8_t CheckForInterruptionDuringPlayback(void) {
 	AudioMessage_t m;
 	uint8_t ret = 0x00;
 
-	/* Take a peak at the top of our queue.  If we get something that says stop, we stop  */
 	if (xQueueReceive(_playback_queue,(void *)&m,0)) {
-
-		if (m.command == eAudioPlaybackStop) {
-			ret = FLAG_STOP;
-			LOGI("Stopping playback\r\n");
-		}
-		if (!ret) {
-			xQueueSendToFront(_playback_queue, (void*)&m, 0);
-		}
-		if (m.command == eAudioPlaybackStart ) {
-			ret = FLAG_STOP;
-//			LOGI("Switching audio\r\n");
-		}
+		ret = FLAG_STOP;
+		xQueueSendToFront(_playback_queue, (void*)&m, 0);
 	}
-
 	return ret;
 }
 
@@ -181,15 +140,16 @@ typedef struct{
 	unsigned long target;
 	unsigned long ramp_up_ms;
 	unsigned long ramp_down_ms;
-	portTickType  end_tick;
+	int32_t  duration;
 }ramp_ctx_t;
 extern xSemaphoreHandle i2c_smphr;
 extern bool set_volume(int v, unsigned int dly);
 
 static void _change_volume_task(hlo_future_t * result, void * ctx){
 	volatile ramp_ctx_t * v = (ramp_ctx_t*)ctx;
+	portTickType t0 = xTaskGetTickCount();
 	while( v->target || v->current ){
-		if (xTaskGetTickCount() >= v->end_tick ){
+		if ( (v->duration - (int32_t)(xTaskGetTickCount() - t0)) < 0 && v->duration > 0){
 			v->target = 0;
 		}
 		if(v->current > v->target){
@@ -218,13 +178,12 @@ static void _change_volume_task(hlo_future_t * result, void * ctx){
 			//set volume failed, instantly exit out of this async worker.
 			hlo_future_write(result, NULL, 0, -1);
 		}
-
 	}
 	hlo_future_write(result, NULL, 0, 0);
 }
 ////-------------------------------------------
 //playback sample app
-static void _playback_loop(AudioPlaybackDesc_t * desc, audio_control_signal sig_stop){
+static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_stop){
 	int ret;
 	uint8_t chunk[512]; //arbitrary
 
@@ -233,7 +192,7 @@ static void _playback_loop(AudioPlaybackDesc_t * desc, audio_control_signal sig_
 		.target = desc->volume,
 		.ramp_up_ms = desc->fade_in_ms / (desc->volume + 1),
 		.ramp_down_ms = desc->fade_out_ms / (desc->volume + 1),
-		.end_tick =  xTaskGetTickCount() + desc->durationInSeconds * 1000,
+		.duration =  desc->durationInSeconds * 1000,
 	};
 
 	hlo_stream_t * spkr = hlo_audio_open_mono(desc->rate,0,HLO_AUDIO_PLAYBACK);
@@ -252,7 +211,7 @@ static void _playback_loop(AudioPlaybackDesc_t * desc, audio_control_signal sig_
 		}
 	}
 	vol.target = 0;
-	hlo_future_destroy(vol_task);
+	hlo_future_read_once(vol_task, NULL, 0);
 	hlo_stream_close(fs);
 	hlo_stream_close(spkr);
 	if(desc->onFinished){
@@ -263,9 +222,6 @@ static void _playback_loop(AudioPlaybackDesc_t * desc, audio_control_signal sig_
 static void _init(void) {//TODO get rid of this
 	audio_task_hndl = xTaskGetCurrentTaskHandle();
 
-	if (!_statsMutex) {
-		_statsMutex = xSemaphoreCreateMutex();
-	}
 }
 
 void AudioPlaybackTask(void * data) {
@@ -313,42 +269,59 @@ void AudioPlaybackTask(void * data) {
 	//hlo_future_destroy(state_update_task);
 
 }
-#define RECORD_SAMPLE_SIZE (256*2*2)
+#include "hlo_audio_tools.h"
+static uint8_t CheckForInterruptionDuringCapture(void){
+	AudioMessage_t m;
+	uint8_t ret = 0x00;
+	if (xQueueReceive(_capture_queue,(void *)&m,0)) {
+		ret = FLAG_STOP;
+		xQueueSendToFront(_capture_queue, (void*)&m, 0);
+	}
+	return ret;
+}
+static int _do_capture(const AudioCaptureDesc_t * info){
+	int ret = HLO_STREAM_ERROR;
+	if(info->p){
+		hlo_stream_t * mic = hlo_audio_open_mono(info->rate, 0, HLO_AUDIO_RECORD);
+		ret = info->p(mic, info->opt_out, info->ctx, CheckForInterruptionDuringCapture);
+		LOGI("Capture Returned: %d\r\n", ret);
+		hlo_stream_close(mic);
+		hlo_stream_close(info->opt_out);
+	}
+	return ret;
+}
+#define BG_CAPTURE_TIMEOUT 2000
 void AudioCaptureTask(void * data) {
+	_capture_queue = xQueueCreate(INBOX_QUEUE_LENGTH,sizeof(AudioMessage_t));
+	assert(_capture_queue);
 
-	hlo_stream_t * mic = hlo_audio_open_mono(16000,0,HLO_AUDIO_RECORD);
-	assert(mic);
-
-	uint8_t buf[RECORD_SAMPLE_SIZE] = {0};
-	uint8_t stream_just_ended = 1;	/** edge transition flag **/
-	int64_t callCounter = 0;		/** time context for feature extractor **/
-	uint32_t settle_count = 0;		/** let audio settle after playback **/
-
-	AudioFeatures_Init(DataCallback,StatsCallback);
+	AudioCaptureDesc_t bg_info = {0};
+	uint8_t bg_capture_enable = 0;
 	for (; ;) {
-		int ret =  hlo_stream_transfer_all(FROM_STREAM, mic,buf,sizeof(buf),4);
-		if( ret >= 0){
-			stream_just_ended = 1;
-			if(settle_count++ > 3){
-				AudioFeatures_SetAudioData(buf, callCounter++);
-			}
-		}else if (ret == HLO_STREAM_EOF){
-			DISP("EOF\r\n");
-			vTaskDelay(2000);
-			if(stream_just_ended){
-				_print_heap_info();
-				stream_just_ended = 0;
-				settle_count = 0;
+		AudioMessage_t  m;
+		//default
+		if (xQueueReceive( _capture_queue,(void *) &m, BG_CAPTURE_TIMEOUT )) {
+			switch(m.command){
+			case eAudioCaptureStart:
+				_do_capture(&m.message.capturedesc);
+				break;
+			case eAudioBGCaptureStart:
+				bg_capture_enable = 1;
+				bg_info = m.message.capturedesc;
+				break;
+			case eAudioCaptureStop:
+				bg_capture_enable = 0;
+				break;
+			default:
+				break;
 			}
 		}else{
-			LOGE("MIC Stream Error: %d\r\n", ret);
-			vTaskDelay(1000);
+			if(bg_capture_enable){
+				_do_capture(&bg_info);
+			}
 		}
-
-
 	}
 }
-
 
 void AudioTask_StopPlayback(void) {
 	AudioMessage_t m;
@@ -377,25 +350,64 @@ void AudioTask_StartPlayback(const AudioPlaybackDesc_t * desc) {
 	}
 }
 
-
-void AudioTask_AddMessageToQueue(const AudioMessage_t * message) {
-	if (_playback_queue) {
-		xQueueSend(_playback_queue,message,0);
-	}
-}
 void AudioTask_StopCapture(void){
-
+	AudioMessage_t m;
+	m.command = eAudioCaptureStop;
+	if(_capture_queue){
+		xQueueSend(_capture_queue,(void *)&m,0);
+	}
 }
 
 void AudioTask_StartCapture(uint32_t rate){
+	AudioMessage_t m;
+	m.command = eAudioBGCaptureStart;
+	m.message.capturedesc.ctx = NULL;
+	m.message.capturedesc.opt_out = NULL;
+	m.message.capturedesc.p = hlo_filter_feature_extractor;
+	m.message.capturedesc.rate = rate;
+	if(_capture_queue){
+		xQueueSend(_capture_queue,(void *)&m,0);
+	}
+}
+
+void AudioTask_QueueCaptureProcess(const AudioCaptureDesc_t * desc){
+	AudioMessage_t m;
+	m.command = eAudioCaptureStart;
+	memcpy(&m.message.capturedesc, desc, sizeof(*desc));
+	if(_capture_queue){
+		xQueueSend(_capture_queue,(void *)&m,0);
+	}
+}
+int Cmd_AudioPlayback(int argc, char * argv[]){
+	if(argc  > 1){
+		AudioPlaybackDesc_t desc;
+		desc.context = NULL;
+		desc.durationInSeconds = 10;
+		desc.fade_in_ms = 1000;
+		desc.fade_out_ms = 1000;
+		desc.onFinished = NULL;
+		desc.rate = 48000;
+		desc.stream = fs_stream_open_media(argv[1], 0);
+		desc.volume = 44;
+		ustrncpy(desc.source_name, argv[1], sizeof(desc.source_name));
+		AudioTask_StartPlayback(&desc);
+		return 0;
+	}
+	return -1;
+}
+int Cmd_AudioCapture(int argc, char * argv[]){
+	if( argc > 1 ){
+		if (argv[1][0] == '0'){
+			LOGI("Stopping Capture\r\n");
+			AudioTask_StopCapture();
+		}else{
+			LOGI("Starting Capture\r\n");
+			AudioTask_StartCapture(16000);
+		}
+		return 0;
+	}
+	LOGI("r [1|0]\r\n");
+	return -1;
 
 }
-void AudioTask_DumpOncePerMinuteStats(AudioOncePerMinuteData_t * pdata) {
-	xSemaphoreTake(_statsMutex,portMAX_DELAY);
-	memcpy(pdata,&_stats,sizeof(AudioOncePerMinuteData_t));
-	pdata->peak_background_energy/=pdata->num_samples;
-	memset(&_stats,0,sizeof(_stats));
-	xSemaphoreGive(_statsMutex);
-}
-
 

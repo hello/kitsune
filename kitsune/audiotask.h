@@ -4,10 +4,14 @@
 #include <stdint.h>
 #include "audio_types.h"
 #include "hlo_stream.h"
+#include "hlo_pipe.h"
 
 typedef enum {
 	eAudioPlaybackStart,
 	eAudioPlaybackStop,
+	eAudioCaptureStart,		//enables a one shot capture process
+	eAudioCaptureStop,		//stops the current capture process
+	eAudioBGCaptureStart, 	//enable a bg capture process that always gets restarted
 } EAudioCommand_t;
 
 typedef struct {
@@ -20,17 +24,10 @@ typedef struct {
 	hlo_stream_t * stream;
 	NotificationCallback_t onFinished;
 	void * context;
+	char source_name[64];
 } AudioPlaybackDesc_t;
 
 
-typedef struct {
-	uint32_t analysisduration;
-
-	NotificationCallback_t onFinished;
-	void * context;
-	OctogramResult_t * result;
-
-} AudioOctogramDesc_t;
 
 typedef struct {
 	EAudioCommand_t command;
@@ -38,7 +35,6 @@ typedef struct {
 	union {
 		AudioCaptureDesc_t capturedesc;
 		AudioPlaybackDesc_t playbackdesc;
-		AudioOctogramDesc_t octogramdesc;
 	} message;
 
 } AudioMessage_t;
@@ -46,16 +42,27 @@ typedef struct {
 void AudioPlaybackTask(void * data);
 void AudioCaptureTask(void * data);
 
-void AudioTask_AddMessageToQueue(const AudioMessage_t * message);
-
 void AudioTask_StartPlayback(const AudioPlaybackDesc_t * desc);
 
 void AudioTask_StopPlayback(void);
-
+/**
+ * stops all capture processes
+ */
 void AudioTask_StopCapture(void);
-
+/**
+ * enables the default background capture process
+ */
 void AudioTask_StartCapture(uint32_t rate);
+/**
+ * queues a one shot capture process.
+ */
+void AudioTask_QueueCaptureProcess(const AudioCaptureDesc_t * desc);
 
 void AudioTask_DumpOncePerMinuteStats(AudioOncePerMinuteData_t * pdata);
+/**
+ * testing commands
+ */
+int Cmd_AudioPlayback(int argc, char * argv[]);
+int Cmd_AudioCapture(int argc, char * argv[]);
 
 #endif //_AUDIOCAPTURETASK_H_

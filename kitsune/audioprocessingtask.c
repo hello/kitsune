@@ -202,5 +202,5 @@ void AudioProcessingTask_Thread(void * data) {
     	xSemaphoreGive(_mutex);
 
 	}
-	TearDown();
+	//TearDown();
 }
