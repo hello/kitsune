@@ -18,7 +18,7 @@ typedef struct{
 }hlo_sock_ctx_t;
 static unsigned long _get_ip(const char * host){
 	unsigned long ip = 0;
-	if(0 == gethostbyname(host, strlen(host), &ip, SL_AF_INET)){
+	if(0 == gethostbyname((_i8*)host, strlen(host), &ip, SL_AF_INET)){
 		LOGI("Get Host IP succeeded.\n\rHost: %s IP: %d.%d.%d.%d \n\r\n\r",
 										 host, SL_IPV4_BYTE(ip, 3), SL_IPV4_BYTE(ip, 2),
 									   SL_IPV4_BYTE(ip, 1), SL_IPV4_BYTE(ip, 0));
@@ -82,9 +82,7 @@ static int _close_sock(void * ctx){
 }
 static int _read_sock(void * ctx, void * buf, size_t size){
 	int sock = (int)ctx;
-	LOGI("read sock %d\r\n", sock);
 	int rv =  recv(sock, buf, size,0);
-	LOGI("done %d\r\n", rv);
 	if(rv == SL_EAGAIN){
 		rv = 0;
 	}else if (rv == 0){
@@ -95,12 +93,10 @@ static int _read_sock(void * ctx, void * buf, size_t size){
 static int _write_sock(void * ctx, const void * buf, size_t size){
 	int sock = (int)ctx;
 	int rv;
-	LOGI("write sock %d\r\n", sock);
 	rv = send(sock, buf, size, 0);
 	if( rv == SL_EAGAIN ){
 		rv = 0;
 	}
-	LOGI("done %d\r\n", rv);
 	return rv;
 }
 hlo_stream_t * hlo_sock_stream(const char * host, uint8_t secure){
