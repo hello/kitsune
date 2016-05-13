@@ -5,13 +5,17 @@
 #include "simplelink.h"
 #include "wifi_cmd.h"
 #include "sl_sync_include_after_simplelink_header.h"
-#include <strings.h>
+#include <string.h>
 #include "tinyhttp/http.h"
-
+#include "hlo_pipe.h"
+#include <string.h>
+#include "bigint_impl.h"
+//====================================================================
+//Protected API Declaration
+//
+hlo_stream_t * hlo_http_get_opt(hlo_stream_t * sock, const char * host, const char * endpoint, const char * opt_extra_headers[]);
 //====================================================================
 //socket stream implementation
-//
-//
 //
 typedef struct{
 	int sock;
@@ -119,35 +123,29 @@ hlo_stream_t * hlo_sock_stream(const char * host, uint8_t secure){
 //http requests impl
 //
 #include "tinyhttp/http.h"
+
+#define SCRATCH_SIZE 1024
 typedef struct{
 	hlo_stream_t * sockstream;
 	struct http_roundtripper rt;
-	void * content;
 	int code;
-	int content_length;
+	char * content_itr;
+	char scratch[SCRATCH_SIZE];
 }hlo_http_context_t;
-#define HTTP_REQUEST_BUFFER_SIZE 1536
 
-static int _get_content(void * ctx, void * buf, size_t size){
-	hlo_http_context_t * session = (hlo_http_context_t*)ctx;
-}
-static int _close_session(void * ctx){
-	hlo_http_context_t * session = (hlo_http_context_t*)ctx;
-	hlo_stream_close(session->sockstream);
-	vPortFree(session->content);
-	http_free(&session->rt);
-	vPortFree(ctx);
-	return 0;
-}
 static void _response_header(void* opaque, const char* ckey, int nkey, const char* cvalue, int nvalue){
 	hlo_http_context_t * session = (hlo_http_context_t*)opaque;
+	//DISP("Header %s: %s\r\n", ckey, cvalue);
 }
 static void _response_code(void* opaque, int code){
 	hlo_http_context_t * session = (hlo_http_context_t*)opaque;
 	session->code = code;
+	//DISP("Code %d\r\n", code);
 }
 static void _response_body(void* opaque, const char* data, int size){
 	hlo_http_context_t * session = (hlo_http_context_t*)opaque;
+	memcpy(session->content_itr, data, size);
+	session->content_itr += size;
 }
 static void* _response_realloc(void* opaque, void* ptr, int size){
 	return pvPortRealloc(ptr, size);
@@ -158,3 +156,92 @@ static const struct http_funcs response_functions = {
     _response_header,
     _response_code,
 };
+
+static int _get_content(void * ctx, void * buf, size_t size){
+	hlo_http_context_t * session = (hlo_http_context_t*)ctx;
+	int bytes_to_process = min(size, SCRATCH_SIZE);
+	session->content_itr = (char*)buf;
+	const char * scratch_itr = session->scratch;
+	int ndata = hlo_stream_read(session->sockstream, session->scratch, bytes_to_process);
+	int needmore = 0;
+	if( ndata ){
+		int processed;
+		while(ndata){
+			needmore = http_data(&session->rt, scratch_itr, ndata, &processed);
+			ndata -= processed;
+			scratch_itr += processed;
+		}
+	}
+
+	int content_size = (session->content_itr - (char*)buf);
+	if( !needmore ){
+		if ( http_iserror(&session->rt) ){
+			return HLO_STREAM_ERROR;
+		}else if( content_size == 0 ){
+			return HLO_STREAM_EOF;
+		}
+	}
+	return content_size;
+}
+static int _close_get_session(void * ctx){
+	hlo_http_context_t * session = (hlo_http_context_t*)ctx;
+	http_free(&session->rt);
+	hlo_stream_close(session->sockstream);
+	vPortFree(session);
+	return 0;
+}
+hlo_stream_t * hlo_http_get_opt(hlo_stream_t * sock, const char * host, const char * endpoint, const char * opt_extra_headers[]){
+	hlo_stream_vftbl_t functions = (hlo_stream_vftbl_t){
+		.write = NULL,
+		.read = _get_content,
+		.close = _close_get_session,
+	};
+	hlo_stream_t * ret = NULL;
+	if (!sock ){
+		goto no_sock;
+	}
+
+	hlo_http_context_t * session = pvPortMalloc(sizeof(*session));
+	if( !session ){
+		goto no_session;
+	}else{
+		memset(session, 0, sizeof(*session));
+	}
+	session->sockstream = sock;
+	http_init(&session->rt,response_functions, session);
+	ret = hlo_stream_new(&functions, session, HLO_STREAM_READ);
+	if( !ret ) {
+		goto no_stream;
+	}
+	strcat(session->scratch, "GET ");
+	strcat(session->scratch, endpoint);
+	strcat(session->scratch, " HTTP/1.1");
+	strcat(session->scratch, "\r\n");
+	strcat(session->scratch, "Host: ");
+	strcat(session->scratch, host);
+	strcat(session->scratch, "\r\n");
+	strcat(session->scratch, "Accept: text/html, application/xhtml+xml, */*\r\n");
+	const char ** itr = opt_extra_headers;
+	while(itr){
+		strcat(session->scratch, *itr);
+		itr++;
+		strcat(session->scratch, "\r\n");
+	}
+	strcat(session->scratch, "\r\n");
+	int transfer_size = ustrlen(session->scratch);
+	LOGI("%s", session->scratch);
+	if( transfer_size == hlo_stream_transfer_all(INTO_STREAM, sock, (uint8_t*)session->scratch, transfer_size, 4)){
+		vTaskDelay(500);
+		return ret;
+	}else{
+		LOGE("GET Request Failed\r\n");
+		hlo_stream_close(ret);
+		return NULL;
+	}
+no_stream:
+	vPortFree(session);
+no_session:
+no_sock:
+	return ret;
+
+}
