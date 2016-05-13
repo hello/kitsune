@@ -54,12 +54,13 @@ static int _start_connection(unsigned long ip, security_type sec){
 		 }
 		 if( sock < 0 ) goto exit;
 
-/*		 timeval tv = (timeval){
+		 timeval tv = (timeval){
 			.tv_sec = 2,
 			.tv_usec = 0,
 		 };
 		 sl_SetSockOpt(sock, SOL_SOCKET, SL_SO_RCVTIMEO, &tv, sizeof(tv) );
-			SlSockNonblocking_t enableOption;
+
+		 /*SlSockNonblocking_t enableOption;
 		 enableOption.NonblockingEnabled = 0;//blocking mode
 		 sl_SetSockOpt(sock,SL_SOL_SOCKET,SL_SO_NONBLOCKING, (_u8 *)&enableOption,sizeof(enableOption));*/
 
@@ -135,7 +136,7 @@ typedef struct{
 
 static void _response_header(void* opaque, const char* ckey, int nkey, const char* cvalue, int nvalue){
 	hlo_http_context_t * session = (hlo_http_context_t*)opaque;
-	//DISP("Header %s: %s\r\n", ckey, cvalue);
+	DISP("Header %s: %s\r\n", ckey, cvalue);
 }
 static void _response_code(void* opaque, int code){
 	hlo_http_context_t * session = (hlo_http_context_t*)opaque;
@@ -163,24 +164,27 @@ static int _get_content(void * ctx, void * buf, size_t size){
 	session->content_itr = (char*)buf;
 	const char * scratch_itr = session->scratch;
 	int ndata = hlo_stream_read(session->sockstream, session->scratch, bytes_to_process);
-	int needmore = 0;
-	if( ndata ){
-		int processed;
-		while(ndata){
+	int needmore = 1;
+	if( ndata >= 0 ){
+		while(needmore && ndata) {
+			int processed;
 			needmore = http_data(&session->rt, scratch_itr, ndata, &processed);
 			ndata -= processed;
 			scratch_itr += processed;
 		}
+	} else {
+		return ndata;
 	}
 
 	int content_size = (session->content_itr - (char*)buf);
-	if( !needmore ){
-		if ( http_iserror(&session->rt) ){
-			return HLO_STREAM_ERROR;
-		}else if( content_size == 0 ){
-			return HLO_STREAM_EOF;
-		}
+	if( http_iserror(&session->rt) ) {
+		DISP("Has error\r\n");
+		return HLO_STREAM_ERROR;
+	}else if( !needmore && content_size == 0){
+		DISP("EOF\r\n");
+		return HLO_STREAM_EOF;
 	}
+	DISP("S:%d\r\n", content_size);
 	return content_size;
 }
 static int _close_get_session(void * ctx){
@@ -231,7 +235,6 @@ hlo_stream_t * hlo_http_get_opt(hlo_stream_t * sock, const char * host, const ch
 	int transfer_size = ustrlen(session->scratch);
 	LOGI("%s", session->scratch);
 	if( transfer_size == hlo_stream_transfer_all(INTO_STREAM, sock, (uint8_t*)session->scratch, transfer_size, 4)){
-		vTaskDelay(500);
 		return ret;
 	}else{
 		LOGE("GET Request Failed\r\n");
