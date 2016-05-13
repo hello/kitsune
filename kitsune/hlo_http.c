@@ -60,8 +60,8 @@ static int _start_connection(unsigned long ip, security_type sec){
 		 };
 		 sl_SetSockOpt(sock, SOL_SOCKET, SL_SO_RCVTIMEO, &tv, sizeof(tv) );
 
-		 /*SlSockNonblocking_t enableOption;
-		 enableOption.NonblockingEnabled = 0;//blocking mode
+		/* SlSockNonblocking_t enableOption;
+		 enableOption.NonblockingEnabled = 1;//blocking mode
 		 sl_SetSockOpt(sock,SL_SOL_SOCKET,SL_SO_NONBLOCKING, (_u8 *)&enableOption,sizeof(enableOption));*/
 
 		 int retry = 5;
@@ -184,7 +184,6 @@ static int _get_content(void * ctx, void * buf, size_t size){
 		DISP("EOF\r\n");
 		return HLO_STREAM_EOF;
 	}
-	DISP("S:%d\r\n", content_size);
 	return content_size;
 }
 static int _close_get_session(void * ctx){
