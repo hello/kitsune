@@ -67,7 +67,6 @@ static int _start_connection(unsigned long ip, security_type sec){
 		 int retry = 5;
 		 int rv;
 		 do{
-			 LOGI("connecting\r\n;");
 			 rv = connect(sock, &sAddr, sizeof(sAddr));
 			 vTaskDelay(100);
 		 }while(rv == SL_EALREADY && retry--);
@@ -75,7 +74,6 @@ static int _start_connection(unsigned long ip, security_type sec){
 			 LOGI("Could not connect %d\n\r\n\r", rv);
 			 sock = -1;
 		 }
-		 LOGI("Done\r\n");
 	}
 exit:
 	return sock;
