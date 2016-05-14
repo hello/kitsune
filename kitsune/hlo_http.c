@@ -60,9 +60,9 @@ static int _start_connection(unsigned long ip, security_type sec){
 		 };
 		 sl_SetSockOpt(sock, SOL_SOCKET, SL_SO_RCVTIMEO, &tv, sizeof(tv) );
 
-		/* SlSockNonblocking_t enableOption;
+		 SlSockNonblocking_t enableOption;
 		 enableOption.NonblockingEnabled = 1;//blocking mode
-		 sl_SetSockOpt(sock,SL_SOL_SOCKET,SL_SO_NONBLOCKING, (_u8 *)&enableOption,sizeof(enableOption));*/
+		 sl_SetSockOpt(sock,SL_SOL_SOCKET,SL_SO_NONBLOCKING, (_u8 *)&enableOption,sizeof(enableOption));
 
 		 int retry = 5;
 		 int rv;
@@ -125,18 +125,20 @@ hlo_stream_t * hlo_sock_stream(const char * host, uint8_t secure){
 //
 #include "tinyhttp/http.h"
 
-#define SCRATCH_SIZE 1024
+#define SCRATCH_SIZE 1536
 typedef struct{
 	hlo_stream_t * sockstream;
 	struct http_roundtripper rt;
 	int code;
+	int size;
+	int active;
 	char * content_itr;
 	char scratch[SCRATCH_SIZE];
 }hlo_http_context_t;
 
 static void _response_header(void* opaque, const char* ckey, int nkey, const char* cvalue, int nvalue){
 	hlo_http_context_t * session = (hlo_http_context_t*)opaque;
-	DISP("Header %s: %s\r\n", ckey, cvalue);
+	//DISP("Header %s: %s\r\n", ckey, cvalue);
 }
 static void _response_code(void* opaque, int code){
 	hlo_http_context_t * session = (hlo_http_context_t*)opaque;
@@ -147,6 +149,7 @@ static void _response_body(void* opaque, const char* data, int size){
 	hlo_http_context_t * session = (hlo_http_context_t*)opaque;
 	memcpy(session->content_itr, data, size);
 	session->content_itr += size;
+	session->size += size;
 }
 static void* _response_realloc(void* opaque, void* ptr, int size){
 	return pvPortRealloc(ptr, size);
@@ -164,15 +167,14 @@ static int _get_content(void * ctx, void * buf, size_t size){
 	session->content_itr = (char*)buf;
 	const char * scratch_itr = session->scratch;
 	int ndata = hlo_stream_read(session->sockstream, session->scratch, bytes_to_process);
-	int needmore = 1;
-	if( ndata >= 0 ){
-		while(needmore && ndata) {
+	if( ndata > 0 ){
+		while(session->active && ndata) {
 			int processed;
-			needmore = http_data(&session->rt, scratch_itr, ndata, &processed);
+			session->active = http_data(&session->rt, scratch_itr, ndata, &processed);
 			ndata -= processed;
 			scratch_itr += processed;
 		}
-	} else {
+	} else if(ndata < 0){
 		return ndata;
 	}
 
@@ -180,8 +182,8 @@ static int _get_content(void * ctx, void * buf, size_t size){
 	if( http_iserror(&session->rt) ) {
 		DISP("Has error\r\n");
 		return HLO_STREAM_ERROR;
-	}else if( !needmore && content_size == 0){
-		DISP("EOF\r\n");
+	} else if(content_size == 0 && !session->active){
+		LOGI("GET EOF %d bytes\r\n", session->size);
 		return HLO_STREAM_EOF;
 	}
 	return content_size;
@@ -209,6 +211,7 @@ hlo_stream_t * hlo_http_get_opt(hlo_stream_t * sock, const char * host, const ch
 		goto no_session;
 	}else{
 		memset(session, 0, sizeof(*session));
+		session->active = 1;	/** always try to parse something **/
 	}
 	session->sockstream = sock;
 	http_init(&session->rt,response_functions, session);
