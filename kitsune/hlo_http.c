@@ -248,3 +248,6 @@ no_sock:
 	return ret;
 
 }
+hlo_stream_t * hlo_http_get(const char * url){
+
+}

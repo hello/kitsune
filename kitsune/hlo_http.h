@@ -24,3 +24,4 @@ hlo_stream_t * hlo_sock_stream(const char * host, uint8_t secure);
  * hlo_http_manual_* API instead
  */
 
+hlo_stream_t * hlo_http_get(const char * url);
