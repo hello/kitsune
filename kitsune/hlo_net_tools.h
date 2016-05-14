@@ -15,4 +15,14 @@ hlo_future_t * prescan_wifi(size_t num_entries);
 
 int Cmd_scan_wifi(int argc, char *argv[]);
 
+typedef struct{
+	enum{
+		HTTP,
+		HTTPS,
+	} protocol;
+	char host[32];
+	char path[64];
+}url_desc_t;
+int parse_url(url_desc_t * desc, const char * url);
+
 #endif

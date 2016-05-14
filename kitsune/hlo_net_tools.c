@@ -13,16 +13,11 @@ typedef struct{
 	int antenna;
 	int duration_ms;
 }scan_desc_t;
-typedef struct{
-	char * protocol;
-	char * host;
-	char * path;
-	char url[0];
-}url_desc_t;
+
 ////---------------------------------
 //implementations
-int _init_url(url_desc_t * desc, const char * url){
-	strcpy(desc->url, url);
+int parse_url(url_desc_t * desc, const char * url){
+	/*strcpy(desc->url, url);
 	char * marker = desc->url;
 
 	marker = strstr(marker, "http");
@@ -55,6 +50,7 @@ int _init_url(url_desc_t * desc, const char * url){
 		return -5;
 	}
 	return 0;
+	*/
 
 }
 void antsel(unsigned char a);
