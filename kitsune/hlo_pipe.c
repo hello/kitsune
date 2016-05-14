@@ -17,7 +17,7 @@ int hlo_stream_transfer_all(transfer_direction direction,
 		if( ret == 0 ){
 			vTaskDelay(transfer_delay);
 		}
-	}while(ret < 0);
+	}while(ret == 0);
 	return ret;
 }
 int hlo_stream_transfer_between(
