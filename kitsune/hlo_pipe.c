@@ -7,18 +7,33 @@ int hlo_stream_transfer_all(transfer_direction direction,
 							uint8_t * buf,
 							uint32_t buf_size,
 							uint32_t transfer_delay){
-	int ret = 0;
-	do {
+	int ret, idx = 0;
+	while(idx < buf_size){
 		if(direction == INTO_STREAM){
-			ret = hlo_stream_write(stream, buf, buf_size);
+			ret = hlo_stream_write(stream, buf+idx, buf_size - idx);
 		}else{
-			ret = hlo_stream_read(stream, buf, buf_size);
+			ret = hlo_stream_read(stream, buf+idx, buf_size - idx);
 		}
-		if( ret == 0 ){
-			vTaskDelay(transfer_delay);
+
+		if(ret == HLO_STREAM_EOF){
+			if( idx ){
+				return idx;
+			}else{
+				return ret;
+			}
+		}else if(ret < 0){
+			return ret;
+		}else{
+			idx += ret;
+			if(idx == buf_size){
+				return idx;
+			}
+			if(ret == 0){
+				vTaskDelay(transfer_delay);
+			}
 		}
-	}while(ret == 0);
-	return ret;
+	}
+	return HLO_STREAM_ERROR;
 }
 int hlo_stream_transfer_between(
 		hlo_stream_t * src,
