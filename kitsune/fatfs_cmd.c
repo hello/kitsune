@@ -433,7 +433,7 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 			case 'a':
 			case 'A':
 			{
-				int opt_rate = atoi(&str[2]);
+				int opt_rate = ustrtoul(&str[2],NULL, 10);
 				if(opt_rate){
 					return hlo_audio_open_mono(opt_rate,60,HLO_AUDIO_RECORD);
 				}else{
@@ -462,7 +462,7 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 			case 'a':
 			case 'A':
 			{
-				int opt_rate = atoi(&str[2]);
+				int opt_rate = ustrtoul(&str[2],NULL, 10);
 				if(opt_rate){
 					return hlo_audio_open_mono(opt_rate,60,HLO_AUDIO_PLAYBACK);
 				}else{
