@@ -224,11 +224,6 @@ hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint8_t vol, uint32_t direction)
 	}else{
 		LOGW("Unsupported Audio Mode, returning default stream\r\n");
 	}
-	if(mode == CLOSED){
-		if( 0 != _open_record(sr) ){
-			ret = NULL;
-		}
-	}
 	UNLOCK();
 	return ret;
 }
