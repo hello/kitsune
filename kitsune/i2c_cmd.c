@@ -45,12 +45,15 @@
 // Left mic data is latched on rising by default, to latch it on rising edge instead
 // set this to be 1
 #define CODEC_LEFT_LATCH_FALLING 	1
+#define CODEC_DIG_MIC1_EN			1
 #define CODEC_DIG_MIC2_EN 			0
 
 // Enable data from one mic at a time
-#define CODEC_MIC1_EN				1
-#define CODEC_MIC2_EN				0
-#define CODEC_MIC3_EN				0
+#define CODEC_MIC1_DAT_EN			1
+#define CODEC_MIC2_DAT_EN			0
+#define CODEC_MIC3_DAT_EN			0
+
+#define CODEC_AGC_EN				0
 
 extern xSemaphoreHandle i2c_smphr;
 
@@ -775,7 +778,6 @@ int32_t codec_init_no_dsp(void)
 
 #endif
 
-
 	return 0;
 }
 
@@ -850,11 +852,13 @@ static void codec_fifo_config(void)
 	cmd[1] = 0x64;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
+#if (CODEC_DIG_MIC1_EN == 1)
 	//	w 30 32 80 # Enable ADC (CIC output) FIFO
 	// TODO is auto clear necessary?, currently disbaled
 	cmd[0] = 0x32;
-	cmd[1] = ( 1<<7 ) | ( 0 << 6 ) | (1 << 5) | (4 << 0) ; // EnABLE CIC, Auto normal, decimation ratio=4
+	cmd[1] = ( 1<<7 ) | ( 0 << 6 ) | (1 << 5) | (4 << 0) | 0x04 ; // EnABLE CIC, Auto normal, decimation ratio=4
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+#endif
 
 #if (CODEC_DIG_MIC2_EN==1)
 	// CIC2 FIFO not bypassed
@@ -863,6 +867,8 @@ static void codec_fifo_config(void)
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 #endif
 
+	// TODO DKH, is this necessary
+#if 0
 	// TODO the following registers are not explained in the datasheet,
 	// but they are present in the example code.
 	// Looks like they might be needed
@@ -882,7 +888,7 @@ static void codec_fifo_config(void)
 	cmd[0] = 20;
 	cmd[1] = 0x80;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
+#endif
 
 	//	w 30 7f 00 # Select Book 0
 	cmd[0] = 0x7F;
@@ -1031,6 +1037,16 @@ static void codec_clock_config(void)
 
 	// NADC and MADC same as DAC
 
+	//	w 30 12 81 # NADC = 3
+	cmd[0] = 0x12;
+	cmd[1] = (1 << 7) | (1 << 0);
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//	w 30 13 84 # MADC = 15
+	cmd[0] = 0x13;
+	cmd[1] = (1 << 7) | (1 << 0);
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
 	//	w 30 14 40 # AOSR = 128
 	// TODO As per datasheet, if AOSR=128, Use with PRB_R1 to PRB_R6, ADC Filter Type A
 	cmd[0] = 0x14;
@@ -1064,7 +1080,7 @@ static void codec_asi_config(void)
 	cmd[1] = (1 << 6); // 2-pair of left and right channel (i.e. 4-channel) is enabled for the ASI1 bus
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 #else
-	// w 30 04 40 # Enable 4 channel for ASI1 bus
+	// w 30 04 40 # Enable 2 channel for ASI1 bus
 	cmd[0] = 0x04;
 	cmd[1] = 0;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
@@ -1148,7 +1164,7 @@ static void codec_gpio_config(void)
 	cmd[1] = 4;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
-	// # GPIO1 as clock input (will be used as ADC WCLK in 6-wire ASI)
+	// # GPIO1 as clock input (will be used as ADC WCLK if DAC Fs != ADC Fs)
 	cmd[0] = 0x56;
 	cmd[1] = (0x01 << 2);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
@@ -1238,14 +1254,14 @@ static void codec_mic_config(void)
 	cmd[1] = (3 << 4) | (4 << 0);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
-	UARTprintf("Dig Mic 2 :%d\n",cmd[1]);
+	UARTprintf("Dig Mic 2 :%x\n",cmd[1]);
 
 	// # Digital Mix 2 Input Pin Control (GPIO6 -Left) - Left-only
 	cmd[0] = 0x66;
 	cmd[1] = (5 << 4);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
-	UARTprintf("Dig Mic 3 :%d\n",cmd[1]);
+	UARTprintf("Dig Mic 3 :%x\n",cmd[1]);
 
 	//	# Select Page 0
 	cmd[0] = 0;
@@ -1255,10 +1271,10 @@ static void codec_mic_config(void)
 	// # ADC channel power control - Left and right channel ADC configured for Digital Mic
 	// TODO enabled only left channel
 	cmd[0] = 0x51;
-	cmd[1] = (1 << 7) | (1 << 4) | (1 << 6) | (1 << 2) | (1 << 0);
+	cmd[1] = (1 << 7) | (1 << 4) | (1 << 6) | (1 << 2) | (2 << 0);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
-	UARTprintf("Dig Mic 4 :%d\n",cmd[1]);
+	UARTprintf("Dig Mic 4 :%x\n",cmd[1]);
 
 	// # ADC Fine Gain Volume Control, Unmute Left and Right ADC channel
 	cmd[0] = 0x52;
@@ -1276,7 +1292,7 @@ static void codec_mic_config(void)
 	cmd[1] = 0x00;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
-#if 1
+#if (CODEC_AGC_EN == 1)
 	//Left AGC Control 1 (TODO might not be needed)
 	cmd[0] = 0x56;
 	cmd[1] = (1 << 7) | (2 << 4);
@@ -1287,14 +1303,14 @@ static void codec_mic_config(void)
 	cmd[1] = (3 << 6) | (0x1F << 1);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
-	//Left AGC Control 3 (TODO might not be needed)
-	cmd[0] = 0x58;
-	cmd[1] = 0;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+//	//Left AGC Control 3 (TODO might not be needed)
+//	cmd[0] = 0x58;
+//	cmd[1] = 0;
+//	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	//Left AGC Attack time (TODO might not be needed)
 	cmd[0] = 0x59;
-	cmd[1] = 0x68;
+	cmd[1] = 0x68; // 27*32 ADC Word Clocks, copied from Codec Control, verify this
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	//Left AGC Decay time (TODO might not be needed)
@@ -1307,20 +1323,20 @@ static void codec_mic_config(void)
 	cmd[1] = 0x6;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
-	//Right AGC Control 1 (TODO might not be needed)
-	cmd[0] = 0x5E;
-	cmd[1] = (1 << 7) | (2 << 4);
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+//	//Right AGC Control 1 (TODO might not be needed)
+//	cmd[0] = 0x5E;
+//	cmd[1] = (1 << 7) | (2 << 4);
+//	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	//Right AGC Control 2 (TODO might not be needed)
 	cmd[0] = 0x5F;
 	cmd[1] = (3 << 6) | (0x1F << 1);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
-	//Right AGC Control 3 (TODO might not be needed)
-	cmd[0] = 0x60;
-	cmd[1] = 0;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+//	//Right AGC Control 3 (TODO might not be needed)
+//	cmd[0] = 0x60;
+//	cmd[1] = 0;
+//	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	//Right AGC Attack time (TODO might not be needed)
 	cmd[0] = 0x61;
@@ -1345,6 +1361,7 @@ static void codec_mic_config(void)
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 #endif
 
+#if 0
 	//	# Select Page 1
 	cmd[0] = 0;
 	cmd[1] = 0x01;
@@ -1377,7 +1394,7 @@ static void codec_mic_config(void)
 	cmd[0] = 57;
 	cmd[1] = 0x40;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
+#endif
 
 	//	Disable headsest detection
 	cmd[0] = 0x77;
