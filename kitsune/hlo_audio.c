@@ -128,9 +128,9 @@ static int _reinit_playback(sr, initial_vol){
 	return 0;
 }
 static int _write_playback_mono(void * ctx, const void * buf, size_t size){
-	ERROR_IF_CLOSED();
+	//ERROR_IF_CLOSED();
 	last_playback_time = xTaskGetTickCount();
-	if( mode == RECORD ){
+	if( mode == RECORD || mode == CLOSED){
 		//playback has priority, always swap to playback state
 		return _reinit_playback(playback_sr, initial_vol);
 	}
@@ -170,8 +170,8 @@ static int _reinit_record(sr){
 	return 0;
 }
 static int _read_record_mono(void * ctx, void * buf, size_t size){
-	ERROR_IF_CLOSED();
-	if( mode == PLAYBACK ){
+	//ERROR_IF_CLOSED();
+	if( mode == PLAYBACK  || mode == CLOSED){
 		//swap mode back to record iff playback buffer is empty
 		if( _playback_done() ){
 			return _reinit_record(record_sr);
@@ -191,6 +191,10 @@ static int _read_record_mono(void * ctx, void * buf, size_t size){
 	}
 	return 0;
 }
+static int _close(void * ctx){
+	DeinitAudio();
+	return HLO_STREAM_NO_IMPL;
+}
 ////------------------------------
 //  Public API
 void hlo_audio_init(void){
@@ -199,7 +203,7 @@ void hlo_audio_init(void){
 	hlo_stream_vftbl_t tbl = { 0 };
 	tbl.write = _write_playback_mono;
 	tbl.read = _read_record_mono;
-	tbl.close = NULL;
+	tbl.close = _close;
 	master = hlo_stream_new(&tbl, NULL, HLO_AUDIO_RECORD|HLO_AUDIO_PLAYBACK);
 	mode = CLOSED;
 	audio_mem = pvPortMalloc(AUD_BUFFER_SIZE);
