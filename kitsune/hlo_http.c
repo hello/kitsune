@@ -10,6 +10,7 @@
 #include "hlo_pipe.h"
 #include <string.h>
 #include "bigint_impl.h"
+#include "hlo_net_tools.h"
 //====================================================================
 //Protected API Declaration
 //
@@ -249,5 +250,16 @@ no_sock:
 
 }
 hlo_stream_t * hlo_http_get(const char * url){
-
+	url_desc_t desc;
+	if(0 == parse_url(&desc,url)){
+		return hlo_http_get_opt(
+				hlo_sock_stream(desc.host, (desc.protocol == HTTP)?0:1),
+				desc.host,
+				desc.path,
+				NULL
+			);
+	}else{
+		LOGE("Malformed URL %s\r\n", url);
+	}
+	return NULL;
 }

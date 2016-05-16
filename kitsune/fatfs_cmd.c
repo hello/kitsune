@@ -441,12 +441,7 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 				return random_stream_open();
 			case 'i':
 			case 'I':
-				return hlo_http_get_opt(
-						hlo_sock_stream(&str[2], 0),
-						&str[2],
-						"/DIG1.raw",
-						NULL);
-				break;
+				return hlo_http_get(&str[2]);
 			default:
 				break;
 			}

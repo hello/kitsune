@@ -17,41 +17,34 @@ typedef struct{
 ////---------------------------------
 //implementations
 int parse_url(url_desc_t * desc, const char * url){
-	/*strcpy(desc->url, url);
-	char * marker = desc->url;
-
-	marker = strstr(marker, "http");
-	if(!marker){
-		return -1;
+	char * marker = NULL;
+	char * term = NULL;
+	memset(desc, 0, sizeof(*desc));
+	desc->protocol = HTTP;
+	if(strstr(url, "https") == url){
+		desc->protocol = HTTPS;
 	}
-	desc->protocol = marker;
 
 	//null terminate the : in http[s]
 	marker = strstr(marker, "://");
 	if(!marker){
-		return -2;
+		marker = url;
 	}
-	marker[0] = 0;
 
-	marker += 3;
-	desc->host = marker;
-
-	//null terminate the host ptr
-	marker = strstr(marker, "/");
-	if(!marker){
-		return -4;
+	term = strstr(marker, "/");
+	if(term){
+		char * itr = desc->host;
+		while(marker < term){
+			*itr++ = *marker++;
+		}
+	}else{
+		strcpy(desc->host, url);
+		desc->path[0] = '/';
+		return 0;
 	}
-	marker[0] = 0;
-
-	marker += 1;
-	desc->path = marker;
-	//finally compare in reference to the original url
-	if(desc->path >= desc->url + strlen(url)){
-		return -5;
-	}
+	marker = term;
+	strcpy(desc->path, marker);
 	return 0;
-	*/
-
 }
 void antsel(unsigned char a);
 
