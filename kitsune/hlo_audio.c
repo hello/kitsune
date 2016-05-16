@@ -171,11 +171,13 @@ static int _reinit_record(sr){
 }
 static int _read_record_mono(void * ctx, void * buf, size_t size){
 	//ERROR_IF_CLOSED();
-	if( (mode == PLAYBACK && _playback_done()) || mode == CLOSED){
+	if( mode == PLAYBACK  || mode == CLOSED){
 		//swap mode back to record iff playback buffer is empty
-		return _reinit_record(record_sr);
-	}else {
-		return HLO_STREAM_EOF;
+		if( _playback_done() ){
+			return _reinit_record(record_sr);
+		}else{
+			return HLO_STREAM_EOF;
+		}
 	}
 	if( !IsBufferSizeFilled(pTxBuffer, LISTEN_WATERMARK) ){
 		if(!xSemaphoreTake(isr_sem,5000)){
