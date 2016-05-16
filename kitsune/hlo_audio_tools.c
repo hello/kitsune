@@ -223,7 +223,7 @@ int Cmd_stream_transfer(int argc, char * argv[]){
 		LOGI("Press s to stop the transfer\r\n");
 	}
 	if(argc >= 4){
-		f = _filter_from_string(argv[4]);
+		f = _filter_from_string(argv[3]);
 	}
 	hlo_stream_t * in = open_stream_from_path(argv[1],1);
 	hlo_stream_t * out = open_stream_from_path(argv[2],0);
