@@ -28,6 +28,8 @@ int parse_url(url_desc_t * desc, const char * url){
 	marker = strstr(marker, "://");
 	if(!marker){
 		marker = url;
+	}else{
+		marker += 3;
 	}
 
 	term = strstr(marker, "/");
