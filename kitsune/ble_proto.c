@@ -66,7 +66,8 @@ ble_mode_t get_ble_mode() {
 }
 static void set_ble_mode(ble_mode_t status) {
 	xSemaphoreTake( _self.smphr, portMAX_DELAY );
-	LOGI("\t\tBLE MODE %d\n", status);
+	analytics_event( "{ble_mode: %d}", status );
+
 	_self.ble_status = status;
 	xSemaphoreGive( _self.smphr );
 }
@@ -135,7 +136,7 @@ static void _ble_reply_command_with_type(MorpheusCommand_CommandType type)
 	memset(&reply_command, 0, sizeof(reply_command));
 	reply_command.type = type;
 	ble_send_protobuf(&reply_command);
-    LOGI("BLE REPLY %d\n",type);
+    LOGI("Sending BLE %d\n",type);
 }
 extern int deleteFilesInDir(const char* dir);
 static void _factory_reset(){
@@ -201,7 +202,8 @@ static void _reply_wifi_scan_result()
 int force_data_push();
 static bool _set_wifi(const char* ssid, const char* password, int security_type, int version, int app_version)
 {
-    int i;
+    int i,idx;
+    idx = -1;
 
 	LOGI("Connecting to WIFI %s\n", ssid );
 	xSemaphoreTake(_wifi_smphr, portMAX_DELAY);
@@ -221,7 +223,7 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type,
 		nwp_reset();
 		wifi_state_requested = true;
 
-	    if(connect_wifi(ssid, password, security_type, version, false) < 0)
+	    if(connect_wifi(ssid, password, security_type, version, &idx, false) < 0)
 	    {
 			LOGI("failed to connect\n");
 	        ble_reply_protobuf_error(ErrorType_WLAN_CONNECTION_ERROR);
@@ -231,23 +233,27 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type,
 	    force_data_push();
 
 		while( !wifi_status_get(UPLOADING) ) {
-			vTaskDelay(10000);
+			vTaskDelay(9000);
 
-			if (wifi_status_get(CONNECTING)) {
-				ble_reply_wifi_status(wifi_connection_state_WLAN_CONNECTING);
-			} else if (wifi_status_get(CONNECT)) {
-				ble_reply_wifi_status(wifi_connection_state_WLAN_CONNECTED);
-			} else if (wifi_status_get(IP_LEASED)) {
-				ble_reply_wifi_status(wifi_connection_state_IP_RETRIEVED);
-			} else if (!wifi_status_get(0xFFFFFFFF)) {
-				ble_reply_wifi_status(wifi_connection_state_NO_WLAN_CONNECTED);
-			}
-
-			if( ++to > 6 ) {
+			if( ++to > 3 ) {
+				if( idx != -1 ) {
+					sl_WlanProfileDel(idx);
+					nwp_reset();
+				}
 				LOGI("wifi timeout\n");
 				wifi_state_requested = false;
 				ble_reply_protobuf_error(ErrorType_SERVER_CONNECTION_TIMEOUT);
 				break;
+			} else {
+				if (wifi_status_get(CONNECTING)) {
+					ble_reply_wifi_status(wifi_connection_state_WLAN_CONNECTING);
+				} else if (wifi_status_get(CONNECT)) {
+					ble_reply_wifi_status(wifi_connection_state_WLAN_CONNECTED);
+				} else if (wifi_status_get(IP_LEASED)) {
+					ble_reply_wifi_status(wifi_connection_state_IP_RETRIEVED);
+				} else if (!wifi_status_get(0xFFFFFFFF)) {
+					ble_reply_wifi_status(wifi_connection_state_NO_WLAN_CONNECTED);
+				}
 			}
 		}
 		if( wifi_status_get(UPLOADING) ) {
@@ -282,7 +288,7 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type,
 	} else {
 		bool connection_ret = false;
 		//play_led_progress_bar(0xFF, 128, 0, 128,portMAX_DELAY);
-	    connect_wifi(ssid, password, security_type, version, false);
+	    connect_wifi(ssid, password, security_type, version, &idx, false);
 	    if(!connection_ret)
 	    {
 			LOGI("Tried all wifi ep, all failed to connect\n");
@@ -620,8 +626,6 @@ void ble_proto_start_hold()
 		response.type =
 				MorpheusCommand_CommandType_MORPHEUS_COMMAND_SWITCH_TO_NORMAL_MODE;
 		ble_send_protobuf(&response);
-
-		analytics_event("{ble: normal}");
 		break;
 	}
 	case BLE_CONNECTED:
@@ -680,7 +684,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 	{
 		case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID:
 		{
-			LOGI("MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID\n");
+			LOGI("got SYNC_DEVICE_ID\n");
 			int i;
 			if(command->deviceId.arg){
 				const char * device_id_str = command->deviceId.arg;
@@ -795,7 +799,6 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 				set_ble_mode(BLE_PAIRING);
 				LOGI( "PAIRING MODE \n");
 
-				analytics_event( "{ble: pairing}" );
 				//wifi prescan, forked so we don't block the BLE and it just happens in the background
 				if(!scan_results){
 					scan_results = prescan_wifi(MAX_WIFI_EP_PER_SCAN);
