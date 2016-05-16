@@ -55,6 +55,8 @@ int hlo_stream_close(hlo_stream_t * stream){
 	if(ret == 0){
 		vSemaphoreDelete(stream->info.lock);
 		vPortFree(stream);
+	}else if( ret == HLO_STREAM_NO_IMPL ){
+		return 0;
 	}
 	return ret;
 }
