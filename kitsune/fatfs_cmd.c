@@ -414,22 +414,28 @@ int global_filename(char * local_fn)
 // it is used on a binary file, then a bunch of garbage is likely to printed on
 // the console.
 //
+// An optional string as paramter can be used after special cases such as
+// Audio = $a46000
+//
 //*****************************************************************************
 #include "hlo_pipe.h"
 #include "hlo_audio.h"
 #include "hlo_http.h"
 #define BUF_SIZE 64
-hlo_stream_t * open_stream_from_path(char * str, uint8_t input, uint32_t opt_rate){
+hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 	if(input){//input
 		if(str[0] == '$'){
 			switch(str[1]){
 			case 'a':
 			case 'A':
+			{
+				int opt_rate = atoi(&str[2]);
 				if(opt_rate){
-					return hlo_audio_open_mono(opt_rate,44,HLO_AUDIO_RECORD);
+					return hlo_audio_open_mono(opt_rate,60,HLO_AUDIO_RECORD);
 				}else{
-					return hlo_audio_open_mono(16000,44,HLO_AUDIO_RECORD);
+					return hlo_audio_open_mono(16000,60,HLO_AUDIO_RECORD);
 				}
+			}
 			case 'r':
 			case 'R':
 				return random_stream_open();
@@ -438,7 +444,7 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input, uint32_t opt_rat
 				return hlo_http_get_opt(
 						hlo_sock_stream(&str[2], 0),
 						&str[2],
-						"/robots.txt",
+						"/DIG1.raw",
 						NULL);
 				break;
 			default:
@@ -456,11 +462,14 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input, uint32_t opt_rat
 			switch(str[1]){
 			case 'a':
 			case 'A':
+			{
+				int opt_rate = atoi(&str[2]);
 				if(opt_rate){
-					return hlo_audio_open_mono(opt_rate,44,HLO_AUDIO_PLAYBACK);
+					return hlo_audio_open_mono(opt_rate,60,HLO_AUDIO_PLAYBACK);
 				}else{
-					return hlo_audio_open_mono(48000,44,HLO_AUDIO_PLAYBACK);
+					return hlo_audio_open_mono(48000,60,HLO_AUDIO_PLAYBACK);
 				}
+			}
 			case 'o':
 			case 'O':
 				return uart_stream();

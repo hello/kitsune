@@ -213,7 +213,7 @@ static hlo_filter _filter_from_string(const char * str){
 
 }
 #include <stdlib.h>
-hlo_stream_t * open_stream_from_path(char * str, uint8_t input, uint32_t opt_rate);
+hlo_stream_t * open_stream_from_path(char * str, uint8_t input);
 int Cmd_stream_transfer(int argc, char * argv[]){
 	uint32_t rate = 0;
 	audio_sig_stop = 0;
@@ -224,13 +224,10 @@ int Cmd_stream_transfer(int argc, char * argv[]){
 		LOGI("Press s to stop the transfer\r\n");
 	}
 	if(argc >= 4){
-		rate = atoi(argv[3]);
-	}
-	if(argc >= 5){
 		f = _filter_from_string(argv[4]);
 	}
-	hlo_stream_t * in = open_stream_from_path(argv[1],1, rate);
-	hlo_stream_t * out = open_stream_from_path(argv[2],0, rate);
+	hlo_stream_t * in = open_stream_from_path(argv[1],1);
+	hlo_stream_t * out = open_stream_from_path(argv[2],0);
 
 	ret = f(in,out,NULL, _can_has_sig_stop);
 
