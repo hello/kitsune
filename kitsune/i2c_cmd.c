@@ -35,11 +35,22 @@
                                      return  iRetVal;}
 #define BUF_SIZE 2
 
-#define Codec_addr 			(0x18U)
-#define DELAY_CODEC 		5 // TODO set arbitrarily, might need to be adjusted
-#define CODEC_USE_MINIDSP 	0 // Set to 1 if using miniDSP, else 0
-#define CODEC_ADC_16KHZ    	0 // Set to 1 if ADC sampling rate is 16k Hz. If not, ADC Fs = DAC Fs = 48k Hz
-#define CODEC_MULTI_CH_SINGLE_PIN 0
+#define Codec_addr 					(0x18U)
+
+#define DELAY_CODEC 				5 // TODO set arbitrarily, might need to be adjusted
+#define CODEC_USE_MINIDSP 			0 // Set to 1 if using miniDSP, else 0
+#define CODEC_ADC_16KHZ    			0 // Set to 1 if ADC sampling rate is 16k Hz. If not, ADC Fs = DAC Fs = 48k Hz
+#define CODEC_MULTI_CH_SINGLE_PIN 	0
+
+// Left mic data is latched on rising by default, to latch it on rising edge instead
+// set this to be 1
+#define CODEC_LEFT_LATCH_FALLING 	1
+#define CODEC_DIG_MIC2_EN 			0
+
+// Enable data from one mic at a time
+#define CODEC_MIC1_EN				1
+#define CODEC_MIC2_EN				0
+#define CODEC_MIC3_EN				0
 
 extern xSemaphoreHandle i2c_smphr;
 
@@ -845,15 +856,17 @@ static void codec_fifo_config(void)
 	cmd[1] = ( 1<<7 ) | ( 0 << 6 ) | (1 << 5) | (4 << 0) ; // EnABLE CIC, Auto normal, decimation ratio=4
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
+#if (CODEC_DIG_MIC2_EN==1)
 	// CIC2 FIFO not bypassed
 	cmd[0] = 0x3C;
 	cmd[1] = ( 1<<7 ) | ( 0 << 6 );
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+#endif
 
 	// TODO the following registers are not explained in the datasheet,
 	// but they are present in the example code.
 	// Looks like they might be needed
-	/*
+
 	//	# reg[100][0][20] = 0x80 ;
 	// Disable ADC double buffer mode; Disable DAC double buffer mode; Enable ADC double buffer mode
 	cmd[0] = 20;
@@ -869,7 +882,7 @@ static void codec_fifo_config(void)
 	cmd[0] = 20;
 	cmd[1] = 0x80;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-	 */
+
 
 	//	w 30 7f 00 # Select Book 0
 	cmd[0] = 0x7F;
@@ -1114,6 +1127,10 @@ static void codec_asi_config(void)
 	cmd[1] = 0;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
+	cmd[0] = 0x77;
+	cmd[1] = 0;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
 	//	w 30 00 00 # Select Page 0
 	cmd[0] = 0;
 	cmd[1] = 0;
@@ -1188,7 +1205,7 @@ static void codec_signal_processing_config(void)
 	// Decimation filter must be A
 	//	w 30 3d 0a # Set the ADC Mode to PRB_R1
 	cmd[0] = 0x3D;
-	cmd[1] = 0x01; //
+	cmd[1] = 0x02; //
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	// w 30 3c 01 # Set the DAC PRB Mode to PRB_P1
@@ -1210,12 +1227,11 @@ static void codec_mic_config(void)
 	cmd[1] = 0x04;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
-	// # Digital Mic 1 Input Pin Control (GPIO4 -Left, GPIO5 - Right) - Stereo
+#if (CODEC_LEFT_LATCH_FALLING == 1)
 	cmd[0] = 0x64;
 	cmd[1] = (1 << 7) | (0 << 6) | (1 << 3) | (0 << 2);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
-	UARTprintf("Dig Mic 1 :%d\n",cmd[1]);
+#endif
 
 	// # Digital Mic 1 Input Pin Control (GPIO4 -Left, GPIO5 - Right) - Stereo
 	cmd[0] = 0x65;
@@ -1260,6 +1276,7 @@ static void codec_mic_config(void)
 	cmd[1] = 0x00;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
+#if 1
 	//Left AGC Control 1 (TODO might not be needed)
 	cmd[0] = 0x56;
 	cmd[1] = (1 << 7) | (2 << 4);
@@ -1319,12 +1336,14 @@ static void codec_mic_config(void)
 	cmd[0] = 0x63;
 	cmd[1] = 0x6;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+#endif
 
+#if (CODEC_DIG_MIC2_EN==1)
 	// # Digital mic 2 control - Enable CIC2 Left channel, and digital mic to left channel
 	cmd[0] = 0x70;
 	cmd[1] = (1 << 7) | (1 << 4);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
+#endif
 
 	//	# Select Page 1
 	cmd[0] = 0;
@@ -1359,6 +1378,11 @@ static void codec_mic_config(void)
 	cmd[1] = 0x40;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
+
+	//	Disable headsest detection
+	cmd[0] = 0x77;
+	cmd[1] = 1 << 2;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	//	# Select Page 0
 	cmd[0] = 0;
