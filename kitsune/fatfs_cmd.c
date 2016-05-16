@@ -462,7 +462,11 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 			case 'a':
 			case 'A':
 			{
-				int opt_rate = ustrtoul(&str[2],NULL, 10);
+				int opt_rate = 0;
+				if(str[2] != '\0'){
+					opt_rate = ustrtoul(&str[2],NULL, 10);
+				}
+				DISP("Opt rate is %d\r\n", opt_rate);
 				if(opt_rate){
 					return hlo_audio_open_mono(opt_rate,60,HLO_AUDIO_PLAYBACK);
 				}else{
