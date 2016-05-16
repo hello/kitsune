@@ -81,7 +81,7 @@ void AudioTask_DumpOncePerMinuteStats(AudioOncePerMinuteData_t * pdata) {
 //adpcm processor pair
 //TODO make it more efficient
 #include "adpcm.h"
-#define ADPCM_SAMPLES (512)
+#define ADPCM_SAMPLES (1024)
 int hlo_filter_adpcm_decoder(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
 	char compressed[ADPCM_SAMPLES/2];
 	short decompressed[ADPCM_SAMPLES];
