@@ -25,7 +25,6 @@ int parse_url(url_desc_t * desc, const char * url){
 		desc->protocol = HTTPS;
 	}
 
-	//null terminate the : in http[s]
 	marker = strstr(marker, "://");
 	if(!marker){
 		marker = url;
