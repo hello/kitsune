@@ -1107,13 +1107,6 @@ int download_file(char * host, char * url, char * filename, char * path, storage
 
 	return r;
 }
-//http://dropbox.com/on/drop/box/file.txt
-
-//download dropbox.com somefile.txt /on/drop/box/file.txt /
-int Cmd_download(int argc, char*argv[]) {
-	return download_file( argv[1], argv[3], argv[2], argv[4], SD_CARD );
-}
-
 //end download functions
 #include "sync_response.pb.h"
 #include "stdbool.h"
