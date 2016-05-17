@@ -24,16 +24,16 @@
 
 //#include "audio_codec_pps_driver.h"
 
-#define MAX_MEASURE_TIME		10
+#define MAX_MEASURE_TIME			10
 
-#define FAILURE                 -1
-#define SUCCESS                 0
+#define FAILURE                 	-1
+#define SUCCESS                 	0
 
-#define RETERR_IF_TRUE(condition) {if(condition) return FAILURE;}
-#define RET_IF_ERR(Func)          {int iRetVal = (Func); \
-                                   if (SUCCESS != iRetVal) \
-                                     return  iRetVal;}
-#define BUF_SIZE 2
+#define RETERR_IF_TRUE(condition) 	{if(condition) return FAILURE;}
+#define RET_IF_ERR(Func)          	{int iRetVal = (Func); \
+								  	  if (SUCCESS != iRetVal) \
+									  	  return  iRetVal;}
+#define BUF_SIZE 					2
 
 #define Codec_addr 					(0x18U)
 
@@ -723,14 +723,14 @@ int32_t codec_init_no_dsp(void)
 	// Softwarre Reset
 	codec_sw_reset();
 
-	// FIFO Configuration
-	codec_fifo_config();
-
-	// Power and Analog Configuration
-	codec_power_config();
-
 	// Clock configuration
 	codec_clock_config();
+
+	// Signal Processing Settings (Select signal processing blocks for record and playback)
+	codec_signal_processing_config();
+
+	// FIFO Configuration
+	codec_fifo_config();
 
 	// Config GPIO pins
 	codec_gpio_config();
@@ -738,8 +738,8 @@ int32_t codec_init_no_dsp(void)
 	// Audio Serial Interface Configuration (ASI1 with 6 wire I2S setup)
 	codec_asi_config();
 
-	// Signal Processing Settings (Select signal processing blocks for record and playback)
-	codec_signal_processing_config();
+	// Power and Analog Configuration
+	codec_power_config();
 
 	// Configure GPIO for digital mic input (TODO maybe power off analog section in input)
 	// ADC Input Channel Configuration
@@ -895,7 +895,6 @@ static void codec_fifo_config(void)
 	cmd[1] = 0;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
-
 }
 
 //Codec power and analog config
@@ -1005,32 +1004,53 @@ static void codec_clock_config(void)
 	// ********* ADC Fs = DAC Fs = 48k Hz *********
 	// *********************************************
 
-	//	w 30 04 00 # Set ADC_CLKIN = BCLK1 and DAC_CLK = BCLK1
+	//	w 30 04 00 # Set ADC_CLKIN = PLL_CLK and DAC_CLK = PLL_CLK
 	cmd[0] = 0x04;
-	cmd[1] = (1 << 4) | (1 << 0);
+	cmd[1] = (3 << 4) | (3 << 0);
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	// --------- PLL -------------
+	cmd[0] = 0x05;
+	cmd[1] = 0;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	cmd[0] = 0x06;
+	cmd[1] = (1 << 7) | (1 << 4) | (1 << 0);
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	cmd[0] = 0x07;
+	cmd[1] = 6;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	cmd[0] = 0x08; // MSB
+	cmd[1] = (9120UL & 0xFF00) >> 8;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	cmd[0] = 0x09; // LSB
+	cmd[1] = (9120UL & 0xFF) >> 0;;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	// --------- DAC -------------
 
-	//	# NDAC = 1
-	cmd[0] = 0x0B;
-	cmd[1] = (1 << 7) | (1 << 0);
+	//	# NDAC = 3
+	cmd[0] = 0x0B; // 11
+	cmd[1] = (1 << 7) | (3 << 0);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
-	//	# MDAC = 1
-	cmd[0] = 0x0C;
-	cmd[1] = (1 << 7) | (1 << 0);
+	//	# MDAC = 9
+	cmd[0] = 0x0C; // 12
+	cmd[1] = (1 << 7) | (9 << 0);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	// DOSR = 128
 	//	w 30 0d 00 # DOSR (MSB)
-	cmd[0] = 0x0D;
-	cmd[1] = (32UL & 0x0300) >> 8;
+	cmd[0] = 0x0D; // 13
+	cmd[1] = (64UL & 0x0300) >> 8;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	//	w 30 0e 80 # DOSR (LSB)
-	cmd[0] = 0x0E;
-	cmd[1] = (32UL & 0x00FF) >> 0;
+	cmd[0] = 0x0E; // 14
+	cmd[1] = (64UL & 0x00FF) >> 0;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	// --------- ADC -------------
@@ -1038,19 +1058,19 @@ static void codec_clock_config(void)
 	// NADC and MADC same as DAC
 
 	//	w 30 12 81 # NADC = 3
-	cmd[0] = 0x12;
-	cmd[1] = (1 << 7) | (1 << 0);
+	cmd[0] = 0x12;  // 18
+	cmd[1] = (1 << 7) | (3 << 0);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	//	w 30 13 84 # MADC = 15
-	cmd[0] = 0x13;
-	cmd[1] = (1 << 7) | (1 << 0);
+	cmd[0] = 0x13; // 19
+	cmd[1] = (1 << 7) | (27 << 0);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	//	w 30 14 40 # AOSR = 128
 	// TODO As per datasheet, if AOSR=128, Use with PRB_R1 to PRB_R6, ADC Filter Type A
-	cmd[0] = 0x14;
-	cmd[1] = 32;
+	cmd[0] = 0x14;  //20
+	cmd[1] = 64;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 #endif
 
@@ -1221,7 +1241,7 @@ static void codec_signal_processing_config(void)
 	// Decimation filter must be A
 	//	w 30 3d 0a # Set the ADC Mode to PRB_R1
 	cmd[0] = 0x3D;
-	cmd[1] = 0x02; //
+	cmd[1] = 0x01; //
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	// w 30 3c 01 # Set the DAC PRB Mode to PRB_P1
@@ -1229,6 +1249,108 @@ static void codec_signal_processing_config(void)
 	cmd[0] = 0x3C;
 	cmd[1] = 0x01;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//	w 30 00 00 # Select Page 1
+	cmd[0] = 0;
+	cmd[1] = 1;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//	# Select Book 120
+	cmd[0] = 0x7F;
+	cmd[1] = 40;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	// Filter coefficients------------ Start
+	cmd[0] = 24;
+	cmd[1] = 0x7F; //
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	cmd[0] = 25;
+	cmd[1] = 0xA2; //
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	cmd[0] = 26;
+	cmd[1] = 0xE3; //
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	cmd[0] = 28;
+	cmd[1] = 0x80; //
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	cmd[0] = 29;
+	cmd[1] = 0x5D; //
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	cmd[0] = 30;
+	cmd[1] = 0x1D; //
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	cmd[0] = 32;
+	cmd[1] = 0x7F; //
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	cmd[0] = 33;
+	cmd[1] = 0x45; //
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	cmd[0] = 34;
+	cmd[1] = 0xC7; //
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+	// Filter coefficients------------ end
+
+	//	w 30 00 00 # Select Page 1
+	cmd[0] = 0;
+	cmd[1] = 2;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	// Filter coefficients------------ Start
+	cmd[0] = 32;
+	cmd[1] = 0x7f; //
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	cmd[0] = 33;
+	cmd[1] = 0xa2; //
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	cmd[0] = 34;
+	cmd[1] = 0xe3; //
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	cmd[0] = 36;
+	cmd[1] = 0x80; //
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	cmd[0] = 37;
+	cmd[1] = 0x5d; //
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	cmd[0] = 38;
+	cmd[1] = 0x1d; //
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	cmd[0] = 40;
+	cmd[1] = 0x7f; //
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	cmd[0] = 41;
+	cmd[1] = 0x45; //
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	cmd[0] = 42;
+	cmd[1] = 0xc7; //
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+	// Filter coefficients------------ end
+
+	//	w 30 00 00 # Select Page 1
+	cmd[0] = 0;
+	cmd[1] = 0;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//	# Select Book 120
+	cmd[0] = 0x7F;
+	cmd[1] = 0;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
 }
 
 static void codec_mic_config(void)
