@@ -1286,9 +1286,10 @@ void sample_sensor_data(periodic_data* data)
 	uint8_t temp_count = 0;
 
 	while(--measure_time) {
-		int humid,temp;
+		uint32_t humid,press;
+		int32_t temp;
 
-		get_temp_humid(&temp, &humid);
+		get_temp_press_hum(&temp, &press, &humid);
 
 		if(humid != -1)
 		{
@@ -1864,9 +1865,6 @@ int cmd_memfrag(int argc, char *argv[]) {
 	}
 	return 0;
 }
-static long always_ok(void){
-	return 0;
-}
 static long always_slow(int dly){
 	vTaskDelay(dly);
 	return 0;
@@ -2002,8 +2000,7 @@ tCmdLineEntry g_sCmdTable[] = {
 #endif
 
     {"inttemp", Cmd_inttemp, "" },
-		{ "humid", Cmd_readhumid, "" },
-		{ "temp", Cmd_readtemp,	"" },
+		{ "thp", Cmd_read_temp_hum_press,	"" },
 		{ "light", Cmd_readlight, "" },
 		{"prox", Cmd_readproximity, "" },
 
@@ -2202,7 +2199,6 @@ void vUARTTask(void *pvParameters) {
 	init_time_module(2560);
 
 	// Init sensors
-	init_humid_sensor();
 	init_temp_sensor();
 	init_light_sensor();
 	init_prox_sensor();

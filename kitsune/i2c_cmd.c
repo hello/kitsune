@@ -248,104 +248,189 @@ int Cmd_i2c_write(int argc, char *argv[]) {
 
 }
 
-static int get_temp() {
-	unsigned char cmd = 0xe3;
-	int temp_raw;
-	int temp;
+#if 1
+struct {
+	uint16_t dig_T1;
+	int16_t  dig_T2;
+	int16_t  dig_T3;
+	uint16_t dig_P1;
+	int16_t  dig_P2;
+	int16_t  dig_P3;
+	int16_t  dig_P4;
+	int16_t  dig_P5;
+	int16_t  dig_P6;
+	int16_t  dig_P7;
+	int16_t  dig_P8;
+	int16_t  dig_P9;
+	uint8_t  dig_H1;
+	int16_t  dig_H2;
+	uint8_t  dig_H3;
+	int16_t  dig_H4;
+	int16_t  dig_H5;
+	uint8_t  dig_H6;
+} bme280_cal;
 
-	unsigned char aucDataBuf[2];
+#define BME280_S32_t int32_t
+#define BME280_U32_t uint32_t
+#define BME280_S64_t int64_t
+// Returns temperature in DegC, resolution is 0.01 DegC. Output value of “5123” equals 51.23 DegC. // t_fine carries fine temperature as global value
+BME280_S32_t t_fine;
+BME280_S32_t BME280_compensate_T_int32(BME280_S32_t adc_T) {
+	BME280_S32_t var1, var2, T;
+	var1 = ((((adc_T >> 3) -
+			((BME280_S32_t)bme280_cal.dig_T1<<1))) *
+			((BME280_S32_t)bme280_cal.dig_T2)) >> 11;
+	var2 = (((((adc_T >> 4) -
+			((BME280_S32_t)bme280_cal.dig_T1)) *
+			((adc_T>>4) -
+					((BME280_S32_t)bme280_cal.dig_T1))) >> 12) *
+			((BME280_S32_t)bme280_cal.dig_T3)) >> 14;
+	t_fine = var1 + var2;
+	T = (t_fine * 5 + 128) >> 8;
+	return T;
+}
+// Returns pressure in Pa as unsigned 32 bit integer in Q24.8 format (24 integer bits and 8 fractional bits). // Output value of “24674867” represents 24674867/256 = 96386.2 Pa = 963.862 hPa
+BME280_U32_t BME280_compensate_P_int64(BME280_S32_t adc_P) {
+	BME280_S64_t var1, var2, p;
+	var1 = ((BME280_S64_t) t_fine)- 128000;
+	var2 = var1 * var1 * (BME280_S64_t) bme280_cal.dig_P6;
+	var2 = var2 + ((var1 * (BME280_S64_t) bme280_cal.dig_P5) << 17);
+	var2 = var2 + (((BME280_S64_t) bme280_cal.dig_P4) << 35);
+	var1 = ((var1 * var1 * (BME280_S64_t) bme280_cal.dig_P3) >> 8)
+			+ ((var1 * (BME280_S64_t) bme280_cal.dig_P2) << 12);
+	var1 = (((((BME280_S64_t) 1) << 47) + var1))
+			* ((BME280_S64_t) bme280_cal.dig_P1) >> 33;
+	if (var1 == 0) {
+		return 0; // avoid exception caused by division by zero
+	}
+	p = 1048576 - adc_P;
+	p = (((p << 31) - var2) * 3125) / var1;
+	var1 = (((BME280_S64_t) bme280_cal.dig_P9) * (p >> 13) * (p >> 13)) >> 25;
+	var2 = (((BME280_S64_t) bme280_cal.dig_P8) * p) >> 19;
+	p = ((p + var1 + var2) >> 8) + (((BME280_S64_t) bme280_cal.dig_P7) << 4);
+	return (BME280_U32_t) p;
+}
+// Returns humidity in %RH as unsigned 32 bit integer in Q22.10 format (22 integer and 10 fractional bits). // Output value of “47445” represents 47445/1024 = 46.333 %RH
+// CAJ EDIT: returns 0.01 %RH
+BME280_U32_t bme280_compensate_H_int32(BME280_S32_t adc_H) {
+	BME280_S32_t v_x1_u32r;
+	v_x1_u32r = (t_fine- ((BME280_S32_t)76800));
+	v_x1_u32r = (((((adc_H << 14)- (((BME280_S32_t)bme280_cal.dig_H4) << 20) - (((BME280_S32_t)bme280_cal.dig_H5) * v_x1_u32r)) +
+	((BME280_S32_t)16384)) >> 15) * (((((((v_x1_u32r * ((BME280_S32_t)bme280_cal.dig_H6)) >> 10) * (((v_x1_u32r *
+											((BME280_S32_t)bme280_cal.dig_H3)) >> 11) + ((BME280_S32_t)32768))) >> 10) + ((BME280_S32_t)2097152)) *
+	((BME280_S32_t)bme280_cal.dig_H2) + 8192) >> 14));
+	v_x1_u32r = (v_x1_u32r- (((((v_x1_u32r >> 15) * (v_x1_u32r >> 15)) >> 7) * ((BME280_S32_t)bme280_cal.dig_H1)) >> 4));
+	v_x1_u32r = (v_x1_u32r < 0 ? 0 : v_x1_u32r);
+	v_x1_u32r = (v_x1_u32r > 419430400 ? 419430400 : v_x1_u32r);
+	return (100*(BME280_U32_t)(v_x1_u32r >> 12))>>10;
+}
+#endif
+
+int get_temp_press_hum(int32_t * temp, uint32_t * press, uint32_t * hum) {
+	unsigned char cmd;
+	int temp_raw, press_raw, hum_raw;
+
+	unsigned char b[8] = {0};
 
 	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
 
-	vTaskDelay(5);
-	(I2C_IF_Write(0x40, &cmd, 1, 1));
+	b[0] = 0xf4;
+	b[1] = 0b10110101;
+	(I2C_IF_Write(0x77, b, 2, 1));
 
 	xSemaphoreGiveRecursive(i2c_smphr);
-	vTaskDelay(50);
+	vTaskDelay(110);
 	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
-	vTaskDelay(5);
-	(I2C_IF_Read(0x40, aucDataBuf, 2));
-	temp_raw = (aucDataBuf[0] << 8) | ((aucDataBuf[1] & 0xfc));
-	
-	temp = 17572 * temp_raw / 65536 - 4685;
+
+	b[0] = 1;
+	b[2] = b[1] = 0;
+	cmd = 0xf3;
+	while (b[0] != 4) {
+		(I2C_IF_Write(0x77, &cmd, 1, 1));
+		(I2C_IF_Read(0x77, b, 1));
+
+		DISP("%x %x %x\n", b[0],b[1],b[2] );
+
+		xSemaphoreGiveRecursive(i2c_smphr);
+		vTaskDelay(5);
+		assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
+	}
+	cmd = 0xf7;
+	(I2C_IF_Write(0x77, &cmd, 1, 1));
+	(I2C_IF_Read(0x77, b, 8));
 
 	xSemaphoreGiveRecursive(i2c_smphr);
 
-	return temp;
+	temp_raw = (b[3] << 16) | (b[4]<<8) | (b[5]);
+	temp_raw >>= 4;
+    *temp = BME280_compensate_T_int32(temp_raw);
+	DISP("%x %x %x %d %d\n", b[0],b[1],b[2], temp_raw, *temp);
+
+	press_raw = (b[0] << 16) | (b[1]<<8) | (b[2]);
+	press_raw >>= 4;
+    *press = BME280_compensate_P_int64(press_raw);
+	DISP("%x %x %x %d %d\n", b[0],b[1],b[2], press_raw, *press);
+
+	hum_raw = (b[6]<<8) | (b[7]);
+    *hum = bme280_compensate_H_int32(hum_raw);
+    *hum += (2500-*temp)*-15/100;
+
+	DISP("%x %x %d %d\n", b[6],b[7], hum_raw, *hum);
+
+	return temp_raw;
 }
 
 int init_temp_sensor()
 {
-	unsigned char cmd = 0xfe;
-
-	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
-	(I2C_IF_Write(0x40, &cmd, 1, 1));    // reset
-
-	get_temp();
-	xSemaphoreGiveRecursive(i2c_smphr);
-
-	return SUCCESS;
-}
-
-static int get_humid() {
-	unsigned char aucDataBuf[2];
-	unsigned char cmd = 0xe5;
-	int humid_raw;
-	int humid;
+	unsigned char id;
+	unsigned char cmd = 0xd0;
+	unsigned char b[25];
 
 	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
 	vTaskDelay(5);
-
-	(I2C_IF_Write(0x40, &cmd, 1, 1));
-
-	xSemaphoreGiveRecursive(i2c_smphr);
-	vTaskDelay(50);
-	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
-
+	(I2C_IF_Write(0x77, &cmd, 1, 1));
 	vTaskDelay(5);
-	(I2C_IF_Read(0x40, aucDataBuf, 2));
-	humid_raw = (aucDataBuf[0] << 8) | ((aucDataBuf[1] & 0xfc));
+	(I2C_IF_Read(0x77, &id, 1));
+
+	cmd =0x88;
+	(I2C_IF_Write(0x77, &cmd, 1, 1));
+	(I2C_IF_Read(0x77, b, 25));
+
+	bme280_cal.dig_T1 = b[0] | (b[1]<<8);
+	bme280_cal.dig_T2 = b[2] | (b[3]<<8);
+	bme280_cal.dig_T3 = b[4] | (b[5]<<8);
+	bme280_cal.dig_P1 = b[6] | (b[7]<<8);
+	bme280_cal.dig_P2 = b[8] | (b[9]<<8);
+	bme280_cal.dig_P3 = b[10] | (b[11]<<8);
+	bme280_cal.dig_P4 = b[12] | (b[13]<<8);
+	bme280_cal.dig_P5 = b[14] | (b[15]<<8);
+	bme280_cal.dig_P6 = b[16] | (b[17]<<8);
+	bme280_cal.dig_P7 = b[18] | (b[19]<<8);
+	bme280_cal.dig_P8 = b[20] | (b[21]<<8);
+	bme280_cal.dig_P9 = b[22] | (b[23]<<8);
+	bme280_cal.dig_H1 = b[24];
+
+	cmd =0xE1;
+	(I2C_IF_Write(0x77, &cmd, 1, 1));
+	(I2C_IF_Read(0x77, b, 7));
+
+	bme280_cal.dig_H2 = b[0] | (b[1]<<8);
+	bme280_cal.dig_H3 = b[2];
+	bme280_cal.dig_H4 = (b[3]<<4) | (b[4]&0xf);
+	bme280_cal.dig_H5 = (b[5]<<4) | ((b[4]>>4)&0xf);
+	bme280_cal.dig_H6 = b[7];
 
 	xSemaphoreGiveRecursive(i2c_smphr);
+	DISP("found %x\n", id);
 
-	humid = 12500 * humid_raw / 65536 - 600;
-	return humid;
+	return id == 0x60;
 }
 
-int init_humid_sensor()
-{
-	unsigned char cmd = 0xfe;
-
-	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
-
-	(I2C_IF_Write(0x40, &cmd, 1, 1));    // reset
-
-	// Dummy read the 1st value.
-	get_humid();
-
-	xSemaphoreGiveRecursive(i2c_smphr);
-
-	return SUCCESS;
-}
-
-
-void get_temp_humid( int * temp, int * humid ) {
-	*temp = get_temp();
-	*humid = get_humid();
-	*humid += (2500-*temp)*-15/100;
-}
-
-int Cmd_readhumid(int argc, char *argv[]) {
-	int temp,humid;
-	get_temp_humid(&temp, &humid);
-	LOGF("%d\n", humid);
-	return SUCCESS;
-}
-
-int Cmd_readtemp(int argc, char *argv[]) {
-	int temp,humid;
-	get_temp_humid(&temp, &humid);
-	LOGF("%d\n", temp);
+int Cmd_read_temp_hum_press(int argc, char *argv[]) {
+	int32_t temp;
+	uint32_t hum,press;
+	get_temp_press_hum(&temp, &press, &hum);
+	LOGF("%d,%d,%d\n", temp, hum, press);
 	return SUCCESS;
 }
 
