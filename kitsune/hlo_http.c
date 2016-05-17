@@ -242,6 +242,9 @@ static int _write_header(hlo_stream_t * stream, http_method method, const char *
 			break;
 		case POST:
 			strcat(session->scratch, "Transfer-Encoding: chunked\r\n");
+			if( !opt_headers ){
+				strcat(session->scratch, "Content-type: application/octet-stream\r\n");
+			}
 			break;
 	}
 	const char ** itr = opt_headers;
