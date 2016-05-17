@@ -2000,7 +2000,9 @@ tCmdLineEntry g_sCmdTable[] = {
 #endif
 
     {"inttemp", Cmd_inttemp, "" },
-		{ "thp", Cmd_read_temp_hum_press,	"" },
+	{ "thp", Cmd_read_temp_hum_press,	"" },
+	{ "tv", Cmd_read_TVOC,	"" },
+
 		{ "light", Cmd_readlight, "" },
 		{"prox", Cmd_readproximity, "" },
 

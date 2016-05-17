@@ -434,6 +434,24 @@ int Cmd_read_temp_hum_press(int argc, char *argv[]) {
 	return SUCCESS;
 }
 
+int Cmd_read_TVOC(int argc, char *argv[]) {
+	int cmd;
+	char b[2];
+
+	cmd = 0x20;
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
+	vTaskDelay(5);
+	(I2C_IF_Write(0x5a, &cmd, 1, 1));
+	vTaskDelay(5);
+	(I2C_IF_Read(0x5a, b, 2));
+
+	xSemaphoreGiveRecursive(i2c_smphr);
+	LOGF("%x %x\n", b[0], b[1]);
+
+	return SUCCESS;
+}
+
+
 int init_light_sensor()
 {
 	old_light_sensor = get_hw_ver()==EVT2;

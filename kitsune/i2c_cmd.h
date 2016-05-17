@@ -9,6 +9,8 @@ int Cmd_i2c_readreg(int argc, char *argv[]);
 int Cmd_i2c_writereg(int argc, char *argv[]);
 
 int Cmd_read_temp_hum_press(int argc, char *argv[]);
+int Cmd_read_TVOC(int argc, char *argv[]);
+
 int Cmd_readlight(int argc, char *argv[]);
 int Cmd_readproximity(int argc, char *argv[]);
 //int get_codec_NAU();
