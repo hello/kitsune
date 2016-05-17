@@ -25,4 +25,5 @@ typedef struct{
 }url_desc_t;
 int parse_url(url_desc_t * desc, const char * url);
 
+void itohexstring(size_t i, char output[9]);
 #endif

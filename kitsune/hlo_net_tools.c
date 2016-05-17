@@ -47,6 +47,14 @@ int parse_url(url_desc_t * desc, const char * url){
 	strcpy(desc->path, marker);
 	return 0;
 }
+void itohexstring(size_t n, char output[9]){
+	static const char hex[] = "0123456789ABCDEF";
+	memset(output, 0, sizeof(output));
+	int i;
+	for(i = 0; i < 8; i++){
+		output[i] = hex[(n >> ((7-i) * 4)) & 0x0F];
+	}
+}
 void antsel(unsigned char a);
 
 static void reselect_antenna(Sl_WlanNetworkEntry_t * entries, int num_entries ) {
