@@ -152,7 +152,7 @@ typedef struct{
 	hlo_stream_t * sockstream;
 	struct http_roundtripper rt;
 	int code;
-	int size;
+	int len;
 	int active;
 	char * content_itr;
 	char scratch[SCRATCH_SIZE];
@@ -169,9 +169,12 @@ static void _response_code(void* opaque, int code){
 }
 static void _response_body(void* opaque, const char* data, int size){
 	hlo_http_context_t * session = (hlo_http_context_t*)opaque;
-	memcpy(session->content_itr, data, size);
-	session->content_itr += size;
-	session->size += size;
+	if(session->content_itr){
+		memcpy(session->content_itr, data, size);
+		session->content_itr += size;
+		session->len += size;
+	}
+
 }
 static void* _response_realloc(void* opaque, void* ptr, int size){
 	return pvPortRealloc(ptr, size);
@@ -205,7 +208,7 @@ static int _get_content(void * ctx, void * buf, size_t size){
 		DISP("Has error\r\n");
 		return HLO_STREAM_ERROR;
 	} else if(content_size == 0 && !session->active){
-		LOGI("GET EOF %d bytes\r\n", session->size);
+		LOGI("GET EOF %d bytes\r\n", session->len);
 		return HLO_STREAM_EOF;
 	}
 	return content_size;
