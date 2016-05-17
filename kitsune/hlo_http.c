@@ -158,7 +158,13 @@ typedef struct{
 	char * content_itr;
 	char scratch[SCRATCH_SIZE];
 }hlo_http_context_t;
-
+typedef enum{
+	GET,
+	POST
+}http_method;
+//====================================================================
+//common functions
+//
 static void _response_header(void* opaque, const char* ckey, int nkey, const char* cvalue, int nvalue){
 	hlo_http_context_t * session = (hlo_http_context_t*)opaque;
 	//DISP("Header %s: %s\r\n", ckey, cvalue);
@@ -186,7 +192,6 @@ static const struct http_funcs response_functions = {
     _response_header,
     _response_code,
 };
-//Helper function to make stream
 static hlo_stream_t * _new_stream(hlo_stream_t * sock , hlo_stream_vftbl_t * tbl, uint32_t stream_opts){
 	hlo_stream_t * ret = NULL;
 	if(!sock){
@@ -208,6 +213,50 @@ static hlo_stream_t * _new_stream(hlo_stream_t * sock , hlo_stream_vftbl_t * tbl
 	}
 	return ret;
 }
+static int _write_header(hlo_stream_t * stream, http_method method, const char * host, const char * endpoint, const char * opt_headers[]){
+	hlo_http_context_t * session = (hlo_http_context_t*)stream->ctx;
+	switch(method){
+	default:
+		return -1;
+	case GET:
+		strcat(session->scratch, "GET ");
+		break;
+	case POST:
+		strcat(session->scratch, "POST ");
+		break;
+	}
+	strcat(session->scratch, endpoint);
+	strcat(session->scratch, " HTTP/1.1");
+	strcat(session->scratch, "\r\n");
+	strcat(session->scratch, "Host: ");
+	strcat(session->scratch, host);
+	strcat(session->scratch, "\r\n");
+	switch(method){
+		default:
+			return -1;
+		case GET:
+			strcat(session->scratch, "Accept: text/html, application/xhtml+xml, */*\r\n");
+			break;
+		case POST:
+			break;
+	}
+	const char ** itr = opt_headers;
+	while(itr){
+		strcat(session->scratch, *itr);
+		itr++;
+		strcat(session->scratch, "\r\n");
+	}
+	strcat(session->scratch, "\r\n");
+	int transfer_size = ustrlen(session->scratch);
+	LOGI("%s", session->scratch);
+	if( transfer_size ==  hlo_stream_transfer_all(INTO_STREAM, session->sockstream, (uint8_t*)session->scratch, transfer_size, 4) ){
+		return 0;
+	}
+	return -1;
+}
+//====================================================================
+//Get
+//
 static int _get_content(void * ctx, void * buf, size_t size){
 	hlo_http_context_t * session = (hlo_http_context_t*)ctx;
 	int bytes_to_process = min(size, SCRATCH_SIZE);
@@ -257,25 +306,7 @@ hlo_stream_t * hlo_http_get_opt(hlo_stream_t * sock, const char * host, const ch
 	if( !ret ) {
 		return NULL;
 	}
-	hlo_http_context_t * session = (hlo_http_context_t*)ret->ctx;
-	strcat(session->scratch, "GET ");
-	strcat(session->scratch, endpoint);
-	strcat(session->scratch, " HTTP/1.1");
-	strcat(session->scratch, "\r\n");
-	strcat(session->scratch, "Host: ");
-	strcat(session->scratch, host);
-	strcat(session->scratch, "\r\n");
-	strcat(session->scratch, "Accept: text/html, application/xhtml+xml, */*\r\n");
-	const char ** itr = opt_extra_headers;
-	while(itr){
-		strcat(session->scratch, *itr);
-		itr++;
-		strcat(session->scratch, "\r\n");
-	}
-	strcat(session->scratch, "\r\n");
-	int transfer_size = ustrlen(session->scratch);
-	LOGI("%s", session->scratch);
-	if( transfer_size == hlo_stream_transfer_all(INTO_STREAM, sock, (uint8_t*)session->scratch, transfer_size, 4)){
+	if( 0 == _write_header(ret, GET, host, endpoint, opt_extra_headers)){
 		return ret;
 	}else{
 		LOGE("GET Request Failed\r\n");
@@ -324,6 +355,7 @@ hlo_stream_t * hlo_http_post_opt(hlo_stream_t * sock, const char * host, const c
 	if( !ret ){
 		return NULL;
 	}
+	hlo_http_context_t * session = (hlo_http_context_t*)ret->ctx;
 }
 //====================================================================
 //User Friendly post
