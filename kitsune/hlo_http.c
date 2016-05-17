@@ -15,6 +15,7 @@
 //Protected API Declaration
 //
 hlo_stream_t * hlo_http_get_opt(hlo_stream_t * sock, const char * host, const char * endpoint, const char * opt_extra_headers[]);
+hlo_stream_t * hlo_http_post_opt(hlo_stream_t * sock, const char * host, const char * endpoint, const char * opt_extra_headers[], uint8_t sign);
 //====================================================================
 //socket stream implementation
 //
@@ -185,7 +186,28 @@ static const struct http_funcs response_functions = {
     _response_header,
     _response_code,
 };
-
+//Helper function to make stream
+static hlo_stream_t * _new_stream(hlo_stream_t * sock , hlo_stream_vftbl_t * tbl, uint32_t stream_opts){
+	hlo_stream_t * ret = NULL;
+	if(!sock){
+		return NULL;
+	}
+	hlo_http_context_t * session = pvPortMalloc(sizeof(*session));
+	if(!session){
+		return NULL;
+	}else{
+		memset(session, 0, sizeof(*session));
+		session->active = 1;	/** always try to parse something **/
+		session->sockstream = sock;
+		http_init(&session->rt,response_functions, session);
+	}
+	ret =  hlo_stream_new(tbl, session, stream_opts);
+	if( !ret ){
+		vPortFree(session);
+		return NULL;
+	}
+	return ret;
+}
 static int _get_content(void * ctx, void * buf, size_t size){
 	hlo_http_context_t * session = (hlo_http_context_t*)ctx;
 	int bytes_to_process = min(size, SCRATCH_SIZE);
@@ -215,6 +237,7 @@ static int _get_content(void * ctx, void * buf, size_t size){
 }
 static int _close_get_session(void * ctx){
 	hlo_http_context_t * session = (hlo_http_context_t*)ctx;
+	LOGI("GET returned code %d\r\n", session->code);
 	http_free(&session->rt);
 	hlo_stream_close(session->sockstream);
 	vPortFree(session);
@@ -223,30 +246,18 @@ static int _close_get_session(void * ctx){
 //====================================================================
 //Base implementation of get
 //
+
 hlo_stream_t * hlo_http_get_opt(hlo_stream_t * sock, const char * host, const char * endpoint, const char * opt_extra_headers[]){
 	hlo_stream_vftbl_t functions = (hlo_stream_vftbl_t){
 		.write = NULL,
 		.read = _get_content,
 		.close = _close_get_session,
 	};
-	hlo_stream_t * ret = NULL;
-	if (!sock ){
-		goto no_sock;
-	}
-
-	hlo_http_context_t * session = pvPortMalloc(sizeof(*session));
-	if( !session ){
-		goto no_session;
-	}else{
-		memset(session, 0, sizeof(*session));
-		session->active = 1;	/** always try to parse something **/
-	}
-	session->sockstream = sock;
-	http_init(&session->rt,response_functions, session);
-	ret = hlo_stream_new(&functions, session, HLO_STREAM_READ);
+	hlo_stream_t * ret = _new_stream(sock, &functions, HLO_STREAM_READ);
 	if( !ret ) {
-		goto no_stream;
+		return NULL;
 	}
+	hlo_http_context_t * session = (hlo_http_context_t*)ret->ctx;
 	strcat(session->scratch, "GET ");
 	strcat(session->scratch, endpoint);
 	strcat(session->scratch, " HTTP/1.1");
@@ -271,12 +282,6 @@ hlo_stream_t * hlo_http_get_opt(hlo_stream_t * sock, const char * host, const ch
 		hlo_stream_close(ret);
 		return NULL;
 	}
-no_stream:
-	vPortFree(session);
-no_session:
-no_sock:
-	return ret;
-
 }
 //====================================================================
 //User Friendly get
@@ -298,5 +303,29 @@ hlo_stream_t * hlo_http_get(const char * url){
 //====================================================================
 //Base implementation of post
 //
-hlo_stream_t * hlo_http_post_opt(hlo_stream_t * sock, const char * host, const char * endpoint, const char * opt_extra_headers[]){
+static int _post_content(void * ctx, void * buf, size_t size){
+
 }
+static int _close_post_session(void * ctx){
+
+}
+hlo_stream_t * hlo_http_post_opt(hlo_stream_t * sock, const char * host, const char * endpoint, const char * opt_extra_headers[], uint8_t sign){
+	hlo_stream_vftbl_t functions = (hlo_stream_vftbl_t){
+		.write = _post_content,
+		.read = NULL,
+		.close = _close_post_session,
+	};
+	if(sign){
+		//signed override
+		//functions.write = _post_content_and_sign;
+		//functions.close = _close_post_session_and_sign;
+	}
+	hlo_stream_t * ret = _new_stream(sock, &functions, HLO_STREAM_WRITE);
+	if( !ret ){
+		return NULL;
+	}
+}
+//====================================================================
+//User Friendly post
+//
+hlo_stream_t * hlo_http_post(const char * url, uint8_t sign);

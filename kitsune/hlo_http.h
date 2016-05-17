@@ -25,3 +25,4 @@ hlo_stream_t * hlo_sock_stream(const char * host, uint8_t secure);
  */
 
 hlo_stream_t * hlo_http_get(const char * url);
+hlo_stream_t * hlo_http_post(const char * url, uint8_t sign);
