@@ -116,7 +116,7 @@ static int fifo_write(void * ctx, const void * buf, size_t size){
 		}
 		return written;
 	}else{
-		return HLO_STREAM_EAGAIN;
+		return 0;
 	}
 }
 static int fifo_read(void * ctx, void * buf, size_t size){
@@ -129,7 +129,7 @@ static int fifo_read(void * ctx, void * buf, size_t size){
 		}
 		return read;
 	}else{
-		return HLO_STREAM_EAGAIN;
+		return 0;
 	}
 
 }

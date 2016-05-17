@@ -17,7 +17,7 @@
 //steam return codes
 #define HLO_STREAM_ERROR		-1
 #define HLO_STREAM_EOF			-2
-#define HLO_STREAM_EAGAIN		-11
+
 #define HLO_STREAM_NULL_OBJ		-20
 #define HLO_STREAM_NO_IMPL		-21
 
@@ -46,11 +46,12 @@ void hlo_stream_info(const hlo_stream_t * stream);
 
 /**
  * Threadsafe pair of API to operate on streams.
- * The expected behavior is "best effort blocking", meaning
- * it'll block for a sensible amount of time while consuming/reading as much as the passed @size
- * as possible.
+ * Expected behaviors for implementations:
+ * [Both]  -  Blocking until the buffer has been processed, or an error, or timing out.
+ * [Both]  -  Returns a 0 or a positive number for the amount of bytes processed, negative for error.
  *
- *  Use the hlo_stream_transfer_* API in hlo_pipe.h for a guaranteed full transfer of the buffer.
+ * [Write] -  Passing 0 for the parameter @size shall be treated as sending an EOF signal to the stream.
+ *
  */
 int hlo_stream_write(hlo_stream_t * stream, const void * buf, size_t size);
 int hlo_stream_read(hlo_stream_t * stream, void * buf, size_t size);
