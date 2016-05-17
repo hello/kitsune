@@ -155,10 +155,8 @@ typedef struct{
 	int code;					/** http response code, parsed by tinyhttp **/
 	int len;					/** length of the response body tally **/
 	int active;					/** indicates if the response is still active **/
-	union{
-		char * content_itr;			/** used by GET, itr to the outside buffer which we dump data do **/
-		size_t scratch_offset;		/** used by POST, to collect data internally in bulk before sending **/
-	};
+	char * content_itr;			/** used by GET, itr to the outside buffer which we dump data do **/
+	size_t scratch_offset;		/** used by POST, to collect data internally in bulk before sending **/
 	char scratch[SCRATCH_SIZE]; /** scratch buffer, **MUST** be the last field **/
 }hlo_http_context_t;
 typedef enum{
@@ -358,19 +356,22 @@ static int _post_chunked(hlo_http_context_t * session){
 }
 static int _post_content(void * ctx, void * buf, size_t size){
 	hlo_http_context_t * session = (hlo_http_context_t*)ctx;
-	if( size + session->scratch_offset >= CHUNKED_BUFFER_SIZE){
-		if(_post_chunked(session) <= 0){
-			return HLO_STREAM_ERROR;
-		}else{
-			session->scratch_offset = 0;
-		}
-	}else{
+	int bytes_rem = CHUNKED_BUFFER_SIZE - session->scratch_offset;
+	int bytes_available = min(size, bytes_rem);
+	if( bytes_available > 0){
 		char * itr = session->scratch + CHUNKED_HEADER_SIZE + session->scratch_offset;
-		memcpy(itr, buf, size);
-		session->scratch_offset += size;
-
+		memcpy(itr, buf, bytes_available);
+		session->scratch_offset += bytes_available;
+		return (int)bytes_available;
+	}else if( session->scratch_offset ){
+		if(_post_chunked(session) < 0){
+			return HLO_STREAM_ERROR;
+		} else {
+			session->scratch_offset = 0;
+			return _post_content(ctx, buf, size);
+		}
 	}
-	return (int)size;
+	return 0;
 }
 static int _close_post_session(void * ctx){
 	hlo_http_context_t * session = (hlo_http_context_t*)ctx;
