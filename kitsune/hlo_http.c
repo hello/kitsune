@@ -42,13 +42,33 @@ static sockaddr _get_addr(unsigned long ip, uint16_t port){
 	 sAddr.sa_data[5] = (char) (ip & 0xff);
 	 return sAddr;
 }
+#define SL_SSL_CA_CERT_FILE_NAME "/cert/ca.der"
 static int _start_connection(unsigned long ip, security_type sec){
 	int sock = -1;
 	if( ip ){
 		 sockaddr sAddr;
 		 if(sec == SOCKET_SEC_SSL){
 			 sAddr = _get_addr(ip, 443);
-		//	 sock = sock
+			 sock = socket(AF_INET, SOCK_STREAM, SL_SEC_SOCKET);
+			 if(sock <= 0){
+				 goto exit;
+			 }
+			 unsigned char method = SL_SO_SEC_METHOD_TLSV1_2;
+#ifdef USE_SHA2
+			 unsigned int cipher = SL_SEC_MASK_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256;
+#else
+			 unsigned int cipher = SL_SEC_MASK_TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA;
+#endif
+			 if( sl_SetSockOpt(sock, SL_SOL_SOCKET, SL_SO_SECMETHOD, &method, sizeof(method) ) < 0 ||
+			 				sl_SetSockOpt(sock, SL_SOL_SOCKET, SL_SO_SECURE_MASK, &cipher, sizeof(cipher)) < 0 ||
+			 				sl_SetSockOpt(sock, SL_SOL_SOCKET, \
+			 									   SL_SO_SECURE_FILES_CA_FILE_NAME, \
+			 									   SL_SSL_CA_CERT_FILE_NAME, \
+			 									   strlen(SL_SSL_CA_CERT_FILE_NAME))  < 0  ){
+				 LOGI( "error setting ssl options\r\n" );
+				 //TODO hook this to BLE
+				 //ble_reply_wifi_status(wifi_connection_state_SSL_FAIL);
+			 }
 		 }else{
 			 sAddr = _get_addr(ip, 80);
 			 sock = socket(AF_INET, SOCK_STREAM, SL_IPPROTO_TCP);
@@ -109,12 +129,15 @@ hlo_stream_t * hlo_sock_stream(const char * host, uint8_t secure){
 		.read = _read_sock,
 		.close = _close_sock,
 	};
+	int sock = -1;
 	if(!secure){
-		int sock = _start_connection(_get_ip(host), SOCKET_SEC_NONE);
-		if(sock >= 0){
-			LOGI("sock is %d\r\n", sock);
-			return hlo_stream_new(&impl, (void*)sock, HLO_STREAM_READ_WRITE);
-		}
+		sock = _start_connection(_get_ip(host), SOCKET_SEC_NONE);
+	}else{
+		sock = _start_connection(_get_ip(host), SOCKET_SEC_SSL);
+	}
+	if(sock >= 0){
+		LOGI("sock is %d\r\n", sock);
+		return hlo_stream_new(&impl, (void*)sock, HLO_STREAM_READ_WRITE);
 	}
 	return NULL;
 }
