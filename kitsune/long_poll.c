@@ -42,7 +42,7 @@ static void _on_play_audio( PlayAudio * cmd ) {
 	if( cmd->has_duration_seconds ) {
 		desc.durationInSeconds = cmd->duration_seconds;
 	} else {
-		desc.durationInSeconds = -1;
+		desc.durationInSeconds = 0;
 	}
 	desc.stream = fs_stream_open(cmd->file_path,HLO_STREAM_READ);
 	ustrncpy(desc.source_name, cmd->file_path, sizeof(desc.source_name));
