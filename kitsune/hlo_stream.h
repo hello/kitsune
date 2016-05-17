@@ -64,26 +64,27 @@ int hlo_stream_read(hlo_stream_t * stream, void * buf, size_t size);
  */
 int hlo_stream_close(hlo_stream_t * stream);
 
-//Initializes a stream memory region.
-//do not use in conjunction with new.
-//use this to initialize statically allocated streams.
-void hlo_stream_init(hlo_stream_t * stream,
-		const hlo_stream_vftbl_t * impl,
-		void * ctx,
-		uint32_t options);
-
 //Allocates and initializes a stream.
 //do not use in conjunction with init.
 hlo_stream_t * hlo_stream_new(const hlo_stream_vftbl_t * impl, void * ctx, uint32_t options);
 
-/**
- * example implementations
+
+//example implementations
+
+/*
+ * fifo buffer stream
  */
-//fifo buffer stream
 hlo_stream_t * fifo_stream_open(size_t capacity);
-//random stream
+/*
+ * random stream (R/W)
+ * Read:  fills the requested buffer with random bytes.
+ * Write: seeds the entropy pool (may also be used as null sink).
+ */
 hlo_stream_t * random_stream_open(void);
-//debug stream
+/*
+ * debug stream (R/W)
+ * Both:  blocks for 2 millseconds, and returns the len passed in.  No effect on the buffer.
+ */
 hlo_stream_t * debug_stream_open(void);
 
 #endif

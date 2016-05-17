@@ -295,3 +295,8 @@ hlo_stream_t * hlo_http_get(const char * url){
 	}
 	return NULL;
 }
+//====================================================================
+//Base implementation of post
+//
+hlo_stream_t * hlo_http_post_opt(hlo_stream_t * sock, const char * host, const char * endpoint, const char * opt_extra_headers[]){
+}
