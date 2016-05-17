@@ -1277,49 +1277,17 @@ void sample_sensor_data(periodic_data* data)
 		xSemaphoreGive(light_smphr);
 	}
 
+	{
 	// get temperature and humidity
-	uint8_t measure_time = 10;
-	int64_t humid_sum = 0;
-	int64_t temp_sum = 0;
+	uint32_t humid,press;
+	int32_t temp;
 
-	uint8_t humid_count = 0;
-	uint8_t temp_count = 0;
+	get_temp_press_hum(&temp, &press, &humid);
 
-	while(--measure_time) {
-		uint32_t humid,press;
-		int32_t temp;
-
-		get_temp_press_hum(&temp, &press, &humid);
-
-		if(humid != -1)
-		{
-			humid_sum += humid;
-			humid_count++;
-		}
-		if(temp != -1)
-		{
-			temp_sum += temp;
-			temp_count++;
-		}
-	}
-
-
-
-	if(humid_count == 0)
-	{
-		data->has_humidity = false;
-	}else{
-		data->has_humidity = true;
-		data->humidity = humid_sum / humid_count;
-	}
-
-
-	if(temp_count == 0)
-	{
-		data->has_temperature = false;
-	}else{
-		data->has_temperature = true;
-		data->temperature = temp_sum / temp_count;
+	data->humidity = humid;
+	data->temperature = temp;
+	data->has_temperature = true;
+	data->has_humidity = true;
 	}
 
 	int wave_count = gesture_get_wave_count();
