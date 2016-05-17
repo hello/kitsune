@@ -138,7 +138,20 @@ int hlo_filter_data_transfer(hlo_stream_t * input, hlo_stream_t * output, void *
 	}
 	return ret;
 }
-
+////-------------------------------------------
+// Throughput calculator
+int hlo_filter_throughput_test(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
+	TickType_t start = xTaskGetTickCount();
+	int ret = hlo_filter_data_transfer(input, output, ctx, signal);
+	TickType_t tdelta = xTaskGetTickCount() - start;
+	int ts = tdelta / 1000;
+	if(ts == 0){
+		ts = 1;
+	}
+	size_t total =  output->info.bytes_written;
+	LOGI("Transferred %u bytes over %u milliseconds, throughput %u kb/s\r\n", total, tdelta, (total / 1024) / ts);
+	return ret;
+}
 ////-------------------------------------------
 //octogram sample app
 #include "octogram.h"
@@ -207,6 +220,8 @@ static hlo_filter _filter_from_string(const char * str){
 		return hlo_filter_adpcm_decoder;
 	case 'o':
 		return hlo_filter_octogram;
+	case '?':
+		return hlo_filter_throughput_test;
 	default:
 		return hlo_filter_data_transfer;
 	}
