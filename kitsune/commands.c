@@ -1969,6 +1969,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "repair",      Cmd_repair_fs,      "" },
 		{ "restore_bad",      Cmd_restore_bad_fs,      "" },
 		{ "dumpfs",      Cmd_dump_fs,      "" },
+		{ "force_rm",      Cmd_force_rm,      "" },
     { "mnt",      Cmd_mnt,      "" },
     { "umnt",     Cmd_umnt,     "" },
     { "ls",       Cmd_ls,       "" },

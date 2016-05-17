@@ -152,6 +152,13 @@ FRESULT hello_fs_unlink (const char*path) {
 	UNLOCK();
 	return res;
 }
+FRESULT hello_fs_unlink_TEST (const char*path) {
+	FRESULT res;
+	LOCK();
+	res = f_unlink_TEST(path);
+	UNLOCK();
+	return res;
+}
 FRESULT    hello_fs_mkdir (const char*path) {
 	FRESULT res;
 	LOCK();

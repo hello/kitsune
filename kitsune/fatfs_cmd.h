@@ -1,6 +1,7 @@
 #ifndef __FATFS_CMD_H__
 #define __FATFS_CMD_H__
 
+int Cmd_force_rm(int argc, char *argv[]);
 int Cmd_dump_fs(int argc, char *argv[]);
 int Cmd_repair_fs(int argc, char *argv[]);
 int Cmd_restore_bad_fs(int argc, char *argv[]);

@@ -3665,6 +3665,69 @@ FRESULT f_unlink (
 	LEAVE_FF(dj.fs, res);
 }
 
+FRESULT f_unlink_TEST (
+	const TCHAR* path		/* Pointer to the file or directory path */
+)
+{
+	FRESULT res;
+	DIR dj, sdj;
+	BYTE *dir;
+	DWORD dclst = 0;
+	DEF_NAMEBUF;
+
+
+	/* Get logical drive number */
+	res = find_volume(&dj.fs, &path, 1);
+	if (res == FR_OK) {
+		INIT_BUF(dj);
+		res = follow_path(&dj, path);		/* Follow the file path */
+		if (_FS_RPATH && res == FR_OK && (dj.fn[NSFLAG] & NS_DOT))
+			res = FR_INVALID_NAME;			/* Cannot remove dot entry */
+#if _FS_LOCK
+		if (res == FR_OK) res = chk_lock(&dj, 2);	/* Cannot remove open object */
+#endif
+		if (res == FR_OK) {					/* The object is accessible */
+			dir = dj.dir;
+			if (!dir) {
+				res = FR_INVALID_NAME;		/* Cannot remove the origin directory */
+			} else {
+				if (dir[DIR_Attr] & AM_RDO)
+					res = FR_DENIED;		/* Cannot remove R/O object */
+			}
+#ifdef 0
+			if (res == FR_OK && (dir[DIR_Attr] & AM_DIR)) {	/* Is it a sub-dir? */
+				dclst = ld_clust(dj.fs, dir);
+				if (!dclst) {
+					res = FR_INT_ERR;
+				} else {					/* Make sure the sub-directory is empty */
+					mem_cpy(&sdj, &dj, sizeof (DIR));
+					sdj.sclust = dclst;
+					res = dir_sdi(&sdj, 2);		/* Exclude dot entries */
+					if (res == FR_OK) {
+						res = dir_read(&sdj, 0);	/* Read an item */
+						if (res == FR_OK		/* Not empty directory */
+#if _FS_RPATH
+						|| dclst == dj.fs->cdir	/* or current directory */
+#endif
+						) res = FR_DENIED;
+						if (res == FR_NO_FILE) res = FR_OK;	/* It is empty */
+					}
+				}
+			}
+#endif
+			if (res == FR_OK) {
+				res = dir_remove(&dj);		/* Remove the directory entry */
+				if (res == FR_OK && dclst)	/* Remove the cluster chain if exist */
+					res = remove_chain(dj.fs, dclst);
+				if (res == FR_OK) res = sync_fs(dj.fs);
+			}
+		}
+		FREE_BUF();
+	}
+
+	LEAVE_FF(dj.fs, res);
+}
+
 
 
 

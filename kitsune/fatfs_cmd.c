@@ -786,6 +786,32 @@ Cmd_write(int argc, char *argv[])
 }
 
 int
+force_rm(char * file)
+{
+    FRESULT res;
+
+    if(global_filename( file ))
+    {
+    	return 1;
+    }
+
+    res = hello_fs_unlink_TEST(path_buff);
+
+    if(res != FR_OK)
+    {
+        return((int)res);
+    }
+
+    return(0);
+}
+int
+Cmd_force_rm(int argc, char *argv[])
+{
+	return force_rm(argv[1]);
+}
+
+
+int
 rm(char * file)
 {
     FRESULT res;

@@ -21,6 +21,7 @@ FRESULT hello_fs_stat (const char*, FILINFO*);                /* Get file status
 FRESULT hello_fs_getfree (const char*, DWORD*, FATFS**);    /* Get number of free clusters on the drive */
 FRESULT hello_fs_sync (FIL*);                                /* Flush cached data of a writing file */
 FRESULT hello_fs_unlink (const char*);                        /* Delete an existing file or directory */
+FRESULT hello_fs_unlink_TEST (const char*);                        /* Delete an existing file or directory */
 FRESULT hello_fs_mkdir (const char*);                        /* Create a new directory */
 FRESULT hello_fs_chmod (const char*, BYTE, BYTE);            /* Change file/dir attriburte */
 FRESULT hello_fs_rename (const char*, const char*);        /* Rename/Move a file or directory */
