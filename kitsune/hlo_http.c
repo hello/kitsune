@@ -220,6 +220,9 @@ static int _close_get_session(void * ctx){
 	vPortFree(session);
 	return 0;
 }
+//====================================================================
+//Base implementation of get
+//
 hlo_stream_t * hlo_http_get_opt(hlo_stream_t * sock, const char * host, const char * endpoint, const char * opt_extra_headers[]){
 	hlo_stream_vftbl_t functions = (hlo_stream_vftbl_t){
 		.write = NULL,
@@ -275,6 +278,9 @@ no_sock:
 	return ret;
 
 }
+//====================================================================
+//User Friendly get
+//
 hlo_stream_t * hlo_http_get(const char * url){
 	url_desc_t desc;
 	if(0 == parse_url(&desc,url)){
