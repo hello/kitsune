@@ -145,7 +145,7 @@ hlo_stream_t * hlo_sock_stream(const char * host, uint8_t secure){
 
 //====================================================================
 //http requests impl
-//
+//Data Structures
 #include "tinyhttp/http.h"
 
 #define SCRATCH_SIZE 1536
@@ -238,6 +238,7 @@ static int _write_header(hlo_stream_t * stream, http_method method, const char *
 			strcat(session->scratch, "Accept: text/html, application/xhtml+xml, */*\r\n");
 			break;
 		case POST:
+			strcat(session->scratch, "Transfer-Encoding: chunked\r\n");
 			break;
 	}
 	const char ** itr = opt_headers;
@@ -335,10 +336,41 @@ hlo_stream_t * hlo_http_get(const char * url){
 //Base implementation of post
 //
 static int _post_content(void * ctx, void * buf, size_t size){
-
+	hlo_http_context_t * session = (hlo_http_context_t*)ctx;
 }
 static int _close_post_session(void * ctx){
-
+	hlo_http_context_t * session = (hlo_http_context_t*)ctx;
+	static const char * end_chunked = "0\r\n\r\n";
+	int end_chunked_len = strlen(end_chunked);
+	if( end_chunked_len == hlo_stream_write(session->sockstream, end_chunked, end_chunked_len) ){
+		while(session->active){
+			int ndata = hlo_stream_read(session->sockstream, session->scratch, sizeof(session->scratch));
+			if( ndata < 0 ){
+				goto cleanup;
+			}
+			const char * itr = session->scratch;
+			while( session->active && ndata ){
+				int read;
+				session->active = http_data(&session->rt, itr, ndata, &read);
+				ndata -= read;
+				itr += read;
+			}
+		}//done parsing response
+		if ( http_iserror(&session->rt) ){
+			LOGE("Error Response\r\n");
+			goto cleanup;
+		}
+	}else{
+		LOGE("Socket Failed\r\n");
+	}
+cleanup:
+	if(session->code){
+		LOGI("POST returned code %d\r\n", session->code);
+	}
+	http_free(&session->rt);
+	hlo_stream_close(session->sockstream);
+	vPortFree(session);
+	return 0;
 }
 hlo_stream_t * hlo_http_post_opt(hlo_stream_t * sock, const char * host, const char * endpoint, const char * opt_extra_headers[], uint8_t sign){
 	hlo_stream_vftbl_t functions = (hlo_stream_vftbl_t){
@@ -355,7 +387,13 @@ hlo_stream_t * hlo_http_post_opt(hlo_stream_t * sock, const char * host, const c
 	if( !ret ){
 		return NULL;
 	}
-	hlo_http_context_t * session = (hlo_http_context_t*)ret->ctx;
+	if( 0 == _write_header(ret, POST, host, endpoint, opt_extra_headers) ){
+		return ret;
+	}else{
+		LOGE("POST Request Failed\r\n");
+		hlo_stream_close(ret);
+		return NULL;
+	}
 }
 //====================================================================
 //User Friendly post
