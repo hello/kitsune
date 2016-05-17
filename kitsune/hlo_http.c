@@ -150,13 +150,16 @@ hlo_stream_t * hlo_sock_stream(const char * host, uint8_t secure){
 
 #define SCRATCH_SIZE 1536
 typedef struct{
-	hlo_stream_t * sockstream;
-	struct http_roundtripper rt;
-	int code;
-	int len;
-	int active;
-	char * content_itr;
-	char scratch[SCRATCH_SIZE];
+	hlo_stream_t * sockstream;	/** base socket stream **/
+	struct http_roundtripper rt;/** tinyhttp context **/
+	int code;					/** http response code, parsed by tinyhttp **/
+	int len;					/** length of the response body tally **/
+	int active;					/** indicates if the response is still active **/
+	union{
+		char * content_itr;			/** used by GET, itr to the outside buffer which we dump data do **/
+		size_t scratch_offset;		/** used by POST, to collect data internally in bulk before sending **/
+	};
+	char scratch[SCRATCH_SIZE]; /** scratch buffer, **MUST** be the last field **/
 }hlo_http_context_t;
 typedef enum{
 	GET,
@@ -335,11 +338,44 @@ hlo_stream_t * hlo_http_get(const char * url){
 //====================================================================
 //Base implementation of post
 //
+//https://e2e.ti.com/support/wireless_connectivity/simplelink_wifi_cc31xx_cc32xx/f/968/t/407466
+//nagle's algorithm is not supported on cc3200, so we roll our own.
+#define CHUNKED_HEADER_SIZE (8+2) /*8 bytes of hex plus \r\n*/
+#define CHUNKED_HEADER_FOOTER_SIZE (CHUNKED_HEADER_SIZE + 2) /* footer is also \r\n */
+#define CHUNKED_BUFFER_SIZE  (SCRATCH_SIZE - CHUNKED_HEADER_FOOTER_SIZE) /* chunk + data + \r\n */
+static int _post_chunked(hlo_http_context_t * session){
+	itohexstring(session->scratch_offset, session->scratch);
+	session->scratch[8] = '\r';
+	session->scratch[9] = '\n';
+	char * buffer_begin = session->scratch + CHUNKED_HEADER_SIZE;
+	buffer_begin[session->scratch_offset] = '\r';
+	buffer_begin[session->scratch_offset+1] = '\n';
+	int transfer_len = session->scratch_offset + CHUNKED_HEADER_FOOTER_SIZE;
+	return hlo_stream_transfer_all(INTO_STREAM, session->sockstream, session->scratch, transfer_len, 4);
+}
 static int _post_content(void * ctx, void * buf, size_t size){
 	hlo_http_context_t * session = (hlo_http_context_t*)ctx;
+	if( size + session->scratch_offset >= CHUNKED_BUFFER_SIZE){
+		if(_post_chunked(session) <= 0){
+			return HLO_STREAM_ERROR;
+		}else{
+			session->scratch_offset = 0;
+		}
+	}else{
+		char * itr = session->scratch + CHUNKED_HEADER_SIZE + session->scratch_offset;
+		memcpy(itr, buf, size);
+		session->scratch_offset += size;
+
+	}
+	return (int)size;
 }
 static int _close_post_session(void * ctx){
 	hlo_http_context_t * session = (hlo_http_context_t*)ctx;
+	if(session->scratch_offset){//flush remaining data
+		if( _post_chunked(session) < 0 ){
+			goto cleanup;
+		}
+	}
 	static const char * end_chunked = "0\r\n\r\n";
 	int end_chunked_len = strlen(end_chunked);
 	if( end_chunked_len == hlo_stream_write(session->sockstream, end_chunked, end_chunked_len) ){
@@ -357,15 +393,14 @@ static int _close_post_session(void * ctx){
 			}
 		}//done parsing response
 		if ( http_iserror(&session->rt) ){
-			LOGE("Error Response\r\n");
 			goto cleanup;
 		}
-	}else{
-		LOGE("Socket Failed\r\n");
 	}
 cleanup:
 	if(session->code){
 		LOGI("POST returned code %d\r\n", session->code);
+	}else{
+		LOGE("POST Failed\r\n");
 	}
 	http_free(&session->rt);
 	hlo_stream_close(session->sockstream);
@@ -398,4 +433,18 @@ hlo_stream_t * hlo_http_post_opt(hlo_stream_t * sock, const char * host, const c
 //====================================================================
 //User Friendly post
 //
-hlo_stream_t * hlo_http_post(const char * url, uint8_t sign);
+hlo_stream_t * hlo_http_post(const char * url, uint8_t sign){
+	url_desc_t desc;
+	if(0 == parse_url(&desc,url)){
+		return hlo_http_post_opt(
+				hlo_sock_stream(desc.host, (desc.protocol == HTTP)?0:1),
+				desc.host,
+				desc.path,
+				NULL,
+				sign
+			);
+	}else{
+		LOGE("Malformed URL %s\r\n", url);
+	}
+	return NULL;
+}
