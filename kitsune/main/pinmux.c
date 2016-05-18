@@ -119,22 +119,9 @@ void PinMuxConfig_hw_dep() {
 	switch( hw_ver ) {
 	case DVT:
 	case PVT:
-		//DVT uses camera clock for codec's master clock
-		MAP_PRCMPeripheralClkEnable(PRCM_CAMERA, PRCM_RUN_MODE_CLK);
-		HWREG(0x44025000) = 0x0000;
-		MAP_CameraXClkConfig(CAMERA_BASE, 120000000ul,12000000ul);
-
-		// Configure PIN_02 for CAMERA0 CAM_pXCLK
-	    PinModeSet(PIN_02,PIN_MODE_4);
-	    PinConfigSet(PIN_02,PIN_STRENGTH_6MA|PIN_STRENGTH_2MA|PIN_STRENGTH_4MA,PIN_TYPE_STD);
-
-		//i2c on pin 4
-		MAP_PinTypeI2C(PIN_04, PIN_MODE_5);
-
-		break;
-	case EVT2:
-		//i2c on pin 2
-		MAP_PinTypeI2C(PIN_02, PIN_MODE_1);
+	    SetAntennaSelectionGPIOs();
+	    break;
+	case EVT1_1p5:
 		break;
 	}
 }
@@ -217,6 +204,17 @@ PinMuxConfig(void)
     // Configure PIN_01 for I2C0 I2C_SCL
     //
     MAP_PinTypeI2C(PIN_01, PIN_MODE_1);
+    //i2c on pin 4
+    MAP_PinTypeI2C(PIN_04, PIN_MODE_5);
+
+	//DVT uses camera clock for codec's master clock
+	MAP_PRCMPeripheralClkEnable(PRCM_CAMERA, PRCM_RUN_MODE_CLK);
+	HWREG(0x44025000) = 0x0000;
+	MAP_CameraXClkConfig(CAMERA_BASE, 120000000ul,12000000ul);
+
+	// Configure PIN_02 for CAMERA0 CAM_pXCLK
+    PinModeSet(PIN_02,PIN_MODE_4);
+    PinConfigSet(PIN_02,PIN_STRENGTH_6MA|PIN_STRENGTH_2MA|PIN_STRENGTH_4MA,PIN_TYPE_STD);
 
 //    HWREG(0x44025000) = 0x0000;
 //    MAP_CameraXClkConfig(CAMERA_BASE, 120000000ul,12000000ul);
@@ -263,8 +261,6 @@ PinMuxConfig(void)
     // Configure PIN_52 for SPI0 GSPI_MOSI
     //
     MAP_PinTypeSPI(PIN_52, PIN_MODE_8);
-
-    SetAntennaSelectionGPIOs();
 
     // Configure PIN_04 for GPIOOutput
     //
