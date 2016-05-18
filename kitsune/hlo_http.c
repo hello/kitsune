@@ -181,6 +181,8 @@ static void _response_body(void* opaque, const char* data, int size){
 		memcpy(session->content_itr, data, size);
 		session->content_itr += size;
 		session->len += size;
+	}else{
+		hlo_stream_write(uart_stream(), data, size);
 	}
 
 }
