@@ -1972,7 +1972,7 @@ tCmdLineEntry g_sCmdTable[] = {
 
     {"inttemp", Cmd_inttemp, "" },
 	{ "thp", Cmd_read_temp_hum_press,	"" },
-	{ "tv", Cmd_read_TVOC,	"" },
+	{ "tv", Cmd_meas_TVOC,	"" },
 
 		{ "light", Cmd_readlight, "" },
 		{"prox", Cmd_readproximity, "" },
