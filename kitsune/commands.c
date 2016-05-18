@@ -2225,6 +2225,8 @@ void vUARTTask(void *pvParameters) {
 #endif
 	codec_init();
 
+	McASPInit(16000);
+
 	xTaskCreate(AudioTask_Thread,"audioTask",2560/4,NULL,4,NULL);
 	init_download_task( 3072 / 4 );
 	networktask_init(3 * 1024 / 4);

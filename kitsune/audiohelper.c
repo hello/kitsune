@@ -47,7 +47,7 @@ uint8_t InitAudioCapture(uint32_t rate) {
 	// get_codec_mic_NAU(); // TODO DKH
 
 	// Initialize the Audio(I2S) Module
-	McASPInit(rate);
+	// McASPInit(rate);  // TODO DKH
 
 	UDMAChannelSelect(UDMA_CH4_I2S_RX, NULL);
 

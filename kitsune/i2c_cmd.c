@@ -49,7 +49,7 @@
 #define CODEC_DIG_MIC2_EN 			0
 
 #define CODEC_LEFT_ADC_EN			1
-#define CODEC_RIGHT_ADC_EN			0 // Set it to 1 if using right ADC
+#define CODEC_RIGHT_ADC_EN			1 // Set it to 1 if using right ADC
 
 #define CODEC_AGC_EN				0 // Set it tp 1 to enable AGC
 
@@ -1185,13 +1185,13 @@ static void codec_signal_processing_config(void)
 	unsigned char cmd[2];
 
 	// Filter coefficients
-	const uint64_t n0_l = 0x7BA0F6;
-	const uint64_t n1_l = 0x845F0A;
-	const uint64_t d1_l = 0x7741EE;
+	const uint64_t n0_l = 0x7C73E5;
+	const uint64_t n1_l = 0x838C1B;
+	const uint64_t d1_l = 0x78E7CC;
 
-	const uint64_t n0_r = 0x7BA0F6;
-	const uint64_t n1_r = 0x845F0A;
-	const uint64_t d1_r = 0x7741EE;
+	const uint64_t n0_r = 0x7C73E5;
+	const uint64_t n1_r = 0x838C1B;
+	const uint64_t d1_r = 0x78E7CC;
 
 	//	w 30 00 00 # Select Page 0
 	cmd[0] = 0;
@@ -1374,12 +1374,12 @@ static void codec_mic_config(void)
 	// # Left ADC Volume Control
 	// TODO play with volume
 	cmd[0] = 0x53;
-	cmd[1] = 0x00;
+	cmd[1] = 2;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	// TODO play with volume
 	cmd[0] = 0x54;
-	cmd[1] = 0x00;
+	cmd[1] = 2;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 #if (CODEC_AGC_EN == 1)
