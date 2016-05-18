@@ -198,22 +198,34 @@ int hlo_filter_speech_detection(hlo_stream_t * input, hlo_stream_t * output, voi
 	int sample_rate = 16000;
 	int ret;
 	int16_t samples[NSAMPLES];
-	int32_t total = 0;
-	int32_t zcr;
-	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, samples, sizeof(samples), 4)) ){
+	int32_t count = 0;
+	int32_t zcr = 0;
+	int32_t window_zcr;
+	int32_t window_eng;
+	int64_t eng = 0;
+	uint8_t window_over = 0;
+	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, sizeof(samples), 4)) ){
 		int i;
 		for(i = 1; i < NSAMPLES; i++){
 			if( (samples[i] > 0 && samples[i-1] <= 0) ||
 					(samples[i] <= 0 && samples[i-1] > 0) ){
 				zcr++;
 			}
-			if( total++ > sample_rate ){
-				LOGI("zcr = %d\r\n", zcr);
+			eng += abs(samples[i] - samples[i]-1);
+			if( count++ > sample_rate ){
+				window_over = 1;
+				window_zcr = zcr;
+				window_eng = eng/sample_rate;
 				zcr = 0;
-				total = 0;
+				count = 0;
+				eng = 0;
 			}
 		}
-		hlo_stream_transfer_all(INTO_STREAM, output, samples, ret, 4);
+		if( window_over ){
+			LOGI("zcr = %d, eng = %d\r\n", window_zcr, window_eng);
+			window_over = 0;
+		}
+		hlo_stream_transfer_all(INTO_STREAM, output,  (uint8_t*)samples, ret, 4);
 		BREAK_ON_SIG(signal);
 	}
 	return ret;
