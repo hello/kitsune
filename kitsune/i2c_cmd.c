@@ -508,10 +508,10 @@ int get_tvoc(int * tvoc, int * eco2, int * current, int * voltage, int temp, uns
 		return -1;
 	}
 
-	*eco2 = (b[0] | (b[1]<<8));
-	*tvoc = (b[2] | (b[3]<<8));
+	*eco2 = (b[1] | (b[0]<<8));
+	*tvoc = (b[3] | (b[2]<<8));
 	*current = (b[6]>>2);
-	*voltage = ((b[6]&3) | (b[7]<<8));
+	*voltage = (((b[6]&3)<<8) | (b[7]));
 
 	vTaskDelay(10);
 	xSemaphoreGiveRecursive(i2c_smphr);
