@@ -334,12 +334,17 @@ int get_temp_press_hum(int32_t * temp, uint32_t * press, uint32_t * hum) {
 
 	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
 
+	//humid oversample
+	b[0] = 0xf2; //must come before 0xf4
+	b[1] = 0b00000101;
+	(I2C_IF_Write(0x77, b, 2, 1));
+	//temp/pressure oversample, force meas
 	b[0] = 0xf4;
 	b[1] = 0b10110101;
 	(I2C_IF_Write(0x77, b, 2, 1));
 
 	xSemaphoreGiveRecursive(i2c_smphr);
-	vTaskDelay(110);
+	vTaskDelay(95);
 	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
 
 	b[0] = 1;
@@ -352,6 +357,9 @@ int get_temp_press_hum(int32_t * temp, uint32_t * press, uint32_t * hum) {
 		DISP("%x %x %x\n", b[0],b[1],b[2] );
 
 		xSemaphoreGiveRecursive(i2c_smphr);
+		if( b[0] == 0 ) {
+			return -1;
+		}
 		vTaskDelay(5);
 		assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
 	}
@@ -361,15 +369,15 @@ int get_temp_press_hum(int32_t * temp, uint32_t * press, uint32_t * hum) {
 
 	xSemaphoreGiveRecursive(i2c_smphr);
 
-	temp_raw = (b[3] << 16) | (b[4]<<8) | (b[5]);
-	temp_raw >>= 4;
-    *temp = BME280_compensate_T_int32(temp_raw);
-	DISP("%x %x %x %d %d\n", b[0],b[1],b[2], temp_raw, *temp);
-
 	press_raw = (b[0] << 16) | (b[1]<<8) | (b[2]);
 	press_raw >>= 4;
     *press = BME280_compensate_P_int64(press_raw);
 	DISP("%x %x %x %d %d\n", b[0],b[1],b[2], press_raw, *press);
+
+	temp_raw = (b[3] << 16) | (b[4]<<8) | (b[5]);
+	temp_raw >>= 4;
+    *temp = BME280_compensate_T_int32(temp_raw);
+	DISP("%x %x %x %d %d\n", b[0],b[1],b[2], temp_raw, *temp);
 
 	hum_raw = (b[6]<<8) | (b[7]);
     *hum = bme280_compensate_H_int32(hum_raw);
@@ -377,7 +385,7 @@ int get_temp_press_hum(int32_t * temp, uint32_t * press, uint32_t * hum) {
 
 	DISP("%x %x %d %d\n", b[6],b[7], hum_raw, *hum);
 
-	return temp_raw;
+	return 0;
 }
 
 int init_temp_sensor()
