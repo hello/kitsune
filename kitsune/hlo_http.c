@@ -291,11 +291,12 @@ static int _get_content(void * ctx, void * buf, size_t size){
 }
 static int _close_get_session(void * ctx){
 	hlo_http_context_t * session = (hlo_http_context_t*)ctx;
+	int code = session->code;
 	LOGI("GET returned code %d\r\n", session->code);
 	http_free(&session->rt);
 	hlo_stream_close(session->sockstream);
 	vPortFree(session);
-	return 0;
+	return code;
 }
 //====================================================================
 //Base implementation of get
@@ -373,6 +374,7 @@ static int _post_content(void * ctx, const void * buf, size_t size){
 }
 static int _close_post_session(void * ctx){
 	hlo_http_context_t * session = (hlo_http_context_t*)ctx;
+	int code = 0;
 	static const char * end_chunked = "0\r\n\r\n";
 	int end_chunked_len = strlen(end_chunked);
 	if(session->scratch_offset){//flush remaining data
@@ -402,14 +404,16 @@ static int _close_post_session(void * ctx){
 	}
 cleanup:
 	if(session->code){
+		code = session->code;
 		LOGI("POST returned code %d\r\n", session->code);
 	}else{
+		code = 0;
 		LOGE("POST Failed\r\n");
 	}
 	http_free(&session->rt);
 	hlo_stream_close(session->sockstream);
 	vPortFree(session);
-	return 0;
+	return code;
 }
 hlo_stream_t * hlo_http_post_opt(hlo_stream_t * sock, const char * host, const char * endpoint, const char * content_type_str, uint8_t sign){
 	hlo_stream_vftbl_t functions = (hlo_stream_vftbl_t){
