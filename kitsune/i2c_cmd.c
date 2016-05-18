@@ -325,7 +325,7 @@ BME280_U32_t bme280_compensate_H_int32(BME280_S32_t adc_H) {
 	return (100*(BME280_U32_t)(v_x1_u32r >> 12))>>10;
 }
 #endif
-
+#define DBG_BME(...)
 int get_temp_press_hum(int32_t * temp, uint32_t * press, uint32_t * hum) {
 	unsigned char cmd;
 	int temp_raw, press_raw, hum_raw;
@@ -354,7 +354,7 @@ int get_temp_press_hum(int32_t * temp, uint32_t * press, uint32_t * hum) {
 		(I2C_IF_Write(0x77, &cmd, 1, 1));
 		(I2C_IF_Read(0x77, b, 1));
 
-		DISP("%x %x %x\n", b[0],b[1],b[2] );
+		DBG_BME("%x %x %x\n", b[0],b[1],b[2] );
 
 		xSemaphoreGiveRecursive(i2c_smphr);
 		if( b[0] == 0 ) {
@@ -372,18 +372,18 @@ int get_temp_press_hum(int32_t * temp, uint32_t * press, uint32_t * hum) {
 	press_raw = (b[0] << 16) | (b[1]<<8) | (b[2]);
 	press_raw >>= 4;
     *press = BME280_compensate_P_int64(press_raw);
-	DISP("%x %x %x %d %d\n", b[0],b[1],b[2], press_raw, *press);
+    DBG_BME("%x %x %x %d %d\n", b[0],b[1],b[2], press_raw, *press);
 
 	temp_raw = (b[3] << 16) | (b[4]<<8) | (b[5]);
 	temp_raw >>= 4;
     *temp = BME280_compensate_T_int32(temp_raw);
-	DISP("%x %x %x %d %d\n", b[0],b[1],b[2], temp_raw, *temp);
+    DBG_BME("%x %x %x %d %d\n", b[0],b[1],b[2], temp_raw, *temp);
 
 	hum_raw = (b[6]<<8) | (b[7]);
     *hum = bme280_compensate_H_int32(hum_raw);
     *hum += (2500-*temp)*-15/100;
 
-	DISP("%x %x %d %d\n", b[6],b[7], hum_raw, *hum);
+    DBG_BME("%x %x %d %d\n", b[6],b[7], hum_raw, *hum);
 
 	return 0;
 }
@@ -429,7 +429,7 @@ int init_temp_sensor()
 	bme280_cal.dig_H6 = b[7];
 
 	xSemaphoreGiveRecursive(i2c_smphr);
-	DISP("found %x\n", id);
+	DBG_BME("found %x\n", id);
 
 	return id == 0x60;
 }
@@ -442,20 +442,677 @@ int Cmd_read_temp_hum_press(int argc, char *argv[]) {
 	return SUCCESS;
 }
 
-int Cmd_read_TVOC(int argc, char *argv[]) {
-	int cmd;
-	char b[2];
-
-	cmd = 0x20;
+int init_tvoc() {
+	unsigned char b[2];
 	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
-	vTaskDelay(5);
-	(I2C_IF_Write(0x5a, &cmd, 1, 1));
-	vTaskDelay(5);
-	(I2C_IF_Read(0x5a, b, 2));
+
+	b[0] = 0;
+	(I2C_IF_Write(0x5a, b, 1, 1));
+	(I2C_IF_Read(0x5a, b, 1));
+
+	if( !(b[0] & 0x10) ) {
+		LOGE("no valid fw for TVOC\n");
+		return -1;
+	}
+	//boot
+	b[0] = 0xf4;
+	(I2C_IF_Write(0x5a, b, 1, 1));
+	vTaskDelay(100);
+	b[0] = 0;
+	(I2C_IF_Write(0x5a, b, 1, 1));
+	(I2C_IF_Read(0x5a, b, 1));
+	if( !(b[0] & 0x90) ) {
+		LOGE("fail to boot TVOC\n");
+		return -1;
+	}
+	b[0] = 1;
+	b[1] = 0x30; //60sec
+	(I2C_IF_Write(0x5a, b, 2, 1));
 
 	xSemaphoreGiveRecursive(i2c_smphr);
-	LOGF("%x %x\n", b[0], b[1]);
+
+	return 0;
+}
+#define DBG_TVOC(...)
+int get_tvoc(int * tvoc, int * eco2, int * current, int * voltage, int temp, int humid ) {
+	unsigned char b[8];
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
+
+	vTaskDelay(10);
+	//environmental
+	b[0] = 0x05;
+	temp = (temp + 2500)/50;
+	humid /= 50;
+	b[1] = humid>>8;
+	b[2] = (humid&0xff);;
+	b[3] = temp>>8;
+	b[4] = (temp&0xff);
+	(I2C_IF_Write(0x5a, b, 5, 1));
+
+	b[0] = 2;
+	(I2C_IF_Write(0x5a, b, 1, 1));
+	(I2C_IF_Read(0x5a, b, 8));
+
+	DBG_TVOC("%x:%x:%x:%x:%x:%x:%x:%x\n",
+			b[0],b[1],b[2],b[3],b[4],b[5],
+		    b[6],b[7]);
+
+	if( !(b[5] & 0x90) ) {
+		LOGE("TVOC error %x ", b[5] );
+		b[0] = 0xe0;
+		(I2C_IF_Write(0x5a, b, 1, 1));
+		(I2C_IF_Read(0x5a, b, 1));
+		LOGE("%x\n", b[0]);
+		return -1;
+	}
+
+	*eco2 = (b[0] | (b[1]<<8));
+	*tvoc = (b[2] | (b[3]<<8));
+	*current = (b[6]>>2);
+	*voltage = ((b[6]&3) | (b[7]<<8));
+
+	vTaskDelay(10);
+	xSemaphoreGiveRecursive(i2c_smphr);
+	return 0;
+}
+
+int Cmd_meas_TVOC(int argc, char *argv[]) {
+	int32_t temp;
+	uint32_t hum,press;
+	int tvoc, eco2, current, voltage;
+	get_temp_press_hum(&temp, &press, &hum);
+	get_tvoc( &tvoc, &eco2, &current, &voltage, temp, hum);
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
+
+	LOGF("voc %d eco2 %d %duA %dmv %d %d\n", tvoc, eco2, current, voltage, temp, hum);
+	return 0;
+}
+
+int init_light_sensor()
+{
+	old_light_sensor = get_hw_ver()==EVT2;
+
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
+
+	if (old_light_sensor) {
+		unsigned char cmd_init[2];
+
+		cmd_init[0] = 0x80; // Command register - 8'b1000_0000
+		cmd_init[1] = 0x03; // Control register - 8'b0000_0011
+		(I2C_IF_Write(0x29, cmd_init, 2, 1)); // setup normal mode
+
+		cmd_init[0] = 0x81; // Command register - 8'b1000_0000
+		cmd_init[1] = 0x02; // Control register - 8'b0000_0010 // 100ms due to page 9 of http://media.digikey.com/pdf/Data%20Sheets/Austriamicrosystems%20PDFs/TSL4531.pdf
+		(I2C_IF_Write(0x29, cmd_init, 2, 1)); //  );// change integration
+	} else {
+		unsigned char aucDataBuf[2] = { 0, 0 };
+		aucDataBuf[0] = 0;
+		aucDataBuf[1] = 0xA0;
+		(I2C_IF_Write(0x44, aucDataBuf, 2, 1));
+	}
+	xSemaphoreGiveRecursive(i2c_smphr);
+	return SUCCESS;
+}
+
+static int _read_als(){
+	unsigned char cmd;
+	unsigned char aucDataBuf[2] = { 0, 0 };
+
+	cmd = 0x2;
+	(I2C_IF_Write(0x44, &cmd, 1, 1));
+	(I2C_IF_Read(0x44, aucDataBuf, 2));
+
+	return aucDataBuf[0] | (aucDataBuf[1] << 8);
+}
+
+int get_light() {
+	unsigned char cmd;
+	unsigned char aucDataBuf[2] = { 0, 0 };
+
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
+
+	if (old_light_sensor) {
+		unsigned char aucDataBuf_LOW[2];
+		unsigned char aucDataBuf_HIGH[2];
+		int light_lux;
+
+		cmd = 0x84; // Command register - 0x04
+		(I2C_IF_Write(0x29, &cmd, 1, 1));
+		(I2C_IF_Read(0x29, aucDataBuf_LOW, 1)); //could read 2 here, but we don't use the other one...
+
+		cmd = 0x85; // Command register - 0x05
+		(I2C_IF_Write(0x29, &cmd, 1, 1));
+		(I2C_IF_Read(0x29, aucDataBuf_HIGH, 1));
+
+		// We are using 100ms mode, multipler is 4
+		// formula based on page 6 of http://media.digikey.com/pdf/Data%20Sheets/Austriamicrosystems%20PDFs/TSL4531.pdf
+		light_lux = ((aucDataBuf_HIGH[0] << 8) | aucDataBuf_LOW[0]) << 2;
+
+		xSemaphoreGiveRecursive(i2c_smphr);
+		return light_lux;
+	} else {
+		int light = 0;
+		static int scaling = 0;
+		int prev_scaling = scaling;
+
+		for(;;) {
+			#define MAX_RETRIES 10
+			int switch_cnt = 0;
+			light = _read_als();
+			if( light == 65535 ) {
+				if( scaling < 3 ) {
+					LOGI("increase scaling %d\r\n", scaling);
+					aucDataBuf[0] = 1;
+					aucDataBuf[1] = ++scaling;
+					(I2C_IF_Write(0x44, aucDataBuf, 2, 1));
+					while (_read_als() == 65535 && ++switch_cnt < MAX_RETRIES) {
+						vTaskDelay(100);
+					}
+					continue;
+				} else {
+					break;
+				}
+			}
+			if( light < 16384 ) {
+				if( scaling != 0 ) {
+					LOGI("decrease scaling %d\r\n", scaling);
+					aucDataBuf[0] = 1;
+					aucDataBuf[1] = --scaling;
+					(I2C_IF_Write(0x44, aucDataBuf, 2, 1));
+					while( _read_als() < 16384 && ++switch_cnt < MAX_RETRIES ) {
+						vTaskDelay(100);
+					}
+					continue;
+				} else {
+					break;
+				}
+			}
+			break;
+		}
+
+		light *= (1<<(scaling*2));
+
+		if( scaling != prev_scaling ) {
+			aucDataBuf[0] = 1;
+			aucDataBuf[1] = scaling;
+			(I2C_IF_Write(0x44, aucDataBuf, 2, 1));
+		}
+		xSemaphoreGiveRecursive(i2c_smphr);
+		return light;
+	}
+}
+
+int Cmd_readlight(int argc, char *argv[]) {
+	LOGF("%d\n", get_light());
+	return SUCCESS;
+}
+
+int init_prox_sensor()
+{
+	unsigned char prx_cmd_init[2];
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
+
+	prx_cmd_init[0] = 0x8f;
+	//                  ---++--- delay, frequency, dead time
+	prx_cmd_init[1] = 0b10000001;
+	(I2C_IF_Write(0x13, prx_cmd_init, 2, 1) );
+
+	prx_cmd_init[0] = 0x83; // Current setting register
+	prx_cmd_init[1] = 14; // Value * 10mA
+	( I2C_IF_Write(0x13, prx_cmd_init, 2, 1) );
+
+	xSemaphoreGiveRecursive(i2c_smphr);
 
 	return SUCCESS;
 }
 
+uint32_t get_prox() {
+	unsigned char data[2];
+	static uint64_t proximity_raw = 0;
+	unsigned char prx_cmd;
+	unsigned char prx_cmd_init[2];
+	unsigned char cmd_reg = 0;
+
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
+
+	prx_cmd_init[0] = 0x80; // Command register - 8'b1000_0000
+	prx_cmd_init[1] = 0x08; // one shot measurements
+
+	(I2C_IF_Write(0x13, prx_cmd_init, 2, 1) );
+
+	vTaskDelay(1);
+	(I2C_IF_Read(0x13, &cmd_reg,  1 ) );
+
+	if( cmd_reg & 0b00100000 ) {
+		prx_cmd = 0x87; // Command register - 0x87
+		( I2C_IF_Write(0x13, &prx_cmd, 1, 1) );
+		( I2C_IF_Read(0x13, data, 2) );
+
+		proximity_raw = (data[0] << 8) | data[1];
+	}
+
+	xSemaphoreGiveRecursive(i2c_smphr);
+
+	return 200000 - proximity_raw * 200000 / 65536;
+
+}
+
+int Cmd_readproximity(int argc, char *argv[]) {
+	LOGF("%u\n", get_prox());
+
+	return SUCCESS;
+}
+
+bool set_volume(int v, unsigned int dly) {
+	unsigned char cmd_init[2];
+
+	cmd_init[0] = 0x6c;
+	cmd_init[1] = v;
+
+	if( xSemaphoreTakeRecursive(i2c_smphr, dly) ) {
+		I2C_IF_Write(Codec_addr, cmd_init, 2, 1);
+		xSemaphoreGiveRecursive(i2c_smphr);
+		return true;
+	} else {
+		return false;
+	}
+}
+int get_codec_mic_NAU(int argc, char *argv[]) {
+	unsigned char cmd_init[2];
+	int i;
+
+	static const char reg[50][2] = {
+			{0x00,0x00},
+			{0x03,0x3d},
+			// Addr D8 		D7 D6    D5    D4        D3      D2     D1,D0
+			// 0x01 DCBUFEN 0  AUXEN PLLEN MICBIASEN ABIASEN IOBUFEN REFIMP[1:0]
+			// set  1       0  0     1     1         1       0      1  1
+			{0x04,0x15},
+			// Addr D8  D7 D6    D5    D4      D3   D2     D1 D0
+			// 0x02 0   0  0     0     BSTEN   0    PGAEN  0  ADCEN
+			// set  0   0  0     0     1       0    1      0  1
+			{0x06,0x00},
+			// Addr D8 D7     D6     D5     D4      D3       D2      D1 D0
+			// 0x03 0  MOUTEN NSPKEN PSPKEN BIASGEN MOUTMXEN SPKMXEN 0  DACEN
+			// set  0  0      0      0      0       0        0       0  0
+			{0x09,0x90}, // Can be BCLKP or BCLKP_BAR {0x09 0x90}
+			// Addr D8    D7   D6    D5    D4 D3         D2      D1      D0  Default
+			// 0x04 BCLKP FSP  WLEN[1:0]   AIFMT[1:0]    DACPHS  ADCPHS  0   0x050
+			// set  1     1    0     0     1  0           0       0       0
+			{0x0a,0x00},
+			// Addr D8    D7   D6    D5    D4 D3         D2   D1      D0     Default
+			// 0x05 0     0    0     CMB8  DACCM[1:0]    ADCCM[1:0]   ADDA
+			// set  0     0    0     1     1  0           0    0      0
+			{0x0d,0x08},
+			//Addr D8   D7 D6 D5     D4 D3 D2     D1 D0
+			//0x06 CLKM MCLKSEL[2:0] BCLKSEL[2:0] 0  CLKIOEN
+			//set  1    0  0  0       0  1 0      0  0
+			{0x0e,0x00},
+			// Addr D8    D7 D6 D5 D4 D3 D2 D1   D0
+			// 0x07 SPIEN 0  0  0  0  SMPLR[2:0] SCLKEN
+			// set  0     0  0  0  0  0  1  1    0
+			{0x10,0x04},
+			// Addr D8    D7 D6 D5 D4 			D3     D2 D1  D0
+			//0x08  0     0  0  GPIOPLL[4:5]    GPIOPL GPIOSEL[2:0]
+			//      0     0  0  0  0            0      1  0   0
+			// General Purpose I/O Selection
+			// GPIOSEL [2]  GPIOSEL [1]  GPIOSEL [0]   Mode (Hz)
+			//	 0             0             0         CSb Input
+			//   0     		   0   			 1         Jack Insert Detect
+			//   0   		   1   			 0  	   Temperature OK
+			//   0			   1		     1		   AMUTE Active
+			//   1  		   0  			 0	       PLL CLK Output
+			//   1			   0			 1         PLL Lock
+			//   1             1             0         1
+			//   1             1             1         0
+			{0x12,0x00},
+			{0x14,0x08},
+			// Addr D8 D7  D6                  D5,D4      D3     D2      D1 D0
+			// 0x0A 0  0   DACMT/0: Disable    DEEMP[1:0] DACOS  AUTOMT  0  DACPL
+			// set  0  0   0                   0  0       1      0       0  0
+			{0x17,0xff},
+			{0x18,0x00},
+			{0x1a,0x00},
+			{0x1d,0xf8},
+			//Addr D8    D7    D6 D5 D4 D3    D2 D1 D0      Default
+			//0x0E HPFEN HPFAM HPF[2:0] ADCOS 0  0  ADCPL   0x100
+			//     1     1     0  0  0  1     0  0  0
+			{0x1e,0xff},
+			{0x25,0x2c},
+			{0x26,0x2c},
+			{0x28,0x2c},
+			{0x2a,0x2c},
+			{0x2c,0x2c},
+			{0x30,0x32},
+			{0x32,0x00},
+			{0x37,0x40},//{0x37,0xc0} Notch filter is on; {0x37,0x40} Notch filter is off
+			{0x39,0x15},//Notch 2
+			{0x3b,0x3f},//Notch 3
+			{0x3d,0x75},//Notch 4
+			{0x40,0x38},
+			{0x42,0x0b},
+			{0x44,0x32},
+			{0x46,0x00},
+			{0x48,0x18},
+			// Addr D8    D7 D6 D5 D4       D3 D2 D1 D0 Default
+			// 0x24 0     0  0  0  PLLMCLK  PLLN[3:0]
+			//  set 0     0  0  0  1        1  0  0  0
+			{0x4a,0x0c},
+			{0x4c,0x93},
+			{0x4e,0xe9},
+			{0x50,0x00},
+			{0x59,0x82},
+			// Addr       D8    D7 D6  D5 D4   D3     D2       D1       D0      Default
+			// 0x2C       MICBIASV 0   0  0    AUXM   AUXPGA   NMICPGA  PMICPGA
+			// set        1     1  0   0  0    0      0        1        0
+			{0x5a,0x08},
+			{0x5c,0x00},
+			{0x5e,0x50},
+			{0x60,0x00},
+			{0x62,0x02},
+			{0x64,0x00},
+			// Address D8    D7  D6   D5     D4 D3 D2 D1       D0
+			// 0x32    0     0   0    AUXSPK 0  0  0  BYPSPK   DACSPK
+			// set     0     0   0    0      0  0  0  0        0
+			{0x66,0x00},
+			{0x68,0x40},
+			{0x6a,0x40},
+			{0x6c,0x79},
+			// Address D8    D7      D6       D5 D4 D3 D2 D1 D0
+			// 0x36    0     SPKZC   SPKMT    SPKGAIN[5:0]
+			// set     0     0       1        1  1  1  1  1  1
+			// 								  1  1  1  0  0  1  0dB
+			// 								  1  1  1  0  1  0 +1.0
+			// 								  1  1  1  1  1  1 +6.0
+			{0x6e,0x40},
+			{0x70,0x40},
+			// Address D8    D7      D6       D5 D4 D3 D2      D1      D0
+			// 0x38    0     0       MOUTMXMT 0  0  0  AUXMOUT BYPMOUT DACMOUT
+			// set     0     0       1        0  0  0  0       0       0
+			{0x72,0x40},
+			//{0x74,0x10}, //Power Management 4
+			//Addr  D8      D7    D6     D5    D4        D3   D2     D1 D0
+			// 0x3A LPIPBST LPADC LPSPKD LPDAC MICBIASM TRIMREG[3:2] IBADJ[1:0]
+			// set  0       0     0      0     1         0    0      0  0
+			//{0x78,0xa8}, // 0xa8
+			//Addr  D8      D7    D6     D5    D4        D3   D2     D1     D0
+			// 0x3C PCMTSEN TRI PCM8BIT PUDOEN PUDPE    PUDPS LOUTR  PCMB TSLOT
+			// set  0       1     0      1     0         1    0      0      0
+	};
+	if( xSemaphoreTakeRecursive(i2c_smphr, 300000) ) {
+		vTaskDelay(DELAY_CODEC);
+		for( i=0;i<sizeof(reg)/2;++i) {
+			cmd_init[0] = reg[i][0];
+			cmd_init[1] = reg[i][1];
+			I2C_IF_Write(Codec_addr, cmd_init, 2, 1);
+			vTaskDelay(DELAY_CODEC);
+		}
+		xSemaphoreGiveRecursive(i2c_smphr);
+	} else {
+		LOGW("failed to get i2c %d\n", __LINE__);
+	}
+	return SUCCESS;
+}
+
+
+int get_codec_NAU(int vol_codec) {
+	unsigned char cmd_init[2];
+	int i;
+
+	static const char reg[46][2] = {
+			{0x00,0x00},
+			// Do sequencing for avoid pop and click sounds
+			/////////////// 1. Power supplies VDDA, VDDB, VDDC, and VDDSPK /////////////////////
+			/////////////// 2. Mode SPKBST and MOUTBST /////////////////////////////////////////
+			{0x62,0x00},
+			//Addr D8 D7 D6 D5 D4 D3      D2     D1   D0
+			//0x31 0  0  0  0  0  MOUTBST SPKBST TSEN AOUTIMP
+			//set  0  0  0  0  0  0       0      0    0
+			//////////////// 3. Power management ///////////////////////////////////////////////
+			{0x02,0x0b},
+			// Addr D8 		D7 D6    D5    D4        D3      D2     D1,D0
+			// 0x01 DCBUFEN 0  AUXEN PLLEN MICBIASEN ABIASEN IOBUFEN REFIMP[1:0]
+			// set  0       0  0     0     0         1       0      1  1
+			{0x04,0x00},
+			// Addr D8  D7 D6    D5    D4      D3   D2     D1 D0
+			// 0x02 0   0  0     0     BSTEN   0    PGAEN  0  ADCEN
+			// set  0   0  0     0     0       0    0      0  0
+			{0x06,0x10},
+			// Addr D8 D7     D6     D5     D4      D3       D2      D1 D0
+			// 0x03 0  MOUTEN NSPKEN PSPKEN BIASGEN MOUTMXEN SPKMXEN 0  DACEN
+			// set  0  0      0      0      1       0        0       0  0
+    		//////////////// 4. Clock divider //////////////////////////////////////////////////
+			{0x0d,0x0c},
+			//Addr D8   D7 D6 D5     D4 D3 D2     D1 D0
+			//0x06 CLKM MCLKSEL[2:0] BCLKSEL[2:0] 0  CLKIOEN
+			//set  1    0  0  0       0  1  1      0  0
+			//cmd_init[0] = 0x0e ; cmd_init[1] = 0x00 ; I2C_IF_Write(Codec_addr, cmd_init, 2, 1); vTaskDelay(DELAY_CODEC);
+			{0x0E,0x00},
+			// Addr D8    D7 D6 D5 D4 D3 D2 D1   D0
+			// 0x07 SPIEN 0  0  0  0  SMPLR[2:0] SCLKEN
+			// set  0     0  0  0  0  0  1  1    0
+			//////////////// 5. PLL ////////////////////////////////////////////////////////////
+			{0x02,0x2b},
+			// Addr D8 		D7 D6    D5    D4        D3      D2     D1,D0
+			// 0x01 DCBUFEN 0  AUXEN PLLEN MICBIASEN ABIASEN IOBUFEN REFIMP[1:0]
+			// set  0       0  0     1     0         1       0      1  1
+			// pre  1       0  0     1     0         1       1      1  1
+			//////////////// 6. DAC, ADC ////////////////////////////////////////////////////////
+			{0x06,0x11},
+			// Addr D8 D7     D6     D5     D4      D3       D2      D1 D0
+			// 0x03 0  MOUTEN NSPKEN PSPKEN BIASGEN MOUTMXEN SPKMXEN 0  DACEN
+			// set  0  0      0      0      1       0        0       0  1
+			//////////////// 7. SPK MIXER ENABLED ////////////////////////////////////////////////////////
+			{0x06,0x15},
+			// Addr D8 D7     D6     D5     D4      D3       D2      D1 D0
+			// 0x03 0  MOUTEN NSPKEN PSPKEN BIASGEN MOUTMXEN SPKMXEN 0  DACEN
+			// set  0  0      0      0      1       0        1       0  1
+			//////////////// 8. Output stages ////////////////////////////////////////////////////////
+			{0x06,0x75},
+			// Addr D8 D7     D6     D5     D4      D3       D2      D1 D0
+			// 0x03 0  MOUTEN NSPKEN PSPKEN BIASGEN MOUTMXEN SPKMXEN 0  DACEN
+			// set  0  0      1      1      1       0        1       0  1
+			//////////////// 9. Un-mute DAC ////////////////////////////////////////////////////////
+			{0x14,0x0c},
+			// Addr D8 D7  D6                  D5,D4      D3     D2      D1 D0
+			// 0x0A 0  0   DACMT/0: Disable    DEEMP[1:0] DACOS  AUTOMT  0  DACPL
+			// set  0  0   0                   0  0       1      1       0  0
+			{0x17,0xff},
+			// Addr D8 D7 D6 D5 D4 D3 D2 D1 D0
+			// 0x0B 0  DACGAIN
+			// set  0  1  1  1  1  1  1  1  1
+			//
+			//      0  0  0  0  0  0  0  1  1   -126 dB
+			//
+			//      0  1  1  1  1  1  0  0  1   -3.0 dB
+			//      0  1  1  1  1  1  0  1  0   -2.5 dB
+			//      0  1  1  1  1  1  0  1  1   -2.0 dB
+			// 	    0  1  1  1  1  1  1  0  0   -1.5 dB
+			// 		0  1  1  1  1  1  1  1  1      0 dB
+			{0x09,0x10},
+			// Addr D8    D7   D6    D5    D4 D3         D2      D1      D0  Default
+			// 0x04 BCLKP FSP  WLEN[1:0]   AIFMT[1:0]    DACPHS  ADCPHS  0   0x050
+			// set  0     0    0     0     1  0          0       0       0
+			{0x0a,0x00},
+			// Addr D8    D7   D6    D5    D4 D3         D2   D1      D0     Default
+			// 0x05 0     0    0     CMB8  DACCM[1:0]    ADCCM[1:0]   ADDA
+			// set  0     0    0     1     1  0           0    0      0
+			{0x10,0x04},
+			// Addr D8    D7 D6 D5 D4 			D3     D2 D1  D0
+			//0x08  0     0  0  GPIOPLL[4:5]    GPIOPL GPIOSEL[2:0]
+			//      0     0  0  0  0            0      1  0   0
+			// General Purpose I/O Selection
+			// GPIOSEL [2]  GPIOSEL [1]  GPIOSEL [0]   Mode (Hz)
+			//	 0             0             0         CSb Input
+			//   0     		   0   			 1         Jack Insert Detect
+			//   0   		   1   			 0  	   Temperature OK
+			//   0			   1		     1		   AMUTE Active
+			//   1  		   0  			 0	       PLL CLK Output
+			//   1			   0			 1         PLL Lock
+			//   1             1             0         1
+			//   1             1             1         0
+			{0x1c,0x00},
+			//Addr D8    D7    D6 D5 D4 D3    D2 D1 D0      Default
+			//0x0E HPFEN HPFAM HPF[2:0] ADCOS 0  0  ADCPL   0x100
+			//     0     0     0  0  0  1     0  0  0
+			{0x1e,0xff},
+			{0x25,0x0a}, // 0x25 -> EQ on/ 0x24 -> EQ off
+			// Address D8  D7 D6   D5     D4 D3 D2 D1 D0
+			// 0x12    EQM 0  EQ1CF[1:0]  EQ1GC[4:0]
+			// set     1   0  1    1      0  0  0  0  1
+			{0x27,0x4a},
+			// Address D8    D7 D6   D5     D4 D3 D2 D1 D0
+			// 0x13    EQ2BW 0  EQ2CF[1:0]  EQ2GC[4:0]
+			// set     1     0  1    0      0  0  0  1  0
+			{0x29,0x6c},
+			// Address D8    D7 D6   D5     D4 D3 D2 D1 D0
+			// 0x14    EQ3BW 0  EQ3CF[1:0]  EQ3GC[4:0]
+			// set     1     0  1    0      0  1  0  0  0
+			{0x2b,0x6c},
+			// Address D8    D7 D6   D5     D4 D3 D2 D1 D0
+			// 0x15    EQ4BW 0  EQ4CF[1:0]  EQ4GC[4:0]
+			// set     1     0  1    0      0  0  1  0  1
+			{0x2c,0x6c},
+			// Address D8    D7  D6   D5     D4 D3 D2 D1 D0
+			// 0x16    0     0   EQ5CF[1:0]  EQ5GC[4:0]
+			// set     0     0   0    0      1  1  0  0  0
+			{0x30,0x32},
+			//Addr D8          D7 D6 D5 D4    D3 D2 D1 D0
+			//0x18 DACLIMEN    DACLIMDCY[3:0] DACLIMATK[3:0]
+			//set  0           0  0  1  1     0  0  1  0
+			{0x32,0x00},
+			//0x19 0    0 DACLIMTHL[2:0] DACLIMBST[3:0]
+			// set 0    0   0  0  0      0 0 0 0
+			{0x36,0xC0},
+			{0x38,0x6B},
+			{0x3a,0x3F},
+			{0x3d,0x05},
+			{0x40,0x38},
+			// Addr D8    D7 D6 D5 D4 D3        D2 D1 D0 Default
+			// 0x20 ALCEN 0  0  ALCMXGAIN[2:0]  ALCMNGAIN[2:0]
+			//      0     0  0  1  1  1         0  0  0
+			{0x42,0x0b},
+			// Addr D8    D7 D6 D5 D4   D3 D2 D1 D0 Default
+			// 0x21 ALCZC ALCHT[3:0]    ALCSL[3:0]
+			//      0     0  0  0  0    1  0  1  1
+			{0x44,0x32},
+			// Addr D8    D7 D6 D5 D4   D3 D2 D1 D0 Default
+			//0x22  ALCM  ALCDCY[3:0]   ALCATK[3:0]
+			// set  0     0  0  1  1    0  0  1  0
+			{0x46,0x00},
+			// Addr D8    D7 D6 D5 D4   D3      D2 D1 D0 Default
+			// 0x23	0     0  0  0  0    ALCNEN  ALCNTH[2:0]
+			//      0     0  0  0  0    0       0  0  0
+			{0x48,0x18},
+			// Addr D8    D7 D6 D5 D4       D3 D2 D1 D0 Default
+			// 0x24 0     0  0  0  PLLMCLK  PLLN[3:0]
+			//  set 0     0  0  0  1        1  0  0  0
+			{0x4a,0x0c},
+			// Addr D8    D7 D6  D5 D4 D3 D2 D1 D0 Default
+			// 0x25 0     0  0   PLLK[23:18]
+			// set  0     0  0   0  0  1  1  0  0
+			{0x4c,0x93},
+			// Addr       D8    D7 D6  D5 D4 D3 D2 D1 D0 Default
+			// 0x26       PLLK[17:9]
+			// set        0     1  0   0  1  0  0  1  1
+			{0x4e,0xe9},
+			// Addr       D8    D7 D6  D5 D4 D3 D2 D1 D0 Default
+			// 0x27       PLLK[8:0]
+			// set        0     1  1   1  0  1  0  0  1
+			{0x50,0x02},
+			// Addr       D8    D7 D6  D5 D4 D3 D2       D1      D0 Default
+			// 0x28       0     0  0   0  0  0  MOUTATT  SPKATT  0
+			//
+			{0x58,0x00},
+			// Addr       D8    D7 D6  D5 D4   D3     D2       D1       D0      Default
+			// 0x2C       MICBIASV 0   0  0    AUXM   AUXPGA   NMICPGA  PMICPGA
+			// set
+			{0x5a,0x50},
+			// Addr       D8    D7    D6     D5 D4 D3 D2 D1 D0      Default
+			// 0x2D       0     PGAZC PGAMT  PGAGAIN[5:0]
+			// set        0     0     1      0  1  0  0  0  0
+			{0x5f,0x00},
+			// Addr       D8     D7    D6   D5 D4  D3 D2 D1 D0      Default
+			// 0x2F       PGABST 0     PMICBSTGAIN 0  AUXBSTGAIN
+			//
+			{0x64,0x01},
+			// Address D8    D7  D6   D5     D4 D3 D2 D1       D0
+			// 0x32    0     0   0    AUXSPK 0  0  0  BYPSPK   DACSPK
+			// set     0     0   0    0      0  0  0  0        1
+			{0x6c,60},
+			// Address D8    D7      D6       D5 D4 D3 D2 D1 D0
+			// 0x36    0     SPKZC   SPKMT    SPKGAIN[5:0]
+			// set     0     1       0        1  1  1  1  1  1
+			// 								  1  1  1  0  0  1  0dB
+			// 								  1  1  1  0  1  0 +1.0
+			// 								  1  1  1  1  1  1 +6.0
+			{0x70,0x40},
+			// Address D8    D7      D6       D5 D4 D3 D2      D1      D0
+			// 0x38    0     0       MOUTMXMT 0  0  0  AUXMOUT BYPMOUT DACMOUT
+			// set     0     0       1        0  0  0  0       0       0
+			{0x74,0x00},
+			//Addr  D8      D7    D6     D5    D4        D3   D2     D1 D0
+			// 0x3A LPIPBST LPADC LPSPKD LPDAC MICBIASM TRIMREG[3:2] IBADJ[1:0]
+			// set  0       0     0      0     0         0    0      0  0
+			{0x92,0xc1},
+			//Addr D8     D7 D6            D5    D4      D3    D2      D1       D0
+			//0x49 SPIEN FSERRVAL[1:0] FSERFLSH FSERRENA NFDLY DACINMT PLLLOCKP DACOS256
+			//     0      1  1             0     0       0     0       0        1
+	};
+	if (xSemaphoreTakeRecursive(i2c_smphr, 300000)) {
+		vTaskDelay(DELAY_CODEC);
+		for (i = 0; i < sizeof(reg)/2; ++i) {
+			cmd_init[0] = reg[i][0];
+			cmd_init[1] = reg[i][1];
+			if (cmd_init[0] == 0x6c) {
+				cmd_init[1] = vol_codec;
+			}
+			I2C_IF_Write(Codec_addr, cmd_init, 2, 1);
+			vTaskDelay(DELAY_CODEC);
+		}
+		xSemaphoreGiveRecursive(i2c_smphr);
+	} else {
+		LOGW("failed to get i2c %d\n", __LINE__);
+	}
+	LOGI(" codec is testing \n\r");
+	return SUCCESS;
+}
+
+
+int close_codec_NAU(int argc, char *argv[]) {
+	unsigned char cmd_init[2];
+	int i;
+
+	static const char reg[3][2] = {
+			//////// 1.  Un-mute DAC DACMT[6] = 1
+			{0x14,0x4c},
+			// Addr D8 D7  D6                  D5,D4      D3     D2      D1 D0
+			// 0x0A 0  0   DACMT/0: Disable    DEEMP[1:0] DACOS  AUTOMT  0  DACPL
+			// set  0  0   1                   0  0       1      1       0  0
+			//////// 2.  Power Management PWRM1 = 0x000
+			{0x02,0x00},// Power Management 1
+			// Addr D8 		D7 D6    D5    D4        D3      D2     D1,D0
+			// 0x01 DCBUFEN 0  AUXEN PLLEN MICBIASEN ABIASEN IOBUFEN REFIMP[1:0]
+			// set  0       0  0     0     0         0       0      0  0
+			//////// 3.  Output stages MOUTEN[7] NSPKEN PSPKEN
+			{0x06,0x15}, // Power Management 3
+			// Addr D8 D7     D6     D5     D4      D3       D2      D1 D0
+			// 0x03 0  MOUTEN NSPKEN PSPKEN BIASGEN MOUTMXEN SPKMXEN 0  DACEN
+			// set  0  0      0      0      1       0        1       0  1
+			//////// 4.  Power supplies Analog VDDA VDDB VDDC VDDSPK
+	};
+	if (xSemaphoreTakeRecursive(i2c_smphr, 300000)) {
+		vTaskDelay(DELAY_CODEC);
+		for (i = 0; i < sizeof(reg)/2; ++i) {
+			cmd_init[0] = reg[i][0];
+			cmd_init[1] = reg[i][1];
+			I2C_IF_Write(Codec_addr, cmd_init, 2, 1);
+			vTaskDelay(DELAY_CODEC);
+		}
+		xSemaphoreGiveRecursive(i2c_smphr);
+	} else {
+		LOGW("failed to get i2c %d\n", __LINE__);
+	}
+
+	return 0;
+}
