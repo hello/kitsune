@@ -339,7 +339,7 @@ int Cmd_record_buff(int argc, char *argv[]) {
 
 int Cmd_audio_turn_on(int argc, char * argv[]) {
 
-	AudioTask_StartCapture(16000);
+	AudioTask_StartCapture(AUDIO_CAPTURE_RATE);
 
 	AudioProcessingTask_SetControl(featureUploadsOn,NULL,NULL,0);
 #ifdef KIT_INCLUDE_FILE_UPLOAD
@@ -1752,14 +1752,11 @@ void init_download_task( int stack );
 
 void launch_tasks() {
 	checkFaults();
-	start_top_boot_watcher();
 
 	//dear future chris: this one doesn't need a semaphore since it's only written to while threads are going during factory test boot
 	booted = true;
 
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 3, NULL);
-	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,2,NULL);
-	UARTprintf("*");
 #ifdef KIT_INCLUDE_FILE_UPLOAD
 	xTaskCreate(FileUploaderTask_Thread,"fileUploadTask", 1024/4,NULL,1,NULL);
 #endif
@@ -1785,6 +1782,7 @@ void launch_tasks() {
 int Cmd_boot(int argc, char *argv[]) {
 	if( !booted ) {
 		launch_tasks();
+		Cmd_led_clr(0,0);
 	}
 	return 0;
 }
@@ -2232,6 +2230,8 @@ void vUARTTask(void *pvParameters) {
 	load_data_server();
 
 	xTaskCreate(AudioTask_Thread,"audioTask",2560/4,NULL,4,NULL);
+	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,2,NULL);
+	UARTprintf("*");
 	init_download_task( 3072 / 4 );
 	networktask_init(3 * 1024 / 4);
 
@@ -2256,6 +2256,7 @@ void vUARTTask(void *pvParameters) {
 #endif
 	xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
+	start_top_boot_watcher();
 
 	if( on_charger ) {
 		launch_tasks();

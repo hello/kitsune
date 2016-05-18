@@ -113,7 +113,7 @@ bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, void **
     uint8_t* str = pvPortMalloc(stream->bytes_left + 1);
     if(!str)
     {
-    	LOGI("_decode_string_field: Not enought memory\n");
+    	LOGI("_decode_string_field: Not enough memory\n");
         return false;
     }
 
