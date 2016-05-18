@@ -23,7 +23,7 @@ hlo_stream_t * hlo_http_post_opt(hlo_stream_t * sock, const char * host, const c
 typedef struct{
 	int sock;
 }hlo_sock_ctx_t;
-extern set_backup_dns();
+extern void set_backup_dns();
 static unsigned long _get_ip(const char * host){
 	unsigned long ip = 0;
 	set_backup_dns();
