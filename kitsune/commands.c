@@ -1282,12 +1282,12 @@ void sample_sensor_data(periodic_data* data)
 	uint32_t humid,press;
 	int32_t temp;
 
-	get_temp_press_hum(&temp, &press, &humid);
-
-	data->humidity = humid;
-	data->temperature = temp;
-	data->has_temperature = true;
-	data->has_humidity = true;
+	if( 0 == get_temp_press_hum(&temp, &press, &humid) ) {
+		data->humidity = humid;
+		data->temperature = temp;
+		data->has_temperature = true;
+		data->has_humidity = true;
+		}
 	}
 
 	int wave_count = gesture_get_wave_count();
