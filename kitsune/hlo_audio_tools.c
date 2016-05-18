@@ -211,7 +211,7 @@ int hlo_filter_speech_detection(hlo_stream_t * input, hlo_stream_t * output, voi
 					(samples[i] <= 0 && samples[i-1] > 0) ){
 				zcr++;
 			}
-			eng += abs(samples[i] - samples[i]-1);
+			eng += abs(samples[i] - samples[i-1]);
 			if( count++ > sample_rate ){
 				window_over = 1;
 				window_zcr = zcr;
