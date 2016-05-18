@@ -22,7 +22,7 @@ bool set_volume(int v, unsigned int dly) ;
 int get_temp_press_hum(int32_t * temp, uint32_t * press, uint32_t * hum);
 int get_light();
 uint32_t get_prox();
-int get_tvoc(int * tvoc, int * eco2, int * current, int * voltage, int temp, int humid );
+int get_tvoc(int * tvoc, int * eco2, int * current, int * voltage, int temp, unsigned int humid );
 
 int init_temp_sensor();
 int init_light_sensor();

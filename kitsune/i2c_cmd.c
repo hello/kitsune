@@ -475,7 +475,7 @@ int init_tvoc() {
 	return 0;
 }
 #define DBG_TVOC(...)
-int get_tvoc(int * tvoc, int * eco2, int * current, int * voltage, int temp, int humid ) {
+int get_tvoc(int * tvoc, int * eco2, int * current, int * voltage, int temp, unsigned int humid ) {
 	unsigned char b[8];
 	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
 
