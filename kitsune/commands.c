@@ -1285,12 +1285,18 @@ void sample_sensor_data(periodic_data* data)
 	if( 0 == get_temp_press_hum(&temp, &press, &humid) ) {
 		data->humidity = humid;
 		data->temperature = temp;
+		data->pressure = press;
+		data->has_pressure = true;
 		data->has_temperature = true;
 		data->has_humidity = true;
 		{
 			int tvoc, eco2, current, voltage;
 			if( 0 == get_tvoc( &tvoc, &eco2, &current, &voltage, temp, humid )) {
 				LOGI("\nTVOC %d,%d,%d,%d,%d,%d\n", tvoc, eco2, current, voltage, temp, humid );
+				data->has_tvoc = true;
+				data->tvoc = tvoc;
+				data->has_co2 = true;
+				data->co2;
 			}
 		}
 		}
