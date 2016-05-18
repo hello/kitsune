@@ -23,8 +23,10 @@ hlo_stream_t * hlo_http_post_opt(hlo_stream_t * sock, const char * host, const c
 typedef struct{
 	int sock;
 }hlo_sock_ctx_t;
+extern set_backup_dns();
 static unsigned long _get_ip(const char * host){
 	unsigned long ip = 0;
+	set_backup_dns();
 	if(0 == gethostbyname((_i8*)host, strlen(host), &ip, SL_AF_INET)){
 		LOGI("Get Host IP succeeded.\n\rHost: %s IP: %d.%d.%d.%d \n\r\n\r",
 										 host, SL_IPV4_BYTE(ip, 3), SL_IPV4_BYTE(ip, 2),
