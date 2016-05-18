@@ -11,11 +11,12 @@
 #include <string.h>
 #include "bigint_impl.h"
 #include "hlo_net_tools.h"
+#include <ustdlib.h>
 //====================================================================
 //Protected API Declaration
 //
 hlo_stream_t * hlo_http_get_opt(hlo_stream_t * sock, const char * host, const char * endpoint, const char * opt_extra_headers[]);
-hlo_stream_t * hlo_http_post_opt(hlo_stream_t * sock, const char * host, const char * endpoint, const char * opt_extra_headers[], uint8_t sign);
+hlo_stream_t * hlo_http_post_opt(hlo_stream_t * sock, const char * host, const char * endpoint, const char * content_type_str, uint8_t sign);
 //====================================================================
 //socket stream implementation
 //
@@ -216,44 +217,41 @@ static hlo_stream_t * _new_stream(hlo_stream_t * sock , hlo_stream_vftbl_t * tbl
 	}
 	return ret;
 }
-static int _write_header(hlo_stream_t * stream, http_method method, const char * host, const char * endpoint, const char * opt_headers[]){
+extern bool get_device_id(char * hex_device_id,uint32_t size_of_device_id_buffer);
+extern const char * get_top_version(void);
+#include "kitsune_version.h"
+static int _write_header(hlo_stream_t * stream, http_method method, const char * host, const char * endpoint, const char * content_type){
 	hlo_http_context_t * session = (hlo_http_context_t*)stream->ctx;
+	char hex_device_id[DEVICE_ID_SZ * 2 + 1] = {0};
+	if(!get_device_id(hex_device_id, sizeof(hex_device_id))){
+		LOGE("get_device_id failed\n");
+		return -1;
+	}
 	switch(method){
 	default:
 		return -1;
 	case GET:
-		strcat(session->scratch, "GET ");
+		usnprintf(session->scratch, sizeof(session->scratch),
+					"GET %s HTTP/1.1\r\n"
+		            "Host: %s\r\n"
+		            "X-Hello-Sense-Id: %s\r\n"
+		    		"X-Hello-Sense-MFW: %x\r\n"
+		    		"X-Hello-Sense-TFW: %s\r\n"
+		            "Accept: */*\r\n\r\n",
+		            endpoint, host, hex_device_id, KIT_VER, get_top_version());
 		break;
 	case POST:
-		strcat(session->scratch, "POST ");
+		usnprintf(session->scratch, sizeof(session->scratch),
+					"POST %s HTTP/1.1\r\n"
+		            "Host: %s\r\n"
+		            "Content-type: %s\r\n"
+		            "X-Hello-Sense-Id: %s\r\n"
+		    		"X-Hello-Sense-MFW: %x\r\n"
+		    		"X-Hello-Sense-TFW: %s\r\n"
+		            "Transfer-Encoding: chunked\r\n\r\n",
+		            endpoint, host, content_type, hex_device_id, KIT_VER, get_top_version());
 		break;
 	}
-	strcat(session->scratch, endpoint);
-	strcat(session->scratch, " HTTP/1.1");
-	strcat(session->scratch, "\r\n");
-	strcat(session->scratch, "Host: ");
-	strcat(session->scratch, host);
-	strcat(session->scratch, "\r\n");
-	switch(method){
-		default:
-			return -1;
-		case GET:
-			strcat(session->scratch, "Accept: text/html, application/xhtml+xml, */*\r\n");
-			break;
-		case POST:
-			strcat(session->scratch, "Transfer-Encoding: chunked\r\n");
-			if( !opt_headers ){
-				strcat(session->scratch, "Content-type: application/octet-stream\r\n");
-			}
-			break;
-	}
-	const char ** itr = opt_headers;
-	while(itr){
-		strcat(session->scratch, *itr);
-		itr++;
-		strcat(session->scratch, "\r\n");
-	}
-	strcat(session->scratch, "\r\n");
 	int transfer_size = ustrlen(session->scratch);
 	LOGI("%s", session->scratch);
 	if( transfer_size ==  hlo_stream_transfer_all(INTO_STREAM, session->sockstream, (uint8_t*)session->scratch, transfer_size, 4) ){
@@ -415,7 +413,7 @@ cleanup:
 	vPortFree(session);
 	return 0;
 }
-hlo_stream_t * hlo_http_post_opt(hlo_stream_t * sock, const char * host, const char * endpoint, const char * opt_extra_headers[], uint8_t sign){
+hlo_stream_t * hlo_http_post_opt(hlo_stream_t * sock, const char * host, const char * endpoint, const char * content_type_str, uint8_t sign){
 	hlo_stream_vftbl_t functions = (hlo_stream_vftbl_t){
 		.write = _post_content,
 		.read = NULL,
@@ -430,7 +428,7 @@ hlo_stream_t * hlo_http_post_opt(hlo_stream_t * sock, const char * host, const c
 	if( !ret ){
 		return NULL;
 	}
-	if( 0 == _write_header(ret, POST, host, endpoint, opt_extra_headers) ){
+	if( 0 == _write_header(ret, POST, host, endpoint, content_type_str) ){
 		return ret;
 	}else{
 		LOGE("POST Request Failed\r\n");
@@ -441,14 +439,15 @@ hlo_stream_t * hlo_http_post_opt(hlo_stream_t * sock, const char * host, const c
 //====================================================================
 //User Friendly post
 //
-hlo_stream_t * hlo_http_post(const char * url, uint8_t sign){
+hlo_stream_t * hlo_http_post(const char * url, uint8_t sign, const char * content_type){
 	url_desc_t desc;
 	if(0 == parse_url(&desc,url)){
+		char * type = content_type ? content_type:"application/octet-stream";
 		return hlo_http_post_opt(
 				hlo_sock_stream(desc.host, (desc.protocol == HTTP)?0:1),
 				desc.host,
 				desc.path,
-				NULL,
+				type,
 				sign
 			);
 	}else{
