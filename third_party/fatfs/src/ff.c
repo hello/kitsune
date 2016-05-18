@@ -3695,6 +3695,7 @@ FRESULT f_unlink_TEST (
 					res = FR_DENIED;		/* Cannot remove R/O object */
 			}
 #ifdef 0
+//MAB Skip the check for sub-directory is empty
 			if (res == FR_OK && (dir[DIR_Attr] & AM_DIR)) {	/* Is it a sub-dir? */
 				dclst = ld_clust(dj.fs, dir);
 				if (!dclst) {
@@ -3703,6 +3704,7 @@ FRESULT f_unlink_TEST (
 					mem_cpy(&sdj, &dj, sizeof (DIR));
 					sdj.sclust = dclst;
 					res = dir_sdi(&sdj, 2);		/* Exclude dot entries */
+					//MAB dir_sdi^ might return FR_INT_ERR because the cluster number might be bigger than the fixed n_fatent value
 					if (res == FR_OK) {
 						res = dir_read(&sdj, 0);	/* Read an item */
 						if (res == FR_OK		/* Not empty directory */
