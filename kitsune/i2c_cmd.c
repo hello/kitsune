@@ -726,6 +726,12 @@ int32_t codec_init_no_dsp(void)
 	// Clock configuration
 	codec_clock_config();
 
+	/*
+	 * 		Setting the coeffients for the signal processing blocks must be done
+	 *     	before the ADC and DAC are powered up. (non-adaptive mode. The ADC
+	 *     	is powered up in codec_mic_config()
+	 *
+	 */
 	// Signal Processing Settings (Select signal processing blocks for record and playback)
 	codec_signal_processing_config();
 
@@ -747,36 +753,6 @@ int32_t codec_init_no_dsp(void)
 
 	// Output Channel Configuration TODO verify
 	// codec_speaker_config();
-
-	// For testing purposes only
-#ifdef CODEC_1P5_TEST
-	char send_stop = 1;
-	unsigned char cmd[2];
-
-	//	w 30 00 00 # Select Page 0
-	cmd[0] = 0;
-	cmd[1] = 0;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
-	// Read register in [0][0][36]
-	cmd[0] = 0x24;
-	cmd[1] = 0;
-
-	I2C_IF_Write(Codec_addr, &cmd[0],1,send_stop);
-	I2C_IF_Read(Codec_addr, &cmd[1], 1);
-
-	UARTprintf("ADC Flag read [0][0][%u]: %X \n",cmd[0], cmd[1]);
-
-	// Read register in [0][0][37]
-	cmd[0] = 0x25;
-	cmd[1] = 0;
-
-	I2C_IF_Write(Codec_addr, &cmd[0],1,send_stop);
-	I2C_IF_Read(Codec_addr, &cmd[1], 1);
-
-	UARTprintf("DAC Flag read [0][0][%u]: %X  \r\n", cmd[0], cmd[1]);
-
-#endif
 
 	return 0;
 }
@@ -1233,6 +1209,15 @@ static void codec_signal_processing_config(void)
 	char send_stop = 1;
 	unsigned char cmd[2];
 
+	// Filter coefficients
+	const uint64_t n0_l = 0x7C1998;
+	const uint64_t n1_l = 0x83E668;
+	const uint64_t d1_l = 0x783332;
+
+	const uint64_t n0_r = 0x7C1998;
+	const uint64_t n1_r = 0x83E668;
+	const uint64_t d1_r = 0x783332;
+
 	//	w 30 00 00 # Select Page 0
 	cmd[0] = 0;
 	cmd[1] = 0;
@@ -1262,39 +1247,45 @@ static void codec_signal_processing_config(void)
 
 	// Filter coefficients------------ Start
 	cmd[0] = 24;
-	cmd[1] = 0x7F; //
+	cmd[1] = (n0_l & 0xFF0000UL) >> 16; //
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	UARTprintf("N0: %x",cmd[1]);
 
 	cmd[0] = 25;
-	cmd[1] = 0xA2; //
+	cmd[1] = (n0_l & 0xFF00UL) >> 8; //
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	UARTprintf(" %x",cmd[1]);
 
 	cmd[0] = 26;
-	cmd[1] = 0xE3; //
+	cmd[1] = (n0_l & 0xFFUL) >> 0; //
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
+	UARTprintf("%x \n",cmd[1]);
+
 	cmd[0] = 28;
-	cmd[1] = 0x80; //
+	cmd[1] = (n1_l & 0xFF0000UL) >> 16; //
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	cmd[0] = 29;
-	cmd[1] = 0x5D; //
+	cmd[1] = (n1_l & 0xFF00UL) >> 8; //
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	cmd[0] = 30;
-	cmd[1] = 0x1D; //
+	cmd[1] = (n1_l & 0xFFUL) >> 0; //
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	cmd[0] = 32;
-	cmd[1] = 0x7F; //
+	cmd[1] = (d1_l & 0xFF0000UL) >> 16; //
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	cmd[0] = 33;
-	cmd[1] = 0x45; //
+	cmd[1] = (d1_l & 0xFF00UL) >> 8; //
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	cmd[0] = 34;
-	cmd[1] = 0xC7; //
+	cmd[1] = (d1_l & 0xFFUL) >> 0; //
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 	// Filter coefficients------------ end
 
@@ -1305,48 +1296,48 @@ static void codec_signal_processing_config(void)
 
 	// Filter coefficients------------ Start
 	cmd[0] = 32;
-	cmd[1] = 0x7f; //
+	cmd[1] = (n0_r & 0xFF0000UL) >> 16; //
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	cmd[0] = 33;
-	cmd[1] = 0xa2; //
+	cmd[1] = (n0_r & 0xFF00UL) >> 8; //
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	cmd[0] = 34;
-	cmd[1] = 0xe3; //
+	cmd[1] = (n0_r & 0xFFUL) >> 0; //
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	cmd[0] = 36;
-	cmd[1] = 0x80; //
+	cmd[1] = (n1_r & 0xFF0000UL) >> 16; //
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	cmd[0] = 37;
-	cmd[1] = 0x5d; //
+	cmd[1] = (n1_r & 0xFF00UL) >> 8; //
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	cmd[0] = 38;
-	cmd[1] = 0x1d; //
+	cmd[1] = (n1_r & 0xFFUL) >> 0; //
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	cmd[0] = 40;
-	cmd[1] = 0x7f; //
+	cmd[1] = (d1_r & 0xFF0000UL) >> 16; //
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	cmd[0] = 41;
-	cmd[1] = 0x45; //
+	cmd[1] = (d1_r & 0xFF00UL) >> 8; //
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	cmd[0] = 42;
-	cmd[1] = 0xc7; //
+	cmd[1] = (d1_r & 0xFFUL) >> 0; //
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 	// Filter coefficients------------ end
 
-	//	w 30 00 00 # Select Page 1
+	//	w 30 00 00 # Select Page 0
 	cmd[0] = 0;
 	cmd[1] = 0;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
-	//	# Select Book 120
+	//	# Select Book 0
 	cmd[0] = 0x7F;
 	cmd[1] = 0;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
