@@ -385,6 +385,7 @@ static int _close_post_session(void * ctx){
 	static const char * end_chunked = "0\r\n\r\n";
 	int end_chunked_len = strlen(end_chunked);
 	if( end_chunked_len == hlo_stream_write(session->sockstream, end_chunked, end_chunked_len) ){
+		LOGI("\r\n=====\r\n");
 		while(session->active){
 			int ndata = hlo_stream_read(session->sockstream, session->scratch, sizeof(session->scratch));
 			if( ndata < 0 ){
@@ -398,6 +399,7 @@ static int _close_post_session(void * ctx){
 				itr += read;
 			}
 		}//done parsing response
+		LOGI("\r\n=====\r\n");
 		if ( http_iserror(&session->rt) ){
 			goto cleanup;
 		}
