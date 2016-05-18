@@ -191,6 +191,33 @@ int hlo_filter_octogram(hlo_stream_t * input, hlo_stream_t * output, void * ctx,
 	DISP("Octogram Task Finished %d\r\n", ret);
 	return ret;
 }
+////-------------------------------------------
+//octogram sample app
+int hlo_filter_speech_detection(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
+#define NSAMPLES 512
+	int sample_rate = 16000;
+	int ret;
+	int16_t samples[NSAMPLES];
+	int32_t total = 0;
+	int32_t zcr;
+	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, samples, sizeof(samples), 4)) ){
+		int i;
+		for(i = 1; i < NSAMPLES; i++){
+			if( (samples[i] > 0 && samples[i-1] <= 0) ||
+					(samples[i] <= 0 && samples[i-1] > 0) ){
+				zcr++;
+			}
+			if( total++ > sample_rate ){
+				LOGI("zcr = %d\r\n", zcr);
+				zcr = 0;
+				total = 0;
+			}
+		}
+		hlo_stream_transfer_all(INTO_STREAM, output, samples, ret, 4);
+		BREAK_ON_SIG(signal);
+	}
+	return ret;
+}
 ////-----------------------------------------
 //commands
 static uint8_t _can_has_sig_stop(void){
@@ -222,6 +249,8 @@ static hlo_filter _filter_from_string(const char * str){
 		return hlo_filter_octogram;
 	case '?':
 		return hlo_filter_throughput_test;
+	case 'x':
+		return hlo_filter_speech_detection;
 	default:
 		return hlo_filter_data_transfer;
 	}
