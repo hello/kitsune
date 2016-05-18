@@ -451,6 +451,7 @@ int init_tvoc() {
 
 	if( !(b[0] & 0x10) ) {
 		LOGE("no valid fw for TVOC\n");
+		xSemaphoreGiveRecursive(i2c_smphr);
 		return -1;
 	}
 	//boot
@@ -462,6 +463,7 @@ int init_tvoc() {
 	(I2C_IF_Read(0x5a, b, 1));
 	if( !(b[0] & 0x90) ) {
 		LOGE("fail to boot TVOC\n");
+		xSemaphoreGiveRecursive(i2c_smphr);
 		return -1;
 	}
 	b[0] = 1;
@@ -502,6 +504,7 @@ int get_tvoc(int * tvoc, int * eco2, int * current, int * voltage, int temp, int
 		(I2C_IF_Write(0x5a, b, 1, 1));
 		(I2C_IF_Read(0x5a, b, 1));
 		LOGE("%x\n", b[0]);
+		xSemaphoreGiveRecursive(i2c_smphr);
 		return -1;
 	}
 
@@ -519,12 +522,12 @@ int Cmd_meas_TVOC(int argc, char *argv[]) {
 	int32_t temp;
 	uint32_t hum,press;
 	int tvoc, eco2, current, voltage;
-	get_temp_press_hum(&temp, &press, &hum);
-	get_tvoc( &tvoc, &eco2, &current, &voltage, temp, hum);
-	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
-
-	LOGF("voc %d eco2 %d %duA %dmv %d %d\n", tvoc, eco2, current, voltage, temp, hum);
-	return 0;
+	if( 0 == get_temp_press_hum(&temp, &press, &hum) &&
+	    0 == get_tvoc( &tvoc, &eco2, &current, &voltage, temp, hum) ) {
+		LOGF("voc %d eco2 %d %duA %dmv %d %d\n", tvoc, eco2, current, voltage, temp, hum);
+		return 0;
+	}
+	return -1;
 }
 
 int init_light_sensor()
