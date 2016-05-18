@@ -2171,6 +2171,7 @@ void vUARTTask(void *pvParameters) {
 	init_time_module(2560);
 
 	// Init sensors
+	init_tvoc();
 	init_temp_sensor();
 	init_light_sensor();
 	init_prox_sensor();
