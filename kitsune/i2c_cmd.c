@@ -538,6 +538,20 @@ bool set_volume(int v, unsigned int dly) {
 		return false;
 	}
 }
+bool set_mic_gain(int v, unsigned int dly) {
+	unsigned char cmd_init[2];
+
+	cmd_init[0] = 0x5f;
+	cmd_init[1] = (v & 0x1F) | 0x20;
+
+	if( xSemaphoreTakeRecursive(i2c_smphr, dly) ) {
+		I2C_IF_Write(Codec_addr, cmd_init, 2, 1);
+		xSemaphoreGiveRecursive(i2c_smphr);
+		return true;
+	} else {
+		return false;
+	}
+}
 int get_codec_io_NAU(void){
 	unsigned char cmd_init[2] = {0};
 	int i;
