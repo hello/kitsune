@@ -48,12 +48,10 @@
 #define CODEC_DIG_MIC1_EN			1
 #define CODEC_DIG_MIC2_EN 			0
 
-// Enable data from one mic at a time
-#define CODEC_MIC1_DAT_EN			1
-#define CODEC_MIC2_DAT_EN			0
-#define CODEC_MIC3_DAT_EN			0
+#define CODEC_LEFT_ADC_EN			1
+#define CODEC_RIGHT_ADC_EN			0 // Set it to 1 if using right ADC
 
-#define CODEC_AGC_EN				0
+#define CODEC_AGC_EN				0 // Set it tp 1 to enable AGC
 
 extern xSemaphoreHandle i2c_smphr;
 
@@ -843,29 +841,6 @@ static void codec_fifo_config(void)
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 #endif
 
-	// TODO DKH, is this necessary
-#if 0
-	// TODO the following registers are not explained in the datasheet,
-	// but they are present in the example code.
-	// Looks like they might be needed
-
-	//	# reg[100][0][20] = 0x80 ;
-	// Disable ADC double buffer mode; Disable DAC double buffer mode; Enable ADC double buffer mode
-	cmd[0] = 20;
-	cmd[1] = 0x80;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
-	//	# Select Book 120
-	cmd[0] = 0x7F;
-	cmd[1] = 0x78;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
-	//	# reg[120][0][20] = 0x80 ; Enable DAC double buffer mode
-	cmd[0] = 20;
-	cmd[1] = 0x80;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-#endif
-
 	//	w 30 7f 00 # Select Book 0
 	cmd[0] = 0x7F;
 	cmd[1] = 0;
@@ -1210,13 +1185,13 @@ static void codec_signal_processing_config(void)
 	unsigned char cmd[2];
 
 	// Filter coefficients
-	const uint64_t n0_l = 0x7C1998;
-	const uint64_t n1_l = 0x83E668;
-	const uint64_t d1_l = 0x783332;
+	const uint64_t n0_l = 0x7BA0F6;
+	const uint64_t n1_l = 0x845F0A;
+	const uint64_t d1_l = 0x7741EE;
 
-	const uint64_t n0_r = 0x7C1998;
-	const uint64_t n1_r = 0x83E668;
-	const uint64_t d1_r = 0x783332;
+	const uint64_t n0_r = 0x7BA0F6;
+	const uint64_t n1_r = 0x845F0A;
+	const uint64_t d1_r = 0x7741EE;
 
 	//	w 30 00 00 # Select Page 0
 	cmd[0] = 0;
@@ -1250,19 +1225,13 @@ static void codec_signal_processing_config(void)
 	cmd[1] = (n0_l & 0xFF0000UL) >> 16; //
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
-	UARTprintf("N0: %x",cmd[1]);
-
 	cmd[0] = 25;
 	cmd[1] = (n0_l & 0xFF00UL) >> 8; //
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
-	UARTprintf(" %x",cmd[1]);
-
 	cmd[0] = 26;
 	cmd[1] = (n0_l & 0xFFUL) >> 0; //
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
-	UARTprintf("%x \n",cmd[1]);
 
 	cmd[0] = 28;
 	cmd[1] = (n1_l & 0xFF0000UL) >> 16; //
@@ -1384,7 +1353,15 @@ static void codec_mic_config(void)
 	// # ADC channel power control - Left and right channel ADC configured for Digital Mic
 	// TODO enabled only left channel
 	cmd[0] = 0x51;
-	cmd[1] = (1 << 7) | (1 << 4) | (1 << 6) | (1 << 2) | (2 << 0);
+	cmd[1] = (1 << 4) | (1 << 2) |  	// Configure left and right channel ADC for digital microphone
+				(2 << 0) 				// ADC Volume control soft-stepping disabled
+#if (CODEC_RIGHT_ADC_EN == 1)
+			| (1 << 6)
+#endif
+#if (CODEC_LEFT_ADC_EN == 1)
+			| (1 << 7)
+#endif
+			;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	UARTprintf("Dig Mic 4 :%x\n",cmd[1]);
