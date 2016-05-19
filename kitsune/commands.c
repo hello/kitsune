@@ -873,11 +873,11 @@ void thread_fast_i2c_poll(void * unused)  {
 	}
 }
 
-#define MAX_PERIODIC_DATA 30
-#define MAX_PILL_DATA 20
-#define MAX_BATCH_PILL_DATA 10
+#define MAX_PERIODIC_DATA 1
+#define MAX_PILL_DATA 1
+#define MAX_BATCH_PILL_DATA 1
 #define PILL_BATCH_WATERMARK 0
-#define MAX_BATCH_SIZE 15
+#define MAX_BATCH_SIZE 1
 #define ONE_HOUR_IN_MS ( 3600 * 1000 )
 
 xQueueHandle data_queue = 0;
