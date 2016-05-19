@@ -80,11 +80,8 @@
 #include "ti_codec.h"
 #endif
 
-/* FatFS include */
-//#include "ff.h"
-//#include "diskio.h"
-#include "fatfs_cmd.h"
-#include "uartstdio.h"
+#include "adpcm.h"
+
 //*****************************************************************************
 //                          LOCAL DEFINES
 //*****************************************************************************
@@ -94,14 +91,14 @@
 //*****************************************************************************
 //                          GLOBAL VARIABLES
 //*****************************************************************************
-unsigned short ping[(CB_TRANSFER_SZ)];
-unsigned short pong[(CB_TRANSFER_SZ)];
+ short ping[(CB_TRANSFER_SZ)];
+ short pong[(CB_TRANSFER_SZ)];
 volatile unsigned int guiDMATransferCountTx = 0;
 volatile unsigned int guiDMATransferCountRx = 0;
 extern tCircularBuffer *pTxBuffer;
 extern tCircularBuffer *pRxBuffer;
 
-extern TaskHandle_t audio_task_hndl;
+extern xSemaphoreHandle isr_sem;;
 
 //*****************************************************************************
 //
@@ -150,33 +147,33 @@ void DMAPingPongCompleteAppCB_opt()
 		if ((pControlTable[ulPrimaryIndexTx].ulControl & UDMA_CHCTL_XFERMODE_M)
 				== 0) {
 			guiDMATransferCountTx += CB_TRANSFER_SZ;
-			pucDMADest = (unsigned char *) ping;
-			pControlTable[ulPrimaryIndexTx].ulControl |= CTRL_WRD;
-			pControlTable[ulPrimaryIndexTx].pvDstEndAddr = (void *) (pucDMADest
-					+ END_PTR);
-			MAP_uDMAChannelEnable(UDMA_CH4_I2S_RX);
+						pucDMADest = (unsigned char *) ping;
+						pControlTable[ulPrimaryIndexTx].ulControl |= CTRL_WRD;
+						pControlTable[ulPrimaryIndexTx].pvDstEndAddr = (void *) (pucDMADest
+								+ END_PTR);
+						MAP_uDMAChannelEnable(UDMA_CH4_I2S_RX);
 
-			for (i = 0; i < CB_TRANSFER_SZ/2; i++) {
-				pong[i] = pong[2*i+1];
-				swap_endian(pong+i);
-			}
-			FillBuffer(pAudInBuf, (unsigned char*)pong, CB_TRANSFER_SZ);
+						for (i = 0; i < CB_TRANSFER_SZ/2; i++) {
+							pong[i] = pong[2*i+1];
+							swap_endian(pong+i);
+						}
+						FillBuffer(pAudInBuf, (unsigned char*)pong, CB_TRANSFER_SZ);
 		} else {
 			//ALT part of the ping pong
 			if ((pControlTable[ulAltIndexTx].ulControl & UDMA_CHCTL_XFERMODE_M)
 					== 0) {
 				guiDMATransferCountTx += CB_TRANSFER_SZ;
-				pucDMADest = (unsigned char *) pong;
-				pControlTable[ulAltIndexTx].ulControl |= CTRL_WRD;
-				pControlTable[ulAltIndexTx].pvDstEndAddr = (void *) (pucDMADest
-						+ END_PTR);
-				MAP_uDMAChannelEnable(UDMA_CH4_I2S_RX);
+						pucDMADest = (unsigned char *) pong;
+						pControlTable[ulAltIndexTx].ulControl |= CTRL_WRD;
+						pControlTable[ulAltIndexTx].pvDstEndAddr = (void *) (pucDMADest
+								+ END_PTR);
+						MAP_uDMAChannelEnable(UDMA_CH4_I2S_RX);
 
-				for (i = 0; i < CB_TRANSFER_SZ/2; i++) {
-					ping[i] = ping[2*i+1];
-					swap_endian(ping+i);
-				}
-				FillBuffer(pAudInBuf, (unsigned char*)ping, CB_TRANSFER_SZ);
+						for (i = 0; i < CB_TRANSFER_SZ/2; i++) {
+							ping[i] = ping[2*i+1];
+							swap_endian(ping+i);
+						}
+						FillBuffer(pAudInBuf, (unsigned char*)ping, CB_TRANSFER_SZ);
 			}
 		}
 
@@ -186,8 +183,7 @@ void DMAPingPongCompleteAppCB_opt()
 			guiDMATransferCountTx = 0;
 
 			if ( qqbufsz > LISTEN_WATERMARK ) {
-				vTaskNotifyGiveFromISR( audio_task_hndl, &xHigherPriorityTaskWoken );
-				portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+				xSemaphoreGiveFromISR(isr_sem, &xHigherPriorityTaskWoken);
 			}
 		}
 	}
@@ -200,18 +196,14 @@ void DMAPingPongCompleteAppCB_opt()
 				== 0) {
 			if ( qqbufsz > CB_TRANSFER_SZ ) {
 				guiDMATransferCountRx += CB_TRANSFER_SZ;
-
-				memcpy(  (void*)ping, (void*)GetReadPtr(pAudOutBuf), CB_TRANSFER_SZ);
+				memcpy( (void*) ping, (void*)GetReadPtr(pAudOutBuf), CB_TRANSFER_SZ);
 				UpdateReadPtr(pAudOutBuf, CB_TRANSFER_SZ);
-
-				for (i = CB_TRANSFER_SZ/2-1; i!=-1 ; --i) {
-					//the odd ones do not matter
-					/*ping[(i<<1)+1] = */ping[i<<1] = ping[i];
+				for(i = CB_TRANSFER_SZ/2 -1; i != -1; --i){
+					ping[i<<1] = ping[i];
 				}
 			} else {
 				memset( ping, 0, sizeof(ping));
 			}
-
 			pucDMASrc = (unsigned char*)ping;
 
 			pControlTable[ulPrimaryIndexRx].ulControl |= CTRL_WRD;
@@ -225,18 +217,14 @@ void DMAPingPongCompleteAppCB_opt()
 					== 0) {
 				if ( qqbufsz > CB_TRANSFER_SZ ) {
 					guiDMATransferCountRx += CB_TRANSFER_SZ;
-
-					memcpy(  (void*)pong,  (void*)GetReadPtr(pAudOutBuf), CB_TRANSFER_SZ);
+					memcpy( (void*) pong, (void*)GetReadPtr(pAudOutBuf), CB_TRANSFER_SZ);
 					UpdateReadPtr(pAudOutBuf, CB_TRANSFER_SZ);
-
-					for (i = CB_TRANSFER_SZ/2-1; i!=-1 ; --i) {
-						//the odd ones do not matter
-						/*pong[(i<<1)+1] = */pong[i<<1] = pong[i];
+					for(i = CB_TRANSFER_SZ/2 -1; i != -1; --i){
+						pong[i<<1] = pong[i];
 					}
 				} else {
 					memset( pong, 0, sizeof(pong));
 				}
-
 				pucDMASrc = (unsigned char*)pong;
 
 				pControlTable[ulAltIndexRx].ulControl |= CTRL_WRD;
@@ -253,8 +241,7 @@ void DMAPingPongCompleteAppCB_opt()
 			guiDMATransferCountRx = 0;
 
 			if ( qqbufsz < PLAY_WATERMARK ) {
-				vTaskNotifyGiveFromISR( audio_task_hndl, &xHigherPriorityTaskWoken );
-				portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+				xSemaphoreGiveFromISR(isr_sem, &xHigherPriorityTaskWoken);
 			}
 		}
 	}

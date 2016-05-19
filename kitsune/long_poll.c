@@ -16,6 +16,8 @@
 #include "audiotask.h"
 #include "audio_commands.pb.h"
 
+#include "hellofilesystem.h"
+
 #include "sys_time.h"
 
 #define _MAX_RX_RECEIPTS 10
@@ -36,12 +38,14 @@ xQueueHandle _rx_queue = 0;
 
 static void _on_play_audio( PlayAudio * cmd ) {
 	AudioPlaybackDesc_t desc;
+
 	if( cmd->has_duration_seconds ) {
 		desc.durationInSeconds = cmd->duration_seconds;
 	} else {
 		desc.durationInSeconds = 0;
 	}
-	strncpy(desc.file, cmd->file_path, sizeof(desc.file));
+	desc.stream = fs_stream_open(cmd->file_path,HLO_STREAM_READ);
+	ustrncpy(desc.source_name, cmd->file_path, sizeof(desc.source_name));
 	desc.volume = cmd->volume_percent * 60 / 100; //convert from percent to codec range
 	desc.fade_in_ms = cmd->fade_in_duration_seconds * 1000;
 	desc.fade_out_ms = cmd->fade_out_duration_seconds * 1000;

@@ -737,3 +737,26 @@ int Cmd_analytics(int argc, char * argv[]){
 
 	return 0;
 }
+static int uart_write(void * ctx, const void * buf, size_t size){
+	int i = 0;
+	if( xSemaphoreTake(self.print_sem, 0) != pdPASS ) {
+			return 0;
+	}
+	while(UARTTxBytesFree() > 1 && i < size){
+		//\n gets turned into \r\n so we need 2 minimum
+		UARTwrite((char*)buf+i, 1);
+		i++;
+	}
+	xSemaphoreGive( self.print_sem );
+	return i;
+}
+static hlo_stream_vftbl_t uart_stream_impl = {
+		.write = uart_write,
+};
+hlo_stream_t * uart_stream(void){
+	static hlo_stream_t * stream;
+	if(!stream){
+		stream = hlo_stream_new(&uart_stream_impl,NULL,HLO_STREAM_READ_WRITE);
+	}
+	return stream;
+}

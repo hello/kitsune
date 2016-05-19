@@ -418,92 +418,78 @@ int global_filename(char * local_fn)
 // it is used on a binary file, then a bunch of garbage is likely to printed on
 // the console.
 //
+// An optional string as paramter can be used after special cases such as
+// Audio = $a46000
+//
 //*****************************************************************************
-int
-Cmd_cat(int argc, char *argv[])
-{
-    FRESULT res;
-    UINT ui16BytesRead;
+#include "hlo_pipe.h"
+#include "hlo_audio.h"
+#include "hlo_http.h"
+#define BUF_SIZE 64
+hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
+	if(input){//input
+		if(str[0] == '$'){
+			switch(str[1]){
+			case 'a':
+			case 'A':
+			{
+				int opt_rate = ustrtoul(&str[2],NULL, 10);
+				if(opt_rate){
+					return hlo_audio_open_mono(opt_rate,60,HLO_AUDIO_RECORD);
+				}else{
+					return hlo_audio_open_mono(16000,60,HLO_AUDIO_RECORD);
+				}
+			}
+			case 'r':
+			case 'R':
+				return random_stream_open();
+			case 'i':
+			case 'I':
+				return hlo_http_get(&str[2]);
+			default:
+				break;
+			}
+		}else{//try file
+			global_filename(str);
+			if(input > 1){//repeating mode
+				return fs_stream_open_media(path_buff, -1);
+			}
+			return fs_stream_open(path_buff, HLO_STREAM_READ);
+		}
+	}else{//output
+		if(str[0] == '$'){
+			switch(str[1]){
+			case 'a':
+			case 'A':
+			{
+				int opt_rate = 0;
+				if(str[2] != '\0'){
+					opt_rate = ustrtoul(&str[2],NULL, 10);
+				}
+				DISP("Opt rate is %d\r\n", opt_rate);
+				if(opt_rate){
+					return hlo_audio_open_mono(opt_rate,60,HLO_AUDIO_PLAYBACK);
+				}else{
+					return hlo_audio_open_mono(48000,60,HLO_AUDIO_PLAYBACK);
+				}
+			}
+			case 'i':
+			case 'I':
+				return hlo_http_post(&str[2], 0, NULL);
+			case 'o':
+			case 'O':
+				return uart_stream();
+			default:
+				return random_stream_open();
 
-    if(global_filename( argv[1] ))
-    {
-    	return 1;
-    }
-
-    res = hello_fs_open(&file_obj, path_buff, FA_READ);
-    if(res != FR_OK)
-    {
-        return((int)res);
-    }
-
-    // Enter a loop to repeatedly read data from the file and display it, until
-    // the end of the file is reached.
-    do
-    {
-        // Read a block of data from the file.  Read as much as can fit in the
-        // temporary buffer, including a space for the trailing null.
-        res = hello_fs_read(&file_obj, path_buff, 4,
-                         &ui16BytesRead);
-
-        // If there was an error reading, then print a newline and return the
-        // error to the user.
-        if(res != FR_OK)
-        {
-        	LOGF("\n");
-            return((int)res);
-        }
-        // Null terminate the last block that was read to make it a null
-        // terminated string that can be used with printf.
-        path_buff[ui16BytesRead] = 0;
-
-        // Print the last chunk of the file that was received.
-        LOGF("%s", path_buff);
-
-    }
-    while(ui16BytesRead == 4);
-
-    hello_fs_close( &file_obj );
-
-    LOGF("\n");
-    return(0);
+			}
+		}else{//try file, TODO make it append
+			global_filename(str);
+			return fs_stream_open(path_buff, HLO_STREAM_WRITE);
+		}
+	}
+	return NULL;
 }
-
-int
-Cmd_write_audio(char *argv[])
-{
-    FRESULT res;
-
-    UINT bytes = 0;
-	UINT bytes_written = 0;
-	UINT bytes_to_write = strlen(argv[1])+1;
-
-    if(global_filename( "TXBUF"))
-    {
-    	return 1;
-    }
-    LOGF("print");
-    // Open the file for reading.
-    //res = hello_fs_open(&file_obj, path_buff, FA_CREATE_NEW|FA_WRITE);
-    res = hello_fs_open(&file_obj, path_buff, FA_WRITE);
-    hello_fs_stat( path_buff, &file_info );
-
-    if( file_info.fsize != 0 )
-        res = hello_fs_lseek(&file_obj, file_info.fsize );
-
-    do {
-		res = hello_fs_write( &file_obj, argv[1]+bytes_written, bytes_to_write-bytes_written, &bytes );
-		bytes_written+=bytes;
-    } while( bytes_written < bytes_to_write );
-
-    res = hello_fs_close( &file_obj );
-
-    if(res != FR_OK)
-    {
-        return((int)res);
-    }
-    return(0);
-}
-
 int
 Cmd_write(int argc, char *argv[])
 {
@@ -1124,13 +1110,6 @@ int download_file(char * host, char * url, char * filename, char * path, storage
 
 	return r;
 }
-//http://dropbox.com/on/drop/box/file.txt
-
-//download dropbox.com somefile.txt /on/drop/box/file.txt /
-int Cmd_download(int argc, char*argv[]) {
-	return download_file( argv[1], argv[3], argv[2], argv[4], SD_CARD );
-}
-
 //end download functions
 #include "sync_response.pb.h"
 #include "stdbool.h"

@@ -700,6 +700,85 @@ bool set_volume(int v, unsigned int dly) {
 		return false;
 	}
 }
+bool set_mic_gain(int v, unsigned int dly) {
+	unsigned char cmd_init[2];
+
+	cmd_init[0] = 0x5f;
+	cmd_init[1] = (v & 0x1F) | 0x20;
+
+	if( xSemaphoreTakeRecursive(i2c_smphr, dly) ) {
+		I2C_IF_Write(Codec_addr, cmd_init, 2, 1);
+		xSemaphoreGiveRecursive(i2c_smphr);
+		return true;
+	} else {
+		return false;
+	}
+}
+int get_codec_io_NAU(void){
+	unsigned char cmd_init[2] = {0};
+	int i;
+	static const char reg[][2] = {//gl
+			{ 0x00 ,  0x00   },
+			            { 0x03 ,  0x7d   },
+			            { 0x04 ,  0x15   },
+			            { 0x06 ,  0xfd   },
+			            { 0x09 ,  0x90   },//note
+			            { 0x0a ,  0x00   },
+			            { 0x0d ,  0x08   },//0x48
+			            { 0x0e ,  0x00   },
+			            { 0x10 ,  0x00   },
+			            { 0x12 ,  0x00   },
+			            { 0x14 ,  0x08   },
+			            { 0x17 , 0xff   },
+			            { 0x18 ,  0x00   },
+			            { 0x1a ,  0x00   },
+			            { 0x1d , 0x08   },
+			            { 0x1f , 0xff   },
+			            { 0x25 , 0x2c   },
+			            { 0x26 ,  0x2c   },
+			            { 0x28 ,  0x2c   },
+			            { 0x2a ,  0x2c   },
+			            { 0x2c ,  0x2c   },
+			            { 0x30 ,  0x32   },
+			            { 0x32 ,  0x00   },
+			            { 0x36 ,  0x00   },
+			            { 0x38 ,  0x00   },
+			            { 0x3a ,  0x00   },
+			            { 0x3c ,  0x00   },
+			            { 0x40 ,  0x38   },
+			            { 0x42 ,  0x0b   },
+			            { 0x44 ,  0x32   },
+			            { 0x46 ,  0x00   },
+			            { 0x48 ,  0x18   },//048 08
+			            { 0x4a ,  0x0c   },
+			            { 0x4c ,  0x93   },
+			            { 0x4e ,  0xe9   },
+			            { 0x50 ,  0x01   },
+			            { 0x59 ,  0x82   },//0x58, 0x02
+			            { 0x5a ,  0x10   },
+			            { 0x5c ,  0x00   },
+			            { 0x5e , 0x50   },//0x5f -> 5e, 0x00 -> 0x50
+			            { 0x60 ,  0x00   },
+			            { 0x62 ,  0x02   },
+			            { 0x64 ,  0x01   },
+			            { 0x66 ,  0x00   },
+			            { 0x68 ,  0x40   },
+			            { 0x6a ,  0x40   },
+			            { 0x6c ,  0xb9   },
+			            { 0x6e ,  0x40   },
+			            { 0x70 ,  0x41   }, // set DACMOUT = 1
+			            { 0x72 ,  0x40   },
+			            { 0x74 ,  0x10   },
+		};
+		for( i=0;i<sizeof(reg)/2;++i) {
+			cmd_init[0] = reg[i][0];
+			cmd_init[1] = reg[i][1];
+			I2C_IF_Write(Codec_addr, cmd_init, 2, 1);
+			DISP("%u : %u \r\n", reg[i][0], reg[i][1]);
+			vTaskDelay(DELAY_CODEC);
+		}
+		return SUCCESS;
+}
 int get_codec_mic_NAU(int argc, char *argv[]) {
 	unsigned char cmd_init[2];
 	int i;
