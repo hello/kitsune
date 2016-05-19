@@ -380,7 +380,6 @@ int get_temp_press_hum(int32_t * temp, uint32_t * press, uint32_t * hum) {
 
 	hum_raw = (b[6]<<8) | (b[7]);
     *hum = bme280_compensate_H_int32(hum_raw);
-    *hum += (2500-*temp)*-15/100;
 
     DBG_BME("%x %x %d %d\n", b[6],b[7], hum_raw, *hum);
 
