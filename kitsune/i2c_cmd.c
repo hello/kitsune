@@ -622,10 +622,35 @@ start_rgb:
 	return SUCCESS;
 }
 
+int get_ir( int * ir ) {
+	unsigned char b[2];
+	int w,r,g,bl,p;
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
+
+	b[0] = 0xAB;
+	b[1] = 0x40;
+	(I2C_IF_Write(0x39, b, 2, 1));
+	vTaskDelay(110);
+	get_rgb_prox( &w, &r, &g, &bl, &p );
+	*ir = w+r+g+bl;
+
+	b[0] = 0xAB;
+	b[1] = 0x00;
+	(I2C_IF_Write(0x39, b, 2, 1));
+	vTaskDelay(110);
+
+	xSemaphoreGiveRecursive(i2c_smphr);
+
+	return 0;
+}
+
 int Cmd_readlight(int argc, char *argv[]) {
-	int r,g,b,w,p;
+	int r,g,b,w,p,ir;
 	if( SUCCESS == get_rgb_prox( &w, &r, &g, &b, &p ) ) {
 		LOGF("%d,%d,%d,%d,%d\n", w,r,g,b,p );
+	}
+	if( 0 == get_ir(&ir) ) {
+		LOGF("%d\n", ir );
 	}
 	return SUCCESS;
 }

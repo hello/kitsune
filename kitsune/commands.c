@@ -1149,6 +1149,12 @@ void sample_sensor_data(periodic_data* data)
 	}
 
 	{
+		int ir;
+		if( 0 == get_ir( &ir ) ) {
+			LOGI("ir %d\n", ir);
+		}
+	}
+	{
 	// get temperature and humidity
 	uint32_t humid,press;
 	int32_t temp;
