@@ -692,7 +692,7 @@ static void thread_dust(void * unused) {
 }
 
 
-static int light_m2,light_mean, light_cnt,light_log_sum,light_sf,light;
+static int light_m2,light_mean, light_cnt,light_log_sum,light_sf,light, rgb[3];
 static xSemaphoreHandle light_smphr;
 xSemaphoreHandle i2c_smphr;
 
@@ -849,6 +849,9 @@ void thread_fast_i2c_poll(void * unused)  {
 
 			if (xSemaphoreTake(light_smphr, portMAX_DELAY)) {
 				light = w;
+				rgb[0] = r;
+				rgb[1] = g;
+				rgb[2] = b;
 				light_log_sum += bitlog(light);
 				++light_cnt;
 
@@ -1144,6 +1147,10 @@ void sample_sensor_data(periodic_data* data)
 
 			light_m2 = light_mean = light_cnt = light_log_sum = light_sf = 0;
 		}
+		data->has_rgb = true;
+		data->rgb.r = rgb[0];
+		data->rgb.g = rgb[1];
+		data->rgb.b = rgb[2];
 		
 		xSemaphoreGive(light_smphr);
 	}
@@ -1152,6 +1159,8 @@ void sample_sensor_data(periodic_data* data)
 		int ir;
 		if( 0 == get_ir( &ir ) ) {
 			LOGI("ir %d\n", ir);
+			data->infrared = true;
+			data->infrared = ir;
 		}
 	}
 	{
@@ -1173,7 +1182,7 @@ void sample_sensor_data(periodic_data* data)
 				data->has_tvoc = true;
 				data->tvoc = tvoc;
 				data->has_co2 = true;
-				data->co2;
+				data->co2 = eco2;
 			}
 		}
 		}
