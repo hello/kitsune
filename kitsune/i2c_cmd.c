@@ -466,7 +466,7 @@ int init_tvoc() {
 		return -1;
 	}
 	b[0] = 1;
-	b[1] = 0x20; //60sec
+	b[1] = 0x30; //60sec
 	(I2C_IF_Write(0x5a, b, 2, 1));
 
 	xSemaphoreGiveRecursive(i2c_smphr);
