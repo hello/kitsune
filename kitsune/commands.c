@@ -1389,7 +1389,7 @@ int Cmd_generate_factory_data(int argc,char * argv[]) {
 
     //todo DVT get top's device ID, print it here, and use it as device ID in periodic/audio data
     save_device_id(top_device_id);
-    memcpy( factory_data+AES_BLOCKSIZE + 1, top_device_id, DEVICE_ID_SZ);
+    get_device_id( factory_data+AES_BLOCKSIZE + 1, DEVICE_ID_SZ );
 	factory_data[AES_BLOCKSIZE+DEVICE_ID_SZ+1] = 0;
 
 	//add checksum
