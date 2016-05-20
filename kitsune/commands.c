@@ -939,12 +939,13 @@ int Cmd_gesture(int argc, char * argv[]) {
 void thread_fast_i2c_poll(void * unused)  {
 	unsigned int filter_buf[3];
 	unsigned int filter_idx=0;
+	int w,r,g,b,p;
 
 	gesture_init();
 	ProxSignal_Init();
 	ProxGesture_t gesture;
 
-	uint32_t delay = 50;
+	uint32_t delay = 100;
 
 	while (1) {
 		portTickType now = xTaskGetTickCount();
@@ -953,9 +954,12 @@ void thread_fast_i2c_poll(void * unused)  {
 		if (xSemaphoreTakeRecursive(i2c_smphr, 300000)) {
 			vTaskDelay(1);
 
-			prox = median_filter(get_prox(), filter_buf, &filter_idx);
+			if( 0 != get_rgb_prox( &w,&r,&g,&b,&p ) ) {
+				goto fail_fast_i2c;
+			}
+			LOGP("%d,%d,%d,%d,%d\n", w,r,g,b,p );
 
-			LOGP( "%d\n", prox );
+			prox = median_filter(p, filter_buf, &filter_idx);
 
 			gesture = ProxSignal_UpdateChangeSignals(prox);
 
@@ -978,7 +982,7 @@ void thread_fast_i2c_poll(void * unused)  {
 			}
 
 			if (xSemaphoreTake(light_smphr, portMAX_DELAY)) {
-				light = get_light();
+				light = w;
 				light_log_sum += bitlog(light);
 				++light_cnt;
 
@@ -1001,6 +1005,7 @@ void thread_fast_i2c_poll(void * unused)  {
 			vTaskDelay(1);
 			xSemaphoreGiveRecursive(i2c_smphr);
 		} else {
+			fail_fast_i2c:
 			LOGW("failed to get i2c %d\n", __LINE__);
 		}
 		vTaskDelayUntil(&now, delay);
@@ -1987,7 +1992,6 @@ tCmdLineEntry g_sCmdTable[] = {
 	{ "tv", Cmd_meas_TVOC,	"" },
 
 		{ "light", Cmd_readlight, "" },
-		{"prox", Cmd_readproximity, "" },
 
 #if ( configUSE_TRACE_FACILITY == 1 )
 		{ "tasks", Cmd_tasks, "" },
@@ -2186,7 +2190,6 @@ void vUARTTask(void *pvParameters) {
 	init_tvoc();
 	init_temp_sensor();
 	init_light_sensor();
-	init_prox_sensor();
 
 	init_led_animation();
 

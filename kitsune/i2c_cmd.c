@@ -466,14 +466,14 @@ int init_tvoc() {
 		return -1;
 	}
 	b[0] = 1;
-	b[1] = 0x30; //60sec
+	b[1] = 0x20; //60sec
 	(I2C_IF_Write(0x5a, b, 2, 1));
 
 	xSemaphoreGiveRecursive(i2c_smphr);
 
 	return 0;
 }
-#define DBG_TVOC(...)
+#define DBG_TVOC LOGI
 int get_tvoc(int * tvoc, int * eco2, int * current, int * voltage, int temp, unsigned int humid ) {
 	unsigned char b[8];
 	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
@@ -528,161 +528,105 @@ int Cmd_meas_TVOC(int argc, char *argv[]) {
 	}
 	return -1;
 }
+static bool haz_tmg4903() {
+	unsigned char b[2]={0};
+	b[0] = 0x92;
+	(I2C_IF_Write(0x39, b, 1, 1));
+	(I2C_IF_Read(0x39, b, 1));
+
+	if( b[0] != 0xb8 ) {
+		LOGE("can't find TMG4903\n");
+		xSemaphoreGiveRecursive(i2c_smphr);
+		return false;
+	}
+	return true;
+}
 
 int init_light_sensor()
 {
-	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
+	unsigned char b[5];
 
-	if( get_hw_ver() < EVT1_1p5 ) {
-		unsigned char aucDataBuf[2] = { 0, 0xA0 };
-		(I2C_IF_Write(0x44, aucDataBuf, 2, 1));
-	} else {
-		unsigned char aucDataBuf[3] = { 1, 0b11001110, 0b00001000 };
-		(I2C_IF_Write(0x44, aucDataBuf, 3, 1));
+	if( !haz_tmg4903() ) {
+		LOGE("can't find TMG4903\n");
+		xSemaphoreGiveRecursive(i2c_smphr);
+		return FAILURE;
 	}
+	b[0] = 0x80;
+	b[1] = 0b1000111; //enable gesture/prox/als/power
+	b[2] = 249; //20ms integration
+	b[3] = 35; //100ms prox time
+	b[4] = 249; //20ms als time
+	(I2C_IF_Write(0x39, b, 5, 1));
+	b[0] = 0x8d;
+	b[1] = 0x0;
+	(I2C_IF_Write(0x39, b, 2, 1));
+	b[0] = 0x90;
+	b[1] = 0x3;
+	(I2C_IF_Write(0x39, b, 2, 1));
 
-	xSemaphoreGiveRecursive(i2c_smphr);
+	vTaskDelay(50);
 	return SUCCESS;
 }
 
-static int _read_als(){
-	unsigned char cmd;
-	unsigned char aucDataBuf[5] = { 0, 0 };
 
-	cmd = 0x2;
-	(I2C_IF_Write(0x44, &cmd, 1, 1));
-	(I2C_IF_Read(0x44, aucDataBuf, 2));
-
-	return aucDataBuf[0] | (aucDataBuf[1] << 8);
+static int get_le_short( uint8_t * b ) {
+	return (b[0] | (b[1]<<8));
 }
-
-int get_light() {
-	unsigned char aucDataBuf[2] = { 0, 0 };
+#define DBG_TMG(...)
+int get_rgb_prox( int * w, int * r, int * g, int * bl, int * p ) {
+	unsigned char b[10];
+	int i;
 
 	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
+	/*Red, green, blue, and clear data are stored as 16-bit values.
+	The read sequence must read byte pairs (low followed by high)
+	 starting on an even address boundary (0x94, 0x96, 0x98, or 0x9A)
+	  inside the CRGB Data Register block. In addition, reading the
+	  Clear channel data low byte (0x94) latches all 8 data bytes.
+	   Reading these 8 bytes consecutively (0x94 - 0x9A) ensures that
+	    the data is concurrent.
+	*/
+start_rgb:
+	if( !haz_tmg4903() ) {
+		LOGE("can't find TMG4903\n");
+		xSemaphoreGiveRecursive(i2c_smphr);
+		return FAILURE;
+	}
 
-	int light = 0;
-	static int scaling = 0;
-	int prev_scaling = scaling;
+	b[0] = 0x94;
+	(I2C_IF_Write(0x39, b, 1, 1));
+	(I2C_IF_Read(0x39, b, 10));
+	for(i=0;i<10;++i) {
+		DBG_TMG("%x,",b[i]);
+	}DBG_TMG("\n");
 
-	if( get_hw_ver() < EVT1_1p5 ) {
-		for(;;) {
-			#define MAX_RETRIES 10
-			int switch_cnt = 0;
-			light = _read_als();
-			if( light == 65535 ) {
-				if( scaling < 3 ) {
-					LOGI("increase scaling %d\r\n", scaling);
-					aucDataBuf[0] = 1;
-					aucDataBuf[1] = ++scaling;
-					(I2C_IF_Write(0x44, aucDataBuf, 2, 1));
-					while (_read_als() == 65535 && ++switch_cnt < MAX_RETRIES) {
-						vTaskDelay(100);
-					}
-					continue;
-				} else {
-					break;
-				}
-			}
-			if( light < 16384 ) {
-				if( scaling != 0 ) {
-					LOGI("decrease scaling %d\r\n", scaling);
-					aucDataBuf[0] = 1;
-					aucDataBuf[1] = --scaling;
-					(I2C_IF_Write(0x44, aucDataBuf, 2, 1));
-					while( _read_als() < 16384 && ++switch_cnt < MAX_RETRIES ) {
-						vTaskDelay(100);
-					}
-					continue;
-				} else {
-					break;
-				}
-			}
+	for( i=0;i<10;++i) {
+		if( b[i] != 0 ) {
 			break;
 		}
-
-		light *= (1<<(scaling*2));
-
-		if( scaling != prev_scaling ) {
-			aucDataBuf[0] = 1;
-			aucDataBuf[1] = scaling;
-			(I2C_IF_Write(0x44, aucDataBuf, 2, 1));
-		}
-	} else {
-		uint8_t cmd = 0x0;
-		(I2C_IF_Write(0x44, &cmd, 1, 1));
-		(I2C_IF_Read(0x44, aucDataBuf, 2));
-
-		uint16_t raw =  aucDataBuf[1] | (aucDataBuf[0] << 8);
-		unsigned int exp = raw >> 12; //pull out exponent
-		raw &= 0xFFF; //clear the exponent
-
-		light = raw;
-		light *= ((1<<exp) * 65536 ) / (125 * 100 );
-		//LOGI("%x\t%x\t\t%d, %d, %d\n", aucDataBuf[0],aucDataBuf[1], raw, exp, light);
 	}
+	if( i == 10  ) {
+		init_light_sensor();
+		LOGE("Fail to read TMG\n");
+		vTaskDelay(10);
+		goto start_rgb;
+	}
+
+	*w = get_le_short(b);
+	*r = get_le_short(b+2);
+	*g = get_le_short(b+4);
+	*bl = get_le_short(b+6);
+	*p = get_le_short(b+8);
+
 	xSemaphoreGiveRecursive(i2c_smphr);
-	return light;
+	return SUCCESS;
 }
 
 int Cmd_readlight(int argc, char *argv[]) {
-	LOGF("%d\n", get_light());
-	return SUCCESS;
-}
-
-int init_prox_sensor()
-{
-	unsigned char prx_cmd_init[2];
-	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
-
-	prx_cmd_init[0] = 0x8f;
-	//                  ---++--- delay, frequency, dead time
-	prx_cmd_init[1] = 0b10000001;
-	(I2C_IF_Write(0x13, prx_cmd_init, 2, 1) );
-
-	prx_cmd_init[0] = 0x83; // Current setting register
-	prx_cmd_init[1] = 14; // Value * 10mA
-	( I2C_IF_Write(0x13, prx_cmd_init, 2, 1) );
-
-	xSemaphoreGiveRecursive(i2c_smphr);
-
-	return SUCCESS;
-}
-
-uint32_t get_prox() {
-	unsigned char data[2];
-	static uint64_t proximity_raw = 0;
-	unsigned char prx_cmd;
-	unsigned char prx_cmd_init[2];
-	unsigned char cmd_reg = 0;
-
-	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
-
-	prx_cmd_init[0] = 0x80; // Command register - 8'b1000_0000
-	prx_cmd_init[1] = 0x08; // one shot measurements
-
-	(I2C_IF_Write(0x13, prx_cmd_init, 2, 1) );
-
-	vTaskDelay(1);
-	(I2C_IF_Read(0x13, &cmd_reg,  1 ) );
-
-	if( cmd_reg & 0b00100000 ) {
-		prx_cmd = 0x87; // Command register - 0x87
-		( I2C_IF_Write(0x13, &prx_cmd, 1, 1) );
-		( I2C_IF_Read(0x13, data, 2) );
-
-		proximity_raw = (data[0] << 8) | data[1];
+	int r,g,b,w,p;
+	if( SUCCESS == get_rgb_prox( &w, &r, &g, &b, &p ) ) {
+		LOGF("%d,%d,%d,%d,%d\n", w,r,g,b,p );
 	}
-
-	xSemaphoreGiveRecursive(i2c_smphr);
-
-	return 200000 - proximity_raw * 200000 / 65536;
-
-}
-
-int Cmd_readproximity(int argc, char *argv[]) {
-	LOGF("%u\n", get_prox());
-
 	return SUCCESS;
 }
 
