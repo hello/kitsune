@@ -1787,13 +1787,10 @@ bool get_device_id(char * hex_device_id,uint32_t size_of_device_id_buffer) {
     load_device_id();
 	memset(hex_device_id, 0, size_of_device_id_buffer);
 
-	for(i = 0; i < 8; i++){
+	for(i = 0; i < DEVICE_ID_SZ; i++){
 		usnprintf(&hex_device_id[i * 2], 3, "%02X", device_id[i]);
 	}
-	if( get_hw_ver() >= EVT1_1p5 ) {
-		usnprintf(&hex_device_id[8 * 2], 3, "%02X", 0);
-		usnprintf(&hex_device_id[9 * 2], 3, "%02X", get_hw_ver());
-	}
+
 	return true;
 }
 

@@ -36,7 +36,7 @@ int sl_mode;
 
 #define AES_KEY_LOC "/cert/key.aes"
 #define DEVICE_ID_LOC "/hello/deviceid"
-#define DEVICE_ID_SZ 10
+#define DEVICE_ID_SZ 8
 
 #define SERVER_REPLY_BUFSZ 2048
 #define MAX_SHA256_SEND_SIZE 1024
