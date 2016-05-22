@@ -600,18 +600,6 @@ start_rgb:
 		DBG_TMG("%x,",b[i]);
 	}DBG_TMG("\n");
 
-	for( i=0;i<10;++i) {
-		if( b[i] != 0 ) {
-			break;
-		}
-	}
-	if( i == 10  ) {
-		init_light_sensor();
-		LOGE("Fail to read TMG\n");
-		vTaskDelay(10);
-		goto start_rgb;
-	}
-
 	*w = get_le_short(b);
 	*r = get_le_short(b+2);
 	*g = get_le_short(b+4);
