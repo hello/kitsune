@@ -359,7 +359,7 @@ void AudioTask_StopCapture(void){
 }
 
 void AudioTask_StartCapture(uint32_t rate){
-	AudioMessage_t m;
+	/*AudioMessage_t m;
 	m.command = eAudioBGCaptureStart;
 	m.message.capturedesc.ctx = NULL;
 	m.message.capturedesc.opt_out = NULL;
@@ -367,7 +367,7 @@ void AudioTask_StartCapture(uint32_t rate){
 	m.message.capturedesc.rate = rate;
 	if(_capture_queue){
 		xQueueSend(_capture_queue,(void *)&m,0);
-	}
+	}*/
 }
 
 void AudioTask_QueueCaptureProcess(const AudioCaptureDesc_t * desc){
