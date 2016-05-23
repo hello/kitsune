@@ -724,8 +724,7 @@ int32_t codec_init_no_dsp(void)
 	// Softwarre Reset
 	codec_sw_reset();
 
-	// Clock configuration
-	codec_clock_config();
+
 
 	/*
 	 * 		Setting the coeffients for the signal processing blocks must be done
@@ -733,11 +732,16 @@ int32_t codec_init_no_dsp(void)
 	 *     	is powered up in codec_mic_config()
 	 *
 	 */
-	// Signal Processing Settings (Select signal processing blocks for record and playback)
-	codec_signal_processing_config();
+
 
 	// FIFO Configuration
 	codec_fifo_config();
+
+	// Power and Analog Configuration
+	codec_power_config();
+
+	// Clock configuration
+	codec_clock_config();
 
 	// Config GPIO pins
 	codec_gpio_config();
@@ -745,8 +749,8 @@ int32_t codec_init_no_dsp(void)
 	// Audio Serial Interface Configuration (ASI1 with 6 wire I2S setup)
 	codec_asi_config();
 
-	// Power and Analog Configuration
-	codec_power_config();
+	// Signal Processing Settings (Select signal processing blocks for record and playback)
+	codec_signal_processing_config();
 
 	// Configure GPIO for digital mic input (TODO maybe power off analog section in input)
 	// ADC Input Channel Configuration
@@ -756,7 +760,7 @@ int32_t codec_init_no_dsp(void)
 	codec_speaker_config();
 
 	//UARTprintf("Beep\n");
-	beep_gen();
+	// beep_gen();
 
 #ifdef CODEC_1P5_TEST
 	char send_stop = 1;
@@ -1262,7 +1266,7 @@ static void codec_signal_processing_config(void)
 	// w 30 3c 01 # Set the DAC PRB Mode to PRB_P1
 	// TODO If using beep generator this may have to be changed
 	cmd[0] = 0x3C;
-	cmd[1] = 0x1B;//0x01;
+	cmd[1] = 0x01; //0x1B;//;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	//	w 30 00 00 # Select Page 1
@@ -1569,7 +1573,8 @@ static void codec_speaker_config(void)
 	cmd[1] = (2 << 4) | (1 << 0); //0x21;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
-
+	// ENable PGA, might not be needed //TODO
+#if 0
 	cmd[0] = 59;
 	cmd[1] = 0x80;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
@@ -1577,20 +1582,30 @@ static void codec_speaker_config(void)
 	cmd[0] = 60;
 	cmd[1] = 0x80;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+#endif
 
 	//	w 30 2D 06 # Power-up SPK, route SPK_RIGHT_CH_IN to SPK
 	cmd[0] = 0x2D;
 	cmd[1] = (1 << 2) | (1 << 1); //0x06;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
+#if 1
+	// Read register in [0][0][0A]
+	cmd[0] = 0x2D;
+	cmd[1] = 0;
+
+	I2C_IF_Write(Codec_addr, &cmd[0],1,send_stop);
+	I2C_IF_Read(Codec_addr, &cmd[1], 1);
+
+	UARTprintf("DAC: [0][1][%u]: %X \n", cmd[0], cmd[1]);
+#endif
+
 	//	w 30 00 00 # Select Page 0
-	cmd[0] = 0x00;
-	cmd[1] = 0x00;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+	codec_set_page(0);
 
 	//	w 30 3f c0 # Power up the Left and Right DAC Channels
 	cmd[0] = 0x3F;
-	cmd[1] = 0xC2; // TODO soft stepping disabled
+	cmd[1] = 0xC0; // TODO soft stepping disabled
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	//	w 30 40 00 # Unmute the DAC digital volume control
@@ -1598,7 +1613,12 @@ static void codec_speaker_config(void)
 	cmd[1] = 0;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
-	vTaskDelay(5);
+	// ENable DRC hold
+	cmd[0] = 0x45;
+	cmd[1] = 0;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	vTaskDelay(20);
 }
 
 static void beep_gen(void)
