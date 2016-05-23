@@ -283,8 +283,15 @@ static int _do_capture(const AudioCaptureDesc_t * info){
 	int ret = HLO_STREAM_ERROR;
 	if(info->p){
 		hlo_stream_t * mic = hlo_audio_open_mono(info->rate, 0, HLO_AUDIO_RECORD);
-		ret = info->p(mic, info->opt_out, info->ctx, CheckForInterruptionDuringCapture);
-		LOGI("Capture Returned: %d\r\n", ret);
+		//keep pining mic until it has data
+		while( hlo_stream_read(mic,NULL,0) < 0){
+			vTaskDelay(250);
+		}
+		if(info->p){
+			LOGI("Capture Started\r\n");
+			ret = info->p(mic, info->opt_out, info->ctx, CheckForInterruptionDuringCapture);
+			LOGI("Capture Returned: %d\r\n", ret);
+		}
 		hlo_stream_close(mic);
 		hlo_stream_close(info->opt_out);
 	}
