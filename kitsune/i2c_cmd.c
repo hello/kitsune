@@ -46,7 +46,7 @@
 // set this to be 1
 #define CODEC_LEFT_LATCH_FALLING 	1
 #define CODEC_DIG_MIC1_EN			1
-#define CODEC_DIG_MIC2_EN 			0
+#define CODEC_DIG_MIC2_EN 			1
 
 #define CODEC_LEFT_ADC_EN			1
 #define CODEC_RIGHT_ADC_EN			1 // Set it to 1 if using right ADC
@@ -538,6 +538,9 @@ static void codec_asi_config(void);
 static void codec_signal_processing_config(void);
 static void codec_mic_config(void);
 static void codec_speaker_config(void);
+static void beep_gen(void);
+static void codec_set_page(uint32_t page);
+static void codec_set_book(uint32_t book);
 
 #define CODEC_DRIVER_FILE "/sys/codec_driver"
 #define FILE_READ_BLOCK 128
@@ -747,11 +750,82 @@ int32_t codec_init_no_dsp(void)
 
 	// Configure GPIO for digital mic input (TODO maybe power off analog section in input)
 	// ADC Input Channel Configuration
-	codec_mic_config();
+	//codec_mic_config();
 
 	// Output Channel Configuration TODO verify
-	// codec_speaker_config();
+	codec_speaker_config();
 
+	//UARTprintf("Beep\n");
+	beep_gen();
+
+#ifdef CODEC_1P5_TEST
+	char send_stop = 1;
+	unsigned char cmd[2];
+
+	//	w 30 00 00 # Select Page 0
+	codec_set_page(0);
+
+	// Read register in [0][0][36]
+	cmd[0] = 0x24;
+	cmd[1] = 0;
+
+	I2C_IF_Write(Codec_addr, &cmd[0],1,send_stop);
+	I2C_IF_Read(Codec_addr, &cmd[1], 1);
+
+	UARTprintf("ADC Flag read [0][0][%u]: %X \n",cmd[0], cmd[1]);
+
+	// Read register in [0][0][37]
+	cmd[0] = 0x25;
+	cmd[1] = 0;
+
+	I2C_IF_Write(Codec_addr, &cmd[0],1,send_stop);
+	I2C_IF_Read(Codec_addr, &cmd[1], 1);
+
+	UARTprintf("DAC Flag read [0][0][%u]: %X  \r\n", cmd[0], cmd[1]);
+
+	// Read register in [0][0][38]
+	cmd[0] = 0x26;
+	cmd[1] = 0;
+
+	I2C_IF_Write(Codec_addr, &cmd[0],1,send_stop);
+	I2C_IF_Read(Codec_addr, &cmd[1], 1);
+
+	UARTprintf("DAC Flag read [0][0][%u]: %X  \r\n", cmd[0], cmd[1]);
+
+	//	w 30 00 00 # Select Page 1
+	codec_set_page(1);
+
+	// Read register in [0][1][63]
+	cmd[0] = 63;
+	cmd[1] = 0;
+
+	I2C_IF_Write(Codec_addr, &cmd[0],1,send_stop);
+	I2C_IF_Read(Codec_addr, &cmd[1], 1);
+
+	UARTprintf("DAC analog gain [0][1][%u]: %X  \r\n", cmd[0], cmd[1]);
+
+	// Read register in [0][1][64]
+	cmd[0] = 64;
+	cmd[1] = 0;
+
+	I2C_IF_Write(Codec_addr, &cmd[0],1,send_stop);
+	I2C_IF_Read(Codec_addr, &cmd[1], 1);
+
+	UARTprintf("DAC analog gain [0][1][%u]: %X  \r\n", cmd[0], cmd[1]);
+
+	// Read register in [0][1][66]
+	cmd[0] = 66;
+	cmd[1] = 0;
+
+	I2C_IF_Write(Codec_addr, &cmd[0],1,send_stop);
+	I2C_IF_Read(Codec_addr, &cmd[1], 1);
+
+	UARTprintf("Driver power up [0][1][%u]: %X  \r\n", cmd[0], cmd[1]);
+
+	//	w 30 00 00 # Select Page 0
+	codec_set_page(0);
+
+#endif
 	return 0;
 }
 
@@ -763,12 +837,7 @@ static void codec_sw_reset(void)
 	int ret;
 
 	// w 30 00 00 # Initialize to Page 0
-	cmd[0] = 0;
-	cmd[1] = 0;
-	if((ret=I2C_IF_Write(Codec_addr, cmd, 2, send_stop)))
-	{
-		UARTprintf("Codec init page fail:%d\n",ret);
-	}
+	codec_set_page(0);
 
 	//w 30 7f 00 # Initialize to Book 0
 	cmd[0] = 0x7F;
@@ -798,9 +867,7 @@ static void codec_fifo_config(void)
 	unsigned char cmd[2];
 
 	//	w 30 00 00 # Select Page 0
-	cmd[0] = 0;
-	cmd[1] = 0;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+	codec_set_page(0);
 
 #if (CODEC_USE_MINIDSP == 1)
 	// TODO as per datasheet this does not seem necessary
@@ -830,7 +897,7 @@ static void codec_fifo_config(void)
 	//	w 30 32 80 # Enable ADC (CIC output) FIFO
 	// TODO is auto clear necessary?, currently disbaled
 	cmd[0] = 0x32;
-	cmd[1] = ( 1<<7 ) | ( 0 << 6 ) | (1 << 5) | (4 << 0) | 0x04 ; // EnABLE CIC, Auto normal, decimation ratio=4
+	cmd[1] = ( 1<<7 ) | ( 0 << 6 ) | (0 << 5) | (4 << 0) | 0x04 ; // EnABLE CIC, Auto normal, decimation ratio=4
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 #endif
 
@@ -856,9 +923,7 @@ static void codec_power_config(void)
 	unsigned char cmd[2];
 
 	//	w 30 00 01 # Select Page 1
-	cmd[0] = 0;
-	cmd[1] = 0x01;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+	codec_set_page(1);
 
 	//	w 30 01 00 # Disable weak AVDD to DVDD connection // TODO verify with hardware
 	cmd[0] = 0x01;
@@ -875,6 +940,19 @@ static void codec_power_config(void)
 	cmd[0] = 0x79;
 	cmd[1] = 0x33;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	// Update PowerTune
+	cmd[0] = 61;
+	cmd[1] = (1 << 6);
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	// Update Mic Bias
+	cmd[0] = 51;
+	cmd[1] = (4 << 0);
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//	w 30 00 01 # Select Page 0
+	codec_set_page(0);
 }
 
 // Codec Clock config
@@ -896,9 +974,7 @@ static void codec_clock_config(void)
 	* - I2S Slave
 	*/
 	//	w 30 00 00 # Select Page 0
-	cmd[0] = 0;
-	cmd[1] = 0;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+	codec_set_page(0);
 
 #if (CODEC_ADC_16KHZ == 1)
 	// *********************************************
@@ -1035,9 +1111,7 @@ static void codec_asi_config(void)
 	unsigned char cmd[2];
 
 	//	w 30 00 04 # Select Page 4
-	cmd[0] = 0;
-	cmd[1] = 0x04;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+	codec_set_page(4);
 
 	//	w 30 01 00 # ASI1 set to I2S mode, 16-bit
 	cmd[0] = 0x01;
@@ -1119,9 +1193,7 @@ static void codec_asi_config(void)
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	//	w 30 00 00 # Select Page 0
-	cmd[0] = 0;
-	cmd[1] = 0;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+	codec_set_page(0);
 
 }
 
@@ -1131,9 +1203,7 @@ static void codec_gpio_config(void)
 	unsigned char cmd[2];
 
 	//	w 30 00 00 # Select Page 4
-	cmd[0] = 0;
-	cmd[1] = 4;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+	codec_set_page(4);
 
 	// # GPIO1 as clock input (will be used as ADC WCLK if DAC Fs != ADC Fs)
 	cmd[0] = 0x56;
@@ -1171,9 +1241,7 @@ static void codec_gpio_config(void)
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	//	w 30 00 00 # Select Page 0
-	cmd[0] = 0;
-	cmd[1] = 0;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+	codec_set_page(0);
 
 }
 
@@ -1194,9 +1262,7 @@ static void codec_signal_processing_config(void)
 	const uint64_t d1_r = 0x78E7CC;
 
 	//	w 30 00 00 # Select Page 0
-	cmd[0] = 0;
-	cmd[1] = 0;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+	codec_set_page(0);
 
 	// Decimation filter must be A
 	//	w 30 3d 0a # Set the ADC Mode to PRB_R1
@@ -1207,13 +1273,11 @@ static void codec_signal_processing_config(void)
 	// w 30 3c 01 # Set the DAC PRB Mode to PRB_P1
 	// TODO If using beep generator this may have to be changed
 	cmd[0] = 0x3C;
-	cmd[1] = 0x01;
+	cmd[1] = 0x1B;//0x01;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	//	w 30 00 00 # Select Page 1
-	cmd[0] = 0;
-	cmd[1] = 1;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+	codec_set_page(1);
 
 	//	# Select Book 120
 	cmd[0] = 0x7F;
@@ -1259,9 +1323,7 @@ static void codec_signal_processing_config(void)
 	// Filter coefficients------------ end
 
 	//	w 30 00 00 # Select Page 1
-	cmd[0] = 0;
-	cmd[1] = 2;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+	codec_set_page(2);
 
 	// Filter coefficients------------ Start
 	cmd[0] = 32;
@@ -1302,9 +1364,7 @@ static void codec_signal_processing_config(void)
 	// Filter coefficients------------ end
 
 	//	w 30 00 00 # Select Page 0
-	cmd[0] = 0;
-	cmd[1] = 0;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+	codec_set_page(0);
 
 	//	# Select Book 0
 	cmd[0] = 0x7F;
@@ -1321,9 +1381,7 @@ static void codec_mic_config(void)
 	// Enable ADC_MOD_CLK for mic B0_P4
 
 	//	w 30 00 01 # Select Page 4
-	cmd[0] = 0;
-	cmd[1] = 0x04;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+	codec_set_page(4);
 
 #if (CODEC_LEFT_LATCH_FALLING == 1)
 	cmd[0] = 0x64;
@@ -1336,19 +1394,13 @@ static void codec_mic_config(void)
 	cmd[1] = (3 << 4) | (4 << 0);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
-	UARTprintf("Dig Mic 2 :%x\n",cmd[1]);
-
 	// # Digital Mix 2 Input Pin Control (GPIO6 -Left) - Left-only
 	cmd[0] = 0x66;
 	cmd[1] = (5 << 4);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
-	UARTprintf("Dig Mic 3 :%x\n",cmd[1]);
-
 	//	# Select Page 0
-	cmd[0] = 0;
-	cmd[1] = 0x00;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+	codec_set_page(0);
 
 	// # ADC channel power control - Left and right channel ADC configured for Digital Mic
 	// TODO enabled only left channel
@@ -1364,22 +1416,20 @@ static void codec_mic_config(void)
 			;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
-	UARTprintf("Dig Mic 4 :%x\n",cmd[1]);
-
 	// # ADC Fine Gain Volume Control, Unmute Left and Right ADC channel
 	cmd[0] = 0x52;
-	cmd[1] = 0;
+	cmd[1] = (4 << 4) | (4 << 0);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	// # Left ADC Volume Control
 	// TODO play with volume
 	cmd[0] = 0x53;
-	cmd[1] = 2;
+	cmd[1] = 0;// 0x68;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	// TODO play with volume
 	cmd[0] = 0x54;
-	cmd[1] = 2;
+	cmd[1] = 0; //0x68;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 #if (CODEC_AGC_EN == 1)
@@ -1453,9 +1503,7 @@ static void codec_mic_config(void)
 
 #if 0
 	//	# Select Page 1
-	cmd[0] = 0;
-	cmd[1] = 0x01;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+	codec_set_page(1);
 
 	// Left mic pga control
 	cmd[0] = 0x3B;
@@ -1492,9 +1540,9 @@ static void codec_mic_config(void)
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	//	# Select Page 0
-	cmd[0] = 0;
-	cmd[1] = 0x00;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+	codec_set_page(0);
+
+	vTaskDelay(5);
 }
 
 // Enable Class-D Speaker playback
@@ -1504,9 +1552,7 @@ static void codec_speaker_config(void)
 	unsigned char cmd[2];
 
 	//	w 30 00 01 # Select Page 1
-	cmd[0] = 0;
-	cmd[1] = 0x01;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+	codec_set_page(1);
 
 	//	w 30 03 00 # Set PTM mode for Left DAC to PTM_P3
 	cmd[0] = 0x03;
@@ -1520,7 +1566,7 @@ static void codec_speaker_config(void)
 
 	//	w 30 16 c3 # DAC to LOL/R routing, power-up LOL/R
 	cmd[0] = 0x16;
-	cmd[1] = 0xC3;
+	cmd[1] = (1 << 7) | (1 << 6) | (1 << 1) | (1 << 0); //0xC3;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	//	w 30 2E 0c # Route LOL to SPK @ -6dB
@@ -1534,13 +1580,22 @@ static void codec_speaker_config(void)
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	//	w 30 30 21 # SPK Gain = 12dB, unmute SPK_RIGHT_CH_IN
-	cmd[0] = 030;
-	cmd[1] = 0x21;
+	cmd[0] = 0x30;
+	cmd[1] = (2 << 4) | (1 << 0); //0x21;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+
+	cmd[0] = 59;
+	cmd[1] = 0x80;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	cmd[0] = 60;
+	cmd[1] = 0x80;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	//	w 30 2D 06 # Power-up SPK, route SPK_RIGHT_CH_IN to SPK
 	cmd[0] = 0x2D;
-	cmd[1] = 0x06;
+	cmd[1] = (1 << 2) | (1 << 1); //0x06;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	//	w 30 00 00 # Select Page 0
@@ -1557,8 +1612,58 @@ static void codec_speaker_config(void)
 	cmd[0] = 0x40;
 	cmd[1] = 0;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	vTaskDelay(5);
 }
 
+static void beep_gen(void)
+{
+	char send_stop = 1;
+	unsigned char cmd[2];
+
+	codec_set_page(0);
+
+	// Set beep time to be 2 seconds=0x01770
+
+	uint32_t delay=0x01770*10;
+	cmd[0] = 73;
+	cmd[1] = (delay & 0xFF0000) >> 16;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+	cmd[0] = 74;
+	cmd[1] = (delay & 0xFF00) >> 8;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+	cmd[0] = 75;
+	cmd[1] = (delay & 0xFF) >> 0;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	cmd[0] = 0x47;
+	cmd[1] = (1 << 7);
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+
+}
+
+static void codec_set_page(uint32_t page)
+{
+	char send_stop = 1;
+	unsigned char cmd[2];
+
+	//	w 30 00 00 # Select Page 0
+	cmd[0] = 0;
+	cmd[1] = page;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+}
+
+static void codec_set_book(uint32_t book)
+{
+	char send_stop = 1;
+	unsigned char cmd[2];
+
+	//	# Select Book 0
+	cmd[0] = 0x7F;
+	cmd[1] = book;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+}
 #endif
 
 
