@@ -840,12 +840,7 @@ static void codec_sw_reset(void)
 	codec_set_page(0);
 
 	//w 30 7f 00 # Initialize to Book 0
-	cmd[0] = 0x7F;
-	cmd[1] = 0;
-	if((ret=I2C_IF_Write(Codec_addr, cmd, 2, send_stop)))
-	{
-		UARTprintf("Codec init book fail:%d\n",ret);
-	}
+	codec_set_book(0);
 
 	//w 30 01 01 # Software Reset
 	cmd[0] = 0x01;
@@ -876,9 +871,7 @@ static void codec_fifo_config(void)
 	// Why?
 
 	//	w 30 7f 78 # Select Book 120
-	cmd[0] = 0x7F;
-	cmd[1] = 0x78;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+	codec_set_book(0x78);
 
 	//	w 30 32 80 # Enable DAC FIFO
 	cmd[0] = 0x32;
@@ -889,9 +882,7 @@ static void codec_fifo_config(void)
 
 
 	//	w 30 7f 64 # Select Book 100
-	cmd[0] = 0x7F;
-	cmd[1] = 0x64;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+	codec_set_book(0x64);
 
 #if (CODEC_DIG_MIC1_EN == 1)
 	//	w 30 32 80 # Enable ADC (CIC output) FIFO
@@ -909,9 +900,7 @@ static void codec_fifo_config(void)
 #endif
 
 	//	w 30 7f 00 # Select Book 0
-	cmd[0] = 0x7F;
-	cmd[1] = 0;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+	codec_set_book(0);
 
 }
 
@@ -1280,9 +1269,7 @@ static void codec_signal_processing_config(void)
 	codec_set_page(1);
 
 	//	# Select Book 120
-	cmd[0] = 0x7F;
-	cmd[1] = 40;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+	codec_set_book(40);
 
 	// Filter coefficients------------ Start
 	cmd[0] = 24;
@@ -1367,9 +1354,7 @@ static void codec_signal_processing_config(void)
 	codec_set_page(0);
 
 	//	# Select Book 0
-	cmd[0] = 0x7F;
-	cmd[1] = 0;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+	codec_set_book(0);
 
 }
 
