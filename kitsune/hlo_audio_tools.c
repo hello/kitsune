@@ -138,6 +138,24 @@ int hlo_filter_data_transfer(hlo_stream_t * input, hlo_stream_t * output, void *
 	}
 	return ret;
 }
+int hlo_filter_data_transfer_limited(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
+	//do 6 second transfer only
+	int limit = (int)ctx;
+	TickType_t end = xTaskGetTickCount() + (limit * 1000);
+	uint8_t buf[512];
+	int ret;
+	while(1){
+		ret = hlo_stream_transfer_between(input,output,buf,sizeof(buf),4);
+		if(ret < 0){
+			break;
+		}
+		BREAK_ON_SIG(signal);
+		if( xTaskGetTickCount() > end ){
+			break;
+		}
+	}
+	return ret;
+}
 ////-------------------------------------------
 // Throughput calculator
 int hlo_filter_throughput_test(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
