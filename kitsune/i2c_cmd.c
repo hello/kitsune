@@ -1043,7 +1043,7 @@ static void codec_clock_config(void)
 #define NDAC 3
 #define MDAC 9
 #define NADC 3
-#define MADC 27
+#define MADC 9
 #define DOSR 64UL
 #define AOSR 64UL
 
