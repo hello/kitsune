@@ -1414,39 +1414,6 @@ static void codec_mic_config(void)
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 #endif
 
-#if 0
-	//	# Select Page 1
-	codec_set_page(1);
-
-	// Left mic pga control
-	cmd[0] = 0x3B;
-	cmd[1] = 0x00;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
-	// Right mic pga control
-	cmd[0] = 0x3C;
-	cmd[1] = 0x00;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
-	//	ADC IN1_L is selected for left P
-	cmd[0] = 0x34;
-	cmd[1] = 0x40;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
-	//	ADC CM1 is selected for left M
-	cmd[0] = 54;
-	cmd[1] = 0x40;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-	//	ADC IN1_R is selected for right P
-	cmd[0] = 55;
-	cmd[1] = 0x40;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-	//	ADC CM1 is selected for right M
-	cmd[0] = 57;
-	cmd[1] = 0x40;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-#endif
-
 	//	Disable headsest detection
 	cmd[0] = 0x77;
 	cmd[1] = 1 << 2;
