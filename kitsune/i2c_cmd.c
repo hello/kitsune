@@ -751,7 +751,7 @@ int32_t codec_init_no_dsp(void)
 
 	// Configure GPIO for digital mic input (TODO maybe power off analog section in input)
 	// ADC Input Channel Configuration
-	//codec_mic_config();
+	codec_mic_config();
 
 	// Output Channel Configuration TODO verify
 	codec_speaker_config();
