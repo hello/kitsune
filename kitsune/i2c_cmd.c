@@ -1407,68 +1407,6 @@ static void codec_mic_config(void)
 	cmd[1] = 0; //0x68;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
-#if (CODEC_AGC_EN == 1)
-	//Left AGC Control 1 (TODO might not be needed)
-	cmd[0] = 0x56;
-	cmd[1] = (1 << 7) | (2 << 4);
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
-	//Left AGC Control 2 (TODO might not be needed)
-	cmd[0] = 0x57;
-	cmd[1] = (3 << 6) | (0x1F << 1);
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
-//	//Left AGC Control 3 (TODO might not be needed)
-//	cmd[0] = 0x58;
-//	cmd[1] = 0;
-//	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
-	//Left AGC Attack time (TODO might not be needed)
-	cmd[0] = 0x59;
-	cmd[1] = 0x68; // 27*32 ADC Word Clocks, copied from Codec Control, verify this
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
-	//Left AGC Decay time (TODO might not be needed)
-	cmd[0] = 0x5A;
-	cmd[1] = 0xA8;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
-	//Left AGC Noise Debounce (TODO might not be needed)
-	cmd[0] = 0x5B;
-	cmd[1] = 0x6;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
-//	//Right AGC Control 1 (TODO might not be needed)
-//	cmd[0] = 0x5E;
-//	cmd[1] = (1 << 7) | (2 << 4);
-//	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
-	//Right AGC Control 2 (TODO might not be needed)
-	cmd[0] = 0x5F;
-	cmd[1] = (3 << 6) | (0x1F << 1);
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
-//	//Right AGC Control 3 (TODO might not be needed)
-//	cmd[0] = 0x60;
-//	cmd[1] = 0;
-//	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
-	//Right AGC Attack time (TODO might not be needed)
-	cmd[0] = 0x61;
-	cmd[1] = 0x68;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
-	//Right AGC Decay time (TODO might not be needed)
-	cmd[0] = 0x62;
-	cmd[1] = 0xA8;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
-	//Right AGC Noise Debounce (TODO might not be needed)
-	cmd[0] = 0x63;
-	cmd[1] = 0x6;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-#endif
-
 #if (CODEC_DIG_MIC2_EN==1)
 	// # Digital mic 2 control - Enable CIC2 Left channel, and digital mic to left channel
 	cmd[0] = 0x70;
