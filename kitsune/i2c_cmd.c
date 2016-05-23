@@ -759,9 +759,6 @@ int32_t codec_init_no_dsp(void)
 	// Output Channel Configuration TODO verify
 	codec_speaker_config();
 
-	//UARTprintf("Beep\n");
-	// beep_gen();
-
 #ifdef CODEC_1P5_TEST
 	char send_stop = 1;
 	unsigned char cmd[2];
@@ -830,6 +827,11 @@ int32_t codec_init_no_dsp(void)
 	codec_set_page(0);
 
 #endif
+
+
+	UARTprintf("Beep\n");
+	//beep_gen();
+
 	return 0;
 }
 
@@ -1266,7 +1268,7 @@ static void codec_signal_processing_config(void)
 	// w 30 3c 01 # Set the DAC PRB Mode to PRB_P1
 	// TODO If using beep generator this may have to be changed
 	cmd[0] = 0x3C;
-	cmd[1] = 0x01; //0x1B;//;
+	cmd[1] = 0x01;//0x1B;//0x01;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	//	w 30 00 00 # Select Page 1
@@ -1574,7 +1576,7 @@ static void codec_speaker_config(void)
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	// ENable PGA, might not be needed //TODO
-#if 0
+#if 1
 	cmd[0] = 59;
 	cmd[1] = 0x80;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
@@ -1588,17 +1590,6 @@ static void codec_speaker_config(void)
 	cmd[0] = 0x2D;
 	cmd[1] = (1 << 2) | (1 << 1); //0x06;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
-#if 1
-	// Read register in [0][0][0A]
-	cmd[0] = 0x2D;
-	cmd[1] = 0;
-
-	I2C_IF_Write(Codec_addr, &cmd[0],1,send_stop);
-	I2C_IF_Read(Codec_addr, &cmd[1], 1);
-
-	UARTprintf("DAC: [0][1][%u]: %X \n", cmd[0], cmd[1]);
-#endif
 
 	//	w 30 00 00 # Select Page 0
 	codec_set_page(0);
@@ -1618,6 +1609,7 @@ static void codec_speaker_config(void)
 	cmd[1] = 0;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
+
 	vTaskDelay(20);
 }
 
@@ -1630,7 +1622,7 @@ static void beep_gen(void)
 
 	// Set beep time to be 2 seconds=0x01770
 
-	uint32_t delay=0x01770*10;
+	uint32_t delay=0x01770;
 	cmd[0] = 73;
 	cmd[1] = (delay & 0xFF0000) >> 16;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
