@@ -724,15 +724,12 @@ int32_t codec_init_no_dsp(void)
 	// Softwarre Reset
 	codec_sw_reset();
 
-
-
 	/*
 	 * 		Setting the coeffients for the signal processing blocks must be done
 	 *     	before the ADC and DAC are powered up. (non-adaptive mode. The ADC
 	 *     	is powered up in codec_mic_config()
 	 *
 	 */
-
 
 	// FIFO Configuration
 	codec_fifo_config();
@@ -796,24 +793,6 @@ int32_t codec_init_no_dsp(void)
 	//	w 30 00 00 # Select Page 1
 	codec_set_page(1);
 
-	// Read register in [0][1][63]
-	cmd[0] = 63;
-	cmd[1] = 0;
-
-	I2C_IF_Write(Codec_addr, &cmd[0],1,send_stop);
-	I2C_IF_Read(Codec_addr, &cmd[1], 1);
-
-	UARTprintf("DAC analog gain [0][1][%u]: %X  \r\n", cmd[0], cmd[1]);
-
-	// Read register in [0][1][64]
-	cmd[0] = 64;
-	cmd[1] = 0;
-
-	I2C_IF_Write(Codec_addr, &cmd[0],1,send_stop);
-	I2C_IF_Read(Codec_addr, &cmd[1], 1);
-
-	UARTprintf("DAC analog gain [0][1][%u]: %X  \r\n", cmd[0], cmd[1]);
-
 	// Read register in [0][1][66]
 	cmd[0] = 66;
 	cmd[1] = 0;
@@ -828,8 +807,6 @@ int32_t codec_init_no_dsp(void)
 
 #endif
 
-
-	UARTprintf("Beep\n");
 	//beep_gen();
 
 	return 0;
@@ -856,8 +833,7 @@ static void codec_sw_reset(void)
 		UARTprintf("Codec sw reset fail:%d\n",ret);
 	}
 
-	//d 1        # Delay 1 millisecond
-	vTaskDelay(delay); // TODO adjust this delay
+	vTaskDelay(delay);
 }
 
 
@@ -951,7 +927,6 @@ static void codec_power_config(void)
 }
 
 // Codec Clock config
-// TODO verify all the settings
 static void codec_clock_config(void)
 {
 	char send_stop = 1;
@@ -973,52 +948,76 @@ static void codec_clock_config(void)
 
 #if (CODEC_ADC_16KHZ == 1)
 	// *********************************************
-	// ********* ADC Fs != DAC Fs = 48k Hz *********
+	// ********* ADC Fs = 16kHz != DAC Fs = 48k Hz *********
 	// *********************************************
-	//	w 30 04 00 # Set ADC_CLKIN = BCLK2 and DAC_CLK = BCLK1
+
+	//	w 30 04 00 # Set ADC_CLKIN = PLL_CLK and DAC_CLK = PLL_CLK
 	cmd[0] = 0x04;
-	cmd[1] = (1 << 4) | (4 << 0);
+	cmd[1] = (3 << 4) | (3 << 0);
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	// --------- PLL -------------
+	cmd[0] = 0x05;
+	cmd[1] = 0;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	cmd[0] = 0x06;
+	cmd[1] = (1 << 7) | (1 << 4) | (1 << 0);
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	cmd[0] = 0x07;
+	cmd[1] = 6;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	cmd[0] = 0x08; // MSB
+	cmd[1] = (9120UL & 0xFF00) >> 8;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	cmd[0] = 0x09; // LSB
+	cmd[1] = (9120UL & 0xFF) >> 0;;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	// --------- DAC -------------
 
 	//	# NDAC = 3
-	cmd[0] = 0x0B;
+	cmd[0] = 0x0B; // 11
 	cmd[1] = (1 << 7) | (3 << 0);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
-	//	# MDAC = 5
-	cmd[0] = 0x0C;
-	cmd[1] = (1 << 7) | (5 << 0);
+	//	# MDAC = 9
+	cmd[0] = 0x0C; // 12
+	cmd[1] = (1 << 7) | (9 << 0);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	// DOSR = 128
 	//	w 30 0d 00 # DOSR (MSB)
-	cmd[0] = 0x0D;
-	cmd[1] = (128 & 0x3F00) >> 8;
+	cmd[0] = 0x0D; // 13
+	cmd[1] = (64UL & 0x0300) >> 8;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	//	w 30 0e 80 # DOSR (LSB)
-	cmd[0] = 0x0E;
-	cmd[1] = (128 & 0x00FF) >> 0;
+	cmd[0] = 0x0E; // 14
+	cmd[1] = (64UL & 0x00FF) >> 0;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	// --------- ADC -------------
 
+	// NADC and MADC same as DAC
+
 	//	w 30 12 81 # NADC = 3
-	cmd[0] = 0x12;
+	cmd[0] = 0x12;  // 18
 	cmd[1] = (1 << 7) | (3 << 0);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	//	w 30 13 84 # MADC = 15
-	cmd[0] = 0x13;
-	cmd[1] = (1 << 7) | (15 << 0);
+	cmd[0] = 0x13; // 19
+	cmd[1] = (1 << 7) | (27 << 0);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	//	w 30 14 40 # AOSR = 128
 	// TODO As per datasheet, if AOSR=128, Use with PRB_R1 to PRB_R6, ADC Filter Type A
-	cmd[0] = 0x14;
-	cmd[1] = 128;
+	cmd[0] = 0x14;  //20
+	cmd[1] = 64;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 #else
@@ -1619,6 +1618,8 @@ static void beep_gen(void)
 	unsigned char cmd[2];
 
 	codec_set_page(0);
+
+	UARTprintf("Beep\n");
 
 	// Set beep time to be 2 seconds=0x01770
 
