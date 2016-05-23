@@ -1135,24 +1135,9 @@ static void codec_asi_config(void)
 	cmd[1] = 0x50;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
-#if (CODEC_ADC_16KHZ == 1)
-
-	// ADC WCLK is input on GPIO1, BCLK is input on GPIO 3
-	cmd[0] = 0x010;
-	cmd[1] = (1 << 4) | (3 << 0);
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
-	// Enable ASI2 BCLK Output and WCLK Output
-	cmd[0] = 0x1A;
-	cmd[1] = (1 << 5) | (1 << 2);
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-#else
-
 	cmd[0] = 0x010;
 	cmd[1] = 0;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
-#endif
 
 	cmd[0] = 0x47;
 	cmd[1] = ( 1 << 5 ) ;
