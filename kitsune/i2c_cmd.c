@@ -39,7 +39,7 @@
 
 #define DELAY_CODEC 				5 // TODO set arbitrarily, might need to be adjusted
 #define CODEC_USE_MINIDSP 			0 // Set to 1 if using miniDSP, else 0
-#define CODEC_ADC_16KHZ    			0 // Set to 1 if ADC sampling rate is 16k Hz. If not, ADC Fs = DAC Fs = 48k Hz
+#define CODEC_ADC_16KHZ    			1 // Set to 1 if ADC sampling rate is 16k Hz. If not, ADC Fs = DAC Fs = 48k Hz
 #define CODEC_MULTI_CH_SINGLE_PIN 	0
 
 // Left mic data is latched on rising by default, to latch it on rising edge instead
@@ -1416,18 +1416,18 @@ static void codec_mic_config(void)
 
 	// # ADC Fine Gain Volume Control, Unmute Left and Right ADC channel
 	cmd[0] = 0x52;
-	cmd[1] = (4 << 4) | (4 << 0);
+	cmd[1] = 0; //(4 << 4) | (4 << 0);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	// # Left ADC Volume Control
 	// TODO play with volume
 	cmd[0] = 0x53;
-	cmd[1] = 0;// 0x68;
+	cmd[1] = 0x28; //0;// 0x68;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	// TODO play with volume
 	cmd[0] = 0x54;
-	cmd[1] = 0; //0x68;
+	cmd[1] = 0x28; //0; //0x68;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 #if (CODEC_DIG_MIC2_EN==1)
