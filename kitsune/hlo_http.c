@@ -24,7 +24,7 @@ typedef struct{
 	int sock;
 }hlo_sock_ctx_t;
 extern void set_backup_dns();
-static unsigned long _get_ip(const char * host){
+unsigned long hlo_http_get_ip(const char * host){
 	unsigned long ip = 0;
 	set_backup_dns();
 	if(0 == gethostbyname((_i8*)host, strlen(host), &ip, SL_AF_INET)){
@@ -47,12 +47,12 @@ static sockaddr _get_addr(unsigned long ip, uint16_t port){
 	 return sAddr;
 }
 #define SL_SSL_CA_CERT_FILE_NAME "/cert/ca.der"
-static int _start_connection(unsigned long ip, security_type sec){
+static int _start_connection(unsigned long ip, uint16_t port, security_type sec){
 	int sock = -1;
 	if( ip ){
 		 sockaddr sAddr;
 		 if(sec == SOCKET_SEC_SSL){
-			 sAddr = _get_addr(ip, 443);
+			 sAddr = _get_addr(ip, port);
 			 sock = socket(AF_INET, SOCK_STREAM, SL_SEC_SOCKET);
 			 if(sock <= 0){
 				 goto exit;
@@ -74,7 +74,7 @@ static int _start_connection(unsigned long ip, security_type sec){
 				 //ble_reply_wifi_status(wifi_connection_state_SSL_FAIL);
 			 }
 		 }else{
-			 sAddr = _get_addr(ip, 80);
+			 sAddr = _get_addr(ip, port);
 			 sock = socket(AF_INET, SOCK_STREAM, SL_IPPROTO_TCP);
 		 }
 		 if( sock < 0 ) goto exit;
@@ -127,7 +127,7 @@ static int _write_sock(void * ctx, const void * buf, size_t size){
 	}
 	return rv;
 }
-hlo_stream_t * hlo_sock_stream(const char * host, uint8_t secure){
+hlo_stream_t * hlo_sock_stream_opt(unsigned long ip, uint16_t port, uint8_t secure){
 	hlo_stream_vftbl_t impl = (hlo_stream_vftbl_t){
 		.write = _write_sock,
 		.read = _read_sock,
@@ -135,17 +135,26 @@ hlo_stream_t * hlo_sock_stream(const char * host, uint8_t secure){
 	};
 	int sock = -1;
 	if(!secure){
-		sock = _start_connection(_get_ip(host), SOCKET_SEC_NONE);
+		sock = _start_connection(ip, port, SOCKET_SEC_NONE);
 	}else{
-		sock = _start_connection(_get_ip(host), SOCKET_SEC_SSL);
+		sock = _start_connection(ip, port,  SOCKET_SEC_SSL);
 	}
 	if(sock >= 0){
 		LOGI("sock is %d\r\n", sock);
 		return hlo_stream_new(&impl, (void*)sock, HLO_STREAM_READ_WRITE);
 	}
 	return NULL;
-}
 
+}
+hlo_stream_t * hlo_sock_stream(const char * host, uint8_t secure){
+	if(!secure){
+		return hlo_sock_stream_opt(hlo_http_get_ip(host), 80, SOCKET_SEC_NONE);
+	}else{
+		return hlo_sock_stream_opt(hlo_http_get_ip(host), 443, SOCKET_SEC_SSL);
+	}
+
+
+}
 //====================================================================
 //http requests impl
 //Data Structures
