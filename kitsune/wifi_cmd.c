@@ -57,6 +57,7 @@ int sl_mode = ROLE_INVALID;
 #include "fs_utils.h"
 
 #include "limits.h"
+#include "hw_ver.h"
 
 int send_top(char *, int);
 void mcu_reset()
@@ -325,15 +326,14 @@ unsigned char get_default_antenna() {
 
 void antsel(unsigned char a)
 {
-    if(a == 1)
-    {
-         MAP_GPIOPinWrite(GPIOA3_BASE, 0xC, 0x8);
-    }
-    else if(a == 2)
-    {
-        MAP_GPIOPinWrite(GPIOA3_BASE, 0xC, 0x4);
-    }
-    return;
+	if (get_hw_ver() < EVT1_1p5) {
+		if (a == 1) {
+			MAP_GPIOPinWrite(GPIOA3_BASE, 0xC, 0x8);
+		} else if (a == 2) {
+			MAP_GPIOPinWrite(GPIOA3_BASE, 0xC, 0x4);
+		}
+	}
+	return;
 }
 int Cmd_antsel(int argc, char *argv[]) {
     if (argc != 2) {

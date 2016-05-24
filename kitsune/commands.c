@@ -854,7 +854,7 @@ void thread_fast_i2c_poll(void * unused)  {
 				if( light_m2 < 0 ) {
 					light_m2 = 0x7FFFFFFF;
 				}
-				//LOGI( "%d %d %d %d\n", delta, light_mean, light_m2, light_cnt);
+//				LOGI( "%d\t%d\t%d\t%d\t%d\n", delta, light_mean, light_m2, light_cnt, _is_light_off());
 				xSemaphoreGive(light_smphr);
 
 				if(light_cnt % 5 == 0 && led_is_idle(0) ) {
@@ -1841,8 +1841,11 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "mac", Cmd_set_mac, "" },
 		{ "aes", Cmd_set_aes, "" },
 #endif
+		{ "hwver", Cmd_hwver, "" },
+
 		{ "fault", Cmd_fault, "" },
 		{ "faults", Cmd_fault_slow, ""},
+
 		{ "free", Cmd_free, "" },
 		{ "connect", Cmd_connect, "" },
 		{ "disconnect", Cmd_disconnect, "" },
@@ -2052,8 +2055,7 @@ void vUARTTask(void *pvParameters) {
 	UDMAInit();
 	//sdhost dma interrupts
 	MAP_SDHostIntRegister(SDHOST_BASE, SDHostIntHandler);
-	MAP_SDHostSetExpClk(SDHOST_BASE, MAP_PRCMPeripheralClockGet(PRCM_SDHOST),
-			get_hw_ver()==EVT2?1000000:24000000);
+	MAP_SDHostSetExpClk(SDHOST_BASE, MAP_PRCMPeripheralClockGet(PRCM_SDHOST), 24000000);
 	UARTprintf("*");
 	Cmd_mnt(0, 0);
 	vTaskDelay(10);
