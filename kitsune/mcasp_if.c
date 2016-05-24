@@ -121,8 +121,10 @@ void McASPInit( unsigned int SAMPLING_FREQ)
     //(b) Reset the module using PRCMPeripheralReset
     MAP_PRCMPeripheralReset(PRCM_I2S);
 
-    MAP_PRCMI2SClockFreqSet(SAMPLING_FREQ*2*16*2);
-    MAP_I2SConfigSetExpClk(I2S_BASE,SAMPLING_FREQ*2*16*2,SAMPLING_FREQ*2*16*2,I2S_SLOT_SIZE_16|
+#define BIT_CLOCK (SAMPLING_FREQ*2*16*2UL)
+
+    MAP_PRCMI2SClockFreqSet(BIT_CLOCK);
+    MAP_I2SConfigSetExpClk(I2S_BASE, BIT_CLOCK, BIT_CLOCK,I2S_SLOT_SIZE_16|
                             I2S_PORT_DMA);
 }
 void McASPDeInit()
