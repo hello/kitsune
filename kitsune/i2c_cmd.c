@@ -22,7 +22,7 @@
 
 #include "stdbool.h"
 
-//#include "audio_codec_pps_driver.h"
+// #include "audio_codec_pps_driver.h"
 
 #define MAX_MEASURE_TIME			10
 
@@ -47,12 +47,6 @@
 #define CODEC_LEFT_LATCH_FALLING 	1
 #define CODEC_DIG_MIC1_EN			1
 #define CODEC_DIG_MIC2_EN 			1
-
-#define CODEC_LEFT_ADC_EN			1
-#define CODEC_RIGHT_ADC_EN			1 // Set it to 1 if using right ADC
-
-#define CODEC_AGC_EN				0 // Set it tp 1 to enable AGC
-
 
 #define CODEC_BEEP_GENERATOR		0
 
@@ -1417,13 +1411,7 @@ static void codec_mic_config(void)
 	cmd[0] = 0x51;
 	cmd[1] = (1 << 4) | (1 << 2) |  	// Configure left and right channel ADC for digital microphone
 				(2 << 0) 				// ADC Volume control soft-stepping disabled
-#if (CODEC_RIGHT_ADC_EN == 1)
-			| (1 << 6)
-#endif
-#if (CODEC_LEFT_ADC_EN == 1)
-			| (1 << 7)
-#endif
-			;
+			| (1 << 6) | (1 << 7);		// Enable left and right ADC
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	// # ADC Fine Gain Volume Control, Unmute Left and Right ADC channel
