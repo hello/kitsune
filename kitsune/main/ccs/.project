@@ -331,6 +331,16 @@
 			<locationURI>PARENT-2-PROJECT_LOC/hlo_http.h</locationURI>
 		</link>
 		<link>
+			<name>hlo_mqtt.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hlo_mqtt.c</locationURI>
+		</link>
+		<link>
+			<name>hlo_mqtt.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hlo_mqtt.h</locationURI>
+		</link>
+		<link>
 			<name>hlo_net_tools.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/hlo_net_tools.c</locationURI>
@@ -449,6 +459,11 @@
 			<name>mcasp_if.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/mcasp_if.h</locationURI>
+		</link>
+		<link>
+			<name>mqtt</name>
+			<type>2</type>
+			<locationURI>virtual:/virtual</locationURI>
 		</link>
 		<link>
 			<name>nanopb</name>
@@ -864,6 +879,31 @@
 			<name>hashtable/swap_mem.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/hashtable/swap_mem.h</locationURI>
+		</link>
+		<link>
+			<name>mqtt/mqtt_client.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/mqtt/mqtt_client.c</locationURI>
+		</link>
+		<link>
+			<name>mqtt/mqtt_client.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/mqtt/mqtt_client.h</locationURI>
+		</link>
+		<link>
+			<name>mqtt/mqtt_common.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/mqtt/mqtt_common.c</locationURI>
+		</link>
+		<link>
+			<name>mqtt/mqtt_common.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/mqtt/mqtt_common.h</locationURI>
+		</link>
+		<link>
+			<name>mqtt/platform.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/mqtt/platform.h</locationURI>
 		</link>
 		<link>
 			<name>nanopb/pb.h</name>
