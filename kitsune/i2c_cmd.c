@@ -53,6 +53,9 @@
 
 #define CODEC_AGC_EN				0 // Set it tp 1 to enable AGC
 
+
+#define CODEC_BEEP_GENERATOR		0
+
 extern xSemaphoreHandle i2c_smphr;
 
 #include "stdbool.h"
@@ -538,9 +541,13 @@ static void codec_asi_config(void);
 static void codec_signal_processing_config(void);
 static void codec_mic_config(void);
 static void codec_speaker_config(void);
-static void beep_gen(void);
+
 static void codec_set_page(uint32_t page);
 static void codec_set_book(uint32_t book);
+
+#if (CODEC_BEEP_GENERATOR==1)
+static void beep_gen(void);
+#endif
 
 #define CODEC_DRIVER_FILE "/sys/codec_driver"
 #define FILE_READ_BLOCK 128
@@ -583,7 +590,6 @@ int32_t codec_test_commands(void)
 
 		UARTprintf("Codec Test read 3 %s: [0][0][%u]: %X  \r\n", (cmd[1]==0x01)?"Pass":"Fail", cmd[0], cmd[1]);
 
-		// Enable beep generator (?) if speaker is connected
 
 		xSemaphoreGiveRecursive(i2c_smphr);
 	}
@@ -592,6 +598,8 @@ int32_t codec_test_commands(void)
 
 }
 #endif
+
+// TODO use i2s semaphore
 
 #if (CODEC_USE_MINIDSP == 1)
 #define codec_init_with_dsp codec_init
@@ -724,13 +732,6 @@ int32_t codec_init_no_dsp(void)
 	// Softwarre Reset
 	codec_sw_reset();
 
-	/*
-	 * 		Setting the coeffients for the signal processing blocks must be done
-	 *     	before the ADC and DAC are powered up. (non-adaptive mode. The ADC
-	 *     	is powered up in codec_mic_config()
-	 *
-	 */
-
 	// FIFO Configuration
 	codec_fifo_config();
 
@@ -746,6 +747,12 @@ int32_t codec_init_no_dsp(void)
 	// Audio Serial Interface Configuration (ASI1 with 6 wire I2S setup)
 	codec_asi_config();
 
+	/*
+	 * 		Setting the coeffients for the signal processing blocks must be done
+	 *     	before the ADC and DAC are powered up. (non-adaptive mode. The ADC
+	 *     	is powered up in codec_mic_config()
+	 *
+	 */
 	// Signal Processing Settings (Select signal processing blocks for record and playback)
 	codec_signal_processing_config();
 
@@ -807,7 +814,9 @@ int32_t codec_init_no_dsp(void)
 
 #endif
 
-	//beep_gen();
+#if (CODEC_BEEP_GENERATOR == 1)
+	beep_gen();
+#endif
 
 	return 0;
 }
@@ -1273,9 +1282,12 @@ static void codec_signal_processing_config(void)
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	// w 30 3c 01 # Set the DAC PRB Mode to PRB_P1
-	// TODO If using beep generator this may have to be changed
 	cmd[0] = 0x3C;
-	cmd[1] = 0x01;//0x1B;//0x01;
+#if (CODEC_BEEP_GENERATOR==1)
+	cmd[1] = 0x1B;
+#else
+	cmd[1] = 0x01;
+#endif
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	//	w 30 00 00 # Select Page 1
@@ -1525,6 +1537,7 @@ static void codec_speaker_config(void)
 	vTaskDelay(20);
 }
 
+#if (CODEC_BEEP_GENERATOR==1)
 static void beep_gen(void)
 {
 	char send_stop = 1;
@@ -1553,6 +1566,7 @@ static void beep_gen(void)
 
 
 }
+#endif
 
 static void codec_set_page(uint32_t page)
 {
