@@ -71,14 +71,14 @@ extern "C"
 // Define Packet Size, Rx and Tx Buffer
 //
 //*****************************************************************************
-#define PING_PONG_CHUNK_SIZE (128)
+#define PING_PONG_CHUNK_SIZE (1024)
 
-#define AUD_BUFFER_SIZE         (2*1024)
+#define AUD_BUFFER_SIZE         (12*PING_PONG_CHUNK_SIZE)
 #define RX_BUFFER_SIZE          (AUD_BUFFER_SIZE)
-#define PLAY_WATERMARK          (RX_BUFFER_SIZE-PING_PONG_CHUNK_SIZE-1)
+#define PLAY_WATERMARK          (RX_BUFFER_SIZE-PING_PONG_CHUNK_SIZE-PING_PONG_CHUNK_SIZE/2)
 
 #define TX_BUFFER_SIZE          (AUD_BUFFER_SIZE)
-#define LISTEN_WATERMARK        (PING_PONG_CHUNK_SIZE+1)
+#define LISTEN_WATERMARK        (PING_PONG_CHUNK_SIZE+PING_PONG_CHUNK_SIZE/2)
 
 #define AUDIO_FILE "DIGIAUX.raw" //armi.rec
 //*****************************************************************************

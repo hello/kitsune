@@ -138,7 +138,7 @@ static void _ble_reply_command_with_type(MorpheusCommand_CommandType type)
 	ble_send_protobuf(&reply_command);
     LOGI("Sending BLE %d\n",type);
 }
-
+extern int deleteFilesInDir(const char* dir);
 static void _factory_reset(){
 	wifi_reset();
     reset_default_antenna();

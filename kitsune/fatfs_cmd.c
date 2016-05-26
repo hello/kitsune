@@ -418,24 +418,34 @@ int global_filename(char * local_fn)
 // it is used on a binary file, then a bunch of garbage is likely to printed on
 // the console.
 //
+// An optional string as paramter can be used after special cases such as
+// Audio = $a46000
+//
 //*****************************************************************************
 #include "hlo_pipe.h"
 #include "hlo_audio.h"
+#include "hlo_http.h"
 #define BUF_SIZE 64
-hlo_stream_t * open_stream_from_path(char * str, uint8_t input, uint32_t opt_rate){
+hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 	if(input){//input
 		if(str[0] == '$'){
 			switch(str[1]){
 			case 'a':
 			case 'A':
+			{
+				int opt_rate = ustrtoul(&str[2],NULL, 10);
 				if(opt_rate){
-					return hlo_audio_open_mono(opt_rate,44,HLO_AUDIO_RECORD);
+					return hlo_audio_open_mono(opt_rate,60,HLO_AUDIO_RECORD);
 				}else{
-					return hlo_audio_open_mono(16000,44,HLO_AUDIO_RECORD);
+					return hlo_audio_open_mono(16000,60,HLO_AUDIO_RECORD);
 				}
+			}
 			case 'r':
 			case 'R':
 				return random_stream_open();
+			case 'i':
+			case 'I':
+				return hlo_http_get(&str[2]);
 			default:
 				break;
 			}
@@ -451,11 +461,21 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input, uint32_t opt_rat
 			switch(str[1]){
 			case 'a':
 			case 'A':
-				if(opt_rate){
-					return hlo_audio_open_mono(opt_rate,44,HLO_AUDIO_PLAYBACK);
-				}else{
-					return hlo_audio_open_mono(48000,44,HLO_AUDIO_PLAYBACK);
+			{
+				int opt_rate = 0;
+				if(str[2] != '\0'){
+					opt_rate = ustrtoul(&str[2],NULL, 10);
 				}
+				DISP("Opt rate is %d\r\n", opt_rate);
+				if(opt_rate){
+					return hlo_audio_open_mono(opt_rate,60,HLO_AUDIO_PLAYBACK);
+				}else{
+					return hlo_audio_open_mono(48000,60,HLO_AUDIO_PLAYBACK);
+				}
+			}
+			case 'i':
+			case 'I':
+				return hlo_http_post(&str[2], 0, NULL);
 			case 'o':
 			case 'O':
 				return uart_stream();
@@ -1090,13 +1110,6 @@ int download_file(char * host, char * url, char * filename, char * path, storage
 
 	return r;
 }
-//http://dropbox.com/on/drop/box/file.txt
-
-//download dropbox.com somefile.txt /on/drop/box/file.txt /
-int Cmd_download(int argc, char*argv[]) {
-	return download_file( argv[1], argv[3], argv[2], argv[4], SD_CARD );
-}
-
 //end download functions
 #include "sync_response.pb.h"
 #include "stdbool.h"

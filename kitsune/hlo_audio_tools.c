@@ -81,7 +81,7 @@ void AudioTask_DumpOncePerMinuteStats(AudioOncePerMinuteData_t * pdata) {
 //adpcm processor pair
 //TODO make it more efficient
 #include "adpcm.h"
-#define ADPCM_SAMPLES (512)
+#define ADPCM_SAMPLES (1024)
 int hlo_filter_adpcm_decoder(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
 	char compressed[ADPCM_SAMPLES/2];
 	short decompressed[ADPCM_SAMPLES];
@@ -138,7 +138,20 @@ int hlo_filter_data_transfer(hlo_stream_t * input, hlo_stream_t * output, void *
 	}
 	return ret;
 }
-
+////-------------------------------------------
+// Throughput calculator
+int hlo_filter_throughput_test(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
+	TickType_t start = xTaskGetTickCount();
+	int ret = hlo_filter_data_transfer(input, output, ctx, signal);
+	TickType_t tdelta = xTaskGetTickCount() - start;
+	int ts = tdelta / 1000;
+	if(ts == 0){
+		ts = 1;
+	}
+	size_t total =  output->info.bytes_written;
+	LOGI("Transferred %u bytes over %u milliseconds, throughput %u kb/s\r\n", total, tdelta, (total / 1024) / ts);
+	return ret;
+}
 ////-------------------------------------------
 //octogram sample app
 #include "octogram.h"
@@ -178,6 +191,45 @@ int hlo_filter_octogram(hlo_stream_t * input, hlo_stream_t * output, void * ctx,
 	DISP("Octogram Task Finished %d\r\n", ret);
 	return ret;
 }
+////-------------------------------------------
+//octogram sample app
+int hlo_filter_speech_detection(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
+#define NSAMPLES 512
+	int sample_rate = 16000;
+	int ret;
+	int16_t samples[NSAMPLES];
+	int32_t count = 0;
+	int32_t zcr = 0;
+	int32_t window_zcr;
+	int32_t window_eng;
+	int64_t eng = 0;
+	uint8_t window_over = 0;
+	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, sizeof(samples), 4)) ){
+		int i;
+		for(i = 1; i < NSAMPLES; i++){
+			if( (samples[i] > 0 && samples[i-1] <= 0) ||
+					(samples[i] <= 0 && samples[i-1] > 0) ){
+				zcr++;
+			}
+			eng += abs(samples[i] - samples[i-1]);
+			if( count++ > sample_rate ){
+				window_over = 1;
+				window_zcr = zcr;
+				window_eng = eng/sample_rate;
+				zcr = 0;
+				count = 0;
+				eng = 0;
+			}
+		}
+		if( window_over ){
+			LOGI("zcr = %d, eng = %d\r\n", window_zcr, window_eng);
+			window_over = 0;
+		}
+		hlo_stream_transfer_all(INTO_STREAM, output,  (uint8_t*)samples, ret, 4);
+		BREAK_ON_SIG(signal);
+	}
+	return ret;
+}
 ////-----------------------------------------
 //commands
 static uint8_t _can_has_sig_stop(void){
@@ -207,15 +259,18 @@ static hlo_filter _filter_from_string(const char * str){
 		return hlo_filter_adpcm_decoder;
 	case 'o':
 		return hlo_filter_octogram;
+	case '?':
+		return hlo_filter_throughput_test;
+	case 'x':
+		return hlo_filter_speech_detection;
 	default:
 		return hlo_filter_data_transfer;
 	}
 
 }
 #include <stdlib.h>
-hlo_stream_t * open_stream_from_path(char * str, uint8_t input, uint32_t opt_rate);
+hlo_stream_t * open_stream_from_path(char * str, uint8_t input);
 int Cmd_stream_transfer(int argc, char * argv[]){
-	uint32_t rate = 0;
 	audio_sig_stop = 0;
 	hlo_filter f = hlo_filter_data_transfer;
 	int ret;
@@ -224,13 +279,10 @@ int Cmd_stream_transfer(int argc, char * argv[]){
 		LOGI("Press s to stop the transfer\r\n");
 	}
 	if(argc >= 4){
-		rate = atoi(argv[3]);
+		f = _filter_from_string(argv[3]);
 	}
-	if(argc >= 5){
-		f = _filter_from_string(argv[4]);
-	}
-	hlo_stream_t * in = open_stream_from_path(argv[1],1, rate);
-	hlo_stream_t * out = open_stream_from_path(argv[2],0, rate);
+	hlo_stream_t * in = open_stream_from_path(argv[1],1);
+	hlo_stream_t * out = open_stream_from_path(argv[2],0);
 
 	ret = f(in,out,NULL, _can_has_sig_stop);
 

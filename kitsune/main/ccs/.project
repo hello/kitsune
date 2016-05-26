@@ -321,6 +321,16 @@
 			<locationURI>PARENT-2-PROJECT_LOC/hlo_audio_tools.h</locationURI>
 		</link>
 		<link>
+			<name>hlo_http.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hlo_http.c</locationURI>
+		</link>
+		<link>
+			<name>hlo_http.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hlo_http.h</locationURI>
+		</link>
+		<link>
 			<name>hlo_net_tools.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/hlo_net_tools.c</locationURI>

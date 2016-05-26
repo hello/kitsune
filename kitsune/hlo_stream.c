@@ -52,9 +52,11 @@ int hlo_stream_close(hlo_stream_t * stream){
 	LOCK(stream);
 	ret = stream->impl.close(stream->ctx);
 	UNLOCK(stream);
-	if(ret == 0){
+	if(ret >= 0){
 		vSemaphoreDelete(stream->info.lock);
 		vPortFree(stream);
+	}else if( ret == HLO_STREAM_NO_IMPL ){
+		return 0;
 	}
 	return ret;
 }
@@ -114,7 +116,7 @@ static int fifo_write(void * ctx, const void * buf, size_t size){
 		}
 		return written;
 	}else{
-		return HLO_STREAM_EAGAIN;
+		return 0;
 	}
 }
 static int fifo_read(void * ctx, void * buf, size_t size){
@@ -127,7 +129,7 @@ static int fifo_read(void * ctx, void * buf, size_t size){
 		}
 		return read;
 	}else{
-		return HLO_STREAM_EAGAIN;
+		return 0;
 	}
 
 }
@@ -202,3 +204,4 @@ hlo_stream_t * debug_stream_open(void){
 }
 ////==========================================================
 //test commands
+

@@ -854,7 +854,7 @@ void thread_fast_i2c_poll(void * unused)  {
 				if( light_m2 < 0 ) {
 					light_m2 = 0x7FFFFFFF;
 				}
-				//LOGI( "%d %d %d %d\n", delta, light_mean, light_m2, light_cnt);
+//				LOGI( "%d\t%d\t%d\t%d\t%d\n", delta, light_mean, light_m2, light_cnt, _is_light_off());
 				xSemaphoreGive(light_smphr);
 
 				if(light_cnt % 5 == 0 && led_is_idle(0) ) {
@@ -938,6 +938,7 @@ end:
 	}
 }
 #include "endpoints.h"
+#include "hlo_http.h"
 void thread_tx(void* unused) {
 	batched_periodic_data data_batched = {0};
 #ifdef UPLOAD_AP_INFO
@@ -1042,6 +1043,52 @@ void thread_tx(void* unused) {
 		} while (!wifi_status_get(HAS_IP));
 	}
 }
+
+typedef struct {
+	hlo_stream_t * stream;
+	const pb_field_t * fields;
+	void * structdata;
+} encode_ctx;
+
+void thread_encode(void* ctx) {
+	encode_ctx * ts = (encode_ctx*)ctx;
+	hlo_pb_encode( ts->stream, ts->fields, ts->structdata );
+	hlo_frame_stream_flush( ts->stream );
+	vTaskDelete(NULL);
+}
+
+int Cmd_pbstr(int argc, char *argv[]) {
+	periodic_data data, sr;
+	encode_ctx enc_ctx;
+
+	{
+		hlo_stream_t * frame_stream = NULL;
+		hlo_stream_t * sock_stream = NULL;
+		if( !frame_stream ) {
+			frame_stream = hlo_frame_stream( 512 );
+		}
+		if( !sock_stream ) {
+			sock_stream = hlo_sock_stream( "notreal", false );
+		}
+
+		data.has_light = true;
+		data.light = 10;
+		LOGF("sending %d\n", data.light );
+
+		enc_ctx.stream = frame_stream;
+		enc_ctx.fields = periodic_data_fields;
+		enc_ctx.structdata = &data;
+
+		xTaskCreate(thread_encode, "pbenc", 1024 / 4, &enc_ctx, 4, NULL);
+		vTaskDelay(100);
+		hlo_filter_data_transfer( frame_stream, sock_stream, NULL, NULL );
+
+		LOGF("\n\nR! %d %d\n\n",  hlo_pb_decode( sock_stream, periodic_data_fields, &sr  ), sr.light );
+		hlo_stream_close(frame_stream);
+	}
+}
+
+
 
 #include "audio_types.h"
 
@@ -1841,8 +1888,11 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "mac", Cmd_set_mac, "" },
 		{ "aes", Cmd_set_aes, "" },
 #endif
+		{ "hwver", Cmd_hwver, "" },
+
 		{ "fault", Cmd_fault, "" },
 		{ "faults", Cmd_fault_slow, ""},
+
 		{ "free", Cmd_free, "" },
 		{ "connect", Cmd_connect, "" },
 		{ "disconnect", Cmd_disconnect, "" },
@@ -1884,6 +1934,8 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "get", Cmd_test_get, ""},
 #endif
 
+		{ "pb", Cmd_pbstr, ""},
+
 		{ "r", Cmd_AudioCapture,""}, //record sounds into SD card
 		{ "s",Cmd_audio_record_stop,""},
 		{ "x", Cmd_stream_transfer, ""},
@@ -1915,7 +1967,6 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "topdfu", Cmd_topdfu, ""}, //update topboard firmware.
 		{ "factory_reset", Cmd_factory_reset, ""},//Factory reset from middle.
 #if 2
-		{ "download", Cmd_download, ""},//download test function.
 		{ "dtm", Cmd_top_dtm, "" },//Sends Direct Test Mode command
 #endif
 		{ "animate", Cmd_led_animate, ""},//Animates led
@@ -2053,8 +2104,7 @@ void vUARTTask(void *pvParameters) {
 	UDMAInit();
 	//sdhost dma interrupts
 	MAP_SDHostIntRegister(SDHOST_BASE, SDHostIntHandler);
-	MAP_SDHostSetExpClk(SDHOST_BASE, MAP_PRCMPeripheralClockGet(PRCM_SDHOST),
-			get_hw_ver()==EVT2?1000000:24000000);
+	MAP_SDHostSetExpClk(SDHOST_BASE, MAP_PRCMPeripheralClockGet(PRCM_SDHOST), 24000000);
 	UARTprintf("*");
 	Cmd_mnt(0, 0);
 	vTaskDelay(10);
