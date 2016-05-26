@@ -132,6 +132,7 @@ void DMAPingPongCompleteAppCB_opt()
 	i2s_status = I2SIntStatus(I2S_BASE);
 	dma_status = uDMAIntStatus();
 
+	// I2S RX
 	if (dma_status & 0x00000010) {
 		qqbufsz = GetBufferSize(pAudInBuf);
 		HWREG(0x4402609c) = (1 << 10);
@@ -144,38 +145,36 @@ void DMAPingPongCompleteAppCB_opt()
 		//PRIMARY part of the ping pong
 		if ((pControlTable[ulPrimaryIndexTx].ulControl & UDMA_CHCTL_XFERMODE_M)
 				== 0) {
-			guiDMATransferCountTx += CB_TRANSFER_SZ;
+			guiDMATransferCountTx += CB_TRANSFER_SZ*2;
 			pucDMADest = (unsigned char *) ping;
 			pControlTable[ulPrimaryIndexTx].ulControl |= CTRL_WRD;
 			pControlTable[ulPrimaryIndexTx].pvDstEndAddr = (void *) (pucDMADest
 					+ END_PTR);
 			MAP_uDMAChannelEnable(UDMA_CH4_I2S_RX);
 
-			for (i = 0; i < CB_TRANSFER_SZ/2; i++) {
-				pong[i] = pong[2*i+1];
+			for (i = 0; i < CB_TRANSFER_SZ; i++) {
 				swap_endian(pong+i);
 			}
-			FillBuffer(pAudInBuf, (unsigned char*)pong, CB_TRANSFER_SZ);
+			FillBuffer(pAudInBuf, (unsigned char*)pong, CB_TRANSFER_SZ*2);
 		} else {
 			//ALT part of the ping pong
 			if ((pControlTable[ulAltIndexTx].ulControl & UDMA_CHCTL_XFERMODE_M)
 					== 0) {
-				guiDMATransferCountTx += CB_TRANSFER_SZ;
+				guiDMATransferCountTx += CB_TRANSFER_SZ*2;
 				pucDMADest = (unsigned char *) pong;
 				pControlTable[ulAltIndexTx].ulControl |= CTRL_WRD;
 				pControlTable[ulAltIndexTx].pvDstEndAddr = (void *) (pucDMADest
 						+ END_PTR);
 				MAP_uDMAChannelEnable(UDMA_CH4_I2S_RX);
 
-				for (i = 0; i < CB_TRANSFER_SZ/2; i++) {
-					ping[i] = ping[2*i+1];
+				for (i = 0; i < CB_TRANSFER_SZ; i++) {
 					swap_endian(ping+i);
 				}
-				FillBuffer(pAudInBuf, (unsigned char*)ping, CB_TRANSFER_SZ);
+				FillBuffer(pAudInBuf, (unsigned char*)ping, CB_TRANSFER_SZ*2);
 			}
 		}
 
-		if (guiDMATransferCountTx >= CB_TRANSFER_SZ) {
+		if (guiDMATransferCountTx >= CB_TRANSFER_SZ*2) {
 			signed long xHigherPriorityTaskWoken;
 
 			guiDMATransferCountTx = 0;
@@ -187,6 +186,7 @@ void DMAPingPongCompleteAppCB_opt()
 		}
 	}
 
+	// I2S TX
 	if (dma_status & 0x00000020) {
 		qqbufsz = GetBufferSize(pAudOutBuf);
 		HWREG(0x4402609c) = (1 << 11);
