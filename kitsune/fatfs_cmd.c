@@ -475,7 +475,7 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 			}
 			case 'i':
 			case 'I':
-				return hlo_http_post(&str[2], 0, NULL);
+				return hlo_http_post(&str[2], NULL);
 			case 'o':
 			case 'O':
 				return uart_stream();

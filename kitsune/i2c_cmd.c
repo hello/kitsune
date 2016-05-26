@@ -35,7 +35,6 @@
 extern xSemaphoreHandle i2c_smphr;
 
 #include "stdbool.h"
-static bool old_light_sensor;
 
 //*****************************************************************************
 //
@@ -351,33 +350,23 @@ int Cmd_readtemp(int argc, char *argv[]) {
 
 int init_light_sensor()
 {
-	old_light_sensor = get_hw_ver()==EVT2;
-
 	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
 
-	if (old_light_sensor) {
-		unsigned char cmd_init[2];
-
-		cmd_init[0] = 0x80; // Command register - 8'b1000_0000
-		cmd_init[1] = 0x03; // Control register - 8'b0000_0011
-		(I2C_IF_Write(0x29, cmd_init, 2, 1)); // setup normal mode
-
-		cmd_init[0] = 0x81; // Command register - 8'b1000_0000
-		cmd_init[1] = 0x02; // Control register - 8'b0000_0010 // 100ms due to page 9 of http://media.digikey.com/pdf/Data%20Sheets/Austriamicrosystems%20PDFs/TSL4531.pdf
-		(I2C_IF_Write(0x29, cmd_init, 2, 1)); //  );// change integration
-	} else {
-		unsigned char aucDataBuf[2] = { 0, 0 };
-		aucDataBuf[0] = 0;
-		aucDataBuf[1] = 0xA0;
+	if( get_hw_ver() < EVT1_1p5 ) {
+		unsigned char aucDataBuf[2] = { 0, 0xA0 };
 		(I2C_IF_Write(0x44, aucDataBuf, 2, 1));
+	} else {
+		unsigned char aucDataBuf[3] = { 1, 0b11001110, 0b00001000 };
+		(I2C_IF_Write(0x44, aucDataBuf, 3, 1));
 	}
+
 	xSemaphoreGiveRecursive(i2c_smphr);
 	return SUCCESS;
 }
 
 static int _read_als(){
 	unsigned char cmd;
-	unsigned char aucDataBuf[2] = { 0, 0 };
+	unsigned char aucDataBuf[5] = { 0, 0 };
 
 	cmd = 0x2;
 	(I2C_IF_Write(0x44, &cmd, 1, 1));
@@ -387,35 +376,15 @@ static int _read_als(){
 }
 
 int get_light() {
-	unsigned char cmd;
 	unsigned char aucDataBuf[2] = { 0, 0 };
 
 	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
 
-	if (old_light_sensor) {
-		unsigned char aucDataBuf_LOW[2];
-		unsigned char aucDataBuf_HIGH[2];
-		int light_lux;
+	int light = 0;
+	static int scaling = 0;
+	int prev_scaling = scaling;
 
-		cmd = 0x84; // Command register - 0x04
-		(I2C_IF_Write(0x29, &cmd, 1, 1));
-		(I2C_IF_Read(0x29, aucDataBuf_LOW, 1)); //could read 2 here, but we don't use the other one...
-
-		cmd = 0x85; // Command register - 0x05
-		(I2C_IF_Write(0x29, &cmd, 1, 1));
-		(I2C_IF_Read(0x29, aucDataBuf_HIGH, 1));
-
-		// We are using 100ms mode, multipler is 4
-		// formula based on page 6 of http://media.digikey.com/pdf/Data%20Sheets/Austriamicrosystems%20PDFs/TSL4531.pdf
-		light_lux = ((aucDataBuf_HIGH[0] << 8) | aucDataBuf_LOW[0]) << 2;
-
-		xSemaphoreGiveRecursive(i2c_smphr);
-		return light_lux;
-	} else {
-		int light = 0;
-		static int scaling = 0;
-		int prev_scaling = scaling;
-
+	if( get_hw_ver() < EVT1_1p5 ) {
 		for(;;) {
 			#define MAX_RETRIES 10
 			int switch_cnt = 0;
@@ -458,9 +427,21 @@ int get_light() {
 			aucDataBuf[1] = scaling;
 			(I2C_IF_Write(0x44, aucDataBuf, 2, 1));
 		}
-		xSemaphoreGiveRecursive(i2c_smphr);
-		return light;
+	} else {
+		uint8_t cmd = 0x0;
+		(I2C_IF_Write(0x44, &cmd, 1, 1));
+		(I2C_IF_Read(0x44, aucDataBuf, 2));
+
+		uint16_t raw =  aucDataBuf[1] | (aucDataBuf[0] << 8);
+		unsigned int exp = raw >> 12; //pull out exponent
+		raw &= 0xFFF; //clear the exponent
+
+		light = raw;
+		light *= ((1<<exp) * 65536 ) / (125 * 100 );
+		//LOGI("%x\t%x\t\t%d, %d, %d\n", aucDataBuf[0],aucDataBuf[1], raw, exp, light);
 	}
+	xSemaphoreGiveRecursive(i2c_smphr);
+	return light;
 }
 
 int Cmd_readlight(int argc, char *argv[]) {

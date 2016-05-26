@@ -16,7 +16,7 @@
 //Protected API Declaration
 //
 hlo_stream_t * hlo_http_get_opt(hlo_stream_t * sock, const char * host, const char * endpoint);
-hlo_stream_t * hlo_http_post_opt(hlo_stream_t * sock, const char * host, const char * endpoint, const char * content_type_str, uint8_t sign);
+hlo_stream_t * hlo_http_post_opt(hlo_stream_t * sock, const char * host, const char * endpoint, const char * content_type_str);
 //====================================================================
 //socket stream implementation
 //
@@ -155,6 +155,226 @@ hlo_stream_t * hlo_sock_stream(const char * host, uint8_t secure){
 
 
 }
+//====================================================================
+//pb stream impl
+#include "pb.h"
+
+#define DBG_PBSTREAM(...)
+#define PB_FRAME_SIZE 1024
+
+typedef struct{
+	hlo_stream_t * sockstream;	/** base socket stream **/
+	int stream_state;
+}hlo_pb_stream_context_t;
+
+#ifdef DBGVERBOSE_PBSTREAM
+static _dbg_pbstream_raw( char * dir, const uint8_t * inbuf, size_t count ) {
+	int i;
+	DBG_PBSTREAM("PB RAW %s\t%d\t%02x", dir, count, inbuf[0] );
+	for( i=1; i<count; ++i) {
+		DBG_PBSTREAM(":%02x",inbuf[i]);
+		vTaskDelay(1);
+	}
+	DBG_PBSTREAM("\n");
+}
+#endif
+
+// this will dribble out a few bytes at a time, may need to pipe it
+static bool _write_pb_callback(pb_ostream_t *stream, const uint8_t * inbuf, size_t count) {
+	int transfer_size = count;
+	hlo_pb_stream_context_t * state = (hlo_pb_stream_context_t*)stream->state;
+	state->stream_state = hlo_stream_transfer_all(INTO_STREAM, state->sockstream,(uint8_t*)inbuf, count, 4);
+
+#ifdef DBGVERBOSE_PBSTREAM
+	_dbg_pbstream_raw("OUT", inbuf, count);
+	DBG_PBSTREAM("WC: %d\t%d\n", transfer_size, state->stream_state );
+#endif
+	return transfer_size == state->stream_state;
+}
+static bool _read_pb_callback(pb_istream_t *stream, uint8_t * inbuf, size_t count) {
+	int transfer_size = count;
+	hlo_pb_stream_context_t * state = (hlo_pb_stream_context_t*)stream->state;
+
+#ifdef DBGVERBOSE_PBSTREAM
+	DBG_PBSTREAM("PBREAD %x\t%d\n", inbuf, count );
+#endif
+
+	state->stream_state = hlo_stream_transfer_all(FROM_STREAM, state->sockstream, inbuf, count, 4);
+
+#ifdef DBGVERBOSE_PBSTREAM
+	_dbg_pbstream_raw("IN", inbuf, count);
+	DBG_PBSTREAM("RC: %d\t%d\n", transfer_size, state->stream_state );
+#endif
+
+	return transfer_size == state->stream_state;
+}
+int hlo_pb_encode( hlo_stream_t * stream, const pb_field_t * fields, void * structdata ){
+	uint16_t short_count;
+	hlo_pb_stream_context_t state;
+
+	state.sockstream = stream;
+	state.stream_state = 0;
+    pb_ostream_t pb_ostream = { _write_pb_callback, (void*)&state, PB_FRAME_SIZE, 0 };
+
+	bool success = true;
+
+	/*pb_ostream_t sizestream = {0};
+	pb_encode(&sizestream, fields, structdata); //TODO double check no stateful callbacks get hit here
+
+	DBG_PBSTREAM("PB TX %d\n", sizestream.bytes_written);
+	short_count = sizestream.bytes_written;
+	int ret = hlo_stream_transfer_all(INTO_STREAM, stream, (uint8_t*)&short_count, sizeof(short_count), 4);
+
+	success = success && sizeof(short_count) == ret; */
+	success = success && pb_encode(&pb_ostream,fields,structdata);
+
+	DBG_PBSTREAM("PBSS %d %d %d\n", state.stream_state, success, ret );
+	if( state.stream_state > 0 ) {
+		return success==true ? 0 : -1;
+	}
+	return state.stream_state;
+}
+int hlo_pb_decode( hlo_stream_t * stream, const pb_field_t * fields, void * structdata ){
+	uint16_t short_count;
+	hlo_pb_stream_context_t state;
+
+	state.sockstream = stream;
+	state.stream_state = 0;
+	pb_istream_t pb_istream = { _read_pb_callback, (void*)&state, PB_FRAME_SIZE, 0 };
+
+	bool success = true;
+
+	int ret = hlo_stream_transfer_all(FROM_STREAM, stream, (uint8_t*)&short_count, sizeof(short_count), 4);
+
+	success = success && sizeof(short_count) == ret;
+	DBG_PBSTREAM("PB RX %d %d\n", ret, short_count);
+
+	pb_istream.bytes_left = short_count;
+	success = success && pb_decode(&pb_istream,fields,structdata);
+	DBG_PBSTREAM("PBRS %d %d\n", state.stream_state, success );
+	if( state.stream_state > 0 ) {
+		return success==true ? 0 : -1;
+	}
+	return state.stream_state;
+}
+
+//====================================================================
+//frame stream impl
+
+typedef struct{
+	uint8_t * buf;
+	int32_t buf_pos;
+	int32_t buf_size;
+	bool eof;
+	xSemaphoreHandle fill_sem, send_sem;
+}hlo_frame_ctx_t;
+
+#define DBG_FRAMESTREAM(...)
+
+static int _close_frame(void * ctx){
+	hlo_frame_ctx_t * fc = (hlo_frame_ctx_t*)ctx;
+    DBG_FRAMESTREAM("Frame closed: %x\t%d\n", fc->buf, fc->eof);
+	vPortFree(fc->buf);
+	vPortFree(fc);
+	return 0;
+}
+#define minval( a,b ) a < b ? a : b
+static int _read_frame(void * ctx, void * buf, size_t size){
+	hlo_frame_ctx_t * fc = (hlo_frame_ctx_t*)ctx;
+	size_t to_copy = minval( size, fc->buf_pos );
+
+    DBG_FRAMESTREAM("Frame RBEGIN: %x\t%d\n", fc->buf, size, fc->buf_pos );
+	if( !fc->eof ) {
+		//wait for a full frame or flush
+		xSemaphoreTake(fc->send_sem, portMAX_DELAY);
+	}
+
+	//read out a frame
+	memcpy(buf, fc->buf, to_copy );
+
+	//shift any remaining bytes
+	memcpy( fc->buf, fc->buf + to_copy, fc->buf_pos - to_copy );
+	fc->buf_pos -= to_copy;
+
+    DBG_FRAMESTREAM("Frame read: %x\t%d\n", fc->buf, to_copy);
+
+	//unblock writers so they can fill a new frame
+	xSemaphoreGive(fc->fill_sem );
+
+	if( to_copy == 0 && fc->eof ) {
+		return HLO_STREAM_EOF;
+	}
+
+	return to_copy;
+}
+static int _write_frame(void * ctx, const void * buf, size_t count){
+	hlo_frame_ctx_t * fc = (hlo_frame_ctx_t*)ctx;
+	uint8_t * inbuf = (uint8_t*)buf;
+	int c = count;
+
+	if ((fc->buf_pos + count ) >= fc->buf_size) {
+		/* Will I exceed the buffer size? then send buffer */
+		while ((fc->buf_pos + c) >= fc->buf_size) {
+			//copy over
+			memcpy(fc->buf + fc->buf_pos, inbuf,
+					fc->buf_size - fc->buf_pos);
+
+	        fc->buf_pos = fc->buf_size;
+	        DBG_FRAMESTREAM("Frame: %x\t%d\n", fc->buf, fc->buf_pos);
+
+			//block, our buffer is full
+	        //warning, this block means we can't read and write from a framestream on the same thread without deadlock
+	    	xSemaphoreGive(fc->send_sem );
+	    	xSemaphoreTake(fc->fill_sem, portMAX_DELAY);
+
+			c -= fc->buf_size - fc->buf_pos;
+			inbuf += fc->buf_size - fc->buf_pos;
+			fc->buf_pos = 0;
+		}
+		if( c > 0 ) {
+			//copy to our buffer
+			memcpy(fc->buf, inbuf, c);
+			fc->buf_pos += c;
+		}
+	} else {
+		//copy to our buffer
+		memcpy(fc->buf + fc->buf_pos, inbuf, count);
+		fc->buf_pos += count;
+	}
+    DBG_FRAMESTREAM("Frame write: %x\t%d\t%d\n", fc->buf, fc->buf_pos, count);
+	return count;
+}
+// warning, must come only after all calls to write into the stream have returned, otherwise we may EOF with chunks leftover
+void hlo_frame_stream_flush(hlo_stream_t * fs) {
+	hlo_frame_ctx_t * fc = (hlo_frame_ctx_t*)fs->ctx;
+    DBG_FRAMESTREAM("Flush: %x\t%d\n", fc->buf, fc->buf_size);
+    fc->eof = true;
+	xSemaphoreGive(fc->send_sem );
+}
+hlo_stream_t * hlo_frame_stream(size_t size) {
+	hlo_stream_vftbl_t impl = (hlo_stream_vftbl_t){
+		.write = _write_frame,
+		.read = _read_frame,
+		.close = _close_frame,
+	};
+	hlo_frame_ctx_t * fc = pvPortMalloc(sizeof(*fc));
+	if(fc){
+		fc->buf = pvPortMalloc(size);
+		if(!fc->buf) {
+			vPortFree(fc);
+			return NULL;
+		}
+		fc->fill_sem = xSemaphoreCreateBinary();
+		fc->send_sem = xSemaphoreCreateBinary();
+		fc->buf_size = size;
+		fc->buf_pos = 0;
+		fc->eof = false;
+	}else{
+		return NULL;
+	}
+	return hlo_stream_new(&impl, (void*)fc, HLO_STREAM_READ_WRITE);
+}
+
 //====================================================================
 //http requests impl
 //Data Structures
@@ -426,17 +646,12 @@ cleanup:
 	vPortFree(session);
 	return code;
 }
-hlo_stream_t * hlo_http_post_opt(hlo_stream_t * sock, const char * host, const char * endpoint, const char * content_type_str, uint8_t sign){
+hlo_stream_t * hlo_http_post_opt(hlo_stream_t * sock, const char * host, const char * endpoint, const char * content_type_str){
 	hlo_stream_vftbl_t functions = (hlo_stream_vftbl_t){
 		.write = _post_content,
 		.read = NULL,
 		.close = _close_post_session,
 	};
-	if(sign){
-		//signed override
-		//functions.write = _post_content_and_sign;
-		//functions.close = _close_post_session_and_sign;
-	}
 	hlo_stream_t * ret = _new_stream(sock, &functions, HLO_STREAM_WRITE);
 	if( !ret ){
 		return NULL;
@@ -452,7 +667,7 @@ hlo_stream_t * hlo_http_post_opt(hlo_stream_t * sock, const char * host, const c
 //====================================================================
 //User Friendly post
 //
-hlo_stream_t * hlo_http_post(const char * url, uint8_t sign, const char * content_type){
+hlo_stream_t * hlo_http_post(const char * url, const char * content_type){
 	url_desc_t desc;
 	if(0 == parse_url(&desc,url)){
 		const char * type = content_type ? content_type:"application/octet-stream";
@@ -460,8 +675,7 @@ hlo_stream_t * hlo_http_post(const char * url, uint8_t sign, const char * conten
 				hlo_sock_stream(desc.host, (desc.protocol == HTTP)?0:1),
 				desc.host,
 				desc.path,
-				type,
-				sign
+				type
 			);
 	}else{
 		LOGE("Malformed URL %s\r\n", url);
