@@ -600,7 +600,7 @@ static void DoCapture(uint32_t rate) {
 
 			//write to file
 			if (isSavingToFile) {
-				const uint32_t bytes_written = MONO_BUF_LENGTH*sizeof(int16_t);
+				const uint32_t bytes_written = 2*MONO_BUF_LENGTH*sizeof(int16_t);
 
 				if (WriteToFile(&filedata,bytes_written,(const uint8_t *)samples)) {
 					num_bytes_written += bytes_written;
