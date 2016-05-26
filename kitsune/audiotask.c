@@ -436,7 +436,7 @@ cleanup:
 
 
 static void DoCapture(uint32_t rate) {
-	int16_t * samples = pvPortMalloc(MONO_BUF_LENGTH*2*2); //256 * 2bytes * 2 = 1KB
+	int16_t * samples = (int16_t*) pvPortMalloc(MONO_BUF_LENGTH*2*2); //256 * 2bytes * 2 = 1KB
 	char filepath[32];
 
 	int iBufferFilled = 0;

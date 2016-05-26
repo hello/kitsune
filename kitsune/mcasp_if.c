@@ -113,6 +113,7 @@ unsigned int* AudioCapturerGetDMADataPtr()
 //! \return None.
 //
 //*****************************************************************************
+#include "codec_debug_config.h"
 void McASPInit( unsigned int SAMPLING_FREQ)
 {
 	 //cc3200 trm page 333
@@ -121,7 +122,11 @@ void McASPInit( unsigned int SAMPLING_FREQ)
     //(b) Reset the module using PRCMPeripheralReset
     MAP_PRCMPeripheralReset(PRCM_I2S);
 
-#define BIT_CLOCK (SAMPLING_FREQ*2*16*2UL)
+#if (CODEC_ENABLE_MULTI_CHANNEL == 1)
+	#define BIT_CLOCK (SAMPLING_FREQ*2*16*2UL)
+#else
+	#define BIT_CLOCK (SAMPLING_FREQ*2*16UL)
+#endif
 
     MAP_PRCMI2SClockFreqSet(BIT_CLOCK);
     MAP_I2SConfigSetExpClk(I2S_BASE, BIT_CLOCK, BIT_CLOCK,I2S_SLOT_SIZE_16|

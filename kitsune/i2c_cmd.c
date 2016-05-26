@@ -22,6 +22,8 @@
 
 #include "stdbool.h"
 
+#include "codec_debug_config.h"
+
 // #include "audio_codec_pps_driver.h"
 
 #define MAX_MEASURE_TIME			10
@@ -40,13 +42,17 @@
 #define DELAY_CODEC 				5 // TODO set arbitrarily, might need to be adjusted
 #define CODEC_USE_MINIDSP 			0 // Set to 1 if using miniDSP, else 0
 #define CODEC_ADC_16KHZ    			1 // Set to 1 if ADC sampling rate is 16k Hz. If not, ADC Fs = DAC Fs = 48k Hz
-#define CODEC_MULTI_CH_SINGLE_PIN 	1
 
 // Left mic data is latched on rising by default, to latch it on rising edge instead
 // set this to be 1
 #define CODEC_LEFT_LATCH_FALLING 	1
 #define CODEC_DIG_MIC1_EN			1
-#define CODEC_DIG_MIC2_EN 			1
+
+#if (CODEC_ENABLE_MULTI_CHANNEL==1)
+	#define CODEC_DIG_MIC2_EN 			1
+#else
+	#define CODEC_DIG_MIC2_EN 			0
+#endif
 
 #define CODEC_BEEP_GENERATOR		0
 
@@ -1139,7 +1145,7 @@ static void codec_asi_config(void)
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	// MULTI CHANNEL TODO DKH
-#if (CODEC_MULTI_CH_SINGLE_PIN == 1)
+#if (CODEC_ENABLE_MULTI_CHANNEL == 1)
 	// w 30 04 40 # Enable 4 channel for ASI1 bus
 	cmd[0] = 0x04;
 	cmd[1] = (1 << 6); // 2-pair of left and right channel (i.e. 4-channel) is enabled for the ASI1 bus
@@ -1407,7 +1413,6 @@ static void codec_mic_config(void)
 	codec_set_page(0);
 
 	// # ADC channel power control - Left and right channel ADC configured for Digital Mic
-	// TODO enabled only left channel
 	cmd[0] = 0x51;
 	cmd[1] = (1 << 4) | (1 << 2) |  	// Configure left and right channel ADC for digital microphone
 				(2 << 0) 				// ADC Volume control soft-stepping disabled
