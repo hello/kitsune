@@ -1929,7 +1929,7 @@ void reset_to_factory_fw();
 
 extern int data_queue_batch_size;
 extern int pill_queue_batch_size;
-void _on_response_protobuf( SyncResponse* response_protobuf)
+static void _on_response_protobuf( SyncResponse* response_protobuf)
 {
     if (response_protobuf->has_alarm) 
     {
