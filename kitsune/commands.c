@@ -1063,8 +1063,12 @@ int Cmd_pbstr(int argc, char *argv[]) {
 
 	{
 		hlo_stream_t * frame_stream = NULL;
+		hlo_stream_t * sock_stream = NULL;
 		if( !frame_stream ) {
 			frame_stream = hlo_frame_stream( 512 );
+		}
+		if( !sock_stream ) {
+			sock_stream = hlo_sock_stream( "notreal", false );
 		}
 
 		data.has_light = true;
@@ -1076,8 +1080,10 @@ int Cmd_pbstr(int argc, char *argv[]) {
 		enc_ctx.structdata = &data;
 
 		xTaskCreate(thread_encode, "pbenc", 1024 / 4, &enc_ctx, 4, NULL);
-		vTaskDelay(0);
-		LOGF("\n\nR! %d %d\n\n",  hlo_pb_decode( frame_stream, periodic_data_fields, &sr  ), sr.light );
+		vTaskDelay(100);
+		hlo_filter_data_transfer( frame_stream, sock_stream, NULL, NULL );
+
+		LOGF("\n\nR! %d %d\n\n",  hlo_pb_decode( sock_stream, periodic_data_fields, &sr  ), sr.light );
 		hlo_stream_close(frame_stream);
 	}
 }

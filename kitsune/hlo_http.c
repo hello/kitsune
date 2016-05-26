@@ -292,11 +292,9 @@ static int _read_frame(void * ctx, void * buf, size_t size){
 	//unblock writers so they can fill a new frame
 	xSemaphoreGive(fc->fill_sem );
 
-#if 0
-	if( fc->buf_pos == 0 && fc->eof ) {
+	if( to_copy == 0 && fc->eof ) {
 		return HLO_STREAM_EOF;
 	}
-#endif
 
 	return to_copy;
 }
@@ -337,6 +335,7 @@ static int _write_frame(void * ctx, const void * buf, size_t count){
     DBG_FRAMESTREAM("Frame write: %x\t%d\t%d\n", fc->buf, fc->buf_pos, count);
 	return count;
 }
+// warning, must come only after all calls to write into the stream have returned, otherwise we may EOF with chunks leftover
 void hlo_frame_stream_flush(hlo_stream_t * fs) {
 	hlo_frame_ctx_t * fc = (hlo_frame_ctx_t*)fs->ctx;
     DBG_FRAMESTREAM("Flush: %x\t%d\n", fc->buf, fc->buf_size);
