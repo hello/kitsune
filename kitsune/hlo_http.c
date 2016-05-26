@@ -16,7 +16,7 @@
 //Protected API Declaration
 //
 hlo_stream_t * hlo_http_get_opt(hlo_stream_t * sock, const char * host, const char * endpoint);
-hlo_stream_t * hlo_http_post_opt(hlo_stream_t * sock, const char * host, const char * endpoint, const char * content_type_str, uint8_t sign);
+hlo_stream_t * hlo_http_post_opt(hlo_stream_t * sock, const char * host, const char * endpoint, const char * content_type_str);
 //====================================================================
 //socket stream implementation
 //
@@ -417,17 +417,12 @@ cleanup:
 	vPortFree(session);
 	return code;
 }
-hlo_stream_t * hlo_http_post_opt(hlo_stream_t * sock, const char * host, const char * endpoint, const char * content_type_str, uint8_t sign){
+hlo_stream_t * hlo_http_post_opt(hlo_stream_t * sock, const char * host, const char * endpoint, const char * content_type_str){
 	hlo_stream_vftbl_t functions = (hlo_stream_vftbl_t){
 		.write = _post_content,
 		.read = NULL,
 		.close = _close_post_session,
 	};
-	if(sign){
-		//signed override
-		//functions.write = _post_content_and_sign;
-		//functions.close = _close_post_session_and_sign;
-	}
 	hlo_stream_t * ret = _new_stream(sock, &functions, HLO_STREAM_WRITE);
 	if( !ret ){
 		return NULL;
@@ -443,7 +438,7 @@ hlo_stream_t * hlo_http_post_opt(hlo_stream_t * sock, const char * host, const c
 //====================================================================
 //User Friendly post
 //
-hlo_stream_t * hlo_http_post(const char * url, uint8_t sign, const char * content_type){
+hlo_stream_t * hlo_http_post(const char * url, const char * content_type){
 	url_desc_t desc;
 	if(0 == parse_url(&desc,url)){
 		const char * type = content_type ? content_type:"application/octet-stream";
@@ -451,8 +446,7 @@ hlo_stream_t * hlo_http_post(const char * url, uint8_t sign, const char * conten
 				hlo_sock_stream(desc.host, (desc.protocol == HTTP)?0:1),
 				desc.host,
 				desc.path,
-				type,
-				sign
+				type
 			);
 	}else{
 		LOGE("Malformed URL %s\r\n", url);
