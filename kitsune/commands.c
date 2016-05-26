@@ -938,6 +938,7 @@ end:
 	}
 }
 #include "endpoints.h"
+#include "hlo_http.h"
 void thread_tx(void* unused) {
 	batched_periodic_data data_batched = {0};
 #ifdef UPLOAD_AP_INFO
@@ -1042,6 +1043,52 @@ void thread_tx(void* unused) {
 		} while (!wifi_status_get(HAS_IP));
 	}
 }
+
+typedef struct {
+	hlo_stream_t * stream;
+	const pb_field_t * fields;
+	void * structdata;
+} encode_ctx;
+
+void thread_encode(void* ctx) {
+	encode_ctx * ts = (encode_ctx*)ctx;
+	hlo_pb_encode( ts->stream, ts->fields, ts->structdata );
+	hlo_frame_stream_flush( ts->stream );
+	vTaskDelete(NULL);
+}
+
+int Cmd_pbstr(int argc, char *argv[]) {
+	periodic_data data, sr;
+	encode_ctx enc_ctx;
+
+	{
+		hlo_stream_t * frame_stream = NULL;
+		hlo_stream_t * sock_stream = NULL;
+		if( !frame_stream ) {
+			frame_stream = hlo_frame_stream( 512 );
+		}
+		if( !sock_stream ) {
+			sock_stream = hlo_sock_stream( "notreal", false );
+		}
+
+		data.has_light = true;
+		data.light = 10;
+		LOGF("sending %d\n", data.light );
+
+		enc_ctx.stream = frame_stream;
+		enc_ctx.fields = periodic_data_fields;
+		enc_ctx.structdata = &data;
+
+		xTaskCreate(thread_encode, "pbenc", 1024 / 4, &enc_ctx, 4, NULL);
+		vTaskDelay(100);
+		hlo_filter_data_transfer( frame_stream, sock_stream, NULL, NULL );
+
+		LOGF("\n\nR! %d %d\n\n",  hlo_pb_decode( sock_stream, periodic_data_fields, &sr  ), sr.light );
+		hlo_stream_close(frame_stream);
+	}
+}
+
+
 
 #include "audio_types.h"
 
@@ -1886,6 +1933,8 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "fsdl", Cmd_fs_delete, "" },
 		{ "get", Cmd_test_get, ""},
 #endif
+
+		{ "pb", Cmd_pbstr, ""},
 
 		{ "r", Cmd_AudioCapture,""}, //record sounds into SD card
 		{ "s",Cmd_audio_record_stop,""},
