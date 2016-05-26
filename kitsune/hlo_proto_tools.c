@@ -97,6 +97,7 @@ typedef struct{
 	hlo_stream_t * base;
 	SHA1_CTX sha;
 	AES_CTX aes;
+	int offset;						/** used only for verify stream to indicate the signature has been completed **/
 									/** 0        16     26      48 **/
 	uint8_t sig[AES_IV_SIZE + 32];	/** |  iv     | sha  | rand  | **/
 }signed_stream_t;
@@ -123,15 +124,18 @@ static int _close_signed(void * ctx){
 	return 0;
 }
 extern uint8_t aes_key[AES_BLOCKSIZE + 1];
-hlo_stream_t * signed_stream(const hlo_stream_t * base){
+hlo_stream_t * sign_stream(const hlo_stream_t * base){
 	hlo_stream_vftbl_t functions = (hlo_stream_vftbl_t){
 		.write = _write_signed,
-		.read = NULL,		//TODO
+		.read = NULL,
 		.close = _close_signed,
 	};
 	if( !base ) return NULL;
 	signed_stream_t * ctx = pvPortMalloc(sizeof(*ctx));
-	if( !ctx ) return NULL;
+	if( !ctx ){
+		hlo_steam_close(base);
+		return NULL;
+	}
 
 	ctx->base = base;
 	SHA1_Init(&ctx->sha);
@@ -139,4 +143,20 @@ hlo_stream_t * signed_stream(const hlo_stream_t * base){
 	hlo_stream_read(random_stream_open(), ctx->sig, sizeof(ctx->sig));
 
 	return hlo_stream_new(&functions, ctx, HLO_STREAM_WRITE);
+}
+//====================================================================
+//verify stream impl
+//
+hlo_stream_t * verify_stream(const hlo_stream_t * base){
+	hlo_stream_vftbl_t functions = (hlo_stream_vftbl_t){
+			.write = NULL,
+			.read = _read_verified,
+			.close = _close_verified,
+	};
+	if ( !base ) return NULL;
+	signed_stream_t * ctx = pvPortMalloc(sizeof(*ctx));
+	if ( !ctx ){
+		hlo_steam_close(base);
+		return NULL;
+	}
 }

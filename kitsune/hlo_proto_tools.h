@@ -11,8 +11,16 @@ hlo_future_t * buffer_from_MorpheusCommand(MorpheusCommand * src);
 #include "hlo_stream.h"
 /**
  * wrapper class for signing a stream
- * closing this stream also closes the base stream
+ * base stream is managed by this
+ * signature is appended onto the data
  * WRITE ONLY
  */
-hlo_stream_t * signed_stream(const hlo_stream_t * base);
+hlo_stream_t * sign_stream(const hlo_stream_t * base);
+/**
+ * wrapper class for verifying a stream
+ * base stream is managed by this
+ * signature is prepended onto the data
+ * READ_ONLY
+ */
+hlo_stream_t * verify_stream(const hlo_stream_t * base);
 #endif
