@@ -88,4 +88,55 @@ hlo_future_t * MorpheusCommand_from_buffer(void * buf, size_t size){
 hlo_future_t * buffer_from_MorpheusCommand(MorpheusCommand * src){
 	return hlo_future_create_task_bg(encode_MorpheusCommand, src, 1024);
 }
+//====================================================================
+//signed stream impl
+//
+#include "hlo_pipe.h"
+#include "crypto.h"
+typedef struct{
+	hlo_stream_t * base;
+	SHA1_CTX sha;
+	AES_CTX aes;
+									/** 0        16     26      48 **/
+	uint8_t sig[AES_IV_SIZE + 32];	/** |  iv     | sha  | rand  | **/
+}signed_stream_t;
 
+static int _write_signed(void * ctx, const void * buf, size_t size){
+	signed_stream_t * stream = (signed_stream_t*)ctx;
+	int ret = hlo_stream_write(stream->base, buf, size);
+	if( ret > 0 ){
+		SHA1_Update(&stream->sha, buf, ret);
+	}
+	return ret;
+}
+static int _close_signed(void * ctx){
+	signed_stream_t * stream = (signed_stream_t*)ctx;
+
+	SHA1_Final(&stream->sig[AES_IV_SIZE], &stream->sha); /** offset the beginning due to aes iv **/
+	AES_cbc_encrypt(&stream->aes, &stream->sig[AES_IV_SIZE], &stream->sig[AES_IV_SIZE], 32);
+	int ret = hlo_stream_transfer_all(INTO_STREAM, stream->base, stream->sig, sizeof(stream->sig), 4);
+	if( ret < 0 ){
+		LOGE("Error writing signature %d\r\n", ret);
+	}
+	hlo_stream_close(stream->base);
+	vPortFree(stream);
+	return 0;
+}
+extern uint8_t aes_key[AES_BLOCKSIZE + 1];
+hlo_stream_t * signed_stream(const hlo_stream_t * base){
+	hlo_stream_vftbl_t functions = (hlo_stream_vftbl_t){
+		.write = _write_signed,
+		.read = NULL,		//TODO
+		.close = _close_signed,
+	};
+	if( !base ) return NULL;
+	signed_stream_t * ctx = pvPortMalloc(sizeof(*ctx));
+	if( !ctx ) return NULL;
+
+	ctx->base = base;
+	SHA1_Init(&ctx->sha);
+	AES_set_key(&ctx->aes, aes_key, ctx->aes.iv, AES_MODE_128); //todo real key
+	hlo_stream_read(random_stream_open(), ctx->sig, sizeof(ctx->sig));
+
+	return hlo_stream_new(&functions, ctx, HLO_STREAM_WRITE);
+}
