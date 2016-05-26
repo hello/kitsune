@@ -100,6 +100,7 @@
 #include "top_board.h"
 #include "long_poll.h"
 #include "filedownloadmanager.h"
+#include "hlo_mqtt.h"
 #define ONLY_MID 0
 
 #define ARRAY_LEN(a) (sizeof(a)/sizeof(a[0]))
@@ -1623,7 +1624,7 @@ void launch_tasks() {
 	booted = true;
 
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 3, NULL);
-	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,2,NULL);
+	//xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,2,NULL);
 	UARTprintf("*");
 #ifdef KIT_INCLUDE_FILE_UPLOAD
 	xTaskCreate(FileUploaderTask_Thread,"fileUploadTask", 1024/4,NULL,1,NULL);
@@ -1641,8 +1642,8 @@ void launch_tasks() {
 	UARTprintf("*");
 	xTaskCreate(thread_tx, "txTask", 1024 / 4, NULL, 1, NULL);
 	UARTprintf("*");
-	long_poll_task_init( 2560 / 4 );
-	downloadmanagertask_init(3072 / 4);
+	//long_poll_task_init( 2560 / 4 );
+	//downloadmanagertask_init(3072 / 4);
 #endif
 }
 
@@ -1959,6 +1960,8 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "test_files",Cmd_generate_user_testing_files,""},
 #endif
 		{"fs", cmd_file_sync_upload, ""},
+		{"mqcon", Cmd_MqttConnect, ""},
+		{"mqpub", Cmd_MqttPub, ""},
 		{ 0, 0, 0 } };
 
 
