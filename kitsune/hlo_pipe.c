@@ -92,6 +92,7 @@ int frame_pipe_encode( pipe_ctx * pipe ) {
 int frame_pipe_decode( pipe_ctx * pipe ) {
 	uint8_t buf[512];
 	uint16_t short_len;
+	int bytes_remaining;
 	int ret;
 	int transfer_delay = 4;
 	DBG_FRAMEPIPE("frame start\n");
@@ -100,7 +101,8 @@ int frame_pipe_decode( pipe_ctx * pipe ) {
 	if(ret < 0){
 		return ret;
 	}
-	while( short_len > 0 ) {
+	bytes_remaining = short_len;
+	while( bytes_remaining > 0 ) {
 		DBG_FRAMEPIPE("dlen %d\n", short_len);
 		ret = hlo_stream_transfer_until(FROM_STREAM, pipe->source, buf,short_len,transfer_delay,&pipe->flush);
 		DBG_FRAMEPIPE("pipe read %d\n", ret);
@@ -112,7 +114,7 @@ int frame_pipe_decode( pipe_ctx * pipe ) {
 		if(ret < 0){
 			return ret;
 		}
-		short_len -= ret;
+		bytes_remaining -= ret;
 		DBG_FRAMEPIPE("left %d\n", short_len);
 	}
 	DBG_FRAMEPIPE("frame stop\n");
