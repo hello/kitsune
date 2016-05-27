@@ -9,6 +9,9 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "hlo_stream.h"
+
+#include "FreeRTOS.h"
+#include "semphr.h"
 /**
  * blocking transfers of @buf_size bytes into/from the stream unless an error has occured.
  * retries at @transfer_delay interval
@@ -59,6 +62,7 @@ typedef struct {
 	hlo_stream_t * sink;
 	bool flush;
 	void * ctx;
+	xSemaphoreHandle join_sem;
 } pipe_ctx;
 
 int frame_pipe_encode( pipe_ctx * pipe );

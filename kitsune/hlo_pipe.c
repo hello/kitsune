@@ -74,7 +74,9 @@ int frame_pipe_encode( pipe_ctx * pipe ) {
 	uint8_t buf[512];
 	uint16_t short_len;
 	int ret;
-	int transfer_delay = 4;
+	int transfer_delay = 100;
+
+	DBG_FRAMEPIPE("e frame start\n");
 
 	ret = hlo_stream_transfer_until(FROM_STREAM, pipe->source, buf,sizeof(buf), transfer_delay, &pipe->flush);
 	DBG_FRAMEPIPE("erd %d\n", ret);
@@ -94,10 +96,11 @@ int frame_pipe_decode( pipe_ctx * pipe ) {
 	uint16_t short_len;
 	int bytes_remaining;
 	int ret;
-	int transfer_delay = 4;
+	int transfer_delay = 100;
+
 	DBG_FRAMEPIPE("frame start\n");
 
-	ret = hlo_stream_transfer_all(FROM_STREAM, pipe->source, (uint8_t*)&short_len,sizeof(short_len),transfer_delay);
+	ret = hlo_stream_transfer_until(FROM_STREAM, pipe->source, (uint8_t*)&short_len,sizeof(short_len),transfer_delay, &pipe->flush);
 	if(ret < 0){
 		return ret;
 	}
@@ -124,14 +127,16 @@ int frame_pipe_decode( pipe_ctx * pipe ) {
 void thread_frame_pipe_encode(void* ctx) {
 	pipe_ctx * pctx = (pipe_ctx*)ctx;
 	while(frame_pipe_encode( pctx ) >= 0) {
-		vTaskDelay(4);
+		vTaskDelay(100);
 	}
+	xSemaphoreGive(pctx->join_sem);
 	vTaskDelete(NULL);
 }
 void thread_frame_pipe_decode(void* ctx) {
 	pipe_ctx * pctx = (pipe_ctx*)ctx;
 	while(frame_pipe_decode( pctx ) >= 0) {
-		vTaskDelay(4);
+		vTaskDelay(100);
 	}
+	xSemaphoreGive(pctx->join_sem);
 	vTaskDelete(NULL);
 }

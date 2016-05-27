@@ -1070,25 +1070,25 @@ int Cmd_pbstr(int argc, char *argv[]) {
 	p_ctx_enc.source = fifo_stream_out;
 	p_ctx_enc.sink = sock_stream;
 	p_ctx_enc.flush = false;
+	p_ctx_enc.join_sem = xSemaphoreCreateBinary();
 
 	p_ctx_dec.source = sock_stream;
 	p_ctx_dec.sink = fifo_stream_in;
 	p_ctx_dec.flush = false;
+	p_ctx_dec.join_sem = xSemaphoreCreateBinary();
 
 	//bg pipe for sending out the data
 	xTaskCreate(thread_frame_pipe_encode, "penc", 1024 / 4, &p_ctx_enc, 4, NULL);
-	vTaskDelay(100);
 	hlo_pb_encode( fifo_stream_out, periodic_data_fields, &data );
 	p_ctx_enc.flush = true; // this is safe, all the data has been piped
-	vTaskDelay(100);
+	xSemaphoreTake( p_ctx_enc.join_sem, portMAX_DELAY );
+	hlo_stream_close(fifo_stream_out);
 
 	//bg pipe for receiving the data
 	xTaskCreate(thread_frame_pipe_decode, "pdec", 1024 / 4, &p_ctx_dec, 4, NULL);
-	vTaskDelay(100);
 	LOGF("\n\nR! %d %d\n\n",  hlo_pb_decode( fifo_stream_in, periodic_data_fields, &sr  ), sr.light );
 	p_ctx_dec.flush = true; // this is safe, all the data has been piped
-
-	hlo_stream_close(fifo_stream_out);
+	xSemaphoreTake( p_ctx_dec.join_sem, portMAX_DELAY );
 	hlo_stream_close(fifo_stream_in);
 
 	return 0;
