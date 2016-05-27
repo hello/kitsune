@@ -30,6 +30,3 @@ hlo_stream_t * hlo_http_post(const char * url, uint8_t sign, const char * conten
 #include "pb.h"
 int hlo_pb_encode( hlo_stream_t * stream,const pb_field_t * fields, void * structdata );
 int hlo_pb_decode( hlo_stream_t * stream,const pb_field_t * fields, void * structdata );
-
-void hlo_frame_stream_flush(hlo_stream_t * fs);
-hlo_stream_t * hlo_frame_stream(size_t size);

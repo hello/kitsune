@@ -1043,49 +1043,55 @@ void thread_tx(void* unused) {
 		} while (!wifi_status_get(HAS_IP));
 	}
 }
-
-typedef struct {
-	hlo_stream_t * stream;
-	const pb_field_t * fields;
-	void * structdata;
-} encode_ctx;
-
-void thread_encode(void* ctx) {
-	encode_ctx * ts = (encode_ctx*)ctx;
-	hlo_pb_encode( ts->stream, ts->fields, ts->structdata );
-	hlo_frame_stream_flush( ts->stream );
-	vTaskDelete(NULL);
-}
+#include "hlo_pipe.h"
 
 int Cmd_pbstr(int argc, char *argv[]) {
 	periodic_data data, sr;
-	encode_ctx enc_ctx;
+	pipe_ctx p_ctx_enc, p_ctx_dec;
 
-	{
-		hlo_stream_t * frame_stream = NULL;
-		hlo_stream_t * sock_stream = NULL;
-		if( !frame_stream ) {
-			frame_stream = hlo_frame_stream( 512 );
-		}
-		if( !sock_stream ) {
-			sock_stream = hlo_sock_stream( "notreal", false );
-		}
-
-		data.has_light = true;
-		data.light = 10;
-		LOGF("sending %d\n", data.light );
-
-		enc_ctx.stream = frame_stream;
-		enc_ctx.fields = periodic_data_fields;
-		enc_ctx.structdata = &data;
-
-		xTaskCreate(thread_encode, "pbenc", 1024 / 4, &enc_ctx, 4, NULL);
-		vTaskDelay(100);
-		hlo_filter_data_transfer( frame_stream, sock_stream, NULL, NULL );
-
-		LOGF("\n\nR! %d %d\n\n",  hlo_pb_decode( sock_stream, periodic_data_fields, &sr  ), sr.light );
-		hlo_stream_close(frame_stream);
+	hlo_stream_t * fifo_stream_in = NULL;
+	hlo_stream_t * fifo_stream_out = NULL;
+	hlo_stream_t * sock_stream = NULL;
+	if( !fifo_stream_in ) {
+		fifo_stream_in = fifo_stream_open( 768 );
 	}
+	if( !fifo_stream_out ) {
+		fifo_stream_out = fifo_stream_open( 768 );
+	}
+	assert( fifo_stream_in && fifo_stream_out );
+	if( !sock_stream ) {
+		sock_stream = hlo_sock_stream( "notreal", false );
+	}
+
+	data.has_light = true;
+	data.light = 10;
+	LOGF("sending %d\n", data.light );
+
+	p_ctx_enc.source = fifo_stream_out;
+	p_ctx_enc.sink = sock_stream;
+	p_ctx_enc.flush = false;
+
+	p_ctx_dec.source = sock_stream;
+	p_ctx_dec.sink = fifo_stream_in;
+	p_ctx_dec.flush = false;
+
+	//bg pipe for sending out the data
+	xTaskCreate(thread_frame_pipe_encode, "penc", 1024 / 4, &p_ctx_enc, 4, NULL);
+	vTaskDelay(100);
+	hlo_pb_encode( fifo_stream_out, periodic_data_fields, &data );
+	p_ctx_enc.flush = true; // this is safe, all the data has been piped
+	vTaskDelay(100);
+
+	//bg pipe for receiving the data
+	xTaskCreate(thread_frame_pipe_decode, "pdec", 1024 / 4, &p_ctx_dec, 4, NULL);
+	vTaskDelay(100);
+	LOGF("\n\nR! %d %d\n\n",  hlo_pb_decode( fifo_stream_in, periodic_data_fields, &sr  ), sr.light );
+	p_ctx_dec.flush = true; // this is safe, all the data has been piped
+
+	hlo_stream_close(fifo_stream_out);
+	hlo_stream_close(fifo_stream_in);
+
+	return 0;
 }
 
 
