@@ -94,23 +94,30 @@ int frame_pipe_decode( pipe_ctx * pipe ) {
 	uint16_t short_len;
 	int ret;
 	int transfer_delay = 4;
+	DBG_FRAMEPIPE("frame start\n");
 
 	ret = hlo_stream_transfer_all(FROM_STREAM, pipe->source, (uint8_t*)&short_len,sizeof(short_len),transfer_delay);
 	if(ret < 0){
 		return ret;
 	}
-	if( short_len > sizeof(buf) ) {
-		LOGE("chunk too big for pipe\n");
-		return -1;
+	while( short_len > 0 ) {
+		DBG_FRAMEPIPE("dlen %d\n", short_len);
+		ret = hlo_stream_transfer_until(FROM_STREAM, pipe->source, buf,short_len,transfer_delay,&pipe->flush);
+		DBG_FRAMEPIPE("pipe read %d\n", ret);
+		if(ret < 0){
+			return ret;
+		}
+		DBG_FRAMEPIPE("read %d\n", ret);
+		ret = hlo_stream_transfer_all(INTO_STREAM, pipe->sink, buf,ret,transfer_delay);
+		if(ret < 0){
+			return ret;
+		}
+		short_len -= ret;
+		DBG_FRAMEPIPE("left %d\n", short_len);
 	}
-	DBG_FRAMEPIPE("dlen %d\n", short_len);
-	ret = hlo_stream_transfer_until(FROM_STREAM, pipe->source, buf,short_len,transfer_delay,&pipe->flush);
-	DBG_FRAMEPIPE("pipe read %d\n", ret);
-	if(ret < 0){
-		return ret;
-	}
-	DBG_FRAMEPIPE("read %d\n", ret);
-	return hlo_stream_transfer_all(INTO_STREAM, pipe->sink, buf,ret,transfer_delay);
+	DBG_FRAMEPIPE("frame stop\n");
+
+	return ret;
  }
 void thread_frame_pipe_encode(void* ctx) {
 	pipe_ctx * pctx = (pipe_ctx*)ctx;
