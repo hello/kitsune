@@ -139,9 +139,8 @@ hlo_stream_t * sign_stream(const hlo_stream_t * base){
 
 	ctx->base = base;
 	SHA1_Init(&ctx->sha);
-	AES_set_key(&ctx->aes, aes_key, ctx->aes.iv, AES_MODE_128); //todo real key
 	hlo_stream_read(random_stream_open(), ctx->sig, sizeof(ctx->sig));
-
+	AES_set_key(&ctx->aes, aes_key, ctx->sig, AES_MODE_128); //todo real key
 	return hlo_stream_new(&functions, ctx, HLO_STREAM_WRITE);
 }
 //====================================================================
