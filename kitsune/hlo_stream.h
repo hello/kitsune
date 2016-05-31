@@ -75,7 +75,6 @@ hlo_stream_t * hlo_stream_new(const hlo_stream_vftbl_t * impl, void * ctx, uint3
  * fifo buffer stream
  */
 hlo_stream_t * fifo_stream_open(size_t capacity);
-int fifo_stream_eof(void * ctx);
 /*
  * random stream (R/W)
  * Read:  fills the requested buffer with random bytes.

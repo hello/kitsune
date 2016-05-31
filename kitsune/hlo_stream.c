@@ -1,7 +1,6 @@
 #include "hlo_stream.h"
 #include "kit_assert.h"
 #include <strings.h>
-#include <stdbool.h>
 #include "uart_logger.h"
 
 #define LOCK(stream) xSemaphoreTake(stream->info.lock, portMAX_DELAY)
@@ -90,7 +89,6 @@ typedef struct{
 	volatile int filled;
 	int capacity;
 	uint8_t buf[0];
-	bool eof;
 }fifo_stream_t;
 
 static int fifo_read_byte(fifo_stream_t * ctx, uint8_t * buf){
@@ -117,7 +115,7 @@ static int fifo_write(void * ctx, const void * buf, size_t size){
 			size--;
 		}
 		return written;
-	}  else {
+	}else{
 		return 0;
 	}
 }
@@ -130,20 +128,13 @@ static int fifo_read(void * ctx, void * buf, size_t size){
 			read++;
 		}
 		return read;
-	}else if( fifo->eof ) {
-		return HLO_STREAM_EOF;
-	} else {
+	}else{
 		return 0;
 	}
 
 }
 static int fifo_close(void * ctx){
 	vPortFree(ctx);
-	return 0;
-}
-int fifo_stream_eof(void * ctx){
-	fifo_stream_t * fifo = (fifo_stream_t*)ctx;
-	fifo->eof = true;
 	return 0;
 }
 
@@ -160,7 +151,6 @@ hlo_stream_t * fifo_stream_open(size_t capacity){
 	if(fifo){
 		memset(fifo, 0, size);
 		fifo->capacity = capacity;
-		fifo->eof = false;
 		return hlo_stream_new(&fifo_stream_impl, fifo, HLO_STREAM_READ_WRITE);
 	}else{
 		return NULL;
