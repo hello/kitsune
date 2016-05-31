@@ -17,9 +17,11 @@ int hlo_stream_transfer_until(transfer_direction direction,
 		}else{
 			ret = hlo_stream_read(stream, buf+idx, buf_size - idx);
 		}
-
+		if( ret > 0 ) {
+			idx += ret;
+		}
 		if(( flush && *flush )||(ret == HLO_STREAM_EOF)){
-			DISP("  END %d  \n", ret);
+			DISP("  END %d %d \n", idx, ret);
 			if( idx ){
 				return idx;
 			}else{
@@ -28,7 +30,6 @@ int hlo_stream_transfer_until(transfer_direction direction,
 		}else if(ret < 0){
 			return ret;
 		}else{
-			idx += ret;
 			if(idx == buf_size){
 				return idx;
 			}
@@ -74,7 +75,7 @@ int frame_pipe_encode( pipe_ctx * pipe ) {
 
 	ret = hlo_stream_transfer_until(FROM_STREAM, pipe->source, buf,sizeof(buf), transfer_delay, &pipe->flush);
 	DBG_FRAMEPIPE("erd %d\n", ret);
-	if(ret < 0){
+	if(ret <= 0){
 		DBG_FRAMEPIPE("ebreak %d\n", ret);
 		return ret;
 	}
@@ -118,7 +119,7 @@ int frame_pipe_decode( pipe_ctx * pipe ) {
 		}
 		DBG_FRAMEPIPE("read %d\n", ret);
 		ret = hlo_stream_transfer_all(INTO_STREAM, pipe->sink, buf,ret,transfer_delay);
-		if(ret < 0){
+		if(ret <= 0){
 			DBG_FRAMEPIPE("break %d\n", ret);
 			return ret;
 		}
@@ -130,7 +131,7 @@ int frame_pipe_decode( pipe_ctx * pipe ) {
  }
 void thread_frame_pipe_encode(void* ctx) {
 	pipe_ctx * pctx = (pipe_ctx*)ctx;
-	while(frame_pipe_encode( pctx ) >= 0) {
+	while(frame_pipe_encode( pctx ) > 0) {
 		vTaskDelay(100);
 	}
 	xSemaphoreGive(pctx->join_sem);
@@ -138,7 +139,7 @@ void thread_frame_pipe_encode(void* ctx) {
 }
 void thread_frame_pipe_decode(void* ctx) {
 	pipe_ctx * pctx = (pipe_ctx*)ctx;
-	while(frame_pipe_decode( pctx ) >= 0) {
+	while(frame_pipe_decode( pctx ) > 0) {
 		vTaskDelay(100);
 	}
 	//need this so the decode will unblock, otherwise if the sock stream breaks it could hang up, blocking on the fifo that will never fill

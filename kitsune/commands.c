@@ -1045,40 +1045,58 @@ void thread_tx(void* unused) {
 }
 #include "hlo_pipe.h"
 
+static xSemaphoreHandle sock_stream_sem;
 static hlo_stream_t * sock_stream = NULL;
+
+static void sock_checkup() {
+	xSemaphoreTake(sock_stream_sem, portMAX_DELAY);
+	if( sock_stream == NULL ) {
+		sock_stream = hlo_sock_stream( "notreal", false );
+	}
+	xSemaphoreGive(sock_stream_sem);
+}
+static void sock_close() {
+	xSemaphoreTake(sock_stream_sem, portMAX_DELAY);
+	hlo_stream_close(sock_stream);
+	sock_stream = NULL;
+	xSemaphoreGive(sock_stream_sem);
+}
 
 void thread_out(void* ctx) {
 	periodic_data data;
 	pipe_ctx p_ctx_enc;
 
 	while(1) {
-		hlo_stream_t * fifo_stream_out = fifo_stream_open( 768 );
-		assert( fifo_stream_out );
 
-		data.has_light = true;
-		data.light = 10;
-		LOGF("sending %d\n", data.light );
+		sock_checkup();
 
-		p_ctx_enc.source = fifo_stream_out;
-		p_ctx_enc.sink = sock_stream;
-		p_ctx_enc.flush = false;
-		p_ctx_enc.join_sem = xSemaphoreCreateBinary();
+		if( sock_stream ) {
+			hlo_stream_t * fifo_stream_out = fifo_stream_open( 768 );
+			assert( fifo_stream_out );
 
-#if 0
-		if(p_ctx_enc.state < 0 ) {
-			sock_stream = hlo_sock_stream( "notreal", false );
+			data.has_light = true;
+			data.light = 10;
+			LOGF("sending %d\n", data.light );
+
+			p_ctx_enc.source = fifo_stream_out;
+			p_ctx_enc.sink = sock_stream;
+			p_ctx_enc.flush = false;
+			p_ctx_enc.join_sem = xSemaphoreCreateBinary();
+			p_ctx_enc.state = 0;
+
+			//bg pipe for sending out the data
+			xTaskCreate(thread_frame_pipe_encode, "penc", 1024 / 4, &p_ctx_enc, 4, NULL);
+			hlo_pb_encode( fifo_stream_out, periodic_data_fields, &data );
+			p_ctx_enc.flush = true; // this is safe, all the data has been piped
+			xSemaphoreTake( p_ctx_enc.join_sem, portMAX_DELAY );
+			p_ctx_enc.flush = false;
+			hlo_stream_close(fifo_stream_out);
+			if(p_ctx_enc.state < 0 ) {
+				DISP("enc state %d\n",p_ctx_enc.state );
+				sock_close();
+			}
 		}
-#endif
 
-		//bg pipe for sending out the data
-		xTaskCreate(thread_frame_pipe_encode, "penc", 1024 / 4, &p_ctx_enc, 4, NULL);
-		hlo_pb_encode( fifo_stream_out, periodic_data_fields, &data );
-		vTaskDelay(1000);
-		p_ctx_enc.flush = true; // this is safe, all the data has been piped
-		xSemaphoreTake( p_ctx_enc.join_sem, portMAX_DELAY );
-		DISP(" enc complt \n");
-		p_ctx_enc.flush = false;
-		hlo_stream_close(fifo_stream_out);
 		vTaskDelay(5000);
 	}
 
@@ -1089,35 +1107,38 @@ void thread_in(void* ctx) {
 	pipe_ctx p_ctx_dec;
 
 	while(1) {
-		hlo_stream_t * fifo_stream_in = fifo_stream_open( 768 );
-		assert( fifo_stream_in );
+		sock_checkup();
 
-		p_ctx_dec.source = sock_stream;
-		p_ctx_dec.sink = fifo_stream_in;
-		p_ctx_dec.flush = false;
-		p_ctx_dec.join_sem = xSemaphoreCreateBinary();
+		if( sock_stream ) {
+			hlo_stream_t * fifo_stream_in = fifo_stream_open( 768 );
+			assert( fifo_stream_in );
 
-#if 0
-		if(p_ctx_dec.state < 0 ) {
-			sock_stream = hlo_sock_stream( "notreal", false );
+			p_ctx_dec.source = sock_stream;
+			p_ctx_dec.sink = fifo_stream_in;
+			p_ctx_dec.flush = false;
+			p_ctx_dec.join_sem = xSemaphoreCreateBinary();
+			p_ctx_dec.state = 0;
+
+			//bg pipe for receiving the data
+			xTaskCreate(thread_frame_pipe_decode, "pdec", 1024 / 4, &p_ctx_dec, 4, NULL);
+			LOGF("\n\nR! %d %d\n\n",  hlo_pb_decode( fifo_stream_in, periodic_data_fields, &sr  ), sr.light );
+			p_ctx_dec.flush = true; // this is safe, all the data has been piped
+			xSemaphoreTake( p_ctx_dec.join_sem, portMAX_DELAY );
+			p_ctx_dec.flush = false;
+			hlo_stream_close(fifo_stream_in);
+			if(p_ctx_dec.state < 0 ) {
+				DISP("dec state %d\n",p_ctx_dec.state );
+				sock_close();
+			}
 		}
-#endif
-		//bg pipe for receiving the data
-		xTaskCreate(thread_frame_pipe_decode, "pdec", 1024 / 4, &p_ctx_dec, 4, NULL);
-		LOGF("\n\nR! %d %d\n\n",  hlo_pb_decode( fifo_stream_in, periodic_data_fields, &sr  ), sr.light );
 		vTaskDelay(1000);
-		p_ctx_dec.flush = true; // this is safe, all the data has been piped
-		xSemaphoreTake( p_ctx_dec.join_sem, portMAX_DELAY );
-		p_ctx_dec.flush = false;
-		hlo_stream_close(fifo_stream_in);
 	}
 
 	vTaskDelete(NULL);
 }
 
 int Cmd_pbstr(int argc, char *argv[]) {
-	sock_stream = hlo_sock_stream( "notreal", false );
-
+	sock_stream_sem = xSemaphoreCreateMutex();
 	xTaskCreate(thread_out, "out", 1024 / 4, NULL, 4, NULL);
 	xTaskCreate(thread_in, "in", 1024 / 4, NULL, 4, NULL);
 
