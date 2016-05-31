@@ -61,6 +61,7 @@ typedef struct {
 	hlo_stream_t * source;
 	hlo_stream_t * sink;
 	bool flush;
+	int state;
 	void * ctx;
 	xSemaphoreHandle join_sem;
 } pipe_ctx;
