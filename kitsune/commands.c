@@ -1121,6 +1121,9 @@ void thread_in(void* ctx) {
 
 			//bg pipe for receiving the data
 			xTaskCreate(thread_frame_pipe_decode, "pdec", 1024 / 4, &p_ctx_dec, 4, NULL);
+			//todo: for decode move sock management to frame pipe task
+			//      hlo_pb_decode could block forever on the fifo if the
+			//      sock stream breaks here, but the framepipe task could reconnect
 			LOGF("\n\nR! %d %d\n\n",  hlo_pb_decode( fifo_stream_in, periodic_data_fields, &sr  ), sr.light );
 			p_ctx_dec.flush = true; // this is safe, all the data has been piped
 			xSemaphoreTake( p_ctx_dec.join_sem, portMAX_DELAY );
