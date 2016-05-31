@@ -21,7 +21,7 @@ int hlo_stream_transfer_until(transfer_direction direction,
 			idx += ret;
 		}
 		if(( flush && *flush )||(ret == HLO_STREAM_EOF)){
-			DISP("  END %d %d \n", idx, ret);
+			DISP("  END %d %d \n\n", idx, ret);
 			if( idx ){
 				return idx;
 			}else{
@@ -80,14 +80,14 @@ int frame_pipe_encode( pipe_ctx * pipe ) {
 		return ret;
 	}
 	short_len = ret;
-	ret = hlo_stream_transfer_all(INTO_STREAM, pipe->sink, (uint8_t*)&short_len,ret,transfer_delay);
+	ret = hlo_stream_transfer_all(INTO_STREAM, pipe->sink, (uint8_t*)&short_len,sizeof(short_len),transfer_delay);
 	DBG_FRAMEPIPE("elen %d\n", ret);
 	if(ret < 0){
 		pipe->state = ret;
 		DBG_FRAMEPIPE("ebreak %d\n", ret);
 		return ret;
 	}
-	ret = hlo_stream_transfer_all(INTO_STREAM, pipe->sink, buf,ret,transfer_delay);
+	ret = hlo_stream_transfer_all(INTO_STREAM, pipe->sink, buf,short_len,transfer_delay);
 	pipe->state = ret;
 	DBG_FRAMEPIPE( "ereturning %d\n", ret );
 	return ret;

@@ -1097,7 +1097,7 @@ void thread_out(void* ctx) {
 			}
 		}
 
-		vTaskDelay(5000);
+		vTaskDelay(10000);
 	}
 
 	vTaskDelete(NULL);
