@@ -141,6 +141,7 @@ void thread_frame_pipe_decode(void* ctx) {
 	while(frame_pipe_decode( pctx ) >= 0) {
 		vTaskDelay(100);
 	}
+	//need this so the decode will unblock, otherwise if the sock stream breaks it could hang up, blocking on the fifo that will never fill
 	fifo_stream_eof( pctx->sink->ctx );
 	xSemaphoreGive(pctx->join_sem);
 	vTaskDelete(NULL);
