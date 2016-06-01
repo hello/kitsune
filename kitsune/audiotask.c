@@ -436,7 +436,11 @@ cleanup:
 
 
 static void DoCapture(uint32_t rate) {
+#if (CODEC_ENABLE_MULTI_CHANNEL==1)
+	int16_t * samples = (int16_t*) pvPortMalloc(MONO_BUF_LENGTH*4*2); //256 * 4bytes * 2 = 2KB
+#else
 	int16_t * samples = (int16_t*) pvPortMalloc(MONO_BUF_LENGTH*2*2); //256 * 2bytes * 2 = 1KB
+#endif
 	char filepath[32];
 
 	int iBufferFilled = 0;
@@ -600,7 +604,11 @@ static void DoCapture(uint32_t rate) {
 
 			//write to file
 			if (isSavingToFile) {
+#if (CODEC_ENABLE_MULTI_CHANNEL==1)
+				const uint32_t bytes_written = 2*MONO_BUF_LENGTH*sizeof(int32_t);
+#else
 				const uint32_t bytes_written = 2*MONO_BUF_LENGTH*sizeof(int16_t);
+#endif
 
 				if (WriteToFile(&filedata,bytes_written,(const uint8_t *)samples)) {
 					num_bytes_written += bytes_written;
