@@ -1171,6 +1171,28 @@ static void codec_asi_config(void)
 	cmd[1] = 0;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
+#if 0
+	// 0x05 - ASI2 digital audio output data is sourced from ADC miniDSP Data Output 2
+	cmd[0] = 23;
+	cmd[1] = 0x05;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	// Enable ASI2 left and right datapath
+	cmd[0] = 24;
+	cmd[1] = 0x50;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	//0x06: ASI3 digital audio output data is sourced from ADC miniDSP Data Output 3
+	cmd[0] = 39;
+	cmd[1] = 0x06;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	// Enable ASI3 left and right datapath
+	cmd[0] = 40;
+	cmd[1] = 0x50;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+#endif
+
 	cmd[0] = 0x47;
 	cmd[1] = ( 1 << 5 ) ;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
