@@ -370,7 +370,7 @@ static int _close_ws(void * ctx){
 	vPortFree(stream);
 	return 0;
 }
-hlo_stream_t * ws_stream(const hlo_stream_t * base){
+hlo_stream_t * hlo_ws_stream(const hlo_stream_t * base){
 	hlo_stream_vftbl_t functions = (hlo_stream_vftbl_t){
 		.write = _write_ws,
 		.read = _read_ws,
@@ -406,10 +406,9 @@ hlo_stream_t * ws_stream(const hlo_stream_t * base){
 				"\r\n",
 				get_ws_server(), hex_device_id, KIT_VER, get_top_version());
 
-		if( hlo_stream_write(stream->base, buf, strlen(buf)) != strlen(buf) ) {
-			goto ws_open_fail;
-		}
+		hlo_stream_transfer_all(INTO_STREAM, stream->base, buf, strlen(buf), 4);
 		memset(buf,0,sizeof(buf));
+
 		ret =  hlo_stream_read(stream->base, buf, sizeof(buf));
 		if( ret < 0 ) {
 			goto ws_open_fail;

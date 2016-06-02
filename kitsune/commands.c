@@ -1051,7 +1051,7 @@ static hlo_stream_t * sock_stream = NULL;
 static void sock_checkup() {
 	xSemaphoreTake(sock_stream_sem, portMAX_DELAY);
 	if( sock_stream == NULL ) {
-		sock_stream = hlo_sock_stream( "notreal", false );
+		sock_stream = hlo_ws_stream(hlo_sock_stream( "notreal", false ));
 	}
 	xSemaphoreGive(sock_stream_sem);
 }
