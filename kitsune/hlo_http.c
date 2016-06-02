@@ -258,12 +258,11 @@ int hlo_pb_decode( hlo_stream_t * stream, const pb_field_t * fields, void * stru
 const char * get_top_version(void);
 
 typedef struct{
-	const hlo_stream_t * base;
+	hlo_stream_t * base;
 	int frame_bytes_read;
-	int frame_bytes_write;
-	bool new_msg_write;
 }ws_stream_t;
 
+#define DBG_WS(...)
 static int _write_ws(void * ctx, const void * buf, size_t size){
 	ws_stream_t * stream = (ws_stream_t*)ctx;
 
@@ -278,38 +277,23 @@ static int _write_ws(void * ctx, const void * buf, size_t size){
      |     Extended payload length continued, if payload len == 127  |
      + - - - - - - - - - - - - - - - +-------------------------------+*/
 	uint8_t wsh[4] = {0};
-	assert( stream->frame_bytes_write > 0 );
 
-	if( stream->new_msg_write ) {
-		wsh[0] |= 0x02;
-		stream->new_msg_write = false;
-		stream->frame_bytes_write = size;
-	}
-	if( size >= stream->frame_bytes_write ) {
-		wsh[0] |= 0x80; //final frame of binary data...
-	}
+	DBG_WS("   WS owr\n" );
+
+	wsh[0] |= 0x82; //final (only) frame of binary data...
+
 	if( size < 126 ) {
 	    wsh[1] = size;
-		hlo_stream_transfer_all(INTO_STREAM, stream->base, wsh, 2, 4);
+		hlo_stream_transfer_all(INTO_STREAM, stream->base, wsh, 2, 4); //todo coalesce
 	} else if( size < 65536 ) {
 		wsh[1] = 126;
 		*(uint16_t*)(wsh+2) = htons((unsigned short)size);
-		hlo_stream_transfer_all(INTO_STREAM, stream->base, wsh, 4, 4);
+		hlo_stream_transfer_all(INTO_STREAM, stream->base, wsh, 4, 4); //todo coalesce
 	} else {
 		// won't send any frames bigger than 64k, don't need to worry about that case...
 		LOGE("WS send %d too big\n", size);
 	}
-	int r = hlo_stream_write(stream->base, buf, size);
-	if( r > 0 ) {
-		stream->frame_bytes_write -= r;
-
-		if( stream->frame_bytes_write == 0 ) {
-			stream->new_msg_write = true;
-		} else if (stream->frame_bytes_write < 0 ) {
-			LOGE("WS frame_bytes_write %d < 0 ?!", stream->frame_bytes_write);
-		}
-	}
-	return r;
+	return hlo_stream_transfer_all(INTO_STREAM, stream->base, buf, size, 4);
 }
 static int _read_ws(void * ctx, void * buf, size_t size){
 	ws_stream_t * stream = (ws_stream_t*)ctx;
@@ -328,12 +312,14 @@ static int _read_ws(void * ctx, void * buf, size_t size){
 		uint8_t opcode;
 		hlo_stream_transfer_all(FROM_STREAM, stream->base, wsh, 2, 4);
 		opcode = wsh[0] & 0xf;
+		DBG_WS("WS frrd %x%x\n", wsh[0], wsh[1]);
 		switch(opcode) {
 		case 0x8: //close!
 			return HLO_STREAM_EOF;
 		case 0x9: //ping
 			wsh[0] = 0x8A; //pong
 			wsh[1] = 0;
+			DBG_WS("WS ping\n");
 			hlo_stream_transfer_all(INTO_STREAM, stream->base, wsh, 2, 4);
 			return 0;
 		}
@@ -356,11 +342,15 @@ static int _read_ws(void * ctx, void * buf, size_t size){
 			stream->frame_bytes_read = ntohl((long*)wsh);
 #endif
 		}
+
+		DBG_WS("WS frsz %d\n", stream->frame_bytes_read);
 	}
 	int ret = hlo_stream_read(stream->base, buf, size);
 	if( ret > 0 ) {
 		stream->frame_bytes_read -= ret;
 	}
+
+	DBG_WS("WS rem %d\n", stream->frame_bytes_read);
 	assert( stream->frame_bytes_read >= 0 );
 	return ret;
 }
@@ -370,13 +360,15 @@ static int _close_ws(void * ctx){
 	vPortFree(stream);
 	return 0;
 }
-hlo_stream_t * hlo_ws_stream(const hlo_stream_t * base){
+hlo_stream_t * hlo_ws_stream( hlo_stream_t * base){
 	hlo_stream_vftbl_t functions = (hlo_stream_vftbl_t){
 		.write = _write_ws,
 		.read = _read_ws,
 		.close = _close_ws,
 	};
 	if( !base ) return NULL;
+	DBG_WS("WS open\n" );
+
 	ws_stream_t * stream = pvPortMalloc(sizeof(*stream));
 	if( !stream ){
 		goto ws_open_fail;
@@ -384,48 +376,64 @@ hlo_stream_t * hlo_ws_stream(const hlo_stream_t * base){
 	stream->base = base;
 
 	{ //Websocket upgrade request
-		char buf[512];
-	    char hex_device_id[DEVICE_ID_SZ * 2 + 1] = {0};
+#define BUFSZ 512
+#define DEV_STR_SZ (DEVICE_ID_SZ * 2 + 1)
+		char * buf = pvPortMalloc(BUFSZ+DEV_STR_SZ);
+	    char * hex_device_id = buf+BUFSZ;
 	    int ret;
 
-	    if(!get_device_id(hex_device_id, sizeof(hex_device_id)))
+	    assert(buf);
+
+	    memset(buf, 0, BUFSZ );
+
+	    if(!get_device_id(hex_device_id, DEV_STR_SZ))
 	    {
 	        LOGE("get_device_id failed\n");
 	        goto ws_open_fail;
 	    }
-		usnprintf(buf, sizeof(buf), "Get /protobuf HTTP/1.1\r\n"
+		usnprintf(buf, BUFSZ, "Get /protobuf HTTP/1.1\r\n"
 				"Host: %s\r\n"
-				"Upgrade: websocket"
-				"Connection: Upgrade"
-				"Sec-WebSocket-Key: x3JJHMbDL1EzLkh9GBhXDw=="
-				"Sec-WebSocket-Protocol: protobuf"
-				"Sec-WebSocket-Version: 13"
+				"Upgrade: websockets\r\n"
+				"Connection: Upgrades\r\n"
+				"Sec-WebSocket-Key: x3JJHMbDL1EzLkh9GBhXDw==s\r\n"
+				"Sec-WebSocket-Protocol: protobufs\r\n"
+				"Sec-WebSocket-Version: 13\r\n"
 				"X-Hello-Sense-Id: %s\r\n"
 				"X-Hello-Sense-MFW: %x\r\n"
 				"X-Hello-Sense-TFW: %s\r\n"
 				"\r\n",
 				get_ws_server(), hex_device_id, KIT_VER, get_top_version());
 
+		DBG_WS("sending\n%s", buf );
 		hlo_stream_transfer_all(INTO_STREAM, stream->base, buf, strlen(buf), 4);
-		memset(buf,0,sizeof(buf));
+		memset(buf,0,BUFSZ);
 
-		ret =  hlo_stream_read(stream->base, buf, sizeof(buf));
+		ret =  hlo_stream_read(stream->base, buf, BUFSZ);
+
+		DBG_WS("rply\n%s", buf );
 		if( ret < 0 ) {
+			vPortFree(buf);
 			goto ws_open_fail;
 		}
 		char * switching = strstr(buf, "HTTP/1.1 101");
 		char * content = strstr(buf, "\r\n\r\n");
 		if(!switching || !content) {
+			vPortFree(buf);
 			goto ws_open_fail;
 		}
 		int dlen = ret - ( content - buf ) - strlen("\r\n\r\n");
+
+		DBG_WS("%s %s %d\n\n", switching, content, dlen );
 		if( dlen > 1  ) {
 			LOGE("%d extra data at start of ws!\n", dlen );
 		}
+		vPortFree(buf);
 	}
 
 	return hlo_stream_new(&functions, stream, HLO_STREAM_WRITE);
 ws_open_fail:
+DBG_WS("WS FAIL\n" );
+
 	hlo_stream_close(base);
 	return NULL;
 }
