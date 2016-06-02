@@ -594,17 +594,26 @@ static int _post_content(void * ctx, const void * buf, size_t size){
 	}
 	return 0;
 }
+static int _finish_post(void * ctx){
+	hlo_http_context_t * session = (hlo_http_context_t*)ctx;
+	int ret;
+	static const char * const end_chunked = "0\r\n\r\n";
+	int end_chunk_len = sizeof(end_chunked) - 1;
+	if(session->scratch_offset){
+		if((ret = _post_chunked(session))  < 0 ){
+			return ret;
+		}
+	}
+	if( end_chunk_len == hlo_stream_write(session->sockstream, end_chunked, end_chunk_len) ){
+		return end_chunk_len;
+	}
+	return HLO_STREAM_ERROR;
+
+}
 static int _close_post_session(void * ctx){
 	hlo_http_context_t * session = (hlo_http_context_t*)ctx;
 	int code = 0;
-	static const char * end_chunked = "0\r\n\r\n";
-	int end_chunked_len = strlen(end_chunked);
-	if(session->scratch_offset){//flush remaining data
-		if( _post_chunked(session) < 0 ){
-			goto cleanup;
-		}
-	}
-	if( end_chunked_len == hlo_stream_write(session->sockstream, end_chunked, end_chunked_len) ){
+	if( _finish_post(ctx) >= 0 ){
 		LOGI("\r\n=====\r\n");
 		while(session->active){
 			int ndata = hlo_stream_read(session->sockstream, session->scratch, sizeof(session->scratch));
