@@ -598,7 +598,7 @@ static int _finish_post(void * ctx){
 	hlo_http_context_t * session = (hlo_http_context_t*)ctx;
 	int ret;
 	static const char * const end_chunked = "0\r\n\r\n";
-	int end_chunk_len = sizeof(end_chunked) - 1;
+	int end_chunk_len = strlen(end_chunked);
 	if(session->scratch_offset){
 		if((ret = _post_chunked(session))  < 0 ){
 			return ret;
@@ -610,29 +610,41 @@ static int _finish_post(void * ctx){
 	return HLO_STREAM_ERROR;
 
 }
+//this consumes the response until code has been retrieved, drops what's left of the body and returns
+//should not be called in conjunction of read.
+static int _fetch_response_code(void * ctx){
+	hlo_http_context_t * session = (hlo_http_context_t*)ctx;
+	while(session->active){
+		int ndata = hlo_stream_read(session->sockstream, session->scratch, sizeof(session->scratch));
+		if( ndata < 0 ){
+			return HLO_STREAM_ERROR;
+		}
+		const char * itr = session->scratch;
+		while( session->active && ndata ){
+			int read;
+			session->active = http_data(&session->rt, itr, ndata, &read);
+			ndata -= read;
+			itr += read;
+		}
+		if( http_iserror(&session->rt) ){
+			return HLO_STREAM_ERROR;
+		}
+	}//done parsing response
+	return 0;
+}
 static int _close_post_session(void * ctx){
 	hlo_http_context_t * session = (hlo_http_context_t*)ctx;
 	int code = 0;
-	if( _finish_post(ctx) >= 0 ){
-		LOGI("\r\n=====\r\n");
-		while(session->active){
-			int ndata = hlo_stream_read(session->sockstream, session->scratch, sizeof(session->scratch));
-			if( ndata < 0 ){
-				goto cleanup;
-			}
-			const char * itr = session->scratch;
-			while( session->active && ndata ){
-				int read;
-				session->active = http_data(&session->rt, itr, ndata, &read);
-				ndata -= read;
-				itr += read;
-			}
-		}//done parsing response
-		LOGI("\r\n=====\r\n");
-		if ( http_iserror(&session->rt) ){
+	LOGI("\r\n=====\r\n");
+	if( session->code == 0 ){		//if no response has been parsed by a read call, we just finish here
+		if( _finish_post(ctx) < 0 ){
+			goto cleanup;
+		}
+		if( _fetch_response_code(ctx) < 0){
 			goto cleanup;
 		}
 	}
+	LOGI("\r\n=====\r\n");
 cleanup:
 	if(session->code){
 		code = session->code;
