@@ -406,7 +406,7 @@ static void _response_body(void* opaque, const char* data, int size){
 		session->content_itr += size;
 		session->len += size;
 	}else{
-		hlo_stream_write(uart_stream(), data, size);
+		//hlo_stream_write(uart_stream(), data, size);
 	}
 
 }
