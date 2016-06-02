@@ -123,8 +123,8 @@ void McASPInit( unsigned int SAMPLING_FREQ)
     MAP_PRCMPeripheralReset(PRCM_I2S);
 
 #if (CODEC_ENABLE_MULTI_CHANNEL == 1)
-	#define BIT_CLOCK (SAMPLING_FREQ*2*16*2UL)
-	#define I2S_SLOT_SIZE_32    0x00F00074 // TODO DKH - Figure out the rotation field
+	#define BIT_CLOCK (SAMPLING_FREQ*32*2UL)
+	#define I2S_SLOT_SIZE_32    0x00F000F0 // TODO DKH - Figure out the rotation field
 	#define I2S_SLOT_SIZE 		I2S_SLOT_SIZE_32
 #else
 	#define BIT_CLOCK (SAMPLING_FREQ*2*16UL)
