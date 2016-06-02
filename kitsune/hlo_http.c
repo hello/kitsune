@@ -209,14 +209,14 @@ int hlo_pb_encode( hlo_stream_t * stream, const pb_field_t * fields, void * stru
 
 	bool success = true;
 
-	/*pb_ostream_t sizestream = {0};
+	pb_ostream_t sizestream = {0};
 	pb_encode(&sizestream, fields, structdata); //TODO double check no stateful callbacks get hit here
 
 	DBG_PBSTREAM("PB TX %d\n", sizestream.bytes_written);
 	short_count = sizestream.bytes_written;
 	int ret = hlo_stream_transfer_all(INTO_STREAM, stream, (uint8_t*)&short_count, sizeof(short_count), 4);
 
-	success = success && sizeof(short_count) == ret; */
+	success = success && sizeof(short_count) == ret;
 	success = success && pb_encode(&pb_ostream,fields,structdata);
 
 	DBG_PBSTREAM("PBSS %d %d %d\n", state.stream_state, success, ret );
