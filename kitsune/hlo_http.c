@@ -598,9 +598,9 @@ static int _post_content(void * ctx, const void * buf, size_t size){
 }
 static int _finish_post(void * ctx){
 	hlo_http_context_t * session = (hlo_http_context_t*)ctx;
-	int ret = 0;
 	static const char * const end_chunked = "0\r\n\r\n";
 	int end_chunk_len = strlen(end_chunked);
+	int ret = 0;
 	if(session->scratch_offset){
 		if((ret = _post_chunked(session))  < 0 ){
 			return ret;
