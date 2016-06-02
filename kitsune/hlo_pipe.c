@@ -63,7 +63,7 @@ int hlo_stream_transfer_between(
 
 }
 
-#define DBG_FRAMEPIPE(...)
+#define DBG_FRAMEPIPE DISP
 
 int frame_pipe_encode( pipe_ctx * pipe ) {
 	uint8_t buf[512];
@@ -71,25 +71,25 @@ int frame_pipe_encode( pipe_ctx * pipe ) {
 	int ret;
 	int transfer_delay = 100;
 
-	DBG_FRAMEPIPE("e frame start %d\n", pipe->flush);
+	DBG_FRAMEPIPE(" enc start %d\n", pipe->flush);
 
 	ret = hlo_stream_transfer_until(FROM_STREAM, pipe->source, buf,sizeof(buf), transfer_delay, &pipe->flush);
-	DBG_FRAMEPIPE("erd %d\n", ret);
+	DBG_FRAMEPIPE(" enc rd %d\n", ret);
 	if(ret <= 0){
-		DBG_FRAMEPIPE("ebreak %d\n", ret);
+		DBG_FRAMEPIPE(" enc break %d\n", ret);
 		return ret;
 	}
 	short_len = ret;
 	ret = hlo_stream_transfer_all(INTO_STREAM, pipe->sink, (uint8_t*)&short_len,sizeof(short_len),transfer_delay);
-	DBG_FRAMEPIPE("elen %d\n", ret);
+	DBG_FRAMEPIPE(" enc len %d\n", ret);
 	if(ret < 0){
 		pipe->state = ret;
-		DBG_FRAMEPIPE("ebreak %d\n", ret);
+		DBG_FRAMEPIPE(" enc break %d\n", ret);
 		return ret;
 	}
 	ret = hlo_stream_transfer_all(INTO_STREAM, pipe->sink, buf,short_len,transfer_delay);
 	pipe->state = ret;
-	DBG_FRAMEPIPE( "ereturning %d\n", ret );
+	DBG_FRAMEPIPE( " enc returning %d\n", ret );
 	return ret;
 }
 int frame_pipe_decode( pipe_ctx * pipe ) {
@@ -99,34 +99,34 @@ int frame_pipe_decode( pipe_ctx * pipe ) {
 	int ret;
 	int transfer_delay = 100;
 
-	DBG_FRAMEPIPE("frame start\n");
+	DBG_FRAMEPIPE("    dec frame start\n");
 
 	ret = hlo_stream_transfer_until(FROM_STREAM, pipe->source, (uint8_t*)&short_len,sizeof(short_len),transfer_delay, &pipe->flush);
 	if(ret < 0){
-		DBG_FRAMEPIPE("break %d\n", ret);
+		DBG_FRAMEPIPE("    dec break %d\n", ret);
 		pipe->state = ret;
 		return ret;
 	}
 	bytes_remaining = short_len;
 	while( bytes_remaining > 0 ) {
-		DBG_FRAMEPIPE("dlen %d\n", short_len);
+		DBG_FRAMEPIPE("    dec len %d\n", short_len);
 		ret = hlo_stream_transfer_until(FROM_STREAM, pipe->source, buf,short_len,transfer_delay,&pipe->flush);
-		DBG_FRAMEPIPE("pipe read %d\n", ret);
+		DBG_FRAMEPIPE("    dec pipe read %d\n", ret);
 		if(ret < 0){
 			pipe->state = ret;
-			DBG_FRAMEPIPE("break %d\n", ret);
+			DBG_FRAMEPIPE("    dec break %d\n", ret);
 			return ret;
 		}
-		DBG_FRAMEPIPE("read %d\n", ret);
+		DBG_FRAMEPIPE("    dec read %d\n", ret);
 		ret = hlo_stream_transfer_all(INTO_STREAM, pipe->sink, buf,ret,transfer_delay);
 		if(ret <= 0){
-			DBG_FRAMEPIPE("break %d\n", ret);
+			DBG_FRAMEPIPE("    dec break %d\n", ret);
 			return ret;
 		}
 		bytes_remaining -= ret;
-		DBG_FRAMEPIPE("left %d\n", short_len);
+		DBG_FRAMEPIPE("    dec left %d\n", short_len);
 	}
-	DBG_FRAMEPIPE("frame stop returning %d\n", ret );
+	DBG_FRAMEPIPE("    dec frame stop returning %d\n", ret );
 	return ret;
  }
 void thread_frame_pipe_encode(void* ctx) {

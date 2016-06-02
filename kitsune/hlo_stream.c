@@ -3,7 +3,7 @@
 #include <strings.h>
 #include "uart_logger.h"
 
-#define LOCK(stream) xSemaphoreTake(stream->info.lock, portMAX_DELAY)
+#define LOCK(stream) xSemaphoreTakeRecursive(stream->info.lock, portMAX_DELAY)
 #define UNLOCK(stream) xSemaphoreGive(stream->info.lock)
 
 #define VERIFY_STREAM(stream) if(!stream){return HLO_STREAM_NULL_OBJ;}
@@ -68,7 +68,7 @@ void hlo_stream_init(hlo_stream_t * stream,
 	stream->ctx = ctx;
 	stream->impl = *impl;
 	stream->info.options = options;
-	vSemaphoreCreateBinary(stream->info.lock);
+	stream->info.lock = xSemaphoreCreateRecursiveMutex();
 	assert(stream->info.lock);
 }
 hlo_stream_t * hlo_stream_new(const hlo_stream_vftbl_t * impl, void * ctx, uint32_t options){

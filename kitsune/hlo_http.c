@@ -110,7 +110,10 @@ static int _close_sock(void * ctx){
 }
 static int _read_sock(void * ctx, void * buf, size_t size){
 	int sock = (int)ctx;
+	DBG_SOCKSTREAM("LISTENING %d\n", size);
 	int rv =  recv(sock, buf, size,0);
+    DBG_SOCKSTREAM("RECV %d\n", rv);
+
 	if(rv == SL_EAGAIN){
 		rv = 0;
 	}else if (rv == 0){
@@ -120,8 +123,11 @@ static int _read_sock(void * ctx, void * buf, size_t size){
 }
 static int _write_sock(void * ctx, const void * buf, size_t size){
 	int sock = (int)ctx;
-	int rv;
+	int rv = 0;
+
+	DBG_SOCKSTREAM("SENDING %d\n", size);
 	rv = send(sock, buf, size, 0);
+	DBG_SOCKSTREAM("SENT %d\n", rv);
 	if( rv == SL_EAGAIN ){
 		rv = 0;
 	}
