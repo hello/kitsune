@@ -378,6 +378,7 @@ typedef struct{
 	int code;					/** http response code, parsed by tinyhttp **/
 	int len;					/** length of the response body tally **/
 	int active;					/** indicates if the response is still active **/
+	int done_post;				/** indicates if the post is finished **/
 	char * content_itr;			/** used by GET, itr to the outside buffer which we dump data do **/
 	size_t scratch_offset;		/** used by POST, to collect data internally in bulk before sending **/
 	char scratch[SCRATCH_SIZE]; /** scratch buffer, **MUST** be the last field **/
@@ -597,7 +598,7 @@ static int _post_content(void * ctx, const void * buf, size_t size){
 }
 static int _finish_post(void * ctx){
 	hlo_http_context_t * session = (hlo_http_context_t*)ctx;
-	int ret;
+	int ret = 0;
 	static const char * const end_chunked = "0\r\n\r\n";
 	int end_chunk_len = strlen(end_chunked);
 	if(session->scratch_offset){
@@ -637,7 +638,8 @@ static int _close_post_session(void * ctx){
 	hlo_http_context_t * session = (hlo_http_context_t*)ctx;
 	int code = 0;
 	LOGI("\r\n=====\r\n");
-	if( session->code == 0 ){		//if no response has been parsed by a read call, we just finish here
+	if( session->done_post == 0 ){		//if no response has been parsed by a read call, we just finish here
+		session->done_post = 1;
 		if( _finish_post(ctx) < 0 ){
 			goto cleanup;
 		}
@@ -659,13 +661,24 @@ cleanup:
 	vPortFree(session);
 	return code;
 }
+static int _get_post_response(void * ctx, void * buf, size_t size){
+	hlo_http_context_t * session = (hlo_http_context_t*)ctx;
+	if( session->done_post == 0){
+		session->done_post = 1;
+		int ret = _finish_post(ctx);
+		if( ret < 0 ){
+			return ret;
+		}
+	}
+	return _get_content(ctx,buf,size);
+}
 hlo_stream_t * hlo_http_post_opt(hlo_stream_t * sock, const char * host, const char * endpoint, const char * content_type_str){
 	hlo_stream_vftbl_t functions = (hlo_stream_vftbl_t){
 		.write = _post_content,
-		.read = NULL,
+		.read = _get_post_response,
 		.close = _close_post_session,
 	};
-	hlo_stream_t * ret = _new_stream(sock, &functions, HLO_STREAM_WRITE);
+	hlo_stream_t * ret = _new_stream(sock, &functions, HLO_STREAM_READ_WRITE);
 	if( !ret ){
 		return NULL;
 	}
