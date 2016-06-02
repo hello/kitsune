@@ -502,6 +502,7 @@ static int _get_content(void * ctx, void * buf, size_t size){
 	}
 
 	int content_size = (session->content_itr - (char*)buf);
+	session->content_itr = NULL;	/* need to clean up here to prevent cached buffer tampering */
 	if( http_iserror(&session->rt) ) {
 		DISP("Has error\r\n");
 		return HLO_STREAM_ERROR;
