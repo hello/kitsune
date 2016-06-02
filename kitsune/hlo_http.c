@@ -510,6 +510,9 @@ static int _get_content(void * ctx, void * buf, size_t size){
 	} else if(content_size == 0 && !session->active){
 		LOGI("GET EOF %d bytes\r\n", session->len);
 		return HLO_STREAM_EOF;
+	} else if(session->code != 0 && (session->code < 200 || session->code > 300)){
+		LOGE("Response error, code %d\r\n", session->code);
+		return HLO_STREAM_ERROR;
 	}
 	return content_size;
 }
