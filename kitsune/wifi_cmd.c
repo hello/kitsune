@@ -1863,6 +1863,12 @@ char * get_server(void){
 	}
 	return PROD_DATA_SERVER;
 }
+char * get_ws_server(void){
+	if(use_dev_server){
+		return DEV_WS_SERVER;
+	}
+	return PROD_WS_SERVER;
+}
 void on_key(uint8_t * key) {
 	save_aes(key);
 	load_aes();

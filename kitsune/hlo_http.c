@@ -250,6 +250,187 @@ int hlo_pb_decode( hlo_stream_t * stream, const pb_field_t * fields, void * stru
 }
 
 //====================================================================
+//websocket stream impl
+//
+#include "hlo_pipe.h"
+#include "kitsune_version.h"
+
+const char * get_top_version(void);
+
+typedef struct{
+	const hlo_stream_t * base;
+	int frame_bytes_read;
+	int frame_bytes_write;
+	bool new_msg_write;
+}ws_stream_t;
+
+static int _write_ws(void * ctx, const void * buf, size_t size){
+	ws_stream_t * stream = (ws_stream_t*)ctx;
+
+	/*0                   1                   2                   3
+      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+     +-+-+-+-+-------+-+-------------+-------------------------------+
+     |F|R|R|R| opcode|M| Payload len |    Extended payload length    |
+     |I|S|S|S|  (4)  |A|     (7)     |             (16/64)           |
+     |N|V|V|V|       |S|             |   (if payload len==126/127)   |
+     | |1|2|3|       |K|             |                               |
+     +-+-+-+-+-------+-+-------------+ - - - - - - - - - - - - - - - +
+     |     Extended payload length continued, if payload len == 127  |
+     + - - - - - - - - - - - - - - - +-------------------------------+*/
+	uint8_t wsh[4] = {0};
+	assert( stream->frame_bytes_write > 0 );
+
+	if( stream->new_msg_write ) {
+		wsh[0] |= 0x02;
+		stream->new_msg_write = false;
+		stream->frame_bytes_write = size;
+	}
+	if( size >= stream->frame_bytes_write ) {
+		wsh[0] |= 0x80; //final frame of binary data...
+	}
+	if( size < 126 ) {
+	    wsh[1] = size;
+		hlo_stream_transfer_all(INTO_STREAM, stream->base, wsh, 2, 4);
+	} else if( size < 65536 ) {
+		wsh[1] = 126;
+		*(uint16_t*)(wsh+2) = htons((unsigned short)size);
+		hlo_stream_transfer_all(INTO_STREAM, stream->base, wsh, 4, 4);
+	} else {
+		// won't send any frames bigger than 64k, don't need to worry about that case...
+		LOGE("WS send %d too big\n", size);
+	}
+	int r = hlo_stream_write(stream->base, buf, size);
+	if( r > 0 ) {
+		stream->frame_bytes_write -= r;
+
+		if( stream->frame_bytes_write == 0 ) {
+			stream->new_msg_write = true;
+		} else if (stream->frame_bytes_write < 0 ) {
+			LOGE("WS frame_bytes_write %d < 0 ?!", stream->frame_bytes_write);
+		}
+	}
+	return r;
+}
+static int _read_ws(void * ctx, void * buf, size_t size){
+	ws_stream_t * stream = (ws_stream_t*)ctx;
+	if( 0 == stream->frame_bytes_read ) {
+		/*0                   1                   2                   3
+	      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+	     +-+-+-+-+-------+-+-------------+-------------------------------+
+	     |F|R|R|R| opcode|M| Payload len |    Extended payload length    |
+	     |I|S|S|S|  (4)  |A|     (7)     |             (16/64)           |
+	     |N|V|V|V|       |S|             |   (if payload len==126/127)   |
+	     | |1|2|3|       |K|             |                               |
+	     +-+-+-+-+-------+-+-------------+ - - - - - - - - - - - - - - - +
+	     |     Extended payload length continued, if payload len == 127  |
+	     + - - - - - - - - - - - - - - - +-------------------------------+*/
+		uint8_t wsh[8];
+		uint8_t opcode;
+		hlo_stream_transfer_all(FROM_STREAM, stream->base, wsh, 2, 4);
+		opcode = wsh[0] & 0xf;
+		switch(opcode) {
+		case 0x8: //close!
+			return HLO_STREAM_EOF;
+		case 0x9: //ping
+			wsh[0] = 0x8A; //pong
+			wsh[1] = 0;
+			hlo_stream_transfer_all(INTO_STREAM, stream->base, wsh, 2, 4);
+			return 0;
+		}
+		if( wsh[1] | 0x80 ) {
+			LOGE("WS mask not supported!\n");
+		}
+		wsh[1] &= 0x7f;
+		if( wsh[1] < 126 ) {
+		    stream->frame_bytes_read = wsh[1];
+		} else if( wsh[1] == 126 ) {
+			hlo_stream_transfer_all(FROM_STREAM, stream->base, wsh, 2, 4);
+			stream->frame_bytes_read = (int)ntohs(*(unsigned short*)wsh);
+		} else if( wsh[1] == 127 ) {
+#if 1
+			// won't send any frames bigger than 64k, don't need to worry about that case...
+			LOGE("WS recv %d too big\n", size);
+#else
+			hlo_stream_transfer_all(FROM_STREAM, stream->base, wsh, 8, 4);
+			stream->frame_bytes_read = ((uint64_t)ntohl((long*)wsh+4))<<32;
+			stream->frame_bytes_read = ntohl((long*)wsh);
+#endif
+		}
+	}
+	int ret = hlo_stream_read(stream->base, buf, size);
+	if( ret > 0 ) {
+		stream->frame_bytes_read -= ret;
+	}
+	assert( stream->frame_bytes_read >= 0 );
+	return ret;
+}
+static int _close_ws(void * ctx){
+	ws_stream_t * stream = (ws_stream_t*)ctx;
+	hlo_stream_close(stream->base);
+	vPortFree(stream);
+	return 0;
+}
+hlo_stream_t * ws_stream(const hlo_stream_t * base){
+	hlo_stream_vftbl_t functions = (hlo_stream_vftbl_t){
+		.write = _write_ws,
+		.read = _read_ws,
+		.close = _close_ws,
+	};
+	if( !base ) return NULL;
+	ws_stream_t * stream = pvPortMalloc(sizeof(*stream));
+	if( !stream ){
+		goto ws_open_fail;
+	}
+	stream->base = base;
+
+	{ //Websocket upgrade request
+		char buf[512];
+	    char hex_device_id[DEVICE_ID_SZ * 2 + 1] = {0};
+	    int ret;
+
+	    if(!get_device_id(hex_device_id, sizeof(hex_device_id)))
+	    {
+	        LOGE("get_device_id failed\n");
+	        goto ws_open_fail;
+	    }
+		usnprintf(buf, sizeof(buf), "Get /protobuf HTTP/1.1\r\n"
+				"Host: %s\r\n"
+				"Upgrade: websocket"
+				"Connection: Upgrade"
+				"Sec-WebSocket-Key: x3JJHMbDL1EzLkh9GBhXDw=="
+				"Sec-WebSocket-Protocol: protobuf"
+				"Sec-WebSocket-Version: 13"
+				"X-Hello-Sense-Id: %s\r\n"
+				"X-Hello-Sense-MFW: %x\r\n"
+				"X-Hello-Sense-TFW: %s\r\n"
+				"\r\n",
+				get_ws_server(), hex_device_id, KIT_VER, get_top_version());
+
+		if( hlo_stream_write(stream->base, buf, strlen(buf)) != strlen(buf) ) {
+			goto ws_open_fail;
+		}
+		memset(buf,0,sizeof(buf));
+		ret =  hlo_stream_read(stream->base, buf, sizeof(buf));
+		if( ret < 0 ) {
+			goto ws_open_fail;
+		}
+		char * switching = strstr(buf, "HTTP/1.1 101");
+		char * content = strstr(buf, "\r\n\r\n");
+		if(!switching || !content) {
+			goto ws_open_fail;
+		}
+		int dlen = ret - ( content - buf ) - strlen("\r\n\r\n");
+		if( dlen > 1  ) {
+			LOGE("%d extra data at start of ws!\n", dlen );
+		}
+	}
+
+	return hlo_stream_new(&functions, stream, HLO_STREAM_WRITE);
+ws_open_fail:
+	hlo_stream_close(base);
+	return NULL;
+}
+//====================================================================
 //http requests impl
 //Data Structures
 #include "tinyhttp/http.h"
