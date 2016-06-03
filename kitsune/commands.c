@@ -1102,9 +1102,41 @@ void thread_out(void* ctx) {
 
 	vTaskDelete(NULL);
 }
+
+
+static void on_periodic_data( void * structdata ) {
+	periodic_data * data = (periodic_data *)structdata;
+
+	data->has_light = true;
+	data->light = 10;
+	LOGF("receieved %d\n", data->light );
+}
+
+#define SIZE_OF_LARGEST_PB 200
+#define NUM_TYPES 1
+static xSemaphoreHandle pb_sub_sem;
+static xSemaphoreHandle pb_rx_complt_sem;
+static int incoming_pb_type;
+typedef struct {
+	const pb_field_t * fields;
+	void (*ondata)(void*);
+} pb_subscriber;
+
+pb_subscriber subscriptions[NUM_TYPES] = {
+		{ periodic_data_fields, on_periodic_data },
+};
+
+static void prep_for_pb(int type) {
+	xSemaphoreTake(pb_rx_complt_sem, portMAX_DELAY);
+	incoming_pb_type = type;
+	xSemaphoreGive(pb_sub_sem);
+}
+
 void thread_in(void* ctx) {
-	periodic_data sr;
+	char * pb_data;
 	pipe_ctx p_ctx_dec;
+
+	pb_data = pvPortMalloc( SIZE_OF_LARGEST_PB ); //never freed
 
 	while(1) {
 		sock_checkup();
@@ -1121,7 +1153,9 @@ void thread_in(void* ctx) {
 
 			//bg pipe for receiving the data
 			xTaskCreate(thread_frame_pipe_decode, "pdec", 1024 / 4, &p_ctx_dec, 4, NULL);
-			LOGF("\n\nR! %d %d\n\n",  hlo_pb_decode( fifo_stream_in, periodic_data_fields, &sr  ), sr.light );
+
+			xSemaphoreTake(pb_sub_sem, portMAX_DELAY);
+			LOGF("\n\nR! %d\n\n",  hlo_pb_decode( fifo_stream_in, subscriptions[incoming_pb_type].fields, pb_data  ) );
 			p_ctx_dec.flush = true; // this is safe, all the data has been piped
 			xSemaphoreTake( p_ctx_dec.join_sem, portMAX_DELAY );
 			p_ctx_dec.flush = false;
@@ -1130,6 +1164,9 @@ void thread_in(void* ctx) {
 				DISP("dec state %d\n",p_ctx_dec.state );
 				sock_close();
 			}
+
+			subscriptions[incoming_pb_type].ondata( pb_data );
+			xSemaphoreGive(pb_rx_complt_sem);
 		}
 	}
 }
@@ -1140,11 +1177,13 @@ int output_pb_wto( void * structdata, const pb_field_t * fields, TickType_t to )
 int output_pb( void * structdata, const pb_field_t * fields ) {
 	return output_pb_wto(structdata, fields, portMAX_DELAY);
 }
-//int subscribe_pb( int message_code, void * structdata ) ?
-
 int Cmd_pbstr(int argc, char *argv[]) {
 	pb_oq = xQueueCreate(MAX_PB_QUEUED, sizeof(pb_msg));
 	sock_stream_sem = xSemaphoreCreateMutex();
+	pb_sub_sem = xSemaphoreCreateBinary();
+	pb_rx_complt_sem =xSemaphoreCreateBinary();
+	xSemaphoreGive(pb_rx_complt_sem);
+
 	xTaskCreate(thread_out, "out", 1024 / 4, NULL, 4, NULL);
 	xTaskCreate(thread_in, "in", 1024 / 4, NULL, 4, NULL);
 
@@ -1154,6 +1193,7 @@ int Cmd_pbstr(int argc, char *argv[]) {
 	data.light = 10;
 	while(1) {
 		LOGF("sending %d\n", data.light );
+		prep_for_pb(0); //todo set this in the header pb processing
 		output_pb(&data, periodic_data_fields);
 		vTaskDelay(5000);
 	}
