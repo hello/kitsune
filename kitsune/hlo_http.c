@@ -375,10 +375,10 @@ hlo_stream_t * hlo_frame_stream(size_t size) {
 typedef struct{
 	hlo_stream_t * sockstream;	/** base socket stream **/
 	struct http_roundtripper rt;/** tinyhttp context **/
-	char * header_cache;		/** used to cache header **/
+	uint8_t * header_cache;		/** used to cache header **/
 	int code;					/** http response code, parsed by tinyhttp **/
 	int len;					/** length of the response body tally **/
-	int active;					/** indicates if the response is still active **/
+	int response_active;					/** indicates if the response is still active **/
 	enum{
 		BEGIN_POST = 0,
 		POSTING = 1,
@@ -434,7 +434,7 @@ static hlo_stream_t * _new_stream(hlo_stream_t * sock , hlo_stream_vftbl_t * tbl
 		return NULL;
 	}else{
 		memset(session, 0, sizeof(*session));
-		session->active = 1;	/** always try to parse something **/
+		session->response_active = 1;	/** always try to parse something **/
 		session->sockstream = sock;
 		session->post_state = BEGIN_POST;
 		http_init(&session->rt,response_functions, session);
@@ -492,9 +492,9 @@ static int _get_content(void * ctx, void * buf, size_t size){
 	const char * scratch_itr = session->scratch;
 	int ndata = hlo_stream_read(session->sockstream, session->scratch, bytes_to_process);
 	if( ndata > 0 ){
-		while(session->active && ndata) {
+		while(session->response_active && ndata) {
 			int processed;
-			session->active = http_data(&session->rt, scratch_itr, ndata, &processed);
+			session->response_active = http_data(&session->rt, scratch_itr, ndata, &processed);
 			ndata -= processed;
 			scratch_itr += processed;
 		}
@@ -507,7 +507,7 @@ static int _get_content(void * ctx, void * buf, size_t size){
 	if( http_iserror(&session->rt) ) {
 		DISP("Has error\r\n");
 		return HLO_STREAM_ERROR;
-	} else if(content_size == 0 && !session->active){
+	} else if(content_size == 0 && !session->response_active){
 		LOGI("GET EOF %d bytes\r\n", session->len);
 		return HLO_STREAM_EOF;
 	} else if(session->code != 0 && (session->code < 200 || session->code > 300)){
@@ -641,15 +641,15 @@ static int _finish_post(void * ctx){
 //should not be called in conjunction of read.
 static int _fetch_response_code(void * ctx){
 	hlo_http_context_t * session = (hlo_http_context_t*)ctx;
-	while(session->active){
+	while(session->response_active){
 		int ndata = hlo_stream_read(session->sockstream, session->scratch, sizeof(session->scratch));
 		if( ndata < 0 ){
 			return HLO_STREAM_ERROR;
 		}
 		const char * itr = session->scratch;
-		while( session->active && ndata ){
+		while( session->response_active && ndata ){
 			int read;
-			session->active = http_data(&session->rt, itr, ndata, &read);
+			session->response_active = http_data(&session->rt, itr, ndata, &read);
 			ndata -= read;
 			itr += read;
 		}
@@ -694,11 +694,12 @@ static int _get_post_response(void * ctx, void * buf, size_t size){
 	case BEGIN_POST:
 		return HLO_STREAM_ERROR;		/** we may not get the response without posting header and content **/
 	case POSTING:
-		session->post_state = DONE_POST;
 		ret = _finish_post(ctx);
 		if( ret < 0){
 			return ret;
 		}
+		session->post_state = DONE_POST;
+		session->response_active = 1;
 		break;
 	default:
 	case DONE_POST:
