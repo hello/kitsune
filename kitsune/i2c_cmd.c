@@ -551,9 +551,9 @@ static void codec_gpio_config(void);
 static void codec_asi_config(void);
 static void codec_signal_processing_config(void);
 static void codec_mic_config(void);
-static void codec_speaker_config(void);
 #endif
 
+static void codec_speaker_config(void);
 static void codec_set_page(uint32_t page);
 static void codec_set_book(uint32_t book);
 
@@ -679,6 +679,8 @@ int32_t codec_init_with_dsp(void)
 		cmd[1] = REG_Section_program[i].reg_val;
 		I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 	}
+
+	codec_speaker_config();
 
 	// Update miniDSP A
 	reg_array_size = sizeof(miniDSP_A_reg_values)/2;
@@ -1305,37 +1307,37 @@ static void codec_gpio_config(void)
 	codec_set_page(4);
 
 	// # GPIO1 as clock input (will be used as ADC WCLK if DAC Fs != ADC Fs)
-	cmd[0] = 0x56;
+	cmd[0] = 0x56;//86
 	cmd[1] = (0x01 << 2);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	// # GPIO2 as clock output (ADC_MOD_CLK for digital mic)
-	cmd[0] = 0x57;
+	cmd[0] = 0x57;//87
 	cmd[1] = (0x0A << 2);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	// # GPIO3 as clock input (will be used as ADC BCLK)
-	cmd[0] = 0x58;
+	cmd[0] = 0x58;//88
 	cmd[1] = (0x01 << 2);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	// # GPIO4 as digital mic input, MIC1_DAT, sampled on rising edge, hence left by default (DIG MIC PAIR 1)
-	cmd[0] = 0x59;
+	cmd[0] = 0x59;//89
 	cmd[1] = (0x01 << 2);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	// # GPIO5 as digital mic input, MIC2_DAT, sampled on falling edge, hence right by default (DIG MIC PAIR 1)
-	cmd[0] = 0x5A;
+	cmd[0] = 0x5A;//90
 	cmd[1] = (0x01 << 2);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	// # GPIO6 as digital mic input,  MIC3_DAT, sampled on rising edge, hence left by default (DIG MIC PAIR 2)
-	cmd[0] = 0x5B;
+	cmd[0] = 0x5B;//91
 	cmd[1] = (0x01 << 2);
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	// # GPIO1 pin output disabled
-	cmd[0] = 0x60;
+	cmd[0] = 0x60;//92
 	cmd[1] = 0;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
@@ -1541,6 +1543,39 @@ static void codec_mic_config(void)
 	vTaskDelay(5);
 }
 
+#if (CODEC_BEEP_GENERATOR==1)
+static void beep_gen(void)
+{
+	char send_stop = 1;
+	unsigned char cmd[2];
+
+	codec_set_page(0);
+
+	UARTprintf("Beep\n");
+
+	// Set beep time to be 2 seconds=0x01770
+
+	uint32_t delay=0x01770;
+	cmd[0] = 73;
+	cmd[1] = (delay & 0xFF0000) >> 16;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+	cmd[0] = 74;
+	cmd[1] = (delay & 0xFF00) >> 8;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+	cmd[0] = 75;
+	cmd[1] = (delay & 0xFF) >> 0;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	cmd[0] = 0x47;
+	cmd[1] = (1 << 7);
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+
+}
+#endif
+
+#endif
+
 // Enable Class-D Speaker playback
 static void codec_speaker_config(void)
 {
@@ -1617,39 +1652,4 @@ static void codec_speaker_config(void)
 
 	vTaskDelay(20);
 }
-
-#if (CODEC_BEEP_GENERATOR==1)
-static void beep_gen(void)
-{
-	char send_stop = 1;
-	unsigned char cmd[2];
-
-	codec_set_page(0);
-
-	UARTprintf("Beep\n");
-
-	// Set beep time to be 2 seconds=0x01770
-
-	uint32_t delay=0x01770;
-	cmd[0] = 73;
-	cmd[1] = (delay & 0xFF0000) >> 16;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-	cmd[0] = 74;
-	cmd[1] = (delay & 0xFF00) >> 8;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-	cmd[0] = 75;
-	cmd[1] = (delay & 0xFF) >> 0;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
-	cmd[0] = 0x47;
-	cmd[1] = (1 << 7);
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
-
-}
-#endif
-
-#endif
-
-
 
