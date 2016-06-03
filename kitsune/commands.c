@@ -1045,6 +1045,13 @@ void thread_tx(void* unused) {
 }
 #include "hlo_pipe.h"
 
+typedef struct {
+	void * structdata;
+	const pb_field_t * fields;
+} pb_msg;
+#define MAX_PB_QUEUED 10
+static xQueueHandle pb_oq;
+
 static xSemaphoreHandle sock_stream_sem;
 static hlo_stream_t * sock_stream = NULL;
 
@@ -1063,20 +1070,15 @@ static void sock_close() {
 }
 
 void thread_out(void* ctx) {
-	periodic_data data;
 	pipe_ctx p_ctx_enc;
+	pb_msg m;
 
-	while(1) {
-
+	while(xQueueReceive(pb_oq, &m, portMAX_DELAY)) {
 		sock_checkup();
 
 		if( sock_stream ) {
 			hlo_stream_t * fifo_stream_out = fifo_stream_open( 768 );
 			assert( fifo_stream_out );
-
-			data.has_light = true;
-			data.light = 10;
-			LOGF("sending %d\n", data.light );
 
 			p_ctx_enc.source = fifo_stream_out;
 			p_ctx_enc.sink = sock_stream;
@@ -1086,7 +1088,7 @@ void thread_out(void* ctx) {
 
 			//bg pipe for sending out the data
 			xTaskCreate(thread_frame_pipe_encode, "penc", 1024 / 4, &p_ctx_enc, 4, NULL);
-			hlo_pb_encode( fifo_stream_out, periodic_data_fields, &data );
+			hlo_pb_encode( fifo_stream_out, m.fields, m.structdata );
 			p_ctx_enc.flush = true; // this is safe, all the data has been piped
 			xSemaphoreTake( p_ctx_enc.join_sem, portMAX_DELAY );
 			p_ctx_enc.flush = false;
@@ -1096,8 +1098,6 @@ void thread_out(void* ctx) {
 				sock_close();
 			}
 		}
-
-		vTaskDelay(10000);
 	}
 
 	vTaskDelete(NULL);
@@ -1136,11 +1136,30 @@ void thread_in(void* ctx) {
 
 	vTaskDelete(NULL);
 }
+int output_pb_wto( void * structdata, const pb_field_t * fields, TickType_t to ) {
+	pb_msg m = { structdata, fields };
+	return xQueueSend(pb_oq, &m, to);
+}
+int output_pb( void * structdata, const pb_field_t * fields ) {
+	return output_pb_wto(structdata, fields, portMAX_DELAY);
+}
+//int subscribe_pb( int message_code, void * structdata ) ?
 
 int Cmd_pbstr(int argc, char *argv[]) {
+	pb_oq = xQueueCreate(MAX_PB_QUEUED, sizeof(pb_msg));
 	sock_stream_sem = xSemaphoreCreateMutex();
 	xTaskCreate(thread_out, "out", 1024 / 4, NULL, 4, NULL);
 	xTaskCreate(thread_in, "in", 1024 / 4, NULL, 4, NULL);
+
+	periodic_data data;
+
+	data.has_light = true;
+	data.light = 10;
+	while(1) {
+		LOGF("sending %d\n", data.light );
+		output_pb(&data, periodic_data_fields);
+		vTaskDelay(5000);
+	}
 
 	return 0;
 }
