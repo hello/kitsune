@@ -80,8 +80,8 @@ static int _start_connection(unsigned long ip, security_type sec){
 		 if( sock < 0 ) goto exit;
 
 		 timeval tv = (timeval){
-			.tv_sec = 0,
-			.tv_usec = 500000,
+			.tv_sec = 2,
+			.tv_usec = 0,
 		 };
 		 sl_SetSockOpt(sock, SOL_SOCKET, SL_SO_RCVTIMEO, &tv, sizeof(tv) );
 
@@ -517,7 +517,6 @@ static int _get_content(void * ctx, void * buf, size_t size){
 		LOGE("Response error, code %d\r\n", session->code);
 		return HLO_STREAM_ERROR;
 	}
-	DISP("cs %d\r\n", content_size);
 	return content_size;
 }
 static int _close_get_session(void * ctx){
@@ -636,7 +635,6 @@ static int _finish_post(void * ctx){
 		}
 	}
 	if( end_chunk_len == hlo_stream_write(session->sockstream, end_chunked, end_chunk_len) ){
-		session->scratch_offset = 0;
 		return end_chunk_len;
 	}
 	return HLO_STREAM_ERROR;
