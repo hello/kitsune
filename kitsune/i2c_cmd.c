@@ -665,6 +665,48 @@ int32_t codec_test_commands(void)
 #include "audio_codec_pps_driver.h"
 int32_t codec_init_with_dsp(void)
 {
+	uint32_t i;
+	char send_stop = 1;
+	unsigned char cmd[2];
+	uint32_t reg_array_size = sizeof(REG_Section_program)/2;
+	UARTprintf("Size of reg array = %u\n", reg_array_size);
+
+	// Write the registers
+	for(i=0;i<reg_array_size;i++)
+	{
+		//	# Select Book 0
+		cmd[0] = REG_Section_program[i].reg_off;
+		cmd[1] = REG_Section_program[i].reg_val;
+		I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+	}
+
+	// Update miniDSP A
+	reg_array_size = sizeof(miniDSP_A_reg_values)/2;
+	UARTprintf("Size of miniDSP_A array = %u vs %u\n", reg_array_size,miniDSP_A_reg_values_COEFF_SIZE+miniDSP_A_reg_values_INST_SIZE );
+
+	// Write the registers
+	for(i=0;i<reg_array_size;i++)
+	{
+		//	# Select Book 0
+		cmd[0] = miniDSP_A_reg_values[i].reg_off;
+		cmd[1] = miniDSP_A_reg_values[i].reg_val;
+		I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+	}
+
+	// Update miniDSP D
+	reg_array_size = sizeof(miniDSP_D_reg_values)/2;
+	UARTprintf("Size of miniDSP_D array = %u vs %u\n", reg_array_size, miniDSP_D_reg_values_COEFF_SIZE+miniDSP_D_reg_values_INST_SIZE  );
+
+	// Write the registers
+	for(i=0;i<reg_array_size;i++)
+	{
+		//	# Select Book 0
+		cmd[0] = miniDSP_D_reg_values[i].reg_off;
+		cmd[1] = miniDSP_D_reg_values[i].reg_val;
+		I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+	}
+
+	return 1;
 
 }
 
