@@ -333,6 +333,26 @@ void SetupPingPongDMATransferTx()
     memset(ping, 0, sizeof(ping));
     memset(pong, 0, sizeof(pong));
 
+#if (CODEC_ENABLE_MULTI_CHANNEL==1)
+    SetupTransfer(UDMA_CH4_I2S_RX,
+                  UDMA_MODE_PINGPONG,
+                  CB_TRANSFER_SZ,
+                  UDMA_SIZE_32,
+                  UDMA_ARB_8,
+                  (void *)puiTxSrcBuf,
+                  UDMA_CHCTL_SRCINC_NONE,
+                  (void *)ping,
+                  UDMA_CHCTL_DSTINC_32);
+    SetupTransfer(UDMA_CH4_I2S_RX|UDMA_ALT_SELECT,
+                  UDMA_MODE_PINGPONG,
+                  CB_TRANSFER_SZ,
+                  UDMA_SIZE_32,
+                  UDMA_ARB_8,
+                  (void *)puiTxSrcBuf,
+                  UDMA_CHCTL_SRCINC_NONE,
+                  (void *)pong,
+                  UDMA_CHCTL_DSTINC_32);
+#else
     // changed to SD card DMA UDMA_CH14_SDHOST_RX
     SetupTransfer(UDMA_CH4_I2S_RX,
                   UDMA_MODE_PINGPONG,
@@ -352,7 +372,7 @@ void SetupPingPongDMATransferTx()
                   UDMA_CHCTL_SRCINC_NONE,
                   (void *)pong,
                   UDMA_CHCTL_DSTINC_16);
-
+#endif
 }
 
 void SetupPingPongDMATransferRx()
