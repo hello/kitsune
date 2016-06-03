@@ -67,7 +67,6 @@ int hlo_stream_transfer_between(
 
 int frame_pipe_encode( pipe_ctx * pipe ) {
 	uint8_t buf[512];
-	uint16_t short_len;
 	int ret;
 	int transfer_delay = 100;
 
@@ -79,53 +78,26 @@ int frame_pipe_encode( pipe_ctx * pipe ) {
 		DBG_FRAMEPIPE(" enc break %d\n", ret);
 		return ret;
 	}
-	short_len = ret;
-	ret = hlo_stream_transfer_all(INTO_STREAM, pipe->sink, (uint8_t*)&short_len,sizeof(short_len),transfer_delay);
-	DBG_FRAMEPIPE(" enc len %d\n", ret);
-	if(ret < 0){
-		pipe->state = ret;
-		DBG_FRAMEPIPE(" enc break %d\n", ret);
-		return ret;
-	}
-	ret = hlo_stream_transfer_all(INTO_STREAM, pipe->sink, buf,short_len,transfer_delay);
+	ret = hlo_stream_transfer_all(INTO_STREAM, pipe->sink, buf,ret,transfer_delay);
 	pipe->state = ret;
 	DBG_FRAMEPIPE( " enc returning %d\n", ret );
 	return ret;
 }
 int frame_pipe_decode( pipe_ctx * pipe ) {
 	uint8_t buf[512];
-	uint16_t short_len;
-	int bytes_remaining;
 	int ret;
 	int transfer_delay = 100;
 
-	DBG_FRAMEPIPE("    dec frame start\n");
-
-	ret = hlo_stream_transfer_until(FROM_STREAM, pipe->source, (uint8_t*)&short_len,sizeof(short_len),transfer_delay, &pipe->flush);
+	DBG_FRAMEPIPE("    dec len %d\n", short_len);
+	ret = hlo_stream_read( pipe->source, buf,sizeof(buf) );
+	DBG_FRAMEPIPE("    dec pipe read %d\n", ret);
 	if(ret < 0){
-		DBG_FRAMEPIPE("    dec break %d\n", ret);
 		pipe->state = ret;
+		DBG_FRAMEPIPE("    dec break %d\n", ret);
 		return ret;
 	}
-	bytes_remaining = short_len;
-	while( bytes_remaining > 0 ) {
-		DBG_FRAMEPIPE("    dec len %d\n", short_len);
-		ret = hlo_stream_transfer_until(FROM_STREAM, pipe->source, buf,short_len,transfer_delay,&pipe->flush);
-		DBG_FRAMEPIPE("    dec pipe read %d\n", ret);
-		if(ret < 0){
-			pipe->state = ret;
-			DBG_FRAMEPIPE("    dec break %d\n", ret);
-			return ret;
-		}
-		DBG_FRAMEPIPE("    dec read %d\n", ret);
-		ret = hlo_stream_transfer_all(INTO_STREAM, pipe->sink, buf,ret,transfer_delay);
-		if(ret <= 0){
-			DBG_FRAMEPIPE("    dec break %d\n", ret);
-			return ret;
-		}
-		bytes_remaining -= ret;
-		DBG_FRAMEPIPE("    dec left %d\n", short_len);
-	}
+	DBG_FRAMEPIPE("    dec read %d\n", ret);
+	ret = hlo_stream_transfer_all(INTO_STREAM, pipe->sink, buf,ret,transfer_delay);
 	DBG_FRAMEPIPE("    dec frame stop returning %d\n", ret );
 	return ret;
  }

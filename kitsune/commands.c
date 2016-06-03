@@ -1156,9 +1156,7 @@ void thread_in(void* ctx) {
 
 			xSemaphoreTake(pb_sub_sem, portMAX_DELAY);
 			LOGF("\n\nR! %d\n\n",  hlo_pb_decode( fifo_stream_in, subscriptions[incoming_pb_type].fields, pb_data  ) );
-			p_ctx_dec.flush = true; // this is safe, all the data has been piped
 			xSemaphoreTake( p_ctx_dec.join_sem, portMAX_DELAY );
-			p_ctx_dec.flush = false;
 			hlo_stream_close(fifo_stream_in);
 			if(p_ctx_dec.state < 0 ) {
 				DISP("dec state %d\n",p_ctx_dec.state );
