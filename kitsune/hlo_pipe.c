@@ -63,7 +63,7 @@ int hlo_stream_transfer_between(
 
 }
 
-#define DBG_FRAMEPIPE DISP
+#define DBG_FRAMEPIPE(...)
 
 int frame_pipe_encode( pipe_ctx * pipe ) {
 	uint8_t buf[512];
