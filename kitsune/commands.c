@@ -1139,8 +1139,8 @@ void thread_in(void* ctx) {
 
 int Cmd_pbstr(int argc, char *argv[]) {
 	sock_stream_sem = xSemaphoreCreateMutex();
-	xTaskCreate(thread_out, "out", 2*1024 / 4, NULL, 4, NULL);
-	xTaskCreate(thread_in, "in", 2*1024 / 4, NULL, 4, NULL);
+	xTaskCreate(thread_out, "out", 1024 / 4, NULL, 4, NULL);
+	xTaskCreate(thread_in, "in", 1024 / 4, NULL, 4, NULL);
 
 	return 0;
 }
