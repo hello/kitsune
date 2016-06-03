@@ -23,6 +23,8 @@ hlo_stream_t * hlo_http_post_opt(hlo_stream_t * sock, const char * host, const c
 typedef struct{
 	int sock;
 }hlo_sock_ctx_t;
+
+#define DBG_SOCKSTREAM(...)
 extern void set_backup_dns();
 static unsigned long _get_ip(const char * host){
 	unsigned long ip = 0;
@@ -339,7 +341,6 @@ static int _write_ws(void * ctx, const void * buf, size_t size){
 static int _read_ws(void * ctx, void * buf, size_t size){
 	ws_stream_t * stream = (ws_stream_t*)ctx;
 	int rv = 0;
-	DBG_WS("WS _read %d\n", size);
 	if( 0 == stream->frame_bytes_read ) {
 		/*0                   1                   2                   3
 	      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
