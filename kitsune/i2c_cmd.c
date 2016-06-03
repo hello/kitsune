@@ -40,7 +40,7 @@
 #define Codec_addr 					(0x18U)
 
 #define DELAY_CODEC 				5 // TODO set arbitrarily, might need to be adjusted
-#define CODEC_USE_MINIDSP 			0 // Set to 1 if using miniDSP, else 0
+#define CODEC_USE_MINIDSP 			1 // Set to 1 if using miniDSP, else 0
 #define CODEC_ADC_16KHZ    			1 // Set to 1 if ADC sampling rate is 16k Hz. If not, ADC Fs = DAC Fs = 48k Hz
 
 // Left mic data is latched on rising by default, to latch it on rising edge instead
@@ -55,6 +55,17 @@
 #endif
 
 #define CODEC_BEEP_GENERATOR		0
+
+#if (CODEC_USE_MINIDSP == 1)
+// If 0-> PPS code is loaded from flash, 1-> PPS code is laoded from array
+#define CODEC_PPS_FROM_ARRAY 1
+#endif
+
+#if (CODEC_USE_MINIDSP == 1)
+#define codec_init_with_dsp codec_init
+#else
+#define codec_init_no_dsp codec_init
+#endif
 
 extern xSemaphoreHandle i2c_smphr;
 
@@ -533,6 +544,8 @@ int Cmd_readproximity(int argc, char *argv[]) {
 #include "sl_sync_include_after_simplelink_header.h"
 
 static void codec_sw_reset(void);
+
+#if (CODEC_USE_MINIDSP == 0)
 static void codec_fifo_config(void);
 static void codec_power_config(void);
 static void codec_clock_config(void);
@@ -541,6 +554,7 @@ static void codec_asi_config(void);
 static void codec_signal_processing_config(void);
 static void codec_mic_config(void);
 static void codec_speaker_config(void);
+#endif
 
 static void codec_set_page(uint32_t page);
 static void codec_set_book(uint32_t book);
@@ -551,6 +565,52 @@ static void beep_gen(void);
 
 #define CODEC_DRIVER_FILE "/sys/codec_driver"
 #define FILE_READ_BLOCK 128
+
+static void codec_sw_reset(void)
+{
+	char send_stop = 1;
+	unsigned char cmd[2];
+	const TickType_t delay = 10 / portTICK_PERIOD_MS;
+	int ret;
+
+	// w 30 00 00 # Initialize to Page 0
+	codec_set_page(0);
+
+	//w 30 7f 00 # Initialize to Book 0
+	codec_set_book(0);
+
+	//w 30 01 01 # Software Reset
+	cmd[0] = 0x01;
+	cmd[1] = 0x01;
+	if((ret=I2C_IF_Write(Codec_addr, cmd, 2, send_stop)))
+	{
+		UARTprintf("Codec sw reset fail:%d\n",ret);
+	}
+
+	vTaskDelay(delay);
+}
+
+static void codec_set_page(uint32_t page)
+{
+	char send_stop = 1;
+	unsigned char cmd[2];
+
+	//	w 30 00 00 # Select Page 0
+	cmd[0] = 0;
+	cmd[1] = page;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+}
+
+static void codec_set_book(uint32_t book)
+{
+	char send_stop = 1;
+	unsigned char cmd[2];
+
+	//	# Select Book 0
+	cmd[0] = 0x7F;
+	cmd[1] = book;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+}
 
 // FOR board bring up
 #ifdef CODEC_1P5_TEST
@@ -601,13 +661,15 @@ int32_t codec_test_commands(void)
 
 // TODO use i2s semaphore
 
-#if (CODEC_USE_MINIDSP == 1)
-#define codec_init_with_dsp codec_init
-#else
-#define codec_init_no_dsp codec_init
-#endif
 
 #if (CODEC_USE_MINIDSP == 1)
+int32_t codec_init_with_dsp(void)
+#if (CODEC_PPS_FROM_ARRAY == 1)
+{
+
+}
+
+#else
 int32_t codec_init_with_dsp(void)
 {
     _i32 hndl;
@@ -724,6 +786,7 @@ int32_t codec_init_with_dsp(void)
 // update volume
 
 // Software reset codec
+#endif
 
 #else
 
@@ -821,30 +884,6 @@ int32_t codec_init_no_dsp(void)
 	return 0;
 }
 
-static void codec_sw_reset(void)
-{
-	char send_stop = 1;
-	unsigned char cmd[2];
-	const TickType_t delay = 10 / portTICK_PERIOD_MS;
-	int ret;
-
-	// w 30 00 00 # Initialize to Page 0
-	codec_set_page(0);
-
-	//w 30 7f 00 # Initialize to Book 0
-	codec_set_book(0);
-
-	//w 30 01 01 # Software Reset
-	cmd[0] = 0x01;
-	cmd[1] = 0x01;
-	if((ret=I2C_IF_Write(Codec_addr, cmd, 2, send_stop)))
-	{
-		UARTprintf("Codec sw reset fail:%d\n",ret);
-	}
-
-	vTaskDelay(delay);
-}
-
 
 // Codec FIFO config
 static void codec_fifo_config(void)
@@ -855,23 +894,6 @@ static void codec_fifo_config(void)
 	//	w 30 00 00 # Select Page 0
 	codec_set_page(0);
 
-#if (CODEC_USE_MINIDSP == 1)
-	// TODO as per datasheet this does not seem necessary
-	// it is a minidsp setting which is not used right now
-	// But it is part of both mic and spkr example
-	// Why?
-
-	//	w 30 7f 78 # Select Book 120
-	codec_set_book(0x78);
-
-	//	w 30 32 80 # Enable DAC FIFO
-	cmd[0] = 0x32;
-	cmd[1] = 0x80;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
-#endif
-
-
 	//	w 30 7f 64 # Select Book 100
 	codec_set_book(0x64);
 
@@ -879,7 +901,7 @@ static void codec_fifo_config(void)
 	//	w 30 32 80 # Enable ADC (CIC output) FIFO
 	// TODO is auto clear necessary?, currently disbaled
 	cmd[0] = 0x32;
-	cmd[1] = ( 1<<7 ) | ( 0 << 6 ) | (0 << 5) | (4 << 0) | 0x04 ; // EnABLE CIC, Auto normal, decimation ratio=4
+	cmd[1] = ( 1<<7 ) | ( 0 << 6 ) | (0 << 5) | (4 << 0); // EnABLE CIC, Auto normal, decimation ratio=4
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 #endif
 
@@ -1583,27 +1605,6 @@ static void beep_gen(void)
 }
 #endif
 
-static void codec_set_page(uint32_t page)
-{
-	char send_stop = 1;
-	unsigned char cmd[2];
-
-	//	w 30 00 00 # Select Page 0
-	cmd[0] = 0;
-	cmd[1] = page;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-}
-
-static void codec_set_book(uint32_t book)
-{
-	char send_stop = 1;
-	unsigned char cmd[2];
-
-	//	# Select Book 0
-	cmd[0] = 0x7F;
-	cmd[1] = book;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-}
 #endif
 
 
