@@ -490,6 +490,9 @@ static int _get_content(void * ctx, void * buf, size_t size){
 	int bytes_to_process = min(size, SCRATCH_SIZE);
 	session->content_itr = (char*)buf;
 	const char * scratch_itr = session->scratch;
+	if( !session->response_active ){
+		return HLO_STREAM_EOF;
+	}
 	int ndata = hlo_stream_read(session->sockstream, session->scratch, bytes_to_process);
 	if( ndata > 0 ){
 		while(session->response_active && ndata) {
