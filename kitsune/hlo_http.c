@@ -719,6 +719,7 @@ hlo_stream_t * hlo_http_post_opt(hlo_stream_t * sock, const char * host, const c
 		hlo_http_context_t * session = (hlo_http_context_t*)ret->ctx;
 		int len = _generate_header(session->scratch, sizeof(session->scratch), POST, host, endpoint, content_type_str);
 		if( len > 0 ){
+			DISP("caching header\r\n");
 			session->header_cache = pvPortMalloc(len + 1);
 			assert(session->header_cache);
 			ustrncpy(session->header_cache, session->scratch, len+1);
