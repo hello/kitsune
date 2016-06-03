@@ -1,13 +1,13 @@
 #include <stdint.h>
 
 //INSTRUCTIONS & COEFFICIENTS
-typedef struct {
+typedef struct{
     uint8_t reg_off;
     uint8_t reg_val;
-} reg_value;
+}reg_value;
 
 
-reg_value REG_Section_program[] = {
+static const reg_value REG_Section_program[] = {
     {  0,0x0},
     {  0x7F,0x00},
 //			# Set AutoINC
@@ -203,7 +203,7 @@ reg_value REG_Section_program[] = {
     {100,0x00},
 };
 
-reg_value miniDSP_A_reg_values[] = {
+static const reg_value miniDSP_A_reg_values[] = {
     {  0,0x0},
     {  0x7F,0x28},
     {  0,0x01},
@@ -2695,7 +2695,7 @@ reg_value miniDSP_A_reg_values[] = {
 #define miniDSP_A_reg_values_INST_START    579
 #define miniDSP_A_reg_values_INST_SIZE     1906
 
-reg_value miniDSP_D_reg_values[] = {
+static const reg_value miniDSP_D_reg_values[] = {
     {  0,0x0},
     {  0x7F,0x50},
     {  0,0x01},

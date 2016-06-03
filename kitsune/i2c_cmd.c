@@ -24,8 +24,6 @@
 
 #include "codec_debug_config.h"
 
-// #include "audio_codec_pps_driver.h"
-
 #define MAX_MEASURE_TIME			10
 
 #define FAILURE                 	-1
@@ -563,8 +561,7 @@ static void codec_set_book(uint32_t book);
 static void beep_gen(void);
 #endif
 
-#define CODEC_DRIVER_FILE "/sys/codec_driver"
-#define FILE_READ_BLOCK 128
+
 
 static void codec_sw_reset(void)
 {
@@ -663,13 +660,18 @@ int32_t codec_test_commands(void)
 
 
 #if (CODEC_USE_MINIDSP == 1)
-int32_t codec_init_with_dsp(void)
+
 #if (CODEC_PPS_FROM_ARRAY == 1)
+#include "audio_codec_pps_driver.h"
+int32_t codec_init_with_dsp(void)
 {
 
 }
 
 #else
+
+#define CODEC_DRIVER_FILE "/sys/codec_driver"
+#define FILE_READ_BLOCK 128
 int32_t codec_init_with_dsp(void)
 {
     _i32 hndl;
