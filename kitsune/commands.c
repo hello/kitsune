@@ -1131,10 +1131,7 @@ void thread_in(void* ctx) {
 				sock_close();
 			}
 		}
-		vTaskDelay(1000);
 	}
-
-	vTaskDelete(NULL);
 }
 int output_pb_wto( void * structdata, const pb_field_t * fields, TickType_t to ) {
 	pb_msg m = { structdata, fields };
