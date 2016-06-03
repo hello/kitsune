@@ -28,7 +28,7 @@ hlo_stream_t * hlo_http_get(const char * url);
 /**
  * post is a bidirectional stream
  * write first until the end of the message, then read the response.
- * WARNING: once you read, you may no longer write to the stream.
+ * half duplex, open -> write all -> read response until eof -> write all ...
  */
 hlo_stream_t * hlo_http_post(const char * url, const char * content_type);
 
