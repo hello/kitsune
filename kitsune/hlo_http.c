@@ -16,7 +16,7 @@
 //Protected API Declaration
 //
 hlo_stream_t * hlo_http_get_opt(hlo_stream_t * sock, const char * host, const char * endpoint);
-hlo_stream_t * hlo_http_post_opt(hlo_stream_t * sock, const char * host, const char * endpoint, const char * content_type_str, uint8_t sign);
+hlo_stream_t * hlo_http_post_opt(hlo_stream_t * sock, const char * host, const char * endpoint, const char * content_type_str);
 //====================================================================
 //socket stream implementation
 //
@@ -378,6 +378,7 @@ typedef struct{
 	int code;					/** http response code, parsed by tinyhttp **/
 	int len;					/** length of the response body tally **/
 	int active;					/** indicates if the response is still active **/
+	int done_post;				/** indicates if the post is finished **/
 	char * content_itr;			/** used by GET, itr to the outside buffer which we dump data do **/
 	size_t scratch_offset;		/** used by POST, to collect data internally in bulk before sending **/
 	char scratch[SCRATCH_SIZE]; /** scratch buffer, **MUST** be the last field **/
@@ -405,7 +406,7 @@ static void _response_body(void* opaque, const char* data, int size){
 		session->content_itr += size;
 		session->len += size;
 	}else{
-		hlo_stream_write(uart_stream(), data, size);
+		//hlo_stream_write(uart_stream(), data, size);
 	}
 
 }
@@ -502,12 +503,16 @@ static int _get_content(void * ctx, void * buf, size_t size){
 	}
 
 	int content_size = (session->content_itr - (char*)buf);
+	session->content_itr = NULL;	/* need to clean up here to prevent cached buffer tampering */
 	if( http_iserror(&session->rt) ) {
 		DISP("Has error\r\n");
 		return HLO_STREAM_ERROR;
 	} else if(content_size == 0 && !session->active){
 		LOGI("GET EOF %d bytes\r\n", session->len);
 		return HLO_STREAM_EOF;
+	} else if(session->code != 0 && (session->code < 200 || session->code > 300)){
+		LOGE("Response error, code %d\r\n", session->code);
+		return HLO_STREAM_ERROR;
 	}
 	return content_size;
 }
@@ -594,33 +599,53 @@ static int _post_content(void * ctx, const void * buf, size_t size){
 	}
 	return 0;
 }
+static int _finish_post(void * ctx){
+	hlo_http_context_t * session = (hlo_http_context_t*)ctx;
+	static const char * const end_chunked = "0\r\n\r\n";
+	int end_chunk_len = strlen(end_chunked);
+	int ret = 0;
+	if(session->scratch_offset){
+		if((ret = _post_chunked(session))  < 0 ){
+			return ret;
+		}
+	}
+	if( end_chunk_len == hlo_stream_write(session->sockstream, end_chunked, end_chunk_len) ){
+		return end_chunk_len;
+	}
+	return HLO_STREAM_ERROR;
+
+}
+//this consumes the response until code has been retrieved, drops what's left of the body and returns
+//should not be called in conjunction of read.
+static int _fetch_response_code(void * ctx){
+	hlo_http_context_t * session = (hlo_http_context_t*)ctx;
+	while(session->active){
+		int ndata = hlo_stream_read(session->sockstream, session->scratch, sizeof(session->scratch));
+		if( ndata < 0 ){
+			return HLO_STREAM_ERROR;
+		}
+		const char * itr = session->scratch;
+		while( session->active && ndata ){
+			int read;
+			session->active = http_data(&session->rt, itr, ndata, &read);
+			ndata -= read;
+			itr += read;
+		}
+		if( http_iserror(&session->rt) ){
+			return HLO_STREAM_ERROR;
+		}
+	}//done parsing response
+	return 0;
+}
 static int _close_post_session(void * ctx){
 	hlo_http_context_t * session = (hlo_http_context_t*)ctx;
 	int code = 0;
-	static const char * end_chunked = "0\r\n\r\n";
-	int end_chunked_len = strlen(end_chunked);
-	if(session->scratch_offset){//flush remaining data
-		if( _post_chunked(session) < 0 ){
+	if( session->done_post == 0 ){		//if no response has been parsed by a read call, we just finish here
+		session->done_post = 1;
+		if( _finish_post(ctx) < 0 ){
 			goto cleanup;
 		}
-	}
-	if( end_chunked_len == hlo_stream_write(session->sockstream, end_chunked, end_chunked_len) ){
-		LOGI("\r\n=====\r\n");
-		while(session->active){
-			int ndata = hlo_stream_read(session->sockstream, session->scratch, sizeof(session->scratch));
-			if( ndata < 0 ){
-				goto cleanup;
-			}
-			const char * itr = session->scratch;
-			while( session->active && ndata ){
-				int read;
-				session->active = http_data(&session->rt, itr, ndata, &read);
-				ndata -= read;
-				itr += read;
-			}
-		}//done parsing response
-		LOGI("\r\n=====\r\n");
-		if ( http_iserror(&session->rt) ){
+		if( _fetch_response_code(ctx) < 0){
 			goto cleanup;
 		}
 	}
@@ -637,18 +662,24 @@ cleanup:
 	vPortFree(session);
 	return code;
 }
-hlo_stream_t * hlo_http_post_opt(hlo_stream_t * sock, const char * host, const char * endpoint, const char * content_type_str, uint8_t sign){
+static int _get_post_response(void * ctx, void * buf, size_t size){
+	hlo_http_context_t * session = (hlo_http_context_t*)ctx;
+	if( session->done_post == 0){
+		session->done_post = 1;
+		int ret = _finish_post(ctx);
+		if( ret < 0 ){
+			return ret;
+		}
+	}
+	return _get_content(ctx,buf,size);
+}
+hlo_stream_t * hlo_http_post_opt(hlo_stream_t * sock, const char * host, const char * endpoint, const char * content_type_str){
 	hlo_stream_vftbl_t functions = (hlo_stream_vftbl_t){
 		.write = _post_content,
-		.read = NULL,
+		.read = _get_post_response,
 		.close = _close_post_session,
 	};
-	if(sign){
-		//signed override
-		//functions.write = _post_content_and_sign;
-		//functions.close = _close_post_session_and_sign;
-	}
-	hlo_stream_t * ret = _new_stream(sock, &functions, HLO_STREAM_WRITE);
+	hlo_stream_t * ret = _new_stream(sock, &functions, HLO_STREAM_READ_WRITE);
 	if( !ret ){
 		return NULL;
 	}
@@ -663,7 +694,7 @@ hlo_stream_t * hlo_http_post_opt(hlo_stream_t * sock, const char * host, const c
 //====================================================================
 //User Friendly post
 //
-hlo_stream_t * hlo_http_post(const char * url, uint8_t sign, const char * content_type){
+hlo_stream_t * hlo_http_post(const char * url, const char * content_type){
 	url_desc_t desc;
 	if(0 == parse_url(&desc,url)){
 		const char * type = content_type ? content_type:"application/octet-stream";
@@ -671,8 +702,7 @@ hlo_stream_t * hlo_http_post(const char * url, uint8_t sign, const char * conten
 				hlo_sock_stream(desc.host, (desc.protocol == HTTP)?0:1),
 				desc.host,
 				desc.path,
-				type,
-				sign
+				type
 			);
 	}else{
 		LOGE("Malformed URL %s\r\n", url);

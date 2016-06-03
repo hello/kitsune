@@ -8,4 +8,5 @@
 hlo_future_t * MorpheusCommand_from_buffer(void * buf, size_t size);
 hlo_future_t * buffer_from_MorpheusCommand(MorpheusCommand * src);
 
+#include "hlo_stream.h"
 #endif

@@ -25,7 +25,12 @@ hlo_stream_t * hlo_sock_stream(const char * host, uint8_t secure);
  */
 
 hlo_stream_t * hlo_http_get(const char * url);
-hlo_stream_t * hlo_http_post(const char * url, uint8_t sign, const char * content_type);
+/**
+ * post is a bidirectional stream
+ * write first until the end of the message, then read the response.
+ * WARNING: once you read, you may no longer write to the stream.
+ */
+hlo_stream_t * hlo_http_post(const char * url, const char * content_type);
 
 #include "pb.h"
 int hlo_pb_encode( hlo_stream_t * stream,const pb_field_t * fields, void * structdata );
