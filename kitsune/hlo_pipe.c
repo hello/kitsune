@@ -142,6 +142,7 @@ void thread_frame_pipe_decode(void* ctx) {
 	while(frame_pipe_decode( pctx ) > 0) {
 		vTaskDelay(100);
 	}
+	hlo_stream_end(pctx->sink);
 	xSemaphoreGive(pctx->join_sem);
 	vTaskDelete(NULL);
 }

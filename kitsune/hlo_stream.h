@@ -6,6 +6,7 @@
 #define HLO_STREAM_H
 #include <stddef.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include "FreeRTOS.h"
 #include "semphr.h"
 
@@ -27,6 +28,7 @@ typedef struct hlo_stream_info_t{
 	uint32_t bytes_read;
 	uint32_t options;
 	xSemaphoreHandle lock;
+	bool end;
 }hlo_stream_info_t;
 
 typedef struct{
@@ -63,6 +65,10 @@ int hlo_stream_read(hlo_stream_t * stream, void * buf, size_t size);
  * 2.  the close method is implemented, but returns an error (Usually means it has deinit errors)
  */
 int hlo_stream_close(hlo_stream_t * stream);
+/**
+ * Threadsafe, causes the next read op that would return 0 to return EOF
+ */
+int hlo_stream_end(hlo_stream_t * stream);
 
 //Allocates and initializes a stream.
 //do not use in conjunction with init.
