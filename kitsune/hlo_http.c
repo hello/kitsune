@@ -207,7 +207,7 @@ static bool _read_pb_callback(pb_istream_t *stream, uint8_t * inbuf, size_t coun
 	return transfer_size == state->stream_state;
 }
 int hlo_pb_encode( hlo_stream_t * stream, const pb_field_t * fields, void * structdata ){
-	uint16_t short_count;
+	uint32_t count;
 	hlo_pb_stream_context_t state;
 
 	state.sockstream = stream;
@@ -220,10 +220,11 @@ int hlo_pb_encode( hlo_stream_t * stream, const pb_field_t * fields, void * stru
 	pb_encode(&sizestream, fields, structdata); //TODO double check no stateful callbacks get hit here
 
 	DBG_PBSTREAM("PB TX %d\n", sizestream.bytes_written);
-	short_count = sizestream.bytes_written;
-	int ret = hlo_stream_transfer_all(INTO_STREAM, stream, (uint8_t*)&short_count, sizeof(short_count), 200);
+	count = sizestream.bytes_written;
+	count = htonl(count);
+	int ret = hlo_stream_transfer_all(INTO_STREAM, stream, (uint8_t*)&count, sizeof(count), 200);
 
-	success = success && sizeof(short_count) == ret;
+	success = success && sizeof(count) == ret;
 	success = success && pb_encode(&pb_ostream,fields,structdata);
 
 	DBG_PBSTREAM("PBSS %d %d %d\n", state.stream_state, success, ret );
@@ -233,7 +234,7 @@ int hlo_pb_encode( hlo_stream_t * stream, const pb_field_t * fields, void * stru
 	return state.stream_state;
 }
 int hlo_pb_decode( hlo_stream_t * stream, const pb_field_t * fields, void * structdata ){
-	uint16_t short_count;
+	uint32_t count;
 	hlo_pb_stream_context_t state;
 
 	state.sockstream = stream;
@@ -242,12 +243,13 @@ int hlo_pb_decode( hlo_stream_t * stream, const pb_field_t * fields, void * stru
 
 	bool success = true;
 
-	int ret = hlo_stream_transfer_all(FROM_STREAM, stream, (uint8_t*)&short_count, sizeof(short_count), 200);
+	int ret = hlo_stream_transfer_all(FROM_STREAM, stream, (uint8_t*)&count, sizeof(count), 200);
 
-	success = success && sizeof(short_count) == ret;
-	DBG_PBSTREAM("PB RX %d %d\n", ret, short_count);
+	success = success && sizeof(count) == ret;
+	count = ntohl(count);
+	DBG_PBSTREAM("PB RX %d %d\n", ret, count);
 
-	pb_istream.bytes_left = short_count;
+	pb_istream.bytes_left = count;
 	success = success && pb_decode(&pb_istream,fields,structdata);
 	DBG_PBSTREAM("PBRS %d %d\n", state.stream_state, success );
 	if( state.stream_state > 0 ) {
