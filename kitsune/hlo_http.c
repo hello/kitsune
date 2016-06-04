@@ -272,7 +272,7 @@ typedef struct{
 	int frame_bytes_towr;
 }ws_stream_t;
 
-static _readstr_werr(hlo_stream_t * str, void * buf, size_t size) {
+static int _readstr_werr(hlo_stream_t * str, void * buf, size_t size) {
 	int rv = hlo_stream_read( str, buf, size );
 	if( rv <= 0 ) {
 		return rv;
@@ -280,9 +280,10 @@ static _readstr_werr(hlo_stream_t * str, void * buf, size_t size) {
 	if( rv < size ) {
 		return HLO_STREAM_EOF;
 	}
+	return rv;
 }
 
-static _writestr_werr(hlo_stream_t * str, const void * buf, size_t size) {
+static int _writestr_werr(hlo_stream_t * str, const void * buf, size_t size) {
 	int rv = hlo_stream_write( str, buf, size );
 	if( rv <= 0 ) {
 		return rv;
@@ -290,6 +291,7 @@ static _writestr_werr(hlo_stream_t * str, const void * buf, size_t size) {
 	if( rv < size ) {
 		return HLO_STREAM_EOF;
 	}
+	return rv;
 }
 #define DBG_WS(...)
 static int _write_ws(void * ctx, const void * buf, size_t size){
