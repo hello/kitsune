@@ -1078,7 +1078,7 @@ void thread_out(void* ctx) {
 		sock_checkup();
 
 		if( sock_stream ) {
-			hlo_stream_t * fifo_stream_out = fifo_stream_open( 768 );
+			hlo_stream_t * fifo_stream_out = fifo_stream_open( 64 );
 			assert( fifo_stream_out );
 
 			p_ctx_enc.source = fifo_stream_out;
