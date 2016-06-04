@@ -85,9 +85,9 @@ static int _start_connection(unsigned long ip, security_type sec){
 		 };
 		 sl_SetSockOpt(sock, SOL_SOCKET, SL_SO_RCVTIMEO, &tv, sizeof(tv) );
 
-		 /*SlSockNonblocking_t enableOption;
+		 SlSockNonblocking_t enableOption;
 		 enableOption.NonblockingEnabled = 1;//blocking mode
-		 sl_SetSockOpt(sock,SL_SOL_SOCKET,SL_SO_NONBLOCKING, (_u8 *)&enableOption,sizeof(enableOption));*/
+		 sl_SetSockOpt(sock,SL_SOL_SOCKET,SL_SO_NONBLOCKING, (_u8 *)&enableOption,sizeof(enableOption));
 
 		 int retry = 5;
 		 int rv;
@@ -150,7 +150,7 @@ hlo_stream_t * hlo_sock_stream(const char * host, uint8_t secure){
 //pb stream impl
 #include "pb.h"
 
-#define DBG_PBSTREAM(...)
+#define DBG_PBSTREAM DISP
 #define PB_FRAME_SIZE 1024
 
 typedef struct{
@@ -247,123 +247,6 @@ int hlo_pb_decode( hlo_stream_t * stream, const pb_field_t * fields, void * stru
 		return success==true ? 0 : -1;
 	}
 	return state.stream_state;
-}
-
-//====================================================================
-//frame stream impl
-
-typedef struct{
-	uint8_t * buf;
-	int32_t buf_pos;
-	int32_t buf_size;
-	bool eof;
-	xSemaphoreHandle fill_sem, send_sem;
-}hlo_frame_ctx_t;
-
-#define DBG_FRAMESTREAM(...)
-
-static int _close_frame(void * ctx){
-	hlo_frame_ctx_t * fc = (hlo_frame_ctx_t*)ctx;
-    DBG_FRAMESTREAM("Frame closed: %x\t%d\n", fc->buf, fc->eof);
-	vPortFree(fc->buf);
-	vPortFree(fc);
-	return 0;
-}
-#define minval( a,b ) a < b ? a : b
-static int _read_frame(void * ctx, void * buf, size_t size){
-	hlo_frame_ctx_t * fc = (hlo_frame_ctx_t*)ctx;
-	size_t to_copy = minval( size, fc->buf_pos );
-
-    DBG_FRAMESTREAM("Frame RBEGIN: %x\t%d\n", fc->buf, size, fc->buf_pos );
-	if( !fc->eof ) {
-		//wait for a full frame or flush
-		xSemaphoreTake(fc->send_sem, portMAX_DELAY);
-	}
-
-	//read out a frame
-	memcpy(buf, fc->buf, to_copy );
-
-	//shift any remaining bytes
-	memcpy( fc->buf, fc->buf + to_copy, fc->buf_pos - to_copy );
-	fc->buf_pos -= to_copy;
-
-    DBG_FRAMESTREAM("Frame read: %x\t%d\n", fc->buf, to_copy);
-
-	//unblock writers so they can fill a new frame
-	xSemaphoreGive(fc->fill_sem );
-
-	if( to_copy == 0 && fc->eof ) {
-		return HLO_STREAM_EOF;
-	}
-
-	return to_copy;
-}
-static int _write_frame(void * ctx, const void * buf, size_t count){
-	hlo_frame_ctx_t * fc = (hlo_frame_ctx_t*)ctx;
-	uint8_t * inbuf = (uint8_t*)buf;
-	int c = count;
-
-	if ((fc->buf_pos + count ) >= fc->buf_size) {
-		/* Will I exceed the buffer size? then send buffer */
-		while ((fc->buf_pos + c) >= fc->buf_size) {
-			//copy over
-			memcpy(fc->buf + fc->buf_pos, inbuf,
-					fc->buf_size - fc->buf_pos);
-
-	        fc->buf_pos = fc->buf_size;
-	        DBG_FRAMESTREAM("Frame: %x\t%d\n", fc->buf, fc->buf_pos);
-
-			//block, our buffer is full
-	        //warning, this block means we can't read and write from a framestream on the same thread without deadlock
-	    	xSemaphoreGive(fc->send_sem );
-	    	xSemaphoreTake(fc->fill_sem, portMAX_DELAY);
-
-			c -= fc->buf_size - fc->buf_pos;
-			inbuf += fc->buf_size - fc->buf_pos;
-			fc->buf_pos = 0;
-		}
-		if( c > 0 ) {
-			//copy to our buffer
-			memcpy(fc->buf, inbuf, c);
-			fc->buf_pos += c;
-		}
-	} else {
-		//copy to our buffer
-		memcpy(fc->buf + fc->buf_pos, inbuf, count);
-		fc->buf_pos += count;
-	}
-    DBG_FRAMESTREAM("Frame write: %x\t%d\t%d\n", fc->buf, fc->buf_pos, count);
-	return count;
-}
-// warning, must come only after all calls to write into the stream have returned, otherwise we may EOF with chunks leftover
-void hlo_frame_stream_flush(hlo_stream_t * fs) {
-	hlo_frame_ctx_t * fc = (hlo_frame_ctx_t*)fs->ctx;
-    DBG_FRAMESTREAM("Flush: %x\t%d\n", fc->buf, fc->buf_size);
-    fc->eof = true;
-	xSemaphoreGive(fc->send_sem );
-}
-hlo_stream_t * hlo_frame_stream(size_t size) {
-	hlo_stream_vftbl_t impl = (hlo_stream_vftbl_t){
-		.write = _write_frame,
-		.read = _read_frame,
-		.close = _close_frame,
-	};
-	hlo_frame_ctx_t * fc = pvPortMalloc(sizeof(*fc));
-	if(fc){
-		fc->buf = pvPortMalloc(size);
-		if(!fc->buf) {
-			vPortFree(fc);
-			return NULL;
-		}
-		fc->fill_sem = xSemaphoreCreateBinary();
-		fc->send_sem = xSemaphoreCreateBinary();
-		fc->buf_size = size;
-		fc->buf_pos = 0;
-		fc->eof = false;
-	}else{
-		return NULL;
-	}
-	return hlo_stream_new(&impl, (void*)fc, HLO_STREAM_READ_WRITE);
 }
 
 //====================================================================

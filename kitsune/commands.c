@@ -1051,49 +1051,109 @@ void thread_tx(void* unused) {
 		} while (!wifi_status_get(HAS_IP));
 	}
 }
+#include "hlo_pipe.h"
 
-typedef struct {
-	hlo_stream_t * stream;
-	const pb_field_t * fields;
-	void * structdata;
-} encode_ctx;
+static xSemaphoreHandle sock_stream_sem;
+static hlo_stream_t * sock_stream = NULL;
 
-void thread_encode(void* ctx) {
-	encode_ctx * ts = (encode_ctx*)ctx;
-	hlo_pb_encode( ts->stream, ts->fields, ts->structdata );
-	hlo_frame_stream_flush( ts->stream );
+static void sock_checkup() {
+	xSemaphoreTake(sock_stream_sem, portMAX_DELAY);
+	if( sock_stream == NULL ) {
+		sock_stream = hlo_sock_stream( "notreal", false );
+	}
+	xSemaphoreGive(sock_stream_sem);
+}
+static void sock_close() {
+	xSemaphoreTake(sock_stream_sem, portMAX_DELAY);
+	hlo_stream_close(sock_stream);
+	sock_stream = NULL;
+	xSemaphoreGive(sock_stream_sem);
+}
+
+void thread_out(void* ctx) {
+	periodic_data data;
+	pipe_ctx p_ctx_enc;
+
+	while(1) {
+
+		sock_checkup();
+
+		if( sock_stream ) {
+			hlo_stream_t * fifo_stream_out = fifo_stream_open( 768 );
+			assert( fifo_stream_out );
+
+			data.has_light = true;
+			data.light = 10;
+			LOGF("sending %d\n", data.light );
+
+			p_ctx_enc.source = fifo_stream_out;
+			p_ctx_enc.sink = sock_stream;
+			p_ctx_enc.flush = false;
+			p_ctx_enc.join_sem = xSemaphoreCreateBinary();
+			p_ctx_enc.state = 0;
+
+			//bg pipe for sending out the data
+			xTaskCreate(thread_frame_pipe_encode, "penc", 1024 / 4, &p_ctx_enc, 4, NULL);
+			hlo_pb_encode( fifo_stream_out, periodic_data_fields, &data );
+			p_ctx_enc.flush = true; // this is safe, all the data has been piped
+			xSemaphoreTake( p_ctx_enc.join_sem, portMAX_DELAY );
+			p_ctx_enc.flush = false;
+			hlo_stream_close(fifo_stream_out);
+			if(p_ctx_enc.state < 0 ) {
+				DISP("enc state %d\n",p_ctx_enc.state );
+				sock_close();
+			}
+		}
+
+		vTaskDelay(10000);
+	}
+
+	vTaskDelete(NULL);
+}
+void thread_in(void* ctx) {
+	periodic_data sr;
+	pipe_ctx p_ctx_dec;
+
+	while(1) {
+		sock_checkup();
+
+		if( sock_stream ) {
+			hlo_stream_t * fifo_stream_in = fifo_stream_open( 768 );
+			assert( fifo_stream_in );
+
+			p_ctx_dec.source = sock_stream;
+			p_ctx_dec.sink = fifo_stream_in;
+			p_ctx_dec.flush = false;
+			p_ctx_dec.join_sem = xSemaphoreCreateBinary();
+			p_ctx_dec.state = 0;
+
+			//bg pipe for receiving the data
+			xTaskCreate(thread_frame_pipe_decode, "pdec", 1024 / 4, &p_ctx_dec, 4, NULL);
+			//todo: for decode move sock management to frame pipe task
+			//      hlo_pb_decode could block forever on the fifo if the
+			//      sock stream breaks here, but the framepipe task could reconnect
+			LOGF("\n\nR! %d %d\n\n",  hlo_pb_decode( fifo_stream_in, periodic_data_fields, &sr  ), sr.light );
+			p_ctx_dec.flush = true; // this is safe, all the data has been piped
+			xSemaphoreTake( p_ctx_dec.join_sem, portMAX_DELAY );
+			p_ctx_dec.flush = false;
+			hlo_stream_close(fifo_stream_in);
+			if(p_ctx_dec.state < 0 ) {
+				DISP("dec state %d\n",p_ctx_dec.state );
+				sock_close();
+			}
+		}
+		vTaskDelay(1000);
+	}
+
 	vTaskDelete(NULL);
 }
 
 int Cmd_pbstr(int argc, char *argv[]) {
-	periodic_data data, sr;
-	encode_ctx enc_ctx;
+	sock_stream_sem = xSemaphoreCreateMutex();
+	xTaskCreate(thread_out, "out", 1024 / 4, NULL, 4, NULL);
+	xTaskCreate(thread_in, "in", 1024 / 4, NULL, 4, NULL);
 
-	{
-		hlo_stream_t * frame_stream = NULL;
-		hlo_stream_t * sock_stream = NULL;
-		if( !frame_stream ) {
-			frame_stream = hlo_frame_stream( 512 );
-		}
-		if( !sock_stream ) {
-			sock_stream = hlo_sock_stream( "notreal", false );
-		}
-
-		data.has_light = true;
-		data.light = 10;
-		LOGF("sending %d\n", data.light );
-
-		enc_ctx.stream = frame_stream;
-		enc_ctx.fields = periodic_data_fields;
-		enc_ctx.structdata = &data;
-
-		xTaskCreate(thread_encode, "pbenc", 1024 / 4, &enc_ctx, 4, NULL);
-		vTaskDelay(100);
-		hlo_filter_data_transfer( frame_stream, sock_stream, NULL, NULL );
-
-		LOGF("\n\nR! %d %d\n\n",  hlo_pb_decode( sock_stream, periodic_data_fields, &sr  ), sr.light );
-		hlo_stream_close(frame_stream);
-	}
+	return 0;
 }
 
 
