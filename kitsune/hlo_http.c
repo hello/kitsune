@@ -375,10 +375,15 @@ hlo_stream_t * hlo_frame_stream(size_t size) {
 typedef struct{
 	hlo_stream_t * sockstream;	/** base socket stream **/
 	struct http_roundtripper rt;/** tinyhttp context **/
+	uint8_t * header_cache;		/** used to cache header **/
 	int code;					/** http response code, parsed by tinyhttp **/
 	int len;					/** length of the response body tally **/
-	int active;					/** indicates if the response is still active **/
-	int done_post;				/** indicates if the post is finished **/
+	int response_active;					/** indicates if the response is still active **/
+	enum{
+		BEGIN_POST = 0,
+		POSTING = 1,
+		DONE_POST = 2,
+	} post_state;				/** indicates if the post is finished **/
 	char * content_itr;			/** used by GET, itr to the outside buffer which we dump data do **/
 	size_t scratch_offset;		/** used by POST, to collect data internally in bulk before sending **/
 	char scratch[SCRATCH_SIZE]; /** scratch buffer, **MUST** be the last field **/
@@ -429,8 +434,9 @@ static hlo_stream_t * _new_stream(hlo_stream_t * sock , hlo_stream_vftbl_t * tbl
 		return NULL;
 	}else{
 		memset(session, 0, sizeof(*session));
-		session->active = 1;	/** always try to parse something **/
+		session->response_active = 1;	/** always try to parse something **/
 		session->sockstream = sock;
+		session->post_state = BEGIN_POST;
 		http_init(&session->rt,response_functions, session);
 	}
 	ret =  hlo_stream_new(tbl, session, stream_opts);
@@ -443,8 +449,7 @@ static hlo_stream_t * _new_stream(hlo_stream_t * sock , hlo_stream_vftbl_t * tbl
 extern bool get_device_id(char * hex_device_id,uint32_t size_of_device_id_buffer);
 extern const char * get_top_version(void);
 #include "kitsune_version.h"
-static int _write_header(hlo_stream_t * stream, http_method method, const char * host, const char * endpoint, const char * content_type){
-	hlo_http_context_t * session = (hlo_http_context_t*)stream->ctx;
+static int _generate_header(char * output, size_t output_size, http_method method, const char * host, const char * endpoint, const char * content_type ){
 	char hex_device_id[DEVICE_ID_SZ * 2 + 1] = {0};
 	if(!get_device_id(hex_device_id, sizeof(hex_device_id))){
 		LOGE("get_device_id failed\n");
@@ -454,7 +459,7 @@ static int _write_header(hlo_stream_t * stream, http_method method, const char *
 	default:
 		return -1;
 	case GET:
-		usnprintf(session->scratch, sizeof(session->scratch),
+		usnprintf(output, output_size,
 					"GET %s HTTP/1.1\r\n"
 		            "Host: %s\r\n"
 		            "X-Hello-Sense-Id: %s\r\n"
@@ -464,7 +469,7 @@ static int _write_header(hlo_stream_t * stream, http_method method, const char *
 		            endpoint, host, hex_device_id, KIT_VER, get_top_version(), content_type);
 		break;
 	case POST:
-		usnprintf(session->scratch, sizeof(session->scratch),
+		usnprintf(output, output_size,
 					"POST %s HTTP/1.1\r\n"
 		            "Host: %s\r\n"
 		            "Content-type: %s\r\n"
@@ -475,12 +480,7 @@ static int _write_header(hlo_stream_t * stream, http_method method, const char *
 		            endpoint, host, content_type, hex_device_id, KIT_VER, get_top_version());
 		break;
 	}
-	int transfer_size = ustrlen(session->scratch);
-	LOGI("%s", session->scratch);
-	if( transfer_size ==  hlo_stream_transfer_all(INTO_STREAM, session->sockstream, (uint8_t*)session->scratch, transfer_size, 4) ){
-		return 0;
-	}
-	return -1;
+	return ustrlen(output);
 }
 //====================================================================
 //Get
@@ -490,11 +490,14 @@ static int _get_content(void * ctx, void * buf, size_t size){
 	int bytes_to_process = min(size, SCRATCH_SIZE);
 	session->content_itr = (char*)buf;
 	const char * scratch_itr = session->scratch;
+	if( !session->response_active ){
+		return HLO_STREAM_EOF;
+	}
 	int ndata = hlo_stream_read(session->sockstream, session->scratch, bytes_to_process);
 	if( ndata > 0 ){
-		while(session->active && ndata) {
+		while(session->response_active && ndata) {
 			int processed;
-			session->active = http_data(&session->rt, scratch_itr, ndata, &processed);
+			session->response_active = http_data(&session->rt, scratch_itr, ndata, &processed);
 			ndata -= processed;
 			scratch_itr += processed;
 		}
@@ -507,7 +510,7 @@ static int _get_content(void * ctx, void * buf, size_t size){
 	if( http_iserror(&session->rt) ) {
 		DISP("Has error\r\n");
 		return HLO_STREAM_ERROR;
-	} else if(content_size == 0 && !session->active){
+	} else if(content_size == 0 && !session->response_active){
 		LOGI("GET EOF %d bytes\r\n", session->len);
 		return HLO_STREAM_EOF;
 	} else if(session->code != 0 && (session->code < 200 || session->code > 300)){
@@ -539,7 +542,10 @@ hlo_stream_t * hlo_http_get_opt(hlo_stream_t * sock, const char * host, const ch
 	if( !ret ) {
 		return NULL;
 	}
-	if( 0 == _write_header(ret, GET, host, endpoint, "*/*")){
+	hlo_http_context_t * session = (hlo_http_context_t*)ret->ctx;
+	int transfer_len = _generate_header(session->scratch, sizeof(session->scratch), GET, host, endpoint, "*/*");
+	DISP("%s", session->scratch);
+	if(transfer_len > 0 &&  transfer_len == hlo_stream_transfer_all(INTO_STREAM, sock, session->scratch, transfer_len, 4) ){
 		return ret;
 	}else{
 		LOGE("GET Request Failed\r\n");
@@ -599,6 +605,25 @@ static int _post_content(void * ctx, const void * buf, size_t size){
 	}
 	return 0;
 }
+static int _post_content_with_header(void * ctx, const void * buf, size_t size){
+	hlo_http_context_t * session = (hlo_http_context_t*)ctx;
+	int len;
+	switch(session->post_state){
+		case BEGIN_POST:
+		case DONE_POST:
+			//write header
+			DISP("%s", session->header_cache);
+			len = strlen(session->header_cache);
+			if( len != hlo_stream_transfer_all(INTO_STREAM, session->sockstream, session->header_cache, len, 4 ) ){
+				return HLO_STREAM_ERROR;
+			}
+			session->post_state = POSTING;
+			break;
+		default:
+			break;
+	}
+	return _post_content(ctx, buf, size);
+}
 static int _finish_post(void * ctx){
 	hlo_http_context_t * session = (hlo_http_context_t*)ctx;
 	static const char * const end_chunked = "0\r\n\r\n";
@@ -619,15 +644,15 @@ static int _finish_post(void * ctx){
 //should not be called in conjunction of read.
 static int _fetch_response_code(void * ctx){
 	hlo_http_context_t * session = (hlo_http_context_t*)ctx;
-	while(session->active){
+	while(session->response_active){
 		int ndata = hlo_stream_read(session->sockstream, session->scratch, sizeof(session->scratch));
 		if( ndata < 0 ){
 			return HLO_STREAM_ERROR;
 		}
 		const char * itr = session->scratch;
-		while( session->active && ndata ){
+		while( session->response_active && ndata ){
 			int read;
-			session->active = http_data(&session->rt, itr, ndata, &read);
+			session->response_active = http_data(&session->rt, itr, ndata, &read);
 			ndata -= read;
 			itr += read;
 		}
@@ -640,8 +665,8 @@ static int _fetch_response_code(void * ctx){
 static int _close_post_session(void * ctx){
 	hlo_http_context_t * session = (hlo_http_context_t*)ctx;
 	int code = 0;
-	if( session->done_post == 0 ){		//if no response has been parsed by a read call, we just finish here
-		session->done_post = 1;
+	if( session->post_state != DONE_POST ){		//if no response has been parsed by a read call, we just finish here
+		session->post_state = DONE_POST;
 		if( _finish_post(ctx) < 0 ){
 			goto cleanup;
 		}
@@ -658,38 +683,56 @@ cleanup:
 		LOGE("POST Failed\r\n");
 	}
 	http_free(&session->rt);
+	if(session->header_cache){
+		vPortFree(session->header_cache);
+	}
 	hlo_stream_close(session->sockstream);
 	vPortFree(session);
 	return code;
 }
 static int _get_post_response(void * ctx, void * buf, size_t size){
 	hlo_http_context_t * session = (hlo_http_context_t*)ctx;
-	if( session->done_post == 0){
-		session->done_post = 1;
-		int ret = _finish_post(ctx);
-		if( ret < 0 ){
+	int ret;
+	switch(session->post_state){
+	case BEGIN_POST:
+		return HLO_STREAM_ERROR;		/** we may not get the response without posting header and content **/
+	case POSTING:
+		ret = _finish_post(ctx);
+		if( ret < 0){
 			return ret;
 		}
+		session->post_state = DONE_POST;
+		session->response_active = 1;
+		break;
+	default:
+	case DONE_POST:
+		break;
 	}
 	return _get_content(ctx,buf,size);
 }
 hlo_stream_t * hlo_http_post_opt(hlo_stream_t * sock, const char * host, const char * endpoint, const char * content_type_str){
 	hlo_stream_vftbl_t functions = (hlo_stream_vftbl_t){
-		.write = _post_content,
+		.write = _post_content_with_header,
 		.read = _get_post_response,
 		.close = _close_post_session,
 	};
 	hlo_stream_t * ret = _new_stream(sock, &functions, HLO_STREAM_READ_WRITE);
 	if( !ret ){
 		return NULL;
-	}
-	if( 0 == _write_header(ret, POST, host, endpoint, content_type_str) ){
-		return ret;
 	}else{
-		LOGE("POST Request Failed\r\n");
-		hlo_stream_close(ret);
-		return NULL;
+		hlo_http_context_t * session = (hlo_http_context_t*)ret->ctx;
+		int len = _generate_header(session->scratch, sizeof(session->scratch), POST, host, endpoint, content_type_str);
+		if( len > 0 ){
+			DISP("caching header\r\n");
+			session->header_cache = pvPortMalloc(len + 1);
+			assert(session->header_cache);
+			ustrncpy(session->header_cache, session->scratch, len+1);
+		}else{
+			hlo_stream_close(ret);
+			return NULL;
+		}
 	}
+	return ret;
 }
 //====================================================================
 //User Friendly post
