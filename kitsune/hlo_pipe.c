@@ -225,27 +225,6 @@ int frame_pipe_decode( pipe_ctx * pipe ) {
 	if( preamble_data.type == Preamble_pb_type_ACK ) {
 		DBG_FRAMEPIPE("\t  rx ack %d\n", preamble_data.id );
 		goto dec_again;
-	} else {
-		hlo_stream_t * obufstr = fifo_stream_open( 64 );
-		DBG_FRAMEPIPE("\t  ack %d sending\n", preamble_data.id);
-
-		preamble_data.type = Preamble_pb_type_ACK;
-		ret = hlo_pb_encode(obufstr, Preamble_fields, &preamble_data);
-		if( ret != 0 ) {
-			hlo_stream_close(obufstr);
-			LOGE("\t  ack %d encode fail\n", preamble_data.id);
-			ret = HLO_STREAM_ERROR;
-			goto dec_return;
-		}
-		hlo_stream_end( obufstr );
-		ret = hlo_stream_transfer_between(obufstr,pipe->source,buf,sizeof(buf),4);
-		hlo_stream_close(obufstr);
-		if( ret <= 0 ) {
-			LOGE("\t  ack %d send fail\n", preamble_data.id);
-			ret = HLO_STREAM_ERROR;
-			goto dec_return;
-		}
-		DBG_FRAMEPIPE("\t  ack %d sent\n", preamble_data.id);
 	}
 	//notify the decoder what kind of pb is coming
 	prep_for_pb(preamble_data.type);
@@ -312,6 +291,28 @@ int frame_pipe_decode( pipe_ctx * pipe ) {
 			goto dec_return;
 		}
 		size -= ret;
+	}
+	{
+		hlo_stream_t * obufstr = fifo_stream_open( 64 );
+		DBG_FRAMEPIPE("\t  ack %d sending\n", preamble_data.id);
+
+		preamble_data.type = Preamble_pb_type_ACK;
+		ret = hlo_pb_encode(obufstr, Preamble_fields, &preamble_data);
+		if( ret != 0 ) {
+			hlo_stream_close(obufstr);
+			LOGE("\t  ack %d encode fail\n", preamble_data.id);
+			ret = HLO_STREAM_ERROR;
+			goto dec_return;
+		}
+		hlo_stream_end( obufstr );
+		ret = hlo_stream_transfer_between(obufstr,pipe->source,buf,sizeof(buf),4);
+		hlo_stream_close(obufstr);
+		if( ret <= 0 ) {
+			LOGE("\t  ack %d send fail\n", preamble_data.id);
+			ret = HLO_STREAM_ERROR;
+			goto dec_return;
+		}
+		DBG_FRAMEPIPE("\t  ack %d sent\n", preamble_data.id);
 	}
 
 	dec_return:
