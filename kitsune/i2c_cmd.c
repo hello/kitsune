@@ -247,261 +247,399 @@ int Cmd_i2c_write(int argc, char *argv[]) {
 
 }
 
-static int get_temp() {
-	unsigned char cmd = 0xe3;
-	int temp_raw;
-	int temp;
+#if 1
+struct {
+	uint16_t dig_T1;
+	int16_t  dig_T2;
+	int16_t  dig_T3;
+	uint16_t dig_P1;
+	int16_t  dig_P2;
+	int16_t  dig_P3;
+	int16_t  dig_P4;
+	int16_t  dig_P5;
+	int16_t  dig_P6;
+	int16_t  dig_P7;
+	int16_t  dig_P8;
+	int16_t  dig_P9;
+	uint8_t  dig_H1;
+	int16_t  dig_H2;
+	uint8_t  dig_H3;
+	int16_t  dig_H4;
+	int16_t  dig_H5;
+	uint8_t  dig_H6;
+} bme280_cal;
 
-	unsigned char aucDataBuf[2];
+#define BME280_S32_t int32_t
+#define BME280_U32_t uint32_t
+#define BME280_S64_t int64_t
+// Returns temperature in DegC, resolution is 0.01 DegC. Output value of “5123” equals 51.23 DegC. // t_fine carries fine temperature as global value
+BME280_S32_t t_fine;
+BME280_S32_t BME280_compensate_T_int32(BME280_S32_t adc_T) {
+	BME280_S32_t var1, var2, T;
+	var1 = ((((adc_T >> 3) -
+			((BME280_S32_t)bme280_cal.dig_T1<<1))) *
+			((BME280_S32_t)bme280_cal.dig_T2)) >> 11;
+	var2 = (((((adc_T >> 4) -
+			((BME280_S32_t)bme280_cal.dig_T1)) *
+			((adc_T>>4) -
+					((BME280_S32_t)bme280_cal.dig_T1))) >> 12) *
+			((BME280_S32_t)bme280_cal.dig_T3)) >> 14;
+	t_fine = var1 + var2;
+	T = (t_fine * 5 + 128) >> 8;
+	return T;
+}
+// Returns pressure in Pa as unsigned 32 bit integer in Q24.8 format (24 integer bits and 8 fractional bits). // Output value of “24674867” represents 24674867/256 = 96386.2 Pa = 963.862 hPa
+BME280_U32_t BME280_compensate_P_int64(BME280_S32_t adc_P) {
+	BME280_S64_t var1, var2, p;
+	var1 = ((BME280_S64_t) t_fine)- 128000;
+	var2 = var1 * var1 * (BME280_S64_t) bme280_cal.dig_P6;
+	var2 = var2 + ((var1 * (BME280_S64_t) bme280_cal.dig_P5) << 17);
+	var2 = var2 + (((BME280_S64_t) bme280_cal.dig_P4) << 35);
+	var1 = ((var1 * var1 * (BME280_S64_t) bme280_cal.dig_P3) >> 8)
+			+ ((var1 * (BME280_S64_t) bme280_cal.dig_P2) << 12);
+	var1 = (((((BME280_S64_t) 1) << 47) + var1))
+			* ((BME280_S64_t) bme280_cal.dig_P1) >> 33;
+	if (var1 == 0) {
+		return 0; // avoid exception caused by division by zero
+	}
+	p = 1048576 - adc_P;
+	p = (((p << 31) - var2) * 3125) / var1;
+	var1 = (((BME280_S64_t) bme280_cal.dig_P9) * (p >> 13) * (p >> 13)) >> 25;
+	var2 = (((BME280_S64_t) bme280_cal.dig_P8) * p) >> 19;
+	p = ((p + var1 + var2) >> 8) + (((BME280_S64_t) bme280_cal.dig_P7) << 4);
+	return (BME280_U32_t) p;
+}
+// Returns humidity in %RH as unsigned 32 bit integer in Q22.10 format (22 integer and 10 fractional bits). // Output value of “47445” represents 47445/1024 = 46.333 %RH
+// CAJ EDIT: returns 0.01 %RH
+BME280_U32_t bme280_compensate_H_int32(BME280_S32_t adc_H) {
+	BME280_S32_t v_x1_u32r;
+	v_x1_u32r = (t_fine- ((BME280_S32_t)76800));
+	v_x1_u32r = (((((adc_H << 14)- (((BME280_S32_t)bme280_cal.dig_H4) << 20) - (((BME280_S32_t)bme280_cal.dig_H5) * v_x1_u32r)) +
+	((BME280_S32_t)16384)) >> 15) * (((((((v_x1_u32r * ((BME280_S32_t)bme280_cal.dig_H6)) >> 10) * (((v_x1_u32r *
+											((BME280_S32_t)bme280_cal.dig_H3)) >> 11) + ((BME280_S32_t)32768))) >> 10) + ((BME280_S32_t)2097152)) *
+	((BME280_S32_t)bme280_cal.dig_H2) + 8192) >> 14));
+	v_x1_u32r = (v_x1_u32r- (((((v_x1_u32r >> 15) * (v_x1_u32r >> 15)) >> 7) * ((BME280_S32_t)bme280_cal.dig_H1)) >> 4));
+	v_x1_u32r = (v_x1_u32r < 0 ? 0 : v_x1_u32r);
+	v_x1_u32r = (v_x1_u32r > 419430400 ? 419430400 : v_x1_u32r);
+	return (100*(BME280_U32_t)(v_x1_u32r >> 12))>>10;
+}
+#endif
+#define DBG_BME(...)
+int get_temp_press_hum(int32_t * temp, uint32_t * press, uint32_t * hum) {
+	unsigned char cmd;
+	int temp_raw, press_raw, hum_raw;
+
+	unsigned char b[8] = {0};
 
 	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
 
-	vTaskDelay(5);
-	(I2C_IF_Write(0x40, &cmd, 1, 1));
+	//humid oversample
+	b[0] = 0xf2; //must come before 0xf4
+	b[1] = 0b00000101;
+	(I2C_IF_Write(0x77, b, 2, 1));
+	//temp/pressure oversample, force meas
+	b[0] = 0xf4;
+	b[1] = 0b10110101;
+	(I2C_IF_Write(0x77, b, 2, 1));
 
 	xSemaphoreGiveRecursive(i2c_smphr);
-	vTaskDelay(50);
+	vTaskDelay(95);
 	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
-	vTaskDelay(5);
-	(I2C_IF_Read(0x40, aucDataBuf, 2));
-	temp_raw = (aucDataBuf[0] << 8) | ((aucDataBuf[1] & 0xfc));
-	
-	temp = 17572 * temp_raw / 65536 - 4685;
+
+	b[0] = 1;
+	b[2] = b[1] = 0;
+	cmd = 0xf3;
+	while (b[0] != 4) {
+		(I2C_IF_Write(0x77, &cmd, 1, 1));
+		(I2C_IF_Read(0x77, b, 1));
+
+		DBG_BME("%x %x %x\n", b[0],b[1],b[2] );
+
+		xSemaphoreGiveRecursive(i2c_smphr);
+		if( b[0] == 0 ) {
+			return -1;
+		}
+		vTaskDelay(5);
+		assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
+	}
+	cmd = 0xf7;
+	(I2C_IF_Write(0x77, &cmd, 1, 1));
+	(I2C_IF_Read(0x77, b, 8));
 
 	xSemaphoreGiveRecursive(i2c_smphr);
 
-	return temp;
+	press_raw = (b[0] << 16) | (b[1]<<8) | (b[2]);
+	press_raw >>= 4;
+    *press = BME280_compensate_P_int64(press_raw);
+    DBG_BME("%x %x %x %d %d\n", b[0],b[1],b[2], press_raw, *press);
+
+	temp_raw = (b[3] << 16) | (b[4]<<8) | (b[5]);
+	temp_raw >>= 4;
+    *temp = BME280_compensate_T_int32(temp_raw);
+    DBG_BME("%x %x %x %d %d\n", b[0],b[1],b[2], temp_raw, *temp);
+
+	hum_raw = (b[6]<<8) | (b[7]);
+    *hum = bme280_compensate_H_int32(hum_raw);
+
+    DBG_BME("%x %x %d %d\n", b[6],b[7], hum_raw, *hum);
+
+	return 0;
 }
 
 int init_temp_sensor()
 {
-	unsigned char cmd = 0xfe;
-
-	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
-	(I2C_IF_Write(0x40, &cmd, 1, 1));    // reset
-
-	get_temp();
-	xSemaphoreGiveRecursive(i2c_smphr);
-
-	return SUCCESS;
-}
-
-static int get_humid() {
-	unsigned char aucDataBuf[2];
-	unsigned char cmd = 0xe5;
-	int humid_raw;
-	int humid;
+	unsigned char id;
+	unsigned char cmd = 0xd0;
+	unsigned char b[25];
 
 	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
 	vTaskDelay(5);
+	(I2C_IF_Write(0x77, &cmd, 1, 1));
+	vTaskDelay(5);
+	(I2C_IF_Read(0x77, &id, 1));
 
-	(I2C_IF_Write(0x40, &cmd, 1, 1));
+	cmd =0x88;
+	(I2C_IF_Write(0x77, &cmd, 1, 1));
+	(I2C_IF_Read(0x77, b, 25));
+
+	bme280_cal.dig_T1 = b[0] | (b[1]<<8);
+	bme280_cal.dig_T2 = b[2] | (b[3]<<8);
+	bme280_cal.dig_T3 = b[4] | (b[5]<<8);
+	bme280_cal.dig_P1 = b[6] | (b[7]<<8);
+	bme280_cal.dig_P2 = b[8] | (b[9]<<8);
+	bme280_cal.dig_P3 = b[10] | (b[11]<<8);
+	bme280_cal.dig_P4 = b[12] | (b[13]<<8);
+	bme280_cal.dig_P5 = b[14] | (b[15]<<8);
+	bme280_cal.dig_P6 = b[16] | (b[17]<<8);
+	bme280_cal.dig_P7 = b[18] | (b[19]<<8);
+	bme280_cal.dig_P8 = b[20] | (b[21]<<8);
+	bme280_cal.dig_P9 = b[22] | (b[23]<<8);
+	bme280_cal.dig_H1 = b[24];
+
+	cmd =0xE1;
+	(I2C_IF_Write(0x77, &cmd, 1, 1));
+	(I2C_IF_Read(0x77, b, 7));
+
+	bme280_cal.dig_H2 = b[0] | (b[1]<<8);
+	bme280_cal.dig_H3 = b[2];
+	bme280_cal.dig_H4 = (b[3]<<4) | (b[4]&0xf);
+	bme280_cal.dig_H5 = (b[5]<<4) | ((b[4]>>4)&0xf);
+	bme280_cal.dig_H6 = b[7];
 
 	xSemaphoreGiveRecursive(i2c_smphr);
-	vTaskDelay(50);
+	DBG_BME("found %x\n", id);
+
+	return id == 0x60;
+}
+
+int Cmd_read_temp_hum_press(int argc, char *argv[]) {
+	int32_t temp;
+	uint32_t hum,press;
+	get_temp_press_hum(&temp, &press, &hum);
+	LOGF("%d,%d,%d\n", temp, hum, press);
+	return SUCCESS;
+}
+
+int init_tvoc() {
+	unsigned char b[2];
 	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
 
-	vTaskDelay(5);
-	(I2C_IF_Read(0x40, aucDataBuf, 2));
-	humid_raw = (aucDataBuf[0] << 8) | ((aucDataBuf[1] & 0xfc));
+	b[0] = 0;
+	(I2C_IF_Write(0x5a, b, 1, 1));
+	(I2C_IF_Read(0x5a, b, 1));
+
+	if( !(b[0] & 0x10) ) {
+		LOGE("no valid fw for TVOC\n");
+		xSemaphoreGiveRecursive(i2c_smphr);
+		return -1;
+	}
+	//boot
+	b[0] = 0xf4;
+	(I2C_IF_Write(0x5a, b, 1, 1));
+	vTaskDelay(100);
+	b[0] = 0;
+	(I2C_IF_Write(0x5a, b, 1, 1));
+	(I2C_IF_Read(0x5a, b, 1));
+	if( !(b[0] & 0x90) ) {
+		LOGE("fail to boot TVOC\n");
+		xSemaphoreGiveRecursive(i2c_smphr);
+		return -1;
+	}
+	b[0] = 1;
+	b[1] = 0x30; //60sec
+	(I2C_IF_Write(0x5a, b, 2, 1));
 
 	xSemaphoreGiveRecursive(i2c_smphr);
 
-	humid = 12500 * humid_raw / 65536 - 600;
-	return humid;
+	return 0;
 }
+#define DBG_TVOC(...)
+int get_tvoc(int * tvoc, int * eco2, int * current, int * voltage, int temp, unsigned int humid ) {
+	unsigned char b[8];
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
 
-int init_humid_sensor()
-{
-	unsigned char cmd = 0xfe;
+	vTaskDelay(10);
+	//environmental
+	b[0] = 0x05;
+	temp = (temp + 2500)/50;
+	humid /= 50;
+	b[1] = humid>>8;
+	b[2] = (humid&0xff);;
+	b[3] = temp>>8;
+	b[4] = (temp&0xff);
+	(I2C_IF_Write(0x5a, b, 5, 1));
 
-	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
+	b[0] = 2;
+	(I2C_IF_Write(0x5a, b, 1, 1));
+	(I2C_IF_Read(0x5a, b, 8));
 
-	(I2C_IF_Write(0x40, &cmd, 1, 1));    // reset
+	DBG_TVOC("%x:%x:%x:%x:%x:%x:%x:%x\n",
+			b[0],b[1],b[2],b[3],b[4],b[5],
+		    b[6],b[7]);
 
-	// Dummy read the 1st value.
-	get_humid();
+	if( !(b[5] & 0x90) ) {
+		LOGE("TVOC error %x ", b[5] );
+		b[0] = 0xe0;
+		(I2C_IF_Write(0x5a, b, 1, 1));
+		(I2C_IF_Read(0x5a, b, 1));
+		LOGE("%x\n", b[0]);
+		xSemaphoreGiveRecursive(i2c_smphr);
+		return -1;
+	}
 
+	*eco2 = (b[1] | (b[0]<<8));
+	*tvoc = (b[3] | (b[2]<<8));
+	*current = (b[6]>>2);
+	*voltage = (((b[6]&3)<<8) | (b[7]));
+
+	vTaskDelay(10);
 	xSemaphoreGiveRecursive(i2c_smphr);
-
-	return SUCCESS;
+	return 0;
 }
 
-
-void get_temp_humid( int * temp, int * humid ) {
-	*temp = get_temp();
-	*humid = get_humid();
-	*humid += (2500-*temp)*-15/100;
+int Cmd_meas_TVOC(int argc, char *argv[]) {
+	int32_t temp;
+	uint32_t hum,press;
+	int tvoc, eco2, current, voltage;
+	if( 0 == get_temp_press_hum(&temp, &press, &hum) &&
+	    0 == get_tvoc( &tvoc, &eco2, &current, &voltage, temp, hum) ) {
+		LOGF("voc %d eco2 %d %duA %dmv %d %d\n", tvoc, eco2, current, voltage, temp, hum);
+		return 0;
+	}
+	return -1;
 }
+static bool haz_tmg4903() {
+	unsigned char b[2]={0};
+	b[0] = 0x92;
+	(I2C_IF_Write(0x39, b, 1, 1));
+	(I2C_IF_Read(0x39, b, 1));
 
-int Cmd_readhumid(int argc, char *argv[]) {
-	int temp,humid;
-	get_temp_humid(&temp, &humid);
-	LOGF("%d\n", humid);
-	return SUCCESS;
-}
-
-int Cmd_readtemp(int argc, char *argv[]) {
-	int temp,humid;
-	get_temp_humid(&temp, &humid);
-	LOGF("%d\n", temp);
-	return SUCCESS;
+	if( b[0] != 0xb8 ) {
+		LOGE("can't find TMG4903\n");
+		xSemaphoreGiveRecursive(i2c_smphr);
+		return false;
+	}
+	return true;
 }
 
 int init_light_sensor()
 {
-	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
+	unsigned char b[5];
 
-	if( get_hw_ver() < EVT1_1p5 ) {
-		unsigned char aucDataBuf[2] = { 0, 0xA0 };
-		(I2C_IF_Write(0x44, aucDataBuf, 2, 1));
-	} else {
-		unsigned char aucDataBuf[3] = { 1, 0b11001110, 0b00001000 };
-		(I2C_IF_Write(0x44, aucDataBuf, 3, 1));
+	if( !haz_tmg4903() ) {
+		LOGE("can't find TMG4903\n");
+		xSemaphoreGiveRecursive(i2c_smphr);
+		return FAILURE;
 	}
+	b[0] = 0x80;
+	b[1] = 0b1000111; //enable gesture/prox/als/power
+	b[2] = 249; //20ms integration
+	b[3] = 35; //100ms prox time
+	b[4] = 249; //20ms als time
+	(I2C_IF_Write(0x39, b, 5, 1));
+	b[0] = 0x8d;
+	b[1] = 0x0;
+	(I2C_IF_Write(0x39, b, 2, 1));
+	b[0] = 0x90;
+	b[1] = 0x3;
+	(I2C_IF_Write(0x39, b, 2, 1));
+
+	vTaskDelay(50);
+	return SUCCESS;
+}
+
+
+static int get_le_short( uint8_t * b ) {
+	return (b[0] | (b[1]<<8));
+}
+#define DBG_TMG(...)
+int get_rgb_prox( int * w, int * r, int * g, int * bl, int * p ) {
+	unsigned char b[10];
+	int i;
+
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
+	/*Red, green, blue, and clear data are stored as 16-bit values.
+	The read sequence must read byte pairs (low followed by high)
+	 starting on an even address boundary (0x94, 0x96, 0x98, or 0x9A)
+	  inside the CRGB Data Register block. In addition, reading the
+	  Clear channel data low byte (0x94) latches all 8 data bytes.
+	   Reading these 8 bytes consecutively (0x94 - 0x9A) ensures that
+	    the data is concurrent.
+	*/
+start_rgb:
+	if( !haz_tmg4903() ) {
+		LOGE("can't find TMG4903\n");
+		xSemaphoreGiveRecursive(i2c_smphr);
+		return FAILURE;
+	}
+
+	b[0] = 0x94;
+	(I2C_IF_Write(0x39, b, 1, 1));
+	(I2C_IF_Read(0x39, b, 10));
+	for(i=0;i<10;++i) {
+		DBG_TMG("%x,",b[i]);
+	}DBG_TMG("\n");
+
+	*w = get_le_short(b);
+	*r = get_le_short(b+2);
+	*g = get_le_short(b+4);
+	*bl = get_le_short(b+6);
+	*p = get_le_short(b+8);
 
 	xSemaphoreGiveRecursive(i2c_smphr);
 	return SUCCESS;
 }
 
-static int _read_als(){
-	unsigned char cmd;
-	unsigned char aucDataBuf[5] = { 0, 0 };
-
-	cmd = 0x2;
-	(I2C_IF_Write(0x44, &cmd, 1, 1));
-	(I2C_IF_Read(0x44, aucDataBuf, 2));
-
-	return aucDataBuf[0] | (aucDataBuf[1] << 8);
-}
-
-int get_light() {
-	unsigned char aucDataBuf[2] = { 0, 0 };
-
+int get_ir( int * ir ) {
+	unsigned char b[2];
+	int w,r,g,bl,p;
 	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
 
-	int light = 0;
-	static int scaling = 0;
-	int prev_scaling = scaling;
+	b[0] = 0xAB;
+	b[1] = 0x40;
+	(I2C_IF_Write(0x39, b, 2, 1));
+	vTaskDelay(110);
+	get_rgb_prox( &w, &r, &g, &bl, &p );
+	*ir = w+r+g+bl;
 
-	if( get_hw_ver() < EVT1_1p5 ) {
-		for(;;) {
-			#define MAX_RETRIES 10
-			int switch_cnt = 0;
-			light = _read_als();
-			if( light == 65535 ) {
-				if( scaling < 3 ) {
-					LOGI("increase scaling %d\r\n", scaling);
-					aucDataBuf[0] = 1;
-					aucDataBuf[1] = ++scaling;
-					(I2C_IF_Write(0x44, aucDataBuf, 2, 1));
-					while (_read_als() == 65535 && ++switch_cnt < MAX_RETRIES) {
-						vTaskDelay(100);
-					}
-					continue;
-				} else {
-					break;
-				}
-			}
-			if( light < 16384 ) {
-				if( scaling != 0 ) {
-					LOGI("decrease scaling %d\r\n", scaling);
-					aucDataBuf[0] = 1;
-					aucDataBuf[1] = --scaling;
-					(I2C_IF_Write(0x44, aucDataBuf, 2, 1));
-					while( _read_als() < 16384 && ++switch_cnt < MAX_RETRIES ) {
-						vTaskDelay(100);
-					}
-					continue;
-				} else {
-					break;
-				}
-			}
-			break;
-		}
+	b[0] = 0xAB;
+	b[1] = 0x00;
+	(I2C_IF_Write(0x39, b, 2, 1));
+	vTaskDelay(110);
 
-		light *= (1<<(scaling*2));
-
-		if( scaling != prev_scaling ) {
-			aucDataBuf[0] = 1;
-			aucDataBuf[1] = scaling;
-			(I2C_IF_Write(0x44, aucDataBuf, 2, 1));
-		}
-	} else {
-		uint8_t cmd = 0x0;
-		(I2C_IF_Write(0x44, &cmd, 1, 1));
-		(I2C_IF_Read(0x44, aucDataBuf, 2));
-
-		uint16_t raw =  aucDataBuf[1] | (aucDataBuf[0] << 8);
-		unsigned int exp = raw >> 12; //pull out exponent
-		raw &= 0xFFF; //clear the exponent
-
-		light = raw;
-		light *= ((1<<exp) * 65536 ) / (125 * 100 );
-		//LOGI("%x\t%x\t\t%d, %d, %d\n", aucDataBuf[0],aucDataBuf[1], raw, exp, light);
-	}
 	xSemaphoreGiveRecursive(i2c_smphr);
-	return light;
+
+	return 0;
 }
 
 int Cmd_readlight(int argc, char *argv[]) {
-	LOGF("%d\n", get_light());
-	return SUCCESS;
-}
-
-int init_prox_sensor()
-{
-	unsigned char prx_cmd_init[2];
-	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
-
-	prx_cmd_init[0] = 0x8f;
-	//                  ---++--- delay, frequency, dead time
-	prx_cmd_init[1] = 0b10000001;
-	(I2C_IF_Write(0x13, prx_cmd_init, 2, 1) );
-
-	prx_cmd_init[0] = 0x83; // Current setting register
-	prx_cmd_init[1] = 14; // Value * 10mA
-	( I2C_IF_Write(0x13, prx_cmd_init, 2, 1) );
-
-	xSemaphoreGiveRecursive(i2c_smphr);
-
-	return SUCCESS;
-}
-
-uint32_t get_prox() {
-	unsigned char data[2];
-	static uint64_t proximity_raw = 0;
-	unsigned char prx_cmd;
-	unsigned char prx_cmd_init[2];
-	unsigned char cmd_reg = 0;
-
-	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
-
-	prx_cmd_init[0] = 0x80; // Command register - 8'b1000_0000
-	prx_cmd_init[1] = 0x08; // one shot measurements
-
-	(I2C_IF_Write(0x13, prx_cmd_init, 2, 1) );
-
-	vTaskDelay(1);
-	(I2C_IF_Read(0x13, &cmd_reg,  1 ) );
-
-	if( cmd_reg & 0b00100000 ) {
-		prx_cmd = 0x87; // Command register - 0x87
-		( I2C_IF_Write(0x13, &prx_cmd, 1, 1) );
-		( I2C_IF_Read(0x13, data, 2) );
-
-		proximity_raw = (data[0] << 8) | data[1];
+	int r,g,b,w,p,ir;
+	if( SUCCESS == get_rgb_prox( &w, &r, &g, &b, &p ) ) {
+		LOGF("%d,%d,%d,%d,%d\n", w,r,g,b,p );
 	}
-
-	xSemaphoreGiveRecursive(i2c_smphr);
-
-	return 200000 - proximity_raw * 200000 / 65536;
-
-}
-
-int Cmd_readproximity(int argc, char *argv[]) {
-	LOGF("%u\n", get_prox());
-
+	if( 0 == get_ir(&ir) ) {
+		LOGF("%d\n", ir );
+	}
 	return SUCCESS;
 }
 

@@ -71,6 +71,10 @@ int hlo_filter_feature_extractor(hlo_stream_t * input, hlo_stream_t * output, vo
 	return ret;
 }
 void AudioTask_DumpOncePerMinuteStats(AudioOncePerMinuteData_t * pdata) {
+	if(!_statsMutex){
+		_statsMutex = xSemaphoreCreateMutex();
+		assert(_statsMutex);
+	}
 	xSemaphoreTake(_statsMutex,portMAX_DELAY);
 	memcpy(pdata,&_stats,sizeof(AudioOncePerMinuteData_t));
 	pdata->peak_background_energy/=pdata->num_samples;
