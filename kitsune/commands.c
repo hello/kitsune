@@ -939,12 +939,13 @@ int Cmd_gesture(int argc, char * argv[]) {
 void thread_fast_i2c_poll(void * unused)  {
 	unsigned int filter_buf[3];
 	unsigned int filter_idx=0;
+	int w,r,g,b,p;
 
 	gesture_init();
 	ProxSignal_Init();
 	ProxGesture_t gesture;
 
-	uint32_t delay = 50;
+	uint32_t delay = 100;
 
 	while (1) {
 		portTickType now = xTaskGetTickCount();
@@ -953,9 +954,12 @@ void thread_fast_i2c_poll(void * unused)  {
 		if (xSemaphoreTakeRecursive(i2c_smphr, 300000)) {
 			vTaskDelay(1);
 
-			prox = median_filter(get_prox(), filter_buf, &filter_idx);
+			if( 0 != get_rgb_prox( &w,&r,&g,&b,&p ) ) {
+				goto fail_fast_i2c;
+			}
+			LOGP("%d,%d,%d,%d,%d\n", w,r,g,b,p );
 
-			LOGP( "%d\n", prox );
+			prox = median_filter(p, filter_buf, &filter_idx);
 
 			gesture = ProxSignal_UpdateChangeSignals(prox);
 
@@ -978,7 +982,7 @@ void thread_fast_i2c_poll(void * unused)  {
 			}
 
 			if (xSemaphoreTake(light_smphr, portMAX_DELAY)) {
-				light = get_light();
+				light = w;
 				light_log_sum += bitlog(light);
 				++light_cnt;
 
@@ -1001,6 +1005,7 @@ void thread_fast_i2c_poll(void * unused)  {
 			vTaskDelay(1);
 			xSemaphoreGiveRecursive(i2c_smphr);
 		} else {
+			fail_fast_i2c:
 			LOGW("failed to get i2c %d\n", __LINE__);
 		}
 		vTaskDelayUntil(&now, delay);
@@ -1277,48 +1282,29 @@ void sample_sensor_data(periodic_data* data)
 		xSemaphoreGive(light_smphr);
 	}
 
+	{
 	// get temperature and humidity
-	uint8_t measure_time = 10;
-	int64_t humid_sum = 0;
-	int64_t temp_sum = 0;
+	uint32_t humid,press;
+	int32_t temp;
 
-	uint8_t humid_count = 0;
-	uint8_t temp_count = 0;
-
-	while(--measure_time) {
-		int humid,temp;
-
-		get_temp_humid(&temp, &humid);
-
-		if(humid != -1)
-		{
-			humid_sum += humid;
-			humid_count++;
-		}
-		if(temp != -1)
-		{
-			temp_sum += temp;
-			temp_count++;
-		}
-	}
-
-
-
-	if(humid_count == 0)
-	{
-		data->has_humidity = false;
-	}else{
-		data->has_humidity = true;
-		data->humidity = humid_sum / humid_count;
-	}
-
-
-	if(temp_count == 0)
-	{
-		data->has_temperature = false;
-	}else{
+	if( 0 == get_temp_press_hum(&temp, &press, &humid) ) {
+		data->humidity = humid;
+		data->temperature = temp;
+		data->pressure = press;
+		data->has_pressure = true;
 		data->has_temperature = true;
-		data->temperature = temp_sum / temp_count;
+		data->has_humidity = true;
+		{
+			int tvoc, eco2, current, voltage;
+			if( 0 == get_tvoc( &tvoc, &eco2, &current, &voltage, temp, humid )) {
+				LOGI("\nTVOC %d,%d,%d,%d,%d,%d,%d\n", data->unix_time, tvoc, eco2, current, voltage, temp, humid );
+				data->has_tvoc = true;
+				data->tvoc = tvoc;
+				data->has_co2 = true;
+				data->co2;
+			}
+		}
+		}
 	}
 
 	int wave_count = gesture_get_wave_count();
@@ -1864,9 +1850,6 @@ int cmd_memfrag(int argc, char *argv[]) {
 	}
 	return 0;
 }
-static long always_ok(void){
-	return 0;
-}
 static long always_slow(int dly){
 	vTaskDelay(dly);
 	return 0;
@@ -2005,10 +1988,10 @@ tCmdLineEntry g_sCmdTable[] = {
 #endif
 
     {"inttemp", Cmd_inttemp, "" },
-		{ "humid", Cmd_readhumid, "" },
-		{ "temp", Cmd_readtemp,	"" },
+	{ "thp", Cmd_read_temp_hum_press,	"" },
+	{ "tv", Cmd_meas_TVOC,	"" },
+
 		{ "light", Cmd_readlight, "" },
-		{"prox", Cmd_readproximity, "" },
 
 #if ( configUSE_TRACE_FACILITY == 1 )
 		{ "tasks", Cmd_tasks, "" },
@@ -2204,10 +2187,9 @@ void vUARTTask(void *pvParameters) {
 	init_time_module(2560);
 
 	// Init sensors
-	init_humid_sensor();
+	init_tvoc();
 	init_temp_sensor();
 	init_light_sensor();
-	init_prox_sensor();
 
 	init_led_animation();
 
