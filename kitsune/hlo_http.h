@@ -27,7 +27,3 @@ hlo_stream_t * hlo_ws_stream( hlo_stream_t * base);
 
 hlo_stream_t * hlo_http_get(const char * url);
 hlo_stream_t * hlo_http_post(const char * url, uint8_t sign, const char * content_type);
-
-#include "pb.h"
-int hlo_pb_encode( hlo_stream_t * stream,const pb_field_t * fields, void * structdata );
-int hlo_pb_decode( hlo_stream_t * stream,const pb_field_t * fields, void * structdata );

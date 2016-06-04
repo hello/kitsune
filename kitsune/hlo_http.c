@@ -153,110 +153,6 @@ hlo_stream_t * hlo_sock_stream(const char * host, uint8_t secure){
 	return NULL;
 }
 
-//====================================================================
-//pb stream impl
-#include "pb.h"
-
-#define DBG_PBSTREAM DISP
-#define PB_FRAME_SIZE 1024
-
-typedef struct{
-	hlo_stream_t * sockstream;	/** base socket stream **/
-	int stream_state;
-}hlo_pb_stream_context_t;
-
-#ifdef DBGVERBOSE_PBSTREAM
-static _dbg_pbstream_raw( char * dir, const uint8_t * inbuf, size_t count ) {
-	int i;
-	DBG_PBSTREAM("PB RAW %s\t%d\t%02x", dir, count, inbuf[0] );
-	for( i=1; i<count; ++i) {
-		DBG_PBSTREAM(":%02x",inbuf[i]);
-		vTaskDelay(1);
-	}
-	DBG_PBSTREAM("\n");
-}
-#endif
-
-// this will dribble out a few bytes at a time, may need to pipe it
-static bool _write_pb_callback(pb_ostream_t *stream, const uint8_t * inbuf, size_t count) {
-	int transfer_size = count;
-	hlo_pb_stream_context_t * state = (hlo_pb_stream_context_t*)stream->state;
-	state->stream_state = hlo_stream_transfer_all(INTO_STREAM, state->sockstream,(uint8_t*)inbuf, count, 200);
-
-#ifdef DBGVERBOSE_PBSTREAM
-	_dbg_pbstream_raw("OUT", inbuf, count);
-	DBG_PBSTREAM("WC: %d\t%d\n", transfer_size, state->stream_state );
-#endif
-	return transfer_size == state->stream_state;
-}
-static bool _read_pb_callback(pb_istream_t *stream, uint8_t * inbuf, size_t count) {
-	int transfer_size = count;
-	hlo_pb_stream_context_t * state = (hlo_pb_stream_context_t*)stream->state;
-
-#ifdef DBGVERBOSE_PBSTREAM
-	DBG_PBSTREAM("PBREAD %x\t%d\n", inbuf, count );
-#endif
-
-	state->stream_state = hlo_stream_transfer_all(FROM_STREAM, state->sockstream, inbuf, count, 200);
-
-#ifdef DBGVERBOSE_PBSTREAM
-	_dbg_pbstream_raw("IN", inbuf, count);
-	DBG_PBSTREAM("RC: %d\t%d\n", transfer_size, state->stream_state );
-#endif
-
-	return transfer_size == state->stream_state;
-}
-int hlo_pb_encode( hlo_stream_t * stream, const pb_field_t * fields, void * structdata ){
-	uint32_t count;
-	hlo_pb_stream_context_t state;
-
-	state.sockstream = stream;
-	state.stream_state = 0;
-    pb_ostream_t pb_ostream = { _write_pb_callback, (void*)&state, PB_FRAME_SIZE, 0 };
-
-	bool success = true;
-
-	pb_ostream_t sizestream = {0};
-	pb_encode(&sizestream, fields, structdata); //TODO double check no stateful callbacks get hit here
-
-	DBG_PBSTREAM("PB TX %d\n", sizestream.bytes_written);
-	count = sizestream.bytes_written;
-	count = htonl(count);
-	int ret = hlo_stream_transfer_all(INTO_STREAM, stream, (uint8_t*)&count, sizeof(count), 200);
-
-	success = success && sizeof(count) == ret;
-	success = success && pb_encode(&pb_ostream,fields,structdata);
-
-	DBG_PBSTREAM("PBSS %d %d %d\n", state.stream_state, success, ret );
-	if( state.stream_state > 0 ) {
-		return success==true ? 0 : -1;
-	}
-	return state.stream_state;
-}
-int hlo_pb_decode( hlo_stream_t * stream, const pb_field_t * fields, void * structdata ){
-	uint32_t count;
-	hlo_pb_stream_context_t state;
-
-	state.sockstream = stream;
-	state.stream_state = 0;
-	pb_istream_t pb_istream = { _read_pb_callback, (void*)&state, PB_FRAME_SIZE, 0 };
-
-	bool success = true;
-
-	int ret = hlo_stream_transfer_all(FROM_STREAM, stream, (uint8_t*)&count, sizeof(count), 200);
-
-	success = success && sizeof(count) == ret;
-	count = ntohl(count);
-	DBG_PBSTREAM("PB RX %d %d\n", ret, count);
-
-	pb_istream.bytes_left = count;
-	success = success && pb_decode(&pb_istream,fields,structdata);
-	DBG_PBSTREAM("PBRS %d %d\n", state.stream_state, success );
-	if( state.stream_state > 0 ) {
-		return success==true ? 0 : -1;
-	}
-	return state.stream_state;
-}
 
 //====================================================================
 //websocket stream impl
@@ -404,7 +300,7 @@ static int _read_ws(void * ctx, void * buf, size_t size){
 
 		DBG_WS("WS frsz %d\n", stream->frame_bytes_read);
 	}
-	rv = hlo_stream_read(stream->base, buf, stream->frame_bytes_read);
+	rv = hlo_stream_read(stream->base, buf, size);
 	if( rv > 0 ) {
 		stream->frame_bytes_read -= rv;
 	}

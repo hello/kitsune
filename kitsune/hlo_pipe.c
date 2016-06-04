@@ -48,6 +48,27 @@ int hlo_stream_transfer_all(transfer_direction direction,
 							uint32_t transfer_delay){
 	return hlo_stream_transfer_until( direction, stream, buf, buf_size, transfer_delay, NULL);
 }
+int hlo_stream_transfer_between_ext(
+		hlo_stream_t * src,
+		hlo_stream_t * dst,
+		uint8_t * buf,
+		uint32_t buf_size,
+		uint32_t transfer_size,
+		uint32_t transfer_delay){
+	int transfer_count = 0;
+	while( transfer_size > transfer_count ) {
+		int ret = hlo_stream_transfer_all(FROM_STREAM, src, buf,buf_size, transfer_delay);
+		if(ret < 0){
+			return ret;
+		}
+		ret = hlo_stream_transfer_all(INTO_STREAM, dst, buf,ret,transfer_delay);
+		if(ret < 0){
+			return ret;
+		}
+		transfer_count += ret;
+	}
+	return transfer_count;
+}
 int hlo_stream_transfer_between(
 		hlo_stream_t * src,
 		hlo_stream_t * dst,
@@ -78,8 +99,11 @@ void prep_for_pb(int type);
 
 static int id_counter = 0;
 
+
 int frame_pipe_encode( pipe_ctx * pipe ) {
-	uint8_t buf[MAX_CHUNK_SIZE];
+	uint8_t buf[MAX_CHUNK_SIZE+1];
+	hlo_stream_t * obufstr = fifo_stream_open( MAX_CHUNK_SIZE+1 );
+
 	uint8_t hmac[SHA1_SIZE] = {0};
 	int ret;
 	int transfer_delay = 100;
@@ -97,23 +121,11 @@ int frame_pipe_encode( pipe_ctx * pipe ) {
 	preamble_data.has_id = true;
 	preamble_data.id = ++id_counter;
 	//encode it
-	{
-		pb_ostream_t preamble_ostream = pb_ostream_from_buffer(buf, sizeof(buf));
-		pb_encode( &preamble_ostream, Preamble_fields, &preamble_data);
-		size = preamble_ostream.bytes_written;
-	}
-	//send it
-    size = htonl(size);
-	ret = hlo_stream_transfer_all(INTO_STREAM, pipe->sink, (uint8_t*)&size,sizeof(size),transfer_delay);
-	if(ret <= 0){
+	ret = hlo_pb_encode(obufstr, Preamble_fields, &preamble_data);
+	if( ret != 0 ) {
+		LOGE(" enc pbh parse fail %d\n", ret);
 		goto enc_return;
 	}
-    size = ntohl(size);
-	ret = hlo_stream_transfer_all(INTO_STREAM, pipe->sink, buf, size,transfer_delay);
-	if(ret <= 0){
-		goto enc_return;
-	}
-
 	DBG_FRAMEPIPE(" enc start %d\n", pipe->flush);
 
 	//read out the size of the pb payload from the source stream
@@ -122,15 +134,16 @@ int frame_pipe_encode( pipe_ctx * pipe ) {
 		goto enc_return;
 	}
 	//and write it out to the sink
-	ret = hlo_stream_transfer_all(INTO_STREAM, pipe->sink, (uint8_t*)&size, sizeof(size),transfer_delay);
+	ret = hlo_stream_transfer_all(INTO_STREAM, obufstr, (uint8_t*)&size, sizeof(size),transfer_delay);
 	if(ret <= 0){
 		goto enc_return;
 	}
 	size = ntohl(size);
+	DBG_FRAMEPIPE(" enc payload size %d\n", size);
 	//now we can use the size to count down...
 
     //wrap the source in hmac stream
-	hmac_payload_str = hlo_hmac_stream(pipe->sink, key, sizeof(key) );
+	hmac_payload_str = hlo_hmac_stream(obufstr, key, sizeof(key) );
 	if(!hmac_payload_str){
 		ret = HLO_STREAM_ERROR;
 		goto enc_return;
@@ -138,35 +151,43 @@ int frame_pipe_encode( pipe_ctx * pipe ) {
 	//compute an hmac on each block until the end of the stream
 	while( size != 0 ) {
 		//full chunk unless we're on the last one
-		size_t to_read = size > MAX_CHUNK_SIZE ? MAX_CHUNK_SIZE : size;
+		size_t to_read = size > (MAX_CHUNK_SIZE-SHA1_SIZE) ? (MAX_CHUNK_SIZE-SHA1_SIZE) : size;
 
-		ret = hlo_stream_transfer_until(FROM_STREAM, pipe->source, buf,to_read, transfer_delay, &pipe->flush);
-		DBG_FRAMEPIPE(" enc rd %d\n", ret);
+		DBG_FRAMEPIPE(" enc chunk size %d\n", to_read);
+
+		ret = hlo_stream_transfer_between(pipe->source,hmac_payload_str,buf,to_read,4);
 		if(ret <= 0){
 			goto enc_return;
 		}
-		ret = hlo_stream_transfer_until(INTO_STREAM, hmac_payload_str, buf,to_read, transfer_delay, &pipe->flush);
-		DBG_FRAMEPIPE(" enc wr %d\n", ret);
-		if(ret <= 0){
-			goto enc_return;
-		}
+
+		DBG_FRAMEPIPE(" enc hmac\n" );
 
 		// grab the running hmac and drop it in the stream
 		get_hmac( hmac, hmac_payload_str );
-		ret = hlo_stream_transfer_until(INTO_STREAM, pipe->sink, hmac, sizeof(hmac), transfer_delay, &pipe->flush);
+		ret = hlo_stream_transfer_until(INTO_STREAM, obufstr, hmac, sizeof(hmac), transfer_delay, &pipe->flush);
+		if(ret <= 0){
+			goto enc_return;
+		}
+
+		DBG_FRAMEPIPE(" enc drop\n" );
+
+		// drop the coalescing stream
+		hlo_stream_end(obufstr);
+		ret = hlo_stream_transfer_between(obufstr,pipe->sink,buf,sizeof(buf),4);
 		if(ret <= 0){
 			goto enc_return;
 		}
 		//prevent underflow
-		if( size < ret ) {
-			LOGE("!enc underflow %d %d\n", size, ret);
+		if( size < to_read ) {
+			LOGE("!enc underflow %d %d\n", size, to_read);
 			ret = HLO_STREAM_ERROR;
 			goto enc_return;
 		}
-		size -= ret;
+		size -= to_read;
 	}
 
 	enc_return:
+	hlo_stream_close(obufstr);
 	if( hmac_payload_str ) {
 		hlo_stream_close(hmac_payload_str);
 	}
@@ -177,37 +198,18 @@ int frame_pipe_decode( pipe_ctx * pipe ) {
 	uint8_t buf[512];
 	uint8_t hmac[2][SHA1_SIZE] = {0};
 	int ret;
+	size_t size;
 	int transfer_delay = 100;
 	Preamble preamble_data;
 	hlo_stream_t * hmac_payload_str = NULL;
 	uint8_t key[AES_BLOCKSIZE];
 	get_aes(key);
 
-	//read out the pb preamble size
-    uint32_t size;
-	ret = hlo_stream_transfer_all( FROM_STREAM, pipe->source, (uint8_t*)&size,sizeof(size), transfer_delay );
-	if(ret <= 0){
+	//read out the pb preamble
+	ret = hlo_pb_decode( pipe->source, Preamble_fields, &preamble_data );
+	if( ret != 0 ) {
+		LOGE("    dec pbh parse fail %d\n", ret);
 		goto dec_return;
-	}
-	size = ntohl(size);
-	if( size > sizeof(buf) ) {
-		LOGE("header too big %d\n", size);
-		ret = HLO_STREAM_ERROR;
-		goto dec_return;
-	}
-	DBG_FRAMEPIPE("    dec preamble size %d\n", size );
-
-	//read out the pb preamble and parse it
-	ret = hlo_stream_transfer_all( FROM_STREAM, pipe->source, buf,size, transfer_delay );
-	if(ret <= 0){
-		goto dec_return;
-	}
-	{
-		pb_istream_t preamble_istream = pb_istream_from_buffer(buf, size);
-		if( !pb_decode( &preamble_istream, Preamble_fields, &preamble_data ) ) {
-			DBG_FRAMEPIPE("    dec preamble fail\n" );
-			return HLO_STREAM_ERROR;
-		}
 	}
 	DBG_FRAMEPIPE("    dec type  %d\n", preamble_data.type );
 

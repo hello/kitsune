@@ -1089,7 +1089,7 @@ void thread_out(void* ctx) {
 			p_ctx_enc.hlo_pb_type = m.hlo_pb_type;
 
 			//bg pipe for sending out the data
-			xTaskCreate(thread_frame_pipe_encode, "penc", 1024 / 4, &p_ctx_enc, 4, NULL);
+			xTaskCreate(thread_frame_pipe_encode, "penc", 2*1024 / 4, &p_ctx_enc, 4, NULL);
 			hlo_pb_encode( fifo_stream_out, m.fields, m.structdata );
 			p_ctx_enc.flush = true; // this is safe, all the data has been piped
 			xSemaphoreTake( p_ctx_enc.join_sem, portMAX_DELAY );
@@ -1155,7 +1155,7 @@ void thread_in(void* ctx) {
 			p_ctx_dec.state = 0;
 
 			//bg pipe for receiving the data
-			xTaskCreate(thread_frame_pipe_decode, "pdec", 1024 / 4, &p_ctx_dec, 4, NULL);
+			xTaskCreate(thread_frame_pipe_decode, "pdec", 2*1024 / 4, &p_ctx_dec, 4, NULL);
 
 			xSemaphoreTake(pb_sub_sem, portMAX_DELAY);
 			LOGF("\n\nR! %d\n\n",  hlo_pb_decode( fifo_stream_in, subscriptions[incoming_pb_type].fields, pb_data  ) );
@@ -1187,8 +1187,8 @@ int Cmd_pbstr(int argc, char *argv[]) {
 	pb_rx_complt_sem = xSemaphoreCreateBinary();
 	xSemaphoreGive(pb_rx_complt_sem);
 
-	xTaskCreate(thread_out, "out", 1024 / 4, NULL, 4, NULL);
-	xTaskCreate(thread_in, "in", 1024 / 4, NULL, 4, NULL);
+	xTaskCreate(thread_out, "out", 2*1024 / 4, NULL, 4, NULL);
+	xTaskCreate(thread_in, "in", 2*1024 / 4, NULL, 4, NULL);
 
 	periodic_data data;
 
