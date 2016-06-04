@@ -190,11 +190,12 @@ int frame_pipe_decode( pipe_ctx * pipe ) {
 		goto dec_return;
 	}
 	size = ntohl(size);
-	if(sizeof(buf) > size) {
+	if( size > sizeof(buf) ) {
 		LOGE("header too big %d\n", size);
 		ret = HLO_STREAM_ERROR;
 		goto dec_return;
 	}
+	DBG_FRAMEPIPE("    dec preamble size %d\n", size );
 
 	//read out the pb preamble and parse it
 	ret = hlo_stream_transfer_all( FROM_STREAM, pipe->source, buf,size, transfer_delay );
@@ -208,6 +209,8 @@ int frame_pipe_decode( pipe_ctx * pipe ) {
 			return HLO_STREAM_ERROR;
 		}
 	}
+	DBG_FRAMEPIPE("    dec type  %d\n", preamble_data.type );
+
 	//notify the decoder what kind of pb is coming
 	prep_for_pb(preamble_data.type);
 
@@ -216,12 +219,14 @@ int frame_pipe_decode( pipe_ctx * pipe ) {
 	if(ret <= 0){
 		goto dec_return;
 	}
+	DBG_FRAMEPIPE("    dec payload size %d\n", ntohl(size) );
 	//write it for the pb parser
 	ret = hlo_stream_transfer_all( INTO_STREAM, pipe->sink, (uint8_t*)&size,sizeof(size),transfer_delay);
+	size = ntohl(size);
 	if(ret <= 0){
 		goto dec_return;
 	}
-	size = ntohl(size);
+	DBG_FRAMEPIPE("    dec hmac begin\n" );
 
 	//wrap the source stream in an hmac stream and read the payload
 	hmac_payload_str = hlo_hmac_stream(pipe->source, key, sizeof(key) );
@@ -234,6 +239,7 @@ int frame_pipe_decode( pipe_ctx * pipe ) {
 	while( size != 0 ) {
 		//full chunk unless we're on the last one
 		size_t to_read = size > MAX_CHUNK_SIZE ? MAX_CHUNK_SIZE : size;
+		DBG_FRAMEPIPE("    dec reading %d\n", to_read );
 
 		ret = hlo_stream_transfer_all( FROM_STREAM, hmac_payload_str, buf,to_read, transfer_delay );
 		if(ret <= 0){
@@ -245,6 +251,8 @@ int frame_pipe_decode( pipe_ctx * pipe ) {
 		if(ret <= 0){
 			goto dec_return;
 		}
+		DBG_FRAMEPIPE("    dec cmpt hmac\n"  );
+
 		get_hmac( hmac[0], hmac_payload_str );
 		if( memcmp(hmac[0], hmac[1], sizeof(hmac[1]))) {
 			LOGE("    dec hmac mismatch\n");
@@ -254,8 +262,9 @@ int frame_pipe_decode( pipe_ctx * pipe ) {
 		if(ret <= 0){
 			goto dec_return;
 		}
+
+		DBG_FRAMEPIPE("    dec parsing\n"  );
 		//dump the pb payload out to the parser
-		//todo while chunks
 		ret = hlo_stream_transfer_all(INTO_STREAM, pipe->sink, buf,to_read,transfer_delay);
 		if(ret <= 0){
 			goto dec_return;
@@ -279,18 +288,14 @@ int frame_pipe_decode( pipe_ctx * pipe ) {
 void thread_frame_pipe_encode(void* ctx) {
 	pipe_ctx * pctx = (pipe_ctx*)ctx;
 
-	while(frame_pipe_encode( pctx ) > 0) {
-		vTaskDelay(100);
-	}
+	frame_pipe_encode( pctx );
 	xSemaphoreGive(pctx->join_sem);
 	vTaskDelete(NULL);
 }
 void thread_frame_pipe_decode(void* ctx) {
 	pipe_ctx * pctx = (pipe_ctx*)ctx;
 
-	while(frame_pipe_decode( pctx ) > 0) {
-		vTaskDelay(100);
-	}
+	frame_pipe_decode( pctx );
 	hlo_stream_end(pctx->sink);
 	xSemaphoreGive(pctx->join_sem);
 	vTaskDelete(NULL);

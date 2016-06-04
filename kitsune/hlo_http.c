@@ -404,7 +404,7 @@ static int _read_ws(void * ctx, void * buf, size_t size){
 
 		DBG_WS("WS frsz %d\n", stream->frame_bytes_read);
 	}
-	rv = hlo_stream_read(stream->base, buf, size);
+	rv = hlo_stream_read(stream->base, buf, stream->frame_bytes_read);
 	if( rv > 0 ) {
 		stream->frame_bytes_read -= rv;
 	}

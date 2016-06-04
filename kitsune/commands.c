@@ -1184,7 +1184,7 @@ int Cmd_pbstr(int argc, char *argv[]) {
 	pb_oq = xQueueCreate(MAX_PB_QUEUED, sizeof(pb_msg));
 	sock_stream_sem = xSemaphoreCreateMutex();
 	pb_sub_sem = xSemaphoreCreateBinary();
-	pb_rx_complt_sem =xSemaphoreCreateBinary();
+	pb_rx_complt_sem = xSemaphoreCreateBinary();
 	xSemaphoreGive(pb_rx_complt_sem);
 
 	xTaskCreate(thread_out, "out", 1024 / 4, NULL, 4, NULL);
@@ -1196,7 +1196,6 @@ int Cmd_pbstr(int argc, char *argv[]) {
 	data.light = 10;
 	while(1) {
 		LOGF("sending %d\n", data.light );
-		prep_for_pb(Preamble_pb_type_BATCHED_PERIODIC_DATA); //todo set this in the header pb processing
 		output_pb( Preamble_pb_type_BATCHED_PERIODIC_DATA, &data, periodic_data_fields);
 		vTaskDelay(5000);
 	}
