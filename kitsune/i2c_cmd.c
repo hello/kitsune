@@ -550,9 +550,9 @@ static void codec_clock_config(void);
 static void codec_gpio_config(void);
 static void codec_asi_config(void);
 static void codec_signal_processing_config(void);
-static void codec_mic_config(void);
 #endif
 
+static void codec_mic_config(void);
 static void codec_speaker_config(void);
 static void codec_set_page(uint32_t page);
 static void codec_set_book(uint32_t book);
@@ -680,7 +680,7 @@ int32_t codec_init_with_dsp(void)
 		I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 	}
 
-	codec_speaker_config();
+
 
 	// Update miniDSP A
 	reg_array_size = sizeof(miniDSP_A_reg_values)/2;
@@ -708,6 +708,69 @@ int32_t codec_init_with_dsp(void)
 		I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 	}
 
+	//codec_set_page(0);
+
+	//codec_set_book(0);
+
+	//codec_mic_config();
+
+	//codec_set_page(0);
+
+	//codec_set_book(0);
+
+	//codec_speaker_config();
+
+	vTaskDelay(100);
+#ifdef CODEC_1P5_TEST
+
+	//	w 30 00 00 # Select Page 0
+	codec_set_page(0);
+
+	codec_set_book(0);
+
+	// Read register in [0][0][36]
+	cmd[0] = 0x24;
+	cmd[1] = 0;
+
+	I2C_IF_Write(Codec_addr, &cmd[0],1,send_stop);
+	I2C_IF_Read(Codec_addr, &cmd[1], 1);
+
+	UARTprintf("ADC Flag read [0][0][%u]: %X \n",cmd[0], cmd[1]);
+
+	// Read register in [0][0][37]
+	cmd[0] = 0x25;
+	cmd[1] = 0;
+
+	I2C_IF_Write(Codec_addr, &cmd[0],1,send_stop);
+	I2C_IF_Read(Codec_addr, &cmd[1], 1);
+
+	UARTprintf("DAC Flag read [0][0][%u]: %X  \r\n", cmd[0], cmd[1]);
+
+	// Read register in [0][0][38]
+	cmd[0] = 0x26;
+	cmd[1] = 0;
+
+	I2C_IF_Write(Codec_addr, &cmd[0],1,send_stop);
+	I2C_IF_Read(Codec_addr, &cmd[1], 1);
+
+	UARTprintf("DAC Flag read [0][0][%u]: %X  \r\n", cmd[0], cmd[1]);
+
+	//	w 30 00 00 # Select Page 1
+	codec_set_page(1);
+
+	// Read register in [0][1][66]
+	cmd[0] = 66;
+	cmd[1] = 0;
+
+	I2C_IF_Write(Codec_addr, &cmd[0],1,send_stop);
+	I2C_IF_Read(Codec_addr, &cmd[1], 1);
+
+	UARTprintf("Driver power up [0][1][%u]: %X  \r\n", cmd[0], cmd[1]);
+
+	//	w 30 00 00 # Select Page 0
+	codec_set_page(0);
+
+#endif
 	return 1;
 
 }
@@ -1473,6 +1536,41 @@ static void codec_signal_processing_config(void)
 
 }
 
+
+
+#if (CODEC_BEEP_GENERATOR==1)
+static void beep_gen(void)
+{
+	char send_stop = 1;
+	unsigned char cmd[2];
+
+	codec_set_page(0);
+
+	UARTprintf("Beep\n");
+
+	// Set beep time to be 2 seconds=0x01770
+
+	uint32_t delay=0x01770;
+	cmd[0] = 73;
+	cmd[1] = (delay & 0xFF0000) >> 16;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+	cmd[0] = 74;
+	cmd[1] = (delay & 0xFF00) >> 8;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+	cmd[0] = 75;
+	cmd[1] = (delay & 0xFF) >> 0;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+	cmd[0] = 0x47;
+	cmd[1] = (1 << 7);
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+
+}
+#endif
+
+#endif
+
 static void codec_mic_config(void)
 {
 	char send_stop = 1;
@@ -1542,39 +1640,6 @@ static void codec_mic_config(void)
 
 	vTaskDelay(5);
 }
-
-#if (CODEC_BEEP_GENERATOR==1)
-static void beep_gen(void)
-{
-	char send_stop = 1;
-	unsigned char cmd[2];
-
-	codec_set_page(0);
-
-	UARTprintf("Beep\n");
-
-	// Set beep time to be 2 seconds=0x01770
-
-	uint32_t delay=0x01770;
-	cmd[0] = 73;
-	cmd[1] = (delay & 0xFF0000) >> 16;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-	cmd[0] = 74;
-	cmd[1] = (delay & 0xFF00) >> 8;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-	cmd[0] = 75;
-	cmd[1] = (delay & 0xFF) >> 0;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
-	cmd[0] = 0x47;
-	cmd[1] = (1 << 7);
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
-
-}
-#endif
-
-#endif
 
 // Enable Class-D Speaker playback
 static void codec_speaker_config(void)
