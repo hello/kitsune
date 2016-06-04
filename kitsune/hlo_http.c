@@ -11,6 +11,7 @@
 #include <string.h>
 #include "bigint_impl.h"
 #include "hlo_net_tools.h"
+#include "hlo_proto_tools.h"
 #include <ustdlib.h>
 //====================================================================
 //Protected API Declaration

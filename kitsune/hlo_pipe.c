@@ -114,6 +114,13 @@ int frame_pipe_encode( pipe_ctx * pipe ) {
 	uint8_t key[AES_BLOCKSIZE];
 	get_aes(key);
 
+	if( pipe->hlo_pb_type == Preamble_pb_type_ACK ) {
+		DBG_FRAMEPIPE(" enc ack\n");
+		hlo_stream_end(pipe->source);
+		ret = hlo_stream_transfer_between(pipe->source,pipe->sink,buf,sizeof(buf),4);
+		goto enc_return;
+	}
+
 	//make the preamble
 	preamble_data.type = pipe->hlo_pb_type;
 	preamble_data.has_auth = true;
@@ -205,6 +212,7 @@ int frame_pipe_decode( pipe_ctx * pipe ) {
 	uint8_t key[AES_BLOCKSIZE];
 	get_aes(key);
 
+	dec_again:
 	//read out the pb preamble
 	ret = hlo_pb_decode( pipe->source, Preamble_fields, &preamble_data );
 	if( ret != 0 ) {
@@ -213,6 +221,32 @@ int frame_pipe_decode( pipe_ctx * pipe ) {
 	}
 	DBG_FRAMEPIPE("    dec type  %d\n", preamble_data.type );
 
+	//ack has no body or hmac
+	if( preamble_data.type == Preamble_pb_type_ACK ) {
+		DBG_FRAMEPIPE("\t  rx ack %d\n", preamble_data.id );
+		goto dec_again;
+	} else {
+		hlo_stream_t * obufstr = fifo_stream_open( 64 );
+		DBG_FRAMEPIPE("\t  ack %d sending\n", preamble_data.id);
+
+		preamble_data.type = Preamble_pb_type_ACK;
+		ret = hlo_pb_encode(obufstr, Preamble_fields, &preamble_data);
+		if( ret != 0 ) {
+			hlo_stream_close(obufstr);
+			LOGE("\t  ack %d encode fail\n", preamble_data.id);
+			ret = HLO_STREAM_ERROR;
+			goto dec_return;
+		}
+		hlo_stream_end( obufstr );
+		ret = hlo_stream_transfer_between(obufstr,pipe->source,buf,sizeof(buf),4);
+		hlo_stream_close(obufstr);
+		if( ret <= 0 ) {
+			LOGE("\t  ack %d send fail\n", preamble_data.id);
+			ret = HLO_STREAM_ERROR;
+			goto dec_return;
+		}
+		DBG_FRAMEPIPE("\t  ack %d sent\n", preamble_data.id);
+	}
 	//notify the decoder what kind of pb is coming
 	prep_for_pb(preamble_data.type);
 

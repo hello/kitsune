@@ -311,8 +311,179 @@ void get_hmac( uint8_t * hmac, hlo_stream_t * stream ) {
 	for(i=0;i<SHA1_SIZE;++i) {
 		DBG_HMAC("%x:",hmac[i]);
 	}DBG_HMAC("\n");
+}
+int Cmd_testhmac(int argc, char *argv[]) {
+	uint8_t hmac[SHA1_SIZE] = {0};
+	hlo_stream_t * hmac_fifo = hlo_hmac_stream(fifo_stream_open( 100 ), (uint8_t*)argv[1], strlen(argv[1] ));
 
+	hlo_stream_write( hmac_fifo, (uint8_t*)argv[2], strlen(argv[2] ));
+	get_hmac( hmac, hmac_fifo );
+
+	hlo_stream_close( hmac_fifo );
+	return 0;
 }
 
+//====================================================================
+//pb i/o impl
+//
+#include "hlo_pipe.h"
+#include "hlo_http.h"
+
+typedef struct {
+	const pb_field_t * fields;
+	void * structdata;
+	Preamble_pb_type hlo_pb_type;
+} pb_msg;
+#define MAX_PB_QUEUED 10
+static xQueueHandle pb_oq;
+
+static xSemaphoreHandle sock_stream_sem;
+static hlo_stream_t * sock_stream = NULL;
+
+static void sock_checkup() {
+	xSemaphoreTake(sock_stream_sem, portMAX_DELAY);
+	if( sock_stream == NULL ) {
+		sock_stream = hlo_ws_stream(hlo_sock_stream( "notreal", false ));
+	}
+	xSemaphoreGive(sock_stream_sem);
+}
+static void sock_close() {
+	xSemaphoreTake(sock_stream_sem, portMAX_DELAY);
+	hlo_stream_close(sock_stream);
+	sock_stream = NULL;
+	xSemaphoreGive(sock_stream_sem);
+}
+
+static void thread_out(void* ctx) {
+	pipe_ctx p_ctx_enc;
+	pb_msg m;
+
+	while(xQueueReceive(pb_oq, &m, portMAX_DELAY)) {
+		sock_checkup();
+
+		if( sock_stream ) {
+			hlo_stream_t * fifo_stream_out = fifo_stream_open( 64 );
+			assert( fifo_stream_out );
+
+			p_ctx_enc.source = fifo_stream_out;
+			p_ctx_enc.sink = sock_stream;
+			p_ctx_enc.flush = false;
+			p_ctx_enc.join_sem = xSemaphoreCreateBinary();
+			p_ctx_enc.state = 0;
+			p_ctx_enc.hlo_pb_type = m.hlo_pb_type;
+
+			//bg pipe for sending out the data
+			xTaskCreate(thread_frame_pipe_encode, "penc", 2*1024 / 4, &p_ctx_enc, 4, NULL);
+			hlo_pb_encode( fifo_stream_out, m.fields, m.structdata );
+			p_ctx_enc.flush = true; // this is safe, all the data has been piped
+			xSemaphoreTake( p_ctx_enc.join_sem, portMAX_DELAY );
+			p_ctx_enc.flush = false;
+			hlo_stream_close(fifo_stream_out);
+			if(p_ctx_enc.state < 0 ) {
+				DISP("enc state %d\n",p_ctx_enc.state );
+				sock_close();
+			}
+		}
+	}
+
+	vTaskDelete(NULL);
+}
+
+static void on_periodic_data( void * structdata ) {
+	periodic_data * data = (periodic_data *)structdata;
+
+	data->has_light = true;
+	data->light = 10;
+	LOGF("receieved %d\n", data->light );
+}
+
+#define SIZE_OF_LARGEST_PB 200
+#define NUM_TYPES 2
+static xSemaphoreHandle pb_sub_sem;
+static xSemaphoreHandle pb_rx_complt_sem;
+static int incoming_pb_type;
+typedef struct {
+	const pb_field_t * fields;
+	void (*ondata)(void*);
+} pb_subscriber;
+
+pb_subscriber subscriptions[NUM_TYPES] = {
+		{ Preamble_fields,NULL},
+		{ periodic_data_fields, on_periodic_data },
+};
+
+void prep_for_pb(int type) {
+	xSemaphoreTake(pb_rx_complt_sem, portMAX_DELAY);
+	incoming_pb_type = type;
+	xSemaphoreGive(pb_sub_sem);
+}
+
+static void thread_in(void* ctx) {
+	char * pb_data;
+	pipe_ctx p_ctx_dec;
+
+	pb_data = pvPortMalloc( SIZE_OF_LARGEST_PB ); //never freed
+
+	while(1) {
+		sock_checkup();
+
+		if( sock_stream ) {
+			hlo_stream_t * fifo_stream_in = fifo_stream_open( 768 );
+			assert( fifo_stream_in );
+
+			p_ctx_dec.source = sock_stream;
+			p_ctx_dec.sink = fifo_stream_in;
+			p_ctx_dec.flush = false;
+			p_ctx_dec.join_sem = xSemaphoreCreateBinary();
+			p_ctx_dec.state = 0;
+
+			//bg pipe for receiving the data
+			xTaskCreate(thread_frame_pipe_decode, "pdec", 2*1024 / 4, &p_ctx_dec, 4, NULL);
+
+			xSemaphoreTake(pb_sub_sem, portMAX_DELAY);
+			LOGF("\n\nR! %d\n\n",  hlo_pb_decode( fifo_stream_in, subscriptions[incoming_pb_type].fields, pb_data  ) );
+			xSemaphoreTake( p_ctx_dec.join_sem, portMAX_DELAY );
+			hlo_stream_close(fifo_stream_in);
+			if(p_ctx_dec.state < 0 ) {
+				DISP("dec state %d\n",p_ctx_dec.state );
+				sock_close();
+			}
+			if( subscriptions[incoming_pb_type].ondata ) {
+				subscriptions[incoming_pb_type].ondata( pb_data );
+			}
+
+			xSemaphoreGive(pb_rx_complt_sem);
+		}
+	}
+}
+int output_pb_wto( Preamble_pb_type hlo_pb_type, const pb_field_t * fields, void * structdata, TickType_t to ) {
+	pb_msg m = { fields, structdata, hlo_pb_type };
+	return xQueueSend(pb_oq, &m, to);
+}
+int output_pb( Preamble_pb_type hlo_pb_type, const pb_field_t * fields, void * structdata ) {
+	return output_pb_wto( hlo_pb_type, fields, structdata, portMAX_DELAY);
+}
+
+int Cmd_pbstr(int argc, char *argv[]) {
+	pb_oq = xQueueCreate(MAX_PB_QUEUED, sizeof(pb_msg));
+	sock_stream_sem = xSemaphoreCreateMutex();
+	pb_sub_sem = xSemaphoreCreateBinary();
+	pb_rx_complt_sem = xSemaphoreCreateBinary();
+	xSemaphoreGive(pb_rx_complt_sem);
+
+	xTaskCreate(thread_out, "out", 2*1024 / 4, NULL, 4, NULL);
+	xTaskCreate(thread_in, "in", 2*1024 / 4, NULL, 4, NULL);
+
+	periodic_data data;
+
+	data.has_light = true;
+	data.light = 10;
+	while(1) {
+		LOGF("sending %d\n", data.light );
+		output_pb( Preamble_pb_type_BATCHED_PERIODIC_DATA, periodic_data_fields, &data);
+		vTaskDelay(5000);
+	}
+
+}
 
 
