@@ -464,7 +464,7 @@ hlo_stream_t * hlo_ws_stream( hlo_stream_t * base){
 				get_ws_server(), hex_device_id, KIT_VER, get_top_version());
 
 		DBG_WS("sending\n%s", buf );
-		hlo_stream_transfer_all(INTO_STREAM, stream->base, buf, strlen(buf), 200);
+		hlo_stream_transfer_all(INTO_STREAM, stream->base, (uint8_t*)buf, strlen(buf), 200);
 		memset(buf,0,BUFSZ);
 
 		while( ret == 0 ) {

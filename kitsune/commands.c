@@ -1048,6 +1048,7 @@ void thread_tx(void* unused) {
 typedef struct {
 	void * structdata;
 	const pb_field_t * fields;
+	Preamble_pb_type hlo_pb_type;
 } pb_msg;
 #define MAX_PB_QUEUED 10
 static xQueueHandle pb_oq;
@@ -1085,6 +1086,7 @@ void thread_out(void* ctx) {
 			p_ctx_enc.flush = false;
 			p_ctx_enc.join_sem = xSemaphoreCreateBinary();
 			p_ctx_enc.state = 0;
+			p_ctx_enc.hlo_pb_type = m.hlo_pb_type;
 
 			//bg pipe for sending out the data
 			xTaskCreate(thread_frame_pipe_encode, "penc", 1024 / 4, &p_ctx_enc, 4, NULL);
@@ -1113,7 +1115,7 @@ static void on_periodic_data( void * structdata ) {
 }
 
 #define SIZE_OF_LARGEST_PB 200
-#define NUM_TYPES 1
+#define NUM_TYPES 2
 static xSemaphoreHandle pb_sub_sem;
 static xSemaphoreHandle pb_rx_complt_sem;
 static int incoming_pb_type;
@@ -1123,10 +1125,11 @@ typedef struct {
 } pb_subscriber;
 
 pb_subscriber subscriptions[NUM_TYPES] = {
+		{NULL,NULL},
 		{ periodic_data_fields, on_periodic_data },
 };
 
-static void prep_for_pb(int type) {
+void prep_for_pb(int type) {
 	xSemaphoreTake(pb_rx_complt_sem, portMAX_DELAY);
 	incoming_pb_type = type;
 	xSemaphoreGive(pb_sub_sem);
@@ -1168,13 +1171,15 @@ void thread_in(void* ctx) {
 		}
 	}
 }
-int output_pb_wto( void * structdata, const pb_field_t * fields, TickType_t to ) {
-	pb_msg m = { structdata, fields };
+int output_pb_wto( Preamble_pb_type hlo_pb_type, void * structdata, const pb_field_t * fields, TickType_t to ) {
+	pb_msg m = { structdata, fields, hlo_pb_type };
 	return xQueueSend(pb_oq, &m, to);
 }
-int output_pb( void * structdata, const pb_field_t * fields ) {
-	return output_pb_wto(structdata, fields, portMAX_DELAY);
+int output_pb( Preamble_pb_type hlo_pb_type, void * structdata, const pb_field_t * fields ) {
+	return output_pb_wto( hlo_pb_type, structdata, fields, portMAX_DELAY);
 }
+
+#include "streaming.pb.h"
 int Cmd_pbstr(int argc, char *argv[]) {
 	pb_oq = xQueueCreate(MAX_PB_QUEUED, sizeof(pb_msg));
 	sock_stream_sem = xSemaphoreCreateMutex();
@@ -1191,15 +1196,24 @@ int Cmd_pbstr(int argc, char *argv[]) {
 	data.light = 10;
 	while(1) {
 		LOGF("sending %d\n", data.light );
-		prep_for_pb(0); //todo set this in the header pb processing
-		output_pb(&data, periodic_data_fields);
+		prep_for_pb(Preamble_pb_type_BATCHED_PERIODIC_DATA); //todo set this in the header pb processing
+		output_pb( Preamble_pb_type_BATCHED_PERIODIC_DATA, &data, periodic_data_fields);
 		vTaskDelay(5000);
 	}
 
-	return 0;
 }
 
+#include "hlo_proto_tools.h"
+int Cmd_testhmac(int argc, char *argv[]) {
+	uint8_t hmac[SHA1_SIZE] = {0};
+	hlo_stream_t * hmac_fifo = hlo_hmac_stream(fifo_stream_open( 100 ), (uint8_t*)argv[1], strlen(argv[1] ));
 
+	hlo_stream_write( hmac_fifo, (uint8_t*)argv[2], strlen(argv[2] ));
+	get_hmac( hmac, hmac_fifo );
+
+	hlo_stream_close( hmac_fifo );
+	return 0;
+}
 
 #include "audio_types.h"
 
@@ -2046,6 +2060,8 @@ tCmdLineEntry g_sCmdTable[] = {
 #endif
 
 		{ "pb", Cmd_pbstr, ""},
+		{ "hmac", Cmd_testhmac, ""},
+
 
 		{ "r", Cmd_AudioCapture,""}, //record sounds into SD card
 		{ "s",Cmd_audio_record_stop,""},
