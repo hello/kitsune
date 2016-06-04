@@ -1045,13 +1045,21 @@ void thread_tx(void* unused) {
 }
 #include "hlo_pipe.h"
 
+typedef struct {
+	void * structdata;
+	const pb_field_t * fields;
+	Preamble_pb_type hlo_pb_type;
+} pb_msg;
+#define MAX_PB_QUEUED 10
+static xQueueHandle pb_oq;
+
 static xSemaphoreHandle sock_stream_sem;
 static hlo_stream_t * sock_stream = NULL;
 
 static void sock_checkup() {
 	xSemaphoreTake(sock_stream_sem, portMAX_DELAY);
 	if( sock_stream == NULL ) {
-		sock_stream = hlo_sock_stream( "notreal", false );
+		sock_stream = hlo_ws_stream(hlo_sock_stream( "notreal", false ));
 	}
 	xSemaphoreGive(sock_stream_sem);
 }
@@ -1063,30 +1071,26 @@ static void sock_close() {
 }
 
 void thread_out(void* ctx) {
-	periodic_data data;
 	pipe_ctx p_ctx_enc;
+	pb_msg m;
 
-	while(1) {
-
+	while(xQueueReceive(pb_oq, &m, portMAX_DELAY)) {
 		sock_checkup();
 
 		if( sock_stream ) {
 			hlo_stream_t * fifo_stream_out = fifo_stream_open( 768 );
 			assert( fifo_stream_out );
 
-			data.has_light = true;
-			data.light = 10;
-			LOGF("sending %d\n", data.light );
-
 			p_ctx_enc.source = fifo_stream_out;
 			p_ctx_enc.sink = sock_stream;
 			p_ctx_enc.flush = false;
 			p_ctx_enc.join_sem = xSemaphoreCreateBinary();
 			p_ctx_enc.state = 0;
+			p_ctx_enc.hlo_pb_type = m.hlo_pb_type;
 
 			//bg pipe for sending out the data
 			xTaskCreate(thread_frame_pipe_encode, "penc", 1024 / 4, &p_ctx_enc, 4, NULL);
-			hlo_pb_encode( fifo_stream_out, periodic_data_fields, &data );
+			hlo_pb_encode( fifo_stream_out, m.fields, m.structdata );
 			p_ctx_enc.flush = true; // this is safe, all the data has been piped
 			xSemaphoreTake( p_ctx_enc.join_sem, portMAX_DELAY );
 			p_ctx_enc.flush = false;
@@ -1096,15 +1100,46 @@ void thread_out(void* ctx) {
 				sock_close();
 			}
 		}
-
-		vTaskDelay(10000);
 	}
 
 	vTaskDelete(NULL);
 }
+
+
+static void on_periodic_data( void * structdata ) {
+	periodic_data * data = (periodic_data *)structdata;
+
+	data->has_light = true;
+	data->light = 10;
+	LOGF("receieved %d\n", data->light );
+}
+
+#define SIZE_OF_LARGEST_PB 200
+#define NUM_TYPES 2
+static xSemaphoreHandle pb_sub_sem;
+static xSemaphoreHandle pb_rx_complt_sem;
+static int incoming_pb_type;
+typedef struct {
+	const pb_field_t * fields;
+	void (*ondata)(void*);
+} pb_subscriber;
+
+pb_subscriber subscriptions[NUM_TYPES] = {
+		{NULL,NULL},
+		{ periodic_data_fields, on_periodic_data },
+};
+
+void prep_for_pb(int type) {
+	xSemaphoreTake(pb_rx_complt_sem, portMAX_DELAY);
+	incoming_pb_type = type;
+	xSemaphoreGive(pb_sub_sem);
+}
+
 void thread_in(void* ctx) {
-	periodic_data sr;
+	char * pb_data;
 	pipe_ctx p_ctx_dec;
+
+	pb_data = pvPortMalloc( SIZE_OF_LARGEST_PB ); //never freed
 
 	while(1) {
 		sock_checkup();
@@ -1121,34 +1156,64 @@ void thread_in(void* ctx) {
 
 			//bg pipe for receiving the data
 			xTaskCreate(thread_frame_pipe_decode, "pdec", 1024 / 4, &p_ctx_dec, 4, NULL);
-			//todo: for decode move sock management to frame pipe task
-			//      hlo_pb_decode could block forever on the fifo if the
-			//      sock stream breaks here, but the framepipe task could reconnect
-			LOGF("\n\nR! %d %d\n\n",  hlo_pb_decode( fifo_stream_in, periodic_data_fields, &sr  ), sr.light );
-			p_ctx_dec.flush = true; // this is safe, all the data has been piped
+
+			xSemaphoreTake(pb_sub_sem, portMAX_DELAY);
+			LOGF("\n\nR! %d\n\n",  hlo_pb_decode( fifo_stream_in, subscriptions[incoming_pb_type].fields, pb_data  ) );
 			xSemaphoreTake( p_ctx_dec.join_sem, portMAX_DELAY );
-			p_ctx_dec.flush = false;
 			hlo_stream_close(fifo_stream_in);
 			if(p_ctx_dec.state < 0 ) {
 				DISP("dec state %d\n",p_ctx_dec.state );
 				sock_close();
 			}
-		}
-		vTaskDelay(1000);
-	}
 
-	vTaskDelete(NULL);
+			subscriptions[incoming_pb_type].ondata( pb_data );
+			xSemaphoreGive(pb_rx_complt_sem);
+		}
+	}
+}
+int output_pb_wto( Preamble_pb_type hlo_pb_type, void * structdata, const pb_field_t * fields, TickType_t to ) {
+	pb_msg m = { structdata, fields, hlo_pb_type };
+	return xQueueSend(pb_oq, &m, to);
+}
+int output_pb( Preamble_pb_type hlo_pb_type, void * structdata, const pb_field_t * fields ) {
+	return output_pb_wto( hlo_pb_type, structdata, fields, portMAX_DELAY);
 }
 
+#include "streaming.pb.h"
 int Cmd_pbstr(int argc, char *argv[]) {
+	pb_oq = xQueueCreate(MAX_PB_QUEUED, sizeof(pb_msg));
 	sock_stream_sem = xSemaphoreCreateMutex();
+	pb_sub_sem = xSemaphoreCreateBinary();
+	pb_rx_complt_sem =xSemaphoreCreateBinary();
+	xSemaphoreGive(pb_rx_complt_sem);
+
 	xTaskCreate(thread_out, "out", 1024 / 4, NULL, 4, NULL);
 	xTaskCreate(thread_in, "in", 1024 / 4, NULL, 4, NULL);
 
-	return 0;
+	periodic_data data;
+
+	data.has_light = true;
+	data.light = 10;
+	while(1) {
+		LOGF("sending %d\n", data.light );
+		prep_for_pb(Preamble_pb_type_BATCHED_PERIODIC_DATA); //todo set this in the header pb processing
+		output_pb( Preamble_pb_type_BATCHED_PERIODIC_DATA, &data, periodic_data_fields);
+		vTaskDelay(5000);
+	}
+
 }
 
+#include "hlo_proto_tools.h"
+int Cmd_testhmac(int argc, char *argv[]) {
+	uint8_t hmac[SHA1_SIZE] = {0};
+	hlo_stream_t * hmac_fifo = hlo_hmac_stream(fifo_stream_open( 100 ), (uint8_t*)argv[1], strlen(argv[1] ));
 
+	hlo_stream_write( hmac_fifo, (uint8_t*)argv[2], strlen(argv[2] ));
+	get_hmac( hmac, hmac_fifo );
+
+	hlo_stream_close( hmac_fifo );
+	return 0;
+}
 
 #include "audio_types.h"
 
@@ -1995,6 +2060,8 @@ tCmdLineEntry g_sCmdTable[] = {
 #endif
 
 		{ "pb", Cmd_pbstr, ""},
+		{ "hmac", Cmd_testhmac, ""},
+
 
 		{ "r", Cmd_AudioCapture,""}, //record sounds into SD card
 		{ "s",Cmd_audio_record_stop,""},

@@ -8,4 +8,8 @@
 hlo_future_t * MorpheusCommand_from_buffer(void * buf, size_t size);
 hlo_future_t * buffer_from_MorpheusCommand(MorpheusCommand * src);
 
+#include "hlo_stream.h"
+hlo_stream_t * hlo_hmac_stream( hlo_stream_t * base, uint8_t * key, size_t key_len );
+void get_hmac( uint8_t * hmac, hlo_stream_t * stream );
+
 #endif

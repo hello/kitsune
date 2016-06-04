@@ -4,6 +4,11 @@
 char * get_server(void);
 char * get_messeji_server(void);
 
+char * get_ws_server(void);
+
+#define DEV_WS_SERVER "dev-ws.hello.is"
+#define PROD_WS_SERVER "ws.hello.is"
+
 #define DATA_SERVER	get_server()
 #define MESSEJI_SERVER	get_messeji_server()
 

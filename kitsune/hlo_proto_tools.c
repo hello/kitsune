@@ -89,3 +89,123 @@ hlo_future_t * buffer_from_MorpheusCommand(MorpheusCommand * src){
 	return hlo_future_create_task_bg(encode_MorpheusCommand, src, 1024);
 }
 
+
+//====================================================================
+//hmac stream impl
+//
+
+#include "crypto.h"
+typedef struct{
+	hlo_stream_t * base;
+	SHA1_CTX  ctx;
+	uint8_t * key;
+	size_t key_len;
+}hmac_stream_t;
+
+#define DBG_HMAC(...)
+
+static int _write_hmac(void * ctx, const void * buf, size_t size){
+	hmac_stream_t * stream = (hmac_stream_t*)ctx;
+	int rv = 0;
+	DBG_HMAC("hmac write\n");
+	rv = hlo_stream_write(stream->base, (uint8_t*)buf, size); // passthrough
+	DBG_HMAC("hmac wrote %d\n", rv);
+
+	if( rv > 0 ) SHA1_Update(&stream->ctx, buf, rv);
+
+	return rv;
+}
+static int _read_hmac(void * ctx, void * buf, size_t size){
+	hmac_stream_t * stream = (hmac_stream_t*)ctx;
+	int rv = 0;
+	DBG_HMAC("hmac read\n");
+	rv = hlo_stream_read(stream->base, buf, size); // passthrough
+	DBG_HMAC("hmac red %d\n", rv);
+
+	if( rv > 0 ) SHA1_Update(&stream->ctx, buf, rv);
+	return rv;
+}
+static int _close_hmac(void * ctx){
+	hmac_stream_t * stream = (hmac_stream_t*)ctx;
+	DBG_HMAC("hmac close\n");
+	//hlo_stream_close(stream->base); wrapper can be applied and removed from base stream without modifying it
+	vPortFree(stream->key);
+	vPortFree(stream);
+	return 0;
+}
+hlo_stream_t * hlo_hmac_stream( hlo_stream_t * base, uint8_t * key, size_t key_len ){
+	hlo_stream_vftbl_t functions = (hlo_stream_vftbl_t){
+		.write = _write_hmac,
+		.read = _read_hmac,
+		.close = _close_hmac,
+	};
+	if( !base ) return NULL;
+	DBG_HMAC("hmac open\n" );
+
+	int i;
+	hmac_stream_t * stream = pvPortMalloc(sizeof(*stream));
+	if( !stream ){
+		goto hmac_open_fail;
+	}
+	memset(stream, 0, sizeof(*stream) );
+	stream->base = base;
+	SHA1_Init(&stream->ctx);
+
+	stream->key = pvPortMalloc( key_len );
+	memcpy( stream->key, key, key_len );
+	stream->key_len = key_len;
+
+	{
+		uint8_t ipad[64] = {0};
+		memcpy( ipad, stream->key, stream->key_len);
+		for(i=0;i<sizeof(ipad);++i) {
+			ipad[i] ^= 0x36;
+
+			DBG_HMAC("%x:",ipad[i]);
+		}DBG_HMAC("\n");
+		SHA1_Update(&stream->ctx, ipad, sizeof(ipad));
+	}
+	DBG_HMAC("hmac ready\n" );
+
+	return hlo_stream_new(&functions, stream, HLO_STREAM_READ_WRITE);
+	hmac_open_fail:
+	return NULL;
+}
+void get_hmac( uint8_t * hmac, hlo_stream_t * stream ) {
+	hmac_stream_t * hmac_stream = (hmac_stream_t*)stream->ctx;
+	uint8_t digest[SHA1_SIZE];
+	SHA1_CTX  ctx = hmac_stream->ctx;
+	int i;
+	DBG_HMAC("hmac get\n" );
+
+	SHA1_Final(digest, &ctx); //hmac = hash(i_key_pad | message) where | is concatenation
+
+	for(i=0;i<SHA1_SIZE;++i) {
+		DBG_HMAC("%x:",digest[i]);
+	}DBG_HMAC("\n");
+
+
+	uint8_t opad[64] = {0};
+	memcpy( opad, hmac_stream->key, hmac_stream->key_len);
+	for(i=0;i< sizeof(opad);++i) {
+		opad[i] ^= 0x5c;
+	}
+
+	for(i=0;i< sizeof(opad);++i) {
+		DBG_HMAC("%x:",opad[i]);
+	}DBG_HMAC("\n");
+
+	SHA1_Init(&ctx);
+	SHA1_Update(&ctx, opad, sizeof(opad));
+	SHA1_Update(&ctx, digest, SHA1_SIZE);
+
+	SHA1_Final(hmac, &ctx); // hmac = hash(o_key_pad | hash(i_key_pad | message))
+
+	for(i=0;i<SHA1_SIZE;++i) {
+		DBG_HMAC("%x:",hmac[i]);
+	}DBG_HMAC("\n");
+
+}
+
+
+

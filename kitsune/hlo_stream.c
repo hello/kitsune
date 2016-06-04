@@ -1,9 +1,10 @@
 #include "hlo_stream.h"
 #include "kit_assert.h"
 #include <strings.h>
+#include <stdbool.h>
 #include "uart_logger.h"
 
-#define LOCK(stream) xSemaphoreTake(stream->info.lock, portMAX_DELAY)
+#define LOCK(stream) xSemaphoreTakeRecursive(stream->info.lock, portMAX_DELAY)
 #define UNLOCK(stream) xSemaphoreGive(stream->info.lock)
 
 #define VERIFY_STREAM(stream) if(!stream){return HLO_STREAM_NULL_OBJ;}
@@ -39,6 +40,8 @@ int hlo_stream_read(hlo_stream_t * stream, void * buf, size_t size){
 	int ret = stream->impl.read(stream->ctx, buf, size);
 	if(ret > 0){
 		stream->info.bytes_read += ret;
+	} else if( 0 == ret && stream->info.end ) {
+		ret = HLO_STREAM_EOF;
 	}
 	UNLOCK(stream);
 	return ret;
@@ -60,6 +63,15 @@ int hlo_stream_close(hlo_stream_t * stream){
 	}
 	return ret;
 }
+int hlo_stream_end(hlo_stream_t * stream){
+	int ret = 0;
+	VERIFY_STREAM(stream);
+
+	LOCK(stream);
+	stream->info.end = true;
+	UNLOCK(stream);
+	return ret;
+}
 void hlo_stream_init(hlo_stream_t * stream,
 		const hlo_stream_vftbl_t * impl,
 		void * ctx,
@@ -68,7 +80,7 @@ void hlo_stream_init(hlo_stream_t * stream,
 	stream->ctx = ctx;
 	stream->impl = *impl;
 	stream->info.options = options;
-	vSemaphoreCreateBinary(stream->info.lock);
+	stream->info.lock = xSemaphoreCreateRecursiveMutex();
 	assert(stream->info.lock);
 }
 hlo_stream_t * hlo_stream_new(const hlo_stream_vftbl_t * impl, void * ctx, uint32_t options){
