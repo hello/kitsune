@@ -197,6 +197,8 @@ int hlo_filter_octogram(hlo_stream_t * input, hlo_stream_t * output, void * ctx,
 }
 ////-------------------------------------------
 //octogram sample app
+extern uint8_t get_alpha_from_light();
+#include "led_animations.h"
 int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
 #define NSAMPLES 512
 	int sample_rate = 16000;
@@ -208,6 +210,11 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	int32_t window_eng;
 	int64_t eng = 0;
 	uint8_t window_over = 0;
+	{//play the trippy while we get voice
+		uint8_t trippy_base[3] = {200, 200, 200};
+		uint8_t trippy_range[3] = { 54, 54, 54 };
+		play_led_trippy(trippy_base, trippy_base, portMAX_DELAY, 30, 30 );
+	}
 	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, sizeof(samples), 4)) ){
 		int i;
 		for(i = 1; i < NSAMPLES; i++){
@@ -232,11 +239,18 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		hlo_stream_transfer_all(INTO_STREAM, output,  (uint8_t*)samples, ret, 4);
 		BREAK_ON_SIG(signal);
 	}
+	{//now play the swirling thing when we get response
+			play_led_wheel(get_alpha_from_light(),254,0,254,2,18,0);
+	}
 	if( ret >= 0){
 		DISP("\r\n===========\r\n");
 		ret = hlo_filter_data_transfer(output, uart_stream(), NULL, signal);
 		DISP("\r\n===========\r\n");
 	}
+	{//lastly, glow with voice output, since we can't do that in half duplex mode, simply queue it to the voice output
+
+	}
+	stop_led_animation( 0, 33 );
 	return ret;
 }
 ////-----------------------------------------
