@@ -31,6 +31,11 @@
 			<locationURI>PARENT-2-PROJECT_LOC/CC3200.ccxml</locationURI>
 		</link>
 		<link>
+			<name>ack_set_entry.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/ack_set_entry.h</locationURI>
+		</link>
+		<link>
 			<name>adpcm.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/adpcm.c</locationURI>
@@ -759,6 +764,16 @@
 			<name>debugutils/matmessageutils.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/debugutils/matmessageutils.h</locationURI>
+		</link>
+		<link>
+			<name>hashtable/ack_set.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hashtable/ack_set.c</locationURI>
+		</link>
+		<link>
+			<name>hashtable/ack_set.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hashtable/ack_set.h</locationURI>
 		</link>
 		<link>
 			<name>hashtable/bit_array.c</name>

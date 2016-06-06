@@ -2,6 +2,7 @@
 #define _SPARSE_TABLE_H
 
 #include "bit_array.h"
+#include "boolean.h"
 #include "serialization_macros.h"
 
 #ifdef __cplusplus

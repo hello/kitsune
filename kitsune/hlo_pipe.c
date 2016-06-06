@@ -2,6 +2,7 @@
 #include "task.h"
 #include "uart_logger.h"
 
+#define DBG_FRAMEPIPE(...)
 
 int hlo_stream_transfer_until(transfer_direction direction,
 							hlo_stream_t * stream,
@@ -21,7 +22,7 @@ int hlo_stream_transfer_until(transfer_direction direction,
 			idx += ret;
 		}
 		if(( flush && *flush )||(ret == HLO_STREAM_EOF)){
-			DISP("  END %d %d \n\n", idx, ret);
+			DBG_FRAMEPIPE("  END %d %d \n\n", idx, ret);
 			if( idx ){
 				return idx;
 			}else{
@@ -75,16 +76,13 @@ int hlo_stream_transfer_between(
 		uint8_t * buf,
 		uint32_t buf_size,
 		uint32_t transfer_delay){
-
 	int ret = hlo_stream_transfer_all(FROM_STREAM, src, buf,buf_size, transfer_delay);
 	if(ret < 0){
 		return ret;
 	}
 	return hlo_stream_transfer_all(INTO_STREAM, dst, buf,ret,transfer_delay);
-
 }
 
-#define DBG_FRAMEPIPE(...)
 
 #include "sl_sync_include_after_simplelink_header.h"
 #include "crypto.h"
@@ -93,14 +91,9 @@ int hlo_stream_transfer_between(
 
 int get_aes(uint8_t * dst);
 
-void prep_for_pb(int type);
-
 #define MAX_CHUNK_SIZE 512
 
-static int id_counter = 0;
-
-
-int frame_pipe_encode( pipe_ctx * pipe ) {
+int frame_pipe_encode( pipe_ctx * pipe) {
 	uint8_t buf[MAX_CHUNK_SIZE+1];
 	hlo_stream_t * obufstr = fifo_stream_open( MAX_CHUNK_SIZE+1 );
 
@@ -126,7 +119,7 @@ int frame_pipe_encode( pipe_ctx * pipe ) {
 	preamble_data.has_auth = true;
 	preamble_data.auth = Preamble_auth_type_HMAC_SHA1;
 	preamble_data.has_id = true;
-	preamble_data.id = ++id_counter;
+	preamble_data.id = pipe->id;
 	//encode it
 	ret = hlo_pb_encode(obufstr, Preamble_fields, &preamble_data);
 	if( ret != 0 ) {
@@ -223,11 +216,13 @@ int frame_pipe_decode( pipe_ctx * pipe ) {
 
 	//ack has no body or hmac
 	if( preamble_data.type == Preamble_pb_type_ACK ) {
+		hlo_pb_ack_rx( preamble_data.id );
 		DBG_FRAMEPIPE("\t  rx ack %d\n", preamble_data.id );
+		//todo remove pb with this id from set of pb needing tx
 		goto dec_again;
 	}
 	//notify the decoder what kind of pb is coming
-	prep_for_pb(preamble_data.type);
+	hlo_prep_for_pb(preamble_data.type);
 
 	//read out the pb payload size
 	ret = hlo_stream_transfer_all( FROM_STREAM, pipe->source, (uint8_t*)&size,sizeof(size), transfer_delay );
@@ -292,7 +287,7 @@ int frame_pipe_decode( pipe_ctx * pipe ) {
 		}
 		size -= ret;
 	}
-	{
+	{ //Ack that we got the message
 		hlo_stream_t * obufstr = fifo_stream_open( 64 );
 		DBG_FRAMEPIPE("\t  ack %d sending\n", preamble_data.id);
 

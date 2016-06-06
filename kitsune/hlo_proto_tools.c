@@ -96,7 +96,7 @@ hlo_future_t * buffer_from_MorpheusCommand(MorpheusCommand * src){
 #include "hlo_pipe.h"
 #include "sl_sync_include_after_simplelink_header.h"
 
-#define DBG_PBSTREAM DISP
+#define DBG_PBSTREAM(...)
 #define PB_FRAME_SIZE 1024
 
 typedef struct{
@@ -329,16 +329,17 @@ int Cmd_testhmac(int argc, char *argv[]) {
 #include "hlo_pipe.h"
 #include "hlo_http.h"
 
-typedef struct {
-	const pb_field_t * fields;
-	void * structdata;
-	Preamble_pb_type hlo_pb_type;
-} pb_msg;
-#define MAX_PB_QUEUED 10
-static xQueueHandle pb_oq;
+#include "ack_set_entry.h"
+#include "ack_set.h"
+#define DBG_ACK(...)
 
-static xSemaphoreHandle sock_stream_sem;
+#define MAX_PB_QUEUED 10
+
 static hlo_stream_t * sock_stream = NULL;
+static xSemaphoreHandle sock_stream_sem;
+static xSemaphoreHandle ack_set_sem;
+static xSemaphoreHandle new_outbound_msg_sem;
+static ack_set outbound_msgs;
 
 static void sock_checkup() {
 	xSemaphoreTake(sock_stream_sem, portMAX_DELAY);
@@ -356,10 +357,26 @@ static void sock_close() {
 
 static void thread_out(void* ctx) {
 	pipe_ctx p_ctx_enc;
-	pb_msg m;
+	pb_msg * m;
+	int num_acks_pending;
 
-	while(xQueueReceive(pb_oq, &m, portMAX_DELAY)) {
+	//todo while set is empty wait
+	//todo while set is not empty iterate over it, calling the below funcs on each pb messenge
+	while(1) {
 		sock_checkup();
+
+		//loop over all the messages in the outbound set
+	    xSemaphoreTake(ack_set_sem, portMAX_DELAY);
+		m = ack_set_yield(&outbound_msgs);
+		num_acks_pending = outbound_msgs.size;
+		xSemaphoreGive(ack_set_sem);
+
+		//wait if empty
+		if( m == NULL ) {
+			xSemaphoreTake(new_outbound_msg_sem, 10000);
+			continue;
+		}
+		DBG_ACK("yielded\t%d\n", m->id);
 
 		if( sock_stream ) {
 			hlo_stream_t * fifo_stream_out = fifo_stream_open( 64 );
@@ -370,11 +387,12 @@ static void thread_out(void* ctx) {
 			p_ctx_enc.flush = false;
 			p_ctx_enc.join_sem = xSemaphoreCreateBinary();
 			p_ctx_enc.state = 0;
-			p_ctx_enc.hlo_pb_type = m.hlo_pb_type;
+			p_ctx_enc.hlo_pb_type = m->hlo_pb_type;
+			p_ctx_enc.id = m->id;
 
 			//bg pipe for sending out the data
 			xTaskCreate(thread_frame_pipe_encode, "penc", 2*1024 / 4, &p_ctx_enc, 4, NULL);
-			hlo_pb_encode( fifo_stream_out, m.fields, m.structdata );
+			hlo_pb_encode( fifo_stream_out, m->fields, m->structdata );
 			p_ctx_enc.flush = true; // this is safe, all the data has been piped
 			xSemaphoreTake( p_ctx_enc.join_sem, portMAX_DELAY );
 			p_ctx_enc.flush = false;
@@ -384,9 +402,11 @@ static void thread_out(void* ctx) {
 				sock_close();
 			}
 		}
+		//if we don't wait a bit between messages until we get an ack we flood the network with packets...
+		//but if something new comes in we want to try and send it...
+		//but if the server is struggling we want to back off...
+		xSemaphoreTake(new_outbound_msg_sem, num_acks_pending*num_acks_pending*1000 + 1000);
 	}
-
-	vTaskDelete(NULL);
 }
 
 static void on_periodic_data( void * structdata ) {
@@ -412,7 +432,7 @@ pb_subscriber subscriptions[NUM_TYPES] = {
 		{ periodic_data_fields, on_periodic_data },
 };
 
-void prep_for_pb(int type) {
+void hlo_prep_for_pb(int type) {
 	xSemaphoreTake(pb_rx_complt_sem, portMAX_DELAY);
 	incoming_pb_type = type;
 	xSemaphoreGive(pb_sub_sem);
@@ -456,20 +476,41 @@ static void thread_in(void* ctx) {
 		}
 	}
 }
-int output_pb_wto( Preamble_pb_type hlo_pb_type, const pb_field_t * fields, void * structdata, TickType_t to ) {
-	pb_msg m = { fields, structdata, hlo_pb_type };
-	return xQueueSend(pb_oq, &m, to);
+void hlo_pb_ack_rx( uint64_t acked_id ) {
+	DBG_ACK("got ack\t%d\n", acked_id);
+    xSemaphoreTake(ack_set_sem, portMAX_DELAY);
+	ack_set_remove(&outbound_msgs, acked_id);
+	xSemaphoreGive(ack_set_sem);
 }
-int output_pb( Preamble_pb_type hlo_pb_type, const pb_field_t * fields, void * structdata ) {
-	return output_pb_wto( hlo_pb_type, fields, structdata, portMAX_DELAY);
+bool hlo_output_pb_wto( Preamble_pb_type hlo_pb_type, const pb_field_t * fields, void * structdata, TickType_t to ) {
+	static uint64_t id = 0;
+
+	//add the new pb msg to outbound set
+	if( xSemaphoreTake(ack_set_sem, to) ) {
+		pb_msg m = { fields, structdata, hlo_pb_type, ++id };
+		DBG_ACK("sending\t%d\n", id);
+		ack_set_update(&outbound_msgs, m, id);
+		xSemaphoreGive(ack_set_sem);
+
+		//signal tx thread it has work to do
+		xSemaphoreGive(new_outbound_msg_sem);
+		return true;
+	}
+	return false;
+}
+bool hlo_output_pb( Preamble_pb_type hlo_pb_type, const pb_field_t * fields, void * structdata ) {
+	return hlo_output_pb_wto( hlo_pb_type, fields, structdata, portMAX_DELAY);
 }
 
 int Cmd_pbstr(int argc, char *argv[]) {
-	pb_oq = xQueueCreate(MAX_PB_QUEUED, sizeof(pb_msg));
 	sock_stream_sem = xSemaphoreCreateMutex();
 	pb_sub_sem = xSemaphoreCreateBinary();
 	pb_rx_complt_sem = xSemaphoreCreateBinary();
 	xSemaphoreGive(pb_rx_complt_sem);
+
+	ack_set_init(&outbound_msgs, MAX_PB_QUEUED);
+	ack_set_sem = xSemaphoreCreateMutex();
+	new_outbound_msg_sem = xSemaphoreCreateBinary();
 
 	xTaskCreate(thread_out, "out", 2*1024 / 4, NULL, 4, NULL);
 	xTaskCreate(thread_in, "in", 2*1024 / 4, NULL, 4, NULL);
@@ -480,7 +521,7 @@ int Cmd_pbstr(int argc, char *argv[]) {
 	data.light = 10;
 	while(1) {
 		LOGF("sending %d\n", data.light );
-		output_pb( Preamble_pb_type_BATCHED_PERIODIC_DATA, periodic_data_fields, &data);
+		hlo_output_pb( Preamble_pb_type_BATCHED_PERIODIC_DATA, periodic_data_fields, &data);
 		vTaskDelay(5000);
 	}
 

@@ -64,6 +64,7 @@ typedef struct {
 	bool flush;
 	int state;
 	void * ctx;
+	uint64_t id;
 	xSemaphoreHandle join_sem;
 	Preamble_pb_type hlo_pb_type;
 } pipe_ctx;
