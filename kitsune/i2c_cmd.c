@@ -39,7 +39,7 @@
 
 #define DELAY_CODEC 				5 // TODO set arbitrarily, might need to be adjusted
 #define CODEC_USE_MINIDSP 			1 // Set to 1 if using miniDSP, else 0
-#define CODEC_ADC_16KHZ    			1 // Set to 1 if ADC sampling rate is 16k Hz. If not, ADC Fs = DAC Fs = 48k Hz
+
 
 // Left mic data is latched on rising by default, to latch it on rising edge instead
 // set this to be 1

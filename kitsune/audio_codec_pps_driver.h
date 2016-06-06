@@ -6,6 +6,7 @@ typedef struct{
     uint8_t reg_val;
 }reg_value;
 
+#if (CODEC_ADC_16KHZ==1)
 #define PLL_P 1
 #define PLL_R 1
 #define PLL_J 6
@@ -16,7 +17,24 @@ typedef struct{
 #define MADC 27
 #define DOSR 64UL
 #define AOSR 64UL
+#else
+#define PLL_P 1
+#define PLL_R 1
+#define PLL_J 6
+#define PLL_D 9120UL
+#define NDAC 3
+#define MDAC 9
+#define NADC 3
+#define MADC 9
+#define DOSR 64UL
+#define AOSR 64UL
+#endif
 
+#if (DOSR != AOSR)
+#error "Audio Codec OSR error!"
+#endif
+
+#define IADC ((MDAC)*(DOSR))
 #define MIC_VOLUME_CONTROL 0x28
 
 static const reg_value REG_Section_program[] = {
@@ -31,27 +49,27 @@ static const reg_value REG_Section_program[] = {
 //			# reg[0][0][5] = 0x00                        ; PLL_CLKIN = MCLK1
     {  5,0x00},
 //			# reg[0][0][6] = 0x91                        ; P=1, R=1
-    {  6,0x91},
+    {  6,(1 << 7) | (PLL_P << 4) | (PLL_R << 0)},
 //			# reg[0][0][7]  = 0x18             ; P=1, R=1, J=24
-    {  7,0x18},
+    {  7,PLL_J},
 //			# reg[0][0][13] = 0x01             ; DOSR = 384 (MSB)
-    { 13,0x01},
+    { 13, (DOSR & 0x0300) >> 8},
 //			# reg[0][0][14] = 0x80             ; DOSR = 384 (LSB)
-    { 14,0x80},
+    { 14, (DOSR & 0x00FF) >> 0},
 //			# reg[0][0][18] = 0x02             ; NADC Powerdown NADC = 2
-    { 18,0x02},
+    { 18,(NADC << 0)},
 //			# reg[0][0][19] = 0x90             ; MADC Powerup MADC = 16
-    { 19,0x90},
+    { 19,(1 << 7) | (MADC << 0)},
 //			# reg[0][0][20] = 0xc0             ; AOSR = 192
-    { 20,0xC0},
+    { 20,AOSR},
 //			# reg[0][0][11] = 0x82             ; P=1, R=1, J=8; DOSR = 128 (MSB); DOSR = 128 (LSB); NADC Powerdown NADC = 2; NADC Powerup MADC = 8; AOSR = 128; P=1, R=1, J=8; DOSR = 192 (MSB); DOSR = 192 (LSB); NADC Powerdown NADC = 2; NADC Powerup MADC = 12; AOSR = 128; P=1, R=1, J=8; DOSR = 256 (MSB); DOSR = 256 (LSB); NADC Powerdown NADC = 2; NADC Powerup MADC = 16; AOSR = 128; P=1, R=1, J=24; DOSR = 384 (MSB); DOSR = 384 (LSB); NADC Powerdown NADC = 2; NADC Powerup MADC = 24; AOSR = 128; P=1, R=1, J=16; DOSR = 512 (MSB); DOSR = 512 (LSB); NADC Powerdown NADC = 2; NADC Powerup MADC = 32; AOSR = 128; P=1, R=1, J=24; DOSR = 768 (MSB); DOSR = 768 (LSB); NADC Powerdown NADC = 2; NADC Powerup MADC = 48; AOSR = 128; NDAC = 2, divider powered off; NDAC = 2, divider powered on
-    { 11,0x82},
+    { 11,(1 << 7) | (NDAC << 0)},
 //			# reg[0][0][8] = 0x00                        ; D=0000 (MSB)
-    {  8,0x00},
+    {  8,(PLL_D & 0xFF00) >> 8},
 //			# reg[0][0][9] = 0x00                        ; D=0000 (LSB)
-    {  9,0x00},
+    {  9,(PLL_D & 0xFF) >> 0},
 //			# reg[0][0][12] = 0x88                       ; reg(0)(0)(0x0c => 12)     DAC Powerup MDAC = 8
-    { 12,0x88},
+    { 12,(1 << 7) | (MDAC << 0)},
     {  0x7F,0x78},
 //			# reg[120][0][50] = 0x88                     ; Interpolation Ratio is 8, FIFO = Enabled
     { 50,0x88},
@@ -123,15 +141,15 @@ static const reg_value REG_Section_program[] = {
     {  0x7F,0x64},
 //			# reg[100][0][48] = 12;IDAC  = 256    ; MDAC*DOSR;IADC  = 256    ; MADC*AOSR;IDAC  = 512    ; MDAC*DOSR;IADC  = 512    ; MADC*AOSR;IDAC  = 1024    ; MDAC*DOSR;IADC  = 1024    ; MADC*AOSR;IDAC  = 1536    ; MDAC*DOSR;IADC  = 1536   ; MADC*AOSR;IDAC  = 2048    ; MDAC*DOSR;IADC  = 2048   ; MADC*AOSR;IDAC  = 3072    ; MDAC*DOSR;IADC  = 3072   ; MADC*AOSR;IDAC  = 4096    ; MDAC*DOSR;IADC  = 4096   ; MADC*AOSR;IDAC  = 6144    ; MDAC*DOSR;IADC  = 6144   ; MADC*AOSR
 	{47,1<<0},
-	{ 48,0x0C},
+	{ 48,(IADC & 0xFF00) >> 8},
 //			# reg[100][0][49] = 0
-    { 49,0x00},
+    { 49,(IADC & 0xFF) >> 0 },
     {  0x7F,0x78},
 	{47,1<<0},
 //			# reg[120][0][48] = 12
-    { 48,0x0C},
+    { 48,(IADC & 0xFF00) >> 8 },
 //			# reg[120][0][49] = 0
-    { 49,0x00},
+    { 49, (IADC & 0xFF) >> 0 },
     {  0x7F,0x00},
 //			# reg[0][0][63] = 0xc2                       ; reg(0)(0)(0x3f => 63)     DAC L&R DAC powerup Ldata-LDAC Rdata-RDAC (soft-stepping disable)
     { 63,0xC2},
@@ -3083,7 +3101,7 @@ static const reg_value miniDSP_D_reg_values[] = {
     {  9,0x00},
     { 10,0x00},
     { 11,0x00},
-    { 12,0x09},
+    { 12,0x00},
     { 13,0x00},
     { 14,0x00},
     { 15,0x00},
@@ -3780,7 +3798,7 @@ static const reg_value miniDSP_D_reg_values[] = {
     {101,0x00},
     {102,0x40},
     {103,0x3D},
-    {104,0x00},
+    {104,0x09},
     {105,0x00},
     {106,0x00},
     {107,0x00},
@@ -3792,16 +3810,20 @@ static const reg_value miniDSP_D_reg_values[] = {
     {113,0x00},
     {114,0x00},
     {115,0x00},
-    {116,0x02},
+    {116,0x00},
     {117,0x00},
     {118,0x00},
     {119,0x00},
-    {120,0x00},
+    {120,0x02},
     {121,0x00},
     {122,0x00},
     {123,0x00},
+    {124,0x00},
+    {125,0x00},
+    {126,0x00},
+    {127,0x00},
 };
 #define miniDSP_D_reg_values_COEFF_START   0
 #define miniDSP_D_reg_values_COEFF_SIZE    329
 #define miniDSP_D_reg_values_INST_START    329
-#define miniDSP_D_reg_values_INST_SIZE     724
+#define miniDSP_D_reg_values_INST_SIZE     728
