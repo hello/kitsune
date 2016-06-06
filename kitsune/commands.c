@@ -769,13 +769,23 @@ static void _show_led_status()
 		play_led_wheel(alpha, LED_MAX,LED_MAX,LED_MAX,2,18,3);
 	}
 }
-
+#include "hlo_http.h"
 static void _on_wave(){
 	if(	cancel_alarm() ) {
 		stop_led_animation( 0, 33 );
 	} else {
 		_show_led_status();
 	}
+	AudioTask_StopCapture();
+	hlo_stream_t * out = hlo_http_post("dev-speech.hello.is/upload/google", 0, NULL);
+	AudioCaptureDesc_t desc = {
+			.ctx = 6,
+			.opt_out = out,
+			.p = hlo_filter_data_transfer_limited,
+			.rate = 16000,
+	};
+	play_led_wheel(get_alpha_from_light(), 139,69,19,2,18,3);
+	AudioTask_QueueCaptureProcess(&desc);
 }
 
 static void _on_hold(){
@@ -1731,7 +1741,7 @@ void launch_tasks() {
 	booted = true;
 
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 3, NULL);
-	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,2,NULL);
+	//xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,2,NULL);
 	UARTprintf("*");
 #ifdef KIT_INCLUDE_FILE_UPLOAD
 	xTaskCreate(FileUploaderTask_Thread,"fileUploadTask", 1024/4,NULL,1,NULL);
@@ -1749,8 +1759,8 @@ void launch_tasks() {
 	UARTprintf("*");
 	xTaskCreate(thread_tx, "txTask", 1024 / 4, NULL, 1, NULL);
 	UARTprintf("*");
-	long_poll_task_init( 2560 / 4 );
-	downloadmanagertask_init(3072 / 4);
+	//long_poll_task_init( 2560 / 4 );
+	//downloadmanagertask_init(3072 / 4);
 #endif
 }
 
