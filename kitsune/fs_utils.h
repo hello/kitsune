@@ -5,5 +5,5 @@ int fs_get( char * file, void * data, int max_rd, int * len );
 int fs_save( char* file, void* data, int len);
 
 #include "hlo_stream.h"
-hlo_stream_t * open_serial_flash(const uint8_t * filepath, uint32_t options);
+hlo_stream_t * open_serial_flash( char * filepath, uint32_t options);
 #endif
