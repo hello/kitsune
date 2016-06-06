@@ -253,29 +253,26 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	stop_led_animation( 0, 33 );
 	return ret;
 }
-#define MODULATE_MAVG_SIZE 20
+#include "hellomath.h"
 int hlo_filter_modulate_led_with_sound(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
 	int ret;
-	int16_t samples[NSAMPLES];
+	int16_t samples[NSAMPLES] = {0};
 	play_modulation(253,253,253,30,0);
 	int32_t eng = 0;
-	int8_t mavg[MODULATE_MAVG_SIZE] = {0};
-	int8_t idx;
-	int sum;
-	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, sizeof(samples), 4)) ){
+	int32_t reduced;
+	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, sizeof(samples), 4)) > 0 ){
 		int i;
-		for(i = 1; i < NSAMPLES; i++){
-			eng += abs(samples[i] - samples[i-1]);
+		for(i = 0; i < NSAMPLES; i++){
+			eng += abs(samples[i]);
 		}
 		eng = eng/NSAMPLES;
-		mavg[ ((idx++) % MODULATE_MAVG_SIZE)] = eng;
-		eng = 0;
 
-		sum = 0;
-		for(i = 0; i < MODULATE_MAVG_SIZE; i++){
-			sum += mavg[i];
+		reduced =  (int32_t)(0.15 * (fxd_sqrt(eng) + 0.005 * eng)) + (0.85 * reduced);
+
+		if(reduced > 253){
+			reduced = 253;
 		}
-		set_modulation_intensity( sum / MODULATE_MAVG_SIZE );
+		set_modulation_intensity( reduced );
 
 		hlo_stream_transfer_all(INTO_STREAM, output,  (uint8_t*)samples, ret, 4);
 		BREAK_ON_SIG(signal);
