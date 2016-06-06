@@ -89,7 +89,6 @@ hlo_future_t * buffer_from_MorpheusCommand(MorpheusCommand * src){
 	return hlo_future_create_task_bg(encode_MorpheusCommand, src, 1024);
 }
 
-
 //====================================================================
 //pb stream impl
 #include "hlo_stream.h"
@@ -526,5 +525,3 @@ int Cmd_pbstr(int argc, char *argv[]) {
 	}
 
 }
-
-

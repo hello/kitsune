@@ -767,7 +767,7 @@ int Cmd_mode(int argc, char*argv[]) {
     return 0;
 }
 #include "crypto.h"
-static uint8_t aes_key[AES_BLOCKSIZE + 1] = DEFAULT_KEY;
+uint8_t aes_key[AES_BLOCKSIZE + 1] = DEFAULT_KEY;
 static uint8_t device_id[DEVICE_ID_SZ + 1];
 
 int save_aes( uint8_t * key ) {
@@ -1562,8 +1562,9 @@ int send_data_pb( char* host, const char* path, char ** recv_buf_ptr,
             "X-Hello-Sense-Id: %s\r\n"
     		"X-Hello-Sense-MFW: %x\r\n"
     		"X-Hello-Sense-TFW: %s\r\n"
+    		"X-Hello-Sense-HW: %d\r\n"
             "Transfer-Encoding: chunked\r\n",
-            path, host, hex_device_id, KIT_VER, get_top_version());
+            path, host, hex_device_id, KIT_VER, get_top_version(), get_hw_ver());
 
     send_length = strlen(recv_buf);
 

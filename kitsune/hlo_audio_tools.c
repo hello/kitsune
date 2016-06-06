@@ -71,6 +71,10 @@ int hlo_filter_feature_extractor(hlo_stream_t * input, hlo_stream_t * output, vo
 	return ret;
 }
 void AudioTask_DumpOncePerMinuteStats(AudioOncePerMinuteData_t * pdata) {
+	if(!_statsMutex){
+		_statsMutex = xSemaphoreCreateMutex();
+		assert(_statsMutex);
+	}
 	xSemaphoreTake(_statsMutex,portMAX_DELAY);
 	memcpy(pdata,&_stats,sizeof(AudioOncePerMinuteData_t));
 	pdata->peak_background_energy/=pdata->num_samples;
@@ -227,6 +231,11 @@ int hlo_filter_speech_detection(hlo_stream_t * input, hlo_stream_t * output, voi
 		}
 		hlo_stream_transfer_all(INTO_STREAM, output,  (uint8_t*)samples, ret, 4);
 		BREAK_ON_SIG(signal);
+	}
+	if( ret >= 0){
+		DISP("\r\n===========\r\n");
+		ret = hlo_filter_data_transfer(output, uart_stream(), NULL, signal);
+		DISP("\r\n===========\r\n");
 	}
 	return ret;
 }

@@ -694,7 +694,7 @@ static void thread_dust(void * unused) {
 }
 
 
-static int light_m2,light_mean, light_cnt,light_log_sum,light_sf,light;
+static int light_m2,light_mean, light_cnt,light_log_sum,light_sf,light, rgb[3];
 static xSemaphoreHandle light_smphr;
 xSemaphoreHandle i2c_smphr;
 
@@ -807,12 +807,13 @@ int Cmd_gesture(int argc, char * argv[]) {
 void thread_fast_i2c_poll(void * unused)  {
 	unsigned int filter_buf[3];
 	unsigned int filter_idx=0;
+	int w,r,g,b,p;
 
 	gesture_init();
 	ProxSignal_Init();
 	ProxGesture_t gesture;
 
-	uint32_t delay = 50;
+	uint32_t delay = 100;
 
 	while (1) {
 		portTickType now = xTaskGetTickCount();
@@ -821,9 +822,12 @@ void thread_fast_i2c_poll(void * unused)  {
 		if (xSemaphoreTakeRecursive(i2c_smphr, 300000)) {
 			vTaskDelay(1);
 
-			prox = median_filter(get_prox(), filter_buf, &filter_idx);
+			if( 0 != get_rgb_prox( &w,&r,&g,&b,&p ) ) {
+				goto fail_fast_i2c;
+			}
+			LOGP("%d,%d,%d,%d,%d\n", w,r,g,b,p );
 
-			LOGP( "%d\n", prox );
+			prox = median_filter(p, filter_buf, &filter_idx);
 
 			gesture = ProxSignal_UpdateChangeSignals(prox);
 
@@ -846,7 +850,10 @@ void thread_fast_i2c_poll(void * unused)  {
 			}
 
 			if (xSemaphoreTake(light_smphr, portMAX_DELAY)) {
-				light = get_light();
+				light = w;
+				rgb[0] = r;
+				rgb[1] = g;
+				rgb[2] = b;
 				light_log_sum += bitlog(light);
 				++light_cnt;
 
@@ -869,17 +876,18 @@ void thread_fast_i2c_poll(void * unused)  {
 			vTaskDelay(1);
 			xSemaphoreGiveRecursive(i2c_smphr);
 		} else {
+			fail_fast_i2c:
 			LOGW("failed to get i2c %d\n", __LINE__);
 		}
 		vTaskDelayUntil(&now, delay);
 	}
 }
 
-#define MAX_PERIODIC_DATA 30
-#define MAX_PILL_DATA 20
-#define MAX_BATCH_PILL_DATA 10
+#define MAX_PERIODIC_DATA 1
+#define MAX_PILL_DATA 1
+#define MAX_BATCH_PILL_DATA 1
 #define PILL_BATCH_WATERMARK 0
-#define MAX_BATCH_SIZE 15
+#define MAX_BATCH_SIZE 1
 #define ONE_HOUR_IN_MS ( 3600 * 1000 )
 
 xQueueHandle data_queue = 0;
@@ -1141,52 +1149,45 @@ void sample_sensor_data(periodic_data* data)
 
 			light_m2 = light_mean = light_cnt = light_log_sum = light_sf = 0;
 		}
+		data->has_rgb = true;
+		data->rgb.r = rgb[0];
+		data->rgb.g = rgb[1];
+		data->rgb.b = rgb[2];
 		
 		xSemaphoreGive(light_smphr);
 	}
 
+	{
+		int ir;
+		if( 0 == get_ir( &ir ) ) {
+			LOGI("ir %d\n", ir);
+			data->infrared = true;
+			data->infrared = ir;
+		}
+	}
+	{
 	// get temperature and humidity
-	uint8_t measure_time = 10;
-	int64_t humid_sum = 0;
-	int64_t temp_sum = 0;
+	uint32_t humid,press;
+	int32_t temp;
 
-	uint8_t humid_count = 0;
-	uint8_t temp_count = 0;
-
-	while(--measure_time) {
-		int humid,temp;
-
-		get_temp_humid(&temp, &humid);
-
-		if(humid != -1)
-		{
-			humid_sum += humid;
-			humid_count++;
-		}
-		if(temp != -1)
-		{
-			temp_sum += temp;
-			temp_count++;
-		}
-	}
-
-
-
-	if(humid_count == 0)
-	{
-		data->has_humidity = false;
-	}else{
-		data->has_humidity = true;
-		data->humidity = humid_sum / humid_count;
-	}
-
-
-	if(temp_count == 0)
-	{
-		data->has_temperature = false;
-	}else{
+	if( 0 == get_temp_press_hum(&temp, &press, &humid) ) {
+		data->humidity = humid;
+		data->temperature = temp;
+		data->pressure = press;
+		data->has_pressure = true;
 		data->has_temperature = true;
-		data->temperature = temp_sum / temp_count;
+		data->has_humidity = true;
+		{
+			int tvoc, eco2, current, voltage;
+			if( 0 == get_tvoc( &tvoc, &eco2, &current, &voltage, temp, humid )) {
+				LOGI("\nTVOC %d,%d,%d,%d,%d,%d,%d\n", data->unix_time, tvoc, eco2, current, voltage, temp, humid );
+				data->has_tvoc = true;
+				data->tvoc = tvoc;
+				data->has_co2 = true;
+				data->co2 = eco2;
+			}
+		}
+		}
 	}
 
 	int wave_count = gesture_get_wave_count();
@@ -1871,10 +1872,10 @@ tCmdLineEntry g_sCmdTable[] = {
 #endif
 
     {"inttemp", Cmd_inttemp, "" },
-		{ "humid", Cmd_readhumid, "" },
-		{ "temp", Cmd_readtemp,	"" },
+	{ "thp", Cmd_read_temp_hum_press,	"" },
+	{ "tv", Cmd_meas_TVOC,	"" },
+
 		{ "light", Cmd_readlight, "" },
-		{"prox", Cmd_readproximity, "" },
 
 #if ( configUSE_TRACE_FACILITY == 1 )
 		{ "tasks", Cmd_tasks, "" },
@@ -2073,10 +2074,9 @@ void vUARTTask(void *pvParameters) {
 	init_time_module(2560);
 
 	// Init sensors
-	init_humid_sensor();
+	init_tvoc();
 	init_temp_sensor();
 	init_light_sensor();
-	init_prox_sensor();
 
 	init_led_animation();
 

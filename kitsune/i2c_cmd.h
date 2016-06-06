@@ -8,8 +8,9 @@ int Cmd_i2c_write(int argc, char *argv[]);
 int Cmd_i2c_readreg(int argc, char *argv[]);
 int Cmd_i2c_writereg(int argc, char *argv[]);
 
-int Cmd_readtemp(int argc, char *argv[]);
-int Cmd_readhumid(int argc, char *argv[]);
+int Cmd_read_temp_hum_press(int argc, char *argv[]);
+int Cmd_meas_TVOC(int argc, char *argv[]);
+
 int Cmd_readlight(int argc, char *argv[]);
 int Cmd_readproximity(int argc, char *argv[]);
 //int get_codec_NAU();
@@ -20,14 +21,14 @@ int get_codec_mic_NAU();
 bool set_volume(int v, unsigned int dly);
 int get_codec_io_NAU(void);
 
-void get_temp_humid(int *temp, int *humid);
-int get_light();
-uint32_t get_prox();
+int get_temp_press_hum(int32_t * temp, uint32_t * press, uint32_t * hum);
 
+int get_ir( int * ir );
+int get_rgb_prox( int * w, int * r, int * g, int * bl, int * p );
+int get_tvoc(int * tvoc, int * eco2, int * current, int * voltage, int temp, unsigned int humid );
 
-int init_humid_sensor();
 int init_temp_sensor();
 int init_light_sensor();
-int init_prox_sensor();
+int init_tvoc();
 
 #endif
