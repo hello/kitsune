@@ -197,7 +197,7 @@ int hlo_filter_octogram(hlo_stream_t * input, hlo_stream_t * output, void * ctx,
 }
 ////-------------------------------------------
 //octogram sample app
-int hlo_filter_speech_detection(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
+int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
 #define NSAMPLES 512
 	int sample_rate = 16000;
 	int ret;
@@ -271,7 +271,7 @@ static hlo_filter _filter_from_string(const char * str){
 	case '?':
 		return hlo_filter_throughput_test;
 	case 'x':
-		return hlo_filter_speech_detection;
+		return hlo_filter_voice_command;
 	default:
 		return hlo_filter_data_transfer;
 	}
