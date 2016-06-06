@@ -56,7 +56,6 @@ void CS_set(int val) {
 	case PVT:
 		MAP_GPIOPinWrite(GPIOA2_BASE,0x40,val?0x40:0);
 		break;
-	case EVT2: MAP_GPIOPinWrite(GPIOA1_BASE,0x20,val?0x20:0); break;
 	}
 }
 

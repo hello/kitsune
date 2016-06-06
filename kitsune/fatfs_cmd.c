@@ -424,6 +424,7 @@ int global_filename(char * local_fn)
 //*****************************************************************************
 #include "hlo_pipe.h"
 #include "hlo_audio.h"
+#include "fs_utils.h"
 #include "hlo_http.h"
 #define BUF_SIZE 64
 hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
@@ -446,6 +447,8 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 			case 'i':
 			case 'I':
 				return hlo_http_get(&str[2]);
+			case '~':
+				return open_serial_flash(&str[2], HLO_STREAM_READ);
 			default:
 				break;
 			}
@@ -475,10 +478,12 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 			}
 			case 'i':
 			case 'I':
-				return hlo_http_post(&str[2], 0, NULL);
+				return hlo_http_post(&str[2], NULL);
 			case 'o':
 			case 'O':
 				return uart_stream();
+			case '~':
+				return open_serial_flash(&str[2], HLO_STREAM_WRITE);
 			default:
 				return random_stream_open();
 
