@@ -20,9 +20,11 @@ int play_led_progress_bar(int r, int g, int b, unsigned int options, unsigned in
 int play_led_animation_solid(int a, int r, int g, int b, int repeat, int delay, int priority);
 int factory_led_test_pattern(unsigned int timeout);
 int play_led_wheel(int a, int r, int g, int b, int repeat, int delay, int priority);
+int play_modulation(int r, int g, int b, int delay, int priority);
 
 
 void set_led_progress_bar(uint8_t percent);
+void set_modulation_intensity(uint8_t intensity);
 /*
  * this macro invokes one of the play_led_* animation
  * and blocks until either a higher animation overwrites it, or the animation ends by itself.

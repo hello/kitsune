@@ -213,7 +213,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	{//play the trippy while we get voice
 		uint8_t trippy_base[3] = {200, 200, 200};
 		uint8_t trippy_range[3] = { 54, 54, 54 };
-		play_led_trippy(trippy_base, trippy_base, portMAX_DELAY, 30, 30 );
+		play_led_trippy(trippy_base, trippy_range, portMAX_DELAY, 30, 30 );
 	}
 	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, sizeof(samples), 4)) ){
 		int i;
@@ -253,6 +253,36 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	stop_led_animation( 0, 33 );
 	return ret;
 }
+#define MODULATE_MAVG_SIZE 20
+int hlo_filter_modulate_led_with_sound(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
+	int ret;
+	int16_t samples[NSAMPLES];
+	play_modulation(253,253,253,30,0);
+	int32_t eng = 0;
+	int8_t mavg[MODULATE_MAVG_SIZE] = {0};
+	int8_t idx;
+	int sum;
+	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, sizeof(samples), 4)) ){
+		int i;
+		for(i = 1; i < NSAMPLES; i++){
+			eng += abs(samples[i] - samples[i-1]);
+		}
+		eng = eng/NSAMPLES;
+		mavg[ ((idx++) % MODULATE_MAVG_SIZE)] = eng;
+		eng = 0;
+
+		sum = 0;
+		for(i = 0; i < MODULATE_MAVG_SIZE; i++){
+			sum += mavg[i];
+		}
+		set_modulation_intensity( sum / MODULATE_MAVG_SIZE );
+
+		hlo_stream_transfer_all(INTO_STREAM, output,  (uint8_t*)samples, ret, 4);
+		BREAK_ON_SIG(signal);
+	}
+	stop_led_animation( 0, 33 );
+	return ret;
+}
 ////-----------------------------------------
 //commands
 static uint8_t _can_has_sig_stop(void){
@@ -286,6 +316,8 @@ static hlo_filter _filter_from_string(const char * str){
 		return hlo_filter_throughput_test;
 	case 'x':
 		return hlo_filter_voice_command;
+	case 'X':
+		return hlo_filter_modulate_led_with_sound;
 	default:
 		return hlo_filter_data_transfer;
 	}
