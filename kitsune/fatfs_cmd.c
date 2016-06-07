@@ -961,6 +961,8 @@ void update_file_download_status(bool is_pending);
 uint32_t update_sha_file(char* path, char* original_filename, update_sha_t option, uint8_t* sha, bool ovwr);
 xQueueHandle download_queue = 0;
 
+hlo_stream_t * hlo_http_get_opt(hlo_stream_t * sock, const char * host, const char * endpoint);
+
 void file_download_task( void * params ) {
     SyncResponse_FileDownload download_info;
     unsigned char top_sha_cache[SHA1_SIZE];
@@ -1002,12 +1004,19 @@ void file_download_task( void * params ) {
             LOGI( "ota - copy_to_serial_flash: %s\n",download_info.copy_to_serial_flash);
         }
 
+
         if (filename && url && host && path) {
             if(global_filename( filename ))
             {
                 goto end_download_task;
             }
             hello_fs_unlink(path_buff);
+
+			char buf[512];
+
+			hlo_stream_t * sf_str, *http_str, *sock_str;
+			sock_str = hlo_sock_stream(host, false);
+			http_str = hlo_http_get_opt( sock_str, host, url );
 
             if (download_info.has_copy_to_serial_flash
                     && download_info.copy_to_serial_flash && serial_flash_name
@@ -1020,22 +1029,17 @@ void file_download_task( void * params ) {
                     LOGI("MCU image name converted to %s \n", serial_flash_name);
                 }
 
-                int retries = 0;
-                int dl_ret = -1;
-                while(dl_ret != 0) {
-                	//todo replace with stream impl
-//                    dl_ret = download_file(host, url, serial_flash_name, serial_flash_path, SERIAL_FLASH);
-                    if( dl_ret == HLO_HTTP_ERR ) {
-                        goto next_one;
-                    }
-                    if( ++retries > HTTP_RETRIES ) {
-                        goto end_download_task;
-                    }
-                }
+				strncpy( buf, serial_flash_path, 64 );
+				strncat(buf, serial_flash_name, 64 );
 
-                char buf[64];
-                strncpy( buf, serial_flash_path, 64 );
-                strncat(buf, serial_flash_name, 64 );
+				sf_str = open_serial_flash(buf, HLO_STREAM_WRITE);
+
+				while(1){
+					if(hlo_stream_transfer_between( http_str, sf_str, (uint8_t*)buf, sizeof(buf), 4 ) < 0){
+						break;
+					}
+					DISP("x");
+				}
 
                 if (strcmp(buf, "/top/update.bin") == 0) {
                     if (download_info.has_sha1) {
@@ -1052,8 +1056,6 @@ void file_download_task( void * params ) {
                 LOGI("done, closing\n");
 			} else {
 
-				int retries = 0;
-
 				// Set file download pending for download manager
 				update_file_download_status(true);
 
@@ -1062,17 +1064,18 @@ void file_download_task( void * params ) {
 				// the device won't be left with a corrupt file and a valid sha file.
 				update_sha_file(path, filename, sha_file_delete,NULL, false );
 
-				int dl_ret = -1;
-                while(dl_ret != 0) {
-                	//todo replace with stream impl
-//                    dl_ret = download_file(host, url, filename, path, SD_CARD);
-                    if( dl_ret == HLO_HTTP_ERR ) {
-                        goto next_one;
-                    }
-                    if( ++retries > HTTP_RETRIES ) {
-                        goto end_download_task;
-                    }
-                }
+				strncpy( buf, path, 64 );
+				strncat(buf, "/", 64 );
+				strncat(buf, filename, 64 );
+
+				sf_str = fs_stream_open(buf, HLO_STREAM_WRITE);
+
+				while(1){
+					if(hlo_stream_transfer_between( http_str, sf_str, (uint8_t*)buf, sizeof(buf), 4 ) < 0){
+						break;
+					}
+					DISP("x");
+				}
 
 				if (download_info.has_sha1) {
 
