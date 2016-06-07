@@ -258,10 +258,10 @@ int hlo_filter_modulate_led_with_sound(hlo_stream_t * input, hlo_stream_t * outp
 	int ret;
 	int16_t samples[NSAMPLES] = {0};
 	play_modulation(253,253,253,30,0);
+	int32_t reduced = 0;
 	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, sizeof(samples), 4)) > 0 ){
 		int i;
 		int32_t eng = 0;
-		int32_t reduced = 0;
 		for(i = 0; i < NSAMPLES; i++){
 			eng += abs(samples[i]);
 		}
