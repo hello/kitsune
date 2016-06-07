@@ -645,8 +645,8 @@ static int _post_content_with_header(void * ctx, const void * buf, size_t size){
 		case DONE_POST:
 			//write header
 			DISP("%s", session->header_cache);
-			len = strlen(session->header_cache);
-			if( len != hlo_stream_transfer_all(INTO_STREAM, session->sockstream, session->header_cache, len, 4 ) ){
+			len = strlen((char*)session->header_cache);
+			if( len != hlo_stream_transfer_all(INTO_STREAM, session->sockstream, (char*)session->header_cache, len, 4 ) ){
 				return HLO_STREAM_ERROR;
 			}
 			session->post_state = POSTING;
@@ -758,7 +758,7 @@ hlo_stream_t * hlo_http_post_opt(hlo_stream_t * sock, const char * host, const c
 			DISP("caching header\r\n");
 			session->header_cache = pvPortMalloc(len + 1);
 			assert(session->header_cache);
-			ustrncpy(session->header_cache, session->scratch, len+1);
+			ustrncpy((char*)session->header_cache, session->scratch, len+1);
 		}else{
 			hlo_stream_close(ret);
 			return NULL;

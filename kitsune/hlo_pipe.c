@@ -70,19 +70,27 @@ int hlo_stream_transfer_between_ext(
 	}
 	return transfer_count;
 }
+int hlo_stream_transfer_between_until(
+		hlo_stream_t * src,
+		hlo_stream_t * dst,
+		uint8_t * buf,
+		uint32_t buf_size,
+		uint32_t transfer_delay,
+		bool * flush){
+	int ret = hlo_stream_transfer_until(FROM_STREAM, src, buf,buf_size, transfer_delay, flush);
+	if(ret < 0){
+		return ret;
+	}
+	return hlo_stream_transfer_until(INTO_STREAM, dst, buf,ret,transfer_delay, flush);
+}
 int hlo_stream_transfer_between(
 		hlo_stream_t * src,
 		hlo_stream_t * dst,
 		uint8_t * buf,
 		uint32_t buf_size,
 		uint32_t transfer_delay){
-	int ret = hlo_stream_transfer_all(FROM_STREAM, src, buf,buf_size, transfer_delay);
-	if(ret < 0){
-		return ret;
-	}
-	return hlo_stream_transfer_all(INTO_STREAM, dst, buf,ret,transfer_delay);
+	return hlo_stream_transfer_between_until(src,dst,buf,buf_size,transfer_delay,NULL);
 }
-
 
 #include "sl_sync_include_after_simplelink_header.h"
 #include "crypto.h"
@@ -100,26 +108,21 @@ int frame_pipe_encode( pipe_ctx * pipe) {
 	uint8_t hmac[SHA1_SIZE] = {0};
 	int ret;
 	int transfer_delay = 100;
-	Preamble preamble_data;
+	Preamble preamble_data = {0};
 	hlo_stream_t * hmac_payload_str = NULL;
 	size_t size;
 
 	uint8_t key[AES_BLOCKSIZE];
 	get_aes(key);
 
-	if( pipe->hlo_pb_type == Preamble_pb_type_ACK ) {
-		DBG_FRAMEPIPE(" enc ack\n");
-		hlo_stream_end(pipe->source);
-		ret = hlo_stream_transfer_between(pipe->source,pipe->sink,buf,sizeof(buf),4);
-		goto enc_return;
-	}
-
 	//make the preamble
 	preamble_data.type = pipe->hlo_pb_type;
 	preamble_data.has_auth = true;
 	preamble_data.auth = Preamble_auth_type_HMAC_SHA1;
-	preamble_data.has_id = true;
-	preamble_data.id = pipe->id;
+	preamble_data.has_id = pipe->hlo_pb_type != Preamble_pb_type_ACK;
+	if( preamble_data.has_id ) {
+		preamble_data.id = pipe->id;
+	}
 	//encode it
 	ret = hlo_pb_encode(obufstr, Preamble_fields, &preamble_data);
 	if( ret != 0 ) {
@@ -129,7 +132,8 @@ int frame_pipe_encode( pipe_ctx * pipe) {
 	DBG_FRAMEPIPE(" enc start %d\n", pipe->flush);
 
 	//read out the size of the pb payload from the source stream
-	ret = hlo_stream_transfer_until(FROM_STREAM, pipe->source, (uint8_t*)&size,sizeof(size), transfer_delay, &pipe->flush);
+	//ignore flush (possible that all the data is already in the fifo and this will end the stream before we can read out the payload)
+	ret = hlo_stream_transfer_all(FROM_STREAM, pipe->source, (uint8_t*)&size,sizeof(size), transfer_delay);
 	if(ret <= 0){
 		goto enc_return;
 	}
@@ -155,7 +159,7 @@ int frame_pipe_encode( pipe_ctx * pipe) {
 
 		DBG_FRAMEPIPE(" enc chunk size %d\n", to_read);
 
-		ret = hlo_stream_transfer_between(pipe->source,hmac_payload_str,buf,to_read,4);
+		ret = hlo_stream_transfer_between_until(pipe->source,hmac_payload_str,buf,to_read,4, &pipe->flush);
 		if(ret <= 0){
 			goto enc_return;
 		}
@@ -164,7 +168,7 @@ int frame_pipe_encode( pipe_ctx * pipe) {
 
 		// grab the running hmac and drop it in the stream
 		get_hmac( hmac, hmac_payload_str );
-		ret = hlo_stream_transfer_until(INTO_STREAM, obufstr, hmac, sizeof(hmac), transfer_delay, &pipe->flush);
+		ret = hlo_stream_transfer_all(INTO_STREAM, obufstr, hmac, sizeof(hmac), transfer_delay);
 		if(ret <= 0){
 			goto enc_return;
 		}
@@ -194,6 +198,7 @@ int frame_pipe_encode( pipe_ctx * pipe) {
 	DBG_FRAMEPIPE( " enc returning %d\n", ret );
 	return ret;
 }
+extern xQueueHandle hlo_ack_queue;
 int frame_pipe_decode( pipe_ctx * pipe ) {
 	uint8_t buf[512];
 	uint8_t hmac[2][SHA1_SIZE] = {0};
@@ -205,7 +210,6 @@ int frame_pipe_decode( pipe_ctx * pipe ) {
 	uint8_t key[AES_BLOCKSIZE];
 	get_aes(key);
 
-	dec_again:
 	//read out the pb preamble
 	ret = hlo_pb_decode( pipe->source, Preamble_fields, &preamble_data );
 	if( ret != 0 ) {
@@ -214,13 +218,6 @@ int frame_pipe_decode( pipe_ctx * pipe ) {
 	}
 	DBG_FRAMEPIPE("    dec type  %d\n", preamble_data.type );
 
-	//ack has no body or hmac
-	if( preamble_data.type == Preamble_pb_type_ACK ) {
-		hlo_pb_ack_rx( preamble_data.id );
-		DBG_FRAMEPIPE("\t  rx ack %d\n", preamble_data.id );
-		//todo remove pb with this id from set of pb needing tx
-		goto dec_again;
-	}
 	//notify the decoder what kind of pb is coming
 	hlo_prep_for_pb(preamble_data.type);
 
@@ -287,27 +284,9 @@ int frame_pipe_decode( pipe_ctx * pipe ) {
 		}
 		size -= ret;
 	}
-	{ //Ack that we got the message
-		hlo_stream_t * obufstr = fifo_stream_open( 64 );
+	if( preamble_data.has_id ){ //Ack that we got the message
 		DBG_FRAMEPIPE("\t  ack %d sending\n", preamble_data.id);
-
-		preamble_data.type = Preamble_pb_type_ACK;
-		ret = hlo_pb_encode(obufstr, Preamble_fields, &preamble_data);
-		if( ret != 0 ) {
-			hlo_stream_close(obufstr);
-			LOGE("\t  ack %d encode fail\n", preamble_data.id);
-			ret = HLO_STREAM_ERROR;
-			goto dec_return;
-		}
-		hlo_stream_end( obufstr );
-		ret = hlo_stream_transfer_between(obufstr,pipe->source,buf,sizeof(buf),4);
-		hlo_stream_close(obufstr);
-		if( ret <= 0 ) {
-			LOGE("\t  ack %d send fail\n", preamble_data.id);
-			ret = HLO_STREAM_ERROR;
-			goto dec_return;
-		}
-		DBG_FRAMEPIPE("\t  ack %d sent\n", preamble_data.id);
+		xQueueSend(hlo_ack_queue, &preamble_data.id, 0);
 	}
 
 	dec_return:

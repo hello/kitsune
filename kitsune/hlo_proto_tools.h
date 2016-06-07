@@ -22,7 +22,6 @@ int hlo_pb_decode( hlo_stream_t * stream,const pb_field_t * fields, void * struc
 bool hlo_output_pb_wto( Preamble_pb_type hlo_pb_type, const pb_field_t * fields, void * structdata, TickType_t to );
 bool hlo_output_pb( Preamble_pb_type hlo_pb_type, const pb_field_t * fields, void * structdata );
 void hlo_prep_for_pb(int type);
-void hlo_pb_ack_rx( uint64_t acked_id );
 
 int Cmd_pbstr(int argc, char *argv[]);
 
