@@ -38,8 +38,10 @@
 #define Codec_addr 					(0x18U)
 
 #define DELAY_CODEC 				5 // TODO set arbitrarily, might need to be adjusted
-#define CODEC_USE_MINIDSP 			1 // Set to 1 if using miniDSP, else 0
 
+#if (CODEC_ENABLE_MULTI_CHANNEL==1)
+#define CODEC_USE_MINIDSP 			0 // Set to 1 if using miniDSP, else 0
+#endif
 
 // Left mic data is latched on rising by default, to latch it on rising edge instead
 // set this to be 1
@@ -758,6 +760,15 @@ int32_t codec_init_with_dsp(void)
 	//	w 30 00 00 # Select Page 1
 	codec_set_page(1);
 
+	// Read register in [0][1][64]
+	cmd[0] = 64;
+	cmd[1] = 0;
+
+	I2C_IF_Write(Codec_addr, &cmd[0],1,send_stop);
+	I2C_IF_Read(Codec_addr, &cmd[1], 1);
+
+	UARTprintf("DAC Analog Gain [0][1][%u]: %X  \r\n", cmd[0], cmd[1]);
+
 	// Read register in [0][1][66]
 	cmd[0] = 66;
 	cmd[1] = 0;
@@ -916,7 +927,7 @@ int32_t codec_init_no_dsp(void)
 	// Config GPIO pins
 	codec_gpio_config();
 
-	// Audio Serial Interface Configuration (ASI1 with 6 wire I2S setup)
+	// Audio Serial Interface Configuration (ASI1 with multi-channel on single pin I2S setup)
 	codec_asi_config();
 
 	/*
@@ -1275,7 +1286,6 @@ static void codec_asi_config(void)
 	cmd[1] = 0;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
-	// MULTI CHANNEL TODO DKH
 #if (CODEC_ENABLE_MULTI_CHANNEL == 1)
 	// w 30 04 40 # Enable 4 channel for ASI1 bus
 	cmd[0] = 0x04;
@@ -1298,7 +1308,7 @@ static void codec_asi_config(void)
 	cmd[1] = 0x50;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
-	cmd[0] = 0x010;
+	cmd[0] = 0x10;
 	cmd[1] = 0;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
