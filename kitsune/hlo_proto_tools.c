@@ -445,6 +445,7 @@ static void thread_out(void* ctx) {
 			hlo_pb_encode( fifo_stream_out, m->fields, m->structdata );
 			p_ctx_enc.flush = true; // this is safe, all the data has been piped
 			xSemaphoreTake( p_ctx_enc.join_sem, portMAX_DELAY );
+			vSemaphoreDelete( p_ctx_enc.join_sem );
 			p_ctx_enc.flush = false;
 			hlo_stream_close(fifo_stream_out);
 			if(p_ctx_enc.state < 0 ) {
@@ -540,6 +541,7 @@ static void thread_in(void* ctx) {
 			}
 			LOGF("\n\nR! %d\n\n",  hlo_pb_decode( fifo_stream_in, subscriptions[incoming_pb_type].fields, pb_data  ) );
 			xSemaphoreTake( p_ctx_dec.join_sem, portMAX_DELAY );
+			vSemaphoreDelete( p_ctx_dec.join_sem );
 			hlo_stream_close(fifo_stream_in);
 			if(p_ctx_dec.state < 0 ) {
 				DISP("dec state %d\n",p_ctx_dec.state );
