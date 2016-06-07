@@ -197,7 +197,9 @@ int hlo_filter_octogram(hlo_stream_t * input, hlo_stream_t * output, void * ctx,
 }
 ////-------------------------------------------
 //octogram sample app
-int hlo_filter_speech_detection(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
+extern uint8_t get_alpha_from_light();
+#include "led_animations.h"
+int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
 #define NSAMPLES 512
 	int sample_rate = 16000;
 	int ret;
@@ -208,6 +210,11 @@ int hlo_filter_speech_detection(hlo_stream_t * input, hlo_stream_t * output, voi
 	int32_t window_eng;
 	int64_t eng = 0;
 	uint8_t window_over = 0;
+	{//play the trippy while we get voice
+		uint8_t trippy_base[3] = {200, 200, 200};
+		uint8_t trippy_range[3] = { 54, 54, 54 };
+		play_led_trippy(trippy_base, trippy_range, portMAX_DELAY, 30, 30 );
+	}
 	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, sizeof(samples), 4)) ){
 		int i;
 		for(i = 1; i < NSAMPLES; i++){
@@ -232,11 +239,45 @@ int hlo_filter_speech_detection(hlo_stream_t * input, hlo_stream_t * output, voi
 		hlo_stream_transfer_all(INTO_STREAM, output,  (uint8_t*)samples, ret, 4);
 		BREAK_ON_SIG(signal);
 	}
+	{//now play the swirling thing when we get response
+			play_led_wheel(get_alpha_from_light(),254,0,254,2,18,0);
+	}
 	if( ret >= 0){
 		DISP("\r\n===========\r\n");
 		ret = hlo_filter_data_transfer(output, uart_stream(), NULL, signal);
 		DISP("\r\n===========\r\n");
 	}
+	{//lastly, glow with voice output, since we can't do that in half duplex mode, simply queue it to the voice output
+
+	}
+	stop_led_animation( 0, 33 );
+	return ret;
+}
+#include "hellomath.h"
+int hlo_filter_modulate_led_with_sound(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
+	int ret;
+	int16_t samples[NSAMPLES] = {0};
+	play_modulation(253,253,253,30,0);
+	int32_t reduced = 0;
+	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, sizeof(samples), 4)) > 0 ){
+		int i;
+		int32_t eng = 0;
+		for(i = 0; i < NSAMPLES; i++){
+			eng += abs(samples[i]);
+		}
+		eng = eng/NSAMPLES;
+
+		reduced =  (int32_t)(0.15 * (fxd_sqrt(eng) + 0.005 * eng)) + (0.85 * reduced);
+
+		if(reduced > 253){
+			reduced = 253;
+		}
+		set_modulation_intensity( reduced );
+
+		hlo_stream_transfer_all(INTO_STREAM, output,  (uint8_t*)samples, ret, 4);
+		BREAK_ON_SIG(signal);
+	}
+	stop_led_animation( 0, 33 );
 	return ret;
 }
 ////-----------------------------------------
@@ -271,7 +312,9 @@ static hlo_filter _filter_from_string(const char * str){
 	case '?':
 		return hlo_filter_throughput_test;
 	case 'x':
-		return hlo_filter_speech_detection;
+		return hlo_filter_voice_command;
+	case 'X':
+		return hlo_filter_modulate_led_with_sound;
 	default:
 		return hlo_filter_data_transfer;
 	}
