@@ -1945,6 +1945,10 @@ int Cmd_SyncID(int argc, char * argv[]);
 int Cmd_time_test(int argc, char * argv[]);
 int cmd_file_sync_upload(int argc, char *argv[]);
 
+int Cmd_read_uv(int argc, char *argv[]);
+int Cmd_uvr(int argc, char *argv[]);
+int Cmd_uvw(int argc, char *argv[]);
+
 // ==============================================================================
 // This is the table that holds the command names, implementing functions, and
 // brief description.
@@ -1991,7 +1995,11 @@ tCmdLineEntry g_sCmdTable[] = {
 	{ "thp", Cmd_read_temp_hum_press,	"" },
 	{ "tv", Cmd_meas_TVOC,	"" },
 
-		{ "light", Cmd_readlight, "" },
+	{ "uv", Cmd_read_uv, "" },
+#if 0
+	{ "uvr", Cmd_uvr, "" },
+	{ "uvw", Cmd_uvw, "" },
+#endif
 
 #if ( configUSE_TRACE_FACILITY == 1 )
 		{ "tasks", Cmd_tasks, "" },
