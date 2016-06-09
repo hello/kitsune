@@ -106,14 +106,20 @@ static const reg_value REG_Section_program[] = {
     {255,0x00},
     {255,0x01},
     {  0,0x0},
+    {  0x7F,0x28},
+//			# reg[40][0][1] = 0x04                        ; adaptive mode for ADC
+    {  1,0x04},
+    {  0x7F,0x50},
+//			# reg[80][0][1] = 0x04                        ; adaptive mode for DAC
+    {  1,0x04},
     {  0x7F,0x64},
 //			# reg[100][0][48] = 12;IDAC  = 256    ; MDAC*DOSR;IADC  = 256    ; MADC*AOSR;IDAC  = 512    ; MDAC*DOSR;IADC  = 512    ; MADC*AOSR;IDAC  = 1024    ; MDAC*DOSR;IADC  = 1024    ; MADC*AOSR;IDAC  = 1536    ; MDAC*DOSR;IADC  = 1536   ; MADC*AOSR;IDAC  = 2048    ; MDAC*DOSR;IADC  = 2048   ; MADC*AOSR;IDAC  = 3072    ; MDAC*DOSR;IADC  = 3072   ; MADC*AOSR;IDAC  = 4096    ; MDAC*DOSR;IADC  = 4096   ; MADC*AOSR;IDAC  = 6144    ; MDAC*DOSR;IADC  = 6144   ; MADC*AOSR
-//	{47,1<<0},
+	{47,1<<0},
 	{ 48,(IADC & 0xFF00) >> 8},
 //			# reg[100][0][49] = 0
     { 49,(IADC & 0xFF) >> 0 },
     {  0x7F,0x78},
-//	{47,1<<0},
+	{47,1<<0},
 //			# reg[120][0][48] = 12
     { 48,(IADC & 0xFF00) >> 8 },
 //			# reg[120][0][49] = 0
@@ -172,42 +178,51 @@ static const reg_value REG_Section_program[] = {
     {  0,0x0},
     {  0x7F,0x64},
 //			# reg[100][0][20] = 0x00 ; Disable ADC double buffer mode
-    { 20,0x00},
+    { 20,0x80},
     {  0x7F,0x78},
 //			# reg[120][0][20] = 0x00 ; Disable DAC double buffer mode
-    { 20,0x00},
-    {  0x7F,0x00},
-//			# reg[0][0][11] = 0x82                   ; NDAC = 2, divider powered off
-    { 11, (1 << 7) | (NDAC << 0)},
-	{ 12,(1 << 7) | (MDAC << 0)},
-	{ 19,(1 << 7) | (MADC << 0)},
+    { 20,0x80},
+
     {  0x7F,0x64},
 //			# reg[100][0][60] = 0x80                 ; Enable FIFO on CIC2
     { 60,0x80},
     {  0x7F,0x00},
 //			# reg[0][0][112] = 0xd4; Enable CIC2 and Digital mic for Left and Right Channel
     {112,0xD4},
+    {  0x7F,0x00},
+//			# reg[0][0][11] = 0x82                   ; NDAC = 2, divider powered off
+    { 11, (1 << 7) | (NDAC << 0)},
+	{ 12,(1 << 7) | (MDAC << 0)},
+	{ 19,(1 << 7) | (MADC << 0)},
     {  0,0x04},
-//			# reg[0][4][101] = 0x34     ; GPIO5 --> DigMic2 and DigMic3 data, GPIO6 --> DigMic4 and DigMic5 data
-    {101,0x34},
-//			# reg[0][4][91] = 0x04      ; GPIO6 in input mode.
-    { 91,0x04},
-//			# reg[0][4][90] = 0x04      ; GPIO5 in input mode
-    { 90,0x04},
-//			# reg[0][4][89] = 0x04      ; GPIO4 in input mode
-    { 89,0x04},
-//			# reg[0][4][86] = 0x04      ; GPIO5 in input mode
-    { 86,0x04},
-//			# reg[0][4][88] = 0x04      ; GPIO5 in input mode
-    { 88,0x04},
-//			# reg[0][4][92] = 0x00      ; GPIO5 in input mode
-    { 92,0x00},
-//			# reg[0][4][87] = 0x28      ; GPIO2 is ADC_MOD_CLK
-    { 87,0x28},
-//			# reg[0][4][100] = 0x88; // TODO added by me for left latch falling
-    {100,0x88},
-//			# reg[0][4][102] = 0x50 ; //TODO added by me
-    {102,0x50},
+	{100, (1 << 7) | (0 << 6) | (1 << 3) | (0 << 2)}, // TODO added by me for left latch falling
+
+	//# reg[0][4][101] = 0x45     ; GPIO5 --> DigMic2 and DigMic3 data, GPIO6 --> DigMic4 and DigMic5 data
+
+    {101,(3 << 4) | (4 << 0)},
+
+	{102, (5 << 4) }, //TODO added by me
+
+	//# reg[0][4][91] = 0x04      ; GPIO6 in input mode.
+
+    { 91,(0x01 << 2)},
+
+	//# reg[0][4][90] = 0x04      ; GPIO5 in input mode
+
+    { 90,(0x01 << 2)},
+
+	//# reg[0][4][87] = 0x28      ; GPIO2 is ADC_MOD_CLK
+
+    { 87,(0x0A << 2)},
+
+	{88,(0x01 << 2)},// Not really used
+
+	{89,(0x01 << 2)},
+
+	{92,0},// Not used, disabled
+
+	{86,(0x01 << 2)},// Not really used
+
 //			# reg[0][4][1]  = 0x00                          ; Assume CODEC slave mode for Multi channel, For master mode uncomment the reg writes below; ASI1 Audio Interface = I2S mode
     {  1,0x00},
 //			# reg[0][4][4] = 0x40        ;reg[0][4][12] = 0x81                           ; ASI1 master, BCLK = 6.144Mhz;reg[0][4][13] = 0x80                           ; ASI1_WDIV = 128; For 4 channel digmic,
@@ -2711,8 +2726,8 @@ static const reg_value miniDSP_A_reg_values[] = {
     { 67,0x00},
 };
 #define miniDSP_A_reg_values_COEFF_START   0
-#define miniDSP_A_reg_values_COEFF_SIZE    296
-#define miniDSP_A_reg_values_INST_START    296
+#define miniDSP_A_reg_values_COEFF_SIZE    579
+#define miniDSP_A_reg_values_INST_START    579
 #define miniDSP_A_reg_values_INST_SIZE     1878
 
 static const reg_value miniDSP_D_reg_values[] = {
@@ -4229,9 +4244,9 @@ static const reg_value miniDSP_D_reg_values[] = {
     {113,0x00},
     {114,0x40},
     {115,0x3B},
-    {116,0x00},
+    {116,0x18},
     {117,0x00},
-    {118,0x00},
+    {118,0xA0},
     {119,0x00},
     {120,0x00},
     {121,0x00},
@@ -4242,51 +4257,51 @@ static const reg_value miniDSP_D_reg_values[] = {
     {126,0x00},
     {127,0x00},
     {  0,0x0B},
-    {  8,0x01},
-    {  9,0x0B},
-    { 10,0x80},
-    { 11,0xF0},
-    { 12,0x00},
+    {  8,0x00},
+    {  9,0x00},
+    { 10,0x00},
+    { 11,0x00},
+    { 12,0x10},
     { 13,0x00},
-    { 14,0x00},
-    { 15,0x00},
-    { 16,0x01},
-    { 17,0x01},
-    { 18,0x40},
-    { 19,0x08},
+    { 14,0x20},
+    { 15,0x84},
+    { 16,0x00},
+    { 17,0x00},
+    { 18,0x00},
+    { 19,0x00},
     { 20,0x00},
     { 21,0x00},
     { 22,0x00},
     { 23,0x00},
-    { 24,0x09},
+    { 24,0x00},
     { 25,0x00},
     { 26,0x00},
     { 27,0x00},
-    { 28,0x00},
-    { 29,0x00},
-    { 30,0x00},
-    { 31,0x00},
+    { 28,0x01},
+    { 29,0x0B},
+    { 30,0x80},
+    { 31,0xF0},
     { 32,0x00},
     { 33,0x00},
     { 34,0x00},
     { 35,0x00},
-    { 36,0x00},
+    { 36,0x01},
     { 37,0x00},
-    { 38,0x00},
-    { 39,0x00},
+    { 38,0xA0},
+    { 39,0x08},
     { 40,0x00},
     { 41,0x00},
     { 42,0x00},
     { 43,0x00},
-    { 44,0x00},
+    { 44,0x09},
     { 45,0x00},
     { 46,0x00},
-    { 47,0x00},
+    { 47,0x85},
     { 48,0x00},
     { 49,0x00},
     { 50,0x00},
     { 51,0x00},
-    { 52,0x02},
+    { 52,0x00},
     { 53,0x00},
     { 54,0x00},
     { 55,0x00},
@@ -4294,8 +4309,28 @@ static const reg_value miniDSP_D_reg_values[] = {
     { 57,0x00},
     { 58,0x00},
     { 59,0x00},
+    { 60,0x00},
+    { 61,0x00},
+    { 62,0x00},
+    { 63,0x00},
+    { 64,0x00},
+    { 65,0x00},
+    { 66,0x00},
+    { 67,0x00},
+    { 68,0x00},
+    { 69,0x00},
+    { 70,0x00},
+    { 71,0x00},
+    { 72,0x02},
+    { 73,0x00},
+    { 74,0x00},
+    { 75,0x00},
+    { 76,0x00},
+    { 77,0x00},
+    { 78,0x00},
+    { 79,0x00},
 };
 #define miniDSP_D_reg_values_COEFF_START   0
-#define miniDSP_D_reg_values_COEFF_SIZE    163
-#define miniDSP_D_reg_values_INST_START    163
-#define miniDSP_D_reg_values_INST_SIZE     1265
+#define miniDSP_D_reg_values_COEFF_SIZE    313
+#define miniDSP_D_reg_values_INST_START    313
+#define miniDSP_D_reg_values_INST_SIZE     1285
