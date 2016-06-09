@@ -59,17 +59,17 @@ static const reg_value REG_Section_program[] = {
 //			# reg[0][0][18] = 0x02             ; NADC Powerdown NADC = 2
     { 18,(NADC << 0)},
 //			# reg[0][0][19] = 0x90             ; MADC Powerup MADC = 16
-    { 19, (MADC << 0)},
+    { 19,  (1 << 7) | (MADC << 0)},
 //			# reg[0][0][20] = 0xc0             ; AOSR = 192
     { 20,AOSR},
 //			# reg[0][0][11] = 0x82             ; P=1, R=1, J=8; DOSR = 128 (MSB); DOSR = 128 (LSB); NADC Powerdown NADC = 2; NADC Powerup MADC = 8; AOSR = 128; P=1, R=1, J=8; DOSR = 192 (MSB); DOSR = 192 (LSB); NADC Powerdown NADC = 2; NADC Powerup MADC = 12; AOSR = 128; P=1, R=1, J=8; DOSR = 256 (MSB); DOSR = 256 (LSB); NADC Powerdown NADC = 2; NADC Powerup MADC = 16; AOSR = 128; P=1, R=1, J=24; DOSR = 384 (MSB); DOSR = 384 (LSB); NADC Powerdown NADC = 2; NADC Powerup MADC = 24; AOSR = 128; P=1, R=1, J=16; DOSR = 512 (MSB); DOSR = 512 (LSB); NADC Powerdown NADC = 2; NADC Powerup MADC = 32; AOSR = 128; P=1, R=1, J=24; DOSR = 768 (MSB); DOSR = 768 (LSB); NADC Powerdown NADC = 2; NADC Powerup MADC = 48; AOSR = 128; NDAC = 2, divider powered off; NDAC = 2, divider powered on
-    { 11, (NDAC << 0)},
+    { 11,  (1 << 7) | (NDAC << 0)},
 //			# reg[0][0][8] = 0x00                        ; D=0000 (MSB)
     {  8,(PLL_D & 0xFF00) >> 8},
 //			# reg[0][0][9] = 0x00                        ; D=0000 (LSB)
     {  9,(PLL_D & 0xFF) >> 0},
 //			# reg[0][0][12] = 0x88                       ; reg(0)(0)(0x0c => 12)     DAC Powerup MDAC = 8
-    { 12, (MDAC << 0)},
+    { 12,  (1 << 7) | (MDAC << 0)},
     {  0,0x01},
 //			# reg[0][1][1 ] = 0x00                       ; reg(0)(1)(0x01 => 0 )     Crude avdd disabled
     {  1,0x00},
@@ -163,8 +163,14 @@ static const reg_value REG_Section_program[] = {
     { 39,0x06},
 //			# reg[0][4][40] = 0x50 ; ASI3_OUT_CH<L1> = Channel<L1> ; ASI3_OUT_CH<R1> = Channel<R1>
     { 40,0x50},
+
+	//minidsp data port control
 	{118, 0x00},
+
+	// asi and adc/dac syncing
 	{119,0x00},
+
+	//ASI 2 and 3 config
 #if 1
 	{0x47,( 1 << 5 )},
 	{0x48, 0},
@@ -187,13 +193,13 @@ static const reg_value REG_Section_program[] = {
 //			# reg[100][0][60] = 0x80                 ; Enable FIFO on CIC2
     { 60,0x80},
     {  0x7F,0x00},
+	//			# reg[0][0][11] = 0x82                   ; NDAC = 2, divider powered off
+//	{ 11, (1 << 7) | (NDAC << 0)},
+//	{ 12,(1 << 7) | (MDAC << 0)},
+//	{ 19,(1 << 7) | (MADC << 0)},
 //			# reg[0][0][112] = 0xd4; Enable CIC2 and Digital mic for Left and Right Channel
     {112,0xD4},
-    {  0x7F,0x00},
-//			# reg[0][0][11] = 0x82                   ; NDAC = 2, divider powered off
-    { 11, (1 << 7) | (NDAC << 0)},
-	{ 12,(1 << 7) | (MDAC << 0)},
-	{ 19,(1 << 7) | (MADC << 0)},
+
     {  0,0x04},
 	{100, (1 << 7) | (0 << 6) | (1 << 3) | (0 << 2)}, // TODO added by me for left latch falling
 
