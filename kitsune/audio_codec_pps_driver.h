@@ -145,9 +145,9 @@ static const reg_value REG_Section_program[] = {
 //			# reg[0][1][48] = 0x21 ;   12db
     { 48,0x21},
 //			# reg[0][1][59] = 0x00                       ; reg(0)(1)(0x3b => 59)     ADC unmute left mic PGA with 0 dB gain
-    { 59,0x00},
+   // { 59,0x00},
 //			# reg[0][1][60] = 0x00                       ; reg(0)(1)(0x3c => 60)     ADC unmute right mic PGA with 0 dB gain
-    { 60,0x00},
+   // { 60,0x00},
     {  0,0x04},
 //			# reg[0][4][1]  = 0                          ; ASI1 Audio Interface = I2S
     {  1,0x00},
@@ -165,21 +165,10 @@ static const reg_value REG_Section_program[] = {
     { 40,0x50},
 
 	//minidsp data port control
-	{118, 0x00},
+	//{118, 0x00},
 
 	// asi and adc/dac syncing
 	{119,0x00},
-
-	//ASI 2 and 3 config
-#if 1
-	{0x47,( 1 << 5 )},
-	{0x48, 0},
-	{0x49, 0},
-	{0x4A,0},
-	{0x4B,( 1 << 5 )},
-	{0x4C,0},
-	{0x77,0},
-#endif
 
     {  0,0x0},
     {  0x7F,0x64},
