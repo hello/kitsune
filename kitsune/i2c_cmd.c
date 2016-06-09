@@ -674,8 +674,6 @@ int32_t codec_init_with_dsp(void)
 
 	uint32_t reg_array_size = sizeof(REG_Section_program)/2;
 
-	UARTprintf("Size of reg array = %u\n", reg_array_size);
-
 	// Write the registers
 	for(i=0;i<reg_array_size;i++)
 	{
@@ -697,7 +695,6 @@ int32_t codec_init_with_dsp(void)
 
 	// Update miniDSP A
 	reg_array_size = sizeof(miniDSP_A_reg_values)/2;
-	UARTprintf("Size of miniDSP_A array = %u vs %u\n", reg_array_size,miniDSP_A_reg_values_COEFF_SIZE+miniDSP_A_reg_values_INST_SIZE );
 
 	// Write the registers
 	for(i=0;i<reg_array_size;i++)
@@ -711,7 +708,6 @@ int32_t codec_init_with_dsp(void)
 	vTaskDelay(20);
 	// Update miniDSP D
 	reg_array_size = sizeof(miniDSP_D_reg_values)/2;
-	UARTprintf("Size of miniDSP_D array = %u vs %u\n", reg_array_size, miniDSP_D_reg_values_COEFF_SIZE+miniDSP_D_reg_values_INST_SIZE  );
 
 	// Write the registers
 	for(i=0;i<reg_array_size;i++)
@@ -779,6 +775,8 @@ int32_t codec_init_with_dsp(void)
 	I2C_IF_Read(Codec_addr, &cmd[1], 1);
 
 	UARTprintf("[0][0][%u]: %X  \r\n", cmd[0], cmd[1]);
+
+	codec_set_book(0);
 
 	//	w 30 00 00 # Select Page 1
 	codec_set_page(1);
