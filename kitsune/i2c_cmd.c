@@ -247,6 +247,74 @@ int Cmd_i2c_write(int argc, char *argv[]) {
 
 }
 
+
+static int get_temp_old() {
+	unsigned char cmd = 0xe3;
+	int temp_raw;
+	int temp;
+
+	unsigned char aucDataBuf[2];
+
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
+
+	vTaskDelay(5);
+	(I2C_IF_Write(0x40, &cmd, 1, 1));
+
+	xSemaphoreGiveRecursive(i2c_smphr);
+	vTaskDelay(50);
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
+	vTaskDelay(5);
+	(I2C_IF_Read(0x40, aucDataBuf, 2));
+	temp_raw = (aucDataBuf[0] << 8) | ((aucDataBuf[1] & 0xfc));
+
+	temp = 17572 * temp_raw / 65536 - 4685;
+
+	xSemaphoreGiveRecursive(i2c_smphr);
+
+	return temp;
+}
+static int get_humid_old() {
+	unsigned char aucDataBuf[2];
+	unsigned char cmd = 0xe5;
+	int humid_raw;
+	int humid;
+
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
+	vTaskDelay(5);
+
+	(I2C_IF_Write(0x40, &cmd, 1, 1));
+
+	xSemaphoreGiveRecursive(i2c_smphr);
+	vTaskDelay(50);
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
+
+	vTaskDelay(5);
+	(I2C_IF_Read(0x40, aucDataBuf, 2));
+	humid_raw = (aucDataBuf[0] << 8) | ((aucDataBuf[1] & 0xfc));
+
+	xSemaphoreGiveRecursive(i2c_smphr);
+
+	humid = 12500 * humid_raw / 65536 - 600;
+	return humid;
+}
+int Cmd_read_temp_humid_old(int argc, char *argv[]) {
+	unsigned char cmd = 0xfe;
+	int temp,humid;
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
+	(I2C_IF_Write(0x40, &cmd, 1, 1));    // reset
+	get_temp_old();
+	get_humid_old();
+	xSemaphoreGiveRecursive(i2c_smphr);
+	vTaskDelay(500);
+
+	temp = get_temp_old();
+	humid = get_humid_old();
+	humid += (2500-temp)*-15/100;
+
+	LOGF("%d,%d\n", temp, humid);
+	return SUCCESS;
+}
+
 #if 1
 struct {
 	uint16_t dig_T1;
@@ -665,11 +733,18 @@ int init_uv(bool als) {
 	}
 
 	//reboot
+	b[1] = 0b10000;
+	(I2C_IF_Write(0x53, b, 2, 1));
+	xSemaphoreGiveRecursive(i2c_smphr);
+	vTaskDelay(100);
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
+
+	//set mode
 	b[0] = 0;
 	if( als ) {
-		b[1] = 0b10010;
+		b[1] = 2;
 	} else {
-		b[1] = 0b101;
+		b[1] = 0xa;
 	}
 	(I2C_IF_Write(0x53, b, 2, 1));
 
@@ -680,7 +755,7 @@ int init_uv(bool als) {
 
 	//set rate to 2 hz
 	b[0] = 0x4;
-	b[1] = 0b100;
+	b[1] = 0b110100;
 	(I2C_IF_Write(0x53, b, 2, 1));
 
 	xSemaphoreGiveRecursive(i2c_smphr);
@@ -694,13 +769,13 @@ int Cmd_read_uv(int argc, char *argv[]) {
 	init_uv( use_als );
 	vTaskDelay(600);
 
-	int32_t v;
+	int32_t v = 0;
 	unsigned char b[2];
 	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
 
 	b[0] = use_als ? 0xd : 0x10;
 	(I2C_IF_Write(0x53, b, 1, 1));
-	(I2C_IF_Read(0x53, &v, 3));
+	(I2C_IF_Read(0x53, (uint8_t*)&v, 3));
 	xSemaphoreGiveRecursive(i2c_smphr);
 
 	LOGF("%d\n", v);
@@ -732,13 +807,15 @@ int Cmd_uvr(int argc, char *argv[]) {
 int Cmd_uvw(int argc, char *argv[]) {
 	int addr = strtol(argv[1], NULL, 16);
 	int data = strtol(argv[2], NULL, 16);
-	int i;
+
 	unsigned char b[2];
 	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
 	b[0] = addr;
 	b[1] = data;
 	(I2C_IF_Write(0x53, b, 2, 1));
 	xSemaphoreGiveRecursive(i2c_smphr);
+
+	return SUCCESS;
 }
 
 bool set_volume(int v, unsigned int dly) {

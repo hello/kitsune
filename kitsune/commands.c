@@ -1945,6 +1945,7 @@ int Cmd_SyncID(int argc, char * argv[]);
 int Cmd_time_test(int argc, char * argv[]);
 int cmd_file_sync_upload(int argc, char *argv[]);
 
+int Cmd_read_temp_humid_old(int argc, char *argv[]);
 int Cmd_read_uv(int argc, char *argv[]);
 int Cmd_uvr(int argc, char *argv[]);
 int Cmd_uvw(int argc, char *argv[]);
@@ -1991,12 +1992,13 @@ tCmdLineEntry g_sCmdTable[] = {
 	{"codec_Mic", get_codec_mic_NAU, "" },
 #endif
 
-    {"inttemp", Cmd_inttemp, "" },
+    {"inttemp", Cmd_inttemp, "" }, //internal temperature
 	{ "thp", Cmd_read_temp_hum_press,	"" },
 	{ "tv", Cmd_meas_TVOC,	"" },
 
 	{ "uv", Cmd_read_uv, "" },
-#if 0
+#if 1
+    {"th-old", Cmd_read_temp_humid_old, "" },
 	{ "uvr", Cmd_uvr, "" },
 	{ "uvw", Cmd_uvw, "" },
 #endif
