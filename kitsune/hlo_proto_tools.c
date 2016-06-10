@@ -88,3 +88,28 @@ hlo_future_t * MorpheusCommand_from_buffer(void * buf, size_t size){
 hlo_future_t * buffer_from_MorpheusCommand(MorpheusCommand * src){
 	return hlo_future_create_task_bg(encode_MorpheusCommand, src, 1024);
 }
+#include "hlo_pipe.h"
+bool hlo_decode_varint(hlo_stream_t * in, uint64_t * dest){
+    uint8_t byte;
+    uint8_t bitpos = 0;
+    uint64_t result = 0;
+
+    do
+    {
+        if (bitpos >= 64){
+            LOGE("Varint overflow\r\n");
+            return false;
+        }
+        int ret = hlo_stream_transfer_all(FROM_STREAM, in, &byte, 1, 4);
+        if (ret != 1){
+        	LOGE("ret = %d\r\n", ret);
+            return false;
+        }
+
+        result |= (uint64_t)(byte & 0x7F) << bitpos;
+        bitpos = (uint8_t)(bitpos + 7);
+    } while (byte & 0x80);
+
+    *dest = result;
+    return true;
+}
