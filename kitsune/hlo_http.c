@@ -200,7 +200,7 @@ static bool _read_pb_callback(pb_istream_t *stream, uint8_t * inbuf, size_t coun
 	return transfer_size == state->stream_state;
 }
 int hlo_pb_encode( hlo_stream_t * stream, const pb_field_t * fields, void * structdata ){
-	uint16_t short_count;
+	uint32_t short_count;
 	hlo_pb_stream_context_t state;
 
 	state.sockstream = stream;
@@ -226,7 +226,7 @@ int hlo_pb_encode( hlo_stream_t * stream, const pb_field_t * fields, void * stru
 	return state.stream_state;
 }
 int hlo_pb_decode( hlo_stream_t * stream, const pb_field_t * fields, void * structdata ){
-	uint16_t short_count;
+	uint32_t short_count;
 	hlo_pb_stream_context_t state;
 
 	state.sockstream = stream;
