@@ -199,6 +199,10 @@ int hlo_filter_octogram(hlo_stream_t * input, hlo_stream_t * output, void * ctx,
 //octogram sample app
 extern uint8_t get_alpha_from_light();
 #include "led_animations.h"
+#include "nanopb/pb_decode.h"
+#include "protobuf/response.pb.h"
+#include "hlo_http.h"
+extern bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, void **arg);
 int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
 #define NSAMPLES 512
 	int sample_rate = 16000;
@@ -243,8 +247,16 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 			play_led_wheel(get_alpha_from_light(),254,0,254,2,18,0);
 	}
 	if( ret >= 0){
+		SpeechResponse resp = SpeechResponse_init_zero;
 		DISP("\r\n===========\r\n");
-		ret = hlo_filter_data_transfer(output, uart_stream(), NULL, signal);
+	//	ret = hlo_filter_data_transfer(output, uart_stream(), NULL, signal);
+		resp.text.funcs.decode = _decode_string_field;
+		resp.url.funcs.decode = _decode_string_field;
+		if( 0 == hlo_pb_decode(output,SpeechResponse_fields, &resp) ){
+			DISP("Resp %s\r\nUrl %s\r\n", resp.text.arg, resp.url.arg);
+			vPortFree(resp.text.arg);
+			vPortFree(resp.url.arg);
+		}
 		DISP("\r\n===========\r\n");
 	}
 	{//lastly, glow with voice output, since we can't do that in half duplex mode, simply queue it to the voice output
@@ -336,7 +348,10 @@ int Cmd_stream_transfer(int argc, char * argv[]){
 	hlo_stream_t * in = open_stream_from_path(argv[1],1);
 	hlo_stream_t * out = open_stream_from_path(argv[2],0);
 
-	ret = f(in,out,NULL, _can_has_sig_stop);
+	if(in && out){
+		ret = f(in,out,NULL, _can_has_sig_stop);
+	}
+
 
 	LOGI("Stream transfer exited with code %d\r\n", ret);
 	hlo_stream_close(in);
