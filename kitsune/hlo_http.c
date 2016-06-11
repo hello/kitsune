@@ -77,7 +77,7 @@ static int _start_connection(unsigned long ip, security_type sec){
 				 //ble_reply_wifi_status(wifi_connection_state_SSL_FAIL);
 			 }
 		 }else{
-			 sAddr = _get_addr(ip, 80);
+			 sAddr = _get_addr(ip, 11000);
 			 sock = socket(AF_INET, SOCK_STREAM, SL_IPPROTO_TCP);
 		 }
 		 if( sock < 0 ) goto exit;
@@ -349,7 +349,7 @@ hlo_stream_t * hlo_ws_stream( hlo_stream_t * base){
 	        LOGE("get_device_id failed\n");
 	        goto ws_open_fail;
 	    }
-		usnprintf(buf, BUFSZ, "Get /protobuf HTTP/1.1\r\n"
+		usnprintf(buf, BUFSZ, "Get /dispatch HTTP/1.1\r\n"
 				"Host: %s\r\n"
 				"Upgrade: websocket\r\n"
 				"Connection: Upgrade\r\n"

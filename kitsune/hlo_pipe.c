@@ -99,6 +99,9 @@ int hlo_stream_transfer_between(
 
 int get_aes(uint8_t * dst);
 
+#define KEY_AS_ID
+#include "wifi_cmd.h"
+
 #define MAX_CHUNK_SIZE 512
 
 int frame_pipe_encode( pipe_ctx * pipe) {
@@ -111,9 +114,13 @@ int frame_pipe_encode( pipe_ctx * pipe) {
 	Preamble preamble_data = {0};
 	hlo_stream_t * hmac_payload_str = NULL;
 	size_t size;
-
+#ifdef KEY_AS_ID
+    char key[DEVICE_ID_SZ * 2 + 1] = {0};
+    get_device_id(key, sizeof(key));
+#else
 	uint8_t key[AES_BLOCKSIZE];
 	get_aes(key);
+#endif
 
 	//make the preamble
 	preamble_data.type = pipe->hlo_pb_type;
@@ -207,9 +214,13 @@ int frame_pipe_decode( pipe_ctx * pipe ) {
 	int transfer_delay = 100;
 	Preamble preamble_data;
 	hlo_stream_t * hmac_payload_str = NULL;
+#ifdef KEY_AS_ID
+    char key[DEVICE_ID_SZ * 2 + 1] = {0};
+    !get_device_id(key, sizeof(key));
+#else
 	uint8_t key[AES_BLOCKSIZE];
 	get_aes(key);
-
+#endif
 	//read out the pb preamble
 	ret = hlo_pb_decode( pipe->source, Preamble_fields, &preamble_data );
 	if( ret != 0 ) {
