@@ -1945,12 +1945,28 @@ int Cmd_SyncID(int argc, char * argv[]);
 int Cmd_time_test(int argc, char * argv[]);
 int cmd_file_sync_upload(int argc, char *argv[]);
 
+int Cmd_read_temp_humid_old(int argc, char *argv[]);
+int Cmd_read_uv(int argc, char *argv[]);
+int Cmd_uvr(int argc, char *argv[]);
+int Cmd_uvw(int argc, char *argv[]);
+
+
+int cmd_button(int argc, char *argv[]) {
+
+#define LED_GPIO_BASE_DOUT GPIOA2_BASE
+#define LED_GPIO_BIT_DOUT 0x80
+	bool fast = MAP_GPIOPinRead(LED_GPIO_BASE_DOUT, LED_GPIO_BIT_DOUT);
+
+LOGF("button %d\n", fast);
+}
 // ==============================================================================
 // This is the table that holds the command names, implementing functions, and
 // brief description.
 // ==============================================================================
 tCmdLineEntry g_sCmdTable[] = {
-//    { "cpu",      Cmd_cpu,      "Show CPU utilization" },
+		//    { "cpu",      Cmd_cpu,      "Show CPU utilization" },
+    { "b",      cmd_button,      " " },
+
 #if 0
 		{ "time_test", Cmd_time_test, "" },
 		{ "heapviz", Cmd_heapviz, "" },
@@ -1987,11 +2003,16 @@ tCmdLineEntry g_sCmdTable[] = {
 	{"codec_Mic", get_codec_mic_NAU, "" },
 #endif
 
-    {"inttemp", Cmd_inttemp, "" },
+    {"inttemp", Cmd_inttemp, "" }, //internal temperature
 	{ "thp", Cmd_read_temp_hum_press,	"" },
 	{ "tv", Cmd_meas_TVOC,	"" },
 
-		{ "light", Cmd_readlight, "" },
+	{ "uv", Cmd_read_uv, "" },
+#if 1
+    {"th-old", Cmd_read_temp_humid_old, "" },
+	{ "uvr", Cmd_uvr, "" },
+	{ "uvw", Cmd_uvw, "" },
+#endif
 
 #if ( configUSE_TRACE_FACILITY == 1 )
 		{ "tasks", Cmd_tasks, "" },

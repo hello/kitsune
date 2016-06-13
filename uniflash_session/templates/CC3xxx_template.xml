@@ -93,12 +93,12 @@
       <Value val="0">Disable</Value>
       <Value val="1">Enable</Value>
    </Values>
-   <Filename name="/sys/mcuimg.bin" category="system">
+   <Filename name="/sys/mcuimg1.bin" category="system">
       <Version>1</Version>
       <Type>blob</Type>
       <Storage>SFLASH</Storage>
       <MaxSize>0</MaxSize>
-      <url>&quot;location on local machine&quot;</url>
+      <url>C:\kitsune\kitsune\main\ccs\exe\kitsune.bin</url>
       <mode>
          <ModeEntry name="Rollback" checked="false"/>
          <ModeEntry name="Secured" checked="false"/>
@@ -108,18 +108,18 @@
          <ModeEntry name="PublicWrite" checked="false"/>
          <ModeEntry name="PublicRead" checked="false"/>
       </mode>
-      <verify>false</verify>
-      <Update>false</Update>
-      <Erase>false</Erase>
+      <verify>true</verify>
+      <Update>true</Update>
+      <Erase>true</Erase>
       <Certificate>&quot;&quot;</Certificate>
       <Signature>&quot;&quot;</Signature>
    </Filename>
-   <Filename name="/cert/ca.pem" category="system">
-      <Version>1</Version>
+   <Filename name="/sys/mcubootinfo.bin" category="user">
+      <Version>0</Version>
       <Type>blob</Type>
       <Storage>SFLASH</Storage>
       <MaxSize>0</MaxSize>
-      <url>&quot;location on local machine&quot;</url>
+      <url></url>
       <mode>
          <ModeEntry name="Rollback" checked="false"/>
          <ModeEntry name="Secured" checked="false"/>
@@ -131,98 +131,8 @@
       </mode>
       <verify>false</verify>
       <Update>false</Update>
-      <Erase>false</Erase>
-      <Certificate>&quot;&quot;</Certificate>
-      <Signature>&quot;&quot;</Signature>
-   </Filename>
-   <Filename name="/cert/client.pem" category="system">
-      <Version>1</Version>
-      <Type>blob</Type>
-      <Storage>SFLASH</Storage>
-      <MaxSize>0</MaxSize>
-      <url>&quot;location on local machine&quot;</url>
-      <mode>
-         <ModeEntry name="Rollback" checked="false"/>
-         <ModeEntry name="Secured" checked="false"/>
-         <ModeEntry name="NoSignatureTest" checked="false"/>
-         <ModeEntry name="StaticToken" checked="false"/>
-         <ModeEntry name="VendorToken" checked="false"/>
-         <ModeEntry name="PublicWrite" checked="false"/>
-         <ModeEntry name="PublicRead" checked="false"/>
-      </mode>
-      <verify>false</verify>
-      <Update>false</Update>
-      <Erase>false</Erase>
-      <Certificate>&quot;&quot;</Certificate>
-      <Signature>&quot;&quot;</Signature>
-   </Filename>
-   <Filename name="/cert/private.key" category="system">
-      <Version>1</Version>
-      <Type>blob</Type>
-      <Storage>SFLASH</Storage>
-      <MaxSize>0</MaxSize>
-      <url>&quot;location on local machine&quot;</url>
-      <mode>
-         <ModeEntry name="Rollback" checked="false"/>
-         <ModeEntry name="Secured" checked="false"/>
-         <ModeEntry name="NoSignatureTest" checked="false"/>
-         <ModeEntry name="StaticToken" checked="false"/>
-         <ModeEntry name="VendorToken" checked="false"/>
-         <ModeEntry name="PublicWrite" checked="false"/>
-         <ModeEntry name="PublicRead" checked="false"/>
-      </mode>
-      <verify>false</verify>
-      <Update>false</Update>
-      <Erase>false</Erase>
-      <Certificate>&quot;&quot;</Certificate>
-      <Signature>&quot;&quot;</Signature>
-   </Filename>
-   <Filename name="/tmp/pac.bin" category="system">
-      <Version>1</Version>
-      <Type>blob</Type>
-      <Storage>SFLASH</Storage>
-      <MaxSize>0</MaxSize>
-      <url>&quot;location on local machine&quot;</url>
-      <mode>
-         <ModeEntry name="Rollback" checked="false"/>
-         <ModeEntry name="Secured" checked="false"/>
-         <ModeEntry name="NoSignatureTest" checked="false"/>
-         <ModeEntry name="StaticToken" checked="false"/>
-         <ModeEntry name="VendorToken" checked="false"/>
-         <ModeEntry name="PublicWrite" checked="false"/>
-         <ModeEntry name="PublicRead" checked="false"/>
-      </mode>
-      <verify>false</verify>
-      <Update>false</Update>
-      <Erase>false</Erase>
-      <Certificate>&quot;&quot;</Certificate>
-      <Signature>&quot;&quot;</Signature>
-   </Filename>
-   <Filename name="/sys/macadd.bin" category="system">
-      <Version>1</Version>
-      <Type>conf</Type>
-      <Storage>SFLASH</Storage>
-      <MaxSize>0</MaxSize>
-      <url>./../cc3xxx/fileSystem/macadd.bin</url>
-      <mode>
-         <ModeEntry name="Rollback" checked="false"/>
-         <ModeEntry name="Secured" checked="false"/>
-         <ModeEntry name="NoSignatureTest" checked="false"/>
-         <ModeEntry name="StaticToken" checked="false"/>
-         <ModeEntry name="VendorToken" checked="false"/>
-         <ModeEntry name="PublicWrite" checked="false"/>
-         <ModeEntry name="PublicRead" checked="false"/>
-      </mode>
-      <verify>false</verify>
-      <Update>false</Update>
-      <Erase>false</Erase>
-      <Certificate>&quot;&quot;</Certificate>
-      <Signature>&quot;&quot;</Signature>
-      <Param type="x" size="6">
-         <Name>MacAddress</Name>
-         <Default>1234567890AB</Default>
-         <Desc>Any 6 bytes MAC address written in HEX format</Desc>
-         <Offset>0</Offset>
-      </Param>
+      <Erase>true</Erase>
+      <Certificate></Certificate>
+      <Signature></Signature>
    </Filename>
 </CC3xxx>
