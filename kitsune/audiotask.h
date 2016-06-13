@@ -23,6 +23,7 @@ typedef struct {
 	uint32_t rate;
 	hlo_stream_t * stream;
 	NotificationCallback_t onFinished;
+	hlo_filter p;				/* the algorithm to run on the spkr input */
 	void * context;
 	char source_name[64];
 } AudioPlaybackDesc_t;
