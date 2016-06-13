@@ -267,12 +267,12 @@ _save_newest(const char * buffer, int size){
             DISP("Wr log %d\r\n", counter);
             return _write_file(s, buffer, size);
         }else{
-            return FR_RW_ERROR;
+            return FR_DISK_ERR;
         }
     }else{
 		//LOGW("Write log error: %d \r\n", ret);
 	}
-	return FR_RW_ERROR;
+	return FR_DISK_ERR;
 }
 static FRESULT
 _read_oldest(char * buffer, int size, WORD * read){
@@ -287,7 +287,7 @@ _read_oldest(char * buffer, int size, WORD * read){
 		DISP("Rd log %d\r\n", counter);
 		return _read_file(s,buffer, size, read);
 	}
-	return FR_RW_ERROR;
+	return FR_DISK_ERR;
 }
 static FRESULT
 _remove_oldest(int * rem){
@@ -303,7 +303,7 @@ _remove_oldest(int * rem){
 		*rem = (ret - 1);
 		return _remove_file(s);
 	}
-	return FR_RW_ERROR;
+	return FR_DISK_ERR;
 }
 static uint8_t log_local_enable;
 static void _save_block_queue( TickType_t dly ) {
@@ -323,11 +323,11 @@ static void _save_block_queue( TickType_t dly ) {
 /**
  * PUBLIC functions
  */
-void uart_logger_flush(void){
+void uart_logger_flush_err_shutdown(void){
 	//set the task to exit and wait for it to do so
-	xSemaphoreTake(self.print_sem, portMAX_DELAY);
+	//xSemaphoreTake(self.print_sem, portMAX_DELAY);
 	self.view_tag = self.store_tag = 0;
-	xSemaphoreGive(self.print_sem);
+	//xSemaphoreGive(self.print_sem);
 	//write out whatever's left in the logging block
 	_save_newest((const char*)self.logging_block, self.widx );
 	_save_block_queue(0);
