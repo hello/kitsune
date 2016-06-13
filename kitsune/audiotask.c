@@ -286,7 +286,9 @@ static int _do_capture(const AudioCaptureDesc_t * info){
 		ret = info->p(mic, info->opt_out, info->ctx, CheckForInterruptionDuringCapture);
 		LOGI("Capture Returned: %d\r\n", ret);
 		hlo_stream_close(mic);
-		hlo_stream_close(info->opt_out);
+		if(info->flag & AUDIO_TRANSFER_FLAG_AUTO_CLOSE_OUTPUT){
+			hlo_stream_close(info->opt_out);
+		}
 	}
 	return ret;
 }
