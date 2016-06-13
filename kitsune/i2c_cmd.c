@@ -723,6 +723,7 @@ int init_uv(bool als) {
 	unsigned char b[2];
 	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
 
+#if 0 // checking the part id seems to make the mode setting fail
 	//check the part id
 	b[0] = 0x6;
 	(I2C_IF_Write(0x53, b, 1, 1));
@@ -731,14 +732,7 @@ int init_uv(bool als) {
 		xSemaphoreGiveRecursive(i2c_smphr);
 		return -1;
 	}
-
-	//reboot
-	b[1] = 0b10000;
-	(I2C_IF_Write(0x53, b, 2, 1));
-	xSemaphoreGiveRecursive(i2c_smphr);
-	vTaskDelay(100);
-	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
-
+#endif
 	//set mode
 	b[0] = 0;
 	if( als ) {
@@ -764,10 +758,15 @@ int init_uv(bool als) {
 }
 
 int Cmd_read_uv(int argc, char *argv[]) {
-	int use_als = atoi(argv[1]);
+	static int use_als;
 
-	init_uv( use_als );
-	vTaskDelay(600);
+	if( use_als != (atoi(argv[1]) == 1) ) {
+		use_als  = (atoi(argv[1]) == 1);
+		if( init_uv( use_als ) ) {
+			LOGF("UV FAIL\n");
+			return -1;
+		}
+	}
 
 	int32_t v = 0;
 	unsigned char b[2];
