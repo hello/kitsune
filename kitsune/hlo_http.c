@@ -225,9 +225,12 @@ int hlo_pb_encode( hlo_stream_t * stream, const pb_field_t * fields, void * stru
 	}
 	return state.stream_state;
 }
+extern bool hlo_decode_varint(hlo_stream_t * in, uint64_t * dest);
 int hlo_pb_decode( hlo_stream_t * stream, const pb_field_t * fields, void * structdata ){
 	uint32_t short_count;
 	hlo_pb_stream_context_t state;
+	uint64_t size = 0;
+	int ret = 0;
 
 	state.sockstream = stream;
 	state.stream_state = 0;
@@ -235,9 +238,13 @@ int hlo_pb_decode( hlo_stream_t * stream, const pb_field_t * fields, void * stru
 
 	bool success = true;
 
-	int ret = hlo_stream_transfer_all(FROM_STREAM, stream, (uint8_t*)&short_count, sizeof(short_count), 4);
-
-	success = success && sizeof(short_count) == ret;
+	// ret = hlo_stream_transfer_all(FROM_STREAM, stream, (uint8_t*)&short_count, sizeof(short_count), 4);
+	if( !hlo_decode_varint(stream, &size) ){
+		LOGE("varint failed\r\n");
+		return -1;
+	}
+	short_count = size;
+	//success = success && sizeof(short_count) == ret;
 	DBG_PBSTREAM("PB RX %d %d\n", ret, short_count);
 
 	pb_istream.bytes_left = short_count;
