@@ -3746,6 +3746,7 @@ static const reg_value miniDSP_D_reg_values[] = {
     {118,0x00},
     {119,0x00},
 };
+
 #define miniDSP_D_reg_values_COEFF_START   0
 #define miniDSP_D_reg_values_COEFF_SIZE    329
 #define miniDSP_D_reg_values_INST_START    329
