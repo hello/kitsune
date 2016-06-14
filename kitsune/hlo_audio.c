@@ -195,7 +195,7 @@ static int _read_record_mono(void * ctx, void * buf, size_t size){
 	return 0;
 }
 static int _close(void * ctx){
-	DeinitAudio();
+	//DeinitAudio();
 	return HLO_STREAM_NO_IMPL;
 }
 ////------------------------------
