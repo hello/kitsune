@@ -85,16 +85,16 @@ static int _start_connection(unsigned long ip, security_type sec){
 		 };
 		 sl_SetSockOpt(sock, SOL_SOCKET, SL_SO_RCVTIMEO, &tv, sizeof(tv) );
 
-	/*	 SlSockNonblocking_t enableOption;
+		/* SlSockNonblocking_t enableOption;
 		 enableOption.NonblockingEnabled = 1;//blocking mode
 		 sl_SetSockOpt(sock,SL_SOL_SOCKET,SL_SO_NONBLOCKING, (_u8 *)&enableOption,sizeof(enableOption));
-		 */
+		*/
 
 		 int retry = 5;
 		 int rv;
 		 do{
 			 rv = connect(sock, &sAddr, sizeof(sAddr));
-			 vTaskDelay(100);
+			 vTaskDelay(500);
 		 }while(rv == SL_EALREADY && retry--);
 		 if(rv < 0){
 			 LOGI("Could not connect %d\n\r\n\r", rv);
