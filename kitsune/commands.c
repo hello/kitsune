@@ -1756,7 +1756,7 @@ void launch_tasks() {
 	UARTprintf("*");
 	xTaskCreate(thread_sensor_poll, "pollTask", 768 / 4, NULL, 2, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_tx, "txTask", 1024 / 4, NULL, 1, NULL);
+	//xTaskCreate(thread_tx, "txTask", 1024 / 4, NULL, 1, NULL);
 	UARTprintf("*");
 	// TODO ENABLE THIS BEFORE MERGE
 	// long_poll_task_init( 2560 / 4 );
