@@ -206,7 +206,7 @@ extern bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, 
 int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
 #define NSAMPLES 512
 	int sample_rate = 16000;
-	int ret;
+	int ret = 0;
 	int16_t samples[NSAMPLES];
 	int32_t count = 0;
 	int32_t zcr = 0;
@@ -219,7 +219,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		uint8_t trippy_range[3] = { 54, 54, 54 };
 		play_led_trippy(trippy_base, trippy_range, portMAX_DELAY, 30, 30 );
 	}
-	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, sizeof(samples), 4)) ){
+	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, sizeof(samples), 4)) > 0 ){
 		int i;
 		for(i = 1; i < NSAMPLES; i++){
 			if( (samples[i] > 0 && samples[i-1] <= 0) ||
@@ -240,29 +240,36 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 			LOGI("zcr = %d, eng = %d\r\n", window_zcr, window_eng);
 			window_over = 0;
 		}
-		hlo_stream_transfer_all(INTO_STREAM, output,  (uint8_t*)samples, ret, 4);
+		ret = hlo_stream_transfer_all(INTO_STREAM, output,  (uint8_t*)samples, ret, 4);
+		if ( ret <  0){
+			break;
+		}
 		BREAK_ON_SIG(signal);
 	}
 	{//now play the swirling thing when we get response
 			play_led_wheel(get_alpha_from_light(),254,0,254,2,18,0);
+			DISP("Wheel\r\n");
 	}
+
+	//lastly, glow with voice output, since we can't do that in half duplex mode, simply queue it to the voice output
 	if( ret >= 0){
 		SpeechResponse resp = SpeechResponse_init_zero;
 		DISP("\r\n===========\r\n");
-	//	ret = hlo_filter_data_transfer(output, uart_stream(), NULL, signal);
 		resp.text.funcs.decode = _decode_string_field;
 		resp.url.funcs.decode = _decode_string_field;
 		if( 0 == hlo_pb_decode(output,SpeechResponse_fields, &resp) ){
 			DISP("Resp %s\r\nUrl %s\r\n", resp.text.arg, resp.url.arg);
+			hlo_stream_t * aud = hlo_audio_open_mono(44100, 60,HLO_AUDIO_PLAYBACK);
+			hlo_stream_t * fs = hlo_http_get(resp.url.arg);
+			hlo_filter_modulate_led_with_sound(fs,aud,NULL,NULL);
+			hlo_stream_close(fs);
+			hlo_stream_close(aud);
+
 			vPortFree(resp.text.arg);
 			vPortFree(resp.url.arg);
 		}
 		DISP("\r\n===========\r\n");
 	}
-	{//lastly, glow with voice output, since we can't do that in half duplex mode, simply queue it to the voice output
-
-	}
-	stop_led_animation( 0, 33 );
 	return ret;
 }
 #include "hellomath.h"
@@ -285,7 +292,6 @@ int hlo_filter_modulate_led_with_sound(hlo_stream_t * input, hlo_stream_t * outp
 			reduced = 253;
 		}
 		set_modulation_intensity( reduced );
-
 		hlo_stream_transfer_all(INTO_STREAM, output,  (uint8_t*)samples, ret, 4);
 		BREAK_ON_SIG(signal);
 	}
