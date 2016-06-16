@@ -1754,7 +1754,7 @@ void launch_tasks() {
 	UARTprintf("*");
 	//xTaskCreate(thread_dust, "dustTask", 512 / 4, NULL, 3, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_sensor_poll, "pollTask", 768 / 4, NULL, 2, NULL);
+	//xTaskCreate(thread_sensor_poll, "pollTask", 768 / 4, NULL, 2, NULL);
 	UARTprintf("*");
 	//xTaskCreate(thread_tx, "txTask", 1024 / 4, NULL, 1, NULL);
 	UARTprintf("*");
@@ -2185,7 +2185,7 @@ void vUARTTask(void *pvParameters) {
 	spi_init();
 
 	i2c_smphr = xSemaphoreCreateRecursiveMutex();
-	init_time_module(2560);
+	//init_time_module(2560);
 
 	// Init sensors
 	init_tvoc();
@@ -2227,9 +2227,9 @@ void vUARTTask(void *pvParameters) {
 	// McASPInit(48000);
 
 	xTaskCreate(AudioTask_Thread,"audioTask",2560/4,NULL,4,NULL);
-	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,2,NULL);
+	//xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,2,NULL);
 	UARTprintf("*");
-	init_download_task( 3072 / 4 );
+	//init_download_task( 3072 / 4 );
 	networktask_init(3 * 1024 / 4);
 
 	load_serial();
@@ -2241,7 +2241,7 @@ void vUARTTask(void *pvParameters) {
 	check_provision();
 
 	init_dust();
-	ble_proto_init();
+	//ble_proto_init();
 
 	//xTaskCreate(top_board_task, "top_board_task", 1280 / 4, NULL, 3, NULL);
 	//xTaskCreate(thread_spi, "spiTask", 1536 / 4, NULL, 3, NULL);
@@ -2255,8 +2255,9 @@ void vUARTTask(void *pvParameters) {
 #endif
 	// xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
-	start_top_boot_watcher();
+	//start_top_boot_watcher();
 
+	UARTprintf("~~~~CoolT~~~~\n");
 	if( on_charger ) {
 		launch_tasks();
 		vTaskDelete(NULL);
