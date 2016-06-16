@@ -711,8 +711,7 @@ start_rgb:
 	if( i == 10  ) {
 		init_light_sensor();
 		LOGE("Fail to read TMG\n");
-		vTaskDelay(10);
-		goto start_rgb;
+		return 0;
 	}
 
 	*w = get_le_short(b);

@@ -753,6 +753,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 		}
 		break;
 	}
+#if 0
 	if(!booted || provisioning_mode) {
 		goto cleanup;
 	}
@@ -979,6 +980,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID:
         	break;
 	}
+#endif
     cleanup:
     if( finished_with_command ) {
     	ble_proto_free_command(command);
