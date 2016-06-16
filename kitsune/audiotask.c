@@ -62,7 +62,11 @@ static xQueueHandle _state_queue = NULL;
 static xSemaphoreHandle _processingTaskWait = NULL;
 static xSemaphoreHandle _statsMutex = NULL;
 
-static uint8_t _isCapturing = 0;
+#if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX==1)
+	static uint8_t _isCapturing = 1;
+#else
+	static uint8_t _isCapturing = 0;
+#endif
 static int64_t _callCounter;
 static uint32_t _filecounter;
 
@@ -170,7 +174,11 @@ static bool _queue_audio_playback_state(playstate_t is_playing, const AudioPlayb
 
 
 static void Init(void) {
+#if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX==1)
+	_isCapturing = 1;
+#else
 	_isCapturing = 0;
+#endif
 	_callCounter = 0;
 	_filecounter = 0;
 
@@ -469,7 +477,11 @@ static void DoCapture(uint32_t rate) {
 	xSemaphoreTake(_processingTaskWait,MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP);
 	LOGI("done.\r\n");
 
+#if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX==1)
+
+#else
 	InitAudioCapture(rate);
+#endif
 
 	LOGI("%d free %d stk\n", xPortGetFreeHeapSize(),  uxTaskGetStackHighWaterMark(NULL));
 
@@ -669,7 +681,11 @@ static void DoCapture(uint32_t rate) {
 		CloseAndDeleteFile(&filedata);
 	}
 
+#if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX==1)
+
+#else
 	DeinitAudioCapture();
+#endif
 
 	AudioProcessingTask_SetControl(processingOff,ProcessingCommandFinished,NULL, MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP);
 
@@ -686,6 +702,10 @@ void AudioTask_Thread(void * data) {
 	AudioMessage_t  m;
 
 	Init();
+
+#if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX==1)
+	InitAudioCapture(48000);
+#endif
 
 	for (; ;) {
 
@@ -711,7 +731,10 @@ void AudioTask_Thread(void * data) {
 
 			case eAudioCaptureTurnOff:
 			{
+#if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX==1)
+#else
 				_isCapturing = 0;
+#endif
 				break;
 			}
 
@@ -736,7 +759,7 @@ void AudioTask_Thread(void * data) {
 			//so even if we just played back a file
 			//if we were supposed to be capturing, we resume that mode
 			if (_isCapturing) {
-				// AudioTask_StartCapture(48000); // TODO DKH 16000);Use AUDIO_CAPTURE_RATE
+				AudioTask_StartCapture(48000); // TODO DKH 16000);Use AUDIO_CAPTURE_RATE
 
 			}
 		}
