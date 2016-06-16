@@ -840,6 +840,29 @@ int32_t codec_init_with_dsp(void)
 		I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 	}
 
+	vTaskDelay(20);
+
+	reg_array_size = sizeof(REG_Section_program2)/2;
+
+	// Write the registers
+	for(i=0;i<reg_array_size;i++)
+	{
+		//	# Select Book 0
+		cmd[0] = REG_Section_program2[i].reg_off;
+		cmd[1] = REG_Section_program2[i].reg_val;
+		I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+	}
+
+	//vTaskDelay(20);
+
+	//codec_set_page(0);
+
+	//codec_set_book(0);
+
+	//codec_speaker_config();
+
+	vTaskDelay(20);
+
 	//codec_set_page(0);
 
 	//codec_set_book(0);
