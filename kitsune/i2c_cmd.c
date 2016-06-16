@@ -675,7 +675,7 @@ int init_light_sensor()
 static int get_le_short( uint8_t * b ) {
 	return (b[0] | (b[1]<<8));
 }
-#define DBG_TMG(...)
+#define DBG_TMG LOGI
 int get_rgb_prox( int * w, int * r, int * g, int * bl, int * p ) {
 	unsigned char b[10];
 	int i;

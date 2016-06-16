@@ -1958,6 +1958,7 @@ int cmd_button(int argc, char *argv[]) {
 
 LOGF("button %d\n", fast);
 }
+int Cmd_readlight(int argc, char *argv[]);
 // ==============================================================================
 // This is the table that holds the command names, implementing functions, and
 // brief description.
@@ -1987,7 +1988,8 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "time", Cmd_time, "" },
 		{ "status", Cmd_status, "" },
 
-    { "mnt",      Cmd_mnt,      "" },
+	    { "light",      Cmd_readlight,      "" },
+	    { "mnt",      Cmd_mnt,      "" },
     { "umnt",     Cmd_umnt,     "" },
     { "ls",       Cmd_ls,       "" },
     { "chdir",    Cmd_cd,       "" },
