@@ -52,6 +52,11 @@ typedef struct {
 
 void AudioTask_Thread(void * data);
 
+#include "codec_debug_config.h"
+#if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX==1)
+void AudioTask_Thread_playback(void * data);
+#endif
+
 void AudioTask_AddMessageToQueue(const AudioMessage_t * message);
 
 void AudioTask_StartPlayback(const AudioPlaybackDesc_t * desc);

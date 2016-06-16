@@ -96,6 +96,11 @@
 #include "top_board.h"
 #include "long_poll.h"
 #include "filedownloadmanager.h"
+
+#if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX==1)
+#include "audiohelper.h"
+#endif
+
 #define ONLY_MID 0
 
 #define ARRAY_LEN(a) (sizeof(a)/sizeof(a[0]))
@@ -2224,9 +2229,14 @@ void vUARTTask(void *pvParameters) {
 #endif
 	codec_init();
 
-	// McASPInit(48000);
+#if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX==1)
+	//InitAudioTxRx(48000);
+#endif
 
 	xTaskCreate(AudioTask_Thread,"audioTask",2560/4,NULL,4,NULL);
+#if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX==1)
+	xTaskCreate(AudioTask_Thread_playback,"audioTaskPlay",2560/4,NULL,4,NULL);
+#endif
 	//xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,2,NULL);
 	UARTprintf("*");
 	//init_download_task( 3072 / 4 );
