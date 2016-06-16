@@ -43,9 +43,6 @@
 #define CODEC_USE_MINIDSP 			1 // Set to 1 if using miniDSP, else 0
 #endif
 
-// Left mic data is latched on rising by default, to latch it on rising edge instead
-// set this to be 1
-#define CODEC_LEFT_LATCH_FALLING 	1
 #define CODEC_DIG_MIC1_EN			1
 
 #if (CODEC_ENABLE_MULTI_CHANNEL==1)
@@ -1654,7 +1651,7 @@ static void codec_gpio_config(void)
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	// # GPIO1 pin output disabled
-	cmd[0] = 0x60;//92
+	cmd[0] = 0x60;//96
 	cmd[1] = 0;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
