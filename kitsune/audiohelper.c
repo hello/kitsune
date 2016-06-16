@@ -44,10 +44,10 @@ uint8_t InitAudioCapture(uint32_t rate) {
 	}
 	memset( audio_mem, 0, AUD_BUFFER_SIZE);
 
-	get_codec_mic_NAU();
+	// get_codec_mic_NAU(); // TODO DKH
 
 	// Initialize the Audio(I2S) Module
-	McASPInit(rate);
+	McASPInit(rate);  // TODO DKH
 
 	UDMAChannelSelect(UDMA_CH4_I2S_RX, NULL);
 
@@ -88,7 +88,7 @@ uint8_t InitAudioPlayback(int32_t vol, uint32_t rate ) {
 
 	//////
 	// SET UP AUDIO PLAYBACK
-	get_codec_NAU(vol);
+	// get_codec_NAU(vol); // TODO DKH audio change
 
 	// Initialize the Audio(I2S) Module
 	McASPInit(rate);
@@ -110,7 +110,7 @@ uint8_t InitAudioPlayback(int32_t vol, uint32_t rate ) {
 }
 
 void DeinitAudioPlayback(void) {
-	close_codec_NAU();
+	// close_codec_NAU(); // TODO DKH audio change
 
 	McASPDeInit();
 

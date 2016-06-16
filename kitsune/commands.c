@@ -62,7 +62,6 @@
 #include "osi.h"
 
 #include "control.h"
-#include "ti_codec.h"
 #include "network.h"
 
 #include "diskio.h"
@@ -338,8 +337,7 @@ int Cmd_record_buff(int argc, char *argv[]) {
 
 
 int Cmd_audio_turn_on(int argc, char * argv[]) {
-
-	AudioTask_StartCapture(AUDIO_CAPTURE_RATE);
+	AudioTask_StartCapture(48000); // TODO DKH 16000);
 
 	AudioProcessingTask_SetControl(featureUploadsOn,NULL,NULL,0);
 #ifdef KIT_INCLUDE_FILE_UPLOAD
@@ -1759,8 +1757,9 @@ void launch_tasks() {
 	UARTprintf("*");
 	xTaskCreate(thread_tx, "txTask", 1024 / 4, NULL, 1, NULL);
 	UARTprintf("*");
-	long_poll_task_init( 2560 / 4 );
-	downloadmanagertask_init(3072 / 4);
+	// TODO ENABLE THIS BEFORE MERGE
+	// long_poll_task_init( 2560 / 4 );
+	// downloadmanagertask_init(3072 / 4);
 #endif
 }
 
@@ -2000,7 +1999,7 @@ tCmdLineEntry g_sCmdTable[] = {
     { "mkfs",     Cmd_mkfs,     "" },
     { "pwd",      Cmd_pwd,      "" },
     { "cat",      Cmd_cat,      "" },
-	{"codec_Mic", get_codec_mic_NAU, "" },
+	{"codec_Mic", get_codec_mic_NAU, "" }, // TODO DKH
 #endif
 
     {"inttemp", Cmd_inttemp, "" }, //internal temperature
@@ -2232,6 +2231,20 @@ void vUARTTask(void *pvParameters) {
 	CreateDefaultDirectories();
 	load_data_server();
 
+	UARTprintf("~~~~Codec INIT~~~~\n");
+
+	// Configure CODEC_RST pin
+
+	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0);
+	vTaskDelay(10);
+	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0x4);
+#ifdef CODEC_1P5_TEST
+	codec_test_commands();
+#endif
+	codec_init();
+
+	// McASPInit(48000);
+
 	xTaskCreate(AudioTask_Thread,"audioTask",2560/4,NULL,4,NULL);
 	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,2,NULL);
 	UARTprintf("*");
@@ -2254,10 +2267,10 @@ void vUARTTask(void *pvParameters) {
 	uart_logger_init();
 	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 1, NULL);
 	UARTprintf("*");
-	xTaskCreate(analytics_event_task, "analyticsTask", 1024/4, NULL, 1, NULL);
+	// xTaskCreate(analytics_event_task, "analyticsTask", 1024/4, NULL, 1, NULL);
 	UARTprintf("*");
 #endif
-	xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 2, NULL);
+	// xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
 	start_top_boot_watcher();
 
