@@ -842,6 +842,11 @@ int32_t codec_init_with_dsp(void)
 
 	vTaskDelay(20);
 
+	/********************************************************************************
+	 * IMPORTANT: REG_Section_program2 has to be written after minidsp coefficients
+	 * and instructions have been written in order for playback to work.
+	 ********************************************************************************
+	 */
 	reg_array_size = sizeof(REG_Section_program2)/2;
 
 	// Write the registers
