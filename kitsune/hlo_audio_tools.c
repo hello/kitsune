@@ -259,9 +259,9 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		resp.url.funcs.decode = _decode_string_field;
 		if( 0 == hlo_pb_decode(output,SpeechResponse_fields, &resp) ){
 			DISP("Resp %s\r\nUrl %s\r\n", resp.text.arg, resp.url.arg);
-			hlo_stream_t * aud = hlo_audio_open_mono(44100, 60,HLO_AUDIO_PLAYBACK);
+			hlo_stream_t * aud = hlo_audio_open_mono(16000, 60,HLO_AUDIO_PLAYBACK);
 			hlo_stream_t * fs = hlo_http_get(resp.url.arg);
-			hlo_filter_modulate_led_with_sound(fs,aud,NULL,NULL);
+			hlo_filter_adpcm_decoder(fs,aud,NULL,NULL);
 			hlo_stream_close(fs);
 			hlo_stream_close(aud);
 
@@ -332,7 +332,7 @@ static hlo_filter _filter_from_string(const char * str){
 	case 'x':
 		return hlo_filter_voice_command;
 	case 'X':
-		return hlo_filter_modulate_led_with_sound;
+	//	return hlo_filter_modulate_led_with_sound;
 	default:
 		return hlo_filter_data_transfer;
 	}
