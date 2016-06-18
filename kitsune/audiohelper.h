@@ -14,6 +14,7 @@ void InitAudioHelper();
 
 
 #if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX==1)
+void InitAudioHelper_p();
 void InitAudioTxRx(uint32_t rate);
 #endif
 

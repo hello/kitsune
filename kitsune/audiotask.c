@@ -30,6 +30,8 @@
 #include "hlo_async.h"
 #include "state.pb.h"
 
+#include "codec_debug_config.h"
+
 #if 0
 #define PRINT_TIMING
 #endif
@@ -43,7 +45,7 @@
 #define MAX_NUMBER_TIMES_TO_WAIT_FOR_AUDIO_BUFFER_TO_FILL (5)
 #define MAX_FILE_SIZE_BYTES (1048576*10)
 
-#define MONO_BUF_LENGTH (AUDIO_FFT_SIZE)
+#define MONO_BUF_LENGTH (AUDIO_FFT_SIZE) //256
 
 #define FLAG_SUCCESS (0x01)
 #define FLAG_STOP    (0x02)
@@ -71,11 +73,7 @@ static xQueueHandle _state_queue = NULL;
 static xSemaphoreHandle _processingTaskWait = NULL;
 static xSemaphoreHandle _statsMutex = NULL;
 
-#if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX==1)
-	static uint8_t _isCapturing = 1;
-#else
-	static uint8_t _isCapturing = 0;
-#endif
+static uint8_t _isCapturing = 0;
 static int64_t _callCounter;
 static uint32_t _filecounter;
 
@@ -183,11 +181,9 @@ static bool _queue_audio_playback_state(playstate_t is_playing, const AudioPlayb
 
 
 static void Init(void) {
-#if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX==1)
-	_isCapturing = 1;
-#else
+
 	_isCapturing = 0;
-#endif
+
 	_callCounter = 0;
 	_filecounter = 0;
 
@@ -225,10 +221,7 @@ static void Init(void) {
 #if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX==1)
 static void Init_p(void) {
 
-	_callCounter = 0;
-	_filecounter = 0;
-
-	//InitAudioHelper();
+	InitAudioHelper_p();
 
 	audio_task_hndl_p = xTaskGetCurrentTaskHandle();
 
@@ -512,13 +505,14 @@ static void DoCapture(uint32_t rate) {
 	uint32_t dt;
 #endif
 
+#if 0
 	AudioProcessingTask_SetControl(processingOn,ProcessingCommandFinished,NULL, MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP);
 
 	//wait until processing is turned on
 	LOGI("Waiting for processing to start... \r\n");
 	xSemaphoreTake(_processingTaskWait,MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP);
 	LOGI("done.\r\n");
-
+#endif
 	InitAudioCapture(rate);
 
 
@@ -652,7 +646,7 @@ static void DoCapture(uint32_t rate) {
 		}
 		else {
 			//dump buffer out
-			ReadBuffer(pTxBuffer,(uint8_t *)samples,MONO_BUF_LENGTH*sizeof(int16_t));
+			ReadBuffer(pTxBuffer,(uint8_t *)samples, PING_PONG_CHUNK_SIZE);// MONO_BUF_LENGTH*sizeof(int16_t));
 
 #ifdef PRINT_TIMING
 			t1 = xTaskGetTickCount(); dt = t1 - t0; t0 = t1;
@@ -691,6 +685,7 @@ static void DoCapture(uint32_t rate) {
 #ifdef PRINT_TIMING
 			t1 = xTaskGetTickCount();
 #endif
+#if 0
 			//do audio feature processing
 			if(settle_cnt++ > 3) {
 				AudioFeatures_SetAudioData(samples,_callCounter++);
@@ -709,6 +704,7 @@ static void DoCapture(uint32_t rate) {
 					}
 				}
 			}
+#endif
 #ifdef PRINT_TIMING
 			t2 = xTaskGetTickCount();
 			LOGI("dt = %d, compute=%d\n",dt,t2-t1); //vTaskDelay(5);
@@ -724,17 +720,14 @@ static void DoCapture(uint32_t rate) {
 		CloseAndDeleteFile(&filedata);
 	}
 
-#if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX==1)
-
-#else
 	DeinitAudioCapture();
-#endif
 
+#if 0
 	AudioProcessingTask_SetControl(processingOff,ProcessingCommandFinished,NULL, MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP);
 
 	//wait until ProcessingCommandFinished is returned
 	xSemaphoreTake(_processingTaskWait,MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP);
-
+#endif
 	LOGI("finished audio capture\r\n");
 	LOGI("%d free %d stk\n", xPortGetFreeHeapSize(),  uxTaskGetStackHighWaterMark(NULL));
 }
@@ -770,10 +763,7 @@ void AudioTask_Thread(void * data) {
 
 			case eAudioCaptureTurnOff:
 			{
-#if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX==1)
-#else
 				_isCapturing = 0;
-#endif
 				break;
 			}
 

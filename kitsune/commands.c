@@ -2230,7 +2230,7 @@ void vUARTTask(void *pvParameters) {
 	codec_init();
 
 #if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX==1)
-	//InitAudioTxRx(48000);
+	InitAudioTxRx(48000);
 #endif
 
 	xTaskCreate(AudioTask_Thread,"audioTask",2560/4,NULL,4,NULL);

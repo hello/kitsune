@@ -7,6 +7,6 @@
 // set this to be 1
 #define CODEC_LEFT_LATCH_FALLING 	1
 
-#define AUDIO_ENABLE_SIMULTANEOUS_TX_RX 0
+#define AUDIO_ENABLE_SIMULTANEOUS_TX_RX 1
 
 #endif
