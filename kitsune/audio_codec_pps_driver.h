@@ -47,6 +47,7 @@ typedef struct{
 
 #define IADC ((MDAC)*(DOSR))
 #define MIC_VOLUME_CONTROL 0x28
+#define MUTE_SPK 1
 
 static const reg_value REG_Section_program[] = {
     {  0,0x0},
@@ -241,8 +242,13 @@ static const reg_value REG_Section_program2[] = {
     { 46,0x0C},
 //			# reg[0][1][47] = 0x0C ;
     { 47,0x0C},
+#if (MUTE_SPK==1)
+	//			# reg[0][1][48] = 0x21 ;   12db
+	{ 48,0x00},
+#else
 //			# reg[0][1][48] = 0x21 ;   12db
     { 48,0x21},
+#endif
 #else
 //			# reg[0][1][27] = 0x33                       ; reg(0)(1)(0x1B =>27 )     LDAC -> HPL, RDAC -> HPR; Power on HPL + HPR
     { 27,0x33},

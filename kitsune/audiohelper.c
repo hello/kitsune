@@ -50,17 +50,26 @@ void InitAudioHelper_p() {
 #if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX==1)
 void InitAudioTxRx(uint32_t rate)
 {
-#if 0
 	// Initialize the Audio(I2S) Module
 	McASPInit(rate);  // TODO DKH
 
+	UDMAChannelSelect(UDMA_CH4_I2S_RX, NULL);
+	UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL);
+
+	// Setup the DMA Mode
+	SetupPingPongDMATransferTx();
+	// Setup the DMA Mode
+	SetupPingPongDMATransferRx();
+
+	// Setup the Audio In/Out
+    MAP_I2SIntEnable(I2S_BASE, I2S_INT_RDMA | I2S_INT_XDMA );
 
 	AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
 	AudioCaptureRendererConfigure( rate);
 
 	// Start Audio Tx/Rx
 	Audio_Start();
-#endif
+
 }
 #endif
 
@@ -71,6 +80,7 @@ uint8_t InitAudioCapture(uint32_t rate) {
 	}
 	memset( audio_mem, 0, AUD_BUFFER_SIZE);
 
+#if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX == 0)
 	// Initialize the Audio(I2S) Module
 	McASPInit(rate);  // TODO DKH
 
@@ -88,16 +98,18 @@ uint8_t InitAudioCapture(uint32_t rate) {
 
 	// Start Audio Tx/Rx
 	Audio_Start();
-
+#endif
 
 	return 1;
 }
 
 void DeinitAudioCapture(void) {
+#if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX == 0)
 	Audio_Stop();
 	McASPDeInit();
 
 	MAP_uDMAChannelDisable(UDMA_CH4_I2S_RX);
+#endif
 
 	if (pTxBuffer) {
 		DestroyCircularBuffer(pTxBuffer);
@@ -122,7 +134,7 @@ uint8_t InitAudioPlayback(int32_t vol, uint32_t rate ) {
 #endif
 	//////
 	// SET UP AUDIO PLAYBACK
-
+#if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX == 0)
 	// Initialize the Audio(I2S) Module
 	McASPInit(rate);
 
@@ -138,15 +150,17 @@ uint8_t InitAudioPlayback(int32_t vol, uint32_t rate ) {
 
 	AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
 	AudioCaptureRendererConfigure( rate);
-
+#endif
 	return 1;
 
 }
 
 void DeinitAudioPlayback(void) {
+#if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX == 0)
 	McASPDeInit();
 
 	MAP_uDMAChannelDisable(UDMA_CH5_I2S_TX);
+#endif
 	if (pRxBuffer) {
 		DestroyCircularBuffer(pRxBuffer);
 		pRxBuffer = NULL;
