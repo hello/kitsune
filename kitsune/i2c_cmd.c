@@ -1999,3 +1999,36 @@ static void codec_speaker_config(void)
 	vTaskDelay(20);
 }
 
+void codec_mute_spkr(void)
+{
+	char send_stop = 1;
+	unsigned char cmd[2];
+
+	//	w 30 00 00 # Select Page 0
+	codec_set_page(1);
+
+	codec_set_book(0);
+
+
+	cmd[0] = 48;
+	cmd[1] = 0x00;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+}
+
+void codec_unmute_spkr(void)
+{
+	char send_stop = 1;
+	unsigned char cmd[2];
+
+	//	w 30 00 00 # Select Page 0
+	codec_set_page(1);
+
+	codec_set_book(0);
+
+
+	cmd[0] = 48;
+	cmd[1] = 0x21;
+	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+}

@@ -125,6 +125,9 @@ uint8_t InitAudioPlayback(int32_t vol, uint32_t rate ) {
 		pRxBuffer = CreateCircularBuffer(RX_BUFFER_SIZE, audio_mem_p);
 	}
 	memset( audio_mem_p, 0, AUD_BUFFER_SIZE);
+
+	// Unmute speaker
+	codec_unmute_spkr();
 #else
 	//create circular buffer
 	if (!pRxBuffer) {
@@ -161,6 +164,10 @@ void DeinitAudioPlayback(void) {
 
 	MAP_uDMAChannelDisable(UDMA_CH5_I2S_TX);
 #endif
+
+	// Mute speaker
+	codec_mute_spkr();
+
 	if (pRxBuffer) {
 		DestroyCircularBuffer(pRxBuffer);
 		pRxBuffer = NULL;
