@@ -477,7 +477,6 @@ cleanup:
 }
 
 
-
 static void DoCapture(uint32_t rate) {
 
 #if (CODEC_ENABLE_MULTI_CHANNEL==1)
