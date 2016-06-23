@@ -162,11 +162,12 @@ void DeinitAudioPlayback(void) {
 #if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX == 0)
 	McASPDeInit();
 
-	MAP_uDMAChannelDisable(UDMA_CH5_I2S_TX);
 #endif
 
 	// Mute speaker
 	codec_mute_spkr();
+
+	MAP_uDMAChannelDisable(UDMA_CH5_I2S_TX);
 
 	if (pRxBuffer) {
 		DestroyCircularBuffer(pRxBuffer);
