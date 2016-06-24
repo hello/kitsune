@@ -793,6 +793,7 @@ int32_t codec_init_with_dsp(void)
 	char send_stop = 1;
 	unsigned char cmd[2];
 
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
 
 	uint32_t reg_array_size = sizeof(REG_Section_program)/2;
 
@@ -804,6 +805,8 @@ int32_t codec_init_with_dsp(void)
 		cmd[1] = REG_Section_program[i].reg_val;
 		I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 	}
+
+	xSemaphoreGiveRecursive(i2c_smphr);
 
 	//vTaskDelay(20);
 
@@ -818,6 +821,7 @@ int32_t codec_init_with_dsp(void)
 	// Update miniDSP A
 	reg_array_size = sizeof(miniDSP_A_reg_values)/2;
 
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
 	// Write the registers
 	for(i=0;i<reg_array_size;i++)
 	{
@@ -826,11 +830,13 @@ int32_t codec_init_with_dsp(void)
 		cmd[1] = miniDSP_A_reg_values[i].reg_val;
 		I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 	}
+	xSemaphoreGiveRecursive(i2c_smphr);
 
 	vTaskDelay(20);
 	// Update miniDSP D
 	reg_array_size = sizeof(miniDSP_D_reg_values)/2;
 
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
 	// Write the registers
 	for(i=0;i<reg_array_size;i++)
 	{
@@ -839,6 +845,7 @@ int32_t codec_init_with_dsp(void)
 		cmd[1] = miniDSP_D_reg_values[i].reg_val;
 		I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 	}
+	xSemaphoreGiveRecursive(i2c_smphr);
 
 	vTaskDelay(20);
 
@@ -849,6 +856,7 @@ int32_t codec_init_with_dsp(void)
 	 */
 	reg_array_size = sizeof(REG_Section_program2)/2;
 
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
 	// Write the registers
 	for(i=0;i<reg_array_size;i++)
 	{
@@ -857,25 +865,13 @@ int32_t codec_init_with_dsp(void)
 		cmd[1] = REG_Section_program2[i].reg_val;
 		I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 	}
+	xSemaphoreGiveRecursive(i2c_smphr);
 
-	//vTaskDelay(20);
-
-	//codec_set_page(0);
-
-	//codec_set_book(0);
-
-	//codec_speaker_config();
-
-	vTaskDelay(20);
-
-	//codec_set_page(0);
-
-	//codec_set_book(0);
-
-	//codec_mic_config();
 
 	vTaskDelay(100);
 #ifdef CODEC_1P5_TEST
+
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
 
 	//	w 30 00 00 # Select Page 0
 	codec_set_page(0);
@@ -1006,6 +1002,8 @@ int32_t codec_init_with_dsp(void)
 	//	w 30 00 00 # Select Page 0
 	codec_set_page(0);
 
+	xSemaphoreGiveRecursive(i2c_smphr);
+
 #endif
 	return 1;
 
@@ -1119,18 +1117,6 @@ int32_t codec_init_with_dsp(void)
 	return 0;
 
 }
-
-// Start playback
-
-// Stop playback
-
-// start capture
-
-//stop capture
-
-// update volume
-
-// Software reset codec
 #endif
 
 #else

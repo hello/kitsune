@@ -788,7 +788,7 @@ void AudioTask_Thread(void * data) {
 			//so even if we just played back a file
 			//if we were supposed to be capturing, we resume that mode
 			if (_isCapturing) {
-				AudioTask_StartCapture(48000); // TODO DKH 16000);Use AUDIO_CAPTURE_RATE
+				//AudioTask_StartCapture(48000); // TODO DKH 16000);Use AUDIO_CAPTURE_RATE
 
 			}
 		}
