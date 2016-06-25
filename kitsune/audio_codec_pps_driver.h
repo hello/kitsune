@@ -263,7 +263,7 @@ static const reg_value REG_Section_program2[] = {
 //			# reg[0][4][10] = 0                          ; ASI1 Audio Interface WCLK and BCLK
     { 10,0x00},
 //			# reg[0][4][8]  = 0x50                       ; ASI1 Left DAC Datapath = Left Data, ASI1 Right DAC Datapath = Right Data
-    {  8,0x50},
+    {  8,0x40}, // 0x50}, // TODO DKH
 //			# reg[0][4][23] = 0x05 ; ASI2_IN_CH<L1,R1> = miniDSP_A_out_ch<L2,R2>
     { 23,0x05},
 //			# reg[0][4][24] = 0x50 ; ASI2_OUT_CH<L1> = Channel<L1> ; ASI2_OUT_CH<R1> = Channel<R1>
@@ -308,7 +308,7 @@ static const reg_value REG_Section_program2[] = {
     { 60,0x80},
     {  0x7F,0x00},
 //			# reg[0][0][112] = 0xd4; Enable CIC2 and Digital mic for Left and Right Channel
-    {112,0xE4},
+    {112,0xE4},//TODO DKH
     {  0,0x04},
 
 #if (KITSUNE_CODE==1)
@@ -349,8 +349,6 @@ static const reg_value REG_Section_program2[] = {
     {  0,0x00},
 //			# reg[0][0][82] = 0
     { 82,0x00},
-//			# reg[0][0][83] = 0
-    { 83,0x00},
 //			# reg[0][0][86] = 32
     { 86,0x20},
 //			# reg[0][0][87] = 254
@@ -3380,7 +3378,7 @@ static const reg_value miniDSP_D_reg_values[] = {
     {100,0x18},
     {101,0x00},
     {102,0xA0},
-    {103,0x01},
+    {103,0x84},
     {104,0x18},
     {105,0x00},
     {106,0x60},
