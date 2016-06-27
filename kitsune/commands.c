@@ -2217,27 +2217,41 @@ void vUARTTask(void *pvParameters) {
 	CreateDefaultDirectories();
 	load_data_server();
 
-	UARTprintf("~~~~Codec INIT~~~~\n");
+	/********************************************************************************
+	 *           AUDIO INIT START
+	 * *******************************************************************************
+	 */
 
-	// Configure CODEC_RST pin
-
+	// Reset codec
 	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0);
 	vTaskDelay(10);
 	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0x4);
+
+
 #ifdef CODEC_1P5_TEST
 	codec_test_commands();
 #endif
+
+	// Program codec
 	codec_init();
 
 #if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX==1)
+	// McASP and DMA init
 	InitAudioTxRx(AUDIO_CAPTURE_PLAYBACK_RATE);
 #endif
 
+	// Create audio tasks for playback and record
 	xTaskCreate(AudioTask_Thread,"audioTask",2560/4,NULL,4,NULL);
 #if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX==1)
 	xTaskCreate(AudioTask_Thread_playback,"audioTaskPlay",2560/4,NULL,4,NULL);
 #endif
 	//xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,2,NULL);
+
+	/********************************************************************************
+	 *           AUDIO INIT END
+	 * *******************************************************************************
+	 */
+
 	UARTprintf("*");
 	//init_download_task( 3072 / 4 );
 	networktask_init(3 * 1024 / 4);
