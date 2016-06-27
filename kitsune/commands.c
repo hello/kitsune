@@ -1731,7 +1731,7 @@ void launch_tasks() {
 	booted = true;
 
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 3, NULL);
-	//xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,2,NULL);
+	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,2,NULL);
 	UARTprintf("*");
 #ifdef KIT_INCLUDE_FILE_UPLOAD
 	xTaskCreate(FileUploaderTask_Thread,"fileUploadTask", 1024/4,NULL,1,NULL);
@@ -1743,11 +1743,11 @@ void launch_tasks() {
 	UARTprintf("*");
 #if !ONLY_MID
 	UARTprintf("*");
-	//xTaskCreate(thread_dust, "dustTask", 512 / 4, NULL, 3, NULL);
+	xTaskCreate(thread_dust, "dustTask", 512 / 4, NULL, 3, NULL);
 	UARTprintf("*");
-	//xTaskCreate(thread_sensor_poll, "pollTask", 768 / 4, NULL, 2, NULL);
+	xTaskCreate(thread_sensor_poll, "pollTask", 768 / 4, NULL, 2, NULL);
 	UARTprintf("*");
-	//xTaskCreate(thread_tx, "txTask", 1024 / 4, NULL, 1, NULL);
+	xTaskCreate(thread_tx, "txTask", 1024 / 4, NULL, 1, NULL);
 	UARTprintf("*");
 	long_poll_task_init( 2560 / 4 );
 	downloadmanagertask_init(3072 / 4);
@@ -2271,7 +2271,7 @@ void vUARTTask(void *pvParameters) {
 				LOGF("can't run %s, no mem!\n", cCmdBuf );
 			} else {
 				memcpy( args, cCmdBuf, sizeof( cCmdBuf ) );
-				xTaskCreate(CmdLineProcess, "commandTask",  6*1024 / 4, args, 3, NULL);
+				xTaskCreate(CmdLineProcess, "commandTask",  3*1024 / 4, args, 3, NULL);
 			}
         }
 	}
