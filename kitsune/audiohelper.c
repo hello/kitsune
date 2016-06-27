@@ -98,8 +98,7 @@ uint8_t InitAudioCapture(uint32_t rate) {
 	SetupPingPongDMATransferTx();
 
 	// Setup the Audio In/Out
-    MAP_I2SIntEnable(I2S_BASE, I2S_INT_RDMA );
-
+	MAP_I2SIntEnable(I2S_BASE, I2S_INT_RDMA );
 
 	AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
 	AudioCaptureRendererConfigure( rate);
@@ -134,8 +133,7 @@ uint8_t InitAudioPlayback(int32_t vol, uint32_t rate ) {
 	}
 	memset( audio_mem_p, 0, AUD_BUFFER_SIZE);
 
-	// Unmute speaker
-	codec_unmute_spkr();
+
 #else
 	//create circular buffer
 	if (!pRxBuffer) {
@@ -143,6 +141,10 @@ uint8_t InitAudioPlayback(int32_t vol, uint32_t rate ) {
 	}
 	memset( audio_mem, 0, AUD_BUFFER_SIZE);
 #endif
+
+	// Unmute speaker
+	codec_unmute_spkr();
+
 	//////
 	// SET UP AUDIO PLAYBACK
 #if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX == 0)
@@ -170,12 +172,11 @@ void DeinitAudioPlayback(void) {
 #if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX == 0)
 	McASPDeInit();
 
+	MAP_uDMAChannelDisable(UDMA_CH5_I2S_TX);
 #endif
 
 	// Mute speaker
 	codec_mute_spkr();
-
-	//MAP_uDMAChannelDisable(UDMA_CH5_I2S_TX);
 
 	if (pRxBuffer) {
 		DestroyCircularBuffer(pRxBuffer);
