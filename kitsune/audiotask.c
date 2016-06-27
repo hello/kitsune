@@ -43,7 +43,7 @@
 #define MAX_NUMBER_TIMES_TO_WAIT_FOR_AUDIO_BUFFER_TO_FILL (5)
 #define MAX_FILE_SIZE_BYTES (1048576*10)
 
-#define MONO_BUF_LENGTH (256)
+#define MONO_BUF_LENGTH (AUDIO_FFT_SIZE)
 
 #define FLAG_SUCCESS (0x01)
 #define FLAG_STOP    (0x02)
@@ -240,7 +240,7 @@ static void _set_volume_task(hlo_future_t * result, void * ctx){
 	LOGI("Setting volume %d at %d\n", vol_to_set, xTaskGetTickCount());
 	if( xSemaphoreTakeRecursive(i2c_smphr, 100)) {
 		vTaskDelay(5);
-		set_volume(vol_to_set, 0);
+		// set_volume(vol_to_set, 0); // TODO DKH
 		vTaskDelay(5);
 		xSemaphoreGiveRecursive(i2c_smphr);
 	}
@@ -395,7 +395,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 			if( res != 0 ) {
 				LOGE("FSERR %d\n", res);
 			}
-			if( desired_ticks_elapsed - (xTaskGetTickCount() - t0) > 0 && desired_ticks_elapsed > 0 ) {
+			if( desired_ticks_elapsed == 0 || ( desired_ticks_elapsed - (xTaskGetTickCount() - t0) > 0 && desired_ticks_elapsed > 0 ) ) {
 				//LOOP THE FILE -- start over
 				LOGI("looping %d\n", desired_ticks_elapsed - (xTaskGetTickCount() - t0)  );
 				hello_fs_lseek(&fp,0);
@@ -436,7 +436,11 @@ cleanup:
 
 
 static void DoCapture(uint32_t rate) {
-	int16_t * samples = pvPortMalloc(MONO_BUF_LENGTH*2*2); //256 * 2bytes * 2 = 1KB
+#if (CODEC_ENABLE_MULTI_CHANNEL==1)
+	int16_t * samples = (int16_t*) pvPortMalloc(MONO_BUF_LENGTH*4*2); //256 * 4bytes * 2 = 2KB
+#else
+	int16_t * samples = (int16_t*) pvPortMalloc(MONO_BUF_LENGTH*2*2); //256 * 2bytes * 2 = 1KB
+#endif
 	char filepath[32];
 
 	int iBufferFilled = 0;
@@ -591,15 +595,20 @@ static void DoCapture(uint32_t rate) {
 		}
 		else {
 			//dump buffer out
-			ReadBuffer(pTxBuffer,(uint8_t *)samples,PING_PONG_CHUNK_SIZE);
+			ReadBuffer(pTxBuffer,(uint8_t *)samples,MONO_BUF_LENGTH*sizeof(int16_t));
 
 #ifdef PRINT_TIMING
 			t1 = xTaskGetTickCount(); dt = t1 - t0; t0 = t1;
 #endif
 
+
 			//write to file
 			if (isSavingToFile) {
-				const uint32_t bytes_written = MONO_BUF_LENGTH*sizeof(int16_t);
+#if (CODEC_ENABLE_MULTI_CHANNEL==1)
+				const uint32_t bytes_written = 2*MONO_BUF_LENGTH*sizeof(int32_t);
+#else
+				const uint32_t bytes_written = 2*MONO_BUF_LENGTH*sizeof(int16_t);
+#endif
 
 				if (WriteToFile(&filedata,bytes_written,(const uint8_t *)samples)) {
 					num_bytes_written += bytes_written;
@@ -619,6 +628,7 @@ static void DoCapture(uint32_t rate) {
 					_filecounter--;
 				}
 			}
+
 
 			/* process audio to get features */
 #ifdef PRINT_TIMING
@@ -668,18 +678,17 @@ static void DoCapture(uint32_t rate) {
 	LOGI("%d free %d stk\n", xPortGetFreeHeapSize(),  uxTaskGetStackHighWaterMark(NULL));
 }
 
-
-
-
-
+// TODO DKH split to two separate tasks for capture and playback
 void AudioTask_Thread(void * data) {
 
 	AudioMessage_t  m;
 
 	Init();
 
-
 	for (; ;) {
+
+		vTaskDelay(1000);
+
 		memset(&m,0,sizeof(m));
 
 		/* Wait until we get a message */
@@ -725,7 +734,7 @@ void AudioTask_Thread(void * data) {
 			//so even if we just played back a file
 			//if we were supposed to be capturing, we resume that mode
 			if (_isCapturing) {
-				AudioTask_StartCapture(16000);
+				// AudioTask_StartCapture(48000); // TODO DKH 16000);
 			}
 		}
 	}

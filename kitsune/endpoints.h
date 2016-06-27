@@ -7,13 +7,25 @@ char * get_messeji_server(void);
 #define DATA_SERVER	get_server()
 #define MESSEJI_SERVER	get_messeji_server()
 
+#ifdef USE_SHA2
 #define PROD_MESSEJI_SERVER "messeji-sha2.hello.is"
 #define DEV_MESSEJI_SERVER "messeji-dev-sha2.hello.is"
+#else
+#define PROD_MESSEJI_SERVER "messeji.hello.is"
+#define DEV_MESSEJI_SERVER "messeji-dev.hello.is"
+#endif
+
 #define MESSEJI_ENDPOINT "/receive"
 
 
+#ifdef USE_SHA2
 #define PROD_DATA_SERVER                    "sense-in-sha2.hello.is"
 #define DEV_DATA_SERVER						"dev-in-sha2.hello.is"
+#else
+#define PROD_DATA_SERVER                    "sense-in.hello.is"
+#define DEV_DATA_SERVER						"dev-in.hello.is"
+#endif
+
 #define DATA_RECEIVE_ENDPOINT               "/in/sense/batch"
 #define MORPHEUS_REGISTER_ENDPOINT          "/register/morpheus"
 #define PILL_REGISTER_ENDPOINT              "/register/pill"

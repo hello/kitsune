@@ -33,7 +33,7 @@ static void async_worker(void * ctx){
 		hlo_future_free(task->result);
 		vPortFree(task);
 	}
-	LOGI("async %d stk\n", uxTaskGetStackHighWaterMark(NULL));
+	LOGD("async %d stk\n", uxTaskGetStackHighWaterMark(NULL));
 	vTaskDelete(NULL);
 }
 static int do_read(hlo_future_t * future, void * buf, size_t size){

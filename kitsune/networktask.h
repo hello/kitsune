@@ -49,6 +49,9 @@ typedef struct {
 	bool has_pb_cb;
 
 	bool priority;
+
+	//track whether a higher priority message has interrupted this one...
+	bool interrupted;
 } NetworkTaskServerSendMessage_t;
 
 typedef struct {
