@@ -1046,6 +1046,16 @@
 			<locationURI>PARENT-2-PROJECT_LOC/protobuf/provision.pb.h</locationURI>
 		</link>
 		<link>
+			<name>protobuf/response.pb.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/response.pb.c</locationURI>
+		</link>
+		<link>
+			<name>protobuf/response.pb.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/response.pb.h</locationURI>
+		</link>
+		<link>
 			<name>protobuf/state.pb.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/protobuf/state.pb.c</locationURI>

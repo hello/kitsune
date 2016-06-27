@@ -197,10 +197,16 @@ int hlo_filter_octogram(hlo_stream_t * input, hlo_stream_t * output, void * ctx,
 }
 ////-------------------------------------------
 //octogram sample app
-int hlo_filter_speech_detection(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
+extern uint8_t get_alpha_from_light();
+#include "led_animations.h"
+#include "nanopb/pb_decode.h"
+#include "protobuf/response.pb.h"
+#include "hlo_http.h"
+extern bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, void **arg);
+int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
 #define NSAMPLES 512
 	int sample_rate = 16000;
-	int ret;
+	int ret = 0;
 	int16_t samples[NSAMPLES];
 	int32_t count = 0;
 	int32_t zcr = 0;
@@ -208,7 +214,12 @@ int hlo_filter_speech_detection(hlo_stream_t * input, hlo_stream_t * output, voi
 	int32_t window_eng;
 	int64_t eng = 0;
 	uint8_t window_over = 0;
-	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, sizeof(samples), 4)) ){
+	{//play the trippy while we get voice
+		uint8_t trippy_base[3] = {200, 200, 200};
+		uint8_t trippy_range[3] = { 54, 54, 54 };
+		play_led_trippy(trippy_base, trippy_range, portMAX_DELAY, 30, 30 );
+	}
+	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, sizeof(samples), 4)) > 0 ){
 		int i;
 		for(i = 1; i < NSAMPLES; i++){
 			if( (samples[i] > 0 && samples[i-1] <= 0) ||
@@ -229,14 +240,62 @@ int hlo_filter_speech_detection(hlo_stream_t * input, hlo_stream_t * output, voi
 			LOGI("zcr = %d, eng = %d\r\n", window_zcr, window_eng);
 			window_over = 0;
 		}
+		ret = hlo_stream_transfer_all(INTO_STREAM, output,  (uint8_t*)samples, ret, 4);
+		if ( ret <  0){
+			break;
+		}
+		BREAK_ON_SIG(signal);
+	}
+	{//now play the swirling thing when we get response
+			play_led_wheel(get_alpha_from_light(),254,0,254,2,18,0);
+			DISP("Wheel\r\n");
+	}
+
+	//lastly, glow with voice output, since we can't do that in half duplex mode, simply queue it to the voice output
+	if( ret >= 0){
+		SpeechResponse resp = SpeechResponse_init_zero;
+		DISP("\r\n===========\r\n");
+		resp.text.funcs.decode = _decode_string_field;
+		resp.url.funcs.decode = _decode_string_field;
+		if( 0 == hlo_pb_decode(output,SpeechResponse_fields, &resp) ){
+			DISP("Resp %s\r\nUrl %s\r\n", resp.text.arg, resp.url.arg);
+			hlo_stream_t * aud = hlo_audio_open_mono(16000, 60,HLO_AUDIO_PLAYBACK);
+			hlo_stream_t * fs = hlo_http_get(resp.url.arg);
+			hlo_filter_adpcm_decoder(fs,aud,NULL,NULL);
+			hlo_stream_close(fs);
+			hlo_stream_close(aud);
+
+			vPortFree(resp.text.arg);
+			vPortFree(resp.url.arg);
+		}
+		DISP("\r\n===========\r\n");
+	}
+	return ret;
+}
+#include "hellomath.h"
+int hlo_filter_modulate_led_with_sound(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
+	int ret;
+	int16_t samples[NSAMPLES] = {0};
+	play_modulation(253,253,253,30,0);
+	int32_t reduced = 0;
+	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, sizeof(samples), 4)) >= 0 ){
+		int i;
+		int32_t eng = 0;
+		for(i = 0; i < NSAMPLES; i++){
+			eng += abs(samples[i]);
+		}
+		eng = eng/NSAMPLES;
+
+		reduced =  (int32_t)(0.15 * (fxd_sqrt(eng) + 0.005 * eng)) + (0.85 * reduced);
+
+		if(reduced > 253){
+			reduced = 253;
+		}
+		set_modulation_intensity( reduced );
 		hlo_stream_transfer_all(INTO_STREAM, output,  (uint8_t*)samples, ret, 4);
 		BREAK_ON_SIG(signal);
 	}
-	if( ret >= 0){
-		DISP("\r\n===========\r\n");
-		ret = hlo_filter_data_transfer(output, uart_stream(), NULL, signal);
-		DISP("\r\n===========\r\n");
-	}
+	stop_led_animation( 0, 33 );
 	return ret;
 }
 ////-----------------------------------------
@@ -271,7 +330,9 @@ static hlo_filter _filter_from_string(const char * str){
 	case '?':
 		return hlo_filter_throughput_test;
 	case 'x':
-		return hlo_filter_speech_detection;
+		return hlo_filter_voice_command;
+	case 'X':
+	//	return hlo_filter_modulate_led_with_sound;
 	default:
 		return hlo_filter_data_transfer;
 	}
@@ -293,7 +354,10 @@ int Cmd_stream_transfer(int argc, char * argv[]){
 	hlo_stream_t * in = open_stream_from_path(argv[1],1);
 	hlo_stream_t * out = open_stream_from_path(argv[2],0);
 
-	ret = f(in,out,NULL, _can_has_sig_stop);
+	if(in && out){
+		ret = f(in,out,NULL, _can_has_sig_stop);
+	}
+
 
 	LOGI("Stream transfer exited with code %d\r\n", ret);
 	hlo_stream_close(in);
