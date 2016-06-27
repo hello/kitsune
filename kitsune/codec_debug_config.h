@@ -7,6 +7,6 @@
 // set this to be 1
 #define CODEC_LEFT_LATCH_FALLING 	1
 
-#define AUDIO_FULL_DUPLEX 0
+#define AUDIO_FULL_DUPLEX 1
 
 #endif
