@@ -478,7 +478,6 @@ cleanup:
 
 
 static void DoCapture(uint32_t rate) {
-
 #if (CODEC_ENABLE_MULTI_CHANNEL==1)
 	int16_t * samples = (int16_t*) pvPortMalloc(MONO_BUF_LENGTH*4*2); //256 * 4bytes * 2 = 2KB
 #else

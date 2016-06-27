@@ -279,6 +279,74 @@ int Cmd_i2c_write(int argc, char *argv[]) {
 
 }
 
+
+static int get_temp_old() {
+	unsigned char cmd = 0xe3;
+	int temp_raw;
+	int temp;
+
+	unsigned char aucDataBuf[2];
+
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
+
+	vTaskDelay(5);
+	(I2C_IF_Write(0x40, &cmd, 1, 1));
+
+	xSemaphoreGiveRecursive(i2c_smphr);
+	vTaskDelay(50);
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
+	vTaskDelay(5);
+	(I2C_IF_Read(0x40, aucDataBuf, 2));
+	temp_raw = (aucDataBuf[0] << 8) | ((aucDataBuf[1] & 0xfc));
+
+	temp = 17572 * temp_raw / 65536 - 4685;
+
+	xSemaphoreGiveRecursive(i2c_smphr);
+
+	return temp;
+}
+static int get_humid_old() {
+	unsigned char aucDataBuf[2];
+	unsigned char cmd = 0xe5;
+	int humid_raw;
+	int humid;
+
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
+	vTaskDelay(5);
+
+	(I2C_IF_Write(0x40, &cmd, 1, 1));
+
+	xSemaphoreGiveRecursive(i2c_smphr);
+	vTaskDelay(50);
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
+
+	vTaskDelay(5);
+	(I2C_IF_Read(0x40, aucDataBuf, 2));
+	humid_raw = (aucDataBuf[0] << 8) | ((aucDataBuf[1] & 0xfc));
+
+	xSemaphoreGiveRecursive(i2c_smphr);
+
+	humid = 12500 * humid_raw / 65536 - 600;
+	return humid;
+}
+int Cmd_read_temp_humid_old(int argc, char *argv[]) {
+	unsigned char cmd = 0xfe;
+	int temp,humid;
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
+	(I2C_IF_Write(0x40, &cmd, 1, 1));    // reset
+	get_temp_old();
+	get_humid_old();
+	xSemaphoreGiveRecursive(i2c_smphr);
+	vTaskDelay(500);
+
+	temp = get_temp_old();
+	humid = get_humid_old();
+	humid += (2500-temp)*-15/100;
+
+	LOGF("%d,%d\n", temp, humid);
+	return SUCCESS;
+}
+
 #if 1
 struct {
 	uint16_t dig_T1;
@@ -604,7 +672,7 @@ int init_light_sensor()
 static int get_le_short( uint8_t * b ) {
 	return (b[0] | (b[1]<<8));
 }
-#define DBG_TMG(...)
+#define DBG_TMG LOGI
 int get_rgb_prox( int * w, int * r, int * g, int * bl, int * p ) {
 	unsigned char b[10];
 	int i;
@@ -640,8 +708,7 @@ start_rgb:
 	if( i == 10  ) {
 		init_light_sensor();
 		LOGE("Fail to read TMG\n");
-		vTaskDelay(10);
-		goto start_rgb;
+		return 0;
 	}
 
 	*w = get_le_short(b);
@@ -659,6 +726,125 @@ int Cmd_readlight(int argc, char *argv[]) {
 	if( SUCCESS == get_rgb_prox( &w, &r, &g, &b, &p ) ) {
 		LOGF("%d,%d,%d,%d,%d\n", w,r,g,b,p );
 	}
+	return SUCCESS;
+}
+
+int get_ir( int * ir ) {
+	unsigned char b[2];
+	int w,r,g,bl,p;
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
+
+	b[0] = 0xAB;
+	b[1] = 0x40;
+	(I2C_IF_Write(0x39, b, 2, 1));
+	vTaskDelay(110);
+	get_rgb_prox( &w, &r, &g, &bl, &p );
+	*ir = w+r+g+bl;
+
+	b[0] = 0xAB;
+	b[1] = 0x00;
+	(I2C_IF_Write(0x39, b, 2, 1));
+	vTaskDelay(110);
+
+	xSemaphoreGiveRecursive(i2c_smphr);
+
+	return 0;
+}
+int init_uv(bool als) {
+	unsigned char b[2];
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
+
+#if 0 // checking the part id seems to make the mode setting fail
+	//check the part id
+	b[0] = 0x6;
+	(I2C_IF_Write(0x53, b, 1, 1));
+	(I2C_IF_Read(0x53, b, 1));
+	if( b[1] != 0xb2 ) {
+		xSemaphoreGiveRecursive(i2c_smphr);
+		return -1;
+	}
+#endif
+	//set mode
+	b[0] = 0;
+	if( als ) {
+		b[1] = 2;
+	} else {
+		b[1] = 0xa;
+	}
+	(I2C_IF_Write(0x53, b, 2, 1));
+
+	//set gain to 18
+	b[0] = 0x5;
+	b[1] = 0b100;
+	(I2C_IF_Write(0x53, b, 2, 1));
+
+	//set rate to 2 hz
+	b[0] = 0x4;
+	b[1] = 0b110100;
+	(I2C_IF_Write(0x53, b, 2, 1));
+
+	xSemaphoreGiveRecursive(i2c_smphr);
+
+	return 0;
+}
+
+int Cmd_read_uv(int argc, char *argv[]) {
+	static int use_als;
+
+	if( use_als != (atoi(argv[1]) == 1) ) {
+		use_als  = (atoi(argv[1]) == 1);
+		if( init_uv( use_als ) ) {
+			LOGF("UV FAIL\n");
+			return -1;
+		}
+	}
+
+	int32_t v = 0;
+	unsigned char b[2];
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
+
+	b[0] = use_als ? 0xd : 0x10;
+	(I2C_IF_Write(0x53, b, 1, 1));
+	(I2C_IF_Read(0x53, (uint8_t*)&v, 3));
+	xSemaphoreGiveRecursive(i2c_smphr);
+
+	LOGF("%d\n", v);
+
+	return 0;
+}
+
+int Cmd_uvr(int argc, char *argv[]) {
+	int i;
+	int addr = strtol(argv[1], NULL, 16);
+	int len = strtol(argv[2], NULL, 16);
+	unsigned char b[2];
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
+
+
+
+	b[0] = addr;
+	(I2C_IF_Write(0x53, b, 1, 1));
+	(I2C_IF_Read(0x53, b, len));
+
+	for(i=0;i<len;++i) {
+		LOGF("%x:", b[i] );
+	}
+	LOGF("\n");
+	xSemaphoreGiveRecursive(i2c_smphr);
+
+	return SUCCESS;
+}
+int Cmd_uvw(int argc, char *argv[]) {
+	int addr = strtol(argv[1], NULL, 16);
+	int data = strtol(argv[2], NULL, 16);
+
+	unsigned char b[2];
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
+	b[0] = addr;
+	b[1] = data;
+	(I2C_IF_Write(0x53, b, 2, 1));
+	xSemaphoreGiveRecursive(i2c_smphr);
+
 	return SUCCESS;
 }
 

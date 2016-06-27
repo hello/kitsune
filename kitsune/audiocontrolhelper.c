@@ -14,7 +14,6 @@ void AudioControlHelper_SetAudioControl(AudioControl * pcontrol) {
 		case AudioControl_AudioCaptureAction_ON:
 		{
 			// AudioTask_StartCapture(AUDIO_CAPTURE_PLAYBACK_RATE);
-
 			break;
 		}
 
