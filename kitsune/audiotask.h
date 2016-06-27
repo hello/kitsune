@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include "audio_types.h"
 
-#define AUDIO_CAPTURE_RATE 16000
+#define AUDIO_CAPTURE_PLAYBACK_RATE 48000
 
 typedef enum {
 	eAudioCaptureTurnOn,
@@ -51,6 +51,11 @@ typedef struct {
 } AudioMessage_t;
 
 void AudioTask_Thread(void * data);
+
+#include "codec_debug_config.h"
+#if (AUDIO_FULL_DUPLEX==1)
+void AudioTask_Thread_playback(void * data);
+#endif
 
 void AudioTask_AddMessageToQueue(const AudioMessage_t * message);
 

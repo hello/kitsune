@@ -96,6 +96,11 @@
 #include "top_board.h"
 #include "long_poll.h"
 #include "filedownloadmanager.h"
+
+#if (AUDIO_FULL_DUPLEX==1)
+#include "audiohelper.h"
+#endif
+
 #define ONLY_MID 0
 
 #define ARRAY_LEN(a) (sizeof(a)/sizeof(a[0]))
@@ -338,7 +343,7 @@ int Cmd_record_buff(int argc, char *argv[]) {
 
 int Cmd_audio_turn_on(int argc, char * argv[]) {
 
-	AudioTask_StartCapture(AUDIO_CAPTURE_RATE);// TODO DKH 16000);
+	AudioTask_StartCapture(AUDIO_CAPTURE_PLAYBACK_RATE);
 
 	AudioProcessingTask_SetControl(featureUploadsOn,NULL,NULL,0);
 #ifdef KIT_INCLUDE_FILE_UPLOAD
@@ -734,7 +739,7 @@ void thread_alarm(void * unused) {
 				desc.durationInSeconds = alarm.ring_duration_in_second;
 				desc.volume = 57;
 				desc.onFinished = thread_alarm_on_finished;
-				desc.rate = 48000;
+				desc.rate = AUDIO_CAPTURE_PLAYBACK_RATE;
 				desc.context = &alarm_led_id;
 
 				alarm.has_start_time = FALSE;
@@ -2212,22 +2217,41 @@ void vUARTTask(void *pvParameters) {
 	CreateDefaultDirectories();
 	load_data_server();
 
-	UARTprintf("~~~~Codec INIT~~~~\n");
+	/********************************************************************************
+	 *           AUDIO INIT START
+	 * *******************************************************************************
+	 */
 
-	// Configure CODEC_RST pin
-
+	// Reset codec
 	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0);
 	vTaskDelay(10);
 	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0x4);
+
+
 #ifdef CODEC_1P5_TEST
 	codec_test_commands();
 #endif
+
+	// Program codec
 	codec_init();
 
-	// McASPInit(48000);
+#if (AUDIO_FULL_DUPLEX==1)
+	// McASP and DMA init
+	InitAudioTxRx(AUDIO_CAPTURE_PLAYBACK_RATE);
+#endif
 
+	// Create audio tasks for playback and record
 	xTaskCreate(AudioTask_Thread,"audioTask",2560/4,NULL,4,NULL);
+#if (AUDIO_FULL_DUPLEX==1)
+	xTaskCreate(AudioTask_Thread_playback,"audioTaskPlay",2560/4,NULL,4,NULL);
+#endif
 	//xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,2,NULL);
+
+	/********************************************************************************
+	 *           AUDIO INIT END
+	 * *******************************************************************************
+	 */
+
 	UARTprintf("*");
 	//init_download_task( 3072 / 4 );
 	networktask_init(3 * 1024 / 4);
@@ -2257,7 +2281,6 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("*");
 	//start_top_boot_watcher();
 
-	UARTprintf("~~~~CoolT~~~~\n");
 	if( on_charger ) {
 		launch_tasks();
 		vTaskDelete(NULL);

@@ -31,5 +31,7 @@ int32_t codec_test_commands(void);
 #endif
 
 int32_t codec_init(void);
+void codec_unmute_spkr(void);
+void codec_mute_spkr(void);
 
 #endif
