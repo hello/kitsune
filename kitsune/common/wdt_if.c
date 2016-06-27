@@ -17,11 +17,11 @@
 #include "hw_ints.h"
 #include "hw_memmap.h"
 
-#include <driverlib/prcm.h>
-#include <driverlib/wdt.h>
-#include <driverlib/rom.h>
-#include <driverlib/rom_map.h>
-#include <driverlib/interrupt.h>
+#include "prcm.h"
+#include "wdt.h"
+#include "rom.h"
+#include "rom_map.h"
+#include "interrupt.h"
 
 #include "wdt_if.h"
 #if defined(USE_TIRTOS) || defined(USE_FREERTOS) || defined(SL_PLATFORM_MULTI_THREADED)

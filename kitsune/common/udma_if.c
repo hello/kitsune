@@ -29,13 +29,13 @@
 #include "hw_types.h"
 #include "hw_udma.h"
 
-#include <driverlib/rom.h>
-#include <driverlib/rom_map.h>
-#include <driverlib/gpio.h>
-#include <driverlib/udma.h>
-#include <driverlib/interrupt.h>
-#include <driverlib/prcm.h>
-#include <driverlib/uart.h>
+#include "rom.h"
+#include "rom_map.h"
+#include "gpio.h"
+#include "udma.h"
+#include "interrupt.h"
+#include "prcm.h"
+#include "uart.h"
 
 // TI-RTOS includes
 #if defined(USE_TIRTOS) || defined(USE_FREERTOS) || defined(SL_PLATFORM_MULTI_THREADED)

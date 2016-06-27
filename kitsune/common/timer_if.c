@@ -17,11 +17,11 @@
 #include "hw_memmap.h"
 #include "hw_ints.h"
 
-#include <driverlib/interrupt.h>
-#include <driverlib/timer.h>
-#include <driverlib/rom.h>
-#include <driverlib/rom_map.h>
-#include <driverlib/prcm.h>
+#include "interrupt.h"
+#include "timer.h"
+#include "rom.h"
+#include "rom_map.h"
+#include "prcm.h"
 
 // TI-RTOS includes
 #if defined(USE_TIRTOS) || defined(USE_FREERTOS) || defined(SL_PLATFORM_MULTI_THREADED)
