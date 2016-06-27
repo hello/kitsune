@@ -1759,7 +1759,6 @@ void launch_tasks() {
 	// TODO ENABLE THIS BEFORE MERGE
 	// long_poll_task_init( 2560 / 4 );
 	// downloadmanagertask_init(3072 / 4);
-#endif
 }
 
 
