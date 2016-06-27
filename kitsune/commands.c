@@ -62,7 +62,6 @@
 #include "osi.h"
 
 #include "control.h"
-#include "ti_codec.h"
 #include "network.h"
 
 #include "diskio.h"
@@ -338,8 +337,7 @@ int Cmd_record_buff(int argc, char *argv[]) {
 
 
 int Cmd_audio_turn_on(int argc, char * argv[]) {
-
-	AudioTask_StartCapture(AUDIO_CAPTURE_RATE);
+	AudioTask_StartCapture(48000); // TODO DKH 16000);
 
 	AudioProcessingTask_SetControl(featureUploadsOn,NULL,NULL,0);
 #ifdef KIT_INCLUDE_FILE_UPLOAD
@@ -1742,7 +1740,7 @@ void launch_tasks() {
 	//dear future chris: this one doesn't need a semaphore since it's only written to while threads are going during factory test boot
 	booted = true;
 
-	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 3, NULL);
+//	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 3, NULL);
 #ifdef KIT_INCLUDE_FILE_UPLOAD
 	xTaskCreate(FileUploaderTask_Thread,"fileUploadTask", 1024/4,NULL,1,NULL);
 #endif
@@ -1755,12 +1753,13 @@ void launch_tasks() {
 	UARTprintf("*");
 	xTaskCreate(thread_dust, "dustTask", 512 / 4, NULL, 3, NULL);
 	UARTprintf("*");
-	xTaskCreate(thread_sensor_poll, "pollTask", 768 / 4, NULL, 2, NULL);
+	//xTaskCreate(thread_sensor_poll, "pollTask", 768 / 4, NULL, 2, NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_tx, "txTask", 1024 / 4, NULL, 1, NULL);
 	UARTprintf("*");
-	long_poll_task_init( 2560 / 4 );
-	downloadmanagertask_init(3072 / 4);
+	// TODO ENABLE THIS BEFORE MERGE
+	// long_poll_task_init( 2560 / 4 );
+	// downloadmanagertask_init(3072 / 4);
 #endif
 }
 
@@ -1945,12 +1944,29 @@ int Cmd_SyncID(int argc, char * argv[]);
 int Cmd_time_test(int argc, char * argv[]);
 int cmd_file_sync_upload(int argc, char *argv[]);
 
+int Cmd_read_temp_humid_old(int argc, char *argv[]);
+int Cmd_read_uv(int argc, char *argv[]);
+int Cmd_uvr(int argc, char *argv[]);
+int Cmd_uvw(int argc, char *argv[]);
+
+
+int cmd_button(int argc, char *argv[]) {
+
+#define LED_GPIO_BASE_DOUT GPIOA2_BASE
+#define LED_GPIO_BIT_DOUT 0x80
+	bool fast = MAP_GPIOPinRead(LED_GPIO_BASE_DOUT, LED_GPIO_BIT_DOUT);
+
+LOGF("button %d\n", fast);
+}
+int Cmd_readlight(int argc, char *argv[]);
 // ==============================================================================
 // This is the table that holds the command names, implementing functions, and
 // brief description.
 // ==============================================================================
 tCmdLineEntry g_sCmdTable[] = {
-//    { "cpu",      Cmd_cpu,      "Show CPU utilization" },
+		//    { "cpu",      Cmd_cpu,      "Show CPU utilization" },
+    { "b",      cmd_button,      " " },
+
 #if 0
 		{ "time_test", Cmd_time_test, "" },
 		{ "heapviz", Cmd_heapviz, "" },
@@ -1972,7 +1988,8 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "time", Cmd_time, "" },
 		{ "status", Cmd_status, "" },
 
-    { "mnt",      Cmd_mnt,      "" },
+	    { "light",      Cmd_readlight,      "" },
+	    { "mnt",      Cmd_mnt,      "" },
     { "umnt",     Cmd_umnt,     "" },
     { "ls",       Cmd_ls,       "" },
     { "chdir",    Cmd_cd,       "" },
@@ -1984,14 +2001,20 @@ tCmdLineEntry g_sCmdTable[] = {
     { "mkfs",     Cmd_mkfs,     "" },
     { "pwd",      Cmd_pwd,      "" },
     { "cat",      Cmd_cat,      "" },
-	{"codec_Mic", get_codec_mic_NAU, "" },
+	{"codec_Mic", get_codec_mic_NAU, "" }, // TODO DKH
 #endif
 
-    {"inttemp", Cmd_inttemp, "" },
+    {"inttemp", Cmd_inttemp, "" }, //internal temperature
 	{ "thp", Cmd_read_temp_hum_press,	"" },
 	{ "tv", Cmd_meas_TVOC,	"" },
 
-		{ "light", Cmd_readlight, "" },
+	{ "uv", Cmd_read_uv, "" },
+	{ "light", Cmd_readlight, "" },
+#if 1
+    {"th-old", Cmd_read_temp_humid_old, "" },
+	{ "uvr", Cmd_uvr, "" },
+	{ "uvw", Cmd_uvw, "" },
+#endif
 
 #if ( configUSE_TRACE_FACILITY == 1 )
 		{ "tasks", Cmd_tasks, "" },
@@ -2211,6 +2234,20 @@ void vUARTTask(void *pvParameters) {
 	CreateDefaultDirectories();
 	load_data_server();
 
+	UARTprintf("~~~~Codec INIT~~~~\n");
+
+	// Configure CODEC_RST pin
+
+	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0);
+	vTaskDelay(10);
+	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0x4);
+#ifdef CODEC_1P5_TEST
+	codec_test_commands();
+#endif
+	codec_init();
+
+	// McASPInit(48000);
+
 	xTaskCreate(AudioTask_Thread,"audioTask",2560/4,NULL,4,NULL);
 	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,2,NULL);
 	UARTprintf("*");
@@ -2233,10 +2270,10 @@ void vUARTTask(void *pvParameters) {
 	uart_logger_init();
 	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 1, NULL);
 	UARTprintf("*");
-	xTaskCreate(analytics_event_task, "analyticsTask", 1024/4, NULL, 1, NULL);
+	// xTaskCreate(analytics_event_task, "analyticsTask", 1024/4, NULL, 1, NULL);
 	UARTprintf("*");
 #endif
-	xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 2, NULL);
+	// xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
 	start_top_boot_watcher();
 
