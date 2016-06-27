@@ -49,7 +49,7 @@ void InitAudioHelper_p() {
 void InitAudioTxRx(uint32_t rate)
 {
 	// Initialize the Audio(I2S) Module
-	McASPInit(rate);  // TODO DKH
+	McASPInit(rate);
 
 	UDMAChannelSelect(UDMA_CH4_I2S_RX, NULL);
 	UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL);
@@ -67,6 +67,16 @@ void InitAudioTxRx(uint32_t rate)
 
 	// Start Audio Tx/Rx
 	Audio_Start();
+
+}
+
+void DeinitAudioTxRx(uint32_t rate)
+{
+	Audio_Stop();
+	McASPDeInit();
+
+	MAP_uDMAChannelDisable(UDMA_CH4_I2S_RX);
+	MAP_uDMAChannelDisable(UDMA_CH5_I2S_TX);
 
 }
 #endif
@@ -165,7 +175,7 @@ void DeinitAudioPlayback(void) {
 	// Mute speaker
 	codec_mute_spkr();
 
-	MAP_uDMAChannelDisable(UDMA_CH5_I2S_TX);
+	//MAP_uDMAChannelDisable(UDMA_CH5_I2S_TX);
 
 	if (pRxBuffer) {
 		DestroyCircularBuffer(pRxBuffer);

@@ -2281,7 +2281,6 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("*");
 	//start_top_boot_watcher();
 
-	UARTprintf("~~~~CoolT~~~~\n");
 	if( on_charger ) {
 		launch_tasks();
 		vTaskDelete(NULL);
