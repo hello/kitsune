@@ -1,39 +1,40 @@
+/*
+ *  Copyright (C) 2015 Texas Instruments Incorporated - http://www.ti.com/ 
+ *  
+ *  Redistribution and use in source and binary forms, with or without 
+ *  modification, are permitted provided that the following conditions 
+ *  are met:
+ *
+ *    Redistributions of source code must retain the above copyright 
+ *    notice, this list of conditions and the following disclaimer.
+ *
+ *    Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the 
+ *    documentation and/or other materials provided with the   
+ *    distribution.
+ *
+ *    Neither the name of Texas Instruments Incorporated nor the names of
+ *    its contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT 
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ *  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT 
+ *  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
+ *  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT 
+ *  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ *  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ *  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
+ *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
+ *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *  
+ */
 //*****************************************************************************
 //
 //  pin.h
 //
 //  Defines and Macros for the pin mux module
-//
-//  Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com/
-//
-//
-//  Redistribution and use in source and binary forms, with or without
-//  modification, are permitted provided that the following conditions
-//  are met:
-//
-//    Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-//
-//    Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the
-//    distribution.
-//
-//    Neither the name of Texas Instruments Incorporated nor the names of
-//    its contributors may be used to endorse or promote products derived
-//    from this software without specific prior written permission.
-//
-//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-//  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-//  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-//  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-//  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-//  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-//  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-//  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-//  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-//  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 //*****************************************************************************
 
@@ -116,8 +117,8 @@ extern "C"
 #define PIN_MODE_14	 0x0000000E
 #define PIN_MODE_15	 0x0000000F
 // Note : PIN_MODE_255 is a dummy define for pinmux utility code generation
-// PIN_MODE_255 should never be used in any user code.  
-#define PIN_MODE_255 0x000000FF  
+// PIN_MODE_255 should never be used in any user code.
+#define PIN_MODE_255 0x000000FF
 
 //*****************************************************************************
 // Macros that can be used with PinDirModeSet() and returned from
@@ -143,6 +144,15 @@ extern "C"
 #define PIN_TYPE_OD_PD    0x00000210
 #define PIN_TYPE_ANALOG   0x10000000
 
+//*****************************************************************************
+// Macros that can be used with PinHysteresisSet()
+//*****************************************************************************
+#define PIN_HYSTERESIS_OFF      0x00000000
+#define PIN_HYSTERESIS_10       0x00000004
+#define PIN_HYSTERESIS_20       0x0000000C
+#define PIN_HYSTERESIS_30       0x00000014
+#define PIN_HYSTERESIS_40       0x0000001C
+
 
 //*****************************************************************************
 //
@@ -167,7 +177,12 @@ extern void PinTypeGPIO(unsigned long ulPin,unsigned long ulPinMode,
                         tBoolean bOpenDrain);
 extern void PinTypeADC(unsigned long ulPin,unsigned long ulPinMode);
 extern void PinTypeSDHost(unsigned long ulPin,unsigned long ulPinMode);
-
+extern void PinHysteresisSet(unsigned long ulHysteresis);
+extern void PinLockLevelSet(unsigned long ulPin, unsigned char ucLevel);
+extern void PinLock(unsigned long ulOutEnable);
+extern void PinUnlock(void);
+extern unsigned long PinToPadGet(unsigned long ulPin);
+extern unsigned long PinFromPadGet(unsigned long ulPad);
 
 #ifdef __cplusplus
 }

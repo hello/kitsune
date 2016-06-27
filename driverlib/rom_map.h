@@ -1,43 +1,41 @@
+/*
+ *  Copyright (C) 2015 Texas Instruments Incorporated - http://www.ti.com/ 
+ *  
+ *  Redistribution and use in source and binary forms, with or without 
+ *  modification, are permitted provided that the following conditions 
+ *  are met:
+ *
+ *    Redistributions of source code must retain the above copyright 
+ *    notice, this list of conditions and the following disclaimer.
+ *
+ *    Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the 
+ *    documentation and/or other materials provided with the   
+ *    distribution.
+ *
+ *    Neither the name of Texas Instruments Incorporated nor the names of
+ *    its contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT 
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ *  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT 
+ *  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
+ *  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT 
+ *  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ *  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ *  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
+ *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
+ *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *  
+ */
 //*****************************************************************************
 //
-//  rom_map.h
-//
-//  Macros to facilitate calling functions in the ROM when they are
-//  available and in flash otherwise.
-//
-//  Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com/
-//
-//
-//  Redistribution and use in source and binary forms, with or without
-//  modification, are permitted provided that the following conditions
-//  are met:
-//
-//    Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-//
-//    Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the
-//    distribution.
-//
-//    Neither the name of Texas Instruments Incorporated nor the names of
-//    its contributors may be used to endorse or promote products derived
-//    from this software without specific prior written permission.
-//
-//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-//  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-//  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-//  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-//  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-//  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-//  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-//  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-//  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-//  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// rom_map.h - Macros to facilitate calling functions in the ROM when they are
+//             available.
 //
 //*****************************************************************************
-
 //*****************************************************************************
 //
 // THIS IS AN AUTO-GENERATED FILE.  DO NOT EDIT BY HAND.
@@ -46,6 +44,10 @@
 
 #ifndef __ROM_MAP_H__
 #define __ROM_MAP_H__
+
+//*****************************************************************************
+// Patched ROM APIs
+//*****************************************************************************
 #include "rom_patch.h"
 
 //*****************************************************************************
@@ -310,6 +312,13 @@
 #else
 #define MAP_TimerIntClear \
         TimerIntClear
+#endif
+#ifdef ROM_TimerValueSet
+#define MAP_TimerValueSet \
+        ROM_TimerValueSet
+#else
+#define MAP_TimerValueSet \
+        TimerValueSet
 #endif
 #ifdef ROM_TimerDMAEventSet
 #define MAP_TimerDMAEventSet \
@@ -1745,6 +1754,34 @@
 #define MAP_PinTypeSDHost \
         PinTypeSDHost
 #endif
+#ifdef ROM_PinHysteresisSet
+#define MAP_PinHysteresisSet \
+        ROM_PinHysteresisSet
+#else
+#define MAP_PinHysteresisSet \
+        PinHysteresisSet
+#endif
+#ifdef ROM_PinLockLevelSet
+#define MAP_PinLockLevelSet \
+        ROM_PinLockLevelSet
+#else
+#define MAP_PinLockLevelSet \
+        PinLockLevelSet
+#endif
+#ifdef ROM_PinLock
+#define MAP_PinLock \
+        ROM_PinLock
+#else
+#define MAP_PinLock \
+        PinLock
+#endif
+#ifdef ROM_PinUnlock
+#define MAP_PinUnlock \
+        ROM_PinUnlock
+#else
+#define MAP_PinUnlock \
+        PinUnlock
+#endif
 
 //*****************************************************************************
 //
@@ -1820,7 +1857,8 @@
 // Macros for the UTILS API.
 //
 //*****************************************************************************
-#ifdef ROM_UtilsDelay
+#if defined(USE_CC3200_ROM_DRV_API) || \
+    defined(USE_CC3220_ROM_DRV_API)
 #define MAP_UtilsDelay \
         ROM_UtilsDelay
 #else
@@ -1972,6 +2010,20 @@
 #else
 #define MAP_I2SIntUnregister \
         I2SIntUnregister
+#endif
+#ifdef ROM_I2STxActiveSlotSet
+#define MAP_I2STxActiveSlotSet \
+        ROM_I2STxActiveSlotSet
+#else
+#define MAP_I2STxActiveSlotSet \
+        I2STxActiveSlotSet
+#endif
+#ifdef ROM_I2SRxActiveSlotSet
+#define MAP_I2SRxActiveSlotSet \
+        ROM_I2SRxActiveSlotSet
+#else
+#define MAP_I2SRxActiveSlotSet \
+        I2SRxActiveSlotSet
 #endif
 
 //*****************************************************************************
@@ -2243,6 +2295,13 @@
 #else
 #define MAP_AESDMADisable \
         AESDMADisable
+#endif
+#ifdef ROM_AESIVGet
+#define MAP_AESIVGet \
+        ROM_AESIVGet
+#else
+#define MAP_AESIVGet \
+        AESIVGet
 #endif
 
 //*****************************************************************************
@@ -2611,13 +2670,6 @@
 #define MAP_SDHostIntClear \
         SDHostIntClear
 #endif
-#ifdef ROM_SDHostRespStatus
-#define MAP_SDHostRespStatus \
-        ROM_SDHostRespStatus
-#else
-#define MAP_SDHostRespStatus \
-        SDHostRespStatus
-#endif
 #ifdef ROM_SDHostRespGet
 #define MAP_SDHostRespGet \
         ROM_SDHostRespGet
@@ -2673,6 +2725,20 @@
 #else
 #define MAP_SDHostSetExpClk \
         SDHostSetExpClk
+#endif
+#ifdef ROM_SDHostCardErrorMaskSet
+#define MAP_SDHostCardErrorMaskSet \
+        ROM_SDHostCardErrorMaskSet
+#else
+#define MAP_SDHostCardErrorMaskSet \
+        SDHostCardErrorMaskSet
+#endif
+#ifdef ROM_SDHostCardErrorMaskGet
+#define MAP_SDHostCardErrorMaskGet \
+        ROM_SDHostCardErrorMaskGet
+#else
+#define MAP_SDHostCardErrorMaskGet \
+        SDHostCardErrorMaskGet
 #endif
 
 //*****************************************************************************
@@ -2742,13 +2808,6 @@
 #else
 #define MAP_PRCMSleepEnter \
         PRCMSleepEnter
-#endif
-#ifdef ROM_PRCMDeepSleepEnter
-#define MAP_PRCMDeepSleepEnter \
-        ROM_PRCMDeepSleepEnter
-#else
-#define MAP_PRCMDeepSleepEnter \
-        PRCMDeepSleepEnter
 #endif
 #ifdef ROM_PRCMSRAMRetentionEnable
 #define MAP_PRCMSRAMRetentionEnable \
@@ -2967,7 +3026,20 @@
 #define MAP_PRCMLPDSRestoreInfoSet \
         PRCMLPDSRestoreInfoSet
 #endif
-
+#ifdef ROM_PRCMSlowClkCtrFastGet
+#define MAP_PRCMSlowClkCtrFastGet \
+        ROM_PRCMSlowClkCtrFastGet
+#else
+#define MAP_PRCMSlowClkCtrFastGet \
+        PRCMSlowClkCtrFastGet
+#endif
+#ifdef ROM_PRCMCC3200MCUInit
+#define MAP_PRCMCC3200MCUInit \
+        ROM_PRCMCC3200MCUInit
+#else
+#define MAP_PRCMCC3200MCUInit \
+        PRCMCC3200MCUInit
+#endif
 #ifdef ROM_PRCMHIBRegRead
 #define MAP_PRCMHIBRegRead \
         ROM_PRCMHIBRegRead
@@ -2975,13 +3047,54 @@
 #define MAP_PRCMHIBRegRead \
         PRCMHIBRegRead
 #endif
-
 #ifdef ROM_PRCMHIBRegWrite
 #define MAP_PRCMHIBRegWrite \
         ROM_PRCMHIBRegWrite
 #else
 #define MAP_PRCMHIBRegWrite \
         PRCMHIBRegWrite
+#endif
+#ifdef ROM_PRCMCameraFreqSet
+#define MAP_PRCMCameraFreqSet \
+        ROM_PRCMCameraFreqSet
+#else
+#define MAP_PRCMCameraFreqSet \
+        PRCMCameraFreqSet
+#endif
+#ifdef ROM_PRCMIORetentionEnable
+#define MAP_PRCMIORetentionEnable \
+        ROM_PRCMIORetentionEnable
+#else
+#define MAP_PRCMIORetentionEnable \
+        PRCMIORetentionEnable
+#endif
+#ifdef ROM_PRCMIORetentionDisable
+#define MAP_PRCMIORetentionDisable \
+        ROM_PRCMIORetentionDisable
+#else
+#define MAP_PRCMIORetentionDisable \
+        PRCMIORetentionDisable
+#endif
+#ifdef ROM_PRCMDeviceTypeGet
+#define MAP_PRCMDeviceTypeGet \
+        ROM_PRCMDeviceTypeGet
+#else
+#define MAP_PRCMDeviceTypeGet \
+        PRCMDeviceTypeGet
+#endif
+#ifdef ROM_PRCMLPDSEnterKeepDebugIf
+#define MAP_PRCMLPDSEnterKeepDebugIf \
+        ROM_PRCMLPDSEnterKeepDebugIf
+#else
+#define MAP_PRCMLPDSEnterKeepDebugIf \
+        PRCMLPDSEnterKeepDebugIf
+#endif
+#ifdef ROM_PRCMHibernateCycleTrigger
+#define MAP_PRCMHibernateCycleTrigger \
+        ROM_PRCMHibernateCycleTrigger
+#else
+#define MAP_PRCMHibernateCycleTrigger \
+        PRCMHibernateCycleTrigger
 #endif
 
 //*****************************************************************************
@@ -3107,20 +3220,6 @@
 #define MAP_ADCDMADisable \
         ADCDMADisable
 #endif
-#ifdef ROM_ADCChannelGainSet
-#define MAP_ADCChannelGainSet \
-        ROM_ADCChannelGainSet
-#else
-#define MAP_ADCChannelGainSet \
-        ADCChannelGainSet
-#endif
-#ifdef ROM_ADCChannleGainGet
-#define MAP_ADCChannleGainGet \
-        ROM_ADCChannleGainGet
-#else
-#define MAP_ADCChannleGainGet \
-        ADCChannleGainGet
-#endif
 #ifdef ROM_ADCTimerConfig
 #define MAP_ADCTimerConfig \
         ROM_ADCTimerConfig
@@ -3169,6 +3268,54 @@
 #else
 #define MAP_ADCFIFORead \
         ADCFIFORead
+#endif
+
+//*****************************************************************************
+//
+// Macros for the CPU API.
+//
+//*****************************************************************************
+#ifdef ROM_CPUcpsid
+#define MAP_CPUcpsid \
+        ROM_CPUcpsid
+#else
+#define MAP_CPUcpsid \
+        CPUcpsid
+#endif
+#ifdef ROM_CPUcpsie
+#define MAP_CPUcpsie \
+        ROM_CPUcpsie
+#else
+#define MAP_CPUcpsie \
+        CPUcpsie
+#endif
+#ifdef ROM_CPUprimask
+#define MAP_CPUprimask \
+        ROM_CPUprimask
+#else
+#define MAP_CPUprimask \
+        CPUprimask
+#endif
+#ifdef ROM_CPUwfi
+#define MAP_CPUwfi \
+        ROM_CPUwfi
+#else
+#define MAP_CPUwfi \
+        CPUwfi
+#endif
+#ifdef ROM_CPUbasepriGet
+#define MAP_CPUbasepriGet \
+        ROM_CPUbasepriGet
+#else
+#define MAP_CPUbasepriGet \
+        CPUbasepriGet
+#endif
+#ifdef ROM_CPUbasepriSet
+#define MAP_CPUbasepriSet \
+        ROM_CPUbasepriSet
+#else
+#define MAP_CPUbasepriSet \
+        CPUbasepriSet
 #endif
 
 #endif // __ROM_MAP_H__
