@@ -13,7 +13,7 @@ void AudioControlHelper_SetAudioControl(AudioControl * pcontrol) {
 		switch (pcontrol->audio_capture_action) {
 		case AudioControl_AudioCaptureAction_ON:
 		{
-			// AudioTask_StartCapture(48000); // TODO DKH 16000);Use  AUDIO_CAPTURE_RATE
+			// AudioTask_StartCapture(AUDIO_CAPTURE_PLAYBACK_RATE);
 
 			break;
 		}

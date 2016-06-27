@@ -343,7 +343,7 @@ int Cmd_record_buff(int argc, char *argv[]) {
 
 int Cmd_audio_turn_on(int argc, char * argv[]) {
 
-	AudioTask_StartCapture(AUDIO_CAPTURE_RATE);// TODO DKH 16000);
+	AudioTask_StartCapture(AUDIO_CAPTURE_PLAYBACK_RATE);
 
 	AudioProcessingTask_SetControl(featureUploadsOn,NULL,NULL,0);
 #ifdef KIT_INCLUDE_FILE_UPLOAD
@@ -739,7 +739,7 @@ void thread_alarm(void * unused) {
 				desc.durationInSeconds = alarm.ring_duration_in_second;
 				desc.volume = 57;
 				desc.onFinished = thread_alarm_on_finished;
-				desc.rate = 48000;
+				desc.rate = AUDIO_CAPTURE_PLAYBACK_RATE;
 				desc.context = &alarm_led_id;
 
 				alarm.has_start_time = FALSE;
@@ -2230,7 +2230,7 @@ void vUARTTask(void *pvParameters) {
 	codec_init();
 
 #if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX==1)
-	InitAudioTxRx(48000);
+	InitAudioTxRx(AUDIO_CAPTURE_PLAYBACK_RATE);
 #endif
 
 	xTaskCreate(AudioTask_Thread,"audioTask",2560/4,NULL,4,NULL);

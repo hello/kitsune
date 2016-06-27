@@ -655,7 +655,7 @@ static void play_startup_sound() {
 		strncpy(desc.file, "/ringtone/star003.raw", strlen("/ringtone/star003.raw"));
 		desc.volume = 57;
 		desc.durationInSeconds = -1;
-		desc.rate = 48000;
+		desc.rate = AUDIO_CAPTURE_PLAYBACK_RATE;
 		desc.fade_in_ms = 0;
 		desc.fade_out_ms = 0;
 		desc.to_fade_out_ms = 0;

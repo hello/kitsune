@@ -34,8 +34,6 @@ unsigned char * audio_mem;
 unsigned char * audio_mem_p;
 #endif
 
-#define AUDIO_PLAYBACK_RATE_HZ (48000)
-
 void InitAudioHelper() {
 	audio_mem = (unsigned char*)pvPortMalloc( AUD_BUFFER_SIZE );
 }
