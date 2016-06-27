@@ -39,9 +39,9 @@ HEAP_SIZE = 0x0000200;
 
 MEMORY
 {
-    FLASH_HDR  (r)     : ORIGIN = 0x01000000, LENGTH = 0x00000800
-    FLASH_CODE (r)     : ORIGIN = 0x01000800, LENGTH = 0x000ff800
-    SRAM_DATA  (rwx)   : ORIGIN = 0x20000000, LENGTH = 0x00040000
+    /* Application uses internal RAM for program and data */
+    SRAM_LOWHEAP (RW) : origin = 0x20000000, length = 0x3FFF
+	SRAM (RWX) : origin = 0x20004000, length = 0x259FF
 }
 
 REGION_ALIAS("REGION_TEXT", FLASH_CODE);
