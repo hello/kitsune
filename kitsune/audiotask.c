@@ -58,14 +58,14 @@ extern tCircularBuffer * pRxBuffer;
 extern tCircularBuffer * pTxBuffer;
 TaskHandle_t audio_task_hndl;
 
-#if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX==1)
+#if (AUDIO_FULL_DUPLEX==1)
 TaskHandle_t audio_task_hndl_p;
 #endif
 
 /* static variables  */
 static xQueueHandle _queue = NULL;
 
-#if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX==1)
+#if (AUDIO_FULL_DUPLEX==1)
 static xQueueHandle _queue_p = NULL;
 #endif
 
@@ -210,7 +210,7 @@ static void Init(void) {
 
 	_state_queue =  xQueueCreate(INBOX_QUEUE_LENGTH,sizeof(AudioState));
 
-#if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX==0)
+#if (AUDIO_FULL_DUPLEX==0)
 	hlo_future_create_task_bg(_sense_state_task, NULL, 1024);
 
 
@@ -218,14 +218,14 @@ static void Init(void) {
 #endif
 }
 
-#if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX==1)
+#if (AUDIO_FULL_DUPLEX==1)
 static void Init_p(void) {
 
 	InitAudioHelper_p();
 
 	audio_task_hndl_p = xTaskGetCurrentTaskHandle();
 
-#if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX==1)
+#if (AUDIO_FULL_DUPLEX==1)
 	if (!_queue_p) {
 		_queue_p = xQueueCreate(INBOX_QUEUE_LENGTH,sizeof(AudioMessage_t));
 	}
@@ -241,7 +241,7 @@ static uint8_t CheckForInterruptionDuringPlayback(void) {
 	AudioMessage_t m;
 	uint8_t ret = 0x00;
 
-#if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX==1)
+#if (AUDIO_FULL_DUPLEX==1)
 	/* Take a peak at the top of our queue.  If we get something that says stop, we stop  */
 	if (xQueueReceive(_queue_p,(void *)&m,0)) {
 #else
@@ -253,7 +253,7 @@ static uint8_t CheckForInterruptionDuringPlayback(void) {
 			LOGI("Stopping playback\r\n");
 		}
 		if (!ret) {
-#if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX==1)
+#if (AUDIO_FULL_DUPLEX==1)
 			xQueueSendToFront(_queue_p, (void*)&m, 0);
 #else
 			xQueueSendToFront(_queue, (void*)&m, 0);
@@ -581,7 +581,7 @@ static void DoCapture(uint32_t rate) {
 			}
 
 			case eAudioCaptureTurnOn:
-#if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX==0)
+#if (AUDIO_FULL_DUPLEX==0)
 			case eAudioPlaybackStop:
 #endif
 			{
@@ -611,7 +611,7 @@ static void DoCapture(uint32_t rate) {
 				goto CAPTURE_CLEANUP;
 			}
 
-#if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX==0)
+#if (AUDIO_FULL_DUPLEX==0)
 			case eAudioPlaybackStart:
 			{
 				//place message back on queue
@@ -765,7 +765,7 @@ void AudioTask_Thread(void * data) {
 				break;
 			}
 
-#if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX==0)
+#if (AUDIO_FULL_DUPLEX==0)
 			case eAudioPlaybackStart:
 			{
 				DoPlayback(&(m.message.playbackdesc));
@@ -794,7 +794,7 @@ void AudioTask_Thread(void * data) {
 	}
 }
 
-#if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX==1)
+#if (AUDIO_FULL_DUPLEX==1)
 void AudioTask_Thread_playback(void * data) {
 
 	AudioMessage_t  m;
@@ -845,7 +845,7 @@ void AudioTask_StopPlayback(void) {
 
 	m.command = eAudioPlaybackStop;
 
-#if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX==1)
+#if (AUDIO_FULL_DUPLEX==1)
 	//send to front of queue so this message is always processed first
 	if (_queue_p) {
 		xQueueSendToFront(_queue_p,(void *)&m,0);
@@ -867,7 +867,7 @@ void AudioTask_StartPlayback(const AudioPlaybackDesc_t * desc) {
 	m.command = eAudioPlaybackStart;
 	memcpy(&m.message.playbackdesc,desc,sizeof(AudioPlaybackDesc_t));
 
-#if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX==1)
+#if (AUDIO_FULL_DUPLEX==1)
 	//send to front of queue so this message is always processed first
 	if (_queue_p) {
 		xQueueSendToFront(_queue_p,(void *)&m,0);

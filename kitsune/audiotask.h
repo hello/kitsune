@@ -53,7 +53,7 @@ typedef struct {
 void AudioTask_Thread(void * data);
 
 #include "codec_debug_config.h"
-#if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX==1)
+#if (AUDIO_FULL_DUPLEX==1)
 void AudioTask_Thread_playback(void * data);
 #endif
 

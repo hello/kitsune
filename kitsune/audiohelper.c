@@ -30,7 +30,7 @@
 extern tCircularBuffer *pTxBuffer;
 extern tCircularBuffer *pRxBuffer;
 unsigned char * audio_mem;
-#if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX==1)
+#if (AUDIO_FULL_DUPLEX==1)
 unsigned char * audio_mem_p;
 #endif
 
@@ -38,14 +38,14 @@ void InitAudioHelper() {
 	audio_mem = (unsigned char*)pvPortMalloc( AUD_BUFFER_SIZE );
 }
 
-#if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX==1)
+#if (AUDIO_FULL_DUPLEX==1)
 void InitAudioHelper_p() {
 
 	audio_mem_p = (unsigned char*)pvPortMalloc( AUD_BUFFER_SIZE );
 }
 #endif
 
-#if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX==1)
+#if (AUDIO_FULL_DUPLEX==1)
 void InitAudioTxRx(uint32_t rate)
 {
 	// Initialize the Audio(I2S) Module
@@ -88,7 +88,7 @@ uint8_t InitAudioCapture(uint32_t rate) {
 	}
 	memset( audio_mem, 0, AUD_BUFFER_SIZE);
 
-#if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX == 0)
+#if (AUDIO_FULL_DUPLEX == 0)
 	// Initialize the Audio(I2S) Module
 	McASPInit(rate);  // TODO DKH
 
@@ -111,7 +111,7 @@ uint8_t InitAudioCapture(uint32_t rate) {
 }
 
 void DeinitAudioCapture(void) {
-#if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX == 0)
+#if (AUDIO_FULL_DUPLEX == 0)
 	Audio_Stop();
 	McASPDeInit();
 
@@ -126,7 +126,7 @@ void DeinitAudioCapture(void) {
 
 uint8_t InitAudioPlayback(int32_t vol, uint32_t rate ) {
 
-#if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX==1)
+#if (AUDIO_FULL_DUPLEX==1)
 	//create circular buffer
 	if (!pRxBuffer) {
 		pRxBuffer = CreateCircularBuffer(RX_BUFFER_SIZE, audio_mem_p);
@@ -147,7 +147,7 @@ uint8_t InitAudioPlayback(int32_t vol, uint32_t rate ) {
 
 	//////
 	// SET UP AUDIO PLAYBACK
-#if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX == 0)
+#if (AUDIO_FULL_DUPLEX == 0)
 	// Initialize the Audio(I2S) Module
 	McASPInit(rate);
 
@@ -169,7 +169,7 @@ uint8_t InitAudioPlayback(int32_t vol, uint32_t rate ) {
 }
 
 void DeinitAudioPlayback(void) {
-#if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX == 0)
+#if (AUDIO_FULL_DUPLEX == 0)
 	McASPDeInit();
 
 	MAP_uDMAChannelDisable(UDMA_CH5_I2S_TX);

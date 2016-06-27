@@ -112,7 +112,7 @@ extern tCircularBuffer *pTxBuffer;
 extern tCircularBuffer *pRxBuffer;
 
 extern TaskHandle_t audio_task_hndl;
-#if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX==1)
+#if (AUDIO_FULL_DUPLEX==1)
 extern TaskHandle_t audio_task_hndl_p;
 #endif
 
@@ -337,7 +337,7 @@ void DMAPingPongCompleteAppCB_opt()
 			guiDMATransferCountRx = 0;
 
 			if ( qqbufsz < PLAY_WATERMARK ) {
-#if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX==1)
+#if (AUDIO_FULL_DUPLEX==1)
 				vTaskNotifyGiveFromISR( audio_task_hndl_p, &xHigherPriorityTaskWoken );
 #else
 				vTaskNotifyGiveFromISR( audio_task_hndl, &xHigherPriorityTaskWoken );

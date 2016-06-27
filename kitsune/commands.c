@@ -97,7 +97,7 @@
 #include "long_poll.h"
 #include "filedownloadmanager.h"
 
-#if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX==1)
+#if (AUDIO_FULL_DUPLEX==1)
 #include "audiohelper.h"
 #endif
 
@@ -2235,14 +2235,14 @@ void vUARTTask(void *pvParameters) {
 	// Program codec
 	codec_init();
 
-#if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX==1)
+#if (AUDIO_FULL_DUPLEX==1)
 	// McASP and DMA init
 	InitAudioTxRx(AUDIO_CAPTURE_PLAYBACK_RATE);
 #endif
 
 	// Create audio tasks for playback and record
 	xTaskCreate(AudioTask_Thread,"audioTask",2560/4,NULL,4,NULL);
-#if (AUDIO_ENABLE_SIMULTANEOUS_TX_RX==1)
+#if (AUDIO_FULL_DUPLEX==1)
 	xTaskCreate(AudioTask_Thread_playback,"audioTaskPlay",2560/4,NULL,4,NULL);
 #endif
 	//xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,2,NULL);
