@@ -1,44 +1,32 @@
+/*
+ *   Copyright (C) 2015 Texas Instruments Incorporated
+ *
+ *   All rights reserved. Property of Texas Instruments Incorporated.
+ *   Restricted rights to use, duplicate or disclose this code are
+ *   granted through contract.
+ *
+ *   The program may not be used without the written permission of
+ *   Texas Instruments Incorporated or against the terms and conditions
+ *   stipulated in the agreement under which this program has been supplied,
+ *   and under no circumstances can it be used with non-TI connectivity device.
+ *   
+ */
+
 //*****************************************************************************
 // startup_gcc.c
 //
 // Startup code for use with GCC.
 //
-// Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com/ 
-// 
-// 
-//  Redistribution and use in source and binary forms, with or without 
-//  modification, are permitted provided that the following conditions 
-//  are met:
-//
-//    Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.
-//
-//    Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the 
-//    documentation and/or other materials provided with the   
-//    distribution.
-//
-//    Neither the name of Texas Instruments Incorporated nor the names of
-//    its contributors may be used to endorse or promote products derived
-//    from this software without specific prior written permission.
-//
-//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
-//  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT 
-//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-//  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT 
-//  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
-//  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT 
-//  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-//  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-//  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
-//  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
-//  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//
 //*****************************************************************************
-
 #include <stdint.h>
 #include "hw_nvic.h"
 #include "hw_types.h"
+
+#ifdef USE_FREERTOS
+extern void vPortSVCHandler(void);
+extern void xPortPendSVHandler(void);
+extern void xPortSysTickHandler(void);
+#endif
 
 //*****************************************************************************
 //
@@ -46,9 +34,13 @@
 //
 //*****************************************************************************
 static char *heap_end = 0;
-extern unsigned long _heap;
-extern unsigned long _eheap;
+extern unsigned long __heap_start__;
+extern unsigned long __heap_end__;
 
+extern void _c_int00(void);
+
+
+#ifndef USE_TIRTOS	/* if project uses TI-RTOS then no need to include startup file */
 //*****************************************************************************
 //
 // Forward declaration of the default fault handlers.
@@ -62,28 +54,18 @@ static void BusFaultHandler(void);
 
 //*****************************************************************************
 //
-// External declaration for the reset handler that is to be called when the
-// processor is started
+// Main function.
 //
 //*****************************************************************************
-extern void _c_int00(void);
-extern void vPortSVCHandler(void);
-extern void xPortPendSVHandler(void);
-extern void xPortSysTickHandler(void);
-
-//*****************************************************************************
-//
-// The entry point for the application.
-//
-//*****************************************************************************
-extern int main(void);
+extern void main(void);
 
 //*****************************************************************************
 //
 // Reserve space for the system stack.
 //
 //*****************************************************************************
-static uint32_t pui32Stack[1024];
+__attribute__ ((section(".stack")))
+static uint32_t pui32Stack[2048];
 
 //*****************************************************************************
 //
@@ -92,7 +74,7 @@ static uint32_t pui32Stack[1024];
 //
 //*****************************************************************************
 __attribute__ ((section(".intvecs")))
-void (* const g_pfnVectors[256])(void) =
+void (* const g_pfnVectors[16])(void) =
 {
     (void (*)(void))((uint32_t)pui32Stack + sizeof(pui32Stack)),
                                             // The initial stack pointer
@@ -120,61 +102,6 @@ void (* const g_pfnVectors[256])(void) =
     IntDefaultHandler,                      // The PendSV handler
     IntDefaultHandler,                      // The SysTick handler
 #endif
-    IntDefaultHandler,                      // GPIO Port A
-    IntDefaultHandler,                      // GPIO Port B
-    IntDefaultHandler,                      // GPIO Port C
-    IntDefaultHandler,                      // GPIO Port D
-    IntDefaultHandler,                      // GPIO Port E
-    IntDefaultHandler,                      // UART0 Rx and Tx
-    IntDefaultHandler,                      // UART1 Rx and Tx
-    IntDefaultHandler,                      // SSI0 Rx and Tx
-    IntDefaultHandler,                      // I2C0 Master and Slave
-    IntDefaultHandler,                      // PWM Fault
-    IntDefaultHandler,                      // PWM Generator 0
-    IntDefaultHandler,                      // PWM Generator 1
-    IntDefaultHandler,                      // PWM Generator 2
-    IntDefaultHandler,                      // Quadrature Encoder 0
-    IntDefaultHandler,                      // ADC Sequence 0
-    IntDefaultHandler,                      // ADC Sequence 1
-    IntDefaultHandler,                      // ADC Sequence 2
-    IntDefaultHandler,                      // ADC Sequence 3
-    IntDefaultHandler,                      // Watchdog timer
-    IntDefaultHandler,                      // Timer 0 subtimer A
-    IntDefaultHandler,                      // Timer 0 subtimer B
-    IntDefaultHandler,                      // Timer 1 subtimer A
-    IntDefaultHandler,                      // Timer 1 subtimer B
-    IntDefaultHandler,                      // Timer 2 subtimer A
-    IntDefaultHandler,                      // Timer 2 subtimer B
-    IntDefaultHandler,                      // Analog Comparator 0
-    IntDefaultHandler,                      // Analog Comparator 1
-    IntDefaultHandler,                      // Analog Comparator 2
-    IntDefaultHandler,                      // System Control (PLL, OSC, BO)
-    IntDefaultHandler,                      // FLASH Control
-    IntDefaultHandler,                      // GPIO Port F
-    IntDefaultHandler,                      // GPIO Port G
-    IntDefaultHandler,                      // GPIO Port H
-    IntDefaultHandler,                      // UART2 Rx and Tx
-    IntDefaultHandler,                      // SSI1 Rx and Tx
-    IntDefaultHandler,                      // Timer 3 subtimer A
-    IntDefaultHandler,                      // Timer 3 subtimer B
-    IntDefaultHandler,                      // I2C1 Master and Slave
-    IntDefaultHandler,                      // Quadrature Encoder 1
-    IntDefaultHandler,                      // CAN0
-    IntDefaultHandler,                      // CAN1
-    IntDefaultHandler,                      // CAN2
-    IntDefaultHandler,                      // Ethernet
-    IntDefaultHandler,                      // Hibernate
-    IntDefaultHandler,                      // USB0
-    IntDefaultHandler,                      // PWM Generator 3
-    IntDefaultHandler,                      // uDMA Software Transfer
-    IntDefaultHandler,                      // uDMA Error
-    IntDefaultHandler,                      // ADC1 Sequence 0
-    IntDefaultHandler,                      // ADC1 Sequence 1
-    IntDefaultHandler,                      // ADC1 Sequence 2
-    IntDefaultHandler,                      // ADC1 Sequence 3
-    IntDefaultHandler,                      // I2S0
-    IntDefaultHandler,                      // External Bus Interface 0
-    IntDefaultHandler                       // GPIO Port J
 };
 
 //*****************************************************************************
@@ -184,12 +111,12 @@ void (* const g_pfnVectors[256])(void) =
 // for the "data" segment resides immediately following the "text" segment.
 //
 //*****************************************************************************
-extern uint32_t _etext;
-extern uint32_t _data;
-extern uint32_t _edata;
+extern uint32_t __data_load__;
+extern uint32_t __data_start__;
+extern uint32_t __data_end__;
 extern uint32_t _bss;
 extern uint32_t _ebss;
-extern uint32_t __init_data;
+
 
 //*****************************************************************************
 //
@@ -206,24 +133,12 @@ ResetISR(void)
 {
     uint32_t *pui32Src, *pui32Dest;
 
-    __asm("	ldr	r0, =g_pfnVectors");
-    __asm("	ldr	sp,[r0]");
-    __asm("	ldr	r0, =0x20015E70");
-    __asm("	ldr	r1, =0xFFFFFFFF");
-    __asm("	str	r1,[r0]");
-    __asm("	add	r0,r0,4");
-    __asm("	str	r1,[r0]");
-
-
-    for(pui32Dest = &_heap; pui32Dest < &_eheap; )
-    {
-            *pui32Dest++ = 0xCCCCCCCC;
-    }
+	
     //
     // Copy the data segment initializers
     //
-    pui32Src = &__init_data;
-    for(pui32Dest = &_data; pui32Dest < &_edata; )
+    pui32Src = &__data_load__;
+    for(pui32Dest = &__data_start__; pui32Dest < &__data_end__; )
     {
         *pui32Dest++ = *pui32Src++;
     }
@@ -231,8 +146,8 @@ ResetISR(void)
     //
     // Zero fill the bss segment.
     //
-    __asm("    ldr     r0, =_bss\n"
-          "    ldr     r1, =_ebss\n"
+    __asm("    ldr     r0, =__bss_start__\n"
+          "    ldr     r1, =__bss_end__\n"
           "    mov     r2, #0\n"
           "    .thumb_func\n"
           "zero_loop:\n"
@@ -319,47 +234,26 @@ IntDefaultHandler(void)
     {
     }
 }
-
+#else
 //*****************************************************************************
 //
-// This function is used by dynamic memory allocation API(s) in newlib 
-// library
+// This is the code that gets called when the processor first starts execution
+// following a reset event.  Only the absolutely necessary set is performed,
+// after which the application supplied entry() routine is called.  Any fancy
+// actions (such as making decisions based on the reset cause register, and
+// resetting the bits in that register) are left solely in the hands of the
+// application.
 //
 //*****************************************************************************
-void * _sbrk(unsigned int incr)
+void
+ResetISR(void)
 {
-
-    char *prev_heap_end;
-
     //
-    // Check if this function is calld for the
-    // first time and the heap end pointer
+    // Jump to the C initialization routine.
     //
-    if (heap_end == 0)
-    {
-        heap_end = (char *)&_heap; 
-    }
-
-    //
-    // Check if we have enough heap memory available
-    //
-    prev_heap_end = heap_end;
-    if (heap_end + incr > (char *)&_eheap)
-    {
-	//
-	// Return error
-	//
-        return 0;
-    }
-
-    //
-    // Set the new heap end pointer
-    //
-    heap_end += incr;
-    
-    //
-    // Return the pointer to the newly allocated memory
-    //
-    return prev_heap_end;
-
+    __asm("    .global _c_int00\n"
+          "    b.w     _c_int00");
 }
+#endif
+
+

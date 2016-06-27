@@ -12,44 +12,56 @@
  *   
  */
 
-#ifndef __WDTIF_H__
-#define __WDTIF_H__
+//*****************************************************************************
+// common.c
+//
+// Common interface functions for CC3220 device
+//
+//*****************************************************************************
+
+#include <string.h>
+#include <stdlib.h>
+
+//Driverlib includes
+#include "hw_types.h"
+#include "hw_memmap.h"
+#include "hw_hib3p3.h"
+
+//Common interface includes
+#include "uart_if.h"
+#include "common.h"
+
 
 //*****************************************************************************
 //
-// If building with a C++ compiler, make all of the definitions in this header
-// have a C binding.
+//! NotifyReturnToFactoryImage
+//!
+//!    @brief  Notify if device return to factory image
+//!
+//!     @param  None
+//!
+//!     @return None
+//!
 //
 //*****************************************************************************
-#ifdef __cplusplus
-extern "C"
+void 
+NotifyReturnToFactoryImage()
 {
-#endif
 
-//*****************************************************************************
-//
-// Typedef that can be passed to InitializeGPTOneShot as the fAPPDevCallbk 
-// parameter.
-//
-//*****************************************************************************
-typedef void (*fAPPWDTDevCallbk)();
-
-//*****************************************************************************
-//
-// API Function prototypes
-//
-//*****************************************************************************
-extern void WDT_IF_Init(fAPPWDTDevCallbk fpAppWDTCB,
-                          unsigned int uiReloadVal);
-extern void WDT_IF_DeInit();
-
-//*****************************************************************************
-//
-// Mark the end of the C bindings section for C++ compilers.
-//
-//*****************************************************************************
-#ifdef __cplusplus
+	if(((HWREG(HIB3P3_BASE + HIB3P3_O_MEM_HIB_REG0) & (1<<7)) !=0 ) &&
+		((HWREG(0x4402F0C8) &0x01) != 0) )
+	{
+		UART_PRINT("Return To Factory Image successful, Do a power cycle(POR) of the device using switch SW1-Reset\n\r");
+		while(1);
+	}
 }
-#endif
 
-#endif //  __WDTIF_H__
+
+//*****************************************************************************
+//
+// Close the Doxygen group.
+//! @}
+//
+//*****************************************************************************
+
+
