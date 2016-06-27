@@ -35,6 +35,7 @@
 *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *
 ******************************************************************************/
+HEAP_SIZE = 0x0000200;
 
 MEMORY
 {
