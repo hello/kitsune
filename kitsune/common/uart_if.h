@@ -34,7 +34,7 @@ extern "C"
 #endif
 
 
-#include <ti/drivers/UART.h>
+#include "UART.h"
 
 /****************************************************************************/
 /*								MACROS										*/
@@ -65,7 +65,7 @@ extern void ClearTerm(void);
 extern void Message(const char *format);
 extern void Error(char *format,...);
 extern int TrimSpace(char * pcInput);
-extern int Report(const char *format, ...);
+//extern int Report(const char *format, ...);
 extern void putch(char ch);
 extern char getch(void);
 
