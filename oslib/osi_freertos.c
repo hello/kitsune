@@ -48,7 +48,7 @@
 
 #include "rom.h"
 #include "rom_map.h"
-#include "inc/hw_types.h"
+#include "hw_types.h"
 #include "interrupt.h"
 
 portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
