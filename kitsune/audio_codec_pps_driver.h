@@ -263,7 +263,7 @@ static const reg_value REG_Section_program2[] = {
 //			# reg[0][4][10] = 0                          ; ASI1 Audio Interface WCLK and BCLK
     { 10,0x00},
 //			# reg[0][4][8]  = 0x50                       ; ASI1 Left DAC Datapath = Left Data, ASI1 Right DAC Datapath = Right Data
-    {  8,0x40}, // 0x50}, // TODO DKH
+    {  8, (1 << 6) }, // 0x50}, // TODO DKH
 //			# reg[0][4][23] = 0x05 ; ASI2_IN_CH<L1,R1> = miniDSP_A_out_ch<L2,R2>
     { 23,0x05},
 //			# reg[0][4][24] = 0x50 ; ASI2_OUT_CH<L1> = Channel<L1> ; ASI2_OUT_CH<R1> = Channel<R1>
@@ -308,12 +308,12 @@ static const reg_value REG_Section_program2[] = {
     { 60,0x80},
     {  0x7F,0x00},
 //			# reg[0][0][112] = 0xd4; Enable CIC2 and Digital mic for Left and Right Channel
-    {112,0xE4},//TODO DKH
+    {112, ( (1<<7) | (1 << 6) | (2 << 4) | (1 << 2) ) },//TODO DKH
     {  0,0x04},
 
 #if (KITSUNE_CODE==1)
 #if (CODEC_LEFT_LATCH_FALLING == 1)
-	{100, (1 << 7) | (0 << 6) | (1 << 3) | (0 << 2)}, // TODO added by me for left latch falling
+	{100, (1 << 7) | (0 << 6) | (0 << 3) | (1 << 2)}, // TODO added by me for left latch falling
 #endif
 	//DigMic1 -Left and right			# reg[0][4][101] = 0x34     ; GPIO4 --> DigMic2 and DigMic3 data, GPIO5 --> DigMic4 and DigMic5 data
     {101,(3 << 4) | (4 << 0)},
@@ -347,6 +347,8 @@ static const reg_value REG_Section_program2[] = {
 //			# reg[0][4][4] = 0x40;reg[0][4][12] = 0x81                           ; ASI1 master, BCLK = 6.144Mhz;reg[0][4][13] = 0x80                           ; ASI1_WDIV = 128
     {  4,0x40},
     {  0,0x00},
+
+#if 0 // AGC
 //			# reg[0][0][82] = 0
     { 82,0x00},
 //			# reg[0][0][86] = 32
@@ -379,6 +381,7 @@ static const reg_value REG_Section_program2[] = {
     { 99,0x06},
 //			# reg[0][0][100] = 0
     {100,0x00},
+#endif
 };
 
 static const reg_value miniDSP_A_reg_values[] = {
@@ -2760,8 +2763,8 @@ static const reg_value miniDSP_A_reg_values[] = {
     {107,0x3F},
     {108,0x5C},
     {109,0x60},
-    {110,0x00},
-    {111,0xED},
+    {110,0x01},
+    {111,0x3B},
     {112,0x10},
     {113,0x00},
     {114,0x41},
