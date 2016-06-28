@@ -370,7 +370,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 			/* Wait to avoid buffer overflow as reading speed is faster than playback */
 			while ( IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) ) {
 				if( !started ) {
-					Audio_Start();
+					AudioStartPlayback();
 					started = true;
 					t0 = fade_time =  xTaskGetTickCount();
 				}
@@ -424,12 +424,12 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 				}
 				if( !ulTaskNotifyTake( pdTRUE, 40 ) ) {
 					LOGW("AUDIO REINIT");
-					Audio_Stop();
+					AudioStopPlayback();
 					if ( !InitAudioPlayback(i2c_volume, info->rate ) ) {
 						LOGE("unable to initialize audio playback!\r\n");
 						goto cleanup;
 					}
-					Audio_Start();
+					AudioStartPlayback();
 					LOGW(" DONE\n");
 				}
 			}
@@ -454,7 +454,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	}
 cleanup:
 	if( started ) {
-		Audio_Stop();
+		AudioStopPlayback();
 	}
 
 	LOGI("leftover %d\n", GetBufferSize(pRxBuffer));

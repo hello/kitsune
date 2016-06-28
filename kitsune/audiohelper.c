@@ -25,6 +25,8 @@
 
 #include "FreeRTOS.h"
 #include "kit_assert.h"
+#include "queue.h"
+#include "semphr.h"
 
 /* externs */
 extern tCircularBuffer *pTxBuffer;
@@ -33,6 +35,11 @@ unsigned char * audio_mem;
 #if (AUDIO_FULL_DUPLEX==1)
 unsigned char * audio_mem_p;
 #endif
+
+bool i2s_capture_enabled = false;
+bool i2s_playback_enabled = false;
+// mutex to protect i2s enabled status
+static xSemaphoreHandle _i2s_enabled_mutex = NULL;
 
 void InitAudioHelper() {
 	audio_mem = (unsigned char*)pvPortMalloc( AUD_BUFFER_SIZE );
@@ -65,14 +72,20 @@ void InitAudioTxRx(uint32_t rate)
 	AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
 	AudioCaptureRendererConfigure( rate);
 
-	// Start Audio Tx/Rx
-	Audio_Start();
+	// init mutex for file download status flag
+	if(!_i2s_enabled_mutex)
+	{
+		_i2s_enabled_mutex = xSemaphoreCreateMutex();
+	}
+	i2s_capture_enabled = false;
+	i2s_playback_enabled = false;
 
 }
 
 void DeinitAudioTxRx(uint32_t rate)
 {
-	Audio_Stop();
+	AudioStopCapture();
+	AudioStopPlayback();
 	McASPDeInit();
 
 	MAP_uDMAChannelDisable(UDMA_CH4_I2S_RX);
@@ -87,6 +100,10 @@ uint8_t InitAudioCapture(uint32_t rate) {
 		pTxBuffer = CreateCircularBuffer(TX_BUFFER_SIZE, audio_mem);
 	}
 	memset( audio_mem, 0, AUD_BUFFER_SIZE);
+
+	// Start Audio Tx/Rx
+	AudioStartCapture();
+
 
 #if (AUDIO_FULL_DUPLEX == 0)
 	// Initialize the Audio(I2S) Module
@@ -117,6 +134,8 @@ void DeinitAudioCapture(void) {
 
 	MAP_uDMAChannelDisable(UDMA_CH4_I2S_RX);
 #endif
+
+	AudioStopCapture();
 
 	if (pTxBuffer) {
 		DestroyCircularBuffer(pTxBuffer);
@@ -151,14 +170,12 @@ uint8_t InitAudioPlayback(int32_t vol, uint32_t rate ) {
 	// Initialize the Audio(I2S) Module
 	McASPInit(rate);
 
-
 	UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL);
 
 	// Setup the DMA Mode
 	SetupPingPongDMATransferRx();
 
 	// Setup the Audio In/Out
-
     MAP_I2SIntEnable(I2S_BASE,I2S_INT_XDMA  );
 
 	AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
@@ -184,6 +201,56 @@ void DeinitAudioPlayback(void) {
 	}
 }
 
+void AudioStartCapture(void)
+{
+	xSemaphoreTake(_i2s_enabled_mutex, portMAX_DELAY);
+		if(!(i2s_capture_enabled && i2s_playback_enabled) )
+		{
+			// Start Audio Tx/Rx
+			Audio_Start();
+		}
+		i2s_capture_enabled = true;
+	xSemaphoreGive(_i2s_enabled_mutex);
+
+}
+
+void AudioStopCapture(void)
+{
+	xSemaphoreTake(_i2s_enabled_mutex, portMAX_DELAY);
+		i2s_capture_enabled = false;
+		if(! (i2s_playback_enabled) )
+		{
+			// Start Audio Tx/Rx
+			Audio_Stop();
+		}
+	xSemaphoreGive(_i2s_enabled_mutex);
+}
+
+void AudioStartPlayback(void)
+{
+	xSemaphoreTake(_i2s_enabled_mutex, portMAX_DELAY);
+		if(!(i2s_capture_enabled && i2s_playback_enabled))
+		{
+			// Start Audio Tx/Rx
+			Audio_Start();
+		}
+		i2s_playback_enabled = true;
+	xSemaphoreGive(_i2s_enabled_mutex);
+}
+
+void AudioStopPlayback(void)
+{
+	xSemaphoreTake(_i2s_enabled_mutex, portMAX_DELAY);
+		i2s_playback_enabled = false;
+		if(! (i2s_capture_enabled) )
+		{
+			// Start Audio Tx/Rx
+			Audio_Stop();
+		}
+
+	xSemaphoreGive(_i2s_enabled_mutex);
+
+}
 
 ///// FILE STUFF/////
 
