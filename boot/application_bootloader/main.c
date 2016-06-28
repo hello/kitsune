@@ -176,6 +176,10 @@ void SimpleLinkSockEventHandler(SlSockEvent_t *pSock)
 //! \return None
 //
 //*****************************************************************************
+
+extern void (* const g_pfnVectors[])(void);
+#pragma DATA_SECTION(ulRAMVectorTable, ".ramvecs")
+unsigned long ulRAMVectorTable[256];
 static void
 BoardInit(void)
 {
@@ -183,14 +187,16 @@ BoardInit(void)
   //
   // Set vector table base
   //
+#ifndef USE_TIRTOS
 #if defined(ccs) || defined(gcc)
-    MAP_IntVTableBaseSet((unsigned long)&g_pfnVectors[0]);
+	memcpy(ulRAMVectorTable,g_pfnVectors,16*4);
 #endif
 
 #if defined(ewarm)
-    MAP_IntVTableBaseSet((unsigned long)&__vector_table);
+	memcpy(ulRAMVectorTable,&__vector_table,16*4);
 #endif
-
+	IntVTableBaseSet((unsigned long)&ulRAMVectorTable[0]);
+#endif
   //
   // Enable Processor Interrupts
   //
