@@ -46,7 +46,7 @@ typedef struct{
 #endif
 
 #define IADC ((MDAC)*(DOSR))
-#define MIC_VOLUME_CONTROL 0x28
+#define MIC_VOLUME_CONTROL 0
 #define MUTE_SPK 1
 
 static const reg_value REG_Section_program[] = {
@@ -254,24 +254,24 @@ static const reg_value REG_Section_program2[] = {
     { 27,0x33},
 #endif
 //			# reg[0][1][59] = 0x00                       ; reg(0)(1)(0x3b => 59)     ADC unmute left mic PGA with 0 dB gain
-    { 59,0x00},
+ //   { 59,0x00},
 //			# reg[0][1][60] = 0x00                       ; reg(0)(1)(0x3c => 60)     ADC unmute right mic PGA with 0 dB gain
-    { 60,0x00},
+//    { 60,0x00},
     {  0,0x04},
 //			# reg[0][4][1]  = 0                          ; ASI1 Audio Interface = I2S
     {  1,0x00},
 //			# reg[0][4][10] = 0                          ; ASI1 Audio Interface WCLK and BCLK
     { 10,0x00},
 //			# reg[0][4][8]  = 0x50                       ; ASI1 Left DAC Datapath = Left Data, ASI1 Right DAC Datapath = Right Data
-    {  8, (1 << 6) }, // 0x50}, // TODO DKH
+    {  8, (1 << 6) |  (1 << 4) }, // 0x50}, // TODO DKH
 //			# reg[0][4][23] = 0x05 ; ASI2_IN_CH<L1,R1> = miniDSP_A_out_ch<L2,R2>
-    { 23,0x05},
+//    { 23,0x05},
 //			# reg[0][4][24] = 0x50 ; ASI2_OUT_CH<L1> = Channel<L1> ; ASI2_OUT_CH<R1> = Channel<R1>
-    { 24,0x50},
+//    { 24,0x50},
 //			# reg[0][4][39] = 0x06 ; ASI3_IN_CH<L1,R1> = miniDSP_A_out_ch<L3,R3>
-    { 39,0x06},
+//    { 39,0x06},
 //			# reg[0][4][40] = 0x50 ; ASI3_OUT_CH<L1> = Channel<L1> ; ASI3_OUT_CH<R1> = Channel<R1>
-    { 40,0x50},
+//    { 40,0x50},
 #if (KITSUNE_CODE==1)
 #if 0
 	//minidsp data port control
@@ -348,9 +348,10 @@ static const reg_value REG_Section_program2[] = {
     {  4,0x40},
     {  0,0x00},
 
-#if 0 // AGC
+
 //			# reg[0][0][82] = 0
     { 82,0x00},
+#if 0 // AGC
 //			# reg[0][0][86] = 32
     { 86,0x20},
 //			# reg[0][0][87] = 254
@@ -3381,7 +3382,7 @@ static const reg_value miniDSP_D_reg_values[] = {
     {100,0x18},
     {101,0x00},
     {102,0xA0},
-    {103,0x84},
+    {103,0x01},
     {104,0x18},
     {105,0x00},
     {106,0x60},

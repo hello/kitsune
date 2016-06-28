@@ -67,7 +67,7 @@ void InitAudioTxRx(uint32_t rate)
 	SetupPingPongDMATransferRx();
 
 	// Setup the Audio In/Out
-    MAP_I2SIntEnable(I2S_BASE, I2S_INT_RDMA | I2S_INT_XDMA );
+    //MAP_I2SIntEnable(I2S_BASE, I2S_INT_RDMA | I2S_INT_XDMA );
 
 	AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
 	AudioCaptureRendererConfigure( rate);
@@ -104,6 +104,8 @@ uint8_t InitAudioCapture(uint32_t rate) {
 	// Start Audio Tx/Rx
 	AudioStartCapture();
 
+	MAP_I2SIntEnable(I2S_BASE, I2S_INT_RDMA );
+
 
 #if (AUDIO_FULL_DUPLEX == 0)
 	// Initialize the Audio(I2S) Module
@@ -137,6 +139,8 @@ void DeinitAudioCapture(void) {
 
 	AudioStopCapture();
 
+	MAP_I2SIntDisable(I2S_BASE, I2S_INT_RDMA );
+
 	if (pTxBuffer) {
 		DestroyCircularBuffer(pTxBuffer);
 		pTxBuffer = NULL;
@@ -163,6 +167,8 @@ uint8_t InitAudioPlayback(int32_t vol, uint32_t rate ) {
 
 	// Unmute speaker
 	codec_unmute_spkr();
+
+	MAP_I2SIntEnable(I2S_BASE,I2S_INT_XDMA);
 
 	//////
 	// SET UP AUDIO PLAYBACK
@@ -191,6 +197,8 @@ void DeinitAudioPlayback(void) {
 
 	MAP_uDMAChannelDisable(UDMA_CH5_I2S_TX);
 #endif
+
+	MAP_I2SIntDisable(I2S_BASE,I2S_INT_XDMA);
 
 	// Mute speaker
 	codec_mute_spkr();
