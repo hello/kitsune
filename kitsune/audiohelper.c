@@ -41,6 +41,15 @@ bool i2s_playback_enabled = false;
 // mutex to protect i2s enabled status
 static xSemaphoreHandle _i2s_enabled_mutex = NULL;
 
+typedef enum
+{
+	deinit_capture = 0,
+	deinit_playback = 1,
+	deinit_both = 2
+}deinit_type;
+void McASPDeInit_FullDuplex(deinit_type type);
+void SetupDMAModeFullDuplex(void (*pfnAppCbHndlr)(void), deinit_type type);
+
 void InitAudioHelper() {
 	audio_mem = (unsigned char*)pvPortMalloc( AUD_BUFFER_SIZE );
 }
@@ -58,9 +67,9 @@ void InitAudioTxRx(uint32_t rate)
 	// Initialize the Audio(I2S) Module
 	McASPInit(rate);
 
-	UDMAChannelSelect(UDMA_CH4_I2S_RX, NULL);
-	UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL);
-
+//	UDMAChannelSelect(UDMA_CH4_I2S_RX, NULL);
+//	UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL);
+//
 //	// Setup the DMA Mode
 //	SetupPingPongDMATransferTx();
 //	// Setup the DMA Mode
@@ -68,9 +77,15 @@ void InitAudioTxRx(uint32_t rate)
 //
 //	// Setup the Audio In/Out
 //    //MAP_I2SIntEnable(I2S_BASE, I2S_INT_RDMA | I2S_INT_XDMA );
+//	MAP_I2SRxFIFOEnable(I2S_BASE,8,1);
+//	MAP_I2STxFIFOEnable(I2S_BASE,8,1);
 //
-//	AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
-	AudioCaptureRendererConfigure( rate);
+	MAP_I2SIntRegister(I2S_BASE,DMAPingPongCompleteAppCB_opt);
+//
+//    MAP_I2SSerializerConfig(I2S_BASE,I2S_DATA_LINE_1,I2S_SER_MODE_RX, I2S_INACT_LOW_LEVEL);
+//    MAP_I2SSerializerConfig(I2S_BASE,I2S_DATA_LINE_0,I2S_SER_MODE_TX, I2S_INACT_LOW_LEVEL);
+//
+//	MAP_I2SEnable(I2S_BASE,I2S_MODE_TX_RX_SYNC);
 
 	// init mutex for file download status flag
 	if(!_i2s_enabled_mutex)
@@ -101,13 +116,21 @@ uint8_t InitAudioCapture(uint32_t rate) {
 	}
 	memset( audio_mem, 0, AUD_BUFFER_SIZE);
 
+	// Setup the Audio In/Out
+	MAP_I2SIntEnable(I2S_BASE, I2S_INT_RDMA );
+
+	UDMAChannelSelect(UDMA_CH4_I2S_RX, NULL);
+
 	// Setup the DMA Mode
 	SetupPingPongDMATransferTx();
 
 	// Setup the Audio In/Out
-	MAP_I2SIntEnable(I2S_BASE, I2S_INT_RDMA );
+    //MAP_I2SIntEnable(I2S_BASE, I2S_INT_RDMA | I2S_INT_XDMA );
+	MAP_I2SRxFIFOEnable(I2S_BASE,8,1);
 
-	AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
+	//MAP_I2SIntRegister(I2S_BASE,DMAPingPongCompleteAppCB_opt);
+
+    MAP_I2SSerializerConfig(I2S_BASE,I2S_DATA_LINE_1,I2S_SER_MODE_RX, I2S_INACT_LOW_LEVEL);
 
 	// Start Audio Tx/Rx
 	AudioStartCapture();
@@ -135,6 +158,69 @@ uint8_t InitAudioCapture(uint32_t rate) {
 	return 1;
 }
 
+void McASPDeInit_FullDuplex(deinit_type type)
+{
+
+	switch(type)
+	{
+	case deinit_capture:
+		MAP_I2SIntDisable(I2S_BASE, I2S_INT_RDMA);
+		//MAP_I2SRxFIFODisable(I2S_BASE);
+		break;
+
+	case deinit_playback:
+		MAP_I2SIntDisable(I2S_BASE,I2S_INT_XDMA);
+		//MAP_I2STxFIFODisable(I2S_BASE);
+		break;
+
+	case deinit_both:
+		MAP_I2SIntDisable(I2S_BASE,I2S_INT_XDMA | I2S_INT_RDMA);
+		MAP_I2STxFIFODisable(I2S_BASE);
+		MAP_I2SRxFIFODisable(I2S_BASE);
+		I2SIntUnregister(I2S_BASE);
+		break;
+
+	default:
+		break;
+
+
+	}
+
+}
+
+//*****************************************************************************
+//
+//! Setup the Audio capturer callback routine and the interval of callback.
+//! On the invocation the callback is expected to fill the AFIFO with enough
+//! number of samples for one callback interval.
+//!
+//! \param pfnAppCbHndlr is the callback handler that is invoked when
+//! \e ucCallbackEvtSamples space is available in the audio FIFO
+//! \param ucCallbackEvtSamples is used to configure the callback interval
+//!
+//! This function initializes
+//!        1. Initializes the interrupt callback routine
+//!        2. Sets up the AFIFO to interrupt at the configured interval
+//!
+//! \return None.
+//
+//*****************************************************************************
+void SetupDMAModeFullDuplex(void (*pfnAppCbHndlr)(void), deinit_type type)
+{
+	MAP_I2SIntRegister(I2S_BASE,DMAPingPongCompleteAppCB_opt);
+
+	if(type == deinit_capture)
+	{
+		MAP_I2SRxFIFOEnable(I2S_BASE,8,1);
+	}
+	else if(type == deinit_playback)
+	{
+		MAP_I2STxFIFOEnable(I2S_BASE,8,1);
+	}
+
+}
+
+
 void DeinitAudioCapture(void) {
 #if (AUDIO_FULL_DUPLEX == 0)
 	Audio_Stop();
@@ -145,9 +231,13 @@ void DeinitAudioCapture(void) {
 
 	AudioStopCapture();
 
-	McASPDeInit();
+	// Setup the Audio In/Out
+	MAP_I2SIntDisable(I2S_BASE, I2S_INT_RDMA );
+	//McASPDeInit_FullDuplex(deinit_capture);
 
 	MAP_uDMAChannelDisable(UDMA_CH4_I2S_RX);
+
+	MAP_I2SRxFIFODisable(I2S_BASE);
 
 	if (pTxBuffer) {
 		DestroyCircularBuffer(pTxBuffer);
@@ -172,17 +262,28 @@ uint8_t InitAudioPlayback(int32_t vol, uint32_t rate ) {
 	}
 	memset( audio_mem, 0, AUD_BUFFER_SIZE);
 #endif
+	// Initialize the Audio(I2S) Module
+	//McASPInit(rate);
 
 	// Unmute speaker
 	codec_unmute_spkr();
+
+	UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL);
 
 	// Setup the DMA Mode
 	SetupPingPongDMATransferRx();
 
 	// Setup the Audio In/Out
-    MAP_I2SIntEnable(I2S_BASE,I2S_INT_XDMA  );
+    //MAP_I2SIntEnable(I2S_BASE, I2S_INT_RDMA | I2S_INT_XDMA );
+	MAP_I2STxFIFOEnable(I2S_BASE,8,1);
 
-	AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
+	//MAP_I2SIntRegister(I2S_BASE,DMAPingPongCompleteAppCB_opt);
+
+    //MAP_I2SSerializerConfig(I2S_BASE,I2S_DATA_LINE_1,I2S_SER_MODE_RX, I2S_INACT_LOW_LEVEL);
+    MAP_I2SSerializerConfig(I2S_BASE,I2S_DATA_LINE_0,I2S_SER_MODE_TX, I2S_INACT_LOW_LEVEL);
+
+	// Setup the Audio In/Out
+    MAP_I2SIntEnable(I2S_BASE,I2S_INT_XDMA);
 
 	//////
 	// SET UP AUDIO PLAYBACK
@@ -216,10 +317,12 @@ void DeinitAudioPlayback(void) {
 	// Mute speaker
 	codec_mute_spkr();
 
-	McASPDeInit();
+	//McASPDeInit_FullDuplex(deinit_playback);
 
 	MAP_uDMAChannelDisable(UDMA_CH5_I2S_TX);
 
+	MAP_I2STxFIFODisable(I2S_BASE);
+	MAP_I2SIntDisable(I2S_BASE,I2S_INT_XDMA);
 
 	if (pRxBuffer) {
 		DestroyCircularBuffer(pRxBuffer);
@@ -227,54 +330,68 @@ void DeinitAudioPlayback(void) {
 	}
 }
 
+#include "uartstdio.h"
 void AudioStartCapture(void)
 {
-	xSemaphoreTake(_i2s_enabled_mutex, portMAX_DELAY);
-		if(!(i2s_capture_enabled && i2s_playback_enabled) )
-		{
-			// Start Audio Tx/Rx
+//	UARTprintf("CAPTURE SA ENTER\n");
+//	xSemaphoreTake(_i2s_enabled_mutex, portMAX_DELAY);
+//		if(!(i2s_playback_enabled) )
+//		{
+//			UARTprintf("CAPTURE START\n");
+//			// Start Audio Tx/Rx
 			Audio_Start();
-		}
-		i2s_capture_enabled = true;
-	xSemaphoreGive(_i2s_enabled_mutex);
+//		}
+//		i2s_capture_enabled = true;
+//	xSemaphoreGive(_i2s_enabled_mutex);
+//	UARTprintf("CAPTURE SA EXIT\n");
 
 }
 
 void AudioStopCapture(void)
 {
-	xSemaphoreTake(_i2s_enabled_mutex, portMAX_DELAY);
-		i2s_capture_enabled = false;
-		if(! (i2s_playback_enabled) )
-		{
-			// Start Audio Tx/Rx
+//	UARTprintf("CAPTURE SO ENTER\n");
+//	xSemaphoreTake(_i2s_enabled_mutex, portMAX_DELAY);
+//		i2s_capture_enabled = false;
+//		if(! (i2s_playback_enabled) )
+//		{
+//			UARTprintf("CAPTURE STOP\n");
+//			// Start Audio Tx/Rx
 			Audio_Stop();
-		}
-	xSemaphoreGive(_i2s_enabled_mutex);
+//		}
+//	xSemaphoreGive(_i2s_enabled_mutex);
+//	UARTprintf("CAPTURE SO EXIT\n");
 }
 
 void AudioStartPlayback(void)
 {
-	xSemaphoreTake(_i2s_enabled_mutex, portMAX_DELAY);
-		if(!(i2s_capture_enabled && i2s_playback_enabled))
-		{
-			// Start Audio Tx/Rx
+//	UARTprintf("PLAYBACK SA ENTER\n");
+//	xSemaphoreTake(_i2s_enabled_mutex, portMAX_DELAY);
+//		if(!(i2s_capture_enabled ))
+//		{
+//			UARTprintf("PLAYBACK START\n");
+//			// Start Audio Tx/Rx
 			Audio_Start();
-		}
-		i2s_playback_enabled = true;
-	xSemaphoreGive(_i2s_enabled_mutex);
+//		}
+//		i2s_playback_enabled = true;
+//	xSemaphoreGive(_i2s_enabled_mutex);
+//	UARTprintf("PLAYBACK SA EXIT\n");
+
 }
 
 void AudioStopPlayback(void)
 {
-	xSemaphoreTake(_i2s_enabled_mutex, portMAX_DELAY);
-		i2s_playback_enabled = false;
-		if(! (i2s_capture_enabled) )
-		{
-			// Start Audio Tx/Rx
+//	UARTprintf("PLAYBACK SO ENTER\n");
+//	xSemaphoreTake(_i2s_enabled_mutex, portMAX_DELAY);
+//		i2s_playback_enabled = false;
+//		if(! (i2s_capture_enabled) )
+//		{
+//			UARTprintf("PLAYBACK STOP\n");
+//			// Start Audio Tx/Rx
 			Audio_Stop();
-		}
-
-	xSemaphoreGive(_i2s_enabled_mutex);
+//		}
+//
+//	xSemaphoreGive(_i2s_enabled_mutex);
+//	UARTprintf("PLAYBACK SO EXIT\n");
 
 }
 

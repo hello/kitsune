@@ -97,6 +97,7 @@
 #include "long_poll.h"
 #include "filedownloadmanager.h"
 
+#define ONLY_AUDIO 1
 #if (AUDIO_FULL_DUPLEX==1)
 #include "audiohelper.h"
 #endif
@@ -342,9 +343,7 @@ int Cmd_record_buff(int argc, char *argv[]) {
 
 
 int Cmd_audio_turn_on(int argc, char * argv[]) {
-
 	AudioTask_StartCapture(AUDIO_CAPTURE_PLAYBACK_RATE);
-
 
 	AudioProcessingTask_SetControl(featureUploadsOn,NULL,NULL,0);
 #ifdef KIT_INCLUDE_FILE_UPLOAD
@@ -1747,7 +1746,9 @@ void launch_tasks() {
 	//dear future chris: this one doesn't need a semaphore since it's only written to while threads are going during factory test boot
 	booted = true;
 
-	//xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 3, NULL);
+#if (ONLY_AUDIO==0)
+	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 3, NULL);
+#endif
 
 #ifdef KIT_INCLUDE_FILE_UPLOAD
 	xTaskCreate(FileUploaderTask_Thread,"fileUploadTask", 1024/4,NULL,1,NULL);
@@ -1759,15 +1760,18 @@ void launch_tasks() {
 	UARTprintf("*");
 #if !ONLY_MID
 	UARTprintf("*");
-	//xTaskCreate(thread_dust, "dustTask", 512 / 4, NULL, 3, NULL);
+
+#if (ONLY_AUDIO==0)
+	xTaskCreate(thread_dust, "dustTask", 512 / 4, NULL, 3, NULL);
 	UARTprintf("*");
-	//xTaskCreate(thread_sensor_poll, "pollTask", 768 / 4, NULL, 2, NULL);
+	xTaskCreate(thread_sensor_poll, "pollTask", 768 / 4, NULL, 2, NULL);
 	UARTprintf("*");
-	//xTaskCreate(thread_tx, "txTask", 1024 / 4, NULL, 1, NULL);
+	xTaskCreate(thread_tx, "txTask", 1024 / 4, NULL, 1, NULL);
 	UARTprintf("*");
-	// TODO ENABLE THIS BEFORE MERGE
-	// long_poll_task_init( 2560 / 4 );
-	// downloadmanagertask_init(3072 / 4);
+	long_poll_task_init( 2560 / 4 );
+	downloadmanagertask_init(3072 / 4);
+#endif
+
 #endif
 }
 
@@ -2216,7 +2220,9 @@ void vUARTTask(void *pvParameters) {
 	spi_init();
 
 	i2c_smphr = xSemaphoreCreateRecursiveMutex();
-	//init_time_module(2560);
+#if (ONLY_AUDIO==0)
+	init_time_module(2560);
+#endif
 
 	// Init sensors
 	init_tvoc();
@@ -2271,7 +2277,10 @@ void vUARTTask(void *pvParameters) {
 #if (AUDIO_FULL_DUPLEX==1)
 	xTaskCreate(AudioTask_Thread_playback,"audioTaskPlay",2560/4,NULL,4,NULL);
 #endif
-	//xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,2,NULL);
+
+#if (ONLY_AUDIO==0)
+	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,2,NULL);
+#endif
 
 	/********************************************************************************
 	 *           AUDIO INIT END
@@ -2279,7 +2288,10 @@ void vUARTTask(void *pvParameters) {
 	 */
 
 	UARTprintf("*");
-	//init_download_task( 3072 / 4 );
+#if (ONLY_AUDIO==0)
+	init_download_task( 3072 / 4 );
+#endif
+
 	networktask_init(3 * 1024 / 4);
 
 	load_serial();
@@ -2292,20 +2304,22 @@ void vUARTTask(void *pvParameters) {
 
 	init_dust();
 
-	// ble_proto_init();
-	// xTaskCreate(top_board_task, "top_board_task", 1280 / 4, NULL, 3, NULL);
-	// xTaskCreate(thread_spi, "spiTask", 1536 / 4, NULL, 3, NULL);
+#if (ONLY_AUDIO==0)
+	ble_proto_init();
+	xTaskCreate(top_board_task, "top_board_task", 1280 / 4, NULL, 3, NULL);
+	xTaskCreate(thread_spi, "spiTask", 1536 / 4, NULL, 3, NULL);
+#endif
 
 #ifndef BUILD_SERVERS
 	uart_logger_init();
 	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 1, NULL);
 	UARTprintf("*");
-	// xTaskCreate(analytics_event_task, "analyticsTask", 1024/4, NULL, 1, NULL);
+	xTaskCreate(analytics_event_task, "analyticsTask", 1024/4, NULL, 1, NULL);
 	UARTprintf("*");
 #endif
-	// xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 2, NULL);
+	xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
-	//start_top_boot_watcher();
+	start_top_boot_watcher();
 
 	if( on_charger ) {
 		launch_tasks();
