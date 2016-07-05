@@ -51,6 +51,11 @@
 			<locationURI>PARENT-2-PROJECT_LOC/aes.c</locationURI>
 		</link>
 		<link>
+			<name>audio_codec_pps_driver.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audio_codec_pps_driver.h</locationURI>
+		</link>
+		<link>
 			<name>audio_types.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/audio_types.h</locationURI>
@@ -84,6 +89,16 @@
 			<name>audiofeatures.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/audiofeatures.h</locationURI>
+		</link>
+		<link>
+			<name>audiohelper.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audiohelper.c</locationURI>
+		</link>
+		<link>
+			<name>audiohelper.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/audiohelper.h</locationURI>
 		</link>
 		<link>
 			<name>audioprocessingtask.c</name>
@@ -164,6 +179,11 @@
 			<name>cmdline.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/cmdline.h</locationURI>
+		</link>
+		<link>
+			<name>codec_debug_config.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/codec_debug_config.h</locationURI>
 		</link>
 		<link>
 			<name>commands.c</name>

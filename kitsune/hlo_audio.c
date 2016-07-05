@@ -7,6 +7,8 @@
 #include "kit_assert.h"
 #include "hw_types.h"
 
+#include "audiohelper.h"
+
 extern tCircularBuffer *pTxBuffer;
 extern tCircularBuffer *pRxBuffer;
 
@@ -14,7 +16,6 @@ extern tCircularBuffer *pRxBuffer;
 
 static xSemaphoreHandle lock;
 static hlo_stream_t * master;
-static unsigned char * audio_mem;
 typedef enum{
 	CLOSED = 0,
 	PLAYBACK,
@@ -33,82 +34,7 @@ static TickType_t last_playback_time;
 #define LOCK() xSemaphoreTakeRecursive(lock,portMAX_DELAY)
 #define UNLOCK() xSemaphoreGiveRecursive(lock)
 #define ERROR_IF_CLOSED() if(mode == CLOSED) {return HLO_STREAM_ERROR;}
-////------------------------------
-// Audio Helpers
-#include "pcm_handler.h"
-#include "udma.h"
-#include "i2s.h"
-#include "i2c_cmd.h"
-#include "rom.h"
-#include "rom_map.h"
-#include "hw_memmap.h"
-#include "udma_if.h"
-static uint8_t InitAudioCapture(uint32_t rate) {
 
-	if(pTxBuffer == NULL) {
-		pTxBuffer = CreateCircularBuffer(TX_BUFFER_SIZE, audio_mem);
-	}
-	get_codec_mic_NAU();
-	// Initialize the Audio(I2S) Module
-	McASPInit(rate);
-
-	UDMAChannelSelect(UDMA_CH4_I2S_RX, NULL);
-
-	// Setup the DMA Mode
-	SetupPingPongDMATransferTx();
-
-	// Setup the Audio In/Out
-    MAP_I2SIntEnable(I2S_BASE, I2S_INT_RDMA );
-	AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
-	AudioCaptureRendererConfigure( rate);
-
-	return 1;
-}
-
-static uint8_t InitAudioPlayback(int32_t vol, uint32_t rate ) {
-
-	//create circular buffer
-	if (!pRxBuffer) {
-		pRxBuffer = CreateCircularBuffer(RX_BUFFER_SIZE, audio_mem);
-	}
-
-	//////
-	// SET UP AUDIO PLAYBACK
-	get_codec_NAU(vol);
-	// Initialize the Audio(I2S) Module
-	McASPInit(rate);
-
-
-	UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL);
-
-	// Setup the DMA Mode
-	SetupPingPongDMATransferRx();
-
-	// Setup the Audio In/Out
-
-    MAP_I2SIntEnable(I2S_BASE,I2S_INT_XDMA  );
-	AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
-	AudioCaptureRendererConfigure( rate);
-
-	return 1;
-
-}
-static void DeinitAudio(void){
-	Audio_Stop();
-	McASPDeInit();
-	MAP_uDMAChannelDisable(UDMA_CH4_I2S_RX);
-	MAP_uDMAChannelDisable(UDMA_CH5_I2S_TX);
-	if (pTxBuffer) {
-		DestroyCircularBuffer(pTxBuffer);
-		pTxBuffer = NULL;
-	}
-	if (pRxBuffer) {
-		DestroyCircularBuffer(pRxBuffer);
-		pRxBuffer = NULL;
-	}
-	audio_playback_started = 0;
-	mode = CLOSED;
-}
 ////------------------------------
 // playback stream driver
 static int _playback_done(void){
@@ -124,7 +50,7 @@ static int _open_playback(uint32_t sr, uint8_t vol){
 	}
 }
 static int _reinit_playback(unsigned int sr, unsigned int initial_vol){
-	DeinitAudio();
+	DeinitAudioPlayback();
 	_open_playback(sr, initial_vol);
 	return 0;
 }
@@ -156,19 +82,19 @@ static int _write_playback_mono(void * ctx, const void * buf, size_t size){
 
 ////------------------------------
 //record stream driver
-bool set_mic_gain(int v, unsigned int dly) ;
+//bool set_mic_gain(int v, unsigned int dly) ;
 static int _open_record(uint32_t sr, uint32_t gain){
 	if(!InitAudioCapture(sr)){
 		return -1;
 	}
-	set_mic_gain(gain,4);
+	//set_mic_gain(gain,4);
 	mode = RECORD;
 	Audio_Start();
 	DISP("Codec in MIC mode\r\n");
 	return 0;
 }
 static int _reinit_record(unsigned int sr, unsigned int vol){
-	DeinitAudio();
+	DeinitAudioCapture();
 	_open_record(sr, initial_gain?initial_gain:16);
 	return 0;
 }
@@ -209,12 +135,9 @@ void hlo_audio_init(void){
 	tbl.close = _close;
 	master = hlo_stream_new(&tbl, NULL, HLO_AUDIO_RECORD|HLO_AUDIO_PLAYBACK);
 	mode = CLOSED;
-	audio_mem = pvPortMalloc(AUD_BUFFER_SIZE);
-	assert(audio_mem);
 	isr_sem = xSemaphoreCreateBinary();
 	assert(isr_sem);
 }
-extern bool set_volume(int v, unsigned int dly);
 hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint8_t vol, uint32_t direction){
 	hlo_stream_t * ret = master;
 	LOCK();

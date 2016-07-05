@@ -29,19 +29,35 @@
 #include "adpcm.h"
 #include "hlo_async.h"
 #include "state.pb.h"
+
 #include "hlo_audio.h"
 #include "hlo_pipe.h"
 #include "hlo_audio_tools.h"
+
+#include "codec_debug_config.h"
+
+#include "audiohelper.h"
+
 #if 0
 #define PRINT_TIMING
 #endif
 
 #define INBOX_QUEUE_LENGTH (5)
 
+#define NUMBER_OF_TICKS_IN_A_SECOND (1000)
+
+#define MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP (50000)
+
+#define MONO_BUF_LENGTH (AUDIO_FFT_SIZE) //256
+
 #define FLAG_SUCCESS (0x01)
 #define FLAG_STOP    (0x02)
 
 TaskHandle_t audio_task_hndl;
+
+#if (AUDIO_FULL_DUPLEX==1)
+TaskHandle_t audio_task_hndl_p;
+#endif
 
 /* static variables  */
 static xQueueHandle _playback_queue = NULL;
@@ -120,19 +136,26 @@ static bool _queue_audio_playback_state(playstate_t is_playing, const AudioPlayb
 }
 
 
-
 static uint8_t CheckForInterruptionDuringPlayback(void) {
 	AudioMessage_t m;
 	uint8_t ret = 0x00;
 
 	if (xQueueReceive(_playback_queue,(void *)&m,0)) {
-		ret = FLAG_STOP;
 		xQueueSendToFront(_playback_queue, (void*)&m, 0);
+		if (m.command == eAudioPlaybackStop) {
+			ret = FLAG_STOP;
+			LOGI("Stopping playback\r\n");
+		}
+		if (m.command == eAudioPlaybackStart ) {
+			ret = FLAG_STOP;
+//			LOGI("Switching audio\r\n");
+		}
 	}
 	return ret;
 }
 
 extern xSemaphoreHandle i2c_smphr;
+
 
 bool add_to_file_error_queue(char* filename, int32_t err_code, bool write_error);
 typedef struct{
@@ -143,7 +166,7 @@ typedef struct{
 	int32_t  duration;
 }ramp_ctx_t;
 extern xSemaphoreHandle i2c_smphr;
-extern bool set_volume(int v, unsigned int dly);
+//TODO extern bool set_volume(int v, unsigned int dly);
 
 static void _change_volume_task(hlo_future_t * result, void * ctx){
 	volatile ramp_ctx_t * v = (ramp_ctx_t*)ctx;
@@ -170,7 +193,7 @@ static void _change_volume_task(hlo_future_t * result, void * ctx){
 		if( xSemaphoreTakeRecursive(i2c_smphr, 100)) {
 			//set vol
 			vTaskDelay(5);
-			set_volume(v->current, 0);
+			//set_volume(v->current, 0); TODO
 			vTaskDelay(5);
 			xSemaphoreGiveRecursive(i2c_smphr);
 
@@ -218,13 +241,8 @@ static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_sto
 	}
 	DISP("Playback Task Finished %d\r\n", ret);
 }
-static void _init(void) {//TODO get rid of this
-	audio_task_hndl = xTaskGetCurrentTaskHandle();
-
-}
-
 void AudioPlaybackTask(void * data) {
-	_init();
+	InitAudioHelper_p();
 
 	_playback_queue = xQueueCreate(INBOX_QUEUE_LENGTH,sizeof(AudioMessage_t));
 	assert(_playback_queue);
@@ -258,7 +276,7 @@ void AudioPlaybackTask(void * data) {
 					if (m.message.playbackdesc.onFinished) {
 						m.message.playbackdesc.onFinished(m.message.playbackdesc.context);
 					}
-				}
+				}   break;
 				default:
 					break;
 			}
@@ -295,6 +313,8 @@ static int _do_capture(const AudioCaptureDesc_t * info){
 void AudioCaptureTask(void * data) {
 	_capture_queue = xQueueCreate(INBOX_QUEUE_LENGTH,sizeof(AudioMessage_t));
 	assert(_capture_queue);
+
+	InitAudioHelper();
 
 	AudioCaptureDesc_t bg_info = {0};
 	uint8_t bg_capture_enable = 0;
@@ -342,13 +362,14 @@ void AudioTask_StartPlayback(const AudioPlaybackDesc_t * desc) {
 	memset(&m,0,sizeof(m));
 
 	m.command = eAudioPlaybackStart;
-	memcpy(&m.message.playbackdesc,desc,sizeof(AudioPlaybackDesc_t));
 
+	memcpy(&m.message.playbackdesc,desc,sizeof(AudioPlaybackDesc_t));
 	//send to front of queue so this message is always processed first
 	if (_playback_queue) {
 		xQueueSendToFront(_playback_queue,(void *)&m,0);
 		_queue_audio_playback_state(PLAYING, desc);
 	}
+
 }
 
 void AudioTask_StopCapture(void){

@@ -3,8 +3,17 @@
 
 #include <stdint.h>
 #include "audio_types.h"
+
 #include "hlo_stream.h"
 #include "hlo_pipe.h"
+
+#include "codec_debug_config.h"
+
+#if (CODEC_ADC_16KHZ == 1)
+#define AUDIO_CAPTURE_PLAYBACK_RATE 16000
+#else
+#define AUDIO_CAPTURE_PLAYBACK_RATE 48000
+#endif
 
 typedef enum {
 	eAudioPlaybackStart,
@@ -42,6 +51,8 @@ typedef struct {
 
 void AudioPlaybackTask(void * data);
 void AudioCaptureTask(void * data);
+
+#include "codec_debug_config.h"
 
 void AudioTask_StartPlayback(const AudioPlaybackDesc_t * desc);
 

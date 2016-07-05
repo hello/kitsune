@@ -56,7 +56,7 @@ static void _on_play_audio( PlayAudio * cmd ) {
 	}
 
 	desc.onFinished = NULL;
-	desc.rate = 48000;
+	desc.rate = AUDIO_CAPTURE_PLAYBACK_RATE;
 	desc.context = NULL;
 	AudioTask_StartPlayback(&desc);
 }

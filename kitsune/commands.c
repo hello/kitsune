@@ -62,7 +62,6 @@
 #include "osi.h"
 
 #include "control.h"
-#include "ti_codec.h"
 #include "network.h"
 
 #include "diskio.h"
@@ -100,6 +99,12 @@
 #include "top_board.h"
 #include "long_poll.h"
 #include "filedownloadmanager.h"
+
+#define ONLY_AUDIO 1
+#if (AUDIO_FULL_DUPLEX==1)
+#include "audiohelper.h"
+#endif
+
 #define ONLY_MID 0
 
 #define ARRAY_LEN(a) (sizeof(a)/sizeof(a[0]))
@@ -311,10 +316,13 @@ int Cmd_fs_read(int argc, char *argv[]) {
 }
 
 int Cmd_audio_turn_on(int argc, char * argv[]) {
-
-	AudioTask_StartCapture(16000);
+	AudioTask_StartCapture(AUDIO_CAPTURE_PLAYBACK_RATE);
 
 	AudioProcessingTask_SetControl(featureUploadsOn,0);
+#ifdef KIT_INCLUDE_FILE_UPLOAD
+	AudioProcessingTask_SetControl(rawUploadsOn,0);
+#endif
+
 	return 0;
 }
 
@@ -603,7 +611,7 @@ void thread_alarm(void * unused) {
 				desc.durationInSeconds = alarm.ring_duration_in_second;
 				desc.volume = 10;
 				desc.onFinished = thread_alarm_on_finished;
-				desc.rate = 48000;
+				desc.rate = AUDIO_CAPTURE_PLAYBACK_RATE;
 				desc.context = &alarm_led_id;
 
 				alarm.has_start_time = FALSE;
@@ -1625,9 +1633,10 @@ void launch_tasks() {
 	//dear future chris: this one doesn't need a semaphore since it's only written to while threads are going during factory test boot
 	booted = true;
 
+#if (ONLY_AUDIO==0)
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 3, NULL);
-	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,2,NULL);
-	UARTprintf("*");
+#endif
+
 #ifdef KIT_INCLUDE_FILE_UPLOAD
 	xTaskCreate(FileUploaderTask_Thread,"fileUploadTask", 1024/4,NULL,1,NULL);
 #endif
@@ -1638,6 +1647,8 @@ void launch_tasks() {
 	UARTprintf("*");
 #if !ONLY_MID
 	UARTprintf("*");
+
+#if (ONLY_AUDIO==0)
 	xTaskCreate(thread_dust, "dustTask", 512 / 4, NULL, 3, NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_sensor_poll, "pollTask", 768 / 4, NULL, 2, NULL);
@@ -1646,6 +1657,8 @@ void launch_tasks() {
 	UARTprintf("*");
 	long_poll_task_init( 2560 / 4 );
 	downloadmanagertask_init(3072 / 4);
+#endif
+
 #endif
 }
 
@@ -1830,12 +1843,29 @@ int Cmd_SyncID(int argc, char * argv[]);
 int Cmd_time_test(int argc, char * argv[]);
 int cmd_file_sync_upload(int argc, char *argv[]);
 
+int Cmd_read_temp_humid_old(int argc, char *argv[]);
+int Cmd_read_uv(int argc, char *argv[]);
+int Cmd_uvr(int argc, char *argv[]);
+int Cmd_uvw(int argc, char *argv[]);
+
+
+int cmd_button(int argc, char *argv[]) {
+
+#define LED_GPIO_BASE_DOUT GPIOA2_BASE
+#define LED_GPIO_BIT_DOUT 0x80
+	bool fast = MAP_GPIOPinRead(LED_GPIO_BASE_DOUT, LED_GPIO_BIT_DOUT);
+
+LOGF("button %d\n", fast);
+}
+int Cmd_readlight(int argc, char *argv[]);
 // ==============================================================================
 // This is the table that holds the command names, implementing functions, and
 // brief description.
 // ==============================================================================
 tCmdLineEntry g_sCmdTable[] = {
-//    { "cpu",      Cmd_cpu,      "Show CPU utilization" },
+		//    { "cpu",      Cmd_cpu,      "Show CPU utilization" },
+    { "b",      cmd_button,      " " },
+
 #if 0
 		{ "time_test", Cmd_time_test, "" },
 		{ "heapviz", Cmd_heapviz, "" },
@@ -1857,7 +1887,8 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "time", Cmd_time, "" },
 		{ "status", Cmd_status, "" },
 
-    { "mnt",      Cmd_mnt,      "" },
+	    { "light",      Cmd_readlight,      "" },
+	    { "mnt",      Cmd_mnt,      "" },
     { "umnt",     Cmd_umnt,     "" },
     { "ls",       Cmd_ls,       "" },
     { "chdir",    Cmd_cd,       "" },
@@ -1868,14 +1899,23 @@ tCmdLineEntry g_sCmdTable[] = {
     { "write",    Cmd_write,    "" },
     { "mkfs",     Cmd_mkfs,     "" },
     { "pwd",      Cmd_pwd,      "" },
-	{"codec_Mic", get_codec_mic_NAU, "" },
+
+    { "cat",      Cmd_cat,      "" },
+	{"codec_Mic", get_codec_mic_NAU, "" }, // TODO DKH
+
 #endif
 
-    {"inttemp", Cmd_inttemp, "" },
+    {"inttemp", Cmd_inttemp, "" }, //internal temperature
 	{ "thp", Cmd_read_temp_hum_press,	"" },
 	{ "tv", Cmd_meas_TVOC,	"" },
 
-		{ "light", Cmd_readlight, "" },
+	{ "uv", Cmd_read_uv, "" },
+	{ "light", Cmd_readlight, "" },
+#if 1
+    {"th-old", Cmd_read_temp_humid_old, "" },
+	{ "uvr", Cmd_uvr, "" },
+	{ "uvw", Cmd_uvw, "" },
+#endif
 
 #if ( configUSE_TRACE_FACILITY == 1 )
 		{ "tasks", Cmd_tasks, "" },
@@ -2063,6 +2103,7 @@ void vUARTTask(void *pvParameters) {
 	//sdhost dma interrupts
 	MAP_SDHostIntRegister(SDHOST_BASE, SDHostIntHandler);
 	MAP_SDHostSetExpClk(SDHOST_BASE, MAP_PRCMPeripheralClockGet(PRCM_SDHOST), 24000000);
+
 	UARTprintf("*");
 	Cmd_mnt(0, 0);
 	vTaskDelay(10);
@@ -2071,7 +2112,9 @@ void vUARTTask(void *pvParameters) {
 	hlo_audio_init();
 
 	i2c_smphr = xSemaphoreCreateRecursiveMutex();
+#if (ONLY_AUDIO==0)
 	init_time_module(2560);
+#endif
 
 	// Init sensors
 	init_tvoc();
@@ -2098,9 +2141,47 @@ void vUARTTask(void *pvParameters) {
 	CreateDefaultDirectories();
 	load_data_server();
 
+	/********************************************************************************
+	 *           AUDIO INIT START
+	 * *******************************************************************************
+	 */
+
+	// Reset codec
+	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0);
+	vTaskDelay(10);
+	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0x4);
+
+
+#ifdef CODEC_1P5_TEST
+	codec_test_commands();
+#endif
+
+	// Program codec
+	codec_init();
+
+#if (AUDIO_FULL_DUPLEX==1)
+	// McASP and DMA init
+	InitAudioTxRx(AUDIO_CAPTURE_PLAYBACK_RATE);
+#endif
+
+	// Create audio tasks for playback and record
 	xTaskCreate(AudioPlaybackTask,"playbackTask",1280/4,NULL,4,NULL);
 	xTaskCreate(AudioCaptureTask,"captureTask", (3*1024)/4,NULL,3,NULL);
+
+#if (ONLY_AUDIO==0)
+	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,2,NULL);
+#endif
+
+	/********************************************************************************
+	 *           AUDIO INIT END
+	 * *******************************************************************************
+	 */
+
+	UARTprintf("*");
+#if (ONLY_AUDIO==0)
 	init_download_task( 3072 / 4 );
+#endif
+
 	networktask_init(3 * 1024 / 4);
 
 	load_serial();
@@ -2112,9 +2193,13 @@ void vUARTTask(void *pvParameters) {
 	check_provision();
 
 	init_dust();
+
+#if (ONLY_AUDIO==0)
 	ble_proto_init();
 	xTaskCreate(top_board_task, "top_board_task", 1280 / 4, NULL, 3, NULL);
 	xTaskCreate(thread_spi, "spiTask", 1536 / 4, NULL, 3, NULL);
+#endif
+
 #ifndef BUILD_SERVERS
 	uart_logger_init();
 	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 1, NULL);

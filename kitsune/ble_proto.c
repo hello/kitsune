@@ -656,7 +656,7 @@ static void play_startup_sound() {
 		ustrncpy(desc.source_name, STARTUP_SOUND_NAME, sizeof(desc.source_name));
 		desc.volume = 57;
 		desc.durationInSeconds = -1;
-		desc.rate = 48000;
+		desc.rate = AUDIO_CAPTURE_PLAYBACK_RATE;
 		desc.fade_in_ms = 0;
 		desc.fade_out_ms = 0;
 		desc.to_fade_out_ms = 0;
@@ -754,6 +754,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 		}
 		break;
 	}
+#if 0
 	if(!booted || provisioning_mode) {
 		goto cleanup;
 	}
@@ -980,6 +981,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID:
         	break;
 	}
+#endif
     cleanup:
     if( finished_with_command ) {
     	ble_proto_free_command(command);
