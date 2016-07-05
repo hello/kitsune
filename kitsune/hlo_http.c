@@ -77,7 +77,7 @@ static int _start_connection(unsigned long ip, security_type sec){
 				 //ble_reply_wifi_status(wifi_connection_state_SSL_FAIL);
 			 }
 		 }else{
-			 sAddr = _get_addr(ip, 11000);
+			 sAddr = _get_addr(ip, 8082);
 			 sock = socket(AF_INET, SOCK_STREAM, SL_IPPROTO_TCP);
 		 }
 		 if( sock < 0 ) goto exit;
@@ -94,8 +94,11 @@ static int _start_connection(unsigned long ip, security_type sec){
 			 rv = connect(sock, &sAddr, sizeof(sAddr));
 			 vTaskDelay(100);
 		 }while(rv == SL_EALREADY && retry--);
+
+
 		 if(rv < 0){
 			 LOGI("Could not connect %d\n\r\n\r", rv);
+			 close(sock);
 			 sock = -1;
 		 }
 #if 0
@@ -105,10 +108,12 @@ static int _start_connection(unsigned long ip, security_type sec){
 #endif
 	}
 exit:
+	LOGI("Sock ret %d\n\r\n\r", sock);
 	return sock;
 }
 static int _close_sock(void * ctx){
 	int sock = (int)ctx;
+    DBG_SOCKSTREAM("SOCK CLOSE %d\n", sock);
 	close(sock);
 	return 0;
 }
@@ -351,12 +356,11 @@ hlo_stream_t * hlo_ws_stream( hlo_stream_t * base){
 	        LOGE("get_device_id failed\n");
 	        goto ws_open_fail;
 	    }
-		usnprintf(buf, BUFSZ, "Get /dispatch HTTP/1.1\r\n"
+		usnprintf(buf, BUFSZ, "GET /protobuf HTTP/1.1\r\n"
 				"Host: %s\r\n"
 				"Upgrade: websocket\r\n"
 				"Connection: Upgrade\r\n"
 				"Sec-WebSocket-Key: x3JJHMbDL1EzLkh9GBhXDw==\r\n" //cruft to match standard, not necessary as we use TLS
-				"Sec-WebSocket-Protocol: echo\r\n"
 				"Sec-WebSocket-Version: 13\r\n"
 				"X-Hello-Sense-Id: %s\r\n"
 				"X-Hello-Sense-MFW: %x\r\n"

@@ -23,6 +23,10 @@ bool hlo_output_pb_wto( Preamble_pb_type hlo_pb_type, const pb_field_t * fields,
 bool hlo_output_pb( Preamble_pb_type hlo_pb_type, const pb_field_t * fields, void * structdata );
 void hlo_prep_for_pb(int type);
 
+void hlo_init_pbstream();
+
+#if 0
 int Cmd_pbstr(int argc, char *argv[]);
+#endif
 
 #endif
