@@ -162,6 +162,10 @@ int hlo_pb_encode( hlo_stream_t * stream, const pb_field_t * fields, void * stru
 	count = htonl(count);
 	int ret = hlo_stream_transfer_all(INTO_STREAM, stream, (uint8_t*)&count, sizeof(count), 200);
 
+	if( ret < 0 ) {
+		return ret;
+	}
+
 	success = success && sizeof(count) == ret;
 	success = success && pb_encode(&pb_ostream,fields,structdata);
 
@@ -186,6 +190,10 @@ int hlo_pb_decode( hlo_stream_t * stream, const pb_field_t * fields, void * stru
 	success = success && sizeof(count) == ret;
 	count = ntohl(count);
 	DBG_PBSTREAM("PB RX %d %d\n", ret, count);
+
+	if( ret < 0 ) {
+		return ret;
+	}
 
 	pb_istream.bytes_left = count;
 	success = success && pb_decode(&pb_istream,fields,structdata);
@@ -344,15 +352,24 @@ static ack_set outbound_msgs;
 
 xQueueHandle hlo_ack_queue;
 
+static int sock_retry = 0;
 static void sock_checkup() {
 	xSemaphoreTake(sock_stream_sem, portMAX_DELAY);
 	if( sock_stream == NULL ) {
 		sock_stream = hlo_ws_stream(hlo_sock_stream( "notreal", false ));
 	}
+	if( sock_stream == NULL ) {
+		vTaskDelay((1<<sock_retry)*1000);
+		sock_retry = sock_retry < 5 ? sock_retry++ : sock_retry;
+	} else {
+		sock_retry = 0;
+	}
 	xSemaphoreGive(sock_stream_sem);
 }
 static void sock_close() {
 	xSemaphoreTake(sock_stream_sem, portMAX_DELAY);
+	hlo_stream_end(sock_stream);
+	vTaskDelay(1000); // let any readers get the EOF before we trash the stream
 	hlo_stream_close(sock_stream);
 	sock_stream = NULL;
 	xSemaphoreGive(sock_stream_sem);
@@ -387,9 +404,11 @@ static void thread_out(void* ctx) {
 			//loop over all the messages in the outbound set
 			xSemaphoreTake(ack_set_sem, portMAX_DELAY);
 			m = ack_set_yield(&outbound_msgs);
-			num_acks_pending = outbound_msgs.size;
 			xSemaphoreGive(ack_set_sem);
-			DBG_ACK("yielded\t%d\n", m->id);
+			if( m != NULL ) {
+				DBG_ACK("yielded\t%d\n", m->id);
+			}
+			num_acks_pending = outbound_msgs.size;
 		}
 
 		//wait if empty
@@ -426,6 +445,8 @@ static void thread_out(void* ctx) {
 		//if we don't wait a bit between messages until we get an ack we flood the network with packets...
 		//but if something new comes in we want to try and send it...
 		//but if the server is struggling we want to back off...
+		vTaskDelay(1000);
+		DISP("thread out waiting for %d\n ", num_acks_pending*num_acks_pending*1000 + 1000 );
 		xSemaphoreTake(new_outbound_msg_sem, num_acks_pending*num_acks_pending*1000 + 1000);
 	}
 }
@@ -446,8 +467,15 @@ static void on_periodic_data( void * structdata ) {
 	LOGF("receieved %d\n", data->light );
 }
 
+#include "sync_response.pb.h"
+void _on_sync_response_success( void * structdata);
+static void on_sync_response( void * structdata ) {
+	LOGF("receieved SR\n" );
+	_on_sync_response_success(structdata);
+}
+
 #define SIZE_OF_LARGEST_PB 200
-#define NUM_TYPES 2
+#define NUM_TYPES (Preamble_pb_type_MESSEJI+1)
 static xSemaphoreHandle pb_sub_sem;
 static xSemaphoreHandle pb_rx_complt_sem;
 static int incoming_pb_type;
@@ -464,9 +492,13 @@ static void on_ack_data( void * structdata)
 	if( data->has_status ) DBG_ACK("ack sts %d\n", data->status);
 	if( data->has_message_id ) ack_rx(data->message_id);
 }
-pb_subscriber subscriptions[NUM_TYPES] = {
-		{ Ack_fields, NULL, on_ack_data},
-		{ periodic_data_fields, NULL, on_periodic_data },
+pb_subscriber subscriptions[NUM_TYPES] = { //todo make more space efficient?
+		{ Ack_fields, NULL, on_ack_data},//Preamble_pb_type_ACK
+		{ periodic_data_fields, NULL, on_periodic_data },//Preamble_pb_type_BATCHED_PERIODIC_DATA
+		{ NULL, NULL, NULL },//Preamble_pb_type_SENSE_LOG
+		{ SyncResponse_fields, NULL, on_sync_response },//Preamble_pb_type_BATCHED_PERIODIC_DATA
+		{ NULL, NULL, NULL },//Preamble_pb_type_MATRIX_CLIENT_MESSAGE
+		{ NULL, NULL, NULL },//Preamble_pb_type_MESSEJI
 };
 
 void hlo_prep_for_pb(int type) {
@@ -497,37 +529,56 @@ static void thread_in(void* ctx) {
 			//bg pipe for receiving the data
 			xTaskCreate(thread_frame_pipe_decode, "pdec", 2*1024 / 4, &p_ctx_dec, 4, NULL);
 
-			xSemaphoreTake(pb_sub_sem, portMAX_DELAY);
+			// if the underlying thread returns while we're waiting we need to restart
+			while (!xSemaphoreTake(pb_sub_sem, 1000)) {
+				if (xSemaphoreTake(p_ctx_dec.join_sem, 0)) {
+					goto thread_in_continue;
+				}
+			}
 			if( subscriptions[incoming_pb_type].fmt_pb_data ) {
 				subscriptions[incoming_pb_type].fmt_pb_data(pb_data);
 			}
-			LOGF("\n\nR! %d\n\n",  hlo_pb_decode( fifo_stream_in, subscriptions[incoming_pb_type].fields, pb_data  ) );
+			DISP("\n\nR! %d\n\n",  hlo_pb_decode( fifo_stream_in, subscriptions[incoming_pb_type].fields, pb_data  ) );
 			xSemaphoreTake( p_ctx_dec.join_sem, portMAX_DELAY );
-			vSemaphoreDelete( p_ctx_dec.join_sem );
-			hlo_stream_close(fifo_stream_in);
-			if(p_ctx_dec.state < 0 ) {
-				DISP("dec state %d\n",p_ctx_dec.state );
-				sock_close();
-			}
+
 			if( subscriptions[incoming_pb_type].ondata ) {
 				subscriptions[incoming_pb_type].ondata( pb_data );
 			}
 			xSemaphoreGive(pb_rx_complt_sem);
+
+			thread_in_continue:
+			vSemaphoreDelete(p_ctx_dec.join_sem);
+			hlo_stream_close(fifo_stream_in);
+			if (p_ctx_dec.state < 0) {
+				DISP("dec state %d\n", p_ctx_dec.state);
+				sock_close();
+			}
 		}
 	}
 }
 bool hlo_output_pb_wto( Preamble_pb_type hlo_pb_type, const pb_field_t * fields, void * structdata, TickType_t to ) {
 	static uint64_t id = 0;
 
+	uint64_t my_id = ++id;
+
 	//add the new pb msg to outbound set
 	if( xSemaphoreTake(ack_set_sem, to) ) {
-		pb_msg m = { fields, structdata, hlo_pb_type, ++id };
+		pb_msg m = { fields, structdata, hlo_pb_type, my_id };
 		DBG_ACK("sending\t%d\n", id);
 		ack_set_update(&outbound_msgs, m, id);
 		xSemaphoreGive(ack_set_sem);
 
 		//signal tx thread it has work to do
 		xSemaphoreGive(new_outbound_msg_sem);
+
+		while( ack_set_has(&outbound_msgs, my_id) ) {
+			DBG_ACK("waiting on ack\t%d\n", my_id);
+			vTaskDelay(1000); // TODO remove polling?
+			//problem is that the structdata must hang around until the message is acked,
+			//and the easiest way is making this block. To avoid polling a semaphore seems
+			//like it might work, but it would only unblock one waiting task. Even releasing
+			//once for each waiter could result in the highest priority waiter waking repeatedly
+		}
 		return true;
 	}
 	return false;
@@ -536,28 +587,59 @@ bool hlo_output_pb( Preamble_pb_type hlo_pb_type, const pb_field_t * fields, voi
 	return hlo_output_pb_wto( hlo_pb_type, fields, structdata, portMAX_DELAY);
 }
 
-int Cmd_pbstr(int argc, char *argv[]) {
+void hlo_init_pbstream() {
 	sock_stream_sem = xSemaphoreCreateMutex();
 	pb_sub_sem = xSemaphoreCreateBinary();
 	pb_rx_complt_sem = xSemaphoreCreateBinary();
 	xSemaphoreGive(pb_rx_complt_sem);
 
-    hlo_ack_queue = xQueueCreate(_MAX_RX_RECEIPTS, sizeof(int64_t));
+	hlo_ack_queue = xQueueCreate(_MAX_RX_RECEIPTS, sizeof(int64_t));
 	ack_set_init(&outbound_msgs, MAX_PB_QUEUED);
 	ack_set_sem = xSemaphoreCreateMutex();
 	new_outbound_msg_sem = xSemaphoreCreateBinary();
 
 	xTaskCreate(thread_out, "out", 2*1024 / 4, NULL, 4, NULL);
 	xTaskCreate(thread_in, "in", 2*1024 / 4, NULL, 4, NULL);
+}
 
+#if 0
+#include "proto_utils.h"
+#define MAX_BATCH_SIZE 1
+int Cmd_pbstr(int argc, char *argv[]) {
+	batched_periodic_data data_batched = {0};
 	periodic_data data;
+
+	periodic_data_to_encode periodicdata;
 
 	data.has_light = true;
 	data.light = 10;
+
+	periodicdata.num_data = 0;
+	periodicdata.data = (periodic_data*)pvPortMalloc(MAX_BATCH_SIZE*sizeof(periodic_data));
+
+	//while( periodicdata.num_data < MAX_BATCH_SIZE && xQueueReceive(data_queue, &periodicdata.data[periodicdata.num_data], 1 ) ) {
+		++periodicdata.num_data;
+
+		memcpy( periodicdata.data, &data, sizeof(periodic_data)); //DEBUG
+	//}
+
+	pack_batched_periodic_data(&data_batched, &periodicdata);
+
+	data_batched.has_uptime_in_second = true;
+	data_batched.uptime_in_second = xTaskGetTickCount() / configTICK_RATE_HZ;
+
+	wifi_get_connected_ssid( (uint8_t*)data_batched.connected_ssid, sizeof(data_batched) );
+	data_batched.has_connected_ssid = true;
+
 	while(1) {
-		LOGF("sending %d\n", data.light );
-		hlo_output_pb( Preamble_pb_type_BATCHED_PERIODIC_DATA, periodic_data_fields, &data);
+		LOGI(	"sending data\n" );
+
+		hlo_output_pb( Preamble_pb_type_BATCHED_PERIODIC_DATA, batched_periodic_data_fields, &data_batched);
+
+
 		vTaskDelay(5000);
 	}
 
+	vPortFree(periodicdata.data);
 }
+#endif

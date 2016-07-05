@@ -13,8 +13,10 @@
 #define NETWORK_TASK_QUEUE_DEPTH (10)
 #define INITIAL_RETRY_PERIOD_COUNTS (1024)
 
+#if 0
 static xQueueHandle _asyncqueue = NULL;
 static xSemaphoreHandle _network_mutex = NULL;
+#endif
 
 #define USE_DEBUG_PRINTF
 
@@ -27,6 +29,7 @@ static void nop(const char * foo,...) {  }
 
 static void Init(NetworkTaskData_t * info) {
 
+#if 0
 	if (!_asyncqueue) {
 		_asyncqueue = xQueueCreate(NETWORK_TASK_QUEUE_DEPTH,sizeof(NetworkTaskServerSendMessage_t));
 	}
@@ -35,13 +38,15 @@ static void Init(NetworkTaskData_t * info) {
 	{
 		_network_mutex = xSemaphoreCreateMutex();
 	}
-
+#endif
 }
 
 void unblock_sync(void * data) {
+#if 0
 	NetworkTaskServerSendMessage_t * msg = (NetworkTaskServerSendMessage_t*)data;
 	assert( msg->sync );
 	xSemaphoreGive(msg->sync); //todo maybe here
+#endif
 }
 
 bool NetworkTask_SendProtobuf(bool blocking, char * host,
@@ -50,6 +55,7 @@ bool NetworkTask_SendProtobuf(bool blocking, char * host,
 		NetworkResponseCallback_t func, void * context,
 		protobuf_reply_callbacks *pb_cb,
 		bool is_high_priority) {
+#if 0
 	NetworkTaskServerSendMessage_t message;
 	NetworkResponse_t response;
 	BaseType_t ret = pdFALSE;
@@ -109,11 +115,14 @@ bool NetworkTask_SendProtobuf(bool blocking, char * host,
 		return response.success;
 	}
 	DEBUG_PRINTF("NT ret\n");
+#endif
 	return false;
 }
 
 static NetworkResponse_t nettask_send(NetworkTaskServerSendMessage_t * message, int * sock) {
+
 	NetworkResponse_t response;
+#if 0
 	int32_t timeout_counts;
 	int32_t retry_period;
 	uint32_t attempt_count;
@@ -224,10 +233,13 @@ static NetworkResponse_t nettask_send(NetworkTaskServerSendMessage_t * message, 
 
 	networktask_exit_critical_region();
 
+#endif
 	return response;
+
 }
 
 static void NetworkTask_Thread(void * networkdata) {
+#if 0
 	NetworkTaskServerSendMessage_t message;
 	int sock = -1;
 
@@ -244,28 +256,41 @@ static void NetworkTask_Thread(void * networkdata) {
 			message.end(&message);
 		}
 	}
+#endif
 }
 
 
 int NetworkTask_AddMessageToQueue(const NetworkTaskServerSendMessage_t * message) {
+#if 0
+
     return xQueueSend( _asyncqueue, ( const void * ) message, 10 );
+#endif
+	return 0;
 }
 
 
 int networktask_enter_critical_region()
 {
+#if 0
+
 	LOGI("NT::ENTER\n");
 	return xSemaphoreTake(_network_mutex, portMAX_DELAY);
+#endif
+	return 0;
 }
 
 int networktask_exit_critical_region()
 {
+#if 0
 	LOGI("NT::EXIT\n");
 	return xSemaphoreGive(_network_mutex);
+#endif
+	return 0;
 }
 
 void networktask_init(uint16_t stack_size)
 {
+#if 0
 	// In this way the network task is encapsulated to its own module
 	// no semaphore needs to expose to outside
 	NetworkTaskData_t network_task_data;
@@ -276,6 +301,7 @@ void networktask_init(uint16_t stack_size)
 	//this task needs a larger stack because
 	//some protobuf encoding will happen on the stack of this task
 	xTaskCreate(NetworkTask_Thread, "networkTask", stack_size, &network_task_data, 2, NULL);
+#endif
 }
 
 

@@ -1989,54 +1989,11 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
     _set_led_color_based_on_room_conditions(response_protobuf);
 }
 
-static void _get_sync_response(pb_field_t ** fields, void ** structdata){
-	*fields = (pb_field_t *)SyncResponse_fields;
-	*structdata = pvPortMalloc(sizeof(SyncResponse));
-	assert(*structdata);
-	if( *structdata ) {
-		SyncResponse * response_protobuf = *structdata;
-		memset(response_protobuf, 0, sizeof(SyncResponse));
-		response_protobuf->pill_settings.funcs.decode = on_pill_settings;
-		response_protobuf->files.funcs.decode = _on_file_download;
-	}
-}
-static void _free_sync_response(void * structdata){
-	vPortFree( structdata );
-}
-
-static void _on_sync_response_success( void * structdata){
+void _on_sync_response_success( void * structdata){
 	LOGF("signature validation success\r\n");
 	boot_commit_ota();
 	_on_response_protobuf((SyncResponse*)structdata);
 }
-static void _on_sync_response_failure( ){
-    LOGF("signature validation fail\r\n");
-}
-bool send_pill_data_generic(batched_pill_data * pill_data, const char * endpoint){
-	 protobuf_reply_callbacks pb_cb;
-
-	pb_cb.get_reply_pb = _get_sync_response;
-	pb_cb.free_reply_pb = _free_sync_response;
-	pb_cb.on_pb_success = _on_sync_response_success;
-	pb_cb.on_pb_failure = _on_sync_response_failure;
-
-	return NetworkTask_SendProtobuf(true, DATA_SERVER,
-			endpoint, batched_pill_data_fields, pill_data, INT_MAX,
-			NULL, NULL, &pb_cb, false);
-}
-bool send_periodic_data(batched_periodic_data* data, bool forced, int32_t to) {
-    protobuf_reply_callbacks pb_cb;
-
-    pb_cb.get_reply_pb = _get_sync_response;
-    pb_cb.free_reply_pb = _free_sync_response;
-    pb_cb.on_pb_success = _on_sync_response_success;
-    pb_cb.on_pb_failure = _on_sync_response_failure;
-
-	return NetworkTask_SendProtobuf(true, DATA_SERVER,
-			DATA_RECEIVE_ENDPOINT, batched_periodic_data_fields, data, to,
-			NULL, NULL, &pb_cb, forced);
-}
-
 #ifdef SELF_PROVISION_SUPPORT
 static void _get_provision_response(pb_field_t ** fields, void ** structdata){
 	*fields = (pb_field_t *)MorpheusCommand_fields;

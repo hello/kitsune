@@ -940,8 +940,9 @@ static void handle_pill_queue(xQueueHandle queue, const char * endpoint, pill_ba
 			default:
 				goto end;
 		}
+
 		if(endpoint){
-			send_pill_data_generic(&pill_data_batched, endpoint);
+			//send_pill_data_generic(&pill_data_batched, endpoint); TODO new API
 		}
 end:
 		vPortFree( pilldata.pills );
@@ -950,6 +951,7 @@ end:
 #include "endpoints.h"
 #include "hlo_http.h"
 void thread_tx(void* unused) {
+#if 1
 	batched_periodic_data data_batched = {0};
 #ifdef UPLOAD_AP_INFO
 	batched_periodic_data_wifi_access_point ap;
@@ -1035,9 +1037,9 @@ void thread_tx(void* unused) {
 			data_batched.has_messages_in_queue = true;
 			data_batched.messages_in_queue = uxQueueMessagesWaiting(data_queue);
 
-			if( send_periodic_data(&data_batched, got_forced_data, ( MAX_PERIODIC_DATA - uxQueueMessagesWaiting(data_queue) ) * 60 * 1000 ) ) {
-				last_upload_time = xTaskGetTickCount();
-			}
+
+			hlo_output_pb( Preamble_pb_type_BATCHED_PERIODIC_DATA, batched_periodic_data_fields, &data_batched);
+			last_upload_time = xTaskGetTickCount();
 
 			vPortFree( periodicdata.data );
 			got_forced_data = false;
@@ -1052,6 +1054,7 @@ void thread_tx(void* unused) {
 			}
 		} while (!wifi_status_get(HAS_IP));
 	}
+#endif
 }
 #include "audio_types.h"
 
@@ -1890,7 +1893,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "get", Cmd_test_get, ""},
 #endif
 
-		{ "pb", Cmd_pbstr, ""},
+//		{ "pb", Cmd_pbstr, ""},
 		{ "hmac", Cmd_testhmac, ""},
 
 
@@ -2127,6 +2130,7 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
 	start_top_boot_watcher();
+	hlo_init_pbstream();
 
 	if( on_charger ) {
 		launch_tasks();
@@ -2136,7 +2140,7 @@ void vUARTTask(void *pvParameters) {
 		play_led_wheel( 50, LED_MAX, LED_MAX, 0,0,10,1);
 	}
 
-	UARTprintf("\n\nFreeRTOS %s, %08x, %s %02x:%02x:%02x:%02x:%02x:%02x\n",
+	UARTprintf("\n\nFree!!! %s, %08x, %s %02x:%02x:%02x:%02x:%02x:%02x\n",
 	tskKERNEL_VERSION_NUMBER, KIT_VER, MORPH_NAME, mac[0], mac[1], mac[2],
 			mac[3], mac[4], mac[5]);
 	print_nwp_version();

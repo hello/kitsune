@@ -2,7 +2,7 @@
 #include "task.h"
 #include "uart_logger.h"
 
-#define DBG_FRAMEPIPE(...)
+#define DBG_FRAMEPIPE DISP
 
 int hlo_stream_transfer_until(transfer_direction direction,
 							hlo_stream_t * stream,
@@ -14,8 +14,10 @@ int hlo_stream_transfer_until(transfer_direction direction,
 	int ret, idx = 0;
 	while(idx < buf_size){
 		if(direction == INTO_STREAM){
+			//DBG_FRAMEPIPE("  IN %d %d \n\n", idx, buf_size );
 			ret = hlo_stream_write(stream, buf+idx, buf_size - idx);
 		}else{
+			//DBG_FRAMEPIPE("  OUT %d %d \n\n", idx, buf_size );
 			ret = hlo_stream_read(stream, buf+idx, buf_size - idx);
 		}
 		if( ret > 0 ) {
@@ -99,10 +101,9 @@ int hlo_stream_transfer_between(
 
 int get_aes(uint8_t * dst);
 
-#define KEY_AS_ID
 #include "wifi_cmd.h"
 
-#define MAX_CHUNK_SIZE 512
+#define MAX_CHUNK_SIZE (512+128)
 
 int frame_pipe_encode( pipe_ctx * pipe) {
 	uint8_t buf[MAX_CHUNK_SIZE+1];
@@ -160,7 +161,7 @@ int frame_pipe_encode( pipe_ctx * pipe) {
 		goto enc_return;
 	}
 	//compute an hmac on each block until the end of the stream
-	while( size != 0 ) {
+	while( 1 ) {
 		//full chunk unless we're on the last one
 		size_t to_read = size > (MAX_CHUNK_SIZE-SHA1_SIZE) ? (MAX_CHUNK_SIZE-SHA1_SIZE) : size;
 
@@ -194,6 +195,9 @@ int frame_pipe_encode( pipe_ctx * pipe) {
 			ret = HLO_STREAM_ERROR;
 			goto enc_return;
 		}
+		if( to_read >= size ) {
+			break;
+		}
 		size -= to_read;
 	}
 
@@ -207,7 +211,7 @@ int frame_pipe_encode( pipe_ctx * pipe) {
 }
 extern xQueueHandle hlo_ack_queue;
 int frame_pipe_decode( pipe_ctx * pipe ) {
-	uint8_t buf[512];
+	uint8_t buf[MAX_CHUNK_SIZE];
 	uint8_t hmac[2][SHA1_SIZE] = {0};
 	int ret;
 	size_t size;
@@ -237,10 +241,10 @@ int frame_pipe_decode( pipe_ctx * pipe ) {
 	if(ret <= 0){
 		goto dec_return;
 	}
-	DBG_FRAMEPIPE("    dec payload size %d\n", ntohl(size) );
+	size = ntohl(size);
+	DBG_FRAMEPIPE("    dec payload size %d\n", size );
 	//write it for the pb parser
 	ret = hlo_stream_transfer_all( INTO_STREAM, pipe->sink, (uint8_t*)&size,sizeof(size),transfer_delay);
-	size = ntohl(size);
 	if(ret <= 0){
 		goto dec_return;
 	}
@@ -310,14 +314,14 @@ int frame_pipe_decode( pipe_ctx * pipe ) {
 void thread_frame_pipe_encode(void* ctx) {
 	pipe_ctx * pctx = (pipe_ctx*)ctx;
 
-	frame_pipe_encode( pctx );
+	pctx->state = frame_pipe_encode( pctx );
 	xSemaphoreGive(pctx->join_sem);
 	vTaskDelete(NULL);
 }
 void thread_frame_pipe_decode(void* ctx) {
 	pipe_ctx * pctx = (pipe_ctx*)ctx;
 
-	frame_pipe_decode( pctx );
+	pctx->state = frame_pipe_decode( pctx );
 	hlo_stream_end(pctx->sink);
 	xSemaphoreGive(pctx->join_sem);
 	vTaskDelete(NULL);

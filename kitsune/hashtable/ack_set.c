@@ -33,9 +33,13 @@ void ack_set_remove(ack_set *st, uint64_t idx) {
 	  st->starting_idx = 0;
   }
 }
+bool ack_set_has(ack_set *st, uint64_t idx) {
+  idx -= st->starting_idx;
+  return bit_array_get(&st->presence, idx);
+}
 bool ack_set_get(ack_set *st, ack_set_entry value, uint64_t idx) {
   idx -= st->starting_idx;
-  if( !bit_array_get(&st->presence, idx) )
+  if( !ack_set_has(st, idx) )
     return false;
   memcpy( &value, (void*)(st->entries + bit_array_count(&st->presence, idx) * sizeof(ack_set_entry)), sizeof(ack_set_entry) );
   return true;

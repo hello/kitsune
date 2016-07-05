@@ -19,6 +19,7 @@
 #include "hellofilesystem.h"
 #include "fatfs_cmd.h"
 #include "proto_utils.h"
+#include "hlo_proto_tools.h"
 #include "ustdlib.h"
 
 #include "kit_assert.h"
@@ -591,8 +592,7 @@ static bool send_log() {
 	}
 #endif
 	//no timeout on this one...
-    return NetworkTask_SendProtobuf(true, DATA_SERVER, SENSE_LOG_ENDPOINT,
-    		sense_log_fields,&self.log, 0, NULL, NULL, NULL, false);
+	return hlo_output_pb( Preamble_pb_type_SENSE_LOG, sense_log_fields,&self.log);
 }
 
 void analytics_event_task(void * params){
@@ -634,11 +634,10 @@ void analytics_event_task(void * params){
 upload:
 			log.unix_time = time;
 			portTickType now = xTaskGetTickCount();
-			DISP("Analytics: %s\r\n", block);
-			if( !NetworkTask_SendProtobuf(true, DATA_SERVER, SENSE_LOG_ENDPOINT,
-					sense_log_fields, &log, 0, NULL, NULL, NULL, false) ) {
-				LOGI("Analytics failed to upload\n");
 			}
+
+			hlo_output_pb( Preamble_pb_type_SENSE_LOG, sense_log_fields,&log);
+
 			block_len = 0;
 			memset(block, 0, ANALYTICS_MAX_CHUNK_SIZE);
 			vTaskDelayUntil(&now, 1000);

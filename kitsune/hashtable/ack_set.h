@@ -25,6 +25,7 @@ typedef struct {
 void ack_set_init(ack_set *st, int size);
 void ack_set_dispose(ack_set *st);
 void ack_set_remove(ack_set *st, uint64_t idx);
+bool ack_set_has(ack_set *st, uint64_t idx);
 bool ack_set_get(ack_set *st,  ack_set_entry value, uint64_t idx);
 void ack_set_update(ack_set *st, ack_set_entry entry, uint64_t idx );
 void ack_set_apply(ack_set *st, bool(*fp)(ack_set_entry const*, void * ), void * data );
