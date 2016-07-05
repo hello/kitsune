@@ -43,9 +43,6 @@
 #define CODEC_USE_MINIDSP 			1 // Set to 1 if using miniDSP, else 0
 #endif
 
-// Left mic data is latched on rising by default, to latch it on rising edge instead
-// set this to be 1
-#define CODEC_LEFT_LATCH_FALLING 	1
 #define CODEC_DIG_MIC1_EN			1
 
 #if (CODEC_ENABLE_MULTI_CHANNEL==1)
@@ -854,7 +851,6 @@ int Cmd_uvw(int argc, char *argv[]) {
 #include "simplelink.h"
 #include "sl_sync_include_after_simplelink_header.h"
 
-static void codec_sw_reset(void);
 
 #if (CODEC_USE_MINIDSP == 0)
 static void codec_fifo_config(void);
@@ -863,10 +859,11 @@ static void codec_clock_config(void);
 static void codec_gpio_config(void);
 static void codec_asi_config(void);
 static void codec_signal_processing_config(void);
-#endif
-
 static void codec_mic_config(void);
 static void codec_speaker_config(void);
+#endif
+
+static void codec_sw_reset(void);
 static void codec_set_page(uint32_t page);
 static void codec_set_book(uint32_t book);
 
@@ -889,12 +886,16 @@ static void codec_sw_reset(void)
 	//w 30 7f 00 # Initialize to Book 0
 	codec_set_book(0);
 
-	//w 30 01 01 # Software Reset
-	cmd[0] = 0x01;
-	cmd[1] = 0x01;
-	if((ret=I2C_IF_Write(Codec_addr, cmd, 2, send_stop)))
-	{
-		UARTprintf("Codec sw reset fail:%d\n",ret);
+	if( xSemaphoreTakeRecursive(i2c_smphr, 100)) {
+
+		//w 30 01 01 # Software Reset
+		cmd[0] = 0x01;
+		cmd[1] = 0x01;
+		if((ret=I2C_IF_Write(Codec_addr, cmd, 2, send_stop)))
+		{
+			UARTprintf("Codec sw reset fail:%d\n",ret);
+		}
+		xSemaphoreGiveRecursive(i2c_smphr);
 	}
 
 	vTaskDelay(delay);
@@ -905,10 +906,15 @@ static void codec_set_page(uint32_t page)
 	char send_stop = 1;
 	unsigned char cmd[2];
 
-	//	w 30 00 00 # Select Page 0
-	cmd[0] = 0;
-	cmd[1] = page;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+	if( xSemaphoreTakeRecursive(i2c_smphr, 100)) {
+
+		//	w 30 00 00 # Select Page 0
+		cmd[0] = 0;
+		cmd[1] = page;
+		I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+		xSemaphoreGiveRecursive(i2c_smphr);
+	}
 }
 
 static void codec_set_book(uint32_t book)
@@ -916,10 +922,15 @@ static void codec_set_book(uint32_t book)
 	char send_stop = 1;
 	unsigned char cmd[2];
 
-	//	# Select Book 0
-	cmd[0] = 0x7F;
-	cmd[1] = book;
-	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+	if( xSemaphoreTakeRecursive(i2c_smphr, 100)) {
+
+		//	# Select Book 0
+		cmd[0] = 0x7F;
+		cmd[1] = book;
+		I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+		xSemaphoreGiveRecursive(i2c_smphr);
+	}
 }
 
 // FOR board bring up
@@ -969,8 +980,44 @@ int32_t codec_test_commands(void)
 }
 #endif
 
-// TODO use i2s semaphore
+void codec_mute_spkr(void)
+{
+	char send_stop = 1;
+	unsigned char cmd[2];
 
+	//	w 30 00 00 # Select Page 0
+	codec_set_page(1);
+
+	codec_set_book(0);
+
+	if( xSemaphoreTakeRecursive(i2c_smphr, 100)) {
+		cmd[0] = 48;
+		cmd[1] = 0x00;
+		I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+		xSemaphoreGiveRecursive(i2c_smphr);
+	}
+
+}
+
+void codec_unmute_spkr(void)
+{
+	char send_stop = 1;
+	unsigned char cmd[2];
+
+	//	w 30 00 00 # Select Page 0
+	codec_set_page(1);
+
+	codec_set_book(0);
+
+	if( xSemaphoreTakeRecursive(i2c_smphr, 100)) {
+		cmd[0] = 48;
+		cmd[1] = 0x21;
+		I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+		xSemaphoreGiveRecursive(i2c_smphr);
+	}
+
+}
 
 #if (CODEC_USE_MINIDSP == 1)
 
@@ -982,10 +1029,13 @@ int32_t codec_init_with_dsp(void)
 	char send_stop = 1;
 	unsigned char cmd[2];
 
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
 
+	/********************************************************************************
+	 * Update clock config
+	 ********************************************************************************
+	 */
 	uint32_t reg_array_size = sizeof(REG_Section_program)/2;
-
-	UARTprintf("Size of reg array = %u\n", reg_array_size);
 
 	// Write the registers
 	for(i=0;i<reg_array_size;i++)
@@ -996,20 +1046,17 @@ int32_t codec_init_with_dsp(void)
 		I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 	}
 
-	//vTaskDelay(20);
-
-	//codec_set_page(0);
-
-	//codec_set_book(0);
-
-	//codec_speaker_config();
+	xSemaphoreGiveRecursive(i2c_smphr);
 
 	vTaskDelay(20);
 
-	// Update miniDSP A
+	/********************************************************************************
+	 * Update miniDSP A instructions and coefficients
+	 ********************************************************************************
+	 */
 	reg_array_size = sizeof(miniDSP_A_reg_values)/2;
-	UARTprintf("Size of miniDSP_A array = %u vs %u\n", reg_array_size,miniDSP_A_reg_values_COEFF_SIZE+miniDSP_A_reg_values_INST_SIZE );
 
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
 	// Write the registers
 	for(i=0;i<reg_array_size;i++)
 	{
@@ -1018,12 +1065,17 @@ int32_t codec_init_with_dsp(void)
 		cmd[1] = miniDSP_A_reg_values[i].reg_val;
 		I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 	}
+	xSemaphoreGiveRecursive(i2c_smphr);
 
 	vTaskDelay(20);
-	// Update miniDSP D
-	reg_array_size = sizeof(miniDSP_D_reg_values)/2;
-	UARTprintf("Size of miniDSP_D array = %u vs %u\n", reg_array_size, miniDSP_D_reg_values_COEFF_SIZE+miniDSP_D_reg_values_INST_SIZE  );
 
+	/********************************************************************************
+	 * Update miniDSP D instructions and coefficients
+	 ********************************************************************************
+	 */
+	reg_array_size = sizeof(miniDSP_D_reg_values)/2;
+
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
 	// Write the registers
 	for(i=0;i<reg_array_size;i++)
 	{
@@ -1032,20 +1084,39 @@ int32_t codec_init_with_dsp(void)
 		cmd[1] = miniDSP_D_reg_values[i].reg_val;
 		I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 	}
+	xSemaphoreGiveRecursive(i2c_smphr);
 
-	//codec_set_page(0);
+	vTaskDelay(20);
 
-	//codec_set_book(0);
+	/********************************************************************************
+	 * Power Up ADC, DAC and other modules
+	 * IMPORTANT: REG_Section_program2 has to be written after minidsp coefficients
+	 * and instructions have been written in order for playback to work.
+	 ********************************************************************************
+	 */
+	reg_array_size = sizeof(REG_Section_program2)/2;
 
-	//codec_mic_config();
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
+	// Write the registers
+	for(i=0;i<reg_array_size;i++)
+	{
+		//	# Select Book 0
+		cmd[0] = REG_Section_program2[i].reg_off;
+		cmd[1] = REG_Section_program2[i].reg_val;
+		I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+	}
+	xSemaphoreGiveRecursive(i2c_smphr);
 
 	vTaskDelay(100);
-#ifdef CODEC_1P5_TEST
+
+#if 0
 
 	//	w 30 00 00 # Select Page 0
 	codec_set_page(0);
 
 	codec_set_book(0);
+
+	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
 
 	// Read register in [0][0][36]
 	cmd[0] = 0x24;
@@ -1090,6 +1161,8 @@ int32_t codec_init_with_dsp(void)
 	I2C_IF_Read(Codec_addr, &cmd[1], 1);
 
 	UARTprintf("[0][0][%u]: %X  \r\n", cmd[0], cmd[1]);
+
+	codec_set_book(0);
 
 	//	w 30 00 00 # Select Page 1
 	codec_set_page(1);
@@ -1165,6 +1238,8 @@ int32_t codec_init_with_dsp(void)
 	I2C_IF_Read(Codec_addr, &cmd[1], 1);
 
 	UARTprintf(" [0][1][%u]: %X  \r\n", cmd[0], cmd[1]);
+
+	xSemaphoreGiveRecursive(i2c_smphr);
 
 	//	w 30 00 00 # Select Page 0
 	codec_set_page(0);
@@ -1282,18 +1357,6 @@ int32_t codec_init_with_dsp(void)
 	return 0;
 
 }
-
-// Start playback
-
-// Stop playback
-
-// start capture
-
-//stop capture
-
-// update volume
-
-// Software reset codec
 #endif
 
 #else
@@ -1842,7 +1905,7 @@ static void codec_gpio_config(void)
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 	// # GPIO1 pin output disabled
-	cmd[0] = 0x60;//92
+	cmd[0] = 0x60;//96
 	cmd[1] = 0;
 	I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
@@ -2011,7 +2074,7 @@ static void beep_gen(void)
 }
 #endif
 
-#endif
+
 
 static void codec_mic_config(void)
 {
@@ -2161,4 +2224,5 @@ static void codec_speaker_config(void)
 
 	vTaskDelay(20);
 }
+#endif
 

@@ -124,7 +124,7 @@ void McASPInit( unsigned int SAMPLING_FREQ)
 
 #if (CODEC_ENABLE_MULTI_CHANNEL == 1)
 	#define BIT_CLOCK (SAMPLING_FREQ*32*2UL)
-	#define I2S_SLOT_SIZE_32    0x00F000F0 // TODO DKH - Figure out the rotation field
+	#define I2S_SLOT_SIZE_32    0x00F000F0
 	#define I2S_SLOT_SIZE 		I2S_SLOT_SIZE_32
 #else
 	#define BIT_CLOCK (SAMPLING_FREQ*2*16UL)
@@ -133,7 +133,10 @@ void McASPInit( unsigned int SAMPLING_FREQ)
 
 
     //previously - I2S_SLOT_SIZE_16
+    // (c) Set fractional clock divider to generate module input clock of BitRate
     MAP_PRCMI2SClockFreqSet(BIT_CLOCK);
+
+    // (d) Configure the internal divider of the module to generate the required bit clock frequency:
     MAP_I2SConfigSetExpClk(I2S_BASE, BIT_CLOCK, BIT_CLOCK,I2S_SLOT_SIZE|
                             I2S_PORT_DMA);
 }

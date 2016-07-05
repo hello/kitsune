@@ -30,6 +30,8 @@
 #include "hlo_async.h"
 #include "state.pb.h"
 
+#include "codec_debug_config.h"
+
 #if 0
 #define PRINT_TIMING
 #endif
@@ -43,7 +45,7 @@
 #define MAX_NUMBER_TIMES_TO_WAIT_FOR_AUDIO_BUFFER_TO_FILL (5)
 #define MAX_FILE_SIZE_BYTES (1048576*10)
 
-#define MONO_BUF_LENGTH (AUDIO_FFT_SIZE)
+#define MONO_BUF_LENGTH (AUDIO_FFT_SIZE) //256
 
 #define FLAG_SUCCESS (0x01)
 #define FLAG_STOP    (0x02)
@@ -56,8 +58,17 @@ extern tCircularBuffer * pRxBuffer;
 extern tCircularBuffer * pTxBuffer;
 TaskHandle_t audio_task_hndl;
 
+#if (AUDIO_FULL_DUPLEX==1)
+TaskHandle_t audio_task_hndl_p;
+#endif
+
 /* static variables  */
 static xQueueHandle _queue = NULL;
+
+#if (AUDIO_FULL_DUPLEX==1)
+static xQueueHandle _queue_p = NULL;
+#endif
+
 static xQueueHandle _state_queue = NULL;
 static xSemaphoreHandle _processingTaskWait = NULL;
 static xSemaphoreHandle _statsMutex = NULL;
@@ -170,7 +181,9 @@ static bool _queue_audio_playback_state(playstate_t is_playing, const AudioPlayb
 
 
 static void Init(void) {
+
 	_isCapturing = 0;
+
 	_callCounter = 0;
 	_filecounter = 0;
 
@@ -181,6 +194,7 @@ static void Init(void) {
 	if (!_queue) {
 		_queue = xQueueCreate(INBOX_QUEUE_LENGTH,sizeof(AudioMessage_t));
 	}
+
 
 	if (!_processingTaskWait) {
 		_processingTaskWait = xSemaphoreCreateBinary();
@@ -195,24 +209,55 @@ static void Init(void) {
 
 
 	_state_queue =  xQueueCreate(INBOX_QUEUE_LENGTH,sizeof(AudioState));
+
+#if (AUDIO_FULL_DUPLEX==0)
 	hlo_future_create_task_bg(_sense_state_task, NULL, 1024);
+
+
+	_queue_audio_playback_state(SILENT, NULL);
+#endif
+}
+
+#if (AUDIO_FULL_DUPLEX==1)
+static void Init_p(void) {
+
+	InitAudioHelper_p();
+
+	audio_task_hndl_p = xTaskGetCurrentTaskHandle();
+
+#if (AUDIO_FULL_DUPLEX==1)
+	if (!_queue_p) {
+		_queue_p = xQueueCreate(INBOX_QUEUE_LENGTH,sizeof(AudioMessage_t));
+	}
+#endif
+
+	//hlo_future_create_task_bg(_sense_state_task, NULL, 1024);
 
 	_queue_audio_playback_state(SILENT, NULL);
 }
+#endif
 
 static uint8_t CheckForInterruptionDuringPlayback(void) {
 	AudioMessage_t m;
 	uint8_t ret = 0x00;
 
+#if (AUDIO_FULL_DUPLEX==1)
+	/* Take a peak at the top of our queue.  If we get something that says stop, we stop  */
+	if (xQueueReceive(_queue_p,(void *)&m,0)) {
+#else
 	/* Take a peak at the top of our queue.  If we get something that says stop, we stop  */
 	if (xQueueReceive(_queue,(void *)&m,0)) {
-
+#endif
 		if (m.command == eAudioPlaybackStop) {
 			ret = FLAG_STOP;
 			LOGI("Stopping playback\r\n");
 		}
 		if (!ret) {
+#if (AUDIO_FULL_DUPLEX==1)
+			xQueueSendToFront(_queue_p, (void*)&m, 0);
+#else
 			xQueueSendToFront(_queue, (void*)&m, 0);
+#endif
 		}
 		if (m.command == eAudioPlaybackStart ) {
 			ret = FLAG_STOP;
@@ -325,7 +370,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 			/* Wait to avoid buffer overflow as reading speed is faster than playback */
 			while ( IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) ) {
 				if( !started ) {
-					Audio_Start();
+					AudioStartPlayback();
 					started = true;
 					t0 = fade_time =  xTaskGetTickCount();
 				}
@@ -379,12 +424,12 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 				}
 				if( !ulTaskNotifyTake( pdTRUE, 40 ) ) {
 					LOGW("AUDIO REINIT");
-					Audio_Stop();
+					AudioStopPlayback();
 					if ( !InitAudioPlayback(i2c_volume, info->rate ) ) {
 						LOGE("unable to initialize audio playback!\r\n");
 						goto cleanup;
 					}
-					Audio_Start();
+					AudioStartPlayback();
 					LOGW(" DONE\n");
 				}
 			}
@@ -409,7 +454,7 @@ static uint8_t DoPlayback(const AudioPlaybackDesc_t * info) {
 	}
 cleanup:
 	if( started ) {
-		Audio_Stop();
+		AudioStopPlayback();
 	}
 
 	LOGI("leftover %d\n", GetBufferSize(pRxBuffer));
@@ -432,15 +477,13 @@ cleanup:
 }
 
 
-
-
-
 static void DoCapture(uint32_t rate) {
 #if (CODEC_ENABLE_MULTI_CHANNEL==1)
 	int16_t * samples = (int16_t*) pvPortMalloc(MONO_BUF_LENGTH*4*2); //256 * 4bytes * 2 = 2KB
 #else
 	int16_t * samples = (int16_t*) pvPortMalloc(MONO_BUF_LENGTH*2*2); //256 * 2bytes * 2 = 1KB
 #endif
+
 	char filepath[32];
 
 	int iBufferFilled = 0;
@@ -460,14 +503,16 @@ static void DoCapture(uint32_t rate) {
 	uint32_t dt;
 #endif
 
+#if 0
 	AudioProcessingTask_SetControl(processingOn,ProcessingCommandFinished,NULL, MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP);
 
 	//wait until processing is turned on
 	LOGI("Waiting for processing to start... \r\n");
 	xSemaphoreTake(_processingTaskWait,MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP);
 	LOGI("done.\r\n");
-
+#endif
 	InitAudioCapture(rate);
+
 
 	LOGI("%d free %d stk\n", xPortGetFreeHeapSize(),  uxTaskGetStackHighWaterMark(NULL));
 
@@ -535,7 +580,9 @@ static void DoCapture(uint32_t rate) {
 			}
 
 			case eAudioCaptureTurnOn:
+#if (AUDIO_FULL_DUPLEX==0)
 			case eAudioPlaybackStop:
+#endif
 			{
 				//ignore
 				break;
@@ -563,6 +610,7 @@ static void DoCapture(uint32_t rate) {
 				goto CAPTURE_CLEANUP;
 			}
 
+#if (AUDIO_FULL_DUPLEX==0)
 			case eAudioPlaybackStart:
 			{
 				//place message back on queue
@@ -570,6 +618,7 @@ static void DoCapture(uint32_t rate) {
 				LOGI("received eAudioPlaybackStart\r\n");
 				goto CAPTURE_CLEANUP;
 			}
+#endif
 
 			default:
 			{
@@ -595,7 +644,7 @@ static void DoCapture(uint32_t rate) {
 		}
 		else {
 			//dump buffer out
-			ReadBuffer(pTxBuffer,(uint8_t *)samples,MONO_BUF_LENGTH*sizeof(int16_t));
+			ReadBuffer(pTxBuffer,(uint8_t *)samples, PING_PONG_CHUNK_SIZE);// MONO_BUF_LENGTH*sizeof(int16_t));
 
 #ifdef PRINT_TIMING
 			t1 = xTaskGetTickCount(); dt = t1 - t0; t0 = t1;
@@ -634,6 +683,7 @@ static void DoCapture(uint32_t rate) {
 #ifdef PRINT_TIMING
 			t1 = xTaskGetTickCount();
 #endif
+#if 0
 			//do audio feature processing
 			if(settle_cnt++ > 3) {
 				AudioFeatures_SetAudioData(samples,_callCounter++);
@@ -652,6 +702,7 @@ static void DoCapture(uint32_t rate) {
 					}
 				}
 			}
+#endif
 #ifdef PRINT_TIMING
 			t2 = xTaskGetTickCount();
 			LOGI("dt = %d, compute=%d\n",dt,t2-t1); //vTaskDelay(5);
@@ -669,16 +720,16 @@ static void DoCapture(uint32_t rate) {
 
 	DeinitAudioCapture();
 
+#if 0
 	AudioProcessingTask_SetControl(processingOff,ProcessingCommandFinished,NULL, MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP);
 
 	//wait until ProcessingCommandFinished is returned
 	xSemaphoreTake(_processingTaskWait,MAX_WAIT_TIME_FOR_PROCESSING_TO_STOP);
-
+#endif
 	LOGI("finished audio capture\r\n");
 	LOGI("%d free %d stk\n", xPortGetFreeHeapSize(),  uxTaskGetStackHighWaterMark(NULL));
 }
 
-// TODO DKH split to two separate tasks for capture and playback
 void AudioTask_Thread(void * data) {
 
 	AudioMessage_t  m;
@@ -713,6 +764,57 @@ void AudioTask_Thread(void * data) {
 				break;
 			}
 
+#if (AUDIO_FULL_DUPLEX==0)
+			case eAudioPlaybackStart:
+			{
+				DoPlayback(&(m.message.playbackdesc));
+
+				if (m.message.playbackdesc.onFinished) {
+					m.message.playbackdesc.onFinished(m.message.playbackdesc.context);
+				}
+
+				break;
+			}
+#endif
+			default:
+			{
+				LOGI("audio task ignoring message enum %d",m.command);
+				break;
+			}
+			}
+
+			//so even if we just played back a file
+			//if we were supposed to be capturing, we resume that mode
+			if (_isCapturing) {
+				//AudioTask_StartCapture(AUDIO_CAPTURE_PLAYBACK_RATE);
+
+			}
+		}
+	}
+}
+
+#if (AUDIO_FULL_DUPLEX==1)
+void AudioTask_Thread_playback(void * data) {
+
+	AudioMessage_t  m;
+
+	Init_p();
+
+
+	for (; ;) {
+
+		vTaskDelay(1000);
+
+		memset(&m,0,sizeof(m));
+
+		/* Wait until we get a message */
+		if (xQueueReceive( _queue_p,(void *) &m, portMAX_DELAY )) {
+
+
+			/* PROCESS COMMANDS */
+			switch (m.command) {
+
+
 			case eAudioPlaybackStart:
 			{
 				DoPlayback(&(m.message.playbackdesc));
@@ -731,15 +833,10 @@ void AudioTask_Thread(void * data) {
 			}
 			}
 
-			//so even if we just played back a file
-			//if we were supposed to be capturing, we resume that mode
-			if (_isCapturing) {
-				// AudioTask_StartCapture(48000); // TODO DKH 16000);
-			}
 		}
 	}
 }
-
+#endif
 
 void AudioTask_StopPlayback(void) {
 	AudioMessage_t m;
@@ -747,11 +844,19 @@ void AudioTask_StopPlayback(void) {
 
 	m.command = eAudioPlaybackStop;
 
+#if (AUDIO_FULL_DUPLEX==1)
+	//send to front of queue so this message is always processed first
+	if (_queue_p) {
+		xQueueSendToFront(_queue_p,(void *)&m,0);
+		_queue_audio_playback_state(SILENT, NULL);
+	}
+#else
 	//send to front of queue so this message is always processed first
 	if (_queue) {
 		xQueueSendToFront(_queue,(void *)&m,0);
 		_queue_audio_playback_state(SILENT, NULL);
 	}
+#endif
 }
 
 void AudioTask_StartPlayback(const AudioPlaybackDesc_t * desc) {
@@ -761,11 +866,20 @@ void AudioTask_StartPlayback(const AudioPlaybackDesc_t * desc) {
 	m.command = eAudioPlaybackStart;
 	memcpy(&m.message.playbackdesc,desc,sizeof(AudioPlaybackDesc_t));
 
+#if (AUDIO_FULL_DUPLEX==1)
+	//send to front of queue so this message is always processed first
+	if (_queue_p) {
+		xQueueSendToFront(_queue_p,(void *)&m,0);
+		_queue_audio_playback_state(PLAYING, desc);
+	}
+#else
 	//send to front of queue so this message is always processed first
 	if (_queue) {
 		xQueueSendToFront(_queue,(void *)&m,0);
 		_queue_audio_playback_state(PLAYING, desc);
 	}
+#endif
+
 }
 
 
