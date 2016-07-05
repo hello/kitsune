@@ -98,9 +98,11 @@ static int _start_connection(unsigned long ip, security_type sec){
 			 LOGI("Could not connect %d\n\r\n\r", rv);
 			 sock = -1;
 		 }
+#if 0
 		 SlSockNonblocking_t enableOption;
 		 enableOption.NonblockingEnabled = 1;//blocking mode
 		 sl_SetSockOpt(sock,SL_SOL_SOCKET,SL_SO_NONBLOCKING, (_u8 *)&enableOption,sizeof(enableOption));
+#endif
 	}
 exit:
 	return sock;
