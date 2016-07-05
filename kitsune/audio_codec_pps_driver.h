@@ -46,7 +46,8 @@ typedef struct{
 #endif
 
 #define IADC ((MDAC)*(DOSR))
-#define MIC_VOLUME_CONTROL 0
+#define MIC_VOLUME_DB 6
+#define MIC_VOLUME_CONTROL ((MIC_VOLUME_DB)*2)
 #define MUTE_SPK 1
 
 static const reg_value REG_Section_program[] = {

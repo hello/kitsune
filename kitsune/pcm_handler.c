@@ -152,7 +152,7 @@ void DMAPingPongCompleteAppCB_opt()
 
 	// I2S RX
 	if (dma_status & 0x00000010) {
-		UARTprintf("r");
+		//UARTprintf("r");
 		qqbufsz = GetBufferSize(pAudInBuf);
 		HWREG(0x4402609c) = (1 << 10);
 		//
@@ -248,7 +248,7 @@ void DMAPingPongCompleteAppCB_opt()
 
 	// I2S TX
 	if (dma_status & 0x00000020) {
-		UARTprintf("p");
+		//UARTprintf("p");
 		qqbufsz = GetBufferSize(pAudOutBuf);
 		HWREG(0x4402609c) = (1 << 11);
 		pControlTable = MAP_uDMAControlBaseGet();
