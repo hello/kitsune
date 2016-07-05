@@ -176,10 +176,13 @@ static void _change_volume_task(hlo_future_t * result, void * ctx){
 
 		}else{
 			//set volume failed, instantly exit out of this async worker.
+			AudioTask_StopPlayback();
 			hlo_future_write(result, NULL, 0, -1);
 		}
 	}
+	AudioTask_StopPlayback();
 	hlo_future_write(result, NULL, 0, 0);
+
 }
 ////-------------------------------------------
 //playback sample app
@@ -200,18 +203,14 @@ static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_sto
 
 	hlo_future_t * vol_task = (hlo_future_t*)hlo_future_create_task_bg(_change_volume_task,(void*)&vol,1024);
 
-	while( (ret = hlo_stream_transfer_between(fs,spkr,chunk, sizeof(chunk),2)) > 0){
-		if( sig_stop() ){
-			//signal ramp down
-			vol.target = 0;
-		}
-		if(hlo_future_read(vol_task,NULL,0,0) >= 0){
-			//future task has completed
-			break;
-		}
-	}
+	//playback
+	hlo_filter transfer_function = desc->p ? desc->p : hlo_filter_data_transfer;
+	ret = transfer_function(fs, spkr, desc->context, sig_stop);
+
+	//join async worker
 	vol.target = 0;
 	hlo_future_read_once(vol_task, NULL, 0);
+
 	hlo_stream_close(fs);
 	hlo_stream_close(spkr);
 	if(desc->onFinished){
@@ -286,7 +285,9 @@ static int _do_capture(const AudioCaptureDesc_t * info){
 		ret = info->p(mic, info->opt_out, info->ctx, CheckForInterruptionDuringCapture);
 		LOGI("Capture Returned: %d\r\n", ret);
 		hlo_stream_close(mic);
-		hlo_stream_close(info->opt_out);
+		if(info->flag & AUDIO_TRANSFER_FLAG_AUTO_CLOSE_OUTPUT){
+			hlo_stream_close(info->opt_out);
+		}
 	}
 	return ret;
 }

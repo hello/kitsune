@@ -30,8 +30,6 @@
 
 //begin download stuff
 #include "wlan.h"
-#include "simplelink.h"
-#include "socket.h"
 #include "protocol.h"
 #include "common.h"
 #include "sl_sync_include_after_simplelink_header.h"
@@ -46,33 +44,11 @@
 #include "wdt_if.h"
 #include "rom.h"
 #include "rom_map.h"
+int sf_sha1_verify(const char * sha_truth, const char * serial_file_path);
 
 #define HLO_HTTP_ERR -1000
 #define HTTP_RETRIES 5
 
-#define PREFIX_BUFFER    "GET "
-//#define POST_BUFFER      " HTTP/1.1\nAccept: text/html, application/xhtml+xml, */*\n\n"
-#define POST_BUFFER_1  " HTTP/1.1\r\nHost:"
-#define POST_BUFFER_2  "\r\nAccept: text/html, application/xhtml+xml, */*\r\n\r\n"
-
-#define HTTP_FORBIDDEN         "403 Forbidden" //url expired
-#define HTTP_FILE_NOT_FOUND    "404 Not Found" /* HTTP file not found response */
-#define HTTP_STATUS_OK         "200 OK"  /* HTTP status ok response */
-#define HTTP_CONTENT_LENGTH    "Content-Length:"  /* HTTP content length header */
-#define HTTP_TRANSFER_ENCODING "Transfer-Encoding:" /* HTTP transfer encoding header */
-#define HTTP_ENCODING_CHUNKED  "chunked" /* HTTP transfer encoding header value */
-#define HTTP_CONNECTION        "Connection:" /* HTTP Connection header */
-#define HTTP_CONNECTION_CLOSE  "close"  /* HTTP Connection header value */
-
-#define DNS_RETRY           5 /* No of DNS tries */
-#define SOCK_RETRY      256
-#define HTTP_END_OF_HEADER  "\r\n\r\n"  /* string marking the end of headers in response */
-
-#define MAX_BUFF_SIZE      (5*SD_BLOCK_SIZE)
-
-int sf_sha1_verify(const char * sha_truth, const char * serial_file_path);
-long bytesReceived = 0; // variable to store the file size
-static int dl_sock = -1;
 //end download stuff
 
 //*****************************************************************************
@@ -694,432 +670,12 @@ signed long hexToi(unsigned char *ptr)
     return result;
 }
 
-//****************************************************************************
-//
-//! \brief Obtain the file from the server
-//!
-//!  This function requests the file from the server and save it on serial flash.
-//!  To request a different file for different user needs to modify the
-//!  PREFIX_BUFFER and POST_BUFFER macros.
-//!
-//! \param[in]      None
-//!
-//! \return         0 for success and negative for error
-//
-
-//download www.ti.com dl /lit/er/swrz044b/swrz044b.pdf
-//download img4.wikia.nocookie.net al __cb20130206084237/disney/images/e/eb/Aladdin_-_A_Whole_New_World_%281%29.gif
-
-//****************************************************************************
-#include "stdlib.h"
-
-typedef enum {
-	SERIAL_FLASH,
-	SD_CARD,
-} storage_dev_t;
-
-#include "crypto.h"
-
-int GetData(char * filename, char* url, char * host, char * path, storage_dev_t storage)
-{
-    int           transfer_len = 0;
-    UINT          r = 0;
-    int           retry;
-    unsigned char *pBuff = 0;
-    UINT          recv_size = 0;
-
-    long          fileHandle = -1;
-
-    LOGI("Start downloading the file\r\n");
-
-    unsigned char * g_buff = pvPortMalloc( MAX_BUFF_SIZE );
-    assert( g_buff );
-
-    memset(g_buff, 0, MAX_BUFF_SIZE);
-
-    // Puts together the HTTP GET string.
-    usnprintf( (char *)g_buff, MAX_BUFF_SIZE, "%s%s%s%s%s",
-               PREFIX_BUFFER, url, POST_BUFFER_1, host, POST_BUFFER_2);
-
-    assert( strlen((char *)g_buff) > 1 );
-
-    LOGI("sent\r\n%s\r\n", g_buff );
-
-    // Send the HTTP GET string to the opened TCP/IP socket.
-    transfer_len = send(dl_sock, g_buff, strlen((const char *)g_buff), 0);
-
-    if (transfer_len <= 0)
-    {
-        // error
-    	LOGW("Sending error %d\r\n",transfer_len);
-        ASSERT_ON_ERROR(-1);
-    }
-
-    memset(g_buff, 0, MAX_BUFF_SIZE);
-
-    // get the reply from the server in buffer.
-    retry = 0;
-    do {
-        vTaskDelay(500);
-        transfer_len = recv(dl_sock, &g_buff[0], MAX_BUFF_SIZE, 0);
-        if(++retry > SOCK_RETRY){
-            break;
-        }
-        if(transfer_len < 0 ){
-            vTaskDelay(500);
-        }
-    }while(transfer_len == SL_EAGAIN);
-
-    if(transfer_len <= 0){
-        LOGW("Download error %d\r\n",transfer_len);
-        ASSERT_ON_ERROR(-1);
-    }
-    //LOGI("recv:\r\n%s\r\n", g_buff ); don't echo binary
-
-    // Check for 404 return code
-    if(strstr((const char *)g_buff, HTTP_FILE_NOT_FOUND) != 0)
-    {
-        LOGW("HTTP_FILE_NOT_FOUND\r\n");
-        ASSERT_ON_ERROR(HLO_HTTP_ERR);
-    }
-    if(strstr((const char *)g_buff, HTTP_FORBIDDEN) != 0)
-    {
-        LOGW("HTTP_FORBIDDEN\r\n");
-        ASSERT_ON_ERROR(HLO_HTTP_ERR);
-    }
-
-    // if not "200 OK" return error
-    if(strstr((const char *)g_buff, HTTP_STATUS_OK) == 0)
-    {
-        LOGW("UNKNOWN HTTP CODE!\r\n");
-        LOGW("%s", g_buff);
-        ASSERT_ON_ERROR(-1);
-    }
-
-    // check if content length is transfered with headers
-    pBuff = (unsigned char *)strstr((const char *)g_buff, HTTP_CONTENT_LENGTH);
-    if(pBuff != 0)
-    {
-    	char *p = (char*)pBuff;
-		p += strlen(HTTP_CONTENT_LENGTH)+1;
-		recv_size = atoi(p);
-
-		if(recv_size <= 0) {
-			vPortFree(g_buff);
-			return -1;
-		}
-    }
-
-    // Check if data is chunked
-    pBuff = (unsigned char *)strstr((const char *)g_buff, HTTP_TRANSFER_ENCODING);
-    if(pBuff != 0)
-    {
-        pBuff += strlen(HTTP_TRANSFER_ENCODING);
-        while(*pBuff == 32)
-            pBuff++;
-
-        if(memcmp(pBuff, HTTP_ENCODING_CHUNKED, strlen(HTTP_ENCODING_CHUNKED)) == 0)
-        {
-            recv_size = 0;
-        }
-    }
-    else
-    {
-        // Check if connection will be closed by after sending data
-        // In this method the content length is not received and end of
-        // connection marks the end of data
-        pBuff = (unsigned char *)strstr((const char *)g_buff, HTTP_CONNECTION);
-        if(pBuff != 0)
-        {
-            pBuff += strlen(HTTP_CONNECTION);
-            while(*pBuff == 32)
-                pBuff++;
-
-            if(memcmp(pBuff, HTTP_ENCODING_CHUNKED, strlen(HTTP_CONNECTION_CLOSE)) == 0)
-            {
-                // not supported
-                ASSERT_ON_ERROR(-1);
-            }
-        }
-    }
-
-    // "\r\n\r\n" marks the end of headers
-    pBuff = (unsigned char *)strstr((const char *)g_buff, HTTP_END_OF_HEADER);
-    if(pBuff == 0)
-    {
-        ASSERT_ON_ERROR(-1);
-    }
-    // Increment by 4 to skip "\r\n\r\n"
-    pBuff += 4;
-
-    // Adjust buffer data length for header size
-    if( (pBuff - g_buff) < transfer_len ) {
-    	transfer_len -= (pBuff - g_buff);
-    } else {
-    	transfer_len = 0;
-    	vPortFree(g_buff);
-    	return -1;
-    }
-
-    FRESULT res = FR_OK;
-
-	if (storage == SD_CARD) {
-
-		if(path == NULL)
-		{
-			LOGI("Path not provided, downloading to root\n");
-			cd("/");
-		}
-		else
-		{
-
-			if(hello_fs_stat(path, NULL))
-			{
-				// Path doesn't exist, create directory
-				res = (FRESULT) mkdir(path);
-				if(res != FR_OK && res != FR_EXIST)
-				{
-					LOGE("mkdir fail: %d\n", res);
-					cd("/");
-					vPortFree(g_buff);
-					return -1;
-				}
-
-			}
-
-			res = cd(path);
-			if(res)
-			{
-				LOGE("CD fail: %d\n", res);
-				cd("/");
-				vPortFree(g_buff);
-				return -1;
-			}
-		}
-
-		/* Open file to save the downloaded file */
-		if (global_filename(filename)) {
-			cd("/");
-			vPortFree(g_buff);
-			return -1;
-		}
-		// Open the file for writing.
-		res = hello_fs_open(&file_obj, path_buff,
-				FA_CREATE_ALWAYS | FA_WRITE );
-		LOGI("res :%d\n", res);
-
-		if (res != FR_OK && res != FR_EXIST) {
-			LOGI("File open %s failed: %d\n", path_buff, res);
-			cd("/");
-			vPortFree(g_buff);
-			return res;
-		}
-	} else if( storage == SERIAL_FLASH ) {
-	    /* Open file to save the downloaded file */
-	    unsigned long Token = 0;
-	    strcpy(path_buff, path);
-	    strcat(path_buff, filename);
-
-	    long lRetVal = sl_FsOpen((unsigned char*)path_buff,
-	                       FS_MODE_OPEN_WRITE, &Token, &fileHandle);
-	    if(lRetVal < 0)
-	    {
-	        // File Doesn't exit create a new of 256 KB file
-	        lRetVal = sl_FsOpen((unsigned char*)path_buff, \
-	                           FS_MODE_OPEN_CREATE(256*1024, \
-	                           _FS_FILE_OPEN_FLAG_COMMIT|_FS_FILE_PUBLIC_WRITE),
-	                           &Token, &fileHandle);
-			if (lRetVal < 0) {
-				vPortFree(g_buff);
-				return (lRetVal);
-            }
-		}
-	    LOGI("opening %s\n", path_buff);
-	}
-    uint32_t total = recv_size;
-    int percent = -1;
-
-    //move the data back to the front of the buffer
-    memcpy( g_buff, pBuff, transfer_len );
-	//DISP( "begin %d\n", transfer_len);
-    while (recv_size > 0)
-    {
-        int retries = 0;
-        int recv_res = SL_EAGAIN;
-		while( ++retries < 1000 && transfer_len < MAX_BUFF_SIZE && recv_res == SL_EAGAIN ) {
-			recv_res = recv(dl_sock, g_buff + transfer_len, MAX_BUFF_SIZE - transfer_len, 0);
-			//DISP( "r %d ", recv_res);
-			if( recv_res > 0 ) {
-				transfer_len += recv_res;
-			}
-			if( recv_res == SL_EAGAIN ) {
-				vTaskDelay(500);
-			}
-		}
-		//DISP( " %d %d\n", transfer_len, recv_size);
-
-		if( transfer_len == 0 ) {
-        	LOGI("recv fail %d %d\r\n", recv_res, transfer_len );
-        	goto failure;
-		}
-        pBuff = g_buff;
-
-		MAP_WatchdogIntClear(WDT_BASE); //clear wdt
-
-		// write data on the file
-		if (storage == SD_CARD) {
-			res = hello_fs_write(&file_obj, pBuff, transfer_len, &r);
-		} else if (storage == SERIAL_FLASH) {
-			//write to serial flash file
-			r = sl_FsWrite(fileHandle, total - recv_size,
-					(unsigned char *) pBuff, transfer_len);
-		}
-
-		if (r != transfer_len )
-		{
-			LOGE("failed to write %d %d\n",r,transfer_len);
-			goto failure;
-		}
-		//LOGI("wrote:  %d %d\r\n", r, res); spamspamspam
-		bytesReceived += transfer_len;
-		recv_size -= transfer_len;
-
-		if (100 - 100 * recv_size / total != percent) {
-			percent = 100 - 100 * recv_size / total;
-			LOGI("DL %d %d\r\n", recv_size, percent);
-		}
-
-        memset(g_buff, 0, MAX_BUFF_SIZE);
-        transfer_len = 0;
-    }
-
-    // If user file has checksum which can be used to verify the temporary
-    // file then file should be verified
-    // In case of invalid file (FILE_NAME) should be closed without saving to
-    // recover the previous version of file
-    //
-	LOGI(" successful file\r\n" );
-
-	if (storage == SD_CARD) {
-		/* Save and close file */
-		res = hello_fs_close( &file_obj );
-
-		if(res != FR_OK)
-		{
-			cd( "/" );
-			vPortFree(g_buff);
-			return((int)res);
-		}
-	} else if (storage == SERIAL_FLASH) {
-		if( strstr(filename, "ucf") != 0) {
-			uint8_t sig[] = {
-					0x75, 0x20, 0xCD, 0x1B, 0xE3, 0xCD, 0x34, 0xC1, 0x40, 0x57, 0x47, 0x36, 0xFA, 0xC0, 0x99,
-					0xE7, 0x4A, 0xFF, 0x0B, 0x91, 0x70, 0xEC, 0xD8, 0xDA, 0xF3, 0xFA, 0x58, 0x5D, 0x0C, 0x65,
-					0x94, 0x23, 0x12, 0xB1, 0xA6, 0xAF, 0x03, 0xEE, 0x6A, 0xB4, 0x25, 0x3A, 0x2F, 0xBB, 0x2B,
-					0x0E, 0x36, 0x91, 0x87, 0x05, 0x14, 0x53, 0xA6, 0x4E, 0xA1, 0xA6, 0x29, 0x46, 0x47, 0x3F,
-					0x0D, 0xEE, 0xB4, 0x26, 0x39, 0xB9, 0x7D, 0xAF, 0xA6, 0x80, 0x81, 0x7B, 0x2D, 0x83, 0x51,
-					0xF3, 0xDE, 0x22, 0xD9, 0x75, 0x15, 0xF2, 0xB1, 0x06, 0xF9, 0x06, 0x26, 0x79, 0x0B, 0xE4,
-					0x3C, 0x49, 0x32, 0xB1, 0x5A, 0x12, 0x79, 0xA3, 0x59, 0xD7, 0xA7, 0xAC, 0x61, 0xEB, 0x86,
-					0xDC, 0x6A, 0x7D, 0x06, 0xD1, 0xFB, 0x02, 0x94, 0xF0, 0x17, 0x22, 0xB8, 0xB0, 0xF8, 0x53,
-					0x95, 0xDE, 0x47, 0x1E, 0x60, 0x40, 0x6A, 0x62, 0xDD, 0x2F, 0xB4, 0x27, 0xCE, 0xF8, 0xAE,
-					0xFD, 0x78, 0xEC, 0x99, 0x11, 0xDD, 0x37, 0x4A, 0x09, 0x6B, 0x0B, 0x53, 0x6F, 0xDD, 0x48,
-					0x0F, 0x7A, 0x10, 0x52, 0x45, 0x6A, 0x19, 0xE9, 0x09, 0xC6, 0x45, 0x64, 0xF2, 0xEB, 0xDF,
-					0xBD, 0xEA, 0x46, 0xD9, 0x27, 0xDA, 0x4E, 0x7C, 0xDA, 0x51, 0x56, 0x57, 0xCD, 0xFE, 0x39,
-					0x45, 0x2E, 0x9B, 0x48, 0x4D, 0x78, 0x98, 0x26, 0xD3, 0xED, 0xA0, 0xD1, 0xBF, 0x59, 0xEF,
-					0xA7, 0x1B, 0x7A, 0xA7, 0x3C, 0xD8, 0x04, 0x93, 0x61, 0x2D, 0xDA, 0x9D, 0x72, 0xEE, 0xDC,
-					0xE9, 0xAE, 0x88, 0xB1, 0x07, 0xFF, 0x74, 0xBA, 0x3E, 0x06, 0xF8, 0x25, 0xF1, 0x2C, 0x8C,
-					0x30, 0x9B, 0xA7, 0x82, 0x1D, 0xE9, 0x74, 0x59, 0x30, 0xC8, 0x04, 0xBD, 0x0D, 0x6C, 0xDB,
-					0x8A, 0xF2, 0xA2, 0x7C, 0x6E, 0x25, 0xD6, 0x53, 0x90, 0x9B, 0x42, 0x74, 0x14, 0xB3, 0xA2,0xFD};
-			/* Save and close file */
-			vPortFree(g_buff);
-			return sl_FsClose(fileHandle, 0, sig, sizeof(sig));
-		} else {
-			/* Save and close file */
-			vPortFree(g_buff);
-			return sl_FsClose(fileHandle, 0, 0, 0);
-		}
-	}
-	if (storage == SD_CARD) {
-        cd( "/" );
-	}
-	vPortFree(g_buff);
-	return 0;
-failure:
-	LOGE("FAIL\n");
-	vPortFree(g_buff);
-	if (storage == SD_CARD) {
-        /* Close file without saving */
-        res = hello_fs_close( &file_obj );
-
-        if(res != FR_OK)
-        {
-        	cd( "/" );
-            return((int)res);
-        }
-        hello_fs_unlink( path_buff );
-        cd( "/" );
-	} else if (storage == SERIAL_FLASH) {
-        /* Close file without saving */
-		sl_FsClose(fileHandle, 0, (unsigned char*) "A", 1);
-	}
-    return -1;
-}
-
-int file_exists( char * filename, char * path ) {
-	cd(path);
-
-    if(global_filename( filename ))
-    {
-    	return 1;
-    }
-
-    FRESULT res = hello_fs_open(&file_obj, path_buff, FA_READ);
-    if(res != FR_OK)
-    {
-    	cd("/");
-        return(0);
-    }
-    hello_fs_close( &file_obj );
-	cd("/");
-	return 1;
-}
-
-int download_file(char * host, char * url, char * filename, char * path, storage_dev_t storage ) {
-	unsigned long ip;
-	int r = gethostbyname((signed char*) host, strlen(host), &ip, SL_AF_INET);
-	if (r < 0) {
-		ASSERT_ON_ERROR(-1);
-	}
-    LOGF("host %s\ndownload ip %d.%d.%d.%d\n",
-    			host,
-                SL_IPV4_BYTE(ip,3),
-                SL_IPV4_BYTE(ip,2),
-                SL_IPV4_BYTE(ip,1),
-                SL_IPV4_BYTE(ip,0));
-	//LOGI("download <host> <filename> <url>\n\r");
-	// Create a TCP connection to the Web Server
-	dl_sock = CreateConnection(ip);
-    LOGE("connect returns %d\n", dl_sock );
-	if (dl_sock < 0) {
-	    return dl_sock;
-	}
-	// Download the file, verify the file and replace the exiting file
-	r = GetData(filename, url, host, path, storage);
-	if (r != 0) {
-		LOGF("GetData failed\n\r");
-		close(dl_sock);
-		return r;
-	}
-
-	r = close(dl_sock);
-
-	return r;
-}
 //end download functions
 #include "sync_response.pb.h"
 #include "stdbool.h"
 #include "pb.h"
 #include "pb_decode.h"
+#include "crypto.h"
 
 /******************************************************************************
    Image file names
@@ -1405,6 +961,8 @@ void update_file_download_status(bool is_pending);
 uint32_t update_sha_file(char* path, char* original_filename, update_sha_t option, uint8_t* sha, bool ovwr);
 xQueueHandle download_queue = 0;
 
+hlo_stream_t * hlo_http_get_opt(hlo_stream_t * sock, const char * host, const char * endpoint);
+
 void file_download_task( void * params ) {
     SyncResponse_FileDownload download_info;
     unsigned char top_sha_cache[SHA1_SIZE];
@@ -1446,20 +1004,19 @@ void file_download_task( void * params ) {
             LOGI( "ota - copy_to_serial_flash: %s\n",download_info.copy_to_serial_flash);
         }
 
-        if (filename && url && host && path) {
-            int exists = 0;
-            if (file_exists(filename, path)) {
-                LOGI("ota - file exists, overwriting\n");
-                exists = 1;
-            }
 
+        if (filename && url && host && path) {
             if(global_filename( filename ))
             {
                 goto end_download_task;
             }
-            if( exists ) {
-                hello_fs_unlink(path_buff);
-            }
+            hello_fs_unlink(path_buff);
+
+			char buf[512];
+
+			hlo_stream_t * sf_str, *http_str, *sock_str;
+			sock_str = hlo_sock_stream(host, false);
+			http_str = hlo_http_get_opt( sock_str, host, url );
 
             if (download_info.has_copy_to_serial_flash
                     && download_info.copy_to_serial_flash && serial_flash_name
@@ -1472,21 +1029,17 @@ void file_download_task( void * params ) {
                     LOGI("MCU image name converted to %s \n", serial_flash_name);
                 }
 
-                int retries = 0;
-                int dl_ret = -1;
-                while(dl_ret != 0) {
-                    dl_ret = download_file(host, url, serial_flash_name, serial_flash_path, SERIAL_FLASH);
-                    if( dl_ret == HLO_HTTP_ERR ) {
-                        goto next_one;
-                    }
-                    if( ++retries > HTTP_RETRIES ) {
-                        goto end_download_task;
-                    }
-                }
+				strncpy( buf, serial_flash_path, 64 );
+				strncat(buf, serial_flash_name, 64 );
 
-                char buf[64];
-                strncpy( buf, serial_flash_path, 64 );
-                strncat(buf, serial_flash_name, 64 );
+				sf_str = open_serial_flash(buf, HLO_STREAM_WRITE);
+
+				while(1){
+					if(hlo_stream_transfer_between( http_str, sf_str, (uint8_t*)buf, sizeof(buf), 4 ) < 0){
+						break;
+					}
+					DISP("x");
+				}
 
                 if (strcmp(buf, "/top/update.bin") == 0) {
                     if (download_info.has_sha1) {
@@ -1503,8 +1056,6 @@ void file_download_task( void * params ) {
                 LOGI("done, closing\n");
 			} else {
 
-				int retries = 0;
-
 				// Set file download pending for download manager
 				update_file_download_status(true);
 
@@ -1513,16 +1064,18 @@ void file_download_task( void * params ) {
 				// the device won't be left with a corrupt file and a valid sha file.
 				update_sha_file(path, filename, sha_file_delete,NULL, false );
 
-				int dl_ret = -1;
-                while(dl_ret != 0) {
-                    dl_ret = download_file(host, url, filename, path, SD_CARD);
-                    if( dl_ret == HLO_HTTP_ERR ) {
-                        goto next_one;
-                    }
-                    if( ++retries > HTTP_RETRIES ) {
-                        goto end_download_task;
-                    }
-                }
+				strncpy( buf, path, 64 );
+				strncat(buf, "/", 64 );
+				strncat(buf, filename, 64 );
+
+				sf_str = fs_stream_open(buf, HLO_STREAM_WRITE);
+
+				while(1){
+					if(hlo_stream_transfer_between( http_str, sf_str, (uint8_t*)buf, sizeof(buf), 4 ) < 0){
+						break;
+					}
+					DISP("x");
+				}
 
 				if (download_info.has_sha1) {
 

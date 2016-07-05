@@ -14,6 +14,7 @@
  * for the requsts API
  */
 hlo_stream_t * hlo_sock_stream(const char * host, uint8_t secure);
+hlo_stream_t * hlo_ws_stream( hlo_stream_t * base);
 
 /**
  * The following is a higher level API that returns the body as a stream
@@ -31,7 +32,3 @@ hlo_stream_t * hlo_http_get(const char * url);
  * half duplex, open -> write all -> read response until eof -> write all ...
  */
 hlo_stream_t * hlo_http_post(const char * url, const char * content_type);
-
-#include "pb.h"
-int hlo_pb_encode( hlo_stream_t * stream,const pb_field_t * fields, void * structdata );
-int hlo_pb_decode( hlo_stream_t * stream,const pb_field_t * fields, void * structdata );

@@ -31,6 +31,11 @@
 			<locationURI>PARENT-2-PROJECT_LOC/CC3200.ccxml</locationURI>
 		</link>
 		<link>
+			<name>ack_set_entry.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/ack_set_entry.h</locationURI>
+		</link>
+		<link>
 			<name>adpcm.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/adpcm.c</locationURI>
@@ -761,6 +766,16 @@
 			<locationURI>PARENT-2-PROJECT_LOC/debugutils/matmessageutils.h</locationURI>
 		</link>
 		<link>
+			<name>hashtable/ack_set.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hashtable/ack_set.c</locationURI>
+		</link>
+		<link>
+			<name>hashtable/ack_set.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/hashtable/ack_set.h</locationURI>
+		</link>
+		<link>
 			<name>hashtable/bit_array.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/hashtable/bit_array.c</locationURI>
@@ -901,6 +916,16 @@
 			<locationURI>PARENT-2-PROJECT_LOC/nanopb/pb_encode.h</locationURI>
 		</link>
 		<link>
+			<name>protobuf/async.pb.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/async.pb.c</locationURI>
+		</link>
+		<link>
+			<name>protobuf/async.pb.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/async.pb.h</locationURI>
+		</link>
+		<link>
 			<name>protobuf/audio_commands.pb.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/protobuf/audio_commands.pb.c</locationURI>
@@ -1021,6 +1046,16 @@
 			<locationURI>PARENT-2-PROJECT_LOC/protobuf/provision.pb.h</locationURI>
 		</link>
 		<link>
+			<name>protobuf/response.pb.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/response.pb.c</locationURI>
+		</link>
+		<link>
+			<name>protobuf/response.pb.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/response.pb.h</locationURI>
+		</link>
+		<link>
 			<name>protobuf/state.pb.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/protobuf/state.pb.c</locationURI>
@@ -1029,6 +1064,16 @@
 			<name>protobuf/state.pb.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/protobuf/state.pb.h</locationURI>
+		</link>
+		<link>
+			<name>protobuf/streaming.pb.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/streaming.pb.c</locationURI>
+		</link>
+		<link>
+			<name>protobuf/streaming.pb.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/protobuf/streaming.pb.h</locationURI>
 		</link>
 		<link>
 			<name>protobuf/sync_response.pb.c</name>

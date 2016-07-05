@@ -57,13 +57,16 @@ typedef uint8_t (*hlo_stream_signal)(void);
 typedef int(*hlo_filter)(hlo_stream_t * input, hlo_stream_t * opt_output, void * ctx, hlo_stream_signal signal);
 #define BREAK_ON_SIG(s) if(s && s()){break;}
 
+#include "streaming.pb.h"
 typedef struct {
 	hlo_stream_t * source;
 	hlo_stream_t * sink;
 	bool flush;
 	int state;
 	void * ctx;
+	uint64_t id;
 	xSemaphoreHandle join_sem;
+	Preamble_pb_type hlo_pb_type;
 } pipe_ctx;
 
 int frame_pipe_encode( pipe_ctx * pipe );

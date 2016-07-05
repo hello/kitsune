@@ -105,6 +105,8 @@
 #define ARRAY_LEN(a) (sizeof(a)/sizeof(a[0]))
 
 
+#include "hlo_proto_tools.h"
+
 //******************************************************************************
 //			        FUNCTION DECLARATIONS
 //******************************************************************************
@@ -938,8 +940,9 @@ static void handle_pill_queue(xQueueHandle queue, const char * endpoint, pill_ba
 			default:
 				goto end;
 		}
+
 		if(endpoint){
-			send_pill_data_generic(&pill_data_batched, endpoint);
+			//send_pill_data_generic(&pill_data_batched, endpoint); TODO new API
 		}
 end:
 		vPortFree( pilldata.pills );
@@ -948,6 +951,7 @@ end:
 #include "endpoints.h"
 #include "hlo_http.h"
 void thread_tx(void* unused) {
+#if 1
 	batched_periodic_data data_batched = {0};
 #ifdef UPLOAD_AP_INFO
 	batched_periodic_data_wifi_access_point ap;
@@ -1033,9 +1037,9 @@ void thread_tx(void* unused) {
 			data_batched.has_messages_in_queue = true;
 			data_batched.messages_in_queue = uxQueueMessagesWaiting(data_queue);
 
-			if( send_periodic_data(&data_batched, got_forced_data, ( MAX_PERIODIC_DATA - uxQueueMessagesWaiting(data_queue) ) * 60 * 1000 ) ) {
-				last_upload_time = xTaskGetTickCount();
-			}
+
+			hlo_output_pb( Preamble_pb_type_BATCHED_PERIODIC_DATA, batched_periodic_data_fields, &data_batched);
+			last_upload_time = xTaskGetTickCount();
 
 			vPortFree( periodicdata.data );
 			got_forced_data = false;
@@ -1050,114 +1054,8 @@ void thread_tx(void* unused) {
 			}
 		} while (!wifi_status_get(HAS_IP));
 	}
+#endif
 }
-#include "hlo_pipe.h"
-
-static xSemaphoreHandle sock_stream_sem;
-static hlo_stream_t * sock_stream = NULL;
-
-static void sock_checkup() {
-	xSemaphoreTake(sock_stream_sem, portMAX_DELAY);
-	if( sock_stream == NULL ) {
-		sock_stream = hlo_sock_stream( "notreal", false );
-	}
-	xSemaphoreGive(sock_stream_sem);
-}
-static void sock_close() {
-	xSemaphoreTake(sock_stream_sem, portMAX_DELAY);
-	hlo_stream_close(sock_stream);
-	sock_stream = NULL;
-	xSemaphoreGive(sock_stream_sem);
-}
-
-void thread_out(void* ctx) {
-	periodic_data data;
-	pipe_ctx p_ctx_enc;
-
-	while(1) {
-
-		sock_checkup();
-
-		if( sock_stream ) {
-			hlo_stream_t * fifo_stream_out = fifo_stream_open( 768 );
-			assert( fifo_stream_out );
-
-			data.has_light = true;
-			data.light = 10;
-			LOGF("sending %d\n", data.light );
-
-			p_ctx_enc.source = fifo_stream_out;
-			p_ctx_enc.sink = sock_stream;
-			p_ctx_enc.flush = false;
-			p_ctx_enc.join_sem = xSemaphoreCreateBinary();
-			p_ctx_enc.state = 0;
-
-			//bg pipe for sending out the data
-			xTaskCreate(thread_frame_pipe_encode, "penc", 1024 / 4, &p_ctx_enc, 4, NULL);
-			hlo_pb_encode( fifo_stream_out, periodic_data_fields, &data );
-			p_ctx_enc.flush = true; // this is safe, all the data has been piped
-			xSemaphoreTake( p_ctx_enc.join_sem, portMAX_DELAY );
-			p_ctx_enc.flush = false;
-			hlo_stream_close(fifo_stream_out);
-			if(p_ctx_enc.state < 0 ) {
-				DISP("enc state %d\n",p_ctx_enc.state );
-				sock_close();
-			}
-		}
-
-		vTaskDelay(10000);
-	}
-
-	vTaskDelete(NULL);
-}
-void thread_in(void* ctx) {
-	periodic_data sr;
-	pipe_ctx p_ctx_dec;
-
-	while(1) {
-		sock_checkup();
-
-		if( sock_stream ) {
-			hlo_stream_t * fifo_stream_in = fifo_stream_open( 768 );
-			assert( fifo_stream_in );
-
-			p_ctx_dec.source = sock_stream;
-			p_ctx_dec.sink = fifo_stream_in;
-			p_ctx_dec.flush = false;
-			p_ctx_dec.join_sem = xSemaphoreCreateBinary();
-			p_ctx_dec.state = 0;
-
-			//bg pipe for receiving the data
-			xTaskCreate(thread_frame_pipe_decode, "pdec", 1024 / 4, &p_ctx_dec, 4, NULL);
-			//todo: for decode move sock management to frame pipe task
-			//      hlo_pb_decode could block forever on the fifo if the
-			//      sock stream breaks here, but the framepipe task could reconnect
-			LOGF("\n\nR! %d %d\n\n",  hlo_pb_decode( fifo_stream_in, periodic_data_fields, &sr  ), sr.light );
-			p_ctx_dec.flush = true; // this is safe, all the data has been piped
-			xSemaphoreTake( p_ctx_dec.join_sem, portMAX_DELAY );
-			p_ctx_dec.flush = false;
-			hlo_stream_close(fifo_stream_in);
-			if(p_ctx_dec.state < 0 ) {
-				DISP("dec state %d\n",p_ctx_dec.state );
-				sock_close();
-			}
-		}
-		vTaskDelay(1000);
-	}
-
-	vTaskDelete(NULL);
-}
-
-int Cmd_pbstr(int argc, char *argv[]) {
-	sock_stream_sem = xSemaphoreCreateMutex();
-	xTaskCreate(thread_out, "out", 1024 / 4, NULL, 4, NULL);
-	xTaskCreate(thread_in, "in", 1024 / 4, NULL, 4, NULL);
-
-	return 0;
-}
-
-
-
 #include "audio_types.h"
 
 void sample_sensor_data(periodic_data* data)
@@ -1995,7 +1893,9 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "get", Cmd_test_get, ""},
 #endif
 
-		{ "pb", Cmd_pbstr, ""},
+//		{ "pb", Cmd_pbstr, ""},
+		{ "hmac", Cmd_testhmac, ""},
+
 
 		{ "r", Cmd_AudioCapture,""}, //record sounds into SD card
 		{ "s",Cmd_audio_record_stop,""},
@@ -2230,6 +2130,7 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
 	start_top_boot_watcher();
+	hlo_init_pbstream();
 
 	if( on_charger ) {
 		launch_tasks();
@@ -2239,7 +2140,7 @@ void vUARTTask(void *pvParameters) {
 		play_led_wheel( 50, LED_MAX, LED_MAX, 0,0,10,1);
 	}
 
-	UARTprintf("\n\nFreeRTOS %s, %08x, %s %02x:%02x:%02x:%02x:%02x:%02x\n",
+	UARTprintf("\n\nFree!!! %s, %08x, %s %02x:%02x:%02x:%02x:%02x:%02x\n",
 	tskKERNEL_VERSION_NUMBER, KIT_VER, MORPH_NAME, mac[0], mac[1], mac[2],
 			mac[3], mac[4], mac[5]);
 	print_nwp_version();
