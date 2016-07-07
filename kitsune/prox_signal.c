@@ -19,7 +19,7 @@
 
 #define QFIXEDPOINT (10)
 
-#define PROX_SIGNAL_SAMPLE_PERIOD_MS (50)
+#define PROX_SIGNAL_SAMPLE_PERIOD_MS (100)
 
 #define PROX_HOLD_GESTURE_PERIOD_MS (1000)
 
@@ -27,7 +27,7 @@
 
 #define MAX_COUNTER (32767)
 
-#define DIFF_SIGNAL_THRESHOLD_FOR_INTERRUPTION (100)
+#define DIFF_SIGNAL_THRESHOLD_FOR_INTERRUPTION (50)
 
 /*
 #define PROX_SIGNAL_BUF_SIZE_2N (3)
@@ -67,14 +67,14 @@ typedef struct {
 
 static ProxSignal_t _data;
 //the higher this gets, the less likely you are to be stable
-static const int32_t k_stable_likelihood_coefficient = TOFIX(0.7f,QFIXEDPOINT); //todo play with this
+static const int32_t k_stable_likelihood_coefficient = TOFIX(0.9f,QFIXEDPOINT); //todo play with this
 
 //the closer this gets to zero, the more likely it is that you will be increasing or decreasing
-static const int32_t k_change_log_likelihood = TOFIX(-0.10f,QFIXEDPOINT);
+static const int32_t k_change_log_likelihood = TOFIX(-0.01f,QFIXEDPOINT);
 
 //the closer this gets to zero, the shorter the amount of time it will take to switch between modes
 //the more negative it gets, the more evidence is required before switching modes, in general
-static const int32_t k_min_log_prob = TOFIX(-0.20f,QFIXEDPOINT);
+static const int32_t k_min_log_prob = TOFIX(-0.10f,QFIXEDPOINT);
 
 static const int32_t k_hold_threshold = 1000; //difference between max and held stable value before we say we are holding
 static const int32_t k_release_threshold = 1000; //difference between min and held stable value before we say we are released
