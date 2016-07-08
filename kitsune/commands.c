@@ -2173,11 +2173,12 @@ void vUARTTask(void *pvParameters) {
 
 	UARTprintf("*");
 	sl_sync_init();  // thread safe for all sl_* calls
+
 	sl_mode = sl_Start(NULL, NULL, NULL);
 	UARTprintf("*");
-	while (sl_mode != ROLE_STA) {
+	while (sl_mode != ROLE_AP) {
 		UARTprintf("+");
-		sl_WlanSetMode(ROLE_STA);
+		sl_WlanSetMode(ROLE_AP);
 		nwp_reset();
 	}
 	UARTprintf("*");
@@ -2189,6 +2190,7 @@ void vUARTTask(void *pvParameters) {
 	sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0), NULL, 0);
 
 	UARTprintf("*");
+
 	unsigned char mac[6];
 	unsigned char mac_len;
 	sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
