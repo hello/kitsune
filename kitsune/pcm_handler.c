@@ -375,7 +375,7 @@ void SetupPingPongDMATransferTx()
     memset(pong, 0, sizeof(pong));
 
 #if (CODEC_ENABLE_MULTI_CHANNEL==1)
-    SetupTransfer(UDMA_CH4_I2S_RX,
+    UDMASetupTransfer(UDMA_CH4_I2S_RX,
                   UDMA_MODE_PINGPONG,
                   CB_TRANSFER_SZ,
                   UDMA_SIZE_32,
@@ -384,7 +384,7 @@ void SetupPingPongDMATransferTx()
                   UDMA_CHCTL_SRCINC_NONE,
                   (void *)ping,
                   UDMA_CHCTL_DSTINC_32);
-    SetupTransfer(UDMA_CH4_I2S_RX|UDMA_ALT_SELECT,
+    UDMASetupTransfer(UDMA_CH4_I2S_RX|UDMA_ALT_SELECT,
                   UDMA_MODE_PINGPONG,
                   CB_TRANSFER_SZ,
                   UDMA_SIZE_32,
@@ -425,7 +425,7 @@ void SetupPingPongDMATransferRx()
     memset(pong_p, 0, sizeof(pong_p));
 
 #if (CODEC_ENABLE_MULTI_CHANNEL==1)
-    SetupTransfer(UDMA_CH5_I2S_TX,
+    UDMASetupTransfer(UDMA_CH5_I2S_TX,
                   UDMA_MODE_PINGPONG,
                   CB_TRANSFER_SZ,
                   UDMA_SIZE_32,
@@ -434,7 +434,7 @@ void SetupPingPongDMATransferRx()
                   UDMA_CHCTL_SRCINC_32,
                   (void *)puiRxDestBuf,
                   UDMA_DST_INC_NONE);
-    SetupTransfer(UDMA_CH5_I2S_TX|UDMA_ALT_SELECT,
+    UDMASetupTransfer(UDMA_CH5_I2S_TX|UDMA_ALT_SELECT,
                   UDMA_MODE_PINGPONG,
                   CB_TRANSFER_SZ,
                   UDMA_SIZE_32,
