@@ -45,7 +45,9 @@ typedef struct{
 #error "Audio Codec OSR error!"
 #endif
 
-#define IADC ((MDAC)*(DOSR))
+#define IADC ((MADC)*(AOSR))
+#define IDAC ((MDAC)*(DOSR))
+
 #define MIC_VOLUME_DB 6
 #define MIC_VOLUME_CONTROL ((MIC_VOLUME_DB)*2)
 #define MUTE_SPK 1
@@ -200,10 +202,10 @@ static const reg_value REG_Section_program2[] = {
     {  0x7F,0x78},
 	//{47,1<<0},
 //			# reg[120][0][48] = 12
-    { 48,(IADC & 0xFF00) >> 8 },
+    { 48,(IDAC & 0xFF00) >> 8 },
 
 //			# reg[120][0][49] = 0
-    { 49, (IADC & 0xFF) >> 0 },
+    { 49, (IDAC & 0xFF) >> 0 },
 #else // async mode
 //			# reg[100][0][48] = 4;IDAC  = 256    ; MDAC*DOSR;IADC  = 256    ; MADC*AOSR;IDAC  = 512    ; MDAC*DOSR;IADC  = 512    ; MADC*AOSR;IDAC  = 1024    ; MDAC*DOSR;IADC  = 1024    ; MADC*AOSR;IDAC  = 1536    ; MDAC*DOSR;IADC  = 1536   ; MADC*AOSR;IDAC  = 2048    ; MDAC*DOSR;IADC  = 2048   ; MADC*AOSR;IDAC  = 3072    ; MDAC*DOSR;IADC  = 3072   ; MADC*AOSR;IDAC  = 4096    ; MDAC*DOSR;IADC  = 4096   ; MADC*AOSR;IDAC  = 6144    ; MDAC*DOSR;IADC  = 6144   ; MADC*AOSR
 
