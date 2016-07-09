@@ -2187,7 +2187,7 @@ void vUARTTask(void *pvParameters) {
 	antsel(get_default_antenna());
 
 	// Set connection policy to Auto
-	sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0), NULL, 0);
+	sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0), NULL, 0);
 
 	UARTprintf("*");
 

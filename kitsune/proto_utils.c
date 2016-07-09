@@ -107,7 +107,7 @@ bool encode_single_ssid (pb_ostream_t *stream, const pb_field_t *field, void * c
 bool encode_scanned_ssid (pb_ostream_t *stream, const pb_field_t *field, void * const *arg) {
     int i,n;
 
-	Sl_WlanNetworkEntry_t scan[10];
+	SlWlanNetworkEntry_t scan[10];
 
 	if( arg == NULL ) {
 		return true;

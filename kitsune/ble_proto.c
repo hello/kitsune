@@ -209,9 +209,9 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type,
 	LOGI("Connecting to WIFI %s\n", ssid );
 	xSemaphoreTake(_wifi_smphr, portMAX_DELAY);
     for(i=0;i<MAX_WIFI_EP_PER_SCAN;++i) {
-    	if( !strcmp( (char*)_wifi_endpoints[i].ssid, ssid ) ) {
-    		antsel(_wifi_endpoints[i].reserved[0]);
-    		save_default_antenna( _wifi_endpoints[i].reserved[0] );
+    	if( !strcmp( (char*)_wifi_endpoints[i].Ssid, ssid ) ) {
+    		antsel(_wifi_endpoints[i].Reserved[0]);
+    		save_default_antenna( _wifi_endpoints[i].Reserved[0] );
     		LOGI("RSSI %d\r\n", ssid, _wifi_endpoints[i].Rssi);
     		break;
     	}

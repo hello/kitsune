@@ -157,7 +157,7 @@ static void wifi_update_task( void * params ) {
 	vTaskDelete(NULL);
 }
 void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
-    switch (pSlWlanEvent->Event) {
+    switch (pSlWlanEvent->Id) {
 #if 0 //todo bring this back after ti realises they've mucked it up
     case SL_WLAN_SMART_CONFIG_START_EVENT:
         /* SmartConfig operation finished */
@@ -240,7 +240,7 @@ LOGI("GENEVT ID=%d Sender=%d\n",pDevEvent->Data.deviceEvent.status, pDevEvent->D
 
 void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent) {
 
-    switch (pNetAppEvent->Event) {
+    switch (pNetAppEvent->Id) {
 	case SL_NETAPP_IPV4_IPACQUIRED_EVENT:
 	case SL_NETAPP_IPV6_IPACQUIRED_EVENT:
 		LOGI("SL_NETAPP_IPV4_ACQUIRED\n\r");
@@ -575,7 +575,7 @@ int Cmd_iperf_client(int argc, char *argv[]) {
 }
 #endif
 
-int get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uint32_t scan_duration_ms, int antenna)
+int get_wifi_scan_result(SlWlanNetworkEntry_t* entries, uint16_t entry_len, uint32_t scan_duration_ms, int antenna)
 {
     if(scan_duration_ms < 1000)
     {
@@ -2096,7 +2096,7 @@ int Cmd_sl(int argc, char*argv[]) {
     //sl_WlanProfileDel(WLAN_DEL_ALL_PROFILES);
 
     //set AUTO policy
-    sl_WlanPolicySet( SL_WLAN_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0),
+    sl_WlanPolicySet( SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0),
             &policyVal, 1 /*PolicyValLen*/);
 
     /* Start SmartConfig

@@ -37,10 +37,10 @@ static void reselect_antenna(SlWlanNetworkEntry_t * entries, int num_entries ) {
 	char ssid[MAX_SSID_LEN] = {0};
 	wifi_get_connected_ssid( (uint8_t*)ssid, sizeof(ssid));
     for(i = 0; i < num_entries; i++) {
-    	if( 0 == strcmp( (char*)entries[i].ssid, ssid ) ) {
-    		antsel(entries[i].reserved[0]);
-    		save_default_antenna(entries[i].reserved[0]);
-    		LOGI("ssid: %s a:%d\r\n", ssid, entries[i].reserved[0]);
+    	if( 0 == strcmp( (char*)entries[i].Ssid, ssid ) ) {
+    		antsel(entries[i].Reserved[0]);
+    		save_default_antenna(entries[i].Reserved[0]);
+    		LOGI("ssid: %s a:%d\r\n", ssid, entries[i].Reserved[0]);
     		break;
     	}
     }
@@ -238,7 +238,7 @@ static void worker_scan_unique(hlo_future_t * result, void * ctx){
 
 static void SortByRSSI(SlWlanNetworkEntry_t* netEntries,
                                             unsigned char ucSSIDCount){
-    Sl_WlanNetworkEntry_t tTempNetEntry;
+    SlWlanNetworkEntry_t tTempNetEntry;
     unsigned char ucCount, ucSwapped;
     do{
         ucSwapped = 0;
@@ -267,10 +267,10 @@ unsigned long resolve_ip_by_host_name(const char * host_name){
 		return 0;
 	}
 }
-int _replace_ssid_by_rssi(Sl_WlanNetworkEntry_t * main, size_t main_size, const Sl_WlanNetworkEntry_t* entry){
+int _replace_ssid_by_rssi(Sl_WlanNetworkEntry_t * main, size_t main_size, const SlWlanNetworkEntry_t* entry){
 	int i;
 	for(i = 0; i < main_size; i++){
-		Sl_WlanNetworkEntry_t * row = &main[i];
+		SlWlanNetworkEntry_t * row = &main[i];
 		if(row->rssi == 0 && row->ssid[0] == 0){
 			//fresh entry, copy over
 			*row = *entry;
@@ -286,7 +286,7 @@ int _replace_ssid_by_rssi(Sl_WlanNetworkEntry_t * main, size_t main_size, const 
 }
 //this implementation is O(n^2)
 int get_unique_wifi_list(Sl_WlanNetworkEntry_t * result, size_t num_entries){
-	size_t size = num_entries * sizeof(Sl_WlanNetworkEntry_t);
+	size_t size = num_entries * sizeof(SlWlanNetworkEntry_t);
 	int retries, ret, tally = 0;
 	Sl_WlanNetworkEntry_t * ifa_list = pvPortMalloc(size);
 	Sl_WlanNetworkEntry_t * pcb_list = pvPortMalloc(size);
@@ -382,7 +382,7 @@ int Cmd_dig(int argc, char *argv[]){
 //of human input, it's hard to race it.
 int Cmd_scan_wifi(int argc, char *argv[]){
 	static hlo_future_t * result;
-	Sl_WlanNetworkEntry_t entries[10] = {0};
+	SlWlanNetworkEntry_t entries[10] = {0};
 	int ret, i;
 	if(!result){
 		result = prescan_wifi( 10 );

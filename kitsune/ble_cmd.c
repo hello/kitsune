@@ -25,32 +25,32 @@ static bool _encode_wifi_scan_result_fields(pb_ostream_t *stream, const pb_field
 
 	wifi_endpoint data = {0};
 	char ssid[MAXIMAL_SSID_LENGTH + 1] = {0};
-	strncpy(ssid, (char*)wifi_ap->ssid, MAXIMAL_SSID_LENGTH + 1);
+	strncpy(ssid, (char*)wifi_ap->Ssid, MAXIMAL_SSID_LENGTH + 1);
 	data.ssid.funcs.encode = _encode_string_fields;
 	data.ssid.arg = ssid;
 
 	array_data arr = {0};
 	arr.length = SL_BSSID_LENGTH;
-	arr.buffer = wifi_ap->bssid;
+	arr.buffer = wifi_ap->Bssid;
 	data.bssid.funcs.encode = _encode_bytes_fields;
 	data.bssid.arg = &arr;
 
 
-	switch(wifi_ap->sec_type)
+	switch(wifi_ap->SecurityInfo)
 	{
-		case SL_SCAN_SEC_TYPE_OPEN:
+		case SL_WLAN_SCAN_SEC_TYPE_OPEN:
 		data.security_type = wifi_endpoint_sec_type_SL_SCAN_SEC_TYPE_OPEN;
 		break;
 
-		case SL_SCAN_SEC_TYPE_WEP:
+		case SL_WLAN_SCAN_SEC_TYPE_WEP:
 		data.security_type = wifi_endpoint_sec_type_SL_SCAN_SEC_TYPE_WEP;
 		break;
 
-		case SL_SCAN_SEC_TYPE_WPA:
+		case SL_WLAN_SCAN_SEC_TYPE_WPA:
 		data.security_type = wifi_endpoint_sec_type_SL_SCAN_SEC_TYPE_WPA;
 		break;
 
-		case SL_SCAN_SEC_TYPE_WPA2:
+		case SL_WLAN_SCAN_SEC_TYPE_WPA2:
 		data.security_type = wifi_endpoint_sec_type_SL_SCAN_SEC_TYPE_WPA2;
 		break;
 	}
