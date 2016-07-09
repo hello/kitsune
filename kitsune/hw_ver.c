@@ -33,7 +33,7 @@ void check_hw_version() {
 		LOGI("error opening for read %d\n", err);
 		return;
 	}
-	int min_len = minval(info.FileLen, BUF_SZ);
+	int min_len = minval(info.Len, BUF_SZ);
 	bytes = sl_FsRead(hndl, 0, (unsigned char* ) buffer, min_len);
 
 	if ( check_ver_string(DVT_STRING, buffer, bytes) ) {

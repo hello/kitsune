@@ -236,7 +236,7 @@ int Cmd_fs_write(int argc, char *argv[]) {
     int expected = argc - 2;
 	while( cnt != expected ) {
         uint8_t byte = strtol(next, &next, 16);
-    	bytes = sl_FsWrite(hndl, info.FileLen + cnt, (unsigned char*)&byte, 1);
+    	bytes = sl_FsWrite(hndl, info.Len + cnt, (unsigned char*)&byte, 1);
     	assert(bytes==1);
     	++cnt;
     	next = next + 1;
@@ -288,13 +288,13 @@ int Cmd_fs_read(int argc, char *argv[]) {
 	}
 	if( argc >= 3 ){
 		bytes = sl_FsRead(hndl, atoi(argv[2]), (unsigned char* ) buffer,
-				minval(info.FileLen, BUF_SZ));
+				minval(info.Len, BUF_SZ));
 		if (bytes) {
 			LOGF("read %d bytes\n", bytes);
 		}
 	} else {
 		bytes = sl_FsRead(hndl, 0, (unsigned char* ) buffer,
-				minval(info.FileLen, BUF_SZ));
+				minval(info.Len, BUF_SZ));
 		if (bytes) {
 			LOGF("read %d bytes\n", bytes);
 		}

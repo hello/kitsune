@@ -1706,9 +1706,9 @@ int sf_sha1_verify(const char * sha_truth, const char * serial_file_path){
         return -1;
     }
     //compute sha
-    bytes_to_read = info.FileLen;
+    bytes_to_read = info.Len;
     while (bytes_to_read > 0) {
-        bytes = sl_FsRead(hndl, info.FileLen - bytes_to_read,
+        bytes = sl_FsRead(hndl, info.Len - bytes_to_read,
                 buffer,
                 (minval(sizeof(buffer),bytes_to_read)));
         SHA1_Update(&sha1ctx, buffer, bytes);
