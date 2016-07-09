@@ -1215,7 +1215,7 @@ int start_connection(int * sock, char * host, security_type sec) {
 			rv = connect(*sock, &sAddr, sizeof(sAddr));
 			LOGD("`");
 			vTaskDelay(500);
-		} while( rv == SL_EALREADY );
+		} while( rv == SL_ERROR_BSD_EALREADY );
 		if( rv < 0 ) {
 			ble_reply_socket_error(rv);
 			LOGI("Could not connect %d\n\r\n\r", rv);
@@ -1691,9 +1691,9 @@ int send_data_pb( char* host, const char* path, char ** recv_buf_ptr,
     		 memset( recv_buf+recv_buf_size-SERVER_REPLY_BUFSZ, 0, SERVER_REPLY_BUFSZ);
     		 *recv_buf_ptr = recv_buf;
     		 *recv_buf_size_ptr = recv_buf_size;
-    		 rv = SL_EAGAIN;
+    		 rv = EAGAIN;
     	}
-    } while (rv == SL_EAGAIN && retries++ < 70 ); // long poll endpoint times out at 60 seconds, so we need to wait a bit longer than that
+    } while (rv == EAGAIN && retries++ < 70 ); // long poll endpoint times out at 60 seconds, so we need to wait a bit longer than that
     LOGI("rv %d\n", rv);
 
     if (rv <= 0) {

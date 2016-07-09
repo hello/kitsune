@@ -160,7 +160,7 @@ static void get_stream(hlo_future_t * result, void * ctx){
 			if(ndata < 0 ){
 				vTaskDelay(200);
 			}
-		}while(ndata == SL_EAGAIN);
+		}while(ndata == EAGAIN);
 
 		if (ndata <= 0) {
 			DISP("Error receiving data %d\n", ndata);
@@ -267,16 +267,16 @@ unsigned long resolve_ip_by_host_name(const char * host_name){
 		return 0;
 	}
 }
-int _replace_ssid_by_rssi(Sl_WlanNetworkEntry_t * main, size_t main_size, const SlWlanNetworkEntry_t* entry){
+int _replace_ssid_by_rssi(SlWlanNetworkEntry_t * main, size_t main_size, const SlWlanNetworkEntry_t* entry){
 	int i;
 	for(i = 0; i < main_size; i++){
 		SlWlanNetworkEntry_t * row = &main[i];
-		if(row->rssi == 0 && row->ssid[0] == 0){
+		if(row->Rssi == 0 && row->Ssid[0] == 0){
 			//fresh entry, copy over
 			*row = *entry;
 			return 1;
-		}else if(!strncmp((const char*)row->ssid, (const char*)entry->ssid, sizeof(row->ssid))){
-			if(entry->rssi > row->rssi){
+		}else if(!strncmp((const char*)row->Ssid, (const char*)entry->Ssid, sizeof(row->Ssid))){
+			if(entry->Rssi > row->Rssi){
 				*row = *entry;
 			}
 			return 0;
@@ -285,11 +285,11 @@ int _replace_ssid_by_rssi(Sl_WlanNetworkEntry_t * main, size_t main_size, const 
 	return 0;
 }
 //this implementation is O(n^2)
-int get_unique_wifi_list(Sl_WlanNetworkEntry_t * result, size_t num_entries){
+int get_unique_wifi_list(SlWlanNetworkEntry_t * result, size_t num_entries){
 	size_t size = num_entries * sizeof(SlWlanNetworkEntry_t);
 	int retries, ret, tally = 0;
-	Sl_WlanNetworkEntry_t * ifa_list = pvPortMalloc(size);
-	Sl_WlanNetworkEntry_t * pcb_list = pvPortMalloc(size);
+	SlWlanNetworkEntry_t * ifa_list = pvPortMalloc(size);
+	SlWlanNetworkEntry_t * pcb_list = pvPortMalloc(size);
 
 	DISP("Scan begin\n");
 
@@ -308,8 +308,8 @@ int get_unique_wifi_list(Sl_WlanNetworkEntry_t * result, size_t num_entries){
 			DISP("Retrying IFA %d\r\n", retries);
 		}
 		while(--ret > 0){
-			ifa_list[ret].reserved[0] = IFA_ANT;
-			ifa_list[ret].ssid_len = 0;
+			ifa_list[ret].Reserved[0] = IFA_ANT;
+			ifa_list[ret].SsidLen = 0;
 			tally += _replace_ssid_by_rssi(result, num_entries, &ifa_list[ret]);
 		}
 	}
@@ -321,7 +321,7 @@ int get_unique_wifi_list(Sl_WlanNetworkEntry_t * result, size_t num_entries){
 	}
 	while(--ret > 0){
 		pcb_list[ret].reserved[0] = PCB_ANT;
-		pcb_list[ret].ssid_len = 0;
+		pcb_list[ret].SsidLen = 0;
 		tally += _replace_ssid_by_rssi(result, num_entries, &pcb_list[ret]);
 	}
 exit:
@@ -396,7 +396,7 @@ int Cmd_scan_wifi(int argc, char *argv[]){
 		DISP("Found %d endpoints\r\n===========\r\n", ret);
 		SortByRSSI(entries, ret);
 		for(i = 0; i < ret; i++){
-			DISP("%d)%s, %d, %d dB, %d\r\n",i, entries[i].ssid, entries[i].sec_type, entries[i].rssi, entries[i].reserved[0]);
+			DISP("%d)%s, %d, %d dB, %d\r\n",i, entries[i].Ssid, entries[i].SecurityInfo, entries[i].Rssi, entries[i].Reserved[0]);
 		}
 	}else{
 		DISP("No endpoints scanned\r\n");

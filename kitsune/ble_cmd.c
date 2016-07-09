@@ -25,7 +25,7 @@ static bool _encode_wifi_scan_result_fields(pb_ostream_t *stream, const pb_field
 
 	wifi_endpoint data = {0};
 	char ssid[MAXIMAL_SSID_LENGTH + 1] = {0};
-	strncpy(ssid, (char*)wifi_ap->Ssid, MAXIMAL_SSID_LENGTH + 1);
+	strncpy(ssid, (char*)wifi_ap->Ssid, SL_WLAN_SSID_MAX_LENGTH + 1);
 	data.ssid.funcs.encode = _encode_string_fields;
 	data.ssid.arg = ssid;
 

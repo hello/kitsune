@@ -642,7 +642,7 @@ int CreateConnection(unsigned long DestinationIP)
     do {
 		vTaskDelay(100);
 		Status = connect(SockID, ( SlSockAddr_t *)&Addr, AddrSize);
-	} 	while( SL_EALREADY == Status );
+	} 	while( SL_ERROR_BSD_EALREADY == Status );
 
     if( Status < 0 )
     {
@@ -777,7 +777,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
         if(transfer_len < 0 ){
             vTaskDelay(500);
         }
-    }while(transfer_len == SL_EAGAIN);
+    }while(transfer_len == EAGAIN);
 
     if(transfer_len <= 0){
         LOGW("Download error %d\r\n",transfer_len);
@@ -1282,7 +1282,7 @@ static _i32 _ReadBootInfo(sBootInfo_t *psBootInfo)
     {
       ulBootInfoToken       = USER_BOOT_INFO_TOKEN;
     }
-    if( 0 == sl_FsOpen((unsigned char *)IMG_BOOT_INFO, FS_MODE_OPEN_READ, &ulBootInfoToken, &lFileHandle) )
+    if( 0 == sl_FsOpen((unsigned char *)IMG_BOOT_INFO, SL_FS_MODE_OPEN_READ, &ulBootInfoToken, &lFileHandle) )
     {
         if( 0 < sl_FsRead(lFileHandle, 0, (_u8 *)psBootInfo, sizeof(sBootInfo_t)) )
         {

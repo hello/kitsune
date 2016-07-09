@@ -281,7 +281,7 @@ int Cmd_fs_read(int argc, char *argv[]) {
 
 	sl_FsGetInfo((unsigned char*)argv[1], tok, &info);
 
-	err = sl_FsOpen((unsigned char*) argv[1], FS_MODE_OPEN_READ, &tok, &hndl);
+	err = sl_FsOpen((unsigned char*) argv[1], SL_FS_MODE_OPEN_READ, &tok, &hndl);
 	if (err) {
 		LOGF("error opening for read %d\n", err);
 		return -1;
