@@ -172,7 +172,7 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
     case SL_WLAN_SMART_CONFIG_STOP_EVENT:
         LOGI("SL_WLAN_SMART_CONFIG_STOP_EVENT\n");
         break;
-    case SL_WLAN_CONNECT_EVENT:
+    case SL_WLAN_EVENT_CONNECT:
     {
         wifi_status_set(CONNECT, false);
         wifi_status_set(CONNECTING, true);
@@ -201,7 +201,7 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
         nwp_reset();
     }
     break;
-    case SL_WLAN_DISCONNECT_EVENT:
+    case SL_WLAN_EVENT_DISCONNECT:
         wifi_status_set(0xFFFFFFFF, true);
         memset(_connected_ssid, 0, MAX_SSID_LEN);
         LOGI("SL_WLAN_DISCONNECT_EVENT\n");
@@ -597,7 +597,7 @@ int get_wifi_scan_result(SlWlanNetworkEntry_t* entries, uint16_t entry_len, uint
     policyOpt = SL_SCAN_POLICY(1);
 
     // set scan policy - this starts the scan
-    r = sl_WlanPolicySet(SL_POLICY_SCAN , policyOpt, (unsigned char *)(IntervalVal), sizeof(IntervalVal));
+    r = sl_WlanPolicySet(SL_WLAN_POLICY_SCAN , policyOpt, (unsigned char *)(IntervalVal), sizeof(IntervalVal));
 
 
     // delay specific milli seconds to verify scan is started

@@ -46,9 +46,10 @@ static bool _encode_wifi_scan_result_fields(pb_ostream_t *stream, const pb_field
 		data.security_type = wifi_endpoint_sec_type_SL_SCAN_SEC_TYPE_WEP;
 		break;
 
-		case SL_WLAN_SEC_TYPE_WPA:
+	/*	TODO wtf
+	 * case SL_WLAN_SEC_TYPE_WPA:
 		data.security_type = wifi_endpoint_sec_type_SL_SCAN_SEC_TYPE_WPA;
-		break;
+		break;*/
 
 		case SL_WLAN_SEC_TYPE_WPA_WPA2:
 		data.security_type = wifi_endpoint_sec_type_SL_SCAN_SEC_TYPE_WPA2;

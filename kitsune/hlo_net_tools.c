@@ -206,7 +206,7 @@ static int scan(scan_desc_t * desc){
 
     // set scan policy - this starts the scan
     //Interval is intentional
-    r = sl_WlanPolicySet(SL_POLICY_SCAN , policyOpt, (unsigned char *)(&IntervalVal), sizeof(IntervalVal));
+    r = sl_WlanPolicySet(SL_WLAN_POLICY_SCAN , policyOpt, (unsigned char *)(&IntervalVal), sizeof(IntervalVal));
 
     // delay specific milli seconds to verify scan is started
     vTaskDelay(desc->duration_ms);

@@ -961,7 +961,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 			if( recv_res > 0 ) {
 				transfer_len += recv_res;
 			}
-			if( recv_res == SL_EAGAIN ) {
+			if( recv_res == EAGAIN ) {
 				vTaskDelay(500);
 			}
 		}
