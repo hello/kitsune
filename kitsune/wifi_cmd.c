@@ -112,8 +112,8 @@ long nwp_reset() {
 //! \return None
 //!
 //****************************************************************************
-void SimpleLinkHttpServerCallback(SlHttpServerEvent_t *pHttpEvent,
-                                  SlHttpServerResponse_t *pHttpResponse)
+void SimpleLinkHttpServerCallback(SlNetAppHttpServerEvent_t *pHttpEvent,
+                                  SlNetAppHttpServerResponse_t *pHttpResponse)
 {
     // Unused in this application
 }
@@ -241,8 +241,8 @@ LOGI("GENEVT ID=%d Sender=%d\n",pDevEvent->Data.deviceEvent.status, pDevEvent->D
 void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent) {
 
     switch (pNetAppEvent->Id) {
-	case SL_NETAPP_IPV4_IPACQUIRED_EVENT:
-	case SL_NETAPP_IPV6_IPACQUIRED_EVENT:
+	case SL_NETAPP_EVENT_IPV4_ACQUIRED:
+	case SL_NETAPP_EVENT_IPV6_ACQUIRED:
 		LOGI("SL_NETAPP_IPV4_ACQUIRED\n\r");
 		{
 			int seed = (unsigned) PRCMSlowClkCtrGet();
@@ -255,7 +255,7 @@ void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent) {
 		xTaskCreate(wifi_update_task, "wifi_update_task", 1024 / 4, (void*)wifi_connection_state_IP_RETRIEVED, 1, NULL);
 		break;
 
-	case SL_NETAPP_IP_LEASED_EVENT:
+	case SL_NETAPP_EVENT_DHCPV4_LEASED:
 		wifi_status_set(IP_LEASED, false);
         break;
     default:
@@ -715,7 +715,7 @@ int Cmd_status(int argc, char *argv[]) {
 }
 
 // callback routine
-void pingRes(SlPingReport_t* pLOGI) {
+void pingRes(SlNetAppPingReport_t* pLOGI) {
     // handle ping results
     LOGF(
             "Ping tx:%d rx:%d min time:%d max time:%d avg time:%d test time:%d\n",
@@ -725,8 +725,8 @@ void pingRes(SlPingReport_t* pLOGI) {
 }
 
 int Cmd_ping(int argc, char *argv[]) {
-    static SlPingReport_t report;
-    SlPingStartCommand_t pingCommand;
+    static SlNetAppPingReport_t report;
+    SlNetAppPingCommand_t pingCommand;
 
     pingCommand.Ip = SL_IPV4_VAL(192, 168, 1, 1); // destination IP address is my router's IP
     pingCommand.PingSize = 32;                     // size of ping, in bytes
@@ -735,7 +735,7 @@ int Cmd_ping(int argc, char *argv[]) {
     pingCommand.TotalNumberOfAttempts = 3; // max number of ping requests. 0 - forever
     pingCommand.Flags = 1;                        // LOGI after each ping
 
-    sl_NetAppPingStart(&pingCommand, SL_AF_INET, &report, pingRes);
+    sl_NetAppPing(&pingCommand, SL_AF_INET, &report, pingRes);
     return (0);
 }
 
@@ -1548,7 +1548,7 @@ int send_data_pb( char* host, const char* path, char ** recv_buf_ptr,
     if( sec == SOCKET_SEC_SSL ) {
 		//check that it's still secure...
 		rv = recv(*sock, recv_buf, SERVER_REPLY_BUFSZ, 0);
-		if (rv != SL_EAGAIN ) {
+		if (rv != EAGAIN ) {
 			LOGI("start recv error %d\n\r\n\r", rv);
 			ble_reply_socket_error(rv);
 			goto failure;

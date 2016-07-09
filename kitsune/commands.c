@@ -1930,16 +1930,16 @@ static void print_nwp_version() {
 
 	if( 0 == sl_DevGet(SL_DEVICE_GENERAL,&pConfigOpt,&pConfigLen,(uint8_t *)(&ver)) ) {
 		LOGI("FW " );
-		for(i=0;i<ARR_LEN(ver.ChipFwAndPhyVersion.FwVersion);++i) {
+		for(i=0;i<ARR_LEN(ver.FwVersion);++i) {
 			LOGI("%d.", ver.ChipFwAndPhyVersion.FwVersion[i] );
 		} LOGI("\n");
 
 		LOGI("PHY " );
-		for(i=0;i<ARR_LEN(ver.ChipFwAndPhyVersion.PhyVersion);++i) {
+		for(i=0;i<ARR_LEN(ver.PhyVersion);++i) {
 			LOGI("%d.", ver.ChipFwAndPhyVersion.PhyVersion[i] );
 		} LOGI("\n");
 
-		LOGI("CHIP %x\n", ver.ChipFwAndPhyVersion.ChipId );
+		LOGI("CHIP %x\n", ver.ChipId );
 		LOGI("NWP " );
 		for(i=0;i<ARR_LEN(ver.NwpVersion);++i) {
 			LOGI("%d.", ver.NwpVersion[i] );

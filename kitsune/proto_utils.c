@@ -76,7 +76,7 @@ bool encode_single_ssid (pb_ostream_t *stream, const pb_field_t *field, void * c
     batched_periodic_data_wifi_access_point* ap = (batched_periodic_data_wifi_access_point *)*arg;
 
 	{
-		static SlGetRxStatResponse_t rxStat;
+		static SlWlanGetRxStatResponse_t rxStat;
 		sl_WlanRxStatGet(&rxStat,0);
 		if( rxStat.AvarageDataCtrlRssi == 0 ) {
 			sl_WlanRxStatStart();  // set statistics mode

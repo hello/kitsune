@@ -156,7 +156,7 @@ void set_sl_time(time_t unix_timestamp_sec) {
 			SL_DEVICE_GENERAL_DATE_TIME,
 			  sizeof(SlDateTime_t),(unsigned char *)(&sl_tm));
 	memset(&sl_tm, 0, sizeof(sl_tm));
-	uint8_t cfg = SL_DEVICE_GENERAL_CONFIGURATION_DATE_TIME;
+	uint8_t cfg = SL_DEVICE_GENERAL_DATE_TIME;
 	uint8_t sz = sizeof(SlDateTime_t);
 	sl_DevGet(SL_DEVICE_GENERAL,
 			  &cfg,
@@ -440,7 +440,7 @@ int Cmd_time_test(int argc, char * argv[]) {
 			SlDateTime_t sl_tm;
 			struct tm dt;
 			memset(&sl_tm, 0, sizeof(sl_tm));
-			uint8_t cfg = SL_DEVICE_GENERAL_CONFIGURATION_DATE_TIME;
+			uint8_t cfg = SL_DEVICE_GENERAL_DATE_TIME;
 			uint8_t sz = sizeof(SlDateTime_t);
 			sl_DevGet(SL_DEVICE_GENERAL, &cfg, &sz,
 					(unsigned char * )(&sl_tm));

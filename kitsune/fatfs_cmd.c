@@ -955,7 +955,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
     {
         int retries = 0;
         int recv_res = EAGAIN;
-		while( ++retries < 1000 && transfer_len < MAX_BUFF_SIZE && recv_res == SL_EAGAIN ) {
+		while( ++retries < 1000 && transfer_len < MAX_BUFF_SIZE && recv_res == EAGAIN ) {
 			recv_res = recv(dl_sock, g_buff + transfer_len, MAX_BUFF_SIZE - transfer_len, 0);
 			//DISP( "r %d ", recv_res);
 			if( recv_res > 0 ) {

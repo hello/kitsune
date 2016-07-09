@@ -38,19 +38,19 @@ static bool _encode_wifi_scan_result_fields(pb_ostream_t *stream, const pb_field
 
 	switch(wifi_ap->SecurityInfo)
 	{
-		case SL_WLAN_SCAN_SEC_TYPE_OPEN:
+		case SL_WLAN_SEC_TYPE_OPEN:
 		data.security_type = wifi_endpoint_sec_type_SL_SCAN_SEC_TYPE_OPEN;
 		break;
 
-		case SL_WLAN_SCAN_SEC_TYPE_WEP:
+		case SL_WLAN_SEC_TYPE_WEP:
 		data.security_type = wifi_endpoint_sec_type_SL_SCAN_SEC_TYPE_WEP;
 		break;
 
-		case SL_WLAN_SCAN_SEC_TYPE_WPA:
+		case SL_WLAN_SEC_TYPE_WPA:
 		data.security_type = wifi_endpoint_sec_type_SL_SCAN_SEC_TYPE_WPA;
 		break;
 
-		case SL_WLAN_SCAN_SEC_TYPE_WPA2:
+		case SL_WLAN_SEC_TYPE_WPA_WPA2:
 		data.security_type = wifi_endpoint_sec_type_SL_SCAN_SEC_TYPE_WPA2;
 		break;
 	}

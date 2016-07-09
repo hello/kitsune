@@ -276,7 +276,7 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type,
 		} else {
 			char ssid[MAX_SSID_LEN];
 			char mac[6];
-			SlGetSecParamsExt_t extSec;
+			SlWlanGetSecParamsExt_t extSec;
 			uint32_t priority;
 			int16_t namelen;
 			SlWlanSecParams_t secParam;
