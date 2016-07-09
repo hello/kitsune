@@ -636,7 +636,7 @@ int CreateConnection(unsigned long DestinationIP)
     setsockopt(SockID, SOL_SOCKET, SL_SO_RCVTIMEO, &tv, sizeof(tv)); // Enable receive timeout
 
     SlSockNonblocking_t enableOption;
-    enableOption.NonblockingEnabled = 1;
+    enableOption.NonBlockingEnabled = 1;
     sl_SetSockOpt(SockID,SL_SOL_SOCKET,SL_SO_NONBLOCKING, (_u8 *)&enableOption,sizeof(enableOption)); // Enable/disable nonblocking mode
 
     do {

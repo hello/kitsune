@@ -16,7 +16,7 @@ static bool _encode_bytes_fields(pb_ostream_t *stream, const pb_field_t *field, 
 
 static bool _encode_wifi_scan_result_fields(pb_ostream_t *stream, const pb_field_t *field, void * const *arg)
 {
-    Sl_WlanNetworkEntry_t* wifi_ap = (Sl_WlanNetworkEntry_t*)*arg;
+    SlWlanNetworkEntry_t* wifi_ap = (SlWlanNetworkEntry_t*)*arg;
     if(!wifi_ap)
     {
         LOGI("_encode_string_fields: No string to encode\n");

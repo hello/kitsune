@@ -176,15 +176,15 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
     {
         wifi_status_set(CONNECT, false);
         wifi_status_set(CONNECTING, true);
-        char* pSSID = (char*)pSlWlanEvent->EventData.STAandP2PModeWlanConnected.ssid_name;
-        uint8_t ssidLength = pSlWlanEvent->EventData.STAandP2PModeWlanConnected.ssid_len;
+        char* pSSID = (char*)pSlWlanEvent->Data.STAandP2PModeWlanConnected.ssid_name;
+        uint8_t ssidLength = pSlWlanEvent->Data.STAandP2PModeWlanConnected.ssid_len;
         if (ssidLength > MAX_SSID_LEN) {
         	LOGI("ssid tooo long\n");
 		}else{
 			memset(_connected_ssid, 0, MAX_SSID_LEN);
 			memcpy(_connected_ssid, pSSID, ssidLength);
 			memset(_connected_bssid, 0, BSSID_LEN);
-			memcpy(_connected_bssid, (char*)pSlWlanEvent->EventData.STAandP2PModeWlanConnected.bssid, BSSID_LEN);
+			memcpy(_connected_bssid, (char*)pSlWlanEvent->Data.STAandP2PModeWlanConnected.bssid, BSSID_LEN);
 		}
         LOGI("SL_WLAN_CONNECT_EVENT\n");
 		xTaskCreate(wifi_update_task, "wifi_update_task", 1024 / 4, (void*)wifi_connection_state_WLAN_CONNECTED, 1, NULL);
@@ -209,7 +209,7 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
         { //recommended ti debug block
 		int i;
 
-		LOGI("AP: \"%s\" Code=%d BSSID:",_connected_ssid, pSlWlanEvent->EventData.STAandP2PModeDisconnected.reason_code);
+		LOGI("AP: \"%s\" Code=%d BSSID:",_connected_ssid, pSlWlanEvent->Data.STAandP2PModeDisconnected.reason_code);
     	LOGI( "%x", _connected_bssid[0]);
     	for( i=1;i< BSSID_LEN;++i) {
         	LOGI( ":%x", _connected_bssid[i] );
@@ -224,7 +224,7 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
 }
 void SimpleLinkGeneralEventHandler(SlDeviceEvent_t *pDevEvent)
 {
-LOGI("GENEVT ID=%d Sender=%d\n",pDevEvent->EventData.deviceEvent.status, pDevEvent->EventData.deviceEvent.sender);
+LOGI("GENEVT ID=%d Sender=%d\n",pDevEvent->Data.deviceEvent.status, pDevEvent->Data.deviceEvent.sender);
 }
 //****************************************************************************
 //
@@ -660,7 +660,7 @@ int Cmd_setDns(int argc, char *argv[])  {
 		SlNetCfgIpV4Args_t config = {0};
 		uint8_t size = sizeof(config);
 		sl_NetCfgGet( SL_IPV4_STA_P2P_CL_GET_INFO, NULL, &size, (uint8_t*)&config );
-		config.ipV4DnsServer = strtoul(argv[1], NULL, 16);
+		config.IpDnsServer = strtoul(argv[1], NULL, 16);
 		sl_NetCfgSet( SL_IPV4_STA_P2P_CL_STATIC_ENABLE, IPCONFIG_MODE_ENABLE_IPV4, size, (uint8_t*)&config );
 		nwp_reset();
 	}
@@ -671,7 +671,6 @@ void set_backup_dns() {
     SlNetCfgIpV4DnsClientArgs_t DnsOpt;
 
    DnsOpt.DnsSecondServerAddr  =  SL_IPV4_VAL(8,8,4,4);
-   DnsOpt.DnsMaxRetries        =  5;
    sl_NetCfgSet(SL_IPV4_DNS_CLIENT,0,sizeof(SlNetCfgIpV4DnsClientArgs_t),(unsigned char *)&DnsOpt);
 }
 int Cmd_status(int argc, char *argv[]) {
@@ -688,13 +687,13 @@ int Cmd_status(int argc, char *argv[]) {
     // Send the information
     //
     LOGI("%x ip 0x%x submask 0x%x gateway 0x%x dns 0x%x\n\r", wifi_status_get(0xFFFFFFFF),
-            ipv4.ipV4, ipv4.ipV4Mask, ipv4.ipV4Gateway, ipv4.ipV4DnsServer);
+            ipv4.Ip, ipv4.IpMask, ipv4.IpGateway, ipv4.IpDnsServer);
 
     LOGF("DNS=%d.%d.%d.%d\n",
-                SL_IPV4_BYTE(ipv4.ipV4DnsServer,3),
-                SL_IPV4_BYTE(ipv4.ipV4DnsServer,2),
-                SL_IPV4_BYTE(ipv4.ipV4DnsServer,1),
-                SL_IPV4_BYTE(ipv4.ipV4DnsServer,0));
+                SL_IPV4_BYTE(ipv4.IpDnsServer,3),
+                SL_IPV4_BYTE(ipv4.IpDnsServer,2),
+                SL_IPV4_BYTE(ipv4.IpDnsServer,1),
+                SL_IPV4_BYTE(ipv4.IpDnsServer,0));
 
     _u8 ConfigOpt;
     _u8 pConfigLen = sizeof(SlNetCfgIpV4DnsClientArgs_t);
@@ -707,10 +706,10 @@ int Cmd_status(int argc, char *argv[]) {
                 SL_IPV4_BYTE(DnsOpt.DnsSecondServerAddr,1),
                 SL_IPV4_BYTE(DnsOpt.DnsSecondServerAddr,0));
     LOGF("IP=%d.%d.%d.%d\n",
-                SL_IPV4_BYTE(ipv4.ipV4,3),
-                SL_IPV4_BYTE(ipv4.ipV4,2),
-                SL_IPV4_BYTE(ipv4.ipV4,1),
-                SL_IPV4_BYTE(ipv4.ipV4,0));
+                SL_IPV4_BYTE(ipv4.Ip,3),
+                SL_IPV4_BYTE(ipv4.Ip,2),
+                SL_IPV4_BYTE(ipv4.Ip,1),
+                SL_IPV4_BYTE(ipv4.Ip,0));
 
     return 0;
 }
@@ -825,7 +824,7 @@ int Cmd_set_mac(int argc, char*argv[]) {
         next = pend+1;
     }
 
-    sl_NetCfgSet(SL_MAC_ADDRESS_SET,1,SL_MAC_ADDR_LEN,(_u8 *)MAC_Address);
+    sl_NetCfgSet(SL_NETCFG_MAC_ADDRESS_SET,1,SL_MAC_ADDR_LEN,(_u8 *)MAC_Address);
     nwp_reset();
 
     return 0;
@@ -1172,7 +1171,7 @@ int start_connection(int * sock, char * host, security_type sec) {
     	setsockopt(*sock, SOL_SOCKET, SL_SO_RCVTIMEO, &tv, sizeof(tv)); // Enable receive timeout
 
         SlSockNonblocking_t enableOption;
-        enableOption.NonblockingEnabled = 1;
+        enableOption.NonBlockingEnabled = 1;
         sl_SetSockOpt(*sock,SL_SOL_SOCKET,SL_SO_NONBLOCKING, (_u8 *)&enableOption,sizeof(enableOption)); // Enable/disable nonblocking mode
 
 		#if !LOCAL_TEST
@@ -1767,7 +1766,7 @@ bool get_mac(unsigned char mac[6]) {
 	int32_t ret;
 	unsigned char mac_len = 6;
 
-	ret = sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
+	ret = sl_NetCfgGet(SL_NETCFG_MAC_ADDRESS_GET, NULL, &mac_len, mac);
 
     if(ret != 0 && ret != SL_ESMALLBUF)
     {
@@ -1945,7 +1944,7 @@ static void _on_response_protobuf( SyncResponse* response_protobuf)
 
     if (response_protobuf->has_mac)
     {
-        sl_NetCfgSet(SL_MAC_ADDRESS_SET,1,SL_MAC_ADDR_LEN,response_protobuf->mac.bytes);
+        sl_NetCfgSet(SL_NETCFG_MAC_ADDRESS_SET,1,SL_MAC_ADDR_LEN,response_protobuf->mac.bytes);
         nwp_reset();
     }
 

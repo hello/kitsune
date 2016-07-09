@@ -54,7 +54,7 @@ static volatile struct {
     xSemaphoreHandle smphr;
 } _self;
 
-static Sl_WlanNetworkEntry_t _wifi_endpoints[MAX_WIFI_EP_PER_SCAN];
+static SlWlanNetworkEntry_t _wifi_endpoints[MAX_WIFI_EP_PER_SCAN];
 static xSemaphoreHandle _wifi_smphr;
 static hlo_future_t * scan_results;
 

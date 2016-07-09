@@ -9,7 +9,7 @@
 #include "socket.h"
 #include "hw_ver.h"
 typedef struct{
-	Sl_WlanNetworkEntry_t * entries;
+	SlWlanNetworkEntry_t * entries;
 	size_t max_entries;
 	int antenna;
 	int duration_ms;
@@ -29,7 +29,7 @@ static void resolve(hlo_future_t * result, void * ctx){
 }
 void antsel(unsigned char a);
 
-static void reselect_antenna(Sl_WlanNetworkEntry_t * entries, int num_entries ) {
+static void reselect_antenna(SlWlanNetworkEntry_t * entries, int num_entries ) {
 	if( num_entries == 0 ) {
 		return;
 	}
@@ -222,7 +222,7 @@ static int scan(scan_desc_t * desc){
 	//do not need to capture any values since we are storing it directly to network list
 	return r;
 }
-static int scan_for_wifi(Sl_WlanNetworkEntry_t * result, size_t max_entries, int ant_select, int duration){
+static int scan_for_wifi(SlWlanNetworkEntry_t * result, size_t max_entries, int ant_select, int duration){
 	scan_desc_t desc = (scan_desc_t){
 		.entries = result,
 		.max_entries = max_entries,
@@ -232,11 +232,11 @@ static int scan_for_wifi(Sl_WlanNetworkEntry_t * result, size_t max_entries, int
 	return scan( &desc );
 }
 static void worker_scan_unique(hlo_future_t * result, void * ctx){
-	Sl_WlanNetworkEntry_t entries[10] = {0};
+	SlWlanNetworkEntry_t entries[10] = {0};
 	hlo_future_write(result, entries, sizeof(entries), get_unique_wifi_list(entries, 10));
 }
 
-static void SortByRSSI(Sl_WlanNetworkEntry_t* netEntries,
+static void SortByRSSI(SlWlanNetworkEntry_t* netEntries,
                                             unsigned char ucSSIDCount){
     Sl_WlanNetworkEntry_t tTempNetEntry;
     unsigned char ucCount, ucSwapped;

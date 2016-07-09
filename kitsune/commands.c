@@ -1502,7 +1502,7 @@ int Cmd_generate_factory_data(int argc,char * argv[]) {
 	int pos=0;
 	unsigned char mac[6];
 	unsigned char mac_len;
-	sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
+	sl_NetCfgGet(SL_NETCFG_MAC_ADDRESS_GET, NULL, &mac_len, mac);
 	memcpy(entropy_pool+pos, mac, 6);
 	pos+=6;
 	uint32_t now = xTaskGetTickCount();
@@ -2193,7 +2193,7 @@ void vUARTTask(void *pvParameters) {
 
 	unsigned char mac[6];
 	unsigned char mac_len;
-	sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
+	sl_NetCfgGet(SL_NETCFG_MAC_ADDRESS_GET, NULL, &mac_len, mac);
 	UARTprintf("*");
 
 	if (sl_mode == ROLE_AP || !wifi_status_get(0xFFFFFFFF)) {
