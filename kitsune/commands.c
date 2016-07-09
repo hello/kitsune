@@ -221,7 +221,7 @@ int Cmd_fs_write(int argc, char *argv[]) {
 	sl_FsGetInfo((unsigned char*)argv[1], tok, &info);
 
 	if (sl_FsOpen((unsigned char*)argv[1],
-	FS_MODE_OPEN_WRITE, &tok, &hndl)) {
+			SL_FS_WRITE, &tok, &hndl)) {
 		LOGF("error opening file, trying to create\n");
 
 		if (sl_FsOpen((unsigned char*)argv[1],
@@ -1921,14 +1921,14 @@ int Cmd_uptime(int argc, char *argv[]) {
 
 #define ARR_LEN(x) (sizeof(x)/sizeof(x[0]))
 static void print_nwp_version() {
-	SlVersionFull ver;
+	SlDeviceVersion_t ver;
 	uint8_t pConfigOpt, pConfigLen, i;
 
 	pConfigOpt = SL_DEVICE_GENERAL_VERSION;
 
-	pConfigLen = sizeof(SlVersionFull);
+	pConfigLen = sizeof(SlDeviceVersion_t);
 
-	if( 0 == sl_DevGet(SL_DEVICE_GENERAL_CONFIGURATION,&pConfigOpt,&pConfigLen,(uint8_t *)(&ver)) ) {
+	if( 0 == sl_DevGet(SL_DEVICE_GENERAL,&pConfigOpt,&pConfigLen,(uint8_t *)(&ver)) ) {
 		LOGI("FW " );
 		for(i=0;i<ARR_LEN(ver.ChipFwAndPhyVersion.FwVersion);++i) {
 			LOGI("%d.", ver.ChipFwAndPhyVersion.FwVersion[i] );

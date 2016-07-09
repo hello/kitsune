@@ -262,7 +262,7 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type,
 			int _connected_index = INV_INDEX;
 			int16_t ret = 0;
 			uint8_t retry = 5;
-			SlSecParams_t secParam = make_sec_params(ssid, password, security_type, version);
+			SlWlanSecParams_t secParam = make_sec_params(ssid, password, security_type, version);
 
 			ret = sl_WlanProfileDel(0xFF);
 			while(sl_WlanProfileAdd((_i8*) ssid, strlen(ssid), NULL,
@@ -279,7 +279,7 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type,
 			SlGetSecParamsExt_t extSec;
 			uint32_t priority;
 			int16_t namelen;
-			SlSecParams_t secParam;
+			SlWlanSecParams_t secParam;
 			nwp_reset();
 			if( 0 < sl_WlanProfileGet(0,(_i8*)ssid, &namelen, (_u8*)mac, &secParam, &extSec, (_u32*)&priority)) {
 				sl_WlanConnect((_i8*) ssid, strlen(ssid), NULL, &secParam, 0);

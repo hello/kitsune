@@ -320,7 +320,7 @@ int get_unique_wifi_list(SlWlanNetworkEntry_t * result, size_t num_entries){
 		DISP("Retrying PCB %d\r\n", retries);
 	}
 	while(--ret > 0){
-		pcb_list[ret].reserved[0] = PCB_ANT;
+		pcb_list[ret].Reserved[0] = PCB_ANT;
 		pcb_list[ret].SsidLen = 0;
 		tally += _replace_ssid_by_rssi(result, num_entries, &pcb_list[ret]);
 	}

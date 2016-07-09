@@ -28,7 +28,7 @@ void check_hw_version() {
 
 	sl_FsGetInfo(HW_VER_FILE, tok, &info);
 
-	err = sl_FsOpen(HW_VER_FILE, FS_MODE_OPEN_READ, &tok, &hndl);
+	err = sl_FsOpen(HW_VER_FILE, SL_FS_READ, &tok, &hndl);
 	if (err) {
 		LOGI("error opening for read %d\n", err);
 		return;

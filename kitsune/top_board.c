@@ -294,7 +294,7 @@ static int _prep_file(const char * name, uint32_t * out_fsize, uint16_t * out_cr
 	uint16_t crc = 0xFFFFu;
 	SlFsFileInfo_t info;
 	sl_FsGetInfo((unsigned char*)name, tok, &info);
-	if(sl_FsOpen((unsigned char*)name, FS_MODE_OPEN_READ, &tok, &hndl)){
+	if(sl_FsOpen((unsigned char*)name, SL_FS_READ, &tok, &hndl)){
 		LOGI("error opening for read %s.\r\n", name);
 		return -1;
 	}else{

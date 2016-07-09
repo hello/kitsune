@@ -123,9 +123,9 @@ time_t get_sl_time() {
 	SlDateTime_t sl_tm;
 	struct tm dt;
 	memset(&sl_tm, 0, sizeof(sl_tm));
-	uint8_t cfg = SL_DEVICE_GENERAL_CONFIGURATION_DATE_TIME;
+	uint8_t cfg = SL_DEVICE_GENERAL_DATE_TIME;
 	uint8_t sz = sizeof(SlDateTime_t);
-	sl_DevGet(SL_DEVICE_GENERAL_CONFIGURATION, &cfg, &sz,
+	sl_DevGet(SL_DEVICE_GENERAL, &cfg, &sz,
 			(unsigned char * )(&sl_tm));
 
 	dt.tm_mday = sl_tm.tm_day;
@@ -152,13 +152,13 @@ void set_sl_time(time_t unix_timestamp_sec) {
     sl_tm.tm_sec = dt->tm_sec;
     sl_tm.tm_year = dt->tm_year + 1900;
 
-	sl_DevSet(SL_DEVICE_GENERAL_CONFIGURATION,
-			  SL_DEVICE_GENERAL_CONFIGURATION_DATE_TIME,
+	sl_DevSet(SL_DEVICE_GENERAL,
+			SL_DEVICE_GENERAL_DATE_TIME,
 			  sizeof(SlDateTime_t),(unsigned char *)(&sl_tm));
 	memset(&sl_tm, 0, sizeof(sl_tm));
 	uint8_t cfg = SL_DEVICE_GENERAL_CONFIGURATION_DATE_TIME;
 	uint8_t sz = sizeof(SlDateTime_t);
-	sl_DevGet(SL_DEVICE_GENERAL_CONFIGURATION,
+	sl_DevGet(SL_DEVICE_GENERAL,
 			  &cfg,
 			  &sz,
 			  (unsigned char *)(&sl_tm));
@@ -442,7 +442,7 @@ int Cmd_time_test(int argc, char * argv[]) {
 			memset(&sl_tm, 0, sizeof(sl_tm));
 			uint8_t cfg = SL_DEVICE_GENERAL_CONFIGURATION_DATE_TIME;
 			uint8_t sz = sizeof(SlDateTime_t);
-			sl_DevGet(SL_DEVICE_GENERAL_CONFIGURATION, &cfg, &sz,
+			sl_DevGet(SL_DEVICE_GENERAL, &cfg, &sz,
 					(unsigned char * )(&sl_tm));
 
 			dt.tm_mday = mon_len[m];

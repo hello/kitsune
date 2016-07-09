@@ -24,13 +24,13 @@ static bool _encode_wifi_scan_result_fields(pb_ostream_t *stream, const pb_field
     }
 
 	wifi_endpoint data = {0};
-	char ssid[MAXIMAL_SSID_LENGTH + 1] = {0};
+	char ssid[SL_WLAN_SSID_MAX_LENGTH + 1] = {0};
 	strncpy(ssid, (char*)wifi_ap->Ssid, SL_WLAN_SSID_MAX_LENGTH + 1);
 	data.ssid.funcs.encode = _encode_string_fields;
 	data.ssid.arg = ssid;
 
 	array_data arr = {0};
-	arr.length = SL_BSSID_LENGTH;
+	arr.length = SL_WLAN_BSSID_LENGTH;
 	arr.buffer = wifi_ap->Bssid;
 	data.bssid.funcs.encode = _encode_bytes_fields;
 	data.bssid.arg = &arr;

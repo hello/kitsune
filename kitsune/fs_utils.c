@@ -16,7 +16,7 @@ int fs_get( char * file, void * data, int max_rd, int * len ) {
 	int RetVal, Offset;
 
 	// read in aes key
-	RetVal = sl_FsOpen((const _u8*)file, FS_MODE_OPEN_READ, NULL, &hndl);
+	RetVal = sl_FsOpen((const _u8*)file, SL_FS_READ, NULL, &hndl);
 	if (RetVal != 0) {
 		LOGE("failed to open %s\n", file);
 		return RetVal;
@@ -41,7 +41,7 @@ int fs_save( char* file, void* data, int len) {
 
 	sl_FsGetInfo((unsigned char*)file, tok, &info);
 
-	if (sl_FsOpen((unsigned char*)file, FS_MODE_OPEN_WRITE, &tok, &hndl)) {
+	if (sl_FsOpen((unsigned char*)file, SL_FS_WRITE, &tok, &hndl)) {
 		LOGI("error opening file, trying to create\n");
 
 		if (sl_FsOpen((unsigned char*)file,

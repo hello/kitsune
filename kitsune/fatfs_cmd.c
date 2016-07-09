@@ -930,7 +930,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 	    strcat(path_buff, filename);
 
 	    long lRetVal = sl_FsOpen((unsigned char*)path_buff,
-	                       FS_MODE_OPEN_WRITE, &Token, &fileHandle);
+	    		SL_FS_WRITE, &Token, &fileHandle);
 	    if(lRetVal < 0)
 	    {
 	        // File Doesn't exit create a new of 256 KB file
@@ -954,7 +954,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
     while (recv_size > 0)
     {
         int retries = 0;
-        int recv_res = SL_EAGAIN;
+        int recv_res = EAGAIN;
 		while( ++retries < 1000 && transfer_len < MAX_BUFF_SIZE && recv_res == SL_EAGAIN ) {
 			recv_res = recv(dl_sock, g_buff + transfer_len, MAX_BUFF_SIZE - transfer_len, 0);
 			//DISP( "r %d ", recv_res);
@@ -1252,7 +1252,7 @@ static _i32 _WriteBootInfo(sBootInfo_t *psBootInfo)
     }
 
 
-	if (sl_FsOpen((unsigned char *)IMG_BOOT_INFO, FS_MODE_OPEN_WRITE, &ulBootInfoToken, &hndl)) {
+	if (sl_FsOpen((unsigned char *)IMG_BOOT_INFO, SL_FS_WRITE, &ulBootInfoToken, &hndl)) {
 		LOGI("error opening file, trying to create\n");
 
 		if (sl_FsOpen((unsigned char *)IMG_BOOT_INFO, ulBootInfoCreateFlag, &ulBootInfoToken, &hndl)) {
@@ -1700,7 +1700,7 @@ int sf_sha1_verify(const char * sha_truth, const char * serial_file_path){
     //fetch path info
     LOGI( "computing SHA of %s\n", serial_file_path);
     sl_FsGetInfo((unsigned char*)serial_file_path, tok, &info);
-    err = sl_FsOpen((unsigned char*)serial_file_path, FS_MODE_OPEN_READ, &tok, &hndl);
+    err = sl_FsOpen((unsigned char*)serial_file_path, SL_FS_READ, &tok, &hndl);
     if (err) {
         LOGI("error opening for read %d\n", err);
         return -1;

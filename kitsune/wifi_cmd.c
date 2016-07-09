@@ -349,7 +349,7 @@ int Cmd_country(int argc, char *argv[]) {
 	LOGF("country <code, either US, JP, or EU>\n");
 	if (argc != 2) {
 	    _u16 len = 4;
-	    _u16  config_opt = WLAN_GENERAL_PARAM_OPT_COUNTRY_CODE;
+	    _u16  config_opt = SL_WLAN_GENERAL_PARAM_OPT_COUNTRY_CODE;
 	    _u8 cc[4];
 	    sl_WlanGet(SL_WLAN_CFG_GENERAL_PARAM_ID, &config_opt, &len, (_u8* )cc);
 		LOGF("Country code %s\n",cc);
@@ -357,7 +357,7 @@ int Cmd_country(int argc, char *argv[]) {
 	}
 
 	sl_WlanSet(SL_WLAN_CFG_GENERAL_PARAM_ID,
-			WLAN_GENERAL_PARAM_OPT_COUNTRY_CODE, 2, (uint8_t*)argv[1]);
+			SL_WLAN_GENERAL_PARAM_OPT_COUNTRY_CODE, 2, (uint8_t*)argv[1]);
 
 	nwp_reset();
 	return 0;
@@ -2103,7 +2103,7 @@ int Cmd_sl(int argc, char*argv[]) {
      * This example uses the unsecured SmartConfig method
      */
     sl_WlanSmartConfigStart(0,                          //groupIdBitmask
-            SMART_CONFIG_CIPHER_NONE,    //cipher
+            SL_WLAN_SMART_CONFIG_CIPHER_NONE,    //cipher
             0,                           //publicKeyLen
             0,                           //group1KeyLen
             0,                           //group2KeyLen
@@ -2509,9 +2509,9 @@ int Cmd_RadioStopTX(int argc, char*argv[])
 //end radio test functions
 #endif
 
-SlSecParams_t make_sec_params(const char* ssid, const char* password, int sec_type, int version)
+SlWlanSecParams_t make_sec_params(const char* ssid, const char* password, int sec_type, int version)
 {
-	SlSecParams_t secParam = {0};
+	SlWlanSecParams_t secParam = {0};
 
 	if(sec_type == 3 ) {
 		sec_type = 2;
@@ -2544,7 +2544,7 @@ int connect_wifi(const char* ssid, const char* password, int sec_type, int versi
 {
 	static uint32_t priority = 0;
 	int16_t ret = 0;
-	SlSecParams_t secParam = make_sec_params(ssid, password, sec_type, version);
+	SlWlanSecParams_t secParam = make_sec_params(ssid, password, sec_type, version);
 
 	ret = sl_WlanConnect((_i8*) ssid, strlen(ssid), NULL, sec_type == SL_SEC_TYPE_OPEN ? NULL : &secParam, 0);
 
