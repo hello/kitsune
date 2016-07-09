@@ -212,7 +212,7 @@ static bool _set_wifi(const char* ssid, const char* password, int security_type,
     	if( !strcmp( (char*)_wifi_endpoints[i].ssid, ssid ) ) {
     		antsel(_wifi_endpoints[i].reserved[0]);
     		save_default_antenna( _wifi_endpoints[i].reserved[0] );
-    		LOGI("RSSI %d\r\n", ssid, _wifi_endpoints[i].rssi);
+    		LOGI("RSSI %d\r\n", ssid, _wifi_endpoints[i].Rssi);
     		break;
     	}
     }

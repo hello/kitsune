@@ -45,7 +45,7 @@ int fs_save( char* file, void* data, int len) {
 		LOGI("error opening file, trying to create\n");
 
 		if (sl_FsOpen((unsigned char*)file,
-				FS_MODE_OPEN_CREATE(65535, _FS_FILE_OPEN_FLAG_COMMIT), &tok,
+				FS_MODE_OPEN_CREATE(65535, SL_FS_FILE_OPEN_FLAG_COMMIT), &tok,
 				&hndl)) {
 			LOGI("error opening for write\n");
 			return -1;

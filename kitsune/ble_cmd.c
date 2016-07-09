@@ -55,10 +55,10 @@ static bool _encode_wifi_scan_result_fields(pb_ostream_t *stream, const pb_field
 		break;
 	}
 
-	data.rssi = wifi_ap->rssi;
+	data.rssi = wifi_ap->Rssi;
 
 	if (!pb_encode_tag(stream, PB_WT_STRING, field->tag)){
-		LOGI("Fail to encode tag for wifi ap %s\r\n", wifi_ap->ssid);
+		LOGI("Fail to encode tag for wifi ap %s\r\n", wifi_ap->Ssid);
 	}else{
 
 		pb_ostream_t sizestream = { 0 };

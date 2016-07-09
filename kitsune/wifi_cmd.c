@@ -591,7 +591,7 @@ int get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uin
     	antsel(antenna);
     }
 
-    r = sl_WlanPolicySet(SL_POLICY_CONNECTION , policyOpt, NULL, 0);
+    r = sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION , policyOpt, NULL, 0);
 
     // Make sure scan is enabled
     policyOpt = SL_SCAN_POLICY(1);
@@ -608,7 +608,7 @@ int get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uin
     r = sl_WlanGetNetworkList(0, entry_len, entries);
 
     // Restore connection policy to Auto
-    sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0), NULL, 0);
+    sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0), NULL, 0);
 
     return r;
 
@@ -2096,7 +2096,7 @@ int Cmd_sl(int argc, char*argv[]) {
     //sl_WlanProfileDel(WLAN_DEL_ALL_PROFILES);
 
     //set AUTO policy
-    sl_WlanPolicySet( SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0),
+    sl_WlanPolicySet( SL_WLAN_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0),
             &policyVal, 1 /*PolicyValLen*/);
 
     /* Start SmartConfig

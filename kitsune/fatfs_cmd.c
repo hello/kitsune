@@ -936,7 +936,7 @@ int GetData(char * filename, char* url, char * host, char * path, storage_dev_t 
 	        // File Doesn't exit create a new of 256 KB file
 	        lRetVal = sl_FsOpen((unsigned char*)path_buff, \
 	                           FS_MODE_OPEN_CREATE(256*1024, \
-	                           _FS_FILE_OPEN_FLAG_COMMIT|_FS_FILE_PUBLIC_WRITE),
+	                           SL_FS_FILE_OPEN_FLAG_COMMIT|SL_FS_FILE_PUBLIC_WRITE),
 	                           &Token, &fileHandle);
 			if (lRetVal < 0) {
 				vPortFree(g_buff);
@@ -1237,7 +1237,7 @@ static _i32 _WriteBootInfo(sBootInfo_t *psBootInfo)
     //
     // Initialize boot info file create flag
     //
-    ulBootInfoCreateFlag  = FS_MODE_OPEN_CREATE(256, _FS_FILE_OPEN_FLAG_COMMIT|_FS_FILE_PUBLIC_WRITE);
+    ulBootInfoCreateFlag  = FS_MODE_OPEN_CREATE(256, SL_FS_FILE_OPEN_FLAG_COMMIT|SL_FS_FILE_PUBLIC_WRITE);
 
     //
     // Check if its a secure MCU
@@ -1246,9 +1246,9 @@ static _i32 _WriteBootInfo(sBootInfo_t *psBootInfo)
     {
         LOGI("Boot info is secure mcu\r\n");
         ulBootInfoToken       = USER_BOOT_INFO_TOKEN;
-        ulBootInfoCreateFlag  = _FS_FILE_OPEN_FLAG_COMMIT|_FS_FILE_OPEN_FLAG_SECURE|
-            _FS_FILE_OPEN_FLAG_NO_SIGNATURE_TEST|
-            _FS_FILE_PUBLIC_WRITE|_FS_FILE_OPEN_FLAG_VENDOR;
+        ulBootInfoCreateFlag  = SL_FS_FILE_OPEN_FLAG_COMMIT|SL_FS_FILE_OPEN_FLAG_SECURE|
+            SL_FS_FILE_OPEN_FLAG_NO_SIGNATURE_TEST|
+            SL_FS_FILE_PUBLIC_WRITE|SL_FS_FILE_OPEN_FLAG_VENDOR;
     }
 
 

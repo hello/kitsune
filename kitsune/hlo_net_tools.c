@@ -199,7 +199,7 @@ static int scan(scan_desc_t * desc){
 
 	sl_enter_critical_region();
 
-	int r = sl_WlanPolicySet(SL_POLICY_CONNECTION , policyOpt, NULL, 0);
+	int r = sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION , policyOpt, NULL, 0);
 
     // Make sure scan is enabled
     policyOpt = SL_SCAN_POLICY(1);
@@ -216,7 +216,7 @@ static int scan(scan_desc_t * desc){
 	r = sl_WlanGetNetworkList(0, desc->max_entries, desc->entries);
 
 	// Restore connection policy to Auto
-	sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0), NULL, 0);
+	sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0), NULL, 0);
 
 	sl_exit_critical_region();
 	//do not need to capture any values since we are storing it directly to network list
@@ -244,7 +244,7 @@ static void SortByRSSI(SlWlanNetworkEntry_t* netEntries,
         ucSwapped = 0;
         for(ucCount =0; ucCount < ucSSIDCount - 1; ucCount++)
         {
-           if(netEntries[ucCount].rssi < netEntries[ucCount + 1].rssi)
+           if(netEntries[ucCount].Rssi < netEntries[ucCount + 1].Rssi)
            {
               tTempNetEntry = netEntries[ucCount];
               netEntries[ucCount] = netEntries[ucCount + 1];
@@ -293,7 +293,7 @@ int get_unique_wifi_list(Sl_WlanNetworkEntry_t * result, size_t num_entries){
 
 	DISP("Scan begin\n");
 
-	sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(0, 0, 0, 0, 0), NULL, 0);
+	sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION, SL_CONNECTION_POLICY(0, 0, 0, 0, 0), NULL, 0);
 	sl_WlanDisconnect();
 	vTaskDelay(100);
 
@@ -325,7 +325,7 @@ int get_unique_wifi_list(Sl_WlanNetworkEntry_t * result, size_t num_entries){
 		tally += _replace_ssid_by_rssi(result, num_entries, &pcb_list[ret]);
 	}
 exit:
-	sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0), NULL, 0);
+	sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0), NULL, 0);
 
 	if(ifa_list){vPortFree(ifa_list);}
 	if(pcb_list){vPortFree(pcb_list);}

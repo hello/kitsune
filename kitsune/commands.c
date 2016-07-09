@@ -225,7 +225,7 @@ int Cmd_fs_write(int argc, char *argv[]) {
 		LOGF("error opening file, trying to create\n");
 
 		if (sl_FsOpen((unsigned char*)argv[1],
-				FS_MODE_OPEN_CREATE(65535, _FS_FILE_OPEN_FLAG_COMMIT), &tok,
+				FS_MODE_OPEN_CREATE(65535, SL_FS_FILE_OPEN_FLAG_COMMIT), &tok,
 				&hndl)) {
 			LOGF("error opening for write\n");
 			return -1;
@@ -1419,16 +1419,16 @@ int Cmd_tasks(int argc, char *argv[]) {
 
 #define SCAN_TABLE_SIZE   20
 
-static void SortByRSSI(Sl_WlanNetworkEntry_t* netEntries,
+static void SortByRSSI(SlWlanNetworkEntry_t* netEntries,
                                             unsigned char ucSSIDCount)
 {
-    Sl_WlanNetworkEntry_t tTempNetEntry;
+	SlWlanNetworkEntry_t tTempNetEntry;
     unsigned char ucCount, ucSwapped;
     do{
         ucSwapped = 0;
         for(ucCount =0; ucCount < ucSSIDCount - 1; ucCount++)
         {
-           if(netEntries[ucCount].rssi < netEntries[ucCount + 1].rssi)
+           if(netEntries[ucCount].Rssi < netEntries[ucCount + 1].Rssi)
            {
               tTempNetEntry = netEntries[ucCount];
               netEntries[ucCount] = netEntries[ucCount + 1];
@@ -1445,7 +1445,7 @@ int Cmd_rssi(int argc, char *argv[]) {
 	int antenna = 0; // 0 does not change the antenna
 	int duration = 1000;
 
-	Sl_WlanNetworkEntry_t g_netEntries[SCAN_TABLE_SIZE];
+	SlWlanNetworkEntry_t g_netEntries[SCAN_TABLE_SIZE];
 
 	if (argc == 2) {
 		duration = atoi(argv[1]);
@@ -1460,7 +1460,7 @@ int Cmd_rssi(int argc, char *argv[]) {
 
     LOGF( "SSID RSSI\n" );
 	for(i=0;i<lCountSSID;++i) {
-		LOGF( "%s %d\n", g_netEntries[i].ssid, g_netEntries[i].rssi );
+		LOGF( "%s %d\n", g_netEntries[i].Ssid, g_netEntries[i].Rssi );
 	}
 	return 0;
 }
@@ -2187,7 +2187,7 @@ void vUARTTask(void *pvParameters) {
 	antsel(get_default_antenna());
 
 	// Set connection policy to Auto
-	sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0), NULL, 0);
+	sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0), NULL, 0);
 
 	UARTprintf("*");
 
