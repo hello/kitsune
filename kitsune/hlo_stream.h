@@ -31,6 +31,9 @@ typedef struct hlo_stream_info_t{
 	bool end;
 }hlo_stream_info_t;
 
+#undef write
+#undef read
+#undef close
 typedef struct{
 	int (*write)(void * ctx, const void * buf, size_t size);
 	int (*read)(void * ctx, void * buf, size_t size);
