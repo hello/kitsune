@@ -1,37 +1,35 @@
-//*****************************************************************************
-//
-//  Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com/
-//
-//
-//  Redistribution and use in source and binary forms, with or without
-//  modification, are permitted provided that the following conditions
-//  are met:
-//
-//    Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-//
-//    Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the
-//    distribution.
-//
-//    Neither the name of Texas Instruments Incorporated nor the names of
-//    its contributors may be used to endorse or promote products derived
-//    from this software without specific prior written permission.
-//
-//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-//  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-//  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-//  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-//  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-//  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-//  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-//  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-//  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-//  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//
-//*****************************************************************************
+/*
+ *  Copyright (C) 2015 Texas Instruments Incorporated - http://www.ti.com/ 
+ *  
+ *  Redistribution and use in source and binary forms, with or without 
+ *  modification, are permitted provided that the following conditions 
+ *  are met:
+ *
+ *    Redistributions of source code must retain the above copyright 
+ *    notice, this list of conditions and the following disclaimer.
+ *
+ *    Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the 
+ *    documentation and/or other materials provided with the   
+ *    distribution.
+ *
+ *    Neither the name of Texas Instruments Incorporated nor the names of
+ *    its contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT 
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ *  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT 
+ *  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
+ *  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT 
+ *  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ *  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ *  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
+ *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
+ *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *  
+ */
 
 #ifndef __HW_UDMA_H__
 #define __HW_UDMA_H__
@@ -242,84 +240,84 @@
 // The following are defines for the bit fields in the UDMA_O_CHMAP0 register.
 //
 //******************************************************************************
-#define UDMA_CHMAP0_CH7SEL_M  0xF0000000  // uDMA Channel 7 source Select
+#define UDMA_CHMAP0_CH7SEL_M  0xF0000000  // uDMA Channel 7 Source Select
 #define UDMA_CHMAP0_CH7SEL_S  28
-#define UDMA_CHMAP0_CH6SEL_M  0x0F000000  // uDMA Channel 6 source Select
+#define UDMA_CHMAP0_CH6SEL_M  0x0F000000  // uDMA Channel 6 Source Select
 #define UDMA_CHMAP0_CH6SEL_S  24
-#define UDMA_CHMAP0_CH5SEL_M  0x00F00000  // uDMA Channel 5 source Select
+#define UDMA_CHMAP0_CH5SEL_M  0x00F00000  // uDMA Channel 5 Source Select
 #define UDMA_CHMAP0_CH5SEL_S  20
-#define UDMA_CHMAP0_CH4SEL_M  0x000F0000  // uDMA Channel 4 source Select
+#define UDMA_CHMAP0_CH4SEL_M  0x000F0000  // uDMA Channel 4 Source Select
 #define UDMA_CHMAP0_CH4SEL_S  16
-#define UDMA_CHMAP0_CH3SEL_M  0x0000F000  // uDMA Channel 3 source Select
+#define UDMA_CHMAP0_CH3SEL_M  0x0000F000  // uDMA Channel 3 Source Select
 #define UDMA_CHMAP0_CH3SEL_S  12
-#define UDMA_CHMAP0_CH2SEL_M  0x00000F00  // uDMA Channel 2 source Select
+#define UDMA_CHMAP0_CH2SEL_M  0x00000F00  // uDMA Channel 2 Source Select
 #define UDMA_CHMAP0_CH2SEL_S  8
-#define UDMA_CHMAP0_CH1SEL_M  0x000000F0  // uDMA Channel 1 source Select
+#define UDMA_CHMAP0_CH1SEL_M  0x000000F0  // uDMA Channel 1 Source Select
 #define UDMA_CHMAP0_CH1SEL_S  4
-#define UDMA_CHMAP0_CH0SEL_M  0x0000000F  // uDMA Channel 0 source Select
+#define UDMA_CHMAP0_CH0SEL_M  0x0000000F  // uDMA Channel 0 Source Select
 #define UDMA_CHMAP0_CH0SEL_S  0
 //******************************************************************************
 //
 // The following are defines for the bit fields in the UDMA_O_CHMAP1 register.
 //
 //******************************************************************************
-#define UDMA_CHMAP1_CH15SEL_M 0xF0000000  // uDMA Channel 15 source Select
+#define UDMA_CHMAP1_CH15SEL_M 0xF0000000  // uDMA Channel 15 Source Select
 #define UDMA_CHMAP1_CH15SEL_S 28
-#define UDMA_CHMAP1_CH14SEL_M 0x0F000000  // uDMA Channel 14 source Select
+#define UDMA_CHMAP1_CH14SEL_M 0x0F000000  // uDMA Channel 14 Source Select
 #define UDMA_CHMAP1_CH14SEL_S 24
-#define UDMA_CHMAP1_CH13SEL_M 0x00F00000  // uDMA Channel 13 source Select
+#define UDMA_CHMAP1_CH13SEL_M 0x00F00000  // uDMA Channel 13 Source Select
 #define UDMA_CHMAP1_CH13SEL_S 20
-#define UDMA_CHMAP1_CH12SEL_M 0x000F0000  // uDMA Channel 12 source Select
+#define UDMA_CHMAP1_CH12SEL_M 0x000F0000  // uDMA Channel 12 Source Select
 #define UDMA_CHMAP1_CH12SEL_S 16
-#define UDMA_CHMAP1_CH11SEL_M 0x0000F000  // uDMA Channel 11 source Select
+#define UDMA_CHMAP1_CH11SEL_M 0x0000F000  // uDMA Channel 11 Source Select
 #define UDMA_CHMAP1_CH11SEL_S 12
-#define UDMA_CHMAP1_CH10SEL_M 0x00000F00  // uDMA Channel 10 source Select
+#define UDMA_CHMAP1_CH10SEL_M 0x00000F00  // uDMA Channel 10 Source Select
 #define UDMA_CHMAP1_CH10SEL_S 8
-#define UDMA_CHMAP1_CH9SEL_M  0x000000F0  // uDMA Channel 9 source Select
+#define UDMA_CHMAP1_CH9SEL_M  0x000000F0  // uDMA Channel 9 Source Select
 #define UDMA_CHMAP1_CH9SEL_S  4
-#define UDMA_CHMAP1_CH8SEL_M  0x0000000F  // uDMA Channel 8 source Select
+#define UDMA_CHMAP1_CH8SEL_M  0x0000000F  // uDMA Channel 8 Source Select
 #define UDMA_CHMAP1_CH8SEL_S  0
 //******************************************************************************
 //
 // The following are defines for the bit fields in the UDMA_O_CHMAP2 register.
 //
 //******************************************************************************
-#define UDMA_CHMAP2_CH23SEL_M 0xF0000000  // uDMA Channel 23 source Select
+#define UDMA_CHMAP2_CH23SEL_M 0xF0000000  // uDMA Channel 23 Source Select
 #define UDMA_CHMAP2_CH23SEL_S 28
-#define UDMA_CHMAP2_CH22SEL_M 0x0F000000  // uDMA Channel 22 source Select
+#define UDMA_CHMAP2_CH22SEL_M 0x0F000000  // uDMA Channel 22 Source Select
 #define UDMA_CHMAP2_CH22SEL_S 24
-#define UDMA_CHMAP2_CH21SEL_M 0x00F00000  // uDMA Channel 21 source Select
+#define UDMA_CHMAP2_CH21SEL_M 0x00F00000  // uDMA Channel 21 Source Select
 #define UDMA_CHMAP2_CH21SEL_S 20
-#define UDMA_CHMAP2_CH20SEL_M 0x000F0000  // uDMA Channel 20 source Select
+#define UDMA_CHMAP2_CH20SEL_M 0x000F0000  // uDMA Channel 20 Source Select
 #define UDMA_CHMAP2_CH20SEL_S 16
-#define UDMA_CHMAP2_CH19SEL_M 0x0000F000  // uDMA Channel 19 source Select
+#define UDMA_CHMAP2_CH19SEL_M 0x0000F000  // uDMA Channel 19 Source Select
 #define UDMA_CHMAP2_CH19SEL_S 12
-#define UDMA_CHMAP2_CH18SEL_M 0x00000F00  // uDMA Channel 18 source Select
+#define UDMA_CHMAP2_CH18SEL_M 0x00000F00  // uDMA Channel 18 Source Select
 #define UDMA_CHMAP2_CH18SEL_S 8
-#define UDMA_CHMAP2_CH17SEL_M 0x000000F0  // uDMA Channel 17 source Select
+#define UDMA_CHMAP2_CH17SEL_M 0x000000F0  // uDMA Channel 17 Source Select
 #define UDMA_CHMAP2_CH17SEL_S 4
-#define UDMA_CHMAP2_CH16SEL_M 0x0000000F  // uDMA Channel 16 source Select
+#define UDMA_CHMAP2_CH16SEL_M 0x0000000F  // uDMA Channel 16 Source Select
 #define UDMA_CHMAP2_CH16SEL_S 0
 //******************************************************************************
 //
 // The following are defines for the bit fields in the UDMA_O_CHMAP3 register.
 //
 //******************************************************************************
-#define UDMA_CHMAP3_CH31SEL_M 0xF0000000  // uDMA Channel 31 source Select
+#define UDMA_CHMAP3_CH31SEL_M 0xF0000000  // uDMA Channel 31 Source Select
 #define UDMA_CHMAP3_CH31SEL_S 28
-#define UDMA_CHMAP3_CH30SEL_M 0x0F000000  // uDMA Channel 30 source Select
+#define UDMA_CHMAP3_CH30SEL_M 0x0F000000  // uDMA Channel 30 Source Select
 #define UDMA_CHMAP3_CH30SEL_S 24
-#define UDMA_CHMAP3_CH29SEL_M 0x00F00000  // uDMA Channel 29 source Select
+#define UDMA_CHMAP3_CH29SEL_M 0x00F00000  // uDMA Channel 29 Source Select
 #define UDMA_CHMAP3_CH29SEL_S 20
-#define UDMA_CHMAP3_CH28SEL_M 0x000F0000  // uDMA Channel 28 source Select
+#define UDMA_CHMAP3_CH28SEL_M 0x000F0000  // uDMA Channel 28 Source Select
 #define UDMA_CHMAP3_CH28SEL_S 16
-#define UDMA_CHMAP3_CH27SEL_M 0x0000F000  // uDMA Channel 27 source Select
+#define UDMA_CHMAP3_CH27SEL_M 0x0000F000  // uDMA Channel 27 Source Select
 #define UDMA_CHMAP3_CH27SEL_S 12
-#define UDMA_CHMAP3_CH26SEL_M 0x00000F00  // uDMA Channel 26 source Select
+#define UDMA_CHMAP3_CH26SEL_M 0x00000F00  // uDMA Channel 26 Source Select
 #define UDMA_CHMAP3_CH26SEL_S 8
-#define UDMA_CHMAP3_CH25SEL_M 0x000000F0  // uDMA Channel 25 source Select
+#define UDMA_CHMAP3_CH25SEL_M 0x000000F0  // uDMA Channel 25 Source Select
 #define UDMA_CHMAP3_CH25SEL_S 4
-#define UDMA_CHMAP3_CH24SEL_M 0x0000000F  // uDMA Channel 24 source Select
+#define UDMA_CHMAP3_CH24SEL_M 0x0000000F  // uDMA Channel 24 Source Select
 #define UDMA_CHMAP3_CH24SEL_S 0
 //******************************************************************************
 //

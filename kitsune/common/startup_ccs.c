@@ -1,56 +1,31 @@
+/*
+ *   Copyright (C) 2015 Texas Instruments Incorporated
+ *
+ *   All rights reserved. Property of Texas Instruments Incorporated.
+ *   Restricted rights to use, duplicate or disclose this code are
+ *   granted through contract.
+ *
+ *   The program may not be used without the written permission of
+ *   Texas Instruments Incorporated or against the terms and conditions
+ *   stipulated in the agreement under which this program has been supplied,
+ *   and under no circumstances can it be used with non-TI connectivity device.
+ *   
+ */
+
 //*****************************************************************************
 // startup_ccs.c
 //
 // Startup code for use with TI's Code Composer Studio.
 //
-// Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com/ 
-// 
-// 
-//  Redistribution and use in source and binary forms, with or without 
-//  modification, are permitted provided that the following conditions 
-//  are met:
-//
-//    Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.
-//
-//    Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the 
-//    documentation and/or other materials provided with the   
-//    distribution.
-//
-//    Neither the name of Texas Instruments Incorporated nor the names of
-//    its contributors may be used to endorse or promote products derived
-//    from this software without specific prior written permission.
-//
-//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
-//  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT 
-//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-//  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT 
-//  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
-//  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT 
-//  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-//  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-//  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
-//  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
-//  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//
 //*****************************************************************************
+#ifdef USE_FREERTOS
+extern void vPortSVCHandler(void);
+extern void xPortPendSVHandler(void);
+extern void xPortSysTickHandler(void);
+#endif
 
-#include "hw_ints.h"
-#include "hw_memmap.h"
-#include "hw_types.h"
-#include "hw_uart.h"
-#include "debug.h"
-#include "interrupt.h"
-#include "rom.h"
-#include "rom_map.h"
-#include "uart.h"
-#include "prcm.h"
-#include "pin.h"
 
-#include "fault.h"
-#include "uartstdio.h"
-
+#ifndef USE_TIRTOS	/* if project uses TI-RTOS then no need to include startup file */
 //*****************************************************************************
 //
 // Forward declaration of the default fault handlers.
@@ -58,8 +33,8 @@
 //*****************************************************************************
 void ResetISR(void);
 static void NmiSR(void);
+static void FaultISR(void);
 static void IntDefaultHandler(void);
-static void GPIOIntDefaultHandler(void);
 static void BusFaultHandler(void);
 //*****************************************************************************
 //
@@ -68,18 +43,14 @@ static void BusFaultHandler(void);
 //
 //*****************************************************************************
 extern void _c_int00(void);
-#ifdef USE_FREERTOS
-extern void vPortSVCHandler(void);
-extern void xPortPendSVHandler(void);
-extern void xPortSysTickHandler(void);
-#endif
+
 
 //*****************************************************************************
 //
 // Linker variable that marks the top of the stack.
 //
 //*****************************************************************************
-extern unsigned long __STACK_TOP;
+extern unsigned long __STACK_END;
 
 //*****************************************************************************
 // The vector table.  Note that the proper constructs must be placed on this to
@@ -87,10 +58,10 @@ extern unsigned long __STACK_TOP;
 // the program if located at a start address other than 0.
 //
 //*****************************************************************************
-#pragma DATA_SECTION(g_pfnVectors, ".intvecs")
-void (* const g_pfnVectors[256])(void) =
+#pragma DATA_SECTION(g_pfnVectors, ".resetVecs")
+void (* const g_pfnVectors[16])(void) =
 {
-    (void (*)(void))((unsigned long)&__STACK_TOP),
+    (void (*)(void))((unsigned long)&__STACK_END),
                                             // The initial stack pointer
     ResetISR,                               // The reset handler
     NmiSR,                                  // The NMI handler
@@ -116,61 +87,6 @@ void (* const g_pfnVectors[256])(void) =
     IntDefaultHandler,                      // The PendSV handler
     IntDefaultHandler,                      // The SysTick handler
 #endif
-    GPIOIntDefaultHandler,                      // GPIO Port A
-	GPIOIntDefaultHandler,                      // GPIO Port B
-	GPIOIntDefaultHandler,                      // GPIO Port C
-	GPIOIntDefaultHandler,                      // GPIO Port D
-	GPIOIntDefaultHandler,                      // GPIO Port E
-    IntDefaultHandler,                      // UART0 Rx and Tx
-    IntDefaultHandler,                      // UART1 Rx and Tx
-    IntDefaultHandler,                      // SSI0 Rx and Tx
-    IntDefaultHandler,                      // I2C0 Master and Slave
-    IntDefaultHandler,                      // PWM Fault
-    IntDefaultHandler,                      // PWM Generator 0
-    IntDefaultHandler,                      // PWM Generator 1
-    IntDefaultHandler,                      // PWM Generator 2
-    IntDefaultHandler,                      // Quadrature Encoder 0
-    IntDefaultHandler,                      // ADC Sequence 0
-    IntDefaultHandler,                      // ADC Sequence 1
-    IntDefaultHandler,                      // ADC Sequence 2
-    IntDefaultHandler,                      // ADC Sequence 3
-    IntDefaultHandler,                      // Watchdog timer
-    IntDefaultHandler,                      // Timer 0 subtimer A
-    IntDefaultHandler,                      // Timer 0 subtimer B
-    IntDefaultHandler,                      // Timer 1 subtimer A
-    IntDefaultHandler,                      // Timer 1 subtimer B
-    IntDefaultHandler,                      // Timer 2 subtimer A
-    IntDefaultHandler,                      // Timer 2 subtimer B
-    IntDefaultHandler,                      // Analog Comparator 0
-    IntDefaultHandler,                      // Analog Comparator 1
-    IntDefaultHandler,                      // Analog Comparator 2
-    IntDefaultHandler,                      // System Control (PLL, OSC, BO)
-    IntDefaultHandler,                      // FLASH Control
-    IntDefaultHandler,                      // GPIO Port F
-    IntDefaultHandler,                      // GPIO Port G
-    IntDefaultHandler,                      // GPIO Port H
-    IntDefaultHandler,                      // UART2 Rx and Tx
-    IntDefaultHandler,                      // SSI1 Rx and Tx
-    IntDefaultHandler,                      // Timer 3 subtimer A
-    IntDefaultHandler,                      // Timer 3 subtimer B
-    IntDefaultHandler,                      // I2C1 Master and Slave
-    IntDefaultHandler,                      // Quadrature Encoder 1
-    IntDefaultHandler,                      // CAN0
-    IntDefaultHandler,                      // CAN1
-    IntDefaultHandler,                      // CAN2
-    IntDefaultHandler,                      // Ethernet
-    IntDefaultHandler,                      // Hibernate
-    IntDefaultHandler,                      // USB0
-    IntDefaultHandler,                      // PWM Generator 3
-    IntDefaultHandler,                      // uDMA Software Transfer
-    IntDefaultHandler,                      // uDMA Error
-    IntDefaultHandler,                      // ADC1 Sequence 0
-    IntDefaultHandler,                      // ADC1 Sequence 1
-    IntDefaultHandler,                      // ADC1 Sequence 2
-    IntDefaultHandler,                      // ADC1 Sequence 3
-    IntDefaultHandler,                      // I2S0
-    IntDefaultHandler,                      // External Bus Interface 0
-    IntDefaultHandler                       // GPIO Port J
 };
 
 //*****************************************************************************
@@ -203,7 +119,30 @@ ResetISR(void)
 static void
 NmiSR(void)
 {
-	FaultISR();
+    //
+    // Enter an infinite loop.
+    //
+    while(1)
+    {
+    }
+}
+
+//*****************************************************************************
+//
+// This is the code that gets called when the processor receives a fault
+// interrupt.  This simply enters an infinite loop, preserving the system state
+// for examination by a debugger.
+//
+//*****************************************************************************
+static void
+FaultISR(void)
+{
+    //
+    // Enter an infinite loop.
+    //
+    while(1)
+    {
+    }
 }
 
 //*****************************************************************************
@@ -218,20 +157,12 @@ NmiSR(void)
 static void
 BusFaultHandler(void)
 {
-	FaultISR();
-}
-
-#include "gpio.h"
-static void GPIOIntDefaultHandler(void) {
-	LOGE("A0:%x\n", GPIOIntStatus(GPIOA0_BASE, 0));
-	LOGE("A1:%x\n", GPIOIntStatus(GPIOA1_BASE, 0));
-	LOGE("A2:%x\n", GPIOIntStatus(GPIOA2_BASE, 0));
-	LOGE("A3:%x\n", GPIOIntStatus(GPIOA3_BASE, 0));
-	LOGE("UNEXPECTED GPIO INTERRUPT\n");
-	MAP_GPIOIntClear(GPIOA0_BASE, 0xFFFFFFFF);
-	MAP_GPIOIntClear(GPIOA1_BASE, 0xFFFFFFFF);
-	MAP_GPIOIntClear(GPIOA2_BASE, 0xFFFFFFFF);
-	MAP_GPIOIntClear(GPIOA3_BASE, 0xFFFFFFFF);
+    //
+    // Go into an infinite loop.
+    //
+    while(1)
+    {
+    }
 }
 
 //*****************************************************************************
@@ -244,5 +175,11 @@ static void GPIOIntDefaultHandler(void) {
 static void
 IntDefaultHandler(void)
 {
-	FaultISR();
+    //
+    // Go into an infinite loop.
+    //
+    while(1)
+    {
+    }
 }
+#endif

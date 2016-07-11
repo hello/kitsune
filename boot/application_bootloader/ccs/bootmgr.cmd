@@ -1,7 +1,9 @@
 //*****************************************************************************
-// cc3200v1p32.cmd
+// cc3220FS.cmd
 //
-// CCS linker configuration file for cc3200 ES 1.32.
+// CCS linker configuration file for CC3220SF production device, where
+// it has 256kB of RAM (where bootloader uses 16kB of RAM) and 1024 KB of
+// on-chip Flash memory.
 //
 // Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com/ 
 // 
@@ -38,6 +40,7 @@
 
 
 --retain=g_pfnVectors
+--retain=ulDebugHeader
 
 //*****************************************************************************
 // The following command line options are set as part of the CCS project.  
@@ -52,31 +55,35 @@
 // The starting address of the application.  Normally the interrupt vectors  
 // must be located at the beginning of the application.                      
 //*****************************************************************************
-#define RAM_BASE 0x20000000
+#define FLASH_BASE 0x01000800
+#define FLHDR_BASE 0x01000000
+
 
 /* System memory map */
 
 MEMORY
 {
     /* Application uses internal RAM for program and data */
-    SRAM_CODE (RWX) : origin = 0x20000000, length = 0x3FFF
-    SRAM_DATA (RWX) : origin = 0x2003B400, length = 0x0C00
+    FLASH_HDR	(RX)  : origin = 0x01000000, length = 0x7FF    /* 2 KB */
+    FLASH_CODE  (RX)  : origin = 0x01000800, length = 0x0FF800 /* 1022KB */
+    SRAM_DATA   (RWX) : origin = 0x20000000, length = 0x040000 /* 256KB */
 }
 
 /* Section allocation in memory */
 
 SECTIONS
 {
-    .intvecs:   > RAM_BASE
-    .init_array : > SRAM_CODE
-    .vtable :   > SRAM_CODE
-    .text   :   > SRAM_CODE
-    .const  :   > SRAM_CODE
-    .cinit  :   > SRAM_CODE
-    .pinit  :   > SRAM_CODE
-    .data   :   > SRAM_DATA
-    .bss    :   > SRAM_DATA
-    .sysmem :   > SRAM_DATA
-    .stack  :   > SRAM_DATA(HIGH)
+	.dgbhdr     	      : > FLHDR_BASE
+    .resetVecs            : > FLASH_BASE
+    .init_array           : > FLASH_CODE
+    .text                 : > FLASH_CODE
+    .const                : > FLASH_CODE
+    .cinit                : > FLASH_CODE
+    .pinit                : > FLASH_CODE
+    .ramvecs              : > SRAM_DATA ALIGN(1024)
+    .data                 : > SRAM_DATA
+    .bss                  : > SRAM_DATA
+    .sysmem               : > SRAM_DATA
+    .stack                : > SRAM_DATA(HIGH)
 }
 

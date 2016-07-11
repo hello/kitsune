@@ -138,8 +138,8 @@ int send_data_pb( char* host, const char* path, char ** recv_buf_ptr,
 		uint32_t * recv_buf_size_ptr, const pb_field_t fields[],  void * structdata,
 		protobuf_reply_callbacks * pb_cb, int * sock, security_type sec );
 
-int get_wifi_scan_result(Sl_WlanNetworkEntry_t* entries, uint16_t entry_len, uint32_t scan_duration_ms, int antenna);
-SlSecParams_t make_sec_params(const char* ssid, const char* password, int sec_type, int version);
+int get_wifi_scan_result(SlWlanNetworkEntry_t* entries, uint16_t entry_len, uint32_t scan_duration_ms, int antenna);
+SlWlanSecParams_t make_sec_params(const char* ssid, const char* password, int sec_type, int version);
 int connect_wifi(const char* ssid, const char* password, int sec_type, int version, int * idx, bool save);
 void wifi_get_connected_ssid(uint8_t* ssid_buffer, size_t len);
 

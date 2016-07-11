@@ -1,0 +1,180 @@
+#******************************************************************************
+#
+# Makefile.defs - Environment variables for building the driverlib.
+#
+#  Copyright (C) 2015 Texas Instruments Incorporated - http:#www.ti.com/
+#
+#
+#  Redistribution and use in source and binary forms, with or without
+#  modification, are permitted provided that the following conditions
+#  are met:
+#
+#    Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+#
+#    Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the
+#    distribution.
+#
+#    Neither the name of Texas Instruments Incorporated nor the names of
+#    its contributors may be used to endorse or promote products derived
+#    from this software without specific prior written permission.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+#  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+#  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+#  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+#  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+#  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+#  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+#  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+#  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+#  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+#  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+#*****************************************************************************
+
+#############################################################
+#### DEFINES FOR EXTERNAL TOOLS - CHANGE FOR YOUR SYSTEM ####
+#############################################################
+CCS_COMPILER_INSTALL_DIR=C:/TI/ccsv6/tools/compiler/ti-cgt-arm_5.2.7
+IAR_INSTALL_DIR=C:/PROGRA~2/IARSYS~1/EMBEDD~1.3
+GCC_INSTALL_DIR=c:/CYGWIN~2
+
+############# SHOULD NOT MODIFY BELOW THIS LINE #############
+ROOT_DIR=..
+############# Compiler and archiver paths #############
+CCS_COMPILER="$(CCS_COMPILER_INSTALL_DIR)/bin/armcl"
+CCS_ARCHIVER="$(CCS_COMPILER_INSTALL_DIR)/bin/armar"
+CCS_STDINC="$(CCS_COMPILER_INSTALL_DIR)/include"
+
+IAR_COMPILER="$(IAR_INSTALL_DIR)/arm/bin/iccarm"
+IAR_ARCHIVER="$(IAR_INSTALL_DIR)/arm/bin/iarchive"
+IAR_STDINC="$(IAR_INSTALL_DIR)/arm/inc/c/"
+
+GCC_COMPILER="$(GCC_INSTALL_DIR)/bin/arm-none-eabi-gcc"
+GCC_ARCHIVER="$(GCC_INSTALL_DIR)/bin/arm-none-eabi-ar"
+GCC_STDINC="$(GCC_INSTALL_DIR)/arm-none-eabi/include"
+
+############# List of object files #############
+OBJ=$(BUILDDIR)/adc.$(EXT) \
+$(BUILDDIR)/aes.$(EXT) \
+$(BUILDDIR)/camera.$(EXT) \
+$(BUILDDIR)/cpu.$(EXT) \
+$(BUILDDIR)/crc.$(EXT) \
+$(BUILDDIR)/des.$(EXT) \
+$(BUILDDIR)/flash.$(EXT) \
+$(BUILDDIR)/gpio.$(EXT) \
+$(BUILDDIR)/hwspinlock.$(EXT) \
+$(BUILDDIR)/i2c.$(EXT) \
+$(BUILDDIR)/i2s.$(EXT) \
+$(BUILDDIR)/interrupt.$(EXT) \
+$(BUILDDIR)/pin.$(EXT) \
+$(BUILDDIR)/prcm.$(EXT) \
+$(BUILDDIR)/sdhost.$(EXT) \
+$(BUILDDIR)/shamd5.$(EXT) \
+$(BUILDDIR)/spi.$(EXT) \
+$(BUILDDIR)/systick.$(EXT) \
+$(BUILDDIR)/timer.$(EXT) \
+$(BUILDDIR)/uart.$(EXT) \
+$(BUILDDIR)/udma.$(EXT) \
+$(BUILDDIR)/utils.$(EXT) \
+$(BUILDDIR)/wdt.$(EXT)
+
+LINKOBJS = $(OBJ) 
+
+############# CCS Compiler options #############
+ifeq (${BUILD_TOOL}, ccs)
+
+CC=$(CCS_COMPILER)
+AR=$(CCS_ARCHIVER)
+STDINCPATH=$(CCS_STDINC)
+
+BUILDDIR=ccs/Release
+EXT=obj
+
+LIBRARY=driverlib.a
+
+CFLAGS=-mv7M4 --code_state=16 --float_support=vfplib --abi=eabi -me -Ooff -g \
+--gcc --define=ccs --define=DRIVERLIB_APPS --define=cc3200 \
+--display_error_number --diag_warning=225 --diag_wrap=off \
+--gen_func_subsections=on --printf_support=full --ual
+CFLAGS+=-I$(STDINCPATH)
+CFLAGS+=-I.
+CFLAGS+=-I$(ROOT_DIR)/inc
+CFLAGS+=-I$(ROOT_DIR)
+CFLAGS+=--obj_directory=$(BUILDDIR)
+
+$(BUILDDIR)/%.$(EXT): %.c
+	@echo "  $(BUILD_TOOL)-CC      ${<}"
+	@${CC} ${CFLAGS} ${<} > /dev/null
+    
+.$(LIBRARY):
+	@echo "  $(BUILD_TOOL)-AR      $(LIBRARY)"
+	@$(AR) r $(BUILDDIR)/$(LIBRARY) $(LINKOBJS) > /dev/null
+  
+endif
+
+############# IAR Compiler options #############
+ifeq (${BUILD_TOOL}, ewarm)
+
+CC=$(IAR_COMPILER)
+AR=$(IAR_ARCHIVER)
+STDINCPATH=$(IAR_STDINC)
+
+BUILDDIR=ewarm/Release/Obj
+EXT=o
+
+LIBRARY=driverlib.a
+
+CFLAGS=-D ewarm --no_cse --no_unroll --no_inline --no_code_motion --no_tbaa \
+--no_clustering --no_scheduling --endian little --cpu Cortex-M4 -e \
+--fpu None -Ol --require_prototypes --diag_suppress Pa050
+CFLAGS+=-I ./ewarm
+CFLAGS+=-I .
+CFLAGS+=-I $(ROOT_DIR)
+CFLAGS+=-I $(ROOT_DIR)/inc
+CFLAGS+=-I $(STDINCPATH)
+CFLAGS+=-o $(BUILDDIR)
+
+$(BUILDDIR)/%.$(EXT): %.c
+	@echo "  $(BUILD_TOOL)-CC    ${<}"
+	@${CC} ${CFLAGS} ${<} > /dev/null
+    
+.$(LIBRARY):
+	@echo "  $(BUILD_TOOL)-AR     $(LIBRARY)"
+	@mkdir -p $(BUILDDIR)/../Exe
+	$(AR) --create $(LINKOBJS) -V -o $(BUILDDIR)/../Exe/${LIBRARY} > /dev/null
+
+endif
+
+############# GCC Compiler options #############
+ifeq (${BUILD_TOOL}, gcc)
+
+CC=$(GCC_COMPILER)
+AR=$(GCC_ARCHIVER)
+STDINCPATH=$(GCC_STDINC)
+
+BUILDDIR=gcc/obj
+EXT=o
+
+LIBRARY=libdriver.a
+
+CFLAGS=-mcpu=cortex-m4 -mthumb -ffunction-sections -fdata-sections -MD \
+-std=c99 -g -O0 -c
+CFLAGS+=-I.
+CFLAGS+=-I$(ROOT_DIR)
+CFLAGS+=-I$(ROOT_DIR)/inc
+CFLAGS+=-I$(STDINCPATH)
+
+$(BUILDDIR)/%.$(EXT): %.c
+	@echo "  $(BUILD_TOOL)-CC      ${<}"
+	@${CC} ${CFLAGS} -D$(BUILD_TOOL) -o ${@} ${<} > /dev/null
+    
+.$(LIBRARY):
+	@echo "  $(BUILD_TOOL)-AR      $(LIBRARY)"
+	@mkdir -p $(BUILDDIR)/../exe
+	@$(AR) -cr -v $(BUILDDIR)/../exe/${LIBRARY} $(LINKOBJS)  > /dev/null
+
+endif

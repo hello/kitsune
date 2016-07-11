@@ -26,11 +26,6 @@
 	</natures>
 	<linkedResources>
 		<link>
-			<name>CC3200.ccxml</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/CC3200.ccxml</locationURI>
-		</link>
-		<link>
 			<name>aes.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/aes.c</locationURI>
@@ -634,6 +629,11 @@
 			<name>wifi_cmd.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/wifi_cmd.h</locationURI>
+		</link>
+		<link>
+			<name>common/UART.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/common/UART.c</locationURI>
 		</link>
 		<link>
 			<name>common/button_if.c</name>

@@ -220,13 +220,13 @@ int Cmd_fs_write(int argc, char *argv[]) {
 
 	sl_FsGetInfo((unsigned char*)argv[1], tok, &info);
 
-	if (sl_FsOpen((unsigned char*)argv[1],
-	FS_MODE_OPEN_WRITE, &tok, &hndl)) {
+	if (hndl = sl_FsOpen((unsigned char*)argv[1],
+			SL_FS_WRITE, &tok) < 0 ) {
 		LOGF("error opening file, trying to create\n");
 
-		if (sl_FsOpen((unsigned char*)argv[1],
-				FS_MODE_OPEN_CREATE(65535, _FS_FILE_OPEN_FLAG_COMMIT), &tok,
-				&hndl)) {
+		if ( hndl = sl_FsOpen((unsigned char*)argv[1],
+				SL_FS_CREATE_NOSIGNATURE | SL_FS_CREATE_MAX_SIZE( 65535 ),
+				&tok) < 0 ) {
 			LOGF("error opening for write\n");
 			return -1;
 		}
@@ -236,7 +236,7 @@ int Cmd_fs_write(int argc, char *argv[]) {
     int expected = argc - 2;
 	while( cnt != expected ) {
         uint8_t byte = strtol(next, &next, 16);
-    	bytes = sl_FsWrite(hndl, info.FileLen + cnt, (unsigned char*)&byte, 1);
+    	bytes = sl_FsWrite(hndl, info.Len + cnt, (unsigned char*)&byte, 1);
     	assert(bytes==1);
     	++cnt;
     	next = next + 1;
@@ -281,20 +281,20 @@ int Cmd_fs_read(int argc, char *argv[]) {
 
 	sl_FsGetInfo((unsigned char*)argv[1], tok, &info);
 
-	err = sl_FsOpen((unsigned char*) argv[1], FS_MODE_OPEN_READ, &tok, &hndl);
-	if (err) {
-		LOGF("error opening for read %d\n", err);
+	hndl = sl_FsOpen((unsigned char*) argv[1], SL_FS_READ, &tok );
+	if (hndl < 0 ) {
+		LOGF("error opening for read %d\n", hndl);
 		return -1;
 	}
 	if( argc >= 3 ){
 		bytes = sl_FsRead(hndl, atoi(argv[2]), (unsigned char* ) buffer,
-				minval(info.FileLen, BUF_SZ));
+				minval(info.Len, BUF_SZ));
 		if (bytes) {
 			LOGF("read %d bytes\n", bytes);
 		}
 	} else {
 		bytes = sl_FsRead(hndl, 0, (unsigned char* ) buffer,
-				minval(info.FileLen, BUF_SZ));
+				minval(info.Len, BUF_SZ));
 		if (bytes) {
 			LOGF("read %d bytes\n", bytes);
 		}
@@ -1305,7 +1305,7 @@ void sample_sensor_data(periodic_data* data)
 				data->has_tvoc = true;
 				data->tvoc = tvoc;
 				data->has_co2 = true;
-				data->co2;
+				data->co2 = eco2;
 			}
 		}
 		}
@@ -1419,16 +1419,16 @@ int Cmd_tasks(int argc, char *argv[]) {
 
 #define SCAN_TABLE_SIZE   20
 
-static void SortByRSSI(Sl_WlanNetworkEntry_t* netEntries,
+static void SortByRSSI(SlWlanNetworkEntry_t* netEntries,
                                             unsigned char ucSSIDCount)
 {
-    Sl_WlanNetworkEntry_t tTempNetEntry;
+	SlWlanNetworkEntry_t tTempNetEntry;
     unsigned char ucCount, ucSwapped;
     do{
         ucSwapped = 0;
         for(ucCount =0; ucCount < ucSSIDCount - 1; ucCount++)
         {
-           if(netEntries[ucCount].rssi < netEntries[ucCount + 1].rssi)
+           if(netEntries[ucCount].Rssi < netEntries[ucCount + 1].Rssi)
            {
               tTempNetEntry = netEntries[ucCount];
               netEntries[ucCount] = netEntries[ucCount + 1];
@@ -1445,7 +1445,7 @@ int Cmd_rssi(int argc, char *argv[]) {
 	int antenna = 0; // 0 does not change the antenna
 	int duration = 1000;
 
-	Sl_WlanNetworkEntry_t g_netEntries[SCAN_TABLE_SIZE];
+	SlWlanNetworkEntry_t g_netEntries[SCAN_TABLE_SIZE];
 
 	if (argc == 2) {
 		duration = atoi(argv[1]);
@@ -1460,7 +1460,7 @@ int Cmd_rssi(int argc, char *argv[]) {
 
     LOGF( "SSID RSSI\n" );
 	for(i=0;i<lCountSSID;++i) {
-		LOGF( "%s %d\n", g_netEntries[i].ssid, g_netEntries[i].rssi );
+		LOGF( "%s %d\n", g_netEntries[i].Ssid, g_netEntries[i].Rssi );
 	}
 	return 0;
 }
@@ -1501,8 +1501,8 @@ int Cmd_generate_factory_data(int argc,char * argv[]) {
 	//ENTROPY ! Sensors, timers, TI's mac address, so much randomness!!!11!!1!
 	int pos=0;
 	unsigned char mac[6];
-	unsigned char mac_len;
-	sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
+	unsigned short mac_len;
+	sl_NetCfgGet(SL_NETCFG_MAC_ADDRESS_GET, NULL, &mac_len, mac);
 	memcpy(entropy_pool+pos, mac, 6);
 	pos+=6;
 	uint32_t now = xTaskGetTickCount();
@@ -1875,7 +1875,7 @@ int Cmd_fault(int argc, char *argv[]) {
 	return 0;
 }
 int Cmd_fault_slow(int argc, char * argv[]) {
-	SL_SYNC(always_slow(atoi(argv[1])));
+	//SL_SYNC(always_slow(atoi(argv[1])));
 	return 0;
 }
 int Cmd_test_realloc(int argc, char *argv[]) {
@@ -1921,25 +1921,26 @@ int Cmd_uptime(int argc, char *argv[]) {
 
 #define ARR_LEN(x) (sizeof(x)/sizeof(x[0]))
 static void print_nwp_version() {
-	SlVersionFull ver;
-	uint8_t pConfigOpt, pConfigLen, i;
+	SlDeviceVersion_t ver;
+	uint8_t pConfigOpt;
+	short pConfigLen, i;
 
 	pConfigOpt = SL_DEVICE_GENERAL_VERSION;
 
-	pConfigLen = sizeof(SlVersionFull);
+	pConfigLen = sizeof(SlDeviceVersion_t);
 
-	if( 0 == sl_DevGet(SL_DEVICE_GENERAL_CONFIGURATION,&pConfigOpt,&pConfigLen,(uint8_t *)(&ver)) ) {
+	if( 0 == sl_WlanGet(SL_DEVICE_GENERAL,&pConfigOpt,&pConfigLen,(uint8_t *)(&ver)) ) {
 		LOGI("FW " );
-		for(i=0;i<ARR_LEN(ver.ChipFwAndPhyVersion.FwVersion);++i) {
-			LOGI("%d.", ver.ChipFwAndPhyVersion.FwVersion[i] );
+		for(i=0;i<ARR_LEN(ver.FwVersion);++i) {
+			LOGI("%d.", ver.FwVersion[i] );
 		} LOGI("\n");
 
 		LOGI("PHY " );
-		for(i=0;i<ARR_LEN(ver.ChipFwAndPhyVersion.PhyVersion);++i) {
-			LOGI("%d.", ver.ChipFwAndPhyVersion.PhyVersion[i] );
+		for(i=0;i<ARR_LEN(ver.PhyVersion);++i) {
+			LOGI("%d.", ver.PhyVersion[i] );
 		} LOGI("\n");
 
-		LOGI("CHIP %x\n", ver.ChipFwAndPhyVersion.ChipId );
+		LOGI("CHIP %x\n", ver.ChipId );
 		LOGI("NWP " );
 		for(i=0;i<ARR_LEN(ver.NwpVersion);++i) {
 			LOGI("%d.", ver.NwpVersion[i] );
@@ -2049,7 +2050,6 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "aon",Cmd_audio_turn_on,""},
 		{ "aoff",Cmd_audio_turn_off,""},
 #if 0
-		{ "sl", Cmd_sl, "" }, // smart config
 		{ "mode", Cmd_mode, "" }, //set the ap/station mode
 
 		{ "spird", Cmd_spi_read,"" },
@@ -2107,7 +2107,7 @@ tCmdLineEntry g_sCmdTable[] = {
 #endif
 		{"resync", Cmd_SyncID, ""},
 		{"nwp", Cmd_nwpinfo, ""},
-		{"dns", Cmd_setDns, ""},
+
 		{"g", Cmd_gesture, ""},
 
 #ifdef BUILD_IPERF
@@ -2173,30 +2173,30 @@ void vUARTTask(void *pvParameters) {
 
 	UARTprintf("*");
 	sl_sync_init();  // thread safe for all sl_* calls
+
 	sl_mode = sl_Start(NULL, NULL, NULL);
 	UARTprintf("*");
 	while (sl_mode != ROLE_STA) {
 		UARTprintf("+");
 		sl_WlanSetMode(ROLE_STA);
-		nwp_reset();
+		sl_mode = nwp_reset();
+		UARTprintf("mode switch\r\n");
 	}
 	UARTprintf("*");
 
 	//default to PCB_ANT
 	antsel(get_default_antenna());
 
-	// Set connection policy to Auto
-	sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0), NULL, 0);
+	// Set connection policy to Auto, fast
+	sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION, SL_WLAN_CONNECTION_POLICY(1, 1, 0, 0), NULL, 0);
 
 	UARTprintf("*");
+
 	unsigned char mac[6];
-	unsigned char mac_len;
-	sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
+	unsigned short mac_len;
+	sl_NetCfgGet(SL_NETCFG_MAC_ADDRESS_GET, NULL, &mac_len, mac);
 	UARTprintf("*");
 
-	if (sl_mode == ROLE_AP || !wifi_status_get(0xFFFFFFFF)) {
-		//Cmd_sl(0, 0);
-	}
 	sl_NetAppStop(0x1f);
 	check_hw_version();
 	PinMuxConfig_hw_dep();
