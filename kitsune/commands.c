@@ -2176,10 +2176,11 @@ void vUARTTask(void *pvParameters) {
 
 	sl_mode = sl_Start(NULL, NULL, NULL);
 	UARTprintf("*");
-	while (sl_mode != ROLE_AP) {
+	while (sl_mode != ROLE_STA) {
 		UARTprintf("+");
-		sl_WlanSetMode(ROLE_AP);
-		nwp_reset();
+		sl_WlanSetMode(ROLE_STA);
+		sl_mode = nwp_reset();
+		UARTprintf("mode switch\r\n");
 	}
 	UARTprintf("*");
 
