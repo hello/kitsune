@@ -70,7 +70,7 @@
 #define TRUE (1)
 #define FALSE (0)
 
-#define MICROPHONE_NOISE_FLOOR_DB (34.7f)
+#define MICROPHONE_NOISE_FLOOR_DB (20.0f)
 
 
 /* Have fun tuning these magic numbers!
@@ -177,10 +177,6 @@ void AudioFeatures_Init(AudioFeatureCallback_t fpCallback,AudioOncePerMinuteData
 
     _data.psd_min_energy = MIN_ENERGY;
 
-}
-
-void AudioFeatures_SetParams(uint16_t psd_min_energy) {
-    _data.psd_min_energy = psd_min_energy;
 }
 
 static int32_t GetAudioEnergyAsDBA(int16_t logenergy) {

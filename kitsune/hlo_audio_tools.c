@@ -1,0 +1,366 @@
+#include "hlo_audio_tools.h"
+#include "task.h"
+#include "kit_assert.h"
+#include "hellofilesystem.h"
+#include "hlo_pipe.h"
+#include "audio_types.h"
+#include "audiofeatures.h"
+#include "hlo_async.h"
+#include "hlo_audio.h"
+#include <stdbool.h>
+#include <string.h>
+////-------------------------------------------
+//The feature/extractor processor we used in sense 1.0
+//
+#include "audioprocessingtask.h"
+#include "audiofeatures.h"
+static xSemaphoreHandle _statsMutex = NULL;
+static AudioOncePerMinuteData_t _stats;
+
+int audio_sig_stop = 0;
+
+static void DataCallback(const AudioFeatures_t * pfeats) {
+//	LOGI("Found Feature\r\n");
+	AudioProcessingTask_AddFeaturesToQueue(pfeats);
+}
+
+static void StatsCallback(const AudioOncePerMinuteData_t * pdata) {
+
+	xSemaphoreTake(_statsMutex,portMAX_DELAY);
+
+	if(pdata->num_disturbances){
+		LOGI("audio disturbance: %d,  background=%d, peak=%d, samples = %d\r",pdata->num_disturbances, pdata->peak_background_energy, _stats.peak_energy , _stats.num_samples);
+		LOGI("\n");
+	}
+	_stats.num_disturbances += pdata->num_disturbances;
+	_stats.num_samples++;
+
+        if (pdata->peak_background_energy > _stats.peak_background_energy) {
+            _stats.peak_background_energy = pdata->peak_background_energy;
+        }
+
+	if (pdata->peak_energy > _stats.peak_energy) {
+	    _stats.peak_energy = pdata->peak_energy;
+	}
+	_stats.isValid = 1;
+	xSemaphoreGive(_statsMutex);
+}
+#define RECORD_SAMPLE_SIZE (256*2*2)
+int hlo_filter_feature_extractor(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
+	uint8_t buf[RECORD_SAMPLE_SIZE] = {0};
+	static int64_t _callCounter;	/** time context for feature extractor **/
+	uint32_t settle_count = 0;		/** let audio settle after playback **/
+	int ret = 0;
+	if(!_statsMutex){
+		_statsMutex = xSemaphoreCreateMutex();
+		assert(_statsMutex);
+		AudioFeatures_Init(DataCallback,StatsCallback);
+	}
+	while(1){
+		ret = hlo_stream_transfer_all(FROM_STREAM,input,buf,sizeof(buf),4);
+		if(ret < 0){
+			break;
+		}else if(settle_count++ > 3){
+			AudioFeatures_SetAudioData((const int16_t*)buf,_callCounter++);
+		}
+		hlo_stream_transfer_all(INTO_STREAM,output,buf,ret,4); /** be a good samaritan and transfer the stream back out */
+		BREAK_ON_SIG(signal);
+	}
+	LOGI("Feature Extractor Completed:");
+	LOGI("%d disturbances, %d/%d dB(p/bg), %u samples\r\n", _stats.num_disturbances, _stats.peak_energy, _stats.peak_background_energy, _stats.num_samples);
+	return ret;
+}
+void AudioTask_DumpOncePerMinuteStats(AudioOncePerMinuteData_t * pdata) {
+	if(!_statsMutex){
+		_statsMutex = xSemaphoreCreateMutex();
+		assert(_statsMutex);
+	}
+	xSemaphoreTake(_statsMutex,portMAX_DELAY);
+	memcpy(pdata,&_stats,sizeof(AudioOncePerMinuteData_t));
+	pdata->peak_background_energy/=pdata->num_samples;
+	memset(&_stats,0,sizeof(_stats));
+	xSemaphoreGive(_statsMutex);
+}
+////-------------------------------------------
+//adpcm processor pair
+//TODO make it more efficient
+#include "adpcm.h"
+#define ADPCM_SAMPLES (1024)
+int hlo_filter_adpcm_decoder(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
+	char compressed[ADPCM_SAMPLES/2];
+	short decompressed[ADPCM_SAMPLES];
+	adpcm_state state = (adpcm_state){0};
+	int ret = 0;
+	while(1){
+		ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)compressed, ADPCM_SAMPLES/2,4);
+		if( ret < 0 ){
+			break;
+		}
+		adpcm_decoder((char*)compressed, (short*)decompressed, ret * 2 , &state);
+		if( output ){
+			ret = hlo_stream_transfer_all(INTO_STREAM, output, (uint8_t*)decompressed, ret * 4, 4);
+			if ( ret < 0 ){
+				break;
+			}
+		}
+		BREAK_ON_SIG(signal);
+	}
+	return ret;
+}
+int hlo_filter_adpcm_encoder(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
+	char compressed[ADPCM_SAMPLES/2];
+	short decompressed[ADPCM_SAMPLES];
+	adpcm_state state = (adpcm_state){0};
+	int ret = 0;
+	while(1){
+		ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)decompressed,ADPCM_SAMPLES * 2, 4);
+		if ( ret < 0 ){
+			break;
+		}
+		adpcm_coder((short*)decompressed, (char*)compressed, ret / 2, &state);
+		if( output ){
+			ret = hlo_stream_transfer_all(INTO_STREAM, output, (uint8_t*)compressed, ret / 4, 4);
+			if (ret < 0 ){
+				break;
+			}
+		}
+		BREAK_ON_SIG(signal);
+	}
+	return ret;
+}
+////-------------------------------------------
+// Simple data transfer filter
+int hlo_filter_data_transfer(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
+	uint8_t buf[512];
+	int ret;
+	while(1){
+		ret = hlo_stream_transfer_between(input,output,buf,sizeof(buf),4);
+		if(ret < 0){
+			break;
+		}
+		BREAK_ON_SIG(signal);
+	}
+	return ret;
+}
+////-------------------------------------------
+// Throughput calculator
+int hlo_filter_throughput_test(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
+	TickType_t start = xTaskGetTickCount();
+	int ret = hlo_filter_data_transfer(input, output, ctx, signal);
+	TickType_t tdelta = xTaskGetTickCount() - start;
+	int ts = tdelta / 1000;
+	if(ts == 0){
+		ts = 1;
+	}
+	size_t total =  output->info.bytes_written;
+	LOGI("Transferred %u bytes over %u milliseconds, throughput %u kb/s\r\n", total, tdelta, (total / 1024) / ts);
+	return ret;
+}
+////-------------------------------------------
+//octogram sample app
+#include "octogram.h"
+#define PROCESSOR_BUFFER_SIZE ((AUDIO_FFT_SIZE)*3*2)
+#define OCTOGRAM_DURATION 500
+int hlo_filter_octogram(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
+	Octogram_t octogramdata = {0};
+	int ret,i;
+	int32_t duration = 500;
+	Octogram_Init(&octogramdata);
+	OctogramResult_t result;
+	int16_t * samples = pvPortMalloc(PROCESSOR_BUFFER_SIZE);
+	while( (ret = hlo_stream_transfer_all(FROM_STREAM,input,(uint8_t*)samples,PROCESSOR_BUFFER_SIZE,4)) > 0){
+		//convert from 48K to 16K
+		for(i = 0; i < 256; i++){
+			int32_t sum = samples[i] + samples[AUDIO_FFT_SIZE+i] + samples[(2*AUDIO_FFT_SIZE)+i];
+			samples[i] = (int16_t)(sum / 3);
+		}
+		Octogram_Update(&octogramdata,samples);
+		DISP(".");
+		if(duration-- < 0){
+			DISP("\r\n");
+			Octogram_GetResult(&octogramdata, &result);
+			LOGF("octogram log energies: ");
+			for (i = 0; i < OCTOGRAM_SIZE; i++) {
+				if (i != 0) {
+					LOGF(",");
+				}
+				LOGF("%d",result.logenergy[i]);
+			}
+			LOGF("\r\n");
+			break;
+		}
+		BREAK_ON_SIG(signal);
+	}
+	vPortFree(samples);
+	DISP("Octogram Task Finished %d\r\n", ret);
+	return ret;
+}
+////-------------------------------------------
+//octogram sample app
+extern uint8_t get_alpha_from_light();
+#include "led_animations.h"
+#include "nanopb/pb_decode.h"
+#include "protobuf/response.pb.h"
+#include "hlo_http.h"
+extern bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, void **arg);
+int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
+#define NSAMPLES 512
+	int sample_rate = 16000;
+	int ret = 0;
+	int16_t samples[NSAMPLES];
+	int32_t count = 0;
+	int32_t zcr = 0;
+	int32_t window_zcr;
+	int32_t window_eng;
+	int64_t eng = 0;
+	uint8_t window_over = 0;
+	{//play the trippy while we get voice
+		uint8_t trippy_base[3] = {200, 200, 200};
+		uint8_t trippy_range[3] = { 54, 54, 54 };
+		play_led_trippy(trippy_base, trippy_range, portMAX_DELAY, 30, 30 );
+	}
+	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, sizeof(samples), 4)) > 0 ){
+		int i;
+		for(i = 1; i < NSAMPLES; i++){
+			if( (samples[i] > 0 && samples[i-1] <= 0) ||
+					(samples[i] <= 0 && samples[i-1] > 0) ){
+				zcr++;
+			}
+			eng += abs(samples[i] - samples[i-1]);
+			if( count++ > sample_rate ){
+				window_over = 1;
+				window_zcr = zcr;
+				window_eng = eng/sample_rate;
+				zcr = 0;
+				count = 0;
+				eng = 0;
+			}
+		}
+		if( window_over ){
+			LOGI("zcr = %d, eng = %d\r\n", window_zcr, window_eng);
+			window_over = 0;
+		}
+		ret = hlo_stream_transfer_all(INTO_STREAM, output,  (uint8_t*)samples, ret, 4);
+		if ( ret <  0){
+			break;
+		}
+		BREAK_ON_SIG(signal);
+	}
+	{//now play the swirling thing when we get response
+			play_led_wheel(get_alpha_from_light(),254,0,254,2,18,0);
+			DISP("Wheel\r\n");
+	}
+
+	//lastly, glow with voice output, since we can't do that in half duplex mode, simply queue it to the voice output
+	if( ret >= 0){
+		SpeechResponse resp = SpeechResponse_init_zero;
+		DISP("\r\n===========\r\n");
+		resp.text.funcs.decode = _decode_string_field;
+		resp.url.funcs.decode = _decode_string_field;
+		if( 0 == hlo_pb_decode(output,SpeechResponse_fields, &resp) ){
+			DISP("Resp %s\r\nUrl %s\r\n", resp.text.arg, resp.url.arg);
+			hlo_stream_t * aud = hlo_audio_open_mono(16000, 60,HLO_AUDIO_PLAYBACK);
+			hlo_stream_t * fs = hlo_http_get(resp.url.arg);
+			hlo_filter_adpcm_decoder(fs,aud,NULL,NULL);
+			hlo_stream_close(fs);
+			hlo_stream_close(aud);
+
+			vPortFree(resp.text.arg);
+			vPortFree(resp.url.arg);
+		}
+		DISP("\r\n===========\r\n");
+	}
+	return ret;
+}
+#include "hellomath.h"
+int hlo_filter_modulate_led_with_sound(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
+	int ret;
+	int16_t samples[NSAMPLES] = {0};
+	play_modulation(253,253,253,30,0);
+	int32_t reduced = 0;
+	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, sizeof(samples), 4)) >= 0 ){
+		int i;
+		int32_t eng = 0;
+		for(i = 0; i < NSAMPLES; i++){
+			eng += abs(samples[i]);
+		}
+		eng = eng/NSAMPLES;
+
+		reduced =  (int32_t)(0.15 * (fxd_sqrt(eng) + 0.005 * eng)) + (0.85 * reduced);
+
+		if(reduced > 253){
+			reduced = 253;
+		}
+		set_modulation_intensity( reduced );
+		hlo_stream_transfer_all(INTO_STREAM, output,  (uint8_t*)samples, ret, 4);
+		BREAK_ON_SIG(signal);
+	}
+	stop_led_animation( 0, 33 );
+	return ret;
+}
+////-----------------------------------------
+//commands
+static uint8_t _can_has_sig_stop(void){
+	return audio_sig_stop;
+}
+int Cmd_audio_record_start(int argc, char *argv[]){
+	//audio_sig_stop = 0;
+	//hlo_audio_recorder_task("rec.raw");
+	AudioTask_StartCapture(16000);
+	return 0;
+}
+int Cmd_audio_record_stop(int argc, char *argv[]){
+	DISP("Stopping Audio\r\n");
+	AudioTask_StopPlayback();
+	AudioTask_StopCapture();
+	audio_sig_stop = 1;
+	return 0;
+
+}
+static hlo_filter _filter_from_string(const char * str){
+	switch(str[0]){
+	case 'f':
+		return hlo_filter_feature_extractor;
+	case 'e':
+		return hlo_filter_adpcm_encoder;
+	case 'd':
+		return hlo_filter_adpcm_decoder;
+	case 'o':
+		return hlo_filter_octogram;
+	case '?':
+		return hlo_filter_throughput_test;
+	case 'x':
+		return hlo_filter_voice_command;
+	case 'X':
+	//	return hlo_filter_modulate_led_with_sound;
+	default:
+		return hlo_filter_data_transfer;
+	}
+
+}
+#include <stdlib.h>
+hlo_stream_t * open_stream_from_path(char * str, uint8_t input);
+int Cmd_stream_transfer(int argc, char * argv[]){
+	audio_sig_stop = 0;
+	hlo_filter f = hlo_filter_data_transfer;
+	int ret;
+	if(argc < 3){
+		LOGI("Usage: x in out [rate] [filter]\r\n");
+		LOGI("Press s to stop the transfer\r\n");
+	}
+	if(argc >= 4){
+		f = _filter_from_string(argv[3]);
+	}
+	hlo_stream_t * in = open_stream_from_path(argv[1],1);
+	hlo_stream_t * out = open_stream_from_path(argv[2],0);
+
+	if(in && out){
+		ret = f(in,out,NULL, _can_has_sig_stop);
+	}
+
+
+	LOGI("Stream transfer exited with code %d\r\n", ret);
+	hlo_stream_close(in);
+	hlo_stream_close(out);
+	return 0;
+}

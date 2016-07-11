@@ -42,6 +42,7 @@ MEMORY
     /* Application uses internal RAM for program and data */
     SRAM_LOWHEAP (RW) : origin = 0x20000000, length = 0x3FFF
 	SRAM (RWX) : origin = 0x20004000, length = 0x259FF
+    SRAM_HEAP (RW) : origin = 0x20029A00, length = 0x165FF
 }
 
 REGION_ALIAS("REGION_TEXT", FLASH_CODE);

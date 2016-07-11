@@ -17,25 +17,59 @@ void bit_array_init(bit_array* ba, int size) {
   ba->bits = NULL;
   ba->size = 0;
   bit_array_resize(ba, size);
-};
+}
 void bit_array_dispose(bit_array* ba) {
   FREE_AND_NULL(ba->bits);
-};
-boolean bit_array_get(bit_array* ba, int idx) {
-  if( idx >= ba->size ) return FALSE;
+}
+bool bit_array_get(bit_array* ba, int idx) {
+  if( idx >= ba->size ) return false;
   return ( ba->bits[idx/8] & 1<<(idx % 8) ) != 0;
 }
-void bit_array_put(bit_array* ba, int idx, boolean val) {
+void bit_array_put(bit_array* ba, int idx, bool val) {
   int shift;
-  if( idx >= ba->size )
-    bit_array_resize(ba, idx);
+  if( idx/8 >= ba->size )
+    bit_array_resize(ba, idx/8);
   shift = idx % 8;
   if( val )
     ba->bits[idx/8] |= 1<<shift;
   else
     ba->bits[idx/8] &= ~(1<<shift);
 }
-
+int bit_array_clz(bit_array* ba ) {
+  unsigned int total=0;
+  int i=0;
+  int pos = 0;
+  int * p;
+  p = (int*) ba->bits;
+  for(; i<(ba->size/32); i+=4) {
+	if(*p++) {
+		break;
+	} else {
+        total += 32;
+    }
+  }
+  for(; i<(ba->size/8); i++) {
+	if(ba->bits[i]) {
+		break;
+	} else {
+        total += 8;
+    }
+  }
+  pos = i;
+  for(i=0;i<8;++i) { /*count last 8 bits*/
+	if( ba->bits[pos] & 1<<i ) {
+		break;
+    } else {
+    	++total;
+    }
+  }
+  return total;
+}
+void bit_array_rshift_bytes(bit_array* ba, int s) {
+  memmove( ba->bits, ba->bits + s, ba->size/8 - s );
+  ba->size -= s*8;
+  bit_array_resize(ba, ba->size);
+}
 static unsigned int popcnt_int(int v) {
   v = v - ((v >> 1) & 0x55555555);
   v = (v & 0x33333333) + ((v >> 2) & 0x33333333);
