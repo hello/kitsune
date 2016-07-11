@@ -141,7 +141,7 @@ static void SortByRSSI(SlWlanNetworkEntry_t* netEntries,
 }
 ////---------------------------------
 //Public
-int _replace_ssid_by_rssi(Sl_WlanNetworkEntry_t * main, size_t main_size, const Sl_WlanNetworkEntry_t* entry){
+int _replace_ssid_by_rssi(SlWlanNetworkEntry_t * main, size_t main_size, const SlWlanNetworkEntry_t* entry){
 	int i;
 	for(i = 0; i < main_size; i++){
 		SlWlanNetworkEntry_t * row = &main[i];

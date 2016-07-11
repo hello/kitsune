@@ -75,7 +75,7 @@ static int _read_sf(void * ctx, void * out, size_t len){
 	if( ret > 0 ){
 		sf->offset += ret;
 		return ret;
-	}else if(ret == 0 || ret == SL_FS_ERR_OFFSET_OUT_OF_RANGE){
+	}else if(ret == 0 || ret == SL_ERROR_FS_OFFSET_OUT_OF_RANGE){
 		return HLO_STREAM_EOF;
 	}else{
 		LOGW("SF error %d\r\n", ret);
@@ -116,10 +116,10 @@ hlo_stream_t * open_serial_flash( char * filepath, uint32_t options){
 
 	if(options == HLO_STREAM_READ){
 		tbl.read = _read_sf;
-		if ( ret == SL_FS_ERR_FILE_NOT_EXISTS ){
+		if ( ret == SL_ERROR_FS_FILE_NOT_EXISTS ){
 			LOGE("Serial flash file %s does not exist.\r\n", filepath);
 			return NULL;
-		}else if( sl_FsOpen((const uint8_t*)filepath, FS_MODE_OPEN_READ, NULL, &hndl) ){
+		}else if((hndl =  sl_FsOpen((const uint8_t*)filepath, SL_FS_READ, NULL)) < 0 ){
 			LOGE("Unable to open file for read\r\n");
 			return NULL;
 		}
@@ -132,7 +132,7 @@ hlo_stream_t * open_serial_flash( char * filepath, uint32_t options){
 			}
 		}
 		uint8_t data[1] = {0};
-		if(sl_FsOpen((const uint8_t*)filepath, FS_MODE_OPEN_CREATE(65535, _FS_FILE_OPEN_FLAG_COMMIT), (_u32*)&tok, (_i32*)&hndl) != 0){
+		if((hndl = sl_FsOpen((const uint8_t*)filepath, FS_MODE_OPEN_CREATE(65535, SL_FS_WRITE_MUST_COMMIT), (_u32*)&tok)) < 0){
 			return NULL;
 		}
 		sl_FsWrite(hndl, 0, data, 1);

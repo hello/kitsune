@@ -93,7 +93,7 @@ static int _start_connection(unsigned long ip, security_type sec){
 		 do{
 			 rv = connect(sock, &sAddr, sizeof(sAddr));
 			 vTaskDelay(100);
-		 }while(rv == SL_EALREADY && retry--);
+		 }while(rv == SL_ERROR_BSD_EALREADY && retry--);
 		 if(rv < 0){
 			 LOGI("Could not connect %d\n\r\n\r", rv);
 			 sock = -1;
@@ -118,7 +118,7 @@ static int _read_sock(void * ctx, void * buf, size_t size){
 	int rv =  recv(sock, buf, size,0);
     DBG_SOCKSTREAM("RECV %d\n", rv);
 
-	if(rv == SL_EAGAIN){
+	if(rv == EAGAIN){
 		rv = 0;
 	}else if (rv == 0){
 		rv = HLO_STREAM_EOF;
@@ -132,7 +132,7 @@ static int _write_sock(void * ctx, const void * buf, size_t size){
 	DBG_SOCKSTREAM("SENDING %d\n", size);
 	rv = send(sock, buf, size, 0);
 	DBG_SOCKSTREAM("SENT %d\n", rv);
-	if( rv == SL_EAGAIN ){
+	if( rv == EAGAIN ){
 		rv = 0;
 	}
 	return rv;

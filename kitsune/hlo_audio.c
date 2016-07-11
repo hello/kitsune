@@ -126,6 +126,8 @@ static int _close(void * ctx){
 }
 ////------------------------------
 //  Public API
+#undef write
+#undef close
 void hlo_audio_init(void){
 	lock = xSemaphoreCreateRecursiveMutex();
 	assert(lock);
