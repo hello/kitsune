@@ -132,7 +132,9 @@ hlo_stream_t * open_serial_flash( char * filepath, uint32_t options){
 			}
 		}
 		uint8_t data[1] = {0};
-		if((hndl = sl_FsOpen((const uint8_t*)filepath, FS_MODE_OPEN_CREATE(65535, SL_FS_WRITE_MUST_COMMIT), (_u32*)&tok)) < 0){
+		if((hndl = sl_FsOpen((const uint8_t*)filepath,
+		           SL_FS_CREATE | SL_FS_WRITE_MUST_COMMIT | SL_FS_CREATE_MAX_SIZE( 65535 ),
+				(_u32*)&tok)) < 0){
 			return NULL;
 		}
 		sl_FsWrite(hndl, 0, data, 1);
