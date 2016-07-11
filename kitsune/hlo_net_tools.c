@@ -191,7 +191,7 @@ close_sock:
 
 
 static int scan(scan_desc_t * desc){
-	unsigned char policyOpt = SL_CONNECTION_POLICY(0, 0, 0, 0, 0);
+	unsigned char policyOpt = SL_WLAN_CONNECTION_POLICY(0, 0, 0, 0);
 	unsigned long IntervalVal = 20;
 	if( desc->antenna ) {
 		antsel(desc->antenna);
@@ -202,7 +202,7 @@ static int scan(scan_desc_t * desc){
 	int r = sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION , policyOpt, NULL, 0);
 
     // Make sure scan is enabled
-    policyOpt = SL_SCAN_POLICY(1);
+    policyOpt = SL_WLAN_SCAN_POLICY(1,1);
 
     // set scan policy - this starts the scan
     //Interval is intentional
@@ -216,7 +216,7 @@ static int scan(scan_desc_t * desc){
 	r = sl_WlanGetNetworkList(0, desc->max_entries, desc->entries);
 
 	// Restore connection policy to Auto
-	sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0), NULL, 0);
+	sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION, SL_WLAN_CONNECTION_POLICY(1, 0, 0, 0), NULL, 0);
 
 	sl_exit_critical_region();
 	//do not need to capture any values since we are storing it directly to network list
@@ -284,6 +284,8 @@ int _replace_ssid_by_rssi(SlWlanNetworkEntry_t * main, size_t main_size, const S
 	}
 	return 0;
 }
+
+//TODO REMOVE
 //this implementation is O(n^2)
 int get_unique_wifi_list(SlWlanNetworkEntry_t * result, size_t num_entries){
 	size_t size = num_entries * sizeof(SlWlanNetworkEntry_t);
@@ -293,7 +295,7 @@ int get_unique_wifi_list(SlWlanNetworkEntry_t * result, size_t num_entries){
 
 	DISP("Scan begin\n");
 
-	sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION, SL_CONNECTION_POLICY(0, 0, 0, 0, 0), NULL, 0);
+	sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION, SL_WLAN_CONNECTION_POLICY(0, 0, 0, 0), NULL, 0);
 	sl_WlanDisconnect();
 	vTaskDelay(100);
 
@@ -325,7 +327,7 @@ int get_unique_wifi_list(SlWlanNetworkEntry_t * result, size_t num_entries){
 		tally += _replace_ssid_by_rssi(result, num_entries, &pcb_list[ret]);
 	}
 exit:
-	sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0), NULL, 0);
+	sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION, SL_WLAN_CONNECTION_POLICY(1, 0, 0, 0), NULL, 0);
 
 	if(ifa_list){vPortFree(ifa_list);}
 	if(pcb_list){vPortFree(pcb_list);}

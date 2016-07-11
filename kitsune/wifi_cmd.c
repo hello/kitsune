@@ -137,7 +137,7 @@ void SimpleLinkSockEventHandler(SlSockEvent_t *pSock)
 static uint8_t _connected_ssid[MAX_SSID_LEN];
 
 
-static uint8_t _connected_bssid[BSSID_LEN];
+// TODO static uint8_t _connected_bssid[BSSID_LEN];
 void wifi_get_connected_ssid(uint8_t* ssid_buffer, size_t len)
 {
     size_t copy_len = MAX_SSID_LEN > len ? len : MAX_SSID_LEN;
@@ -147,7 +147,7 @@ void wifi_get_connected_ssid(uint8_t* ssid_buffer, size_t len)
 //
 //!    \brief This function handles WLAN events
 //!
-//! \param  pSlWlanEvent is the event passed to the handler
+//! \param  evnt is the event passed to the handler
 //!
 //! \return None
 //
@@ -156,49 +156,71 @@ static void wifi_update_task( void * params ) {
 	ble_reply_wifi_status((wifi_connection_state)params);
 	vTaskDelete(NULL);
 }
-void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
-    switch (pSlWlanEvent->Id) {
-#if 0 //todo bring this back after ti realises they've mucked it up
-    case SL_WLAN_SMART_CONFIG_START_EVENT:
-        /* SmartConfig operation finished */
-        /*The new SSID that was acquired is: pWlanEventHandler->EventData.smartConfigStartResponse.ssid */
-        /* We have the possiblity that also a private token was sent to the Host:
-         *  if (pWlanEventHandler->EventData.smartConfigStartResponse.private_token_len)
-         *    then the private token is populated: pWlanEventHandler->EventData.smartConfigStartResponse.private_token
-         */
-        LOGI("SL_WLAN_SMART_CONFIG_START_EVENT\n");
-        break;
-#endif
-    case SL_WLAN_SMART_CONFIG_STOP_EVENT:
-        LOGI("SL_WLAN_SMART_CONFIG_STOP_EVENT\n");
-        break;
+
+
+void SimpleLinkFatalErrorEventHandler(SlDeviceFatal_t *slFatalErrorEvent)
+{
+	switch (slFatalErrorEvent->Id)
+	{
+		case SL_DEVICE_EVENT_FATAL_DEVICE_ABORT:
+		{
+			LOGE("[ERROR] - FATAL ERROR: Abort NWP event detected: AbortType=%d, AbortData=0x%x\n\r",slFatalErrorEvent->Data.DeviceAssert.Code,slFatalErrorEvent->Data.DeviceAssert.Value);
+		}
+
+		case SL_DEVICE_EVENT_FATAL_DRIVER_ABORT:
+		{
+			LOGE("[ERROR] - FATAL ERROR: Driver Abort detected. \n\r");
+		}
+
+		case SL_DEVICE_EVENT_FATAL_NO_CMD_ACK:
+		{
+			LOGE("[ERROR] - FATAL ERROR: No Cmd Ack detected [cmd opcode = 0x%x] \n\r", slFatalErrorEvent->Data.NoCmdAck.Code);
+		}
+
+		case SL_DEVICE_EVENT_FATAL_SYNC_LOSS:
+		{
+			LOGE("[ERROR] - FATAL ERROR: Sync loss detected n\r");
+		}
+		break;
+
+		case SL_DEVICE_EVENT_FATAL_CMD_TIMEOUT:
+		{
+			LOGE("[ERROR] - FATAL ERROR: Async event timeout detected [event opcode =0x%x]  \n\r", slFatalErrorEvent->Data.CmdTimeout.Code);
+		}
+		break;
+
+	default:
+		LOGE("[ERROR] - FATAL ERROR: Unspecified error detected \n\r");
+			break;
+	}
+	nwp_reset();
+}
+
+
+void SimpleLinkWlanEventHandler(SlWlanEvent_t *evnt) {
+    switch (evnt->Id) {
     case SL_WLAN_EVENT_CONNECT:
     {
         wifi_status_set(CONNECT, false);
         wifi_status_set(CONNECTING, true);
-        char* pSSID = (char*)pSlWlanEvent->Data.STAandP2PModeWlanConnected.ssid_name;
-        uint8_t ssidLength = pSlWlanEvent->Data.STAandP2PModeWlanConnected.ssid_len;
+
+#if 0
+        TODO
+
+        char* pSSID = (char*)evnt->Data.IpAcquiredV4.ssid_name;
+        uint8_t ssidLength = evnt->Data.IpAcquiredV4.ssid_len;
         if (ssidLength > MAX_SSID_LEN) {
         	LOGI("ssid tooo long\n");
 		}else{
 			memset(_connected_ssid, 0, MAX_SSID_LEN);
 			memcpy(_connected_ssid, pSSID, ssidLength);
 			memset(_connected_bssid, 0, BSSID_LEN);
-			memcpy(_connected_bssid, (char*)pSlWlanEvent->Data.STAandP2PModeWlanConnected.bssid, BSSID_LEN);
+			memcpy(_connected_bssid, (char*)evnt->Data.STAandP2PModeWlanConnected.bssid, BSSID_LEN);
 		}
+#endif
         LOGI("SL_WLAN_CONNECT_EVENT\n");
 		xTaskCreate(wifi_update_task, "wifi_update_task", 1024 / 4, (void*)wifi_connection_state_WLAN_CONNECTED, 1, NULL);
 
-    }
-        break;
-    case SL_WLAN_CONNECTION_FAILED_EVENT:  // ahhhhh this thing blocks us for 2 weeks...
-    {
-    	// This is a P2P event, but it fired here magically.
-        wifi_status_set(CONNECTING, true);
-        LOGI("SL_WLAN_CONNECTION_FAILED_EVENT\n");
-		xTaskCreate(wifi_update_task, "wifi_update_task", 1024 / 4, (void*)wifi_connection_state_NO_WLAN_CONNECTED, 1, NULL);
-
-        nwp_reset();
     }
     break;
     case SL_WLAN_EVENT_DISCONNECT:
@@ -206,25 +228,37 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pSlWlanEvent) {
         memset(_connected_ssid, 0, MAX_SSID_LEN);
         LOGI("SL_WLAN_DISCONNECT_EVENT\n");
 
+#if 0
         { //recommended ti debug block
 		int i;
 
-		LOGI("AP: \"%s\" Code=%d BSSID:",_connected_ssid, pSlWlanEvent->Data.STAandP2PModeDisconnected.reason_code);
+		LOGI("AP: \"%s\" Code=%d BSSID:",_connected_ssid, evnt->Data.STAandP2PModeDisconnected.reason_code);
     	LOGI( "%x", _connected_bssid[0]);
     	for( i=1;i< BSSID_LEN;++i) {
         	LOGI( ":%x", _connected_bssid[i] );
         } LOGI("\n");
         }
+#endif
 		xTaskCreate(wifi_update_task, "wifi_update_task", 1024 / 4, (void*)wifi_connection_state_NO_WLAN_CONNECTED, 1, NULL);
 
-        break;
+	break;
+	case SL_WLAN_EVENT_STA_ADDED:
+	break;
+	case SL_WLAN_EVENT_STA_REMOVED:
+	break;
+	case SL_WLAN_EVENT_PROVISIONING_STATUS:
+	break;
+	case SL_WLAN_EVENT_PROVISIONING_PROFILE_ADDED:
+	break;
     default:
-        break;
+        wifi_status_set(CONNECTING, true);
+        LOGI("UNEXPECTED WLAN EVENT %d\n", evnt->Id);
+        nwp_reset();
     }
 }
 void SimpleLinkGeneralEventHandler(SlDeviceEvent_t *pDevEvent)
 {
-LOGI("GENEVT ID=%d Sender=%d\n",pDevEvent->Data.deviceEvent.status, pDevEvent->Data.deviceEvent.sender);
+// TODO LOGI("GENEVT ID=%d Sender=%d\n",pDevEvent->Data.deviceEvent.status, pDevEvent->Data.deviceEvent.sender);
 }
 //****************************************************************************
 //
@@ -584,7 +618,7 @@ int get_wifi_scan_result(SlWlanNetworkEntry_t* entries, uint16_t entry_len, uint
 
     unsigned long IntervalVal = 20;
 
-    unsigned char policyOpt = SL_CONNECTION_POLICY(0, 0, 0, 0, 0);
+    unsigned char policyOpt = SL_WLAN_CONNECTION_POLICY(0,0,0,0);
     int r;
 
     if( antenna ) {
@@ -594,7 +628,7 @@ int get_wifi_scan_result(SlWlanNetworkEntry_t* entries, uint16_t entry_len, uint
     r = sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION , policyOpt, NULL, 0);
 
     // Make sure scan is enabled
-    policyOpt = SL_SCAN_POLICY(1);
+    policyOpt = SL_WLAN_SCAN_POLICY(1,1);
 
     // set scan policy - this starts the scan
     r = sl_WlanPolicySet(SL_WLAN_POLICY_SCAN , policyOpt, (unsigned char *)(IntervalVal), sizeof(IntervalVal));
@@ -608,7 +642,7 @@ int get_wifi_scan_result(SlWlanNetworkEntry_t* entries, uint16_t entry_len, uint
     r = sl_WlanGetNetworkList(0, entry_len, entries);
 
     // Restore connection policy to Auto
-    sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0), NULL, 0);
+    sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION, SL_WLAN_CONNECTION_POLICY(1, 1, 0, 0), NULL, 0);
 
     return r;
 
@@ -655,61 +689,25 @@ int Cmd_connect(int argc, char *argv[]) {
     connect_wifi( argv[1], argv[2], atoi(argv[3]), 1,  &idx, true );
     return (0);
 }
-int Cmd_setDns(int argc, char *argv[])  {
-	if( argc == 2 ) {
-		SlNetCfgIpV4Args_t config = {0};
-		uint8_t size = sizeof(config);
-		sl_NetCfgGet( SL_IPV4_STA_P2P_CL_GET_INFO, NULL, &size, (uint8_t*)&config );
-		config.IpDnsServer = strtoul(argv[1], NULL, 16);
-		sl_NetCfgSet( SL_IPV4_STA_P2P_CL_STATIC_ENABLE, IPCONFIG_MODE_ENABLE_IPV4, size, (uint8_t*)&config );
-		nwp_reset();
-	}
-	return 0;
-}
-
 void set_backup_dns() {
     SlNetCfgIpV4DnsClientArgs_t DnsOpt;
 
    DnsOpt.DnsSecondServerAddr  =  SL_IPV4_VAL(8,8,4,4);
-   sl_NetCfgSet(SL_IPV4_DNS_CLIENT,0,sizeof(SlNetCfgIpV4DnsClientArgs_t),(unsigned char *)&DnsOpt);
+   sl_NetCfgSet(SL_NETCFG_IPV4_DNS_CLIENT,0,sizeof(SlNetCfgIpV4DnsClientArgs_t),(unsigned char *)&DnsOpt);
 }
 int Cmd_status(int argc, char *argv[]) {
-    unsigned char ucDHCP = 0;
     unsigned char len = sizeof(SlNetCfgIpV4Args_t);
-    //
-    // Get IP address
-    //    unsigned char len = sizeof(_NetCfgIpV4Args_t);
-    SlNetCfgIpV4Args_t ipv4 = { 0 };
+    _u16 ConfigOpt = 0;   //return value could be one of the following: SL_NETCFG_ADDR_DHCP / SL_NETCFG_ADDR_DHCP_LLA / SL_NETCFG_ADDR_STATIC
+    SlNetCfgIpV4Args_t ipV4 = {0};
+    sl_NetCfgGet(SL_NETCFG_IPV4_STA_ADDR_MODE,&ConfigOpt,&len,(_u8 *)&ipV4);
 
-    sl_NetCfgGet(SL_IPV4_STA_P2P_CL_GET_INFO, &ucDHCP, &len,
-            (unsigned char *) &ipv4);
-    //
-    // Send the information
-    //
-    LOGI("%x ip 0x%x submask 0x%x gateway 0x%x dns 0x%x\n\r", wifi_status_get(0xFFFFFFFF),
-            ipv4.Ip, ipv4.IpMask, ipv4.IpGateway, ipv4.IpDnsServer);
+	LOGF("DHCP is %s IP %d.%d.%d.%d MASK %d.%d.%d.%d GW %d.%d.%d.%d DNS %d.%d.%d.%d\n",
+        (ConfigOpt == SL_NETCFG_ADDR_DHCP) ? "ON" : "OFF",
+        SL_IPV4_BYTE(ipV4.Ip,3),SL_IPV4_BYTE(ipV4.Ip,2),SL_IPV4_BYTE(ipV4.Ip,1),SL_IPV4_BYTE(ipV4.Ip,0),
+        SL_IPV4_BYTE(ipV4.IpMask,3),SL_IPV4_BYTE(ipV4.IpMask,2),SL_IPV4_BYTE(ipV4.IpMask,1),SL_IPV4_BYTE(ipV4.IpMask,0),
+        SL_IPV4_BYTE(ipV4.IpGateway,3),SL_IPV4_BYTE(ipV4.IpGateway,2),SL_IPV4_BYTE(ipV4.IpGateway,1),SL_IPV4_BYTE(ipV4.IpGateway,0),
+        SL_IPV4_BYTE(ipV4.IpDnsServer,3),SL_IPV4_BYTE(ipV4.IpDnsServer,2),SL_IPV4_BYTE(ipV4.IpDnsServer,1),SL_IPV4_BYTE(ipV4.IpDnsServer,0));
 
-    LOGF("DNS=%d.%d.%d.%d\n",
-                SL_IPV4_BYTE(ipv4.IpDnsServer,3),
-                SL_IPV4_BYTE(ipv4.IpDnsServer,2),
-                SL_IPV4_BYTE(ipv4.IpDnsServer,1),
-                SL_IPV4_BYTE(ipv4.IpDnsServer,0));
-
-    _u8 ConfigOpt;
-    _u8 pConfigLen = sizeof(SlNetCfgIpV4DnsClientArgs_t);
-    SlNetCfgIpV4DnsClientArgs_t DnsOpt;
-    sl_NetCfgGet(SL_IPV4_DNS_CLIENT,&ConfigOpt,&pConfigLen,(unsigned char *)&DnsOpt);
-
-    LOGF("ALT DNS=%d.%d.%d.%d\n",
-                SL_IPV4_BYTE(DnsOpt.DnsSecondServerAddr,3),
-                SL_IPV4_BYTE(DnsOpt.DnsSecondServerAddr,2),
-                SL_IPV4_BYTE(DnsOpt.DnsSecondServerAddr,1),
-                SL_IPV4_BYTE(DnsOpt.DnsSecondServerAddr,0));
-    LOGF("IP=%d.%d.%d.%d\n",
-                SL_IPV4_BYTE(ipv4.Ip,3),
-                SL_IPV4_BYTE(ipv4.Ip,2),
-                SL_IPV4_BYTE(ipv4.Ip,1),
-                SL_IPV4_BYTE(ipv4.Ip,0));
 
     return 0;
 }
@@ -1137,7 +1135,7 @@ int start_connection(int * sock, char * host, security_type sec) {
 			// setup certificate
 			unsigned char method = SL_SO_SEC_METHOD_TLSV1_2;
 #ifdef USE_SHA2
-			unsigned int cipher = SL_SEC_MASK_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256;
+			unsigned int cipher = SL_WLAN_SEC_MASK_TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256;
 #else
 			unsigned int cipher = SL_SEC_MASK_TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA;
 #endif
@@ -1764,7 +1762,7 @@ static bool _encode_encrypted_pilldata(pb_ostream_t *stream, const pb_field_t *f
 
 bool get_mac(unsigned char mac[6]) {
 	int32_t ret;
-	unsigned char mac_len = 6;
+	unsigned short mac_len = 6;
 
 	ret = sl_NetCfgGet(SL_NETCFG_MAC_ADDRESS_GET, NULL, &mac_len, mac);
 
@@ -2080,40 +2078,6 @@ bool send_provision_request(ProvisionRequest* req) {
 			ProvisionRequest_fields, req, INT_MAX, NULL,NULL, &pb_cb, true);
 }
 #endif
-
-int Cmd_sl(int argc, char*argv[]) {
-
-    unsigned char policyVal;
-
-    //make sure we're in station mode
-    if (sl_mode != ROLE_STA) {
-        //Switch to STA Mode
-        sl_WlanSetMode(ROLE_STA);
-        sl_Stop(SL_STOP_TIMEOUT);
-        sl_mode = sl_Start(NULL, NULL, NULL);
-    }
-
-    //sl_WlanProfileDel(WLAN_DEL_ALL_PROFILES);
-
-    //set AUTO policy
-    sl_WlanPolicySet( SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0),
-            &policyVal, 1 /*PolicyValLen*/);
-
-    /* Start SmartConfig
-     * This example uses the unsecured SmartConfig method
-     */
-    sl_WlanSmartConfigStart(0,                          //groupIdBitmask
-            SL_WLAN_SMART_CONFIG_CIPHER_NONE,    //cipher
-            0,                           //publicKeyLen
-            0,                           //group1KeyLen
-            0,                           //group2KeyLen
-            NULL,                          //publicKey
-            NULL,                          //group1Key
-            NULL);                         //group2Key
-
-    return 0;
-}
-
 
 
 #include "fatfs_cmd.h"
@@ -2546,7 +2510,7 @@ int connect_wifi(const char* ssid, const char* password, int sec_type, int versi
 	int16_t ret = 0;
 	SlWlanSecParams_t secParam = make_sec_params(ssid, password, sec_type, version);
 
-	ret = sl_WlanConnect((_i8*) ssid, strlen(ssid), NULL, sec_type == SL_SEC_TYPE_OPEN ? NULL : &secParam, 0);
+	ret = sl_WlanConnect((_i8*) ssid, strlen(ssid), NULL, sec_type == SL_WLAN_SEC_TYPE_OPEN ? NULL : &secParam, 0);
 
 	if( save ) {
 		*idx = sl_WlanProfileAdd((_i8*) ssid, strlen(ssid), NULL,

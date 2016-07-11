@@ -753,7 +753,6 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 		}
 		break;
 	}
-#if 0
 	if(!booted || provisioning_mode) {
 		goto cleanup;
 	}
@@ -768,15 +767,15 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
             char* password = command->wifiPassword.arg;
 
             // I can get the Mac address as well, but not sure it is necessary.
-            int sec_type = SL_SEC_TYPE_WPA_WPA2;
+            int sec_type = SL_WLAN_SEC_TYPE_WPA_WPA2;
             if(command->has_security_type)
             {
-            	sec_type = command->security_type == wifi_endpoint_sec_type_SL_SCAN_SEC_TYPE_WPA2 ? SL_SEC_TYPE_WPA_WPA2 : command->security_type;
+            	sec_type = command->security_type == wifi_endpoint_sec_type_SL_SCAN_SEC_TYPE_WPA2 ? SL_WLAN_SEC_TYPE_WPA_WPA2 : command->security_type;
             }
             // Just call API to connect to WIFI.
 #if 0
         	LOGI("Wifi SSID %s pswd ", ssid, password);
-            if( sec_type == SL_SEC_TYPE_WEP ) {
+            if( sec_type == SL_WLAN_SEC_TYPE_WEP ) {
             	int i;
             	for(i=0;i<strlen(password);++i) {
             		LOGI("%x:", password[i]);
@@ -878,7 +877,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 
             if( command->has_country_code ) {
                 uint16_t len = 4;
-        	    uint16_t  config_opt = WLAN_GENERAL_PARAM_OPT_COUNTRY_CODE;
+        	    uint16_t  config_opt = SL_WLAN_GENERAL_PARAM_OPT_COUNTRY_CODE;
         	    char cc[4];
         	    sl_WlanGet(SL_WLAN_CFG_GENERAL_PARAM_ID, &config_opt, &len, (_u8* )cc);
         	    LOGI("Set country code %s have %s\n", command->country_code, cc );
@@ -886,7 +885,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
 					LOGI("mismatch\n");
 					sl_enter_critical_region();
 					sl_WlanSet(SL_WLAN_CFG_GENERAL_PARAM_ID,
-							WLAN_GENERAL_PARAM_OPT_COUNTRY_CODE, 2,
+							SL_WLAN_GENERAL_PARAM_OPT_COUNTRY_CODE, 2,
 							(uint8_t* )command->country_code);
 					vTaskDelay(100);
 					nwp_reset();
@@ -967,7 +966,7 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SET_COUNTRY_CODE:
         	if( command->has_country_code ) {
 				sl_WlanSet(SL_WLAN_CFG_GENERAL_PARAM_ID,
-						WLAN_GENERAL_PARAM_OPT_COUNTRY_CODE, 2, (uint8_t*)command->country_code);
+						SL_WLAN_GENERAL_PARAM_OPT_COUNTRY_CODE, 2, (uint8_t*)command->country_code);
 				nwp_reset();
         	} else {
                 ble_reply_protobuf_error(ErrorType_INTERNAL_DATA_ERROR);
@@ -980,7 +979,6 @@ bool on_ble_protobuf_command(MorpheusCommand* command)
         case MorpheusCommand_CommandType_MORPHEUS_COMMAND_SYNC_DEVICE_ID:
         	break;
 	}
-#endif
     cleanup:
     if( finished_with_command ) {
     	ble_proto_free_command(command);
