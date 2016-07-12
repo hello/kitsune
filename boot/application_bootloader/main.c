@@ -297,8 +297,31 @@ __asm("    .sect \".text:Run\"\n"
 //*****************************************************************************
 int file_len = 0;
 #include "flash.h"
-static int load_to_flash(long handle, const unsigned char * offset, _u32 size){
-	return 0;
+#define TRANSFER_BUFFER_SIZE (2048 * 64)
+static int load_to_flash(long handle, _u32 flash_start, _u32 size){
+	int ret = 0;
+	_u8 buf[TRANSFER_BUFFER_SIZE];
+	_u32 erase_address = flash_start;
+	while(ret == 0 && erase_address < (flash_start + size) ){
+		FlashErase(erase_address);
+		erase_address += 2048;
+	}
+	if( ret == 0){
+		_u32 write_start = flash_start;
+		_u32 read_offset = 0;
+
+		while(size){
+			_u32 bytes_to_xfer = (size >= TRANSFER_BUFFER_SIZE) ? TRANSFER_BUFFER_SIZE : size;
+			ret = sl_fsRead(handle, read_offset, buf, bytes_to_xfer);
+			if(ret !=  bytes_to_xfer && ret >= 0){
+				ret = -1;
+				break;
+			}else{
+
+			}
+		}
+	}
+	return ret;
 }
 int Load(unsigned char *ImgName, unsigned long ulToken) {
 	//
@@ -326,7 +349,7 @@ int Load(unsigned char *ImgName, unsigned long ulToken) {
 			iRetVal = sl_FsRead(lFileHandle, 0,
 					(unsigned char *) APP_IMG_SRAM_OFFSET, pFsFileInfo.Len);
 			*/
-			iRetVal = load_to_flash(lFileHandle, (unsigned char *)APP_IMG_FLASH_OFFSET, pFsFileInfo.Len);
+			iRetVal = load_to_flash(lFileHandle, APP_IMG_FLASH_OFFSET, pFsFileInfo.Len);
 			return iRetVal;
 		}
 	}else{
