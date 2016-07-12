@@ -301,11 +301,11 @@ int Load(unsigned char *ImgName, unsigned long ulToken) {
 	//
 	// Open the file for reading
 	//
-	iRetVal = sl_FsOpen(ImgName, FS_MODE_OPEN_READ, &ulToken, &lFileHandle);
+	lFileHandle = sl_FsOpen(ImgName, FS_MODE_OPEN_READ, &ulToken);
 	//
 	// Check if successfully opened
 	//
-	if (0 == iRetVal) {
+	if (lFileHandle >= 0) {
 		//
 		// Get the file size using File Info structure
 		//
@@ -318,12 +318,15 @@ int Load(unsigned char *ImgName, unsigned long ulToken) {
 
 			//
 			// Read the application into SRAM
-			//
+			//TODO finish this
 			iRetVal = sl_FsRead(lFileHandle, 0,
 					(unsigned char *) APP_IMG_SRAM_OFFSET, pFsFileInfo.Len);
+			return 0;
 		}
+	}else{
+		return -1;
 	}
-	return iRetVal != pFsFileInfo.Len;
+	return -1;
 }
 int Test(unsigned int img) {
 	SHA1_Init(&sha1ctx);
@@ -371,8 +374,7 @@ static long BootInfoWrite(sBootInfo_t *psBootInfo)
   //
   // Open the boot info file for write
   //
-  if( 0 == sl_FsOpen((unsigned char *)IMG_BOOT_INFO, FS_MODE_OPEN_WRITE,
-                      &ulToken, &lFileHandle) )
+  if((lFileHandle = sl_FsOpen((unsigned char *)IMG_BOOT_INFO, FS_MODE_OPEN_WRITE, &ulToken)) >= 0 )
   {
     //
     // Write the boot info
@@ -636,16 +638,15 @@ int main()
   //
   // Open Boot info file for reading
   //
-  iRetVal = sl_FsOpen((unsigned char *)IMG_BOOT_INFO,
+  lFileHandle = sl_FsOpen((unsigned char *)IMG_BOOT_INFO,
                         FS_MODE_OPEN_READ,
-                        &ulBootInfoToken,
-                        &lFileHandle);
+                        &ulBootInfoToken);
 
   //
   // If successful, load the boot info
   // else create a new file with default boot info.
   //
-  if( 0 == iRetVal )
+  if( lFileHandle >= 0 )
   {
     iRetVal = sl_FsRead(lFileHandle,0,
                          (unsigned char *)&sBootInfo,
@@ -658,18 +659,17 @@ int main()
     //
     // Create a new boot info file
     //
-    iRetVal = sl_FsOpen((unsigned char *)IMG_BOOT_INFO,
+	  lFileHandle = sl_FsOpen((unsigned char *)IMG_BOOT_INFO,
                         FS_MODE_OPEN_CREATE(2*sizeof(sBootInfo_t),
                                             ulBootInfoCreateFlag),
-                                            &ulBootInfoToken,
-                                            &lFileHandle);
+                                            &ulBootInfoToken);
 
     //
     // Create a default boot info
     //
     iRetVal = CreateDefaultBootInfo(&sBootInfo);
 
-    if(iRetVal != 0)
+    if(lFileHandle < 0)
     {
       //
       // Can't boot no bootable image found
