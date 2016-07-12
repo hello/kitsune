@@ -581,11 +581,6 @@ int main()
   sBootInfo.ulImgStatus = IMG_STATUS_NOTEST;
 
   //
-  // Initialize boot info file create flag
-  //
-  ulBootInfoCreateFlag  = SL_FS_WRITE_MUST_COMMIT | SL_FS_WRITE;
-
-  //
   // Start slhost to get NVMEM service
   //
   sl_Start(NULL, NULL, NULL);
