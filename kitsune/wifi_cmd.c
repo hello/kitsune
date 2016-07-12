@@ -767,7 +767,7 @@ int Cmd_mode(int argc, char*argv[]) {
     return 0;
 }
 #include "crypto.h"
-static uint8_t aes_key[AES_BLOCKSIZE + 1] = DEFAULT_KEY;
+uint8_t aes_key[AES_BLOCKSIZE + 1] = DEFAULT_KEY;
 static uint8_t device_id[DEVICE_ID_SZ + 1];
 
 int save_aes( uint8_t * key ) {
@@ -1863,6 +1863,12 @@ char * get_server(void){
 		return DEV_DATA_SERVER;
 	}
 	return PROD_DATA_SERVER;
+}
+char * get_ws_server(void){
+	if(use_dev_server){
+		return DEV_WS_SERVER;
+	}
+	return PROD_WS_SERVER;
 }
 void on_key(uint8_t * key) {
 	save_aes(key);

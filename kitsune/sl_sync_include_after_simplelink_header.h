@@ -17,7 +17,6 @@ extern int sync_ln;
 extern const char * sync_fnc;
 
 void _checkret(bool assert_ret, portTickType start);
-
 #ifdef SL_DEBUG_LOG
 #define SL_SYNC(call) \
 	({ \
@@ -64,6 +63,8 @@ void _checkret(bool assert_ret, portTickType start);
 #define ntohl(...)                               sl_Ntohl(__VA_ARGS__)
 #define htons(...)                               sl_Htons(__VA_ARGS__)
 #define ntohs(...)                               sl_Ntohs(__VA_ARGS__)
+
+#if 0
 
 #define sl_Start(...)                            SL_SYNC(sl_Start(__VA_ARGS__))
 #define sl_Stop(...)                             SL_SYNC(sl_Stop(__VA_ARGS__))
@@ -125,7 +126,7 @@ void _checkret(bool assert_ret, portTickType start);
 #define sl_WlanRxFilterAdd(...)                  SL_SYNC(sl_WlanRxFilterAdd(__VA_ARGS__))
 #define sl_WlanRxFilterSet(...)                  SL_SYNC(sl_WlanRxFilterSet(__VA_ARGS__))
 #define sl_WlanRxFilterGet(...)                  SL_SYNC(sl_WlanRxFilterGet(__VA_ARGS__))
-
+#endif
 long sl_sync_init();
 long sl_enter_critical_region();
 long sl_exit_critical_region();

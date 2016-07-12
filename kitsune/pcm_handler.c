@@ -82,6 +82,7 @@
 #include "uartstdio.h"
 
 #include "codec_debug_config.h"
+
 //*****************************************************************************
 //                          LOCAL DEFINES
 //*****************************************************************************
@@ -103,18 +104,13 @@ unsigned short pong[(CB_TRANSFER_SZ)];
 #endif
 
 
-
-
-
 volatile unsigned int guiDMATransferCountTx = 0;
 volatile unsigned int guiDMATransferCountRx = 0;
+
 extern tCircularBuffer *pTxBuffer;
 extern tCircularBuffer *pRxBuffer;
 
-extern TaskHandle_t audio_task_hndl;
-#if (AUDIO_FULL_DUPLEX==1)
-extern TaskHandle_t audio_task_hndl_p;
-#endif
+extern xSemaphoreHandle isr_sem;;
 
 //*****************************************************************************
 //
@@ -165,10 +161,8 @@ void DMAPingPongCompleteAppCB_opt()
 		if ((pControlTable[ulPrimaryIndexTx].ulControl & UDMA_CHCTL_XFERMODE_M)
 				== 0) {
 #if (CODEC_ENABLE_MULTI_CHANNEL==1)
-			guiDMATransferCountTx += CB_TRANSFER_SZ*4; //bytes
 			#define END_PTR_DEBUG (CB_TRANSFER_SZ*4)-1
 #else
-			guiDMATransferCountTx += CB_TRANSFER_SZ*2; //bytes
 			#define END_PTR_DEBUG  END_PTR
 #endif
 			pucDMADest = (unsigned char *) ping;
@@ -179,17 +173,17 @@ void DMAPingPongCompleteAppCB_opt()
 
 			for (i = 0; i < CB_TRANSFER_SZ; i++) {
 #if (CODEC_ENABLE_MULTI_CHANNEL==1)
-			uint16_t pong_lsb = pong[i] & 0xFFFF;
-			uint16_t pong_msb = (pong[i] & 0xFFFF0000) >> 16;
-			swap_endian(&pong_lsb);
-			swap_endian(&pong_msb);
-			pong[i] = ((uint32_t)pong_msb << 16 ) | pong_lsb;
+				uint16_t pong_lsb = pong[i] & 0xFFFF;
+				uint16_t pong_msb = (pong[i] & 0xFFFF0000) >> 16;
+				swap_endian(&pong_lsb);
+				swap_endian(&pong_msb);
+				pong[i] = ((uint32_t) pong_msb << 16) | pong_lsb;
 #else
 				swap_endian(pong+i);
 #endif
 			}
 #if (CODEC_ENABLE_MULTI_CHANNEL==1)
-			FillBuffer(pAudInBuf, (unsigned char*)pong, CB_TRANSFER_SZ*4);
+			FillBuffer(pAudInBuf, (unsigned char*) pong, CB_TRANSFER_SZ * 4);
 #else
 			FillBuffer(pAudInBuf, (unsigned char*)pong, CB_TRANSFER_SZ*2);
 #endif
@@ -198,9 +192,9 @@ void DMAPingPongCompleteAppCB_opt()
 			if ((pControlTable[ulAltIndexTx].ulControl & UDMA_CHCTL_XFERMODE_M)
 					== 0) {
 #if (CODEC_ENABLE_MULTI_CHANNEL==1)
-				guiDMATransferCountTx += CB_TRANSFER_SZ*4; //bytes
+				guiDMATransferCountTx += CB_TRANSFER_SZ * 4; //bytes
 #else
-				guiDMATransferCountTx += CB_TRANSFER_SZ*2;
+						guiDMATransferCountTx += CB_TRANSFER_SZ*2;
 #endif
 				pucDMADest = (unsigned char *) pong;
 				pControlTable[ulAltIndexTx].ulControl |= CTRL_WRD;
@@ -214,13 +208,14 @@ void DMAPingPongCompleteAppCB_opt()
 					uint16_t ping_msb = (ping[i] & 0xFFFF0000) >> 16;
 					swap_endian(&ping_lsb);
 					swap_endian(&ping_msb);
-					ping[i] = ((uint32_t)ping_msb << 16 ) | ping_lsb;
+					ping[i] = ((uint32_t) ping_msb << 16) | ping_lsb;
 #else
 					swap_endian(ping+i);
 #endif
 				}
 #if (CODEC_ENABLE_MULTI_CHANNEL==1)
-				FillBuffer(pAudInBuf, (unsigned char*)ping, CB_TRANSFER_SZ*4);
+				FillBuffer(pAudInBuf, (unsigned char*) ping,
+						CB_TRANSFER_SZ * 4);
 #else
 				FillBuffer(pAudInBuf, (unsigned char*)ping, CB_TRANSFER_SZ*2);
 #endif
@@ -240,8 +235,7 @@ void DMAPingPongCompleteAppCB_opt()
 			guiDMATransferCountTx = 0;
 
 			if ( qqbufsz > LISTEN_WATERMARK ) {
-				vTaskNotifyGiveFromISR( audio_task_hndl, &xHigherPriorityTaskWoken );
-				portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+				xSemaphoreGiveFromISR(isr_sem, &xHigherPriorityTaskWoken);
 			}
 		}
 	}
@@ -286,7 +280,6 @@ void DMAPingPongCompleteAppCB_opt()
 			} else {
 				memset( ping_p, 0, sizeof(ping_p));
 			}
-
 			pucDMASrc = (unsigned char*)ping_p;
 
 			pControlTable[ulPrimaryIndexRx].ulControl |= CTRL_WRD;
@@ -322,7 +315,6 @@ void DMAPingPongCompleteAppCB_opt()
 				} else {
 					memset( pong_p, 0, sizeof(pong_p));
 				}
-
 				pucDMASrc = (unsigned char*)pong_p;
 
 				pControlTable[ulAltIndexRx].ulControl |= CTRL_WRD;
@@ -339,11 +331,7 @@ void DMAPingPongCompleteAppCB_opt()
 			guiDMATransferCountRx = 0;
 
 			if ( qqbufsz < PLAY_WATERMARK ) {
-#if (AUDIO_FULL_DUPLEX==1)
-				vTaskNotifyGiveFromISR( audio_task_hndl_p, &xHigherPriorityTaskWoken );
-#else
-				vTaskNotifyGiveFromISR( audio_task_hndl, &xHigherPriorityTaskWoken );
-#endif
+				xSemaphoreGiveFromISR(isr_sem, &xHigherPriorityTaskWoken);
 				portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 			}
 		}

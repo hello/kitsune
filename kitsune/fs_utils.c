@@ -63,3 +63,88 @@ int fs_save( char* file, void* data, int len) {
 	sl_FsClose(hndl, 0, 0, 0);
 	return 0;
 }
+//================================
+//serial flash
+typedef struct{
+	long hndl;
+	long tok;
+	uint32_t offset;
+}sf_ctx_t;
+static int _read_sf(void * ctx, void * out, size_t len){
+	sf_ctx_t * sf = (sf_ctx_t*)ctx;
+	int ret =  sl_FsRead(sf->hndl, sf->offset, out, len);
+	if( ret > 0 ){
+		sf->offset += ret;
+		return ret;
+	}else if(ret == 0 || ret == SL_FS_ERR_OFFSET_OUT_OF_RANGE){
+		return HLO_STREAM_EOF;
+	}else{
+		LOGW("SF error %d\r\n", ret);
+		return HLO_STREAM_ERROR;
+	}
+}
+static int _write_sf(void * ctx, const void * in, size_t len){
+	sf_ctx_t * sf = (sf_ctx_t*)ctx;
+	int ret = sl_FsWrite(sf->hndl, sf->offset, (uint8_t*)in, len);
+	if( ret > 0 ){
+		sf->offset += ret;
+		return ret;
+	}else if(ret == 0){
+		return HLO_STREAM_EOF;
+	}else{
+		LOGW("SF error %d\r\n", ret);
+        /* Close file without saving */
+		sl_FsClose(sf->hndl, 0, (unsigned char*) "A", 1);
+		return HLO_STREAM_ERROR;
+	}
+}
+static int _close_sf(void * ctx){
+	sf_ctx_t * sf = (sf_ctx_t*)ctx;
+	sl_FsClose(sf->hndl, 0, 0, 0);
+	return 0;
+}
+hlo_stream_t * open_serial_flash( char * filepath, uint32_t options){
+	long hndl, tok;
+	int ret;
+	SlFsFileInfo_t info;
+	hlo_stream_vftbl_t tbl = (hlo_stream_vftbl_t){
+		.close = _close_sf,
+		.read = NULL,
+		.write = NULL,
+	};
+
+	ret = sl_FsGetInfo((const uint8_t*)filepath, 0, &info);
+
+	if(options == HLO_STREAM_READ){
+		tbl.read = _read_sf;
+		if ( ret == SL_FS_ERR_FILE_NOT_EXISTS ){
+			LOGE("Serial flash file %s does not exist.\r\n", filepath);
+			return NULL;
+		}else if( sl_FsOpen((const uint8_t*)filepath, FS_MODE_OPEN_READ, NULL, &hndl) ){
+			LOGE("Unable to open file for read\r\n");
+			return NULL;
+		}
+	}else if(options == HLO_STREAM_WRITE){
+		tbl.write = _write_sf;
+		if ( ret == 0 ){ //if file exists
+			if(sl_FsDel((const uint8_t*)filepath, 0) != 0){
+				LOGE("Unable to open file for write\r\n");
+				return NULL;
+			}
+		}
+		uint8_t data[1] = {0};
+		if(sl_FsOpen((const uint8_t*)filepath, FS_MODE_OPEN_CREATE(65535, _FS_FILE_OPEN_FLAG_COMMIT), (_u32*)&tok, (_i32*)&hndl) != 0){
+			return NULL;
+		}
+		sl_FsWrite(hndl, 0, data, 1);
+	}else{
+		LOGE("serial flash may not operate in duplex mode\r\n");
+		return NULL;
+	}
+	sf_ctx_t * ctx = pvPortMalloc(sizeof(*ctx));
+	assert(ctx);
+	ctx->hndl = hndl;
+	ctx->tok = tok;
+	ctx->offset = 0;
+	return hlo_stream_new(&tbl,ctx,options);
+}

@@ -29,7 +29,6 @@
 #include "sl_sync_include_after_simplelink_header.h"
 #include "ustdlib.h"
 #include "pill_settings.h"
-#include "audiohelper.h"
 #include "audiotask.h"
 #include "hlo_net_tools.h"
 #include "prox_signal.h"
@@ -139,7 +138,7 @@ static void _ble_reply_command_with_type(MorpheusCommand_CommandType type)
 	ble_send_protobuf(&reply_command);
     LOGI("Sending BLE %d\n",type);
 }
-
+extern int deleteFilesInDir(const char* dir);
 static void _factory_reset(){
 	wifi_reset();
     reset_default_antenna();
@@ -641,7 +640,8 @@ void ble_proto_end_hold()
 {
 	set_released(true);
 }
-
+#include "hellofilesystem.h"
+#define STARTUP_SOUND_NAME "/ringtone/star003.raw"
 static void play_startup_sound() {
 	// TODO: Play startup sound. You will only reach here once.
 	// Now the hand hover-to-pairing mode will not delete all the bonds
@@ -652,7 +652,8 @@ static void play_startup_sound() {
 	{
 		AudioPlaybackDesc_t desc;
 		memset(&desc, 0, sizeof(desc));
-		strncpy(desc.file, "/ringtone/star003.raw", strlen("/ringtone/star003.raw"));
+		desc.stream = fs_stream_open(STARTUP_SOUND_NAME, HLO_STREAM_READ);
+		ustrncpy(desc.source_name, STARTUP_SOUND_NAME, sizeof(desc.source_name));
 		desc.volume = 57;
 		desc.durationInSeconds = -1;
 		desc.rate = AUDIO_CAPTURE_PLAYBACK_RATE;
