@@ -139,8 +139,8 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *pWlanEvent)
 //*****************************************************************************
 // HTTP Server callback hookup function
 //*****************************************************************************
-void SimpleLinkHttpServerCallback(SlHttpServerEvent_t *pHttpEvent,
-                                  SlHttpServerResponse_t *pHttpResponse)
+void SimpleLinkHttpServerCallback(SlNetAppHttpServerEvent_t *pHttpEvent,
+                                  SlNetAppHttpServerResponse_t *pHttpResponse)
 {
 
 }
@@ -310,7 +310,7 @@ int Load(unsigned char *ImgName, unsigned long ulToken) {
 		// Get the file size using File Info structure
 		//
 		iRetVal = sl_FsGetInfo(ImgName, ulToken, &pFsFileInfo);
-		file_len = pFsFileInfo.FileLen;
+		file_len = pFsFileInfo.Len;
 		//
 		// Check for failure
 		//
@@ -320,10 +320,10 @@ int Load(unsigned char *ImgName, unsigned long ulToken) {
 			// Read the application into SRAM
 			//
 			iRetVal = sl_FsRead(lFileHandle, 0,
-					(unsigned char *) APP_IMG_SRAM_OFFSET, pFsFileInfo.FileLen);
+					(unsigned char *) APP_IMG_SRAM_OFFSET, pFsFileInfo.Len);
 		}
 	}
-	return iRetVal != pFsFileInfo.FileLen;
+	return iRetVal != pFsFileInfo.Len;
 }
 int Test(unsigned int img) {
 	SHA1_Init(&sha1ctx);
