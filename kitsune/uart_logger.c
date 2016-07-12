@@ -750,6 +750,7 @@ static int uart_write(void * ctx, const void * buf, size_t size){
 	xSemaphoreGive( self.print_sem );
 	return i;
 }
+#undef write
 static hlo_stream_vftbl_t uart_stream_impl = {
 		.write = uart_write,
 };

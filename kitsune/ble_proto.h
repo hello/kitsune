@@ -47,7 +47,7 @@ void ble_reply_wifi_status(wifi_connection_state state);
 void ble_reply_socket_error(int error);
 void ble_reply_http_status(char * status);
 
-Sl_WlanNetworkEntry_t *  get_wifi_scan(int * num);
+SlWlanNetworkEntry_t *  get_wifi_scan(int * num);
 
 //*****************************************************************************
 //

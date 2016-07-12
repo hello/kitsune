@@ -1,38 +1,17 @@
 /*
- * protocol.h - CC31xx/CC32xx Host Driver Implementation
+ *   Copyright (C) 2015 Texas Instruments Incorporated
  *
- * Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com/ 
- * 
- * 
- *  Redistribution and use in source and binary forms, with or without 
- *  modification, are permitted provided that the following conditions 
- *  are met:
+ *   All rights reserved. Property of Texas Instruments Incorporated.
+ *   Restricted rights to use, duplicate or disclose this code are
+ *   granted through contract.
  *
- *    Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer.
- *
- *    Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the   
- *    distribution.
- *
- *    Neither the name of Texas Instruments Incorporated nor the names of
- *    its contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
- *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT 
- *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- *  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT 
- *  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
- *  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT 
- *  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- *  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- *  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
- *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
- *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
-*/
+ *   The program may not be used without the written permission of
+ *   Texas Instruments Incorporated or against the terms and conditions
+ *   stipulated in the agreement under which this program has been supplied,
+ *   and under no circumstances can it be used with non-TI connectivity device.
+ *   
+ */
+
 
 /*******************************************************************************\
 *
@@ -97,8 +76,9 @@ typedef struct
     _SlGenericHeader_t  GenHeader;
     _u8               TxPoolCnt;
     _u8               DevStatus;
-    _u8               SocketTXFailure;
-    _u8               SocketNonBlocking;
+	_u16              MinMaxPayload;
+    _u16              SocketTXFailure;  
+    _u16              SocketNonBlocking;
 }_SlResponseHeader_t;
 
 #define _SL_RESP_SPEC_HDR_SIZE (sizeof(_SlResponseHeader_t) - sizeof(_SlGenericHeader_t))
@@ -114,18 +94,21 @@ typedef struct
     _u8   func_args_start;
 } T_SCMD;
 
+/* _SlResponseHeader_t DevStatus bits */
+#define _SL_DEV_STATUS_BIT_WLAN_CONN					0x01 
+#define _SL_DEV_STATUS_BIT_DROPPED_EVENTS				0x02
+#define _SL_DEV_STATUS_BIT_LOCKED						0x04
+#define _SL_DEV_STATUS_BIT_PROVISIONING_ACTIVE			0x08
+#define _SL_DEV_STATUS_BIT_PROVISIONING_USER_INITIATED	0x10
+#define _SL_DEV_STATUS_BIT_PRESERVATION					0x20
+#define _SL_DEV_STATUS_BIT_PROVISIONING_ENABLE_API      0x40
 
-#define WLAN_CONN_STATUS_BIT 0x01
-#define EVENTS_Q_STATUS_BIT  0x02
-#define PENDING_RCV_CMD_BIT  0x04
-#define FW_BUSY_PACKETS_BIT  0x08
 
-#define INIT_STA_OK   0x11111111
-#define INIT_STA_ERR  0x22222222
-#define INIT_AP_OK    0x33333333
-#define INIT_AP_ERR   0x44444444
-#define INIT_P2P_OK   0x55555555
-#define INIT_P2P_ERR  0x66666666
+/* Internal driver bits status  (g_SlDeviceStatus) */
+#define _SL_DRV_STATUS_BIT_RESTART_REQUIRED       0x100   
+#define _SL_DRV_STATUS_BIT_DEVICE_STARTED         0x200
+#define _SL_DRV_STATUS_BIT_STOP_IN_PROGRESS       0x400 
+#define _SL_DRV_STATUS_BIT_START_IN_PROGRESS      0x800
 
 /****************************************************************************
 **  OPCODES
@@ -142,8 +125,9 @@ typedef struct
 #define SL_OPCODE_SILO_WLAN                             ( 0x1 << SL_OPCODE_SILO_OFFSET )
 #define SL_OPCODE_SILO_SOCKET                           ( 0x2 << SL_OPCODE_SILO_OFFSET )
 #define SL_OPCODE_SILO_NETAPP                           ( 0x3 << SL_OPCODE_SILO_OFFSET )
-#define SL_OPCODE_SILO_NVMEM                            ( 0x4 << SL_OPCODE_SILO_OFFSET )
+#define SL_OPCODE_SILO_FS                               ( 0x4 << SL_OPCODE_SILO_OFFSET )
 #define SL_OPCODE_SILO_NETCFG                           ( 0x5 << SL_OPCODE_SILO_OFFSET )
+#define SL_OPCODE_SILO_NETUTIL	                        ( 0x6 << SL_OPCODE_SILO_OFFSET )
 
 #define SL_FAMILY_SHIFT                            (0x4)
 #define SL_FLAGS_MASK                              (0xF)
@@ -157,17 +141,28 @@ typedef struct
 
 #define SL_OPCODE_DEVICE_VERSIONREADCOMMAND	                            0x8470
 #define SL_OPCODE_DEVICE_VERSIONREADRESPONSE	                        0x0470
-#define SL_OPCODE_DEVICE_DEVICEASYNCFATALERROR                      	0x0078
+#define SL_OPCODE_DEVICE_DEVICE_ASYNC_GENERAL_ERROR                     0x0078
+#define SL_OPCODE_DEVICE_FLOW_CTRL_ASYNC_EVENT             				0x0079
+
 #define SL_OPCODE_WLAN_WLANCONNECTCOMMAND                           	0x8C80
 #define SL_OPCODE_WLAN_WLANCONNECTRESPONSE                          	0x0C80
-#define SL_OPCODE_WLAN_WLANASYNCCONNECTEDRESPONSE                   	0x0880
-#define SL_OPCODE_WLAN_P2P_DEV_FOUND                                    0x0830
-#define SL_OPCODE_WLAN_CONNECTION_FAILED                                0x0831
-#define SL_OPCODE_WLAN_P2P_NEG_REQ_RECEIVED                             0x0832
+#define SL_OPCODE_WLAN_STA_ASYNCCONNECTEDRESPONSE                   	0x0880
+#define SL_OPCODE_WLAN_P2PCL_ASYNCCONNECTEDRESPONSE                   	0x0892
 
 #define SL_OPCODE_WLAN_WLANDISCONNECTCOMMAND                        	0x8C81
 #define SL_OPCODE_WLAN_WLANDISCONNECTRESPONSE                       	0x0C81
-#define SL_OPCODE_WLAN_WLANASYNCDISCONNECTEDRESPONSE                	0x0881
+#define SL_OPCODE_WLAN_STA_ASYNCDISCONNECTEDRESPONSE                	0x0881
+#define SL_OPCODE_WLAN_P2PCL_ASYNCDISCONNECTEDRESPONSE                	0x0894
+
+#define SL_OPCODE_WLAN_ASYNC_STA_ADDED                                  0x082E
+#define SL_OPCODE_WLAN_ASYNC_P2PCL_ADDED                                0x0896
+#define SL_OPCODE_WLAN_ASYNC_STA_REMOVED                                0x082F
+#define SL_OPCODE_WLAN_ASYNC_P2PCL_REMOVED                              0x0898
+
+#define SL_OPCODE_WLAN_P2P_DEV_FOUND                                    0x0830
+#define SL_OPCODE_WLAN_P2P_CONNECTION_FAILED                            0x0831
+#define SL_OPCODE_WLAN_P2P_NEG_REQ_RECEIVED                             0x0832
+
 #define SL_OPCODE_WLAN_WLANCONNECTEAPCOMMAND                        	0x8C82
 #define SL_OPCODE_WLAN_WLANCONNECTEAPCRESPONSE                      	0x0C82
 #define SL_OPCODE_WLAN_PROFILEADDCOMMAND                            	0x8C83
@@ -203,22 +198,15 @@ typedef struct
 #define SL_OPCODE_WLAN_POLICYGETCOMMANDNEW                          	0x8CB1
 #define SL_OPCODE_WLAN_POLICYGETRESPONSENEW                         	0x0CB1
 
-#define SL_OPCODE_WLAN_SMART_CONFIG_START_COMMAND                   	0x8CB2
-#define SL_OPCODE_WLAN_SMART_CONFIG_START_RESPONSE                  	0x0CB2
-#define SL_OPCODE_WLAN_SMART_CONFIG_START_ASYNC_RESPONSE            	0x08B2
-#define SL_OPCODE_WLAN_SMART_CONFIG_STOP_COMMAND                    	0x8CB3
-#define SL_OPCODE_WLAN_SMART_CONFIG_STOP_RESPONSE                   	0x0CB3
-#define SL_OPCODE_WLAN_SMART_CONFIG_STOP_ASYNC_RESPONSE             	0x08B3
+#define SL_OPCODE_WLAN_PROVISIONING_PROFILE_ADDED_ASYNC_RESPONSE        0x08B2
 #define SL_OPCODE_WLAN_SET_MODE                                         0x8CB4
 #define SL_OPCODE_WLAN_SET_MODE_RESPONSE                                0x0CB4
 #define SL_OPCODE_WLAN_CFG_SET                                          0x8CB5
 #define SL_OPCODE_WLAN_CFG_SET_RESPONSE                                 0x0CB5
 #define SL_OPCODE_WLAN_CFG_GET                                          0x8CB6
 #define SL_OPCODE_WLAN_CFG_GET_RESPONSE                                 0x0CB6
-#define SL_OPCODE_WLAN_STA_CONNECTED                                	0x082E
-#define SL_OPCODE_WLAN_STA_DISCONNECTED                             	0x082F
 #define SL_OPCODE_WLAN_EAP_PROFILEADDCOMMAND                            0x8C67
-#define SL_OPCODE_WLAN_EAP_PROFILEADDCOMMAND_RESPONSE                   0x0C67 
+#define SL_OPCODE_WLAN_EAP_PROFILEADDCOMMAND_RESPONSE                   0x0C67
 
 #define SL_OPCODE_SOCKET_SOCKET                                     	0x9401
 #define SL_OPCODE_SOCKET_SOCKETRESPONSE                             	0x1401
@@ -254,6 +242,7 @@ typedef struct
 #define SL_OPCODE_SOCKET_SENDTO_V6                                  	0x960D
 #define SL_OPCODE_SOCKET_TXFAILEDASYNCRESPONSE                      	0x100E
 #define SL_OPCODE_SOCKET_SOCKETASYNCEVENT                               0x100F
+#define SL_OPCODE_SOCKET_SOCKETCLOSEASYNCEVENT                          0x1010
 #define SL_OPCODE_NETAPP_START_COMMAND                                  0x9C0A
 #define SL_OPCODE_NETAPP_START_RESPONSE                                	0x1C0A
 #define SL_OPCODE_NETAPP_NETAPPSTARTRESPONSE                        	0x1C0A
@@ -284,14 +273,13 @@ typedef struct
 #define SL_OPCODE_NETAPP_PINGSTARTRESPONSE                          	0x1C21
 #define SL_OPCODE_NETAPP_PINGREPORTREQUEST                          	0x9C22
 #define SL_OPCODE_NETAPP_PINGREPORTREQUESTRESPONSE                  	0x1822
-#define SL_OPCODE_NETAPP_PINGSTOP                                   	0x9C23
-#define SL_OPCODE_NETAPP_PINGSTOPRESPONSE                           	0x1C23
 #define SL_OPCODE_NETAPP_ARPFLUSH                                   	0x9C24
 #define SL_OPCODE_NETAPP_ARPFLUSHRESPONSE                           	0x1C24
 #define SL_OPCODE_NETAPP_IPACQUIRED                                 	0x1825
 #define SL_OPCODE_NETAPP_IPV4_LOST	                                 	0x1832
 #define SL_OPCODE_NETAPP_DHCP_IPV4_ACQUIRE_TIMEOUT                  	0x1833
 #define SL_OPCODE_NETAPP_IPACQUIRED_V6                              	0x1A25
+#define SL_OPCODE_NETAPP_IPV6_LOST_V6									0x1A32
 #define SL_OPCODE_NETAPP_IPERFSTARTCOMMAND                          	0x9C28
 #define SL_OPCODE_NETAPP_IPERFSTARTRESPONSE                         	0x1C28
 #define SL_OPCODE_NETAPP_IPERFSTOPCOMMAND                           	0x9C29
@@ -306,6 +294,15 @@ typedef struct
 #define SL_OPCODE_NETAPP_HTTPGETTOKENVALUE                          	0x182E
 #define SL_OPCODE_NETAPP_HTTPSENDTOKENVALUE                         	0x9C2F
 #define SL_OPCODE_NETAPP_HTTPPOSTTOKENVALUE                         	0x1830
+#define SL_OPCODE_NETAPP_IP_COLLISION                                	0x1831
+
+#define SL_OPCODE_NETAPP_REQUEST                                    	0x1878
+#define SL_OPCODE_NETAPP_RESPONSE                                   	0x9C78
+#define SL_OPCODE_NETAPP_SEND                                       	0x9C79
+#define SL_OPCODE_NETAPP_SENDRESPONSE                               	0x1C79
+#define SL_OPCODE_NETAPP_RECEIVEREQUEST                             	0x9C7A
+#define SL_OPCODE_NETAPP_RECEIVE                                    	0x187B
+
 #define SL_OPCODE_NVMEM_FILEOPEN                                    	0xA43C
 #define SL_OPCODE_NVMEM_FILEOPENRESPONSE                             	0x243C
 #define SL_OPCODE_NVMEM_FILECLOSE                                    	0xA43D
@@ -320,6 +317,16 @@ typedef struct
 #define SL_OPCODE_NVMEM_FILEDELRESPONSE                             	0x2443
 #define SL_OPCODE_NVMEM_NVMEMFORMATCOMMAND                          	0xA444
 #define SL_OPCODE_NVMEM_NVMEMFORMATRESPONSE                         	0x2444
+#define SL_OPCODE_NVMEM_NVMEMGETFILELISTCOMMAND                        	0xA448
+#define SL_OPCODE_NVMEM_NVMEMGETFILELISTRESPONSE                       	0x2448
+
+#define SL_OPCODE_NVMEM_NVMEMFSPROGRAMMINGCOMMAND              	0xA44A
+#define SL_OPCODE_NVMEM_NVMEMFSPROGRAMMINGRESPONSE             	0x244A
+#define SL_OPCODE_NVMEM_NVMEMFILESYSTEMCONTROLCOMMAND                   0xA44B
+#define SL_OPCODE_NVMEM_NVMEMFILESYSTEMCONTROLRESPONSE                  0x244B
+#define SL_OPCODE_NVMEM_NVMEMBUNDLECONTROLCOMMAND                  	    0xA44C
+#define SL_OPCODE_NVMEM_NVMEMBUNDLECONTROLRESPONSE                 	    0x244C
+
 
 #define SL_OPCODE_DEVICE_SETDEBUGLEVELCOMMAND                       	0x846A
 #define SL_OPCODE_DEVICE_SETDEBUGLEVELRESPONSE                      	0x046A
@@ -352,19 +359,32 @@ typedef struct
 #define SL_OPCODE_WLAN_SMARTCONFIGOPTGET                            	0x8C8E
 #define SL_OPCODE_WLAN_SMARTCONFIGOPTGETRESPONSE                    	0x0C8E
 
+#define SL_OPCODE_WLAN_PROVISIONING_COMMAND                   			0x8C98
+#define SL_OPCODE_WLAN_PROVISIONING_RESPONSE                  			0x0C98
+#define SL_OPCODE_DEVICE_RESET_REQUEST_ASYNC_EVENT                  	0x0099
+#define SL_OPCODE_WLAN_PROVISIONING_STATUS_ASYNC_EVENT              	0x089A
+
+#define SL_OPCODE_FREE_BSD_RECV_BUFFER                                  0xCCCB
+#define SL_OPCODE_FREE_NON_BSD_READ_BUFFER                              0xCCCD
+
 
 /* Rx Filters opcodes */
 #define SL_OPCODE_WLAN_WLANRXFILTERADDCOMMAND                           0x8C6C
 #define SL_OPCODE_WLAN_WLANRXFILTERADDRESPONSE                          0x0C6C
-#define SL_OPCODE_WLAN_WLANRXFILTERSETCOMMAND                           0x8C6D
-#define SL_OPCODE_WLAN_WLANRXFILTERSETRESPONSE                          0x0C6D
 #define SL_OPCODE_WLAN_WLANRXFILTERGETSTATISTICSINFOCOMMAND             0x8C6E
 #define SL_OPCODE_WLAN_WLANRXFILTERGETSTATISTICSINFORESPONSE            0x0C6E
-#define SL_OPCODE_WLAN_WLANRXFILTERGETCOMMAND                           0x8C6F
-#define SL_OPCODE_WLAN_WLANRXFILTERGETRESPONSE                          0x0C6F
 #define SL_OPCODE_WLAN_WLANRXFILTERGETINFO                              0x8C70
 #define SL_OPCODE_WLAN_WLANRXFILTERGETINFORESPONSE                      0x0C70
+#define SL_OPCODE_WLAN_RX_FILTER_ASYNC_RESPONSE                         0x089D
 
+/* Utils */
+#define SL_OPCODE_NETUTIL_SET                                    		0xB4BE
+#define SL_OPCODE_NETUTIL_SETRESPONSE                            		0x34BE
+#define SL_OPCODE_NETUTIL_GET                                    		0xB4C0
+#define SL_OPCODE_NETUTIL_GETRESPONSE                            		0x34C0
+#define SL_OPCODE_NETUTIL_COMMAND                                		0xB4C1
+#define SL_OPCODE_NETUTIL_COMMANDRESPONSE                        		0x34C1
+#define SL_OPCODE_NETUTIL_COMMANDASYNCRESPONSE                   		0x30C1
 
 /******************************************************************************************/
 /*   Device structs  */
@@ -375,78 +395,94 @@ typedef _u32 InitStatus_t;
 typedef struct
 {
     _i32 Status;
+    _i32 ChipId;
+    _i32 MoreData;
 }InitComplete_t;
 
 typedef struct
 {
   _i16 status;
-  _u16 padding;
+  _u16 sender;
 
 }_BasicResponse_t;
 
 typedef struct
 {
-  _u16 Timeout;
-  _u16 padding;
-}_DevStopCommand_t;
+    _u32 SessionNumber;
+    _u16 Caller;
+    _u16 Padding;
+}SlDeviceResetRequestData_t;
 
 typedef struct
 {
-  _u32 group;
-  _u32 mask;
-}_DevMaskEventSetCommand_t;
+  _u16 Timeout;
+  _u16 Padding;
+}SlDeviceStopCommand_t;
+
+typedef struct
+{
+  _u32 Group;
+  _u32 Mask;
+}SlDeviceMaskEventSetCommand_t;
 
 typedef _BasicResponse_t _DevMaskEventSetResponse_t;
 
 
 typedef struct
 {
-  _u32 group;
-}_DevMaskEventGetCommand_t;
+  _u32 Group;
+} SlDeviceMaskEventGetCommand_t;
 
 
 typedef struct
 {
-  _u32 group;
-  _u32 mask;
-}_DevMaskEventGetResponse_t;
+  _u32 Group;
+  _u32 Mask;
+} SlDeviceMaskEventGetResponse_t;
 
 
 typedef struct
 {
-  _u32 group;
-}_DevStatusGetCommand_t;
+  _u32 Group;
+} SlDeviceStatusGetCommand_t;
 
 
 typedef struct
 {
-  _u32 group;
-  _u32 status;
-}_DevStatusGetResponse_t;
+  _u32 Group;
+  _u32 Status;
+} SlDeviceStatusGetResponse_t;
 
 typedef struct
 {
     _u32  ChipId;
     _u32  FwVersion[4];
     _u8   PhyVersion[4];
-}_Device_VersionReadResponsePart_t;
+} SlDeviceVersionReadResponsePart_t;
 
 typedef struct
 {
-    _Device_VersionReadResponsePart_t part;
-    _u32                            NwpVersion[4];
-    _u16                            RomVersion;
-    _u16                            Padding;
-}_Device_VersionReadResponseFull_t;
+    SlDeviceVersionReadResponsePart_t	part;
+    _u32								NwpVersion[4];
+    _u16								RomVersion;
+    _u16								Padding;
+} SlDeviceVersionReadResponseFull_t;
+
+typedef struct
+{
+  _u16    MinTxPayloadSize;
+  _u8     padding[6];
+} SlDeviceFlowCtrlAsyncEvent_t;
+
 
 
 typedef struct
 {
 	_u32 BaudRate;
 	_u8  FlowControlEnable;
-}_DevUartSetModeCommand_t;
+} SlDeviceUartSetModeCommand_t;
 
-typedef _BasicResponse_t _DevUartSetModeResponse_t;
+typedef _BasicResponse_t SlDeviceUartSetModeResponse_t;
 
 /******************************************************/
 
@@ -461,121 +497,122 @@ typedef struct
 /*****************************************************************************************/
 #define MAXIMAL_PASSWORD_LENGTH					(64)
 
+typedef struct
+{
+	_u8	 ProvisioningCmd;
+	_u8	 RequestedRoleAfterSuccess;
+	_u16 InactivityTimeoutSec;
+	_u32 Flags;
+} SlWlanProvisioningParams_t;
+
 typedef struct{
 	_u8	SecType;
 	_u8	SsidLen;
     _u8	Bssid[6];
 	_u8	PasswordLen;
-}_WlanConnectCommon_t;
+} SlWlanConnectCommon_t;
 
-#define SSID_STRING(pCmd)       (_i8 *)((_WlanConnectCommon_t *)(pCmd) + 1)
-#define PASSWORD_STRING(pCmd)   (SSID_STRING(pCmd) + ((_WlanConnectCommon_t *)(pCmd))->SsidLen)
+#define SSID_STRING(pCmd)       (_i8 *)((SlWlanConnectCommon_t *)(pCmd) + 1)
+#define PASSWORD_STRING(pCmd)   (SSID_STRING(pCmd) + ((SlWlanConnectCommon_t *)(pCmd))->SsidLen)
 
 typedef struct{
-	_WlanConnectCommon_t            Common;
+	SlWlanConnectCommon_t       Common;
 	_u8							UserLen;
 	_u8							AnonUserLen;
     _u8   						CertIndex;
     _u32  						EapBitmask;
-}_WlanConnectEapCommand_t;
+} SlWlanConnectEapCommand_t;
 
-#define EAP_SSID_STRING(pCmd)       (_i8 *)((_WlanConnectEapCommand_t *)(pCmd) + 1)
-#define EAP_PASSWORD_STRING(pCmd)   (EAP_SSID_STRING(pCmd) + ((_WlanConnectEapCommand_t *)(pCmd))->Common.SsidLen)
-#define EAP_USER_STRING(pCmd)       (EAP_PASSWORD_STRING(pCmd) + ((_WlanConnectEapCommand_t *)(pCmd))->Common.PasswordLen)
-#define EAP_ANON_USER_STRING(pCmd)  (EAP_USER_STRING(pCmd) + ((_WlanConnectEapCommand_t *)(pCmd))->UserLen)
+#define EAP_SSID_STRING(pCmd)       (_i8 *)((SlWlanConnectEapCommand_t *)(pCmd) + 1)
+#define EAP_PASSWORD_STRING(pCmd)   (EAP_SSID_STRING(pCmd) + ((SlWlanConnectEapCommand_t *)(pCmd))->Common.SsidLen)
+#define EAP_USER_STRING(pCmd)       (EAP_PASSWORD_STRING(pCmd) + ((SlWlanConnectEapCommand_t *)(pCmd))->Common.PasswordLen)
+#define EAP_ANON_USER_STRING(pCmd)  (EAP_USER_STRING(pCmd) + ((SlWlanConnectEapCommand_t *)(pCmd))->UserLen)
 
 
 typedef struct
 {
     _u8	PolicyType;
-    _u8       Padding;
+    _u8 Padding;
     _u8	PolicyOption;
     _u8	PolicyOptionLen;
-}_WlanPoliciySetGet_t;
+} SlWlanPolicySetGet_t;
 
 
 typedef struct{
-	_u32  minDwellTime;
-	_u32  maxDwellTime;
-	_u32  numProbeResponse;
-	_u32  G_Channels_mask;
-	_i32   rssiThershold;
-	_i32   snrThershold;
-	_i32   defaultTXPower;
-	_u16  intervalList[16];
-}_WlanScanParamSetCommand_t;
+	_u32	MinDwellTime;
+	_u32    MaxDwellTime;
+	_u32    NumProbeResponse;
+	_u32    G_Channels_mask;
+	_i32    RssiThershold;
+	_i32    SnrThershold;
+	_i32    DefaultTXPower;
+	_u16    IntervalList[16];
+} SlWlanScanParamSetCommand_t;
 
 
 typedef struct{
-	_i8	SecType;
-	_u8	SsidLen;
-	_u8	Priority;
-	_u8	Bssid[6];
-    _u8   PasswordLen;
-    _u8   WepKeyId;
-}_WlanAddGetProfile_t;
+	_i16    SecType;
+	_u8		SsidLen;
+	_u8		Priority;
+	_u8		Bssid[6];
+    _u8		PasswordLen;
+    _u8		WepKeyId;
+} SlWlanAddGetProfile_t;
 
 
 typedef struct{
-       _WlanAddGetProfile_t              Common;
+       SlWlanAddGetProfile_t           Common;
        _u8                             UserLen;
        _u8                             AnonUserLen;
        _u8                             CertIndex;
-       _u16                            padding;
+       _u8                             padding;
        _u32                            EapBitmask;
-}_WlanAddGetEapProfile_t;
+} SlWlanAddGetEapProfile_t;
 
 
 
 
-#define PROFILE_SSID_STRING(pCmd)       ((_i8 *)((_WlanAddGetProfile_t *)(pCmd) + 1))
-#define PROFILE_PASSWORD_STRING(pCmd)   (PROFILE_SSID_STRING(pCmd) + ((_WlanAddGetProfile_t *)(pCmd))->SsidLen)
+#define PROFILE_SSID_STRING(pCmd)       ((_i8 *)((SlWlanAddGetProfile_t *)(pCmd) + 1))
+#define PROFILE_PASSWORD_STRING(pCmd)   (PROFILE_SSID_STRING(pCmd) + ((SlWlanAddGetProfile_t *)(pCmd))->SsidLen)
 
-#define EAP_PROFILE_SSID_STRING(pCmd)       (_i8 *)((_WlanAddGetEapProfile_t *)(pCmd) + 1)
-#define EAP_PROFILE_PASSWORD_STRING(pCmd)   (EAP_PROFILE_SSID_STRING(pCmd) + ((_WlanAddGetEapProfile_t *)(pCmd))->Common.SsidLen)
-#define EAP_PROFILE_USER_STRING(pCmd)       (EAP_PROFILE_PASSWORD_STRING(pCmd) + ((_WlanAddGetEapProfile_t *)(pCmd))->Common.PasswordLen)
-#define EAP_PROFILE_ANON_USER_STRING(pCmd)  (EAP_PROFILE_USER_STRING(pCmd) + ((_WlanAddGetEapProfile_t *)(pCmd))->UserLen)
+#define EAP_PROFILE_SSID_STRING(pCmd)       (_i8 *)((SlWlanAddGetEapProfile_t *)(pCmd) + 1)
+#define EAP_PROFILE_PASSWORD_STRING(pCmd)   (EAP_PROFILE_SSID_STRING(pCmd) + ((SlWlanAddGetEapProfile_t *)(pCmd))->Common.SsidLen)
+#define EAP_PROFILE_USER_STRING(pCmd)       (EAP_PROFILE_PASSWORD_STRING(pCmd) + ((SlWlanAddGetEapProfile_t *)(pCmd))->Common.PasswordLen)
+#define EAP_PROFILE_ANON_USER_STRING(pCmd)  (EAP_PROFILE_USER_STRING(pCmd) + ((SlWlanAddGetEapProfile_t *)(pCmd))->UserLen)
 
 
 
 typedef struct
 {
-	_u8	index;
-	_u8	padding[3];
-}_WlanProfileDelGetCommand_t;
+	_u8	Index;
+	_u8	Padding[3];
+} SlWlanProfileDelGetCommand_t;
 
 typedef _BasicResponse_t _WlanGetNetworkListResponse_t;
 
 typedef struct
 {
-	_u8 	index;
-	_u8 	count;
+	_u8 	Index;
+	_u8 	Count;
  _i8 	padding[2];
-}_WlanGetNetworkListCommand_t;
-
-
+} SlWlanGetNetworkListCommand_t;
 
 
 typedef struct
 {
-    _u32  						groupIdBitmask;
-    _u8                           cipher;
-    _u8                           publicKeyLen;
-    _u8                           group1KeyLen;
-    _u8                           group2KeyLen;
-}_WlanSmartConfigStartCommand_t;
+	_u32  						  GroupIdBitmask;
+	_u8                           Cipher;
+	_u8                           PublicKeyLen;		
+	_u8							  Padding[2];
+} SlWlanSmartConfigParams_t;
 
-#define SMART_CONFIG_START_PUBLIC_KEY_STRING(pCmd)       ((_i8 *)((_WlanSmartConfigStartCommand_t *)(pCmd) + 1))
-#define SMART_CONFIG_START_GROUP1_KEY_STRING(pCmd)       ((_i8 *) (SMART_CONFIG_START_PUBLIC_KEY_STRING(pCmd) + ((_WlanSmartConfigStartCommand_t *)(pCmd))->publicKeyLen))
-#define SMART_CONFIG_START_GROUP2_KEY_STRING(pCmd)       ((_i8 *) (SMART_CONFIG_START_GROUP1_KEY_STRING(pCmd) + ((_WlanSmartConfigStartCommand_t *)(pCmd))->group1KeyLen))
-
-
+#define SMART_CONFIG_START_PUBLIC_KEY_STRING(pCmd)       ((_i8 *)((SlWlanSmartConfigParams_t *)(pCmd) + 1))
 
 typedef	struct
 {
-	_u8	mode;
-    _u8   padding[3];
-}_WlanSetMode_t;
+	_u8	  Mode;
+    _u8   Padding[3];
+} SlWlanSetMode_t;
 
 
 
@@ -586,94 +623,48 @@ typedef struct
     _u16  ConfigId;
     _u16  ConfigOpt;
     _u16  ConfigLen;
-}_WlanCfgSetGet_t;
+} SlWlanCfgSetGet_t;
 
 
 /* ******************************************************************************/
 /*     RX filters - Start  */
 /* ******************************************************************************/
-/*  -- 80 bytes */
-typedef struct _WlanRxFilterAddCommand_t
+
+typedef struct
 {
-	/*  -- 1 byte */
-	SlrxFilterRuleType_t RuleType;
-	/*  -- 1 byte */
-	SlrxFilterFlags_t FilterFlags;
-	/*  --  1 byte */
-	SlrxFilterID_t FilterId;
-	/*  --  1 byte */
+	SlWlanRxFilterRuleType_t RuleType;
+	SlWlanRxFilterFlags_u Flags;
+	SlWlanRxFilterID_t FilterId;
 	_u8 Padding;
-	/*  -- 56 byte */
-	SlrxFilterRule_t Rule;
-	/*  --  12 byte ( 3 padding ) */
-	SlrxFilterTrigger_t Trigger;
-	/*  --  8 byte */
-	SlrxFilterAction_t Action;
-}_WlanRxFilterAddCommand_t;
+	SlWlanRxFilterRule_u Rule;
+	SlWlanRxFilterTrigger_t Trigger;
+	SlWlanRxFilterAction_t Action;
+} SlWlanRxFilterAddCommand_t;
 
 
-
-/* -- 4 bytes */
-typedef struct l_WlanRxFilterAddCommandReponse_t
+typedef struct
 {
-	/*  -- 1 byte */
-	SlrxFilterID_t FilterId;
-	/* -- 1 Byte */
-	_u8          Status;
-	/*  -- 2 byte */
-	_u8  Padding[2];
+	SlWlanRxFilterID_t FilterId;
+	_i16          Status;
+	_u8  Padding[1];
 
-}_WlanRxFilterAddCommandReponse_t;
+} SlWlanRxFilterAddCommandReponse_t;
 
 
-
-/*
- * \struct _WlanRxFilterSetCommand_t
- */
-typedef struct _WlanRxFilterSetCommand_t
+typedef struct
 {
-	_u16 InputBufferLength;
-	/* 1 byte */
-	SLrxFilterOperation_t RxFilterOperation;
-	_u8 Padding[1];
-}_WlanRxFilterSetCommand_t;
+	_i16  Status;
+	_u8 Padding[2];
 
-/**
- * \struct _WlanRxFilterSetCommandReponse_t
- */
-typedef struct _WlanRxFilterSetCommandReponse_t
+} SlWlanRxFilterSetCommandReponse_t;
+
+
+typedef struct
 {
-	/* 1 byte */
-	_u8  Status;
-	/* 3 bytes  */
-	_u8 Padding[3];
-
-}_WlanRxFilterSetCommandReponse_t;
-
-/**
- * \struct _WlanRxFilterGetCommand_t
- */
-typedef struct _WlanRxFilterGetCommand_t
-{
-	_u16 OutputBufferLength;
-	/* 1 byte  */
-	SLrxFilterOperation_t RxFilterOperation;
-	_u8 Padding[1];
-}_WlanRxFilterGetCommand_t;
-
-/**
- * \struct _WlanRxFilterGetCommandReponse_t
- */
-typedef struct _WlanRxFilterGetCommandReponse_t
-{
-	/* 1 byte  */
-	_u8  Status;
-	/* 1 bytes  */
-	_u8 Padding;
-	/* 2 byte  */
+	_i16  Status;
 	_u16 OutputBufferLength;
 
-}_WlanRxFilterGetCommandReponse_t;
+} SlWlanRxFilterGetCommandReponse_t;
 
 
 
@@ -683,45 +674,45 @@ typedef struct _WlanRxFilterGetCommandReponse_t
 
 typedef struct
 {
-    _u16 status;
+    _u16 Status;
     _u8  WlanRole;     /* 0 = station, 2 = AP */
     _u8  Ipv6Enabled;
-    _u8  Ipv6DhcpEnabled;
+    _u8  DhcpEnabled;
 
-    _u32 ipV6Global[4];
-    _u32 ipV6Local[4];
-    _u32 ipV6DnsServer[4];
-    _u8  Ipv6DhcpState;
+    _u32 Global[4];
+    _u32 Local[4];
+    _u32 DnsServer[4];
+    _u8  DhcpState;
 
-}_NetappIpV6configRetArgs_t;
-
-
-typedef struct
-{
-    _u8  ipV4[4];
-    _u8  ipV4Mask[4];
-    _u8  ipV4Gateway[4];
-    _u8  ipV4DnsServer[4];
-	_u8  ipV4Start[4];
-	_u8  ipV4End[4];
-}_NetCfgIpV4AP_Args_t;
-
+} SlNetappIpV6configRetArgs_t;
 
 
 typedef struct
 {
-  _u16 status;
+    _u8  Ip[4];
+    _u8  IpMask[4];
+    _u8  IpGateway[4];
+    _u8  IpDnsServer[4];
+	_u8  IpStart[4];
+	_u8  IpEnd[4];
+} SlNetCfgIpV4APArgs_t;
+
+
+
+typedef struct
+{
+  _u16 Status;
   _u8  MacAddr[6];
-} _MAC_Address_SetGet_t;
+} SlMacAddressSetGet_t;
 
 
 typedef struct
 {
-    _u16  Status;
+    _u16    Status;
     _u16	ConfigId;
 	_u16	ConfigOpt;
     _u16	ConfigLen;
-}_NetCfgSetGet_t;
+} SlNetCfgSetGet_t;
 
 typedef struct
 {
@@ -729,7 +720,7 @@ typedef struct
 	_u16  DeviceSetId;
 	_u16  Option;
 	_u16  ConfigLen;
-}_DeviceSetGet_t;
+} SlDeviceSetGet_t;
 
 
 
@@ -744,167 +735,167 @@ typedef struct
   _u8 Type;
   _u8 Protocol;
   _u8 Padding;
-}_SocketCommand_t;
+} SlSocketCommand_t;
 
 
 typedef struct
 {
-  _i16 statusOrLen;
-  _u8  sd;
-  _u8  padding;
-}_SocketResponse_t;
+  _i16 StatusOrLen;
+  _u8  Sd;
+  _u8  Padding;
+} SlSocketResponse_t;
 
 typedef struct
 {
-  _u8 sd;
-  _u8 family;
-  _u8 padding1;
-  _u8 padding2;
-}_AcceptCommand_t;
-
-
-typedef struct
-{
-  _i16 statusOrLen;
-  _u8 sd;
-  _u8 family;
-  _u16 port;
-  _u16 paddingOrAddr;
-  _u32 address;
-}_SocketAddrAsyncIPv4Response_t;
-
-typedef struct
-{
-  _i16 statusOrLen;
-  _u8 sd;
-  _u8 family;
-  _u16 port;
-  _u8 address[6];
-}_SocketAddrAsyncIPv6EUI48Response_t;
-typedef struct
-{
-  _i16 statusOrLen;
-  _u8 sd;
-  _u8 family;
-  _u16 port;
-  _u16 paddingOrAddr;
-  _u32 address[4];
-}_SocketAddrAsyncIPv6Response_t;
+  _u8 Sd;
+  _u8 Family;
+  _u8 Padding1;
+  _u8 Padding2;
+} SlAcceptCommand_t;
 
 
 typedef struct
 {
-  _i16 lenOrPadding;
-  _u8 sd;
-  _u8 FamilyAndFlags;
-  _u16 port;
-  _u16 paddingOrAddr;
-  _u32 address;
-}_SocketAddrIPv4Command_t;
+  _i16 StatusOrLen;
+  _u8  Sd;
+  _u8  Family;
+  _u16 Port;
+  _u16 PaddingOrAddr;
+  _u32 Address;
+} SlSocketAddrAsyncIPv4Response_t;
 
 typedef struct
 {
-  _i16 lenOrPadding;
-  _u8 sd;
-  _u8 FamilyAndFlags;
-  _u16 port;
-  _u8 address[6];
-}_SocketAddrIPv6EUI48Command_t;
+  _i16 StatusOrLen;
+  _u8  Sd;
+  _u8  Family;
+  _u16 Port;
+  _u8  Address[6];
+} SlSocketAddrAsyncIPv6EUI48Response_t;
 typedef struct
 {
-  _i16 lenOrPadding;
-  _u8 sd;
-  _u8 FamilyAndFlags;
-  _u16 port;
-  _u16 paddingOrAddr;
-  _u32 address[4];
-}_SocketAddrIPv6Command_t;
+  _i16 StatusOrLen;
+  _u8  Sd;
+  _u8  Family;
+  _u16 Port;
+  _u16 PaddingOrAddr;
+  _u32 Address[4];
+} SlSocketAddrAsyncIPv6Response_t;
+
+
+typedef struct
+{
+  _i16 LenOrPadding;
+  _u8  Sd;
+  _u8  FamilyAndFlags;
+  _u16 Port;
+  _u16 PaddingOrAddr;
+  _u32 Address;
+} SlSocketAddrIPv4Command_t;
+
+typedef struct
+{
+  _i16 LenOrPadding;
+  _u8  Sd;
+  _u8  FamilyAndFlags;
+  _u16 Port;
+  _u8  Address[6];
+} SlSocketAddrIPv6EUI48Command_t;
+typedef struct
+{
+  _i16 LenOrPadding;
+  _u8  Sd;
+  _u8  FamilyAndFlags;
+  _u16 Port;
+  _u16 PaddingOrAddr;
+  _u32 Address[4];
+} SlSocketAddrIPv6Command_t;
 
 typedef union {
-    _SocketAddrIPv4Command_t IpV4;
-    _SocketAddrIPv6EUI48Command_t IpV6EUI48;
+    SlSocketAddrIPv4Command_t      IpV4;
+    SlSocketAddrIPv6EUI48Command_t IpV6EUI48;
 #ifdef SL_SUPPORT_IPV6
-    _SocketAddrIPv6Command_t IpV6;
+    SlSocketAddrIPv6Command_t      IpV6;
 #endif
-} _SocketAddrCommand_u;
+} SlSocketAddrCommand_u;
 
 typedef union {
-    _SocketAddrAsyncIPv4Response_t IpV4;
-    _SocketAddrAsyncIPv6EUI48Response_t IpV6EUI48;
+    SlSocketAddrAsyncIPv4Response_t      IpV4;
+    SlSocketAddrAsyncIPv6EUI48Response_t IpV6EUI48;
 #ifdef SL_SUPPORT_IPV6
-    _SocketAddrAsyncIPv6Response_t IpV6;
+    SlSocketAddrAsyncIPv6Response_t IpV6;
 #endif
-} _SocketAddrResponse_u;
+} SlSocketAddrResponse_u;
 
 typedef struct
 {
-  _u8 sd;
-  _u8 backlog;
-  _u8 padding1;
-  _u8 padding2;
-}_ListenCommand_t;
+  _u8 Sd;
+  _u8 Backlog;
+  _u8 Padding1;
+  _u8 Padding2;
+} SlListenCommand_t;
 
 typedef struct
 {
-  _u8 sd;
-  _u8 padding0;
-  _u8 padding1;
-  _u8 padding2;
-}_CloseCommand_t;
+  _u8 Sd;
+  _u8 Padding0;
+  _u8 Padding1;
+  _u8 Padding2;
+} SlCloseCommand_t;
 
 
 typedef struct
 {
-  _u8 nfds;
-  _u8 readFdsCount;
-  _u8 writeFdsCount;
-  _u8 padding;
-  _u16 readFds;
-  _u16 writeFds;
+  _u8  Nfds;
+  _u8  ReadFdsCount;
+  _u8  WriteFdsCount;
+  _u8  Padding;
+  _u16 ReadFds;
+  _u16 WriteFds;
   _u16 tv_usec;
   _u16 tv_sec;
-}_SelectCommand_t;
+} SlSelectCommand_t;
 
 
 typedef struct
 {
-  _u16 status;
-  _u8 readFdsCount;
-  _u8 writeFdsCount;
-  _u16 readFds;
-  _u16 writeFds;
-}_SelectAsyncResponse_t;
+  _u16 Status;
+  _u8  ReadFdsCount;
+  _u8  WriteFdsCount;
+  _u16 ReadFds;
+  _u16 WriteFds;
+} SlSelectAsyncResponse_t;
 
 typedef struct
 {
-  _u8 sd;
-  _u8 level;
-  _u8 optionName;
-  _u8 optionLen;
-}_setSockOptCommand_t;
+  _u8 Sd;
+  _u8 Level;
+  _u8 OptionName;
+  _u8 OptionLen;
+} SlSetSockOptCommand_t;
 
 typedef struct
 {
-  _u8 sd;
-  _u8 level;
-  _u8 optionName;
-  _u8 optionLen;
-}_getSockOptCommand_t;
+  _u8 Sd;
+  _u8 Level;
+  _u8 OptionName;
+  _u8 OptionLen;
+} SlGetSockOptCommand_t;
 
 typedef struct
 {
-  _i16 status;
-  _u8 sd;
-  _u8 optionLen;
-}_getSockOptResponse_t;
+  _i16 Status;
+  _u8  Sd;
+  _u8  OptionLen;
+} SlGetSockOptResponse_t;
 
 
 typedef struct
 {
   _u16 StatusOrLen;
-  _u8  sd;
-  _u8 FamilyAndFlags;
-}_sendRecvCommand_t;
+  _u8  Sd;
+  _u8  FamilyAndFlags;
+} SlSendRecvCommand_t;
 
 /*****************************************************************************************
 *   NETAPP structs
@@ -915,74 +906,117 @@ typedef _BasicResponse_t _NetAppStartStopResponse_t;
 
 typedef struct
 {
-    _u32  appId;
+    _u32  AppId;
 }_NetAppStartStopCommand_t;
 
 typedef struct
 {
-    _u16  Status;
+    _u16    Status;
     _u16	AppId;
     _u16	ConfigOpt;
     _u16	ConfigLen;
-}_NetAppSetGet_t;
+} SlNetAppSetGet_t;
 typedef struct
 {
-    _u16  port_number;
-} _NetAppHttpServerGetSet_port_num_t;
+    _u16  PortNumber;
+} SlNetAppHttpServerGetSetPortNum_t;
 
 typedef struct
 {
-    _u8  auth_enable;
-}_NetAppHttpServerGetSet_auth_enable_t;
+    _u8  AuthEnable;
+} SlNetAppHttpServerGetSetAuthEnable_t;
 
-typedef struct _sl_NetAppHttpServerGetToken_t
+typedef struct _SlNetAppHttpServerGetToken_t
 {
-	_u8	token_name_len;
-	_u8	padd1;
-	_u16	padd2;
-}sl_NetAppHttpServerGetToken_t;
+	_u8		TokenNameLen;
+	_u8		Padd1;
+	_u16	Padd2;
+}SlNetAppHttpServerGetToken_t;
 
-typedef struct _sl_NetAppHttpServerSendToken_t
+typedef struct _SlNetAppHttpServerSendToken_t
 {
-	_u8	token_value_len;
-	_u8	token_name_len;
-	_u8   token_name[MAX_TOKEN_NAME_LEN];
-	_u16	padd;
-}sl_NetAppHttpServerSendToken_t;
+	_u8	  TokenValueLen;
+	_u8	  TokenNameLen;
+	_u8   TokenName[SL_NETAPP_MAX_TOKEN_NAME_LEN];
+	_u16  Padd;
+} SlNetAppHttpServerSendToken_t;
 
-typedef struct _sl_NetAppHttpServerPostToken_t
+typedef struct _SlNetAppHttpServerPostToken_t
 {
-	_u8 post_action_len;
-	_u8 token_name_len;
-	_u8 token_value_len;
+	_u8 PostActionLen;
+	_u8 TokenNameLen;
+	_u8 TokenValueLen;
 	_u8 padding;
-}sl_NetAppHttpServerPostToken_t;
+} SlNetAppHttpServerPostToken_t;
+
+/*****************************************************************************************
+*   NETAPP Request/Response/Send/Receive
+******************************************************************************************/
+typedef struct _SlProtocolNetAppRequest_t
+{
+	_u8 	AppId;
+	_u8     RequestType;
+	_u16	Handle;
+	_u16	MetadataLen;
+	_u16    PayloadLen;
+	_u32    Flags;
+} SlProtocolNetAppRequest_t;
+
+typedef struct _SlProtocolNetAppResponse_t
+{
+	_u16	Handle;
+	_u16    status;
+	_u16	MetadataLen;
+	_u16    PayloadLen;
+	_u32    Flags;
+} SlProtocolNetAppResponse_t;
+
+typedef struct _SlProtocolNetAppSend_t
+{
+	_u16	Handle;
+	_u16    DataLen;  /* can be data payload or metadata, depends on bit 1 in flags */
+	_u32    Flags;
+} SlProtocolNetAppSend_t;
+
+typedef struct _SlProtocolNetAppReceiveRequest_t
+{
+	_u16 Handle;
+	_u16 MaxBufferLen;
+	_u32 Flags;
+} SlProtocolNetAppReceiveRequest_t;
+
+typedef struct _SlProtocolNetAppReceive_t
+{
+	_u16 Handle;
+	_u16 PayloadLen;
+	_u32 Flags;
+} SlProtocolNetAppReceive_t;
 
 
 typedef struct
 {
   _u16 Len;
-  _u8  family;
-  _u8  padding;
-}_GetHostByNameCommand_t;
+  _u8  Family;
+  _u8  Padding;
+} NetAppGetHostByNameCommand_t;
 
 typedef struct
 {
-  _u16 status;
-  _u16 padding;
-  _u32 ip0;
-  _u32 ip1;
-  _u32 ip2;
-  _u32 ip3;
-}_GetHostByNameIPv6AsyncResponse_t;
+  _u16 Status;
+  _u16 Padding;
+  _u32 Ip0;
+  _u32 Ip1;
+  _u32 Ip2;
+  _u32 Ip3;
+} NetAppGetHostByNameIPv6AsyncResponse_t;
 
 typedef struct
 {
-  _u16 status;
-  _u8  padding1;
-  _u8  padding2;
-  _u32 ip0;
-}_GetHostByNameIPv4AsyncResponse_t;
+  _u16 Status;
+  _u8  Padding1;
+  _u8  Padding2;
+  _u32 Ip0;
+} NetAppGetHostByNameIPv4AsyncResponse_t;
 
 
 
@@ -1002,7 +1036,23 @@ typedef enum
     CTST_BSD_SECURED_TCP_TX,
     CTST_BSD_SECURED_TCP_RX,
     CTST_BSD_SECURED_TCP_SERVER_BI_DIR,
-    CTST_BSD_SECURED_TCP_CLIENT_BI_DIR
+    CTST_BSD_SECURED_TCP_CLIENT_BI_DIR,
+	CTST_BSD_UDP_TX_IPV6,
+    CTST_BSD_UDP_RX_IPV6,
+    CTST_BSD_TCP_TX_IPV6,
+    CTST_BSD_TCP_RX_IPV6,
+    CTST_BSD_TCP_SERVER_BI_DIR_IPV6,
+    CTST_BSD_TCP_CLIENT_BI_DIR_IPV6,
+    CTST_BSD_UDP_BI_DIR_IPV6,
+    CTST_BSD_RAW_TX_IPV6,
+    CTST_BSD_RAW_RX_IPV6,
+    CTST_BSD_RAW_BI_DIR_IPV6,
+    CTST_BSD_SECURED_TCP_TX_IPV6,
+    CTST_BSD_SECURED_TCP_RX_IPV6,
+    CTST_BSD_SECURED_TCP_SERVER_BI_DIR_IPV6,
+    CTST_BSD_SECURED_TCP_CLIENT_BI_DIR_IPV6,
+	CTST_RAW_TX,
+    CTST_RAW_RX
  }CommTest_e;
 
 typedef struct _sl_protocol_CtestStartCommand_t
@@ -1012,58 +1062,46 @@ typedef struct _sl_protocol_CtestStartCommand_t
     _u16 SrcPort;
     _u32 DestAddr[4];
     _u32 PayloadSize;
-    _u32 timeout;
-    _u32 csEnabled;
-    _u32 secure;
-    _u32 rawProtocol;
-    _u8  reserved1[4];
+    _u32 Timeout;
+    _u32 CsEnabled;
+    _u32 Secure;
+    _u32 RawProtocol;
+    _u8  Reserved1[4];
 }_CtestStartCommand_t;
 
 typedef struct
 {
-  _u8  test;
-  _u8  socket;
-  _i16  status;
-  _u32 startTime;
-  _u32 endTime;
-  _u16 txKbitsSec;
-  _u16 rxKbitsSec;
-  _u32 outOfOrderPackets;
-  _u32 missedPackets;
-  _i16 token;
+  _u8  Test;
+  _u8  Socket;
+  _i16 Status;
+  _u32 StartTime;
+  _u32 EndTime;
+  _u16 TxKbitsSec;
+  _u16 RxKbitsSec;
+  _u32 OutOfOrderPackets;
+  _u32 MissedPackets;
+  _i16 Token;
 }_CtestAsyncResponse_t;
 
-typedef struct
-{
-    _u32 pingIntervalTime;
-    _u16 PingSize;
-    _u16 pingRequestTimeout;
-    _u32 totalNumberOfAttempts;
-    _u32 flags;
-    _u32 ip0;
-    _u32 ip1OrPaadding;
-    _u32 ip2OrPaadding;
-    _u32 ip3OrPaadding;
-}_PingStartCommand_t;
 
 typedef struct
 {
-    _u16 status;
-    _u16 rttMin;
-    _u16 rttMax;
-    _u16 rttAvg;
-    _u32 numSuccsessPings;
-    _u32 numSendsPings;
-    _u32 testTime;
-}_PingReportResponse_t;
+    _u16 Status;
+    _u16 RttMin;
+    _u16 RttMax;
+    _u16 RttAvg;
+    _u32 NumSuccsessPings;
+    _u32 NumSendsPings;
+    _u32 TestTime;
+} SlPingReportResponse_t;
 
 
 typedef struct
 {
-    _u32 ip;
-    _u32 gateway;
-    _u32 dns;
-}_IpV4AcquiredAsync_t;
+    _u32 Ip;
+    _u32 Gateway;
+    _u32 Dns;
+} IpV4AcquiredAsync_t;
 
 
 typedef enum
@@ -1075,17 +1113,17 @@ typedef enum
 
 typedef struct
 {
-    _u32 type;
-    _u32 ip[4];
-    _u32 gateway[4];
-    _u32 dns[4];
-}_IpV6AcquiredAsync_t;
+    _u32 Type;
+    _u32 Ip[4];
+    _u32 Gateway[4];
+    _u32 Dns[4];
+} IpV6AcquiredAsync_t;
 
 
 typedef union
 {
-    _SocketCommand_t     EventMask;
-    _sendRecvCommand_t   DeviceInit;
+    SlSocketCommand_t     EventMask;
+    SlSendRecvCommand_t   DeviceInit;
 }_device_commands_t;
 
 /*****************************************************************************************
@@ -1096,21 +1134,21 @@ typedef struct
 {
     _u32 FileHandle;
     _u32 Offset;
-    _u16 Len;  
-    _u16 Padding;  
-}_FsReadCommand_t;
+    _u16 Len;
+    _u16 Padding;
+} SlFsReadCommand_t;
 
 typedef struct
 {
   _u32 Mode;
   _u32 Token;
-}_FsOpenCommand_t;
+} SlFsOpenCommand_t;
 
-typedef struct 
+typedef struct
 {
   _u32 FileHandle;
   _u32 Token;
-}_FsOpenResponse_t;
+} SlFsOpenResponse_t;
 
 
 typedef struct
@@ -1118,36 +1156,38 @@ typedef struct
   _u32 FileHandle;
   _u32 CertificFileNameLength;
   _u32 SignatureLen;
-}_FsCloseCommand_t;
+} SlFsCloseCommand_t;
 
 
-typedef _BasicResponse_t _FsReadResponse_t;
-typedef _BasicResponse_t _FsDeleteResponse_t;
-typedef _BasicResponse_t _FsCloseResponse_t;
+typedef _BasicResponse_t  SlFsReadResponse_t;
+typedef _BasicResponse_t  SlFsDeleteResponse_t;
+typedef _BasicResponse_t  SlFsCloseResponse_t;
 
 typedef struct
 {
     _u16 Status;
-    _u16 flags;
+    _u16 Flags;
     _u32 FileLen;
     _u32 AllocatedLen;
     _u32 Token[4];
-}_FsGetInfoResponse_t;
+    _u32 FileStorageSize; /* The total size that the file required on the storage */
+    _u32 FileWriteCounter; /* number of times in which the file have been written successfully */
+} SlFsGetInfoResponse_t;
 
 typedef struct
 {
     _u8 DeviceID;
     _u8 Padding[3];
-}_FsFormatCommand_t;
+} SlFsFormatCommand_t;
 
-typedef _BasicResponse_t _FsFormatResponse_t;
+typedef _BasicResponse_t  SlFsFormatResponse_t;
 
 typedef struct
 {
     _u32 Token;
-}_FsDeleteCommand_t;
+} SlFsDeleteCommand_t;
 
-typedef   _FsDeleteCommand_t  _FsGetInfoCommand_t;
+typedef  SlFsDeleteCommand_t  SlFsGetInfoCommand_t;
 
 typedef struct
 {
@@ -1155,28 +1195,131 @@ typedef struct
     _u32 Offset;
     _u16 Len;
     _u16 Padding;
-}_FsWriteCommand_t;
+} SlFsWriteCommand_t;
 
-typedef _BasicResponse_t _FsWriteResponse_t;
+typedef _BasicResponse_t SlFsWriteResponse_t;
 
+typedef struct
+{
+	_u32         Token;
+	_u8          Operation;
+	_u8          Padding[3];
+	_u32         FileNameLength;
+	_u32         BufferLength;
+} SlFsFileSysControlCommand_t;
+
+typedef struct
+{
+	_i32          Status;
+	_u32          Token;
+	_u32          Len;
+} SlFsFileSysControlResponse_t;
+
+
+typedef struct
+{
+	_u16         IncludeFileFilters;
+	_u8          Operation;
+	_u8          Padding;
+} SlFsBundleControlCommand_t;
+
+
+
+typedef struct
+{
+	_i32         Status;
+	_u8          BundleState;
+	_u8          Padding[3];
+} SlFsBundleControlResponse_t;
+
+
+typedef struct
+{
+  _u16        KeyLen;
+  _u16        ChunkLen;
+  _u32        Flags;
+} SlFsProgramCommand_t;
+
+
+
+typedef struct
+{
+	_i32          Status;
+} SlFsProgramResponse_t;
+
+
+typedef struct
+{
+	_i32  Index;  /* start point is -1 */
+	_u8   Count;
+	_u8   MaxEntryLen;
+	_u8   Flags;
+	_u8   Padding;
+} SlFsGetFileListCommand_t;
+
+typedef struct
+{
+	_i32    NumOfEntriesOrError;
+	_i32    Index; /* -1 , nothing was read */
+	_u32    OutputBufferLength;
+} SlFsGetFileListResponse_t;
 
 
 /* TODO: Set MAx Async Payload length depending on flavor (Tiny, Small, etc.) */
 
 
-#ifdef SL_TINY_EXT
+#ifdef SL_TINY
 #define SL_ASYNC_MAX_PAYLOAD_LEN        120  /* size must be aligned to 4 */
 #else
-#define SL_ASYNC_MAX_PAYLOAD_LEN        160 /* size must be aligned to 4 */
+    #if defined(slcb_NetAppHttpServerHdlr) || defined(EXT_LIB_REGISTERED_HTTP_SERVER_EVENTS) || defined(slcb_NetAppRequestHdlr) || defined(EXT_LIB_REGISTERED_NETAPP_REQUEST_EVENTS)
+    #define SL_ASYNC_MAX_PAYLOAD_LEN    1600 /* size must be aligned to 4 */
+    #else
+    #define SL_ASYNC_MAX_PAYLOAD_LEN    160 /* size must be aligned to 4 */
+    #endif
 #endif
 
 #define SL_ASYNC_MAX_MSG_LEN            (_SL_RESP_HDR_SIZE + SL_ASYNC_MAX_PAYLOAD_LEN)
 
-#define RECV_ARGS_SIZE                  (sizeof(_SocketResponse_t))
-#define RECVFROM_IPV4_ARGS_SIZE         (sizeof(_SocketAddrAsyncIPv4Response_t))
-#define RECVFROM_IPV6_ARGS_SIZE         (sizeof(_SocketAddrAsyncIPv6Response_t))
+#define RECV_ARGS_SIZE                  (sizeof(SlSocketResponse_t))
+#define RECVFROM_IPV4_ARGS_SIZE         (sizeof(SlSocketAddrAsyncIPv4Response_t))
+#define RECVFROM_IPV6_ARGS_SIZE         (sizeof(SlSocketAddrAsyncIPv6Response_t))
 
 #define SL_IPV4_ADDRESS_SIZE 			(sizeof(_u32))
 #define SL_IPV6_ADDRESS_SIZE 			(4 * sizeof(_u32))
+
+
+/*****************************************************************************************
+*   NetUtil structures
+******************************************************************************************/
+/* Utils Set Get Header */
+typedef struct
+{
+    _u32	ObjId;
+    _i16	Status;
+    _u16	Option;
+    _u16	ValueLen;
+    _u8		Padding[2];
+} SlNetUtilSetGet_t;
+
+
+/* NetUtil Command Header */
+typedef struct
+{
+    _u16	Cmd;
+    _u16	AttribLen;
+    _u16	InputLen;
+    _u16	OutputLen;
+} SlNetUtilCmd_t;
+
+/* NetUtil Command Response Header */
+typedef struct
+{
+    _u32	ObjId;
+    _i16	Status;
+    _u16	Cmd;
+    _u16	OutputLen;
+    _u8		Padding[2];
+} SlNetUtilCmdRsp_t;
+
 
 #endif /*  _SL_PROTOCOL_TYPES_H_  */

@@ -603,13 +603,13 @@ int CreateConnection(unsigned long DestinationIP)
     setsockopt(SockID, SOL_SOCKET, SL_SO_RCVTIMEO, &tv, sizeof(tv)); // Enable receive timeout
 
     SlSockNonblocking_t enableOption;
-    enableOption.NonblockingEnabled = 1;
+    enableOption.NonBlockingEnabled = 1;
     sl_SetSockOpt(SockID,SL_SOL_SOCKET,SL_SO_NONBLOCKING, (_u8 *)&enableOption,sizeof(enableOption)); // Enable/disable nonblocking mode
 
     do {
 		vTaskDelay(100);
 		Status = connect(SockID, ( SlSockAddr_t *)&Addr, AddrSize);
-	} 	while( SL_EALREADY == Status );
+	} 	while( SL_ERROR_BSD_EALREADY == Status );
 
     if( Status < 0 )
     {
@@ -742,26 +742,6 @@ void mcu_reset();
 #include "hw_gprcm.h"
 #include "hw_common_reg.h"
 
-static inline int IsSecureMCU()
-{
-  unsigned long ulChipId;
-
-  ulChipId =(HWREG(GPRCM_BASE + GPRCM_O_GPRCM_EFUSE_READ_REG2) >> 16) & 0x1F;
-
-  if((ulChipId != DEVICE_IS_CC3101RS) &&(ulChipId != DEVICE_IS_CC3101S))
-  {
-    //
-    // Return non-Secure
-    //
-    return false;
-  }
-
-  //
-  // Return secure
-  //
-  return true;
-}
-
 
 /* Save bootinfo on ImageCommit call */
 static sBootInfo_t sBootInfo;
@@ -777,25 +757,12 @@ static _i32 _WriteBootInfo(sBootInfo_t *psBootInfo)
     //
     // Initialize boot info file create flag
     //
-    ulBootInfoCreateFlag  = FS_MODE_OPEN_CREATE(256, _FS_FILE_OPEN_FLAG_COMMIT|_FS_FILE_PUBLIC_WRITE);
+    ulBootInfoCreateFlag  = SL_FS_CREATE_NOSIGNATURE | SL_FS_CREATE_MAX_SIZE( 256 );
 
-    //
-    // Check if its a secure MCU
-    //
-    if ( IsSecureMCU() )
-    {
-        LOGI("Boot info is secure mcu\r\n");
-        ulBootInfoToken       = USER_BOOT_INFO_TOKEN;
-        ulBootInfoCreateFlag  = _FS_FILE_OPEN_FLAG_COMMIT|_FS_FILE_OPEN_FLAG_SECURE|
-            _FS_FILE_OPEN_FLAG_NO_SIGNATURE_TEST|
-            _FS_FILE_PUBLIC_WRITE|_FS_FILE_OPEN_FLAG_VENDOR;
-    }
-
-
-	if (sl_FsOpen((unsigned char *)IMG_BOOT_INFO, FS_MODE_OPEN_WRITE, &ulBootInfoToken, &hndl)) {
+	if (hndl = sl_FsOpen((unsigned char *)IMG_BOOT_INFO, SL_FS_WRITE, &ulBootInfoToken) < 0) {
 		LOGI("error opening file, trying to create\n");
 
-		if (sl_FsOpen((unsigned char *)IMG_BOOT_INFO, ulBootInfoCreateFlag, &ulBootInfoToken, &hndl)) {
+		if (hndl = sl_FsOpen((unsigned char *)IMG_BOOT_INFO, ulBootInfoCreateFlag, &ulBootInfoToken) < 0) {
             LOGE("Boot info open failed\n");
 			return -1;
 		}else{
@@ -818,11 +785,7 @@ static _i32 _ReadBootInfo(sBootInfo_t *psBootInfo)
     //
     // Check if its a secure MCU
     //
-    if ( IsSecureMCU() )
-    {
-      ulBootInfoToken       = USER_BOOT_INFO_TOKEN;
-    }
-    if( 0 == sl_FsOpen((unsigned char *)IMG_BOOT_INFO, FS_MODE_OPEN_READ, &ulBootInfoToken, &lFileHandle) )
+    if( lFileHandle = sl_FsOpen((unsigned char *)IMG_BOOT_INFO, SL_FS_READ, &ulBootInfoToken) < 0 )
     {
         if( 0 < sl_FsRead(lFileHandle, 0, (_u8 *)psBootInfo, sizeof(sBootInfo_t)) )
         {
@@ -1232,20 +1195,20 @@ int sf_sha1_verify(const char * sha_truth, const char * serial_file_path){
     SHA1_CTX sha1ctx;
     SHA1_Init(&sha1ctx);
     unsigned long tok = 0;
-    long hndl, err, bytes, bytes_to_read;
+    long hndl, bytes, bytes_to_read;
     SlFsFileInfo_t info;
     //fetch path info
     LOGI( "computing SHA of %s\n", serial_file_path);
     sl_FsGetInfo((unsigned char*)serial_file_path, tok, &info);
-    err = sl_FsOpen((unsigned char*)serial_file_path, FS_MODE_OPEN_READ, &tok, &hndl);
-    if (err) {
-        LOGI("error opening for read %d\n", err);
+    hndl = sl_FsOpen((unsigned char*)serial_file_path, SL_FS_READ, &tok );
+    if (hndl < 0) {
+        LOGI("error opening for read %d\n", hndl);
         return -1;
     }
     //compute sha
-    bytes_to_read = info.FileLen;
+    bytes_to_read = info.Len;
     while (bytes_to_read > 0) {
-        bytes = sl_FsRead(hndl, info.FileLen - bytes_to_read,
+        bytes = sl_FsRead(hndl, info.Len - bytes_to_read,
                 buffer,
                 (minval(sizeof(buffer),bytes_to_read)));
         SHA1_Update(&sha1ctx, buffer, bytes);

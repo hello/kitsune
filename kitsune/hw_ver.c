@@ -28,12 +28,12 @@ void check_hw_version() {
 
 	sl_FsGetInfo(HW_VER_FILE, tok, &info);
 
-	err = sl_FsOpen(HW_VER_FILE, FS_MODE_OPEN_READ, &tok, &hndl);
-	if (err) {
-		LOGI("error opening for read %d\n", err);
+	hndl = sl_FsOpen(HW_VER_FILE, SL_FS_READ, &tok);
+	if (hndl < 0) {
+		LOGI("error opening for read %d\n", hndl);
 		return;
 	}
-	int min_len = minval(info.FileLen, BUF_SZ);
+	int min_len = minval(info.Len, BUF_SZ);
 	bytes = sl_FsRead(hndl, 0, (unsigned char* ) buffer, min_len);
 
 	if ( check_ver_string(DVT_STRING, buffer, bytes) ) {

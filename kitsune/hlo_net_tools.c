@@ -9,7 +9,7 @@
 #include "socket.h"
 #include "hw_ver.h"
 typedef struct{
-	Sl_WlanNetworkEntry_t * entries;
+	SlWlanNetworkEntry_t * entries;
 	size_t max_entries;
 	int antenna;
 	int duration_ms;
@@ -58,7 +58,7 @@ void itohexstring(size_t n, char output[9]){
 }
 void antsel(unsigned char a);
 
-static void reselect_antenna(Sl_WlanNetworkEntry_t * entries, int num_entries ) {
+static void reselect_antenna(SlWlanNetworkEntry_t * entries, int num_entries ) {
 	if( num_entries == 0 ) {
 		return;
 	}
@@ -66,17 +66,17 @@ static void reselect_antenna(Sl_WlanNetworkEntry_t * entries, int num_entries ) 
 	char ssid[MAX_SSID_LEN] = {0};
 	wifi_get_connected_ssid( (uint8_t*)ssid, sizeof(ssid));
     for(i = 0; i < num_entries; i++) {
-    	if( 0 == strcmp( (char*)entries[i].ssid, ssid ) ) {
-    		antsel(entries[i].reserved[0]);
-    		save_default_antenna(entries[i].reserved[0]);
-    		LOGI("ssid: %s a:%d\r\n", ssid, entries[i].reserved[0]);
+    	if( 0 == strcmp( (char*)entries[i].Ssid, ssid ) ) {
+    		antsel(entries[i].Reserved[0]);
+    		save_default_antenna(entries[i].Reserved[0]);
+    		LOGI("ssid: %s a:%d\r\n", ssid, entries[i].Reserved[0]);
     		break;
     	}
     }
 }
 
 static int scan(scan_desc_t * desc){
-	unsigned char policyOpt = SL_CONNECTION_POLICY(0, 0, 0, 0, 0);
+	unsigned char policyOpt = SL_WLAN_CONNECTION_POLICY(0, 0, 0, 0);
 	unsigned long IntervalVal = 20;
 	if( desc->antenna ) {
 		antsel(desc->antenna);
@@ -84,14 +84,14 @@ static int scan(scan_desc_t * desc){
 
 	sl_enter_critical_region();
 
-	int r = sl_WlanPolicySet(SL_POLICY_CONNECTION , policyOpt, NULL, 0);
+	int r = sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION , policyOpt, NULL, 0);
 
     // Make sure scan is enabled
-    policyOpt = SL_SCAN_POLICY(1);
+    policyOpt = SL_WLAN_SCAN_POLICY(1,1);
 
     // set scan policy - this starts the scan
     //Interval is intentional
-    r = sl_WlanPolicySet(SL_POLICY_SCAN , policyOpt, (unsigned char *)(&IntervalVal), sizeof(IntervalVal));
+    r = sl_WlanPolicySet(SL_WLAN_POLICY_SCAN , policyOpt, (unsigned char *)(&IntervalVal), sizeof(IntervalVal));
 
     // delay specific milli seconds to verify scan is started
     vTaskDelay(desc->duration_ms);
@@ -101,13 +101,13 @@ static int scan(scan_desc_t * desc){
 	r = sl_WlanGetNetworkList(0, desc->max_entries, desc->entries);
 
 	// Restore connection policy to Auto
-	sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0), NULL, 0);
+	sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION, SL_WLAN_CONNECTION_POLICY(1, 0, 0, 0), NULL, 0);
 
 	sl_exit_critical_region();
 	//do not need to capture any values since we are storing it directly to network list
 	return r;
 }
-static int scan_for_wifi(Sl_WlanNetworkEntry_t * result, size_t max_entries, int ant_select, int duration){
+static int scan_for_wifi(SlWlanNetworkEntry_t * result, size_t max_entries, int ant_select, int duration){
 	scan_desc_t desc = (scan_desc_t){
 		.entries = result,
 		.max_entries = max_entries,
@@ -117,19 +117,19 @@ static int scan_for_wifi(Sl_WlanNetworkEntry_t * result, size_t max_entries, int
 	return scan( &desc );
 }
 static void worker_scan_unique(hlo_future_t * result, void * ctx){
-	Sl_WlanNetworkEntry_t entries[10] = {0};
+	SlWlanNetworkEntry_t entries[10] = {0};
 	hlo_future_write(result, entries, sizeof(entries), get_unique_wifi_list(entries, 10));
 }
 
-static void SortByRSSI(Sl_WlanNetworkEntry_t* netEntries,
+static void SortByRSSI(SlWlanNetworkEntry_t* netEntries,
                                             unsigned char ucSSIDCount){
-    Sl_WlanNetworkEntry_t tTempNetEntry;
+    SlWlanNetworkEntry_t tTempNetEntry;
     unsigned char ucCount, ucSwapped;
     do{
         ucSwapped = 0;
         for(ucCount =0; ucCount < ucSSIDCount - 1; ucCount++)
         {
-           if(netEntries[ucCount].rssi < netEntries[ucCount + 1].rssi)
+           if(netEntries[ucCount].Rssi < netEntries[ucCount + 1].Rssi)
            {
               tTempNetEntry = netEntries[ucCount];
               netEntries[ucCount] = netEntries[ucCount + 1];
@@ -141,16 +141,16 @@ static void SortByRSSI(Sl_WlanNetworkEntry_t* netEntries,
 }
 ////---------------------------------
 //Public
-int _replace_ssid_by_rssi(Sl_WlanNetworkEntry_t * main, size_t main_size, const Sl_WlanNetworkEntry_t* entry){
+int _replace_ssid_by_rssi(SlWlanNetworkEntry_t * main, size_t main_size, const SlWlanNetworkEntry_t* entry){
 	int i;
 	for(i = 0; i < main_size; i++){
-		Sl_WlanNetworkEntry_t * row = &main[i];
-		if(row->rssi == 0 && row->ssid[0] == 0){
+		SlWlanNetworkEntry_t * row = &main[i];
+		if(row->Rssi == 0 && row->Ssid[0] == 0){
 			//fresh entry, copy over
 			*row = *entry;
 			return 1;
-		}else if(!strncmp((const char*)row->ssid, (const char*)entry->ssid, sizeof(row->ssid))){
-			if(entry->rssi > row->rssi){
+		}else if(!strncmp((const char*)row->Ssid, (const char*)entry->Ssid, sizeof(row->Ssid))){
+			if(entry->Rssi > row->Rssi){
 				*row = *entry;
 			}
 			return 0;
@@ -158,16 +158,18 @@ int _replace_ssid_by_rssi(Sl_WlanNetworkEntry_t * main, size_t main_size, const 
 	}
 	return 0;
 }
+
+//TODO REMOVE
 //this implementation is O(n^2)
-int get_unique_wifi_list(Sl_WlanNetworkEntry_t * result, size_t num_entries){
-	size_t size = num_entries * sizeof(Sl_WlanNetworkEntry_t);
+int get_unique_wifi_list(SlWlanNetworkEntry_t * result, size_t num_entries){
+	size_t size = num_entries * sizeof(SlWlanNetworkEntry_t);
 	int retries, ret, tally = 0;
-	Sl_WlanNetworkEntry_t * ifa_list = pvPortMalloc(size);
-	Sl_WlanNetworkEntry_t * pcb_list = pvPortMalloc(size);
+	SlWlanNetworkEntry_t * ifa_list = pvPortMalloc(size);
+	SlWlanNetworkEntry_t * pcb_list = pvPortMalloc(size);
 
 	DISP("Scan begin\n");
 
-	sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(0, 0, 0, 0, 0), NULL, 0);
+	sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION, SL_WLAN_CONNECTION_POLICY(0, 0, 0, 0), NULL, 0);
 	sl_WlanDisconnect();
 	vTaskDelay(100);
 
@@ -182,8 +184,8 @@ int get_unique_wifi_list(Sl_WlanNetworkEntry_t * result, size_t num_entries){
 			DISP("Retrying IFA %d\r\n", retries);
 		}
 		while(--ret > 0){
-			ifa_list[ret].reserved[0] = IFA_ANT;
-			ifa_list[ret].ssid_len = 0;
+			ifa_list[ret].Reserved[0] = IFA_ANT;
+			ifa_list[ret].SsidLen = 0;
 			tally += _replace_ssid_by_rssi(result, num_entries, &ifa_list[ret]);
 		}
 	}
@@ -194,12 +196,12 @@ int get_unique_wifi_list(Sl_WlanNetworkEntry_t * result, size_t num_entries){
 		DISP("Retrying PCB %d\r\n", retries);
 	}
 	while(--ret > 0){
-		pcb_list[ret].reserved[0] = PCB_ANT;
-		pcb_list[ret].ssid_len = 0;
+		pcb_list[ret].Reserved[0] = PCB_ANT;
+		pcb_list[ret].SsidLen = 0;
 		tally += _replace_ssid_by_rssi(result, num_entries, &pcb_list[ret]);
 	}
 exit:
-	sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0), NULL, 0);
+	sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION, SL_WLAN_CONNECTION_POLICY(1, 0, 0, 0), NULL, 0);
 
 	if(ifa_list){vPortFree(ifa_list);}
 	if(pcb_list){vPortFree(pcb_list);}
@@ -220,7 +222,7 @@ hlo_future_t * prescan_wifi(size_t num_entries){
 //of human input, it's hard to race it.
 int Cmd_scan_wifi(int argc, char *argv[]){
 	static hlo_future_t * result;
-	Sl_WlanNetworkEntry_t entries[10] = {0};
+	SlWlanNetworkEntry_t entries[10] = {0};
 	int ret, i;
 	if(!result){
 		result = prescan_wifi( 10 );
@@ -234,7 +236,7 @@ int Cmd_scan_wifi(int argc, char *argv[]){
 		DISP("Found %d endpoints\r\n===========\r\n", ret);
 		SortByRSSI(entries, ret);
 		for(i = 0; i < ret; i++){
-			DISP("%d)%s, %d, %d dB, %d\r\n",i, entries[i].ssid, entries[i].sec_type, entries[i].rssi, entries[i].reserved[0]);
+			DISP("%d)%s, %d, %d dB, %d\r\n",i, entries[i].Ssid, entries[i].SecurityInfo, entries[i].Rssi, entries[i].Reserved[0]);
 		}
 	}else{
 		DISP("No endpoints scanned\r\n");

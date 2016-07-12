@@ -5,7 +5,7 @@
 
 
 //scans and copies a list of unique result
-int get_unique_wifi_list(Sl_WlanNetworkEntry_t * result, size_t num_entries);
+int get_unique_wifi_list(SlWlanNetworkEntry_t * result, size_t num_entries);
 
 //gives you a future result.
 //IMPORTANT, a read response will return the number of actual entries

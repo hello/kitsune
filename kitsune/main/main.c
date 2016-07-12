@@ -221,20 +221,22 @@ void vApplicationStackOverflowHook( TaskHandle_t xTask, char *pcTaskName )
 //! \return None
 //
 //*****************************************************************************
+extern void (* const g_pfnVectors[])(void);
+#pragma DATA_SECTION(ulRAMVectorTable, ".ramvecs")
+unsigned long ulRAMVectorTable[256];
 static void
 BoardInit(void)
 {
 /* In case of TI-RTOS vector table is initialize by OS itself */
 #ifndef USE_TIRTOS
-    //
-    // Set vector table base
-    //
 #if defined(ccs) || defined(gcc)
-    IntVTableBaseSet((unsigned long)&g_pfnVectors[0]);
+	memcpy(ulRAMVectorTable,g_pfnVectors,16*4);
 #endif
+
 #if defined(ewarm)
-    IntVTableBaseSet((unsigned long)&__vector_table);
+	memcpy(ulRAMVectorTable,&__vector_table,16*4);
 #endif
+	IntVTableBaseSet((unsigned long)&ulRAMVectorTable[0]);
 #endif
     //
     // Enables the clock ticking for scheduler to switch between different

@@ -16,7 +16,7 @@ static bool _encode_bytes_fields(pb_ostream_t *stream, const pb_field_t *field, 
 
 static bool _encode_wifi_scan_result_fields(pb_ostream_t *stream, const pb_field_t *field, void * const *arg)
 {
-    Sl_WlanNetworkEntry_t* wifi_ap = (Sl_WlanNetworkEntry_t*)*arg;
+    SlWlanNetworkEntry_t* wifi_ap = (SlWlanNetworkEntry_t*)*arg;
     if(!wifi_ap)
     {
         LOGI("_encode_string_fields: No string to encode\n");
@@ -24,41 +24,42 @@ static bool _encode_wifi_scan_result_fields(pb_ostream_t *stream, const pb_field
     }
 
 	wifi_endpoint data = {0};
-	char ssid[MAXIMAL_SSID_LENGTH + 1] = {0};
-	strncpy(ssid, (char*)wifi_ap->ssid, MAXIMAL_SSID_LENGTH + 1);
+	char ssid[SL_WLAN_SSID_MAX_LENGTH + 1] = {0};
+	strncpy(ssid, (char*)wifi_ap->Ssid, SL_WLAN_SSID_MAX_LENGTH + 1);
 	data.ssid.funcs.encode = _encode_string_fields;
 	data.ssid.arg = ssid;
 
 	array_data arr = {0};
-	arr.length = SL_BSSID_LENGTH;
-	arr.buffer = wifi_ap->bssid;
+	arr.length = SL_WLAN_BSSID_LENGTH;
+	arr.buffer = wifi_ap->Bssid;
 	data.bssid.funcs.encode = _encode_bytes_fields;
 	data.bssid.arg = &arr;
 
 
-	switch(wifi_ap->sec_type)
+	switch(wifi_ap->SecurityInfo)
 	{
-		case SL_SCAN_SEC_TYPE_OPEN:
+		case SL_WLAN_SEC_TYPE_OPEN:
 		data.security_type = wifi_endpoint_sec_type_SL_SCAN_SEC_TYPE_OPEN;
 		break;
 
-		case SL_SCAN_SEC_TYPE_WEP:
+		case SL_WLAN_SEC_TYPE_WEP:
 		data.security_type = wifi_endpoint_sec_type_SL_SCAN_SEC_TYPE_WEP;
 		break;
 
-		case SL_SCAN_SEC_TYPE_WPA:
+	/*	TODO wtf
+	 * case SL_WLAN_SEC_TYPE_WPA:
 		data.security_type = wifi_endpoint_sec_type_SL_SCAN_SEC_TYPE_WPA;
-		break;
+		break;*/
 
-		case SL_SCAN_SEC_TYPE_WPA2:
+		case SL_WLAN_SEC_TYPE_WPA_WPA2:
 		data.security_type = wifi_endpoint_sec_type_SL_SCAN_SEC_TYPE_WPA2;
 		break;
 	}
 
-	data.rssi = wifi_ap->rssi;
+	data.rssi = wifi_ap->Rssi;
 
 	if (!pb_encode_tag(stream, PB_WT_STRING, field->tag)){
-		LOGI("Fail to encode tag for wifi ap %s\r\n", wifi_ap->ssid);
+		LOGI("Fail to encode tag for wifi ap %s\r\n", wifi_ap->Ssid);
 	}else{
 
 		pb_ostream_t sizestream = { 0 };
