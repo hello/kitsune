@@ -9,4 +9,6 @@
 
 #define AUDIO_FULL_DUPLEX 1
 
+#define AUDIO_RECORD_DECIMATE 0
+
 #endif

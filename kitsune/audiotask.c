@@ -52,14 +52,6 @@
 
 #define SAVE_BASE "/usr/A"
 
-#define AUDIO_RECORD_DECIMATE 0
-
-
-#if (AUDIO_RECORD_DECIMATE==1)
-#define DECIMATE_CHUNK_SIZE 2040
-int32_t decimate_16k(uint8_t* data, uint32_t size);
-#endif
-
 /* globals */
 unsigned int g_uiPlayWaterMark;
 extern tCircularBuffer * pRxBuffer;
@@ -487,7 +479,7 @@ cleanup:
 
 static void DoCapture(uint32_t rate) {
 #if (CODEC_ENABLE_MULTI_CHANNEL==1)
-	int16_t * samples = (int16_t*) pvPortMalloc(MONO_BUF_LENGTH*4*2); //256 * 4bytes * 2 = 2KB
+	int16_t * samples = (int16_t*) pvPortMalloc(PING_PONG_CHUNK_SIZE); //256 * 4bytes * 2 = 2KB
 #else
 	int16_t * samples = (int16_t*) pvPortMalloc(MONO_BUF_LENGTH*2*2); //256 * 2bytes * 2 = 1KB
 #endif
@@ -652,20 +644,7 @@ static void DoCapture(uint32_t rate) {
 		}
 		else {
 			//dump buffer out
-
-#if (AUDIO_RECORD_DECIMATE==0)
 			ReadBuffer(pTxBuffer,(uint8_t *)samples, PING_PONG_CHUNK_SIZE);// MONO_BUF_LENGTH*sizeof(int16_t));
-#else
-			ReadBuffer(pTxBuffer,(uint8_t *)samples, DECIMATE_CHUNK_SIZE);// MONO_BUF_LENGTH*sizeof(int16_t));
-#endif
-
-			// TODO DKH - Decimation here?
-#if (AUDIO_RECORD_DECIMATE==1)
-			if(decimate_16k(samples,DECIMATE_CHUNK_SIZE))
-			{
-				UARTprintf("DECIMATE CHUNK SIZE INCORRECT\n");
-			}
-#endif
 
 #ifdef PRINT_TIMING
 			t1 = xTaskGetTickCount(); dt = t1 - t0; t0 = t1;
@@ -675,11 +654,7 @@ static void DoCapture(uint32_t rate) {
 			//write to file
 			if (isSavingToFile) {
 #if (CODEC_ENABLE_MULTI_CHANNEL==1)
-#if (AUDIO_RECORD_DECIMATE==1)
-				const uint32_t bytes_written = DECIMATE_CHUNK_SIZE/3 ;
-#else
-				const uint32_t bytes_written = 2*MONO_BUF_LENGTH*sizeof(int32_t);
-#endif
+				const uint32_t bytes_written = PING_PONG_CHUNK_SIZE;
 #else
 				const uint32_t bytes_written = 2*MONO_BUF_LENGTH*sizeof(int16_t);
 #endif
@@ -923,7 +898,7 @@ void AudioTask_StartCapture(uint32_t rate) {
 		}
 	}
 	//turn on
-	LOGI("mic on\r\n");
+	UARTprintf("mic on\r\n");
 	memset(&message,0,sizeof(message));
 	message.command = eAudioCaptureTurnOn;
 	message.message.capturedesc.rate = rate;
@@ -942,7 +917,7 @@ void AudioTask_StopCapture(void) {
 		}
 	}
 
-	LOGI("mic off\r\n");
+	UARTprintf("mic off\r\n");
 
 	memset(&message,0,sizeof(message));
 	message.command = eAudioCaptureTurnOff;
@@ -957,32 +932,4 @@ void AudioTask_DumpOncePerMinuteStats(AudioOncePerMinuteData_t * pdata) {
 	xSemaphoreGive(_statsMutex);
 }
 
-#if (AUDIO_RECORD_DECIMATE==1)
-// Decimate from 48k to 16k
-int32_t decimate_16k(uint8_t* data, uint32_t size)
-{
-	uint16_t* ch1_ptr = (uint16_t*)data;
-	uint16_t* ch2_ptr = (uint16_t*)ch1_ptr+1;
-	uint16_t* ch3_ptr = (uint16_t*)ch1_ptr+2;
-	uint16_t* ch4_ptr = (uint16_t*)ch1_ptr+3;
-	uint32_t i;
 
-	// Size has to be a mulitple of 3
-	if( (size%12) || (!data) ) return -1;
-
-	for(i=0;i < size/12;i++)
-	{
-		*ch1_ptr = ( ( *((uint16_t*)ch1_ptr+0)) + ( *((uint16_t*)ch1_ptr+4)) + ( *((uint16_t*)ch1_ptr+8)) ) / 3;
-		*ch2_ptr = ( ( *((uint16_t*)ch2_ptr+0)) + ( *((uint16_t*)ch2_ptr+4)) + ( *((uint16_t*)ch2_ptr+8)) ) / 3;
-		*ch3_ptr = ( ( *((uint16_t*)ch3_ptr+0)) + ( *((uint16_t*)ch3_ptr+4)) + ( *((uint16_t*)ch3_ptr+8)) ) / 3;
-		*ch4_ptr = ( ( *((uint16_t*)ch4_ptr+0)) + ( *((uint16_t*)ch4_ptr+4)) + ( *((uint16_t*)ch4_ptr+8)) ) / 3;
-
-		ch1_ptr = (uint16_t*)ch1_ptr+12;
-		ch2_ptr = (uint16_t*)ch1_ptr+12;
-		ch3_ptr = (uint16_t*)ch1_ptr+12;
-		ch4_ptr = (uint16_t*)ch1_ptr+12;
-	}
-
-	return 0;
-}
-#endif

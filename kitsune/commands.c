@@ -2314,10 +2314,15 @@ void vUARTTask(void *pvParameters) {
 	uart_logger_init();
 	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 1, NULL);
 	UARTprintf("*");
+#if (ONLY_AUDIO==0)
 	xTaskCreate(analytics_event_task, "analyticsTask", 1024/4, NULL, 1, NULL);
 	UARTprintf("*");
 #endif
+#endif
+#if (ONLY_AUDIO==0)
 	xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 2, NULL);
+#endif
+
 	UARTprintf("*");
 	start_top_boot_watcher();
 
