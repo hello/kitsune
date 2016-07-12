@@ -166,16 +166,19 @@ void SimpleLinkFatalErrorEventHandler(SlDeviceFatal_t *slFatalErrorEvent)
 		{
 			LOGE("[ERROR] - FATAL ERROR: Abort NWP event detected: AbortType=%d, AbortData=0x%x\n\r",slFatalErrorEvent->Data.DeviceAssert.Code,slFatalErrorEvent->Data.DeviceAssert.Value);
 		}
+		break;
 
 		case SL_DEVICE_EVENT_FATAL_DRIVER_ABORT:
 		{
 			LOGE("[ERROR] - FATAL ERROR: Driver Abort detected. \n\r");
 		}
+		break;
 
 		case SL_DEVICE_EVENT_FATAL_NO_CMD_ACK:
 		{
 			LOGE("[ERROR] - FATAL ERROR: No Cmd Ack detected [cmd opcode = 0x%x] \n\r", slFatalErrorEvent->Data.NoCmdAck.Code);
 		}
+		break;
 
 		case SL_DEVICE_EVENT_FATAL_SYNC_LOSS:
 		{
@@ -696,7 +699,7 @@ void set_backup_dns() {
    sl_NetCfgSet(SL_NETCFG_IPV4_DNS_CLIENT,0,sizeof(SlNetCfgIpV4DnsClientArgs_t),(unsigned char *)&DnsOpt);
 }
 int Cmd_status(int argc, char *argv[]) {
-    unsigned char len = sizeof(SlNetCfgIpV4Args_t);
+    _u16 len = sizeof(SlNetCfgIpV4Args_t);
     _u16 ConfigOpt = 0;   //return value could be one of the following: SL_NETCFG_ADDR_DHCP / SL_NETCFG_ADDR_DHCP_LLA / SL_NETCFG_ADDR_STATIC
     SlNetCfgIpV4Args_t ipV4 = {0};
     sl_NetCfgGet(SL_NETCFG_IPV4_STA_ADDR_MODE,&ConfigOpt,&len,(_u8 *)&ipV4);
