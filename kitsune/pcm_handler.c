@@ -91,13 +91,31 @@
 #define UI_BUFFER_EMPTY_THRESHOLD  2048
 
 #if (AUDIO_RECORD_DECIMATE==1)
-#define DECIMATE_CHUNK_SIZE 2040
+
+#define DECIMATION_FACTOR 3
+
+#if (CODEC_ENABLE_MULTI_CHANNEL==1)
+#define DECIMATION_CHUNK_SIZE (CB_TRANSFER_SZ*2)
+#else
+#define DECIMATION_CHUNK_SIZE CB_TRANSFER_SZ
+#endif
+
+#if (CODEC_ENABLE_MULTI_CHANNEL==1)
+#define NUMBER_OF_I2S_CHANNELS 4
+#else
+#define NUMBER_OF_I2S_CHANNELS 2
+#endif
+
 typedef struct {
 	bool pending;
 	uint32_t pending_data_per_channel;
 	uint32_t pending_sum[4];
 }decimation_dump_t;
+
 int32_t decimate_16k(uint8_t* data);
+
+static decimation_dump_t decimation_dump;
+
 #endif
 
 //*****************************************************************************
@@ -113,9 +131,6 @@ uint32_t pong_p[(CB_TRANSFER_SZ)];
 unsigned short ping[(CB_TRANSFER_SZ)];
 unsigned short pong[(CB_TRANSFER_SZ)];
 #endif
-
-
-
 
 
 volatile unsigned int guiDMATransferCountTx = 0;
@@ -196,9 +211,9 @@ void DMAPingPongCompleteAppCB_opt()
 			}
 			// TODO DKH - Decimation here?
 #if (AUDIO_RECORD_DECIMATE==1)
-			if(decimate_16k(pong))
+			if(decimate_16k((uint8_t*)pong) == -1)
 			{
-				UARTprintf("DECIMATE CHUNK SIZE INCORRECT\n");
+				UARTprintf("pong ERROR\n");
 			}
 #endif
 			FillBuffer(pAudInBuf, (unsigned char*)pong, CB_TRANSFER_SZ*4);
@@ -225,9 +240,9 @@ void DMAPingPongCompleteAppCB_opt()
 				}
 				// TODO DKH - Decimation here?
 #if (AUDIO_RECORD_DECIMATE==1)
-				if(decimate_16k(ping))
+				if(decimate_16k((uint8_t*)ping) == -1)
 				{
-					UARTprintf("DECIMATE CHUNK SIZE INCORRECT\n");
+					UARTprintf("ping ERROR\n");
 				}
 #endif
 				FillBuffer(pAudInBuf, (unsigned char*)ping, CB_TRANSFER_SZ*4);
@@ -238,8 +253,7 @@ void DMAPingPongCompleteAppCB_opt()
 
 		// TODO DKH this if condition is redundant?
 		if (guiDMATransferCountTx >= CB_TRANSFER_SZ*4)
-
-			{
+		{
 			signed long xHigherPriorityTaskWoken;
 
 			guiDMATransferCountTx = 0;
@@ -440,7 +454,7 @@ void DMAPingPongCompleteAppCB_opt()
 
 		// TODO DKH - Decimation here?
 #if (AUDIO_RECORD_DECIMATE==1)
-		if(decimate_16k(samples,DECIMATE_CHUNK_SIZE))
+		if(decimate_16k(samples))
 		{
 			UARTprintf("DECIMATE CHUNK SIZE INCORRECT\n");
 		}
@@ -595,6 +609,19 @@ void SetupPingPongDMATransferTx()
     memset(ping, 0, sizeof(ping));
     memset(pong, 0, sizeof(pong));
 
+#if (AUDIO_RECORD_DECIMATE==1)
+    uint32_t channel_index;
+
+	// Clear decimation dump data
+	decimation_dump.pending = false;
+	decimation_dump.pending_data_per_channel = 0;
+
+	for(channel_index=0;channel_index< NUMBER_OF_I2S_CHANNELS; channel_index++)
+	{
+		decimation_dump.pending_sum[channel_index] = 0;
+	}
+#endif
+
 #if (CODEC_ENABLE_MULTI_CHANNEL==1)
     SetupTransfer(UDMA_CH4_I2S_RX,
                   UDMA_MODE_PINGPONG,
@@ -688,32 +715,15 @@ void SetupPingPongDMATransferRx()
 }
 
 #if (AUDIO_RECORD_DECIMATE==1)
-	
-static decimation_dump_t decimation_dump;
-#define DECIMATION_FACTOR 3
-
-#if (CODEC_ENABLE_MULTI_CHANNEL==1)
-#define DECIMATION_CHUNK_SIZE (CB_TRANSFER_SZ*2)
-#else
-#define DECIMATE_CHUNK_SIZE CB_TRANSFER_SZ
-#endif
-
-#if (CODEC_ENABLE_MULTI_CHANNEL==1)
-#define NUMEBR_OF_AUDIO_CHANNEL 4
-#else
-#define NUMEBR_OF_AUDIO_CHANNEL 2
-#endif
 
 // Decimate from 48k to 16k
 int32_t decimate_16k(uint8_t* data)
 {
 	uint16_t* u16p_data = (uint16_t*)data;
-	uint32_t total_words = DECIMATION_CHUNK_SIZE;
+	uint32_t total_words = DECIMATION_CHUNK_SIZE; // Number of 16-bit PCM
 
 	uint32_t i, channel_index, array_index;
 	uint32_t array_max;
-
-	uint32_t start_index = 0;
 
 	// data should be a valid pointer
 	if(!data) return -1;
@@ -721,65 +731,84 @@ int32_t decimate_16k(uint8_t* data)
 	// Check if there is data from the previous DMA chunk
 	if(decimation_dump.pending)
 	{
+		// Add three items and divide by 3
+		//UARTprintf("Adding %u\n");
+
 		// These are words from previous DMA transfer that need to be decimated
 		for(i=0;i<(DECIMATION_FACTOR-decimation_dump.pending_data_per_channel);i++)
 		{
-			for(channel_index=0;channel_index < NUMEBR_OF_AUDIO_CHANNEL; channel_index++)
+			for(channel_index=0;channel_index < NUMBER_OF_I2S_CHANNELS; channel_index++)
 			{
-				decimation_dump.pending_sum[channel_index] += u16p_data[i+channel_index];
+				decimation_dump.pending_sum[channel_index] += u16p_data[i*NUMBER_OF_I2S_CHANNELS+channel_index];
 			}
 
-			total_words -= NUMEBR_OF_AUDIO_CHANNEL;
-			start_index += NUMEBR_OF_AUDIO_CHANNEL;
+			// The total words in the DMA chunk reduces
+			total_words -= NUMBER_OF_I2S_CHANNELS;
 		}
 
-		for(channel_index=0;channel_index < NUMEBR_OF_AUDIO_CHANNEL; channel_index++)
+		for(channel_index=0;channel_index < NUMBER_OF_I2S_CHANNELS; channel_index++)
 		{
 			u16p_data[channel_index] = decimation_dump.pending_sum[channel_index] / DECIMATION_FACTOR;
-			decimation_dump.pending_sum[channel_index] = 0;
+
 		}
 	}
 
+	UARTprintf("*%u*\n",decimation_dump.pending_data_per_channel);
+
+	// Clear decimation dump data
+	decimation_dump.pending = false;
+	decimation_dump.pending_data_per_channel = 0;
+
+	for(channel_index=0;channel_index< NUMBER_OF_I2S_CHANNELS; channel_index++)
+	{
+		decimation_dump.pending_sum[channel_index] = 0;
+	}
+
 	// Converting to a multiple of 12. Might seem pointless but it is not.
-	array_max = (total_words/12) * 12;
+	// TODO change this to a modulo operation instead of divide
+	array_max = (total_words/(DECIMATION_FACTOR*NUMBER_OF_I2S_CHANNELS)) * (DECIMATION_FACTOR*NUMBER_OF_I2S_CHANNELS);
+
+	UARTprintf("*%u->%u* \n",total_words,array_max);
 
 	// Here total words should be a multiple of 12
-	for(array_index=start_index;array_index<array_max/3;array_index += 4)
+	for(array_index=(DECIMATION_CHUNK_SIZE-total_words);array_index<array_max/DECIMATION_FACTOR;array_index += NUMBER_OF_I2S_CHANNELS)
 	{
-		for(channel_index=0;channel_index<NUMEBR_OF_AUDIO_CHANNEL;channel_index++)
+		for(channel_index=0;channel_index<NUMBER_OF_I2S_CHANNELS;channel_index++)
 		{
 			for(i=0;i<DECIMATION_FACTOR;i++)
 			{
-				u16p_data[array_index+channel_index] += u16p_data[3*array_index+channel_index+i*4];
+				u16p_data[array_index+channel_index] += u16p_data[DECIMATION_FACTOR*array_index+channel_index+i*DECIMATION_FACTOR];
 			}
 
 			// Divide by decimation factor
-			u16p_data[array_index+channel_index] /= 3;
+			u16p_data[array_index+channel_index] /= DECIMATION_FACTOR;
 		}
 	}
 
 	// Add the remaining data to the decimation dump
 	if(total_words - array_max)
 	{
+		//UARTprintf("p");
 		decimation_dump.pending = true;
-		decimation_dump.pending_data_per_channel = 0;
 
-		for(i=array_max;i<(total_words - array_max)/4;i++)
+		for(i=array_max;i<DECIMATION_CHUNK_SIZE;i+=4)
 		{
-			decimation_dump.pending_data_per_channel++;
-			for(channel_index=0;channel_index<NUMEBR_OF_AUDIO_CHANNEL;channel_index++)
+
+			decimation_dump.pending_data_per_channel += 1;
+			for(channel_index=0;channel_index<NUMBER_OF_I2S_CHANNELS;channel_index++)
 			{
 				decimation_dump.pending_sum[channel_index] += u16p_data[i+channel_index];
 
 			}
 
 		}
+		UARTprintf("pending: %u %u\n",array_max, decimation_dump.pending_data_per_channel);
 
 	}
 
+	//UARTprintf("-%u\n",array_index);
 
-	// Return number of bytes/words after decimation
-	return 0;
+	return (int32_t)array_index;
 }
 #endif
 //*****************************************************************************
