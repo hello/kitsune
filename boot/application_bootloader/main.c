@@ -615,20 +615,6 @@ int main()
   //
   ulBootInfoCreateFlag  = _FS_FILE_OPEN_FLAG_COMMIT|_FS_FILE_PUBLIC_WRITE;
 
-  //
-  // Check if its a secure MCU
-  //
-  if ( IsSecureMCU() )
-  {
-    ulFactoryImgToken     = FACTORY_IMG_TOKEN;
-    ulUserImg1Token       = USER_IMG_1_TOKEN;
-    ulUserImg2Token       = USER_IMG_2_TOKEN;
-    ulBootInfoToken       = USER_BOOT_INFO_TOKEN;
-    ulBootInfoCreateFlag  = _FS_FILE_OPEN_FLAG_COMMIT|_FS_FILE_OPEN_FLAG_SECURE|
-                            _FS_FILE_OPEN_FLAG_NO_SIGNATURE_TEST|
-                            _FS_FILE_PUBLIC_WRITE|_FS_FILE_OPEN_FLAG_VENDOR;
-  }
-
 
   //
   // Start slhost to get NVMEM service
