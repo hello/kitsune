@@ -312,12 +312,17 @@ static int load_to_flash(long handle, _u32 flash_start, _u32 size){
 
 		while(size){
 			_u32 bytes_to_xfer = (size >= TRANSFER_BUFFER_SIZE) ? TRANSFER_BUFFER_SIZE : size;
-			ret = sl_fsRead(handle, read_offset, buf, bytes_to_xfer);
+			ret = sl_FsRead(handle, read_offset, buf, bytes_to_xfer);
 			if(ret !=  bytes_to_xfer && ret >= 0){
 				ret = -1;
 				break;
 			}else{
-
+				write_start += bytes_to_xfer;
+				read_offset += bytes_to_xfer;
+				ret = FlashProgram((unsigned long *)buf, write_start, bytes_to_xfer);
+				if(ret != 0){
+					break;
+				}
 			}
 		}
 	}
