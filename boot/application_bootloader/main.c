@@ -364,7 +364,7 @@ int Load(unsigned char *ImgName, unsigned long ulToken) {
 }
 int Test(unsigned int img) {
 	SHA1_Init(&sha1ctx);
-	SHA1_Update(&sha1ctx, (unsigned char *) APP_IMG_SRAM_OFFSET, file_len);
+	SHA1_Update(&sha1ctx, (unsigned char *) APP_IMG_FLASH_OFFSET, file_len);
 	SHA1_Final(sha, &sha1ctx);
 
 	return memcmp(sha, sBootInfo.sha[img], SHA1_SIZE) == 0;
