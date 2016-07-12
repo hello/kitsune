@@ -112,7 +112,6 @@ static unsigned long ulFactoryImgToken;
 static unsigned long ulUserImg1Token;
 static unsigned long ulUserImg2Token;
 static unsigned long ulBootInfoToken;
-static unsigned long ulBootInfoCreateFlag;
 
 
 
@@ -301,7 +300,7 @@ int Load(unsigned char *ImgName, unsigned long ulToken) {
 	//
 	// Open the file for reading
 	//
-	lFileHandle = sl_FsOpen(ImgName, FS_MODE_OPEN_READ, &ulToken);
+	lFileHandle = sl_FsOpen(ImgName, SL_FS_READ, &ulToken);
 	//
 	// Check if successfully opened
 	//
@@ -374,7 +373,7 @@ static long BootInfoWrite(sBootInfo_t *psBootInfo)
   //
   // Open the boot info file for write
   //
-  if((lFileHandle = sl_FsOpen((unsigned char *)IMG_BOOT_INFO, FS_MODE_OPEN_WRITE, &ulToken)) >= 0 )
+  if((lFileHandle = sl_FsOpen((unsigned char *)IMG_BOOT_INFO, SL_FS_WRITE, &ulToken)) >= 0 )
   {
     //
     // Write the boot info
@@ -505,35 +504,6 @@ static void ImageLoader(sBootInfo_t *psBootInfo)
 
 //*****************************************************************************
 //
-//! Checks if the device is secure
-//!
-//! This function checks if the device is a secure device or not.
-//!
-//! \return Returns \b true if device is secure, \b false otherwise
-//
-//*****************************************************************************
-static inline tBoolean IsSecureMCU()
-{
-  unsigned long ulChipId;
-
-  ulChipId =(HWREG(GPRCM_BASE + GPRCM_O_GPRCM_EFUSE_READ_REG2) >> 16) & 0x1F;
-
-  if((ulChipId != DEVICE_IS_CC3101RS) &&(ulChipId != DEVICE_IS_CC3101S))
-  {
-    //
-    // Return non-Secure
-    //
-    return false;
-  }
-
-  //
-  // Return secure
-  //
-  return true;
-}
-
-//*****************************************************************************
-//
 //!\internal
 //!
 //! Creates default boot info structure
@@ -613,8 +583,7 @@ int main()
   //
   // Initialize boot info file create flag
   //
-  ulBootInfoCreateFlag  = _FS_FILE_OPEN_FLAG_COMMIT|_FS_FILE_PUBLIC_WRITE;
-
+  ulBootInfoCreateFlag  = SL_FS_WRITE_MUST_COMMIT | SL_FS_WRITE;
 
   //
   // Start slhost to get NVMEM service
@@ -625,8 +594,8 @@ int main()
   // Open Boot info file for reading
   //
   lFileHandle = sl_FsOpen((unsigned char *)IMG_BOOT_INFO,
-                        FS_MODE_OPEN_READ,
-                        &ulBootInfoToken);
+		  SL_FS_READ,
+		  &ulBootInfoToken);
 
   //
   // If successful, load the boot info
@@ -646,9 +615,8 @@ int main()
     // Create a new boot info file
     //
 	  lFileHandle = sl_FsOpen((unsigned char *)IMG_BOOT_INFO,
-                        FS_MODE_OPEN_CREATE(2*sizeof(sBootInfo_t),
-                                            ulBootInfoCreateFlag),
-                                            &ulBootInfoToken);
+			     SL_FS_CREATE | SL_FS_WRITE_MUST_COMMIT | SL_FS_CREATE_MAX_SIZE( 2 * sizeof(sBootInfo_t)),
+                 &ulBootInfoToken);
 
     //
     // Create a default boot info
