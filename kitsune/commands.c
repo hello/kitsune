@@ -100,7 +100,7 @@
 #include "long_poll.h"
 #include "filedownloadmanager.h"
 
-#define ONLY_AUDIO 1
+#define ONLY_AUDIO 0
 #if (AUDIO_FULL_DUPLEX==1)
 #include "audiohelper.h"
 #endif
