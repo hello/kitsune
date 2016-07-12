@@ -55,17 +55,13 @@
 // The starting address of the application.  Normally the interrupt vectors  
 // must be located at the beginning of the application.                      
 //*****************************************************************************
-#define FLASH_BASE 0x01000800
-#define FLHDR_BASE 0x01000000
-
 
 /* System memory map */
 
 MEMORY
 {
     /* Application uses internal RAM for program and data */
-    FLASH_HDR	(RX)  : origin = 0x01000000, length = 0x7FF    /* 2 KB */
-    FLASH_CODE  (RX)  : origin = 0x01000800, length = 0x0FF800 /* 1022KB */
+    FLASH_CODE  (RX)  : origin = 0x01006000, length = 0xF9FFF /* 1024KB */
     SRAM_DATA   (RWX) : origin = 0x20000000, length = 0x040000 /* 256KB */
 }
 
@@ -73,8 +69,8 @@ MEMORY
 
 SECTIONS
 {
-	.dgbhdr     	      : > FLHDR_BASE
-    .resetVecs            : > FLASH_BASE
+	.dgbhdr     	      : > FLASH_CODE
+    .resetVecs            : > FLASH_CODE
     .init_array           : > FLASH_CODE
     .text                 : > FLASH_CODE
     .const                : > FLASH_CODE
