@@ -296,6 +296,10 @@ __asm("    .sect \".text:Run\"\n"
 //
 //*****************************************************************************
 int file_len = 0;
+#include "flash.h"
+static int load_to_flash(long handle, const unsigned char * offset, _u32 size){
+	return 0;
+}
 int Load(unsigned char *ImgName, unsigned long ulToken) {
 	//
 	// Open the file for reading
@@ -318,9 +322,12 @@ int Load(unsigned char *ImgName, unsigned long ulToken) {
 			//
 			// Read the application into SRAM
 			//TODO finish this
+			/** legacy, for reference
 			iRetVal = sl_FsRead(lFileHandle, 0,
 					(unsigned char *) APP_IMG_SRAM_OFFSET, pFsFileInfo.Len);
-			return 0;
+			*/
+			iRetVal = load_to_flash(lFileHandle, (unsigned char *)APP_IMG_FLASH_OFFSET, pFsFileInfo.Len);
+			return iRetVal;
 		}
 	}else{
 		return -1;
