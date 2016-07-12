@@ -40,7 +40,6 @@
 
 
 --retain=g_pfnVectors
---retain=ulDebugHeader
 
 //*****************************************************************************
 // The following command line options are set as part of the CCS project.  
@@ -71,7 +70,6 @@ MEMORY
 
 SECTIONS
 {
-	.dgbhdr     	      : > FLASH_BASE
     .resetVecs            : > FLASH_BASE
     .init_array           : > FLASH_CODE
     .text                 : > FLASH_CODE
