@@ -341,12 +341,11 @@ int Load(unsigned char *ImgName, unsigned long ulToken) {
 		// Get the file size using File Info structure
 		//
 		iRetVal = sl_FsGetInfo(ImgName, ulToken, &pFsFileInfo);
-		file_len = pFsFileInfo.Len;
 		//
 		// Check for failure
 		//
 		if (0 == iRetVal) {
-
+			file_len = pFsFileInfo.Len;
 			//
 			// Read the application into SRAM
 			//TODO finish this
