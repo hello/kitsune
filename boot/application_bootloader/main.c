@@ -54,10 +54,10 @@ unsigned char sha[SHA1_SIZE] = {0};
 /******************************************************************************
    Image file names
 *******************************************************************************/
-#define IMG_BOOT_INFO           "/sys/mcubootinfo.bin"
-#define IMG_FACTORY_DEFAULT     "/sys/mcuimg1.bin"
-#define IMG_USER_1              "/sys/mcuimg2.bin"
-#define IMG_USER_2              "/sys/mcuimg3.bin"
+#define IMG_BOOT_INFO           "/ota/mcubootinfo.bin"
+#define IMG_FACTORY_DEFAULT     "/ota/mcuimg1.bin"
+#define IMG_USER_1              "/ota/mcuimg2.bin"
+#define IMG_USER_2              "/ota/mcuimg3.bin"
 
 /******************************************************************************
    Image status
@@ -297,7 +297,7 @@ __asm("    .sect \".text:Run\"\n"
 //*****************************************************************************
 int file_len = 0;
 #include "flash.h"
-#define TRANSFER_BUFFER_SIZE (2048 * 64)
+#define TRANSFER_BUFFER_SIZE (2048)
 static int load_to_flash(long handle, _u32 flash_start, _u32 size){
 	int ret = 0;
 	_u8 buf[TRANSFER_BUFFER_SIZE];
@@ -311,7 +311,7 @@ static int load_to_flash(long handle, _u32 flash_start, _u32 size){
 		_u32 read_offset = 0;
 
 		while(size){
-			_u32 bytes_to_xfer = (size >= TRANSFER_BUFFER_SIZE) ? TRANSFER_BUFFER_SIZE : size;
+			_u32 bytes_to_xfer = (size >= TRANSFER_BUFFER_SIZE ) ? TRANSFER_BUFFER_SIZE : size; //allow room to grow to
 			ret = sl_FsRead(handle, read_offset, buf, bytes_to_xfer);
 			if(ret !=  bytes_to_xfer && ret >= 0){
 				ret = -1;
@@ -379,7 +379,7 @@ void Execute() {
     // Execute the application.
     //
     start_wdt(); //if we do load something bad, the wdt will get us back and we can load the other image...
-    Run(APP_IMG_SRAM_OFFSET);
+    Run(APP_IMG_FLASH_OFFSET);
 }
 void LoadAndExecute(unsigned char *ImgName, unsigned long ulToken)
 {
