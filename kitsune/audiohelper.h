@@ -11,12 +11,9 @@ typedef struct {
 } Filedata_t;
 
 void InitAudioHelper();
-
-
-#if (AUDIO_FULL_DUPLEX==1)
 void InitAudioHelper_p();
 void InitAudioTxRx(uint32_t rate);
-#endif
+
 
 uint8_t InitAudioCapture(uint32_t rate);
 void DeinitAudioCapture(void);

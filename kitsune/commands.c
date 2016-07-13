@@ -100,10 +100,8 @@
 #include "long_poll.h"
 #include "filedownloadmanager.h"
 
-#define ONLY_AUDIO 0
-#if (AUDIO_FULL_DUPLEX==1)
+
 #include "audiohelper.h"
-#endif
 
 #define ONLY_MID 0
 
@@ -1633,9 +1631,8 @@ void launch_tasks() {
 	//dear future chris: this one doesn't need a semaphore since it's only written to while threads are going during factory test boot
 	booted = true;
 
-#if (ONLY_AUDIO==0)
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 3, NULL);
-#endif
+
 
 #ifdef KIT_INCLUDE_FILE_UPLOAD
 	xTaskCreate(FileUploaderTask_Thread,"fileUploadTask", 1024/4,NULL,1,NULL);
@@ -1648,7 +1645,6 @@ void launch_tasks() {
 #if !ONLY_MID
 	UARTprintf("*");
 
-#if (ONLY_AUDIO==0)
 	xTaskCreate(thread_dust, "dustTask", 512 / 4, NULL, 3, NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_sensor_poll, "pollTask", 768 / 4, NULL, 2, NULL);
@@ -1657,7 +1653,7 @@ void launch_tasks() {
 	UARTprintf("*");
 	long_poll_task_init( 2560 / 4 );
 	downloadmanagertask_init(3072 / 4);
-#endif
+
 
 #endif
 }
@@ -2112,9 +2108,9 @@ void vUARTTask(void *pvParameters) {
 	hlo_audio_init();
 
 	i2c_smphr = xSemaphoreCreateRecursiveMutex();
-#if (ONLY_AUDIO==0)
+
 	init_time_module(2560);
-#endif
+
 
 	// Init sensors
 	init_tvoc();
@@ -2159,18 +2155,15 @@ void vUARTTask(void *pvParameters) {
 	// Program codec
 	codec_init();
 
-#if (AUDIO_FULL_DUPLEX==1)
 	// McASP and DMA init
 	InitAudioTxRx(AUDIO_CAPTURE_PLAYBACK_RATE);
-#endif
 
 	// Create audio tasks for playback and record
 	xTaskCreate(AudioPlaybackTask,"playbackTask",1280/4,NULL,4,NULL);
 	xTaskCreate(AudioCaptureTask,"captureTask", (3*1024)/4,NULL,3,NULL);
 
-#if (ONLY_AUDIO==0)
 	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,2,NULL);
-#endif
+
 
 	/*******************************************************************************
 	*           AUDIO INIT END
@@ -2178,9 +2171,9 @@ void vUARTTask(void *pvParameters) {
 	*/
 
 	UARTprintf("*");
-#if (ONLY_AUDIO==0)
+
 	init_download_task( 3072 / 4 );
-#endif
+
 
 	networktask_init(3 * 1024 / 4);
 
@@ -2194,11 +2187,10 @@ void vUARTTask(void *pvParameters) {
 
 	init_dust();
 
-#if (ONLY_AUDIO==0)
 	ble_proto_init();
 	xTaskCreate(top_board_task, "top_board_task", 1280 / 4, NULL, 3, NULL);
 	xTaskCreate(thread_spi, "spiTask", 1536 / 4, NULL, 3, NULL);
-#endif
+
 
 #ifndef BUILD_SERVERS
 	uart_logger_init();

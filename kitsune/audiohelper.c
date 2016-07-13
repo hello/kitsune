@@ -33,9 +33,7 @@ extern tCircularBuffer *pTxBuffer;
 extern tCircularBuffer *pRxBuffer;
 
 static unsigned char * audio_mem;
-#if (AUDIO_FULL_DUPLEX==1)
 static unsigned char * audio_mem_p;
-#endif
 
 // mutex to protect i2s enabled status
 static xSemaphoreHandle _i2s_enabled_mutex = NULL;
@@ -53,14 +51,11 @@ void InitAudioHelper() {
 	audio_mem = (unsigned char*)pvPortMalloc( AUD_BUFFER_SIZE );
 }
 
-#if (AUDIO_FULL_DUPLEX==1)
 void InitAudioHelper_p() {
 
 	audio_mem_p = (unsigned char*)pvPortMalloc( AUD_BUFFER_SIZE );
 }
-#endif
 
-#if (AUDIO_FULL_DUPLEX==1)
 void InitAudioTxRx(uint32_t rate)
 {
 	// Initialize the Audio(I2S) Module
@@ -75,8 +70,6 @@ void InitAudioTxRx(uint32_t rate)
 	}
 
 }
-
-#endif
 
 uint8_t InitAudioCapture(uint32_t rate) {
 
@@ -103,26 +96,6 @@ uint8_t InitAudioCapture(uint32_t rate) {
 
 	// Start Audio Tx/Rx
 	Audio_Start();
-
-
-#if (AUDIO_FULL_DUPLEX == 0)
-	// Initialize the Audio(I2S) Module
-	McASPInit(rate);  // TODO DKH
-
-	UDMAChannelSelect(UDMA_CH4_I2S_RX, NULL);
-
-	// Setup the DMA Mode
-	SetupPingPongDMATransferTx();
-
-	// Setup the Audio In/Out
-	MAP_I2SIntEnable(I2S_BASE, I2S_INT_RDMA );
-
-	AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
-	AudioCaptureRendererConfigure( rate);
-
-	// Start Audio Tx/Rx
-	Audio_Start();
-#endif
 
 	return 1;
 }
@@ -191,12 +164,6 @@ void SetupDMAModeFullDuplex(void (*pfnAppCbHndlr)(void), deinit_type type)
 
 
 void DeinitAudioCapture(void) {
-#if (AUDIO_FULL_DUPLEX == 0)
-	Audio_Stop();
-	McASPDeInit();
-
-	MAP_uDMAChannelDisable(UDMA_CH4_I2S_RX);
-#endif
 
 	Audio_Stop();
 
@@ -216,21 +183,12 @@ void DeinitAudioCapture(void) {
 
 uint8_t InitAudioPlayback(int32_t vol, uint32_t rate ) {
 
-#if (AUDIO_FULL_DUPLEX==1)
 	//create circular buffer
 	if (!pRxBuffer) {
 		pRxBuffer = CreateCircularBuffer(RX_BUFFER_SIZE, audio_mem_p);
 	}
 	memset( audio_mem_p, 0, AUD_BUFFER_SIZE);
 
-
-#else
-	//create circular buffer
-	if (!pRxBuffer) {
-		pRxBuffer = CreateCircularBuffer(RX_BUFFER_SIZE, audio_mem);
-	}
-	memset( audio_mem, 0, AUD_BUFFER_SIZE);
-#endif
 	// Initialize the Audio(I2S) Module
 	//McASPInit(rate);
 
@@ -256,32 +214,11 @@ uint8_t InitAudioPlayback(int32_t vol, uint32_t rate ) {
 
 	//////
 	// SET UP AUDIO PLAYBACK
-#if (AUDIO_FULL_DUPLEX == 0)
-	// Initialize the Audio(I2S) Module
-	McASPInit(rate);
-
-	UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL);
-
-	// Setup the DMA Mode
-	SetupPingPongDMATransferRx();
-
-	// Setup the Audio In/Out
-    MAP_I2SIntEnable(I2S_BASE,I2S_INT_XDMA  );
-
-	AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
-	AudioCaptureRendererConfigure( rate);
-#endif
 	return 1;
 
 }
 
 void DeinitAudioPlayback(void) {
-#if (AUDIO_FULL_DUPLEX == 0)
-	McASPDeInit();
-
-	MAP_uDMAChannelDisable(UDMA_CH5_I2S_TX);
-#endif
-
 
 	// Mute speaker
 	codec_mute_spkr();

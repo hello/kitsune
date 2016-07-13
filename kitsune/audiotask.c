@@ -53,12 +53,6 @@
 #define FLAG_SUCCESS (0x01)
 #define FLAG_STOP    (0x02)
 
-TaskHandle_t audio_task_hndl;
-
-#if (AUDIO_FULL_DUPLEX==1)
-TaskHandle_t audio_task_hndl_p;
-#endif
-
 /* static variables  */
 static xQueueHandle _playback_queue = NULL;
 static xQueueHandle _capture_queue = NULL;
