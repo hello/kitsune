@@ -37,8 +37,6 @@ static unsigned char * audio_mem;
 static unsigned char * audio_mem_p;
 #endif
 
-bool i2s_capture_enabled = false;
-bool i2s_playback_enabled = false;
 // mutex to protect i2s enabled status
 static xSemaphoreHandle _i2s_enabled_mutex = NULL;
 
@@ -68,46 +66,16 @@ void InitAudioTxRx(uint32_t rate)
 	// Initialize the Audio(I2S) Module
 	McASPInit(rate);
 
-//	UDMAChannelSelect(UDMA_CH4_I2S_RX, NULL);
-//	UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL);
-//
-//	// Setup the DMA Mode
-//	SetupPingPongDMATransferTx();
-//	// Setup the DMA Mode
-//	SetupPingPongDMATransferRx();
-//
-//	// Setup the Audio In/Out
-//    //MAP_I2SIntEnable(I2S_BASE, I2S_INT_RDMA | I2S_INT_XDMA );
-//	MAP_I2SRxFIFOEnable(I2S_BASE,8,1);
-//	MAP_I2STxFIFOEnable(I2S_BASE,8,1);
-//
 	MAP_I2SIntRegister(I2S_BASE,DMAPingPongCompleteAppCB_opt);
-//
-//    MAP_I2SSerializerConfig(I2S_BASE,I2S_DATA_LINE_1,I2S_SER_MODE_RX, I2S_INACT_LOW_LEVEL);
-//    MAP_I2SSerializerConfig(I2S_BASE,I2S_DATA_LINE_0,I2S_SER_MODE_TX, I2S_INACT_LOW_LEVEL);
-//
-//	MAP_I2SEnable(I2S_BASE,I2S_MODE_TX_RX_SYNC);
 
 	// init mutex for file download status flag
 	if(!_i2s_enabled_mutex)
 	{
 		_i2s_enabled_mutex = xSemaphoreCreateMutex();
 	}
-	i2s_capture_enabled = false;
-	i2s_playback_enabled = false;
 
 }
 
-void DeinitAudioTxRx(uint32_t rate)
-{
-	AudioStopCapture();
-	AudioStopPlayback();
-	McASPDeInit();
-
-	MAP_uDMAChannelDisable(UDMA_CH4_I2S_RX);
-	MAP_uDMAChannelDisable(UDMA_CH5_I2S_TX);
-
-}
 #endif
 
 uint8_t InitAudioCapture(uint32_t rate) {
@@ -134,7 +102,7 @@ uint8_t InitAudioCapture(uint32_t rate) {
     MAP_I2SSerializerConfig(I2S_BASE,I2S_DATA_LINE_1,I2S_SER_MODE_RX, I2S_INACT_LOW_LEVEL);
 
 	// Start Audio Tx/Rx
-	AudioStartCapture();
+	Audio_Start();
 
 
 #if (AUDIO_FULL_DUPLEX == 0)
@@ -230,7 +198,7 @@ void DeinitAudioCapture(void) {
 	MAP_uDMAChannelDisable(UDMA_CH4_I2S_RX);
 #endif
 
-	AudioStopCapture();
+	Audio_Stop();
 
 	// Setup the Audio In/Out
 	MAP_I2SIntDisable(I2S_BASE, I2S_INT_RDMA );
@@ -329,71 +297,6 @@ void DeinitAudioPlayback(void) {
 		DestroyCircularBuffer(pRxBuffer);
 		pRxBuffer = NULL;
 	}
-}
-
-#include "uartstdio.h"
-void AudioStartCapture(void)
-{
-//	UARTprintf("CAPTURE SA ENTER\n");
-//	xSemaphoreTake(_i2s_enabled_mutex, portMAX_DELAY);
-//		if(!(i2s_playback_enabled) )
-//		{
-//			UARTprintf("CAPTURE START\n");
-//			// Start Audio Tx/Rx
-			Audio_Start();
-//		}
-//		i2s_capture_enabled = true;
-//	xSemaphoreGive(_i2s_enabled_mutex);
-//	UARTprintf("CAPTURE SA EXIT\n");
-
-}
-
-void AudioStopCapture(void)
-{
-//	UARTprintf("CAPTURE SO ENTER\n");
-//	xSemaphoreTake(_i2s_enabled_mutex, portMAX_DELAY);
-//		i2s_capture_enabled = false;
-//		if(! (i2s_playback_enabled) )
-//		{
-//			UARTprintf("CAPTURE STOP\n");
-//			// Start Audio Tx/Rx
-			Audio_Stop();
-//		}
-//	xSemaphoreGive(_i2s_enabled_mutex);
-//	UARTprintf("CAPTURE SO EXIT\n");
-}
-
-void AudioStartPlayback(void)
-{
-//	UARTprintf("PLAYBACK SA ENTER\n");
-//	xSemaphoreTake(_i2s_enabled_mutex, portMAX_DELAY);
-//		if(!(i2s_capture_enabled ))
-//		{
-//			UARTprintf("PLAYBACK START\n");
-//			// Start Audio Tx/Rx
-			Audio_Start();
-//		}
-//		i2s_playback_enabled = true;
-//	xSemaphoreGive(_i2s_enabled_mutex);
-//	UARTprintf("PLAYBACK SA EXIT\n");
-
-}
-
-void AudioStopPlayback(void)
-{
-//	UARTprintf("PLAYBACK SO ENTER\n");
-//	xSemaphoreTake(_i2s_enabled_mutex, portMAX_DELAY);
-//		i2s_playback_enabled = false;
-//		if(! (i2s_capture_enabled) )
-//		{
-//			UARTprintf("PLAYBACK STOP\n");
-//			// Start Audio Tx/Rx
-			Audio_Stop();
-//		}
-//
-//	xSemaphoreGive(_i2s_enabled_mutex);
-//	UARTprintf("PLAYBACK SO EXIT\n");
-
 }
 
 ///// FILE STUFF/////
