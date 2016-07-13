@@ -1,39 +1,40 @@
+/*
+ *  Copyright (C) 2015 Texas Instruments Incorporated - http://www.ti.com/ 
+ *  
+ *  Redistribution and use in source and binary forms, with or without 
+ *  modification, are permitted provided that the following conditions 
+ *  are met:
+ *
+ *    Redistributions of source code must retain the above copyright 
+ *    notice, this list of conditions and the following disclaimer.
+ *
+ *    Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the 
+ *    documentation and/or other materials provided with the   
+ *    distribution.
+ *
+ *    Neither the name of Texas Instruments Incorporated nor the names of
+ *    its contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT 
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ *  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT 
+ *  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
+ *  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT 
+ *  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ *  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ *  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
+ *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
+ *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *  
+ */
 //*****************************************************************************
 //
 //  uart.c
 //
 //  Driver for the UART.
-//
-//  Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com/
-//
-//
-//  Redistribution and use in source and binary forms, with or without
-//  modification, are permitted provided that the following conditions
-//  are met:
-//
-//    Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-//
-//    Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the
-//    distribution.
-//
-//    Neither the name of Texas Instruments Incorporated nor the names of
-//    its contributors may be used to endorse or promote products derived
-//    from this software without specific prior written permission.
-//
-//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-//  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-//  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-//  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-//  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-//  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-//  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-//  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-//  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-//  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 //*****************************************************************************
 
@@ -302,10 +303,7 @@ UARTFIFOLevelGet(unsigned long ulBase, unsigned long *pulTxLevel,
 //! select the parity mode (no parity bit, even parity bit, odd parity bit,
 //! parity bit always one, and parity bit always zero, respectively).
 //!
-//! The peripheral clock is the same as the processor clock.  The frequency of
-//! the system clock is the value returned by SysCtlClockGet(), or it can be
-//! explicitly hard coded if it is constant and known (to save the
-//! code/execution overhead of a call to SysCtlClockGet()).
+//! The peripheral clock frequency is returned by PRCMPeripheralClockGet().
 //!
 //!
 //! \return None.
@@ -396,10 +394,7 @@ UARTConfigSetExpClk(unsigned long ulBase, unsigned long ulUARTClk,
 //! \e pulConfig is enumerated the same as the \e ulConfig parameter of
 //! UARTConfigSetExpClk().
 //!
-//! The peripheral clock is the same as the processor clock.  The frequency of
-//! the system clock is the value returned by SysCtlClockGet(), or it can be
-//! explicitly hard coded if it is constant and known (to save the
-//! code/execution overhead of a call to SysCtlClockGet()).
+//! The peripheral clock frequency is returned by PRCMPeripheralClockGet().
 //!
 //!
 //! \return None.
@@ -566,7 +561,7 @@ UARTFIFODisable(unsigned long ulBase)
 
 //*****************************************************************************
 //
-//! Sets the states of the DTR and/or RTS modem control signals.
+//! Sets the states of the RTS modem control signals.
 //!
 //! \param ulBase is the base address of the UART port.
 //! \param ulControl is a bit-mapped flag indicating which modem control bits
@@ -596,7 +591,7 @@ UARTModemControlSet(unsigned long ulBase, unsigned long ulControl)
     //
 
     ASSERT(ulBase == UARTA1_BASE);
-    ASSERT((ulControl & ~(UART_OUTPUT_RTS | UART_OUTPUT_DTR)) == 0);
+    ASSERT((ulControl & ~(UART_OUTPUT_RTS)) == 0);
 
     //
     // Set the appropriate modem control output bits.
@@ -637,7 +632,7 @@ UARTModemControlClear(unsigned long ulBase, unsigned long ulControl)
     // Check the arguments.
     //
     ASSERT(ulBase == UARTA1_BASE);
-    ASSERT((ulControl & ~(UART_OUTPUT_RTS | UART_OUTPUT_DTR)) == 0);
+    ASSERT((ulControl & ~(UART_OUTPUT_RTS)) == 0);
 
     //
     // Set the appropriate modem control output bits.
@@ -1165,20 +1160,14 @@ UARTIntRegister(unsigned long ulBase, void (*pfnHandler)(void))
     //
     // Determine the interrupt number based on the UART port.
     //
-#if 1
-    ulInt = UARTIntNumberGet(ulBase);
-#else
 
-    ulInt = ((ulBase == UART0_BASE) ? INT_UART0 :
-             ((ulBase == UART1_BASE) ? INT_UART1 : INT_UART2));
-#endif
+    ulInt = UARTIntNumberGet(ulBase);
 
     //
     // Register the interrupt handler.
     //
     IntRegister(ulInt, pfnHandler);
 
-    IntPrioritySet(ulInt, 6<<5); //between max syscall priority and kernel
     //
     // Enable the UART interrupt.
     //
@@ -1215,12 +1204,7 @@ UARTIntUnregister(unsigned long ulBase)
     //
     // Determine the interrupt number based on the UART port.
     //
-#if 1
     ulInt = UARTIntNumberGet(ulBase);
-#else
-    ulInt = ((ulBase == UART0_BASE) ? INT_UART0 :
-             ((ulBase == UART1_BASE) ? INT_UART1 : INT_UART2));
-#endif
 
     //
     // Disable the interrupt.

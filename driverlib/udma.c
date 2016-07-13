@@ -1,39 +1,40 @@
+/*
+ *  Copyright (C) 2015 Texas Instruments Incorporated - http://www.ti.com/ 
+ *  
+ *  Redistribution and use in source and binary forms, with or without 
+ *  modification, are permitted provided that the following conditions 
+ *  are met:
+ *
+ *    Redistributions of source code must retain the above copyright 
+ *    notice, this list of conditions and the following disclaimer.
+ *
+ *    Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the 
+ *    documentation and/or other materials provided with the   
+ *    distribution.
+ *
+ *    Neither the name of Texas Instruments Incorporated nor the names of
+ *    its contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT 
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ *  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT 
+ *  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
+ *  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT 
+ *  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ *  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ *  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
+ *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
+ *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *  
+ */
 //*****************************************************************************
 //
 //  udma.c
 //
 //  Driver for the micro-DMA controller.
-//
-//  Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com/
-//
-//
-//  Redistribution and use in source and binary forms, with or without
-//  modification, are permitted provided that the following conditions
-//  are met:
-//
-//    Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-//
-//    Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the
-//    documentation and/or other materials provided with the
-//    distribution.
-//
-//    Neither the name of Texas Instruments Incorporated nor the names of
-//    its contributors may be used to endorse or promote products derived
-//    from this software without specific prior written permission.
-//
-//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-//  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-//  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-//  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-//  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-//  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-//  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-//  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-//  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-//  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 //*****************************************************************************
 
@@ -364,7 +365,7 @@ uDMAChannelAttributeEnable(unsigned long ulChannelNum, unsigned long ulAttr)
                        UDMA_ATTR_HIGH_PRIORITY | UDMA_ATTR_REQMASK)) == 0);
 
     //
-    // In case a channel selector macro (like UDMA_CH0_USB0EP1RX) was
+    // In case a channel selector macro (like UDMA_CH0_TIMERA0_A) was
     // passed as the ulChannelNum parameter, extract just the channel number
     // from this parameter.
     //
@@ -437,7 +438,7 @@ uDMAChannelAttributeDisable(unsigned long ulChannelNum, unsigned long ulAttr)
                        UDMA_ATTR_HIGH_PRIORITY | UDMA_ATTR_REQMASK)) == 0);
 
     //
-    // In case a channel selector macro (like UDMA_CH0_USB0EP1RX) was
+    // In case a channel selector macro (like UDMA_CH0_TIMERA0_A) was
     // passed as the ulChannelNum parameter, extract just the channel number
     // from this parameter.
     //
@@ -508,7 +509,7 @@ uDMAChannelAttributeGet(unsigned long ulChannelNum)
     ASSERT((ulChannelNum & 0xffff) < 32);
 
     //
-    // In case a channel selector macro (like UDMA_CH0_USB0EP1RX) was
+    // In case a channel selector macro (like UDMA_CH0_TIMERA0_A) was
     // passed as the ulChannelNum parameter, extract just the channel number
     // from this parameter.
     //
@@ -613,7 +614,7 @@ uDMAChannelControlSet(unsigned long ulChannelStructIndex,
     ASSERT(HWREG(UDMA_BASE + UDMA_O_CTLBASE) != 0);
 
     //
-    // In case a channel selector macro (like UDMA_CH0_USB0EP1RX) was
+    // In case a channel selector macro (like UDMA_CH0_TIMERA0_A) was
     // passed as the ulChannelStructIndex parameter, extract just the channel
     // index from this parameter.
     //
@@ -676,11 +677,13 @@ uDMAChannelControlSet(unsigned long ulChannelStructIndex,
 //!
 //! The \e pvSrcAddr and \e pvDstAddr parameters are pointers to the first
 //! location of the data to be transferred.  These addresses should be aligned
-//! according to the item size.  The compiler takes care of this alignment if
-//! the pointers are pointing to storage of the appropriate data type.
+//! according to the item size. For example, if the item size is set to 4-bytes,
+//! these addresses must be 4-byte aligned. The compiler can take care of this
+//! alignment if the pointers are pointing to storage of the appropriate
+//! data type.
 //!
 //! The \e ulTransferSize parameter is the number of data items, not the number
-//! of bytes.
+//! of bytes. The value of this parameter should not exceed 1024.
 //!
 //! The two scatter-gather modes, memory and peripheral, are actually different
 //! depending on whether the primary or alternate control structure is
@@ -729,7 +732,7 @@ uDMAChannelTransferSet(unsigned long ulChannelStructIndex,
     ASSERT((ulTransferSize != 0) && (ulTransferSize <= 1024));
 
     //
-    // In case a channel selector macro (like UDMA_CH0_USB0EP1RX) was
+    // In case a channel selector macro (like UDMA_CH0_TIMERA0_A) was
     // passed as the ulChannelStructIndex parameter, extract just the channel
     // index from this parameter.
     //
@@ -876,7 +879,7 @@ uDMAChannelScatterGatherSet(unsigned long ulChannelNum, unsigned ulTaskCount,
     ASSERT(ulTaskCount != 0);
 
     //
-    // In case a channel selector macro (like UDMA_CH0_USB0EP1RX) was
+    // In case a channel selector macro (like UDMA_CH0_TIMERA0_A) was
     // passed as the ulChannelNum parameter, extract just the channel number
     // from this parameter.
     //
@@ -950,7 +953,7 @@ uDMAChannelSizeGet(unsigned long ulChannelStructIndex)
     ASSERT(HWREG(UDMA_BASE + UDMA_O_CTLBASE) != 0);
 
     //
-    // In case a channel selector macro (like UDMA_CH0_USB0EP1RX) was
+    // In case a channel selector macro (like UDMA_CH0_TIMERA0_A) was
     // passed as the ulChannelStructIndex parameter, extract just the channel
     // index from this parameter.
     //
@@ -1020,7 +1023,7 @@ uDMAChannelModeGet(unsigned long ulChannelStructIndex)
     ASSERT(HWREG(UDMA_O_CTLBASE) != 0);
 
     //
-    // In case a channel selector macro (like UDMA_CH0_USB0EP1RX) was
+    // In case a channel selector macro (like UDMA_CH0_TIMERA0_A) was
     // passed as the ulChannelStructIndex parameter, extract just the channel
     // index from this parameter.
     //
@@ -1199,8 +1202,8 @@ uDMAIntClear(unsigned long ulChanMask)
 //! This function assigns a peripheral mapping to a uDMA channel.  It is
 //! used to select which peripheral is used for a uDMA channel.  The parameter
 //! \e ulMapping should be one of the macros named \b UDMA_CHn_tttt from the
-//! header file \e udma.h.  For example, to assign uDMA channel 0 to the
-//! UART2 RX channel, the parameter should be the macro \b UDMA_CH0_UART2RX.
+//! header file \e udma.h.  For example, to assign uDMA channel 8 to the
+//! UARTA0 RX channel, the parameter should be the macro \b UDMA_CH8_UARTA0_RX.
 //!
 //! Please consult the data sheet for a table showing all the
 //! possible peripheral assignments for the uDMA channels for a particular

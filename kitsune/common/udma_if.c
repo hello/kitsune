@@ -1,51 +1,34 @@
+/*
+ *   Copyright (C) 2015 Texas Instruments Incorporated
+ *
+ *   All rights reserved. Property of Texas Instruments Incorporated.
+ *   Restricted rights to use, duplicate or disclose this code are
+ *   granted through contract.
+ *
+ *   The program may not be used without the written permission of
+ *   Texas Instruments Incorporated or against the terms and conditions
+ *   stipulated in the agreement under which this program has been supplied,
+ *   and under no circumstances can it be used with non-TI connectivity device.
+ *   
+ */
+
 //*****************************************************************************
 // udma_if.c
 //
 // uDMA interface file
 //
-// Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com/ 
-// 
-// 
-//  Redistribution and use in source and binary forms, with or without 
-//  modification, are permitted provided that the following conditions 
-//  are met:
-//
-//    Redistributions of source code must retain the above copyright 
-//    notice, this list of conditions and the following disclaimer.
-//
-//    Redistributions in binary form must reproduce the above copyright
-//    notice, this list of conditions and the following disclaimer in the 
-//    documentation and/or other materials provided with the   
-//    distribution.
-//
-//    Neither the name of Texas Instruments Incorporated nor the names of
-//    its contributors may be used to endorse or promote products derived
-//    from this software without specific prior written permission.
-//
-//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
-//  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT 
-//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-//  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT 
-//  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
-//  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT 
-//  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-//  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-//  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
-//  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
-//  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//
 //*****************************************************************************
 
+#include <stdio.h>
+#include <string.h>
+
+// Driverlib includes
 #include "hw_ints.h"
 #include "hw_memmap.h"
 #include "hw_uart.h"
 #include "hw_types.h"
 #include "hw_udma.h"
 
-#include <stdio.h>
-#include <string.h>
-
-/* Hardware library includes. */
 #include "rom.h"
 #include "rom_map.h"
 #include "gpio.h"
@@ -54,29 +37,40 @@
 #include "prcm.h"
 #include "uart.h"
 
-/* Peripheral interface includes. */
+// TI-RTOS includes
+#if defined(USE_TIRTOS) || defined(USE_FREERTOS) || defined(SL_PLATFORM_MULTI_THREADED)
+#include <stdlib.h>
+#include "osi.h"
+#endif
+
 #include "udma_if.h"
-//#include "FreeRTOSconfig.h" todo find out why travis doesn't like this
-#define configMAX_SYSCALL_INTERRUPT_PRIORITY 	( 5 << 5 )
 
 
+#define MAX_NUM_CH              64  //32*2 entries
+#define CTL_TBL_SIZE            64  //32*2 entries
 #define UDMA_CH5_BITID          (1<<5)
+
+//*****************************************************************************
+//                 GLOBAL VARIABLES -- Start
+//*****************************************************************************
+volatile unsigned char iDone;
+tAppCallbackHndl gfpAppCallbackHndl[MAX_NUM_CH];
 
 #if defined(gcc)
 tDMAControlTable gpCtlTbl[CTL_TBL_SIZE] __attribute__(( aligned(1024)));
 #endif
-
 #if defined(ccs)
 #pragma DATA_ALIGN(gpCtlTbl, 1024)
 tDMAControlTable gpCtlTbl[CTL_TBL_SIZE];
 #endif
-
 #if defined(ewarm)
 #pragma data_alignment=1024
 tDMAControlTable gpCtlTbl[CTL_TBL_SIZE];
 #endif
+//*****************************************************************************
+//                 GLOBAL VARIABLES -- End
+//*****************************************************************************
 
-tAppCallbackHndl gfpAppCallbackHndl[MAX_NUM_CH];
 
 //*****************************************************************************
 //
@@ -94,6 +88,7 @@ void
 DmaSwIntHandler(void)
 {
     unsigned long uiIntStatus;
+    iDone = 1;
     uiIntStatus = MAP_uDMAIntStatus();
     MAP_uDMAIntClear(uiIntStatus);
 }
@@ -110,13 +105,10 @@ DmaSwIntHandler(void)
 //! \return None.
 //
 //*****************************************************************************
-#include "uart_logger.h"
 void
 DmaErrorIntHandler(void)
 {
-	unsigned long sts = uDMAErrorStatusGet();
-	if(sts){DISP("DMA error\n");}
-	uDMAErrorStatusClear();
+    MAP_uDMAIntClear(MAP_uDMAIntStatus());
 }
 
 //*****************************************************************************
@@ -134,28 +126,42 @@ DmaErrorIntHandler(void)
 void UDMAInit()
 {
     unsigned int uiLoopCnt;
+	
     //
     // Enable McASP at the PRCM module
     //
     MAP_PRCMPeripheralClkEnable(PRCM_UDMA,PRCM_RUN_MODE_CLK);
     MAP_PRCMPeripheralReset(PRCM_UDMA);
-    //
+
+	//
     // Register interrupt handlers
     //
-    IntPrioritySet(UDMA_INT_SW, 6<<5); //between max syscall priority and kernel
-    IntPrioritySet(UDMA_INT_ERR, 6<<5); //between max syscall priority and kernel
+#if defined(USE_TIRTOS) || defined(USE_FREERTOS) || defined(SL_PLATFORM_MULTI_THREADED) 
+	// USE_TIRTOS: if app uses TI-RTOS (either networking/non-networking)
+	// USE_FREERTOS: if app uses Free-RTOS (either networking/non-networking)
+	// SL_PLATFORM_MULTI_THREADED: if app uses any OS + networking(simplelink)
+    osi_InterruptRegister(INT_UDMA, DmaSwIntHandler, INT_PRIORITY_LVL_1);
+    osi_InterruptRegister(INT_UDMAERR, DmaErrorIntHandler, INT_PRIORITY_LVL_1);
+#else
+	MAP_IntPrioritySet(INT_UDMA, INT_PRIORITY_LVL_1);
     MAP_uDMAIntRegister(UDMA_INT_SW, DmaSwIntHandler);
-    MAP_uDMAIntRegister(UDMA_INT_ERR, DmaErrorIntHandler);
+
+	MAP_IntPrioritySet(INT_UDMAERR, INT_PRIORITY_LVL_1);
+	MAP_uDMAIntRegister(UDMA_INT_ERR, DmaErrorIntHandler);
+#endif
+
     //
     // Enable uDMA using master enable
     //
     MAP_uDMAEnable();
+
     //
     // Set Control Table
     //
     memset(gpCtlTbl,0,sizeof(tDMAControlTable)*CTL_TBL_SIZE);
     MAP_uDMAControlBaseSet(gpCtlTbl);
-    //
+
+	//
     // Reset App Callbacks
     //
     for(uiLoopCnt = 0; uiLoopCnt < MAX_NUM_CH; uiLoopCnt++)
@@ -179,7 +185,7 @@ void UDMAInit()
 //*****************************************************************************
 void UDMAChannelSelect(unsigned int uiChannel, tAppCallbackHndl pfpAppCb)
 {
-    if((uiChannel & 0xFF) > MAX_NUM_CH)
+    if((uiChannel & 0xFF) >= MAX_NUM_CH)
     {
         return;
     }
@@ -191,55 +197,12 @@ void UDMAChannelSelect(unsigned int uiChannel, tAppCallbackHndl pfpAppCb)
 
 //*****************************************************************************
 //
-//! Does the actual Memory transfer
-//!
-//! \param ulChannel. DMA Channel to be used
-//! \param ulMode. DMA Mode to be used
-//! \param ulItemCount. Items to be transfered in DMA Transfer
-//! \param ulArbSize. Arbitration Size to be set
-//! \param pvSrcBuf. Pointer to the source Buffer
-//! \param ulSrcInc. source Increment
-//! \param pvDstBuf. Pointer to the Destination Buffer
-//! \param ulDstInc. Destination Increment
-//!
-//! This function
-//!        1. Sets up the uDMA registers to perform the actual transfer
-//!
-//! \return None.
-//
-//*****************************************************************************
-void SetupTransfer(
-                  unsigned long ulChannel,
-                  unsigned long ulMode,
-                  unsigned long ulItemCount,
-                  unsigned long ulItemSize,
-                  unsigned long ulArbSize,
-                  void *pvSrcBuf,
-                  unsigned long ulSrcInc,
-                  void *pvDstBuf,
-                  unsigned long ulDstInc)
-{
-
-    MAP_uDMAChannelControlSet(ulChannel,
-                              ulItemSize | ulSrcInc | ulDstInc | ulArbSize);
-
-    MAP_uDMAChannelAttributeEnable(ulChannel,UDMA_ATTR_USEBURST);
-
-    MAP_uDMAChannelTransferSet(ulChannel, ulMode,
-                               pvSrcBuf, pvDstBuf, ulItemCount);
-
-    MAP_uDMAChannelEnable(ulChannel);
-
-}
-
-//*****************************************************************************
-//
 //! Sets up the Auto Memory transfer
 //!
 //! \param ulChannel. DMA Channel to be used
 //! \param pvSrcBuf. Pointer to the source buffer
 //! \param pvDstBuf. Pointer to the destination buffer
-//! \param size. Items to be transfered
+//! \param size. Items to be transfered(should not exceed 1024).
 //!
 //! This function
 //!        1. Configures the uDMA channel
@@ -250,9 +213,9 @@ void SetupTransfer(
 void UDMASetupAutoMemTransfer(unsigned long ulChannel, void *pvSrcBuf,
                               void *pvDstBuf, unsigned long size)
 {
-    SetupTransfer(ulChannel, UDMA_MODE_AUTO, size,
-                  UDMA_SIZE_8, UDMA_ARB_8, pvSrcBuf,
-                  UDMA_SRC_INC_8, pvDstBuf, UDMA_DST_INC_8);
+    UDMASetupTransfer(ulChannel, UDMA_MODE_AUTO, size,
+                      UDMA_SIZE_8, UDMA_ARB_8, pvSrcBuf,
+                      UDMA_SRC_INC_8, pvDstBuf, UDMA_DST_INC_8);
 }
 
 //*****************************************************************************
@@ -260,11 +223,11 @@ void UDMASetupAutoMemTransfer(unsigned long ulChannel, void *pvSrcBuf,
 //! Sets up the Ping Pong mode of transfer
 //!
 //! \param ulChannel. DMA Channel to be used
-//! \param pvSrcBuf1.Pointer to the source Buffer for Primary Control Structure
+//! \param pvSrcBuf1.Pointer to the Source Buffer for Primary Control Structure
 //! \param pvDstBuf1.Pointer to the Destination Buffer for Primary  Structure
-//! \param pvSrcBuf2.Pointer to the source Buffer for alternate Control Structure
+//! \param pvSrcBuf2.Pointer to the Source Buffer for alternate Control Structure
 //! \param pvDstBuf2. Pointer to the Destination Buffer for alternate Structure
-//! \param size. Total size to be transferred.
+//! \param size. Total size to be transferred(should not exceed 1024).
 //!
 //! This function
 //!        1. Configures the uDMA channel
@@ -276,13 +239,13 @@ void UDMASetupPingPongTransfer(unsigned long ulChannel, void *pvSrcBuf1,
                               void *pvDstBuf1, void *pvSrcBuf2,
                               void *pvDstBuf2, unsigned long size)
 {
-    SetupTransfer(ulChannel, UDMA_MODE_PINGPONG, size, UDMA_SIZE_8,
-                  UDMA_ARB_8, pvSrcBuf1, UDMA_SRC_INC_8,
-                  pvDstBuf1, UDMA_DST_INC_8);
+    UDMASetupTransfer(ulChannel, UDMA_MODE_PINGPONG, size, UDMA_SIZE_8,
+                     UDMA_ARB_8, pvSrcBuf1, UDMA_SRC_INC_8,
+                     pvDstBuf1, UDMA_DST_INC_8);
 
-    SetupTransfer(ulChannel|UDMA_ALT_SELECT, UDMA_MODE_PINGPONG, size,
-                    UDMA_SIZE_8, UDMA_ARB_8, pvSrcBuf2, UDMA_SRC_INC_8,
-                        pvDstBuf2, UDMA_DST_INC_8);
+    UDMASetupTransfer(ulChannel|UDMA_ALT_SELECT, UDMA_MODE_PINGPONG, size,
+                      UDMA_SIZE_8, UDMA_ARB_8, pvSrcBuf2, UDMA_SRC_INC_8,
+                      pvDstBuf2, UDMA_DST_INC_8);
 }
 
 //*****************************************************************************
@@ -325,7 +288,6 @@ void UDMAStopTransfer(unsigned long ulChannel)
     MAP_uDMAChannelDisable(ulChannel);
 }
 
-
 //*****************************************************************************
 //
 //! De-Initialize the DMA controller
@@ -345,16 +307,37 @@ void UDMADeInit()
     //
     MAP_uDMAIntUnregister(UDMA_INT_SW);
     MAP_uDMAIntUnregister(UDMA_INT_ERR);
+
     //
     // Disable the uDMA
     //
     MAP_uDMADisable();
 }
 
-void DMASetupTransfer(unsigned long ulChannel, unsigned long ulMode,
-                      unsigned long ulItemCount, unsigned long ulItemSize,
-                      unsigned long ulArbSize, void *pvSrcBuf,
-                      unsigned long ulSrcInc, void *pvDstBuf, unsigned long ulDstInc)
+//*****************************************************************************
+//
+//! Does the actual Memory transfer
+//!
+//! \param ulChannel. DMA Channel to be used
+//! \param ulMode. DMA Mode to be used
+//! \param ulItemCount. Items to be transfered in DMA Transfer(should not exceed 1024)
+//! \param ulArbSize. Arbitration Size to be set
+//! \param pvSrcBuf. Pointer to the source Buffer
+//! \param ulSrcInc. Source Increment
+//! \param pvDstBuf. Pointer to the Destination Buffer
+//! \param ulDstInc. Destination Increment
+//!
+//! This function
+//!        1. Sets up the uDMA registers to perform the actual transfer
+//!
+//! \return None.
+//
+//*****************************************************************************
+void UDMASetupTransfer(unsigned long ulChannel, unsigned long ulMode,
+                            unsigned long ulItemCount, unsigned long ulItemSize,
+                            unsigned long ulArbSize, void *pvSrcBuf,
+                            unsigned long ulSrcInc, void *pvDstBuf,
+                            unsigned long ulDstInc)
 {
     MAP_uDMAChannelControlSet(ulChannel, ulItemSize | ulSrcInc | ulDstInc | ulArbSize);
     MAP_uDMAChannelAttributeEnable(ulChannel,UDMA_ATTR_USEBURST);

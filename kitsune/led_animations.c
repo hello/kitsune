@@ -24,6 +24,7 @@ static struct{
 	int progress_bar_percent;
 	uint8_t trippy_base[3];
 	uint8_t trippy_range[3];
+	uint8_t alpha_override;
 }self;
 
 
@@ -82,6 +83,16 @@ static int _animate_solid(const led_color_t * prev, led_color_t * out, void * us
 		//UARTprintf("roll %d\n", ctx->ctr);
 	}
 	return ANIMATION_CONTINUE;
+}
+static int _animate_modulation(const led_color_t * prev, led_color_t * out, void * user_context){
+	out->rgb = 0;
+	if(user_context){
+		_animate_solid_ctx * ctx = (_animate_solid_ctx *) user_context;
+		led_color_t color = led_from_brightness(&ctx->color, self.alpha_override);
+		ledset(out, color, NUM_LED);
+		return ANIMATION_CONTINUE;
+	}
+	return ANIMATION_STOP;
 }
 static int _animate_trippy(const led_color_t * prev, led_color_t * out, void * user_context){
 	int i = 0;
@@ -334,6 +345,38 @@ int play_led_wheel(int a, int r, int g, int b, int repeat, int delay, int priori
 	}
 	return ret;
 }
+int play_modulation(int r, int g, int b, int delay, int priority){
+	_animate_solid_ctx * ctx = pvPortMalloc(sizeof(_animate_solid_ctx));
+	int ret;
+
+	assert(ctx);
+
+	ctx->color = led_from_rgb(r, g, b);
+	ctx->alpha = 0;
+	analytics_event( "{led: modulation, color: %08x}", ctx->color );
+	ctx->ctr = 0;
+	ctx->repeat = 0;
+	user_animation_t anim = (user_animation_t){
+			.handler = _animate_modulation,
+			.reinit_handler = _reinit_animate_solid,
+			.context = ctx,
+			.priority = priority,
+			.cycle_time = delay,
+			.fadein_time = 0,
+			.fadein_elapsed = 0,
+			.opt = 0,
+	};
+	ret = led_transition_custom_animation(&anim);
+	if( ret > 0 ) {
+		push_memory_queue((void*)ctx);
+	} else {
+		vPortFree(ctx);
+	}
+	return ret;
+}
+void set_modulation_intensity(uint8_t intensity){
+	self.alpha_override = intensity;
+}
 void set_led_progress_bar(uint8_t percent){
 	xSemaphoreTakeRecursive(led_smphr, portMAX_DELAY);
 	self.progress_bar_percent =  percent > PROGRESS_COMPLETE?PROGRESS_COMPLETE:percent;
@@ -379,4 +422,3 @@ int Cmd_led_animate(int argc, char *argv[]){
 		return -1;
 	}
 }
-

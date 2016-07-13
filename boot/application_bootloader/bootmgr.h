@@ -58,7 +58,8 @@ extern "C"
 //*****************************************************************************
 // Macros
 //*****************************************************************************
-#define APP_IMG_SRAM_OFFSET     0x20004000
+#define APP_IMG_SRAM_OFFSET     0x20004000		/* legacy offset for app that reside in the RAM */
+#define APP_IMG_FLASH_OFFSET	0x01006000		/* offset for 1.5 for app that reside in internal flash */
 #define DEVICE_IS_CC3101RS      0x18
 #define DEVICE_IS_CC3101S       0x1B
 

@@ -5,7 +5,7 @@
 #define UART_LOGGER_H
 
 #include <stdint.h>
-
+#include "hlo_stream.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -109,6 +109,7 @@ void uart_logc(uint8_t c);	//advanced: directly dumps character to tx block
 
 int analytics_event( const char *pcString, ...);
 
+hlo_stream_t * uart_stream(void);
 #ifdef __cplusplus
 }
 #endif

@@ -463,7 +463,7 @@ DRESULT disk_read(BYTE bDrive, BYTE* pBuffer, DWORD ulSectorNumber,
 
 	unsigned long ulSize = (512 * bSectorCount) / 4;
 
-	SetupTransfer(UDMA_CH23_SDHOST_RX, UDMA_MODE_BASIC, ulSize, UDMA_SIZE_32,
+	UDMASetupTransfer(UDMA_CH23_SDHOST_RX, UDMA_MODE_BASIC, ulSize, UDMA_SIZE_32,
 			UDMA_ARB_1, (void *) (SDHOST_BASE + MMCHS_O_DATA),
 			UDMA_SRC_INC_NONE, (void *) (pBuffer), UDMA_DST_INC_32);
 
@@ -535,7 +535,7 @@ DRESULT disk_write(BYTE bDrive, const BYTE* pBuffer, DWORD ulSectorNumber,
 
 	unsigned long ulSize = (512 * bSectorCount) / 4;
 
-	SetupTransfer(UDMA_CH24_SDHOST_TX, UDMA_MODE_BASIC, ulSize, UDMA_SIZE_32,
+	UDMASetupTransfer(UDMA_CH24_SDHOST_TX, UDMA_MODE_BASIC, ulSize, UDMA_SIZE_32,
 			UDMA_ARB_1, (void *) (pBuffer), UDMA_SRC_INC_32,
 			(void *) (SDHOST_BASE + MMCHS_O_DATA), UDMA_DST_INC_NONE);
 

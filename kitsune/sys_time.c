@@ -123,19 +123,19 @@ time_t get_sl_time() {
 	SlDateTime_t sl_tm;
 	struct tm dt;
 	memset(&sl_tm, 0, sizeof(sl_tm));
-	uint8_t cfg = SL_DEVICE_GENERAL_CONFIGURATION_DATE_TIME;
+	uint8_t cfg = SL_DEVICE_GENERAL_DATE_TIME;
 	uint8_t sz = sizeof(SlDateTime_t);
-	sl_DevGet(SL_DEVICE_GENERAL_CONFIGURATION, &cfg, &sz,
+	sl_WlanGet(SL_DEVICE_GENERAL, &cfg, &sz,
 			(unsigned char * )(&sl_tm));
 
-	dt.tm_mday = sl_tm.sl_tm_day;
-	dt.tm_hour = sl_tm.sl_tm_hour;
-	dt.tm_min = sl_tm.sl_tm_min;
-	dt.tm_mon = sl_tm.sl_tm_mon-1;//coming from 1-12 going to 0-11, no rollover possible
-	dt.tm_sec = sl_tm.sl_tm_sec;
-	dt.tm_year = sl_tm.sl_tm_year - 1900;
+	dt.tm_mday = sl_tm.tm_day;
+	dt.tm_hour = sl_tm.tm_hour;
+	dt.tm_min = sl_tm.tm_min;
+	dt.tm_mon = sl_tm.tm_mon-1;//coming from 1-12 going to 0-11, no rollover possible
+	dt.tm_sec = sl_tm.tm_sec;
+	dt.tm_year = sl_tm.tm_year - 1900;
 
-    LOGI("OUT Day %d,Mon %d,Year %d,Hour %d,Min %d,Sec %d\n",sl_tm.sl_tm_day,sl_tm.sl_tm_mon,sl_tm.sl_tm_year, sl_tm.sl_tm_hour,sl_tm.sl_tm_min,sl_tm.sl_tm_sec);
+    LOGI("OUT Day %d,Mon %d,Year %d,Hour %d,Min %d,Sec %d\n",sl_tm.tm_day,sl_tm.tm_mon,sl_tm.tm_year, sl_tm.tm_hour,sl_tm.tm_min,sl_tm.tm_sec);
 
 	return mktime(&dt);
 }
@@ -145,25 +145,25 @@ void set_sl_time(time_t unix_timestamp_sec) {
     struct tm * dt;
     dt = localtime(&unix_timestamp_sec);
 
-    sl_tm.sl_tm_day = dt->tm_mday;
-    sl_tm.sl_tm_hour = dt->tm_hour;
-    sl_tm.sl_tm_min = dt->tm_min;
-    sl_tm.sl_tm_mon = dt->tm_mon+1; //coming from 0-11 going to 1-12, no rollover possible
-    sl_tm.sl_tm_sec = dt->tm_sec;
-    sl_tm.sl_tm_year = dt->tm_year + 1900;
+    sl_tm.tm_day = dt->tm_mday;
+    sl_tm.tm_hour = dt->tm_hour;
+    sl_tm.tm_min = dt->tm_min;
+    sl_tm.tm_mon = dt->tm_mon+1; //coming from 0-11 going to 1-12, no rollover possible
+    sl_tm.tm_sec = dt->tm_sec;
+    sl_tm.tm_year = dt->tm_year + 1900;
 
-	sl_DevSet(SL_DEVICE_GENERAL_CONFIGURATION,
-			  SL_DEVICE_GENERAL_CONFIGURATION_DATE_TIME,
+	sl_WlanSet(SL_DEVICE_GENERAL,
+			SL_DEVICE_GENERAL_DATE_TIME,
 			  sizeof(SlDateTime_t),(unsigned char *)(&sl_tm));
 	memset(&sl_tm, 0, sizeof(sl_tm));
-	uint8_t cfg = SL_DEVICE_GENERAL_CONFIGURATION_DATE_TIME;
+	uint8_t cfg = SL_DEVICE_GENERAL_DATE_TIME;
 	uint8_t sz = sizeof(SlDateTime_t);
-	sl_DevGet(SL_DEVICE_GENERAL_CONFIGURATION,
+	sl_WlanGet(SL_DEVICE_GENERAL,
 			  &cfg,
 			  &sz,
 			  (unsigned char *)(&sl_tm));
 
-    LOGI("IN Day %d,Mon %d,Year %d,Hour %d,Min %d,Sec %d\n",sl_tm.sl_tm_day,sl_tm.sl_tm_mon,sl_tm.sl_tm_year, sl_tm.sl_tm_hour,sl_tm.sl_tm_min,sl_tm.sl_tm_sec);
+    LOGI("IN Day %d,Mon %d,Year %d,Hour %d,Min %d,Sec %d\n",sl_tm.tm_day,sl_tm.tm_mon,sl_tm.tm_year, sl_tm.tm_hour,sl_tm.tm_min,sl_tm.tm_sec);
 }
 
 
@@ -440,9 +440,9 @@ int Cmd_time_test(int argc, char * argv[]) {
 			SlDateTime_t sl_tm;
 			struct tm dt;
 			memset(&sl_tm, 0, sizeof(sl_tm));
-			uint8_t cfg = SL_DEVICE_GENERAL_CONFIGURATION_DATE_TIME;
+			uint8_t cfg = SL_DEVICE_GENERAL_DATE_TIME;
 			uint8_t sz = sizeof(SlDateTime_t);
-			sl_DevGet(SL_DEVICE_GENERAL_CONFIGURATION, &cfg, &sz,
+			sl_WlanGet(SL_DEVICE_GENERAL, &cfg, &sz,
 					(unsigned char * )(&sl_tm));
 
 			dt.tm_mday = mon_len[m];

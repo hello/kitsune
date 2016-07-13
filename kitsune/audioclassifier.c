@@ -7,7 +7,6 @@
 #include "machinelearning/audiohmm.h"
 #include <math.h>
 #include <string.h>
-#include "rawaudiostatemachine.h"
 //#include "uartstdio.h"
 
 #define CIRCULAR_FEATBUF_SIZE_2N (5)
@@ -85,21 +84,6 @@ static const char * k_id_energy_chunk = "energy_chunk";
 static DataBuffer_t _buffer;
 static Classifier_t _classifier;
 static Classifier_t _hmm;
-
-#define NUM_HMM_STATES (2)
-static const int16_t k_default_audio_hmm_A[NUM_HMM_STATES][NUM_HMM_STATES] =
-{{1023,1},
-{1020,3}};
-
-static const int16_t k_default_audio_hmm_vecs[NUM_HMM_STATES][NUM_AUDIO_FEATURES] =
-{{-897,100,-429,168,-130,8,-4,-30,-23,17,-28,-14,-2,0,-15,-3},
-{-885,95,-333,197,-140,-160,-88,-2,30,199,-86,-40,-32,15,-15,-1}};
-
-static const int16_t k_default_audio_hmm_vars[NUM_HMM_STATES] = {438,186};
-
-
-static const AudioHmm_t k_default_audio_hmm = {NUM_HMM_STATES,&k_default_audio_hmm_A[0][0],&k_default_audio_hmm_vecs[0][0],&k_default_audio_hmm_vars[0]};
-
 
 
 static inline uint8_t pack_int8_to_int4(const int8_t x) {
@@ -232,7 +216,6 @@ void AudioClassifier_Init(RecordAudioCallback_t recordfunc) {
     memset(&_classifier,0,sizeof(Classifier_t));
     memset(&_hmm,0,sizeof(_hmm));
     
-    RawAudioStateMachine_Init(recordfunc);
 }
 
 
@@ -289,31 +272,6 @@ void AudioClassifier_DataCallback( AudioFeatures_t * pfeats) {
         _buffer.isThereAnythingInteresting = false;
     }
     
-   
-    /************************
-     THE CLASSIFIER SECTION
-     ***********************/
-    RawAudioStateMachine_IncrementSamples();
-
-    /* copy features  */
-    memcpy(_buffer.classifier_feat_buf[_buffer.classifier_feat_idx],pfeats->feats4bit,NUM_AUDIO_FEATURES*sizeof(int8_t));
-    _buffer.classifier_feat_idx++;
-    if (_buffer.classifier_feat_idx >= CLASSIFIER_BUF_LEN) {
-        int32_t loglik = INT32_MIN;
-        _buffer.classifier_feat_idx = 0;
-        
-        if (_buffer.isWorthClassifying) {
-            loglik = AudioHmm_EvaluateModel(&k_default_audio_hmm, &_buffer.classifier_feat_buf[0][0], CLASSIFIER_BUF_LEN);
-         //   UARTprintf("loglik = %d\n",loglik);
-            
-        }
-        
-        /* This could trigger an upload */
-        RawAudioStateMachine_SetLogLikelihoodOfModel(loglik,SNORING_LOG_LIK_THRESHOLD_Q10);
-        
-        _buffer.isWorthClassifying = false;
-    }
-
 }
 
 /* sadly this is not stateless, but was the only way to serialize chunks one at a time */

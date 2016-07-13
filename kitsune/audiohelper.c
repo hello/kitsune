@@ -31,9 +31,10 @@
 /* externs */
 extern tCircularBuffer *pTxBuffer;
 extern tCircularBuffer *pRxBuffer;
-unsigned char * audio_mem;
+
+static unsigned char * audio_mem;
 #if (AUDIO_FULL_DUPLEX==1)
-unsigned char * audio_mem_p;
+static unsigned char * audio_mem_p;
 #endif
 
 bool i2s_capture_enabled = false;
@@ -451,52 +452,3 @@ void CloseAndDeleteFile(Filedata_t * pfiledata) {
 	memset(&pfiledata->file_obj, 0, sizeof(file_obj));
 
 }
-
-int deleteFilesInDir(const char* dir)
-{
-	DIR dirObject = {0};
-	FILINFO fileInfo = {0};
-    FRESULT res;
-    char path[64] = {0};
-
-    res = hello_fs_opendir(&dirObject, dir);
-
-    if(res != FR_OK)
-    {
-        return 0;
-    }
-
-
-    for(;;)
-    {
-        res = hello_fs_readdir(&dirObject, &fileInfo);
-        if(res != FR_OK)
-        {
-            return 0;
-        }
-
-        // If the file name is blank, then this is the end of the listing.
-        if(!fileInfo.fname[0])
-        {
-            break;
-        }
-
-        if(fileInfo.fattrib & AM_DIR)  // directory
-        {
-            continue;
-        } else {
-        	memset(path, 0, sizeof(path));
-        	usnprintf(path, sizeof(fileInfo.fname) + 5, "/usr/%s", fileInfo.fname);
-            res = hello_fs_unlink(path);
-            if(res == FR_OK)
-            {
-            	LOGI("User file deleted %s\n", path);
-            }else{
-            	LOGE("Delete user file %s failed, err %d\n", path, res);
-            }
-        }
-    }
-
-    return(0);
-}
-

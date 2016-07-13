@@ -820,8 +820,6 @@ int Cmd_uvr(int argc, char *argv[]) {
 	unsigned char b[2];
 	assert(xSemaphoreTakeRecursive(i2c_smphr, 1000));
 
-
-
 	b[0] = addr;
 	(I2C_IF_Write(0x53, b, 1, 1));
 	(I2C_IF_Read(0x53, b, len));
@@ -831,7 +829,6 @@ int Cmd_uvr(int argc, char *argv[]) {
 	}
 	LOGF("\n");
 	xSemaphoreGiveRecursive(i2c_smphr);
-
 	return SUCCESS;
 }
 int Cmd_uvw(int argc, char *argv[]) {
@@ -872,7 +869,6 @@ static void beep_gen(void);
 #endif
 
 
-
 static void codec_sw_reset(void)
 {
 	char send_stop = 1;
@@ -897,7 +893,6 @@ static void codec_sw_reset(void)
 		}
 		xSemaphoreGiveRecursive(i2c_smphr);
 	}
-
 	vTaskDelay(delay);
 }
 

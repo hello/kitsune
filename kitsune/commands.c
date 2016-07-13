@@ -90,14 +90,17 @@
 #include "proto_utils.h"
 #include "ustdlib.h"
 
+#include "hlo_stream.h"
 #include "pill_settings.h"
 #include "prox_signal.h"
+#include "hlo_audio_tools.h"
+#include "hlo_audio.h"
 #include "hlo_net_tools.h"
 #include "top_board.h"
 #include "long_poll.h"
 #include "filedownloadmanager.h"
 
-#define ONLY_AUDIO 1
+#define ONLY_AUDIO 0
 #if (AUDIO_FULL_DUPLEX==1)
 #include "audiohelper.h"
 #endif
@@ -106,6 +109,8 @@
 
 #define ARRAY_LEN(a) (sizeof(a)/sizeof(a[0]))
 
+
+#include "hlo_proto_tools.h"
 
 //******************************************************************************
 //			        FUNCTION DECLARATIONS
@@ -220,13 +225,13 @@ int Cmd_fs_write(int argc, char *argv[]) {
 
 	sl_FsGetInfo((unsigned char*)argv[1], tok, &info);
 
-	if (sl_FsOpen((unsigned char*)argv[1],
-	FS_MODE_OPEN_WRITE, &tok, &hndl)) {
+	if (hndl = sl_FsOpen((unsigned char*)argv[1],
+			SL_FS_WRITE, &tok) < 0 ) {
 		LOGF("error opening file, trying to create\n");
 
-		if (sl_FsOpen((unsigned char*)argv[1],
-				FS_MODE_OPEN_CREATE(65535, _FS_FILE_OPEN_FLAG_COMMIT), &tok,
-				&hndl)) {
+		if ( hndl = sl_FsOpen((unsigned char*)argv[1],
+				SL_FS_CREATE_NOSIGNATURE | SL_FS_CREATE_MAX_SIZE( 65535 ),
+				&tok) < 0 ) {
 			LOGF("error opening for write\n");
 			return -1;
 		}
@@ -236,7 +241,7 @@ int Cmd_fs_write(int argc, char *argv[]) {
     int expected = argc - 2;
 	while( cnt != expected ) {
         uint8_t byte = strtol(next, &next, 16);
-    	bytes = sl_FsWrite(hndl, info.FileLen + cnt, (unsigned char*)&byte, 1);
+    	bytes = sl_FsWrite(hndl, info.Len + cnt, (unsigned char*)&byte, 1);
     	assert(bytes==1);
     	++cnt;
     	next = next + 1;
@@ -281,20 +286,20 @@ int Cmd_fs_read(int argc, char *argv[]) {
 
 	sl_FsGetInfo((unsigned char*)argv[1], tok, &info);
 
-	err = sl_FsOpen((unsigned char*) argv[1], FS_MODE_OPEN_READ, &tok, &hndl);
-	if (err) {
-		LOGF("error opening for read %d\n", err);
+	hndl = sl_FsOpen((unsigned char*) argv[1], SL_FS_READ, &tok );
+	if (hndl < 0 ) {
+		LOGF("error opening for read %d\n", hndl);
 		return -1;
 	}
 	if( argc >= 3 ){
 		bytes = sl_FsRead(hndl, atoi(argv[2]), (unsigned char* ) buffer,
-				minval(info.FileLen, BUF_SZ));
+				minval(info.Len, BUF_SZ));
 		if (bytes) {
 			LOGF("read %d bytes\n", bytes);
 		}
 	} else {
 		bytes = sl_FsRead(hndl, 0, (unsigned char* ) buffer,
-				minval(info.FileLen, BUF_SZ));
+				minval(info.Len, BUF_SZ));
 		if (bytes) {
 			LOGF("read %d bytes\n", bytes);
 		}
@@ -310,65 +315,21 @@ int Cmd_fs_read(int argc, char *argv[]) {
 	return 0;
 }
 
-int Cmd_record_buff(int argc, char *argv[]) {
-	AudioMessage_t m;
-	static xSemaphoreHandle wait = 0;
-
-	if (!wait) {
-		wait = xSemaphoreCreateBinary();
-	}
-
-	//turn on
-	AudioTask_StartCapture(atoi(argv[1]));
-
-	//capture
-	memset(&m,0,sizeof(m));
-	m.command = eAudioSaveToDisk;
-	m.message.capturedesc.change = startSaving;
-	AudioTask_AddMessageToQueue(&m);
-
-	xSemaphoreTake(wait,10000); //10 seconds
-
-	m.command = eAudioSaveToDisk;
-	m.message.capturedesc.change = stopSaving;
-	AudioTask_AddMessageToQueue(&m);
-
-
-	m.command = eAudioCaptureTurnOff;
-	AudioTask_AddMessageToQueue(&m);
-
-	return 0;
-
-}
-
-
 int Cmd_audio_turn_on(int argc, char * argv[]) {
 	AudioTask_StartCapture(AUDIO_CAPTURE_PLAYBACK_RATE);
 
-	AudioProcessingTask_SetControl(featureUploadsOn,NULL,NULL,0);
+	AudioProcessingTask_SetControl(featureUploadsOn,0);
 #ifdef KIT_INCLUDE_FILE_UPLOAD
-	AudioProcessingTask_SetControl(rawUploadsOn,NULL,NULL,0);
+	AudioProcessingTask_SetControl(rawUploadsOn,0);
 #endif
 
 	return 0;
-}
-
-int Cmd_audio_turn_off(int agrc, char * agrv[]) {
-	AudioTask_StopCapture();
-	return 0;
-
 }
 
 int Cmd_stop_buff(int argc, char *argv[]) {
 	AudioTask_StopPlayback();
 
 	return 0;
-}
-
-static void octogram_notification(void * context) {
-	xSemaphoreHandle sem = (xSemaphoreHandle)context;
-
-	xSemaphoreGive(sem);
 }
 
 static
@@ -391,95 +352,8 @@ int Cmd_get_octogram(int argc, char * argv[]) {
 
 	return 0;
 }
-int Cmd_do_octogram(int argc, char * argv[]) {
-	AudioMessage_t m;
-    int32_t numsamples = atoi( argv[1] );
-    uint16_t i,j;
-    int counts;
-
-    if( argc == 1 ) {
-    	numsamples = 500;
-    	counts = 1;
-    } else {
-        counts = atoi( argv[2] );
-    }
-    if (numsamples == 0) {
-    	LOGF("number of requested samples was zero.\r\n");
-    	return 0;
-    }
-
-    if( !octogram_semaphore ) {
-    	octogram_semaphore = xSemaphoreCreateBinary();
-    }
-    for( j = 0; j< counts; ++j) {
-
-		memset(&m,0,sizeof(m));
-
-		AudioTask_StartCapture(22050);
-
-		m.command = eAudioCaptureOctogram;
-		m.message.octogramdesc.result = &octorgram_result;
-		m.message.octogramdesc.analysisduration = numsamples;
-		m.message.octogramdesc.onFinished = octogram_notification;
-		m.message.octogramdesc.context = octogram_semaphore;
-
-		AudioTask_AddMessageToQueue(&m);
-
-		if( argc == 1 ) {
-			return 0;
-		}
-
-		xSemaphoreTake(octogram_semaphore,portMAX_DELAY);
 
 
-		int avg = 0;
-		avg += octorgram_result.logenergy[3];
-		avg += octorgram_result.logenergy[4];
-		avg += octorgram_result.logenergy[5];
-		avg += octorgram_result.logenergy[6];
-		avg /= 4;
-
-		//report results
-		LOGF("%d\r\n", octorgram_result.logenergy[2] - avg );
-		for (i = 0; i < OCTOGRAM_SIZE; i++) {
-			if (i != 0) {
-				LOGI(",");
-			}
-			LOGI("%d",octorgram_result.logenergy[i]);
-		}
-		LOGI("\r\n");
-
-    }
-
-	return 0;
-
-}
-
-int Cmd_play_buff(int argc, char *argv[]) {
-    int vol = atoi( argv[1] );
-    char * file = argv[3];
-    AudioPlaybackDesc_t desc;
-    memset(&desc,0,sizeof(desc));
-    strncpy( desc.file, file, 64 );
-    desc.volume = vol;
-    if( argc >= 4 ) {
-        desc.durationInSeconds = atoi(argv[4]);
-    } else {
-        desc.durationInSeconds = -1;
-    }
-    if( argc >= 5 ) {
-    	desc.fade_out_ms = desc.fade_in_ms = atoi(argv[5]);
-		desc.to_fade_out_ms = atoi(argv[6]);
-    } else {
-    	desc.to_fade_out_ms = desc.fade_out_ms = desc.fade_in_ms = 0;
-    }
-    desc.rate = atoi(argv[2]);
-
-    AudioTask_StartPlayback(&desc);
-
-    return 0;
-    //return play_ringtone( vol );
-}
 int Cmd_fs_delete(int argc, char *argv[]) {
 	//
 	// Print some header text.
@@ -615,9 +489,9 @@ static bool cancel_alarm() {
 int set_test_alarm(int argc, char *argv[]) {
 	SyncResponse_Alarm alarm;
 	unsigned int now = get_time();
-	alarm.end_time = now + 245;
+	alarm.end_time = now + 45;
 	alarm.start_time = now + 5;
-	alarm.ring_duration_in_second = 240;
+	alarm.ring_duration_in_second = 40;
 	alarm.ring_offset_from_now_in_second = 5;
 	strncpy(alarm.ringtone_path, "/ringtone/tone.raw",
 			strlen("/ringtone/tone.raw"));
@@ -657,7 +531,7 @@ static bool _is_file_exists(char* path)
 	}
 	return true;
 }
-
+#include "hellofilesystem.h"
 uint8_t get_alpha_from_light();
 void thread_alarm(void * unused) {
 	int alarm_led_id = -1;
@@ -668,9 +542,7 @@ void thread_alarm(void * unused) {
 		uint32_t time = get_time();
 		// The alarm thread should go ahead even without a valid time,
 		// because we don't need a correct time to fire alarm, we just need the offset.
-
 		if (xSemaphoreTakeRecursive(alarm_smphr, portMAX_DELAY)) {
-
 			if( time - alarm.start_time < 600 || alarm.start_time - time < 600 ) {
 				if( time < alarm.start_time ) {
 					LOGI("coming %d in %d\n",
@@ -688,7 +560,6 @@ void thread_alarm(void * unused) {
 
 				desc.to_fade_out_ms = desc.fade_in_ms = 30000;
 				desc.fade_out_ms = 3000;
-				strncpy( desc.file, AUDIO_FILE, 64 );
 				int has_valid_sound_file = 0;
 				char file_name[64] = {0};
 				if(alarm.has_ringtone_path)
@@ -735,9 +606,10 @@ void thread_alarm(void * unused) {
 					LOGE("ALARM RING FAIL: NO RINGTONE FILE FOUND %s\n", file_name);
 				}
 
-				strncpy(desc.file, file_name, 64);
+				desc.stream = fs_stream_open(file_name,HLO_STREAM_READ);
+				ustrncpy(desc.source_name, file_name, sizeof(desc.source_name));
 				desc.durationInSeconds = alarm.ring_duration_in_second;
-				desc.volume = 57;
+				desc.volume = 10;
 				desc.onFinished = thread_alarm_on_finished;
 				desc.rate = AUDIO_CAPTURE_PLAYBACK_RATE;
 				desc.context = &alarm_led_id;
@@ -830,7 +702,7 @@ static void thread_dust(void * unused) {
 }
 
 
-static int light_m2,light_mean, light_cnt,light_log_sum,light_sf,light;
+static int light_m2,light_mean, light_cnt,light_log_sum,light_sf,light, rgb[3];
 static xSemaphoreHandle light_smphr;
 xSemaphoreHandle i2c_smphr;
 
@@ -987,6 +859,9 @@ void thread_fast_i2c_poll(void * unused)  {
 
 			if (xSemaphoreTake(light_smphr, portMAX_DELAY)) {
 				light = w;
+				rgb[0] = r;
+				rgb[1] = g;
+				rgb[2] = b;
 				light_log_sum += bitlog(light);
 				++light_cnt;
 
@@ -1016,11 +891,11 @@ void thread_fast_i2c_poll(void * unused)  {
 	}
 }
 
-#define MAX_PERIODIC_DATA 30
-#define MAX_PILL_DATA 20
-#define MAX_BATCH_PILL_DATA 10
+#define MAX_PERIODIC_DATA 1
+#define MAX_PILL_DATA 1
+#define MAX_BATCH_PILL_DATA 1
 #define PILL_BATCH_WATERMARK 0
-#define MAX_BATCH_SIZE 15
+#define MAX_BATCH_SIZE 1
 #define ONE_HOUR_IN_MS ( 3600 * 1000 )
 
 xQueueHandle data_queue = 0;
@@ -1081,6 +956,7 @@ end:
 	}
 }
 #include "endpoints.h"
+#include "hlo_http.h"
 void thread_tx(void* unused) {
 	batched_periodic_data data_batched = {0};
 #ifdef UPLOAD_AP_INFO
@@ -1185,7 +1061,6 @@ void thread_tx(void* unused) {
 		} while (!wifi_status_get(HAS_IP));
 	}
 }
-
 #include "audio_types.h"
 
 void sample_sensor_data(periodic_data* data)
@@ -1282,10 +1157,22 @@ void sample_sensor_data(periodic_data* data)
 
 			light_m2 = light_mean = light_cnt = light_log_sum = light_sf = 0;
 		}
+		data->has_rgb = true;
+		data->rgb.r = rgb[0];
+		data->rgb.g = rgb[1];
+		data->rgb.b = rgb[2];
 		
 		xSemaphoreGive(light_smphr);
 	}
 
+	{
+		int ir;
+		if( 0 == get_ir( &ir ) ) {
+			LOGI("ir %d\n", ir);
+			data->infrared = true;
+			data->infrared = ir;
+		}
+	}
 	{
 	// get temperature and humidity
 	uint32_t humid,press;
@@ -1305,7 +1192,7 @@ void sample_sensor_data(periodic_data* data)
 				data->has_tvoc = true;
 				data->tvoc = tvoc;
 				data->has_co2 = true;
-				data->co2;
+				data->co2 = eco2;
 			}
 		}
 		}
@@ -1419,16 +1306,16 @@ int Cmd_tasks(int argc, char *argv[]) {
 
 #define SCAN_TABLE_SIZE   20
 
-static void SortByRSSI(Sl_WlanNetworkEntry_t* netEntries,
+static void SortByRSSI(SlWlanNetworkEntry_t* netEntries,
                                             unsigned char ucSSIDCount)
 {
-    Sl_WlanNetworkEntry_t tTempNetEntry;
+	SlWlanNetworkEntry_t tTempNetEntry;
     unsigned char ucCount, ucSwapped;
     do{
         ucSwapped = 0;
         for(ucCount =0; ucCount < ucSSIDCount - 1; ucCount++)
         {
-           if(netEntries[ucCount].rssi < netEntries[ucCount + 1].rssi)
+           if(netEntries[ucCount].Rssi < netEntries[ucCount + 1].Rssi)
            {
               tTempNetEntry = netEntries[ucCount];
               netEntries[ucCount] = netEntries[ucCount + 1];
@@ -1445,7 +1332,7 @@ int Cmd_rssi(int argc, char *argv[]) {
 	int antenna = 0; // 0 does not change the antenna
 	int duration = 1000;
 
-	Sl_WlanNetworkEntry_t g_netEntries[SCAN_TABLE_SIZE];
+	SlWlanNetworkEntry_t g_netEntries[SCAN_TABLE_SIZE];
 
 	if (argc == 2) {
 		duration = atoi(argv[1]);
@@ -1460,7 +1347,7 @@ int Cmd_rssi(int argc, char *argv[]) {
 
     LOGF( "SSID RSSI\n" );
 	for(i=0;i<lCountSSID;++i) {
-		LOGF( "%s %d\n", g_netEntries[i].ssid, g_netEntries[i].rssi );
+		LOGF( "%s %d\n", g_netEntries[i].Ssid, g_netEntries[i].Rssi );
 	}
 	return 0;
 }
@@ -1501,8 +1388,8 @@ int Cmd_generate_factory_data(int argc,char * argv[]) {
 	//ENTROPY ! Sensors, timers, TI's mac address, so much randomness!!!11!!1!
 	int pos=0;
 	unsigned char mac[6];
-	unsigned char mac_len;
-	sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
+	unsigned short mac_len;
+	sl_NetCfgGet(SL_NETCFG_MAC_ADDRESS_GET, NULL, &mac_len, mac);
 	memcpy(entropy_pool+pos, mac, 6);
 	pos+=6;
 	uint32_t now = xTaskGetTickCount();
@@ -1875,7 +1762,7 @@ int Cmd_fault(int argc, char *argv[]) {
 	return 0;
 }
 int Cmd_fault_slow(int argc, char * argv[]) {
-	SL_SYNC(always_slow(atoi(argv[1])));
+	//SL_SYNC(always_slow(atoi(argv[1])));
 	return 0;
 }
 int Cmd_test_realloc(int argc, char *argv[]) {
@@ -1921,25 +1808,26 @@ int Cmd_uptime(int argc, char *argv[]) {
 
 #define ARR_LEN(x) (sizeof(x)/sizeof(x[0]))
 static void print_nwp_version() {
-	SlVersionFull ver;
-	uint8_t pConfigOpt, pConfigLen, i;
+	SlDeviceVersion_t ver;
+	uint8_t pConfigOpt;
+	short pConfigLen, i;
 
 	pConfigOpt = SL_DEVICE_GENERAL_VERSION;
 
-	pConfigLen = sizeof(SlVersionFull);
+	pConfigLen = sizeof(SlDeviceVersion_t);
 
-	if( 0 == sl_DevGet(SL_DEVICE_GENERAL_CONFIGURATION,&pConfigOpt,&pConfigLen,(uint8_t *)(&ver)) ) {
+	if( 0 == sl_WlanGet(SL_DEVICE_GENERAL,&pConfigOpt,&pConfigLen,(uint8_t *)(&ver)) ) {
 		LOGI("FW " );
-		for(i=0;i<ARR_LEN(ver.ChipFwAndPhyVersion.FwVersion);++i) {
-			LOGI("%d.", ver.ChipFwAndPhyVersion.FwVersion[i] );
+		for(i=0;i<ARR_LEN(ver.FwVersion);++i) {
+			LOGI("%d.", ver.FwVersion[i] );
 		} LOGI("\n");
 
 		LOGI("PHY " );
-		for(i=0;i<ARR_LEN(ver.ChipFwAndPhyVersion.PhyVersion);++i) {
-			LOGI("%d.", ver.ChipFwAndPhyVersion.PhyVersion[i] );
+		for(i=0;i<ARR_LEN(ver.PhyVersion);++i) {
+			LOGI("%d.", ver.PhyVersion[i] );
 		} LOGI("\n");
 
-		LOGI("CHIP %x\n", ver.ChipFwAndPhyVersion.ChipId );
+		LOGI("CHIP %x\n", ver.ChipId );
 		LOGI("NWP " );
 		for(i=0;i<ARR_LEN(ver.NwpVersion);++i) {
 			LOGI("%d.", ver.NwpVersion[i] );
@@ -2012,8 +1900,10 @@ tCmdLineEntry g_sCmdTable[] = {
     { "write",    Cmd_write,    "" },
     { "mkfs",     Cmd_mkfs,     "" },
     { "pwd",      Cmd_pwd,      "" },
+
     { "cat",      Cmd_cat,      "" },
 	{"codec_Mic", get_codec_mic_NAU, "" }, // TODO DKH
+
 #endif
 
     {"inttemp", Cmd_inttemp, "" }, //internal temperature
@@ -2041,15 +1931,17 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "get", Cmd_test_get, ""},
 #endif
 
-		{ "r", Cmd_record_buff,""}, //record sounds into SD card
-		{ "p", Cmd_play_buff, ""},//play sounds from SD card
-		{ "s",Cmd_stop_buff,""},
-		{ "oct",Cmd_do_octogram,""},
+		{ "pb", Cmd_pbstr, ""},
+		{ "hmac", Cmd_testhmac, ""},
+
+
+		{ "r", Cmd_AudioCapture,""}, //record sounds into SD card
+		{ "s",Cmd_audio_record_stop,""},
+		{ "x", Cmd_stream_transfer, ""},
+		{ "p", Cmd_AudioPlayback, ""},
 		{ "getoct",Cmd_get_octogram,""},
 		{ "aon",Cmd_audio_turn_on,""},
-		{ "aoff",Cmd_audio_turn_off,""},
 #if 0
-		{ "sl", Cmd_sl, "" }, // smart config
 		{ "mode", Cmd_mode, "" }, //set the ap/station mode
 
 		{ "spird", Cmd_spi_read,"" },
@@ -2073,10 +1965,10 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "topdfu", Cmd_topdfu, ""}, //update topboard firmware.
 		{ "factory_reset", Cmd_factory_reset, ""},//Factory reset from middle.
 #if 2
-		{ "download", Cmd_download, ""},//download test function.
 		{ "dtm", Cmd_top_dtm, "" },//Sends Direct Test Mode command
 #endif
 		{ "animate", Cmd_led_animate, ""},//Animates led
+
 #if 0
 		{ "uplog", Cmd_log_upload, ""},
 #endif
@@ -2107,9 +1999,8 @@ tCmdLineEntry g_sCmdTable[] = {
 #endif
 		{"resync", Cmd_SyncID, ""},
 		{"nwp", Cmd_nwpinfo, ""},
-		{"dns", Cmd_setDns, ""},
-		{"g", Cmd_gesture, ""},
 
+		{"g", Cmd_gesture, ""},
 #ifdef BUILD_IPERF
 		{ "iperfsvr",Cmd_iperf_server,""},
 		{ "iperfcli",Cmd_iperf_client,""},
@@ -2173,30 +2064,30 @@ void vUARTTask(void *pvParameters) {
 
 	UARTprintf("*");
 	sl_sync_init();  // thread safe for all sl_* calls
+
 	sl_mode = sl_Start(NULL, NULL, NULL);
 	UARTprintf("*");
 	while (sl_mode != ROLE_STA) {
 		UARTprintf("+");
 		sl_WlanSetMode(ROLE_STA);
-		nwp_reset();
+		sl_mode = nwp_reset();
+		UARTprintf("mode switch\r\n");
 	}
 	UARTprintf("*");
 
 	//default to PCB_ANT
 	antsel(get_default_antenna());
 
-	// Set connection policy to Auto
-	sl_WlanPolicySet(SL_POLICY_CONNECTION, SL_CONNECTION_POLICY(1, 0, 0, 0, 0), NULL, 0);
+	// Set connection policy to Auto, fast
+	sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION, SL_WLAN_CONNECTION_POLICY(1, 1, 0, 0), NULL, 0);
 
 	UARTprintf("*");
+
 	unsigned char mac[6];
-	unsigned char mac_len;
-	sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL, &mac_len, mac);
+	unsigned short mac_len;
+	sl_NetCfgGet(SL_NETCFG_MAC_ADDRESS_GET, NULL, &mac_len, mac);
 	UARTprintf("*");
 
-	if (sl_mode == ROLE_AP || !wifi_status_get(0xFFFFFFFF)) {
-		//Cmd_sl(0, 0);
-	}
 	sl_NetAppStop(0x1f);
 	check_hw_version();
 	PinMuxConfig_hw_dep();
@@ -2218,6 +2109,7 @@ void vUARTTask(void *pvParameters) {
 	vTaskDelay(10);
 	//INIT SPI
 	spi_init();
+	hlo_audio_init();
 
 	i2c_smphr = xSemaphoreCreateRecursiveMutex();
 #if (ONLY_AUDIO==0)
@@ -2273,10 +2165,8 @@ void vUARTTask(void *pvParameters) {
 #endif
 
 	// Create audio tasks for playback and record
-	xTaskCreate(AudioTask_Thread,"audioTask",2560/4,NULL,4,NULL);
-#if (AUDIO_FULL_DUPLEX==1)
-	xTaskCreate(AudioTask_Thread_playback,"audioTaskPlay",2560/4,NULL,4,NULL);
-#endif
+	xTaskCreate(AudioPlaybackTask,"playbackTask",1280/4,NULL,4,NULL);
+	xTaskCreate(AudioCaptureTask,"captureTask", (3*1024)/4,NULL,3,NULL);
 
 #if (ONLY_AUDIO==0)
 	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,2,NULL);
@@ -2314,15 +2204,11 @@ void vUARTTask(void *pvParameters) {
 	uart_logger_init();
 	xTaskCreate(uart_logger_task, "logger task",   UART_LOGGER_THREAD_STACK_SIZE/ 4 , NULL, 1, NULL);
 	UARTprintf("*");
-#if (ONLY_AUDIO==0)
 	xTaskCreate(analytics_event_task, "analyticsTask", 1024/4, NULL, 1, NULL);
 	UARTprintf("*");
 #endif
-#endif
-#if (ONLY_AUDIO==0)
-	xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 2, NULL);
-#endif
 
+	xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");
 	start_top_boot_watcher();
 
