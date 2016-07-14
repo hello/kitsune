@@ -55,7 +55,7 @@ unsigned char sha[SHA1_SIZE] = {0};
    Image file names
 *******************************************************************************/
 #define IMG_BOOT_INFO           "/ota/mcubootinfo.bin"
-#define IMG_FACTORY_DEFAULT     "/zzz/mcuimg2.bin"
+#define IMG_FACTORY_DEFAULT     "/ota/mcuimg1.bin"
 #define IMG_USER_1              "/ota/mcuimg2.bin"
 #define IMG_USER_2              "/ota/mcuimg3.bin"
 
@@ -368,12 +368,13 @@ static int load_to_flash(long handle, _u32 flash_start, _u32 size){
 				ret = -1;
 				break;
 			}else{
-				write_start += bytes_to_xfer;
-				read_offset += bytes_to_xfer;
+
 				ret = FlashProgram((unsigned long *)buf, write_start, bytes_to_xfer);
 				if(ret != 0){
 					break;
 				}
+				write_start += bytes_to_xfer;
+				read_offset += bytes_to_xfer;
 			}
 		}
 	}
@@ -383,9 +384,10 @@ int Load(unsigned char *ImgName, unsigned long ulToken) {
 	//
 	// Open the file for reading
 	//
-	_i16 ret;
 	long handle;
-	ret = sl_FsGetInfo(ImgName, ulToken, &pFsFileInfo);
+	if(0 != sl_FsGetInfo(ImgName, ulToken, &pFsFileInfo)){
+		return -1;
+	}
 	handle = sl_FsOpen(ImgName, SL_FS_READ, &ulToken);
 	//
 	// Check if successfully opened
@@ -395,21 +397,17 @@ int Load(unsigned char *ImgName, unsigned long ulToken) {
 		// Get the file size using File Info structure
 		//
 
+		file_len = pFsFileInfo.Len;
 		//
-		// Check for failure
-		//
-		if (0 == ret) {
-			file_len = pFsFileInfo.Len;
-			//
-			// Read the application into SRAM
-			//TODO finish this
-			/** legacy, for reference
-			iRetVal = sl_FsRead(lFileHandle, 0,
-					(unsigned char *) APP_IMG_SRAM_OFFSET, pFsFileInfo.Len);
-			*/
-			iRetVal = load_to_flash(handle, APP_IMG_FLASH_OFFSET, pFsFileInfo.Len);
-			return iRetVal;
-		}
+		// Read the application into SRAM
+		//TODO finish this
+		/** legacy, for reference
+		iRetVal = sl_FsRead(lFileHandle, 0,
+				(unsigned char *) APP_IMG_SRAM_OFFSET, pFsFileInfo.Len);
+		*/
+		iRetVal = load_to_flash(handle, APP_IMG_FLASH_OFFSET, pFsFileInfo.Len);
+		return iRetVal;
+
 	}else{
 		return -1;
 	}
@@ -697,7 +695,7 @@ int main()
     // Create a new boot info file
     //
 	  lFileHandle = sl_FsOpen((unsigned char *)IMG_BOOT_INFO,
-			     SL_FS_CREATE | SL_FS_WRITE_MUST_COMMIT | SL_FS_CREATE_MAX_SIZE( 2 * sizeof(sBootInfo_t)),
+			  	  SL_FS_CREATE|SL_FS_OVERWRITE| SL_FS_CREATE_MAX_SIZE( 2 * sizeof(sBootInfo_t)),
                  &ulBootInfoToken);
 
     //
