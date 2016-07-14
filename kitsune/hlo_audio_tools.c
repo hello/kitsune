@@ -351,7 +351,11 @@ int Cmd_stream_transfer(int argc, char * argv[]){
 	if(argc >= 4){
 		f = _filter_from_string(argv[3]);
 	}
+#if 0
 	hlo_stream_t * in = open_stream_from_path(argv[1],1);
+#else
+	hlo_stream_t * in = open_stream_from_path(argv[1],2); // TODO DKH
+#endif
 	hlo_stream_t * out = open_stream_from_path(argv[2],0);
 
 	if(in && out){

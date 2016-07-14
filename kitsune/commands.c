@@ -99,8 +99,6 @@
 #include "top_board.h"
 #include "long_poll.h"
 #include "filedownloadmanager.h"
-
-
 #include "audiohelper.h"
 
 #define ONLY_MID 0

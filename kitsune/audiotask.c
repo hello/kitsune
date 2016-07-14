@@ -150,8 +150,6 @@ static uint8_t CheckForInterruptionDuringPlayback(void) {
 
 extern xSemaphoreHandle i2c_smphr;
 
-
-bool add_to_file_error_queue(char* filename, int32_t err_code, bool write_error);
 typedef struct{
 	unsigned long current;
 	unsigned long target;
@@ -222,7 +220,11 @@ static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_sto
 	hlo_future_t * vol_task = (hlo_future_t*)hlo_future_create_task_bg(_change_volume_task,(void*)&vol,1024);
 
 	//playback
+#if 0 //TODO DKH
 	hlo_filter transfer_function = desc->p ? desc->p : hlo_filter_data_transfer;
+#else
+	hlo_filter transfer_function = hlo_filter_data_transfer;
+#endif
 	ret = transfer_function(fs, spkr, desc->context, sig_stop);
 
 	//join async worker
