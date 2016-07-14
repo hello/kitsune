@@ -22,7 +22,9 @@ static unsigned long playback_sr;
 static unsigned int initial_vol;
 static unsigned int initial_gain;
 static uint8_t audio_playback_started;
-xSemaphoreHandle isr_sem;;
+static uint8_t audio_record_started;
+xSemaphoreHandle record_isr_sem;
+xSemaphoreHandle playback_isr_sem;;
 
 static TickType_t last_playback_time;
 
@@ -56,7 +58,7 @@ static int _write_playback_mono(void * ctx, const void * buf, size_t size){
 
 	if(IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) == TRUE){
 		if(audio_playback_started){
-			if(!xSemaphoreTake(isr_sem,5000)){
+			if(!xSemaphoreTake(playback_isr_sem,5000)){
 				LOGI("ISR Failed\r\n");
 				return _reinit_playback(playback_sr, initial_vol);
 			}
@@ -94,14 +96,15 @@ static int _reinit_record(unsigned int sr, unsigned int vol){
 }
 static int _read_record_mono(void * ctx, void * buf, size_t size){
 
-	/*
 	int ret;
-	ret = _reinit_record(record_sr, initial_gain);
-	if(ret) return ret;
-	*/
+
+	if(!audio_record_started){
+		ret = _reinit_record(record_sr, initial_gain);
+		if(ret) return ret;
+	}
 
 	if( !IsBufferSizeFilled(pTxBuffer, LISTEN_WATERMARK) ){
-		if(!xSemaphoreTake(isr_sem,5000)){
+		if(!xSemaphoreTake(record_isr_sem,5000)){
 			LOGI("ISR Failed\r\n");
 			return _reinit_record(record_sr, initial_gain);
 		}
@@ -114,6 +117,8 @@ static int _read_record_mono(void * ctx, void * buf, size_t size){
 }
 static int _close(void * ctx){
 	//DeinitAudio();
+	audio_record_started = 0;
+	audio_playback_started = 0;
 	return HLO_STREAM_NO_IMPL;
 }
 ////------------------------------
@@ -126,8 +131,10 @@ void hlo_audio_init(void){
 	tbl.read = _read_record_mono;
 	tbl.close = _close;
 	master = hlo_stream_new(&tbl, NULL, HLO_AUDIO_RECORD|HLO_AUDIO_PLAYBACK);
-	isr_sem = xSemaphoreCreateBinary();
-	assert(isr_sem);
+	record_isr_sem = xSemaphoreCreateBinary();
+	assert(record_isr_sem);
+	playback_isr_sem = xSemaphoreCreateBinary();
+	assert(playback_isr_sem);
 }
 hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint8_t vol, uint32_t direction){
 	hlo_stream_t * ret = master;

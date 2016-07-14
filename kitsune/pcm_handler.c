@@ -140,7 +140,8 @@ volatile unsigned int guiDMATransferCountRx = 0;
 extern tCircularBuffer *pTxBuffer;
 extern tCircularBuffer *pRxBuffer;
 
-extern xSemaphoreHandle isr_sem;;
+extern xSemaphoreHandle record_isr_sem;
+extern xSemaphoreHandle playback_isr_sem;;
 
 //*****************************************************************************
 //
@@ -258,7 +259,7 @@ void DMAPingPongCompleteAppCB_opt()
 			guiDMATransferCountTx = 0;
 
 			if ( qqbufsz > LISTEN_WATERMARK ) {
-				xSemaphoreGiveFromISR(isr_sem, &xHigherPriorityTaskWoken);
+				xSemaphoreGiveFromISR(record_isr_sem, &xHigherPriorityTaskWoken);
 				// TODO DKH does this need port yield, did something go wrong during the merge
 			}
 		}
@@ -339,7 +340,7 @@ void DMAPingPongCompleteAppCB_opt()
 			guiDMATransferCountRx = 0;
 
 			if ( qqbufsz < PLAY_WATERMARK ) {
-				xSemaphoreGiveFromISR(isr_sem, &xHigherPriorityTaskWoken);
+				xSemaphoreGiveFromISR(playback_isr_sem, &xHigherPriorityTaskWoken);
 				portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 			}
 		}
@@ -467,7 +468,7 @@ void DMAPingPongCompleteAppCB_opt()
 			guiDMATransferCountTx = 0;
 
 			if ( qqbufsz > LISTEN_WATERMARK ) {
-				xSemaphoreGiveFromISR(isr_sem, &xHigherPriorityTaskWoken);
+				xSemaphoreGiveFromISR(record_isr_sem, &xHigherPriorityTaskWoken);
 			}
 		}
 	}
@@ -563,7 +564,7 @@ void DMAPingPongCompleteAppCB_opt()
 			guiDMATransferCountRx = 0;
 
 			if ( qqbufsz < PLAY_WATERMARK ) {
-				xSemaphoreGiveFromISR(isr_sem, &xHigherPriorityTaskWoken);
+				xSemaphoreGiveFromISR(playback_isr_sem, &xHigherPriorityTaskWoken);
 				portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 			}
 		}
