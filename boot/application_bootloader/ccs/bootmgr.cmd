@@ -62,7 +62,7 @@
 MEMORY
 {
     /* Application uses internal RAM for program and data */
-    FLASH_CODE  (RX)  : origin = 0x01000000, length = 0x5FFF /* 24k */
+    FLASH_CODE  (RX)  : origin = 0x01000000, length = 0x9FFF /* 24k */
     SRAM_DATA   (RWX) : origin = 0x20000000, length = 0x040000
 }
 

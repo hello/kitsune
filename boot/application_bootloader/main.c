@@ -205,6 +205,18 @@ unsigned long TimerGetCurrentTimestamp()
 {
 	 return (0xFFFFFFFF - TimerValueGet(g_ulTimerA2Base,TIMER_A));
 }
+void usertraceMALLOC( void * pvAddress, size_t uiSize ) {
+
+}
+
+void usertraceFREE( void * pvAddress, size_t uiSize ) {
+
+}
+void
+vAssertCalled( const char * s )
+{
+
+}
 //*****************************************************************************
 //
 //! Board Initialization & Configuration
