@@ -55,7 +55,7 @@ unsigned char sha[SHA1_SIZE] = {0};
    Image file names
 *******************************************************************************/
 #define IMG_BOOT_INFO           "/ota/mcubootinfo.bin"
-#define IMG_FACTORY_DEFAULT     "/ota/mcuimg1.bin"
+#define IMG_FACTORY_DEFAULT     "/zzz/mcuimg2.bin"
 #define IMG_USER_1              "/ota/mcuimg2.bin"
 #define IMG_USER_2              "/ota/mcuimg3.bin"
 
@@ -166,6 +166,45 @@ void SimpleLinkSockEventHandler(SlSockEvent_t *pSock)
 
 }
 
+void
+UARTprintf(const char *pcString, ...){
+
+}
+void SimpleLinkFatalErrorEventHandler(SlDeviceFatal_t *slFatalErrorEvent){
+
+}
+void SimpleLinkGeneralEventHandler(SlDeviceEvent_t *pDevEvent)
+{
+}
+#include "timer.h"
+static unsigned long g_ulTimerA2Base;
+void simplelink_timerA2_start()
+{
+    // Base address for second timer
+    //
+    g_ulTimerA2Base = TIMERA2_BASE;
+
+    //
+    // Configuring the timerA2
+    //
+    MAP_PRCMPeripheralClkEnable(PRCM_TIMERA2,PRCM_RUN_MODE_CLK);
+    MAP_PRCMPeripheralReset(PRCM_TIMERA2);
+    MAP_TimerConfigure(g_ulTimerA2Base,TIMER_CFG_PERIODIC);
+    MAP_TimerPrescaleSet(g_ulTimerA2Base,TIMER_A,0);
+
+    /* configure the timer counter load value to max 32-bit value */
+    MAP_TimerLoadSet(g_ulTimerA2Base,TIMER_A, 0xFFFFFFFF);
+    //
+    // Enable the GPT
+    //
+    MAP_TimerEnable(g_ulTimerA2Base,TIMER_A);
+
+
+}
+unsigned long TimerGetCurrentTimestamp()
+{
+	 return (0xFFFFFFFF - TimerValueGet(g_ulTimerA2Base,TIMER_A));
+}
 //*****************************************************************************
 //
 //! Board Initialization & Configuration
@@ -201,7 +240,7 @@ BoardInit(void)
   //
   IntMasterEnable();
   IntEnable(FAULT_SYSTICK);
-
+  simplelink_timerA2_start();
   //
   // Mandatory MCU Initialization
   //
@@ -332,19 +371,22 @@ int Load(unsigned char *ImgName, unsigned long ulToken) {
 	//
 	// Open the file for reading
 	//
-	lFileHandle = sl_FsOpen(ImgName, SL_FS_READ, &ulToken);
+	_i16 ret;
+	long handle;
+	ret = sl_FsGetInfo(ImgName, ulToken, &pFsFileInfo);
+	handle = sl_FsOpen(ImgName, SL_FS_READ, &ulToken);
 	//
 	// Check if successfully opened
 	//
-	if (lFileHandle >= 0) {
+	if (handle >= 0) {
 		//
 		// Get the file size using File Info structure
 		//
-		iRetVal = sl_FsGetInfo(ImgName, ulToken, &pFsFileInfo);
+
 		//
 		// Check for failure
 		//
-		if (0 == iRetVal) {
+		if (0 == ret) {
 			file_len = pFsFileInfo.Len;
 			//
 			// Read the application into SRAM
@@ -353,7 +395,7 @@ int Load(unsigned char *ImgName, unsigned long ulToken) {
 			iRetVal = sl_FsRead(lFileHandle, 0,
 					(unsigned char *) APP_IMG_SRAM_OFFSET, pFsFileInfo.Len);
 			*/
-			iRetVal = load_to_flash(lFileHandle, APP_IMG_FLASH_OFFSET, pFsFileInfo.Len);
+			iRetVal = load_to_flash(handle, APP_IMG_FLASH_OFFSET, pFsFileInfo.Len);
 			return iRetVal;
 		}
 	}else{
@@ -613,12 +655,15 @@ int main()
   //
   sBootInfo.ucActiveImg = IMG_ACT_FACTORY;
   sBootInfo.ulImgStatus = IMG_STATUS_NOTEST;
-
   //
   // Start slhost to get NVMEM service
   //
   sl_Start(NULL, NULL, NULL);
-
+  SlFsFileInfo_t f = {0};
+  _i16 ret = sl_FsGetInfo(IMG_BOOT_INFO, 0, &f);
+  if( ret < 0){
+	  return;
+  }
   //
   // Open Boot info file for reading
   //
