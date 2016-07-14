@@ -16,12 +16,7 @@ extern tCircularBuffer *pRxBuffer;
 
 static xSemaphoreHandle lock;
 static hlo_stream_t * master;
-typedef enum{
-	CLOSED = 0,
-	PLAYBACK,
-	RECORD,
-}codec_state_t;
-static codec_state_t mode;
+
 static unsigned long record_sr;
 static unsigned long playback_sr;
 static unsigned int initial_vol;
@@ -33,7 +28,6 @@ static TickType_t last_playback_time;
 
 #define LOCK() xSemaphoreTakeRecursive(lock,portMAX_DELAY)
 #define UNLOCK() xSemaphoreGiveRecursive(lock)
-#define ERROR_IF_CLOSED() if(mode == CLOSED) {return HLO_STREAM_ERROR;}
 
 ////------------------------------
 // playback stream driver
@@ -43,11 +37,11 @@ static int _playback_done(void){
 static int _open_playback(uint32_t sr, uint8_t vol){
 	if(!InitAudioPlayback(vol, sr)){
 		return -1;
-	}else{
-		mode = PLAYBACK;
-		DISP("Codec in SPKR mode\r\n");
-		return 0;
 	}
+
+	DISP("Open playback\r\n");
+	return 0;
+
 }
 static int _reinit_playback(unsigned int sr, unsigned int initial_vol){
 	DeinitAudioPlayback();
@@ -55,12 +49,11 @@ static int _reinit_playback(unsigned int sr, unsigned int initial_vol){
 	return 0;
 }
 static int _write_playback_mono(void * ctx, const void * buf, size_t size){
+	int ret;
+
 	//ERROR_IF_CLOSED();
 	last_playback_time = xTaskGetTickCount();
-	if( mode == RECORD || mode == CLOSED){
-		//playback has priority, always swap to playback state
-		return _reinit_playback(playback_sr, initial_vol);
-	}
+
 	if(IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) == TRUE){
 		if(audio_playback_started){
 			if(!xSemaphoreTake(isr_sem,5000)){
@@ -69,6 +62,8 @@ static int _write_playback_mono(void * ctx, const void * buf, size_t size){
 			}
 		}else{
 			audio_playback_started = 1;
+			ret = _reinit_playback(playback_sr, initial_vol);
+			if(ret) return ret;
 			Audio_Start();
 			return 0;
 		}
@@ -88,9 +83,8 @@ static int _open_record(uint32_t sr, uint32_t gain){
 		return -1;
 	}
 	//set_mic_gain(gain,4);
-	mode = RECORD;
 	Audio_Start();
-	DISP("Codec in MIC mode\r\n");
+	DISP("Open record\r\n");
 	return 0;
 }
 static int _reinit_record(unsigned int sr, unsigned int vol){
@@ -99,15 +93,13 @@ static int _reinit_record(unsigned int sr, unsigned int vol){
 	return 0;
 }
 static int _read_record_mono(void * ctx, void * buf, size_t size){
-	//ERROR_IF_CLOSED();
-	if( mode == PLAYBACK  || mode == CLOSED){
-		//swap mode back to record iff playback buffer is empty
-		if( _playback_done() ){
-			return _reinit_record(record_sr, initial_gain);
-		}else{
-			return HLO_STREAM_EOF;
-		}
-	}
+
+	/*
+	int ret;
+	ret = _reinit_record(record_sr, initial_gain);
+	if(ret) return ret;
+	*/
+
 	if( !IsBufferSizeFilled(pTxBuffer, LISTEN_WATERMARK) ){
 		if(!xSemaphoreTake(isr_sem,5000)){
 			LOGI("ISR Failed\r\n");
@@ -134,7 +126,6 @@ void hlo_audio_init(void){
 	tbl.read = _read_record_mono;
 	tbl.close = _close;
 	master = hlo_stream_new(&tbl, NULL, HLO_AUDIO_RECORD|HLO_AUDIO_PLAYBACK);
-	mode = CLOSED;
 	isr_sem = xSemaphoreCreateBinary();
 	assert(isr_sem);
 }
