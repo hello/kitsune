@@ -659,11 +659,7 @@ int main()
   // Start slhost to get NVMEM service
   //
   sl_Start(NULL, NULL, NULL);
-  SlFsFileInfo_t f = {0};
-  _i16 ret = sl_FsGetInfo(IMG_BOOT_INFO, 0, &f);
-  if( ret < 0){
-	  return;
-  }
+
   //
   // Open Boot info file for reading
   //
