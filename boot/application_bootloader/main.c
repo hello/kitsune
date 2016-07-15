@@ -386,11 +386,10 @@ int Load(unsigned char *ImgName, unsigned long ulToken) {
 	//
 	// Open the file for reading
 	//
-	long handle;
 	if(0 != sl_FsGetInfo(ImgName, ulToken, &pFsFileInfo)){
 		return -1;
 	}
-	handle = sl_FsOpen(ImgName, SL_FS_READ, &ulToken);
+	lFileHandle = sl_FsOpen(ImgName, SL_FS_READ, &ulToken);
 	//
 	// Check if successfully opened
 	//
@@ -407,7 +406,8 @@ int Load(unsigned char *ImgName, unsigned long ulToken) {
 		iRetVal = sl_FsRead(lFileHandle, 0,
 				(unsigned char *) APP_IMG_SRAM_OFFSET, pFsFileInfo.Len);
 		*/
-		iRetVal = load_to_flash(handle, APP_IMG_FLASH_OFFSET, pFsFileInfo.Len);
+		iRetVal = load_to_flash(lFileHandle, APP_IMG_FLASH_OFFSET, file_len);
+		sl_FsClose(lFileHandle, 0,0,0);
 		return iRetVal;
 
 	}
@@ -577,7 +577,12 @@ static void ImageLoader(sBootInfo_t *psBootInfo)
 			break;
 
 		default:
-			LoadAndExecute((unsigned char *) IMG_FACTORY_DEFAULT,ulFactoryImgToken);
+			if( !Test(IMG_ACT_FACTORY) ){
+				LoadAndExecute((unsigned char *) IMG_FACTORY_DEFAULT,ulFactoryImgToken);
+			}else{
+				Execute();
+			}
+
 			break;
 		}
 	}
