@@ -20,6 +20,9 @@
 
 sl_ExtLib_MFi_Handle_t MFi_Handle;
 
+#define sl_ExtLib_I2C_Read  I2C_IF_Read
+#define sl_ExtLib_I2C_Write I2C_IF_Write
+
 
 //****************************************************************************
 //
@@ -97,7 +100,7 @@ signed long sl_ExtLib_MFi_Get (unsigned char op, unsigned char* inbuf,
 //****************************************************************************
 signed long sl_ExtLib_MFi_Close()
 {
-    sl_ExtLib_I2C_Close(); 
+    //sl_ExtLib_I2C_Close();
     return EXTLIB_MFI_ERROR_OK;
 }
 
@@ -151,15 +154,16 @@ signed long sl_ExtLib_MFi_Open (unsigned long MFi_Address, unsigned char flags)
 //****************************************************************************
 signed long int _sl_ExtLib_MFi_Init(unsigned char flags)
 {  
+#if 0
     signed long lError=0;
-  
     //Init I2C Module
     lError = sl_ExtLib_I2C_Open(flags); 
     if (lError < 0)
     {
         return EXTLIB_MFI_ERROR_OPENING_I2C;
     }
-  
+#endif
+
     //Dummy read to check if the MFi device is attached and operational
     if (!(_sl_ExtLib_MFi_VerifyDeviceExists())) 
     {
