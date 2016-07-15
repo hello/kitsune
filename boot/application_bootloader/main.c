@@ -201,6 +201,9 @@ void simplelink_timerA2_start()
 
 
 }
+void simplelink_timerA2_stop(){
+	MAP_TimerDisable(g_ulTimerA2Base,TIMER_A);
+}
 unsigned long TimerGetCurrentTimestamp()
 {
 	 return (0xFFFFFFFF - TimerValueGet(g_ulTimerA2Base,TIMER_A));
@@ -364,17 +367,16 @@ static int load_to_flash(long handle, _u32 flash_start, _u32 size){
 		while(size){
 			_u32 bytes_to_xfer = (size >= TRANSFER_BUFFER_SIZE ) ? TRANSFER_BUFFER_SIZE : size; //allow room to grow to
 			ret = sl_FsRead(handle, read_offset, buf, bytes_to_xfer);
-			if(ret !=  bytes_to_xfer && ret >= 0){
-				ret = -1;
+			if(ret < 0){
 				break;
 			}else{
-
 				ret = FlashProgram((unsigned long *)buf, write_start, bytes_to_xfer);
 				if(ret != 0){
 					break;
 				}
 				write_start += bytes_to_xfer;
 				read_offset += bytes_to_xfer;
+				size -= bytes_to_xfer;
 			}
 		}
 	}
@@ -408,8 +410,6 @@ int Load(unsigned char *ImgName, unsigned long ulToken) {
 		iRetVal = load_to_flash(handle, APP_IMG_FLASH_OFFSET, pFsFileInfo.Len);
 		return iRetVal;
 
-	}else{
-		return -1;
 	}
 	return -1;
 }
@@ -430,6 +430,7 @@ void Execute() {
     // Execute the application.
     //
     start_wdt(); //if we do load something bad, the wdt will get us back and we can load the other image...
+    simplelink_timerA2_stop();
     Run(APP_IMG_FLASH_OFFSET);
 }
 void LoadAndExecute(unsigned char *ImgName, unsigned long ulToken)
