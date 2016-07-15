@@ -30,6 +30,21 @@
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/wac.c</locationURI>
 		</link>
+		<link>
+			<name>wac.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/wac.h</locationURI>
+		</link>
+		<link>
+			<name>wac_user.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/wac_user.h</locationURI>
+		</link>
+		<link>
+			<name>waclib.h</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/waclib.h</locationURI>
+		</link>
 	</linkedResources>
 	<variableList>
 		<variable>
