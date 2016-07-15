@@ -56,7 +56,7 @@
 //*****************************************************************************
 
 /* System memory map */
-
+#define FLASH_BASE 0x0100A000
 MEMORY
 {
     /* Application uses internal RAM for program and data */
@@ -68,7 +68,7 @@ MEMORY
 
 SECTIONS
 {
-    .resetVecs            : > FLASH_CODE
+    .resetVecs            : > FLASH_BASE
     .init_array           : > FLASH_CODE
     .text                 : > FLASH_CODE
     .const                : > FLASH_CODE
