@@ -1859,13 +1859,16 @@ int cmd_button(int argc, char *argv[]) {
 LOGF("button %d\n", fast);
 }
 int Cmd_readlight(int argc, char *argv[]);
+#include "wac/homekit.h"
+
 // ==============================================================================
 // This is the table that holds the command names, implementing functions, and
 // brief description.
 // ==============================================================================
 tCmdLineEntry g_sCmdTable[] = {
 		//    { "cpu",      Cmd_cpu,      "Show CPU utilization" },
-    { "b",      cmd_button,      " " },
+	    { "wac",     Cmd_wac,      " " },
+	    { "b",      cmd_button,      " " },
 
 #if 0
 		{ "time_test", Cmd_time_test, "" },

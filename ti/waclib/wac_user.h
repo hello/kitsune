@@ -14,6 +14,8 @@
 #ifndef __WAC_USER_H__
 #define __WAC_USER_H__
 
+
+
 //*****************************************************************************
 //
 // If building with a C++ compiler, make all of the definitions in this header

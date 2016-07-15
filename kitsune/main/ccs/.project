@@ -1176,16 +1176,6 @@
 			<locationURI>PARENT-2-PROJECT_LOC/tinyhttp/http.h</locationURI>
 		</link>
 		<link>
-			<name>wac/accessory.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/wac/accessory.c</locationURI>
-		</link>
-		<link>
-			<name>wac/accessory.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/wac/accessory.h</locationURI>
-		</link>
-		<link>
 			<name>wac/homekit.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/wac/homekit.c</locationURI>
@@ -1194,16 +1184,6 @@
 			<name>wac/homekit.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/wac/homekit.h</locationURI>
-		</link>
-		<link>
-			<name>wac/netwifi.c</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/wac/netwifi.c</locationURI>
-		</link>
-		<link>
-			<name>wac/netwifi.h</name>
-			<type>1</type>
-			<locationURI>PARENT-2-PROJECT_LOC/wac/netwifi.h</locationURI>
 		</link>
 	</linkedResources>
 	<variableList>

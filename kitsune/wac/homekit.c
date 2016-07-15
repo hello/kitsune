@@ -1,165 +1,109 @@
 
-#include <ti/hap/ip/HAPEngine.h>
-#include <ti/mfi/mfiauth.h>
+#include "waclib/waclib.h"
 
-#include "homekit_accessory.h"
+#include "wlan.h"
+#include "stdbool.h"
 
-#define POLLFXNTIMEOUT 3000
-#define DEBOUNCETIME 200 //in milliseconds
+#include "homekit.h"
+#include "kit_assert.h"
+#include "uart_logger.h"
 
-void gpioButtonFxn0(void);
-void gpioButtonFxn1(void);
-int waitForButton();
+#define NAME "sense"
 
-HAPEngine_Handle  engineHandle;
-char apName[] = "blink";
-int prevTicks, curTicks, msPeriod;
+#define SL_STOP_TIMEOUT 200
 
-void gpioButtonFxn0(void)
-{
+//could be 0x11 too
+#define MFI_I2C_ADDRESS 0x10
+
+void sl_ExtLib_Time_Delay(unsigned long ulDelay) {
+	vTaskDelay(ulDelay);
 }
 
-void gpioButtonFxn1(void)
-{
-#if 0
-    curTicks = Clock_getTicks();
-    msPeriod = Clock_tickPeriod / 1000;
-    if ((curTicks - prevTicks) >= (DEBOUNCETIME/msPeriod)) {
-        GPIO_toggle(Board_LED0);
-        if (engineHandle) {
-            /* aID 1, sIndex 0, cIndex 0 */
-            HAPEngine_updateCharacteristic(engineHandle, 1, 0, 0);
+int Cmd_wac(int argc, char *argv[]) {
+    int wacFlags = SL_WAC_HOMEKIT;
+    char wacManufacturerName[] = "Hello Inc";
+    char wacModel[] = "SLink1,1";
+    int simplelinkRole;
+    unsigned char* deviceURN = (unsigned char *)NAME;
+    int deviceURNLen = strlen(NAME);
+    int ret;
+    bool retry = false;
+
+    LOGI("NetWifi run WAC Start");
+
+    do {
+        /* Set to AP mode, set device URN and restart network processor */
+        sl_WlanSet(SL_WLAN_CFG_AP_ID, SL_WLAN_AP_OPT_SSID, deviceURNLen,
+                deviceURN);
+        sl_NetAppSet(SL_NETAPP_DEVICE_ID, SL_NETAPP_DEVICE_URN, deviceURNLen,
+                deviceURN);
+        sl_WlanSetMode(ROLE_AP);
+        sl_Stop(SL_STOP_TIMEOUT);
+        simplelinkRole =  sl_Start(NULL,NULL,NULL);
+
+        assert(simplelinkRole == ROLE_AP);
+
+        /*
+         * IMPORTANT - This unregister all services is here only for the case
+         * where a WAC session did not end and one of the services remained.
+         * This should not occur in real scenarios, as WAC occurs only once, and
+         * is expected to end successfully. It should be the user's
+         * responsibility to ensure no WAC MDNS services are running prior to
+         * beginning a new WAC procedure.
+         */
+        sl_NetAppMDNSUnRegisterService((const signed char *)" ", 0, 0);
+
+        if (retry) {
+            ret = sl_ExtLib_WacDeInit();
+            if (ret < 0) {
+                LOGE("WacDeInit returned error code %d", ret);
+            }
         }
-    }
-    prevTicks = curTicks;
-    GPIO_clearInt(Board_BUTTON1);
-#endif
-}
 
-/* Fxn to poll for button press to run WAC at network bootup*/
-int waitForButton()
-{
-#if 0
-    static int curButton, prevButton;
-
-    GPIO_toggle(Board_LED0);
-    curButton = GPIO_read(Board_BUTTON0);
-    if ((curButton == 0) && (prevButton != 0)) {
-#endif
-        return NETWIFI_RUNWAC;
-#if 0
+        ret = sl_ExtLib_WacInit(MFI_I2C_ADDRESS, NULL);
+        if (ret < 0) {
+            LOGE("WacInit returned error code %d", ret);
+            retry = true;
+            continue;
         }
-    prevButton = curButton;
-    return NETWIFI_PROCEED;
-#endif
-}
 
-/*
- *  ======== serverFxn ========
- *  Initializes WiFi module and runs HAPEngine server
- *
- */
-Void serverFxn(UArg arg0, UArg arg1)
-{
-    int status;
-    HAPEngine_AccessoryDesc *accs[1];
-    long IPAddress;
-    HAPEngine_Params params;
-    long slResult;
-    _u8 macAddr[SL_MAC_ADDR_LEN];
-    _u16 macAddrLen = SL_MAC_ADDR_LEN;
-    char macAddrBuf[20];
+        ret = sl_ExtLib_WacSet(SL_WAC_FLAGS, (char*)&wacFlags, sizeof(wacFlags));
+        if (ret < 0){
+            LOGE("WacSet returned error code %d", ret);
+            retry = true;
+            continue;
+        }
 
-    IPAddress = NetWiFi_waitForNetwork(apName,
-                                       waitForButton, POLLFXNTIMEOUT);
+        ret = sl_ExtLib_WacSet(SL_WAC_FLAGS, (char*)&wacManufacturerName,
+                                sizeof(wacManufacturerName));
+        if (ret < 0) {
+            LOGE("WacSet returned error code %d", ret);
+            retry = true;
+            continue;
+        }
 
-    Assert_isTrue(IPAddress > 0, NULL);
+        ret = sl_ExtLib_WacSet(SL_WAC_MODEL, (char*)&wacModel, sizeof(wacModel));
+        if (ret < 0) {
+            LOGE("WacSet returned error code %d", ret);
+            retry = true;
+            continue;
+        }
 
-    System_printf("CC3200 has connected to AP and acquired an IP address.\n");
-    System_printf("IP Address: %d.%d.%d.%d\n", SL_IPV4_BYTE(IPAddress,3),
-                  SL_IPV4_BYTE(IPAddress,2), SL_IPV4_BYTE(IPAddress,1),
-                  SL_IPV4_BYTE(IPAddress,0));
-    System_flush();
+        ret = sl_ExtLib_WacRun(0);
+        if (ret < 0) {
+            LOGE("WacRun returned error code %d", ret);
+            retry = true;
+            continue;
+        }
 
-    /* Init HAPEngine */
-    HAPEngine_init();
+        ret = sl_ExtLib_WacDeInit();
+        if (ret < 0) {
+            LOGE("WacDeInit returned error code %d", ret);
+        }
 
-    /* Initialize accessory descriptor with run-time supplied info */
-    status = accessory_init(&accessory_services);
-    Assert_isTrue(status == HAPEngine_EOK, NULL);
-    HAPEngine_Params_init(&params);
+        retry = false;
 
-    /* Conditionally add MFi-based pairing (if the chip is detected) */
-    status = MFiAuth_setDevice("0", 0x10);
-    System_printf("MFiAuth: %d\n", status);
-    if (status == 0) {
-        params.mfiRespAndCertFxn = &MFiAuth_getRespAndCert;
-    }
+    } while(retry);
 
-    /* acquire MAC addr (as a globally unique id) */
-    slResult = sl_NetCfgGet(SL_NETCFG_MAC_ADDRESS_GET, NULL, &macAddrLen,
-            macAddr);
-    Assert_isTrue(slResult == 0, NULL);
-
-    System_sprintf(macAddrBuf, "%02x:%02x:%02x:%02x:%02x:%02x", macAddr[0],
-            macAddr[1], macAddr[2], macAddr[3], macAddr[4], macAddr[5]);
-
-    /* Create HAP Engine */
-    accs[0] = &accessory_services;
-    engineHandle = HAPEngine_create(accs, 1, macAddrBuf, HAPEngine_CI_LIGHTBULB,
-            &blink_getSetupCodeFxn, &params);
-    Assert_isTrue(engineHandle != NULL, NULL);
-
-    /*
-     * Run HAP server. This internally loops handling client requests
-     * and may never return.
-     */
-    status = HAPEngine_serve(engineHandle, NULL, 0);
-    Assert_isTrue(status == HAPEngine_EOK, NULL);
-
-    /* delete the HAPEngine */
-    status = HAPEngine_delete(&engineHandle);
-    Assert_isTrue(status == HAPEngine_EOK, NULL);
-
-    HAPEngine_exit();
-}
-
-/*
- *  ======== main ========
- */
-int main(void)
-{
-    Memory_Stats stats;
-    Task_Params taskParams;
-
-    /* Call board init functions. */
-    Board_initGeneral();
-    Board_initGPIO();
-    Board_initSPI();
-    Board_initI2C();
-
-    /* Initialize interrupts for all ports that need them */
-    GPIO_setCallback(Board_BUTTON1, gpioButtonFxn1);
-
-    /* Enable interrupts */
-    //GPIO_enableInt(Board_BUTTON1);
-
-    Memory_getStats(NULL, &stats);
-    System_printf("%d %d %d\n", stats.totalSize, stats.totalFreeSize,
-            stats.largestFreeSize);
-
-    /* Initialize the Spawn Task Mailbox */
-    VStartSimpleLinkSpawnTask(3);
-
-    /* Create task for HAP server */
-    Task_Params_init(&taskParams);
-    taskParams.instance->name = "HAP";
-    taskParams.stackSize = 5 * 1024;
-    taskParams.priority = 1;
-    Task_create(serverFxn, &taskParams, NULL);
-
-    /* Start BIOS */
-    BIOS_start();
-
-    return (0);
+    return 0;
 }

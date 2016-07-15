@@ -87,6 +87,10 @@ void mcu_reset()
     MAP_PRCMHibernateEnter();
 }
 
+// TODO HomeKit cruft
+ volatile uint32_t g_ipv4_acquired;
+ volatile uint32_t g_ipv6_acquired;
+
 #define SL_STOP_TIMEOUT                 (30)
 long nwp_reset() {
 	long r;
@@ -94,6 +98,7 @@ long nwp_reset() {
     sl_WlanSetMode(ROLE_STA);
 	r = sl_Stop(0xFF);
     wifi_status_set(0xFFFFFFFF, true);
+	g_ipv4_acquired = g_ipv6_acquired = false;
     r = sl_Start(NULL, NULL, NULL);
 	sl_exit_critical_region();
 	return r;
@@ -227,6 +232,7 @@ void SimpleLinkWlanEventHandler(SlWlanEvent_t *evnt) {
     }
     break;
     case SL_WLAN_EVENT_DISCONNECT:
+    	g_ipv4_acquired = g_ipv6_acquired = false;
         wifi_status_set(0xFFFFFFFF, true);
         memset(_connected_ssid, 0, MAX_SSID_LEN);
         LOGI("SL_WLAN_DISCONNECT_EVENT\n");
@@ -274,12 +280,15 @@ void SimpleLinkGeneralEventHandler(SlDeviceEvent_t *pDevEvent)
 //
 //****************************************************************************
 
-
 void SimpleLinkNetAppEventHandler(SlNetAppEvent_t *pNetAppEvent) {
 
     switch (pNetAppEvent->Id) {
 	case SL_NETAPP_EVENT_IPV4_ACQUIRED:
+		g_ipv4_acquired = true;
 	case SL_NETAPP_EVENT_IPV6_ACQUIRED:
+		if( !g_ipv4_acquired ) {
+			g_ipv6_acquired = true;
+		}
 		LOGI("SL_NETAPP_IPV4_ACQUIRED\n\r");
 		{
 			int seed = (unsigned) PRCMSlowClkCtrGet();

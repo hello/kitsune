@@ -30,7 +30,7 @@
 // Date : 25/ May/ 2015: this is a temporary fix.
 //Aqcuiring IPV6 global address could not be tested yet.
 
-#define esprintf System_sprintf
+#define esprintf sl_ExtLib_UART_Print
 
 #define MIN(a,b) (b^((a^b)&-(a<b)))
 
@@ -2546,7 +2546,7 @@ signed long sl_ExtLib_WacRun(unsigned char ucFlags)
                     sl_ExtLib_Time_Delay(1);
                     
 #ifndef SL_PLATFORM_MULTI_THREADED
-					_SlNonOsMainLoopTask();
+				//todo nope sorry _SlNonOsMainLoopTask();
 #endif
 
                     if (timeoutCtr++ >  WAC_DHCP_TIMEOUT)

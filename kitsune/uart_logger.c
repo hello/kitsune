@@ -718,6 +718,15 @@ int Cmd_log_setview(int argc, char * argv[]){
 	return -1;
 }
 
+//todo random TI code
+void sl_ExtLib_UART_Print(const char *pcString, ...){
+	va_list vaArgP;
+	uint16_t tag = self.view_tag | self.store_tag;
+
+	va_start(vaArgP, pcString);
+    _va_printf( vaArgP, pcString, _logstr_wrapper, &tag );
+    va_end(vaArgP);
+}
 
 void uart_logf(uint16_t tag, const char *pcString, ...){
 	va_list vaArgP;
