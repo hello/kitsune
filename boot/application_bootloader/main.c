@@ -448,7 +448,6 @@ void LoadAndExecute(unsigned char *ImgName, unsigned long ulToken)
 	}
 }
 
-
 //*****************************************************************************
 //
 //! Writes into the boot info file.
@@ -537,7 +536,7 @@ static void ImageLoader(sBootInfo_t *psBootInfo)
 
 		case IMG_ACT_USER1:
 			Load((unsigned char *) IMG_USER_2, ulUserImg2Token);
-			if (!Test(IMG_ACT_USER2, file_len)) {
+			if (!Test(IMG_ACT_USER2, GetSize((const unsigned char *)IMG_USER_2))) {
 				LoadAndExecute((unsigned char *) IMG_USER_1, ulUserImg1Token);
 			} else {
 				Execute();
@@ -546,7 +545,7 @@ static void ImageLoader(sBootInfo_t *psBootInfo)
 
 		default:
 			Load((unsigned char *) IMG_USER_1, ulUserImg2Token);
-			if (!Test(IMG_ACT_USER1, file_len)) {
+			if (!Test(IMG_ACT_USER1, GetSize((const unsigned char *)IMG_USER_1))) {
 				LoadAndExecute((unsigned char *) IMG_USER_2, ulUserImg1Token);
 			} else {
 				Execute();
@@ -568,7 +567,7 @@ static void ImageLoader(sBootInfo_t *psBootInfo)
 
 		case IMG_ACT_USER1:
 			Load((unsigned char *) IMG_USER_1, ulUserImg2Token);
-			if (!Test(IMG_ACT_USER1, file_len)) {
+			if (!Test(IMG_ACT_USER1,  GetSize((const unsigned char *)IMG_USER_1))) {
 				LoadAndExecute((unsigned char *) IMG_FACTORY_DEFAULT,ulUserImg1Token);
 			} else {
 				Execute();
@@ -577,7 +576,7 @@ static void ImageLoader(sBootInfo_t *psBootInfo)
 
 		case IMG_ACT_USER2:
 			Load((unsigned char *) IMG_USER_2, ulUserImg2Token);
-			if (!Test(IMG_ACT_USER2, file_len)) {
+			if (!Test(IMG_ACT_USER2,  GetSize((const unsigned char *)IMG_USER_2))) {
 				LoadAndExecute((unsigned char *) IMG_FACTORY_DEFAULT,ulUserImg1Token);
 			} else {
 				Execute();
@@ -585,7 +584,7 @@ static void ImageLoader(sBootInfo_t *psBootInfo)
 			break;
 
 		default:
-			if( !Test(IMG_ACT_FACTORY, GetSize(IMG_FACTORY_DEFAULT)) ){
+			if( !Test(IMG_ACT_FACTORY, GetSize((const unsigned char *)IMG_FACTORY_DEFAULT)) ){
 				LoadAndExecute((unsigned char *) IMG_FACTORY_DEFAULT,ulFactoryImgToken);
 			}else{
 				Execute();
