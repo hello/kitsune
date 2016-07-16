@@ -104,7 +104,6 @@ sBootInfo_t sBootInfo;
 //*****************************************************************************
 // Local Variables
 //*****************************************************************************
-static long lFileHandle;
 static int  iRetVal;
 static SlFsFileInfo_t pFsFileInfo;
 
@@ -386,14 +385,15 @@ int Load(unsigned char *ImgName, unsigned long ulToken) {
 	//
 	// Open the file for reading
 	//
+	long handle;
 	if(0 != sl_FsGetInfo(ImgName, ulToken, &pFsFileInfo)){
 		return -1;
 	}
-	lFileHandle = sl_FsOpen(ImgName, SL_FS_READ, &ulToken);
+	handle = sl_FsOpen(ImgName, SL_FS_READ, &ulToken);
 	//
 	// Check if successfully opened
 	//
-	if (lFileHandle >= 0) {
+	if (handle >= 0) {
 		//
 		// Get the file size using File Info structure
 		//
@@ -406,8 +406,8 @@ int Load(unsigned char *ImgName, unsigned long ulToken) {
 		iRetVal = sl_FsRead(lFileHandle, 0,
 				(unsigned char *) APP_IMG_SRAM_OFFSET, pFsFileInfo.Len);
 		*/
-		iRetVal = load_to_flash(lFileHandle, APP_IMG_FLASH_OFFSET, file_len);
-		sl_FsClose(lFileHandle, 0,0,0);
+		iRetVal = load_to_flash(handle, APP_IMG_FLASH_OFFSET, file_len);
+		sl_FsClose(handle, 0,0,0);
 		return iRetVal;
 
 	}
@@ -687,7 +687,7 @@ int main()
   //
   // Open Boot info file for reading
   //
-  lFileHandle = sl_FsOpen((unsigned char *)IMG_BOOT_INFO,
+  long handle = sl_FsOpen((unsigned char *)IMG_BOOT_INFO,
 		  SL_FS_READ,
 		  &ulBootInfoToken);
 
@@ -695,9 +695,9 @@ int main()
   // If successful, load the boot info
   // else create a new file with default boot info.
   //
-  if( lFileHandle >= 0 )
+  if( handle >= 0 )
   {
-    iRetVal = sl_FsRead(lFileHandle,0,
+    iRetVal = sl_FsRead(handle,0,
                          (unsigned char *)&sBootInfo,
                          sizeof(sBootInfo_t));
 
@@ -708,7 +708,7 @@ int main()
     //
     // Create a new boot info file
     //
-	  lFileHandle = sl_FsOpen((unsigned char *)IMG_BOOT_INFO,
+	  handle = sl_FsOpen((unsigned char *)IMG_BOOT_INFO,
 			  	  SL_FS_CREATE|SL_FS_OVERWRITE| SL_FS_CREATE_MAX_SIZE( 2 * sizeof(sBootInfo_t)),
                  &ulBootInfoToken);
 
@@ -717,7 +717,7 @@ int main()
     //
     iRetVal = CreateDefaultBootInfo(&sBootInfo);
 
-    if(lFileHandle < 0)
+    if(handle < 0)
     {
       //
       // Can't boot no bootable image found
@@ -731,7 +731,7 @@ int main()
     //
     // Write the default boot info.
     //
-    iRetVal = sl_FsWrite(lFileHandle,0,
+    iRetVal = sl_FsWrite(handle,0,
                          (unsigned char *)&sBootInfo,
                          sizeof(sBootInfo_t));
   }
@@ -739,7 +739,7 @@ int main()
   //
   // Close boot info function
   //
-  sl_FsClose(lFileHandle, 0, 0, 0);
+  sl_FsClose(handle, 0, 0, 0);
 
   //
   // Load and execute the image base on boot info.
