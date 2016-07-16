@@ -282,6 +282,10 @@ int Cmd_fs_read(int argc, char *argv[]) {
 		LOGF("unauthorized\n");
 		return 0;
 	}
+	if (strstr(argv[1], "ota") != 0) {
+		LOGF("unauthorized\n");
+		return 0;
+	}
 #endif
 
 	sl_FsGetInfo((unsigned char*)argv[1], tok, &info);
