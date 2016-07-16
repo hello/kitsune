@@ -584,12 +584,7 @@ static void ImageLoader(sBootInfo_t *psBootInfo)
 			break;
 
 		default:
-			if( !Test(IMG_ACT_FACTORY, GetSize((const unsigned char *)IMG_FACTORY_DEFAULT)) ){
-				LoadAndExecute((unsigned char *) IMG_FACTORY_DEFAULT,ulFactoryImgToken);
-			}else{
-				Execute();
-			}
-
+			LoadAndExecute((unsigned char *) IMG_FACTORY_DEFAULT,ulFactoryImgToken);
 			break;
 		}
 	}
