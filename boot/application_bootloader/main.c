@@ -393,7 +393,7 @@ int Load(unsigned char *ImgName, unsigned long ulToken) {
 	//
 	// Check if successfully opened
 	//
-	if (handle >= 0) {
+	if (lFileHandle >= 0) {
 		//
 		// Get the file size using File Info structure
 		//
@@ -413,9 +413,17 @@ int Load(unsigned char *ImgName, unsigned long ulToken) {
 	}
 	return -1;
 }
-int Test(unsigned int img) {
+int GetSize(const unsigned char * name){
+	SlFsFileInfo_t info = {0};
+	if(0 == sl_FsGetInfo(name, 0, &info)){
+		return info.Len;
+	}else{
+		return 0;
+	}
+}
+int Test(unsigned int img, int len) {
 	SHA1_Init(&sha1ctx);
-	SHA1_Update(&sha1ctx, (unsigned char *) APP_IMG_FLASH_OFFSET, file_len);
+	SHA1_Update(&sha1ctx, (unsigned char *) APP_IMG_FLASH_OFFSET, len);
 	SHA1_Final(sha, &sha1ctx);
 
 	return memcmp(sha, sBootInfo.sha[img], SHA1_SIZE) == 0;
@@ -529,7 +537,7 @@ static void ImageLoader(sBootInfo_t *psBootInfo)
 
 		case IMG_ACT_USER1:
 			Load((unsigned char *) IMG_USER_2, ulUserImg2Token);
-			if (!Test(IMG_ACT_USER2)) {
+			if (!Test(IMG_ACT_USER2, file_len)) {
 				LoadAndExecute((unsigned char *) IMG_USER_1, ulUserImg1Token);
 			} else {
 				Execute();
@@ -538,7 +546,7 @@ static void ImageLoader(sBootInfo_t *psBootInfo)
 
 		default:
 			Load((unsigned char *) IMG_USER_1, ulUserImg2Token);
-			if (!Test(IMG_ACT_USER1)) {
+			if (!Test(IMG_ACT_USER1, file_len)) {
 				LoadAndExecute((unsigned char *) IMG_USER_2, ulUserImg1Token);
 			} else {
 				Execute();
@@ -560,7 +568,7 @@ static void ImageLoader(sBootInfo_t *psBootInfo)
 
 		case IMG_ACT_USER1:
 			Load((unsigned char *) IMG_USER_1, ulUserImg2Token);
-			if (!Test(IMG_ACT_USER1)) {
+			if (!Test(IMG_ACT_USER1, file_len)) {
 				LoadAndExecute((unsigned char *) IMG_FACTORY_DEFAULT,ulUserImg1Token);
 			} else {
 				Execute();
@@ -569,7 +577,7 @@ static void ImageLoader(sBootInfo_t *psBootInfo)
 
 		case IMG_ACT_USER2:
 			Load((unsigned char *) IMG_USER_2, ulUserImg2Token);
-			if (!Test(IMG_ACT_USER2)) {
+			if (!Test(IMG_ACT_USER2, file_len)) {
 				LoadAndExecute((unsigned char *) IMG_FACTORY_DEFAULT,ulUserImg1Token);
 			} else {
 				Execute();
@@ -577,7 +585,7 @@ static void ImageLoader(sBootInfo_t *psBootInfo)
 			break;
 
 		default:
-			if( !Test(IMG_ACT_FACTORY) ){
+			if( !Test(IMG_ACT_FACTORY, GetSize(IMG_FACTORY_DEFAULT)) ){
 				LoadAndExecute((unsigned char *) IMG_FACTORY_DEFAULT,ulFactoryImgToken);
 			}else{
 				Execute();
