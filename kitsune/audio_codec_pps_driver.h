@@ -45,8 +45,19 @@ typedef struct{
 #error "Audio Codec OSR error!"
 #endif
 
-#define IADC ((MADC)*(AOSR))
-#define IDAC ((MDAC)*(DOSR))
+/*
+ * IMPORTANT: https://e2e.ti.com/support/data_converters/audio_converters/w/design_notes/1098.aic3254-minidsp-d-cycles-and-minidsp-a-cycles
+ *
+ * IDAC>=MDAC*DOSR and IADC>=MADC*AOSR.
+ *
+ * Accepted range:
+ * miniDSP_A_Cycles: 256 to 6144
+ * miniDSP_D_Cycles: 352 to 6144
+ *
+ */
+
+#define IADC (3000) //((MADC)*(AOSR))
+#define IDAC (3000) //((MDAC)*(DOSR))
 
 #define MIC_VOLUME_DB 6
 #define MIC_VOLUME_CONTROL ((MIC_VOLUME_DB)*2)
