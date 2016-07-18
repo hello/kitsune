@@ -1,8 +1,9 @@
 sudo: true
 language: c
-before_install:
-  - sudo apt-get -qq update
-  - sudo apt-get install libstdc++6
+addons:
+  apt:
+    packages:
+    - libstdc++6:i386
 script: "./build.sh"
 install:
 - "./travis-setup.sh"
