@@ -2103,7 +2103,7 @@ void vUARTTask(void *pvParameters) {
 	vTaskDelay(10);
 	//INIT SPI
 	spi_init();
-	hlo_audio_init();
+
 
 	i2c_smphr = xSemaphoreCreateRecursiveMutex();
 
@@ -2155,6 +2155,8 @@ void vUARTTask(void *pvParameters) {
 
 	// McASP and DMA init
 	InitAudioTxRx(AUDIO_CAPTURE_PLAYBACK_RATE);
+
+	hlo_audio_init();
 
 	// Create audio tasks for playback and record
 	xTaskCreate(AudioPlaybackTask,"playbackTask",1280/4,NULL,4,NULL);

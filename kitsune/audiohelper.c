@@ -35,18 +35,6 @@ extern tCircularBuffer *pRxBuffer;
 static unsigned char * audio_mem;
 static unsigned char * audio_mem_p;
 
-// mutex to protect i2s enabled status
-static xSemaphoreHandle _i2s_enabled_mutex = NULL;
-
-typedef enum
-{
-	deinit_capture = 0,
-	deinit_playback = 1,
-	deinit_both = 2
-}deinit_type;
-void McASPDeInit_FullDuplex(deinit_type type);
-void SetupDMAModeFullDuplex(void (*pfnAppCbHndlr)(void), deinit_type type);
-
 void InitAudioHelper() {
 	audio_mem = (unsigned char*)pvPortMalloc( AUD_BUFFER_SIZE );
 }
@@ -62,12 +50,6 @@ void InitAudioTxRx(uint32_t rate)
 	McASPInit(rate);
 
 	MAP_I2SIntRegister(I2S_BASE,DMAPingPongCompleteAppCB_opt);
-
-	// init mutex for file download status flag
-	if(!_i2s_enabled_mutex)
-	{
-		_i2s_enabled_mutex = xSemaphoreCreateMutex();
-	}
 
 }
 
@@ -97,71 +79,8 @@ uint8_t InitAudioCapture(uint32_t rate) {
 	// Start Audio Tx/Rx
 	Audio_Start();
 
-	return 1;
+	return 0;
 }
-
-void McASPDeInit_FullDuplex(deinit_type type)
-{
-
-	switch(type)
-	{
-	case deinit_capture:
-		MAP_I2SIntDisable(I2S_BASE, I2S_INT_RDMA);
-		//MAP_I2SRxFIFODisable(I2S_BASE);
-		break;
-
-	case deinit_playback:
-		MAP_I2SIntDisable(I2S_BASE,I2S_INT_XDMA);
-		//MAP_I2STxFIFODisable(I2S_BASE);
-		break;
-
-	case deinit_both:
-		MAP_I2SIntDisable(I2S_BASE,I2S_INT_XDMA | I2S_INT_RDMA);
-		MAP_I2STxFIFODisable(I2S_BASE);
-		MAP_I2SRxFIFODisable(I2S_BASE);
-		I2SIntUnregister(I2S_BASE);
-		break;
-
-	default:
-		break;
-
-
-	}
-
-}
-
-//*****************************************************************************
-//
-//! Setup the Audio capturer callback routine and the interval of callback.
-//! On the invocation the callback is expected to fill the AFIFO with enough
-//! number of samples for one callback interval.
-//!
-//! \param pfnAppCbHndlr is the callback handler that is invoked when
-//! \e ucCallbackEvtSamples space is available in the audio FIFO
-//! \param ucCallbackEvtSamples is used to configure the callback interval
-//!
-//! This function initializes
-//!        1. Initializes the interrupt callback routine
-//!        2. Sets up the AFIFO to interrupt at the configured interval
-//!
-//! \return None.
-//
-//*****************************************************************************
-void SetupDMAModeFullDuplex(void (*pfnAppCbHndlr)(void), deinit_type type)
-{
-	MAP_I2SIntRegister(I2S_BASE,DMAPingPongCompleteAppCB_opt);
-
-	if(type == deinit_capture)
-	{
-		MAP_I2SRxFIFOEnable(I2S_BASE,8,1);
-	}
-	else if(type == deinit_playback)
-	{
-		MAP_I2STxFIFOEnable(I2S_BASE,8,1);
-	}
-
-}
-
 
 void DeinitAudioCapture(void) {
 
@@ -169,7 +88,6 @@ void DeinitAudioCapture(void) {
 
 	// Setup the Audio In/Out
 	MAP_I2SIntDisable(I2S_BASE, I2S_INT_RDMA );
-	//McASPDeInit_FullDuplex(deinit_capture);
 
 	MAP_uDMAChannelDisable(UDMA_CH4_I2S_RX);
 
@@ -212,9 +130,7 @@ uint8_t InitAudioPlayback(int32_t vol, uint32_t rate ) {
 	// Setup the Audio In/Out
     MAP_I2SIntEnable(I2S_BASE,I2S_INT_XDMA);
 
-	//////
-	// SET UP AUDIO PLAYBACK
-	return 1;
+	return 0;
 
 }
 
@@ -222,8 +138,6 @@ void DeinitAudioPlayback(void) {
 
 	// Mute speaker
 	codec_mute_spkr();
-
-	//McASPDeInit_FullDuplex(deinit_playback);
 
 	MAP_uDMAChannelDisable(UDMA_CH5_I2S_TX);
 

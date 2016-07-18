@@ -26,18 +26,14 @@ static uint8_t audio_record_started;
 xSemaphoreHandle record_isr_sem;
 xSemaphoreHandle playback_isr_sem;;
 
-static TickType_t last_playback_time;
-
 #define LOCK() xSemaphoreTakeRecursive(lock,portMAX_DELAY)
 #define UNLOCK() xSemaphoreGiveRecursive(lock)
 
 ////------------------------------
 // playback stream driver
-static int _playback_done(void){
-	return (int)( (xTaskGetTickCount() - last_playback_time) > MODESWITCH_TIMEOUT_MS);
-}
+
 static int _open_playback(uint32_t sr, uint8_t vol){
-	if(!InitAudioPlayback(vol, sr)){
+	if(InitAudioPlayback(vol, sr)){
 		return -1;
 	}
 
@@ -53,9 +49,6 @@ static int _reinit_playback(unsigned int sr, unsigned int initial_vol){
 static int _write_playback_mono(void * ctx, const void * buf, size_t size){
 	int ret;
 
-	//ERROR_IF_CLOSED();
-	last_playback_time = xTaskGetTickCount();
-
 	if(IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) == TRUE){
 		if(audio_playback_started){
 			if(!xSemaphoreTake(playback_isr_sem,5000)){
@@ -64,6 +57,7 @@ static int _write_playback_mono(void * ctx, const void * buf, size_t size){
 			}
 		}else{
 			audio_playback_started = 1;
+			LOGI("Init playback\n");
 			ret = _reinit_playback(playback_sr, initial_vol);
 			if(ret) return ret;
 			Audio_Start();
@@ -81,7 +75,7 @@ static int _write_playback_mono(void * ctx, const void * buf, size_t size){
 //record stream driver
 //bool set_mic_gain(int v, unsigned int dly) ;
 static int _open_record(uint32_t sr, uint32_t gain){
-	if(!InitAudioCapture(sr)){
+	if(InitAudioCapture(sr)){
 		return -1;
 	}
 	//set_mic_gain(gain,4);
@@ -115,10 +109,20 @@ static int _read_record_mono(void * ctx, void * buf, size_t size){
 	}
 	return 0;
 }
+
+// TODO might need two functions for close of capture and playback?
 static int _close(void * ctx){
-	//DeinitAudio();
+	DISP("Closing stream\n");
+
+	Audio_Stop();
+
+	DeinitAudioPlayback();
+	DeinitAudioCapture();
+
+
 	audio_record_started = 0;
 	audio_playback_started = 0;
+
 	return HLO_STREAM_NO_IMPL;
 }
 ////------------------------------
