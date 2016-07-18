@@ -93,6 +93,7 @@ static int _read_record_mono(void * ctx, void * buf, size_t size){
 	int ret;
 
 	if(!audio_record_started){
+		audio_record_started = 1;
 		ret = _reinit_record(record_sr, initial_gain);
 		if(ret) return ret;
 	}
