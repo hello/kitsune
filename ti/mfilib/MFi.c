@@ -203,6 +203,7 @@ signed long _sl_ExtLib_MFi_GetCertificateData(unsigned char* outbuf)
     while (lStatus < 0)
     {  
         // Read from selected register 2 byte 
+    	 sl_ExtLib_Time_Delay(50);
         lStatus = sl_ExtLib_I2C_Read(MFi_Handle.MFiAddress, \
                                         (unsigned char*) &usCertDataLength, 2);  
         if (usAuxShort++ > MFI_TIMEOUT) 
@@ -214,7 +215,8 @@ signed long _sl_ExtLib_MFi_GetCertificateData(unsigned char* outbuf)
   
     // Store certificate data length
     usCertDataLength = SL_MFI_SWAP16 (usCertDataLength); 
-  
+
+    sl_ExtLib_Time_Delay(50);
     lStatus = _sl_ExtLib_MFi_SetRegister (ACCESSORY_CERT_DATA_1);
     if(lStatus < 0)
     {
@@ -225,6 +227,7 @@ signed long _sl_ExtLib_MFi_GetCertificateData(unsigned char* outbuf)
     while ((usAuxShort + 128) < usCertDataLength)
     {
         // Read 128 bytes at a time
+    	 sl_ExtLib_Time_Delay(50);
         lStatus = sl_ExtLib_I2C_Read(MFi_Handle.MFiAddress, \
                                     (unsigned char*) outbuf + usAuxShort, 0x80);
     
@@ -248,6 +251,7 @@ signed long _sl_ExtLib_MFi_GetCertificateData(unsigned char* outbuf)
     while (lStatus < 0)
     {
         // Read 128 bytes at a time
+    	 sl_ExtLib_Time_Delay(50);
         lStatus = sl_ExtLib_I2C_Read(MFi_Handle.MFiAddress, \
                                         (unsigned char*) outbuf + usAuxShort, \
                                         usCertDataLength - usAuxShort);    
@@ -284,7 +288,8 @@ signed long _sl_ExtLib_MFi_ReadRegisterByte (unsigned char registerAddress,
     while (lStatus < 0)
     {
         // Write to MFi, 1 bytes (address), and no stop bit 
-        lStatus = sl_ExtLib_I2C_Write(MFi_Handle.MFiAddress, &auxArray[0], 1, 0);  
+    	 sl_ExtLib_Time_Delay(50);
+        lStatus = sl_ExtLib_I2C_Write(MFi_Handle.MFiAddress, &auxArray[0], 1, 0);
         
         if (usAuxShort++ > MFI_TIMEOUT) 
         {
@@ -295,10 +300,11 @@ signed long _sl_ExtLib_MFi_ReadRegisterByte (unsigned char registerAddress,
     
     usAuxShort = 0;
     lStatus = -1;
+	 sl_ExtLib_Time_Delay(500);
 
     while (lStatus < 0)
     {  
-        // Read from selected register 1 byte 
+        // Read from selected register 1 byte
         lStatus = sl_ExtLib_I2C_Read(MFi_Handle.MFiAddress, registerData, 1);
         if (usAuxShort++ > MFI_TIMEOUT) 
         {
@@ -330,7 +336,8 @@ signed long _sl_ExtLib_MFi_SetRegister (unsigned char registerAddress)
 
     while (lStatus < 0)
     {
-        // Write to MFi, 2 bytes (address and 1 byte of data), no stop bits 
+        // Write to MFi, 2 bytes (address and 1 byte of data), no stop bits
+    	 sl_ExtLib_Time_Delay(50);
         lStatus = sl_ExtLib_I2C_Write(MFi_Handle.MFiAddress, &auxArray, 1, 0);  
         if (usAuxShort++ > MFI_TIMEOUT) 
         {
@@ -366,7 +373,8 @@ signed long _sl_ExtLib_MFi_WriteRegisterByte (unsigned char registerAddress,
     while (lStatus < 0)
     {
         // Write to MFi, 2 bytes (address and 1 byte of data),
-        // 1 stop bit to indicate end of command 
+        // 1 stop bit to indicate end of command
+    	 sl_ExtLib_Time_Delay(50);
         lStatus = sl_ExtLib_I2C_Write(MFi_Handle.MFiAddress, &auxArray[0], 2, 1);  
         if (usAuxShort++ > MFI_TIMEOUT) 
         {
@@ -432,7 +440,7 @@ signed long _sl_ExtLib_MFi_GetChallengeResponse (unsigned char* challengeData,
     memcpy (&auxArray[3], challengeData, challengeDataLength);
   
     while (lStatus < 0)
-    {
+    { sl_ExtLib_Time_Delay(50);
         // Write to MFi, 1 bytes (address), 1 byte length, and stop bit 
         lStatus = sl_ExtLib_I2C_Write(MFi_Handle.MFiAddress, &auxArray[0], \
                                         3 + challengeDataLength, 1);    
@@ -451,7 +459,7 @@ signed long _sl_ExtLib_MFi_GetChallengeResponse (unsigned char* challengeData,
     auxArray[1] = START_NEW_CHALLENGE_RESPONSE;
 
     while (lStatus < 0)
-    {
+    { sl_ExtLib_Time_Delay(50);
         // Write to MFi, 1 bytes (address), and stop bit 
         lStatus = sl_ExtLib_I2C_Write(MFi_Handle.MFiAddress, &auxArray[0], 2, 1);    
         if (usAuxShort++ > MFI_TIMEOUT) 
@@ -471,7 +479,7 @@ signed long _sl_ExtLib_MFi_GetChallengeResponse (unsigned char* challengeData,
     auxArray[0] = CONTROL_AND_STATUS;
     
     while (lStatus < 0)
-    {
+    { sl_ExtLib_Time_Delay(50);
         // Write to MFi, 1 bytes (address), and no stop bit 
         lStatus = sl_ExtLib_I2C_Write(MFi_Handle.MFiAddress, &auxArray[0], 1, 0);    
         if (usAuxShort++ > 60000) 
@@ -486,7 +494,7 @@ signed long _sl_ExtLib_MFi_GetChallengeResponse (unsigned char* challengeData,
   
     // Poll until challenge data is ready 
     while (auxChar != CHALLENGE_RESP_GENERATED)
-    {  
+    {   sl_ExtLib_Time_Delay(50);
         // Read from selected register 1 byte 
         lStatus = sl_ExtLib_I2C_Read(MFi_Handle.MFiAddress,\
                                         (unsigned char*) &auxChar, 1);  
@@ -505,7 +513,7 @@ signed long _sl_ExtLib_MFi_GetChallengeResponse (unsigned char* challengeData,
     auxArray[0] = CHALLENGE_RESP_LEN;
   
     while (lStatus < 0)
-    {
+    { sl_ExtLib_Time_Delay(50);
         // Write to MFi, 1 bytes (address), and no stop bit 
         lStatus = sl_ExtLib_I2C_Write(MFi_Handle.MFiAddress, &auxArray[0], 1, 0);    
         if (usAuxShort++ > MFI_TIMEOUT) 
@@ -519,7 +527,7 @@ signed long _sl_ExtLib_MFi_GetChallengeResponse (unsigned char* challengeData,
     usAuxShort = 0;
   
     while (lStatus < 0)
-    {  
+    {   sl_ExtLib_Time_Delay(50);
         // Read from selected register 2 byte 
         lStatus = sl_ExtLib_I2C_Read(MFi_Handle.MFiAddress, \
                                     (unsigned char*) &challengeRespLength, 2);  
@@ -539,7 +547,7 @@ signed long _sl_ExtLib_MFi_GetChallengeResponse (unsigned char* challengeData,
     // Read challenge response data 
     usAuxShort = 0;
     while (lStatus < 0)
-    {
+    { sl_ExtLib_Time_Delay(50);
         lStatus = sl_ExtLib_I2C_Read(MFi_Handle.MFiAddress, \
                             (unsigned char*) responseData, challengeRespLength); 
         if (usAuxShort++ > MFI_TIMEOUT) 

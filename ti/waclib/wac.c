@@ -2060,7 +2060,7 @@ signed long sl_ExtLib_WacInit(unsigned char mfiAddress, const unsigned char *dev
         goto _error_exit;
     }
     
-    lStatus = sl_ExtLib_MFi_Open (mfiAddress, MFI_I2C_MASTER_MODE_FST); //Need to reconsider how i'm passing the I2C speed
+    lStatus = sl_ExtLib_MFi_Open (mfiAddress, MFI_I2C_MASTER_MODE_STD); //Need to reconsider how i'm passing the I2C speed
 
     if(lStatus < 0) 
     {    

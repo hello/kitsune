@@ -95,7 +95,6 @@ void mcu_reset()
 long nwp_reset() {
 	long r;
 	sl_enter_critical_region();
-    sl_WlanSetMode(ROLE_STA);
 	r = sl_Stop(0xFF);
     wifi_status_set(0xFFFFFFFF, true);
 	g_ipv4_acquired = g_ipv6_acquired = false;
@@ -757,20 +756,26 @@ int Cmd_time(int argc, char*argv[]) {
 
     return 0;
 }
+
+
 int Cmd_mode(int argc, char*argv[]) {
     int ap = 0;
     if (argc != 2) {
         LOGF("mode <1=ap 0=station>\n");
     }
     ap = atoi(argv[1]);
-    if (ap && sl_mode != ROLE_AP) {
-        //Switch to AP Mode
+    if (ap ) {
+        LOGF("Switch to AP Mode");
+        sl_WlanSet(SL_WLAN_CFG_AP_ID, SL_WLAN_AP_OPT_SSID, strlen(argv[2]), argv[2] );
+
         sl_WlanSetMode(ROLE_AP);
-        nwp_reset();
-    }
-    if (!ap && sl_mode != ROLE_STA) {
+    	sl_Stop(0xFF);
+        assert( ROLE_AP == sl_Start(NULL, NULL, NULL) );
+    } else {
         //Switch to STA Mode
-        nwp_reset();
+        sl_WlanSetMode(ROLE_STA);
+    	sl_Stop(0xFF);
+        assert( ROLE_STA == sl_Start(NULL, NULL, NULL) );
     }
 
     return 0;

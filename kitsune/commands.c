@@ -1944,8 +1944,8 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "p", Cmd_AudioPlayback, ""},
 		{ "getoct",Cmd_get_octogram,""},
 		{ "aon",Cmd_audio_turn_on,""},
-#if 0
 		{ "mode", Cmd_mode, "" }, //set the ap/station mode
+#if 0
 
 		{ "spird", Cmd_spi_read,"" },
 		{ "spiwr", Cmd_spi_write, "" },
