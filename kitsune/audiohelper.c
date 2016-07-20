@@ -60,9 +60,6 @@ uint8_t InitAudioCapture(uint32_t rate) {
 	}
 	memset( audio_mem, 0, AUD_BUFFER_SIZE);
 
-	// Setup the Audio In/Out
-	MAP_I2SIntEnable(I2S_BASE, I2S_INT_RDMA );
-
 	UDMAChannelSelect(UDMA_CH4_I2S_RX, NULL);
 
 	// Setup the DMA Mode
@@ -76,15 +73,18 @@ uint8_t InitAudioCapture(uint32_t rate) {
 
     MAP_I2SSerializerConfig(I2S_BASE,I2S_DATA_LINE_1,I2S_SER_MODE_RX, I2S_INACT_LOW_LEVEL);
 
+	// Setup the Audio In/Out
+	MAP_I2SIntEnable(I2S_BASE, I2S_INT_RDMA );
+
 	// Start Audio Tx/Rx
-	Audio_Start();
+	//Audio_Start();
 
 	return 0;
 }
 
 void DeinitAudioCapture(void) {
 
-	Audio_Stop();
+	// Audio_Stop();
 
 	// Setup the Audio In/Out
 	MAP_I2SIntDisable(I2S_BASE, I2S_INT_RDMA );

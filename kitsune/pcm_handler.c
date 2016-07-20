@@ -180,7 +180,7 @@ void DMAPingPongCompleteAppCB_opt()
 
 	// I2S RX
 	if (dma_status & 0x00000010) {
-		//UARTprintf("r");
+		UARTprintf("r");
 		qqbufsz = GetBufferSize(pAudInBuf);
 		HWREG(0x4402609c) = (1 << 10);
 		//
@@ -210,6 +210,7 @@ void DMAPingPongCompleteAppCB_opt()
 				swap_endian(&pong_lsb);
 				swap_endian(&pong_msb);
 				pong[i] = ((uint32_t) pong_msb << 16) | pong_lsb;
+				if(pong[i] != 0) UARTprintf("%d", pong[i]);
 #else
 				swap_endian(pong+i);
 #endif
@@ -241,6 +242,7 @@ void DMAPingPongCompleteAppCB_opt()
 					swap_endian(&ping_lsb);
 					swap_endian(&ping_msb);
 					ping[i] = ((uint32_t) ping_msb << 16) | ping_lsb;
+					if(ping[i] != 0) UARTprintf("%d", ping[i]);
 #else
 					swap_endian(ping+i);
 #endif
@@ -282,7 +284,7 @@ void DMAPingPongCompleteAppCB_opt()
 
 	// I2S TX
 	if (dma_status & 0x00000020) {
-		//UARTprintf("p");
+		UARTprintf("p");
 		qqbufsz = GetBufferSize(pAudOutBuf);
 		HWREG(0x4402609c) = (1 << 11);
 		pControlTable = MAP_uDMAControlBaseGet();

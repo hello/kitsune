@@ -205,7 +205,7 @@ extern uint8_t get_alpha_from_light();
 extern bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, void **arg);
 int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
 #define NSAMPLES 512
-	int sample_rate = 16000;
+	int sample_rate = AUDIO_CAPTURE_PLAYBACK_RATE;
 	int ret = 0;
 	int16_t samples[NSAMPLES];
 	int32_t count = 0;
@@ -259,7 +259,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		resp.url.funcs.decode = _decode_string_field;
 		if( 0 == hlo_pb_decode(output,SpeechResponse_fields, &resp) ){
 			DISP("Resp %s\r\nUrl %s\r\n", resp.text.arg, resp.url.arg);
-			hlo_stream_t * aud = hlo_audio_open_mono(16000, 60,HLO_AUDIO_PLAYBACK);
+			hlo_stream_t * aud = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE, 60,HLO_AUDIO_PLAYBACK);
 			hlo_stream_t * fs = hlo_http_get(resp.url.arg);
 			hlo_filter_adpcm_decoder(fs,aud,NULL,NULL);
 			hlo_stream_close(fs);
@@ -306,7 +306,7 @@ static uint8_t _can_has_sig_stop(void){
 int Cmd_audio_record_start(int argc, char *argv[]){
 	//audio_sig_stop = 0;
 	//hlo_audio_recorder_task("rec.raw");
-	AudioTask_StartCapture(16000);
+	AudioTask_StartCapture(AUDIO_CAPTURE_PLAYBACK_RATE);
 	return 0;
 }
 int Cmd_audio_record_stop(int argc, char *argv[]){

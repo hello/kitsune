@@ -402,6 +402,7 @@ int global_filename(char * local_fn)
 #include "hlo_audio.h"
 #include "fs_utils.h"
 #include "hlo_http.h"
+#include "audio_types.h"
 #define BUF_SIZE 64
 hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 	if(input){//input
@@ -410,11 +411,15 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 			case 'a':
 			case 'A':
 			{
-				int opt_rate = ustrtoul(&str[2],NULL, 10);
+				int opt_rate = 0;
+				if(str[2] != '\0'){
+					opt_rate = ustrtoul(&str[2],NULL, 10);
+				}
+				DISP("Input Opt rate is %d\r\n", opt_rate);
 				if(opt_rate){
 					return hlo_audio_open_mono(opt_rate,60,HLO_AUDIO_RECORD);
 				}else{
-					return hlo_audio_open_mono(16000,60,HLO_AUDIO_RECORD);
+					return hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE,60,HLO_AUDIO_RECORD);
 				}
 			}
 			case 'r':
@@ -445,7 +450,7 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 				if(str[2] != '\0'){
 					opt_rate = ustrtoul(&str[2],NULL, 10);
 				}
-				DISP("Opt rate is %d\r\n", opt_rate);
+				DISP("Output Opt rate is %d\r\n", opt_rate);
 				if(opt_rate){
 					return hlo_audio_open_mono(opt_rate,60,HLO_AUDIO_PLAYBACK);
 				}else{

@@ -79,7 +79,7 @@ static int _open_record(uint32_t sr, uint32_t gain){
 		return -1;
 	}
 	//set_mic_gain(gain,4);
-	Audio_Start();
+	// Audio_Start();
 	DISP("Open record\r\n");
 	return 0;
 }
@@ -95,6 +95,7 @@ static int _read_record_mono(void * ctx, void * buf, size_t size){
 	if(!audio_record_started){
 		audio_record_started = 1;
 		ret = _reinit_record(record_sr, initial_gain);
+		Audio_Start();
 		if(ret) return ret;
 	}
 

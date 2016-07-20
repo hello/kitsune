@@ -2145,6 +2145,7 @@ void vUARTTask(void *pvParameters) {
 	vTaskDelay(10);
 	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0x4);
 
+	vTaskDelay(20);
 
 #ifdef CODEC_1P5_TEST
 	codec_test_commands();

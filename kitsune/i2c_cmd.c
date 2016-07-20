@@ -935,9 +935,10 @@ int32_t codec_test_commands(void)
 	unsigned char cmd[2] = {0};
 	char send_stop = 1;
 
+	// Send Software reset
+	codec_sw_reset();
+
 	if( xSemaphoreTakeRecursive(i2c_smphr, 100)) {
-		// Send Software reset
-		codec_sw_reset();
 
 		// Read register in [0][0][00]
 		cmd[0] = 0;
