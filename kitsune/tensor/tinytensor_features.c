@@ -56,7 +56,7 @@ static TinyTensorFeatures_t _this;
 
 void tinytensor_features_initialize(void * results_context, tinytensor_audio_feat_callback_t results_callback) {
     memset(&_this,0,sizeof(TinyTensorFeatures_t));
-    _this.buf = malloc(BUF_SIZE_IN_SAMPLES*sizeof(int16_t));
+    _this.buf = MALLOC(BUF_SIZE_IN_SAMPLES*sizeof(int16_t));
     memset(_this.buf,0,BUF_SIZE_IN_SAMPLES*sizeof(int16_t));
     _this.pbuf_write = _this.buf;
     _this.end = _this.buf + BUF_SIZE_IN_SAMPLES;

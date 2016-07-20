@@ -28,9 +28,9 @@ static void * alloc_state(const void * context) {
     const LstmLayer_t * lstm_layer = (const LstmLayer_t *) context;
     const uint32_t num_hidden_units = lstm_layer->output_dims[3];
     
-    LstmLayerState_t * state = malloc(sizeof(LstmLayerState_t));
-    state->cell_state = malloc(num_hidden_units * sizeof(int32_t));
-    state->output = malloc(num_hidden_units * sizeof(Weight_t));
+    LstmLayerState_t * state = MALLOC(sizeof(LstmLayerState_t));
+    state->cell_state = MALLOC(num_hidden_units * sizeof(int32_t));
+    state->output = MALLOC(num_hidden_units * sizeof(Weight_t));
     state->len = num_hidden_units;
     
     memset(state->cell_state,0,num_hidden_units * sizeof(int32_t));

@@ -5,7 +5,6 @@
 extern "C" {
 #endif
 
-#define DESKTOP
     
 #ifdef DESKTOP
 #include <memory.h>
@@ -16,7 +15,14 @@ extern "C" {
 #define MEMCPY(tgt,src,size) memcpy(tgt,src,size)
 #define MEMSET(tgt,val,size) memset(tgt,val,size)
 #else
-#error "MEMORY IMPLEMENTATION FOR THIS PLATFORM NEEDS TO BE DEFINED"
+#include "FreeRTOS.h"
+#include <string.h>
+
+#define MALLLOC(x) pvPortMalloc(x)
+#define FREE(x) pvPortFree(x)
+#define MEMCPY(tgt,src,size) memcpy(tgt,src,size)
+#define MEMSET(tgt,val,size) memset(tgt,val,size)
+
 #endif
     
 #ifdef __cplusplus
