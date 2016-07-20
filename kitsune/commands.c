@@ -59,7 +59,7 @@
 #include "pcm_handler.h"
 #include "circ_buff.h"
 #include "pcm_handler.h"
-#include "osi.h"
+
 
 #include "control.h"
 #include "network.h"
@@ -275,6 +275,10 @@ int Cmd_fs_read(int argc, char *argv[]) {
 		return 0;
 	}
 	if (strstr(argv[1], "top") != 0) {
+		LOGF("unauthorized\n");
+		return 0;
+	}
+	if (strstr(argv[1], "ota") != 0) {
 		LOGF("unauthorized\n");
 		return 0;
 	}
