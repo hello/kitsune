@@ -27,10 +27,10 @@ Tensor_t * tinytensor_create_new_tensor(const uint32_t dims[TENSOR_DIM]) {
     for (i = 1; i < TENSOR_DIM; i++) {
         num_elements *= dims[i];
     }
-    Tensor_t * tensor = (Tensor_t *)MALLLOC(sizeof(Tensor_t));
+    Tensor_t * tensor = (Tensor_t *)MALLOC(sizeof(Tensor_t));
     MEMSET(tensor,0,sizeof(Tensor_t));
     MEMCPY(tensor->dims, dims, sizeof(tensor->dims));
-    tensor->x = MALLLOC(num_elements * sizeof(Weight_t));
+    tensor->x = MALLOC(num_elements * sizeof(Weight_t));
     tensor->delete_me = delete_tensor;
     
     return tensor;

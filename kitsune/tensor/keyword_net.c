@@ -2,7 +2,7 @@
 #include "model_may25_lstm_large.c"
 #include "tinytensor_features.h"
 #include "tinytensor_memory.h"
-
+#include "uartstdio.h"
 
 typedef struct {
 	KeywordCallback_t on_start;
@@ -45,7 +45,7 @@ static void feats_callback(void * p, int8_t * feats) {
 
 	//evaluate output
 	for (i = 0; i < NUM_KEYWORDS; i++) {
-		CallbackItem_t * callback_item = context->callbacks[i];
+		CallbackItem_t * callback_item = &context->callbacks[i];
 		if (callback_item) {
 			const int8_t val = (int8_t)out->x[i];
 
@@ -59,21 +59,21 @@ static void feats_callback(void * p, int8_t * feats) {
 
 
 			//activating
-			if (val >= callback_item.activation_threshold && !callback_item->is_active) {
+			if (val >= callback_item->activation_threshold && !callback_item->is_active) {
 				callback_item->is_active = 1;
 
 				if (callback_item->on_start) {
-					callback_item->on_start(callback_item->context,i, val);
+					callback_item->on_start(callback_item->context,(Keyword_t)i, val);
 				}
 			}
 
 			//deactivating
-			if (val < callback_item.activation_threshold && callback_item->is_active) {
+			if (val < callback_item->activation_threshold && callback_item->is_active) {
 				callback_item->is_active = 0;
 
 				//report max value
 				if (callback_item->on_end) {
-					callback_item->on_end(callback_item->context,i,callback_item->max_value);
+					callback_item->on_end(callback_item->context,(Keyword_t)i,callback_item->max_value);
 				}
 
 			}
@@ -116,4 +116,25 @@ void keyword_net_add_audio_samples(const int16_t * samples, uint32_t nsamples) {
 	tinytensor_features_add_samples(samples,nsamples);
 }
 
+int cmd_test_neural_net(int argc, char * argv[]) {
+	int16_t samples[256];
+	int i;
 
+	memset(samples,0,sizeof(samples));
+	keyword_net_initialize();
+
+	keyword_net_register_callback(0,okay_sense,20,0,0);
+
+	UARTprintf("start test\n\n");
+
+	for (i = 0; i < 1024; i++) {
+		keyword_net_add_audio_samples(samples,256);
+	}
+
+	UARTprintf("\n\nstop test\n\n");
+
+	keyword_net_deinitialize();
+
+	return 0;
+
+}
