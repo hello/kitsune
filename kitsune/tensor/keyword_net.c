@@ -45,7 +45,7 @@ static void feats_callback(void * p, int8_t * feats) {
 
 	//evaluate output
 	for (i = 0; i < NUM_KEYWORDS; i++) {
-		CallbackItem_t * callback_item = context->callbacks[i];
+		CallbackItem_t * callback_item = &context->callbacks[i];
 		if (callback_item) {
 			const int8_t val = (int8_t)out->x[i];
 
@@ -59,21 +59,21 @@ static void feats_callback(void * p, int8_t * feats) {
 
 
 			//activating
-			if (val >= callback_item.activation_threshold && !callback_item->is_active) {
+			if (val >= callback_item->activation_threshold && !callback_item->is_active) {
 				callback_item->is_active = 1;
 
 				if (callback_item->on_start) {
-					callback_item->on_start(callback_item->context,i, val);
+					callback_item->on_start(callback_item->context,(Keyword_t)i, val);
 				}
 			}
 
 			//deactivating
-			if (val < callback_item.activation_threshold && callback_item->is_active) {
+			if (val < callback_item->activation_threshold && callback_item->is_active) {
 				callback_item->is_active = 0;
 
 				//report max value
 				if (callback_item->on_end) {
-					callback_item->on_end(callback_item->context,i,callback_item->max_value);
+					callback_item->on_end(callback_item->context,(Keyword_t)i,callback_item->max_value);
 				}
 
 			}
