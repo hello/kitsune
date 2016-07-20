@@ -166,7 +166,7 @@ only for ports that are using the MPU. */
 
 #else /* portUSING_MPU_WRAPPERS */
 
-	#define PRIVILEGED_FUNCTION
+	#define PRIVILEGED_FUNCTION __attribute__((section(".sram_code")))
 	#define PRIVILEGED_DATA
 	#define portUSING_MPU_WRAPPERS 0
 
