@@ -10,7 +10,7 @@ extern "C" {
 #include <memory.h>
 #include <string.h>
 #include <stdlib.h>
-#define MALLLOC(x) malloc(x)
+#define MALLOC(x) malloc(x)
 #define FREE(x) free(x)
 #define MEMCPY(tgt,src,size) memcpy(tgt,src,size)
 #define MEMSET(tgt,val,size) memset(tgt,val,size)
