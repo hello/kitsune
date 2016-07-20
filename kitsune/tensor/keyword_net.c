@@ -1,0 +1,116 @@
+#include "keyword_net.h"
+#include "model_may25_lstm_large.c"
+#include "tinytensor_features.h"
+#include "tinytensor_memory.h"
+
+
+typedef struct {
+	KeywordCallback_t on_start;
+	KeywordCallback_t on_end;
+	void * context;
+	int8_t activation_threshold;
+	uint8_t is_active;
+	int8_t max_value;
+} CallbackItem_t;
+
+typedef struct {
+    ConstSequentialNetwork_t net;
+    SequentialNetworkStates_t state;
+    uint8_t keyword_on_states[NUM_KEYWORDS];
+
+    CallbackItem_t callbacks[NUM_KEYWORDS];
+
+} KeywordNetContext_t;
+
+static KeywordNetContext_t _context;
+
+
+static void feats_callback(void * p, int8_t * feats) {
+	KeywordNetContext_t * context = (KeywordNetContext_t *)p;
+	Tensor_t * out;
+	Tensor_t temp_tensor;
+	uint32_t i;
+
+	temp_tensor.dims[0] = 1;
+	temp_tensor.dims[1] = 1;
+	temp_tensor.dims[2] = 1;
+	temp_tensor.dims[3] = NUM_MEL_BINS;
+
+	temp_tensor.x = feats;
+	temp_tensor.scale = 0;
+	temp_tensor.delete_me = 0;
+
+
+	out = tinytensor_eval_stateful_net(&context->net, &context->state, &temp_tensor);
+
+	//evaluate output
+	for (i = 0; i < NUM_KEYWORDS; i++) {
+		CallbackItem_t * callback_item = context->callbacks[i];
+		if (callback_item) {
+			const int8_t val = (int8_t)out->x[i];
+
+			//track max value of net output for this keyword
+			if (callback_item->is_active && val > callback_item->max_value) {
+				callback_item->max_value = val;
+			}
+			else {
+				callback_item->max_value = INT8_MIN;
+			}
+
+
+			//activating
+			if (val >= callback_item.activation_threshold && !callback_item->is_active) {
+				callback_item->is_active = 1;
+
+				if (callback_item->on_start) {
+					callback_item->on_start(callback_item->context,i, val);
+				}
+			}
+
+			//deactivating
+			if (val < callback_item.activation_threshold && callback_item->is_active) {
+				callback_item->is_active = 0;
+
+				//report max value
+				if (callback_item->on_end) {
+					callback_item->on_end(callback_item->context,i,callback_item->max_value);
+				}
+
+			}
+		}
+	}
+
+	//free
+	out->delete_me(out);
+
+
+
+}
+
+void initialize_keyword_net(void) {
+	MEMSET(&_context,0,sizeof(_context));
+
+	_context.net = initialize_network();
+
+    tinytensor_allocate_states(&_context.state, &_context.net);
+
+	tinytensor_features_initialize(&_context,feats_callback);
+}
+
+void deinitialize_keyword_net(void) {
+	tinytensor_features_deinitialize();
+
+	tinytensor_free_states(&_context.state,&_context.net);
+}
+
+void register_keyword_callback(void * target_context, Keyword_t keyword, int8_t threshold,KeywordCallback_t on_start, KeywordCallback_t on_end) {
+
+	_context.callbacks[keyword].on_start = on_start;
+	_context.callbacks[keyword].on_end = on_end;
+	_context.callbacks[keyword].context = target_context;
+	_context.callbacks[keyword].activation_threshold = threshold;
+
+}
+
+
+

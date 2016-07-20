@@ -411,6 +411,16 @@
 			<locationURI>PARENT-2-PROJECT_LOC/i2c_cmd.h</locationURI>
 		</link>
 		<link>
+			<name>keyword_net.c</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tensor/keyword_net.c</locationURI>
+		</link>
+		<link>
+			<name>keyword_net.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/tensor/keyword_net.h</locationURI>
+		</link>
+		<link>
 			<name>kit_assert.h</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/kit_assert.h</locationURI>
