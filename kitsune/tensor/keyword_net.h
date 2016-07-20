@@ -23,4 +23,6 @@ void keyword_net_deinitialize(void);
 
 void keyword_net_add_audio_samples(const int16_t * samples, uint32_t nsamples);
 
+int cmd_test_neural_net(int argc, char * argv[]);
+
 #endif //_KEYWORD_NET_H_

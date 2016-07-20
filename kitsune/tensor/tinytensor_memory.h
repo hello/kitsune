@@ -18,8 +18,8 @@ extern "C" {
 #include "FreeRTOS.h"
 #include <string.h>
 
-#define MALLLOC(x) pvPortMalloc(x)
-#define FREE(x) pvPortFree(x)
+#define MALLOC(x) pvPortMalloc(x)
+#define FREE(x) vPortFree(x)
 #define MEMCPY(tgt,src,size) memcpy(tgt,src,size)
 #define MEMSET(tgt,val,size) memset(tgt,val,size)
 

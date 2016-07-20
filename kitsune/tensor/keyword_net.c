@@ -116,4 +116,22 @@ void keyword_net_add_audio_samples(const int16_t * samples, uint32_t nsamples) {
 	tinytensor_features_add_samples(samples,nsamples);
 }
 
+int cmd_test_neural_net(int argc, char * argv[]) {
+	int16_t samples[256];
+	int i;
 
+	memset(samples,0,sizeof(samples));
+	keyword_net_initialize();
+
+	keyword_net_register_callback(0,okay_sense,20,0,0);
+
+	for (i = 0; i < 1024; i++) {
+		keyword_net_add_audio_samples(samples,256);
+	}
+
+
+	keyword_net_deinitialize();
+
+	return 0;
+
+}
