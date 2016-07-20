@@ -61,7 +61,8 @@ MEMORY
 {
     /* Application uses internal RAM for program and data */
     FLASH_CODE  (RX)  : origin = 0x0100A000, length = 0xF5FFF /* 1024KB */
-    SRAM_DATA   (RWX) : origin = 0x20000000, length = 0x040000 /* 256KB */
+    SRAM_DATA   (RWX) : origin = 0x20000000, length = 0x03AFFF /* 256KB */
+    SRAM_CODE   (RWX) : origin = 0x2003B000, length = 0x005000 /* 256KB */
 }
 
 /* Section allocation in memory */
@@ -79,5 +80,6 @@ SECTIONS
     .bss                  : > SRAM_DATA
     .sysmem               : > SRAM_DATA
     .stack                : > SRAM_DATA(HIGH)
+    .sram_code            : > SRAM_CODE
 }
 

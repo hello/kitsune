@@ -128,7 +128,7 @@ extern xSemaphoreHandle isr_sem;;
 //*****************************************************************************
 #define swap_endian(x) *(x) = ((*(x)) << 8) | ((*(x)) >> 8);
 static volatile unsigned long qqbufsz=0;
-void DMAPingPongCompleteAppCB_opt()
+__attribute__((section(".sram_code"))) void DMAPingPongCompleteAppCB_opt()
 {
     unsigned long ulPrimaryIndexTx = 0x4, ulAltIndexTx = 0x24;
     unsigned long ulPrimaryIndexRx = 0x5, ulAltIndexRx = 0x25;
