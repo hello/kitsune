@@ -6,20 +6,21 @@
 typedef enum {
 	none = 0,
 	okay_sense,
-	stop,
-	snooze,
-	alexa,
+//	stop,
+//	snooze,
+//	alexa,
 	NUM_KEYWORDS
 
 } Keyword_t;
 
 typedef void (*KeywordCallback_t)(void * context, Keyword_t keyword, int8_t value);
 
-void initialize_keyword_net(void);
+void keyword_net_initialize(void);
 
-void register_keyword_callback(void * target_context, Keyword_t keyword, int8_t threshold,KeywordCallback_t on_start, KeywordCallback_t on_end);
+void keyword_net_register_callback(void * target_context, Keyword_t keyword, int8_t threshold,KeywordCallback_t on_start, KeywordCallback_t on_end);
 
-void deinitialize_keyword_net(void);
+void keyword_net_deinitialize(void);
 
+void keyword_net_add_audio_samples(const int16_t * samples, uint32_t nsamples);
 
 #endif //_KEYWORD_NET_H_

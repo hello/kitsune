@@ -87,7 +87,7 @@ static void feats_callback(void * p, int8_t * feats) {
 
 }
 
-void initialize_keyword_net(void) {
+void keyword_net_initialize(void) {
 	MEMSET(&_context,0,sizeof(_context));
 
 	_context.net = initialize_network();
@@ -97,13 +97,13 @@ void initialize_keyword_net(void) {
 	tinytensor_features_initialize(&_context,feats_callback);
 }
 
-void deinitialize_keyword_net(void) {
+void keyword_net_deinitialize(void) {
 	tinytensor_features_deinitialize();
 
 	tinytensor_free_states(&_context.state,&_context.net);
 }
 
-void register_keyword_callback(void * target_context, Keyword_t keyword, int8_t threshold,KeywordCallback_t on_start, KeywordCallback_t on_end) {
+void keyword_net_register_callback(void * target_context, Keyword_t keyword, int8_t threshold,KeywordCallback_t on_start, KeywordCallback_t on_end) {
 
 	_context.callbacks[keyword].on_start = on_start;
 	_context.callbacks[keyword].on_end = on_end;
@@ -112,5 +112,8 @@ void register_keyword_callback(void * target_context, Keyword_t keyword, int8_t 
 
 }
 
+void keyword_net_add_audio_samples(const int16_t * samples, uint32_t nsamples) {
+	tinytensor_features_add_samples(samples,nsamples);
+}
 
 
