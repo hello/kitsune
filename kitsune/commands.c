@@ -99,6 +99,7 @@
 #include "top_board.h"
 #include "long_poll.h"
 #include "filedownloadmanager.h"
+#include "tensor/keyword_net.h"
 
 #define ONLY_AUDIO 0
 #if (AUDIO_FULL_DUPLEX==1)
@@ -2013,6 +2014,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "test_files",Cmd_generate_user_testing_files,""},
 #endif
 		{"fs", cmd_file_sync_upload, ""},
+		{"nn",cmd_test_neural_net,""},
 		{ 0, 0, 0 } };
 
 
