@@ -2005,7 +2005,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{"nwp", Cmd_nwpinfo, ""},
 
 		{"g", Cmd_gesture, ""},
-#ifdef BUILD_IPERF
+#if 1
 		{ "iperfsvr",Cmd_iperf_server,""},
 		{ "iperfcli",Cmd_iperf_client,""},
 #endif

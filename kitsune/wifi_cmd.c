@@ -400,9 +400,9 @@ int Cmd_country(int argc, char *argv[]) {
 	return 0;
 }
 
-#ifdef BUILD_IPERF
+#if 1
 int Cmd_iperf_server(int argc, char *argv[]) {
-    if (argc != 3) {
+  /*  if (argc != 3) {
         LOGI( "usage: iperfsvr <port> <num packets>\n\r");
         return -1;
     }
@@ -532,9 +532,10 @@ int Cmd_iperf_server(int argc, char *argv[]) {
 
     LOGI("Recieved %u packets successfully\n\r",lLoopCount);
 
-
+*/
     return 0;
 }
+#define BUF_SIZE 512
 int Cmd_iperf_client(int argc, char *argv[]) {
     if (argc != 4) {
     	LOGI("Run iperf command on target server \"iperf.exe -s -i 1\"\n");
