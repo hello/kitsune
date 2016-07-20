@@ -2,7 +2,7 @@
 #include "model_may25_lstm_large.c"
 #include "tinytensor_features.h"
 #include "tinytensor_memory.h"
-
+#include "uartstdio.h"
 
 typedef struct {
 	KeywordCallback_t on_start;
@@ -125,10 +125,13 @@ int cmd_test_neural_net(int argc, char * argv[]) {
 
 	keyword_net_register_callback(0,okay_sense,20,0,0);
 
+	UARTprintf("start test\n\n");
+
 	for (i = 0; i < 1024; i++) {
 		keyword_net_add_audio_samples(samples,256);
 	}
 
+	UARTprintf("\n\nstop test\n\n");
 
 	keyword_net_deinitialize();
 
