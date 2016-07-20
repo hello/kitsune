@@ -535,80 +535,22 @@ int Cmd_iperf_server(int argc, char *argv[]) {
 */
     return 0;
 }
+#include "hlo_http.h"
+extern hlo_stream_t * hlo_raw_sock_stream(uint32_t ip, uint16_t port);
+
 #define BUF_SIZE 512
 int Cmd_iperf_client(int argc, char *argv[]) {
-    if (argc != 4) {
-    	LOGI("Run iperf command on target server \"iperf.exe -s -i 1\"\n");
-        LOGI( "usage: iperfcli <ip (hex)> <port> <packets>\n\r");
-        return -1;
-    }
-
-    int             iCounter;
-    short           sTestBufLen;
-    SlSockAddrIn_t  sAddr;
-    int             iAddrSize;
-    int             iSockID;
-    int             iStatus;
-    long            lLoopCount = 0;
-    uint8_t buf[BUF_SIZE];
-
-    // filling the buffer
-    for (iCounter=0 ; iCounter<BUF_SIZE ; iCounter++)
-    {
-        buf[iCounter] = (char)(iCounter % 10);
-    }
-
-    sTestBufLen  = BUF_SIZE;
-
-    unsigned int packets = atoi(argv[3]);
-    unsigned short port = atoi(argv[2]);
-    char * pend;
-    unsigned int ip = strtol(argv[1], &pend, 16);
-
-    //filling the TCP server socket address
-    sAddr.sin_family = SL_AF_INET;
-    sAddr.sin_port = sl_Htons((unsigned short)port);
-    sAddr.sin_addr.s_addr = ((unsigned int)ip);
-
-    iAddrSize = sizeof(SlSockAddrIn_t);
-
-    // creating a TCP socket
-    iSockID = sl_Socket(SL_AF_INET,SL_SOCK_STREAM, 0);
-    if( iSockID < 0 )
-    {
-    	LOGE("failed to create socket");
+    hlo_stream_t * st = hlo_raw_sock_stream(3232268354, 5001);
+    if(st){
+    	int i;
+    	uint8_t buf[BUF_SIZE] = {0};
+    	for(i = 0; i < 100; i++){
+    		hlo_stream_write(st,buf,sizeof(buf));
+    	}
+    	hlo_stream_close(st);
+    }else{
     	return -1;
     }
-
-    // connecting to TCP server
-    iStatus = sl_Connect(iSockID, ( SlSockAddr_t *)&sAddr, iAddrSize);
-    if( iStatus < 0 )
-    {
-        // error
-        sl_Close(iSockID);
-    	LOGE("failed to connect socket");
-    	return -1;
-    }
-
-    // sending multiple packets to the TCP server
-    while (lLoopCount < packets)
-    {
-        // sending packet
-        iStatus = sl_Send(iSockID, buf, sTestBufLen, 0 );
-        if( iStatus <= 0 )
-        {
-            // error
-            LOGE("failed to send to socket");
-        	break;
-        }
-        lLoopCount++;
-    }
-
-    LOGI("Sent %u packets successfully\n\r",lLoopCount);
-
-    //closing the socket after sending 1000 packets
-    sl_Close(iSockID);
-
     return 0;
 }
 #endif
