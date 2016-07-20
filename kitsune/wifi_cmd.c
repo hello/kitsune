@@ -545,7 +545,9 @@ int Cmd_iperf_client(int argc, char *argv[]) {
     	int i;
     	uint8_t buf[BUF_SIZE] = {0};
     	for(i = 0; i < 100; i++){
-    		hlo_stream_write(st,buf,sizeof(buf));
+    		if( hlo_stream_write(st,buf,sizeof(buf)) < 0 ){
+    			break;
+    		}
     	}
     	hlo_stream_close(st);
     }else{
