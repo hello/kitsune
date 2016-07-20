@@ -1,8 +1,8 @@
 #include "tinytensor_features.h"
 #include "tinytensor_memory.h"
 
-#include "hellomath/fft.h"
-#include "hellomath/hellomath.h"
+#include "fft.h"
+#include "hellomath.h"
 
 #define USE_BACKGROUND_NORMALIZATION (0)
 
