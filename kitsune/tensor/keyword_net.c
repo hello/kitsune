@@ -116,8 +116,12 @@ void keyword_net_add_audio_samples(const int16_t * samples, uint32_t nsamples) {
 	tinytensor_features_add_samples(samples,nsamples);
 }
 
+#include "FreeRTOS.h"
+#include "task.h"
+
 int cmd_test_neural_net(int argc, char * argv[]) {
 	int16_t samples[256];
+	uint32_t start = xTaskGetTickCount();
 	int i;
 
 	memset(samples,0,sizeof(samples));
@@ -131,7 +135,7 @@ int cmd_test_neural_net(int argc, char * argv[]) {
 		keyword_net_add_audio_samples(samples,256);
 	}
 
-	UARTprintf("\n\nstop test\n\n");
+	UARTprintf("\n\nstop test %d\n\n", xTaskGetTickCount() - start);
 
 	keyword_net_deinitialize();
 
