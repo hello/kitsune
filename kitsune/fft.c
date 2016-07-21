@@ -13,7 +13,7 @@
 
 #define LOG2_N_WAVE     (10)
 #define N_WAVE          (1 << LOG2_N_WAVE)        /* dimension of Sinewave[] */
-
+__attribute__((section(".data")))
 static const uint16_t sin_lut[N_WAVE/4+1] = {
   0, 201, 402, 603, 804, 1005, 1206, 1406,
   1607, 1808, 2009, 2209, 2410, 2610, 2811, 3011,
@@ -51,7 +51,7 @@ static const uint16_t sin_lut[N_WAVE/4+1] = {
 };
 
 
-
+__attribute__((section(".data")))
 uint8_t bitlog(uint32_t n) {
     int16_t b;
     
@@ -90,7 +90,7 @@ uint32_t bitexp(uint16_t n) {
     
     return (retval << (b - 2));
 }
-
+__attribute__((section(".data")))
 short fxd_sin( uint16_t x ) {
 	x &= 0x3FF;
 	if( x > 3*N_WAVE/4 ) {
@@ -119,7 +119,7 @@ inline static short fix_mpy(short a, short b)
   return a;
 }
 #endif
-
+__attribute__((section(".data")))
 int fft(int16_t fr[], int16_t fi[], int32_t m)
 {
     int32_t mr, nn, i, j, l, k, istep, n;
@@ -215,6 +215,7 @@ int fftr(int16_t f[], int32_t m)
 //requires 2N memory... for now
 //ndct can be no greater than 8 (ie. length 256)
 //so fr should be length (2^(ndct + 1))
+__attribute__((section(".data")))
 void dct(int16_t fr[],int16_t fi[],const int16_t ndct) {
     uint32_t i,k;
     int16_t sine,cosine;
@@ -263,7 +264,7 @@ void dct(int16_t fr[],int16_t fi[],const int16_t ndct) {
     }
     
 }
-
+__attribute__((section(".data")))
 void fix_window(int16_t fr[], int32_t n)
 {
   int i, j, k;
@@ -277,7 +278,7 @@ void fix_window(int16_t fr[], int32_t n)
     FIX_MPY(fr[i], fr[i], 16384 - (fxd_sin(k) >> 1));
 }
 
-
+__attribute__((section(".data")))
 void abs_fft(uint16_t psd[], const int16_t fr[],const int16_t fi[],const int16_t len)
 {
     int i;
@@ -297,6 +298,7 @@ void updateoctogram(const int16_t fr[],const int16_t fi[]) {
 // f is both input and output
 // f as input is the PSD bin, and is always positive
 // f as output is the mel bins
+__attribute__((section(".data")))
 void logpsdmel(int16_t * logTotalEnergy,int16_t psd[],const int16_t fr[],const int16_t fi[],uint8_t log2scaleOfRawSignal,uint16_t min_energy) {
     uint16_t i;
     uint16_t ufr;
