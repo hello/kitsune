@@ -33,7 +33,7 @@ int8_t tiny_tensor_get_scaling(int32_t x);
 int8_t tiny_tensor_get_descaling(int32_t x);
 
 
-    
+__attribute__((section(".data")))
 static inline int32_t accumulate(const uint32_t n, const Weight_t * in1, const Weight_t * in2) {
     int32_t accumulator = 0;
     int16_t n_this_iter;

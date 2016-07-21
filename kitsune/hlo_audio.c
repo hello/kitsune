@@ -54,7 +54,7 @@ static int _reinit_playback(unsigned int sr, unsigned int initial_vol){
 	_open_playback(sr, initial_vol);
 	return 0;
 }
-__attribute__((section(".sram_code"))) static int _write_playback_mono(void * ctx, const void * buf, size_t size){
+__attribute__((section(".data"))) static int _write_playback_mono(void * ctx, const void * buf, size_t size){
 	//ERROR_IF_CLOSED();
 	last_playback_time = xTaskGetTickCount();
 	if( mode == RECORD || mode == CLOSED){
