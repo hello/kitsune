@@ -153,6 +153,7 @@ static int _read_record_quad_to_mono(void * ctx, void * buf, size_t size){
 		}else if(ret != sizeof(samples)){
 			return HLO_STREAM_ERROR;
 		}
+		*iter = quad_to_mono((int16_t*)samples);
 		iter++;
 	}
 	return (int)size;
