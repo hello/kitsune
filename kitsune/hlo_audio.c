@@ -111,7 +111,52 @@ static int _read_record_mono(void * ctx, void * buf, size_t size){
 	}
 	return 0;
 }
-
+static int16_t quad_to_mono(int16_t * samples){
+	/*
+	 * Word Order
+	 * Left1	Left2	Right1	Right2
+	 * Loopback	MIC1	MIC2	MIC3
+	 *
+	 */
+	//naive approach to pick the strongest number between samples
+	//probably causes a lot of distortion
+	int n1 = abs(samples[1]);
+	int n2 = abs(samples[2]);
+	int n3 = abs(samples[3]);
+	if( n1 >= n2 ){
+		if(n1 >= n3){
+			return samples[1];
+		}else{
+			return samples[3];
+		}
+	}else{
+		if(n2 >= n3){
+			return samples[2];
+		}else{
+			return samples[3];
+		}
+	}
+	return 0;
+}
+static int _read_record_quad_to_mono(void * ctx, void * buf, size_t size){
+	int i;
+	if(size % 2){//buffer must be in multiple of 2 bytes
+		LOGE("audio buffer alignment error\r\n");
+		return HLO_STREAM_ERROR;
+	}
+	int16_t * iter = (int16_t*)buf;
+	for(i = 0; i < size/2; i++){
+		uint8_t samples[2 * 4];
+		int ret = _read_record_mono(ctx, samples, sizeof(samples));
+		if(ret < 0 || ret == 0){
+			return ret;
+		}else if(ret != sizeof(samples)){
+			return HLO_STREAM_ERROR;
+		}
+		iter++;
+	}
+	return (int)size;
+}
 // TODO might need two functions for close of capture and playback?
 static int _close(void * ctx){
 	DISP("Closing stream\n");
@@ -127,6 +172,7 @@ static int _close(void * ctx){
 
 	return HLO_STREAM_NO_IMPL;
 }
+
 ////------------------------------
 //  Public API
 void hlo_audio_init(void){
@@ -134,7 +180,8 @@ void hlo_audio_init(void){
 	assert(lock);
 	hlo_stream_vftbl_t tbl = { 0 };
 	tbl.write = _write_playback_mono;
-	tbl.read = _read_record_mono;
+	//tbl.read = _read_record_mono;			//for 1p0 when return channel is mono
+	tbl.read = _read_record_quad_to_mono;	//for 1p5 when return channel is quad
 	tbl.close = _close;
 	master = hlo_stream_new(&tbl, NULL, HLO_AUDIO_RECORD|HLO_AUDIO_PLAYBACK);
 	record_isr_sem = xSemaphoreCreateBinary();

@@ -332,7 +332,7 @@ static hlo_filter _filter_from_string(const char * str){
 	case 'x':
 		return hlo_filter_voice_command;
 	case 'X':
-	//	return hlo_filter_modulate_led_with_sound;
+		return hlo_filter_modulate_led_with_sound;
 	default:
 		return hlo_filter_data_transfer;
 	}
