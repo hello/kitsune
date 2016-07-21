@@ -148,7 +148,7 @@ static int _read_record_quad_to_mono(void * ctx, void * buf, size_t size){
 	for(i = 0; i < size/2; i++){
 		uint8_t samples[2 * 4];
 		int ret = _read_record_mono(ctx, samples, sizeof(samples));
-		if(ret < 0 || ret == 0){
+		if(ret <= 0){
 			return ret;
 		}else if(ret != sizeof(samples)){
 			return HLO_STREAM_ERROR;
