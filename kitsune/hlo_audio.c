@@ -111,10 +111,8 @@ static int _read_record_mono(void * ctx, void * buf, size_t size){
 	}
 	return 0;
 }
-static int16_t _ez_lpf(int16_t a, int16_t b){
-	return (int16_t)(((int32_t)a + b)/2);
-}
-static int16_t _quad_to_mono(int16_t * samples, int16_t last_sample){
+
+static int16_t _quad_to_mono(int16_t * samples){
 	/*
 	 * Word Order
 	 * Left1	Left2	Right1	Right2
@@ -128,21 +126,24 @@ static int16_t _quad_to_mono(int16_t * samples, int16_t last_sample){
 	int n3 = abs(samples[3]);
 	if( n1 >= n2 ){
 		if(n1 >= n3){
-			return _ez_lpf(samples[1], last_sample);
+			return samples[1];
 		}else{
-			return  _ez_lpf(samples[3], last_sample);
+			return samples[3];
 		}
 	}else{
 		if(n2 >= n3){
-			return  _ez_lpf(samples[2], last_sample);
+			return  samples[2];
 		}else{
-			return  _ez_lpf(samples[3], last_sample);
+			return samples[3];
 		}
 	}
 }
+static int16_t _ez_lpf(int16_t a, int16_t b){
+	return (int16_t)(((int32_t)a + b)/2);
+}
 static int _read_record_quad_to_mono(void * ctx, void * buf, size_t size){
-	static int16_t last_sample;
 	int i;
+	static int16_t last;
 	if(size % 2){//buffer must be in multiple of 2 bytes
 		LOGE("audio buffer alignment error\r\n");
 		return HLO_STREAM_ERROR;
@@ -156,8 +157,8 @@ static int _read_record_quad_to_mono(void * ctx, void * buf, size_t size){
 		}else if(ret != sizeof(samples)){
 			return HLO_STREAM_ERROR;
 		}
-		*iter = _quad_to_mono((int16_t*)samples, last_sample);
-		last_sample = *iter;
+		*iter = _ez_lpf(_quad_to_mono((int16_t*)samples), last);
+		last = *iter;
 		iter++;
 	}
 	return (int)size;
