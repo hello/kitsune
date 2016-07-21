@@ -33,15 +33,14 @@ int8_t tiny_tensor_get_scaling(int32_t x);
 int8_t tiny_tensor_get_descaling(int32_t x);
 
 
-    
+__attribute__((section(".ramcode")))
 static inline int32_t accumulate(const uint32_t n, const Weight_t * in1, const Weight_t * in2) {
     int32_t accumulator = 0;
-    int16_t n_this_iter;
     int16_t nloop = n;
     nloop = n;
     
     while (nloop > 0) {
-        register n = (nloop + 7) / 8;
+        int n = (nloop + 7) / 8;
         switch (nloop % 8) {
         case 0: do { accumulator += *in1++ * *in2++; --nloop;
         case 7:      accumulator += *in1++ * *in2++; --nloop;
