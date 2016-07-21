@@ -111,7 +111,7 @@ static int _read_record_mono(void * ctx, void * buf, size_t size){
 	}
 	return 0;
 }
-static int16_t quad_to_mono(int16_t * samples){
+static int16_t _quad_to_mono(int16_t * samples){
 	/*
 	 * Word Order
 	 * Left1	Left2	Right1	Right2
@@ -153,7 +153,7 @@ static int _read_record_quad_to_mono(void * ctx, void * buf, size_t size){
 		}else if(ret != sizeof(samples)){
 			return HLO_STREAM_ERROR;
 		}
-		*iter = quad_to_mono((int16_t*)samples);
+		*iter = _quad_to_mono((int16_t*)samples);
 		iter++;
 	}
 	return (int)size;
