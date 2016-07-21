@@ -138,8 +138,8 @@ static int16_t _quad_to_mono(int16_t * samples){
 		}
 	}
 }
-static int16_t _ez_lpf(int16_t a, int16_t b){
-	return (int16_t)(((int32_t)a + b)/2);
+static int16_t _ez_lpf(int16_t now, int16_t prev){
+	return (int16_t)(((int32_t)now + prev)/2);
 }
 static int _read_record_quad_to_mono(void * ctx, void * buf, size_t size){
 	int i;
