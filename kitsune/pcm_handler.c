@@ -202,17 +202,12 @@ void DMAPingPongCompleteAppCB_opt()
 					+ END_PTR_DEBUG);
 			MAP_uDMAChannelEnable(UDMA_CH4_I2S_RX);
 
+#if (CODEC_ENABLE_MULTI_CHANNEL==0)
 			for (i = 0; i < CB_TRANSFER_SZ; i++) {
-#if (CODEC_ENABLE_MULTI_CHANNEL==1)
-				/*uint16_t pong_lsb = pong[i] & 0xFFFF;
-				uint16_t pong_msb = (pong[i] & 0xFFFF0000) >> 16;
-				swap_endian(&pong_lsb);
-				swap_endian(&pong_msb);
-				pong[i] = ((uint32_t) pong_msb << 16) | pong_lsb;*/
-#else
 				swap_endian(pong+i);
-#endif
 			}
+#endif
+
 #if (CODEC_ENABLE_MULTI_CHANNEL==1)
 			FillBuffer(pAudInBuf, (unsigned char*) pong, CB_TRANSFER_SZ * 4);
 #else
@@ -233,18 +228,12 @@ void DMAPingPongCompleteAppCB_opt()
 						+ END_PTR_DEBUG);
 				MAP_uDMAChannelEnable(UDMA_CH4_I2S_RX);
 
+#if (CODEC_ENABLE_MULTI_CHANNEL==0)
 				for (i = 0; i < CB_TRANSFER_SZ; i++) {
-#if (CODEC_ENABLE_MULTI_CHANNEL==1)
-				/*	uint16_t ping_lsb = ping[i] & 0xFFFF;
-					uint16_t ping_msb = (ping[i] & 0xFFFF0000) >> 16;
-					//swap_endian(&ping_lsb);
-					//swap_endian(&ping_msb);
-					ping[i] = ((uint32_t) ping_msb << 16) | ping_lsb;
-					*/
-#else
 					swap_endian(ping+i);
-#endif
 				}
+#endif
+
 #if (CODEC_ENABLE_MULTI_CHANNEL==1)
 				FillBuffer(pAudInBuf, (unsigned char*) ping,
 						CB_TRANSFER_SZ * 4);
