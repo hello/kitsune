@@ -172,8 +172,9 @@ static void test1(void) {
 
 		//DISP("%d\r\n",tensor_out->x[i] );
 
-    	if (abs(tensor_out->x[i]) > 1) {
-    		DISP("test1 FAIL at iter %d\r\n",i);
+    	if (abs(tensor_out->x[i]) > 2) {
+    		DISP("test1 FAIL at iter %d, ref=%d, val=%d\r\n",i,0,tensor_out->x[i]);
+        	return;
     	}
     }
 
@@ -185,6 +186,7 @@ static void test1(void) {
     	tensor_in->delete_me(tensor_in);
     }
 
+    DISP("TEST 1 SUCCESS\r\n");
 }
 
 static void test2(void) {
@@ -217,7 +219,8 @@ static void test2(void) {
 		//DISP("%d\r\n",x1);
 
 		if (abs(x1 - x2) > 2) {
-			DISP("FAIL test 2  at iter %d\r\n",i);
+			DISP("FAIL test 2  at iter %d, ref=%d, val=%d\r\n",i,x2,x1);
+        	return;
 		}
 	}
 
@@ -228,6 +231,9 @@ static void test2(void) {
 	if (tensor_in->delete_me) {
 		tensor_in->delete_me(tensor_in);
 	}
+
+    DISP("TEST 2 SUCCESS\r\n");
+
 }
 
 void test3(void) {
@@ -254,7 +260,8 @@ void test3(void) {
         //DISP("%d\n",x1);
 
         if (abs(x1 - x2) > 2) {
-        	DISP("FAIL test 3  at iter %d\r\n",i);
+        	DISP("FAIL test 3  at iter %d, ref=%d,value=%d\r\n",i,x2,x1);
+        	return;
         }
     }
 
@@ -265,6 +272,8 @@ void test3(void) {
     if (tensor_in->delete_me) {
     	tensor_in->delete_me(tensor_in);
     }
+
+    DISP("TEST 3 SUCCESS\r\n");
 
 }
 

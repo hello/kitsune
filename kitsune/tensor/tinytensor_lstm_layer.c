@@ -45,7 +45,6 @@ static void free_state(const void * context, void ** state) {
     *state = NULL;
 }
 
-__attribute__((section(".ramcode")))
 static int16_t hard_sigmoid(int32_t x,int8_t in_scale) {
     
     int32_t temp32 = x * 6554; //0.2 Q15 * x Q7 = 0.2x Q22
@@ -67,7 +66,6 @@ static int16_t hard_sigmoid(int32_t x,int8_t in_scale) {
     return (int16_t) temp32;
 }
 
-__attribute__((section(".ramcode")))
 static void lstm_time_step_forwards(int32_t * cell_state,
                                     Weight_t * output,
                                     const Weight_t * input_vec,
@@ -228,7 +226,7 @@ static void lstm_time_step_forwards(int32_t * cell_state,
  
  */
 
-__attribute__((section(".ramcode")))
+
 static void eval_helper(const void * context, Tensor_t * out,const Tensor_t * in,ELayer_t prev_layer_type,
                         int32_t * cell_state, Weight_t * prev_hidden, uint8_t is_stateful) {
     
@@ -328,7 +326,6 @@ static void eval_helper(const void * context, Tensor_t * out,const Tensor_t * in
 
 }
 
-__attribute__((section(".ramcode")))
 static void eval(const void * context,void * layer_state,Tensor_t * out,const Tensor_t * in,ELayer_t prev_layer_type) {
     LstmLayerState_t * state = (LstmLayerState_t *)layer_state;
 
@@ -350,7 +347,6 @@ static void eval(const void * context,void * layer_state,Tensor_t * out,const Te
     }
     
 }
-__attribute__((section(".ramcode")))
 ConstLayer_t tinytensor_create_lstm_layer(const LstmLayer_t * static_def) {
     ConstLayer_t layer = {eval,get_output_size,lstm_layer,static_def,alloc_state,free_state};
     return layer;
