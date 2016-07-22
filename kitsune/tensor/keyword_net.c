@@ -1,5 +1,5 @@
 #include "keyword_net.h"
-#include "model_may25_lstm_large.c"
+#include "model_may25_lstm_small_okay_sense_tiny.c"
 #include "tinytensor_features.h"
 #include "tinytensor_memory.h"
 #include "uartstdio.h"
