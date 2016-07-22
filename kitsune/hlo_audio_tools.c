@@ -267,6 +267,8 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 
 			vPortFree(resp.text.arg);
 			vPortFree(resp.url.arg);
+		}else{
+			DISP("Decoded Failed\r\n");
 		}
 		DISP("\r\n===========\r\n");
 	}
@@ -309,6 +311,27 @@ int hlo_filter_modulate_led_with_sound(hlo_stream_t * input, hlo_stream_t * outp
 	stop_led_animation( 0, 33 );
 	return ret;
 }
+#include "tensor/keyword_net.h"
+static void _begin_keyword(void * ctx, Keyword_t keyword, int8_t value){
+	DISP("Keyword Start\r\n");
+}
+static void _finish_keyword(void * ctx, Keyword_t keyword, int8_t value){
+	DISP("Keyword Done\r\n");
+}
+int hlo_filter_nn_keyword_recognition(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
+	int16_t samples[512];
+	int ret;
+	keyword_net_initialize();
+
+	keyword_net_register_callback(0,okay_sense,80,_begin_keyword,_finish_keyword);
+	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, sizeof(samples), 4)) >= 0 ){
+		keyword_net_add_audio_samples(samples,ret);
+		BREAK_ON_SIG(signal);
+	}
+	DISP("Keyword Detection Exit\r\n");
+	keyword_net_deinitialize();
+	return 0;
+}
 ////-----------------------------------------
 //commands
 static uint8_t _can_has_sig_stop(void){
@@ -344,6 +367,8 @@ static hlo_filter _filter_from_string(const char * str){
 		return hlo_filter_voice_command;
 	case 'X':
 		return hlo_filter_modulate_led_with_sound;
+	case 'n':
+		return hlo_filter_nn_keyword_recognition;
 	default:
 		return hlo_filter_data_transfer;
 	}
