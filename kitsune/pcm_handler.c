@@ -182,7 +182,6 @@ void DMAPingPongCompleteAppCB_opt()
 	if (dma_status & 0x00000010) {
 
 #if 0
-		UARTprintf("r");
 #endif
 		qqbufsz = GetBufferSize(pAudInBuf);
 		HWREG(0x4402609c) = (1 << 10);
@@ -208,13 +207,12 @@ void DMAPingPongCompleteAppCB_opt()
 
 			for (i = 0; i < CB_TRANSFER_SZ; i++) {
 #if (CODEC_ENABLE_MULTI_CHANNEL==1)
-				uint16_t pong_lsb = pong[i] & 0xFFFF;
+				/*uint16_t pong_lsb = pong[i] & 0xFFFF;
 				uint16_t pong_msb = (pong[i] & 0xFFFF0000) >> 16;
 				swap_endian(&pong_lsb);
 				swap_endian(&pong_msb);
-				pong[i] = ((uint32_t) pong_msb << 16) | pong_lsb;
+				pong[i] = ((uint32_t) pong_msb << 16) | pong_lsb;*/
 #if 0
-				if(pong[i] != 0) UARTprintf("%d", pong[i]);
 #endif
 #else
 				swap_endian(pong+i);
@@ -242,13 +240,12 @@ void DMAPingPongCompleteAppCB_opt()
 
 				for (i = 0; i < CB_TRANSFER_SZ; i++) {
 #if (CODEC_ENABLE_MULTI_CHANNEL==1)
-					uint16_t ping_lsb = ping[i] & 0xFFFF;
+				/*	uint16_t ping_lsb = ping[i] & 0xFFFF;
 					uint16_t ping_msb = (ping[i] & 0xFFFF0000) >> 16;
-					swap_endian(&ping_lsb);
-					swap_endian(&ping_msb);
+					//swap_endian(&ping_lsb);
+					//swap_endian(&ping_msb);
 					ping[i] = ((uint32_t) ping_msb << 16) | ping_lsb;
-#if 0
-					if(ping[i] != 0) UARTprintf("%d", ping[i]);
+					*/
 #endif
 
 #else
@@ -293,7 +290,6 @@ void DMAPingPongCompleteAppCB_opt()
 	// I2S TX
 	if (dma_status & 0x00000020) {
 #if 0
-		UARTprintf("p");
 #endif
 		qqbufsz = GetBufferSize(pAudOutBuf);
 		HWREG(0x4402609c) = (1 << 11);
