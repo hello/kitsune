@@ -247,10 +247,6 @@ void DMAPingPongCompleteAppCB_opt()
 					ping[i] = ((uint32_t) ping_msb << 16) | ping_lsb;
 					*/
 #endif
-
-#else
-					swap_endian(ping+i);
-#endif
 				}
 #if (CODEC_ENABLE_MULTI_CHANNEL==1)
 				FillBuffer(pAudInBuf, (unsigned char*) ping,
