@@ -16,38 +16,30 @@ extern tCircularBuffer *pRxBuffer;
 
 static xSemaphoreHandle lock;
 static hlo_stream_t * master;
-typedef enum{
-	CLOSED = 0,
-	PLAYBACK,
-	RECORD,
-}codec_state_t;
-static codec_state_t mode;
+
 static unsigned long record_sr;
 static unsigned long playback_sr;
 static unsigned int initial_vol;
 static unsigned int initial_gain;
 static uint8_t audio_playback_started;
-xSemaphoreHandle isr_sem;;
-
-static TickType_t last_playback_time;
+static uint8_t audio_record_started;
+xSemaphoreHandle record_isr_sem;
+xSemaphoreHandle playback_isr_sem;;
 
 #define LOCK() xSemaphoreTakeRecursive(lock,portMAX_DELAY)
 #define UNLOCK() xSemaphoreGiveRecursive(lock)
-#define ERROR_IF_CLOSED() if(mode == CLOSED) {return HLO_STREAM_ERROR;}
 
 ////------------------------------
 // playback stream driver
-static int _playback_done(void){
-	return (int)( (xTaskGetTickCount() - last_playback_time) > MODESWITCH_TIMEOUT_MS);
-}
+
 static int _open_playback(uint32_t sr, uint8_t vol){
-	if(!InitAudioPlayback(vol, sr)){
+	if(InitAudioPlayback(vol, sr)){
 		return -1;
-	}else{
-		mode = PLAYBACK;
-		DISP("Codec in SPKR mode\r\n");
-		return 0;
 	}
+
+	DISP("Open playback\r\n");
+	return 0;
+
 }
 static int _reinit_playback(unsigned int sr, unsigned int initial_vol){
 	DeinitAudioPlayback();
@@ -55,20 +47,19 @@ static int _reinit_playback(unsigned int sr, unsigned int initial_vol){
 	return 0;
 }
 static int _write_playback_mono(void * ctx, const void * buf, size_t size){
-	//ERROR_IF_CLOSED();
-	last_playback_time = xTaskGetTickCount();
-	if( mode == RECORD || mode == CLOSED){
-		//playback has priority, always swap to playback state
-		return _reinit_playback(playback_sr, initial_vol);
-	}
+	int ret;
+
 	if(IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) == TRUE){
 		if(audio_playback_started){
-			if(!xSemaphoreTake(isr_sem,5000)){
+			if(!xSemaphoreTake(playback_isr_sem,5000)){
 				LOGI("ISR Failed\r\n");
 				return _reinit_playback(playback_sr, initial_vol);
 			}
 		}else{
 			audio_playback_started = 1;
+			LOGI("Init playback\n");
+			ret = _reinit_playback(playback_sr, initial_vol);
+			if(ret) return ret;
 			Audio_Start();
 			return 0;
 		}
@@ -84,13 +75,12 @@ static int _write_playback_mono(void * ctx, const void * buf, size_t size){
 //record stream driver
 //bool set_mic_gain(int v, unsigned int dly) ;
 static int _open_record(uint32_t sr, uint32_t gain){
-	if(!InitAudioCapture(sr)){
+	if(InitAudioCapture(sr)){
 		return -1;
 	}
 	//set_mic_gain(gain,4);
-	mode = RECORD;
-	Audio_Start();
-	DISP("Codec in MIC mode\r\n");
+	// Audio_Start();
+	DISP("Open record\r\n");
 	return 0;
 }
 static int _reinit_record(unsigned int sr, unsigned int vol){
@@ -99,17 +89,18 @@ static int _reinit_record(unsigned int sr, unsigned int vol){
 	return 0;
 }
 static int _read_record_mono(void * ctx, void * buf, size_t size){
-	//ERROR_IF_CLOSED();
-	if( mode == PLAYBACK  || mode == CLOSED){
-		//swap mode back to record iff playback buffer is empty
-		if( _playback_done() ){
-			return _reinit_record(record_sr, initial_gain);
-		}else{
-			return HLO_STREAM_EOF;
-		}
+
+	int ret;
+
+	if(!audio_record_started){
+		audio_record_started = 1;
+		ret = _reinit_record(record_sr, initial_gain);
+		Audio_Start();
+		if(ret) return ret;
 	}
+
 	if( !IsBufferSizeFilled(pTxBuffer, LISTEN_WATERMARK) ){
-		if(!xSemaphoreTake(isr_sem,5000)){
+		if(!xSemaphoreTake(record_isr_sem,5000)){
 			LOGI("ISR Failed\r\n");
 			return _reinit_record(record_sr, initial_gain);
 		}
@@ -120,10 +111,78 @@ static int _read_record_mono(void * ctx, void * buf, size_t size){
 	}
 	return 0;
 }
+static int16_t _select_channel(int16_t * samples, uint8_t ch){
+	return samples[ch];
+}
+static int16_t _quad_to_mono(int16_t * samples){
+	/*
+	 * Word Order
+	 * Left1	Left2	Right1	Right2
+	 * Loopback	MIC1	MIC2	MIC3
+	 *
+	 */
+	//naive approach to pick the strongest number between samples
+	//probably causes a lot of distortion
+	int n1 = abs(samples[1]);
+	int n2 = abs(samples[2]);
+	int n3 = abs(samples[3]);
+	if( n1 >= n2 ){
+		if(n1 >= n3){
+			return samples[1];
+		}else{
+			return samples[3];
+		}
+	}else{
+		if(n2 >= n3){
+			return  samples[2];
+		}else{
+			return samples[3];
+		}
+	}
+}
+static int16_t _ez_lpf(int16_t now, int16_t prev){
+	return (int16_t)(((int32_t)now + prev)/2);
+}
+static int _read_record_quad_to_mono(void * ctx, void * buf, size_t size){
+	int i;
+	static int16_t last;
+	if(size % 2){//buffer must be in multiple of 2 bytes
+		LOGE("audio buffer alignment error\r\n");
+		return HLO_STREAM_ERROR;
+	}
+	int16_t * iter = (int16_t*)buf;
+	for(i = 0; i < size/2; i++){
+		uint8_t samples[2 * 4];
+		int ret = _read_record_mono(ctx, samples, sizeof(samples));
+		if(ret <= 0){
+			return ret;
+		}else if(ret != sizeof(samples)){
+			return HLO_STREAM_ERROR;
+		}
+		*iter = _ez_lpf(_quad_to_mono((int16_t*)samples), last);
+	//	*iter = _ez_lpf(_select_channel((int16_t*)samples, 3), last);
+	//	*iter = _select_channel((int16_t*)samples, 3);
+		last = *iter;
+		iter++;
+	}
+	return (int)size;
+}
+// TODO might need two functions for close of capture and playback?
 static int _close(void * ctx){
-	//DeinitAudio();
+	DISP("Closing stream\n");
+
+	Audio_Stop();
+
+	DeinitAudioPlayback();
+	DeinitAudioCapture();
+
+
+	audio_record_started = 0;
+	audio_playback_started = 0;
+
 	return HLO_STREAM_NO_IMPL;
 }
+
 ////------------------------------
 //  Public API
 void hlo_audio_init(void){
@@ -131,12 +190,14 @@ void hlo_audio_init(void){
 	assert(lock);
 	hlo_stream_vftbl_t tbl = { 0 };
 	tbl.write = _write_playback_mono;
-	tbl.read = _read_record_mono;
+	//tbl.read = _read_record_mono;			//for 1p0 when return channel is mono
+	tbl.read = _read_record_quad_to_mono;	//for 1p5 when return channel is quad
 	tbl.close = _close;
 	master = hlo_stream_new(&tbl, NULL, HLO_AUDIO_RECORD|HLO_AUDIO_PLAYBACK);
-	mode = CLOSED;
-	isr_sem = xSemaphoreCreateBinary();
-	assert(isr_sem);
+	record_isr_sem = xSemaphoreCreateBinary();
+	assert(record_isr_sem);
+	playback_isr_sem = xSemaphoreCreateBinary();
+	assert(playback_isr_sem);
 }
 hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint8_t vol, uint32_t direction){
 	hlo_stream_t * ret = master;

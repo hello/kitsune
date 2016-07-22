@@ -1,8 +1,8 @@
 #include "keyword_net.h"
-#include "model_may25_lstm_large.c"
+#include "model_may25_lstm_small_okay_sense_tiny.c"
 #include "tinytensor_features.h"
 #include "tinytensor_memory.h"
-#include "uartstdio.h"
+#include "uart_logger.h"
 
 #include "data\lstm1.c"
 #include "data\lstm1_input.c"
@@ -25,6 +25,7 @@ typedef struct {
     uint8_t keyword_on_states[NUM_KEYWORDS];
 
     CallbackItem_t callbacks[NUM_KEYWORDS];
+    uint32_t counter;
 
 } KeywordNetContext_t;
 
@@ -36,6 +37,7 @@ static void feats_callback(void * p, int8_t * feats) {
 	Tensor_t * out;
 	Tensor_t temp_tensor;
 	uint32_t i;
+	int j;
 
 	temp_tensor.dims[0] = 1;
 	temp_tensor.dims[1] = 1;
@@ -48,6 +50,22 @@ static void feats_callback(void * p, int8_t * feats) {
 
 
 	out = tinytensor_eval_stateful_net(&context->net, &context->state, &temp_tensor);
+
+	if (context->counter++ < 20) {
+		out->delete_me(out);
+		return;
+	}
+	if(context->counter % 50 ==0){
+		for(j = 0 ; j < 10; j++){
+			if( out->x[1] >= j * 12 ){
+				DISP("X");
+			}else{
+				DISP("_");
+			}
+		}
+		DISP("%d\r", out->x[1]);
+	}
+
 
 	//evaluate output
 	for (i = 0; i < NUM_KEYWORDS; i++) {
@@ -122,6 +140,11 @@ void keyword_net_add_audio_samples(const int16_t * samples, uint32_t nsamples) {
 	tinytensor_features_add_samples(samples,nsamples);
 }
 
+
+#include "FreeRTOS.h"
+#include "task.h"
+
+
 static void test1(void) {
 	Tensor_t * tensor_in;
 	Tensor_t * tensor_out;
@@ -132,7 +155,7 @@ static void test1(void) {
 
     ConstLayer_t lstm_layer = tinytensor_create_lstm_layer(&LSTM2_01);
 
-    UARTprintf("---test1---\r\n");
+    DISP("TEST 1 TEST 1 TEST 1\r\n");
     tensor_in = tinytensor_clone_new_tensor(&lstm1_input_zeros);
 
     lstm_layer.get_output_dims(lstm_layer.context,dims);
@@ -147,10 +170,10 @@ static void test1(void) {
 
     for (i = 0; i < n; i++) {
 
-		UARTprintf("%d\r\n",tensor_out->x[i] );
+		DISP("%d\r\n",tensor_out->x[i] );
 
     	if (abs(tensor_out->x[i]) > 1) {
-    		UARTprintf("test1 FAIL at iter %d\r\n",i);
+    		DISP("test1 FAIL at iter %d\r\n",i);
     	}
     }
 
@@ -172,7 +195,7 @@ static void test2(void) {
 	int i;
 	ConstLayer_t lstm_layer = tinytensor_create_lstm_layer(&LSTM2_01);
 
-    UARTprintf("---test2---\r\n");
+    DISP("TEST 2 TEST 2 TEST 2\r\n");
 
 	tensor_in = tinytensor_clone_new_tensor(&lstm1_input);
 
@@ -191,10 +214,10 @@ static void test2(void) {
 		int x1 = tensor_out->x[i] >> tensor_out->scale;
 		int x2 = lstm1_ref_x[i] >> lstm1_ref.scale;
 
-		UARTprintf("%d\r\n",x1);
+		DISP("%d\r\n",x1);
 
 		if (abs(x1 - x2) > 2) {
-			UARTprintf("[FAIL] test 2  at iter %d\r\n",i);
+			DISP("FAIL test 2  at iter %d\r\n",i);
 		}
 	}
 
@@ -216,7 +239,7 @@ void test3(void) {
 
     tensor_in = tinytensor_clone_new_tensor(&lstm1_input);
 
-    UARTprintf("---test3---\r\n");
+    DISP("TEST3  TEST TEST\r\n");
 
     ConstSequentialNetwork_t net = initialize_network03();
     tensor_out = tinytensor_eval_partial_net(&net,tensor_in,3);
@@ -228,10 +251,10 @@ void test3(void) {
         int x1 = tensor_out->x[i] >> tensor_out->scale;
         int x2 = lstm3_ref_x[i] >> lstm3_ref.scale;
 
-        UARTprintf("%d\n",x1);
+        DISP("%d\n",x1);
 
         if (abs(x1 - x2) > 2) {
-        	UARTprintf("[FAIL] test 3  at iter %d\r\n",i);
+        	DISP("FAIL test 3  at iter %d\r\n",i);
         }
     }
 
@@ -247,6 +270,7 @@ void test3(void) {
 
 int cmd_test_neural_net(int argc, char * argv[]) {
 	int16_t samples[256];
+	uint32_t start = xTaskGetTickCount();
 	int i;
 
 	test1();
@@ -259,13 +283,13 @@ int cmd_test_neural_net(int argc, char * argv[]) {
 
 	keyword_net_register_callback(0,okay_sense,20,0,0);
 
-	UARTprintf("start test\n\n");
+	DISP("start test\n\n");
 
 	for (i = 0; i < 1024; i++) {
 		keyword_net_add_audio_samples(samples,256);
 	}
 
-	UARTprintf("\n\nstop test\n\n");
+	DISP("\n\nstop test %d\n\n", xTaskGetTickCount() - start);
 
 	keyword_net_deinitialize();
 	 */

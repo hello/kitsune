@@ -5,13 +5,21 @@
 #include "hlo_stream.h"
 #include "hlo_pipe.h"
 
+#include "codec_debug_config.h"
+
+#if (CODEC_ADC_16KHZ == 1)
+#define AUDIO_CAPTURE_PLAYBACK_RATE 16000
+#else
+#define AUDIO_CAPTURE_PLAYBACK_RATE 48000
+#endif
+
 //magic number, in no particular units, just from observation
 #define MIN_CLASSIFICATION_ENERGY (100)
 
 
 #define AUDIO_FFT_SIZE_2N (8)
 #define AUDIO_FFT_SIZE (1 << AUDIO_FFT_SIZE_2N)
-#define EXPECTED_AUDIO_SAMPLE_RATE_HZ (16000)
+#define EXPECTED_AUDIO_SAMPLE_RATE_HZ (AUDIO_CAPTURE_PLAYBACK_RATE)
 
 #define SAMPLE_RATE_IN_HZ (EXPECTED_AUDIO_SAMPLE_RATE_HZ / AUDIO_FFT_SIZE)
 #define SAMPLE_PERIOD_IN_MILLISECONDS  (1000 / SAMPLE_RATE_IN_HZ)

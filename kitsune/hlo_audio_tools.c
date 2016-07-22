@@ -205,7 +205,7 @@ extern uint8_t get_alpha_from_light();
 extern bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, void **arg);
 int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
 #define NSAMPLES 512
-	int sample_rate = 16000;
+	int sample_rate = AUDIO_CAPTURE_PLAYBACK_RATE;
 	int ret = 0;
 	int16_t samples[NSAMPLES];
 	int32_t count = 0;
@@ -259,7 +259,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		resp.url.funcs.decode = _decode_string_field;
 		if( 0 == hlo_pb_decode(output,SpeechResponse_fields, &resp) ){
 			DISP("Resp %s\r\nUrl %s\r\n", resp.text.arg, resp.url.arg);
-			hlo_stream_t * aud = hlo_audio_open_mono(16000, 60,HLO_AUDIO_PLAYBACK);
+			hlo_stream_t * aud = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE, 60,HLO_AUDIO_PLAYBACK);
 			hlo_stream_t * fs = hlo_http_get(resp.url.arg);
 			hlo_filter_adpcm_decoder(fs,aud,NULL,NULL);
 			hlo_stream_close(fs);
@@ -267,6 +267,8 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 
 			vPortFree(resp.text.arg);
 			vPortFree(resp.url.arg);
+		}else{
+			DISP("Decoded Failed\r\n");
 		}
 		DISP("\r\n===========\r\n");
 	}
@@ -298,6 +300,28 @@ int hlo_filter_modulate_led_with_sound(hlo_stream_t * input, hlo_stream_t * outp
 	stop_led_animation( 0, 33 );
 	return ret;
 }
+#include "tensor/keyword_net.h"
+static void _begin_keyword(void * ctx, Keyword_t keyword, int8_t value){
+	DISP("Keyword Start\r\n");
+}
+static void _finish_keyword(void * ctx, Keyword_t keyword, int8_t value){
+	DISP("Keyword Done\r\n");
+}
+int hlo_filter_nn_keyword_recognition(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
+	int16_t samples[160];
+	int ret;
+	keyword_net_initialize();
+
+	keyword_net_register_callback(0,okay_sense,60,_begin_keyword,_finish_keyword);
+	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, sizeof(samples), 4)) >= 0 ){
+		keyword_net_add_audio_samples(samples,ret);
+		hlo_stream_transfer_all(INTO_STREAM, output,  (uint8_t*)samples, ret, 4);
+		BREAK_ON_SIG(signal);
+	}
+	DISP("Keyword Detection Exit\r\n");
+	keyword_net_deinitialize();
+	return 0;
+}
 ////-----------------------------------------
 //commands
 static uint8_t _can_has_sig_stop(void){
@@ -306,7 +330,7 @@ static uint8_t _can_has_sig_stop(void){
 int Cmd_audio_record_start(int argc, char *argv[]){
 	//audio_sig_stop = 0;
 	//hlo_audio_recorder_task("rec.raw");
-	AudioTask_StartCapture(16000);
+	AudioTask_StartCapture(AUDIO_CAPTURE_PLAYBACK_RATE);
 	return 0;
 }
 int Cmd_audio_record_stop(int argc, char *argv[]){
@@ -332,7 +356,9 @@ static hlo_filter _filter_from_string(const char * str){
 	case 'x':
 		return hlo_filter_voice_command;
 	case 'X':
-	//	return hlo_filter_modulate_led_with_sound;
+		return hlo_filter_modulate_led_with_sound;
+	case 'n':
+		return hlo_filter_nn_keyword_recognition;
 	default:
 		return hlo_filter_data_transfer;
 	}
@@ -351,7 +377,11 @@ int Cmd_stream_transfer(int argc, char * argv[]){
 	if(argc >= 4){
 		f = _filter_from_string(argv[3]);
 	}
+#if 0
 	hlo_stream_t * in = open_stream_from_path(argv[1],1);
+#else
+	hlo_stream_t * in = open_stream_from_path(argv[1],2); // TODO DKH
+#endif
 	hlo_stream_t * out = open_stream_from_path(argv[2],0);
 
 	if(in && out){
