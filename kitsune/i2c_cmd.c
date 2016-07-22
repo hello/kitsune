@@ -873,12 +873,15 @@ bool set_volume(int v, unsigned int dly) {
 	char send_stop = 1;
 	unsigned char cmd[2];
 
-	//	w 30 00 00 # Select Page 0
-	codec_set_page(1);
 
-	codec_set_book(0);
 
 	if( xSemaphoreTakeRecursive(i2c_smphr, dly)) {
+
+		//	w 30 00 00 # Select Page 0
+		codec_set_page(1);
+
+		codec_set_book(0);
+
 		cmd[0] = 48;
 		cmd[1] = ((v%6) << 4) | ( ((v%6)!=0) << 0);
 		I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
