@@ -11,23 +11,15 @@ typedef struct {
 } Filedata_t;
 
 void InitAudioHelper();
-
-
-#if (AUDIO_FULL_DUPLEX==1)
 void InitAudioHelper_p();
 void InitAudioTxRx(uint32_t rate);
-#endif
+
 
 uint8_t InitAudioCapture(uint32_t rate);
 void DeinitAudioCapture(void);
 
 uint8_t InitAudioPlayback(int32_t vol, uint32_t rate);
 void DeinitAudioPlayback(void);
-
-void AudioStartCapture(void);
-void AudioStopCapture(void);
-void AudioStartPlayback(void);
-void AudioStopPlayback(void);
 
 uint8_t InitFile(Filedata_t * pfiledata);
 uint8_t WriteToFile(Filedata_t * pfiledata,const UINT bytes_to_write,const uint8_t * const_ptr_samples_bytes);

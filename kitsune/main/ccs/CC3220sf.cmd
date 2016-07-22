@@ -56,11 +56,11 @@
 //*****************************************************************************
 
 /* System memory map */
-
+#define FLASH_BASE 0x0100A000
 MEMORY
 {
     /* Application uses internal RAM for program and data */
-    FLASH_CODE  (RX)  : origin = 0x01006000, length = 0xF9FFF /* 1024KB */
+    FLASH_CODE  (RX)  : origin = 0x0100A000, length = 0xF5FFF /* 1024KB */
     SRAM_DATA   (RWX) : origin = 0x20000000, length = 0x040000 /* 256KB */
 }
 
@@ -68,12 +68,14 @@ MEMORY
 
 SECTIONS
 {
-    .resetVecs            : > FLASH_CODE
+    .resetVecs            : > FLASH_BASE
     .init_array           : > FLASH_CODE
     .text                 : > FLASH_CODE
     .const                : > FLASH_CODE
     .cinit                : > FLASH_CODE
     .pinit                : > FLASH_CODE
+    .binit                : > FLASH_CODE
+    .ramcode              : load = FLASH_CODE, run= SRAM_DATA, table(BINIT)
     .ramvecs              : > SRAM_DATA ALIGN(1024)
     .data                 : > SRAM_DATA
     .bss                  : > SRAM_DATA

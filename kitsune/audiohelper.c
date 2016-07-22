@@ -33,82 +33,25 @@ extern tCircularBuffer *pTxBuffer;
 extern tCircularBuffer *pRxBuffer;
 
 static unsigned char * audio_mem;
-#if (AUDIO_FULL_DUPLEX==1)
 static unsigned char * audio_mem_p;
-#endif
-
-bool i2s_capture_enabled = false;
-bool i2s_playback_enabled = false;
-// mutex to protect i2s enabled status
-static xSemaphoreHandle _i2s_enabled_mutex = NULL;
-
-typedef enum
-{
-	deinit_capture = 0,
-	deinit_playback = 1,
-	deinit_both = 2
-}deinit_type;
-void McASPDeInit_FullDuplex(deinit_type type);
-void SetupDMAModeFullDuplex(void (*pfnAppCbHndlr)(void), deinit_type type);
 
 void InitAudioHelper() {
 	audio_mem = (unsigned char*)pvPortMalloc( AUD_BUFFER_SIZE );
 }
 
-#if (AUDIO_FULL_DUPLEX==1)
 void InitAudioHelper_p() {
 
 	audio_mem_p = (unsigned char*)pvPortMalloc( AUD_BUFFER_SIZE );
 }
-#endif
 
-#if (AUDIO_FULL_DUPLEX==1)
 void InitAudioTxRx(uint32_t rate)
 {
 	// Initialize the Audio(I2S) Module
 	McASPInit(rate);
 
-//	UDMAChannelSelect(UDMA_CH4_I2S_RX, NULL);
-//	UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL);
-//
-//	// Setup the DMA Mode
-//	SetupPingPongDMATransferTx();
-//	// Setup the DMA Mode
-//	SetupPingPongDMATransferRx();
-//
-//	// Setup the Audio In/Out
-//    //MAP_I2SIntEnable(I2S_BASE, I2S_INT_RDMA | I2S_INT_XDMA );
-//	MAP_I2SRxFIFOEnable(I2S_BASE,8,1);
-//	MAP_I2STxFIFOEnable(I2S_BASE,8,1);
-//
 	MAP_I2SIntRegister(I2S_BASE,DMAPingPongCompleteAppCB_opt);
-//
-//    MAP_I2SSerializerConfig(I2S_BASE,I2S_DATA_LINE_1,I2S_SER_MODE_RX, I2S_INACT_LOW_LEVEL);
-//    MAP_I2SSerializerConfig(I2S_BASE,I2S_DATA_LINE_0,I2S_SER_MODE_TX, I2S_INACT_LOW_LEVEL);
-//
-//	MAP_I2SEnable(I2S_BASE,I2S_MODE_TX_RX_SYNC);
-
-	// init mutex for file download status flag
-	if(!_i2s_enabled_mutex)
-	{
-		_i2s_enabled_mutex = xSemaphoreCreateMutex();
-	}
-	i2s_capture_enabled = false;
-	i2s_playback_enabled = false;
 
 }
-
-void DeinitAudioTxRx(uint32_t rate)
-{
-	AudioStopCapture();
-	AudioStopPlayback();
-	McASPDeInit();
-
-	MAP_uDMAChannelDisable(UDMA_CH4_I2S_RX);
-	MAP_uDMAChannelDisable(UDMA_CH5_I2S_TX);
-
-}
-#endif
 
 uint8_t InitAudioCapture(uint32_t rate) {
 
@@ -116,9 +59,6 @@ uint8_t InitAudioCapture(uint32_t rate) {
 		pTxBuffer = CreateCircularBuffer(TX_BUFFER_SIZE, audio_mem);
 	}
 	memset( audio_mem, 0, AUD_BUFFER_SIZE);
-
-	// Setup the Audio In/Out
-	MAP_I2SIntEnable(I2S_BASE, I2S_INT_RDMA );
 
 	UDMAChannelSelect(UDMA_CH4_I2S_RX, NULL);
 
@@ -133,108 +73,21 @@ uint8_t InitAudioCapture(uint32_t rate) {
 
     MAP_I2SSerializerConfig(I2S_BASE,I2S_DATA_LINE_1,I2S_SER_MODE_RX, I2S_INACT_LOW_LEVEL);
 
-	// Start Audio Tx/Rx
-	AudioStartCapture();
-
-
-#if (AUDIO_FULL_DUPLEX == 0)
-	// Initialize the Audio(I2S) Module
-	McASPInit(rate);  // TODO DKH
-
-	UDMAChannelSelect(UDMA_CH4_I2S_RX, NULL);
-
-	// Setup the DMA Mode
-	SetupPingPongDMATransferTx();
-
 	// Setup the Audio In/Out
 	MAP_I2SIntEnable(I2S_BASE, I2S_INT_RDMA );
 
-	AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
-	AudioCaptureRendererConfigure( rate);
-
 	// Start Audio Tx/Rx
-	Audio_Start();
-#endif
+	//Audio_Start();
 
-	return 1;
+	return 0;
 }
-
-void McASPDeInit_FullDuplex(deinit_type type)
-{
-
-	switch(type)
-	{
-	case deinit_capture:
-		MAP_I2SIntDisable(I2S_BASE, I2S_INT_RDMA);
-		//MAP_I2SRxFIFODisable(I2S_BASE);
-		break;
-
-	case deinit_playback:
-		MAP_I2SIntDisable(I2S_BASE,I2S_INT_XDMA);
-		//MAP_I2STxFIFODisable(I2S_BASE);
-		break;
-
-	case deinit_both:
-		MAP_I2SIntDisable(I2S_BASE,I2S_INT_XDMA | I2S_INT_RDMA);
-		MAP_I2STxFIFODisable(I2S_BASE);
-		MAP_I2SRxFIFODisable(I2S_BASE);
-		I2SIntUnregister(I2S_BASE);
-		break;
-
-	default:
-		break;
-
-
-	}
-
-}
-
-//*****************************************************************************
-//
-//! Setup the Audio capturer callback routine and the interval of callback.
-//! On the invocation the callback is expected to fill the AFIFO with enough
-//! number of samples for one callback interval.
-//!
-//! \param pfnAppCbHndlr is the callback handler that is invoked when
-//! \e ucCallbackEvtSamples space is available in the audio FIFO
-//! \param ucCallbackEvtSamples is used to configure the callback interval
-//!
-//! This function initializes
-//!        1. Initializes the interrupt callback routine
-//!        2. Sets up the AFIFO to interrupt at the configured interval
-//!
-//! \return None.
-//
-//*****************************************************************************
-void SetupDMAModeFullDuplex(void (*pfnAppCbHndlr)(void), deinit_type type)
-{
-	MAP_I2SIntRegister(I2S_BASE,DMAPingPongCompleteAppCB_opt);
-
-	if(type == deinit_capture)
-	{
-		MAP_I2SRxFIFOEnable(I2S_BASE,8,1);
-	}
-	else if(type == deinit_playback)
-	{
-		MAP_I2STxFIFOEnable(I2S_BASE,8,1);
-	}
-
-}
-
 
 void DeinitAudioCapture(void) {
-#if (AUDIO_FULL_DUPLEX == 0)
-	Audio_Stop();
-	McASPDeInit();
 
-	MAP_uDMAChannelDisable(UDMA_CH4_I2S_RX);
-#endif
-
-	AudioStopCapture();
+	// Audio_Stop();
 
 	// Setup the Audio In/Out
 	MAP_I2SIntDisable(I2S_BASE, I2S_INT_RDMA );
-	//McASPDeInit_FullDuplex(deinit_capture);
 
 	MAP_uDMAChannelDisable(UDMA_CH4_I2S_RX);
 
@@ -248,21 +101,12 @@ void DeinitAudioCapture(void) {
 
 uint8_t InitAudioPlayback(int32_t vol, uint32_t rate ) {
 
-#if (AUDIO_FULL_DUPLEX==1)
 	//create circular buffer
 	if (!pRxBuffer) {
 		pRxBuffer = CreateCircularBuffer(RX_BUFFER_SIZE, audio_mem_p);
 	}
 	memset( audio_mem_p, 0, AUD_BUFFER_SIZE);
 
-
-#else
-	//create circular buffer
-	if (!pRxBuffer) {
-		pRxBuffer = CreateCircularBuffer(RX_BUFFER_SIZE, audio_mem);
-	}
-	memset( audio_mem, 0, AUD_BUFFER_SIZE);
-#endif
 	// Initialize the Audio(I2S) Module
 	//McASPInit(rate);
 
@@ -286,39 +130,14 @@ uint8_t InitAudioPlayback(int32_t vol, uint32_t rate ) {
 	// Setup the Audio In/Out
     MAP_I2SIntEnable(I2S_BASE,I2S_INT_XDMA);
 
-	//////
-	// SET UP AUDIO PLAYBACK
-#if (AUDIO_FULL_DUPLEX == 0)
-	// Initialize the Audio(I2S) Module
-	McASPInit(rate);
-
-	UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL);
-
-	// Setup the DMA Mode
-	SetupPingPongDMATransferRx();
-
-	// Setup the Audio In/Out
-    MAP_I2SIntEnable(I2S_BASE,I2S_INT_XDMA  );
-
-	AudioCapturerSetupDMAMode(DMAPingPongCompleteAppCB_opt, CB_EVENT_CONFIG_SZ);
-	AudioCaptureRendererConfigure( rate);
-#endif
-	return 1;
+	return 0;
 
 }
 
 void DeinitAudioPlayback(void) {
-#if (AUDIO_FULL_DUPLEX == 0)
-	McASPDeInit();
-
-	MAP_uDMAChannelDisable(UDMA_CH5_I2S_TX);
-#endif
-
 
 	// Mute speaker
 	codec_mute_spkr();
-
-	//McASPDeInit_FullDuplex(deinit_playback);
 
 	MAP_uDMAChannelDisable(UDMA_CH5_I2S_TX);
 
@@ -329,71 +148,6 @@ void DeinitAudioPlayback(void) {
 		DestroyCircularBuffer(pRxBuffer);
 		pRxBuffer = NULL;
 	}
-}
-
-#include "uartstdio.h"
-void AudioStartCapture(void)
-{
-//	UARTprintf("CAPTURE SA ENTER\n");
-//	xSemaphoreTake(_i2s_enabled_mutex, portMAX_DELAY);
-//		if(!(i2s_playback_enabled) )
-//		{
-//			UARTprintf("CAPTURE START\n");
-//			// Start Audio Tx/Rx
-			Audio_Start();
-//		}
-//		i2s_capture_enabled = true;
-//	xSemaphoreGive(_i2s_enabled_mutex);
-//	UARTprintf("CAPTURE SA EXIT\n");
-
-}
-
-void AudioStopCapture(void)
-{
-//	UARTprintf("CAPTURE SO ENTER\n");
-//	xSemaphoreTake(_i2s_enabled_mutex, portMAX_DELAY);
-//		i2s_capture_enabled = false;
-//		if(! (i2s_playback_enabled) )
-//		{
-//			UARTprintf("CAPTURE STOP\n");
-//			// Start Audio Tx/Rx
-			Audio_Stop();
-//		}
-//	xSemaphoreGive(_i2s_enabled_mutex);
-//	UARTprintf("CAPTURE SO EXIT\n");
-}
-
-void AudioStartPlayback(void)
-{
-//	UARTprintf("PLAYBACK SA ENTER\n");
-//	xSemaphoreTake(_i2s_enabled_mutex, portMAX_DELAY);
-//		if(!(i2s_capture_enabled ))
-//		{
-//			UARTprintf("PLAYBACK START\n");
-//			// Start Audio Tx/Rx
-			Audio_Start();
-//		}
-//		i2s_playback_enabled = true;
-//	xSemaphoreGive(_i2s_enabled_mutex);
-//	UARTprintf("PLAYBACK SA EXIT\n");
-
-}
-
-void AudioStopPlayback(void)
-{
-//	UARTprintf("PLAYBACK SO ENTER\n");
-//	xSemaphoreTake(_i2s_enabled_mutex, portMAX_DELAY);
-//		i2s_playback_enabled = false;
-//		if(! (i2s_capture_enabled) )
-//		{
-//			UARTprintf("PLAYBACK STOP\n");
-//			// Start Audio Tx/Rx
-			Audio_Stop();
-//		}
-//
-//	xSemaphoreGive(_i2s_enabled_mutex);
-//	UARTprintf("PLAYBACK SO EXIT\n");
-
 }
 
 ///// FILE STUFF/////

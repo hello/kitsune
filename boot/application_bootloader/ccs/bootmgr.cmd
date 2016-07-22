@@ -54,7 +54,7 @@
 // The starting address of the application.  Normally the interrupt vectors  
 // must be located at the beginning of the application.                      
 //*****************************************************************************
-#define FLASH_BASE 0x01000000
+#define FLASH_BASE 0x01000800
 
 
 /* System memory map */
@@ -62,7 +62,7 @@
 MEMORY
 {
     /* Application uses internal RAM for program and data */
-    FLASH_CODE  (RX)  : origin = 0x01000000, length = 0x5FFF /* 24k */
+    FLASH_CODE  (RX)  : origin = 0x01000800, length = 0x97FF /* 24k */
     SRAM_DATA   (RWX) : origin = 0x20000000, length = 0x040000
 }
 

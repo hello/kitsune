@@ -53,12 +53,6 @@
 #define FLAG_SUCCESS (0x01)
 #define FLAG_STOP    (0x02)
 
-TaskHandle_t audio_task_hndl;
-
-#if (AUDIO_FULL_DUPLEX==1)
-TaskHandle_t audio_task_hndl_p;
-#endif
-
 /* static variables  */
 static xQueueHandle _playback_queue = NULL;
 static xQueueHandle _capture_queue = NULL;
@@ -156,8 +150,6 @@ static uint8_t CheckForInterruptionDuringPlayback(void) {
 
 extern xSemaphoreHandle i2c_smphr;
 
-
-bool add_to_file_error_queue(char* filename, int32_t err_code, bool write_error);
 typedef struct{
 	unsigned long current;
 	unsigned long target;
@@ -206,6 +198,7 @@ static void _change_volume_task(hlo_future_t * result, void * ctx){
 	AudioTask_StopPlayback();
 	hlo_future_write(result, NULL, 0, 0);
 
+
 }
 ////-------------------------------------------
 //playback sample app
@@ -227,7 +220,11 @@ static void _playback_loop(AudioPlaybackDesc_t * desc, hlo_stream_signal sig_sto
 	hlo_future_t * vol_task = (hlo_future_t*)hlo_future_create_task_bg(_change_volume_task,(void*)&vol,1024);
 
 	//playback
+#if 0 //TODO DKH
 	hlo_filter transfer_function = desc->p ? desc->p : hlo_filter_data_transfer;
+#else
+	hlo_filter transfer_function = hlo_filter_data_transfer;
+#endif
 	ret = transfer_function(fs, spkr, desc->context, sig_stop);
 
 	//join async worker
@@ -408,7 +405,7 @@ int Cmd_AudioPlayback(int argc, char * argv[]){
 		desc.fade_in_ms = 1000;
 		desc.fade_out_ms = 1000;
 		desc.onFinished = NULL;
-		desc.rate = 48000;
+		desc.rate = AUDIO_CAPTURE_PLAYBACK_RATE;
 		desc.stream = fs_stream_open_media(argv[1], 0);
 		desc.volume = 44;
 		ustrncpy(desc.source_name, argv[1], sizeof(desc.source_name));
@@ -424,7 +421,7 @@ int Cmd_AudioCapture(int argc, char * argv[]){
 			AudioTask_StopCapture();
 		}else{
 			LOGI("Starting Capture\r\n");
-			AudioTask_StartCapture(16000);
+			AudioTask_StartCapture(AUDIO_CAPTURE_PLAYBACK_RATE);
 		}
 		return 0;
 	}

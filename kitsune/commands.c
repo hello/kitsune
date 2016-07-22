@@ -59,7 +59,7 @@
 #include "pcm_handler.h"
 #include "circ_buff.h"
 #include "pcm_handler.h"
-#include "osi.h"
+
 
 #include "control.h"
 #include "network.h"
@@ -100,7 +100,10 @@
 #include "long_poll.h"
 #include "filedownloadmanager.h"
 
+#include "tensor/keyword_net.h"
+
 #define ONLY_AUDIO 0
+
 #if (AUDIO_FULL_DUPLEX==1)
 #include "audiohelper.h"
 #endif
@@ -279,6 +282,10 @@ int Cmd_fs_read(int argc, char *argv[]) {
 		return 0;
 	}
 	if (strstr(argv[1], "top") != 0) {
+		LOGF("unauthorized\n");
+		return 0;
+	}
+	if (strstr(argv[1], "ota") != 0) {
 		LOGF("unauthorized\n");
 		return 0;
 	}
@@ -1633,9 +1640,8 @@ void launch_tasks() {
 	//dear future chris: this one doesn't need a semaphore since it's only written to while threads are going during factory test boot
 	booted = true;
 
-#if (ONLY_AUDIO==0)
 	xTaskCreate(thread_fast_i2c_poll, "fastI2CPollTask",  1024 / 4, NULL, 3, NULL);
-#endif
+
 
 #ifdef KIT_INCLUDE_FILE_UPLOAD
 	xTaskCreate(FileUploaderTask_Thread,"fileUploadTask", 1024/4,NULL,1,NULL);
@@ -1648,7 +1654,6 @@ void launch_tasks() {
 #if !ONLY_MID
 	UARTprintf("*");
 
-#if (ONLY_AUDIO==0)
 	xTaskCreate(thread_dust, "dustTask", 512 / 4, NULL, 3, NULL);
 	UARTprintf("*");
 	xTaskCreate(thread_sensor_poll, "pollTask", 768 / 4, NULL, 2, NULL);
@@ -1657,7 +1662,7 @@ void launch_tasks() {
 	UARTprintf("*");
 	long_poll_task_init( 2560 / 4 );
 	downloadmanagertask_init(3072 / 4);
-#endif
+
 
 #endif
 }
@@ -2009,6 +2014,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "test_files",Cmd_generate_user_testing_files,""},
 #endif
 		{"fs", cmd_file_sync_upload, ""},
+		{"nn",cmd_test_neural_net,""},
 		{ 0, 0, 0 } };
 
 
@@ -2109,12 +2115,12 @@ void vUARTTask(void *pvParameters) {
 	vTaskDelay(10);
 	//INIT SPI
 	spi_init();
-	hlo_audio_init();
+
 
 	i2c_smphr = xSemaphoreCreateRecursiveMutex();
-#if (ONLY_AUDIO==0)
+
 	init_time_module(2560);
-#endif
+
 
 	// Init sensors
 	init_tvoc();
@@ -2141,16 +2147,17 @@ void vUARTTask(void *pvParameters) {
 	CreateDefaultDirectories();
 	load_data_server();
 
-	/********************************************************************************
-	 *           AUDIO INIT START
-	 * *******************************************************************************
-	 */
+	/*******************************************************************************
+	*           AUDIO INIT START
+	********************************************************************************
+	*/
 
 	// Reset codec
 	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0);
 	vTaskDelay(10);
 	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0x4);
 
+	vTaskDelay(20);
 
 #ifdef CODEC_1P5_TEST
 	codec_test_commands();
@@ -2159,28 +2166,27 @@ void vUARTTask(void *pvParameters) {
 	// Program codec
 	codec_init();
 
-#if (AUDIO_FULL_DUPLEX==1)
 	// McASP and DMA init
 	InitAudioTxRx(AUDIO_CAPTURE_PLAYBACK_RATE);
-#endif
+
+	hlo_audio_init();
 
 	// Create audio tasks for playback and record
 	xTaskCreate(AudioPlaybackTask,"playbackTask",1280/4,NULL,4,NULL);
 	xTaskCreate(AudioCaptureTask,"captureTask", (3*1024)/4,NULL,3,NULL);
 
-#if (ONLY_AUDIO==0)
 	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,2,NULL);
-#endif
 
-	/********************************************************************************
-	 *           AUDIO INIT END
-	 * *******************************************************************************
-	 */
+
+	/*******************************************************************************
+	*           AUDIO INIT END
+	********************************************************************************
+	*/
 
 	UARTprintf("*");
-#if (ONLY_AUDIO==0)
+
 	init_download_task( 3072 / 4 );
-#endif
+
 
 	networktask_init(3 * 1024 / 4);
 
@@ -2194,11 +2200,10 @@ void vUARTTask(void *pvParameters) {
 
 	init_dust();
 
-#if (ONLY_AUDIO==0)
 	ble_proto_init();
 	xTaskCreate(top_board_task, "top_board_task", 1280 / 4, NULL, 3, NULL);
 	xTaskCreate(thread_spi, "spiTask", 1536 / 4, NULL, 3, NULL);
-#endif
+
 
 #ifndef BUILD_SERVERS
 	uart_logger_init();
@@ -2207,7 +2212,6 @@ void vUARTTask(void *pvParameters) {
 	xTaskCreate(analytics_event_task, "analyticsTask", 1024/4, NULL, 1, NULL);
 	UARTprintf("*");
 #endif
-
 
 	xTaskCreate(thread_alarm, "alarmTask", 1024 / 4, NULL, 2, NULL);
 	UARTprintf("*");

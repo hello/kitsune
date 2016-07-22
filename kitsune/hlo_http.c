@@ -77,7 +77,7 @@ static int _start_connection(unsigned long ip, security_type sec){
 				 //ble_reply_wifi_status(wifi_connection_state_SSL_FAIL);
 			 }
 		 }else{
-			 sAddr = _get_addr(ip, 11000);
+			 sAddr = _get_addr(ip, 80);
 			 sock = socket(AF_INET, SOCK_STREAM, SL_IPPROTO_TCP);
 		 }
 		 if( sock < 0 ) goto exit;

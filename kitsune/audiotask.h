@@ -9,12 +9,6 @@
 
 #include "codec_debug_config.h"
 
-#if (CODEC_ADC_16KHZ == 1)
-#define AUDIO_CAPTURE_PLAYBACK_RATE 16000
-#else
-#define AUDIO_CAPTURE_PLAYBACK_RATE 48000
-#endif
-
 typedef enum {
 	eAudioPlaybackStart,
 	eAudioPlaybackStop,
