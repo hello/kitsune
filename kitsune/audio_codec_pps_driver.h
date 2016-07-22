@@ -59,7 +59,7 @@ typedef struct{
 #define IADC (1024) //((MADC)*(AOSR))
 #define IDAC (1024) //((MDAC)*(DOSR))
 
-#define MIC_VOLUME_DB 12
+#define MIC_VOLUME_DB 20
 #define MIC_VOLUME_CONTROL ((MIC_VOLUME_DB)*2)
 #define MUTE_SPK 1
 
