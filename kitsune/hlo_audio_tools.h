@@ -14,6 +14,7 @@ int hlo_filter_throughput_test(hlo_stream_t * input, hlo_stream_t * output, void
 int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal);
 int hlo_filter_data_transfer_limited(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal);
 int hlo_filter_modulate_led_with_sound(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal);
+int hlo_filter_nn_keyword_recognition(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal);
 //uart commands
 int Cmd_audio_record_start(int argc, char *argv[]);
 int Cmd_audio_record_stop(int argc, char *argv[]);
