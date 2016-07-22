@@ -4,6 +4,12 @@
 #include "tinytensor_memory.h"
 #include "uartstdio.h"
 
+#include "data\lstm1.c"
+#include "data\lstm1_input.c"
+#include "data\lstm1_ref.c"
+#include "data\lstm3.c"
+#include "data\lstm3_ref.c"
+
 typedef struct {
 	KeywordCallback_t on_start;
 	KeywordCallback_t on_end;
@@ -116,10 +122,138 @@ void keyword_net_add_audio_samples(const int16_t * samples, uint32_t nsamples) {
 	tinytensor_features_add_samples(samples,nsamples);
 }
 
+static void test1(void) {
+	Tensor_t * tensor_in;
+	Tensor_t * tensor_out;
+	const uint32_t * d;
+	int n;
+	int i;
+    uint32_t dims[4];
+
+    ConstLayer_t lstm_layer = tinytensor_create_lstm_layer(&LSTM2_01);
+
+    UARTprintf("---test1---\r\n");
+    tensor_in = tinytensor_clone_new_tensor(&lstm1_input_zeros);
+
+    lstm_layer.get_output_dims(lstm_layer.context,dims);
+
+    tensor_out = tinytensor_create_new_tensor(dims);
+
+    lstm_layer.eval(lstm_layer.context,NULL,tensor_out,tensor_in,input_layer);
+
+
+    d = tensor_out->dims;
+    n = d[0] * d[1] * d[2] * d[3];
+
+    for (i = 0; i < n; i++) {
+
+		UARTprintf("%d\r\n",tensor_out->x[i] );
+
+    	if (abs(tensor_out->x[i]) > 1) {
+    		UARTprintf("test1 FAIL at iter %d\r\n",i);
+    	}
+    }
+
+    if (tensor_out->delete_me) {
+    	tensor_out->delete_me(tensor_out);
+    }
+
+    if (tensor_in->delete_me) {
+    	tensor_in->delete_me(tensor_in);
+    }
+
+}
+
+static void test2(void) {
+	Tensor_t * tensor_in;
+	Tensor_t * tensor_out;
+	const uint32_t * d;
+	int n;
+	int i;
+	ConstLayer_t lstm_layer = tinytensor_create_lstm_layer(&LSTM2_01);
+
+    UARTprintf("---test2---\r\n");
+
+	tensor_in = tinytensor_clone_new_tensor(&lstm1_input);
+
+	uint32_t dims[4];
+	lstm_layer.get_output_dims(lstm_layer.context,dims);
+
+	tensor_out = tinytensor_create_new_tensor(dims);
+
+	lstm_layer.eval(lstm_layer.context,NULL,tensor_out,tensor_in,input_layer);
+
+
+	d = lstm1_ref.dims;
+	n = d[0] * d[1] * d[2] * d[3];
+
+	for (i = 0; i < n; i++) {
+		int x1 = tensor_out->x[i] >> tensor_out->scale;
+		int x2 = lstm1_ref_x[i] >> lstm1_ref.scale;
+
+		UARTprintf("%d\r\n",x1);
+
+		if (abs(x1 - x2) > 2) {
+			UARTprintf("[FAIL] test 2  at iter %d\r\n",i);
+		}
+	}
+
+	if (tensor_out->delete_me) {
+		tensor_out->delete_me(tensor_out);
+	}
+
+	if (tensor_in->delete_me) {
+		tensor_in->delete_me(tensor_in);
+	}
+}
+
+void test3(void) {
+	Tensor_t * tensor_in;
+	Tensor_t * tensor_out;
+	const uint32_t * d;
+	int n;
+	int i;
+
+    tensor_in = tinytensor_clone_new_tensor(&lstm1_input);
+
+    UARTprintf("---test3---\r\n");
+
+    ConstSequentialNetwork_t net = initialize_network03();
+    tensor_out = tinytensor_eval_partial_net(&net,tensor_in,3);
+
+    d = lstm3_ref.dims;
+    n = d[0] * d[1] * d[2] * d[3];
+
+    for (i = 0; i < n; i++) {
+        int x1 = tensor_out->x[i] >> tensor_out->scale;
+        int x2 = lstm3_ref_x[i] >> lstm3_ref.scale;
+
+        UARTprintf("%d\n",x1);
+
+        if (abs(x1 - x2) > 2) {
+        	UARTprintf("[FAIL] test 3  at iter %d\r\n",i);
+        }
+    }
+
+    if (tensor_out->delete_me) {
+    	tensor_out->delete_me(tensor_out);
+    }
+
+    if (tensor_in->delete_me) {
+    	tensor_in->delete_me(tensor_in);
+    }
+
+}
+
 int cmd_test_neural_net(int argc, char * argv[]) {
 	int16_t samples[256];
 	int i;
 
+	test1();
+	test2();
+	test3();
+
+	/*
 	memset(samples,0,sizeof(samples));
 	keyword_net_initialize();
 
@@ -134,7 +268,7 @@ int cmd_test_neural_net(int argc, char * argv[]) {
 	UARTprintf("\n\nstop test\n\n");
 
 	keyword_net_deinitialize();
-
+	 */
 	return 0;
 
 }
