@@ -82,7 +82,7 @@ extern "C"
 #define RX_BUFFER_SIZE          (AUD_BUFFER_SIZE)
 #define PLAY_WATERMARK          (RX_BUFFER_SIZE-PING_PONG_CHUNK_SIZE-PING_PONG_CHUNK_SIZE/2)
 
-#define TX_BUFFER_SIZE          (AUD_BUFFER_SIZE)
+#define TX_BUFFER_SIZE          (AUD_BUFFER_SIZE * 4)	/* need to 4x it because we have 4x more data on the return channel */
 #define LISTEN_WATERMARK        (PING_PONG_CHUNK_SIZE+PING_PONG_CHUNK_SIZE/2)
 
 #define AUDIO_FILE "DIGIAUX.raw" //armi.rec
