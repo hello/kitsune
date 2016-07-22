@@ -159,9 +159,9 @@ static int _read_record_quad_to_mono(void * ctx, void * buf, size_t size){
 		}else if(ret != sizeof(samples)){
 			return HLO_STREAM_ERROR;
 		}
-	//	*iter = _ez_lpf(_quad_to_mono((int16_t*)samples), last);
+		*iter = _ez_lpf(_quad_to_mono((int16_t*)samples), last);
 	//	*iter = _ez_lpf(_select_channel((int16_t*)samples, 3), last);
-		*iter = _select_channel((int16_t*)samples, 3);
+	//	*iter = _select_channel((int16_t*)samples, 3);
 		last = *iter;
 		iter++;
 	}
