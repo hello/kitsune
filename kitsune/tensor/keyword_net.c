@@ -170,7 +170,7 @@ static void test1(void) {
 
     for (i = 0; i < n; i++) {
 
-		DISP("%d\r\n",tensor_out->x[i] );
+		//DISP("%d\r\n",tensor_out->x[i] );
 
     	if (abs(tensor_out->x[i]) > 1) {
     		DISP("test1 FAIL at iter %d\r\n",i);
@@ -214,7 +214,7 @@ static void test2(void) {
 		int x1 = tensor_out->x[i] >> tensor_out->scale;
 		int x2 = lstm1_ref_x[i] >> lstm1_ref.scale;
 
-		DISP("%d\r\n",x1);
+		//DISP("%d\r\n",x1);
 
 		if (abs(x1 - x2) > 2) {
 			DISP("FAIL test 2  at iter %d\r\n",i);
@@ -251,7 +251,7 @@ void test3(void) {
         int x1 = tensor_out->x[i] >> tensor_out->scale;
         int x2 = lstm3_ref_x[i] >> lstm3_ref.scale;
 
-        DISP("%d\n",x1);
+        //DISP("%d\n",x1);
 
         if (abs(x1 - x2) > 2) {
         	DISP("FAIL test 3  at iter %d\r\n",i);
