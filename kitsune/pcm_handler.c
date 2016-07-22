@@ -204,11 +204,11 @@ void DMAPingPongCompleteAppCB_opt()
 
 			for (i = 0; i < CB_TRANSFER_SZ; i++) {
 #if (CODEC_ENABLE_MULTI_CHANNEL==1)
-				/*uint16_t pong_lsb = pong[i] & 0xFFFF;
+				uint16_t pong_lsb = pong[i] & 0xFFFF;
 				uint16_t pong_msb = (pong[i] & 0xFFFF0000) >> 16;
 				swap_endian(&pong_lsb);
 				swap_endian(&pong_msb);
-				pong[i] = ((uint32_t) pong_msb << 16) | pong_lsb;*/
+				pong[i] = ((uint32_t) pong_msb << 16) | pong_lsb;
 #else
 				swap_endian(pong+i);
 #endif
@@ -235,12 +235,11 @@ void DMAPingPongCompleteAppCB_opt()
 
 				for (i = 0; i < CB_TRANSFER_SZ; i++) {
 #if (CODEC_ENABLE_MULTI_CHANNEL==1)
-				/*	uint16_t ping_lsb = ping[i] & 0xFFFF;
+					uint16_t ping_lsb = ping[i] & 0xFFFF;
 					uint16_t ping_msb = (ping[i] & 0xFFFF0000) >> 16;
-					//swap_endian(&ping_lsb);
-					//swap_endian(&ping_msb);
+					swap_endian(&ping_lsb);
+					swap_endian(&ping_msb);
 					ping[i] = ((uint32_t) ping_msb << 16) | ping_lsb;
-					*/
 #else
 					swap_endian(ping+i);
 #endif
