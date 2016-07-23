@@ -138,7 +138,7 @@ void keyword_net_add_audio_samples(const int16_t * samples, uint32_t nsamples) {
 #include "task.h"
 
 int cmd_test_neural_net(int argc, char * argv[]) {
-	int16_t samples[256];
+	int16_t samples[400];
 	uint32_t start = xTaskGetTickCount();
 	int i;
 
@@ -150,7 +150,7 @@ int cmd_test_neural_net(int argc, char * argv[]) {
 	DISP("start test\n\n");
 
 	for (i = 0; i < 1024; i++) {
-		keyword_net_add_audio_samples(samples,256);
+		keyword_net_add_audio_samples(samples,sizeof(samples));
 	}
 
 	DISP("\n\nstop test %d\n\n", xTaskGetTickCount() - start);
