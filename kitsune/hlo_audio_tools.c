@@ -259,12 +259,17 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		resp.url.funcs.decode = _decode_string_field;
 		if( 0 == hlo_pb_decode(output,SpeechResponse_fields, &resp) ){
 			DISP("Resp %s\r\nUrl %s\r\n", resp.text.arg, resp.url.arg);
-			hlo_stream_t * aud = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE, 60,HLO_AUDIO_PLAYBACK);
+			if(resp.audio_stream_size){
+				hlo_stream_t * aud = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE, 60,HLO_AUDIO_PLAYBACK);
+				DISP("Playback Audio\r\n");
+				hlo_filter_adpcm_decoder(output,aud,NULL,NULL);
+			}
+		/*	hlo_stream_t * aud = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE, 60,HLO_AUDIO_PLAYBACK);
 			hlo_stream_t * fs = hlo_http_get(resp.url.arg);
 			hlo_filter_adpcm_decoder(fs,aud,NULL,NULL);
 			hlo_stream_close(fs);
 			hlo_stream_close(aud);
-
+		*/
 			vPortFree(resp.text.arg);
 			vPortFree(resp.url.arg);
 		}else{
