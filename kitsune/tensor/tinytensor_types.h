@@ -53,7 +53,7 @@ typedef enum {
     
 typedef void (*ConstLayerEval_t)(const void * context,void * layer_state,Tensor_t * out,const Tensor_t * in, ELayer_t prev_layer_type);
 
-typedef void (*ConstLayerDims_t)(const void * context,uint32_t * dims);
+typedef void (*ConstLayerDims_t)(const void * context,uint32_t * dims, const uint32_t * prev_layer_dims);
     
 typedef void * (*LayerStateAlloc_t)(const void * context);
     

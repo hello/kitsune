@@ -16,10 +16,11 @@ typedef enum {
 
 
 
-static void get_output_size(const void * context,uint32_t * dims) {
+static void get_output_size(const void * context,uint32_t * dims,const uint32_t * input_size) {
     const LstmLayer_t * lstm_layer = (const LstmLayer_t *) context;
     
     MEMCPY(dims,lstm_layer->output_dims,TENSOR_DIM*sizeof(uint32_t));
+    dims[2] = input_size[2]; //keep time size
     
 }
 
@@ -84,7 +85,6 @@ static void lstm_time_step_forwards(int32_t * cell_state,
   
     uint32_t igate;
     uint32_t icell;
-    uint32_t ivec;
     int32_t accumulator32;
     int32_t temp32;
     int8_t temp8;
