@@ -5,7 +5,7 @@
 
 #define MAX_MAX_POOL_SIZE (8)
 
-static void get_conv2d_output_size(const void * context,uint32_t * dims) {
+static void get_conv2d_output_size(const void * context,uint32_t * dims,const uint32_t * input_dims) {
     const ConvLayer2D_t * layer = (const ConvLayer2D_t *)context;
     
     uint32_t i;
@@ -37,7 +37,6 @@ int8_t tinytensor_convolve3d_direct_maxpooling(int8_t * descale,
                                              const Weight_t incoming_dropout) {
     
     
-    Weight_t temp_weight;
     int8_t temp_scale = 0;
     
     const uint32_t num_rows_out = num_image_rows - num_weights_rows + 1;
@@ -226,7 +225,6 @@ static void eval_conv2d_direct(const void * context,void * layer_state,Tensor_t 
     
     uint32_t iout;
     uint32_t i;
-    const uint32_t out_len = out->dims[0] * out->dims[1] * out->dims[2] * out->dims[3];
 
     int8_t descale = 0;
     int8_t total_scale;

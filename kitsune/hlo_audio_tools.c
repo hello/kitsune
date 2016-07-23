@@ -285,20 +285,31 @@ int hlo_filter_modulate_led_with_sound(hlo_stream_t * input, hlo_stream_t * outp
 	int16_t samples[NSAMPLES] = {0};
 	play_modulation(253,253,253,30,0);
 	int32_t reduced = 0;
+	int32_t lp = 0;
+	int32_t last_eng = 0;
 	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, sizeof(samples), 4)) >= 0 ){
 		int i;
 		int32_t eng = 0;
 		for(i = 0; i < NSAMPLES; i++){
 			eng += abs(samples[i]);
 		}
-		eng = eng/NSAMPLES;
+		eng = fxd_sqrt(eng/NSAMPLES);
 
-		reduced =  (int32_t)(0.15 * (fxd_sqrt(eng) + 0.005 * eng)) + (0.85 * reduced);
+		reduced = 3 * reduced >> 2;
+		reduced += abs(eng - last_eng)<<1;
 
-		if(reduced > 253){
-			reduced = 253;
+		lp += ( reduced - lp ) >> 3;
+		//DISP("%d %d %d\n", lp, reduced, abs((fxd_sqrt(eng) - last_eng))) ;
+
+		last_eng = eng;
+
+		if(lp > 253){
+			lp = 253;
 		}
-		set_modulation_intensity( reduced );
+		if( lp < 20 ){
+			lp = 20;
+		}
+		set_modulation_intensity( lp );
 		hlo_stream_transfer_all(INTO_STREAM, output,  (uint8_t*)samples, ret, 4);
 		BREAK_ON_SIG(signal);
 	}
@@ -313,7 +324,7 @@ static void _finish_keyword(void * ctx, Keyword_t keyword, int8_t value){
 	DISP("Keyword Done\r\n");
 }
 int hlo_filter_nn_keyword_recognition(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
-	int16_t samples[160];
+	int16_t samples[128];
 	int ret;
 	keyword_net_initialize();
 
