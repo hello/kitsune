@@ -319,6 +319,7 @@ int hlo_filter_modulate_led_with_sound(hlo_stream_t * input, hlo_stream_t * outp
 #include "tensor/keyword_net.h"
 
 static void _begin_keyword(void * ctx, Keyword_t keyword, int8_t value){
+	play_led_animation_solid(254, 254, 254, 254 ,1, 18,3);
 	DISP("Keyword Start\r\n");
 }
 static void _finish_keyword(void * ctx, Keyword_t keyword, int8_t value){
