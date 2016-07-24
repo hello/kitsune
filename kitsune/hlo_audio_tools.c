@@ -324,7 +324,7 @@ static void _finish_keyword(void * ctx, Keyword_t keyword, int8_t value){
 	DISP("Keyword Done\r\n");
 }
 int hlo_filter_nn_keyword_recognition(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
-	int16_t samples[400];
+	int16_t samples[128];
 	int ret;
 	keyword_net_initialize();
 

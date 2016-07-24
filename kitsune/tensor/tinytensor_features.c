@@ -173,7 +173,6 @@ static uint8_t add_samples_and_get_mel(int16_t * maxmel, int16_t * melbank, cons
     
      */
     
-#if 0
     tiny_tensor_features_add_to_buffer(samples,num_samples);
 
     if (_this.num_samples_in_buffer < FFT_UNPADDED_SIZE) {
@@ -181,10 +180,8 @@ static uint8_t add_samples_and_get_mel(int16_t * maxmel, int16_t * melbank, cons
     }
     
     tiny_tensor_features_get_latest_samples(fr,FFT_UNPADDED_SIZE);
-#else
-     memcpy( fr, samples, sizeof(int16_t)*num_samples);
-#endif
     
+ 
     //"preemphasis", and apply window as you go
     memcpy(fi,fr,sizeof(fi));
     for (i = 1; i < FFT_UNPADDED_SIZE; i++) {
