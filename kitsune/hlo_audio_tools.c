@@ -317,6 +317,7 @@ int hlo_filter_modulate_led_with_sound(hlo_stream_t * input, hlo_stream_t * outp
 	return ret;
 }
 #include "tensor/keyword_net.h"
+
 static void _begin_keyword(void * ctx, Keyword_t keyword, int8_t value){
 	DISP("Keyword Start\r\n");
 }
@@ -324,13 +325,14 @@ static void _finish_keyword(void * ctx, Keyword_t keyword, int8_t value){
 	DISP("Keyword Done\r\n");
 }
 int hlo_filter_nn_keyword_recognition(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
-	int16_t samples[128];
+	int16_t samples[160];
 	int ret;
 	keyword_net_initialize();
 
-	keyword_net_register_callback(0,okay_sense,60,_begin_keyword,_finish_keyword);
+	keyword_net_register_callback(0,okay_sense,80,_begin_keyword,_finish_keyword);
 	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, sizeof(samples), 4)) >= 0 ){
 		keyword_net_add_audio_samples(samples,ret);
+
 		hlo_stream_transfer_all(INTO_STREAM, output,  (uint8_t*)samples, ret, 4);
 		BREAK_ON_SIG(signal);
 	}

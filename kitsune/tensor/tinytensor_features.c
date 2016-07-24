@@ -156,6 +156,14 @@ void tinytensor_features_get_mel_bank(int16_t * melbank,const int16_t * fr, cons
 
 }
 
+
+__attribute__((section(".data")))
+static int16_t bins[3][160];
+__attribute__((section(".data")))
+static int binidx=0;
+__attribute__((section(".data")))
+static int bintot=0;
+
 __attribute__((section(".ramcode")))
 static uint8_t add_samples_and_get_mel(int16_t * maxmel, int16_t * melbank, const int16_t * samples, const uint32_t num_samples) {
     int16_t fr[FFT_SIZE] = {0};
@@ -172,15 +180,14 @@ static uint8_t add_samples_and_get_mel(int16_t * maxmel, int16_t * melbank, cons
         then we copy the last FFT_UNPADDED_SIZE samples to the FFT buf, zero pad it up to FFT_SIZE
     
      */
-    
-    tiny_tensor_features_add_to_buffer(samples,num_samples);
-
-    if (_this.num_samples_in_buffer < FFT_UNPADDED_SIZE) {
-        return 0;
-    }
-    
-    tiny_tensor_features_get_latest_samples(fr,FFT_UNPADDED_SIZE);
-    
+    //num_samples must be 160...
+    memcpy( (void*)bins[binidx], (void*)samples, num_samples );
+    binidx = (binidx+1)% 3;
+    if( ++bintot < 3 ) return 0;
+    bintot = 3;
+    memcpy( fr, bins[binidx], 160*2);
+    memcpy( fr+160, bins[(binidx+1)%3], 160*2);
+    memcpy( fr+320, bins[(binidx+2)%3], 80*2);
  
     //"preemphasis", and apply window as you go
     memcpy(fi,fr,sizeof(fi));
