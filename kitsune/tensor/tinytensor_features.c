@@ -181,7 +181,7 @@ static uint8_t add_samples_and_get_mel(int16_t * maxmel, int16_t * melbank, cons
     
      */
     //num_samples must be 160...
-    memcpy( (void*)bins[binidx], (void*)samples, num_samples );
+    memcpy( (void*)bins[binidx], (void*)samples, num_samples * sizeof(int16_t) );
     binidx = (binidx+1)% 3;
     if( ++bintot < 3 ) return 0;
     bintot = 3;

@@ -3,7 +3,7 @@
 #include "tinytensor_math.h"
 #include <assert.h>
 
-
+#define DAMP_CELL_STATES 1
 
 typedef enum {
     inputgate,
@@ -304,6 +304,15 @@ static void eval_helper(const void * context, Tensor_t * out,const Tensor_t * in
                                 in->scale,
                                 lstm_layer->output_activation);
      
+
+#if DAMP_CELL_STATES == 1
+        for (i = 0; i < num_hidden_units; i++) {
+            int64_t temp64 = cell_state[i] * 250;
+            temp64 >>= 8;
+            cell_state[i] = (int32_t)temp64;
+        }
+#endif
+
         /*
         for (i = 0; i < num_hidden_units; i++) {
             if (i != 0) printf(",");
