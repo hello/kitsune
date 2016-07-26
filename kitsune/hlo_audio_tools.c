@@ -288,6 +288,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 						DISP("Playback Audio\r\n");
 						hlo_filter_adpcm_decoder(output,aud,NULL,NULL);
 						DISP("\r\n===========\r\n");
+		hlo_stream_close(aud);
 	}
 #endif
 	return ret;
