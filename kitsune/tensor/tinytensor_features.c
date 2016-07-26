@@ -4,7 +4,8 @@
 #include "fft.h"
 #include "hellomath.h"
 
-#define USE_BACKGROUND_NORMALIZATION (0)
+#define USE_BACKGROUND_NORMALIZATION (1)
+#define BACKGROUND_NOISE_MAX_ATTENUATION (-2048)
 
 //this controls how much less to "descale" the FFT output (NOT USED CURRENTLY)
 #define FFT_DESCALE_FACTOR (0)
@@ -52,7 +53,11 @@ typedef struct {
     tinytensor_audio_feat_callback_t results_callback;
     uint8_t passed_first;
     int16_t max_mel_lpf;
-
+    
+    int16_t bins[3][160];
+    uint32_t binidx;
+    uint32_t bintot;
+    
 } TinyTensorFeatures_t;
 
 __attribute__((section(".ramcode")))
@@ -157,12 +162,6 @@ void tinytensor_features_get_mel_bank(int16_t * melbank,const int16_t * fr, cons
 }
 
 
-__attribute__((section(".data")))
-static int16_t bins[3][160];
-__attribute__((section(".data")))
-static int binidx=0;
-__attribute__((section(".data")))
-static int bintot=0;
 
 __attribute__((section(".ramcode")))
 static uint8_t add_samples_and_get_mel(int16_t * maxmel, int16_t * melbank, const int16_t * samples, const uint32_t num_samples) {
@@ -181,13 +180,16 @@ static uint8_t add_samples_and_get_mel(int16_t * maxmel, int16_t * melbank, cons
     
      */
     //num_samples must be 160...
-    memcpy( (void*)bins[binidx], (void*)samples, num_samples * sizeof(int16_t) );
-    binidx = (binidx+1)% 3;
-    if( ++bintot < 3 ) return 0;
-    bintot = 3;
-    memcpy( fr, bins[binidx], 160*2);
-    memcpy( fr+160, bins[(binidx+1)%3], 160*2);
-    memcpy( fr+320, bins[(binidx+2)%3], 80*2);
+    memcpy( (void*)_this.bins[_this.binidx], (void*)samples, num_samples*sizeof(int16_t) );
+    _this.binidx = (_this.binidx+1)% 3;
+    if( ++_this.bintot < 3 ) return 0;
+    _this.bintot = 3;
+    memcpy( fr, _this.bins[_this.binidx], 160*2);
+    memcpy( fr+160, _this.bins[(_this.binidx+1)%3], 160*2);
+    memcpy( fr+320, _this.bins[(_this.binidx+2)%3], 80*2);
+    
+    //tiny_tensor_features_get_latest_samples(fr,FFT_UNPADDED_SIZE);
+    
  
     //"preemphasis", and apply window as you go
     memcpy(fi,fr,sizeof(fi));
@@ -262,15 +264,40 @@ static uint8_t add_samples_and_get_mel(int16_t * maxmel, int16_t * melbank, cons
         memcpy(_this.melbank_avg,melbank,NUM_MEL_BINS * sizeof(int16_t));
     }
     
+#if USE_BACKGROUND_NORMALIZATION
+
     //compute moving avergage
     for (i = 0; i < NUM_MEL_BINS; i++) {
         _this.melbank_avg[i] = MUL16(_this.melbank_avg[i],TOFIX(MOVING_AVG_COEFF,QFIXEDPOINT_INT16));
         _this.melbank_avg[i] += MUL16(melbank[i],TOFIX(1.0 - MOVING_AVG_COEFF,QFIXEDPOINT_INT16));
-
-#if USE_BACKGROUND_NORMALIZATION
-        melbank[i] -= _this.melbank_avg[i];
-#endif
     }
+    
+    //get AVG
+    temp32 = 0;
+    
+    for (i = 0; i < NUM_MEL_BINS; i++) {
+        temp32 += _this.melbank_avg[i];
+    }
+    
+    temp32 /= NUM_MEL_BINS;
+    temp16 = temp32;
+    
+    for (i = 0; i < NUM_MEL_BINS; i++) {
+        temp32 = temp16 - _this.melbank_avg[i];
+        
+        //only attenuate a bit
+        if (temp32 < BACKGROUND_NOISE_MAX_ATTENUATION) {
+            temp32 = BACKGROUND_NOISE_MAX_ATTENUATION;
+        }
+        
+        //no gaining up
+        if (temp32 > 0) {
+            temp32 = 0;
+        }
+        
+        melbank[i] += temp32;
+    }
+#endif
     
 
     return 1;
