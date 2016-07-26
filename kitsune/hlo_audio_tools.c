@@ -382,7 +382,7 @@ static int _read_nn_stream(void * ctx, void * buf, size_t size){
 		if(ret % 2){//alignment error
 			return HLO_STREAM_ERROR;
 		}else if(ret > 0){
-			keyword_net_add_audio_samples(samples, ret);
+			keyword_net_add_audio_samples(samples, ret/sizeof(int16_t));
 		}else if(ret < 0){
 			return ret;
 		}
