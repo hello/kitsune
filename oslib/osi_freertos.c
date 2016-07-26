@@ -58,7 +58,7 @@ static void vSimpleLinkSpawnTask( void *pvParameters );
 QueueHandle_t xSimpleLinkSpawnQueue = NULL;
 TaskHandle_t xSimpleLinkSpawnTaskHndl = NULL;
 // Queue size 
-#define slQUEUE_SIZE				( 3 )
+#define slQUEUE_SIZE				( 6 )
 
 
 /*!
@@ -536,7 +536,7 @@ OsiReturnVal_e VStartSimpleLinkSpawnTask(unsigned portBASE_TYPE uxPriority)
     	return OSI_OPERATION_FAILED;
     }
     if(pdPASS == xTaskCreate( vSimpleLinkSpawnTask, ( portCHAR * ) "SLSPAWN",\
-    					 (2048/sizeof( portSTACK_TYPE )), NULL, uxPriority, &xSimpleLinkSpawnTaskHndl ))
+    					 (4096/sizeof( portSTACK_TYPE )), NULL, uxPriority, &xSimpleLinkSpawnTaskHndl ))
     {
     	return OSI_OK;
     }
