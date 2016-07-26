@@ -259,12 +259,17 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		resp.url.funcs.decode = _decode_string_field;
 		if( 0 == hlo_pb_decode(output,SpeechResponse_fields, &resp) ){
 			DISP("Resp %s\r\nUrl %s\r\n", resp.text.arg, resp.url.arg);
-			hlo_stream_t * aud = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE, 60,HLO_AUDIO_PLAYBACK);
+			if(resp.audio_stream_size){
+				hlo_stream_t * aud = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE, 60,HLO_AUDIO_PLAYBACK);
+				DISP("Playback Audio\r\n");
+				hlo_filter_adpcm_decoder(output,aud,NULL,NULL);
+			}
+		/*	hlo_stream_t * aud = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE, 60,HLO_AUDIO_PLAYBACK);
 			hlo_stream_t * fs = hlo_http_get(resp.url.arg);
 			hlo_filter_adpcm_decoder(fs,aud,NULL,NULL);
 			hlo_stream_close(fs);
 			hlo_stream_close(aud);
-
+		*/
 			vPortFree(resp.text.arg);
 			vPortFree(resp.url.arg);
 		}else{
@@ -312,7 +317,9 @@ int hlo_filter_modulate_led_with_sound(hlo_stream_t * input, hlo_stream_t * outp
 	return ret;
 }
 #include "tensor/keyword_net.h"
+
 static void _begin_keyword(void * ctx, Keyword_t keyword, int8_t value){
+	play_led_animation_solid(254, 254, 254, 254 ,1, 18,3);
 	DISP("Keyword Start\r\n");
 }
 static void _finish_keyword(void * ctx, Keyword_t keyword, int8_t value){
@@ -323,9 +330,10 @@ int hlo_filter_nn_keyword_recognition(hlo_stream_t * input, hlo_stream_t * outpu
 	int ret;
 	keyword_net_initialize();
 
-	keyword_net_register_callback(0,okay_sense,60,_begin_keyword,_finish_keyword);
+	keyword_net_register_callback(0,okay_sense,80,_begin_keyword,_finish_keyword);
 	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, sizeof(samples), 4)) >= 0 ){
-		keyword_net_add_audio_samples(samples,ret);
+		keyword_net_add_audio_samples(samples,ret/sizeof(int16_t));
+
 		hlo_stream_transfer_all(INTO_STREAM, output,  (uint8_t*)samples, ret, 4);
 		BREAK_ON_SIG(signal);
 	}
