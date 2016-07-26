@@ -356,7 +356,7 @@ int hlo_filter_nn_keyword_recognition(hlo_stream_t * input, hlo_stream_t * outpu
 
 	keyword_net_register_callback(0,okay_sense,80,_begin_keyword,_finish_keyword);
 	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, sizeof(samples), 4)) >= 0 ){
-		keyword_net_add_audio_samples(samples,ret);
+		keyword_net_add_audio_samples(samples,ret/sizeof(int16_t));
 
 		hlo_stream_transfer_all(INTO_STREAM, output,  (uint8_t*)samples, ret, 4);
 		BREAK_ON_SIG(signal);
