@@ -220,11 +220,11 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	uint8_t window_over = 0;
 	bool light_open = false;
 
-	output = hlo_stream_en( output );
 	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, sizeof(samples), 4)) > 0 ){
 
 		if( !light_open ) {
 			input = hlo_light_stream( input );
+			input = hlo_stream_en( input );
 			light_open = true;
 		}
 
@@ -276,6 +276,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		hlo_stream_close(aud);
 	}
 #endif
+	stop_led_animation(portMAX_DELAY, 18);
 	return ret;
 }
 #include "hellomath.h"

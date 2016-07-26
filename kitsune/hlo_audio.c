@@ -327,6 +327,11 @@ typedef struct{
 static int _write_energy(void * ctx, const void * buf, size_t size){
 	energy_stream_t * stream = (energy_stream_t*)ctx;
 	int rv = hlo_stream_write(stream->base, buf, size);
+	return rv;
+}
+static int _read_energy(void * ctx, void * buf, size_t size){
+	energy_stream_t * stream = (energy_stream_t*)ctx;
+	int rv = hlo_stream_read(stream->base, buf, size);
 	int i;
 
 	int16_t * samples = (int16_t *)buf;
@@ -348,18 +353,14 @@ static int _write_energy(void * ctx, const void * buf, size_t size){
 
 			stream->last_eng = stream->eng;
 
-			if( stream->ctr_tot > NSAMPLES*200 && stream->lp < 20 ){
+			if( (stream->ctr_tot > NSAMPLES*100 && stream->lp <= 100)||stream->ctr_tot > NSAMPLES*800  ){
+				DISP("\n") ;
 				return HLO_STREAM_EOF;
 			}
 			stream->ctr = 0;
 			stream->eng = 0;
 		}
 	}
-	return rv;
-}
-static int _read_energy(void * ctx, void * buf, size_t size){
-	energy_stream_t * stream = (energy_stream_t*)ctx;
-	int rv = hlo_stream_read(stream->base, buf, size);
 	return rv;
 }
 static int _close_energy(void * ctx){
