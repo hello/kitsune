@@ -25,6 +25,8 @@
 #include "codec_debug_config.h"
 #include "audio_codec_pps_driver.h"
 
+#include "codec_runtime_update.h"
+
 #define MAX_MEASURE_TIME			10
 
 #define FAILURE                 	-1
@@ -895,7 +897,7 @@ static void codec_sw_reset(void)
 	vTaskDelay(delay);
 }
 
-static void codec_set_page(uint32_t page)
+void codec_set_page(uint32_t page)
 {
 	char send_stop = 1;
 	unsigned char cmd[2];
@@ -911,7 +913,7 @@ static void codec_set_page(uint32_t page)
 	}
 }
 
-static void codec_set_book(uint32_t book)
+void codec_set_book(uint32_t book)
 {
 	char send_stop = 1;
 	unsigned char cmd[2];
