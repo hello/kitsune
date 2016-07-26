@@ -91,6 +91,7 @@ int hlo_filter_adpcm_decoder(hlo_stream_t * input, hlo_stream_t * output, void *
 	short decompressed[ADPCM_SAMPLES];
 	adpcm_state state = (adpcm_state){0};
 	int ret = 0;
+	hlo_stream_t * decoded =  fs_stream_open("/decoded", HLO_STREAM_WRITE);
 	while(1){
 		ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)compressed, ADPCM_SAMPLES/2,4);
 		if( ret < 0 ){
@@ -98,13 +99,16 @@ int hlo_filter_adpcm_decoder(hlo_stream_t * input, hlo_stream_t * output, void *
 		}
 		adpcm_decoder((char*)compressed, (short*)decompressed, ret * 2 , &state);
 		if( output ){
+			int transfer_size = ret * 4;
 			ret = hlo_stream_transfer_all(INTO_STREAM, output, (uint8_t*)decompressed, ret * 4, 4);
+			hlo_stream_transfer_all(INTO_STREAM, decoded, (uint8_t*)decompressed,transfer_size, 4);
 			if ( ret < 0 ){
 				break;
 			}
 		}
 		BREAK_ON_SIG(signal);
 	}
+	hlo_stream_close(decoded);
 	return ret;
 }
 int hlo_filter_adpcm_encoder(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
@@ -250,7 +254,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 			play_led_wheel(get_alpha_from_light(),254,0,254,2,18,0);
 			DISP("Wheel\r\n");
 	}
-
+#if 0
 	//lastly, glow with voice output, since we can't do that in half duplex mode, simply queue it to the voice output
 	if( ret >= 0){
 		SpeechResponse resp = SpeechResponse_init_zero;
@@ -277,6 +281,15 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		}
 		DISP("\r\n===========\r\n");
 	}
+#else
+	if(ret >= 0){
+		DISP("\r\n===========\r\n");
+		hlo_stream_t * aud = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE, 60,HLO_AUDIO_PLAYBACK);
+						DISP("Playback Audio\r\n");
+						hlo_filter_adpcm_decoder(output,aud,NULL,NULL);
+						DISP("\r\n===========\r\n");
+	}
+#endif
 	return ret;
 }
 #include "hellomath.h"
@@ -317,6 +330,13 @@ int hlo_filter_modulate_led_with_sound(hlo_stream_t * input, hlo_stream_t * outp
 	return ret;
 }
 #include "tensor/keyword_net.h"
+typedef struct{
+	hlo_stream_t * base;
+	uint8_t keyword_detected;
+	uint8_t threshold;
+	uint16_t reserved;
+	uint32_t timeout;
+}nn_keyword_ctx_t;
 
 static void _begin_keyword(void * ctx, Keyword_t keyword, int8_t value){
 	play_led_animation_solid(254, 254, 254, 254 ,1, 18,3);
@@ -324,7 +344,11 @@ static void _begin_keyword(void * ctx, Keyword_t keyword, int8_t value){
 }
 static void _finish_keyword(void * ctx, Keyword_t keyword, int8_t value){
 	DISP("Keyword Done\r\n");
+	if(ctx){
+		((nn_keyword_ctx_t *)ctx)->keyword_detected = 1;
+	}
 }
+//note that filter and the stream version can not run concurrently
 int hlo_filter_nn_keyword_recognition(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
 	int16_t samples[160];
 	int ret;
@@ -340,6 +364,52 @@ int hlo_filter_nn_keyword_recognition(hlo_stream_t * input, hlo_stream_t * outpu
 	DISP("Keyword Detection Exit\r\n");
 	keyword_net_deinitialize();
 	return 0;
+}
+static int _close_nn_stream(void * ctx){
+	nn_keyword_ctx_t * nn = (nn_keyword_ctx_t*)ctx;
+	hlo_stream_t * base = nn->base;
+	keyword_net_deinitialize();
+	vPortFree(ctx);
+	return hlo_stream_close(base);
+}
+static int _read_nn_stream(void * ctx, void * buf, size_t size){
+	nn_keyword_ctx_t * nn = (nn_keyword_ctx_t*)ctx;
+	if(nn->keyword_detected){
+		return hlo_stream_read(nn->base, buf, size);
+	}else{
+		int16_t samples[160];
+		int ret = hlo_stream_transfer_all(FROM_STREAM, nn->base, (uint8_t*)samples, sizeof(samples), 4);
+		if(ret % 2){//alignment error
+			return HLO_STREAM_ERROR;
+		}else if(ret > 0){
+			keyword_net_add_audio_samples(samples, ret);
+		}else if(ret < 0){
+			return ret;
+		}
+		return 0;
+	}
+}
+
+hlo_stream_t * hlo_stream_nn_keyword_recognition(hlo_stream_t * base, uint8_t threshold){
+	hlo_stream_vftbl_t tbl = (hlo_stream_vftbl_t){
+		.write = NULL,
+		.read = _read_nn_stream,
+		.close = _close_nn_stream,
+	};
+	nn_keyword_ctx_t * ctx = pvPortMalloc(sizeof(*ctx));
+	hlo_stream_t * ret = NULL;
+	if(!ctx) return NULL;
+	memset(ctx, 0, sizeof(*ctx));
+	ctx->threshold = threshold;
+	ctx->base = base;
+	keyword_net_register_callback(ctx, okay_sense, threshold, _begin_keyword, _finish_keyword);
+	ret = hlo_stream_new(&tbl, ctx, HLO_STREAM_READ);
+	if(!ret){
+		vPortFree(ctx);
+		keyword_net_deinitialize();
+	}
+	return ret;
+
 }
 ////-----------------------------------------
 //commands

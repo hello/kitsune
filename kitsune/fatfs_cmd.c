@@ -403,6 +403,7 @@ int global_filename(char * local_fn)
 #include "fs_utils.h"
 #include "hlo_http.h"
 #include "audio_types.h"
+#include "hlo_audio_tools.h"
 #define BUF_SIZE 64
 hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 	hlo_stream_t * rstr = NULL;
@@ -427,11 +428,11 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 				}
 				case 'n':
 				case 'N':
-					rstr = hlo_stream_nn_keyword_recognition( rstr, 80 );
+				//	rstr = hlo_stream_nn_keyword_recognition( rstr, 80 );
 					break;
 				case 't':
 				case 'T':
-					rstr = hlo_stream_end_of_speech_detector( rstr, 8, 16000);
+				//	rstr = hlo_stream_en( rstr, 8, 16000);
 					break;
 				case 'l':
 				case 'L':
