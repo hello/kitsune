@@ -3,6 +3,13 @@
 #include "i2c_if.h"
 #include "i2c_cmd.h"
 
+#include "kit_assert.h"
+
+/* FreeRTOS includes */
+#include "FreeRTOS.h"
+#include "task.h"
+#include "semphr.h"
+
 // The miniDSP has 24-bit coefficients
 #define NUMBER_BYTES_IN_DSP_COEFFICIENT 	3
 // I2C write for each coefficient will have 1 byte for starting register and
@@ -12,6 +19,8 @@
 #if (I2C_COEFF_WRITE_LENGTH != 4)
 #error "Function codec_update_minidsp_coeff assumes size 4, modify it"
 #endif
+
+extern xSemaphoreHandle i2c_smphr;
 
 typedef struct {
             uint8_t book;           //coefficient book location
@@ -50,11 +59,13 @@ int32_t codec_update_minidsp_coeff(control_blocks_t type, uint32_t* data)
 
 	for(index=0;index<control[type].length;index++){
 
+		assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
 		cmd[1] = (data[index] & 0xFF0000UL) >> 16;
 		cmd[2] = (data[index] & 0xFF00UL) >> 8;
 		cmd[3] = (data[index] & 0xFFUL) >> 0;
 
 		I2C_IF_Write(Codec_addr, cmd, 4, send_stop);
+		xSemaphoreGiveRecursive(i2c_smphr);
 
 	}
 
