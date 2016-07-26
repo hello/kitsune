@@ -37,4 +37,6 @@ int32_t codec_init(void);
 void codec_unmute_spkr(void);
 void codec_mute_spkr(void);
 
+bool set_volume(int v, unsigned int dly);
+
 #endif

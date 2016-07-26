@@ -172,6 +172,7 @@ static int _read_record_quad_to_mono(void * ctx, void * buf, size_t size){
 static int _close(void * ctx){
 	DISP("Closing stream\n");
 
+#if 0
 	Audio_Stop();
 
 	DeinitAudioPlayback();
@@ -180,6 +181,7 @@ static int _close(void * ctx){
 
 	audio_record_started = 0;
 	audio_playback_started = 0;
+#endif
 
 	return HLO_STREAM_NO_IMPL;
 }
@@ -191,8 +193,11 @@ void hlo_audio_init(void){
 	assert(lock);
 	hlo_stream_vftbl_t tbl = { 0 };
 	tbl.write = _write_playback_mono;
-	//tbl.read = _read_record_mono;			//for 1p0 when return channel is mono
+#if 0
+	tbl.read = _read_record_mono;			//for 1p0 when return channel is mono
+#else
 	tbl.read = _read_record_quad_to_mono;	//for 1p5 when return channel is quad
+#endif
 	tbl.close = _close;
 	master = hlo_stream_new(&tbl, NULL, HLO_AUDIO_RECORD|HLO_AUDIO_PLAYBACK);
 	record_isr_sem = xSemaphoreCreateBinary();

@@ -868,6 +868,30 @@ static void codec_set_book(uint32_t book);
 static void beep_gen(void);
 #endif
 
+bool set_volume(int v, unsigned int dly) {
+
+	char send_stop = 1;
+	unsigned char cmd[2];
+
+
+
+	if( xSemaphoreTakeRecursive(i2c_smphr, dly)) {
+
+		//	w 30 00 00 # Select Page 0
+		codec_set_page(1);
+
+		codec_set_book(0);
+
+		cmd[0] = 48;
+		cmd[1] = ((v%6) << 4) | ( ((v%6)!=0) << 0);
+		I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+		xSemaphoreGiveRecursive(i2c_smphr);
+		return true;
+	} else {
+		return false;
+	}
+
+}
 
 static void codec_sw_reset(void)
 {
@@ -991,25 +1015,6 @@ void codec_mute_spkr(void)
 		cmd[1] = 0x00;
 		I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
-		xSemaphoreGiveRecursive(i2c_smphr);
-	}
-
-}
-
-void codec_unmute_spkr(void)
-{
-	char send_stop = 1;
-	unsigned char cmd[2];
-
-	//	w 30 00 00 # Select Page 0
-	codec_set_page(1);
-
-	codec_set_book(0);
-
-	if( xSemaphoreTakeRecursive(i2c_smphr, 100)) {
-		cmd[0] = 48;
-		cmd[1] = 0x21;
-		I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 		xSemaphoreGiveRecursive(i2c_smphr);
 	}
 
