@@ -23,6 +23,7 @@
 #include "stdbool.h"
 
 #include "codec_debug_config.h"
+#include "audio_codec_pps_driver.h"
 
 #define MAX_MEASURE_TIME			10
 
@@ -35,7 +36,7 @@
 									  	  return  iRetVal;}
 #define BUF_SIZE 					2
 
-#define Codec_addr 					(0x18U)
+
 
 #define DELAY_CODEC 				5 // TODO set arbitrarily, might need to be adjusted
 
@@ -861,8 +862,6 @@ static void codec_speaker_config(void);
 #endif
 
 static void codec_sw_reset(void);
-static void codec_set_page(uint32_t page);
-static void codec_set_book(uint32_t book);
 
 #if (CODEC_BEEP_GENERATOR==1)
 static void beep_gen(void);
@@ -1018,7 +1017,7 @@ void codec_unmute_spkr(void)
 #if (CODEC_USE_MINIDSP == 1)
 
 #if (CODEC_PPS_FROM_ARRAY == 1)
-#include "audio_codec_pps_driver.h"
+
 int32_t codec_init_with_dsp(void)
 {
 	uint32_t i;
