@@ -431,7 +431,7 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 					break;
 				case 't':
 				case 'T':
-					rstr = hlo_stream_end_of_speech_detector( rstr, 8);
+					rstr = hlo_stream_end_of_speech_detector( rstr, 8, 16000);
 					break;
 				case 'l':
 				case 'L':
