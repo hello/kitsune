@@ -425,6 +425,14 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 					}
 					break;
 				}
+				case 'n':
+				case 'N':
+					rstr = hlo_stream_nn_keyword_recognition( rstr, 80 );
+					break;
+				case 't':
+				case 'T':
+					rstr = hlo_stream_end_of_speech_detector( rstr, 8);
+					break;
 				case 'l':
 				case 'L':
 					rstr = hlo_light_stream( rstr );
