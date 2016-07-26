@@ -428,7 +428,7 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 				}
 				case 'n':
 				case 'N':
-				//	rstr = hlo_stream_nn_keyword_recognition( rstr, 80 );
+					rstr = hlo_stream_nn_keyword_recognition( rstr, 80 );
 					break;
 				case 't':
 				case 'T':
