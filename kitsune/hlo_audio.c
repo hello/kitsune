@@ -303,3 +303,92 @@ hlo_stream_t * hlo_light_stream( hlo_stream_t * base){
 
 	return hlo_stream_new(&functions, stream, HLO_STREAM_READ_WRITE);
 }
+
+
+
+
+
+
+
+
+
+
+#define NSAMPLES 512
+typedef struct{
+	hlo_stream_t * base;
+	int32_t reduced;
+	int32_t lp;
+	int32_t last_eng;
+	int32_t eng;
+	int32_t ctr;
+	int32_t ctr_tot;
+}energy_stream_t;
+
+static int _write_energy(void * ctx, const void * buf, size_t size){
+	energy_stream_t * stream = (energy_stream_t*)ctx;
+	int rv = hlo_stream_write(stream->base, buf, size);
+	int i;
+
+	int16_t * samples = (int16_t *)buf;
+	size /= sizeof(int16_t);
+
+	for(i = 0; i < size; i++){
+		stream->eng += abs(samples[i]);
+
+		++stream->ctr_tot;
+
+		if( ++stream->ctr > NSAMPLES ) {
+			stream->eng = fxd_sqrt(stream->eng/NSAMPLES);
+
+			stream->reduced = 7 * stream->reduced >> 3;
+			stream->reduced += abs(stream->eng - stream->last_eng)<<1;
+
+			stream->lp += ( stream->reduced - stream->lp ) >> 3;
+			DISP("%d\r", stream->lp) ;
+
+			stream->last_eng = stream->eng;
+
+			if( stream->ctr_tot > NSAMPLES*200 && stream->lp < 20 ){
+				return HLO_STREAM_EOF;
+			}
+			stream->ctr = 0;
+			stream->eng = 0;
+		}
+	}
+	return rv;
+}
+static int _read_energy(void * ctx, void * buf, size_t size){
+	energy_stream_t * stream = (energy_stream_t*)ctx;
+	int rv = hlo_stream_read(stream->base, buf, size);
+	return rv;
+}
+static int _close_energy(void * ctx){
+	energy_stream_t * stream = (energy_stream_t*)ctx;
+	DISP("close energy\n") ;
+
+	hlo_stream_close(stream->base);
+	vPortFree(stream);
+	return 0;
+}
+hlo_stream_t * hlo_stream_en( hlo_stream_t * base){
+	hlo_stream_vftbl_t functions = (hlo_stream_vftbl_t){
+		.write = _write_energy,
+		.read = _read_energy,
+		.close = _close_energy,
+	};
+	if( !base ) return NULL;
+
+	energy_stream_t * stream = pvPortMalloc(sizeof(*stream));
+	if( !stream ){
+		hlo_stream_close(base);
+		return NULL;
+	}
+	memset(stream, 0, sizeof(*stream) );
+	stream->base = base;
+
+	DISP("open en\n") ;
+
+	return hlo_stream_new(&functions, stream, HLO_STREAM_READ_WRITE);
+}
+
+

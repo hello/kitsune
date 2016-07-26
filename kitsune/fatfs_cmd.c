@@ -432,7 +432,7 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 					break;
 				case 't':
 				case 'T':
-				//	rstr = hlo_stream_en( rstr, 8, 16000);
+					rstr = hlo_stream_en( rstr );
 					break;
 				case 'l':
 				case 'L':

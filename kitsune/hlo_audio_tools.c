@@ -218,38 +218,23 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	int32_t window_eng;
 	int64_t eng = 0;
 	uint8_t window_over = 0;
-	{//play the trippy while we get voice
-		uint8_t trippy_base[3] = {200, 200, 200};
-		uint8_t trippy_range[3] = { 54, 54, 54 };
-		play_led_trippy(trippy_base, trippy_range, portMAX_DELAY, 30, 30 );
-	}
+	bool light_open = false;
+
+	output = hlo_stream_en( output );
 	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, sizeof(samples), 4)) > 0 ){
-		int i;
-		for(i = 1; i < NSAMPLES; i++){
-			if( (samples[i] > 0 && samples[i-1] <= 0) ||
-					(samples[i] <= 0 && samples[i-1] > 0) ){
-				zcr++;
-			}
-			eng += abs(samples[i] - samples[i-1]);
-			if( count++ > sample_rate ){
-				window_over = 1;
-				window_zcr = zcr;
-				window_eng = eng/sample_rate;
-				zcr = 0;
-				count = 0;
-				eng = 0;
-			}
+
+		if( !light_open ) {
+			input = hlo_light_stream( input );
+			light_open = true;
 		}
-		if( window_over ){
-			LOGI("zcr = %d, eng = %d\r\n", window_zcr, window_eng);
-			window_over = 0;
-		}
+
 		ret = hlo_stream_transfer_all(INTO_STREAM, output,  (uint8_t*)samples, ret, 4);
 		if ( ret <  0){
 			break;
 		}
 		BREAK_ON_SIG(signal);
 	}
+
 	{//now play the swirling thing when we get response
 			play_led_wheel(get_alpha_from_light(),254,0,254,2,18,0);
 			DISP("Wheel\r\n");
@@ -282,7 +267,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		DISP("\r\n===========\r\n");
 	}
 #else
-	if(ret >= 0){
+	if(ret >= 0 || ret == HLO_STREAM_EOF ){
 		DISP("\r\n===========\r\n");
 		hlo_stream_t * aud = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE, 60,HLO_AUDIO_PLAYBACK);
 						DISP("Playback Audio\r\n");
