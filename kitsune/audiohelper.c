@@ -111,7 +111,7 @@ uint8_t InitAudioPlayback(int32_t vol, uint32_t rate ) {
 	//McASPInit(rate);
 
 	// Unmute speaker
-	set_volume(1,30);
+	codec_unmute_spkr();
 
 	UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL);
 
