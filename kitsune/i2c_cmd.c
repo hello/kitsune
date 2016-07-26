@@ -1107,6 +1107,17 @@ int32_t codec_init_with_dsp(void)
 	vTaskDelay(100);
 
 #if 0
+	/*
+	 * TESTING RUNTIME PROPERTIES
+	 */
+	codec_update_minidsp_mux(MUX_SELECT_MIC_RAW,MUX_MIC_RAW_1);
+	codec_update_minidsp_mux(MUX_SELECT_AEC_INPUT,MUX_AEC_INPUT_BEAM_1);
+	codec_update_minidsp_mux(MUX_SELECT_AEC_LEVEL,MUX_AEC_LEVEL_2);
+	codec_update_minidsp_mux(MUX_SELECT_CH4_OUT,MUX_CH4_SELECT_AEC_OUT);
+#endif
+
+	vTaskDelay(100);
+#if 0
 
 	//	w 30 00 00 # Select Page 0
 	codec_set_page(0);
