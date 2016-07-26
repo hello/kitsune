@@ -190,8 +190,8 @@ void hlo_audio_init(void){
 	assert(lock);
 	hlo_stream_vftbl_t tbl = { 0 };
 	tbl.write = _write_playback_mono;
-	//tbl.read = _read_record_mono;			//for 1p0 when return channel is mono
-	tbl.read = _read_record_quad_to_mono;	//for 1p5 when return channel is quad
+	tbl.read = _read_record_mono;			//for 1p0 when return channel is mono
+	//tbl.read = _read_record_quad_to_mono;	//for 1p5 when return channel is quad
 	tbl.close = _close;
 	master = hlo_stream_new(&tbl, NULL, HLO_AUDIO_RECORD|HLO_AUDIO_PLAYBACK);
 	record_isr_sem = xSemaphoreCreateBinary();
