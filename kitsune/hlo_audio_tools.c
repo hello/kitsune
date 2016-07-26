@@ -402,6 +402,7 @@ hlo_stream_t * hlo_stream_nn_keyword_recognition(hlo_stream_t * base, uint8_t th
 	memset(ctx, 0, sizeof(*ctx));
 	ctx->threshold = threshold;
 	ctx->base = base;
+	keyword_net_initialize();
 	keyword_net_register_callback(ctx, okay_sense, threshold, _begin_keyword, _finish_keyword);
 	ret = hlo_stream_new(&tbl, ctx, HLO_STREAM_READ);
 	if(!ret){
