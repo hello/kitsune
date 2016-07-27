@@ -161,7 +161,8 @@ typedef struct{
 	int32_t  duration;
 }ramp_ctx_t;
 extern xSemaphoreHandle i2c_smphr;
-//TODO extern bool set_volume(int v, unsigned int dly);
+
+bool set_volume(int v, unsigned int dly);
 
 static void _change_volume_task(hlo_future_t * result, void * ctx){
 	volatile ramp_ctx_t * v = (ramp_ctx_t*)ctx;

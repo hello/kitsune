@@ -134,6 +134,7 @@ uint8_t InitAudioPlayback(int32_t vol, uint32_t rate ) {
 	// Setup the Audio In/Out
     MAP_I2SIntEnable(I2S_BASE,I2S_INT_XDMA);
 
+    set_volume(vol, portMAX_DELAY);
 	return 0;
 
 }
@@ -144,6 +145,7 @@ void DeinitAudioPlayback(void) {
 	// Mute speaker
 	codec_mute_spkr();
 #endif
+	set_volume(0, portMAX_DELAY);
 
 	MAP_uDMAChannelDisable(UDMA_CH5_I2S_TX);
 

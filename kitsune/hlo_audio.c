@@ -21,8 +21,8 @@ static unsigned long record_sr;
 static unsigned long playback_sr;
 static unsigned int initial_vol;
 static unsigned int initial_gain;
-static uint8_t audio_playback_started;
-static uint8_t audio_record_started;
+static uint8_t audio_playback_started=0;
+static uint8_t audio_record_started=0;
 xSemaphoreHandle record_isr_sem;
 xSemaphoreHandle playback_isr_sem;;
 
@@ -205,12 +205,17 @@ void hlo_audio_init(void){
 	playback_isr_sem = xSemaphoreCreateBinary();
 	assert(playback_isr_sem);
 }
+
+bool set_volume(int v, unsigned int dly);
 hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint8_t vol, uint32_t direction){
 	hlo_stream_t * ret = master;
 	LOCK();
 	if(direction == HLO_AUDIO_PLAYBACK){
 		playback_sr = sr;
 		initial_vol = vol;
+		if( audio_playback_started ) {
+			set_volume(vol, portMAX_DELAY);
+		}
 	}else if(direction == HLO_AUDIO_RECORD){
 		record_sr = sr;
 		initial_gain = vol;
@@ -220,6 +225,8 @@ hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint8_t vol, uint32_t direction)
 	UNLOCK();
 	return ret;
 }
+
+//------------------light stream-------------------//
 
 #include "led_animations.h"
 #include "hellomath.h"
@@ -304,14 +311,7 @@ hlo_stream_t * hlo_light_stream( hlo_stream_t * base){
 	return hlo_stream_new(&functions, stream, HLO_STREAM_READ_WRITE);
 }
 
-
-
-
-
-
-
-
-
+//-------------energy stream------------------//
 
 #define NSAMPLES 512
 typedef struct{

@@ -881,6 +881,10 @@ bool set_volume(int v, unsigned int dly) {
 	if(v < 0) v = 0;
 	if(v >64) v = 64;
 
+	v = 64-v;
+	v << 10;
+	v /= 560;
+
 	if( xSemaphoreTakeRecursive(i2c_smphr, dly)) {
 
 		//	w 30 00 00 # Select Page 0
@@ -889,7 +893,7 @@ bool set_volume(int v, unsigned int dly) {
 		codec_set_book(0);
 
 		cmd[0] = 46;
-		cmd[1] = 64-v;
+		cmd[0] = v;
 		I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 		xSemaphoreGiveRecursive(i2c_smphr);
 		return true;
@@ -1040,6 +1044,7 @@ void codec_unmute_spkr(void)
 	char send_stop = 1;
 	unsigned char cmd[2];
 
+	set_volume(0, portMAX_DELAY);
 	//	w 30 00 00 # Select Page 0
 	codec_set_page(1);
 
@@ -1047,7 +1052,7 @@ void codec_unmute_spkr(void)
 
 	if( xSemaphoreTakeRecursive(i2c_smphr, 100)) {
 		cmd[0] = 48;
-		cmd[1] = (SPK_VOLUME_30dB << 4) | (1 << 0);
+		cmd[1] = (SPK_VOLUME_12dB << 4) | (1 << 0);
 		I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 		xSemaphoreGiveRecursive(i2c_smphr);

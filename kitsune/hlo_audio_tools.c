@@ -474,6 +474,7 @@ int Cmd_stream_transfer(int argc, char * argv[]){
 	return 0;
 }
 
+#include "wifi_cmd.h"
 #include "protobuf/state.pb.h"
 AudioState get_audio_state();
 
