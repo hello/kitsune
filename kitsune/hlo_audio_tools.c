@@ -473,6 +473,9 @@ int Cmd_stream_transfer(int argc, char * argv[]){
 	return 0;
 }
 
+#include "protobuf/state.pb.h"
+AudioState get_audio_state();
+
 void AudioControlTask(void * unused) {
 	audio_sig_stop = 0;
 	hlo_filter f = hlo_filter_data_transfer;
@@ -483,6 +486,10 @@ void AudioControlTask(void * unused) {
 		DISP("starting new stream\n");
 		audio_sig_stop = 0;
 		hlo_filter f = _filter_from_string("x");
+
+		while( get_audio_state().playing_audio ) {
+			vTaskDelay(1000);
+		}
 
 		hlo_stream_t * in = open_stream_from_path( "$a$n",2); // TODO DKH
 		hlo_stream_t * out = open_stream_from_path( "$idev-speech.hello.is/upload/audio?r=16000",0);

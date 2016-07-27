@@ -74,9 +74,12 @@ extern bool encode_device_id_string(pb_ostream_t *stream, const pb_field_t *fiel
 static void _print_heap_info(void){
 	LOGI("%d free %d stk\n", xPortGetFreeHeapSize(),  uxTaskGetStackHighWaterMark(NULL));
 }
+static SenseState sense_state;
+AudioState get_audio_state() {
+	return sense_state.audio_state;
+}
 static void _sense_state_task(hlo_future_t * result, void * ctx){
 #define MAX_STATE_BACKOFF (15*60*1000)
-	SenseState sense_state;
 	AudioState last_audio_state;
 	sense_state.sense_id.funcs.encode = encode_device_id_string;
 	sense_state.has_audio_state = true;
