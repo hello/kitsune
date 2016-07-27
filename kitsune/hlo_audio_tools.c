@@ -401,6 +401,15 @@ hlo_stream_t * hlo_stream_nn_keyword_recognition(hlo_stream_t * base, uint8_t th
 	return ret;
 
 }
+static int _close_decode_mp3(void * ctx){
+
+}
+static int _decode_mp3(void * ctx, const void * buf, size_t size){
+
+}
+hlo_stream_t * hlo_stream_mp3_decoder(hlo_stream_t * output){
+
+}
 ////-----------------------------------------
 //commands
 static uint8_t _can_has_sig_stop(void){

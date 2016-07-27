@@ -25,6 +25,9 @@ hlo_stream_t * hlo_stream_nn_keyword_recognition(hlo_stream_t * base, uint8_t th
 
 //returns -2 when energy dips below a threshold determined by ??
 hlo_stream_t * hlo_stream_end_of_speech_detector(hlo_stream_t * base, uint8_t max_duration, uint32_t sr);
+
+//write stream
+hlo_stream_t * hlo_stream_mp3_decoder(hlo_stream_t * output);
 //uart commands
 int Cmd_audio_record_start(int argc, char *argv[]);
 int Cmd_audio_record_stop(int argc, char *argv[]);
