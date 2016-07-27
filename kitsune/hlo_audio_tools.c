@@ -276,6 +276,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		hlo_stream_close(aud);
 	}
 #endif
+
 	stop_led_animation(portMAX_DELAY, 18);
 	return ret;
 }
@@ -470,4 +471,30 @@ int Cmd_stream_transfer(int argc, char * argv[]){
 	hlo_stream_close(in);
 	hlo_stream_close(out);
 	return 0;
+}
+
+void AudioControlTask(void * unused) {
+	audio_sig_stop = 0;
+	hlo_filter f = hlo_filter_data_transfer;
+	int ret;
+
+	for(;;) {
+
+		DISP("starting new stream\n");
+		audio_sig_stop = 0;
+		hlo_filter f = _filter_from_string("x");
+
+		hlo_stream_t * in = open_stream_from_path( "$a$n",2); // TODO DKH
+		hlo_stream_t * out = open_stream_from_path( "$idev-speech.hello.is/upload/audio?r=16000",0);
+
+		if(in && out){
+			ret = f(in,out,NULL, _can_has_sig_stop);
+		}
+		LOGI("Stream transfer exited with code %d\r\n", ret);
+
+		hlo_stream_close(in);
+		hlo_stream_close(out);
+
+		vTaskDelay(100);
+	}
 }

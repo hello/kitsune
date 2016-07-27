@@ -30,3 +30,6 @@ int Cmd_audio_record_start(int argc, char *argv[]);
 int Cmd_audio_record_stop(int argc, char *argv[]);
 int Cmd_stream_transfer(int argc, char * argv[]);
 #endif
+
+
+void AudioControlTask(void * unused);

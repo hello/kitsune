@@ -2220,9 +2220,9 @@ void vUARTTask(void *pvParameters) {
 	if( on_charger ) {
 		launch_tasks();
 		vTaskDelete(NULL);
-		return;
+	//	return;
 	} else {
-		play_led_wheel( 50, LED_MAX, LED_MAX, 0,0,10,1);
+	//	play_led_wheel( 50, LED_MAX, LED_MAX, 0,0,10,1);
 	}
 
 	UARTprintf("\n\nFreeRTOS %s, %08x, %s %02x:%02x:%02x:%02x:%02x:%02x\n",
@@ -2232,6 +2232,7 @@ void vUARTTask(void *pvParameters) {
 	UARTprintf("> ");
 
 	/* remove anything we recieved before we were ready */
+	xTaskCreate(AudioControlTask, "AudioControl",  10*1024 / 4, NULL, 3, NULL);
 
 	/* Loop forever */
 	while (1) {
