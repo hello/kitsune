@@ -42,8 +42,8 @@ static int _open_playback(uint32_t sr, uint8_t vol){
 
 }
 static int _reinit_playback(unsigned int sr, unsigned int initial_vol){
-	DeinitAudioPlayback();
-	_open_playback(sr, initial_vol);
+	//DeinitAudioPlayback();
+	//_open_playback(sr, initial_vol);
 	return 0;
 }
 static int _write_playback_mono(void * ctx, const void * buf, size_t size){
@@ -60,7 +60,7 @@ static int _write_playback_mono(void * ctx, const void * buf, size_t size){
 			LOGI("Init playback\n");
 			ret = _reinit_playback(playback_sr, initial_vol);
 			if(ret) return ret;
-			Audio_Start();
+			//Audio_Start();
 			return 0;
 		}
 	}
@@ -84,8 +84,8 @@ static int _open_record(uint32_t sr, uint32_t gain){
 	return 0;
 }
 static int _reinit_record(unsigned int sr, unsigned int vol){
-	DeinitAudioCapture();
-	_open_record(sr, initial_gain?initial_gain:16);
+	//DeinitAudioCapture();
+	//_open_record(sr, initial_gain?initial_gain:16);
 	return 0;
 }
 static int _read_record_mono(void * ctx, void * buf, size_t size){
@@ -95,7 +95,7 @@ static int _read_record_mono(void * ctx, void * buf, size_t size){
 	if(!audio_record_started){
 		audio_record_started = 1;
 		ret = _reinit_record(record_sr, initial_gain);
-		Audio_Start();
+		//Audio_Start();
 		if(ret) return ret;
 	}
 
@@ -204,6 +204,9 @@ void hlo_audio_init(void){
 	assert(record_isr_sem);
 	playback_isr_sem = xSemaphoreCreateBinary();
 	assert(playback_isr_sem);
+	_open_playback(16000,0);
+	_open_record(16000,0);
+	Audio_Start();
 }
 
 bool set_volume(int v, unsigned int dly);
