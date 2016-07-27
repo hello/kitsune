@@ -51,6 +51,8 @@ void InitAudioTxRx(uint32_t rate)
 
 	MAP_I2SIntRegister(I2S_BASE,DMAPingPongCompleteAppCB_opt);
 
+	codec_unmute_spkr();
+
 }
 
 uint8_t InitAudioCapture(uint32_t rate) {
@@ -110,8 +112,10 @@ uint8_t InitAudioPlayback(int32_t vol, uint32_t rate ) {
 	// Initialize the Audio(I2S) Module
 	//McASPInit(rate);
 
+#if 0
 	// Unmute speaker
 	codec_unmute_spkr();
+#endif
 
 	UDMAChannelSelect(UDMA_CH5_I2S_TX, NULL);
 
@@ -136,8 +140,10 @@ uint8_t InitAudioPlayback(int32_t vol, uint32_t rate ) {
 
 void DeinitAudioPlayback(void) {
 
+#if 0
 	// Mute speaker
 	codec_mute_spkr();
+#endif
 
 	MAP_uDMAChannelDisable(UDMA_CH5_I2S_TX);
 

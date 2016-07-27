@@ -1008,6 +1008,15 @@ int32_t codec_test_commands(void)
 }
 #endif
 
+typedef enum{
+	SPK_VOLUME_MUTE = 0,
+	SPK_VOLUME_6dB = 1,
+	SPK_VOLUME_12dB = 2,
+	SPK_VOLUME_18dB = 3,
+	SPK_VOLUME_24dB = 4,
+	SPK_VOLUME_30dB = 5,
+}spk_volume_t;
+
 void codec_mute_spkr(void)
 {
 	char send_stop = 1;
@@ -1040,7 +1049,7 @@ void codec_unmute_spkr(void)
 
 	if( xSemaphoreTakeRecursive(i2c_smphr, 100)) {
 		cmd[0] = 48;
-		cmd[1] = (5 << 4) | (1 << 0);
+		cmd[1] = (SPK_VOLUME_30dB << 4) | (1 << 0);
 		I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 		xSemaphoreGiveRecursive(i2c_smphr);
