@@ -401,13 +401,7 @@ hlo_stream_t * hlo_stream_nn_keyword_recognition(hlo_stream_t * base, uint8_t th
 	return ret;
 
 }
-static int _close_decode_mp3(void * ctx){
-
-}
-static int _decode_mp3(void * ctx, const void * buf, size_t size){
-
-}
-hlo_stream_t * hlo_stream_mp3_decoder(hlo_stream_t * output){
+int hlo_filter_mp3_decoder(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
 
 }
 ////-----------------------------------------
@@ -447,6 +441,8 @@ static hlo_filter _filter_from_string(const char * str){
 		return hlo_filter_modulate_led_with_sound;
 	case 'n':
 		return hlo_filter_nn_keyword_recognition;
+	case 'm':
+		return hlo_filter_mp3_decoder;
 	default:
 		return hlo_filter_data_transfer;
 	}
