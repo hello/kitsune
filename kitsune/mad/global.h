@@ -21,7 +21,7 @@
 
 # ifndef LIBMAD_GLOBAL_H
 # define LIBMAD_GLOBAL_H
-
+# include "kit_assert.h"
 /* conditional debugging */
 
 # if defined(DEBUG) && defined(NDEBUG)
