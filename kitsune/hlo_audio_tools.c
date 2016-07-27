@@ -341,10 +341,16 @@ typedef struct{
 
 static void _begin_keyword(void * ctx, Keyword_t keyword, int8_t value){
 	play_led_animation_solid(254, 254, 254, 254 ,1, 18,3);
-	DISP("Keyword Start\r\n");
+
+	if (keyword == okay_sense) {
+		DISP("OKAY SENSE\r\n");
+	}
 }
 static void _finish_keyword(void * ctx, Keyword_t keyword, int8_t value){
-	DISP("Keyword Done\r\n");
+	if (keyword == okay_sense) {
+		DISP("Keyword Done\r\n");
+	}
+
 	if(ctx){
 		((nn_keyword_ctx_t *)ctx)->keyword_detected = 1;
 	}
@@ -356,6 +362,8 @@ int hlo_filter_nn_keyword_recognition(hlo_stream_t * input, hlo_stream_t * outpu
 	keyword_net_initialize();
 
 	keyword_net_register_callback(0,okay_sense,80,_begin_keyword,_finish_keyword);
+	//keyword_net_register_callback(0,alexa,80,_begin_keyword,_finish_keyword);
+
 	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, sizeof(samples), 4)) >= 0 ){
 		keyword_net_add_audio_samples(samples,ret/sizeof(int16_t));
 
