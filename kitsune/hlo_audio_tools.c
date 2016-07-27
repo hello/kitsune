@@ -401,8 +401,65 @@ hlo_stream_t * hlo_stream_nn_keyword_recognition(hlo_stream_t * base, uint8_t th
 	return ret;
 
 }
-int hlo_filter_mp3_decoder(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
+#include "mad/decoder.h"
+typedef struct{
+	hlo_stream_t * in;
+	hlo_stream_t * out;
+}mp3_ctx_t;
+static
+enum mad_flow _mp3_input(void *data,
+		    struct mad_stream *stream)
+{
 
+	DISP("input\r\n");
+  return MAD_FLOW_CONTINUE;
+}
+static
+enum mad_flow _mp3_output(void *data,
+		     struct mad_header const *header,
+		     struct mad_pcm *pcm)
+{
+	DISP("output\r\n");
+  return MAD_FLOW_CONTINUE;
+}
+
+/*
+ * This is the error callback function. It is called whenever a decoding
+ * error occurs. The error is indicated by stream->error; the list of
+ * possible MAD_ERROR_* errors can be found in the mad.h (or stream.h)
+ * header file.
+ */
+
+static
+enum mad_flow _mp3_error(void *data,
+		    struct mad_stream *stream,
+		    struct mad_frame *frame)
+{
+	DISP("error\r\n");
+
+  return MAD_FLOW_CONTINUE;
+}
+int hlo_filter_mp3_decoder(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
+	mp3_ctx_t mp3 = {0};
+	struct mad_decoder decoder;
+	int result;
+
+	/* initialize our private message structure */
+
+
+	/* configure input, output, and error functions */
+
+	mad_decoder_init(&decoder, &mp3,
+		   _mp3_input, 0 /* header */, 0 /* filter */, _mp3_output,
+		   _mp3_error, 0 /* message */);
+
+	/* start decoding */
+
+	result = mad_decoder_run(&decoder, MAD_DECODER_MODE_SYNC);
+
+	/* release the decoder */
+
+	mad_decoder_finish(&decoder);
 }
 ////-----------------------------------------
 //commands
