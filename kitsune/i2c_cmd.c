@@ -878,8 +878,6 @@ bool set_volume(int v, unsigned int dly) {
 	char send_stop = 1;
 	unsigned char cmd[2];
 
-	UARTprintf("Volume%d\n",v);
-
 	if(v < 0) v = 0;
 	if(v >64) v = 64;
 
