@@ -51,7 +51,8 @@
 #  if defined(NDEBUG)
 #   define assert(x)	/* nothing */
 #  else
-#   define assert(x)	do { if (!(x)) abort(); } while (0)
+#	//include "kit_assert.h"
+#   //define assert(x)	do { if (!(x)) abort(); } while (0)
 #  endif
 # endif
 

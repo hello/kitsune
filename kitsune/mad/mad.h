@@ -23,8 +23,8 @@
 # ifdef __cplusplus
 extern "C" {
 # endif
-
-# define FPM_ARM
+//this is defined in build
+//# define FPM_ARM
 
 
 
