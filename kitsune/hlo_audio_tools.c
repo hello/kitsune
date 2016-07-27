@@ -271,7 +271,8 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		DISP("\r\n===========\r\n");
 		hlo_stream_t * aud = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE, 60,HLO_AUDIO_PLAYBACK);
 						DISP("Playback Audio\r\n");
-						hlo_filter_adpcm_decoder(output,aud,NULL,NULL);
+						//hlo_filter_adpcm_decoder(output,aud,NULL,NULL);
+						hlo_filter_data_transfer(output,aud,NULL,NULL);
 						DISP("\r\n===========\r\n");
 		hlo_stream_close(aud);
 	}
