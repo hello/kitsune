@@ -185,7 +185,7 @@ static void _change_volume_task(hlo_future_t * result, void * ctx){
 		if( xSemaphoreTakeRecursive(i2c_smphr, 100)) {
 			//set vol
 			vTaskDelay(5);
-			//set_volume(v->current, 0); TODO
+			set_volume(v->current, 0);
 			vTaskDelay(5);
 			xSemaphoreGiveRecursive(i2c_smphr);
 
