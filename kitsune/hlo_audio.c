@@ -41,28 +41,36 @@ static int _open_playback(uint32_t sr, uint8_t vol){
 	return 0;
 
 }
+
+/*
 static int _reinit_playback(unsigned int sr, unsigned int initial_vol){
 	DeinitAudioPlayback();
 	_open_playback(sr, initial_vol);
 	return 0;
 }
+*/
+
 static int _write_playback_mono(void * ctx, const void * buf, size_t size){
 	int ret;
 
 	if(IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) == TRUE){
-		if(audio_playback_started){
+/*		if(audio_playback_started){ */
 			if(!xSemaphoreTake(playback_isr_sem,5000)){
 				LOGI("ISR Failed\r\n");
+#if 0
 				return _reinit_playback(playback_sr, initial_vol);
+#else
+				return HLO_STREAM_ERROR;
+#endif
 			}
-		}else{
+/*		}else{
 			audio_playback_started = 1;
 			LOGI("Init playback\n");
 			ret = _reinit_playback(playback_sr, initial_vol);
 			if(ret) return ret;
 			Audio_Start();
 			return 0;
-		}
+		}*/
 	}
 	int written = min(PING_PONG_CHUNK_SIZE, size);
 	if(written > 0){
@@ -83,13 +91,15 @@ static int _open_record(uint32_t sr, uint32_t gain){
 	DISP("Open record\r\n");
 	return 0;
 }
+/*
 static int _reinit_record(unsigned int sr, unsigned int vol){
 	DeinitAudioCapture();
 	_open_record(sr, initial_gain?initial_gain:16);
 	return 0;
-}
+}*/
 static int _read_record_mono(void * ctx, void * buf, size_t size){
 
+	/*
 	int ret;
 
 	if(!audio_record_started){
@@ -98,11 +108,16 @@ static int _read_record_mono(void * ctx, void * buf, size_t size){
 		Audio_Start();
 		if(ret) return ret;
 	}
+	*/
 
 	if( !IsBufferSizeFilled(pTxBuffer, LISTEN_WATERMARK) ){
 		if(!xSemaphoreTake(record_isr_sem,5000)){
 			LOGI("ISR Failed\r\n");
+#if 0
 			return _reinit_record(record_sr, initial_gain);
+#else
+			return HLO_STREAM_ERROR;
+#endif
 		}
 	}
 	int read = min(PING_PONG_CHUNK_SIZE, size);
@@ -192,7 +207,7 @@ void hlo_audio_init(void){
 	assert(lock);
 	hlo_stream_vftbl_t tbl = { 0 };
 	tbl.write = _write_playback_mono;
-#if 0
+#if 1
 	tbl.read = _read_record_mono;			//for 1p0 when return channel is mono
 #else
 	tbl.read = _read_record_quad_to_mono;	//for 1p5 when return channel is quad
@@ -204,18 +219,29 @@ void hlo_audio_init(void){
 	playback_isr_sem = xSemaphoreCreateBinary();
 	assert(playback_isr_sem);
 }
+
+bool set_volume(int v, unsigned int dly);
 hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint8_t vol, uint32_t direction){
 	hlo_stream_t * ret = master;
 	LOCK();
 	if(direction == HLO_AUDIO_PLAYBACK){
 		playback_sr = sr;
 		initial_vol = vol;
+		if(!audio_playback_started){
+			_open_playback(16000,0);
+			set_volume(vol, portMAX_DELAY);
+		}
 	}else if(direction == HLO_AUDIO_RECORD){
 		record_sr = sr;
 		initial_gain = vol;
+		if(!audio_record_started){
+			_open_record(16000,0);
+			audio_record_started = 1;
+		}
 	}else{
 		LOGW("Unsupported Audio Mode, returning default stream\r\n");
 	}
 	UNLOCK();
+	Audio_Start();
 	return ret;
 }
