@@ -64,7 +64,7 @@ void mad_stream_init(struct mad_stream *stream)
 void mad_stream_finish(struct mad_stream *stream)
 {
   if (stream->main_data) {
-    free(stream->main_data);
+    vPortFree(stream->main_data);
     stream->main_data = 0;
   }
 
