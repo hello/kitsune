@@ -18,16 +18,16 @@ typedef struct{
 #endif
 
 #if (CODEC_ADC_16KHZ==1)
-#define PLL_P 1
+#define PLL_P 2
 #define PLL_R 1
-#define PLL_J 7
-#define PLL_D 6800UL
-#define NDAC 3
-#define MDAC 5
-#define NADC 3
-#define MADC 10
-#define DOSR 384UL
-#define AOSR 192UL
+#define PLL_J 4
+#define PLL_D 3008UL
+#define NDAC 1
+#define MDAC 21
+#define NADC 1
+#define MADC 42
+#define DOSR 256UL
+#define AOSR 128UL
 #else
 #define PLL_P 1
 #define PLL_R 1
@@ -56,10 +56,10 @@ typedef struct{
  *
  */
 
-#define IADC (1920) //((MADC)*(AOSR))
-#define IDAC (1920) //((MDAC)*(DOSR))
+#define IADC (3072) //((MADC)*(AOSR))
+#define IDAC (3072) //((MDAC)*(DOSR))
 
-#define MIC_VOLUME_DB 20
+#define MIC_VOLUME_DB 10
 #define MIC_VOLUME_CONTROL ((MIC_VOLUME_DB)*2)
 #define MUTE_SPK 1
 
