@@ -21,7 +21,7 @@ static unsigned long record_sr;
 static unsigned long playback_sr;
 static unsigned int initial_vol;
 static unsigned int initial_gain;
-static uint8_t audio_playback_started=0;
+static uint8_t audio_playback_reference=0;
 static uint8_t audio_record_started=0;
 xSemaphoreHandle record_isr_sem;
 xSemaphoreHandle playback_isr_sem;;
@@ -185,11 +185,10 @@ hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint8_t vol, uint32_t direction)
 	if(direction == HLO_AUDIO_PLAYBACK){
 		playback_sr = sr;
 		initial_vol = vol;
-		if( audio_playback_started ) {
-			set_volume(vol, portMAX_DELAY);
-		} else{
+		if( !audio_playback_reference ) {
 			_open_playback(16000,0);
-			audio_playback_started  = 1;
+			audio_playback_reference  += 1;
+			set_volume(vol, portMAX_DELAY);
 		}
 	}else if(direction == HLO_AUDIO_RECORD){
 		record_sr = sr;
