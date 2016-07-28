@@ -131,7 +131,8 @@ static int _read_record_quad_to_mono(void * ctx, void * buf, size_t size){
 	//	*iter = _ez_lpf(_quad_to_mono((int16_t*)samples), last);
 	//	*iter = _ez_lpf(_select_channel((int16_t*)samples, 3), last);
 	//	*iter = _select_channel((int16_t*)samples, 3);
-		*iter = _quad_to_mono((int16_t*)samples);
+	//	*iter = _quad_to_mono((int16_t*)samples);
+		*iter = _select_channel((int16_t*)samples, 0);
 		last = *iter;
 		iter++;
 	}
