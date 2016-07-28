@@ -181,6 +181,11 @@
 			<locationURI>PARENT-2-PROJECT_LOC/codec_debug_config.h</locationURI>
 		</link>
 		<link>
+			<name>codec_settings_priv.h</name>
+			<type>1</type>
+			<locationURI>PARENT-2-PROJECT_LOC/codec_settings_priv.h</locationURI>
+		</link>
+		<link>
 			<name>commands.c</name>
 			<type>1</type>
 			<locationURI>PARENT-2-PROJECT_LOC/commands.c</locationURI>
