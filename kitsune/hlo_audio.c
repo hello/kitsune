@@ -36,32 +36,16 @@ static int _open_playback(uint32_t sr, uint8_t vol){
 	if(InitAudioPlayback(vol, sr)){
 		return -1;
 	}
-
 	DISP("Open playback\r\n");
 	return 0;
 
 }
-static int _reinit_playback(unsigned int sr, unsigned int initial_vol){
-	//DeinitAudioPlayback();
-	//_open_playback(sr, initial_vol);
-	return 0;
-}
 static int _write_playback_mono(void * ctx, const void * buf, size_t size){
-	int ret;
-
 	if(IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) == TRUE){
-		if(audio_playback_started){
-			if(!xSemaphoreTake(playback_isr_sem,5000)){
-				LOGI("ISR Failed\r\n");
-				return _reinit_playback(playback_sr, initial_vol);
-			}
-		}else{
-			audio_playback_started = 1;
-			LOGI("Init playback\n");
-			ret = _reinit_playback(playback_sr, initial_vol);
-			if(ret) return ret;
-			//Audio_Start();
-			return 0;
+		if(!xSemaphoreTake(playback_isr_sem,5000)){
+			LOGI("ISR Failed\r\n");
+			//TODO blow up
+			return HLO_STREAM_ERROR;
 		}
 	}
 	int written = min(PING_PONG_CHUNK_SIZE, size);
@@ -78,31 +62,16 @@ static int _open_record(uint32_t sr, uint32_t gain){
 	if(InitAudioCapture(sr)){
 		return -1;
 	}
-	//set_mic_gain(gain,4);
-	// Audio_Start();
 	DISP("Open record\r\n");
-	return 0;
-}
-static int _reinit_record(unsigned int sr, unsigned int vol){
-	//DeinitAudioCapture();
-	//_open_record(sr, initial_gain?initial_gain:16);
 	return 0;
 }
 static int _read_record_mono(void * ctx, void * buf, size_t size){
 
-	int ret;
-
-	if(!audio_record_started){
-		audio_record_started = 1;
-		ret = _reinit_record(record_sr, initial_gain);
-		//Audio_Start();
-		if(ret) return ret;
-	}
-
 	if( !IsBufferSizeFilled(pTxBuffer, LISTEN_WATERMARK) ){
 		if(!xSemaphoreTake(record_isr_sem,5000)){
 			LOGI("ISR Failed\r\n");
-			return _reinit_record(record_sr, initial_gain);
+			//TODO blow up
+			return HLO_STREAM_ERROR;
 		}
 	}
 	int read = min(PING_PONG_CHUNK_SIZE, size);
@@ -204,9 +173,9 @@ void hlo_audio_init(void){
 	assert(record_isr_sem);
 	playback_isr_sem = xSemaphoreCreateBinary();
 	assert(playback_isr_sem);
-	_open_playback(16000,0);
-	_open_record(16000,0);
-	Audio_Start();
+
+
+
 }
 
 bool set_volume(int v, unsigned int dly);
@@ -218,14 +187,22 @@ hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint8_t vol, uint32_t direction)
 		initial_vol = vol;
 		if( audio_playback_started ) {
 			set_volume(vol, portMAX_DELAY);
+		} else{
+			_open_playback(16000,0);
+			audio_playback_started  = 1;
 		}
 	}else if(direction == HLO_AUDIO_RECORD){
 		record_sr = sr;
 		initial_gain = vol;
+		if(!audio_record_started){
+			_open_record(16000,0);
+			audio_record_started = 1;
+		}
 	}else{
 		LOGW("Unsupported Audio Mode, returning default stream\r\n");
 	}
 	UNLOCK();
+	Audio_Start();
 	return ret;
 }
 
