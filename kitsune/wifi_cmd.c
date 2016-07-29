@@ -704,7 +704,7 @@ int Cmd_status(int argc, char *argv[]) {
     SlNetCfgIpV4Args_t ipV4 = {0};
     sl_NetCfgGet(SL_NETCFG_IPV4_STA_ADDR_MODE,&ConfigOpt,&len,(_u8 *)&ipV4);
 
-	LOGF("DHCP is %s IP %d.%d.%d.%d MASK %d.%d.%d.%d GW %d.%d.%d.%d DNS %d.%d.%d.%d\n",
+	LOGF("DHCP=%s\nIP=%d.%d.%d.%d\nMASK=%d.%d.%d.%d\nGW=%d.%d.%d.%d\nDNS=%d.%d.%d.%d\n",
         (ConfigOpt == SL_NETCFG_ADDR_DHCP) ? "ON" : "OFF",
         SL_IPV4_BYTE(ipV4.Ip,3),SL_IPV4_BYTE(ipV4.Ip,2),SL_IPV4_BYTE(ipV4.Ip,1),SL_IPV4_BYTE(ipV4.Ip,0),
         SL_IPV4_BYTE(ipV4.IpMask,3),SL_IPV4_BYTE(ipV4.IpMask,2),SL_IPV4_BYTE(ipV4.IpMask,1),SL_IPV4_BYTE(ipV4.IpMask,0),

@@ -536,7 +536,7 @@ int Cmd_read_temp_hum_press(int argc, char *argv[]) {
 	int32_t temp;
 	uint32_t hum,press;
 	get_temp_press_hum(&temp, &press, &hum);
-	LOGF("%d,%d,%d\n", temp, hum, press);
+	LOGF("temp:%d\nhum:%d\npress:%d\n", temp, hum, press);
 	return SUCCESS;
 }
 
@@ -660,6 +660,10 @@ int init_light_sensor()
 	b[0] = 0x8d;
 	b[1] = 0x0;
 	(I2C_IF_Write(0x39, b, 2, 1));
+	//Adjust IR LED current if there is boot insert above 4903
+//	b[0] = 0x8f;
+//	b[1] = 0x92;
+//	(I2C_IF_Write(0x39, b, 2, 1));
 	b[0] = 0x90;
 	b[1] = 0x3;
 	(I2C_IF_Write(0x39, b, 2, 1));
@@ -724,7 +728,7 @@ start_rgb:
 int Cmd_readlight(int argc, char *argv[]) {
 	int r,g,b,w,p;
 	if( SUCCESS == get_rgb_prox( &w, &r, &g, &b, &p ) ) {
-		LOGF("%d,%d,%d,%d,%d\n", w,r,g,b,p );
+		LOGF("white:%d\nred:%d\ngreen:%d\nblue:%d\nprox:%d\n", w,r,g,b,p );
 	}
 	return SUCCESS;
 }
@@ -1008,7 +1012,7 @@ void codec_unmute_spkr(void)
 
 	if( xSemaphoreTakeRecursive(i2c_smphr, 100)) {
 		cmd[0] = 48;
-		cmd[1] = 0x21;
+		cmd[1] = 0x51;
 		I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 		xSemaphoreGiveRecursive(i2c_smphr);
 	}

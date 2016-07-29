@@ -141,10 +141,17 @@ static int _animate_factory_test_pattern(const led_color_t * prev, led_color_t *
 	int i;
 	int counter = *(int*)user_context;
 	for(i = 0; i < NUM_LED; i++){
-		if( ( (i+counter) % 3 ) == 0 ) {
+		if( counter % 4 == 1 ) {
 			out[i] = led_from_rgb(255,255,255);
-		} else {
-			out[i] = led_from_rgb(0,0,0);
+		}
+		if( counter % 4 == 2 ) {
+			out[i] = led_from_rgb(255,0,0);
+		}
+		if( counter % 4 == 3 ) {
+			out[i] = led_from_rgb(0,255,0);
+		}
+		if( counter % 4 == 0 ) {
+			out[i] = led_from_rgb(0,0,255);
 		}
 	}
 	return ANIMATION_CONTINUE;
@@ -296,10 +303,10 @@ int play_led_progress_bar(int r, int g, int b, unsigned int options, unsigned in
 	xSemaphoreGiveRecursive(led_smphr);
 	return ret;
 }
+static int counter = 0;
 int factory_led_test_pattern(unsigned int timeout) {
 	int ret;
-	static int counter;
-	counter = 0;
+	counter++;
 	user_animation_t anim = (user_animation_t){
 		.handler = _animate_factory_test_pattern,
 		.reinit_handler = NULL,

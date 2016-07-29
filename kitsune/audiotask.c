@@ -401,7 +401,7 @@ int Cmd_AudioPlayback(int argc, char * argv[]){
 	if(argc  > 1){
 		AudioPlaybackDesc_t desc;
 		desc.context = NULL;
-		desc.durationInSeconds = 10;
+		desc.durationInSeconds = 5;
 		desc.fade_in_ms = 1000;
 		desc.fade_out_ms = 1000;
 		desc.onFinished = NULL;
