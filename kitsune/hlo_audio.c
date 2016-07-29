@@ -40,13 +40,34 @@ static int _open_playback(uint32_t sr, uint8_t vol){
 	return 0;
 
 }
+
+/*
+static int _reinit_playback(unsigned int sr, unsigned int initial_vol){
+	DeinitAudioPlayback();
+	_open_playback(sr, initial_vol);
+	return 0;
+}
+*/
+
 static int _write_playback_mono(void * ctx, const void * buf, size_t size){
 	if(IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) == TRUE){
-		if(!xSemaphoreTake(playback_isr_sem,5000)){
-			LOGI("ISR Failed\r\n");
-			//TODO blow up
-			return HLO_STREAM_ERROR;
-		}
+/*		if(audio_playback_started){ */
+			if(!xSemaphoreTake(playback_isr_sem,5000)){
+				LOGI("ISR Failed\r\n");
+#if 0
+				return _reinit_playback(playback_sr, initial_vol);
+#else
+				return HLO_STREAM_ERROR;
+#endif
+			}
+/*		}else{
+			audio_playback_started = 1;
+			LOGI("Init playback\n");
+			ret = _reinit_playback(playback_sr, initial_vol);
+			if(ret) return ret;
+			Audio_Start();
+			return 0;
+		}*/
 	}
 	int written = min(PING_PONG_CHUNK_SIZE, size);
 	if(written > 0){
@@ -65,13 +86,33 @@ static int _open_record(uint32_t sr, uint32_t gain){
 	DISP("Open record\r\n");
 	return 0;
 }
+/*
+static int _reinit_record(unsigned int sr, unsigned int vol){
+	DeinitAudioCapture();
+	_open_record(sr, initial_gain?initial_gain:16);
+	return 0;
+}*/
 static int _read_record_mono(void * ctx, void * buf, size_t size){
+
+	/*
+	int ret;
+
+	if(!audio_record_started){
+		audio_record_started = 1;
+		ret = _reinit_record(record_sr, initial_gain);
+		Audio_Start();
+		if(ret) return ret;
+	}
+	*/
 
 	if( !IsBufferSizeFilled(pTxBuffer, LISTEN_WATERMARK) ){
 		if(!xSemaphoreTake(record_isr_sem,5000)){
 			LOGI("ISR Failed\r\n");
-			//TODO blow up
+#if 0
+			return _reinit_record(record_sr, initial_gain);
+#else
 			return HLO_STREAM_ERROR;
+#endif
 		}
 	}
 	int read = min(PING_PONG_CHUNK_SIZE, size);
@@ -163,7 +204,7 @@ void hlo_audio_init(void){
 	assert(lock);
 	hlo_stream_vftbl_t tbl = { 0 };
 	tbl.write = _write_playback_mono;
-#if 0
+#if 1
 	tbl.read = _read_record_mono;			//for 1p0 when return channel is mono
 #else
 	tbl.read = _read_record_quad_to_mono;	//for 1p5 when return channel is quad
