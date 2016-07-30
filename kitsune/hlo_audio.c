@@ -153,6 +153,7 @@ static int16_t _quad_to_mono(int16_t * samples){
 static int16_t _ez_lpf(int16_t now, int16_t prev){
 	return (int16_t)(((int32_t)now + prev)/2);
 }
+int ch = 0;
 static int _read_record_quad_to_mono(void * ctx, void * buf, size_t size){
 	int i;
 	static int16_t last;
@@ -173,7 +174,7 @@ static int _read_record_quad_to_mono(void * ctx, void * buf, size_t size){
 	//	*iter = _ez_lpf(_select_channel((int16_t*)samples, 3), last);
 	//	*iter = _select_channel((int16_t*)samples, 3);
 	//	*iter = _quad_to_mono((int16_t*)samples);
-		*iter = _select_channel((int16_t*)samples, 0);
+		*iter = _select_channel((int16_t*)samples, ch);
 		last = *iter;
 		iter++;
 	}
@@ -204,7 +205,7 @@ void hlo_audio_init(void){
 	assert(lock);
 	hlo_stream_vftbl_t tbl = { 0 };
 	tbl.write = _write_playback_mono;
-#if 1
+#if 0
 	tbl.read = _read_record_mono;			//for 1p0 when return channel is mono
 #else
 	tbl.read = _read_record_quad_to_mono;	//for 1p5 when return channel is quad
@@ -416,6 +417,46 @@ hlo_stream_t * hlo_stream_en( hlo_stream_t * base, bool * brk ){
 	DISP("open en\n") ;
 
 	return hlo_stream_new(&functions, stream, HLO_STREAM_READ_WRITE);
+}
+
+
+
+//-------------tunes stream------------------//
+
+typedef struct{
+	int t;
+}tunes_stream_t;
+
+static int _read_tunes(void * ctx, void * buf, size_t size){
+	tunes_stream_t * s = (tunes_stream_t*)ctx;
+	int i;
+	int16_t * samples = (int16_t *)buf;
+	size /= sizeof(int16_t);
+
+	for(i = 0; i < size; i++){
+		samples[i] = (int16_t)(s->t*(((s->t>>24)|(s->t>>18))&(2047&(s->t>>7))));
+		++s->t;
+	}
+	return size *  sizeof(int16_t);
+}
+static int _close_tunes(void * ctx){
+	tunes_stream_t * stream = (tunes_stream_t*)ctx;
+	DISP("close energy\n") ;
+	vPortFree(stream);
+	return 0;
+}
+hlo_stream_t * hlo_stream_tunes(){
+	hlo_stream_vftbl_t functions = (hlo_stream_vftbl_t){
+		.write = NULL,
+		.read = _read_tunes,
+		.close = _close_tunes,
+	};
+	tunes_stream_t * stream = pvPortMalloc(sizeof(*stream));
+	if( !stream ){
+		return NULL;
+	}
+	memset(stream, 0, sizeof(*stream) );
+	return hlo_stream_new(&functions, stream, HLO_STREAM_READ);
 }
 
 
