@@ -471,9 +471,9 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 				}
 				DISP("Output Opt rate is %d\r\n", opt_rate);
 				if(opt_rate){
-					return hlo_audio_open_mono(opt_rate,60,HLO_AUDIO_PLAYBACK);
+					return hlo_audio_open_mono(opt_rate,30,HLO_AUDIO_PLAYBACK);
 				}else{
-					return hlo_audio_open_mono(48000,60,HLO_AUDIO_PLAYBACK);
+					return hlo_audio_open_mono(48000,30,HLO_AUDIO_PLAYBACK);
 				}
 			}
 			case 'i':

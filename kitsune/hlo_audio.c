@@ -362,6 +362,7 @@ static int _read_energy(void * ctx, void * buf, size_t size){
 	for(i = 0; i < size; i++){
 		stream->eng += abs(samples[i]);
 
+
 		++stream->ctr_tot;
 
 		if( ++stream->ctr > NSAMPLES ) {
@@ -371,13 +372,16 @@ static int _read_energy(void * ctx, void * buf, size_t size){
 			stream->reduced += abs(stream->eng - stream->last_eng)<<1;
 
 			stream->lp += ( stream->reduced - stream->lp ) >> 3;
-			DISP("%d\r", stream->lp) ;
+			DISP("%d\t\t\r", stream->eng);
 
 			stream->last_eng = stream->eng;
 
-			if( (stream->ctr_tot > NSAMPLES*100 && stream->lp <= 100)||stream->ctr_tot > NSAMPLES*800  ){
-				DISP("\n") ;
-				if( stream->brk ) *stream->brk = true;
+			if( stream->brk &&
+					((stream->ctr_tot > NSAMPLES*100
+							&& stream->lp <= 100)
+							||stream->ctr_tot > NSAMPLES*800)  ){
+				//DISP("\n") ;
+				*stream->brk = true;
 			}
 			stream->ctr = 0;
 			stream->eng = 0;

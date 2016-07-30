@@ -882,7 +882,7 @@ bool set_volume(int v, unsigned int dly) {
 	if(v >64) v = 64;
 
 	v = 64-v;
-	v << 10;
+	v <<= 10;
 	v /= 560;
 
 	if( xSemaphoreTakeRecursive(i2c_smphr, dly)) {
@@ -1052,7 +1052,7 @@ void codec_unmute_spkr(void)
 
 	if( xSemaphoreTakeRecursive(i2c_smphr, 100)) {
 		cmd[0] = 48;
-		cmd[1] = (SPK_VOLUME_12dB << 4) | (1 << 0);
+		cmd[1] = (SPK_VOLUME_6dB << 4) | (1 << 0);
 		I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 		xSemaphoreGiveRecursive(i2c_smphr);
