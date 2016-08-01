@@ -78,7 +78,7 @@
 
 /* Define to optimize for speed over accuracy. */
 /* #undef OPT_SPEED */
-
+#define OPT_SPEED
 /* Define to enable a fast subband synthesis approximation optimization. */
 /* #undef OPT_SSO */
 
