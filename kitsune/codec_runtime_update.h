@@ -24,16 +24,19 @@
 #define MUX_CH4_SELECT_DEGREE	2
 
 typedef enum{
-	MUX_SELECT_MIC_RAW = 0,
-	MUX_SELECT_AEC_INPUT = 1,
-	MUX_SELECT_AEC_LEVEL = 2,
-	MUX_SELECT_CH4_OUT = 3,
+	DAC_ADAPTIVE_COEFF_BANK1_CONFIG,
+	DAC_ADAPTIVE_COEFF_BANK2_CONFIG,
+	ADC_ADAPTIVE_COEFF_BANK_CONFIG,
+	MUX_SELECT_MIC_RAW,
+	MUX_SELECT_AEC_INPUT,
+	MUX_SELECT_AEC_LEVEL,
+	MUX_SELECT_CH4_OUT,
 	MAX_CONTROL_BLOCKS
 
 }control_blocks_t;
 
 int32_t codec_update_minidsp_mux(control_blocks_t type, uint32_t data);
-int32_t codec_update_minidsp_coeff(control_blocks_t type, uint32_t* data);
 
+int32_t codec_test_runtime_prop_update(void);
 #endif
 

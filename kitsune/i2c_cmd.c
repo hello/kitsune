@@ -1006,6 +1006,7 @@ int32_t codec_test_commands(void)
 		xSemaphoreGiveRecursive(i2c_smphr);
 	}
 
+
 	return 0;
 
 }
@@ -1151,6 +1152,7 @@ int32_t codec_init_with_dsp(void)
 
 	vTaskDelay(100);
 
+	codec_test_runtime_prop_update();
 #if 0
 	/*
 	 * TESTING RUNTIME PROPERTIES
