@@ -91,6 +91,7 @@ int hlo_filter_adpcm_decoder(hlo_stream_t * input, hlo_stream_t * output, void *
 	short decompressed[ADPCM_SAMPLES];
 	adpcm_state state = (adpcm_state){0};
 	int ret = 0;
+	hlo_stream_t * decoded =  fs_stream_open("/decoded", HLO_STREAM_WRITE);
 	while(1){
 		ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)compressed, ADPCM_SAMPLES/2,4);
 		if( ret < 0 ){
@@ -98,13 +99,16 @@ int hlo_filter_adpcm_decoder(hlo_stream_t * input, hlo_stream_t * output, void *
 		}
 		adpcm_decoder((char*)compressed, (short*)decompressed, ret * 2 , &state);
 		if( output ){
+			int transfer_size = ret * 4;
 			ret = hlo_stream_transfer_all(INTO_STREAM, output, (uint8_t*)decompressed, ret * 4, 4);
+			hlo_stream_transfer_all(INTO_STREAM, decoded, (uint8_t*)decompressed,transfer_size, 4);
 			if ( ret < 0 ){
 				break;
 			}
 		}
 		BREAK_ON_SIG(signal);
 	}
+	hlo_stream_close(decoded);
 	return ret;
 }
 int hlo_filter_adpcm_encoder(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
@@ -195,6 +199,7 @@ int hlo_filter_octogram(hlo_stream_t * input, hlo_stream_t * output, void * ctx,
 	DISP("Octogram Task Finished %d\r\n", ret);
 	return ret;
 }
+
 ////-------------------------------------------
 //octogram sample app
 extern uint8_t get_alpha_from_light();
@@ -205,52 +210,36 @@ extern uint8_t get_alpha_from_light();
 extern bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, void **arg);
 int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
 #define NSAMPLES 512
-	int sample_rate = AUDIO_CAPTURE_PLAYBACK_RATE;
 	int ret = 0;
 	int16_t samples[NSAMPLES];
-	int32_t count = 0;
-	int32_t zcr = 0;
-	int32_t window_zcr;
-	int32_t window_eng;
-	int64_t eng = 0;
-	uint8_t window_over = 0;
-	{//play the trippy while we get voice
-		uint8_t trippy_base[3] = {200, 200, 200};
-		uint8_t trippy_range[3] = { 54, 54, 54 };
-		play_led_trippy(trippy_base, trippy_range, portMAX_DELAY, 30, 30 );
-	}
+
+	bool light_open = false;
+	bool brk = false;
+
 	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, sizeof(samples), 4)) > 0 ){
-		int i;
-		for(i = 1; i < NSAMPLES; i++){
-			if( (samples[i] > 0 && samples[i-1] <= 0) ||
-					(samples[i] <= 0 && samples[i-1] > 0) ){
-				zcr++;
-			}
-			eng += abs(samples[i] - samples[i-1]);
-			if( count++ > sample_rate ){
-				window_over = 1;
-				window_zcr = zcr;
-				window_eng = eng/sample_rate;
-				zcr = 0;
-				count = 0;
-				eng = 0;
-			}
+
+		if( !light_open ) {
+			input = hlo_light_stream( input );
+			input = hlo_stream_en( input, &brk );
+			light_open = true;
 		}
-		if( window_over ){
-			LOGI("zcr = %d, eng = %d\r\n", window_zcr, window_eng);
-			window_over = 0;
-		}
+
 		ret = hlo_stream_transfer_all(INTO_STREAM, output,  (uint8_t*)samples, ret, 4);
 		if ( ret <  0){
 			break;
 		}
 		BREAK_ON_SIG(signal);
+
+		if(brk) {
+			break;
+		}
 	}
+
 	{//now play the swirling thing when we get response
 			play_led_wheel(get_alpha_from_light(),254,0,254,2,18,0);
 			DISP("Wheel\r\n");
 	}
-
+#if 0
 	//lastly, glow with voice output, since we can't do that in half duplex mode, simply queue it to the voice output
 	if( ret >= 0){
 		SpeechResponse resp = SpeechResponse_init_zero;
@@ -259,12 +248,17 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		resp.url.funcs.decode = _decode_string_field;
 		if( 0 == hlo_pb_decode(output,SpeechResponse_fields, &resp) ){
 			DISP("Resp %s\r\nUrl %s\r\n", resp.text.arg, resp.url.arg);
-			hlo_stream_t * aud = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE, 60,HLO_AUDIO_PLAYBACK);
+			if(resp.audio_stream_size){
+				hlo_stream_t * aud = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE, 60,HLO_AUDIO_PLAYBACK);
+				DISP("Playback Audio\r\n");
+				hlo_filter_adpcm_decoder(output,aud,NULL,NULL);
+			}
+		/*	hlo_stream_t * aud = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE, 60,HLO_AUDIO_PLAYBACK);
 			hlo_stream_t * fs = hlo_http_get(resp.url.arg);
 			hlo_filter_adpcm_decoder(fs,aud,NULL,NULL);
 			hlo_stream_close(fs);
 			hlo_stream_close(aud);
-
+		*/
 			vPortFree(resp.text.arg);
 			vPortFree(resp.url.arg);
 		}else{
@@ -272,28 +266,67 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		}
 		DISP("\r\n===========\r\n");
 	}
+#else
+	if(ret >= 0 || ret == HLO_STREAM_EOF ){
+		DISP("\r\n===========\r\n");
+		hlo_stream_t * aud = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE, 64,HLO_AUDIO_PLAYBACK);
+			DISP("Playback Audio\r\n");
+			//hlo_filter_adpcm_decoder(output,aud,NULL,NULL);
+			int ret;
+			while(1){
+				uint8_t buf[512];
+				ret = hlo_stream_transfer_between(output,aud,buf,sizeof(buf),4);
+				if(ret < 0){
+					break;
+				}
+
+				if( hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, sizeof(samples), 4) < 0 ) {
+					DISP("BREAK\r\n");
+					break;
+				}
+
+				BREAK_ON_SIG(signal);
+			}
+			DISP("\r\n===========\r\n");
+		hlo_stream_close(aud);
+	}
+#endif
+
+	stop_led_animation(portMAX_DELAY, 18);
 	return ret;
 }
+
 #include "hellomath.h"
 int hlo_filter_modulate_led_with_sound(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
 	int ret;
 	int16_t samples[NSAMPLES] = {0};
 	play_modulation(253,253,253,30,0);
 	int32_t reduced = 0;
+	int32_t lp = 0;
+	int32_t last_eng = 0;
 	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, sizeof(samples), 4)) >= 0 ){
 		int i;
 		int32_t eng = 0;
 		for(i = 0; i < NSAMPLES; i++){
 			eng += abs(samples[i]);
 		}
-		eng = eng/NSAMPLES;
+		eng = fxd_sqrt(eng/NSAMPLES);
 
-		reduced =  (int32_t)(0.15 * (fxd_sqrt(eng) + 0.005 * eng)) + (0.85 * reduced);
+		reduced = 3 * reduced >> 2;
+		reduced += abs(eng - last_eng)<<1;
 
-		if(reduced > 253){
-			reduced = 253;
+		lp += ( reduced - lp ) >> 3;
+		//DISP("%d %d %d\n", lp, reduced, abs((fxd_sqrt(eng) - last_eng))) ;
+
+		last_eng = eng;
+
+		if(lp > 253){
+			lp = 253;
 		}
-		set_modulation_intensity( reduced );
+		if( lp < 20 ){
+			lp = 20;
+		}
+		set_modulation_intensity( lp );
 		hlo_stream_transfer_all(INTO_STREAM, output,  (uint8_t*)samples, ret, 4);
 		BREAK_ON_SIG(signal);
 	}
@@ -301,26 +334,97 @@ int hlo_filter_modulate_led_with_sound(hlo_stream_t * input, hlo_stream_t * outp
 	return ret;
 }
 #include "tensor/keyword_net.h"
+typedef struct{
+	hlo_stream_t * base;
+	uint8_t keyword_detected;
+	uint8_t threshold;
+	uint16_t reserved;
+	uint32_t timeout;
+}nn_keyword_ctx_t;
+
 static void _begin_keyword(void * ctx, Keyword_t keyword, int8_t value){
-	DISP("Keyword Start\r\n");
+	play_led_animation_solid(254, 254, 254, 254 ,1, 18,3);
+
+	if (keyword == okay_sense) {
+		DISP("OKAY SENSE\r\n");
+	}
 }
 static void _finish_keyword(void * ctx, Keyword_t keyword, int8_t value){
-	DISP("Keyword Done\r\n");
+	if (keyword == okay_sense) {
+		DISP("Keyword Done\r\n");
+	}
+
+	if(ctx){
+		((nn_keyword_ctx_t *)ctx)->keyword_detected++;
+	}
 }
+//note that filter and the stream version can not run concurrently
 int hlo_filter_nn_keyword_recognition(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
 	int16_t samples[160];
 	int ret;
 	keyword_net_initialize();
 
-	keyword_net_register_callback(0,okay_sense,60,_begin_keyword,_finish_keyword);
+	keyword_net_register_callback(0,okay_sense,80,_begin_keyword,_finish_keyword);
+	//keyword_net_register_callback(0,alexa,80,_begin_keyword,_finish_keyword);
+
 	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, sizeof(samples), 4)) >= 0 ){
-		keyword_net_add_audio_samples(samples,ret);
+		keyword_net_add_audio_samples(samples,ret/sizeof(int16_t));
+
 		hlo_stream_transfer_all(INTO_STREAM, output,  (uint8_t*)samples, ret, 4);
 		BREAK_ON_SIG(signal);
 	}
 	DISP("Keyword Detection Exit\r\n");
 	keyword_net_deinitialize();
 	return 0;
+}
+static int _close_nn_stream(void * ctx){
+	nn_keyword_ctx_t * nn = (nn_keyword_ctx_t*)ctx;
+	hlo_stream_t * base = nn->base;
+	keyword_net_deinitialize();
+	vPortFree(ctx);
+	return hlo_stream_close(base);
+}
+static int _read_nn_stream(void * ctx, void * buf, size_t size){
+	nn_keyword_ctx_t * nn = (nn_keyword_ctx_t*)ctx;
+	if(nn->keyword_detected == 1){
+		return hlo_stream_read(nn->base, buf, size);
+	} else if(nn->keyword_detected == 2){
+			return HLO_STREAM_EOF;
+	}else{
+		int16_t samples[160];
+		int ret = hlo_stream_transfer_all(FROM_STREAM, nn->base, (uint8_t*)samples, sizeof(samples), 4);
+		if(ret % 2){//alignment error
+			return HLO_STREAM_ERROR;
+		}else if(ret > 0){
+			keyword_net_add_audio_samples(samples, ret/sizeof(int16_t));
+		}else if(ret < 0){
+			return ret;
+		}
+		return 0;
+	}
+}
+
+hlo_stream_t * hlo_stream_nn_keyword_recognition(hlo_stream_t * base, uint8_t threshold){
+	hlo_stream_vftbl_t tbl = (hlo_stream_vftbl_t){
+		.write = NULL,
+		.read = _read_nn_stream,
+		.close = _close_nn_stream,
+	};
+	nn_keyword_ctx_t * ctx = pvPortMalloc(sizeof(*ctx));
+	hlo_stream_t * ret = NULL;
+	if(!ctx) return NULL;
+	memset(ctx, 0, sizeof(*ctx));
+	ctx->threshold = threshold;
+	ctx->base = base;
+	keyword_net_initialize();
+	keyword_net_register_callback(ctx, okay_sense, threshold, _begin_keyword, _finish_keyword);
+	ret = hlo_stream_new(&tbl, ctx, HLO_STREAM_READ);
+	if(!ret){
+		vPortFree(ctx);
+		keyword_net_deinitialize();
+	}
+	return ret;
+
 }
 ////-----------------------------------------
 //commands
@@ -393,4 +497,46 @@ int Cmd_stream_transfer(int argc, char * argv[]){
 	hlo_stream_close(in);
 	hlo_stream_close(out);
 	return 0;
+}
+
+#include "wifi_cmd.h"
+#include "protobuf/state.pb.h"
+AudioState get_audio_state();
+
+void ble_proto_led_init();
+
+void AudioControlTask(void * unused) {
+	audio_sig_stop = 0;
+	hlo_filter f = hlo_filter_data_transfer;
+	int ret;
+	bool started = false;
+
+	for(;;) {
+
+		DISP("starting new stream\n");
+		audio_sig_stop = 0;
+		hlo_filter f = _filter_from_string("x");
+
+		while( get_audio_state().playing_audio || !wifi_status_get(HAS_IP) ) {
+			vTaskDelay(1000);
+		}
+
+		hlo_stream_t * in = open_stream_from_path( "$a$n",2); // TODO DKH
+		hlo_stream_t * out = open_stream_from_path( "$idev-speech.hello.is/upload/audio?r=16000",0);
+
+		if( !started ) {
+			ble_proto_led_init();
+			started = true;
+		}
+
+		if(in && out){
+			ret = f(in,out,NULL, _can_has_sig_stop);
+		}
+		LOGI("Stream transfer exited with code %d\r\n", ret);
+
+		hlo_stream_close(in);
+		hlo_stream_close(out);
+
+		vTaskDelay(100);
+	}
 }

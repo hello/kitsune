@@ -3,7 +3,7 @@
 #include "tinytensor_math.h"
 #include <assert.h>
 
-static void get_fullyconnectged_output_size(const void * context,uint32_t * dims) {
+static void get_fullyconnectged_output_size(const void * context,uint32_t * dims,const uint32_t * input_dims) {
     const FullyConnectedLayer_t * layer = (const FullyConnectedLayer_t *)context;
     
     uint32_t i;
@@ -24,12 +24,10 @@ static void eval_fullyconnected(const void * context,void * layer_state,Tensor_t
     const Weight_t * input;
     const Weight_t * input_start;
     Weight_t * output = out->x;
-    const uint32_t out_len = out->dims[0] * out->dims[1] * out->dims[2] * out->dims[3];
     
     int8_t activation_input_scale;
     int8_t out_scale;
     Weight_t outval;
-    uint32_t i;
     
     const int16_t dropout_weight = (1 << QFIXEDPOINT) - layer->incoming_dropout;
     //const int16_t dropout_weight = 128;
@@ -41,7 +39,6 @@ static void eval_fullyconnected(const void * context,void * layer_state,Tensor_t
     int8_t delta_descale;
     int8_t descale = 0;
     Weight_t * p;
-    int32_t max = 0x80000000; //assumes two complement
     
     uint32_t n_in = 0;
     

@@ -119,12 +119,6 @@ ResetISR(void)
 static void
 NmiSR(void)
 {
-    //
-    // Enter an infinite loop.
-    //
-    while(1)
-    {
-    }
 }
 
 //*****************************************************************************
@@ -134,16 +128,6 @@ NmiSR(void)
 // for examination by a debugger.
 //
 //*****************************************************************************
-static void
-FaultISR(void)
-{
-    //
-    // Enter an infinite loop.
-    //
-    while(1)
-    {
-    }
-}
 
 //*****************************************************************************
 //
@@ -157,12 +141,6 @@ FaultISR(void)
 static void
 BusFaultHandler(void)
 {
-    //
-    // Go into an infinite loop.
-    //
-    while(1)
-    {
-    }
 }
 
 //*****************************************************************************
@@ -175,11 +153,5 @@ BusFaultHandler(void)
 static void
 IntDefaultHandler(void)
 {
-    //
-    // Go into an infinite loop.
-    //
-    while(1)
-    {
-    }
 }
 #endif

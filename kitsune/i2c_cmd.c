@@ -869,6 +869,40 @@ static void codec_sw_reset(void);
 static void beep_gen(void);
 #endif
 
+/*
+ * This function updates the gain on the LOL output to the speaker driver
+ * On the codec, this gain has 117 levels between 0db to -78.3db
+ * The input v to the function varies from 0-64.
+ */
+bool set_volume(int v, unsigned int dly) {
+
+	char send_stop = 1;
+	unsigned char cmd[2];
+
+	if(v < 0) v = 0;
+	if(v >64) v = 64;
+
+	v = 64-v;
+	v <<= 10;
+	v /= 560;
+
+	if( xSemaphoreTakeRecursive(i2c_smphr, dly)) {
+
+		//	w 30 00 00 # Select Page 0
+		codec_set_page(1);
+
+		codec_set_book(0);
+
+		cmd[0] = 46;
+		cmd[0] = v;
+		I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+		xSemaphoreGiveRecursive(i2c_smphr);
+		return true;
+	} else {
+		return false;
+	}
+
+}
 
 static void codec_sw_reset(void)
 {
@@ -977,6 +1011,15 @@ int32_t codec_test_commands(void)
 }
 #endif
 
+typedef enum{
+	SPK_VOLUME_MUTE = 0,
+	SPK_VOLUME_6dB = 1,
+	SPK_VOLUME_12dB = 2,
+	SPK_VOLUME_18dB = 3,
+	SPK_VOLUME_24dB = 4,
+	SPK_VOLUME_30dB = 5,
+}spk_volume_t;
+
 void codec_mute_spkr(void)
 {
 	char send_stop = 1;
@@ -1002,6 +1045,7 @@ void codec_unmute_spkr(void)
 	char send_stop = 1;
 	unsigned char cmd[2];
 
+	set_volume(0, portMAX_DELAY);
 	//	w 30 00 00 # Select Page 0
 	codec_set_page(1);
 
@@ -1009,8 +1053,9 @@ void codec_unmute_spkr(void)
 
 	if( xSemaphoreTakeRecursive(i2c_smphr, 100)) {
 		cmd[0] = 48;
-		cmd[1] = 0x21;
+		cmd[1] = (SPK_VOLUME_6dB << 4) | (1 << 0);
 		I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
 		xSemaphoreGiveRecursive(i2c_smphr);
 	}
 

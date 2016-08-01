@@ -1,5 +1,5 @@
 #include "keyword_net.h"
-#include "model_may25_lstm_small_okay_sense_tiny.c"
+#include "model_may25_lstm_small_okay_sense_tiny_727.c"
 #include "tinytensor_features.h"
 #include "tinytensor_memory.h"
 #include "uart_logger.h"
@@ -50,14 +50,21 @@ static void feats_callback(void * p, int8_t * feats) {
 		return;
 	}
 	if(context->counter % 50 ==0){
+		Weight_t max = out->x[1];
+		uint32_t maxj = 1;
+		for (j = 2; j < out->dims[3]; j++) {
+			max = max > out->x[j] ? max : out->x[j];
+			maxj = j;
+		}
+
 		for(j = 0 ; j < 10; j++){
-			if( out->x[1] >= j * 12 ){
+			if(max >= j * 12 ){
 				DISP("X");
 			}else{
 				DISP("_");
 			}
 		}
-		DISP("%d\r", out->x[1]);
+		DISP("%03d\r", out->x[1]);
 	}
 
 

@@ -39,5 +39,6 @@ void codec_mute_spkr(void);
 
 void codec_set_page(uint32_t page);
 void codec_set_book(uint32_t book);
+bool set_volume(int v, unsigned int dly);
 
 #endif

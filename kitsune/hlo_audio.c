@@ -21,8 +21,8 @@ static unsigned long record_sr;
 static unsigned long playback_sr;
 static unsigned int initial_vol;
 static unsigned int initial_gain;
-static uint8_t audio_playback_started;
-static uint8_t audio_record_started;
+static uint8_t audio_playback_reference=0;
+static uint8_t audio_record_started=0;
 xSemaphoreHandle record_isr_sem;
 xSemaphoreHandle playback_isr_sem;;
 
@@ -36,33 +36,38 @@ static int _open_playback(uint32_t sr, uint8_t vol){
 	if(InitAudioPlayback(vol, sr)){
 		return -1;
 	}
-
 	DISP("Open playback\r\n");
 	return 0;
 
 }
+
+/*
 static int _reinit_playback(unsigned int sr, unsigned int initial_vol){
 	DeinitAudioPlayback();
 	_open_playback(sr, initial_vol);
 	return 0;
 }
-static int _write_playback_mono(void * ctx, const void * buf, size_t size){
-	int ret;
+*/
 
+static int _write_playback_mono(void * ctx, const void * buf, size_t size){
 	if(IsBufferSizeFilled(pRxBuffer, PLAY_WATERMARK) == TRUE){
-		if(audio_playback_started){
+/*		if(audio_playback_started){ */
 			if(!xSemaphoreTake(playback_isr_sem,5000)){
 				LOGI("ISR Failed\r\n");
+#if 0
 				return _reinit_playback(playback_sr, initial_vol);
+#else
+				return HLO_STREAM_ERROR;
+#endif
 			}
-		}else{
+/*		}else{
 			audio_playback_started = 1;
 			LOGI("Init playback\n");
 			ret = _reinit_playback(playback_sr, initial_vol);
 			if(ret) return ret;
 			Audio_Start();
 			return 0;
-		}
+		}*/
 	}
 	int written = min(PING_PONG_CHUNK_SIZE, size);
 	if(written > 0){
@@ -78,18 +83,18 @@ static int _open_record(uint32_t sr, uint32_t gain){
 	if(InitAudioCapture(sr)){
 		return -1;
 	}
-	//set_mic_gain(gain,4);
-	// Audio_Start();
 	DISP("Open record\r\n");
 	return 0;
 }
+/*
 static int _reinit_record(unsigned int sr, unsigned int vol){
 	DeinitAudioCapture();
 	_open_record(sr, initial_gain?initial_gain:16);
 	return 0;
-}
+}*/
 static int _read_record_mono(void * ctx, void * buf, size_t size){
 
+	/*
 	int ret;
 
 	if(!audio_record_started){
@@ -98,11 +103,16 @@ static int _read_record_mono(void * ctx, void * buf, size_t size){
 		Audio_Start();
 		if(ret) return ret;
 	}
+	*/
 
 	if( !IsBufferSizeFilled(pTxBuffer, LISTEN_WATERMARK) ){
 		if(!xSemaphoreTake(record_isr_sem,5000)){
 			LOGI("ISR Failed\r\n");
+#if 0
 			return _reinit_record(record_sr, initial_gain);
+#else
+			return HLO_STREAM_ERROR;
+#endif
 		}
 	}
 	int read = min(PING_PONG_CHUNK_SIZE, size);
@@ -143,6 +153,7 @@ static int16_t _quad_to_mono(int16_t * samples){
 static int16_t _ez_lpf(int16_t now, int16_t prev){
 	return (int16_t)(((int32_t)now + prev)/2);
 }
+int ch = 2;
 static int _read_record_quad_to_mono(void * ctx, void * buf, size_t size){
 	int i;
 	static int16_t last;
@@ -159,9 +170,11 @@ static int _read_record_quad_to_mono(void * ctx, void * buf, size_t size){
 		}else if(ret != sizeof(samples)){
 			return HLO_STREAM_ERROR;
 		}
-		*iter = _ez_lpf(_quad_to_mono((int16_t*)samples), last);
+	//	*iter = _ez_lpf(_quad_to_mono((int16_t*)samples), last);
 	//	*iter = _ez_lpf(_select_channel((int16_t*)samples, 3), last);
 	//	*iter = _select_channel((int16_t*)samples, 3);
+	//	*iter = _quad_to_mono((int16_t*)samples);
+		*iter = _select_channel((int16_t*)samples, ch);
 		last = *iter;
 		iter++;
 	}
@@ -171,6 +184,7 @@ static int _read_record_quad_to_mono(void * ctx, void * buf, size_t size){
 static int _close(void * ctx){
 	DISP("Closing stream\n");
 
+#if 0
 	Audio_Stop();
 
 	DeinitAudioPlayback();
@@ -179,6 +193,7 @@ static int _close(void * ctx){
 
 	audio_record_started = 0;
 	audio_playback_started = 0;
+#endif
 
 	return HLO_STREAM_NO_IMPL;
 }
@@ -190,27 +205,258 @@ void hlo_audio_init(void){
 	assert(lock);
 	hlo_stream_vftbl_t tbl = { 0 };
 	tbl.write = _write_playback_mono;
+#if 0
 	tbl.read = _read_record_mono;			//for 1p0 when return channel is mono
-	//tbl.read = _read_record_quad_to_mono;	//for 1p5 when return channel is quad
+#else
+	tbl.read = _read_record_quad_to_mono;	//for 1p5 when return channel is quad
+#endif
 	tbl.close = _close;
 	master = hlo_stream_new(&tbl, NULL, HLO_AUDIO_RECORD|HLO_AUDIO_PLAYBACK);
 	record_isr_sem = xSemaphoreCreateBinary();
 	assert(record_isr_sem);
 	playback_isr_sem = xSemaphoreCreateBinary();
 	assert(playback_isr_sem);
+
+
+
 }
+
+bool set_volume(int v, unsigned int dly);
 hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint8_t vol, uint32_t direction){
 	hlo_stream_t * ret = master;
 	LOCK();
 	if(direction == HLO_AUDIO_PLAYBACK){
 		playback_sr = sr;
 		initial_vol = vol;
+		if( !audio_playback_reference ) {
+			_open_playback(16000,0);
+			audio_playback_reference  += 1;	//todo reference count playback stream to stop audio tx interrupt
+			set_volume(vol, portMAX_DELAY);
+		}
 	}else if(direction == HLO_AUDIO_RECORD){
 		record_sr = sr;
 		initial_gain = vol;
+		if(!audio_record_started){
+			_open_record(16000,0);
+			audio_record_started = 1;
+		}
 	}else{
 		LOGW("Unsupported Audio Mode, returning default stream\r\n");
 	}
 	UNLOCK();
+	Audio_Start();
 	return ret;
 }
+
+//------------------light stream-------------------//
+
+#include "led_animations.h"
+#include "hellomath.h"
+#define NSAMPLES 512
+typedef struct{
+	hlo_stream_t * base;
+	int32_t reduced;
+	int32_t lp;
+	int32_t last_eng;
+	int32_t eng;
+	int32_t ctr;
+}light_stream_t;
+
+static int _write_light(void * ctx, const void * buf, size_t size){
+	light_stream_t * stream = (light_stream_t*)ctx;
+	int rv = hlo_stream_write(stream->base, buf, size);
+	return rv;
+}
+static int _read_light(void * ctx, void * buf, size_t size){
+	light_stream_t * stream = (light_stream_t*)ctx;
+	int rv = hlo_stream_read(stream->base, buf, size);
+	int i;
+
+	int16_t * samples = (int16_t *)buf;
+	size /= sizeof(int16_t);
+
+	for(i = 0; i < size; i++){
+		stream->eng += abs(samples[i]);
+
+		if( ++stream->ctr > NSAMPLES ) {
+			stream->eng = fxd_sqrt(stream->eng/NSAMPLES);
+
+			stream->reduced = 3 * stream->reduced >> 2;
+			stream->reduced += abs(stream->eng - stream->last_eng)<<1;
+
+			stream->lp += ( stream->reduced - stream->lp ) >> 3;
+			//DISP("%d\n", stream->lp) ;
+
+			stream->last_eng = stream->eng;
+
+			if(stream->lp > 253){
+				stream->lp = 253;
+			}
+			if( stream->lp < 20 ){
+				stream->lp = 20;
+			}
+			set_modulation_intensity( stream->lp );
+			stream->ctr = 0;
+			stream->eng = 0;
+		}
+	}
+	return rv;
+}
+static int _close_light(void * ctx){
+	light_stream_t * stream = (light_stream_t*)ctx;
+	DISP("close light\n") ;
+
+	stop_led_animation( 0, 33 );
+	hlo_stream_close(stream->base);
+	vPortFree(stream);
+	return 0;
+}
+hlo_stream_t * hlo_light_stream( hlo_stream_t * base){
+	hlo_stream_vftbl_t functions = (hlo_stream_vftbl_t){
+		.write = _write_light,
+		.read = _read_light,
+		.close = _close_light,
+	};
+	if( !base ) return NULL;
+
+	light_stream_t * stream = pvPortMalloc(sizeof(*stream));
+	if( !stream ){
+		hlo_stream_close(base);
+		return NULL;
+	}
+	memset(stream, 0, sizeof(*stream) );
+	stream->base = base;
+
+	DISP("open light\n") ;
+	play_modulation(253,253,253,30,0);
+
+	return hlo_stream_new(&functions, stream, HLO_STREAM_READ_WRITE);
+}
+
+//-------------energy stream------------------//
+
+#define NSAMPLES 512
+typedef struct{
+	hlo_stream_t * base;
+	int32_t reduced;
+	int32_t lp;
+	int32_t last_eng;
+	int32_t eng;
+	int32_t ctr;
+	int32_t ctr_tot;
+	bool * brk;
+}energy_stream_t;
+
+static int _write_energy(void * ctx, const void * buf, size_t size){
+	energy_stream_t * stream = (energy_stream_t*)ctx;
+	int rv = hlo_stream_write(stream->base, buf, size);
+	return rv;
+}
+static int _read_energy(void * ctx, void * buf, size_t size){
+	energy_stream_t * stream = (energy_stream_t*)ctx;
+	int rv = hlo_stream_read(stream->base, buf, size);
+	int i;
+
+	int16_t * samples = (int16_t *)buf;
+	size /= sizeof(int16_t);
+
+	for(i = 0; i < size; i++){
+		stream->eng += abs(samples[i]);
+
+
+		++stream->ctr_tot;
+
+		if( ++stream->ctr > NSAMPLES ) {
+			stream->eng = fxd_sqrt(stream->eng/NSAMPLES);
+
+			stream->reduced = 7 * stream->reduced >> 3;
+			stream->reduced += abs(stream->eng - stream->last_eng)<<1;
+
+			stream->lp += ( stream->reduced - stream->lp ) >> 3;
+			DISP("%d\t\t\r", stream->eng);
+
+			stream->last_eng = stream->eng;
+
+			if( stream->brk &&
+					((stream->ctr_tot > NSAMPLES*100
+							&& stream->lp <= 100)
+							||stream->ctr_tot > NSAMPLES*800)  ){
+				//DISP("\n") ;
+				*stream->brk = true;
+			}
+			stream->ctr = 0;
+			stream->eng = 0;
+		}
+	}
+	return rv;
+}
+static int _close_energy(void * ctx){
+	energy_stream_t * stream = (energy_stream_t*)ctx;
+	DISP("close energy\n") ;
+
+	hlo_stream_close(stream->base);
+	vPortFree(stream);
+	return 0;
+}
+hlo_stream_t * hlo_stream_en( hlo_stream_t * base, bool * brk ){
+	hlo_stream_vftbl_t functions = (hlo_stream_vftbl_t){
+		.write = _write_energy,
+		.read = _read_energy,
+		.close = _close_energy,
+	};
+	if( !base ) return NULL;
+
+	energy_stream_t * stream = pvPortMalloc(sizeof(*stream));
+	if( !stream ){
+		hlo_stream_close(base);
+		return NULL;
+	}
+	memset(stream, 0, sizeof(*stream) );
+	stream->base = base;
+	stream->brk = brk;
+	DISP("open en\n") ;
+
+	return hlo_stream_new(&functions, stream, HLO_STREAM_READ_WRITE);
+}
+
+
+
+//-------------tunes stream------------------//
+
+typedef struct{
+	int t;
+}tunes_stream_t;
+
+static int _read_tunes(void * ctx, void * buf, size_t size){
+	tunes_stream_t * s = (tunes_stream_t*)ctx;
+	int i;
+	int16_t * samples = (int16_t *)buf;
+	size /= sizeof(int16_t);
+
+	for(i = 0; i < size; i++){
+		samples[i] = (int16_t)(s->t*(((s->t>>24)|(s->t>>18))&(2047&(s->t>>7))));
+		++s->t;
+	}
+	return size *  sizeof(int16_t);
+}
+static int _close_tunes(void * ctx){
+	tunes_stream_t * stream = (tunes_stream_t*)ctx;
+	DISP("close energy\n") ;
+	vPortFree(stream);
+	return 0;
+}
+hlo_stream_t * hlo_stream_tunes(){
+	hlo_stream_vftbl_t functions = (hlo_stream_vftbl_t){
+		.write = NULL,
+		.read = _read_tunes,
+		.close = _close_tunes,
+	};
+	tunes_stream_t * stream = pvPortMalloc(sizeof(*stream));
+	if( !stream ){
+		return NULL;
+	}
+	memset(stream, 0, sizeof(*stream) );
+	return hlo_stream_new(&functions, stream, HLO_STREAM_READ);
+}
+
+

@@ -403,36 +403,59 @@ int global_filename(char * local_fn)
 #include "fs_utils.h"
 #include "hlo_http.h"
 #include "audio_types.h"
+#include "hlo_audio_tools.h"
 #define BUF_SIZE 64
 hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
+	hlo_stream_t * rstr = NULL;
 	if(input){//input
 		if(str[0] == '$'){
+			do {
 			switch(str[1]){
-			case 'a':
-			case 'A':
-			{
-				int opt_rate = 0;
-				if(str[2] != '\0'){
-					opt_rate = ustrtoul(&str[2],NULL, 10);
+				case 'a':
+				case 'A':
+				{
+					int opt_rate = 0;
+					if(str[2] != '\0'){
+						opt_rate = ustrtoul(&str[2],NULL, 10);
+					}
+					DISP("Input Opt rate is %d\r\n", opt_rate);
+					if(opt_rate){
+						rstr = hlo_audio_open_mono(opt_rate,60,HLO_AUDIO_RECORD);
+					}else{
+						rstr = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE,60,HLO_AUDIO_RECORD);
+					}
+					break;
 				}
-				DISP("Input Opt rate is %d\r\n", opt_rate);
-				if(opt_rate){
-					return hlo_audio_open_mono(opt_rate,60,HLO_AUDIO_RECORD);
-				}else{
-					return hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE,60,HLO_AUDIO_RECORD);
+				case 'n':
+				case 'N':
+					rstr = hlo_stream_nn_keyword_recognition( rstr, 80 );
+					break;
+				case 't':
+				case 'T':
+					rstr = hlo_stream_en( rstr, NULL );
+					break;
+				case 'c':
+				case 'C':
+					rstr = hlo_stream_tunes();
+					break;
+				case 'l':
+				case 'L':
+					rstr = hlo_light_stream( rstr );
+					break;
+				case 'r':
+				case 'R':
+					rstr = random_stream_open();
+					break;
+				case 'i':
+				case 'I':
+					return hlo_http_get(&str[2]);
+				case '~':
+					return open_serial_flash(&str[2], HLO_STREAM_READ);
+				default:
+					LOGE("stream missing\n");
+					break;
 				}
-			}
-			case 'r':
-			case 'R':
-				return random_stream_open();
-			case 'i':
-			case 'I':
-				return hlo_http_get(&str[2]);
-			case '~':
-				return open_serial_flash(&str[2], HLO_STREAM_READ);
-			default:
-				break;
-			}
+			} while( '$' == *(str+=2) );
 		}else{//try file
 			global_filename(str);
 			if(input > 1){//repeating mode
@@ -474,7 +497,7 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 			return fs_stream_open(path_buff, HLO_STREAM_WRITE);
 		}
 	}
-	return NULL;
+	return rstr;
 }
 int
 Cmd_write(int argc, char *argv[])
