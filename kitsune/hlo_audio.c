@@ -229,7 +229,7 @@ hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint8_t vol, uint32_t direction)
 		playback_sr = sr;
 		initial_vol = vol;
 		if( !audio_playback_reference ) {
-			_open_playback(16000,0);
+			_open_playback(playback_sr,0);
 			audio_playback_reference  += 1;	//todo reference count playback stream to stop audio tx interrupt
 			set_volume(vol, portMAX_DELAY);
 		}
@@ -237,7 +237,7 @@ hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint8_t vol, uint32_t direction)
 		record_sr = sr;
 		initial_gain = vol;
 		if(!audio_record_started){
-			_open_record(16000,0);
+			_open_record(playback_sr,0);
 			audio_record_started = 1;
 		}
 	}else{
@@ -332,6 +332,81 @@ hlo_stream_t * hlo_light_stream( hlo_stream_t * base){
 
 	return hlo_stream_new(&functions, stream, HLO_STREAM_READ_WRITE);
 }
+
+//------------- 32->16 stream------------------//
+
+#include "hlo_pipe.h"
+
+typedef struct{
+	hlo_stream_t * base;
+}sr_cnv_stream_t;
+
+
+//write goes 32->16Khz so like so `x $a $i$c`
+static int _write_sr_cnv(void * ctx, const void * buf, size_t size){
+	sr_cnv_stream_t * stream = (sr_cnv_stream_t*)ctx;
+
+	int16_t * i16buf = (int16_t*)buf;
+
+	int isize = size / sizeof(int16_t);
+	int i;
+	for(i=0;i<isize/2;++i) {
+		i16buf[i] = ((int32_t)i16buf[i*2]+i16buf[i*2+1])/2;
+	}
+	//DISP("cnv writing %d\n", size/2 ) ;
+	int ret = hlo_stream_transfer_all(INTO_STREAM, stream->base, (uint8_t*)i16buf, size/2, 4);
+	if( ret > 0 ) {
+		return ret*2;
+	}
+	return ret;
+}
+
+//read goes 16->32khz so like so `x $i$c $a`
+static int _read_sr_cnv(void * ctx, void * buf, size_t size){
+	sr_cnv_stream_t * stream = (sr_cnv_stream_t*)ctx;
+	int rv = hlo_stream_read(stream->base, buf, size);
+	int16_t * i16buf = (int16_t*)buf;
+
+	//read half
+	int ret = hlo_stream_transfer_all(FROM_STREAM, stream->base, (uint8_t*)buf, size/2, 4);
+	if( ret < 0 ) return ret;
+
+	int isize = ret / sizeof(int16_t);
+	int i;
+	for(i=isize-1;i!=-1;--i) {
+		i16buf[i*2] = i16buf[i];
+		i16buf[i*2+1] = i16buf[i];
+	}
+
+	return 2*ret;
+}
+static int _close_sr_cnv(void * ctx){
+	sr_cnv_stream_t * stream = (sr_cnv_stream_t*)ctx;
+
+	hlo_stream_close(stream->base);
+	vPortFree(stream);
+	return 0;
+}
+hlo_stream_t * hlo_stream_sr_cnv( hlo_stream_t * base ){
+	hlo_stream_vftbl_t functions = (hlo_stream_vftbl_t){
+		.write = _write_sr_cnv,
+		.read = _read_sr_cnv,
+		.close = _close_sr_cnv,
+	};
+	if( !base ) return NULL;
+
+	sr_cnv_stream_t * stream = pvPortMalloc(sizeof(*stream));
+	if( !stream ){
+		hlo_stream_close(base);
+		return NULL;
+	}
+	memset(stream, 0, sizeof(*stream) );
+	stream->base = base;
+	DISP("open cnv\n" ) ;
+
+	return hlo_stream_new(&functions, stream, HLO_STREAM_READ_WRITE);
+}
+
 
 //-------------energy stream------------------//
 
