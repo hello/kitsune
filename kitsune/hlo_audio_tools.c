@@ -210,22 +210,17 @@ extern uint8_t get_alpha_from_light();
 extern bool _decode_string_field(pb_istream_t *stream, const pb_field_t *field, void **arg);
 int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
 #define NSAMPLES 512
-	int sample_rate = AUDIO_CAPTURE_PLAYBACK_RATE;
 	int ret = 0;
 	int16_t samples[NSAMPLES];
-	int32_t count = 0;
-	int32_t zcr = 0;
-	int32_t window_zcr;
-	int32_t window_eng;
-	int64_t eng = 0;
-	uint8_t window_over = 0;
+
 	bool light_open = false;
+	bool brk = false;
 
 	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, sizeof(samples), 4)) > 0 ){
 
 		if( !light_open ) {
 			input = hlo_light_stream( input );
-			input = hlo_stream_en( input );
+			input = hlo_stream_en( input, &brk );
 			light_open = true;
 		}
 
@@ -234,6 +229,10 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 			break;
 		}
 		BREAK_ON_SIG(signal);
+
+		if(brk) {
+			break;
+		}
 	}
 
 	{//now play the swirling thing when we get response
@@ -271,10 +270,24 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	if(ret >= 0 || ret == HLO_STREAM_EOF ){
 		DISP("\r\n===========\r\n");
 		hlo_stream_t * aud = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE, 64,HLO_AUDIO_PLAYBACK);
-						DISP("Playback Audio\r\n");
-						//hlo_filter_adpcm_decoder(output,aud,NULL,NULL);
-						hlo_filter_data_transfer(output,aud,NULL,NULL);
-						DISP("\r\n===========\r\n");
+			DISP("Playback Audio\r\n");
+			//hlo_filter_adpcm_decoder(output,aud,NULL,NULL);
+			int ret;
+			while(1){
+				uint8_t buf[512];
+				ret = hlo_stream_transfer_between(output,aud,buf,sizeof(buf),4);
+				if(ret < 0){
+					break;
+				}
+
+				if( hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, sizeof(samples), 4) < 0 ) {
+					DISP("BREAK\r\n");
+					break;
+				}
+
+				BREAK_ON_SIG(signal);
+			}
+			DISP("\r\n===========\r\n");
 		hlo_stream_close(aud);
 	}
 #endif
@@ -342,7 +355,7 @@ static void _finish_keyword(void * ctx, Keyword_t keyword, int8_t value){
 	}
 
 	if(ctx){
-		((nn_keyword_ctx_t *)ctx)->keyword_detected = 1;
+		((nn_keyword_ctx_t *)ctx)->keyword_detected++;
 	}
 }
 //note that filter and the stream version can not run concurrently
@@ -373,8 +386,10 @@ static int _close_nn_stream(void * ctx){
 }
 static int _read_nn_stream(void * ctx, void * buf, size_t size){
 	nn_keyword_ctx_t * nn = (nn_keyword_ctx_t*)ctx;
-	if(nn->keyword_detected){
+	if(nn->keyword_detected == 1){
 		return hlo_stream_read(nn->base, buf, size);
+	} else if(nn->keyword_detected == 2){
+			return HLO_STREAM_EOF;
 	}else{
 		int16_t samples[160];
 		int ret = hlo_stream_transfer_all(FROM_STREAM, nn->base, (uint8_t*)samples, sizeof(samples), 4);

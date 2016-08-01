@@ -1854,6 +1854,12 @@ int Cmd_read_uv(int argc, char *argv[]);
 int Cmd_uvr(int argc, char *argv[]);
 int Cmd_uvw(int argc, char *argv[]);
 
+extern int ch;
+
+int cmd_ch(int argc, char *argv[]) {
+ ch = atoi(argv[1]);
+ return 0;
+}
 
 int cmd_button(int argc, char *argv[]) {
 
@@ -1881,6 +1887,8 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "aes", Cmd_set_aes, "" },
 #endif
 		{ "hwver", Cmd_hwver, "" },
+
+		{ "ch", cmd_ch, "" },
 
 		{ "fault", Cmd_fault, "" },
 		{ "faults", Cmd_fault_slow, ""},
@@ -2108,7 +2116,7 @@ void vUARTTask(void *pvParameters) {
 	UDMAInit();
 	//sdhost dma interrupts
 	MAP_SDHostIntRegister(SDHOST_BASE, SDHostIntHandler);
-	MAP_SDHostSetExpClk(SDHOST_BASE, MAP_PRCMPeripheralClockGet(PRCM_SDHOST), 24000000);
+	MAP_SDHostSetExpClk(SDHOST_BASE, MAP_PRCMPeripheralClockGet(PRCM_SDHOST), 50000000);
 
 	UARTprintf("*");
 	Cmd_mnt(0, 0);
