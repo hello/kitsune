@@ -455,7 +455,8 @@ int hlo_filter_mp3_decoder(hlo_stream_t * input, hlo_stream_t * output, void * c
 	int result;
 
 	/* initialize our private message structure */
-
+	mp3.in = input;
+	mp3.out = output;
 
 	/* configure input, output, and error functions */
 
@@ -470,6 +471,7 @@ int hlo_filter_mp3_decoder(hlo_stream_t * input, hlo_stream_t * output, void * c
 	/* release the decoder */
 
 	mad_decoder_finish(&decoder);
+	return result;
 }
 ////-----------------------------------------
 //commands
