@@ -1856,10 +1856,19 @@ int Cmd_uvw(int argc, char *argv[]);
 
 extern int ch;
 
+int cmd_vol(int argc, char *argv[]) {
+ set_volume(atoi(argv[1]), portMAX_DELAY);
+ return 0;
+}
+
+
 int cmd_ch(int argc, char *argv[]) {
  ch = atoi(argv[1]);
  return 0;
 }
+
+int cmd_codec(int argc, char *argv[]);
+
 
 int cmd_button(int argc, char *argv[]) {
 
@@ -1876,7 +1885,9 @@ int Cmd_readlight(int argc, char *argv[]);
 // ==============================================================================
 tCmdLineEntry g_sCmdTable[] = {
 		//    { "cpu",      Cmd_cpu,      "Show CPU utilization" },
-    { "b",      cmd_button,      " " },
+		{ "b",      cmd_button,      " " },
+		{ "v",      cmd_vol,      " " },
+	    { "co",      cmd_codec,      " " },
 
 #if 0
 		{ "time_test", Cmd_time_test, "" },
