@@ -229,7 +229,7 @@ hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint8_t vol, uint32_t direction)
 		playback_sr = sr;
 		initial_vol = vol;
 		if( !audio_playback_reference ) {
-			_open_playback(16000,0);
+			_open_playback(playback_sr,0);
 			audio_playback_reference  += 1;	//todo reference count playback stream to stop audio tx interrupt
 			set_volume(vol, portMAX_DELAY);
 		}
@@ -237,7 +237,7 @@ hlo_stream_t * hlo_audio_open_mono(uint32_t sr, uint8_t vol, uint32_t direction)
 		record_sr = sr;
 		initial_gain = vol;
 		if(!audio_record_started){
-			_open_record(16000,0);
+			_open_record(playback_sr,0);
 			audio_record_started = 1;
 		}
 	}else{

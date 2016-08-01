@@ -17,17 +17,17 @@ typedef struct{
 #define NDAC_POWER_UP_LATER 0
 #endif
 
-#if (CODEC_ADC_16KHZ==1)
+#if (CODEC_ADC_32KHZ==1)
 #define PLL_P 1
-#define PLL_R 1
+#define PLL_R 2
 #define PLL_J 24
 #define PLL_D 0UL
 #define NDAC 2
 #define MDAC 8
 #define NADC 2
-#define MADC 16
+#define MADC 32
 #define DOSR 384UL
-#define AOSR 192UL
+#define AOSR 96UL
 #else
 #define PLL_P 1
 #define PLL_R 1
