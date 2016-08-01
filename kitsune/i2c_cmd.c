@@ -1066,7 +1066,7 @@ void codec_unmute_spkr(void)
 
 	if( xSemaphoreTakeRecursive(i2c_smphr, 100)) {
 		cmd[0] = 48;
-		cmd[1] = (SPK_VOLUME_6dB << 4) | (1 << 0);
+		cmd[1] = (SPK_VOLUME_24dB << 4) | (1 << 0);
 		I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 		xSemaphoreGiveRecursive(i2c_smphr);
