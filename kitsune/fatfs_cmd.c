@@ -436,7 +436,7 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 					break;
 				case 'c':
 				case 'C':
-					rstr = hlo_stream_tunes();
+					rstr = hlo_stream_sr_cnv( rstr );
 					break;
 				case 'l':
 				case 'L':
@@ -464,38 +464,48 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 			return fs_stream_open(path_buff, HLO_STREAM_READ);
 		}
 	}else{//output
-		if(str[0] == '$'){
-			switch(str[1]){
-			case 'a':
-			case 'A':
-			{
-				int opt_rate = 0;
-				if(str[2] != '\0'){
-					opt_rate = ustrtoul(&str[2],NULL, 10);
+		do {
+			if(str[0] == '$'){
+				switch(str[1]){
+				case 'a':
+				case 'A':
+				{
+					int opt_rate = 0;
+					if(str[2] != '\0'){
+						opt_rate = ustrtoul(&str[2],NULL, 10);
+					}
+					DISP("Output Opt rate is %d\r\n", opt_rate);
+					if(opt_rate){
+						rstr = hlo_audio_open_mono(opt_rate,55,HLO_AUDIO_PLAYBACK);
+					}else{
+						rstr = hlo_audio_open_mono(48000,55,HLO_AUDIO_PLAYBACK);
+					}
 				}
-				DISP("Output Opt rate is %d\r\n", opt_rate);
-				if(opt_rate){
-					return hlo_audio_open_mono(opt_rate,30,HLO_AUDIO_PLAYBACK);
-				}else{
-					return hlo_audio_open_mono(48000,30,HLO_AUDIO_PLAYBACK);
-				}
-			}
-			case 'i':
-			case 'I':
-				return hlo_http_post(&str[2], NULL);
-			case 'o':
-			case 'O':
-				return uart_stream();
-			case '~':
-				return open_serial_flash(&str[2], HLO_STREAM_WRITE);
-			default:
-				return random_stream_open();
+				break;
+				case 'i':
+				case 'I':
+					rstr = hlo_http_post(&str[2], NULL);
+					break;
+				case 'o':
+				case 'O':
+					rstr = uart_stream();
+					break;
+				case '~':
+					rstr = open_serial_flash(&str[2], HLO_STREAM_WRITE);
+					break;
+				case 'c':
+				case 'C':
+					rstr = hlo_stream_sr_cnv( rstr );
+					break;
+				default:
+					return random_stream_open();
 
+				}
+			}else{//try file, TODO make it append
+				global_filename(str);
+				return fs_stream_open(path_buff, HLO_STREAM_WRITE);
 			}
-		}else{//try file, TODO make it append
-			global_filename(str);
-			return fs_stream_open(path_buff, HLO_STREAM_WRITE);
-		}
+		} while( '$' == *(str+=2) );
 	}
 	return rstr;
 }
