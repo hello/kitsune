@@ -415,22 +415,75 @@ hlo_stream_t * hlo_stream_nn_keyword_recognition(hlo_stream_t * base, uint8_t th
 typedef struct{
 	hlo_stream_t * in;
 	hlo_stream_t * out;
+	uint8_t frame_buf[800];
 }mp3_ctx_t;
-static
-enum mad_flow _mp3_input(void *data,
-		    struct mad_stream *stream)
-{
+static enum mad_flow _mp3_input(void *data, struct mad_stream *stream){
+	mp3_ctx_t * ctx = (mp3_ctx_t*)data;
+	//setup default values
+	uint8_t *start = ctx->frame_buf;
+	int stream_bytes_to_read = sizeof(ctx->frame_buf);
+	int bytes_total = 0;
 
-	DISP("input\r\n");
-  return MAD_FLOW_CONTINUE;
+	if(stream->next_frame){
+		//override default values if frame is not completely consumed
+		int remaining = stream->bufend - stream->next_frame;
+		//DISP("c %d\r\n", remaining);
+		if(remaining > 0 && remaining < sizeof(ctx->frame_buf)){
+			memcpy(ctx->frame_buf, stream->next_frame, remaining);
+			start = ctx->frame_buf + remaining;
+			bytes_total = remaining;
+			stream_bytes_to_read = sizeof(ctx->frame_buf) - remaining;
+		}else{
+			DISP("buffer size error\r\n");
+			return MAD_FLOW_BREAK;
+		}
+	}else{
+//		DISP("i %d\r\n", stream_bytes_to_read);
+	}
+	int ret = hlo_stream_transfer_all(FROM_STREAM, ctx->in, start, stream_bytes_to_read, 4);
+	if(ret < 0){
+		return MAD_FLOW_STOP;
+	}else{
+		bytes_total += ret;
+	}
+
+	mad_stream_buffer(stream, ctx->frame_buf, bytes_total);
+	//vTaskDelay(100);
+	return MAD_FLOW_CONTINUE;
 }
+static inline
+signed int scale(mad_fixed_t sample)
+{
+  /* round */
+  sample += (1L << (MAD_F_FRACBITS - 16));
+
+  /* clip */
+  if (sample >= MAD_F_ONE)
+    sample = MAD_F_ONE - 1;
+  else if (sample < -MAD_F_ONE)
+    sample = -MAD_F_ONE;
+
+  /* quantize */
+  return sample >> (MAD_F_FRACBITS + 1 - 16);
+}
+
 static
 enum mad_flow _mp3_output(void *data,
 		     struct mad_header const *header,
-		     struct mad_pcm *pcm)
-{
-	DISP("output\r\n");
-  return MAD_FLOW_CONTINUE;
+		     struct mad_pcm *pcm){
+	//DISP("o %d\r\n", pcm->length);
+	mp3_ctx_t * ctx = (mp3_ctx_t*)data;
+	int16_t * i16_samples = (int16_t*)pcm->samples[1];
+	int i;
+	for(i = 0; i < pcm->length; i++){
+		i16_samples[i] = scale(pcm->samples[0][i]);
+	}
+	int ret = hlo_stream_transfer_all(INTO_STREAM, ctx->out, i16_samples, pcm->length * sizeof(int16_t), 4);
+	if( ret < 0){
+		return MAD_FLOW_BREAK;
+	}
+	//vTaskDelay(100);
+	return MAD_FLOW_CONTINUE;
 }
 
 /*
@@ -443,11 +496,14 @@ enum mad_flow _mp3_output(void *data,
 static
 enum mad_flow _mp3_error(void *data,
 		    struct mad_stream *stream,
-		    struct mad_frame *frame)
-{
-	DISP("error\r\n");
-
-  return MAD_FLOW_CONTINUE;
+		    struct mad_frame *frame){
+	if(!MAD_RECOVERABLE(stream->error)){
+		DISP("MP3Error: %s\r\n", mad_stream_errorstr(stream));
+		vTaskDelay(100);
+		return MAD_FLOW_BREAK;
+	}else{
+		return MAD_FLOW_CONTINUE;
+	}
 }
 int hlo_filter_mp3_decoder(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
 	mp3_ctx_t mp3 = {0};
