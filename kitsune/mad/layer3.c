@@ -2535,10 +2535,13 @@ int mad_layer_III(struct mad_stream *stream, struct mad_frame *frame)
   }
 
   if (frame->overlap == 0) {
-    frame->overlap = calloc(2 * 32 * 18, sizeof(mad_fixed_t));
+	  size_t size = 2 * 32 * 18 * sizeof(mad_fixed_t);
+    frame->overlap = pvPortMalloc(size);
     if (frame->overlap == 0) {
       stream->error = MAD_ERROR_NOMEM;
       return -1;
+    }else{
+    	memset(frame->overlap, 0, size);
     }
   }
 
