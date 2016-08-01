@@ -342,17 +342,30 @@ typedef struct{
 }sr_cnv_stream_t;
 
 
+//assumes array s is 2n elements long
+static void _upsample( int16_t * s, int n) {
+	int i;
+	for(i=n-1;i!=-1;--i) {
+		s[i*2] = s[i];
+		s[i*2+1] = s[i];
+	}
+}
+
+//assumes array s is n elements long
+static void _downsample( int16_t * s, int n) {
+	int i;
+	for(i=0;i<n/2;++i) {
+		s[i] = ((int32_t)s[i*2]+s[i*2+1])/2;
+	}
+}
+
 //write goes 32->16Khz so like so `x $a $i$c`
 static int _write_sr_cnv(void * ctx, const void * buf, size_t size){
 	sr_cnv_stream_t * stream = (sr_cnv_stream_t*)ctx;
-
 	int16_t * i16buf = (int16_t*)buf;
 
 	int isize = size / sizeof(int16_t);
-	int i;
-	for(i=0;i<isize/2;++i) {
-		i16buf[i] = ((int32_t)i16buf[i*2]+i16buf[i*2+1])/2;
-	}
+	_downsample(i16buf, isize);
 	//DISP("cnv writing %d\n", size/2 ) ;
 	int ret = hlo_stream_transfer_all(INTO_STREAM, stream->base, (uint8_t*)i16buf, size/2, 4);
 	if( ret > 0 ) {
@@ -364,7 +377,6 @@ static int _write_sr_cnv(void * ctx, const void * buf, size_t size){
 //read goes 16->32khz so like so `x $i$c $a`
 static int _read_sr_cnv(void * ctx, void * buf, size_t size){
 	sr_cnv_stream_t * stream = (sr_cnv_stream_t*)ctx;
-	int rv = hlo_stream_read(stream->base, buf, size);
 	int16_t * i16buf = (int16_t*)buf;
 
 	//read half
@@ -372,11 +384,7 @@ static int _read_sr_cnv(void * ctx, void * buf, size_t size){
 	if( ret < 0 ) return ret;
 
 	int isize = ret / sizeof(int16_t);
-	int i;
-	for(i=isize-1;i!=-1;--i) {
-		i16buf[i*2] = i16buf[i];
-		i16buf[i*2+1] = i16buf[i];
-	}
+	_upsample(i16buf, isize);
 
 	return 2*ret;
 }
