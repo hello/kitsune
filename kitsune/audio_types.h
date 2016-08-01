@@ -7,7 +7,7 @@
 
 #include "codec_debug_config.h"
 
-#if (CODEC_ADC_16KHZ == 1)
+#if (CODEC_ADC_32KHZ == 1)
 #define AUDIO_CAPTURE_PLAYBACK_RATE 32000
 #else
 #define AUDIO_CAPTURE_PLAYBACK_RATE 48000
