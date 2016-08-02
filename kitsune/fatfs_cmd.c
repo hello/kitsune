@@ -496,7 +496,7 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 				{
 					int opt_rate = 0;
 					if(str[2] != '\0'){
-						opt_rate = ustrtoul(&str[2],NULL, 10);
+						opt_rate = ustrtoul(p+1,NULL, 10);
 					}
 					DISP("Output Opt rate is %d\r\n", opt_rate);
 					if(opt_rate){
@@ -508,18 +508,18 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 				break;
 				case 'i':
 				case 'I':
-					rstr = hlo_http_post(&str[2], NULL);
+					rstr = hlo_http_post(p+1, NULL);
 					break;
 				case 'o':
 				case 'O':
 					rstr = uart_stream();
 					break;
 				case '~':
-					rstr = open_serial_flash(&str[2], HLO_STREAM_WRITE);
+					rstr = open_serial_flash(p+1, HLO_STREAM_WRITE);
 					break;
 				case 'f':
 				case 'F':
-					global_filename(str);
+					global_filename(p+1);
 					rstr = fs_stream_open(path_buff, HLO_STREAM_WRITE);
 					break;
 				default:
