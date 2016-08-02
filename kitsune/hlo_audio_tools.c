@@ -141,7 +141,7 @@ int hlo_filter_data_transfer(hlo_stream_t * input, hlo_stream_t * output, void *
 	while(1){
 		ret = hlo_stream_transfer_between(input,output,buf,sizeof(buf),4);
 
-#if 1
+#if 0
 		codec_test_runtime_prop_update();
 #endif
 
