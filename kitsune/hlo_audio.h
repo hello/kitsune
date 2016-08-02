@@ -17,5 +17,7 @@ hlo_stream_t * hlo_light_stream( hlo_stream_t * base);
 
 hlo_stream_t * hlo_stream_en( hlo_stream_t * base, bool * brk);
 
+hlo_stream_t * hlo_stream_sr_cnv( hlo_stream_t * base );
+
 hlo_stream_t * hlo_stream_tunes();
 #endif
