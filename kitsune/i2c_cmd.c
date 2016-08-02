@@ -1240,10 +1240,10 @@ int32_t codec_init_with_dsp(void)
 
 	UARTprintf("[0][0][%u]: %X  \r\n", cmd[0], cmd[1]);
 
-	codec_set_book(0);
-
 	//	w 30 00 00 # Select Page 1
 	codec_set_page(1);
+
+	codec_set_book(0);
 
 	// Read register in [0][1][51]
 	cmd[0] = 51;
