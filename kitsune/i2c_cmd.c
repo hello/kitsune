@@ -827,8 +827,20 @@ int Cmd_uvw(int argc, char *argv[]) {
 #include "simplelink.h"
 #include "sl_sync_include_after_simplelink_header.h"
 
+/********************************************************************************
+ *                     AUDIO CODEC DRIVER CODE
+ ********************************************************************************/
+typedef enum{
+	SPK_VOLUME_MUTE = 0,
+	SPK_VOLUME_6dB = 1,
+	SPK_VOLUME_12dB = 2,
+	SPK_VOLUME_18dB = 3,
+	SPK_VOLUME_24dB = 4,
+	SPK_VOLUME_30dB = 5,
+}spk_volume_t;
 
 static void codec_sw_reset(void);
+
 /*
  * This function updates the gain on the LOL output to the speaker driver
  * On the codec, this gain has 117 levels between 0db to -78.3db
@@ -938,7 +950,7 @@ void codec_set_book(uint32_t book)
 	}
 }
 
-// FOR board bring up
+// FOR board bring up - Tests I2C
 #ifdef CODEC_1P5_TEST
 int32_t codec_test_commands(void)
 {
@@ -986,15 +998,6 @@ int32_t codec_test_commands(void)
 
 }
 #endif
-
-typedef enum{
-	SPK_VOLUME_MUTE = 0,
-	SPK_VOLUME_6dB = 1,
-	SPK_VOLUME_12dB = 2,
-	SPK_VOLUME_18dB = 3,
-	SPK_VOLUME_24dB = 4,
-	SPK_VOLUME_30dB = 5,
-}spk_volume_t;
 
 void codec_mute_spkr(void)
 {
