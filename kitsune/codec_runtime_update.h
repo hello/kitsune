@@ -42,6 +42,10 @@ typedef enum{
 
 }control_blocks_t;
 
+/*
+ * NOTE: Codec properties can be updated runtime only if MCLK, WCLK and BCLK
+ * are enabled.
+ */
 int32_t codec_update_minidsp_mux(control_blocks_t type, uint32_t data);
 
 int32_t codec_test_runtime_prop_update(void);
