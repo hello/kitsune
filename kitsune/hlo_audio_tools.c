@@ -272,10 +272,11 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		hlo_stream_t * aud = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE, 64,HLO_AUDIO_PLAYBACK);
 			DISP("Playback Audio\r\n");
 			//hlo_filter_adpcm_decoder(output,aud,NULL,NULL);
+			aud = hlo_stream_sr_cnv( aud, UPSAMPLE );
+
 			int ret;
 			while(1){
-				uint8_t buf[512];
-				ret = hlo_stream_transfer_between(output,aud,buf,sizeof(buf),4);
+				ret = hlo_stream_transfer_between(output,aud,samples,sizeof(samples),4);
 				if(ret < 0){
 					break;
 				}
@@ -515,13 +516,12 @@ void AudioControlTask(void * unused) {
 
 		DISP("starting new stream\n");
 		audio_sig_stop = 0;
-		hlo_filter f = _filter_from_string("x");
 
 		while( get_audio_state().playing_audio || !wifi_status_get(HAS_IP) ) {
 			vTaskDelay(1000);
 		}
 
-		hlo_stream_t * in = open_stream_from_path( "$a$n",2); // TODO DKH
+		hlo_stream_t * in = open_stream_from_path( "$a$c$n",2); // TODO DKH
 		hlo_stream_t * out = open_stream_from_path( "$idev-speech.hello.is/upload/audio?r=16000",0);
 
 		if( !started ) {
@@ -530,7 +530,7 @@ void AudioControlTask(void * unused) {
 		}
 
 		if(in && out){
-			ret = f(in,out,NULL, _can_has_sig_stop);
+			ret = hlo_filter_voice_command(in,out,NULL, _can_has_sig_stop);
 		}
 		LOGI("Stream transfer exited with code %d\r\n", ret);
 

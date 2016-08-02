@@ -454,10 +454,10 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 					rstr = hlo_stream_en( rstr, NULL );
 					break;
 				case 'c':
-					rstr = hlo_stream_sr_cnv( rstr, true );
+					rstr = hlo_stream_sr_cnv( rstr, DOWNSAMPLE );
 					break;
 				case 'C':
-					rstr = hlo_stream_sr_cnv( rstr, false );
+					rstr = hlo_stream_sr_cnv( rstr, UPSAMPLE );
 					break;
 				case 'l':
 				case 'L':
