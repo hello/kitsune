@@ -664,6 +664,10 @@ int init_light_sensor()
 	b[1] = 0x3;
 	(I2C_IF_Write(0x39, b, 2, 1));
 
+	b[0] = 0x8F;
+	b[1] = 0x12;
+	(I2C_IF_Write(0x39, b, 2, 1));
+
 	vTaskDelay(50);
 	return SUCCESS;
 }
