@@ -57,7 +57,7 @@ static const control_t control[MAX_CONTROL_BLOCKS] = {
 		{DAC_ADAPTIVE_COEFFICIENT_BANK_1,  0, 1,   1},	 	// DAC_ADAPTIVE_COEFF_BANK1_CONFIG,
 		{DAC_ADAPTIVE_COEFFICIENT_BANK_2,  0, 1,   1}, 		// DAC_ADAPTIVE_COEFF_BANK2_CONFIG,
 		{ADC_ADAPTIVE_COEFFICIENT_BANK,    0, 1,   1}, 		// ADC_ADAPTIVE_COEFF_BANK_CONFIG,
-		{ADC_ADAPTIVE_COEFFICIENT_BANK,   2, 96,  1},  	// MUX_SELECT_MIC_RAW
+		{ADC_ADAPTIVE_COEFFICIENT_BANK,   2, 32,  1},  	// MUX_SELECT_MIC_RAW
 		{DAC_ADAPTIVE_COEFFICIENT_BANK_1, 2, 24,  1},  	// MUX_SELECT_AEC_INPUT
 		{DAC_ADAPTIVE_COEFFICIENT_BANK_1, 1, 108, 1}, 		// MUX_SELECT_AEC_LEVEL
 		{ADC_ADAPTIVE_COEFFICIENT_BANK,   2, 108, 1}   	// MUX_SELECT_AEC_LEVEL
@@ -71,7 +71,7 @@ static const control_t control[MAX_CONTROL_BLOCKS] = {
  */
 static int32_t codec_write_cram(control_blocks_t type, uint32_t* data){
 	char send_stop = 1;
-	unsigned char cmd[I2C_COEFF_WRITE_LENGTH];
+	unsigned char cmd[2];
 	uint8_t index;
 
 	if( (type >= MAX_CONTROL_BLOCKS ) || (!data)) return -1;
@@ -93,10 +93,16 @@ static int32_t codec_write_cram(control_blocks_t type, uint32_t* data){
 		cmd[1] = (data[index] & 0xFF00UL) >> 8;
 		I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
+		cmd[0]++;
 		cmd[1] = (data[index] & 0xFFUL) >> 0;
 		I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
 
 		xSemaphoreGiveRecursive(i2c_smphr);
+
+		UARTprintf("CRAM Write: [%d][%d][%d]:%x\n", \
+						control[type].book,control[type].page,cmd[0],data[0]);
+
+		cmd[0]++;
 
 		vTaskDelay(5);
 	}
@@ -106,7 +112,7 @@ static int32_t codec_write_cram(control_blocks_t type, uint32_t* data){
 
 static int32_t codec_switch_buffer(uint8_t bank){
 
-	volatile unsigned char cmd[2];
+	unsigned char cmd[2];
 	char send_stop = 1;
 
 	codec_set_book(bank);
@@ -127,7 +133,8 @@ static int32_t codec_switch_buffer(uint8_t bank){
 		I2C_IF_Read(Codec_addr, &cmd[1], 1);
 		xSemaphoreGiveRecursive(i2c_smphr);
 
-		vTaskDelay(5);
+		UARTprintf("Switch: [%d][%d][%d]: %x\n",bank, 0, cmd[0], cmd[1]);
+		vTaskDelay(1000);
 	}while(cmd[1] & 0x1);
 
 
@@ -157,7 +164,10 @@ static int32_t codec_read_cram(control_blocks_t type, uint32_t* data){
 		I2C_IF_Read(Codec_addr, &cmd[1],3 );
 		xSemaphoreGiveRecursive(i2c_smphr);
 
-		data[0] = ((uint32_t)cmd[1] << 16) | ((uint32_t)cmd[2] << 8) | ((uint32_t)cmd[3] << 0);
+		data[index] = ((uint32_t)cmd[1] << 16) | ((uint32_t)cmd[2] << 8) | ((uint32_t)cmd[3] << 0);
+
+		UARTprintf("CRAM Read: [%d][%d][%d]:%x\n", \
+				control[type].book,control[type].page,cmd[0],data[0]);
 
 	}
 	return 0;
@@ -172,6 +182,10 @@ int32_t codec_update_cram(control_blocks_t type, uint32_t* data, codec_cram_rw_t
 		ret = func(type, data); // Only for write
 		if(ret) return ret;
 	}
+
+#if 1
+	codec_read_cram(type,data);
+#endif
 
 	ret = codec_switch_buffer(control[type].book);
 	if(ret) return ret;
