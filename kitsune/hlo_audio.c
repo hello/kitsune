@@ -339,6 +339,7 @@ hlo_stream_t * hlo_light_stream( hlo_stream_t * base){
 
 typedef struct{
 	hlo_stream_t * base;
+	bool flip;
 }sr_cnv_stream_t;
 
 
@@ -359,34 +360,50 @@ static void _downsample( int16_t * s, int n) {
 	}
 }
 
-//write goes 32->16Khz so like so `x $a $i$c`
+//write goes 32->16Khz so like so `x $a $i$c` (flip reverses so 16->32  `x $i $a$c` )
 static int _write_sr_cnv(void * ctx, const void * buf, size_t size){
 	sr_cnv_stream_t * stream = (sr_cnv_stream_t*)ctx;
 	int16_t * i16buf = (int16_t*)buf;
 
-	int isize = size / sizeof(int16_t);
-	_downsample(i16buf, isize);
-	//DISP("cnv writing %d\n", size/2 ) ;
-	int ret = hlo_stream_transfer_all(INTO_STREAM, stream->base, (uint8_t*)i16buf, size/2, 4);
-	if( ret > 0 ) {
-		return ret*2;
+	if( stream->flip ) {
+		int isize = size / sizeof(int16_t);
+		_upsample(i16buf, isize/2); //discard half...
+
+		int ret = hlo_stream_transfer_all(INTO_STREAM, stream->base, (uint8_t*)buf, size, 4);
+		if( ret < 0 ) return ret/2;
+	} else {
+		int isize = size / sizeof(int16_t);
+		_downsample(i16buf, isize);
+		//DISP("cnv writing %d\n", size/2 ) ;
+		int ret = hlo_stream_transfer_all(INTO_STREAM, stream->base, (uint8_t*)i16buf, size/2, 4);
+		if( ret > 0 ) {
+			return ret*2;
+		}
+		return ret;
 	}
-	return ret;
 }
 
-//read goes 16->32khz so like so `x $i$c $a`
+//read goes 16->32khz so like so `x $i$c $a` (or with flip 32->16Khz `x $a$c $i` )
 static int _read_sr_cnv(void * ctx, void * buf, size_t size){
 	sr_cnv_stream_t * stream = (sr_cnv_stream_t*)ctx;
 	int16_t * i16buf = (int16_t*)buf;
 
-	//read half
-	int ret = hlo_stream_transfer_all(FROM_STREAM, stream->base, (uint8_t*)buf, size/2, 4);
-	if( ret < 0 ) return ret;
+	if( stream->flip ) {
+		int ret = hlo_stream_transfer_all(FROM_STREAM, stream->base, (uint8_t*)buf, size, 4);
+		if( ret < 0 ) return ret;
 
-	int isize = ret / sizeof(int16_t);
-	_upsample(i16buf, isize);
+		int isize = ret / sizeof(int16_t);
+		_downsample(i16buf, isize);
+		return ret/2;
+	} else {
+		//read half
+		int ret = hlo_stream_transfer_all(FROM_STREAM, stream->base, (uint8_t*)buf, size/2, 4);
+		if( ret < 0 ) return ret;
 
-	return 2*ret;
+		int isize = ret / sizeof(int16_t);
+		_upsample(i16buf, isize);
+		return 2*ret;
+	}
 }
 static int _close_sr_cnv(void * ctx){
 	sr_cnv_stream_t * stream = (sr_cnv_stream_t*)ctx;
@@ -395,7 +412,7 @@ static int _close_sr_cnv(void * ctx){
 	vPortFree(stream);
 	return 0;
 }
-hlo_stream_t * hlo_stream_sr_cnv( hlo_stream_t * base ){
+hlo_stream_t * hlo_stream_sr_cnv( hlo_stream_t * base, bool flip ){
 	hlo_stream_vftbl_t functions = (hlo_stream_vftbl_t){
 		.write = _write_sr_cnv,
 		.read = _read_sr_cnv,
@@ -409,6 +426,7 @@ hlo_stream_t * hlo_stream_sr_cnv( hlo_stream_t * base ){
 		return NULL;
 	}
 	memset(stream, 0, sizeof(*stream) );
+	stream->flip = flip;
 	stream->base = base;
 	DISP("open cnv\n" ) ;
 

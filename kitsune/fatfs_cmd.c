@@ -436,7 +436,7 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 					break;
 				case 'c':
 				case 'C':
-					rstr = hlo_stream_sr_cnv( rstr );
+					rstr = hlo_stream_sr_cnv( rstr, true );
 					break;
 				case 'l':
 				case 'L':
@@ -495,7 +495,7 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 					break;
 				case 'c':
 				case 'C':
-					rstr = hlo_stream_sr_cnv( rstr );
+					rstr = hlo_stream_sr_cnv( rstr, true );
 					break;
 				default:
 					return random_stream_open();
