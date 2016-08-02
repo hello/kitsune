@@ -85,11 +85,17 @@ static int32_t codec_write_cram(control_blocks_t type, uint32_t* data){
 	for(index=0;index<control[type].length;index++){
 
 		assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
-		cmd[1] = (data[index] & 0xFF0000UL) >> 16;
-		cmd[2] = (data[index] & 0xFF00UL) >> 8;
-		cmd[3] = (data[index] & 0xFFUL) >> 0;
 
-		I2C_IF_Write(Codec_addr, cmd, 4, send_stop);
+		cmd[1] = (data[index] & 0xFF0000UL) >> 16;
+		I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+		cmd[0]++;
+		cmd[1] = (data[index] & 0xFF00UL) >> 8;
+		I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
+		cmd[1] = (data[index] & 0xFFUL) >> 0;
+		I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+
 		xSemaphoreGiveRecursive(i2c_smphr);
 
 		vTaskDelay(5);
