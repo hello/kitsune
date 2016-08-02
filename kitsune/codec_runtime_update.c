@@ -47,20 +47,27 @@ typedef enum{
 	codec_cram_write = 0,
 	codec_cram_read = 1
 }codec_cram_rw_t;
-/*
- * Note: The following register locations change and need to be updated
- * by comparing with them with the Component Interface Overview in PurePath Studio
+
+/********************************************************************************
+ *                        IMPORTANT: PLEASE READ
  *
+ * Note: If the PurePath Process flow changes, the following array and all the
+ * coresponding I2C addresses need to be updated by comparing with them with the
+ * Component Interface Overview (Under Tools) in PurePath Studio
+ *
+ * Also, verify that the I2C addresses here match the array indices given by
+ * control_blocks_t (in codec_runtime_update.h)
+ ********************************************************************************
  */
 static const control_t control[MAX_CONTROL_BLOCKS] = {
 
 		{DAC_ADAPTIVE_COEFFICIENT_BANK_1,  0, 1,   1},	 	// DAC_ADAPTIVE_COEFF_BANK1_CONFIG,
 		{DAC_ADAPTIVE_COEFFICIENT_BANK_2,  0, 1,   1}, 		// DAC_ADAPTIVE_COEFF_BANK2_CONFIG,
 		{ADC_ADAPTIVE_COEFFICIENT_BANK,    0, 1,   1}, 		// ADC_ADAPTIVE_COEFF_BANK_CONFIG,
-		{ADC_ADAPTIVE_COEFFICIENT_BANK,   2, 32,  1},  	// MUX_SELECT_MIC_RAW
-		{DAC_ADAPTIVE_COEFFICIENT_BANK_1, 2, 24,  1},  	// MUX_SELECT_AEC_INPUT
+		{ADC_ADAPTIVE_COEFFICIENT_BANK,   2, 32,  1},  		// MUX_SELECT_MIC_RAW
+		{DAC_ADAPTIVE_COEFFICIENT_BANK_1, 2, 24,  1},  		// MUX_SELECT_AEC_INPUT
 		{DAC_ADAPTIVE_COEFFICIENT_BANK_1, 1, 108, 1}, 		// MUX_SELECT_AEC_LEVEL
-		{ADC_ADAPTIVE_COEFFICIENT_BANK,   2, 108, 1}   	// MUX_SELECT_AEC_LEVEL
+		{ADC_ADAPTIVE_COEFFICIENT_BANK,   2, 108, 1}   		// MUX_SELECT_AEC_LEVEL
 };
 
 

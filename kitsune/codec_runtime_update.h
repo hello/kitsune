@@ -23,6 +23,13 @@
 #define MUX_CH4_SELECT_AEC_OUT	1
 #define MUX_CH4_SELECT_DEGREE	2
 
+/********************************************************************************
+ *                        IMPORTANT: PLEASE READ
+ *
+ * Note: If the PurePath Process flow changes, the following enum needs to be
+ * updated for all components that can be updated runtime
+ ********************************************************************************
+ */
 typedef enum{
 	DAC_ADAPTIVE_COEFF_BANK1_CONFIG,
 	DAC_ADAPTIVE_COEFF_BANK2_CONFIG,
