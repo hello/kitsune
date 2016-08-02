@@ -2218,22 +2218,23 @@ int Cmd_RadioStartRX(int argc, char*argv[])
 	return RadioStartRX(channel);
 }
 
-int RadioGetStats(unsigned int *validPackets, unsigned int *fcsPackets,unsigned int *plcpPackets, int16_t *avgRssiMgmt, int16_t  *avgRssiOther, uint16_t * pRssiHistogram, uint16_t * pRateHistogram)
+int RadioGetStats(unsigned int *validPackets, unsigned int *fcsPackets, /*unsigned int *plcpPackets,*/
+		int16_t *avgRssiMgmt, int16_t  *avgRssiOther, uint16_t * pRssiHistogram, uint16_t * pRateHistogram)
 {
 
-	SlGetRxStatResponse_t rxStatResp;
+	SlWlanGetRxStatResponse_t rxStatResp;
 
 	sl_WlanRxStatGet(&rxStatResp, 0);
 
 	*validPackets = rxStatResp.ReceivedValidPacketsNumber;
 	*fcsPackets = rxStatResp.ReceivedFcsErrorPacketsNumber;
-	*plcpPackets = rxStatResp.ReceivedPlcpErrorPacketsNumber;
+	//*plcpPackets = rxStatResp.ReceivedPlcpErrorPacketsNumber;
 	*avgRssiMgmt = rxStatResp.AvarageMgMntRssi;
 	*avgRssiOther = rxStatResp.AvarageDataCtrlRssi;
 
-	memcpy(pRssiHistogram, rxStatResp.RssiHistogram, sizeof(unsigned short) * SIZE_OF_RSSI_HISTOGRAM);
+	memcpy(pRssiHistogram, rxStatResp.RssiHistogram, sizeof(unsigned short) * SL_WLAN_SIZE_OF_RSSI_HISTOGRAM);
 
-	memcpy(pRateHistogram, rxStatResp.RateHistogram, sizeof(unsigned short) * NUM_OF_RATE_INDEXES);
+	memcpy(pRateHistogram, rxStatResp.RateHistogram, sizeof(unsigned short) * SL_WLAN_NUM_OF_RATE_INDEXES);
 
     return 0;
 
@@ -2241,31 +2242,31 @@ int RadioGetStats(unsigned int *validPackets, unsigned int *fcsPackets,unsigned 
 
 int Cmd_RadioGetStats(int argc, char*argv[])
 {
-	unsigned int valid_packets, fcs_packets, plcp_packets;
+	unsigned int valid_packets, fcs_packets;//, plcp_packets;
 	int16_t avg_rssi_mgmt, avg_rssi_other;
 	uint16_t * rssi_histogram;
 	uint16_t * rate_histogram;
 	int i;
 
-	rssi_histogram = (uint16_t*)pvPortMalloc(sizeof(unsigned short) * SIZE_OF_RSSI_HISTOGRAM);
-	rate_histogram = (uint16_t*)pvPortMalloc(sizeof(unsigned short) * NUM_OF_RATE_INDEXES);
+	rssi_histogram = (uint16_t*)pvPortMalloc(sizeof(unsigned short) * SL_WLAN_SIZE_OF_RSSI_HISTOGRAM);
+	rate_histogram = (uint16_t*)pvPortMalloc(sizeof(unsigned short) * SL_WLAN_NUM_OF_RATE_INDEXES);
 	assert(rssi_histogram);
 	assert(rate_histogram);
 
-	RadioGetStats(&valid_packets, &fcs_packets, &plcp_packets, &avg_rssi_mgmt, &avg_rssi_other, rssi_histogram, rate_histogram);
+	RadioGetStats(&valid_packets, &fcs_packets,/* &plcp_packets,*/ &avg_rssi_mgmt, &avg_rssi_other, rssi_histogram, rate_histogram);
 
 	LOGI( "valid_packets %d\n", valid_packets );
 	LOGI( "fcs_packets %d\n", fcs_packets );
-	LOGI( "plcp_packets %d\n", plcp_packets );
+	//LOGI( "plcp_packets %d\n", plcp_packets );
 	LOGI( "avg_rssi_mgmt %d\n", avg_rssi_mgmt );
 	LOGI( "acg_rssi_other %d\n", avg_rssi_other );
 
 	LOGI("rssi histogram\n");
-	for (i = 0; i < SIZE_OF_RSSI_HISTOGRAM; ++i) {
+	for (i = 0; i < SL_WLAN_SIZE_OF_RSSI_HISTOGRAM; ++i) {
 		LOGI("%d\n", rssi_histogram[i]);
 	}
 	LOGI("rate histogram\n");
-	for (i = 0; i < NUM_OF_RATE_INDEXES; ++i) {
+	for (i = 0; i < SL_WLAN_NUM_OF_RATE_INDEXES; ++i) {
 		LOGI("%d\n", rate_histogram[i]);
 	}
 
@@ -2306,12 +2307,12 @@ int RadioStopTX(RadioTxMode_e eTxMode)
 2) Preamble type
 3) CW	*/
 //int32_t RadioStartTX(RadioTxMode_e eTxMode, RadioPowerLevel_e ePowerLevel, Channel_e eChannel, RateIndex_e eRate, RadioPreamble_e ePreamble, RadioDataPattern_e eDataPattern, uint16_t size, uint32_t delay, uint8_t * pDstMac)
-int32_t RadioStartTX(RadioTxMode_e eTxMode, uint8_t powerLevel_Tone, int eChannel, SlRateIndex_e eRate, RadioPreamble_e ePreamble, RadioDataPattern_e eDataPattern, uint16_t size, uint32_t delay_amount, uint8_t overrideCCA, uint8_t * pDstMac)
+int32_t RadioStartTX(RadioTxMode_e eTxMode, uint8_t powerLevel_Tone, int eChannel, SlWlanRateIndex_e eRate, RadioPreamble_e ePreamble, RadioDataPattern_e eDataPattern, uint16_t size, uint32_t delay_amount, uint8_t overrideCCA, uint8_t * pDstMac)
 {
 	uint16_t loopIdx;
 	int32_t length;
 	uint32_t numberOfFrames = delay_amount;
-	uint8_t pConfigLen = SL_BSSID_LENGTH;
+	uint16_t pConfigLen = SL_WLAN_BSSID_LENGTH;
 	CurrentTxMode = (uint8_t) eTxMode;
 	int32_t minDelay;
 	uint8_t * DataFrame = (uint8_t*)pvPortMalloc( FRAME_SIZE );
@@ -2344,9 +2345,9 @@ int32_t RadioStartTX(RadioTxMode_e eTxMode, uint8_t powerLevel_Tone, int eChanne
 				memset(DataFrame, 0, sizeof(DataFrame));
 		}
 
-		sl_NetCfgGet(SL_MAC_ADDRESS_GET, NULL,&pConfigLen, &TemplateFrame[TA_OFFSET]);
-		memcpy(&TemplateFrame[RA_OFFSET], pDstMac, SL_BSSID_LENGTH);
-		memcpy(&TemplateFrame[DA_OFFSET], pDstMac, SL_BSSID_LENGTH);
+		sl_NetCfgGet(SL_NETCFG_MAC_ADDRESS_GET, NULL,&pConfigLen, &TemplateFrame[TA_OFFSET]);
+		memcpy(&TemplateFrame[RA_OFFSET], pDstMac, SL_WLAN_BSSID_LENGTH);
+		memcpy(&TemplateFrame[DA_OFFSET], pDstMac, SL_WLAN_BSSID_LENGTH);
 
 		memcpy(DataFrame, TemplateFrame, sizeof(TemplateFrame));
 
@@ -2375,7 +2376,7 @@ int32_t RadioStartTX(RadioTxMode_e eTxMode, uint8_t powerLevel_Tone, int eChanne
 			{
                             /* transmit the frame */
 							minDelay = (delay_amount%50);
-                            length = sl_Send(rawSocket, DataFrame, size, SL_RAW_RF_TX_PARAMS(eChannel, eRate, powerLevel_Tone, ePreamble));
+                            length = sl_Send(rawSocket, DataFrame, size, SL_WLAN_RAW_RF_TX_PARAMS(eChannel, eRate, powerLevel_Tone, ePreamble));
                             //UtilsDelay((delay_amount*CPU_CYCLES_1MSEC)/12);
                             xDelay= minDelay / portTICK_RATE_MS;
                             vTaskDelay(xDelay);
@@ -2410,7 +2411,7 @@ int32_t RadioStartTX(RadioTxMode_e eTxMode, uint8_t powerLevel_Tone, int eChanne
 	{
 		sl_SetSockOpt(rawSocket, SL_SOL_PHY_OPT, SL_SO_PHY_NUM_FRAMES_TO_TX, &numberOfFrames, sizeof(uint32_t));
 
-		sl_Send(rawSocket, DataFrame, size, SL_RAW_RF_TX_PARAMS(eChannel, eRate, powerLevel_Tone, ePreamble));
+		sl_Send(rawSocket, DataFrame, size, SL_WLAN_RAW_RF_TX_PARAMS(eChannel, eRate, powerLevel_Tone, ePreamble));
 
 	}
 
@@ -2435,7 +2436,7 @@ int Cmd_RadioStartTX(int argc, char*argv[])
 	RadioTxMode_e mode;
 	uint8_t pwrlvl;
 	int chnl;
-	SlRateIndex_e rate;
+	SlWlanRateIndex_e rate;
 	RadioPreamble_e preamble;
 	RadioDataPattern_e datapattern;
 	uint16_t size;
@@ -2457,7 +2458,7 @@ int Cmd_RadioStartTX(int argc, char*argv[])
 	mode = (RadioTxMode_e)atoi(argv[1]);
 	pwrlvl = atoi(argv[2]);
 	chnl = atoi(argv[3]);
-	rate = (SlRateIndex_e)atoi(argv[4]);
+	rate = (SlWlanRateIndex_e)atoi(argv[4]);
 	preamble = (RadioPreamble_e)atoi(argv[5]);
 	datapattern = (RadioDataPattern_e)atoi(argv[6]);
 	size = atoi(argv[7]);
