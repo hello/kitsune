@@ -271,8 +271,8 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		DISP("\r\n===========\r\n");
 		hlo_stream_t * aud = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE, 64,HLO_AUDIO_PLAYBACK);
 			DISP("Playback Audio\r\n");
+			output = hlo_stream_sr_cnv( output, UPSAMPLE );
 			//hlo_filter_adpcm_decoder(output,aud,NULL,NULL);
-			aud = hlo_stream_sr_cnv( aud, UPSAMPLE );
 
 			int ret;
 			while(1){
@@ -280,12 +280,6 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 				if(ret < 0){
 					break;
 				}
-
-				if( hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, sizeof(samples), 4) < 0 ) {
-					DISP("BREAK\r\n");
-					break;
-				}
-
 				BREAK_ON_SIG(signal);
 			}
 			DISP("\r\n===========\r\n");
@@ -389,8 +383,6 @@ static int _read_nn_stream(void * ctx, void * buf, size_t size){
 	nn_keyword_ctx_t * nn = (nn_keyword_ctx_t*)ctx;
 	if(nn->keyword_detected == 1){
 		return hlo_stream_read(nn->base, buf, size);
-	} else if(nn->keyword_detected == 2){
-			return HLO_STREAM_EOF;
 	}else{
 		int16_t samples[160];
 		int ret = hlo_stream_transfer_all(FROM_STREAM, nn->base, (uint8_t*)samples, sizeof(samples), 4);
@@ -508,7 +500,6 @@ void ble_proto_led_init();
 
 void AudioControlTask(void * unused) {
 	audio_sig_stop = 0;
-	hlo_filter f = hlo_filter_data_transfer;
 	int ret;
 	bool started = false;
 

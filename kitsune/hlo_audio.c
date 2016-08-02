@@ -465,7 +465,7 @@ static int _read_energy(void * ctx, void * buf, size_t size){
 							&& stream->lp <= 100)
 							||stream->ctr_tot > NSAMPLES*800)  ){
 				//DISP("\n") ;
-				*stream->brk = true;
+				return HLO_STREAM_EOF;
 			}
 			stream->ctr = 0;
 			stream->eng = 0;
