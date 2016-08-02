@@ -398,6 +398,24 @@ int global_filename(char * local_fn)
 // Audio = $a46000
 //
 //*****************************************************************************
+
+char* strsep( char** stringp, const char* delim )
+  {
+  char* result;
+
+  if ((stringp == NULL) || (*stringp == NULL)) return NULL;
+
+  result = *stringp;
+
+  while (**stringp && !strchr( delim, **stringp )) ++*stringp;
+
+  if (**stringp) *(*stringp)++ = '\0';
+  else             *stringp    = NULL;
+
+  return result;
+  }
+
+
 #include "hlo_pipe.h"
 #include "hlo_audio.h"
 #include "fs_utils.h"
@@ -407,16 +425,17 @@ int global_filename(char * local_fn)
 #define BUF_SIZE 64
 hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 	hlo_stream_t * rstr = NULL;
+	char * s = str+1;
+	char * p;
 	if(input){//input
-		if(str[0] == '$'){
-			do {
-			switch(str[1]){
+		while(p = strsep (&s,"$")) {
+			switch(p[0]){
 				case 'a':
 				case 'A':
 				{
 					int opt_rate = 0;
-					if(str[2] != '\0'){
-						opt_rate = ustrtoul(&str[2],NULL, 10);
+					if(p[1] != '\0'){
+						opt_rate = ustrtoul(p+1,NULL, 10);
 					}
 					DISP("Input Opt rate is %d\r\n", opt_rate);
 					if(opt_rate){
@@ -435,8 +454,10 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 					rstr = hlo_stream_en( rstr, NULL );
 					break;
 				case 'c':
+					rstr = hlo_stream_sr_cnv( rstr, DOWNSAMPLE );
+					break;
 				case 'C':
-					rstr = hlo_stream_sr_cnv( rstr );
+					rstr = hlo_stream_sr_cnv( rstr, UPSAMPLE );
 					break;
 				case 'l':
 				case 'L':
@@ -448,65 +469,64 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 					break;
 				case 'i':
 				case 'I':
-					return hlo_http_get(&str[2]);
+					rstr =  hlo_http_get(p+1);
+					break;
+				case 'f':
+				case 'F':
+					global_filename(p+1);
+					if(input > 1){//repeating mode
+						rstr =  fs_stream_open_media(path_buff, -1);
+					} else {
+						rstr = fs_stream_open(path_buff, HLO_STREAM_READ);
+					}
+					break;
 				case '~':
-					return open_serial_flash(&str[2], HLO_STREAM_READ);
+					rstr = open_serial_flash(p+1, HLO_STREAM_READ);
+					break;
 				default:
 					LOGE("stream missing\n");
 					break;
-				}
-			} while( '$' == *(str+=2) );
-		}else{//try file
-			global_filename(str);
-			if(input > 1){//repeating mode
-				return fs_stream_open_media(path_buff, -1);
 			}
-			return fs_stream_open(path_buff, HLO_STREAM_READ);
 		}
 	}else{//output
-		do {
-			if(str[0] == '$'){
-				switch(str[1]){
+		while(p = strsep (&s,"$")) {
+			switch(str[1]){
 				case 'a':
 				case 'A':
 				{
 					int opt_rate = 0;
 					if(str[2] != '\0'){
-						opt_rate = ustrtoul(&str[2],NULL, 10);
+						opt_rate = ustrtoul(p+1,NULL, 10);
 					}
 					DISP("Output Opt rate is %d\r\n", opt_rate);
 					if(opt_rate){
-						rstr = hlo_audio_open_mono(opt_rate,55,HLO_AUDIO_PLAYBACK);
+						rstr = hlo_audio_open_mono(opt_rate,30,HLO_AUDIO_PLAYBACK);
 					}else{
-						rstr = hlo_audio_open_mono(48000,55,HLO_AUDIO_PLAYBACK);
+						rstr = hlo_audio_open_mono(48000,30,HLO_AUDIO_PLAYBACK);
 					}
 				}
 				break;
 				case 'i':
 				case 'I':
-					rstr = hlo_http_post(&str[2], NULL);
+					rstr = hlo_http_post(p+1, NULL);
 					break;
 				case 'o':
 				case 'O':
 					rstr = uart_stream();
 					break;
 				case '~':
-					rstr = open_serial_flash(&str[2], HLO_STREAM_WRITE);
+					rstr = open_serial_flash(p+1, HLO_STREAM_WRITE);
 					break;
-				case 'c':
-				case 'C':
-					rstr = hlo_stream_sr_cnv( rstr );
+				case 'f':
+				case 'F':
+					global_filename(p+1);
+					rstr = fs_stream_open(path_buff, HLO_STREAM_WRITE);
 					break;
 				default:
-					return random_stream_open();
-
+					rstr = random_stream_open();
 				}
-			}else{//try file, TODO make it append
-				global_filename(str);
-				return fs_stream_open(path_buff, HLO_STREAM_WRITE);
 			}
-		} while( '$' == *(str+=2) );
-	}
+		}
 	return rstr;
 }
 int
