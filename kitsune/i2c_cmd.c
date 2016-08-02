@@ -875,6 +875,8 @@ int cmd_codec(int argc, char *argv[]) {
 		cmd[1] = atoi(argv[4]);
 		I2C_IF_Write(Codec_addr, cmd, 2, 1);
 	}
+
+	return 0;
 }
 
 static void codec_sw_reset(void)
