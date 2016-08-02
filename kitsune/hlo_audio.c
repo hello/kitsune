@@ -343,12 +343,12 @@ typedef struct{
 }sr_cnv_stream_t;
 
 
-//assumes array s is 2n elements long
+//assumes array s is 2n+1 elements long
 static void _upsample( int16_t * s, int n) {
 	int i;
 	for(i=n-1;i!=-1;--i) {
-		s[i*2] = s[i];
-		s[i*2+1] = s[i];
+		s[i*2]   = s[i];// i == 0 ? s[i] : (s[i-1]+s[i])/2;
+		s[i*2+1] = s[i];//(s[i]+s[i+1])/2;;
 	}
 }
 
@@ -357,29 +357,6 @@ static void _downsample( int16_t * s, int n) {
 	int i;
 	for(i=0;i<n/2;++i) {
 		s[i] = ((int32_t)s[i*2]+s[i*2+1])/2;
-	}
-}
-
-//write goes 32->16Khz so like so `x $a $i$c` (flip reverses so 16->32  `x $i $a$c` )
-static int _write_sr_cnv(void * ctx, const void * buf, size_t size){
-	sr_cnv_stream_t * stream = (sr_cnv_stream_t*)ctx;
-	int16_t * i16buf = (int16_t*)buf;
-
-	if( stream->flip ) {
-		int isize = size / sizeof(int16_t);
-		_upsample(i16buf, isize/2); //discard half...
-
-		int ret = hlo_stream_transfer_all(INTO_STREAM, stream->base, (uint8_t*)buf, size, 4);
-		if( ret < 0 ) return ret/2;
-	} else {
-		int isize = size / sizeof(int16_t);
-		_downsample(i16buf, isize);
-		//DISP("cnv writing %d\n", size/2 ) ;
-		int ret = hlo_stream_transfer_all(INTO_STREAM, stream->base, (uint8_t*)i16buf, size/2, 4);
-		if( ret > 0 ) {
-			return ret*2;
-		}
-		return ret;
 	}
 }
 
@@ -420,7 +397,7 @@ static int _close_sr_cnv(void * ctx){
 }
 hlo_stream_t * hlo_stream_sr_cnv( hlo_stream_t * base, bool flip ){
 	hlo_stream_vftbl_t functions = (hlo_stream_vftbl_t){
-		.write = _write_sr_cnv,
+		.write = NULL,
 		.read = _read_sr_cnv,
 		.close = _close_sr_cnv,
 	};
@@ -436,7 +413,7 @@ hlo_stream_t * hlo_stream_sr_cnv( hlo_stream_t * base, bool flip ){
 	stream->base = base;
 	DISP("open cnv\n" ) ;
 
-	return hlo_stream_new(&functions, stream, HLO_STREAM_READ_WRITE);
+	return hlo_stream_new(&functions, stream, HLO_STREAM_READ);
 }
 
 
