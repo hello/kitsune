@@ -389,6 +389,12 @@ static int _read_sr_cnv(void * ctx, void * buf, size_t size){
 	int16_t * i16buf = (int16_t*)buf;
 
 	if( stream->flip ) {
+		if( size == 1 ) {
+			return 1;
+		}
+		if( size % 2 ) {
+			size -=1;
+		}
 		int ret = hlo_stream_transfer_all(FROM_STREAM, stream->base, (uint8_t*)buf, size, 4);
 		if( ret < 0 ) return ret;
 
