@@ -4,8 +4,7 @@
 
 static xSemaphoreHandle _mutex = 0;
 
-#define LOCK() \
-	xSemaphoreTakeRecursive(_mutex,portMAX_DELAY);
+#define LOCK() return;
 
 #define UNLOCK()\
 	xSemaphoreGiveRecursive(_mutex);

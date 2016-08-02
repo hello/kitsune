@@ -232,6 +232,7 @@ PinMuxConfig(void)
     //i2c on pin 4
     MAP_PinTypeI2C(PIN_04, PIN_MODE_5);
 
+#if 0
 	//DVT uses camera clock for codec's master clock
 	MAP_PRCMPeripheralClkEnable(PRCM_CAMERA, PRCM_RUN_MODE_CLK);
 	HWREG(0x44025000) = 0x0000;
@@ -240,6 +241,7 @@ PinMuxConfig(void)
 	// Configure PIN_02 for CAMERA0 CAM_pXCLK
     PinModeSet(PIN_02,PIN_MODE_4);
     PinConfigSet(PIN_02,PIN_STRENGTH_6MA|PIN_STRENGTH_2MA|PIN_STRENGTH_4MA,PIN_TYPE_STD);
+#endif
 
     //
     // Configure PIN_03 for MCASP0 McACLK

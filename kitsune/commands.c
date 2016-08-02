@@ -2104,7 +2104,7 @@ void vUARTTask(void *pvParameters) {
 	antsel(get_default_antenna());
 
 	// Set connection policy to Auto, fast
-	sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION, SL_WLAN_CONNECTION_POLICY(1, 1, 0, 0), NULL, 0);
+	sl_WlanPolicySet(SL_WLAN_POLICY_CONNECTION, SL_WLAN_CONNECTION_POLICY(0, 0, 0, 0), NULL, 0);
 
 	UARTprintf("*");
 
@@ -2120,14 +2120,9 @@ void vUARTTask(void *pvParameters) {
 	// SDCARD INITIALIZATION
 	// Enable MMCHS, Reset MMCHS, Configure MMCHS, Configure card clock, mount
 	hello_fs_init(); //sets up thread safety for accessing the file system
-	MAP_PRCMPeripheralClkEnable(PRCM_SDHOST, PRCM_RUN_MODE_CLK);
-	MAP_PRCMPeripheralReset(PRCM_SDHOST);
-	MAP_SDHostInit(SDHOST_BASE);
 	// Initialize the DMA Module
 	UDMAInit();
 	//sdhost dma interrupts
-	MAP_SDHostIntRegister(SDHOST_BASE, SDHostIntHandler);
-	MAP_SDHostSetExpClk(SDHOST_BASE, MAP_PRCMPeripheralClockGet(PRCM_SDHOST), 50000000);
 
 	UARTprintf("*");
 	Cmd_mnt(0, 0);
@@ -2166,36 +2161,6 @@ void vUARTTask(void *pvParameters) {
 	CreateDefaultDirectories();
 	load_data_server();
 
-	/*******************************************************************************
-	*           AUDIO INIT START
-	********************************************************************************
-	*/
-
-	// Reset codec
-	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0);
-	vTaskDelay(10);
-	MAP_GPIOPinWrite(GPIOA3_BASE, 0x4, 0x4);
-
-	vTaskDelay(20);
-
-#ifdef CODEC_1P5_TEST
-	codec_test_commands();
-#endif
-
-	// Program codec
-	codec_init();
-
-	// McASP and DMA init
-	InitAudioTxRx(AUDIO_CAPTURE_PLAYBACK_RATE);
-
-	hlo_audio_init();
-
-	// Create audio tasks for playback and record
-	xTaskCreate(AudioPlaybackTask,"playbackTask",1280/4,NULL,4,NULL);
-	xTaskCreate(AudioCaptureTask,"captureTask", (3*1024)/4,NULL,3,NULL);
-
-	xTaskCreate(AudioProcessingTask_Thread,"audioProcessingTask",1*1024/4,NULL,2,NULL);
-
 
 	/*******************************************************************************
 	*           AUDIO INIT END
@@ -2203,11 +2168,6 @@ void vUARTTask(void *pvParameters) {
 	*/
 
 	UARTprintf("*");
-
-	init_download_task( 3072 / 4 );
-
-
-	networktask_init(3 * 1024 / 4);
 
 	load_serial();
 	load_aes();
