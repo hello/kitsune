@@ -430,10 +430,14 @@ hlo_stream_t * hlo_stream_nn_keyword_recognition(hlo_stream_t * base, uint8_t th
 typedef struct{
 	hlo_stream_t * in;
 	hlo_stream_t * out;
+	hlo_stream_signal sig;
 	uint8_t frame_buf[800];
 }mp3_ctx_t;
 static enum mad_flow _mp3_input(void *data, struct mad_stream *stream){
 	mp3_ctx_t * ctx = (mp3_ctx_t*)data;
+	if(ctx->sig && ctx->sig()){
+		return MAD_FLOW_STOP;
+	}
 	//setup default values
 	uint8_t *start = ctx->frame_buf;
 	int stream_bytes_to_read = sizeof(ctx->frame_buf);
@@ -488,6 +492,9 @@ enum mad_flow _mp3_output(void *data,
 		     struct mad_pcm *pcm){
 	//DISP("o %d\r\n", pcm->length);
 	mp3_ctx_t * ctx = (mp3_ctx_t*)data;
+	if(ctx->sig && ctx->sig()){
+		return MAD_FLOW_STOP;
+	}
 	int16_t * i16_samples = (int16_t*)pcm->samples[1];
 	int i;
 	for(i = 0; i < pcm->length; i++){
@@ -528,6 +535,7 @@ int hlo_filter_mp3_decoder(hlo_stream_t * input, hlo_stream_t * output, void * c
 	/* initialize our private message structure */
 	mp3.in = input;
 	mp3.out = output;
+	mp3.sig = signal;
 
 	/* configure input, output, and error functions */
 
