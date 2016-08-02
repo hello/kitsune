@@ -71,7 +71,7 @@ static const control_t control[MAX_CONTROL_BLOCKS] = {
  */
 static int32_t codec_write_cram(control_blocks_t type, uint32_t* data){
 	char send_stop = 1;
-	unsigned char cmd[2];
+	unsigned char cmd[I2C_COEFF_WRITE_LENGTH];
 	uint8_t index;
 
 	if( (type >= MAX_CONTROL_BLOCKS ) || (!data)) return -1;
@@ -87,22 +87,16 @@ static int32_t codec_write_cram(control_blocks_t type, uint32_t* data){
 		assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
 
 		cmd[1] = (data[index] & 0xFF0000UL) >> 16;
-		I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
-		cmd[0]++;
-		cmd[1] = (data[index] & 0xFF00UL) >> 8;
-		I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
-
-		cmd[0]++;
-		cmd[1] = (data[index] & 0xFFUL) >> 0;
-		I2C_IF_Write(Codec_addr, cmd, 2, send_stop);
+		cmd[2] = (data[index] & 0xFF00UL) >> 8;
+		cmd[3] = (data[index] & 0xFFUL) >> 0;
+		I2C_IF_Write(Codec_addr, cmd, 4, send_stop);
 
 		xSemaphoreGiveRecursive(i2c_smphr);
 
 		UARTprintf("CRAM Write: [%d][%d][%d]:%x\n", \
 						control[type].book,control[type].page,cmd[0],data[0]);
 
-		cmd[0]++;
+		cmd[0] += 4;
 
 		vTaskDelay(5);
 	}
@@ -195,7 +189,7 @@ int32_t codec_update_minidsp_mux(control_blocks_t type, uint32_t data){
 
 }
 
-
+// Only for testing
 int32_t codec_test_runtime_prop_update(void){
 
 	static bool switchit = true;
