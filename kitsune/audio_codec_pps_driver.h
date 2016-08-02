@@ -19,13 +19,13 @@ typedef struct{
 
 #if (CODEC_ADC_32KHZ==1)
 #define PLL_P 1
-#define PLL_R 2
-#define PLL_J 17
-#define PLL_D 0UL
+#define PLL_R 1
+#define PLL_J 8
+#define PLL_D 1920UL
 #define NDAC 2
-#define MDAC 22
+#define MDAC 20
 #define NADC 2
-#define MADC 22
+#define MADC 20
 #define DOSR 96UL
 #define AOSR 96UL
 #else
@@ -76,7 +76,7 @@ static const reg_value REG_Section_program[] = {
 //			# reg[0][0][4] = 0x33                        ; ADC_CLKIN = PLL_MCLK, DAC_CLKIN = PLL_MCLK
     {  4,0x33},
 //			# reg[0][0][5] = 0x00                        ; PLL_CLKIN = MCLK1
-    {  5,0x40},
+    {  5,0x00},
 #if (KITSUNE_CODE==1)
 //			# reg[0][0][6] = 0x91                        ; P=1, R=1
     {  6,(1 << 7) | (PLL_P << 4) | (PLL_R << 0)},
