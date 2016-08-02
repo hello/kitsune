@@ -76,9 +76,9 @@ static int32_t codec_write_cram(control_blocks_t type, uint32_t* data){
 
 	if( (type >= MAX_CONTROL_BLOCKS ) || (!data)) return -1;
 
-	codec_set_book(control[type].book);
-
 	codec_set_page(control[type].page);
+
+	codec_set_book(control[type].book);
 
 	cmd[0] = control[type].reg;
 
@@ -115,9 +115,9 @@ static int32_t codec_switch_buffer(uint8_t bank){
 	unsigned char cmd[2];
 	char send_stop = 1;
 
-	codec_set_book(bank);
-
 	codec_set_page(0);
+
+	codec_set_book(bank);
 
 	assert(xSemaphoreTakeRecursive(i2c_smphr, 30000));
 	// Write one to switch buffer
@@ -150,9 +150,9 @@ static int32_t codec_read_cram(control_blocks_t type, uint32_t* data){
 
 	if( (type >= MAX_CONTROL_BLOCKS ) || (!data)) return -1;
 
-	codec_set_book(control[type].book);
-
 	codec_set_page(control[type].page);
+
+	codec_set_book(control[type].book);
 
 	cmd[0] = control[type].reg;
 
@@ -183,10 +183,6 @@ int32_t codec_update_cram(control_blocks_t type, uint32_t* data, codec_cram_rw_t
 		if(ret) return ret;
 	}
 
-#if 1
-	codec_read_cram(type,data);
-#endif
-
 	ret = codec_switch_buffer(control[type].book);
 	if(ret) return ret;
 
@@ -202,8 +198,13 @@ int32_t codec_update_minidsp_mux(control_blocks_t type, uint32_t data){
 
 int32_t codec_test_runtime_prop_update(void){
 
+	static bool switchit = true;
 	uint32_t read_data[10];
 	uint32_t test_data[1] = {(uint32_t)MUX_MIC_RAW_1};
+
+	test_data[0] = (switchit) ? (uint32_t)MUX_MIC_RAW_1 : (uint32_t)MUX_MIC_RAW_2;
+
+	switchit = (switchit) ? false :true;
 
 	codec_update_minidsp_mux(MUX_SELECT_MIC_RAW, test_data[0]);
 
