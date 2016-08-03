@@ -29,7 +29,7 @@
 
 #define SCALE_TO_8_BITS (7)
 
-#define NOMINAL_OFFSET (80)
+#define NOMINAL_OFFSET (140)
 #define OFFSET_ADJUSTMENT_THRESHOLD (45)
 
 //hanning window
