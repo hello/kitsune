@@ -516,8 +516,15 @@ void AudioControlTask(void * unused) {
 			vTaskDelay(1000);
 		}
 
-		hlo_stream_t * in = open_stream_from_path( "$a$c$n",2); // TODO DKH
-		hlo_stream_t * out = open_stream_from_path( "$idev-speech.hello.is/upload/audio?r=16000",0);
+
+		hlo_stream_t * in;
+		in = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE,60,HLO_AUDIO_RECORD);
+		in = hlo_stream_sr_cnv( in, DOWNSAMPLE );
+		in = hlo_stream_nn_keyword_recognition( in, 80 );
+
+
+		hlo_stream_t * out;
+		out = hlo_http_post("dev-speech.hello.is/upload/audio?r=16000", NULL);
 
 		if( !started ) {
 			ble_proto_led_init();
