@@ -20,14 +20,14 @@ typedef struct{
 #if (CODEC_ADC_32KHZ==1)
 #define PLL_P 1
 #define PLL_R 1
-#define PLL_J 6
-#define PLL_D 5536UL
+#define PLL_J 9
+#define PLL_D 112UL
 #define NDAC 2
-#define MDAC 8
+#define MDAC 22
 #define NADC 2
-#define MADC 16
-#define DOSR 384UL
-#define AOSR 192UL
+#define MADC 22
+#define DOSR 96UL
+#define AOSR 96UL
 #else
 #define PLL_P 1
 #define PLL_R 1
@@ -56,10 +56,10 @@ typedef struct{
  *
  */
 
-#define IADC (3072) //((MADC)*(AOSR))
-#define IDAC (3072) //((MDAC)*(DOSR))
+#define IADC (2112) //((MADC)*(AOSR))
+#define IDAC (2112) //((MDAC)*(DOSR))
 
-#define MIC_VOLUME_DB 10
+#define MIC_VOLUME_DB 20
 #define MIC_VOLUME_CONTROL ((MIC_VOLUME_DB)*2)
 #define MUTE_SPK 1
 
@@ -73,7 +73,7 @@ static const reg_value REG_Section_program[] = {
 //			# reg[0][0][4] = 0x33                        ; ADC_CLKIN = PLL_MCLK, DAC_CLKIN = PLL_MCLK
     {  4,0x33},
 //			# reg[0][0][5] = 0x00                        ; PLL_CLKIN = MCLK1
-    {  5,0x00},
+    {  5,0x40},
 #if (KITSUNE_CODE==1)
 //			# reg[0][0][6] = 0x91                        ; P=1, R=1
     {  6,(1 << 7) | (PLL_P << 4) | (PLL_R << 0)},
