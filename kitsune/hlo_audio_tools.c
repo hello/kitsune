@@ -222,8 +222,8 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 	bool light_open = false;
 	bool brk = false;
 
-	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, sizeof(samples), 4)) > 0 ){
-
+	memset(samples, 0xa3, sizeof(samples));
+	while( (ret = hlo_stream_transfer_all(FROM_STREAM, input, (uint8_t*)samples, 320, 4)) > 0 ){ //todo why do I need double?
 		if( !light_open ) {
 			input = hlo_light_stream( input );
 			input = hlo_stream_en( input, &brk );
@@ -239,6 +239,8 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 		if(brk) {
 			break;
 		}
+
+		memset(samples, 0xa3, sizeof(samples));
 	}
 
 	{//now play the swirling thing when we get response
@@ -275,7 +277,7 @@ int hlo_filter_voice_command(hlo_stream_t * input, hlo_stream_t * output, void *
 #else
 	if(ret >= 0 || ret == HLO_STREAM_EOF ){
 		DISP("\r\n===========\r\n");
-		hlo_stream_t * aud = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE, 64,HLO_AUDIO_PLAYBACK);
+		hlo_stream_t * aud = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE, 44,HLO_AUDIO_PLAYBACK);
 			DISP("Playback Audio\r\n");
 			output = hlo_stream_sr_cnv( output, UPSAMPLE );
 			//hlo_filter_adpcm_decoder(output,aud,NULL,NULL);
@@ -390,8 +392,10 @@ static int _read_nn_stream(void * ctx, void * buf, size_t size){
 	if(nn->keyword_detected == 1){
 		return hlo_stream_read(nn->base, buf, size);
 	}else{
-		int16_t samples[160];
-		int ret = hlo_stream_transfer_all(FROM_STREAM, nn->base, (uint8_t*)samples, sizeof(samples), 4);
+		int16_t samples[320]; //todo why do I need double?
+
+		int ret = hlo_stream_transfer_all(FROM_STREAM, nn->base, (uint8_t*)samples, 320, 4);
+
 		if(ret % 2){//alignment error
 			return HLO_STREAM_ERROR;
 		}else if(ret > 0){
