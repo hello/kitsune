@@ -101,7 +101,7 @@ static int32_t codec_write_cram(control_blocks_t type, uint32_t* data){
 		xSemaphoreGiveRecursive(i2c_smphr);
 
 		UARTprintf("CRAM Write: [%d][%d][%d]:%x\n", \
-						control[type].book,control[type].page,cmd[0],data[0]);
+						control[type].book,control[type].page,cmd[0],data[index]);
 
 		cmd[0] += 4;
 
@@ -134,8 +134,11 @@ static int32_t codec_switch_buffer(uint8_t bank){
 		I2C_IF_Read(Codec_addr, &cmd[1], 1);
 		xSemaphoreGiveRecursive(i2c_smphr);
 
+		vTaskDelay(5);
+
+#if 0
 		UARTprintf("Switch: [%d][%d][%d]: %x\n",bank, 0, cmd[0], cmd[1]);
-		vTaskDelay(1000);
+#endif
 	}while(cmd[1] & 0x1);
 
 
@@ -167,8 +170,10 @@ static int32_t codec_read_cram(control_blocks_t type, uint32_t* data){
 
 		data[index] = ((uint32_t)cmd[1] << 16) | ((uint32_t)cmd[2] << 8) | ((uint32_t)cmd[3] << 0);
 
+#if 0
 		UARTprintf("CRAM Read: [%d][%d][%d]:%x\n", \
-				control[type].book,control[type].page,cmd[0],data[0]);
+				control[type].book,control[type].page,cmd[0],data[index]);
+#endif
 
 	}
 	return 0;
@@ -176,13 +181,15 @@ static int32_t codec_read_cram(control_blocks_t type, uint32_t* data){
 
 /*
  * Note: CRAM write is done twice (before and after switching buffers).
- * According to this source http://www.ti.com/lit/an/slaa404c/slaa404c.pdf,
- * it is because
+ * According to the source http://www.ti.com/lit/an/slaa404c/slaa404c.pdf,
  * 		"This step ensures that both buffers are synchronized."
  */
 int32_t codec_update_cram(control_blocks_t type, uint32_t* data, codec_cram_rw_t rw){
 
 	int32_t ret = 0;
+
+	if( (type >= MAX_CONTROL_BLOCKS ) || (!data)) return -1;
+
 	cram_rw_t *func = (rw == codec_cram_read) ? codec_read_cram : codec_write_cram;
 
 	if(rw == codec_cram_write){
