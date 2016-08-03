@@ -1965,6 +1965,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "p", Cmd_AudioPlayback, ""},
 		{ "getoct",Cmd_get_octogram,""},
 		{ "aon",Cmd_audio_turn_on,""},
+		{ "mictest", Cmd_mic_test,""},
 #if 0
 		{ "mode", Cmd_mode, "" }, //set the ap/station mode
 

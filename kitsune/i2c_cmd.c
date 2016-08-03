@@ -1298,3 +1298,8 @@ static int codec_after_init_test(void){
 
 	return 0;
 }
+
+int Cmd_mic_test(int argc, char * argv[]){
+
+	return 0;
+}
