@@ -174,6 +174,12 @@ static int32_t codec_read_cram(control_blocks_t type, uint32_t* data){
 	return 0;
 }
 
+/*
+ * Note: CRAM write is done twice (before and after switching buffers).
+ * According to this source http://www.ti.com/lit/an/slaa404c/slaa404c.pdf,
+ * it is because
+ * 		"This step ensures that both buffers are synchronized."
+ */
 int32_t codec_update_cram(control_blocks_t type, uint32_t* data, codec_cram_rw_t rw){
 
 	int32_t ret = 0;
