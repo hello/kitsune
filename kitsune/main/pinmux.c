@@ -235,7 +235,7 @@ PinMuxConfig(void)
 	//DVT uses camera clock for codec's master clock
 	MAP_PRCMPeripheralClkEnable(PRCM_CAMERA, PRCM_RUN_MODE_CLK);
 	HWREG(0x44025000) = 0x0000;
-	MAP_CameraXClkConfig(CAMERA_BASE, 120000000ul,15000000ul); // 12MHz
+	MAP_CameraXClkConfig(CAMERA_BASE, 120000000ul,4000000ul); // 12MHz
 
 	// Configure PIN_02 for CAMERA0 CAM_pXCLK
     PinModeSet(PIN_02,PIN_MODE_4);
