@@ -1,8 +1,6 @@
 #include <stdint.h>
 #include "codec_debug_config.h"
 
-#define Codec_addr 					(0x18U)
-
 //INSTRUCTIONS & COEFFICIENTS
 typedef struct{
     uint8_t reg_off;

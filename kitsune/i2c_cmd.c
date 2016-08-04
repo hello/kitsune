@@ -23,9 +23,6 @@
 #include "stdbool.h"
 
 #include "codec_debug_config.h"
-#include "audio_codec_pps_driver.h"
-
-#include "codec_runtime_update.h"
 
 #define MAX_MEASURE_TIME			10
 
@@ -38,7 +35,7 @@
 									  	  return  iRetVal;}
 #define BUF_SIZE 					2
 
-
+#define Codec_addr 					(0x18U)
 
 #define DELAY_CODEC 				5 // TODO set arbitrarily, might need to be adjusted
 
@@ -868,6 +865,8 @@ static void codec_speaker_config(void);
 #endif
 
 static void codec_sw_reset(void);
+static void codec_set_page(uint32_t page);
+static void codec_set_book(uint32_t book);
 
 #if (CODEC_BEEP_GENERATOR==1)
 static void beep_gen(void);
@@ -948,7 +947,7 @@ static void codec_sw_reset(void)
 	vTaskDelay(delay);
 }
 
-void codec_set_page(uint32_t page)
+static void codec_set_page(uint32_t page)
 {
 	char send_stop = 1;
 	unsigned char cmd[2];
@@ -964,7 +963,7 @@ void codec_set_page(uint32_t page)
 	}
 }
 
-void codec_set_book(uint32_t book)
+static void codec_set_book(uint32_t book)
 {
 	char send_stop = 1;
 	unsigned char cmd[2];
@@ -1022,7 +1021,6 @@ int32_t codec_test_commands(void)
 
 		xSemaphoreGiveRecursive(i2c_smphr);
 	}
-
 
 	return 0;
 
@@ -1083,7 +1081,7 @@ void codec_unmute_spkr(void)
 #if (CODEC_USE_MINIDSP == 1)
 
 #if (CODEC_PPS_FROM_ARRAY == 1)
-
+#include "audio_codec_pps_driver.h"
 int32_t codec_init_with_dsp(void)
 {
 	uint32_t i;
@@ -1170,18 +1168,6 @@ int32_t codec_init_with_dsp(void)
 
 	vTaskDelay(100);
 
-	codec_test_runtime_prop_update();
-#if 0
-	/*
-	 * TESTING RUNTIME PROPERTIES
-	 */
-	codec_update_minidsp_mux(MUX_SELECT_MIC_RAW,MUX_MIC_RAW_1);
-	codec_update_minidsp_mux(MUX_SELECT_AEC_INPUT,MUX_AEC_INPUT_BEAM_1);
-	codec_update_minidsp_mux(MUX_SELECT_AEC_LEVEL,MUX_AEC_LEVEL_2);
-	codec_update_minidsp_mux(MUX_SELECT_CH4_OUT,MUX_CH4_SELECT_AEC_OUT);
-#endif
-
-	vTaskDelay(100);
 #if 0
 
 	//	w 30 00 00 # Select Page 0
