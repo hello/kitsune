@@ -222,7 +222,8 @@ static push_memory_queue(void * new){
 	}
 }
 
-int play_led_trippy(uint8_t trippy_base[3], uint8_t trippy_range[3], unsigned int timeout, unsigned int delay, unsigned int fade ){
+int play_led_trippy(uint8_t trippy_base[3], uint8_t trippy_range[3], unsigned int timeout, unsigned int delay, unsigned int fade ){	return 0;
+
 	int ret;
 	user_animation_t anim = (user_animation_t){
 		.handler = _animate_trippy,
@@ -247,6 +248,7 @@ int play_led_trippy(uint8_t trippy_base[3], uint8_t trippy_range[3], unsigned in
 
 }
 int play_led_animation_solid(int a, int r, int g, int b, int repeat, int delay, int priority){
+	return;
 	_animate_solid_ctx * ctx = pvPortMalloc(sizeof(_animate_solid_ctx));
 	int ret;
 
@@ -275,7 +277,8 @@ int play_led_animation_solid(int a, int r, int g, int b, int repeat, int delay, 
 	}
 	return ret;
 }
-int play_led_progress_bar(int r, int g, int b, unsigned int options, unsigned int timeout){
+int play_led_progress_bar(int r, int g, int b, unsigned int options, unsigned int timeout){	return 0;
+
 	int ret;
 	user_animation_t anim = (user_animation_t){
 		.handler = _animate_progress,
@@ -296,7 +299,8 @@ int play_led_progress_bar(int r, int g, int b, unsigned int options, unsigned in
 	xSemaphoreGiveRecursive(led_smphr);
 	return ret;
 }
-int factory_led_test_pattern(unsigned int timeout) {
+int factory_led_test_pattern(unsigned int timeout) {	return 0;
+
 	int ret;
 	static int counter;
 	counter = 0;
@@ -314,7 +318,8 @@ int factory_led_test_pattern(unsigned int timeout) {
 	return ret;
 }
 
-int play_led_wheel(int a, int r, int g, int b, int repeat, int delay, int priority){
+int play_led_wheel(int a, int r, int g, int b, int repeat, int delay, int priority){	return 0;
+
 	int ret;
 	led_color_t color = led_from_rgb(r,g,b);
 	analytics_event( "{led: wheel, color: %08x, alpha: %d}", color, a );
@@ -345,7 +350,8 @@ int play_led_wheel(int a, int r, int g, int b, int repeat, int delay, int priori
 	}
 	return ret;
 }
-int play_modulation(int r, int g, int b, int delay, int priority){
+int play_modulation(int r, int g, int b, int delay, int priority){	return 0;
+
 	_animate_solid_ctx * ctx = pvPortMalloc(sizeof(_animate_solid_ctx));
 	int ret;
 
