@@ -291,7 +291,7 @@ void start_wdt() {
 void mcu_reset();
 #include "kit_assert.h"
 volatile portTickType last_upload_time = 0;
-#define NWP_WATCHDOG_TIMEOUT
+//#define NWP_WATCHDOG_TIMEOUT
 #define ONE_HOUR (1000*60*60)
 #define FIFTEEN_MINUTES (1000*60*15)
 #define TWENTY_FIVE_HOURS (ONE_HOUR*25)

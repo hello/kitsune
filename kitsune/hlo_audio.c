@@ -156,7 +156,7 @@ static int16_t _quad_to_mono(int16_t * samples){
 static int16_t _ez_lpf(int16_t now, int16_t prev){
 	return (int16_t)(((int32_t)now + prev)/2);
 }
-int ch = 2;
+int ch = 1;
 static int _read_record_quad_to_mono(void * ctx, void * buf, size_t size){
 	int i;
 	static int16_t last;
@@ -177,10 +177,14 @@ static int _read_record_quad_to_mono(void * ctx, void * buf, size_t size){
 	//	*iter = _ez_lpf(_select_channel((int16_t*)samples, 3), last);
 	//	*iter = _select_channel((int16_t*)samples, 3);
 
-		if( xTaskGetTickCount() - last_play > 100 ) {
-			*iter = _quad_to_mono((int16_t*)samples);
+		if (ch > 3) {
+			if (xTaskGetTickCount() - last_play > 100) {
+				*iter = _quad_to_mono((int16_t*) samples);
+			} else {
+				*iter = _select_channel((int16_t*) samples, ch);
+			}
 		} else {
-			*iter = _select_channel((int16_t*)samples, ch);
+			*iter = _select_channel((int16_t*) samples, ch);
 		}
 		last = *iter;
 		iter++;
@@ -470,7 +474,7 @@ static int _read_energy(void * ctx, void * buf, size_t size){
 
 			if( stream->brk &&
 					((stream->ctr_tot > NSAMPLES*100
-							&& stream->lp <= 5)
+							&& stream->lp <= 50)
 							||stream->ctr_tot > NSAMPLES*800)  ){
 				//DISP("\n") ;
 				return HLO_STREAM_EOF;

@@ -1868,15 +1868,17 @@ int cmd_ch(int argc, char *argv[]) {
 }
 
 int cmd_codec(int argc, char *argv[]);
+int cmd_confidence(int argc, char *argv[]);
 
 
 int cmd_button(int argc, char *argv[]) {
-
 #define LED_GPIO_BASE_DOUT GPIOA2_BASE
 #define LED_GPIO_BIT_DOUT 0x80
 	bool fast = MAP_GPIOPinRead(LED_GPIO_BASE_DOUT, LED_GPIO_BIT_DOUT);
-
-LOGF("button %d\n", fast);
+	while(1) {
+		LOGF("%d\r", fast);
+		vTaskDelay(100);
+	}
 }
 int Cmd_readlight(int argc, char *argv[]);
 // ==============================================================================
@@ -1887,6 +1889,8 @@ tCmdLineEntry g_sCmdTable[] = {
 		//    { "cpu",      Cmd_cpu,      "Show CPU utilization" },
 		{ "b",      cmd_button,      " " },
 		{ "v",      cmd_vol,      " " },
+
+	    { "nn",      cmd_confidence,      " " },
 	    { "co",      cmd_codec,      " " },
 
 #if 0
