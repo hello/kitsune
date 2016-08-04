@@ -134,11 +134,17 @@ int hlo_filter_adpcm_encoder(hlo_stream_t * input, hlo_stream_t * output, void *
 }
 ////-------------------------------------------
 // Simple data transfer filter
+#include "codec_runtime_update.h"
 int hlo_filter_data_transfer(hlo_stream_t * input, hlo_stream_t * output, void * ctx, hlo_stream_signal signal){
 	uint8_t buf[512];
 	int ret;
 	while(1){
 		ret = hlo_stream_transfer_between(input,output,buf,sizeof(buf),4);
+
+#if 0
+		codec_test_runtime_prop_update();
+#endif
+
 		if(ret < 0){
 			break;
 		}
