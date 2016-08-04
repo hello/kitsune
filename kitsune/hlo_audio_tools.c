@@ -502,6 +502,11 @@ AudioState get_audio_state();
 
 void ble_proto_led_init();
 
+static volatile int confidence = 70;
+int cmd_confidence(int argc, char *argv[]) {
+	confidence = atoi(argv[1]);
+	return 0;
+}
 void AudioControlTask(void * unused) {
 	audio_sig_stop = 0;
 	int ret;
@@ -520,7 +525,7 @@ void AudioControlTask(void * unused) {
 		hlo_stream_t * in;
 		in = hlo_audio_open_mono(AUDIO_CAPTURE_PLAYBACK_RATE,60,HLO_AUDIO_RECORD);
 		in = hlo_stream_sr_cnv( in, DOWNSAMPLE );
-		in = hlo_stream_nn_keyword_recognition( in, 80 );
+		in = hlo_stream_nn_keyword_recognition( in, confidence );
 
 
 		hlo_stream_t * out;

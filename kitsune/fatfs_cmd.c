@@ -500,9 +500,9 @@ hlo_stream_t * open_stream_from_path(char * str, uint8_t input){
 					}
 					DISP("Output Opt rate is %d\r\n", opt_rate);
 					if(opt_rate){
-						rstr = hlo_audio_open_mono(opt_rate,44,HLO_AUDIO_PLAYBACK);
+						rstr = hlo_audio_open_mono(opt_rate,50,HLO_AUDIO_PLAYBACK);
 					}else{
-						rstr = hlo_audio_open_mono(48000,44,HLO_AUDIO_PLAYBACK);
+						rstr = hlo_audio_open_mono(48000,50,HLO_AUDIO_PLAYBACK);
 					}
 				}
 				break;
