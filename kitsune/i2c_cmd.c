@@ -1299,6 +1299,11 @@ static int codec_after_init_test(void){
 	return 0;
 }
 
+typedef struct{
+	uint16_t samples[1024];
+	uint32_t average;
+	uint32_t deviation;
+};
 int Cmd_mic_test(int argc, char * argv[]){
 
 	return 0;
