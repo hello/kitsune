@@ -540,11 +540,12 @@ void AudioControlTask(void * unused) {
 
 
 static uint8_t _mic_test_stop(void){
-	static uint8_t mic_count = 2;
+	static uint8_t mic_count = 8;
 	DISP("Mic test count %d\n",mic_count);
 	return (--mic_count == 0);
 }
 
+int32_t mic_test_deviation(void);
 int Cmd_mic_test(int argc, char * argv[]){
 	hlo_filter f = hlo_filter_data_transfer;
 	int ret;
@@ -566,8 +567,10 @@ int Cmd_mic_test(int argc, char * argv[]){
 		ret = f(in,out,NULL, _mic_test_stop);
 	}
 
+	// Compute average and deviation
+	int32_t deviation =  mic_test_deviation();
 
-	LOGI("Stream transfer exited with code %d\r\n", ret);
+	LOGI("Mic test completed with %d\r\n", ret);
 	hlo_stream_close(in);
 	hlo_stream_close(out);
 	return 0;

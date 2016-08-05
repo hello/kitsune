@@ -1299,19 +1299,33 @@ static int codec_after_init_test(void){
 	return 0;
 }
 
+/******************************************************************************
+ * MIC TEST CODE START
+ ******************************************************************************/
+
 typedef struct{
-	uint16_t samples[1024];
 	uint32_t average;
-	uint32_t deviation;
+	int32_t deviation;
+}mic_test_results_t;
+typedef struct{
+	uint16_t samples[1024*4];
+	mic_test_results_t results[4];
+	uint8_t index;
 }mic_test_t;
 
+static mic_test_t mic_test_data;
+
 static int mic_test_write(void * ctx, const void * buf, size_t size){
-	DISP("Mic test write\r\n", size);
+	DISP("Mic test write %d\r\n", size);
+
+	memcpy(&mic_test_data.samples[mic_test_data.index], buf, size);
+
+	mic_test_data.index += size;
 	vTaskDelay(2);
 	return size;
 }
 static int mic_test_read(void * ctx, void * buf, size_t size){
-	DISP("mic test read\r\n", size);
+	DISP("mic test read %d\r\n", size);
 	vTaskDelay(2);
 	return size;
 }
@@ -1321,8 +1335,54 @@ static hlo_stream_vftbl_t mic_test_stream_impl = {
 };
 hlo_stream_t * mic_test_stream_open(void){
 	static hlo_stream_t * mic_test_stream;
+
+	mic_test_data.index = 0;
 	if(!mic_test_stream){
 		mic_test_stream = hlo_stream_new(&mic_test_stream_impl,NULL,HLO_STREAM_READ_WRITE);
 	}
 	return mic_test_stream;
 }
+
+int32_t mic_test_deviation(void)
+{
+	uint32_t index;
+	uint32_t i;
+
+	for(index=0;index<4;index++){
+		mic_test_data.results[index].average = 0;
+	}
+
+	// Compute average
+	for(index=0;index<1024*4;index++){
+		i = index % 4;
+		mic_test_data.results[i].average += mic_test_data.samples[index];
+	}
+
+	for(index=0;index<4;index++){
+		mic_test_data.results[index].average /= 1024;
+		DISP("Average %d: %d\n",index, mic_test_data.results[index].average);
+	}
+
+	for(index=0;index<4;index++){
+		mic_test_data.results[index].deviation = 0;
+	}
+
+	// Compute deviation
+	for(index=0;index<1024*4;index++){
+		i=index%4;
+		mic_test_data.results[i].deviation += abs(((int32_t)mic_test_data.samples[index] - (int32_t)mic_test_data.results[i].average));
+		//DISP("%d - %d = %d\n", mic_test_data.samples[index], mic_test_data.average, mic_test_data.deviation);
+		vTaskDelay(5);
+	}
+
+	for(index=0;index<4;index++){
+		mic_test_data.results[index].deviation /= 1024;
+		DISP("Deviation %d: %d\n",index, mic_test_data.results[index].deviation);
+	}
+
+	return 0;
+}
+/******************************************************************************
+ * MIC TEST CODE END
+ ******************************************************************************/
+
