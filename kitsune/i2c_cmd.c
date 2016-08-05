@@ -1306,19 +1306,19 @@ static int codec_after_init_test(void){
 #define TOTAL_CHANNELS 4
 
 typedef struct{
-	uint32_t average;
+	int32_t average;
 	int32_t deviation;
 }mic_test_results_t;
 typedef struct{
-	uint16_t samples[TEST_SAMPLES_PER_CHANNEL*TOTAL_CHANNELS];
+	int16_t samples[TEST_SAMPLES_PER_CHANNEL*TOTAL_CHANNELS];
 	mic_test_results_t results[TOTAL_CHANNELS];
-	uint8_t index;
+	uint32_t index;
 }mic_test_t;
 
 static mic_test_t mic_test_data;
 
 static int mic_test_write(void * ctx, const void * buf, size_t size){
-	DISP("Mic test write %d\r\n", size);
+	DISP("Mic test write %d, index: %d\r\n", size, mic_test_data.index);
 
 	memcpy(&mic_test_data.samples[mic_test_data.index], buf, size);
 
@@ -1348,7 +1348,7 @@ hlo_stream_t * mic_test_stream_open(void){
 int32_t mic_test_deviation(void)
 {
 	uint32_t index;
-	uint32_t i;
+	uint32_t ch;
 
 	for(index=0;index<TOTAL_CHANNELS;index++){
 		mic_test_data.results[index].average = 0;
@@ -1356,8 +1356,8 @@ int32_t mic_test_deviation(void)
 
 	// Compute average
 	for(index=0;index<TEST_SAMPLES_PER_CHANNEL*TOTAL_CHANNELS;index++){
-		i = index % TOTAL_CHANNELS;
-		mic_test_data.results[i].average += mic_test_data.samples[index];
+		ch = index % TOTAL_CHANNELS;
+		mic_test_data.results[ch].average += mic_test_data.samples[index];
 	}
 
 	for(index=0;index<TOTAL_CHANNELS;index++){
@@ -1371,9 +1371,9 @@ int32_t mic_test_deviation(void)
 
 	// Compute deviation
 	for(index=0;index<TEST_SAMPLES_PER_CHANNEL*TOTAL_CHANNELS;index++){
-		i=index%TOTAL_CHANNELS;
-		mic_test_data.results[i].deviation += abs(((int32_t)mic_test_data.samples[index] - (int32_t)mic_test_data.results[i].average));
-		//DISP("%d - %d = %d\n", mic_test_data.samples[index], mic_test_data.average, mic_test_data.deviation);
+		ch=index%TOTAL_CHANNELS;
+		mic_test_data.results[ch].deviation += abs((mic_test_data.samples[index] - mic_test_data.results[ch].average));
+		// DISP("%d - %d = %d\n", mic_test_data.samples[index], mic_test_data.results[ch].average, mic_test_data.results[ch].deviation);
 		vTaskDelay(5);
 	}
 
