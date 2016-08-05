@@ -537,3 +537,37 @@ void AudioControlTask(void * unused) {
 		vTaskDelay(100);
 	}
 }
+
+
+static uint8_t _mic_test_stop(void){
+	static uint8_t mic_count = 2;
+	return (--mic_count == 0);
+}
+
+int Cmd_mic_test(int argc, char * argv[]){
+	hlo_filter f = hlo_filter_data_transfer;
+	int ret;
+
+#if 0
+	if(argc < 3){
+		LOGI("Usage: x in out [rate] [filter]\r\n");
+		LOGI("Press s to stop the transfer\r\n");
+	}
+	if(argc >= 4){
+		f = _filter_from_string(argv[3]);
+	}
+#endif
+
+	hlo_stream_t * in = open_stream_from_path("$a",2);
+	hlo_stream_t * out = open_stream_from_path("$m",0);
+
+	if(in && out){
+		ret = f(in,out,NULL, _mic_test_stop);
+	}
+
+
+	LOGI("Stream transfer exited with code %d\r\n", ret);
+	hlo_stream_close(in);
+	hlo_stream_close(out);
+	return 0;
+}

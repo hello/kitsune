@@ -1303,8 +1303,26 @@ typedef struct{
 	uint16_t samples[1024];
 	uint32_t average;
 	uint32_t deviation;
-};
-int Cmd_mic_test(int argc, char * argv[]){
+}mic_test_t;
 
-	return 0;
+static int mic_test_write(void * ctx, const void * buf, size_t size){
+	DISP("Wrote %d bytes\r\n", size);
+	vTaskDelay(2);
+	return size;
+}
+static int mic_test_read(void * ctx, void * buf, size_t size){
+	DISP("Read %d bytes\r\n", size);
+	vTaskDelay(2);
+	return size;
+}
+static hlo_stream_vftbl_t mic_test_stream_impl = {
+		.read = mic_test_read,
+		.write = mic_test_write,
+};
+hlo_stream_t * mic_test_stream_open(void){
+	static hlo_stream_t * mic_test_stream;
+	if(!mic_test_stream){
+		mic_test_stream = hlo_stream_new(&mic_test_stream_impl,NULL,HLO_STREAM_READ_WRITE);
+	}
+	return mic_test_stream;
 }
