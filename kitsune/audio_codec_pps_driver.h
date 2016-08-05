@@ -266,6 +266,7 @@ static const reg_value REG_Section_program2[] = {
     { 48,0x21},
 #endif
 #else
+	/*********** DO NOT POWER ON HEADPHONE DRIVER ************/
 //			# reg[0][1][27] = 0x33                       ; reg(0)(1)(0x1B =>27 )     LDAC -> HPL, RDAC -> HPR; Power on HPL + HPR
     { 27,0x33},
 #endif
