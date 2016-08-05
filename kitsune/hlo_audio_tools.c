@@ -538,9 +538,9 @@ void AudioControlTask(void * unused) {
 	}
 }
 
-
+static uint8_t mic_count = 8;
 static uint8_t _mic_test_stop(void){
-	static uint8_t mic_count = 8;
+
 	DISP("Mic test count %d\n",mic_count);
 	return (--mic_count == 0);
 }
@@ -559,6 +559,8 @@ int Cmd_mic_test(int argc, char * argv[]){
 		f = _filter_from_string(argv[3]);
 	}
 #endif
+
+	mic_count = 8;
 
 	hlo_stream_t * in = open_stream_from_path("$a",2);
 	hlo_stream_t * out = open_stream_from_path("$m",0);
