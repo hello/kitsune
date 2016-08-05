@@ -1318,7 +1318,7 @@ typedef struct{
 static mic_test_t mic_test_data;
 
 static int mic_test_write(void * ctx, const void * buf, size_t size){
-	DISP("Mic test write %d, index: %d\r\n", size, mic_test_data.index);
+	// DISP("Mic test write %d, index: %d\r\n", size, mic_test_data.index);
 
 	memcpy(&mic_test_data.samples[mic_test_data.index], buf, size);
 
