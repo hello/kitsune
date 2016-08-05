@@ -1306,12 +1306,12 @@ typedef struct{
 }mic_test_t;
 
 static int mic_test_write(void * ctx, const void * buf, size_t size){
-	DISP("Wrote %d bytes\r\n", size);
+	DISP("Mic test write\r\n", size);
 	vTaskDelay(2);
 	return size;
 }
 static int mic_test_read(void * ctx, void * buf, size_t size){
-	DISP("Read %d bytes\r\n", size);
+	DISP("mic test read\r\n", size);
 	vTaskDelay(2);
 	return size;
 }
