@@ -1302,14 +1302,16 @@ static int codec_after_init_test(void){
 /******************************************************************************
  * MIC TEST CODE START
  ******************************************************************************/
+#define TEST_SAMPLES_PER_CHANNEL 1024
+#define TOTAL_CHANNELS 4
 
 typedef struct{
 	uint32_t average;
 	int32_t deviation;
 }mic_test_results_t;
 typedef struct{
-	uint16_t samples[1024*4];
-	mic_test_results_t results[4];
+	uint16_t samples[TEST_SAMPLES_PER_CHANNEL*TOTAL_CHANNELS];
+	mic_test_results_t results[TOTAL_CHANNELS];
 	uint8_t index;
 }mic_test_t;
 
@@ -1348,35 +1350,35 @@ int32_t mic_test_deviation(void)
 	uint32_t index;
 	uint32_t i;
 
-	for(index=0;index<4;index++){
+	for(index=0;index<TOTAL_CHANNELS;index++){
 		mic_test_data.results[index].average = 0;
 	}
 
 	// Compute average
-	for(index=0;index<1024*4;index++){
-		i = index % 4;
+	for(index=0;index<TEST_SAMPLES_PER_CHANNEL*TOTAL_CHANNELS;index++){
+		i = index % TOTAL_CHANNELS;
 		mic_test_data.results[i].average += mic_test_data.samples[index];
 	}
 
-	for(index=0;index<4;index++){
-		mic_test_data.results[index].average /= 1024;
+	for(index=0;index<TOTAL_CHANNELS;index++){
+		mic_test_data.results[index].average /= TEST_SAMPLES_PER_CHANNEL;
 		DISP("Average %d: %d\n",index, mic_test_data.results[index].average);
 	}
 
-	for(index=0;index<4;index++){
+	for(index=0;index<TOTAL_CHANNELS;index++){
 		mic_test_data.results[index].deviation = 0;
 	}
 
 	// Compute deviation
-	for(index=0;index<1024*4;index++){
-		i=index%4;
+	for(index=0;index<TEST_SAMPLES_PER_CHANNEL*TOTAL_CHANNELS;index++){
+		i=index%TOTAL_CHANNELS;
 		mic_test_data.results[i].deviation += abs(((int32_t)mic_test_data.samples[index] - (int32_t)mic_test_data.results[i].average));
 		//DISP("%d - %d = %d\n", mic_test_data.samples[index], mic_test_data.average, mic_test_data.deviation);
 		vTaskDelay(5);
 	}
 
-	for(index=0;index<4;index++){
-		mic_test_data.results[index].deviation /= 1024;
+	for(index=0;index<TOTAL_CHANNELS;index++){
+		mic_test_data.results[index].deviation /= TEST_SAMPLES_PER_CHANNEL;
 		DISP("Deviation %d: %d\n",index, mic_test_data.results[index].deviation);
 	}
 
