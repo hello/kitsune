@@ -31,15 +31,11 @@
  ********************************************************************************
  */
 typedef enum{
-	DAC_ADAPTIVE_COEFF_BANK1_CONFIG,
-	DAC_ADAPTIVE_COEFF_BANK2_CONFIG,
-	ADC_ADAPTIVE_COEFF_BANK_CONFIG,
 	MUX_SELECT_MIC_RAW,
+	MUX_SELECT_SSL_VS_AEC,
 	MUX_SELECT_AEC_INPUT,
-	MUX_SELECT_AEC_LEVEL,
-	MUX_SELECT_CH4_OUT,
+	MUX_SELECT_AEC_MODE,
 	MAX_CONTROL_BLOCKS
-
 }control_blocks_t;
 
 /*
