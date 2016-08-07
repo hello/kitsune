@@ -231,3 +231,39 @@ int32_t codec_test_runtime_prop_update(void){
 	return 0;
 }
 
+/*
+ * 	MUX_SELECT_MIC_RAW,
+	MUX_SELECT_SSL_VS_AEC,
+	MUX_SELECT_AEC_INPUT,
+	MUX_SELECT_AEC_MODE,
+ *
+ */
+
+#include <string.h>
+#include <stdlib.h>
+int codec_mode_sel(int argc, char *argv[]) {
+	if (strcmp(argv[1],"raw") == 0) {
+		//pipe raw mic through instead of AEC of anything
+		int mic = atoi(argv[2]);
+		codec_update_minidsp_mux(MUX_SELECT_AEC_MODE,1); //turn off AEC
+		codec_update_minidsp_mux(MUX_SELECT_AEC_INPUT,4); //set AEC input to raw mic
+		codec_update_minidsp_mux(MUX_SELECT_MIC_RAW,mic); //select mic we are interested in
+	}
+	else if (strcmp(argv[1],"aec") == 0) {
+		int input = atoi(argv[2]);
+		codec_update_minidsp_mux(MUX_SELECT_AEC_MODE,2); //turn on AEC
+		codec_update_minidsp_mux(MUX_SELECT_AEC_INPUT,input); //set AEC input to input channel (1-3 are beams, 4 is the output of of one of the mics)
+
+		if (argc > 3) {
+			int rawinput = atoi(argv[3]);
+			codec_update_minidsp_mux(MUX_SELECT_MIC_RAW,rawinput); //select mic we are interested in
+		}
+	}
+	else if (strcmp(argv[1],"ssl") == 0) {
+		//turn off AEC output and do sound source localization instead
+		codec_update_minidsp_mux(MUX_SELECT_SSL_VS_AEC,2);
+	}
+
+	return 0;
+}
+

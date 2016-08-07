@@ -99,7 +99,7 @@
 #include "top_board.h"
 #include "long_poll.h"
 #include "filedownloadmanager.h"
-
+#include "codec_runtime_update.h"
 #include "tensor/keyword_net.h"
 
 #define ONLY_AUDIO 0
@@ -1904,6 +1904,7 @@ tCmdLineEntry g_sCmdTable[] = {
 		{ "hwver", Cmd_hwver, "" },
 
 		{ "ch", cmd_ch, "" },
+		{ "codec",codec_mode_sel,""},
 
 		{ "fault", Cmd_fault, "" },
 		{ "faults", Cmd_fault_slow, ""},
